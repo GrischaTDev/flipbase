@@ -1,53 +1,190 @@
-<section
-  class="linear-surface space-y-4 rounded-2xl border border-fb-border p-5 shadow-xl"
-  aria-labelledby="account-heading"
->
-  <div class="flex items-center gap-2 border-b border-fb-border pb-2">
-    <svg [lucideIcon]="userIcon" class="h-4 w-4 text-indigo-400" aria-hidden="true"></svg>
-    <h2
-      id="account-heading"
-      class="text-xs font-bold uppercase tracking-wider text-fb-text-primary"
-    >
-      Mein Konto
-    </h2>
-  </div>
-  <form [formGroup]="profileForm" (ngSubmit)="onSaveProfile()" class="space-y-3">
-    <app-text-field
-      id="profile-name"
-      formControlName="fullName"
-      label="Angezeigter Name"
-      [required]="true"
-    />
-    <div>
-      <span class="text-xs font-semibold text-fb-text-secondary">E-Mail-Adresse</span>
-      <p class="font-mono text-xs text-fb-text-secondary">{{ auth.currentUser()?.email || '—' }}</p>
-      <p class="mt-1 text-xs text-fb-text-muted">
-        Die Adresse gehört zur Anmeldung und lässt sich hier nicht ändern.
-      </p>
-    </div>
-    <div class="flex justify-end">
-      <button
-        type="submit"
-        [disabled]="profileForm.invalid || isSavingProfile()"
-        class="linear-btn-primary min-h-11 rounded-xl px-4 text-xs font-bold disabled:opacity-40"
+<div class="space-y-4">
+  <app-card title="Profil" subtitle="Deine persönlichen Kontodaten." padding="lg" rounded="xl">
+    <div class="flex flex-col gap-5 sm:flex-row sm:items-start">
+      <div
+        data-account-avatar
+        class="flex size-14 shrink-0 items-center justify-center rounded-full border border-fb-line bg-fb-well text-base font-semibold text-fb-text-primary"
+        aria-hidden="true"
       >
-        {{ isSavingProfile() ? 'Speichere...' : 'Namen speichern' }}
-      </button>
+        {{ initials() }}
+      </div>
+
+      <div class="min-w-0 flex-1">
+        <div>
+          <p class="text-sm font-semibold text-fb-text-primary">
+            {{ auth.userName() || 'Profil' }}
+          </p>
+          <p class="mt-0.5 break-all text-xs text-fb-text-muted">
+            {{ accountEmail() }}
+          </p>
+        </div>
+
+        <form [formGroup]="profileForm" (ngSubmit)="onSaveProfile()" class="mt-5 space-y-4">
+          <app-text-field
+            id="profile-name"
+            formControlName="fullName"
+            label="Angezeigter Name"
+            [required]="true"
+            autocomplete="name"
+          />
+
+          <div class="flex justify-end">
+            <app-button
+              type="submit"
+              variant="primary"
+              size="md"
+              [disabled]="profileForm.invalid || isSavingProfile()"
+              [loading]="isSavingProfile()"
+            >
+              {{ isSavingProfile() ? 'Speichere...' : 'Änderungen speichern' }}
+            </app-button>
+          </div>
+        </form>
+      </div>
     </div>
-  </form>
-  <div class="space-y-2 border-t border-fb-border pt-3">
-    <p class="text-xs text-fb-text-muted">
-      Gerät verloren oder auf einem fremden Rechner angemeldet geblieben? Damit werden sofort alle
-      Sitzungen beendet.
-    </p>
-    <button
-      type="button"
-      (click)="onSignOutEverywhere()"
-      [disabled]="isSigningOutEverywhere()"
-      class="inline-flex min-h-11 items-center gap-2 rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 text-xs font-bold text-rose-300 disabled:opacity-40"
+  </app-card>
+
+  <app-card title="Sicherheit" subtitle="Passwort und Kontoschutz." padding="none" rounded="xl">
+    <div class="divide-y divide-fb-line">
+      <div
+        class="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between md:px-5"
+      >
+        <div class="min-w-0">
+          <p class="text-[13px] font-semibold text-fb-text-primary">Passwort</p>
+          <p class="mt-0.5 text-xs text-fb-text-muted">
+            Ändere dein Passwort nach erneuter Bestätigung deiner Anmeldung.
+          </p>
+        </div>
+        <app-button variant="secondary" size="md" [icon]="keyIcon" (clicked)="openPasswordModal()">
+          Passwort ändern
+        </app-button>
+      </div>
+
+      <div
+        class="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between md:px-5"
+      >
+        <div class="min-w-0">
+          <p class="text-[13px] font-semibold text-fb-text-primary">
+            Zwei-Faktor-Authentifizierung
+          </p>
+          <p class="mt-0.5 text-xs text-fb-text-muted">
+            Ein zusätzlicher Schutz für deine Anmeldung.
+          </p>
+        </div>
+        <app-badge tone="neutral">Noch nicht eingerichtet</app-badge>
+      </div>
+    </div>
+  </app-card>
+
+  <app-card
+    title="Sitzungen"
+    subtitle="Kontozugriff auf Geräten verwalten."
+    padding="none"
+    rounded="xl"
+  >
+    <div class="px-4 py-4 md:px-5">
+      <div class="flex items-center justify-between gap-3">
+        <div class="min-w-0">
+          <p class="text-[13px] font-semibold text-fb-text-primary">Dieser Browser</p>
+          <p class="mt-0.5 text-xs text-fb-text-muted">Aktuelle Sitzung</p>
+        </div>
+        <app-badge tone="success">Aktiv</app-badge>
+      </div>
+
+      <div class="mt-4 border-t border-fb-line pt-4">
+        <p class="max-w-2xl text-xs leading-5 text-fb-text-muted">
+          Gerät verloren oder auf einem fremden Rechner angemeldet geblieben? Damit werden sofort
+          alle offenen Sitzungen beendet. Du musst dich anschließend überall neu anmelden.
+        </p>
+        <div class="mt-3">
+          <app-button
+            variant="destructive"
+            size="md"
+            [icon]="logoutIcon"
+            [disabled]="isSigningOutEverywhere()"
+            [loading]="isSigningOutEverywhere()"
+            (clicked)="onSignOutEverywhere()"
+          >
+            {{ isSigningOutEverywhere() ? 'Melde ab...' : 'Von allen Geräten abmelden' }}
+          </app-button>
+        </div>
+      </div>
+    </div>
+  </app-card>
+</div>
+
+@if (isPasswordModalOpen()) {
+  <app-modal-shell
+    title="Passwort ändern"
+    subtitle="Bestätige zuerst dein aktuelles Passwort."
+    size="sm"
+    presentation="center"
+    (closed)="closePasswordModal()"
+  >
+    @if (passwordError()) {
+      <p
+        role="alert"
+        class="rounded-lg border border-fb-critical-border bg-fb-critical-surface p-3 text-[13px] text-fb-critical"
+      >
+        {{ passwordError() }}
+      </p>
+    }
+
+    <form
+      id="password-change-form"
+      [formGroup]="passwordForm"
+      (ngSubmit)="onChangePassword()"
+      class="space-y-4"
     >
-      <svg [lucideIcon]="logoutIcon" class="h-4 w-4" aria-hidden="true"></svg
-      >{{ isSigningOutEverywhere() ? 'Melde ab...' : 'Von allen Geräten abmelden' }}
-    </button>
-  </div>
-</section>
+      <app-text-field
+        formControlName="currentPassword"
+        type="password"
+        label="Aktuelles Passwort"
+        autocomplete="current-password"
+        [required]="true"
+        [revealable]="true"
+      />
+      <app-text-field
+        formControlName="newPassword"
+        type="password"
+        label="Neues Passwort"
+        autocomplete="new-password"
+        [required]="true"
+        [revealable]="true"
+        [error]="newPasswordError()"
+        helpText="Mindestens 10 Zeichen."
+      />
+      <app-text-field
+        formControlName="confirmPassword"
+        type="password"
+        label="Neues Passwort wiederholen"
+        autocomplete="new-password"
+        [required]="true"
+        [revealable]="true"
+        [error]="confirmPasswordError()"
+      />
+    </form>
+
+    <div modal-footer class="flex items-center justify-end gap-2">
+      <app-button
+        type="button"
+        variant="secondary"
+        size="md"
+        [disabled]="isChangingPassword()"
+        (clicked)="closePasswordModal()"
+      >
+        Abbrechen
+      </app-button>
+      <app-button
+        type="submit"
+        formId="password-change-form"
+        variant="primary"
+        size="md"
+        [disabled]="passwordForm.invalid || isChangingPassword()"
+        [loading]="isChangingPassword()"
+      >
+        Passwort ändern
+      </app-button>
+    </div>
+  </app-modal-shell>
+}

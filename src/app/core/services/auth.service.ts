@@ -12,6 +12,11 @@ export interface ProfileUpdateResult {
   readonly reportedBySyncStatus: boolean;
 }
 
+export interface PasswordChangeResult {
+  readonly error: Error | null;
+  readonly reportedBySyncStatus: boolean;
+}
+
 /**
  * Ob eine Antwort des Auth-Dienstes bedeutet: "Diese Sitzung gibt es nicht
  * mehr."
@@ -252,7 +257,12 @@ export class AuthService {
 
   /** Uebersetzt die englischen Meldungen von Supabase in verstaendliches Deutsch. */
   private mapAuthErrorToGerman(error: unknown): Error {
-    const msg = error instanceof Error ? error.message : String(error ?? '');
+    const msg =
+      error instanceof Error
+        ? error.message
+        : error && typeof error === 'object' && 'message' in error
+          ? String(error.message)
+          : String(error ?? '');
     if (msg.includes('Invalid login credentials')) {
       return new Error(
         'E-Mail-Adresse oder Passwort ist nicht korrekt oder das Konto existiert noch nicht. Bitte registriere dich zuerst neu.',
@@ -398,6 +408,58 @@ export class AuthService {
     }
 
     return { error: null, reportedBySyncStatus: false };
+  }
+
+  /**
+   * Ändert das Passwort erst nach erneuter Bestätigung des aktuellen Passworts.
+   *
+   * Die Re-Authentifizierung verhindert, dass eine offen gelassene Sitzung
+   * allein zum Setzen eines neuen Passworts genügt.
+   */
+  async changePassword(
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<PasswordChangeResult> {
+    const email = this.currentUser()?.email;
+    if (!email) {
+      return { error: new Error('Nicht angemeldet'), reportedBySyncStatus: false };
+    }
+    if (newPassword.length < 10) {
+      return {
+        error: new Error('Das neue Passwort muss mindestens 10 Zeichen lang sein.'),
+        reportedBySyncStatus: false,
+      };
+    }
+
+    try {
+      const { error: reauthError } = await this.supabase.client.auth.signInWithPassword({
+        email,
+        password: currentPassword,
+      });
+      if (reauthError) {
+        const message = reauthError.message?.includes('Invalid login credentials')
+          ? 'Das aktuelle Passwort ist nicht korrekt.'
+          : this.mapAuthErrorToGerman(reauthError).message;
+        return { error: new Error(message), reportedBySyncStatus: false };
+      }
+
+      const { error: updateError } = await this.supabase.client.auth.updateUser({
+        password: newPassword,
+      });
+      if (updateError) {
+        return {
+          error: this.mapAuthErrorToGerman(updateError),
+          reportedBySyncStatus: false,
+        };
+      }
+
+      return { error: null, reportedBySyncStatus: false };
+    } catch (error: unknown) {
+      return {
+        error: this.mapAuthErrorToGerman(error),
+        reportedBySyncStatus: false,
+      };
+    }
   }
 
   /**

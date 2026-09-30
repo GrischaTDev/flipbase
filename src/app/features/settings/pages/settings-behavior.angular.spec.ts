@@ -35,7 +35,9 @@ import { CustomSelectComponent } from '../../../shared/components/custom-select/
 import { ToastService, ToastType } from '../../../shared/components/toast/toast.service';
 import { TextFieldComponent } from '../../../shared/components/text-field/text-field.component';
 import { NumberInputComponent } from '../../../shared/components/number-input/number-input.component';
+import { BadgeComponent } from '../../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../../shared/components/button/button.component';
+import { CardComponent } from '../../../shared/components/card/card.component';
 import { ModalShellComponent } from '../../../shared/components/modal-shell/modal-shell.component';
 import { ModalDialogDirective } from '../../../shared/directives/modal-dialog.directive';
 import { AccountSettingsComponent } from './account-settings/account-settings.component';
@@ -70,7 +72,9 @@ let selectMetadataSnapshot: AngularBindingMetadata | null = null;
 let checkboxMetadataSnapshot: AngularBindingMetadata | null = null;
 let textFieldMetadataSnapshot: AngularBindingMetadata | null = null;
 let numberInputMetadataSnapshot: AngularBindingMetadata | null = null;
+let badgeMetadataSnapshot: AngularBindingMetadata | null = null;
 let buttonMetadataSnapshot: AngularBindingMetadata | null = null;
+let cardMetadataSnapshot: AngularBindingMetadata | null = null;
 let modalShellMetadataSnapshot: AngularBindingMetadata | null = null;
 let modalDialogMetadataSnapshot: AngularBindingMetadata | null = null;
 let selectViewQuerySnapshot: AngularViewQuery | null | undefined;
@@ -94,6 +98,8 @@ const resourceFiles: Readonly<Record<string, string>> = {
     '../../../shared/components/custom-select/custom-select.component.scss',
   'badge.component.html': '../../../shared/components/badge/badge.component.html',
   'badge.component.scss': '../../../shared/components/badge/badge.component.scss',
+  'card.component.html': '../../../shared/components/card/card.component.html',
+  'card.component.scss': '../../../shared/components/card/card.component.scss',
   'text-field.component.html': '../../../shared/components/text-field/text-field.component.html',
   'text-field.component.scss': '../../../shared/components/text-field/text-field.component.scss',
   'number-input.component.html':
@@ -219,6 +225,7 @@ beforeAll(async () => {
     ariaLabel: ['ariaLabel', 1, null],
     autocomplete: ['autocomplete', 1, null],
     required: ['required', 1, null],
+    revealable: ['revealable', 1, null],
     maxLength: ['maxLength', 1, null],
   };
   textFieldMetadata.declaredInputs = {
@@ -236,6 +243,7 @@ beforeAll(async () => {
     ariaLabel: 'ariaLabel',
     autocomplete: 'autocomplete',
     required: 'required',
+    revealable: 'revealable',
     maxLength: 'maxLength',
   };
 
@@ -278,6 +286,42 @@ beforeAll(async () => {
   numberMetadata.outputs = {
     ...numberMetadata.outputs,
     valueChange: 'value',
+  };
+
+  const badgeMeta = (BadgeComponent as unknown as { ɵcmp: AngularBindingMetadata }).ɵcmp;
+  badgeMetadataSnapshot = {
+    inputs: badgeMeta.inputs,
+    declaredInputs: badgeMeta.declaredInputs,
+    outputs: badgeMeta.outputs,
+  };
+  badgeMeta.inputs = {
+    ...badgeMeta.inputs,
+    tone: ['tone', 1, null],
+  };
+  badgeMeta.declaredInputs = {
+    ...badgeMeta.declaredInputs,
+    tone: 'tone',
+  };
+
+  const cardMeta = (CardComponent as unknown as { ɵcmp: AngularBindingMetadata }).ɵcmp;
+  cardMetadataSnapshot = {
+    inputs: cardMeta.inputs,
+    declaredInputs: cardMeta.declaredInputs,
+    outputs: cardMeta.outputs,
+  };
+  cardMeta.inputs = {
+    ...cardMeta.inputs,
+    title: ['title', 1, null],
+    subtitle: ['subtitle', 1, null],
+    padding: ['padding', 1, null],
+    rounded: ['rounded', 1, null],
+  };
+  cardMeta.declaredInputs = {
+    ...cardMeta.declaredInputs,
+    title: 'title',
+    subtitle: 'subtitle',
+    padding: 'padding',
+    rounded: 'rounded',
   };
 
   const buttonMeta = (ButtonComponent as unknown as { ɵcmp: AngularBindingMetadata }).ɵcmp;
@@ -352,6 +396,7 @@ beforeAll(async () => {
     icon: ['icon', 1, null],
     iconTone: ['iconTone', 1, null],
     size: ['size', 1, null],
+    presentation: ['presentation', 1, null],
     closeOnBackdrop: ['closeOnBackdrop', 1, null],
     hasFooter: ['hasFooter', 1, null],
   };
@@ -362,6 +407,7 @@ beforeAll(async () => {
     icon: 'icon',
     iconTone: 'iconTone',
     size: 'size',
+    presentation: 'presentation',
     closeOnBackdrop: 'closeOnBackdrop',
     hasFooter: 'hasFooter',
   };
@@ -435,6 +481,20 @@ afterAll(() => {
     metadata.declaredInputs = numberInputMetadataSnapshot.declaredInputs;
     metadata.outputs = numberInputMetadataSnapshot.outputs;
     numberInputMetadataSnapshot = null;
+  }
+  if (badgeMetadataSnapshot) {
+    const metadata = (BadgeComponent as unknown as { ɵcmp: AngularBindingMetadata }).ɵcmp;
+    metadata.inputs = badgeMetadataSnapshot.inputs;
+    metadata.declaredInputs = badgeMetadataSnapshot.declaredInputs;
+    metadata.outputs = badgeMetadataSnapshot.outputs;
+    badgeMetadataSnapshot = null;
+  }
+  if (cardMetadataSnapshot) {
+    const metadata = (CardComponent as unknown as { ɵcmp: AngularBindingMetadata }).ɵcmp;
+    metadata.inputs = cardMetadataSnapshot.inputs;
+    metadata.declaredInputs = cardMetadataSnapshot.declaredInputs;
+    metadata.outputs = cardMetadataSnapshot.outputs;
+    cardMetadataSnapshot = null;
   }
   if (buttonMetadataSnapshot) {
     const metadata = (ButtonComponent as unknown as { ɵcmp: AngularBindingMetadata }).ɵcmp;
@@ -653,6 +713,7 @@ async function renderAccount(
   const auth = {
     profile,
     currentUser: signal({ email: 'ada@flipbase.de' }),
+    userName: () => profile()?.full_name || 'Ada Lovelace',
     aktualisiereProfil: vi.fn(async () =>
       Promise.resolve(
         options.updateResult ?? {
@@ -800,11 +861,11 @@ async function renderTeam(
 describe('Kontoeinstellungen – echte Angular-Fixture', () => {
   it('bindet den gerenderten Primärbutton an das Profil-Payload und bestätigt den Erfolg', async () => {
     const { fixture, auth, toast } = await renderAccount();
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Mein Konto');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Profil');
     fixture.componentInstance.profileForm.controls.fullName.setValue('Grace Hopper');
     fixture.detectChanges();
 
-    renderedButton(fixture, 'Namen speichern').click();
+    renderedButton(fixture, 'Änderungen speichern').click();
     await flushAsyncAction(fixture);
 
     expect(auth.aktualisiereProfil).toHaveBeenCalledOnce();
@@ -816,7 +877,7 @@ describe('Kontoeinstellungen – echte Angular-Fixture', () => {
     const { fixture, auth, toast } = await renderAccount();
     fixture.componentInstance.profileForm.controls.fullName.setValue('');
     fixture.detectChanges();
-    const saveButton = renderedButton(fixture, 'Namen speichern');
+    const saveButton = renderedButton(fixture, 'Änderungen speichern');
 
     expect(saveButton.disabled).toBe(true);
     saveButton.click();
@@ -831,7 +892,7 @@ describe('Kontoeinstellungen – echte Angular-Fixture', () => {
       updateResult: { error: new Error('Nicht angemeldet'), reportedBySyncStatus: false },
     });
 
-    renderedButton(fixture, 'Namen speichern').click();
+    renderedButton(fixture, 'Änderungen speichern').click();
     await flushAsyncAction(fixture);
 
     expect(fixture.componentInstance.isSavingProfile()).toBe(false);
@@ -843,7 +904,7 @@ describe('Kontoeinstellungen – echte Angular-Fixture', () => {
       updateResult: { error: new Error('Sync-Fehler'), reportedBySyncStatus: true },
     });
 
-    renderedButton(fixture, 'Namen speichern').click();
+    renderedButton(fixture, 'Änderungen speichern').click();
     await flushAsyncAction(fixture);
 
     expect(fixture.componentInstance.isSavingProfile()).toBe(false);
