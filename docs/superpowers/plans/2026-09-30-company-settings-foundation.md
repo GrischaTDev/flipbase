@@ -46,13 +46,16 @@
 - Create: `supabase/schemas/280_company_profiles.sql`
 - Create: `supabase/migrations/20260930141000_company_profiles.sql`
 - Create: `supabase/tests/company_profiles.test.sql`
-- Modify: `supabase/schemas/database.sql`
+- Modify: `supabase/config.toml`
 - Modify: `supabase/schemas/60_audit_snapshot.sql`
+- Modify: `supabase/config.toml`
 - Modify: `src/app/core/models/supabase.types.ts` (generated, not hand-edited)
 - Modify: `src/app/core/models/business-event.models.ts`
 - Modify: `src/app/core/services/business-event.service.ts`
 - Modify: `src/app/core/services/audit-export.service.ts`
 - Modify: `src/app/core/services/audit-export.service.spec.ts`
+
+**Ruling:** Das Repo hält Feature-Schemata außerhalb von `database.sql` (z. B. Nummernkreise, Belege, Marktplatzdaten). PR 2 registriert deshalb `280_company_profiles.sql` in `supabase/config.toml` und ersetzt nur die dort bereits definierten Basisfunktionen per `create or replace`; `database.sql` wird nicht dupliziert.
 
 **Interfaces:**
 - Produces table `public.workspace_company_profiles` keyed by `workspace_id`.
