@@ -90,9 +90,9 @@ describe('SettingsShellComponent', () => {
     const mobileSelect = fixture.nativeElement.querySelector('app-custom-select');
 
     expect(links.some((link) => link.textContent?.includes('Daten & Protokolle'))).toBe(true);
-    expect(
-      links.find((link) => link.textContent?.includes('Konto'))?.getAttribute('aria-current'),
-    ).toBe('page');
+    const accountLink = links.find((link) => link.textContent?.includes('Konto'));
+    expect(accountLink?.getAttribute('aria-current')).toBe('page');
+    expect(accountLink?.textContent).toContain('Persönliche Daten & Sicherheit');
     expect(mobileSelect).not.toBeNull();
     expect(fixture.nativeElement.querySelector('router-outlet')).not.toBeNull();
     const version = fixture.nativeElement.querySelector('footer span') as HTMLSpanElement;
