@@ -86,6 +86,7 @@ function erstelleKomponente() {
     selectedSaleForHistory: signal<Sale | null>(null),
     isProcessingReturn: signal(false),
     isCreatingInvoice: signal(false),
+    companySettingsRequired: signal(false),
     activeInvoice: signal(null),
     returnForm: new FormGroup({
       reason: new FormControl('buyer_remorse', {

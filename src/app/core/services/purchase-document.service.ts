@@ -11,6 +11,8 @@ import { AuthService } from './auth.service';
 import { SupabaseService } from './supabase.service';
 import { SyncStatusService } from './sync-status.service';
 import { WorkspaceService } from './workspace.service';
+import { InvoiceParty } from '../models/invoice.models';
+import { Json } from '../models/supabase.types';
 
 /**
  * Originalbelege eines Einkaufs. Dateien liegen ausschließlich im privaten Bucket;
@@ -57,6 +59,8 @@ export class PurchaseDocumentService {
     file: File,
     documentType: PurchaseDocumentType,
     sourceFinalizedAt: string | null = null,
+    companySnapshot: InvoiceParty | null = null,
+    expectedWorkspaceId?: string,
   ): Promise<{ data: PurchaseDocument | null; error: Error | null }> {
     if ((documentType === 'self_receipt') !== (sourceFinalizedAt !== null)) {
       return { data: null, error: new Error('Die Abschlussfassung des Eigenbelegs fehlt.') };
@@ -66,6 +70,15 @@ export class PurchaseDocumentService {
 
     const workspace = this.workspaceService.currentWorkspace();
     if (!workspace) return { data: null, error: new Error('Kein aktiver Workspace') };
+    if (expectedWorkspaceId && workspace.id !== expectedWorkspaceId) {
+      return {
+        data: null,
+        error: new Error('Der Workspace wurde während der Belegerstellung gewechselt.'),
+      };
+    }
+    if (documentType === 'self_receipt' && !companySnapshot) {
+      return { data: null, error: new Error('Die Unternehmensdaten für den Eigenbeleg fehlen.') };
+    }
     const extension = purchaseDocumentExtension(file);
     if (!extension) return { data: null, error: new Error('Die Dateiendung passt nicht zum Typ.') };
 
@@ -78,6 +91,9 @@ export class PurchaseDocumentService {
         .upload(path, file, { contentType: file.type, upsert: false });
       if (uploadError) throw uploadError;
       uploadedPath = path;
+      if (this.workspaceService.currentWorkspace()?.id !== workspace.id) {
+        throw new Error('Der Workspace wurde während des Beleguploads gewechselt.');
+      }
 
       const { data, error } = await this.supabase.client
         .from('purchase_documents')
@@ -87,6 +103,7 @@ export class PurchaseDocumentService {
           purchase_id: purchaseId,
           document_type: documentType,
           source_finalized_at: sourceFinalizedAt,
+          company_snapshot: companySnapshot as unknown as Json,
           original_file_name: file.name,
           storage_path: path,
           mime_type: file.type,
@@ -99,6 +116,12 @@ export class PurchaseDocumentService {
 
       uploadedPath = null;
       const document = data as PurchaseDocument;
+      if (this.workspaceService.currentWorkspace()?.id !== workspace.id) {
+        return {
+          data: null,
+          error: new Error('Der Workspace wurde während des Beleguploads gewechselt.'),
+        };
+      }
       this.documentsRaw.update((current) => [...current, document]);
       return { data: document, error: null };
     } catch (cause: unknown) {

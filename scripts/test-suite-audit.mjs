@@ -96,6 +96,17 @@ const forbiddenInNode = new Set([
 ]);
 const documentedNodeFixtures = new Map([
   [
+    'src/app/features/purchases/services/purchase-self-receipt-pdf.spec.ts',
+    [
+      {
+        marker: 'Blob',
+        line: /new Blob\(/,
+        reason:
+          'prüft PNG-PDFs mit dem nativen Node-Blob; dieser Test verwendet keine Browser-APIs',
+      },
+    ],
+  ],
+  [
     'src/app/core/services/bank-reconciliation.service.spec.ts',
     [
       {

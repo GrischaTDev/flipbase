@@ -2468,6 +2468,7 @@ export type Database = {
       }
       purchase_documents: {
         Row: {
+          company_snapshot: Json | null
           created_at: string
           created_by: string | null
           document_type: string
@@ -2481,6 +2482,7 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          company_snapshot?: Json | null
           created_at?: string
           created_by?: string | null
           document_type: string
@@ -2494,6 +2496,7 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          company_snapshot?: Json | null
           created_at?: string
           created_by?: string | null
           document_type?: string
@@ -3043,6 +3046,7 @@ export type Database = {
           buyer_name: string | null
           created_at: string
           credit_note_number: string
+          credit_note_snapshot: Json | null
           id: string
           inventory_item_id: string | null
           is_full_refund: boolean
@@ -3058,6 +3062,7 @@ export type Database = {
           buyer_name?: string | null
           created_at?: string
           credit_note_number: string
+          credit_note_snapshot?: Json | null
           id?: string
           inventory_item_id?: string | null
           is_full_refund?: boolean
@@ -3073,6 +3078,7 @@ export type Database = {
           buyer_name?: string | null
           created_at?: string
           credit_note_number?: string
+          credit_note_snapshot?: Json | null
           id?: string
           inventory_item_id?: string | null
           is_full_refund?: boolean
@@ -4660,57 +4666,6 @@ export type Database = {
           },
         ]
       }
-      workspace_licenses: {
-        Row: {
-          access_source: string
-          beta_application_id: string | null
-          created_at: string
-          ends_at: string | null
-          granted_days: number
-          starts_at: string | null
-          status: string
-          updated_at: string
-          workspace_id: string
-        }
-        Insert: {
-          access_source?: string
-          beta_application_id?: string | null
-          created_at?: string
-          ends_at?: string | null
-          granted_days: number
-          starts_at?: string | null
-          status?: string
-          updated_at?: string
-          workspace_id: string
-        }
-        Update: {
-          access_source?: string
-          beta_application_id?: string | null
-          created_at?: string
-          ends_at?: string | null
-          granted_days?: number
-          starts_at?: string | null
-          status?: string
-          updated_at?: string
-          workspace_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "workspace_licenses_beta_application_id_fkey"
-            columns: ["beta_application_id"]
-            isOneToOne: true
-            referencedRelation: "beta_applications"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "workspace_licenses_workspace_id_fkey"
-            columns: ["workspace_id"]
-            isOneToOne: true
-            referencedRelation: "workspaces"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       workspace_company_profiles: {
         Row: {
           bank_account_holder: string | null
@@ -4808,6 +4763,57 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "workspace_company_profiles_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: true
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workspace_licenses: {
+        Row: {
+          access_source: string
+          beta_application_id: string | null
+          created_at: string
+          ends_at: string | null
+          granted_days: number
+          starts_at: string | null
+          status: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          access_source?: string
+          beta_application_id?: string | null
+          created_at?: string
+          ends_at?: string | null
+          granted_days: number
+          starts_at?: string | null
+          status?: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          access_source?: string
+          beta_application_id?: string | null
+          created_at?: string
+          ends_at?: string | null
+          granted_days?: number
+          starts_at?: string | null
+          status?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_licenses_beta_application_id_fkey"
+            columns: ["beta_application_id"]
+            isOneToOne: true
+            referencedRelation: "beta_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_licenses_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: true
             referencedRelation: "workspaces"
@@ -5098,6 +5104,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      can_manage_company_logo_path: {
+        Args: { p_path: string }
+        Returns: boolean
+      }
       capture_purchase_package_contents: {
         Args: {
           p_items: Json
@@ -5105,6 +5115,10 @@ export type Database = {
           p_request_id: string
           p_workspace_id: string
         }
+        Returns: Json
+      }
+      company_document_party: {
+        Args: { p_workspace_id: string }
         Returns: Json
       }
       correct_purchase_costing: {
@@ -5277,10 +5291,6 @@ export type Database = {
         Returns: string
       }
       get_number_settings: { Args: { p_workspace_id: string }; Returns: Json }
-      get_workspace_company_settings: {
-        Args: { p_workspace_id: string }
-        Returns: Json
-      }
       get_purchase_sale_history: {
         Args: { p_purchase_id: string; p_workspace_id: string }
         Returns: Json
@@ -5288,6 +5298,10 @@ export type Database = {
       get_purchase_sale_history_state: {
         Args: { p_purchase_id: string; p_workspace_id: string }
         Returns: string
+      }
+      get_workspace_company_settings: {
+        Args: { p_workspace_id: string }
+        Returns: Json
       }
       has_purchase_recorded_sales: {
         Args: { p_purchase_id: string; p_workspace_id: string }
@@ -5937,10 +5951,6 @@ export type Database = {
           isSetofReturn: false
         }
       }
-      set_workspace_company_logo: {
-        Args: { p_logo_path: string; p_workspace_id: string }
-        Returns: Json
-      }
       set_inventory_item_archived: {
         Args: { p_archived: boolean; p_item_id: string; p_workspace_id: string }
         Returns: {
@@ -6043,6 +6053,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      set_workspace_company_logo: {
+        Args: { p_logo_path: string; p_workspace_id: string }
+        Returns: Json
       }
       sniper_evaluate_hits: {
         Args: { p_query_id: string; p_report_hits?: boolean }
@@ -6202,10 +6216,6 @@ export type Database = {
           isSetofReturn: true
         }
       }
-      update_workspace_company_settings: {
-        Args: { p_profile: Json; p_tax_mode: string; p_workspace_id: string }
-        Returns: Json
-      }
       update_purchase_draft: {
         Args: {
           p_expenses?: Json
@@ -6237,6 +6247,10 @@ export type Database = {
       }
       update_purchase_workflow: {
         Args: { p_purchase_id: string; p_status: string }
+        Returns: Json
+      }
+      update_workspace_company_settings: {
+        Args: { p_profile: Json; p_tax_mode: string; p_workspace_id: string }
         Returns: Json
       }
       upsert_sniper_query:

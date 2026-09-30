@@ -1,5 +1,6 @@
 import { InventoryItem, Sale } from './flipbase.models';
 import { Invoice } from './invoice.models';
+import { CreditNoteCompanySnapshot } from './company-document.models';
 
 export type ReturnReason =
   'defective' | 'wrong_item' | 'buyer_remorse' | 'not_as_described' | 'lost_in_transit' | 'other';
@@ -23,4 +24,5 @@ export interface ReturnRecord {
   sale?: Sale;
   inventory_item?: InventoryItem;
   creditNoteInvoice?: Invoice;
+  credit_note_snapshot?: CreditNoteCompanySnapshot | null;
 }

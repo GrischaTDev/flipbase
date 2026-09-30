@@ -62,6 +62,7 @@ function erstelleKomponente() {
   const toast = new ToastService();
   const syncStatus = new SyncStatusService();
   const invoiceService = {
+    getDocumentLogoUrl: vi.fn(async () => 'https://signed.test/old-logo'),
     prepareConfirmationEmail: vi.fn(
       async (): Promise<{
         success: boolean;
@@ -83,11 +84,43 @@ function erstelleKomponente() {
     syncStatus,
     invoice: signal(rechnung),
     isSendingEmail: signal(false),
+    documentLogoUrl: signal<string | null>(null),
+    logoUnavailable: signal(false),
+    logoVersion: 0,
   });
   return { komponente, invoiceService, syncStatus, toast };
 }
 
 describe('InvoiceModalComponent – Aktionsmeldungen', () => {
+  it('lädt ausschließlich das gespeicherte Logo und lässt alte Belege ohne Logo unverändert', async () => {
+    const { komponente, invoiceService } = erstelleKomponente();
+    Object.assign(komponente, {
+      invoice: signal({
+        ...rechnung,
+        seller: { ...rechnung.seller, logoPath: 'ws/logos/old.png' },
+      }),
+    });
+    await komponente.loadDocumentLogo();
+    expect(invoiceService.getDocumentLogoUrl).toHaveBeenCalledWith('ws/logos/old.png');
+    expect(komponente.documentLogoUrl()).toBe('https://signed.test/old-logo');
+    Object.assign(komponente, { invoice: signal(rechnung) });
+    await komponente.loadDocumentLogo();
+    expect(komponente.documentLogoUrl()).toBeNull();
+  });
+
+  it('zeigt einen Hinweis, wenn die historische Logo-Datei fehlt', async () => {
+    const { komponente, invoiceService } = erstelleKomponente();
+    Object.assign(komponente, {
+      invoice: signal({
+        ...rechnung,
+        seller: { ...rechnung.seller, logoPath: 'ws/logos/missing.png' },
+      }),
+    });
+    invoiceService.getDocumentLogoUrl.mockRejectedValue(new Error('nicht gefunden'));
+    await komponente.loadDocumentLogo();
+    expect(komponente.logoUnavailable()).toBe(true);
+    expect(komponente.documentLogoUrl()).toBeNull();
+  });
   it('meldet eine nur gespeicherte E-Mail-Bestätigung wahrheitsgemäß als vorbereitet', async () => {
     const { komponente, toast } = erstelleKomponente();
 

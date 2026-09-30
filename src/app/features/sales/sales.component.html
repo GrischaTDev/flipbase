@@ -3,7 +3,7 @@
   <app-page-header
     [title]="('NAV.SALES' | translate) + ' & Retouren'"
     [icon]="trendingIcon"
-    subtitle="Verkaufserlöse, direkte Kosten, Margen, § 25a Rechnungen und Gutschriften."
+    subtitle="Verkaufserlöse, direkte Kosten, Margen, Rechnungen und Gutschriften."
   >
     <div header-actions class="flex items-center gap-2">
       <app-button variant="primary" size="md" [icon]="plusIcon" (clicked)="openCreatePage()">
@@ -11,6 +11,15 @@
       </app-button>
     </div>
   </app-page-header>
+
+  @if (companySettingsRequired()) {
+    <p role="alert" class="text-sm text-fb-text-secondary">
+      Für neue Rechnungen fehlen Unternehmensdaten.
+      <a routerLink="/settings/company" class="underline font-medium text-fb-text-primary"
+        >Unternehmensdaten vervollständigen</a
+      >
+    </p>
+  }
 
   <!-- KPI Cards Grid -->
   <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -344,7 +353,7 @@
                           (clicked)="openInvoiceForSale(sale)"
                           [disabled]="isCreatingInvoice()"
                           [loading]="isCreatingInvoice()"
-                          label="§ 25a Differenzbesteuerungs-Rechnung anzeigen"
+                          label="Rechnung anzeigen"
                           [icon]="fileIcon"
                         />
                         @if (ret) {
@@ -485,7 +494,7 @@
               class="linear-btn-secondary px-2.5 py-1 rounded text-[11px] font-sans flex items-center gap-1 text-indigo-300 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <svg [lucideIcon]="fileIcon" class="w-3 h-3"></svg>
-              <span>§ 25a Rechnung</span>
+              <span>Rechnung</span>
             </button>
 
             @if (ret) {

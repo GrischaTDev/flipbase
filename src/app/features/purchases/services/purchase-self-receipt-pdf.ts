@@ -1,4 +1,5 @@
 import { Purchase, PurchaseCost, PurchaseLine } from '../../../core/models/flipbase.models';
+import { InvoiceParty } from '../../../core/models/invoice.models';
 
 export interface SelfReceiptContent {
   readonly title: string;
@@ -11,14 +12,19 @@ function money(amount: number): string {
 
 export function buildSelfReceiptContent(
   purchase: Purchase,
-  workspaceName: string,
+  companyParty: InvoiceParty,
   issuedAt: Date,
 ): SelfReceiptContent {
   const lines: string[] = [
     `Einkaufsnummer: ${purchase.record_number ?? purchase.id}`,
     `Ausgestellt am: ${issuedAt.toLocaleDateString('de-DE')}`,
     `Kaufdatum: ${new Date(`${purchase.purchase_date}T12:00:00`).toLocaleDateString('de-DE')}`,
-    `Aussteller: ${workspaceName}`,
+    `Aussteller: ${companyParty.name}`,
+    ...(companyParty.company ? [`Unternehmen: ${companyParty.company}`] : []),
+    `Geschäftsanschrift: ${companyParty.street}, ${companyParty.postalCode} ${companyParty.city}, ${companyParty.country}`,
+    ...(companyParty.taxId ? [`Steuernummer: ${companyParty.taxId}`] : []),
+    ...(companyParty.vatId ? [`USt-IdNr.: ${companyParty.vatId}`] : []),
+    ...(companyParty.email ? [`E-Mail: ${companyParty.email}`] : []),
     `Bezugsquelle: ${purchase.source?.name ?? 'Nicht angegeben'}`,
     `Verkäuferangabe: ${purchase.seller_name ?? 'Nicht bekannt'}`,
     `Referenznummer: ${purchase.supplier_reference ?? 'Nicht angegeben'}`,
@@ -52,7 +58,10 @@ export function buildSelfReceiptContent(
   return { title: `Eigenbeleg ${purchase.record_number ?? purchase.id}`, lines };
 }
 
-export async function createSelfReceiptPdf(content: SelfReceiptContent): Promise<Uint8Array> {
+export async function createSelfReceiptPdf(
+  content: SelfReceiptContent,
+  logo: Blob | null = null,
+): Promise<Uint8Array> {
   const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib');
   const pdf = await PDFDocument.create();
   const font = await pdf.embedFont(StandardFonts.Helvetica);
@@ -65,6 +74,43 @@ export async function createSelfReceiptPdf(content: SelfReceiptContent): Promise
 
   let page = pdf.addPage([595, 842]);
   let y = 790;
+  let logoUnavailable = false;
+  if (logo) {
+    try {
+      let logoBytes = new Uint8Array(await logo.arrayBuffer());
+      if (logo.type === 'image/webp') {
+        const bitmap = await createImageBitmap(logo);
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = bitmap.width;
+          canvas.height = bitmap.height;
+          canvas.getContext('2d')?.drawImage(bitmap, 0, 0);
+          const png = await new Promise<Blob>((resolve, reject) =>
+            canvas.toBlob(
+              (blob) =>
+                blob ? resolve(blob) : reject(new Error('Logo konnte nicht gelesen werden.')),
+              'image/png',
+            ),
+          );
+          logoBytes = new Uint8Array(await png.arrayBuffer());
+        } finally {
+          bitmap.close();
+        }
+      }
+      const image =
+        logo.type === 'image/jpeg' ? await pdf.embedJpg(logoBytes) : await pdf.embedPng(logoBytes);
+      const scale = Math.min(160 / image.width, 60 / image.height, 1);
+      page.drawImage(image, {
+        x: 50,
+        y: y - image.height * scale,
+        width: image.width * scale,
+        height: image.height * scale,
+      });
+      y -= image.height * scale + 20;
+    } catch {
+      logoUnavailable = true;
+    }
+  }
   const drawLine = (value: string, headline = false): void => {
     const activeFont = headline ? bold : font;
     const size = headline ? 17 : 10;
@@ -94,6 +140,7 @@ export async function createSelfReceiptPdf(content: SelfReceiptContent): Promise
   drawLine(content.title, true);
   y -= 8;
   for (const line of content.lines) drawLine(line);
+  if (logoUnavailable) drawLine('Das gespeicherte Unternehmenslogo ist nicht verfügbar.');
   pdf.setTitle(content.title);
   return pdf.save();
 }

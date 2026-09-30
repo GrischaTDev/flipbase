@@ -10,6 +10,7 @@ import { SupabaseService } from './supabase.service';
 import { SyncStatusService } from './sync-status.service';
 import { SalesService } from './sales.service';
 import { Tables } from '../models/supabase.types';
+import { readCreditNoteCompanySnapshot } from '../models/company-document.models';
 
 export interface ProcessReturnResult {
   readonly status: 'success' | 'partial' | 'error';
@@ -88,6 +89,9 @@ export class ReturnService {
           refund_amount: Number(r.refund_amount || 0),
           buyer_name: r.buyer_name || undefined,
           notes: r.notes || undefined,
+          credit_note_snapshot: readCreditNoteCompanySnapshot(
+            (r as unknown as Record<string, unknown>)['credit_note_snapshot'],
+          ),
         }));
         this.returns.set(mapped);
       }
@@ -145,11 +149,8 @@ export class ReturnService {
       sale: input.sale,
       inventory_item: input.sale.inventory_item,
     };
-    returnRecord.creditNoteInvoice = this.generateCreditNoteInvoice(
-      returnRecord,
-      input.sale,
-      workspace,
-    );
+    returnRecord.creditNoteInvoice =
+      this.generateCreditNoteInvoice(returnRecord, input.sale, workspace) ?? undefined;
     this.uebernehmeRetoureLokal(returnRecord);
     return returnRecord;
   }
@@ -281,11 +282,12 @@ export class ReturnService {
       sale,
       inventory_item: sale.inventory_item,
     };
-    materialized.creditNoteInvoice = this.generateCreditNoteInvoice(
-      materialized,
-      sale,
-      this.workspaceService?.currentWorkspace() ?? null,
-    );
+    materialized.creditNoteInvoice =
+      this.generateCreditNoteInvoice(
+        materialized,
+        sale,
+        this.workspaceService?.currentWorkspace() ?? null,
+      ) ?? undefined;
     this.uebernehmeRetoureLokal(materialized);
     return materialized;
   }
@@ -296,12 +298,15 @@ export class ReturnService {
   generateCreditNoteInvoice(
     returnRecord: ReturnRecord,
     sale: Sale,
-    workspace: Workspace | null,
-  ): Invoice {
-    const wsName = workspace?.name || 'Flipbase Reselling HQ';
-    const originalInvoiceNumber = sale.external_order_id
-      ? `RE-${sale.external_order_id}`
-      : `RE-${sale.id.substring(0, 8)}`;
+    _workspace: Workspace | null,
+  ): Invoice | null {
+    if (returnRecord.workspace_id !== sale.workspace_id || returnRecord.sale_id !== sale.id)
+      return null;
+    const snapshot = readCreditNoteCompanySnapshot(returnRecord.credit_note_snapshot);
+    if (!snapshot) return null;
+    const originalReference = snapshot.originalInvoiceNumber
+      ? `Rechnung ${snapshot.originalInvoiceNumber}`
+      : `Verkauf ${sale.external_order_id || sale.id}`;
 
     return {
       id: returnRecord.id,
@@ -309,32 +314,12 @@ export class ReturnService {
       orderNumber: sale.external_order_id || sale.id,
       invoiceDate: returnRecord.return_date,
       deliveryDate: returnRecord.return_date,
-      seller: {
-        name: wsName,
-        company: 'Flipbase E-Commerce Einzelunternehmen',
-        street: 'Gewerbestraße 10',
-        postalCode: '10115',
-        city: 'Berlin',
-        country: 'Deutschland',
-        email: 'kontakt@flipbase.de',
-        phone: '+49 30 98765432',
-        taxId: '34/234/56789',
-        vatId: 'DE345678901',
-        iban: 'DE44500105175407324931',
-        bic: 'HELAADEF100',
-        bankName: 'Berliner Sparkasse',
-      },
-      buyer: {
-        name: returnRecord.buyer_name || 'Kunde',
-        street: 'Lieferanschrift wie Bestellung',
-        postalCode: '10115',
-        city: 'Berlin',
-        country: 'Deutschland',
-      },
+      seller: structuredClone(snapshot.seller),
+      buyer: structuredClone(snapshot.buyer),
       items: [
         {
           sku: sale.inventory_item_id || 'ART-RET',
-          title: `GUTSCHRIFT zu Rechnung ${originalInvoiceNumber}: ${sale.inventory_item?.title || 'Artikel'}`,
+          title: `GUTSCHRIFT zu ${originalReference}: ${sale.inventory_item?.title || 'Artikel'}`,
           condition: sale.inventory_item?.condition || 'Gebraucht',
           quantity: 1,
           unitPrice: -returnRecord.refund_amount,
@@ -344,9 +329,8 @@ export class ReturnService {
       subtotal: -returnRecord.refund_amount,
       shippingCost: 0,
       total: -returnRecord.refund_amount,
-      taxMode: 'diff_25a',
-      taxClause:
-        'Gutschriftsbeleg: Sonderregelung für Gebrauchtgegenstände nach § 25a UStG (Differenzbesteuerung). Ausweis der Umsatzsteuer ist nicht möglich. Rechnungsberichtigung.',
+      taxMode: snapshot.taxMode,
+      taxClause: snapshot.taxClause,
       paymentMethod: `Erstattung via ${sale.platform}`,
       paymentStatus: 'paid',
       notes: `Grund: ${this.getReasonLabel(returnRecord.reason)}. ${returnRecord.notes || ''}`,

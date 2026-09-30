@@ -15,6 +15,12 @@ insert into public.suppliers (id, workspace_id, name)
 values ('e2300000-0000-4000-8000-000000000031',
         'e2300000-0000-4000-8000-000000000011', 'Gespeicherter Verkäufer');
 
+insert into public.workspace_company_profiles(workspace_id, legal_name, street, house_number, postal_code, city, country_code, tax_number)
+values ('e2300000-0000-4000-8000-000000000011', 'Testinhaber', 'Testweg', '1', '12345', 'Bonn', 'DE', '123/456/789');
+create temporary table company_document_test_snapshot as
+select public.company_document_party('e2300000-0000-4000-8000-000000000011') as snapshot;
+grant select on company_document_test_snapshot to authenticated;
+
 select set_config('request.jwt.claim.sub', 'e2300000-0000-4000-8000-000000000001', true);
 set local role authenticated;
 
@@ -56,7 +62,7 @@ select public.finalize_purchase_costing(
 
 insert into public.purchase_documents (
   id, workspace_id, purchase_id, document_type, source_finalized_at,
-  original_file_name, storage_path, mime_type, file_size, created_by
+  original_file_name, storage_path, mime_type, file_size, created_by, company_snapshot
 )
 select
   'e2300000-0000-4000-8000-000000000021',
@@ -65,7 +71,7 @@ select
   'Eigenbeleg.pdf',
   'purchase-documents/e2300000-0000-4000-8000-000000000011/' || purchase.id ||
     '/e2300000-0000-4000-8000-000000000021.pdf',
-  'application/pdf', 1500, 'e2300000-0000-4000-8000-000000000001'
+  'application/pdf', 1500, 'e2300000-0000-4000-8000-000000000001', (select snapshot from company_document_test_snapshot)
 from public.purchases as purchase
 where purchase.id = (select id from self_receipt_test_purchase);
 
@@ -77,14 +83,14 @@ select is((select count(*)::integer from public.purchase_documents
 select throws_ok($$
   insert into public.purchase_documents (
     id, workspace_id, purchase_id, document_type, source_finalized_at,
-    original_file_name, storage_path, mime_type, file_size, created_by
+    original_file_name, storage_path, mime_type, file_size, created_by, company_snapshot
   )
   select 'e2300000-0000-4000-8000-000000000022',
     'e2300000-0000-4000-8000-000000000011', purchase.id,
     'self_receipt', purchase.finalized_at, 'Doppelt.pdf',
     'purchase-documents/e2300000-0000-4000-8000-000000000011/' || purchase.id ||
       '/e2300000-0000-4000-8000-000000000022.pdf',
-    'application/pdf', 1500, 'e2300000-0000-4000-8000-000000000001'
+    'application/pdf', 1500, 'e2300000-0000-4000-8000-000000000001', (select snapshot from company_document_test_snapshot)
   from public.purchases as purchase
   where purchase.id = (select id from self_receipt_test_purchase)
 $$, '23505', null, 'Dieselbe Abschlussfassung erhält keinen zweiten Eigenbeleg');

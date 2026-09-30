@@ -151,6 +151,13 @@ insert into public.returns (
   ('83000000-0000-4000-8000-000000000050', :'business_workspace_id'::uuid, '83000000-0000-4000-8000-000000000032', null, 'GS-TEST-1', 'Test', 32, 'keep_with_buyer'),
   ('83000000-0000-4000-8000-000000000051', :'business_workspace_id'::uuid, '83000000-0000-4000-8000-000000000034', '83000000-0000-4000-8000-000000000023', 'GS-TEST-2', 'Direct mutation', 34, 'keep_with_buyer');
 
+-- Neue Rechnungen benötigen vollständige Unternehmensdaten im Test-Workspace.
+insert into public.workspace_company_profiles(workspace_id, legal_name, street, house_number, postal_code, city, country_code, tax_number)
+select id, 'Testinhaber', 'Testweg', '1', '12345', 'Bonn', 'DE', '123/456/789'
+from public.workspaces where id::text like '83000000%'
+on conflict (workspace_id) do update set legal_name = excluded.legal_name, street = excluded.street,
+  house_number = excluded.house_number, postal_code = excluded.postal_code, city = excluded.city,
+  country_code = excluded.country_code, tax_number = excluded.tax_number;
 insert into public.invoices (
   id, workspace_id, invoice_number, order_number, seller, buyer,
   subtotal, total, sale_id

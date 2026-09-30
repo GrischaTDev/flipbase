@@ -36,6 +36,7 @@ import { ReturnService } from '../../core/services/return.service';
 import { InvoiceModalComponent } from '../../shared/components/invoice-modal/invoice-modal.component';
 import { Sale } from '../../core/models/flipbase.models';
 import { Invoice } from '../../core/models/invoice.models';
+import { CompanyDocumentError } from '../../core/models/company-document.models';
 import { RestockAction, ReturnReason, ReturnRecord } from '../../core/models/return.models';
 import { ToastService } from '../../shared/components/toast/toast.service';
 import { SyncStatusService } from '../../core/services/sync-status.service';
@@ -147,6 +148,7 @@ export class SalesComponent {
   readonly searchQuery = signal<string>('');
   readonly activeInvoice = signal<Invoice | null>(null);
   readonly isCreatingInvoice = signal(false);
+  readonly companySettingsRequired = signal(false);
 
   readonly workspaceId = computed(() => this.workspaceService.currentWorkspace()?.id ?? 'default');
 
@@ -400,12 +402,14 @@ export class SalesComponent {
       const result = await this.invoiceService.generateInvoiceForSale(sale, sale.inventory_item);
       if (result.error || !result.data) {
         const error = result.error ?? new Error('Die Rechnung konnte nicht erstellt werden.');
+        this.companySettingsRequired.set(error instanceof CompanyDocumentError);
         if (!result.reportedBySyncStatus && !this.syncStatus.istZentralGemeldet(error)) {
           this.toast.error('Rechnung konnte nicht erstellt werden.', error.message);
         }
         return;
       }
       this.activeInvoice.set(result.data);
+      this.companySettingsRequired.set(false);
       if (result.created) this.toast.success('Rechnung wurde erstellt.');
     } catch (ursache: unknown) {
       const error = ursache instanceof Error ? ursache : new Error('Unbekannter Fehler');
@@ -423,6 +427,13 @@ export class SalesComponent {
       this.activeInvoice.set(ret.creditNoteInvoice);
     } else if (ret) {
       const generated = this.returnService.generateCreditNoteInvoice(ret, sale, null);
+      if (!generated) {
+        this.toast.error(
+          'Gutschrift nicht verfügbar.',
+          'Für diese Retoure sind keine Unternehmensdaten gespeichert. Die Erstattung bleibt gebucht.',
+        );
+        return;
+      }
       this.activeInvoice.set(generated);
     }
   }
@@ -524,6 +535,12 @@ export class SalesComponent {
     this.closeReturnModal();
     this.activeInvoice.set(ergebnis.data?.creditNoteInvoice ?? null);
     this.toast.success('Retoure wurde erfasst.');
+    if (!ergebnis.data?.creditNoteInvoice) {
+      this.toast.warning(
+        'Erstattung gebucht, Gutschrift nicht verfügbar.',
+        'Für diese Retoure sind keine vollständigen Unternehmensdaten gespeichert. Prüfe Einstellungen → Unternehmen vor der nächsten Belegerstellung.',
+      );
+    }
   }
 
   closeInvoice(): void {

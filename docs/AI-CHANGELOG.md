@@ -1,5 +1,21 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-30 – Juna – Unternehmensdaten in neue Geschäftsdokumente übernommen
+
+**Auftrag:** PR 3 des freigegebenen Unternehmensumbaus umsetzen: Unternehmensdaten für neue Rechnungen, Gutschriften und Eigenbelege verwenden und historische Dokumente unverändert erhalten.
+
+**Änderung:** Rechnungen speichern den verbindlichen Absender direkt beim Datenbankschreiben; unvollständige Unternehmensdaten liefern einen strukturierten Fehler und einen Weg zu den Unternehmenseinstellungen. Wiederholte Rechnungsanfragen liefern den unveränderten Originalbeleg auch nach Profiländerungen. Retouren speichern Absender, Käufer, Steuerhinweis und echte Rechnungsnummer der Originalrechnung; ohne Originalrechnung werden vollständige aktuelle Unternehmensdaten erfasst. Fehlen diese, bleibt die Erstattung möglich, die Gutschriftansicht meldet den fehlenden Belegnachweis. Eigenbelege übernehmen eine frisch gelesene Kopie der Geschäftsanschrift und Steuerdaten ins PDF sowie in die Metadaten; der Server prüft deren Übereinstimmung. Historische Logos werden ausschließlich über ihren gespeicherten privaten Dateipfad dargestellt; fehlende Dateien lösen keinen Wechsel zum heutigen Logo aus. Demo-Absender und erfundene Banknamen aus der Belegansicht entfernt. Workspace-Wechsel werden während der Belegerstellung und beim Upload geprüft.
+
+**Datenbank:** Neue deklarative Datei `290_company_document_snapshots.sql`, registrierte und erzeugte Migration mit zwei ergänzten JSON-Spalten und Schutzfunktionen. Der erste CLI-Abgleich enthielt ältere sachfremde Unterschiede und wurde verworfen. Der gezielte Abgleich erfolgte in einer eigenen Prüfdatenbank aus den vorhandenen Migrationen und dem neuen Schema. Von migra nicht ausgegebene Rechteentzüge und Spaltenkommentare wurden automatisch aus der deklarativen Datei übernommen; Typen wurden mit der lokalen Supabase-CLI neu erzeugt. Bestehende Migrationen und Dokumentdaten wurden nicht geändert.
+
+**Review:** Zwei Befunde nachgestellt und behoben: Gutschriften ohne Originalrechnung verwenden das beim Verkauf gespeicherte Steuerverfahren; fehlen eindeutige historische Steuerdaten, bleibt nur die Erstattung möglich. Neue Shoprechnungen verwenden das aktuelle Unternehmens-Steuerverfahren auch unmittelbar nach dem Speichern ohne Seitenneuladen; die Datenbank setzt es verbindlich. Regressionstests sichern beide Fälle ab.
+
+**PR-Prüfung:** Die vollständige CI erkannte zwei neue native Node-Blob-Fixtures im PDF-Test als Browserzugriff. Für genau diesen PNG-Test wurde die vorhandene begründete Fixture-Ausnahmeliste ergänzt; er nutzt ausschließlich Nodes Blob und keine Browser-APIs. Der gesamte Suite-Audit und alle drei betroffenen PDF-Tests bestehen nach der Korrektur, ebenso Formatierung und ESLint.
+
+**Prüfung:** Produktionsbau und Typprüfung erfolgreich. 46 gezielte Node-, 38 DOM- und 21 Angular-Tests bestanden. Nach Anwendung der erzeugten Migration bestehen alle 2.293 Datenbankprüfungen in 68 Dateien. Der neue verbindliche Browserfall bestätigt die Sperre bei fehlenden Unternehmensdaten und das unveränderte erneute Öffnen einer Rechnung nach Profiländerungen; die automatische WCAG-AA-Prüfung besteht ebenfalls. Der Belegbereich ist per Tastatur scrollbar, schwache Textkontraste wurden korrigiert. Gezieltes ESLint, Schema-/Migrations-/Browserauswahl-Verträge und die Test-Suite-Prüfung erfolgreich. Das unabhängige Review ist abgeschlossen; die vollständige PR-CI folgt vor dem Merge.
+
+**Weiterarbeit:** PR 4 zentralisiert Shop-, Bank-, Impressums- und Versanddaten unter Erhalt bestehender Versand-Overrides.
+
 ## 2026-09-30 – Juna – Unternehmenszweig geprüft und Altzweige aufgeräumt
 
 **Auftrag:** Den im Web begonnenen Unternehmensdaten-Umbau weiterführen, aktuelle Fehler beheben und abgeschlossene Zweige sicher aufräumen.

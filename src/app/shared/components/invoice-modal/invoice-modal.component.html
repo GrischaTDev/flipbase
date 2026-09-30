@@ -31,13 +31,19 @@
               Rechnung {{ invoice().invoiceNumber }}
             </h2>
             <span
-              class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+              class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-fb-subtle text-fb-text-primary border border-fb-border"
             >
-              § 25a UStG
+              {{
+                invoice().taxMode === 'diff_25a'
+                  ? '§ 25a UStG'
+                  : invoice().taxMode === 'kleinunternehmer_19'
+                    ? '§ 19 UStG'
+                    : '19 % USt.'
+              }}
             </span>
           </div>
           <p class="text-xs text-fb-text-muted mt-0.5">
-            Druckfertige DIN-A4 Differenzbesteuerungs-Rechnung & Kaufbestätigung
+            Druckfertiger DIN-A4 Beleg & Kaufbestätigung
           </p>
         </div>
       </div>
@@ -76,6 +82,7 @@
         <button
           type="button"
           (click)="closed.emit()"
+          aria-label="Beleg schließen"
           class="p-1.5 rounded-xl text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-hover cursor-pointer"
         >
           <svg [lucideIcon]="closeIcon" class="w-5 h-5"></svg>
@@ -83,9 +90,18 @@
       </div>
     </div>
 
+    @if (logoUnavailable()) {
+      <p role="status" class="px-5 py-2 text-sm text-fb-text-secondary print:hidden">
+        Das gespeicherte Unternehmenslogo ist nicht verfügbar. Der Beleg wird ohne Logo angezeigt.
+      </p>
+    }
+
     <!-- Document Body / Printable DIN-A4 Paper Canvas -->
     <div
       class="flex-1 overflow-y-auto p-6 md:p-10 bg-fb-canvas print:p-0 print:bg-white print:overflow-visible flex justify-center"
+      tabindex="0"
+      role="region"
+      aria-label="Druckfertiger Beleg"
     >
       <!-- DIN-A4 Invoice Sheet -->
       <div
@@ -95,22 +111,28 @@
         <div class="flex items-start justify-between border-b border-slate-200 pb-6 mb-8">
           <div>
             <div class="flex items-center gap-2">
-              <span
-                class="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-xs"
-                >R</span
-              >
+              @if (documentLogoUrl(); as logoUrl) {
+                <img
+                  [src]="logoUrl"
+                  alt="Unternehmenslogo"
+                  class="max-h-16 max-w-40 object-contain"
+                  (error)="onLogoError()"
+                />
+              }
               <strong class="text-lg font-black tracking-tight text-slate-900">{{
                 invoice().seller.company || invoice().seller.name
               }}</strong>
             </div>
-            <p class="text-xs text-slate-500 mt-1">Flipbase Reselling & Second Hand Solutions</p>
           </div>
 
           <div class="text-right text-[11px] text-slate-600 space-y-0.5">
             <strong class="text-slate-900 block font-bold">{{ invoice().seller.name }}</strong>
             <div>{{ invoice().seller.street }}</div>
             <div>{{ invoice().seller.postalCode }} {{ invoice().seller.city }}</div>
-            <div>E-Mail: {{ invoice().seller.email }}</div>
+            <div>{{ invoice().seller.country }}</div>
+            @if (invoice().seller.email) {
+              <div>E-Mail: {{ invoice().seller.email }}</div>
+            }
             @if (invoice().seller.vatId) {
               <div class="font-mono">USt-IdNr.: {{ invoice().seller.vatId }}</div>
             }
@@ -124,7 +146,7 @@
         <div class="grid grid-cols-2 gap-8 mb-8">
           <!-- Empfänger -->
           <div>
-            <span class="text-[10px] text-slate-400 block uppercase tracking-wider mb-1 underline">
+            <span class="text-[10px] text-slate-600 block uppercase tracking-wider mb-1 underline">
               {{ invoice().seller.name }} • {{ invoice().seller.street }} •
               {{ invoice().seller.postalCode }} {{ invoice().seller.city }}
             </span>
@@ -271,19 +293,27 @@
             </div>
           </div>
 
-          <div class="text-right">
-            <strong class="text-slate-900 block font-bold mb-1">Bankverbindung:</strong>
-            <div>{{ invoice().seller.bankName || 'Helaba Landesbank' }}</div>
-            <div class="font-mono">IBAN: {{ invoice().seller.iban }}</div>
-            <div class="font-mono">BIC: {{ invoice().seller.bic }}</div>
-            <div class="text-[10px] text-slate-500 mt-1">
-              Verwendungszweck: {{ invoice().invoiceNumber }} / {{ invoice().orderNumber }}
+          @if (invoice().seller.iban || invoice().seller.bankName || invoice().seller.bic) {
+            <div class="text-right">
+              <strong class="text-slate-900 block font-bold mb-1">Bankverbindung:</strong>
+              @if (invoice().seller.bankName) {
+                <div>{{ invoice().seller.bankName }}</div>
+              }
+              @if (invoice().seller.iban) {
+                <div class="font-mono">IBAN: {{ invoice().seller.iban }}</div>
+              }
+              @if (invoice().seller.bic) {
+                <div class="font-mono">BIC: {{ invoice().seller.bic }}</div>
+              }
+              <div class="text-[10px] text-slate-500 mt-1">
+                Verwendungszweck: {{ invoice().invoiceNumber }} / {{ invoice().orderNumber }}
+              </div>
             </div>
-          </div>
+          }
         </div>
 
         <!-- Footer -->
-        <div class="text-[10px] text-slate-400 text-center border-t border-slate-100 pt-4">
+        <div class="text-[10px] text-slate-600 text-center border-t border-slate-100 pt-4">
           {{ invoice().seller.company || invoice().seller.name }} • Inhaber:
           {{ invoice().seller.name }} • {{ invoice().seller.street }},
           {{ invoice().seller.postalCode }} {{ invoice().seller.city }}

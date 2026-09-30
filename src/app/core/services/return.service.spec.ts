@@ -4,6 +4,7 @@ import { Injector, runInInjectionContext, signal } from '@angular/core';
 import { ReturnService } from './return.service';
 import { InventoryItem, Sale } from '../models/flipbase.models';
 import { ReturnRecord } from '../models/return.models';
+import { creditNoteSnapshotFixture } from '../../../test-support/company-document.fixture';
 
 describe('ReturnService & Credit Note Engine (Chapter 25)', () => {
   let service: ReturnService;
@@ -22,6 +23,12 @@ describe('ReturnService & Credit Note Engine (Chapter 25)', () => {
             },
             restockedQuantity: 1,
             saleReturnedAt: '2026-08-27T10:00:00.000Z',
+            returnRecord: {
+              ...sampleReturn,
+              refund_amount: input.refundAmount,
+              is_full_refund: input.refundAmount === sampleSale.sale_price,
+              credit_note_snapshot: creditNoteSnapshotFixture(),
+            },
           },
           error: null,
           reportedBySyncStatus: false,
@@ -66,6 +73,7 @@ describe('ReturnService & Credit Note Engine (Chapter 25)', () => {
     is_full_refund: true,
     restock_action: 'keep_with_buyer',
     created_at: '2026-09-19T10:00:00.000Z',
+    credit_note_snapshot: creditNoteSnapshotFixture(),
   };
 
   it('startet ohne gespeicherte Retouren leer', () => {
@@ -260,7 +268,7 @@ describe('ReturnService & Credit Note Engine (Chapter 25)', () => {
       restockAction: 'restock_ready',
     });
 
-    expect(first.creditNoteInvoice?.total).toBe(-150);
+    expect(first.creditNoteInvoice).toBeUndefined();
     expect(duplicate.id).toBe(first.id);
     expect(service.returns()).toHaveLength(initialCount + 1);
   });

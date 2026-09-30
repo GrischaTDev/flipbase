@@ -41,6 +41,13 @@ insert into public.inventory_reconciliation_events (
 ) values
   ('84000000-0000-4000-8000-000000000018', '84000000-0000-4000-8000-000000000002', '84000000-0000-4000-8000-000000000004', '84000000-0000-4000-8000-000000000001', 'restore_stock', 'sold', 'ready', 'Eigene Korrektur'),
   ('84000000-0000-4000-8000-000000000019', '84000000-0000-4000-8000-000000000003', '84000000-0000-4000-8000-000000000005', '84000000-0000-4000-8000-000000000001', 'restore_stock', 'sold', 'ready', 'Fremde Korrektur');
+-- Neue Rechnungen benötigen vollständige Unternehmensdaten im Test-Workspace.
+insert into public.workspace_company_profiles(workspace_id, legal_name, street, house_number, postal_code, city, country_code, tax_number)
+select id, 'Testinhaber', 'Testweg', '1', '12345', 'Bonn', 'DE', '123/456/789'
+from public.workspaces where id::text like '84000000%'
+on conflict (workspace_id) do update set legal_name = excluded.legal_name, street = excluded.street,
+  house_number = excluded.house_number, postal_code = excluded.postal_code, city = excluded.city,
+  country_code = excluded.country_code, tax_number = excluded.tax_number;
 insert into public.invoices (id, workspace_id, invoice_number, order_number, sale_id) values
   ('84000000-0000-4000-8000-000000000020', '84000000-0000-4000-8000-000000000002', 'RE-AUDIT-1', 'ORDER-AUDIT-1', '84000000-0000-4000-8000-000000000014'),
   ('84000000-0000-4000-8000-000000000021', '84000000-0000-4000-8000-000000000003', 'RE-AUDIT-2', 'ORDER-AUDIT-2', '84000000-0000-4000-8000-000000000015');

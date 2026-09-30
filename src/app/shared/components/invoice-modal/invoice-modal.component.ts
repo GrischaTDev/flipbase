@@ -1,4 +1,12 @@
-import { ChangeDetectionStrategy, Component, inject, input, output, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  effect,
+  inject,
+  input,
+  output,
+  signal,
+} from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import {
   LucideDynamicIcon,
@@ -40,6 +48,34 @@ export class InvoiceModalComponent {
   readonly sendIcon = Send;
 
   readonly isSendingEmail = signal<boolean>(false);
+  readonly documentLogoUrl = signal<string | null>(null);
+  readonly logoUnavailable = signal(false);
+  private logoVersion = 0;
+
+  constructor() {
+    effect(() => {
+      void this.loadDocumentLogo();
+    });
+  }
+
+  async loadDocumentLogo(): Promise<void> {
+    const version = ++this.logoVersion;
+    this.documentLogoUrl.set(null);
+    this.logoUnavailable.set(false);
+    const path = this.invoice().seller.logoPath;
+    if (!path) return;
+    try {
+      const url = await this.invoiceService.getDocumentLogoUrl(path);
+      if (version === this.logoVersion) this.documentLogoUrl.set(url);
+    } catch {
+      if (version === this.logoVersion) this.logoUnavailable.set(true);
+    }
+  }
+
+  onLogoError(): void {
+    this.documentLogoUrl.set(null);
+    this.logoUnavailable.set(true);
+  }
 
   printInvoice(): void {
     window.print();

@@ -7,6 +7,13 @@ import { EmailConfirmation, Invoice, InvoiceItem, InvoiceParty } from '../models
 import { Json, Tables } from '../models/supabase.types';
 import { LoggerService } from './logger.service';
 import { SyncStatusService } from './sync-status.service';
+import { CompanyProfileService } from './company-profile.service';
+import {
+  CompanyDocumentError,
+  createCompanyDocumentParty,
+  emptyDocumentParty,
+} from '../models/company-document.models';
+import { CompanyRequiredField } from '../models/company-profile.models';
 
 const STORAGE_KEY_INVOICES = 'flipbase_generated_invoices';
 const STORAGE_KEY_EMAILS = 'flipbase_sent_emails';
@@ -37,6 +44,7 @@ export class InvoiceService {
   // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
   private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
   private readonly workspaceService = inject(WorkspaceService, { optional: true });
+  private readonly company = inject(CompanyProfileService, { optional: true });
 
   readonly invoices = signal<Invoice[]>(this.loadInvoices());
   readonly sentEmails = signal<EmailConfirmation[]>(this.loadEmails());
@@ -140,7 +148,7 @@ export class InvoiceService {
         orderNumber: inv.order_number,
         invoiceDate: inv.invoice_date,
         deliveryDate: inv.delivery_date,
-        seller: (inv.seller as unknown as InvoiceParty) || this.getSellerParty(),
+        seller: (inv.seller as unknown as InvoiceParty) || emptyDocumentParty(),
         buyer: (inv.buyer as unknown as InvoiceParty) || {
           name: 'Kunde',
           street: '',
@@ -211,22 +219,12 @@ export class InvoiceService {
   }
 
   getSellerParty(): InvoiceParty {
-    const ws = this.workspaceService?.currentWorkspace();
-    return {
-      name: ws?.name || 'Flipbase Reselling GmbH & Co. KG',
-      company: 'Flipbase Reselling',
-      street: 'Gewerbestraße 10',
-      postalCode: '10115',
-      city: 'Berlin',
-      country: 'Deutschland',
-      email: 'rechnung@flipbase.de',
-      phone: '+49 (0) 30 98765432',
-      taxId: '21/815/08150',
-      vatId: 'DE 345 678 901',
-      iban: 'DE45 5001 0517 5555 6666 77',
-      bic: 'HELA DE FF 500',
-      bankName: 'Helaba Landesbank',
-    };
+    const workspaceId = this.workspaceService?.currentWorkspace()?.id;
+    const profile = this.company?.profile() ?? null;
+    return createCompanyDocumentParty(
+      profile && profile.workspaceId === workspaceId ? profile : null,
+      this.company?.taxMode() ?? null,
+    );
   }
 
   getTaxClause(taxMode: TaxMode): string {
@@ -240,6 +238,20 @@ export class InvoiceService {
       default:
         return 'Differenzbesteuerung gem. § 25a UStG für Gebrauchtwaren.';
     }
+  }
+
+  async getDocumentLogoUrl(path: string): Promise<string> {
+    const workspaceId = this.workspaceService?.currentWorkspace()?.id;
+    if (!workspaceId || !path.startsWith(`${workspaceId}/logos/`) || !this.supabase) {
+      throw new Error('Das gespeicherte Unternehmenslogo ist nicht verfügbar.');
+    }
+    const { data, error } = await this.supabase.client.storage
+      .from('company-assets')
+      .createSignedUrl(path, 3600);
+    if (error || !data?.signedUrl || !this.isCurrentWorkspace(workspaceId)) {
+      throw new Error('Das gespeicherte Unternehmenslogo ist nicht verfügbar.');
+    }
+    return data.signedUrl;
   }
 
   /**
@@ -257,9 +269,25 @@ export class InvoiceService {
       if (vorhandeneRechnung) return this.rechnungserfolg(vorhandeneRechnung, false);
     }
     const ws = this.workspaceService?.currentWorkspace();
+    if (ws && sale.workspace_id !== ws.id) {
+      return this.rechnungsfehler(
+        new Error('Der Verkauf gehört nicht zum ausgewählten Workspace.'),
+      );
+    }
+    let seller: InvoiceParty;
+    try {
+      // Der Server erzeugt den verbindlichen Snapshot in derselben Transaktion.
+      seller = this.istPersistenterModus() ? emptyDocumentParty() : this.getSellerParty();
+    } catch (cause: unknown) {
+      return this.rechnungsfehler(cause);
+    }
     const persistedLines = sale.has_persisted_lines === false ? [] : (sale.lines ?? []);
     const taxMode: TaxMode =
-      persistedLines[0]?.tax_mode || item?.tax_mode_override || ws?.tax_mode || 'diff_25a';
+      persistedLines[0]?.tax_mode ||
+      item?.tax_mode_override ||
+      this.currentCompanyTaxMode(ws?.id) ||
+      ws?.tax_mode ||
+      'diff_25a';
     const invoiceNumber =
       'RE-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
     const orderNumber =
@@ -290,7 +318,7 @@ export class InvoiceService {
       orderNumber,
       invoiceDate: sale.sale_date || new Date().toISOString().split('T')[0],
       deliveryDate: sale.sale_date || new Date().toISOString().split('T')[0],
-      seller: this.getSellerParty(),
+      seller,
       buyer: {
         name: buyerInfo?.name || 'Kunde / Käufer',
         street: buyerInfo?.street || 'Kundenadresse',
@@ -394,9 +422,16 @@ export class InvoiceService {
       if (vorhandeneRechnung) return this.rechnungserfolg(vorhandeneRechnung, false);
     }
     const ws = this.workspaceService?.currentWorkspace();
+    let seller: InvoiceParty;
+    try {
+      seller = this.istPersistenterModus() ? emptyDocumentParty() : this.getSellerParty();
+    } catch (cause: unknown) {
+      return this.rechnungsfehler(cause);
+    }
     const invoiceNumber =
       'RE-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
-    const taxMode: TaxMode = 'diff_25a';
+    const companyTaxMode = this.currentCompanyTaxMode(ws?.id);
+    const taxMode: TaxMode = companyTaxMode ?? ws?.tax_mode ?? 'diff_25a';
 
     const invoiceItems: InvoiceItem[] = [];
     for (const cartItem of order.items) {
@@ -427,7 +462,7 @@ export class InvoiceService {
       orderNumber: order.orderNumber,
       invoiceDate: order.createdAt.split('T')[0],
       deliveryDate: order.createdAt.split('T')[0],
-      seller: this.getSellerParty(),
+      seller,
       buyer: {
         name: `${order.customer.firstName} ${order.customer.lastName}`,
         street: `${order.customer.street} ${order.customer.houseNumber}`,
@@ -458,6 +493,11 @@ export class InvoiceService {
       sourceId: order.id,
     };
     return this.speichereOderLeseRechnung(invoice, null, order.id, ws?.id);
+  }
+
+  private currentCompanyTaxMode(workspaceId: string | undefined): TaxMode | null {
+    if (!workspaceId || this.company?.profile()?.workspaceId !== workspaceId) return null;
+    return this.company.taxMode();
   }
 
   private async speichereOderLeseRechnung(
@@ -595,6 +635,35 @@ export class InvoiceService {
   }
 
   private rechnungsfehler(ursache: unknown): InvoiceGenerationResult {
+    if (
+      ursache instanceof CompanyDocumentError ||
+      (ursache &&
+        typeof ursache === 'object' &&
+        'message' in ursache &&
+        ursache.message === 'company_profile_incomplete')
+    ) {
+      let missingFields: CompanyRequiredField[] = [];
+      if (
+        !(ursache instanceof CompanyDocumentError) &&
+        'details' in ursache &&
+        typeof ursache.details === 'string'
+      ) {
+        try {
+          missingFields = JSON.parse(ursache.details) as CompanyRequiredField[];
+        } catch {
+          /* Ohne Detail bleibt der Weg zu den Einstellungen erhalten. */
+        }
+      }
+      return {
+        data: null,
+        error:
+          ursache instanceof CompanyDocumentError
+            ? ursache
+            : new CompanyDocumentError(missingFields),
+        created: false,
+        reportedBySyncStatus: false,
+      };
+    }
     const error =
       this.syncStatus?.melde('Erstellen der Rechnung', ursache) ??
       (ursache instanceof Error ? ursache : new Error(String(ursache)));

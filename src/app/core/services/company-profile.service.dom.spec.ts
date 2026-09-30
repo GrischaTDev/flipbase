@@ -200,6 +200,30 @@ describe('CompanyProfileService', () => {
     expect(service.profile()?.companyName).toBe('Firma B');
   });
 
+  it('liest für neue Dokumente frische Daten ohne laufende Formulare zurückzusetzen', async () => {
+    const { service, rpc } = createService();
+    rpc.mockResolvedValue({ data: state(workspaceA), error: null });
+    await service.load(workspaceA);
+    const oldProfile = service.profile();
+    rpc.mockResolvedValue({
+      data: state(workspaceA, { legal_name: 'Neuer Absender' }),
+      error: null,
+    });
+    const party = await service.getDocumentParty(workspaceA);
+    expect(party.name).toBe('Neuer Absender');
+    expect(service.profile()).toBe(oldProfile);
+  });
+
+  it('verwirft Dokumentdaten nach einem Workspace-Wechsel', async () => {
+    const { service, rpc, currentWorkspace } = createService();
+    const pending = deferred<{ data: unknown; error: null }>();
+    rpc.mockReturnValue(pending.promise);
+    const request = service.getDocumentParty(workspaceA);
+    currentWorkspace.set({ id: workspaceB });
+    pending.resolve({ data: state(workspaceA), error: null });
+    await expect(request).rejects.toThrow('Workspace');
+  });
+
   it('speichert nur über den atomaren RPC und übernimmt ausschließlich dessen bestätigte Antwort', async () => {
     const { service, rpc } = createService();
     rpc.mockResolvedValueOnce({ data: state(workspaceA), error: null }).mockResolvedValueOnce({
