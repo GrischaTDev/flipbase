@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-30 – Juna – Konto- und Unternehmensdatenarchitektur geplant
+
+**Auftrag:** Die bisher sehr eingeschränkte Konto-Seite zu einem echten Nutzerprofil ausbauen und parallel einen zentralen Unternehmensbereich für Rechnungs-, Steuer-, Bank-, Logo- und Adressdaten planen.
+
+**Befund und Entwurf:** Konto, Workspace, Rechnungen, Shop/Zahlungen und Versand wurden gemeinsam geprüft. Rechnungen und Shop enthalten aktuell noch feste Demo-Unternehmensdaten; Bankdaten und Versandadresse liegen zusätzlich an getrennten Stellen. Die neue Spezifikation trennt persönliche Kontodaten, rechtliche Unternehmensdaten und interne Workspace-Vorgaben. Unternehmensdaten werden workspacebezogen in einer eigenen Tabelle gepflegt, auf Dokumenten als unveränderlicher Snapshot gespeichert und nur durch Owner/Admin geändert. Bestehende Versandadressen bleiben als Override erhalten; Shop-Bank- und Impressumsdaten werden erst nach sicherem Übergang zentralisiert.
+
+**Nächster Schritt:** Nach Nutzerfreigabe der Spezifikation wird ein detaillierter Implementierungsplan erstellt. Produktcode wurde in diesem Schritt noch nicht geändert.
+
 ## 2026-09-30 – Juna – Technische Diagnose-Details für Marktplatz-Synchronisation ergänzt
 
 **Auftrag:** Im Synchronisations- und Fortschritts-Modal der Vinted-Kontenverwaltung eine detaillierte, aufklappbare Diagnoseanzeige einbauen, um Fehlerursachen (wie HTTP 401 Session-Drops, Proxy-Wechsel, Cloud-Browser-Timeouts) und den genauen Abbruchschritt transparent einsehen und den Server-Logbefehl direkt kopieren zu können.
