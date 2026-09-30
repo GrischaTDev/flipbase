@@ -142,36 +142,42 @@ using (
   )
 );
 
-create policy "Unternehmenslogos hochladen"
-on storage.objects for insert to authenticated
-with check (
-  bucket_id = 'company-assets'
-  and exists (
+create or replace function public.can_manage_company_logo_path(p_path text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $
+  select exists (
     select 1
     from public.workspace_members as member
     join public.workspaces as workspace on workspace.id = member.workspace_id
     where member.user_id = (select auth.uid())
       and member.role in ('owner', 'admin')
-      and member.workspace_id::text = (storage.foldername(name))[1]
       and workspace.archived_at is null
-      and public.is_company_logo_path(name, member.workspace_id)
-  )
+      and member.workspace_id::text = pg_catalog.split_part(p_path, '/', 1)
+      and public.is_company_logo_path(p_path, member.workspace_id)
+  );
+$;
+
+alter function public.can_manage_company_logo_path(text) owner to postgres;
+revoke all on function public.can_manage_company_logo_path(text)
+  from public, anon, authenticated, service_role;
+grant execute on function public.can_manage_company_logo_path(text) to authenticated;
+
+create policy "Unternehmenslogos hochladen"
+on storage.objects for insert to authenticated
+with check (
+  bucket_id = 'company-assets'
+  and (select public.can_manage_company_logo_path(name))
 );
 
 create policy "Unternehmenslogos loeschen"
 on storage.objects for delete to authenticated
 using (
   bucket_id = 'company-assets'
-  and exists (
-    select 1
-    from public.workspace_members as member
-    join public.workspaces as workspace on workspace.id = member.workspace_id
-    where member.user_id = (select auth.uid())
-      and member.role in ('owner', 'admin')
-      and member.workspace_id::text = (storage.foldername(name))[1]
-      and workspace.archived_at is null
-      and public.is_company_logo_path(name, member.workspace_id)
-  )
+  and (select public.can_manage_company_logo_path(name))
 );
 
 create or replace function public.get_workspace_company_settings(p_workspace_id uuid)
