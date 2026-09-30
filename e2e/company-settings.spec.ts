@@ -9,8 +9,12 @@ async function openCompanySettings(page: Page): Promise<void> {
   await openDashboard(page);
   await page.goto('/settings/company');
   await expect(page.getByRole('heading', { name: 'Unternehmen', exact: true })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Unternehmensprofil', exact: true })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Geschäftsanschrift', exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Unternehmensprofil', exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Geschäftsanschrift', exact: true }),
+  ).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Steuerdaten', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Bankverbindung', exact: true })).toBeVisible();
 }
