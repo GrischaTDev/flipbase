@@ -10,6 +10,7 @@ import { ButtonComponent } from '../../../../shared/components/button/button.com
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
+import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { AccountSettingsComponent } from './account-settings.component';
@@ -81,6 +82,30 @@ beforeAll(async () => {
   registerOutput(ButtonComponent, 'clicked');
   registerSignalInputs(ModalShellComponent, ['title', 'subtitle', 'size', 'presentation']);
   registerOutput(ModalShellComponent, 'closed');
+
+  const modalDialogMetadata = (
+    ModalDialogDirective as unknown as { ɵdir: AngularInputMetadata }
+  ).ɵdir;
+  metadataSnapshots.set(ModalDialogDirective, {
+    inputs: modalDialogMetadata.inputs,
+    declaredInputs: modalDialogMetadata.declaredInputs,
+    outputs: modalDialogMetadata.outputs,
+  });
+  modalDialogMetadata.inputs = {
+    ...modalDialogMetadata.inputs,
+    dialogTitel: ['dialogTitel', 1, null],
+    schliesstBeiKlickAussen: ['schliesstBeiKlickAussen', 1, null],
+  };
+  modalDialogMetadata.declaredInputs = {
+    ...modalDialogMetadata.declaredInputs,
+    dialogTitel: 'dialogTitel',
+    schliesstBeiKlickAussen: 'schliesstBeiKlickAussen',
+  };
+  modalDialogMetadata.outputs = {
+    ...modalDialogMetadata.outputs,
+    dialogClose: 'dialogClose',
+  };
+
   registerSignalInputs(TextFieldComponent, [
     'id',
     'label',
@@ -95,7 +120,10 @@ beforeAll(async () => {
 
 afterAll(() => {
   for (const [component, snapshot] of metadataSnapshots) {
-    const metadata = (component as { ɵcmp: AngularInputMetadata }).ɵcmp;
+    const metadata =
+      component === ModalDialogDirective
+        ? (component as unknown as { ɵdir: AngularInputMetadata }).ɵdir
+        : (component as { ɵcmp: AngularInputMetadata }).ɵcmp;
     metadata.inputs = snapshot.inputs;
     metadata.declaredInputs = snapshot.declaredInputs;
     metadata.outputs = snapshot.outputs;
