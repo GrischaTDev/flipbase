@@ -135,10 +135,10 @@ using (
   bucket_id = 'company-assets'
   and exists (
     select 1
-    from public.workspaces as workspace
-    where workspace.id::text = (storage.foldername(name))[1]
-      and public.is_company_logo_path(name, workspace.id)
-      and (select public.is_workspace_member(workspace.id))
+    from public.workspace_members as member
+    where member.user_id = (select auth.uid())
+      and member.workspace_id::text = (storage.foldername(name))[1]
+      and public.is_company_logo_path(name, member.workspace_id)
   )
 );
 
@@ -148,11 +148,13 @@ with check (
   bucket_id = 'company-assets'
   and exists (
     select 1
-    from public.workspaces as workspace
-    where workspace.id::text = (storage.foldername(name))[1]
+    from public.workspace_members as member
+    join public.workspaces as workspace on workspace.id = member.workspace_id
+    where member.user_id = (select auth.uid())
+      and member.role in ('owner', 'admin')
+      and member.workspace_id::text = (storage.foldername(name))[1]
       and workspace.archived_at is null
-      and public.is_company_logo_path(name, workspace.id)
-      and (select public.is_workspace_admin(workspace.id))
+      and public.is_company_logo_path(name, member.workspace_id)
   )
 );
 
@@ -162,11 +164,13 @@ using (
   bucket_id = 'company-assets'
   and exists (
     select 1
-    from public.workspaces as workspace
-    where workspace.id::text = (storage.foldername(name))[1]
+    from public.workspace_members as member
+    join public.workspaces as workspace on workspace.id = member.workspace_id
+    where member.user_id = (select auth.uid())
+      and member.role in ('owner', 'admin')
+      and member.workspace_id::text = (storage.foldername(name))[1]
       and workspace.archived_at is null
-      and public.is_company_logo_path(name, workspace.id)
-      and (select public.is_workspace_admin(workspace.id))
+      and public.is_company_logo_path(name, member.workspace_id)
   )
 );
 
