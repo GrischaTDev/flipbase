@@ -3,9 +3,14 @@ import { signal, ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import axe from 'axe-core';
 import { glob, readFile } from 'node:fs/promises';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthService } from '../../../../core/services/auth.service';
+import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { CardComponent } from '../../../../shared/components/card/card.component';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
+import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
+import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { AccountSettingsComponent } from './account-settings.component';
 
@@ -18,6 +23,36 @@ const askForConfirmation = vi.fn(async () => false);
 const toastSuccess = vi.fn();
 const toastError = vi.fn();
 
+interface AngularInputMetadata {
+  inputs: Record<string, unknown>;
+  declaredInputs: Record<string, string>;
+  outputs: Record<string, string>;
+}
+
+const metadataSnapshots = new Map<unknown, AngularInputMetadata>();
+
+function registerSignalInputs(component: unknown, inputNames: readonly string[]): void {
+  const metadata = (component as { ɵcmp: AngularInputMetadata }).ɵcmp;
+  metadataSnapshots.set(component, {
+    inputs: metadata.inputs,
+    declaredInputs: metadata.declaredInputs,
+    outputs: metadata.outputs,
+  });
+  metadata.inputs = {
+    ...metadata.inputs,
+    ...Object.fromEntries(inputNames.map((name) => [name, [name, 1, null]])),
+  };
+  metadata.declaredInputs = {
+    ...metadata.declaredInputs,
+    ...Object.fromEntries(inputNames.map((name) => [name, name])),
+  };
+}
+
+function registerOutput(component: unknown, outputName: string): void {
+  const metadata = (component as { ɵcmp: AngularInputMetadata }).ɵcmp;
+  metadata.outputs = { ...metadata.outputs, [outputName]: outputName };
+}
+
 beforeAll(async () => {
   await ɵresolveComponentResources(async (url) => {
     const fileName = url.replace(/^\.\//, '');
@@ -26,6 +61,41 @@ beforeAll(async () => {
     if (matches.length !== 1) throw new Error(`Test-Ressource nicht eindeutig: ${url}`);
     return readFile(matches[0], 'utf8');
   });
+
+  registerSignalInputs(CardComponent, ['title', 'subtitle', 'padding', 'rounded']);
+  registerSignalInputs(BadgeComponent, ['tone']);
+  registerSignalInputs(ButtonComponent, [
+    'variant',
+    'size',
+    'icon',
+    'disabled',
+    'loading',
+    'type',
+    'formId',
+  ]);
+  registerOutput(ButtonComponent, 'clicked');
+  registerSignalInputs(ModalShellComponent, ['title', 'subtitle', 'size', 'presentation']);
+  registerOutput(ModalShellComponent, 'closed');
+  registerSignalInputs(TextFieldComponent, [
+    'id',
+    'label',
+    'type',
+    'autocomplete',
+    'required',
+    'revealable',
+    'error',
+    'helpText',
+  ]);
+});
+
+afterAll(() => {
+  for (const [component, snapshot] of metadataSnapshots) {
+    const metadata = (component as { ɵcmp: AngularInputMetadata }).ɵcmp;
+    metadata.inputs = snapshot.inputs;
+    metadata.declaredInputs = snapshot.declaredInputs;
+    metadata.outputs = snapshot.outputs;
+  }
+  metadataSnapshots.clear();
 });
 
 beforeEach(() => {
