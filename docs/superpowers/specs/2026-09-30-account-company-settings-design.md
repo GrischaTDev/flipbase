@@ -230,37 +230,37 @@ ist Primärschlüssel und Fremdschlüssel auf `workspaces(id)`.
 
 V1-Felder:
 
-| Feld | Bedeutung |
-| --- | --- |
-| `workspace_id` | fachlicher Besitzer |
-| `company_name` | Geschäfts-/Markenname, z. B. „Wiehen Store“ |
-| `legal_name` | rechtlicher Name, bei Einzelunternehmen der Inhaber |
-| `legal_form` | kontrollierte Rechtsform |
-| `email` | geschäftliche Kontakt-E-Mail |
-| `phone` | geschäftliche Telefonnummer |
-| `website` | optionale Website |
-| `street` | Straße der Geschäftsanschrift |
-| `house_number` | Hausnummer |
-| `postal_code` | Postleitzahl |
-| `city` | Ort |
-| `country_code` | ISO-3166-1-Alpha-2, V1 standardmäßig DE |
-| `mailing_address_enabled` | abweichende Postanschrift aktiv |
-| `mailing_street` | optionale Postanschrift |
-| `mailing_house_number` | optionale Postanschrift |
-| `mailing_postal_code` | optionale Postanschrift |
-| `mailing_city` | optionale Postanschrift |
-| `mailing_country_code` | optionale Postanschrift |
-| `tax_number` | Steuernummer |
-| `vat_id` | USt-IdNr. |
-| `tax_office` | optionales Finanzamt |
-| `federal_state` | optionales Bundesland |
-| `bank_account_holder` | Kontoinhaber |
-| `bank_name` | Bankname |
-| `iban` | IBAN |
-| `bic` | BIC |
-| `logo_path` | Pfad des aktuell verwendeten Unternehmenslogos |
-| `created_at` | Anlage |
-| `updated_at` | letzte Änderung |
+| Feld                      | Bedeutung                                           |
+| ------------------------- | --------------------------------------------------- |
+| `workspace_id`            | fachlicher Besitzer                                 |
+| `company_name`            | Geschäfts-/Markenname, z. B. „Wiehen Store“         |
+| `legal_name`              | rechtlicher Name, bei Einzelunternehmen der Inhaber |
+| `legal_form`              | kontrollierte Rechtsform                            |
+| `email`                   | geschäftliche Kontakt-E-Mail                        |
+| `phone`                   | geschäftliche Telefonnummer                         |
+| `website`                 | optionale Website                                   |
+| `street`                  | Straße der Geschäftsanschrift                       |
+| `house_number`            | Hausnummer                                          |
+| `postal_code`             | Postleitzahl                                        |
+| `city`                    | Ort                                                 |
+| `country_code`            | ISO-3166-1-Alpha-2, V1 standardmäßig DE             |
+| `mailing_address_enabled` | abweichende Postanschrift aktiv                     |
+| `mailing_street`          | optionale Postanschrift                             |
+| `mailing_house_number`    | optionale Postanschrift                             |
+| `mailing_postal_code`     | optionale Postanschrift                             |
+| `mailing_city`            | optionale Postanschrift                             |
+| `mailing_country_code`    | optionale Postanschrift                             |
+| `tax_number`              | Steuernummer                                        |
+| `vat_id`                  | USt-IdNr.                                           |
+| `tax_office`              | optionales Finanzamt                                |
+| `federal_state`           | optionales Bundesland                               |
+| `bank_account_holder`     | Kontoinhaber                                        |
+| `bank_name`               | Bankname                                            |
+| `iban`                    | IBAN                                                |
+| `bic`                     | BIC                                                 |
+| `logo_path`               | Pfad des aktuell verwendeten Unternehmenslogos      |
+| `created_at`              | Anlage                                              |
+| `updated_at`              | letzte Änderung                                     |
 
 Bewusst nicht in V1:
 
