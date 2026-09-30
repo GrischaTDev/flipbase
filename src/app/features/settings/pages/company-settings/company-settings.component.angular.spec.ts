@@ -3,6 +3,12 @@ import { signal, ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { glob, readFile } from 'node:fs/promises';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
+import {
+  CompanyProfileInput,
+  WorkspaceCompanyProfile,
+} from '../../../../core/models/company-profile.models';
+import { TaxMode } from '../../../../core/models/flipbase.models';
+import { MutationResult } from '../../../../core/models/mutation-result.model';
 import { CompanyProfileService } from '../../../../core/services/company-profile.service';
 import { WorkspaceContextLockService } from '../../../../core/services/workspace-context-lock.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
@@ -54,11 +60,16 @@ function makeEnvironment(canEdit = true) {
   const loadError = signal<Error | null>(null);
   const logoUrl = signal<string | null>(null);
   const readiness = signal({ complete: true, missingFields: [] as string[] });
-  const save = vi.fn(async () => ({
-    data: companyProfile(),
-    error: null,
-    reportedBySyncStatus: false,
-  }));
+  const save = vi.fn(
+    async (
+      _input: CompanyProfileInput,
+      _taxMode: TaxMode,
+    ): Promise<MutationResult<WorkspaceCompanyProfile>> => ({
+      data: companyProfile(),
+      error: null,
+      reportedBySyncStatus: false,
+    }),
+  );
   const replaceLogo = vi.fn(async () => ({
     data: companyProfile(),
     error: null,
