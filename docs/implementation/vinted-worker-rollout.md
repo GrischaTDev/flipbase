@@ -1,5 +1,40 @@
 # Vinted-Browserdienst: Veröffentlichung des Admin-Piloten
 
+## Aktueller Betriebsstand vom 30.09.2026 – verlässliche Teilabrufe
+
+Nach dem erfolgreichen PR #267 und der bereits veröffentlichten Web-App samt
+Migration wurde der separat freigegebene Worker-Rollout durchgeführt. Der
+Workflow [36781655658](https://github.com/GrischaTDev/flipbase/actions/runs/36781655658)
+baute erfolgreich genau den Merge-Commit
+`e753200e8a5aac72945e0af150fd8e4b80dff544`. Die bestehende einzelne Instanz läuft
+mit `ghcr.io/grischatdev/flipbase-marketplace-worker:sha-e753200e8a5aac72945e0af150fd8e4b80dff544`.
+Der geladene Image-Digest ist
+`sha256:053d819f00a1e710704bb1c0cbad4c7aa0aae8db1b44cae55046098642526673`.
+
+Die Compose-Datei stimmt per SHA-256 mit dem geprüften Repository überein.
+Vor dem Wechsel wurden `.env.before-e753200e` und
+`docker-compose.before-e753200e.yml` unter `/opt/flipbase-marketplace/` mit
+Modus 0600 gesichert. Das zuvor tatsächlich laufende Image
+`sha-cdc9747f131b85e46f08f3e781788660d20c3c7d` bleibt für den Rückweg erhalten.
+Ein Rückweg erfolgt durch Wiederherstellen der gesicherten `.env` und erneutes
+Starten ausschließlich des Worker-Dienstes mit der bestehenden Compose-Datei.
+
+Vor dem Wechsel waren 39 Browsersitzungen geschlossen; es gab keine aktive
+oder ungeklärte Sitzung und keinen wartenden oder laufenden Auftrag. Diese
+beiden Sperrkriterien wurden direkt vor dem Wechsel und danach erneut
+bestätigt. Die Migration `20260930210350` ist installiert. Die atomare
+Importfunktion ist verfügbar und ausführbar für `service_role`, aber weder
+für `anon` noch für `authenticated`.
+
+Der neue Container meldet `running` und `healthy`. Der öffentliche Healthcheck
+liefert HTTP 200 mit `ok: true`, `readOnly: false` und `apiVersion: 2`;
+ein anonymer POST auf `/marketplace-browser/connections/sync/start` wird mit
+HTTP 401 abgewiesen. Die öffentliche Web-App liefert weiterhin denselben
+Merge-Commit aus. Ein echter Kontodatenabruf wurde durch den Rollout nicht
+ausgeführt; dieser Live-Nachweis bleibt separat offen. Automatische Abrufe,
+neue Benachrichtigungen und lokale Inseratentwürfe folgen in den weiteren
+geplanten Paketen.
+
 ## Aktueller Betriebsstand vom 28.09.2026 – Auftragsabruf
 
 Nach gesonderter Nutzerfreigabe wurde das aus dem bereits veröffentlichten

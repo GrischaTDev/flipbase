@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-30 – Juna – verlässliche Vinted-Abrufe produktiv aktiviert
+
+**Auftrag:** Nach dem integrierten PR #267 den separat freigegebenen Vinted-Worker auf den bereits veröffentlichten und geprüften Merge-Commit umstellen.
+
+**Änderung:** Das Image aus `e753200e8a5aac72945e0af150fd8e4b80dff544` über den vorhandenen GitHub-Workflow gebaut und ausschließlich die bestehende einzelne Worker-Instanz aktualisiert. Die Compose-Datei stimmt per SHA-256 mit dem Repository überein. Compose und Image-Zuordnung sind mit Modus 0600 gesichert; das vorige Image bleibt für einen Rückweg erhalten. Rollout und Rückweg sind in `docs/implementation/vinted-worker-rollout.md` festgehalten.
+
+**Prüfung:** Image-Workflow erfolgreich mit exakt dem vorgesehenen Commit. Vor und unmittelbar vor dem Wechsel sowie danach keine aktiven oder ungeklärten Browsersitzungen und keine wartenden oder laufenden Aufträge. Die neue Migration ist installiert; die atomare Importfunktion erlaubt ausschließlich dem Serverdienst die Ausführung. Der neue Container ist gesund, der öffentliche Healthcheck erfolgreich und ein anonymer Abrufstart mit HTTP 401 abgewiesen. Die öffentliche Web-App liefert denselben Merge-Commit. Kein echter Vinted-Datenabruf oder Inserat-Upload wurde ausgelöst; die weiteren geplanten Pakete sind noch offen.
+
 ## 2026-09-30 – Juna – Vinted-Paket für PR und Merge vorbereitet
 
 **Auftrag:** Den geprüften Vinted-Zweig veröffentlichen, erfolgreiche Pflichtprüfungen abwarten, mit Merge-Commit integrieren und den Feature-Zweig samt Worktree aufräumen.
