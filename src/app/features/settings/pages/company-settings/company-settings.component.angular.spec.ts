@@ -54,9 +54,21 @@ function makeEnvironment(canEdit = true) {
   const loadError = signal<Error | null>(null);
   const logoUrl = signal<string | null>(null);
   const readiness = signal({ complete: true, missingFields: [] as string[] });
-  const save = vi.fn(async () => ({ data: companyProfile(), error: null, reportedBySyncStatus: false }));
-  const replaceLogo = vi.fn(async () => ({ data: companyProfile(), error: null, reportedBySyncStatus: false }));
-  const removeLogo = vi.fn(async () => ({ data: companyProfile(), error: null, reportedBySyncStatus: false }));
+  const save = vi.fn(async () => ({
+    data: companyProfile(),
+    error: null,
+    reportedBySyncStatus: false,
+  }));
+  const replaceLogo = vi.fn(async () => ({
+    data: companyProfile(),
+    error: null,
+    reportedBySyncStatus: false,
+  }));
+  const removeLogo = vi.fn(async () => ({
+    data: companyProfile(),
+    error: null,
+    reportedBySyncStatus: false,
+  }));
   const load = vi.fn(async () => undefined);
   const release = vi.fn();
   const acquire = vi.fn(() => release);
@@ -158,7 +170,9 @@ describe('CompanySettingsComponent', () => {
     const host = fixture.nativeElement as HTMLElement;
 
     expect(fixture.componentInstance.form.disabled).toBe(true);
-    expect(host.textContent).toContain('Nur Inhaber und Administratoren können Unternehmensdaten ändern.');
+    expect(host.textContent).toContain(
+      'Nur Inhaber und Administratoren können Unternehmensdaten ändern.',
+    );
     expect(host.textContent).not.toContain('Änderungen speichern');
     expect(host.textContent).not.toContain('Logo ändern');
   });
@@ -215,7 +229,9 @@ describe('CompanySettingsComponent', () => {
     env.fixture.detectChanges();
     const host = env.fixture.nativeElement as HTMLElement;
 
-    expect(host.querySelector('[role="alert"]')?.textContent).toContain('Unternehmensdaten konnten nicht geladen werden');
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain(
+      'Unternehmensdaten konnten nicht geladen werden',
+    );
     expect(host.textContent).toContain('Erneut versuchen');
 
     await env.fixture.componentInstance.retryLoad();
