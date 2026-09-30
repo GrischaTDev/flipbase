@@ -12,6 +12,7 @@ import { WorkspaceService } from './workspace.service';
 
 type ArchiveRow = Readonly<Record<string, unknown>>;
 type ArchiveTableName =
+  | 'workspace_company_profiles'
   | 'suppliers'
   | 'catalog_products'
   | 'purchases'
@@ -56,6 +57,7 @@ export interface AuditArchiveDocumentFailure extends AuditArchiveDocumentRequest
 
 export interface AuditArchiveData {
   readonly businessEvents: readonly BusinessEvent[];
+  readonly companyProfiles: readonly ArchiveRow[];
   readonly suppliers: readonly ArchiveRow[];
   readonly catalogProducts: readonly ArchiveRow[];
   readonly purchases: readonly ArchiveRow[];
@@ -100,6 +102,7 @@ export interface AuditArchiveRequest extends Omit<BusinessEventFilter, 'cursor'>
 }
 
 const ARCHIVE_TABLES = {
+  companyProfiles: 'workspace_company_profiles',
   suppliers: 'suppliers',
   catalogProducts: 'catalog_products',
   purchases: 'purchases',
@@ -125,6 +128,37 @@ const ARCHIVE_TABLES = {
 } as const;
 
 const ARCHIVE_HEADERS = {
+  companyProfiles: [
+    'workspace_id',
+    'company_name',
+    'legal_name',
+    'legal_form',
+    'email',
+    'phone',
+    'website',
+    'street',
+    'house_number',
+    'postal_code',
+    'city',
+    'country_code',
+    'mailing_address_enabled',
+    'mailing_street',
+    'mailing_house_number',
+    'mailing_postal_code',
+    'mailing_city',
+    'mailing_country_code',
+    'tax_number',
+    'vat_id',
+    'tax_office',
+    'federal_state',
+    'bank_account_holder',
+    'bank_name',
+    'iban',
+    'bic',
+    'logo_path',
+    'created_at',
+    'updated_at',
+  ],
   suppliers: [
     'id',
     'workspace_id',
@@ -536,6 +570,13 @@ export async function buildAuditArchive(
   );
   const files = new Map<string, { content: ArchiveFileContent; rows: number }>([
     [
+      'company-profile.csv',
+      {
+        content: rowsToCsv(data.companyProfiles, ARCHIVE_HEADERS.companyProfiles),
+        rows: data.companyProfiles.length,
+      },
+    ],
+    [
       'business-events.csv',
       { content: rowsToCsv(eventRows, BUSINESS_EVENT_HEADERS), rows: eventRows.length },
     ],
@@ -730,8 +771,8 @@ export async function buildAuditArchive(
     })),
   );
   const manifest: AuditExportManifest = {
-    schemaVersion: '1.3.0',
-    exportVersion: '1.3.0',
+    schemaVersion: '1.4.0',
+    exportVersion: '1.4.0',
     createdAt: options.createdAt,
     workspaceId: options.workspaceId,
     filters: options.filters,
@@ -807,6 +848,7 @@ export class AuditExportService {
     const archive = await buildAuditArchive(
       {
         businessEvents: events,
+        companyProfiles: collected.get('workspace_company_profiles') ?? [],
         suppliers: collected.get('suppliers') ?? [],
         catalogProducts: collected.get('catalog_products') ?? [],
         purchases: collected.get('purchases') ?? [],
