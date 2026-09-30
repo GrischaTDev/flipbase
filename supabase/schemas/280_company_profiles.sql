@@ -61,14 +61,16 @@ create policy "Unternehmensdaten lesen"
 on public.workspace_company_profiles for select to authenticated
 using ((select public.is_workspace_member(workspace_id)));
 
-create trigger "00_protect_archived_workspace"
-before insert or update or delete on public.workspace_company_profiles
-for each row execute function public.protect_archived_workspace_data();
-
 -- Bestehende Workspaces erhalten bewusst nur eine leere Zeile.
+-- Der Archivschutz wird erst danach aktiviert, damit auch bereits archivierte
+-- Workspaces die notwendige schreibgeschützte Stammdatenzeile erhalten.
 insert into public.workspace_company_profiles(workspace_id)
 select id from public.workspaces
 on conflict (workspace_id) do nothing;
+
+create trigger "00_protect_archived_workspace"
+before insert or update or delete on public.workspace_company_profiles
+for each row execute function public.protect_archived_workspace_data();
 
 -- Unternehmensdaten sind ein eigener Audit-Entitätstyp.
 alter table public.business_events
