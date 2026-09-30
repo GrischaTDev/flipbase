@@ -1,3 +1,7 @@
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { CardComponent } from '../../../../shared/components/card/card.component';
+import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
+import { maskCompanyIban } from '../../../../core/models/company-store.models';
 import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { LucideCreditCard, LucideDynamicIcon, LucideLandmark, LucideSave } from '@lucide/angular';
@@ -10,16 +14,25 @@ import { TextFieldComponent } from '../../../../shared/components/text-field/tex
 
 @Component({
   selector: 'app-store-settings',
-  imports: [ReactiveFormsModule, LucideDynamicIcon, CustomCheckboxComponent, TextFieldComponent],
+  imports: [
+    ButtonComponent,
+    CardComponent,
+    BadgeComponent,
+    ReactiveFormsModule,
+    LucideDynamicIcon,
+    CustomCheckboxComponent,
+    TextFieldComponent,
+  ],
   templateUrl: './store-settings.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
 })
 export class StoreSettingsComponent {
-  private readonly storeService = inject(StoreService);
+  readonly storeService = inject(StoreService);
   private readonly workspaceService = inject(WorkspaceService);
   private readonly toast = inject(ToastService);
   private readonly syncStatus = inject(SyncStatusService);
+  readonly maskIban = maskCompanyIban;
   readonly cardIcon = LucideCreditCard;
   readonly bankIcon = LucideLandmark;
   readonly saveIcon = LucideSave;
@@ -29,10 +42,6 @@ export class StoreSettingsComponent {
     paypalEnabled: new FormControl(true),
     paypalEmail: new FormControl(''),
     bankTransferEnabled: new FormControl(true),
-    bankName: new FormControl(''),
-    bankIban: new FormControl(''),
-    bankBic: new FormControl(''),
-    bankAccountHolder: new FormControl(''),
     cashOnPickupEnabled: new FormControl(true),
   });
   readonly isLoadingWorkspaceConfig = signal(true);
@@ -56,10 +65,6 @@ export class StoreSettingsComponent {
             paypalEnabled: false,
             paypalEmail: '',
             bankTransferEnabled: false,
-            bankName: '',
-            bankIban: '',
-            bankBic: '',
-            bankAccountHolder: '',
             cashOnPickupEnabled: false,
           },
           { emitEvent: false },
@@ -83,9 +88,6 @@ export class StoreSettingsComponent {
         paypalEnabled: !!value.paypalEnabled,
         paypalEmail: value.paypalEmail?.trim() || '',
         bankTransferEnabled: !!value.bankTransferEnabled,
-        bankIban: value.bankIban?.trim() || '',
-        bankBic: value.bankBic?.trim() || '',
-        bankAccountHolder: value.bankAccountHolder?.trim() || '',
         cashOnPickupEnabled: !!value.cashOnPickupEnabled,
       });
       if (!this.isCurrentSave(requestId, workspaceId)) return;

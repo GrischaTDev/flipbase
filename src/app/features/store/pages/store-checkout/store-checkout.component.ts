@@ -87,7 +87,9 @@ export class StoreCheckoutComponent {
     notes: new FormControl(''),
   });
 
-  readonly selectedPayment = computed(() => this.form.controls.paymentMethod.value);
+  selectedPayment(): CheckoutCustomerInfo['paymentMethod'] {
+    return this.form.controls.paymentMethod.value;
+  }
 
   readonly detectedCardBrand = computed(() => {
     const num = this.form.controls.cardNumber.value || '';

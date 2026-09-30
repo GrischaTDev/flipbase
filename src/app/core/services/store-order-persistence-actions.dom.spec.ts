@@ -8,6 +8,8 @@ import { StoreService } from './store.service';
 import { SupabaseService } from './supabase.service';
 import { SyncStatusService } from './sync-status.service';
 import { WorkspaceService } from './workspace.service';
+import { CompanyProfileService } from './company-profile.service';
+import { companyProfileFixture } from '../../../test-support/company-document.fixture';
 
 const ledLampId = '22222222-2222-4222-8222-222222222222';
 
@@ -84,6 +86,16 @@ function erstelleService(rpcAntwort: RpcAntwort) {
       { provide: SupabaseService, useValue: { client } },
       { provide: SyncStatusService, useValue: syncStatus },
       {
+        provide: CompanyProfileService,
+        useValue: {
+          profile: signal({
+            ...companyProfileFixture(dbBestellung.workspace_id),
+            bankAccountHolder: 'Testkonto',
+            iban: 'DE89370400440532013000',
+          }),
+        },
+      },
+      {
         provide: WorkspaceService,
         useValue: { currentWorkspace: () => ({ id: dbBestellung.workspace_id }) },
       },
@@ -92,6 +104,7 @@ function erstelleService(rpcAntwort: RpcAntwort) {
     ],
   });
   const service = runInInjectionContext(injector, () => new StoreService());
+  service.loadedWorkspaceId.set(dbBestellung.workspace_id);
   service.cart.set([cartLine]);
 
   return { loadPositions, loadSales, positions, rpc, sales, service, syncStatus };

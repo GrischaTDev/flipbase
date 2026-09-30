@@ -226,25 +226,31 @@
           <h4 class="font-bold text-white text-xs uppercase tracking-wider mb-2">
             Impressum & Kundenservice
           </h4>
-          <p class="font-semibold text-slate-200">
-            {{ storeService.storeSettings().imprint.owner }}
-          </p>
-          <p>{{ storeService.storeSettings().imprint.street }}</p>
-          <p>{{ storeService.storeSettings().imprint.city }}</p>
-          <p class="pt-1 text-slate-300 font-medium flex items-center gap-1">
-            <span>E-Mail:</span>
-            <a
-              [href]="'mailto:' + storeService.storeSettings().imprint.email"
-              class="hover:underline text-slate-200"
-            >
-              {{ storeService.storeSettings().imprint.email }}
-            </a>
-          </p>
-          <p class="text-slate-400">Tel: {{ storeService.storeSettings().imprint.phone }}</p>
-          @if (storeService.storeSettings().imprint.vatId) {
-            <p class="text-[10px] text-slate-500 pt-1 border-t border-slate-800 mt-2">
-              USt-IdNr.: {{ storeService.storeSettings().imprint.vatId }}
-            </p>
+          @if (storeService.companyImprint(); as imprint) {
+            @if (imprint.company) {
+              <p>{{ imprint.company }}</p>
+            }
+            <p class="font-semibold text-slate-200">{{ imprint.owner }}</p>
+            <p>{{ imprint.street }}</p>
+            <p>{{ imprint.city }}, {{ imprint.country }}</p>
+            @if (imprint.email) {
+              <p>
+                <a [href]="'mailto:' + imprint.email" class="hover:underline text-slate-200">{{
+                  imprint.email
+                }}</a>
+              </p>
+            }
+            @if (imprint.phone) {
+              <p>Tel: {{ imprint.phone }}</p>
+            }
+            @if (imprint.vatId) {
+              <p>USt-IdNr.: {{ imprint.vatId }}</p>
+            }
+            @if (imprint.taxNumber) {
+              <p>Steuernummer: {{ imprint.taxNumber }}</p>
+            }
+          } @else {
+            <p>Unternehmensangaben sind derzeit nicht verfügbar.</p>
           }
         </div>
       </div>

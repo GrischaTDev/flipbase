@@ -1,3 +1,5 @@
+import { StoreService } from '../../../../core/services/store.service';
+import { maskCompanyIban } from '../../../../core/models/company-store.models';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -65,6 +67,8 @@ function compactMaxLength(maxLength: number) {
   },
 })
 export class CompanySettingsComponent {
+  private readonly store = inject(StoreService);
+  readonly maskIban = maskCompanyIban;
   readonly company = inject(CompanyProfileService);
   private readonly workspace = inject(WorkspaceService);
   private readonly workspaceContext = inject(WorkspaceContextLockService);
@@ -200,6 +204,39 @@ export class CompanySettingsComponent {
       this.company.profile()?.workspaceId === workspaceId
     );
   });
+
+  readonly legacyBankSuggestion = computed(() => {
+    if (
+      !this.hasCurrentProfile() ||
+      !this.company.canEdit() ||
+      this.store.loadedWorkspaceId() !== this.workspace.currentWorkspace()?.id
+    )
+      return null;
+    const profile = this.company.profile();
+    const value = this.formValue();
+    const fields = [
+      profile?.bankAccountHolder,
+      profile?.bankName,
+      profile?.iban,
+      profile?.bic,
+      value.bankAccountHolder,
+      value.bankName,
+      value.iban,
+      value.bic,
+    ];
+    return fields.some((field) => field?.trim()) ? null : this.store.legacyBankAccount();
+  });
+
+  applyLegacyBankSuggestion(): void {
+    const suggestion = this.legacyBankSuggestion();
+    if (!suggestion || this.isSaving()) return;
+    this.form.patchValue({
+      bankAccountHolder: suggestion.accountHolder,
+      bankName: suggestion.bankName,
+      iban: suggestion.iban,
+      bic: suggestion.bic,
+    });
+  }
 
   readonly missingRequiredFields = computed<readonly CompanyRequiredField[]>(() => {
     const value = this.formValue();

@@ -1,3 +1,5 @@
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { CardComponent } from '../../../../shared/components/card/card.component';
 import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
@@ -10,10 +12,6 @@ import {
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
-import {
-  CustomSelectComponent,
-  SelectOption,
-} from '../../../../shared/components/custom-select/custom-select.component';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
@@ -21,9 +19,10 @@ import { NumberInputComponent } from '../../../../shared/components/number-input
 @Component({
   selector: 'app-workspace-settings',
   imports: [
+    ButtonComponent,
+    CardComponent,
     ReactiveFormsModule,
     LucideDynamicIcon,
-    CustomSelectComponent,
     BadgeComponent,
     TextFieldComponent,
     NumberInputComponent,
@@ -41,16 +40,10 @@ export class WorkspaceSettingsComponent {
   readonly plusIcon = LucidePlus;
   readonly saveIcon = LucideSave;
   readonly trashIcon = LucideTrash2;
-  readonly taxModeOptions: readonly SelectOption<string>[] = [
-    { value: 'diff_25a', label: '§ 25a Differenzbesteuerung (Gebrauchtwaren)' },
-    { value: 'kleinunternehmer_19', label: '§ 19 Kleinunternehmer (0% USt)' },
-    { value: 'regular_19', label: '19% Regelbesteuerung (Standard)' },
-  ];
 
   readonly settingsForm = new FormGroup({
     workspaceName: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     currency: new FormControl('EUR', { nonNullable: true }),
-    taxMode: new FormControl('diff_25a', { nonNullable: true }),
     minRoiPercent: new FormControl(20, { nonNullable: true, validators: [Validators.min(0)] }),
     minProfitAmount: new FormControl(10, { nonNullable: true, validators: [Validators.min(0)] }),
   });
@@ -69,7 +62,6 @@ export class WorkspaceSettingsComponent {
         this.settingsForm.patchValue({
           workspaceName: workspace.name,
           currency: workspace.currency || 'EUR',
-          taxMode: workspace.tax_mode || 'diff_25a',
           minRoiPercent: workspace.min_roi_percent,
           minProfitAmount: workspace.min_profit_amount,
         });
