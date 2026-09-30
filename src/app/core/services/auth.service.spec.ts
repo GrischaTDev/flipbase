@@ -203,9 +203,7 @@ describe('AuthService: Passwort ändern', () => {
 
     const result = await umgebung.dienst.changePassword('alt-passwort', 'neues-passwort-123');
 
-    expect(umgebung.signInCalls).toEqual([
-      { email: 'test@test.de', password: 'alt-passwort' },
-    ]);
+    expect(umgebung.signInCalls).toEqual([{ email: 'test@test.de', password: 'alt-passwort' }]);
     expect(umgebung.updateUserCalls).toEqual([{ password: 'neues-passwort-123' }]);
     expect(result.error).toBeNull();
   });
