@@ -39,6 +39,7 @@ begin
   for v_table in
     select table_name
     from (values
+      ('workspace_company_profiles'::text),
       ('suppliers'::text),
       ('catalog_products'::text),
       ('purchases'::text),
