@@ -32,10 +32,10 @@ export interface MarketplaceFeedback {
   readonly id: string;
   readonly authorName: string | null;
   readonly authorImageUrl: string | null;
-  readonly rating: number;
+  readonly rating: number | null;
   readonly text: string;
   readonly occurredAt: string | null;
-  readonly isAutomatic: boolean;
+  readonly isAutomatic: boolean | null;
   readonly itemTitle?: string | null;
 }
 export interface MarketplaceProfile extends AccountScope {

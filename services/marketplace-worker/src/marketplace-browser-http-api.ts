@@ -477,7 +477,11 @@ export class MarketplaceBrowserHttpApi {
           const counts = await this.imports.write(scope, currentSessionId, result);
           await this.broker.close(scope, currentSessionId);
           sessionId = undefined;
-          json(response, 200, { observedAt: result.observedAt, counts });
+          json(response, 200, {
+            observedAt: result.observedAt,
+            counts,
+            sourceResults: result.areas,
+          });
         } finally {
           try {
             if (sessionId) await this.broker.close(scope, sessionId);

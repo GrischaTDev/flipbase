@@ -46,182 +46,96 @@ test('liest Gesprächsversionen nur für die aktive Sitzung und das gebundene Ko
   assert.equal(calls[1]?.searchParams.get('kind'), 'eq.conversation');
 });
 
-test('verweigert fremde Vinted-Identität vor dem ersten Datenbankeintrag', async () => {
-  const calls: string[] = [];
-  const writer = new SupabaseVintedImportWriter({
+const sessionId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+const snapshot = {
+  identity: { id: '123', username: 'testkonto' },
+  observedAt: '2026-09-28T10:00:00Z',
+  entries: [],
+  areas: {
+    profile: { status: 'complete' },
+    publications: { status: 'complete' },
+    conversations: { status: 'complete' },
+    messages: { status: 'partial' },
+    sales: { status: 'partial' },
+    feedback: { status: 'failed', failure: 'network' },
+  },
+} satisfies import('../src/vinted-account-import.ts').VintedAccountImport;
+const counts = { profile: 1, publication: 0, conversation: 0, message: 0, sale: 0 };
+function writerWithRpc(
+  rpc: (init?: RequestInit) => Response | Promise<Response>,
+  calls: string[] = [],
+) {
+  return new SupabaseVintedImportWriter({
     url: 'https://db.example.test',
     publishableKey: 'public-token',
     serviceRoleKey: 'server-token',
     fetch: async (input, init) => {
-      const url = String(input);
-      calls.push(`${init?.method ?? 'GET'} ${new URL(url).pathname}`);
-      if (url.includes('marketplace_browser_session_check'))
+      const path = new URL(String(input)).pathname;
+      calls.push(path);
+      if (path.endsWith('marketplace_browser_session_check'))
         return Response.json({
           active: true,
-          id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+          id: sessionId,
           workspaceId: scope.workspaceId,
           connectionId: scope.connectionId,
         });
-      if (url.includes('marketplace_connections'))
-        return Response.json([{ status: 'connected', external_account_id: '123' }]);
-      throw new Error('Eintrag darf nicht geschrieben werden');
+      if (path.endsWith('marketplace_apply_vinted_import')) return rpc(init);
+      throw new Error('Unabhängige Tabellen-Schreiboperation ist nicht erlaubt');
     },
   });
-  await assert.rejects(
-    writer.write(scope, 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', {
-      identity: { id: '999', username: 'fremd' },
-      observedAt: '2026-09-28T10:00:00Z',
-      entries: [],
-    }),
-  );
+}
+test('übernimmt Daten, Bereichsergebnisse und Eigentümer in genau einer Worker-Transaktion', async () => {
+  const calls: string[] = [];
+  const writer = writerWithRpc((init) => {
+    assert.equal(new Headers(init?.headers).get('Authorization'), 'Bearer server-token');
+    assert.deepEqual(JSON.parse(String(init?.body)), {
+      p_workspace_id: scope.workspaceId,
+      p_connection_id: scope.connectionId,
+      p_session_id: sessionId,
+      p_user_id: scope.userId,
+      p_snapshot: snapshot,
+    });
+    assert.equal(String(init?.body).includes(scope.userAccessToken), false);
+    return Response.json(counts);
+  }, calls);
+  assert.deepEqual(await writer.write(scope, sessionId, snapshot), counts);
   assert.deepEqual(calls, [
-    'POST /rest/v1/rpc/marketplace_browser_session_check',
-    'GET /rest/v1/marketplace_connections',
+    '/rest/v1/rpc/marketplace_browser_session_check',
+    '/rest/v1/rpc/marketplace_apply_vinted_import',
   ]);
 });
-
-test('verweigert abgelaufenen oder fremden Sitzungszugriff vor dem Schreiben', async () => {
+test('RPC-Ablehnung führt zu keinem nachfolgenden Teil-Schreibversuch', async () => {
   const calls: string[] = [];
-  const writer = new SupabaseVintedImportWriter({
-    url: 'https://db.example.test',
-    publishableKey: 'public-token',
-    serviceRoleKey: 'server-token',
-    fetch: async (input) => {
-      calls.push(new URL(String(input)).pathname);
-      return Response.json({ active: false, workspaceId: 'another-workspace' });
-    },
-  });
-  await assert.rejects(
-    writer.write(scope, 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', {
-      identity: { id: '123', username: 'testkonto' },
-      observedAt: '2026-09-28T10:00:00Z',
-      entries: [],
-    }),
-    /Kontozugriff abgelaufen/,
+  const writer = writerWithRpc(
+    () => Response.json({ message: 'private-database-response' }, { status: 403 }),
+    calls,
   );
-  assert.deepEqual(calls, ['/rest/v1/rpc/marketplace_browser_session_check']);
+  await assert.rejects(writer.write(scope, sessionId, snapshot));
+  assert.equal(calls.length, 2);
 });
-
-test('speichert Nachrichten nur unter dem Gespräch desselben Kontos', async () => {
-  const written: Record<string, unknown>[] = [];
-  const removed: URL[] = [];
-  const writer = new SupabaseVintedImportWriter({
-    url: 'https://db.example.test',
-    publishableKey: 'public-token',
-    serviceRoleKey: 'server-token',
-    fetch: async (input, init) => {
-      const url = new URL(String(input));
-      if (url.pathname.endsWith('marketplace_browser_session_check'))
-        return Response.json({
-          active: true,
-          id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
-          workspaceId: scope.workspaceId,
-          connectionId: scope.connectionId,
-        });
-      if (url.pathname.endsWith('marketplace_connections') && init?.method === 'PATCH')
-        return Response.json([{ id: scope.connectionId }]);
-      if (url.pathname.endsWith('marketplace_connections'))
-        return Response.json([{ status: 'connected', external_account_id: '123' }]);
-      if (url.pathname.endsWith('marketplace_account_entries') && init?.method === 'DELETE') {
-        removed.push(url);
-        return new Response(null, { status: 204 });
-      }
-      if (url.pathname.endsWith('marketplace_account_entries')) {
-        const rows = JSON.parse(String(init?.body)) as Record<string, unknown>[];
-        written.push(...rows);
-        return Response.json(
-          rows.map((row) => ({
-            id:
-              row['kind'] === 'conversation'
-                ? 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'
-                : 'ffffffff-ffff-4fff-8fff-ffffffffffff',
-            external_id: row['external_id'],
-          })),
-        );
-      }
-      throw new Error('Unerwartete Anfrage');
-    },
-  });
-  const counts = await writer.write(scope, 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', {
-    identity: { id: '123', username: 'testkonto' },
-    observedAt: '2026-09-28T10:00:00Z',
-    entries: [
-      {
-        kind: 'conversation',
-        externalId: '51',
-        sortAt: '2026-09-28T09:00:00Z',
-        body: { title: 'Gespräch' },
-      },
-      {
-        kind: 'message',
-        externalId: '61',
-        parentExternalId: '51',
-        sortAt: '2026-09-28T09:00:00Z',
-        body: { text: 'Hallo' },
-      },
-    ],
-  });
-  assert.equal(counts.conversation, 1);
-  assert.equal(counts.message, 1);
-  assert.equal(
-    written.find((row) => row['kind'] === 'message')?.['parent_id'],
-    'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
-  );
-  assert.ok(
-    written.every(
-      (row) =>
-        row['workspace_id'] === scope.workspaceId && row['connection_id'] === scope.connectionId,
-    ),
-  );
-  assert.deepEqual(
-    removed.map((url) => url.searchParams.get('kind')),
-    ['eq.publication', 'eq.conversation'],
-  );
-  assert.ok(
-    removed.every(
-      (url) =>
-        url.searchParams.get('workspace_id') === `eq.${scope.workspaceId}` &&
-        url.searchParams.get('connection_id') === `eq.${scope.connectionId}` &&
-        url.searchParams.get('observed_at') === 'lt.2026-09-28T10:00:00Z',
-    ),
-  );
+test('fehlerhafte oder fehlende RPC-Zähler bestätigen keine Speicherung', async () => {
+  for (const result of [
+    { profile: 1 },
+    { ...counts, message: -1 },
+    { ...counts, sale: 0.5 },
+    { ...counts, publication: '1' },
+  ]) {
+    await assert.rejects(
+      writerWithRpc(() => Response.json(result)).write(scope, sessionId, snapshot),
+    );
+  }
 });
-
-test('entfernt nur erneut geprüfte, unbelegte Verkäufe aus demselben Konto', async () => {
-  const removed: URL[] = [];
+test('abgelaufener Zugriff verhindert den Transaktionsaufruf', async () => {
+  let requests = 0;
   const writer = new SupabaseVintedImportWriter({
     url: 'https://db.example.test',
     publishableKey: 'public-token',
     serviceRoleKey: 'server-token',
-    fetch: async (input, init) => {
-      const url = new URL(String(input));
-      if (url.pathname.endsWith('marketplace_browser_session_check'))
-        return Response.json({
-          active: true,
-          id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
-          workspaceId: scope.workspaceId,
-          connectionId: scope.connectionId,
-        });
-      if (url.pathname.endsWith('marketplace_connections') && init?.method === 'PATCH')
-        return Response.json([{ id: scope.connectionId }]);
-      if (url.pathname.endsWith('marketplace_connections'))
-        return Response.json([{ status: 'connected', external_account_id: '123' }]);
-      if (url.pathname.endsWith('marketplace_account_entries') && init?.method === 'DELETE') {
-        removed.push(url);
-        return new Response(null, { status: 204 });
-      }
-      throw new Error('Unerwartete Anfrage');
+    fetch: async () => {
+      requests++;
+      return Response.json({ active: false });
     },
   });
-  await writer.write(scope, 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', {
-    identity: { id: '123', username: 'testkonto' },
-    observedAt: '2026-09-28T10:00:00Z',
-    entries: [],
-    rejectedSaleIds: ['71'],
-  });
-  const saleDelete = removed.find((url) => url.searchParams.get('kind') === 'eq.sale');
-  assert.ok(saleDelete);
-  assert.equal(saleDelete.searchParams.get('workspace_id'), `eq.${scope.workspaceId}`);
-  assert.equal(saleDelete.searchParams.get('connection_id'), `eq.${scope.connectionId}`);
-  assert.equal(saleDelete.searchParams.get('external_id'), 'in.(71)');
+  await assert.rejects(writer.write(scope, sessionId, snapshot), /Kontozugriff abgelaufen/);
+  assert.equal(requests, 1);
 });

@@ -1752,6 +1752,50 @@ export type Database = {
           },
         ]
       }
+      marketplace_account_sync_sources: {
+        Row: {
+          area: string
+          connection_id: string
+          failure: string | null
+          id: number
+          last_complete_at: string | null
+          last_success_at: string | null
+          observed_at: string
+          status: string
+          workspace_id: string
+        }
+        Insert: {
+          area: string
+          connection_id: string
+          failure?: string | null
+          id?: never
+          last_complete_at?: string | null
+          last_success_at?: string | null
+          observed_at: string
+          status: string
+          workspace_id: string
+        }
+        Update: {
+          area?: string
+          connection_id?: string
+          failure?: string | null
+          id?: never
+          last_complete_at?: string | null
+          last_success_at?: string | null
+          observed_at?: string
+          status?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_account_sync_source_workspace_id_connection_id_fkey"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_connections"
+            referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
       marketplace_browser_profiles: {
         Row: {
           connection_id: string
@@ -1943,6 +1987,7 @@ export type Database = {
           observed_at: string | null
           requested_by: string
           runner_id: string | null
+          source_results: Json | null
           stage: string | null
           started_at: string | null
           state: string
@@ -1959,6 +2004,7 @@ export type Database = {
           observed_at?: string | null
           requested_by: string
           runner_id?: string | null
+          source_results?: Json | null
           stage?: string | null
           started_at?: string | null
           state?: string
@@ -1975,6 +2021,7 @@ export type Database = {
           observed_at?: string | null
           requested_by?: string
           runner_id?: string | null
+          source_results?: Json | null
           stage?: string | null
           started_at?: string | null
           state?: string
@@ -5439,6 +5486,16 @@ export type Database = {
           kind: string
           reason: string
         }[]
+      }
+      marketplace_apply_vinted_import: {
+        Args: {
+          p_connection_id: string
+          p_session_id: string
+          p_snapshot: Json
+          p_user_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
       }
       marketplace_browser_confirm_account: {
         Args: {

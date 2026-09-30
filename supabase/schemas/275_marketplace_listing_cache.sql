@@ -37,7 +37,8 @@ begin
           '{price}', to_jsonb(p_price), true)
       else body end,
       '{text}', to_jsonb(p_text), true),
-    '{textState}', to_jsonb('loaded'::text), true)
+    '{textState}', to_jsonb('loaded'::text), true),
+    observed_at = clock_timestamp()
   where workspace_id = p_workspace_id and connection_id = p_connection_id
     and id = p_entry_id and kind = 'publication' and external_id = p_external_id
     and (p_confirmed or coalesce(body->>'textState', 'not_loaded') <> 'loaded');

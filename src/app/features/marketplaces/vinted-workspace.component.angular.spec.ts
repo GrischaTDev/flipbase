@@ -254,6 +254,53 @@ async function render(url: string) {
   return { harness, element: harness.routeNativeElement as HTMLElement };
 }
 describe('Vinted-Bereich in Flipbase', () => {
+  it.each([
+    { feedbackResult: { status: 'failed', failure: 'rate_limited' }, remainsOpen: true },
+    { feedbackResult: { status: 'complete' }, remainsOpen: false },
+  ])(
+    'lädt erfolgreiche Bereiche neu und schließt nur ohne Teilfehler: %j',
+    async ({ feedbackResult, remainsOpen }) => {
+      browserApi.syncConnection.mockImplementation(
+        async (_scope: unknown, _token: unknown, onProgress: (progress: unknown) => void) => {
+          onProgress({
+            id: 'operation-partial',
+            state: 'succeeded',
+            stage: 'cleanup',
+            errorCode: null,
+            sourceResults: {
+              profile: { status: 'complete' },
+              publications: { status: 'complete' },
+              conversations: { status: 'complete' },
+              messages: { status: 'partial' },
+              sales: { status: 'complete' },
+              feedback: feedbackResult,
+            },
+          });
+        },
+      );
+      const { element, harness } = await render('/marketplaces/vinted/overview');
+      vi.useFakeTimers();
+      try {
+        const component = harness.fixture.debugElement.query(By.directive(VintedWorkspaceComponent))
+          .componentInstance as VintedWorkspaceComponent;
+        await component.sync();
+        await vi.advanceTimersByTimeAsync(2_000);
+        harness.detectChanges();
+
+        expect(api.readSnapshot).toHaveBeenCalledTimes(2);
+        expect(component.syncModalOpen()).toBe(remainsOpen);
+        if (remainsOpen) {
+          expect(element.querySelector('app-marketplace-sync-progress')?.textContent).toContain(
+            'Bewertungen',
+          );
+        } else {
+          expect(element.querySelector('app-marketplace-sync-progress')).toBeNull();
+        }
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+  );
   it('aktualisiert das ausgewählte Konto erst nach ausdrücklichem Klick', async () => {
     const { element, harness } = await render('/marketplaces/vinted/overview');
     expect(browserApi.syncConnection).not.toHaveBeenCalled();

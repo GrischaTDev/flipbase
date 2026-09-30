@@ -26,7 +26,8 @@ begin
   if p_about is null or char_length(p_about) > 2000 then return false; end if;
   update public.marketplace_account_entries
   set body = jsonb_set(jsonb_set(body, '{bio}', to_jsonb(p_about), true),
-    '{bioState}', to_jsonb('loaded'::text), true)
+    '{bioState}', to_jsonb('loaded'::text), true),
+    observed_at = clock_timestamp()
   where workspace_id = p_workspace_id and connection_id = p_connection_id
     and kind = 'profile' and external_id = p_account_id;
   return found;

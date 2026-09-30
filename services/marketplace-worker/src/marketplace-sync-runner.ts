@@ -144,6 +144,7 @@ export class MarketplaceSyncRunner {
         snapshot.observedAt,
         counts,
         cleanupPending,
+        snapshot.areas,
       );
       this.events.record({
         operationId: id,

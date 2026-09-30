@@ -23,6 +23,7 @@ import {
 } from './models/marketplace-presentation';
 import { MarketplaceAccountStore } from './services/marketplace-account.store';
 import { MarketplaceSyncProgressComponent } from './components/marketplace-sync-progress/marketplace-sync-progress.component';
+import { marketplaceSyncWarningSources } from './models/marketplace-sync-results';
 
 @Component({
   selector: 'app-vinted-workspace',
@@ -78,13 +79,22 @@ export class VintedWorkspaceComponent {
   async sync(): Promise<void> {
     this.syncModalOpen.set(true);
     const succeeded = await this.store.syncSelectedConnection();
+    const progress = this.store.syncProgress();
     if (
       succeeded &&
-      this.store.syncProgress()?.state === 'succeeded' &&
-      this.store.syncProgress()?.errorCode !== 'cleanup'
+      progress?.state === 'succeeded' &&
+      progress.errorCode !== 'cleanup' &&
+      !marketplaceSyncWarningSources(progress.sourceResults).length
     ) {
       setTimeout(() => {
-        if (this.store.syncProgress()?.state === 'succeeded') this.syncModalOpen.set(false);
+        const current = this.store.syncProgress();
+        if (
+          current?.id === progress.id &&
+          current.state === 'succeeded' &&
+          current.errorCode !== 'cleanup' &&
+          !marketplaceSyncWarningSources(current.sourceResults).length
+        )
+          this.syncModalOpen.set(false);
       }, 1_500);
     }
   }

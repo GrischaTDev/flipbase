@@ -146,4 +146,54 @@ describe('VintedFeedbackListComponent', () => {
     expect(element.textContent).toContain('Mitglied');
     expect(element.textContent).toContain('Vintage Lederjacke');
   });
+
+  it('zählt eine unbekannte Herkunft weder als Mitglied noch als automatisch und zeigt fehlende Daten', () => {
+    fixture.componentRef.setInput('profile', {
+      ...sampleProfile,
+      feedbackCount: 4,
+      feedbacks: [
+        ...sampleFeedbacks,
+        {
+          id: 'fb-unknown',
+          authorName: null,
+          authorImageUrl: null,
+          rating: null,
+          text: 'Bewertung ohne vollständige Angaben',
+          occurredAt: null,
+          isAutomatic: null,
+        },
+      ],
+    });
+    fixture.detectChanges();
+
+    expect(component.memberCount()).toBe(2);
+    expect(component.automaticCount()).toBe(1);
+    expect(component.filteredFeedbacks()).toHaveLength(4);
+    const element = fixture.nativeElement as HTMLElement;
+    const articles = element.querySelectorAll('article');
+    const unknownFeedback = articles.item(3);
+    expect(unknownFeedback.textContent).toContain('Autor unbekannt');
+    expect(unknownFeedback.textContent).toContain('Herkunft unbekannt');
+    expect(unknownFeedback.textContent).toContain('Sternebewertung unbekannt');
+    expect(unknownFeedback.textContent).not.toContain('Mitglied');
+    expect(unknownFeedback.querySelector('[aria-label$="von 5 Sternen"]')).toBeNull();
+
+    component.setFilter('member');
+    expect(component.filteredFeedbacks().map((feedback) => feedback.id)).toEqual(['fb-1', 'fb-3']);
+    component.setFilter('automatic');
+    expect(component.filteredFeedbacks().map((feedback) => feedback.id)).toEqual(['fb-2']);
+  });
+
+  it('zeigt eine bestätigte Null-Sterne-Bewertung als null Sterne an', () => {
+    fixture.componentRef.setInput('profile', {
+      ...sampleProfile,
+      feedbacks: [{ ...sampleFeedbacks[0], rating: 0 }],
+    });
+    fixture.detectChanges();
+
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelector('article [aria-label="0 von 5 Sternen"]')).not.toBeNull();
+    expect(element.querySelectorAll('article .fill-current')).toHaveLength(0);
+    expect(element.textContent).not.toContain('Sternebewertung unbekannt');
+  });
 });

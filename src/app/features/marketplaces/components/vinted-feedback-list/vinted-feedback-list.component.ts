@@ -52,11 +52,11 @@ export class VintedFeedbackListComponent {
   });
 
   readonly memberFeedbacks = computed(() => {
-    return this.feedbacks().filter((entry) => !entry.isAutomatic);
+    return this.feedbacks().filter((entry) => entry.isAutomatic === false);
   });
 
   readonly automaticFeedbacks = computed(() => {
-    return this.feedbacks().filter((entry) => entry.isAutomatic);
+    return this.feedbacks().filter((entry) => entry.isAutomatic === true);
   });
 
   readonly memberCount = computed(() => {

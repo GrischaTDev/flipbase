@@ -17,7 +17,12 @@
           Die Daten werden aktualisiert.
         }
         @case ('succeeded') {
-          @if (progress()?.errorCode === 'cleanup') {
+          @if (warningSources().length) {
+            Die erfolgreichen Bereiche wurden gespeichert.
+            @if (progress()?.errorCode === 'cleanup') {
+              Die Browser-Verbindung wird noch beendet.
+            }
+          } @else if (progress()?.errorCode === 'cleanup') {
             Die Kontodaten wurden aktualisiert. Die Browser-Verbindung wird noch beendet.
           } @else {
             Die Kontodaten wurden aktualisiert.
@@ -32,6 +37,18 @@
       }
     }
   </p>
+  @if (warningSources().length) {
+    <app-notice-banner class="mb-5" announcement="alert">
+      <p>
+        Einige Bereiche wurden nicht vollständig aktualisiert; bisherige Daten bleiben erhalten:
+      </p>
+      <ul class="mt-1 list-inside list-disc">
+        @for (source of warningSources(); track source.source) {
+          <li>{{ source.label }}</li>
+        }
+      </ul>
+    </app-notice-banner>
+  }
   @if (!error() || progress()?.id) {
     <ol class="space-y-3" aria-label="Schritte der Aktualisierung">
       @for (step of steps; track step.id; let index = $index) {
