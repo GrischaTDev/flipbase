@@ -342,6 +342,13 @@ select is(
 );
 
 reset role;
+select ok(
+  public.is_company_logo_path(
+    'c2800000-0000-4000-8000-000000000011/logos/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa.webp',
+    'c2800000-0000-4000-8000-000000000011'
+  ),
+  'Kanonischer Logo-Pfad wird erkannt'
+);
 insert into storage.objects(bucket_id,name)
 values (
   'company-assets',
@@ -358,11 +365,11 @@ select is(
   'Mitglied darf Logoobjekte des eigenen Workspace lesen'
 );
 select throws_ok(
-  $insert into storage.objects(bucket_id,name)
+  $sql$insert into storage.objects(bucket_id,name)
     values (
       'company-assets',
       'c2800000-0000-4000-8000-000000000011/logos/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb.webp'
-    )$,
+    )$sql$,
   '42501',
   null,
   'Mitglied darf keine Unternehmenslogos hochladen'
@@ -379,11 +386,11 @@ select is(
 
 select set_config('request.jwt.claim.sub','c2800000-0000-4000-8000-000000000001',true);
 select lives_ok(
-  $insert into storage.objects(bucket_id,name)
+  $sql$insert into storage.objects(bucket_id,name)
     values (
       'company-assets',
       'c2800000-0000-4000-8000-000000000011/logos/cccccccc-cccc-4ccc-8ccc-cccccccccccc.webp'
-    )$,
+    )$sql$,
   'Inhaber darf ein versioniertes Unternehmenslogo hochladen'
 );
 select set_config('storage.allow_delete_query','true',true);
