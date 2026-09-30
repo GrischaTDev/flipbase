@@ -257,7 +257,12 @@ export class AuthService {
 
   /** Uebersetzt die englischen Meldungen von Supabase in verstaendliches Deutsch. */
   private mapAuthErrorToGerman(error: unknown): Error {
-    const msg = error instanceof Error ? error.message : String(error ?? '');
+    const msg =
+      error instanceof Error
+        ? error.message
+        : error && typeof error === 'object' && 'message' in error
+          ? String(error.message)
+          : String(error ?? '');
     if (msg.includes('Invalid login credentials')) {
       return new Error(
         'E-Mail-Adresse oder Passwort ist nicht korrekt oder das Konto existiert noch nicht. Bitte registriere dich zuerst neu.',
