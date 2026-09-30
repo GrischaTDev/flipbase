@@ -17,6 +17,15 @@ export const SETTINGS_ROUTES: Routes = [
           ),
       },
       {
+        path: 'company',
+        canDeactivate: [unsavedEntryGuard],
+        data: { workspaceContextLocked: false },
+        loadComponent: () =>
+          import('./pages/company-settings/company-settings.component').then(
+            (m) => m.CompanySettingsComponent,
+          ),
+      },
+      {
         path: 'workspace',
         loadComponent: () =>
           import('./pages/workspace-settings/workspace-settings.component').then(
