@@ -345,7 +345,7 @@ reset role;
 insert into storage.objects(bucket_id,name)
 values (
   'company-assets',
-  'c2800000-0000-4000-8000-000000000011/logos/existing.webp'
+  'c2800000-0000-4000-8000-000000000011/logos/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa.webp'
 );
 
 set local role authenticated;
@@ -353,7 +353,7 @@ select set_config('request.jwt.claim.sub','c2800000-0000-4000-8000-000000000002'
 select is(
   (select count(*)::integer from storage.objects
    where bucket_id='company-assets'
-     and name='c2800000-0000-4000-8000-000000000011/logos/existing.webp'),
+     and name='c2800000-0000-4000-8000-000000000011/logos/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa.webp'),
   1,
   'Mitglied darf Logoobjekte des eigenen Workspace lesen'
 );
@@ -361,7 +361,7 @@ select throws_ok(
   $insert into storage.objects(bucket_id,name)
     values (
       'company-assets',
-      'c2800000-0000-4000-8000-000000000011/logos/member-write.webp'
+      'c2800000-0000-4000-8000-000000000011/logos/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb.webp'
     )$,
   '42501',
   null,
@@ -372,7 +372,7 @@ select set_config('request.jwt.claim.sub','c2800000-0000-4000-8000-000000000003'
 select is(
   (select count(*)::integer from storage.objects
    where bucket_id='company-assets'
-     and name='c2800000-0000-4000-8000-000000000011/logos/existing.webp'),
+     and name='c2800000-0000-4000-8000-000000000011/logos/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa.webp'),
   0,
   'Fremder Workspace darf Logoobjekte nicht lesen'
 );
@@ -382,7 +382,7 @@ select lives_ok(
   $insert into storage.objects(bucket_id,name)
     values (
       'company-assets',
-      'c2800000-0000-4000-8000-000000000011/logos/owner-write.webp'
+      'c2800000-0000-4000-8000-000000000011/logos/cccccccc-cccc-4ccc-8ccc-cccccccccccc.webp'
     )$,
   'Inhaber darf ein versioniertes Unternehmenslogo hochladen'
 );
@@ -390,7 +390,7 @@ select set_config('storage.allow_delete_query','true',true);
 select lives_ok(
   $delete from storage.objects
     where bucket_id='company-assets'
-      and name='c2800000-0000-4000-8000-000000000011/logos/owner-write.webp'$,
+      and name='c2800000-0000-4000-8000-000000000011/logos/cccccccc-cccc-4ccc-8ccc-cccccccccccc.webp'$,
   'Inhaber darf eigene Logoobjekte löschen'
 );
 
@@ -398,7 +398,7 @@ select set_config('request.jwt.claim.sub','c2800000-0000-4000-8000-000000000002'
 select throws_ok(
   $delete from storage.objects
     where bucket_id='company-assets'
-      and name='c2800000-0000-4000-8000-000000000011/logos/existing.webp'$,
+      and name='c2800000-0000-4000-8000-000000000011/logos/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa.webp'$,
   '42501',
   null,
   'Mitglied darf Unternehmenslogos nicht löschen'
