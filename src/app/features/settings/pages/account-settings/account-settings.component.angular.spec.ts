@@ -83,9 +83,8 @@ beforeAll(async () => {
   registerSignalInputs(ModalShellComponent, ['title', 'subtitle', 'size', 'presentation']);
   registerOutput(ModalShellComponent, 'closed');
 
-  const modalDialogMetadata = (
-    ModalDialogDirective as unknown as { ɵdir: AngularInputMetadata }
-  ).ɵdir;
+  const modalDialogMetadata = (ModalDialogDirective as unknown as { ɵdir: AngularInputMetadata })
+    .ɵdir;
   metadataSnapshots.set(ModalDialogDirective, {
     inputs: modalDialogMetadata.inputs,
     declaredInputs: modalDialogMetadata.declaredInputs,
