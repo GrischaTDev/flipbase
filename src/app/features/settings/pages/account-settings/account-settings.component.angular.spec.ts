@@ -72,9 +72,10 @@ function createAccount() {
 }
 
 function buttonByText(host: HTMLElement, text: string): HTMLButtonElement {
-  const button = [...host.querySelectorAll<HTMLButtonElement>('button')].find(
+  const buttons = [...host.querySelectorAll<HTMLButtonElement>('button')].filter(
     (candidate) => candidate.textContent?.replace(/\s+/g, ' ').trim() === text,
   );
+  const button = buttons.at(-1);
   if (!button) throw new Error(`Button „${text}“ nicht gefunden`);
   return button;
 }
