@@ -18,11 +18,11 @@ import { WorkspaceService } from './workspace.service';
 
 const COMPANY_ASSET_BUCKET = 'company-assets';
 
-type RpcCompanyState = {
+interface RpcCompanyState {
   readonly profile?: unknown;
   readonly tax_mode?: unknown;
   readonly can_edit?: unknown;
-};
+}
 
 @Injectable({ providedIn: 'root' })
 export class CompanyProfileService {
