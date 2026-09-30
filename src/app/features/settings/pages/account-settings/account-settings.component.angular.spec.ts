@@ -151,8 +151,8 @@ function buttonByText(host: HTMLElement, text: string): HTMLButtonElement {
 }
 
 function inputByLabel(host: HTMLElement, labelText: string): HTMLInputElement {
-  const label = [...host.querySelectorAll<HTMLLabelElement>('label')].find(
-    (candidate) => candidate.textContent?.replace(/\s+/g, ' ').trim().startsWith(labelText),
+  const label = [...host.querySelectorAll<HTMLLabelElement>('label')].find((candidate) =>
+    candidate.textContent?.replace(/\s+/g, ' ').trim().startsWith(labelText),
   );
   const id = label?.getAttribute('for');
   const input = id ? host.querySelector<HTMLInputElement>(`#${id}`) : null;
@@ -244,7 +244,9 @@ describe('AccountSettingsComponent', () => {
     expect(current.autocomplete).toBe('current-password');
     expect(next.autocomplete).toBe('new-password');
     expect(confirm.autocomplete).toBe('new-password');
-    expect(current.parentElement?.querySelector('button[aria-label="Passwort anzeigen"]')).not.toBeNull();
+    expect(
+      current.parentElement?.querySelector('button[aria-label="Passwort anzeigen"]'),
+    ).not.toBeNull();
   });
 
   it('blockiert ein zu kurzes oder nicht übereinstimmendes neues Passwort', () => {
@@ -333,12 +335,20 @@ describe('AccountSettingsComponent', () => {
     const host = fixture.nativeElement as HTMLElement;
 
     let result = await axe.run(host, { rules: { 'color-contrast': { enabled: false } } });
-    expect(result.violations.filter((violation) => ['serious', 'critical'].includes(violation.impact ?? ''))).toEqual([]);
+    expect(
+      result.violations.filter((violation) =>
+        ['serious', 'critical'].includes(violation.impact ?? ''),
+      ),
+    ).toEqual([]);
 
     buttonByText(host, 'Passwort ändern').click();
     fixture.detectChanges();
 
     result = await axe.run(host, { rules: { 'color-contrast': { enabled: false } } });
-    expect(result.violations.filter((violation) => ['serious', 'critical'].includes(violation.impact ?? ''))).toEqual([]);
+    expect(
+      result.violations.filter((violation) =>
+        ['serious', 'critical'].includes(violation.impact ?? ''),
+      ),
+    ).toEqual([]);
   });
 });
