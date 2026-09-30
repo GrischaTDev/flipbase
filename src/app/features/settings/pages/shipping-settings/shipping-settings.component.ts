@@ -1,4 +1,18 @@
-import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { CardComponent } from '../../../../shared/components/card/card.component';
+import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
+import { CompanyProfileService } from '../../../../core/services/company-profile.service';
+import { getCompanyShippingAddress } from '../../../../core/models/company-shipping.models';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  computed,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
 import {
   AbstractControl,
   FormControl,
@@ -21,12 +35,29 @@ function trimmedRequired(control: AbstractControl<string>): ValidationErrors | n
 
 @Component({
   selector: 'app-shipping-settings',
-  imports: [ReactiveFormsModule, LucideDynamicIcon, TextFieldComponent, CustomCheckboxComponent],
+  imports: [
+    ButtonComponent,
+    CardComponent,
+    BadgeComponent,
+    ReactiveFormsModule,
+    LucideDynamicIcon,
+    TextFieldComponent,
+    CustomCheckboxComponent,
+  ],
   templateUrl: './shipping-settings.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
 })
 export class ShippingSettingsComponent {
+  readonly company = inject(CompanyProfileService);
+  private readonly destroyRef = inject(DestroyRef);
+  readonly useCompanyAddress = signal(true);
+  readonly companyAddress = computed(() => {
+    const profile = this.company.profile();
+    return profile?.workspaceId === this.workspaceService.currentWorkspace()?.id
+      ? getCompanyShippingAddress(profile)
+      : null;
+  });
   readonly fulfillmentService = inject(FulfillmentService);
   private readonly workspaceService = inject(WorkspaceService);
   private readonly toast = inject(ToastService);
@@ -34,6 +65,7 @@ export class ShippingSettingsComponent {
   readonly truckIcon = LucideTruck;
   readonly saveIcon = LucideSave;
   readonly carrierForm = new FormGroup({
+    useCompanyAddress: new FormControl(true, { nonNullable: true }),
     dhlEnabled: new FormControl(true),
     dhlEkp: new FormControl(''),
     dhlApiKey: new FormControl(''),
@@ -64,6 +96,9 @@ export class ShippingSettingsComponent {
   private saveRequestId = 0;
   private saveWorkspaceId: string | null = null;
   constructor() {
+    this.carrierForm.controls.useCompanyAddress.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((value) => this.applySenderMode(value));
     effect(() => {
       const workspaceId = this.workspaceService.currentWorkspace()?.id ?? null;
       if (workspaceId !== this.saveWorkspaceId) {
@@ -75,6 +110,7 @@ export class ShippingSettingsComponent {
         this.isLoadingWorkspaceConfig.set(workspaceId !== null);
         this.carrierForm.reset(
           {
+            useCompanyAddress: true,
             dhlEnabled: false,
             dhlEkp: '',
             dhlApiKey: '',
@@ -93,9 +129,11 @@ export class ShippingSettingsComponent {
           },
           { emitEvent: false },
         );
+        this.applySenderMode(true);
         return;
       }
       this.carrierForm.patchValue(this.fulfillmentService.carrierConfig(), { emitEvent: false });
+      this.applySenderMode(this.carrierForm.controls.useCompanyAddress.value);
       this.isLoadingWorkspaceConfig.set(false);
     });
   }
@@ -112,6 +150,7 @@ export class ShippingSettingsComponent {
     this.isSavingCarrierConfig.set(true);
     try {
       const result = await this.fulfillmentService.updateCarrierConfig({
+        useCompanyAddress: value.useCompanyAddress,
         dhlEnabled: !!value.dhlEnabled,
         dhlEkp: value.dhlEkp?.trim() || '',
         dhlApiKey: value.dhlApiKey?.trim() || '',
@@ -144,6 +183,29 @@ export class ShippingSettingsComponent {
     } finally {
       if (this.isCurrentSave(requestId, workspaceId)) this.isSavingCarrierConfig.set(false);
     }
+  }
+  private applySenderMode(useCompany: boolean): void {
+    this.useCompanyAddress.set(useCompany);
+    const controls = this.carrierForm.controls;
+    const addressControls = [
+      controls.senderName,
+      controls.senderCompany,
+      controls.senderStreet,
+      controls.senderHouseNumber,
+      controls.senderPostalCode,
+      controls.senderCity,
+      controls.senderCountry,
+      controls.senderEmail,
+      controls.senderPhone,
+    ];
+    for (const control of addressControls) {
+      if (useCompany) control.disable({ emitEvent: false });
+      else control.enable({ emitEvent: false });
+    }
+  }
+  retryCompanyLoad(): void {
+    const workspaceId = this.workspaceService.currentWorkspace()?.id;
+    if (workspaceId) void this.company.load(workspaceId);
   }
   retryLoad(): void {
     const workspaceId = this.workspaceService.currentWorkspace()?.id;

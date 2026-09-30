@@ -12,6 +12,8 @@ import { MutationResult } from '../../../../core/models/mutation-result.model';
 import { CompanyProfileService } from '../../../../core/services/company-profile.service';
 import { WorkspaceContextLockService } from '../../../../core/services/workspace-context-lock.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
+import { StoreService } from '../../../../core/services/store.service';
+import { CompanyBankAccount } from '../../../../core/models/company-store.models';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
@@ -76,7 +78,7 @@ function profile(overrides: Record<string, unknown> = {}) {
     federalState: 'Nordrhein-Westfalen',
     bankAccountHolder: 'Grischa Tänzer',
     bankName: 'Testbank',
-    iban: 'DE12345678901234567890',
+    iban: 'DE89370400440532013000',
     bic: 'ABCDEFGH',
     logoPath: null,
     createdAt: '2026-09-30T10:00:00.000Z',
@@ -86,6 +88,7 @@ function profile(overrides: Record<string, unknown> = {}) {
 }
 
 function makeEnvironment(canEdit = true) {
+  const legacyBankAccount = signal<CompanyBankAccount | null>(null);
   const activeWorkspace = signal({ id: 'workspace-a', name: 'Wiehen Store' });
   const companyProfile = signal(profile());
   const taxMode = signal<'diff_25a' | 'kleinunternehmer_19' | 'regular_19'>('diff_25a');
@@ -142,6 +145,10 @@ function makeEnvironment(canEdit = true) {
         },
       },
       { provide: WorkspaceService, useValue: { currentWorkspace: activeWorkspace } },
+      {
+        provide: StoreService,
+        useValue: { loadedWorkspaceId: signal('workspace-a'), legacyBankAccount },
+      },
       { provide: WorkspaceContextLockService, useValue: { acquire } },
       { provide: ToastService, useValue: { success: toastSuccess, error: toastError } },
     ],
@@ -150,6 +157,7 @@ function makeEnvironment(canEdit = true) {
   const fixture = TestBed.createComponent(CompanySettingsComponent);
   fixture.detectChanges();
   return {
+    legacyBankAccount,
     fixture,
     activeWorkspace,
     loadedWorkspaceId,
@@ -188,6 +196,8 @@ beforeAll(async () => {
   );
   registerSignalInputs(TextFieldComponent, [
     'label',
+    'error',
+    'helpText',
     'type',
     'autocomplete',
     'maxLength',
@@ -208,6 +218,53 @@ afterAll(() => {
 });
 
 describe('CompanySettingsComponent', () => {
+  it('meldet eine ungültige IBAN und speichert sie nicht', async () => {
+    const { fixture, save } = makeEnvironment();
+    fixture.componentInstance.form.controls.iban.setValue('123');
+    fixture.componentInstance.form.controls.iban.markAsTouched();
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain(
+      'Bitte gib eine gültige IBAN ein.',
+    );
+    await fixture.componentInstance.save();
+    expect(save).not.toHaveBeenCalled();
+  });
+  it('übernimmt echte alte Bankdaten nur ins leere Formular und speichert nicht automatisch', () => {
+    const { fixture, companyProfile, legacyBankAccount, save } = makeEnvironment();
+    companyProfile.set(profile({ bankAccountHolder: '', bankName: '', iban: '', bic: '' }));
+    legacyBankAccount.set({
+      accountHolder: 'Alter Inhaber',
+      iban: 'DE89370400440532013000',
+      bic: 'COBADEFFXXX',
+      bankName: 'Alte Bank',
+    });
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+    const button = Array.from(root.querySelectorAll<HTMLButtonElement>('button')).find((value) =>
+      value.textContent?.includes('Vorschlag ins Formular übernehmen'),
+    );
+    expect(button).toBeDefined();
+    button!.click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.form.controls.iban.value).toBe('DE89370400440532013000');
+    expect(save).not.toHaveBeenCalled();
+    expect(fixture.componentInstance.hasUnsavedChanges()).toBe(true);
+    expect(root.textContent).not.toContain('Vorschlag ins Formular übernehmen');
+  });
+
+  it('bietet vorhandenen Unternehmenskonten keine überschreibende Legacy-Übernahme an', () => {
+    const { fixture, legacyBankAccount } = makeEnvironment();
+    legacyBankAccount.set({
+      accountHolder: 'Alt',
+      iban: 'DE89370400440532013000',
+      bic: '',
+      bankName: '',
+    });
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).textContent).not.toContain(
+      'Vorschlag ins Formular übernehmen',
+    );
+  });
   it('gliedert Unternehmensdaten in vier gleichrangige Karten', () => {
     const { fixture } = makeEnvironment();
     const host = fixture.nativeElement as HTMLElement;

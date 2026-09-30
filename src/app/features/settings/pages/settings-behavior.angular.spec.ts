@@ -6,7 +6,7 @@ import {
   ɵɵviewQuerySignal,
 } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Router } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 import { readFile } from 'node:fs/promises';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -29,6 +29,9 @@ import { WebPushService, WebPushSettings } from '../../../core/services/web-push
 import { WebhookService } from '../../../core/services/webhook.service';
 import { WorkspaceMemberService } from '../../../core/services/workspace-member.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
+import { CompanyProfileService } from '../../../core/services/company-profile.service';
+import { CompanyBankAccount } from '../../../core/models/company-store.models';
+import { companyProfileFixture } from '../../../../test-support/company-document.fixture';
 import { ConfirmDialogService } from '../../../shared/components/confirm-dialog/confirm-dialog.service';
 import { CustomCheckboxComponent } from '../../../shared/components/custom-checkbox/custom-checkbox.component';
 import { CustomSelectComponent } from '../../../shared/components/custom-select/custom-select.component';
@@ -547,15 +550,13 @@ function paymentConfig(key: string): PaymentGatewayConfig {
     paypalClientId: '',
     paypalEmail: 'shop@flipbase.de',
     bankTransferEnabled: true,
-    bankIban: 'DE001234',
-    bankBic: 'FLIPDEFF',
-    bankAccountHolder: 'Flipbase GmbH',
     cashOnPickupEnabled: false,
   };
 }
 
 function carrierConfig(secret: string): CarrierConfig {
   return {
+    useCompanyAddress: false,
     dhlEnabled: true,
     dhlEkp: '1234567890',
     dhlApiKey: secret,
@@ -947,12 +948,17 @@ describe('Kontoeinstellungen – echte Angular-Fixture', () => {
 });
 
 describe('Workspace-Einstellungen – echte Angular-Fixture', () => {
+  it('zeigt keine zweite Auswahl für das Unternehmens-Steuerverfahren', async () => {
+    const { fixture } = await renderWorkspace();
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('[aria-label="Steuer-Modus"]'),
+    ).toBeNull();
+  });
   it('bindet den gerenderten Primärbutton an das Workspace-Payload', async () => {
     const { fixture, workspaceService, toast } = await renderWorkspace();
     fixture.componentInstance.settingsForm.patchValue({
       workspaceName: 'Neuer Name',
       currency: 'USD',
-      taxMode: 'regular_19',
       minRoiPercent: 27,
       minProfitAmount: 18,
     });
@@ -1681,16 +1687,33 @@ async function renderStore(
     async (): Promise<MutationResult> =>
       options.updateResult ?? { data: {}, error: null, reportedBySyncStatus: false },
   );
-  const storeService = { storeSettings, loadedWorkspaceId, updatePaymentsConfig };
+  const storeService = {
+    storeSettings,
+    loadedWorkspaceId,
+    updatePaymentsConfig,
+    companyBankAccount: signal<CompanyBankAccount | null>({
+      accountHolder: 'Zentraler Inhaber',
+      iban: 'DE89370400440532013000',
+      bic: '',
+      bankName: 'Zentralbank',
+    }),
+  };
   const syncStatus = {
     istZentralGemeldet: vi.fn(() => options.centralThrow ?? false),
+  };
+  const company = {
+    isLoading: signal(false),
+    loadError: signal<Error | null>(null),
+    load: vi.fn(),
   };
   await TestBed.configureTestingModule({
     imports: [StoreSettingsComponent],
     providers: [
+      provideRouter([]),
       ToastService,
       { provide: WorkspaceService, useValue: { currentWorkspace } },
       { provide: StoreService, useValue: storeService },
+      { provide: CompanyProfileService, useValue: company },
       { provide: SyncStatusService, useValue: syncStatus },
     ],
   }).compileComponents();
@@ -1702,12 +1725,36 @@ async function renderStore(
     storeSettings,
     loadedWorkspaceId,
     storeService,
+    company,
     syncStatus,
     toast: TestBed.inject(ToastService),
   };
 }
 
 describe('Shop-Einstellungen – echte Angular-Fixture', () => {
+  it('unterscheidet Unternehmens-Laden und Ladefehler von fehlenden Bankdaten und bietet erneutes Laden an', async () => {
+    const { fixture, company, storeService } = await renderStore();
+    storeService.companyBankAccount.set(null);
+    company.isLoading.set(true);
+    flushEffects(fixture);
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.textContent).toContain('Unternehmensbankdaten werden geladen…');
+    expect(root.textContent).not.toContain('Für Banküberweisung fehlen');
+    company.isLoading.set(false);
+    company.loadError.set(new Error('Verbindungsfehler'));
+    flushEffects(fixture);
+    expect(root.textContent).toContain('Unternehmensbankdaten konnten nicht geladen werden.');
+    renderedButton(fixture, 'Unternehmensdaten erneut laden').click();
+    expect(company.load).toHaveBeenCalledWith('workspace-a');
+  });
+  it('zeigt das zentrale Konto maskiert und führt zur einzigen Bankdatenpflege', async () => {
+    const { fixture } = await renderStore();
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.textContent).toContain('DE89 •••• 3000');
+    expect(root.textContent).toContain('Zentraler Inhaber');
+    expect(root.querySelector('a[href="/settings/company"]')).not.toBeNull();
+    expect(root.querySelector('[formcontrolname="bankIban"]')).toBeNull();
+  });
   it('leert A-Zahlungsdaten beim Wechsel, ignoriert verspätetes A und patcht erst geladenes B', async () => {
     const { fixture, currentWorkspace, storeSettings, loadedWorkspaceId } = await renderStore();
     expect(fixture.componentInstance.paymentForm.controls.stripePublishableKey.value).toBe(
@@ -1720,7 +1767,6 @@ describe('Shop-Einstellungen – echte Angular-Fixture', () => {
     flushEffects(fixture);
 
     expect(fixture.componentInstance.paymentForm.controls.stripePublishableKey.value).toBe('');
-    expect(fixture.componentInstance.paymentForm.controls.bankIban.value).toBe('');
     expect(fixture.componentInstance.isLoadingWorkspaceConfig()).toBe(true);
     expect(renderedButton(fixture, 'Zahlungsmethoden speichern').disabled).toBe(true);
 
@@ -1736,7 +1782,6 @@ describe('Shop-Einstellungen – echte Angular-Fixture', () => {
     expect(fixture.componentInstance.paymentForm.controls.stripePublishableKey.value).toBe(
       'pk_workspace_b',
     );
-    expect(fixture.componentInstance.paymentForm.controls.bankIban.value).toBe('DE001234');
     expect(fixture.componentInstance.isLoadingWorkspaceConfig()).toBe(false);
   });
 
@@ -1748,10 +1793,6 @@ describe('Shop-Einstellungen – echte Angular-Fixture', () => {
       paypalEnabled: true,
       paypalEmail: ' payments@flipbase.de ',
       bankTransferEnabled: true,
-      bankName: ' Testbank ',
-      bankIban: ' DE009999 ',
-      bankBic: ' TESTDEFF ',
-      bankAccountHolder: ' Ada Lovelace ',
       cashOnPickupEnabled: false,
     });
     fixture.detectChanges();
@@ -1766,9 +1807,6 @@ describe('Shop-Einstellungen – echte Angular-Fixture', () => {
       paypalEnabled: true,
       paypalEmail: 'payments@flipbase.de',
       bankTransferEnabled: true,
-      bankIban: 'DE009999',
-      bankBic: 'TESTDEFF',
-      bankAccountHolder: 'Ada Lovelace',
       cashOnPickupEnabled: false,
     });
     expectOnlyToast(toast, 'success', 'Zahlungsmethoden wurden gespeichert.');
@@ -1981,6 +2019,16 @@ async function renderShipping(
       { provide: WorkspaceService, useValue: { currentWorkspace } },
       { provide: FulfillmentService, useValue: fulfillmentService },
       { provide: SyncStatusService, useValue: syncStatus },
+      provideRouter([]),
+      {
+        provide: CompanyProfileService,
+        useValue: {
+          profile: signal(companyProfileFixture('workspace-a')),
+          isLoading: signal(false),
+          loadError: signal(null),
+          load: vi.fn(),
+        },
+      },
     ],
   }).compileComponents();
   const fixture = TestBed.createComponent(ShippingSettingsComponent);
@@ -1998,6 +2046,18 @@ async function renderShipping(
 }
 
 describe('Versandeinstellungen – echte Angular-Fixture', () => {
+  it('zeigt Unternehmensanschrift schreibgeschützt und bewahrt den Override beim Zurückschalten', async () => {
+    const { fixture, config } = await renderShipping();
+    config.update((value) => ({ ...value, useCompanyAddress: true }));
+    flushEffects(fixture);
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelector('[formcontrolname="senderStreet"]')).toBeNull();
+    expect(root.textContent).toContain('Testweg 1');
+    fixture.componentInstance.carrierForm.controls.useCompanyAddress.setValue(false);
+    flushEffects(fixture);
+    expect(root.querySelector('[formcontrolname="senderStreet"]')).not.toBeNull();
+    expect(fixture.componentInstance.carrierForm.controls.senderStreet.value).toBe('Testweg');
+  });
   it('weist leere Pflichtfelder und eine ungültige E-Mail verständlich aus', async () => {
     const { fixture, fulfillmentService } = await renderShipping();
     fixture.componentInstance.carrierForm.patchValue({
@@ -2066,6 +2126,7 @@ describe('Versandeinstellungen – echte Angular-Fixture', () => {
   it('bindet den gerenderten Primärbutton an das vollständige getrimmte Carrier-Payload', async () => {
     const { fixture, fulfillmentService, toast } = await renderShipping();
     fixture.componentInstance.carrierForm.setValue({
+      useCompanyAddress: false,
       dhlEnabled: true,
       dhlEkp: ' 9876543210 ',
       dhlApiKey: ' dhl-secret ',
@@ -2089,6 +2150,7 @@ describe('Versandeinstellungen – echte Angular-Fixture', () => {
 
     expect(fulfillmentService.updateCarrierConfig).toHaveBeenCalledOnce();
     expect(fulfillmentService.updateCarrierConfig).toHaveBeenCalledWith({
+      useCompanyAddress: false,
       dhlEnabled: true,
       dhlEkp: '9876543210',
       dhlApiKey: 'dhl-secret',

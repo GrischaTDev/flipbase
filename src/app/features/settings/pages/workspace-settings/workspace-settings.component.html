@@ -1,152 +1,141 @@
 <div class="space-y-5">
-  <section
-    class="linear-surface space-y-4 rounded-2xl border border-fb-border p-5 shadow-xl"
-    aria-labelledby="workspaces-heading"
-  >
-    <div class="flex items-center justify-between border-b border-fb-border pb-2">
-      <div class="flex items-center gap-2">
-        <svg [lucideIcon]="buildingIcon" class="h-4 w-4 text-fb-brand" aria-hidden="true"></svg>
-        <h2
-          id="workspaces-heading"
-          class="text-xs font-bold uppercase tracking-wider text-fb-text-primary"
-        >
-          Workspaces & Gewerbe-Mandanten ({{ workspaceService.workspaces().length }})
-        </h2>
+  <app-card padding="lg">
+    <section class="space-y-4" aria-labelledby="workspaces-heading">
+      <div class="flex items-center justify-between border-b border-fb-border pb-2">
+        <div class="flex items-center gap-2">
+          <svg [lucideIcon]="buildingIcon" class="h-4 w-4 text-fb-brand" aria-hidden="true"></svg>
+          <h2
+            id="workspaces-heading"
+            class="text-xs font-bold uppercase tracking-wider text-fb-text-primary"
+          >
+            Workspaces & Gewerbe-Mandanten ({{ workspaceService.workspaces().length }})
+          </h2>
+        </div>
+        <app-badge tone="brand">Multi-Tenant</app-badge>
       </div>
-      <app-badge tone="brand">Multi-Tenant</app-badge>
-    </div>
-    <p class="text-xs text-fb-text-muted">
-      Verwalte separate Gewerbezweige mit eigenen Beständen, Steuermodi und Rechnungsnummernkreisen.
-    </p>
-    <div class="space-y-2">
-      @for (workspace of workspaceService.workspaces(); track workspace.id) {
-        <div
-          class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-fb-border bg-fb-subtle p-3"
-          [attr.aria-busy]="workspaceActionId() === workspace.id ? 'true' : null"
-        >
-          <div class="min-w-0">
-            <strong class="block break-words text-xs text-fb-text-primary">{{
-              workspace.name
-            }}</strong>
-            <div class="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 font-mono text-xs text-fb-text-muted">
-              <span>ID: {{ workspace.id }}</span>
-              <span>Währung: {{ workspace.currency || 'EUR' }}</span>
-              <span>§ 25a UStG</span>
+      <p class="text-xs text-fb-text-muted">
+        Verwalte separate Gewerbezweige mit eigenen Beständen, Steuermodi und
+        Rechnungsnummernkreisen.
+      </p>
+      <div class="space-y-2">
+        @for (workspace of workspaceService.workspaces(); track workspace.id) {
+          <div
+            class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-fb-border bg-fb-subtle p-3"
+            [attr.aria-busy]="workspaceActionId() === workspace.id ? 'true' : null"
+          >
+            <div class="min-w-0">
+              <strong class="block break-words text-xs text-fb-text-primary">{{
+                workspace.name
+              }}</strong>
+              <div
+                class="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 font-mono text-xs text-fb-text-muted"
+              >
+                <span>ID: {{ workspace.id }}</span>
+                <span>Währung: {{ workspace.currency || 'EUR' }}</span>
+              </div>
+            </div>
+            <div class="flex flex-wrap items-center justify-end gap-2">
+              @if (workspaceService.currentWorkspace()?.id === workspace.id) {
+                <app-badge tone="success">Aktiv</app-badge>
+              }
+              @if (workspace.archived_at) {
+                <app-badge tone="caution">Archiviert</app-badge>
+              }
+              @if (workspaceService.currentWorkspace()?.id !== workspace.id) {
+                <app-button
+                  variant="secondary"
+                  (clicked)="onSwitchWorkspace(workspace.id)"
+                  [disabled]="workspaceActionId() !== null"
+                  >Aktivieren</app-button
+                >
+              }
+              @if (workspace.archived_at) {
+                <app-button
+                  variant="secondary"
+                  (clicked)="onRestoreWorkspace(workspace.id)"
+                  [disabled]="workspaceActionId() !== null"
+                  >Wiederherstellen</app-button
+                >
+              } @else if (
+                workspaceService.currentWorkspace()?.id !== workspace.id &&
+                workspaceService.workspaces().length > 1
+              ) {
+                <app-button
+                  variant="ghost"
+                  (clicked)="onDeleteWorkspace(workspace.id)"
+                  [disabled]="workspaceActionId() !== null"
+                  [ariaLabel]="workspace.name + ' löschen'"
+                  [icon]="trashIcon"
+                  [iconOnly]="true"
+                />
+              }
             </div>
           </div>
-          <div class="flex flex-wrap items-center justify-end gap-2">
-            @if (workspaceService.currentWorkspace()?.id === workspace.id) {
-              <app-badge tone="success">Aktiv</app-badge>
-            }
-            @if (workspace.archived_at) {
-              <app-badge tone="caution">Archiviert</app-badge>
-            }
-            @if (workspaceService.currentWorkspace()?.id !== workspace.id) {
-              <button
-                type="button"
-                (click)="onSwitchWorkspace(workspace.id)"
-                [disabled]="workspaceActionId() !== null"
-                class="linear-btn-secondary min-h-11 rounded-lg px-3 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Aktivieren
-              </button>
-            }
-            @if (workspace.archived_at) {
-              <button
-                type="button"
-                (click)="onRestoreWorkspace(workspace.id)"
-                [disabled]="workspaceActionId() !== null"
-                class="linear-btn-secondary min-h-11 rounded-lg px-3 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Wiederherstellen
-              </button>
-            } @else if (
-              workspaceService.currentWorkspace()?.id !== workspace.id &&
-              workspaceService.workspaces().length > 1
-            ) {
-              <button
-                type="button"
-                (click)="onDeleteWorkspace(workspace.id)"
-                [disabled]="workspaceActionId() !== null"
-                class="min-h-11 rounded-lg px-2 text-fb-text-secondary hover:text-fb-critical disabled:cursor-not-allowed disabled:opacity-50"
-                [attr.aria-label]="workspace.name + ' löschen'"
-              >
-                <svg [lucideIcon]="trashIcon" class="h-4 w-4" aria-hidden="true"></svg>
-              </button>
-            }
-          </div>
-        </div>
-      }
-    </div>
-    <div class="flex flex-wrap gap-2 border-t border-fb-border pt-3">
-      <app-text-field
-        class="min-w-0 flex-1"
-        [formControl]="newWorkspaceName"
-        (keyup.enter)="onCreateWorkspace()"
-        ariaLabel="Neuer Workspace Name"
-        placeholder="Neuer Workspace Name"
-      /><button
-        type="button"
-        (click)="onCreateWorkspace()"
-        [disabled]="newWorkspaceName.invalid || isCreatingWorkspace()"
-        class="linear-btn-primary inline-flex min-h-11 items-center gap-1 rounded-xl px-4 text-xs font-bold disabled:opacity-40"
-      >
-        <svg [lucideIcon]="plusIcon" class="h-4 w-4" aria-hidden="true"></svg>Erstellen
-      </button>
-    </div>
-  </section>
-  <form
-    [formGroup]="settingsForm"
-    (ngSubmit)="onSaveSettings()"
-    class="linear-surface space-y-4 rounded-2xl border border-fb-border p-5 shadow-xl"
-    aria-labelledby="criteria-heading"
-  >
-    <h2
-      id="criteria-heading"
-      class="border-b border-fb-border pb-2 text-xs font-bold uppercase tracking-wider text-fb-text-primary"
+        }
+      </div>
+      <div class="flex flex-wrap gap-2 border-t border-fb-border pt-3">
+        <app-text-field
+          class="min-w-0 flex-1"
+          [formControl]="newWorkspaceName"
+          (keyup.enter)="onCreateWorkspace()"
+          ariaLabel="Neuer Workspace Name"
+          placeholder="Neuer Workspace Name"
+        /><app-button
+          variant="primary"
+          (clicked)="onCreateWorkspace()"
+          [disabled]="newWorkspaceName.invalid"
+          [loading]="isCreatingWorkspace()"
+          [icon]="plusIcon"
+          >Erstellen</app-button
+        >
+      </div>
+    </section>
+  </app-card>
+  <app-card padding="lg">
+    <form
+      [formGroup]="settingsForm"
+      (ngSubmit)="onSaveSettings()"
+      class="space-y-4"
+      aria-labelledby="criteria-heading"
     >
-      Workspace & Deal-Kriterien
-    </h2>
-    <div class="grid gap-3 sm:grid-cols-2">
-      <app-text-field formControlName="workspaceName" label="Workspace-Name" [required]="true" />
-      <div class="text-xs font-semibold text-fb-text-secondary">
-        <span>Steuer-Modus</span
-        ><app-custom-select
-          ariaLabel="Steuer-Modus"
-          [options]="taxModeOptions"
-          formControlName="taxMode"
-          class="mt-1"
-        />
-      </div>
-      <div class="text-xs font-semibold text-fb-text-secondary">
-        <span class="mb-1.5 block text-[13px] font-semibold">Standard Mindest-ROI (%)</span>
-        <app-number-input
-          formControlName="minRoiPercent"
-          ariaLabel="Standard Mindest-ROI"
-          [min]="0"
-          unit="%"
-        />
-      </div>
-      <div class="text-xs font-semibold text-fb-text-secondary">
-        <span class="mb-1.5 block text-[13px] font-semibold">Mindest-Reingewinn (€)</span>
-        <app-number-input
-          formControlName="minProfitAmount"
-          ariaLabel="Mindest-Reingewinn"
-          [min]="0"
-          unit="€"
-          [asCurrency]="true"
-        />
-      </div>
-    </div>
-    <div class="flex justify-end">
-      <button
-        type="submit"
-        [disabled]="settingsForm.invalid || isSaving()"
-        class="linear-btn-primary inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-xs font-bold disabled:opacity-40"
+      <h2
+        id="criteria-heading"
+        class="border-b border-fb-border pb-2 text-xs font-bold uppercase tracking-wider text-fb-text-primary"
       >
-        <svg [lucideIcon]="saveIcon" class="h-4 w-4" aria-hidden="true"></svg
-        >{{ isSaving() ? 'Speichere...' : 'Einstellungen speichern' }}
-      </button>
-    </div>
-  </form>
+        Workspace & Deal-Kriterien
+      </h2>
+      <div class="grid gap-3 sm:grid-cols-2">
+        <app-text-field formControlName="workspaceName" label="Workspace-Name" [required]="true" />
+        <div class="text-xs font-semibold text-fb-text-secondary">
+          <span class="mb-1.5 block text-[13px] font-semibold">Standard Mindest-ROI (%)</span>
+          <app-number-input
+            formControlName="minRoiPercent"
+            ariaLabel="Standard Mindest-ROI"
+            [min]="0"
+            unit="%"
+          />
+        </div>
+        <div class="text-xs font-semibold text-fb-text-secondary">
+          <span class="mb-1.5 block text-[13px] font-semibold">Mindest-Reingewinn (€)</span>
+          <app-number-input
+            formControlName="minProfitAmount"
+            ariaLabel="Mindest-Reingewinn"
+            [min]="0"
+            unit="€"
+            [asCurrency]="true"
+          />
+        </div>
+      </div>
+      <div class="flex justify-end">
+        <app-button
+          variant="primary"
+          type="submit"
+          [disabled]="settingsForm.invalid"
+          [loading]="isSaving()"
+          [icon]="saveIcon"
+          >Einstellungen speichern</app-button
+        >
+      </div>
+    </form>
+  </app-card>
 </div>

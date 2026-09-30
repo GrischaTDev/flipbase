@@ -461,6 +461,7 @@ export type Database = {
           sender_postal_code: string | null
           sender_street: string | null
           updated_at: string
+          use_company_address: boolean | null
           workspace_id: string
         }
         Insert: {
@@ -482,6 +483,7 @@ export type Database = {
           sender_postal_code?: string | null
           sender_street?: string | null
           updated_at?: string
+          use_company_address?: boolean | null
           workspace_id: string
         }
         Update: {
@@ -503,6 +505,7 @@ export type Database = {
           sender_postal_code?: string | null
           sender_street?: string | null
           updated_at?: string
+          use_company_address?: boolean | null
           workspace_id?: string
         }
         Relationships: [

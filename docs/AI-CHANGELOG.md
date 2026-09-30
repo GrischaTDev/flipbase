@@ -1,5 +1,15 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-30 – Juna – Shop und Versand an Unternehmensdaten angebunden
+
+**Auftrag:** PR 4 des freigegebenen Unternehmensumbaus umsetzen: Shop-Bankkonto und Impressum zentral lesen, Versand-Vererbung mit erhaltenen individuellen Absendern einführen und doppelte Steuerpflege entfernen.
+
+**Änderung:** Bankkonto und Impressum werden aus dem aktiven Unternehmensprofil gelesen. Shop-Zahlungseinstellungen enthalten nur Methoden und Anbieterangaben; die IBAN wird maskiert angezeigt und zur zentralen Pflege verlinkt. Echte alte Bankdaten sind bei leerem Unternehmenskonto nur ein Formularvorschlag, der ausdrücklich gespeichert werden muss. Neue Versandkonfigurationen verwenden die Unternehmensanschrift; vollständige alte Absender bleiben individuell und beim Umschalten erhalten. Die doppelte Steuer-Auswahl auf der Workspace-Seite ist entfernt. Ein bestehender Checkout-Fehler beim Wechsel der Zahlungsart wurde mit Regressionstest behoben. Umsetzung auf `juna/company-shop-shipping`, Basis `8dec8967`; Plan unter `docs/superpowers/plans/2026-09-30-company-shop-shipping.md`.
+
+**Datenbank:** Deklarative Versand-Auswahl, gezielt erzeugte Migration und neu generierte Typen. Alte Adress- und Legacy-Shopfelder bleiben gespeichert. Migration in eigener lokaler Datenbank angewendet; alle 2.303 Prüfungen in 69 Dateien bestehen. Zwei bestehende Advisor-Hinweise betreffen andere Policies.
+
+**Prüfung:** Neue Verhaltensprüfungen zuerst fehlschlagend ausgeführt, anschließend 27 und 31 gezielte Service-Prüfungen sowie 94 betroffene Oberflächen-/Bestelltests bestanden. Echter Chromium-Browserfall bestätigt Unternehmensbank und Impressum, Erhalt der Legacy-Daten, beide Versandmodi und Vorschlagsübernahme ohne Speichern. WCAG AA und 390px ohne Überlauf erfolgreich, keine Laufzeitfehler im Ablauf. Typprüfung, Produktionsbuild, Shared-UI-Prüfung, Suite-Audit und Schema-/Migrations-/Browserauswahl-Verträge erfolgreich. Vollständige Anwendungssuite folgt einmal in der PR-CI. Unabhängiges Abschlussreview abgeschlossen: ungültige IBANs werden im Shop, im Vorschlag und im Unternehmensformular abgewiesen; Versand liefert bei Carrier-Ladefehlern keinen angenommenen Absender. Der Shop zeigt Unternehmens-Laden und Ladefehler getrennt von fehlenden Bankdaten, mit Wiederholungsaktion. Alle drei Fälle zuerst fehlschlagend nachgestellt; anschließend 152 relevante Tests in 13 Dateien und erneute Browserabnahme erfolgreich. Abschließende Typ-/Build-/Format-/Lint-Prüfungen, Shared-UI und Suite-Audit grün. Keine vertagten Review-Befunde; Umfang und Übergangsentscheidungen stehen im Plan.
+
 ## 2026-09-30 – Juna – Unternehmensdaten in neue Geschäftsdokumente übernommen
 
 **Auftrag:** PR 3 des freigegebenen Unternehmensumbaus umsetzen: Unternehmensdaten für neue Rechnungen, Gutschriften und Eigenbelege verwenden und historische Dokumente unverändert erhalten.

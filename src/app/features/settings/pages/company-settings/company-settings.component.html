@@ -212,10 +212,27 @@
 
     <app-card
       title="Bankverbindung"
-      subtitle="Zentrales Geschäftskonto für künftige Dokument- und Zahlungsfunktionen."
+      subtitle="Zentrales Geschäftskonto für Dokumente und Banküberweisungen im Shop."
       padding="lg"
       rounded="xl"
     >
+      @if (legacyBankSuggestion(); as suggestion) {
+        <div class="mb-4 space-y-2 rounded-xl border border-fb-border bg-fb-subtle p-3 text-sm">
+          <p class="font-semibold text-fb-text-primary">Bisherige Bankdaten aus dem Shop</p>
+          <p class="text-fb-text-secondary">
+            {{ suggestion.accountHolder }} · {{ maskIban(suggestion.iban) }}
+          </p>
+          <p class="text-fb-text-muted">
+            Prüfe diesen Vorschlag. Erst mit „Speichern“ wird er zum Unternehmenskonto.
+          </p>
+          <app-button
+            variant="secondary"
+            [disabled]="isSaving()"
+            (clicked)="applyLegacyBankSuggestion()"
+            >Vorschlag ins Formular übernehmen</app-button
+          >
+        </div>
+      }
       <div class="grid gap-3 sm:grid-cols-2">
         <app-text-field
           formControlName="bankAccountHolder"
@@ -227,6 +244,11 @@
           formControlName="iban"
           label="IBAN"
           [monospaced]="true"
+          [error]="
+            form.controls.iban.touched && form.controls.iban.hasError('invalidIban')
+              ? 'Bitte gib eine gültige IBAN ein.'
+              : null
+          "
           helpText="Leerzeichen sind erlaubt und werden beim Speichern entfernt."
         />
         <app-text-field formControlName="bic" label="BIC" [monospaced]="true" />

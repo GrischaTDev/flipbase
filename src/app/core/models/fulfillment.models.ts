@@ -26,6 +26,7 @@ export interface CarrierRate {
 }
 
 export interface CarrierConfig {
+  useCompanyAddress: boolean;
   dhlEnabled: boolean;
   dhlEkp: string; // DHL Kundennummer (10- oder 14-stellig)
   dhlApiKey: string;

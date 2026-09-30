@@ -50,6 +50,7 @@ describe('Workspace-isoliertes Laden der Konfigurationen', () => {
     const ordersA = deferred<{ data: unknown; error: null }>();
     const service = Object.create(StoreService.prototype) as StoreService;
     Object.assign(service, {
+      legacyBankAccount: signal(null),
       storeSettings: signal({
         storeName: 'A',
         tagline: 'A',

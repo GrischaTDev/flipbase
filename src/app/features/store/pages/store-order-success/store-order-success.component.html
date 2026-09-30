@@ -82,45 +82,45 @@
 
       <!-- Payment Instructions if Bank Transfer -->
       @if (ord.customer.paymentMethod === 'bank_transfer') {
-        <div
-          class="p-4 rounded-2xl bg-slate-100 border border-slate-200 text-left space-y-2 text-xs"
-        >
-          <div class="flex items-center gap-2 font-bold text-slate-900">
-            <svg [lucideIcon]="bankIcon" class="w-4 h-4 text-slate-700"></svg>
-            <span>Überweisungsinformationen</span>
-          </div>
-          <p class="text-[11px] text-slate-600">
-            Bitte überweise den Gesamtbetrag von
-            <strong>{{ ord.total | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}</strong> auf unser
-            Bankkonto:
-          </p>
+        @if (storeService.companyBankAccount(); as account) {
           <div
-            class="font-mono text-[11px] bg-white p-3.5 rounded-xl border border-slate-200 space-y-1.5 shadow-2xs"
+            class="p-4 rounded-2xl bg-slate-100 border border-slate-200 text-left space-y-2 text-xs"
           >
-            <div class="flex justify-between">
-              <span class="text-slate-500">Empfänger:</span>
-              <strong class="text-slate-900">{{
-                storeService.storeSettings().payments.bankAccountHolder
-              }}</strong>
+            <div class="flex items-center gap-2 font-bold text-slate-900">
+              <svg [lucideIcon]="bankIcon" class="w-4 h-4 text-slate-700"></svg>
+              <span>Überweisungsinformationen</span>
             </div>
-            <div class="flex justify-between">
-              <span class="text-slate-500">IBAN:</span>
-              <strong class="text-emerald-700 font-bold">{{
-                storeService.storeSettings().payments.bankIban
-              }}</strong>
-            </div>
-            <div class="flex justify-between">
-              <span class="text-slate-500">BIC:</span>
-              <strong class="text-slate-900">{{
-                storeService.storeSettings().payments.bankBic
-              }}</strong>
-            </div>
-            <div class="flex justify-between pt-1.5 border-t border-slate-100">
-              <span class="text-slate-500">Verwendungszweck:</span>
-              <strong class="text-slate-950 font-bold">{{ ord.orderNumber }}</strong>
+            <p class="text-[11px] text-slate-600">
+              Bitte überweise den Gesamtbetrag von
+              <strong>{{ ord.total | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}</strong> auf
+              unser Bankkonto:
+            </p>
+            <div
+              class="font-mono text-[11px] bg-white p-3.5 rounded-xl border border-slate-200 space-y-1.5 shadow-2xs"
+            >
+              <div class="flex justify-between">
+                <span class="text-slate-500">Empfänger:</span>
+                <strong class="text-slate-900">{{ account.accountHolder }}</strong>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-500">IBAN:</span>
+                <strong class="text-emerald-700 font-bold">{{ account.iban }}</strong>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-500">BIC:</span>
+                <strong class="text-slate-900">{{ account.bic }}</strong>
+              </div>
+              <div class="flex justify-between pt-1.5 border-t border-slate-100">
+                <span class="text-slate-500">Verwendungszweck:</span>
+                <strong class="text-slate-950 font-bold">{{ ord.orderNumber }}</strong>
+              </div>
             </div>
           </div>
-        </div>
+        } @else {
+          <p class="text-sm text-slate-600">
+            Bankdaten sind derzeit nicht verfügbar. Bitte kontaktiere den Shop vor der Überweisung.
+          </p>
+        }
       }
 
       <div class="pt-3 flex flex-col sm:flex-row items-center justify-center gap-3">
