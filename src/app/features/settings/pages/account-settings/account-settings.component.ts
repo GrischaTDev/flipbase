@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
 import {
   AbstractControl,
   FormControl,
@@ -146,7 +153,8 @@ export class AccountSettingsComponent {
     const control = this.passwordForm.controls.newPassword;
     if (!control.dirty && !control.touched) return null;
     if (control.hasError('required')) return 'Bitte gib ein neues Passwort ein.';
-    if (control.hasError('minlength')) return 'Das neue Passwort muss mindestens 10 Zeichen lang sein.';
+    if (control.hasError('minlength'))
+      return 'Das neue Passwort muss mindestens 10 Zeichen lang sein.';
     return null;
   }
 
