@@ -190,7 +190,7 @@ A missing profile row is a data-integrity error, not an invented default legal i
 - require authenticated owner/admin,
 - reject archived/missing workspace,
 - require JSON object and reject unknown keys,
-- allow only the fields from the V1 table except `workspace_id/created_at/updated_at`,
+- allow only the editable text/toggle fields from the V1 table; reject `workspace_id`, `created_at`, `updated_at`, and `logo_path` because logo activation has its own RPC,
 - reject tax mode outside `diff_25a|kleinunternehmer_19|regular_19`,
 - normalize strings/codes/IBAN/BIC,
 - update the company row and `workspaces.tax_mode` in the same PostgreSQL transaction,
