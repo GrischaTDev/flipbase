@@ -90,6 +90,11 @@ describe('SettingsShellComponent', () => {
     const mobileSelect = fixture.nativeElement.querySelector('app-custom-select');
 
     expect(links.some((link) => link.textContent?.includes('Daten & Protokolle'))).toBe(true);
+    expect(links.slice(0, 3).map((link) => link.textContent?.replace(/\\s+/g, ' ').trim())).toEqual([
+      'Konto Persönliche Daten & Sicherheit',
+      'Unternehmen Geschäfts- und Rechnungsdaten',
+      'Workspace Mandanten und Vorgaben',
+    ]);
     const accountLink = links.find((link) => link.textContent?.includes('Konto'));
     expect(accountLink?.getAttribute('aria-current')).toBe('page');
     expect(accountLink?.textContent).toContain('Persönliche Daten & Sicherheit');
