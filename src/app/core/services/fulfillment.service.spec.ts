@@ -76,6 +76,7 @@ describe('Fulfillment & Smart Bundling Engine (Chapter 27)', () => {
   it('verwendet ausschließlich die gespeicherte Absenderadresse des Workspaces', () => {
     service.carrierConfig.set({
       ...service.carrierConfig(),
+      useCompanyAddress: false,
       senderName: 'Ada Lovelace',
       senderCompany: 'Analytical Engines GmbH',
       senderStreet: 'Testweg',

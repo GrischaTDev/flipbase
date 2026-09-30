@@ -15,9 +15,16 @@ import { Json } from '../models/supabase.types';
 import { LoggerService } from './logger.service';
 import { SyncStatusService } from './sync-status.service';
 import { Tables } from '../models/supabase.types';
+import { CompanyProfileService } from './company-profile.service';
+import {
+  getCarrierSenderAddress,
+  getCompanyShippingAddress,
+  resolveCompanyAddressChoice,
+} from '../models/company-shipping.models';
 
 function createDefaultCarrierConfig(): CarrierConfig {
   return {
+    useCompanyAddress: true,
     dhlEnabled: false,
     dhlEkp: '',
     dhlApiKey: '',
@@ -60,6 +67,7 @@ interface FulfillmentRpcClient {
   providedIn: 'root',
 })
 export class FulfillmentService {
+  private readonly companyProfile = inject(CompanyProfileService, { optional: true });
   private readonly supabase = inject(SupabaseService, { optional: true });
   private readonly syncStatus = inject(SyncStatusService, { optional: true });
   // Faellt auf eine eigene Instanz zurueck, damit Dienste auch ausserhalb
@@ -277,6 +285,7 @@ export class FulfillmentService {
 
       if (cfgRes.data) {
         const cfg: CarrierConfig = {
+          useCompanyAddress: true,
           dhlEnabled: cfgRes.data.dhl_enabled,
           dhlEkp: cfgRes.data.dhl_ekp || '',
           dhlApiKey: cfgRes.data.dhl_api_key || '',
@@ -293,6 +302,7 @@ export class FulfillmentService {
           senderEmail: cfgRes.data.sender_email || '',
           senderPhone: cfgRes.data.sender_phone || '',
         };
+        cfg.useCompanyAddress = resolveCompanyAddressChoice(cfgRes.data.use_company_address, cfg);
         this.carrierConfig.set(cfg);
       }
       this.loadedWorkspaceId.set(requestedWorkspaceId);
@@ -338,6 +348,7 @@ export class FulfillmentService {
           .upsert(
             {
               workspace_id: workspaceId!,
+              use_company_address: updated.useCompanyAddress,
               dhl_enabled: updated.dhlEnabled,
               dhl_ekp: updated.dhlEkp,
               dhl_api_key: updated.dhlApiKey,
@@ -365,6 +376,7 @@ export class FulfillmentService {
           );
         }
         confirmed = {
+          useCompanyAddress: true,
           dhlEnabled: data.dhl_enabled,
           dhlEkp: data.dhl_ekp || '',
           dhlApiKey: data.dhl_api_key || '',
@@ -381,6 +393,10 @@ export class FulfillmentService {
           senderEmail: data.sender_email || '',
           senderPhone: data.sender_phone || '',
         };
+        confirmed.useCompanyAddress = resolveCompanyAddressChoice(
+          data.use_company_address,
+          confirmed,
+        );
       } catch (error: unknown) {
         return this.carrierConfigFehler(error);
       }
@@ -416,28 +432,12 @@ export class FulfillmentService {
   }
 
   getSenderAddress(): AddressInfo | null {
+    const workspaceId = this.workspaceService?.currentWorkspace()?.id;
+    if (this.supabase && this.loadedWorkspaceId() !== workspaceId) return null;
     const config = this.carrierConfig();
-    if (
-      !config.senderName.trim() ||
-      !config.senderStreet.trim() ||
-      !config.senderHouseNumber.trim() ||
-      !config.senderPostalCode.trim() ||
-      !config.senderCity.trim() ||
-      !config.senderCountry.trim()
-    ) {
-      return null;
-    }
-    return {
-      name: config.senderName.trim(),
-      company: config.senderCompany.trim() || undefined,
-      street: config.senderStreet.trim(),
-      house_number: config.senderHouseNumber.trim(),
-      postal_code: config.senderPostalCode.trim(),
-      city: config.senderCity.trim(),
-      country: config.senderCountry.trim(),
-      email: config.senderEmail.trim() || undefined,
-      phone: config.senderPhone.trim() || undefined,
-    };
+    if (!config.useCompanyAddress) return getCarrierSenderAddress(config);
+    const profile = this.companyProfile?.profile() ?? null;
+    return profile?.workspaceId === workspaceId ? getCompanyShippingAddress(profile) : null;
   }
 
   async markAsShipped(
