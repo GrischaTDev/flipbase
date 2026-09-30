@@ -148,7 +148,7 @@ language sql
 stable
 security definer
 set search_path = ''
-as $
+as $$
   select exists (
     select 1
     from public.workspace_members as member
@@ -159,7 +159,7 @@ as $
       and member.workspace_id::text = pg_catalog.split_part(p_path, '/', 1)
       and public.is_company_logo_path(p_path, member.workspace_id)
   );
-$;
+$$;
 
 alter function public.can_manage_company_logo_path(text) owner to postgres;
 revoke all on function public.can_manage_company_logo_path(text)
