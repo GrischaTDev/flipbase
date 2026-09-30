@@ -5,6 +5,7 @@ import {
   privateDocumentExtension,
   validatePrivateDocumentFile,
 } from './private-document.models';
+import { InvoiceParty } from './invoice.models';
 
 export type PurchaseDocumentType =
   'invoice' | 'purchase_proof' | 'payment_proof' | 'other' | 'self_receipt';
@@ -15,6 +16,7 @@ export interface PurchaseDocument {
   readonly purchase_id: string;
   readonly document_type: PurchaseDocumentType;
   readonly source_finalized_at?: string | null;
+  readonly company_snapshot?: InvoiceParty | null;
   readonly original_file_name: string;
   readonly storage_path: string;
   readonly mime_type: string;

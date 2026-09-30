@@ -15,6 +15,8 @@ import { validateCompanyLogo } from '../utils/company-logo-validation';
 import { SupabaseService } from './supabase.service';
 import { SyncStatusService } from './sync-status.service';
 import { WorkspaceService } from './workspace.service';
+import { createCompanyDocumentParty } from '../models/company-document.models';
+import { InvoiceParty } from '../models/invoice.models';
 
 const COMPANY_ASSET_BUCKET = 'company-assets';
 
@@ -118,6 +120,30 @@ export class CompanyProfileService {
     } catch (cause: unknown) {
       return this.reportedFailure('Speichern der Unternehmensdaten', cause);
     }
+  }
+
+  /** Liest frisch, ohne den Bearbeitungszustand der Einstellungen zurückzusetzen. */
+  async getDocumentParty(workspaceId: string): Promise<InvoiceParty> {
+    if (!this.isCurrentWorkspace(workspaceId)) throw new Error('Der Workspace wurde gewechselt.');
+    const { data, error } = await this.supabase.client.rpc('get_workspace_company_settings', {
+      p_workspace_id: workspaceId,
+    });
+    if (error || !data) throw error ?? new Error('Unternehmensdaten konnten nicht geladen werden.');
+    if (!this.isCurrentWorkspace(workspaceId)) throw new Error('Der Workspace wurde gewechselt.');
+    const state = this.parseState(data);
+    if (state.profile.workspaceId !== workspaceId)
+      throw new Error('Die Unternehmensdaten gehören zu einem anderen Workspace.');
+    return createCompanyDocumentParty(state.profile, state.taxMode);
+  }
+
+  async getDocumentLogoBlob(workspaceId: string, path: string): Promise<Blob | null> {
+    if (!this.isCurrentWorkspace(workspaceId) || !path.startsWith(`${workspaceId}/logos/`))
+      return null;
+    const { data, error } = await this.supabase.client.storage
+      .from(COMPANY_ASSET_BUCKET)
+      .download(path);
+    if (error || !this.isCurrentWorkspace(workspaceId)) return null;
+    return data;
   }
 
   async replaceLogo(file: File): Promise<MutationResult<WorkspaceCompanyProfile>> {

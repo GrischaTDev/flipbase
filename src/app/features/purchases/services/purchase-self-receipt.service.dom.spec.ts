@@ -3,6 +3,17 @@ import { signal } from '@angular/core';
 import { describe, expect, it, vi } from 'vitest';
 import { Purchase } from '../../../core/models/flipbase.models';
 import { PurchaseSelfReceiptService } from './purchase-self-receipt.service';
+import { CompanyDocumentError } from '../../../core/models/company-document.models';
+
+const companyParty = {
+  name: 'Anna Beispiel',
+  company: 'Mein Laden',
+  street: 'Hauptweg 8',
+  postalCode: '12345',
+  city: 'Bonn',
+  country: 'DE',
+  taxId: '12/345/678',
+};
 
 const purchase = {
   id: '11111111-1111-4111-8111-111111111111',
@@ -34,9 +45,12 @@ function setup(existing = false, uploadError: Error | null = null) {
   );
   const upload = vi.fn(async () => ({ data: null, error: uploadError }));
   const service = Object.create(PurchaseSelfReceiptService.prototype) as PurchaseSelfReceiptService;
+  const getDocumentParty = vi.fn(async () => companyParty);
+  const currentWorkspace = signal({ id: purchase.workspace_id, name: 'Mein Laden' });
   Object.assign(service, {
+    company: { getDocumentParty },
     purchases: { getPurchaseById: vi.fn(async () => purchase) },
-    workspaces: { currentWorkspace: signal({ id: purchase.workspace_id, name: 'Mein Laden' }) },
+    workspaces: { currentWorkspace },
     documents: {
       loadForPurchase: vi.fn(async () => undefined),
       loadError: signal<string | null>(null),
@@ -44,7 +58,7 @@ function setup(existing = false, uploadError: Error | null = null) {
       upload,
     },
   });
-  return { service, upload };
+  return { service, upload, getDocumentParty, currentWorkspace };
 }
 
 describe('PurchaseSelfReceiptService', () => {
@@ -62,7 +76,30 @@ describe('PurchaseSelfReceiptService', () => {
       expect.objectContaining({ name: 'Eigenbeleg-E-17.pdf', type: 'application/pdf' }),
       'self_receipt',
       purchase.finalized_at,
+      companyParty,
+      purchase.workspace_id,
     );
+  });
+
+  it('blocks a new receipt with incomplete company data before upload', async () => {
+    const { service, upload, getDocumentParty } = setup();
+    getDocumentParty.mockRejectedValue(new CompanyDocumentError(['legalName']));
+    expect((await service.ensureForFinalizedPurchase(purchase.id)).error).toBeInstanceOf(
+      CompanyDocumentError,
+    );
+    expect(upload).not.toHaveBeenCalled();
+  });
+
+  it('stops an old workspace response before uploading the PDF', async () => {
+    const { service, upload, getDocumentParty, currentWorkspace } = setup();
+    getDocumentParty.mockImplementation(async () => {
+      currentWorkspace.set({ id: 'other-workspace', name: 'Andere Firma' });
+      return companyParty;
+    });
+    expect((await service.ensureForFinalizedPurchase(purchase.id)).error?.message).toContain(
+      'Workspace',
+    );
+    expect(upload).not.toHaveBeenCalled();
   });
 
   it('returns upload failure so the user can retry', async () => {

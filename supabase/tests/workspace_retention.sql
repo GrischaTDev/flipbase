@@ -87,6 +87,13 @@ insert into public.catalog_products(id,workspace_id,title,tracking_mode) values
  ('86000000-0000-4000-8000-000000000010','86000000-0000-4000-8000-000000000002','Mengenartikel','quantity');
 insert into public.purchase_lines(id,workspace_id,purchase_id,catalog_product_id,title_snapshot,line_kind,ordered_quantity,unit_purchase_price,line_total) values
  ('86000000-0000-4000-8000-000000000011','86000000-0000-4000-8000-000000000002','86000000-0000-4000-8000-000000000007','86000000-0000-4000-8000-000000000010','Mengenartikel','quantity',2,10,20);
+-- Neue Rechnungen benötigen vollständige Unternehmensdaten im Test-Workspace.
+insert into public.workspace_company_profiles(workspace_id, legal_name, street, house_number, postal_code, city, country_code, tax_number)
+select id, 'Testinhaber', 'Testweg', '1', '12345', 'Bonn', 'DE', '123/456/789'
+from public.workspaces where id::text like '86000000%'
+on conflict (workspace_id) do update set legal_name = excluded.legal_name, street = excluded.street,
+  house_number = excluded.house_number, postal_code = excluded.postal_code, city = excluded.city,
+  country_code = excluded.country_code, tax_number = excluded.tax_number;
 insert into public.invoices(id,workspace_id,invoice_number,order_number) values
  ('86000000-0000-4000-8000-000000000012','86000000-0000-4000-8000-000000000002','RE-1','ORD-1');
 insert into public.store_orders(id,workspace_id,order_number) values

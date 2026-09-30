@@ -4,12 +4,26 @@ import { Injector, runInInjectionContext } from '@angular/core';
 import { InvoiceService } from './invoice.service';
 import { Sale, InventoryItem } from '../models/flipbase.models';
 import { StoreOrder } from '../models/store.models';
+import { CompanyProfileService } from './company-profile.service';
+import { WorkspaceService } from './workspace.service';
+import { companyProfileFixture } from '../../../test-support/company-document.fixture';
 
 describe('Invoice & Email Confirmation Service (§ 25a UStG Engine)', () => {
   let service: InvoiceService;
 
   beforeEach(() => {
-    const injector = Injector.create({ providers: [] });
+    const injector = Injector.create({
+      providers: [
+        {
+          provide: CompanyProfileService,
+          useValue: { profile: () => companyProfileFixture(), taxMode: () => 'diff_25a' },
+        },
+        {
+          provide: WorkspaceService,
+          useValue: { currentWorkspace: () => ({ id: 'ws-1', tax_mode: 'diff_25a' }) },
+        },
+      ],
+    });
     service = runInInjectionContext(injector, () => new InvoiceService());
   });
 
@@ -167,6 +181,15 @@ describe('Invoice & Email Confirmation Service (§ 25a UStG Engine)', () => {
     expect(invoice.paymentStatus).toBe('paid');
     expect(invoice.items.length).toBe(1);
     expect(invoice.total).toBe(180.0);
+    Object.assign(service, {
+      company: { profile: () => companyProfileFixture(), taxMode: () => 'regular_19' },
+    });
+    const afterSettingsChange = await service.generateInvoiceForOrder({
+      ...order,
+      id: 'order-after-settings-change',
+    });
+    expect(afterSettingsChange.data?.taxMode).toBe('regular_19');
+    expect(afterSettingsChange.data?.taxClause).toContain('19%');
   });
 
   it('erzeugt zwei Rechnungspositionen aus zwei persistierten Verkaufspositionen', async () => {

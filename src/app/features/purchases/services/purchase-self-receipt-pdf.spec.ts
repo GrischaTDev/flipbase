@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { PDFDocument } from 'pdf-lib';
+import { PDFDict, PDFDocument, PDFName } from 'pdf-lib';
 import { Purchase } from '../../../core/models/flipbase.models';
 import { buildSelfReceiptContent, createSelfReceiptPdf } from './purchase-self-receipt-pdf';
+import { creditNoteSnapshotFixture } from '../../../../test-support/company-document.fixture';
 
 const purchase = {
   id: 'purchase-1',
@@ -21,13 +22,42 @@ const purchase = {
 } as Purchase;
 
 describe('purchase self receipt PDF', () => {
+  it('embeds the saved PNG logo and still produces a PDF when the image is corrupt', async () => {
+    const content = buildSelfReceiptContent(
+      purchase,
+      creditNoteSnapshotFixture().seller,
+      new Date('2026-09-30T10:00:00Z'),
+    );
+    const png = new Blob(
+      [
+        new Uint8Array(
+          Buffer.from(
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a3ioAAAAASUVORK5CYII=',
+            'base64',
+          ),
+        ),
+      ],
+      { type: 'image/png' },
+    );
+    const withLogo = await PDFDocument.load(await createSelfReceiptPdf(content, png));
+    const images = withLogo.getPages()[0].node.Resources()?.lookup(PDFName.of('XObject'), PDFDict);
+    expect(images?.keys()).toHaveLength(1);
+    const withoutLogo = await PDFDocument.load(
+      await createSelfReceiptPdf(content, new Blob(['invalid'], { type: 'image/png' })),
+    );
+    expect(withoutLogo.getPageCount()).toBe(1);
+    expect(withoutLogo.getTitle()).toBe(content.title);
+  });
   it('shows the available evidence without inventing a seller and keeps costs separate', () => {
     const content = buildSelfReceiptContent(
       purchase,
-      'Mein Laden',
+      creditNoteSnapshotFixture().seller,
       new Date('2026-09-23T10:00:00Z'),
     );
     expect(content.title).toBe('Eigenbeleg E-2026-17');
+    expect(content.lines).toContain('Aussteller: Anna Beispiel');
+    expect(content.lines).toContain('Geschäftsanschrift: Testweg 1, 12345 Bonn, DE');
+    expect(content.lines).toContain('Steuernummer: 123/456/789');
     expect(content.lines).toContain('Verkäuferangabe: Nicht bekannt');
     expect(content.lines).toContain('Referenznummer: V-123');
     expect(content.lines).toContain('1 x Grüner Pullover – 25,00 EUR');
@@ -43,7 +73,7 @@ describe('purchase self receipt PDF', () => {
           title_snapshot: `Artikel ${index + 1} 🧥`,
         })),
       },
-      'Mein Laden',
+      creditNoteSnapshotFixture().seller,
       new Date('2026-09-23T10:00:00Z'),
     );
     const bytes = await createSelfReceiptPdf(content);

@@ -23,6 +23,7 @@ export interface InvoiceParty {
   iban?: string;
   bic?: string;
   bankName?: string;
+  logoPath?: string;
 }
 
 export interface Invoice {

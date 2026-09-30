@@ -18,6 +18,7 @@ import { MutationResult } from '../models/mutation-result.model';
 import { SaleMetrics } from '../models/sale-metrics.models';
 import { StockService } from './stock.service';
 import { ReturnRecord } from '../models/return.models';
+import { readCreditNoteCompanySnapshot } from '../models/company-document.models';
 import { INVENTORY_RECONCILIATION_AUDIT_REASONS } from '../models/inventory-reconciliation';
 import { calculateStoredSaleMetrics } from '../utils/sale-metrics';
 import { saleCostBasisStatus } from '../utils/cost-basis';
@@ -509,6 +510,7 @@ export class SalesService {
       inventory_item_id:
         typeof record['inventory_item_id'] === 'string' ? record['inventory_item_id'] : null,
       credit_note_number: record['credit_note_number'],
+      credit_note_snapshot: readCreditNoteCompanySnapshot(record['credit_note_snapshot']),
       return_date: String(record['return_date'] ?? ''),
       reason: String(record['reason'] ?? 'other') as ReturnRecord['reason'],
       refund_amount: Number(record['refund_amount'] ?? 0),
