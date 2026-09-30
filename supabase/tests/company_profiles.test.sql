@@ -341,14 +341,92 @@ select is(
   'Aktives Logo wird workspacebezogen gespeichert'
 );
 
+reset role;
+insert into storage.objects(bucket_id,name)
+values (
+  'company-assets',
+  'c2800000-0000-4000-8000-000000000011/logos/existing.webp'
+);
+
 set local role authenticated;
 select set_config('request.jwt.claim.sub','c2800000-0000-4000-8000-000000000002',true);
-select lives_ok(
-  $$insert into storage.objects(bucket_id,name)
+select is(
+  (select count(*)::integer from storage.objects
+   where bucket_id='company-assets'
+     and name='c2800000-0000-4000-8000-000000000011/logos/existing.webp'),
+  1,
+  'Mitglied darf Logoobjekte des eigenen Workspace lesen'
+);
+select throws_ok(
+  $insert into storage.objects(bucket_id,name)
     values (
       'company-assets',
-      'c2800000-0000-4000-8000-000000000011/logos/member-read.webp'
-    )$$,
-  'Testvorbereitung Mitglied-Storage'
+      'c2800000-0000-4000-8000-000000000011/logos/member-write.webp'
+    )$,
+  '42501',
+  null,
+  'Mitglied darf keine Unternehmenslogos hochladen'
 );
+
+select set_config('request.jwt.claim.sub','c2800000-0000-4000-8000-000000000003',true);
+select is(
+  (select count(*)::integer from storage.objects
+   where bucket_id='company-assets'
+     and name='c2800000-0000-4000-8000-000000000011/logos/existing.webp'),
+  0,
+  'Fremder Workspace darf Logoobjekte nicht lesen'
+);
+
+select set_config('request.jwt.claim.sub','c2800000-0000-4000-8000-000000000001',true);
+select lives_ok(
+  $insert into storage.objects(bucket_id,name)
+    values (
+      'company-assets',
+      'c2800000-0000-4000-8000-000000000011/logos/owner-write.webp'
+    )$,
+  'Inhaber darf ein versioniertes Unternehmenslogo hochladen'
+);
+select set_config('storage.allow_delete_query','true',true);
+select lives_ok(
+  $delete from storage.objects
+    where bucket_id='company-assets'
+      and name='c2800000-0000-4000-8000-000000000011/logos/owner-write.webp'$,
+  'Inhaber darf eigene Logoobjekte löschen'
+);
+
+select set_config('request.jwt.claim.sub','c2800000-0000-4000-8000-000000000002',true);
+select throws_ok(
+  $delete from storage.objects
+    where bucket_id='company-assets'
+      and name='c2800000-0000-4000-8000-000000000011/logos/existing.webp'$,
+  '42501',
+  null,
+  'Mitglied darf Unternehmenslogos nicht löschen'
+);
+
+reset role;
+
+set local role authenticated;
+select set_config('request.jwt.claim.sub','c2800000-0000-4000-8000-000000000001',true);
+create temporary table created_workspace(id uuid);
+grant all on created_workspace to authenticated;
+insert into created_workspace(id)
+select public.create_workspace('Neues Unternehmen');
+reset role;
+select is(
+  (select count(*)::integer
+   from public.workspace_company_profiles
+   where workspace_id=(select id from created_workspace)),
+  1,
+  'create_workspace erzeugt ein leeres Unternehmensprofil'
+);
+select is(
+  (select company_name
+   from public.workspace_company_profiles
+   where workspace_id=(select id from created_workspace)),
+  null::text,
+  'Neuer Workspace übernimmt den internen Namen nicht als Unternehmensnamen'
+);
+
+select * from finish();
 rollback;
