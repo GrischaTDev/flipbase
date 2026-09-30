@@ -241,7 +241,7 @@ Update TypeScript:
 - `BusinessEntityType` includes `'company_profile'`,
 - `mapBusinessEventLabel('company_profile_updated')` returns `Unternehmensdaten geändert`.
 
-Add/adjust unit tests in the existing business-event service spec if present.
+Update `src/app/core/services/business-event.service.angular.spec.ts` to assert the new entity/event label.
 
 - [ ] **Step 11: Include company profile in the audit export**
 
