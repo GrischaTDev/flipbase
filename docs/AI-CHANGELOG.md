@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-30 – Juna – Kontoeinstellungen mit Profil, Sicherheit und Sitzungen modernisiert
+
+**Auftrag:** PR 1 des Konto-/Unternehmensumbaus umsetzen: Die bisherige Ein-Karten-Kontoseite in ein echtes persönliches Nutzerprofil mit Sicherheits- und Sitzungsbereich überführen, ohne Unternehmensdaten vorwegzunehmen.
+
+**Änderung:** `/settings/account` besteht jetzt aus den drei Bereichen „Profil“, „Sicherheit“ und „Sitzungen“. Das Profil zeigt Initialen, Anzeigename und die schreibgeschützte Anmelde-E-Mail; Serveraktualisierungen überschreiben keine laufende Namenseingabe. Passwortänderungen verlangen das aktuelle Passwort, mindestens zehn Zeichen und eine identische Wiederholung; vor dem Setzen des neuen Passworts bestätigt Supabase die bestehende Anmeldung erneut. Fehler bleiben im geöffneten Dialog sichtbar. Zwei-Faktor-Authentifizierung wird nur als neutraler, noch nicht eingerichteter Status dargestellt. Die aktuelle Sitzung heißt bewusst nur „Dieser Browser“; die bestehende bestätigungspflichtige globale Abmeldung bleibt erhalten. Die Oberfläche verwendet die vorhandenen Shared Cards, Buttons, Felder, Badges und den Modal-Rahmen.
+
+**Prüfung:** PR-CI #1007 erfolgreich: Formatierung, ESLint, Typprüfung, Workflow-/UI-Architekturprüfungen, Produktionsbuild, Node- und DOM-Tests, beide Angular-Shards sowie Browser-Smoke einschließlich der neuen Konto-Tests für Desktop/Mobil, Hell/Dunkel und WCAG-AA liefen erfolgreich.
+
 ## 2026-09-30 – Juna – Konto- und Unternehmensdatenarchitektur geplant
 
 **Auftrag:** Die bisher sehr eingeschränkte Konto-Seite zu einem echten Nutzerprofil ausbauen und parallel einen zentralen Unternehmensbereich für Rechnungs-, Steuer-, Bank-, Logo- und Adressdaten planen.
