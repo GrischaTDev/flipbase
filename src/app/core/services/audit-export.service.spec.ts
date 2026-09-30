@@ -216,7 +216,9 @@ describe('AuditExportService archive builder', () => {
     };
     const data: AuditArchiveData = {
       businessEvents: [event],
-      companyProfiles: [{ workspace_id: 'workspace-1', company_name: 'Wiehen Store', legal_name: 'Grischa Tänzer' }],
+      companyProfiles: [
+        { workspace_id: 'workspace-1', company_name: 'Wiehen Store', legal_name: 'Grischa Tänzer' },
+      ],
       suppliers: [{ id: 'supplier-1', workspace_id: 'workspace-1', name: 'Händler GmbH' }],
       catalogProducts: [
         {
