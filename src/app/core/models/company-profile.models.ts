@@ -1,11 +1,6 @@
 import { TaxMode } from './flipbase.models';
 
-export type CompanyLegalForm =
-  | 'sole_proprietorship'
-  | 'gbr'
-  | 'ug'
-  | 'gmbh'
-  | 'other';
+export type CompanyLegalForm = 'sole_proprietorship' | 'gbr' | 'ug' | 'gmbh' | 'other';
 
 export interface WorkspaceCompanyProfile {
   readonly workspaceId: string;
