@@ -10,6 +10,12 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-30-account-company-settings-design.md`
 
+## Geprüfter Stand vom 30.09.2026
+
+Tasks 1–3 sind implementiert. Der unveränderte Datenbankstand bestand die PR-Datenbankprüfung. Lokale Service-, Komponenten- und Routingtests sowie Typprüfung und Build sind nach Fehlerkorrektur erfolgreich. Die detaillierten ursprünglichen Checkboxen dokumentieren die geplante Arbeitsfolge; sie wurden im Web nicht durchgehend gepflegt und sind kein Nachweis fehlender Implementierung.
+
+Task 4: Vier Browserfälle sind vorhanden und jetzt in der verpflichtenden PR-Auswahl enthalten. Der korrigierte Stand benötigt noch Push, erfolgreiche vollständige PR-CI und Merge-Freigabe. Lokal liefen keine Datenbank-/Browsertests, da Docker nicht aktiv ist. Nach diesem PR folgt die Dokumentenanbindung aus PR 3 der Spezifikation; Shop und Versand folgen in PR 4.
+
 ## Global Constraints
 
 - Company data belongs to the active workspace, never to the user profile.

@@ -2,7 +2,7 @@ import '@angular/compiler';
 import { signal, ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { glob, readFile } from 'node:fs/promises';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
   CompanyProfileInput,
   WorkspaceCompanyProfile,
@@ -13,7 +13,42 @@ import { CompanyProfileService } from '../../../../core/services/company-profile
 import { WorkspaceContextLockService } from '../../../../core/services/workspace-context-lock.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
+import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { CardComponent } from '../../../../shared/components/card/card.component';
+import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
+import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
+import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { CompanySettingsComponent } from './company-settings.component';
+
+interface AngularInputMetadata {
+  inputs: Record<string, unknown>;
+  declaredInputs: Record<string, string>;
+  outputs: Record<string, string>;
+}
+
+const metadataSnapshots = new Map<unknown, AngularInputMetadata>();
+
+function registerSignalInputs(
+  component: unknown,
+  names: readonly string[],
+  outputs: readonly string[] = [],
+): void {
+  const metadata = (component as { ɵcmp: AngularInputMetadata }).ɵcmp;
+  metadataSnapshots.set(component, { ...metadata });
+  metadata.inputs = {
+    ...metadata.inputs,
+    ...Object.fromEntries(names.map((name) => [name, [name, 1, null]])),
+  };
+  metadata.declaredInputs = {
+    ...metadata.declaredInputs,
+    ...Object.fromEntries(names.map((name) => [name, name])),
+  };
+  metadata.outputs = {
+    ...metadata.outputs,
+    ...Object.fromEntries(outputs.map((name) => [name, name])),
+  };
+}
 
 function profile(overrides: Record<string, unknown> = {}) {
   return {
@@ -116,6 +151,8 @@ function makeEnvironment(canEdit = true) {
   fixture.detectChanges();
   return {
     fixture,
+    activeWorkspace,
+    loadedWorkspaceId,
     companyProfile,
     taxMode,
     editable,
@@ -141,6 +178,33 @@ beforeAll(async () => {
     if (matches.length !== 1) throw new Error(`Test-Ressource nicht eindeutig: ${url}`);
     return readFile(matches[0], 'utf8');
   });
+  // Wie in den Kontotests: Vitest kompiliert Signal-Eingänge ohne Angulars AOT-Transformation.
+  registerSignalInputs(CardComponent, ['title', 'subtitle', 'padding', 'rounded']);
+  registerSignalInputs(BadgeComponent, ['tone']);
+  registerSignalInputs(
+    ButtonComponent,
+    ['variant', 'size', 'disabled', 'loading', 'type'],
+    ['clicked'],
+  );
+  registerSignalInputs(TextFieldComponent, [
+    'label',
+    'type',
+    'autocomplete',
+    'maxLength',
+    'monospaced',
+  ]);
+  registerSignalInputs(CustomSelectComponent, ['options', 'ariaLabel', 'value']);
+  registerSignalInputs(CustomCheckboxComponent, ['label']);
+});
+
+afterEach(() => TestBed.resetTestingModule());
+afterAll(() => {
+  for (const [component, snapshot] of metadataSnapshots) {
+    const metadata = (component as { ɵcmp: AngularInputMetadata }).ɵcmp;
+    metadata.inputs = snapshot.inputs;
+    metadata.declaredInputs = snapshot.declaredInputs;
+    metadata.outputs = snapshot.outputs;
+  }
 });
 
 describe('CompanySettingsComponent', () => {
@@ -203,6 +267,33 @@ describe('CompanySettingsComponent', () => {
     expect(release).toHaveBeenCalledTimes(1);
   });
 
+  it('übernimmt nach einem erzwungenen Workspace-Wechsel nur die Daten des neuen Workspace', () => {
+    const env = makeEnvironment();
+    const component = env.fixture.componentInstance;
+    component.form.controls.companyName.setValue('Ungesicherter Name aus A');
+    env.fixture.detectChanges();
+
+    env.activeWorkspace.set({ id: 'workspace-b', name: 'Zweiter Workspace' });
+    env.companyProfile.set(profile({ workspaceId: 'workspace-b', companyName: 'Firma B' }));
+    env.loadedWorkspaceId.set('workspace-b');
+    env.fixture.detectChanges();
+
+    expect(component.form.controls.companyName.value).toBe('Firma B');
+    expect(component.hasUnsavedChanges()).toBe(false);
+    expect(env.release).toHaveBeenCalledTimes(1);
+  });
+
+  it('behält ungesicherte Eingaben beim Aktualisieren des Logos im selben Workspace', () => {
+    const env = makeEnvironment();
+    env.fixture.componentInstance.form.controls.companyName.setValue('Entwurf');
+    env.fixture.detectChanges();
+    env.companyProfile.set(profile({ logoPath: 'workspace-a/logos/new.webp' }));
+    env.fixture.detectChanges();
+
+    expect(env.fixture.componentInstance.form.controls.companyName.value).toBe('Entwurf');
+    expect(env.fixture.componentInstance.hasUnsavedChanges()).toBe(true);
+  });
+
   it('speichert Profil und Steuermodus gemeinsam und übernimmt erst den bestätigten Stand', async () => {
     const env = makeEnvironment();
     const component = env.fixture.componentInstance;
@@ -251,9 +342,11 @@ describe('CompanySettingsComponent', () => {
 
   it('zeigt Rechnungsbereitschaft als Status ohne das Speichern zu blockieren', () => {
     const env = makeEnvironment();
-    env.readiness.set({
-      complete: false,
-      missingFields: ['legalName', 'street', 'taxIdentifier'],
+    env.fixture.componentInstance.form.patchValue({
+      legalName: '',
+      street: '',
+      taxNumber: '',
+      vatId: '',
     });
     env.fixture.componentInstance.form.controls.companyName.setValue('Speicherbar');
     env.fixture.detectChanges();

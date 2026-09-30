@@ -19,7 +19,7 @@ async function openCompanySettings(page: Page): Promise<void> {
   await expect(page.getByRole('heading', { name: 'Bankverbindung', exact: true })).toBeVisible();
 }
 
-test('company settings stay usable on desktop and mobile @pr-smoke', async ({ page }) => {
+test('company settings stay usable on desktop and mobile @core-smoke', async ({ page }) => {
   for (const viewport of [
     { width: 1280, height: 900 },
     { width: 390, height: 844 },
@@ -45,7 +45,9 @@ test('company settings stay usable on desktop and mobile @pr-smoke', async ({ pa
   }
 });
 
-test('company settings block workspace switching only while dirty', async ({ page }) => {
+test('company settings block workspace switching only while dirty @core-smoke', async ({
+  page,
+}) => {
   await openCompanySettings(page);
 
   const workspaceSelector = page.locator('button[aria-controls="header-workspace-menu"]');
@@ -62,7 +64,7 @@ test('company settings block workspace switching only while dirty', async ({ pag
   await expect(page.getByLabel('Unternehmensname', { exact: true })).toHaveValue('');
 });
 
-test('company settings remain visible in light and dark themes', async ({ page }) => {
+test('company settings remain visible in light and dark themes @core-smoke', async ({ page }) => {
   for (const theme of ['light', 'dark'] as const) {
     await page.addInitScript((value) => localStorage.setItem('flipbase_theme', value), theme);
     await openCompanySettings(page);
@@ -74,7 +76,7 @@ test('company settings remain visible in light and dark themes', async ({ page }
   }
 });
 
-test('company settings have no automated WCAG AA violations @pr-smoke', async ({ page }) => {
+test('company settings have no automated WCAG AA violations @core-smoke', async ({ page }) => {
   await openCompanySettings(page);
   await page.addScriptTag({ content: axe.source });
 

@@ -189,7 +189,17 @@ export class CompanySettingsComponent {
   readonly isLogoBusy = signal(false);
   private readonly formValue = signal(this.form.getRawValue());
   private confirmedSnapshot: string | null = null;
+  private confirmedWorkspaceId: string | null = null;
   private releaseWorkspaceLock: (() => void) | null = null;
+  readonly mailingAddressEnabled = computed(() => this.formValue().mailingAddressEnabled);
+  readonly hasCurrentProfile = computed(() => {
+    const workspaceId = this.workspace.currentWorkspace()?.id;
+    return (
+      !!workspaceId &&
+      this.company.loadedWorkspaceId() === workspaceId &&
+      this.company.profile()?.workspaceId === workspaceId
+    );
+  });
 
   readonly missingRequiredFields = computed<readonly CompanyRequiredField[]>(() => {
     const value = this.formValue();
@@ -218,11 +228,23 @@ export class CompanySettingsComponent {
       const profile = this.company.profile();
       const taxMode = this.company.taxMode();
       const loadedWorkspaceId = this.company.loadedWorkspaceId();
-      if (!profile || !taxMode || !loadedWorkspaceId) return;
+      const workspaceId = this.workspace.currentWorkspace()?.id;
+      if (
+        !profile ||
+        !taxMode ||
+        !workspaceId ||
+        loadedWorkspaceId !== workspaceId ||
+        profile.workspaceId !== workspaceId
+      ) {
+        this.confirmedSnapshot = null;
+        this.confirmedWorkspaceId = null;
+        this.form.disable({ emitEvent: false });
+        this.releaseLock();
+        return;
+      }
 
       const profileChangedWorkspace =
-        this.confirmedSnapshot === null ||
-        profile.workspaceId !== this.workspace.currentWorkspace()?.id;
+        this.confirmedSnapshot === null || profile.workspaceId !== this.confirmedWorkspaceId;
       if (profileChangedWorkspace || !this.hasUnsavedChanges()) {
         this.applyConfirmedState(profile, taxMode, this.company.canEdit());
       } else if (!this.company.canEdit()) {
@@ -339,6 +361,7 @@ export class CompanySettingsComponent {
     this.form.reset(value, { emitEvent: false });
     this.formValue.set(this.form.getRawValue());
     this.confirmedSnapshot = this.snapshot(this.form.getRawValue());
+    this.confirmedWorkspaceId = profile.workspaceId;
     this.releaseLock();
   }
 

@@ -1,5 +1,25 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-30 – Juna – Unternehmenszweig geprüft und Altzweige aufgeräumt
+
+**Auftrag:** Den im Web begonnenen Unternehmensdaten-Umbau weiterführen, aktuelle Fehler beheben und abgeschlossene Zweige sicher aufräumen.
+
+**Änderung:** PR 2 gegen die vierteilige Spezifikation geprüft. Unternehmenstests setzen ihre Testumgebung zurück und registrieren die Signal-Eingänge wie die vorhandenen Kontotests. Navigationstests lesen Titel und Beschreibung getrennt. Der technische Logo-Dateiupload nutzt die dokumentierte Shared-UI-Ausnahme und eine zugängliche Beschriftung. Eine abweichende Postanschrift reagiert über ein Signal. Ein erzwungener Workspace-Wechsel übernimmt ausschließlich das neue Unternehmensprofil und gibt die alte Bearbeitungssperre frei; Logoänderungen im selben Workspace bewahren laufende Eingaben. Die vier Unternehmens-Browsertests sind jetzt Teil der verbindlichen PR-Auswahl; ihr Auswahlvertrag ist angepasst.
+
+**Aufräumen:** 54 entfernte und 14 lokale abgeschlossene Branches entfernt. Neun alte Arbeitskopien entfernt; eine weitere wurde nach einem Windows-Pfadlängenfehler aus der Arbeitskopienliste entfernt und ihr Restordner vollständig archiviert. Der überholte Konto-PR #263 ist geschlossen; seine Funktion ist über #262 integriert, sein Zweig bleibt zur Nachvollziehbarkeit erhalten. Drei Arbeitskopien mit ungesicherten Änderungen bleiben erhalten. Commit-Historie, Patches und unversionierte Dateien liegen zusätzlich unter `.git/audit-backups/20260930/`; das Git-Bundle wurde geprüft. Die Hauptarbeitskopie wurde ausschließlich auf `origin/master` vorgezogen.
+
+**Prüfung:** Fehler zuerst lokal nachgestellt. Danach 19 Angular-, 17 DOM- und 35 Node-Tests bestanden; 17 UI-/Browserauswahl-Vertragstests bestanden. Typprüfung, gezieltes ESLint, Shared-UI-Prüfung und Produktionsbau erfolgreich. Die vier Browserfälle sind in der PR-Auswahl nachgewiesen. Datenbank und echte Browser wurden lokal nicht ausgeführt, da Docker nicht läuft; der unveränderte SQL-Stand hatte in PR #264 bereits einen erfolgreichen Datenbanklauf. Der korrigierte Gesamtstand muss vor dem Merge erneut durch die verbindliche PR-CI. Der vorhandene pako-Bauhinweis bleibt bestehen.
+
+**Weiterarbeit:** Nach PR 2 folgt PR 3: Unternehmensdaten in neue Rechnungs-, Gutschrift- und Eigenbeleg-Snapshots übernehmen, bestehende Dokumente unverändert lesen und Demo-Absender entfernen. PR 4 zentralisiert Shop/Bank/Impressum und Versand mit Erhalt bestehender Absender-Overrides.
+
+## 2026-09-30 – Juna – Projektstand und Branch-Bestand aufgenommen
+
+**Auftrag:** Die letzten Tage zusammenfassen, offene Arbeiten und überflüssige Branches prüfen und die nächsten Schritte vorschlagen.
+
+**Befund:** GitHub-Hauptstand, offene PRs #263/#264, Prüfungen und Arbeitskopien abgeglichen. 49 entfernte Branches sind vollständig im Hauptstand enthalten; weitere Zweige benötigen Einzelvergleich. Drei alte Arbeitskopien enthalten ungesicherte Änderungen. Bericht unter `docs/audit/2026-09-30-project-status.md` festgehalten. Keine Branches gelöscht, keine fremden Arbeitskopien geändert.
+
+**Prüfung:** Git fetch, Git-Abstammungsprüfung, Status aller Arbeitskopien und GitHub-PR-/CI-Abfrage. Erfolgreiche Auslieferung des aktuellen Hauptstands anhand seiner GitHub-Prüfungen bestätigt; keine eigenen Anwendungstests oder Live-Abnahme durchgeführt.
+
 ## 2026-09-30 – Juna – Unternehmensdaten als zentrale Workspace-Stammdaten aufgebaut
 
 **Auftrag:** PR 2 des Konto-/Unternehmensumbaus umsetzen: Einen eigenen Bereich „Unternehmen“ für workspacebezogene Geschäfts-, Adress-, Steuer-, Bank- und Logodaten schaffen, ohne Rechnungen, Shop oder Versand in diesem Schritt bereits umzustellen.

@@ -13,6 +13,16 @@ const coreTests = [
     'beta-registration.spec.ts',
     'genehmigt eine Bewerbung und startet nach der Passwortvergabe 60 Beta-Tage @pr-smoke',
   ],
+  ['company-settings.spec.ts', 'company settings stay usable on desktop and mobile @core-smoke'],
+  [
+    'company-settings.spec.ts',
+    'company settings block workspace switching only while dirty @core-smoke',
+  ],
+  [
+    'company-settings.spec.ts',
+    'company settings remain visible in light and dark themes @core-smoke',
+  ],
+  ['company-settings.spec.ts', 'company settings have no automated WCAG AA violations @core-smoke'],
   ['core-smoke.spec.ts', 'speichert einen Artikel mit Bild und lädt ihn erneut @core-smoke'],
   ['core-smoke.spec.ts', 'öffnet die App und zentrale Arbeitsbereiche @core-smoke'],
   [
@@ -125,7 +135,7 @@ async function listTests(config) {
 
 const keys = (entries) => entries.map((entry) => JSON.stringify(entry)).sort();
 
-test('PR-Auswahl: elf Kernfälle, keine Wiederholungen, kein test.only', async () => {
+test('PR-Auswahl: fünfzehn Kernfälle, keine Wiederholungen, kein test.only', async () => {
   const { report, selected } = await listTests('playwright.pr.config.ts');
   assert.deepEqual(keys(selected), keys(coreTests));
   assert.equal(report.config.forbidOnly, true);

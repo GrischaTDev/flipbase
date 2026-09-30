@@ -8,7 +8,7 @@
     <p class="text-xs text-fb-text-muted">{{ company.loadError()?.message }}</p>
     <app-button variant="secondary" size="md" (clicked)="retryLoad()">Erneut versuchen</app-button>
   </div>
-} @else if (company.profile() && company.taxMode()) {
+} @else if (hasCurrentProfile() && company.taxMode()) {
   <form [formGroup]="form" (ngSubmit)="save()" class="space-y-4">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-center gap-2">
@@ -88,10 +88,13 @@
           </div>
 
           @if (company.canEdit()) {
+            <!-- Technischer Dateitransport; die sichtbare Aktion verwendet den Shared Button. -->
             <input
               #logoInput
               type="file"
               class="sr-only"
+              data-shared-ui-exception="native-file-picker"
+              aria-label="Unternehmenslogo auswählen"
               accept="image/png,image/jpeg,image/webp"
               (change)="onLogoSelected($event)"
             />
@@ -151,7 +154,7 @@
         />
       </div>
 
-      @if (form.controls.mailingAddressEnabled.value) {
+      @if (mailingAddressEnabled()) {
         <div class="mt-4 grid gap-3 sm:grid-cols-2">
           <app-text-field
             formControlName="mailingStreet"
