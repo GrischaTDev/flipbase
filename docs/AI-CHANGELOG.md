@@ -1,5 +1,15 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-30 – Juna – Unternehmensdaten als zentrale Workspace-Stammdaten aufgebaut
+
+**Auftrag:** PR 2 des Konto-/Unternehmensumbaus umsetzen: Einen eigenen Bereich „Unternehmen“ für workspacebezogene Geschäfts-, Adress-, Steuer-, Bank- und Logodaten schaffen, ohne Rechnungen, Shop oder Versand in diesem Schritt bereits umzustellen.
+
+**Änderung:** Neue Tabelle `workspace_company_profiles` mit leerem Profil pro bestehendem und neuem Workspace, RLS-Lesezugriff für Mitglieder und Schreibzugriff ausschließlich über Owner/Admin-RPCs. Unternehmensprofil und `workspaces.tax_mode` werden atomar gespeichert; Änderungen erzeugen ein redigiertes `company_profile_updated`-Ereignis mit Feldnamen statt sensibler Alt-/Neudaten. Der private Bucket `company-assets` speichert versionierte PNG/JPEG/WebP-Logos workspacegebunden. `CompanyProfileService` schützt vor verspäteten Workspace-Antworten, bildet die Rechnungsdaten-Bereitschaft ab und räumt einen neuen Logo-Upload bei fehlgeschlagener Aktivierung wieder auf. Unter Einstellungen gibt es jetzt „Unternehmen“ direkt nach „Konto“ mit den vier Bereichen Unternehmensprofil, Geschäftsanschrift, Steuerdaten und Bankverbindung; Nicht-Admins sehen die Daten schreibgeschützt. Ungespeicherte Änderungen sperren den Workspace-Wechsel bis Speichern oder Verwerfen. Das Prüfarchiv enthält zusätzlich `company-profile.csv` und verwendet Schema-/Exportversion 1.4.0.
+
+**Abgrenzung:** Rechnungen, Gutschriften, Eigenbelege, Shop-/Bankdaten und Versand greifen in diesem PR noch nicht auf die neuen Stammdaten zu; diese Integration folgt in PR 3 und PR 4.
+
+**Prüfung:** Datenbank-, Service-, Angular- und Browser-Regressionstests decken RLS/RPCs, Workspace-Isolation, atomare Speicherung, Logo-Rollback, Rollen, Dirty-State, responsive Darstellung und Accessibility ab. Die vollständige PR-CI bleibt der Merge-Gate für den finalen Branchstand.
+
 ## 2026-09-30 – Juna – Kontoeinstellungen mit Profil, Sicherheit und Sitzungen modernisiert
 
 **Auftrag:** PR 1 des Konto-/Unternehmensumbaus umsetzen: Die bisherige Ein-Karten-Kontoseite in ein echtes persönliches Nutzerprofil mit Sicherheits- und Sitzungsbereich überführen, ohne Unternehmensdaten vorwegzunehmen.
