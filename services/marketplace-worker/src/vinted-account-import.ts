@@ -9,6 +9,7 @@ export type VintedImportArea =
 export interface VintedImportAreaResult {
   status: 'complete' | 'partial' | 'failed';
   failure?: VintedRequestFailure;
+  retryAfter?: string;
 }
 export type VintedImportAreas = Record<VintedImportArea, VintedImportAreaResult>;
 
@@ -26,6 +27,7 @@ export interface VintedAccountImport {
   entries: VintedImportEntry[];
   areas: VintedImportAreas;
   rejectedSaleIds?: string[];
+  sourceRequestCount?: number;
 }
 
 export interface VintedConversationVersion {
@@ -67,10 +69,12 @@ export type VintedRequestFailure =
 
 export class VintedImportRequestError extends Error {
   readonly reason: VintedRequestFailure;
+  readonly retryAfter?: string;
 
-  constructor(reason: VintedRequestFailure) {
+  constructor(reason: VintedRequestFailure, retryAfter?: string) {
     super('Vinted-Datenantwort nicht verfügbar');
     this.reason = reason;
+    this.retryAfter = retryAfter;
   }
 }
 
@@ -409,7 +413,14 @@ export function parseVintedAccountImport(
   return { identity, observedAt, entries, areas, rejectedSaleIds: [...rejectedSaleIds] };
 }
 
-async function vintedJson(page: Page, path: string): Promise<unknown> {
+interface SourceReadContext {
+  count: number;
+  blocked?: VintedImportRequestError;
+}
+
+async function vintedJson(page: Page, path: string, context?: SourceReadContext): Promise<unknown> {
+  if (context?.blocked) throw context.blocked;
+  if (context) context.count++;
   let result: unknown;
   try {
     result = await page.evaluate(async (requestPath) => {
@@ -430,7 +441,23 @@ async function vintedJson(page: Page, path: string): Promise<unknown> {
       }
       if (response.status === 401) return failure('unauthorized');
       if (response.status === 403) return failure('forbidden');
-      if (response.status === 429) return failure('rate_limited');
+      if (response.status === 429) {
+        const raw = response.headers.get('Retry-After');
+        const now = Date.now();
+        const requested =
+          raw && /^\d{1,6}$/.test(raw.trim())
+            ? now + Number(raw) * 1000
+            : raw
+              ? Date.parse(raw)
+              : NaN;
+        const retryAfter =
+          Number.isFinite(requested) &&
+          requested > now &&
+          requested <= now + 7 * 24 * 60 * 60 * 1000
+            ? new Date(requested).toISOString()
+            : undefined;
+        return { ...failure('rate_limited'), ...(retryAfter ? { retryAfter } : {}) };
+      }
       if (response.status >= 500) return failure('provider_unavailable');
       let origin: string;
       try {
@@ -463,8 +490,19 @@ async function vintedJson(page: Page, path: string): Promise<unknown> {
     reason === 'timeout' ||
     reason === 'network' ||
     reason === 'browser_context'
-  )
-    throw new VintedImportRequestError(reason);
+  ) {
+    const requested = record(result)?.['retryAfter'];
+    const retryAfter =
+      typeof requested === 'string' &&
+      Number.isFinite(Date.parse(requested)) &&
+      Date.parse(requested) > Date.now() &&
+      Date.parse(requested) <= Date.now() + 7 * 24 * 60 * 60 * 1000
+        ? new Date(requested).toISOString()
+        : undefined;
+    const error = new VintedImportRequestError(reason, retryAfter);
+    if (context && (reason === 'rate_limited' || reason === 'forbidden')) context.blocked = error;
+    throw error;
+  }
   return result;
 }
 
@@ -474,12 +512,13 @@ async function pages(
   key: string,
   authorize: () => Promise<void>,
   stage: VintedImportStage,
+  context?: SourceReadContext,
 ): Promise<{ values: unknown[]; result: VintedImportAreaResult }> {
   const values: unknown[] = [];
   for (let number = 1; number <= 20; number++) {
     await atImportStage(stage, authorize);
     try {
-      const response = record(await vintedJson(page, path(number)));
+      const response = record(await vintedJson(page, path(number), context));
       const items = response?.[key];
       const totalPages = count(record(response?.['pagination'])?.['total_pages']);
       if (!Array.isArray(items) || items.length > 100 || totalPages === null || totalPages < number)
@@ -503,7 +542,11 @@ function sourceFailure(
 ): VintedImportAreaResult {
   if (!(error instanceof VintedImportRequestError) || error.reason === 'unauthorized')
     throw new VintedImportReadError(stage, error);
-  return { status: partial ? 'partial' : 'failed', failure: error.reason };
+  return {
+    status: partial ? 'partial' : 'failed',
+    failure: error.reason,
+    ...(error.retryAfter ? { retryAfter: error.retryAfter } : {}),
+  };
 }
 
 export async function readVintedAccountImport(
@@ -512,6 +555,7 @@ export async function readVintedAccountImport(
   onStage?: (stage: 'profile' | 'publications' | 'conversations' | 'sales') => Promise<void>,
   previousConversations: VintedConversationVersion[] = [],
 ): Promise<VintedAccountImport> {
+  const reads: SourceReadContext = { count: 0 };
   await atImportStage('navigation', async () => {
     try {
       if (new URL(page.url()).origin === 'https://www.vinted.de') return;
@@ -523,7 +567,7 @@ export async function readVintedAccountImport(
   const profile = await atImportStage('profile', async () => {
     await onStage?.('profile');
     await authorize();
-    return vintedJson(page, '/api/v2/users/current');
+    return vintedJson(page, '/api/v2/users/current', reads);
   });
   const identity = await atImportStage('identity', async () => {
     const account = parseVintedAccountIdentity(profile);
@@ -538,6 +582,7 @@ export async function readVintedAccountImport(
     'items',
     authorize,
     'publications',
+    reads,
   );
   if (items.values.some((item) => identifier(record(item)?.['user_id']) !== identity.id))
     items.result = { status: 'partial', failure: 'invalid_response' };
@@ -548,6 +593,7 @@ export async function readVintedAccountImport(
     'conversations',
     authorize,
     'conversations',
+    reads,
   );
   const areas: VintedImportAreas = {
     profile: { status: 'complete' },
@@ -586,7 +632,7 @@ export async function readVintedAccountImport(
     await atImportStage('messages', authorize);
     let conversation: unknown;
     try {
-      conversation = await vintedJson(page, `/api/v2/conversations/${id}`);
+      conversation = await vintedJson(page, `/api/v2/conversations/${id}`, reads);
       const relation = record(record(conversation)?.['conversation']);
       if (identifier(relation?.['id']) !== id || !Array.isArray(relation?.['messages']))
         throw new VintedImportRequestError('invalid_response');
@@ -604,7 +650,7 @@ export async function readVintedAccountImport(
     ) {
       await atImportStage('transaction', authorize);
       try {
-        transaction = await vintedJson(page, `/api/v2/transactions/${transactionId}`);
+        transaction = await vintedJson(page, `/api/v2/transactions/${transactionId}`, reads);
         if (identifier(record(record(transaction)?.['transaction'])?.['id']) !== transactionId)
           throw new VintedImportRequestError('invalid_response');
       } catch (error) {
@@ -619,11 +665,12 @@ export async function readVintedAccountImport(
     'user_feedbacks',
     authorize,
     'profile',
+    reads,
   );
   areas.feedback = feedbacks.result;
   return atImportStage('parse', async () => {
     await onStage?.('sales');
-    return parseVintedAccountImport(
+    const snapshot = parseVintedAccountImport(
       identity,
       profile,
       items.values,
@@ -634,5 +681,6 @@ export async function readVintedAccountImport(
       feedbacks.values,
       areas,
     );
+    return { ...snapshot, sourceRequestCount: reads.count };
   });
 }

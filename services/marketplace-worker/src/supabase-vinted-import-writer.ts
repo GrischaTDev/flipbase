@@ -77,18 +77,34 @@ export class SupabaseVintedImportWriter {
     // Zugriff, Identität, Einträge und Abrufstände werden in derselben Transaktion geprüft.
     const result = record(
       await this.json(
-        await this.request(new URL('/rest/v1/rpc/marketplace_apply_vinted_import', this.baseUrl), {
-          method: 'POST',
-          headers: { ...this.serverHeaders(), 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            p_workspace_id: scope.workspaceId,
-            p_connection_id: scope.connectionId,
-            p_session_id: sessionId,
-            p_user_id: scope.userId,
-            p_snapshot: snapshot,
-          }),
-          signal: AbortSignal.timeout(30_000),
-        }),
+        await this.request(
+          new URL(
+            `/rest/v1/rpc/${scope.syncRead ? 'marketplace_apply_vinted_sync_import' : 'marketplace_apply_vinted_import'}`,
+            this.baseUrl,
+          ),
+          {
+            method: 'POST',
+            headers: { ...this.serverHeaders(), 'Content-Type': 'application/json' },
+            body: JSON.stringify(
+              scope.syncRead
+                ? {
+                    p_operation_id: scope.syncRead.operationId,
+                    p_runner_id: scope.syncRead.runnerId,
+                    p_worker_epoch: scope.syncRead.workerEpoch,
+                    p_session_id: sessionId,
+                    p_snapshot: snapshot,
+                  }
+                : {
+                    p_workspace_id: scope.workspaceId,
+                    p_connection_id: scope.connectionId,
+                    p_session_id: sessionId,
+                    p_user_id: scope.userId,
+                    p_snapshot: snapshot,
+                  },
+            ),
+            signal: AbortSignal.timeout(30_000),
+          },
+        ),
       ),
     );
     const counts = { profile: 0, publication: 0, conversation: 0, message: 0, sale: 0 };
@@ -101,6 +117,26 @@ export class SupabaseVintedImportWriter {
     return counts;
   }
   private async assertActive(scope: BrowserSessionScope, sessionId: string): Promise<void> {
+    if (scope.syncRead) {
+      if (sessionId !== scope.syncRead.sessionId) throw new Error('Kontozugriff abgelaufen');
+      const value = record(
+        await this.json(
+          await this.request(new URL('/rest/v1/rpc/marketplace_sync_check', this.baseUrl), {
+            method: 'POST',
+            headers: { ...this.serverHeaders(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              p_operation_id: scope.syncRead.operationId,
+              p_runner_id: scope.syncRead.runnerId,
+              p_worker_epoch: scope.syncRead.workerEpoch,
+            }),
+            signal: AbortSignal.timeout(10_000),
+          }),
+        ),
+      );
+      if (value?.['active'] !== true || value['sessionId'] !== sessionId)
+        throw new Error('Kontozugriff abgelaufen');
+      return;
+    }
     const value = await this.json(
       await this.request(new URL('/rest/v1/rpc/marketplace_browser_session_check', this.baseUrl), {
         method: 'POST',

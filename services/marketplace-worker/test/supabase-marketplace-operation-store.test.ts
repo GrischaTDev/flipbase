@@ -2,6 +2,50 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { SupabaseMarketplaceOperationStore } from '../src/supabase-marketplace-operation-store.ts';
 
+test('finishes a dispatched read through its fence and persists a rate-limit pause after partial success', async () => {
+  const dispatched = {
+    ...scope,
+    userAccessToken: '',
+    syncRead: {
+      operationId,
+      runnerId,
+      workerEpoch: 2,
+      sessionId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      absoluteExpiresAt: new Date(Date.now() + 600_000).toISOString(),
+    },
+  };
+  let path = '';
+  let body: Record<string, unknown> = {};
+  const store = new SupabaseMarketplaceOperationStore({
+    url: 'https://db.example.test',
+    publishableKey: 'public-key',
+    serviceRoleKey: 'server-key',
+    fetch: async (input, init) => {
+      path = new URL(String(input)).pathname;
+      body = JSON.parse(String(init?.body));
+      return Response.json(true);
+    },
+  });
+  const retryAfter = new Date(Date.now() + 1_800_000).toISOString();
+  await store.succeed(dispatched, operationId, runnerId, '2026-10-01T00:00:00Z', {}, false, {
+    profile: { status: 'complete' },
+    publications: { status: 'complete' },
+    conversations: { status: 'complete' },
+    messages: { status: 'partial' },
+    sales: { status: 'partial' },
+    feedback: { status: 'failed', failure: 'rate_limited', retryAfter },
+  });
+  assert.equal(path, '/rest/v1/rpc/marketplace_sync_finish');
+  assert.equal(body['p_operation_id'], operationId);
+  assert.equal(body['p_runner_id'], runnerId);
+  assert.equal(body['p_worker_epoch'], 2);
+  assert.equal((body['p_outcome'] as Record<string, unknown>)['pausedReason'], 'rate_limited');
+  assert.equal((body['p_outcome'] as Record<string, unknown>)['retryAfter'], retryAfter);
+  await store.fail(dispatched, operationId, runnerId, 'profile', 'rate_limited', retryAfter);
+  assert.equal((body['p_outcome'] as Record<string, unknown>)['retryAfter'], retryAfter);
+});
+
 const scope = {
   workspaceId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
   connectionId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',

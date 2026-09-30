@@ -1,5 +1,25 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-01 – Juna – automatischen Vinted-Abruf für PR und Merge freigegeben
+
+**Auftrag:** Den lokal abgenommenen Zweig nach ausdrücklicher Nutzerfreigabe veröffentlichen, die erfolgreichen Pflichtprüfungen abwarten, per Merge-Commit integrieren und den eigenen Zweig samt Worktree aufräumen.
+
+**Vorbereitung:** Der geprüfte Implementierungsstand ist `c4cd6016`; `origin/master` bleibt unverändert auf `69cd0c83`. Arbeitsstand sauber, unabhängige Datenbank-/Worker-/Oberflächenreviews abgeschlossen. Die verbindliche Gesamtprüfung läuft im PR. Die gesonderte Workerumstellung und echte Kontofreigaben sind damit noch nicht ausgeführt.
+
+## 2026-10-01 – Juna – automatische Vinted-Abrufe lokal abgenommen
+
+**Auftrag:** Das zweite Paket des geprüften Vinted-Plans umsetzen: bewusst freigegebene automatische Aktualisierungen je Konto auch bei geschlossener App.
+
+**Vorbereitung:** Aktuellen `origin/master` geprüft und eigenen verwalteten Worktree auf `juna/vinted-scheduled-sync` erstellt. Zwei Agenten haben Datenbank-/Workerrechte und den Oberflächenvertrag gegen den bestehenden Code geprüft. Ein gemeinsamer Dispatcher übernimmt neue einmalig freigegebene manuelle und geplante Leseaufträge; eine persistente Runtime, Auftragssperrversion und globale Browserkapazität schützen vor Doppelstart und fremder Recovery. Der Pilot bleibt zunächst bei 15 Minuten; 5/10 Minuten brauchen den bereits im Gesamtplan festgelegten Kapazitätsnachweis.
+
+**Änderung:** Kontozeitpläne lassen sich bewusst aktivieren und pausieren; die Oberfläche zeigt nächste Fälligkeit, letzten Versuch/Erfolg und verständliche Pausengründe. Die Freigabe bleibt beim verbundenen Konto und wird mit ihrer aktuellen Version gespeichert. Fehlende Workerfähigkeiten verhindern Aktivierung, während Pausieren über die Datenbank möglich bleibt. Ein gemeinsamer Dispatcher priorisiert manuelle Abrufe und fasst verpasste Zyklen zusammen. Er erneuert kurze Sperren innerhalb der bestehenden Zehn-Minuten-Grenze und verwendet ausschließlich gespeicherte Leseautorisierungen, keine Nutzer-Zugangstokens. Anbieterablehnungen stoppen weitere Datenanfragen; Wartezeiten, begrenzte Wiederholungen und bestätigte Teilimporte bleiben auch nach Abstürzen erhalten.
+
+**Review:** Datenbank, Oberfläche und Worker wurden getrennt umgesetzt und unabhängig geprüft. Ein Wiederanlauf ohne Anbieterpause sowie unklare Reservierungen und unbegrenzte Datenbankanfragen wurden mit gezielten Fehlerfällen behoben und erneut geprüft. Zeitplanänderungen beenden alte wartende Automatikaufträge; eine neue manuelle Nutzeraktion kann einen wartenden Automatikauftrag ausdrücklich als einmaligen Abruf freigeben. Die CLI-Migration enthält ausschließlich geplante Objekte samt expliziten Rechten; alle 18 Funktionskörper wurden mit den deklarativen Quellen abgeglichen. Datenbanktypen sind auf dem frisch migrierten Stand erzeugt.
+
+**Prüfung:** 192 Worker-Tests, 44 gezielte Angular- und vier Parser-Tests erfolgreich. Unabhängig 255 Datenbankprüfungen in sieben Marketplace-Suiten und ein echter Paralleltest zweier künstlicher Konten mit genau einem globalen Browserplatz bestanden. Worker-/Anwendungstypprüfung, beide Produktionsbauten, gezieltes ESLint und Formatprüfung, Schema-/Migrationsverträge, Shared-UI-Prüfung und Suite-Audit erfolgreich. Ein Browserfall prüft Aktivieren/Pausieren per Tastatur, Neuladen, Kontoisolierung, alten Worker und AXE bei 1440/390 Pixeln; der Vertrag enthält jetzt 19 verpflichtende PR-Browserfälle.
+
+**Stand:** Umsetzung auf `juna/vinted-scheduled-sync`, Plan unter `docs/superpowers/plans/2026-10-01-vinted-scheduled-sync.md`; Veröffentlichung steht noch aus. Der Serverflag bleibt in der Vorlage aus, alle Kontofreigaben beginnen ausgeschaltet. Keine produktive Kontofreigabe, Vinted-Aktion oder Workerumstellung ausgelöst. Reale Laufzeiten, weitere Konten und 5/10-Minuten-Intervalle bleiben separate Nachweise. Neue Benachrichtigungen und lokale plattformspezifische Inseratentwürfe folgen in den weiteren geplanten Paketen.
+
 ## 2026-09-30 – Juna – verlässliche Vinted-Abrufe produktiv aktiviert
 
 **Auftrag:** Nach dem integrierten PR #267 den separat freigegebenen Vinted-Worker auf den bereits veröffentlichten und geprüften Merge-Commit umstellen.

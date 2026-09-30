@@ -1,5 +1,38 @@
 # Marktplatz-Worker: Serverkern
 
+## Geplante Vinted-Leseabrufe
+
+Im GoLogin-Betrieb übernimmt ein gemeinsamer Dispatcher neue manuelle
+und freigegebene automatische Abrufe. `MARKETPLACE_SCHEDULED_SYNC_ENABLED`
+ist standardmäßig `0`; `1` ermöglicht den 15-Minuten-Piloten. Die Freigabe
+je verbundenem Konto erfolgt zusätzlich bewusst in Flipbase. Die Planung
+braucht keine geöffnete Web-App und speichert keine Nutzer-Zugangstokens.
+
+Der Worker reserviert seine alleinige Runtime vor der Browserrecovery.
+Auftrag und Browser werden atomar beansprucht; aktuelle Nutzerrechte und
+die gespeicherte Freigabeversion begrenzen alle weiteren Anbieteranfragen
+und Imports. Manuelle Abrufe haben Vorrang; verpasste Zyklen erzeugen keine
+Abrufserie. Höchstens ein weltweit reservierter Browser ist im Pilot
+zulässig. Ein unbestätigter Providerstopp hält den Platz weiterhin besetzt.
+
+Die Runtime und Auftragslease werden erneuert; die absolute Auftragsgrenze
+bleibt zehn Minuten. Unklare Reservierungsantworten verlangen einen Neustart
+mit Recovery vor weiteren Claims. Auch nach einem Absturz zwischen Import
+und Auftragsabschluss werden Quellenwarnungen und Wartezeiten übernommen.
+HTTP 403 und 429 verhindern weitere JSON-Anfragen innerhalb desselben
+Abrufs. Logging enthält nur feste Zustände, Kennungen, Phasenlaufzeiten und
+Anfragezahlen.
+
+Die Healthfähigkeit `scheduledSync` wird nur vom tatsächlich bereiten,
+aktivierten Dispatcher gemeldet. Ein altes Image oder fehlende Fähigkeit
+sperrt das Aktivieren; gespeicherte Freigaben bleiben über die Datenbank
+pausierbar. Die getrennte Veröffentlichung und der Rückweg stehen unter
+[Vinted-Worker-Rollout](../../docs/implementation/vinted-worker-rollout.md).
+
+Fünf- und Zehn-Minuten-Intervalle sind im Modell vorbereitet, aber noch
+nicht freigegeben. Künstliche Tests belegen weder echte Vinted-Abrufzeiten
+noch die Cloudkapazität weiterer Konten.
+
 ## Lokaler, lesender Testmodus
 
 Der Worker verwendet standardmäßig einen eigenen Playwright-Chromium-Browser.

@@ -296,6 +296,160 @@ async function mockMarketplace(
   return calls;
 }
 
+test('aktiviert und pausiert automatische Vinted-Abrufe je Konto zugänglich @marketplace-preview @core-smoke', async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  const calls = await mockMarketplace(page, true, false, false, false, []);
+  let scheduledSyncAvailable = true;
+  const schedules = new Map(
+    accountIds.map((connectionId) => [
+      connectionId,
+      {
+        workspaceId,
+        connectionId,
+        enabled: false,
+        intervalMinutes: 15,
+        nextDueAt: null as string | null,
+        lastAttemptAt: null,
+        lastSuccessAt: null,
+        pausedReason: null,
+        retryAfter: null,
+        authorizationVersion: 0,
+      },
+    ]),
+  );
+  // Spezifische Antworten werden nach dem allgemeinen Mock registriert (Playwright LIFO).
+  await page.route('**/marketplace-browser/healthz', (route) =>
+    route.fulfill({
+      json: {
+        ok: true,
+        readOnly: false,
+        apiVersion: 2,
+        ...(scheduledSyncAvailable
+          ? { scheduledSync: { enabled: true, authorizationVersion: 1, allowedIntervals: [15] } }
+          : {}),
+      },
+    }),
+  );
+  for (const name of ['marketplace_read_sync_schedule', 'marketplace_set_sync_schedule']) {
+    await page.route(`**/rest/v1/rpc/${name}`, async (route) => {
+      const body = route.request().postDataJSON() as Record<string, unknown>;
+      calls.push({ name, body });
+      expect(body['p_workspace_id']).toBe(workspaceId);
+      const schedule = schedules.get(String(body['p_connection_id']));
+      expect(schedule, 'Jede Antwort und Änderung bleibt beim angefragten Konto').toBeDefined();
+      if (!schedule) return route.fulfill({ status: 403 });
+      if (name === 'marketplace_set_sync_schedule') {
+        expect(body).toEqual({
+          p_workspace_id: workspaceId,
+          p_connection_id: schedule.connectionId,
+          p_enabled: !schedule.enabled,
+          p_interval_minutes: 15,
+          p_authorization_version: schedule.authorizationVersion,
+        });
+        schedule.enabled = body['p_enabled'] === true;
+        schedule.authorizationVersion++;
+        schedule.nextDueAt = schedule.enabled ? '2026-10-01T12:15:00Z' : null;
+      }
+      return route.fulfill({ json: schedule });
+    });
+  }
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  const writes = () => calls.filter((call) => call.name === 'marketplace_set_sync_schedule');
+  for (const width of [1440, 390]) {
+    for (const schedule of schedules.values()) {
+      schedule.enabled = false;
+      schedule.nextDueAt = null;
+      schedule.authorizationVersion = 0;
+    }
+    scheduledSyncAvailable = true;
+    const previousWrites = writes().length;
+    await page.setViewportSize({ width, height: 1000 });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto('/marketplaces/vinted/overview');
+    await expect(page).toHaveURL(/\/marketplaces\/vinted\/overview$/);
+    await expect(page.getByRole('heading', { name: 'Vinted', exact: true })).toBeVisible();
+    const region = page.getByRole('region', { name: 'Automatische Vinted-Aktualisierung' });
+    const accountSelect = page.getByRole('combobox', {
+      name: 'Vinted-Konto auswählen',
+      exact: true,
+    });
+    const activate = region.getByRole('button', {
+      name: 'Automatische Aktualisierung aktivieren',
+      exact: true,
+    });
+    await expect(accountSelect).toContainText('Testkonto A');
+    await expect(activate).toBeEnabled();
+    expect(writes()).toHaveLength(previousWrites);
+    await activate.focus();
+    await expect(activate).toBeFocused();
+    await activate.press('Enter');
+    const pause = region.getByRole('button', {
+      name: 'Automatische Aktualisierung pausieren',
+      exact: true,
+    });
+    await expect(pause).toBeEnabled();
+    await expect(region.locator('app-badge')).toHaveText('Aktiv');
+    await expect(region.getByText('Keiner geplant', { exact: true })).toHaveCount(0);
+    expect(writes()).toHaveLength(previousWrites + 1);
+    await evidence(page, `vinted-schedule-active-${width}`);
+
+    await page.reload();
+    await expect(accountSelect).toContainText('Testkonto A');
+    await expect(pause).toBeEnabled();
+    await expect(region.locator('app-badge')).toHaveText('Aktiv');
+    expect(writes()).toHaveLength(previousWrites + 1);
+    await accountSelect.press('Enter');
+    await page.getByRole('option', { name: /Testkonto B/ }).click();
+    await expect(accountSelect).toContainText('Testkonto B');
+    await expect(activate).toBeEnabled();
+    await expect(region.locator('app-badge')).toHaveText('Pausiert');
+    await expect(region.getByText('Keiner geplant', { exact: true })).toBeVisible();
+    expect(schedules.get(accountIds[0])?.enabled).toBe(true);
+    expect(schedules.get(accountIds[1])?.enabled).toBe(false);
+    expect(writes()).toHaveLength(previousWrites + 1);
+
+    scheduledSyncAvailable = false;
+    await accountSelect.press('Enter');
+    await page.getByRole('option', { name: /Testkonto A/ }).click();
+    await expect(accountSelect).toContainText('Testkonto A');
+    await expect(region.locator('app-badge')).toHaveText('Dienst nicht verfügbar');
+    await expect(pause).toBeEnabled();
+    await pause.focus();
+    await expect(pause).toBeFocused();
+    await pause.press('Enter');
+    await expect(region.locator('app-badge')).toHaveText('Pausiert');
+    await expect(activate).toBeDisabled();
+    await expect(region.getByText('Keiner geplant', { exact: true })).toBeVisible();
+    expect(
+      writes()
+        .slice(previousWrites)
+        .map((call) => call.body['p_connection_id']),
+    ).toEqual([accountIds[0], accountIds[0]]);
+    expect(schedules.get(accountIds[1])?.authorizationVersion).toBe(0);
+    await page.addScriptTag({ content: axe.source });
+    expect(
+      await page.evaluate(
+        async () =>
+          (
+            await (window as unknown as { axe: typeof axe }).axe.run(
+              document.querySelector('app-vinted-sync-schedule') as HTMLElement,
+            )
+          ).violations,
+      ),
+    ).toEqual([]);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+      `Kein horizontaler Überlauf bei ${width}px`,
+    ).toBe(true);
+    await evidence(page, `vinted-schedule-paused-${width}`);
+  }
+  expect(errors).toEqual([]);
+  expect(calls.some((call) => call.name.startsWith('browser_'))).toBe(false);
+});
+
 test('zeigt unbekannte Bewertungen und gespeicherte Teilfehler zugänglich @marketplace-preview @core-smoke', async ({
   page,
 }) => {

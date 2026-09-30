@@ -9,6 +9,15 @@ export interface BrowserSessionScope {
   connectionId: string;
   userId: string;
   userAccessToken: string;
+  /** Interne, ausschließlich lesende Auftragserlaubnis; niemals aus HTTP-Nutzdaten übernehmen. */
+  syncRead?: {
+    operationId: string;
+    runnerId: string;
+    workerEpoch: number;
+    sessionId: string;
+    expiresAt: string;
+    absoluteExpiresAt: string;
+  };
 }
 
 export class MarketplaceBrowserSessionEndedError extends Error {
@@ -47,6 +56,7 @@ interface BrowserSessionBrokerOptions {
   profiles: BrowserProfileStore;
   browsers: CloudBrowserProvider;
   recovery: { recover(): Promise<void> };
+  authorizeRuntime?: () => Promise<boolean>;
 }
 
 interface ActiveBrowserSession {
@@ -61,7 +71,12 @@ function sameScope(left: BrowserSessionScope, right: BrowserSessionScope): boole
   return (
     left.workspaceId === right.workspaceId &&
     left.connectionId === right.connectionId &&
-    left.userId === right.userId
+    left.userId === right.userId &&
+    Boolean(left.syncRead) === Boolean(right.syncRead) &&
+    (!left.syncRead ||
+      (left.syncRead.operationId === right.syncRead?.operationId &&
+        left.syncRead.runnerId === right.syncRead?.runnerId &&
+        left.syncRead.workerEpoch === right.syncRead?.workerEpoch))
   );
 }
 
@@ -76,6 +91,7 @@ export class MarketplaceBrowserSessionBroker {
   }
 
   async open(scope: BrowserSessionScope): Promise<string> {
+    if (!(await this.runtimeAuthorized())) throw new Error('Worker-Zugriff unterbrochen');
     await this.ensureRecovered();
     const lease = await this.options.leases.acquire({ ...scope });
     if (!sameScope(scope, lease.scope)) throw new Error('Sitzungszugriff verweigert');
@@ -89,6 +105,7 @@ export class MarketplaceBrowserSessionBroker {
         lease.expiresAt <= Date.now()
       )
         throw new Error('Sitzung abgelaufen');
+      if (!(await this.runtimeAuthorized())) throw new Error('Worker-Zugriff unterbrochen');
       browser = await this.options.browsers.open(profileId);
       if (
         lease.expiresAt <= Date.now() ||
@@ -100,6 +117,13 @@ export class MarketplaceBrowserSessionBroker {
       this.sessions.set(lease.id, { lease, profileId, browser, stopPending: false });
       return lease.id;
     } catch (error) {
+      if (!(await this.runtimeAuthorized())) {
+        if (profileId)
+          this.sessions.set(lease.id, { lease, profileId, browser, stopPending: true });
+        // Anbieterfehler können Zugangsdaten enthalten; nur einen festen Zustand weitergeben.
+        // eslint-disable-next-line preserve-caught-error
+        throw new Error('Browserstart fehlgeschlagen');
+      }
       if (error instanceof CloudBrowserStopUncertainError) {
         if (profileId) this.sessions.set(lease.id, { lease, profileId, stopPending: true });
         // Anbieterfehler können Token enthalten; die öffentliche Fehlermeldung bleibt neutral.
@@ -140,6 +164,8 @@ export class MarketplaceBrowserSessionBroker {
     sessionId: string,
     operation: (browser: BrowserInfo) => Promise<T>,
   ): Promise<T> {
+    if (!(await this.runtimeAuthorized()))
+      throw new MarketplaceBrowserSessionEndedError('interrupted');
     const session = this.find(scope, sessionId);
     if (session.stopPending) throw new Error('Sitzung wird beendet');
     session.lease.scope.userAccessToken = scope.userAccessToken;
@@ -222,6 +248,8 @@ export class MarketplaceBrowserSessionBroker {
     session.stopPending = true;
     session.stopPromise = (async () => {
       try {
+        // Ein alter Prozess darf ein inzwischen vom Nachfolger gestartetes Profil nicht stoppen.
+        if (!(await this.runtimeAuthorized())) throw new Error('Worker-Zugriff unterbrochen');
         if (session.browser) await session.browser.close();
         else await this.options.browsers.stop(session.profileId);
         await this.options.leases.release(session.lease);
@@ -233,5 +261,9 @@ export class MarketplaceBrowserSessionBroker {
       }
     })();
     return session.stopPromise;
+  }
+
+  private async runtimeAuthorized(): Promise<boolean> {
+    return this.options.authorizeRuntime ? this.options.authorizeRuntime() : true;
   }
 }

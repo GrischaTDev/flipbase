@@ -1,0 +1,102 @@
+<section aria-label="Automatische Vinted-Aktualisierung" class="border-t border-fb-line pt-4">
+  <div class="flex flex-wrap items-start justify-between gap-3">
+    <div class="min-w-0">
+      <h2 class="text-sm font-semibold text-fb-text-primary">Automatische Aktualisierung</h2>
+      <p class="mt-1 max-w-2xl text-sm text-fb-text-secondary">
+        Flipbase liest dieses Konto nach Deiner Aktivierung alle 15 Minuten, auch bei geschlossener
+        App. Nachrichten werden dabei nicht als gelesen markiert. Der Abruf veröffentlicht oder
+        verändert keine Inserate.
+      </p>
+      <p class="mt-1 text-xs text-fb-text-muted">
+        Im Pilot sind 15 Minuten freigegeben. Kürzere Abstände von 5 oder 10 Minuten folgen nach
+        geprüfter Kapazität. Belegte Browser und Anbieterwartezeiten können den nächsten Abruf
+        verzögern.
+      </p>
+    </div>
+    @if (store.schedule()) {
+      <app-badge [tone]="store.schedule()?.enabled ? 'info' : 'neutral'">{{
+        statusText()
+      }}</app-badge>
+    }
+  </div>
+  @if (store.loading()) {
+    <p role="status" class="mt-3 text-sm text-fb-text-secondary">Zeitplan wird geladen …</p>
+  }
+  @if (store.schedule(); as schedule) {
+    <dl class="mt-3 grid gap-3 text-[13px] sm:grid-cols-3">
+      <div>
+        <dt class="text-fb-text-muted">Nächster geplanter Abruf</dt>
+        <dd class="mt-1 text-fb-text-primary">
+          {{ nextPlannedAt() ? (nextPlannedAt() | date: 'dd.MM.yyyy, HH:mm') : 'Keiner geplant' }}
+        </dd>
+      </div>
+      <div>
+        <dt class="text-fb-text-muted">Letzter Versuch</dt>
+        <dd class="mt-1 text-fb-text-primary">
+          {{
+            schedule.lastAttemptAt
+              ? (schedule.lastAttemptAt | date: 'dd.MM.yyyy, HH:mm')
+              : 'Noch keiner'
+          }}
+        </dd>
+      </div>
+      <div>
+        <dt class="text-fb-text-muted">Letzter erfolgreicher Abruf</dt>
+        <dd class="mt-1 text-fb-text-primary">
+          {{
+            schedule.lastSuccessAt
+              ? (schedule.lastSuccessAt | date: 'dd.MM.yyyy, HH:mm')
+              : 'Noch keiner'
+          }}
+        </dd>
+      </div>
+    </dl>
+    @if (pausedText(); as text) {
+      <app-notice-banner class="mt-3">
+        {{ text }}
+        @if (schedule.retryAfter) {
+          Frühester nächster Versuch: {{ schedule.retryAfter | date: 'dd.MM.yyyy, HH:mm' }}.
+        }
+      </app-notice-banner>
+    }
+    @if (!store.availability().enabled) {
+      <p class="mt-3 text-sm text-fb-text-secondary">
+        Der Browserdienst unterstützt die automatische Aktualisierung derzeit nicht oder ist nicht
+        erreichbar. Eine gespeicherte Freigabe kannst Du weiterhin pausieren.
+      </p>
+    }
+    <div class="mt-3 flex flex-wrap gap-2">
+      @if (schedule.enabled) {
+        <app-button
+          [disabled]="!store.canDisable()"
+          [loading]="store.busy()"
+          (clicked)="store.setEnabled(false)"
+        >
+          Automatische Aktualisierung pausieren
+        </app-button>
+      } @else {
+        <app-button
+          variant="primary"
+          [disabled]="!store.canEnable()"
+          [loading]="store.busy()"
+          (clicked)="store.setEnabled(true)"
+        >
+          Automatische Aktualisierung aktivieren
+        </app-button>
+      }
+      <app-button [disabled]="store.busy() || store.loading()" (clicked)="store.reload()"
+        >Stand neu laden</app-button
+      >
+    </div>
+  }
+  @if (store.error(); as error) {
+    <app-notice-banner class="mt-3" announcement="alert">
+      {{ error }}
+      @if (!store.schedule()) {
+        <app-button class="mt-2" [disabled]="store.loading()" (clicked)="store.reload()"
+          >Stand neu laden</app-button
+        >
+      }
+    </app-notice-banner>
+  }
+</section>

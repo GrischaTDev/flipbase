@@ -51,5 +51,29 @@ test('requires deliberate activation and server-only keys before listening', () 
     publicTestUrl: 'https://www.vinted.de/member/123-test',
     host: '127.0.0.1',
     port: 4179,
+    scheduledSyncEnabled: false,
   });
+});
+
+test('scheduled cloud reads remain off until their separate server flag is enabled', () => {
+  const cloud = {
+    ...configured,
+    MARKETPLACE_BROWSER_PROVIDER: 'gologin',
+    GOLOGIN_API_TOKEN: 'test-provider-token',
+  };
+  assert.equal(marketplaceBrowserServerConfig(cloud).scheduledSyncEnabled, false);
+  assert.equal(
+    marketplaceBrowserServerConfig({ ...cloud, MARKETPLACE_SCHEDULED_SYNC_ENABLED: '1' })
+      .scheduledSyncEnabled,
+    true,
+  );
+  assert.throws(
+    () =>
+      marketplaceBrowserServerConfig({ ...configured, MARKETPLACE_SCHEDULED_SYNC_ENABLED: '1' }),
+    /Cloudbetrieb/,
+  );
+  assert.throws(
+    () => marketplaceBrowserServerConfig({ ...cloud, MARKETPLACE_SCHEDULED_SYNC_ENABLED: 'true' }),
+    /Aktualisierung/,
+  );
 });

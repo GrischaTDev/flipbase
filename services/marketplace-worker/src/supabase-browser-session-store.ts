@@ -5,6 +5,8 @@ interface SupabaseBrowserSessionStoreOptions {
   publishableKey: string;
   serviceRoleKey: string;
   fetch?: typeof fetch;
+  runtime?: { workerId: string; workerEpoch: number };
+  onReservationUncertain?: () => void;
 }
 
 const profileIdPattern = /^[a-zA-Z0-9_-]{1,128}$/;
@@ -14,6 +16,8 @@ export class SupabaseBrowserSessionStore {
   private readonly publishableKey: string;
   private readonly serviceRoleKey: string;
   private readonly request: typeof fetch;
+  private readonly runtime?: SupabaseBrowserSessionStoreOptions['runtime'];
+  private readonly onReservationUncertain?: () => void;
 
   constructor(options: SupabaseBrowserSessionStoreOptions) {
     if (!options.publishableKey || !options.serviceRoleKey) throw new Error('Browser-Zugang fehlt');
@@ -21,9 +25,34 @@ export class SupabaseBrowserSessionStore {
     this.publishableKey = options.publishableKey;
     this.serviceRoleKey = options.serviceRoleKey;
     this.request = options.fetch ?? fetch;
+    this.runtime = options.runtime;
+    this.onReservationUncertain = options.onReservationUncertain;
   }
 
   async acquire(scope: BrowserSessionScope): Promise<BrowserLease> {
+    if (scope.syncRead) {
+      const value = await this.callReadRpc(scope, 'marketplace_sync_check');
+      if (
+        !isRecord(value) ||
+        value['active'] !== true ||
+        value['sessionId'] !== scope.syncRead.sessionId
+      )
+        throw new Error('Sitzungszugriff verweigert');
+      const expiresAt =
+        typeof value['expiresAt'] === 'string' ? Date.parse(value['expiresAt']) : NaN;
+      const absoluteExpiresAt =
+        typeof value['absoluteExpiresAt'] === 'string'
+          ? Date.parse(value['absoluteExpiresAt'])
+          : NaN;
+      if (
+        !Number.isFinite(expiresAt) ||
+        !Number.isFinite(absoluteExpiresAt) ||
+        expiresAt > absoluteExpiresAt ||
+        expiresAt <= Date.now()
+      )
+        throw new Error('Sitzungszugriff verweigert');
+      return { id: scope.syncRead.sessionId, scope: { ...scope }, expiresAt, active: true };
+    }
     if ((await this.authenticatedUserId(scope.userAccessToken)) !== scope.userId)
       throw new Error('Sitzungszugriff verweigert');
     const value = await this.callUserRpc(
@@ -41,14 +70,58 @@ export class SupabaseBrowserSessionStore {
       value['connectionId'] !== scope.connectionId ||
       value['state'] !== 'active' ||
       typeof value['expiresAt'] !== 'string'
-    )
+    ) {
+      this.onReservationUncertain?.();
       throw new Error('Ungültige Browser-Sitzung');
+    }
     const expiresAt = Date.parse(value['expiresAt']);
-    if (!Number.isFinite(expiresAt)) throw new Error('Ungültige Browser-Sitzung');
+    if (!Number.isFinite(expiresAt)) {
+      this.onReservationUncertain?.();
+      throw new Error('Ungültige Browser-Sitzung');
+    }
+    if (this.runtime) {
+      try {
+        const bound = await this.read(
+          await this.request(
+            new URL('/rest/v1/rpc/marketplace_browser_session_bind_worker', this.baseUrl),
+            {
+              method: 'POST',
+              headers: { ...this.serverHeaders(), 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                p_session_id: value['id'],
+                p_worker_id: this.runtime.workerId,
+                p_worker_epoch: this.runtime.workerEpoch,
+              }),
+              signal: AbortSignal.timeout(10_000),
+            },
+          ),
+        );
+        if (bound !== true) throw new Error('Sitzungszugriff verweigert');
+      } catch {
+        this.onReservationUncertain?.();
+        throw new Error('Sitzungszugriff verweigert');
+      }
+    }
     return { id: value['id'], scope: { ...scope }, expiresAt, active: true };
   }
 
   async assertActive(lease: BrowserLease): Promise<boolean> {
+    if (lease.scope.syncRead) {
+      const value = await this.callReadRpc(lease.scope, 'marketplace_sync_heartbeat');
+      if (
+        !isRecord(value) ||
+        value['active'] !== true ||
+        value['sessionId'] !== lease.id ||
+        typeof value['expiresAt'] !== 'string'
+      )
+        return false;
+      const expiresAt = Date.parse(value['expiresAt']);
+      const absoluteExpiresAt = Date.parse(lease.scope.syncRead.absoluteExpiresAt);
+      if (!Number.isFinite(expiresAt) || expiresAt <= Date.now() || expiresAt > absoluteExpiresAt)
+        return false;
+      lease.expiresAt = expiresAt;
+      return true;
+    }
     if ((await this.authenticatedUserId(lease.scope.userAccessToken)) !== lease.scope.userId)
       return false;
     const value = await this.callUserRpc(
@@ -77,7 +150,12 @@ export class SupabaseBrowserSessionStore {
     url.searchParams.set('connection_id', `eq.${lease.scope.connectionId}`);
     url.searchParams.set('started_by', `eq.${lease.scope.userId}`);
     url.searchParams.set('state', 'eq.active');
-    const rows = await this.read(await this.request(url, { headers: this.serverHeaders() }));
+    const rows = await this.read(
+      await this.request(url, {
+        headers: this.serverHeaders(),
+        signal: AbortSignal.timeout(10_000),
+      }),
+    );
     if (
       !Array.isArray(rows) ||
       rows.length !== 1 ||
@@ -105,6 +183,7 @@ export class SupabaseBrowserSessionStore {
           Prefer: 'return=representation',
         },
         body: JSON.stringify({ state: 'closed', provider_stopped_at: new Date().toISOString() }),
+        signal: AbortSignal.timeout(10_000),
       }),
     );
     if (!Array.isArray(rows) || rows.length !== 1)
@@ -114,6 +193,7 @@ export class SupabaseBrowserSessionStore {
   private async authenticatedUserId(userAccessToken: string): Promise<string> {
     const response = await this.request(new URL('/auth/v1/user', this.baseUrl), {
       headers: this.userHeaders(userAccessToken),
+      signal: AbortSignal.timeout(10_000),
     });
     const value = await this.read(response);
     if (!isRecord(value) || typeof value['id'] !== 'string')
@@ -121,18 +201,47 @@ export class SupabaseBrowserSessionStore {
     return value['id'];
   }
 
+  private async callReadRpc(scope: BrowserSessionScope, name: string): Promise<unknown> {
+    const authorization = scope.syncRead;
+    if (!authorization) throw new Error('Leseauftrag fehlt');
+    return this.read(
+      await this.request(new URL(`/rest/v1/rpc/${name}`, this.baseUrl), {
+        method: 'POST',
+        headers: { ...this.serverHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          p_operation_id: authorization.operationId,
+          p_runner_id: authorization.runnerId,
+          p_worker_epoch: authorization.workerEpoch,
+        }),
+        signal: AbortSignal.timeout(10_000),
+      }),
+    );
+  }
+
   private async callUserRpc(
     name: string,
     userAccessToken: string,
     body: Record<string, string>,
   ): Promise<unknown> {
-    return this.read(
-      await this.request(new URL(`/rest/v1/rpc/${name}`, this.baseUrl), {
+    let response: Response;
+    try {
+      response = await this.request(new URL(`/rest/v1/rpc/${name}`, this.baseUrl), {
         method: 'POST',
         headers: { ...this.userHeaders(userAccessToken), 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
-      }),
-    );
+        signal: AbortSignal.timeout(10_000),
+      });
+    } catch {
+      if (name === 'marketplace_browser_session_reserve') this.onReservationUncertain?.();
+      throw new Error('Browser-Datenbank nicht erreichbar');
+    }
+    try {
+      return await this.read(response);
+    } catch {
+      if (name === 'marketplace_browser_session_reserve' && (response.ok || response.status >= 500))
+        this.onReservationUncertain?.();
+      throw new Error('Browser-Datenbank nicht erreichbar');
+    }
   }
 
   private userHeaders(userAccessToken: string): Record<string, string> {

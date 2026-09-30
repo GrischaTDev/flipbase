@@ -22,6 +22,8 @@ import { MarketplaceAccountsComponent } from './components/marketplace-accounts/
 import { MarketplaceConnectComponent } from './components/marketplace-connect/marketplace-connect.component';
 import { MarketplaceBrowserTestComponent } from './components/marketplace-browser-test/marketplace-browser-test.component';
 import { MarketplaceSyncProgressComponent } from './components/marketplace-sync-progress/marketplace-sync-progress.component';
+import { VintedSyncScheduleComponent } from './components/vinted-sync-schedule/vinted-sync-schedule.component';
+import { MarketplaceSyncScheduleApiService } from './services/marketplace-sync-schedule-api.service';
 import {
   MarketplaceBrowserTestApiService,
   MarketplaceImportError,
@@ -163,6 +165,10 @@ beforeAll(async () => {
       type: MarketplaceSyncProgressComponent,
       path: 'src/app/features/marketplaces/components/marketplace-sync-progress/marketplace-sync-progress.component.ts',
     },
+    {
+      type: VintedSyncScheduleComponent,
+      path: 'src/app/features/marketplaces/components/vinted-sync-schedule/vinted-sync-schedule.component.ts',
+    },
   ]);
 });
 afterAll(() => resetBindings?.());
@@ -206,6 +212,24 @@ beforeEach(() => {
         { path: 'settings/marketplaces', component: MarketplaceAccountsComponent },
       ]),
       { provide: MarketplaceApiService, useValue: api },
+      {
+        provide: MarketplaceSyncScheduleApiService,
+        useValue: {
+          availability: vi.fn().mockResolvedValue({ enabled: false, allowedIntervals: [] }),
+          read: vi.fn().mockImplementation(async (scope: AccountScope) => ({
+            ...scope,
+            enabled: false,
+            intervalMinutes: 15,
+            nextDueAt: null,
+            lastAttemptAt: null,
+            lastSuccessAt: null,
+            pausedReason: null,
+            retryAfter: null,
+            authorizationVersion: 0,
+          })),
+          set: vi.fn(),
+        },
+      },
       {
         provide: WorkspaceService,
         useValue: { currentWorkspace: signal({ id: fixtureConnections[0].workspaceId }) },

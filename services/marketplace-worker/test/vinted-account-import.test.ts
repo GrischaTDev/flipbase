@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { test } from 'node:test';
+import { test, mock } from 'node:test';
 import type { Page } from 'playwright';
 import {
   parseVintedAccountImport,
@@ -18,6 +18,58 @@ function importPage(overrides: (path: string) => unknown): Page {
         : { items: [], conversations: [], user_feedbacks: [], pagination: { total_pages: 1 } }),
   } as unknown as Page;
 }
+
+test('a provider rate limit stops subsequent source requests and retains its normalized waiting time', async () => {
+  const calls: string[] = [];
+  const retryAfter = new Date(Date.now() + 3_600_000).toISOString();
+  const snapshot = await readVintedAccountImport(
+    importPage((path) => {
+      calls.push(path);
+      return path.includes('/wardrobe/')
+        ? { flipbaseRequestFailure: 'rate_limited', retryAfter }
+        : undefined;
+    }),
+    async () => undefined,
+  );
+  assert.equal(calls.length, 2);
+  assert.equal(snapshot.areas.publications.retryAfter, retryAfter);
+  assert.equal(snapshot.areas.conversations.failure, 'rate_limited');
+  assert.equal(snapshot.sourceRequestCount, 2);
+});
+
+test('normalizes Retry-After seconds from a real response without exposing the provider body', async () => {
+  const before = Date.now();
+  const replacement = mock.method(
+    globalThis,
+    'fetch',
+    async () =>
+      new Response('private provider body', { status: 429, headers: { 'Retry-After': '1800' } }),
+  );
+  const page = {
+    url: () => 'https://www.vinted.de/',
+    evaluate: async (callback: (path: string) => Promise<unknown>, path: string) => callback(path),
+  } as unknown as Page;
+  try {
+    await assert.rejects(
+      readVintedAccountImport(page, async () => undefined),
+      (error: unknown) => {
+        if (
+          !(error instanceof VintedImportReadError) ||
+          !(error.cause instanceof VintedImportRequestError)
+        )
+          return false;
+        const retry = Date.parse(error.cause.retryAfter ?? '');
+        return (
+          retry >= before + 1_800_000 &&
+          retry <= Date.now() + 1_800_000 &&
+          !error.message.includes('private provider')
+        );
+      },
+    );
+  } finally {
+    replacement.mock.restore();
+  }
+});
 
 test('fehlende Sterne und Herkunft werden nicht erfunden', () => {
   const snapshot = parseVintedAccountImport(

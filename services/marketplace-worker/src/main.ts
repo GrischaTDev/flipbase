@@ -19,6 +19,8 @@ import { MarketplaceSyncRunner } from './marketplace-sync-runner.ts';
 import { SupabaseMarketplaceOperationStore } from './supabase-marketplace-operation-store.ts';
 import { SupabaseVintedListingCache } from './supabase-vinted-listing-cache.ts';
 import { SupabaseVintedProfileCache } from './supabase-vinted-profile-cache.ts';
+import { MarketplaceSyncDispatcher } from './marketplace-sync-dispatcher.ts';
+import { SupabaseMarketplaceSyncDispatchStore } from './supabase-marketplace-sync-dispatch-store.ts';
 
 async function main(): Promise<void> {
   const config = marketplaceBrowserServerConfig(process.env);
@@ -29,10 +31,41 @@ async function main(): Promise<void> {
           token: config.goLoginToken!,
           startUrl: 'https://www.vinted.de/',
         });
+  const dispatchStore =
+    config.provider === 'gologin'
+      ? new SupabaseMarketplaceSyncDispatchStore({
+          url: config.supabaseUrl,
+          serviceRoleKey: config.serviceRoleKey,
+        })
+      : undefined;
+  let syncRunner: MarketplaceSyncRunner | undefined;
+  const workerLifecycle: { stop?: () => Promise<void> } = {};
+  const dispatcher = dispatchStore
+    ? new MarketplaceSyncDispatcher({
+        store: dispatchStore,
+        includeScheduled: config.scheduledSyncEnabled,
+        run: (scope) => {
+          if (!syncRunner) return Promise.reject(new Error('Abrufdienst ist noch nicht bereit'));
+          return syncRunner.runDispatched(scope);
+        },
+        onRuntimeLost: () => {
+          void Promise.resolve()
+            .then(async () => {
+              await workerLifecycle.stop?.();
+            })
+            .finally(() => process.exit(1));
+        },
+      })
+    : undefined;
+  // Erst die alleinige Runtime beanspruchen; ein zweiter Prozess darf keine Recovery ausführen.
+  const runtime = await dispatcher?.initialize();
+  dispatcher?.startMonitoring();
   const leases = new SupabaseBrowserSessionStore({
     url: config.supabaseUrl,
     publishableKey: config.publishableKey,
     serviceRoleKey: config.serviceRoleKey,
+    runtime,
+    onReservationUncertain: dispatcher ? () => dispatcher.invalidate() : undefined,
   });
   const recovery = new MarketplaceBrowserRecovery(
     new SupabaseBrowserRecoveryStore({
@@ -46,6 +79,7 @@ async function main(): Promise<void> {
     profiles: leases,
     browsers: browser,
     recovery,
+    authorizeRuntime: dispatcher ? () => dispatcher.heartbeat() : undefined,
   });
   await broker.ready();
   const importWriter =
@@ -64,7 +98,11 @@ async function main(): Promise<void> {
           serviceRoleKey: config.serviceRoleKey,
         })
       : undefined;
-  if (operationStore) await operationStore.recoverUnfinished();
+  if (dispatchStore && runtime) await dispatchStore.recover(runtime.workerId, runtime.workerEpoch);
+  if (importWriter && operationStore)
+    syncRunner = new MarketplaceSyncRunner(broker, importWriter, operationStore, undefined, () => {
+      void dispatcher?.poll().catch(() => undefined);
+    });
   const server = new MarketplaceBrowserHttpApi({
     broker,
     users: new SupabaseBrowserUserVerifier(config.supabaseUrl, config.publishableKey),
@@ -85,10 +123,7 @@ async function main(): Promise<void> {
           })
         : undefined,
     imports: importWriter,
-    operations:
-      importWriter && operationStore
-        ? new MarketplaceSyncRunner(broker, importWriter, operationStore)
-        : undefined,
+    operations: syncRunner,
     listingCache:
       config.provider === 'gologin'
         ? new SupabaseVintedListingCache({
@@ -111,6 +146,13 @@ async function main(): Promise<void> {
           })
         : undefined,
     readOnly: config.provider === 'local',
+    scheduledSync: dispatcher
+      ? () => ({
+          enabled: dispatcher.scheduledEnabled,
+          authorizationVersion: 1,
+          allowedIntervals: [15],
+        })
+      : undefined,
   }).createServer();
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject);
@@ -134,10 +176,17 @@ async function main(): Promise<void> {
   const stop = async () => {
     if (stopping) return;
     stopping = true;
+    dispatcher?.stop();
     clearInterval(interval);
     await new Promise<void>((resolve) => server.close(() => resolve()));
-    await broker.shutdown();
+    await dispatcher?.drain();
+    const cleanup = await Promise.allSettled([broker.shutdown()]);
+    await dispatcher?.release();
+    if (cleanup.some((result) => result.status === 'rejected'))
+      throw new Error('Browser-Stopp fehlgeschlagen');
   };
+  workerLifecycle.stop = stop;
+  dispatcher?.start();
   process.once(
     'SIGINT',
     () =>
@@ -156,5 +205,6 @@ async function main(): Promise<void> {
 
 void main().catch(() => {
   // Anbieterantworten und Umgebungswerte dürfen nie im Prozesslog erscheinen.
-  process.exitCode = 1;
+  // Auch ein während der Recovery bereits laufender Heartbeat darf den Fehlstart nicht offen halten.
+  process.exit(1);
 });

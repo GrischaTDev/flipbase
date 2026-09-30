@@ -99,6 +99,70 @@ test('binds access to workspace, account, and operator', async () => {
   assert.deepEqual(stopped, []);
 });
 
+test('interactive access cannot operate a background read session of the same account', async () => {
+  const { broker } = setup();
+  const readScope = {
+    ...scopeA,
+    userAccessToken: '',
+    syncRead: {
+      operationId: 'operation-a',
+      runnerId: 'runner-a',
+      workerEpoch: 1,
+      sessionId: 'lease-1',
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      absoluteExpiresAt: new Date(Date.now() + 600_000).toISOString(),
+    },
+  };
+  const id = await broker.open(readScope);
+  await assert.rejects(
+    broker.run(scopeA, id, async (browser) => browser.version()),
+    /Sitzungszugriff verweigert/,
+  );
+  await assert.rejects(
+    broker.run(
+      { ...readScope, syncRead: { ...readScope.syncRead, workerEpoch: 2 } },
+      id,
+      async (browser) => browser.version(),
+    ),
+    /Sitzungszugriff verweigert/,
+  );
+  await broker.close(readScope, id);
+});
+
+test('a worker that lost its runtime cannot stop a profile reused by its successor', async () => {
+  let permitted = true;
+  let stopped = 0;
+  const broker = createTestBroker({
+    authorizeRuntime: async () => permitted,
+    leases: {
+      acquire: async (scope) => ({
+        id: 'lease-a',
+        scope,
+        expiresAt: Date.now() + 60_000,
+        active: true,
+      }),
+      assertActive: async () => true,
+      release: async () => undefined,
+    },
+    profiles: { resolve: async () => 'profile-a' },
+    browsers: {
+      open: async () => ({
+        close: async () => {
+          stopped++;
+        },
+        run: async (op) => op({ version: () => '' }),
+      }),
+      stop: async () => {
+        stopped++;
+      },
+    },
+  });
+  await broker.open(scopeA);
+  permitted = false;
+  await assert.rejects(broker.shutdown(), /Browser-Stopp fehlgeschlagen/);
+  assert.equal(stopped, 0);
+});
+
 test('recovers before serving and stops every active profile on shutdown', async () => {
   const { broker, leases, stopped } = setup();
   await broker.ready();

@@ -7,6 +7,7 @@ export interface MarketplaceBrowserServerConfig {
   publicTestUrl?: string;
   host: string;
   port: number;
+  scheduledSyncEnabled: boolean;
 }
 
 export function marketplaceBrowserServerConfig(
@@ -19,6 +20,11 @@ export function marketplaceBrowserServerConfig(
   const serviceRoleKey = environment['SUPABASE_SERVICE_ROLE_KEY'];
   const goLoginToken = environment['GOLOGIN_API_TOKEN'];
   const provider = environment['MARKETPLACE_BROWSER_PROVIDER'] ?? 'local';
+  const scheduledFlag = environment['MARKETPLACE_SCHEDULED_SYNC_ENABLED'] ?? '0';
+  if (scheduledFlag !== '0' && scheduledFlag !== '1')
+    throw new Error('Automatische Aktualisierung ist ungültig konfiguriert');
+  if (scheduledFlag === '1' && provider !== 'gologin')
+    throw new Error('Automatische Aktualisierung benötigt den Cloudbetrieb');
   const publicTestUrl = environment['MARKETPLACE_BROWSER_PUBLIC_TEST_URL'];
   const port = Number(environment['MARKETPLACE_BROWSER_PORT'] ?? '4179');
   if (
@@ -65,5 +71,6 @@ export function marketplaceBrowserServerConfig(
     publicTestUrl,
     host: environment['MARKETPLACE_BROWSER_HOST'] ?? '127.0.0.1',
     port,
+    scheduledSyncEnabled: scheduledFlag === '1',
   };
 }
