@@ -183,8 +183,9 @@ Das Passwort wird nicht direkt in der Profilkarte geändert. „Passwort ändern
 - Wiederholung des neuen Passworts.
 
 Vor `updateUser({ password })` wird die Identität mit der aktuellen
-E-Mail-Adresse und dem aktuellen Passwort erneut bestätigt. Fehlgeschlagene
-Bestätigung ändert nichts.
+E-Mail-Adresse und dem aktuellen Passwort erneut bestätigt. Das neue Passwort
+muss mindestens 10 Zeichen lang sein und mit der Wiederholung übereinstimmen.
+Fehlgeschlagene Bestätigung oder Validierung ändert nichts.
 
 2FA wird in dieser Initiative noch nicht implementiert. Die Oberfläche darf
 höchstens neutral darauf hinweisen, dass sie noch nicht eingerichtet bzw. noch
@@ -194,7 +195,8 @@ nicht verfügbar ist; kein funktionsloser Primärbutton.
 
 Eigene Card „Sitzungen“:
 
-- kennzeichnet den aktuellen Browser als aktuelle Sitzung,
+- kennzeichnet neutral „Dieser Browser“ als aktuelle Sitzung, ohne Betriebssystem
+  oder Browser aus einem User-Agent zu erraten,
 - erklärt den Zweck der globalen Abmeldung,
 - bietet weiterhin die bestehende, bestätigungspflichtige Aktion
   „Von allen Geräten abmelden“.
@@ -344,8 +346,12 @@ Werten:
 - `regular_19`.
 
 Die Unternehmensseite speichert Unternehmensprofil und Steuer-Modus als eine
-Nutzeraktion. Bei einem Teilfehler darf die Oberfläche keinen scheinbar
-vollständig gespeicherten Zustand zeigen.
+Nutzeraktion. Dafür gibt es eine transaktionale RPC
+`update_workspace_company_settings(p_workspace_id, p_profile, p_tax_mode)`.
+Sie prüft die Owner/Admin-Rolle, normalisiert und validiert die Eingaben,
+aktualisiert `workspace_company_profiles` und `workspaces.tax_mode` und schreibt
+das Audit-Ereignis in derselben Datenbanktransaktion. Bei einem Fehler wird keine
+der Teiländerungen committed.
 
 ### Bankverbindung
 
@@ -356,8 +362,10 @@ Felder:
 - IBAN,
 - BIC.
 
-IBAN und BIC werden normalisiert gespeichert; die UI zeigt keine ungeprüft
-formatierten Demo-Werte.
+IBAN wird in Großbuchstaben ohne Leerzeichen gespeichert; BIC ebenfalls in
+Großbuchstaben ohne Leerzeichen. In der Anzeige darf die IBAN zur Lesbarkeit in
+Vierergruppen formatiert werden. Die UI zeigt keine ungeprüft formatierten
+Demo-Werte.
 
 ## Visuelle Regeln
 
@@ -399,9 +407,13 @@ Unterstützt werden in V1:
 SVG wird in V1 nicht angenommen, um aktive bzw. unerwartete SVG-Inhalte nicht
 ungeprüft in Dokumentansichten zu übernehmen.
 
-Dateigröße und Bilddimensionen werden vor Upload begrenzt. Die exakten Grenzwerte
-werden im Implementierungsplan anhand der vorhandenen Upload-Konventionen
-festgelegt.
+Vor dem Upload gelten feste V1-Grenzen:
+
+- maximal 5 MiB pro Datei,
+- maximal 4096 × 4096 Pixel,
+- MIME-Typ muss zu PNG, JPEG oder WebP passen.
+
+Ungültige Dateien werden vor einem Storage-Write abgelehnt.
 
 ## Versionierung
 
@@ -411,7 +423,10 @@ Ersetzen überschrieben.
 `workspace_company_profiles.logo_path` zeigt nur auf das aktuelle Logo.
 
 Historische Dokumente speichern den Logo-Pfad, der bei ihrer Erstellung gültig
-war. Ein späterer Logo-Wechsel verändert sie deshalb nicht.
+war. Beim Anzeigen wird für genau diesen gespeicherten privaten Pfad eine
+kurzlebige URL erzeugt. Fehlt der historische Blob, wird die Rechnung ohne Logo
+gerendert; sie fällt niemals auf das aktuell eingestellte Logo zurück. Ein späterer
+Logo-Wechsel verändert alte Dokumente deshalb nicht.
 
 Nicht mehr referenzierte Logos dürfen erst durch einen separaten, referenzsicheren
 Cleanup entfernt werden; das ist nicht Teil dieses Umbaus.
@@ -440,7 +455,9 @@ ein eng begrenzter Helper für genau diese Prüfung.
 Storage-Policies verwenden dieselben Regeln.
 
 Normale `member`-, `fulfillment`-, `accountant`- und `readonly`-Mitglieder
-dürfen die Daten nicht ändern.
+dürfen die Daten nicht ändern. Die Unternehmensseite bleibt für sie lesbar,
+rendert die Felder schreibgeschützt und zeigt keine Speichern- oder Logo-Ändern-
+Aktion.
 
 # Änderungsprotokoll
 
@@ -475,6 +492,9 @@ Verantwortung:
 - Logo hochladen/wechseln,
 - Company-Readiness für Dokumente berechnen,
 - Unternehmensdaten in einen unveränderlichen Dokument-Snapshot projizieren.
+
+Speichern erfolgt ausschließlich über die transaktionale Company-Settings-RPC;
+der Service führt keine voneinander getrennten Profile- und Workspace-Updates aus.
 
 Der Service lädt keine Rechnungen, Shopdaten oder Carrier-Konfigurationen und
 bleibt dadurch unabhängig testbar.
