@@ -84,12 +84,20 @@ describe('Arbeitsnavigation und Ideen in der Sidebar', () => {
       return Array.from(group.querySelectorAll('a')).map((link) => link.getAttribute('href'));
     });
 
-    expect(names).toEqual(['Einkauf', 'Artikel', 'Tools', 'Verkauf', 'Finanzen']);
+    expect(names).toEqual([
+      'Einkauf',
+      'Artikel',
+      'Tools',
+      'Verkauf',
+      'Account-Verwaltung',
+      'Finanzen',
+    ]);
     expect(links).toEqual([
       ['/purchases', '/vinted-bot'],
       ['/catalog', '/image-optimizer'],
       ['/deal-calculator', '/deal-calculator/ebay'],
       ['/sales', '/listings'],
+      ['/marketplaces/ebay'],
       ['/expenses', '/accounting', '/analytics'],
     ]);
     expect(element.textContent).not.toContain('Warenwirtschaft & Store');
@@ -212,7 +220,14 @@ describe('Arbeitsnavigation und Ideen in der Sidebar', () => {
     const research = element.querySelector('a[href="/research"]');
     const ebayFees = element.querySelector('a[href="/deal-calculator/ebay"]');
 
-    expect(names).toEqual(['Purchasing', 'Products', 'Tools', 'Selling', 'Finances']);
+    expect(names).toEqual([
+      'Purchasing',
+      'Products',
+      'Tools',
+      'Selling',
+      'Account management',
+      'Finances',
+    ]);
     expect(toggle.textContent?.trim()).toBe('Ideas');
     expect(article?.textContent?.trim()).toBe('Articles');
     expect(listings?.textContent?.trim()).toBe('Listings');

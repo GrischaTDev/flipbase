@@ -2,6 +2,7 @@ import '@angular/compiler';
 import { describe, expect, it } from 'vitest';
 import { AccountSettingsComponent } from './account-settings/account-settings.component';
 import { AppSettingsComponent } from './app-settings/app-settings.component';
+import { EbayAccountComponent } from '../../marketplaces/components/ebay-account/ebay-account.component';
 import { NotificationSettingsComponent } from './notification-settings/notification-settings.component';
 import { ShippingSettingsComponent } from './shipping-settings/shipping-settings.component';
 import { StoreSettingsComponent } from './store-settings/store-settings.component';
@@ -34,6 +35,6 @@ describe('Einstellungsseiten – Aktionsinventar', () => {
     expect(NotificationSettingsComponent.prototype).toHaveProperty('testWebhook');
     expect(StoreSettingsComponent.prototype).toHaveProperty('onSavePaymentConfig');
     expect(ShippingSettingsComponent.prototype).toHaveProperty('onSaveCarrierConfig');
-    expect(AppSettingsComponent.prototype).toHaveProperty('onSaveEbayConfig');
+    expect(EbayAccountComponent.prototype).toHaveProperty('connect');
   });
 });

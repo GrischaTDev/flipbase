@@ -53,21 +53,5 @@
       </p>
     }
   </section>
-  <section
-    class="linear-surface space-y-4 rounded-2xl border border-fb-border p-5 shadow-xl"
-    aria-labelledby="ebay-heading"
-  >
-    <h2 id="ebay-heading" class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
-      eBay-Verbindung
-    </h2>
-    <form [formGroup]="ebayForm" (ngSubmit)="onSaveEbayConfig()" class="space-y-3">
-      <app-text-field formControlName="appId" label="eBay App-ID" />
-      <app-text-field formControlName="globalId" label="Marktplatz" />
-      <div class="flex justify-end">
-        <button type="submit" class="linear-btn-primary min-h-11 rounded-xl px-4 text-xs font-bold">
-          eBay-Verbindung speichern
-        </button>
-      </div>
-    </form>
-  </section>
+  <app-ebay-account />
 </div>

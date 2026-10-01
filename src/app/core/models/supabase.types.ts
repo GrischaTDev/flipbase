@@ -767,6 +767,120 @@ export type Database = {
           },
         ]
       }
+      ebay_authorization_states: {
+        Row: {
+          authorization_version: number
+          connection_id: string
+          expires_at: string
+          id: string
+          state_hash: string
+        }
+        Insert: {
+          authorization_version: number
+          connection_id: string
+          expires_at?: string
+          id?: string
+          state_hash: string
+        }
+        Update: {
+          authorization_version?: number
+          connection_id?: string
+          expires_at?: string
+          id?: string
+          state_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ebay_authorization_states_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "ebay_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ebay_connections: {
+        Row: {
+          authorization_version: number
+          created_at: string
+          environment: string
+          external_account_id: string | null
+          id: string
+          last_read_at: string | null
+          operation_expires_at: string | null
+          operation_id: string | null
+          status: string
+          updated_at: string
+          user_id: string
+          username: string | null
+          workspace_id: string
+        }
+        Insert: {
+          authorization_version?: number
+          created_at?: string
+          environment: string
+          external_account_id?: string | null
+          id?: string
+          last_read_at?: string | null
+          operation_expires_at?: string | null
+          operation_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          username?: string | null
+          workspace_id: string
+        }
+        Update: {
+          authorization_version?: number
+          created_at?: string
+          environment?: string
+          external_account_id?: string | null
+          id?: string
+          last_read_at?: string | null
+          operation_expires_at?: string | null
+          operation_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          username?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ebay_connections_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ebay_credentials: {
+        Row: {
+          encrypted_tokens: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          encrypted_tokens: string
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          encrypted_tokens?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ebay_credentials_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "ebay_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_confirmations: {
         Row: {
           id: string
@@ -5403,6 +5517,58 @@ export type Database = {
           p_workspace_id: string
         }
         Returns: Json
+      }
+      ebay_begin_authorization: {
+        Args: {
+          p_environment: string
+          p_state_hash: string
+          p_user_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      ebay_can_connect: { Args: { p_workspace_id: string }; Returns: boolean }
+      ebay_claim_connection: {
+        Args: {
+          p_connection_id: string
+          p_operation_id: string
+          p_user_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      ebay_complete_authorization: {
+        Args: {
+          p_connection_id: string
+          p_encrypted_tokens: string
+          p_external_account_id: string
+          p_username: string
+          p_version: number
+        }
+        Returns: boolean
+      }
+      ebay_consume_authorization: {
+        Args: { p_state_hash: string }
+        Returns: Json
+      }
+      ebay_delete_account: {
+        Args: { p_environment: string; p_external_account_id: string }
+        Returns: undefined
+      }
+      ebay_disconnect: {
+        Args: { p_connection_id: string; p_workspace_id: string }
+        Returns: boolean
+      }
+      ebay_finish_read: {
+        Args: {
+          p_connection_id: string
+          p_encrypted_tokens?: string
+          p_needs_login?: boolean
+          p_observed?: boolean
+          p_operation_id: string
+          p_version: number
+        }
+        Returns: boolean
       }
       end_listing: {
         Args: { p_listing_id: string; p_workspace_id: string }

@@ -4,6 +4,14 @@ import { marketplaceAccessGuard } from './guards/marketplace-access.guard';
 export const MARKETPLACES_ROUTES: Routes = [
   { path: '', redirectTo: 'vinted', pathMatch: 'full' },
   {
+    path: 'ebay',
+    data: { showData: true },
+    loadComponent: () =>
+      import('./components/ebay-account/ebay-account.component').then(
+        (m) => m.EbayAccountComponent,
+      ),
+  },
+  {
     path: 'vinted',
     canActivate: [marketplaceAccessGuard],
     loadComponent: () =>

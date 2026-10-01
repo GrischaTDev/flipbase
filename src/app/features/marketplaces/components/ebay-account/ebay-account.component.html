@@ -1,0 +1,253 @@
+<div class="space-y-4">
+  @if (showData()) {
+    <app-page-header
+      title="Dein eBay-Konto"
+      subtitle="Eigene Inserate und Bestellungen aus deinem verbundenen Konto."
+    />
+  }
+  @if (callbackMessage(); as message) {
+    <p role="status" class="text-sm text-fb-text-secondary">{{ message }}</p>
+  }
+  <app-card title="eBay-Verbindung">
+    <div class="space-y-3">
+      <p class="text-sm text-fb-text-secondary">
+        Melde dich mit deinem normalen eBay-Konto an und erlaube Flipbase den Lesezugriff. Du
+        brauchst keinen eigenen API-Schlüssel. Die Verbindung gilt für dich in diesem Workspace.
+      </p>
+      @if (store.error(); as error) {
+        <p role="alert" class="text-sm text-fb-critical">{{ error }}</p>
+      }
+      @if (store.isLoading()) {
+        <p role="status" class="text-sm text-fb-text-muted">Verbindungsstatus wird geprüft …</p>
+      } @else if (!workspace.currentWorkspace() || workspace.currentWorkspace()?.archived_at) {
+        <p class="text-sm text-fb-text-muted">
+          Wähle einen aktiven Workspace, um dein eBay-Konto zu verbinden.
+        </p>
+      } @else if (!store.isConfigured() && !store.error()) {
+        <p role="status" class="text-sm text-fb-text-muted">
+          Die eBay-Anbindung wird noch eingerichtet. Sobald sie verfügbar ist, kannst du dein Konto
+          hier verbinden.
+        </p>
+      }
+      @if (store.connection(); as connection) {
+        <div class="flex flex-wrap items-center gap-2">
+          <app-badge [tone]="connection.status === 'connected' ? 'success' : 'neutral'">
+            {{
+              connection.status === 'connected'
+                ? 'Verbunden'
+                : connection.status === 'needs_login'
+                  ? 'Anmeldung erforderlich'
+                  : 'Getrennt'
+            }}
+          </app-badge>
+          @if (connection.environment === 'sandbox') {
+            <app-badge tone="caution">eBay-Testumgebung</app-badge>
+          }
+          @if (connection.username) {
+            <span class="text-sm text-fb-text-primary">{{ connection.username }}</span>
+          }
+        </div>
+      }
+      <div class="flex flex-wrap gap-2">
+        @if (store.isConfigured()) {
+          <app-button
+            variant="primary"
+            [icon]="connectIcon"
+            [disabled]="store.isLoading() || store.isReading()"
+            (clicked)="connect()"
+          >
+            {{
+              store.connection()?.status === 'connected'
+                ? 'Erneut mit eBay verbinden'
+                : 'Mit eBay verbinden'
+            }}
+          </app-button>
+        }
+        <app-button
+          [icon]="refreshIcon"
+          [disabled]="store.isLoading() || store.isReading()"
+          (clicked)="refresh()"
+          >Status aktualisieren</app-button
+        >
+        @if (store.connection(); as connection) {
+          @if (connection.status !== 'disconnected') {
+            <app-button
+              variant="destructive"
+              [icon]="disconnectIcon"
+              [disabled]="store.isLoading()"
+              (clicked)="store.disconnect()"
+              >Verbindung trennen</app-button
+            >
+          }
+        }
+        @if (!showData() && store.connection()?.status === 'connected') {
+          <app-button link="/marketplaces/ebay">Inserate und Bestellungen ansehen</app-button>
+        }
+      </div>
+      <p class="text-xs text-fb-text-muted">
+        Die Freigabe kannst du hier oder in deinem eBay-Konto jederzeit beenden.
+      </p>
+    </div>
+  </app-card>
+  @if (showData() && store.connection()?.status === 'connected' && store.isConfigured()) {
+    <div class="flex flex-wrap items-center gap-2" aria-label="eBay-Datenbereiche">
+      <app-button
+        [ariaPressed]="store.section() === 'listings'"
+        [variant]="store.section() === 'listings' ? 'primary' : 'secondary'"
+        [disabled]="store.isReading()"
+        (clicked)="store.selectSection('listings')"
+        >Aktive Inserate</app-button
+      >
+      <app-button
+        [ariaPressed]="store.section() === 'orders'"
+        [variant]="store.section() === 'orders' ? 'primary' : 'secondary'"
+        [disabled]="store.isReading()"
+        (clicked)="store.selectSection('orders')"
+        >Bestellungen</app-button
+      >
+      <app-button
+        [icon]="refreshIcon"
+        [disabled]="store.isLoading() || store.isReading()"
+        (clicked)="store.read(false)"
+        >Daten aktualisieren</app-button
+      >
+    </div>
+    <p class="text-sm text-fb-text-muted">
+      @if (store.section() === 'orders') {
+        eBay-Verkäuferbestellungen der letzten 90 Tage. Die Ansicht verändert weder deine
+        Flipbase-Verkäufe noch deinen Lagerbestand.
+      } @else {
+        Deine aktiven eBay-Inserate, einschließlich Festpreisangeboten und Auktionen. Die Ansicht
+        verändert deine Angebote nicht.
+      }
+    </p>
+    @if (store.total() !== null) {
+      <p class="text-xs text-fb-text-muted">{{ store.total() }} Einträge bei eBay</p>
+    }
+    <app-data-table
+      [ariaLabel]="
+        store.section() === 'listings' ? 'Deine eBay-Inserate' : 'Deine eBay-Bestellungen'
+      "
+      [toolbarVisible]="false"
+      [searchEnabled]="false"
+      [loading]="store.isReading() && !store.hasRead()"
+      [errorMessage]="store.dataError()"
+      [hasRows]="
+        store.section() === 'listings' ? store.listings().length > 0 : store.orders().length > 0
+      "
+      [emptyTitle]="
+        store.hasRead() ? 'Keine Einträge bei eBay gefunden' : 'Noch keine Daten abgerufen'
+      "
+      emptyText="Du kannst die Ansicht mit „Daten aktualisieren“ erneut laden."
+    >
+      <div
+        table-content
+        class="overflow-x-auto focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-text-primary"
+        tabindex="0"
+        role="region"
+        [attr.aria-label]="
+          store.section() === 'listings'
+            ? 'Tabelle deiner eBay-Inserate'
+            : 'Tabelle deiner eBay-Bestellungen'
+        "
+      >
+        @if (store.section() === 'listings') {
+          <table class="w-full min-w-[540px] text-left text-sm">
+            <caption class="sr-only">
+              Aktive Inserate deines verbundenen eBay-Kontos
+            </caption>
+            <thead>
+              <tr class="border-b border-fb-line text-fb-text-muted">
+                <th scope="col" class="px-4 py-3">Inserat</th>
+                <th scope="col" class="px-4 py-3">Aktueller Preis</th>
+                <th scope="col" class="px-4 py-3">Verfügbar</th>
+                <th scope="col" class="px-4 py-3 text-right">Aktionen</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (listing of store.listings(); track listing.id) {
+                <tr class="border-b border-fb-line text-fb-text-primary">
+                  <td class="px-4 py-3">
+                    <span class="block max-w-sm break-words">{{ listing.title }}</span
+                    ><span class="text-xs text-fb-text-muted">{{
+                      listing.listingType === 'Chinese'
+                        ? 'Auktion'
+                        : listing.listingType === 'FixedPriceItem'
+                          ? 'Festpreis'
+                          : 'eBay-Inserat'
+                    }}</span>
+                  </td>
+                  <td class="px-4 py-3">
+                    {{ listing.price === null ? '–' : (listing.price | number: '1.2-2') }}
+                    {{ listing.currency ?? '' }}
+                  </td>
+                  <td class="px-4 py-3">{{ listing.quantity ?? '–' }}</td>
+                  <td class="px-4 py-3 text-right">
+                    @if (listing.url) {
+                      <app-button
+                        variant="table-action"
+                        [icon]="externalLinkIcon"
+                        [iconOnly]="true"
+                        [href]="listing.url"
+                        target="_blank"
+                        [ariaLabel]="'Bei eBay ansehen: ' + listing.title"
+                        title="Bei eBay ansehen"
+                      />
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        } @else {
+          <table class="w-full min-w-[600px] text-left text-sm">
+            <caption class="sr-only">
+              Verkäuferbestellungen deines verbundenen eBay-Kontos
+            </caption>
+            <thead>
+              <tr class="border-b border-fb-line text-fb-text-muted">
+                <th scope="col" class="px-4 py-3">Bestellung</th>
+                <th scope="col" class="px-4 py-3">Datum</th>
+                <th scope="col" class="px-4 py-3">Gesamtbetrag</th>
+                <th scope="col" class="px-4 py-3">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (order of store.orders(); track order.id) {
+                <tr class="border-b border-fb-line text-fb-text-primary">
+                  <td class="px-4 py-3">
+                    <span class="block text-xs text-fb-text-muted">{{ order.id }}</span>
+                    @for (item of order.items; track $index) {
+                      <span class="block max-w-sm break-words"
+                        >{{ item.quantity ?? '–' }} × {{ item.title }}</span
+                      >
+                    }
+                  </td>
+                  <td class="px-4 py-3">{{ order.createdAt | date: 'dd.MM.yyyy' }}</td>
+                  <td class="px-4 py-3">
+                    {{ order.total === null ? '–' : (order.total | number: '1.2-2') }}
+                    {{ order.currency ?? '' }}
+                  </td>
+                  <td class="px-4 py-3">
+                    <span class="block">{{ paymentLabel(order.paymentStatus) }}</span
+                    ><span class="block text-xs text-fb-text-muted">{{
+                      fulfillmentLabel(order.fulfillmentStatus)
+                    }}</span>
+                    @if (cancellationLabel(order.cancelStatus); as cancellation) {
+                      <app-badge tone="caution">{{ cancellation }}</app-badge>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+      </div>
+    </app-data-table>
+    @if (store.nextPage() !== null) {
+      <app-button [loading]="store.isReading()" (clicked)="store.read(true)"
+        >Weitere Einträge laden</app-button
+      >
+    }
+  }
+</div>

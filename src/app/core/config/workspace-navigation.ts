@@ -125,6 +125,12 @@ export const WORKSPACE_NAVIGATION_GROUPS: readonly WorkspaceNavigationGroup[] = 
         label: 'Vinted',
         icon: 'store',
       },
+      {
+        path: '/marketplaces/ebay',
+        labelKey: 'PLATFORMS.EBAY',
+        label: 'eBay',
+        icon: 'store',
+      },
     ],
   },
   {
