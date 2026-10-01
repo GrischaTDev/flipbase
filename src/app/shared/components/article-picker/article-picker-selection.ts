@@ -8,8 +8,7 @@ export function isArticleSelectable(entry: ArticlePickerEntry): boolean {
   if (entry.disabledReason) return false;
   const quantity = entry.availableQuantity;
   return (
-    quantity === undefined ||
-    (quantity !== null && Number.isSafeInteger(quantity) && quantity > 0)
+    quantity === undefined || (quantity !== null && Number.isSafeInteger(quantity) && quantity > 0)
   );
 }
 

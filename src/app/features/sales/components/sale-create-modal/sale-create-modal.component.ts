@@ -1,3 +1,14 @@
+import { SALES_LABELS, SALES_HELP } from '../../../../core/config/sales-table.config';
+import { ArticlePickerComponent } from '../../../../shared/components/article-picker/article-picker.component';
+import type { ArticlePickerEntry } from '../../../../shared/components/article-picker/article-picker.models';
+import { isArticleSelectable } from '../../../../shared/components/article-picker/article-picker-selection';
+import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
+import { ItemConditionLabelPipe } from '../../../../shared/pipes/item-condition-label.pipe';
+import {
+  buildSaleArticleEntries,
+  remainingLineQuantity,
+  selectLinkedSaleItems,
+} from '../../utils/sale-article-selection';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -13,7 +24,7 @@ import {
   signal,
   untracked,
 } from '@angular/core';
-import { CurrencyPipe } from '@angular/common';
+import { CurrencyPipe, DecimalPipe } from '@angular/common';
 import {
   FormArray,
   FormControl,
@@ -76,6 +87,7 @@ type ShippingFormMode = ShippingMode | 'unknown';
   imports: [
     ReactiveFormsModule,
     CurrencyPipe,
+    DecimalPipe,
     CustomSelectComponent,
     DatePickerComponent,
     ButtonComponent,
@@ -83,12 +95,16 @@ type ShippingFormMode = ShippingMode | 'unknown';
     TwoColumnLayoutComponent,
     NumberInputComponent,
     TextFieldComponent,
+    ArticlePickerComponent,
+    ProductThumbnailComponent,
   ],
   templateUrl: './sale-create-modal.component.html',
   host: { class: 'contents' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SaleCreateModalComponent {
+  readonly salesLabels = SALES_LABELS;
+  readonly salesHelp = SALES_HELP;
   readonly saleTarget = input<SaleTarget | null>(null);
   readonly legacyReconciliation = input<LegacySaleReconciliation | null>(null);
   readonly preselectedItemId = input<string | null>(null);
@@ -186,6 +202,81 @@ export class SaleCreateModalComponent {
     ];
   });
 
+  readonly articlePickerOpen = signal(false);
+  readonly articlePickerLineIndex = signal<number | null>(null);
+  private articlePickerReturnFocus: HTMLElement | null = null;
+  private readonly articleConditionLabels = new ItemConditionLabelPipe();
+  readonly selectionLoading = computed(() => {
+    const workspaceId = this.workspaceService?.currentWorkspace()?.id;
+    if (!workspaceId) return false;
+    return (
+      this.isLoadingStock() ||
+      !!this.inventoryService.isLoading?.() ||
+      !!this.purchaseService?.isLoading?.() ||
+      !!this.catalogService?.isLoading?.() ||
+      this.inventoryService.loadedWorkspaceId?.() !== workspaceId ||
+      this.purchaseService?.loadedWorkspaceId?.() !== workspaceId ||
+      this.catalogService?.loadedWorkspaceId?.() !== workspaceId
+    );
+  });
+  readonly selectionError = computed(
+    () =>
+      this.stockLoadError() ??
+      this.inventoryService.loadError?.()?.message ??
+      this.purchaseService?.loadError?.()?.message ??
+      this.catalogService?.loadError?.()?.message ??
+      null,
+  );
+  readonly saleArticleEntries = computed(() => {
+    const workspaceId = this.workspaceService?.currentWorkspace()?.id ?? null;
+    const products = this.catalogService?.products() ?? [];
+    const items = this.availableItems();
+    const entries = buildSaleArticleEntries(
+      workspaceId,
+      products,
+      items,
+      this.purchaseService?.purchases?.() ?? [],
+      this.stockService.loadedWorkspaceId?.() === workspaceId ? this.stockService.positions() : [],
+      new Set(),
+    );
+    return entries.map((entry) => {
+      const condition = entry.id.startsWith('inventory:')
+        ? items.find((item) => `inventory:${item.id}` === entry.id)?.condition
+        : products.find((product) => product.id === entry.imageKey)?.condition;
+      return {
+        ...entry,
+        conditionLabel: condition ? this.articleConditionLabels.transform(condition) : null,
+      };
+    });
+  });
+  readonly articlePickerEntries = computed(() => {
+    this.formValue();
+    const replacing = this.articlePickerLineIndex();
+    const used = new Set(
+      this.lines.controls
+        .filter((_line, index) => index !== replacing)
+        .map((line) => line.controls.target.value),
+    );
+    return this.saleArticleEntries().map((entry) => ({
+      ...entry,
+      disabledReason:
+        entry.disabledReason ?? (used.has(entry.id) ? 'Bereits im Verkauf enthalten' : null),
+    }));
+  });
+  readonly articleImageUrls = computed<Readonly<Record<string, string>>>(() => {
+    const urls = { ...(this.catalogService?.imageUrls?.() ?? {}) };
+    const lineProducts = new Map(
+      (this.purchaseService?.purchases?.() ?? [])
+        .flatMap((purchase) => purchase.purchase_lines ?? [])
+        .map((line) => [line.id, line.catalog_product_id]),
+    );
+    for (const item of this.availableItems()) {
+      const productId = item.purchase_line_id ? lineProducts.get(item.purchase_line_id) : null;
+      if (productId && urls[productId]) urls[item.id] = urls[productId];
+    }
+    return urls;
+  });
+
   readonly form = new FormGroup({
     lines: new FormArray<SaleLineForm>([this.createLineForm()]),
     platform: new FormControl('kleinanzeigen', {
@@ -209,26 +300,16 @@ export class SaleCreateModalComponent {
   readonly lines = this.form.controls.lines;
   readonly additionalCosts = this.form.controls.additionalCosts;
   readonly availableItems = computed(() => {
-    const linesById = new Map(
-      (this.purchaseService?.purchaseLines() ?? []).map((line) => [line.id, line]),
+    const workspaceId = this.workspaceService?.currentWorkspace()?.id ?? null;
+    return selectLinkedSaleItems(
+      workspaceId,
+      this.inventoryService.items().filter(isSellableInventoryItem),
+      this.purchaseService?.purchases() ?? [],
+      this.catalogService?.products() ?? [],
+      !!workspaceId &&
+        this.purchaseService?.loadedWorkspaceId() === workspaceId &&
+        this.catalogService?.loadedWorkspaceId() === workspaceId,
     );
-    const productsById = new Map(
-      (this.catalogService?.products() ?? []).map((product) => [product.id, product]),
-    );
-    return this.inventoryService.items().filter((item) => {
-      if (!isSellableInventoryItem(item)) return false;
-      if (!item.purchase_line_id) return true;
-      if (
-        this.purchaseService?.loadedWorkspaceId() !== item.workspace_id ||
-        this.catalogService?.loadedWorkspaceId() !== item.workspace_id
-      )
-        return false;
-      const line = linesById.get(item.purchase_line_id);
-      if (!line) return false;
-      if (!line.catalog_product_id) return true;
-      const product = productsById.get(line.catalog_product_id);
-      return !!product && !product.archived_at;
-    });
   });
   private readonly formValue = toSignal(this.form.valueChanges, {
     initialValue: this.form.getRawValue(),
@@ -309,6 +390,16 @@ export class SaleCreateModalComponent {
     });
     this.enforceShippingMode(this.form.controls.shippingMode.value);
     effect(() => {
+      this.formValue();
+      this.stockService.positions();
+      this.saleArticleEntries();
+      const ready = !this.selectionLoading() && !this.selectionError();
+      untracked(() => {
+        if (this.workspaceService?.currentWorkspace() && ready) this.validateSaleTargets();
+        else this.lines.controls.forEach((line) => this.updateQuantityValidator(line));
+      });
+    });
+    effect(() => {
       const existing = this.sale();
       if (existing) {
         untracked(() => this.fillExistingSale(existing));
@@ -324,7 +415,9 @@ export class SaleCreateModalComponent {
       !this.isSubmitting() &&
       !this.isPersisted() &&
       !this.isLoadingStock() &&
-      !this.stockLoadError()
+      !this.stockLoadError() &&
+      (!this.workspaceService?.currentWorkspace() ||
+        (!this.selectionLoading() && !this.selectionError()))
     );
   }
 
@@ -362,6 +455,119 @@ export class SaleCreateModalComponent {
     }
   }
 
+  async reloadSaleSources(): Promise<void> {
+    const workspaceId = this.workspaceService?.currentWorkspace()?.id;
+    if (!workspaceId) return;
+    await Promise.all([
+      this.loadStockPositions(),
+      this.inventoryService.loadInventory(workspaceId),
+      this.purchaseService?.loadPurchases(workspaceId),
+      this.catalogService?.loadProducts(workspaceId),
+    ]);
+  }
+
+  openArticlePicker(index: number | null = null): void {
+    if (this.istBearbeitung() || this.legacyReconciliation() || this.isSubmitting()) return;
+    if (!this.workspaceService?.currentWorkspace()) return;
+    const active = this.elementRef?.nativeElement.ownerDocument.activeElement;
+    this.articlePickerReturnFocus = active instanceof HTMLElement ? active : null;
+    this.articlePickerLineIndex.set(index);
+    this.articlePickerOpen.set(true);
+  }
+
+  closeArticlePicker(): void {
+    this.articlePickerOpen.set(false);
+    const previous = this.articlePickerReturnFocus;
+    afterNextRender(
+      () => {
+        if (previous?.isConnected) previous.focus();
+      },
+      { injector: this.injector },
+    );
+  }
+
+  onArticlesSelected(entries: readonly ArticlePickerEntry[]): void {
+    if (this.istBearbeitung() || this.legacyReconciliation() || this.isSubmitting()) return;
+    if (this.selectionLoading() || this.selectionError()) return;
+    const current = new Map(this.articlePickerEntries().map((entry) => [entry.id, entry]));
+    const selected = [...new Set(entries.map((entry) => entry.id))];
+    const replacing = this.articlePickerLineIndex();
+    if (!selected.length || (replacing !== null && selected.length !== 1)) return;
+    const targets: SaleTarget[] = [];
+    for (const id of selected) {
+      const entry = current.get(id);
+      const target = this.parseTarget(id);
+      if (!entry || !isArticleSelectable(entry) || !target) {
+        this.errorMessage.set(
+          'Die Auswahl ist nicht mehr verfügbar. Bitte prüfe den aktuellen Bestand.',
+        );
+        return;
+      }
+      targets.push(target);
+    }
+    if (replacing !== null && !this.lines.controls[replacing]) return;
+    if (replacing !== null && this.lines.at(replacing).controls.target.value === selected[0]) {
+      this.closeArticlePicker();
+      return;
+    }
+    for (const target of targets) {
+      let index = replacing ?? this.lines.controls.findIndex((line) => !line.controls.target.value);
+      if (index === -1) {
+        this.addLine();
+        index = this.lines.length - 1;
+      }
+      this.setLineTarget(index, target);
+    }
+    this.form.markAsDirty();
+    this.errorMessage.set(null);
+    this.closeArticlePicker();
+  }
+
+  articleLabel(line: SaleLineForm): string {
+    const index = this.lines.controls.indexOf(line);
+    const recorded = this.sale()?.lines?.[index];
+    if (recorded) return recorded.title_snapshot;
+    const entry = this.saleArticleEntries().find(
+      (candidate) => candidate.id === line.controls.target.value,
+    );
+    return entry
+      ? [entry.title, entry.size ? `Größe ${entry.size}` : null, entry.color, entry.conditionLabel]
+          .filter(Boolean)
+          .join(' · ')
+      : (this.targetForLine(line)?.title ??
+          (index === 0 ? this.saleTarget()?.title : null) ??
+          'Noch kein Artikel ausgewählt');
+  }
+
+  articleImage(line: SaleLineForm): string | null {
+    const entry = this.saleArticleEntries().find(
+      (candidate) => candidate.id === line.controls.target.value,
+    );
+    return entry ? (this.articleImageUrls()[entry.imageKey] ?? null) : null;
+  }
+
+  onArticleImageFailed(imageKey: string): void {
+    if (this.catalogService?.products().some((product) => product.id === imageKey)) {
+      this.catalogService.invalidateProductImage(imageKey);
+    }
+  }
+
+  private validateSaleTargets(): void {
+    if (this.istBearbeitung() || this.legacyReconciliation()) return;
+    const entries = new Map(this.saleArticleEntries().map((entry) => [entry.id, entry]));
+    for (const line of this.lines.controls) {
+      const entry = entries.get(line.controls.target.value);
+      const otherErrors = { ...line.controls.target.errors };
+      delete otherErrors['unavailable'];
+      const errors =
+        entry && isArticleSelectable(entry) ? otherErrors : { ...otherErrors, unavailable: true };
+      line.controls.target.setErrors(Object.keys(errors).length ? errors : null, {
+        emitEvent: false,
+      });
+      this.updateQuantityValidator(line);
+    }
+  }
+
   addLine(): void {
     this.lines.push(this.createLineForm());
   }
@@ -372,9 +578,14 @@ export class SaleCreateModalComponent {
     this.additionalCosts.removeAt(index);
   }
   removeLine(index: number): void {
-    if (this.lines.length > 1) this.lines.removeAt(index);
+    if (this.istBearbeitung() || this.legacyReconciliation() || this.isSubmitting()) return;
+    if (this.lines.length > 1) {
+      this.lines.removeAt(index);
+      this.form.markAsDirty();
+    }
   }
   onTargetChange(index: number, value: string): void {
+    if (this.istBearbeitung() || this.legacyReconciliation()) return;
     const line = this.lines.at(index);
     line.controls.target.setValue(value);
     this.updateQuantityValidator(line);
@@ -383,13 +594,23 @@ export class SaleCreateModalComponent {
     return this.parseTarget(line.controls.target.value);
   }
   availableQuantity(line: SaleLineForm): number | null {
+    if (this.istBearbeitung()) return line.controls.quantity.value;
+    if (this.legacyReconciliation()) return 1;
     const target = this.targetForLine(line);
-    return target?.kind === 'catalog_product' ? target.availableQuantity : target ? 1 : null;
+    if (!target) return null;
+    const capacity = target.kind === 'catalog_product' ? target.availableQuantity : 1;
+    return remainingLineQuantity(
+      capacity,
+      this.lines.controls.map((entry) => entry.getRawValue()),
+      line.controls.target.value,
+      this.lines.controls.indexOf(line),
+    );
   }
 
   async onSubmit(): Promise<void> {
     if (this.isPersisted() || this.isSubmitting()) return;
     if (this.workspaceService?.currentWorkspace() && !this.canSave()) return;
+    if (this.workspaceService?.currentWorkspace()) this.validateSaleTargets();
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       this.focusFirstInvalidField();
@@ -433,7 +654,11 @@ export class SaleCreateModalComponent {
   private focusFirstInvalidField(): void {
     afterNextRender(
       () =>
-        this.elementRef?.nativeElement.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus(),
+        (
+          this.elementRef?.nativeElement.querySelector<HTMLElement>(
+            '[data-sale-target-invalid="true"] button',
+          ) ?? this.elementRef?.nativeElement.querySelector<HTMLElement>('[aria-invalid="true"]')
+        )?.focus(),
       { injector: this.injector },
     );
   }
@@ -499,13 +724,13 @@ export class SaleCreateModalComponent {
         return target.kind === 'catalog_product'
           ? {
               catalogProductId: target.catalogProductId,
-              titleSnapshot: target.title,
+              titleSnapshot: this.articleLabel(line),
               quantity: value.quantity,
               unitSalePrice: value.unitSalePrice,
             }
           : {
               inventoryItemId: target.inventoryItemId,
-              titleSnapshot: target.title,
+              titleSnapshot: this.articleLabel(line),
               quantity: value.quantity,
               unitSalePrice: value.unitSalePrice,
             };
@@ -581,6 +806,8 @@ export class SaleCreateModalComponent {
     sources.forEach((source) => {
       const line = this.createLineForm();
       line.setValue(source);
+      line.controls.target.disable({ emitEvent: false });
+      line.controls.quantity.disable({ emitEvent: false });
       this.updateQuantityValidator(line);
       this.lines.push(line);
     });
@@ -629,6 +856,10 @@ export class SaleCreateModalComponent {
     const line = this.lines.at(index);
     line.controls.target.setValue(this.targetValue(target));
     line.controls.quantity.setValue(1);
+    if (this.legacyReconciliation()) {
+      line.controls.target.disable({ emitEvent: false });
+      line.controls.quantity.disable({ emitEvent: false });
+    }
     this.updateQuantityValidator(line);
   }
   private updateQuantityValidator(line: SaleLineForm): void {
@@ -636,9 +867,10 @@ export class SaleCreateModalComponent {
     line.controls.quantity.setValidators([
       Validators.required,
       Validators.min(1),
+      (control) => (Number.isSafeInteger(control.value) ? null : { integer: true }),
       ...(available === null ? [] : [Validators.max(available)]),
     ]);
-    line.controls.quantity.updateValueAndValidity();
+    line.controls.quantity.updateValueAndValidity({ emitEvent: false });
   }
   private lineCost(line: SaleLineForm): number | null {
     const target = this.targetForLine(line);

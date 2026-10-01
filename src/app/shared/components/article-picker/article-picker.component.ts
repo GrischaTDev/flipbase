@@ -135,11 +135,7 @@ export class ArticlePickerComponent {
   }
 
   openGroup(id: string): void {
-    if (
-      this.loading() ||
-      this.errorMessage() ||
-      !this.groups().some((group) => group.id === id)
-    )
+    if (this.loading() || this.errorMessage() || !this.groups().some((group) => group.id === id))
       return;
     this.activeGroupId.set(id);
     this.focusAfterRender('[data-variant-heading]');

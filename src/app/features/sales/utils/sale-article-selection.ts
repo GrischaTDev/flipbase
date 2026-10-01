@@ -119,7 +119,9 @@ export function buildSaleArticleEntries(
       (!line || (item.purchase_id && line.purchase_id !== item.purchase_id))
     )
       continue;
-    const product = line?.catalog_product_id ? productsById.get(line.catalog_product_id) : undefined;
+    const product = line?.catalog_product_id
+      ? productsById.get(line.catalog_product_id)
+      : undefined;
     if (line?.catalog_product_id && !product) continue;
     if (product) representedProducts.add(product.id);
     const id = `inventory:${item.id}`;
