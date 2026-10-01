@@ -1,5 +1,15 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-01 – Juna – Vinted-Korrektur für PR und Merge freigegeben
+
+**Auftrag:** Nach ausdrücklichem „los“ den geprüften Zweig veröffentlichen,
+alle erfolgreichen Pflichtprüfungen abwarten, mit Merge-Commit integrieren
+und anschließend den eigenen Remote-/lokalen Zweig samt Worktree aufräumen.
+
+**Vorbereitung:** Arbeitsstand `8d4f0b55` sauber und auf dem aktuellen
+`origin/master` (`ce391ce9`). Die serverseitige Workerumstellung und die
+vollständigen getrennten Ereignisbenachrichtigungen bleiben separat offen.
+
 ## 2026-10-01 – Juna – Vinted-Anmeldung wieder prüfen und Automatik vereinfachen
 
 **Auftrag:** Die bestehende Vinted-Anmeldung vor einer unnötigen
