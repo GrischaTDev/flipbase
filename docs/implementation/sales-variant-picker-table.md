@@ -1,23 +1,79 @@
 # Verkaufsauswahl und Verkaufstabelle
 
-Stand: 1. Oktober 2026. Assistent: Juna.
+Stand: 1. Oktober 2026. Assistent: Juna. Umsetzung in PR #270 auf
+`juna/sales-variant-picker-table`.
 
-## Freigegebener Auftrag
+## Umsetzung
 
-Ein gemeinsames Auswahlmodal für Einkauf und Verkauf mit Such-/Marken-/Kategoriefiltern, konkreter Variantenwahl und verfügbarer Menge je Variante. Einzelstücke behalten ihre eigene Identität; Artikelgruppen sind niemals Verkaufsziele. Ausverkaufte Varianten und bereits gewählte Einzelstücke bleiben gesperrt. Variantenanlage bleibt auf den Einkauf begrenzt.
+Einkauf und Verkauf verwenden denselben datenlosen `ArticlePickerComponent`.
+Die Feature-Komponenten liefern Artikel, Suchmerkmale, Gruppen, konkrete
+Varianten und Verfügbarkeiten. Suche, Marken- und Kategoriefilter bleiben
+identisch. Beim Verkauf zeigt jede Variante Größe, Farbe, Zustand und
+verfügbare Menge. Ausverkaufte, gesperrte oder unklare Verkaufsziele lassen
+sich nicht übernehmen. Produkt- und Variantenanlage bleiben auf den Einkauf
+begrenzt; die gemeinsame Komponente lädt selbst keine Serverdaten.
 
-Die Verkaufstabelle erhält die Standardfolge Verkaufsnummer → Datum → Artikel → Menge → Plattform → Umsatz → Einkaufskosten → Gebühren & Versand → Gewinn → Marge → Haltedauer → Aktionen. Die Begriffe gelten auch für Spalten-/Sortiermenü, Kennzahlen und Verkaufserfassung. Erklärungen grenzen direkte Verkaufskosten von Betriebsausgaben und Steuern ab. Alte Standard-Spaltenfolgen werden gezielt migriert; individuelle Reihenfolgen, Sichtbarkeit und Sortierung bleiben erhalten.
+Die Verkaufserfassung verbindet Einzelstücke mit den Positionen aller geladenen
+Einkäufe statt mit dem zuletzt geöffneten Einkaufsdetail. Arbeitsbereich,
+Zuordnung, Archivierung, Verkaufszustand, doppelte Einzelstücke und gesamte
+Positionsmenge werden beim Übernehmen und vor dem Speichern geprüft. Gespeichert
+werden konkrete Varianten- oder Einzelstück-IDs und lesbare Größen-/Farbangaben,
+niemals die Artikelgruppe. Historische Verkaufsziele bleiben beim Bearbeiten
+unverändert.
 
-Der gemeldete Nike-Nullbestand war korrekt: Der Nutzer hatte den Artikel bereits verkauft. Keine Bestandskorrektur, Datenbankmigration, SSH-Verbindung oder Serveränderung gehört zu diesem Auftrag.
+Die Standardfolge lautet: Verkaufsnummer → Datum → Artikel → Menge → Plattform →
+Umsatz → Einkaufskosten → Gebühren & Versand → Gewinn → Marge → Haltedauer →
+Aktionen. Die Nummer steht eigenständig; mobil stehen Nummer und Datum oberhalb
+der Artikel. Tabelle, Spalten-/Sortiermenü, Kennzahlen und Verkaufserfassung
+verwenden dieselben zentralen Begriffe. Hinweise erklären zusätzliche Kosten
+und Gewinn vor Betriebsausgaben und Steuern. Prozentwerte verwenden das deutsche
+Dezimalkomma. Nur alte Standard-Spaltenfolgen werden migriert; individuelle
+Reihenfolgen, ausgeblendete Spalten und Sortierung bleiben erhalten.
 
-## Veröffentlichung als Entwurf
+**Keine Änderung der Finanzberechnungen oder Bestände.** Der gemeldete
+Nike-Nullbestand war korrekt, weil der Artikel bereits verkauft war. Keine
+Datenbankmigration, produktive Buchung, SSH-Verbindung oder Serveränderung
+gehört zu diesem Auftrag.
 
-Der Nutzer hat Branch-Push und einen Entwurfs-PR freigegeben, ausdrücklich ohne Merge. Der vorhandene Branch `juna/sales-variant-picker-table` wird verwendet; `master` bleibt unverändert. Die Schreibaktionen wurden am 1. Oktober tatsächlich erfolgreich ausgeführt. Die vorherige Behauptung, es gebe ausschließlich Lesezugriff, war falsch.
+## Prüfung und noch ausstehende Abnahme
 
-Die Übernahme erfolgt in nachvollziehbaren Quellcode-Commits, nicht durch ein ZIP im Repository und nicht durch eine neue CI zum automatischen Einspielen eines Pakets. Während der Übernahme bleibt der PR ausdrücklich unvollständig und nicht mergebereit.
+Der vollständige Projektquellstand samt gesperrten npm-Abhängigkeiten wurde für
+die Prüfung verwendet. Lokal bestehen 1.628 Node-Tests, gezielte Angular-Tests
+für beide Erfassungswege und Tabellenpräferenzen, Anwendung-/Test-Typprüfung,
+Formatierung, gezieltes ESLint, Angular-AOT-Vorlagenprüfung, Shared-UI-Prüfung
+und Testklassifizierung. Ein unter paralleler lokaler Last fehlgeschlagener
+bestehender Bildvorbereitungstest bestand separat. Der lokale vollständige
+Bundle-Bau überschreitet die 4-GB-Umgebung; er wurde nicht als erfolgreich
+gewertet.
 
-## Prüfungen
+Der erste reguläre CI-Lauf des integrierten Stands (`36862346522`) bestätigte
+Quality einschließlich vollständigem Produktionsbau, Node, DOM und eine der
+beiden Angular-Teilsuiten. Die andere Angular-Teilsuite enthielt vier veraltete
+Erwartungen an Fachbegriffe und feste Spaltennummern. Die betroffene Spec prüft
+jetzt die neue Spaltenfolge ausdrücklich und unveränderte Geldwerte und Farben
+über die jeweilige Spaltenüberschrift; alle 15 Tests bestehen lokal.
 
-Die vorbereiteten reinen Auswahl-/Variantenfunktionen haben in dieser Sitzung 31 isolierte Tests bestanden. Die Tabellenkonfiguration und Präferenzmigration haben 13 isolierte Tests bestanden. Hinzu kommen sechs und sieben Prüfungen der Einspielregeln. Das ersetzt keine Angular-, Browser- oder vollständige Projektprüfung. Der lokale Git-Clone ist an der DNS-Auflösung gescheitert; die Übernahme verwendet deshalb die GitHub-Git-Daten-API und unveränderte Basisobjekte.
+Der neue Browserfall prüft die echte Testdatenbank, konkrete Varianten und
+Mengen, Tastaturbedienung, 1440/390 Pixel, AXE, Verkaufsspeicherung,
+Verkaufsnummer/Datum und den unveränderten Einkaufsweg. Sein erster CI-Lauf
+scheiterte nach der Verkaufsspeicherung an einer mehrdeutigen Fremdschlüssel-
+Einbettung in der Testabfrage. Die Abfrage nennt nun ausdrücklich den
+Arbeitsbereich-/Verkaufs-Fremdschlüssel. Der erneute vollständige CI- und
+Browsernachweis für diese Testkorrekturen steht noch aus. Kein Test wurde
+entfernt, keine Schwelle gelockert, kein Pflichtcheck umgangen.
 
-Offen bleiben bis zum tatsächlichen Nachweis: vollständige Integration beider Erfassungsmasken und der Tabelle, Projekt-Typecheck, Format/Lint, bestehende Tests, Angular-Bau sowie Desktop-/Mobil-/Tastatur- und AXE-Prüfung. Maßgeblich sind die echten Ergebnisse der vorhandenen PR-CI. Keine Pflichtprüfung wird entfernt oder als erfolgreich ausgegeben, solange ihr Ergebnis nicht vorliegt.
+## Übernahme und Freigabe
+
+Wegen der nicht verfügbaren direkten Git-Verbindung erfolgte die Übernahme über
+die GitHub-Verbindung. Vorübergehend wurden ein begrenzter Quellstand-Export und
+eine auf diesen eigenen Entwurfszweig beschränkte Übertragung verwendet. Die
+Übertragung prüfte sowohl die Patch-Prüfsumme als auch den vollständigen
+Git-Dateibaum gegen den lokal geprüften Stand. Sämtliche temporären Workflows
+und Übertragungsdateien sind aus dem aktuellen PR-Dateistand entfernt. Die
+reguläre CI bleibt unverändert; der neue Browserfall ist Teil ihrer vorhandenen
+Pflichtauswahl.
+
+Der Nutzer hat Veröffentlichung und Weiterarbeit am Entwurfs-PR freigegeben,
+**nicht den Merge oder ein Deployment**. Der PR bleibt bis zur erfolgreichen
+vollständigen Prüfung Entwurf. Maßgeblich sind die tatsächlichen Ergebnisse
+des aktuellen Commits, nicht die älteren isolierten Pakettests.

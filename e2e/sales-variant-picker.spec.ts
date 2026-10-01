@@ -152,7 +152,9 @@ test('wählt verkaufbare Varianten im gemeinsamen Modal und zeigt Nummer vor Dat
 
   const { data: sold, error: soldError } = await workspace.client
     .from('sales')
-    .select('id, record_number, sale_lines(catalog_product_id, quantity, title_snapshot)')
+    .select(
+      'id, record_number, sale_lines!sale_lines_workspace_sale_fkey(catalog_product_id, quantity, title_snapshot)',
+    )
     .eq('workspace_id', workspace.id)
     .single();
   expect(soldError).toBeNull();
