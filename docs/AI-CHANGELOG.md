@@ -56,6 +56,25 @@ Testdatenbank mit dem CI-Containervertrag ohne Überspringen bestanden. Die zus�
 Datenbankprüfung meldet nur zwei bestehende Sniper-Policy-Warnungen, keine neue
 eBay-Warnung. Keine produktive Buchung oder Änderung produktiver Daten.
 
+**Serveraktionen:** Gemeinsamen geprüften Kontozugriff für Listen und Übernahme
+extrahiert. Anzeige erzeugt nur einen Anzeige-Prüfstand; Buchung liest die
+Bestellung erneut, vergleicht den Fingerabdruck und gibt erst nach erfolgreichem
+Abschluss des Kontozugriffs einen kurzen Buchungsstand an den Nutzer-Aufruf.
+Veränderte Quellen liefern eine erneute Prüfung. Bereits gebuchte Quellen lösen
+verlorene Antworten ohne weiteren Anbieterabruf auf. Status und manuelle
+Markierung/Rücknahme verwenden keine eBay-Schreibaktionen. Bestellkennung im
+Buchungsauftrag ergänzt, damit der private Schlüssel vor einem abgelaufenen
+Prüfstand bestimmt werden kann. Eingaben auf 64 KiB UTF-8 begrenzt.
+**Serverprüfung:** 45 gezielte Deno-Tests inklusive Konto, OAuth und Löschung
+bestanden; fremde/abgelaufene Quellen und eine gleichzeitige manuelle Markierung
+zunächst rot, anschließend grün. Deno-Typprüfung der drei Einstiegspunkte,
+Quellen-Lint und Anwendungstypen bestanden. Getrennter Testcontainer mit der
+produktiven Edge-Runtime 1.74.0/Deno 2.1.4 bestätigt Modulstart, Quellenhash,
+Schlüsselableitung und Tokenverschlüsselung; kein Produktivcontainer verändert.
+Zusätzlich 39 Konto-/Quellentests unter der CI-Version Deno 2.9.7 im getrennten
+Container bestanden. Neue Testdateien stehen ausdrücklich im verpflichtenden
+CI-Aufruf.
+
 ## 2026-10-01 – Juna – eBay-Umsetzungsplan nach Spezifikationsfreigabe erstellt
 
 **Auftrag:** Nach ausdrücklichem „los“ zur geschriebenen Spezifikation den

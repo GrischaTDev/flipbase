@@ -9,6 +9,7 @@ export interface EbayConnection extends AccountScope {
   readonly lastReadAt: string | null;
 }
 export interface EbayConnectionStatus {
+  readonly importAvailable?: boolean;
   readonly configured: boolean;
   readonly connection: EbayConnection | null;
 }

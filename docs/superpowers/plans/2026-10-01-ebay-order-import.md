@@ -250,30 +250,30 @@ Modify `ebay-account/handler.ts`, `handler.test.ts`, `index.ts`,
   `order_review`, `order_book`, `order_status`, `order_recorded_elsewhere`,
   `order_clear_recorded_elsewhere`. Zuordnungen verwenden die RPCs aus Aufgabe 2.
 
-- [ ] **1. Tests schreiben:** `requires verified user for every import action`,
+- [x] **1. Tests schreiben:** `requires verified user for every import action`,
       `cannot book a review-only snapshot`, `rechecks changed source before booking`,
       `resolves a committed response loss without another provider read`,
       `releases token lock after provider failure`, `never exposes tokens or account IDs`.
       Anbieterfake zeichnet HTTP-Methoden auf: ausschließlich lesende GETs sowie
       vorhandene OAuth-Tokenaufrufe, keine Angebots-/Versand-Schreibaktion.
-- [ ] **2. Rot nachweisen:** `deno test --allow-env supabase/functions/ebay-account/order-import.test.ts`.
-- [ ] **3. Kontozugriff extrahieren:** Bestehende Listen und neue Importaktionen
+- [x] **2. Rot nachweisen:** `deno test --allow-env supabase/functions/ebay-account/order-import.test.ts`.
+- [x] **3. Kontozugriff extrahieren:** Bestehende Listen und neue Importaktionen
       verwenden denselben geprüften Tokenablauf. OAuth-Callback und Trennen behalten
       ihre bisherigen Verträge. Payload auf 64 KiB UTF-8 begrenzen; Quellpositionen
       haben eindeutige begrenzte Kennungen, keine beliebigen Anbieter-URLs übernehmen.
-- [ ] **4. Review/Book implementieren:** Nutzer via `getUser`; eigene aktive Verbindung
+- [x] **4. Review/Book implementieren:** Nutzer via `getUser`; eigene aktive Verbindung
       prüfen. `order_review` liest Einzelbestellung und speichert Anzeige-Snapshot.
       `order_book` prüft zunächst Beleg, danach eigenen Anzeige-Snapshot, liest erneut,
       vergleicht Review-Hash und erzeugt nur bei Gleichheit den kurzen Buchungs-Snapshot.
       Anschließend Buchungs-RPC über Nutzerclient aufrufen. Änderungen liefern 409
       mit typisierter `review_changed`-Antwort, Anbieterfehler keinen Buchungsversuch.
-- [ ] **5. Status/Markierung implementieren:** Beleg ohne eBay-Netzabruf über serverseitig
+- [x] **5. Status/Markierung implementieren:** Beleg ohne eBay-Netzabruf über serverseitig
       erzeugten Quellenschlüssel lesen. Erledigt-Markierung benötigt bestätigten
       Prüfstand und nichtleeren Grund; optionaler Verkauf muss zum Workspace gehören.
       Rücknahme benötigt ausdrückliche Bestätigung und darf keine Importbelege ändern.
       Erkennung von Schemafähigkeit ergänzt `importAvailable` im Kontostatus;
       fehlende Serverfähigkeit bedeutet false und lässt bisherigen Leseablauf nutzbar.
-- [ ] **6. Grün nachweisen:** gezielte neue und bestehende eBay-Handler-/Callback-/
+- [x] **6. Grün nachweisen:** gezielte neue und bestehende eBay-Handler-/Callback-/
       Löschtests, anschließend `deno check` für die drei bestehenden eBay-Einstiegspunkte.
       Neue Deno-Tests ausdrücklich in `.github/workflows/ci.yml` aufnehmen, weil der
       bestehende Pflichtaufruf eine feste Dateiliste verwendet. Kein Test nur lokal.

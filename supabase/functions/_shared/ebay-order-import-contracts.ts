@@ -64,6 +64,7 @@ export interface EbayOrderCosts {
   }[];
 }
 export interface EbayOrderBookRequest extends AccountScope {
+  readonly orderId: string;
   readonly snapshotId: string;
   readonly reviewHash: string;
   readonly assignments: readonly EbayOrderAssignment[];
