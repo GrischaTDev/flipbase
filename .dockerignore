@@ -33,6 +33,7 @@ supabase/functions/*
 !supabase/functions/_shared/
 supabase/functions/_shared/*
 !supabase/functions/_shared/marketplace-contracts.ts
+!supabase/functions/_shared/ebay-contracts.ts
 
 # Gemini / AI
 .gemini
