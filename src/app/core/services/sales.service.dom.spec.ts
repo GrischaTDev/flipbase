@@ -48,6 +48,29 @@ function createService(response: { data: unknown; error: unknown }): {
 }
 
 describe('SalesService', () => {
+  it('aktualisiert externe Verkäufe ohne zweite Buchung nur im aktiven Workspace', async () => {
+    const service = Object.create(SalesService.prototype) as SalesService;
+    const loadSales = vi.fn(async () => undefined);
+    const loadPositions = vi.fn(async () => undefined);
+    const loadInventory = vi.fn(async () => undefined);
+    const error = signal<Error | null>(null);
+    const loadedWorkspaceId = signal('workspace-1');
+    Object.assign(service, {
+      workspaceService: { currentWorkspace: () => ({ id: 'workspace-1' }) },
+      loadSales,
+      loadError: error,
+      loadedWorkspaceId,
+      stockService: { loadPositions, loadError: error, loadedWorkspaceId },
+      inventoryService: { loadInventory, loadError: error, loadedWorkspaceId },
+    });
+    await expect(service.refreshAfterExternalSale('foreign')).rejects.toThrow();
+    expect(loadSales).not.toHaveBeenCalled();
+    await service.refreshAfterExternalSale('workspace-1');
+    for (const load of [loadSales, loadPositions, loadInventory])
+      expect(load).toHaveBeenCalledWith('workspace-1');
+    error.set(new Error('offline'));
+    await expect(service.refreshAfterExternalSale('workspace-1')).rejects.toThrow('offline');
+  });
   it('disambiguiert beim Laden alle Verkaufsbeziehungen mit mehreren Fremdschlüsseln', async () => {
     const selects: string[] = [];
     const result = { data: [], error: null };

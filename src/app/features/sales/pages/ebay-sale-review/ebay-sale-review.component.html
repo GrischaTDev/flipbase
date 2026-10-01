@@ -1,0 +1,201 @@
+<app-entry-page-layout
+  title="eBay-Bestellung prüfen"
+  subtitle="Ordne die Artikel zu und bestätige Deine tatsächlichen Kosten."
+  backLabel="Zurück zu eBay"
+  (cancelled)="returnToEbay()"
+>
+  <div entry-header-actions class="flex flex-wrap justify-end gap-2">
+    <app-button [disabled]="isSaving()" (clicked)="returnToEbay()">Zurück zu eBay</app-button>
+    @if (store.booking().status === 'unrecorded' && store.draft()) {
+      <app-button
+        variant="primary"
+        [loading]="isSaving()"
+        [disabled]="!canSave()"
+        (clicked)="save()"
+        >Verkauf buchen</app-button
+      >
+    }
+  </div>
+  <div class="space-y-4">
+    @if (routeError(); as error) {
+      <p role="alert" class="text-fb-critical">{{ error }}</p>
+    }
+    @if (store.error(); as error) {
+      <p role="alert" class="text-fb-critical">{{ error }}</p>
+    }
+    @if (store.outcomeUnknown()) {
+      <app-card title="Buchungsstatus prüfen">
+        <p class="mb-3 text-sm text-fb-text-secondary">
+          Die Antwort ist ausgeblieben. Prüfe zuerst, ob der Verkauf bereits gebucht wurde.
+        </p>
+        <app-button [loading]="store.loading()" (clicked)="store.resolveOutcome()"
+          >Status prüfen</app-button
+        >
+      </app-card>
+    }
+    @if (store.review(); as review) {
+      <app-card title="Bestellung bei eBay">
+        <dl class="grid gap-3 text-sm sm:grid-cols-2">
+          <div>
+            <dt class="text-fb-text-secondary">Bestellnummer</dt>
+            <dd class="break-all">{{ review.source.orderId }}</dd>
+          </div>
+          <div>
+            <dt class="text-fb-text-secondary">Zuletzt abgerufen</dt>
+            <dd>{{ review.source.observedAt | date: 'dd.MM.yyyy HH:mm' }}</dd>
+          </div>
+          <div>
+            <dt class="text-fb-text-secondary">Bestellt am</dt>
+            <dd>{{ review.source.createdAt | date: 'dd.MM.yyyy HH:mm' }}</dd>
+          </div>
+          <div>
+            <dt class="text-fb-text-secondary">Bestellsumme</dt>
+            <dd>
+              @if (review.source.totalCents !== null) {
+                {{ review.source.totalCents / 100 | number: '1.2-2' }} {{ review.source.currency }}
+              } @else {
+                Unklar
+              }
+            </dd>
+          </div>
+        </dl>
+        @if (review.source.blockers.length) {
+          <div class="mt-4" role="status">
+            <p class="font-semibold">Übernahme derzeit gesperrt</p>
+            <ul class="mt-2 list-disc space-y-1 pl-5 text-sm">
+              @for (code of review.source.blockers; track code) {
+                <li>{{ blockerText(code) }}</li>
+              }
+            </ul>
+          </div>
+        }
+      </app-card>
+    } @else if (store.loading()) {
+      <p role="status">Bestellung wird geprüft …</p>
+    }
+    @if (store.booking().status === 'imported') {
+      <app-card title="Verkauf gebucht"
+        ><p role="status" class="mb-3 text-sm">
+          Diese Bestellung ist bereits übernommen. Der Bestand wurde bei der Buchung angepasst.
+        </p>
+        <app-button link="/sales" [queryParams]="{ saleId: store.booking().saleId }"
+          >Verkauf öffnen</app-button
+        ></app-card
+      >
+    } @else if (store.booking().status === 'recorded_elsewhere') {
+      <app-card title="Bereits manuell gebucht"
+        ><p role="status" class="mb-3 text-sm">
+          Für diese Bestellung ist eine manuelle Erfassung vermerkt.
+        </p>
+        <div class="flex flex-wrap gap-2">
+          @if (store.booking().saleId) {
+            <app-button link="/sales" [queryParams]="{ saleId: store.booking().saleId }"
+              >Verkauf öffnen</app-button
+            >
+          }
+          <app-button [disabled]="isSaving()" (clicked)="openManualDialog('clear')"
+            >Markierung zurücknehmen</app-button
+          >
+        </div></app-card
+      >
+    } @else {
+      @if (store.reviewChanged()) {
+        <app-card title="Bestellung wurde geändert"
+          ><p class="mb-3 text-sm">
+            Prüfe die aktualisierten Positionen und Beträge. Deine Kosteneingaben bleiben erhalten.
+          </p>
+          <app-custom-checkbox
+            [formControl]="reviewConfirmation"
+            label="Ich habe die geänderte Bestellung erneut geprüft."
+        /></app-card>
+      }
+      @if (store.draft(); as draft) {
+        <app-sale-create-modal
+          [showActions]="false"
+          [externalDraft]="draft"
+          [externalSubmit]="submitExternal"
+        />
+      }
+      @if (store.review()) {
+        <app-card title="Schon außerhalb dieser Übernahme erfasst?"
+          ><p class="mb-3 text-sm text-fb-text-secondary">
+            Markiere die Bestellung, wenn Du sie bereits manuell gebucht hast. Dadurch wird kein
+            weiterer Verkauf angelegt.
+          </p>
+          <app-button
+            [disabled]="isSaving() || store.outcomeUnknown()"
+            (clicked)="openManualDialog('mark')"
+            >Bereits manuell gebucht</app-button
+          ></app-card
+        >
+      }
+    }
+  </div>
+</app-entry-page-layout>
+@if (manualDialog(); as mode) {
+  <app-modal-shell
+    [title]="mode === 'mark' ? 'Manuelle Buchung vermerken' : 'Markierung zurücknehmen'"
+    size="md"
+    (closed)="closeManualDialog()"
+  >
+    <div class="space-y-4" [formGroup]="manualForm">
+      @if (mode === 'mark') {
+        <app-text-field
+          label="Grund"
+          formControlName="reason"
+          [required]="true"
+          [maxLength]="500"
+          [multiline]="3"
+          [error]="
+            manualForm.controls.reason.touched && manualForm.controls.reason.invalid
+              ? 'Gib einen Grund mit höchstens 500 Zeichen an.'
+              : null
+          "
+        />
+        <app-custom-select
+          formControlName="saleId"
+          [options]="saleOptions()"
+          ariaLabel="Bereits erfasster Verkauf (optional)"
+          placeholder="Verkauf zuordnen (optional)"
+          [searchable]="true"
+        />
+        <app-custom-checkbox
+          formControlName="confirmed"
+          label="Ich habe diese Bestellung bereits manuell erfasst."
+        />
+      } @else {
+        <p class="text-sm">
+          Die Bestellung kann anschließend wieder geprüft werden. Ein bestehender manueller Verkauf
+          bleibt erhalten.
+        </p>
+        <app-custom-checkbox
+          formControlName="confirmed"
+          label="Ich möchte die Markierung zurücknehmen."
+        />
+      }
+      @if (store.error(); as error) {
+        <p role="alert" class="text-sm text-fb-critical">{{ error }}</p>
+      }
+    </div>
+    <div modal-footer class="flex justify-end gap-2">
+      <app-button [disabled]="isSaving()" (clicked)="closeManualDialog()">Abbrechen</app-button>
+      @if (mode === 'mark') {
+        <app-button
+          variant="primary"
+          [loading]="isSaving()"
+          [disabled]="manualForm.invalid"
+          (clicked)="markManually()"
+          >Markierung speichern</app-button
+        >
+      } @else {
+        <app-button
+          variant="primary"
+          [loading]="isSaving()"
+          [disabled]="!manualForm.controls.confirmed.value"
+          (clicked)="clearManualMarker()"
+          >Markierung zurücknehmen</app-button
+        >
+      }
+    </div>
+  </app-modal-shell>
+}

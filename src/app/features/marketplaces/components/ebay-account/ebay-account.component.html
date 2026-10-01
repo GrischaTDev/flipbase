@@ -114,13 +114,16 @@
     </div>
     <p class="text-sm text-fb-text-muted">
       @if (store.section() === 'orders') {
-        eBay-Verkäuferbestellungen der letzten 90 Tage. Die Ansicht verändert weder deine
-        Flipbase-Verkäufe noch deinen Lagerbestand.
+        eBay-Verkäuferbestellungen der letzten 90 Tage. Prüfe Artikel und Kosten, bevor Du einen
+        Verkauf buchst.
       } @else {
         Deine aktiven eBay-Inserate, einschließlich Festpreisangeboten und Auktionen. Die Ansicht
         verändert deine Angebote nicht.
       }
     </p>
+    @if (store.bookingError(); as error) {
+      <p role="status" class="text-sm text-fb-critical">{{ error }}</p>
+    }
     @if (store.total() !== null) {
       <p class="text-xs text-fb-text-muted">{{ store.total() }} Einträge bei eBay</p>
     }
@@ -220,6 +223,9 @@
                 <th scope="col" class="px-4 py-3">Datum</th>
                 <th scope="col" class="px-4 py-3">Gesamtbetrag</th>
                 <th scope="col" class="px-4 py-3">Status</th>
+                @if (store.importAvailable()) {
+                  <th scope="col" class="px-4 py-3 text-right">Übernahme</th>
+                }
               </tr>
             </thead>
             <tbody>
@@ -247,6 +253,23 @@
                       <app-badge tone="caution">{{ cancellation }}</app-badge>
                     }
                   </td>
+                  @if (store.importAvailable()) {
+                    <td class="px-4 py-3 text-right">
+                      <span class="block text-xs">{{ bookingLabel(order.id) }}</span>
+                      @if (store.connection(); as connection) {
+                        @if (order.importSource) {
+                          <app-button
+                            variant="table-action"
+                            [icon]="reviewIcon"
+                            [iconOnly]="true"
+                            [link]="orderReviewLink(connection.connectionId, order.id)"
+                            [ariaLabel]="'Bestellung prüfen: ' + order.id"
+                            title="Bestellung prüfen"
+                          />
+                        }
+                      }
+                    </td>
+                  }
                 </tr>
               }
             </tbody>

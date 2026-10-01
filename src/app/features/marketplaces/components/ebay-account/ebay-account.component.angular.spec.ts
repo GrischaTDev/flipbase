@@ -184,7 +184,7 @@ describe('Persönliche eBay-Oberfläche', () => {
     expect(element.textContent).toContain('Stornierter Artikel');
     expect(element.textContent).toContain('Storniert');
     expect(element.textContent).toContain('Erstattet');
-    expect(element.textContent).toContain('weder deine Flipbase-Verkäufe noch deinen Lagerbestand');
+    expect(element.textContent).toContain('Prüfe Artikel und Kosten');
     const results = await axe.run(element, { rules: { 'color-contrast': { enabled: false } } });
     expect(results.violations).toEqual([]);
   });

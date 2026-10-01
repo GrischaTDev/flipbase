@@ -707,6 +707,10 @@ export class SaleCreateModalComponent {
         const submit = this.externalSubmit();
         if (!submit) throw new Error('Die externe Verkaufserfassung ist nicht verfügbar.');
         const result = await submit(input);
+        if (result.status === 'rejected') {
+          this.errorMessage.set(result.message);
+          return;
+        }
         if (result.status !== 'saved') {
           this.externalOutcomeBlocked.set(result.status === 'outcome_unknown');
           this.errorMessage.set(

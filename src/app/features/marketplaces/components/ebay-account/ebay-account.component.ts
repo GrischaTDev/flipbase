@@ -6,10 +6,17 @@ import {
   inject,
   input,
   signal,
+  untracked,
 } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
-import { LucideExternalLink, LucideLink2, LucideRefreshCw, LucideUnlink } from '@lucide/angular';
+import {
+  LucideExternalLink,
+  LucideLink2,
+  LucideRefreshCw,
+  LucideUnlink,
+  LucideClipboardCheck,
+} from '@lucide/angular';
 import { AuthService } from '../../../../core/services/auth.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
@@ -49,14 +56,18 @@ export class EbayAccountComponent {
   readonly disconnectIcon = LucideUnlink;
   readonly refreshIcon = LucideRefreshCw;
   readonly externalLinkIcon = LucideExternalLink;
+  readonly reviewIcon = LucideClipboardCheck;
 
   constructor() {
     effect(() => {
       const user = this.auth.currentUser();
       const workspace = this.workspace.currentWorkspace();
-      void this.store.initialize(
-        user && workspace && !workspace.archived_at ? workspace.id : null,
-        this.showData(),
+      untracked(
+        () =>
+          void this.store.initialize(
+            user && workspace && !workspace.archived_at ? workspace.id : null,
+            this.showData(),
+          ),
       );
     });
     effect(() => {
@@ -99,6 +110,18 @@ export class EbayAccountComponent {
       PARTIALLY_REFUNDED: 'Teilweise erstattet',
     };
     return labels[status] ?? 'Zahlungsstatus unbekannt';
+  }
+  orderReviewLink(connectionId: string, orderId: string): string {
+    return `/sales/ebay/${encodeURIComponent(connectionId)}/${encodeURIComponent(orderId)}`;
+  }
+  bookingLabel(orderId: string): string {
+    const booking = this.store.orderBookings()[orderId];
+    if (booking?.status === 'imported') return 'Gebucht';
+    if (booking?.status === 'recorded_elsewhere') return 'Manuell gebucht';
+    if (booking?.status === 'unrecorded') return 'Noch nicht gebucht';
+    return this.store.bookingStatusesLoading()
+      ? 'Buchungsstatus wird geprüft'
+      : 'Buchungsstatus ungeprüft';
   }
   fulfillmentLabel(status: string): string {
     const labels: Record<string, string> = {

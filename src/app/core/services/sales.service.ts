@@ -525,6 +525,28 @@ export class SalesService {
   }
 
   /** Aktualisiert erst nach erfolgreicher RPC-Antwort die betroffenen Ansichten. */
+  async refreshAfterExternalSale(workspaceId: string): Promise<void> {
+    if (this.workspaceService.currentWorkspace()?.id !== workspaceId) {
+      throw new Error('Der aktive Workspace hat sich geändert.');
+    }
+    await Promise.all([
+      this.loadSales(workspaceId),
+      this.stockService.loadPositions(workspaceId),
+      this.inventoryService.loadInventory(workspaceId),
+    ]);
+    for (const service of [this, this.stockService, this.inventoryService]) {
+      const error = service.loadError();
+      if (error) throw error;
+      if (service.loadedWorkspaceId() !== workspaceId) {
+        throw new Error('Die Ansicht gehört nicht mehr zum aktiven Workspace.');
+      }
+    }
+    if (this.workspaceService.currentWorkspace()?.id !== workspaceId) {
+      throw new Error('Der aktive Workspace hat sich geändert.');
+    }
+  }
+
+  /** Aktualisiert erst nach erfolgreicher RPC-Antwort die betroffenen Ansichten. */
   private async refreshAffectedState(workspaceId: string): Promise<void> {
     await this.stockService.loadPositions(workspaceId);
     await this.inventoryService?.loadInventory(workspaceId);

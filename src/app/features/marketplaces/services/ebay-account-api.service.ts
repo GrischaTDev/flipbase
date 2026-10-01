@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { SupabaseService } from '../../../core/services/supabase.service';
 import type { AccountScope } from '../models/marketplace.models';
+import { parseEbayOrderBooking } from '../models/ebay-order-import-response';
 import {
   parseEbayAuthorization,
   parseEbayListing,
@@ -54,6 +55,9 @@ export class EbayAccountApiService {
   }
   async loadStatus(workspaceId: string) {
     return parseEbayStatus(await this.request({ action: 'status', workspaceId }), workspaceId);
+  }
+  async loadOrderStatus(scope: AccountScope, orderId: string) {
+    return parseEbayOrderBooking(await this.request({ action: 'order_status', ...scope, orderId }));
   }
   async connect(workspaceId: string): Promise<string> {
     return parseEbayAuthorization(await this.request({ action: 'connect', workspaceId }));

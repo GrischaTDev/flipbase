@@ -20,7 +20,8 @@ export interface ExternalSaleEntryDraft {
 export type ExternalSaleEntrySaveResult =
   | { readonly status: 'saved' }
   | { readonly status: 'review_changed' }
-  | { readonly status: 'outcome_unknown' };
+  | { readonly status: 'outcome_unknown' }
+  | { readonly status: 'rejected'; readonly message: string };
 export type ExternalSaleEntrySubmit = (
   input: RecordSaleInput,
 ) => Promise<ExternalSaleEntrySaveResult>;

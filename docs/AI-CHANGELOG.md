@@ -1,5 +1,23 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-01 – Juna – eBay-Bestellprüfseite verbunden
+
+**Umsetzung:** Prüfseite mit voller Quelle aus der Adresse, geschützten Bestellwerten,
+bestätigten Kosten und erneuter Bestätigung nach Quellenänderung ergänzt. Unklarer
+Buchungsausgang verlangt zuerst Statusklärung; erfolgreiche Buchung bleibt bei
+einem Fehler beim Aktualisieren der Ansicht erfolgreich. Manuelle Markierung mit
+Grund, Bestätigung und optionalem Verkauf sowie bestätigte Rücknahme ergänzen den
+Ablauf. Die Bestellliste liest Buchungsbelege mit höchstens drei gleichzeitigen
+Anfragen und verwirft Antworten aus einem verlassenen Konto oder Workspace.
+
+**Prüfung:** Neue Store-, Seiten- und Statusfälle zuerst rot, anschließend grün.
+74 betroffene Angular-Tests und 14 Verkaufsservice-Tests bestanden. Anwendung und
+Tests typgeprüft, Produktionsbau erfolgreich; gemeinsame UI-Prüfung ohne Befund.
+Kostenformular bleibt bei eindeutig abgewiesener Anfrage bearbeitbar; dafür wurde
+der allgemeine Ergebnisvertrag um einen ausdrücklich abgewiesenen Zustand ergänzt.
+Parallel- und Browsernachweise sowie unabhängige Gesamtprüfung stehen noch aus.
+Keine produktive Bestellung gebucht und nichts veröffentlicht.
+
 ## 2026-10-01 – Juna – freigegebenen eBay-Übernahmeplan begonnen
 
 **Auftrag:** Nach „weiter“ den geprüften Plan direkt in dieser Sitzung umsetzen,

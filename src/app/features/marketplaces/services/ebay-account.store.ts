@@ -5,11 +5,16 @@ import type {
   EbayOrder,
 } from '../../../../../supabase/functions/_shared/ebay-contracts';
 import { EbayAccountApiService } from './ebay-account-api.service';
+import type { EbayOrderBooking } from '../../../../../supabase/functions/_shared/ebay-order-import-contracts';
 
 @Injectable()
 export class EbayAccountStore {
   private readonly api = inject(EbayAccountApiService);
   private revision = 0;
+  private bookingRevision = 0;
+  readonly orderBookings = signal<Readonly<Record<string, EbayOrderBooking>>>({});
+  readonly bookingStatusesLoading = signal(false);
+  readonly bookingError = signal<string | null>(null);
   private workspaceId: string | null = null;
   readonly isConfigured = signal(false);
   readonly importAvailable = signal(false);
@@ -38,6 +43,10 @@ export class EbayAccountStore {
     return this.revision;
   }
   private clearData(): void {
+    this.bookingRevision++;
+    this.orderBookings.set({});
+    this.bookingStatusesLoading.set(false);
+    this.bookingError.set(null);
     this.listings.set([]);
     this.orders.set([]);
     this.total.set(null);
@@ -161,6 +170,7 @@ export class EbayAccountStore {
         this.total.set(result.total);
         this.nextPage.set(result.nextPage);
       }
+      if (section === 'orders' && this.importAvailable()) void this.readBookingStatuses(connection);
       this.hasRead.set(true);
     } catch (error) {
       if (revision !== this.revision) return;
@@ -182,5 +192,29 @@ export class EbayAccountStore {
     } finally {
       if (revision === this.revision) this.isReading.set(false);
     }
+  }
+  private async readBookingStatuses(connection: EbayConnection): Promise<void> {
+    const revision = ++this.bookingRevision;
+    const orders = this.orders();
+    let next = 0;
+    this.bookingStatusesLoading.set(true);
+    this.bookingError.set(null);
+    const worker = async () => {
+      while (revision === this.bookingRevision && next < orders.length) {
+        const order = orders[next++];
+        try {
+          const booking = await this.api.loadOrderStatus(connection, order.id);
+          if (revision === this.bookingRevision)
+            this.orderBookings.update((items) => ({ ...items, [order.id]: booking }));
+        } catch {
+          if (revision === this.bookingRevision)
+            this.bookingError.set(
+              'Einige Buchungsstände konnten nicht geprüft werden. Lade die Daten erneut.',
+            );
+        }
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(3, orders.length) }, worker));
+    if (revision === this.bookingRevision) this.bookingStatusesLoading.set(false);
   }
 }

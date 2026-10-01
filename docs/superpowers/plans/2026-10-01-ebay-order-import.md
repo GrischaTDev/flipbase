@@ -383,28 +383,28 @@ Modify `src/app/app.routes.ts`, Marktplatz-`ebay-account` samt Specs;
   lädt Verkäufe, Bestand und Inventar für denselben aktiven Workspace über
   vorhandene Services; keine eBay-Logik und keine zweite Speicherung.
 
-- [ ] **1. Tests schreiben:** `loads full source after route reload`,
+- [x] **1. Tests schreiben:** `loads full source after route reload`,
       `preserves costs after changed review`, `resolves unknown outcome before retry`,
       `does not rebook after post-commit refresh failure`, `ignores stale workspace responses`,
       `marks manual order without sale or stock mutation`.
       Konkrete Assertion: Nach gespeichertem saleId und fehlgeschlagenem Refresh bleibt
       Ergebnis saved, Buchungsaufrufe genau eins, Meldung fordert Ansichtsaktualisierung.
-- [ ] **2. Rot nachweisen:** neue gezielte Angular-Specs des Stores und der Seite.
-- [ ] **3. Maske bauen:** Bestehendes `EntryPageLayoutComponent` und Verkaufsform,
+- [x] **2. Rot nachweisen:** neue gezielte Angular-Specs des Stores und der Seite.
+- [x] **3. Maske bauen:** Bestehendes `EntryPageLayoutComponent` und Verkaufsform,
       Hauptaktion „Verkauf buchen“, Quellenkopf mit Abrufzeit und Sperrgründen.
       Quellenzeilen aus Aufgabe 1 deterministisch in externes Draft überführen.
       Zum Öffnen Workspace-Kontext sperren, bei Zerstörung freigeben; vorhandene
       ungespeicherte-Eingaben-/beforeunload-Regeln weiterverwenden.
-- [ ] **4. Ergebnis führen:** Bei review_changed neue Revision übernehmen und erneute
+- [x] **4. Ergebnis führen:** Bei review_changed neue Revision übernehmen und erneute
       Prüfung verlangen. Bei unbekanntem Ergebnis zuerst `loadOrderStatus`, nach
       bestätigtem unrecorded nur einen bewusst ausgelösten neuen Versuch zulassen.
       Erfolgreicher Beleg bleibt erfolgreich trotz lokalem Ladefehler. Navigation
       zurück nach `/marketplaces/ebay` desselben Workspaces; Verkaufslink nach Erfolg.
-- [ ] **5. Bestellansicht ergänzen:** Importfähigkeit und gespeicherten Status anzeigen;
+- [x] **5. Bestellansicht ergänzen:** Importfähigkeit und gespeicherten Status anzeigen;
       „Bereits manuell gebucht“ mit Bestätigung/Grund und optionalem Verkauf anbieten,
       Rücknahme nur für erlaubte manuelle Markierung. Ungeeignete Bestellungen zeigen
       konkrete Sperrgründe. Kein Kunde muss technische Kennungen eintippen.
-- [ ] **6. Grün nachweisen:** gezielte neue Specs und vorhandene Verkaufs-/eBay-Specs,
+- [x] **6. Grün nachweisen:** gezielte neue Specs und vorhandene Verkaufs-/eBay-Specs,
       Typen, Angular-Bau und Shared-UI-Check. Commit:
       `feat(sales): review and confirm eBay order imports`.
 

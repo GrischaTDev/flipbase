@@ -1525,4 +1525,14 @@ describe('Geprüfte externe Verkaufserfassung', () => {
     expect(component.form.controls.shippingCost.value).toBeNull();
     expect(component.canSave()).toBe(false);
   });
+  it('keeps a definite external rejection open with its message and allows a conscious retry', async () => {
+    confirmCosts();
+    submit.mockResolvedValueOnce({ status: 'rejected', message: 'eBay ist nicht erreichbar' });
+    const created = vi.spyOn(component.created, 'emit');
+    await component.onSubmit();
+    expect(component.errorMessage()).toBe('eBay ist nicht erreichbar');
+    expect(component.canSave()).toBe(true);
+    expect(component.isPersisted()).toBe(false);
+    expect(created).not.toHaveBeenCalled();
+  });
 });

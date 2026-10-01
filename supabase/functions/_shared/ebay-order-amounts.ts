@@ -14,15 +14,15 @@ export function parseEbayMoney(value: unknown): EbayMoney | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const row = value as Record<string, unknown>;
   if (
-    typeof row.value !== 'string' ||
-    !/^\d+(?:\.\d{1,2})?$/.test(row.value) ||
-    typeof row.currency !== 'string' ||
-    !/^[A-Z]{3}$/.test(row.currency)
+    typeof row['value'] !== 'string' ||
+    !/^\d+(?:\.\d{1,2})?$/.test(row['value']) ||
+    typeof row['currency'] !== 'string' ||
+    !/^[A-Z]{3}$/.test(row['currency'])
   )
     return null;
-  const [whole, fraction = ''] = row.value.split('.');
+  const [whole, fraction = ''] = row['value'].split('.');
   const cents = Number(whole) * 100 + Number(fraction.padEnd(2, '0'));
-  return isEbayCents(cents) ? { currency: row.currency, cents } : null;
+  return isEbayCents(cents) ? { currency: row['currency'], cents } : null;
 }
 export function splitEbayLineAmount(
   cents: number,
