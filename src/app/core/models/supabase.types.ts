@@ -4065,6 +4065,7 @@ export type Database = {
           catalog_id: number | null
           consecutive_failures: number
           created_at: string
+          deleted_at: string | null
           id: string
           is_active: boolean
           is_seeded: boolean
@@ -4093,6 +4094,7 @@ export type Database = {
           catalog_id?: number | null
           consecutive_failures?: number
           created_at?: string
+          deleted_at?: string | null
           id?: string
           is_active?: boolean
           is_seeded?: boolean
@@ -4121,6 +4123,7 @@ export type Database = {
           catalog_id?: number | null
           consecutive_failures?: number
           created_at?: string
+          deleted_at?: string | null
           id?: string
           is_active?: boolean
           is_seeded?: boolean
@@ -5506,6 +5509,7 @@ export type Database = {
         Args: { p_application_id: string }
         Returns: string
       }
+      delete_sniper_query: { Args: { p_id: string }; Returns: undefined }
       delete_sniper_watchlist: {
         Args: { p_id: string; p_workspace_id: string }
         Returns: undefined

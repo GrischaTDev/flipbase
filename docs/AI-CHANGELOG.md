@@ -1,5 +1,63 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-01 – Juna – Vinted-Markenfilter und Botbetrieb verständlicher bedienen
+
+**Auftrag:** Zwei Hauptbereiche umsetzen: Markenfilter zum Anlegen, Bearbeiten,
+Pausieren und Löschen; Botbetrieb mit verständlichem Status und untergeordneter
+Kategorienpflege. Suchfeld, Schließen der Markenauswahl und fehlende Löschaktion
+anhand der angemeldeten Oberfläche prüfen.
+
+**Befund:** Die Markenauswahl war bereits ein Shared-Baustein, verwendete aber
+ein eigenes natives Suchfeld. Die Startliste sind Vorschläge; eine Suche nach
+Patagonia lieferte in der vorhandenen Oberfläche weitere Marken. Escape konnte
+den übergeordneten Dialog schließen. Die feste Listenhöhe überdeckte trotz eines
+einzelnen Treffers das Notizfeld und verhinderte einen Klick auf dieses Feld.
+Die Kategorien versorgen persönliche Suchfilter; zentrale Markenfilter sammeln
+kategorieübergreifend. Eine Kategorienzahl ist daher keine Auftragsverwaltung.
+
+**Änderung:** Die Auswahl verwendet das gemeinsame Suchfeld mit eigenem X,
+passt ihre Höhe den Treffern an und schließt bei Klick außerhalb, Escape oder
+über eine ausdrückliche Schaltfläche. Escape bleibt innerhalb der Auswahl;
+Pfeiltasten und Enter lösen keine erneute Suche aus. Navigation auf zwei Bereiche
+reduziert, alte Kategorienadresse weitergeleitet. Im Botbetrieb stehen Zugriff,
+aktive Marken und aktuelle Fehler zuerst; technische Details und Kategorienpflege
+sind aufklappbar. Die Kategorienpflege erklärt ihren Zweck und verhindert doppelte
+Anforderungen während eines ausstehenden Einlesens.
+
+**Löschen:** Bestätigte zentrale Filter werden über eine geschützte Funktion
+entfernt und pausiert. Ihre technische Herkunft bleibt für bestehende Funde,
+Favoriten und bereits laufende Abfragen erhalten. Die Administration blendet
+entfernte Filter aus; erneutes Hinzufügen derselben Marke verwendet den vorhandenen
+Datensatz und startet pausiert. Tabellenregel verhindert das Aktivieren entfernter
+Filter. Deklaratives Schema angepasst, Migration per CLI aus einer isolierten
+Datenbank erzeugt und Typen neu generiert. Zwei vorher abweichende Meldungen im
+Schema an das bestehende geprüfte Verhalten angeglichen.
+
+**Arbeitsstand:** Eigener Zweig `juna/vinted-filter-usability` von `origin/master`
+(`fd4dc95f`). Keine neuen Abhängigkeiten, keine produktiven Filteränderungen.
+Veröffentlichung und anschließende Pflichtprüfungen stehen noch aus.
+
+**Prüfung:** 43 gezielte Angular-Prüfungen erfolgreich, einschließlich Suche,
+veralteter Antworten, Escape innerhalb der Auswahl, Enter ohne Suchneustart,
+Navigation, Kategorienstatus und eingeschränkter Verwaltungsfunktionen.
+Migration auf einer getrennten lokalen Datenbank vollständig erneut eingespielt;
+118 Datenbankprüfungen einschließlich Berechtigungen, Filterentfernung, vorhandener
+Funde, laufender Abrufe und erneutem Hinzufügen erfolgreich. Typprüfung, Bau,
+Format/Lint und Shared-UI-Prüfung (122 Dateien, keine Befunde) grün. Der Bau meldet
+weiterhin die bekannte CommonJS-Warnung von `pdf-lib`/`pako`.
+
+Zwei vollständige Chromium-Abläufe mit lokalen API- und Sitzungs-Fixtures bei
+1440 × 1000 (hell) und 390 × 1000 (dunkel): Mehrfachauswahl, Klick außerhalb,
+Escape, Tab, Pfeiltasten/Enter, Speicherausfall mit erhaltener Auswahl, Bearbeiten,
+Aktivieren/Pausieren, Löschen/Abbrechen mit Fokus-Rückgabe, Kategorienanforderung,
+alte Kategorienadresse und veraltete Betriebsmeldung geprüft. AXE in Formular,
+Liste, Löschdialog und Botbetrieb ohne Befunde; keine unerwarteten Browserfehler.
+Bildschirmfotos außerhalb des Repositories visuell geprüft. Browser-Plugin mit
+`browser`-Skill nicht verfügbar; vorhandenes Browserwerkzeug für den Ausgangsbefund
+und reguläres Playwright für die lokale Fixture-Prüfung verwendet. Andere Browser
+und die veröffentlichte Oberfläche sind noch nicht geprüft. Die allein für diese
+Sitzung gestartete Datenbank wieder beendet und die Projektkonfiguration restauriert.
+
 ## 2026-10-01 – Juna – begrenzte Wiederprüfungen nach Cloudflare-Prüfseiten umgesetzt
 
 **Auftrag:** Nach „los“ die aus dem Serververgleich abgeleitete Wiederaufnahme

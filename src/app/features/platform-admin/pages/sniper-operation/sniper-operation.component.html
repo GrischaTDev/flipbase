@@ -1,6 +1,6 @@
 <section class="flex flex-col gap-4">
   @if (state.error(); as message) {
-    <p role="alert">
+    <p role="alert" class="flex flex-wrap items-center gap-2">
       {{ message }} <app-button (clicked)="state.refresh()">Erneut laden</app-button>
     </p>
   }
@@ -8,48 +8,33 @@
     <p role="status">Betriebsstand wird geladen …</p>
   }
   @if (state.loaded()) {
+    @let uptimeSeconds = state.vintedUptimeSeconds();
     <app-card padding="md">
-      <div class="flex flex-col gap-3">
+      <div class="flex flex-col gap-4">
         <div class="flex flex-wrap items-center justify-between gap-3">
-          <div class="flex items-center gap-2.5">
-            <h2 class="text-base font-semibold text-fb-text-primary">Verbindung zum Bot</h2>
-            <app-badge [tone]="state.stale() || state.error() ? 'caution' : 'success'">{{
+          <h2 class="text-base font-semibold text-fb-text-primary">Vinted-Zugriff</h2>
+          <app-badge [tone]="uptimeSeconds !== null ? 'success' : 'caution'">
+            {{
               state.stale() || state.error()
                 ? 'Betriebsstand unbestätigt'
-                : 'Aktuelle Betriebsmeldung'
-            }}</app-badge>
-          </div>
-          @if (state.runtime(); as runtime) {
-            <span class="text-xs text-fb-text-muted">
-              Letzte Meldung: {{ runtime.reported_at | date: 'dd.MM.yyyy, HH:mm:ss' }}
-            </span>
-          }
+                : uptimeSeconds !== null
+                  ? 'Vinted verbunden'
+                  : 'Vinted nicht bestätigt'
+            }}
+          </app-badge>
         </div>
-        @if (state.runtime(); as runtime) {
-          @if (state.stale()) {
-            <p role="status" class="text-sm text-fb-text-secondary">
-              Seit mehr als zwei Minuten keine neue Meldung. Der Bot kann gestoppt sein, keine
-              Verbindung haben oder noch in einer langen Abfrage stecken.
-            </p>
-          }
-          @if (runtime.last_cycle_error) {
-            <p role="status" class="text-sm text-rose-500">
-              Letzter Durchlauf: {{ runtime.last_cycle_error }}
-            </p>
-          }
-        } @else {
-          <p class="text-sm text-fb-text-secondary">
-            Noch keine Betriebsmeldung. Prüfe, ob der Bot mit der aktuellen Version gestartet wurde.
+        @if (state.stale()) {
+          <p role="status" class="text-sm text-fb-text-secondary">
+            Seit mehr als zwei Minuten keine Betriebsmeldung. Prüfe den Dienstbetrieb.
+          </p>
+        } @else if (uptimeSeconds === null) {
+          <p role="status" class="text-sm text-fb-text-secondary">
+            Eine erfolgreiche Vinted-Abfrage steht noch aus oder der Zugriff wurde unterbrochen.
           </p>
         }
-        <p class="text-xs text-fb-text-muted">
-          Eine Betriebsmeldung bestätigt den Kontakt zur Datenbank. Erfolgreiche Vinted-Abfragen
-          stehen separat an den Aufträgen.
-        </p>
-        @let uptimeSeconds = state.vintedUptimeSeconds();
-        <div class="flex flex-wrap items-end justify-between gap-4 border-t border-fb-border pt-3">
+        <div class="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p id="vinted-uptime-label" class="text-xs font-medium text-fb-text-muted">
+            <p id="vinted-uptime-label" class="text-xs text-fb-text-muted">
               Ununterbrochene Vinted-Laufzeit
             </p>
             @if (uptimeSeconds !== null) {
@@ -60,92 +45,121 @@
               >
                 {{ formatBotUptime(uptimeSeconds) }}
               </p>
-              @if (state.runtime()?.vinted_connected_since; as connectedSince) {
-                <p class="text-xs text-fb-text-muted">
-                  Seit
-                  <time [attr.datetime]="connectedSince">
-                    {{ connectedSince | date: 'dd.MM.yyyy, HH:mm:ss' }}
-                  </time>
-                </p>
-              }
             } @else {
               <p class="mt-1 text-lg font-semibold text-fb-text-secondary">Nicht bestätigt</p>
-              <p class="text-xs text-fb-text-muted">
-                Eine erfolgreiche Vinted-Abfrage steht noch aus oder wurde unterbrochen.
+            }
+            @if (state.runtime()?.vinted_last_success_at; as lastSuccess) {
+              <p class="mt-1 text-xs text-fb-text-muted">
+                Zuletzt erfolgreich: {{ lastSuccess | date: 'dd.MM.yyyy, HH:mm:ss' }}
               </p>
             }
           </div>
-          <app-badge [tone]="uptimeSeconds !== null ? 'success' : 'caution'">
-            {{ uptimeSeconds !== null ? 'Vinted verbunden' : 'Vinted nicht bestätigt' }}
-          </app-badge>
+          <app-button link="/admin/vinted-bot/queries">Markenfilter verwalten</app-button>
         </div>
+        @if (state.runtime()?.last_cycle_error; as failure) {
+          <p role="status" class="text-sm text-fb-critical">Letzter Durchlauf: {{ failure }}</p>
+        }
       </div>
     </app-card>
-    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <app-card padding="md"
-        ><h3 class="text-sm">Anfragen · letzte Minute</h3>
+
+    <div class="grid gap-4 sm:grid-cols-3">
+      <app-card padding="md">
+        <h3 class="text-sm text-fb-text-secondary">Aktive Markenfilter</h3>
+        <p class="mt-2 text-2xl font-semibold">{{ activeCount() }}</p>
+      </app-card>
+      <app-card padding="md">
+        <h3 class="text-sm text-fb-text-secondary">Anfragen · letzte Minute</h3>
         <p class="mt-2 text-2xl font-semibold">
-          {{ state.runtime()?.requests_last_minute ?? '–' }} /
-          {{ state.runtime()?.request_budget ?? '–' }}
+          {{ state.runtime()?.requests_last_minute ?? '–' }}
         </p>
-        <p class="text-xs text-fb-text-muted">Zum Zeitpunkt der letzten Meldung</p></app-card
-      >
-      <app-card padding="md"
-        ><h3 class="text-sm">Abgewiesen · letzte Minute</h3>
+      </app-card>
+      <app-card padding="md">
+        <h3 class="text-sm text-fb-text-secondary">Abgewiesen · letzte Minute</h3>
         <p class="mt-2 text-2xl font-semibold">
           {{ state.runtime()?.rejected_last_minute ?? '–' }}
         </p>
-        @if (state.runtime(); as runtime) {
-          <p class="text-xs text-fb-text-muted">
-            {{
-              (runtime.requests_last_minute
-                ? runtime.rejected_last_minute / runtime.requests_last_minute
-                : 0
-              ) | percent: '1.0-1'
-            }}
-            der Anfragen · HTTP 403 oder 429
-          </p>
-        }
       </app-card>
-      <app-card padding="md"
-        ><h3 class="text-sm">Aufträge mit letzter Fehlermeldung</h3>
-        <p class="mt-2 text-2xl font-semibold">{{ problemQueries().length }}</p></app-card
-      >
-      <app-card padding="md"
-        ><h3 class="text-sm">Pausiert mit Fehlermeldung</h3>
-        <p class="mt-2 text-2xl font-semibold">{{ stoppedQueries().length }}</p></app-card
-      >
     </div>
+
     <app-card padding="md">
-      <div class="flex flex-col gap-3">
-        <h2 class="text-base font-semibold text-fb-text-primary">
-          Geplante Last und letzte Fehler
-        </h2>
-        <p class="text-sm">
-          Aktive Aufträge benötigen rechnerisch {{ state.plannedRate() | number: '1.0-2' }} Abfragen
-          pro Minute. Aufwärmung und Wiederholungen zählen zusätzlich gegen das Budget.
-        </p>
-        <p class="text-sm">
-          Bei HTTP 403 pausiert der Bot den Auftrag sofort, bei sonstigen Fehlern nach drei
-          Fehlschlägen. HTTP 429 wird im nächsten verfügbaren Takt erneut versucht.
-        </p>
-        @for (query of problemQueries(); track query.id) {
-          <div class="border-t border-fb-border pt-3 text-sm">
-            <p class="font-semibold">
-              {{ query.search_text || 'Kategorie ' + query.catalog_id }} · {{ statusLabel(query) }}
-            </p>
-            <p>
-              {{ query.consecutive_failures }} Fehlschläge in Folge ·
-              {{ query.is_active ? 'Aktiv' : 'Pausiert' }}
-            </p>
+      <h2 class="text-base font-semibold text-fb-text-primary">Aktueller Handlungsbedarf</h2>
+      <div class="mt-3 space-y-3">
+        @for (query of activeProblemQueries(); track query.id) {
+          <div class="space-y-1 text-sm">
+            <p class="font-medium">{{ query.title }} · {{ statusLabel(query) }}</p>
+            @if (query.next_attempt_at) {
+              <p class="text-fb-text-secondary">
+                Nächste Wiederprüfung: {{ query.next_attempt_at | date: 'dd.MM.yyyy, HH:mm:ss' }}
+              </p>
+            }
+            @if (query.run_state === 'invalid') {
+              <p class="text-fb-text-secondary">Prüfe die Einstellungen dieses Markenfilters.</p>
+            }
           </div>
         } @empty {
-          <p class="text-sm">Aktuell ist an keinem Auftrag eine Fehlermeldung gespeichert.</p>
+          <p class="text-sm text-fb-text-secondary">
+            Keine Fehlermeldung an den aktiven Markenfiltern.
+          </p>
         }
-        <div>
-          <app-button link="/admin/vinted-bot/queries">Markenfilter verwalten</app-button>
-        </div>
       </div>
+    </app-card>
+
+    <app-card padding="md">
+      <details class="group">
+        <summary
+          class="cursor-pointer rounded-md text-sm font-semibold text-fb-text-primary focus-visible:outline-2 focus-visible:outline-fb-primary"
+        >
+          Technische Details
+        </summary>
+        <div class="mt-4 space-y-3 text-sm text-fb-text-secondary">
+          <dl class="grid gap-3 sm:grid-cols-2">
+            <div>
+              <dt>Letzte Betriebsmeldung</dt>
+              <dd>{{ state.runtime()?.reported_at | date: 'dd.MM.yyyy, HH:mm:ss' }}</dd>
+            </div>
+            <div>
+              <dt>Anfragebudget pro Minute</dt>
+              <dd>{{ state.runtime()?.request_budget ?? '–' }}</dd>
+            </div>
+            <div>
+              <dt>Rechnerischer Bedarf der Markenfilter</dt>
+              <dd>{{ state.plannedRate() | number: '1.0-2' }} Abfragen pro Minute</dd>
+            </div>
+          </dl>
+          <p>
+            Alle Marken teilen sich den Zugriff und das Anfragebudget. Bei einer Zugriffspause prüft
+            der Bot mit einer einzelnen Anfrage, ob Vinted wieder erreichbar ist. Vorgaben des
+            Anbieters haben Vorrang.
+          </p>
+          <p>
+            Eine aktuelle Betriebsmeldung bestätigt den laufenden Dienst. Erfolgreiche
+            Vinted-Abfragen stehen separat an den Markenfiltern. Die Minutenwerte stammen aus der
+            letzten Meldung.
+          </p>
+          @if (stoppedQueries().length) {
+            <h3 class="font-medium text-fb-text-primary">Letzte Fehler pausierter Markenfilter</h3>
+            @for (query of stoppedQueries(); track query.id) {
+              <p>
+                {{ query.title }} · {{ statusLabel(query) }}. Dieser Filter ist pausiert und wird
+                nicht abgefragt.
+              </p>
+            }
+          }
+        </div>
+      </details>
+    </app-card>
+
+    <app-card padding="md">
+      <details #categoryDetails (toggle)="categoriesOpen.set(categoryDetails.open)">
+        <summary
+          class="cursor-pointer rounded-md text-sm font-semibold text-fb-text-primary focus-visible:outline-2 focus-visible:outline-fb-primary"
+        >
+          Kategorienpflege
+        </summary>
+        @if (categoriesOpen()) {
+          <div class="mt-4"><app-vinted-categories /></div>
+        }
+      </details>
     </app-card>
   }
 </section>
