@@ -126,8 +126,9 @@
             role="log"
             aria-label="Gespeicherter Gesprächsverlauf"
             aria-live="off"
+            tabindex="0"
             [attr.aria-busy]="store.loadingMessages()"
-            class="max-h-[36rem] min-h-40 space-y-2 overflow-y-auto p-3"
+            class="max-h-[36rem] min-h-40 space-y-2 overflow-y-auto p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-fb-text-primary"
             (scroll)="captureReadingPosition()"
           >
             @if (store.loadingMessages() && transcript().length === 0) {

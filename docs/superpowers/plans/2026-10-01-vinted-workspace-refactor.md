@@ -173,7 +173,7 @@ aktuell gelesener Text ohne Speicherwarnung bleibt `unconfirmed`.
       `detailRouteChangeResetsPhoto`, `editReadsFreshFields`,
       `unconfirmedSaveKeepsPreviousSnapshot`. API- und Storetests verwenden echte
       asynchrone Reihenfolgen statt bloßer Methodenaufruf-Zählung.
-- [ ] E2E: Foto-/Textposition bei 1440 × 900 und 390 px; Bildausfall,
+- [x] E2E: Foto-/Textposition bei 1440 × 900 und 390 px; Bildausfall,
       Hoch-/Querformat, lange Titel, bekannte/leere/fehlende Beschreibung,
       Rücknavigation und erneutes Öffnen. Anbieteraufrufe im Test abfangen.
 
@@ -202,7 +202,7 @@ Kompakt gilt nur für die Gesprächsliste, mit mindestens 44 px Touchfläche.
       ältere Nachrichten behalten die sichtbare Lesestelle.
 - [x] Zustände unterscheiden: lädt, leer, Lesefehler, noch nicht importierter
       ungelesener Verlauf. Kontextbezogene Hilfe statt pauschalem großen Hinweisblock.
-- [ ] E2E ergänzt eingehende/ausgehende Nachrichten, Angebote, Systemmeldungen,
+- [x] E2E ergänzt eingehende/ausgehende Nachrichten, Angebote, Systemmeldungen,
       unbekannte Richtung, lange URL, beide Themes und AXE ausdrücklich im Chat.
       Farben tatsächlich berechnen: mindestens 4,5:1, keine bloßen Klassenprüfungen.
 - [x] Store-/Browsertests: `unreadConversationMakesNoProviderRequest`,
@@ -323,6 +323,15 @@ behoben und mit Regressionen abgesichert.
   Serverantworten statt Produktivkonten. Hell/dunkel, 1440/390/320 px,
   200 % Vergrößerung, AXE, Tastatur und Fokus, Reduced Motion,
   Hintergrundübernahme bei geschlossenem Dialog und zwei offene Tabs geprüft.
+- Zusätzlich vier gezielte Inserat-Browserfälle erfolgreich: echte synthetische
+  Hoch-/Querformate, Bildfehler ohne Layoutsprung, lange Titel,
+  geladener leerer Text ohne Abruf und fehlender Text mit genau einem
+  kontogebundenen Abruf samt Wiederöffnen bei ausstehender Datenbankbestätigung.
+- Die sechs UI-Fälle zusätzlich mit eingehenden/ausgehenden Nachrichten,
+  Angeboten, Systemmeldungen, unbekannter Richtung und langer URL erfolgreich.
+  Tatsächlich berechneter Mindestkontrast 5,78:1, Schriftgrößen 13/12 px.
+  Ein erst am langen Verlauf belegter AXE-Fehler wurde durch Tastaturfokus mit
+  kontrastreicher Markierung behoben; Tab und Home/End scrollen den Verlauf.
 - Shared-UI-Prüfung: 129 Dateien, keine Befunde. Teststrukturprüfung:
   372 Testdateien erfolgreich geprüft. Geänderte Dateien formatiert und gelintet.
 

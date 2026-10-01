@@ -2,6 +2,7 @@
   @if (store.selectedConnection(); as account) {
     <app-vinted-account-controls
       header-actions
+      class="w-full sm:w-auto"
       [connections]="store.connections()"
       [account]="account"
       [canManage]="store.canManage()"

@@ -47,6 +47,11 @@ Chromium-Browserfälle mit künstlichen Serverantworten bestehen: 1440/390/320 p
 hell/dunkel, 200 % Vergrößerung, AXE, Tastatur/Fokus, Reduced Motion,
 Hintergrundübernahme bei geschlossenem Dialog und gespeicherte Meldungen in zwei
 Tabs. Keine Konsolenfehler oder Angular-Warnungen in den sechs neuen UI-Fällen.
+Zusätzlich vier Inseratfälle für Bildformate/-fehler, lange Titel und leere/
+fehlende Beschreibung erfolgreich. Die sechs UI-Fälle mit allen Nachrichtentypen,
+langer URL und gemessenem Mindestkontrast 5,78:1 nochmals erfolgreich.
+Der dabei belegte AXE-Tastaturfehler im langen Verlauf ist mit fokussierbarem,
+sichtbar markiertem Gesprächsbereich behoben und durch Tab/Home/End abgesichert.
 
 **Grenzen:** Favoritenmeldungen zeigen beobachtete Nettoanstiege beim Abruf;
 einzelne Personen oder Echtzeitereignisse werden nicht behauptet. Keine externen
