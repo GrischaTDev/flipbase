@@ -55,7 +55,8 @@ export class VintedCollector {
           status: response.status,
           phase: 'body',
           queryId: query.id,
-          responseSample: body.slice(0, 300),
+          challengeDetected: true,
+          retryAfterSeconds: parseRetryAfter(response.headers.get('retry-after')),
         });
       }
 
@@ -124,6 +125,8 @@ export class VintedCollector {
           status: 403,
           phase: 'request',
           queryId,
+          challengeDetected: response.headers.get('cf-mitigated') === 'challenge',
+          retryAfterSeconds: parseRetryAfter(response.headers.get('retry-after')),
         });
       }
 

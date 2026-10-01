@@ -7,6 +7,21 @@ const validEnv = {
 };
 
 describe('loadConfig', () => {
+  it('loads configurable request spacing and timeout', () => {
+    const config = loadConfig({
+      ...validEnv,
+      SNIPER_REQUEST_MIN_INTERVAL_MS: '15000',
+      SNIPER_REQUEST_TIMEOUT_MS: '30000',
+    });
+    expect(config.requestMinIntervalMs).toBe(15_000);
+    expect(config.requestTimeoutMs).toBe(30_000);
+  });
+  it.each(['SNIPER_REQUEST_MIN_INTERVAL_MS', 'SNIPER_REQUEST_TIMEOUT_MS'])(
+    'rejects unsafe %s',
+    (key) => {
+      expect(() => loadConfig({ ...validEnv, [key]: '0' })).toThrow();
+    },
+  );
   it('applies documented defaults', () => {
     const config = loadConfig(validEnv);
 

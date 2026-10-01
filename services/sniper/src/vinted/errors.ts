@@ -18,6 +18,7 @@ export interface VintedErrorContext {
   requestId?: string;
   retryAfterSeconds?: number;
   responseSample?: string;
+  challengeDetected?: boolean;
 }
 
 export class VintedCollectorError extends Error {
@@ -29,6 +30,7 @@ export class VintedCollectorError extends Error {
   readonly requestId?: string;
   readonly retryAfterSeconds?: number;
   readonly responseSample?: string;
+  readonly challengeDetected?: boolean;
 
   constructor(message: string, kind: ErrorKind, context: VintedErrorContext = {}) {
     super(message);
@@ -40,6 +42,7 @@ export class VintedCollectorError extends Error {
     this.runId = context.runId;
     this.requestId = context.requestId;
     this.retryAfterSeconds = context.retryAfterSeconds;
+    this.challengeDetected = context.challengeDetected;
     this.responseSample = context.responseSample
       ? sanitizeSample(context.responseSample)
       : undefined;
