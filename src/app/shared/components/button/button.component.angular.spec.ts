@@ -19,6 +19,19 @@ beforeAll(async () => {
 });
 
 describe('ButtonComponent', () => {
+  it('verkürzt nur ausdrücklich kompakte Listenzeilen und erhält die Touchfläche', () => {
+    fixture.componentRef.setInput('variant', 'list-row');
+    fixture.detectChanges();
+    const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+    expect(button.classList).toContain('min-h-18');
+    fixture.componentRef.setInput('density', 'compact');
+    fixture.detectChanges();
+    expect(button.classList).toContain('min-h-11');
+    expect(button.classList).toContain('py-2');
+    expect(button.classList).not.toContain('min-h-18');
+    expect(button.classList).toContain('pointer-coarse:min-h-11');
+  });
+
   it('liefert den gemessenen Suchauslöser als gemeinsame 36-Pixel-Variante', () => {
     fixture.componentRef.setInput('size', 'search');
     fixture.detectChanges();
@@ -51,6 +64,7 @@ describe('ButtonComponent', () => {
       variant: ['variant', 1, null],
       tone: ['tone', 1, null],
       size: ['size', 1, null],
+      density: ['density', 1, null],
       loading: ['loading', 1, null],
       disabled: ['disabled', 1, null],
       icon: ['icon', 1, null],
@@ -72,6 +86,7 @@ describe('ButtonComponent', () => {
       variant: 'variant',
       tone: 'tone',
       size: 'size',
+      density: 'density',
       loading: 'loading',
       disabled: 'disabled',
       icon: 'icon',

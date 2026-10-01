@@ -74,6 +74,24 @@ const coreTests = [
     'sidebar-navigation.spec.ts',
     'hält die Sidebar kompakt und hebt den aktiven Bereich in Logo-Gelb hervor @pr-smoke',
   ],
+  ...[1440, 390, 320].flatMap((width) =>
+    ['light', 'dark'].map((theme) => [
+      'vinted-workspace-ui.spec.ts',
+      `kompakte Vinted-Ansicht, Kennzahlen und Favoritenglocke ${width}px ${theme} @marketplace-preview @core-smoke`,
+    ]),
+  ),
+  ...[1440, 390].map((width) => [
+    'vinted-listing-edge-cases.spec.ts',
+    `Inseratgalerie erhält Hoch-/Querformat, Bildfehlerrahmen und langen Titel bei ${width}px @marketplace-preview @core-smoke`,
+  ]),
+  [
+    'vinted-listing-edge-cases.spec.ts',
+    'Bekannte leere Beschreibung startet auch beim Wiederöffnen keinen Browserabruf @marketplace-preview @core-smoke',
+  ],
+  [
+    'vinted-listing-edge-cases.spec.ts',
+    'Fehlende Beschreibung lädt nur das gewählte Inserat und bleibt beim Wiederöffnen im Sitzungscache @marketplace-preview @core-smoke',
+  ],
 ];
 
 const regressionTests = [
@@ -155,7 +173,7 @@ async function listTests(config) {
 
 const keys = (entries) => entries.map((entry) => JSON.stringify(entry)).sort();
 
-test('PR-Auswahl: zwanzig Kernfälle, keine Wiederholungen, kein test.only', async () => {
+test('PR-Auswahl: dreißig Kernfälle, keine Wiederholungen, kein test.only', async () => {
   const { report, selected } = await listTests('playwright.pr.config.ts');
   assert.deepEqual(keys(selected), keys(coreTests));
   assert.equal(report.config.forbidOnly, true);

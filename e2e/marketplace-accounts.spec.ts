@@ -2,301 +2,9 @@ import { expect, test, type Page } from '@playwright/test';
 import axe from 'axe-core';
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
+import { accountIds, mockMarketplace, workspaceId } from './support/marketplace-account-fixture';
 
 test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: 'block' });
-const workspaceId = '25000000-0000-4000-8000-000000000011';
-const accountIds = ['25000000-0000-4000-8000-000000000021', '25000000-0000-4000-8000-000000000022'];
-const emptyPage = () => ({ items: [], total: 0, nextCursor: null });
-
-/** Nur lokale HTTP-Antworten. Weder echte Anmeldung noch Vinted-Zugriff. */
-async function mockMarketplace(
-  page: Page,
-  browserLogin = false,
-  rejectFirstLogin = false,
-  verificationRequired = false,
-  profileLimit = false,
-  importedFeedbacks?: readonly Record<string, unknown>[],
-  importedOverview?: { publicationsTotal: number },
-) {
-  await page.route('**/marketplace-browser/healthz', (route) =>
-    browserLogin
-      ? route.fulfill({ json: { ok: true, readOnly: false, apiVersion: 2 } })
-      : route.fulfill({ status: 502, body: 'Browserdienst nicht verfügbar' }),
-  );
-  const user = {
-    id: '25000000-0000-4000-8000-000000000001',
-    email: 'marketplace@example.test',
-    aud: 'authenticated',
-    role: 'authenticated',
-    app_metadata: {},
-    user_metadata: {},
-    created_at: '2026-09-26T00:00:00Z',
-  };
-  const token = `${Buffer.from('{}').toString('base64url')}.${Buffer.from(JSON.stringify({ sub: user.id, exp: Math.floor(Date.now() / 1000) + 3600 })).toString('base64url')}.test`;
-  await page.addInitScript(
-    ({ user, token }) => {
-      localStorage.setItem(
-        'sb-127-auth-token',
-        JSON.stringify({
-          access_token: token,
-          refresh_token: 'fixture',
-          expires_at: Math.floor(Date.now() / 1000) + 3600,
-          expires_in: 3600,
-          token_type: 'bearer',
-          user,
-        }),
-      );
-      localStorage.setItem('flipbase_theme', 'light');
-    },
-    { user, token },
-  );
-  await page.routeWebSocket(/127\.0\.0\.1:54351/, (socket) => socket.close());
-  const accounts = accountIds.map((connectionId, index) => ({
-    workspaceId,
-    connectionId,
-    marketplace: 'vinted',
-    displayName: `Testkonto ${index === 0 ? 'A' : 'B'}`,
-    externalAccountId: importedFeedbacks ? String(100 + index) : null,
-    status: importedFeedbacks ? 'connected' : 'needs_login',
-    capabilities: {},
-    allowedActions: [],
-    lastSyncedAt: null,
-  }));
-  const calls: { name: string; body: Record<string, unknown> }[] = [];
-  await page.route('**/marketplace-browser/connections/delete', (route) => {
-    const body = route.request().postDataJSON() as Record<string, unknown>;
-    calls.push({ name: 'browser_delete_connection', body });
-    const index = accounts.findIndex(
-      (account) =>
-        account.workspaceId === body['workspaceId'] &&
-        account.connectionId === body['connectionId'],
-    );
-    if (index < 0) return route.fulfill({ status: 403 });
-    accounts.splice(index, 1);
-    return route.fulfill({ status: 204 });
-  });
-  if (browserLogin) {
-    let connectionId = '';
-    let loginSubmitted = false;
-    let codeSubmitted = false;
-    let identityChecks = 0;
-    await page.route('**/marketplace-browser/sessions**', async (route) => {
-      const path = new URL(route.request().url()).pathname;
-      const body = route.request().postDataJSON() as Record<string, unknown>;
-      if (body['workspaceId'] !== workspaceId) return route.fulfill({ status: 403 });
-      if (path.endsWith('/sessions')) {
-        if (profileLimit)
-          return route.fulfill({
-            status: 503,
-            json: { code: 'gologin_profile_limit_reached' },
-          });
-        connectionId = String(body['connectionId']);
-        return route.fulfill({ status: 201, json: { id: '25000000-0000-4000-8000-000000000031' } });
-      }
-      if (body['connectionId'] !== connectionId) return route.fulfill({ status: 403 });
-      if (path.endsWith('/login')) {
-        calls.push({ name: 'browser_login', body });
-        loginSubmitted = true;
-        return route.fulfill({ json: { status: 'submitted' } });
-      }
-      if (path.endsWith('/verify')) {
-        calls.push({ name: 'browser_verify', body });
-        codeSubmitted = true;
-        return route.fulfill({ json: { status: 'submitted' } });
-      }
-      if (path.endsWith('/frame')) {
-        calls.push({ name: 'unexpected_frame', body });
-        return route.fulfill({ status: 500 });
-      }
-      if (path.endsWith('/identify')) {
-        if (verificationRequired && !codeSubmitted)
-          return route.fulfill({ status: 422, json: { code: 'vinted_verification_required' } });
-        if (rejectFirstLogin && calls.filter((call) => call.name === 'browser_login').length === 1)
-          return route.fulfill({ status: 422, json: { code: 'vinted_login_rejected' } });
-        if (!loginSubmitted || ++identityChecks === 1) return route.fulfill({ status: 422 });
-        const connected = accounts.find((account) => account.connectionId === connectionId)!;
-        connected.status = 'connected';
-        connected.externalAccountId = '12345';
-        return route.fulfill({
-          json: {
-            workspaceId,
-            connectionId,
-            externalAccountId: '12345',
-            username: 'synthetic-user',
-          },
-        });
-      }
-      if (path.endsWith('/close')) return route.fulfill({ status: 204 });
-      return route.fulfill({ status: 404 });
-    });
-  }
-  const testSessions = new Map<
-    string,
-    {
-      workspaceId: string;
-      connectionId: string;
-      id: string;
-      state: 'active' | 'expired' | 'revoked' | 'interrupted';
-      expiresAt: string;
-      interactionCount: number;
-    }
-  >();
-  await page.route('http://127.0.0.1:54351/**', async (route) => {
-    const name = new URL(route.request().url()).pathname.split('/').at(-1) ?? '';
-    const body =
-      route.request().method() === 'POST'
-        ? (route.request().postDataJSON() as Record<string, unknown>)
-        : {};
-    let json: unknown = [];
-    if (name === 'user') json = user;
-    if (name === 'profiles') json = { id: user.id, full_name: 'Marktplatz-Test' };
-    if (name === 'is_platform_operator') json = true;
-    if (name === 'workspaces')
-      json = [
-        {
-          id: workspaceId,
-          name: 'Test-Workspace',
-          currency: 'EUR',
-          tax_mode: 'diff_25a',
-          min_roi_percent: 35,
-          min_profit_amount: 20,
-          archived_at: null,
-          setup_completed_at: '2026-09-26T00:00:00Z',
-          created_at: '2026-09-26T00:00:00Z',
-        },
-      ];
-    if (name.startsWith('marketplace_')) calls.push({ name, body });
-    if (name === 'marketplace_can_manage') json = true;
-    if (name === 'marketplace_list_connections') json = { canManage: true, connections: accounts };
-    if (name === 'marketplace_create_connection') {
-      const account = {
-        ...accounts[0],
-        connectionId: '25000000-0000-4000-8000-000000000024',
-        displayName: String(body['p_display_name']),
-      };
-      accounts.push(account);
-      json = account;
-    }
-    if (name === 'marketplace_rename_connection') {
-      accounts.find((a) => a.connectionId === body['p_connection_id'])!.displayName = String(
-        body['p_display_name'],
-      );
-      json = { ok: true };
-    }
-    if (name === 'marketplace_set_paused') {
-      accounts.find((a) => a.connectionId === body['p_connection_id'])!.status = body['p_paused']
-        ? 'paused'
-        : 'needs_login';
-      json = { ok: true };
-    }
-    if (name === 'marketplace_read_snapshot') {
-      const scope = { workspaceId, connectionId: body['p_connection_id'] };
-      const account = accounts.find((a) => a.connectionId === scope.connectionId)!;
-      json = {
-        ...scope,
-        profile: {
-          ...scope,
-          displayName: `Profil ${account.displayName}`,
-          username: 'testprofil',
-          location: 'Deutschland',
-          bio: 'Künstliche Daten für den Oberflächentest.',
-          ...(importedFeedbacks ? { feedbacks: importedFeedbacks } : {}),
-        },
-        publications: {
-          items: [
-            {
-              ...scope,
-              id: 'publication-1',
-              title: 'Vintage-Schal · Testartikel',
-              price: 29.9,
-              currency: 'EUR',
-              status: 'Aktiv',
-              metrics: { views: 0, favorites: null, observedAt: '2026-09-26T12:00:00Z' },
-            },
-          ],
-          total: importedOverview?.publicationsTotal ?? 1,
-          nextCursor: null,
-        },
-        conversations: {
-          items: [
-            {
-              ...scope,
-              id: 'conversation-1',
-              title: 'Frage zum Schal',
-              lastMessage: 'Welche Maße hat der Schal?',
-            },
-          ],
-          total: 1,
-          nextCursor: null,
-        },
-        sales: {
-          items: [
-            {
-              ...scope,
-              id: 'sale-1',
-              title: 'Verkauftes Hemd · Testartikel',
-              price: 30,
-              currency: 'EUR',
-              status: 'Versendet',
-            },
-          ],
-          total: 1,
-          nextCursor: null,
-        },
-        activity: emptyPage(),
-      };
-    }
-    if (name === 'marketplace_read_page') {
-      json = {
-        items: [
-          {
-            workspaceId,
-            connectionId: body['p_connection_id'],
-            conversationId: body['p_parent_id'],
-            id: 'message-1',
-            text: 'Welche Maße hat der Schal?',
-            direction: 'inbound',
-            occurredAt: '2026-09-26T12:00:00Z',
-          },
-        ],
-        total: 1,
-        nextCursor: null,
-      };
-    }
-    if (name === 'marketplace_test_session_start') {
-      const connectionId = String(body['p_connection_id']);
-      const session = {
-        workspaceId,
-        connectionId,
-        id:
-          connectionId === accountIds[0]
-            ? '25000000-0000-4000-8000-000000000031'
-            : '25000000-0000-4000-8000-000000000032',
-        state: 'active' as const,
-        expiresAt: '2099-09-27T10:00:00Z',
-        interactionCount: 0,
-      };
-      testSessions.set(connectionId, session);
-      json = session;
-    }
-    if (name === 'marketplace_test_session_status') {
-      json = testSessions.get(String(body['p_connection_id'])) ?? null;
-    }
-    if (name === 'marketplace_test_session_action') {
-      const session = testSessions.get(String(body['p_connection_id']));
-      if (session) {
-        const action = body['p_action'];
-        if (session.state === 'active' && action === 'ping') session.interactionCount++;
-        if (session.state === 'active' && action === 'interrupt') session.state = 'interrupted';
-        if (session.state === 'active' && action === 'revoke') session.state = 'revoked';
-        json = { ...session, accepted: true };
-      }
-    }
-    await route.fulfill({ json });
-  });
-  return calls;
-}
-
 test('aktiviert und pausiert automatische Vinted-Abrufe je Konto zugänglich @marketplace-preview @core-smoke', async ({
   page,
 }) => {
@@ -385,37 +93,39 @@ test('aktiviert und pausiert automatische Vinted-Abrufe je Konto zugänglich @ma
     await page.goto('/marketplaces/vinted/overview');
     await expect(page).toHaveURL(/\/marketplaces\/vinted\/overview$/);
     await expect(page.getByRole('heading', { name: 'Vinted', exact: true })).toBeVisible();
-    const region = page.getByRole('region', { name: 'Automatische Vinted-Aktualisierung' });
+    await expect(
+      page.getByRole('region', { name: 'Automatische Vinted-Aktualisierung' }),
+    ).toHaveCount(0);
     const accountSelect = page.getByRole('combobox', {
       name: 'Vinted-Konto auswählen',
       exact: true,
     });
-    const activate = region.getByRole('button', {
-      name: 'Automatische Aktualisierung aktivieren',
+    const settings = page.getByRole('button', { name: 'Vinted-Kontoeinstellungen', exact: true });
+    const dialog = page.getByRole('dialog', { name: 'Vinted-Kontoeinstellungen', exact: true });
+    const activate = dialog.getByRole('button', {
+      name: 'Automatik fortsetzen',
       exact: true,
     });
     await expect(accountSelect).toContainText('Testkonto A');
-    const pause = region.getByRole('button', {
-      name: 'Automatische Aktualisierung pausieren',
+    await settings.focus();
+    await settings.press('Enter');
+    await expect(dialog).toBeVisible();
+    const pause = dialog.getByRole('button', {
+      name: 'Automatik pausieren',
       exact: true,
     });
     await expect(pause).toBeEnabled();
-    await expect(region.locator('app-badge')).toHaveText('Aktiv');
-    await expect(region.getByText('Keiner geplant', { exact: true })).toHaveCount(0);
-    expect(writes()).toHaveLength(previousWrites + 1);
-    await expect(region.getByRole('button', { name: 'Stand neu laden', exact: true })).toHaveCount(
-      0,
-    );
-    const settings = region.getByRole('button', { name: 'Aktualisierung einstellen' });
-    await settings.focus();
-    await settings.press('Enter');
-    const dialog = page.getByRole('dialog', { name: 'Automatische Aktualisierung', exact: true });
-    await expect(dialog).toBeVisible();
     const interval = dialog.getByRole('combobox', { name: 'Abrufabstand', exact: true });
+    await expect(interval).toContainText('Alle 15 Minuten');
+    await dialog.locator('summary').click();
+    await expect(dialog.getByText('Aktiv', { exact: true })).toBeVisible();
+    await expect(dialog.getByText('Keiner geplant', { exact: true })).toHaveCount(0);
+    expect(writes()).toHaveLength(previousWrites + 1);
+    expect(writes().at(-1)?.body).toMatchObject({ p_enabled: true, p_interval_minutes: 15 });
     await interval.press('Enter');
     await page.getByRole('option', { name: 'Alle 3 Minuten', exact: true }).click();
     await expect(interval).toContainText('Alle 3 Minuten');
-    await expect(dialog.getByRole('status')).toHaveText('Gespeichert: alle 3 Minuten.');
+    await expect(dialog.getByText('Gespeichert: alle 3 Minuten.', { exact: true })).toBeVisible();
     expect(writes()).toHaveLength(previousWrites + 2);
     expect(writes().at(-1)?.body['p_enabled']).toBe(true);
     await page.addScriptTag({ content: axe.source });
@@ -436,6 +146,9 @@ test('aktiviert und pausiert automatische Vinted-Abrufe je Konto zugänglich @ma
     await dialog.press('Escape');
     await expect(dialog).toHaveCount(0);
     await expect(settings).toBeFocused();
+    await expect(
+      page.getByRole('button', { name: 'Automatik pausieren', exact: true }),
+    ).toHaveCount(0);
     await evidence(page, `vinted-schedule-active-${width}`);
 
     importedOverview.publicationsTotal = 2;
@@ -450,31 +163,48 @@ test('aktiviert und pausiert automatische Vinted-Abrufe je Konto zugänglich @ma
 
     await page.reload();
     await expect(accountSelect).toContainText('Testkonto A');
+    await settings.click();
+    await expect(dialog).toBeVisible();
     await expect(pause).toBeEnabled();
-    await expect(region.locator('app-badge')).toHaveText('Aktiv');
+    await expect(interval).toContainText('Alle 3 Minuten');
+    await dialog.locator('summary').click();
+    await expect(dialog.getByText('Aktiv', { exact: true })).toBeVisible();
     expect(writes()).toHaveLength(previousWrites + 2);
+    await dialog.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    await expect(settings).toBeFocused();
     await accountSelect.press('Enter');
     await page.getByRole('option', { name: /Testkonto B/ }).click();
     await expect(accountSelect).toContainText('Testkonto B');
+    await settings.click();
+    await expect(dialog).toBeVisible();
     await expect(activate).toBeEnabled();
-    await expect(region.locator('app-badge')).toHaveText('Pausiert');
-    await expect(region.getByText('Keiner geplant', { exact: true })).toBeVisible();
+    await dialog.locator('summary').click();
+    await expect(dialog.getByText('Pausiert', { exact: true })).toBeVisible();
+    await expect(dialog.getByText('Keiner geplant', { exact: true })).toBeVisible();
     expect(schedules.get(accountIds[0])?.enabled).toBe(true);
     expect(schedules.get(accountIds[1])?.enabled).toBe(false);
     expect(writes()).toHaveLength(previousWrites + 2);
+    await dialog.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    await expect(settings).toBeFocused();
 
     scheduledSyncAvailable = false;
     await accountSelect.press('Enter');
+    await expect(page.getByRole('option', { name: /Testkonto A/ })).toBeVisible();
     await page.getByRole('option', { name: /Testkonto A/ }).click();
     await expect(accountSelect).toContainText('Testkonto A');
-    await expect(region.locator('app-badge')).toHaveText('Dienst nicht verfügbar');
+    await settings.click();
+    await expect(dialog).toBeVisible();
+    await dialog.locator('summary').click();
+    await expect(dialog.getByText('Dienst nicht verfügbar', { exact: true })).toBeVisible();
     await expect(pause).toBeEnabled();
     await pause.focus();
     await expect(pause).toBeFocused();
     await pause.press('Enter');
-    await expect(region.locator('app-badge')).toHaveText('Pausiert');
+    await expect(dialog.getByText('Pausiert', { exact: true })).toBeVisible();
     await expect(activate).toBeDisabled();
-    await expect(region.getByText('Keiner geplant', { exact: true })).toBeVisible();
+    await expect(dialog.getByText('Keiner geplant', { exact: true })).toBeVisible();
     expect(
       writes()
         .slice(previousWrites)
@@ -487,7 +217,7 @@ test('aktiviert und pausiert automatische Vinted-Abrufe je Konto zugänglich @ma
         async () =>
           (
             await (window as unknown as { axe: typeof axe }).axe.run(
-              document.querySelector('app-vinted-sync-schedule') as HTMLElement,
+              document.querySelector('app-modal-shell') as HTMLElement,
             )
           ).violations,
       ),
@@ -540,6 +270,8 @@ test('zeigt unbekannte Bewertungen und gespeicherte Teilfehler zugänglich @mark
     }),
   );
   await page.goto('/marketplaces/vinted/feedback');
+  await expect(page).toHaveURL(/\/marketplaces\/vinted\/profile#reviews$/);
+  await expect(page.locator('#reviews')).toBeFocused();
   const feedback = page.locator('app-vinted-feedback-list');
   await expect(feedback.getByText('Autor unbekannt', { exact: true })).toBeVisible();
   await expect(feedback.getByText('Herkunft unbekannt', { exact: true })).toBeVisible();
@@ -550,7 +282,7 @@ test('zeigt unbekannte Bewertungen und gespeicherte Teilfehler zugänglich @mark
       async () =>
         (
           await (window as unknown as { axe: typeof axe }).axe.run(
-            document.querySelector('app-vinted-feedback-list') as HTMLElement,
+            document.querySelector('app-vinted-profile') as HTMLElement,
           )
         ).violations,
     ),
@@ -682,14 +414,14 @@ for (const width of [1440, 390]) {
       .getByRole('navigation', { name: 'Vinted-Bereiche' })
       .getByRole('link', { name: 'Profil', exact: true })
       .click();
-    await expect(page.locator('app-vinted-account-content')).toContainText('Profil Testkonto B');
+    await expect(page.locator('app-vinted-profile')).toContainText('Profil Testkonto B');
     await page.addScriptTag({ content: axe.source });
     expect(
       await page.evaluate(
         async () =>
           (
             await (window as unknown as { axe: typeof axe }).axe.run(
-              document.querySelector('app-vinted-account-content') as HTMLElement,
+              document.querySelector('app-vinted-profile') as HTMLElement,
             )
           ).violations,
       ),
@@ -728,7 +460,11 @@ for (const width of [1440, 390]) {
     await page.getByRole('button', { name: /Frage zum Schal/ }).click();
     await expect(page.getByRole('log')).toContainText('Welche Maße hat der Schal?');
     await evidence(page, `vinted-messages-${width}`);
-    await page.getByRole('link', { name: 'Konten verwalten', exact: true }).click();
+    await page.getByRole('button', { name: 'Vinted-Kontoeinstellungen', exact: true }).click();
+    await page
+      .getByRole('dialog', { name: 'Vinted-Kontoeinstellungen', exact: true })
+      .getByRole('link', { name: 'Konten verwalten', exact: true })
+      .click();
     const accountsHeading = page.getByRole('heading', { name: 'Vinted-Konten', exact: true });
     await expect(accountsHeading).toBeVisible();
     expect(
@@ -842,7 +578,10 @@ for (const width of [1440, 390]) {
     await expect(page.getByText('Andere Anmeldemöglichkeit')).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Bild aktualisieren' })).toHaveCount(0);
     await evidence(page, `vinted-background-login-${width}`);
-    await expect(page.getByText('Dein Vinted-Konto ist verbunden.', { exact: true })).toBeVisible();
+    // Die Anmeldung prüft die Bestätigung alle drei Sekunden; die Fixture wartet einmal bewusst.
+    await expect(page.getByText('Dein Vinted-Konto ist verbunden.', { exact: true })).toBeVisible({
+      timeout: 15_000,
+    });
     expect(calls.filter((call) => call.name === 'unexpected_frame')).toHaveLength(0);
     const logins = calls.filter((call) => call.name === 'browser_login');
     expect(logins).toHaveLength(1);
@@ -899,7 +638,9 @@ for (const width of [1440, 390]) {
       .fill('synthetic-user');
     await page.getByLabel('Vinted-Passwort').fill('synthetic-corrected');
     await page.getByRole('button', { name: 'Anmelden und Konto verbinden', exact: true }).click();
-    await expect(page.getByText('Dein Vinted-Konto ist verbunden.', { exact: true })).toBeVisible();
+    await expect(page.getByText('Dein Vinted-Konto ist verbunden.', { exact: true })).toBeVisible({
+      timeout: 15_000,
+    });
     expect(calls.filter((call) => call.name === 'browser_login')).toHaveLength(2);
   });
 }
@@ -923,7 +664,9 @@ test('zeigt den SMS-Code im Kontodialog und bindet ihn an das gewählte Konto @m
   await evidence(page, 'vinted-code-390');
   await dialog.getByLabel('Vinted-Bestätigungscode').fill('123456');
   await dialog.getByRole('button', { name: 'Code bestätigen' }).click();
-  await expect(dialog.getByText('Dein Vinted-Konto ist verbunden.')).toBeVisible();
+  await expect(dialog.getByText('Dein Vinted-Konto ist verbunden.')).toBeVisible({
+    timeout: 15_000,
+  });
   expect(calls.filter((call) => call.name === 'browser_verify')).toEqual([
     {
       name: 'browser_verify',

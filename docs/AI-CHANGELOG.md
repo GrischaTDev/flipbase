@@ -1,5 +1,144 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-01 – Juna – Vinted-Umbau für PR und Merge freigegeben
+
+**Auftrag:** Nach ausdrücklichem „los“ den geprüften Vinted-Zweig veröffentlichen,
+alle Pflichtprüfungen abwarten, per Merge-Commit integrieren und anschließend
+den eigenen Zweig samt Worktree aufräumen.
+
+**Vorbereitung:** Sauberer Stand `3e1465ef`, aktueller Hauptstand `fd4dc95f`
+bereits integriert. Produktionsbau, Typprüfung, betroffene Tests, 23 künstliche
+Browserfälle und lokale Migrationsprüfung erfolgreich; finale Templatefixes
+zusätzlich unabhängig freigegeben. PR-Freigabe umfasst die geprüfte transaktionale
+Migration; der Releaseweg bleibt Backup → Migrationen → Anwendung → öffentlicher
+Versionscheck. Keine externen Nachrichten oder zusätzliche Workerveröffentlichung.
+
+**CI-Korrektur:** Die Qualitätsprüfung meldete die zehn neuen Browserfälle als
+unerwartet, weil die gepflegte Erwartung noch zwanzig Kernfälle enthielt. Die
+Auswahlerwartung nimmt alle zehn Vinted-Fälle ausdrücklich auf; kein Test wird
+entfernt oder von der Pflichtprüfung ausgeschlossen. Die Prüfung gegen echte
+Playwright-Testauswahl bleibt erhalten.
+
+## 2026-10-01 – Juna – Vinted-Ansicht umgebaut und Favoritenmeldungen umgesetzt
+
+**Auftrag:** Den freigegebenen Entwurf nach „los“ umsetzen: kompakter Kontokopf,
+Einstellungen im Dialog, Navigation mit Aktivitäten und Profilbewertungen,
+nützliche Übersicht, kleinere Inseratdetails, lesbare Nachrichten und sichtbare
+Kennzahlenanstiege. Mehrere Agents übernehmen getrennte Pakete und Reviews.
+
+**Änderung:** Gemeinsame UI-Bausteine und Themefarben bündeln Kontowahl,
+Aktualisierungsicon und Einstellungen. Die bestehende Automatik bleibt außerhalb
+des Dialogs aktiv. Übersicht zeigt gespeicherte Gespräche, Verkäufe und tatsächliche
+Gesamtzahlen. Aktivitäten zeigt gespeicherte Einträge, ohne künstliche Ereignisse
+zu erfinden. Alte Bewertungslinks führen mit Fokus zum Profilabschnitt.
+Detailfotos sind begrenzt; vorhandene Beschreibungen erscheinen direkt. Fehlende
+Texte werden einmal kontogebunden geladen und im Sitzungscache gehalten, ohne eine
+erfolgreiche Antwort als bestätigte Datenbankspeicherung auszugeben. Bestätigte
+Bearbeitungen werden gegen ältere Cacheantworten geschützt. Eine spätere
+Kennzahlenzeit gilt nicht als neuerer Beschreibungstext; noch nicht
+datenbankbestätigter Sitzungstext bleibt deshalb konservativ erhalten.
+Nachrichten bleiben
+bei Nachladefehlern sichtbar; Wiederholen funktioniert auch nach neuen Snapshots.
+
+**Kennzahlen und Meldungen:** Bekannte neuere Stände zeigen Aufruf-/Favoritenanstiege
+als `+N` mit begrenzter Hervorhebung; Reduced Motion bleibt statisch. Erstwerte,
+unbekannte Zahlen, Rückgänge und Wiederholungen erzeugen keinen falschen Anstieg.
+Akzeptierte Datenbankimporte erzeugen atomare, deduplizierte Favoritenmeldungen,
+kontoweise zusammengefasst und standardmäßig ohne Ton. Aktivieren setzt zuerst
+eine neue Basis, auch bei Teilimporten. Der eigene berechtigte Meldungsstrom
+erscheint in der globalen Glocke; Kontoparameter in Sammellinks bleiben erhalten.
+Private Broadcasts invalidieren nur den Feed, ein begrenzter Datenbankabruf fängt
+ausgefallene Verbindungen auf. Rechte-/Kontextwechsel verwerfen alte Antworten.
+
+**Prüfung:** Gezielte Regressionen zunächst mit Fehler, danach erfolgreich;
+unabhängige Reviews und deren Dialog-, Verlauf-, Cache-, Link- und Rechterennen-
+Korrekturen. Der breite Lauf mit 3.448 Anwendungstests war erfolgreich; spätere
+Korrekturen wurden anschließend gezielt geprüft, zuletzt 296 betroffene
+Angular-Tests erfolgreich. Abschließende Typprüfung und
+Produktionsbau erfolgreich; nur der bestehende pako-CommonJS-Hinweis bleibt.
+Alle acht Marktplatz-Datenbanktests (344 Prüfungen) bestehen auch nach Anwendung
+der erzeugten Migration auf dem unveränderten lokalen Ausgangsstand; echte
+parallele Importe/Einstellungswechsel zusätzlich geprüft. Schema registriert,
+Typen neu erzeugt. Der CLI-Abgleich wurde um automatisch aus Diff/Katalog/Dump
+erzeugte Rollenrechte und die übersprungene Realtime-Policy ergänzt; alle elf
+Funktionsrümpfe sind mit den deklarativen Quellen abgeglichen. Alle 19 kombinierten
+Chromium-Browserfälle mit künstlichen Serverantworten bestehen: 1440/390/320 px,
+hell/dunkel, 200 % Vergrößerung, AXE, Tastatur/Fokus, Reduced Motion,
+Hintergrundübernahme bei geschlossenem Dialog und gespeicherte Meldungen in zwei
+Tabs. Keine Konsolenfehler oder Angular-Warnungen in den sechs neuen UI-Fällen.
+Zusätzlich vier Inseratfälle für Bildformate/-fehler, lange Titel und leere/
+fehlende Beschreibung erfolgreich. Die sechs UI-Fälle mit allen Nachrichtentypen,
+langer URL und gemessenem Mindestkontrast 5,78:1 nochmals erfolgreich.
+Der dabei belegte AXE-Tastaturfehler im langen Verlauf ist mit fokussierbarem,
+sichtbar markiertem Gesprächsbereich behoben und durch Tab/Home/End abgesichert.
+
+**Grenzen:** Favoritenmeldungen zeigen beobachtete Nettoanstiege beim Abruf;
+einzelne Personen oder Echtzeitereignisse werden nicht behauptet. Keine externen
+Nachrichten, Browser-Pushs oder zusätzlichen Vinted-Abfragen. Getrennte schnelle
+Nachrichten-/Angebots-/Verkaufsbenachrichtigungen gehören nicht zu diesem Umbau.
+Die unveränderte Worker-Importschnittstelle führt die neuen Datenbankhooks aus;
+dieser Umbau benötigt Schema-/Anwendungsrelease, kein zusätzliches Workerimage.
+Eigener Zweig/Worktree; bisher keine Veröffentlichung oder Produktionsänderung.
+
+## 2026-10-01 – Juna – sichtbare Vinted-Kennzahlenänderungen ergänzt
+
+**Auftrag:** Steigende Aufruf- und Favoritenzahlen am Inserat erkennbar machen;
+bei neuen Favoriten einen Hinweis beziehungsweise eine Benachrichtigung vorsehen.
+
+**Prüfung:** Vorhandenen Kennzahlenimport und Glockenfeed mit einem Agent
+lesend geprüft. Aufrufe, Favoriten und Abrufzeit liegen bereits im Snapshot;
+es gibt noch keine dauerhaften Favoritenereignisse. Die allgemeine Glocke ist
+workspaceweit lesbar, während Vinted engere Betreiber-/Adminrechte verlangt.
+
+**Entwurf:** Bestehenden UI-Entwurf und Umsetzungsplan erweitert: `+N` am
+Inserat mit kurzer Hervorhebung und statischer Reduced-Motion-Variante,
+erste bekannte Werte als Basis, keine positiven Meldungen für unbekannte
+oder sinkende Zahlen. Zusätzliches fünftes Paket für atomare, deduplizierte
+Favoritenereignisse und einen berechtigten Meldungsstrom in der Glocke;
+kontoweise Zusammenfassung und abschaltbare In-App-Meldungen ohne neuen Ton.
+Wiederholungen, verspätete Importe, Rechteverlust und geschlossene Vinted-Ansicht
+sind ausdrückliche Abnahmefälle. Keine zusätzlichen Anbieterabfragen.
+Agentenreview präzisiert außerdem den Beschreibungsvertrag: eine erfolgreiche
+Leseantwort ohne Speicherwarnung bestätigt noch keine dauerhafte Speicherung.
+
+**Grenzen:** Planungsänderung, noch keine Produktimplementierung oder Migration.
+Sichtbar ist der beobachtete Nettoanstieg beim Abruf, keine einzelne Person
+oder Echtzeitaktivität. Externe Nachrichten und Hintergrund-Push sind nicht
+beauftragt. Dokumente formatiert und Diff auf Fehler geprüft.
+
+## 2026-10-01 – Juna – kompakte Vinted-Ansicht mit Agents durchgeplant
+
+**Auftrag:** Kontokopf und Automatik verkleinern, Einstellungen bündeln,
+Navigation und Übersicht verbessern, Inserate samt Detailbildern kompakter
+darstellen und Nachrichten im dunklen Theme lesbar machen. Nutzer bestätigt
+die Navigation Übersicht, Nachrichten, Inserate, Verkäufe, Aktivitäten und
+Profil; Bewertungen gehören ins Profil.
+
+**Prüfung:** Aktuellen `origin/master` bei `f1c9e623`, Designrichtlinien und
+vorhandene Shared-Bausteine gelesen. Drei Agents prüfen unabhängig Kopf/
+Navigation, Inserate/Ladeverhalten und Nachrichten. Produktive Ansicht lesend
+betrachtet; feste helle Nachrichtenflächen mit nahezu weißem Theme-Text
+bestätigt. Das übergroße Detailbild verwendet den unbegrenzten Rastermodus.
+Ein Beschreibungs-Cache besteht bereits; erneutes Laden, verworfene
+Speicherhinweise, fehlende Kontextprüfung und Beschreibungsfrische werden
+getrennt behandelt. Aktivitäten existiert als Route, fehlt aber in der Navigation.
+
+**Entwurf:** Eigener Worktree auf `juna/vinted-ui-plan`, vier prüfbare Pakete
+mit abgesprochener Agentenaufteilung. Kompakter Kopf und Einstellungsmodal,
+gemeinsame gelbe Bereichsnavigation, vorhandene Daten als nützliche Übersicht,
+begrenzt große Detailgalerie und unmittelbare gespeicherte Beschreibungen,
+kompakter Nachrichtenbereich mit Themefarben. Betreiberrechte, ungelesene
+Verläufe, bestehende Pausen und Hintergrundübernahme bleiben erhalten.
+Design und Umsetzungsplan unter `docs/superpowers/specs/2026-10-01-vinted-workspace-design.md`
+und `docs/superpowers/plans/2026-10-01-vinted-workspace-refactor.md` festgehalten.
+
+**Grenzen:** Nur Navigation verbindlich bestätigt; übrige Gestaltung ist ein
+prüfbarer Entwurf. Keine Produktimplementierung, Migration, Kontoeinstellung,
+Nachricht oder Serveränderung. Neue Sendefunktionen und Ereignismeldungen
+gehören nicht zum UI-Umbau. Umfangreiche Beschreibungserneuerung braucht
+einen späteren geprüften Server-/SQL-Vertrag. Dokumente formatiert und auf
+Umfang, Schnittstellen, Rechte und Abnahmefälle abgeglichen.
+
 ## 2026-10-01 – Juna – begrenzte Wiederprüfungen nach Cloudflare-Prüfseiten umgesetzt
 
 **Auftrag:** Nach „los“ die aus dem Serververgleich abgeleitete Wiederaufnahme

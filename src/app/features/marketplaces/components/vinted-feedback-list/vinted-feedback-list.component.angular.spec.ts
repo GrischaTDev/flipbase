@@ -121,6 +121,27 @@ describe('VintedFeedbackListComponent', () => {
     expect(component.filteredFeedbacks().length).toBe(3);
   });
 
+  it('verwendet für jeden aktiven Filter den Texttoken des gelben Markenakzents', () => {
+    fixture.componentRef.setInput('profile', sampleProfile);
+    fixture.detectChanges();
+    const tabs = [
+      ...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('[role="tab"]'),
+    ];
+    expect(tabs).toHaveLength(3);
+    for (const selectedTab of tabs) {
+      selectedTab.click();
+      fixture.detectChanges();
+      for (const tab of tabs) {
+        const selected = tab === selectedTab;
+        expect(tab.getAttribute('aria-selected')).toBe(String(selected));
+        expect(tab.classList.contains('bg-fb-primary')).toBe(selected);
+        expect(tab.classList.contains('text-fb-on-accent')).toBe(selected);
+        expect(tab.classList.contains('text-fb-primary-contrast')).toBe(false);
+        expect(tab.classList.contains('text-fb-text-secondary')).toBe(!selected);
+      }
+    }
+  });
+
   it('zeigt den Empty State an, wenn keine Bewertungen vorhanden sind', () => {
     const emptyProfile: MarketplaceProfile = {
       ...sampleProfile,
