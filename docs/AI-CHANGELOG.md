@@ -1,5 +1,18 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-01 – Juna – Artikelbot-Korrektur für PR und Merge freigegeben
+
+**Auftrag:** Nach ausdrücklichem „ja“ den lokal geprüften Artikelbot-Zweig
+veröffentlichen, alle erfolgreichen Pflichtprüfungen abwarten, per Merge-Commit
+integrieren und den eigenen Zweig samt Worktree aufräumen.
+
+**Vorbereitung:** Sauberer Implementierungsstand `08434869`, unveränderter
+aktueller `origin/master` (`f1c9e623`). Lokal 200 Bot-Tests, Typprüfung, Build,
+Format/Lint und isolierter Docker-Starttest erfolgreich. Der produktive Bot
+läuft noch auf `ce391ce` und erhielt um 21:42 Uhr erneut HTTP 403. Der geplante
+Releaseweg aktualisiert dieses separate Botimage automatisch; tatsächlichen
+Rollout und Anbieterzustand anschließend getrennt prüfen.
+
 ## 2026-10-01 – Juna – wiederkehrende Artikelbot-Abbrüche geprüft und Wiederaufnahme korrigiert
 
 **Auftrag:** Den erneuten Stillstand seit 21:06 Uhr und „Zugriff abgewiesen“
