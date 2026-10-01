@@ -1,5 +1,46 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-01 – Juna – eBay-Artikelzuordnung und Bestellübernahme vorbereitet
+
+**Auftrag:** Nach erfolgreicher Kontoeinrichtung mit dem nächsten eBay-Paket
+weitermachen. Der Nutzer wählt ausdrücklich eine Prüfmaske pro Bestellung mit
+bewusster Bestätigung über „Verkauf buchen“.
+
+**Abgleich:** Persönliche Kontorechte und vorhandene Datenbanktests lesend geprüft;
+der echte zusätzliche Test mit zwei normalen Flipbase-Konten bleibt offen und
+wird auf Nutzerwunsch zurückgestellt. Verkaufsbuchung, Varianten-/Einzelstückauswahl,
+Bestandsführung und die aktuelle eBay-Schnittstelle gegen `origin/master` gelesen.
+Die offizielle Fulfillment-Spezifikation liefert eindeutige Bestellpositions-,
+Inserat- und Variantenkennungen sowie getrennte Waren- und Versandbeträge; die
+bisherige Flipbase-Antwort enthält davon noch nicht alle benötigten Angaben.
+
+**Entwurf:** Vorhandene Verkaufserfassung erweitern, konten- und workspacebezogene
+Artikelzuordnungen speichern und bestätigte Bestellungen gemeinsam mit ihren
+Bestandsabgängen gegen doppelte Übernahme schützen. Fehlende Gebühren und
+tatsächliche Versandkosten müssen ergänzt oder ausdrücklich bestätigt werden.
+Vorerst vollständig bezahlte EUR-Bestellungen ohne Storno oder Erstattung;
+bereits manuell gebuchte Bestellungen sollen ohne erneuten Bestandsabgang als
+erledigt markierbar sein. Der Nutzer bestätigt diesen Entwurf zum schriftlichen
+Festhalten. Spezifikation im eigenen Worktree auf `juna/ebay-order-import` unter
+`docs/superpowers/specs/2026-10-01-ebay-order-import-design.md` geschrieben und auf
+Quellbeträge, Kontorechte, Lebenszyklus und Doppelbuchungsschutz abgeglichen.
+Die Freigabe der schriftlichen Spezifikation und des anschließenden Umsetzungsplans
+steht noch aus.
+
+**Prüfung:** Ausschließlich Quellstand und offizielle Dokumentation gelesen;
+keine Produktimplementierung, Migration, produktive Buchung oder Serveränderung.
+Fremde Vinted-Arbeitsstände unverändert erhalten.
+
+## 2026-10-01 – Juna – eBay-Production-Konfiguration aktiviert
+
+**Auftrag:** Nach bestätigter Anschrift die bereits freigegebene eBay-Einrichtung abschließen und den echten Kontotest beginnen.
+
+**Veröffentlichung:** PR #273 nach erfolgreichen Pflichtprüfungen mit Merge-Commit `ce391ce9` integriert. Release `v0.276.2`, Produktionsbau, Deployment und öffentliche Prüfung erfolgreich; eigener Branch und Worktree aufgeräumt. Die eBay-Funktionen stammen genau aus diesem Merge. Vorherige Funktionsquellen, Compose-Dateien und Umgebung auf dem Server geschützt gesichert; vorhandene gemeinsame Quellen vor Übertragung auf Gleichheit geprüft.
+
+**Einrichtung:** Löschendpoint bei eBay bestätigt, Ausfalladresse `kontakt@flipbase.de` nach Nutzerangabe gespeichert. Nutzer bestätigt seine Anschrift selbst im Portal. OAuth-RuName mit beiden Flipbase-Rückwegen, veröffentlichtem Datenschutzlink und den drei benötigten Rechten eingerichtet. Vorhandenes Client-Secret verschlüsselt zum Server übertragen; sämtliche eBay-Werte ausschließlich serverseitig hinterlegt. Verschlüsselungsschlüssel erhalten, vollständige Umgebung mit Modus 0600 gesichert und temporären privaten Transportschlüssel entfernt.
+
+**Prüfung:** Production-Anwendungsauthentifizierung von eBay angenommen. Offizielle eBay-Testbenachrichtigung laut Portal erfolgreich. Öffentliche Challenge samt erwartetem Hash, anonymer Kontozugriff (401), unsignierte Löschmeldung (412), abgeschaltete Marktsuche (410), bestehende Barcode-/Beta-Zugriffe und gesunder Funktionsdienst bestätigt. Ungültiger OAuth-Rückweg führt mit 303 zur vorgesehenen Fehleransicht. Vor und nach der Testbenachrichtigung keine verbundenen eBay-Konten oder Zugangstokens vorhanden. Nutzer erteilt die persönliche Freigabe selbst bei eBay. Konto erfolgreich verbunden; 15 echte Inserate und 11 Bestellungen geladen. Workspacewechsel verbirgt die Daten und stellt sie bei Rückkehr wieder her. Trennen entfernt die gespeicherten Tokens; erneutes Verbinden lädt die Inserate wieder. Abschließend genau eine verbundene Verbindung mit verschlüsselten Tokens, verbrauchtem OAuth-Zustand und freigegebener Abrufsperre bestätigt. Der Nutzer bleibt verbunden. Die Prüfung mit zwei normalen Flipbase-Konten ohne Adminrechte benötigt noch die entsprechenden Nutzeranmeldungen; der echte Nachweis ist bisher mit dem vorhandenen Admin-Konto geführt.
+
 ## 2026-10-01 – Juna – Vinted-Korrektur für PR und Merge freigegeben
 
 **Auftrag:** Nach ausdrücklichem „los“ den geprüften Zweig veröffentlichen,
