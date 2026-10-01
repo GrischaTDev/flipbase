@@ -4,6 +4,7 @@ import type { Logger } from '../log.js';
 import type { OriginState } from '../store/origin-state.store.js';
 import type { RequestBudget } from './budget.js';
 import { evaluateFailure, type RetryDecision } from './retry-policy.js';
+import { VintedCollectorError } from '../vinted/errors.js';
 
 export interface QueryStoreLike {
   dueQueries(now: Date): Promise<SniperQuery[]>;
@@ -96,6 +97,7 @@ export interface CycleReport {
   seeded: number;
   failed: number;
   newHits: number;
+  originPause?: { reason: string; until: string | null };
 }
 
 export interface SchedulerDeps {
@@ -136,6 +138,10 @@ export class QueryScheduler {
     // 'blocked' ohne Ablaufzeit gilt als abgelaufener Cooldown, damit eine
     // bereits gespeicherte Dauersperre sich nach dem Deployment selbst loest.
     if (originState.state === 'cooldown' || originState.state === 'blocked') {
+      report.originPause = {
+        reason: originState.reason ?? 'unknown',
+        until: originState.blockedUntil,
+      };
       const blockedUntilMs = originState.blockedUntil
         ? new Date(originState.blockedUntil).getTime()
         : null;
@@ -179,8 +185,15 @@ export class QueryScheduler {
       return report;
     }
 
-    // Wenn Probe-Zyklus: Nur genau eine Abfrage ausfuehren!
-    const queriesToRun = isProbeCycle ? [dueQueries[0]!] : dueQueries;
+    // Dieselbe fehlgeschlagene Abfrage pruefen: Der gespeicherte Fehlerzaehler
+    // verlaengert dann die gemeinsame Pause auch nach einem Dienstneustart.
+    // Sonst beginnen drei Marken nacheinander jeweils wieder bei fuenf Minuten.
+    const previousFailure = dueQueries
+      .filter(
+        (query) => query.runState === 'cooldown' && query.lastErrorKind === originState.reason,
+      )
+      .sort((a, b) => (b.lastAttemptAt ?? '').localeCompare(a.lastAttemptAt ?? ''))[0];
+    const queriesToRun = isProbeCycle ? [previousFailure ?? dueQueries[0]!] : dueQueries;
 
     for (const query of queriesToRun) {
       if (!this.deps.budget.hasCapacity()) {
@@ -248,6 +261,7 @@ export class QueryScheduler {
     // Erfolgreicher Abruf!
     if (isProbe) {
       await this.originStore.releaseProbe(this.origin, true);
+      delete report.originPause;
     }
 
     const created = await this.deps.listings.saveNew(listings, query.id);
@@ -305,6 +319,14 @@ export class QueryScheduler {
       runState: decision.runState,
       nextAttemptAt: decision.nextAttemptAt?.toISOString() ?? null,
       reason: decision.errorMessage,
+      ...(error instanceof VintedCollectorError
+        ? {
+            httpStatus: error.status ?? null,
+            phase: error.phase,
+            challengeDetected: error.challengeDetected ?? false,
+            retryAfterSeconds: error.retryAfterSeconds ?? null,
+          }
+        : {}),
     });
 
     if (this.deps.queries.recordFailure) {
@@ -320,6 +342,10 @@ export class QueryScheduler {
     }
 
     if (decision.originUpdate) {
+      report.originPause = {
+        reason: decision.originUpdate.reason,
+        until: decision.originUpdate.blockedUntil?.toISOString() ?? null,
+      };
       if (decision.originUpdate.state === 'cooldown' && decision.originUpdate.blockedUntil) {
         await this.originStore.setCooldown(
           this.origin,

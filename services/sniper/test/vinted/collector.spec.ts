@@ -42,6 +42,22 @@ function build(fetchFn: ReturnType<typeof vi.fn>) {
 }
 
 describe('VintedCollector', () => {
+  it('reports a provider challenge and its retry delay without retrying or exposing the body', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      new Response('private provider content', {
+        status: 403,
+        headers: { 'cf-mitigated': 'challenge', 'retry-after': '1800' },
+      }),
+    );
+    await expect(build(fetchFn).collect(query)).rejects.toMatchObject({
+      kind: 'forbidden',
+      status: 403,
+      challengeDetected: true,
+      retryAfterSeconds: 1800,
+      responseSample: undefined,
+    });
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
   it.each([53, 14, 88])(
     'collects only brand %s without hidden text, category or price filters',
     async (brandId) => {

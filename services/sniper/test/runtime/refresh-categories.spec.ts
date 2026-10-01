@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { refreshCategoriesIfDue } from '../../src/runtime/refresh-categories.js';
 import type { CategorySyncState } from '../../src/runtime/category-refresh.js';
 import type { VintedCategory } from '../../src/vinted/categories.js';
+import { ForbiddenError } from '../../src/vinted/errors.js';
 
 const html = readFileSync(new URL('../fixtures/vinted-homepage.html', import.meta.url), 'utf8');
 const now = new Date('2026-09-06T12:00:00.000Z');
@@ -19,6 +20,75 @@ function storeStub(state: CategorySyncState) {
 }
 
 describe('refreshCategoriesIfDue', () => {
+  it('pauses the shared origin when the category request is refused', async () => {
+    const store = storeStub({ refreshedAt: null, requestedAt: null, lastAttemptAt: null });
+    const setCooldown = vi.fn(async () => undefined);
+    const result = await refreshCategoriesIfDue(
+      {
+        store,
+        hasCapacity: () => true,
+        maxAgeMs: DAY_MS,
+        log,
+        fetchHomepage: async () => {
+          throw new ForbiddenError('Refused', { retryAfterSeconds: 1800 });
+        },
+        originState: {
+          getState: async () => ({
+            origin: 'vinted',
+            state: 'ready',
+            blockedUntil: null,
+            reason: null,
+            probeInFlight: false,
+            updatedAt: now.toISOString(),
+          }),
+          setCooldown,
+        },
+      },
+      now,
+    );
+    expect(result).toBe('failed');
+    expect(setCooldown).toHaveBeenCalledWith(
+      'vinted',
+      new Date('2026-09-06T12:30:00Z'),
+      'forbidden',
+    );
+    expect(store.markRefreshed).not.toHaveBeenCalled();
+  });
+  it.each(['cooldown', 'blocked'] as const)(
+    'does not fetch categories while origin is %s, even after expiry',
+    async (state) => {
+      const store = storeStub({
+        refreshedAt: null,
+        requestedAt: now.toISOString(),
+        lastAttemptAt: null,
+      });
+      const fetchHomepage = vi.fn(async () => html);
+      const result = await refreshCategoriesIfDue(
+        {
+          store,
+          fetchHomepage,
+          hasCapacity: () => true,
+          maxAgeMs: DAY_MS,
+          log,
+          originState: {
+            getState: async () => ({
+              origin: 'vinted',
+              state,
+              blockedUntil: '2026-09-06T11:00:00Z',
+              reason: 'forbidden',
+              probeInFlight: false,
+              updatedAt: now.toISOString(),
+            }),
+            setCooldown: async () => undefined,
+          },
+        },
+        now,
+      );
+      expect(result).toBe('skipped');
+      expect(fetchHomepage).not.toHaveBeenCalled();
+      expect(store.markFailed).not.toHaveBeenCalled();
+    },
+  );
   it('tut nichts, solange der Stand jung genug ist', async () => {
     const store = storeStub({
       refreshedAt: '2026-09-06T06:00:00.000Z',

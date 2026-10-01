@@ -5,6 +5,7 @@ import { createHealthState, startHealthServer } from './health.js';
 import { createLogger } from './log.js';
 import { RequestBudget } from './runtime/budget.js';
 import { countingFetch } from './runtime/counting-fetch.js';
+import { pacedVintedFetch } from './runtime/paced-vinted-fetch.js';
 import { ListingRetention } from './runtime/listing-retention.js';
 import { refreshCategoriesIfDue } from './runtime/refresh-categories.js';
 import { QueryScheduler } from './runtime/scheduler.js';
@@ -19,6 +20,7 @@ import { createSupabaseClient } from './store/supabase.js';
 import { VintedCollector } from './vinted/collector.js';
 import { preferIpv6 } from './vinted/network.js';
 import { sleep } from './vinted/session.js';
+import { ForbiddenError, RateLimitedError, parseRetryAfter } from './vinted/errors.js';
 
 preferIpv6();
 
@@ -31,7 +33,13 @@ const budget = new RequestBudget(config.requestsPerMinute);
 // Jede ausgehende Anfrage meldet sich selbst beim Budget - Katalogabfrage,
 // Wiederholungen nach 5xx und der getrennte Kategorieabruf gleichermassen.
 const metrics = new RequestMetrics();
-const counted = countingFetch(metrics.wrap(fetch), () => budget.record());
+const counted = pacedVintedFetch(
+  countingFetch(metrics.wrap(fetch), () => budget.record()),
+  {
+    minimumIntervalMs: config.requestMinIntervalMs,
+    requestTimeoutMs: config.requestTimeoutMs,
+  },
+);
 const vintedConnection = new VintedConnectionState();
 
 const health = createHealthState(() => budget.usageRatio());
@@ -81,6 +89,8 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
 log.info('started', {
   requestsPerMinute: config.requestsPerMinute,
   tickIntervalMs: config.tickIntervalMs,
+  requestMinIntervalMs: config.requestMinIntervalMs,
+  requestTimeoutMs: config.requestTimeoutMs,
   healthPort: config.healthPort,
 });
 
@@ -99,6 +109,7 @@ while (!controller.signal.aborted) {
     await refreshCategoriesIfDue(
       {
         store: categories,
+        originState,
         hasCapacity: () => budget.hasCapacity(),
         fetchHomepage: async () => {
           try {
@@ -108,8 +119,29 @@ while (!controller.signal.aborted) {
                 'User-Agent': config.userAgent,
               },
             });
+            const retryAfterSeconds = parseRetryAfter(response.headers.get('retry-after'));
+            if (response.status === 403 || response.headers.get('cf-mitigated') === 'challenge') {
+              throw new ForbiddenError('Vinted refused the category request', {
+                status: response.status,
+                challengeDetected: response.headers.get('cf-mitigated') === 'challenge',
+                retryAfterSeconds,
+              });
+            }
+            if (response.status === 429)
+              throw new RateLimitedError(undefined, { retryAfterSeconds });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const html = await response.text();
+            if (
+              html.includes('challenge-running') ||
+              html.includes('<title>Just a moment...</title>')
+            ) {
+              throw new ForbiddenError('Vinted category challenge detected', {
+                status: response.status,
+                phase: 'body',
+                challengeDetected: true,
+                retryAfterSeconds,
+              });
+            }
             vintedConnection.recordSuccess();
             return html;
           } catch (error) {
@@ -127,6 +159,18 @@ while (!controller.signal.aborted) {
     health.recordCycle(report, now);
     if (report.failed > 0)
       cycleError = 'Der Sammeldurchlauf enthält Fehler. Bitte Aufträge und Dienstprotokoll prüfen.';
+    if (report.originPause) {
+      const reason =
+        report.originPause.reason === 'forbidden'
+          ? 'Vinted hat den Zugriff abgewiesen'
+          : report.originPause.reason === 'rate_limited'
+            ? 'Vinted begrenzt die Anfragen'
+            : 'Der Vinted-Zugang ist pausiert';
+      const nextAttempt = report.originPause.until
+        ? `${new Date(report.originPause.until).toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })} Uhr (deutscher Zeit)`
+        : 'der nächsten verfügbaren Gelegenheit';
+      cycleError = `${reason}. Automatische Wiederprüfung ab ${nextAttempt}.`;
+    }
   } catch (error) {
     // Eine gescheiterte Runde beendet den Dienst nicht. Der naechste Takt
     // versucht es erneut; was dauerhaft kaputt ist, faellt am Health-Endpunkt

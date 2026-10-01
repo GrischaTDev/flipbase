@@ -36,7 +36,7 @@ const FORBIDDEN_DELAYS_MS = [300_000, 600_000, 1_200_000, 2_400_000, 3_600_000] 
  */
 export function evaluateFailure(
   error: unknown,
-  query: SniperQuery,
+  query: Pick<SniperQuery, 'consecutiveFailures'>,
   now: Date = new Date(),
 ): RetryDecision {
   const failures = query.consecutiveFailures + 1;
@@ -69,7 +69,11 @@ export function evaluateFailure(
 
   if (error instanceof ForbiddenError) {
     const delayIndex = Math.min(failures - 1, FORBIDDEN_DELAYS_MS.length - 1);
-    const nextAttemptAt = new Date(now.getTime() + FORBIDDEN_DELAYS_MS[Math.max(0, delayIndex)]!);
+    const waitMs = Math.max(
+      FORBIDDEN_DELAYS_MS[Math.max(0, delayIndex)]!,
+      (error.retryAfterSeconds ?? 0) * 1000,
+    );
+    const nextAttemptAt = new Date(now.getTime() + waitMs);
     return {
       runState: 'cooldown',
       nextAttemptAt,
