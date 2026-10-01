@@ -1,5 +1,34 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-01 – Juna – freigegebenen eBay-Übernahmeplan begonnen
+
+**Auftrag:** Nach „weiter“ den geprüften Plan direkt in dieser Sitzung umsetzen,
+anschließend unabhängig als Gesamtstand prüfen lassen. Veröffentlichung und
+produktive Buchungen sind dadurch noch nicht freigegeben.
+
+**Umsetzung:** Erste Quellen-/Betragseinheit mit genauen Centwerten, Rabattaufteilung,
+eindeutigen Bestellpositionen, Buchbarkeit, Berliner Verkaufsdatum und getrennten
+serverseitigen Quellenfingerabdrücken umgesetzt. Einzelbestellabruf ergänzt;
+bisherige Listenanzeige bleibt erhalten. Unbekannte oder widersprüchliche Werte
+werden gesperrt. Kein Käuferprofil oder roher Anbieterinhalt wird weitergereicht.
+
+**Entscheidungen:** Die Windows-Umgebung und deutschen Aufgabenüberschriften sind
+mit den POSIX-Fortschrittsskripten nicht kompatibel; Aufgabenbrief und Protokoll
+werden nach demselben Prüf-/Commitvertrag nativ geführt. Die offizielle Trading-
+API liefert keine `VariationID`. Nur die numerische Variante aus einem bestätigten
+Inseratlink wird gelesen; bei fehlender Kennung bleibt die Zuordnung in der
+Bestellmaske über die Fulfillment-Kennung manuell. Keine erfundene ID aus SKU/Titel.
+
+**Prüfung:** Vorhandene sieben Quellen-/OAuth-Tests als Ausgangsstand bestanden.
+Neue Funktionen zunächst nachweislich fehlend; weitere Prüfungen für Rabatt,
+Mengen, Status, Datum, Privatsphäre und Schlüsseltrennung zunächst rot und danach
+grün. Eine ausdrücklich ungültige Rabattangabe wird mit eigenem Fehlerfall geprüft.
+32 gezielte Deno-Tests inklusive bestehender Konto-/Löschfunktionen, Anwendungstypen,
+Deno-Lint der geänderten Quellen und Formatierung bestanden. ESLint schließt
+Edge-Dateien im bestehenden Projekt aus; hierfür ist der ausgeführte Deno-Lint
+maßgeblich. Datenbank, Buchungsablauf und Oberfläche folgen danach. Keine
+Serveränderung oder produktive Buchung.
+
 ## 2026-10-01 – Juna – eBay-Umsetzungsplan nach Spezifikationsfreigabe erstellt
 
 **Auftrag:** Nach ausdrücklichem „los“ zur geschriebenen Spezifikation den

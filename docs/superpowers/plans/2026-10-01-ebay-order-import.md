@@ -105,7 +105,7 @@ Testdateien verwenden bestehende Deno-/Node-Assertions ohne neue Bibliothek.
 - `ebayOrderSourceKey(secret: string, workspaceId: string, environment: EbayEnvironment, accountId: string, orderId: string): Promise<string>`.
 - `readOrder(config: EbayConfig, token: string, orderId: string, fetcher?: typeof fetch): Promise<EbayOrderSource>`.
 
-- [ ] **1. Tests schreiben:** `splits discounted cents without changing revenue`,
+- [x] **1. Tests schreiben:** `splits discounted cents without changing revenue`,
       `blocks zero priced source lines`, `rejects malformed money and duplicate line IDs`,
       `preserves missing source values`, `does not reuse ambiguous variant mapping`,
       `uses Berlin date across midnight and DST`, `ignores fulfillment-only changes in review hash`.
@@ -119,27 +119,27 @@ Testdateien verwenden bestehende Deno-/Node-Assertions ohne neue Bibliothek.
   assert.equal(ebaySaleDate('2026-09-30T22:30:00Z'), '2026-10-01');
   ```
 
-- [ ] **2. Rot nachweisen:** `deno test --allow-env supabase/functions/_shared/ebay-order-amounts.test.ts supabase/functions/_shared/ebay-order-source.test.ts`;
+- [x] **2. Rot nachweisen:** `deno test --allow-env supabase/functions/_shared/ebay-order-amounts.test.ts supabase/functions/_shared/ebay-order-source.test.ts`;
       neue fehlende Funktionen müssen den Test scheitern lassen.
-- [ ] **3. Quelle implementieren:** Geld ausschließlich aus geprüften Dezimalstrings
+- [x] **3. Quelle implementieren:** Geld ausschließlich aus geprüften Dezimalstrings
       mit höchstens zwei Nachkommastellen, sicheren ganzen Cent und PostgreSQL-
       Betragsgrenzen lesen. Warenbetrag nach Rabatt plus rabattierter Versand muss
       Bestellumsatz ergeben; unbekannte Status, nicht abbildbare Steuern/Anpassungen,
       Erstattungen und fehlende Angaben erzeugen konkrete Sperrgründe. Nur `PAID` und
       `NONE_REQUESTED` mit vorhandenen leeren `refunds`-Arrays zulassen. Fehlende oder
       ungültige Refund-Arrays sind unklar und gesperrt. Kein Stückpreis aus Positions-`total`.
-- [ ] **4. API ergänzen:** Einzelabruf mit festem Anbieterhost und URL-kodierter
+- [x] **4. API ergänzen:** Einzelabruf mit festem Anbieterhost und URL-kodierter
       Bestellnummer; derselbe Parser für Listen. Bestehende Anzeigefelder erhalten,
       neue `importSource: EbayOrderSource | null` ergänzen. Trading-Inseratvarianten
       als `variants` mit stabiler Kennung/SKU/Merkmalen normalisieren; fehlende
       Variantenkennung bleibt gesperrt für automatische Zuordnung. Titel ist Suchhilfe.
-- [ ] **5. Hash und Schlüssel implementieren:** SHA-256 über kanonisch sortierte
+- [x] **5. Hash und Schlüssel implementieren:** SHA-256 über kanonisch sortierte
       buchungsrelevante Quelle, ohne Abrufzeit/reinen Versandfortschritt. HMAC-SHA-256
       über JSON-Tupel `[workspaceId, environment, accountId, orderId]`; HKDF-SHA-256
       mit Salt `flipbase:ebay:source:v1` und Info `order-booking` aus dem bestehenden
       32-Byte-Schlüssel. Tests beweisen gleiche Quelle nach Wiederverbindung und
       getrennte Schlüssel für Konto, Umgebung und Workspace.
-- [ ] **6. Grün nachweisen:** obige Tests plus `_shared/ebay-api.test.ts`; bestehende
+- [x] **6. Grün nachweisen:** obige Tests plus `_shared/ebay-api.test.ts`; bestehende
       Token-, OAuth- und Listenfälle erhalten. Commit:
       `feat(core): normalize eBay order sources and exact amounts`.
 

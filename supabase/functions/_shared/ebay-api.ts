@@ -1,5 +1,6 @@
 import type { EbayEnvironment, EbayListing, EbayOrder } from './ebay-contracts.ts';
 import { parseEbayXml, findXmlChild, readXmlText } from './ebay-xml.ts';
+import { parseEbayOrderSource } from './ebay-order-source.ts';
 
 export const EBAY_SCOPES = [
   'https://api.ebay.com/oauth/api_scope',
@@ -186,8 +187,24 @@ export function parseOrders(body: Record<string, unknown>): EbayOrder[] {
             quantity: readNonNegativeNumber(readRecord(item).quantity),
           }))
         : [],
+      importSource: parseEbayOrderSource(row, new Date().toISOString()),
     };
   });
+}
+export async function readOrder(
+  config: EbayConfig,
+  token: string,
+  orderId: string,
+  fetcher = fetch,
+) {
+  if (!orderId || orderId.length > 256) throw new EbayError('invalid_response');
+  const body = await ebayJson(
+    `${getEbayHosts(config.environment).api}/sell/fulfillment/v1/order/${encodeURIComponent(orderId)}`,
+    token,
+    fetcher,
+  );
+  if (body.orderId !== orderId) throw new EbayError('invalid_response');
+  return parseEbayOrderSource(body, new Date().toISOString());
 }
 export async function readOrders(config: EbayConfig, token: string, page: number, fetcher = fetch) {
   const body = await ebayJson(
@@ -223,9 +240,56 @@ export function parseListings(xml: string): { items: EbayListing[]; total: numbe
   const items = (findXmlChild(active, 'ItemArray')?.children ?? [])
     .filter((node) => node.name === 'Item')
     .map((node) => {
-      const price = findXmlChild(findXmlChild(node, 'SellingStatus'), 'CurrentPrice');
       const id = readXmlText(node, 'ItemID');
       if (!id || !/^\d+$/.test(id)) throw new EbayError('invalid_response');
+      const price = findXmlChild(findXmlChild(node, 'SellingStatus'), 'CurrentPrice');
+      const variations = findXmlChild(node, 'Variations');
+      const variants = (variations?.children ?? [])
+        .filter((variation) => variation.name === 'Variation')
+        .map((variation) => {
+          let variationId: string | null = null;
+          try {
+            const url = new URL(readXmlText(variation, 'VariationViewItemURL') ?? '');
+            const candidate = url.searchParams.get('var');
+            if (
+              url.protocol === 'https:' &&
+              ['www.ebay.de', 'www.ebay.com', 'www.sandbox.ebay.com', 'sandbox.ebay.com'].includes(
+                url.hostname,
+              ) &&
+              !url.username &&
+              !url.password &&
+              !url.port &&
+              /^\d+$/.test(candidate ?? '') &&
+              /^\/itm\/(?:[^/]+\/)?\d+\/?$/.test(url.pathname) &&
+              url.pathname.replace(/\/$/, '').split('/').pop() === id
+            )
+              variationId = candidate;
+          } catch {
+            /* Ohne bestätigte Variantenkennung bleibt die Zuordnung manuell. */
+          }
+          const totalQuantity = readNonNegativeNumber(readXmlText(variation, 'Quantity'));
+          const soldQuantity = readNonNegativeNumber(
+            readXmlText(findXmlChild(variation, 'SellingStatus'), 'QuantitySold'),
+          );
+          return {
+            id: variationId,
+            sku: readXmlText(variation, 'SKU'),
+            quantity:
+              totalQuantity !== null &&
+              soldQuantity !== null &&
+              Number.isInteger(totalQuantity) &&
+              Number.isInteger(soldQuantity) &&
+              totalQuantity >= soldQuantity
+                ? totalQuantity - soldQuantity
+                : null,
+            aspects: (findXmlChild(variation, 'VariationSpecifics')?.children ?? [])
+              .filter((aspect) => aspect.name === 'NameValueList')
+              .map((aspect) => ({
+                name: readXmlText(aspect, 'Name') ?? '',
+                value: readXmlText(aspect, 'Value') ?? '',
+              })),
+          };
+        });
       return {
         id,
         title: readXmlText(node, 'Title') ?? 'eBay-Artikel',
@@ -234,6 +298,8 @@ export function parseListings(xml: string): { items: EbayListing[]; total: numbe
         quantity: readNonNegativeNumber(readXmlText(node, 'QuantityAvailable')),
         listingType: readXmlText(node, 'ListingType'),
         url: `https://www.ebay.de/itm/${id}`,
+        hasVariations: variations !== undefined,
+        variants,
       };
     });
   return { items, total, pages };
@@ -257,7 +323,7 @@ export async function readListings(
       'X-EBAY-API-COMPATIBILITY-LEVEL': '1477',
       'X-EBAY-API-IAF-TOKEN': token,
     },
-    body: `<?xml version="1.0" encoding="utf-8"?><GetMyeBaySellingRequest xmlns="urn:ebay:apis:eBLBaseComponents"><ActiveList><Include>true</Include><Pagination><EntriesPerPage>200</EntriesPerPage><PageNumber>${page}</PageNumber></Pagination></ActiveList><SoldList><Include>false</Include></SoldList><UnsoldList><Include>false</Include></UnsoldList><ScheduledList><Include>false</Include></ScheduledList><HideVariations>true</HideVariations></GetMyeBaySellingRequest>`,
+    body: `<?xml version="1.0" encoding="utf-8"?><GetMyeBaySellingRequest xmlns="urn:ebay:apis:eBLBaseComponents"><ActiveList><Include>true</Include><Pagination><EntriesPerPage>200</EntriesPerPage><PageNumber>${page}</PageNumber></Pagination></ActiveList><SoldList><Include>false</Include></SoldList><UnsoldList><Include>false</Include></UnsoldList><ScheduledList><Include>false</Include></ScheduledList><HideVariations>false</HideVariations></GetMyeBaySellingRequest>`,
     signal: AbortSignal.timeout(15_000),
   });
   if (response.status === 401) throw new EbayError('needs_login');
