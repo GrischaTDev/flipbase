@@ -3,6 +3,7 @@ import { readEbayConfig } from '../_shared/ebay-config.ts';
 import { createEbayAccountHandler } from './handler.ts';
 import type { StoredEbayConnection } from './handler.ts';
 import type { EbayOrderImportStore } from './order-import.ts';
+import { classifyEbayBookingError } from './order-booking-error.ts';
 
 const url = Deno.env.get('SUPABASE_URL') ?? '';
 const anon = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
@@ -77,7 +78,7 @@ const store: EbayOrderImportStore = {
       p_assignments: input.assignments,
       p_costs: input.costs,
     });
-    if (error) throw new Error('Database operation failed');
+    if (error) throw classifyEbayBookingError(error);
     return data;
   },
   markRecordedElsewhere: (userId, connectionId, snapshotId, reason, saleId) =>

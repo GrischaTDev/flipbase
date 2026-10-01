@@ -6,6 +6,7 @@ import type { StoredEbayConnection } from './handler.ts';
 import type { EbayConfig } from '../_shared/ebay-api.ts';
 import type { EbayOrderBooking, EbayOrderReview } from '../_shared/ebay-order-import-contracts.ts';
 import { encryptTokens } from '../_shared/ebay-token-encryption.ts';
+import { classifyEbayBookingError } from './order-booking-error.ts';
 import {
   ebayOrderReviewHash,
   ebayOrderSourceKey,
@@ -172,6 +173,48 @@ async function fixture() {
     counts: () => ({ books, finishes }),
   };
 }
+
+test('returns bounded definite booking rejections without internal database details', async () => {
+  for (const [code, message, expected] of [
+    [
+      '22023',
+      'Vorhandenen eBay-Verkauf bitte zuerst prüfen und manuell zuordnen',
+      'legacy_sale_conflict',
+    ],
+    ['P0001', 'Nicht genügend verfügbarer Bestand', 'stock_unavailable'],
+    ['22023', 'Dieser Artikel ist archiviert.', 'target_archived'],
+  ]) {
+    const f = await fixture();
+    f.store.book = async () => {
+      throw classifyEbayBookingError({ code, message });
+    };
+    const response = await createEbayOrderImportHandler(
+      f.store,
+      config,
+      f.fetcher,
+    )(f.request('order_book', f.input));
+    assert.equal(response.status, 409);
+    assert.deepEqual(await response.json(), { error: expected });
+    assert.equal(f.counts().books, 0);
+  }
+});
+
+test('keeps unknown transport errors ambiguous and does not expose database text', async () => {
+  const f = await fixture();
+  f.store.book = async () => {
+    throw classifyEbayBookingError({
+      code: 'PGRST000',
+      message: 'private connection or schema detail',
+    });
+  };
+  const response = await createEbayOrderImportHandler(
+    f.store,
+    config,
+    f.fetcher,
+  )(f.request('order_book', f.input));
+  assert.equal(response.status, 503);
+  assert.deepEqual(await response.json(), { error: 'request_failed' });
+});
 
 test('requires verified user for every import action', async () => {
   const f = await fixture();

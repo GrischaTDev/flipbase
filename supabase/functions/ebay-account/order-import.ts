@@ -13,6 +13,7 @@ import { ebayOrderReviewHash, ebayOrderSourceKey } from '../_shared/ebay-order-s
 import { isEbayCents } from '../_shared/ebay-order-amounts.ts';
 import type { EbayAccountStore, StoredEbayConnection } from './handler.ts';
 import { EbayConnectionError, withEbayConnection } from './connection-read.ts';
+import { EbayOrderBookingError } from './order-booking-error.ts';
 
 export interface StoredEbayOrderSnapshot {
   id: string;
@@ -288,6 +289,8 @@ export function createEbayOrderImportHandler(
       });
       return respond(result, result.status === 'recorded_elsewhere' ? 409 : 200);
     } catch (error) {
+      if (error instanceof EbayOrderBookingError)
+        return respond({ error: error.code }, error.code === 'forbidden' ? 403 : 409);
       if (error instanceof EbayConnectionError)
         return respond(
           { error: error.code },

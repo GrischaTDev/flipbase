@@ -20,10 +20,32 @@ einmaliger Bestandsänderung, Markierung/Rücknahme ohne Verkauf, Tastatur sowie
 AXE/WCAG-AA bei 1440/390 Pixeln. Die vollständige Prüfung `npm run verify` bestand:
 85 Workflowtests, 151 Edge-Tests, 1.641 Node-, 295 DOM-, 1.462 Angular- und
 41 Landingtests; Format, Lint, Typen, Suite-Audit, gemeinsame UI und Produktionsbau
-ebenfalls grün. Fünf Workflow- und drei native Node-Prüfungen wurden gemäß ihrem
+ebenfalls grün. Nach Einbindung des inzwischen veröffentlichten Hauptstands
+`86d65adf` bestehen erneut alle Prüfungen: 1.660 Node- und 1.557 Angularfälle,
+unverändert 295 DOM-, 151 Edge-, 85 Workflow- und 41 Landingfälle. Die eigene
+Testdatenbank wurde mit allen aktuellen Migrationen frisch aufgebaut;
+2.619 Datenbankprüfungen in 75 Dateien und alle vier Parallelfälle sind grün.
+Fünf Workflow- und drei native Node-Prüfungen wurden gemäß ihrem
 bestehenden Laufvertrag übersprungen; der Migrationstransaktionstest wurde zuvor
-separat auf einer eigenen Datenbank erfolgreich ausgeführt. Die unabhängige
-Gesamtprüfung folgt vor der Abschlussfreigabe.
+separat auf einer eigenen Datenbank erfolgreich ausgeführt.
+
+**Unabhängige Gesamtprüfung:** Keine kritischen Befunde; drei wichtige Fehlerwege
+in einem gemeinsamen Korrekturlauf behoben. Ein frischer Seitenaufruf liest zuerst
+den dauerhaften Buchungsbeleg und zeigt auch ohne Anbieterabruf einen gespeicherten
+Verkauf oder eine manuelle Markierung. „Bestellung erneut prüfen“ erneuert einen
+abgelaufenen Prüfstand, erhält Kosten/Zuordnung und verlangt bei veränderter Quelle
+weiterhin Bestätigung. Bestätigte SQL-Ablehnungen für Altverkauf, Bestand oder
+archivierte Artikel liefern begrenzte Fehlercodes mit verständlichen Meldungen;
+Transportfehler bleiben unklar. Kein interner Datenbanktext wird weitergereicht.
+Alle drei Fehlerwege zuerst nachweislich rot, danach grün. 55 gezielte Angular-
+und zwölf Handlerfälle bestanden; beide erweiterten Browserfälle bestanden mit
+direktem Reload nach verlorener Buchungsantwort, abgelaufenem Prüfstand und echtem
+Altverkaufskonflikt. 47 eBay-Tests unter CI-Deno 2.9.7 bestanden. Abschließend
+`npm run verify` erneut grün: 85 Workflow-, 153 Edge-, 1.660 Node-, 295 DOM-,
+1.561 Angular- und 41 Landingfälle einschließlich Typen, Lint, Format und Bau.
+Der kleinere Hinweis-Befund bleibt dokumentiert: kostenlose oder nicht positiv
+aufteilbare Positionen sind korrekt gesperrt, haben jedoch bislang nur den
+allgemeinen Hinweis auf nicht prüfbare Positionen.
 
 **Grenzen:** Ausschließlich getrennte Testdienste und zufällige Testobjekte
 verwendet; keine produktive Bestellung gebucht. Der echte Kontotest mit zwei

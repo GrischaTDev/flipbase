@@ -31,6 +31,14 @@ const messages: Readonly<Record<string, string>> = {
   scope_missing: 'eBay hat den nötigen Lesezugriff nicht freigegeben. Verbinde dein Konto erneut.',
   invalid_response: 'Die eBay-Bestellung konnte nicht vollständig geprüft werden.',
   invalid_request: 'Prüfe die Artikelzuordnung und bestätige alle Kosten.',
+  legacy_sale_conflict:
+    'Für diese Bestellung gibt es bereits einen eBay-Verkauf. Prüfe ihn und verwende „Bereits manuell gebucht“.',
+  stock_unavailable: 'Der zugeordnete Bestand reicht nicht mehr aus. Prüfe Deine Artikelzuordnung.',
+  target_archived: 'Ein zugeordneter Artikel ist archiviert. Wähle einen verfügbaren Artikel.',
+  target_unavailable:
+    'Ein zugeordneter Artikel ist nicht mehr verfügbar. Prüfe Deine Artikelzuordnung.',
+  booking_rejected:
+    'Die Buchung wurde abgewiesen. Prüfe Deine Artikelzuordnung und die bestätigten Kosten.',
 };
 export class EbayOrderImportRequestError extends Error {
   constructor(

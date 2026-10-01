@@ -31,6 +31,33 @@ describe('eBay-Übernahmeadapter', () => {
     api = TestBed.inject(EbayOrderImportApiService);
   });
   afterEach(() => TestBed.resetTestingModule());
+  it('explains known SQL rejections and keeps them distinct from an unknown commit', async () => {
+    for (const [code, text] of [
+      ['legacy_sale_conflict', 'Bereits manuell gebucht'],
+      ['stock_unavailable', 'Bestand reicht'],
+      ['target_archived', 'archiviert'],
+    ]) {
+      invoke.mockResolvedValueOnce({
+        data: null,
+        error: { context: Response.json({ error: code }, { status: 409 }) },
+      });
+      await expect(
+        api.bookOrder({
+          ...scope,
+          orderId: 'order-1',
+          snapshotId: id,
+          reviewHash: 'a'.repeat(64),
+          assignments: [],
+          costs: {
+            platformFeeCents: 0,
+            shippingCostCents: 0,
+            shippingMode: null,
+            additionalCosts: [],
+          },
+        }),
+      ).rejects.toMatchObject({ message: expect.stringContaining(text), outcomeUnknown: false });
+    }
+  });
   it('schreibt Zuordnungen mit Nutzer-RPC und erhält null als fehlende Variante', async () => {
     expect(await api.saveMapping(scope, '123', null, mapping.target)).toEqual(mapping);
     expect(rpc).toHaveBeenCalledWith('ebay_set_article_mapping', {

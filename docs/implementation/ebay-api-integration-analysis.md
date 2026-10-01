@@ -5,7 +5,7 @@ Stand: 2. Oktober 2026. Die persönliche eBay-Verbindung wurde über PR #273
 Anmeldung, eigene Inserate/Bestellungen, Workspacewechsel sowie Trennen und
 erneutes Verbinden sind mit dem vorhandenen Konto nachgewiesen. Der echte Test
 mit zwei normalen Nutzern bleibt offen. Artikelzuordnung und Bestellübernahme
-sind im eigenen Feature-Zweig auf Grundlage `origin/master` (`f1c9e623`)
+sind im eigenen Feature-Zweig auf Grundlage `origin/master` (`86d65adf`)
 umgesetzt und lokal geprüft; sie sind noch nicht veröffentlicht.
 
 ## Neues Paket: Artikelzuordnung und Bestellübernahme
@@ -21,13 +21,20 @@ ein Verbindungsabbruch verlangt Statusklärung und erzeugt keine zweite Buchung.
 „Bereits manuell gebucht“ mit Grund und optionalem vorhandenem Verkauf erzeugt
 keinen Verkauf und kann bestätigt zurückgenommen werden.
 
-Die vollständige lokale Anwendungsprüfung, 2.530 Datenbankprüfungen, vier echte
+Die vollständige lokale Anwendungsprüfung, 2.619 Datenbankprüfungen, vier echte
 Parallelfälle und zwei Browserfälle mit Desktop/Mobil, Tastatur und AXE sind grün.
 Die Browserprüfung ersetzt ausschließlich den eBay-Anbieter und verwendet die
 wirkliche lokale Anmeldung, Datenbank und Edge-Funktion. Sie ersetzt keinen
 produktiven Kontotest. Einzelheiten und Entscheidungsgrenzen stehen im
 [freigegebenen Entwurf](../superpowers/specs/2026-10-01-ebay-order-import-design.md)
 und [Umsetzungsplan](../superpowers/plans/2026-10-01-ebay-order-import.md).
+
+Die unabhängige Gesamtprüfung ist abgeschlossen. Ihre drei wichtigen Befunde sind
+mit zuerst fehlschlagenden und anschließend erfolgreichen Tests behoben:
+Statusklärung vor Anbieterabruf auch nach Browser-Neuladen, Erneuerung abgelaufener
+Prüfstände ohne Eingabeverlust und verständliche bestätigte Buchungsablehnungen.
+Kostenlose beziehungsweise nicht positiv aufteilbare Positionen bleiben gesperrt;
+der zugehörige Hinweis ist noch allgemein formuliert.
 
 Nach Abschlussfreigabe läuft die Migration über den normalen Release-Weg.
 Anschließend müssen `ebay-account` und die gemeinsamen Quellen aus genau demselben

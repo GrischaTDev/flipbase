@@ -98,16 +98,31 @@ export class EbaySaleReviewStore {
     this.loading.set(true);
     this.error.set(null);
     try {
+      const booking = await this.api.loadOrderStatus(scope, orderId);
+      if (revision !== this.revision) return;
+      this.booking.set(booking);
+      if (booking.status !== 'unrecorded') {
+        if (booking.status === 'imported') await this.refreshSaved(scope.workspaceId, revision);
+        return;
+      }
+      const previousHash = this.review()?.reviewHash;
       const review = await this.api.prepareOrder(scope, orderId);
       if (revision === this.revision) {
         this.applyReview(review);
-        this.reviewChanged.set(false);
+        this.reviewChanged.set(
+          this.reviewChanged() ||
+            (previousHash !== undefined && previousHash !== review.reviewHash),
+        );
       }
     } catch (error) {
       if (revision === this.revision) this.error.set(this.message(error));
     } finally {
       if (revision === this.revision) this.loading.set(false);
     }
+  }
+  async refreshReview(): Promise<void> {
+    if (!this.scope || !this.orderId || this.loading() || this.outcomeUnknown()) return;
+    await this.load(this.scope, this.orderId);
   }
   private message(error: unknown): string {
     return error instanceof Error

@@ -447,12 +447,12 @@ künstliche Quelle; abgefangene Anbieterantworten ersetzen ausschließlich eBay.
       Format/Lint geänderter Dateien, Typen und Angular-Produktionsbau. Fehlercodes
       direkt prüfen, niemals aus einer Log-Pipe ableiten. Pflichtprüfungen im PR
       vollständig abwarten; weitere lokale Komplettläufe nur bei neuem Anlass.
-- [ ] **6. Gesamtstand prüfen:** Spezifikationsabdeckung, Quellvertrauen, Sperrreihenfolge,
+- [x] **6. Gesamtstand prüfen:** Spezifikationsabdeckung, Quellvertrauen, Sperrreihenfolge,
       Centabgleich, Kostenbestätigung, Konto-/Workspace-Isolation und manuellen Verkauf
       über den ganzen Branch prüfen. Bei gewählter direkter Umsetzung einen unabhängigen
       Gesamtprüfer einsetzen; bei Einzelschritt-Assistenten deren zusätzliche Prüfungen
       erhalten. Befunde beheben und gezielt neu prüfen.
-- [ ] **7. Dokumentieren und committen:** Nur tatsächlich ausgeführte Prüfungen und
+- [x] **7. Dokumentieren und committen:** Nur tatsächlich ausgeführte Prüfungen und
       Grenzen, insbesondere offener echter Zwei-Nutzer-Test, festhalten. Commit:
       `test(core): verify eBay import isolation and duplicate protection`.
 - [ ] **8. Abschlussfrage stellen:** Erst nach konkretem geprüftem Ergebnis exakt
@@ -475,4 +475,7 @@ bearbeitet. Empfohlen ist direkte Umsetzung in dieser Sitzung mit unabhängiger
 Gesamtprüfung vor dem Abschluss. Alternativ kann jede Aufgabe durch einen eigenen
 Assistenten umgesetzt und vor dem nächsten Schritt separat geprüft werden.
 Der Nutzer hat die direkte Ausführung gewählt. Aufgaben 1–6 sind abgeschlossen;
-die lokale Prüfung von Aufgabe 7 ist grün, die unabhängige Gesamtprüfung folgt.
+die lokale und unabhängige Prüfung von Aufgabe 7 ist abgeschlossen. Drei wichtige
+Befunde wurden in einem gemeinsamen Test-/Korrekturlauf behoben. Der allgemeine
+Sperrhinweis für kostenlose Positionen bleibt als kleiner Befund vertagt.
+Die Veröffentlichung wartet auf die vorgeschriebene Abschlussfreigabe.

@@ -111,6 +111,46 @@ describe('eBay-Bestellprüfung', () => {
       ['line-1', 1, 3.34],
     ]);
   });
+  it('reads the durable booking first after reload even when the provider is unavailable', async () => {
+    api.loadOrderStatus.mockResolvedValueOnce({
+      status: 'imported',
+      saleId: id,
+      alreadyRecorded: true,
+    });
+    api.prepareOrder.mockRejectedValueOnce(new Error('eBay nicht erreichbar'));
+    await store.load(scope, 'order-1');
+    expect(store.booking().status).toBe('imported');
+    expect(api.prepareOrder).not.toHaveBeenCalled();
+    expect(api.bookOrder).not.toHaveBeenCalled();
+    expect(refresh).toHaveBeenCalledWith(scope.workspaceId);
+  });
+  it('shows a manual marker after reload without depending on the provider', async () => {
+    api.loadOrderStatus.mockResolvedValueOnce({ status: 'recorded_elsewhere', saleId: null });
+    api.prepareOrder.mockRejectedValueOnce(new Error('eBay nicht erreichbar'));
+    await store.load(scope, 'order-1');
+    expect(store.booking().status).toBe('recorded_elsewhere');
+    expect(api.prepareOrder).not.toHaveBeenCalled();
+    expect(refresh).not.toHaveBeenCalled();
+  });
+  it('renews an expired review consciously and requires confirmation only if the source changed', async () => {
+    await store.load(scope, 'order-1');
+    api.bookOrder.mockRejectedValueOnce(new EbayOrderImportRequestError('Prüfung abgelaufen'));
+    expect((await store.submit(input)).status).toBe('rejected');
+    api.prepareOrder.mockResolvedValueOnce({
+      ...review,
+      snapshotId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    });
+    await store.refreshReview();
+    expect(store.reviewChanged()).toBe(false);
+    expect(store.draft()?.revision).toContain('bbbbbbbb');
+    api.prepareOrder.mockResolvedValueOnce({ ...review, reviewHash: 'b'.repeat(64) });
+    await store.refreshReview();
+    expect(store.reviewChanged()).toBe(true);
+    api.prepareOrder.mockResolvedValueOnce({ ...review, reviewHash: 'b'.repeat(64) });
+    await store.refreshReview();
+    expect(store.reviewChanged()).toBe(true);
+    expect(api.bookOrder).toHaveBeenCalledOnce();
+  });
   it('submits one assignment per source line and explicit exact costs', async () => {
     await store.load(scope, 'order-1');
     expect(await store.submit(input)).toEqual({ status: 'saved' });
@@ -173,7 +213,7 @@ describe('eBay-Bestellprüfung', () => {
     });
     await store.resolveOutcome();
     expect(store.outcomeUnknown()).toBe(false);
-    expect(api.loadOrderStatus).toHaveBeenCalledOnce();
+    expect(api.loadOrderStatus).toHaveBeenCalledTimes(2);
     expect(api.prepareOrder).toHaveBeenCalledTimes(2);
     expect(api.bookOrder).toHaveBeenCalledOnce();
   });
@@ -195,6 +235,7 @@ describe('eBay-Bestellprüfung', () => {
         }),
     );
     const old = store.load(scope, 'order-1');
+    await vi.waitFor(() => expect(api.prepareOrder).toHaveBeenCalledOnce());
     const next = { ...review, workspaceId: 'workspace-b' };
     api.prepareOrder.mockResolvedValueOnce(next);
     await store.load({ ...scope, workspaceId: 'workspace-b' }, 'order-1');

@@ -23,6 +23,18 @@
     @if (store.error(); as error) {
       <p role="alert" class="text-fb-critical">{{ error }}</p>
     }
+    @if (
+      store.booking().status === 'unrecorded' &&
+      !store.outcomeUnknown() &&
+      (store.review() || store.error())
+    ) {
+      <app-button
+        [loading]="store.loading()"
+        [disabled]="isSaving()"
+        (clicked)="store.refreshReview()"
+        >Bestellung erneut prüfen</app-button
+      >
+    }
     @if (store.outcomeUnknown()) {
       <app-card title="Buchungsstatus prüfen">
         <p class="mb-3 text-sm text-fb-text-secondary">
