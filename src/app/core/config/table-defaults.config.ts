@@ -3,46 +3,8 @@ import { TableConfig } from '../models/table-preferences.models';
 // ==========================================
 // 1. Verkäufe (Sales)
 // ==========================================
-export type SalesColumnId =
-  | 'title'
-  | 'quantity'
-  | 'platform'
-  | 'sale_date'
-  | 'revenue'
-  | 'cost_of_goods_sold'
-  | 'selling_costs'
-  | 'profit'
-  | 'margin'
-  | 'holding_days'
-  | 'actions';
-
-export type SalesSortField =
-  'sale_date' | 'revenue' | 'profit' | 'margin' | 'title' | 'holding_days';
-
-export const SALES_TABLE_CONFIG: TableConfig<SalesColumnId, SalesSortField> = {
-  defaultColumns: [
-    { id: 'title', label: 'Verkaufter Artikel', visible: true, order: 0, locked: true },
-    { id: 'quantity', label: 'Menge', visible: true, order: 1 },
-    { id: 'platform', label: 'Plattform', visible: true, order: 2 },
-    { id: 'sale_date', label: 'Datum', visible: true, order: 3 },
-    { id: 'revenue', label: 'Verkaufserlös', visible: true, order: 4 },
-    { id: 'cost_of_goods_sold', label: 'Wareneinsatz', visible: true, order: 5 },
-    { id: 'selling_costs', label: 'Verkaufskosten', visible: true, order: 6 },
-    { id: 'profit', label: 'Ergebnis', visible: true, order: 7 },
-    { id: 'margin', label: 'Marge', visible: true, order: 8 },
-    { id: 'holding_days', label: 'Haltedauer', visible: true, order: 9 },
-    { id: 'actions', label: 'Aktionen', visible: true, order: 10, locked: true },
-  ],
-  defaultSort: { field: 'sale_date', direction: 'desc' },
-  sortOptions: [
-    { value: 'sale_date', label: 'Verkaufsdatum', kind: 'date' },
-    { value: 'revenue', label: 'Verkaufserlös', kind: 'number' },
-    { value: 'profit', label: 'Ergebnis', kind: 'number' },
-    { value: 'margin', label: 'Marge', kind: 'number' },
-    { value: 'title', label: 'Artikelname', kind: 'text' },
-    { value: 'holding_days', label: 'Haltedauer', kind: 'number' },
-  ],
-};
+export { SALES_TABLE_CONFIG } from './sales-table.config';
+export type { SalesColumnId, SalesSortField } from './sales-table.config';
 
 // ==========================================
 // 2. Inventar (Inventory)

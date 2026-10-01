@@ -18,6 +18,8 @@ function createStockSubject() {
     stockLoadRequestId: 0,
     isLoadingStock: signal(false),
     stockLoadError: signal<string | null>(null),
+    selectionLoading: signal(false),
+    selectionError: signal<string | null>(null),
     isSubmitting: signal(false),
     isPersisted: signal(false),
     lines: { controls: [{ id: 'line-1' }] },

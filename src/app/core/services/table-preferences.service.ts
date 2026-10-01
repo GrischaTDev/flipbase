@@ -1,3 +1,4 @@
+import { migrateLegacySalesColumns } from '../models/sales-table-preferences';
 import { Injectable, effect, inject, signal, Signal, WritableSignal } from '@angular/core';
 import {
   ColumnDefinition,
@@ -309,6 +310,14 @@ export class TablePreferencesService {
       const validSort: TableSortState<TSortField> = isValidSortField
         ? parsed.sort
         : { ...config.defaultSort };
+
+      if (tableId === 'sales') {
+        const columns = migrateLegacySalesColumns(parsed.columns, config.defaultColumns);
+        if (columns) {
+          this.savePreferences(tableId, workspaceId, columns, validSort);
+          return { columns, sort: validSort };
+        }
+      }
 
       const legacyCatalogOrder = [
         'title',

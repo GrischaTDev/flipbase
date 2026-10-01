@@ -1,3 +1,4 @@
+import { SALES_LABELS, SALES_HELP } from '../../core/config/sales-table.config';
 import {
   afterRenderEffect,
   ChangeDetectionStrategy,
@@ -9,7 +10,7 @@ import {
 } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { CurrencyPipe, DatePipe } from '@angular/common';
+import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
@@ -79,6 +80,7 @@ function validatedSaleTargetId(value: string | null): string | null {
     RouterLink,
     ReactiveFormsModule,
     CurrencyPipe,
+    DecimalPipe,
     DatePipe,
     TranslatePipe,
     LucideDynamicIcon,
@@ -101,6 +103,8 @@ function validatedSaleTargetId(value: string | null): string | null {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SalesComponent {
+  readonly salesLabels = SALES_LABELS;
+  readonly salesHelp = SALES_HELP;
   readonly tablePreferences = inject(TablePreferencesService);
   /**
    * Vorgaben fuer das eigene Auswahlfeld.

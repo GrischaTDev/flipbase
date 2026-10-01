@@ -141,9 +141,18 @@ beforeAll(async () => {
   registerSignalInputs(MarketplacePlatformIdentityComponent, ['platform']);
 });
 
+function saleMetricCell(host: HTMLElement, rowSelector: string, label: string): Element | null {
+  const column = [...host.querySelectorAll('thead th')].findIndex(
+    (header) => header.textContent?.replace(/\s+/g, ' ').trim() === label,
+  );
+  expect(column).toBeGreaterThanOrEqual(0);
+  return host.querySelector(rowSelector)?.querySelectorAll('td')[column] ?? null;
+}
+
 const workspace = { id: 'workspace-1' };
 const linkedSale: Sale = {
   id: 'sale-1',
+  record_number: 'VK-TEST-001',
   workspace_id: workspace.id,
   platform: 'ebay',
   sale_price: 33,
@@ -265,21 +274,27 @@ describe('SalesComponent – verlinkter Verkauf', () => {
     );
 
     expect(headers).toEqual([
-      'Verkaufter Artikel',
+      'Verkaufsnummer',
+      'Datum',
+      'Artikel',
       'Menge',
       'Plattform',
-      'Datum',
-      'Verkaufserlös',
-      'Wareneinsatz',
-      'Verkaufskosten',
-      'Ergebnis',
+      'Umsatz',
+      'Einkaufskosten',
+      'Gebühren & Versand',
+      'Gewinn',
       'Marge',
       'Haltedauer',
       'Aktionen',
     ]);
     expect(host.querySelector('thead abbr')?.getAttribute('title')).toBe(
-      'Verkaufserlös abzüglich Wareneinsatz und Verkaufskosten',
+      'Umsatz abzüglich Einkaufskosten und sämtlicher Verkaufskosten. Betriebsausgaben und Steuern sind nicht abgezogen.',
     );
+    const row = host.querySelector('#sale-desktop-sale-1');
+    expect(row?.querySelectorAll('td')[0]?.textContent).toContain('VK-TEST-001');
+    expect(row?.querySelectorAll('td')[1]?.textContent).toContain('25.08.2026');
+    expect(row?.querySelectorAll('td')[2]?.textContent).toContain('Tasse');
+    expect(row?.querySelectorAll('td')[2]?.textContent).not.toContain('VK-TEST-001');
     expect(host.textContent).toContain('Durchschnittliche Marge');
     expect(host.textContent).not.toContain('ROI');
     expect(host.textContent).not.toContain('Nettogewinn');
@@ -347,9 +362,9 @@ describe('SalesComponent – verlinkter Verkauf', () => {
 
       const harness = await RouterTestingHarness.create('/sales');
       const host = harness.routeNativeElement as HTMLElement;
-      const desktopProfit = host.querySelector('#sale-desktop-sale-1 td:nth-child(8)');
+      const desktopProfit = saleMetricCell(host, '#sale-desktop-sale-1', 'Gewinn');
       const mobileResultLabel = [...host.querySelectorAll('#sale-mobile-sale-1 span')].find(
-        (label) => label.textContent?.trim() === 'Ergebnis',
+        (label) => label.textContent?.trim() === 'Gewinn',
       );
       const mobileProfit = mobileResultLabel?.nextElementSibling;
 
@@ -381,7 +396,7 @@ describe('SalesComponent – verlinkter Verkauf', () => {
       harness.routeNativeElement?.querySelector('[data-testid="sales-result-kpi"]')?.textContent,
     ).toContain('Kosten noch offen');
     expect(
-      harness.routeNativeElement?.querySelector('tbody tr td:nth-child(8)')?.className,
+      saleMetricCell(harness.routeNativeElement as HTMLElement, 'tbody tr', 'Gewinn')?.className,
     ).not.toMatch(/text-fb-finance-(positive|negative)/);
   });
 

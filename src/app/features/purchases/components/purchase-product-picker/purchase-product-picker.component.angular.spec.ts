@@ -1,3 +1,6 @@
+import { ArticlePickerComponent } from '../../../../shared/components/article-picker/article-picker.component';
+import type { ComponentFixture } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import '@angular/compiler';
 import { ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
@@ -59,6 +62,11 @@ function bridgeBindings(
   };
 }
 
+function picker(fixture: ComponentFixture<PurchaseProductPickerComponent>): ArticlePickerComponent {
+  return fixture.debugElement.query(By.directive(ArticlePickerComponent))
+    .componentInstance as ArticlePickerComponent;
+}
+
 const product: CatalogProduct = {
   id: 'product-1',
   workspace_id: 'workspace-1',
@@ -72,6 +80,8 @@ const product: CatalogProduct = {
 describe('PurchaseProductPickerComponent', () => {
   beforeAll(async () => {
     const resources: Readonly<Record<string, string>> = {
+      './article-picker.component.html':
+        'src/app/shared/components/article-picker/article-picker.component.html',
       './purchase-product-picker.component.html':
         'src/app/features/purchases/components/purchase-product-picker/purchase-product-picker.component.html',
       './modal-shell.component.html':
@@ -120,6 +130,34 @@ describe('PurchaseProductPickerComponent', () => {
       ['products', 'initialSearch', 'imageUrls'],
       ['createRequested', 'imageFailed', 'closed', 'selected'],
     );
+    bridgeBindings(
+      ArticlePickerComponent,
+      [
+        'entries',
+        'imageUrls',
+        'initialSearch',
+        'loading',
+        'errorMessage',
+        'allowCreate',
+        'allowVariantCreation',
+        'detailsOpen',
+        'variantHint',
+        'selectionMode',
+        'selection',
+      ],
+      [
+        'closed',
+        'selected',
+        'createRequested',
+        'variantCreateRequested',
+        'imageFailed',
+        'retryRequested',
+      ],
+    );
+    (ArticlePickerComponent as unknown as { ɵcmp: AngularBindingMetadata }).ɵcmp.outputs = {
+      ...(ArticlePickerComponent as unknown as { ɵcmp: AngularBindingMetadata }).ɵcmp.outputs,
+      selectionChange: 'selection',
+    };
     bridgeBindings(ModalShellComponent, ['title', 'size'], ['closed']);
     bridgeBindings(ModalDialogDirective, ['dialogTitel', 'schliesstBeiKlickAussen']);
     bridgeBindings(TextFieldComponent, [
@@ -190,9 +228,11 @@ describe('PurchaseProductPickerComponent', () => {
       { ...product, id: 'archived', title: 'Altartikel', archived_at: '2026-09-24' },
     ]);
     fixture.detectChanges();
-    expect(fixture.componentInstance.filteredGroups().map((entry) => entry.id)).toEqual([
-      'product-1',
-    ]);
+    expect(
+      picker(fixture)
+        .filteredGroups()
+        .map((entry) => entry.id),
+    ).toEqual(['product-1']);
     expect(
       (fixture.nativeElement as HTMLElement).querySelector('[data-product-group="archived"]'),
     ).toBeNull();
@@ -233,7 +273,7 @@ describe('PurchaseProductPickerComponent', () => {
     expect(fixture.componentInstance.selection().has(product.id)).toBe(true);
     expect(row?.getAttribute('aria-pressed')).toBe('true');
 
-    fixture.componentInstance.toggle(product.id);
+    picker(fixture).toggle(product.id);
     expect(fixture.componentInstance.selection().has(product.id)).toBe(false);
   });
 
@@ -248,7 +288,7 @@ describe('PurchaseProductPickerComponent', () => {
     fixture.componentRef.setInput('products', [size40, size39]);
     fixture.detectChanges();
 
-    expect(fixture.componentInstance.filteredGroups()).toHaveLength(1);
+    expect(picker(fixture).filteredGroups()).toHaveLength(1);
     const group = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
       '[data-product-group="product-1"]',
     );
@@ -263,7 +303,7 @@ describe('PurchaseProductPickerComponent', () => {
     fixture.detectChanges();
     const selected: (readonly CatalogProduct[])[] = [];
     fixture.componentInstance.selected.subscribe((products) => selected.push(products));
-    fixture.componentInstance.confirm();
+    picker(fixture).confirm();
     expect(selected[0]?.map((entry) => entry.id)).toEqual(['product-39']);
   });
 
@@ -280,7 +320,8 @@ describe('PurchaseProductPickerComponent', () => {
     fixture.componentInstance.selected.subscribe((products) => selected.push(products));
 
     fixture.componentInstance.onVariantCreated(created);
-    fixture.componentInstance.confirm();
+    fixture.detectChanges();
+    picker(fixture).confirm();
 
     expect(selected[0]?.map((entry) => entry.id)).toEqual([created.id]);
   });
@@ -304,21 +345,20 @@ describe('PurchaseProductPickerComponent', () => {
     ]);
     fixture.detectChanges();
 
-    expect(fixture.componentInstance.categoryOptions().map((option) => option.label)).toEqual([
-      'Alle Kategorien',
-      'Smartphones',
-      'Sneaker',
-    ]);
-    expect(fixture.componentInstance.brandOptions().map((option) => option.label)).toEqual([
-      'Alle Marken',
-      'Adidas',
-      'Apple',
-      'Nike',
-    ]);
+    expect(
+      picker(fixture)
+        .categoryOptions()
+        .map((option) => option.label),
+    ).toEqual(['Alle Kategorien', 'Smartphones', 'Sneaker']);
+    expect(
+      picker(fixture)
+        .brandOptions()
+        .map((option) => option.label),
+    ).toEqual(['Alle Marken', 'Adidas', 'Apple', 'Nike']);
 
-    expect(fixture.componentInstance.categoryOptions()[2]?.value).toBe('Schuhe > Sneaker');
-    fixture.componentInstance.categoryFilter.set('Schuhe > Sneaker');
-    fixture.componentInstance.brandFilter.set('Nike');
+    expect(picker(fixture).categoryOptions()[2]?.value).toBe('Schuhe > Sneaker');
+    picker(fixture).categoryFilter.set('Schuhe > Sneaker');
+    picker(fixture).brandFilter.set('Nike');
     fixture.detectChanges();
     expect(
       [...(fixture.nativeElement as HTMLElement).querySelectorAll('[data-product-group]')].map(
@@ -326,7 +366,7 @@ describe('PurchaseProductPickerComponent', () => {
       ),
     ).toEqual(['product-1']);
 
-    fixture.componentInstance.resetFilters();
+    picker(fixture).resetFilters();
     fixture.detectChanges();
     expect(
       (fixture.nativeElement as HTMLElement).querySelectorAll('[data-product-group]').length,
@@ -347,7 +387,7 @@ describe('PurchaseProductPickerComponent', () => {
     });
 
     expect(result.violations).toEqual([]);
-    fixture.componentInstance.openGroup(product.id);
+    picker(fixture).openGroup(product.id);
     fixture.detectChanges();
     const variantResult = await axe.run(fixture.nativeElement as HTMLElement, {
       rules: { 'color-contrast': { enabled: false } },

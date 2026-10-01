@@ -1,3 +1,5 @@
+import { WorkspaceService } from '../../../../core/services/workspace.service';
+import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import '@angular/compiler';
 import { registerLocaleData } from '@angular/common';
 import localeDe from '@angular/common/locales/de';
@@ -30,6 +32,33 @@ import { TextFieldComponent } from '../../../../shared/components/text-field/tex
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
 import { SaleCreateModalComponent } from './sale-create-modal.component';
+
+function saleSourceProviders() {
+  return [
+    { provide: WorkspaceService, useValue: { currentWorkspace: signal({ id: 'workspace-1' }) } },
+    {
+      provide: PurchaseService,
+      useValue: {
+        purchases: signal([]),
+        loadedWorkspaceId: signal('workspace-1'),
+        isLoading: signal(false),
+        loadError: signal(null),
+        loadPurchases: vi.fn(async () => undefined),
+      },
+    },
+    {
+      provide: CatalogService,
+      useValue: {
+        products: signal([]),
+        imageUrls: signal({}),
+        loadedWorkspaceId: signal('workspace-1'),
+        isLoading: signal(false),
+        loadError: signal(null),
+        loadProducts: vi.fn(async () => undefined),
+      },
+    },
+  ];
+}
 
 describe('SaleCreateModalComponent', () => {
   describe('Aktionsmeldungen', () => {
@@ -85,6 +114,8 @@ describe('SaleCreateModalComponent', () => {
       Object.assign(komponente, {
         salesService,
         inventoryService: { items: signal([artikel]) },
+        saleArticleEntries: signal([]),
+        saleTarget: signal(null),
         stockService: { positions: signal([position]) },
         profitEngine: {
           calculateProfit: vi.fn(() => 30),
@@ -186,6 +217,7 @@ describe('SaleCreateModalComponent', () => {
         );
         TestBed.configureTestingModule({
           providers: [
+            ...saleSourceProviders(),
             { provide: SalesService, useValue: { recordSale: vi.fn(), updateSale: vi.fn() } },
             { provide: InventoryService, useValue: { items: signal(items) } },
             { provide: StockService, useValue: { positions: signal([]) } },
@@ -221,11 +253,12 @@ describe('SaleCreateModalComponent', () => {
           purchase_line_id: 'line-1',
           sale_state: 'no_active_sale' as const,
         };
-        const products = signal<{ id: string; archived_at: string | null }[]>([
-          { id: 'product-1', archived_at: '2026-09-24T00:00:00Z' },
-        ]);
+        const products = signal<{ id: string; workspace_id: string; archived_at: string | null }[]>(
+          [{ id: 'product-1', workspace_id: 'workspace-1', archived_at: '2026-09-24T00:00:00Z' }],
+        );
         TestBed.configureTestingModule({
           providers: [
+            ...saleSourceProviders(),
             { provide: SalesService, useValue: { recordSale: vi.fn(), updateSale: vi.fn() } },
             { provide: InventoryService, useValue: { items: signal([linkedItem]) } },
             { provide: StockService, useValue: { positions: signal([]) } },
@@ -233,7 +266,20 @@ describe('SaleCreateModalComponent', () => {
               provide: PurchaseService,
               useValue: {
                 loadedWorkspaceId: signal('workspace-1'),
-                purchaseLines: signal([{ id: 'line-1', catalog_product_id: 'product-1' }]),
+                purchases: signal([
+                  {
+                    id: 'purchase-1',
+                    workspace_id: 'workspace-1',
+                    purchase_lines: [
+                      {
+                        id: 'line-1',
+                        workspace_id: 'workspace-1',
+                        purchase_id: 'purchase-1',
+                        catalog_product_id: 'product-1',
+                      },
+                    ],
+                  },
+                ]),
               },
             },
             {
@@ -250,7 +296,7 @@ describe('SaleCreateModalComponent', () => {
         const component = TestBed.runInInjectionContext(() => new SaleCreateModalComponent());
         try {
           expect(component.availableItems()).toEqual([]);
-          products.set([{ id: 'product-1', archived_at: null }]);
+          products.set([{ id: 'product-1', workspace_id: 'workspace-1', archived_at: null }]);
           expect(component.availableItems().map(({ id }) => id)).toEqual(['linked-item']);
         } finally {
           TestBed.resetTestingModule();
@@ -260,6 +306,7 @@ describe('SaleCreateModalComponent', () => {
       it('aktualisiert Gesamtpreis, Live-Kennzahlen und Legacy-Payload bei Formänderungen', () => {
         TestBed.configureTestingModule({
           providers: [
+            ...saleSourceProviders(),
             { provide: SalesService, useValue: { recordSale: vi.fn(), updateSale: vi.fn() } },
             { provide: InventoryService, useValue: { items: signal([artikel]) } },
             { provide: StockService, useValue: { positions: signal([position]) } },
@@ -304,6 +351,7 @@ describe('SaleCreateModalComponent', () => {
       it('setzt Versandvorgaben nur beim Plattformwechsel und bewahrt den vollständigen Verkaufspayload', () => {
         TestBed.configureTestingModule({
           providers: [
+            ...saleSourceProviders(),
             { provide: SalesService, useValue: { recordSale: vi.fn(), updateSale: vi.fn() } },
             { provide: InventoryService, useValue: { items: signal([artikel]) } },
             { provide: StockService, useValue: { positions: signal([position]) } },
@@ -377,6 +425,7 @@ describe('SaleCreateModalComponent', () => {
       it('bewahrt unbekannten Legacy-Versand für Vinted und Kleinanzeigen unverändert und editierbar', () => {
         TestBed.configureTestingModule({
           providers: [
+            ...saleSourceProviders(),
             { provide: SalesService, useValue: { recordSale: vi.fn(), updateSale: vi.fn() } },
             { provide: InventoryService, useValue: { items: signal([artikel]) } },
             { provide: StockService, useValue: { positions: signal([position]) } },
@@ -421,6 +470,7 @@ describe('SaleCreateModalComponent', () => {
       it('übernimmt strukturierte Zusatzkosten eines bestehenden Verkaufs in Kennzahlen und Summen', () => {
         TestBed.configureTestingModule({
           providers: [
+            ...saleSourceProviders(),
             { provide: SalesService, useValue: { recordSale: vi.fn(), updateSale: vi.fn() } },
             { provide: InventoryService, useValue: { items: signal([artikel]) } },
             { provide: StockService, useValue: { positions: signal([position]) } },
@@ -480,6 +530,7 @@ describe('SaleCreateModalComponent', () => {
       it('synthetisiert aggregierte Legacy-Zusatzkosten, wenn Kostenzeilen fehlen', () => {
         TestBed.configureTestingModule({
           providers: [
+            ...saleSourceProviders(),
             { provide: SalesService, useValue: { recordSale: vi.fn(), updateSale: vi.fn() } },
             { provide: InventoryService, useValue: { items: signal([artikel]) } },
             { provide: StockService, useValue: { positions: signal([position]) } },
@@ -696,6 +747,10 @@ describe('SaleCreateModalComponent', () => {
 
     function installTestLocalInputBridges(): void {
       bridgeInputMetadata(
+        (ProductThumbnailComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp,
+        ['src'],
+      );
+      bridgeInputMetadata(
         (SaleCreateModalComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp,
         ['saleTarget', 'legacyReconciliation'],
       );
@@ -835,9 +890,27 @@ describe('SaleCreateModalComponent', () => {
       TestBed.configureTestingModule({
         imports: [SaleCreateModalComponent],
         providers: [
+          ...saleSourceProviders(),
           { provide: SalesService, useValue: salesService },
-          { provide: InventoryService, useValue: { items } },
-          { provide: StockService, useValue: { positions } },
+          {
+            provide: InventoryService,
+            useValue: {
+              items,
+              loadedWorkspaceId: signal('workspace-1'),
+              isLoading: signal(false),
+              loadError: signal(null),
+            },
+          },
+          {
+            provide: StockService,
+            useValue: {
+              positions,
+              loadedWorkspaceId: signal('workspace-1'),
+              isLoading: signal(false),
+              loadError: signal(null),
+              loadPositions: vi.fn(async () => undefined),
+            },
+          },
           {
             provide: ProfitEngineService,
             useValue: {
@@ -895,6 +968,7 @@ describe('SaleCreateModalComponent', () => {
         TestBed.configureTestingModule({
           imports: [SaleCreateModalComponent],
           providers: [
+            ...saleSourceProviders(),
             {
               provide: SalesService,
               useValue: { recordSale: vi.fn(), recordLegacySale: vi.fn(), updateSale: vi.fn() },
@@ -1065,6 +1139,7 @@ describe('SaleCreateModalComponent', () => {
         TestBed.configureTestingModule({
           imports: [SaleCreateModalComponent],
           providers: [
+            ...saleSourceProviders(),
             {
               provide: SalesService,
               useValue: { recordSale: vi.fn(), recordLegacySale: vi.fn(), updateSale: vi.fn() },
@@ -1092,10 +1167,10 @@ describe('SaleCreateModalComponent', () => {
         expect(host.textContent).toContain('Versand und Gebühren');
         expect(host.textContent).toContain('Verkaufsübersicht');
         expect(host.textContent).toContain('Verkaufsdetails');
-        expect(host.textContent).toContain('Verkaufskosten');
+        expect(host.textContent).toContain('Gebühren & Versand');
         expect(host.textContent).toContain('Zusätzliche Kosten');
         expect(host.textContent).toContain('Notiz');
-        expect(host.textContent).toContain('Ergebnis nach direkten Kosten');
+        expect(host.textContent).toContain('Gewinn');
         expect(host.textContent).toContain('Marge');
         expect(host.textContent).not.toContain('Kapitalrendite');
         expect(host.textContent).not.toContain('Gewinn ÷ eingesetztes Kapital × 100');
@@ -1117,6 +1192,7 @@ describe('SaleCreateModalComponent', () => {
         TestBed.configureTestingModule({
           imports: [SaleCreateModalComponent],
           providers: [
+            ...saleSourceProviders(),
             {
               provide: SalesService,
               useValue: { recordSale: vi.fn(), recordLegacySale: vi.fn(), updateSale: vi.fn() },
@@ -1186,9 +1262,20 @@ describe('SaleCreateModalComponent', () => {
       });
 
       it('lässt invalides Absenden zu, markiert alle Felder und fokussiert das erste fehlerhafte Feld', async () => {
-        const { fixture, salesService } = await erstelleGerendertenDialog();
+        const { fixture, salesService, items } = await erstelleGerendertenDialog();
         const component = fixture.componentInstance;
-        component.lines.at(0).controls.target.setValue('catalog:test-product');
+        items.set([
+          {
+            id: 'available-item',
+            workspace_id: 'workspace-1',
+            title: 'Artikel',
+            condition: 'used',
+            status: 'ready',
+            sale_state: 'no_active_sale',
+            allocated_purchase_cost: 0,
+          },
+        ]);
+        component.lines.at(0).controls.target.setValue('inventory:available-item');
         component.lines.at(0).controls.unitSalePrice.setValue(1);
         component.form.controls.shippingRevenue.setValue(-1);
         fixture.detectChanges();
