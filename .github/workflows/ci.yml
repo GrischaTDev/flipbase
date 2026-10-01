@@ -112,6 +112,16 @@ jobs:
       - name: Check types
         run: npm run typecheck
 
+      - name: Set up Deno for eBay functions
+        uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+        with:
+          deno-version: v2.9.7
+
+      - name: Check and test eBay functions in Deno
+        run: |
+          deno check --no-config --node-modules-dir=none supabase/functions/ebay-account/index.ts supabase/functions/ebay-account-deletion/index.ts supabase/functions/marketplace-search/index.ts
+          deno test --no-config --node-modules-dir=none --allow-env supabase/functions/ebay-account/handler.test.ts supabase/functions/ebay-account-deletion/handler.test.ts supabase/functions/ebay-account-deletion/endpoint.test.ts supabase/functions/_shared/ebay-api.test.ts
+
       - name: Install marketplace worker dependencies
         run: npm ci --prefix services/marketplace-worker --ignore-scripts
 

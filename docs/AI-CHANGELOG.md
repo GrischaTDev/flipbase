@@ -1,5 +1,31 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-01 – Juna – eBay-Korrektur für Veröffentlichung und Einrichtung freigegeben
+
+**Auftrag:** Nach ausdrücklichem „ja“ den lokal geprüften Zweig `juna/ebay-production-setup` veröffentlichen, erfolgreiche Pflichtprüfungen abwarten, per Merge-Commit integrieren und den eigenen Zweig samt Worktree aufräumen. Anschließend den separat freigegebenen Funktionsrollout und die echte eBay-Einrichtung fortsetzen.
+
+**Vorbereitung:** Arbeitsstand auf `b2522e9e` sauber, `origin/master` unverändert auf `a987e304`. Die bereits abgeschlossenen 19 Deno-Tests, drei Funktions-Typprüfungen, 31 CI-Verträge, Format-/Lint-/Workflow-Prüfungen und der isolierte Nachweis mit der produktiven Laufzeit bleiben gültig. Die vollständige Pflichtprüfung läuft im PR. Produktive Zugangsdaten, Kontoverbindung und Portal-Freischaltung sind noch offen.
+
+## 2026-10-01 – Juna – eBay-Freischaltung vorbereitet und Löschendpoint korrigiert
+
+**Auftrag:** Die echte eBay-Verbindung nach den veröffentlichten PRs #271 und #272 einrichten, ausrollen und prüfen. Eigener Worktree und Zweig `juna/ebay-production-setup` auf `origin/master` (`a987e304`); bestehende fremde Zweige bleiben unverändert.
+
+**Befund:** Auf dem Produktionsserver fehlen eBay-Funktionen und eBay-Konfigurationswerte. Die Datenbank bestätigt Migration `20261001130617`. Nach Nutzeranmeldung im Entwicklerportal ist das Production-Keyset noch wegen fehlender Löschendpoint-Bestätigung gesperrt. Die bisherige Funktion verlangte zur Bestätigung bereits die vollständige Kontokonfiguration. Zusätzlich wies Deno korrekt signierte Meldungen wegen doppelt eingefügter PEM-Zeilenumbrüche ab; die bisherigen Node-Prüfungen hatten diesen Laufzeitunterschied nicht erkannt.
+
+**Änderung:** Verifikationstoken und HTTPS-Endpoint werden unabhängig geprüft, sodass die Bestätigung vor Freischaltung des Keysets funktioniert. Signierte Meldungen bleiben ohne vollständige Konfiguration mit HTTP 503 wiederholbar, unsignierte Meldungen bleiben abgewiesen. Öffentliche Signaturschlüssel erhalten eine einheitliche PEM-Darstellung. Die PR-Qualitätsprüfung testet und prüft die eBay-Funktionen jetzt zusätzlich in Deno. Rollout, Nutzeraktionen, Prüfungen und Rückweg stehen in `docs/implementation/ebay-production-rollout.md`.
+
+**Prüfung:** Bestätigungslücke und Signaturfehler zuerst fehlschlagend nachgestellt. Anschließend 19 gezielte Tests und drei Funktions-Typprüfungen in der aktuellen stabilen Deno-Version 2.9.7 sowie 31 CI-Vertragsprüfungen erfolgreich. Getrennte temporäre Instanz des installierten Edge-Runtime-Images mit Deno 2.1.4 bestätigt Signaturen, manipulierte Daten, Bestätigung ohne Konto-Zugangsdaten und Wiederholbarkeit; die fünf vorgesehenen anonymen HTTP-Fälle bestehen. Testcontainer anschließend gestoppt. Keine produktiven Funktionsordner, Zugangswerte oder Kontodaten verändert; kein echtes Konto verbunden. Die neue Korrektur benötigt den geprüften PR/Merge vor dem produktiven Rollout.
+
+## 2026-10-01 – Juna – Stand des eBay-Merges und nächste Schritte geprüft
+
+**Auftrag:** Den letzten eBay-Merge, seine Veröffentlichung und die sinnvolle nächste Etappe einordnen.
+
+**Befund:** GitHub und den frisch abgerufenen `origin/master` (`a987e304`) geprüft. PR #271 ergänzt persönliche eBay-Kontoverbindungen und die lesende Anzeige eigener Angebote und Bestellungen. PR #272 behebt den anschließend gescheiterten Produktionsbau. Beide PRs haben erfolgreiche Pflichtprüfungen. Release-Lauf `36876381049` bestätigt Image-Bau, Image-Smoke, Migration `20261001130617`, Veröffentlichung und öffentliche Prüfungen; Version `v0.276.1` wurde erstellt. Die serverseitige eBay-Konfiguration, der separate Funktionsrollout und ein echter Kontotest sind dadurch noch nicht nachgewiesen.
+
+**Nächster Schritt:** Production-Zugang und Rechte, OAuth-Rückweg und Löschendpoint einrichten, die eBay-Funktionen separat ausrollen und Kontoverbindung/Abruf/Trennen mit zwei normalen Nutzern prüfen. Anschließend sichere Artikelzuordnung und bewusste Bestellübernahme planen; automatische Bestandsänderungen, Gebührenimport und Inseratsveröffentlichung gehören zu späteren Paketen.
+
+**Prüfung:** Nur Repository-Dokumentation, Git-Stand, PR-Prüfungen und Release-Protokoll gelesen. Keine Zugangsdaten abgerufen, keine produktive Konfiguration oder Konten verändert. Ausschließlich diesen lokalen Sitzungseintrag ergänzt; keine Anwendungstests erforderlich.
+
 ## 2026-10-01 - Juna - eBay-Typvertrag im Produktionsbau ergänzt
 
 **Auftrag:** Die freigegebene eBay-Anbindung nach grünen Pflichtprüfungen

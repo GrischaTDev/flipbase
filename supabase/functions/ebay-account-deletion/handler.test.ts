@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { generateKeyPairSync, sign } from 'node:crypto';
+import { Buffer } from 'node:buffer';
 import { createDeletionHandler } from './handler.ts';
 
 test('Löschungen erfordern eine gültige Signatur, prüfen den Nutzer und sind wiederholbar', async () => {

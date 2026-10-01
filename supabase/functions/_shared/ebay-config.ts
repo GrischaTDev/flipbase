@@ -1,5 +1,27 @@
 import type { EbayConfig } from './ebay-api.ts';
 
+export function readEbayDeletionConfig(
+  readEnvironment: (name: string) => string | undefined,
+): { verificationToken: string; endpoint: string } | null {
+  const verificationToken = readEnvironment('EBAY_DELETION_VERIFICATION_TOKEN') ?? '';
+  const endpoint = readEnvironment('EBAY_DELETION_ENDPOINT') ?? '';
+  try {
+    const url = new URL(endpoint);
+    if (
+      !/^[a-zA-Z0-9_-]{32,80}$/.test(verificationToken) ||
+      url.protocol !== 'https:' ||
+      url.username ||
+      url.password ||
+      url.search ||
+      url.hash
+    )
+      return null;
+    return { verificationToken, endpoint };
+  } catch {
+    return null;
+  }
+}
+
 export function readEbayConfig(
   readEnvironment: (name: string) => string | undefined,
 ): EbayConfig | null {
@@ -34,17 +56,7 @@ export function readEbayConfig(
         ))
     )
       return null;
-    const token = readEnvironment('EBAY_DELETION_VERIFICATION_TOKEN') ?? '';
-    const endpoint = new URL(readEnvironment('EBAY_DELETION_ENDPOINT') ?? '');
-    if (
-      !/^[a-zA-Z0-9_-]{32,80}$/.test(token) ||
-      endpoint.protocol !== 'https:' ||
-      endpoint.username ||
-      endpoint.password ||
-      endpoint.search ||
-      endpoint.hash
-    )
-      return null;
+    if (!readEbayDeletionConfig(readEnvironment)) return null;
     return {
       clientId,
       clientSecret,
