@@ -1,5 +1,18 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-01 – Juna – Vinted-Umbau für PR und Merge freigegeben
+
+**Auftrag:** Nach ausdrücklichem „los“ den geprüften Vinted-Zweig veröffentlichen,
+alle Pflichtprüfungen abwarten, per Merge-Commit integrieren und anschließend
+den eigenen Zweig samt Worktree aufräumen.
+
+**Vorbereitung:** Sauberer Stand `3e1465ef`, aktueller Hauptstand `fd4dc95f`
+bereits integriert. Produktionsbau, Typprüfung, betroffene Tests, 23 künstliche
+Browserfälle und lokale Migrationsprüfung erfolgreich; finale Templatefixes
+zusätzlich unabhängig freigegeben. PR-Freigabe umfasst die geprüfte transaktionale
+Migration; der Releaseweg bleibt Backup → Migrationen → Anwendung → öffentlicher
+Versionscheck. Keine externen Nachrichten oder zusätzliche Workerveröffentlichung.
+
 ## 2026-10-01 – Juna – Vinted-Ansicht umgebaut und Favoritenmeldungen umgesetzt
 
 **Auftrag:** Den freigegebenen Entwurf nach „los“ umsetzen: kompakter Kontokopf,

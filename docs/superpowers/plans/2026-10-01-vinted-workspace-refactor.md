@@ -301,7 +301,7 @@ seriell; kein gleichzeitiger Umbau gemeinsamer Benachrichtigungsdateien.
       Import-RPC auf; die neuen Hooks benötigen Schema-/Anwendungsrelease.
 - [x] AI-Changelog ergänzen; lokale Prüfergebnisse und tatsächlich verbleibende
       Grenzen dokumentieren. Keine Produktivkonten ändern, um bloß Layouttests zu bestehen.
-- [ ] Nach fertiger Umsetzung exakt fragen:
+- [x] Nach fertiger Umsetzung exakt fragen:
       „Soll ich jetzt den PR erstellen und nach erfolgreichen Tests mergen?“
       Erst nach dieser Freigabe pushen und den grünen PR per Merge-Commit integrieren.
 
