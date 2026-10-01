@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { generateKeyPairSync, sign } from 'node:crypto';
+import { Buffer } from 'node:buffer';
 import {
   authorizationUrl,
   EBAY_SCOPES,
@@ -60,7 +61,8 @@ test('Refresh erhält den bestehenden Refresh Token und liest keine Browserwerte
   };
   const refreshed = await refreshTokens(config, tokens, async (input, init) => {
     assert.equal(String(input), 'https://api.ebay.com/identity/v1/oauth2/token');
-    assert.equal(new URLSearchParams(String(init?.body)).get('refresh_token'), 'refresh');
+    const body = init && 'body' in init ? init.body : undefined;
+    assert.equal(new URLSearchParams(String(body)).get('refresh_token'), 'refresh');
     return Response.json({ access_token: 'new', expires_in: 7200 });
   });
   assert.equal(refreshed.accessToken, 'new');
@@ -134,6 +136,11 @@ test('Löschmeldungen prüfen echte ECC-Signaturen und den unveränderten JSON-I
   const header = Buffer.from(JSON.stringify({ kid: 'key-a', signature })).toString('base64');
   const publicKey = keys.publicKey.export({ type: 'spki', format: 'pem' }).toString();
   assert.equal(verifyNotification(payload, header, publicKey), true);
+  assert.equal(
+    verifyNotification(payload, header, publicKey.replace(/\s/g, ' ').replace(/ +/g, ' ')),
+    true,
+  );
+  assert.equal(verifyNotification(payload, header, publicKey.replace(/\r?\n/g, '')), true);
   assert.equal(verifyNotification(payload.replace('seller', 'other'), header, publicKey), false);
   assert.equal(verifyNotification(payload, 'invalid', publicKey), false);
   assert.equal(

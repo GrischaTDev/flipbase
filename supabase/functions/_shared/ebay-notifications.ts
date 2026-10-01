@@ -22,10 +22,13 @@ export function verifyNotification(payload: string, signature: string, publicKey
     if (!signed) return false;
     const verifier = createVerify('sha1');
     verifier.update(JSON.stringify(JSON.parse(payload)));
+    const keyBody = publicKey.replace(
+      /-----BEGIN PUBLIC KEY-----|-----END PUBLIC KEY-----|\s/g,
+      '',
+    );
+    const keyLines = keyBody.match(/.{1,64}/g)?.join('\n') ?? '';
     return verifier.verify(
-      publicKey
-        .replace('-----BEGIN PUBLIC KEY-----', '-----BEGIN PUBLIC KEY-----\n')
-        .replace('-----END PUBLIC KEY-----', '\n-----END PUBLIC KEY-----'),
+      `-----BEGIN PUBLIC KEY-----\n${keyLines}\n-----END PUBLIC KEY-----\n`,
       signed,
       'base64',
     );
