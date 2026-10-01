@@ -32,7 +32,7 @@ const expectedIds = [
 const legacyColumns = () => legacyIds.map((id, order) => ({ id, order, visible: true }));
 const defaults = SALES_TABLE_CONFIG.defaultColumns;
 
- describe('Verkaufstabelle und gespeicherte Standardansicht', () => {
+describe('Verkaufstabelle und gespeicherte Standardansicht', () => {
   it('zeigt Nummer und Datum vor Artikeln in eindeutiger Standardfolge', () => {
     expect(defaults.map((column) => column.id)).toEqual(expectedIds);
     expect(defaults.map((column) => column.order)).toEqual(expectedIds.map((_, index) => index));
