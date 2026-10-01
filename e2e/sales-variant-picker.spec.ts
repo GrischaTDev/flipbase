@@ -194,7 +194,9 @@ test('wählt verkaufbare Varianten im gemeinsamen Modal und zeigt Nummer vor Dat
   // Derselbe Dialog bleibt im Einkauf einschließlich Variantenanlage verwendbar.
   await page.goto('/purchases/new');
   await page.getByRole('button', { name: 'Artikel suchen oder hinzufügen', exact: true }).click();
-  await expect(picker).toBeVisible();
+  await expect(
+    picker.getByRole('dialog', { name: 'Artikel auswählen', exact: true }),
+  ).toBeVisible();
   await picker.getByLabel('Artikel suchen', { exact: true }).fill(title);
   await picker.locator('[data-product-group]').filter({ hasText: title }).click();
   await expect(picker.getByRole('button', { name: 'Neue Variante', exact: true })).toBeVisible();
