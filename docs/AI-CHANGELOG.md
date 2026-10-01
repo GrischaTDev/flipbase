@@ -92,6 +92,23 @@ und fehlende Zuordnungsaktion zunächst rot, anschließend grün. Geänderte Dat
 formatiert und gelintet; Shared-UI-Prüfung ohne Befund, Typprüfung und Angular-
 Produktionsbau bestanden. Der Bau meldet nur die bestehende pako/CommonJS-Warnung.
 
+**Verkaufserfassung:** Allgemeine externe Übergabe ergänzt. Bestellmenge, Preis,
+Plattform, Datum, Referenz und Käufer-Versanderlös sind geschützt und werden
+vollständig als geprüfte Rohwerte übernommen. Centgruppen derselben Quellposition
+teilen ein Ziel; die Auswahl berücksichtigt ihre gemeinsame benötigte Menge.
+Gebühr und tatsächliche Versandkosten beginnen leer und benötigen ausdrücklich
+bestätigte Werte einschließlich 0. Der Versandmodus bestätigt keine Kosten
+nebenbei. Kosten und kompatible Artikelentscheidungen bleiben bei neuer Prüfung
+erhalten. Ein unklarer Ausgang sperrt weitere Buchungen bis zu einem neuen
+bestätigten Prüfstand. Nur saved löst Erfolg/Schließen aus; manuelle Erfassung und
+Bearbeitung bleiben im bisherigen Ablauf.
+**Verkaufsprüfung:** Neue externe Eingangsverträge zunächst nachweislich fehlend;
+unerwartete Speicher-Ausnahme zunächst ungesperrt, anschließend gesperrt.
+52 betroffene Verkaufserfassungs-/Picker-/Seitenprüfungen bestanden. Bestehende
+manuelle Fehlertexte und ihre ARIA-Bezüge bleiben erhalten. Geänderte Dateien
+formatiert und gelintet; Shared-UI-Prüfung, Anwendungstypen und frischer Angular-
+Produktionsbau bestanden, nur bestehende pako/CommonJS-Warnung.
+
 ## 2026-10-01 – Juna – eBay-Umsetzungsplan nach Spezifikationsfreigabe erstellt
 
 **Auftrag:** Nach ausdrücklichem „los“ zur geschriebenen Spezifikation den

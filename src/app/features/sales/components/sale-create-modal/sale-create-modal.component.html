@@ -16,7 +16,7 @@
     <div main class="space-y-4" data-testid="sale-entry-main">
       <app-card title="Verkaufspositionen" padding="md" rounded="xl">
         <div card-header-actions>
-          @if (!legacyReconciliation() && !istBearbeitung()) {
+          @if (!externalDraft() && !legacyReconciliation() && !istBearbeitung()) {
             <app-button
               size="slim"
               [icon]="plusIcon"
@@ -38,6 +38,12 @@
             Artikel und Bestand werden geladen…
           </p>
         }
+        @if (externalDraft()) {
+          <p class="mb-4 text-sm text-fb-text-muted">
+            Mengen und Preise stammen aus der bestätigten Bestellung. Ordne jeder Bestellposition
+            einen verfügbaren Artikel zu.
+          </p>
+        }
         <div formArrayName="lines" class="space-y-4">
           @for (line of lines.controls; track line; let index = $index) {
             <div
@@ -50,6 +56,11 @@
                   <p class="mb-1.5 text-[13px] font-semibold">
                     Artikel <span aria-hidden="true" class="text-fb-primary">*</span>
                   </p>
+                  @if (externalDraft(); as draft) {
+                    <p class="mb-1 text-xs text-fb-text-muted">
+                      Bestellposition: {{ draft.lines[index].title }}
+                    </p>
+                  }
                   <p class="text-[13px]" data-sale-article-label>{{ articleLabel(line) }}</p>
                   @if (!legacyReconciliation() && !istBearbeitung()) {
                     <app-button
@@ -78,6 +89,7 @@
                   [icon]="removeIcon"
                   [iconOnly]="true"
                   [disabled]="
+                    !!externalDraft() ||
                     lines.length === 1 ||
                     !!legacyReconciliation() ||
                     istBearbeitung() ||
@@ -167,7 +179,7 @@
           </div>
           <div>
             <label for="platform-fee" class="mb-1.5 block text-[13px] font-semibold"
-              >Plattformgebühr (€)</label
+              >Plattformgebühr (€){{ externalDraft() ? ' – bitte bestätigen' : '' }}</label
             >
             <app-number-input
               id="platform-fee"
@@ -175,17 +187,28 @@
               [step]="0.01"
               unit="€"
               formControlName="platformFee"
-              ariaLabel="Plattformgebühr"
+              [ariaLabel]="externalDraft() ? 'Plattformgebühr, erforderlich' : 'Plattformgebühr'"
+              [placeholder]="externalDraft() ? 'Betrag bestätigen' : ''"
               [ariaInvalid]="form.controls.platformFee.touched && form.controls.platformFee.invalid"
               [ariaDescribedby]="
-                form.controls.platformFee.touched && form.controls.platformFee.hasError('min')
-                  ? 'platform-fee-error'
-                  : ''
+                (externalDraft() ? 'platform-fee-help' : '') +
+                (form.controls.platformFee.touched && form.controls.platformFee.invalid
+                  ? ' platform-fee-error'
+                  : '')
               "
             />
-            @if (form.controls.platformFee.touched && form.controls.platformFee.hasError('min')) {
+            @if (externalDraft()) {
+              <p id="platform-fee-help" class="mt-1 text-xs text-fb-text-muted">
+                Trage die bestätigte Gebühr ein. Sind keine Gebühren entstanden, bestätige mit 0.
+              </p>
+            }
+            @if (form.controls.platformFee.touched && form.controls.platformFee.invalid) {
               <p id="platform-fee-error" role="alert" class="mt-1 text-xs text-fb-critical">
-                Die Plattformgebühr darf nicht negativ sein.
+                @if (externalDraft()) {
+                  Gib eine bestätigte Plattformgebühr von mindestens 0 € ein.
+                } @else {
+                  Die Plattformgebühr darf nicht negativ sein.
+                }
               </p>
             }
           </div>
@@ -224,7 +247,9 @@
           </div>
           <div>
             <label for="shipping-cost" class="mb-1.5 block text-[13px] font-semibold"
-              >Tatsächliche Versandkosten (€)</label
+              >Tatsächliche Versandkosten (€){{
+                externalDraft() ? ' – bitte bestätigen' : ''
+              }}</label
             >
             <app-number-input
               id="shipping-cost"
@@ -232,23 +257,37 @@
               [step]="0.01"
               unit="€"
               formControlName="shippingCost"
-              ariaLabel="Tatsächliche Versandkosten"
+              [ariaLabel]="
+                externalDraft()
+                  ? 'Tatsächliche Versandkosten, erforderlich'
+                  : 'Tatsächliche Versandkosten'
+              "
+              [placeholder]="externalDraft() ? 'Betrag bestätigen' : ''"
               [ariaInvalid]="
                 form.controls.shippingCost.touched && form.controls.shippingCost.invalid
               "
               [ariaDescribedby]="
                 'shipping-cost-help' +
-                (form.controls.shippingCost.touched && form.controls.shippingCost.hasError('min')
+                (form.controls.shippingCost.touched && form.controls.shippingCost.invalid
                   ? ' shipping-cost-error'
                   : '')
               "
             />
             <p id="shipping-cost-help" class="mt-1 text-xs text-fb-text-muted">
-              Aufwand für Porto oder Versandetikett.
+              @if (externalDraft()) {
+                Trage deine tatsächlichen Kosten für Porto oder Versandetikett ein. Falls keine
+                entstanden sind, bestätige mit 0.
+              } @else {
+                Aufwand für Porto oder Versandetikett.
+              }
             </p>
-            @if (form.controls.shippingCost.touched && form.controls.shippingCost.hasError('min')) {
+            @if (form.controls.shippingCost.touched && form.controls.shippingCost.invalid) {
               <p id="shipping-cost-error" role="alert" class="mt-1 text-xs text-fb-critical">
-                Die tatsächlichen Versandkosten dürfen nicht negativ sein.
+                @if (externalDraft()) {
+                  Gib bestätigte Versandkosten von mindestens 0 € ein.
+                } @else {
+                  Die tatsächlichen Versandkosten dürfen nicht negativ sein.
+                }
               </p>
             }
           </div>
@@ -413,7 +452,11 @@
               {{ salesLabels.sellingCosts }}
             </dt>
             <dd class="shrink-0 tabular-nums">
-              {{ metrics.sellingCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+              @if (metrics.sellingCosts === null) {
+                Kosten prüfen
+              } @else {
+                {{ metrics.sellingCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+              }
             </dd>
           </div>
           <div class="flex items-baseline justify-between gap-4 border-t border-fb-line pt-3">
@@ -469,13 +512,15 @@
             />
           </div>
           <app-text-field formControlName="externalOrderId" label="Referenznummer" />
-          <app-text-field
-            id="buyer-notes"
-            formControlName="buyerNotes"
-            label="Notiz zum Verkauf"
-            ariaLabel="Notiz zum Verkauf"
-            [multiline]="3"
-          />
+          @if (!externalDraft()) {
+            <app-text-field
+              id="buyer-notes"
+              formControlName="buyerNotes"
+              label="Notiz zum Verkauf"
+              ariaLabel="Notiz zum Verkauf"
+              [multiline]="3"
+            />
+          }
         </div>
       </app-card>
     </div>

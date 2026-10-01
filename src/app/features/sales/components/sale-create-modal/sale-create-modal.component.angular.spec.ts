@@ -32,6 +32,10 @@ import { TextFieldComponent } from '../../../../shared/components/text-field/tex
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
 import { SaleCreateModalComponent } from './sale-create-modal.component';
+import type {
+  ExternalSaleEntryDraft,
+  ExternalSaleEntrySaveResult,
+} from '../../models/external-sale-entry.models';
 
 function saleSourceProviders() {
   return [
@@ -126,6 +130,8 @@ describe('SaleCreateModalComponent', () => {
         syncStatus,
         sale: signal(bestehenderVerkauf),
         legacyReconciliation: signal(null),
+        externalDraft: signal(null),
+        externalSubmit: signal(null),
         isSubmitting: signal(false),
         isPersisted: signal(false),
         errorMessage: signal<string | null>(null),
@@ -1295,5 +1301,228 @@ describe('SaleCreateModalComponent', () => {
         expect(salesService.recordSale).not.toHaveBeenCalled();
       });
     });
+  });
+});
+
+describe('Geprüfte externe Verkaufserfassung', () => {
+  const target = {
+    kind: 'catalog_product' as const,
+    catalogProductId: 'product-1',
+    title: 'Artikel',
+    availableQuantity: 5,
+  };
+  const initialDraft: ExternalSaleEntryDraft = {
+    revision: 'revision-1',
+    platform: 'ebay',
+    saleDate: '2026-10-01',
+    externalOrderId: 'order-1',
+    shippingRevenue: 4,
+    requireConfirmedCosts: true,
+    lines: [
+      { sourceLineId: 'line-1', title: 'eBay-Artikel', quantity: 2, unitSalePrice: 3.33, target },
+      { sourceLineId: 'line-1', title: 'eBay-Artikel', quantity: 1, unitSalePrice: 3.34, target },
+    ],
+  };
+  let component: SaleCreateModalComponent;
+  let draft: ReturnType<typeof signal<ExternalSaleEntryDraft | null>>;
+  let submit: ReturnType<
+    typeof vi.fn<(input: RecordSaleInput) => Promise<ExternalSaleEntrySaveResult>>
+  >;
+  let recordSale: ReturnType<typeof vi.fn>;
+  beforeEach(async () => {
+    draft = signal(initialDraft);
+    submit = vi.fn(async () => ({ status: 'saved' }));
+    recordSale = vi.fn();
+    const loadedWorkspaceId = signal('workspace-1');
+    const loadError = signal(null);
+    const isLoading = signal(false);
+    TestBed.configureTestingModule({
+      providers: [
+        ...saleSourceProviders(),
+        { provide: SalesService, useValue: { recordSale } },
+        {
+          provide: CatalogService,
+          useValue: {
+            products: signal([
+              {
+                id: 'product-1',
+                workspace_id: 'workspace-1',
+                title: 'Artikel',
+                tracking_mode: 'quantity',
+              },
+            ]),
+            imageUrls: signal({}),
+            loadedWorkspaceId,
+            loadError,
+            isLoading,
+            loadProducts: vi.fn(async () => undefined),
+          },
+        },
+        {
+          provide: InventoryService,
+          useValue: {
+            items: signal([]),
+            loadedWorkspaceId,
+            loadError,
+            isLoading,
+            loadInventory: vi.fn(async () => undefined),
+          },
+        },
+        {
+          provide: StockService,
+          useValue: {
+            positions: signal([
+              {
+                catalog_product_id: 'product-1',
+                title: 'Artikel',
+                available_quantity: 5,
+                oldest_available_unit_cost: 1,
+              },
+            ]),
+            loadedWorkspaceId,
+            loadError,
+            isLoading,
+            loadPositions: vi.fn(async () => undefined),
+          },
+        },
+        { provide: ToastService, useValue: new ToastService() },
+        { provide: SyncStatusService, useValue: new SyncStatusService() },
+      ],
+    });
+    component = TestBed.runInInjectionContext(() => new SaleCreateModalComponent());
+    vi.spyOn(component, 'externalDraft').mockImplementation(() => draft());
+    vi.spyOn(component, 'externalSubmit').mockImplementation(() => submit);
+    TestBed.tick();
+    await Promise.resolve();
+    await Promise.resolve();
+    TestBed.tick();
+  });
+  afterEach(() => TestBed.resetTestingModule());
+  function confirmCosts() {
+    component.form.controls.platformFee.setValue(0);
+    component.form.controls.shippingCost.setValue(0);
+  }
+  it('requires explicit external fee and shipping costs', () => {
+    expect(component.form.controls.platformFee.value).toBeNull();
+    expect(component.form.controls.shippingCost.value).toBeNull();
+    expect(component.canSave()).toBe(false);
+    expect(component.liveMetrics().profit).toBeNull();
+    component.form.controls.platformFee.setValue(0);
+    expect(component.canSave()).toBe(false);
+    component.form.controls.shippingCost.setValue(0);
+    expect(component.canSave()).toBe(true);
+  });
+  it('locks source fields while allowing article assignment', () => {
+    for (const control of [
+      component.form.controls.platform,
+      component.form.controls.saleDate,
+      component.form.controls.externalOrderId,
+      component.form.controls.shippingRevenue,
+      component.lines.at(0).controls.quantity,
+      component.lines.at(0).controls.unitSalePrice,
+    ])
+      expect(control.disabled).toBe(true);
+    expect(component.lines.at(0).controls.target.enabled).toBe(true);
+    component.addLine();
+    component.removeLine(0);
+    expect(component.lines.length).toBe(2);
+    component.onTargetChange(0, '');
+    expect(component.lines.getRawValue().map((line) => line.target)).toEqual(['', '']);
+    component.onTargetChange(0, 'catalog:product-1');
+    expect(component.lines.getRawValue().map((line) => line.quantity)).toEqual([2, 1]);
+  });
+  it('preserves costs and compatible assignments after a changed revision', () => {
+    confirmCosts();
+    component.form.controls.platformFee.setValue(2);
+    component.addAdditionalCost();
+    draft.set({
+      ...initialDraft,
+      revision: 'revision-2',
+      shippingRevenue: 5,
+      lines: initialDraft.lines.map((line) => ({ ...line, target: null })),
+    });
+    TestBed.tick();
+    expect(component.form.controls.platformFee.value).toBe(2);
+    expect(component.form.controls.shippingCost.value).toBe(0);
+    expect(component.additionalCosts.length).toBe(1);
+    expect(component.form.controls.shippingRevenue.value).toBe(5);
+    expect(component.lines.getRawValue().map((line) => line.target)).toEqual([
+      'catalog:product-1',
+      'catalog:product-1',
+    ]);
+  });
+  it('does not persist on review_changed or outcome_unknown', async () => {
+    confirmCosts();
+    const created = vi.spyOn(component.created, 'emit');
+    const closed = vi.spyOn(component.closed, 'emit');
+    submit.mockResolvedValueOnce({ status: 'review_changed' });
+    await component.onSubmit();
+    expect(component.isPersisted()).toBe(false);
+    expect(created).not.toHaveBeenCalled();
+    expect(closed).not.toHaveBeenCalled();
+    submit.mockResolvedValueOnce({ status: 'outcome_unknown' });
+    await component.onSubmit();
+    expect(component.canSave()).toBe(false);
+    await component.onSubmit();
+    expect(submit).toHaveBeenCalledTimes(2);
+    expect(recordSale).not.toHaveBeenCalled();
+    draft.set({ ...initialDraft, revision: 'resolved-review' });
+    TestBed.tick();
+    expect(component.canSave()).toBe(true);
+  });
+  it('emits success only for a saved external result and passes all protected raw values', async () => {
+    confirmCosts();
+    const created = vi.spyOn(component.created, 'emit');
+    const closed = vi.spyOn(component.closed, 'emit');
+    await component.onSubmit();
+    await component.onSubmit();
+    expect(submit).toHaveBeenCalledOnce();
+    expect(recordSale).not.toHaveBeenCalled();
+    expect(submit.mock.calls[0][0]).toMatchObject({
+      platform: 'ebay',
+      saleDate: initialDraft.saleDate,
+      externalOrderId: 'order-1',
+      shippingRevenue: 4,
+      platformFee: 0,
+      shippingCost: 0,
+      lines: [
+        { catalogProductId: 'product-1', quantity: 2, unitSalePrice: 3.33 },
+        { catalogProductId: 'product-1', quantity: 1, unitSalePrice: 3.34 },
+      ],
+    });
+    expect(created).toHaveBeenCalledOnce();
+    expect(closed).toHaveBeenCalledOnce();
+  });
+  it('blocks tampered protected values and costs with fractional cents', async () => {
+    confirmCosts();
+    component.lines.at(0).controls.quantity.setValue(1);
+    expect(component.canSave()).toBe(false);
+    await component.onSubmit();
+    expect(submit).not.toHaveBeenCalled();
+    component.lines.at(0).controls.quantity.setValue(2);
+    component.form.controls.platformFee.setValue(0.001);
+    expect(component.canSave()).toBe(false);
+  });
+  it('preserves manual sale defaults', () => {
+    draft.set(null);
+    TestBed.tick();
+    expect(component.form.controls.platformFee.value).toBe(0);
+    expect(component.form.controls.shippingCost.value).toBe(0);
+    expect(component.form.controls.platform.enabled).toBe(true);
+    expect(component.lines.length).toBe(1);
+  });
+  it('blocks another booking after an unexpected external submit exception', async () => {
+    confirmCosts();
+    submit.mockRejectedValueOnce(new Error('Antwort verloren'));
+    await component.onSubmit();
+    expect(component.canSave()).toBe(false);
+    await component.onSubmit();
+    expect(submit).toHaveBeenCalledOnce();
+  });
+  it('keeps buyer shipping fixed and never confirms seller costs through a shipping-mode default', () => {
+    component.form.controls.shippingMode.setValue('pickup');
+    expect(component.form.controls.shippingRevenue.value).toBe(4);
+    expect(component.form.controls.shippingCost.value).toBeNull();
+    expect(component.canSave()).toBe(false);
   });
 });

@@ -67,6 +67,10 @@ import { TextFieldComponent } from '../../../../shared/components/text-field/tex
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
 import { WorkspaceContextLockService } from '../../../../core/services/workspace-context-lock.service';
+import type {
+  ExternalSaleEntryDraft,
+  ExternalSaleEntrySubmit,
+} from '../../models/external-sale-entry.models';
 
 type SaleLineForm = FormGroup<{
   target: FormControl<string>;
@@ -110,6 +114,10 @@ export class SaleCreateModalComponent {
   readonly preselectedItemId = input<string | null>(null);
   readonly sale = input<Sale | null>(null);
   readonly showActions = input(true);
+  readonly externalDraft = input<ExternalSaleEntryDraft | null>(null);
+  readonly externalSubmit = input<ExternalSaleEntrySubmit | null>(null);
+  private previousExternalDraft: ExternalSaleEntryDraft | null = null;
+  private readonly externalOutcomeBlocked = signal(false);
   readonly closed = output<void>();
   readonly created = output<void>();
 
@@ -252,6 +260,32 @@ export class SaleCreateModalComponent {
   readonly articlePickerEntries = computed(() => {
     this.formValue();
     const replacing = this.articlePickerLineIndex();
+    const draft = this.externalDraft();
+    if (draft && replacing !== null) {
+      const sourceLineId = draft.lines[replacing]?.sourceLineId;
+      const required = draft.lines
+        .filter((line) => line.sourceLineId === sourceLineId)
+        .reduce((sum, line) => sum + line.quantity, 0);
+      return this.saleArticleEntries().map((entry) => {
+        const used = this.lines.controls.reduce(
+          (sum, line, index) =>
+            draft.lines[index]?.sourceLineId !== sourceLineId &&
+            line.controls.target.value === entry.id
+              ? sum + line.controls.quantity.value
+              : sum,
+          0,
+        );
+        return {
+          ...entry,
+          disabledReason:
+            entry.disabledReason ??
+            (typeof entry.availableQuantity !== 'number' ||
+            entry.availableQuantity - used < required
+              ? 'Nicht genügend verfügbarer Bestand'
+              : null),
+        };
+      });
+    }
     const used = new Set(
       this.lines.controls
         .filter((_line, index) => index !== replacing)
@@ -287,8 +321,14 @@ export class SaleCreateModalComponent {
       nonNullable: true,
       validators: [Validators.required],
     }),
-    platformFee: new FormControl(0, { nonNullable: true, validators: [Validators.min(0)] }),
-    shippingCost: new FormControl(0, { nonNullable: true, validators: [Validators.min(0)] }),
+    platformFee: new FormControl<number | null>(0, {
+      nonNullable: true,
+      validators: [Validators.min(0)],
+    }),
+    shippingCost: new FormControl<number | null>(0, {
+      nonNullable: true,
+      validators: [Validators.min(0)],
+    }),
     shippingRevenue: new FormControl(0, { nonNullable: true, validators: [Validators.min(0)] }),
     shippingMode: new FormControl<ShippingFormMode>('pickup', { nonNullable: true }),
     additionalCosts: new FormArray<AdditionalCostForm>([]),
@@ -318,7 +358,10 @@ export class SaleCreateModalComponent {
     this.formValue();
     const options: SelectOption<ShippingFormMode>[] = [...this.versandOptionen];
     if (this.form.controls.shippingMode.value === 'unknown') {
-      options.push({ value: 'unknown', label: 'Nicht bekannt (Altdaten)' });
+      options.push({
+        value: 'unknown',
+        label: this.externalDraft() ? 'Versandart nicht angegeben' : 'Nicht bekannt (Altdaten)',
+      });
     }
     return options;
   });
@@ -345,18 +388,22 @@ export class SaleCreateModalComponent {
       itemRevenue: this.totalPrice(),
       buyerShippingRevenue: raw.shippingRevenue,
       costOfGoodsSold: costOfGoods,
-      platformFees: raw.platformFee,
-      sellerShippingCost: raw.shippingCost,
+      platformFees: raw.platformFee ?? 0,
+      sellerShippingCost: raw.shippingCost ?? 0,
       extraCosts: [{ amount: additionalCosts }],
     });
+    const costsConfirmed =
+      !this.externalDraft() || (raw.platformFee !== null && raw.shippingCost !== null);
     const totalCosts =
-      costOfGoods === null ? null : Number((costOfGoods + metrics.sellingCosts).toFixed(2));
+      costOfGoods === null || !costsConfirmed
+        ? null
+        : Number((costOfGoods + metrics.sellingCosts).toFixed(2));
     return {
       costOfGoods,
-      sellingCosts: metrics.sellingCosts,
+      sellingCosts: costsConfirmed ? metrics.sellingCosts : null,
       totalCosts,
-      profit: metrics.resultAfterDirectCosts,
-      margin: metrics.marginPercent,
+      profit: costsConfirmed ? metrics.resultAfterDirectCosts : null,
+      margin: costsConfirmed ? metrics.marginPercent : null,
     };
   });
 
@@ -400,6 +447,12 @@ export class SaleCreateModalComponent {
       });
     });
     effect(() => {
+      const draft = this.externalDraft();
+      if (draft) {
+        untracked(() => this.fillExternalDraft(draft));
+        return;
+      }
+      if (this.previousExternalDraft) untracked(() => this.resetExternalDraft());
       const existing = this.sale();
       if (existing) {
         untracked(() => this.fillExistingSale(existing));
@@ -411,11 +464,18 @@ export class SaleCreateModalComponent {
   }
 
   canSave(): boolean {
+    const external = this.externalDraft();
     return (
       !this.isSubmitting() &&
       !this.isPersisted() &&
       !this.isLoadingStock() &&
       !this.stockLoadError() &&
+      (!external ||
+        (!!this.externalSubmit() &&
+          !this.externalOutcomeBlocked() &&
+          this.form.valid &&
+          this.hasConfirmedExternalCosts() &&
+          this.externalSourceMatches(external))) &&
       (!this.workspaceService?.currentWorkspace() ||
         (!this.selectionLoading() && !this.selectionError()))
     );
@@ -467,6 +527,7 @@ export class SaleCreateModalComponent {
   }
 
   openArticlePicker(index: number | null = null): void {
+    if (this.externalDraft() && index === null) return;
     if (this.istBearbeitung() || this.legacyReconciliation() || this.isSubmitting()) return;
     if (!this.workspaceService?.currentWorkspace()) return;
     const active = this.elementRef?.nativeElement.ownerDocument.activeElement;
@@ -569,6 +630,7 @@ export class SaleCreateModalComponent {
   }
 
   addLine(): void {
+    if (this.externalDraft()) return;
     this.lines.push(this.createLineForm());
   }
   addAdditionalCost(): void {
@@ -578,7 +640,13 @@ export class SaleCreateModalComponent {
     this.additionalCosts.removeAt(index);
   }
   removeLine(index: number): void {
-    if (this.istBearbeitung() || this.legacyReconciliation() || this.isSubmitting()) return;
+    if (
+      this.externalDraft() ||
+      this.istBearbeitung() ||
+      this.legacyReconciliation() ||
+      this.isSubmitting()
+    )
+      return;
     if (this.lines.length > 1) {
       this.lines.removeAt(index);
       this.form.markAsDirty();
@@ -587,6 +655,18 @@ export class SaleCreateModalComponent {
   onTargetChange(index: number, value: string): void {
     if (this.istBearbeitung() || this.legacyReconciliation()) return;
     const line = this.lines.at(index);
+    const draft = this.externalDraft();
+    if (draft) {
+      const sourceLineId = draft.lines[index]?.sourceLineId;
+      if (!sourceLineId) return;
+      this.lines.controls.forEach((entry, current) => {
+        if (draft.lines[current]?.sourceLineId === sourceLineId) {
+          entry.controls.target.setValue(value);
+          this.updateQuantityValidator(entry);
+        }
+      });
+      return;
+    }
     line.controls.target.setValue(value);
     this.updateQuantityValidator(line);
   }
@@ -609,7 +689,8 @@ export class SaleCreateModalComponent {
 
   async onSubmit(): Promise<void> {
     if (this.isPersisted() || this.isSubmitting()) return;
-    if (this.workspaceService?.currentWorkspace() && !this.canSave()) return;
+    if ((this.externalDraft() || this.workspaceService?.currentWorkspace()) && !this.canSave())
+      return;
     if (this.workspaceService?.currentWorkspace()) this.validateSaleTargets();
     if (this.form.invalid) {
       this.form.markAllAsTouched();
@@ -622,6 +703,24 @@ export class SaleCreateModalComponent {
       const existing = this.sale();
       const reconciliation = this.legacyReconciliation();
       const input = this.recordSalePayload();
+      if (this.externalDraft()) {
+        const submit = this.externalSubmit();
+        if (!submit) throw new Error('Die externe Verkaufserfassung ist nicht verfügbar.');
+        const result = await submit(input);
+        if (result.status !== 'saved') {
+          this.externalOutcomeBlocked.set(result.status === 'outcome_unknown');
+          this.errorMessage.set(
+            result.status === 'review_changed'
+              ? 'Die Bestellung wurde geändert. Prüfe die aktuellen Angaben vor einer erneuten Buchung.'
+              : 'Der Buchungsausgang ist unklar. Prüfe zuerst den Buchungsstatus.',
+          );
+          return;
+        }
+        this.isPersisted.set(true);
+        this.created.emit();
+        this.closed.emit();
+        return;
+      }
       const result = existing
         ? await this.salesService.updateSale(existing.id, this.legacyUpdatePayload())
         : reconciliation
@@ -636,6 +735,11 @@ export class SaleCreateModalComponent {
       this.created.emit();
       this.closed.emit();
     } catch (cause: unknown) {
+      if (this.externalDraft()) {
+        this.externalOutcomeBlocked.set(true);
+        this.errorMessage.set('Der Buchungsausgang ist unklar. Prüfe zuerst den Buchungsstatus.');
+        return;
+      }
       const error =
         cause instanceof Error ? cause : new Error('Der Verkauf konnte nicht gespeichert werden.');
       this.errorMessage.set(error.message);
@@ -703,8 +807,8 @@ export class SaleCreateModalComponent {
     return {
       platform: raw.platform,
       saleDate: raw.saleDate,
-      platformFee: raw.platformFee,
-      shippingCost: raw.shippingCost,
+      platformFee: raw.platformFee ?? 0,
+      shippingCost: raw.shippingCost ?? 0,
       shippingRevenue: raw.shippingRevenue,
       shippingMode: raw.shippingMode === 'unknown' ? undefined : raw.shippingMode,
       additionalCosts,
@@ -762,8 +866,8 @@ export class SaleCreateModalComponent {
       platform: raw.platform,
       sale_price: this.grossRevenue(),
       sale_date: raw.saleDate,
-      platform_fee: raw.platformFee,
-      shipping_cost: raw.shippingCost,
+      platform_fee: raw.platformFee ?? 0,
+      shipping_cost: raw.shippingCost ?? 0,
       packaging_cost: this.costTotalFor('packaging'),
       other_costs: this.costTotalExcept('packaging'),
       external_order_id: raw.externalOrderId.trim() || null,
@@ -852,7 +956,161 @@ export class SaleCreateModalComponent {
       buyerNotes: sale.buyer_notes ?? '',
     });
   }
+  private hasConfirmedExternalCosts(): boolean {
+    const validAmount = (value: number | null) =>
+      value !== null &&
+      Number.isFinite(value) &&
+      value >= 0 &&
+      Number.isSafeInteger(Math.round(value * 100)) &&
+      value <= 9999999999.99 &&
+      Math.abs(value * 100 - Math.round(value * 100)) < 0.000001;
+    return (
+      validAmount(this.form.controls.platformFee.value) &&
+      validAmount(this.form.controls.shippingCost.value) &&
+      this.additionalCosts.controls.every((cost) => validAmount(cost.controls.amount.value))
+    );
+  }
+  private externalSourceMatches(draft: ExternalSaleEntryDraft): boolean {
+    if (
+      this.sale() ||
+      this.legacyReconciliation() ||
+      draft.lines.length === 0 ||
+      draft.lines.length > 400 ||
+      draft.lines.length !== this.lines.length
+    )
+      return false;
+    const raw = this.form.getRawValue();
+    if (
+      raw.platform !== draft.platform ||
+      raw.saleDate !== draft.saleDate ||
+      raw.externalOrderId !== draft.externalOrderId ||
+      raw.shippingRevenue !== draft.shippingRevenue
+    )
+      return false;
+    const targets = new Map<string, string>();
+    return this.lines.controls.every((line, index) => {
+      const source = draft.lines[index];
+      const value = line.getRawValue();
+      const available = this.availableQuantity(line);
+      if (
+        !source.sourceLineId ||
+        value.quantity !== source.quantity ||
+        value.unitSalePrice !== source.unitSalePrice ||
+        !Number.isSafeInteger(source.quantity) ||
+        source.quantity < 1 ||
+        source.unitSalePrice <= 0 ||
+        !this.targetForLine(line) ||
+        available === null ||
+        available < value.quantity
+      )
+        return false;
+      const previous = targets.get(source.sourceLineId);
+      if (previous && previous !== value.target) return false;
+      targets.set(source.sourceLineId, value.target);
+      return true;
+    });
+  }
+  private fillExternalDraft(draft: ExternalSaleEntryDraft): void {
+    const previous = this.previousExternalDraft;
+    if (previous?.revision === draft.revision && previous.externalOrderId === draft.externalOrderId)
+      return;
+    const compatible =
+      previous?.externalOrderId === draft.externalOrderId && previous.platform === draft.platform;
+    const selected = new Map<string, string>();
+    if (compatible && previous)
+      previous.lines.forEach((source, index) => {
+        const value = this.lines.controls[index]?.controls.target.value ?? '';
+        if (selected.has(source.sourceLineId) && selected.get(source.sourceLineId) !== value)
+          selected.set(source.sourceLineId, '');
+        else if (!selected.has(source.sourceLineId)) selected.set(source.sourceLineId, value);
+      });
+    this.hasExplicitShippingMode = true;
+    this.lines.clear({ emitEvent: false });
+    draft.lines.forEach((source) => {
+      const line = this.createLineForm();
+      line.setValue(
+        {
+          target: selected.has(source.sourceLineId)
+            ? (selected.get(source.sourceLineId) ?? '')
+            : source.target
+              ? this.targetValue(source.target)
+              : '',
+          quantity: source.quantity,
+          unitSalePrice: source.unitSalePrice,
+        },
+        { emitEvent: false },
+      );
+      line.controls.quantity.disable({ emitEvent: false });
+      line.controls.unitSalePrice.disable({ emitEvent: false });
+      this.lines.push(line, { emitEvent: false });
+    });
+    this.form.patchValue(
+      {
+        platform: draft.platform,
+        saleDate: draft.saleDate,
+        externalOrderId: draft.externalOrderId,
+        shippingRevenue: draft.shippingRevenue,
+      },
+      { emitEvent: false },
+    );
+    for (const control of [
+      this.form.controls.platform,
+      this.form.controls.saleDate,
+      this.form.controls.externalOrderId,
+      this.form.controls.shippingRevenue,
+    ])
+      control.disable({ emitEvent: false });
+    this.form.controls.platformFee.setValidators([Validators.required, Validators.min(0)]);
+    this.form.controls.shippingCost.setValidators([Validators.required, Validators.min(0)]);
+    this.form.controls.shippingCost.enable({ emitEvent: false });
+    if (!compatible) {
+      this.form.patchValue(
+        { platformFee: null, shippingCost: null, shippingMode: 'unknown', buyerNotes: '' },
+        { emitEvent: false },
+      );
+      this.additionalCosts.clear({ emitEvent: false });
+      this.form.markAsPristine();
+    }
+    this.previousExternalDraft = draft;
+    this.externalOutcomeBlocked.set(false);
+    this.errorMessage.set(null);
+    this.form.controls.platformFee.updateValueAndValidity({ emitEvent: false });
+    this.form.controls.shippingCost.updateValueAndValidity({ emitEvent: false });
+    this.form.updateValueAndValidity();
+  }
+  private resetExternalDraft(): void {
+    this.previousExternalDraft = null;
+    this.externalOutcomeBlocked.set(false);
+    this.hasExplicitShippingMode = false;
+    this.form.controls.platformFee.setValidators([Validators.min(0)]);
+    this.form.controls.shippingCost.setValidators([Validators.min(0)]);
+    for (const control of [
+      this.form.controls.platform,
+      this.form.controls.saleDate,
+      this.form.controls.externalOrderId,
+      this.form.controls.shippingRevenue,
+    ])
+      control.enable({ emitEvent: false });
+    this.lines.clear({ emitEvent: false });
+    this.lines.push(this.createLineForm(), { emitEvent: false });
+    this.additionalCosts.clear({ emitEvent: false });
+    this.form.reset({
+      platform: 'kleinanzeigen',
+      saleDate: this.localToday(),
+      platformFee: 0,
+      shippingCost: 0,
+      shippingRevenue: 0,
+      shippingMode: 'pickup',
+      externalOrderId: '',
+      buyerNotes: '',
+    });
+    this.enforceShippingMode('pickup');
+  }
   private setLineTarget(index: number, target: SaleTarget): void {
+    if (this.externalDraft()) {
+      this.onTargetChange(index, this.targetValue(target));
+      return;
+    }
     const line = this.lines.at(index);
     line.controls.target.setValue(this.targetValue(target));
     line.controls.quantity.setValue(1);
@@ -939,6 +1197,11 @@ export class SaleCreateModalComponent {
     return 'seller_arranged';
   }
   private enforceShippingMode(mode: ShippingFormMode): void {
+    if (this.externalDraft()) {
+      this.form.controls.shippingRevenue.disable({ emitEvent: false });
+      this.form.controls.shippingCost.enable({ emitEvent: false });
+      return;
+    }
     if (mode === 'seller_arranged' || mode === 'unknown') {
       this.form.controls.shippingRevenue.enable({ emitEvent: false });
       this.form.controls.shippingCost.enable({ emitEvent: false });

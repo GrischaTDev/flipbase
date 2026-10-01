@@ -341,15 +341,15 @@ Modify `components/sale-create-modal/sale-create-modal.component.ts`, `.html`,
   `externalSubmit: ExternalSaleEntrySubmit | null`; fehlende Inputs erhalten
   unverändert den manuellen Erstell-/Bearbeit-/Altdatenablauf.
 
-- [ ] **1. Tests schreiben:** `requires explicit external fee and shipping costs`,
+- [x] **1. Tests schreiben:** `requires explicit external fee and shipping costs`,
       `locks source fields while allowing article assignment`,
       `preserves manual sale defaults and edit behavior`,
       `does not persist on review_changed or outcome_unknown`.
       Konkrete Assertions: Gebühren/Versandkosten zunächst null, `canSave() === false`;
       nach ausdrücklicher Eingabe beider Werte 0 und vollständigen Artikeln true.
       Datenbankantwort saved löst created aus; andere Zustände niemals created/closed.
-- [ ] **2. Rot nachweisen:** `npx vitest run --project=angular src/app/features/sales/components/sale-create-modal/sale-create-modal.component.angular.spec.ts`.
-- [ ] **3. Übergabe implementieren:** Allgemeines externes Draft initialisieren,
+- [x] **2. Rot nachweisen:** `npx vitest run --project=angular src/app/features/sales/components/sale-create-modal/sale-create-modal.component.angular.spec.ts`.
+- [x] **3. Übergabe implementieren:** Allgemeines externes Draft initialisieren,
       ursprüngliche Kosten-/Artikelaingaben bei verträglicher Revision behalten.
       Quellenzeilen können weder entfernt noch in Menge/Preis geändert werden;
       geschützte Controls trotzdem vollständig über geprüfte Formwerte übernehmen.
@@ -357,11 +357,11 @@ Modify `components/sale-create-modal/sale-create-modal.component.ts`, `.html`,
       aktualisiert beide. Der Store führt sie später über stabile Draft-Reihenfolge
       und `sourceLineId` wieder zu genau einer Quellzuordnung zusammen.
       Keine eBay-Netzwerk-/Kontologik in der Form. Null/fehlend ist nicht bestätigtes 0.
-- [ ] **4. Speichern anpassen:** Externe Funktion hat klaren Vorrang nur bei externem
+- [x] **4. Speichern anpassen:** Externe Funktion hat klaren Vorrang nur bei externem
       Draft; `saved` setzt Persistenzzustand, `review_changed` hält Formular offen,
       `outcome_unknown` verhindert Neubuchung bis Statusklärung. Neue sichtbare
       Bezeichnungen Englisch im Code; historische deutsche Bezeichner nicht umbauen.
-- [ ] **5. Grün nachweisen:** neue und vorhandene Verkaufserfassungs-Specs,
+- [x] **5. Grün nachweisen:** neue und vorhandene Verkaufserfassungs-Specs,
       `npm run typecheck`, `npm run build`; Typprüfung ersetzt Vorlagenbau nicht.
       Commit: `feat(sales): support reviewed external sale entries`.
 
