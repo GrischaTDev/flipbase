@@ -133,11 +133,11 @@ const regressionTests = [
   ],
   [
     'sniper-administration.spec.ts',
-    'Markenfilter anlegen, bearbeiten, aktivieren und pausieren dark @pr-smoke',
+    'Markenfilter verwalten und Kategorien im Botbetrieb dark @pr-smoke',
   ],
   [
     'sniper-administration.spec.ts',
-    'Markenfilter anlegen, bearbeiten, aktivieren und pausieren light @pr-smoke',
+    'Markenfilter verwalten und Kategorien im Botbetrieb light @pr-smoke',
   ],
 ];
 

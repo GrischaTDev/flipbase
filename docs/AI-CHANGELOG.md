@@ -14,6 +14,11 @@ Die Migration bleibt transaktional und nicht destruktiv. Der freigegebene
 Releaseweg führt Backup, Migration, Anwendung und öffentlichen Versionscheck aus.
 Keine zusätzlichen Nachrichten an Dritte oder Änderungen produktiver Markenfilter.
 
+**PR-Prüfung:** PR #278 erstellt. Die erste Workflow-Prüfung beanstandete die
+noch alten Namen der beiden erweiterten Bot-Browsertests in der verbindlichen
+Regressionsübersicht. Übersicht an die vorhandenen vollständigen Testabläufe
+angepasst; die Absicherung bleibt erhalten.
+
 ## 2026-10-01 – Juna – Vinted-Markenfilter und Botbetrieb verständlicher bedienen
 
 **Auftrag:** Zwei Hauptbereiche umsetzen: Markenfilter zum Anlegen, Bearbeiten,
