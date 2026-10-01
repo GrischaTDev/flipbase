@@ -40,6 +40,37 @@ function makeQuery(overrides: Partial<SniperQuery> = {}): SniperQuery {
 describe('evaluateFailure', () => {
   const NOW = new Date('2026-09-15T12:00:00.000Z');
 
+  it('schedules one challenge recovery probe after five minutes despite repeated failures', () => {
+    const decision = evaluateFailure(
+      new ForbiddenError('Challenge', { challengeDetected: true }),
+      makeQuery({ consecutiveFailures: 3 }),
+      NOW,
+    );
+    expect(decision.nextAttemptAt?.toISOString()).toBe('2026-09-15T12:05:00.000Z');
+    expect(decision.originUpdate?.blockedUntil?.toISOString()).toBe('2026-09-15T12:05:00.000Z');
+    expect(decision.consecutiveFailures).toBe(4);
+  });
+
+  it('respects a longer provider delay even on a confirmed challenge', () => {
+    const decision = evaluateFailure(
+      new ForbiddenError('Challenge', { challengeDetected: true, retryAfterSeconds: 1800 }),
+      makeQuery({ consecutiveFailures: 3 }),
+      NOW,
+    );
+    expect(decision.nextAttemptAt?.toISOString()).toBe('2026-09-15T12:30:00.000Z');
+    expect(decision.originUpdate?.blockedUntil?.toISOString()).toBe('2026-09-15T12:30:00.000Z');
+  });
+
+  it('does not shorten a rate limit because of a challenge marker', () => {
+    const decision = evaluateFailure(
+      new RateLimitedError('Limited', { challengeDetected: true, retryAfterSeconds: 1800 }),
+      makeQuery({ consecutiveFailures: 3 }),
+      NOW,
+    );
+    expect(decision.errorKind).toBe('rate_limited');
+    expect(decision.originUpdate?.blockedUntil?.toISOString()).toBe('2026-09-15T12:30:00.000Z');
+  });
+
   it('never probes before the provider retry delay on a forbidden response', () => {
     const decision = evaluateFailure(
       new ForbiddenError('Refused', { retryAfterSeconds: 1800 }),
