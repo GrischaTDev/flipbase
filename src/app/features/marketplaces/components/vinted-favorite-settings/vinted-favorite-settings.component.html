@@ -1,0 +1,29 @@
+<section class="border-t border-fb-line pt-4" aria-label="Favoritenmeldungen">
+  <h3 class="mb-2 text-[13px] font-semibold text-fb-text-primary">Benachrichtigungen</h3>
+  @if (loading()) {
+    <p role="status" class="text-[13px] text-fb-text-secondary">
+      Favoriteneinstellung wird geladen …
+    </p>
+  }
+  @if (settings()) {
+    <app-custom-checkbox
+      label="Neue Favoriten in der Glocke anzeigen"
+      [formControl]="enabledControl"
+    />
+    <p class="mt-2 text-xs text-fb-text-secondary">
+      Ohne Ton. Wir melden Anstiege nach einem erfolgreichen Abruf. Die erste Beobachtung nach dem
+      Aktivieren setzt die Vergleichsbasis.
+    </p>
+  }
+  @if (busy()) {
+    <p role="status" class="mt-2 text-xs text-fb-text-secondary">Einstellung wird gespeichert …</p>
+  }
+  @if (error(); as message) {
+    <app-notice-banner class="mt-2" announcement="alert">
+      {{ message }}
+      <app-button class="mt-2" [disabled]="loading() || busy()" (clicked)="reload()"
+        >Erneut versuchen</app-button
+      >
+    </app-notice-banner>
+  }
+</section>

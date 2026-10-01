@@ -2005,6 +2005,7 @@ export type Database = {
           body: Json
           connection_id: string
           external_id: string
+          favorite_notification_version: number | null
           id: string
           kind: string
           observed_at: string
@@ -2016,6 +2017,7 @@ export type Database = {
           body: Json
           connection_id: string
           external_id: string
+          favorite_notification_version?: number | null
           id?: string
           kind: string
           observed_at?: string
@@ -2027,6 +2029,7 @@ export type Database = {
           body?: Json
           connection_id?: string
           external_id?: string
+          favorite_notification_version?: number | null
           id?: string
           kind?: string
           observed_at?: string
@@ -2286,6 +2289,123 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "workspaces"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      marketplace_favorite_notification_events: {
+        Row: {
+          connection_id: string
+          entry_id: string
+          external_listing_id: string
+          favorites: number
+          id: number
+          notification_id: number
+          observed_at: string
+          previous_favorites: number
+          setting_version: number
+          title: string
+          workspace_id: string
+        }
+        Insert: {
+          connection_id: string
+          entry_id: string
+          external_listing_id: string
+          favorites: number
+          id?: never
+          notification_id: number
+          observed_at: string
+          previous_favorites: number
+          setting_version: number
+          title: string
+          workspace_id: string
+        }
+        Update: {
+          connection_id?: string
+          entry_id?: string
+          external_listing_id?: string
+          favorites?: number
+          id?: never
+          notification_id?: number
+          observed_at?: string
+          previous_favorites?: number
+          setting_version?: number
+          title?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_favorite_notifica_workspace_id_connection_id_n_fkey"
+            columns: ["workspace_id", "connection_id", "notification_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_favorite_notifications"
+            referencedColumns: ["workspace_id", "connection_id", "id"]
+          },
+        ]
+      }
+      marketplace_favorite_notification_settings: {
+        Row: {
+          baseline_pending: boolean
+          connection_id: string
+          enabled: boolean
+          id: number
+          version: number
+          workspace_id: string
+        }
+        Insert: {
+          baseline_pending?: boolean
+          connection_id: string
+          enabled?: boolean
+          id?: never
+          version?: number
+          workspace_id: string
+        }
+        Update: {
+          baseline_pending?: boolean
+          connection_id?: string
+          enabled?: boolean
+          id?: never
+          version?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_favorite_notificati_workspace_id_connection_id_fkey"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: true
+            referencedRelation: "marketplace_connections"
+            referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
+      marketplace_favorite_notifications: {
+        Row: {
+          connection_id: string
+          id: number
+          observed_at: string
+          read: boolean
+          workspace_id: string
+        }
+        Insert: {
+          connection_id: string
+          id?: never
+          observed_at: string
+          read?: boolean
+          workspace_id: string
+        }
+        Update: {
+          connection_id?: string
+          id?: never
+          observed_at?: string
+          read?: boolean
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_favorite_notificat_workspace_id_connection_id_fkey1"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_connections"
+            referencedColumns: ["workspace_id", "id"]
           },
         ]
       }
@@ -4250,6 +4370,7 @@ export type Database = {
           catalog_id: number | null
           consecutive_failures: number
           created_at: string
+          deleted_at: string | null
           id: string
           is_active: boolean
           is_seeded: boolean
@@ -4278,6 +4399,7 @@ export type Database = {
           catalog_id?: number | null
           consecutive_failures?: number
           created_at?: string
+          deleted_at?: string | null
           id?: string
           is_active?: boolean
           is_seeded?: boolean
@@ -4306,6 +4428,7 @@ export type Database = {
           catalog_id?: number | null
           consecutive_failures?: number
           created_at?: string
+          deleted_at?: string | null
           id?: string
           is_active?: boolean
           is_seeded?: boolean
@@ -5691,6 +5814,7 @@ export type Database = {
         Args: { p_application_id: string }
         Returns: string
       }
+      delete_sniper_query: { Args: { p_id: string }; Returns: undefined }
       delete_sniper_watchlist: {
         Args: { p_id: string; p_workspace_id: string }
         Returns: undefined
@@ -6152,7 +6276,44 @@ export type Database = {
         Args: { p_display_name: string; p_workspace_id: string }
         Returns: Json
       }
+      marketplace_finalize_favorite_import: {
+        Args: {
+          p_connection_id: string
+          p_observed_at: string
+          p_publications_success: boolean
+          p_workspace_id: string
+        }
+        Returns: undefined
+      }
+      marketplace_known_favorite_count: {
+        Args: { p_body: Json }
+        Returns: number
+      }
       marketplace_list_connections: {
+        Args: { p_workspace_id: string }
+        Returns: Json
+      }
+      marketplace_mark_favorite_notifications: {
+        Args: {
+          p_clear?: boolean
+          p_notification_id?: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_prepare_favorite_import: {
+        Args: {
+          p_connection_id: string
+          p_observed_at: string
+          p_workspace_id: string
+        }
+        Returns: undefined
+      }
+      marketplace_read_favorite_notification_settings: {
+        Args: { p_connection_id: string; p_workspace_id: string }
+        Returns: Json
+      }
+      marketplace_read_favorite_notifications: {
         Args: { p_workspace_id: string }
         Returns: Json
       }
@@ -6178,6 +6339,15 @@ export type Database = {
         Args: {
           p_connection_id: string
           p_display_name: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_set_favorite_notification_settings: {
+        Args: {
+          p_connection_id: string
+          p_enabled: boolean
+          p_expected_version: number
           p_workspace_id: string
         }
         Returns: Json

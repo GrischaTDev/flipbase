@@ -25,10 +25,12 @@ export interface RetryDecision {
 
 const SERVER_ERROR_DELAYS_MS = [30_000, 60_000, 120_000, 300_000, 600_000, 900_000] as const;
 
-// Eine 403 ist bei Vinted meist eine voruebergehende Cloudflare-Pruefung. Eine
-// dauerhafte Sperre ohne Ablaufzeit hat den Bot am 16.09.2026 ueber 30 Stunden
-// stillgelegt, obwohl Vinted wenige Stunden spaeter wieder antwortete.
+// Eine 403 ohne bestaetigten Pruefseitenhinweis behaelt die steigende Pause.
 const FORBIDDEN_DELAYS_MS = [300_000, 600_000, 1_200_000, 2_400_000, 3_600_000] as const;
+// Am 01.10.2026 lieferte derselbe Sammler nach einer Cloudflare-Pruefseite
+// wieder Artikel, waehrend der Scheduler noch in seiner 40-Minuten-Pause war.
+// Bis zur Erholung bleiben alle Abrufe pausiert; danach darf nur eine Probe laufen.
+const CHALLENGE_PROBE_INTERVAL_MS = 5 * 60_000;
 
 /**
  * Reine, vollstaendig mit injizierter Uhr testbare Fehlerpolitik.
@@ -36,7 +38,7 @@ const FORBIDDEN_DELAYS_MS = [300_000, 600_000, 1_200_000, 2_400_000, 3_600_000] 
  */
 export function evaluateFailure(
   error: unknown,
-  query: SniperQuery,
+  query: Pick<SniperQuery, 'consecutiveFailures'>,
   now: Date = new Date(),
 ): RetryDecision {
   const failures = query.consecutiveFailures + 1;
@@ -69,7 +71,13 @@ export function evaluateFailure(
 
   if (error instanceof ForbiddenError) {
     const delayIndex = Math.min(failures - 1, FORBIDDEN_DELAYS_MS.length - 1);
-    const nextAttemptAt = new Date(now.getTime() + FORBIDDEN_DELAYS_MS[Math.max(0, delayIndex)]!);
+    const waitMs = Math.max(
+      error.challengeDetected === true
+        ? CHALLENGE_PROBE_INTERVAL_MS
+        : FORBIDDEN_DELAYS_MS[Math.max(0, delayIndex)]!,
+      (error.retryAfterSeconds ?? 0) * 1000,
+    );
+    const nextAttemptAt = new Date(now.getTime() + waitMs);
     return {
       runState: 'cooldown',
       nextAttemptAt,

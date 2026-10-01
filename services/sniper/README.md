@@ -95,6 +95,8 @@ SUPABASE_SERVICE_ROLE_KEY=<vorhandener Dienstschlüssel>
 VINTED_BASE_URL=https://www.vinted.de
 SNIPER_REQUESTS_PER_MINUTE=30
 SNIPER_TICK_INTERVAL_MS=5000
+SNIPER_REQUEST_MIN_INTERVAL_MS=10000
+SNIPER_REQUEST_TIMEOUT_MS=20000
 SNIPER_HEALTH_PORT=8080
 SNIPER_CATEGORY_MAX_AGE_MS=86400000
 ```
@@ -210,6 +212,43 @@ Der Bot meldet nach jedem Takt den Stand seines echten 60-Sekunden-Fensters.
 Anfragen. Die Oberfläche unterscheidet die letzte Betriebsmeldung von einem
 erfolgreichen Vinted-Abruf und kennzeichnet alte Werte. Fundzahlen über 24 Stunden
 zählen beim ersten entdeckenden Auftrag, nicht mehrfach bei Überlappung.
+
+### Gleichmäßige Abrufe und Zugriffspausen
+
+Alle Vinted-Anfragen teilen sich einen Mindestabstand: standardmäßig zehn
+Sekunden zwischen zwei Starts. Das gilt auch für Kategorieabrufe und
+Wiederholungen nach Serverfehlern. Anfragen werden nacheinander gestartet;
+das Minutenbudget bleibt zusätzlich bestehen. Der einzelne Markenintervall
+ist die früheste Fälligkeit, keine Zusage eines Abrufs alle 20 Sekunden.
+Bei drei aktiven Marken dauert eine Runde dadurch mindestens rund 30 Sekunden,
+zuzüglich längerer Verarbeitung und des Diensttakts.
+
+`SNIPER_REQUEST_MIN_INTERVAL_MS` ist zwischen 1.000 und 60.000 Millisekunden
+konfigurierbar. `SNIPER_REQUEST_TIMEOUT_MS` begrenzt einen einzelnen Abruf
+standardmäßig auf 20 Sekunden und erlaubt ebenfalls 1.000 bis 60.000.
+Diese Werte sind Flipbase-Betriebsentscheidungen, keine dokumentierten
+Vinted-Anfragegrenzen und kein Nachweis, dass Vinted die Abrufe dauerhaft zulässt.
+
+Nach HTTP 403 pausieren alle Marken und Kategorieabrufe. Nach Ablauf prüft
+genau eine fällige Abfrage den Zugang. Dabei wird die zuletzt abgewiesene,
+weiterhin aktive Abfrage bevorzugt. Bei einer erkannten Cloudflare-Prüfseite
+darf alle fünf Minuten genau eine Probe laufen, auch nach wiederholten Fehlern
+und Dienstneustarts. Zwischen diesen Proben bleiben alle Marken und
+Kategorieabrufe pausiert. Die fünf Minuten sind eine begrenzte betriebliche
+Wiederprüfung, keine von Vinted bestätigte Anfragegrenze.
+Andere 403-Ablehnungen führen anhand der gespeicherten Fehlerzähler weiterhin
+zu 5, 10, 20, 40 und höchstens 60 Minuten Pause, auch nach einem Neustart.
+Wird sie administrativ pausiert oder gelöscht, dient eine andere aktive,
+fällige Abfrage als Ersatz; dabei beginnt gegebenenfalls deren Fehlerzähler.
+Ein längeres `Retry-After` des Anbieters wird auch bei 403 eingehalten.
+Erst ein erfolgreicher Katalogabruf gibt den gemeinsamen Zugang wieder frei.
+Ohne aktive fällige Abfrage bleibt die gemeinsame Pause erhalten.
+
+Der Betriebsstatus nennt die Pause und die früheste Wiederprüfung durchgehend.
+In `query_failed` stehen zusätzlich HTTP-Status, Phase, erkannter
+Challenge-Hinweis und Anbieterwartezeit. Antwortinhalte und Cookies werden
+dafür nicht protokolliert. Ein fehlender Challenge-Hinweis beweist keine
+Abwesenheit anderer Schutzmechanismen.
 
 ## Nutzerfilter und Artikelansicht
 

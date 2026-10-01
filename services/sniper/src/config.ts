@@ -6,6 +6,8 @@ const EnvSchema = z.object({
   VINTED_BASE_URL: z.string().min(1).default('https://www.vinted.de'),
   SNIPER_REQUESTS_PER_MINUTE: z.coerce.number().int().min(1).default(30),
   SNIPER_TICK_INTERVAL_MS: z.coerce.number().int().min(1000).default(5000),
+  SNIPER_REQUEST_MIN_INTERVAL_MS: z.coerce.number().int().min(1000).max(60_000).default(10_000),
+  SNIPER_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60_000).default(20_000),
   SNIPER_USER_AGENT: z
     .string()
     .min(1)
@@ -22,6 +24,8 @@ export interface SnipeConfig {
   vintedBaseUrl: string;
   requestsPerMinute: number;
   tickIntervalMs: number;
+  requestMinIntervalMs: number;
+  requestTimeoutMs: number;
   userAgent: string;
   healthPort: number;
   categoryMaxAgeMs: number;
@@ -36,6 +40,8 @@ export function loadConfig(env: NodeJS.ProcessEnv): SnipeConfig {
     vintedBaseUrl: parsed.VINTED_BASE_URL,
     requestsPerMinute: parsed.SNIPER_REQUESTS_PER_MINUTE,
     tickIntervalMs: parsed.SNIPER_TICK_INTERVAL_MS,
+    requestMinIntervalMs: parsed.SNIPER_REQUEST_MIN_INTERVAL_MS,
+    requestTimeoutMs: parsed.SNIPER_REQUEST_TIMEOUT_MS,
     userAgent: parsed.SNIPER_USER_AGENT,
     healthPort: parsed.SNIPER_HEALTH_PORT,
     categoryMaxAgeMs: parsed.SNIPER_CATEGORY_MAX_AGE_MS,

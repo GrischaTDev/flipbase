@@ -38,6 +38,12 @@ export class CustomSearchInputComponent implements ControlValueAccessor {
   readonly variant = input<'default' | 'toolbar'>('default');
   readonly id = input<string>('');
   readonly ariaLabel = input<string>('Suche');
+  readonly inputRole = input<'searchbox' | 'combobox'>('searchbox');
+  readonly expanded = input(false);
+  readonly controlsId = input<string | null>(null);
+  readonly activeDescendantId = input<string | null>(null);
+  readonly maxLength = input<number | null>(null);
+  readonly clearOnEscape = input(true);
 
   readonly searched = output<string>();
   readonly clear = output<void>();
@@ -99,7 +105,7 @@ export class CustomSearchInputComponent implements ControlValueAccessor {
   onKeyDown(event: KeyboardEvent): void {
     if (event.key === 'Enter') {
       this.searched.emit(this.value());
-    } else if (event.key === 'Escape' && this.clearable() && this.value()) {
+    } else if (event.key === 'Escape' && this.clearOnEscape() && this.clearable() && this.value()) {
       this.onClear();
     }
   }

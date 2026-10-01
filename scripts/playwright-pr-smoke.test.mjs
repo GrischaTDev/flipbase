@@ -79,6 +79,24 @@ const coreTests = [
     'sidebar-navigation.spec.ts',
     'hält die Sidebar kompakt und hebt den aktiven Bereich in Logo-Gelb hervor @pr-smoke',
   ],
+  ...[1440, 390, 320].flatMap((width) =>
+    ['light', 'dark'].map((theme) => [
+      'vinted-workspace-ui.spec.ts',
+      `kompakte Vinted-Ansicht, Kennzahlen und Favoritenglocke ${width}px ${theme} @marketplace-preview @core-smoke`,
+    ]),
+  ),
+  ...[1440, 390].map((width) => [
+    'vinted-listing-edge-cases.spec.ts',
+    `Inseratgalerie erhält Hoch-/Querformat, Bildfehlerrahmen und langen Titel bei ${width}px @marketplace-preview @core-smoke`,
+  ]),
+  [
+    'vinted-listing-edge-cases.spec.ts',
+    'Bekannte leere Beschreibung startet auch beim Wiederöffnen keinen Browserabruf @marketplace-preview @core-smoke',
+  ],
+  [
+    'vinted-listing-edge-cases.spec.ts',
+    'Fehlende Beschreibung lädt nur das gewählte Inserat und bleibt beim Wiederöffnen im Sitzungscache @marketplace-preview @core-smoke',
+  ],
 ];
 
 const regressionTests = [
@@ -120,11 +138,11 @@ const regressionTests = [
   ],
   [
     'sniper-administration.spec.ts',
-    'Markenfilter anlegen, bearbeiten, aktivieren und pausieren dark @pr-smoke',
+    'Markenfilter verwalten und Kategorien im Botbetrieb dark @pr-smoke',
   ],
   [
     'sniper-administration.spec.ts',
-    'Markenfilter anlegen, bearbeiten, aktivieren und pausieren light @pr-smoke',
+    'Markenfilter verwalten und Kategorien im Botbetrieb light @pr-smoke',
   ],
 ];
 

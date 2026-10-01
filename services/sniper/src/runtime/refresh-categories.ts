@@ -1,6 +1,8 @@
 import type { Logger } from '../log.js';
 import { parseCategoryTree, type VintedCategory } from '../vinted/categories.js';
 import { isRefreshDue, type CategorySyncState } from './category-refresh.js';
+import type { OriginStateStoreLike } from './scheduler.js';
+import { evaluateFailure } from './retry-policy.js';
 
 export interface CategoryStoreLike {
   readSyncState(): Promise<CategorySyncState>;
@@ -25,6 +27,7 @@ export interface RefreshDeps {
    * zugleich seine Arbeit ein.
    */
   hasCapacity: () => boolean;
+  originState?: Pick<OriginStateStoreLike, 'getState' | 'setCooldown'>;
   maxAgeMs: number;
   log: Logger;
 }
@@ -47,6 +50,11 @@ export async function refreshCategoriesIfDue(
   let state: CategorySyncState;
 
   try {
+    // Auch eine abgelaufene Pause muss erst der einzelne Katalog-Probeabruf
+    // freigeben. Kategorien duerfen nicht daneben eine zweite Probe starten.
+    if (deps.originState && (await deps.originState.getState('vinted')).state !== 'ready') {
+      return 'skipped';
+    }
     state = await deps.store.readSyncState();
   } catch (error) {
     deps.log.error('category_sync_state_failed', { reason: reasonOf(error) });
@@ -69,6 +77,14 @@ export async function refreshCategoriesIfDue(
     deps.log.error('categories_refresh_failed', { reason });
 
     try {
+      const decision = evaluateFailure(error, { consecutiveFailures: 0 }, now);
+      if (deps.originState && decision.originUpdate?.blockedUntil) {
+        await deps.originState.setCooldown(
+          'vinted',
+          decision.originUpdate.blockedUntil,
+          decision.errorKind,
+        );
+      }
       await deps.store.markFailed(reason, now);
     } catch (markError) {
       deps.log.error('category_mark_failed', { reason: reasonOf(markError) });

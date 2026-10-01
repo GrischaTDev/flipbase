@@ -7,6 +7,7 @@ import {
   signal,
 } from '@angular/core';
 import { DatePipe } from '@angular/common';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CategorySyncStatus } from '../../models/vinted-category.model';
 import { VintedCategoryService } from '../../services/vinted-category.service';
 
@@ -22,7 +23,7 @@ import { VintedCategoryService } from '../../services/vinted-category.service';
  */
 @Component({
   selector: 'app-vinted-categories',
-  imports: [DatePipe],
+  imports: [DatePipe, ButtonComponent],
   templateUrl: './vinted-categories.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

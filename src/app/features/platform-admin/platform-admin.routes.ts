@@ -52,10 +52,8 @@ export const platformAdminRoutes: Routes = [
       },
       {
         path: 'categories',
-        loadComponent: () =>
-          import('./pages/vinted-categories/vinted-categories.component').then(
-            (m) => m.VintedCategoriesComponent,
-          ),
+        redirectTo: 'operation',
+        pathMatch: 'full',
       },
     ],
   },

@@ -1,0 +1,199 @@
+@if (notice(); as message) {
+  <p role="status" class="mb-3 text-[13px] text-fb-text-secondary">{{ message }}</p>
+}
+@if (store.snapshot(); as snapshot) {
+  <app-card padding="none">
+    <div class="grid min-w-0 lg:grid-cols-[300px_minmax(0,1fr)]">
+      <section
+        aria-labelledby="vinted-conversations-title"
+        class="min-w-0 lg:block lg:border-r lg:border-fb-line"
+        [class.hidden]="store.selectedConversationId() !== null"
+      >
+        <h2
+          #listHeading
+          id="vinted-conversations-title"
+          tabindex="-1"
+          class="border-b border-fb-line px-3 py-3 text-[13px] font-semibold text-fb-text-primary"
+        >
+          Gespräche ({{ snapshot.conversations.total }})
+        </h2>
+        <div class="max-h-[36rem] overflow-y-auto px-1 py-1">
+          @for (entry of snapshot.conversations.items; track entry.id) {
+            <app-button
+              variant="list-row"
+              density="compact"
+              [fullWidth]="true"
+              contentAlign="start"
+              [attr.data-conversation-row]="entry.id"
+              [ariaPressed]="store.selectedConversationId() === entry.id"
+              (clicked)="openConversation(entry)"
+            >
+              <span class="flex min-w-0 items-center gap-2">
+                <app-product-thumbnail [src]="entry.imageUrl" [alt]="''" size="sm" />
+                <span class="min-w-0 flex-1">
+                  <span class="flex items-center justify-between gap-2">
+                    <span
+                      class="min-w-0 flex-1 truncate text-[13px] font-semibold text-fb-text-primary"
+                      >{{ entry.title }}</span
+                    >
+                    @if (entry.occurredAt) {
+                      <time
+                        class="shrink-0 text-xs text-fb-text-secondary"
+                        [attr.datetime]="entry.occurredAt"
+                        [attr.title]="entry.occurredAt | date: 'dd.MM.yyyy, HH:mm'"
+                        >{{ entry.occurredAt | date: 'dd.MM., HH:mm' }}</time
+                      >
+                    }
+                  </span>
+                  <span class="mt-1 flex items-center justify-between gap-2">
+                    <span class="min-w-0 flex-1 truncate text-xs text-fb-text-secondary">{{
+                      entry.text ?? 'Gespräch öffnen'
+                    }}</span>
+                    @if (entry.unread) {
+                      <app-badge tone="brand">Neu</app-badge>
+                    }
+                  </span>
+                </span>
+              </span>
+            </app-button>
+          } @empty {
+            <p class="px-3 py-4 text-[13px] text-fb-text-secondary">
+              Noch keine Gespräche gespeichert.
+            </p>
+          }
+          @if (snapshot.conversations.nextCursor) {
+            <app-button
+              class="mx-2 my-2"
+              [loading]="store.loadingPage() === 'conversation'"
+              (clicked)="loadMoreConversations()"
+              >Weitere Gespräche laden</app-button
+            >
+          }
+        </div>
+      </section>
+      <section
+        class="min-w-0 lg:block"
+        [class.hidden]="store.selectedConversationId() === null"
+        aria-label="Gespräch"
+      >
+        @if (conversation(); as conversation) {
+          <div class="flex min-w-0 items-center gap-2 border-b border-fb-line px-3 py-2">
+            <app-button class="lg:hidden" [icon]="backIcon" (clicked)="backToList()"
+              >Zur Gesprächsliste</app-button
+            >
+            <h2
+              #conversationHeading
+              data-conversation-heading
+              tabindex="-1"
+              class="min-w-0 truncate text-[13px] font-semibold text-fb-text-primary"
+            >
+              {{ conversation.title }}
+            </h2>
+          </div>
+          @if (store.messages()?.nextCursor) {
+            <app-button
+              class="mx-3 mt-3"
+              [loading]="store.loadingPage() === 'message'"
+              (clicked)="loadOlderMessages()"
+              >Ältere Nachrichten laden</app-button
+            >
+          }
+          @if (store.error(); as error) {
+            <div class="px-3 pt-3">
+              <p role="alert" class="text-[13px] text-fb-text-secondary">{{ error }}</p>
+              <app-button class="mt-2" (clicked)="retryFailedRequest()">
+                @switch (retryKind()) {
+                  @case ('message') {
+                    Ältere Nachrichten erneut laden
+                  }
+                  @case ('conversation') {
+                    Weitere Gespräche erneut laden
+                  }
+                  @default {
+                    Nachrichten erneut laden
+                  }
+                }
+              </app-button>
+            </div>
+          }
+          @if (store.loadingMessages() && transcript().length > 0) {
+            <p role="status" class="px-3 pt-3 text-[13px] text-fb-text-secondary">
+              Nachrichten werden geladen …
+            </p>
+          }
+          <div
+            #messageLog
+            role="log"
+            aria-label="Gespeicherter Gesprächsverlauf"
+            aria-live="off"
+            tabindex="0"
+            [attr.aria-busy]="store.loadingMessages()"
+            class="max-h-[36rem] min-h-40 space-y-2 overflow-y-auto p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-fb-text-primary"
+            (scroll)="captureReadingPosition()"
+          >
+            @if (store.loadingMessages() && transcript().length === 0) {
+              <p role="status" class="text-[13px] text-fb-text-secondary">
+                Nachrichten werden geladen …
+              </p>
+            } @else {
+              @for (entry of transcript(); track entry.id) {
+                <article
+                  class="w-fit max-w-[90%] rounded-lg border border-fb-line px-3 py-2"
+                  [attr.data-message-kind]="messageKind(entry)"
+                  [attr.data-message-direction]="entry.direction"
+                  [class.ml-auto]="
+                    messageKind(entry) !== 'system' && entry.direction === 'outbound'
+                  "
+                  [class.mx-auto]="messageKind(entry) === 'system' || entry.direction === 'unknown'"
+                  [class.bg-fb-well]="
+                    messageKind(entry) === 'system' || entry.direction === 'outbound'
+                  "
+                  [class.bg-fb-surface]="
+                    messageKind(entry) !== 'system' && entry.direction !== 'outbound'
+                  "
+                  [class.text-center]="messageKind(entry) === 'system'"
+                >
+                  @if (messageKind(entry) === 'offer') {
+                    <p class="text-[13px] font-semibold text-fb-text-primary">{{ entry.title }}</p>
+                    @if (entry.priceLabel) {
+                      <p class="mt-1 text-[13px] font-semibold text-fb-text-primary">
+                        {{ entry.priceLabel }}
+                      </p>
+                    }
+                  }
+                  @if (
+                    messageKind(entry) !== 'offer' || (entry.text && entry.text !== entry.title)
+                  ) {
+                    <p
+                      class="whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-[13px] text-fb-text-primary"
+                    >
+                      {{ entry.text ?? entry.title }}
+                    </p>
+                  }
+                  @if (entry.occurredAt) {
+                    <p class="mt-1 text-xs text-fb-text-secondary">
+                      {{ entry.occurredAt | date: 'dd.MM.yyyy, HH:mm' }}
+                    </p>
+                  }
+                </article>
+              } @empty {
+                @if (!store.error() && conversation.unread) {
+                  <p class="text-[13px] text-fb-text-secondary">
+                    Dieser ungelesene Verlauf wurde noch nicht importiert. Dein Vinted-Lesestatus
+                    bleibt unverändert.
+                  </p>
+                } @else if (!store.error()) {
+                  <p class="text-[13px] text-fb-text-secondary">
+                    Noch keine Nachrichten für dieses Gespräch gespeichert.
+                  </p>
+                }
+              }
+            }
+          </div>
+        } @else {
+          <p class="p-4 text-[13px] text-fb-text-secondary">Wähle ein Gespräch aus.</p>
+        }
+      </section>
+    </div>
+  </app-card>
+}

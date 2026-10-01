@@ -12,6 +12,7 @@ export class SniperAdminService {
       const { data, error } = await this.client
         .from('sniper_queries')
         .select('*')
+        .is('deleted_at', null)
         .order('created_at', { ascending: false })
         .order('id')
         .range(rows.length, rows.length + 999);
@@ -79,6 +80,11 @@ export class SniperAdminService {
       p_id: id,
       p_active: active,
     });
+    if (error) throw new Error(error.message);
+  }
+
+  async delete(id: string): Promise<void> {
+    const { error } = await this.client.rpc('delete_sniper_query', { p_id: id });
     if (error) throw new Error(error.message);
   }
 }

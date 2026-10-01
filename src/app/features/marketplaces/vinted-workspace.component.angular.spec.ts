@@ -1,3 +1,5 @@
+import { VintedFavoriteSettingsComponent } from './components/vinted-favorite-settings/vinted-favorite-settings.component';
+import { MarketplaceFavoriteNotificationApiService } from './services/marketplace-favorite-notification-api.service';
 import { ElementRef, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { TestBed } from '@angular/core/testing';
@@ -13,6 +15,11 @@ import { createMarketplaceFixtures } from './testing/marketplace-fixtures';
 import { parseMarketplaceSnapshot } from './models/marketplace-response';
 import type { AccountScope } from './models/marketplace.models';
 import { VintedWorkspaceComponent } from './vinted-workspace.component';
+import { VintedOverviewComponent } from './components/vinted-overview/vinted-overview.component';
+import { VintedProfileComponent } from './components/vinted-profile/vinted-profile.component';
+import { VintedMessagesComponent } from './components/vinted-messages/vinted-messages.component';
+import { VintedListingsComponent } from './components/vinted-listings/vinted-listings.component';
+import { VintedListingMetricsComponent } from './components/vinted-listings/vinted-listing-metrics.component';
 import { VintedAccountContentComponent } from './components/vinted-account-content/vinted-account-content.component';
 import { VintedProfileEditorComponent } from './components/vinted-profile-editor/vinted-profile-editor.component';
 import { VintedListingDetailComponent } from './components/vinted-listing-detail/vinted-listing-detail.component';
@@ -35,7 +42,8 @@ import { BadgeComponent } from '../../shared/components/badge/badge.component';
 import { CustomSelectComponent } from '../../shared/components/custom-select/custom-select.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { NoticeBannerComponent } from '../../shared/components/notice-banner/notice-banner.component';
-import { SectionNavigationComponent } from '../../shared/components/section-navigation/section-navigation.component';
+import { RouteTabsComponent } from '../../shared/components/route-tabs/route-tabs.component';
+import { VintedAccountControlsComponent } from './components/vinted-account-controls/vinted-account-controls.component';
 import { ModalShellComponent } from '../../shared/components/modal-shell/modal-shell.component';
 import { ModalDialogDirective } from '../../shared/directives/modal-dialog.directive';
 import { TextFieldComponent } from '../../shared/components/text-field/text-field.component';
@@ -111,7 +119,7 @@ beforeAll(async () => {
     [CustomSelectComponent, 'custom-select/custom-select.component'],
     [PageHeaderComponent, 'page-header/page-header.component'],
     [NoticeBannerComponent, 'notice-banner/notice-banner.component'],
-    [SectionNavigationComponent, 'section-navigation/section-navigation.component'],
+    [RouteTabsComponent, 'route-tabs/route-tabs.component'],
     [ModalShellComponent, 'modal-shell/modal-shell.component'],
     [TextFieldComponent, 'text-field/text-field.component'],
     [DataTableComponent, 'data-table/data-table.component'],
@@ -123,6 +131,34 @@ beforeAll(async () => {
     [CustomCheckboxComponent, 'custom-checkbox/custom-checkbox.component'],
   ];
   resetBindings = await prepareMarketplaceRendering([
+    {
+      type: VintedFavoriteSettingsComponent,
+      path: 'src/app/features/marketplaces/components/vinted-favorite-settings/vinted-favorite-settings.component.ts',
+    },
+    {
+      type: VintedAccountControlsComponent,
+      path: 'src/app/features/marketplaces/components/vinted-account-controls/vinted-account-controls.component.ts',
+    },
+    {
+      type: VintedOverviewComponent,
+      path: 'src/app/features/marketplaces/components/vinted-overview/vinted-overview.component.ts',
+    },
+    {
+      type: VintedProfileComponent,
+      path: 'src/app/features/marketplaces/components/vinted-profile/vinted-profile.component.ts',
+    },
+    {
+      type: VintedMessagesComponent,
+      path: 'src/app/features/marketplaces/components/vinted-messages/vinted-messages.component.ts',
+    },
+    {
+      type: VintedListingsComponent,
+      path: 'src/app/features/marketplaces/components/vinted-listings/vinted-listings.component.ts',
+    },
+    {
+      type: VintedListingMetricsComponent,
+      path: 'src/app/features/marketplaces/components/vinted-listings/vinted-listing-metrics.component.ts',
+    },
     ...shared.map(([type, path]) => ({ type, path: `src/app/shared/components/${path}.ts` })),
     { type: ModalDialogDirective, path: 'src/app/shared/directives/modal-dialog.directive.ts' },
     {
@@ -193,11 +229,27 @@ beforeEach(() => {
   };
   TestBed.configureTestingModule({
     providers: [
+      {
+        provide: MarketplaceFavoriteNotificationApiService,
+        useValue: {
+          readSettings: vi.fn().mockImplementation(async (scope: AccountScope) => ({
+            ...scope,
+            enabled: true,
+            version: 0,
+          })),
+          setSettings: vi.fn(),
+        },
+      },
       provideRouter([
         {
           path: 'marketplaces/vinted',
           component: VintedWorkspaceComponent,
           children: [
+            {
+              path: 'feedback',
+              redirectTo: '/marketplaces/vinted/profile#reviews',
+              pathMatch: 'full',
+            },
             { path: 'connect/:connectionId', component: MarketplaceConnectComponent },
             { path: 'listings/:connectionId/:entryId', component: VintedListingDetailComponent },
             ...['overview', 'listings', 'messages', 'sales', 'profile', 'activity'].map(
@@ -250,6 +302,10 @@ beforeEach(() => {
           input: vi.fn(),
           close: vi.fn(),
           syncConnection: browserApi.syncConnection,
+          readListingData: vi.fn().mockResolvedValue({
+            fields: { title: 'Testschal', description: 'Ein Schal', price: '12,50' },
+            cacheState: 'unconfirmed',
+          }),
           readListingEdit: vi
             .fn()
             .mockResolvedValue({ title: 'Testschal', description: 'Ein Schal', price: '12,50' }),
@@ -278,6 +334,20 @@ async function render(url: string) {
   return { harness, element: harness.routeNativeElement as HTMLElement };
 }
 describe('Vinted-Bereich in Flipbase', () => {
+  it('ordnet die Bereiche mit Aktivitäten und ohne separaten Bewertungstab', async () => {
+    const { element } = await render('/marketplaces/vinted/overview');
+    const links = [...element.querySelectorAll('nav[aria-label="Vinted-Bereiche"] a')];
+    expect(links.map((link) => link.textContent?.trim())).toEqual([
+      'Übersicht',
+      'Nachrichten',
+      'Inserate',
+      'Verkäufe',
+      'Aktivitäten',
+      'Profil',
+    ]);
+    expect(links[0].getAttribute('aria-current')).toBe('page');
+    expect(element.querySelector('a[href*="/connect/"]')).toBeNull();
+  });
   it.each([
     { feedbackResult: { status: 'failed', failure: 'rate_limited' }, remainsOpen: true },
     { feedbackResult: { status: 'complete' }, remainsOpen: false },
@@ -328,8 +398,8 @@ describe('Vinted-Bereich in Flipbase', () => {
   it('aktualisiert das ausgewählte Konto erst nach ausdrücklichem Klick', async () => {
     const { element, harness } = await render('/marketplaces/vinted/overview');
     expect(browserApi.syncConnection).not.toHaveBeenCalled();
-    const button = [...element.querySelectorAll<HTMLButtonElement>('button')].find((node) =>
-      node.textContent?.includes('Kontodaten aktualisieren'),
+    const button = [...element.querySelectorAll<HTMLButtonElement>('button')].find(
+      (node) => node.getAttribute('aria-label') === 'Kontodaten aktualisieren',
     );
     expect(button).toBeDefined();
     button?.click();
@@ -347,8 +417,8 @@ describe('Vinted-Bereich in Flipbase', () => {
   it('meldet einen veralteten Browserdienst ohne einen angenommenen Auftrag vorzutäuschen', async () => {
     browserApi.syncConnection.mockRejectedValue(new MarketplaceWorkerOutdatedError());
     const { element, harness } = await render('/marketplaces/vinted/overview');
-    const button = [...element.querySelectorAll<HTMLButtonElement>('button')].find((node) =>
-      node.textContent?.includes('Kontodaten aktualisieren'),
+    const button = [...element.querySelectorAll<HTMLButtonElement>('button')].find(
+      (node) => node.getAttribute('aria-label') === 'Kontodaten aktualisieren',
     );
     button?.click();
     await harness.fixture.whenStable();
@@ -368,8 +438,8 @@ describe('Vinted-Bereich in Flipbase', () => {
       },
     );
     const { element, harness } = await render('/marketplaces/vinted/overview');
-    const refresh = [...element.querySelectorAll<HTMLButtonElement>('button')].find((node) =>
-      node.textContent?.includes('Kontodaten aktualisieren'),
+    const refresh = [...element.querySelectorAll<HTMLButtonElement>('button')].find(
+      (node) => node.getAttribute('aria-label') === 'Kontodaten aktualisieren',
     );
     refresh?.click();
     await harness.fixture.whenStable();
@@ -409,14 +479,22 @@ describe('Vinted-Bereich in Flipbase', () => {
     expect(element.querySelector('input[type="password"]')).toBeNull();
   });
   it('zeigt echte Konten, Kontowechsler und die vorgesehenen Bereiche', async () => {
-    const { element } = await render('/marketplaces/vinted/overview');
+    const { element, harness } = await render('/marketplaces/vinted/overview');
     expect(element.querySelector('h1')?.textContent).toContain('Vinted');
     expect(element.querySelector('[role="combobox"]')?.textContent).toContain('Testkonto A');
     expect(
-      [...element.querySelectorAll('app-section-navigation a')].map((a) => a.textContent?.trim()),
-    ).toEqual(['Übersicht', 'Inserate', 'Nachrichten', 'Verkäufe', 'Profil', 'Bewertung']);
-    expect(element.querySelector('a[href="/settings/marketplaces"]')).not.toBeNull();
+      [...element.querySelectorAll('app-route-tabs a')].map((a) => a.textContent?.trim()),
+    ).toEqual(['Übersicht', 'Nachrichten', 'Inserate', 'Verkäufe', 'Aktivitäten', 'Profil']);
     expect(element.querySelector('a[href="/marketplaces/vinted/activity"]')).not.toBeNull();
+    element
+      .querySelector<HTMLButtonElement>('button[aria-label="Vinted-Kontoeinstellungen"]')
+      ?.click();
+    harness.detectChanges();
+    await harness.fixture.whenStable();
+    harness.detectChanges();
+    expect(
+      element.querySelector('[role="dialog"] a[href="/settings/marketplaces"]'),
+    ).not.toBeNull();
     expect(
       element.querySelector(
         `a[href="/marketplaces/vinted/connect/${fixtureConnections[0].connectionId}"]`,
@@ -426,7 +504,7 @@ describe('Vinted-Bereich in Flipbase', () => {
   it('zeigt die normierte Vinted-Bewertung als fünf Sterne', async () => {
     const { element } = await render('/marketplaces/vinted/profile');
     expect(element.textContent).toContain('1 Bewertung');
-    expect(element.querySelector('app-vinted-account-content .max-w-3xl')).not.toBeNull();
+    expect(element.querySelector('app-vinted-profile')).not.toBeNull();
     const rating = element.querySelector('[aria-label="5,0 von 5 Sternen"]');
     expect(rating).not.toBeNull();
     expect(rating?.querySelectorAll('svg.fill-current')).toHaveLength(5);
@@ -469,10 +547,11 @@ describe('Vinted-Bereich in Flipbase', () => {
     link?.click();
     await harness.fixture.whenStable();
     harness.detectChanges();
-    expect(api.readPublication).toHaveBeenCalledWith(
-      { workspaceId: 'fixture-workspace', connectionId: 'fixture-account-a' },
-      'publication-1',
-    );
+    expect(api.readPublication).not.toHaveBeenCalled();
+    expect(element.querySelector('app-vinted-listing-detail')).not.toBeNull();
+    expect(
+      element.querySelector('app-route-tabs a[aria-current="page"]')?.textContent?.trim(),
+    ).toBe('Inserate');
     expect(element.textContent).toContain('Testschal');
   });
   it('zeigt Verkäufe im dichten Kartenraster ohne den bisherigen Hinweis', async () => {
@@ -632,6 +711,30 @@ describe('Vinted-Bereich in Flipbase', () => {
     );
     expect(element.querySelector('app-marketplace-browser-test')).not.toBeNull();
     expect(element.textContent).toContain('noch nicht verfügbar');
+  });
+  it('zeigt gespeicherte Aktivitäten im Tabelleninhalt ohne unverdrahtete Suche', async () => {
+    api.readSnapshot.mockImplementation(async (scope: AccountScope) => ({
+      ...makeSnapshot(scope),
+      activity: {
+        items: [
+          {
+            ...scope,
+            id: 'activity-1',
+            title: 'Gespeicherte Änderung',
+            text: 'Inserat aktualisiert',
+            occurredAt: '2026-10-01T12:00:00Z',
+          },
+        ],
+        total: 1,
+        nextCursor: null,
+      },
+    }));
+    const { element } = await render('/marketplaces/vinted/activity');
+    expect(element.querySelector('[data-data-table-content]')?.textContent).toContain(
+      'Inserat aktualisiert',
+    );
+    expect(element.querySelector('[data-data-table-search]')).toBeNull();
+    expect(element.querySelector('th')?.textContent).toBe('Aktivität');
   });
   it('hat im Arbeitsbereich keine automatisch erkennbaren schweren Barrieren', async () => {
     const { element } = await render('/marketplaces/vinted/overview');

@@ -11,6 +11,7 @@ import { NumberInputComponent } from '../../../../shared/components/number-input
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { SearchMultiSelectComponent } from '../../../../shared/components/search-multi-select/search-multi-select.component';
+import { CustomSearchInputComponent } from '../../../../shared/components/custom-search-input/custom-search-input.component';
 
 interface AngularInputMetadata {
   inputs: Record<string, unknown>;
@@ -64,6 +65,25 @@ beforeAll(async () => {
     'helpText',
   ]);
   registerSignalInputs(ButtonComponent, ['disabled', 'loading'], ['clicked']);
+  registerSignalInputs(
+    CustomSearchInputComponent,
+    [
+      'inputRole',
+      'expanded',
+      'controlsId',
+      'activeDescendantId',
+      'maxLength',
+      'clearOnEscape',
+      'ariaLabel',
+      'placeholder',
+      'value',
+      'size',
+    ],
+    ['valueChange'],
+  );
+  (CustomSearchInputComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp.outputs[
+    'valueChange'
+  ] = 'value';
   registerSignalInputs(
     SearchMultiSelectComponent,
     [
@@ -218,5 +238,76 @@ describe('SniperBrandCreateComponent', () => {
     fixture.detectChanges();
     const results = await axe.run(fixture.nativeElement as HTMLElement);
     expect(results.violations).toEqual([]);
+  });
+
+  it('closes the picker on Escape without closing its parent dialog or clearing the search', async () => {
+    const component = await build();
+    const host = fixture.nativeElement as HTMLElement;
+    host.querySelector<HTMLButtonElement>('#vinted-brand-picker')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const input = host.querySelector<HTMLInputElement>('[role="combobox"]')!;
+    expect(input.type).toBe('text');
+    input.value = 'Patagonia';
+    input.dispatchEvent(new Event('input'));
+    const parentEscape = vi.fn();
+    document.addEventListener('keydown', parentEscape);
+    try {
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      fixture.detectChanges();
+      expect(host.querySelector('[role="listbox"]')).toBeNull();
+      expect(parentEscape).not.toHaveBeenCalled();
+      expect(component.keyword()).toBe('Patagonia');
+    } finally {
+      document.removeEventListener('keydown', parentEscape);
+    }
+  });
+
+  it('closes the picker on an outside pointer press and offers an explicit close action', async () => {
+    await build();
+    const host = fixture.nativeElement as HTMLElement;
+    host.querySelector<HTMLButtonElement>('#vinted-brand-picker')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(host.textContent).toContain('Auswahl schließen');
+    document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    fixture.detectChanges();
+    expect(host.querySelector('[role="listbox"]')).toBeNull();
+  });
+
+  it('selects the highlighted result with Enter without restarting the search', async () => {
+    const component = await build();
+    const host = fixture.nativeElement as HTMLElement;
+    host.querySelector<HTMLButtonElement>('#vinted-brand-picker')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const input = host.querySelector<HTMLInputElement>('[role="combobox"]')!;
+    search.mockClear();
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    expect(component.selected()).toEqual([{ id: 53, name: 'Nike' }]);
+    expect(search).not.toHaveBeenCalled();
+    expect(component.loading()).toBe(false);
+  });
+
+  it('contains Escape from the picker footer before it reaches the parent dialog', async () => {
+    await build();
+    const host = fixture.nativeElement as HTMLElement;
+    host.querySelector<HTMLButtonElement>('#vinted-brand-picker')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const parentEscape = vi.fn();
+    document.addEventListener('keydown', parentEscape);
+    try {
+      const close = Array.from(host.querySelectorAll('button')).find((button) =>
+        button.textContent?.includes('Auswahl schließen'),
+      )!;
+      close.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      fixture.detectChanges();
+      expect(host.querySelector('[role="listbox"]')).toBeNull();
+      expect(parentEscape).not.toHaveBeenCalled();
+    } finally {
+      document.removeEventListener('keydown', parentEscape);
+    }
   });
 });

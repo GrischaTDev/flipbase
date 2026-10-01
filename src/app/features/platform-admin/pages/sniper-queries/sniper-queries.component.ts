@@ -11,7 +11,8 @@ import {
   viewChild,
 } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import { LucidePause, LucidePencil, LucidePlay } from '@lucide/angular';
+import { LucidePause, LucidePencil, LucidePlay, LucideTrash2 } from '@lucide/angular';
+import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { TableActionButtonComponent } from '../../../../shared/components/table-action-button/table-action-button.component';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
@@ -48,6 +49,7 @@ export class SniperQueriesComponent {
   private readonly creator = viewChild(SniperBrandCreateComponent);
   readonly state = inject(SniperAdminState);
   private readonly api = inject(SniperAdminService);
+  private readonly confirmation = inject(ConfirmDialogService);
   private readonly destroyRef = inject(DestroyRef);
   readonly editorOpen = signal(false);
   readonly editing = signal<SniperQuery | null>(null);
@@ -76,6 +78,7 @@ export class SniperQueriesComponent {
   readonly editIcon = LucidePencil;
   readonly pauseIcon = LucidePause;
   readonly activateIcon = LucidePlay;
+  readonly deleteIcon = LucideTrash2;
 
   hasUnsavedChanges(): boolean {
     return this.editor()?.form.dirty || this.creator()?.hasUnsavedChanges() || false;
@@ -101,6 +104,7 @@ export class SniperQueriesComponent {
   }
 
   openEditor(query: SniperQuery | null = null): void {
+    if (this.isSaving()) return;
     if (query && !this.isBrandOnly(query)) return;
     this.editing.set(query);
     this.error.set(null);
@@ -119,11 +123,56 @@ export class SniperQueriesComponent {
     );
   }
 
-  modalClosed(): void {
+  async modalClosed(): Promise<void> {
     if (this.isSaving()) return;
-    if (this.hasUnsavedChanges() && !globalThis.confirm('Ungespeicherte Änderungen verwerfen?'))
-      return;
+    if (this.hasUnsavedChanges()) {
+      const discard = await this.confirmation.frage({
+        titel: 'Änderungen verwerfen?',
+        text: 'Deine Änderungen am Markenfilter wurden noch nicht gespeichert.',
+        bestaetigenText: 'Verwerfen',
+        gefahr: true,
+      });
+      if (!discard || this.destroyRef.destroyed) return;
+    }
     this.closeEditor();
+  }
+
+  async delete(query: SniperQuery): Promise<void> {
+    if (this.isSaving() || this.editorOpen()) return;
+    this.busyId.set(query.id);
+    try {
+      const confirmed = await this.confirmation.frage({
+        titel: 'Markenfilter löschen?',
+        text: `Der Filter „${this.queryTitle(query)}“ wird für alle Nutzer entfernt. Weitere Abfragen werden gestoppt. Bereits gefundene Artikel, Favoriten und persönliche Suchfilter bleiben erhalten. Eine laufende Abfrage kann noch abgeschlossen werden.`,
+        bestaetigenText: 'Löschen',
+        gefahr: true,
+      });
+      if (!confirmed || this.destroyRef.destroyed) return;
+      this.error.set(null);
+      await this.api.delete(query.id);
+      if (this.destroyRef.destroyed) return;
+      this.message.set(`Markenfilter „${this.queryTitle(query)}“ gelöscht.`);
+      await this.state.refreshAfterMutation();
+    } catch (error) {
+      this.error.set(error instanceof Error ? error.message : 'Löschen fehlgeschlagen.');
+    } finally {
+      this.busyId.set(null);
+      if (!this.destroyRef.destroyed) {
+        afterNextRender(
+          () => {
+            const origin = this.element.nativeElement.querySelector<HTMLButtonElement>(
+              `[data-delete-query="${query.id}"] button`,
+            );
+            const fallback =
+              this.element.nativeElement.querySelector<HTMLButtonElement>(
+                '[data-new-query] button',
+              );
+            (origin ?? fallback)?.focus();
+          },
+          { injector: this.injector },
+        );
+      }
+    }
   }
 
   async save(draft: QueryDraft): Promise<void> {

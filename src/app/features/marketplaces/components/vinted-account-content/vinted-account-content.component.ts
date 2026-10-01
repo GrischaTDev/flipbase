@@ -1,16 +1,15 @@
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, RouterLink } from '@angular/router';
-import { LucideArrowLeft } from '@lucide/angular';
+import { ActivatedRoute } from '@angular/router';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
-import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { DataTableComponent } from '../../../../shared/components/data-table/data-table.component';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
-import { VintedRatingComponent } from '../vinted-rating/vinted-rating.component';
-import { VintedProfileEditorComponent } from '../vinted-profile-editor/vinted-profile-editor.component';
-import { VintedFeedbackListComponent } from '../vinted-feedback-list/vinted-feedback-list.component';
+import { VintedOverviewComponent } from '../vinted-overview/vinted-overview.component';
+import { VintedProfileComponent } from '../vinted-profile/vinted-profile.component';
+import { VintedMessagesComponent } from '../vinted-messages/vinted-messages.component';
+import { VintedListingsComponent } from '../vinted-listings/vinted-listings.component';
 import type { MarketplaceEntryKind } from '../../models/marketplace-read.models';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 
@@ -20,14 +19,13 @@ import { MarketplaceAccountStore } from '../../services/marketplace-account.stor
     CurrencyPipe,
     DatePipe,
     ButtonComponent,
-    BadgeComponent,
     CardComponent,
     DataTableComponent,
     ProductThumbnailComponent,
-    RouterLink,
-    VintedRatingComponent,
-    VintedProfileEditorComponent,
-    VintedFeedbackListComponent,
+    VintedOverviewComponent,
+    VintedProfileComponent,
+    VintedMessagesComponent,
+    VintedListingsComponent,
   ],
   templateUrl: './vinted-account-content.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -38,15 +36,6 @@ export class VintedAccountContentComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly data = toSignal(this.route.data, { initialValue: this.route.snapshot.data });
   readonly section = computed(() => this.data()['section'] as string);
-  readonly backIcon = LucideArrowLeft;
-  readonly conversation = computed(
-    () =>
-      this.store
-        .snapshot()
-        ?.conversations.items.find((entry) => entry.id === this.store.selectedConversationId()) ??
-      null,
-  );
-  readonly transcript = computed(() => [...(this.store.messages()?.items ?? [])].reverse());
   readonly pageKind = computed<MarketplaceEntryKind>(() =>
     this.section() === 'listings'
       ? 'publication'

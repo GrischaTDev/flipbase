@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import type { AccountScope } from '../models/marketplace.models';
+import type { VintedListingReadResult } from '../models/vinted-listing-description';
 import {
   parseMarketplaceSyncSourceResults,
   type MarketplaceSyncSourceResults,
@@ -461,6 +462,14 @@ export class MarketplaceBrowserTestApiService {
     entryId: string,
     accessToken: string,
   ): Promise<VintedListingEditFields> {
+    return (await this.readListingData(scope, entryId, accessToken)).fields;
+  }
+
+  async readListingData(
+    scope: AccountScope,
+    entryId: string,
+    accessToken: string,
+  ): Promise<VintedListingReadResult> {
     const response = await this.post(
       '/marketplace-browser/listings/edit/read',
       { ...scope, entryId },
@@ -484,9 +493,12 @@ export class MarketplaceBrowserTestApiService {
     )
       throw new Error('Das Vinted-Formular lieferte ungültige Daten.');
     return {
-      title: body.fields.title,
-      description: body.fields.description,
-      price: body.fields.price,
+      fields: {
+        title: body.fields.title,
+        description: body.fields.description,
+        price: body.fields.price,
+      },
+      cacheState: 'cache' in body && body.cache === 'pending' ? 'pending' : 'unconfirmed',
     };
   }
 

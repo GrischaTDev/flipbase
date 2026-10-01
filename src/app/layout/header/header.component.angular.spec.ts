@@ -16,6 +16,27 @@ import { WorkspaceService } from '../../core/services/workspace.service';
 import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
 import { ToastService } from '../../shared/components/toast/toast.service';
 import { HeaderComponent } from './header.component';
+import type { AppNotification } from '../../core/models/webhook.models';
+import { MarketplaceFavoriteNotificationStore } from '../../features/marketplaces/services/marketplace-favorite-notification.store';
+
+const generalNotification: AppNotification = {
+  id: 'general-1',
+  type: 'system',
+  title: 'Allgemeiner Hinweis',
+  message: 'Allgemeiner Text',
+  timestamp: '2026-10-01T10:00:00Z',
+  read: false,
+  link: '/sales',
+};
+const favoriteNotification: AppNotification = {
+  id: 'marketplace:favorite-1',
+  type: 'alert',
+  title: 'Neue Favoriten',
+  message: 'Nettoanstieg bei einem Inserat',
+  timestamp: '2026-10-01T11:00:00Z',
+  read: false,
+  link: '/marketplaces/vinted/listings',
+};
 
 describe('HeaderComponent', () => {
   beforeAll(async () => {
@@ -33,7 +54,11 @@ describe('HeaderComponent', () => {
 
   afterEach(() => TestBed.resetTestingModule());
 
-  async function renderHeader(): Promise<HTMLElement> {
+  async function renderHeader(
+    favorites: AppNotification[] = [],
+    unreadFavorites = 0,
+    generalNotifications = favorites.length ? [generalNotification] : [],
+  ) {
     await TestBed.configureTestingModule({
       imports: [HeaderComponent],
       providers: [
@@ -58,11 +83,23 @@ describe('HeaderComponent', () => {
         {
           provide: WebhookService,
           useValue: {
-            unreadCount: signal(0),
-            notifications: signal([]),
+            unreadCount: signal(favorites.length ? 1 : 0),
+            notifications: signal(generalNotifications),
             markAsRead: vi.fn(),
             markAllAsRead: vi.fn(),
             clearNotifications: vi.fn(),
+          },
+        },
+        {
+          provide: MarketplaceFavoriteNotificationStore,
+          useValue: {
+            notifications: signal(favorites),
+            unreadCount: signal(unreadFavorites),
+            error: signal<string | null>(null),
+            reload: vi.fn(async () => undefined),
+            markAsRead: vi.fn(async () => undefined),
+            markAllAsRead: vi.fn(async () => undefined),
+            clearNotifications: vi.fn(async () => undefined),
           },
         },
         { provide: ConfirmDialogService, useValue: { zeigeHinweis: vi.fn() } },
@@ -80,11 +117,103 @@ describe('HeaderComponent', () => {
     const fixture = TestBed.createComponent(HeaderComponent);
     fixture.detectChanges();
     await fixture.whenStable();
-    return fixture.nativeElement as HTMLElement;
+    return fixture;
   }
 
+  it('erhält Kontoparameter in Sammellinks und Suchparameter samt Abschnitt in allgemeinen Links', async () => {
+    const fixture = await renderHeader(
+      [{ ...favoriteNotification, link: '/marketplaces/vinted/listings?connectionId=account-b' }],
+      1,
+      [{ ...generalNotification, link: '/sales?status=paid#recent' }],
+    );
+    const element = fixture.nativeElement as HTMLElement;
+    element
+      .querySelector<HTMLButtonElement>('button[aria-controls="header-notification-menu"]')!
+      .click();
+    fixture.detectChanges();
+    const links = [...element.querySelectorAll<HTMLAnchorElement>('#header-notification-menu a')];
+    expect(links.map((link) => link.getAttribute('href'))).toEqual([
+      '/marketplaces/vinted/listings?connectionId=account-b',
+      '/sales?status=paid#recent',
+    ]);
+  });
+
+  it('zeigt beide Meldungsströme chronologisch und zählt alle ungelesenen Favoriten', async () => {
+    const fixture = await renderHeader([favoriteNotification], 70);
+    const element = fixture.nativeElement as HTMLElement;
+    const bell = element.querySelector<HTMLButtonElement>(
+      'button[aria-controls="header-notification-menu"]',
+    )!;
+    expect(bell.textContent).toContain('71');
+    bell.click();
+    fixture.detectChanges();
+    const items = [...element.querySelectorAll('#header-notification-menu a')];
+    expect(items).toHaveLength(2);
+    expect(items[0].textContent).toContain('Neue Favoriten');
+    expect(items[1].textContent).toContain('Allgemeiner Hinweis');
+    expect(TestBed.inject(MarketplaceFavoriteNotificationStore).reload).toHaveBeenCalledOnce();
+    bell.click();
+    fixture.detectChanges();
+    expect(TestBed.inject(MarketplaceFavoriteNotificationStore).reload).toHaveBeenCalledOnce();
+  });
+
+  it('begrenzt die kombinierte Ansicht auf die neuesten 50 Einträge ohne den Zähler abzuschneiden', async () => {
+    const favorites = Array.from({ length: 53 }, (_, index) => ({
+      ...favoriteNotification,
+      id: `marketplace:favorite-${index}`,
+      title: `Favoriten ${index}`,
+      timestamp: new Date(Date.UTC(2026, 9, 1, 11, index)).toISOString(),
+    }));
+    const fixture = await renderHeader(favorites, 53);
+    const element = fixture.nativeElement as HTMLElement;
+    element
+      .querySelector<HTMLButtonElement>('button[aria-controls="header-notification-menu"]')!
+      .click();
+    fixture.detectChanges();
+    const items = [...element.querySelectorAll('#header-notification-menu a')];
+    expect(items).toHaveLength(50);
+    expect(items[0].textContent).toContain('Favoriten 52');
+    expect(
+      element.querySelector('button[aria-controls="header-notification-menu"]')?.textContent,
+    ).toContain('54');
+  });
+
+  it('entfernt gesperrte Favoriten aus der Glocke und lässt allgemeine Meldungen sichtbar', async () => {
+    const fixture = await renderHeader([favoriteNotification], 1);
+    const element = fixture.nativeElement as HTMLElement;
+    element
+      .querySelector<HTMLButtonElement>('button[aria-controls="header-notification-menu"]')!
+      .click();
+    fixture.detectChanges();
+    const store = TestBed.inject(MarketplaceFavoriteNotificationStore);
+    const mockedStore = store as unknown as {
+      notifications: ReturnType<typeof signal<AppNotification[]>>;
+      unreadCount: ReturnType<typeof signal<number>>;
+      error: ReturnType<typeof signal<string | null>>;
+    };
+    mockedStore.notifications.set([]);
+    mockedStore.unreadCount.set(0);
+    mockedStore.error.set('Favoritenmeldungen konnten nicht geladen werden.');
+    fixture.detectChanges();
+    expect(element.querySelector('#header-notification-menu')?.textContent).not.toContain(
+      'Neue Favoriten',
+    );
+    expect(element.querySelector('#header-notification-menu')?.textContent).toContain(
+      'Allgemeiner Hinweis',
+    );
+    expect(
+      element.querySelector('#header-notification-menu [role="status"]')?.textContent,
+    ).toContain('Favoritenmeldungen konnten nicht geladen werden.');
+    expect(
+      element
+        .querySelector('button[aria-controls="header-notification-menu"]')
+        ?.textContent?.trim(),
+    ).toBe('1');
+  });
+
   it('verwendet eine feste Kopfhoehe und gleich grosse Bedienelemente', async () => {
-    const element = await renderHeader();
+    const fixture = await renderHeader();
+    const element = fixture.nativeElement as HTMLElement;
     const header = element.querySelector('header');
     const workspaceButton = element.querySelector<HTMLButtonElement>(
       'button[aria-controls="header-workspace-menu"]',
