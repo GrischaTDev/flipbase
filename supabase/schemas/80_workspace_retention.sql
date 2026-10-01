@@ -291,7 +291,8 @@ begin
     or exists (select 1 from public.purchase_documents where workspace_id = old.id)
     or exists (select 1 from public.expense_recurring_rules where workspace_id = old.id)
     or exists (select 1 from public.expenses where workspace_id = old.id)
-    or exists (select 1 from public.expense_documents where workspace_id = old.id) then
+    or exists (select 1 from public.expense_documents where workspace_id = old.id)
+    or exists (select 1 from public.ebay_order_bookings where workspace_id = old.id) then
     raise exception using errcode = 'P0001',
       message = 'Workspace enthält Geschäftsdaten und kann nicht gelöscht werden. Erfasste Belege und Buchungen müssen erhalten bleiben.';
   end if;

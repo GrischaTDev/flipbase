@@ -26,8 +26,35 @@ grün. Eine ausdrücklich ungültige Rabattangabe wird mit eigenem Fehlerfall ge
 32 gezielte Deno-Tests inklusive bestehender Konto-/Löschfunktionen, Anwendungstypen,
 Deno-Lint der geänderten Quellen und Formatierung bestanden. ESLint schließt
 Edge-Dateien im bestehenden Projekt aus; hierfür ist der ausgeführte Deno-Lint
-maßgeblich. Datenbank, Buchungsablauf und Oberfläche folgen danach. Keine
-Serveränderung oder produktive Buchung.
+maßgeblich.
+
+**Datenbank:** Persönliche Zuordnungen, private Anzeige-/Buchungsprüfstände und
+dauerhafte Quellenbelege ergänzt. Nutzer-JWT, Mitgliedschaft, Workspace, eigene
+Verbindung und Autorisierungsfassung werden gesperrt und erneut geprüft. Anzeige
+gibt keine Buchung frei; eine bestätigte Freigabe gilt höchstens 30 Sekunden.
+Verkauf, Centgruppen, Bestand und Quellenbeleg werden gemeinsam gespeichert.
+`record_sale` liefert zusätzlich die Positions-IDs in Eingabereihenfolge, damit
+auch identische Artikel eindeutige Quellenverweise behalten. Manuelle Markierung
+und Rücknahme erzeugen keinen Verkauf; Importbelege bleiben erhalten.
+
+**Migration und Nachweis:** Ausschließlich leere, getrennte Testdatenbanken mit
+kopierter Struktur und ohne produktive Tabelleninhalte verwendet. Der CLI-
+Schattenlauf scheitert an einer historischen `lock table`-Migration; die alten
+Projektdateien bleiben unverändert. Eine getrennte Struktur-Baseline ermöglicht
+den CLI-Abgleich. Der erzeugte Rohstand scheitert nachweislich an vier Rechte-
+Prüfungen. Explizite Rechte und Tabellenkommentare werden deshalb mechanisch aus
+dem deklarativen Schema in die erzeugte Migration übernommen. Anschließend
+Migration vollständig transaktional auf einer frischen leeren Datenbank angewandt:
+263 Prüfungen aus sechs betroffenen Dateien bestanden. Funktionen, Tabellen- und
+Spaltenrechte, RLS, Kommentare, Constraints, Indexes und Policies stimmen mit dem
+deklarativen Ziel überein. Typen aus diesem migrierten Stand mit dem vorhandenen
+CLI-/Generatorvertrag neu erzeugt; Typprüfung bestanden. Der neuere Generator
+würde bestehende JSON-Verträge verändern und wird dafür nicht übernommen.
+Schema-/Migrations-Skripttests bestanden; der nur für seine eigene Testdatenbank
+aktivierte Release-Transaktionstest anschließend in einer weiteren leeren
+Testdatenbank mit dem CI-Containervertrag ohne Überspringen bestanden. Die zusätzliche
+Datenbankprüfung meldet nur zwei bestehende Sniper-Policy-Warnungen, keine neue
+eBay-Warnung. Keine produktive Buchung oder Änderung produktiver Daten.
 
 ## 2026-10-01 – Juna – eBay-Umsetzungsplan nach Spezifikationsfreigabe erstellt
 

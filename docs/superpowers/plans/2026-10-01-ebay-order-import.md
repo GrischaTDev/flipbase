@@ -169,20 +169,20 @@ gegebenenfalls das bestehende Retention-Inventar in
   manuelle Markierung: `{ status: 'recorded_elsewhere', saleId: string | null }`.
   Kein Beleg: `{ status: 'unrecorded', saleId: null }`.
 
-- [ ] **1. SQL-Nachweise schreiben:** Normales Mitglied, anderer Nutzer mit anderem
+- [x] **1. SQL-Nachweise schreiben:** Normales Mitglied, anderer Nutzer mit anderem
       Konto, zweiter Nutzer desselben eBay-Kontos, fremder Workspace, archivierter
       Workspace/Zielartikel, fehlender Bestand, doppelte Position, manipulierte Kosten,
       falsche Autorisierungsfassung und direkter Tabellenzugriff. Nach zwei identischen
       Buchungsversuchen: ein Verkauf, ein Quellenbeleg und nur einmalige Bestandsmenge.
       Eine ungültige zweite Position hinterlässt null neue Verkäufe/Bestandsbewegungen.
-- [ ] **2. Rot nachweisen:** Neue SQL-Suite gegen eine isolierte migrierte Testdatenbank
+- [x] **2. Rot nachweisen:** Neue SQL-Suite gegen eine isolierte migrierte Testdatenbank
       ausführen; fehlende Tabelle/Funktion muss scheitern, nicht durch Fehlerunterdrückung.
-- [ ] **3. Schema implementieren:** RLS und getrennte Policies je erlaubter Operation,
+- [x] **3. Schema implementieren:** RLS und getrennte Policies je erlaubter Operation,
       indizierte Prüfschlüssel, keine direkten Client-Schreibrechte auf Quelle/Belege.
       Snapshots gehören dem prüfenden Nutzer und der Verbindung/Fassung. Belege haben
       keinen löschenden OAuth-Fremdschlüssel. Leser benötigen eigenes identisches
       Konto plus aktive Mitgliedschaft; bestehende Verkaufsrechte bleiben bestehen.
-- [ ] **4. RPCs implementieren:** Service-Aufrufe prüfen bestätigte Nutzeridentität
+- [x] **4. RPCs implementieren:** Service-Aufrufe prüfen bestätigte Nutzeridentität
       und eigene Verbindung erneut. `record_sale` wird mit dem Nutzer-JWT-Kontext
       aufgerufen, niemals mit erfundener `auth.uid()`. Die Buchungs-RPC benötigt
       `security definer` für private Quelle und ausschließlich begrenzte Rechte.
@@ -190,7 +190,7 @@ gegebenenfalls das bestehende Retention-Inventar in
       werden in dieser festen Reihenfolge bis Commit geschützt. Auch ein noch nicht
       vorhandener Beleg wird über seinen Schlüssel gesperrt. Bestehender Beleg wird
       vor erneuter Bestandsprüfung als Ergebnis zurückgegeben.
-- [ ] **5. Bestätigungsnachweis erzwingen:** Anzeige-Snapshot gilt maximal fünf Minuten
+- [x] **5. Bestätigungsnachweis erzwingen:** Anzeige-Snapshot gilt maximal fünf Minuten
       und hat `booking_ready = false`. Nur der Server kann nach erneutem eBay-Abruf
       einen Buchungs-Snapshot mit `booking_ready = true` und höchstens 30 Sekunden
       Laufzeit erzeugen. Die Buchungs-RPC lehnt Anzeige-Snapshots, fremde Snapshots und
@@ -198,7 +198,7 @@ gegebenenfalls das bestehende Retention-Inventar in
       `p_assignments` enthält nur genau einmal jede Quellposition und ein konkretes Ziel.
       Cent-Aufteilung aus Aufgabe 1 wird in SQL identisch geprüft und den erzeugten
       Verkaufszeilen zugeordnet. Positive Stückpreise bleiben Voraussetzung.
-- [ ] **6. Lebenszyklus umsetzen:** Erledigt-Markierung und Rücknahme verwenden dieselbe
+- [x] **6. Lebenszyklus umsetzen:** Erledigt-Markierung und Rücknahme verwenden dieselbe
       Quellensperre. Rücknahme nur für manuelle Markierung ohne Importverkauf; ein optional
       ausgewählter bereits manueller Verkauf wird dabei nicht verändert. Ein Importbeleg
       bleibt nach Verkaufsstorno/Retoure bestehen. Vorhandene eBay-Verkäufe mit gleicher
@@ -206,13 +206,13 @@ gegebenenfalls das bestehende Retention-Inventar in
       Mapping/temporäre Quelle, behält minimale Geschäftsbelege im bestehenden
       Aufbewahrungsablauf; Ablaufbereinigung verarbeitet höchstens 100 Snapshots pro
       passendem Abruf, keine neue Hintergrundautomatik.
-- [ ] **7. Migration erzeugen und prüfen:** CLI-Hilfe lesen; im isolierten Projekt
+- [x] **7. Migration erzeugen und prüfen:** CLI-Hilfe lesen; im isolierten Projekt
       `supabase stop`, `supabase db diff -f ebay_order_import`. Erzeugte SQL-Datei
       vollständig mit dem deklarativen Schema abgleichen, Kopfkommentar ergänzen,
       keine existierende Migration ändern. Gegen frisch migrierte Testdatenbank
       `npx supabase gen types typescript --local` ausführen und Ausgabe sicher in die
       Typdatei schreiben. Kein Zugriff auf produktive Datenbank für diese Schritte.
-- [ ] **8. Grün nachweisen:** `node scripts/prepare-db-tests.mjs` und nach CLI-Hilfe
+- [x] **8. Grün nachweisen:** `node scripts/prepare-db-tests.mjs` und nach CLI-Hilfe
       `supabase test db supabase/tests/ebay-order-import.test.sql` sowie die betroffenen
       bestehenden eBay-/Bestands-/Verkaufs-Suiten. Schema-/Migrationsverträge:
       `node --test scripts/check-schema-registration.test.mjs scripts/check-migration-changes.test.mjs scripts/release-migrations.test.mjs`.
