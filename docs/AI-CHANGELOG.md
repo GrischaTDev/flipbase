@@ -13,6 +13,12 @@ zusätzlich unabhängig freigegeben. PR-Freigabe umfasst die geprüfte transakti
 Migration; der Releaseweg bleibt Backup → Migrationen → Anwendung → öffentlicher
 Versionscheck. Keine externen Nachrichten oder zusätzliche Workerveröffentlichung.
 
+**CI-Korrektur:** Die Qualitätsprüfung meldete die zehn neuen Browserfälle als
+unerwartet, weil die gepflegte Erwartung noch zwanzig Kernfälle enthielt. Die
+Auswahlerwartung nimmt alle zehn Vinted-Fälle ausdrücklich auf; kein Test wird
+entfernt oder von der Pflichtprüfung ausgeschlossen. Die Prüfung gegen echte
+Playwright-Testauswahl bleibt erhalten.
+
 ## 2026-10-01 – Juna – Vinted-Ansicht umgebaut und Favoritenmeldungen umgesetzt
 
 **Auftrag:** Den freigegebenen Entwurf nach „los“ umsetzen: kompakter Kontokopf,
