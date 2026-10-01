@@ -14,8 +14,9 @@ den folgenden Entwurf ausdrücklich zum schriftlichen Festhalten freigegeben:
 gespeicherte Artikelzuordnungen, bestätigte Kosten, gemeinsame Verkaufs- und
 Bestandsbuchung, Schutz vor Doppelübernahme und eine Markierung für bereits
 manuell gebuchte Bestellungen. Diese Zustimmung erlaubt das Schreiben dieser
-Spezifikation. Die Freigabe der schriftlichen Spezifikation und anschließend des
-Umsetzungsplans stehen noch aus. Produktcode und Migrationen sind noch nicht
+Spezifikation. Mit „los“ am 1. Oktober 2026 gibt der Nutzer die schriftliche
+Spezifikation frei. Prüfung des anschließenden Umsetzungsplans und Wahl seiner
+Ausführungsmethode stehen noch aus. Produktcode und Migrationen sind noch nicht
 umgesetzt.
 
 Der zusätzliche echte Kontotest mit zwei normalen Flipbase-Nutzern bleibt als
@@ -258,6 +259,11 @@ teilbar, darf derselbe konkrete Artikel in höchstens zwei Verkaufszeilen mit
 benachbarten Cent-Stückpreisen stehen. Gesamtmenge und Gesamtbetrag bleiben exakt
 gleich; beide Zeilen tragen dieselbe Quellpositionskennung. Das Verfahren wird
 zentral und deterministisch implementiert und geprüft.
+
+Der bestehende Verkaufsvertrag verlangt positive Stückpreise. Kostenlose
+Positionen oder Beträge kleiner als die Stückmenge bleiben deshalb in dieser
+ersten Stufe mit konkretem Hinweis gesperrt. Sie werden weder weggelassen noch
+durch erfundene Preise ersetzt.
 
 Gebühren werden nicht automatisch aus einer eBay-Abrechnung übernommen. Die
 Prüfmaske verlangt bekannte beziehungsweise vom Nutzer bestätigte Werte und

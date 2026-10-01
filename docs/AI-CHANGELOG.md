@@ -1,5 +1,32 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-01 – Juna – eBay-Umsetzungsplan nach Spezifikationsfreigabe erstellt
+
+**Auftrag:** Nach ausdrücklichem „los“ zur geschriebenen Spezifikation den
+Umsetzungsplan für Artikelzuordnung und bewusste Bestellübernahme erstellen.
+
+**Plan:** Sieben aufeinander aufbauende Aufgaben unter
+`docs/superpowers/plans/2026-10-01-ebay-order-import.md`: eindeutige Quelldaten und
+Centbeträge, begrenzte Datenbankrechte und atomare Buchung, erneute Quellenprüfung,
+Artikelzuordnung, allgemeiner Übergabevertrag für die bestehende Verkaufsform,
+Bestellprüfmaske sowie Parallel-/Browser-/Veröffentlichungsnachweise. Anzeige allein
+gibt keine Buchung frei; ein nur serverseitig erzeugbarer kurzer Buchungsprüfstand
+schützt den direkten RPC-Aufruf. Kostenbestätigung und unbekannte Ergebnisse
+haben ausdrücklich eigene Prüfungen.
+
+**Abgleich:** Bestehende Funktionen, Routen, Artikelpicker, Formularverträge,
+Testprojekte und CI gelesen. Offizielle eBay-Spezifikation bestätigt
+`NONE_REQUESTED` als stornofreien Zustand und immer vorhandene Refund-Arrays.
+Der bestehende Verkauf verlangt positive Stückpreise; kostenlose Positionen
+werden in der ersten Übernahmestufe ausdrücklich gesperrt. Die Spezifikation
+ist freigegeben; Planprüfung und Ausführungsmethode stehen noch aus.
+
+**Prüfung:** Plan selbst auf Spezifikationsabdeckung, konkrete Schnittstellen,
+Fehlerzustände und fünf zusätzliche Eingabefälle geprüft. Nur Dokumentation
+geändert; keine Produktimplementierung, Migration, Buchung, Serveränderung oder
+Branch-Veröffentlichung. Dokumentformatierung und Dateiprüfung werden vor dem
+lokalen Dokumentationscommit ausgeführt.
+
 ## 2026-10-01 – Juna – eBay-Artikelzuordnung und Bestellübernahme vorbereitet
 
 **Auftrag:** Nach erfolgreicher Kontoeinrichtung mit dem nächsten eBay-Paket
