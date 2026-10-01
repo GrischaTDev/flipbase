@@ -1,5 +1,11 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-01 – Juna – eBay-Korrektur für Veröffentlichung und Einrichtung freigegeben
+
+**Auftrag:** Nach ausdrücklichem „ja“ den lokal geprüften Zweig `juna/ebay-production-setup` veröffentlichen, erfolgreiche Pflichtprüfungen abwarten, per Merge-Commit integrieren und den eigenen Zweig samt Worktree aufräumen. Anschließend den separat freigegebenen Funktionsrollout und die echte eBay-Einrichtung fortsetzen.
+
+**Vorbereitung:** Arbeitsstand auf `b2522e9e` sauber, `origin/master` unverändert auf `a987e304`. Die bereits abgeschlossenen 19 Deno-Tests, drei Funktions-Typprüfungen, 31 CI-Verträge, Format-/Lint-/Workflow-Prüfungen und der isolierte Nachweis mit der produktiven Laufzeit bleiben gültig. Die vollständige Pflichtprüfung läuft im PR. Produktive Zugangsdaten, Kontoverbindung und Portal-Freischaltung sind noch offen.
+
 ## 2026-10-01 – Juna – eBay-Freischaltung vorbereitet und Löschendpoint korrigiert
 
 **Auftrag:** Die echte eBay-Verbindung nach den veröffentlichten PRs #271 und #272 einrichten, ausrollen und prüfen. Eigener Worktree und Zweig `juna/ebay-production-setup` auf `origin/master` (`a987e304`); bestehende fremde Zweige bleiben unverändert.
