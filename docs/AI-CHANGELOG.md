@@ -1,5 +1,38 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-01 – Juna – kompakte Vinted-Ansicht mit Agents durchgeplant
+
+**Auftrag:** Kontokopf und Automatik verkleinern, Einstellungen bündeln,
+Navigation und Übersicht verbessern, Inserate samt Detailbildern kompakter
+darstellen und Nachrichten im dunklen Theme lesbar machen. Nutzer bestätigt
+die Navigation Übersicht, Nachrichten, Inserate, Verkäufe, Aktivitäten und
+Profil; Bewertungen gehören ins Profil.
+
+**Prüfung:** Aktuellen `origin/master` bei `f1c9e623`, Designrichtlinien und
+vorhandene Shared-Bausteine gelesen. Drei Agents prüfen unabhängig Kopf/
+Navigation, Inserate/Ladeverhalten und Nachrichten. Produktive Ansicht lesend
+betrachtet; feste helle Nachrichtenflächen mit nahezu weißem Theme-Text
+bestätigt. Das übergroße Detailbild verwendet den unbegrenzten Rastermodus.
+Ein Beschreibungs-Cache besteht bereits; erneutes Laden, verworfene
+Speicherhinweise, fehlende Kontextprüfung und Beschreibungsfrische werden
+getrennt behandelt. Aktivitäten existiert als Route, fehlt aber in der Navigation.
+
+**Entwurf:** Eigener Worktree auf `juna/vinted-ui-plan`, vier prüfbare Pakete
+mit abgesprochener Agentenaufteilung. Kompakter Kopf und Einstellungsmodal,
+gemeinsame gelbe Bereichsnavigation, vorhandene Daten als nützliche Übersicht,
+begrenzt große Detailgalerie und unmittelbare gespeicherte Beschreibungen,
+kompakter Nachrichtenbereich mit Themefarben. Betreiberrechte, ungelesene
+Verläufe, bestehende Pausen und Hintergrundübernahme bleiben erhalten.
+Design und Umsetzungsplan unter `docs/superpowers/specs/2026-10-01-vinted-workspace-design.md`
+und `docs/superpowers/plans/2026-10-01-vinted-workspace-refactor.md` festgehalten.
+
+**Grenzen:** Nur Navigation verbindlich bestätigt; übrige Gestaltung ist ein
+prüfbarer Entwurf. Keine Produktimplementierung, Migration, Kontoeinstellung,
+Nachricht oder Serveränderung. Neue Sendefunktionen und Ereignismeldungen
+gehören nicht zum UI-Umbau. Umfangreiche Beschreibungserneuerung braucht
+einen späteren geprüften Server-/SQL-Vertrag. Dokumente formatiert und auf
+Umfang, Schnittstellen, Rechte und Abnahmefälle abgeglichen.
+
 ## 2026-10-01 – Juna – Vinted-Korrektur für PR und Merge freigegeben
 
 **Auftrag:** Nach ausdrücklichem „los“ den geprüften Zweig veröffentlichen,
