@@ -1,5 +1,19 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-01 - Juna - eBay-Typvertrag im Produktionsbau ergänzt
+
+**Auftrag:** Die freigegebene eBay-Anbindung nach grünen Pflichtprüfungen
+veröffentlichen. PR #271 wurde mit Merge-Commit integriert. Der anschließende
+Produktionslauf stoppte vor Veröffentlichung und Migration, weil der neue
+eBay-Typvertrag durch `.dockerignore` aus dem Bau ausgeschlossen war.
+
+**Änderung:** Den reinen eBay-Typvertrag neben dem bestehenden Marktplatzvertrag
+im Docker-Kontext freigegeben. Serverimplementierung und Zugangsdaten bleiben
+ausgeschlossen. Die Korrektur wird über einen eigenen geprüften PR integriert.
+
+**Vorgabe:** Auf diesem PC keinen lokalen Docker-Bau ausführen. Die
+Image-Prüfung erfolgt ausschließlich im vorhandenen GitHub-Release-Ablauf.
+
 ## 2026-10-01 - Juna - persönliche eBay-Verbindung und eigene Kontodaten umgesetzt
 
 **Veröffentlichungsfreigabe:** Der Nutzer hat nach Abschluss der lokalen
