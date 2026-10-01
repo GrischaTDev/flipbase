@@ -30,6 +30,9 @@ select ok(has_function_privilege('service_role', 'public.marketplace_browser_con
 
 select lives_ok($$select public.marketplace_browser_confirm_account('26500000-0000-4000-8000-000000000011','26500000-0000-4000-8000-000000000021','26500000-0000-4000-8000-000000000031','26500000-0000-4000-8000-000000000001','12345','my-vinted')$$, 'Bound account can be confirmed');
 select is((select status from public.marketplace_connections where id='26500000-0000-4000-8000-000000000021'), 'connected', 'Confirmed connection becomes connected');
+select is((select enabled from public.marketplace_sync_schedules where connection_id='26500000-0000-4000-8000-000000000021'),true,'Bestätigte Verbindung startet standardmäßig die Automatik');
+select is((select interval_minutes from public.marketplace_sync_schedules where connection_id='26500000-0000-4000-8000-000000000021'),15,'Neues Konto startet mit 15 Minuten');
+update public.marketplace_sync_schedules set enabled=false,authorization_version=2,next_due_at=null where connection_id='26500000-0000-4000-8000-000000000021';
 select is((select body->>'username' from public.marketplace_account_entries where connection_id='26500000-0000-4000-8000-000000000021' and kind='profile'), 'my-vinted', 'Only the profile is copied');
 update public.marketplace_account_entries
   set body = body || '{"feedbackCount":16,"bio":"Saved profile text"}'::jsonb
@@ -38,6 +41,7 @@ update public.marketplace_connections
   set last_synced_at='2026-09-27 12:00:00+00'::timestamptz
   where id='26500000-0000-4000-8000-000000000021';
 select lives_ok($$select public.marketplace_browser_confirm_account('26500000-0000-4000-8000-000000000011','26500000-0000-4000-8000-000000000021','26500000-0000-4000-8000-000000000031','26500000-0000-4000-8000-000000000001','12345','my-vinted-new')$$, 'Same identity can renew its login');
+select is((select enabled from public.marketplace_sync_schedules where connection_id='26500000-0000-4000-8000-000000000021'),false,'Neuanmeldung hebt eine ausdrückliche Automatikpause nicht auf');
 select is((select body->>'feedbackCount' from public.marketplace_account_entries where connection_id='26500000-0000-4000-8000-000000000021' and kind='profile'), '16', 'Reauthentication preserves imported ratings');
 select is((select body->>'bio' from public.marketplace_account_entries where connection_id='26500000-0000-4000-8000-000000000021' and kind='profile'), 'Saved profile text', 'Reauthentication preserves imported profile text');
 select is((select body->>'username' from public.marketplace_account_entries where connection_id='26500000-0000-4000-8000-000000000021' and kind='profile'), 'my-vinted-new', 'Reauthentication updates observed username');

@@ -1,6 +1,50 @@
 # Vinted-Browserdienst: Veröffentlichung des Admin-Piloten
 
-## Vorbereiteter Ausbau vom 01.10.2026 – automatische Aktualisierung
+## Vorbereitete Korrektur vom 01.10.2026 – Anmeldung und Standardautomatik
+
+Die Nutzerentscheidung ergänzt den bisherigen Piloten: bestätigte Konten
+werden standardmäßig alle 15 Minuten aktualisiert; die Abstände lassen sich
+auf 3, 5, 10, 15, 30 oder 60 Minuten ändern. Eine bewusst gespeicherte Pause
+wird nicht aufgehoben. Die Profilprüfung bekommt eine begrenzte Wiederaufnahme
+der bestehenden Anmeldung bei einer initialen 401. Der bisher produktive
+Worker aus `e753200e` enthält diese Änderungen noch nicht.
+
+Zuerst die Migration `20261001173446_vinted_session_automation.sql` und die
+Web-App über den geprüften PR veröffentlichen. Danach den separat
+freizugebenden Workerwechsel anhand desselben Merge-Commits vorbereiten:
+genau eine Instanz, keine aktiven/ungeklärten Browser und keine wartenden oder
+laufenden Aufträge; Image und Konfiguration vorher sichern. Das vorhandene
+Produktionsflag muss geprüft werden: ein explizites `0` überschreibt den neuen
+GoLogin-Standard `1`. Für die gewünschte Automatik ist `1` erforderlich.
+
+Nach dem Wechsel müssen Runtime und Healthcheck übereinstimmen und
+`scheduledSync: { enabled: true, authorizationVersion: 2, allowedIntervals: [3, 5, 10, 15, 30, 60] }`
+melden. Ein bestehendes verbundenes Konto ohne Zeitplan wird beim nächsten
+Öffnen durch einen berechtigten Nutzer aktiviert; neue Bestätigungen erzeugen
+den Standardzeitplan direkt auf dem Server. Keine Bestandsverbindungen werden
+durch die Migration allein aktiviert. Gespeicherte Pausen bleiben bestehen.
+
+Am ausdrücklich freigegebenen eigenen Konto prüfen: initiale Anmeldung ohne
+manuelles Browseröffnen, tatsächliche erfolgreiche Aktualisierung, Folgelauf
+nach 15 Minuten bei geschlossener App und Speicherung/Pause des gewählten
+Abstands. Kurze Intervalle behalten Browserexklusivität und Anbieterwartezeiten;
+sie garantieren deshalb keinen exakten Drei-Minuten-Takt bei mehreren Konten.
+Die lokalen Tests belegen Ablauf und Schutzregeln, keine echte Anbieterlast.
+
+Getrennte schnelle Meldungen für Nachrichten, Angebote und Verkäufe verlangen
+die im [Umsetzungsstand](../superpowers/plans/2026-10-01-vinted-session-automation.md)
+beschriebenen zusätzlichen Quellen- und Ereignisnachweise. Der vorhandene
+Kontoabruf markiert keine ungelesenen Gespräche als gelesen und liefert
+Verkäufe bisher nur teilweise. Ein kürzerer Gesamtintervall ersetzt diese
+fehlenden Ereignisquellen nicht.
+
+Für einen Rückweg zunächst alle Zeitpläne pausieren und offene Aufträge sowie
+Browser sicher abschließen. Bei einem alten Worker mit Version 1 vor erneuter
+Aktivierung den Abstand auf 15 Minuten zurückstellen. Die Oberfläche aktiviert
+kurze gespeicherte Abstände nicht gegen einen älteren Dienst. Die Migration
+bleibt erhalten; keine Zeitpläne oder Aufträge durch Löschen bereinigen.
+
+## Historisch vorbereiteter Ausbau vom 01.10.2026 – automatische Aktualisierung
 
 Paket 2 ergänzt dauerhaft freigegebene Leseabrufe pro Konto. Es wird lokal
 geprüft; der oben dokumentierte produktive Worker bleibt zunächst unverändert.

@@ -1,5 +1,84 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-01 – Juna – Vinted-Anmeldung wieder prüfen und Automatik vereinfachen
+
+**Auftrag:** Die bestehende Vinted-Anmeldung vor einer unnötigen
+Neuanmeldeaufforderung erneut prüfen. Automatische Aktualisierung standardmäßig
+mit 15 Minuten und einstellbarem Abstand anbieten. Für getrennte schnelle
+Meldungen sind Nachrichten, Angebote und Verkäufe ausdrücklich gewünscht.
+
+**Änderung:** Eine initiale Profil-401 lädt die feste Startseite einmal neu
+und prüft die Identität begrenzt erneut, mit aktueller Freigabe vor jedem
+Schritt. Login/2FA, 403/429 und Verbindungsfehler beenden die Wiederprüfung.
+Bestätigte neue Konten erhalten einen Standardzeitplan; Bestandskonten ohne
+Zeitplan starten beim Öffnen nach Dienstbestätigung. Bewusste Pausen bleiben
+erhalten. Der GoLogin-Dispatcher ist standardmäßig an; ein explizites `0`
+bleibt wirksam. Healthversion 2 und die Datenbank unterstützen 3, 5, 10, 15,
+30 und 60 Minuten für den gesamten vorhandenen Kontoabruf. Ein gemeinsamer
+Einstellungsdialog ersetzt „Stand neu laden“; der Status aktualisiert sich
+selbst. Nach neuem erfolgreichem Hintergrundimport lädt die offene Ansicht
+die gespeicherten Kontodaten und Nachrichten nach, ohne Konto oder Gespräch
+abzuwählen. Fremde oder verspätete Antworten werden verworfen; ein bereits
+übernommener Datenstand wird nicht doppelt geladen. Ältere Dienste erlauben
+weiterhin nur 15 Minuten.
+
+**Datenbank:** Deklarative Funktionen und Intervallprüfung angepasst. Migration
+mit dem offiziellen CLI-Vergleich zweier eigener lokaler Datenbanken erzeugt,
+inhaltlich geprüft und auf den bisherigen Migrationsstand angewendet. Der
+anschließende Schemaabgleich ist leer. Supabase-Typen neu erzeugt, ohne Änderung
+des öffentlichen Typvertrags. Keine eigenen Transaktionen, Löschung von
+Kontodaten oder Änderungen vorhandener Migrationen im neuen SQL-Paket.
+
+**Prüfung:** 195 Worker-Unit- und 12 Worker-Chromiumtests, 69 betroffene
+Angular- und fünf Modelltests, alle sieben Marktplatz-Datenbankdateien mit
+269 Prüffällen sowie Angular-/Worker-Bau und Typen bestanden. Formatierung,
+gezieltes Lint, Prüfung gemeinsamer UI-Komponenten und Test-Suite-Audit
+bestanden. Vier einschlägige Workflowtests bestanden; der zusätzliche
+Release-Integrationstest wurde ohne sein eigenes Integrationssetup übersprungen.
+Der alte Datenbankstand lehnt den neuen Drei-Minuten-Test ab; der
+migrierte Stand plant ihn bei Aktivierung, Start und Abschluss korrekt.
+Alle 13 Browserfälle der Vinted-Kontoverwaltung bestanden mit künstlichen
+HTTP-Antworten und denselben 15 Sekunden Erwartungszeit wie im PR-Aufbau.
+Die kürzere anfängliche Hilfskonfiguration wartete bei fünf bestehenden
+Loginfällen nicht lange genug auf zwei Drei-Sekunden-Prüfungen; mit dem
+verbindlichen PR-Zeitlimit bestanden diese ohne Anwendungskorrektur.
+Browserprüfung bei 1440 und 390 Pixeln:
+Standardaktivierung, Einstellung auf drei Minuten, sichtbare neue Kontodaten
+nach simuliertem Hintergrundabschluss, bewusste Pause,
+Kontoisolierung, alter Dienst, Tastaturbedienung, AXE einschließlich
+Farbkontrast und kein Seitenüberlauf. Keine echten Vinted-Abrufe gestartet.
+
+**Grenzen und Betrieb:** Der produktive 401-Auslöser ist noch nicht bewiesen;
+der neue Wiederaufnahmeweg ist lokal mit verzögerter Anmeldung geprüft.
+Produktiver Worker und Konten bleiben unverändert bis zur Veröffentlichung
+und getrennten Workerumstellung. Ein kürzerer Gesamtintervall liefert noch
+keine vollständigen neuen Ereignisse: ungelesene Gesprächsdetails werden
+nicht geöffnet und Verkäufe bisher teilweise erst nach Versand gelesen.
+Quellenprüfung und getrennte Meldungen für alle drei Ereignisarten sind im
+Umsetzungsstand `docs/superpowers/plans/2026-10-01-vinted-session-automation.md`
+konkret beschrieben; der Rollout steht in
+`docs/implementation/vinted-worker-rollout.md`.
+
+## 2026-10-01 – Juna – wiederkehrende Vinted-Anmeldefehler untersucht
+
+**Auftrag:** Wiederkehrende Verbindungs-/Anmeldefehler trotz bereits
+angemeldetem manuell geöffnetem Serverbrowser prüfen und GoLogin recherchieren.
+
+**Befund:** Produktive Diagnosemetadaten bestätigen eine 401 am 01.10. um
+13:50 Uhr, anschließend eine rund 39 Sekunden offene manuelle Sitzung und
+um 13:52 Uhr einen erfolgreichen Abruf desselben Kontos. Alle 43 gespeicherten
+Sitzungen sind geschlossen, ohne Überschneidungen. Der produktive Worker
+läuft auf `e753200e`; der Import beendet die erste Profil-401 ohne Wiederprüfung.
+Eine lokale Chromium-Probe bildet eine verzögerte Sitzungsaktualisierung ohne
+Zugangsdaten nach; der genaue Vinted-Auslöser bleibt offen.
+
+**Recherche und Prüfung:** Offizielle GoLogin-Quellen zu Cloud-Inaktivität,
+Profilspeicherung, Cookies und Cloud-CDP geprüft. Browserbeendigung ist keine
+belegte Vinted-Abmeldung. 27 vorhandene Worker-Tests bestanden; SQL ausschließlich
+lesend und ohne private Kontoinhalte ausgegeben. Keine produktiven Konten,
+Abrufe oder Dienste verändert. Befunde, Quellen und Grenzen stehen in
+`docs/audit/2026-10-01-vinted-session-recovery.md`.
+
 ## 2026-10-01 – Juna – eBay-Korrektur für Veröffentlichung und Einrichtung freigegeben
 
 **Auftrag:** Nach ausdrücklichem „ja“ den lokal geprüften Zweig `juna/ebay-production-setup` veröffentlichen, erfolgreiche Pflichtprüfungen abwarten, per Merge-Commit integrieren und den eigenen Zweig samt Worktree aufräumen. Anschließend den separat freigegebenen Funktionsrollout und die echte eBay-Einrichtung fortsetzen.

@@ -1,5 +1,6 @@
 import type { Page } from 'playwright';
 import { createHash } from 'node:crypto';
+import { setTimeout as wait } from 'node:timers/promises';
 import { parseVintedAccountIdentity, type VintedAccountIdentity } from './vinted-browser-reader.ts';
 
 export type VintedImportKind = 'profile' | 'publication' | 'conversation' | 'message' | 'sale';
@@ -567,7 +568,46 @@ export async function readVintedAccountImport(
   const profile = await atImportStage('profile', async () => {
     await onStage?.('profile');
     await authorize();
-    return vintedJson(page, '/api/v2/users/current', reads);
+    try {
+      return await vintedJson(page, '/api/v2/users/current', reads);
+    } catch (error) {
+      if (!(error instanceof VintedImportRequestError) || error.reason !== 'unauthorized')
+        throw error;
+      // Die gespeicherte Anmeldung kann erst durch die Seiteninitialisierung
+      // erneuert werden. Einmal neu laden; danach höchstens drei Prüfungen.
+      const currentUrl = new URL(page.url());
+      if (
+        currentUrl.origin !== 'https://www.vinted.de' ||
+        currentUrl.pathname.startsWith('/member/login')
+      )
+        throw error;
+      await authorize();
+      try {
+        await page.goto('https://www.vinted.de/', { waitUntil: 'load', timeout: 20_000 });
+      } catch {
+        throw new VintedImportRequestError('browser_context');
+      }
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (attempt > 0) await wait(750 * attempt);
+        await authorize();
+        if (
+          new URL(page.url()).origin !== 'https://www.vinted.de' ||
+          new URL(page.url()).pathname.startsWith('/member/login')
+        )
+          throw error;
+        try {
+          return await vintedJson(page, '/api/v2/users/current', reads);
+        } catch (retryError) {
+          if (
+            !(retryError instanceof VintedImportRequestError) ||
+            retryError.reason !== 'unauthorized' ||
+            attempt === 2
+          )
+            throw retryError;
+        }
+      }
+      throw error;
+    }
   });
   const identity = await atImportStage('identity', async () => {
     const account = parseVintedAccountIdentity(profile);

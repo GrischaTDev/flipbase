@@ -19,6 +19,70 @@ function importPage(overrides: (path: string) => unknown): Page {
   } as unknown as Page;
 }
 
+test('erneuert eine vorhandene Sitzung nach initialer 401 ohne erneute Zugangsdaten', async () => {
+  let restored = false;
+  let profileReads = 0;
+  let authorizations = 0;
+  const page = importPage((path) => {
+    if (path.includes('/users/current')) {
+      profileReads++;
+      if (!restored) return { flipbaseRequestFailure: 'unauthorized' };
+    }
+    return undefined;
+  });
+  page.goto = async (url) => {
+    assert.equal(url, 'https://www.vinted.de/');
+    assert.ok(authorizations >= 2);
+    restored = true;
+    return null;
+  };
+  const snapshot = await readVintedAccountImport(page, async () => {
+    authorizations++;
+  });
+  assert.equal(snapshot.identity.id, '123');
+  assert.equal(profileReads, 2);
+  assert.equal(snapshot.sourceRequestCount, 5);
+});
+
+test('entzogener Zugriff verhindert bereits das Neuladen zur Sitzungswiederherstellung', async () => {
+  let authorizations = 0;
+  let navigations = 0;
+  const page = importPage(() => ({ flipbaseRequestFailure: 'unauthorized' }));
+  page.goto = async () => {
+    navigations++;
+    return null;
+  };
+  await assert.rejects(
+    readVintedAccountImport(page, async () => {
+      if (++authorizations > 1) throw new Error('access revoked');
+    }),
+    VintedImportReadError,
+  );
+  assert.equal(navigations, 0);
+  assert.equal(authorizations, 2);
+});
+
+test('403 und 429 starten keine Wiederherstellung und keine weitere Quellanfrage', async () => {
+  for (const failure of ['forbidden', 'rate_limited']) {
+    let reads = 0;
+    let navigations = 0;
+    const page = importPage(() => {
+      reads++;
+      return { flipbaseRequestFailure: failure };
+    });
+    page.goto = async () => {
+      navigations++;
+      return null;
+    };
+    await assert.rejects(
+      readVintedAccountImport(page, async () => undefined),
+      VintedImportReadError,
+    );
+    assert.equal(reads, 1);
+    assert.equal(navigations, 0);
+  }
+});
+
 test('a provider rate limit stops subsequent source requests and retains its normalized waiting time', async () => {
   const calls: string[] = [];
   const retryAfter = new Date(Date.now() + 3_600_000).toISOString();
@@ -242,6 +306,7 @@ test('entzogener Zugriff und Anmeldeverlust werden auch bei Bewertungen nicht ve
 test('ordnet HTTP-Ablehnungen nur festen Diagnosekategorien zu', async () => {
   const page = {
     url: () => 'https://www.vinted.de/',
+    goto: async () => null,
     evaluate: async (callback: (path: string) => Promise<unknown>, path: string) => callback(path),
   } as unknown as Page;
   const originalFetch = globalThis.fetch;

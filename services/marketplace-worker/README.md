@@ -4,8 +4,11 @@
 
 Im GoLogin-Betrieb übernimmt ein gemeinsamer Dispatcher neue manuelle
 und freigegebene automatische Abrufe. `MARKETPLACE_SCHEDULED_SYNC_ENABLED`
-ist standardmäßig `0`; `1` ermöglicht den 15-Minuten-Piloten. Die Freigabe
-je verbundenem Konto erfolgt zusätzlich bewusst in Flipbase. Die Planung
+ist im GoLogin-Betrieb standardmäßig `1`; ein ausdrücklich gesetztes `0`
+pausiert den automatischen Dispatcher. Nach bestätigter Anmeldung entsteht
+ein Zeitplan mit 15 Minuten. Bestehende verbundene Konten ohne Zeitplan
+werden beim Öffnen durch einen berechtigten Nutzer aktiviert, sobald der
+Dienst seine Bereitschaft bestätigt. Gespeicherte Pausen bleiben erhalten. Die Planung
 braucht keine geöffnete Web-App und speichert keine Nutzer-Zugangstokens.
 
 Der Worker reserviert seine alleinige Runtime vor der Browserrecovery.
@@ -29,9 +32,24 @@ sperrt das Aktivieren; gespeicherte Freigaben bleiben über die Datenbank
 pausierbar. Die getrennte Veröffentlichung und der Rückweg stehen unter
 [Vinted-Worker-Rollout](../../docs/implementation/vinted-worker-rollout.md).
 
-Fünf- und Zehn-Minuten-Intervalle sind im Modell vorbereitet, aber noch
-nicht freigegeben. Künstliche Tests belegen weder echte Vinted-Abrufzeiten
-noch die Cloudkapazität weiterer Konten.
+Die Healthfähigkeit mit `authorizationVersion: 2` bestätigt die Abstände
+`[3, 5, 10, 15, 30, 60]`. Die Oberfläche zeigt nur vom Dienst bestätigte
+Abstände; ein älterer Dienst mit Version 1 bestätigt weiterhin nur 15 Minuten.
+Die Wahl gilt für den vorhandenen gesamten Kontoabruf. Separate schnelle
+Ereignisabrufe und Benachrichtigungen für Nachrichten, Angebote und Verkäufe
+sind damit noch nicht implementiert. Künstliche Tests belegen weder echte
+Vinted-Abrufzeiten noch die Cloudkapazität weiterer Konten.
+
+Bei einer initialen Profil-401 lädt der Import die feste Vinted-Startseite
+einmal vollständig und prüft die bestehende Anmeldung bis zu dreimal erneut
+(750 und 1500 Millisekunden Abstand zwischen den Wiederholungen). Jeder
+Schritt prüft die Freigabe erneut. Sichtbare Login-/2FA-Seiten, 403, 429,
+Netzwerk- und Browserfehler werden nicht mit weiteren Identitätsabrufen
+wiederholt. Es werden weder Zugangsdaten eingegeben noch Cookies gelöscht.
+Die anschließende Importtransaktion verlangt weiterhin die bestätigte
+Identität des zugeordneten Kontos. Bleibt die 401 bestehen, ist eine manuelle
+Prüfung erforderlich. Die Browsertests verwenden ausschließlich künstliche
+Antworten; der produktive Nachweis folgt nach dem Workerwechsel.
 
 ## Lokaler, lesender Testmodus
 

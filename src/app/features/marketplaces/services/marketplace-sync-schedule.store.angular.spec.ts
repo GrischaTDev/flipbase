@@ -23,7 +23,7 @@ const initial: MarketplaceSyncSchedule = {
   lastSuccessAt: null,
   pausedReason: null,
   retryAfter: null,
-  authorizationVersion: 0,
+  authorizationVersion: 1,
 };
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -71,6 +71,59 @@ beforeEach(() => {
 });
 afterEach(() => TestBed.resetTestingModule());
 describe('Kontogebundene automatische Aktualisierung', () => {
+  it('aktiviert einen fehlenden Zeitplan standardmäßig mit 15 Minuten', async () => {
+    api.read.mockResolvedValue({ ...initial, authorizationVersion: 0 });
+    await settle();
+    expect(api.set).toHaveBeenCalledWith(
+      { workspaceId: accountA.workspaceId, connectionId: accountA.connectionId },
+      true,
+      15,
+      0,
+    );
+    expect(store.schedule()?.enabled).toBe(true);
+  });
+  it('lässt eine ausdrücklich pausierte Automatik auch nach Neuladen pausiert', async () => {
+    await settle();
+    await store.reload();
+    expect(api.set).not.toHaveBeenCalled();
+    expect(store.schedule()?.enabled).toBe(false);
+  });
+  it('speichert einen bestätigten kürzeren Abstand und erhält die Kontobindung', async () => {
+    api.read.mockResolvedValue({ ...initial, enabled: true });
+    api.availability.mockResolvedValue({ enabled: true, allowedIntervals: [3, 5, 10, 15, 30, 60] });
+    api.set.mockResolvedValue({
+      ...initial,
+      enabled: true,
+      intervalMinutes: 3,
+      authorizationVersion: 2,
+    });
+    await settle();
+    await store.setIntervalMinutes(3);
+    expect(api.set).toHaveBeenCalledWith(
+      { workspaceId: accountA.workspaceId, connectionId: accountA.connectionId },
+      true,
+      3,
+      1,
+    );
+    expect(store.schedule()?.intervalMinutes).toBe(3);
+  });
+  it('aktiviert einen kurzen gespeicherten Abstand bei einem alten Worker nicht', async () => {
+    api.read.mockResolvedValue({ ...initial, intervalMinutes: 3 });
+    await settle();
+    expect(store.canEnable()).toBe(false);
+    await store.setEnabled(true);
+    expect(api.set).not.toHaveBeenCalled();
+  });
+  it('bestätigt den kurzen Abstand vor dem Speichern erneut beim Worker', async () => {
+    api.read.mockResolvedValue({ ...initial, enabled: true });
+    api.availability.mockResolvedValue({ enabled: true, allowedIntervals: [3, 15] });
+    await settle();
+    api.availability.mockResolvedValueOnce({ enabled: true, allowedIntervals: [15] });
+    await store.setIntervalMinutes(3);
+    expect(api.set).not.toHaveBeenCalled();
+    expect(store.schedule()?.intervalMinutes).toBe(15);
+    expect(store.error()).toContain('Browserdienst');
+  });
   it('liest und widerruft eine Freigabe unabhängig von einem hängenden Healthcheck', async () => {
     api.read.mockResolvedValue({ ...initial, enabled: true, authorizationVersion: 3 });
     api.availability.mockReturnValue(new Promise(() => undefined));
@@ -109,7 +162,7 @@ describe('Kontogebundene automatische Aktualisierung', () => {
       { workspaceId: accountA.workspaceId, connectionId: accountA.connectionId },
       true,
       15,
-      0,
+      1,
     );
     expect(store.schedule()?.nextDueAt).toBe('2026-10-01T12:15:00Z');
   });

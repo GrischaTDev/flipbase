@@ -3,14 +3,12 @@
     <div class="min-w-0">
       <h2 class="text-sm font-semibold text-fb-text-primary">Automatische Aktualisierung</h2>
       <p class="mt-1 max-w-2xl text-sm text-fb-text-secondary">
-        Flipbase liest dieses Konto nach Deiner Aktivierung alle 15 Minuten, auch bei geschlossener
-        App. Nachrichten werden dabei nicht als gelesen markiert. Der Abruf veröffentlicht oder
-        verändert keine Inserate.
+        Flipbase aktualisiert verbundene Konten standardmäßig alle 15 Minuten, auch bei
+        geschlossener App. Du kannst den Abstand einstellen oder die Automatik pausieren.
+        Nachrichten werden dabei nicht als gelesen markiert.
       </p>
       <p class="mt-1 text-xs text-fb-text-muted">
-        Im Pilot sind 15 Minuten freigegeben. Kürzere Abstände von 5 oder 10 Minuten folgen nach
-        geprüfter Kapazität. Belegte Browser und Anbieterwartezeiten können den nächsten Abruf
-        verzögern.
+        Belegte Browser und Anbieterwartezeiten können den nächsten Abruf verzögern.
       </p>
     </div>
     @if (store.schedule()) {
@@ -61,8 +59,9 @@
     }
     @if (!store.availability().enabled) {
       <p class="mt-3 text-sm text-fb-text-secondary">
-        Der Browserdienst unterstützt die automatische Aktualisierung derzeit nicht oder ist nicht
-        erreichbar. Eine gespeicherte Freigabe kannst Du weiterhin pausieren.
+        Der Serverdienst muss für die automatische Aktualisierung bereit sein. Er ist derzeit nicht
+        verfügbar oder noch nicht aktualisiert. Ein Neuladen dieser Ansicht startet den Dienst
+        nicht. Du kannst eine gespeicherte Automatik weiterhin pausieren.
       </p>
     }
     <div class="mt-3 flex flex-wrap gap-2">
@@ -84,9 +83,9 @@
           Automatische Aktualisierung aktivieren
         </app-button>
       }
-      <app-button [disabled]="store.busy() || store.loading()" (clicked)="store.reload()"
-        >Stand neu laden</app-button
-      >
+      <app-button [disabled]="store.busy() || store.loading()" (clicked)="settingsOpen.set(true)">
+        Aktualisierung einstellen
+      </app-button>
     </div>
   }
   @if (store.error(); as error) {
@@ -94,9 +93,58 @@
       {{ error }}
       @if (!store.schedule()) {
         <app-button class="mt-2" [disabled]="store.loading()" (clicked)="store.reload()"
-          >Stand neu laden</app-button
+          >Erneut versuchen</app-button
         >
       }
     </app-notice-banner>
   }
 </section>
+@if (settingsOpen()) {
+  <app-modal-shell
+    title="Automatische Aktualisierung"
+    size="sm"
+    [hasFooter]="false"
+    (closed)="settingsOpen.set(false)"
+  >
+    @if (store.schedule(); as schedule) {
+      <p class="mb-4 text-sm text-fb-text-secondary">
+        Der Abstand gilt für das ausgewählte Konto und alle verfügbaren Kontodaten. Kürzere Abstände
+        starten mehr Abrufe. Benachrichtigungen über neue Nachrichten, Angebote und Verkäufe sind
+        noch nicht verfügbar.
+      </p>
+      <app-custom-select
+        ariaLabel="Abrufabstand"
+        [options]="intervalOptions()"
+        [value]="schedule.intervalMinutes"
+        [disabled]="!store.availability().enabled || store.busy() || store.loading()"
+        (valueChange)="store.setIntervalMinutes($event)"
+      />
+      <p role="status" class="mt-3 text-sm text-fb-text-secondary">
+        @if (store.busy()) {
+          Einstellung wird gespeichert …
+        } @else {
+          Gespeichert: alle {{ schedule.intervalMinutes }} Minuten.
+        }
+      </p>
+      <app-button
+        class="mt-4"
+        [disabled]="schedule.enabled ? !store.canDisable() : !store.canEnable()"
+        [loading]="store.busy()"
+        (clicked)="store.setEnabled(!schedule.enabled)"
+      >
+        {{ schedule.enabled ? 'Automatik pausieren' : 'Automatik fortsetzen' }}
+      </app-button>
+      @if (store.error(); as error) {
+        <app-notice-banner class="mt-3" announcement="alert"
+          >{{ error }}
+          <app-button
+            class="mt-2"
+            [disabled]="store.busy() || store.loading()"
+            (clicked)="store.reload()"
+            >Einstellung erneut laden</app-button
+          >
+        </app-notice-banner>
+      }
+    }
+  </app-modal-shell>
+}
