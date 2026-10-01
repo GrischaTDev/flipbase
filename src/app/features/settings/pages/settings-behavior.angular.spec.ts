@@ -85,6 +85,14 @@ let selectViewQuerySnapshot: AngularViewQuery | null | undefined;
 const resourceFiles: Readonly<Record<string, string>> = {
   'ebay-account.component.html':
     '../../marketplaces/components/ebay-account/ebay-account.component.html',
+  'ebay-article-mapping.component.html':
+    '../../marketplaces/components/ebay-article-mapping/ebay-article-mapping.component.html',
+  'article-picker.component.html':
+    '../../../shared/components/article-picker/article-picker.component.html',
+  'product-thumbnail.component.html':
+    '../../../shared/components/product-thumbnail/product-thumbnail.component.html',
+  'product-thumbnail.component.scss':
+    '../../../shared/components/product-thumbnail/product-thumbnail.component.scss',
   'custom-search-input.component.html':
     '../../../shared/components/custom-search-input/custom-search-input.component.html',
   'data-table.component.html': '../../../shared/components/data-table/data-table.component.html',

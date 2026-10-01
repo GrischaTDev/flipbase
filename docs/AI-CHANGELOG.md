@@ -1,5 +1,36 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-02 – Juna – eBay-Übernahme vollständig lokal geprüft
+
+**Umsetzung:** Echte parallele Datenbankaufrufe mit zwei gewöhnlichen Mitgliedern
+prüfen Doppelbuchung, Konkurrenz um das letzte Stück und gleichzeitig entzogenen
+Zugriff. Browserprüfungen verwenden die wirkliche Anmeldung, Datenbank und
+eBay-Funktion; ausschließlich eBay-Antworten werden durch einen künstlichen
+Anbieter ersetzt. Beide Browserfälle und der Parallelrunner sind in der
+verbindlichen CI registriert. Die Artikelzuordnung führt den Tastaturfokus zum
+geöffneten Bereich und zurück. Eine nach der Buchung bereits entfernte
+Verkaufsform sendet keine verspäteten Ereignisse. Settings-Tests laden die
+Vorlagen der neuen Unterkomponenten ausdrücklich.
+
+**Prüfung:** Neue Runner-Sicherheitsprüfung und Fokus-/Formfälle zunächst rot,
+danach grün. Vier reale Parallelfälle bestanden; die zweite Sitzung wartet
+nachweislich auf die erste. Alle 2.530 Datenbankprüfungen in 73 Dateien bestanden.
+Beide Browserfälle bestanden einschließlich Neuladen, verlorener Buchungsantwort,
+einmaliger Bestandsänderung, Markierung/Rücknahme ohne Verkauf, Tastatur sowie
+AXE/WCAG-AA bei 1440/390 Pixeln. Die vollständige Prüfung `npm run verify` bestand:
+85 Workflowtests, 151 Edge-Tests, 1.641 Node-, 295 DOM-, 1.462 Angular- und
+41 Landingtests; Format, Lint, Typen, Suite-Audit, gemeinsame UI und Produktionsbau
+ebenfalls grün. Fünf Workflow- und drei native Node-Prüfungen wurden gemäß ihrem
+bestehenden Laufvertrag übersprungen; der Migrationstransaktionstest wurde zuvor
+separat auf einer eigenen Datenbank erfolgreich ausgeführt. Die unabhängige
+Gesamtprüfung folgt vor der Abschlussfreigabe.
+
+**Grenzen:** Ausschließlich getrennte Testdienste und zufällige Testobjekte
+verwendet; keine produktive Bestellung gebucht. Der echte Kontotest mit zwei
+normalen Flipbase-Nutzern bleibt wie vereinbart offen. Dieser Feature-Zweig ist
+noch nicht gepusht oder veröffentlicht. Nach Freigabe müssen die Migration und
+anschließend die eBay-Funktionen aus dem geprüften Merge ausgerollt werden.
+
 ## 2026-10-01 – Juna – eBay-Bestellprüfseite verbunden
 
 **Umsetzung:** Prüfseite mit voller Quelle aus der Adresse, geschützten Bestellwerten,

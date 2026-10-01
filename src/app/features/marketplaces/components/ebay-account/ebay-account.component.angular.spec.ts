@@ -4,7 +4,7 @@ import { ModalShellComponent } from '../../../../shared/components/modal-shell/m
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
-import { signal } from '@angular/core';
+import { signal, ɵɵqueryAdvance, ɵɵviewQuerySignal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -22,6 +22,11 @@ import { TableColumnMenuComponent } from '../../../../shared/components/table-co
 import { TableColumnPickerComponent } from '../../../../shared/components/table-column-picker/table-column-picker.component';
 import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
 import { EbayAccountApiService } from '../../services/ebay-account-api.service';
+import { EbayOrderImportApiService } from '../../services/ebay-order-import-api.service';
+import { CatalogService } from '../../../../core/services/catalog.service';
+import { InventoryService } from '../../../../core/services/inventory.service';
+import { PurchaseService } from '../../../../core/services/purchase.service';
+import { StockService } from '../../../../core/services/stock.service';
 import { EbayAccountComponent } from './ebay-account.component';
 
 describe('Persönliche eBay-Oberfläche', () => {
@@ -47,7 +52,7 @@ describe('Persönliche eBay-Oberfläche', () => {
     loadOrders: ReturnType<typeof vi.fn>;
   };
   beforeAll(async () => {
-    resetBindings = await prepareMarketplaceRendering([
+    const restoreBindings = await prepareMarketplaceRendering([
       {
         type: EbayArticleMappingComponent,
         path: 'src/app/features/marketplaces/components/ebay-article-mapping/ebay-article-mapping.component.ts',
@@ -105,6 +110,22 @@ describe('Persönliche eBay-Oberfläche', () => {
         path: 'src/app/shared/components/custom-checkbox/custom-checkbox.component.ts',
       },
     ]);
+    // Der Vitest-JIT-Lauf liefert Signal-Abfragen nicht aus dem Angular-Compiler.
+    const metadata = (
+      EbayAccountComponent as unknown as {
+        ɵcmp: { viewQuery?: (flags: number, context: unknown) => void };
+      }
+    ).ɵcmp;
+    const previousQuery = metadata.viewQuery;
+    metadata.viewQuery = (flags, context) => {
+      const component = context as { mappingPanel: Parameters<typeof ɵɵviewQuerySignal>[0] };
+      if (flags & 1) ɵɵviewQuerySignal(component.mappingPanel, ['mappingPanel'], 5);
+      if (flags & 2) ɵɵqueryAdvance();
+    };
+    resetBindings = () => {
+      metadata.viewQuery = previousQuery;
+      restoreBindings();
+    };
   });
   afterAll(() => resetBindings?.());
   beforeEach(() => {
@@ -148,9 +169,43 @@ describe('Persönliche eBay-Oberfläche', () => {
         nextPage: null,
       })),
     };
+    const sourceState = { loadedWorkspaceId: signal('workspace-a'), loadError: signal(null) };
     TestBed.configureTestingModule({
       imports: [EbayAccountComponent],
       providers: [
+        { provide: EbayOrderImportApiService, useValue: { loadMappings: vi.fn(async () => []) } },
+        {
+          provide: CatalogService,
+          useValue: {
+            ...sourceState,
+            products: signal([]),
+            loadProducts: vi.fn(async () => undefined),
+          },
+        },
+        {
+          provide: InventoryService,
+          useValue: {
+            ...sourceState,
+            items: signal([]),
+            loadInventory: vi.fn(async () => undefined),
+          },
+        },
+        {
+          provide: PurchaseService,
+          useValue: {
+            ...sourceState,
+            purchases: signal([]),
+            loadPurchases: vi.fn(async () => undefined),
+          },
+        },
+        {
+          provide: StockService,
+          useValue: {
+            ...sourceState,
+            positions: signal([]),
+            loadPositions: vi.fn(async () => undefined),
+          },
+        },
         provideRouter([]),
         { provide: AuthService, useValue: { currentUser: user } },
         { provide: WorkspaceService, useValue: { currentWorkspace: workspace } },
@@ -219,5 +274,24 @@ describe('Persönliche eBay-Oberfläche', () => {
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('wird noch eingerichtet');
     expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Mit eBay verbinden');
     expect(api.loadListings).not.toHaveBeenCalled();
+  });
+  it('führt den Fokus zur Artikelzuordnung und nach dem Schließen zurück zum Inserat', async () => {
+    api.loadStatus.mockResolvedValueOnce({ configured: true, importAvailable: true, connection });
+    const fixture = await render();
+    const element = fixture.nativeElement as HTMLElement;
+    const trigger = element.querySelector<HTMLButtonElement>(
+      '[aria-label="Artikel zuordnen: Eigene Auktion"]',
+    )!;
+    trigger.focus();
+    trigger.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const panel = element.querySelector<HTMLElement>('[aria-label="Artikelzuordnung"]');
+    expect(panel).not.toBeNull();
+    expect(document.activeElement).toBe(panel);
+    fixture.componentInstance.closeMapping();
+    fixture.detectChanges();
+    expect(document.activeElement).toBe(trigger);
   });
 });

@@ -1,9 +1,39 @@
 # eBay-API: Möglichkeiten und Einbindung in Flipbase
 
-Stand: 1. Oktober 2026. Geprüfte Repository-Grundlage: `origin/master`,
-Commit `08c94058`. Status: Analyse und erste implementierte Ausbaustufe;
-Production-Konfiguration, Veröffentlichung und echter Kontotest stehen noch aus.
-Die Implementierung ist zusätzlich mit `origin/master` (`c60f059e`) abgeglichen.
+Stand: 2. Oktober 2026. Die persönliche eBay-Verbindung wurde über PR #273
+(`ce391ce9`, Release `v0.276.2`) veröffentlicht und am 1. Oktober eingerichtet.
+Anmeldung, eigene Inserate/Bestellungen, Workspacewechsel sowie Trennen und
+erneutes Verbinden sind mit dem vorhandenen Konto nachgewiesen. Der echte Test
+mit zwei normalen Nutzern bleibt offen. Artikelzuordnung und Bestellübernahme
+sind im eigenen Feature-Zweig auf Grundlage `origin/master` (`f1c9e623`)
+umgesetzt und lokal geprüft; sie sind noch nicht veröffentlicht.
+
+## Neues Paket: Artikelzuordnung und Bestellübernahme
+
+Inserate lassen sich konkreten verfügbaren Artikeln zuordnen. Varianten ohne
+sichere Kennung benötigen eine ausdrückliche Zuordnung in der Bestellprüfmaske.
+Die Maske übernimmt die Bestellwerte, verlangt bestätigte Gebühren und tatsächliche
+Versandkosten und bucht erst über „Verkauf buchen“. Nur vollständig bezahlte
+EUR-Bestellungen ohne Storno oder Erstattung sind buchbar; unklare Angaben werden
+gesperrt. eBay wird vor der Buchung erneut gelesen. Eine veränderte Quelle verlangt
+erneute Prüfung. Verkauf, Bestand und dauerhafter Quellenbeleg entstehen gemeinsam;
+ein Verbindungsabbruch verlangt Statusklärung und erzeugt keine zweite Buchung.
+„Bereits manuell gebucht“ mit Grund und optionalem vorhandenem Verkauf erzeugt
+keinen Verkauf und kann bestätigt zurückgenommen werden.
+
+Die vollständige lokale Anwendungsprüfung, 2.530 Datenbankprüfungen, vier echte
+Parallelfälle und zwei Browserfälle mit Desktop/Mobil, Tastatur und AXE sind grün.
+Die Browserprüfung ersetzt ausschließlich den eBay-Anbieter und verwendet die
+wirkliche lokale Anmeldung, Datenbank und Edge-Funktion. Sie ersetzt keinen
+produktiven Kontotest. Einzelheiten und Entscheidungsgrenzen stehen im
+[freigegebenen Entwurf](../superpowers/specs/2026-10-01-ebay-order-import-design.md)
+und [Umsetzungsplan](../superpowers/plans/2026-10-01-ebay-order-import.md).
+
+Nach Abschlussfreigabe läuft die Migration über den normalen Release-Weg.
+Anschließend müssen `ebay-account` und die gemeinsamen Quellen aus genau demselben
+geprüften Merge nach dem bestehenden Deployment-Verfahren veröffentlicht werden.
+Die Funktion meldet ihre Importfähigkeit ausdrücklich; bis dahin bleibt die
+Übernahme in der Oberfläche gesperrt. Keine produktive Bestellung als Test buchen.
 
 ## Umgesetzter Einstieg und Einrichtung
 
@@ -12,7 +42,7 @@ Verbindung unter `/settings/app` und `/marketplaces/ebay` umgesetzt. Jedes aktiv
 Workspace-Mitglied kann sein eigenes Konto verbinden und trennen. Die Verbindung
 gilt pro Nutzer, Workspace und Umgebung. Der erste Umfang umfasst aktive
 Angebote einschließlich Auktionen sowie eigene Bestellungen mit Zahlungs-,
-Versand- und Stornierungsstatus. Es werden nur externe Daten angezeigt; daraus
+Versand- und Stornierungsstatus. Im veröffentlichten Einstieg werden nur externe Daten angezeigt; daraus
 entstehen keine Flipbase-Verkäufe oder Bestandsänderungen. Nachrichten, neue
 Inserate, Versandaktionen, Gebühren und Auszahlungen bleiben spätere Ausbaustufen.
 
@@ -30,7 +60,8 @@ verhindern das spätere Übernehmen alter Ergebnisse. Die Löschfunktion beantwo
 eBays Challenge und prüft signierte Kontolöschmeldungen, bevor sie alle passenden
 eBay-Verbindungen samt Zugangsdaten entfernt.
 
-Für den Betreiber sind folgende Schritte erforderlich:
+Die folgenden Einrichtungsschritte wurden am 1. Oktober abgeschlossen; der
+Zwei-Nutzer-Test in Schritt 7 bleibt offen. Sie dienen weiterhin als Betriebsanleitung:
 
 1. Im Production-Keyset App-ID/Client-ID und Cert-ID/Client-Secret hinterlegen.
    Unter User Tokens eine OAuth-RuName konfigurieren; für akzeptierte und
@@ -72,8 +103,9 @@ Für den Betreiber sind folgende Schritte erforderlich:
    darf keine Verbindung anlegen. Die Lösch-Challenge und eBays Testmeldung
    prüfen. Ohne vollständige Serverkonfiguration bleibt die Oberfläche gesperrt.
 
-Die nachfolgende Bestandsaufnahme beschreibt den Ausgangsstand vor dieser
-Implementierung. Weitere Pakete sind weiterhin Vorschläge.
+Die nachfolgende Bestandsaufnahme beschreibt den historischen Ausgangsstand vor
+dieser Implementierung. Das oben beschriebene Übernahmepaket ist mittlerweile
+umgesetzt; andere Ausbaustufen bleiben Vorschläge.
 
 ## Ergebnis für Nutzer und Betreiber
 

@@ -2,11 +2,15 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  ElementRef,
+  Injector,
+  afterNextRender,
   effect,
   inject,
   input,
   signal,
   untracked,
+  viewChild,
 } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
@@ -52,6 +56,9 @@ export class EbayAccountComponent {
   readonly workspace = inject(WorkspaceService);
   private readonly auth = inject(AuthService);
   private readonly route = inject(ActivatedRoute);
+  private readonly injector = inject(Injector);
+  private readonly mappingPanel = viewChild<ElementRef<HTMLElement>>('mappingPanel');
+  private mappingTrigger: HTMLElement | null = null;
   readonly connectIcon = LucideLink2;
   readonly disconnectIcon = LucideUnlink;
   readonly refreshIcon = LucideRefreshCw;
@@ -100,6 +107,23 @@ export class EbayAccountComponent {
     if (!this.auth.currentUser() || !workspaceId || this.workspace.currentWorkspace()?.archived_at)
       return;
     void this.store.initialize(workspaceId, this.showData());
+  }
+  openMapping(listing: EbayListing, event: MouseEvent): void {
+    this.mappingTrigger = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
+    this.selectedListing.set(listing);
+    afterNextRender(
+      () => {
+        const panel = this.mappingPanel()?.nativeElement;
+        panel?.focus();
+        panel?.scrollIntoView?.({ block: 'nearest' });
+      },
+      { injector: this.injector },
+    );
+  }
+  closeMapping(): void {
+    this.selectedListing.set(null);
+    if (this.mappingTrigger?.isConnected) this.mappingTrigger.focus();
+    this.mappingTrigger = null;
   }
   paymentLabel(status: string): string {
     const labels: Record<string, string> = {

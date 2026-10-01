@@ -193,7 +193,7 @@
                         [iconOnly]="true"
                         [ariaLabel]="'Artikel zuordnen: ' + listing.title"
                         title="Artikel zuordnen"
-                        (clicked)="selectedListing.set(listing)"
+                        (clicked)="openMapping(listing, $event)"
                       />
                     }
                     @if (listing.url) {
@@ -279,11 +279,18 @@
     </app-data-table>
     @if (selectedListing(); as listing) {
       @if (store.connection(); as connection) {
-        <app-ebay-article-mapping
-          [scope]="connection"
-          [listing]="listing"
-          (closed)="selectedListing.set(null)"
-        />
+        <section
+          #mappingPanel
+          tabindex="-1"
+          aria-label="Artikelzuordnung"
+          class="focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
+        >
+          <app-ebay-article-mapping
+            [scope]="connection"
+            [listing]="listing"
+            (closed)="closeMapping()"
+          />
+        </section>
       }
     }
     @if (store.nextPage() !== null) {

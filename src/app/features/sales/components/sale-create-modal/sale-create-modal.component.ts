@@ -721,6 +721,7 @@ export class SaleCreateModalComponent {
           return;
         }
         this.isPersisted.set(true);
+        if (this.destroyRef.destroyed) return;
         this.created.emit();
         this.closed.emit();
         return;

@@ -81,7 +81,7 @@ select is((select count(*)::int from public.ebay_connections where id='32000000-
 select public.ebay_delete_account('production','seller-one');
 select is((select count(*)::int from public.ebay_connections where id='32000000-0000-4000-8000-000000000021'),0,'Signierte Kontolöschung entfernt persönliche Verbindung');
 select is((select count(*)::int from public.ebay_credentials where id='32000000-0000-4000-8000-000000000021'),0,'Kontolöschung entfernt auch Tokens');
-select is((select count(*)::int from public.ebay_connections),2,'Andere Konten bleiben erhalten');
+select is((select count(*)::int from public.ebay_connections where workspace_id in ('32000000-0000-4000-8000-000000000011','32000000-0000-4000-8000-000000000012')),2,'Andere Konten bleiben erhalten');
 
 select * from finish();
 rollback;

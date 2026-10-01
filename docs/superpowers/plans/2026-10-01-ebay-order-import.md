@@ -14,8 +14,8 @@ Quelle vor Doppelbuchung und ruft innerhalb derselben Transaktion `record_sale` 
 Deno/Web Crypto, Vitest, pgTAP und Playwright. Keine neue Produktabhängigkeit.
 
 **Spec:** [2026-10-01-ebay-order-import-design.md](../specs/2026-10-01-ebay-order-import-design.md).
-Schriftliche Spezifikation durch „los“ am 1. Oktober 2026 freigegeben. Umsetzung
-wartet auf Prüfung dieses Plans und Wahl der Ausführungsmethode.
+Schriftliche Spezifikation durch „los“ am 1. Oktober 2026 freigegeben. Der Nutzer
+hat anschließend die direkte Umsetzung mit unabhängiger Gesamtprüfung autorisiert.
 
 ## Global Constraints
 
@@ -422,27 +422,27 @@ zufällige IDs; Aufräumen löscht ausschließlich die eigenen Testobjekte.
 Browserfall verwendet vorhandene Test-Workspace-Fixture und serverseitig angelegte
 künstliche Quelle; abgefangene Anbieterantworten ersetzen ausschließlich eBay.
 
-- [ ] **1. Parallelfälle schreiben:** Zwei Sessions buchen dieselbe Quelle gleichzeitig:
+- [x] **1. Parallelfälle schreiben:** Zwei Sessions buchen dieselbe Quelle gleichzeitig:
       gleicher saleId, ein Quellenbeleg, einmaliger Abgang. Zwei verschiedene Quellen
       konkurrieren um ein verfügbares Stück: genau eine Buchung, Bestand null, kein
       Teilverkauf der anderen Bestellung. Parallelzugriff entziehen/Verbindung trennen:
       kein unberechtigter Commit. Test gegen leere isolierte Datenbank mit echter
       Rollen-/JWT-Ausführung, kein ausschließlich gemockter Nachweis.
-- [ ] **2. Browserfälle schreiben:** `imports an eBay order exactly once @core-smoke`
+- [x] **2. Browserfälle schreiben:** `imports an eBay order exactly once @core-smoke`
       durch Zuordnen, unbekannte Kosten, bestätigte 0/echte Kosten, „Verkauf buchen“,
       erneuten Aufruf und nachvollziehbare Bestandsänderung führen. Zweiter Fall prüft
       Erledigt-Markierung ohne Bestandsänderung. 1440/390 Pixel, Tastatur/Fokus,
       Fehlermeldungen und AXE. Neuladen mit verlorenem Routerstate ausdrücklich prüfen.
-- [ ] **3. Rot nachweisen:** neue Parallelfälle und
+- [x] **3. Rot nachweisen:** neue Parallelfälle und
       `npx playwright test e2e/ebay-order-import.spec.ts --config=playwright.pr.config.ts`
       gegen Testdienste; erwartete fachliche Fehler sichtbar, keine Pflichtprüfung umgehen.
-- [ ] **4. CI und Betrieb vervollständigen:** Paralleltest nach DB-Migration in vorhandenen
+- [x] **4. CI und Betrieb vervollständigen:** Paralleltest nach DB-Migration in vorhandenen
       isolierten DB-Check integrieren. Browserfall über bestehendes `@core-smoke`
       verpflichtend registrieren und Workflowvertrag aktualisieren. Schema zuerst,
       eBay-Funktionen inklusive gemeinsamer Quellen danach aus exakt geprüftem Merge
       veröffentlichen; bis Serverfähigkeit bestätigt ist bleibt Übernahme gesperrt.
       Bestehende Token-/Löschendpointtests erneut prüfen. Kein produktiver Importtest.
-- [ ] **5. Grün nachweisen:** Parallelrunner, SQL-/Edge-/betroffene Angular-/Parsertests,
+- [x] **5. Grün nachweisen:** Parallelrunner, SQL-/Edge-/betroffene Angular-/Parsertests,
       `node --test scripts/playwright-pr-smoke.test.mjs`, Shared-UI-/Suite-Audit,
       Format/Lint geänderter Dateien, Typen und Angular-Produktionsbau. Fehlercodes
       direkt prüfen, niemals aus einer Log-Pipe ableiten. Pflichtprüfungen im PR
@@ -474,4 +474,5 @@ Die Aufgaben bauen auf gemeinsamen Verträgen auf und werden in dieser Reihenfol
 bearbeitet. Empfohlen ist direkte Umsetzung in dieser Sitzung mit unabhängiger
 Gesamtprüfung vor dem Abschluss. Alternativ kann jede Aufgabe durch einen eigenen
 Assistenten umgesetzt und vor dem nächsten Schritt separat geprüft werden.
-Der Nutzer prüft zuerst diesen Plan und entscheidet die Ausführungsmethode.
+Der Nutzer hat die direkte Ausführung gewählt. Aufgaben 1–6 sind abgeschlossen;
+die lokale Prüfung von Aufgabe 7 ist grün, die unabhängige Gesamtprüfung folgt.

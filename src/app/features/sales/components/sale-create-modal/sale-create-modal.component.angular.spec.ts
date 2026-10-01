@@ -1493,6 +1493,24 @@ describe('Geprüfte externe Verkaufserfassung', () => {
     expect(created).toHaveBeenCalledOnce();
     expect(closed).toHaveBeenCalledOnce();
   });
+  it('does not emit from a destroyed external form after the page already shows the committed sale', async () => {
+    confirmCosts();
+    let finish: (value: ExternalSaleEntrySaveResult) => void = () => undefined;
+    submit.mockImplementationOnce(
+      () =>
+        new Promise<ExternalSaleEntrySaveResult>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const created = vi.spyOn(component.created, 'emit');
+    const closed = vi.spyOn(component.closed, 'emit');
+    const pending = component.onSubmit();
+    TestBed.resetTestingModule();
+    finish({ status: 'saved' });
+    await pending;
+    expect(created).not.toHaveBeenCalled();
+    expect(closed).not.toHaveBeenCalled();
+  });
   it('blocks tampered protected values and costs with fractional cents', async () => {
     confirmCosts();
     component.lines.at(0).controls.quantity.setValue(1);
