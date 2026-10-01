@@ -60,7 +60,7 @@
       />
 
       @for (group of navigationGroups; track group.id) {
-        @if (group.id !== 'marketplaces' || isOperator()) {
+        @if (group.items.length > 0) {
           <div
             role="group"
             [attr.data-navigation-group]="group.id"
@@ -75,12 +75,14 @@
             </div>
             <ul class="space-y-0.5">
               @for (item of group.items; track item.path) {
-                <li>
-                  <ng-container
-                    [ngTemplateOutlet]="navigationItem"
-                    [ngTemplateOutletContext]="{ $implicit: item, indented: false }"
-                  />
-                </li>
+                @if (item.path !== '/marketplaces/vinted' || isOperator()) {
+                  <li>
+                    <ng-container
+                      [ngTemplateOutlet]="navigationItem"
+                      [ngTemplateOutletContext]="{ $implicit: item, indented: false }"
+                    />
+                  </li>
+                }
               }
             </ul>
           </div>

@@ -27,7 +27,7 @@ describe('Arbeitsnavigation', () => {
         ['/catalog', '/image-optimizer'],
         ['/deal-calculator', '/deal-calculator/ebay'],
         ['/sales', '/listings'],
-        ['/marketplaces/vinted'],
+        ['/marketplaces/vinted', '/marketplaces/ebay'],
         ['/expenses', '/accounting', '/analytics'],
       ],
     );
@@ -88,6 +88,7 @@ describe('Arbeitsnavigation', () => {
       '/fulfillment',
       '/image-optimizer',
       '/listings',
+      '/marketplaces/ebay',
       '/marketplaces/vinted',
       '/master-data',
       '/purchases',

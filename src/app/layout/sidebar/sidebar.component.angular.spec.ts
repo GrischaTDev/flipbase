@@ -195,6 +195,7 @@ describe('SidebarComponent', () => {
     expect(adminLink).toBeNull();
     expect(subLinks).toEqual([]);
     expect(element.querySelector('a[href="/marketplaces/vinted"]')).toBeNull();
+    expect(element.querySelector('a[href="/marketplaces/ebay"]')?.textContent).toContain('eBay');
   });
 
   it('zeigt den Vinted-Pilotbereich Plattformbetreibern', async () => {

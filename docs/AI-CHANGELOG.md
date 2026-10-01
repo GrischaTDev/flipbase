@@ -1,5 +1,110 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-01 - Juna - persönliche eBay-Verbindung und eigene Kontodaten umgesetzt
+
+**Veröffentlichungsfreigabe:** Der Nutzer hat nach Abschluss der lokalen
+Prüfungen Branch-Push, PR-Erstellung, Merge nach erfolgreichen Pflichtprüfungen
+und anschließendes Aufräumen des Feature-Zweigs mit „los“ freigegeben.
+Production-Zugangsdaten und die separate Funktionskonfiguration bleiben offen.
+
+**Auftrag:** Nach der Dokumentationsanalyse die eBay-Anbindung einbauen. Der
+Nutzer hat die nötigen Supabase-Funktionen und Datenbankmigrationen ausdrücklich
+freigegeben; die globale Frontend-Grenze ist für diese Anbindung aufgehoben.
+
+**Änderung:** Normale Workspace-Mitglieder verbinden ihr eigenes eBay-Konto
+über die zentrale Production-App. Einstellungen und der neue Bereich
+`/marketplaces/ebay` zeigen bestätigten Status, Trennen, aktive Auktionen und
+Festpreisangebote sowie eigene Bestellungen mit getrennten Zahlungs-, Versand-
+und Stornierungszuständen. Die Darstellung ändert weder Flipbase-Verkäufe noch
+Bestand. Nutzer- und Workspacewechsel verwerfen laufende Antworten. Die alte
+App-ID-Eingabe und sämtliche Finding-Aufrufe sind entfernt. Serverfunktionen
+prüfen echte Nutzeridentität, Mitgliedschaft und Herkunft. Neue Tabellen mit
+RLS, gehashte einmalige OAuth-Zustände, AES-GCM-verschlüsselte Tokens,
+versionierte Verbindungen und eine zeitlich begrenzte Abrufsperre schützen
+Kontozugriff und Token-Erneuerung. eBays Lösch-Challenge und signierte
+Kontolöschmeldungen sind implementiert. Die bestehende Vinted-Berechtigung
+bleibt bestehen. Eine Compose-Zusatzdatei und leere Umgebungsvorlage bereiten
+die ausschließlich serverseitige Konfiguration vor.
+
+**Prüfung:** Production-Bau und beide TypeScript-Prüfungen erfolgreich;
+Den eigenen Zweig auf den inzwischen veröffentlichten `origin/master`
+(`c60f059e`) gesetzt und den zusätzlichen Changelog-Eintrag erhalten.
+Production-Bau, Typen, Lint, Angular-Tests und Browsercheck danach wiederholt.
+geänderte Frontend-Dateien formatiert und ohne Lintbefunde. 21 Node-Tests,
+20 Angular-Tests, 15 eBay-Servertests und 23 passende Workflow-Vertragstests
+bestanden. Drei Edge-Einstiegspunkte mit Deno geprüft. Die mit Supabase
+erzeugte Migration in einer isolierten Kopie des vollständigen Ausgangsschemas
+transaktional eingespielt; alle 39 pgTAP-Prüfungen auch unter `service_role`
+bestanden. Datenbanktypen tatsächlich neu erzeugt; der Unterschied enthält
+ausschließlich die neuen eBay-Tabellen und Funktionen. Wegen eines lokalen
+CLI-Starts mit nicht transaktional ausgeführten Alt-Migrationen wurden diese
+nur im temporären Testaufbau mit Transaktionen abgespielt; bestehende
+Repository-Migrationen bleiben unverändert. Playwright gegen den lokalen
+Production-Bau mit künstlichen HTTP-Antworten bei 1440 und 390 Pixeln:
+Angebote → Bestellungen → Trennen, keine Konsolenfehler, kein Seitenüberlauf,
+AXE einschließlich Farbkontrast ohne Befunde. Ein dabei gefundener fehlender
+Tastaturzugang zur schmalen Bestelltabelle ist korrigiert. Compose-Zusatzdatei
+mit einer temporären Basis geprüft; Git-Diff ohne Whitespace-Befunde.
+
+**Offen für Betrieb:** Production-Keyset/RuName/Rechte und Löschendpoint
+konfigurieren, Migration und Edge Functions nach Freigabe veröffentlichen,
+öffentliche Callback-Erreichbarkeit des selbst gehosteten Dispatchers prüfen
+und einen echten OAuth-/Kontolesetest durchführen. Keine echten Zugangsdaten
+verwendet, kein Konto verbunden, kein Push, Merge oder Deployment ausgeführt.
+Einrichtung und Grenzen stehen in `docs/implementation/ebay-api-integration-analysis.md`.
+
+## 2026-10-01 - Juna - eBay-Dokumentation und Einbindung in Flipbase erfasst
+
+**Auftrag:** Die offizielle eBay-Dokumentation analysieren, mögliche Funktionen
+und ihre Einbindung in Flipbase festhalten. Der Betreiber bestätigt ein
+vorhandenes Production-Keyset; normale Nutzer sollen ihr eBay-Konto verbinden.
+
+**Änderung:** Eine dauerhafte Analyse unter
+`docs/implementation/ebay-api-integration-analysis.md` erfasst Funktionsumfang,
+Zugangsgrenzen, OAuth, API-Rechte, Kontoisolierung, bestehende Flipbase-Routen,
+Angebotsverwaltung, Import-/Buchungsregeln und Umsetzungspakete. Die vorhandenen
+Vinted-RPCs und Antwortparser sind noch plattformspezifisch; Betreiberrechte
+reichen nicht als Vertrag für normale Nutzer. Inventory-Neuanlage unterstützt
+laut aktuellem Vertrag auch Auktionen, die Migration dagegen nur geeignete
+Festpreisangebote. Finanzzugriff für EU/UK benötigt digitale Signaturen; die
+neue `order_earnings`-Ressource ist nicht als Einstieg für deutsche Verkäufer
+geeignet. Backend-Issue 01 um die nachgewiesenen Vertragslücken ergänzt.
+
+**Prüfung:** Frisch abgerufenen `origin/master` (`08c94058`), bestehende Routen,
+Kontoverträge, RPCs, Antwortparser, Inserats- und Verkaufsabläufe gelesen.
+Offizielle eBay-Guides, Zugangsbeschränkungen, Release-/Abschaltungsstand und
+elf direkt abgerufene öffentliche OpenAPI-JSON-Verträge ausgewertet. Keine
+Zugangsdaten eingesehen, keine Live-Kontofreigabe, API-Schreibaktion oder
+Frontend-/Backend-Implementierung ausgeführt. Beide Dokumente mit der vorhandenen
+Prettier-Version `3.8.1` formatiert; alle 40 Quellenreferenzen und verlinkten
+lokalen Dateien sind aufgelöst. Git-Diff auf Whitespace geprüft. Keine
+Anwendungstests oder Builds benötigt, da ausschließlich Dokumentation geändert ist.
+
+## 2026-10-01 - Juna - eBay-Anbindung und persönliche Kontofreigabe geprüft
+
+**Auftrag:** Vorhandene eBay-Einstellungen prüfen und erklären, wie Nutzer ihre
+eigenen eBay-Konten verbinden können.
+
+**Analyse:** Auf dem frisch abgerufenen `origin/master` (`08c94058`) gibt es
+unter Einstellungen → App & Geräte nur App-ID und Marktplatz. Die Konfiguration
+liegt ungebunden im Browser-LocalStorage; ein persönlicher OAuth-Ablauf fehlt.
+Frontend und `marketplace-search` verwenden noch die abgeschaltete Finding API.
+Die Serverfunktion verwendet einen zentralen `EBAY_APP_ID`, nicht die gespeicherte
+Nutzerkonfiguration. Vorgeschlagen ist eine zentrale Flipbase-eBay-App mit
+persönlicher Kontofreigabe und geschützter serverseitiger Tokenverwaltung.
+Öffentliche Angebotssuche, eigene Kontodaten und marktweite Verkaufspreise
+brauchen unterschiedliche Zugriffe. Marketplace Insights ist laut eBay für
+neue Nutzer derzeit geschlossen; OAuth allein gibt diesen Datenzugang nicht frei.
+
+**Prüfung:** Aktuellen Remote-Stand, Einstellungsroute, Speicherung, Suchservice
+und Edge Function gelesen; offizielle eBay-Dokumentation zu OAuth, Browse,
+Produktionszugang, API-Abschaltung und Marketplace Insights geprüft. Fehlende
+Backend-Unterstützung unter `C:\Users\gt\Desktop\Backend Issues\ebay-api-analysis\`
+dokumentiert. Kein Anwendungscode geändert, keine Live-eBay-Verbindung geprüft.
+Eigenen Worktree für dieses Analyseprotokoll verwendet.
+
+## 2026-10-01 - Juna - automatischen Vinted-Abruf für PR und Merge freigegeben
+
 ## 2026-10-01 – Juna – gemeinsame Artikelwahl und Verkaufstabelle angebunden
 
 **Auftrag:** Den freigegebenen Entwurf in PR #270 vollständig in Einkauf und Verkauf einbinden. Der Nike-Nullbestand war durch einen bereits erfassten Verkauf korrekt; keine Bestandskorrektur, Datenbankänderung oder Serveraktion gehört zu diesem Auftrag. Der PR bleibt bis zur Abnahme ein Entwurf, ohne Merge oder Deployment.

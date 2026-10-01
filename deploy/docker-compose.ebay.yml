@@ -1,0 +1,14 @@
+# Zentrale eBay-Zugangsdaten werden ausschließlich an den Funktionsdienst gereicht.
+# Diese Zusatzdatei nach /opt/supabase/ kopieren und COMPOSE_FILE ergänzen.
+services:
+  functions:
+    environment:
+      EBAY_CLIENT_ID: ${EBAY_CLIENT_ID:-}
+      EBAY_CLIENT_SECRET: ${EBAY_CLIENT_SECRET:-}
+      EBAY_REDIRECT_URI_NAME: ${EBAY_REDIRECT_URI_NAME:-}
+      EBAY_TOKEN_ENCRYPTION_KEY: ${EBAY_TOKEN_ENCRYPTION_KEY:-}
+      EBAY_ENVIRONMENT: ${EBAY_ENVIRONMENT:-production}
+      EBAY_APP_URL: ${EBAY_APP_URL:-https://app.flipbase.de}
+      EBAY_ALLOWED_ORIGINS: ${EBAY_ALLOWED_ORIGINS:-https://app.flipbase.de}
+      EBAY_DELETION_VERIFICATION_TOKEN: ${EBAY_DELETION_VERIFICATION_TOKEN:-}
+      EBAY_DELETION_ENDPOINT: ${EBAY_DELETION_ENDPOINT:-https://api.flipbase.de/functions/v1/ebay-account-deletion}
