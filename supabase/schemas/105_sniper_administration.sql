@@ -49,11 +49,22 @@ begin
     v_key := concat_ws('|', 'vinted', 'search=', 'catalog=-', 'brand=' || p_brand_id::text,
         'price_from=-', 'price_to=-');
     if p_id is null then
+        -- Die technische Herkunft alter Funde bleibt erhalten. Eine erneut
+        -- hinzugefuegte Marke nutzt denselben Auftrag und startet pausiert.
+        select * into v_existing from public.sniper_queries
+            where query_key = v_key and deleted_at is not null for update;
+        if found then
+            update public.sniper_queries set title = p_title,
+                poll_interval_ms = p_poll_interval_ms, notes = p_notes,
+                deleted_at = null, is_active = false, updated_at = now()
+                where id = v_existing.id;
+            return v_existing.id;
+        end if;
         insert into public.sniper_queries (query_key, title, search_text, catalog_id, brand_id, price_from, price_to, poll_interval_ms, notes, is_active)
         values (v_key, p_title, null, null, p_brand_id, null, null, p_poll_interval_ms, p_notes, false)
         returning id into v_id;
     else
-        select * into v_existing from public.sniper_queries where id = p_id for update;
+        select * into v_existing from public.sniper_queries where id = p_id and deleted_at is null for update;
         if not found then raise exception 'Sammelauftrag nicht gefunden'; end if;
         -- Ein Auftrag bleibt eine reine Markensuche. Alte Sammelauftraege mit
         -- weiteren Filtern bleiben lesbar, koennen hier aber nicht umgedeutet werden.
@@ -64,7 +75,7 @@ begin
             or v_existing.catalog_id is not null
             or v_existing.price_from is not null
             or v_existing.price_to is not null then
-            raise exception 'Nur Name, Takt und Notiz eines Markenfilters koennen bearbeitet werden';
+            raise exception 'Nur reine Markenfilter koennen bearbeitet werden';
         end if;
         update public.sniper_queries set title = p_title, poll_interval_ms = p_poll_interval_ms, notes = p_notes, updated_at = now()
         where id = p_id;
@@ -72,7 +83,7 @@ begin
     end if;
     return v_id;
 exception when unique_violation then
-    raise exception 'Ein Auftrag mit diesen Filtern besteht bereits';
+    raise exception 'Ein Markenfilter fuer diese Marke besteht bereits';
 end;
 $$;
 revoke all on function public.upsert_sniper_query(uuid, text, integer, integer, text) from public, anon, authenticated;
@@ -141,12 +152,31 @@ begin
         next_attempt_at = case when p_active then null else next_attempt_at end,
         consecutive_failures = case when p_active then 0 else consecutive_failures end,
         updated_at = now()
-    where id = p_id;
+    where id = p_id and deleted_at is null;
     if not found then raise exception 'Sammelauftrag nicht gefunden'; end if;
 end;
 $$;
 revoke all on function public.set_sniper_query_active(uuid, boolean) from public, anon, authenticated;
 grant execute on function public.set_sniper_query_active(uuid, boolean) to authenticated;
+
+-- Loescht nur die Verwaltung des Filters, nicht Artikel, Favoriten oder Treffer.
+-- Der pausierte Herkunftsdatensatz bleibt fuer diese Verknuepfungen erhalten;
+-- auch eine bereits laufende Abfrage kann dadurch sicher abgeschlossen werden.
+create or replace function public.delete_sniper_query(p_id uuid)
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+    if not public.is_platform_operator() then
+        raise exception 'Nur die Administration darf Sammelauftraege verwalten' using errcode = '42501';
+    end if;
+    update public.sniper_queries set is_active = false, deleted_at = now(), updated_at = now()
+        where id = p_id and deleted_at is null;
+    if not found then raise exception 'Sammelauftrag nicht gefunden'; end if;
+end;
+$$;
+comment on function public.delete_sniper_query(uuid) is
+    'Entfernt einen zentralen Filter aus der Verwaltung und stoppt weitere Abrufe; vorhandene Funde und ihre Herkunft bleiben erhalten.';
+revoke all on function public.delete_sniper_query(uuid) from public, anon, authenticated;
+grant execute on function public.delete_sniper_query(uuid) to authenticated;
 
 create or replace function public.sniper_query_listing_counts()
 returns table (query_id uuid, listing_count bigint)

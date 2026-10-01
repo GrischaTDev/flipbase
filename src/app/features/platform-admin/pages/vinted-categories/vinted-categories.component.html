@@ -1,4 +1,9 @@
 <section class="flex flex-col gap-4">
+  <p class="text-sm text-fb-text-secondary">
+    Die gespeicherten Vinted-Kategorien versorgen die Kategorieauswahl in Deinen persönlichen
+    Suchfiltern. Zentrale Markenfilter sammeln über alle Kategorien. Hier legst Du keine
+    Sammelaufträge an; Du kannst die Kategorien bei Bedarf erneut einlesen lassen.
+  </p>
   <div class="flex flex-col gap-6">
     @if (loadError(); as message) {
       <p class="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-800" role="alert">
@@ -8,14 +13,14 @@
 
     @if (status(); as state) {
       <dl class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div class="rounded-md border border-fb-line p-4">
-          <dt class="text-sm text-fb-text-muted">Kategorien</dt>
+        <div>
+          <dt class="text-sm text-fb-text-muted">Gespeicherte Kategorien</dt>
           <dd class="mt-1 text-2xl font-semibold text-fb-text-primary">
             {{ state.categoryCount }}
           </dd>
         </div>
 
-        <div class="rounded-md border border-fb-line p-4">
+        <div>
           <dt class="text-sm text-fb-text-muted">Zuletzt eingelesen</dt>
           <dd class="mt-1 text-sm text-fb-text-primary">
             @if (state.refreshedAt) {
@@ -30,7 +35,7 @@
              ist "der Dienst hat es versucht und ist gescheitert" von "der Dienst
              laeuft gar nicht mehr" zu unterscheiden - im zweiten Fall bleibt
              auch dieser Zeitpunkt stehen und altert sichtbar mit. -->
-        <div class="rounded-md border border-fb-line p-4">
+        <div>
           <dt class="text-sm text-fb-text-muted">Letzter Versuch</dt>
           <dd class="mt-1 text-sm text-fb-text-primary">
             @if (state.lastAttemptAt) {
@@ -67,20 +72,19 @@
         </div>
       }
 
-      <div class="flex items-center gap-3">
-        <button
-          type="button"
+      <div class="flex flex-wrap items-center gap-3">
+        <app-button
           data-testid="request-refresh"
-          class="rounded-md bg-fb-primary px-4 py-2 text-sm font-medium text-fb-on-accent hover:bg-fb-primary-hover disabled:opacity-60"
-          [disabled]="requesting()"
-          (click)="requestRefresh()"
+          [disabled]="requesting() || pendingRequest() !== null"
+          [loading]="requesting()"
+          (clicked)="requestRefresh()"
         >
           @if (requesting()) {
             Wird angefordert …
           } @else {
-            Neu einlesen
+            Kategorien neu einlesen
           }
-        </button>
+        </app-button>
 
         <!-- Der dauerhafte Live-Bereich meldet auch den spaeteren Abschluss. -->
         <p class="text-sm text-fb-text-muted" role="status" aria-live="polite">

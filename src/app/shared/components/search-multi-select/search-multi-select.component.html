@@ -36,8 +36,11 @@
         #panel
         role="dialog"
         [attr.aria-label]="label()"
-        [attr.popover]="supportsPopover ? 'manual' : null"
-        class="fb-popover-enter left-0 top-0 z-50 m-0 flex h-80 max-h-[calc(100dvh-16px)] w-full min-w-[20rem] flex-col overflow-clip rounded-xl border border-fb-border bg-fb-surface text-fb-text-primary shadow-lg"
+        [attr.popover]="supportsPopover ? 'auto' : null"
+        (toggle)="onPopoverToggle($event)"
+        (keydown.escape)="onPanelEscape($event)"
+        (focusout)="onPanelFocusOut($event)"
+        class="fb-popover-enter left-0 top-0 z-50 m-0 flex max-h-[min(20rem,calc(100dvh-16px))] w-full min-w-[20rem] flex-col overflow-clip rounded-xl border border-fb-border bg-fb-surface text-fb-text-primary shadow-lg"
         [class.fixed]="supportsPopover"
         [class.absolute]="!supportsPopover"
         [class.inset-auto]="supportsPopover"
@@ -45,23 +48,22 @@
         [style.top.px]="supportsPopover ? panelPosition().top : null"
         [style.width.px]="supportsPopover ? panelPosition().width : null"
       >
-        <input
-          #searchInput
-          type="search"
-          role="combobox"
-          autocomplete="off"
-          [maxLength]="maxLength()"
-          aria-autocomplete="list"
-          aria-expanded="true"
-          [attr.aria-controls]="listboxId()"
-          [attr.aria-activedescendant]="activeDescendantId()"
-          [attr.aria-label]="searchPlaceholder()"
-          [placeholder]="searchPlaceholder()"
-          [value]="searchTerm()"
-          (input)="onSearchInput($event)"
-          (keydown)="onSearchKeydown($event)"
-          class="m-1.5 min-h-8 shrink-0 rounded-lg border border-fb-border bg-fb-bg px-2.5 py-1.5 text-[13px] text-fb-text-primary placeholder:text-fb-text-muted outline-none focus-visible:border-fb-primary focus-visible:ring-2 focus-visible:ring-fb-primary/50"
-        />
+        <div class="shrink-0 p-1.5">
+          <app-custom-search-input
+            inputRole="combobox"
+            size="sm"
+            [maxLength]="maxLength()"
+            [expanded]="true"
+            [controlsId]="listboxId()"
+            [activeDescendantId]="activeDescendantId()"
+            [ariaLabel]="searchPlaceholder()"
+            [placeholder]="searchPlaceholder()"
+            [value]="searchTerm()"
+            [clearOnEscape]="false"
+            (valueChange)="onSearchChanged($event)"
+            (keydown)="onSearchKeydown($event)"
+          />
+        </div>
 
         <div
           class="min-h-0 flex-1 overflow-y-auto overscroll-contain border-t border-fb-line p-1.5"
@@ -109,6 +111,9 @@
               </button>
             }
           </div>
+        </div>
+        <div class="flex justify-end border-t border-fb-line p-1.5">
+          <app-button size="slim" (clicked)="close()">Auswahl schließen</app-button>
         </div>
       </div>
     }

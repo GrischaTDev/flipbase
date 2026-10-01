@@ -6,7 +6,6 @@ import {
   LucideDynamicIcon,
   LucideIconInput,
   LucideListChecks,
-  LucideTags,
 } from '@lucide/angular';
 import { filter } from 'rxjs';
 import {
@@ -33,14 +32,8 @@ export const VINTED_BOT_NAVIGATION: readonly VintedBotNavigationItem[] = [
   {
     path: 'operation',
     label: 'Botbetrieb',
-    description: 'Anfragen und Fehler',
+    description: 'Status und Kategorienpflege',
     icon: LucideActivity,
-  },
-  {
-    path: 'categories',
-    label: 'Kategorieliste',
-    description: 'Vinted-Kategorien',
-    icon: LucideTags,
   },
 ] as const;
 

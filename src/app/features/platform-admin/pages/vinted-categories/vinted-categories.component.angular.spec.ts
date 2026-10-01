@@ -2,18 +2,44 @@ import '@angular/compiler';
 import { formatDate } from '@angular/common';
 import { ɵresolveComponentResources } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { readFile } from 'node:fs/promises';
+import { glob, readFile } from 'node:fs/promises';
 import axe from 'axe-core';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { VintedCategoriesComponent } from './vinted-categories.component';
 import { VintedCategoryService } from '../../services/vinted-category.service';
 import { CategorySyncStatus } from '../../models/vinted-category.model';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
 
 // Ohne JIT-Vorlagenaufloesung meldet TestBed "Component is not resolved" fuer
 // jede Komponente mit externem templateUrl - so laeuft auch jeder andere
 // Komponententest in diesem Projekt (siehe beta-applications.component.angular.spec.ts).
 beforeAll(async () => {
-  await ɵresolveComponentResources((url) => readFile(new URL(url, import.meta.url), 'utf8'));
+  await ɵresolveComponentResources(async (url) => {
+    const matches: string[] = [];
+    for await (const match of glob(`src/app/**/${url.replace(/^\.\//u, '')}`)) matches.push(match);
+    if (matches.length !== 1) throw new Error(`Test-Ressource ${url} ist nicht eindeutig.`);
+    return readFile(matches[0], 'utf8');
+  });
+  const metadata = (
+    ButtonComponent as unknown as {
+      ɵcmp: {
+        inputs: Record<string, unknown>;
+        declaredInputs: Record<string, string>;
+        outputs: Record<string, string>;
+      };
+    }
+  ).ɵcmp;
+  metadata.inputs = {
+    ...metadata.inputs,
+    disabled: ['disabled', 1, null],
+    loading: ['loading', 1, null],
+  };
+  metadata.declaredInputs = {
+    ...metadata.declaredInputs,
+    disabled: 'disabled',
+    loading: 'loading',
+  };
+  metadata.outputs = { ...metadata.outputs, clicked: 'clicked' };
 });
 
 /**
@@ -165,7 +191,7 @@ describe('VintedCategoriesComponent', () => {
     await build(status);
 
     const button = (fixture.nativeElement as HTMLElement).querySelector(
-      'button[data-testid="request-refresh"]',
+      '[data-testid="request-refresh"] button',
     ) as HTMLButtonElement;
     button.click();
     await fixture.whenStable();

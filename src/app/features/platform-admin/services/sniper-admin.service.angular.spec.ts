@@ -37,8 +37,9 @@ describe('SniperAdminService', () => {
       .mockResolvedValueOnce({ data: [{ id: 'first' }], error: null })
       .mockResolvedValueOnce({ data: [{ id: 'second' }], error: null })
       .mockResolvedValueOnce({ data: [], error: null });
-    const builder = { select: vi.fn(), order: vi.fn(), range };
+    const builder = { select: vi.fn(), is: vi.fn(), order: vi.fn(), range };
     builder.select.mockReturnValue(builder);
+    builder.is.mockReturnValue(builder);
     builder.order.mockReturnValue(builder);
     TestBed.configureTestingModule({
       providers: [{ provide: SupabaseService, useValue: { client: { from: () => builder } } }],
@@ -52,6 +53,21 @@ describe('SniperAdminService', () => {
       [1, 1000],
       [2, 1001],
     ]);
+    expect(builder.is).toHaveBeenCalledWith('deleted_at', null);
+  });
+
+  it('removes a filter through the restricted function and reports errors', async () => {
+    const rpc = vi
+      .fn()
+      .mockResolvedValueOnce({ error: null })
+      .mockResolvedValueOnce({ error: { message: 'Nicht erlaubt' } });
+    TestBed.configureTestingModule({
+      providers: [{ provide: SupabaseService, useValue: { client: { rpc } } }],
+    });
+    const api = TestBed.inject(SniperAdminService);
+    await api.delete('query');
+    expect(rpc).toHaveBeenCalledWith('delete_sniper_query', { p_id: 'query' });
+    await expect(api.delete('query')).rejects.toThrow('Nicht erlaubt');
   });
 
   it('saves each selected brand independently and reports only failed brands for retry', async () => {

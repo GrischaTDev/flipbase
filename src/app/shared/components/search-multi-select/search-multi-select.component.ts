@@ -15,6 +15,7 @@ import {
 } from '@angular/core';
 import { LucideCheck, LucideChevronDown, LucideDynamicIcon } from '@lucide/angular';
 import { ButtonComponent } from '../button/button.component';
+import { CustomSearchInputComponent } from '../custom-search-input/custom-search-input.component';
 
 export interface SearchMultiSelectOption {
   value: string | number;
@@ -27,7 +28,7 @@ let nextSearchMultiSelectId = 0;
 
 @Component({
   selector: 'app-search-multi-select',
-  imports: [ButtonComponent, LucideDynamicIcon],
+  imports: [ButtonComponent, LucideDynamicIcon, CustomSearchInputComponent],
   templateUrl: './search-multi-select.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block w-full', '(document:click)': 'onDocumentClick($event)' },
@@ -37,7 +38,7 @@ export class SearchMultiSelectComponent {
   private readonly injector = inject(Injector);
   private readonly destroyRef = inject(DestroyRef);
   private readonly trigger = viewChild<ElementRef<HTMLButtonElement>>('trigger');
-  private readonly searchInput = viewChild<ElementRef<HTMLInputElement>>('searchInput');
+  private readonly searchInput = viewChild(CustomSearchInputComponent);
   private readonly panel = viewChild<ElementRef<HTMLElement>>('panel');
   private readonly instanceId = ++nextSearchMultiSelectId;
 
@@ -89,6 +90,10 @@ export class SearchMultiSelectComponent {
   });
 
   constructor() {
+    const onPointerDown = (event: PointerEvent) => {
+      if (this.isOpen() && !this.element.nativeElement.contains(event.target as Node))
+        this.close(false);
+    };
     const onScroll = (event: Event) => {
       if (this.panel()?.nativeElement.contains(event.target as Node)) return;
       if (this.isOpen()) this.close(false);
@@ -97,9 +102,11 @@ export class SearchMultiSelectComponent {
       if (this.isOpen()) this.positionPanel(false);
     };
     document.addEventListener('scroll', onScroll, true);
+    document.addEventListener('pointerdown', onPointerDown, true);
     window.addEventListener('resize', onResize);
     this.destroyRef.onDestroy(() => {
       document.removeEventListener('scroll', onScroll, true);
+      document.removeEventListener('pointerdown', onPointerDown, true);
       window.removeEventListener('resize', onResize);
     });
   }
@@ -131,8 +138,7 @@ export class SearchMultiSelectComponent {
       this.close(false);
   }
 
-  onSearchInput(event: Event): void {
-    const term = (event.target as HTMLInputElement).value;
+  onSearchChanged(term: string): void {
     this.searchTerm.set(term);
     this.activeIndex.set(-1);
     this.searchTermChange.emit(term);
@@ -161,10 +167,8 @@ export class SearchMultiSelectComponent {
       }
       case 'Escape':
         event.preventDefault();
+        event.stopPropagation();
         this.close();
-        break;
-      case 'Tab':
-        this.close(false);
         break;
     }
   }
@@ -173,7 +177,26 @@ export class SearchMultiSelectComponent {
     if (this.disabled() || this.loading()) return;
     this.optionSelected.emit(option);
     this.activeIndex.set(-1);
-    queueMicrotask(() => this.searchInput()?.nativeElement.focus());
+    queueMicrotask(() => this.searchInput()?.inputElement()?.nativeElement.focus());
+  }
+
+  onPopoverToggle(event: Event): void {
+    if (
+      event.target === this.panel()?.nativeElement &&
+      (event as ToggleEvent).newState === 'closed'
+    )
+      this.close(false);
+  }
+
+  onPanelEscape(event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.close();
+  }
+
+  onPanelFocusOut(event: FocusEvent): void {
+    if (!this.panel()?.nativeElement.contains(event.relatedTarget as Node | null))
+      this.close(false);
   }
 
   private positionPanel(focusSearch = true): void {
@@ -199,6 +222,6 @@ export class SearchMultiSelectComponent {
         width,
       });
     }
-    if (focusSearch) this.searchInput()?.nativeElement.focus();
+    if (focusSearch) this.searchInput()?.inputElement()?.nativeElement.focus();
   }
 }

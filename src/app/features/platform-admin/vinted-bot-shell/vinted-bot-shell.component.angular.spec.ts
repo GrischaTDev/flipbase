@@ -99,16 +99,15 @@ describe('VintedBotShellComponent', () => {
     };
   }
 
-  it('listet die drei Bot-Bereiche mit Zielen und bietet sie auch als Auswahl an', async () => {
+  it('listet die zwei Bot-Bereiche mit Zielen und bietet sie auch als Auswahl an', async () => {
     const { element, links } = await renderAt('/admin/vinted-bot/queries');
 
     expect(element.querySelector('h1')?.textContent).toContain('Vinted Bot');
     expect(links.map((link) => link.getAttribute('href'))).toEqual([
       '/admin/vinted-bot/queries',
       '/admin/vinted-bot/operation',
-      '/admin/vinted-bot/categories',
     ]);
-    ['Markenfilter', 'Botbetrieb', 'Kategorieliste'].forEach((label, index) =>
+    ['Markenfilter', 'Botbetrieb'].forEach((label, index) =>
       expect(links[index].textContent).toContain(label),
     );
     expect(element.querySelector('app-custom-select')).not.toBeNull();
@@ -118,11 +117,7 @@ describe('VintedBotShellComponent', () => {
   // fest auf einem Punkt stuende.
   it('zeichnet nur den aktuellen Bereich als aktuelle Seite aus', async () => {
     const queries = await renderAt('/admin/vinted-bot/queries');
-    expect(queries.links.map((link) => link.getAttribute('aria-current'))).toEqual([
-      'page',
-      null,
-      null,
-    ]);
+    expect(queries.links.map((link) => link.getAttribute('aria-current'))).toEqual(['page', null]);
 
     TestBed.resetTestingModule();
     await TestBed.configureTestingModule({
@@ -133,20 +128,19 @@ describe('VintedBotShellComponent', () => {
     expect(operation.links.map((link) => link.getAttribute('aria-current'))).toEqual([
       null,
       'page',
-      null,
     ]);
     expect(operation.element.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
   });
 
   it('wechselt ueber das Auswahlfeld den Bereich und laesst dessen Wert stehen', async () => {
     const { fixture, router } = await renderAt('/admin/vinted-bot/queries');
-    const select = fakeSelect('categories');
+    const select = fakeSelect('operation');
 
-    await fixture.componentInstance.onMobileSectionChange('categories', select);
+    await fixture.componentInstance.onMobileSectionChange('operation', select);
 
-    expect(router.url).toBe('/admin/vinted-bot/categories');
-    expect(fixture.componentInstance.currentPath()).toBe('categories');
-    expect(select.value()).toBe('categories');
+    expect(router.url).toBe('/admin/vinted-bot/operation');
+    expect(fixture.componentInstance.currentPath()).toBe('operation');
+    expect(select.value()).toBe('operation');
   });
 
   it('setzt den Wert im Auswahlfeld zurueck, wenn der Wechsel abgelehnt wird', async () => {
