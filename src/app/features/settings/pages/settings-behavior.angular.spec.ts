@@ -20,7 +20,7 @@ import { CarrierConfig } from '../../../core/models/fulfillment.models';
 import { PaymentGatewayConfig } from '../../../core/models/store.models';
 import { WebhookConfig } from '../../../core/models/webhook.models';
 import { AuthService } from '../../../core/services/auth.service';
-import { EbayApiService } from '../../../core/services/ebay-api.service';
+import { EbayAccountApiService } from '../../marketplaces/services/ebay-account-api.service';
 import { FulfillmentService } from '../../../core/services/fulfillment.service';
 import { PwaService } from '../../../core/services/pwa.service';
 import { StoreService } from '../../../core/services/store.service';
@@ -83,6 +83,19 @@ let modalDialogMetadataSnapshot: AngularBindingMetadata | null = null;
 let selectViewQuerySnapshot: AngularViewQuery | null | undefined;
 
 const resourceFiles: Readonly<Record<string, string>> = {
+  'ebay-account.component.html':
+    '../../marketplaces/components/ebay-account/ebay-account.component.html',
+  'custom-search-input.component.html':
+    '../../../shared/components/custom-search-input/custom-search-input.component.html',
+  'data-table.component.html': '../../../shared/components/data-table/data-table.component.html',
+  'page-header.component.html': '../../../shared/components/page-header/page-header.component.html',
+  'page-header.component.scss': '../../../shared/components/page-header/page-header.component.scss',
+  'table-column-menu.component.html':
+    '../../../shared/components/table-column-menu/table-column-menu.component.html',
+  'table-column-menu.component.scss':
+    '../../../shared/components/table-column-menu/table-column-menu.component.scss',
+  'table-column-picker.component.html':
+    '../../../shared/components/table-column-picker/table-column-picker.component.html',
   'account-settings.component.html': './account-settings/account-settings.component.html',
   'app-settings.component.html': './app-settings/app-settings.component.html',
   'notification-settings.component.html':
@@ -621,14 +634,6 @@ function renderedSubmitButton<T>(
   return button as HTMLButtonElement;
 }
 
-function renderedInput<T>(fixture: ComponentFixture<T>, formControlName: string): HTMLInputElement {
-  const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
-    `input[formcontrolname="${formControlName}"], app-text-field[formcontrolname="${formControlName}"] input, app-number-input[formcontrolname="${formControlName}"] input`,
-  );
-  expect(input, `Gerendertes Feld „${formControlName}“ fehlt.`).not.toBeNull();
-  return input as HTMLInputElement;
-}
-
 function renderedCheckbox<T>(fixture: ComponentFixture<T>, ariaLabel: string): HTMLButtonElement {
   const checkbox = Array.from(
     (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>(
@@ -663,11 +668,6 @@ async function selectRenderedOption<T>(
 
   (option as HTMLButtonElement).click();
   await flushAsyncAction(fixture);
-}
-
-function enterValue(input: HTMLInputElement, value: string): void {
-  input.value = value;
-  input.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
 function flushEffects<T>(fixture: ComponentFixture<T>): void {
@@ -2354,39 +2354,42 @@ async function renderApp(
     promptInstall: vi.fn(),
   };
   const ebayApiService = {
-    getConfig: vi.fn(() => ({ appId: 'existing-app-id', siteId: 'EBAY-DE' })),
-    saveConfig: vi.fn(),
+    loadStatus: vi.fn(async () => ({ configured: true, connection: null })),
   };
   await TestBed.configureTestingModule({
     imports: [AppSettingsComponent],
     providers: [
       ToastService,
+      provideRouter([]),
       { provide: PwaService, useValue: pwaService },
-      { provide: EbayApiService, useValue: ebayApiService },
+      { provide: AuthService, useValue: { currentUser: signal({ id: 'user-1' }) } },
+      {
+        provide: WorkspaceService,
+        useValue: { currentWorkspace: signal(workspace('workspace-a', 'Workspace A')) },
+      },
+      { provide: EbayAccountApiService, useValue: ebayApiService },
     ],
   }).compileComponents();
   const fixture = TestBed.createComponent(AppSettingsComponent);
   fixture.detectChanges();
+  await flushAsyncAction(fixture);
   return { fixture, pwaService, ebayApiService, toast: TestBed.inject(ToastService) };
 }
 
 describe('App-Einstellungen – echte Angular-Fixture', () => {
-  it('bindet den gerenderten eBay-Submit an das normalisierte Konfigurations-Payload', async () => {
+  it('zeigt die persönliche eBay-Verbindung und lädt ihren bestätigten Status erneut', async () => {
     const { fixture, ebayApiService, toast } = await renderApp();
-    expect(renderedInput(fixture, 'appId').value).toBe('existing-app-id');
-    enterValue(renderedInput(fixture, 'appId'), ' new-app-id ');
-    enterValue(renderedInput(fixture, 'globalId'), 'EBAY-AT');
-    fixture.detectChanges();
+    expect(renderedButton(fixture, 'Mit eBay verbinden').disabled).toBe(false);
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('[formControlName="appId"]'),
+    ).toBeNull();
+    expect(ebayApiService.loadStatus).toHaveBeenCalledWith('workspace-a');
 
-    renderedButton(fixture, 'eBay-Verbindung speichern').click();
+    renderedButton(fixture, 'Status aktualisieren').click();
     await flushAsyncAction(fixture);
 
-    expect(ebayApiService.saveConfig).toHaveBeenCalledOnce();
-    expect(ebayApiService.saveConfig).toHaveBeenCalledWith({
-      appId: 'new-app-id',
-      siteId: 'EBAY-AT',
-    });
-    expectOnlyToast(toast, 'success', 'eBay-Verbindung wurde gespeichert.');
+    expect(ebayApiService.loadStatus).toHaveBeenCalledTimes(2);
+    expect(toast.toasts()).toEqual([]);
   });
 
   it('bindet den gerenderten PWA-Installationsbutton an den Installationsdialog', async () => {

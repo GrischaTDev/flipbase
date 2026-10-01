@@ -7,6 +7,13 @@ Prüfungen Branch-Push, PR-Erstellung, Merge nach erfolgreichen Pflichtprüfunge
 und anschließendes Aufräumen des Feature-Zweigs mit „los“ freigegeben.
 Production-Zugangsdaten und die separate Funktionskonfiguration bleiben offen.
 
+**CI-Nachprüfung:** Der erste PR-Lauf bestand Qualitäts-, Datenbank-, Browser-,
+Node- und DOM-Prüfungen. Die zweite Angular-Gruppe zeigte veraltete Erwartungen
+in zwei bestehenden Testdateien: Die Navigation fehlte um den eBay-Bereich,
+die Einstellungen testeten noch das frühere App-ID-Formular und kannten die
+zusätzlich importierten Komponentenressourcen nicht. Beide Tests an die neue
+Oberfläche angepasst; alle 74 zugehörigen Angular-Prüfungen bestehen lokal.
+
 **Auftrag:** Nach der Dokumentationsanalyse die eBay-Anbindung einbauen. Der
 Nutzer hat die nötigen Supabase-Funktionen und Datenbankmigrationen ausdrücklich
 freigegeben; die globale Frontend-Grenze ist für diese Anbindung aufgehoben.
