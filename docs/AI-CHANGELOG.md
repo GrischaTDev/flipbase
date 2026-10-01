@@ -75,6 +75,23 @@ Zusätzlich 39 Konto-/Quellentests unter der CI-Version Deno 2.9.7 im getrennten
 Container bestanden. Neue Testdateien stehen ausdrücklich im verpflichtenden
 CI-Aufruf.
 
+**Artikelzuordnung:** Anbieterantworten streng geprüft und auf bestätigten
+Workspace, Verbindung und Bestellung begrenzt. Alte Antworten bleiben lesbar,
+fehlende Importfähigkeit bleibt false. Zuordnungen verwenden Nutzer-RPCs und
+den bestehenden Artikel-Picker. Varianten ohne stabile Kennung sind von der
+allgemeinen Zuordnung ausgeschlossen. Nullbestand bleibt beim gespeicherten
+Artikel sichtbar; aktuelle Bestände und Auswahlkontext werden vor dem Speichern
+erneut geprüft. Verspätete Lade-/Speicherantworten werden verworfen. Die manuelle
+Markierung erhält den vollständigen Prüfstand, weil der Server Bestellkennung und
+Hash benötigt. Das nullable Variantenargument wird nur an der dokumentierten
+Grenze zu den generierten RPC-Typen angepasst, ohne Schema oder Typdatei von Hand
+zu ändern.
+**Oberflächenprüfung:** 12 Parser- und 25 Angular-Tests bestanden. Abweichendes
+bestätigtes Ziel, Inseratwechsel während der Auswahl, verlorene Transportantwort
+und fehlende Zuordnungsaktion zunächst rot, anschließend grün. Geänderte Dateien
+formatiert und gelintet; Shared-UI-Prüfung ohne Befund, Typprüfung und Angular-
+Produktionsbau bestanden. Der Bau meldet nur die bestehende pako/CommonJS-Warnung.
+
 ## 2026-10-01 – Juna – eBay-Umsetzungsplan nach Spezifikationsfreigabe erstellt
 
 **Auftrag:** Nach ausdrücklichem „los“ zur geschriebenen Spezifikation den

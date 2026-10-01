@@ -5,6 +5,7 @@ import type {
   EbayPage,
 } from '../../../../../supabase/functions/_shared/ebay-contracts';
 import type { AccountScope } from './marketplace.models';
+import { parseEbayOrderSource, parseEbayVariationAspects } from './ebay-order-import-response';
 
 function readResponseRecord(responseValue: unknown): Record<string, unknown> {
   if (!responseValue || typeof responseValue !== 'object' || Array.isArray(responseValue))
@@ -30,8 +31,11 @@ function readOptionalAmount(responseValue: unknown): number | null {
 export function parseEbayStatus(responseValue: unknown, workspaceId: string): EbayConnectionStatus {
   const response = readResponseRecord(responseValue);
   if (typeof response['configured'] !== 'boolean') throw new Error('Ungültige eBay-Antwort.');
+  const importAvailable = response['importAvailable'] === true;
+  if (response['importAvailable'] !== undefined && typeof response['importAvailable'] !== 'boolean')
+    throw new Error('Ungültige eBay-Antwort.');
   if (response['connection'] === null)
-    return { configured: response['configured'], connection: null };
+    return { configured: response['configured'], importAvailable, connection: null };
   const connection = readResponseRecord(response['connection']);
   const status = connection['status'];
   const environment = connection['environment'];
@@ -43,6 +47,7 @@ export function parseEbayStatus(responseValue: unknown, workspaceId: string): Eb
     throw new Error('Ungültige eBay-Antwort.');
   return {
     configured: response['configured'],
+    importAvailable,
     connection: {
       workspaceId,
       connectionId: readRequiredText(connection['connectionId']),
@@ -88,7 +93,21 @@ export function parseEbayListing(responseValue: unknown): EbayListing {
     quantity: readOptionalAmount(item['quantity']),
     listingType: readNullableText(item['listingType']),
     url,
+    hasVariations: item['hasVariations'] === true,
+    variants: item['variants'] === undefined ? [] : parseListingVariants(item['variants']),
   };
+}
+function parseListingVariants(value: unknown): NonNullable<EbayListing['variants']> {
+  if (!Array.isArray(value) || value.length > 200) throw new Error('Ungültige eBay-Varianten.');
+  return value.map((item) => {
+    const row = readResponseRecord(item);
+    return {
+      id: readNullableText(row['id']),
+      sku: readNullableText(row['sku']),
+      quantity: readOptionalAmount(row['quantity']),
+      aspects: parseEbayVariationAspects(row['aspects']),
+    };
+  });
 }
 export function parseEbayOrder(responseValue: unknown): EbayOrder {
   const item = readResponseRecord(responseValue);
@@ -103,6 +122,10 @@ export function parseEbayOrder(responseValue: unknown): EbayOrder {
     cancelStatus: readNullableText(item['cancelStatus']),
     total: readOptionalAmount(item['total']),
     currency: readNullableText(item['currency']),
+    importSource:
+      item['importSource'] === undefined || item['importSource'] === null
+        ? null
+        : parseEbayOrderSource(item['importSource'], readRequiredText(item['id'])),
     items: item['items'].map((line) => ({
       title: readRequiredText(readResponseRecord(line)['title']),
       quantity: readOptionalAmount(readResponseRecord(line)['quantity']),

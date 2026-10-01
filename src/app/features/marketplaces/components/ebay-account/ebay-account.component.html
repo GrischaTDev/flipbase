@@ -183,6 +183,16 @@
                   </td>
                   <td class="px-4 py-3">{{ listing.quantity ?? '–' }}</td>
                   <td class="px-4 py-3 text-right">
+                    @if (store.importAvailable()) {
+                      <app-button
+                        variant="table-action"
+                        [icon]="connectIcon"
+                        [iconOnly]="true"
+                        [ariaLabel]="'Artikel zuordnen: ' + listing.title"
+                        title="Artikel zuordnen"
+                        (clicked)="selectedListing.set(listing)"
+                      />
+                    }
                     @if (listing.url) {
                       <app-button
                         variant="table-action"
@@ -244,6 +254,15 @@
         }
       </div>
     </app-data-table>
+    @if (selectedListing(); as listing) {
+      @if (store.connection(); as connection) {
+        <app-ebay-article-mapping
+          [scope]="connection"
+          [listing]="listing"
+          (closed)="selectedListing.set(null)"
+        />
+      }
+    }
     @if (store.nextPage() !== null) {
       <app-button [loading]="store.isReading()" (clicked)="store.read(true)"
         >Weitere Einträge laden</app-button

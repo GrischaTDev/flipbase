@@ -1,3 +1,9 @@
+import { EbayArticleMappingComponent } from '../ebay-article-mapping/ebay-article-mapping.component';
+import { ArticlePickerComponent } from '../../../../shared/components/article-picker/article-picker.component';
+import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
+import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
+import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
+import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
@@ -42,6 +48,31 @@ describe('Persönliche eBay-Oberfläche', () => {
   };
   beforeAll(async () => {
     resetBindings = await prepareMarketplaceRendering([
+      {
+        type: EbayArticleMappingComponent,
+        path: 'src/app/features/marketplaces/components/ebay-article-mapping/ebay-article-mapping.component.ts',
+      },
+      {
+        type: ArticlePickerComponent,
+        path: 'src/app/shared/components/article-picker/article-picker.component.ts',
+      },
+      {
+        type: ModalShellComponent,
+        path: 'src/app/shared/components/modal-shell/modal-shell.component.ts',
+      },
+      {
+        type: TextFieldComponent,
+        path: 'src/app/shared/components/text-field/text-field.component.ts',
+      },
+      {
+        type: ProductThumbnailComponent,
+        path: 'src/app/shared/components/product-thumbnail/product-thumbnail.component.ts',
+      },
+      {
+        type: CustomSelectComponent,
+        path: 'src/app/shared/components/custom-select/custom-select.component.ts',
+      },
+
       {
         type: EbayAccountComponent,
         path: 'src/app/features/marketplaces/components/ebay-account/ebay-account.component.ts',
@@ -165,6 +196,22 @@ describe('Persönliche eBay-Oberfläche', () => {
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Eigene Auktion');
     expect(fixture.componentInstance.store.connection()).toBeNull();
+  });
+  it('bietet Zuordnung erst bei bestätigter Serverfähigkeit an', async () => {
+    const disabled = await render();
+    expect(
+      (disabled.nativeElement as HTMLElement).querySelector(
+        '[aria-label="Artikel zuordnen: Eigene Auktion"]',
+      ),
+    ).toBeNull();
+    disabled.destroy();
+    api.loadStatus.mockResolvedValueOnce({ configured: true, importAvailable: true, connection });
+    const enabled = await render();
+    expect(
+      (enabled.nativeElement as HTMLElement).querySelector(
+        '[aria-label="Artikel zuordnen: Eigene Auktion"]',
+      ),
+    ).not.toBeNull();
   });
   it('bietet während fehlender Serverkonfiguration keinen scheinbaren Login an', async () => {
     api.loadStatus.mockResolvedValueOnce({ configured: false, connection: null });

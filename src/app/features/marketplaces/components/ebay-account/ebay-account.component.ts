@@ -5,6 +5,7 @@ import {
   effect,
   inject,
   input,
+  signal,
 } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
@@ -16,6 +17,8 @@ import { CardComponent } from '../../../../shared/components/card/card.component
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { DataTableComponent } from '../../../../shared/components/data-table/data-table.component';
 import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
+import type { EbayListing } from '../../../../../../supabase/functions/_shared/ebay-contracts';
+import { EbayArticleMappingComponent } from '../ebay-article-mapping/ebay-article-mapping.component';
 import { EbayAccountStore } from '../../services/ebay-account.store';
 
 @Component({
@@ -28,6 +31,7 @@ import { EbayAccountStore } from '../../services/ebay-account.store';
     BadgeComponent,
     DataTableComponent,
     PageHeaderComponent,
+    EbayArticleMappingComponent,
   ],
   providers: [EbayAccountStore],
   templateUrl: './ebay-account.component.html',
@@ -36,6 +40,7 @@ import { EbayAccountStore } from '../../services/ebay-account.store';
 })
 export class EbayAccountComponent {
   readonly showData = input(false);
+  readonly selectedListing = signal<EbayListing | null>(null);
   readonly store = inject(EbayAccountStore);
   readonly workspace = inject(WorkspaceService);
   private readonly auth = inject(AuthService);
@@ -53,6 +58,10 @@ export class EbayAccountComponent {
         user && workspace && !workspace.archived_at ? workspace.id : null,
         this.showData(),
       );
+    });
+    effect(() => {
+      this.store.connection();
+      this.selectedListing.set(null);
     });
     inject(DestroyRef).onDestroy(() => this.store.reset(null));
   }

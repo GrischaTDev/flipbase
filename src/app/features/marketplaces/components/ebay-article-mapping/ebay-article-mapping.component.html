@@ -1,0 +1,60 @@
+<app-card [title]="'Artikelzuordnung: ' + listing().title">
+  <div class="space-y-4">
+    <p class="text-sm text-fb-text-secondary">
+      Wähle für jedes Inserat beziehungsweise jede Variante einen konkreten Flipbase-Artikel. Die
+      Zuordnung wird für dein eBay-Konto in diesem Workspace gespeichert.
+    </p>
+    @if (store.error(); as error) {
+      <p role="alert" class="text-sm text-fb-critical">{{ error }}</p>
+    }
+    @if (articleError(); as error) {
+      <p role="alert" class="text-sm text-fb-critical">{{ error }}</p>
+    }
+    @if (store.loading() || articleLoading()) {
+      <p role="status" class="text-sm text-fb-text-muted">
+        Artikelzuordnung und Bestand werden geprüft …
+      </p>
+    }
+    @for (row of rows(); track $index) {
+      <div class="space-y-2 border-b border-fb-line pb-3">
+        <p class="text-sm font-medium text-fb-text-primary">{{ row.label }}</p>
+        @if (row.canMap) {
+          <p class="text-sm text-fb-text-secondary">{{ row.targetLabel }}</p>
+          <div class="flex flex-wrap gap-2">
+            <app-button
+              [icon]="linkIcon"
+              [disabled]="store.loading()"
+              (clicked)="openPicker(row)"
+              >{{ row.mapping ? 'Zuordnung ändern' : 'Artikel zuordnen' }}</app-button
+            >
+            @if (row.mapping) {
+              <app-button
+                variant="destructive"
+                [icon]="removeIcon"
+                [disabled]="store.loading()"
+                (clicked)="remove(row)"
+                >Zuordnung entfernen</app-button
+              >
+            }
+          </div>
+        } @else {
+          <p class="text-sm text-fb-text-muted">
+            eBay liefert keine eindeutige Variantenkennung. Du kannst den Artikel direkt in der
+            Bestellprüfung zuordnen.
+          </p>
+        }
+      </div>
+    }
+    <app-button [disabled]="store.loading()" (clicked)="closed.emit()">Schließen</app-button>
+  </div>
+</app-card>
+@if (pickerOpen()) {
+  <app-article-picker
+    [entries]="entries()"
+    selectionMode="single"
+    [loading]="articleLoading() || store.loading()"
+    [errorMessage]="articleError() ?? store.error()"
+    (closed)="closePicker()"
+    (selected)="selectArticle($event)"
+  />
+}

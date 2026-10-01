@@ -304,21 +304,21 @@ Modify `models/ebay-response.ts`, `.spec.ts`, `services/ebay-account-api.service
 - Mapping-Komponente: Inputs `scope`, `listing`; keine Tabellenabfrage,
   Artikelauswahl über vorhandenen Picker und `buildSaleArticleEntries`.
 
-- [ ] **1. Tests schreiben:** Serverantwort muss erwarteten Workspace/Verbindung
+- [x] **1. Tests schreiben:** Serverantwort muss erwarteten Workspace/Verbindung
       enthalten; fehlende Importfähigkeit ist false. Fremde/verspätete Antworten
       verwerfen. Gleiche Inseratkennung mit zwei Varianten hält getrennte Ziele.
       Variante ohne stabile Kennung bekommt kein allgemeines gespeichertes Ziel.
       Gespeicherter Nullbestand bleibt sichtbar, ist für Buchung gesperrt.
-- [ ] **2. Rot nachweisen:** `npx vitest run --project=node src/app/features/marketplaces/models/ebay-order-import-response.spec.ts` und neue gezielte Angular-Specs.
-- [ ] **3. Adapter/Parser implementieren:** Geteilte Typen aus Aufgabe 1/3 importieren,
+- [x] **2. Rot nachweisen:** `npx vitest run --project=node src/app/features/marketplaces/models/ebay-order-import-response.spec.ts` und neue gezielte Angular-Specs.
+- [x] **3. Adapter/Parser implementieren:** Geteilte Typen aus Aufgabe 1/3 importieren,
       keine Typkopien. Zuordnungen über Nutzer-RPC, Quellenaktionen über Edge-Function;
       409-Reviewänderung bewusst parsen, übrige Fehler verständlich abbilden.
       Alte Listenantwort ohne `importSource` bleibt lesbar und nicht importierbar.
-- [ ] **4. Store/Picker integrieren:** Anfragegeneration bei Konto-/Workspacewechsel
+- [x] **4. Store/Picker integrieren:** Anfragegeneration bei Konto-/Workspacewechsel
       erhöhen, Signals leeren und veraltete Antworten ignorieren. Für Zuordnung nur
       verfügbare konkrete Ziele auswählen, gespeicherte ungültige Zuordnung erklären.
       Inseratansicht zeigt „Artikel zuordnen“, „Zuordnung ändern“ und „Zuordnung entfernen“.
-- [ ] **5. Grün nachweisen:** neue Specs plus `ebay-response.spec.ts`,
+- [x] **5. Grün nachweisen:** neue Specs plus `ebay-response.spec.ts`,
       `ebay-account.store.angular.spec.ts`, `ebay-account.component.angular.spec.ts`;
       gezielte Format-/Lintprüfung. Commit:
       `feat(core): link eBay listings to workspace articles`.

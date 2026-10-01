@@ -12,6 +12,7 @@ export class EbayAccountStore {
   private revision = 0;
   private workspaceId: string | null = null;
   readonly isConfigured = signal(false);
+  readonly importAvailable = signal(false);
   readonly connection = signal<EbayConnection | null>(null);
   readonly isLoading = signal(false);
   readonly isReading = signal(false);
@@ -28,6 +29,7 @@ export class EbayAccountStore {
     this.workspaceId = workspaceId;
     this.revision += 1;
     this.isConfigured.set(false);
+    this.importAvailable.set(false);
     this.connection.set(null);
     this.isLoading.set(false);
     this.isReading.set(false);
@@ -56,6 +58,7 @@ export class EbayAccountStore {
       const status = await this.api.loadStatus(workspaceId);
       if (revision !== this.revision) return;
       this.isConfigured.set(status.configured);
+      this.importAvailable.set(status.importAvailable === true);
       this.connection.set(status.connection);
       this.isLoading.set(false);
       if (read && status.configured && status.connection?.status === 'connected')
@@ -167,6 +170,7 @@ export class EbayAccountStore {
         const status = await this.api.loadStatus(connection.workspaceId);
         if (revision === this.revision) {
           this.connection.set(status.connection);
+          this.importAvailable.set(status.importAvailable === true);
           if (status.connection?.status !== 'connected') {
             this.clearData();
             this.dataError.set(errorMessage);
