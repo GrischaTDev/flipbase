@@ -1,5 +1,45 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-01 – Juna – Artikelbot-Korrektur für PR und Merge freigegeben
+
+**Auftrag:** Nach ausdrücklichem „ja“ den lokal geprüften Artikelbot-Zweig
+veröffentlichen, alle erfolgreichen Pflichtprüfungen abwarten, per Merge-Commit
+integrieren und den eigenen Zweig samt Worktree aufräumen.
+
+**Vorbereitung:** Sauberer Implementierungsstand `08434869`, unveränderter
+aktueller `origin/master` (`f1c9e623`). Lokal 200 Bot-Tests, Typprüfung, Build,
+Format/Lint und isolierter Docker-Starttest erfolgreich. Der produktive Bot
+läuft noch auf `ce391ce` und erhielt um 21:42 Uhr erneut HTTP 403. Der geplante
+Releaseweg aktualisiert dieses separate Botimage automatisch; tatsächlichen
+Rollout und Anbieterzustand anschließend getrennt prüfen.
+
+## 2026-10-01 – Juna – wiederkehrende Artikelbot-Abbrüche geprüft und Wiederaufnahme korrigiert
+
+**Auftrag:** Den erneuten Stillstand seit 21:06 Uhr und „Zugriff abgewiesen“
+prüfen und den zentralen Vinted-Artikelbot konsistenter machen.
+
+**Befund:** Produktive Logs und lesende Datenbankabfragen bestätigen den letzten
+Erstfund um 21:06:38 Uhr und die erste erneute Vinted-403 um 21:06:47 Uhr.
+Der Prozess läuft ohne Neustarts; gemeinsame Pausen verhindern weitere Abrufe.
+Die anschließenden Proben wechseln Marken und verteilen die Fehlerzähler,
+wodurch sich die Pause zu langsam verlängert. Der konkrete Vinted-Auslöser ist
+nicht nachgewiesen. Persönlicher Kontodienst und fremde Zweige unverändert.
+
+**Änderung:** Eigener Zweig von `origin/master` (`f1c9e623`). Die einzelne Probe
+bevorzugt die zuletzt abgewiesene aktive Abfrage und erhält die Verlängerung
+über Neustarts. Alle Vinted-Anfragen teilen sich zehn Sekunden Mindestabstand
+und ein 20-Sekunden-Zeitlimit. Kategorien respektieren gemeinsame Pausen;
+eigene 403/429 pausieren ebenfalls. Anbieterwartezeit auch bei 403 beachten,
+feste Diagnosemetadaten ergänzen und Zugriffspause im Betriebsstatus erhalten.
+Keine neuen Abhängigkeiten oder Datenbankänderungen.
+
+**Prüfung:** Ausgangsstand 187 Tests erfolgreich. Neue Fehlerfälle zunächst
+nachweislich rot, danach 200 Bot-Tests, Typprüfung und Bot-Build erfolgreich.
+Formatierung, gezieltes Linting, Docker-Build und isolierter Image-Starttest
+erfolgreich. Die produktive Probe um 21:42 Uhr wurde weiterhin mit 403 abgewiesen.
+Betriebsnachweis und Grenzen in `docs/audit/2026-10-01-vinted-bot-interruptions.md`.
+Noch kein Push, Merge oder Rollout; dauerhaft stabiler Vinted-Zugang nicht belegt.
+
 ## 2026-10-01 – Juna – Vinted-Korrektur für PR und Merge freigegeben
 
 **Auftrag:** Nach ausdrücklichem „los“ den geprüften Zweig veröffentlichen,

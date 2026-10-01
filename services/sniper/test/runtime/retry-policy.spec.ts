@@ -40,6 +40,15 @@ function makeQuery(overrides: Partial<SniperQuery> = {}): SniperQuery {
 describe('evaluateFailure', () => {
   const NOW = new Date('2026-09-15T12:00:00.000Z');
 
+  it('never probes before the provider retry delay on a forbidden response', () => {
+    const decision = evaluateFailure(
+      new ForbiddenError('Refused', { retryAfterSeconds: 1800 }),
+      makeQuery(),
+      NOW,
+    );
+    expect(decision.nextAttemptAt?.toISOString()).toBe('2026-09-15T12:30:00.000Z');
+  });
+
   it('handles 429 with explicit retryAfterSeconds', () => {
     const error = new RateLimitedError('Too many requests', { retryAfterSeconds: 120 });
     const decision = evaluateFailure(error, makeQuery(), NOW);
