@@ -1,7 +1,8 @@
 # Vinted: bestehende Anmeldung und automatische Aktualisierung
 
 Stand: 1. Oktober 2026. Umsetzung auf `juna/vinted-session-automation`.
-Ausgangspunkt ist `origin/master` (`a987e304`), einschließlich des noch nicht
+Ausgangspunkt ist `origin/master` (`a987e304`), vor Abschluss mit dem aktuellen
+Stand `ce391ce9` abgeglichen, einschließlich des noch nicht
 produktiven automatischen Dispatchers. Die Untersuchung steht im
 [Review](../../audit/2026-10-01-vinted-session-recovery.md).
 
