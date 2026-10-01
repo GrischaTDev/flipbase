@@ -1,0 +1,190 @@
+<app-modal-shell
+  [title]="
+    detailsOpen()
+      ? 'Variante hinzufügen'
+      : activeGroup()
+        ? 'Variante auswählen'
+        : 'Artikel auswählen'
+  "
+  size="lg"
+  (closed)="closed.emit()"
+>
+  @if (loading()) {
+    <p role="status" class="py-6 text-center text-sm text-fb-text-muted">
+      Artikel und Bestand werden geladen…
+    </p>
+  } @else if (errorMessage(); as error) {
+    <div class="space-y-3 py-4">
+      <p role="alert" class="text-sm text-fb-critical">{{ error }}</p>
+      <app-button variant="secondary" (clicked)="retryRequested.emit()">Erneut laden</app-button>
+    </div>
+  } @else if (detailsOpen()) {
+    <ng-content select="[picker-details]" />
+  } @else if (activeGroup(); as group) {
+    <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+      <div>
+        <p data-variant-heading tabindex="-1" class="text-sm font-semibold">{{ group.title }}</p>
+        <p class="text-[13px] text-fb-text-muted">{{ variantHint() }}</p>
+      </div>
+      @if (allowVariantCreation()) {
+        <app-button variant="secondary" [icon]="plusIcon" (clicked)="createVariant()">
+          Neue Variante
+        </app-button>
+      }
+    </div>
+    <div
+      class="max-h-[min(28rem,45dvh)] divide-y divide-fb-line overflow-y-auto overscroll-contain"
+    >
+      @for (entry of group.entries; track entry.id) {
+        <button
+          type="button"
+          [attr.data-product-option]="entry.id"
+          [attr.aria-pressed]="selection().has(entry.id) && isSelectable(entry)"
+          [disabled]="!isSelectable(entry)"
+          class="flex w-full cursor-pointer items-center gap-3 rounded-lg px-2 py-3 text-left hover:bg-fb-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/60 disabled:cursor-not-allowed disabled:opacity-60"
+          (click)="toggle(entry.id)"
+        >
+          <span
+            aria-hidden="true"
+            class="flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[10px] font-bold transition"
+            [class.border-fb-primary]="selection().has(entry.id) && isSelectable(entry)"
+            [class.bg-fb-primary]="selection().has(entry.id) && isSelectable(entry)"
+            [class.text-slate-950]="selection().has(entry.id) && isSelectable(entry)"
+            [class.border-fb-border-hover]="!selection().has(entry.id) || !isSelectable(entry)"
+            [class.bg-fb-well]="!selection().has(entry.id) || !isSelectable(entry)"
+          >
+            @if (selection().has(entry.id) && isSelectable(entry)) {
+              ✓
+            }
+          </span>
+          <app-product-thumbnail
+            [src]="imageUrls()[entry.imageKey] || null"
+            (imageFailed)="imageFailed.emit(entry.imageKey)"
+          />
+          <span class="min-w-0 flex-1 text-[13px]">
+            <span class="block font-medium">
+              {{ entry.size ? 'Größe ' + entry.size : 'Ohne Größe' }} ·
+              {{ entry.color || 'Ohne Farbe' }}
+            </span>
+            <span class="block text-fb-text-muted">
+              @if (entry.sku) {
+                SKU {{ entry.sku }}
+              }
+              @if (entry.ean) {
+                <span class="ml-1">EAN {{ entry.ean }}</span>
+              }
+              @if (!entry.sku && !entry.ean) {
+                Keine Kennung
+              }
+              @if (entry.conditionLabel) {
+                · {{ entry.conditionLabel }}
+              }
+            </span>
+            @if (entry.availableQuantity !== undefined) {
+              <span class="block text-fb-text-secondary">
+                {{
+                  entry.availableQuantity === null
+                    ? 'Bestand zu prüfen'
+                    : 'Verfügbar: ' + entry.availableQuantity + ' Stück'
+                }}
+              </span>
+            }
+            @if (entry.disabledReason) {
+              <span class="block text-fb-text-muted">{{ entry.disabledReason }}</span>
+            }
+          </span>
+        </button>
+      }
+    </div>
+  } @else {
+    <div class="grid grid-cols-1 items-end gap-2 sm:grid-cols-[minmax(0,1fr)_10rem_10rem]">
+      <app-text-field
+        label="Artikel suchen"
+        placeholder="Nach Bezeichnung, Größe, Farbe oder Barcode suchen"
+        [formControl]="searchControl"
+      />
+      @if (categoryOptions().length > 1) {
+        <app-custom-select
+          variant="toolbar"
+          widthClass="w-full"
+          ariaLabel="Nach Kategorie filtern"
+          placeholder="Kategorie filtern"
+          [options]="categoryOptions()"
+          [value]="categoryFilter()"
+          (valueChange)="categoryFilter.set($event || null)"
+        />
+      }
+      @if (brandOptions().length > 1) {
+        <app-custom-select
+          variant="toolbar"
+          widthClass="w-full"
+          ariaLabel="Nach Marke filtern"
+          placeholder="Marke filtern"
+          [options]="brandOptions()"
+          [value]="brandFilter()"
+          (valueChange)="brandFilter.set($event || null)"
+        />
+      }
+    </div>
+    @if (hasActiveFilters()) {
+      <div class="flex justify-end">
+        <app-button variant="plain" size="slim" (clicked)="resetFilters()">
+          Filter zurücksetzen
+        </app-button>
+      </div>
+    }
+    @if (initialSearch() && query() === undefined) {
+      <p class="text-[13px] text-fb-text-muted">Suche: {{ initialSearch() }}</p>
+    }
+    <div
+      class="max-h-[min(28rem,45dvh)] divide-y divide-fb-line overflow-y-auto overscroll-contain"
+    >
+      @for (group of filteredGroups(); track group.id) {
+        <button
+          type="button"
+          [attr.data-product-group]="group.id"
+          class="flex w-full cursor-pointer items-center gap-3 rounded-lg px-2 py-3 text-left hover:bg-fb-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/60"
+          (click)="openGroup(group.id)"
+        >
+          <app-product-thumbnail
+            [src]="imageUrls()[group.imageKey] || null"
+            (imageFailed)="imageFailed.emit(group.imageKey)"
+          />
+          <span class="min-w-0 flex-1 text-[13px]">
+            <span class="block break-words font-medium">{{ group.title }}</span>
+            <span class="block text-fb-text-muted">
+              {{ group.entries.length }}
+              {{ group.entries.length === 1 ? 'Variante' : 'Varianten / Einzelstücke' }} ·
+              {{ group.brand || 'Keine Marke' }}
+            </span>
+          </span>
+          <span class="text-[13px] text-fb-text-secondary">Auswählen</span>
+        </button>
+      } @empty {
+        <p class="py-6 text-center text-sm text-fb-text-muted">Keine passenden Artikel gefunden.</p>
+      }
+    </div>
+  }
+  @if (!detailsOpen()) {
+    <div modal-footer class="flex w-full flex-wrap items-center justify-between gap-2">
+      @if (activeGroup()) {
+        <app-button variant="secondary" (clicked)="backToGroups()">Zurück zu Artikeln</app-button>
+      } @else if (allowCreate()) {
+        <app-button
+          variant="secondary"
+          [icon]="plusIcon"
+          [disabled]="loading() || !!errorMessage()"
+          (clicked)="createRequested.emit()"
+        >
+          Produkt erstellen
+        </app-button>
+      }
+      <div class="ml-auto flex gap-2">
+        <app-button variant="secondary" (clicked)="closed.emit()">Abbrechen</app-button>
+        <app-button variant="primary" [disabled]="!canConfirm()" (clicked)="confirm()">
+          Hinzufügen ({{ selectedEntries().length }})
+        </app-button>
+      </div>
+    </div>
+  }
+</app-modal-shell>
