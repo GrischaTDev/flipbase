@@ -1,5 +1,31 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-01 – Juna – sichtbare Vinted-Kennzahlenänderungen ergänzt
+
+**Auftrag:** Steigende Aufruf- und Favoritenzahlen am Inserat erkennbar machen;
+bei neuen Favoriten einen Hinweis beziehungsweise eine Benachrichtigung vorsehen.
+
+**Prüfung:** Vorhandenen Kennzahlenimport und Glockenfeed mit einem Agent
+lesend geprüft. Aufrufe, Favoriten und Abrufzeit liegen bereits im Snapshot;
+es gibt noch keine dauerhaften Favoritenereignisse. Die allgemeine Glocke ist
+workspaceweit lesbar, während Vinted engere Betreiber-/Adminrechte verlangt.
+
+**Entwurf:** Bestehenden UI-Entwurf und Umsetzungsplan erweitert: `+N` am
+Inserat mit kurzer Hervorhebung und statischer Reduced-Motion-Variante,
+erste bekannte Werte als Basis, keine positiven Meldungen für unbekannte
+oder sinkende Zahlen. Zusätzliches fünftes Paket für atomare, deduplizierte
+Favoritenereignisse und einen berechtigten Meldungsstrom in der Glocke;
+kontoweise Zusammenfassung und abschaltbare In-App-Meldungen ohne neuen Ton.
+Wiederholungen, verspätete Importe, Rechteverlust und geschlossene Vinted-Ansicht
+sind ausdrückliche Abnahmefälle. Keine zusätzlichen Anbieterabfragen.
+Agentenreview präzisiert außerdem den Beschreibungsvertrag: eine erfolgreiche
+Leseantwort ohne Speicherwarnung bestätigt noch keine dauerhafte Speicherung.
+
+**Grenzen:** Planungsänderung, noch keine Produktimplementierung oder Migration.
+Sichtbar ist der beobachtete Nettoanstieg beim Abruf, keine einzelne Person
+oder Echtzeitaktivität. Externe Nachrichten und Hintergrund-Push sind nicht
+beauftragt. Dokumente formatiert und Diff auf Fehler geprüft.
+
 ## 2026-10-01 – Juna – kompakte Vinted-Ansicht mit Agents durchgeplant
 
 **Auftrag:** Kontokopf und Automatik verkleinern, Einstellungen bündeln,

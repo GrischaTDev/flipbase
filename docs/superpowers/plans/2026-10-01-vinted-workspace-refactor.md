@@ -3,15 +3,20 @@
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox syntax for tracking. Der Nutzer erlaubt ausdrücklich Agents; unabhängige Pakete dürfen nach vereinbarten Schnittstellen parallel umgesetzt werden.
 
 **Goal:** Eine kompakte Vinted-Arbeitsansicht mit gut sichtbaren Nachrichten,
-nützlicher Übersicht und flüssiger, kontogebundener Inseratdarstellung.
+nützlicher Übersicht, flüssiger Inseratdarstellung, sichtbaren Kennzahlenänderungen
+und dauerhaften Favoritenmeldungen für berechtigte Kontonutzer.
 
 **Architecture:** Der bestehende Workspace behält seinen `MarketplaceAccountStore`
 und Zeitplan-Lebenszyklus. Fachliche Ansichten werden aus der großen
 Mehrzweckkomponente herausgelöst; Shared-Bausteine bleiben die Gestaltungsgrundlage.
 Das vorhandene Speichern von Beschreibungen wird für schnelle Anzeige genutzt.
+Lokale Kennzahlendifferenzen entstehen im kontogebundenen Store; dauerhafte
+Favoritenereignisse entstehen einmalig im erfolgreichen Import und werden als
+eigener berechtigter Meldungsstrom in die vorhandene Glocke integriert.
 
 **Tech Stack:** Bestehendes Angular 22, Signals, Tailwind, Supabase und Lucide.
-Keine neuen Abhängigkeiten und zunächst keine SQL-/Workeränderung.
+Keine neuen Abhängigkeiten. Pakete 1–4 benötigen keine SQL-/Workeränderung;
+Paket 5 benötigt deklaratives Schema, generierte Migration und Importanpassung.
 
 **Spec:** [Designentwurf](../specs/2026-10-01-vinted-workspace-design.md).
 Navigation vom Nutzer bestätigt; übriger Entwurf steht zur Prüfung. Dieser
@@ -30,6 +35,9 @@ Plan beauftragt keine Veröffentlichung und enthält noch keine Produktimplement
 - Ungelesene Vinted-Gespräche nicht öffnen; kein Senden und keine Angebotsannahme.
 - Bestehende Automatik, Pausen und Übernahme nach Hintergrundimport erhalten.
 - Keine Beschreibungs-Massenabrufe oder zusätzlichen Abrufe im Zeitplantakt.
+- Kennzahlendifferenzen nur zwischen bekannten Werten neuerer Beobachtungen;
+  Erstimport setzt eine Basis. Favoritenmeldungen sind Nettoanstiege, keine Echtzeitereignisse.
+- Favoritenmeldungen innerhalb Flipbase; keine externe Nachricht oder Browser-Pushzustellung.
 
 ## Review Focus
 
@@ -38,6 +46,8 @@ Plan beauftragt keine Veröffentlichung und enthält noch keine Produktimplement
 3. Kontextwechsel bei laufender Detailanfrage: fremde Texte, Bilder und Formwerte erscheinen nie.
 4. Bereits gespeicherte leere Beschreibung und `cache: pending`: kein wiederholter Browserstart.
 5. Ungelesenes Gespräch und Hintergrundreload: kein Vinted-Lesestatuswechsel, keine verlorene Leseposition.
+6. Favoritenereignisse: einmalige Übernahme, keine Erstimportmeldungen und keine
+   Vinted-Details für unberechtigte Workspace-Mitglieder.
 
 ## Paket 1: Kontokopf, Einstellungen und Navigation
 
@@ -108,21 +118,41 @@ Profil enthält die vorhandenen Profiledit-/Bewertungsbausteine und Anker `revie
 `services/marketplace-account.store.{ts,angular.spec.ts}`,
 `services/marketplace-browser-test-api.service.{ts,angular.spec.ts}`,
 neu `models/vinted-listing-description.ts`; `e2e/marketplace-accounts.spec.ts`.
+Für Kennzahlen zusätzlich neu `models/vinted-listing-metric-change.ts` mit
+Modelltests; Zustand und Vergleich im bestehenden kontogebundenen Store.
 
 **Schnittstellen:** Bestehende `readListingEdit()` und `saveListingEdit()` bleiben
 für die ausdrücklich gewählte Bearbeitung frisch und behalten ihren Vertrag.
 Neue typisierte Leseantwort `VintedListingReadResult` enthält
-`fields: VintedListingEditFields` und `cacheState: 'stored' | 'pending'`.
-Ein erfolgreicher aktueller Endpunkt ohne `cache: pending` bedeutet `stored`;
-unbekannte/fehlerhafte Antworten werden weiter zurückgewiesen.
+`fields: VintedListingEditFields` und `cacheState: 'unconfirmed' | 'pending'`.
+Ohne `cache: pending` ist die dauerhafte Speicherung nicht bestätigt: der
+Cachewriter ist optional und ältere Antworten enthalten keine Speicherbestätigung.
+Unbekannte/fehlerhafte Feldantworten werden weiter zurückgewiesen.
 `MarketplaceBrowserTestApiService.readListingData(scope, entryId, accessToken)`
 liefert diese Antwort; die bisherige Editmethode kann deren frische `fields` verwenden.
 `MarketplaceAccountStore.readListingDescription(connectionId, entryId)` nutzt
 Snapshot/Textcache oder den einmaligen Leseweg und liefert
-`Promise<{ description: string; cacheState: 'stored' | 'pending' }>`.
+`Promise<{ description: string; cacheState: 'stored' | 'unconfirmed' | 'pending' }>`.
+`stored` ist nur bei einem bereits geladenen Datenbank-/Snapshottext belegt;
+aktuell gelesener Text ohne Speicherwarnung bleibt `unconfirmed`.
 
 - [ ] Auge/Herz als dekorative Lucide-Icons in neutralen Shared-Badges ergänzen.
       Bedeutung zugänglich beschriften; `null` bleibt unbekannt, `0` bleibt sichtbar.
+- [ ] Im Store bei neuerem `metrics.observedAt` positive Aufruf-/Favoritendifferenzen
+      pro Inserat halten. Erstes Laden, neuer Eintrag und unbekannt → bekannt setzen
+      nur die Basis. Sinkende Werte aktualisieren die Basis ohne positive Meldung.
+      Vergleich unabhängig vom Mounten einer Karte, nur innerhalb des aktuellen Kontos.
+- [ ] Kleine `+N`-Zusätze im Raster und Detail darstellen; einmalige dezente
+      Hervorhebung für etwa zwei Sekunden, statisch bei Reduced Motion.
+      Zusatz bis zur nächsten neueren Beobachtung oder Verlassen von Raster/Detail;
+      Vergleichsbasis im gleichen Kontokontext erhalten, bereits dargestellte Beobachtungen
+      getrennt kennzeichnen. Wiedereintritt startet denselben Effekt nicht erneut;
+      noch nicht angezeigte Änderungen dürfen erstmals erscheinen. Konto-/Workspacewechsel
+      verwirft Differenzen. Eine zusammenfassende Live-Region statt vieler Einzelansagen.
+- [ ] Kennzahlenfälle absichern: `firstObservationSetsBaseline`,
+      `unknownCounterMakesNoDelta`, `zeroToOneShowsIncrease`,
+      `olderOrRepeatedObservationMakesNoEffect`, `decreaseResetsBaseline`,
+      `metricChangesCannotCrossAccount`. Effekte, Fokus und Reduced Motion im E2E prüfen.
 - [ ] Zusätzlichen Thumbnail-Modus `listing-detail` mit `object-contain` und
       vereinbartem Größenlimit einführen. `listing` für Raster nicht verändern.
       Galerie links begrenzen, Angaben rechts und mobil direkt unter kompakter Galerie zeigen.
@@ -180,6 +210,65 @@ Kompakt gilt nur für die Gesprächsliste, mit mindestens 44 px Touchfläche.
       `olderMessagesKeepReadingPosition`, `lateMessagesCannotCrossWorkspace`.
       Kein Composer, keine Angebotsannahme und keine Lesebestätigung hinzufügen.
 
+## Paket 5: Dauerhafte Favoritenmeldungen
+
+**Betroffene Bereiche:** `services/marketplace-worker/src/vinted-account-import.ts`,
+bestehende Import-RPC und Zuordnung unter `supabase/schemas/`, neue thematische
+Schemadatei für Marktplatzmeldungen, generierte Migration, generierte Supabase-Typen,
+Marktplatz-Feature-Service und vorhandene Glockenanzeige/Benachrichtigungsservice.
+Die genaue Schemadatei und RPC-Schnittstelle vor der Umsetzung anhand des dann
+aktuellen Importvertrags festlegen. Keine Änderung bereits veröffentlichter Migrationen.
+
+**Schnittstellen:** Ein gespeichertes Favoritenereignis enthält Workspace, Konto,
+externe Inserat-ID, vorherigen/neuen bekannten Wert, tatsächlichen Beobachtungszeitpunkt
+und stabilen Importschlüssel. Ereignisse entstehen serverseitig innerhalb derselben
+Transaktion wie die gültige Kennzahlenübernahme. Die Glocke konsumiert autorisierte
+Ereignisse beziehungsweise deren kontoweise Zusammenfassung mit stabiler Kennung;
+`WebhookService.addNotification()` wird nicht aus einem Snapshotvergleich aufgerufen.
+
+- [ ] Import-Sperren und vorhandenen Schutz gegen ältere Beobachtungen erhalten.
+      Bekannte Favoritenzahlen atomar vergleichen; erste/fehlende/unveränderte oder
+      sinkende Werte erzeugen kein positives Ereignis. Einzigartiger Ereignisschlüssel
+      verhindert Wiederholung und Parallelmeldungen; auch Konto-/Importzusammenfassung
+      erhält einen eindeutigen Schlüssel. Nur tatsächlich vom bedingten Upsert übernommene
+      Inseratzeilen erzeugen Ereignisse; zurückgewiesene alte Zeilen erzeugen keines.
+      Fehlgeschlagene Speicherung darf
+      keine Meldung zu einem nicht übernommenen Datenstand erzeugen.
+- [ ] Eigene Marktplatzmeldungen mit RLS und expliziten Operations-/Rollenpolicies
+      definieren. Lesen und als gelesen markieren verlangen dieselben Betreiber-
+      und Workspace-Adminrechte wie Vinted. Workspace-/Kontozuordnung unveränderbar
+      halten; normale Clients dürfen keine Importereignisse selbst erzeugen.
+      Neue Favoritenmeldungen nicht in den allgemeinen `app_notifications`-Feed kopieren.
+- [ ] Kontoabhängige Einstellung für Favoritenmeldungen persistieren. Neue Konten
+      erhalten In-App-Meldungen ohne Ton; deaktivierte oder gerade aktivierte Konten
+      erzeugen keine nachträglichen historischen Meldungen. Die Basis wird auch während
+      deaktivierter Meldungen weiter aktualisiert. Der erste erfolgreiche Abruf nach
+      Aktivierung setzt nur die Meldungsbasis, auch wenn alte Kennzahlen vorhanden sind.
+      Einstellungsänderung und laufender Import prüfen dieselbe Einstellungsfassung.
+      Workspaceweiter Gelesen-Status wie bisher.
+- [ ] Deklarativen Schemaabgleich ausführen, Migration generieren und vollständig
+      prüfen; nach Migration Supabase-Typen neu erzeugen. Keine manuelle Produktionsänderung.
+- [ ] Pro Konto und Import eine Glockenmeldung aus Ereignissen bilden, unabhängig
+      von geöffneten Seiten und der Snapshotgrenze 50. Ein Treffer verlinkt das Inserat,
+      mehrere die richtige Inserateliste. Entfernte Inserate ergeben einen verständlichen
+      Zielzustand. Importbatch und Einzelereignisse beim Nachladen stabil deduplizieren.
+- [ ] Berechtigte private Broadcast-Kanäle mit Nachladen verbinden; Reconnect und
+      App-Neustart holen fehlende Meldungen nach. Keine Abhängigkeit von aktiver
+      Vinted-Komponente, kein `postgres_changes`. DestroyRef-Cleanup, Kontextwechsel
+      und Rechteverlust leeren Subscription und geladene Vinted-Meldungen.
+      Feed und Ungelesen-Zähler aus denselben autorisierten Quellen bilden;
+      keine Gesamtzahl aus lediglich 50 geladenen Glockeneinträgen ableiten.
+- [ ] Datenbank-/Workerprüfungen: Erstimport, `0 → 1`, `null → 5`, `5 → null`,
+      `5 → 4 → 5`, Wiederholung, verspäteter/gleichzeitiger Import, Transaktionsfehler,
+      vom Upsert zurückgewiesene Zeile, wiederholter Batch ohne zweite Sammelmeldung,
+      deaktivierte Meldungen, Aktivierung während Import und mehr als 50 Inserate.
+      Fremder Workspace, normaler
+      Workspace-Mitgliedszugang und Rechteverlust müssen Details und Zähler ausschließen.
+- [ ] Frontend-/E2E-Prüfungen: Vinted-Ansicht geschlossen, zwei Tabs, erneutes
+      Verbinden und späteres App-Öffnen ergeben eine gespeicherte Meldung;
+      keine externe Nachricht, kein zusätzlicher GoLogin-Abruf und kein doppelter Ton.
+      Neue private Channels und Importschnittstelle unabhängig prüfen lassen.
+
 ## Agentenaufteilung und Integration
 
 Paket 1 definiert die gemeinsame Kopf-/Navigationsebene. Danach können drei Agents
@@ -191,6 +280,9 @@ gehören ebenfalls ausschließlich dem Koordinator; Agents liefern ihre Prüffä
 zur seriellen Integration. Store-/Shared-Änderungen werden vor Parallelstart
 abgesprochen; keine konkurrierenden Änderungen derselben Datei.
 Nach Zusammenführung prüft ein unabhängiger Agent die ganze Ansicht und ihre Rechte.
+Paket 5 wird mit eigener Schema-/Importzuständigkeit nach festgelegtem Ereignisvertrag
+umgesetzt. Glockenadapter und finale Storeänderungen integriert der Koordinator
+seriell; kein gleichzeitiger Umbau gemeinsamer Benachrichtigungsdateien.
 
 ## Prüfungen und Abschluss
 
@@ -203,6 +295,9 @@ Nach Zusammenführung prüft ein unabhängiger Agent die ganze Ansicht und ihre 
       `npm run test:audit` ausführen. Angular-Templateprüfung nicht durch tsc ersetzen.
 - [ ] Screenshots hell/dunkel, 1440 × 900, 390 und 320 px; 200 % Zoom,
       Tastatur, Fokus, Touch, Reduced Motion und AXE manuell/automatisch abnehmen.
+- [ ] Für Paket 5 betroffene Datenbank-/Workerprüfungen, Schemaabgleich und
+      Migrationstypen prüfen; tatsächliche serverseitige Zustellung in die berechtigte
+      Glocke vor Abschluss nachweisen. Workerrollout gehört zum freigegebenen Release.
 - [ ] AI-Changelog ergänzen; lokale Prüfergebnisse und tatsächlich verbleibende
       Grenzen dokumentieren. Keine Produktivkonten ändern, um bloß Layouttests zu bestehen.
 - [ ] Nach fertiger Umsetzung exakt fragen:

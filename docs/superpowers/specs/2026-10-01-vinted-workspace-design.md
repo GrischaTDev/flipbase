@@ -12,6 +12,10 @@ ermöglichen. Große Erklärblöcke und Anmeldeaktionen im Hauptkopf entfallen.
 Kontowechsel, manuelle Aktualisierung und Einstellungen bleiben schnell erreichbar.
 Die Darstellung folgt den vorhandenen Flipbase-Bausteinen in beiden Themes.
 
+Ergänzung aus dem Nutzerauftrag: Veränderungen an Aufrufen und Favoriten sollen
+direkt am Inserat erkennbar werden. Steigende Favoritenzahlen erhalten zusätzlich
+eine dauerhafte Meldung in der Flipbase-Glocke.
+
 Bestätigte Reihenfolge: **Übersicht → Nachrichten → Inserate → Verkäufe →
 Aktivitäten → Profil**. Bewertungen stehen im Profil. Die Anmeldung gehört in
 die Kontoeinstellungen; erforderliche Anmeldung bleibt als handlungsfähiger
@@ -95,6 +99,74 @@ Shared-Badges. Das Herz ist eine Kennzahl, keine Favorisieren-Aktion. Ein unbeka
 Wert bleibt `—`, ein bekannter Nullwert `0`; Symbole sind dekorativ, die Bedeutung
 bleibt auch für Screenreader vorhanden.
 
+### Änderungen an Aufrufen und Favoriten
+
+Beim nächsten erfolgreichen Abruf zeigt eine gestiegene Kennzahl einen kleinen
+Zusatz, zum Beispiel **Auge 124 · +2** oder **Herz 8 · +1**. Die Zahl wird einmal
+für etwa zwei Sekunden dezent hervorgehoben; keine blinkende Karte und keine
+Umsortierung. Bei reduzierter Bewegung bleibt der statische Zusatz. Er bleibt
+bis zur nächsten neueren Kennzahlenbeobachtung oder bis zum Verlassen von
+Inserateraster/-detail sichtbar. Die Vergleichsbasis bleibt im selben Kontokontext
+erhalten. Eine getrennte Kennung bereits dargestellter Beobachtungen verhindert
+erneute Effekte beim Wiedereintritt; noch nicht angezeigte Änderungen können dann
+erstmals erscheinen. Wiederholtes Laden desselben Standes startet keinen neuen Effekt.
+Eine einzige ruhige Live-Region fasst Änderungen nach dem Abruf zusammen,
+statt jedes Badge einzeln vorlesen zu lassen.
+
+Verglichen werden zwei gültige bekannte Zahlen desselben Workspaces, Kontos und
+Inserats, nur bei einem strikt neueren `metrics.observedAt`. Beim ersten Öffnen,
+bei neu hinzugekommenen Inseraten und nach Konto-/Workspacewechsel wird eine
+Ausgangsbasis gesetzt. `null` ist unbekannt und darf nicht als `0` verrechnet
+werden. Sinkende Zahlen aktualisieren die Basis, erzeugen aber keine positive
+Meldung. Beispiel: `5 → 4 → 5` zeigt beim letzten Abruf `+1`, nicht `+0` oder `+2`.
+Im geöffneten Konto beobachtet der Store diese Änderungen auch vor einem
+Bereichswechsel; der Vergleich wird nicht durch erneutes Mounten einer Karte gestartet.
+
+`metrics.observedAt` bezeichnet den Flipbase-Abruf, keine einzelne Nutzeraktion.
+Die Beschriftung lautet deshalb etwa „2 zusätzliche Aufrufe seit dem vorherigen
+Abruf“ oder „Favoritenzahl um 1 gestiegen“. Sichtbar ist der Nettoanstieg zwischen
+Abrufen; einzelne Personen oder zwischenzeitliche Zu- und Abgänge sind unbekannt.
+Es entsteht keine zusätzliche GoLogin-Abfrage und kein Echtzeitversprechen.
+
+### Favoritenmeldungen in der Glocke
+
+Aufrufe bleiben dezente Hinweise am Inserat. Favoritenanstiege erscheinen zusätzlich
+in der bestehenden Glockenoberfläche, auch wenn die Vinted-Ansicht während des
+Imports geschlossen war. Mehrere betroffene Inserate werden je Konto und Abruf
+zu einer Meldung zusammengefasst: etwa „3 Inserate haben mehr Favoriten“.
+Ein einzelner Treffer führt zum Inserat, mehrere zur Inserateliste des richtigen
+Kontos. Die Meldung nennt den beobachteten Anstieg, keine neue identifizierte Person.
+Favoritenmeldungen sind in den Kontoeinstellungen abschaltbar; nach Aktivierung
+setzt der erste erfolgreiche Abruf die Meldungsbasis, ohne historische Anstiege
+zu melden. Das gilt auch bei bereits vorhandenen alten Kennzahlen. Einstellungswechsel
+und laufender Import prüfen dieselbe Einstellungsfassung.
+Empfehlung für neue Konten: In-App-Meldungen an, ohne zusätzliche Töne.
+
+Diese dauerhafte Funktion braucht ein eigenes Serverpaket. Der erfolgreiche
+Import vergleicht und speichert Kennzahlen und Ereignis atomar. Nur tatsächlich
+übernommene Inseratzeilen erzeugen Ereignisse; vom Schutz vor älteren Beobachtungen
+zurückgewiesene Zeilen nicht. Erster bekannter
+Stand setzt nur die Basis; unveränderte, wiederholte, verspätete und parallele
+Imports erzeugen keine doppelten Meldungen. Die Prüfung umfasst alle importierten
+Inserate, nicht nur die erste Snapshotseite mit höchstens 50 Einträgen.
+Eine Meldung darf nicht aus jeder offenen Browseransicht heraus erzeugt werden.
+
+Die bestehende Tabelle `app_notifications` ist derzeit für alle Workspace-Mitglieder
+lesbar, Vinted jedoch nur für Plattformbetreiber mit Workspace-Adminrechten.
+Deshalb wird für Vinted ein eigener berechtigter Meldungsstrom in dieselbe Glocke
+integriert. Inseratnamen und Kontodetails werden nicht in den allgemeinen Feed
+kopiert. Neue Meldungen werden über private, autorisierte Broadcast-Kanäle und
+berechtigtes Nachladen übernommen; heute lädt die Glocke nur beim Workspacewechsel.
+Rechteverlust entfernt zuvor geladene Vinted-Meldungen. Gelesen bleibt entsprechend
+der bestehenden Glocke workspaceweit; persönlicher Lesestatus ist ein eigener Ausbau.
+
+Es geht um Hinweise innerhalb von Flipbase. Browsermeldungen, E-Mail, Telegram
+und Discord sind nicht Bestandteil dieser Ergänzung. Eine vollständig geschlossene
+App zeigt gespeicherte Meldungen beim nächsten Öffnen; sie erhält keine zugesagte
+Hintergrund-Pushzustellung.
+
+### Kompakte Detailansicht
+
 Die Detailansicht bekommt eine begrenzte Fotospalte links und Angaben rechts.
 Eine zusätzliche Shared-Bildvariante zeigt das gesamte Foto mit `object-contain`.
 Der bestehende Rastermodus `listing` bleibt unverändert. Bildausfall und Nachladen
@@ -123,6 +195,8 @@ Ein dauerhafter Beschreibungs-Cache existiert bereits. Der Umbau baut darauf auf
 5. Die bestehende Antwort `cache: pending` erhalten. Die aktuelle Anzeige darf
    erfolgreichen gelesenen Text benutzen, aber keine bestätigte dauerhafte
    Speicherung behaupten. Keine automatische Endlosschleife bei Speicherfehlern.
+   Auch das Fehlen dieser Warnung bestätigt keine Speicherung; ältere Antworten
+   und ein optionaler Cachewriter liefern keinen verlässlichen Speichernachweis.
 6. Beim Bearbeiten weiterhin aktuelle Vinted-Formfelder lesen. Ein alter
    Anzeige-Cache ersetzt keine aktuelle Prüfung vor einer Schreibaktion.
 
@@ -183,9 +257,11 @@ Zeitplanintervall oder Anbieteraktionen. Aktuell bleiben Plattformbetreiberrecht
 und Adminrechte im aktiven Workspace erforderlich. „Normaler Nutzer“ beschreibt
 hier verständliche Bedienung; es ist keine zusätzliche Rechtefreigabe.
 
-Getrennte Ereignisbenachrichtigungen, Nachrichtenversand, Angebotsannahme und
-automatische Verkaufsbuchung bleiben eigene Vorhaben. Ein späterer Ausbau der
-Beschreibungsfrische braucht einen wirklichen Beobachtungszeitpunkt
+Die sichtbaren Kennzahlenänderungen gehören zum Inseratepaket; dauerhafte
+Favoritenmeldungen bilden das zusätzliche fünfte Paket mit Schema-/Serveränderung.
+Die zuvor gewünschten getrennten Meldungen für Nachrichten, Angebote und Verkäufe,
+Nachrichtenversand, Angebotsannahme und automatische Verkaufsbuchung bleiben eigene
+Vorhaben. Ein späterer Ausbau der Beschreibungsfrische braucht einen wirklichen Beobachtungszeitpunkt
 `body.textCheckedAt`, Schutz vor verspäteten Rückläufen und eine generierte
 SQL-Migration für Cache-RPC/Erhaltungstrigger; keine neue Cache-Tabelle.
 
@@ -202,3 +278,7 @@ Tastatur, Touch, Fokus, reduzierte Bewegung und AXE. Dazu echte Zustandsfälle:
 leere/fehlende Daten, Teilabruf, Fehler, Pause, laufender Auftrag, Konto-/Workspacewechsel
 während Laden, alte Direktlinks, offenes Gespräch beim Hintergrundreload,
 bekannte/leere/fehlende Beschreibung sowie nicht bestätigte Bearbeitung.
+Kennzahlen zusätzlich: erster Import, `0 → 1`, `null → 5`, `5 → null`, Wiederholung,
+Abnahme und erneuter Anstieg, verspäteter/gleichzeitiger Import, mehrere Browser-Tabs,
+mehr als 50 Inserate, geschlossene Vinted-Ansicht, deaktivierte Meldungen,
+gleiche Inseratkennungen in verschiedenen Konten und Entzug der Berechtigung.
