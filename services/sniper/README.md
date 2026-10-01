@@ -231,8 +231,13 @@ Vinted-Anfragegrenzen und kein Nachweis, dass Vinted die Abrufe dauerhaft zuläs
 
 Nach HTTP 403 pausieren alle Marken und Kategorieabrufe. Nach Ablauf prüft
 genau eine fällige Abfrage den Zugang. Dabei wird die zuletzt abgewiesene,
-weiterhin aktive Abfrage bevorzugt: Ihre bereits gespeicherten Fehlerzähler
-führen zu 5, 10, 20, 40 und höchstens 60 Minuten Pause, auch nach einem Neustart.
+weiterhin aktive Abfrage bevorzugt. Bei einer erkannten Cloudflare-Prüfseite
+darf alle fünf Minuten genau eine Probe laufen, auch nach wiederholten Fehlern
+und Dienstneustarts. Zwischen diesen Proben bleiben alle Marken und
+Kategorieabrufe pausiert. Die fünf Minuten sind eine begrenzte betriebliche
+Wiederprüfung, keine von Vinted bestätigte Anfragegrenze.
+Andere 403-Ablehnungen führen anhand der gespeicherten Fehlerzähler weiterhin
+zu 5, 10, 20, 40 und höchstens 60 Minuten Pause, auch nach einem Neustart.
 Wird sie administrativ pausiert oder gelöscht, dient eine andere aktive,
 fällige Abfrage als Ersatz; dabei beginnt gegebenenfalls deren Fehlerzähler.
 Ein längeres `Retry-After` des Anbieters wird auch bei 403 eingehalten.

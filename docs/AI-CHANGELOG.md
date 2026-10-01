@@ -1,5 +1,30 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-01 – Juna – begrenzte Wiederprüfungen nach Cloudflare-Prüfseiten umgesetzt
+
+**Auftrag:** Nach „los“ die aus dem Serververgleich abgeleitete Wiederaufnahme
+umsetzen: Der unveränderte Sammler lieferte bereits wieder Artikel, während eine
+gespeicherte 40-Minuten-Pause den produktiven Zulauf weiter anhielt.
+
+**Änderung:** Nur bei einem ausdrücklich erkannten Prüfseitenhinweis erlaubt die
+Fehlerpolitik nach fünf Minuten wieder eine einzelne zentrale Probe. Gemeinsame
+Pause, Auswahl derselben aktiven Abfrage, gespeicherte Fehlerzähler, Probesperre
+und Minutenbudget bleiben erhalten. Eine längere Anbieterwartezeit hat Vorrang;
+unbestätigte 403 und 429 behalten ihre bisherige Behandlung. Bestehende gespeicherte
+Pausen werden nicht nachträglich verkürzt. Betriebsbeschreibung angepasst und den
+eigenen Serververgleich als Nachweis aufgenommen. Keine Schema- oder
+Abhängigkeitsänderung; kein Browserumbau.
+
+**Prüfung:** Drei neue Erwartungen zuerst passend fehlgeschlagen: 40 statt fünf
+Minuten, 40 statt der Anbieterwartezeit von 30 Minuten und steigende Pausen statt
+einzelner Fünf-Minuten-Proben über Dienstneustarts hinweg. Danach 204 Bot-Tests,
+Typprüfung, Dienstbau, gezieltes ESLint/Prettier sowie Docker-Bau und isolierter
+Image-Starttest erfolgreich. Wiederaufnahme aller drei Marken nach erfolgreicher
+Probe geprüft; Kategoriepause und vorhandene Probesperren in der Suite grün.
+Die tatsächliche Langzeitstabilität und der ursprüngliche Prüfseitenauslöser sind
+damit nicht nachgewiesen. Eigener Zweig `juna/vinted-recovery-probes` von aktuellem
+`origin/master`; Veröffentlichung steht noch aus, Produktion unverändert.
+
 ## 2026-10-01 – Juna – Artikelbot-Korrektur für PR und Merge freigegeben
 
 **Auftrag:** Nach ausdrücklichem „ja“ den lokal geprüften Artikelbot-Zweig
