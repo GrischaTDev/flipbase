@@ -10,6 +10,9 @@
     >
   }
 </div>
+<p class="sr-only" role="status" aria-live="polite" aria-atomic="true">
+  {{ metricDisplay.announcement() }}
+</p>
 @if (error(); as message) {
   <app-notice-banner announcement="alert" class="mb-4">{{ message }}</app-notice-banner>
 }
@@ -19,27 +22,27 @@
 @if (loading()) {
   <p role="status" class="text-sm text-fb-text-secondary">Inserat wird geladen …</p>
 } @else if (entry(); as item) {
-  <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(17rem,0.7fr)]">
-    <app-card class="min-w-0 overflow-hidden">
+  <div class="grid items-start gap-4 md:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
+    <app-card class="min-w-0 overflow-hidden" padding="sm">
       <app-product-thumbnail
         class="block w-full"
         [src]="selectedPhoto() ?? item.imageUrl"
         [alt]="item.title"
-        size="listing"
+        size="listing-detail"
       />
       @if (photos().length > 1) {
-        <div class="mt-3 flex flex-wrap gap-2" aria-label="Artikelfotos">
+        <div class="mt-3 flex flex-wrap gap-2" role="group" aria-label="Artikelfotos">
           @for (photo of photos(); track photo; let index = $index) {
             <button
               type="button"
-              class="w-16 overflow-hidden rounded-lg border-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
+              class="flex size-14 items-center justify-center overflow-hidden rounded-lg border-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
               [class.border-fb-primary]="selectedPhoto() === photo"
               [class.border-transparent]="selectedPhoto() !== photo"
               [attr.aria-label]="'Foto ' + (index + 1) + ' anzeigen'"
               [attr.aria-pressed]="selectedPhoto() === photo"
               (click)="selectedPhoto.set(photo)"
             >
-              <app-product-thumbnail class="block w-full" [src]="photo" [alt]="''" size="listing" />
+              <app-product-thumbnail [src]="photo" [alt]="''" size="md" />
             </button>
           }
         </div>
@@ -82,6 +85,12 @@
         <p class="mt-3 text-2xl font-semibold text-fb-text-primary">
           {{ item.price === null ? 'Preis unbekannt' : (item.price | currency: item.currency) }}
         </p>
+        <app-vinted-listing-metrics
+          class="mt-3"
+          [metrics]="item.metrics"
+          [change]="metricDisplay.changes()[item.id] ?? null"
+          [highlighted]="metricDisplay.highlighted().has(item.id)"
+        />
         <dl class="mt-5 divide-y divide-fb-line text-sm">
           <div class="flex justify-between gap-3 py-3">
             <dt class="text-fb-text-muted">Marke</dt>
@@ -95,25 +104,33 @@
             <dt class="text-fb-text-muted">Zustand</dt>
             <dd class="text-right text-fb-text-primary">{{ item.status ?? '—' }}</dd>
           </div>
-          <div class="flex justify-between gap-3 py-3">
-            <dt class="text-fb-text-muted">Aufrufe</dt>
-            <dd class="text-right text-fb-text-primary">{{ item.metrics.views ?? '—' }}</dd>
-          </div>
-          <div class="flex justify-between gap-3 py-3">
-            <dt class="text-fb-text-muted">Favoriten</dt>
-            <dd class="text-right text-fb-text-primary">{{ item.metrics.favorites ?? '—' }}</dd>
-          </div>
         </dl>
-        @if (item.text) {
+        @if (description(); as loaded) {
           <h3 class="mt-5 text-sm font-semibold text-fb-text-primary">Beschreibung</h3>
-          <p class="mt-2 whitespace-pre-wrap break-words text-sm text-fb-text-secondary">
-            {{ item.text }}
-          </p>
-        } @else if (item.textState === 'loaded') {
-          <p class="mt-5 text-sm text-fb-text-muted">Keine Beschreibung vorhanden.</p>
+          @if (loaded.description) {
+            <p class="mt-2 whitespace-pre-wrap break-words text-sm text-fb-text-secondary">
+              {{ loaded.description }}
+            </p>
+          } @else {
+            <p class="mt-2 text-sm text-fb-text-secondary">Keine Beschreibung vorhanden.</p>
+          }
+          @if (loaded.cacheState === 'pending') {
+            <p class="mt-2 text-xs text-fb-text-secondary">
+              Die Beschreibung ist geladen. Ihre dauerhafte Speicherung steht noch aus.
+            </p>
+          }
         } @else if (loadingDescription()) {
           <p role="status" class="mt-5 text-sm text-fb-text-muted">
             Beschreibung wird von Vinted geladen …
+          </p>
+        } @else if (descriptionError()) {
+          <p class="mt-5 text-sm text-fb-text-secondary">
+            Die Beschreibung konnte nicht geladen werden.
+          </p>
+          <app-button class="mt-2" (clicked)="loadDescription()">Erneut versuchen</app-button>
+        } @else {
+          <p class="mt-5 text-sm text-fb-text-secondary">
+            Die Beschreibung wurde noch nicht übernommen.
           </p>
         }
       }

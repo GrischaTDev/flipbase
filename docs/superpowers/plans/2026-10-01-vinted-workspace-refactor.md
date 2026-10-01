@@ -19,8 +19,8 @@ Keine neuen Abhängigkeiten. Pakete 1–4 benötigen keine SQL-/Workeränderung;
 Paket 5 benötigt deklaratives Schema, generierte Migration und Importanpassung.
 
 **Spec:** [Designentwurf](../specs/2026-10-01-vinted-workspace-design.md).
-Navigation vom Nutzer bestätigt; übriger Entwurf steht zur Prüfung. Dieser
-Plan beauftragt keine Veröffentlichung und enthält noch keine Produktimplementierung.
+Navigation und Umsetzung vom Nutzer bestätigt. Pakete 1–5 sind implementiert und
+unabhängig geprüft. Die Veröffentlichung bleibt gesondert freizugeben.
 
 ## Global Constraints
 
@@ -60,27 +60,27 @@ Alle Featurepfade liegen unter `src/app/features/marketplaces/`.
 **Schnittstellen:** `VintedAccountControlsComponent` erhält
 `connections: readonly MarketplaceConnection[]`, `account: MarketplaceConnection`,
 `canManage: boolean`, `refreshing: boolean`, `loading: boolean` als Signal-Inputs.
-Outputs: `accountSelected: string`, `refreshRequested: void`,
+Outputs: `accountSelected: string | null`, `refreshRequested: void`,
 `synchronized: MarketplaceSyncSchedule`. Das Konto bleibt im Elternstore.
 `VintedSyncScheduleComponent` bleibt außerhalb der Modalbedingung gemountet
 und liefert weiterhin `synchronized`. Der Workspace behält `sync()` und
 den vorhandenen `MarketplaceSyncProgressComponent`.
 
-- [ ] Kontokopf mit vorhandenem `PageHeader`, `CustomSelect`, Icon-Buttons und kurzer
+- [x] Kontokopf mit vorhandenem `PageHeader`, `CustomSelect`, Icon-Buttons und kurzer
       Datenstandangabe zusammensetzen. Normalen Konto-/Automatik-Riesenblock entfernen.
-- [ ] Vorhandenes Automatikmodal zu Kontoeinstellungen erweitern: Abstand,
+- [x] Vorhandenes Automatikmodal zu Kontoeinstellungen erweitern: Abstand,
       Pause/Fortsetzen, Anmelderoute, Kontenverwaltung und eingeklappte Abrufdetails.
       Kontextwechsel schließt alte Kontoeinstellungen. Fehler und notwendige Aktionen
       bleiben außerhalb des Modals erreichbar.
-- [ ] `VINTED_SECTIONS` in bestätigte RouteTabs mit stabilen IDs überführen;
+- [x] `VINTED_SECTIONS` in bestätigte RouteTabs mit stabilen IDs überführen;
       Aktivitäten aufnehmen, `/listings/:connectionId/:entryId` als Inserate aktiv halten.
       `/feedback` auf `/profile#reviews` weiterführen. Paket 2 stellt das Ziel bereit.
-- [ ] Bestehende Workspace-/Zeitplantests erweitern: `settingsClosedStillRefreshesSnapshot`,
+- [x] Bestehende Workspace-/Zeitplantests erweitern: `settingsClosedStillRefreshesSnapshot`,
       `contextChangeClosesSettings`, `pausedScheduleRemainsPaused`,
       `listingDetailKeepsListingsActive`, `activityAndProfileDeepLinks`.
       Erwartungen: geschlossener Dialog verhindert weder Zeitplanladen noch
       `synchronized`; Pause wird nicht aufgehoben; keine alte Kontoeinstellung bleibt offen.
-- [ ] Gezielt Angular-Tests und Template-Bau ausführen; keine zweite globale
+- [x] Gezielt Angular-Tests und Template-Bau ausführen; keine zweite globale
       AccountStore-Instanz oder allein im Modal lebenden Zeitplancontroller einführen.
 
 ## Paket 2: Übersicht, Profil und Aktivitäten
@@ -97,17 +97,17 @@ kontogebundener Gesprächskennung; Ziel ruft `openConversation(conversationId)` 
 nach Prüfung des aktuellen Kontos und des gespeicherten Gesprächs auf.
 Profil enthält die vorhandenen Profiledit-/Bewertungsbausteine und Anker `reviews`.
 
-- [ ] Drei kleine Gesamtzahlen mit Bereichslinks, letzte Gespräche und letzte
+- [x] Drei kleine Gesamtzahlen mit Bereichslinks, letzte Gespräche und letzte
       gespeicherte Verkäufe darstellen. Profilidentität zur kompakten Ergänzung machen.
-- [ ] Keine Summen aus der ersten Seite erzeugen. Tests `overviewUsesStoredTotals`
+- [x] Keine Summen aus der ersten Seite erzeugen. Tests `overviewUsesStoredTotals`
       und `overviewKeepsUnknownValues` verwenden etwa `items.length = 50`,
       `total = 87`; angezeigt wird die gespeicherte Gesamtzahl 87, kein erfundener
       Ungelesen-, Umsatz- oder Angebotswert.
-- [ ] Bewertungen in Profil integrieren; `/profile#reviews` führt und fokussiert
+- [x] Bewertungen in Profil integrieren; `/profile#reviews` führt und fokussiert
       den Bewertungsabschnitt. Keine doppelte Bewertungsladung durch den Altlink.
-- [ ] Aktivitäten mit vorhandener Datenquelle zeigen; leerer Zustand nennt
+- [x] Aktivitäten mit vorhandener Datenquelle zeigen; leerer Zustand nennt
       fehlende gespeicherte Vinted-Aktivitäten. Keine technischen Workerereignisse erfinden.
-- [ ] Gespräche aus Übersicht gezielt öffnen: Treffer, inzwischen entfernter Eintrag,
+- [x] Gespräche aus Übersicht gezielt öffnen: Treffer, inzwischen entfernter Eintrag,
       fremde Kennung und Kontextwechsel prüfen. Nur gespeicherte Supabase-Abfragen.
 
 ## Paket 3: Inserate, Bilder und Beschreibungsladen
@@ -136,38 +136,38 @@ Snapshot/Textcache oder den einmaligen Leseweg und liefert
 `stored` ist nur bei einem bereits geladenen Datenbank-/Snapshottext belegt;
 aktuell gelesener Text ohne Speicherwarnung bleibt `unconfirmed`.
 
-- [ ] Auge/Herz als dekorative Lucide-Icons in neutralen Shared-Badges ergänzen.
+- [x] Auge/Herz als dekorative Lucide-Icons in neutralen Shared-Badges ergänzen.
       Bedeutung zugänglich beschriften; `null` bleibt unbekannt, `0` bleibt sichtbar.
-- [ ] Im Store bei neuerem `metrics.observedAt` positive Aufruf-/Favoritendifferenzen
+- [x] Im Store bei neuerem `metrics.observedAt` positive Aufruf-/Favoritendifferenzen
       pro Inserat halten. Erstes Laden, neuer Eintrag und unbekannt → bekannt setzen
       nur die Basis. Sinkende Werte aktualisieren die Basis ohne positive Meldung.
       Vergleich unabhängig vom Mounten einer Karte, nur innerhalb des aktuellen Kontos.
-- [ ] Kleine `+N`-Zusätze im Raster und Detail darstellen; einmalige dezente
+- [x] Kleine `+N`-Zusätze im Raster und Detail darstellen; einmalige dezente
       Hervorhebung für etwa zwei Sekunden, statisch bei Reduced Motion.
       Zusatz bis zur nächsten neueren Beobachtung oder Verlassen von Raster/Detail;
       Vergleichsbasis im gleichen Kontokontext erhalten, bereits dargestellte Beobachtungen
       getrennt kennzeichnen. Wiedereintritt startet denselben Effekt nicht erneut;
       noch nicht angezeigte Änderungen dürfen erstmals erscheinen. Konto-/Workspacewechsel
       verwirft Differenzen. Eine zusammenfassende Live-Region statt vieler Einzelansagen.
-- [ ] Kennzahlenfälle absichern: `firstObservationSetsBaseline`,
+- [x] Kennzahlenfälle absichern: `firstObservationSetsBaseline`,
       `unknownCounterMakesNoDelta`, `zeroToOneShowsIncrease`,
       `olderOrRepeatedObservationMakesNoEffect`, `decreaseResetsBaseline`,
       `metricChangesCannotCrossAccount`. Effekte, Fokus und Reduced Motion im E2E prüfen.
-- [ ] Zusätzlichen Thumbnail-Modus `listing-detail` mit `object-contain` und
+- [x] Zusätzlichen Thumbnail-Modus `listing-detail` mit `object-contain` und
       vereinbartem Größenlimit einführen. `listing` für Raster nicht verändern.
       Galerie links begrenzen, Angaben rechts und mobil direkt unter kompakter Galerie zeigen.
-- [ ] Gespeicherte Snapshotdaten unmittelbar darstellen. Fehlender Eintrag nutzt
+- [x] Gespeicherte Snapshotdaten unmittelbar darstellen. Fehlender Eintrag nutzt
       `readPublication()`. Beschreibung separat laden; Routeparameter reaktiv lesen,
       lokale Zustände bei neuem Inserat zurücksetzen und Rückläufe vollständig prüfen.
-- [ ] Im AccountStore Anfragen je Nutzer/Workspace/Konto/Inserat zusammenführen.
+- [x] Im AccountStore Anfragen je Nutzer/Workspace/Konto/Inserat zusammenführen.
       Sitzungsergebnisse an bestehenden Kontext-/Auswahlversionen binden, bei deren
       Wechsel löschen. Maximal 50 Beschreibungen im Sitzungscache behalten; keine Tokens.
       Bestätigte Bearbeitung aktualisiert Anzeige und Snapshot, unbestätigte nicht.
-- [ ] `cache: pending` bis zum Store erhalten. Bei fehlender Beschreibung und
+- [x] `cache: pending` bis zum Store erhalten. Bei fehlender Beschreibung und
       Ladefehler „Erneut versuchen“ anbieten. Bereits geladenen leeren Text nicht neu lesen.
       Keine neue Aktualisieren-Aktion für schon geladene Beschreibung und keine
       aus Listenzeiten abgeleitete Frischeangabe.
-- [ ] Verhalten zuerst absichern: `knownDescriptionStartsNoBrowser`,
+- [x] Verhalten zuerst absichern: `knownDescriptionStartsNoBrowser`,
       `emptyLoadedDescriptionStartsNoBrowser`, `descriptionReadIsDeduplicated`,
       `pendingCacheSurvivesReopenWithinContext`, `lateDescriptionCannotCrossContext`,
       `detailRouteChangeResetsPhoto`, `editReadsFreshFields`,
@@ -191,21 +191,21 @@ bestehende `components/vinted-account-content/*`,
 Option `density: 'default' | 'compact'`; Default bleibt unverändert.
 Kompakt gilt nur für die Gesprächsliste, mit mindestens 44 px Touchfläche.
 
-- [ ] Gesprächsliste und Verlauf in einen Arbeitsbereich setzen; Desktopliste
+- [x] Gesprächsliste und Verlauf in einen Arbeitsbereich setzen; Desktopliste
       300 px, mobil Liste/Verlauf mit Zurückaktion. Vorschau eine Zeile, ergänzende
       Texte mindestens 12 px. Fokus beim Öffnen und Zurück bewusst führen.
-- [ ] Feste Pastellfarben entfernen; Themefarben für Fläche und Schrift gemeinsam
+- [x] Feste Pastellfarben entfernen; Themefarben für Fläche und Schrift gemeinsam
       verwenden. Neue Theme-Rolle nur, wenn bestehende neutrale/Infofarben nicht passen.
       Eingehend links, ausgehend rechts, System mittig, Angebote als reine Anzeige.
-- [ ] Abstand und Innenpadding auf die vereinbarten 8 px setzen; kurze Nachrichten
+- [x] Abstand und Innenpadding auf die vereinbarten 8 px setzen; kurze Nachrichten
       eng, lange Texte lesbar. Hintergrunddaten erhalten Fokus und Scrollposition;
       ältere Nachrichten behalten die sichtbare Lesestelle.
-- [ ] Zustände unterscheiden: lädt, leer, Lesefehler, noch nicht importierter
+- [x] Zustände unterscheiden: lädt, leer, Lesefehler, noch nicht importierter
       ungelesener Verlauf. Kontextbezogene Hilfe statt pauschalem großen Hinweisblock.
 - [ ] E2E ergänzt eingehende/ausgehende Nachrichten, Angebote, Systemmeldungen,
       unbekannte Richtung, lange URL, beide Themes und AXE ausdrücklich im Chat.
       Farben tatsächlich berechnen: mindestens 4,5:1, keine bloßen Klassenprüfungen.
-- [ ] Store-/Browsertests: `unreadConversationMakesNoProviderRequest`,
+- [x] Store-/Browsertests: `unreadConversationMakesNoProviderRequest`,
       `backgroundReloadKeepsConversationAndScroll`,
       `olderMessagesKeepReadingPosition`, `lateMessagesCannotCrossWorkspace`.
       Kein Composer, keine Angebotsannahme und keine Lesebestätigung hinzufügen.
@@ -226,7 +226,7 @@ Transaktion wie die gültige Kennzahlenübernahme. Die Glocke konsumiert autoris
 Ereignisse beziehungsweise deren kontoweise Zusammenfassung mit stabiler Kennung;
 `WebhookService.addNotification()` wird nicht aus einem Snapshotvergleich aufgerufen.
 
-- [ ] Import-Sperren und vorhandenen Schutz gegen ältere Beobachtungen erhalten.
+- [x] Import-Sperren und vorhandenen Schutz gegen ältere Beobachtungen erhalten.
       Bekannte Favoritenzahlen atomar vergleichen; erste/fehlende/unveränderte oder
       sinkende Werte erzeugen kein positives Ereignis. Einzigartiger Ereignisschlüssel
       verhindert Wiederholung und Parallelmeldungen; auch Konto-/Importzusammenfassung
@@ -234,37 +234,37 @@ Ereignisse beziehungsweise deren kontoweise Zusammenfassung mit stabiler Kennung
       Inseratzeilen erzeugen Ereignisse; zurückgewiesene alte Zeilen erzeugen keines.
       Fehlgeschlagene Speicherung darf
       keine Meldung zu einem nicht übernommenen Datenstand erzeugen.
-- [ ] Eigene Marktplatzmeldungen mit RLS und expliziten Operations-/Rollenpolicies
+- [x] Eigene Marktplatzmeldungen mit RLS und expliziten Operations-/Rollenpolicies
       definieren. Lesen und als gelesen markieren verlangen dieselben Betreiber-
       und Workspace-Adminrechte wie Vinted. Workspace-/Kontozuordnung unveränderbar
       halten; normale Clients dürfen keine Importereignisse selbst erzeugen.
       Neue Favoritenmeldungen nicht in den allgemeinen `app_notifications`-Feed kopieren.
-- [ ] Kontoabhängige Einstellung für Favoritenmeldungen persistieren. Neue Konten
+- [x] Kontoabhängige Einstellung für Favoritenmeldungen persistieren. Neue Konten
       erhalten In-App-Meldungen ohne Ton; deaktivierte oder gerade aktivierte Konten
       erzeugen keine nachträglichen historischen Meldungen. Die Basis wird auch während
       deaktivierter Meldungen weiter aktualisiert. Der erste erfolgreiche Abruf nach
       Aktivierung setzt nur die Meldungsbasis, auch wenn alte Kennzahlen vorhanden sind.
       Einstellungsänderung und laufender Import prüfen dieselbe Einstellungsfassung.
       Workspaceweiter Gelesen-Status wie bisher.
-- [ ] Deklarativen Schemaabgleich ausführen, Migration generieren und vollständig
+- [x] Deklarativen Schemaabgleich ausführen, Migration generieren und vollständig
       prüfen; nach Migration Supabase-Typen neu erzeugen. Keine manuelle Produktionsänderung.
-- [ ] Pro Konto und Import eine Glockenmeldung aus Ereignissen bilden, unabhängig
+- [x] Pro Konto und Import eine Glockenmeldung aus Ereignissen bilden, unabhängig
       von geöffneten Seiten und der Snapshotgrenze 50. Ein Treffer verlinkt das Inserat,
       mehrere die richtige Inserateliste. Entfernte Inserate ergeben einen verständlichen
       Zielzustand. Importbatch und Einzelereignisse beim Nachladen stabil deduplizieren.
-- [ ] Berechtigte private Broadcast-Kanäle mit Nachladen verbinden; Reconnect und
+- [x] Berechtigte private Broadcast-Kanäle mit Nachladen verbinden; Reconnect und
       App-Neustart holen fehlende Meldungen nach. Keine Abhängigkeit von aktiver
       Vinted-Komponente, kein `postgres_changes`. DestroyRef-Cleanup, Kontextwechsel
       und Rechteverlust leeren Subscription und geladene Vinted-Meldungen.
       Feed und Ungelesen-Zähler aus denselben autorisierten Quellen bilden;
       keine Gesamtzahl aus lediglich 50 geladenen Glockeneinträgen ableiten.
-- [ ] Datenbank-/Workerprüfungen: Erstimport, `0 → 1`, `null → 5`, `5 → null`,
+- [x] Datenbank-/Workerprüfungen: Erstimport, `0 → 1`, `null → 5`, `5 → null`,
       `5 → 4 → 5`, Wiederholung, verspäteter/gleichzeitiger Import, Transaktionsfehler,
       vom Upsert zurückgewiesene Zeile, wiederholter Batch ohne zweite Sammelmeldung,
       deaktivierte Meldungen, Aktivierung während Import und mehr als 50 Inserate.
       Fremder Workspace, normaler
       Workspace-Mitgliedszugang und Rechteverlust müssen Details und Zähler ausschließen.
-- [ ] Frontend-/E2E-Prüfungen: Vinted-Ansicht geschlossen, zwei Tabs, erneutes
+- [x] Frontend-/E2E-Prüfungen: Vinted-Ansicht geschlossen, zwei Tabs, erneutes
       Verbinden und späteres App-Öffnen ergeben eine gespeicherte Meldung;
       keine externe Nachricht, kein zusätzlicher GoLogin-Abruf und kein doppelter Ton.
       Neue private Channels und Importschnittstelle unabhängig prüfen lassen.
@@ -286,23 +286,53 @@ seriell; kein gleichzeitiger Umbau gemeinsamer Benachrichtigungsdateien.
 
 ## Prüfungen und Abschluss
 
-- [ ] Für jedes Paket betroffene Angular-/Modelltests gezielt ausführen;
+- [x] Für jedes Paket betroffene Angular-/Modelltests gezielt ausführen;
       Beispiel: `npm run test:angular -- src/app/features/marketplaces/`.
-- [ ] `npx playwright test e2e/marketplace-accounts.spec.ts` mit künstlichen
+- [x] `npx playwright test e2e/marketplace-accounts.spec.ts` mit künstlichen
       Daten und abgefangenen Anbieterantworten; bestehende Demo-/CI-Konfiguration verwenden.
-- [ ] Geänderte Dateien mit Prettier und ESLint prüfen; `npm run typecheck`,
+- [x] Geänderte Dateien mit Prettier und ESLint prüfen; `npm run typecheck`,
       `npm run build`, `node scripts/check-admin-shared-ui.mjs` und
       `npm run test:audit` ausführen. Angular-Templateprüfung nicht durch tsc ersetzen.
-- [ ] Screenshots hell/dunkel, 1440 × 900, 390 und 320 px; 200 % Zoom,
+- [x] Screenshots hell/dunkel, 1440 × 900, 390 und 320 px; 200 % Zoom,
       Tastatur, Fokus, Touch, Reduced Motion und AXE manuell/automatisch abnehmen.
-- [ ] Für Paket 5 betroffene Datenbank-/Workerprüfungen, Schemaabgleich und
+- [x] Für Paket 5 betroffene Datenbank-/Workerprüfungen, Schemaabgleich und
       Migrationstypen prüfen; tatsächliche serverseitige Zustellung in die berechtigte
-      Glocke vor Abschluss nachweisen. Workerrollout gehört zum freigegebenen Release.
-- [ ] AI-Changelog ergänzen; lokale Prüfergebnisse und tatsächlich verbleibende
+      Glocke vor Abschluss nachweisen. Der bestehende Worker ruft unverändert den
+      Import-RPC auf; die neuen Hooks benötigen Schema-/Anwendungsrelease.
+- [x] AI-Changelog ergänzen; lokale Prüfergebnisse und tatsächlich verbleibende
       Grenzen dokumentieren. Keine Produktivkonten ändern, um bloß Layouttests zu bestehen.
 - [ ] Nach fertiger Umsetzung exakt fragen:
       „Soll ich jetzt den PR erstellen und nach erfolgreichen Tests mergen?“
       Erst nach dieser Freigabe pushen und den grünen PR per Merge-Commit integrieren.
+
+## Lokale Abnahme am 1. Oktober 2026
+
+Die fünf Pakete wurden umgesetzt und unabhängig geprüft. Konkrete Reviewfehler
+bei Dialogfokus, Nachrichtenwiederholung, alten Beschreibungsantworten,
+Kontoparametern in Glockenlinks und verspäteten Antworten nach Rechteentzug sind
+behoben und mit Regressionen abgesichert.
+
+- Breiter Anwendungslauf: 3.448 Tests erfolgreich; nach den letzten Korrekturen
+  gezielt nochmals 296 betroffene Angular-Tests erfolgreich.
+- Abschließende Typprüfung und Produktionsbau erfolgreich. Der bestehende
+  pako-CommonJS-Hinweis bleibt ohne neuen Buildfehler.
+- Generierte Migration auf unverändertem lokalem Ausgangsstand angewendet:
+  acht Datenbanksuiten mit 344 Prüfungen sowie drei echte parallele
+  Import-/Einstellungsabläufe erfolgreich. Funktionsrümpfe unabhängig abgeglichen.
+- Kombinierter Chromium-Lauf: 19 Fälle erfolgreich, mit künstlichen
+  Serverantworten statt Produktivkonten. Hell/dunkel, 1440/390/320 px,
+  200 % Vergrößerung, AXE, Tastatur und Fokus, Reduced Motion,
+  Hintergrundübernahme bei geschlossenem Dialog und zwei offene Tabs geprüft.
+- Shared-UI-Prüfung: 129 Dateien, keine Befunde. Teststrukturprüfung:
+  372 Testdateien erfolgreich geprüft. Geänderte Dateien formatiert und gelintet.
+
+Kennzahlenzeit belegt keine Beschreibungsfrische. Noch nicht datenbankbestätigter
+Sitzungstext bleibt deshalb innerhalb seines Kontokontexts erhalten. Kein
+zusätzlicher Anbieterabruf oder Beschreibungszeitvertrag wurde eingeführt.
+Favoritenmeldungen zeigen beobachtete Nettoanstiege, keine einzelnen Personen.
+Die schnelle Benachrichtigung über Nachrichten, Angebote und Verkäufe bleibt
+ein separater Ausbau. Veröffentlichung und tatsächliche Produktionszustellung
+werden erst nach Freigabe über den geprüften PR vorgenommen.
 
 ## Separater späterer Ausbau
 

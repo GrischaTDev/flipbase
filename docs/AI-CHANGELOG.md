@@ -1,5 +1,61 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-01 – Juna – Vinted-Ansicht umgebaut und Favoritenmeldungen umgesetzt
+
+**Auftrag:** Den freigegebenen Entwurf nach „los“ umsetzen: kompakter Kontokopf,
+Einstellungen im Dialog, Navigation mit Aktivitäten und Profilbewertungen,
+nützliche Übersicht, kleinere Inseratdetails, lesbare Nachrichten und sichtbare
+Kennzahlenanstiege. Mehrere Agents übernehmen getrennte Pakete und Reviews.
+
+**Änderung:** Gemeinsame UI-Bausteine und Themefarben bündeln Kontowahl,
+Aktualisierungsicon und Einstellungen. Die bestehende Automatik bleibt außerhalb
+des Dialogs aktiv. Übersicht zeigt gespeicherte Gespräche, Verkäufe und tatsächliche
+Gesamtzahlen. Aktivitäten zeigt gespeicherte Einträge, ohne künstliche Ereignisse
+zu erfinden. Alte Bewertungslinks führen mit Fokus zum Profilabschnitt.
+Detailfotos sind begrenzt; vorhandene Beschreibungen erscheinen direkt. Fehlende
+Texte werden einmal kontogebunden geladen und im Sitzungscache gehalten, ohne eine
+erfolgreiche Antwort als bestätigte Datenbankspeicherung auszugeben. Bestätigte
+Bearbeitungen werden gegen ältere Cacheantworten geschützt. Eine spätere
+Kennzahlenzeit gilt nicht als neuerer Beschreibungstext; noch nicht
+datenbankbestätigter Sitzungstext bleibt deshalb konservativ erhalten.
+Nachrichten bleiben
+bei Nachladefehlern sichtbar; Wiederholen funktioniert auch nach neuen Snapshots.
+
+**Kennzahlen und Meldungen:** Bekannte neuere Stände zeigen Aufruf-/Favoritenanstiege
+als `+N` mit begrenzter Hervorhebung; Reduced Motion bleibt statisch. Erstwerte,
+unbekannte Zahlen, Rückgänge und Wiederholungen erzeugen keinen falschen Anstieg.
+Akzeptierte Datenbankimporte erzeugen atomare, deduplizierte Favoritenmeldungen,
+kontoweise zusammengefasst und standardmäßig ohne Ton. Aktivieren setzt zuerst
+eine neue Basis, auch bei Teilimporten. Der eigene berechtigte Meldungsstrom
+erscheint in der globalen Glocke; Kontoparameter in Sammellinks bleiben erhalten.
+Private Broadcasts invalidieren nur den Feed, ein begrenzter Datenbankabruf fängt
+ausgefallene Verbindungen auf. Rechte-/Kontextwechsel verwerfen alte Antworten.
+
+**Prüfung:** Gezielte Regressionen zunächst mit Fehler, danach erfolgreich;
+unabhängige Reviews und deren Dialog-, Verlauf-, Cache-, Link- und Rechterennen-
+Korrekturen. Der breite Lauf mit 3.448 Anwendungstests war erfolgreich; spätere
+Korrekturen wurden anschließend gezielt geprüft, zuletzt 296 betroffene
+Angular-Tests erfolgreich. Abschließende Typprüfung und
+Produktionsbau erfolgreich; nur der bestehende pako-CommonJS-Hinweis bleibt.
+Alle acht Marktplatz-Datenbanktests (344 Prüfungen) bestehen auch nach Anwendung
+der erzeugten Migration auf dem unveränderten lokalen Ausgangsstand; echte
+parallele Importe/Einstellungswechsel zusätzlich geprüft. Schema registriert,
+Typen neu erzeugt. Der CLI-Abgleich wurde um automatisch aus Diff/Katalog/Dump
+erzeugte Rollenrechte und die übersprungene Realtime-Policy ergänzt; alle elf
+Funktionsrümpfe sind mit den deklarativen Quellen abgeglichen. Alle 19 kombinierten
+Chromium-Browserfälle mit künstlichen Serverantworten bestehen: 1440/390/320 px,
+hell/dunkel, 200 % Vergrößerung, AXE, Tastatur/Fokus, Reduced Motion,
+Hintergrundübernahme bei geschlossenem Dialog und gespeicherte Meldungen in zwei
+Tabs. Keine Konsolenfehler oder Angular-Warnungen in den sechs neuen UI-Fällen.
+
+**Grenzen:** Favoritenmeldungen zeigen beobachtete Nettoanstiege beim Abruf;
+einzelne Personen oder Echtzeitereignisse werden nicht behauptet. Keine externen
+Nachrichten, Browser-Pushs oder zusätzlichen Vinted-Abfragen. Getrennte schnelle
+Nachrichten-/Angebots-/Verkaufsbenachrichtigungen gehören nicht zu diesem Umbau.
+Die unveränderte Worker-Importschnittstelle führt die neuen Datenbankhooks aus;
+dieser Umbau benötigt Schema-/Anwendungsrelease, kein zusätzliches Workerimage.
+Eigener Zweig/Worktree; bisher keine Veröffentlichung oder Produktionsänderung.
+
 ## 2026-10-01 – Juna – sichtbare Vinted-Kennzahlenänderungen ergänzt
 
 **Auftrag:** Steigende Aufruf- und Favoritenzahlen am Inserat erkennbar machen;

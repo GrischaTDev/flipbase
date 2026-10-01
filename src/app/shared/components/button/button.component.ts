@@ -36,6 +36,7 @@ export class ButtonComponent {
   readonly variant = input<ButtonVariant>('secondary');
   readonly tone = input<TableActionTone>('brand');
   readonly size = input<ButtonSize>('md');
+  readonly density = input<'default' | 'compact'>('default');
   readonly loading = input<boolean>(false);
   readonly disabled = input<boolean>(false);
   readonly icon = input<LucideIconInput | null>(null);
@@ -143,7 +144,11 @@ export class ButtonComponent {
       width,
       variantStyles[this.variant()],
       this.variant() === 'table-action' ? tableActionToneStyles[this.tone()] : '',
-      this.variant() === 'list-row' ? 'min-h-18 rounded-lg py-3 text-sm' : sizeStyles[this.size()],
+      this.variant() === 'list-row'
+        ? this.density() === 'compact'
+          ? 'min-h-11 rounded-lg py-2 text-[13px]'
+          : 'min-h-18 rounded-lg py-3 text-sm'
+        : sizeStyles[this.size()],
       horizontalPadding,
     ]
       .filter(Boolean)

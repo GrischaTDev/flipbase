@@ -115,6 +115,10 @@ begin
   select body->'feedbacks' into v_old_feedback from public.marketplace_account_entries
     where workspace_id = p_workspace_id and connection_id = p_connection_id and kind = 'profile';
 
+  -- Gleiche Kontosperre und Einstellungsfassung für Ausgangsbasis und alle
+  -- tatsächlich übernommenen Inserate dieses Batches.
+  perform public.marketplace_prepare_favorite_import(p_workspace_id,p_connection_id,v_observed_at);
+
   for v_entry in select value from jsonb_array_elements(p_snapshot->'entries') order by (value->>'kind' = 'message') loop
     v_kind := v_entry->>'kind';
     v_area := case v_kind when 'profile' then 'profile' when 'publication' then 'publications' when 'conversation' then 'conversations' when 'message' then 'messages' when 'sale' then 'sales' end;
@@ -196,6 +200,7 @@ begin
     update public.marketplace_connections set last_synced_at = v_observed_at where id = p_connection_id and (last_synced_at is null or last_synced_at < v_observed_at);
   end if;
   if v_session.expires_at <= clock_timestamp() then raise exception 'Sitzung während des Imports abgelaufen' using errcode = '42501'; end if;
+  perform public.marketplace_finalize_favorite_import(p_workspace_id,p_connection_id,v_observed_at,p_snapshot->'areas'->'publications'->>'status' <> 'failed');
   return v_counts;
 end;
 $$;

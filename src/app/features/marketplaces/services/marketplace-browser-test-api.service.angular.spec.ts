@@ -299,3 +299,17 @@ it('behandelt nur nachgelesene Vinted-Änderungen als gespeichert', async () => 
     'nicht eindeutig bestätigt',
   );
 });
+
+it('bewahrt eine ausstehende Textspeicherung und bestätigt alte Antworten nicht', async () => {
+  const fields = { title: 'Jacke', description: '', price: '12,50' };
+  const request = vi.fn().mockResolvedValue(Response.json({ fields, cache: 'pending' }));
+  vi.stubGlobal('fetch', request);
+  expect(await api.readListingData(scope, id, 'token')).toEqual({ fields, cacheState: 'pending' });
+  request.mockResolvedValueOnce(Response.json({ fields }));
+  expect(await api.readListingData(scope, id, 'token')).toEqual({
+    fields,
+    cacheState: 'unconfirmed',
+  });
+  request.mockResolvedValueOnce(Response.json({ fields: { ...fields, description: null } }));
+  await expect(api.readListingData(scope, id, 'token')).rejects.toThrow('ungültige');
+});

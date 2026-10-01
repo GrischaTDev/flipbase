@@ -28,21 +28,67 @@ function erstelleKomponente() {
     clearNotifications: vi.fn(async () => ({ data: [], error: null, reportedBySyncStatus: false })),
   };
   const component = Object.create(HeaderComponent.prototype) as HeaderComponent;
+  const favoriteNotifications = {
+    markAsRead: vi.fn(async (_id: string) => undefined),
+    markAllAsRead: vi.fn(async () => undefined),
+    clearNotifications: vi.fn(async () => undefined),
+  };
   Object.assign(component, {
     webhookService,
+    favoriteNotifications,
     toast,
     syncStatus: new SyncStatusService(),
     dialog: { zeigeHinweis: vi.fn(async () => undefined) },
     isNotificationDropdownOpen: signal(true),
     isUpdatingNotifications: signal(false),
   });
-  return { component, toast, webhookService };
+  return { component, toast, webhookService, favoriteNotifications };
 }
 
 describe('HeaderComponent – Inbox-Aktionen', () => {
+  it('markiert Favoritenmeldungen ausschließlich im berechtigten Marktplatzstrom', async () => {
+    const { component, favoriteNotifications, webhookService, toast } = erstelleKomponente();
+    await component.oeffneBenachrichtigung({ ...notification, id: 'marketplace:favorite-1' });
+    expect(favoriteNotifications.markAsRead).toHaveBeenCalledExactlyOnceWith(
+      'marketplace:favorite-1',
+    );
+    expect(webhookService.markAsRead).not.toHaveBeenCalled();
+    expect(toast.toasts()).toEqual([]);
+  });
+
+  it.each(['onMarkAllNotificationsRead', 'onClearNotifications'] as const)(
+    'bestätigt %s bei fehlgeschlagener Favoritenaktion nicht als erfolgreich',
+    async (action) => {
+      const { component, favoriteNotifications, toast } = erstelleKomponente();
+      const operation =
+        action === 'onMarkAllNotificationsRead' ? 'markAllAsRead' : 'clearNotifications';
+      favoriteNotifications[operation].mockRejectedValue(new Error('Favoriten nicht erreichbar'));
+      await component[action]();
+      expect(toast.toasts()).toHaveLength(1);
+      expect(toast.toasts()[0]).toMatchObject({
+        type: 'error',
+        description: 'Favoriten nicht erreichbar',
+      });
+      expect(component.isUpdatingNotifications()).toBe(false);
+    },
+  );
+
+  it('meldet bereits zentral gemeldete allgemeine Fehler nicht erneut', async () => {
+    const { component, webhookService, toast, favoriteNotifications } = erstelleKomponente();
+    webhookService.markAllAsRead.mockResolvedValue({
+      data: [],
+      error: new Error('offline'),
+      reportedBySyncStatus: true,
+    } as never);
+    await component.onMarkAllNotificationsRead();
+    expect(favoriteNotifications.markAllAsRead).toHaveBeenCalledOnce();
+    expect(toast.toasts()).toEqual([]);
+  });
+
   it('öffnet eine Benachrichtigung ohne Erfolgs-Toast', async () => {
-    const { component, toast } = erstelleKomponente();
+    const { component, toast, favoriteNotifications } = erstelleKomponente();
     await component.oeffneBenachrichtigung(notification);
+    expect(favoriteNotifications.markAsRead).not.toHaveBeenCalled();
     expect(toast.toasts()).toEqual([]);
     expect(component.isNotificationDropdownOpen()).toBe(false);
   });
@@ -63,14 +109,16 @@ describe('HeaderComponent – Inbox-Aktionen', () => {
   });
 
   it('bestätigt explizites Gelesen-Markieren und Löschen erst nach Erfolg', async () => {
-    const { component, toast } = erstelleKomponente();
+    const { component, toast, favoriteNotifications } = erstelleKomponente();
     await component.onMarkAllNotificationsRead();
+    expect(favoriteNotifications.markAllAsRead).toHaveBeenCalledOnce();
     expect(toast.toasts()[0]).toMatchObject({
       type: 'success',
       title: 'Alle Benachrichtigungen wurden als gelesen markiert.',
     });
     toast.toasts().forEach((meldung) => toast.dismiss(meldung.id));
     await component.onClearNotifications();
+    expect(favoriteNotifications.clearNotifications).toHaveBeenCalledOnce();
     expect(toast.toasts()[0]).toMatchObject({
       type: 'success',
       title: 'Benachrichtigungsverlauf wurde gelöscht.',
