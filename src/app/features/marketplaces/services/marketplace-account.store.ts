@@ -1,7 +1,17 @@
 import { DestroyRef, Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
 import { AuthService } from '../../../core/services/auth.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
-import type { AccountScope, MarketplaceConnection } from '../models/marketplace.models';
+import type {
+  AccountScope,
+  MarketplaceConnection,
+  MarketplaceMetrics,
+} from '../models/marketplace.models';
+import type { VintedListingDescription } from '../models/vinted-listing-description';
+import {
+  observeVintedListingMetrics,
+  type VintedListingMetricChange,
+  type VintedListingMetricChanges,
+} from '../models/vinted-listing-metric-change';
 import type {
   MarketplaceEntry,
   MarketplaceEntryKind,
@@ -74,6 +84,15 @@ export class MarketplaceAccountStore {
   private conversationRevision = 0;
   private mutationRevision = 0;
   private destroyed = false;
+  private readonly descriptions = new Map<string, VintedListingDescription>();
+  private readonly descriptionRequests = new Map<string, Promise<VintedListingDescription>>();
+  private metricConnectionId: string | null = null;
+  private readonly metricBaselines = new Map<string, MarketplaceMetrics>();
+  private readonly displayedMetricObservations = new Map<string, string>();
+  private readonly metricChanges = signal<Readonly<Record<string, VintedListingMetricChange>>>({});
+  readonly listingMetricChanges = computed<VintedListingMetricChanges>(() =>
+    this.current() && this.activeId() === this.metricConnectionId ? this.metricChanges() : {},
+  );
 
   readonly connections = computed(() => (this.current() ? this.accountList() : []));
   readonly canManage = computed(() => this.current() && this.access());
@@ -125,6 +144,7 @@ export class MarketplaceAccountStore {
     const previousId = preferredId ?? this.activeId();
     const revision = ++this.connectionsRevision;
     this.selectionRevision++;
+    this.clearDescriptions();
     this.selectionEpoch.update((value) => value + 1);
     this.conversationRevision++;
     this.accountList.set([]);
@@ -145,6 +165,7 @@ export class MarketplaceAccountStore {
       this.access.set(result.canManage);
       this.fetching.set(false);
       if (!result.canManage) {
+        this.clearListingMetrics();
         this.loadError.set('Du hast keinen Verwaltungszugriff auf diese Marktplatzkonten.');
         return;
       }
@@ -152,6 +173,7 @@ export class MarketplaceAccountStore {
         result.connections.find((item) => item.connectionId === previousId) ??
         result.connections[0];
       if (selected) await this.selectConnection(selected.connectionId);
+      else this.clearListingMetrics();
     } catch (error) {
       if (this.isCurrent(key) && revision === this.connectionsRevision) this.handleError(error);
     } finally {
@@ -163,6 +185,11 @@ export class MarketplaceAccountStore {
     const connection = this.connections().find((item) => item.connectionId === connectionId);
     const key = this.contextKey();
     if (!connection || !key || !this.canManage()) return;
+    this.clearDescriptions();
+    if (this.metricConnectionId !== connection.connectionId) {
+      this.clearListingMetrics();
+      this.metricConnectionId = connection.connectionId;
+    }
     if (this.syncConnectionId !== connectionId) {
       this.syncConnectionId = null;
       this.syncStatus.set(null);
@@ -181,8 +208,7 @@ export class MarketplaceAccountStore {
     try {
       const scope = this.scope(connection);
       const result = await this.api.readSnapshot(scope);
-      if (this.isCurrent(key) && revision === this.selectionRevision)
-        this.accountSnapshot.set(result);
+      if (this.isCurrent(key) && revision === this.selectionRevision) this.acceptSnapshot(result);
     } catch (error) {
       if (this.isCurrent(key) && revision === this.selectionRevision) this.handleError(error);
     } finally {
@@ -217,7 +243,7 @@ export class MarketplaceAccountStore {
     try {
       const result = await this.api.readSnapshot(this.scope(connection));
       if (!isCurrent()) return;
-      this.accountSnapshot.set(result);
+      this.acceptSnapshot(result);
       this.accountList.update((connections) =>
         connections.map((account) =>
           account.connectionId === scope.connectionId ? { ...account, lastSyncedAt } : account,
@@ -252,13 +278,19 @@ export class MarketplaceAccountStore {
   async openConversation(id: string): Promise<void> {
     const connection = this.selectedConnection();
     const key = this.contextKey();
-    if (!key || !connection || !this.snapshot()?.conversations.items.some((item) => item.id === id))
+    const alreadySelected = this.conversationId() === id;
+    if (
+      !key ||
+      !connection ||
+      !this.canManage() ||
+      (!alreadySelected && !this.snapshot()?.conversations.items.some((item) => item.id === id))
+    )
       return;
     const revision = ++this.conversationRevision;
     const selection = this.selectionRevision;
     if (this.fetchingPage() === 'message') this.fetchingPage.set(null);
     this.conversationId.set(id);
-    this.messagePage.set(null);
+    if (!alreadySelected) this.messagePage.set(null);
     this.fetchingMessages.set(true);
     this.loadError.set(null);
     try {
@@ -317,10 +349,12 @@ export class MarketplaceAccountStore {
       ];
       const combined = { ...result, items };
       if (kind === 'message') this.messagePage.set(combined);
-      else
+      else {
+        if (kind === 'publication') this.observeListingMetrics(result.items);
         this.accountSnapshot.update((value) =>
           value ? { ...value, [snapshotPages[kind]]: combined } : value,
         );
+      }
     } catch (error) {
       if (
         this.isCurrent(key) &&
@@ -401,10 +435,110 @@ export class MarketplaceAccountStore {
   }
   async readPublication(connectionId: string, entryId: string): Promise<MarketplaceEntry | null> {
     const connection = this.selectedConnection();
-    if (!this.canManage() || connection?.connectionId !== connectionId) return null;
-    return this.api.readPublication(this.scope(connection), entryId);
+    const key = this.contextKey();
+    const selection = this.selectionRevision;
+    if (!key || !this.canManage() || connection?.connectionId !== connectionId) return null;
+    const known = this.snapshot()?.publications.items.find((entry) => entry.id === entryId);
+    if (known) return known;
+    let entry: MarketplaceEntry | null;
+    try {
+      entry = await this.api.readPublication(this.scope(connection), entryId);
+    } catch (error) {
+      if (this.isCurrent(key) && selection === this.selectionRevision) this.handleError(error);
+      throw error;
+    }
+    if (!this.isCurrent(key) || selection !== this.selectionRevision) return null;
+    if (
+      entry &&
+      entry.connectionId === connectionId &&
+      entry.workspaceId === connection.workspaceId
+    ) {
+      this.rememberStoredDescription(entry);
+      this.observeListingMetrics([entry]);
+      return entry;
+    }
+    return null;
+  }
+
+  cachedListingDescription(
+    connectionId: string,
+    entry: MarketplaceEntry,
+  ): VintedListingDescription | null {
+    const connection = this.selectedConnection();
+    if (
+      !this.canManage() ||
+      connection?.connectionId !== connectionId ||
+      entry.connectionId !== connectionId ||
+      entry.workspaceId !== connection.workspaceId
+    )
+      return null;
+    return this.rememberStoredDescription(entry);
+  }
+
+  async readListingDescription(
+    connectionId: string,
+    entryId: string,
+  ): Promise<VintedListingDescription> {
+    const connection = this.selectedConnection();
+    const key = this.contextKey();
+    const selection = this.selectionRevision;
+    if (!key || !this.canManage() || connection?.connectionId !== connectionId)
+      throw new Error('Wähle zuerst das Vinted-Konto aus.');
+    const cached = this.descriptions.get(entryId);
+    if (cached) {
+      this.cacheDescription(entryId, cached);
+      return cached;
+    }
+    const known = this.snapshot()?.publications.items.find((entry) => entry.id === entryId);
+    if (known && (known.textState === 'loaded' || known.text !== null)) {
+      return this.rememberStoredDescription(known)!;
+    }
+    const running = this.descriptionRequests.get(entryId);
+    if (running) return running;
+    const token = this.auth.session()?.access_token;
+    if (connection.status !== 'connected' || !token)
+      throw new Error('Verbinde Dein Vinted-Konto, um die Beschreibung zu laden.');
+    const request = this.browserApi
+      .readListingData(this.scope(connection), entryId, token)
+      .then((read) => {
+        if (!this.isCurrent(key) || selection !== this.selectionRevision)
+          throw new Error('Die Kontoauswahl hat sich geändert.');
+        // Eine inzwischen bestätigte Bearbeitung hat Vorrang vor diesem früher begonnenen Lesen.
+        const current = this.descriptions.get(entryId);
+        if (current && current.cacheState !== 'stored') {
+          this.cacheDescription(entryId, current);
+          return current;
+        }
+        const result: VintedListingDescription = {
+          description: read.fields.description,
+          cacheState: read.cacheState,
+        };
+        this.cacheDescription(entryId, result);
+        return result;
+      });
+    this.descriptionRequests.set(entryId, request);
+    try {
+      return await request;
+    } finally {
+      if (this.descriptionRequests.get(entryId) === request)
+        this.descriptionRequests.delete(entryId);
+    }
+  }
+
+  consumeListingMetricChanges(entryIds: readonly string[]): VintedListingMetricChanges {
+    const changes = this.listingMetricChanges();
+    const result: Record<string, VintedListingMetricChange> = {};
+    for (const id of entryIds) {
+      const change = changes[id];
+      if (!change || this.displayedMetricObservations.get(id) === change.observedAt) continue;
+      this.displayedMetricObservations.set(id, change.observedAt);
+      result[id] = change;
+    }
+    return result;
   }
   async readListingEdit(connectionId: string, entryId: string): Promise<VintedListingEditFields> {
+    const key = this.contextKey();
+    const selection = this.selectionRevision;
     const connection = this.selectedConnection();
     const token = this.auth.session()?.access_token;
     if (
@@ -414,13 +548,18 @@ export class MarketplaceAccountStore {
       !token
     )
       throw new Error('Wähle zuerst das verbundene Vinted-Konto aus.');
-    return this.browserApi.readListingEdit(this.scope(connection), entryId, token);
+    const fields = await this.browserApi.readListingEdit(this.scope(connection), entryId, token);
+    if (!key || !this.isCurrent(key) || selection !== this.selectionRevision)
+      throw new Error('Die Kontoauswahl hat sich geändert.');
+    return fields;
   }
   async saveListingEdit(
     connectionId: string,
     entryId: string,
     fields: VintedListingEditFields,
   ): Promise<void> {
+    const key = this.contextKey();
+    const selection = this.selectionRevision;
     const connection = this.selectedConnection();
     const token = this.auth.session()?.access_token;
     if (
@@ -431,6 +570,30 @@ export class MarketplaceAccountStore {
     )
       throw new Error('Wähle zuerst das verbundene Vinted-Konto aus.');
     await this.browserApi.saveListingEdit(this.scope(connection), entryId, fields, token);
+    if (!key || !this.isCurrent(key) || selection !== this.selectionRevision)
+      throw new Error('Die Kontoauswahl hat sich geändert. Prüfe die Änderung bei Vinted.');
+    this.cacheDescription(entryId, { description: fields.description, cacheState: 'unconfirmed' });
+    this.accountSnapshot.update((value) =>
+      value && value.connectionId === connectionId
+        ? {
+            ...value,
+            publications: {
+              ...value.publications,
+              items: value.publications.items.map((entry) =>
+                entry.id === entryId
+                  ? {
+                      ...entry,
+                      title: fields.title,
+                      text: fields.description,
+                      textState: 'loaded',
+                      price: Number(fields.price.replace(',', '.')),
+                    }
+                  : entry,
+              ),
+            },
+          }
+        : value,
+    );
   }
   async readProfileAbout(connectionId: string): Promise<string> {
     const connection = this.selectedConnection();
@@ -516,6 +679,8 @@ export class MarketplaceAccountStore {
     this.loadError.set(errorMessage(error));
   }
   private reset(): void {
+    this.clearDescriptions();
+    this.clearListingMetrics();
     this.selectionEpoch.update((value) => value + 1);
     this.accountList.set([]);
     this.activeId.set(null);
@@ -532,5 +697,57 @@ export class MarketplaceAccountStore {
     this.writeError.set(null);
     this.syncStatus.set(null);
     this.syncConnectionId = null;
+  }
+
+  private clearDescriptions(): void {
+    this.descriptions.clear();
+    this.descriptionRequests.clear();
+  }
+  private cacheDescription(id: string, description: VintedListingDescription): void {
+    this.descriptions.delete(id);
+    this.descriptions.set(id, description);
+    if (this.descriptions.size > 50)
+      this.descriptions.delete(this.descriptions.keys().next().value!);
+  }
+  private rememberStoredDescription(entry: MarketplaceEntry): VintedListingDescription | null {
+    const cached = this.descriptions.get(entry.id);
+    if (entry.textState !== 'loaded' && entry.text === null) return cached ?? null;
+    // Kennzahlenzeit belegt keine Textfassung: Listenimporte können alten Text übernehmen.
+    const value: VintedListingDescription =
+      cached && cached.cacheState !== 'stored'
+        ? cached
+        : { description: entry.text ?? '', cacheState: 'stored' };
+    this.cacheDescription(entry.id, value);
+    return value;
+  }
+  private clearListingMetrics(): void {
+    this.metricConnectionId = null;
+    this.metricBaselines.clear();
+    this.displayedMetricObservations.clear();
+    this.metricChanges.set({});
+  }
+  private acceptSnapshot(snapshot: MarketplaceSnapshot): void {
+    this.observeListingMetrics(snapshot.publications.items);
+    for (const entry of snapshot.publications.items) this.rememberStoredDescription(entry);
+    this.accountSnapshot.set(snapshot);
+  }
+  private observeListingMetrics(entries: readonly MarketplaceEntry[]): void {
+    const changes = { ...this.metricChanges() };
+    for (const entry of entries) {
+      if (
+        entry.connectionId !== this.metricConnectionId ||
+        entry.workspaceId !== this.workspace.currentWorkspace()?.id
+      )
+        continue;
+      const observation = observeVintedListingMetrics(
+        this.metricBaselines.get(entry.id) ?? null,
+        entry.metrics,
+      );
+      if (!observation) continue;
+      this.metricBaselines.set(entry.id, observation.metrics);
+      if (observation.change) changes[entry.id] = observation.change;
+      else delete changes[entry.id];
+    }
+    this.metricChanges.set(changes);
   }
 }

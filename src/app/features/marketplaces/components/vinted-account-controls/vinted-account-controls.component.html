@@ -1,0 +1,31 @@
+<div class="flex flex-wrap items-center gap-2">
+  <div class="min-w-0 flex-1 basis-36 sm:w-48 sm:flex-none sm:basis-auto">
+    <app-custom-select
+      ariaLabel="Vinted-Konto auswählen"
+      [options]="accountOptions()"
+      [value]="account().connectionId"
+      (valueChange)="accountSelected.emit($event)"
+    />
+  </div>
+  <app-button
+    [icon]="refreshIcon"
+    [iconOnly]="true"
+    ariaLabel="Kontodaten aktualisieren"
+    title="Kontodaten aktualisieren"
+    [loading]="refreshing()"
+    [disabled]="loading() || !canManage() || account().status !== 'connected'"
+    (clicked)="refreshRequested.emit()"
+  />
+  <app-vinted-sync-schedule
+    [account]="account()"
+    [canManage]="canManage()"
+    (synchronized)="synchronized.emit($event)"
+  />
+</div>
+<p class="mt-1 text-right text-xs text-fb-text-secondary">
+  @if (account().lastSyncedAt) {
+    Zuletzt aktualisiert: {{ account().lastSyncedAt | date: 'dd.MM., HH:mm' }}
+  } @else {
+    Noch keine Datenübernahme
+  }
+</p>

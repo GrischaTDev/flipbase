@@ -1,0 +1,62 @@
+<p class="sr-only" role="status" aria-live="polite" aria-atomic="true">
+  {{ metricDisplay.announcement() }}
+</p>
+@if (page(); as publications) {
+  <p class="mb-3 text-sm font-medium text-fb-text-primary">Inserate ({{ publications.total }})</p>
+  <div class="grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
+    @for (entry of publications.items; track entry.id) {
+      <a
+        [routerLink]="['/marketplaces/vinted/listings', entry.connectionId, entry.id]"
+        class="block min-w-0 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
+        [attr.aria-label]="'Inserat ' + entry.title + ' öffnen'"
+      >
+        <app-card class="h-full min-w-0 overflow-hidden">
+          <div class="relative mb-3 overflow-hidden rounded-lg">
+            <app-product-thumbnail
+              class="block w-full"
+              [src]="entry.imageUrl"
+              [alt]="entry.title"
+              size="listing"
+            />
+            @if (entry.promoted) {
+              <app-badge class="absolute bottom-2 left-2" tone="info">Gepusht</app-badge>
+            }
+          </div>
+          <h2 class="truncate text-sm font-semibold text-fb-text-primary">{{ entry.title }}</h2>
+          @if (entry.brand || entry.size) {
+            <p class="mt-1 truncate text-xs text-fb-text-secondary">
+              {{ entry.brand ?? '' }} {{ entry.size ?? '' }}
+            </p>
+          }
+          <p class="mt-3 text-base font-semibold text-fb-text-primary">
+            {{
+              entry.price === null ? 'Preis unbekannt' : (entry.price | currency: entry.currency)
+            }}
+          </p>
+          @if (entry.status) {
+            <p class="mt-1 text-xs text-fb-text-secondary">Zustand: {{ entry.status }}</p>
+          }
+          <app-vinted-listing-metrics
+            class="mt-3 border-t border-fb-line pt-3"
+            [metrics]="entry.metrics"
+            [change]="metricDisplay.changes()[entry.id] ?? null"
+            [highlighted]="metricDisplay.highlighted().has(entry.id)"
+          />
+        </app-card>
+      </a>
+    } @empty {
+      <app-card
+        title="Noch keine Inserate"
+        subtitle="Deine Inserate erscheinen nach einer Datenübernahme."
+      />
+    }
+  </div>
+  @if (publications.nextCursor) {
+    <app-button
+      class="mt-4"
+      [loading]="store.loadingPage() === 'publication'"
+      (clicked)="store.loadMore('publication')"
+      >Weitere Inserate laden</app-button
+    >
+  }
+}

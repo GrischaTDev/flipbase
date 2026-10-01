@@ -9,7 +9,8 @@ import {
   output,
   signal,
 } from '@angular/core';
-import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
+import { LucideSettings, LucideLogIn } from '@lucide/angular';
+import { VintedFavoriteSettingsComponent } from '../vinted-favorite-settings/vinted-favorite-settings.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
@@ -23,7 +24,7 @@ import { MarketplaceSyncScheduleStore } from '../../services/marketplace-sync-sc
   selector: 'app-vinted-sync-schedule',
   imports: [
     DatePipe,
-    BadgeComponent,
+    VintedFavoriteSettingsComponent,
     ButtonComponent,
     NoticeBannerComponent,
     CustomSelectComponent,
@@ -35,6 +36,8 @@ import { MarketplaceSyncScheduleStore } from '../../services/marketplace-sync-sc
   host: { class: 'block min-w-0' },
 })
 export class VintedSyncScheduleComponent {
+  readonly settingsIcon = LucideSettings;
+  readonly loginIcon = LucideLogIn;
   readonly account = input.required<MarketplaceConnection>();
   readonly canManage = input(false);
   readonly synchronized = output<MarketplaceSyncSchedule>();

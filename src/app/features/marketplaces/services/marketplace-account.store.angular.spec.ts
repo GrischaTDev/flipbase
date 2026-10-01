@@ -50,7 +50,12 @@ async function settle() {
 let currentWorkspace: ReturnType<typeof signal<{ id: string; archived_at?: string } | null>>;
 let currentUser: ReturnType<typeof signal<{ id: string } | null>>;
 let accessSession: ReturnType<typeof signal<{ access_token: string } | null>>;
-let browserApi: { deleteConnection: ReturnType<typeof vi.fn> };
+let browserApi: {
+  deleteConnection: ReturnType<typeof vi.fn>;
+  readListingData: ReturnType<typeof vi.fn>;
+  readListingEdit: ReturnType<typeof vi.fn>;
+  saveListingEdit: ReturnType<typeof vi.fn>;
+};
 let api: {
   listConnections: ReturnType<typeof vi.fn>;
   readSnapshot: ReturnType<typeof vi.fn>;
@@ -58,6 +63,7 @@ let api: {
   createConnection: ReturnType<typeof vi.fn>;
   renameConnection: ReturnType<typeof vi.fn>;
   setPaused: ReturnType<typeof vi.fn>;
+  readPublication: ReturnType<typeof vi.fn>;
 };
 let store: MarketplaceAccountStore;
 beforeEach(() => {
@@ -66,7 +72,12 @@ beforeEach(() => {
   });
   currentUser = signal<{ id: string } | null>({ id: 'user-a' });
   accessSession = signal<{ access_token: string } | null>({ access_token: 'token-a' });
-  browserApi = { deleteConnection: vi.fn().mockResolvedValue(undefined) };
+  browserApi = {
+    deleteConnection: vi.fn().mockResolvedValue(undefined),
+    readListingData: vi.fn(),
+    readListingEdit: vi.fn(),
+    saveListingEdit: vi.fn().mockResolvedValue(undefined),
+  };
   api = {
     listConnections: vi
       .fn()
@@ -76,6 +87,7 @@ beforeEach(() => {
     createConnection: vi.fn(),
     renameConnection: vi.fn().mockResolvedValue(undefined),
     setPaused: vi.fn().mockResolvedValue(undefined),
+    readPublication: vi.fn().mockResolvedValue(null),
   };
   TestBed.resetTestingModule();
   TestBed.configureTestingModule({
@@ -89,6 +101,358 @@ beforeEach(() => {
   });
   store = TestBed.inject(MarketplaceAccountStore);
 });
+
+describe('Inseratbeschreibungen und Kennzahlen', () => {
+  it('snapshotReadStartedBeforeConfirmedSaveKeepsSessionDescription', async () => {
+    api.readSnapshot.mockResolvedValue(publication('Alter Text', 'loaded'));
+    await settle();
+    const pending = deferred<MarketplaceSnapshot>();
+    api.readSnapshot.mockReturnValueOnce(pending.promise);
+    const refreshing = store.refreshImportedSnapshot(accountA, '2026-10-01T13:00:00Z');
+    await store.saveListingEdit(accountA.connectionId, 'listing-a', {
+      title: 'Neuer Titel',
+      description: 'Bestätigter neuer Text',
+      price: '12',
+    });
+    // Listenimporte behalten zuvor geladenen Text, auch wenn nur Kennzahlen neu gelesen wurden.
+    pending.resolve(publication('Alter Text', 'loaded', 8, 3, '2099-10-01T13:00:00Z'));
+    await refreshing;
+    const entry = store.snapshot()!.publications.items[0];
+    expect(store.cachedListingDescription(accountA.connectionId, entry)).toEqual({
+      description: 'Bestätigter neuer Text',
+      cacheState: 'unconfirmed',
+    });
+    expect(browserApi.readListingData).not.toHaveBeenCalled();
+  });
+
+  it('pendingBrowserDescriptionSurvivesUnprovenDatabaseFallback', async () => {
+    await settle();
+    browserApi.readListingData.mockResolvedValue({
+      fields: { title: 'Jacke', description: 'Gelesener Sitzungstext', price: '12' },
+      cacheState: 'pending',
+    });
+    await store.readListingDescription(accountA.connectionId, 'listing-a');
+    const entry = publication('Alter Datenbanktext', 'loaded', 8, 3, '2099-10-01T13:00:00Z')
+      .publications.items[0];
+    api.readPublication.mockResolvedValue(entry);
+    await store.readPublication(accountA.connectionId, entry.id);
+    expect(store.cachedListingDescription(accountA.connectionId, entry)).toEqual({
+      description: 'Gelesener Sitzungstext',
+      cacheState: 'pending',
+    });
+    expect(browserApi.readListingData).toHaveBeenCalledTimes(1);
+  });
+
+  it('descriptionReadStartedBeforeConfirmedSaveReturnsConfirmedSessionText', async () => {
+    await settle();
+    const pending = deferred<{
+      fields: { title: string; description: string; price: string };
+      cacheState: 'pending';
+    }>();
+    browserApi.readListingData.mockReturnValueOnce(pending.promise);
+    const reading = store.readListingDescription(accountA.connectionId, 'listing-a');
+    await store.saveListingEdit(accountA.connectionId, 'listing-a', {
+      title: 'Bestätigter Titel',
+      description: 'Bestätigter neuer Text',
+      price: '12',
+    });
+    pending.resolve({
+      fields: { title: 'Alter Titel', description: 'Vor der Bearbeitung gelesen', price: '12' },
+      cacheState: 'pending',
+    });
+    expect(await reading).toEqual({
+      description: 'Bestätigter neuer Text',
+      cacheState: 'unconfirmed',
+    });
+    expect(await store.readListingDescription(accountA.connectionId, 'listing-a')).toEqual({
+      description: 'Bestätigter neuer Text',
+      cacheState: 'unconfirmed',
+    });
+    expect(browserApi.readListingData).toHaveBeenCalledTimes(1);
+    expect(browserApi.saveListingEdit).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([null, '2026-10-01T10:00:00Z', '2026-10-01T12:00:00Z', '2099-10-01T13:00:00Z'])(
+    'confirmedDescriptionSurvivesDatabaseReadRegardlessOfListingMetricsTime: %s',
+    async (observedAt) => {
+      await settle();
+      const entry = publication('Alter Text', 'loaded').publications.items[0];
+      api.readPublication.mockResolvedValue(entry);
+      await store.readPublication(accountA.connectionId, entry.id);
+      await store.saveListingEdit(accountA.connectionId, entry.id, {
+        title: 'Bestätigter Titel',
+        description: 'Bestätigter neuer Text',
+        price: '12',
+      });
+      api.readPublication.mockResolvedValue({
+        ...entry,
+        metrics: { ...entry.metrics, observedAt },
+      });
+      await store.readPublication(accountA.connectionId, entry.id);
+      expect(await store.readListingDescription(accountA.connectionId, entry.id)).toEqual({
+        description: 'Bestätigter neuer Text',
+        cacheState: 'unconfirmed',
+      });
+      api.readPublication.mockResolvedValue({
+        ...entry,
+        text: 'Datenbanktext mit späterer Kennzahlenzeit',
+        metrics: { ...entry.metrics, observedAt: '2099-10-01T14:00:00Z' },
+      });
+      await store.readPublication(accountA.connectionId, entry.id);
+      expect(await store.readListingDescription(accountA.connectionId, entry.id)).toEqual({
+        description: 'Bestätigter neuer Text',
+        cacheState: 'unconfirmed',
+      });
+      expect(browserApi.readListingData).not.toHaveBeenCalled();
+    },
+  );
+
+  function publication(
+    text: string | null = null,
+    textState: 'loaded' | 'not_loaded' = 'not_loaded',
+    views: number | null = 0,
+    favorites: number | null = 0,
+    observedAt = '2026-10-01T10:00:00Z',
+  ) {
+    return parseMarketplaceSnapshot(
+      {
+        ...snapshot(accountA),
+        publications: {
+          items: [
+            {
+              ...accountA,
+              id: 'listing-a',
+              title: 'Jacke',
+              text,
+              textState,
+              metrics: { views, favorites, observedAt },
+            },
+          ],
+          total: 1,
+          nextCursor: null,
+        },
+      },
+      accountA,
+    );
+  }
+  it.each(['Bekannter Text', ''])(
+    'knownDescriptionStartsNoBrowser / emptyLoadedDescriptionStartsNoBrowser: %j',
+    async (text) => {
+      api.readSnapshot.mockResolvedValue(publication(text, 'loaded'));
+      await settle();
+      expect(await store.readListingDescription(accountA.connectionId, 'listing-a')).toEqual({
+        description: text,
+        cacheState: 'stored',
+      });
+      expect(browserApi.readListingData).not.toHaveBeenCalled();
+    },
+  );
+  it('descriptionReadIsDeduplicated / pendingCacheSurvivesReopenWithinContext', async () => {
+    api.readSnapshot.mockResolvedValue(publication());
+    await settle();
+    const pending = deferred<{
+      fields: { title: string; description: string; price: string };
+      cacheState: 'pending';
+    }>();
+    browserApi.readListingData.mockReturnValue(pending.promise);
+    const first = store.readListingDescription(accountA.connectionId, 'listing-a');
+    const second = store.readListingDescription(accountA.connectionId, 'listing-a');
+    pending.resolve({
+      fields: { title: 'Jacke', description: 'Gelesener Text', price: '12' },
+      cacheState: 'pending',
+    });
+    expect(await first).toEqual({ description: 'Gelesener Text', cacheState: 'pending' });
+    expect(await second).toEqual({ description: 'Gelesener Text', cacheState: 'pending' });
+    browserApi.readListingData.mockRejectedValue(new Error('Browser darf nicht erneut starten'));
+    expect(await store.readListingDescription(accountA.connectionId, 'listing-a')).toEqual({
+      description: 'Gelesener Text',
+      cacheState: 'pending',
+    });
+    expect(browserApi.readListingData).toHaveBeenCalledOnce();
+  });
+  it('lateDescriptionCannotCrossContext', async () => {
+    await settle();
+    const pending = deferred<{
+      fields: { title: string; description: string; price: string };
+      cacheState: 'pending';
+    }>();
+    browserApi.readListingData.mockReturnValueOnce(pending.promise);
+    const first = store.readListingDescription(accountA.connectionId, 'listing-a');
+    const result = expect(first).rejects.toThrow();
+    await store.selectConnection(accountB.connectionId);
+    await store.selectConnection(accountA.connectionId);
+    pending.resolve({
+      fields: { title: 'Alt', description: 'Fremder Rücklauf', price: '12' },
+      cacheState: 'pending',
+    });
+    await result;
+    browserApi.readListingData.mockResolvedValueOnce({
+      fields: { title: 'Neu', description: 'Aktueller Text', price: '12' },
+      cacheState: 'unconfirmed',
+    });
+    expect(await store.readListingDescription(accountA.connectionId, 'listing-a')).toEqual({
+      description: 'Aktueller Text',
+      cacheState: 'unconfirmed',
+    });
+  });
+  it('editReadsFreshFields / unconfirmedSaveKeepsPreviousSnapshot', async () => {
+    api.readSnapshot.mockResolvedValue(publication('Alter Text', 'loaded'));
+    await settle();
+    browserApi.readListingEdit.mockResolvedValue({
+      title: 'Frisch',
+      description: 'Frischer Text',
+      price: '24',
+    });
+    expect((await store.readListingEdit(accountA.connectionId, 'listing-a')).description).toBe(
+      'Frischer Text',
+    );
+    browserApi.saveListingEdit.mockRejectedValueOnce(new Error('unconfirmed'));
+    const fields = { title: 'Geändert', description: 'Neuer Text', price: '24' };
+    await expect(
+      store.saveListingEdit(accountA.connectionId, 'listing-a', fields),
+    ).rejects.toThrow();
+    expect(store.snapshot()?.publications.items[0].text).toBe('Alter Text');
+    await store.saveListingEdit(accountA.connectionId, 'listing-a', fields);
+    expect(store.snapshot()?.publications.items[0].text).toBe('Neuer Text');
+    expect(store.snapshot()?.publications.items[0].title).toBe('Geändert');
+  });
+  it('firstObservationSetsBaseline / zeroToOneShowsIncrease / metricChangesCannotCrossAccount', async () => {
+    api.readSnapshot.mockResolvedValue(publication());
+    await settle();
+    expect(store.listingMetricChanges()).toEqual({});
+    api.readSnapshot.mockResolvedValueOnce(
+      publication(null, 'not_loaded', 1, 1, '2026-10-01T11:00:00Z'),
+    );
+    await store.refreshImportedSnapshot(accountA, '2026-10-01T11:00:00Z');
+    expect(store.listingMetricChanges()['listing-a']).toEqual({
+      views: 1,
+      favorites: 1,
+      observedAt: '2026-10-01T11:00:00Z',
+    });
+    expect(store.consumeListingMetricChanges(['listing-a'])['listing-a']?.views).toBe(1);
+    expect(store.consumeListingMetricChanges(['listing-a'])).toEqual({});
+    await store.selectConnection(accountB.connectionId);
+    expect(store.listingMetricChanges()).toEqual({});
+  });
+
+  it('verwirft verspätete frische Bearbeitungsfelder auch nach A → B → A', async () => {
+    await settle();
+    const read = deferred<{ title: string; description: string; price: string }>();
+    browserApi.readListingEdit.mockReturnValueOnce(read.promise);
+    const old = store.readListingEdit(accountA.connectionId, 'listing-a');
+    const rejected = expect(old).rejects.toThrow();
+    await store.selectConnection(accountB.connectionId);
+    await store.selectConnection(accountA.connectionId);
+    read.resolve({ title: 'Alt', description: 'Alter Rücklauf', price: '1' });
+    await rejected;
+  });
+
+  it('behält die Kennzahlenbasis beim Neuladen desselben Kontos', async () => {
+    api.readSnapshot.mockResolvedValue(publication());
+    await settle();
+    api.readSnapshot.mockResolvedValueOnce(
+      publication(null, 'not_loaded', 3, 2, '2026-10-01T11:00:00Z'),
+    );
+    await store.reloadConnections(accountA.connectionId);
+    expect(store.listingMetricChanges()['listing-a']).toEqual({
+      views: 3,
+      favorites: 2,
+      observedAt: '2026-10-01T11:00:00Z',
+    });
+    api.readSnapshot.mockResolvedValueOnce(
+      publication(null, 'not_loaded', 3, 2, '2026-10-01T11:00:00Z'),
+    );
+    await store.reloadConnections(accountA.connectionId);
+    expect(store.listingMetricChanges()['listing-a']?.favorites).toBe(2);
+  });
+
+  it('verwirft die Kennzahlenbasis bei Rechteverlust auch ohne verweigerte Einzelabfrage', async () => {
+    api.readSnapshot.mockResolvedValue(publication());
+    await settle();
+    api.listConnections.mockResolvedValueOnce({ canManage: false, connections: [] });
+    await store.reloadConnections();
+    expect(store.canManage()).toBe(false);
+    api.readSnapshot.mockResolvedValueOnce(
+      publication(null, 'not_loaded', 7, 3, '2026-10-01T11:00:00Z'),
+    );
+    await store.reloadConnections(accountA.connectionId);
+    expect(store.listingMetricChanges()).toEqual({});
+  });
+
+  it('behält höchstens 50 Beschreibungen und entfernt das am längsten unbenutzte Ergebnis', async () => {
+    await settle();
+    browserApi.readListingData.mockImplementation(async (_scope: AccountScope, id: string) => ({
+      fields: { title: id, description: `Text ${id}`, price: '1' },
+      cacheState: 'pending',
+    }));
+    for (let i = 0; i < 50; i++)
+      await store.readListingDescription(accountA.connectionId, `listing-${i}`);
+    await store.readListingDescription(accountA.connectionId, 'listing-0');
+    await store.readListingDescription(accountA.connectionId, 'listing-50');
+    browserApi.readListingData.mockImplementation(async (_scope: AccountScope, id: string) => ({
+      fields: { title: id, description: `Neuer Text ${id}`, price: '1' },
+      cacheState: 'unconfirmed',
+    }));
+    expect(
+      (await store.readListingDescription(accountA.connectionId, 'listing-0')).description,
+    ).toBe('Text listing-0');
+    expect(
+      (await store.readListingDescription(accountA.connectionId, 'listing-1')).description,
+    ).toBe('Neuer Text listing-1');
+  });
+
+  it('readPublication schützt fehlende Snapshotdetails vor verspäteten Antworten', async () => {
+    await settle();
+    const read = deferred<MarketplaceSnapshot['publications']['items'][number] | null>();
+    api.readPublication.mockReturnValueOnce(read.promise);
+    const old = store.readPublication(accountA.connectionId, 'listing-a');
+    await store.selectConnection(accountB.connectionId);
+    read.resolve(publication('Alt', 'loaded').publications.items[0]);
+    expect(await old).toBeNull();
+  });
+
+  it('Rechteentzug beim Lesen eines fehlenden Details entfernt den gesamten privaten Zustand', async () => {
+    await settle();
+    api.readPublication.mockRejectedValueOnce(new MarketplaceApiError('forbidden'));
+    await expect(store.readPublication(accountA.connectionId, 'listing-a')).rejects.toThrow();
+    expect(store.snapshot()).toBeNull();
+    expect(store.canManage()).toBe(false);
+    expect(store.connections()).toEqual([]);
+  });
+});
+describe('Wiederholen eines bereits gewählten gespeicherten Gesprächs', () => {
+  it('erlaubt nur die zuvor validierte Auswahl außerhalb der ersten Snapshotseite', async () => {
+    await settle();
+    await store.openConversation('conversation-a');
+    api.readSnapshot.mockResolvedValueOnce({
+      ...snapshot(accountA),
+      conversations: { items: [], total: 80, nextCursor: 'next' },
+    });
+    await store.refreshImportedSnapshot(accountA, '2026-10-02T12:00:00Z');
+    api.readPage.mockResolvedValueOnce({ items: [], total: 3, nextCursor: null });
+    await store.openConversation('conversation-a');
+    expect(store.messages()?.total).toBe(3);
+    api.readPage.mockResolvedValueOnce({ items: [], total: 99, nextCursor: null });
+    await store.openConversation('foreign-conversation');
+    expect(store.messages()?.total).toBe(3);
+    expect(store.selectedConversationId()).toBe('conversation-a');
+  });
+  it('hält den vorhandenen Nachrichtenstand während einer erneuten gespeicherten Abfrage', async () => {
+    await settle();
+    api.readPage.mockResolvedValueOnce({ items: [], total: 7, nextCursor: 'older' });
+    await store.openConversation('conversation-a');
+    const pending = deferred<{ items: never[]; total: number; nextCursor: null }>();
+    api.readPage.mockReturnValueOnce(pending.promise);
+    const retry = store.openConversation('conversation-a');
+    expect(store.loadingMessages()).toBe(true);
+    expect(store.messages()?.total).toBe(7);
+    pending.resolve({ items: [], total: 8, nextCursor: null });
+    await retry;
+    expect(store.messages()?.total).toBe(8);
+    expect(store.loadingMessages()).toBe(false);
+  });
+});
+
 describe('Kontogebundene Marktplatzansicht', () => {
   it('übernimmt Hintergrundimporte ohne Konto oder Gesprächsauswahl zu verlieren', async () => {
     await settle();

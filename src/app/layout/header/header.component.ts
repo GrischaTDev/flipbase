@@ -10,7 +10,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
   LucideDynamicIcon,
@@ -42,6 +42,7 @@ import { ToastService } from '../../shared/components/toast/toast.service';
 import { SyncStatusService } from '../../core/services/sync-status.service';
 import { PlatformOperatorService } from '../../core/services/platform-operator.service';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
+import { MarketplaceFavoriteNotificationStore } from '../../features/marketplaces/services/marketplace-favorite-notification.store';
 
 export function visibleHeaderRole(isPlatformOperator: boolean): 'admin' | null {
   return isPlatformOperator ? 'admin' : null;
@@ -71,6 +72,7 @@ export class HeaderComponent {
   readonly auth = inject(AuthService);
   readonly workspaceService = inject(WorkspaceService);
   readonly webhookService = inject(WebhookService);
+  readonly favoriteNotifications = inject(MarketplaceFavoriteNotificationStore);
   private readonly dialog = inject(ConfirmDialogService);
   readonly themeService = inject(ThemeService);
   readonly pwaService = inject(PwaService);
@@ -78,6 +80,7 @@ export class HeaderComponent {
   private readonly toast = inject(ToastService);
   private readonly syncStatus = inject(SyncStatusService);
   private readonly operatorService = inject(PlatformOperatorService);
+  private readonly router = inject(Router);
 
   readonly toggleSidebar = output<void>();
   readonly openCreateWorkspace = output<void>();
@@ -86,6 +89,24 @@ export class HeaderComponent {
   readonly isUserDropdownOpen = signal<boolean>(false);
   readonly isNotificationDropdownOpen = signal<boolean>(false);
   readonly isUpdatingNotifications = signal(false);
+  readonly notifications = computed(() =>
+    [...this.webhookService.notifications(), ...this.favoriteNotifications.notifications()]
+      .sort((left, right) => Date.parse(right.timestamp) - Date.parse(left.timestamp))
+      .slice(0, 50),
+  );
+  readonly notificationLinks = computed(
+    () =>
+      new Map(
+        this.notifications().flatMap((notification) =>
+          notification.link
+            ? [[notification.id, this.router.parseUrl(notification.link)] as const]
+            : [],
+        ),
+      ),
+  );
+  readonly unreadCount = computed(
+    () => this.webhookService.unreadCount() + this.favoriteNotifications.unreadCount(),
+  );
 
   readonly workspaceContainer = viewChild<ElementRef<HTMLElement>>('workspaceContainer');
   readonly notificationContainer = viewChild<ElementRef<HTMLElement>>('notificationContainer');
@@ -133,6 +154,7 @@ export class HeaderComponent {
 
   toggleNotificationDropdown(): void {
     this.isNotificationDropdownOpen.update((v) => !v);
+    if (this.isNotificationDropdownOpen()) void this.favoriteNotifications.reload();
     this.isWorkspaceDropdownOpen.set(false);
     this.isUserDropdownOpen.set(false);
   }
@@ -164,12 +186,16 @@ export class HeaderComponent {
   async oeffneBenachrichtigung(notif: AppNotification): Promise<void> {
     this.isUpdatingNotifications.set(true);
     try {
-      const result = await this.webhookService.markAsRead(notif.id);
-      if (result.error && !result.reportedBySyncStatus) {
-        this.toast.error(
-          'Benachrichtigung konnte nicht aktualisiert werden.',
-          result.error.message,
-        );
+      if (notif.id.startsWith('marketplace:')) {
+        await this.favoriteNotifications.markAsRead(notif.id);
+      } else {
+        const result = await this.webhookService.markAsRead(notif.id);
+        if (result.error && !result.reportedBySyncStatus) {
+          this.toast.error(
+            'Benachrichtigung konnte nicht aktualisiert werden.',
+            result.error.message,
+          );
+        }
       }
     } catch (ursache: unknown) {
       const error = ursache instanceof Error ? ursache : new Error('Unbekannter Fehler');
@@ -189,7 +215,7 @@ export class HeaderComponent {
   async onMarkAllNotificationsRead(): Promise<void> {
     this.isUpdatingNotifications.set(true);
     try {
-      const result = await this.webhookService.markAllAsRead();
+      const result = await this.updateNotificationStreams('markAllAsRead');
       if (result.error) {
         if (!result.reportedBySyncStatus) {
           this.toast.error(
@@ -213,7 +239,7 @@ export class HeaderComponent {
   async onClearNotifications(): Promise<void> {
     this.isUpdatingNotifications.set(true);
     try {
-      const result = await this.webhookService.clearNotifications();
+      const result = await this.updateNotificationStreams('clearNotifications');
       if (result.error) {
         if (!result.reportedBySyncStatus) {
           this.toast.error(
@@ -232,6 +258,17 @@ export class HeaderComponent {
     } finally {
       this.isUpdatingNotifications.set(false);
     }
+  }
+
+  private async updateNotificationStreams(operation: 'markAllAsRead' | 'clearNotifications') {
+    // Beide Speicherungen abschließen; ein Teilerfolg ist keine gemeinsame Bestätigung.
+    const [general, favorites] = await Promise.allSettled([
+      this.webhookService[operation](),
+      this.favoriteNotifications[operation](),
+    ]);
+    if (favorites.status === 'rejected') throw favorites.reason;
+    if (general.status === 'rejected') throw general.reason;
+    return general.value;
   }
 
   onDocumentClick(event: MouseEvent): void {

@@ -95,4 +95,18 @@ describe('ProductThumbnailComponent', () => {
     expect(host().querySelector('img')).toBeNull();
     expect(host().querySelector('[data-product-placeholder]')).not.toBeNull();
   });
+
+  it('zeigt im Detail das ganze Foto in einem begrenzten Rahmen und behält den Rahmen bei Bildausfall', () => {
+    fixture.componentRef.setInput('size', 'listing-detail');
+    fixture.componentRef.setInput('src', '/images/detail.webp');
+    fixture.detectChanges();
+    const frame = host().firstElementChild;
+    expect(frame?.classList.contains('max-w-[360px]')).toBe(true);
+    expect(frame?.classList.contains('h-[260px]')).toBe(true);
+    expect(host().querySelector('img')?.classList.contains('object-contain')).toBe(true);
+    host().querySelector('img')?.dispatchEvent(new Event('error'));
+    fixture.detectChanges();
+    expect(host().firstElementChild).toBe(frame);
+    expect(host().querySelector('[data-product-placeholder]')).not.toBeNull();
+  });
 });

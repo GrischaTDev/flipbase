@@ -1,540 +1,114 @@
-@if (store.snapshot(); as snapshot) {
+@if (store.snapshot()) {
   @switch (section()) {
     @case ('overview') {
-      <div class="grid gap-4 sm:grid-cols-3">
-        <app-card title="Inserate" variant="kpi"
-          ><p class="text-2xl font-semibold text-fb-text-primary">
-            {{ snapshot.publications.total }}
-          </p>
-          <p class="mt-1 text-xs text-fb-text-muted">Zuletzt mit Vinted abgeglichen</p>
-          <app-button class="mt-3" link="/marketplaces/vinted/listings"
-            >Inserate ansehen</app-button
-          ></app-card
-        >
-        <app-card title="Gespräche" variant="kpi"
-          ><p class="text-2xl font-semibold text-fb-text-primary">
-            {{ snapshot.conversations.total }}
-          </p>
-          <p class="mt-1 text-xs text-fb-text-muted">Aus dem Vinted-Posteingang</p>
-          <app-button class="mt-3" link="/marketplaces/vinted/messages"
-            >Nachrichten ansehen</app-button
-          ></app-card
-        >
-        <app-card title="Verkäufe" variant="kpi"
-          ><p class="text-2xl font-semibold text-fb-text-primary">{{ snapshot.sales.total }}</p>
-          <p class="mt-1 text-xs text-fb-text-muted">Bestätigte Bestellungen aus Gesprächen</p>
-          <app-button class="mt-3" link="/marketplaces/vinted/sales"
-            >Verkäufe ansehen</app-button
-          ></app-card
-        >
-      </div>
-      @if (snapshot.profile; as profile) {
-        <app-card class="mt-4" title="Dein Vinted-Profil">
-          <div class="flex flex-wrap items-center gap-4">
-            <app-product-thumbnail
-              [src]="profile.imageUrl"
-              [alt]="profile.username ?? 'Profilbild'"
-              size="profile"
-            />
-            <div class="min-w-0 flex-1">
-              <p class="truncate text-base font-semibold text-fb-text-primary">
-                {{ profile.displayName ?? profile.username ?? 'Vinted-Konto' }}
-              </p>
-              <p class="text-sm text-fb-text-muted">
-                &#64;{{ profile.username ?? '—' }} · {{ profile.location ?? 'Ort nicht angegeben' }}
-              </p>
-            </div>
-            <a
-              routerLink="/marketplaces/vinted/feedback"
-              class="rounded-lg transition-colors hover:bg-fb-well-hover p-1.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
-              aria-label="Bewertungen ansehen"
-            >
-              <app-vinted-rating
-                [count]="profile.feedbackCount"
-                [reputation]="profile.feedbackReputation"
-              />
-            </a>
-          </div>
-        </app-card>
-      }
-    }
-    @case ('feedback') {
-      <app-vinted-feedback-list
-        [profile]="snapshot.profile"
-        [isConnected]="store.selectedConnection()?.status === 'connected'"
-      />
+      <app-vinted-overview />
     }
     @case ('profile') {
-      <div class="mx-auto max-w-3xl">
-        <app-card title="Profil">
-          @if (snapshot.profile; as profile) {
-            <div class="mb-6 flex flex-wrap items-center gap-4 border-b border-fb-line pb-5">
-              <app-product-thumbnail
-                [src]="profile.imageUrl"
-                [alt]="profile.username ?? 'Profilbild'"
-                size="profile"
-              />
-              <div class="min-w-0 flex-1">
-                <p class="truncate text-lg font-semibold text-fb-text-primary">
-                  {{ profile.displayName ?? profile.username ?? 'Vinted-Konto' }}
-                </p>
-                <p class="text-sm text-fb-text-muted">&#64;{{ profile.username ?? '—' }}</p>
-              </div>
-              <app-vinted-rating
-                [count]="profile.feedbackCount"
-                [reputation]="profile.feedbackReputation"
-              />
-            </div>
-            <h3 class="text-xs font-semibold uppercase tracking-wide text-fb-text-muted">
-              Kontodaten
-            </h3>
-            <dl class="mt-2 grid gap-x-8 text-sm sm:grid-cols-2">
-              <div class="border-b border-fb-line py-3">
-                <dt class="text-fb-text-muted">Anzeigename</dt>
-                <dd class="mt-1 break-words font-medium text-fb-text-primary">
-                  {{ profile.displayName ?? '—' }}
-                </dd>
-              </div>
-              <div class="border-b border-fb-line py-3">
-                <dt class="text-fb-text-muted">Benutzername</dt>
-                <dd class="mt-1 break-words font-medium text-fb-text-primary">
-                  {{ profile.username ?? '—' }}
-                </dd>
-              </div>
-              <div class="border-b border-fb-line py-3 sm:col-span-2">
-                <dt class="text-fb-text-muted">Ort</dt>
-                <dd class="mt-1 break-words font-medium text-fb-text-primary">
-                  {{ profile.location ?? '—' }}
-                </dd>
-              </div>
-            </dl>
-            @if (profile.bio) {
-              <div class="mt-6">
-                <h3 class="text-xs font-semibold uppercase tracking-wide text-fb-text-muted">
-                  Über dieses Konto
-                </h3>
-                <p class="mt-2 whitespace-pre-wrap break-words text-sm text-fb-text-primary">
-                  {{ profile.bio }}
-                </p>
-              </div>
-            }
-            @if (store.selectedConnection()?.status === 'connected') {
-              <app-vinted-profile-editor [connectionId]="snapshot.connectionId" />
-            }
-            <h3 class="mb-3 mt-6 text-xs font-semibold uppercase tracking-wide text-fb-text-muted">
-              Aktivität
-            </h3>
-            <dl class="grid grid-cols-3 gap-3 rounded-lg bg-fb-well p-4 text-center">
-              <div>
-                <dt class="text-xs text-fb-text-muted">Bewertungen</dt>
-                <dd class="mt-1 text-lg font-semibold text-fb-text-primary">
-                  {{ profile.feedbackCount ?? '—' }}
-                </dd>
-              </div>
-              <div>
-                <dt class="text-xs text-fb-text-muted">Positiv</dt>
-                <dd class="mt-1 text-lg font-semibold text-fb-text-primary">
-                  {{ profile.positiveFeedbackCount ?? '—' }}
-                </dd>
-              </div>
-              <div>
-                <dt class="text-xs text-fb-text-muted">Inserate</dt>
-                <dd class="mt-1 text-lg font-semibold text-fb-text-primary">
-                  {{ profile.itemCount ?? '—' }}
-                </dd>
-              </div>
-            </dl>
-          } @else {
-            <p class="text-sm text-fb-text-secondary">Noch keine Profildaten übernommen.</p>
-          }
-        </app-card>
-      </div>
+      <app-vinted-profile />
     }
     @case ('messages') {
-      <div class="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
-        <app-data-table
-          ariaLabel="Gespeicherte Gespräche"
-          [searchEnabled]="false"
-          [hasRows]="snapshot.conversations.items.length > 0"
-          emptyTitle="Noch keine Gespräche"
-          emptyText="Gespräche erscheinen nach einer Datenübernahme."
-          [class.hidden]="store.selectedConversationId() !== null"
-          class="min-w-0 lg:block"
-        >
-          <p table-view class="text-sm font-medium">
-            Gespräche ({{ snapshot.conversations.total }})
-          </p>
-          <div table-content class="divide-y divide-fb-line px-2 pb-2">
-            @for (entry of snapshot.conversations.items; track entry.id) {
-              <app-button
-                variant="list-row"
-                [fullWidth]="true"
-                contentAlign="start"
-                [ariaPressed]="store.selectedConversationId() === entry.id"
-                (clicked)="store.openConversation(entry.id)"
-              >
-                <span class="flex w-full min-w-0 items-start gap-3">
-                  <app-product-thumbnail [src]="entry.imageUrl" [alt]="entry.title" size="avatar" />
-                  <span class="block min-w-0 flex-1 pt-0.5">
-                    <span class="block truncate font-semibold text-fb-text-primary">{{
-                      entry.title
-                    }}</span>
-                    <span class="mt-1 block truncate text-xs text-fb-text-muted">
-                      {{ entry.text ?? 'Gespräch öffnen' }}
-                    </span>
-                  </span>
-                  <span class="flex shrink-0 flex-col items-end gap-1 pt-0.5">
-                    @if (entry.occurredAt) {
-                      <span class="whitespace-nowrap text-[11px] text-fb-text-muted">
-                        {{ entry.occurredAt | date: 'dd.MM., HH:mm' }}
-                      </span>
-                    }
-                    @if (entry.unread) {
-                      <app-badge tone="brand">Neu</app-badge>
-                    }
-                  </span>
-                </span>
-              </app-button>
-            }
-            @if (snapshot.conversations.nextCursor) {
-              <app-button
-                class="mt-3"
-                [loading]="store.loadingPage() === 'conversation'"
-                (clicked)="store.loadMore('conversation')"
-                >Weitere Gespräche laden</app-button
-              >
-            }
-          </div>
-        </app-data-table>
-        <app-card
-          [title]="conversation()?.title ?? 'Nachrichten'"
-          class="min-w-0"
-          [class.hidden]="store.selectedConversationId() === null"
-          [class.lg:flex]="true"
-        >
-          @if (store.selectedConversationId()) {
-            <app-button
-              class="mb-3 lg:hidden"
-              [icon]="backIcon"
-              (clicked)="store.clearConversation()"
-              >Zur Gesprächsliste</app-button
-            >
-          }
-          @if (store.loadingMessages()) {
-            <p role="status" class="text-sm text-fb-text-secondary">Nachrichten werden geladen …</p>
-          } @else if (store.messages(); as messages) {
-            @if (messages.nextCursor) {
-              <app-button
-                class="mb-4"
-                [loading]="store.loadingPage() === 'message'"
-                (clicked)="store.loadMore('message')"
-                >Ältere Nachrichten laden</app-button
-              >
-            }
-            <div
-              role="log"
-              aria-label="Gespeicherter Gesprächsverlauf"
-              class="max-h-[32rem] space-y-4 overflow-y-auto"
-            >
-              @for (entry of transcript(); track entry.id) {
-                @if (
-                  entry.messageType === 'status_message' || entry.messageType === 'action_message'
-                ) {
-                  <div class="mx-auto max-w-md rounded-xl bg-fb-well px-4 py-3 text-center">
-                    <p class="whitespace-pre-wrap break-words text-sm text-fb-text-secondary">
-                      {{ entry.text ?? entry.title }}
-                    </p>
-                    @if (entry.occurredAt) {
-                      <p class="mt-1 text-xs text-fb-text-muted">
-                        {{ entry.occurredAt | date: 'dd.MM.yyyy, HH:mm' }}
-                      </p>
-                    }
-                  </div>
-                } @else if (
-                  entry.messageType === 'offer_request_message' ||
-                  entry.messageType === 'offer_message'
-                ) {
-                  <article
-                    class="max-w-[88%] rounded-xl border border-[#9bcfd2] bg-[#e9f6f6] px-4 py-3"
-                  >
-                    <p class="text-sm font-semibold text-[#00636c]">{{ entry.title }}</p>
-                    @if (entry.priceLabel) {
-                      <p class="mt-1 text-base font-semibold text-fb-text-primary">
-                        {{ entry.priceLabel }}
-                      </p>
-                    }
-                    @if (entry.text && entry.text !== entry.title) {
-                      <p class="mt-2 whitespace-pre-wrap break-words text-sm text-fb-text-primary">
-                        {{ entry.text }}
-                      </p>
-                    }
-                    @if (entry.occurredAt) {
-                      <p class="mt-2 text-xs text-fb-text-muted">
-                        {{ entry.occurredAt | date: 'dd.MM.yyyy, HH:mm' }}
-                      </p>
-                    }
-                  </article>
-                } @else {
-                  <article
-                    class="max-w-[85%] rounded-2xl border px-4 py-3"
-                    [class.ml-auto]="entry.direction === 'outbound'"
-                    [class.border-[#a8d6d8]]="entry.direction === 'outbound'"
-                    [class.bg-[#e9f6f6]]="entry.direction === 'outbound'"
-                    [class.border-fb-line]="entry.direction !== 'outbound'"
-                    [class.bg-fb-surface]="entry.direction !== 'outbound'"
-                  >
-                    <span class="sr-only">{{
-                      entry.direction === 'outbound' ? 'Von Dir' : 'Nachricht'
-                    }}</span>
-                    <p class="whitespace-pre-wrap break-words text-sm text-fb-text-primary">
-                      {{ entry.text ?? entry.title }}
-                    </p>
-                    @if (entry.occurredAt) {
-                      <p class="mt-2 text-right text-xs text-fb-text-muted">
-                        {{ entry.occurredAt | date: 'dd.MM.yyyy, HH:mm' }}
-                      </p>
-                    }
-                  </article>
-                }
-              } @empty {
-                <p class="text-sm text-fb-text-secondary">
-                  Noch keine Nachrichten für dieses Gespräch gespeichert.
+      <app-vinted-messages />
+    }
+    @case ('listings') {
+      <app-vinted-listings />
+    }
+    @case ('sales') {
+      @if (page(); as entries) {
+        <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
+          @for (entry of entries.items; track entry.id) {
+            <app-card class="min-w-0 overflow-hidden">
+              <app-product-thumbnail
+                class="mb-3 block w-full"
+                [src]="entry.imageUrl"
+                [alt]="entry.title"
+                size="listing"
+              />
+              <p class="truncate text-[13px] font-semibold text-fb-text-primary">
+                {{ entry.title }}
+              </p>
+              @if (entry.brand || entry.size) {
+                <p class="mt-1 truncate text-xs text-fb-text-secondary">
+                  {{ entry.brand ?? '' }} {{ entry.size ?? '' }}
                 </p>
               }
-            </div>
-          } @else {
-            <p class="text-sm text-fb-text-secondary">Wähle ein Gespräch aus.</p>
-          }
-          <p class="mt-4 border-t border-fb-line pt-3 text-xs text-fb-text-muted">
-            Nachrichten aus ungelesenen Gesprächen werden noch nicht importiert, damit ihr
-            Vinted-Lesestatus unverändert bleibt. Senden ist noch nicht angebunden.
-          </p>
-        </app-card>
-      </div>
-    }
-    @default {
-      @if (section() !== 'activity') {
-        @if (page(); as entries) {
-          <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
-            @for (entry of entries.items; track entry.id) {
-              @if (section() === 'listings') {
-                <a
-                  class="block min-w-0 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
-                  [routerLink]="['/marketplaces/vinted/listings', entry.connectionId, entry.id]"
-                  [attr.aria-label]="'Inserat ' + entry.title + ' öffnen'"
-                >
-                  <app-card class="min-w-0 overflow-hidden">
-                    <div class="relative mb-3 overflow-hidden rounded-lg">
-                      <app-product-thumbnail
-                        class="block w-full"
-                        [src]="entry.imageUrl"
-                        [alt]="entry.title"
-                        size="listing"
-                      />
-                      @if (entry.promoted) {
-                        <span
-                          class="absolute inset-x-0 bottom-0 bg-[#007782] px-2 py-1 text-center text-xs font-semibold text-white"
-                          >Gepusht</span
-                        >
-                      }
-                    </div>
-                    <p class="truncate text-sm font-semibold text-fb-text-primary">
-                      {{ entry.title }}
-                    </p>
-                    @if (entry.brand || entry.size) {
-                      <p class="mt-1 truncate text-xs text-fb-text-muted">
-                        {{ entry.brand ?? '' }} {{ entry.size ?? '' }}
-                      </p>
-                    }
-                    <p class="mt-3 text-base font-semibold text-fb-text-primary">
-                      {{
-                        entry.price === null
-                          ? 'Preis unbekannt'
-                          : (entry.price | currency: entry.currency)
-                      }}
-                    </p>
-                    <div
-                      class="mt-3 flex flex-wrap gap-3 border-t border-fb-line pt-3 text-xs text-fb-text-muted"
-                    >
-                      <span
-                        ><span data-views>{{ entry.metrics.views ?? '—' }}</span> Aufrufe</span
-                      >
-                      <span
-                        ><span data-favorites>{{ entry.metrics.favorites ?? '—' }}</span>
-                        Favoriten</span
-                      >
-                    </div>
-                  </app-card>
-                </a>
-              } @else {
-                <app-card class="min-w-0 overflow-hidden">
-                  <div class="relative mb-3 overflow-hidden rounded-lg">
-                    <app-product-thumbnail
-                      class="block w-full"
-                      [src]="entry.imageUrl"
-                      [alt]="entry.title"
-                      size="listing"
-                    />
-                    @if (section() === 'listings' && entry.promoted) {
-                      <span
-                        class="absolute inset-x-0 bottom-0 bg-[#007782] px-2 py-1 text-center text-xs font-semibold text-white"
-                      >
-                        Gepusht
-                      </span>
-                    }
-                  </div>
-                  <div class="flex items-start justify-between gap-2">
-                    <div class="min-w-0">
-                      <p class="truncate text-sm font-semibold text-fb-text-primary">
-                        {{ entry.title }}
-                      </p>
-                      @if (entry.brand || entry.size) {
-                        <p class="mt-1 truncate text-xs text-fb-text-muted">
-                          {{ entry.brand ?? '' }} {{ entry.size ?? '' }}
-                        </p>
-                      }
-                    </div>
-                  </div>
-                  <p class="mt-3 text-base font-semibold text-fb-text-primary">
-                    {{
-                      entry.price === null
-                        ? 'Preis unbekannt'
-                        : (entry.price | currency: entry.currency)
-                    }}
-                  </p>
-                  @if (entry.status) {
-                    <p class="mt-1 text-xs text-fb-text-secondary">
-                      {{ section() === 'listings' ? 'Zustand: ' : 'Status: ' }}{{ entry.status }}
-                    </p>
-                  }
-                  @if (section() === 'sales' && entry.shipmentStatus) {
-                    <p class="mt-1 text-xs text-fb-text-secondary">
-                      Versand: {{ entry.shipmentStatus }}
-                    </p>
-                  }
-                  @if (section() === 'listings') {
-                    <div
-                      class="mt-3 flex flex-wrap gap-3 border-t border-fb-line pt-3 text-xs text-fb-text-muted"
-                    >
-                      <span
-                        ><span data-views>{{ entry.metrics.views ?? '—' }}</span> Aufrufe</span
-                      >
-                      <span
-                        ><span data-favorites>{{ entry.metrics.favorites ?? '—' }}</span>
-                        Favoriten</span
-                      >
-                    </div>
-                  }
-                </app-card>
+              <p class="mt-3 text-base font-semibold text-fb-text-primary">
+                {{
+                  entry.price === null
+                    ? 'Preis unbekannt'
+                    : (entry.price | currency: entry.currency)
+                }}
+              </p>
+              @if (entry.status) {
+                <p class="mt-1 text-xs text-fb-text-secondary">Status: {{ entry.status }}</p>
               }
-            } @empty {
-              <app-card
-                [title]="'Noch keine ' + pageTitle()"
-                subtitle="Klicke oben auf Kontodaten aktualisieren."
-              />
-            }
-          </div>
-          @if (entries.nextCursor) {
-            <app-button
-              class="mt-4"
-              [loading]="store.loadingPage() === pageKind()"
-              (clicked)="store.loadMore(pageKind())"
-              >Weitere Einträge laden</app-button
-            >
+              @if (entry.shipmentStatus) {
+                <p class="mt-1 text-xs text-fb-text-secondary">
+                  Versand: {{ entry.shipmentStatus }}
+                </p>
+              }
+            </app-card>
+          } @empty {
+            <app-card title="Noch keine gespeicherten Verkäufe" />
           }
+        </div>
+        @if (entries.nextCursor) {
+          <app-button
+            class="mt-4"
+            [loading]="store.loadingPage() === 'sale'"
+            (clicked)="store.loadMore('sale')"
+            >Weitere Verkäufe laden</app-button
+          >
         }
       }
-      @if (section() === 'activity') {
-        <p class="mb-3 text-sm text-fb-text-secondary">
-          Aktivitäten des ausgewählten Kontos. Der Zähler umfasst alle gespeicherten Einträge, nicht
-          nur ungelesene Meldungen.
-        </p>
-      }
-      @if (section() === 'activity' && page(); as entries) {
-        <app-data-table
-          [ariaLabel]="pageTitle()"
-          [searchEnabled]="false"
-          [hasRows]="entries.items.length > 0"
-          [emptyTitle]="'Noch keine ' + pageTitle()"
-          emptyText="Für dieses Konto wurden noch keine Daten übernommen."
-        >
-          <p table-view class="text-sm font-medium">{{ pageTitle() }} ({{ entries.total }})</p>
-          <div table-content class="overflow-x-auto">
-            <table class="min-w-full text-left text-[13px]">
-              <thead class="border-b border-fb-line text-fb-text-muted">
-                <tr>
-                  <th scope="col" class="px-4 py-3">
-                    {{ section() === 'activity' ? 'Ereignis' : 'Artikel' }}
-                  </th>
-                  @if (section() !== 'activity') {
-                    <th scope="col" class="px-4 py-3">Preis</th>
-                    <th scope="col" class="px-4 py-3">Status</th>
-                  }
-                  @if (section() === 'listings') {
-                    <th scope="col" class="px-4 py-3">Aufrufe</th>
-                    <th scope="col" class="px-4 py-3">Favoriten</th>
-                  }
-                  <th scope="col" class="px-4 py-3">
-                    {{ section() === 'listings' ? 'Kennzahlenstand' : 'Zeitpunkt' }}
-                  </th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-fb-line">
-                @for (entry of entries.items; track entry.id) {
+    }
+    @case ('activity') {
+      @if (page(); as entries) {
+        @if (entries.items.length) {
+          <app-data-table [hasRows]="true" [searchEnabled]="false" ariaLabel="Vinted-Aktivitäten"
+            ><div table-content class="overflow-x-auto">
+              <table class="w-full text-left text-[13px]">
+                <thead class="bg-fb-well text-fb-text-secondary">
                   <tr>
-                    <td class="px-4 py-3">
-                      <div class="flex min-w-40 items-center gap-3">
-                        @if (section() !== 'activity') {
-                          <app-product-thumbnail [src]="entry.imageUrl" [alt]="entry.title" />
-                        }
-                        <div class="max-w-96">
-                          <p class="break-words font-medium text-fb-text-primary">
-                            {{ entry.title }}
-                          </p>
-                          @if (section() === 'activity' && entry.text) {
-                            <p class="mt-1 whitespace-pre-wrap break-words text-fb-text-secondary">
-                              {{ entry.text }}
-                            </p>
-                          }
-                        </div>
-                      </div>
-                    </td>
-                    @if (section() !== 'activity') {
-                      <td class="whitespace-nowrap px-4 py-3">
-                        {{ entry.price === null ? '—' : (entry.price | currency: entry.currency) }}
-                      </td>
-                      <td class="px-4 py-3">{{ entry.status ?? '—' }}</td>
-                    }
-                    @if (section() === 'listings') {
-                      <td data-views class="px-4 py-3 tabular-nums">
-                        {{ entry.metrics.views ?? '—' }}
-                      </td>
-                      <td data-favorites class="px-4 py-3 tabular-nums">
-                        {{ entry.metrics.favorites ?? '—' }}
-                      </td>
-                    }
-                    <td class="whitespace-nowrap px-4 py-3 text-fb-text-secondary">
-                      {{
-                        (section() === 'listings' ? entry.metrics.observedAt : entry.occurredAt)
-                          ? ((section() === 'listings'
-                              ? entry.metrics.observedAt
-                              : entry.occurredAt
-                            ) | date: 'dd.MM.yyyy, HH:mm')
-                          : '—'
-                      }}
-                    </td>
+                    <th scope="col" class="px-4 py-3">Aktivität</th>
+                    <th scope="col" class="px-4 py-3">Zeitpunkt</th>
                   </tr>
-                }
-              </tbody>
-            </table>
-          </div>
-        </app-data-table>
+                </thead>
+                <tbody class="divide-y divide-fb-line">
+                  @for (entry of entries.items; track entry.id) {
+                    <tr>
+                      <td class="px-4 py-3">
+                        <p class="break-words font-medium text-fb-text-primary">
+                          {{ entry.title }}
+                        </p>
+                        @if (entry.text) {
+                          <p class="mt-1 whitespace-pre-wrap break-words text-fb-text-secondary">
+                            {{ entry.text }}
+                          </p>
+                        }
+                      </td>
+                      <td class="whitespace-nowrap px-4 py-3 text-fb-text-secondary">
+                        {{
+                          entry.occurredAt ? (entry.occurredAt | date: 'dd.MM.yyyy, HH:mm') : '—'
+                        }}
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div></app-data-table
+          >
+        } @else {
+          <app-card
+            title="Noch keine gespeicherten Vinted-Aktivitäten"
+            subtitle="Für dieses Konto sind bisher keine Vinted-Aktivitäten gespeichert."
+          />
+        }
         @if (entries.nextCursor) {
           <app-button
             class="mt-3"
-            [loading]="store.loadingPage() === pageKind()"
-            (clicked)="store.loadMore(pageKind())"
-            >Weitere Einträge laden</app-button
+            [loading]="store.loadingPage() === 'activity'"
+            (clicked)="store.loadMore('activity')"
+            >Weitere Aktivitäten laden</app-button
           >
         }
       }

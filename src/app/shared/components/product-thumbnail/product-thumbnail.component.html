@@ -7,14 +7,17 @@
   [class.rounded-full]="size() === 'avatar' || size() === 'profile'"
   [class.rounded-lg]="size() !== 'avatar' && size() !== 'profile'"
   [class.aspect-[3/4]]="size() === 'listing'"
-  [class.w-full]="size() === 'listing'"
+  [class.w-full]="size() === 'listing' || size() === 'listing-detail'"
+  [class.max-w-[360px]]="size() === 'listing-detail'"
+  [class.h-[260px]]="size() === 'listing-detail'"
+  [class.sm:h-[420px]]="size() === 'listing-detail'"
 >
   @if (imageSource(); as source) {
     <img
       [src]="source"
       [alt]="alt()"
       class="size-full"
-      [class.object-contain]="size() === 'sm' || size() === 'md'"
+      [class.object-contain]="size() === 'sm' || size() === 'md' || size() === 'listing-detail'"
       [class.object-cover]="size() === 'listing' || size() === 'avatar' || size() === 'profile'"
       [attr.loading]="priority() ? 'eager' : 'lazy'"
       decoding="async"
