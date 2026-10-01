@@ -8,6 +8,8 @@ import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
+import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
+import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { createMarketplaceFixtures } from '../../testing/marketplace-fixtures';
 import { MarketplaceSyncScheduleApiService } from '../../services/marketplace-sync-schedule-api.service';
 import { VintedSyncScheduleComponent } from './vinted-sync-schedule.component';
@@ -23,7 +25,7 @@ const schedule = {
   lastSuccessAt: null,
   pausedReason: null,
   retryAfter: null,
-  authorizationVersion: 0,
+  authorizationVersion: 1,
 };
 let restore: (() => void) | undefined;
 let api: {
@@ -33,6 +35,14 @@ let api: {
 };
 beforeAll(async () => {
   restore = await prepareMarketplaceRendering([
+    {
+      type: CustomSelectComponent,
+      path: 'src/app/shared/components/custom-select/custom-select.component.ts',
+    },
+    {
+      type: ModalShellComponent,
+      path: 'src/app/shared/components/modal-shell/modal-shell.component.ts',
+    },
     {
       type: VintedSyncScheduleComponent,
       path: 'src/app/features/marketplaces/components/vinted-sync-schedule/vinted-sync-schedule.component.ts',
@@ -81,6 +91,24 @@ async function render() {
   return fixture;
 }
 describe('Automatische Aktualisierung je Vinted-Konto', () => {
+  it('meldet einen neu bestätigten Hintergrundimport genau einmal an die offene Ansicht', async () => {
+    const fixture = await render();
+    const synchronized = vi.fn();
+    fixture.componentInstance.synchronized.subscribe(synchronized);
+    const completed = { ...schedule, enabled: true, lastSuccessAt: '2026-10-01T12:15:00Z' };
+    api.read.mockResolvedValue(completed);
+    await fixture.componentInstance.store.reload(true);
+    fixture.detectChanges();
+    TestBed.tick();
+    expect(synchronized).toHaveBeenCalledExactlyOnceWith(completed);
+    fixture.componentRef.setInput('account', { ...account, lastSyncedAt: completed.lastSuccessAt });
+    fixture.detectChanges();
+    TestBed.tick();
+    await fixture.componentInstance.store.reload(true);
+    fixture.detectChanges();
+    TestBed.tick();
+    expect(synchronized).toHaveBeenCalledTimes(1);
+  });
   it('zeigt einen aktivierten Zeitplan bei pausierter, gesperrter oder ausgeloggter Verbindung nicht als aktiv', async () => {
     api.read.mockResolvedValue({ ...schedule, enabled: true, nextDueAt: '2026-10-01T12:15:00Z' });
     const fixture = await render();
@@ -119,6 +147,34 @@ describe('Automatische Aktualisierung je Vinted-Konto', () => {
     expect(element.textContent).toContain('Nächster geplanter Abruf');
     expect(element.textContent).toContain('Automatische Aktualisierung pausieren');
     expect(element.querySelector('select')).toBeNull();
+  });
+  it('zeigt bei einem fehlenden Zeitplan die bestätigte Standardautomatik ohne Aktivierungsklick', async () => {
+    api.read.mockResolvedValue({ ...schedule, authorizationVersion: 0 });
+    const fixture = await render();
+    const element = fixture.nativeElement as HTMLElement;
+    expect(api.set).toHaveBeenCalledWith(
+      { workspaceId: account.workspaceId, connectionId: account.connectionId },
+      true,
+      15,
+      0,
+    );
+    expect(element.textContent).toContain('Automatische Aktualisierung pausieren');
+    expect(element.textContent).not.toContain('Stand neu laden');
+  });
+  it('öffnet Abstände in den Einstellungen und zeigt die gespeicherte Einstellung', async () => {
+    api.availability.mockResolvedValue({ enabled: true, allowedIntervals: [3, 5, 10, 15, 30, 60] });
+    const fixture = await render();
+    const element = fixture.nativeElement as HTMLElement;
+    [...element.querySelectorAll('button')]
+      .find((button) => button.textContent?.includes('Aktualisierung einstellen'))!
+      .click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(element.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(element.querySelector('[role="combobox"]')?.getAttribute('aria-label')).toBe(
+      'Abrufabstand',
+    );
   });
   it('zeigt gespeicherte Pausengründe verständlich und widerruft ohne verfügbaren Worker', async () => {
     api.read.mockResolvedValue({

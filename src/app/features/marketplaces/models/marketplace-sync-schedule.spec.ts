@@ -50,7 +50,7 @@ describe('Automatische Vinted-Aktualisierung: Antwortvertrag', () => {
       }),
     ).toEqual({ enabled: true, allowedIntervals: [15] });
     for (const scheduledSync of [
-      { enabled: true, authorizationVersion: 2, allowedIntervals: [15] },
+      { enabled: true, authorizationVersion: 3, allowedIntervals: [15] },
       { enabled: true, authorizationVersion: 1, allowedIntervals: [5, 10, 15] },
       { enabled: true, authorizationVersion: 1, allowedIntervals: [15, 15] },
     ])
@@ -66,5 +66,19 @@ describe('Automatische Vinted-Aktualisierung: Antwortvertrag', () => {
         scheduledSync: { enabled: true, authorizationVersion: 1, allowedIntervals: [15] },
       }).enabled,
     ).toBe(false);
+  });
+  it('liest einstellbare Abstände nur mit bestätigtem neuem Dienstvertrag', () => {
+    const allowedIntervals = [3, 5, 10, 15, 30, 60];
+    expect(
+      parseScheduledSyncAvailability({
+        ok: true,
+        readOnly: false,
+        apiVersion: 2,
+        scheduledSync: { enabled: true, authorizationVersion: 2, allowedIntervals },
+      }),
+    ).toEqual({ enabled: true, allowedIntervals });
+    expect(
+      parseMarketplaceSyncSchedule({ ...schedule, intervalMinutes: 3 }, scope).intervalMinutes,
+    ).toBe(3);
   });
 });

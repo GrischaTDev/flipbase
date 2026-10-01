@@ -149,8 +149,8 @@ async function main(): Promise<void> {
     scheduledSync: dispatcher
       ? () => ({
           enabled: dispatcher.scheduledEnabled,
-          authorizationVersion: 1,
-          allowedIntervals: [15],
+          authorizationVersion: 2,
+          allowedIntervals: [3, 5, 10, 15, 30, 60],
         })
       : undefined,
   }).createServer();

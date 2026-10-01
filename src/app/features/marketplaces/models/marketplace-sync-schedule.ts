@@ -1,7 +1,8 @@
 import type { AccountScope } from './marketplace.models';
 import { MarketplaceResponseError } from './marketplace-response';
 
-export type MarketplaceSyncInterval = 5 | 10 | 15;
+export const MARKETPLACE_SYNC_INTERVALS = [3, 5, 10, 15, 30, 60] as const;
+export type MarketplaceSyncInterval = (typeof MARKETPLACE_SYNC_INTERVALS)[number];
 export const MARKETPLACE_SYNC_PAUSE_LABELS = {
   needs_login: 'Vinted verlangt eine neue Anmeldung. Öffne die Vinted-Anmeldung für dieses Konto.',
   forbidden: 'Vinted hat den Abruf abgelehnt. Prüfe die Kontoverbindung.',
@@ -61,7 +62,7 @@ export function parseMarketplaceSyncSchedule(
     item['workspaceId'] !== scope.workspaceId ||
     item['connectionId'] !== scope.connectionId ||
     typeof item['enabled'] !== 'boolean' ||
-    ![5, 10, 15].includes(Number(item['intervalMinutes'])) ||
+    !MARKETPLACE_SYNC_INTERVALS.includes(item['intervalMinutes'] as MarketplaceSyncInterval) ||
     typeof item['intervalMinutes'] !== 'number' ||
     typeof item['authorizationVersion'] !== 'number' ||
     !Number.isSafeInteger(item['authorizationVersion']) ||
@@ -84,7 +85,7 @@ export function parseMarketplaceSyncSchedule(
   };
 }
 
-/** Freigabeversion 1 ist ausschließlich für den 15-Minuten-Pilot geprüft. */
+/** Ältere Dienste bestätigen weiterhin ausschließlich ihren 15-Minuten-Abstand. */
 export function parseScheduledSyncAvailability(value: unknown): ScheduledSyncAvailability {
   const item = record(value);
   const capability = record(item?.['scheduledSync']);
@@ -93,11 +94,18 @@ export function parseScheduledSyncAvailability(value: unknown): ScheduledSyncAva
     item['readOnly'] === false &&
     item['apiVersion'] === 2 &&
     capability?.['enabled'] === true &&
-    capability['authorizationVersion'] === 1 &&
     Array.isArray(capability['allowedIntervals']) &&
-    capability['allowedIntervals'].length === 1 &&
-    capability['allowedIntervals'][0] === 15
+    capability['allowedIntervals'].includes(15) &&
+    new Set(capability['allowedIntervals']).size === capability['allowedIntervals'].length &&
+    ((capability['authorizationVersion'] === 1 && capability['allowedIntervals'].length === 1) ||
+      (capability['authorizationVersion'] === 2 &&
+        capability['allowedIntervals'].every((interval) =>
+          MARKETPLACE_SYNC_INTERVALS.includes(interval as MarketplaceSyncInterval),
+        )))
   )
-    return { enabled: true, allowedIntervals: [15] };
+    return {
+      enabled: true,
+      allowedIntervals: capability['allowedIntervals'] as MarketplaceSyncInterval[],
+    };
   return { enabled: false, allowedIntervals: [] };
 }

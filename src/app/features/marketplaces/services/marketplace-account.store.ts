@@ -191,6 +191,64 @@ export class MarketplaceAccountStore {
     }
   }
 
+  async refreshImportedSnapshot(scope: AccountScope, lastSyncedAt: string | null): Promise<void> {
+    const connection = this.selectedConnection();
+    const key = this.contextKey();
+    if (
+      !key ||
+      !lastSyncedAt ||
+      !this.canManage() ||
+      connection?.connectionId !== scope.connectionId ||
+      connection.workspaceId !== scope.workspaceId ||
+      connection.status !== 'connected' ||
+      (connection.lastSyncedAt !== null &&
+        Date.parse(lastSyncedAt) <= Date.parse(connection.lastSyncedAt)) ||
+      this.loading() ||
+      this.loadingSnapshot() ||
+      this.loadingPage() ||
+      this.busy()
+    )
+      return;
+    const selection = this.selectionRevision;
+    const conversation = this.conversationId();
+    const conversationRevision = this.conversationRevision;
+    const isCurrent = () => this.isCurrent(key) && selection === this.selectionRevision;
+    this.fetchingSnapshot.set(true);
+    try {
+      const result = await this.api.readSnapshot(this.scope(connection));
+      if (!isCurrent()) return;
+      this.accountSnapshot.set(result);
+      this.accountList.update((connections) =>
+        connections.map((account) =>
+          account.connectionId === scope.connectionId ? { ...account, lastSyncedAt } : account,
+        ),
+      );
+      // Nur bereits gespeicherte Nachrichten lesen; keine Vinted-Lesebestätigung.
+      if (
+        conversation &&
+        conversation === this.conversationId() &&
+        conversationRevision === this.conversationRevision
+      ) {
+        const messages = await this.api.readPage(
+          this.scope(connection),
+          'message',
+          null,
+          conversation,
+        );
+        if (
+          isCurrent() &&
+          conversation === this.conversationId() &&
+          conversationRevision === this.conversationRevision
+        )
+          this.messagePage.set(messages);
+      }
+    } catch (error) {
+      if (isCurrent()) this.handleError(error);
+    } finally {
+      if (isCurrent()) this.fetchingSnapshot.set(false);
+    }
+  }
+
   async openConversation(id: string): Promise<void> {
     const connection = this.selectedConnection();
     const key = this.contextKey();

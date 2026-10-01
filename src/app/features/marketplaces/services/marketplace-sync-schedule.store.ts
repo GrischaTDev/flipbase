@@ -3,6 +3,7 @@ import { AuthService } from '../../../core/services/auth.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import type { MarketplaceConnection } from '../models/marketplace.models';
 import type {
+  MarketplaceSyncInterval,
   MarketplaceSyncSchedule,
   ScheduledSyncAvailability,
 } from '../models/marketplace-sync-schedule';
@@ -77,6 +78,7 @@ export class MarketplaceSyncScheduleStore {
       !!this.account()?.externalAccountId &&
       this.availability().enabled &&
       this.schedule() !== null &&
+      this.availability().allowedIntervals.includes(this.schedule()!.intervalMinutes) &&
       !this.schedule()?.enabled,
   );
   readonly canDisable = computed(
@@ -104,7 +106,11 @@ export class MarketplaceSyncScheduleStore {
         if (key) void this.reload();
       });
     });
+    const statusTimer = setInterval(() => {
+      if (this.current() && !this.loading() && !this.busy()) void this.reload(true);
+    }, 30_000);
     inject(DestroyRef).onDestroy(() => {
+      clearInterval(statusTimer);
       this.destroyed = true;
       this.revision++;
     });
@@ -128,22 +134,27 @@ export class MarketplaceSyncScheduleStore {
   private async refreshAvailability(key: string, revision: number): Promise<void> {
     try {
       const capability = await this.api.availability();
-      if (this.isCurrent(key, revision) && !this.denied()) this.capability.set(capability);
+      if (this.isCurrent(key, revision) && !this.denied()) {
+        this.capability.set(capability);
+        await this.activateDefault();
+      }
     } catch {
       if (this.isCurrent(key, revision))
         this.capability.set({ enabled: false, allowedIntervals: [] });
     }
   }
 
-  async reload(): Promise<void> {
+  async reload(keepVisible = false): Promise<void> {
     const key = this.contextKey();
     const account = this.account();
     if (!key || !account || !this.current() || this.busy()) return;
     const revision = ++this.revision;
     this.fetching.set(true);
     this.loadError.set(null);
-    this.savedSchedule.set(null);
-    this.capability.set({ enabled: false, allowedIntervals: [] });
+    if (!keepVisible) {
+      this.savedSchedule.set(null);
+      this.capability.set({ enabled: false, allowedIntervals: [] });
+    }
     this.needsReload.set(false);
     this.denied.set(false);
     void this.refreshAvailability(key, revision);
@@ -157,14 +168,43 @@ export class MarketplaceSyncScheduleStore {
     } catch (error) {
       if (this.isCurrent(key, revision)) this.handleError(error);
     } finally {
-      if (this.isCurrent(key, revision)) this.fetching.set(false);
+      if (this.isCurrent(key, revision)) {
+        this.fetching.set(false);
+        await this.activateDefault();
+      }
     }
   }
 
+  private async activateDefault(): Promise<void> {
+    if (this.schedule()?.authorizationVersion === 0 && this.canEnable())
+      await this.setEnabled(true);
+  }
+
+  async setIntervalMinutes(interval: MarketplaceSyncInterval | null): Promise<void> {
+    const schedule = this.schedule();
+    if (
+      !schedule ||
+      interval === null ||
+      interval === schedule.intervalMinutes ||
+      this.loading() ||
+      this.busy() ||
+      this.needsReload() ||
+      !this.availability().enabled ||
+      !this.availability().allowedIntervals.includes(interval)
+    )
+      return;
+    await this.save(schedule.enabled, interval);
+  }
+
   async setEnabled(enabled: boolean): Promise<void> {
+    if (!(enabled ? this.canEnable() : this.canDisable())) return;
+    await this.save(enabled, this.schedule()!.intervalMinutes);
+  }
+
+  private async save(enabled: boolean, interval: MarketplaceSyncInterval): Promise<void> {
     const key = this.contextKey();
     const schedule = this.schedule();
-    if (!key || !schedule || !(enabled ? this.canEnable() : this.canDisable())) return;
+    if (!key || !schedule) return;
     const revision = ++this.revision;
     this.writing.set(true);
     this.loadError.set(null);
@@ -173,7 +213,7 @@ export class MarketplaceSyncScheduleStore {
         const capability = await this.api.availability();
         if (!this.isCurrent(key, revision)) return;
         this.capability.set(capability);
-        if (!capability.enabled) {
+        if (!capability.enabled || !capability.allowedIntervals.includes(interval)) {
           this.loadError.set(
             'Der Browserdienst unterstützt die automatische Aktualisierung derzeit nicht. Lade den Stand später erneut.',
           );
@@ -183,7 +223,7 @@ export class MarketplaceSyncScheduleStore {
       const result = await this.api.set(
         { workspaceId: schedule.workspaceId, connectionId: schedule.connectionId },
         enabled,
-        schedule.intervalMinutes,
+        interval,
         schedule.authorizationVersion,
       );
       if (this.isCurrent(key, revision)) this.savedSchedule.set(result);

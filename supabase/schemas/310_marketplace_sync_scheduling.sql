@@ -5,7 +5,7 @@ create table public.marketplace_sync_schedules (
   connection_id uuid not null,
   enabled boolean not null default false,
   activated_by uuid not null references auth.users(id),
-  interval_minutes integer not null default 15 check (interval_minutes = 15),
+  interval_minutes integer not null default 15 check (interval_minutes in (3,5,10,15,30,60)),
   authorization_version bigint not null default 1 check (authorization_version > 0),
   next_due_at timestamptz,
   last_attempt_at timestamptz,
@@ -88,16 +88,16 @@ begin
   perform 1 from public.marketplace_connections where workspace_id = p_workspace_id and id = p_connection_id and marketplace = 'vinted'
     and (not p_enabled or status = 'connected') for update;
   if not found then raise exception 'Konto nicht verbunden' using errcode = '22023'; end if;
-  if p_enabled is null or p_interval_minutes is distinct from 15 or p_authorization_version is null or p_authorization_version < 0 then
+  if p_enabled is null or p_interval_minutes is null or p_interval_minutes not in (3,5,10,15,30,60) or p_authorization_version is null or p_authorization_version < 0 then
     raise exception 'Ungültiger Zeitplan' using errcode = '22023';
   end if;
   select * into v_schedule from public.marketplace_sync_schedules where workspace_id = p_workspace_id and connection_id = p_connection_id for update;
   if coalesce(v_schedule.authorization_version,0) <> p_authorization_version then raise exception 'Zeitplan wurde zwischenzeitlich geändert' using errcode = '40001'; end if;
   if not public.marketplace_sync_authorization_valid(p_workspace_id,(select auth.uid())) then raise exception 'Kontozugriff verweigert' using errcode = '42501'; end if;
   insert into public.marketplace_sync_schedules(workspace_id,connection_id,enabled,activated_by,interval_minutes,next_due_at)
-    values(p_workspace_id,p_connection_id,p_enabled,(select auth.uid()),15,case when p_enabled then clock_timestamp()+interval '15 minutes' end)
+    values(p_workspace_id,p_connection_id,p_enabled,(select auth.uid()),p_interval_minutes,case when p_enabled then clock_timestamp()+make_interval(mins=>p_interval_minutes) end)
     on conflict(workspace_id,connection_id) do update set enabled=excluded.enabled,activated_by=excluded.activated_by,
-      authorization_version=public.marketplace_sync_schedules.authorization_version+1,next_due_at=excluded.next_due_at,
+      authorization_version=public.marketplace_sync_schedules.authorization_version+1,interval_minutes=excluded.interval_minutes,next_due_at=excluded.next_due_at,
       paused_reason=null,retry_after=null,consecutive_failures=0,updated_at=clock_timestamp();
   update public.marketplace_operations set state='failed',error_code='access',finished_at=clock_timestamp()
     where workspace_id=p_workspace_id and connection_id=p_connection_id and state='queued' and authorization_kind='scheduled_read'
@@ -182,7 +182,7 @@ begin
         values(v_schedule.workspace_id,v_schedule.connection_id,v_schedule.activated_by,'scheduled_read',1,v_schedule.id,v_schedule.authorization_version)
         on conflict(workspace_id,connection_id) where state in ('queued','running') do nothing;
       -- Verpasste Zyklen werden zusammengefasst, auch wenn das Konto noch beschäftigt ist.
-      update public.marketplace_sync_schedules set next_due_at=clock_timestamp()+interval '15 minutes',updated_at=clock_timestamp() where id=v_schedule.id;
+      update public.marketplace_sync_schedules set next_due_at=clock_timestamp()+make_interval(mins=>v_schedule.interval_minutes),updated_at=clock_timestamp() where id=v_schedule.id;
     end loop;
   end if;
   if exists(select 1 from public.marketplace_browser_sessions where state in ('active','stopping')) then return null; end if;
@@ -323,7 +323,7 @@ begin
       authorization_version=authorization_version+case when v_reason in ('needs_login','forbidden','challenge','access_revoked','cleanup','retry_limit') then 1 else 0 end,
       paused_reason=v_reason,retry_after=v_retry,consecutive_failures=v_failures,
       last_success_at=case when p_outcome->>'state'='succeeded' and v_reason is null then v_operation.observed_at else last_success_at end,
-      next_due_at=case when v_reason in ('needs_login','forbidden','challenge','access_revoked','cleanup','retry_limit') then null else greatest(clock_timestamp()+interval '15 minutes',v_retry) end,
+      next_due_at=case when v_reason in ('needs_login','forbidden','challenge','access_revoked','cleanup','retry_limit') then null else greatest(clock_timestamp()+make_interval(mins=>v_schedule.interval_minutes),v_retry) end,
       updated_at=clock_timestamp() where id=v_schedule.id;
   end if;
   return true;

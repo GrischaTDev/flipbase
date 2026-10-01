@@ -1,15 +1,34 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  output,
+  signal,
+} from '@angular/core';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
+import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
+import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import type { MarketplaceConnection } from '../../models/marketplace.models';
 import { MARKETPLACE_SYNC_PAUSE_LABELS } from '../../models/marketplace-sync-schedule';
+import type { MarketplaceSyncSchedule } from '../../models/marketplace-sync-schedule';
 import { MarketplaceSyncScheduleStore } from '../../services/marketplace-sync-schedule.store';
 
 @Component({
   selector: 'app-vinted-sync-schedule',
-  imports: [DatePipe, BadgeComponent, ButtonComponent, NoticeBannerComponent],
+  imports: [
+    DatePipe,
+    BadgeComponent,
+    ButtonComponent,
+    NoticeBannerComponent,
+    CustomSelectComponent,
+    ModalShellComponent,
+  ],
   templateUrl: './vinted-sync-schedule.component.html',
   providers: [MarketplaceSyncScheduleStore],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -18,7 +37,16 @@ import { MarketplaceSyncScheduleStore } from '../../services/marketplace-sync-sc
 export class VintedSyncScheduleComponent {
   readonly account = input.required<MarketplaceConnection>();
   readonly canManage = input(false);
+  readonly synchronized = output<MarketplaceSyncSchedule>();
   readonly store = inject(MarketplaceSyncScheduleStore);
+  readonly settingsOpen = signal(false);
+  private settingsAccountKey: string | null = null;
+  readonly intervalOptions = computed(() =>
+    this.store.availability().allowedIntervals.map((value) => ({
+      value,
+      label: `Alle ${value} Minuten`,
+    })),
+  );
   readonly pausedText = computed(() => {
     const reason = this.store.schedule()?.pausedReason;
     return reason ? MARKETPLACE_SYNC_PAUSE_LABELS[reason] : null;
@@ -52,8 +80,28 @@ export class VintedSyncScheduleComponent {
   );
   constructor() {
     effect(() => {
-      this.store.account.set(this.account());
-      this.store.manageAllowed.set(this.canManage());
+      const schedule = this.store.schedule();
+      const account = this.account();
+      if (
+        this.canManage() &&
+        schedule?.lastSuccessAt &&
+        schedule.workspaceId === account.workspaceId &&
+        schedule.connectionId === account.connectionId &&
+        (!account.lastSyncedAt ||
+          Date.parse(schedule.lastSuccessAt) > Date.parse(account.lastSyncedAt))
+      )
+        this.synchronized.emit(schedule);
+    });
+    effect(() => {
+      const account = this.account();
+      const canManage = this.canManage();
+      const key = JSON.stringify([account.workspaceId, account.connectionId]);
+      if (key !== this.settingsAccountKey || !canManage) {
+        this.settingsOpen.set(false);
+      }
+      this.settingsAccountKey = key;
+      this.store.account.set(account);
+      this.store.manageAllowed.set(canManage);
     });
   }
 }

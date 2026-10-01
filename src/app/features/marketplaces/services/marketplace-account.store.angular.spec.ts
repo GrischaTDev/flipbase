@@ -90,6 +90,54 @@ beforeEach(() => {
   store = TestBed.inject(MarketplaceAccountStore);
 });
 describe('Kontogebundene Marktplatzansicht', () => {
+  it('übernimmt Hintergrundimporte ohne Konto oder Gesprächsauswahl zu verlieren', async () => {
+    await settle();
+    await store.openConversation('conversation-a');
+    const selectionVersion = store.selectionVersion();
+    api.readSnapshot.mockResolvedValueOnce(snapshot(accountA, 'Neuer Hintergrundstand'));
+    api.readPage.mockResolvedValueOnce({ items: [], total: 2, nextCursor: null });
+    const importedAt = '2026-10-01T12:15:00Z';
+    await store.refreshImportedSnapshot(accountA, importedAt);
+    expect(store.snapshot()?.profile?.displayName).toBe('Neuer Hintergrundstand');
+    expect(store.selectedConnection()?.lastSyncedAt).toBe(importedAt);
+    expect(store.selectedConnection()?.connectionId).toBe(accountA.connectionId);
+    expect(store.selectedConversationId()).toBe('conversation-a');
+    expect(store.messages()?.total).toBe(2);
+    expect(store.selectionVersion()).toBe(selectionVersion);
+    expect(api.readPage).toHaveBeenLastCalledWith(
+      { workspaceId: accountA.workspaceId, connectionId: accountA.connectionId },
+      'message',
+      null,
+      'conversation-a',
+    );
+  });
+  it('verwirft eine verspätete Hintergrundantwort nach Kontowechsel', async () => {
+    await settle();
+    const read = deferred<MarketplaceSnapshot>();
+    api.readSnapshot.mockReturnValueOnce(read.promise);
+    const refresh = store.refreshImportedSnapshot(accountA, '2026-10-01T12:15:00Z');
+    await store.selectConnection(accountB.connectionId);
+    read.resolve(snapshot(accountA, 'Verspäteter Hintergrundstand'));
+    await refresh;
+    expect(store.snapshot()?.connectionId).toBe(accountB.connectionId);
+    expect(store.selectedConnection()?.connectionId).toBe(accountB.connectionId);
+    expect(store.loadingSnapshot()).toBe(false);
+  });
+  it('liest bei einem fremden oder nicht bestätigten Hintergrundereignis keine Daten', async () => {
+    await settle();
+    const previousReads = api.readSnapshot.mock.calls.length;
+    await store.refreshImportedSnapshot(accountB, '2026-10-01T12:15:00Z');
+    await store.refreshImportedSnapshot(accountA, null);
+    expect(api.readSnapshot).toHaveBeenCalledTimes(previousReads);
+  });
+  it('entzieht den sichtbaren Kontostand auch bei verweigerter Hintergrundabfrage', async () => {
+    await settle();
+    api.readSnapshot.mockRejectedValueOnce(new MarketplaceApiError('forbidden'));
+    await store.refreshImportedSnapshot(accountA, '2026-10-01T12:15:00Z');
+    expect(store.snapshot()).toBeNull();
+    expect(store.connections()).toEqual([]);
+    expect(store.canManage()).toBe(false);
+  });
   it('löscht nur die gewählte Verbindung im aktuellen Workspace', async () => {
     await settle();
     browserApi.deleteConnection.mockImplementation(async () => {

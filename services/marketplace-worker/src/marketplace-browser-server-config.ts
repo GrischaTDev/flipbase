@@ -20,7 +20,8 @@ export function marketplaceBrowserServerConfig(
   const serviceRoleKey = environment['SUPABASE_SERVICE_ROLE_KEY'];
   const goLoginToken = environment['GOLOGIN_API_TOKEN'];
   const provider = environment['MARKETPLACE_BROWSER_PROVIDER'] ?? 'local';
-  const scheduledFlag = environment['MARKETPLACE_SCHEDULED_SYNC_ENABLED'] ?? '0';
+  const scheduledFlag =
+    environment['MARKETPLACE_SCHEDULED_SYNC_ENABLED'] ?? (provider === 'gologin' ? '1' : '0');
   if (scheduledFlag !== '0' && scheduledFlag !== '1')
     throw new Error('Automatische Aktualisierung ist ungültig konfiguriert');
   if (scheduledFlag === '1' && provider !== 'gologin')

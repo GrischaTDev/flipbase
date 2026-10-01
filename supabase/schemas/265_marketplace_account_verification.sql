@@ -19,6 +19,8 @@ declare
   v_session public.marketplace_browser_sessions;
   v_observed_at timestamptz := clock_timestamp();
 begin
+  -- Gleiche Sperrreihenfolge wie Zeitplanänderungen und Dispatcher.
+  perform pg_advisory_xact_lock(91731, 1);
   if p_external_account_id is null or p_external_account_id !~ '^[1-9][0-9]{0,31}$'
     or p_username is null or char_length(btrim(p_username)) not between 1 and 120
     or p_username ~ '[[:cntrl:]]'
@@ -67,6 +69,14 @@ begin
       capabilities = jsonb_set(capabilities, '{profile.read}', '"verified"'::jsonb, true),
       updated_at = v_observed_at
     where id = p_connection_id;
+
+  -- Neue bestätigte Konten erhalten die Standardautomatik. Eine vorhandene
+  -- Pause oder ein bewusst gewählter Abstand wird niemals überschrieben.
+  insert into public.marketplace_sync_schedules
+    (workspace_id, connection_id, enabled, activated_by, interval_minutes, next_due_at)
+  values (p_workspace_id, p_connection_id, true, p_user_id, 15,
+    v_observed_at + interval '15 minutes')
+  on conflict (workspace_id, connection_id) do nothing;
 
   insert into public.marketplace_account_entries
     (workspace_id, connection_id, kind, external_id, body, sort_at, observed_at)

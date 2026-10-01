@@ -16,6 +16,7 @@ async function mockMarketplace(
   verificationRequired = false,
   profileLimit = false,
   importedFeedbacks?: readonly Record<string, unknown>[],
+  importedOverview?: { publicationsTotal: number },
 ) {
   await page.route('**/marketplace-browser/healthz', (route) =>
     browserLogin
@@ -213,7 +214,7 @@ async function mockMarketplace(
               metrics: { views: 0, favorites: null, observedAt: '2026-09-26T12:00:00Z' },
             },
           ],
-          total: 1,
+          total: importedOverview?.publicationsTotal ?? 1,
           nextCursor: null,
         },
         conversations: {
@@ -300,7 +301,9 @@ test('aktiviert und pausiert automatische Vinted-Abrufe je Konto zugänglich @ma
   page,
 }) => {
   test.setTimeout(90_000);
-  const calls = await mockMarketplace(page, true, false, false, false, []);
+  const importedOverview = { publicationsTotal: 1 };
+  const calls = await mockMarketplace(page, true, false, false, false, [], importedOverview);
+  await page.clock.install();
   let scheduledSyncAvailable = true;
   const schedules = new Map(
     accountIds.map((connectionId) => [
@@ -312,7 +315,7 @@ test('aktiviert und pausiert automatische Vinted-Abrufe je Konto zugänglich @ma
         intervalMinutes: 15,
         nextDueAt: null as string | null,
         lastAttemptAt: null,
-        lastSuccessAt: null,
+        lastSuccessAt: null as string | null,
         pausedReason: null,
         retryAfter: null,
         authorizationVersion: 0,
@@ -327,7 +330,13 @@ test('aktiviert und pausiert automatische Vinted-Abrufe je Konto zugänglich @ma
         readOnly: false,
         apiVersion: 2,
         ...(scheduledSyncAvailable
-          ? { scheduledSync: { enabled: true, authorizationVersion: 1, allowedIntervals: [15] } }
+          ? {
+              scheduledSync: {
+                enabled: true,
+                authorizationVersion: 2,
+                allowedIntervals: [3, 5, 10, 15, 30, 60],
+              },
+            }
           : {}),
       },
     }),
@@ -344,11 +353,13 @@ test('aktiviert und pausiert automatische Vinted-Abrufe je Konto zugänglich @ma
         expect(body).toEqual({
           p_workspace_id: workspaceId,
           p_connection_id: schedule.connectionId,
-          p_enabled: !schedule.enabled,
-          p_interval_minutes: 15,
+          p_enabled: expect.any(Boolean),
+          p_interval_minutes: expect.any(Number),
           p_authorization_version: schedule.authorizationVersion,
         });
         schedule.enabled = body['p_enabled'] === true;
+        expect([3, 5, 10, 15, 30, 60]).toContain(body['p_interval_minutes']);
+        schedule.intervalMinutes = Number(body['p_interval_minutes']);
         schedule.authorizationVersion++;
         schedule.nextDueAt = schedule.enabled ? '2026-10-01T12:15:00Z' : null;
       }
@@ -362,9 +373,12 @@ test('aktiviert und pausiert automatische Vinted-Abrufe je Konto zugänglich @ma
     for (const schedule of schedules.values()) {
       schedule.enabled = false;
       schedule.nextDueAt = null;
-      schedule.authorizationVersion = 0;
+      schedule.lastSuccessAt = null;
+      schedule.intervalMinutes = 15;
+      schedule.authorizationVersion = schedule.connectionId === accountIds[0] ? 0 : 1;
     }
     scheduledSyncAvailable = true;
+    importedOverview.publicationsTotal = 1;
     const previousWrites = writes().length;
     await page.setViewportSize({ width, height: 1000 });
     await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -381,11 +395,6 @@ test('aktiviert und pausiert automatische Vinted-Abrufe je Konto zugänglich @ma
       exact: true,
     });
     await expect(accountSelect).toContainText('Testkonto A');
-    await expect(activate).toBeEnabled();
-    expect(writes()).toHaveLength(previousWrites);
-    await activate.focus();
-    await expect(activate).toBeFocused();
-    await activate.press('Enter');
     const pause = region.getByRole('button', {
       name: 'Automatische Aktualisierung pausieren',
       exact: true,
@@ -394,13 +403,56 @@ test('aktiviert und pausiert automatische Vinted-Abrufe je Konto zugänglich @ma
     await expect(region.locator('app-badge')).toHaveText('Aktiv');
     await expect(region.getByText('Keiner geplant', { exact: true })).toHaveCount(0);
     expect(writes()).toHaveLength(previousWrites + 1);
+    await expect(region.getByRole('button', { name: 'Stand neu laden', exact: true })).toHaveCount(
+      0,
+    );
+    const settings = region.getByRole('button', { name: 'Aktualisierung einstellen' });
+    await settings.focus();
+    await settings.press('Enter');
+    const dialog = page.getByRole('dialog', { name: 'Automatische Aktualisierung', exact: true });
+    await expect(dialog).toBeVisible();
+    const interval = dialog.getByRole('combobox', { name: 'Abrufabstand', exact: true });
+    await interval.press('Enter');
+    await page.getByRole('option', { name: 'Alle 3 Minuten', exact: true }).click();
+    await expect(interval).toContainText('Alle 3 Minuten');
+    await expect(dialog.getByRole('status')).toHaveText('Gespeichert: alle 3 Minuten.');
+    expect(writes()).toHaveLength(previousWrites + 2);
+    expect(writes().at(-1)?.body['p_enabled']).toBe(true);
+    await page.addScriptTag({ content: axe.source });
+    expect(
+      await page.evaluate(
+        async () =>
+          (
+            await (window as unknown as { axe: typeof axe }).axe.run(
+              document.querySelector('app-modal-shell') as HTMLElement,
+            )
+          ).violations,
+      ),
+    ).toEqual([]);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    ).toBe(true);
+    await evidence(page, `vinted-schedule-settings-${width}`);
+    await dialog.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    await expect(settings).toBeFocused();
     await evidence(page, `vinted-schedule-active-${width}`);
+
+    importedOverview.publicationsTotal = 2;
+    schedules.get(accountIds[0])!.lastSuccessAt = '2026-10-01T12:15:00Z';
+    await page.clock.runFor(30_000);
+    const publicationsCard = page.locator('app-card').filter({
+      has: page.getByRole('heading', { name: 'Inserate', exact: true }),
+    });
+    await expect(publicationsCard.getByText('2', { exact: true })).toBeVisible();
+    await expect(accountSelect).toContainText('Testkonto A');
+    expect(writes()).toHaveLength(previousWrites + 2);
 
     await page.reload();
     await expect(accountSelect).toContainText('Testkonto A');
     await expect(pause).toBeEnabled();
     await expect(region.locator('app-badge')).toHaveText('Aktiv');
-    expect(writes()).toHaveLength(previousWrites + 1);
+    expect(writes()).toHaveLength(previousWrites + 2);
     await accountSelect.press('Enter');
     await page.getByRole('option', { name: /Testkonto B/ }).click();
     await expect(accountSelect).toContainText('Testkonto B');
@@ -409,7 +461,7 @@ test('aktiviert und pausiert automatische Vinted-Abrufe je Konto zugänglich @ma
     await expect(region.getByText('Keiner geplant', { exact: true })).toBeVisible();
     expect(schedules.get(accountIds[0])?.enabled).toBe(true);
     expect(schedules.get(accountIds[1])?.enabled).toBe(false);
-    expect(writes()).toHaveLength(previousWrites + 1);
+    expect(writes()).toHaveLength(previousWrites + 2);
 
     scheduledSyncAvailable = false;
     await accountSelect.press('Enter');
@@ -427,8 +479,8 @@ test('aktiviert und pausiert automatische Vinted-Abrufe je Konto zugänglich @ma
       writes()
         .slice(previousWrites)
         .map((call) => call.body['p_connection_id']),
-    ).toEqual([accountIds[0], accountIds[0]]);
-    expect(schedules.get(accountIds[1])?.authorizationVersion).toBe(0);
+    ).toEqual([accountIds[0], accountIds[0], accountIds[0]]);
+    expect(schedules.get(accountIds[1])?.authorizationVersion).toBe(1);
     await page.addScriptTag({ content: axe.source });
     expect(
       await page.evaluate(

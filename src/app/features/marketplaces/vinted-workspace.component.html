@@ -103,7 +103,12 @@
           Kontodaten werden übernommen. Das kann einen Moment dauern …
         </p>
       }
-      <app-vinted-sync-schedule class="mt-4" [account]="account" [canManage]="store.canManage()" />
+      <app-vinted-sync-schedule
+        class="mt-4"
+        [account]="account"
+        [canManage]="store.canManage()"
+        (synchronized)="store.refreshImportedSnapshot($event, $event.lastSuccessAt)"
+      />
     </app-card>
     @if (store.mutationError(); as error) {
       <app-notice-banner announcement="alert">{{ error }}</app-notice-banner>

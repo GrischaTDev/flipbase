@@ -55,13 +55,18 @@ test('requires deliberate activation and server-only keys before listening', () 
   });
 });
 
-test('scheduled cloud reads remain off until their separate server flag is enabled', () => {
+test('scheduled cloud reads default to enabled and support an explicit pause flag', () => {
   const cloud = {
     ...configured,
     MARKETPLACE_BROWSER_PROVIDER: 'gologin',
     GOLOGIN_API_TOKEN: 'test-provider-token',
   };
-  assert.equal(marketplaceBrowserServerConfig(cloud).scheduledSyncEnabled, false);
+  assert.equal(marketplaceBrowserServerConfig(cloud).scheduledSyncEnabled, true);
+  assert.equal(
+    marketplaceBrowserServerConfig({ ...cloud, MARKETPLACE_SCHEDULED_SYNC_ENABLED: '0' })
+      .scheduledSyncEnabled,
+    false,
+  );
   assert.equal(
     marketplaceBrowserServerConfig({ ...cloud, MARKETPLACE_SCHEDULED_SYNC_ENABLED: '1' })
       .scheduledSyncEnabled,
