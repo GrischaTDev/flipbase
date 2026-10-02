@@ -46,12 +46,36 @@ jobs:
           sudo chown -R 1000:1000 "$profile_root"
           sudo chmod 700 "$profile_root" "$profile_root/fixture-a" "$profile_root/fixture-b"
           trap 'docker rm -f chromium-fixture >/dev/null 2>&1 || true' EXIT
-          for phase in write read isolated; do
+          for phase in write blocked read isolated; do
             profile=fixture-a
             if [[ "$phase" == isolated ]]; then profile=fixture-b; fi
+            if [[ "$phase" == blocked ]]; then
+              docker run --rm --network none --user=1000:1000 --read-only --cap-drop=ALL --security-opt=no-new-privileges:true --mount="type=bind,src=$profile_root/$profile,dst=/profile" --entrypoint node "$SESSION_IMAGE" --input-type=module -e '
+                import { symlink } from "node:fs/promises";
+                await symlink("previous-container-fixture-37", "/profile/SingletonLock");
+                await symlink("/tmp/org.chromium.Chromium.fixture/SingletonSocket", "/profile/SingletonSocket");
+                await symlink("fixture-nonce", "/profile/SingletonCookie");
+              '
+            fi
             container_id=$(docker create --name chromium-fixture --network flipbase-browser --init --user=1000:1000 --read-only --cap-drop=ALL --security-opt=no-new-privileges:true --security-opt="seccomp=$PWD/deploy/chromium-seccomp.json" --memory=2g --memory-swap=2g --pids-limit=512 --shm-size=256m --tmpfs=/tmp:rw,nosuid,nodev,size=512m,uid=1000,gid=1000,mode=700 --tmpfs=/home/node:rw,nosuid,nodev,size=64m,uid=1000,gid=1000,mode=700 --mount="type=bind,src=$profile_root/$profile,dst=/profile" --log-driver=none "$SESSION_IMAGE")
             docker start "$container_id" >/dev/null
             printf '%s' '{"headless":false,"locale":"de-DE","viewport":{"width":1280,"height":900}}' | docker exec -i "$container_id" node --input-type=module -e "import{writeFile,rename}from'node:fs/promises';let text='';for await(const chunk of process.stdin)text+=chunk;await writeFile('/tmp/startup.pending',text,{mode:0o600,flag:'wx'});await rename('/tmp/startup.pending','/tmp/startup.json');"
+            if [[ "$phase" == blocked ]]; then
+              for ((attempt = 0; attempt < 60; attempt++)); do
+                if [[ "$(docker inspect --format '{{.State.Running}}' "$container_id")" == false ]]; then break; fi
+                sleep 1
+              done
+              [[ "$(docker inspect --format '{{.State.Status}} {{.State.Pid}} {{.State.OOMKilled}} {{.State.ExitCode}}' "$container_id")" == 'exited 0 false 78' ]]
+              docker rm "$container_id" >/dev/null
+              [[ -z "$(docker ps --all --quiet --filter name=^/chromium-fixture$)" ]]
+              docker run --rm --network none --user=1000:1000 --read-only --cap-drop=ALL --security-opt=no-new-privileges:true --mount="type=bind,src=$PWD/services/marketplace-worker/src,dst=/app/fixture-src,readonly" --mount="type=bind,src=$profile_root,dst=/profiles" --entrypoint node "$SESSION_IMAGE" --experimental-strip-types --input-type=module -e '
+                import { ChromiumProfileStore } from "/app/fixture-src/chromium-profile-store.ts";
+                const profiles = new ChromiumProfileStore({root:"/profiles",inspectProfileProcesses:async()=>[]});
+                const lease = await profiles.acquire("fixture-a");
+                await lease.confirmStopped();
+              '
+              continue
+            fi
             container_ip=$(docker inspect --format '{{(index .NetworkSettings.Networks "flipbase-browser").IPAddress}}' "$container_id")
             docker run --rm --network flipbase-browser --ip 172.30.88.2 --user=1000:1000 --read-only --cap-drop=ALL --security-opt=no-new-privileges:true --tmpfs=/tmp:rw,nosuid,nodev,size=64m,uid=1000,gid=1000,mode=700 --entrypoint node "$SESSION_IMAGE" --input-type=module -e '
               import assert from "node:assert/strict";

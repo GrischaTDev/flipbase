@@ -7,6 +7,7 @@ import { chromium, type BrowserContext } from 'playwright';
 let context: BrowserContext | undefined;
 let display: ChildProcess | undefined;
 let finishing = false;
+let isReady = false;
 const sockets = new Set<import('node:net').Socket>();
 const server = createServer((incoming, outgoing) => {
   if (incoming.socket.remoteAddress !== '172.30.88.2') {
@@ -76,10 +77,11 @@ server.on('upgrade', (incoming, socket, head) => {
   socket.on('close', () => upstream.destroy());
 });
 
-async function finish(success: boolean): Promise<void> {
+// 78 kennzeichnet ausschließlich einen Startfehler mit erfolgreich geschlossenem Profil.
+async function finish(exitCode: 0 | 1 | 78): Promise<void> {
   if (finishing) return;
   finishing = true;
-  process.exitCode = success ? 0 : 1;
+  process.exitCode = exitCode;
   try {
     await context?.close();
   } catch {
@@ -90,10 +92,13 @@ async function finish(success: boolean): Promise<void> {
   display?.kill('SIGTERM');
 }
 process.on('SIGTERM', () => {
-  void finish(true);
+  void finish(0);
 });
 process.on('SIGINT', () => {
-  void finish(true);
+  void finish(0);
+});
+server.on('error', () => {
+  void finish(isReady ? 1 : 78);
 });
 
 async function startup(): Promise<void> {
@@ -126,10 +131,10 @@ async function startup(): Promise<void> {
       stdio: 'ignore',
     });
     display.on('error', () => {
-      void finish(false);
+      void finish(isReady ? 1 : 78);
     });
     display.on('exit', () => {
-      if (!finishing) void finish(false);
+      if (!finishing) void finish(isReady ? 1 : 78);
     });
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
@@ -147,15 +152,21 @@ async function startup(): Promise<void> {
     args: ['--remote-debugging-port=9223'],
   });
   context.on('close', () => {
-    void finish(true);
+    void finish(isReady ? 0 : 78);
   });
   if (finishing) {
-    await context.close();
+    try {
+      await context.close();
+    } catch {
+      process.exitCode = 1;
+    }
     return;
   }
-  server.listen(9222, '0.0.0.0');
+  server.listen(9222, '0.0.0.0', () => {
+    isReady = true;
+  });
 }
 // Fehlermeldungen können Browser-URLs oder Zugangsdaten enthalten und werden nicht ausgegeben.
 startup().catch(() => {
-  void finish(false);
+  void finish(isReady ? 1 : 78);
 });

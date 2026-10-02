@@ -14,11 +14,14 @@ function fixture(
     missingAllocationRange?: boolean;
     firewallUnavailable?: boolean;
     removalUnconfirmed?: boolean;
+    initiallyExited?: boolean;
+    state?: Record<string, unknown>;
+    startupFailure?: boolean;
   } = {},
 ) {
   const calls: { args: string[]; input?: string }[] = [];
   let removed = !existing;
-  let running = true;
+  let running = !settings.initiallyExited;
   let failNextInspection = false;
   const browser = {
     contexts: () => [context],
@@ -41,7 +44,10 @@ function fixture(
     verifyFirewall: async () => {
       if (settings.firewallUnavailable) throw new Error('Firewall nicht geprüft');
     },
-    connect: async () => browser,
+    connect: async () => {
+      if (settings.startupFailure) throw new Error('Chromium startup failed');
+      return browser;
+    },
     execute: async (args, input) => {
       calls.push({ args, input });
       if (args[0] === 'network')
@@ -100,7 +106,16 @@ function fixture(
                   ]
                 : []),
             ],
-            State: { Running: running, ExitCode: exitCode },
+            State: {
+              Status: running ? 'running' : 'exited',
+              Running: running,
+              Dead: false,
+              Restarting: false,
+              Pid: running ? 100 : 0,
+              OOMKilled: false,
+              ExitCode: exitCode,
+              ...settings.state,
+            },
             NetworkSettings: { Networks: { 'flipbase-browser': { IPAddress: '172.30.88.128' } } },
           },
         ]);
@@ -109,6 +124,7 @@ function fixture(
         running = false;
         return containerId;
       }
+      if (args[0] === 'exec' && settings.startupFailure) running = false;
       if (args[0] === 'rm') {
         removed = !settings.removalUnconfirmed;
         return containerId;
@@ -265,4 +281,67 @@ test('accepts production launch options but keeps the container environment fixe
     false,
   );
   await context.close();
+});
+
+test('recovers a confirmed clean startup failure and allows the same profile to reopen', async () => {
+  const { launcher, calls } = fixture(78, true, { initiallyExited: true });
+  await launcher.recover('account-1');
+  assert.equal(
+    calls.some((call) => call.args[0] === 'stop'),
+    false,
+  );
+  assert.deepEqual(await launcher.inspectProfileProcesses('/controller/profiles/account-1'), []);
+  assert.ok(await launcher.launch('/controller/profiles/account-1'));
+});
+
+test('keeps unknown failures and unproven startup exits quarantined', async () => {
+  for (const [exitCode, state] of [
+    [1, {}],
+    [137, {}],
+    [78, { Status: 'dead' }],
+    [78, { Status: 'created' }],
+    [78, { Status: null }],
+    [78, { Running: null }],
+    [78, { Running: true }],
+    [78, { Dead: true }],
+    [78, { Dead: null }],
+    [78, { Restarting: true }],
+    [78, { Restarting: null }],
+    [78, { Pid: 100 }],
+    [78, { Pid: null }],
+    [78, { OOMKilled: true }],
+    [78, { OOMKilled: null }],
+    [78, { ExitCode: '78' }],
+  ] as [number, Record<string, unknown>][]) {
+    const { launcher, calls } = fixture(exitCode, true, { initiallyExited: true, state });
+    await assert.rejects(() => launcher.recover('account-1'));
+    assert.equal(
+      calls.some((call) => call.args[0] === 'rm'),
+      false,
+    );
+    assert.deepEqual(await launcher.inspectProfileProcesses('/controller/profiles/account-1'), [1]);
+  }
+});
+
+test('does not release a clean startup failure until removal is confirmed', async () => {
+  const { launcher } = fixture(78, true, {
+    initiallyExited: true,
+    removalUnconfirmed: true,
+  });
+  await assert.rejects(() => launcher.recover('account-1'));
+  assert.deepEqual(await launcher.inspectProfileProcesses('/controller/profiles/account-1'), [1]);
+});
+
+test('recognizes a confirmed startup failure before the connection deadline', async () => {
+  const { launcher, calls } = fixture(78, false, { startupFailure: true });
+  await assert.rejects(
+    () => launcher.launch('/controller/profiles/account-1'),
+    /Chromium-Containerstart fehlgeschlagen/,
+  );
+  assert.equal(
+    calls.some((call) => call.args[0] === 'stop'),
+    false,
+  );
+  assert.ok(calls.some((call) => call.args[0] === 'rm'));
+  assert.deepEqual(await launcher.inspectProfileProcesses('/controller/profiles/account-1'), []);
 });
