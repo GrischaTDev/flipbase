@@ -19,6 +19,27 @@ beforeAll(async () => {
 });
 
 describe('ButtonComponent', () => {
+  it('hält Bildaktionen in beiden Themes lesbar und markiert gemerkte Artikel', () => {
+    fixture.componentRef.setInput('variant', 'image-overlay');
+    fixture.componentRef.setInput('iconOnly', true);
+    fixture.componentRef.setInput('icon', LucideHeart);
+    fixture.componentRef.setInput('ariaPressed', false);
+    fixture.componentRef.setInput('ariaLabel', 'Zu Favoriten hinzufügen');
+    fixture.detectChanges();
+    const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+    expect(button.classList).toContain('bg-zinc-900/85');
+    expect(button.classList).toContain('text-white');
+    expect(button.classList).toContain('min-h-11');
+    expect(button.classList).toContain('min-w-11');
+    expect(button.classList).toContain('pointer-coarse:min-h-11');
+    expect(button.querySelector('svg')?.classList).not.toContain('fill-current');
+    fixture.componentRef.setInput('ariaPressed', true);
+    fixture.detectChanges();
+    expect(button.classList).toContain('text-fb-brand-strong');
+    expect(button.querySelector('svg')?.classList).toContain('fill-current');
+    expect(button.getAttribute('aria-pressed')).toBe('true');
+  });
+
   it('verkürzt nur ausdrücklich kompakte Listenzeilen und erhält die Touchfläche', () => {
     fixture.componentRef.setInput('variant', 'list-row');
     fixture.detectChanges();

@@ -16,7 +16,8 @@ if [[ "$mode" == setup ]]; then
       [[ -d "$directory" && ! -L "$directory" && "$(stat -c %u "$directory")" == 1000 ]] || exit 1
       chmod 0700 "$directory"
     else
-      install -d -o 1000 -g 1000 -m 0700 "$directory"
+      install -d -m 0700 "$directory"
+      chown 1000:1000 "$directory"
     fi
   done
 fi
@@ -111,9 +112,10 @@ if [[ "$mode" == setup ]]; then
     else
       install -o root -g root -m "$permissions" "$source" "$target"
     fi
+    chmod "$permissions" "$target"
   }
   install_owned "$script_directory/bootstrap-marketplace-chromium-pilot.sh" /opt/flipbase-marketplace/bootstrap-marketplace-chromium-pilot.sh 0700
-  install_owned "$script_directory/chromium-seccomp.json" /opt/flipbase-marketplace/chromium-seccomp.json 0600
+  install_owned "$script_directory/chromium-seccomp.json" /opt/flipbase-marketplace/chromium-seccomp.json 0644
   install_owned "$script_directory/chromium-seccomp.LICENSE" /opt/flipbase-marketplace/chromium-seccomp.LICENSE 0644
   install_owned "$script_directory/flipbase-chromium-firewall.service" /etc/systemd/system/flipbase-chromium-firewall.service 0644
   install_owned "$script_directory/flipbase-chromium-firewall.timer" /etc/systemd/system/flipbase-chromium-firewall.timer 0644

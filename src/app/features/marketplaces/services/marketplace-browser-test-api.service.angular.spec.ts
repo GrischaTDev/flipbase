@@ -147,6 +147,36 @@ describe('Browser-Test-API', () => {
     await expect(api.open(scope, 'user-test-token')).rejects.toBeInstanceOf(GoLoginApiLimitError);
   });
 
+  it('erklärt eine bereits laufende Anmeldung ohne interne Serverdetails zu übernehmen', async () => {
+    const request = vi
+      .fn()
+      .mockResolvedValue(
+        Response.json(
+          { code: 'browser_session_busy', error: 'secret-server-detail' },
+          { status: 409 },
+        ),
+      );
+    vi.stubGlobal('fetch', request);
+    await expect(api.open(scope, 'user-test-token')).rejects.toThrow(
+      'Eine Browsersitzung läuft bereits',
+    );
+    expect(request).toHaveBeenCalledTimes(1);
+  });
+
+  it('verwendet bei einem unbekannten Konflikt weiterhin den neutralen Fehler', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          Response.json({ code: 'unknown', error: 'secret-server-detail' }, { status: 409 }),
+        ),
+    );
+    await expect(api.open(scope, 'user-test-token')).rejects.toThrow(
+      'Browsersitzung nicht verfügbar',
+    );
+  });
+
   it('nennt die erreichte GoLogin-Profilgrenze beim Browserstart', async () => {
     vi.stubGlobal(
       'fetch',

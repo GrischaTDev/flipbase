@@ -156,16 +156,30 @@
       >
     } @else {
       <section aria-labelledby="feed-finds-title" (focusin)="state.pause()">
-        <div class="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+        <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 id="feed-finds-title" class="text-base font-semibold">Gespeicherte Funde</h2>
-          <p class="text-xs text-fb-text-muted">Letzte 30 Tage</p>
+          <div class="flex items-center gap-3">
+            <p class="text-xs text-fb-text-muted">Letzte 30 Tage</p>
+            <app-button
+              [variant]="compact() ? 'primary' : 'secondary'"
+              [icon]="compactIcon"
+              [ariaPressed]="compact()"
+              ariaControls="feed-finds-grid"
+              (clicked)="toggleCompact()"
+              >Kompakt</app-button
+            >
+          </div>
         </div>
         <div class="space-y-4">
-          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div
+            id="feed-finds-grid"
+            class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+          >
             @for (item of feedItems(); track item.id) {
               <app-deal-card
                 class="motion-safe:transition motion-safe:duration-200 motion-safe:starting:opacity-0 motion-safe:starting:-translate-x-3"
                 [item]="item"
+                [compact]="compact()"
                 (inspect)="selectedDeal.set($event)"
               />
             }

@@ -1,4 +1,8 @@
-import type { BrowserLease, BrowserSessionScope } from './marketplace-browser-session-broker.ts';
+import {
+  MarketplaceBrowserSessionBusyError,
+  type BrowserLease,
+  type BrowserSessionScope,
+} from './marketplace-browser-session-broker.ts';
 
 interface SupabaseBrowserSessionStoreOptions {
   url: string;
@@ -234,6 +238,19 @@ export class SupabaseBrowserSessionStore {
     } catch {
       if (name === 'marketplace_browser_session_reserve') this.onReservationUncertain?.();
       throw new Error('Browser-Datenbank nicht erreichbar');
+    }
+    if (name === 'marketplace_browser_session_reserve' && response.status === 500) {
+      let rejection: unknown;
+      try {
+        rejection = await response.clone().json();
+      } catch {
+        // Ohne lesbaren SQLSTATE bleibt eine möglicherweise geschriebene Reservierung ungeklärt.
+        rejection = null;
+      }
+      // PostgREST liefert diese vollständig zurückgerollte Ablehnung als HTTP 500.
+      // Sie darf weder eine fremde Sitzung stoppen noch die Worker-Runtime verwerfen.
+      if (isRecord(rejection) && rejection['code'] === '55P03')
+        throw new MarketplaceBrowserSessionBusyError();
     }
     try {
       return await this.read(response);

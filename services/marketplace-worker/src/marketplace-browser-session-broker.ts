@@ -20,6 +20,12 @@ export interface BrowserSessionScope {
   };
 }
 
+export class MarketplaceBrowserSessionBusyError extends Error {
+  constructor() {
+    super('Eine Browsersitzung läuft bereits oder wird bereinigt');
+  }
+}
+
 export class MarketplaceBrowserSessionEndedError extends Error {
   readonly reason: 'expired' | 'interrupted';
 

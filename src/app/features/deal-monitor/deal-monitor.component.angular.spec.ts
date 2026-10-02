@@ -135,6 +135,7 @@ describe('DealMonitorComponent', () => {
         'href',
         'ariaLabel',
         'ariaPressed',
+        'ariaControls',
         'title',
         'target',
       ],
@@ -172,7 +173,7 @@ describe('DealMonitorComponent', () => {
       configurable: true,
       value: new EventEmitter<string | null>(),
     });
-    registerSignalInputs(DealCardComponent, ['item'], ['inspect']);
+    registerSignalInputs(DealCardComponent, ['item', 'compact'], ['inspect']);
     registerSignalInputs(DealDetailModalComponent, ['item'], ['closed']);
     registerSignalInputs(WatchlistEditorComponent, ['watchlist', 'categories', 'saving']);
   });
@@ -355,6 +356,35 @@ describe('DealMonitorComponent', () => {
       }),
     );
     expect((await axe.run(host)).violations).toEqual([]);
+    fixture.destroy();
+  });
+
+  it('schaltet die Karten um, ohne Seitentitel, Filter oder den Datenabruf zu verändern', async () => {
+    const fixture = TestBed.createComponent(DealMonitorComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const header = host.querySelector('app-page-header')?.outerHTML;
+    const filters = host.querySelector('[data-feed-filters]')?.outerHTML;
+    const calls = mockApi.feed.mock.calls.length;
+    const toggle = host.querySelector<HTMLButtonElement>(
+      'button[aria-controls="feed-finds-grid"]',
+    )!;
+    expect(toggle.getAttribute('aria-pressed')).toBe('false');
+    toggle.click();
+    fixture.detectChanges();
+    expect(toggle.getAttribute('aria-pressed')).toBe('true');
+    expect(host.querySelector('app-deal-card h3')).toBeNull();
+    expect(host.querySelector('app-deal-card a')?.textContent?.trim()).toBe('');
+    expect(host.querySelector('app-page-header')?.outerHTML).toBe(header);
+    expect(host.querySelector('[data-feed-filters]')?.outerHTML).toBe(filters);
+    expect(mockApi.feed).toHaveBeenCalledTimes(calls);
+    expect((await axe.run(host)).violations).toEqual([]);
+    toggle.click();
+    fixture.detectChanges();
+    expect(toggle.getAttribute('aria-pressed')).toBe('false');
+    expect(host.querySelector('app-deal-card h3')).not.toBeNull();
     fixture.destroy();
   });
 

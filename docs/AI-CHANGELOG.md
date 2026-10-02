@@ -46,6 +46,104 @@ keine Anwendungs- oder Datenbanktests. Schriftlicher Entwurf wartet auf die
 Nutzerprüfung gemäß Brainstorming-Skill; Umsetzungsplan folgt nach Freigabe.
 Vorhandene lokale Arbeit im ursprünglichen Checkout bleibt erhalten.
 
+## 2026-10-02 – Juna – Hochformatkarten und Kompakt-Modus für den Vinted-Feed umgesetzt
+
+**Auftrag:** Den abgestimmten Entwurf umsetzen. Bestehenden Seitentitel und die
+Such-/Filterleiste unverändert lassen; keine zusätzliche Sortierung oder
+Listenansicht einführen.
+
+**Änderung:** Standardkarten zeigen ein Hauptbild im Hochformat 3:4, das
+Favoritenherz unten rechts, Titel und Preis nebeneinander sowie kompakte
+Marken-, Größen- und Zustandsbadges. Weitere Fotos bleiben in der Großansicht.
+Defekte Hauptbilder weichen auf das nächste sichere Artikelbild aus.
+Der „Kompakt“-Button bei „Gespeicherte Funde“ blendet die Angaben unter dem
+Bild aus. Das größere 3:5-Bild trägt den Preis unten links und rechts nur
+Vinted-Icon und Herz. Beide Bildaktionen verwenden eine gemeinsame
+Shared-Button-Variante mit 44 × 44 px Mindestfläche, kontrastreicher Fläche,
+zugänglichen Namen und gelbem gefülltem Herz für gemerkte Artikel.
+Der Hinweis „Noch nicht kaufbar“ bleibt in beiden Ansichten erhalten.
+
+**Prüfung:** 33 betroffene Angular-Komponententests erfolgreich, einschließlich
+Favoritenseite; alle sechs Browserprüfungen der Feed-/Suchfilter-Datei erfolgreich,
+darunter vier Prüfungen des Kompakt-Modus bei 1440/390 px in beiden Themes.
+AXE, Moduswechsel, unveränderter Seitenkopf und
+Filterbereich, Bildformate, Favoriten, echte Linköffnung gegen ein lokales
+Testziel, Tastatur-/Fokusrückgabe und fehlende Bilder geprüft. Produktionsbau,
+Typprüfung, Lint und Shared-UI-Prüfung erfolgreich. Bestehender Bauhinweis
+zu `pako`; keine neue Abhängigkeit oder Datenbankänderung. Browserprüfung über
+Playwright mit vollständig simulierten API-/Bildantworten, da die Browser-
+Skill nicht verfügbar ist; keine produktiven Daten geändert. Veraltete
+Testannahmen zu Feed-API, Fotocollage und dem bereits gesperrten
+Workspacewechsel auf Erfassungsseiten an den aktuellen Vertrag angepasst.
+
+**Arbeitsstand:** Eigener Zweig `juna/vinted-feed-compact` von aktuellem
+`origin/master` (`60676337`) in eigenem Worktree. Vorhandene lokale Änderungen
+im Hauptcheckout erhalten. Veröffentlichung erfolgt erst nach der
+vorgeschriebenen PR-Freigabe.
+
+## 2026-10-02 - Juna - Chromium-Pilot auf dem Server vorbereiten
+
+**Auftrag:** Nach erfolgreichem PR #283 direkt mit dem Serverpiloten weiterarbeiten.
+Der Nutzer wählt Maike Vintage für die erste Umstellung und erneute Anmeldung.
+
+**Betrieb:** Beide geprüften Images aus Merge-Commit `60676337` veröffentlicht
+und auf den bestehenden Host geladen. Ein Agent prüft Ressourcen, Netz und
+Container ausschließlich lesend. Eigenes Browsernetz, private Profilverzeichnisse,
+Sandboxprofil und Firewalltimer eingerichtet; kein fremder Dienst verändert.
+Auf diesem Host fehlt UID 1000 im Benutzerverzeichnis; die privaten Verzeichnisse
+vor dem Bootstrap mit numerischem `chown 1000:1000` vorbereitet.
+Vorherigen Controller, private Konfiguration und ausgewählte Kontometadaten
+gesichert. Keine offenen Sitzungen oder Aufträge; beide Kontoplanungen waren
+bereits pausiert. Maike Vintage mit der geprüften Wartungs-CLI migriert;
+Vintedidentität und GoLogin-Rückweg erhalten. Tablet bleibt GoLogin zugeordnet.
+
+**Prüfung:** Der echte Linux-Container-Smoke besteht auch auf Hetzner: Sandbox,
+Sitzungserhalt nach Neustart, Profiltrennung und geordneter Stopp. Neuer Controller
+gesund, öffentliche API Version 2 erreichbar, Host-Firewall aktuell; keine offenen
+Browser oder Aufträge. Automatik und Vinted-Schreibfunktionen bleiben aus.
+Die echte Vinted-Anmeldung, mobile Bedienung und authentifizierte Abrufe sind
+erst nach der notwendigen Nutzeranmeldung prüfbar. Keine Zugangsdaten in Git.
+
+**Startkorrektur:** Der erste echte Anmeldeversuch liefert 409; alle angelegten
+Sitzungen werden wieder bestätigt geschlossen. Ursache ist das im Controller
+fehlende seccomp-Profil: Docker liest es clientseitig vor der Containeranlage.
+Das einzelne Profil wird nun schreibgeschützt eingebunden und bleibt root-owned,
+mit Leserechten für UID 1000. Die laufende Pilot-Konfiguration ist gesichert und
+korrigiert; ein tatsächlicher Docker-CLI-Aufruf aus dem Controller erzeugt und
+startet einen eingeschränkten Dummy-Container erfolgreich. Danach bestätigt
+auch der öffentliche Healthcheck den gesunden Worker. Sandboxfilter unverändert.
+Der Imageworkflow erhält diesen Test mit einem Benutzer ohne Rootrechte;
+Bootstrap berücksichtigt numerische Eigentümer und bestätigt Dateirechte.
+Actionlint, Bashsyntax und Format geprüft. Ein erneuter Vinted-Start durch den
+Nutzer steht noch aus; der Dummy-Test bestätigt keine Vinted-Anmeldung.
+
+**Anmeldekorrektur:** Beim nächsten Versuch öffnet sich die SMS-Abfrage.
+Eine weitere Startanfrage wird während der aktiven Sitzung mit SQLSTATE `55P03`
+abgelehnt. Die bisherige Fehlerbehandlung wertet PostgRESTs HTTP 500 fälschlich
+als ungewisse Reservierung und beendet den Worker. Die bekannte, zurückgerollte
+Ablehnung liefert jetzt ausschließlich den festen Code `browser_session_busy`
+mit HTTP 409; unbekannte Fehler bleiben abgesichert. Die Oberfläche erklärt den
+belegten gemeinsamen Browserplatz ohne interne Serverdetails. Ein Agent prüft
+die Fehlerklassifikation, ein weiterer den fertigen Unterschied.
+Der reguläre Wiederanlauf stoppt den verwaisten Browser und bestätigt Sitzung
+206 als geschlossen; der Controller ist wieder gesund. Die neue Korrektur ist
+noch nicht auf dem Server veröffentlicht.
+
+**Prüfung der Anmeldekorrektur:** 246 Worker-Tests bestanden, drei Linuxfälle
+unter Windows ausgelassen; 28 gezielte Angular-Service-Tests bestanden.
+Der Regressionstest fordert zunächst den Bestätigungscode an, versucht danach
+einen zweiten Start und prüft den weiteren Zugriff auf die ursprüngliche Sitzung.
+Worker und Anwendung typgeprüft und gebaut, geänderte Dateien formatiert und
+gezielt gelintet. Der Angular-Bau meldet die bestehende CommonJS-Warnung für
+`pako`. Eine erfolgreiche echte Vinted-Anmeldung steht weiterhin aus.
+
+**Freigabe der Korrekturen:** Der Nutzer autorisiert PR, erfolgreiche
+Pflichtprüfungen, Merge und Bereinigung. Der eigene Korrekturzweig übernimmt
+den aktuellen `origin/master` einschließlich der parallel veröffentlichten
+Feed-Änderungen; beide Protokolleinträge bleiben erhalten. Nach erfolgreichem
+Merge werden die geprüften Images veröffentlicht und der bestehende Pilot
+aktualisiert. Die erneute echte Anmeldung erfolgt anschließend durch den Nutzer.
+
 ## 2026-10-02 - Juna - eigenen Chromium-Cloudpiloten umsetzen
 
 **Auftrag:** Nach Freigabe des recherchierten Plans eigenen Chromium-/Playwright-
