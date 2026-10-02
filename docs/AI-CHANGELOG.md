@@ -134,6 +134,7 @@ Nutzerprüfung gemäß Brainstorming-Skill; Umsetzungsplan folgt nach Freigabe.
 Vorhandene lokale Arbeit im ursprünglichen Checkout bleibt erhalten.
 
 ## 2026-10-02 – Juna – Hochformatkarten und Kompakt-Modus für den Vinted-Feed umgesetzt
+
 ## 2026-10-02 - Juna - Wiederöffnung des Chromium-Profils korrigieren
 
 **Auftrag:** Nach Veröffentlichung von PR #285 meldet der Nutzer erneut einen
@@ -169,6 +170,13 @@ Fixture enthält keine Vinted-Anmeldung und berührt das echte Konto nicht.
 Die neue Korrektur ist noch nicht veröffentlicht. Die alte fehlgeschlagene
 Sitzung benötigt vor der Veröffentlichung einen gesonderten, belegten
 Wiederherstellungsschritt; keine Datenbanksperre wird blind entfernt.
+
+**Veröffentlichung freigegeben:** Der Nutzer autorisiert PR, erfolgreiche
+Pflichtprüfungen, Merge und Bereinigung. Der Korrekturzweig übernimmt den aktuellen
+`origin/master` mit der inzwischen veröffentlichten Beta-Zugangsverwaltung;
+deren Änderungen und Protokolleinträge bleiben vollständig erhalten. Anschließend
+werden die geprüften Pilot-Images aus dem tatsächlichen Merge-Stand veröffentlicht
+und die eindeutig zugeordnete, bereits beendete Altsitzung kontrolliert bereinigt.
 
 ## 2026-10-02 - Juna - Hochformatkarten und Kompakt-Modus für den Vinted-Feed umgesetzt
 
