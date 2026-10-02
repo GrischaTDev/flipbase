@@ -14,6 +14,9 @@ import {
 import {
   LucideChartNoAxesCombined as ChartNoAxesCombined,
   LucideUsers as Users,
+  LucideRefreshCw as RefreshCw,
+  LucideTrash2 as Trash2,
+  LucideClock as Clock,
 } from '@lucide/angular';
 import { BadgeComponent, BadgeTone } from '../../../../shared/components/badge/badge.component';
 import { DataTableComponent } from '../../../../shared/components/data-table/data-table.component';
@@ -50,6 +53,9 @@ export class PlatformUsersComponent implements OnInit {
 
   readonly adminIcon = Users;
   readonly usageIcon = ChartNoAxesCombined;
+  readonly resendIcon = RefreshCw;
+  readonly deleteIcon = Trash2;
+  readonly durationIcon = Clock;
   readonly users = signal<readonly PlatformUser[]>([]);
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);

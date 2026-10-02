@@ -99,7 +99,7 @@
                   @if (!user.registeredAt) {
                     @if (!user.revokedAt) {
                       <app-table-action-button
-                        [icon]="usageIcon"
+                        [icon]="resendIcon"
                         [disabled]="processing()"
                         label="Einladung erneut senden"
                         (clicked)="resend(user)"
@@ -107,14 +107,14 @@
                     }
                     <app-table-action-button
                       tone="critical"
-                      [icon]="usageIcon"
+                      [icon]="deleteIcon"
                       [disabled]="processing()"
                       label="Freigabe zurückziehen und löschen"
                       (clicked)="withdraw(user)"
                     />
                   } @else {
                     <app-table-action-button
-                      [icon]="usageIcon"
+                      [icon]="durationIcon"
                       [disabled]="processing()"
                       label="Laufzeit ändern"
                       (clicked)="durationUser.set(user)"

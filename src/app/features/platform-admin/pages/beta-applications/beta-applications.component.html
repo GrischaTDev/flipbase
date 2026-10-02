@@ -229,7 +229,7 @@
                           />
                         } @else if (application.registeredAt) {
                           <app-table-action-button
-                            [icon]="resendIcon"
+                            [icon]="durationIcon"
                             [disabled]="!!processingId()"
                             label="Laufzeit ändern"
                             (clicked)="durationApplication.set(application)"

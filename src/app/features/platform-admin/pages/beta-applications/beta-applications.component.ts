@@ -32,6 +32,7 @@ import {
   LucideCheck as Check,
   LucideX as X,
   LucideTrash2 as Trash2,
+  LucideClock as Clock,
 } from '@lucide/angular';
 import { BetaApprovalDialogComponent } from '../../components/beta-approval-dialog/beta-approval-dialog.component';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
@@ -68,6 +69,7 @@ export class BetaApplicationsComponent implements OnInit {
   readonly approveIcon = Check;
   readonly rejectIcon = X;
   readonly deleteIcon = Trash2;
+  readonly durationIcon = Clock;
   readonly betaStatusFilters = [
     { value: 'all' as const, label: 'Alle' },
     { value: 'open' as const, label: 'Offen' },
