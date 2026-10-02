@@ -1,5 +1,21 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-02 – Juna – Vinted-Kontoübersicht und Live-Inserate für PR und Merge freigegeben
+
+**Auftrag:** Nach ausdrücklichem „ja“ den geprüften eigenen Zweig
+`juna/vinted-live-listings` pushen, einen PR erstellen und nach erfolgreichen
+Pflichtprüfungen mit Merge-Commit integrieren. Anschließend die öffentliche
+Version prüfen und den eigenen Remote-/Lokalzweig samt Arbeitskopie aufräumen.
+
+**Vorbereitung:** Der aktuelle `origin/master` ist unverändert die Grundlage.
+328 Angular-Prüfungen, 16 Kennzahl-/Vertragsfälle, 100 Datenbankprüfungen,
+vier Kontoübersichts- und vier Inserat-Browserfälle sowie Format, gezieltes Lint,
+Typen, gemeinsame UI, Testzuordnung und Produktionsbau bestehen bereits.
+Die neue Migration wurde vollständig geprüft und zuvor auf einem isolierten
+Ausgangsstand in einer Transaktion angewendet. Die vollständigen PR-Prüfungen
+und Backup/Migration/Veröffentlichung bleiben aktiv. Fremde Änderungen in der
+ursprünglichen Arbeitskopie bleiben erhalten.
+
 ## 2026-10-02 – Juna – Vinted-Kontoübersicht und gespeicherte Kontoauswahl ergänzt
 
 **Auftrag:** Der Menüpunkt Vinted soll zunächst alle eigenen Konten als Kacheln
