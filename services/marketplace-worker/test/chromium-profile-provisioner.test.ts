@@ -1,0 +1,203 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { ChromiumAccountProfileRegistry } from '../src/chromium-account-profile-registry.ts';
+import { ChromiumProfileProvisioner } from '../src/chromium-profile-provisioner.ts';
+
+const scope = {
+  workspaceId: 'workspace-a',
+  connectionId: 'account-a',
+  userId: 'user-a',
+  userAccessToken: 'user-token',
+};
+
+test('new Chromium account rechecks user access and persists namespace without GoLogin APIs', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'chromium-provision-'));
+  let profileId: string | undefined;
+  let authorizations = 0;
+  try {
+    const registry = new ChromiumAccountProfileRegistry({ root, hostId: 'host-a' });
+    const provisioner = new ChromiumProfileProvisioner({
+      supabaseUrl: 'https://example.test',
+      publishableKey: 'public',
+      serviceRoleKey: 'server',
+      registry,
+      fetch: async (input, options) => {
+        const url = new URL(String(input));
+        assert.equal(url.host, 'example.test');
+        if (url.pathname.endsWith('marketplace_list_connections')) {
+          assert.equal(new Headers(options?.headers).get('Authorization'), 'Bearer user-token');
+          authorizations++;
+          return Response.json({
+            connections: [{ ...scope, marketplace: 'vinted', status: 'login_required' }],
+          });
+        }
+        if (options?.method === 'POST') {
+          profileId = (JSON.parse(String(options.body)) as Record<string, string>)[
+            'provider_profile_id'
+          ];
+          return new Response(null, { status: 201 });
+        }
+        return Response.json(profileId ? [{ provider_profile_id: profileId }] : []);
+      },
+    });
+    await provisioner.prepare(scope);
+    assert.ok(profileId);
+    assert.match(profileId, /^chromium_/);
+    assert.equal((await registry.resolve(profileId)).connectionId, scope.connectionId);
+    assert.ok(authorizations >= 2);
+    await provisioner.prepare(scope);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('existing GoLogin mapping is delegated and never silently migrated', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'chromium-provision-'));
+  let delegated = 0;
+  try {
+    const provisioner = new ChromiumProfileProvisioner({
+      supabaseUrl: 'https://example.test',
+      publishableKey: 'public',
+      serviceRoleKey: 'server',
+      registry: new ChromiumAccountProfileRegistry({ root, hostId: 'host-a' }),
+      legacy: {
+        prepare: async () => {
+          delegated++;
+        },
+      },
+      fetch: async (input, options) => {
+        if (String(input).includes('marketplace_list_connections'))
+          return Response.json({
+            connections: [{ ...scope, marketplace: 'vinted', status: 'connected' }],
+          });
+        assert.notEqual(options?.method, 'POST');
+        return Response.json([{ provider_profile_id: 'existing-gologin' }]);
+      },
+    });
+    await provisioner.prepare(scope);
+    assert.equal(delegated, 1);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('unresolved stop blocks connection deletion and local archive', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'chromium-provision-'));
+  let stopped = false;
+  try {
+    const provisioner = new ChromiumProfileProvisioner({
+      supabaseUrl: 'https://example.test',
+      publishableKey: 'public',
+      serviceRoleKey: 'server',
+      registry: new ChromiumAccountProfileRegistry({ root, hostId: 'host-a' }),
+      fetch: async (input, options) => {
+        assert.notEqual(options?.method, 'DELETE');
+        const url = String(input);
+        if (url.includes('marketplace_list_connections'))
+          return Response.json({
+            connections: [{ ...scope, marketplace: 'vinted', status: 'paused' }],
+          });
+        if (url.includes('marketplace_set_paused')) return Response.json({});
+        if (url.includes('marketplace_browser_sessions')) return Response.json([{ id: 1 }]);
+        return Response.json([
+          { provider_profile_id: 'chromium_00000000-0000-4000-8000-000000000001' },
+        ]);
+      },
+    });
+    await assert.rejects(
+      provisioner.remove(scope, async () => {
+        stopped = true;
+      }),
+    );
+    assert.equal(stopped, true);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+for (const committed of [false, true]) {
+  test(`lost provisioning ACK reconciles same private reference without duplicate: committed=${committed}`, async () => {
+    const root = await mkdtemp(join(tmpdir(), 'chromium-provision-'));
+    let mapping: string | null = null;
+    let attempts = 0;
+    const createdIds: string[] = [];
+    try {
+      const registry = new ChromiumAccountProfileRegistry({ root, hostId: 'host-a' });
+      const provisioner = new ChromiumProfileProvisioner({
+        supabaseUrl: 'https://example.test',
+        publishableKey: 'public',
+        serviceRoleKey: 'server',
+        registry,
+        fetch: async (input, options) => {
+          if (String(input).includes('marketplace_list_connections'))
+            return Response.json({
+              connections: [{ ...scope, marketplace: 'vinted', status: 'needs_login' }],
+            });
+          if (options?.method === 'POST') {
+            const profileId = (JSON.parse(String(options.body)) as Record<string, string>)[
+              'provider_profile_id'
+            ];
+            if (!profileId) throw new Error('missing profile');
+            attempts++;
+            createdIds.push(profileId);
+            if (attempts > 1 || committed) mapping = profileId;
+            if (attempts === 1) throw new Error('lost ACK');
+            return new Response(null, { status: 201 });
+          }
+          return Response.json(mapping ? [{ provider_profile_id: mapping }] : []);
+        },
+      });
+      if (committed) await provisioner.prepare(scope);
+      else await assert.rejects(provisioner.prepare(scope));
+      await provisioner.prepare(scope);
+      assert.equal(new Set(createdIds).size, 1);
+      assert.equal(
+        (await registry.find(scope.workspaceId, scope.connectionId))?.profileId,
+        mapping,
+      );
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+}
+
+test('empty DB session list does not permit deletion if orphan process stop is uncertain', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'chromium-provision-'));
+  let stops = 0;
+  try {
+    const registry = new ChromiumAccountProfileRegistry({ root, hostId: 'host-a' });
+    const profile = await registry.create({
+      workspaceId: scope.workspaceId,
+      connectionId: scope.connectionId,
+    });
+    const provisioner = new ChromiumProfileProvisioner({
+      supabaseUrl: 'https://example.test',
+      publishableKey: 'public',
+      serviceRoleKey: 'server',
+      registry,
+      stopProfile: async () => {
+        stops++;
+        throw new Error('uncertain');
+      },
+      fetch: async (input, options) => {
+        assert.notEqual(options?.method, 'DELETE');
+        const url = String(input);
+        if (url.includes('marketplace_list_connections'))
+          return Response.json({
+            connections: [{ ...scope, marketplace: 'vinted', status: 'paused' }],
+          });
+        if (url.includes('marketplace_set_paused')) return Response.json({});
+        if (url.includes('marketplace_browser_sessions')) return Response.json([]);
+        return Response.json([{ provider_profile_id: profile.profileId }]);
+      },
+    });
+    await assert.rejects(provisioner.remove(scope, async () => undefined));
+    assert.equal(stops, 1);
+    assert.deepEqual(await registry.resolve(profile.profileId), profile);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

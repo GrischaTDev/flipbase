@@ -1,5 +1,124 @@
 # Vinted-Browserdienst: Veröffentlichung des Admin-Piloten
 
+## Chromium-Pilot vom 02.10.2026 – eigener Cloudbetrieb
+
+Der Nutzer hat den recherchierten Plan und Backend-Änderungen ausdrücklich
+freigegeben. Der unveröffentlichte GoLogin-Server-/ISP-Entwurf wird durch eigene
+Playwright-Chromium-Sitzungen ersetzt. Alte GoLogin-Profile bleiben erreichbar;
+eine Umstellung erfolgt je Konto. Weder Proxykauf noch Produktionswechsel sind
+Teil der lokalen Umsetzung. Konten-, Import- und Warteschlangenverträge bleiben
+bestehen. Eine neue Datenbankmigration ist nicht nötig: unveränderliche
+`chromium_<uuid>`-Referenzen werden bereits in die Sitzungsreservierung kopiert.
+
+### Umsetzung und Zuständigkeiten
+
+1. Der Profil-Agent erstellt `chromium-account-profile-registry.ts`,
+   `chromium-profile-provisioner.ts`, `marketplace-profile-browser.ts` und den
+   Wartungsbefehl `migrate-chromium-profiles.ts`. Private Manifeste binden Profil,
+   Workspace, Verbindung, Host und Netz; fehlende Manifeste sperren den Zugriff.
+   Alte GoLogin-Referenzen bleiben für den Rückweg erhalten.
+2. Der Browser-Agent erstellt `chromium-profile-store.ts` und
+   `chromium-persistent-browser.ts`: persistente Profile, exklusive Sperren,
+   Wiederanlaufprüfung, bestätigter Stopp und bestehende Vinted-Aktionen.
+3. Der Container-Agent erstellt `chromium-container-launcher.ts`, den
+   Sitzungsrunner, ein eigenes Browserimage, Pilot-Compose, Host-Firewallprüfung
+   und den Imageworkflow. Jeder Browser erhält ausschließlich sein eigenes
+   Profil, weder Docker-Socket noch Datenbankzugänge. CDP hat keinen öffentlichen
+   Port. Sandbox und Benutzer ohne Root-Rechte bleiben erforderlich.
+4. Die Hauptsitzung verbindet diese Bausteine in `main.ts`, ergänzt Konfiguration
+   und private Netzwerkprofile und erhält den bisherigen GoLogin-/Testmodus.
+   Die Queue verarbeitet mehrere vorhandene Aufträge ohne Timer-Leerlauf;
+   die globale Grenze bleibt ein aktiver Browser. Automatik und Vinted-
+   Schreibfunktionen sind im Chromium-Pilot standardmäßig ausgeschaltet.
+5. Zuerst gezielte negative Tests, dann Implementierung und gemeinsame Prüfung:
+   Worker-Suite, Typprüfung, Bau, echte lokale Chromium-Fixtures für Sitzungserhalt
+   und Kontotrennung, Format/Lint sowie Workflow-/Compose-Prüfung. Linuximage,
+   Sandbox und Containerstopp werden im PR gebaut und geprüft. Kein lokaler
+   Docker-Bau; künstliche Browserdaten sind kein erfolgreicher Vinted-Pilot.
+
+### Betrieb und Abnahme
+
+Lokale Prüfung vom 02.10.2026: 237 Workerfälle und alle 14 echten Chromium-
+Browsertests bestanden; drei Linuxfälle unter Windows ausgelassen. Typprüfung
+einschließlich Sitzungsrunner, Workerbau, Importprüfung, Format/Lint sowie
+Workflow-/Composeprüfung bestanden. Drei im Agentreview gefundene Lücken bei
+Kontobindung, verwaisten Prozessen und Stoppretry sind behoben und getestet.
+Die folgenden Linux-/Vinted-Abnahmen sind dadurch noch nicht erledigt.
+
+Die Dateien `deploy/docker-compose.marketplace-chromium-pilot.yml` und
+`deploy/bootstrap-marketplace-chromium-pilot.sh` bilden einen einzelnen
+vertrauenswürdigen Controller und ein isoliertes Browsernetz ab. Der Hostpfad
+`/opt/flipbase-marketplace/chromium` enthält `registry`, `profiles` und `archive`;
+im Controller lautet der gemeinsame Root `/var/lib/flipbase-marketplace`.
+Host- und Container-Profilpfade müssen auf dieselben Dateien zeigen. Der
+Controller braucht den Docker-Gruppenzugriff, Browsercontainer erhalten ihn nie.
+Die Hostprüfung muss regelmäßig laufen; ein Neustart oder veralteter Nachweis
+verhindert neue Browserstarts. Vorher andere Docker-Netze und das RAM-Budget
+prüfen. Die Regeln dürfen fremde Dienste nicht verändern.
+
+Die Hostvorbereitung enthält einen konkreten 30-Sekunden-Timer:
+`flipbase-chromium-firewall.service` und `flipbase-chromium-firewall.timer`.
+`sudo bash deploy/bootstrap-marketplace-chromium-pilot.sh setup` installiert
+Script, seccomp-Profil und beide Units unter festen Flipbase-Pfaden und aktiviert
+den Timer. Bereits vorhandene abweichende Dateien verursachen einen Abbruch.
+Die Vorbereitung lädt zusätzlich `br_netfilter` und hinterlegt eigene
+modules-load-/sysctl-Dateien für die benötigte IPv4-/IPv6-Bridge-Filterung.
+Das seccomp-Profil stammt aus dem offiziellen Playwright-Repository,
+Commit `ae935a43d9e376e4759548f6b3c6905c7b282333`; die Apache-Lizenz liegt daneben.
+Die einzige lokale seccomp-Ergänzung erlaubt `chroot` für Chromiums eigenen
+Usernamespace; Container-Capabilities werden weiterhin vollständig entfernt.
+Browser bekommen dynamische IPs aus `172.30.88.128/25`; die feste Controller-IP
+`172.30.88.2` bleibt außerhalb dieses Bereichs. Ein abweichendes bestehendes
+Netz wird verweigert und nicht automatisch verändert.
+
+1. Geprüften PR integrieren und beide Images vom bestätigten Merge-Commit
+   veröffentlichen. Nur unveränderliche SHA-Tags oder Image-Digests verwenden.
+2. Bestehenden Worker, Konfiguration und Kontozuordnungen sichern. Automatik
+   pausieren, Aufträge abschließen, Worker stoppen und Runtime-Freigabe abwarten.
+   Keine Sitzungs- oder Profilsperre von Hand entfernen.
+   Anschließend den gestoppten alten Container mit dem bisherigen Compose
+   entfernen. Der Pilot übernimmt dessen Namen `flipbase-marketplace-worker`,
+   damit Caddys bestehende interne Route unverändert erreichbar bleibt.
+   Image, Konfiguration und externe Netze für den Rückweg aufbewahren.
+3. Host-Firewall/Timer und private Profile vorbereiten. Wartungsbefehl nur bei
+   ausgeschalteter Automatik und ohne aktive Browser oder offene Aufträge nutzen.
+   `migrate` erhält die bestehende Vinted-Kontoidentität, setzt die Verbindung
+   für die neue Anmeldung zurück und liest die atomare Profiländerung nach.
+
+   ```sh
+   docker compose -f docker-compose.marketplace-chromium-pilot.yml run --rm \
+     marketplace-worker node dist/migrate-chromium-profiles.js \
+     migrate WORKSPACE_ID CONNECTION_ID EXPECTED_GOLOGIN_PROFILE_ID
+   ```
+
+   Für eine bisher unzugeordnete Verbindung gilt `pilot WORKSPACE_ID CONNECTION_ID`;
+   der Rückweg heißt `rollback WORKSPACE_ID CONNECTION_ID EXPECTED_CHROMIUM_PROFILE_ID`.
+   Die IDs sind vorab aus der konkreten Verbindung und Profilzuordnung zu lesen.
+
+4. Einen Controller starten. Erst Anmeldung, Kontoidentität und manuellen Abruf
+   mit direktem Netz prüfen; dann Neustart und zweites Konto. iOS Safari und
+   Android Chrome müssen Anmeldung und Sicherheitsabfragen tatsächlich bedienen
+   können. Bei einem Zugangshindernis wird angehalten, kein IP-Wechsel ausgelöst.
+5. Erst nach erfolgreichem Pilot Automatik aktivieren und Laufzeit, Fehler,
+   Speicher und Datenfrische messen. Drei-/Fünf-Minuten-Takte für 30 Konten
+   sowie vollständige Nachrichten-/Angebots-/Verkaufsereignisse sind unbewiesen.
+   Vinted-Schreibfunktionen brauchen separat `MARKETPLACE_CHROMIUM_WRITES_ENABLED=1`.
+   Das Pilot-Compose setzt Automatik und Schreibfunktionen ausdrücklich auf `0`;
+   zur Aktivierung ist eine geprüfte Compose-Override mit den jeweiligen Flags
+   erforderlich. Ein Eintrag allein in der privaten Environment-Datei genügt nicht.
+
+`MARKETPLACE_CHROMIUM_NETWORK_ID=direct` verwendet den Serverausgang. Ein optionales
+privates `MARKETPLACE_CHROMIUM_NETWORK_FILE` kann feste Proxyzugänge enthalten;
+diese werden weder gekauft noch automatisch verteilt oder bei Fehlern gewechselt.
+Direktbetrieb spart das bisherige GoLogin-Proxykontingent, beweist aber keine
+Vinted-Zuverlässigkeit auf Hetzner. Hetzners eigene Trafficbedingungen gelten weiter.
+
+Für den Rückweg Automatik pausieren, Worker stoppen und alle Sitzungen bestätigt
+beenden. `rollback` stellt ausschließlich die gespeicherte vorherige GoLogin-
+Referenz wieder her; danach altes Image/Environment/Compose einsetzen. Die lokalen
+Chromium-Dateien bleiben privat erhalten. GoLogin-Zugänge nicht vor erfolgreicher
+Abnahme kündigen; sein Cloudbetrieb unterliegt weiterhin dem gebuchten Tarif.
+
 ## Vorbereitete Korrektur vom 01.10.2026 – Anmeldung und Standardautomatik
 
 Die Nutzerentscheidung ergänzt den bisherigen Piloten: bestätigte Konten

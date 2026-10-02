@@ -2,14 +2,21 @@ name: Publish Marketplace Worker Image
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'services/marketplace-worker/**'
+      - '.github/workflows/marketplace-worker-image.yml'
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
   publish:
-    if: github.ref == 'refs/heads/master'
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/master'
+    permissions:
+      contents: read
+      packages: write
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -22,16 +29,29 @@ jobs:
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: Log in to container registry
+        if: github.event_name == 'workflow_dispatch'
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and publish reviewed worker
+      - name: Build reviewed worker
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: services/marketplace-worker
           file: services/marketplace-worker/Dockerfile
-          push: true
+          push: false
+          load: true
           tags: ghcr.io/grischatdev/flipbase-marketplace-worker:sha-${{ github.sha }}
+
+      - name: Check controller modules and Docker client
+        env:
+          WORKER_IMAGE: ghcr.io/grischatdev/flipbase-marketplace-worker:sha-${{ github.sha }}
+        run: |
+          docker run --rm --entrypoint docker "$WORKER_IMAGE" --version
+          docker run --rm --entrypoint node "$WORKER_IMAGE" --input-type=module -e "await import('./dist/chromium-container-launcher.js'); await import('./dist/chromium-profile-provisioner.js'); await import('./dist/migrate-chromium-profiles.js')"
+
+      - name: Publish verified worker
+        if: github.event_name == 'workflow_dispatch'
+        run: docker push "ghcr.io/grischatdev/flipbase-marketplace-worker:sha-$GITHUB_SHA"

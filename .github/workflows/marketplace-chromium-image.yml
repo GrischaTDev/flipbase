@@ -1,0 +1,104 @@
+name: Marketplace Chromium Image
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'services/marketplace-worker/**'
+      - 'deploy/*chromium*'
+      - 'deploy/flipbase-chromium-firewall.*'
+      - '.github/workflows/marketplace-chromium-image.yml'
+permissions:
+  contents: read
+jobs:
+  chromium-session-image:
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Check out reviewed commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Build isolated Chromium session
+        id: session_image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: services/marketplace-worker
+          file: services/marketplace-worker/Dockerfile.chromium-session
+          load: true
+          push: false
+          tags: ghcr.io/grischatdev/flipbase-chromium-session:sha-${{ github.sha }}
+      - name: Check sandbox, profile persistence, isolation and graceful stop without Vinted
+        env:
+          SESSION_IMAGE: ghcr.io/grischatdev/flipbase-chromium-session:sha-${{ github.sha }}
+        run: |
+          set -euo pipefail
+          sudo bash -x deploy/bootstrap-marketplace-chromium-pilot.sh setup
+          sudo systemctl is-active --quiet flipbase-chromium-firewall.timer
+          profile_root="$RUNNER_TEMP/chromium-profiles"
+          mkdir -p "$profile_root/fixture-a" "$profile_root/fixture-b"
+          sudo chown -R 1000:1000 "$profile_root"
+          sudo chmod 700 "$profile_root" "$profile_root/fixture-a" "$profile_root/fixture-b"
+          trap 'docker rm -f chromium-fixture >/dev/null 2>&1 || true' EXIT
+          for phase in write read isolated; do
+            profile=fixture-a
+            if [[ "$phase" == isolated ]]; then profile=fixture-b; fi
+            container_id=$(docker create --name chromium-fixture --network flipbase-browser --init --user=1000:1000 --read-only --cap-drop=ALL --security-opt=no-new-privileges:true --security-opt="seccomp=$PWD/deploy/chromium-seccomp.json" --memory=2g --memory-swap=2g --pids-limit=512 --shm-size=256m --tmpfs=/tmp:rw,nosuid,nodev,size=512m,uid=1000,gid=1000,mode=700 --tmpfs=/home/node:rw,nosuid,nodev,size=64m,uid=1000,gid=1000,mode=700 --mount="type=bind,src=$profile_root/$profile,dst=/profile" --log-driver=none "$SESSION_IMAGE")
+            docker start "$container_id" >/dev/null
+            printf '%s' '{"headless":false,"locale":"de-DE","viewport":{"width":1280,"height":900}}' | docker exec -i "$container_id" node --input-type=module -e "import{writeFile,rename}from'node:fs/promises';let text='';for await(const chunk of process.stdin)text+=chunk;await writeFile('/tmp/startup.pending',text,{mode:0o600,flag:'wx'});await rename('/tmp/startup.pending','/tmp/startup.json');"
+            container_ip=$(docker inspect --format '{{(index .NetworkSettings.Networks "flipbase-browser").IPAddress}}' "$container_id")
+            docker run --rm --network flipbase-browser --ip 172.30.88.2 --user=1000:1000 --read-only --cap-drop=ALL --security-opt=no-new-privileges:true --tmpfs=/tmp:rw,nosuid,nodev,size=64m,uid=1000,gid=1000,mode=700 --entrypoint node "$SESSION_IMAGE" --input-type=module -e '
+              import assert from "node:assert/strict";
+              import { chromium } from "playwright";
+              let browser;
+              let lastFailure;
+              for(let attempt=0;attempt<60&&!browser;attempt++) {
+                try { browser=await chromium.connectOverCDP(`http://${process.argv[1]}:9222`,{timeout:1000}); }
+                catch (failure) { lastFailure=failure; await new Promise(resolve=>setTimeout(resolve,500)); }
+              }
+              assert.ok(browser,`Sandboxed Chromium must start: ${lastFailure}`);
+              const context=browser.contexts()[0];
+              const cookies=await context.cookies();
+              const marker=cookies.find(cookie=>cookie.name==="fixture_marker");
+              if(process.argv[2]==="read") assert.equal(marker?.value,"persistent");
+              if(process.argv[2]==="isolated") assert.equal(marker,undefined);
+              if(process.argv[2]==="write") await context.addCookies([{name:"fixture_marker",value:"persistent",domain:"fixture.invalid",path:"/",expires:Date.now()/1000+3600}]);
+              await (await browser.newBrowserCDPSession()).send("Browser.close").catch(()=>{});
+            ' "$container_ip" "$phase"
+            for ((attempt = 0; attempt < 60; attempt++)); do
+              if [[ "$(docker inspect --format '{{.State.Running}}' "$container_id")" == false ]]; then break; fi
+              sleep 1
+            done
+            [[ "$(docker inspect --format '{{.State.Running}}' "$container_id")" == false ]]
+            [[ "$(docker inspect --format '{{.State.ExitCode}}' "$container_id")" == 0 ]]
+            docker rm "$container_id" >/dev/null
+          done
+          sudo bash deploy/bootstrap-marketplace-chromium-pilot.sh verify
+      - name: Diagnose isolated sandbox fixture on failure
+        if: failure() && steps.session_image.outcome == 'success'
+        env:
+          SESSION_IMAGE: ghcr.io/grischatdev/flipbase-chromium-session:sha-${{ github.sha }}
+        run: |
+          set -euo pipefail
+          sudo dmesg | tail -n 60 || true
+          docker run --rm --network flipbase-browser --init --user=1000:1000 --read-only --cap-drop=ALL --security-opt=no-new-privileges:true --security-opt="seccomp=$PWD/deploy/chromium-seccomp.json" --memory=2g --pids-limit=512 --shm-size=256m --tmpfs=/tmp:rw,nosuid,nodev,size=512m,uid=1000,gid=1000,mode=700 --tmpfs=/home/node:rw,nosuid,nodev,size=64m,uid=1000,gid=1000,mode=700 --tmpfs=/profile:rw,nosuid,nodev,size=128m,uid=1000,gid=1000,mode=700 --entrypoint node "$SESSION_IMAGE" --input-type=module -e '
+            import { chromium } from "playwright";
+            const context = await chromium.launchPersistentContext("/profile", { headless: true, chromiumSandbox: true, acceptDownloads: false, env: {PATH: process.env.PATH, HOME: "/home/node"} });
+            await context.close();
+          '
+      - name: Log in to container registry
+        if: github.event_name == 'workflow_dispatch'
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish verified Chromium session
+        if: github.event_name == 'workflow_dispatch'
+        run: docker push "ghcr.io/grischatdev/flipbase-chromium-session:sha-$GITHUB_SHA"

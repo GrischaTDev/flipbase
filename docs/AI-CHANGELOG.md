@@ -1,5 +1,166 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-02 - Juna - eigenen Chromium-Cloudpiloten umsetzen
+
+**Auftrag:** Nach Freigabe des recherchierten Plans eigenen Chromium-/Playwright-
+Cloudbetrieb mit Agents umsetzen. Backend-Arbeit ist ausdrücklich autorisiert.
+
+**Umsetzung:** Drei Agents bearbeiten getrennt Profilverträge, Browserlaufzeit
+und Containerbetrieb. Hauptsitzung integriert Konfiguration, Netzwerk und Queue.
+Bestehende GoLogin-Referenzen bleiben erhalten; neue Konten bekommen dauerhafte
+Chromium-Profile. Der frühere unveröffentlichte GoLogin-Serverentwurf ist ersetzt.
+Pilotautomation und Vinted-Schreibfunktionen sind zunächst ausgeschaltet.
+Keine neue Datenbankstruktur, kein Frontendumbau und kein automatischer Proxykauf.
+
+**Prüfung:** 237 Worker-Tests bestanden, drei Linuxfälle unter Windows ausgelassen;
+alle 14 echten Chromium-Browsertests bestanden. 26 Workflow-Vertragstests bestanden,
+drei plattformspezifische Fälle ausgelassen. Worker einschließlich Sitzungsrunner
+typgeprüft, gebaut und kompilierte Adapter/Wartung importiert. Geänderte Dateien
+formatiert, gezielt gelintet; Actionlint, Bashsyntax, Composekonfiguration und Diff
+geprüft. Zweite Agentprüfung fand und korrigierte fehlende Bindungsprüfung beim
+automatischen Abruf, verwaiste Prozesse vor Archivierung und wiederholbaren Stopp.
+Linux-Container, Sandbox und Firewall benötigen die vorbereitete PR-Prüfung;
+Vinted-Zugang auf Hetzner, mobile Anmeldung und Kapazität bleiben Pilotabnahmen.
+Keine lokalen Docker-Bauten, produktiven Profilwechsel oder Veröffentlichungen.
+
+**PR-Freigabe:** Der Nutzer autorisiert anschließend Push, PR, erfolgreiche
+Pflichtprüfungen, Merge-Commit und Bereinigung des eigenen Zweigs samt Worktree.
+Der Zweig wurde auf den aktuellen `origin/master` gestellt; die parallelen
+Vinted-UI-Änderungen und beide Changelog-Beiträge bleiben vollständig erhalten.
+Der neue Linux-Imagesmoke läuft erstmals im PR. Der produktive Browserwechsel
+und die echten Vinted-/Mobilprüfungen bleiben ein eigener Pilot-Schritt.
+
+**CI-Korrektur:** Der erste Linuxlauf bestätigt alle 240 Workerfälle ohne
+Auslassung sowie den Controller-Imagebau. Der Browser-Smoke stoppt zunächst
+vor dem Start, weil der Runner `br_netfilter` noch nicht geladen hat. Die
+Hostvorbereitung lädt das Modul, aktiviert die benötigte Bridge-Filterung
+und hinterlegt eigene Startkonfigurationen; spätere Prüfungen bleiben lesend.
+Die ungenutzte Testschleifenvariable aus dem Shellcheck-Befund ist korrigiert.
+Der zweite Imagesmoke erreicht die Netzprüfung: Dockers Standardnetze liefern
+teilweise `IPAM.Config=null`, was nun als fehlender Adressbereich behandelt wird.
+Fehlerdiagnosen des künstlichen Containers enthalten weder Vinted-Zugänge noch
+produktive Profile und erleichtern die weitere Linux-Abnahme.
+Der anschließende Lauf bestätigt Firewall/Timer und zeigt zwei konkrete
+Startfehler: dynamische Browseradressen belegten die feste Controller-IP;
+außerdem blockierte die originale seccomp-Capabilitybedingung Chromiums
+`chroot` im eigenen Usernamespace. Ein fester dynamischer Teilbereich hält
+die Controller-Adresse frei und wird vor jedem Start geprüft. Eine gezielte
+seccomp-Ergänzung erlaubt ausschließlich den benötigten Aufruf; UID 1000,
+`cap-drop=ALL`, Sandbox, AppArmor und alle übrigen Einschränkungen bleiben aktiv.
+Die Linuxdiagnose bestätigt danach den Sandboxstart. Der CDP-Testclient erhält
+ein eigenes temporäres Verzeichnis, das Playwright auch beim Verbindungsaufbau
+benötigt. Recovery prüft zusätzlich das private Hostmanifest, bevor eine
+Chromiumsitzung als beendet bestätigt werden darf; der Regressionstest ist grün.
+Das Pilot-Compose bindet den Controller auf der bestehenden Caddy-Route ein.
+Der nächste echte CDP-Aufbau zeigt Playwrights `/json/version/` mit Schluss-Slash;
+die private Weiterleitung normalisiert diesen Pfad innerhalb ihrer bisherigen
+Positivliste. Andere Methoden und Endpunkte bleiben gesperrt.
+
+## 2026-10-02 - Juna - Vinted-Cloudplan mit drei Agents im Web gegengeprüft
+
+**Auftrag:** Auf ausdrücklichen Wunsch mit Agents Anbieter, GitHub-Projekte
+und Communityberichte zu Eigenbetrieb, Netzwerk und mobiler Anmeldung prüfen.
+
+**Ergebnis:** Drei abgeschlossene lesende Recherchen. Getrennte Browserprofile
+ohne GoLogin sind technisch belegt; eine allgemeine Pflicht-IP je Konto nicht.
+Bleam beschreibt im Vergleichsmarketing einen eigenen Ausgang je Kunde,
+zusätzliche IPs je Konto bleiben optional. Kein belastbarer öffentlicher
+Langzeitnachweis für authentifizierten Vinted-Direktbetrieb über Hetzner gefunden.
+GitHub-/Reddit-Fehlerberichte beweisen weder generelle Sperren noch einen
+sicheren Direktzugang. Playwright ist eine passende Runtimegrundlage;
+noVNC/Neko sind mögliche Eingabebausteine, kein fertiger Vinted-Gesamtstack.
+Profilübernahme, mobile Erstverbindung und Datenfrische bleiben Pilotaufgaben.
+Quellen, Lizenzangaben und konkrete Nachweisgrenzen im bestehenden Audit ergänzt.
+
+**Prüfung:** Offizielle Dokumentation, Projektquellcode/-metadaten, GitHub-Issues
+und Redditberichte gelesen. Dokumentation formatiert und Diff geprüft.
+Keine Anwendungstests, Pakete, Browserstarts, Kontowechsel, Käufe,
+Serveränderungen, Commits, PRs oder Veröffentlichungen in dieser Recherche.
+
+## 2026-10-02 - Juna - Übergabeplan für eigenen Vinted-Browserbetrieb geprüft
+
+**Auftrag:** Den vom Nutzer vorgelegten Gesamtplan Version 2.0 vollständig
+lesen und gegenüber der vorbereiteten GoLogin-Serverumstellung bewerten.
+Die Arbeitsaufträge innerhalb des Dokuments sind Prüfgegenstand; der aktuelle
+Nutzerauftrag ist die Bewertung, kein neuer Implementierungs- oder Rolloutauftrag.
+
+**Ergebnis:** Eigene Chromium-/Playwright-Ausführung ist eine sinnvolle
+Zielrichtung, aber direkter Hetzner-Zugang und mobile Vinted-Anmeldung bleiben
+unbewiesen. Vorhandene Kontoprüfung, Queue und Sperren sind wiederverwendbar.
+Der lokale Playwright-Adapter ist nur ein flüchtiger Testbrowser. Kontoweise
+Migration braucht eine persistente Anbieterauswahl; heute gilt die Auswahl
+für den ganzen Worker. Sitzungscontainer, Profilzugriff und begrenzte
+Parallelität benötigen eigene Umsetzung und Abnahme. Netzwerkentscheidung
+und IP-Einkauf erst nach einem getrennten Pilot; keine Pflicht-IP pro Konto
+aus Konkurrenzangaben ableiten. Befunde und Reihenfolge im bestehenden Audit.
+
+**Prüfung:** Gesamte lokale Übergabedatei, relevante Worker-/UI-/Schemawege und
+offizielle Bleam-, Revendor- und Playwright-Quellen gelesen. Nur Dokumentation
+geändert und formatiert; Diffprüfung ausgeführt. Keine Anwendungstests,
+Serveränderungen, Browserstarts, Käufe, Profilwechsel oder Veröffentlichung.
+Die bisherige Implementierung bleibt lokal erhalten und unveröffentlicht.
+
+## 2026-10-02 - Juna - Vinted-Worker auf eigenen Server und feste ISP-Proxys vorbereitet
+
+**Auftrag:** Nach ausdrücklicher Backend-Freigabe den rund um die Uhr laufenden
+Cloudbetrieb vom kleinen GoLogin-GB-Kontingent lösen. Eigener Zweig
+`juna/vinted-network-review`, aktuelles `origin/master` unverändert als Grundlage.
+
+**Umsetzung:** Neuer Modus `gologin-server` führt Orbita auf dem Worker über den
+offiziellen, versionierten Python-SDK aus. Feste deutsche ISP-Proxys werden
+exklusiv und dauerhaft je Profil zugeordnet; Proxykonfiguration und tatsächliche
+Ausgangs-IP werden vor dem Browserstart geprüft. Profile und Cookies bleiben
+bei unbestätigtem Upload zur Wiederherstellung erhalten. Kontosperren und
+die globale Runtime gelten auch im neuen Modus. Ein Wartungsbefehl stellt
+bestehende Profile erst bei gestopptem Worker und leeren Aufträgen um.
+Die Queue bearbeitet vorhandene Konten ohne Timer-Leerlauf. Compose erhält
+persistente Volumes, Proxydatei und 2-GiB-Pilotbudget. Der Imageworkflow baut
+und prüft den Linux-SDK im PR; Veröffentlichungen bleiben vom bestätigten
+Merge-Commit aus möglich. Keine Datenbank- oder Frontendänderungen.
+
+**Prüfung:** 209 Workerfälle, acht Pythonfälle, zwölf künstliche Browserfälle,
+Typecheck und Workerbau bestehen. 18 Workflow-Vertragsfälle bestehen; drei
+plattformabhängige Fälle sind unter Windows übersprungen. Actionlint 1.7.12
+prüft die geänderten Workflows erfolgreich ohne Shellcheck/Pyflakes.
+Die Queue wurde mit 30 künstlichen Aufträgen geprüft; echte Intervallkapazität
+ist damit nicht belegt. Der neue Python-Abhängigkeitsstand meldet im Audit
+keine bekannten Lücken; das zunächst geprüfte Node-SDK mit kritischen Meldungen
+wurde vollständig entfernt. Format, gezieltes Lint, Compose-Konfiguration und
+Diffprüfung bestehen. Der Debian-Image-Tag ist für Linux/amd64 verfügbar;
+Build und Linux-SDK-Smoke stehen im PR noch aus. Keine lokalen Docker-Bauten.
+Die Serverkonfiguration blieb unverändert: gesunder Cloudworker, drei GB-Profile,
+keine feste Proxydatei. Ein kurzlebiges GoLogin-Testprofil bestätigte die neue
+Proxy-API live: Erstellung 201, Proxy-PATCH 204, aktivierter Proxy und korrekte
+Felder beim Nachlesen. Löschung 204 und anschließende 404 sind bestätigt.
+Es wurde kein Browser oder Vinted-Konto gestartet. Es fehlen
+gebuchte feste Pilot-Proxys sowie Image-/Liveprüfung, PR und Veröffentlichung.
+Die bestehende globale Grenze von einem Browser und GoLogins Profiltarif bleiben.
+
+## 2026-10-02 – Juna – Vinted-Cloudbetrieb ohne GB-Kontingent recherchiert
+
+**Auftrag:** Den bisherigen GoLogin-Residential-Betrieb für viele Vinted-Konten
+neu bewerten und eine tragfähige Umstellung recherchieren. Der Nutzer bestätigt,
+dass automatische Aktualisierung bei ausgeschaltetem Nutzer-PC erforderlich ist.
+
+**Ergebnis:** Revendor und Bleam dokumentieren getrennte Browsersitzungen;
+Bleam bietet dafür einen zusätzlichen Cloudserver. Herstellerquellen belegen
+keine allgemeine Pflicht zu GB-basierten Residential-Proxys. Feste ISP-Proxys
+sind zum Monatspreis ohne GB-Kontingent erhältlich. GoLogin begrenzt außerdem
+Cloudstunden und gleichzeitige Starts. Vorschlag: vorhandene Profile zunächst
+behalten, Orbita über den offiziellen SDK auf dem Flipbase-Server ausführen
+und feste ISP-Proxys zuordnen. Preisangaben und offene Liveprüfungen stehen
+im bestehenden Vinted-Sync-Audit, einschließlich der notwendigen Serveränderungen.
+
+**Prüfung und Grenze:** Aktuelles `origin/master` (`3d0c42cd`) gelesen;
+offizielle Anbieterquellen am 02.10.2026 geprüft. Eigener Zweig
+`juna/vinted-network-review`. Kein Backend-, Frontend- oder Deploymentcode
+geändert, kein Proxy gekauft, kein Konto oder produktiver Zeitplan verändert.
+Der vorhandene lokale Browser ist nur ein Testadapter. Die Serverumstellung
+benötigte zunächst eine Ausnahme; diese wurde danach ausdrücklich erteilt.
+Die zugehörige Backend-Issue wird unter `Backend Issues/vinted-network-review`
+abgelegt. Prettier 3.8.1 und Diffprüfung bestanden; keine funktionale Abnahme
+behauptet. Keine Anwendungstests oder Builds für die reine Dokumentation ausgeführt.
+
 ## 2026-10-02 – Juna – Vinted-Kontoübersicht und Live-Inserate für PR und Merge freigegeben
 
 **Auftrag:** Nach ausdrücklichem „ja“ den geprüften eigenen Zweig

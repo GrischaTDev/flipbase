@@ -1,5 +1,50 @@
 # Marktplatz-Worker: Serverkern
 
+## Eigener Chromium-Cloudpilot
+
+`MARKETPLACE_BROWSER_PROVIDER=chromium` verwendet dauerhafte Kontoprofile im
+eigenen Serverbetrieb. Der Start verlangt `MARKETPLACE_CHROMIUM_PILOT_ENABLED=1`,
+einen privaten `MARKETPLACE_BROWSER_PROFILE_ROOT`, den zugehörigen
+`MARKETPLACE_CHROMIUM_HOST_PROFILE_ROOT`, eine feste Hostkennung und das geprüfte
+Chromium-Sitzungsimage. Jeder aktive Browser läuft in einem eigenen Container;
+nur der vertrauenswürdige Controller besitzt Docker-Zugriff. Das feste Netz
+`flipbase-browser` und ein aktueller Host-Firewallnachweis sind erforderlich.
+
+Neue Konten erhalten `chromium_<uuid>`-Referenzen. Bestehende GoLogin-Referenzen
+werden weiter über den bisherigen Cloudadapter ausgeführt, solange
+`GOLOGIN_API_TOKEN` konfiguriert bleibt. Ein fehlendes oder fremdes privates
+Kontomanifest wird nicht automatisch neu erzeugt. Die vorhandenen Konto-
+und Sitzungsverträge bleiben bestehen; eine neue Datenbankmigration ist nicht nötig.
+
+Automatische Abrufe sind zunächst pausiert. `MARKETPLACE_SCHEDULED_SYNC_ENABLED=1`
+aktiviert sie nach der Abnahme. Profil-/Listingänderungen sind ebenfalls zunächst
+gesperrt und benötigen separat `MARKETPLACE_CHROMIUM_WRITES_ENABLED=1`. Anmeldung,
+Sicherheitsabfragen und manuelle Leseabrufe nutzen die vorhandene Browseroberfläche.
+
+`MARKETPLACE_CHROMIUM_NETWORK_ID=direct` nutzt den Serverausgang. Optional kann
+`MARKETPLACE_CHROMIUM_NETWORK_FILE` eine private Datei mit Modus 0600 bezeichnen:
+
+```json
+{
+  "networkProfiles": [
+    {
+      "id": "isp-pilot",
+      "kind": "proxy",
+      "server": "http://proxy.example.test:10000",
+      "username": "REPLACE_ON_SERVER",
+      "password": "REPLACE_ON_SERVER"
+    }
+  ]
+}
+```
+
+Die Netzwerkkennung wird unveränderlich im Kontomanifest gespeichert. Fehlende
+Zugänge verhindern den Start; es gibt keinen automatischen Netzwerkwechsel.
+Umstellung, Wartungsbefehl und Rückweg sind im
+[Rolloutplan](../../docs/implementation/vinted-worker-rollout.md) beschrieben.
+Linux-Sandbox, tatsächlicher Vinted-Zugang, mobile Anmeldung und ausreichende
+Kapazität werden im CI beziehungsweise im realen Pilot geprüft.
+
 ## Geplante Vinted-Leseabrufe
 
 Im GoLogin-Betrieb übernimmt ein gemeinsamer Dispatcher neue manuelle

@@ -27,6 +27,7 @@ interface DispatcherOptions {
   run(scope: BrowserSessionScope): Promise<void>;
   onRuntimeLost(): void | Promise<void>;
   includeScheduled?: boolean;
+  maxJobsPerPoll?: number;
   workerId?: string;
   createRunnerId?: () => string;
   timers?: MarketplaceSyncTimers;
@@ -50,6 +51,13 @@ export class MarketplaceSyncDispatcher {
   private lost = false;
 
   constructor(options: DispatcherOptions) {
+    if (
+      options.maxJobsPerPoll !== undefined &&
+      (!Number.isInteger(options.maxJobsPerPoll) ||
+        options.maxJobsPerPoll < 1 ||
+        options.maxJobsPerPoll > 128)
+    )
+      throw new Error('Ungültige Anzahl von Abrufen je Warteschlangenprüfung');
     this.options = options;
     this.workerId = options.workerId ?? randomUUID();
     this.createRunnerId = options.createRunnerId ?? randomUUID;
@@ -87,7 +95,7 @@ export class MarketplaceSyncDispatcher {
 
   async poll(): Promise<void> {
     if (this.stopped || !this.checkRuntime() || this.polling) return;
-    const running = this.claimAndRun();
+    const running = this.drainAvailableJobs();
     this.polling = running;
     try {
       await running;
@@ -96,9 +104,16 @@ export class MarketplaceSyncDispatcher {
     }
   }
 
-  private async claimAndRun(): Promise<void> {
+  private async drainAvailableJobs(): Promise<void> {
+    // Erst nach bestätigtem Abschluss folgt das nächste Konto; kein zusätzlicher Timer-Leerlauf.
+    for (let index = 0; index < (this.options.maxJobsPerPoll ?? 1); index++) {
+      if (this.stopped || !this.checkRuntime() || !(await this.claimAndRun())) return;
+    }
+  }
+
+  private async claimAndRun(): Promise<boolean> {
     const lease = this.lease;
-    if (!lease) return;
+    if (!lease) return false;
     let scope: BrowserSessionScope | null;
     try {
       scope = await this.options.store.claim(
@@ -110,16 +125,18 @@ export class MarketplaceSyncDispatcher {
     } catch {
       // Ein verlorener Claim kann bereits eine Sitzung reserviert haben. Recovery gehört zum Neustart.
       this.loseRuntime();
-      return;
+      return false;
     }
-    if (!scope || !this.checkRuntime()) return;
+    if (!scope || !this.checkRuntime()) return false;
     try {
       // Ein bereits beanspruchter Auftrag wird auch während eines geordneten Shutdowns bereinigt.
       await this.options.run(scope);
     } catch {
       // Bekannte Fehler schließt der Runner selbst ab. Eine Rejection lässt die Reservierung ungeklärt.
       this.loseRuntime();
+      return false;
     }
+    return true;
   }
 
   heartbeat(): Promise<boolean> {
