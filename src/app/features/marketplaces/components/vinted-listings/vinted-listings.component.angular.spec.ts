@@ -5,6 +5,8 @@ import { BehaviorSubject } from 'rxjs';
 import { afterEach, expect, it, vi } from 'vitest';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
+import { MarketplaceListingStatisticsStore } from '../../services/marketplace-listing-statistics.store';
+import { MarketplaceApiService } from '../../services/marketplace-api.service';
 import { createMarketplaceFixtures } from '../../testing/marketplace-fixtures';
 import { VintedListingsComponent } from './vinted-listings.component';
 
@@ -18,6 +20,7 @@ function setup(connectionId: string) {
   const loading = signal(true);
   const store = {
     connections,
+    canManage: signal(true),
     selectedConnection,
     loading,
     loadingSnapshot: signal(false),
@@ -33,6 +36,8 @@ function setup(connectionId: string) {
   };
   TestBed.configureTestingModule({
     providers: [
+      MarketplaceListingStatisticsStore,
+      { provide: MarketplaceApiService, useValue: { readListingStatistics: vi.fn() } },
       { provide: MarketplaceAccountStore, useValue: store },
       {
         provide: WorkspaceService,

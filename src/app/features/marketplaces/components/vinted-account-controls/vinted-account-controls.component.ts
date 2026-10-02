@@ -2,6 +2,7 @@ import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { LucideRefreshCw } from '@lucide/angular';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 import type { MarketplaceConnection } from '../../models/marketplace.models';
 import { MARKETPLACE_CONNECTION_LABELS } from '../../models/marketplace-presentation';
@@ -10,7 +11,13 @@ import { VintedSyncScheduleComponent } from '../vinted-sync-schedule/vinted-sync
 
 @Component({
   selector: 'app-vinted-account-controls',
-  imports: [DatePipe, ButtonComponent, CustomSelectComponent, VintedSyncScheduleComponent],
+  imports: [
+    DatePipe,
+    BadgeComponent,
+    ButtonComponent,
+    CustomSelectComponent,
+    VintedSyncScheduleComponent,
+  ],
   templateUrl: './vinted-account-controls.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block min-w-0' },

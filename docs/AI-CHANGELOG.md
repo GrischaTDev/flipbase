@@ -1,5 +1,50 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-02 – Juna – Vinted-Inserate live und ohne Ausblenden aktualisiert
+
+**Auftrag und Ursache:** Neue automatische Abrufe waren erst nach vollständigem
+Neuladen sichtbar; Aktualisierungen verschoben die Ansicht durch einen Ladeblock.
+Gleichzeitig konnten Meldungen während laufender Aktionen verloren gehen. Eigener
+Zweig `juna/vinted-live-listings` vom aktuellen `origin/master`; fremde Änderungen
+in der ursprünglichen Arbeitskopie bleiben erhalten.
+
+**Umsetzung:** Private, kontogebundene Servermeldungen und eine Kontrollabfrage
+holen gespeicherte Abrufe nach. Wartende Meldungen werden zusammengeführt und
+nach laufenden Aktionen übernommen. Karten, Konto-/Gesprächsauswahl und bereits
+nachgeladene Listen bleiben erhalten, auch nach einem manuellen Teilabruf.
+Aktualisierungszeit und Datum stehen in einem gemeinsamen Badge. Bilder füllen
+den Kartenkopf; Zustand, Aufrufe und Favoriten stehen kompakt nebeneinander.
+Die Kennzahlenhistorie ermöglicht echte Vergleiche für letzten Abruf, Stunde,
+Tag und Woche. Grüne Pluszahlen verschwinden beim nächsten Abruf ohne Zuwachs.
+Fehlende Ausgangswerte bleiben unbekannt. Der tatsächliche Vergleichszeitraum
+ist als Hinweis an den Kennzahlen hinterlegt. Mobile-Web-App-Metadaten ergänzt.
+Die Browsermeldungen „Fetch finished loading“ stammen aus Chromes aktivierter
+Netzwerkprotokollierung; die Anwendung kann diese Entwicklereinstellung nicht
+abschalten.
+
+**Datenbank:** Neue deklarative Schemadatei, registrierter Pfad, erzeugte Migration
+und frisch erzeugte Typen. RLS schützt die Historie; Browser haben ausschließlich
+Leserechte für verwaltbare Konten. Nur der Server sendet die private Aktualisierung.
+Eine getrennte Testdatenbank im eigenen, eindeutig benannten Container enthält
+kopierte Migrationen und künstliche Daten. Die aktuelle CLI erzeugte beim Abgleich
+zunächst nur Trigger; der vollständige Unterschied wurde deshalb mit dem Migra-
+Vergleichswerkzeug aus zwei getrennten Ausgangsständen erzeugt. Kommentare sowie
+die von Migra nicht vollständig erfassten Funktions-/Sequenzrechte wurden automatisch
+aus der deklarativen Quelle ergänzt. Die fertige Migration wurde anschließend
+vollständig in einer Transaktion auf den unveränderten Ausgangsstand angewendet.
+Keine produktiven Daten oder Zugänge verändert.
+
+**Prüfung:** 308 bestehende und neue Angular-Marktplatz-/Bildprüfungen, 16 reine
+Kennzahl-/Vertragsfälle, 25 neue Datenbankprüfungen und 75 vorhandene Favoriten-
+Importprüfungen bestehen. Vier lokale Browserfälle mit künstlichen Daten prüfen
+Live-Meldung, verlorene Meldung über Kontrollabfrage, erhaltene Karten und Position,
+sichtbaren Zeitpunkt, Pluszahlen und Zeitraumwechsel, randfüllende Bilder,
+WCAG AA, Überläufe und Laufzeitfehler. Format, gezieltes Lint, Typen, gemeinsame UI,
+Schema-/Migrationskontrollen und Produktionsbau bestehen. Die vorhandene `pako`-
+Bauwarnung bleibt unverändert. Browserbilder und Erzeugungs-/Prüfskripte liegen
+außerhalb des Repositorys. Die vollständigen PR-Pflichtprüfungen folgen erst nach
+Freigabe zum Push; diese Änderung ist noch nicht veröffentlicht.
+
 ## 2026-10-02 – Juna – Nachrichtenlayout für PR und Merge freigegeben
 
 **Auftrag:** Nach ausdrücklichem „ja“ den lokal geprüften Nachrichtenlayout-Zweig

@@ -98,6 +98,7 @@ const makeSnapshot = (scope: AccountScope) =>
   );
 let resetBindings: (() => void) | undefined;
 let api: {
+  readListingStatistics: ReturnType<typeof vi.fn>;
   listConnections: ReturnType<typeof vi.fn>;
   readSnapshot: ReturnType<typeof vi.fn>;
   readPublication: ReturnType<typeof vi.fn>;
@@ -215,6 +216,13 @@ beforeEach(() => {
     syncConnection: vi.fn().mockResolvedValue(undefined),
   };
   api = {
+    readListingStatistics: vi
+      .fn()
+      .mockImplementation(async (scope: AccountScope, periodMinutes: number) => ({
+        ...scope,
+        periodMinutes,
+        items: [],
+      })),
     listConnections: vi
       .fn()
       .mockResolvedValue({ canManage: true, connections: fixtureConnections }),

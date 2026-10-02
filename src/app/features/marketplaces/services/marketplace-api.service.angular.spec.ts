@@ -26,6 +26,59 @@ beforeEach(() => {
   api = TestBed.inject(MarketplaceApiService);
 });
 describe('Marktplatz-API', () => {
+  it('abonniert nur den privaten Kontokanal und ignoriert fremde Live-Meldungen', () => {
+    let receive!: (message: { payload: unknown }) => void;
+    let subscribe!: (status: string) => void;
+    const channel = {
+      on: vi.fn().mockImplementation((_event, _filter, callback) => {
+        receive = callback;
+        return channel;
+      }),
+      subscribe: vi.fn().mockImplementation((callback) => {
+        subscribe = callback;
+        return channel;
+      }),
+    };
+    const client = {
+      channel: vi.fn().mockReturnValue(channel),
+      removeChannel: vi.fn().mockResolvedValue('ok'),
+    };
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [MarketplaceApiService, { provide: SupabaseService, useValue: { client } }],
+    });
+    const api = TestBed.inject(MarketplaceApiService);
+    const imported = vi.fn();
+    const reconnected = vi.fn();
+    const close = api.listenAccountImports(scope, imported, reconnected);
+    expect(client.channel).toHaveBeenCalledWith(
+      `workspace:${scope.workspaceId}:marketplace_account:${scope.connectionId}`,
+      { config: { private: true } },
+    );
+    const payload = { ...scope, lastSyncedAt: '2026-10-02T12:30:00Z' };
+    receive({ payload: { ...payload, connectionId: 'other' } });
+    receive({ payload: { ...payload, workspaceId: 'other' } });
+    receive({ payload: { ...payload, lastSyncedAt: 'invalid' } });
+    expect(imported).not.toHaveBeenCalled();
+    receive({ payload });
+    subscribe('SUBSCRIBED');
+    expect(imported).toHaveBeenCalledExactlyOnceWith(payload.lastSyncedAt);
+    expect(reconnected).toHaveBeenCalledOnce();
+    close();
+    expect(client.removeChannel).toHaveBeenCalledWith(channel);
+  });
+  it('bindet Statistikantworten an Konto und gewählten Zeitraum', async () => {
+    rpc.mockResolvedValue({ data: { ...scope, periodMinutes: 60, items: [] }, error: null });
+    expect(await api.readListingStatistics(scope, 60)).toMatchObject({
+      ...scope,
+      periodMinutes: 60,
+    });
+    rpc.mockResolvedValue({
+      data: { ...scope, connectionId: 'other', periodMinutes: 60, items: [] },
+      error: null,
+    });
+    await expect(api.readListingStatistics(scope, 60)).rejects.toThrow();
+  });
   it('fragt Verwaltungsrechte am Server ab, statt sie aus einer UI-Rolle abzuleiten', async () => {
     rpc.mockResolvedValue({ data: true, error: null });
     expect(await api.canManage(scope.workspaceId)).toBe(true);

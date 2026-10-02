@@ -84,6 +84,16 @@ export class MarketplaceAccountStore {
   private conversationRevision = 0;
   private mutationRevision = 0;
   private destroyed = false;
+  private disconnectImports: (() => void) | null = null;
+  private readonly backgroundFetching = signal(false);
+  private readonly pendingImport = signal<{
+    scope: AccountScope;
+    lastSyncedAt: string | null;
+    force?: boolean;
+  } | null>(null);
+  private checkingImport = false;
+  private forceImportCheck = false;
+  private pageRevision = 0;
   private readonly descriptions = new Map<string, VintedListingDescription>();
   private readonly descriptionRequests = new Map<string, Promise<VintedListingDescription>>();
   private metricConnectionId: string | null = null;
@@ -117,6 +127,12 @@ export class MarketplaceAccountStore {
   readonly error = computed(() => (this.current() ? this.loadError() : null));
   readonly mutationError = computed(() => (this.current() ? this.writeError() : null));
   readonly syncProgress = computed(() => (this.current() ? this.syncStatus() : null));
+  private readonly importChannelKey = computed(() => {
+    const connection = this.selectedConnection();
+    return connection && this.canManage()
+      ? JSON.stringify([this.contextKey(), connection.workspaceId, connection.connectionId])
+      : null;
+  });
 
   constructor() {
     effect(() => {
@@ -131,8 +147,56 @@ export class MarketplaceAccountStore {
         if (key) void this.reloadConnections();
       });
     });
+    effect(() => {
+      const key = this.importChannelKey();
+      untracked(() => {
+        const connection = this.selectedConnection();
+        this.disconnectImports?.();
+        this.disconnectImports = null;
+        if (!key || !connection) return;
+        const scope = this.scope(connection);
+        try {
+          this.disconnectImports = this.api.listenAccountImports(
+            scope,
+            (lastSyncedAt) => {
+              void this.refreshImportedSnapshot(scope, lastSyncedAt);
+            },
+            () => {
+              void this.checkLatestImport();
+            },
+          );
+        } catch {
+          /* Die Kontrollabfrage bleibt bei fehlendem Livekanal aktiv. */
+        }
+      });
+    });
+    effect(() => {
+      const token = this.auth.session()?.access_token;
+      if (token && this.canManage()) this.api.authenticateImports?.(token);
+    });
+    effect(() => {
+      const pending = this.pendingImport();
+      const blocked =
+        this.loading() ||
+        this.loadingSnapshot() ||
+        this.loadingMessages() ||
+        this.loadingPage() ||
+        this.busy() ||
+        this.backgroundFetching();
+      if (pending && !blocked)
+        untracked(() => {
+          void this.drainPendingImport();
+        });
+    });
+    const importTimer = setInterval(() => {
+      void this.checkLatestImport();
+    }, 30_000);
     inject(DestroyRef).onDestroy(() => {
       this.destroyed = true;
+      clearInterval(importTimer);
+      this.disconnectImports?.();
+      this.disconnectImports = null;
+      this.pendingImport.set(null);
       this.reset();
     });
   }
@@ -223,27 +287,98 @@ export class MarketplaceAccountStore {
     if (
       !key ||
       !lastSyncedAt ||
+      !Number.isFinite(Date.parse(lastSyncedAt)) ||
       !this.canManage() ||
       connection?.connectionId !== scope.connectionId ||
       connection.workspaceId !== scope.workspaceId ||
       connection.status !== 'connected' ||
       (connection.lastSyncedAt !== null &&
-        Date.parse(lastSyncedAt) <= Date.parse(connection.lastSyncedAt)) ||
+        Date.parse(lastSyncedAt) <= Date.parse(connection.lastSyncedAt))
+    )
+      return;
+    const pending = this.pendingImport();
+    if (
+      !pending ||
+      pending.scope.connectionId !== scope.connectionId ||
+      Date.parse(lastSyncedAt) > Date.parse(pending.lastSyncedAt ?? '')
+    ) {
+      this.pendingImport.set({ scope, lastSyncedAt });
+    }
+    if (
       this.loading() ||
       this.loadingSnapshot() ||
+      this.loadingMessages() ||
       this.loadingPage() ||
-      this.busy()
+      this.busy() ||
+      this.backgroundFetching()
+    )
+      return;
+    await this.drainPendingImport();
+  }
+
+  private async drainPendingImport(): Promise<void> {
+    const pending = this.pendingImport();
+    if (!pending || this.destroyed || this.backgroundFetching()) return;
+    this.pendingImport.set(null);
+    const { scope, lastSyncedAt } = pending;
+    const connection = this.selectedConnection();
+    const key = this.contextKey();
+    if (
+      !key ||
+      !connection ||
+      !this.canManage() ||
+      connection.connectionId !== scope.connectionId ||
+      connection.workspaceId !== scope.workspaceId
+    )
+      return;
+    if (
+      !pending.force &&
+      connection.lastSyncedAt &&
+      Date.parse(lastSyncedAt ?? '') <= Date.parse(connection.lastSyncedAt)
     )
       return;
     const selection = this.selectionRevision;
+    const pageRevision = this.pageRevision;
     const conversation = this.conversationId();
     const conversationRevision = this.conversationRevision;
     const isCurrent = () => this.isCurrent(key) && selection === this.selectionRevision;
-    this.fetchingSnapshot.set(true);
+    this.backgroundFetching.set(true);
     try {
-      const result = await this.api.readSnapshot(this.scope(connection));
+      const previous = this.snapshot();
+      let result = await this.api.readSnapshot(this.scope(connection));
+      // Bereits geladene Listenlänge behalten; die sichtbaren Karten bleiben stehen.
+      for (const kind of ['publication', 'conversation', 'sale', 'activity'] as const) {
+        const pageKey = snapshotPages[kind];
+        const target = previous?.[pageKey].items.length ?? 0;
+        const seen = new Set<string>();
+        while (isCurrent() && result[pageKey].items.length < target && result[pageKey].nextCursor) {
+          const cursor = result[pageKey].nextCursor!;
+          if (seen.has(cursor) || seen.size >= 100) throw new MarketplaceResponseError();
+          seen.add(cursor);
+          const next = await this.api.readPage(this.scope(connection), kind, cursor);
+          result = {
+            ...result,
+            [pageKey]: {
+              ...next,
+              items: [
+                ...new Map(
+                  [...result[pageKey].items, ...next.items].map((item) => [item.id, item]),
+                ).values(),
+              ],
+            },
+          };
+        }
+      }
       if (!isCurrent()) return;
+      if (pageRevision !== this.pageRevision || this.loadingPage()) {
+        // Nachladen während des Hintergrundabrufs zuerst abschließen und dann neu lesen.
+        const queued = this.pendingImport();
+        if (!queued || Date.parse(queued.lastSyncedAt ?? '') < Date.parse(lastSyncedAt ?? ''))
+          this.pendingImport.set(pending);
+        return;
+      }
       this.acceptSnapshot(result);
+      this.loadError.set(null);
       this.accountList.update((connections) =>
         connections.map((account) =>
           account.connectionId === scope.connectionId ? { ...account, lastSyncedAt } : account,
@@ -271,7 +406,67 @@ export class MarketplaceAccountStore {
     } catch (error) {
       if (isCurrent()) this.handleError(error);
     } finally {
-      if (isCurrent()) this.fetchingSnapshot.set(false);
+      this.backgroundFetching.set(false);
+    }
+  }
+
+  private async checkLatestImport(force = false): Promise<void> {
+    const connection = this.selectedConnection();
+    const key = this.contextKey();
+    const selection = this.selectionRevision;
+    if (!key || !connection || !this.canManage() || this.destroyed) return;
+    if (this.checkingImport) {
+      this.forceImportCheck ||= force;
+      return;
+    }
+    this.checkingImport = true;
+    try {
+      const result = await this.api.listConnections(connection.workspaceId);
+      if (!this.isCurrent(key) || selection !== this.selectionRevision) return;
+      if (!result.canManage) throw new MarketplaceApiError('forbidden');
+      const latest = result.connections.find(
+        (account) => account.connectionId === connection.connectionId,
+      );
+      if (!latest) {
+        await this.reloadConnections();
+        return;
+      }
+      this.accountList.update((accounts) =>
+        accounts.map((account) =>
+          account.connectionId === latest.connectionId
+            ? { ...latest, lastSyncedAt: account.lastSyncedAt }
+            : account,
+        ),
+      );
+      if (force) {
+        this.pendingImport.set({
+          scope: this.scope(latest),
+          lastSyncedAt: latest.lastSyncedAt,
+          force: true,
+        });
+        if (
+          !this.loading() &&
+          !this.loadingSnapshot() &&
+          !this.loadingMessages() &&
+          !this.loadingPage() &&
+          !this.busy()
+        )
+          await this.drainPendingImport();
+      } else await this.refreshImportedSnapshot(latest, latest.lastSyncedAt);
+    } catch (error) {
+      if (
+        this.isCurrent(key) &&
+        selection === this.selectionRevision &&
+        error instanceof MarketplaceApiError &&
+        error.code === 'forbidden'
+      )
+        this.handleError(error);
+    } finally {
+      this.checkingImport = false;
+      if (this.forceImportCheck) {
+        this.forceImportCheck = false;
+        void this.checkLatestImport(true);
+      }
     }
   }
 
@@ -326,6 +521,7 @@ export class MarketplaceAccountStore {
     if (!key || !connection || !page?.nextCursor || this.loadingPage()) return;
     const selection = this.selectionRevision;
     const conversation = this.conversationRevision;
+    this.pageRevision++;
     this.fetchingPage.set(kind);
     this.loadError.set(null);
     try {
@@ -425,13 +621,16 @@ export class MarketplaceAccountStore {
     const scope = this.scope(connection);
     this.syncConnectionId = connection.connectionId;
     this.syncStatus.set(null);
-    return this.mutate(async () => {
+    const completed = await this.mutate(async () => {
       await this.browserApi.syncConnection(scope, token, (progress) => {
         if (this.syncConnectionId === connection.connectionId && this.contextKey())
           this.syncStatus.set(progress);
       });
       return this.selectedConnection()?.connectionId ?? connection.connectionId;
-    });
+    }, false);
+    if (completed && this.selectedConnection()?.connectionId === scope.connectionId)
+      await this.checkLatestImport(true);
+    return completed;
   }
   async readPublication(connectionId: string, entryId: string): Promise<MarketplaceEntry | null> {
     const connection = this.selectedConnection();
@@ -628,7 +827,10 @@ export class MarketplaceAccountStore {
         : value,
     );
   }
-  private async mutate(operation: () => Promise<string | undefined>): Promise<boolean> {
+  private async mutate(
+    operation: () => Promise<string | undefined>,
+    reload = true,
+  ): Promise<boolean> {
     const key = this.contextKey();
     if (!key || !this.canManage() || this.busy()) return false;
     const revision = ++this.mutationRevision;
@@ -637,7 +839,7 @@ export class MarketplaceAccountStore {
     try {
       const selectedId = await operation();
       if (!this.isCurrent(key) || revision !== this.mutationRevision) return false;
-      await this.reloadConnections(selectedId);
+      if (reload) await this.reloadConnections(selectedId);
       return this.isCurrent(key) && revision === this.mutationRevision;
     } catch (error) {
       if (this.isCurrent(key) && revision === this.mutationRevision) {
@@ -697,6 +899,7 @@ export class MarketplaceAccountStore {
     this.writeError.set(null);
     this.syncStatus.set(null);
     this.syncConnectionId = null;
+    this.pendingImport.set(null);
   }
 
   private clearDescriptions(): void {

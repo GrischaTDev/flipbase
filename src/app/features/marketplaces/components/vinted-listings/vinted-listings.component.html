@@ -2,7 +2,28 @@
   {{ metricDisplay.announcement() }}
 </p>
 @if (page(); as publications) {
-  <p class="mb-3 text-sm font-medium text-fb-text-primary">Inserate ({{ publications.total }})</p>
+  <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
+    <p class="text-sm font-medium text-fb-text-primary">Inserate ({{ publications.total }})</p>
+    <div class="flex items-center gap-2">
+      <span class="text-xs text-fb-text-secondary">Änderungen</span>
+      <app-custom-select
+        ariaLabel="Zeitraum für Inseratänderungen"
+        variant="filter"
+        widthClass="w-40"
+        [options]="statistics.options"
+        [value]="statistics.period()"
+        (valueChange)="statistics.selectPeriod($event)"
+      />
+    </div>
+  </div>
+  @if (statistics.error(); as error) {
+    <p class="mb-3 text-xs text-fb-text-secondary" role="status">{{ error }}</p>
+  } @else if (statistics.missingHistory()) {
+    <p class="mb-3 text-xs text-fb-text-secondary">
+      Die Messhistorie wird aufgebaut. Änderungszahlen erscheinen, sobald ein Vergleichswert für den
+      Zeitraum vorliegt.
+    </p>
+  }
   <div class="grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
     @for (entry of publications.items; track entry.id) {
       <a
@@ -10,38 +31,50 @@
         class="block min-w-0 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
         [attr.aria-label]="'Inserat ' + entry.title + ' öffnen'"
       >
-        <app-card class="h-full min-w-0 overflow-hidden">
-          <div class="relative mb-3 overflow-hidden rounded-lg">
+        <app-card padding="none" class="h-full min-w-0 overflow-hidden">
+          <div class="relative overflow-hidden">
             <app-product-thumbnail
               class="block w-full"
               [src]="entry.imageUrl"
               [alt]="entry.title"
               size="listing"
+              [flush]="true"
             />
             @if (entry.promoted) {
               <app-badge class="absolute bottom-2 left-2" tone="info">Gepusht</app-badge>
             }
           </div>
-          <h2 class="truncate text-sm font-semibold text-fb-text-primary">{{ entry.title }}</h2>
-          @if (entry.brand || entry.size) {
-            <p class="mt-1 truncate text-xs text-fb-text-secondary">
-              {{ entry.brand ?? '' }} {{ entry.size ?? '' }}
+          <div class="p-3">
+            <h2 class="truncate text-sm font-semibold text-fb-text-primary">{{ entry.title }}</h2>
+            @if (entry.brand || entry.size) {
+              <p class="mt-1 truncate text-xs text-fb-text-secondary">
+                {{ entry.brand ?? '' }} {{ entry.size ?? '' }}
+              </p>
+            }
+            <p class="mt-3 text-base font-semibold text-fb-text-primary">
+              {{
+                entry.price === null ? 'Preis unbekannt' : (entry.price | currency: entry.currency)
+              }}
             </p>
-          }
-          <p class="mt-3 text-base font-semibold text-fb-text-primary">
-            {{
-              entry.price === null ? 'Preis unbekannt' : (entry.price | currency: entry.currency)
-            }}
-          </p>
-          @if (entry.status) {
-            <p class="mt-1 text-xs text-fb-text-secondary">Zustand: {{ entry.status }}</p>
-          }
-          <app-vinted-listing-metrics
-            class="mt-3 border-t border-fb-line pt-3"
-            [metrics]="entry.metrics"
-            [change]="metricDisplay.changes()[entry.id] ?? null"
-            [highlighted]="metricDisplay.highlighted().has(entry.id)"
-          />
+            <div class="mt-2 flex items-center justify-between gap-2">
+              @if (entry.status) {
+                <p
+                  class="min-w-0 flex-1 truncate text-xs text-fb-text-secondary"
+                  [attr.title]="'Zustand: ' + entry.status"
+                >
+                  <span class="sr-only">Zustand: </span>{{ entry.status }}
+                </p>
+              }
+              <app-vinted-listing-metrics
+                class="ml-auto"
+                [metrics]="entry.metrics"
+                [change]="statistics.change(entry)"
+                [periodLabel]="statistics.periodLabel()"
+                [attr.title]="statistics.comparisonLabel(entry)"
+                [highlighted]="metricDisplay.highlighted().has(entry.id)"
+              />
+            </div>
+          </div>
         </app-card>
       </a>
     } @empty {
