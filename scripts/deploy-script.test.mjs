@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { chmod, mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdtemp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -8,6 +8,32 @@ import test from 'node:test';
 
 const deployScript = fileURLToPath(new URL('../deploy/deploy.sh', import.meta.url));
 const dockerfile = fileURLToPath(new URL('../docker/Dockerfile', import.meta.url));
+
+test('Docker-Kontext enthält alle von Angular verwendeten gemeinsamen Verträge', async () => {
+  const root = fileURLToPath(new URL('../', import.meta.url));
+  const rules = (await readFile(join(root, '.dockerignore'), 'utf8')).split(/\r?\n/u);
+  const sharedPrefix = 'supabase/functions/_shared/';
+  const pending = new Set();
+  for (const file of await readdir(join(root, 'src'), { recursive: true })) {
+    if (!file.endsWith('.ts') || file.endsWith('.spec.ts')) continue;
+    const source = await readFile(join(root, 'src', file), 'utf8');
+    for (const match of source.matchAll(/['"][^'"]*supabase\/functions\/_shared\/([^'"]+)['"]/gu)) {
+      pending.add(match[1].replace(/\.ts$/u, '') + '.ts');
+    }
+  }
+  assert.ok(pending.size > 0, 'Die Prüfung muss tatsächliche Angular-Importe erfassen.');
+  for (const file of pending) {
+    const allowIndex = rules.lastIndexOf(`!${sharedPrefix}${file}`);
+    assert.ok(
+      allowIndex > rules.lastIndexOf(`${sharedPrefix}*`),
+      `${sharedPrefix}${file} fehlt im Docker-Kontext.`,
+    );
+    const source = await readFile(join(root, sharedPrefix, file), 'utf8');
+    for (const match of source.matchAll(/from ['"]\.\/([^'"]+)['"]/gu)) {
+      pending.add(match[1].replace(/\.ts$/u, '') + '.ts');
+    }
+  }
+});
 
 test('liefert die passende Caddy-Regel vor der Landingpage aus', async () => {
   const [deploySource, dockerfileSource] = await Promise.all([
