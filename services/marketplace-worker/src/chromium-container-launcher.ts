@@ -128,6 +128,7 @@ export class ChromiumContainerLauncher {
       networkOptions['com.docker.network.bridge.name'] !== 'br-flipbase' ||
       array(ipam.Config).length !== 1 ||
       record(array(ipam.Config)[0]).Subnet !== '172.30.88.0/24' ||
+      record(array(ipam.Config)[0]).IPRange !== '172.30.88.128/25' ||
       record(array(ipam.Config)[0]).Gateway !== '172.30.88.1'
     ) {
       throw new Error('Ungesichertes Chromium-Sitzungsnetz');
@@ -306,7 +307,7 @@ export class ChromiumContainerLauncher {
       if (
         Object.keys(networks).length !== 1 ||
         typeof address !== 'string' ||
-        !/^172\.30\.88\.(?:[3-9]|[1-9]\d|1\d\d|2[0-4]\d|25[0-4])$/.test(address)
+        !/^172\.30\.88\.(?:12[89]|1[3-9]\d|2[0-4]\d|25[0-4])$/.test(address)
       )
         throw new Error('Ungültiger privater Chromium-Endpunkt');
       const connect =

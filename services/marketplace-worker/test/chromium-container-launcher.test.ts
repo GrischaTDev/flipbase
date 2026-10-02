@@ -11,6 +11,7 @@ function fixture(
     foreignProfile?: boolean;
     extraMount?: boolean;
     invalidNetwork?: boolean;
+    missingAllocationRange?: boolean;
     firewallUnavailable?: boolean;
     removalUnconfirmed?: boolean;
   } = {},
@@ -53,7 +54,15 @@ function fixture(
             Labels: {
               'de.flipbase.chromium.network-policy': settings.invalidNetwork ? 'foreign' : 'v1',
             },
-            IPAM: { Config: [{ Subnet: '172.30.88.0/24', Gateway: '172.30.88.1' }] },
+            IPAM: {
+              Config: [
+                {
+                  Subnet: '172.30.88.0/24',
+                  Gateway: '172.30.88.1',
+                  ...(settings.missingAllocationRange ? {} : { IPRange: '172.30.88.128/25' }),
+                },
+              ],
+            },
           },
         ]);
       if (args[0] === 'create') {
@@ -92,7 +101,7 @@ function fixture(
                 : []),
             ],
             State: { Running: running, ExitCode: exitCode },
-            NetworkSettings: { Networks: { 'flipbase-browser': { IPAddress: '172.30.88.3' } } },
+            NetworkSettings: { Networks: { 'flipbase-browser': { IPAddress: '172.30.88.128' } } },
           },
         ]);
       }
@@ -144,6 +153,15 @@ test('creates only a private constrained session and sends secrets through stdin
   assert.ok(calls.some((call) => call.input?.includes('private-password')));
   await context.close();
   assert.deepEqual(await launcher.inspectProfileProcesses('/controller/profiles/account-1'), []);
+});
+
+test('browser allocation must leave the controller address outside its dynamic pool', async () => {
+  const { launcher, calls } = fixture(0, false, { missingAllocationRange: true });
+  await assert.rejects(launcher.launch('/controller/profiles/account-1'), /Sitzungsnetz/);
+  assert.equal(
+    calls.some((call) => call.args[0] === 'create'),
+    false,
+  );
 });
 
 test('requires graceful exit and retains unresolved containers', async () => {

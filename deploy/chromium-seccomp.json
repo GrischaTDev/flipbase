@@ -696,6 +696,14 @@
         "caps": ["CAP_SYSLOG"]
       },
       "excludes": {}
+    },
+    {
+      "names": ["chroot"],
+      "action": "SCMP_ACT_ALLOW",
+      "args": [],
+      "comment": "Chromiums Usernamespace-Sandbox benötigt chroot; der Kernel prüft die Berechtigung weiterhin innerhalb des eigenen Namespace.",
+      "includes": {},
+      "excludes": {}
     }
   ]
 }

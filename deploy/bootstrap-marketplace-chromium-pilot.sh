@@ -2,6 +2,7 @@
 set -euo pipefail
 # Quelle des seccomp-Profils: microsoft/playwright, Apache-2.0,
 # ae935a43d9e376e4759548f6b3c6905c7b282333/utils/docker/seccomp_profile.json.
+# Lokale Ergänzung: chroot für Chromiums Usernamespace-Sandbox ohne Container-Capabilities.
 # Ausschließlich auf dem ausgewählten Pilothost als root ausführen.
 # setup installiert den 30-Sekunden-Timer; Starts verlangen eine Prüfung <90 Sekunden.
 mode="${1:-verify}"
@@ -46,7 +47,7 @@ for network in json.load(sys.stdin):
   cidr=config.get("Subnet")
   if cidr and ipaddress.ip_network(cidr).version==4 and target.overlaps(ipaddress.ip_network(cidr)): sys.exit(1)
 '
-  docker network create --driver bridge --subnet "$subnet" --gateway 172.30.88.1 \
+  docker network create --driver bridge --subnet "$subnet" --gateway 172.30.88.1 --ip-range 172.30.88.128/25 \
     --opt com.docker.network.bridge.name="$bridge" \
     --label de.flipbase.chromium.network-policy=v1 "$network" >/dev/null
 fi
@@ -57,6 +58,7 @@ assert n["Driver"]=="bridge" and not n["EnableIPv6"]
 assert n.get("Labels",{}).get("de.flipbase.chromium.network-policy")=="v1"
 assert n.get("Options",{}).get("com.docker.network.bridge.name")=="br-flipbase"
 assert n["IPAM"]["Config"][0]["Subnet"]=="172.30.88.0/24"
+assert n["IPAM"]["Config"][0]["IPRange"]=="172.30.88.128/25"
 '
 ensure_rule() {
   local table_chain="$1"; shift

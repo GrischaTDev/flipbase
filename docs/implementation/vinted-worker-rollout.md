@@ -65,6 +65,11 @@ Die Vorbereitung lädt zusätzlich `br_netfilter` und hinterlegt eigene
 modules-load-/sysctl-Dateien für die benötigte IPv4-/IPv6-Bridge-Filterung.
 Das seccomp-Profil stammt aus dem offiziellen Playwright-Repository,
 Commit `ae935a43d9e376e4759548f6b3c6905c7b282333`; die Apache-Lizenz liegt daneben.
+Die einzige lokale seccomp-Ergänzung erlaubt `chroot` für Chromiums eigenen
+Usernamespace; Container-Capabilities werden weiterhin vollständig entfernt.
+Browser bekommen dynamische IPs aus `172.30.88.128/25`; die feste Controller-IP
+`172.30.88.2` bleibt außerhalb dieses Bereichs. Ein abweichendes bestehendes
+Netz wird verweigert und nicht automatisch verändert.
 
 1. Geprüften PR integrieren und beide Images vom bestätigten Merge-Commit
    veröffentlichen. Nur unveränderliche SHA-Tags oder Image-Digests verwenden.

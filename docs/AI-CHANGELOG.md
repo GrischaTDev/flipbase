@@ -40,6 +40,13 @@ Der zweite Imagesmoke erreicht die Netzprüfung: Dockers Standardnetze liefern
 teilweise `IPAM.Config=null`, was nun als fehlender Adressbereich behandelt wird.
 Fehlerdiagnosen des künstlichen Containers enthalten weder Vinted-Zugänge noch
 produktive Profile und erleichtern die weitere Linux-Abnahme.
+Der anschließende Lauf bestätigt Firewall/Timer und zeigt zwei konkrete
+Startfehler: dynamische Browseradressen belegten die feste Controller-IP;
+außerdem blockierte die originale seccomp-Capabilitybedingung Chromiums
+`chroot` im eigenen Usernamespace. Ein fester dynamischer Teilbereich hält
+die Controller-Adresse frei und wird vor jedem Start geprüft. Eine gezielte
+seccomp-Ergänzung erlaubt ausschließlich den benötigten Aufruf; UID 1000,
+`cap-drop=ALL`, Sandbox, AppArmor und alle übrigen Einschränkungen bleiben aktiv.
 
 ## 2026-10-02 - Juna - Vinted-Cloudplan mit drei Agents im Web gegengeprüft
 
