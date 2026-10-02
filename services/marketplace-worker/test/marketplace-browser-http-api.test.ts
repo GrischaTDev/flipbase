@@ -18,6 +18,7 @@ import {
   VintedVerificationRequiredError,
 } from '../src/vinted-browser-reader.ts';
 import {
+  MarketplaceBrowserSessionBusyError,
   MarketplaceBrowserSessionEndedError,
   type BrowserSessionScope,
 } from '../src/marketplace-browser-session-broker.ts';
@@ -1368,7 +1369,7 @@ test('returns a safe rejection code only after the scoped broker check', async (
   }
 });
 
-test('keeps the real broker lease alive while login is rejected or still on the form', async () => {
+test('keeps the real broker lease alive after duplicate starts while awaiting login verification', async () => {
   const { MarketplaceBrowserSessionBroker } =
     await import('../src/marketplace-browser-session-broker.ts');
   for (const [loginError, expectedCode] of [
@@ -1378,15 +1379,15 @@ test('keeps the real broker lease alive while login is rejected or still on the 
   ] as const) {
     let active = true;
     let stopped = false;
+    let reserved = false;
     const broker = new MarketplaceBrowserSessionBroker({
       recovery: { recover: async () => undefined },
       leases: {
-        acquire: async (scope) => ({
-          id: sessionId,
-          scope,
-          expiresAt: Date.now() + 60_000,
-          active: true,
-        }),
+        acquire: async (scope) => {
+          if (reserved) throw new MarketplaceBrowserSessionBusyError();
+          reserved = true;
+          return { id: sessionId, scope, expiresAt: Date.now() + 60_000, active: true };
+        },
         assertActive: async () => active,
         release: async () => {
           active = false;
@@ -1431,9 +1432,15 @@ test('keeps the real broker lease alive while login is rejected or still on the 
       const identified = await post(`/${sessionId}/identify`);
       assert.equal(identified.status, 422);
       assert.equal((await identified.json()).code, expectedCode);
+      const duplicate = await post('');
+      assert.equal(duplicate.status, 409);
+      assert.equal((await duplicate.json()).code, 'browser_session_busy');
       assert.equal(active, true);
       assert.equal(stopped, false);
       assert.equal((await post(`/${sessionId}/frame`)).status, 200);
+      const stillPending = await post(`/${sessionId}/identify`);
+      assert.equal(stillPending.status, 422);
+      assert.equal((await stillPending.json()).code, expectedCode);
     } finally {
       await broker.shutdown();
       await new Promise<void>((resolve) => server.close(() => resolve()));

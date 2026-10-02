@@ -198,6 +198,18 @@ export class MarketplaceBrowserTestApiService {
   async open(scope: AccountScope, accessToken: string): Promise<string> {
     const response = await this.post(basePath, scope, accessToken);
     if (response.status !== 201) {
+      if (response.status === 409) {
+        const body: unknown = await response.json().catch(() => null);
+        if (
+          typeof body === 'object' &&
+          body !== null &&
+          'code' in body &&
+          body.code === 'browser_session_busy'
+        )
+          throw new Error(
+            'Eine Browsersitzung läuft bereits oder wird beendet. Setze Deine offene Anmeldung fort oder warte auf den Abschluss der laufenden Sitzung.',
+          );
+      }
       if (response.status === 503) {
         const body: unknown = await response.json().catch(() => null);
         if (

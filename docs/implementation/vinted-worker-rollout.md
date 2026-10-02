@@ -2,6 +2,57 @@
 
 ## Chromium-Pilot vom 02.10.2026 – eigener Cloudbetrieb
 
+### Ausgeführter Serverpilot vom 02.10.2026
+
+PR #283 ist mit `60676337e4b906294928e249067f891fc1fe7d9d` integriert.
+Release v0.284.0 und öffentlich ausgelieferter Web-Commit sind bestätigt.
+Alle 242 Workerfälle bestanden unter Linux ohne Auslassung. Beide Imageworkflows
+haben die Images dieses Merge-Commits veröffentlicht; der Hetzner-Host hat sie
+geladen. Der Sandbox-/Persistenz-/Profiltrennungs-Smoke besteht auch dort.
+
+Der Nutzer hat **Maike Vintage** für die erste Umstellung ausgewählt. Die
+Wartungs-CLI hat diese Verbindung nach kontrollierter Pause auf ein privates
+Chromiumprofil migriert; die bestehende Vintedidentität und vorherige GoLogin-
+Referenz bleiben erhalten. Der Status lautet `needs_login`. Tablet bleibt dem
+bisherigen GoLoginprofil zugeordnet. Der neue Controller ist gesund und die
+öffentliche API bestätigt Version 2 mit ausgeschalteter Automatik.
+
+Aktives Pilot-Compose und dessen Variablen stehen privat unter
+`/opt/flipbase-marketplace/pilot-60676337/`. Zur Bedienung ausdrücklich
+`--env-file .../pilot.env -f .../docker-compose.marketplace-chromium-pilot.yml`
+verwenden. Das bisherige `/opt/flipbase-marketplace/docker-compose.yml` und seine
+Variablen wurden nicht zum Pilot-Compose umgeschrieben. Ein ungezieltes Starten
+dieses alten Compose würde den Controller wieder ersetzen.
+Der private Unterordner `rollback` enthält ursprüngliche Compose-Datei,
+Environment-Dateien, Imagebezug und ausgewählte Kontometadaten. Browserprofile
+und Registry liegen unter `/opt/flipbase-marketplace/chromium` und gehören UID/GID
+1000 mit privaten Verzeichnisrechten. Kein Backup enthält neue Vintedpasswörter.
+
+Auf dem Host kennt `install -o 1000` den nicht vorhandenen Benutzer nicht.
+Daher wurden ausschließlich die drei vorgesehenen Chromiumverzeichnisse mit
+`install -d -m 0700` und anschließend numerischem `chown 1000:1000` vorbereitet;
+danach bestand das unveränderte Bootstrap mit eigener Firewall und Timer.
+
+Der erste Vinted-Start scheiterte anschließend vor der Browseranlage mit 409:
+Das seccomp-Profil war nur auf dem Host vorhanden. Docker liest diese Datei
+jedoch im Client, also im Controller. Der Pilot bindet sie deshalb einzeln auf
+denselben Pfad mit `:ro` ein. Die root-owned Datei ist Modus `0644`; weder
+Controller noch Browser dürfen sie ändern. Browser erhalten weiterhin nur ihr
+Kontoprofil. Die vor dem Fix verwendete Compose-Datei liegt im privaten
+`rollback/compose-before-seccomp-fix.yml`. Die korrigierte Live-Konfiguration
+bestand einen tatsächlichen Docker-CLI-Containerstart aus dem Controller mit
+UID 1000, entferntem Capabilitysatz und geladenem seccomp-Profil. Der öffentliche
+Worker-Healthcheck ist danach gesund. Der Imageworkflow prüft denselben Zugriff.
+Das Bootstrap verwendet künftig `install -d` mit numerischem `chown` und setzt
+bestätigte Dateirechte auch für bereits vorhandene identische Dateien.
+
+Noch offen: echte Anmeldung und Identitätsbestätigung, authentifizierter Abruf,
+Sitzungserhalt nach dieser Anmeldung, mobile Bedienung und spätere Messung der
+Automatik. Vinted-Schreibaktionen und automatische Abrufe bleiben bis zur
+jeweiligen Abnahme deaktiviert. Ein leerer Sandbox-Test ist kein Vinted-Zugangstest.
+
+### Geprüfter Umstellungsplan
+
 Der Nutzer hat den recherchierten Plan und Backend-Änderungen ausdrücklich
 freigegeben. Der unveröffentlichte GoLogin-Server-/ISP-Entwurf wird durch eigene
 Playwright-Chromium-Sitzungen ersetzt. Alte GoLogin-Profile bleiben erreichbar;

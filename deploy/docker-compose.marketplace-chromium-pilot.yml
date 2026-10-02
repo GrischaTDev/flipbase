@@ -28,6 +28,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - /opt/flipbase-marketplace/chromium:/var/lib/flipbase-marketplace
       - /run/flipbase:/run/flipbase:ro
+      # Docker liest das Sandboxprofil im Controller, bevor es den Hostdaemon aufruft.
+      - /opt/flipbase-marketplace/chromium-seccomp.json:/opt/flipbase-marketplace/chromium-seccomp.json:ro
     group_add:
       - ${MARKETPLACE_DOCKER_GROUP_ID:?Host-Docker-Gruppen-ID erforderlich}
     cap_drop: [ALL]
