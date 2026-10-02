@@ -1,5 +1,20 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-02 – Juna – Veröffentlichung der Beta-Zugangsverwaltung freigegeben
+
+**Freigabe:** Der Nutzer bestätigt die vorgeschriebene Abschlussfrage mit „ja“.
+Damit sind Branch-Push, PR-Erstellung, erfolgreiche Pflichtprüfungen, Merge-Commit
+und anschließende Bereinigung des eigenen Zweigs/Worktrees autorisiert.
+Aktueller `origin/master` (`87381f38`) ist im geprüften Zweig enthalten; der
+Arbeitsstand ist sauber. Produktive Konten werden nicht gezielt gelöscht oder
+angeschrieben. Die Veröffentlichung erfolgt über den bestehenden Ablauf mit
+Backup, Migrationen, Anwendung und öffentlicher Versionsprüfung.
+
+**Prüfung:** Die abgeschlossene Implementierung enthält Gesamtprüfung mit
+Exitcode0, 2.687 Datenbanktests, vier Browserabläufe und unabhängigen SQL-/Rechteabgleich.
+Diese Sitzung prüft den konkreten PR-Stand auf GitHub und den veröffentlichten
+Stand; öffentliche Beta-Ankündigungen sind nicht angefordert.
+
 ## 2026-10-02 – Juna – Beta-Registrierung und Laufzeiten vollständig verwalten
 
 **Auftrag und Freigabe:** Den freigegebenen Entwurf nach „dann los“ und der
