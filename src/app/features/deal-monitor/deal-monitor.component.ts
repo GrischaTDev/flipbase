@@ -9,7 +9,7 @@ import {
   signal,
   untracked,
 } from '@angular/core';
-import { LucideBot, LucideRefreshCcw } from '@lucide/angular';
+import { LucideBot, LucideImage, LucideRefreshCcw } from '@lucide/angular';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
@@ -50,6 +50,7 @@ export class DealMonitorComponent {
   readonly minPrice = signal<number | null>(null);
   readonly maxPrice = signal<number | null>(null);
   readonly selectedDeal = signal<FeedItem | null>(null);
+  readonly compact = signal(false);
   readonly sizeOptions = [
     { value: null as string | null, label: 'Alle Größen' },
     { value: 'xs', label: 'XS' },
@@ -65,6 +66,7 @@ export class DealMonitorComponent {
   readonly now = signal(Date.now());
   readonly pageIcon = LucideBot;
   readonly resetIcon = LucideRefreshCcw;
+  readonly compactIcon = LucideImage;
   readonly options = computed(() => [
     { value: null as string | null, label: 'Alle Suchfilter' },
     ...this.watchlists().map((row) => ({ value: row.id, label: row.title })),
@@ -185,6 +187,10 @@ export class DealMonitorComponent {
         );
       }
     }
+  }
+
+  toggleCompact(): void {
+    this.compact.update((compact) => !compact);
   }
 
   resetFilters(): void {

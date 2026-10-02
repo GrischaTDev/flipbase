@@ -11,13 +11,9 @@ import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
 import {
   LucideClock,
   LucideDynamicIcon,
-  LucideEye,
   LucideExternalLink,
   LucideHeart,
-  LucideRuler,
   LucideShare2,
-  LucideSparkles,
-  LucideTag,
 } from '@lucide/angular';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
@@ -43,6 +39,7 @@ import { shareVintedListing } from '../../utils/share-vinted-listing';
 })
 export class DealCardComponent {
   readonly item = input.required<FeedItem>();
+  readonly compact = input(false);
   readonly inspect = output<FeedItem>();
 
   private readonly favoritesService = inject(DealFavoritesService);
@@ -52,19 +49,15 @@ export class DealCardComponent {
   readonly isFavorite = computed(() => this.favoritesService.isFavorite(this.item().id));
 
   readonly images = computed(() =>
-    [...new Set(this.item().image_urls.map(safeVintedImage))]
-      .filter((url): url is string => url !== null && !this.failedImages().has(url))
-      .slice(0, 3),
+    [...new Set(this.item().image_urls.map(safeVintedImage))].filter(
+      (url): url is string => url !== null && !this.failedImages().has(url),
+    ),
   );
   readonly icons = {
-    brand: LucideTag,
-    condition: LucideSparkles,
-    size: LucideRuler,
     discovered: LucideClock,
     external: LucideExternalLink,
     heart: LucideHeart,
     share: LucideShare2,
-    eye: LucideEye,
   };
   readonly link = computed(() => safeVintedLink(this.item().url));
 
