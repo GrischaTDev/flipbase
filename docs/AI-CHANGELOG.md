@@ -34,6 +34,41 @@ Workspacewechsel auf Erfassungsseiten an den aktuellen Vertrag angepasst.
 `origin/master` (`60676337`) in eigenem Worktree. Vorhandene lokale Änderungen
 im Hauptcheckout erhalten. Veröffentlichung erfolgt erst nach der
 vorgeschriebenen PR-Freigabe.
+## 2026-10-02 - Juna - Chromium-Pilot auf dem Server vorbereiten
+
+**Auftrag:** Nach erfolgreichem PR #283 direkt mit dem Serverpiloten weiterarbeiten.
+Der Nutzer wählt Maike Vintage für die erste Umstellung und erneute Anmeldung.
+
+**Betrieb:** Beide geprüften Images aus Merge-Commit `60676337` veröffentlicht
+und auf den bestehenden Host geladen. Ein Agent prüft Ressourcen, Netz und
+Container ausschließlich lesend. Eigenes Browsernetz, private Profilverzeichnisse,
+Sandboxprofil und Firewalltimer eingerichtet; kein fremder Dienst verändert.
+Auf diesem Host fehlt UID 1000 im Benutzerverzeichnis; die privaten Verzeichnisse
+vor dem Bootstrap mit numerischem `chown 1000:1000` vorbereitet.
+Vorherigen Controller, private Konfiguration und ausgewählte Kontometadaten
+gesichert. Keine offenen Sitzungen oder Aufträge; beide Kontoplanungen waren
+bereits pausiert. Maike Vintage mit der geprüften Wartungs-CLI migriert;
+Vintedidentität und GoLogin-Rückweg erhalten. Tablet bleibt GoLogin zugeordnet.
+
+**Prüfung:** Der echte Linux-Container-Smoke besteht auch auf Hetzner: Sandbox,
+Sitzungserhalt nach Neustart, Profiltrennung und geordneter Stopp. Neuer Controller
+gesund, öffentliche API Version 2 erreichbar, Host-Firewall aktuell; keine offenen
+Browser oder Aufträge. Automatik und Vinted-Schreibfunktionen bleiben aus.
+Die echte Vinted-Anmeldung, mobile Bedienung und authentifizierte Abrufe sind
+erst nach der notwendigen Nutzeranmeldung prüfbar. Keine Zugangsdaten in Git.
+
+**Startkorrektur:** Der erste echte Anmeldeversuch liefert 409; alle angelegten
+Sitzungen werden wieder bestätigt geschlossen. Ursache ist das im Controller
+fehlende seccomp-Profil: Docker liest es clientseitig vor der Containeranlage.
+Das einzelne Profil wird nun schreibgeschützt eingebunden und bleibt root-owned,
+mit Leserechten für UID 1000. Die laufende Pilot-Konfiguration ist gesichert und
+korrigiert; ein tatsächlicher Docker-CLI-Aufruf aus dem Controller erzeugt und
+startet einen eingeschränkten Dummy-Container erfolgreich. Danach bestätigt
+auch der öffentliche Healthcheck den gesunden Worker. Sandboxfilter unverändert.
+Der Imageworkflow erhält diesen Test mit einem Benutzer ohne Rootrechte;
+Bootstrap berücksichtigt numerische Eigentümer und bestätigt Dateirechte.
+Actionlint, Bashsyntax und Format geprüft. Ein erneuter Vinted-Start durch den
+Nutzer steht noch aus; der Dummy-Test bestätigt keine Vinted-Anmeldung.
 
 ## 2026-10-02 - Juna - eigenen Chromium-Cloudpiloten umsetzen
 

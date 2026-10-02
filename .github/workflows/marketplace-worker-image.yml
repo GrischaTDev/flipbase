@@ -6,6 +6,7 @@ on:
     branches: [master]
     paths:
       - 'services/marketplace-worker/**'
+      - 'deploy/*chromium*'
       - '.github/workflows/marketplace-worker-image.yml'
 
 permissions:
@@ -51,6 +52,20 @@ jobs:
         run: |
           docker run --rm --entrypoint docker "$WORKER_IMAGE" --version
           docker run --rm --entrypoint node "$WORKER_IMAGE" --input-type=module -e "await import('./dist/chromium-container-launcher.js'); await import('./dist/chromium-profile-provisioner.js'); await import('./dist/migrate-chromium-profiles.js')"
+
+      - name: Check non-root controller sandbox configuration
+        env:
+          WORKER_IMAGE: ghcr.io/grischatdev/flipbase-marketplace-worker:sha-${{ github.sha }}
+        run: |
+          set -euo pipefail
+          fixture=flipbase-controller-seccomp-fixture
+          trap 'docker rm -f "$fixture" >/dev/null 2>&1 || true' EXIT
+          chmod 0644 deploy/chromium-seccomp.json
+          docker_group=$(stat -c %g /var/run/docker.sock)
+          docker run --rm --user=1000:1000 --group-add="$docker_group" --read-only --cap-drop=ALL --security-opt=no-new-privileges:true --mount=type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock --mount="type=bind,src=$PWD/deploy/chromium-seccomp.json,dst=/opt/flipbase-marketplace/chromium-seccomp.json,readonly" --entrypoint docker "$WORKER_IMAGE" create --name "$fixture" --network=none --user=1000:1000 --read-only --cap-drop=ALL --security-opt=no-new-privileges:true --security-opt=seccomp=/opt/flipbase-marketplace/chromium-seccomp.json --entrypoint node "$WORKER_IMAGE" -e 'process.exit(0)'
+          docker start --attach "$fixture"
+          [[ "$(docker inspect --format '{{.State.ExitCode}}' "$fixture")" == 0 ]]
+          docker rm "$fixture" >/dev/null
 
       - name: Publish verified worker
         if: github.event_name == 'workflow_dispatch'
