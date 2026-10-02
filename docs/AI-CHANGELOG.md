@@ -1,5 +1,21 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-02 – Juna – fehlende eBay-Dateien im Produktionsbau ergänzt
+
+**Anlass:** PR #279 ist nach vollständig grünen Pflichtprüfungen gemerged.
+Der anschließende Produktionsbau stoppte vor Migration und Veröffentlichung,
+weil die Docker-Dateiauswahl die neuen gemeinsamen eBay-Verträge und
+Betragsfunktionen ausschloss. Die Freigabe zur Veröffentlichung wird mit einem
+kleinen Folge-PR abgeschlossen; kein direkter Push auf den Hauptzweig.
+
+**Korrektur und Prüfung:** Zwei reine gemeinsame Dateien ausdrücklich im
+Docker-Kontext zugelassen. Die neue Prüfung ermittelt tatsächliche Angular-Importe
+und ihre weiteren gemeinsamen Abhängigkeiten; sie schlug zunächst wegen der
+fehlenden Datei fehl und besteht nach der Korrektur. Betroffene Workflowtests,
+Format und Lint sowie der Angular-Produktionsbau sind grün. Der tatsächliche
+Docker-Produktionsbau und sein Rauchtest bleiben der CI vorbehalten. Keine
+produktive Bestellung gebucht und keine Zugangswerte geändert.
+
 ## 2026-10-02 – Juna – eBay-Übernahme für PR und Merge freigegeben
 
 **Auftrag:** Nach ausdrücklichem „ja“ den geprüften Zweig pushen, einen PR
