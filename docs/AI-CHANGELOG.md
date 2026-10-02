@@ -20,6 +20,15 @@ ursprünglichen Arbeitskopie bleiben erhalten.
 den alten Umfang. Die vier neuen Kontoübersichtsfälle sind nun ausdrücklich in
 diesem Vertrag registriert; der gezielte Auswahltest, Format und Lint bestehen.
 
+**Browser-Vertrag:** Ein vorhandener Kennzahlentest lieferte noch keine Antwort
+für die neue Statistikabfrage und erwartete nach erneutem Öffnen bereits versteckte
+Pluszahlen. Die künstlichen Serverantworten bilden jetzt die Messhistorie ab.
+Der Test prüft erhaltene Pluszahlen beim Wiederöffnen und ihr Verschwinden nach
+dem nächsten Abruf ohne Zuwachs. Produktionsbau, vollständige Datenbank- und
+alle vier Anwendungstestgruppen waren im zweiten CI-Lauf erfolgreich.
+Die sechs angepassten Browserfälle bestehen lokal bei 1440, 390 und 320 px
+jeweils im hellen und dunklen Design; Format und gezieltes Lint bestehen.
+
 ## 2026-10-02 – Juna – Vinted-Kontoübersicht und gespeicherte Kontoauswahl ergänzt
 
 **Auftrag:** Der Menüpunkt Vinted soll zunächst alle eigenen Konten als Kacheln

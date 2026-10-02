@@ -87,6 +87,25 @@ for (const width of [1440, 390, 320]) {
         ],
       };
       const calls = await mockMarketplace(page, true, false, false, false, [], imported);
+      const comparison = {
+        entryId: 'publication-1',
+        observedAt: imported.observedAt,
+        baselineAt: null as string | null,
+        views: null as number | null,
+        favorites: null as number | null,
+      };
+      await page.route('**/rest/v1/rpc/marketplace_read_listing_metric_changes', (route) => {
+        const body = route.request().postDataJSON();
+        expect(body['p_workspace_id']).toBe(workspaceId);
+        return route.fulfill({
+          json: {
+            workspaceId,
+            connectionId: body['p_connection_id'],
+            periodMinutes: body['p_period_minutes'],
+            items: [comparison],
+          },
+        });
+      });
       const longUrl = `https://example.test/${'measurements'.repeat(70)}`;
       const messages = [
         {
@@ -331,6 +350,12 @@ for (const width of [1440, 390, 320]) {
       imported.views = 7;
       imported.favorites = 4;
       imported.observedAt = '2026-10-01T12:20:00Z';
+      Object.assign(comparison, {
+        observedAt: imported.observedAt,
+        baselineAt: '2026-10-01T12:00:00Z',
+        views: 2,
+        favorites: 2,
+      });
       schedule.lastSuccessAt = imported.observedAt;
       await page.clock.runFor(30_000);
       await expect(page.locator('[data-views]')).toHaveText('7');
@@ -364,6 +389,17 @@ for (const width of [1440, 390, 320]) {
       await checkSurface(page, 'app-vinted-listing-detail');
       await screenshot(page, `vinted-detail-${width}-${theme}`);
       await page.getByRole('link', { name: 'Zurück zu Inseraten' }).click();
+      // Die Änderung gehört zum letzten Abruf und bleibt beim erneuten Öffnen sichtbar.
+      await expect(page.locator('[data-metric-increase="views"]')).toContainText('+2');
+      imported.observedAt = '2026-10-01T12:25:00Z';
+      schedule.lastSuccessAt = imported.observedAt;
+      Object.assign(comparison, {
+        observedAt: imported.observedAt,
+        baselineAt: '2026-10-01T12:20:00Z',
+        views: 0,
+        favorites: 0,
+      });
+      await page.clock.runFor(30_000);
       await expect(page.locator('[data-metric-increase]')).toHaveCount(0);
 
       await nav.getByRole('link', { name: 'Nachrichten', exact: true }).click();
