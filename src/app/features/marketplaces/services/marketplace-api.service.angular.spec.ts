@@ -26,6 +26,84 @@ beforeEach(() => {
   api = TestBed.inject(MarketplaceApiService);
 });
 describe('Marktplatz-API', () => {
+  it('liest für Kontokacheln nur ein scoped Profil und zwei Anzahlen, keine vollständigen Listen', async () => {
+    const queries: {
+      filters: Record<string, string>;
+      head: boolean;
+      query: Record<string, unknown>;
+    }[] = [];
+    const from = vi.fn().mockImplementation(() => {
+      const entry = {
+        filters: {} as Record<string, string>,
+        head: false,
+        query: {} as Record<string, unknown>,
+      };
+      const query = {
+        select: vi.fn().mockImplementation((_columns, options) => {
+          entry.head = options?.head ?? false;
+          return query;
+        }),
+        eq: vi.fn().mockImplementation((field, value) => {
+          entry.filters[field] = value;
+          return query;
+        }),
+        maybeSingle: vi.fn().mockResolvedValue({
+          data: {
+            body: {
+              username: 'testkonto',
+              feedbackCount: 2,
+              feedbackReputation: 0.96,
+              itemCount: 12,
+            },
+          },
+          error: null,
+        }),
+        then: (resolve: (value: unknown) => void) =>
+          Promise.resolve({
+            count: entry.filters['kind'] === 'publication' ? 15 : 4,
+            error: null,
+          }).then(resolve),
+      };
+      entry.query = query;
+      queries.push(entry);
+      return query;
+    });
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        MarketplaceApiService,
+        { provide: SupabaseService, useValue: { client: { from } } },
+      ],
+    });
+    const result = await TestBed.inject(MarketplaceApiService).readAccountPreview(scope);
+    expect(result).toMatchObject({
+      ...scope,
+      profile: { username: 'testkonto', itemCount: 12 },
+      publicationCount: 15,
+      saleCount: 4,
+    });
+    expect(queries.map(({ filters, head }) => ({ ...filters, head }))).toEqual([
+      {
+        workspace_id: scope.workspaceId,
+        connection_id: scope.connectionId,
+        kind: 'profile',
+        head: false,
+      },
+      {
+        workspace_id: scope.workspaceId,
+        connection_id: scope.connectionId,
+        kind: 'publication',
+        head: true,
+      },
+      {
+        workspace_id: scope.workspaceId,
+        connection_id: scope.connectionId,
+        kind: 'sale',
+        head: true,
+      },
+    ]);
+    expect(from).toHaveBeenCalledTimes(3);
+  });
   it('abonniert nur den privaten Kontokanal und ignoriert fremde Live-Meldungen', () => {
     let receive!: (message: { payload: unknown }) => void;
     let subscribe!: (status: string) => void;

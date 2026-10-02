@@ -72,6 +72,7 @@ let api: {
 };
 let store: MarketplaceAccountStore;
 beforeEach(() => {
+  localStorage.clear();
   currentWorkspace = signal<{ id: string; archived_at?: string } | null>({
     id: accountA.workspaceId,
   });
@@ -108,6 +109,74 @@ beforeEach(() => {
     ],
   });
   store = TestBed.inject(MarketplaceAccountStore);
+});
+
+describe('Gespeicherte Vinted-Kontoauswahl', () => {
+  const savedKey = `flipbase:vinted:last-account:${JSON.stringify(['user-a', accountA.workspaceId])}`;
+  it('holt neue und geänderte andere Konten für die Kacheln ohne Konto-Neuauswahl nach', async () => {
+    await settle();
+    const added = { ...accountB, connectionId: 'account-c', displayName: 'Konto C' };
+    api.listConnections.mockResolvedValue({
+      canManage: true,
+      connections: [accountA, { ...accountB, lastSyncedAt: '2026-10-02T12:00:00Z' }, added],
+    });
+    api.listenAccountImports.mock.calls[0][2]();
+    await settle();
+    expect(store.connections()).toHaveLength(3);
+    expect(store.connections()[1].lastSyncedAt).toBe('2026-10-02T12:00:00Z');
+    expect(store.selectedConnection()?.connectionId).toBe(accountA.connectionId);
+    expect(api.readSnapshot).toHaveBeenCalledOnce();
+  });
+  it('stellt ein gespeichertes zweites Konto nach einem neuen Seitenstart wieder her', async () => {
+    localStorage.setItem(savedKey, accountB.connectionId);
+    await settle();
+    expect(store.selectedConnection()?.connectionId).toBe(accountB.connectionId);
+    expect(api.readSnapshot).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ connectionId: accountB.connectionId }),
+    );
+  });
+  it('speichert nur die bestätigte Konto-ID und verwirft gelöschte Konten', async () => {
+    localStorage.setItem(savedKey, 'deleted-account');
+    await settle();
+    expect(store.selectedConnection()?.connectionId).toBe(accountA.connectionId);
+    await store.selectConnection(accountB.connectionId);
+    expect(localStorage.getItem(savedKey)).toBe(accountB.connectionId);
+    await store.selectConnection('foreign-account');
+    expect(localStorage.getItem(savedKey)).toBe(accountB.connectionId);
+  });
+  it('trennt die Auswahl nach Benutzer und Workspace', async () => {
+    localStorage.setItem(savedKey, accountB.connectionId);
+    currentUser.set({ id: 'user-b' });
+    await settle();
+    expect(store.selectedConnection()?.connectionId).toBe(accountA.connectionId);
+    expect(localStorage.getItem(savedKey)).toBe(accountB.connectionId);
+    currentUser.set({ id: 'user-a' });
+    await settle();
+    expect(store.selectedConnection()?.connectionId).toBe(accountB.connectionId);
+    const foreign = { ...accountA, workspaceId: 'workspace-b' };
+    api.listConnections.mockResolvedValue({ canManage: true, connections: [foreign] });
+    currentWorkspace.set({ id: foreign.workspaceId });
+    await settle();
+    expect(store.selectedConnection()?.connectionId).toBe(accountA.connectionId);
+    expect(localStorage.getItem(savedKey)).toBe(accountB.connectionId);
+  });
+  it('bleibt bei gesperrtem Browserspeicher bedienbar', async () => {
+    const read = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    const write = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    try {
+      await settle();
+      await store.selectConnection(accountB.connectionId);
+      expect(store.selectedConnection()?.connectionId).toBe(accountB.connectionId);
+      expect(store.error()).toBeNull();
+    } finally {
+      read.mockRestore();
+      write.mockRestore();
+    }
+  });
 });
 
 describe('Inseratbeschreibungen und Kennzahlen', () => {

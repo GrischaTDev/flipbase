@@ -12,6 +12,7 @@ import type {
   MarketplacePage,
   MarketplaceEntry,
   MarketplaceSnapshot,
+  MarketplaceAccountPreview,
 } from '../models/marketplace-read.models';
 import {
   MarketplaceResponseError,
@@ -150,6 +151,56 @@ export class MarketplaceApiService {
       }),
     );
   }
+  async readAccountPreview(scope: AccountScope): Promise<MarketplaceAccountPreview> {
+    // Nur Profil und Anzahlen lesen, keine Nachrichten oder vollständigen Inseratlisten.
+    const query = () =>
+      this.client
+        .from('marketplace_account_entries')
+        .select('body', { count: 'exact', head: true })
+        .eq('workspace_id', scope.workspaceId)
+        .eq('connection_id', scope.connectionId);
+    const [profile, publications, sales] = await Promise.all([
+      this.client
+        .from('marketplace_account_entries')
+        .select('body')
+        .eq('workspace_id', scope.workspaceId)
+        .eq('connection_id', scope.connectionId)
+        .eq('kind', 'profile')
+        .maybeSingle(),
+      query().eq('kind', 'publication'),
+      query().eq('kind', 'sale'),
+    ]);
+    if (
+      profile.error ||
+      publications.error ||
+      sales.error ||
+      publications.count === null ||
+      sales.count === null
+    )
+      throw new MarketplaceApiError('request_failed');
+    const body = profile.data?.body;
+    if (body !== undefined && (!body || typeof body !== 'object' || Array.isArray(body)))
+      throw new MarketplaceResponseError();
+    const emptyPage = { items: [], total: 0, nextCursor: null };
+    const parsed = parseMarketplaceSnapshot(
+      {
+        ...scope,
+        profile: body ? { ...body, ...scope } : null,
+        publications: emptyPage,
+        conversations: emptyPage,
+        sales: emptyPage,
+        activity: emptyPage,
+      },
+      scope,
+    );
+    return {
+      ...scope,
+      profile: parsed.profile,
+      publicationCount: publications.count,
+      saleCount: sales.count,
+    };
+  }
+
   async readSnapshot(scope: AccountScope): Promise<MarketplaceSnapshot> {
     return parseMarketplaceSnapshot(
       dataOf(

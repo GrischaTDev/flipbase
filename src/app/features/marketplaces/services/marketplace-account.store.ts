@@ -201,11 +201,28 @@ export class MarketplaceAccountStore {
     });
   }
 
+  private readSavedConnection(context: string): string | null {
+    try {
+      return localStorage.getItem(`flipbase:vinted:last-account:${context}`);
+    } catch {
+      return null;
+    }
+  }
+
+  private saveConnection(context: string, connectionId: string): void {
+    try {
+      // Ausschließlich die Konto-ID speichern; keine Profildaten oder Zugangsdaten.
+      localStorage.setItem(`flipbase:vinted:last-account:${context}`, connectionId);
+    } catch {
+      // Kontowechsel bleiben auch bei gesperrtem Browserspeicher möglich.
+    }
+  }
+
   async reloadConnections(preferredId?: string): Promise<void> {
     const key = this.contextKey();
     const workspaceId = this.workspace.currentWorkspace()?.id;
     if (!key || !workspaceId || !this.current()) return;
-    const previousId = preferredId ?? this.activeId();
+    const previousId = preferredId ?? this.activeId() ?? this.readSavedConnection(key);
     const revision = ++this.connectionsRevision;
     this.selectionRevision++;
     this.clearDescriptions();
@@ -262,6 +279,7 @@ export class MarketplaceAccountStore {
     this.selectionEpoch.update((value) => value + 1);
     this.conversationRevision++;
     this.activeId.set(connection.connectionId);
+    this.saveConnection(key, connection.connectionId);
     this.accountSnapshot.set(null);
     this.messagePage.set(null);
     this.conversationId.set(null);
@@ -432,9 +450,14 @@ export class MarketplaceAccountStore {
         return;
       }
       this.accountList.update((accounts) =>
-        accounts.map((account) =>
+        result.connections.map((account) =>
           account.connectionId === latest.connectionId
-            ? { ...latest, lastSyncedAt: account.lastSyncedAt }
+            ? {
+                ...account,
+                lastSyncedAt:
+                  accounts.find((previous) => previous.connectionId === account.connectionId)
+                    ?.lastSyncedAt ?? null,
+              }
             : account,
         ),
       );

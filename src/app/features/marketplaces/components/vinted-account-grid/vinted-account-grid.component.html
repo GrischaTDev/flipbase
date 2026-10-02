@@ -1,0 +1,83 @@
+@if (accounts.connections().length) {
+  <div class="mb-4 space-y-1">
+    <h2 class="text-sm font-semibold text-fb-text-primary">Deine Vinted-Konten</h2>
+    <p class="text-[13px] text-fb-text-secondary">Wähle ein Konto, um seine Übersicht zu öffnen.</p>
+  </div>
+  <div
+    class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"
+    aria-label="Vinted-Konten"
+  >
+    @for (tile of previews.tiles(); track tile.connection.connectionId) {
+      @let profile = tile.preview?.profile;
+      <app-card
+        padding="none"
+        link="/marketplaces/vinted/overview"
+        [queryParams]="{ connectionId: tile.connection.connectionId }"
+        [linkLabel]="tile.connection.displayName + ' öffnen'"
+      >
+        <div class="flex h-full flex-col p-4">
+          <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <app-badge size="sm" [tone]="statusTones[tile.connection.status]">{{
+              statusLabels[tile.connection.status]
+            }}</app-badge>
+          </div>
+          <div class="flex min-w-0 items-center gap-3">
+            <app-product-thumbnail [src]="profile?.imageUrl ?? null" alt="" size="profile" />
+            <div class="min-w-0">
+              <h3
+                class="truncate text-sm font-semibold text-fb-text-primary"
+                [title]="tile.connection.displayName"
+              >
+                {{ tile.connection.displayName }}
+              </h3>
+              @if (profile?.username || profile?.displayName; as name) {
+                <p class="mt-1 truncate text-[13px] text-fb-text-secondary" [title]="name">
+                  {{ profile?.username ? '@' : '' }}{{ name }}
+                </p>
+              }
+            </div>
+          </div>
+          <div class="my-4 min-h-10">
+            @if (profile?.feedbackCount !== null && profile?.feedbackCount !== undefined) {
+              <app-vinted-rating
+                [count]="profile.feedbackCount"
+                [reputation]="profile.feedbackReputation"
+              />
+            } @else {
+              <p class="text-[13px] text-fb-text-secondary">
+                {{ tile.loading ? 'Kontodaten werden geladen …' : 'Bewertung noch unbekannt' }}
+              </p>
+            }
+          </div>
+          <dl class="mt-auto grid grid-cols-2 gap-4 border-t border-fb-line pt-4">
+            <div>
+              <dt class="text-xs text-fb-text-secondary">Inserate</dt>
+              <dd class="mt-1 text-lg font-semibold tabular-nums text-fb-text-primary">
+                {{
+                  profile && tile.preview
+                    ? (profile.itemCount ?? tile.preview.publicationCount | number)
+                    : '—'
+                }}
+              </dd>
+            </div>
+            <div>
+              <dt class="text-xs text-fb-text-secondary">Verkäufe</dt>
+              <dd class="mt-1 text-lg font-semibold tabular-nums text-fb-text-primary">
+                {{ profile && tile.preview ? (tile.preview.saleCount | number) : '—' }}
+              </dd>
+            </div>
+          </dl>
+          <div
+            class="mt-4 flex items-center justify-between gap-2 text-[13px] text-fb-text-secondary"
+          >
+            <span>{{ tile.error ? 'Vorschau gerade nicht verfügbar' : 'Konto öffnen' }}</span>
+            <svg [lucideIcon]="arrowIcon" class="size-4 shrink-0" aria-hidden="true"></svg>
+          </div>
+        </div>
+      </app-card>
+    }
+  </div>
+  <p class="mt-3 text-xs text-fb-text-secondary">
+    Gespeicherte Kontodaten · Verkäufe aus Deinen Importen
+  </p>
+}

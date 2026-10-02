@@ -1,5 +1,7 @@
 <app-page-header title="Vinted" [icon]="pageIcon">
-  @if (store.selectedConnection(); as account) {
+  @if (showingAccounts()) {
+    <app-button header-actions link="/settings/marketplaces">Konten verwalten</app-button>
+  } @else if (store.selectedConnection(); as account) {
     <app-vinted-account-controls
       header-actions
       class="w-full sm:w-auto"
@@ -36,7 +38,12 @@
       <app-button variant="primary" link="/settings/marketplaces">Account hinzufügen</app-button>
     </app-card>
   }
-  @if (store.selectedConnection(); as account) {
+  @if (showingAccounts()) {
+    <router-outlet />
+  } @else if (store.selectedConnection(); as account) {
+    <app-button variant="plain" link="/marketplaces/vinted/accounts" [icon]="backIcon"
+      >Alle Konten</app-button
+    >
     @if (store.busy()) {
       <div
         role="status"

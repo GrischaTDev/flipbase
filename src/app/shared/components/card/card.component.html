@@ -28,3 +28,11 @@
 <div class="empty:hidden border-t border-fb-line bg-fb-subtle/50 px-4 py-3 md:px-5">
   <ng-content select="[card-footer]" />
 </div>
+@if (link(); as target) {
+  <a
+    [routerLink]="target"
+    [queryParams]="queryParams()"
+    [attr.aria-label]="linkLabel()"
+    class="absolute inset-0 rounded-[inherit] hover:bg-fb-surface-hover/10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-fb-text-primary"
+  ></a>
+}

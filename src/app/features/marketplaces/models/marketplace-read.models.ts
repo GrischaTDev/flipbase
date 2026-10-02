@@ -64,3 +64,9 @@ export interface MarketplaceConnectionList {
   readonly canManage: boolean;
   readonly connections: readonly MarketplaceConnection[];
 }
+
+export interface MarketplaceAccountPreview extends AccountScope {
+  readonly profile: MarketplaceProfile | null;
+  readonly publicationCount: number;
+  readonly saleCount: number;
+}

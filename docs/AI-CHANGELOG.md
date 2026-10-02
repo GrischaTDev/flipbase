@@ -1,5 +1,39 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-02 – Juna – Vinted-Kontoübersicht und gespeicherte Kontoauswahl ergänzt
+
+**Auftrag:** Der Menüpunkt Vinted soll zunächst alle eigenen Konten als Kacheln
+zeigen. Ein Klick öffnet das jeweilige Konto; Auswahlbox und zuletzt verwendetes
+Konto bleiben auch nach Neuladen verfügbar. Ergänzung auf dem eigenen, noch nicht
+veröffentlichten Zweig `juna/vinted-live-listings`.
+
+**Umsetzung:** Neue Einstiegsroute mit responsivem Konto-Raster, Profilbild,
+internem Namen, Mitgliedsnamen, Bewertung sowie Inserat- und Verkaufsanzahl.
+Vorschauen lesen ausschließlich bereits importierte Daten, maximal drei Konten
+gleichzeitig; Nachrichten und vollständige Inseratlisten werden dafür nicht
+geladen. Fehlende Importe bleiben unbekannt, einzelne Vorschaufehler verhindern
+keinen Kontozugang. Die vorhandene Kontrollabfrage übernimmt auch neue, gelöschte
+und aktualisierte andere Konten. Unveränderte Metadaten lösen keinen erneuten
+Vorschauabruf aus. Die gemeinsame Kartenkomponente bietet dafür einen vollständig
+anklickbaren, benannten Link mit sichtbarem Tastaturfokus. Innerhalb eines Kontos
+führt „Alle Konten“ zurück zum Raster; die Auswahlbox bleibt erhalten.
+
+**Auswahl:** Im Browserspeicher steht ausschließlich die Konto-ID, getrennt nach
+Benutzer und Workspace. Beim Wiederherstellen wird sie gegen die vom Server
+erlaubten Konten geprüft. Gelöschte oder fremde Konten werden verworfen; gesperrter
+Browserspeicher verhindert keinen Kontowechsel. Kachel-Links adressieren ihr Konto
+ausdrücklich, Bereichswechsel nutzen anschließend die gespeicherte Auswahl.
+
+**Prüfung:** 328 Angular-Marktplatz-/Karten-/Bildtests, vier Browserfälle bei 1440,
+1024, 768 und 390 px einschließlich Tastaturfokus, WCAG AA, Neuladen, Kontowechsel,
+Bereichswechsel und Rückkehr zur Übersicht. Vier zusätzliche Browserfälle prüfen
+weiterhin flackerfreie Inserat-Liveaktualisierungen. Alle Browserdaten sind
+künstlich; weder Vinted-Anmeldungen noch zusätzliche Vinted-Abrufe werden ausgelöst.
+Format, gezieltes Lint, Typen, gemeinsame UI, Testzuordnung und Produktionsbau
+bestehen. Die vorhandene `pako`-Bauwarnung bleibt unverändert. Keine zusätzlichen
+Datenbank- oder Abhängigkeitsänderungen. Noch kein
+Push, PR oder Merge; die Veröffentlichungsfreigabe bleibt ausstehend.
+
 ## 2026-10-02 – Juna – Vinted-Inserate live und ohne Ausblenden aktualisiert
 
 **Auftrag und Ursache:** Neue automatische Abrufe waren erst nach vollständigem
