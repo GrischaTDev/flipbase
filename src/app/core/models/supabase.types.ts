@@ -2409,6 +2409,51 @@ export type Database = {
           },
         ]
       }
+      marketplace_listing_metric_observations: {
+        Row: {
+          connection_id: string
+          entry_id: string
+          favorites: number | null
+          id: number
+          observed_at: string
+          views: number | null
+          workspace_id: string
+        }
+        Insert: {
+          connection_id: string
+          entry_id: string
+          favorites?: number | null
+          id?: never
+          observed_at: string
+          views?: number | null
+          workspace_id: string
+        }
+        Update: {
+          connection_id?: string
+          entry_id?: string
+          favorites?: number | null
+          id?: never
+          observed_at?: string
+          views?: number | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_listing_metric_obse_workspace_id_connection_id_fkey"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_connections"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "marketplace_listing_metric_observations_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_account_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       marketplace_operations: {
         Row: {
           authorization_kind: string | null
@@ -6289,6 +6334,10 @@ export type Database = {
         Args: { p_body: Json }
         Returns: number
       }
+      marketplace_known_metric_count: {
+        Args: { p_body: Json; p_metric: string }
+        Returns: number
+      }
       marketplace_list_connections: {
         Args: { p_workspace_id: string }
         Returns: Json
@@ -6315,6 +6364,14 @@ export type Database = {
       }
       marketplace_read_favorite_notifications: {
         Args: { p_workspace_id: string }
+        Returns: Json
+      }
+      marketplace_read_listing_metric_changes: {
+        Args: {
+          p_connection_id: string
+          p_period_minutes?: number
+          p_workspace_id: string
+        }
         Returns: Json
       }
       marketplace_read_page: {

@@ -13,6 +13,8 @@ import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
+import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
+import { MarketplaceListingStatisticsStore } from '../../services/marketplace-listing-statistics.store';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { VintedListingMetricsComponent } from './vinted-listing-metrics.component';
@@ -26,15 +28,18 @@ import { createVintedListingMetricDisplay } from './vinted-listing-metric-displa
     ButtonComponent,
     BadgeComponent,
     CardComponent,
+    CustomSelectComponent,
     ProductThumbnailComponent,
     VintedListingMetricsComponent,
   ],
   templateUrl: './vinted-listings.component.html',
+  providers: [MarketplaceListingStatisticsStore],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block min-w-0' },
 })
 export class VintedListingsComponent {
   readonly store = inject(MarketplaceAccountStore);
+  readonly statistics = inject(MarketplaceListingStatisticsStore);
   private readonly workspace = inject(WorkspaceService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);

@@ -44,19 +44,24 @@ function deferred<T>() {
   return { promise, resolve, reject };
 }
 async function settle() {
-  TestBed.tick();
-  for (let i = 0; i < 8; i++) await Promise.resolve();
+  for (let pass = 0; pass < 3; pass++) {
+    TestBed.tick();
+    for (let i = 0; i < 8; i++) await Promise.resolve();
+  }
 }
 let currentWorkspace: ReturnType<typeof signal<{ id: string; archived_at?: string } | null>>;
 let currentUser: ReturnType<typeof signal<{ id: string } | null>>;
 let accessSession: ReturnType<typeof signal<{ access_token: string } | null>>;
 let browserApi: {
+  syncConnection: ReturnType<typeof vi.fn>;
   deleteConnection: ReturnType<typeof vi.fn>;
   readListingData: ReturnType<typeof vi.fn>;
   readListingEdit: ReturnType<typeof vi.fn>;
   saveListingEdit: ReturnType<typeof vi.fn>;
 };
 let api: {
+  listenAccountImports: ReturnType<typeof vi.fn>;
+  authenticateImports: ReturnType<typeof vi.fn>;
   listConnections: ReturnType<typeof vi.fn>;
   readSnapshot: ReturnType<typeof vi.fn>;
   readPage: ReturnType<typeof vi.fn>;
@@ -67,18 +72,22 @@ let api: {
 };
 let store: MarketplaceAccountStore;
 beforeEach(() => {
+  localStorage.clear();
   currentWorkspace = signal<{ id: string; archived_at?: string } | null>({
     id: accountA.workspaceId,
   });
   currentUser = signal<{ id: string } | null>({ id: 'user-a' });
   accessSession = signal<{ access_token: string } | null>({ access_token: 'token-a' });
   browserApi = {
+    syncConnection: vi.fn().mockResolvedValue(undefined),
     deleteConnection: vi.fn().mockResolvedValue(undefined),
     readListingData: vi.fn(),
     readListingEdit: vi.fn(),
     saveListingEdit: vi.fn().mockResolvedValue(undefined),
   };
   api = {
+    listenAccountImports: vi.fn().mockImplementation(() => vi.fn()),
+    authenticateImports: vi.fn(),
     listConnections: vi
       .fn()
       .mockResolvedValue({ canManage: true, connections: fixtures.connections }),
@@ -100,6 +109,74 @@ beforeEach(() => {
     ],
   });
   store = TestBed.inject(MarketplaceAccountStore);
+});
+
+describe('Gespeicherte Vinted-Kontoauswahl', () => {
+  const savedKey = `flipbase:vinted:last-account:${JSON.stringify(['user-a', accountA.workspaceId])}`;
+  it('holt neue und geänderte andere Konten für die Kacheln ohne Konto-Neuauswahl nach', async () => {
+    await settle();
+    const added = { ...accountB, connectionId: 'account-c', displayName: 'Konto C' };
+    api.listConnections.mockResolvedValue({
+      canManage: true,
+      connections: [accountA, { ...accountB, lastSyncedAt: '2026-10-02T12:00:00Z' }, added],
+    });
+    api.listenAccountImports.mock.calls[0][2]();
+    await settle();
+    expect(store.connections()).toHaveLength(3);
+    expect(store.connections()[1].lastSyncedAt).toBe('2026-10-02T12:00:00Z');
+    expect(store.selectedConnection()?.connectionId).toBe(accountA.connectionId);
+    expect(api.readSnapshot).toHaveBeenCalledOnce();
+  });
+  it('stellt ein gespeichertes zweites Konto nach einem neuen Seitenstart wieder her', async () => {
+    localStorage.setItem(savedKey, accountB.connectionId);
+    await settle();
+    expect(store.selectedConnection()?.connectionId).toBe(accountB.connectionId);
+    expect(api.readSnapshot).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ connectionId: accountB.connectionId }),
+    );
+  });
+  it('speichert nur die bestätigte Konto-ID und verwirft gelöschte Konten', async () => {
+    localStorage.setItem(savedKey, 'deleted-account');
+    await settle();
+    expect(store.selectedConnection()?.connectionId).toBe(accountA.connectionId);
+    await store.selectConnection(accountB.connectionId);
+    expect(localStorage.getItem(savedKey)).toBe(accountB.connectionId);
+    await store.selectConnection('foreign-account');
+    expect(localStorage.getItem(savedKey)).toBe(accountB.connectionId);
+  });
+  it('trennt die Auswahl nach Benutzer und Workspace', async () => {
+    localStorage.setItem(savedKey, accountB.connectionId);
+    currentUser.set({ id: 'user-b' });
+    await settle();
+    expect(store.selectedConnection()?.connectionId).toBe(accountA.connectionId);
+    expect(localStorage.getItem(savedKey)).toBe(accountB.connectionId);
+    currentUser.set({ id: 'user-a' });
+    await settle();
+    expect(store.selectedConnection()?.connectionId).toBe(accountB.connectionId);
+    const foreign = { ...accountA, workspaceId: 'workspace-b' };
+    api.listConnections.mockResolvedValue({ canManage: true, connections: [foreign] });
+    currentWorkspace.set({ id: foreign.workspaceId });
+    await settle();
+    expect(store.selectedConnection()?.connectionId).toBe(accountA.connectionId);
+    expect(localStorage.getItem(savedKey)).toBe(accountB.connectionId);
+  });
+  it('bleibt bei gesperrtem Browserspeicher bedienbar', async () => {
+    const read = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    const write = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    try {
+      await settle();
+      await store.selectConnection(accountB.connectionId);
+      expect(store.selectedConnection()?.connectionId).toBe(accountB.connectionId);
+      expect(store.error()).toBeNull();
+    } finally {
+      read.mockRestore();
+      write.mockRestore();
+    }
+  });
 });
 
 describe('Inseratbeschreibungen und Kennzahlen', () => {
@@ -454,6 +531,120 @@ describe('Wiederholen eines bereits gewählten gespeicherten Gesprächs', () => 
 });
 
 describe('Kontogebundene Marktplatzansicht', () => {
+  it('übernimmt auch einen manuellen Teilabruf ohne neuen Erfolgszeitpunkt still und ohne Gesprächsverlust', async () => {
+    await settle();
+    await store.openConversation('conversation-a');
+    const original = store.snapshot();
+    const selection = store.selectionVersion();
+    const read = deferred<MarketplaceSnapshot>();
+    api.readSnapshot.mockReturnValueOnce(read.promise);
+    const syncing = store.syncSelectedConnection();
+    await settle();
+    expect(store.snapshot()).toBe(original);
+    expect(store.loadingSnapshot()).toBe(false);
+    read.resolve(snapshot(accountA, 'Manueller Teilabruf'));
+    expect(await syncing).toBe(true);
+    expect(store.snapshot()?.profile?.displayName).toBe('Manueller Teilabruf');
+    expect(store.selectionVersion()).toBe(selection);
+    expect(store.selectedConversationId()).toBe('conversation-a');
+    expect(store.selectedConnection()?.lastSyncedAt).toBeNull();
+  });
+  it('behält die sichtbaren Daten ohne Ladeblock und ohne neuen Livekanal während eines Imports', async () => {
+    await settle();
+    const visible = store.snapshot();
+    const read = deferred<MarketplaceSnapshot>();
+    api.readSnapshot.mockReturnValueOnce(read.promise);
+    const channels = api.listenAccountImports.mock.calls.length;
+    const refreshing = store.refreshImportedSnapshot(accountA, '2026-10-02T12:30:00Z');
+    expect(store.snapshot()).toBe(visible);
+    expect(store.loadingSnapshot()).toBe(false);
+    expect(store.loading()).toBe(false);
+    read.resolve(snapshot(accountA, 'Neuer Stand'));
+    await refreshing;
+    await settle();
+    expect(api.listenAccountImports).toHaveBeenCalledTimes(channels);
+  });
+  it('übernimmt nach einem laufenden Abruf noch die neueste wartende Meldung', async () => {
+    await settle();
+    const read = deferred<MarketplaceSnapshot>();
+    api.readSnapshot.mockReturnValueOnce(read.promise);
+    const refreshing = store.refreshImportedSnapshot(accountA, '2026-10-02T12:30:00Z');
+    await store.refreshImportedSnapshot(accountA, '2026-10-02T12:40:00Z');
+    await store.refreshImportedSnapshot(accountA, '2026-10-02T12:35:00Z');
+    read.resolve(snapshot(accountA));
+    await refreshing;
+    await settle();
+    expect(store.selectedConnection()?.lastSyncedAt).toBe('2026-10-02T12:40:00Z');
+    expect(api.readSnapshot).toHaveBeenCalledTimes(3);
+  });
+  it('verliert einen während des Nachladens eingetroffenen Import nicht', async () => {
+    const first = parseMarketplaceSnapshot(
+      {
+        ...snapshot(accountA),
+        publications: {
+          items: [{ ...accountA, id: 'listing-a', title: 'Artikel' }],
+          total: 1,
+          nextCursor: null,
+        },
+      },
+      accountA,
+    );
+    api.readSnapshot.mockResolvedValue({
+      ...first,
+      publications: { ...first.publications, total: 2, nextCursor: 'more' },
+    });
+    await settle();
+    const page = deferred<MarketplaceSnapshot['publications']>();
+    api.readPage.mockReturnValueOnce(page.promise);
+    const loading = store.loadMore('publication');
+    await store.refreshImportedSnapshot(accountA, '2026-10-02T12:40:00Z');
+    expect(store.selectedConnection()?.lastSyncedAt).toBeNull();
+    page.resolve({
+      ...first.publications,
+      items: [{ ...first.publications.items[0], id: 'listing-b' }],
+      nextCursor: null,
+    });
+    await loading;
+    api.readPage.mockResolvedValue({
+      ...first.publications,
+      items: [{ ...first.publications.items[0], id: 'listing-b' }],
+      nextCursor: null,
+    });
+    await settle();
+    expect(store.snapshot()?.publications.items.map((entry) => entry.id)).toEqual([
+      'listing-a',
+      'listing-b',
+    ]);
+    expect(store.selectedConnection()?.lastSyncedAt).toBe('2026-10-02T12:40:00Z');
+  });
+  it('authentifiziert und räumt den Livekanal bei Kontowechsel und Abmeldung auf', async () => {
+    await settle();
+    const close = api.listenAccountImports.mock.results.at(-1)!.value;
+    expect(api.authenticateImports).toHaveBeenCalledWith('token-a');
+    const onImport = api.listenAccountImports.mock.calls.at(-1)![1] as (time: string) => void;
+    onImport('2026-10-02T12:30:00Z');
+    await settle();
+    expect(store.selectedConnection()?.lastSyncedAt).toBe('2026-10-02T12:30:00Z');
+    await store.selectConnection(accountB.connectionId);
+    await settle();
+    expect(close).toHaveBeenCalledOnce();
+    const closeB = api.listenAccountImports.mock.results.at(-1)!.value;
+    currentUser.set(null);
+    await settle();
+    expect(closeB).toHaveBeenCalledOnce();
+  });
+  it('holt nach Wiederverbindung einen ohne Meldung gespeicherten Import nach', async () => {
+    await settle();
+    api.listConnections.mockResolvedValue({
+      canManage: true,
+      connections: [{ ...accountA, lastSyncedAt: '2026-10-02T12:30:00Z' }, accountB],
+    });
+    const reconnect = api.listenAccountImports.mock.calls.at(-1)![2] as () => void;
+    reconnect();
+    await settle();
+    expect(store.selectedConnection()?.lastSyncedAt).toBe('2026-10-02T12:30:00Z');
+    expect(store.loadingSnapshot()).toBe(false);
+  });
   it('übernimmt Hintergrundimporte ohne Konto oder Gesprächsauswahl zu verlieren', async () => {
     await settle();
     await store.openConversation('conversation-a');

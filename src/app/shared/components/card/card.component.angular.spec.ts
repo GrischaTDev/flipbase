@@ -1,6 +1,7 @@
 import '@angular/compiler';
 import { ɵresolveComponentResources } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { readFile } from 'node:fs/promises';
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { CardComponent } from './card.component';
@@ -33,6 +34,9 @@ describe('CardComponent', () => {
       variant: ['variant', 1, null],
       padding: ['padding', 1, null],
       rounded: ['rounded', 1, null],
+      link: ['link', 1, null],
+      linkLabel: ['linkLabel', 1, null],
+      queryParams: ['queryParams', 1, null],
     };
     metadata.declaredInputs = {
       ...metadata.declaredInputs,
@@ -41,11 +45,15 @@ describe('CardComponent', () => {
       variant: 'variant',
       padding: 'padding',
       rounded: 'rounded',
+      link: 'link',
+      linkLabel: 'linkLabel',
+      queryParams: 'queryParams',
     };
 
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       imports: [CardComponent],
+      providers: [provideRouter([])],
     });
 
     fixture = TestBed.createComponent(CardComponent);
@@ -63,6 +71,16 @@ describe('CardComponent', () => {
 
   it('should create successfully', () => {
     expect(component).toBeTruthy();
+  });
+  it('macht die gesamte Karte als benannten Link mit Kontozuordnung erreichbar', () => {
+    fixture.componentRef.setInput('link', '/marketplaces/vinted/overview');
+    fixture.componentRef.setInput('queryParams', { connectionId: 'account-b' });
+    fixture.componentRef.setInput('linkLabel', 'Konto B öffnen');
+    fixture.detectChanges();
+    const link = (fixture.nativeElement as HTMLElement).querySelector('a');
+    expect(link?.getAttribute('href')).toBe('/marketplaces/vinted/overview?connectionId=account-b');
+    expect(link?.getAttribute('aria-label')).toBe('Konto B öffnen');
+    expect(link?.classList.contains('inset-0')).toBe(true);
   });
 
   it('should render header when title is provided', () => {

@@ -17,7 +17,14 @@ export const MARKETPLACES_ROUTES: Routes = [
     loadComponent: () =>
       import('./vinted-workspace.component').then((m) => m.VintedWorkspaceComponent),
     children: [
-      { path: '', redirectTo: 'overview', pathMatch: 'full' },
+      { path: '', redirectTo: 'accounts', pathMatch: 'full' },
+      {
+        path: 'accounts',
+        loadComponent: () =>
+          import('./components/vinted-account-grid/vinted-account-grid.component').then(
+            (m) => m.VintedAccountGridComponent,
+          ),
+      },
       {
         path: 'connect/:connectionId',
         loadComponent: () =>
@@ -48,7 +55,7 @@ export const MARKETPLACES_ROUTES: Routes = [
             (m) => m.VintedAccountContentComponent,
           ),
       })),
-      { path: '**', redirectTo: 'overview' },
+      { path: '**', redirectTo: 'accounts' },
     ],
   },
 ];

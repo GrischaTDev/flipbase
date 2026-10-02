@@ -175,6 +175,13 @@ export async function mockMarketplace(
       ];
     if (name.startsWith('marketplace_')) calls.push({ name, body });
     if (name === 'marketplace_can_manage') json = true;
+    if (name === 'marketplace_read_listing_metric_changes')
+      json = {
+        workspaceId,
+        connectionId: body['p_connection_id'],
+        periodMinutes: body['p_period_minutes'],
+        items: [],
+      };
     if (name === 'marketplace_read_favorite_notifications')
       json = { workspaceId, items: [], unreadCount: 0 };
     if (name === 'marketplace_read_favorite_notification_settings')

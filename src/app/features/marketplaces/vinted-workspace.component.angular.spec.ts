@@ -15,6 +15,7 @@ import { createMarketplaceFixtures } from './testing/marketplace-fixtures';
 import { parseMarketplaceSnapshot } from './models/marketplace-response';
 import type { AccountScope } from './models/marketplace.models';
 import { VintedWorkspaceComponent } from './vinted-workspace.component';
+import { VintedAccountGridComponent } from './components/vinted-account-grid/vinted-account-grid.component';
 import { VintedOverviewComponent } from './components/vinted-overview/vinted-overview.component';
 import { VintedProfileComponent } from './components/vinted-profile/vinted-profile.component';
 import { VintedMessagesComponent } from './components/vinted-messages/vinted-messages.component';
@@ -98,6 +99,8 @@ const makeSnapshot = (scope: AccountScope) =>
   );
 let resetBindings: (() => void) | undefined;
 let api: {
+  readAccountPreview: ReturnType<typeof vi.fn>;
+  readListingStatistics: ReturnType<typeof vi.fn>;
   listConnections: ReturnType<typeof vi.fn>;
   readSnapshot: ReturnType<typeof vi.fn>;
   readPublication: ReturnType<typeof vi.fn>;
@@ -131,6 +134,10 @@ beforeAll(async () => {
     [CustomCheckboxComponent, 'custom-checkbox/custom-checkbox.component'],
   ];
   resetBindings = await prepareMarketplaceRendering([
+    {
+      type: VintedAccountGridComponent,
+      path: 'src/app/features/marketplaces/components/vinted-account-grid/vinted-account-grid.component.ts',
+    },
     {
       type: VintedFavoriteSettingsComponent,
       path: 'src/app/features/marketplaces/components/vinted-favorite-settings/vinted-favorite-settings.component.ts',
@@ -210,11 +217,25 @@ beforeAll(async () => {
 afterAll(() => resetBindings?.());
 afterEach(() => TestBed.resetTestingModule());
 beforeEach(() => {
+  localStorage.clear();
   browserApi = {
     available: vi.fn().mockResolvedValue({ available: false, readOnly: true }),
     syncConnection: vi.fn().mockResolvedValue(undefined),
   };
   api = {
+    readAccountPreview: vi.fn().mockImplementation(async (scope: AccountScope) => ({
+      ...scope,
+      profile: makeSnapshot(scope).profile,
+      publicationCount: 8,
+      saleCount: 3,
+    })),
+    readListingStatistics: vi
+      .fn()
+      .mockImplementation(async (scope: AccountScope, periodMinutes: number) => ({
+        ...scope,
+        periodMinutes,
+        items: [],
+      })),
     listConnections: vi
       .fn()
       .mockResolvedValue({ canManage: true, connections: fixtureConnections }),
@@ -245,6 +266,8 @@ beforeEach(() => {
           path: 'marketplaces/vinted',
           component: VintedWorkspaceComponent,
           children: [
+            { path: '', redirectTo: 'accounts', pathMatch: 'full' },
+            { path: 'accounts', component: VintedAccountGridComponent },
             {
               path: 'feedback',
               redirectTo: '/marketplaces/vinted/profile#reviews',
@@ -334,6 +357,61 @@ async function render(url: string) {
   return { harness, element: harness.routeNativeElement as HTMLElement };
 }
 describe('Vinted-Bereich in Flipbase', () => {
+  it('zeigt beim Einstieg alle Konten als erreichbare Kacheln ohne Kontotabs', async () => {
+    const { element } = await render('/marketplaces/vinted');
+    expect(element.querySelector('app-vinted-account-grid')).not.toBeNull();
+    expect(element.querySelector('nav[aria-label="Vinted-Bereiche"]')).toBeNull();
+    expect(element.querySelector('app-vinted-account-controls')).toBeNull();
+    const links = [...element.querySelectorAll('app-vinted-account-grid app-card a')];
+    expect(links).toHaveLength(2);
+    expect(links[1].getAttribute('href')).toContain(
+      `connectionId=${fixtureConnections[1].connectionId}`,
+    );
+    expect(element.textContent).toContain('8');
+    expect(element.textContent).toContain('3');
+    expect(browserApi.syncConnection).not.toHaveBeenCalled();
+  });
+  it('öffnet über eine Kachel das zweite Konto und bleibt beim Wechsel der Bereiche darin', async () => {
+    const { harness, element } = await render('/marketplaces/vinted/accounts');
+    element.querySelectorAll<HTMLAnchorElement>('app-vinted-account-grid app-card a')[1].click();
+    await harness.fixture.whenStable();
+    harness.detectChanges();
+    const parent = harness.fixture.debugElement.query(By.directive(VintedWorkspaceComponent))
+      .componentInstance as VintedWorkspaceComponent;
+    expect(parent.store.selectedConnection()?.connectionId).toBe(
+      fixtureConnections[1].connectionId,
+    );
+    expect(harness.routeNativeElement?.querySelector('app-vinted-overview')).not.toBeNull();
+    await harness.navigateByUrl('/marketplaces/vinted/profile');
+    expect(parent.store.selectedConnection()?.connectionId).toBe(
+      fixtureConnections[1].connectionId,
+    );
+    expect(
+      harness.routeNativeElement?.querySelector('a[href="/marketplaces/vinted/accounts"]'),
+    ).not.toBeNull();
+  });
+  it('hält andere Kontokacheln erreichbar, wenn eine Vorschau scheitert', async () => {
+    api.readAccountPreview.mockRejectedValueOnce(new Error('preview failed'));
+    const { element } = await render('/marketplaces/vinted/accounts');
+    expect(element.querySelectorAll('app-vinted-account-grid app-card a')).toHaveLength(2);
+    expect(element.textContent).toContain('Vorschau gerade nicht verfügbar');
+    expect(element.textContent).toContain('Verkäufe');
+  });
+  it('zeigt ohne importiertes Profil unbekannte Werte statt scheinbarer Nullen', async () => {
+    api.readAccountPreview.mockImplementation(async (scope: AccountScope) => ({
+      ...scope,
+      profile: null,
+      publicationCount: 0,
+      saleCount: 0,
+    }));
+    const { element } = await render('/marketplaces/vinted/accounts');
+    expect(
+      [...element.querySelectorAll('app-vinted-account-grid dd')].map((node) =>
+        node.textContent?.trim(),
+      ),
+    ).toEqual(['—', '—', '—', '—']);
+    expect(element.textContent).toContain('Bewertung noch unbekannt');
+  });
   it('ordnet die Bereiche mit Aktivitäten und ohne separaten Bewertungstab', async () => {
     const { element } = await render('/marketplaces/vinted/overview');
     const links = [...element.querySelectorAll('nav[aria-label="Vinted-Bereiche"] a')];

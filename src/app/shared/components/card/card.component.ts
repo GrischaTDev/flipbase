@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { RouterLink, type Params } from '@angular/router';
 
 export type CardVariant = 'surface' | 'kpi' | 'subtle';
 export type CardPadding = 'none' | 'sm' | 'md' | 'lg';
@@ -6,6 +7,7 @@ export type CardRounded = 'md' | 'lg' | 'xl';
 
 @Component({
   selector: 'app-card',
+  imports: [RouterLink],
   templateUrl: './card.component.html',
   styleUrl: './card.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -20,9 +22,13 @@ export class CardComponent {
   readonly padding = input<CardPadding>('md');
   readonly rounded = input<CardRounded>('lg');
   readonly overflowVisible = input(false);
+  /** Ganzflächiger Link für Karten ohne weitere interaktive Inhalte. */
+  readonly link = input<string | null>(null);
+  readonly queryParams = input<Params | null>(null);
+  readonly linkLabel = input('Karte öffnen');
 
   protected readonly cardClasses = computed(() => {
-    const base = `flex flex-col ${this.overflowVisible() ? 'overflow-visible' : 'overflow-hidden'} border`;
+    const base = `flex flex-col ${this.link() ? 'relative' : ''} ${this.overflowVisible() ? 'overflow-visible' : 'overflow-hidden'} border`;
 
     const roundedClass =
       this.rounded() === 'xl'

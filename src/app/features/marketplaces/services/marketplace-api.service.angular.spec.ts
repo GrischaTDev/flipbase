@@ -26,6 +26,137 @@ beforeEach(() => {
   api = TestBed.inject(MarketplaceApiService);
 });
 describe('Marktplatz-API', () => {
+  it('liest für Kontokacheln nur ein scoped Profil und zwei Anzahlen, keine vollständigen Listen', async () => {
+    const queries: {
+      filters: Record<string, string>;
+      head: boolean;
+      query: Record<string, unknown>;
+    }[] = [];
+    const from = vi.fn().mockImplementation(() => {
+      const entry = {
+        filters: {} as Record<string, string>,
+        head: false,
+        query: {} as Record<string, unknown>,
+      };
+      const query = {
+        select: vi.fn().mockImplementation((_columns, options) => {
+          entry.head = options?.head ?? false;
+          return query;
+        }),
+        eq: vi.fn().mockImplementation((field, value) => {
+          entry.filters[field] = value;
+          return query;
+        }),
+        maybeSingle: vi.fn().mockResolvedValue({
+          data: {
+            body: {
+              username: 'testkonto',
+              feedbackCount: 2,
+              feedbackReputation: 0.96,
+              itemCount: 12,
+            },
+          },
+          error: null,
+        }),
+        then: (resolve: (value: unknown) => void) =>
+          Promise.resolve({
+            count: entry.filters['kind'] === 'publication' ? 15 : 4,
+            error: null,
+          }).then(resolve),
+      };
+      entry.query = query;
+      queries.push(entry);
+      return query;
+    });
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        MarketplaceApiService,
+        { provide: SupabaseService, useValue: { client: { from } } },
+      ],
+    });
+    const result = await TestBed.inject(MarketplaceApiService).readAccountPreview(scope);
+    expect(result).toMatchObject({
+      ...scope,
+      profile: { username: 'testkonto', itemCount: 12 },
+      publicationCount: 15,
+      saleCount: 4,
+    });
+    expect(queries.map(({ filters, head }) => ({ ...filters, head }))).toEqual([
+      {
+        workspace_id: scope.workspaceId,
+        connection_id: scope.connectionId,
+        kind: 'profile',
+        head: false,
+      },
+      {
+        workspace_id: scope.workspaceId,
+        connection_id: scope.connectionId,
+        kind: 'publication',
+        head: true,
+      },
+      {
+        workspace_id: scope.workspaceId,
+        connection_id: scope.connectionId,
+        kind: 'sale',
+        head: true,
+      },
+    ]);
+    expect(from).toHaveBeenCalledTimes(3);
+  });
+  it('abonniert nur den privaten Kontokanal und ignoriert fremde Live-Meldungen', () => {
+    let receive!: (message: { payload: unknown }) => void;
+    let subscribe!: (status: string) => void;
+    const channel = {
+      on: vi.fn().mockImplementation((_event, _filter, callback) => {
+        receive = callback;
+        return channel;
+      }),
+      subscribe: vi.fn().mockImplementation((callback) => {
+        subscribe = callback;
+        return channel;
+      }),
+    };
+    const client = {
+      channel: vi.fn().mockReturnValue(channel),
+      removeChannel: vi.fn().mockResolvedValue('ok'),
+    };
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [MarketplaceApiService, { provide: SupabaseService, useValue: { client } }],
+    });
+    const api = TestBed.inject(MarketplaceApiService);
+    const imported = vi.fn();
+    const reconnected = vi.fn();
+    const close = api.listenAccountImports(scope, imported, reconnected);
+    expect(client.channel).toHaveBeenCalledWith(
+      `workspace:${scope.workspaceId}:marketplace_account:${scope.connectionId}`,
+      { config: { private: true } },
+    );
+    const payload = { ...scope, lastSyncedAt: '2026-10-02T12:30:00Z' };
+    receive({ payload: { ...payload, connectionId: 'other' } });
+    receive({ payload: { ...payload, workspaceId: 'other' } });
+    receive({ payload: { ...payload, lastSyncedAt: 'invalid' } });
+    expect(imported).not.toHaveBeenCalled();
+    receive({ payload });
+    subscribe('SUBSCRIBED');
+    expect(imported).toHaveBeenCalledExactlyOnceWith(payload.lastSyncedAt);
+    expect(reconnected).toHaveBeenCalledOnce();
+    close();
+    expect(client.removeChannel).toHaveBeenCalledWith(channel);
+  });
+  it('bindet Statistikantworten an Konto und gewählten Zeitraum', async () => {
+    rpc.mockResolvedValue({ data: { ...scope, periodMinutes: 60, items: [] }, error: null });
+    expect(await api.readListingStatistics(scope, 60)).toMatchObject({
+      ...scope,
+      periodMinutes: 60,
+    });
+    rpc.mockResolvedValue({
+      data: { ...scope, connectionId: 'other', periodMinutes: 60, items: [] },
+      error: null,
+    });
+    await expect(api.readListingStatistics(scope, 60)).rejects.toThrow();
+  });
   it('fragt Verwaltungsrechte am Server ab, statt sie aus einer UI-Rolle abzuleiten', async () => {
     rpc.mockResolvedValue({ data: true, error: null });
     expect(await api.canManage(scope.workspaceId)).toBe(true);

@@ -2,20 +2,17 @@
   role="group"
   [attr.aria-label]="metrics().views === null ? 'Aufrufe unbekannt' : metrics().views + ' Aufrufe'"
 >
-  <app-badge tone="neutral" size="md">
+  <span class="inline-flex items-center gap-1 text-xs text-fb-text-secondary">
     <svg lucideEye class="size-3.5" aria-hidden="true"></svg>
     <span data-views class="tabular-nums">{{ metrics().views ?? '—' }}</span>
     @if (change()?.views; as increase) {
-      <span
-        data-metric-increase="views"
-        class="rounded px-1 tabular-nums motion-safe:transition-colors motion-safe:duration-300"
-        [class.motion-safe:bg-fb-primary]="highlighted()"
-        [class.motion-safe:text-fb-on-accent]="highlighted()"
-        ><span class="sr-only">{{ increase }} zusätzliche Aufrufe seit dem vorherigen Abruf: </span
-        >+{{ increase }}</span
+      <span data-metric-increase="views" class="font-semibold tabular-nums text-fb-badge-on-success"
+        ><span class="sr-only">{{ increase }} zusätzliche Aufrufe, {{ periodLabel() }}: </span>+{{
+          increase
+        }}</span
       >
     }
-  </app-badge>
+  </span>
 </span>
 <span
   role="group"
@@ -23,19 +20,17 @@
     metrics().favorites === null ? 'Favoritenzahl unbekannt' : metrics().favorites + ' Favoriten'
   "
 >
-  <app-badge tone="neutral" size="md">
+  <span class="inline-flex items-center gap-1 text-xs text-fb-text-secondary">
     <svg lucideHeart class="size-3.5" aria-hidden="true"></svg>
     <span data-favorites class="tabular-nums">{{ metrics().favorites ?? '—' }}</span>
     @if (change()?.favorites; as increase) {
       <span
         data-metric-increase="favorites"
-        class="rounded px-1 tabular-nums motion-safe:transition-colors motion-safe:duration-300"
-        [class.motion-safe:bg-fb-primary]="highlighted()"
-        [class.motion-safe:text-fb-on-accent]="highlighted()"
-        ><span class="sr-only">Favoritenzahl um {{ increase }} gestiegen: </span>+{{
-          increase
-        }}</span
+        class="font-semibold tabular-nums text-fb-badge-on-success"
+        ><span class="sr-only"
+          >Favoritenzahl um {{ increase }} gestiegen, {{ periodLabel() }}: </span
+        >+{{ increase }}</span
       >
     }
-  </app-badge>
+  </span>
 </span>

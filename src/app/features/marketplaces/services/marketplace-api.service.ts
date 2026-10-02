@@ -1,12 +1,18 @@
 import { Injectable, inject } from '@angular/core';
 import { SupabaseService } from '../../../core/services/supabase.service';
 import type { AccountScope, MarketplaceConnection } from '../models/marketplace.models';
+import {
+  parseVintedListingStatistics,
+  type VintedListingStatistics,
+  type VintedStatisticsPeriod,
+} from '../models/vinted-listing-statistics';
 import type {
   MarketplaceConnectionList,
   MarketplaceEntryKind,
   MarketplacePage,
   MarketplaceEntry,
   MarketplaceSnapshot,
+  MarketplaceAccountPreview,
 } from '../models/marketplace-read.models';
 import {
   MarketplaceResponseError,
@@ -49,10 +55,59 @@ function confirmWrite(result: RpcResult): void {
     throw new MarketplaceResponseError();
 }
 
-/** Ausschließlich die vorhandenen, serverseitig autorisierten Metadaten-RPCs. */
+/** Kontodaten und private Aktualisierungsmeldungen mit serverseitig geprüftem Zugriff. */
 @Injectable({ providedIn: 'root' })
 export class MarketplaceApiService {
   private readonly client = inject(SupabaseService).client;
+
+  listenAccountImports(
+    scope: AccountScope,
+    onImport: (lastSyncedAt: string) => void,
+    onReconnect: () => void,
+  ): () => void {
+    const channel = this.client
+      .channel(`workspace:${scope.workspaceId}:marketplace_account:${scope.connectionId}`, {
+        config: { private: true },
+      })
+      .on('broadcast', { event: 'account_imported' }, ({ payload }: { payload: unknown }) => {
+        if (!payload || typeof payload !== 'object') return;
+        const data = payload as Record<string, unknown>;
+        if (
+          data['workspaceId'] === scope.workspaceId &&
+          data['connectionId'] === scope.connectionId &&
+          typeof data['lastSyncedAt'] === 'string' &&
+          Number.isFinite(Date.parse(data['lastSyncedAt']))
+        )
+          onImport(data['lastSyncedAt']);
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') onReconnect();
+      });
+    return () => {
+      void this.client.removeChannel(channel).catch(() => undefined);
+    };
+  }
+
+  authenticateImports(token: string): void {
+    void this.client.realtime.setAuth(token).catch(() => undefined);
+  }
+
+  async readListingStatistics(
+    scope: AccountScope,
+    period: VintedStatisticsPeriod,
+  ): Promise<VintedListingStatistics> {
+    return parseVintedListingStatistics(
+      dataOf(
+        await this.client.rpc('marketplace_read_listing_metric_changes', {
+          p_workspace_id: scope.workspaceId,
+          p_connection_id: scope.connectionId,
+          p_period_minutes: period,
+        }),
+      ),
+      scope,
+      period,
+    );
+  }
 
   async canManage(workspaceId: string): Promise<boolean> {
     return (
@@ -96,6 +151,56 @@ export class MarketplaceApiService {
       }),
     );
   }
+  async readAccountPreview(scope: AccountScope): Promise<MarketplaceAccountPreview> {
+    // Nur Profil und Anzahlen lesen, keine Nachrichten oder vollständigen Inseratlisten.
+    const query = () =>
+      this.client
+        .from('marketplace_account_entries')
+        .select('body', { count: 'exact', head: true })
+        .eq('workspace_id', scope.workspaceId)
+        .eq('connection_id', scope.connectionId);
+    const [profile, publications, sales] = await Promise.all([
+      this.client
+        .from('marketplace_account_entries')
+        .select('body')
+        .eq('workspace_id', scope.workspaceId)
+        .eq('connection_id', scope.connectionId)
+        .eq('kind', 'profile')
+        .maybeSingle(),
+      query().eq('kind', 'publication'),
+      query().eq('kind', 'sale'),
+    ]);
+    if (
+      profile.error ||
+      publications.error ||
+      sales.error ||
+      publications.count === null ||
+      sales.count === null
+    )
+      throw new MarketplaceApiError('request_failed');
+    const body = profile.data?.body;
+    if (body !== undefined && (!body || typeof body !== 'object' || Array.isArray(body)))
+      throw new MarketplaceResponseError();
+    const emptyPage = { items: [], total: 0, nextCursor: null };
+    const parsed = parseMarketplaceSnapshot(
+      {
+        ...scope,
+        profile: body ? { ...body, ...scope } : null,
+        publications: emptyPage,
+        conversations: emptyPage,
+        sales: emptyPage,
+        activity: emptyPage,
+      },
+      scope,
+    );
+    return {
+      ...scope,
+      profile: parsed.profile,
+      publicationCount: publications.count,
+      saleCount: sales.count,
+    };
+  }
+
   async readSnapshot(scope: AccountScope): Promise<MarketplaceSnapshot> {
     return parseMarketplaceSnapshot(
       dataOf(

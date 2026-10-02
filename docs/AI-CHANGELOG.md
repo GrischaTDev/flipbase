@@ -1,5 +1,113 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-02 – Juna – Vinted-Kontoübersicht und Live-Inserate für PR und Merge freigegeben
+
+**Auftrag:** Nach ausdrücklichem „ja“ den geprüften eigenen Zweig
+`juna/vinted-live-listings` pushen, einen PR erstellen und nach erfolgreichen
+Pflichtprüfungen mit Merge-Commit integrieren. Anschließend die öffentliche
+Version prüfen und den eigenen Remote-/Lokalzweig samt Arbeitskopie aufräumen.
+
+**Vorbereitung:** Der aktuelle `origin/master` ist unverändert die Grundlage.
+328 Angular-Prüfungen, 16 Kennzahl-/Vertragsfälle, 100 Datenbankprüfungen,
+vier Kontoübersichts- und vier Inserat-Browserfälle sowie Format, gezieltes Lint,
+Typen, gemeinsame UI, Testzuordnung und Produktionsbau bestehen bereits.
+Die neue Migration wurde vollständig geprüft und zuvor auf einem isolierten
+Ausgangsstand in einer Transaktion angewendet. Die vollständigen PR-Prüfungen
+und Backup/Migration/Veröffentlichung bleiben aktiv. Fremde Änderungen in der
+ursprünglichen Arbeitskopie bleiben erhalten.
+
+**CI-Korrektur:** Die fest hinterlegte PR-Browserauswahl erwartete zunächst noch
+den alten Umfang. Die vier neuen Kontoübersichtsfälle sind nun ausdrücklich in
+diesem Vertrag registriert; der gezielte Auswahltest, Format und Lint bestehen.
+
+**Browser-Vertrag:** Ein vorhandener Kennzahlentest lieferte noch keine Antwort
+für die neue Statistikabfrage und erwartete nach erneutem Öffnen bereits versteckte
+Pluszahlen. Die künstlichen Serverantworten bilden jetzt die Messhistorie ab.
+Der Test prüft erhaltene Pluszahlen beim Wiederöffnen und ihr Verschwinden nach
+dem nächsten Abruf ohne Zuwachs. Produktionsbau, vollständige Datenbank- und
+alle vier Anwendungstestgruppen waren im zweiten CI-Lauf erfolgreich.
+Die sechs angepassten Browserfälle bestehen lokal bei 1440, 390 und 320 px
+jeweils im hellen und dunklen Design; Format und gezieltes Lint bestehen.
+
+## 2026-10-02 – Juna – Vinted-Kontoübersicht und gespeicherte Kontoauswahl ergänzt
+
+**Auftrag:** Der Menüpunkt Vinted soll zunächst alle eigenen Konten als Kacheln
+zeigen. Ein Klick öffnet das jeweilige Konto; Auswahlbox und zuletzt verwendetes
+Konto bleiben auch nach Neuladen verfügbar. Ergänzung auf dem eigenen, noch nicht
+veröffentlichten Zweig `juna/vinted-live-listings`.
+
+**Umsetzung:** Neue Einstiegsroute mit responsivem Konto-Raster, Profilbild,
+internem Namen, Mitgliedsnamen, Bewertung sowie Inserat- und Verkaufsanzahl.
+Vorschauen lesen ausschließlich bereits importierte Daten, maximal drei Konten
+gleichzeitig; Nachrichten und vollständige Inseratlisten werden dafür nicht
+geladen. Fehlende Importe bleiben unbekannt, einzelne Vorschaufehler verhindern
+keinen Kontozugang. Die vorhandene Kontrollabfrage übernimmt auch neue, gelöschte
+und aktualisierte andere Konten. Unveränderte Metadaten lösen keinen erneuten
+Vorschauabruf aus. Die gemeinsame Kartenkomponente bietet dafür einen vollständig
+anklickbaren, benannten Link mit sichtbarem Tastaturfokus. Innerhalb eines Kontos
+führt „Alle Konten“ zurück zum Raster; die Auswahlbox bleibt erhalten.
+
+**Auswahl:** Im Browserspeicher steht ausschließlich die Konto-ID, getrennt nach
+Benutzer und Workspace. Beim Wiederherstellen wird sie gegen die vom Server
+erlaubten Konten geprüft. Gelöschte oder fremde Konten werden verworfen; gesperrter
+Browserspeicher verhindert keinen Kontowechsel. Kachel-Links adressieren ihr Konto
+ausdrücklich, Bereichswechsel nutzen anschließend die gespeicherte Auswahl.
+
+**Prüfung:** 328 Angular-Marktplatz-/Karten-/Bildtests, vier Browserfälle bei 1440,
+1024, 768 und 390 px einschließlich Tastaturfokus, WCAG AA, Neuladen, Kontowechsel,
+Bereichswechsel und Rückkehr zur Übersicht. Vier zusätzliche Browserfälle prüfen
+weiterhin flackerfreie Inserat-Liveaktualisierungen. Alle Browserdaten sind
+künstlich; weder Vinted-Anmeldungen noch zusätzliche Vinted-Abrufe werden ausgelöst.
+Format, gezieltes Lint, Typen, gemeinsame UI, Testzuordnung und Produktionsbau
+bestehen. Die vorhandene `pako`-Bauwarnung bleibt unverändert. Keine zusätzlichen
+Datenbank- oder Abhängigkeitsänderungen. Noch kein
+Push, PR oder Merge; die Veröffentlichungsfreigabe bleibt ausstehend.
+
+## 2026-10-02 – Juna – Vinted-Inserate live und ohne Ausblenden aktualisiert
+
+**Auftrag und Ursache:** Neue automatische Abrufe waren erst nach vollständigem
+Neuladen sichtbar; Aktualisierungen verschoben die Ansicht durch einen Ladeblock.
+Gleichzeitig konnten Meldungen während laufender Aktionen verloren gehen. Eigener
+Zweig `juna/vinted-live-listings` vom aktuellen `origin/master`; fremde Änderungen
+in der ursprünglichen Arbeitskopie bleiben erhalten.
+
+**Umsetzung:** Private, kontogebundene Servermeldungen und eine Kontrollabfrage
+holen gespeicherte Abrufe nach. Wartende Meldungen werden zusammengeführt und
+nach laufenden Aktionen übernommen. Karten, Konto-/Gesprächsauswahl und bereits
+nachgeladene Listen bleiben erhalten, auch nach einem manuellen Teilabruf.
+Aktualisierungszeit und Datum stehen in einem gemeinsamen Badge. Bilder füllen
+den Kartenkopf; Zustand, Aufrufe und Favoriten stehen kompakt nebeneinander.
+Die Kennzahlenhistorie ermöglicht echte Vergleiche für letzten Abruf, Stunde,
+Tag und Woche. Grüne Pluszahlen verschwinden beim nächsten Abruf ohne Zuwachs.
+Fehlende Ausgangswerte bleiben unbekannt. Der tatsächliche Vergleichszeitraum
+ist als Hinweis an den Kennzahlen hinterlegt. Mobile-Web-App-Metadaten ergänzt.
+Die Browsermeldungen „Fetch finished loading“ stammen aus Chromes aktivierter
+Netzwerkprotokollierung; die Anwendung kann diese Entwicklereinstellung nicht
+abschalten.
+
+**Datenbank:** Neue deklarative Schemadatei, registrierter Pfad, erzeugte Migration
+und frisch erzeugte Typen. RLS schützt die Historie; Browser haben ausschließlich
+Leserechte für verwaltbare Konten. Nur der Server sendet die private Aktualisierung.
+Eine getrennte Testdatenbank im eigenen, eindeutig benannten Container enthält
+kopierte Migrationen und künstliche Daten. Die aktuelle CLI erzeugte beim Abgleich
+zunächst nur Trigger; der vollständige Unterschied wurde deshalb mit dem Migra-
+Vergleichswerkzeug aus zwei getrennten Ausgangsständen erzeugt. Kommentare sowie
+die von Migra nicht vollständig erfassten Funktions-/Sequenzrechte wurden automatisch
+aus der deklarativen Quelle ergänzt. Die fertige Migration wurde anschließend
+vollständig in einer Transaktion auf den unveränderten Ausgangsstand angewendet.
+Keine produktiven Daten oder Zugänge verändert.
+
+**Prüfung:** 308 bestehende und neue Angular-Marktplatz-/Bildprüfungen, 16 reine
+Kennzahl-/Vertragsfälle, 25 neue Datenbankprüfungen und 75 vorhandene Favoriten-
+Importprüfungen bestehen. Vier lokale Browserfälle mit künstlichen Daten prüfen
+Live-Meldung, verlorene Meldung über Kontrollabfrage, erhaltene Karten und Position,
+sichtbaren Zeitpunkt, Pluszahlen und Zeitraumwechsel, randfüllende Bilder,
+WCAG AA, Überläufe und Laufzeitfehler. Format, gezieltes Lint, Typen, gemeinsame UI,
+Schema-/Migrationskontrollen und Produktionsbau bestehen. Die vorhandene `pako`-
+Bauwarnung bleibt unverändert. Browserbilder und Erzeugungs-/Prüfskripte liegen
+außerhalb des Repositorys. Die vollständigen PR-Pflichtprüfungen folgen erst nach
+Freigabe zum Push; diese Änderung ist noch nicht veröffentlicht.
+
 ## 2026-10-02 – Juna – Nachrichtenlayout für PR und Merge freigegeben
 
 **Auftrag:** Nach ausdrücklichem „ja“ den lokal geprüften Nachrichtenlayout-Zweig

@@ -22,10 +22,16 @@
     (synchronized)="synchronized.emit($event)"
   />
 </div>
-<p class="mt-1 text-right text-xs text-fb-text-secondary">
+<div class="mt-2 flex justify-end" aria-live="polite" aria-atomic="true">
   @if (account().lastSyncedAt) {
-    Zuletzt aktualisiert: {{ account().lastSyncedAt | date: 'dd.MM., HH:mm' }}
+    <app-badge tone="neutral" size="md">
+      <span>Aktualisiert</span>
+      <time [attr.datetime]="account().lastSyncedAt">
+        {{ account().lastSyncedAt | date: 'HH:mm' }} Uhr ·
+        {{ account().lastSyncedAt | date: 'dd.MM.yy' }}
+      </time>
+    </app-badge>
   } @else {
-    Noch keine Datenübernahme
+    <span class="text-xs text-fb-text-secondary">Noch keine Datenübernahme</span>
   }
-</p>
+</div>
