@@ -47,6 +47,11 @@ außerdem blockierte die originale seccomp-Capabilitybedingung Chromiums
 die Controller-Adresse frei und wird vor jedem Start geprüft. Eine gezielte
 seccomp-Ergänzung erlaubt ausschließlich den benötigten Aufruf; UID 1000,
 `cap-drop=ALL`, Sandbox, AppArmor und alle übrigen Einschränkungen bleiben aktiv.
+Die Linuxdiagnose bestätigt danach den Sandboxstart. Der CDP-Testclient erhält
+ein eigenes temporäres Verzeichnis, das Playwright auch beim Verbindungsaufbau
+benötigt. Recovery prüft zusätzlich das private Hostmanifest, bevor eine
+Chromiumsitzung als beendet bestätigt werden darf; der Regressionstest ist grün.
+Das Pilot-Compose bindet den Controller auf der bestehenden Caddy-Route ein.
 
 ## 2026-10-02 - Juna - Vinted-Cloudplan mit drei Agents im Web gegengeprüft
 

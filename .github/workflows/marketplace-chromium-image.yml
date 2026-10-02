@@ -53,15 +53,16 @@ jobs:
             docker start "$container_id" >/dev/null
             printf '%s' '{"headless":false,"locale":"de-DE","viewport":{"width":1280,"height":900}}' | docker exec -i "$container_id" node --input-type=module -e "import{writeFile,rename}from'node:fs/promises';let text='';for await(const chunk of process.stdin)text+=chunk;await writeFile('/tmp/startup.pending',text,{mode:0o600,flag:'wx'});await rename('/tmp/startup.pending','/tmp/startup.json');"
             container_ip=$(docker inspect --format '{{(index .NetworkSettings.Networks "flipbase-browser").IPAddress}}' "$container_id")
-            docker run --rm --network flipbase-browser --ip 172.30.88.2 --user=1000:1000 --read-only --cap-drop=ALL --security-opt=no-new-privileges:true --entrypoint node "$SESSION_IMAGE" --input-type=module -e '
+            docker run --rm --network flipbase-browser --ip 172.30.88.2 --user=1000:1000 --read-only --cap-drop=ALL --security-opt=no-new-privileges:true --tmpfs=/tmp:rw,nosuid,nodev,size=64m,uid=1000,gid=1000,mode=700 --entrypoint node "$SESSION_IMAGE" --input-type=module -e '
               import assert from "node:assert/strict";
               import { chromium } from "playwright";
               let browser;
+              let lastFailure;
               for(let attempt=0;attempt<60&&!browser;attempt++) {
                 try { browser=await chromium.connectOverCDP(`http://${process.argv[1]}:9222`,{timeout:1000}); }
-                catch { await new Promise(resolve=>setTimeout(resolve,500)); }
+                catch (failure) { lastFailure=failure; await new Promise(resolve=>setTimeout(resolve,500)); }
               }
-              assert.ok(browser,"Sandboxed Chromium must start");
+              assert.ok(browser,`Sandboxed Chromium must start: ${lastFailure}`);
               const context=browser.contexts()[0];
               const cookies=await context.cookies();
               const marker=cookies.find(cookie=>cookie.name==="fixture_marker");

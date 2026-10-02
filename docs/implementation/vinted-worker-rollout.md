@@ -76,6 +76,10 @@ Netz wird verweigert und nicht automatisch verändert.
 2. Bestehenden Worker, Konfiguration und Kontozuordnungen sichern. Automatik
    pausieren, Aufträge abschließen, Worker stoppen und Runtime-Freigabe abwarten.
    Keine Sitzungs- oder Profilsperre von Hand entfernen.
+   Anschließend den gestoppten alten Container mit dem bisherigen Compose
+   entfernen. Der Pilot übernimmt dessen Namen `flipbase-marketplace-worker`,
+   damit Caddys bestehende interne Route unverändert erreichbar bleibt.
+   Image, Konfiguration und externe Netze für den Rückweg aufbewahren.
 3. Host-Firewall/Timer und private Profile vorbereiten. Wartungsbefehl nur bei
    ausgeschalteter Automatik und ohne aktive Browser oder offene Aufträge nutzen.
    `migrate` erhält die bestehende Vinted-Kontoidentität, setzt die Verbindung
@@ -99,6 +103,9 @@ Netz wird verweigert und nicht automatisch verändert.
    Speicher und Datenfrische messen. Drei-/Fünf-Minuten-Takte für 30 Konten
    sowie vollständige Nachrichten-/Angebots-/Verkaufsereignisse sind unbewiesen.
    Vinted-Schreibfunktionen brauchen separat `MARKETPLACE_CHROMIUM_WRITES_ENABLED=1`.
+   Das Pilot-Compose setzt Automatik und Schreibfunktionen ausdrücklich auf `0`;
+   zur Aktivierung ist eine geprüfte Compose-Override mit den jeweiligen Flags
+   erforderlich. Ein Eintrag allein in der privaten Environment-Datei genügt nicht.
 
 `MARKETPLACE_CHROMIUM_NETWORK_ID=direct` verwendet den Serverausgang. Ein optionales
 privates `MARKETPLACE_CHROMIUM_NETWORK_FILE` kann feste Proxyzugänge enthalten;

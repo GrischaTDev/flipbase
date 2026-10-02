@@ -1,6 +1,7 @@
 name: flipbase-chromium-pilot
 services:
   marketplace-worker:
+    container_name: flipbase-marketplace-worker
     image: ${FLIPBASE_MARKETPLACE_IMAGE:?Geprüftes Worker-Abbild erforderlich}
     restart: 'no'
     init: true
@@ -8,6 +9,8 @@ services:
     env_file:
       - ${MARKETPLACE_ENV_FILE:-/opt/flipbase-marketplace/marketplace-worker.env}
     environment:
+      MARKETPLACE_BROWSER_HOST: 0.0.0.0
+      MARKETPLACE_BROWSER_PORT: '4179'
       MARKETPLACE_BROWSER_PROVIDER: chromium
       MARKETPLACE_CHROMIUM_PILOT_ENABLED: '1'
       MARKETPLACE_SCHEDULED_SYNC_ENABLED: '0'
@@ -32,6 +35,11 @@ services:
     pids_limit: 128
     mem_limit: 512m
     stop_grace_period: 13m
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
     networks:
       flipbase-browser:
         ipv4_address: 172.30.88.2

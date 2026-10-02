@@ -76,7 +76,7 @@ export function marketplaceBrowserServerConfig(
       !privateLinuxPath(serverProfileRoot) ||
       !privateLinuxPath(chromiumHostProfileRoot) ||
       !chromiumHostId ||
-      !/^[a-z0-9][a-z0-9-]{1,63}$/.test(chromiumHostId) ||
+      !/^[a-z][a-z0-9-]{1,63}$/.test(chromiumHostId) ||
       !chromiumImage ||
       !/^ghcr\.io\/grischatdev\/flipbase-chromium-session(?::sha-[a-f0-9]{40}|@sha256:[a-f0-9]{64})$/.test(
         chromiumImage,

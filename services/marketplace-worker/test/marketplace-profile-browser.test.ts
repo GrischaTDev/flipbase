@@ -1,6 +1,17 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { MarketplaceProfileBrowser } from '../src/marketplace-profile-browser.ts';
+import { MarketplaceBrowserRecovery } from '../src/marketplace-browser-recovery.ts';
+
+const registry = {
+  resolve: async (profileId: string) => ({
+    profileId,
+    workspaceId: 'workspace',
+    connectionId: 'connection',
+    hostId: 'pilot-01',
+    networkId: 'direct',
+  }),
+};
 
 test('immutable session profile ID determines open and recovery stop provider', async () => {
   const events: string[] = [];
@@ -21,6 +32,7 @@ test('immutable session profile ID determines open and recovery stop provider', 
   const router = new MarketplaceProfileBrowser({
     chromium: provider('chromium'),
     goLogin: provider('gologin'),
+    chromiumRegistry: registry,
   });
   const chromiumId = 'chromium_00000000-0000-4000-8000-000000000001';
   await router.stop('legacy-profile');
@@ -33,6 +45,7 @@ test('immutable session profile ID determines open and recovery stop provider', 
 
 test('missing legacy provider blocks cleanup and never falls back to Chromium', async () => {
   const router = new MarketplaceProfileBrowser({
+    chromiumRegistry: registry,
     chromium: {
       open: async () => {
         throw new Error('must not open');
@@ -43,4 +56,39 @@ test('missing legacy provider blocks cleanup and never falls back to Chromium', 
     },
   });
   await assert.rejects(router.stop('legacy-profile'), /GoLogin/);
+});
+
+test('recovery never releases an unknown or foreign-host Chromium profile', async () => {
+  let confirmed = 0;
+  let stops = 0;
+  const router = new MarketplaceProfileBrowser({
+    chromiumRegistry: {
+      resolve: async () => {
+        throw new Error('Manifest fehlt oder gehört anderem Host');
+      },
+    },
+    chromium: {
+      open: async () => {
+        throw new Error('unused');
+      },
+      stop: async () => {
+        stops++;
+      },
+    },
+  });
+  const recovery = new MarketplaceBrowserRecovery(
+    {
+      listUnresolved: async () => [
+        { id: 'session', profileId: 'chromium_00000000-0000-4000-8000-000000000001' },
+      ],
+      markStopping: async () => undefined,
+      markStopped: async () => {
+        confirmed++;
+      },
+    },
+    router,
+  );
+  await assert.rejects(recovery.recover(), /Bereinigung/);
+  assert.equal(stops, 0);
+  assert.equal(confirmed, 0);
 });

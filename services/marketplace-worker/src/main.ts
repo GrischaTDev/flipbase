@@ -92,7 +92,7 @@ async function main(): Promise<void> {
       launch: (directory, settings) => launcher.launch(directory, settings ?? {}),
       recoverRuntime: (profileId) => launcher.recover(profileId),
     });
-    browser = new MarketplaceProfileBrowser({ chromium, goLogin });
+    browser = new MarketplaceProfileBrowser({ chromium, goLogin, chromiumRegistry });
     profiles = new ChromiumProfileProvisioner({
       supabaseUrl: config.supabaseUrl,
       publishableKey: config.publishableKey,

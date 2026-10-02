@@ -113,6 +113,7 @@ test('chromium pilot rejects missing approval, mutable images and unsafe profile
     { MARKETPLACE_BROWSER_PROFILE_ROOT: '/safe/../unsafe' },
     { MARKETPLACE_CHROMIUM_HOST_PROFILE_ROOT: '' },
     { MARKETPLACE_CHROMIUM_HOST_ID: '' },
+    { MARKETPLACE_CHROMIUM_HOST_ID: '1-pilot' },
     { MARKETPLACE_CHROMIUM_NETWORK: '' },
     { MARKETPLACE_CHROMIUM_NETWORK: 'untrusted-network' },
     { MARKETPLACE_CHROMIUM_NETWORK_FILE: 'relative.json' },
