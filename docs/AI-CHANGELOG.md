@@ -1,5 +1,30 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-02 – Juna – Verwaltung der Beta-Registrierung und Laufzeiten entworfen
+
+**Auftrag:** Registrierungslinks sieben Tage gültig halten, Fristablauf anzeigen,
+offene Freigaben zurückziehen und löschen, E-Mail für neue Bewerbungen freigeben
+sowie laufende Betas verlängern oder beenden. Nach Beta-Ende Anmeldung erhalten
+und eine Dankesseite anzeigen; Paketbuchung und Stripe bleiben spätere Arbeit.
+
+**Befund und Entwurf:** Aktuelles `origin/master` gelesen und einen getrennten
+Worktree mit `juna/beta-access-lifecycle` begonnen. Auth-Konto und Arbeitsbereich
+entstehen schon beim Einladen; nur die Bewerbung zu löschen genügt nicht. Die
+vorhandenen allgemeinen Zugangsprüfungen erzwingen die Lizenzlaufzeit bisher
+nicht. Schriftlicher Entwurf in
+`docs/superpowers/specs/2026-10-02-beta-access-lifecycle-design.md`: widerrufbare
+Beta-Links mit eigener Frist, bestätigtes wiederholbares Bereinigen ausschließlich
+unbenutzter vorbereiteter Konten, Verlängerung/Beendigung und serverseitiger
+Zugangsschutz mit getrennt erreichbarer Dankesseite. Bestandseinladungen,
+gleichzeitige Aktionen, Teilfehler und weitere Arbeitsbereiche berücksichtigt.
+
+**Prüfung und Stand:** Quellcode, Projektregeln und offizielle Supabase-Referenzen
+für Auth-Verwaltung gelesen, Entwurf auf Umfang und Widersprüche geprüft. Noch
+keine Anwendungs-/Datenbankänderung, keine produktive Löschung oder E-Mail,
+keine Anwendungs- oder Datenbanktests. Schriftlicher Entwurf wartet auf die
+Nutzerprüfung gemäß Brainstorming-Skill; Umsetzungsplan folgt nach Freigabe.
+Vorhandene lokale Arbeit im ursprünglichen Checkout bleibt erhalten.
+
 ## 2026-10-02 - Juna - eigenen Chromium-Cloudpiloten umsetzen
 
 **Auftrag:** Nach Freigabe des recherchierten Plans eigenen Chromium-/Playwright-
