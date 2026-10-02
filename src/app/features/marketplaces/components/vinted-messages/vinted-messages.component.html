@@ -2,22 +2,23 @@
   <p role="status" class="mb-3 text-[13px] text-fb-text-secondary">{{ message }}</p>
 }
 @if (store.snapshot(); as snapshot) {
-  <app-card padding="none">
-    <div class="grid min-w-0 lg:grid-cols-[300px_minmax(0,1fr)]">
-      <section
-        aria-labelledby="vinted-conversations-title"
-        class="min-w-0 lg:block lg:border-r lg:border-fb-line"
-        [class.hidden]="store.selectedConversationId() !== null"
-      >
+  <div class="grid min-w-0 gap-4 lg:grid-cols-[minmax(360px,2fr)_minmax(0,3fr)]">
+    <section
+      aria-labelledby="vinted-conversations-title"
+      class="min-w-0 lg:block"
+      [class.hidden]="store.selectedConversationId() !== null"
+    >
+      <app-card padding="none" class="h-full min-w-0">
         <h2
+          card-header
           #listHeading
           id="vinted-conversations-title"
           tabindex="-1"
-          class="border-b border-fb-line px-3 py-3 text-[13px] font-semibold text-fb-text-primary"
+          class="text-[13px] font-semibold text-fb-text-primary"
         >
           Gespräche ({{ snapshot.conversations.total }})
         </h2>
-        <div class="max-h-[36rem] overflow-y-auto px-1 py-1">
+        <div class="max-h-[36rem] overflow-y-auto p-2">
           @for (entry of snapshot.conversations.items; track entry.id) {
             <app-button
               variant="list-row"
@@ -28,7 +29,7 @@
               [ariaPressed]="store.selectedConversationId() === entry.id"
               (clicked)="openConversation(entry)"
             >
-              <span class="flex min-w-0 items-center gap-2">
+              <span class="flex min-w-0 items-center gap-3">
                 <app-product-thumbnail [src]="entry.imageUrl" [alt]="''" size="sm" />
                 <span class="min-w-0 flex-1">
                   <span class="flex items-center justify-between gap-2">
@@ -70,26 +71,32 @@
             >
           }
         </div>
-      </section>
-      <section
-        class="min-w-0 lg:block"
-        [class.hidden]="store.selectedConversationId() === null"
-        aria-label="Gespräch"
-      >
+      </app-card>
+    </section>
+    <section
+      class="min-w-0 lg:block"
+      [class.hidden]="store.selectedConversationId() === null"
+      aria-label="Gespräch"
+    >
+      <app-card padding="none" class="h-full min-w-0">
+        <ng-container card-header>
+          @if (conversation(); as conversation) {
+            <div class="flex min-w-0 items-center gap-2">
+              <app-button class="lg:hidden" [icon]="backIcon" (clicked)="backToList()"
+                >Zur Gesprächsliste</app-button
+              >
+              <h2
+                #conversationHeading
+                data-conversation-heading
+                tabindex="-1"
+                class="min-w-0 truncate text-[13px] font-semibold text-fb-text-primary"
+              >
+                {{ conversation.title }}
+              </h2>
+            </div>
+          }
+        </ng-container>
         @if (conversation(); as conversation) {
-          <div class="flex min-w-0 items-center gap-2 border-b border-fb-line px-3 py-2">
-            <app-button class="lg:hidden" [icon]="backIcon" (clicked)="backToList()"
-              >Zur Gesprächsliste</app-button
-            >
-            <h2
-              #conversationHeading
-              data-conversation-heading
-              tabindex="-1"
-              class="min-w-0 truncate text-[13px] font-semibold text-fb-text-primary"
-            >
-              {{ conversation.title }}
-            </h2>
-          </div>
           @if (store.messages()?.nextCursor) {
             <app-button
               class="mx-3 mt-3"
@@ -193,7 +200,7 @@
         } @else {
           <p class="p-4 text-[13px] text-fb-text-secondary">Wähle ein Gespräch aus.</p>
         }
-      </section>
-    </div>
-  </app-card>
+      </app-card>
+    </section>
+  </div>
 }

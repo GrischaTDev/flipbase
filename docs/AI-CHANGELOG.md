@@ -1,5 +1,31 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-02 – Juna – Vinted-Nachrichten auf zwei Karten verteilt
+
+**Auftrag und Umsetzung:** Die Gesprächsliste war auf großen Bildschirmen auf
+300 Pixel begrenzt und wirkte zu eng. Liste und Verlauf stehen jetzt in zwei
+gemeinsamen Karten mit 16 Pixel Abstand. Die Liste erhält mindestens 360 Pixel
+und bei ausreichend Platz 40 Prozent der verfügbaren Breite. Kartenüberschriften
+nutzen die gemeinsamen Abstände; Listeneinträge erhalten mehr Innenabstand.
+Auf kleinen Bildschirmen bleibt der Wechsel zwischen Liste und Gespräch erhalten.
+Eigener Zweig `juna/vinted-message-cards` vom aktuellen `origin/master`;
+bestehende Diagnoseänderungen in der ursprünglichen Arbeitskopie bleiben erhalten.
+
+**Prüfung:** Alle 15 bestehenden Angular-Nachrichtenfälle bestehen, einschließlich
+Fokus und Scrollposition. Format, gezieltes Template-Lint, gemeinsame UI-Prüfung
+und Produktionsbau sind erfolgreich. Vier lokale Playwright-Browserfälle mit
+künstlichen Kontodaten bei 1440, 1024, 768 und 390 Pixeln bestehen: Gespräch öffnen,
+mobil zurückkehren, Tastaturfokus, AXE/WCAG-AA und keine horizontalen Überläufe
+oder Laufzeitfehler. Die Desktop-Karten messen 464/696 beziehungsweise 360/384
+Pixel. Der erste Prüflauf scheiterte bei mittleren Breiten an einer unvollständigen
+Testantwort für den Kontoplan; nach Ergänzung der lokalen Testdaten bestehen alle
+vier Fälle ohne weitere Anwendungsänderung. Der spezielle Browser-Plugin-Pfad
+dieser Prüfanleitung ist nicht verfügbar; die vorhandene Playwright-Prüfung wurde
+verwendet. Prüfskripte und Bilder liegen außerhalb des Repositorys.
+
+**Stand:** Lokal geprüft, noch nicht veröffentlicht. Keine Datenbank- oder
+Anmeldeänderung. Die vorhandene Bauwarnung zu `pako` bleibt unverändert.
+
 ## 2026-10-02 – Juna – fehlende eBay-Dateien im Produktionsbau ergänzt
 
 **Anlass:** PR #279 ist nach vollständig grünen Pflichtprüfungen gemerged.
