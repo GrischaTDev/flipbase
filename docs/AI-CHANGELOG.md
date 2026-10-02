@@ -1,5 +1,59 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-02 – Juna – Beta-Registrierung und Laufzeiten vollständig verwalten
+
+**Auftrag und Freigabe:** Den freigegebenen Entwurf nach „dann los“ und der
+Bestätigung der Ausführung in der Hauptsitzung umsetzen. Eigener Zweig
+`juna/beta-access-lifecycle`; unabhängige Schlussprüfung ausschließlich lesend.
+
+**Änderung:** Eigene Registrierungslinks gelten sieben Tage und können erneut
+versendet oder zurückgezogen werden. Die Übersichten zeigen abgelaufene
+Registrierungsfristen. Frühe und abgelaufene offene Freigaben lassen sich nach
+Bestätigung samt ausschließlich unbenutztem vorbereitetem Konto löschen; danach
+ist dieselbe E-Mail für eine neue Bewerbung frei. Widerruf und Bereinigung sind
+auch nach verlorenen Antworten wiederholbar. Bereits verwendete Konten,
+Betreiberrollen, zusätzliche Mitgliedschaften und Geschäftsdaten sind geschützt.
+
+Das gemeinsame Laufzeitmodal zeigt das neue Enddatum, verlängert um ganze Tage
+oder beendet die Beta sofort. Konto, Anmeldung und Daten bleiben erhalten.
+Anwendung und Geschäftsgrenzen prüfen Lizenzende unabhängig vom Anmeldetoken;
+Betroffene erhalten eine deutsche/englische Dankesseite. Weitere unabhängig
+nutzbare Workspaces bleiben erreichbar, auch während der Einrichtung.
+Bestandseinladungen behalten ihre ursprüngliche Frist; Wiederversand stellt
+einen Wochenlink aus. Stripe und Paketbuchung sind nicht Bestandteil.
+
+**Prüfung und Korrekturen:** Nach frisch angewandter erzeugter Migration alle
+78 Datenbank-Testdateien / 2.687 Prüfungen erfolgreich. Vier Browserfälle prüfen
+Registrierung und 60-Tage-Start, Ablauf/Beenden/Verlängern mit offener Sitzung,
+weiterhin mögliche Anmeldung, DE/EN und AXE sowie Rücknahme vor/nach Frist,
+Wiederversand mit exakter Wochenfrist und neue Bewerbung derselben E-Mail.
+Zusätzliche Tests decken Wiederholungen, echte Dienstrechte, konkurrierende
+Vorgänge und die Auswahl weiterer gültiger Arbeitsbereiche ab.
+
+Die unabhängige Schlussprüfung fand ältere direkte Geschäfts-RPCs, fehlende
+Migrationsteile für Rechte/Storage/Realtime, Umgehung über neue Workspaces,
+Auth-Löschrisiken und UI-/Einrichtungsrandfälle; sämtliche Funde behoben und
+nachgeprüft. Browserprüfungen deckten zusätzlich den parallelen Guardstart ohne
+wiederhergestellte Sitzung auf. Finale Migration: 83 geänderte Funktionskörper,
+24 Rechteanweisungen, 18 Storage-Regeln, Realtime-Regel und Auth-Trigger stimmen
+mit Schema und frisch aufgebauter Datenbank überein. Details im
+[Zugangsaudit](audit/2026-10-02-beta-access-boundaries.md).
+
+Aktuellen `origin/master` (`87381f38`) integriert und beide Protokollseiten beim
+Konflikt erhalten. Danach `npm run verify` mit echtem Exitcode 0: Format, Lint,
+Typen, 87 Workflowtests, 163 Edgetests, Suite-Audit ohne Befund, 295 DOM-, 1.670
+Node- und 1.603 Angular-Tests, 41 Landingpage-Tests sowie Produktionsbau bestanden.
+Vorhandener CommonJS-Bauhinweis zu `pako`; keine neue Produktabhängigkeit.
+Abschließend die Aktionen durch Wiederholen-, Papierkorb- und Uhr-Symbole
+unterscheidbar gemacht; danach gezieltes Lint, 14 Betreiber-Komponententests
+und Angular-Bau erneut erfolgreich.
+Lokale SMTP-/Supabase-Testumgebung getrennt betrieben, temporäre Entwicklungs-URL
+zurückgesetzt. Keine produktive E-Mail, Kontolöschung oder Migration ausgeführt.
+
+**Stand:** Umsetzung lokal geprüft und unabhängig freigegeben. Veröffentlichung,
+PR, erfolgreiche Pflichtprüfungen, Merge und Bereinigung benötigen noch die
+vorgeschriebene Nutzerfreigabe; kein Branch-Push und kein direkter Master-Push.
+
 ## 2026-10-02 – Juna – Umsetzungsplan für Beta-Zugänge vorbereitet
 
 **Freigabe und Auftrag:** Der Nutzer hat den schriftlichen Beta-Entwurf mit
