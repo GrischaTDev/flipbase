@@ -23,6 +23,13 @@ Linux-Container, Sandbox und Firewall benötigen die vorbereitete PR-Prüfung;
 Vinted-Zugang auf Hetzner, mobile Anmeldung und Kapazität bleiben Pilotabnahmen.
 Keine lokalen Docker-Bauten, produktiven Profilwechsel oder Veröffentlichungen.
 
+**PR-Freigabe:** Der Nutzer autorisiert anschließend Push, PR, erfolgreiche
+Pflichtprüfungen, Merge-Commit und Bereinigung des eigenen Zweigs samt Worktree.
+Der Zweig wurde auf den aktuellen `origin/master` gestellt; die parallelen
+Vinted-UI-Änderungen und beide Changelog-Beiträge bleiben vollständig erhalten.
+Der neue Linux-Imagesmoke läuft erstmals im PR. Der produktive Browserwechsel
+und die echten Vinted-/Mobilprüfungen bleiben ein eigener Pilot-Schritt.
+
 ## 2026-10-02 - Juna - Vinted-Cloudplan mit drei Agents im Web gegengeprüft
 
 **Auftrag:** Auf ausdrücklichen Wunsch mit Agents Anbieter, GitHub-Projekte
