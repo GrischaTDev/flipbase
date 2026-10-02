@@ -50,6 +50,18 @@ function array(input: unknown): unknown[] {
   return input;
 }
 
+function isCleanStartupFailure(state: Record<string, unknown>): boolean {
+  return (
+    state.ExitCode === 78 &&
+    state.Status === 'exited' &&
+    state.Running === false &&
+    state.Dead === false &&
+    state.Restarting === false &&
+    state.Pid === 0 &&
+    state.OOMKilled === false
+  );
+}
+
 export class ChromiumContainerLauncher {
   private readonly options: ChromiumContainerLauncherOptions;
   private readonly execute: DockerExecute;
@@ -235,7 +247,8 @@ export class ChromiumContainerLauncher {
       container = await this.inspect(containerId, profileId);
     }
     const state = record(container.State);
-    if (state.Running !== false || state.ExitCode !== 0) throw new CloudBrowserStopUncertainError();
+    if (state.Running !== false || (state.ExitCode !== 0 && !isCleanStartupFailure(state)))
+      throw new CloudBrowserStopUncertainError();
     await this.execute(['rm', containerId]);
     if ((await this.containers(profileId)).includes(containerId))
       throw new CloudBrowserStopUncertainError();
@@ -319,6 +332,8 @@ export class ChromiumContainerLauncher {
         try {
           browser = await connect(`http://${address}:9222`);
         } catch {
+          const state = record((await this.inspect(containerId, profileId)).State);
+          if (isCleanStartupFailure(state)) throw new Error('Chromium-Start wurde beendet');
           await new Promise((resolve) => setTimeout(resolve, 250));
         }
       }

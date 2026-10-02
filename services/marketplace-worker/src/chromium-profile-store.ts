@@ -172,6 +172,27 @@ export class ChromiumProfileStore {
     }
   }
 
+  private async removeStoppedSingletonLinks(directory: string): Promise<void> {
+    try {
+      await this.assertPrivateDirectory(directory);
+      const linkedMarkers: string[] = [];
+      for (const marker of ['SingletonLock', 'SingletonSocket', 'SingletonCookie']) {
+        const markerPath = join(directory, marker);
+        try {
+          const status = await lstat(markerPath);
+          if (!status.isSymbolicLink()) throw new CloudBrowserStopUncertainError();
+          linkedMarkers.push(markerPath);
+        } catch (error) {
+          if (!hasErrorCode(error, 'ENOENT')) throw error;
+        }
+      }
+      // Erst alle Marker prüfen; unlink entfernt nur den Link, niemals sein Ziel.
+      for (const markerPath of linkedMarkers) await unlink(markerPath);
+    } catch {
+      throw new CloudBrowserStopUncertainError();
+    }
+  }
+
   private async readOwner(lockDirectory: string): Promise<ProfileOwner> {
     await this.assertPrivateDirectory(lockDirectory);
     const ownerPath = join(lockDirectory, 'owner.json');
@@ -247,6 +268,7 @@ export class ChromiumProfileStore {
     );
     // Auch ohne Marker können nach einem unvollständigen früheren Start Prozesse übrig sein.
     await this.assertStopped(directory);
+    await this.removeStoppedSingletonLinks(directory);
     let released = false;
     return {
       directory,

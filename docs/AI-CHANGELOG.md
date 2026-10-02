@@ -134,6 +134,43 @@ Nutzerprüfung gemäß Brainstorming-Skill; Umsetzungsplan folgt nach Freigabe.
 Vorhandene lokale Arbeit im ursprünglichen Checkout bleibt erhalten.
 
 ## 2026-10-02 – Juna – Hochformatkarten und Kompakt-Modus für den Vinted-Feed umgesetzt
+## 2026-10-02 - Juna - Wiederöffnung des Chromium-Profils korrigieren
+
+**Auftrag:** Nach Veröffentlichung von PR #285 meldet der Nutzer erneut einen
+409 bei der Anmeldung von Maike Vintage. Den aktuellen Fehler direkt prüfen
+und gezielt beheben; drei Agents bearbeiten Analyse, Profilmarker und Runtime.
+
+**Befund:** Controller und öffentliche API bleiben gesund. Der Browser von
+Sitzung 207 endet vor CDP-Bereitschaft mit Exitcode 1, ohne OOM. Im Profil stehen
+Chromiums Singleton-Symlinks eines früheren Containers. Das laufende Image
+reproduziert den Startabbruch in einer isolierten Fixture mit sichtbarem Chromium;
+derselbe Sandboxstart gelingt nach Entfernung ausschließlich der synthetischen
+Marker. Der Headless-Shell reproduziert diesen Fehler nicht. Die bisherige
+Recovery behandelt auch den bereits beendeten Startfehler als ungeklärten Stopp.
+
+**Korrektur:** Unter exklusivem Profilbesitz und nach bestätigtem Prozessstillstand
+werden nur die drei vorher vollständig geprüften Singleton-Symlinks entfernt.
+Cookies, Profildaten und Linkziele bleiben erhalten. Ein vor Browserbereitschaft
+fehlgeschlagener, erfolgreich bereinigter Start erhält Exitcode 78. Nur mit
+vollständig bestätigtem Docker-Endzustand und nachgeprüfter Entfernung kann die
+Recovery diesen Zustand freigeben. OOM, Exitcode 1/137 und unklare Befunde bleiben
+gesperrt. Die Linux-Imageprüfung enthält den konkreten Fremdhost-Lock und die
+Wiederöffnung mit erhaltenem Cookie.
+
+**Prüfung:** 251 Worker-Tests unter Windows bestanden, fünf Linuxfälle ausgelassen;
+alle 256 Worker-Tests im isolierten Linux-Container ohne Auslassung bestanden,
+einschließlich der 23 gezielten Profil- und Containerfälle. Worker typgeprüft
+und gebaut; Änderungen formatiert und gezielt gelintet, Actionlint und Diff geprüft.
+Ein unabhängiger Agent prüft den fertigen Unterschied ohne weitere Befunde.
+Auf dem Pilothost bestätigt eine eigene Fixture mit der geänderten Runtime:
+Cookie speichern, Fremdhost-Sperre mit Exitcode 78, bestätigte Containerentfernung,
+Profilbereinigung und erfolgreiche Wiederöffnung mit demselben Cookie. Diese
+Fixture enthält keine Vinted-Anmeldung und berührt das echte Konto nicht.
+Die neue Korrektur ist noch nicht veröffentlicht. Die alte fehlgeschlagene
+Sitzung benötigt vor der Veröffentlichung einen gesonderten, belegten
+Wiederherstellungsschritt; keine Datenbanksperre wird blind entfernt.
+
+## 2026-10-02 - Juna - Hochformatkarten und Kompakt-Modus für den Vinted-Feed umgesetzt
 
 **Auftrag:** Den abgestimmten Entwurf umsetzen. Bestehenden Seitentitel und die
 Such-/Filterleiste unverändert lassen; keine zusätzliche Sortierung oder
