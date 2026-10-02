@@ -34,6 +34,7 @@ Workspacewechsel auf Erfassungsseiten an den aktuellen Vertrag angepasst.
 `origin/master` (`60676337`) in eigenem Worktree. Vorhandene lokale Änderungen
 im Hauptcheckout erhalten. Veröffentlichung erfolgt erst nach der
 vorgeschriebenen PR-Freigabe.
+
 ## 2026-10-02 - Juna - Chromium-Pilot auf dem Server vorbereiten
 
 **Auftrag:** Nach erfolgreichem PR #283 direkt mit dem Serverpiloten weiterarbeiten.
@@ -89,6 +90,13 @@ einen zweiten Start und prüft den weiteren Zugriff auf die ursprüngliche Sitzu
 Worker und Anwendung typgeprüft und gebaut, geänderte Dateien formatiert und
 gezielt gelintet. Der Angular-Bau meldet die bestehende CommonJS-Warnung für
 `pako`. Eine erfolgreiche echte Vinted-Anmeldung steht weiterhin aus.
+
+**Freigabe der Korrekturen:** Der Nutzer autorisiert PR, erfolgreiche
+Pflichtprüfungen, Merge und Bereinigung. Der eigene Korrekturzweig übernimmt
+den aktuellen `origin/master` einschließlich der parallel veröffentlichten
+Feed-Änderungen; beide Protokolleinträge bleiben erhalten. Nach erfolgreichem
+Merge werden die geprüften Images veröffentlicht und der bestehende Pilot
+aktualisiert. Die erneute echte Anmeldung erfolgt anschließend durch den Nutzer.
 
 ## 2026-10-02 - Juna - eigenen Chromium-Cloudpiloten umsetzen
 
