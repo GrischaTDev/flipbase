@@ -1,5 +1,18 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-02 – Juna – eBay-Übernahme für PR und Merge freigegeben
+
+**Auftrag:** Nach ausdrücklichem „ja“ den geprüften Zweig pushen, einen PR
+erstellen, alle erfolgreichen Pflichtprüfungen abwarten und mit Merge-Commit
+integrieren. Anschließend Veröffentlichung prüfen und den eigenen Zweig samt
+Worktree aufräumen. Die eBay-Funktionen werden nach der Migration aus genau dem
+geprüften Merge aktualisiert; vorhandene Zugangswerte und Schlüssel bleiben erhalten.
+
+**Vorbereitung:** Arbeitsstand `9d3c2395` sauber und mit aktuellem `origin/master`
+(`86d65adf`) abgeglichen. Vollständige lokale Prüfung, 2.619 Datenbankprüfungen,
+vier Parallelfälle, beide erweiterten Browserfälle und 47 eBay-Tests mit der
+CI-Laufzeit erfolgreich. Keine produktive Bestellung als Test buchen.
+
 ## 2026-10-02 – Juna – eBay-Übernahme vollständig lokal geprüft
 
 **Umsetzung:** Echte parallele Datenbankaufrufe mit zwei gewöhnlichen Mitgliedern
