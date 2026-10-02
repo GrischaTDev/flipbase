@@ -1,5 +1,40 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-02 – Juna – Hochformatkarten und Kompakt-Modus für den Vinted-Feed umgesetzt
+
+**Auftrag:** Den abgestimmten Entwurf umsetzen. Bestehenden Seitentitel und die
+Such-/Filterleiste unverändert lassen; keine zusätzliche Sortierung oder
+Listenansicht einführen.
+
+**Änderung:** Standardkarten zeigen ein Hauptbild im Hochformat 3:4, das
+Favoritenherz unten rechts, Titel und Preis nebeneinander sowie kompakte
+Marken-, Größen- und Zustandsbadges. Weitere Fotos bleiben in der Großansicht.
+Defekte Hauptbilder weichen auf das nächste sichere Artikelbild aus.
+Der „Kompakt“-Button bei „Gespeicherte Funde“ blendet die Angaben unter dem
+Bild aus. Das größere 3:5-Bild trägt den Preis unten links und rechts nur
+Vinted-Icon und Herz. Beide Bildaktionen verwenden eine gemeinsame
+Shared-Button-Variante mit 44 × 44 px Mindestfläche, kontrastreicher Fläche,
+zugänglichen Namen und gelbem gefülltem Herz für gemerkte Artikel.
+Der Hinweis „Noch nicht kaufbar“ bleibt in beiden Ansichten erhalten.
+
+**Prüfung:** 33 betroffene Angular-Komponententests erfolgreich, einschließlich
+Favoritenseite; alle sechs Browserprüfungen der Feed-/Suchfilter-Datei erfolgreich,
+darunter vier Prüfungen des Kompakt-Modus bei 1440/390 px in beiden Themes.
+AXE, Moduswechsel, unveränderter Seitenkopf und
+Filterbereich, Bildformate, Favoriten, echte Linköffnung gegen ein lokales
+Testziel, Tastatur-/Fokusrückgabe und fehlende Bilder geprüft. Produktionsbau,
+Typprüfung, Lint und Shared-UI-Prüfung erfolgreich. Bestehender Bauhinweis
+zu `pako`; keine neue Abhängigkeit oder Datenbankänderung. Browserprüfung über
+Playwright mit vollständig simulierten API-/Bildantworten, da die Browser-
+Skill nicht verfügbar ist; keine produktiven Daten geändert. Veraltete
+Testannahmen zu Feed-API, Fotocollage und dem bereits gesperrten
+Workspacewechsel auf Erfassungsseiten an den aktuellen Vertrag angepasst.
+
+**Arbeitsstand:** Eigener Zweig `juna/vinted-feed-compact` von aktuellem
+`origin/master` (`60676337`) in eigenem Worktree. Vorhandene lokale Änderungen
+im Hauptcheckout erhalten. Veröffentlichung erfolgt erst nach der
+vorgeschriebenen PR-Freigabe.
+
 ## 2026-10-02 - Juna - eigenen Chromium-Cloudpiloten umsetzen
 
 **Auftrag:** Nach Freigabe des recherchierten Plans eigenen Chromium-/Playwright-

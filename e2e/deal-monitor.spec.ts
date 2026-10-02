@@ -125,16 +125,12 @@ async function fixture(page: Page) {
       }
       json = firstWorkspace && Number(url.searchParams.get('offset') ?? 0) === 0 ? watchlists : [];
     }
-    if (name === 'sniper_feed') {
+    if (name === 'sniper_supported_brands') json = [{ brand: 'Nike' }];
+    if (name === 'sniper_feed_filtered') {
       const body = route.request().postDataJSON() as Record<string, unknown>;
       calls.push({ name, body });
       json = {
-        items:
-          body['p_workspace_id'] === secondWorkspace
-            ? [makeItem(700)]
-            : body['p_deals_only']
-              ? items.filter((item) => item.reference_price)
-              : items,
+        items: body['p_workspace_id'] === secondWorkspace ? [makeItem(700)] : items,
         covered,
         reported_at: new Date().toISOString(),
       };
@@ -222,7 +218,7 @@ for (const theme of ['light', 'dark'] as const) {
     await expect(page).toHaveURL(/\/vinted-bot$/);
     await expect(page.getByRole('heading', { name: 'Vinted Bot', exact: true })).toBeVisible();
     await expect(page.getByRole('article')).toHaveCount(8);
-    const finds = page.getByRole('region', { name: 'Neue Funde', exact: true });
+    const finds = page.getByRole('region', { name: 'Gespeicherte Funde', exact: true });
     await expect(finds.getByRole('article')).toHaveCount(8);
     await expect(page.getByText('Weitere Funde', { exact: true })).toHaveCount(0);
     await expect(
@@ -236,13 +232,13 @@ for (const theme of ['light', 'dark'] as const) {
       0,
     );
     const firstCard = page.getByRole('article', { name: 'Nike Sneaker 1', exact: true });
-    await expect(firstCard.getByRole('img')).toHaveCount(3);
+    await expect(firstCard.getByRole('img')).toHaveCount(1);
     await expect(
       page.getByRole('article', { name: 'Nike Sneaker 2', exact: true }).getByRole('img'),
     ).toHaveCount(1);
     await expect(
       page.getByRole('article', { name: 'Nike Sneaker 3', exact: true }).getByRole('img'),
-    ).toHaveCount(2);
+    ).toHaveCount(1);
     for (const id of [4, 5, 6]) {
       const card = page.getByRole('article', { name: `Nike Sneaker ${id}`, exact: true });
       await card.scrollIntoViewIfNeeded();
@@ -264,10 +260,7 @@ for (const theme of ['light', 'dark'] as const) {
         return { x, y, width, height };
       }),
     );
-    expect(boxes[0].x + boxes[0].width).toBeLessThan(boxes[1].x);
-    expect(boxes[1].x).toBeCloseTo(boxes[2].x, 0);
-    expect(boxes[1].y + boxes[1].height).toBeLessThan(boxes[2].y);
-    expect(boxes[0].height).toBeCloseTo(boxes[1].height + boxes[2].height + 4, 0);
+    expect(boxes[0].height / boxes[0].width).toBeCloseTo(4 / 3, 2);
     if (theme === 'light') {
       const allCards = await finds.getByRole('article').evaluateAll((articles) =>
         articles.map((article) => {
@@ -279,7 +272,7 @@ for (const theme of ['light', 'dark'] as const) {
       expect(allCards[1].x).toBeLessThan(allCards[2].x);
       expect(allCards[0].y).toBeCloseTo(allCards[1].y, 0);
       expect(allCards[1].y).toBeCloseTo(allCards[2].y, 0);
-      expect(allCards[0].width).toBeGreaterThan(allCards[3].width);
+      expect(allCards[0].width).toBeCloseTo(allCards[3].width, 0);
     }
     const viewItem = firstCard.getByRole('link', {
       name: 'Nike Sneaker 1 – auf Vinted ansehen (neuer Tab)',
@@ -288,7 +281,7 @@ for (const theme of ['light', 'dark'] as const) {
     await expect(viewItem).toHaveAttribute('href', 'https://www.vinted.de/items/1');
     await expect(viewItem).toHaveAttribute('target', '_blank');
     await expect(viewItem).toHaveAttribute('rel', 'noopener noreferrer');
-    await expect(firstCard.getByText('Marke', { exact: true })).toHaveCount(1);
+    await expect(firstCard.locator('dt').filter({ hasText: 'Marke:' })).toHaveCount(1);
     await page.context().route('https://www.vinted.de/items/1', (route) =>
       route.fulfill({
         contentType: 'text/html',
@@ -351,41 +344,193 @@ for (const theme of ['light', 'dark'] as const) {
     ).toBe(true);
     mock.uncovered();
     await page.goto('/vinted-bot');
-    await page.getByRole('button', { name: 'Deals', exact: true }).click();
-    await expect(page.getByRole('article')).toHaveCount(1);
-    await page.getByRole('button', { name: 'Artikel', exact: true }).click();
     await expect(
       page.getByText('Für diesen Bereich sammelt der Monitor noch nicht.', { exact: false }),
     ).toBeVisible();
-    // Der Speichervorgang darf nach einem Arbeitsbereichswechsel keinen alten
-    // Feed wiederherstellen, auch wenn erst sein nachgeladener Suchfilter kommt.
+    // Der bestehende Workspace-Schutz sperrt den Wechsel auf der
+    // Erfassungsseite; nach dem Speichern geht es zurück zum Feed.
     await page.goto('/vinted-bot/filters');
     await page.getByRole('button', { name: 'Neuer Suchfilter', exact: true }).click();
     await page.getByLabel('Name des Suchfilters').fill('Verzögert gespeichert');
     mock.holdWatchlists();
     await page.getByRole('button', { name: 'Suchfilter speichern', exact: true }).click();
     await expect.poll(mock.waitingForWatchlists).toBe(true);
-    await page.locator('[aria-controls="header-workspace-menu"]').click();
+    const workspaceSwitch = page.locator('[aria-controls="header-workspace-menu"]');
+    await expect(workspaceSwitch).toBeDisabled();
+    mock.releaseWatchlists();
+    await expect(
+      page.getByRole('form', { name: 'Suchfilter bearbeiten', exact: true }),
+    ).toHaveCount(0);
+    await page.goto('/vinted-bot');
+    await expect(page.getByRole('heading', { name: 'Vinted Bot', exact: true })).toBeVisible();
+    await expect(workspaceSwitch).toBeEnabled();
+    await workspaceSwitch.click();
     await page.getByRole('button', { name: 'Zweitbereich', exact: true }).click();
     await page.goto('/vinted-bot');
     await expect(
       page.getByRole('article', { name: 'Nike Sneaker 700', exact: true }),
     ).toBeVisible();
-    const feedsBeforeRelease = mock.calls.filter((call) => call.name === 'sniper_feed').length;
-    mock.releaseWatchlists();
     await expect(page.getByRole('heading', { name: 'Vinted Bot', exact: true })).toBeVisible();
     await expect(
       page.getByRole('article', { name: 'Nike Sneaker 700', exact: true }),
     ).toBeVisible();
     expect(
-      mock.calls
-        .filter((call) => call.name === 'sniper_feed')
-        .slice(feedsBeforeRelease)
-        .every((call) => call.body['p_workspace_id'] === secondWorkspace),
-    ).toBe(true);
+      mock.calls.filter((call) => call.name === 'sniper_feed_filtered').at(-1)?.body[
+        'p_workspace_id'
+      ],
+    ).toBe(secondWorkspace);
     expect(runtimeErrors).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
   });
+}
+
+for (const theme of ['light', 'dark'] as const) {
+  for (const viewport of [
+    { width: 1440, height: 1000 },
+    { width: 390, height: 844 },
+  ]) {
+    test.describe(`Kartenansicht ${theme} ${viewport.width}px`, () => {
+      test.use({ hasTouch: viewport.width === 390, isMobile: viewport.width === 390 });
+      test(`Feed-Kompaktmodus ${theme} ${viewport.width}px @pr-smoke`, async ({
+        page,
+      }, testInfo) => {
+        await page.setViewportSize(viewport);
+        await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
+        await page.addInitScript((theme) => localStorage.setItem('flipbase_theme', theme), theme);
+        const runtimeErrors: string[] = [];
+        const consoleIssues: string[] = [];
+        page.on('pageerror', (error) => runtimeErrors.push(error.message));
+        page.on('console', (message) => {
+          if (message.type() === 'error' || message.type() === 'warning')
+            consoleIssues.push(message.text());
+        });
+        const mock = await fixture(page);
+        await page.goto('/vinted-bot');
+        await expect(page).toHaveURL(/\/vinted-bot$/);
+        await expect(page).toHaveTitle(/Flipbase/);
+        await expect(page.getByRole('heading', { name: 'Vinted Bot', exact: true })).toBeVisible();
+        await expect(page.getByRole('article')).toHaveCount(8);
+        const pageHeader = page.locator('app-page-header');
+        const filters = page.locator('[data-feed-filters]');
+        const headerBefore = await pageHeader.innerHTML();
+        // Das Zahlenfeld hinterlässt beim Blur ein leeres style-Attribut.
+        // Dieser harmlose Browserzustand ist keine Änderung der Filterleiste.
+        const filterMarkup = async () => (await filters.innerHTML()).replaceAll(' style=""', '');
+        const filtersBefore = await filterMarkup();
+        const firstCard = page.getByRole('article', { name: 'Nike Sneaker 1', exact: true });
+        const preview = firstCard.getByRole('button', {
+          name: 'Nike Sneaker 1 in Großansicht öffnen',
+          exact: true,
+        });
+        const toggle = page.getByRole('button', { name: 'Kompakt', exact: true });
+        const viewItem = firstCard.getByRole('link', {
+          name: 'Nike Sneaker 1 – auf Vinted ansehen (neuer Tab)',
+          exact: true,
+        });
+        await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+        await expect(firstCard.getByRole('heading', { name: 'Nike Sneaker 1' })).toBeVisible();
+        await expect(firstCard.locator('dl app-badge')).toHaveCount(4);
+        await expect(firstCard.getByRole('img')).toHaveCount(1);
+        await expect
+          .poll(() =>
+            firstCard.getByRole('img').evaluate((img) => (img as HTMLImageElement).naturalWidth),
+          )
+          .toBeGreaterThan(0);
+        const normalPhoto = await preview.boundingBox();
+        expect(normalPhoto!.height / normalPhoto!.width).toBeCloseTo(4 / 3, 2);
+        await checkAxe(page);
+        await page
+          .getByRole('region', { name: 'Gespeicherte Funde' })
+          .screenshot({ path: testInfo.outputPath('feed-standard.png') });
+
+        await toggle.focus();
+        await page.keyboard.press('Enter');
+        await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+        await expect(toggle).toBeFocused();
+        await expect(firstCard.locator('h3, dl, time')).toHaveCount(0);
+        await expect(firstCard.getByRole('button', { name: 'Artikel teilen' })).toHaveCount(0);
+        await expect(firstCard.locator('app-button')).toHaveCount(2);
+        await expect(viewItem).toHaveText('');
+        await expect(viewItem).toHaveAttribute('href', 'https://www.vinted.de/items/1');
+        await expect(viewItem).toHaveAttribute('target', '_blank');
+        await expect(viewItem).toHaveAttribute('rel', 'noopener noreferrer');
+        await expect(firstCard.getByText('19,00', { exact: false })).toBeVisible();
+        const compactPhoto = await preview.boundingBox();
+        expect(compactPhoto!.height).toBeGreaterThan(normalPhoto!.height);
+        expect(compactPhoto!.height / compactPhoto!.width).toBeCloseTo(5 / 3, 2);
+        const favorite = firstCard.getByRole('button', { name: 'Zu Favoriten hinzufügen' });
+        await favorite.click();
+        const savedFavorite = firstCard.getByRole('button', { name: 'Aus Favoriten entfernen' });
+        await expect(savedFavorite).toHaveAttribute('aria-pressed', 'true');
+        await expect(page.getByRole('dialog')).toHaveCount(0);
+        const favoriteBox = await savedFavorite.boundingBox();
+        const linkBox = await viewItem.boundingBox();
+        const currentPhoto = await preview.boundingBox();
+        expect(linkBox!.width).toBeCloseTo(favoriteBox!.width, 0);
+        expect(linkBox!.height).toBeCloseTo(favoriteBox!.height, 0);
+        expect(linkBox!.x + linkBox!.width).toBeLessThan(favoriteBox!.x);
+        expect(favoriteBox!.y + favoriteBox!.height).toBeGreaterThan(
+          currentPhoto!.y + currentPhoto!.height - 20,
+        );
+        expect(await pageHeader.innerHTML()).toBe(headerBefore);
+        expect(await filterMarkup()).toBe(filtersBefore);
+        await checkAxe(page);
+        await page
+          .getByRole('region', { name: 'Gespeicherte Funde' })
+          .screenshot({ path: testInfo.outputPath('feed-compact.png') });
+        if (viewport.width === 390) {
+          const touchState = await savedFavorite.evaluate((button) => ({
+            coarse: matchMedia('(pointer: coarse)').matches,
+            minWidth: getComputedStyle(button).minWidth,
+            spacing: getComputedStyle(button).getPropertyValue('--spacing'),
+            classes: button.className,
+          }));
+          expect(favoriteBox!.width, JSON.stringify(touchState)).toBeGreaterThanOrEqual(44);
+          expect(linkBox!.width).toBeGreaterThanOrEqual(44);
+        }
+        await page.context().route('https://www.vinted.de/items/1', (route) =>
+          route.fulfill({
+            contentType: 'text/html',
+            body: '<title>Vinted Testziel</title><p>Artikel 1</p>',
+          }),
+        );
+        const opened = page.waitForEvent('popup');
+        await viewItem.click();
+        const itemTab = await opened;
+        await expect(itemTab).toHaveURL('https://www.vinted.de/items/1');
+        await itemTab.close();
+        await preview.focus();
+        await page.keyboard.press('Enter');
+        await expect(page.getByRole('dialog')).toBeVisible();
+        await expect(
+          page.getByRole('dialog').getByRole('img', { name: 'Großansicht: Nike Sneaker 1' }),
+        ).toBeVisible();
+        await page.keyboard.press('Escape');
+        await expect(page.getByRole('dialog')).toHaveCount(0);
+        await expect(preview).toBeFocused();
+        await savedFavorite.click();
+        await expect(favorite).toHaveAttribute('aria-pressed', 'false');
+        await toggle.click();
+        await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+        await expect(firstCard.getByRole('heading', { name: 'Nike Sneaker 1' })).toBeVisible();
+        expect(await pageHeader.innerHTML()).toBe(headerBefore);
+        expect(await filterMarkup()).toBe(filtersBefore);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+          true,
+        );
+        expect(runtimeErrors).toEqual([]);
+        await testInfo.attach('console-issues', {
+          body: consoleIssues.join('\n') || 'Keine Warnungen oder Fehler.',
+          contentType: 'text/plain',
+        });
+        expect(
+          mock.calls
+            .filter((call) => call.name === 'sniper_feed_filtered')
+            .every((call) => call.body['p_workspace_id'] === workspace),
+        ).toBe(true);
+      });
+    });
+  }
 }

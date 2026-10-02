@@ -17,6 +17,39 @@ Rangfolge bei Gestaltungsentscheidungen:
 
 Barrierefreiheit und korrekte Fachabläufe bleiben verbindlich. Ein Konflikt wird dokumentiert und gelöst, nicht durch unbemerkte Designänderung übergangen. Ohne gemessene Referenz darf niemand behaupten, eine Oberfläche sei pixelgenau abgeglichen.
 
+## Vinted-Feed: Karten und Kompakt-Modus
+
+Nutzerentscheidung vom 02.10.2026: Seitentitel und die bestehende Such-/
+Filterleiste bleiben unverändert. Neue Funde stehen weiterhin oben; zusätzliche
+Sortierung und ein Wechsel zwischen Raster und Liste sind nicht vorgesehen.
+Der „Kompakt“-Button steht bei „Gespeicherte Funde“ und ändert ausschließlich
+die Darstellung. Sein Zustand gilt für die geöffnete Feed-Seite und wird nicht
+dauerhaft gespeichert.
+
+Die Standardkarte zeigt ein Hauptbild im Hochformat 3:4, das Favoritenherz unten
+rechts auf dem Bild, Titel und Preis nebeneinander sowie kompakte Badges für
+Marke, Größe und Zustand. Die Marke behält den Brand-Badge. Lange Angaben dürfen
+umbruchfähig sein; Merkmalbezeichnungen bleiben für Screenreader vorhanden.
+Datum, Teilen und der Vinted-Link bilden die kurze Abschlusszeile. Weitere
+Artikelbilder bleiben in der Großansicht verfügbar.
+
+Im Kompakt-Modus entfällt der Informationsbereich unter dem Bild. Das größere
+Hochformatbild 3:5 trägt den Preis unten links; rechts stehen gleich große
+Icon-Buttons für den Vinted-Link und das Favoritenherz. Der Vinted-Link hat
+keine sichtbare Beschriftung, aber einen eindeutigen zugänglichen Namen und
+einen Tooltip. Der Hinweis „Noch nicht kaufbar“ bleibt bei betroffenen Artikeln
+auch hier sichtbar. Beide Bildformate sind die vereinbarte Flipbase-Gestaltung,
+keine nachgemessenen Vinted-Originalwerte.
+
+Bildaktionen verwenden die gemeinsame `image-overlay`-Variante des
+`ButtonComponent`: dunkle Fläche und helle Symbole in beiden Themes,
+Logo-Gelb und gefülltes Herz bei gemerkten Artikeln, sichtbarer Tastaturfokus
+und in beiden Zeigerarten eine Fläche von mindestens 44 × 44 px. Die native Bildvorschau ist eine
+eigene Aktion mit Bildinhalt, keine zweite Variante der Shared-Aktionsbuttons.
+Vorschau und Bildaktionen sind benachbarte Bedienelemente, nicht ineinander
+verschachtelt. Fehlende oder defekte Bilder zeigen einen Ersatz beziehungsweise
+einen klaren Leerzustand; Preis und Aktionen bleiben zugänglich.
+
 ## Aktionen, Artikeldaten und Bilder in Erfassungsmasken
 
 Nutzerentscheidung vom 25.09.2026: Wiederkehrende Aktionen werden auf allen

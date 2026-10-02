@@ -9,6 +9,7 @@ export type ButtonVariant =
   | 'secondary'
   | 'brand-hover'
   | 'favorite'
+  | 'image-overlay'
   | 'destructive'
   | 'ghost'
   | 'list-row'
@@ -90,6 +91,9 @@ export class ButtonComponent {
       favorite: this.ariaPressed()
         ? 'bg-fb-critical-surface text-fb-critical border border-fb-critical-border shadow-sm hover:bg-fb-critical-border'
         : 'bg-fb-surface text-fb-critical border border-fb-border shadow-sm hover:bg-fb-critical-surface hover:border-fb-critical-border',
+      'image-overlay':
+        'min-h-11 min-w-11 border border-white/25 bg-zinc-900/85 shadow-sm hover:bg-zinc-900 focus-visible:outline-fb-brand-strong ' +
+        (this.ariaPressed() ? 'text-fb-brand-strong' : 'text-white'),
       destructive:
         'bg-fb-critical-surface hover:bg-fb-critical-border text-fb-critical border border-fb-critical-border shadow-sm font-semibold focus-visible:outline-fb-critical',
       ghost:
@@ -156,7 +160,10 @@ export class ButtonComponent {
   });
 
   protected readonly iconClasses = computed(() => {
-    const filled = this.variant() === 'favorite' && this.ariaPressed() ? ' fill-current' : '';
+    const filled =
+      (this.variant() === 'favorite' || this.variant() === 'image-overlay') && this.ariaPressed()
+        ? ' fill-current'
+        : '';
     switch (this.size()) {
       case 'slim':
         return (
