@@ -22,6 +22,7 @@ function createStockSubject() {
     selectionError: signal<string | null>(null),
     isSubmitting: signal(false),
     isPersisted: signal(false),
+    externalDraft: signal(null),
     lines: { controls: [{ id: 'line-1' }] },
     updateQuantityValidator,
   });

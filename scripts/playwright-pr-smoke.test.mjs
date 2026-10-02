@@ -9,6 +9,11 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 
 // Nur die tatsächliche Testauswahl prüfen, nicht Playwrights Parser nachtesten.
 const coreTests = [
+  ['ebay-order-import.spec.ts', 'imports an eBay order exactly once @core-smoke'],
+  [
+    'ebay-order-import.spec.ts',
+    'marks a manually recorded eBay order without changing stock @core-smoke',
+  ],
   [
     'sales-variant-picker.spec.ts',
     'wählt verkaufbare Varianten im gemeinsamen Modal und zeigt Nummer vor Datum @core-smoke',
@@ -173,7 +178,7 @@ async function listTests(config) {
 
 const keys = (entries) => entries.map((entry) => JSON.stringify(entry)).sort();
 
-test('PR-Auswahl: dreißig Kernfälle, keine Wiederholungen, kein test.only', async () => {
+test('PR-Auswahl: alle Kernfälle, keine Wiederholungen, kein test.only', async () => {
   const { report, selected } = await listTests('playwright.pr.config.ts');
   assert.deepEqual(keys(selected), keys(coreTests));
   assert.equal(report.config.forbidOnly, true);

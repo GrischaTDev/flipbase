@@ -41,6 +41,7 @@ describe('Persönlicher eBay-Zustand', () => {
     disconnect: ReturnType<typeof vi.fn>;
     loadListings: ReturnType<typeof vi.fn>;
     loadOrders: ReturnType<typeof vi.fn>;
+    loadOrderStatus: ReturnType<typeof vi.fn>;
   };
   beforeEach(() => {
     api = {
@@ -54,6 +55,7 @@ describe('Persönlicher eBay-Zustand', () => {
         nextPage: null,
       })),
       loadOrders: vi.fn(async () => ({ ...connection, items: [], total: 0, nextPage: null })),
+      loadOrderStatus: vi.fn(async () => ({ status: 'unrecorded', saleId: null })),
     };
     TestBed.configureTestingModule({
       providers: [EbayAccountStore, { provide: EbayAccountApiService, useValue: api }],
@@ -61,6 +63,48 @@ describe('Persönlicher eBay-Zustand', () => {
     store = TestBed.inject(EbayAccountStore);
   });
   afterEach(() => TestBed.resetTestingModule());
+  it('liest Buchungsbelege und verwirft verspätete Antworten nach Workspacewechsel', async () => {
+    api.loadStatus.mockResolvedValueOnce({ configured: true, importAvailable: true, connection });
+    await store.initialize('workspace-a', false);
+    const pending = deferred<{ status: string; saleId: string }>();
+    api.loadOrders.mockResolvedValue({
+      ...connection,
+      items: [{ id: 'order-1' }],
+      total: 1,
+      nextPage: null,
+    });
+    api.loadOrderStatus.mockReturnValueOnce(pending.promise);
+    await store.selectSection('orders');
+    expect(api.loadOrderStatus).toHaveBeenCalledWith(connection, 'order-1');
+    store.reset('workspace-b');
+    pending.resolve({ status: 'imported', saleId: 'sale-a' });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(store.orderBookings()).toEqual({});
+    expect(store.bookingStatusesLoading()).toBe(false);
+  });
+  it('zeigt einen bestätigten Importbeleg und lässt bei Statusfehlern die Bestellungen lesbar', async () => {
+    api.loadStatus.mockResolvedValueOnce({ configured: true, importAvailable: true, connection });
+    await store.initialize('workspace-a', false);
+    api.loadOrders.mockResolvedValue({
+      ...connection,
+      items: [{ id: 'order-1' }, { id: 'order-2' }],
+      total: 2,
+      nextPage: null,
+    });
+    api.loadOrderStatus
+      .mockResolvedValueOnce({ status: 'imported', saleId: 'sale-a', alreadyRecorded: true })
+      .mockRejectedValueOnce(new Error('offline'));
+    await store.selectSection('orders');
+    await vi.waitFor(() => expect(store.bookingStatusesLoading()).toBe(false));
+    expect(store.orderBookings()['order-1']).toMatchObject({
+      status: 'imported',
+      saleId: 'sale-a',
+    });
+    expect(store.orderBookings()['order-2']).toBeUndefined();
+    expect(store.orders()).toHaveLength(2);
+    expect(store.bookingError()).not.toBeNull();
+  });
   it('verwirft einen verspäteten Status nach Workspacewechsel', async () => {
     const pending = deferred<EbayConnectionStatus>();
     api.loadStatus.mockImplementationOnce(() => pending.promise);

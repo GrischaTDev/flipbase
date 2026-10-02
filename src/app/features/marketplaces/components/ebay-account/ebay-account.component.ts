@@ -2,13 +2,25 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  ElementRef,
+  Injector,
+  afterNextRender,
   effect,
   inject,
   input,
+  signal,
+  untracked,
+  viewChild,
 } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
-import { LucideExternalLink, LucideLink2, LucideRefreshCw, LucideUnlink } from '@lucide/angular';
+import {
+  LucideExternalLink,
+  LucideLink2,
+  LucideRefreshCw,
+  LucideUnlink,
+  LucideClipboardCheck,
+} from '@lucide/angular';
 import { AuthService } from '../../../../core/services/auth.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
@@ -16,6 +28,8 @@ import { CardComponent } from '../../../../shared/components/card/card.component
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { DataTableComponent } from '../../../../shared/components/data-table/data-table.component';
 import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
+import type { EbayListing } from '../../../../../../supabase/functions/_shared/ebay-contracts';
+import { EbayArticleMappingComponent } from '../ebay-article-mapping/ebay-article-mapping.component';
 import { EbayAccountStore } from '../../services/ebay-account.store';
 
 @Component({
@@ -28,6 +42,7 @@ import { EbayAccountStore } from '../../services/ebay-account.store';
     BadgeComponent,
     DataTableComponent,
     PageHeaderComponent,
+    EbayArticleMappingComponent,
   ],
   providers: [EbayAccountStore],
   templateUrl: './ebay-account.component.html',
@@ -36,23 +51,35 @@ import { EbayAccountStore } from '../../services/ebay-account.store';
 })
 export class EbayAccountComponent {
   readonly showData = input(false);
+  readonly selectedListing = signal<EbayListing | null>(null);
   readonly store = inject(EbayAccountStore);
   readonly workspace = inject(WorkspaceService);
   private readonly auth = inject(AuthService);
   private readonly route = inject(ActivatedRoute);
+  private readonly injector = inject(Injector);
+  private readonly mappingPanel = viewChild<ElementRef<HTMLElement>>('mappingPanel');
+  private mappingTrigger: HTMLElement | null = null;
   readonly connectIcon = LucideLink2;
   readonly disconnectIcon = LucideUnlink;
   readonly refreshIcon = LucideRefreshCw;
   readonly externalLinkIcon = LucideExternalLink;
+  readonly reviewIcon = LucideClipboardCheck;
 
   constructor() {
     effect(() => {
       const user = this.auth.currentUser();
       const workspace = this.workspace.currentWorkspace();
-      void this.store.initialize(
-        user && workspace && !workspace.archived_at ? workspace.id : null,
-        this.showData(),
+      untracked(
+        () =>
+          void this.store.initialize(
+            user && workspace && !workspace.archived_at ? workspace.id : null,
+            this.showData(),
+          ),
       );
+    });
+    effect(() => {
+      this.store.connection();
+      this.selectedListing.set(null);
     });
     inject(DestroyRef).onDestroy(() => this.store.reset(null));
   }
@@ -81,6 +108,23 @@ export class EbayAccountComponent {
       return;
     void this.store.initialize(workspaceId, this.showData());
   }
+  openMapping(listing: EbayListing, event: MouseEvent): void {
+    this.mappingTrigger = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
+    this.selectedListing.set(listing);
+    afterNextRender(
+      () => {
+        const panel = this.mappingPanel()?.nativeElement;
+        panel?.focus();
+        panel?.scrollIntoView?.({ block: 'nearest' });
+      },
+      { injector: this.injector },
+    );
+  }
+  closeMapping(): void {
+    this.selectedListing.set(null);
+    if (this.mappingTrigger?.isConnected) this.mappingTrigger.focus();
+    this.mappingTrigger = null;
+  }
   paymentLabel(status: string): string {
     const labels: Record<string, string> = {
       PAID: 'Bezahlt',
@@ -90,6 +134,18 @@ export class EbayAccountComponent {
       PARTIALLY_REFUNDED: 'Teilweise erstattet',
     };
     return labels[status] ?? 'Zahlungsstatus unbekannt';
+  }
+  orderReviewLink(connectionId: string, orderId: string): string {
+    return `/sales/ebay/${encodeURIComponent(connectionId)}/${encodeURIComponent(orderId)}`;
+  }
+  bookingLabel(orderId: string): string {
+    const booking = this.store.orderBookings()[orderId];
+    if (booking?.status === 'imported') return 'Gebucht';
+    if (booking?.status === 'recorded_elsewhere') return 'Manuell gebucht';
+    if (booking?.status === 'unrecorded') return 'Noch nicht gebucht';
+    return this.store.bookingStatusesLoading()
+      ? 'Buchungsstatus wird geprüft'
+      : 'Buchungsstatus ungeprüft';
   }
   fulfillmentLabel(status: string): string {
     const labels: Record<string, string> = {

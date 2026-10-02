@@ -261,6 +261,14 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'sales/ebay/:connectionId/:orderId',
+        canDeactivate: [unsavedEntryGuard],
+        loadComponent: () =>
+          import('./features/sales/pages/ebay-sale-review/ebay-sale-review.component').then(
+            (m) => m.EbaySaleReviewComponent,
+          ),
+      },
+      {
         path: 'sales/new',
         canDeactivate: [unsavedEntryGuard],
         loadComponent: () =>

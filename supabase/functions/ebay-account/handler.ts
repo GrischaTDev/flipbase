@@ -2,16 +2,18 @@ import type { EbayConnection, EbayConnectionStatus } from '../_shared/ebay-contr
 import {
   authorizationUrl,
   exchangeCode,
-  refreshTokens,
   readIdentity,
   readListings,
   readOrders,
   readRecord,
-  readNonEmptyString,
   EbayError,
 } from '../_shared/ebay-api.ts';
 import type { EbayConfig } from '../_shared/ebay-api.ts';
-import { decryptTokens, encryptTokens, hashState } from '../_shared/ebay-token-encryption.ts';
+import { encryptTokens, hashState } from '../_shared/ebay-token-encryption.ts';
+
+import { withEbayConnection, EbayConnectionError } from './connection-read.ts';
+import { createEbayOrderImportHandler } from './order-import.ts';
+import type { EbayOrderImportStore } from './order-import.ts';
 
 export interface StoredEbayConnection {
   id: string;
@@ -20,10 +22,12 @@ export interface StoredEbayConnection {
   environment: 'production' | 'sandbox';
   status: 'connected' | 'needs_login' | 'disconnected';
   username: string | null;
+  external_account_id: string | null;
   last_read_at: string | null;
   authorization_version: number;
 }
 export interface EbayAccountStore {
+  importAvailable?(): Promise<boolean>;
   authenticate(bearer: string): Promise<string | null>;
   canConnect(bearer: string, workspaceId: string): Promise<boolean>;
   status(
@@ -142,12 +146,22 @@ export function createEbayAccountHandler(
       const userId = await store.authenticate(bearer);
       if (!userId) return respond({ error: 'unauthorized' }, 401);
       const raw = await request.text();
-      if (raw.length > 4096) return respond({ error: 'invalid_request' }, 400);
+      if (new TextEncoder().encode(raw).byteLength > 65536)
+        return respond({ error: 'invalid_request' }, 400);
       let body: Record<string, unknown>;
       try {
         body = readRecord(JSON.parse(raw));
       } catch {
         return respond({ error: 'invalid_request' }, 400);
+      }
+      if (typeof body.action === 'string' && body.action.startsWith('order_')) {
+        if (!config || !('storeSnapshot' in store))
+          return respond({ error: 'import_unavailable' }, 503);
+        return createEbayOrderImportHandler(
+          store as EbayOrderImportStore,
+          config,
+          fetcher,
+        )(new Request(request.url, { method: 'POST', headers: request.headers, body: raw }));
       }
       const workspaceId = body.workspaceId;
       if (!isUuid(workspaceId)) return respond({ error: 'invalid_request' }, 400);
@@ -161,6 +175,7 @@ export function createEbayAccountHandler(
         );
         const result: EbayConnectionStatus = {
           configured: config !== null,
+          importAvailable: config !== null && (await store.importAvailable?.()) === true,
           connection: connection ? mapPublicConnection(connection) : null,
         };
         return respond(result);
@@ -190,56 +205,26 @@ export function createEbayAccountHandler(
         page > maximum
       )
         return respond({ error: 'invalid_request' }, 400);
-      const operationId = crypto.randomUUID();
-      const claimed = await store.claim(userId, workspaceId, body.connectionId, operationId);
-      if (!claimed) return respond({ error: 'connection_busy_or_unavailable' }, 409);
-      const connection = claimed.connection;
-      let encrypted: string | null = null;
-      let needsLogin = false;
-      let observed = false;
-      let result: unknown;
-      let providerError: unknown;
-      try {
-        if (
-          connection.environment !== config.environment ||
-          !readNonEmptyString(claimed.encryptedTokens)
-        )
-          throw new EbayError('needs_login');
-        const previous = await decryptTokens(
-          claimed.encryptedTokens,
-          config.encryptionKey,
-          connection.id,
-        );
-        let tokens = await refreshTokens(config, previous, fetcher);
-        encrypted = await encryptTokens(tokens, config.encryptionKey, connection.id);
-        const read = () =>
+      const result = await withEbayConnection<unknown>(
+        { workspaceId, connectionId: body.connectionId },
+        bearer,
+        store,
+        config,
+        ({ accessToken }) =>
           body.action === 'listings'
-            ? readListings(config, tokens.accessToken, page, fetcher)
-            : readOrders(config, tokens.accessToken, page, fetcher);
-        try {
-          result = await read();
-        } catch (error) {
-          if (!(error instanceof EbayError) || error.code !== 'needs_login') throw error;
-          tokens = await refreshTokens(config, { ...tokens, expiresAt: 0 }, fetcher);
-          encrypted = await encryptTokens(tokens, config.encryptionKey, connection.id);
-          result = await read();
-        }
-        observed = true;
-      } catch (error) {
-        needsLogin = error instanceof EbayError && error.code === 'needs_login';
-        providerError = error;
-      }
-      const valid = await store.finish(connection, operationId, encrypted, needsLogin, observed);
-      if (!valid) return respond({ error: 'connection_changed' }, 409);
-      if (providerError)
+            ? readListings(config, accessToken, page, fetcher)
+            : readOrders(config, accessToken, page, fetcher),
+        fetcher,
+      );
+      return respond({ ...readRecord(result), workspaceId, connectionId: body.connectionId });
+    } catch (error) {
+      if (error instanceof EbayConnectionError)
         return respond(
-          {
-            error: providerError instanceof EbayError ? providerError.code : 'provider_unavailable',
-          },
-          needsLogin ? 409 : 502,
+          { error: error.code },
+          error.code === 'unauthorized' ? 401 : error.code === 'forbidden' ? 403 : 409,
         );
-      return respond({ ...readRecord(result), workspaceId, connectionId: connection.id });
-    } catch {
+      if (error instanceof EbayError)
+        return respond({ error: error.code }, error.code === 'needs_login' ? 409 : 502);
       return respond({ error: 'request_failed' }, 503);
     }
   };

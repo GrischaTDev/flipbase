@@ -1,5 +1,266 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-02 – Juna – eBay-Übernahme für PR und Merge freigegeben
+
+**Auftrag:** Nach ausdrücklichem „ja“ den geprüften Zweig pushen, einen PR
+erstellen, alle erfolgreichen Pflichtprüfungen abwarten und mit Merge-Commit
+integrieren. Anschließend Veröffentlichung prüfen und den eigenen Zweig samt
+Worktree aufräumen. Die eBay-Funktionen werden nach der Migration aus genau dem
+geprüften Merge aktualisiert; vorhandene Zugangswerte und Schlüssel bleiben erhalten.
+
+**Vorbereitung:** Arbeitsstand `9d3c2395` sauber und mit aktuellem `origin/master`
+(`86d65adf`) abgeglichen. Vollständige lokale Prüfung, 2.619 Datenbankprüfungen,
+vier Parallelfälle, beide erweiterten Browserfälle und 47 eBay-Tests mit der
+CI-Laufzeit erfolgreich. Keine produktive Bestellung als Test buchen.
+
+## 2026-10-02 – Juna – eBay-Übernahme vollständig lokal geprüft
+
+**Umsetzung:** Echte parallele Datenbankaufrufe mit zwei gewöhnlichen Mitgliedern
+prüfen Doppelbuchung, Konkurrenz um das letzte Stück und gleichzeitig entzogenen
+Zugriff. Browserprüfungen verwenden die wirkliche Anmeldung, Datenbank und
+eBay-Funktion; ausschließlich eBay-Antworten werden durch einen künstlichen
+Anbieter ersetzt. Beide Browserfälle und der Parallelrunner sind in der
+verbindlichen CI registriert. Die Artikelzuordnung führt den Tastaturfokus zum
+geöffneten Bereich und zurück. Eine nach der Buchung bereits entfernte
+Verkaufsform sendet keine verspäteten Ereignisse. Settings-Tests laden die
+Vorlagen der neuen Unterkomponenten ausdrücklich.
+
+**Prüfung:** Neue Runner-Sicherheitsprüfung und Fokus-/Formfälle zunächst rot,
+danach grün. Vier reale Parallelfälle bestanden; die zweite Sitzung wartet
+nachweislich auf die erste. Alle 2.530 Datenbankprüfungen in 73 Dateien bestanden.
+Beide Browserfälle bestanden einschließlich Neuladen, verlorener Buchungsantwort,
+einmaliger Bestandsänderung, Markierung/Rücknahme ohne Verkauf, Tastatur sowie
+AXE/WCAG-AA bei 1440/390 Pixeln. Die vollständige Prüfung `npm run verify` bestand:
+85 Workflowtests, 151 Edge-Tests, 1.641 Node-, 295 DOM-, 1.462 Angular- und
+41 Landingtests; Format, Lint, Typen, Suite-Audit, gemeinsame UI und Produktionsbau
+ebenfalls grün. Nach Einbindung des inzwischen veröffentlichten Hauptstands
+`86d65adf` bestehen erneut alle Prüfungen: 1.660 Node- und 1.557 Angularfälle,
+unverändert 295 DOM-, 151 Edge-, 85 Workflow- und 41 Landingfälle. Die eigene
+Testdatenbank wurde mit allen aktuellen Migrationen frisch aufgebaut;
+2.619 Datenbankprüfungen in 75 Dateien und alle vier Parallelfälle sind grün.
+Fünf Workflow- und drei native Node-Prüfungen wurden gemäß ihrem
+bestehenden Laufvertrag übersprungen; der Migrationstransaktionstest wurde zuvor
+separat auf einer eigenen Datenbank erfolgreich ausgeführt.
+
+**Unabhängige Gesamtprüfung:** Keine kritischen Befunde; drei wichtige Fehlerwege
+in einem gemeinsamen Korrekturlauf behoben. Ein frischer Seitenaufruf liest zuerst
+den dauerhaften Buchungsbeleg und zeigt auch ohne Anbieterabruf einen gespeicherten
+Verkauf oder eine manuelle Markierung. „Bestellung erneut prüfen“ erneuert einen
+abgelaufenen Prüfstand, erhält Kosten/Zuordnung und verlangt bei veränderter Quelle
+weiterhin Bestätigung. Bestätigte SQL-Ablehnungen für Altverkauf, Bestand oder
+archivierte Artikel liefern begrenzte Fehlercodes mit verständlichen Meldungen;
+Transportfehler bleiben unklar. Kein interner Datenbanktext wird weitergereicht.
+Alle drei Fehlerwege zuerst nachweislich rot, danach grün. 55 gezielte Angular-
+und zwölf Handlerfälle bestanden; beide erweiterten Browserfälle bestanden mit
+direktem Reload nach verlorener Buchungsantwort, abgelaufenem Prüfstand und echtem
+Altverkaufskonflikt. 47 eBay-Tests unter CI-Deno 2.9.7 bestanden. Abschließend
+`npm run verify` erneut grün: 85 Workflow-, 153 Edge-, 1.660 Node-, 295 DOM-,
+1.561 Angular- und 41 Landingfälle einschließlich Typen, Lint, Format und Bau.
+Der kleinere Hinweis-Befund bleibt dokumentiert: kostenlose oder nicht positiv
+aufteilbare Positionen sind korrekt gesperrt, haben jedoch bislang nur den
+allgemeinen Hinweis auf nicht prüfbare Positionen.
+
+**Grenzen:** Ausschließlich getrennte Testdienste und zufällige Testobjekte
+verwendet; keine produktive Bestellung gebucht. Der echte Kontotest mit zwei
+normalen Flipbase-Nutzern bleibt wie vereinbart offen. Dieser Feature-Zweig ist
+noch nicht gepusht oder veröffentlicht. Nach Freigabe müssen die Migration und
+anschließend die eBay-Funktionen aus dem geprüften Merge ausgerollt werden.
+
+## 2026-10-01 – Juna – eBay-Bestellprüfseite verbunden
+
+**Umsetzung:** Prüfseite mit voller Quelle aus der Adresse, geschützten Bestellwerten,
+bestätigten Kosten und erneuter Bestätigung nach Quellenänderung ergänzt. Unklarer
+Buchungsausgang verlangt zuerst Statusklärung; erfolgreiche Buchung bleibt bei
+einem Fehler beim Aktualisieren der Ansicht erfolgreich. Manuelle Markierung mit
+Grund, Bestätigung und optionalem Verkauf sowie bestätigte Rücknahme ergänzen den
+Ablauf. Die Bestellliste liest Buchungsbelege mit höchstens drei gleichzeitigen
+Anfragen und verwirft Antworten aus einem verlassenen Konto oder Workspace.
+
+**Prüfung:** Neue Store-, Seiten- und Statusfälle zuerst rot, anschließend grün.
+74 betroffene Angular-Tests und 14 Verkaufsservice-Tests bestanden. Anwendung und
+Tests typgeprüft, Produktionsbau erfolgreich; gemeinsame UI-Prüfung ohne Befund.
+Kostenformular bleibt bei eindeutig abgewiesener Anfrage bearbeitbar; dafür wurde
+der allgemeine Ergebnisvertrag um einen ausdrücklich abgewiesenen Zustand ergänzt.
+Parallel- und Browsernachweise sowie unabhängige Gesamtprüfung stehen noch aus.
+Keine produktive Bestellung gebucht und nichts veröffentlicht.
+
+## 2026-10-01 – Juna – freigegebenen eBay-Übernahmeplan begonnen
+
+**Auftrag:** Nach „weiter“ den geprüften Plan direkt in dieser Sitzung umsetzen,
+anschließend unabhängig als Gesamtstand prüfen lassen. Veröffentlichung und
+produktive Buchungen sind dadurch noch nicht freigegeben.
+
+**Umsetzung:** Erste Quellen-/Betragseinheit mit genauen Centwerten, Rabattaufteilung,
+eindeutigen Bestellpositionen, Buchbarkeit, Berliner Verkaufsdatum und getrennten
+serverseitigen Quellenfingerabdrücken umgesetzt. Einzelbestellabruf ergänzt;
+bisherige Listenanzeige bleibt erhalten. Unbekannte oder widersprüchliche Werte
+werden gesperrt. Kein Käuferprofil oder roher Anbieterinhalt wird weitergereicht.
+
+**Entscheidungen:** Die Windows-Umgebung und deutschen Aufgabenüberschriften sind
+mit den POSIX-Fortschrittsskripten nicht kompatibel; Aufgabenbrief und Protokoll
+werden nach demselben Prüf-/Commitvertrag nativ geführt. Die offizielle Trading-
+API liefert keine `VariationID`. Nur die numerische Variante aus einem bestätigten
+Inseratlink wird gelesen; bei fehlender Kennung bleibt die Zuordnung in der
+Bestellmaske über die Fulfillment-Kennung manuell. Keine erfundene ID aus SKU/Titel.
+
+**Prüfung:** Vorhandene sieben Quellen-/OAuth-Tests als Ausgangsstand bestanden.
+Neue Funktionen zunächst nachweislich fehlend; weitere Prüfungen für Rabatt,
+Mengen, Status, Datum, Privatsphäre und Schlüsseltrennung zunächst rot und danach
+grün. Eine ausdrücklich ungültige Rabattangabe wird mit eigenem Fehlerfall geprüft.
+32 gezielte Deno-Tests inklusive bestehender Konto-/Löschfunktionen, Anwendungstypen,
+Deno-Lint der geänderten Quellen und Formatierung bestanden. ESLint schließt
+Edge-Dateien im bestehenden Projekt aus; hierfür ist der ausgeführte Deno-Lint
+maßgeblich.
+
+**Datenbank:** Persönliche Zuordnungen, private Anzeige-/Buchungsprüfstände und
+dauerhafte Quellenbelege ergänzt. Nutzer-JWT, Mitgliedschaft, Workspace, eigene
+Verbindung und Autorisierungsfassung werden gesperrt und erneut geprüft. Anzeige
+gibt keine Buchung frei; eine bestätigte Freigabe gilt höchstens 30 Sekunden.
+Verkauf, Centgruppen, Bestand und Quellenbeleg werden gemeinsam gespeichert.
+`record_sale` liefert zusätzlich die Positions-IDs in Eingabereihenfolge, damit
+auch identische Artikel eindeutige Quellenverweise behalten. Manuelle Markierung
+und Rücknahme erzeugen keinen Verkauf; Importbelege bleiben erhalten.
+
+**Migration und Nachweis:** Ausschließlich leere, getrennte Testdatenbanken mit
+kopierter Struktur und ohne produktive Tabelleninhalte verwendet. Der CLI-
+Schattenlauf scheitert an einer historischen `lock table`-Migration; die alten
+Projektdateien bleiben unverändert. Eine getrennte Struktur-Baseline ermöglicht
+den CLI-Abgleich. Der erzeugte Rohstand scheitert nachweislich an vier Rechte-
+Prüfungen. Explizite Rechte und Tabellenkommentare werden deshalb mechanisch aus
+dem deklarativen Schema in die erzeugte Migration übernommen. Anschließend
+Migration vollständig transaktional auf einer frischen leeren Datenbank angewandt:
+263 Prüfungen aus sechs betroffenen Dateien bestanden. Funktionen, Tabellen- und
+Spaltenrechte, RLS, Kommentare, Constraints, Indexes und Policies stimmen mit dem
+deklarativen Ziel überein. Typen aus diesem migrierten Stand mit dem vorhandenen
+CLI-/Generatorvertrag neu erzeugt; Typprüfung bestanden. Der neuere Generator
+würde bestehende JSON-Verträge verändern und wird dafür nicht übernommen.
+Schema-/Migrations-Skripttests bestanden; der nur für seine eigene Testdatenbank
+aktivierte Release-Transaktionstest anschließend in einer weiteren leeren
+Testdatenbank mit dem CI-Containervertrag ohne Überspringen bestanden. Die zusätzliche
+Datenbankprüfung meldet nur zwei bestehende Sniper-Policy-Warnungen, keine neue
+eBay-Warnung. Keine produktive Buchung oder Änderung produktiver Daten.
+
+**Serveraktionen:** Gemeinsamen geprüften Kontozugriff für Listen und Übernahme
+extrahiert. Anzeige erzeugt nur einen Anzeige-Prüfstand; Buchung liest die
+Bestellung erneut, vergleicht den Fingerabdruck und gibt erst nach erfolgreichem
+Abschluss des Kontozugriffs einen kurzen Buchungsstand an den Nutzer-Aufruf.
+Veränderte Quellen liefern eine erneute Prüfung. Bereits gebuchte Quellen lösen
+verlorene Antworten ohne weiteren Anbieterabruf auf. Status und manuelle
+Markierung/Rücknahme verwenden keine eBay-Schreibaktionen. Bestellkennung im
+Buchungsauftrag ergänzt, damit der private Schlüssel vor einem abgelaufenen
+Prüfstand bestimmt werden kann. Eingaben auf 64 KiB UTF-8 begrenzt.
+**Serverprüfung:** 45 gezielte Deno-Tests inklusive Konto, OAuth und Löschung
+bestanden; fremde/abgelaufene Quellen und eine gleichzeitige manuelle Markierung
+zunächst rot, anschließend grün. Deno-Typprüfung der drei Einstiegspunkte,
+Quellen-Lint und Anwendungstypen bestanden. Getrennter Testcontainer mit der
+produktiven Edge-Runtime 1.74.0/Deno 2.1.4 bestätigt Modulstart, Quellenhash,
+Schlüsselableitung und Tokenverschlüsselung; kein Produktivcontainer verändert.
+Zusätzlich 39 Konto-/Quellentests unter der CI-Version Deno 2.9.7 im getrennten
+Container bestanden. Neue Testdateien stehen ausdrücklich im verpflichtenden
+CI-Aufruf.
+
+**Artikelzuordnung:** Anbieterantworten streng geprüft und auf bestätigten
+Workspace, Verbindung und Bestellung begrenzt. Alte Antworten bleiben lesbar,
+fehlende Importfähigkeit bleibt false. Zuordnungen verwenden Nutzer-RPCs und
+den bestehenden Artikel-Picker. Varianten ohne stabile Kennung sind von der
+allgemeinen Zuordnung ausgeschlossen. Nullbestand bleibt beim gespeicherten
+Artikel sichtbar; aktuelle Bestände und Auswahlkontext werden vor dem Speichern
+erneut geprüft. Verspätete Lade-/Speicherantworten werden verworfen. Die manuelle
+Markierung erhält den vollständigen Prüfstand, weil der Server Bestellkennung und
+Hash benötigt. Das nullable Variantenargument wird nur an der dokumentierten
+Grenze zu den generierten RPC-Typen angepasst, ohne Schema oder Typdatei von Hand
+zu ändern.
+**Oberflächenprüfung:** 12 Parser- und 25 Angular-Tests bestanden. Abweichendes
+bestätigtes Ziel, Inseratwechsel während der Auswahl, verlorene Transportantwort
+und fehlende Zuordnungsaktion zunächst rot, anschließend grün. Geänderte Dateien
+formatiert und gelintet; Shared-UI-Prüfung ohne Befund, Typprüfung und Angular-
+Produktionsbau bestanden. Der Bau meldet nur die bestehende pako/CommonJS-Warnung.
+
+**Verkaufserfassung:** Allgemeine externe Übergabe ergänzt. Bestellmenge, Preis,
+Plattform, Datum, Referenz und Käufer-Versanderlös sind geschützt und werden
+vollständig als geprüfte Rohwerte übernommen. Centgruppen derselben Quellposition
+teilen ein Ziel; die Auswahl berücksichtigt ihre gemeinsame benötigte Menge.
+Gebühr und tatsächliche Versandkosten beginnen leer und benötigen ausdrücklich
+bestätigte Werte einschließlich 0. Der Versandmodus bestätigt keine Kosten
+nebenbei. Kosten und kompatible Artikelentscheidungen bleiben bei neuer Prüfung
+erhalten. Ein unklarer Ausgang sperrt weitere Buchungen bis zu einem neuen
+bestätigten Prüfstand. Nur saved löst Erfolg/Schließen aus; manuelle Erfassung und
+Bearbeitung bleiben im bisherigen Ablauf.
+**Verkaufsprüfung:** Neue externe Eingangsverträge zunächst nachweislich fehlend;
+unerwartete Speicher-Ausnahme zunächst ungesperrt, anschließend gesperrt.
+52 betroffene Verkaufserfassungs-/Picker-/Seitenprüfungen bestanden. Bestehende
+manuelle Fehlertexte und ihre ARIA-Bezüge bleiben erhalten. Geänderte Dateien
+formatiert und gelintet; Shared-UI-Prüfung, Anwendungstypen und frischer Angular-
+Produktionsbau bestanden, nur bestehende pako/CommonJS-Warnung.
+
+## 2026-10-01 – Juna – eBay-Umsetzungsplan nach Spezifikationsfreigabe erstellt
+
+**Auftrag:** Nach ausdrücklichem „los“ zur geschriebenen Spezifikation den
+Umsetzungsplan für Artikelzuordnung und bewusste Bestellübernahme erstellen.
+
+**Plan:** Sieben aufeinander aufbauende Aufgaben unter
+`docs/superpowers/plans/2026-10-01-ebay-order-import.md`: eindeutige Quelldaten und
+Centbeträge, begrenzte Datenbankrechte und atomare Buchung, erneute Quellenprüfung,
+Artikelzuordnung, allgemeiner Übergabevertrag für die bestehende Verkaufsform,
+Bestellprüfmaske sowie Parallel-/Browser-/Veröffentlichungsnachweise. Anzeige allein
+gibt keine Buchung frei; ein nur serverseitig erzeugbarer kurzer Buchungsprüfstand
+schützt den direkten RPC-Aufruf. Kostenbestätigung und unbekannte Ergebnisse
+haben ausdrücklich eigene Prüfungen.
+
+**Abgleich:** Bestehende Funktionen, Routen, Artikelpicker, Formularverträge,
+Testprojekte und CI gelesen. Offizielle eBay-Spezifikation bestätigt
+`NONE_REQUESTED` als stornofreien Zustand und immer vorhandene Refund-Arrays.
+Der bestehende Verkauf verlangt positive Stückpreise; kostenlose Positionen
+werden in der ersten Übernahmestufe ausdrücklich gesperrt. Die Spezifikation
+ist freigegeben; Planprüfung und Ausführungsmethode stehen noch aus.
+
+**Prüfung:** Plan selbst auf Spezifikationsabdeckung, konkrete Schnittstellen,
+Fehlerzustände und fünf zusätzliche Eingabefälle geprüft. Nur Dokumentation
+geändert; keine Produktimplementierung, Migration, Buchung, Serveränderung oder
+Branch-Veröffentlichung. Dokumentformatierung und Dateiprüfung werden vor dem
+lokalen Dokumentationscommit ausgeführt.
+
+## 2026-10-01 – Juna – eBay-Artikelzuordnung und Bestellübernahme vorbereitet
+
+**Auftrag:** Nach erfolgreicher Kontoeinrichtung mit dem nächsten eBay-Paket
+weitermachen. Der Nutzer wählt ausdrücklich eine Prüfmaske pro Bestellung mit
+bewusster Bestätigung über „Verkauf buchen“.
+
+**Abgleich:** Persönliche Kontorechte und vorhandene Datenbanktests lesend geprüft;
+der echte zusätzliche Test mit zwei normalen Flipbase-Konten bleibt offen und
+wird auf Nutzerwunsch zurückgestellt. Verkaufsbuchung, Varianten-/Einzelstückauswahl,
+Bestandsführung und die aktuelle eBay-Schnittstelle gegen `origin/master` gelesen.
+Die offizielle Fulfillment-Spezifikation liefert eindeutige Bestellpositions-,
+Inserat- und Variantenkennungen sowie getrennte Waren- und Versandbeträge; die
+bisherige Flipbase-Antwort enthält davon noch nicht alle benötigten Angaben.
+
+**Entwurf:** Vorhandene Verkaufserfassung erweitern, konten- und workspacebezogene
+Artikelzuordnungen speichern und bestätigte Bestellungen gemeinsam mit ihren
+Bestandsabgängen gegen doppelte Übernahme schützen. Fehlende Gebühren und
+tatsächliche Versandkosten müssen ergänzt oder ausdrücklich bestätigt werden.
+Vorerst vollständig bezahlte EUR-Bestellungen ohne Storno oder Erstattung;
+bereits manuell gebuchte Bestellungen sollen ohne erneuten Bestandsabgang als
+erledigt markierbar sein. Der Nutzer bestätigt diesen Entwurf zum schriftlichen
+Festhalten. Spezifikation im eigenen Worktree auf `juna/ebay-order-import` unter
+`docs/superpowers/specs/2026-10-01-ebay-order-import-design.md` geschrieben und auf
+Quellbeträge, Kontorechte, Lebenszyklus und Doppelbuchungsschutz abgeglichen.
+Die Freigabe der schriftlichen Spezifikation und des anschließenden Umsetzungsplans
+steht noch aus.
+
+**Prüfung:** Ausschließlich Quellstand und offizielle Dokumentation gelesen;
+keine Produktimplementierung, Migration, produktive Buchung oder Serveränderung.
+Fremde Vinted-Arbeitsstände unverändert erhalten.
+
+## 2026-10-01 – Juna – eBay-Production-Konfiguration aktiviert
+
+**Auftrag:** Nach bestätigter Anschrift die bereits freigegebene eBay-Einrichtung abschließen und den echten Kontotest beginnen.
+
+**Veröffentlichung:** PR #273 nach erfolgreichen Pflichtprüfungen mit Merge-Commit `ce391ce9` integriert. Release `v0.276.2`, Produktionsbau, Deployment und öffentliche Prüfung erfolgreich; eigener Branch und Worktree aufgeräumt. Die eBay-Funktionen stammen genau aus diesem Merge. Vorherige Funktionsquellen, Compose-Dateien und Umgebung auf dem Server geschützt gesichert; vorhandene gemeinsame Quellen vor Übertragung auf Gleichheit geprüft.
+
+**Einrichtung:** Löschendpoint bei eBay bestätigt, Ausfalladresse `kontakt@flipbase.de` nach Nutzerangabe gespeichert. Nutzer bestätigt seine Anschrift selbst im Portal. OAuth-RuName mit beiden Flipbase-Rückwegen, veröffentlichtem Datenschutzlink und den drei benötigten Rechten eingerichtet. Vorhandenes Client-Secret verschlüsselt zum Server übertragen; sämtliche eBay-Werte ausschließlich serverseitig hinterlegt. Verschlüsselungsschlüssel erhalten, vollständige Umgebung mit Modus 0600 gesichert und temporären privaten Transportschlüssel entfernt.
+
+**Prüfung:** Production-Anwendungsauthentifizierung von eBay angenommen. Offizielle eBay-Testbenachrichtigung laut Portal erfolgreich. Öffentliche Challenge samt erwartetem Hash, anonymer Kontozugriff (401), unsignierte Löschmeldung (412), abgeschaltete Marktsuche (410), bestehende Barcode-/Beta-Zugriffe und gesunder Funktionsdienst bestätigt. Ungültiger OAuth-Rückweg führt mit 303 zur vorgesehenen Fehleransicht. Vor und nach der Testbenachrichtigung keine verbundenen eBay-Konten oder Zugangstokens vorhanden. Nutzer erteilt die persönliche Freigabe selbst bei eBay. Konto erfolgreich verbunden; 15 echte Inserate und 11 Bestellungen geladen. Workspacewechsel verbirgt die Daten und stellt sie bei Rückkehr wieder her. Trennen entfernt die gespeicherten Tokens; erneutes Verbinden lädt die Inserate wieder. Abschließend genau eine verbundene Verbindung mit verschlüsselten Tokens, verbrauchtem OAuth-Zustand und freigegebener Abrufsperre bestätigt. Der Nutzer bleibt verbunden. Die Prüfung mit zwei normalen Flipbase-Konten ohne Adminrechte benötigt noch die entsprechenden Nutzeranmeldungen; der echte Nachweis ist bisher mit dem vorhandenen Admin-Konto geführt.
+
 ## 2026-10-01 – Juna – Bot-Verwaltung für PR und Merge freigegeben
 
 **Auftrag:** Nach ausdrücklichem „ja“ den geprüften Bot-Verwaltungszweig pushen,

@@ -9363,6 +9363,8 @@ begin
   return jsonb_build_object(
     'sale', to_jsonb(v_sale),
     'business_event_id', v_business_event_id,
+    -- Eingabereihenfolge für unveränderliche externe Positionsnachweise.
+    'sale_line_ids', to_jsonb(v_sale_line_ids),
     'cost_entries', coalesce((
       select jsonb_agg(to_jsonb(cost_entry) order by cost_entry.id)
       from public.sale_cost_entries as cost_entry

@@ -13,11 +13,19 @@ export default defineConfig({
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },
-  webServer: {
-    command: 'npm start -- --host 127.0.0.1 --port 4200',
-    url: 'http://127.0.0.1:4200',
-    reuseExistingServer: !process.env['CI'],
-    timeout: 120_000,
-  },
+  webServer: [
+    {
+      command: 'npm start -- --host 127.0.0.1 --port 4200',
+      url: 'http://127.0.0.1:4200',
+      reuseExistingServer: !process.env['CI'],
+      timeout: 120_000,
+    },
+    {
+      command: 'node scripts/start-ebay-import-browser-fixture.mjs',
+      url: 'http://127.0.0.1:54359',
+      reuseExistingServer: !process.env['CI'],
+      timeout: 120_000,
+    },
+  ],
   projects: [{ name: 'chromium', use: { browserName: 'chromium' } }],
 });

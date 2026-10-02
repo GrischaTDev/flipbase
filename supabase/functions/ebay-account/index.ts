@@ -1,7 +1,9 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.112.3';
 import { readEbayConfig } from '../_shared/ebay-config.ts';
 import { createEbayAccountHandler } from './handler.ts';
-import type { EbayAccountStore, StoredEbayConnection } from './handler.ts';
+import type { StoredEbayConnection } from './handler.ts';
+import type { EbayOrderImportStore } from './order-import.ts';
+import { classifyEbayBookingError } from './order-booking-error.ts';
 
 const url = Deno.env.get('SUPABASE_URL') ?? '';
 const anon = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
@@ -24,7 +26,75 @@ async function rpc<T>(name: string, args: Record<string, unknown>): Promise<T> {
   if (error) throw new Error('Database operation failed');
   return data as T;
 }
-const store: EbayAccountStore = {
+const store: EbayOrderImportStore = {
+  async importAvailable() {
+    const results = await Promise.all([
+      service
+        .from('ebay_order_snapshots')
+        .select('id,booking_ready,authorization_version')
+        .limit(0),
+      service.from('ebay_order_bookings').select('id,source_key,status').limit(0),
+      service.from('ebay_article_mappings').select('id,variation_id').limit(0),
+    ]);
+    return results.every((result) => !result.error);
+  },
+  async snapshot(userId, scope, snapshotId) {
+    const { data, error } = await service
+      .from('ebay_order_snapshots')
+      .select(
+        'id,workspace_id,connection_id,user_id,authorization_version,environment,external_account_id,source_key,review_hash,source,expires_at,booking_ready',
+      )
+      .eq('id', snapshotId)
+      .eq('user_id', userId)
+      .eq('workspace_id', scope.workspaceId)
+      .eq('connection_id', scope.connectionId)
+      .maybeSingle();
+    if (error) throw new Error('Database operation failed');
+    return data;
+  },
+  getBooking: (userId, connectionId, sourceKey) =>
+    rpc('ebay_get_order_booking', {
+      p_user_id: userId,
+      p_connection_id: connectionId,
+      p_source_key: sourceKey,
+    }),
+  storeSnapshot: (connection, operationId, sourceKey, reviewHash, source, bookingReady) =>
+    rpc('ebay_store_order_snapshot', {
+      p_user_id: connection.user_id,
+      p_connection_id: connection.id,
+      p_version: connection.authorization_version,
+      p_operation_id: operationId,
+      p_source_key: sourceKey,
+      p_review_hash: reviewHash,
+      p_source: source,
+      p_booking_ready: bookingReady,
+    }),
+  async book(bearer, input) {
+    // Die Nutzer-Sitzung bleibt erhalten: record_sale prüft dieselben Verkaufsrechte wie bisher.
+    const { data, error } = await userClient(bearer).rpc('ebay_record_order_sale', {
+      p_workspace_id: input.workspaceId,
+      p_connection_id: input.connectionId,
+      p_snapshot_id: input.snapshotId,
+      p_assignments: input.assignments,
+      p_costs: input.costs,
+    });
+    if (error) throw classifyEbayBookingError(error);
+    return data;
+  },
+  markRecordedElsewhere: (userId, connectionId, snapshotId, reason, saleId) =>
+    rpc('ebay_mark_order_recorded_elsewhere', {
+      p_user_id: userId,
+      p_connection_id: connectionId,
+      p_snapshot_id: snapshotId,
+      p_reason: reason,
+      p_sale_id: saleId,
+    }),
+  clearRecordedElsewhere: (userId, connectionId, sourceKey) =>
+    rpc('ebay_clear_order_recorded_elsewhere', {
+      p_user_id: userId,
+      p_connection_id: connectionId,
+      p_source_key: sourceKey,
+    }),
   async authenticate(bearer) {
     const { data, error } = await userClient(bearer).auth.getUser(bearer.slice(7));
     return error ? null : (data.user?.id ?? null);

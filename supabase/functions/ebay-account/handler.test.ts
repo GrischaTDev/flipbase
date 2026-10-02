@@ -24,6 +24,7 @@ const connection: StoredEbayConnection = {
   environment: 'production',
   status: 'connected',
   username: 'seller',
+  external_account_id: 'private-account',
   last_read_at: null,
   authorization_version: 1,
 };
