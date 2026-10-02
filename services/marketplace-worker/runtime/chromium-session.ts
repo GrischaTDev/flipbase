@@ -13,40 +13,36 @@ const server = createServer((incoming, outgoing) => {
     outgoing.writeHead(403).end();
     return;
   }
-  if (
-    !['/json/version', '/json/list', '/json'].includes(incoming.url ?? '') ||
-    incoming.method !== 'GET'
-  ) {
+  // Playwright fragt /json/version/ ab; Chromium akzeptiert auch die Form ohne Schluss-Slash.
+  const path = incoming.url?.replace(/\/$/, '');
+  if (!['/json/version', '/json/list', '/json'].includes(path ?? '') || incoming.method !== 'GET') {
     outgoing.writeHead(404).end();
     return;
   }
-  const upstream = request(
-    { host: '127.0.0.1', port: 9223, path: incoming.url, method: 'GET' },
-    (response) => {
-      let payload = '';
-      response.setEncoding('utf8');
-      response.on('data', (chunk: string) => {
-        payload += chunk;
-      });
-      response.on('end', () => {
-        if (payload.length > 1024 * 1024) {
-          outgoing.writeHead(502).end();
-          return;
-        }
-        const authority = incoming.headers.host;
-        if (!authority || !/^172\.30\.88\.\d{1,3}:9222$/.test(authority)) {
-          outgoing.writeHead(400).end();
-          return;
-        }
-        outgoing.writeHead(response.statusCode ?? 502, { 'Content-Type': 'application/json' });
-        outgoing.end(
-          payload
-            .replaceAll('ws://localhost:9223', `ws://${authority}`)
-            .replaceAll('ws://127.0.0.1:9223', `ws://${authority}`),
-        );
-      });
-    },
-  );
+  const upstream = request({ host: '127.0.0.1', port: 9223, path, method: 'GET' }, (response) => {
+    let payload = '';
+    response.setEncoding('utf8');
+    response.on('data', (chunk: string) => {
+      payload += chunk;
+    });
+    response.on('end', () => {
+      if (payload.length > 1024 * 1024) {
+        outgoing.writeHead(502).end();
+        return;
+      }
+      const authority = incoming.headers.host;
+      if (!authority || !/^172\.30\.88\.\d{1,3}:9222$/.test(authority)) {
+        outgoing.writeHead(400).end();
+        return;
+      }
+      outgoing.writeHead(response.statusCode ?? 502, { 'Content-Type': 'application/json' });
+      outgoing.end(
+        payload
+          .replaceAll('ws://localhost:9223', `ws://${authority}`)
+          .replaceAll('ws://127.0.0.1:9223', `ws://${authority}`),
+      );
+    });
+  });
   upstream.on('error', () => outgoing.writeHead(502).end());
   upstream.end();
 });

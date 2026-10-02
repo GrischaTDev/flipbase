@@ -52,6 +52,9 @@ ein eigenes temporäres Verzeichnis, das Playwright auch beim Verbindungsaufbau
 benötigt. Recovery prüft zusätzlich das private Hostmanifest, bevor eine
 Chromiumsitzung als beendet bestätigt werden darf; der Regressionstest ist grün.
 Das Pilot-Compose bindet den Controller auf der bestehenden Caddy-Route ein.
+Der nächste echte CDP-Aufbau zeigt Playwrights `/json/version/` mit Schluss-Slash;
+die private Weiterleitung normalisiert diesen Pfad innerhalb ihrer bisherigen
+Positivliste. Andere Methoden und Endpunkte bleiben gesperrt.
 
 ## 2026-10-02 - Juna - Vinted-Cloudplan mit drei Agents im Web gegengeprüft
 
