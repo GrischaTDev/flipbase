@@ -16,6 +16,10 @@ Ausgangsstand in einer Transaktion angewendet. Die vollständigen PR-Prüfungen
 und Backup/Migration/Veröffentlichung bleiben aktiv. Fremde Änderungen in der
 ursprünglichen Arbeitskopie bleiben erhalten.
 
+**CI-Korrektur:** Die fest hinterlegte PR-Browserauswahl erwartete zunächst noch
+den alten Umfang. Die vier neuen Kontoübersichtsfälle sind nun ausdrücklich in
+diesem Vertrag registriert; der gezielte Auswahltest, Format und Lint bestehen.
+
 ## 2026-10-02 – Juna – Vinted-Kontoübersicht und gespeicherte Kontoauswahl ergänzt
 
 **Auftrag:** Der Menüpunkt Vinted soll zunächst alle eigenen Konten als Kacheln

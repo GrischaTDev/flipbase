@@ -79,6 +79,10 @@ const coreTests = [
     'sidebar-navigation.spec.ts',
     'hält die Sidebar kompakt und hebt den aktiven Bereich in Logo-Gelb hervor @pr-smoke',
   ],
+  ...[1440, 1024, 768, 390].map((width) => [
+    'vinted-account-grid.spec.ts',
+    `öffnet Vinted-Kontokacheln und behält die Auswahl nach Neuladen bei ${width}px @marketplace-preview @core-smoke`,
+  ]),
   ...[1440, 390, 320].flatMap((width) =>
     ['light', 'dark'].map((theme) => [
       'vinted-workspace-ui.spec.ts',
