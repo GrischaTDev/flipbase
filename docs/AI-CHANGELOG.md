@@ -1,5 +1,26 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-02 – Juna – Umsetzungsplan für Beta-Zugänge vorbereitet
+
+**Freigabe und Auftrag:** Der Nutzer hat den schriftlichen Beta-Entwurf mit
+„dann los“ freigegeben. Konkreten Plan in
+`docs/superpowers/plans/2026-10-02-beta-access-lifecycle.md` erstellt: sieben
+aufeinander abgestimmte Aufgaben mit Datenbank-/Edge-/Angular-Schnittstellen,
+wiederholbarer Rücknahme, Lizenzaktionen, Status-/Dankesseite und Prüfungen.
+
+**Prüfung:** Aktuelle Dienste, Guards, Schema-Reihenfolge, Nutzerübersicht,
+Edge-Endpunkte, Worker-RPCs und bestehende CI-/Browsertestverträge gelesen.
+Plan gegen Entwurf auf Fristgrenzen, Auth-Teilfehler, weitere Arbeitsbereiche,
+Bestandszugänge, parallele Aktionen und tatsächliche Servergrenzen geprüft.
+Späte Policy-/RPC-Enddefinitionen vermeiden Vorwärtsverweise beim frischen
+Schemaaufbau; neue Betreiber-Zusatzauskunft erhält vorhandene Rückgabetypen.
+
+**Stand:** Noch keine Produkt-/Datenbankänderung oder produktive Aktion.
+Plan wartet auf Prüfung und Wahl der Ausführung gemäß Planungs-Skill;
+empfohlen ist Umsetzung hier mit unabhängiger Schlussprüfung. Keine
+Anwendungs-/Datenbanktests für diese reine Planung; `git diff --check`
+ausgeführt. Prettier ist im Worktree nicht installiert.
+
 ## 2026-10-02 – Juna – Verwaltung der Beta-Registrierung und Laufzeiten entworfen
 
 **Auftrag:** Registrierungslinks sieben Tage gültig halten, Fristablauf anzeigen,
