@@ -12,6 +12,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
 FROM node:22.23.2-alpine3.24 AS production
+RUN apk add --no-cache docker-cli
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=dependencies /app/package.json ./package.json

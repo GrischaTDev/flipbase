@@ -2,12 +2,31 @@ export interface MarketplaceBrowserServerConfig {
   supabaseUrl: string;
   publishableKey: string;
   serviceRoleKey: string;
-  provider: 'local' | 'gologin';
+  provider: 'local' | 'gologin' | 'chromium';
   goLoginToken?: string;
   publicTestUrl?: string;
   host: string;
   port: number;
   scheduledSyncEnabled: boolean;
+  serverProfileRoot?: string;
+  chromiumHostProfileRoot?: string;
+  chromiumHostId?: string;
+  chromiumImage?: string;
+  chromiumNetwork?: string;
+  chromiumNetworkId?: string;
+  chromiumNetworkFile?: string;
+  chromiumSeccompProfile?: string;
+  chromiumWritesEnabled?: boolean;
+}
+
+function privateLinuxPath(path: string | undefined): path is string {
+  return Boolean(
+    path &&
+    path.startsWith('/') &&
+    path !== '/' &&
+    !path.includes('\0') &&
+    !path.split('/').some((part) => part === '..' || part === '.'),
+  );
 }
 
 export function marketplaceBrowserServerConfig(
@@ -24,7 +43,7 @@ export function marketplaceBrowserServerConfig(
     environment['MARKETPLACE_SCHEDULED_SYNC_ENABLED'] ?? (provider === 'gologin' ? '1' : '0');
   if (scheduledFlag !== '0' && scheduledFlag !== '1')
     throw new Error('Automatische Aktualisierung ist ungültig konfiguriert');
-  if (scheduledFlag === '1' && provider !== 'gologin')
+  if (scheduledFlag === '1' && provider === 'local')
     throw new Error('Automatische Aktualisierung benötigt den Cloudbetrieb');
   const publicTestUrl = environment['MARKETPLACE_BROWSER_PUBLIC_TEST_URL'];
   const port = Number(environment['MARKETPLACE_BROWSER_PORT'] ?? '4179');
@@ -32,7 +51,7 @@ export function marketplaceBrowserServerConfig(
     !supabaseUrl ||
     !publishableKey ||
     !serviceRoleKey ||
-    (provider !== 'local' && provider !== 'gologin') ||
+    (provider !== 'local' && provider !== 'gologin' && provider !== 'chromium') ||
     (provider === 'gologin' && !goLoginToken) ||
     (provider === 'local' && !publicTestUrl) ||
     !Number.isInteger(port) ||
@@ -40,6 +59,36 @@ export function marketplaceBrowserServerConfig(
     port > 65535
   )
     throw new Error('Browser-Testdienst ist unvollständig konfiguriert');
+  const serverProfileRoot = environment['MARKETPLACE_BROWSER_PROFILE_ROOT'];
+  const chromiumHostProfileRoot = environment['MARKETPLACE_CHROMIUM_HOST_PROFILE_ROOT'];
+  const chromiumHostId = environment['MARKETPLACE_CHROMIUM_HOST_ID'];
+  const chromiumImage = environment['MARKETPLACE_CHROMIUM_IMAGE'];
+  const chromiumNetwork = environment['MARKETPLACE_CHROMIUM_NETWORK'];
+  const chromiumNetworkId = environment['MARKETPLACE_CHROMIUM_NETWORK_ID'] ?? 'direct';
+  const chromiumNetworkFile = environment['MARKETPLACE_CHROMIUM_NETWORK_FILE'];
+  const chromiumWritesFlag = environment['MARKETPLACE_CHROMIUM_WRITES_ENABLED'] ?? '0';
+  const chromiumSeccompProfile =
+    environment['MARKETPLACE_CHROMIUM_SECCOMP_PROFILE'] ??
+    '/opt/flipbase-marketplace/chromium-seccomp.json';
+  if (
+    provider === 'chromium' &&
+    (environment['MARKETPLACE_CHROMIUM_PILOT_ENABLED'] !== '1' ||
+      !privateLinuxPath(serverProfileRoot) ||
+      !privateLinuxPath(chromiumHostProfileRoot) ||
+      !chromiumHostId ||
+      !/^[a-z0-9][a-z0-9-]{1,63}$/.test(chromiumHostId) ||
+      !chromiumImage ||
+      !/^ghcr\.io\/grischatdev\/flipbase-chromium-session(?::sha-[a-f0-9]{40}|@sha256:[a-f0-9]{64})$/.test(
+        chromiumImage,
+      ) ||
+      chromiumNetwork !== 'flipbase-browser' ||
+      (chromiumWritesFlag !== '0' && chromiumWritesFlag !== '1') ||
+      !/^[a-z0-9][a-z0-9_-]{0,63}$/.test(chromiumNetworkId) ||
+      (chromiumNetworkId !== 'direct' && !chromiumNetworkFile) ||
+      (chromiumNetworkFile !== undefined && !privateLinuxPath(chromiumNetworkFile)) ||
+      !privateLinuxPath(chromiumSeccompProfile))
+  )
+    throw new Error('Chromium-Pilot ist unvollständig oder unsicher konfiguriert');
   try {
     const url = new URL(supabaseUrl);
     if (!['http:', 'https:'].includes(url.protocol)) throw new Error('Ungültige URL');
@@ -48,7 +97,8 @@ export function marketplaceBrowserServerConfig(
   }
   if (provider === 'local') {
     try {
-      const url = new URL(publicTestUrl!);
+      if (!publicTestUrl) throw new Error('Testseite fehlt');
+      const url = new URL(publicTestUrl);
       if (
         url.protocol !== 'https:' ||
         url.hostname !== 'www.vinted.de' ||
@@ -73,5 +123,18 @@ export function marketplaceBrowserServerConfig(
     host: environment['MARKETPLACE_BROWSER_HOST'] ?? '127.0.0.1',
     port,
     scheduledSyncEnabled: scheduledFlag === '1',
+    ...(provider === 'chromium'
+      ? {
+          serverProfileRoot,
+          chromiumHostProfileRoot,
+          chromiumHostId,
+          chromiumImage,
+          chromiumNetwork,
+          chromiumNetworkId,
+          chromiumNetworkFile,
+          chromiumSeccompProfile,
+          chromiumWritesEnabled: chromiumWritesFlag === '1',
+        }
+      : {}),
   };
 }

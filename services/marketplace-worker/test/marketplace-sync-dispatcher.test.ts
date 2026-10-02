@@ -76,6 +76,7 @@ function fixture(
   overrides: Partial<MarketplaceSyncDispatchStore> = {},
   run: (scope: BrowserSessionScope) => Promise<void> = async () => undefined,
   includeScheduled = false,
+  maxJobsPerPoll = 1,
 ) {
   let current = Date.parse('2026-10-01T12:00:00Z');
   let lost = 0;
@@ -129,6 +130,7 @@ function fixture(
       lost++;
     },
     includeScheduled,
+    maxJobsPerPoll,
     workerId,
     createRunnerId: () => runnerIds[nextRunner++ % runnerIds.length]!,
     timers,
@@ -144,6 +146,52 @@ function fixture(
     },
   };
 }
+
+test('server queue serves 30 accounts sequentially without timer gaps or duplicate claims', async () => {
+  let remaining = 30;
+  let active = 0;
+  let maximumActive = 0;
+  let completed = 0;
+  const { dispatcher } = fixture(
+    { claim: async () => (remaining-- > 0 ? scope() : null) },
+    async () => {
+      active++;
+      maximumActive = Math.max(maximumActive, active);
+      await Promise.resolve();
+      active--;
+      completed++;
+    },
+    true,
+    32,
+  );
+  await dispatcher.initialize();
+  await Promise.all([dispatcher.poll(), dispatcher.poll()]);
+  assert.equal(completed, 30);
+  assert.equal(maximumActive, 1);
+  await dispatcher.drain();
+});
+
+test('server queue stops claiming immediately when a browser result is uncertain', async () => {
+  let claims = 0;
+  const { dispatcher, lost } = fixture(
+    {
+      claim: async () => {
+        claims++;
+        return scope();
+      },
+    },
+    async () => {
+      throw new Error('uncertain browser stop');
+    },
+    true,
+    32,
+  );
+  await dispatcher.initialize();
+  await dispatcher.poll();
+  assert.equal(claims, 1);
+  assert.equal(lost(), 1);
+  await dispatcher.drain();
+});
 
 test('Runtime wird vor Recovery beansprucht und Fähigkeiten erst beim Start aktiviert', async () => {
   const { dispatcher, calls } = fixture({}, undefined, true);

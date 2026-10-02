@@ -1,5 +1,183 @@
 # Vinted: automatische Aktualisierung und vorbereitete Inserate
 
+## Agentenrecherche 02.10.2026: Eigenbetrieb, Netzwerk und Vergleichsprojekte
+
+Der Nutzer beauftragt ausdrücklich zusätzliche Webrecherche mit Agents.
+Drei getrennte Untersuchungen behandeln Anbieter, Netzwerk-/Communityberichte
+und GitHub-Bausteine. Alle drei sind abgeschlossen. Quellen wurden lesend
+geprüft; keine Browser gestartet, Konten verändert oder Ressourcen bestellt.
+Die folgende Bewertung ergänzt die Planprüfung und autorisiert keinen Rollout.
+
+### Was die zusätzlichen Quellen klären
+
+| Frage                                | Nachweis und Grenze                                                                                                                                                                                                                                                                                                                                          | Konsequenz für Flipbase                                                                                                                                                       |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Ist GoLogin notwendig?               | [Revendor](https://revendor.app/guide/how-multi-account-works) nennt normale Browserprofile und GoLogin als mögliche, nicht verpflichtende Umgebungen. [Playwright](https://playwright.dev/docs/api/class-browsertype#browser-type-launch-persistent-context) unterstützt eigene dauerhafte Profile.                                                         | Technischer Eigenbetrieb ist begründet; Vinted-Eignung der konkreten Runtime noch prüfen.                                                                                     |
+| Eine bezahlte IP je Konto?           | [Bleams Cloudhilfe](https://bleam.app/en/help/bleam-cloud) nennt bis zu zehn getrennte Sitzungen und zusätzliche dedizierte IPs als Option.                                                                                                                                                                                                                  | Keine allgemeine Pflicht-IP je Konto aus Konkurrenzangaben ableiten.                                                                                                          |
+| Eine gemeinsame IP für alle Kunden?  | [Bleams Vergleichsartikel vom 29.09.2026](https://bleam.app/en/blog/business/bleam-vs-redrip-comparatif-2026) beschreibt einen eigenen Server mit eigener Ausgangs-IP je Kunde. Das ist Anbieter-Selbstauskunft, kein unabhängiger Test; die technische Hilfe präzisiert das Kunden-/IP-Verhältnis nicht.                                                    | Kunden-/Workspacezuordnung des Netzwerkzugangs als eigene Option vorsehen. Die Modelle je Konto, je Kunde und für alle Kunden unterscheiden; keines ohne Pilot festschreiben. |
+| Reiner mobiler Erstlogin?            | [Bleams mobile Hilfe](https://bleam.app/en/help/application-mobile) beschreibt Bedienung und Aufträge; die Cloudhilfe den Login im Vinted-Fenster. Ein vollständiger Smartphone-Erstlogin mit Codeeingabe ist daraus nicht hinreichend nachgewiesen.                                                                                                         | Erstanmeldung, Code, Touch/Tastatur und Reconnect bleiben eigene Abnahme, vorhandenen Flipbase-Dialog zuerst verwenden.                                                       |
+| Jede Aktualisierung sofort?          | [Bleams Inboxhilfe](https://bleam.app/en/help/messagerie-centralisee) beschreibt Warteschlangen, nächste Agentdurchläufe und verfallende Nachrichtenaufträge. [Revendor](https://revendor.app/guide/settings-and-sync) unterscheidet laufende Erkennung und periodischen Abgleich.                                                                           | Datenfrische, Auftragserfolg und Ablaufzeit ausdrücklich zeigen; Werbeaussagen über 24/7 nicht mit Echtzeit gleichsetzen.                                                     |
+| Kann Export erneuten Login ersparen? | [GoLogin CSV](https://support.gologin.com/en/articles/14405649-export-import-overview) enthält Konfiguration, aber keine Cookies/Sitzungen. [Cookieexport](https://support.gologin.com/en/articles/14363118-cookies-import-and-export) existiert separat. [Playwright Auth](https://playwright.dev/docs/auth) unterscheidet Authzustand und Session Storage. | Profilübernahme ist kein zugesicherter Exportknopf. Kontrollierte Neuanmeldung als verlässlichen Produktweg vorsehen; Übernahme nur nach eigener Prüfung.                     |
+
+Zusätzlicher Gegenbeleg gegen pauschale Cloudvergleiche: Closos
+[ältere Cloudhilfe](https://app.closo.co/help/a/how-closo-cloud-keeps-marketplaces-connected)
+beschreibt Serverbrowser und lokale Cookieübernahme. Die jüngere
+[Tarifhilfe](https://app.closo.co/help/a/subscription-plans-explained) beschreibt
+dagegen lokale Extensionausführung ohne getrennte Serversitzung; die
+[September-Anleitung](https://app.closo.co/help/a/connect-a-marketplace)
+fordert Anmeldung im Browser mit Extension. Closo daher nicht als
+belastbaren aktuellen Nachweis für das gewünschte Cloudprodukt verwenden.
+
+### GitHub: brauchbare Bausteine, kein nachgewiesener Gesamtstack
+
+| Projekt                                                   | Geprüfter Nutzen                                                                                                                                            | Grenze und Empfehlung                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Playwright](https://github.com/microsoft/playwright)     | Apache-2.0; dauerhafte Profile und Browsersteuerung, aktiv gepflegt.                                                                                        | Runtimegrundlage übernehmen. Kein verteiltes Leasing oder Vinted-Funktionsnachweis. Dasselbe Profil darf nicht parallel geöffnet werden.                                                                                                                                                                                                                                                                                                                                                                                                    |
+| [noVNC](https://github.com/novnc/noVNC)                   | Browserclient für Fernanzeige/-eingabe, Touch und Tastatur; Kern MPL-2.0. [API](https://github.com/novnc/noVNC/blob/master/docs/API.md) erlaubt Einbettung. | Möglicher kleiner Zusatz für manuelle Anmeldung. Braucht VNC-/WebSocketdienst sowie eigene kurzlebige Konto-/Leaseautorisierung; kein fertiger Loginadapter.                                                                                                                                                                                                                                                                                                                                                                                |
+| [Neko](https://github.com/m1k1o/neko)                     | Apache-2.0; Containerbrowser mit WebRTC und Eingabesteuerung.                                                                                               | Vergleichskandidat für Remoteansicht bei unzureichender bestehender Bedienung. Zusätzlicher Betriebsumfang; Mehrbenutzerrechte nicht mit Flipbase-Kontorechten gleichsetzen.                                                                                                                                                                                                                                                                                                                                                                |
+| [Neko Rooms](https://github.com/m1k1o/neko-rooms)         | Apache-2.0; Containerstart/-stopp und [private Raumspeicher](https://github.com/m1k1o/neko-rooms/blob/master/docs/storage.md).                              | Architekturreferenz für einzelne Sitzungscontainer. Controllerbeispiel nutzt Docker-Socket; Browser erhalten weder Socket noch andere Kontoprofile.                                                                                                                                                                                                                                                                                                                                                                                         |
+| [Browserless](https://github.com/browserless/browserless) | Gepflegte Browserinfrastruktur. README nennt SSPL beziehungsweise kommerzielle Lizenz und kommerzielle Lizenz für proprietären kommerziellen Einsatz.       | Kein ungeprüft kostenloser Ersatz für GoLogin. Anbieter-Lizenzbedingungen berücksichtigen, nicht als Standardabhängigkeit einplanen.                                                                                                                                                                                                                                                                                                                                                                                                        |
+| [Vinted MCP](https://github.com/andrijdavid/vinted-mcp)   | AGPL-3.0-or-later; manueller Playwright-Login und persistentes Profilmuster.                                                                                | Nur Referenz. [Profilcode](https://github.com/andrijdavid/vinted-mcp/blob/main/src/vinted-core/auth/profile-auth.ts) verwendet `profile-<country>` statt Konto-/Workspaceprofil. Geprüfte [Live-Tests](https://github.com/andrijdavid/vinted-mcp/blob/main/tests/mcp-server.test.cjs) betreffen Leseflüsse, [Favoritentests](https://github.com/andrijdavid/vinted-mcp/blob/main/tests/favourite.test.cjs) Stubs. Kein hinreichender Mehrkonto-/2FA-/Restart-/Schreibnachweis gefunden; manipulierte Browsereigenschaften nicht übernehmen. |
+
+Die [offizielle Playwright-Containerdokumentation](https://playwright.dev/docs/docker)
+bezeichnet das Standardimage als Test-/Entwicklungsimage und erläutert
+Benutzer-/Sandbox-/seccomp-Anforderungen für fremde Webseiten. Ein vorhandenes
+Image allein erfüllt daher nicht die Mehrkundengrenzen des Plans. Zunächst
+bestehende Flipbase-Browserbedienung prüfen; noVNC/Neko nur bei konkret
+nachgewiesenem Bedarf ergänzen. Lizenznamen sind Projektangaben, keine
+abschließende Prüfung des Lizenzumfangs unserer späteren Integration.
+
+### Netzwerk und Community: konkrete Beobachtungen, begrenzte Aussage
+
+- [Vinted-Notifications #109](https://github.com/Fuyucch1/Vinted-Notifications/issues/109),
+  03.04.2026: Python-Katalogabfrage auf `vinted.co.uk` erhält 403 mit
+  Cloudflare-Challenge. Konkreter Fehlerbericht, kein Playwright-Login,
+  keine nachgewiesene Hetzner-IP und keine isolierte IP-Ursache.
+- [Vinted-Notifications #104](https://github.com/Fuyucch1/Vinted-Notifications/issues/104),
+  25.02.2026: AWS ohne Proxy wird als Frage gestellt. Kein Erfolgsnachweis.
+- [vinted-api-wrapper #25](https://github.com/herissondev/vinted-api-wrapper/issues/25),
+  09.02.2025: Entwickler berichtet wiederkehrende 403 nach wenigen Abfragen.
+  Netzwerk und genaue Ursache unbekannt; keine allgemeine zulässige Rate ableiten.
+- [Reddit: zwei Konten im selben Haushalt](https://www.reddit.com/r/vinted/comments/1dj4tk5/can_my_sister_have_an_account_with_the_same_ip_or/),
+  Juni 2024: Ein Nutzer meldet problemlosen gemeinsamen Zugang, ein anderer
+  eine Warnung nach Nutzung desselben WLANs. Die Prognose einer sicheren
+  späteren Sperre ist dessen Vermutung. Keine Serverumgebung und kein
+  kontrollierter Vergleich; weder Pflicht-IP noch sicherer gemeinsamer Zugang.
+- [Reddit: Residential-Proxy](https://www.reddit.com/r/proxies/comments/1u9mfp3/proxy_vinted/),
+  Juni 2026: OP berichtet Herausforderungen trotz Residential-Proxys.
+  Auto-Buy-Anwendungsfall, keine lesende Verwaltung. Antwort eines
+  Proxyanbietergründers ist Werbung, kein unabhängiger Benchmark.
+- [Reddit: Chrome-Sitzung](https://www.reddit.com/r/vintedUK/comments/1mtjuzb/anyone_else_have_session_refresh_issues_on_google/),
+  August/Dezember 2025: Nutzer melden temporär defekte Browserzustände;
+  Cache/Inkognito beziehungsweise VPN ändern das Verhalten. Einzelberichte,
+  keine reproduzierbare Diagnose und kein Cloudnachweis.
+
+Die Recherche fand keinen belastbaren öffentlichen Langzeitnachweis für
+gewöhnliches Chromium mit authentifizierter Vinted-Verwaltung auf Hetzner
+ohne Proxy. Das ist eine Grenze der gefundenen Quellen, kein Beweis der
+Unmöglichkeit. Öffentlicher Katalogzugriff, private Anmeldung und schreibende
+Aktionen bleiben getrennte Prüffälle. Laut
+[Cloudflare](https://developers.cloudflare.com/bots/concepts/bot-detection-engines/)
+gehen mehrere Browser-, Sitzungs- und Verhaltenssignale in Erkennung ein;
+die tatsächliche Vinted-Konfiguration ist nicht bekannt.
+
+### Präzisierungen des Piloten
+
+1. Runtimeanbieter, exklusives Kontoprofil und Netzwerkausgang unabhängig
+   zuordnen. Expliziten Proxy bei Ausfall nicht still durch Direktzugang ersetzen.
+2. Ein Konto zuerst: Login/Code, tatsächliche externe Identität, privater
+   lesender Abgleich, bestätigter Stopp, Neustart und erneuter Zugriff.
+   Beim kontrollierten Vergleich jeweils nur Browser oder Netzwerk ändern.
+3. Zwei Konten mit getrennten Profilen und bestehenden Sperren prüfen.
+   Netzwerk je Konto beziehungsweise je Workspace als separate Pilotoption;
+   kein automatischer IP-Einkauf und keine ungeprüfte globale gemeinsame IP.
+4. Mehrtägige Stabilität dokumentieren: Ausgangs-IP, Browserversion, Start-/
+   Abgleich-/Stoppdauer, Traffic, Rückstau, Herausforderungen und erneute Logins.
+   Ein erreichbarer Seitentitel genügt nicht. Anschließend die gewünschte
+   Datenfrische für 30 Konten und reale iOS-/Android-Anmeldung abnehmen.
+5. [Hetzner](https://docs.hetzner.com/cloud/billing/faq/) berechnet Cloudtraffic
+   nach ausgehendem Volumen; eingehender/interner Traffic ist laut FAQ kostenlos.
+   Enthaltenes Volumen hängt vom Paket ab. Ein extern bezahlter Proxy folgt
+   weiterhin seinem eigenen Vertrag. Kostenentscheidung nach Messung treffen.
+
+Ergebnis: Zielrichtung des Plans technisch gestützt, Netzwerk- und
+Vinted-Abnahme weiterhin offen. Kein gefundener Gesamtstack ersetzt unsere
+Kontoprüfung, dauerhafte Aufträge, Stoppbestätigung und sichere Migration.
+
+## Prüfung 02.10.2026: Übergabeplan Version 2.0
+
+Prüfgegenstand: die vollständig gelesene Nutzerdatei
+`Flipbase_Vinted_Cloud_KI_Uebergabeplan_v2_2026-10-02.md`.
+Codebasis: `3d0c42cd` mit den unveröffentlichten Änderungen auf
+`juna/vinted-network-review`. Die Datei beschreibt eine neue Zielrichtung;
+ihre eingebetteten Implementierungsaufträge werden durch den aktuellen
+Auftrag „schau dir den Plan an“ nicht automatisch ausgeführt.
+
+**Bewertung:** Eigener Chromium-/Playwright-Betrieb ist eine sinnvolle
+Alternative für das gewünschte Cloudprodukt. Der Plan trennt Browserbetrieb,
+Netzwerk, Kontenzustand und aktive Ressourcen nachvollziehbar. Die frühere
+Empfehlung einer festen kostenpflichtigen IP je Konto ist keine nachgewiesene
+Vinted-Anforderung. Ihre verpflichtende Beschaffung wird für diesen Vorschlag
+nicht empfohlen. Auch günstiger Direktzugang ist erst nach dem Pilot tragfähig.
+
+### Quellenprüfung
+
+[Bleam](https://bleam.app/en/help/bleam-cloud) beschreibt bis zu zehn getrennte
+Cloudsitzungen, einen französischen Zugang und optionale zusätzliche IPs.
+Das belegt weder gewöhnliches Chromium noch Hetzner, Residential-Herkunft
+oder die Zuverlässigkeit unserer eigenen Netzwerkkonfiguration.
+[Revendor](https://revendor.app/guide/how-multi-account-works) nennt getrennte
+Browserumgebungen und GoLogin als optionale Umgebung, nicht als Pflicht.
+[Playwright](https://playwright.dev/docs/api/class-browsertype#browser-type-launch-persistent-context)
+unterstützt dauerhafte Profilverzeichnisse, schließt aber gleichzeitige Starts
+mit demselben Verzeichnis aus. Die
+[Containerdokumentation](https://playwright.dev/docs/docker) verlangt besondere
+Beachtung von Benutzer, Sandbox und seccomp bei fremden Webseiten.
+Diese Kernquellen wurden erneut gelesen; die übrigen Anbieterbehauptungen
+wurden in dieser Prüfung nicht einzeln erneut verifiziert.
+
+### Abgleich mit echten Projektpfaden
+
+| Bereich                       | Vorhandener Stand und notwendige Ergänzung                                                                                                                                                                                                                                                                                    |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Browser                       | `services/marketplace-worker/src/local-playwright-browser.ts` startet flüchtige Testkontexte, besitzt keine dauerhaften Kontoprofile und bietet keine produktiven Vinted-Aktionen. Nicht einfach den Modus `local` produktiv aktivieren.                                                                                      |
+| Wiederverwendbare Aktionen    | `services/marketplace-worker/src/vinted-browser-actions.ts`, Login, Identitätsprüfung und Reader sind vorhanden. Ein Chromium-Adapter kann dieselben fachlichen Aktionen verwenden.                                                                                                                                           |
+| Anbieterwahl                  | `services/marketplace-worker/src/main.ts` und `marketplace-browser-server-config.ts` wählen den Anbieter für den gesamten Worker. Das erlaubt die geplante kontoweise Migration noch nicht.                                                                                                                                   |
+| Profilzuordnung               | `supabase/schemas/260_marketplace_live_browser_sessions.sql` enthält `marketplace_browser_profiles` mit einer Profilreferenz, aber keine Anbieterauswahl oder Hostbindung. Für parallelen Bestand und Pilot eine additive Zuordnung entwickeln; Kontoverbindungs-ID erhalten.                                                 |
+| Sperren und Queue             | `260_marketplace_live_browser_sessions.sql`, `270_marketplace_operations.sql` und `310_marketplace_sync_scheduling.sql` sind vorhanden. Die Datenbank begrenzt heute alle Konten zusammen auf einen aktiven oder ungeklärt stoppenden Browser. Ein Worker-Pool erfordert mehr als eine neue Prozesszahl in der Konfiguration. |
+| Verbindung und mobile Eingabe | `src/app/features/marketplaces/components/marketplace-connect/`, `marketplace-browser-test/` und die Worker-HTTP-API besitzen Anmelde-, Code- und Browserbedienwege. Auf neuer Runtime und echten Mobilgeräten erneut prüfen; kein kompletter Neubau als Ausgangsannahme.                                                     |
+| Schreibaufträge               | Begrenzte Profil-/Inseratänderungen laufen derzeit direkt über Worker-HTTP-Routen mit Ergebnisprüfung. Daraus folgt keine allgemeine dauerhafte Schreibqueue für Nachrichten, Veröffentlichung oder jede spätere Aktion.                                                                                                      |
+| Betrieb und Isolation         | Die vorbereitete GoLogin-Servervariante nutzt einen gemeinsamen Workercontainer mit Profilvolume. Der Plan verlangt stärkere Abschottung je aktiver Sitzung, kontrollierten Runner, gezielte Profilmounts und Netzwerkgrenzen. Das ist zusätzlicher Umfang.                                                                   |
+
+### Empfehlungen zur Reihenfolge
+
+1. P0 auf vorhandene Verträge abbilden. Für den Vergleich vorhandene
+   Berechtigungen, Profilexklusivität und Stoppbestätigung bereits vor P2
+   erhalten; diese Grundlagen nicht erst nach realem Login ergänzen.
+2. P1 klein halten: ein aktiver Browser, zwei getrennte Testprofile,
+   dauerhafter Zustand, Neustart, Startabbruch und bestätigter Stopp.
+   Zugriff auf fremde Profile und interne Dienste ebenfalls begrenzen.
+3. P2 ist die erste Entscheidung über Tragfähigkeit: Login, Codeeingabe,
+   externe Identität, lesender Abgleich und Neustart. Browser und Netzwerk
+   beim Vergleich getrennt variieren. Ein Wechsel beider Variablen zugleich
+   erlaubt keine belastbare Zuordnung eines Fehlers. Reale iOS-/Android-
+   Abnahme gesondert führen; hierfür kann Mitwirkung des Nutzers nötig sein.
+4. Erst danach Providerzuordnung und Migration ausbauen, zwei echte Konten
+   nachweisen und Verarbeitungslast messen. Die gewünschte Datenfrische bei
+   30 Konten und drei beziehungsweise fünf Minuten ist ein eigenes
+   Abnahmekriterium; ein einzelner erfolgreicher Abgleich genügt nicht.
+5. Nachrichtenautomationen, Bulk-Aktionen und UI-Umbau getrennt freigeben.
+   Sie gehören nicht zum notwendigen ersten Nachweis des GoLogin-Ersatzes.
+
+Die vorbereiteten GoLogin-Serveränderungen wurden weder verworfen noch
+veröffentlicht. Gemeinsame Aktionswege, Stopp-/Wiederherstellungsfälle und
+Queueverbesserungen können nützlich bleiben; der neue Python-SDK und der
+verpflichtende exklusive IP-Pool wären kein Bestandteil des Chromium-Zielwegs.
+Keine GoLogin-Kündigung, kein Proxykauf und kein Wechsel bestehender Konten
+folgt aus dieser Bewertung. Der zuvor geprüfte Serverstand wurde in dieser
+Prüfung nicht erneut live abgefragt. Es gab keinen echten Chromium-/Vinted-
+Pilot; technische und wirtschaftliche Eignung sind weiterhin offen.
+
 Stand: 30. September 2026. Untersucht wurde `origin/master` bei `8dec8967`.
 Dieses Dokument enthält Befunde und den nach unabhängigen Agentenreviews
 überarbeiteten Ablaufvorschlag zur Abstimmung.
@@ -93,6 +271,157 @@ Zusätzlich geprüfte Grundlagen:
 - [Supabase-Changelog](https://supabase.com/changelog)
   wurde ergänzend gelesen. Aus den aktuellen Hinweisen folgt kein Grund, für
   diesen Ausbau neue Infrastruktur oder ungefragte Hauptversionsupdates einzuführen.
+
+## Ergänzung 02.10.2026: Cloudbetrieb ohne GB-Kontingent
+
+**Status:** Umstellung vorbereitet, noch nicht implementiert oder veröffentlicht.
+Geprüfter Code: `origin/master`, Commit `3d0c42cd`. Der Nutzer verlangt weiterhin
+automatische Aktualisierung bei ausgeschaltetem Nutzer-PC. Eine lokale
+Browsererweiterung ist deshalb kein Ersatz für das Flipbase-Feature.
+
+### Problem
+
+Die enthaltenen 2 GB sind keine tragfähige Grundlage für einen gemeinsamen
+Cloudbetrieb mit vielen Kundenkonten. Die konkrete tägliche Datenmenge ist
+unbekannt; sie muss die Ablehnung dieser gemeinsamen Kontingentarchitektur
+nicht erst bestätigen. Browserprofile, Browserausführung und Netzwerkausgang
+sind getrennte Leistungen und Kostenstellen.
+
+### Was andere Anbieter tatsächlich dokumentieren
+
+| Anbieter                                                                       | Nachgewiesener Betriebsweg                                                                                                                                                             | Grenze des Nachweises                                                                                                                               |
+| ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Revendor](https://revendor.app/fr/guide/comment-fonctionne-le-multi-compte)   | Ein aktives Vinted-Konto je Browserprofil; Erweiterung verbindet die Daten mit dem Dashboard. Offlinekonten synchronisieren nicht.                                                     | Kein Beleg für einen vollständig serverseitigen Betrieb oder eine Pflicht zu Residential-Proxys.                                                    |
+| [Bleam, mehrere Konten](https://bleam.app/fr/help/connecter-plusieurs-comptes) | Ein getrenntes Chrome-/Brave-Profil je Konto, jeweils mit Erweiterung.                                                                                                                 | Cookie-/Sitzungstrennung belegt keine getrennte IP.                                                                                                 |
+| [Bleam Cloud](https://bleam.app/en/help/bleam-cloud)                           | Eigener Cloudserver, bis zu zehn isolierte Sitzungen, auch bei ausgeschaltetem PC; 20 EUR monatlich zusätzlich zum Grundabo. Französischer IP-Ausgang; dedizierte IP als Zusatzoption. | Proxytyp, Verkehrslimit, Serverkosten und interne Technik sind nicht offengelegt. Kein Beleg für garantierte Vinted-Kompatibilität unseres Servers. |
+
+[Revendor: Synchronisierung](https://revendor.app/guide/settings-and-sync)
+beschreibt sofortige Nachrichtenübertragung und einen Abgleich weiterer Bereiche
+alle 15 Minuten. Nur Änderungen gehen zum Dashboard. Das belegt eine reduzierte
+Übertragung zum Dashboard, nicht den Umfang der vorherigen Vinted-Abfragen und
+nicht die Existenz eines für Flipbase verwendbaren Ereignisfeeds.
+
+Eine Pflicht zu rotierenden Residential-Proxys pro Konto ist aus diesen
+Vinted-Produktbeschreibungen nicht ableitbar. Ebenso wenig ist belegt, dass
+beliebige Server-IPs oder ein gemeinsamer IP-Ausgang bei uns zuverlässig
+funktionieren. Aussagen über MAC-Adressen und garantierte Sperrfreiheit aus
+Herstellerblogs werden nicht als technische Nachweise übernommen.
+
+### Feste Kosten statt GB-Abrechnung
+
+- [GoLogin Dedicated IP](https://support.gologin.com/en/articles/15030065-faq-gologin-proxies)
+  ist eine feste ISP-IP, im Rechenzentrum betrieben, ohne GB-Kontingent.
+  [GoLogin nennt 5 USD monatlich je IP](https://support.gologin.com/en/articles/15030060-purchasing-gologin-proxies).
+- [IPRoyal Static Residential / ISP](https://iproyal.com/pricing/static-residential-proxies/)
+  nennt dedizierte IPs und unbegrenzten Verkehr ab 2,70 USD je IP für 30 Tage.
+  [Deutschland wird angeboten](https://iproyal.com/static-residential-proxies/).
+  Einstiegspreis, verfügbare deutsche IPs und Vertragsbedingungen müssen vor
+  Bestellung im tatsächlichen Angebot bestätigt werden. Kein eigener Vinted-Test.
+- [Webshare Bandbreitenregeln](https://help.webshare.io/en/articles/8370524-how-does-the-bandwidth-limit-work)
+  nennen für dedizierte statische Residential-Proxys unbegrenzten Verkehr erst ab
+  50 IPs. Ein günstiger Preis pro IP bedeutet daher nicht automatisch Flatrate
+  oder Exklusivität bei unserem Kontoumfang.
+
+Bei zunächst einer festen IP je Vinted-Verbindung sind 30 Verbindungen genau
+30 reservierte IPs: ab 81 USD je 30 Tage bei dem genannten IPRoyal-Einstiegspreis
+oder 150 USD monatlich beim genannten GoLogin-Preis. Das ist ausschließlich die
+Proxykomponente, ohne Steuern, Währungsumrechnung, Browserabo, Server, Speicher
+und Betrieb. Die Zuordnung je Verbindung ist eine konservative Pilotentscheidung,
+keine nachgewiesene Vinted-Pflicht. Sie bietet keinen Schutzverspruch gegen Sperren.
+
+### Browserausführung ebenfalls umstellen
+
+[GoLogin-Tarife](https://support.gologin.com/en/articles/14617029-pricing)
+nennen für Professional einen gleichzeitigen Cloudstart und 100 Stunden.
+Die tatsächlichen Vertragswerte sind nicht eingesehen. Ein Proxywechsel allein
+beseitigt weder Profilplatz- noch Cloudlaufzeit- oder Parallelitätsgrenzen.
+
+Der [offizielle GoLogin-SDK](https://github.com/gologinapp/gologin)
+kann ein bestehendes Profil herunterladen, Orbita selbst starten, den
+Automatisierungszugang liefern und beim Beenden das Profil speichern.
+Das [offizielle Docker-Beispiel](https://github.com/gologinapp/gologin/blob/master/docker-compose.yml)
+belegt einen serverseitigen Ausführungsweg. Es ist kein fertiges Produktionsimage
+und wird mit seinem alten Node-18-Unterbau nicht unverändert übernommen.
+Selbst ausgeführte Browser sind von gekauften GoLogin-Cloudstunden zu unterscheiden;
+Profilplätze, API-Zugang und SDK-/Orbita-Vertragsbedingungen bleiben zu prüfen.
+
+### Vorschlag und Alternativen
+
+**Vorschlag für den ersten Umbau:** Vorhandene GoLogin-Profile zunächst behalten,
+Orbita über den offiziellen SDK im Flipbase-Serverdienst ausführen und einen
+festen externen ISP-Proxy je Pilotverbindung zuordnen. Damit bleiben Sitzung und
+Browseridentität beim Wechsel der Ausführung möglichst erhalten. Das ist ein
+zu prüfender Migrationsweg, keine bereits verifizierte Vinted-Anbindung.
+
+Nur Dedicated IP plus GoLogin Cloud wäre ein begrenzter Zwischenschritt: Das
+GB-Problem entfällt, die übrigen Cloudgrenzen bleiben. GoLogin vollständig durch
+eigene persistente Chromium-Profile zu ersetzen wäre ein eigener größerer
+Umstieg mit neuer Browseridentität und möglicherweise erneuter Anmeldung.
+Dieser zweite Umbau wird nicht gleichzeitig vorgenommen.
+
+Die offizielle [Vinted Pro Integrations API](https://pro-docs.svc.vinted.com/)
+ist nur für freigeschaltete Pro-Unternehmen verfügbar. Artikel, Bestellungen und
+Webhooks sind dokumentiert; eine vollständige Privatkonto-Inbox ist dadurch
+nicht belegt. Sie ist daher kein kurzfristiger Ersatz für die bestehenden Konten.
+
+### Konkrete Codeänderungen und Abnahme
+
+1. `services/marketplace-worker/src/gologin-profile-network.ts`: Die feste
+   Bindung neuer Profile an `residentTrafficData` und den GoLogin-Zuordnungsweg
+   durch eine ausdrücklich provisionierte ISP-Zuordnung ersetzen. Keine
+   automatischen Käufe, keine Rotation und kein Rückfall auf GB-Proxys.
+2. `gologin-cloud-browser.ts`, `main.ts` und
+   `marketplace-browser-server-config.ts`: Einen Produktionsadapter für
+   serverseitiges Orbita ergänzen. Den bestehenden Testadapter
+   `local-playwright-browser.ts` nicht als Produktionsersatz freischalten.
+3. `deploy/` und vorhandenen Worker-Container: Browserabhängigkeiten und
+   kontrollierte Versionen, dauerhaften Profilspeicher, Prozesszuordnung und
+   Ressourcenbegrenzung einrichten. Keine offenen CDP-Ports. Das ist eine
+   Serveränderung, kein Frontend-Schalter.
+4. Bestehende Kontosperren, Berechtigungsprüfung, interaktive Anmeldung,
+   geordnete Stopps und Wiederanlauf weiterverwenden. Erst GoLogin Cloud
+   bestätigt stoppen, dann dieselbe Pilotverbindung exklusiv auf dem Server
+   starten. Kein gleichzeitiger Zugriff aus zwei Browsern auf ein Konto.
+5. Ein ausdrücklich freigegebenes Pilotkonto prüfen: Kontoidentität,
+   Sitzungserhalt über mehrere Start-/Stoppzyklen und Serverneustart,
+   vollständige angeforderte Kontobereiche, keine Fremdkontodaten und keine
+   unbeabsichtigten Schreibaktionen. Bei 401/403/Challenge/429 anhalten bzw.
+   die bestehende Wartefrist respektieren. Auf die übrigen Konten erst nach
+   erfolgreicher Pilotabnahme umstellen; bestehenden Rückweg bereithalten.
+6. CPU, RAM, Start-/Abrufzeit, Anfragen und Übertragungsmenge je Lauf messen.
+   Mit künstlichen Konten die Queue für 30 Verbindungen bei ausgeschaltetem
+   Nutzer-PC prüfen. Keine Lastversuche mit 30 echten Vinted-Konten.
+7. Schnellen Änderungsabruf und vollständigen Bestandsabgleich trennen. Heute
+   lädt `readVintedAccountImport` auch Artikel-, Inbox- und Bewertungsseiten;
+   unveränderte gelesene Gesprächsdetails werden bereits teilweise übersprungen.
+   Neue kürzere Abfragen benötigen einen eigenen nachgewiesenen Datenweg.
+
+Der frisch abgeglichene Code erlaubt bereits 3, 5, 10, 15, 30 und 60 Minuten;
+15 Minuten ist die Vorgabe. Die frühere Aussage im Chat, nur 15 Minuten seien
+fest möglich, beruhte auf einem älteren lokalen Remote-Stand. Kein produktiver
+Kontoplan wurde in dieser Recherche gelesen oder verändert.
+
+**Umsetzung am 02.10.2026:** Der Nutzer hat die Backend-Grenze ausdrücklich
+aufgehoben. Der neue Serveradapter verwendet den offiziellen Python-SDK
+`2026.6.24` mit fest versionierten Laufzeitabhängigkeiten, weil das geprüfte
+Node-SDK kritische Abhängigkeitsmeldungen enthielt. Die Python-Laufzeitprüfung
+meldet keine bekannten Sicherheitslücken. Feste Proxyzuordnung, echte
+Ausgangs-IP-Prüfung vor dem Browserstart, persistente Profilkopien, bestätigter
+Upload und Wiederherstellung sind implementiert. Der Wartungsbefehl sperrt die
+Runtime vor Änderungen an bestehenden Profilen. Der Servermodus leert die
+Warteschlange ohne Timer-Lücken; die globale Grenze von einem Browser bleibt.
+
+**Noch offen:** Beschaffung und Zugangsdaten der deutschen Pilot-Proxys,
+SDK-/Orbita-Livekompatibilität, echte Anmeldung/Neustart, Sitzungsmigration
+und Veröffentlichung. Der Server wurde ausschließlich gelesen: drei
+GoLogin-Profile mit GB-Proxy-Modus `geolocation`, keine feste Proxydatei und
+ein gesunder Cloudworker. Etwa 7,6 GiB RAM und vier CPU-Kerne sind vorhanden;
+das neue 2-GiB-Containerbudget ist ein Pilotbudget, kein Lastnachweis. Der
+Ein kurzlebiges Testprofil bestätigte die Proxy-API live: PATCH 204,
+`proxyEnabled: true` und korrekte Zugangsfelder. Das Testprofil wurde bestätigt
+gelöscht; kein Browser und kein Vinted-Konto wurden gestartet. Der
+konkrete Wechsel steht im bestehenden Worker-Rollout. Der früher abgelegte
+Backend-Auftrag dokumentiert inzwischen die Freigabe und Umsetzung.
 
 ## Recherche: Intervalle und Integrationsweg
 

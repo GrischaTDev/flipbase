@@ -1,5 +1,14 @@
 import { GoLoginCloudBrowser } from './gologin-cloud-browser.ts';
 import { GoLoginProfileProvisioner } from './gologin-profile-provisioner.ts';
+import { join } from 'node:path';
+import { ChromiumAccountProfileRegistry } from './chromium-account-profile-registry.ts';
+import { ChromiumBoundProfileStore } from './chromium-bound-profile-store.ts';
+import { ChromiumContainerLauncher } from './chromium-container-launcher.ts';
+import { ChromiumNetworkProfiles } from './chromium-network-profiles.ts';
+import { ChromiumPersistentBrowser } from './chromium-persistent-browser.ts';
+import { ChromiumProfileProvisioner } from './chromium-profile-provisioner.ts';
+import { ChromiumProfileStore } from './chromium-profile-store.ts';
+import { MarketplaceProfileBrowser } from './marketplace-profile-browser.ts';
 import { LocalPlaywrightBrowser } from './local-playwright-browser.ts';
 import {
   MarketplaceBrowserRecovery,
@@ -24,26 +33,89 @@ import { SupabaseMarketplaceSyncDispatchStore } from './supabase-marketplace-syn
 
 async function main(): Promise<void> {
   const config = marketplaceBrowserServerConfig(process.env);
-  const browser =
-    config.provider === 'local'
-      ? new LocalPlaywrightBrowser(config.publicTestUrl!)
-      : new GoLoginCloudBrowser({
-          token: config.goLoginToken!,
-          startUrl: 'https://www.vinted.de/',
-        });
-  const dispatchStore =
-    config.provider === 'gologin'
-      ? new SupabaseMarketplaceSyncDispatchStore({
-          url: config.supabaseUrl,
-          serviceRoleKey: config.serviceRoleKey,
-        })
-      : undefined;
+  const goLogin = config.goLoginToken
+    ? new GoLoginCloudBrowser({ token: config.goLoginToken, startUrl: 'https://www.vinted.de/' })
+    : undefined;
+  const legacyProfiles = config.goLoginToken
+    ? new GoLoginProfileProvisioner({
+        supabaseUrl: config.supabaseUrl,
+        publishableKey: config.publishableKey,
+        serviceRoleKey: config.serviceRoleKey,
+        goLoginToken: config.goLoginToken,
+      })
+    : undefined;
+  let browser: LocalPlaywrightBrowser | GoLoginCloudBrowser | MarketplaceProfileBrowser;
+  let profiles: GoLoginProfileProvisioner | ChromiumProfileProvisioner | undefined;
+  let registry: ChromiumAccountProfileRegistry | undefined;
+  if (config.provider === 'local') {
+    if (!config.publicTestUrl) throw new Error('Öffentliche Testseite fehlt');
+    browser = new LocalPlaywrightBrowser(config.publicTestUrl);
+  } else if (config.provider === 'gologin') {
+    if (!goLogin || !legacyProfiles) throw new Error('GoLogin-Zugang fehlt');
+    browser = goLogin;
+    profiles = legacyProfiles;
+  } else {
+    if (
+      !config.serverProfileRoot ||
+      !config.chromiumHostProfileRoot ||
+      !config.chromiumHostId ||
+      !config.chromiumImage ||
+      !config.chromiumNetwork ||
+      !config.chromiumNetworkId
+    )
+      throw new Error('Chromium-Konfiguration fehlt');
+    const chromiumRegistry = new ChromiumAccountProfileRegistry({
+      root: config.serverProfileRoot,
+      hostId: config.chromiumHostId,
+      networkId: config.chromiumNetworkId,
+    });
+    registry = chromiumRegistry;
+    const networks = await ChromiumNetworkProfiles.load(config.chromiumNetworkFile);
+    networks.resolve(config.chromiumNetworkId);
+    const launcher = new ChromiumContainerLauncher({
+      image: config.chromiumImage,
+      profileRoot: join(config.serverProfileRoot, 'profiles'),
+      hostProfileRoot: config.chromiumHostProfileRoot,
+      hostId: config.chromiumHostId,
+      network: config.chromiumNetwork,
+      seccompProfile: config.chromiumSeccompProfile,
+    });
+    const chromium = new ChromiumPersistentBrowser({
+      profileStore: new ChromiumProfileStore({
+        root: join(config.serverProfileRoot, 'profiles'),
+        inspectProfileProcesses: (directory) => launcher.inspectProfileProcesses(directory),
+      }),
+      network: {
+        resolve: async (profileId) =>
+          networks.resolve((await chromiumRegistry.resolve(profileId)).networkId),
+      },
+      launch: (directory, settings) => launcher.launch(directory, settings ?? {}),
+      recoverRuntime: (profileId) => launcher.recover(profileId),
+    });
+    browser = new MarketplaceProfileBrowser({ chromium, goLogin });
+    profiles = new ChromiumProfileProvisioner({
+      supabaseUrl: config.supabaseUrl,
+      publishableKey: config.publishableKey,
+      serviceRoleKey: config.serviceRoleKey,
+      registry: chromiumRegistry,
+      legacy: legacyProfiles,
+      stopProfile: (profileId) => browser.stop(profileId),
+    });
+  }
+  const isCloud = config.provider !== 'local';
+  const dispatchStore = isCloud
+    ? new SupabaseMarketplaceSyncDispatchStore({
+        url: config.supabaseUrl,
+        serviceRoleKey: config.serviceRoleKey,
+      })
+    : undefined;
   let syncRunner: MarketplaceSyncRunner | undefined;
   const workerLifecycle: { stop?: () => Promise<void> } = {};
   const dispatcher = dispatchStore
     ? new MarketplaceSyncDispatcher({
         store: dispatchStore,
         includeScheduled: config.scheduledSyncEnabled,
+        maxJobsPerPoll: 32,
         run: (scope) => {
           if (!syncRunner) return Promise.reject(new Error('Abrufdienst ist noch nicht bereit'));
           return syncRunner.runDispatched(scope);
@@ -76,28 +148,26 @@ async function main(): Promise<void> {
   );
   const broker = new MarketplaceBrowserSessionBroker({
     leases,
-    profiles: leases,
+    profiles: registry ? new ChromiumBoundProfileStore({ profiles: leases, registry }) : leases,
     browsers: browser,
     recovery,
     authorizeRuntime: dispatcher ? () => dispatcher.heartbeat() : undefined,
   });
   await broker.ready();
-  const importWriter =
-    config.provider === 'gologin'
-      ? new SupabaseVintedImportWriter({
-          url: config.supabaseUrl,
-          publishableKey: config.publishableKey,
-          serviceRoleKey: config.serviceRoleKey,
-        })
-      : undefined;
-  const operationStore =
-    config.provider === 'gologin'
-      ? new SupabaseMarketplaceOperationStore({
-          url: config.supabaseUrl,
-          publishableKey: config.publishableKey,
-          serviceRoleKey: config.serviceRoleKey,
-        })
-      : undefined;
+  const importWriter = isCloud
+    ? new SupabaseVintedImportWriter({
+        url: config.supabaseUrl,
+        publishableKey: config.publishableKey,
+        serviceRoleKey: config.serviceRoleKey,
+      })
+    : undefined;
+  const operationStore = isCloud
+    ? new SupabaseMarketplaceOperationStore({
+        url: config.supabaseUrl,
+        publishableKey: config.publishableKey,
+        serviceRoleKey: config.serviceRoleKey,
+      })
+    : undefined;
   if (dispatchStore && runtime) await dispatchStore.recover(runtime.workerId, runtime.workerEpoch);
   if (importWriter && operationStore)
     syncRunner = new MarketplaceSyncRunner(broker, importWriter, operationStore, undefined, () => {
@@ -106,40 +176,29 @@ async function main(): Promise<void> {
   const server = new MarketplaceBrowserHttpApi({
     broker,
     users: new SupabaseBrowserUserVerifier(config.supabaseUrl, config.publishableKey),
-    profiles:
-      config.provider === 'gologin'
-        ? new GoLoginProfileProvisioner({
-            supabaseUrl: config.supabaseUrl,
-            publishableKey: config.publishableKey,
-            serviceRoleKey: config.serviceRoleKey,
-            goLoginToken: config.goLoginToken!,
-          })
-        : undefined,
-    accounts:
-      config.provider === 'gologin'
-        ? new SupabaseVintedAccountWriter({
-            url: config.supabaseUrl,
-            serviceRoleKey: config.serviceRoleKey,
-          })
-        : undefined,
+    profiles,
+    accounts: isCloud
+      ? new SupabaseVintedAccountWriter({
+          url: config.supabaseUrl,
+          serviceRoleKey: config.serviceRoleKey,
+        })
+      : undefined,
     imports: importWriter,
     operations: syncRunner,
-    listingCache:
-      config.provider === 'gologin'
-        ? new SupabaseVintedListingCache({
-            url: config.supabaseUrl,
-            serviceRoleKey: config.serviceRoleKey,
-          })
-        : undefined,
-    profileCache:
-      config.provider === 'gologin'
-        ? new SupabaseVintedProfileCache({
-            url: config.supabaseUrl,
-            serviceRoleKey: config.serviceRoleKey,
-          })
-        : undefined,
+    listingCache: isCloud
+      ? new SupabaseVintedListingCache({
+          url: config.supabaseUrl,
+          serviceRoleKey: config.serviceRoleKey,
+        })
+      : undefined,
+    profileCache: isCloud
+      ? new SupabaseVintedProfileCache({
+          url: config.supabaseUrl,
+          serviceRoleKey: config.serviceRoleKey,
+        })
+      : undefined,
     edits:
-      config.provider === 'gologin'
+      config.provider === 'gologin' || config.chromiumWritesEnabled
         ? new VintedEditAccess({
             url: config.supabaseUrl,
             publishableKey: config.publishableKey,

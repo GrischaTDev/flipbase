@@ -1,28 +1,19 @@
-import { chromium, type Browser, type Page } from 'playwright';
+import { chromium, type Browser } from 'playwright';
+import { currentVintedPage, vintedBrowserActions } from './vinted-browser-actions.ts';
 import {
-  readVintedAccountImport,
   type VintedAccountImport,
   type VintedConversationVersion,
 } from './vinted-account-import.ts';
-import { readVintedAccountIdentity, type VintedAccountIdentity } from './vinted-browser-reader.ts';
+import { type VintedAccountIdentity } from './vinted-browser-reader.ts';
+import { type VintedLoginCredentials, type VintedLoginResult } from './vinted-browser-login.ts';
+import { type VintedVerificationResult } from './vinted-browser-verification.ts';
 import {
-  submitVintedLogin,
-  type VintedLoginCredentials,
-  type VintedLoginResult,
-} from './vinted-browser-login.ts';
-import {
-  submitVintedVerificationCode,
-  type VintedVerificationResult,
-} from './vinted-browser-verification.ts';
-import {
-  readVintedListingEdit,
-  updateVintedListing,
   type VintedListingEditFields,
   type VintedEditResult,
 } from './vinted-browser-listing-edit.ts';
-import { readVintedProfileAbout, updateVintedProfileAbout } from './vinted-browser-profile-edit.ts';
 
-type BrowserConnection = Pick<Browser, 'close' | 'version'> & Partial<Pick<Browser, 'contexts'>>;
+export type BrowserConnection = Pick<Browser, 'close' | 'version'> &
+  Partial<Pick<Browser, 'contexts' | 'newBrowserCDPSession'>>;
 export interface BrowserInfo extends Pick<Browser, 'version'> {
   capture?(): Promise<Uint8Array>;
   click?(xRatio: number, yRatio: number): Promise<void>;
@@ -111,45 +102,7 @@ export class GoLoginCloudBrowser {
     let connectionClosed = false;
     let providerStopped = false;
     let stopPromise: Promise<void> | undefined;
-    const currentPage = (): Page => {
-      const pages = connection.contexts?.().flatMap((context) => context.pages()) ?? [];
-      const page = pages.at(-1);
-      if (!page) throw new Error('Browserseite fehlt');
-      return page;
-    };
-    const browserInfo: BrowserInfo = {
-      version: () => connection.version(),
-      capture: () =>
-        currentPage().screenshot({
-          type: 'jpeg',
-          quality: 65,
-          scale: 'css',
-          animations: 'disabled',
-          timeout: 5_000,
-        }),
-      click: async (xRatio, yRatio) => {
-        const page = currentPage();
-        const size =
-          page.viewportSize() ??
-          (await page.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight })));
-        if (size.width <= 0 || size.height <= 0) throw new Error('Browserfenster fehlt');
-        await page.mouse.click(Math.floor(xRatio * size.width), Math.floor(yRatio * size.height));
-      },
-      type: async (value) => currentPage().keyboard.insertText(value),
-      press: async (key) => currentPage().keyboard.press(key),
-      identify: () => readVintedAccountIdentity(currentPage()),
-      importAccount: (authorize, onStage, previousConversations) =>
-        readVintedAccountImport(currentPage(), authorize, onStage, previousConversations),
-      login: (credentials, authorize) => submitVintedLogin(currentPage(), credentials, authorize),
-      verify: (code, authorize) => submitVintedVerificationCode(currentPage(), code, authorize),
-      readListingEdit: (itemId, accountId) =>
-        readVintedListingEdit(currentPage(), itemId, accountId),
-      updateListing: (itemId, accountId, fields, authorize) =>
-        updateVintedListing(currentPage(), itemId, accountId, fields, authorize),
-      readProfileAbout: (accountId) => readVintedProfileAbout(currentPage(), accountId),
-      updateProfileAbout: (accountId, about, authorize, expectedAbout) =>
-        updateVintedProfileAbout(currentPage(), accountId, about, authorize, expectedAbout),
-    };
+    const browserInfo = vintedBrowserActions(connection);
     const handle: CloudBrowserHandle = {
       run: (operation) => operation(browserInfo),
       close: async () => {
@@ -176,7 +129,10 @@ export class GoLoginCloudBrowser {
     };
     if (this.startUrl) {
       try {
-        await currentPage().goto(this.startUrl, { waitUntil: 'domcontentloaded', timeout: 20_000 });
+        await currentVintedPage(connection).goto(this.startUrl, {
+          waitUntil: 'domcontentloaded',
+          timeout: 20_000,
+        });
       } catch {
         try {
           await handle.close();

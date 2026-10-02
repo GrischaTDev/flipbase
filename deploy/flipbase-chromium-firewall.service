@@ -1,0 +1,10 @@
+[Unit]
+Description=Verify Flipbase Chromium pilot host firewall
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/bin/bash /opt/flipbase-marketplace/bootstrap-marketplace-chromium-pilot.sh verify
+TimeoutStartSec=20

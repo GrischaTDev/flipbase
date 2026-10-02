@@ -1,0 +1,43 @@
+name: flipbase-chromium-pilot
+services:
+  marketplace-worker:
+    image: ${FLIPBASE_MARKETPLACE_IMAGE:?Geprüftes Worker-Abbild erforderlich}
+    restart: 'no'
+    init: true
+    user: '1000:1000'
+    env_file:
+      - ${MARKETPLACE_ENV_FILE:-/opt/flipbase-marketplace/marketplace-worker.env}
+    environment:
+      MARKETPLACE_BROWSER_PROVIDER: chromium
+      MARKETPLACE_CHROMIUM_PILOT_ENABLED: '1'
+      MARKETPLACE_SCHEDULED_SYNC_ENABLED: '0'
+      MARKETPLACE_CHROMIUM_WRITES_ENABLED: '0'
+      MARKETPLACE_BROWSER_PROFILE_ROOT: /var/lib/flipbase-marketplace
+      MARKETPLACE_CHROMIUM_HOST_PROFILE_ROOT: /opt/flipbase-marketplace/chromium/profiles
+      MARKETPLACE_CHROMIUM_HOST_ID: pilot-01
+      MARKETPLACE_CHROMIUM_IMAGE: ${MARKETPLACE_CHROMIUM_IMAGE:?Geprüftes Sitzungs-Abbild erforderlich}
+      MARKETPLACE_CHROMIUM_NETWORK: flipbase-browser
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=64m,uid=1000,gid=1000,mode=700
+    volumes:
+      # Ausschließlich der vertrauenswürdige Controller verwaltet Docker; Browser erhalten keinen Socket.
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /opt/flipbase-marketplace/chromium:/var/lib/flipbase-marketplace
+      - /run/flipbase:/run/flipbase:ro
+    group_add:
+      - ${MARKETPLACE_DOCKER_GROUP_ID:?Host-Docker-Gruppen-ID erforderlich}
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 128
+    mem_limit: 512m
+    stop_grace_period: 13m
+    networks:
+      flipbase-browser:
+        ipv4_address: 172.30.88.2
+      supabase_default: {}
+networks:
+  flipbase-browser:
+    external: true
+  supabase_default:
+    external: true

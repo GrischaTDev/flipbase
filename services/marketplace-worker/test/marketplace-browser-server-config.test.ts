@@ -82,3 +82,66 @@ test('scheduled cloud reads default to enabled and support an explicit pause fla
     /Aktualisierung/,
   );
 });
+
+const chromiumPilot = {
+  ...configured,
+  MARKETPLACE_BROWSER_PROVIDER: 'chromium',
+  MARKETPLACE_CHROMIUM_PILOT_ENABLED: '1',
+  MARKETPLACE_BROWSER_PROFILE_ROOT: '/var/lib/flipbase-marketplace',
+  MARKETPLACE_CHROMIUM_HOST_PROFILE_ROOT: '/opt/flipbase-marketplace/chromium/profiles',
+  MARKETPLACE_CHROMIUM_HOST_ID: 'pilot-01',
+  MARKETPLACE_CHROMIUM_IMAGE: `ghcr.io/grischatdev/flipbase-chromium-session:sha-${'a'.repeat(40)}`,
+  MARKETPLACE_CHROMIUM_NETWORK: 'flipbase-browser',
+};
+
+test('chromium pilot works without GoLogin credentials and starts with scheduling paused', () => {
+  const result = marketplaceBrowserServerConfig(chromiumPilot);
+  assert.equal(result.provider, 'chromium');
+  assert.equal(result.goLoginToken, undefined);
+  assert.equal(result.scheduledSyncEnabled, false);
+  assert.equal(result.serverProfileRoot, '/var/lib/flipbase-marketplace');
+  assert.equal(result.chromiumHostId, 'pilot-01');
+  assert.equal(result.chromiumNetworkId, 'direct');
+  assert.equal(result.chromiumWritesEnabled, false);
+});
+
+test('chromium pilot rejects missing approval, mutable images and unsafe profile locations', () => {
+  for (const overrides of [
+    { MARKETPLACE_CHROMIUM_PILOT_ENABLED: '0' },
+    { MARKETPLACE_CHROMIUM_IMAGE: 'ghcr.io/grischatdev/flipbase-chromium-session:latest' },
+    { MARKETPLACE_BROWSER_PROFILE_ROOT: '/' },
+    { MARKETPLACE_BROWSER_PROFILE_ROOT: '/safe/../unsafe' },
+    { MARKETPLACE_CHROMIUM_HOST_PROFILE_ROOT: '' },
+    { MARKETPLACE_CHROMIUM_HOST_ID: '' },
+    { MARKETPLACE_CHROMIUM_NETWORK: '' },
+    { MARKETPLACE_CHROMIUM_NETWORK: 'untrusted-network' },
+    { MARKETPLACE_CHROMIUM_NETWORK_FILE: 'relative.json' },
+  ])
+    assert.throws(() => marketplaceBrowserServerConfig({ ...chromiumPilot, ...overrides }));
+});
+
+test('chromium marketplace writes require explicit operator activation', () => {
+  assert.equal(
+    marketplaceBrowserServerConfig({
+      ...chromiumPilot,
+      MARKETPLACE_CHROMIUM_WRITES_ENABLED: '1',
+    }).chromiumWritesEnabled,
+    true,
+  );
+  assert.throws(() =>
+    marketplaceBrowserServerConfig({
+      ...chromiumPilot,
+      MARKETPLACE_CHROMIUM_WRITES_ENABLED: 'true',
+    }),
+  );
+});
+
+test('chromium scheduling needs deliberate activation and legacy cloud remains configurable', () => {
+  const result = marketplaceBrowserServerConfig({
+    ...chromiumPilot,
+    GOLOGIN_API_TOKEN: 'legacy-only-test-token',
+    MARKETPLACE_SCHEDULED_SYNC_ENABLED: '1',
+  });
+  assert.equal(result.scheduledSyncEnabled, true);
+  assert.equal(result.goLoginToken, 'legacy-only-test-token');
+});
