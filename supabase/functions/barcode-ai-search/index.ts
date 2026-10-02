@@ -447,7 +447,10 @@ function createProductionDependencies(): BarcodeAiDependencies {
         .eq('user_id', userId)
         .maybeSingle();
       if (error) throw error;
-      return data !== null;
+      if (data === null) return false;
+      const access = await serviceClient.rpc('user_has_workspace_access', { p_user_id: userId });
+      if (access.error) throw access.error;
+      return access.data === true;
     },
     async search(ean, imageDataUrls) {
       const apiKey = Deno.env.get('OPENAI_API_KEY');

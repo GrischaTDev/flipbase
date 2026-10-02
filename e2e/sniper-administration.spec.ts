@@ -53,6 +53,15 @@ async function mockAdministration(page: Page) {
     let json: unknown = [];
     if (name === 'user') json = user;
     if (name === 'profiles') json = { id: user.id, full_name: 'Test Administration' };
+    if (name === 'list_my_workspace_access')
+      json = [
+        {
+          workspace_id: 'a0000000-0000-4000-8000-000000000002',
+          access_status: 'active',
+          ends_at: null,
+          server_time: new Date().toISOString(),
+        },
+      ];
     if (name === 'workspaces')
       json = [
         {

@@ -1,3 +1,4 @@
+import { createBetaEmailBrowserFixture } from './beta-email-browser-fixture.mjs';
 import { cp, mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
@@ -28,10 +29,21 @@ await writeFile(
   join(entry, 'index.ts'),
   "import { installEbayOrderProviderFixture } from './provider-fixture.ts';\ninstallEbayOrderProviderFixture();\nawait import('./index.production.ts');\nconsole.log('FLIPBASE_EBAY_TEST_PROVIDER_READY');\n",
 );
+const betaEmail = await createBetaEmailBrowserFixture();
 const environment = join(scratch, 'test.env');
 await writeFile(
   environment,
-  `FLIPBASE_EBAY_TEST_PROVIDER=isolated
+  `BETA_APPLICATION_PEPPER=local-browser-only-pepper
+BETA_APPLICATION_ALLOWED_ORIGINS=http://127.0.0.1:4200,http://localhost:4200
+BETA_INVITE_ALLOWED_ORIGINS=http://127.0.0.1:4200,http://localhost:4200
+BETA_APP_URL=http://127.0.0.1:4200
+BETA_SMTP_HOST=${process.platform === 'linux' ? '172.17.0.1' : 'host.docker.internal'}
+BETA_SMTP_PORT=54361
+BETA_SMTP_USER=local
+BETA_SMTP_PASS=local
+BETA_SMTP_FROM_EMAIL=beta@flipbase.local
+BETA_SMTP_FROM_NAME=Flipbase
+FLIPBASE_EBAY_TEST_PROVIDER=isolated
 EBAY_CLIENT_ID=flipbase-local-test
 EBAY_CLIENT_SECRET=local-test-only
 EBAY_REDIRECT_URI_NAME=local-test-only
@@ -72,6 +84,7 @@ process.on('SIGTERM', stop);
 child.on('exit', (code) => {
   stopped = true;
   server.close();
+  void betaEmail.close();
   process.exitCode = code ?? 0;
 });
 const server = createServer((_request, response) => {

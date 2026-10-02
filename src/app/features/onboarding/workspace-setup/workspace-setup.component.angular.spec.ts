@@ -1,5 +1,5 @@
 import '@angular/compiler';
-import { signal, ɵresolveComponentResources } from '@angular/core';
+import { computed, signal, ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
@@ -11,6 +11,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { Workspace } from '../../../core/models/flipbase.models';
 import { AuthService } from '../../../core/services/auth.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
+import { WorkspaceAccessService } from '../../../core/services/workspace-access.service';
 import { ButtonComponent } from '../../../shared/components/button/button.component';
 import { TextFieldComponent } from '../../../shared/components/text-field/text-field.component';
 import { WorkspaceSetupComponent } from './workspace-setup.component';
@@ -136,6 +137,7 @@ describe('WorkspaceSetupComponent', () => {
       loadError?: Error | null;
       completeError?: Error | null;
       review?: boolean;
+      allowedWorkspaceIds?: string[];
     } = {},
   ) {
     const workspaces = signal(options.workspaces ?? [incompleteWorkspace]);
@@ -152,6 +154,21 @@ describe('WorkspaceSetupComponent', () => {
     TestBed.configureTestingModule({
       imports: [WorkspaceSetupComponent, ButtonComponent],
       providers: [
+        {
+          provide: WorkspaceAccessService,
+          useValue: {
+            access: computed(() =>
+              workspaces()
+                .filter(
+                  (workspace) =>
+                    !options.allowedWorkspaceIds ||
+                    options.allowedWorkspaceIds.includes(workspace.id),
+                )
+                .map((workspace) => ({ workspace_id: workspace.id, access_status: 'active' })),
+            ),
+            refresh: vi.fn().mockResolvedValue(undefined),
+          },
+        },
         {
           provide: WorkspaceService,
           useValue: {
@@ -209,6 +226,36 @@ describe('WorkspaceSetupComponent', () => {
       navigate,
     };
   }
+
+  it('richtet bei mehreren offenen Workspaces nur den aktiven Zugang ein', async () => {
+    const valid = { ...incompleteWorkspace, id: '22222222-2222-4222-8222-222222222222' };
+    const { component, completeInitialSetup } = createComponent({
+      workspaces: [incompleteWorkspace, valid],
+      allowedWorkspaceIds: [valid.id],
+    });
+    await component.retryLoad();
+    expect(component.workspaceToEdit()?.id).toBe(valid.id);
+    component.form.controls.workspaceName.setValue('Aktiver Handel');
+    await component.onSubmit();
+    expect(completeInitialSetup).toHaveBeenCalledWith(valid.id, 'Aktiver Handel');
+  });
+
+  it('bearbeitet beim Zurückgehen nur einen aktiven eingerichteten Workspace', async () => {
+    const blocked = { ...incompleteWorkspace, setup_completed_at: '2026-09-20T17:00:00Z' };
+    const valid = {
+      ...blocked,
+      id: '22222222-2222-4222-8222-222222222222',
+      name: 'Aktiver Handel',
+    };
+    const { component } = createComponent({
+      workspaces: [blocked, valid],
+      allowedWorkspaceIds: [valid.id],
+      review: true,
+    });
+    await component.retryLoad();
+    expect(component.workspaceToEdit()?.id).toBe(valid.id);
+    expect(component.form.controls.workspaceName.value).toBe(valid.name);
+  });
 
   it('akzeptiert ausschließlich einen getrimmten Workspace-Namen mit 2 bis 100 Zeichen', () => {
     const { component } = createComponent();

@@ -1,3 +1,5 @@
+import { BetaLifecycleClockService } from '../../services/beta-lifecycle-clock.service';
+import { BetaDurationDialogComponent } from '../../components/beta-duration-dialog/beta-duration-dialog.component';
 import { DatePipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
@@ -30,6 +32,7 @@ import {
   LucideCheck as Check,
   LucideX as X,
   LucideTrash2 as Trash2,
+  LucideClock as Clock,
 } from '@lucide/angular';
 import { BetaApprovalDialogComponent } from '../../components/beta-approval-dialog/beta-approval-dialog.component';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
@@ -45,11 +48,13 @@ import { ConfirmDialogService } from '../../../../shared/components/confirm-dial
     TableActionButtonComponent,
     BadgeComponent,
     BetaApprovalDialogComponent,
+    BetaDurationDialogComponent,
   ],
   templateUrl: './beta-applications.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class BetaApplicationsComponent implements OnInit {
+  private readonly clock = inject(BetaLifecycleClockService);
   private readonly service = inject(BetaApplicationService);
   private readonly confirmDialog = inject(ConfirmDialogService);
   readonly tablePreferences = inject(TablePreferencesService);
@@ -64,6 +69,7 @@ export class BetaApplicationsComponent implements OnInit {
   readonly approveIcon = Check;
   readonly rejectIcon = X;
   readonly deleteIcon = Trash2;
+  readonly durationIcon = Clock;
   readonly betaStatusFilters = [
     { value: 'all' as const, label: 'Alle' },
     { value: 'open' as const, label: 'Offen' },
@@ -136,6 +142,7 @@ export class BetaApplicationsComponent implements OnInit {
    * zweimal abschicken.
    */
   readonly processingId = signal<string | null>(null);
+  readonly durationApplication = signal<BetaApplication | null>(null);
   readonly selectedApplication = signal<BetaApplication | null>(null);
   readonly approvalError = signal<string | null>(null);
 
@@ -148,13 +155,23 @@ export class BetaApplicationsComponent implements OnInit {
   }
 
   lifecycleStatus(application: BetaApplication): { label: string; tone: BadgeTone } {
+    if (application.revokedAt)
+      return { label: 'Freigabe zurückgezogen – Löschen erneut versuchen', tone: 'critical' };
+    if (
+      !application.registeredAt &&
+      application.invitationExpiresAt &&
+      new Date(application.invitationExpiresAt).getTime() <= this.clock.now()
+    )
+      return { label: 'Registrierungsfrist abgelaufen', tone: 'caution' };
+    if (application.betaEndedAt) return { label: 'Beta beendet', tone: 'neutral' };
     if (application.status === 'rejected' && application.rejectionEmailStatus === 'failed') {
       return { label: 'Ablehnung nicht zugestellt', tone: 'critical' };
     }
     if (application.status === 'rejected') return { label: 'Abgelehnt', tone: 'critical' };
     if (
       application.licenseStatus === 'expired' ||
-      (application.betaEndsAt !== null && new Date(application.betaEndsAt).getTime() <= Date.now())
+      (application.betaEndsAt !== null &&
+        new Date(application.betaEndsAt).getTime() <= this.clock.now())
     ) {
       return { label: 'Beta abgelaufen', tone: 'neutral' };
     }
@@ -271,6 +288,62 @@ export class BetaApplicationsComponent implements OnInit {
     await this.runAction(application, () => this.service.resendRejection(application.id));
   }
 
+  async withdraw(application: BetaApplication): Promise<void> {
+    if (this.processingId()) return;
+    const confirmed = await this.confirmDialog.frage({
+      titel: 'Freigabe zurückziehen und löschen?',
+      text:
+        'Die Einladung von ' +
+        application.email +
+        ' wird ungültig. Das noch nicht registrierte Konto und die Bewerbung werden gelöscht. Danach ist eine neue Bewerbung mit dieser E-Mail möglich.',
+      bestaetigenText: 'Zurückziehen und löschen',
+      abbrechenText: 'Abbrechen',
+      gefahr: true,
+    });
+    if (!confirmed || this.processingId()) return;
+    this.processingId.set(application.id);
+    this.error.set(null);
+    try {
+      await this.service.withdraw(application.id);
+      this.applications.update((rows) => rows.filter((row) => row.id !== application.id));
+    } catch (error) {
+      this.error.set(error instanceof Error ? error.message : String(error));
+    } finally {
+      this.processingId.set(null);
+    }
+  }
+
+  closeDuration(): void {
+    if (!this.processingId()) this.durationApplication.set(null);
+  }
+  async changeDuration(change: { action: 'extend' | 'end'; days: number }): Promise<void> {
+    const application = this.durationApplication();
+    if (!application || this.processingId()) return;
+    if (
+      change.action === 'end' &&
+      !(await this.confirmDialog.frage({
+        titel: 'Beta jetzt beenden?',
+        text: 'Der Zugang zur Anwendung wird sofort beendet. Konto und Daten bleiben erhalten.',
+        bestaetigenText: 'Beta beenden',
+        abbrechenText: 'Abbrechen',
+        gefahr: true,
+      }))
+    )
+      return;
+    if (this.processingId()) return;
+    this.processingId.set(application.id);
+    this.error.set(null);
+    try {
+      await this.service.changeDuration(application.id, change.action, change.days);
+      this.durationApplication.set(null);
+      await this.load();
+    } catch (error) {
+      this.error.set(error instanceof Error ? error.message : String(error));
+    } finally {
+      this.processingId.set(null);
+    }
+  }
+
   async deleteRejected(application: BetaApplication): Promise<void> {
     const confirmed = await this.confirmDialog.frage({
       titel: 'Abgelehnte Bewerbung löschen?',
@@ -299,6 +372,7 @@ export class BetaApplicationsComponent implements OnInit {
     application: BetaApplication,
     action: () => Promise<BetaApplication>,
   ): Promise<BetaApplication | null> {
+    if (this.processingId()) return null;
     this.error.set(null);
     this.processingId.set(application.id);
     try {

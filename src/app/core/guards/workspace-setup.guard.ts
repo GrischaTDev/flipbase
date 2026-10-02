@@ -8,6 +8,7 @@ import {
 } from '@angular/router';
 import { AuthService } from '../services/auth.service';
 import { WorkspaceService } from '../services/workspace.service';
+import { WorkspaceAccessService } from '../services/workspace-access.service';
 
 async function resolveWorkspaceSetup(
   setupPage: boolean,
@@ -17,6 +18,7 @@ async function resolveWorkspaceSetup(
   const auth = inject(AuthService);
   const workspaceService = inject(WorkspaceService);
   const router = inject(Router);
+  const access = inject(WorkspaceAccessService, { optional: true });
 
   await auth.sessionReady;
 
@@ -28,7 +30,18 @@ async function resolveWorkspaceSetup(
 
   await workspaceService.ensureLoaded();
 
-  const workspaces = workspaceService.workspaces();
+  let workspaces = workspaceService.workspaces();
+  if (access) {
+    try {
+      const rows = await access.refresh();
+      workspaces = workspaces.filter((workspace) =>
+        rows.some((row) => row.workspace_id === workspace.id && row.access_status === 'active'),
+      );
+    } catch {
+      return router.createUrlTree(['/beta-ended']);
+    }
+    if (workspaces.length === 0) return router.createUrlTree(['/beta-ended']);
+  }
   const setupRequired = workspaces.some((workspace) => workspace.setup_completed_at === null);
   const setupUnavailable = workspaceService.loadError() !== null || workspaces.length === 0;
 

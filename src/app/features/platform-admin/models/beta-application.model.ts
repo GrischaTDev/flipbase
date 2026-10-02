@@ -30,6 +30,9 @@ export interface BetaApplication {
   registeredAt: string | null;
   licenseStatus: BetaAccessStatus | null;
   betaEndsAt: string | null;
+  invitationExpiresAt?: string | null;
+  revokedAt?: string | null;
+  betaEndedAt?: string | null;
 }
 
 /** Vorgabe fuer neue Beta-Freigaben; im Annahmedialog anpassbar. */

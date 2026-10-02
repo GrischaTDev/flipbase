@@ -185,7 +185,7 @@ zusammengehören:
 3. **Die Edge Functions rollt keine Pipeline aus.** Alle vom Repository
    verwalteten Ordner unter `supabase/functions/` müssen gemeinsam nach
    `/opt/supabase/volumes/functions/` übertragen werden. Das umfasst mindestens
-   `beta-application`, `beta-invite` und deren gemeinsames `_shared`-Verzeichnis.
+   `beta-application`, `beta-invite`, `beta-register` und deren gemeinsames `_shared`-Verzeichnis.
    Einzelne Funktionsordner dürfen nicht getrennt ausgerollt werden, weil beide
    Beta-Funktionen dieselben Mailbausteine importieren. Die Ordner werden jeweils
    einzeln gespiegelt: Ein `rsync --delete` auf dem übergeordneten Zielordner

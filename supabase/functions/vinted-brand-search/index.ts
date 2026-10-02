@@ -25,7 +25,12 @@ Deno.serve(
     async isOperator(_userId, token) {
       const { data, error } = await userClient(token).rpc('is_platform_operator');
       if (error) throw error;
-      return data === true;
+      if (data !== true) return false;
+      const access = await userClient(token).rpc('list_my_workspace_access');
+      if (access.error) throw access.error;
+      return (access.data ?? []).some(
+        (row: { access_status: string }) => row.access_status === 'active',
+      );
     },
     search: searchVintedBrands,
   }),

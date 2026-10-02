@@ -102,15 +102,26 @@ export function renderRegistrationInvite(input: {
   firstName: string;
   actionLink: string;
   grantedDays: number;
+  expiresAt?: string;
 }): BetaRenderedEmail {
   const firstName = input.firstName.trim();
   const safeFirstName = escapeHtml(firstName);
   const safeActionLink = escapeHtml(input.actionLink);
   const grantedDays = Math.trunc(input.grantedDays);
+  const deadline = input.expiresAt
+    ? 'Dieser Registrierungslink ist sieben Tage gültig, bis ' +
+      new Intl.DateTimeFormat('de-DE', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+        timeZone: 'Europe/Berlin',
+      }).format(new Date(input.expiresAt)) +
+      ' Uhr (Europe/Berlin).'
+    : '';
   const html = renderEmailCard(`
     <h1 style="margin:0 0 16px;font-size:20px;line-height:1.3;text-align:center;color:#0f172a">Deine Bewerbung wurde angenommen</h1>
     <p style="margin:0 0 16px;font-size:15px;line-height:24px;text-align:center;color:#475569">Hallo ${safeFirstName},<br />deine Bewerbung wurde angenommen. Du kannst jetzt deine Registrierung für die geschlossene Flipbase Beta abschließen.</p>
     <p style="margin:0 0 24px;font-size:14px;line-height:22px;text-align:center;color:#64748b">Deine Beta-Laufzeit von ${grantedDays} Tagen beginnt erst, nachdem du dein Passwort festgelegt hast. Danach kannst du im Dashboard dein Discord-Konto verbinden und erhältst automatisch die Rolle „Beta-Tester“.</p>
+    <p style="text-align:center;color:#475569">${escapeHtml(deadline)}</p>
     <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:28px auto"><tr><td align="center" style="border-radius:12px;background:#fcc601">
       <a href="${safeActionLink}" target="_blank" style="display:inline-block;padding:14px 32px;border:1px solid #eab308;border-radius:12px;background:#fcc601;color:#111827;font-size:15px;font-weight:700;text-decoration:none">Registrierung abschließen</a>
     </td></tr></table>
@@ -120,6 +131,6 @@ export function renderRegistrationInvite(input: {
   return {
     subject: 'Deine Bewerbung zur Flipbase Beta wurde angenommen',
     html,
-    text: `Hallo ${firstName},\n\nDeine Bewerbung wurde angenommen. Du kannst jetzt deine Registrierung für die geschlossene Flipbase Beta abschließen. Deine Beta-Laufzeit von ${grantedDays} Tagen beginnt erst, nachdem du dein Passwort festgelegt hast. Danach kannst du im Dashboard dein Discord-Konto verbinden und erhältst automatisch die Rolle „Beta-Tester“.\n\nRegistrierung abschließen: ${input.actionLink}\n\nDein Flipbase-Team`,
+    text: `Hallo ${firstName},\n\nDeine Bewerbung wurde angenommen. Du kannst jetzt deine Registrierung für die geschlossene Flipbase Beta abschließen. Deine Beta-Laufzeit von ${grantedDays} Tagen beginnt erst, nachdem du dein Passwort festgelegt hast. Danach kannst du im Dashboard dein Discord-Konto verbinden und erhältst automatisch die Rolle „Beta-Tester“.\n\n${deadline}\n\nRegistrierung abschließen: ${input.actionLink}\n\nDein Flipbase-Team`,
   };
 }

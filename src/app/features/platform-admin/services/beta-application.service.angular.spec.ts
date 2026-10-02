@@ -80,6 +80,9 @@ describe('BetaApplicationService', () => {
         rejectionEmailSentAt: null,
         rejectionEmailLastError: null,
         registeredAt: null,
+        invitationExpiresAt: null,
+        revokedAt: null,
+        betaEndedAt: null,
         licenseStatus: 'active',
         betaEndsAt: '2026-11-19T08:00:00.000Z',
       },
@@ -101,7 +104,12 @@ describe('BetaApplicationService', () => {
     await service.accept('a1', 60);
 
     expect(invoke).toHaveBeenCalledWith('beta-invite', {
-      body: { applicationId: 'a1', grantedDays: 60, action: 'accept' },
+      body: {
+        applicationId: 'a1',
+        grantedDays: 60,
+        action: 'accept',
+        requestId: expect.any(String),
+      },
     });
   });
 
@@ -112,7 +120,7 @@ describe('BetaApplicationService', () => {
     await service.reject('a1');
 
     expect(invoke).toHaveBeenCalledWith('beta-invite', {
-      body: { applicationId: 'a1', action: 'reject' },
+      body: { applicationId: 'a1', action: 'reject', requestId: expect.any(String) },
     });
   });
 
@@ -124,10 +132,10 @@ describe('BetaApplicationService', () => {
     await service.resendApplicationReceipt('a1');
 
     expect(invoke).toHaveBeenNthCalledWith(1, 'beta-invite', {
-      body: { applicationId: 'a1', action: 'resend' },
+      body: { applicationId: 'a1', action: 'resend', requestId: expect.any(String) },
     });
     expect(invoke).toHaveBeenNthCalledWith(2, 'beta-invite', {
-      body: { applicationId: 'a1', action: 'resend_receipt' },
+      body: { applicationId: 'a1', action: 'resend_receipt', requestId: expect.any(String) },
     });
   });
 
@@ -138,7 +146,7 @@ describe('BetaApplicationService', () => {
     await service.resendRejection('a1');
 
     expect(invoke).toHaveBeenCalledWith('beta-invite', {
-      body: { applicationId: 'a1', action: 'resend_rejection' },
+      body: { applicationId: 'a1', action: 'resend_rejection', requestId: expect.any(String) },
     });
   });
 
@@ -164,5 +172,19 @@ describe('BetaApplicationService', () => {
     const service = serviceWith({ functions: { invoke } });
 
     await expect(service.accept('a1', 60)).rejects.toThrow('Einladung fehlgeschlagen');
+  });
+
+  it('behält bei Antwortverlust dieselbe Kennung und erneuert sie nach bestätigtem Erfolg', async () => {
+    const invoke = vi
+      .fn()
+      .mockResolvedValueOnce({ data: null, error: { message: 'Antwort verloren' } })
+      .mockResolvedValue({ data: { ok: true }, error: null });
+    const service = serviceWith({ functions: { invoke } });
+    await expect(service.changeDuration('retry-application', 'extend', 7)).rejects.toThrow();
+    await service.changeDuration('retry-application', 'extend', 7);
+    const first = invoke.mock.calls[0][1].body.requestId;
+    expect(invoke.mock.calls[1][1].body.requestId).toBe(first);
+    await service.changeDuration('retry-application', 'extend', 7);
+    expect(invoke.mock.calls[2][1].body.requestId).not.toBe(first);
   });
 });

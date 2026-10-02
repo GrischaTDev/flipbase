@@ -9,6 +9,18 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 
 // Nur die tatsächliche Testauswahl prüfen, nicht Playwrights Parser nachtesten.
 const coreTests = [
+  [
+    'beta-access-lifecycle.spec.ts',
+    'beendet und verlängert eine Beta bei offenem Browser und erhält die Anmeldung @core-smoke',
+  ],
+  [
+    'beta-access-lifecycle.spec.ts',
+    'zieht eine offene Registrierung zurück und gibt die E-Mail frei @core-smoke',
+  ],
+  [
+    'beta-access-lifecycle.spec.ts',
+    'zieht eine abgelaufene Registrierung zurück und gibt die E-Mail frei @core-smoke',
+  ],
   ['ebay-order-import.spec.ts', 'imports an eBay order exactly once @core-smoke'],
   [
     'ebay-order-import.spec.ts',

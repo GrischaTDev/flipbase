@@ -1,0 +1,66 @@
+<app-modal-shell
+  [title]="'BETA.DURATION_TITLE' | translate"
+  [subtitle]="name()"
+  size="sm"
+  (closed)="closed.emit()"
+>
+  <div class="space-y-4 text-sm text-fb-text-secondary">
+    @if (errorMessage(); as message) {
+      <p role="alert" class="text-fb-critical">{{ message }}</p>
+    }
+    @if (endsAt(); as end) {
+      <p>
+        {{ 'BETA.CURRENT_END' | translate }}:
+        <time [attr.datetime]="end">{{ end | date: 'dd.MM.yyyy, HH:mm' }}</time>
+      </p>
+    }
+    <div>
+      <label for="beta-extension-days" class="mb-2 block font-medium text-fb-text-primary">{{
+        'BETA.EXTEND_BY' | translate
+      }}</label>
+      <app-number-input
+        id="beta-extension-days"
+        [formControl]="days"
+        [min]="1"
+        [max]="3650"
+        [step]="1"
+        [unit]="'BETA.DAYS' | translate"
+        [ariaLabel]="'BETA.DAYS_LABEL' | translate"
+      />
+      @if (days.touched && days.invalid) {
+        <p role="alert" class="mt-2 text-fb-critical">
+          {{ 'BETA.DAYS_ERROR' | translate }}
+        </p>
+      }
+      <p class="mt-2">
+        {{ 'BETA.EXTENSION_INFO' | translate }}
+      </p>
+      @if (previewEnd(); as end) {
+        <p class="mt-2 font-medium text-fb-text-primary" aria-live="polite">
+          {{ 'BETA.NEW_END' | translate }}:
+          <time [attr.datetime]="end">{{ end | date: 'dd.MM.yyyy, HH:mm' }}</time>
+        </p>
+      }
+    </div>
+    <div class="border-t border-fb-line pt-4">
+      <p class="mb-3">
+        {{ 'BETA.END_INFO' | translate }}
+      </p>
+      <app-button variant="destructive" [disabled]="processing()" (clicked)="end()">{{
+        'BETA.END_NOW' | translate
+      }}</app-button>
+    </div>
+  </div>
+  <div modal-footer class="flex justify-end gap-3">
+    <app-button variant="secondary" [disabled]="processing()" (clicked)="closed.emit()">{{
+      'COMMON.CANCEL' | translate
+    }}</app-button>
+    <app-button
+      variant="primary"
+      [loading]="processing()"
+      [disabled]="days.invalid"
+      (clicked)="extend()"
+      >{{ 'BETA.EXTEND' | translate }}</app-button
+    >
+  </div>
+</app-modal-shell>

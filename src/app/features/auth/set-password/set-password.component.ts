@@ -27,6 +27,7 @@ import {
   LucideSun as Sun,
   LucideMoon as Moon,
 } from '@lucide/angular';
+import { BetaRegistrationService } from '../services/beta-registration.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { SupabaseService } from '../../../core/services/supabase.service';
 import { ThemeService } from '../../../core/services/theme.service';
@@ -67,6 +68,9 @@ const passwordMatchValidator: ValidatorFn = (control: AbstractControl): Validati
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SetPasswordComponent implements OnInit {
+  private readonly registration = inject(BetaRegistrationService);
+  private managedToken: string | null = null;
+  private readonly requestId = crypto.randomUUID();
   private readonly authService = inject(AuthService);
   private readonly supabase = inject(SupabaseService);
   private readonly router = inject(Router);
@@ -168,6 +172,17 @@ export class SetPasswordComponent implements OnInit {
   }
 
   async ngOnInit(): Promise<void> {
+    const token = new URLSearchParams(window.location.hash.slice(1)).get('beta_token');
+    if (token) {
+      this.managedToken = token;
+      // Der Link bleibt bis zum Abschluss im Fragment; er wird nicht an den Webserver gesendet.
+      try {
+        await this.registration.inspect(token);
+      } catch {
+        this.isTokenInvalid.set(true);
+      }
+      return;
+    }
     await this.authService.sessionReady;
     const reviewingPassword = this.route.snapshot.queryParamMap.get('review') === '1';
     if (reviewingPassword && this.authService.canAccessApp()) {
@@ -235,6 +250,12 @@ export class SetPasswordComponent implements OnInit {
     const { password } = this.form.getRawValue();
 
     try {
+      if (this.managedToken) {
+        await this.registration.complete(this.managedToken, password, this.requestId);
+        history.replaceState(null, '', window.location.pathname);
+        await this.router.navigate(['/onboarding/workspace']);
+        return;
+      }
       const { error } = await this.supabase.client.auth.updateUser({
         password,
         data: { beta_registration_completed: true },

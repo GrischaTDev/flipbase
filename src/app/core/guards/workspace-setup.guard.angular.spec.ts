@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { Workspace } from '../models/flipbase.models';
 import { AuthService } from '../services/auth.service';
 import { WorkspaceService } from '../services/workspace.service';
+import { WorkspaceAccessService } from '../services/workspace-access.service';
 import { workspaceSetupGuard, workspaceSetupPageGuard } from './workspace-setup.guard';
 
 const incompleteWorkspace: Workspace = {
@@ -28,6 +29,7 @@ function setupGuard(
     loadError?: Error | null;
     url?: string;
     review?: boolean;
+    allowedWorkspaceIds?: string[];
   } = {},
 ) {
   const ensureLoaded = vi.fn(options.ensureLoaded ?? (() => Promise.resolve()));
@@ -41,6 +43,22 @@ function setupGuard(
           canAccessApp: () => options.authenticated ?? true,
         },
       },
+      ...(options.allowedWorkspaceIds
+        ? [
+            {
+              provide: WorkspaceAccessService,
+              useValue: {
+                refresh: () =>
+                  Promise.resolve(
+                    options.allowedWorkspaceIds!.map((id) => ({
+                      workspace_id: id,
+                      access_status: 'active',
+                    })),
+                  ),
+              },
+            },
+          ]
+        : []),
       {
         provide: WorkspaceService,
         useValue: {
@@ -71,6 +89,14 @@ function setupGuard(
 }
 
 describe('workspace setup guards', () => {
+  it('ignoriert einen gesperrten unvollständigen Workspace, wenn ein anderer Zugang nutzbar ist', async () => {
+    const valid = { ...completedWorkspace, id: '22222222-2222-4222-8222-222222222222' };
+    await expect(
+      setupGuard([incompleteWorkspace, valid], { allowedWorkspaceIds: [valid.id] }).invoke(
+        workspaceSetupGuard,
+      ),
+    ).resolves.toBe(true);
+  });
   it('leitet einen unvollständigen Workspace vor geschützten Seiten zur Einrichtung', async () => {
     const { invoke, createUrlTree } = setupGuard([incompleteWorkspace]);
 

@@ -3,6 +3,10 @@ import type { BetaApplicationStatus, BetaInvitationStatus } from './beta-applica
 export type WorkspaceLicenseStatus = 'pending' | 'active' | 'expired' | 'suspended';
 
 export interface PlatformUser {
+  readonly applicationId?: string | null;
+  readonly invitationExpiresAt?: string | null;
+  readonly revokedAt?: string | null;
+  readonly betaEndedAt?: string | null;
   readonly userId: string;
   readonly fullName: string;
   readonly email: string;

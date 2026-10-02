@@ -161,15 +161,12 @@ function productionDependencies(): CleanupDependencies {
       const { data, error } = await userClient(token).auth.getUser();
       return error ? null : (data.user?.id ?? null);
     },
-    async isMember(userId, workspaceId, token) {
-      const { data, error } = await userClient(token)
-        .from('workspace_members')
-        .select('id')
-        .eq('workspace_id', workspaceId)
-        .eq('user_id', userId)
-        .maybeSingle();
+    async isMember(_userId, workspaceId, token) {
+      const { data, error } = await userClient(token).rpc('can_access_workspace', {
+        ws_id: workspaceId,
+      });
       if (error) throw error;
-      return data !== null;
+      return data === true;
     },
     async loadJobs(workspaceId, force) {
       let query = admin
