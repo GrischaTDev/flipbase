@@ -36,6 +36,10 @@ vor dem Start, weil der Runner `br_netfilter` noch nicht geladen hat. Die
 Hostvorbereitung lädt das Modul, aktiviert die benötigte Bridge-Filterung
 und hinterlegt eigene Startkonfigurationen; spätere Prüfungen bleiben lesend.
 Die ungenutzte Testschleifenvariable aus dem Shellcheck-Befund ist korrigiert.
+Der zweite Imagesmoke erreicht die Netzprüfung: Dockers Standardnetze liefern
+teilweise `IPAM.Config=null`, was nun als fehlender Adressbereich behandelt wird.
+Fehlerdiagnosen des künstlichen Containers enthalten weder Vinted-Zugänge noch
+produktive Profile und erleichtern die weitere Linux-Abnahme.
 
 ## 2026-10-02 - Juna - Vinted-Cloudplan mit drei Agents im Web gegengeprüft
 

@@ -26,6 +26,7 @@ jobs:
       - name: Set up Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - name: Build isolated Chromium session
+        id: session_image
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: services/marketplace-worker
@@ -38,7 +39,7 @@ jobs:
           SESSION_IMAGE: ghcr.io/grischatdev/flipbase-chromium-session:sha-${{ github.sha }}
         run: |
           set -euo pipefail
-          sudo bash deploy/bootstrap-marketplace-chromium-pilot.sh setup
+          sudo bash -x deploy/bootstrap-marketplace-chromium-pilot.sh setup
           sudo systemctl is-active --quiet flipbase-chromium-firewall.timer
           profile_root="$RUNNER_TEMP/chromium-profiles"
           mkdir -p "$profile_root/fixture-a" "$profile_root/fixture-b"
@@ -78,6 +79,18 @@ jobs:
             docker rm "$container_id" >/dev/null
           done
           sudo bash deploy/bootstrap-marketplace-chromium-pilot.sh verify
+      - name: Diagnose isolated sandbox fixture on failure
+        if: failure() && steps.session_image.outcome == 'success'
+        env:
+          SESSION_IMAGE: ghcr.io/grischatdev/flipbase-chromium-session:sha-${{ github.sha }}
+        run: |
+          set -euo pipefail
+          sudo dmesg | tail -n 60 || true
+          docker run --rm --network flipbase-browser --init --user=1000:1000 --read-only --cap-drop=ALL --security-opt=no-new-privileges:true --security-opt="seccomp=$PWD/deploy/chromium-seccomp.json" --memory=2g --pids-limit=512 --shm-size=256m --tmpfs=/tmp:rw,nosuid,nodev,size=512m,uid=1000,gid=1000,mode=700 --tmpfs=/home/node:rw,nosuid,nodev,size=64m,uid=1000,gid=1000,mode=700 --tmpfs=/profile:rw,nosuid,nodev,size=128m,uid=1000,gid=1000,mode=700 --entrypoint node "$SESSION_IMAGE" --input-type=module -e '
+            import { chromium } from "playwright";
+            const context = await chromium.launchPersistentContext("/profile", { headless: true, chromiumSandbox: true, acceptDownloads: false, env: {PATH: process.env.PATH, HOME: "/home/node"} });
+            await context.close();
+          '
       - name: Log in to container registry
         if: github.event_name == 'workflow_dispatch'
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0

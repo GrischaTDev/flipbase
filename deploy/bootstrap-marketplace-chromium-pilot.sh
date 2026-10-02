@@ -42,7 +42,7 @@ if ! docker network inspect "$network" >/dev/null 2>&1; then
 import ipaddress,json,sys
 target=ipaddress.ip_network("172.30.88.0/24")
 for network in json.load(sys.stdin):
- for config in network.get("IPAM",{}).get("Config",[]):
+ for config in (network.get("IPAM") or {}).get("Config") or []:
   cidr=config.get("Subnet")
   if cidr and ipaddress.ip_network(cidr).version==4 and target.overlaps(ipaddress.ip_network(cidr)): sys.exit(1)
 '
