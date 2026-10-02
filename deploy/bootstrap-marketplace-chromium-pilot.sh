@@ -27,7 +27,14 @@ chain=FLIPBASE_CHROMIUM
 host_chain=FLIPBASE_CHROMIUM_HOST
 blocked=(0.0.0.0/8 10.0.0.0/8 100.64.0.0/10 127.0.0.0/8 169.254.0.0/16 172.16.0.0/12 192.168.0.0/16 198.18.0.0/15 224.0.0.0/4 240.0.0.0/4)
 iptables -w -S DOCKER-USER >/dev/null
-[[ "$(cat /proc/sys/net/bridge/bridge-nf-call-iptables)" == 1 ]] || { echo 'Bridge-Firewall ist nicht aktiv!' >&2; exit 1; }
+if [[ "$mode" == setup ]]; then
+  modprobe br_netfilter
+  sysctl -w net.bridge.bridge-nf-call-iptables=1 net.bridge.bridge-nf-call-ip6tables=1 >/dev/null
+fi
+for bridge_setting in bridge-nf-call-iptables bridge-nf-call-ip6tables; do
+  setting_path="/proc/sys/net/bridge/$bridge_setting"
+  [[ -r "$setting_path" && "$(cat "$setting_path")" == 1 ]] || { echo "Bridge-Firewall ist nicht aktiv: $bridge_setting!" >&2; exit 1; }
+done
 if ! docker network inspect "$network" >/dev/null 2>&1; then
   [[ "$mode" == setup ]] || exit 1
   # Keine fremden Netzwerke oder überlappenden Subnetze verändern.
@@ -108,6 +115,8 @@ if [[ "$mode" == setup ]]; then
   install_owned "$script_directory/chromium-seccomp.LICENSE" /opt/flipbase-marketplace/chromium-seccomp.LICENSE 0644
   install_owned "$script_directory/flipbase-chromium-firewall.service" /etc/systemd/system/flipbase-chromium-firewall.service 0644
   install_owned "$script_directory/flipbase-chromium-firewall.timer" /etc/systemd/system/flipbase-chromium-firewall.timer 0644
+  install_owned "$script_directory/flipbase-chromium-modules.conf" /etc/modules-load.d/flipbase-chromium.conf 0644
+  install_owned "$script_directory/flipbase-chromium-sysctl.conf" /etc/sysctl.d/90-flipbase-chromium.conf 0644
   systemctl daemon-reload
   systemctl enable --now flipbase-chromium-firewall.timer
 fi

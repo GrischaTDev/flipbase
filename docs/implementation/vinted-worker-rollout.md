@@ -61,6 +61,8 @@ Die Hostvorbereitung enthält einen konkreten 30-Sekunden-Timer:
 `sudo bash deploy/bootstrap-marketplace-chromium-pilot.sh setup` installiert
 Script, seccomp-Profil und beide Units unter festen Flipbase-Pfaden und aktiviert
 den Timer. Bereits vorhandene abweichende Dateien verursachen einen Abbruch.
+Die Vorbereitung lädt zusätzlich `br_netfilter` und hinterlegt eigene
+modules-load-/sysctl-Dateien für die benötigte IPv4-/IPv6-Bridge-Filterung.
 Das seccomp-Profil stammt aus dem offiziellen Playwright-Repository,
 Commit `ae935a43d9e376e4759548f6b3c6905c7b282333`; die Apache-Lizenz liegt daneben.
 

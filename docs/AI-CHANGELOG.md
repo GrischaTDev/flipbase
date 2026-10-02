@@ -30,6 +30,13 @@ Vinted-UI-Änderungen und beide Changelog-Beiträge bleiben vollständig erhalte
 Der neue Linux-Imagesmoke läuft erstmals im PR. Der produktive Browserwechsel
 und die echten Vinted-/Mobilprüfungen bleiben ein eigener Pilot-Schritt.
 
+**CI-Korrektur:** Der erste Linuxlauf bestätigt alle 240 Workerfälle ohne
+Auslassung sowie den Controller-Imagebau. Der Browser-Smoke stoppt zunächst
+vor dem Start, weil der Runner `br_netfilter` noch nicht geladen hat. Die
+Hostvorbereitung lädt das Modul, aktiviert die benötigte Bridge-Filterung
+und hinterlegt eigene Startkonfigurationen; spätere Prüfungen bleiben lesend.
+Die ungenutzte Testschleifenvariable aus dem Shellcheck-Befund ist korrigiert.
+
 ## 2026-10-02 - Juna - Vinted-Cloudplan mit drei Agents im Web gegengeprüft
 
 **Auftrag:** Auf ausdrücklichen Wunsch mit Agents Anbieter, GitHub-Projekte

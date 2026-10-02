@@ -69,7 +69,7 @@ jobs:
               if(process.argv[2]==="write") await context.addCookies([{name:"fixture_marker",value:"persistent",domain:"fixture.invalid",path:"/",expires:Date.now()/1000+3600}]);
               await (await browser.newBrowserCDPSession()).send("Browser.close").catch(()=>{});
             ' "$container_ip" "$phase"
-            for attempt in $(seq 1 60); do
+            for ((attempt = 0; attempt < 60; attempt++)); do
               if [[ "$(docker inspect --format '{{.State.Running}}' "$container_id")" == false ]]; then break; fi
               sleep 1
             done
