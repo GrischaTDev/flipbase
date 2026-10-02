@@ -266,6 +266,7 @@ export type Database = {
           first_name: string
           granted_days: number | null
           id: string
+          invitation_expires_at: string | null
           invitation_last_error: string | null
           invitation_sent_at: string | null
           invitation_status: string
@@ -277,10 +278,16 @@ export type Database = {
           receipt_email_sent_at: string | null
           receipt_email_status: string
           registered_at: string | null
+          registration_link_kind: string
           rejection_email_last_error: string | null
           rejection_email_sent_at: string | null
           rejection_email_status: string
+          revoked_at: string | null
           status: string
+          withdrawal_last_error: string | null
+          withdrawal_status: string
+          withdrawal_user_id: string | null
+          withdrawal_workspace_id: string | null
         }
         Insert: {
           auth_user_id?: string | null
@@ -293,6 +300,7 @@ export type Database = {
           first_name: string
           granted_days?: number | null
           id?: string
+          invitation_expires_at?: string | null
           invitation_last_error?: string | null
           invitation_sent_at?: string | null
           invitation_status?: string
@@ -304,10 +312,16 @@ export type Database = {
           receipt_email_sent_at?: string | null
           receipt_email_status?: string
           registered_at?: string | null
+          registration_link_kind?: string
           rejection_email_last_error?: string | null
           rejection_email_sent_at?: string | null
           rejection_email_status?: string
+          revoked_at?: string | null
           status?: string
+          withdrawal_last_error?: string | null
+          withdrawal_status?: string
+          withdrawal_user_id?: string | null
+          withdrawal_workspace_id?: string | null
         }
         Update: {
           auth_user_id?: string | null
@@ -320,6 +334,7 @@ export type Database = {
           first_name?: string
           granted_days?: number | null
           id?: string
+          invitation_expires_at?: string | null
           invitation_last_error?: string | null
           invitation_sent_at?: string | null
           invitation_status?: string
@@ -331,10 +346,16 @@ export type Database = {
           receipt_email_sent_at?: string | null
           receipt_email_status?: string
           registered_at?: string | null
+          registration_link_kind?: string
           rejection_email_last_error?: string | null
           rejection_email_sent_at?: string | null
           rejection_email_status?: string
+          revoked_at?: string | null
           status?: string
+          withdrawal_last_error?: string | null
+          withdrawal_status?: string
+          withdrawal_user_id?: string | null
+          withdrawal_workspace_id?: string | null
         }
         Relationships: []
       }
@@ -361,6 +382,88 @@ export type Database = {
           role_assigned_at?: string
         }
         Relationships: []
+      }
+      beta_lifecycle_operations: {
+        Row: {
+          action: string
+          application_id: string | null
+          created_at: string
+          id: number
+          lease_expires_at: string
+          lease_id: string
+          request_id: string
+          result: Json
+          status: string
+        }
+        Insert: {
+          action: string
+          application_id?: string | null
+          created_at?: string
+          id?: never
+          lease_expires_at?: string
+          lease_id?: string
+          request_id: string
+          result?: Json
+          status?: string
+        }
+        Update: {
+          action?: string
+          application_id?: string | null
+          created_at?: string
+          id?: never
+          lease_expires_at?: string
+          lease_id?: string
+          request_id?: string
+          result?: Json
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "beta_lifecycle_operations_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "beta_applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      beta_registration_links: {
+        Row: {
+          application_id: string
+          consumed_at: string | null
+          expires_at: string
+          id: number
+          issued_at: string
+          revoked_at: string | null
+          token_hash: string
+        }
+        Insert: {
+          application_id: string
+          consumed_at?: string | null
+          expires_at: string
+          id?: never
+          issued_at?: string
+          revoked_at?: string | null
+          token_hash: string
+        }
+        Update: {
+          application_id?: string
+          consumed_at?: string | null
+          expires_at?: string
+          id?: never
+          issued_at?: string
+          revoked_at?: string | null
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "beta_registration_links_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "beta_applications"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       brands: {
         Row: {
@@ -5417,6 +5520,7 @@ export type Database = {
           access_source: string
           beta_application_id: string | null
           created_at: string
+          ended_at: string | null
           ends_at: string | null
           granted_days: number
           starts_at: string | null
@@ -5428,6 +5532,7 @@ export type Database = {
           access_source?: string
           beta_application_id?: string | null
           created_at?: string
+          ended_at?: string | null
           ends_at?: string | null
           granted_days: number
           starts_at?: string | null
@@ -5439,6 +5544,7 @@ export type Database = {
           access_source?: string
           beta_application_id?: string | null
           created_at?: string
+          ended_at?: string | null
           ends_at?: string | null
           granted_days?: number
           starts_at?: string | null
@@ -5579,6 +5685,7 @@ export type Database = {
           first_name: string
           granted_days: number | null
           id: string
+          invitation_expires_at: string | null
           invitation_last_error: string | null
           invitation_sent_at: string | null
           invitation_status: string
@@ -5590,10 +5697,16 @@ export type Database = {
           receipt_email_sent_at: string | null
           receipt_email_status: string
           registered_at: string | null
+          registration_link_kind: string
           rejection_email_last_error: string | null
           rejection_email_sent_at: string | null
           rejection_email_status: string
+          revoked_at: string | null
           status: string
+          withdrawal_last_error: string | null
+          withdrawal_status: string
+          withdrawal_user_id: string | null
+          withdrawal_workspace_id: string | null
         }
         SetofOptions: {
           from: "*"
@@ -5608,6 +5721,7 @@ export type Database = {
           access_source: string
           beta_application_id: string | null
           created_at: string
+          ended_at: string | null
           ends_at: string | null
           granted_days: number
           starts_at: string | null
@@ -5651,6 +5765,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      begin_beta_registration: {
+        Args: { p_request_id: string; p_token_hash: string }
+        Returns: Json
       }
       beta_application_attempt: {
         Args: {
@@ -5746,6 +5864,8 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      can_access_workspace: { Args: { ws_id: string }; Returns: boolean }
+      can_administer_workspace: { Args: { ws_id: string }; Returns: boolean }
       can_manage_company_logo_path: {
         Args: { p_path: string }
         Returns: boolean
@@ -5759,9 +5879,76 @@ export type Database = {
         }
         Returns: Json
       }
+      change_beta_duration: {
+        Args: {
+          p_action: string
+          p_application_id: string
+          p_days: number
+          p_request_id: string
+        }
+        Returns: {
+          access_source: string
+          beta_application_id: string | null
+          created_at: string
+          ended_at: string | null
+          ends_at: string | null
+          granted_days: number
+          starts_at: string | null
+          status: string
+          updated_at: string
+          workspace_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "workspace_licenses"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      claim_beta_lifecycle_operation: {
+        Args: {
+          p_action: string
+          p_application_id: string
+          p_request_id: string
+        }
+        Returns: {
+          action: string
+          application_id: string | null
+          created_at: string
+          id: number
+          lease_expires_at: string
+          lease_id: string
+          request_id: string
+          result: Json
+          status: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "beta_lifecycle_operations"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       company_document_party: {
         Args: { p_workspace_id: string }
         Returns: Json
+      }
+      complete_beta_invitation: {
+        Args: {
+          p_error: string
+          p_lease_id: string
+          p_request_id: string
+          p_sent: boolean
+        }
+        Returns: Json
+      }
+      complete_beta_registration: {
+        Args: { p_lease_id: string; p_request_id: string }
+        Returns: Json
+      }
+      complete_beta_withdrawal: {
+        Args: { p_lease_id: string; p_request_id: string }
+        Returns: undefined
       }
       correct_purchase_costing: {
         Args: {
@@ -6071,6 +6258,10 @@ export type Database = {
         Args: { p_filter?: Json; p_workspace_id: string }
         Returns: Json
       }
+      fail_beta_lifecycle_operation: {
+        Args: { p_lease_id: string; p_request_id: string }
+        Returns: undefined
+      }
       finalize_purchase_costing: {
         Args: { p_purchase_id: string; p_workspace_id: string }
         Returns: Json
@@ -6101,6 +6292,10 @@ export type Database = {
       has_purchase_recorded_sales: {
         Args: { p_purchase_id: string; p_workspace_id: string }
         Returns: boolean
+      }
+      inspect_beta_registration: {
+        Args: { p_token_hash: string }
+        Returns: Json
       }
       is_catalog_product_media_path: {
         Args: { p_path: string; p_product_id: string; p_workspace_id: string }
@@ -6162,6 +6357,26 @@ export type Database = {
           event_type: string
           id: string
           reason: string
+          workspace_id: string
+        }[]
+      }
+      list_my_workspace_access: {
+        Args: never
+        Returns: {
+          access_status: string
+          ends_at: string
+          server_time: string
+          workspace_id: string
+        }[]
+      }
+      list_platform_beta_lifecycle: {
+        Args: never
+        Returns: {
+          application_id: string
+          auth_user_id: string
+          ended_at: string
+          invitation_expires_at: string
+          revoked_at: string
           workspace_id: string
         }[]
       }
@@ -6573,6 +6788,18 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      prepare_beta_invitation: {
+        Args: {
+          p_application_id: string
+          p_request_id: string
+          p_token_hash: string
+        }
+        Returns: Json
+      }
+      prepare_beta_withdrawal: {
+        Args: { p_application_id: string; p_request_id: string }
+        Returns: Json
+      }
       prepare_listing: {
         Args: {
           p_catalog_product_id?: string
@@ -6754,6 +6981,7 @@ export type Database = {
           first_name: string
           granted_days: number | null
           id: string
+          invitation_expires_at: string | null
           invitation_last_error: string | null
           invitation_sent_at: string | null
           invitation_status: string
@@ -6765,10 +6993,16 @@ export type Database = {
           receipt_email_sent_at: string | null
           receipt_email_status: string
           registered_at: string | null
+          registration_link_kind: string
           rejection_email_last_error: string | null
           rejection_email_sent_at: string | null
           rejection_email_status: string
+          revoked_at: string | null
           status: string
+          withdrawal_last_error: string | null
+          withdrawal_status: string
+          withdrawal_user_id: string | null
+          withdrawal_workspace_id: string | null
         }
         SetofOptions: {
           from: "*"
@@ -7241,6 +7475,14 @@ export type Database = {
             }
             Returns: string
           }
+      user_can_access_workspace: {
+        Args: { p_user_id: string; p_workspace_id: string }
+        Returns: boolean
+      }
+      user_has_workspace_access: {
+        Args: { p_user_id: string }
+        Returns: boolean
+      }
       validate_inventory_item_sale_integrity: {
         Args: { p_inventory_item_id: string }
         Returns: undefined
@@ -7249,6 +7491,14 @@ export type Database = {
       validate_listing_item_details: {
         Args: { p_details: Json }
         Returns: Json
+      }
+      workspace_access_is_valid: {
+        Args: { p_workspace_id: string }
+        Returns: boolean
+      }
+      workspace_has_business_data: {
+        Args: { p_workspace_id: string }
+        Returns: boolean
       }
     }
     Enums: {

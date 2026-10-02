@@ -19,6 +19,7 @@ import {
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { WorkspaceService } from '../../../core/services/workspace.service';
+import { WorkspaceAccessService } from '../../../core/services/workspace-access.service';
 import { ButtonComponent } from '../../../shared/components/button/button.component';
 import { TextFieldComponent } from '../../../shared/components/text-field/text-field.component';
 import { BetaRegistrationProgressComponent } from '../components/beta-registration-progress/beta-registration-progress.component';
@@ -46,6 +47,7 @@ const workspaceNameLengthValidator: ValidatorFn = (
 })
 export class WorkspaceSetupComponent implements OnInit {
   private readonly workspaceService = inject(WorkspaceService);
+  private readonly access = inject(WorkspaceAccessService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly translate = inject(TranslateService);
@@ -54,18 +56,25 @@ export class WorkspaceSetupComponent implements OnInit {
   readonly isSaving = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly isReview = signal(false);
+  readonly accessibleWorkspaces = computed(() =>
+    this.workspaceService
+      .workspaces()
+      .filter((workspace) =>
+        this.access
+          .access()
+          .some((row) => row.workspace_id === workspace.id && row.access_status === 'active'),
+      ),
+  );
 
   readonly incompleteWorkspace = computed(
     () =>
-      this.workspaceService
-        .workspaces()
-        .find((workspace) => workspace.setup_completed_at === null) ?? null,
+      this.accessibleWorkspaces().find((workspace) => workspace.setup_completed_at === null) ??
+      null,
   );
   readonly workspaceToEdit = computed(() =>
     this.isReview()
-      ? (this.workspaceService
-          .workspaces()
-          .find((workspace) => workspace.setup_completed_at !== null) ?? null)
+      ? (this.accessibleWorkspaces().find((workspace) => workspace.setup_completed_at !== null) ??
+        null)
       : this.incompleteWorkspace(),
   );
 
@@ -101,13 +110,12 @@ export class WorkspaceSetupComponent implements OnInit {
     this.errorMessage.set(null);
 
     try {
+      await this.access.refresh();
       await this.workspaceService.ensureLoaded();
       this.isReview.set(
         this.route.snapshot.queryParamMap.get('review') === '1' &&
           this.incompleteWorkspace() === null &&
-          this.workspaceService
-            .workspaces()
-            .some((workspace) => workspace.setup_completed_at !== null),
+          this.accessibleWorkspaces().some((workspace) => workspace.setup_completed_at !== null),
       );
 
       if (this.workspaceService.loadError()) {
@@ -120,7 +128,9 @@ export class WorkspaceSetupComponent implements OnInit {
         if (this.isReview()) this.form.controls.workspaceName.setValue(workspace.name);
       } else {
         if (this.workspaceService.workspaces().length > 0) {
-          await this.router.navigate(['/dashboard']);
+          await this.router.navigate([
+            this.accessibleWorkspaces().length ? '/dashboard' : '/beta-ended',
+          ]);
         } else {
           this.errorMessage.set(this.translate.instant('WORKSPACE.SETUP_MISSING_ERROR'));
         }

@@ -2,6 +2,32 @@ import { Observable, of } from 'rxjs';
 import { TranslateLoader, TranslationObject } from '@ngx-translate/core';
 
 export const TRANSLATIONS_DE = {
+  BETA: {
+    ENDED_TITLE: 'Deine Beta ist beendet',
+    EXPIRED_TITLE: 'Deine Beta ist abgelaufen',
+    THANKS:
+      'Vielen Dank, dass Du Flipbase getestet hast! Dein Konto und Deine Daten bleiben erhalten. Für eine Verlängerung wende Dich bitte an das Flipbase-Team.',
+    CHECK_FAILED: 'Zugang konnte nicht geprüft werden',
+    RETRY_HINT: 'Bitte versuche es erneut.',
+    PENDING_TITLE: 'Registrierung noch nicht abgeschlossen',
+    PENDING_TEXT:
+      'Bitte nutze den Registrierungslink aus Deiner E-Mail. Ist er abgelaufen, kann das Flipbase-Team Dir eine neue Einladung senden.',
+    RETRY: 'Zugang erneut prüfen',
+    NO_ACCESS: 'Für Dein Konto ist aktuell kein aktiver Zugang verfügbar.',
+    DURATION_TITLE: 'Beta-Laufzeit ändern',
+    CURRENT_END: 'Aktuelles Ende',
+    NEW_END: 'Neues Ende',
+    EXTEND_BY: 'Verlängern um',
+    DAYS: 'Tage',
+    DAYS_LABEL: 'Beta verlängern um Tage',
+    DAYS_ERROR: 'Bitte eine ganze Zahl zwischen 1 und 3650 Tagen eingeben.',
+    EXTENSION_INFO:
+      'Eine aktive Beta wird ab ihrem bisherigen Ende verlängert. Ist sie abgelaufen oder beendet, beginnt die Verlängerung jetzt.',
+    END_INFO:
+      'Beim Beenden wird der Zugang zur Anwendung sofort gesperrt. Das Konto, die Anmeldung und alle Daten bleiben erhalten.',
+    END_NOW: 'Beta jetzt beenden',
+    EXTEND: 'Laufzeit verlängern',
+  },
   // Direct platform string lookups for dynamic templates
   ebay: 'eBay',
   kleinanzeigen: 'Kleinanzeigen',
@@ -401,6 +427,32 @@ export const TRANSLATIONS_DE = {
 };
 
 export const TRANSLATIONS_EN = {
+  BETA: {
+    ENDED_TITLE: 'Your beta has ended',
+    EXPIRED_TITLE: 'Your beta has expired',
+    THANKS:
+      'Thank you for testing Flipbase! Your account and data are retained. To extend your access, please contact the Flipbase team.',
+    CHECK_FAILED: 'Access could not be verified',
+    RETRY_HINT: 'Please try again.',
+    PENDING_TITLE: 'Registration is not complete',
+    PENDING_TEXT:
+      'Please use the registration link in your email. If it has expired, the Flipbase team can send you a new invitation.',
+    RETRY: 'Check access again',
+    NO_ACCESS: 'There is currently no active access for your account.',
+    DURATION_TITLE: 'Change beta duration',
+    CURRENT_END: 'Current end date',
+    NEW_END: 'New end date',
+    EXTEND_BY: 'Extend by',
+    DAYS: 'days',
+    DAYS_LABEL: 'Extend beta by days',
+    DAYS_ERROR: 'Please enter a whole number between 1 and 3650 days.',
+    EXTENSION_INFO:
+      'An active beta is extended from its current end date. If it has expired or ended, the extension starts now.',
+    END_INFO:
+      'Ending the beta immediately blocks access to the app. The account, sign-in and all data are retained.',
+    END_NOW: 'End beta now',
+    EXTEND: 'Extend duration',
+  },
   // Direct platform string lookups for dynamic templates
   ebay: 'eBay',
   kleinanzeigen: 'Kleinanzeigen',

@@ -45,6 +45,8 @@ test('allows new beta accounts only through operator invitations', async () => {
   assert.match(routes, /path: 'register',[\s\S]*?redirectTo: 'login',[\s\S]*?pathMatch: 'full'/u);
   assert.doesNotMatch(loginTemplate, /\/auth\/register/u);
   assert.match(routes, /path: 'set-password'/u);
-  assert.match(inviteFunction, /inviteUserByEmail/u);
+  assert.match(inviteFunction, /auth.admin.createUser/u);
+  assert.doesNotMatch(inviteFunction, /inviteUserByEmail/u);
+  assert.match(inviteFunction, /prepare_beta_invitation/u);
   assert.match(JSON.parse(packageJson).scripts.verify, /npm run test:edge/u);
 });

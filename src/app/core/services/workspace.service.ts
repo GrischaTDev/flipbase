@@ -4,6 +4,7 @@ import { SupabaseService } from './supabase.service';
 import { AuthService } from './auth.service';
 import { SyncStatusService } from './sync-status.service';
 import { WorkspaceContextLockService } from './workspace-context-lock.service';
+import { WorkspaceAccessService } from './workspace-access.service';
 import {
   ConsolidatedHoldingSummary,
   InventoryItem,
@@ -33,6 +34,7 @@ export class WorkspaceService {
   private readonly auth = inject(AuthService, { optional: true });
   private readonly workspaceContext = inject(WorkspaceContextLockService, { optional: true });
   private readonly router = inject(Router, { optional: true });
+  private readonly access = inject(WorkspaceAccessService, { optional: true });
 
   private readonly defaultWorkspaces: Workspace[] = [
     {
@@ -86,6 +88,20 @@ export class WorkspaceService {
     // umgestellt ist, bleibt dieser Schutz noetig - ohne ihn schlagen 39 Tests
     // fehl. Danach ersatzlos entfernen.
     try {
+      effect(() => {
+        const rows = this.access?.access();
+        const current = this.currentWorkspace();
+        if (!rows?.length || !current) return;
+        if (rows.some((row) => row.workspace_id === current.id && row.access_status === 'active')) {
+          this.access?.select(current.id);
+          return;
+        }
+        const next = this.workspaces().find((workspace) =>
+          rows.some((row) => row.workspace_id === workspace.id && row.access_status === 'active'),
+        );
+        this.currentWorkspace.set(next ?? null);
+        this.access?.select(next?.id ?? null);
+      });
       effect(() => {
         const isAuth = this.auth?.isAuthenticated();
 
@@ -198,6 +214,7 @@ export class WorkspaceService {
 
   setCurrentWorkspace(workspace: Workspace): void {
     this.currentWorkspace.set(workspace);
+    this.access?.select(workspace.id);
     try {
       if (typeof window !== 'undefined') {
         localStorage.setItem(ACTIVE_WORKSPACE_KEY, workspace.id);
@@ -207,6 +224,13 @@ export class WorkspaceService {
 
   switchWorkspace(workspaceId: string): boolean {
     if (this.workspaceContext?.locked()) return false;
+    if (
+      this.access &&
+      !this.access
+        .access()
+        .some((row) => row.workspace_id === workspaceId && row.access_status === 'active')
+    )
+      return false;
     const target = this.workspaces().find((w) => w.id === workspaceId);
     if (!target) return false;
     this.setCurrentWorkspace(target);

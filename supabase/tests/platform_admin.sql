@@ -629,7 +629,7 @@ $$;
 reset role;
 
 update auth.users
-set raw_user_meta_data = raw_user_meta_data || '{"beta_registration_completed": true}'::jsonb
+set email_confirmed_at=now(),raw_user_meta_data = raw_user_meta_data || '{"beta_registration_completed": true}'::jsonb
 where id = :'beta_user_id'::uuid;
 
 set local role authenticated;

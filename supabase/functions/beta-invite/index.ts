@@ -13,6 +13,12 @@ import {
   renderOperatorApplicationNotice,
 } from '../_shared/beta-email-template.ts';
 
+import {
+  createBetaRegistrationToken,
+  hashBetaRegistrationToken,
+  buildBetaRegistrationUrl,
+} from '../_shared/beta-registration-link.ts';
+
 type BetaInviteAction =
   | 'accept'
   | 'reject'
@@ -20,7 +26,10 @@ type BetaInviteAction =
   | 'resend_receipt'
   | 'resend_operator_notice'
   | 'resend_rejection'
-  | 'delete_rejected';
+  | 'delete_rejected'
+  | 'withdraw'
+  | 'extend'
+  | 'end';
 
 export interface BetaInviteApplication {
   id: string;
@@ -46,6 +55,8 @@ export interface BetaInviteApplication {
   rejection_email_sent_at: string | null;
   rejection_email_last_error: string | null;
   registered_at: string | null;
+  invitation_expires_at?: string | null;
+  revoked_at?: string | null;
   workspace_licenses?:
     | { status: string; ends_at: string | null }
     | { status: string; ends_at: string | null }[]
@@ -61,11 +72,6 @@ interface BetaInviteUserInput {
     last_name: string;
     full_name: string;
   };
-}
-
-interface BetaRegistrationLinkInput {
-  email: string;
-  redirectTo: string;
 }
 
 type BetaApplicationPatch = Partial<
@@ -100,9 +106,24 @@ export interface BetaInviteDependencies {
   rejectApplication(token: string, applicationId: string): Promise<BetaInviteApplication>;
   deleteRejectedApplication(token: string, applicationId: string): Promise<void>;
   inviteUser(input: BetaInviteUserInput): Promise<{ userId: string }>;
-  generateRegistrationLink(
-    input: BetaRegistrationLinkInput,
-  ): Promise<{ userId: string; actionLink: string }>;
+  prepareInvitation(
+    applicationId: string,
+    requestId: string,
+  ): Promise<{ actionLink: string; expiresAt: string; replayed: boolean; leaseId: string }>;
+  finishInvitation(
+    requestId: string,
+    leaseId: string,
+    sent: boolean,
+    error: string | null,
+  ): Promise<void>;
+  withdrawApplication(applicationId: string, requestId: string): Promise<void>;
+  changeDuration(
+    token: string,
+    applicationId: string,
+    requestId: string,
+    action: 'extend' | 'end',
+    days: number,
+  ): Promise<void>;
   sendEmail(message: BetaEmailMessage): Promise<void>;
   updateApplication(
     applicationId: string,
@@ -123,7 +144,7 @@ const ALLOWED_ORIGINS = new Set(
 );
 
 const APPLICATION_FIELDS =
-  'id, first_name, last_name, email, status, granted_days, decision_note, decided_at, created_at, receipt_email_status, receipt_email_sent_at, receipt_email_last_error, operator_email_status, operator_email_sent_at, operator_email_last_error, auth_user_id, invitation_status, invitation_sent_at, invitation_last_error, rejection_email_status, rejection_email_sent_at, rejection_email_last_error, registered_at, workspace_licenses(status, ends_at)';
+  'id, first_name, last_name, email, status, granted_days, decision_note, decided_at, created_at, receipt_email_status, receipt_email_sent_at, receipt_email_last_error, operator_email_status, operator_email_sent_at, operator_email_last_error, auth_user_id, invitation_status, invitation_sent_at, invitation_last_error, rejection_email_status, rejection_email_sent_at, rejection_email_last_error, registered_at, invitation_expires_at, revoked_at, workspace_licenses(status, ends_at)';
 
 function corsHeaders(origin: string | null): Record<string, string> {
   const headers: Record<string, string> = {
@@ -175,18 +196,71 @@ function isAction(value: unknown): value is BetaInviteAction {
     'resend_operator_notice',
     'resend_rejection',
     'delete_rejected',
+    'withdraw',
+    'extend',
+    'end',
   ].includes(String(value));
 }
 
-async function storeInvitationFailure(
+async function sendInvitation(
   dependencies: BetaInviteDependencies,
-  applicationId: string,
-  error: unknown,
-): Promise<BetaInviteApplication> {
-  return dependencies.updateApplication(applicationId, {
-    invitation_status: 'failed',
-    invitation_last_error: boundedError(error),
-  });
+  application: BetaInviteApplication,
+  requestId: string,
+  origin: string | null,
+): Promise<Response> {
+  let prepared: Awaited<ReturnType<BetaInviteDependencies['prepareInvitation']>>;
+  try {
+    prepared = await dependencies.prepareInvitation(application.id, requestId);
+  } catch (error) {
+    return respond({ error: 'invitation_busy', message: boundedError(error) }, 409, origin);
+  }
+  if (prepared.replayed)
+    return respond(
+      { ok: true, application: await dependencies.loadApplication(application.id) },
+      200,
+      origin,
+    );
+  try {
+    if (!application.auth_user_id) {
+      const invited = await dependencies.inviteUser({
+        email: application.email,
+        redirectTo: redirectUrl(dependencies.siteUrl),
+        data: {
+          beta_application_id: application.id,
+          first_name: application.first_name,
+          last_name: application.last_name,
+          full_name: (application.first_name + ' ' + application.last_name).trim(),
+        },
+      });
+      await dependencies.updateApplication(application.id, { auth_user_id: invited.userId });
+    }
+    await dependencies.sendEmail({
+      to: application.email,
+      ...renderRegistrationInvite({
+        firstName: application.first_name,
+        actionLink: prepared.actionLink,
+        grantedDays: application.granted_days!,
+        expiresAt: prepared.expiresAt,
+      }),
+    });
+    await dependencies.finishInvitation(requestId, prepared.leaseId, true, null);
+    return respond(
+      { ok: true, application: await dependencies.loadApplication(application.id) },
+      200,
+      origin,
+    );
+  } catch (error) {
+    await dependencies.finishInvitation(requestId, prepared.leaseId, false, boundedError(error));
+    return respond(
+      {
+        error: 'invite_failed',
+        message: 'Die Einladung konnte nicht versendet werden.',
+        application: await dependencies.loadApplication(application.id),
+      },
+      502,
+      origin,
+    );
+  }
 }
 
 export function createBetaInviteHandler(
@@ -234,6 +308,29 @@ export function createBetaInviteHandler(
       return respond({ error: 'invalid_action' }, 400, origin);
     }
 
+    const requestId = typeof body.requestId === 'string' ? body.requestId : crypto.randomUUID();
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu.test(requestId))
+      return respond({ error: 'invalid_request_id' }, 400, origin);
+    if (body.action === 'withdraw' || body.action === 'extend' || body.action === 'end') {
+      const days = Number(body.days ?? 0);
+      if (body.action === 'extend' && (!Number.isInteger(days) || days < 1 || days > 3650))
+        return respond({ error: 'invalid_days' }, 400, origin);
+      try {
+        if (body.action === 'withdraw')
+          await dependencies.withdrawApplication(applicationId, requestId);
+        else await dependencies.changeDuration(token, applicationId, requestId, body.action, days);
+        return respond(
+          {
+            ok: true,
+            deletedApplicationId: body.action === 'withdraw' ? applicationId : undefined,
+          },
+          200,
+          origin,
+        );
+      } catch (error) {
+        return respond({ error: 'action_failed', message: boundedError(error) }, 409, origin);
+      }
+    }
     if (body.action === 'reject') {
       let application: BetaInviteApplication;
       try {
@@ -295,37 +392,7 @@ export function createBetaInviteHandler(
         return respond({ error: 'decision_failed', message: boundedError(error) }, 400, origin);
       }
 
-      try {
-        const fullName = `${application.first_name} ${application.last_name}`.trim();
-        const invited = await dependencies.inviteUser({
-          email: application.email,
-          redirectTo: redirectUrl(dependencies.siteUrl),
-          data: {
-            beta_application_id: application.id,
-            first_name: application.first_name,
-            last_name: application.last_name,
-            full_name: fullName,
-          },
-        });
-        application = await dependencies.updateApplication(application.id, {
-          auth_user_id: invited.userId,
-          invitation_status: 'sent',
-          invitation_sent_at: dependencies.now(),
-          invitation_last_error: null,
-        });
-        return respond({ ok: true, application }, 200, origin);
-      } catch (error) {
-        const failedApplication = await storeInvitationFailure(dependencies, application.id, error);
-        return respond(
-          {
-            error: 'invite_failed',
-            message: 'Die Einladung konnte nicht versendet werden.',
-            application: failedApplication,
-          },
-          502,
-          origin,
-        );
-      }
+      return sendInvitation(dependencies, application, requestId, origin);
     }
 
     const application = await dependencies.loadApplication(applicationId);
@@ -426,7 +493,7 @@ export function createBetaInviteHandler(
       }
     }
 
-    if (application.status !== 'accepted' || !application.auth_user_id) {
+    if (application.status !== 'accepted' || application.revoked_at) {
       return respond({ error: 'invitation_not_ready' }, 409, origin);
     }
     if (application.registered_at) {
@@ -436,38 +503,7 @@ export function createBetaInviteHandler(
       return respond({ error: 'missing_granted_days' }, 409, origin);
     }
 
-    try {
-      const link = await dependencies.generateRegistrationLink({
-        email: application.email,
-        redirectTo: redirectUrl(dependencies.siteUrl),
-      });
-      if (link.userId !== application.auth_user_id) {
-        throw new Error('Der Registrierungslink gehoert nicht zum verknuepften Nutzer.');
-      }
-      const invitation = renderRegistrationInvite({
-        firstName: application.first_name,
-        actionLink: link.actionLink,
-        grantedDays: application.granted_days,
-      });
-      await dependencies.sendEmail({ to: application.email, ...invitation });
-      const updated = await dependencies.updateApplication(application.id, {
-        invitation_status: 'sent',
-        invitation_sent_at: dependencies.now(),
-        invitation_last_error: null,
-      });
-      return respond({ ok: true, application: updated }, 200, origin);
-    } catch (error) {
-      const failedApplication = await storeInvitationFailure(dependencies, application.id, error);
-      return respond(
-        {
-          error: 'invite_failed',
-          message: 'Die Einladung konnte nicht versendet werden.',
-          application: failedApplication,
-        },
-        502,
-        origin,
-      );
-    }
+    return sendInvitation(dependencies, application, requestId, origin);
   };
 }
 
@@ -480,6 +516,9 @@ function createProductionDependencies(): BetaInviteDependencies {
   }
 
   const serviceClient = createClient(supabaseUrl, serviceRoleKey, {
+    global: {
+      fetch: (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(30000) }),
+    },
     auth: { persistSession: false },
   });
   const userClient = (token: string) =>
@@ -539,25 +578,78 @@ function createProductionDependencies(): BetaInviteDependencies {
       }
     },
     async inviteUser(input) {
-      const { data, error } = await serviceClient.auth.admin.inviteUserByEmail(input.email, {
-        data: input.data,
-        redirectTo: input.redirectTo,
+      const { data, error } = await serviceClient.auth.admin.createUser({
+        email: input.email,
+        email_confirm: false,
+        user_metadata: input.data,
       });
-      if (error || !data.user) {
-        throw new Error(error?.message ?? 'Einladung fehlgeschlagen.');
-      }
+      if (error || !data.user)
+        throw new Error(error?.message ?? 'Konto konnte nicht vorbereitet werden.');
       return { userId: data.user.id };
     },
-    async generateRegistrationLink(input) {
-      const { data, error } = await serviceClient.auth.admin.generateLink({
-        type: 'recovery',
-        email: input.email,
-        options: { redirectTo: input.redirectTo },
+    async prepareInvitation(applicationId, requestId) {
+      const token = createBetaRegistrationToken();
+      const { data, error } = await serviceClient.rpc('prepare_beta_invitation', {
+        p_application_id: applicationId,
+        p_request_id: requestId,
+        p_token_hash: await hashBetaRegistrationToken(token),
       });
-      if (error || !data.properties?.action_link || !data.user) {
-        throw new Error(error?.message ?? 'Registrierungslink konnte nicht erzeugt werden.');
+      if (error) throw new Error(error.message);
+      return {
+        actionLink: buildBetaRegistrationUrl(betaAppUrl(), token),
+        expiresAt: data.expires_at,
+        replayed: data.replayed === true,
+        leaseId: data.lease_id,
+      };
+    },
+    async finishInvitation(requestId, leaseId, sent, errorMessage) {
+      const { error } = await serviceClient.rpc('complete_beta_invitation', {
+        p_request_id: requestId,
+        p_lease_id: leaseId,
+        p_sent: sent,
+        p_error: errorMessage,
+      });
+      if (error) throw new Error(error.message);
+    },
+    async withdrawApplication(applicationId, requestId) {
+      const { data, error } = await serviceClient.rpc('prepare_beta_withdrawal', {
+        p_application_id: applicationId,
+        p_request_id: requestId,
+      });
+      if (error) throw new Error(error.message);
+      if (data.replayed) return;
+      try {
+        if (data.user_id) {
+          // Der Widerruf sperrt den Beta-Zugang bereits. Die Auth-Löschung prüft
+          // erneut, ob das Konto inzwischen verwendet wird, und beendet die Sitzungen.
+          const { error: deleteError } = await serviceClient.auth.admin.deleteUser(data.user_id);
+          if (deleteError && deleteError.status !== 404) throw new Error(deleteError.message);
+        }
+        const { error: finishError } = await serviceClient.rpc('complete_beta_withdrawal', {
+          p_request_id: requestId,
+          p_lease_id: data.lease_id,
+        });
+        if (finishError) throw new Error(finishError.message);
+      } catch (error) {
+        await serviceClient.rpc('fail_beta_lifecycle_operation', {
+          p_request_id: requestId,
+          p_lease_id: data.lease_id,
+        });
+        await serviceClient
+          .from('beta_applications')
+          .update({ withdrawal_status: 'failed', withdrawal_last_error: boundedError(error) })
+          .eq('id', applicationId);
+        throw error;
       }
-      return { userId: data.user.id, actionLink: data.properties.action_link };
+    },
+    async changeDuration(token, applicationId, requestId, action, days) {
+      const { error } = await userClient(token).rpc('change_beta_duration', {
+        p_application_id: applicationId,
+        p_request_id: requestId,
+        p_action: action,
+        p_days: days,
+      });
+      if (error) throw new Error(error.message);
     },
     sendEmail: sendBetaEmail,
     async updateApplication(applicationId, patch) {

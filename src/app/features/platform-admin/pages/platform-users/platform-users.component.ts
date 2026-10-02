@@ -1,3 +1,7 @@
+import { BetaLifecycleClockService } from '../../services/beta-lifecycle-clock.service';
+import { BetaDurationDialogComponent } from '../../components/beta-duration-dialog/beta-duration-dialog.component';
+import { BetaApplicationService } from '../../services/beta-application.service';
+import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
 import { DatePipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
@@ -27,6 +31,7 @@ interface StatusDisplay {
   selector: 'app-platform-users',
   imports: [
     DatePipe,
+    BetaDurationDialogComponent,
     BadgeComponent,
     DataTableComponent,
     PageHeaderComponent,
@@ -36,6 +41,11 @@ interface StatusDisplay {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PlatformUsersComponent implements OnInit {
+  private readonly beta = inject(BetaApplicationService);
+  private readonly confirmDialog = inject(ConfirmDialogService);
+  readonly durationUser = signal<PlatformUser | null>(null);
+  readonly processing = signal(false);
+  private readonly clock = inject(BetaLifecycleClockService);
   private readonly service = inject(PlatformUserService);
 
   readonly adminIcon = Users;
@@ -60,6 +70,13 @@ export class PlatformUsersComponent implements OnInit {
   }
 
   registrationStatus(user: PlatformUser): StatusDisplay {
+    if (user.revokedAt) return { label: 'Freigabe zurückgezogen', tone: 'critical' };
+    if (
+      !user.registeredAt &&
+      user.invitationExpiresAt &&
+      new Date(user.invitationExpiresAt).getTime() <= this.clock.now()
+    )
+      return { label: 'Registrierungsfrist abgelaufen', tone: 'caution' };
     if (user.registeredAt) return { label: 'Registriert', tone: 'success' };
     if (user.invitationStatus === 'failed') {
       return { label: 'Einladung fehlgeschlagen', tone: 'critical' };
@@ -71,10 +88,11 @@ export class PlatformUsersComponent implements OnInit {
   }
 
   accessStatus(user: PlatformUser): StatusDisplay {
+    if (user.betaEndedAt) return { label: 'Beta beendet', tone: 'neutral' };
     if (user.licenseStatus === 'suspended') return { label: 'Gesperrt', tone: 'critical' };
     if (
       user.licenseStatus === 'expired' ||
-      (user.betaEndsAt !== null && new Date(user.betaEndsAt).getTime() <= Date.now())
+      (user.betaEndsAt !== null && new Date(user.betaEndsAt).getTime() <= this.clock.now())
     ) {
       return { label: 'Beta abgelaufen', tone: 'neutral' };
     }
@@ -85,8 +103,79 @@ export class PlatformUsersComponent implements OnInit {
 
   remainingBetaDays(user: PlatformUser): number | null {
     if (user.licenseStatus !== 'active' || !user.betaEndsAt) return null;
-    const milliseconds = new Date(user.betaEndsAt).getTime() - Date.now();
+    const milliseconds = new Date(user.betaEndsAt).getTime() - this.clock.now();
     return Math.max(0, Math.ceil(milliseconds / 86_400_000));
+  }
+
+  closeDuration(): void {
+    if (!this.processing()) this.durationUser.set(null);
+  }
+  async resend(user: PlatformUser): Promise<void> {
+    if (!user.applicationId || this.processing()) return;
+    this.processing.set(true);
+    this.error.set(null);
+    try {
+      await this.beta.resendInvitation(user.applicationId);
+      await this.load();
+    } catch (error) {
+      this.error.set(error instanceof Error ? error.message : String(error));
+    } finally {
+      this.processing.set(false);
+    }
+  }
+  async withdraw(user: PlatformUser): Promise<void> {
+    if (!user.applicationId || this.processing()) return;
+    if (
+      !(await this.confirmDialog.frage({
+        titel: 'Freigabe zurückziehen und löschen?',
+        text:
+          'Der Link wird ungültig. Das noch nicht registrierte Konto und die Bewerbung werden gelöscht. ' +
+          user.email +
+          ' kann sich anschließend erneut bewerben.',
+        bestaetigenText: 'Zurückziehen und löschen',
+        abbrechenText: 'Abbrechen',
+        gefahr: true,
+      })) ||
+      this.processing()
+    )
+      return;
+    this.processing.set(true);
+    this.error.set(null);
+    try {
+      await this.beta.withdraw(user.applicationId);
+      await this.load();
+    } catch (error) {
+      this.error.set(error instanceof Error ? error.message : String(error));
+    } finally {
+      this.processing.set(false);
+    }
+  }
+  async changeDuration(change: { action: 'extend' | 'end'; days: number }): Promise<void> {
+    const user = this.durationUser();
+    if (!user?.applicationId || this.processing()) return;
+    if (
+      change.action === 'end' &&
+      !(await this.confirmDialog.frage({
+        titel: 'Beta jetzt beenden?',
+        text: 'Der Zugang zur Anwendung wird sofort beendet. Konto und Daten bleiben erhalten.',
+        bestaetigenText: 'Beta beenden',
+        abbrechenText: 'Abbrechen',
+        gefahr: true,
+      }))
+    )
+      return;
+    if (this.processing()) return;
+    this.processing.set(true);
+    this.error.set(null);
+    try {
+      await this.beta.changeDuration(user.applicationId, change.action, change.days);
+      this.durationUser.set(null);
+      await this.load();
+    } catch (error) {
+      this.error.set(error instanceof Error ? error.message : String(error));
+    } finally {
+      this.processing.set(false);
+    }
   }
 
   private async load(): Promise<void> {

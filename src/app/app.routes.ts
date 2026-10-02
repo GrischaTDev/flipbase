@@ -1,10 +1,17 @@
 import { Routes } from '@angular/router';
 import { unsavedEntryGuard } from './shared/guards/unsaved-entry.guard';
 import { authGuard, guestGuard } from './core/guards/auth.guard';
+import { workspaceAccessGuard } from './core/guards/workspace-access.guard';
 import { operatorGuard } from './core/guards/operator.guard';
 import { workspaceSetupGuard, workspaceSetupPageGuard } from './core/guards/workspace-setup.guard';
 
 export const routes: Routes = [
+  {
+    path: 'beta-ended',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/auth/beta-ended/beta-ended.component').then((m) => m.BetaEndedComponent),
+  },
   // Kundenansicht des Shops.
   //
   // Bewusst hinter der Anmeldung, obwohl es eine Ladenfront ist: Zahlungen sind
@@ -15,7 +22,8 @@ export const routes: Routes = [
   // sieht ihn nur, wer angemeldet ist.
   {
     path: 'shop',
-    canActivate: [authGuard, workspaceSetupGuard],
+    canActivate: [authGuard, workspaceAccessGuard, workspaceSetupGuard],
+    canActivateChild: [workspaceAccessGuard],
     loadComponent: () =>
       import('./features/store/store-layout/store-layout.component').then(
         (m) => m.StoreLayoutComponent,
@@ -99,7 +107,7 @@ export const routes: Routes = [
 
   {
     path: 'onboarding/workspace',
-    canActivate: [authGuard, workspaceSetupPageGuard],
+    canActivate: [authGuard, workspaceAccessGuard, workspaceSetupPageGuard],
     loadComponent: () =>
       import('./features/onboarding/workspace-setup/workspace-setup.component').then(
         (m) => m.WorkspaceSetupComponent,
@@ -107,7 +115,7 @@ export const routes: Routes = [
   },
   {
     path: 'onboarding/discord',
-    canActivate: [authGuard, workspaceSetupGuard],
+    canActivate: [authGuard, workspaceAccessGuard, workspaceSetupGuard],
     loadComponent: () =>
       import('./features/beta-discord/pages/discord-onboarding/discord-onboarding.component').then(
         (m) => m.DiscordOnboardingComponent,
@@ -118,7 +126,8 @@ export const routes: Routes = [
   {
     path: '',
     loadComponent: () => import('./layout/shell/shell.component').then((m) => m.ShellComponent),
-    canActivate: [authGuard, workspaceSetupGuard],
+    canActivate: [authGuard, workspaceAccessGuard, workspaceSetupGuard],
+    canActivateChild: [workspaceAccessGuard],
     children: [
       {
         path: 'dashboard',

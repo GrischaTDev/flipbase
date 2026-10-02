@@ -87,13 +87,25 @@ function dependencies(overrides: Partial<BetaInviteDependencies> = {}) {
       calls.invited.push(input);
       return Promise.resolve({ userId: 'user-1' });
     },
-    generateRegistrationLink: (input) => {
-      calls.generated.push(input);
+    prepareInvitation: (applicationId, requestId) => {
+      calls.generated.push({ applicationId, requestId });
       return Promise.resolve({
-        userId: 'user-1',
-        actionLink: 'https://app.flipbase.de/auth/set-password?token=secret',
+        actionLink: 'https://app.flipbase.de/auth/set-password#beta_token=secret',
+        expiresAt: '2026-09-27T18:00:00.000Z',
+        replayed: false,
+        leaseId: 'lease-1',
       });
     },
+    finishInvitation: (_requestId, _leaseId, sent, error) => {
+      current = {
+        ...current,
+        invitation_status: sent ? 'sent' : 'failed',
+        invitation_last_error: error,
+      };
+      return Promise.resolve();
+    },
+    withdrawApplication: () => Promise.resolve(),
+    changeDuration: () => Promise.resolve(),
     sendEmail: (message) => {
       calls.sent.push(message);
       return Promise.resolve();
@@ -163,14 +175,9 @@ Deno.test('nimmt mit 60 Tagen an und verknuepft die Einladung', async () => {
       },
     },
   ]);
-  assertEquals(setup.calls.updated, [
-    {
-      auth_user_id: 'user-1',
-      invitation_status: 'sent',
-      invitation_sent_at: '2026-09-20T18:00:00.000Z',
-      invitation_last_error: null,
-    },
-  ]);
+  assertEquals(setup.calls.updated, [{ auth_user_id: 'user-1' }]);
+  assertEquals(setup.calls.sent.length, 1);
+  assertEquals((setup.calls.sent[0] as { text: string }).text.includes('sieben Tage'), true);
 });
 
 Deno.test('lehnt ab und versendet die freundliche Ablehnungsmail', async () => {
@@ -258,12 +265,7 @@ Deno.test('speichert einen Einladungsfehler sichtbar', async () => {
   );
 
   assertEquals(response.status, 502);
-  assertEquals(setup.calls.updated, [
-    {
-      invitation_status: 'failed',
-      invitation_last_error: 'SMTP nicht erreichbar',
-    },
-  ]);
+  assertEquals(setup.calls.updated, []);
   assertEquals(await json(response), {
     error: 'invite_failed',
     message: 'Die Einladung konnte nicht versendet werden.',
@@ -293,12 +295,7 @@ Deno.test('wiederholt die Einladung fuer den vorhandenen unregistrierten Nutzer'
 
   assertEquals(response.status, 200);
   assertEquals(setup.calls.invited, []);
-  assertEquals(setup.calls.generated, [
-    {
-      email: 'anna@example.test',
-      redirectTo: 'https://app.flipbase.de/auth/set-password',
-    },
-  ]);
+  assertEquals(setup.calls.generated.length, 1);
   assertEquals(setup.calls.sent.length, 1);
 });
 
@@ -360,4 +357,46 @@ Deno.test('wiederholt nur fehlgeschlagene Betreiber-Benachrichtigungen', async (
       operator_email_last_error: null,
     },
   ]);
+});
+
+Deno.test('eine wiederholte erfolgreiche Einladung sendet keine zweite Mail', async () => {
+  const setup = dependencies({
+    prepareInvitation: () =>
+      Promise.resolve({ actionLink: '', expiresAt: '', leaseId: 'lease', replayed: true }),
+  });
+  setup.setApplication(
+    application({ status: 'accepted', granted_days: 60, auth_user_id: 'user-1' }),
+  );
+  const response = await createBetaInviteHandler(setup.value)(
+    request({ action: 'resend', applicationId: 'a1' }),
+  );
+  assertEquals(response.status, 200);
+  assertEquals(setup.calls.invited, []);
+  assertEquals(setup.calls.sent, []);
+});
+Deno.test('eine konkurrierende Einladung verändert weder Konto noch Versandstatus', async () => {
+  const setup = dependencies({
+    prepareInvitation: () => Promise.reject(new Error('Vorgang wird verarbeitet')),
+  });
+  const response = await createBetaInviteHandler(setup.value)(
+    request({ action: 'accept', applicationId: 'a1', grantedDays: 60 }),
+  );
+  assertEquals(response.status, 409);
+  assertEquals(setup.calls.updated, []);
+  assertEquals(setup.calls.invited, []);
+  assertEquals(setup.calls.sent, []);
+});
+Deno.test('ungültige Verlängerungen erreichen die Datenbank nicht', async () => {
+  let called = false;
+  const setup = dependencies({
+    changeDuration: () => {
+      called = true;
+      return Promise.resolve();
+    },
+  });
+  const response = await createBetaInviteHandler(setup.value)(
+    request({ action: 'extend', applicationId: 'a1', days: 1.5 }),
+  );
+  assertEquals(response.status, 400);
+  assertEquals(called, false);
 });

@@ -32,14 +32,14 @@ Preise und Stripe-Anbindung gehören nicht zu dieser Änderung.
 
 ## Bedienung
 
-| Zustand | Anzeige | Aktionen |
-| --- | --- | --- |
-| Einladung versendet, Frist offen | Wartet auf Registrierung | Einladung erneut senden; Freigabe zurückziehen und löschen |
-| Einladung versendet, Frist erreicht | Registrierungsfrist abgelaufen | Einladung erneut senden; Freigabe zurückziehen und löschen |
-| Einladung fehlgeschlagen | Einladung fehlgeschlagen | Erneut senden; Freigabe zurückziehen und löschen |
-| Registrierung abgeschlossen, Beta gültig | Beta aktiv | Laufzeit ändern |
-| Beta natürlich abgelaufen | Beta abgelaufen | Laufzeit ändern |
-| Beta vom Betreiber beendet | Beta beendet | Laufzeit ändern |
+| Zustand                                  | Anzeige                        | Aktionen                                                   |
+| ---------------------------------------- | ------------------------------ | ---------------------------------------------------------- |
+| Einladung versendet, Frist offen         | Wartet auf Registrierung       | Einladung erneut senden; Freigabe zurückziehen und löschen |
+| Einladung versendet, Frist erreicht      | Registrierungsfrist abgelaufen | Einladung erneut senden; Freigabe zurückziehen und löschen |
+| Einladung fehlgeschlagen                 | Einladung fehlgeschlagen       | Erneut senden; Freigabe zurückziehen und löschen           |
+| Registrierung abgeschlossen, Beta gültig | Beta aktiv                     | Laufzeit ändern                                            |
+| Beta natürlich abgelaufen                | Beta abgelaufen                | Laufzeit ändern                                            |
+| Beta vom Betreiber beendet               | Beta beendet                   | Laufzeit ändern                                            |
 
 Die neuen Aktionen stehen in der Bewerbungsübersicht und, soweit dort dieselben
 Nutzer gezeigt werden, konsistent in der Nutzerübersicht. Einträge in einem

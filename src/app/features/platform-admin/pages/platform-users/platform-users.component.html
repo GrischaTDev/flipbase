@@ -95,6 +95,32 @@
                 }
               </td>
               <td class="text-right">
+                @if (user.applicationId) {
+                  @if (!user.registeredAt) {
+                    @if (!user.revokedAt) {
+                      <app-table-action-button
+                        [icon]="usageIcon"
+                        [disabled]="processing()"
+                        label="Einladung erneut senden"
+                        (clicked)="resend(user)"
+                      />
+                    }
+                    <app-table-action-button
+                      tone="critical"
+                      [icon]="usageIcon"
+                      [disabled]="processing()"
+                      label="Freigabe zurückziehen und löschen"
+                      (clicked)="withdraw(user)"
+                    />
+                  } @else {
+                    <app-table-action-button
+                      [icon]="usageIcon"
+                      [disabled]="processing()"
+                      label="Laufzeit ändern"
+                      (clicked)="durationUser.set(user)"
+                    />
+                  }
+                }
                 <app-table-action-button
                   [icon]="usageIcon"
                   [label]="'Nutzung von ' + user.fullName + ' ansehen'"
@@ -111,4 +137,14 @@
     „Letzte Aktion“ zeigt den jüngsten protokollierten Geschäftsvorgang. Ein fehlender Eintrag
     bedeutet nicht, dass die App nicht genutzt wurde.
   </p>
+  @if (durationUser(); as user) {
+    <app-beta-duration-dialog
+      [name]="user.fullName"
+      [endsAt]="user.betaEndsAt"
+      [processing]="processing()"
+      [errorMessage]="error()"
+      (changed)="changeDuration($event)"
+      (closed)="closeDuration()"
+    />
+  }
 </section>

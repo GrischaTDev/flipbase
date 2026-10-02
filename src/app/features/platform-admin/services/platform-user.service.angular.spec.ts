@@ -39,6 +39,10 @@ describe('PlatformUserService', () => {
     expect(users).toEqual([
       {
         userId: 'user-1',
+        applicationId: null,
+        invitationExpiresAt: null,
+        revokedAt: null,
+        betaEndedAt: null,
         fullName: 'Anna Beispiel',
         email: 'anna@example.test',
         workspaceId: 'workspace-1',

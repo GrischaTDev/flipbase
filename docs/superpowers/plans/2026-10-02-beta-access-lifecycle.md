@@ -91,33 +91,33 @@ und `supabase/schemas/99_platform_admin.sql`.
   `application_id`, `action`, `status`, `lease_id`, `lease_expires_at`,
   `result jsonb`, `created_at`; keine Passwörter, Rohlinks oder Sitzungstokens.
 - Service-only RPCs `prepare_beta_invitation(p_application_id uuid,
-  p_request_id uuid, p_token_hash text) returns jsonb`,
+p_request_id uuid, p_token_hash text) returns jsonb`,
   `complete_beta_invitation(p_request_id uuid, p_sent boolean,
-  p_error text) returns jsonb`, `begin_beta_registration(p_token_hash text,
-  p_request_id uuid) returns jsonb`, `complete_beta_registration(p_request_id uuid,
-  p_lease_id uuid) returns jsonb` und `inspect_beta_registration(p_token_hash text)
-  returns jsonb`. Ergebnisse nennen `application_id`, `auth_user_id`,
+p_error text) returns jsonb`, `begin_beta_registration(p_token_hash text,
+p_request_id uuid) returns jsonb`, `complete_beta_registration(p_request_id uuid,
+p_lease_id uuid) returns jsonb` und `inspect_beta_registration(p_token_hash text)
+returns jsonb`. Ergebnisse nennen `application_id`, `auth_user_id`,
   `workspace_id`, `lease_id`, `expires_at`, soweit für die Aktion erforderlich.
 
 - [ ] pgTAP-Fälle schreiben: Hash nicht öffentlich lesbar; fehlender/widerrufener/
-  ersetzter Link abgewiesen; bei `expires_at <= now()` ungültig; Frist beim
-  Passwortabschluss erneut geprüft; doppelte `request_id` kein doppelter Beginn;
-  `user_metadata` allein aktiviert keine Beta; unterbrochene Registrierung ohne
-  abgeschlossenen Fachvorgang bleibt ohne Geschäftszugang.
+      ersetzter Link abgewiesen; bei `expires_at <= now()` ungültig; Frist beim
+      Passwortabschluss erneut geprüft; doppelte `request_id` kein doppelter Beginn;
+      `user_metadata` allein aktiviert keine Beta; unterbrochene Registrierung ohne
+      abgeschlossenen Fachvorgang bleibt ohne Geschäftszugang.
 - [ ] `npx supabase test db supabase/tests/beta_registration_lifecycle.sql` ausführen;
-  die neuen Fälle müssen vor Implementierung fehlen beziehungsweise scheitern.
+      die neuen Fälle müssen vor Implementierung fehlen beziehungsweise scheitern.
 - [ ] Tabellen/RPCs mit Bewerbungssperre, genau einem aktiven Link und exklusivem
-  Vorgang je Bewerbung implementieren. Registrierung und Rücknahme verwenden
-  dieselbe Sperrgrenze; Lease und Frist werden beim Abschluss erneut geprüft.
-  Der Aktivierungsbeleg kommt aus dem serverseitigen Vorgang, nicht aus Metadaten.
-  Das bestehende `activate_beta_access()` darf keine neue Managed-Registrierung
-  umgehen. Für Altlinks den gültigen Legacy-Pfad mit seiner bisherigen Frist erhalten.
+      Vorgang je Bewerbung implementieren. Registrierung und Rücknahme verwenden
+      dieselbe Sperrgrenze; Lease und Frist werden beim Abschluss erneut geprüft.
+      Der Aktivierungsbeleg kommt aus dem serverseitigen Vorgang, nicht aus Metadaten.
+      Das bestehende `activate_beta_access()` darf keine neue Managed-Registrierung
+      umgehen. Für Altlinks den gültigen Legacy-Pfad mit seiner bisherigen Frist erhalten.
 - [ ] Legacy-Fristen nach dokumentiertem Produktionsstand aus dem tatsächlichen
-  letzten Bestätigungs-/Einladungsversand mit 24 Stunden abbilden; keine sieben
-  Tage rückwirkend. Bestehende bereits registrierte Betas unverändert erhalten.
-  Neue Schema-Datei einmal nach ihren Abhängigkeiten in `schema_paths` registrieren.
+      letzten Bestätigungs-/Einladungsversand mit 24 Stunden abbilden; keine sieben
+      Tage rückwirkend. Bestehende bereits registrierte Betas unverändert erhalten.
+      Neue Schema-Datei einmal nach ihren Abhängigkeiten in `schema_paths` registrieren.
 - [ ] Tests nach der in Aufgabe 7 erzeugten Migration erneut ausführen;
-  Schemaänderungen erst gemeinsam mit der erzeugten Migration committen.
+      Schemaänderungen erst gemeinsam mit der erzeugten Migration committen.
 
 ## Aufgabe 2: Eigene Wochenlinks und Registrierung per Passwort
 
@@ -145,26 +145,26 @@ dessen `.test.ts`, `supabase/functions/beta-register/index.ts` und `index.test.t
   setzt die vom Server gelieferte Sitzung über den zentralen SupabaseService.
 
 - [ ] Tests schreiben: sieben Tage, Hash statt Rohlink; Linkaufruf allein registriert
-  niemanden; falsche Herkunft/zu große Anfrage/zu viele Versuche abgewiesen;
-  Hash nicht in Mail, Mail nennt genaue Frist; Spätabschluss scheitert; derselbe
-  abgeschlossene Vorgang aktualisiert ein Passwort nicht erneut.
+      niemanden; falsche Herkunft/zu große Anfrage/zu viele Versuche abgewiesen;
+      Hash nicht in Mail, Mail nennt genaue Frist; Spätabschluss scheitert; derselbe
+      abgeschlossene Vorgang aktualisiert ein Passwort nicht erneut.
 - [ ] `deno test --allow-env supabase/functions/_shared/beta-registration-link.test.ts
-  supabase/functions/beta-register/index.test.ts supabase/functions/beta-invite/index.test.ts
-  supabase/functions/_shared/beta-email-template.test.ts` ausführen, Scheitern prüfen.
+supabase/functions/beta-register/index.test.ts supabase/functions/beta-invite/index.test.ts
+supabase/functions/_shared/beta-email-template.test.ts` ausführen, Scheitern prüfen.
 - [ ] Initiales vorbereitetes Auth-Konto ohne zusätzliche native Einladungsmail
-  erzeugen; die vorhandene fachliche Kontoanlage bleibt erhalten. Für Annahme und
-  Wiederholung eigene Beta-Mail versenden. Ein verlorenes Auth-Ergebnis anhand
-  der serverseitigen Bewerbungsverknüpfung wiederaufnehmen; keine beliebigen
-  bestehenden Konten anhand der E-Mail übernehmen.
+      erzeugen; die vorhandene fachliche Kontoanlage bleibt erhalten. Für Annahme und
+      Wiederholung eigene Beta-Mail versenden. Ein verlorenes Auth-Ergebnis anhand
+      der serverseitigen Bewerbungsverknüpfung wiederaufnehmen; keine beliebigen
+      bestehenden Konten anhand der E-Mail übernehmen.
 - [ ] Abschluss über Aufgabe-1-Lease: Passwort und E-Mail-Bestätigung über Auth-Admin,
-  danach Fachabschluss; erst danach über frisch erzeugte native Bestätigung und
-  `verifyOtp` eine Sitzung liefern. Jede Stufe prüft Konto-ID und Lease. Kein
-  Mailversand beim Abschluss. Teilfehler verändern keine Lizenz zu aktiv, solange
-  der bestätigte Abschluss fehlt. Auth-Ban/Sperren vor Beginn respektieren.
+      danach Fachabschluss; erst danach über frisch erzeugte native Bestätigung und
+      `verifyOtp` eine Sitzung liefern. Jede Stufe prüft Konto-ID und Lease. Kein
+      Mailversand beim Abschluss. Teilfehler verändern keine Lizenz zu aktiv, solange
+      der bestätigte Abschluss fehlt. Auth-Ban/Sperren vor Beginn respektieren.
 - [ ] Passwortseite für neuen Hashpfad erweitern; bisherigen Supabase-Hashpfad und
-  Passwortänderung im Review-Modus erhalten. Token sofort aus sichtbarer URL in
-  den Arbeitsspeicher übernehmen; keine Wiederverwendung für andere Konten.
-  Edge-/Angulartests erneut grün prüfen und Deploy-Anleitung um Endpunkt ergänzen.
+      Passwortänderung im Review-Modus erhalten. Token sofort aus sichtbarer URL in
+      den Arbeitsspeicher übernehmen; keine Wiederverwendung für andere Konten.
+      Edge-/Angulartests erneut grün prüfen und Deploy-Anleitung um Endpunkt ergänzen.
 
 ## Aufgabe 3: Offene Freigabe zurückziehen und vollständig löschen
 
@@ -180,21 +180,21 @@ returns jsonb`, `mark_pending_beta_auth_deleted(p_request_id uuid) returns void`
 Antwort nach vollständigem Erfolg `{deletedApplicationId: string}`.
 
 - [ ] Tests schreiben: früh und nach Ablauf löschbar; registrierte Konten, weitere
-  Mitglieder, Betreiber und Geschäftsdaten abgewiesen; Widerruf vor Auth-Löschung;
-  Auth-Fehler und verlorene Erfolgsantwort wiederholbar; ursprüngliche IDs bleiben
-  nach FK-`set null` vorhanden; neue Bewerbung mit gleicher E-Mail funktioniert.
+      Mitglieder, Betreiber und Geschäftsdaten abgewiesen; Widerruf vor Auth-Löschung;
+      Auth-Fehler und verlorene Erfolgsantwort wiederholbar; ursprüngliche IDs bleiben
+      nach FK-`set null` vorhanden; neue Bewerbung mit gleicher E-Mail funktioniert.
 - [ ] Edge-Testdateien ausführen, pgTAP-Fälle nach Migration in Aufgabe 7 ausführen.
 - [ ] Anfangs-RPC prüft Rolle und vorbereitete Kontoanlage, speichert Auth-/Workspace-ID,
-  widerruft Links und sperrt Aktivierung. Unbenutztheit anhand der vorhandenen
-  `prevent_workspace_with_business_data_deletion()`-Grenze und Mitglieder-/Rollen-
-  Prüfung feststellen; nicht anhand des bloßen Login-Zeitpunkts.
+      widerruft Links und sperrt Aktivierung. Unbenutztheit anhand der vorhandenen
+      `prevent_workspace_with_business_data_deletion()`-Grenze und Mitglieder-/Rollen-
+      Prüfung feststellen; nicht anhand des bloßen Login-Zeitpunkts.
 - [ ] Auth-Konto löschen; „bereits nicht vorhanden“ ausschließlich bei gespeicherter,
-  geprüfter Ziel-ID als wiederaufnehmbaren Erfolg behandeln. Abschluss-RPC prüft
-  erneut unbenutzte Struktur, entfernt diese und zuletzt die Bewerbung atomar.
-  Andere Daten niemals als Aufräummaßnahme löschen. Bei Teilfehler bleibt eine
-  sichtbar widerrufene Bewerbung mit wiederholbarer Löschaktion bestehen.
+      geprüfter Ziel-ID als wiederaufnehmbaren Erfolg behandeln. Abschluss-RPC prüft
+      erneut unbenutzte Struktur, entfernt diese und zuletzt die Bewerbung atomar.
+      Andere Daten niemals als Aufräummaßnahme löschen. Bei Teilfehler bleibt eine
+      sichtbar widerrufene Bewerbung mit wiederholbarer Löschaktion bestehen.
 - [ ] Parallele `complete`-/`withdraw`-Anfragen prüfen: genau ein Vorgang gewinnt;
-  bereits abgeschlossene Registrierung wird niemals von diesem Weg gelöscht.
+      bereits abgeschlossene Registrierung wird niemals von diesem Weg gelöscht.
 
 ## Aufgabe 4: Laufzeitaktionen und vollständige Servergrenze
 
@@ -222,31 +222,31 @@ withdrawal_status text, ended_at timestamptz)` ergänzt die vorhandene Betreiber
 Nutzerauskunft, ohne deren bestehende Rückgabetypen aufzubrechen.
 
 - [ ] pgTAP schreiben: unberechtigter Betreiberaufruf scheitert; +3 Tage vor Ende
-  verlängert exakt um 72 Stunden; nach Ende ab Serverzeit; Werte 0/1.5/3651
-  abgewiesen; doppelte Anfrage wirkt einmal; `end` sperrt bei bestehendem JWT;
-  unabhängig `suspended` bleibt gesperrt; Auskunft ohne Geschäftszugriff erreichbar.
+      verlängert exakt um 72 Stunden; nach Ende ab Serverzeit; Werte 0/1.5/3651
+      abgewiesen; doppelte Anfrage wirkt einmal; `end` sperrt bei bestehendem JWT;
+      unabhängig `suspended` bleibt gesperrt; Auskunft ohne Geschäftszugriff erreichbar.
 - [ ] Grenzen im Audit vollständig erfassen: RLS auch über Elternbeziehungen,
-  SECURITY-DEFINER-RPCs, Storage, Realtime und Service-Role-Edge-/Workerzugriffe.
-  Reine Mitgliedschafts-/Profil-/Lizenzauskunft bleibt erreichbar; Geschäftsgrenzen
-  nutzen `can_access_workspace`. Bestehende `is_workspace_member/admin` nicht
-  umdefinieren. Für jede Grenze mindestens einen negativen Direktzugriff testen.
-  Geänderte Policy-/RPC-Enddefinitionen in `360_beta_business_access.sql` nach
-  den Zugangsfunktionen deklarieren; ausdrücklich benannte Policies ersetzen,
-  keine zusätzliche permissive Policy als vermeintliche Sperre hinzufügen.
+      SECURITY-DEFINER-RPCs, Storage, Realtime und Service-Role-Edge-/Workerzugriffe.
+      Reine Mitgliedschafts-/Profil-/Lizenzauskunft bleibt erreichbar; Geschäftsgrenzen
+      nutzen `can_access_workspace`. Bestehende `is_workspace_member/admin` nicht
+      umdefinieren. Für jede Grenze mindestens einen negativen Direktzugriff testen.
+      Geänderte Policy-/RPC-Enddefinitionen in `360_beta_business_access.sql` nach
+      den Zugangsfunktionen deklarieren; ausdrücklich benannte Policies ersetzen,
+      keine zusätzliche permissive Policy als vermeintliche Sperre hinzufügen.
 - [ ] Bestehende unlizenzierte Nicht-Beta-Arbeitsbereiche mit explizitem `manual`
-  Bestandszugang erhalten. Fehlende Lizenz nicht pauschal erlauben.
-  `create_workspace(p_name text)` so begrenzen, dass ein pending/abgelaufener
-  Beta-Nutzer sich keinen neuen manuellen Zugang erzeugt. Weitere gültige
-  Arbeitsbereiche und Betreiberrecht in eigener serverseitiger Regel berücksichtigen.
+      Bestandszugang erhalten. Fehlende Lizenz nicht pauschal erlauben.
+      `create_workspace(p_name text)` so begrenzen, dass ein pending/abgelaufener
+      Beta-Nutzer sich keinen neuen manuellen Zugang erzeugt. Weitere gültige
+      Arbeitsbereiche und Betreiberrecht in eigener serverseitiger Regel berücksichtigen.
 - [ ] Worker-RPCs `marketplace_sync_dispatch_claim`, `marketplace_sync_validate`,
-  `marketplace_apply_vinted_sync_import`, `marketplace_sync_finish` und
-  `ebay_lock_import_connection` prüfen Lizenzzeit unabhängig von `auth.uid()`.
-  Ausgelaufene Aufträge beenden und Browserressourcen freigeben; Cleanup- und
-  externe eBay-Löschmitteilungen bleiben auch ohne aktive Beta ausführbar.
+      `marketplace_apply_vinted_sync_import`, `marketplace_sync_finish` und
+      `ebay_lock_import_connection` prüfen Lizenzzeit unabhängig von `auth.uid()`.
+      Ausgelaufene Aufträge beenden und Browserressourcen freigeben; Cleanup- und
+      externe eBay-Löschmitteilungen bleiben auch ohne aktive Beta ausführbar.
 - [ ] Änderungen über `workspace:<id>:access` privat mit `access_changed` senden.
-  Ereignis enthält nur Anlass/Workspace-ID; Clients lesen aktuellen Serverstand.
-  Zugriffsprüfung bei natürlichem Ende benötigt kein periodisches Datenbankupdate.
-  DB-/Edge-Tests nach Aufgabe 7 grün und Audit ohne ungeprüfte Geschäftsgrenze.
+      Ereignis enthält nur Anlass/Workspace-ID; Clients lesen aktuellen Serverstand.
+      Zugriffsprüfung bei natürlichem Ende benötigt kein periodisches Datenbankupdate.
+      DB-/Edge-Tests nach Aufgabe 7 grün und Audit ohne ungeprüfte Geschäftsgrenze.
 
 ## Aufgabe 5: Übersicht, Friststatus und Betreiberdialog
 
@@ -266,19 +266,19 @@ Dialoginputs `application`, `processing`, `error`, Outputs
 `extend: number`, `end: void`, `closed: void` mit modernen Angular-Funktionen.
 
 - [ ] Status-/DOMtests schreiben: offene Frist „Wartet auf Registrierung“, exakt
-  am Ende „Registrierungsfrist abgelaufen“; neuer Versand aktualisiert die Frist;
-  erneutes Senden auch bei `sent`; Freigabe vor und nach Ablauf löschbar;
-  abgebrochener Dialog verändert nichts; widerrufener Teilfehler zeigt Wiederholung.
+      am Ende „Registrierungsfrist abgelaufen“; neuer Versand aktualisiert die Frist;
+      erneutes Senden auch bei `sent`; Freigabe vor und nach Ablauf löschbar;
+      abgebrochener Dialog verändert nichts; widerrufener Teilfehler zeigt Wiederholung.
 - [ ] Betroffene Vitest-Projekte gezielt ausführen und das anfängliche Scheitern prüfen.
 - [ ] Gemeinsame Statusfunktion in beiden Übersichten verwenden. Zeit-Signal mit
-  DestroyRef-Cleanup aktualisieren; Timer schlafen lassen, wenn Seite verborgen.
-  Serverzeiten und lokale Anzeige unterscheiden. Vorgangs-ID bis zum endgültigen
-  Ergebnis behalten, Buttons während Anfrage sperren, Listen nach Erfolg neu laden.
+      DestroyRef-Cleanup aktualisieren; Timer schlafen lassen, wenn Seite verborgen.
+      Serverzeiten und lokale Anzeige unterscheiden. Vorgangs-ID bis zum endgültigen
+      Ergebnis behalten, Buttons während Anfrage sperren, Listen nach Erfolg neu laden.
 - [ ] Dialog mit Enddatum-Vorschau, Tagesfeld und zusätzlicher Beendigungsbestätigung
-  implementieren; UI zeigt endgültiges Server-Enddatum. Bestehende Bestätigungs-
-  und Modal-Komponenten für Fokus, Escape, Abbrechen und Fehler verwenden.
+      implementieren; UI zeigt endgültiges Server-Enddatum. Bestehende Bestätigungs-
+      und Modal-Komponenten für Fokus, Escape, Abbrechen und Fehler verwenden.
 - [ ] Tests für beide Seiten, Dienst und Dialog grün; Tastatur/Fokus und AXE prüfen,
-  keine zusätzliche CSS-Datei. Format und Shared-UI-Prüfung durchführen.
+      keine zusätzliche CSS-Datei. Format und Shared-UI-Prüfung durchführen.
 
 ## Aufgabe 6: Login erhalten, Anwendung sperren und Dankesseite anzeigen
 
@@ -297,19 +297,19 @@ SupabaseService/AuthService. `workspaceAccessGuard: CanActivateFn` prüft vor
 geschäftlicher Route; Dankesseite nutzt nur echte Anmeldung als Voraussetzung.
 
 - [ ] Guard-/Servicetests schreiben: Login bleibt möglich, Ende führt zur Dankesseite;
-  pending Registrierung führt zum Abschluss, natürliche Frist zur passenden
-  Fehlermeldung; Netzwerkfehler erlaubt keinen Geschäftszugriff und wird nicht
-  fälschlich als Beta-Ende angezeigt; weitere gültige Workspace-ID bleibt nutzbar.
+      pending Registrierung führt zum Abschluss, natürliche Frist zur passenden
+      Fehlermeldung; Netzwerkfehler erlaubt keinen Geschäftszugriff und wird nicht
+      fälschlich als Beta-Ende angezeigt; weitere gültige Workspace-ID bleibt nutzbar.
 - [ ] Gezielte Angular-Tests ausführen, anfängliche Fehler dokumentieren.
 - [ ] Geschäftsroute zusätzlich schützen; Plattform-Admin und Dankesseite getrennt
-  halten. Workspace-Auswahl mit erlaubten IDs abgleichen und gespeicherte
-  abgelaufene Auswahl korrigieren. Nach Registrierung Zugangsauskunft aktualisieren.
-  Kontrolliertes Laden verhindert Start-Rennen und Weiterleitungsschleifen.
+      halten. Workspace-Auswahl mit erlaubten IDs abgleichen und gespeicherte
+      abgelaufene Auswahl korrigieren. Nach Registrierung Zugangsauskunft aktualisieren.
+      Kontrolliertes Laden verhindert Start-Rennen und Weiterleitungsschleifen.
 - [ ] Privaten Broadcast und Zeitgrenze abonnieren, nach Fokuswechsel neu lesen;
-  laufenden Kanal/Timer über DestroyRef entfernen und bei Nutzerwechsel alte
-  Antworten verwerfen. Vorhandene Datenansicht bei Zugangsentzug verlassen.
+      laufenden Kanal/Timer über DestroyRef entfernen und bei Nutzerwechsel alte
+      Antworten verwerfen. Vorhandene Datenansicht bei Zugangsentzug verlassen.
 - [ ] Dankesseite mit festgelegter Du-Ansprache, DE/EN und Abmelden implementieren.
-  Guards, Arbeitsbereichwechsel, Login, Fristablauf und AXE grün prüfen.
+      Guards, Arbeitsbereichwechsel, Login, Fristablauf und AXE grün prüfen.
 
 ## Aufgabe 7: Migration erzeugen und Gesamtablauf nachweisen
 
@@ -320,29 +320,29 @@ neu erzeugte `src/app/core/models/supabase.types.ts`; ändern
 `docs/AI-CHANGELOG.md`; Testauswahl in `playwright.pr.config.ts` falls erforderlich.
 
 - [ ] Supabase-CLI über `--help` prüfen. Für diesen Worktree eine getrennte lokale
-  Datenbank verwenden; keine gemeinsam benutzten Container stoppen oder zurücksetzen.
-  Mit Projektverfahren `supabase stop` und `supabase db diff -f beta_access_lifecycle`
-  die Migration erzeugen. Erzeugtes SQL vollständig prüfen: transaktional, keine
-  eigenen Transaktionen/externen Befehle, vorhandene Migrationen unverändert.
+      Datenbank verwenden; keine gemeinsam benutzten Container stoppen oder zurücksetzen.
+      Mit Projektverfahren `supabase stop` und `supabase db diff -f beta_access_lifecycle`
+      die Migration erzeugen. Erzeugtes SQL vollständig prüfen: transaktional, keine
+      eigenen Transaktionen/externen Befehle, vorhandene Migrationen unverändert.
 - [ ] Neue Migration in isolierter DB anwenden, Typen mit dem Projektbefehl
-  `npx supabase gen types typescript --local > src/app/core/models/supabase.types.ts`
-  neu erzeugen. `npm run test:db` für passende Tests und betroffene Nachbarbereiche;
-  registrierte Seeds/Bestand und nicht-Beta-Accounts auf unveränderten Zugang prüfen.
+      `npx supabase gen types typescript --local > src/app/core/models/supabase.types.ts`
+      neu erzeugen. `npm run test:db` für passende Tests und betroffene Nachbarbereiche;
+      registrierte Seeds/Bestand und nicht-Beta-Accounts auf unveränderten Zugang prüfen.
 - [ ] Browserfälle schreiben und ausführen: Annahme → neue Mail → Passwort → aktive
-  Beta; Woche abgelaufen → erneut senden → Abschluss; zurückziehen → alter Link
-  ungültig → gleiche E-Mail neu bewerben; Verlängerung und sofortiges Beenden in
-  einer zweiten geöffneten Sitzung; weiterer gültiger Arbeitsbereich; Teilfehler
-  bei Auth-Löschung wiederholen. `npx playwright test e2e/beta-registration.spec.ts
-  e2e/beta-access-lifecycle.spec.ts` im bestehenden lokalen Testaufbau ausführen.
+      Beta; Woche abgelaufen → erneut senden → Abschluss; zurückziehen → alter Link
+      ungültig → gleiche E-Mail neu bewerben; Verlängerung und sofortiges Beenden in
+      einer zweiten geöffneten Sitzung; weiterer gültiger Arbeitsbereich; Teilfehler
+      bei Auth-Löschung wiederholen. `npx playwright test e2e/beta-registration.spec.ts
+e2e/beta-access-lifecycle.spec.ts` im bestehenden lokalen Testaufbau ausführen.
 - [ ] Geänderte Dateien formatieren, Lint, Typecheck, Angular-Bau, betroffene Edge-
-  und Anwendungstests, Shared-UI und Schema-/Migrationsprüfungen ausführen.
-  Weil Zugangsschutz viele Grenzen integriert, einmal `npm run verify` mit
-  erfasstem echtem Exitcode ausführen. Nur bei neuen Änderungen/Fehlern wiederholen.
-  Unabhängige Schlussprüfung gemäß gewählter Ausführung durchführen; Funde beheben.
+      und Anwendungstests, Shared-UI und Schema-/Migrationsprüfungen ausführen.
+      Weil Zugangsschutz viele Grenzen integriert, einmal `npm run verify` mit
+      erfasstem echtem Exitcode ausführen. Nur bei neuen Änderungen/Fehlern wiederholen.
+      Unabhängige Schlussprüfung gemäß gewählter Ausführung durchführen; Funde beheben.
 - [ ] Changelog mit tatsächlichen Ergebnissen ergänzen, selbst geprüften Umfang und
-  Grenzen melden. Kleine zusammenhängende Commits unter konfiguriertem Nutzer,
-  keine KI-Signatur. Erst dann fragen: „Soll ich jetzt den PR erstellen und nach
-  erfolgreichen Tests mergen?“ Keine Veröffentlichung vorher.
+      Grenzen melden. Kleine zusammenhängende Commits unter konfiguriertem Nutzer,
+      keine KI-Signatur. Erst dann fragen: „Soll ich jetzt den PR erstellen und nach
+      erfolgreichen Tests mergen?“ Keine Veröffentlichung vorher.
 
 ## Ausführung und aktueller Stand
 

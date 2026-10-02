@@ -205,14 +205,34 @@
                             [label]="'Abgelehnte Bewerbung von ' + bewerberName + ' löschen'"
                             (clicked)="deleteRejected(application)"
                           />
-                        } @else if (
-                          application.invitationStatus === 'failed' && !application.registeredAt
-                        ) {
+                        } @else if (!application.registeredAt && !application.revokedAt) {
                           <app-table-action-button
                             [icon]="resendIcon"
                             [disabled]="processingId() === application.id"
                             [label]="'Einladung an ' + application.email + ' erneut senden'"
                             (clicked)="resendInvitation(application)"
+                          />
+                          <app-table-action-button
+                            tone="critical"
+                            [icon]="deleteIcon"
+                            [disabled]="!!processingId()"
+                            label="Freigabe zurückziehen und löschen"
+                            (clicked)="withdraw(application)"
+                          />
+                        } @else if (application.revokedAt) {
+                          <app-table-action-button
+                            tone="critical"
+                            [icon]="deleteIcon"
+                            [disabled]="!!processingId()"
+                            label="Löschen erneut versuchen"
+                            (clicked)="withdraw(application)"
+                          />
+                        } @else if (application.registeredAt) {
+                          <app-table-action-button
+                            [icon]="resendIcon"
+                            [disabled]="!!processingId()"
+                            label="Laufzeit ändern"
+                            (clicked)="durationApplication.set(application)"
                           />
                         } @else if (application.receiptEmailStatus !== 'failed') {
                           <span class="text-xs text-fb-text-muted">Keine Aktion erforderlich</span>
@@ -236,6 +256,16 @@
       [errorMessage]="approvalError()"
       (approved)="approveSelected($event)"
       (closed)="closeApproval()"
+    />
+  }
+  @if (durationApplication(); as application) {
+    <app-beta-duration-dialog
+      [name]="applicantName(application)"
+      [endsAt]="application.betaEndsAt"
+      [processing]="!!processingId()"
+      [errorMessage]="error()"
+      (changed)="changeDuration($event)"
+      (closed)="closeDuration()"
     />
   }
 </section>

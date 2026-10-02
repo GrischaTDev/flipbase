@@ -33,9 +33,11 @@ interface BetaApplicationRow {
   rejection_email_sent_at: string | null;
   rejection_email_last_error: string | null;
   registered_at: string | null;
+  invitation_expires_at?: string | null;
+  revoked_at?: string | null;
   workspace_licenses?:
-    | { status: string; ends_at: string | null }
-    | { status: string; ends_at: string | null }[]
+    | { status: string; ends_at: string | null; ended_at?: string | null }
+    | { status: string; ends_at: string | null; ended_at?: string | null }[]
     | null;
 }
 
@@ -53,12 +55,38 @@ type BetaInviteActionBody =
     };
 
 const APPLICATION_FIELDS =
-  'id, first_name, last_name, email, status, granted_days, decision_note, decided_at, created_at, receipt_email_status, receipt_email_sent_at, receipt_email_last_error, operator_email_status, operator_email_sent_at, operator_email_last_error, auth_user_id, invitation_status, invitation_sent_at, invitation_last_error, rejection_email_status, rejection_email_sent_at, rejection_email_last_error, registered_at, workspace_licenses(status, ends_at)';
+  'id, first_name, last_name, email, status, granted_days, decision_note, decided_at, created_at, receipt_email_status, receipt_email_sent_at, receipt_email_last_error, operator_email_status, operator_email_sent_at, operator_email_last_error, auth_user_id, invitation_status, invitation_sent_at, invitation_last_error, rejection_email_status, rejection_email_sent_at, rejection_email_last_error, registered_at, invitation_expires_at, revoked_at, workspace_licenses(status, ends_at, ended_at)';
 
 /** Liest Bewerbungen und fuehrt Entscheidungen nur ueber die geschuetzte Edge Function aus. */
 @Injectable({ providedIn: 'root' })
 export class BetaApplicationService {
   private readonly supabase = inject(SupabaseService);
+  private readonly pendingRequests = new Map<string, string>();
+
+  private requestId(key: string): string {
+    let id = this.pendingRequests.get(key);
+    try {
+      id ??= sessionStorage.getItem('flipbase_beta_request:' + key) ?? undefined;
+    } catch {
+      /* Privater Browser ohne Speicher. */
+    }
+    id ??= crypto.randomUUID();
+    this.pendingRequests.set(key, id);
+    try {
+      sessionStorage.setItem('flipbase_beta_request:' + key, id);
+    } catch {
+      /* Der laufende Dialog behält die Kennung. */
+    }
+    return id;
+  }
+  private completeRequest(key: string): void {
+    this.pendingRequests.delete(key);
+    try {
+      sessionStorage.removeItem('flipbase_beta_request:' + key);
+    } catch {
+      /* Optionaler Browserspeicher. */
+    }
+  }
 
   async list(): Promise<BetaApplication[]> {
     const { data, error } = await this.supabase.client
@@ -106,8 +134,46 @@ export class BetaApplicationService {
     }
   }
 
+  async withdraw(id: string): Promise<void> {
+    await this.lifecycleAction(id, 'withdraw', 0);
+  }
+
+  async changeDuration(id: string, action: 'extend' | 'end', days: number): Promise<void> {
+    await this.lifecycleAction(id, action, days);
+  }
+
+  private async lifecycleAction(
+    id: string,
+    action: 'withdraw' | 'extend' | 'end',
+    days: number,
+  ): Promise<void> {
+    const key = id + ':' + action + ':' + days;
+    const { data, error } = await this.supabase.client.functions.invoke('beta-invite', {
+      body: { applicationId: id, action, days, requestId: this.requestId(key) },
+    });
+    if (error || !data?.ok) {
+      let message = data?.message as string | undefined;
+      if (error && 'context' in error && error.context instanceof Response) {
+        const detail: unknown = await error.context.json().catch(() => null);
+        if (
+          detail &&
+          typeof detail === 'object' &&
+          'message' in detail &&
+          typeof detail.message === 'string'
+        )
+          message = detail.message;
+      }
+      throw new Error(
+        message ?? 'Die Beta-Aktion konnte nicht abgeschlossen werden. Bitte erneut versuchen.',
+      );
+    }
+    this.completeRequest(key);
+  }
+
   private async invokeAction(body: BetaInviteActionBody): Promise<BetaApplication> {
-    const { data, error } = await this.supabase.client.functions.invoke('beta-invite', { body });
+    const { data, error } = await this.supabase.client.functions.invoke('beta-invite', {
+      body: { ...body, requestId: crypto.randomUUID() },
+    });
     if (error) {
       throw new Error(error.message || 'Die Beta-Bewerbung konnte nicht verarbeitet werden.');
     }
@@ -147,6 +213,9 @@ export class BetaApplicationService {
       rejectionEmailSentAt: row.rejection_email_sent_at,
       rejectionEmailLastError: row.rejection_email_last_error,
       registeredAt: row.registered_at,
+      invitationExpiresAt: row.invitation_expires_at ?? null,
+      revokedAt: row.revoked_at ?? null,
+      betaEndedAt: embeddedLicense?.ended_at ?? null,
       licenseStatus: (embeddedLicense?.status as BetaAccessStatus | undefined) ?? null,
       betaEndsAt: embeddedLicense?.ends_at ?? null,
     };
