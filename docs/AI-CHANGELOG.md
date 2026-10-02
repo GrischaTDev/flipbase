@@ -1,5 +1,18 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-02 – Juna – Nachrichtenlayout für PR und Merge freigegeben
+
+**Auftrag:** Nach ausdrücklichem „ja“ den lokal geprüften Nachrichtenlayout-Zweig
+pushen, den PR erstellen, erfolgreiche Pflichtprüfungen abwarten und mit
+Merge-Commit integrieren. Danach die Veröffentlichung prüfen und den eigenen
+Remote-/Lokalzweig samt Arbeitskopie aufräumen.
+
+**Vorbereitung:** Umsetzung `61abe041` unverändert; 15 Angular-Nachrichtenfälle,
+vier Browserfälle, Format, gezieltes Lint, gemeinsame UI und Produktionsbau bereits
+erfolgreich. Der PR beschreibt zwei Karten und die breitere Gesprächsliste.
+Keine Datenbank- oder Anmeldeänderungen; bestehende Diagnoseänderungen bleiben
+in der ursprünglichen Arbeitskopie erhalten.
+
 ## 2026-10-02 – Juna – Vinted-Nachrichten auf zwei Karten verteilt
 
 **Auftrag und Umsetzung:** Die Gesprächsliste war auf großen Bildschirmen auf
