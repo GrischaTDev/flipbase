@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { SupabaseBrowserSessionStore } from '../src/supabase-browser-session-store.ts';
+import { MarketplaceBrowserSessionBusyError } from '../src/marketplace-browser-session-broker.ts';
 
 const scope = {
   workspaceId: 'workspace-a',
@@ -8,6 +9,76 @@ const scope = {
   userId: 'user-a',
   userAccessToken: 'user-test-token',
 };
+
+test('known PostgreSQL busy rejection preserves the worker and returns a neutral busy error', async () => {
+  let recoveries = 0;
+  let reservations = 0;
+  const store = new SupabaseBrowserSessionStore({
+    url: 'https://example.test',
+    publishableKey: 'public',
+    serviceRoleKey: 'server',
+    runtime: { workerId: 'worker-a', workerEpoch: 3 },
+    onReservationUncertain: () => {
+      recoveries++;
+    },
+    fetch: async (input) => {
+      const path = new URL(String(input)).pathname;
+      if (path === '/auth/v1/user') return Response.json({ id: scope.userId });
+      assert.ok(path.endsWith('marketplace_browser_session_reserve'));
+      reservations++;
+      return Response.json(
+        {
+          code: '55P03',
+          details: null,
+          hint: null,
+          message: 'private provider token in error text',
+        },
+        { status: 500 },
+      );
+    },
+  });
+  await assert.rejects(
+    store.acquire(scope),
+    (failure: unknown) =>
+      failure instanceof MarketplaceBrowserSessionBusyError &&
+      !failure.message.includes('private provider'),
+  );
+  assert.equal(recoveries, 0);
+  assert.equal(reservations, 1);
+});
+
+for (const malformedResponse of [
+  () => Response.json({ code: 'XX000', message: 'private token' }, { status: 500 }),
+  () => Response.json({ code: '55p03' }, { status: 500 }),
+  () => Response.json([{ code: '55P03' }], { status: 500 }),
+  () => new Response('{', { status: 500 }),
+  () => Response.json(null, { status: 500 }),
+  () => Response.json({ code: '55P03' }, { status: 200 }),
+]) {
+  test('unknown or malformed reservation response remains uncertain', async () => {
+    let recoveries = 0;
+    const store = new SupabaseBrowserSessionStore({
+      url: 'https://example.test',
+      publishableKey: 'public',
+      serviceRoleKey: 'server',
+      onReservationUncertain: () => {
+        recoveries++;
+      },
+      fetch: async (input) =>
+        new URL(String(input)).pathname === '/auth/v1/user'
+          ? Response.json({ id: scope.userId })
+          : malformedResponse(),
+    });
+    await assert.rejects(
+      store.acquire(scope),
+      (failure: unknown) =>
+        failure instanceof Error &&
+        !(failure instanceof MarketplaceBrowserSessionBusyError) &&
+        !failure.message.includes('private token'),
+    );
+    assert.equal(recoveries, 1);
+  });
+}
 
 for (const failure of [
   'binding_denied',

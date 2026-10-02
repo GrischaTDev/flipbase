@@ -6,6 +6,7 @@ import {
   type VintedImportStage,
 } from './vinted-account-import.ts';
 import {
+  MarketplaceBrowserSessionBusyError,
   MarketplaceBrowserSessionEndedError,
   type BrowserSessionScope,
 } from './marketplace-browser-session-broker.ts';
@@ -715,6 +716,10 @@ export class MarketplaceBrowserHttpApi {
       }
       if (error instanceof GoLoginProfileLimitError) {
         json(response, 503, { code: 'gologin_profile_limit_reached' });
+        return;
+      }
+      if (error instanceof MarketplaceBrowserSessionBusyError) {
+        json(response, 409, { code: 'browser_session_busy' });
         return;
       }
       const status =

@@ -70,6 +70,26 @@ Bootstrap berücksichtigt numerische Eigentümer und bestätigt Dateirechte.
 Actionlint, Bashsyntax und Format geprüft. Ein erneuter Vinted-Start durch den
 Nutzer steht noch aus; der Dummy-Test bestätigt keine Vinted-Anmeldung.
 
+**Anmeldekorrektur:** Beim nächsten Versuch öffnet sich die SMS-Abfrage.
+Eine weitere Startanfrage wird während der aktiven Sitzung mit SQLSTATE `55P03`
+abgelehnt. Die bisherige Fehlerbehandlung wertet PostgRESTs HTTP 500 fälschlich
+als ungewisse Reservierung und beendet den Worker. Die bekannte, zurückgerollte
+Ablehnung liefert jetzt ausschließlich den festen Code `browser_session_busy`
+mit HTTP 409; unbekannte Fehler bleiben abgesichert. Die Oberfläche erklärt den
+belegten gemeinsamen Browserplatz ohne interne Serverdetails. Ein Agent prüft
+die Fehlerklassifikation, ein weiterer den fertigen Unterschied.
+Der reguläre Wiederanlauf stoppt den verwaisten Browser und bestätigt Sitzung
+206 als geschlossen; der Controller ist wieder gesund. Die neue Korrektur ist
+noch nicht auf dem Server veröffentlicht.
+
+**Prüfung der Anmeldekorrektur:** 246 Worker-Tests bestanden, drei Linuxfälle
+unter Windows ausgelassen; 28 gezielte Angular-Service-Tests bestanden.
+Der Regressionstest fordert zunächst den Bestätigungscode an, versucht danach
+einen zweiten Start und prüft den weiteren Zugriff auf die ursprüngliche Sitzung.
+Worker und Anwendung typgeprüft und gebaut, geänderte Dateien formatiert und
+gezielt gelintet. Der Angular-Bau meldet die bestehende CommonJS-Warnung für
+`pako`. Eine erfolgreiche echte Vinted-Anmeldung steht weiterhin aus.
+
 ## 2026-10-02 - Juna - eigenen Chromium-Cloudpiloten umsetzen
 
 **Auftrag:** Nach Freigabe des recherchierten Plans eigenen Chromium-/Playwright-
