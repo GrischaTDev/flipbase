@@ -159,6 +159,16 @@ export async function mockMarketplace(
     if (name === 'user') json = user;
     if (name === 'profiles') json = { id: user.id, full_name: 'Marktplatz-Test' };
     if (name === 'is_platform_operator') json = true;
+    // Der Marktplatztest verwendet einen weiterhin aktiven Bestands-Workspace.
+    if (name === 'list_my_workspace_access')
+      json = [
+        {
+          workspace_id: workspaceId,
+          access_status: 'active',
+          ends_at: null,
+          server_time: new Date().toISOString(),
+        },
+      ];
     if (name === 'workspaces')
       json = [
         {

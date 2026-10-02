@@ -1,5 +1,23 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-02 – Juna – Vollständig simulierte Browsertests an Zugangsprüfung anpassen
+
+**Befund:** Die erste PR-Prüfung bestand in allen Code-, Bau-, Datenbank- und
+Komponententests. Der Marktplatz-Browsertest lieferte für die neue private
+Zugangsauskunft jedoch wie für unbekannte Antworten eine leere Liste und wurde
+dadurch korrekt auf die Ablaufseite geleitet.
+
+**Änderung:** Die drei vollständigen Backend-Simulationen für Marktplatzkonten,
+Deal Monitor und Botverwaltung liefern ihre vorhandenen Test-Workspaces als
+aktive Bestandszugänge ohne Enddatum. Produktcode und Zugangssperre bleiben
+unverändert; keine echten Konten oder externen Dienste werden verwendet.
+
+**Prüfung:** Format und gezieltes Lint bestanden. Lokal 13 Marktplatz- sowie
+acht Feed-/Botverwaltungs-Browserfälle erfolgreich, einschließlich mobiler
+Ansichten und Barrierefreiheitsprüfungen. Unabhängige Prüfung bestätigt die
+Bestandszugänge und findet keine weiteren betroffenen vollständigen HTTP-Mocks.
+Der vollständige PR-Lauf wird nach dieser Korrektur erneut geprüft.
+
 ## 2026-10-02 – Juna – Veröffentlichung der Beta-Zugangsverwaltung freigegeben
 
 **Freigabe:** Der Nutzer bestätigt die vorgeschriebene Abschlussfrage mit „ja“.
