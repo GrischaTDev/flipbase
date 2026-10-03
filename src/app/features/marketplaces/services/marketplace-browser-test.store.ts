@@ -205,7 +205,7 @@ export class MarketplaceBrowserTestStore {
 
   async refresh(): Promise<void> {
     const active = this.session();
-    if (!active || this.busy()) return;
+    if (!active || this.busy() || this.sessionBlocked()) return;
     const revision = ++this.revision;
     this.busyState.set(active.key);
     this.errorState.set(null);
@@ -432,7 +432,7 @@ export class MarketplaceBrowserTestStore {
 
   async confirmAccount(allowPending = false): Promise<void> {
     const active = this.session();
-    if (!active || this.busy() || this.readOnly()) return;
+    if (!active || this.busy() || this.readOnly() || this.sessionBlocked()) return;
     const revision = ++this.revision;
     this.busyState.set(active.key);
     this.errorState.set(null);
