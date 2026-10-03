@@ -2,6 +2,7 @@ import type { Page } from 'playwright';
 import { setTimeout } from 'node:timers/promises';
 import type { BrowserInfo, BrowserConnection, BrowserDragPoint } from './gologin-cloud-browser.ts';
 import { readVintedAccountImport } from './vinted-account-import.ts';
+import { hasVisibleVintedSessionBlock } from './vinted-browser-challenge.ts';
 import { readVintedAccountIdentity } from './vinted-browser-reader.ts';
 import { submitVintedLogin } from './vinted-browser-login.ts';
 import { submitVintedVerificationCode } from './vinted-browser-verification.ts';
@@ -53,6 +54,7 @@ export function vintedBrowserActions(connection: BrowserConnection): BrowserInfo
         animations: 'disabled',
         timeout: 5_000,
       }),
+    sessionBlocked: () => hasVisibleVintedSessionBlock(currentPage()),
     click: async (xRatio, yRatio) => {
       const page = currentPage();
       const size =
