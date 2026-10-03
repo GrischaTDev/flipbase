@@ -1,5 +1,8 @@
 import type { Page } from 'playwright';
-import { hasVisibleVintedChallenge } from './vinted-browser-challenge.ts';
+import {
+  hasVisibleVintedChallenge,
+  hasVisibleVintedSessionBlock,
+} from './vinted-browser-challenge.ts';
 
 export interface VintedAccountIdentity {
   id: string;
@@ -30,6 +33,13 @@ export class VintedInteractionRequiredError extends Error {
   constructor() {
     super('Vinted verlangt eine manuelle Mensch-Prüfung');
     this.name = 'VintedInteractionRequiredError';
+  }
+}
+
+export class VintedSessionBlockedError extends Error {
+  constructor() {
+    super('Vinted hat diese Browsersitzung oder Netzwerkverbindung vorübergehend blockiert');
+    this.name = 'VintedSessionBlockedError';
   }
 }
 
@@ -68,10 +78,14 @@ export async function readVintedAccountIdentity(
   } catch {
     return null;
   }
+  let sessionBlocked: boolean;
   let challengeDetected: boolean;
   try {
+    sessionBlocked = await hasVisibleVintedSessionBlock(page);
+    if (sessionBlocked) throw new VintedSessionBlockedError();
     challengeDetected = await hasVisibleVintedChallenge(page);
-  } catch {
+  } catch (error) {
+    if (error instanceof VintedSessionBlockedError) throw error;
     // Ein laufender Seitenwechsel bestätigt weder Identität noch Prüfzustand.
     return null;
   }
