@@ -14,9 +14,16 @@ import {
 
 export type BrowserConnection = Pick<Browser, 'close' | 'version'> &
   Partial<Pick<Browser, 'contexts' | 'newBrowserCDPSession'>>;
+export interface BrowserDragPoint {
+  x: number;
+  y: number;
+  elapsedMs: number;
+}
+
 export interface BrowserInfo extends Pick<Browser, 'version'> {
   capture?(): Promise<Uint8Array>;
   click?(xRatio: number, yRatio: number): Promise<void>;
+  drag?(points: BrowserDragPoint[]): Promise<void>;
   type?(value: string): Promise<void>;
   press?(key: 'Enter' | 'Tab' | 'Escape' | 'Backspace'): Promise<void>;
   identify?(): Promise<VintedAccountIdentity | null>;

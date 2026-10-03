@@ -25,8 +25,9 @@ test('liest Identität nur auf der festen Vinted-Domain und gibt keine Rohdaten 
   let calls = 0;
   const page = {
     url: () => 'https://www.vinted.de/',
-    evaluate: async () => {
+    evaluate: async (callback: () => unknown) => {
       calls++;
+      if (callback.name === 'detectVisibleVintedChallenge') return false;
       return { user: { id: 12345, login: 'mein-konto', email: 'secret@example.test' } };
     },
   } as unknown as Pick<Page, 'url' | 'evaluate'>;
@@ -34,18 +35,19 @@ test('liest Identität nur auf der festen Vinted-Domain und gibt keine Rohdaten 
     id: '12345',
     username: 'mein-konto',
   });
-  assert.equal(calls, 1);
+  assert.equal(calls, 2);
   assert.equal(
     await readVintedAccountIdentity({ ...page, url: () => 'https://vinted.de.attacker.test/' }),
     null,
   );
-  assert.equal(calls, 1);
+  assert.equal(calls, 2);
 });
 
 test('meldet ein weiterhin sichtbares Vinted-Anmeldeformular als eigenen Prüfzustand', async () => {
   const page = {
     url: () => 'https://www.vinted.de/member/login/email',
-    evaluate: async () => ({ loginPending: true }),
+    evaluate: async (callback: () => unknown) =>
+      callback.name === 'detectVisibleVintedChallenge' ? false : { loginPending: true },
   } as unknown as Pick<Page, 'url' | 'evaluate'>;
   await assert.rejects(readVintedAccountIdentity(page), {
     name: 'VintedLoginPendingError',
@@ -56,7 +58,8 @@ test('meldet die zweite Vinted-Anmeldestufe ohne Identitätsabruf als Codeanford
   let fetched = false;
   const page = {
     url: () => 'https://www.vinted.de/member/login/2fa',
-    evaluate: async () => {
+    evaluate: async (callback: () => unknown) => {
+      if (callback.name === 'detectVisibleVintedChallenge') return false;
       fetched = true;
       return null;
     },
@@ -65,4 +68,17 @@ test('meldet die zweite Vinted-Anmeldestufe ohne Identitätsabruf als Codeanford
     name: 'VintedVerificationRequiredError',
   });
   assert.equal(fetched, false);
+});
+
+test('reports a visible challenge before the SMS requirement or private identity request', async () => {
+  let checks = 0;
+  const page = {
+    url: () => 'https://www.vinted.de/member/login/2fa',
+    evaluate: async () => {
+      checks++;
+      return true;
+    },
+  } as unknown as Pick<Page, 'url' | 'evaluate'>;
+  await assert.rejects(readVintedAccountIdentity(page), { name: 'VintedInteractionRequiredError' });
+  assert.equal(checks, 1);
 });

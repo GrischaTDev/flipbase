@@ -3,6 +3,7 @@ import {
   BrowserTestSessionEndedError,
   GoLoginApiLimitError,
   MarketplaceBrowserTestApiService,
+  VintedInteractionRequiredError,
 } from './marketplace-browser-test-api.service';
 
 const scope = {
@@ -11,6 +12,29 @@ const scope = {
 };
 const id = '25600000-0000-4000-8000-000000000031';
 const api = new MarketplaceBrowserTestApiService();
+
+it.each([false, true])(
+  'unterscheidet Mensch-Prüfungen auch beim Hintergrundabruf (%s)',
+  async (allowPending) => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(Response.json({ code: 'vinted_interaction_required' }, { status: 422 })),
+    );
+    await expect(api.identify(scope, id, 'token', allowPending)).rejects.toBeInstanceOf(
+      VintedInteractionRequiredError,
+    );
+  },
+);
+
+it('akzeptiert die Mensch-Prüfung nach einer Codebestätigung', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockResolvedValue(Response.json({ status: 'interaction_required' })),
+  );
+  await expect(api.verify(scope, id, '123456', 'token')).resolves.toBe('interaction_required');
+});
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -100,6 +124,47 @@ it.each(
 });
 
 describe('Browser-Test-API', () => {
+  it('erkennt Ziehbewegungen nur bei ausdrücklicher Unterstützung im schreibenden Browserdienst', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          Response.json({ ok: true, readOnly: false, apiVersion: 2, dragSupported: true }),
+        ),
+    );
+    expect(await api.available()).toEqual({
+      available: true,
+      readOnly: false,
+      dragSupported: true,
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          Response.json({ ok: true, readOnly: true, apiVersion: 2, dragSupported: true }),
+        ),
+    );
+    expect(await api.available()).toEqual({ available: true, readOnly: true });
+  });
+
+  it('überträgt die manuelle Bewegung mit unverändertem Kontobezug und Zeitwerten', async () => {
+    const request = vi.fn().mockResolvedValue(Response.json({ accepted: true }));
+    vi.stubGlobal('fetch', request);
+    const input = {
+      kind: 'drag' as const,
+      points: [
+        { x: 0.1, y: 0.2, elapsedMs: 0 },
+        { x: 0.8, y: 0.2, elapsedMs: 150 },
+      ],
+    };
+    await api.input(scope, id, input, 'user-test-token');
+    const [path, options] = request.mock.calls[0] as [string, RequestInit];
+    expect(path).toBe(`/marketplace-browser/sessions/${id}/input`);
+    expect(JSON.parse(String(options.body))).toEqual({ ...scope, input });
+    expect(new Headers(options.headers).get('Authorization')).toBe('Bearer user-test-token');
+  });
   it('erkennt die SPA-Antwort nicht als aktiven Browserdienst', async () => {
     vi.stubGlobal(
       'fetch',

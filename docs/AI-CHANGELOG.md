@@ -1,6 +1,106 @@
 # 🤖 KI-Änderungsprotokoll
 
-## 2026-10-02 – Juna – Vollständig simulierte Browsertests an Zugangsprüfung anpassen
+## 2026-10-03 - Juna - Veröffentlichung der Vinted-Prüfungen freigegeben
+
+**Freigabe:** Der Nutzer hat PR-Erstellung, erfolgreiche Pflichtprüfungen,
+Merge und anschließende Zweig-/Worktree-Bereinigung ausdrücklich bestätigt.
+Der geprüfte Stand enthält manuelle Zieheingaben, verfügbare Browserbedienung
+und automatische Übergabe sichtbarer Mensch-Prüfungen an dieselbe Sitzung.
+Die Veröffentlichung erfolgt über den PR und die bestehenden CI-Bauten.
+Eine echte Live-Übertragung ist weiterhin nicht Bestandteil dieser Änderung.
+
+**CI-Korrektur:** Die Qualitätsprüfung erkennt die vier neuen Kern-Browsertests,
+deren verbindliche Auswahlliste noch fehlte. Die Liste wurde vollständig ergänzt;
+die Prüfung selbst und der Prüfumfang bleiben erhalten. Worker-Tests und beide
+Abbildprüfungen waren bereits erfolgreich.
+
+## 2026-10-03 - Juna - Mensch-Prüfungen erkennen und Browseransicht automatisch öffnen
+
+**Auftrag:** Sichtbare Vinted-Mensch-Prüfungen erkennen und die Browseransicht
+automatisch einblenden, statt mit einem allgemeinen Anmeldefehler abzubrechen.
+
+**Änderung:** Gemeinsame sichtbare DOM-Erkennung vor Eingaben, nach Anmeldung
+und SMS-Code sowie bei späteren Identitätsprüfungen. Versteckte Schutzskripte
+und Frames zählen nicht als Prüfung. Der erwartete Zustand
+`interaction_required` hält dieselbe autorisierte Browsersitzung offen.
+Die Oberfläche lädt die Vorschau automatisch, setzt einmal den Fokus darauf
+und pausiert Anmeldeprüfungen und erneutes Senden. Eine folgende SMS-Anforderung
+bleibt möglich. Konto- und Workspacewechsel verwerfen verspätete Antworten.
+Bildladefehler bleiben sichtbar und können manuell erneut versucht werden.
+
+**Prüfung:** 87 Angular-Tests und vier Vorschau-Browsertests erfolgreich,
+einschließlich automatischer Übergänge bei Anmeldung, Identitätsabruf und SMS,
+AXE sowie Maus-, Touch- und Tastatureingaben. Der bestehende Eingabetest wartet
+nun auf das nach dem Klick tatsächlich aktualisierte Bild vor der nächsten
+Tastatureingabe. Worker-Suite: 259 Tests erfolgreich, fünf vorhandene Windows-
+Skips; zusätzlicher API-Test und 13 Browser-Fixtures erfolgreich. Typprüfungen,
+Lint, Format, Worker-Bau und Angular-Produktionsbau bestanden.
+
+**Grenze:** Erkennung bekannter sichtbarer Prüfmuster, keine automatische Lösung
+und kein Nachweis vollständiger Erkennung künftig geänderter Vinted-Seiten.
+Die angezeigte Ansicht ist weiterhin eine Bildvorschau; ein kontinuierlicher
+Live-Browsertransport ist noch nicht umgesetzt. Keine produktiven Konten geändert,
+kein Push und keine Veröffentlichung in dieser Sitzung.
+
+## 2026-10-03 - Juna - Bedienfehler und Vinted-Prüfungen erneut abgleichen
+
+**Auftrag:** Der Nutzer meldet verschwindenden Mauszeiger, wiederkehrende Lade-
+sperren und natives Bildziehen und hinterfragt die Eignung des Cloudansatzes.
+Die bisherigen Ziehänderungen sind noch nicht veröffentlicht.
+
+**Befund und Änderung:** `cursor-none` im Anmeldestatus entfernt. Eine geöffnete
+Vorschau zeigt keinen zweiten großen Ladespinner; dort pausieren automatische
+Anmeldeprüfungen, bis der Nutzer die vorhandene explizite Prüfung auslöst. Der
+Hintergrundpfad ohne Vorschau prüft weiterhin automatisch. Natives Bildziehen
+ist im vorbereiteten Zweig bereits abgeschaltet. Gezielte Regressionstests
+prüfen Spinner, Cursor, Bildziehen und die freie manuelle Ansicht.
+
+**Recherche:** [Bleam CAPTCHA-Hilfe](https://bleam.app/en/help/debloquer-captcha)
+und [Revendor](https://revendor.app/guide/when-a-repost-fails) dokumentieren
+manuelle Prüfungen und pausierte Abläufe. [Bleam Cloud](https://bleam.app/en/help/bleam-cloud)
+beschreibt laufende getrennte Browsersitzungen und direkte Vinted-Anmeldung,
+legt aber die Übertragungstechnik nicht offen. Keine belegte Garantie für
+prüfungsfreien Betrieb. Eine Live-Browseransicht ist unsere Produktempfehlung,
+kein nachgewiesenes technisches Detail dieser Anbieter. Eigenes Chromium mit
+Server-IP bleibt ungeprüft hinsichtlich wiederholter Vinted-Herausforderungen.
+
+**Prüfung:** 77 gezielte Angular-Tests und Vorschau-Browsertest mit Maus, Touch,
+Klick und Tastatur erfolgreich. Der Browsertest bestätigt nach Anmeldung in
+sichtbarer Vorschau: keine periodische Identitätsprüfung, kein großer Spinner,
+sichtbarer Mauszeiger, natives Bildziehen abgeschaltet und AXE ohne Befund.
+Typen, Format, Lint und Produktionsbau bestanden. Öffentlicher Stand weiterhin
+`1ad03914`; keine Veröffentlichung oder Änderung produktiver Konten in dieser Sitzung.
+Screenshot-Eingaben bleiben ein vorbereiteter Zwischenstand, keine Freigabe
+des dauerhaft unbeaufsichtigten Cloudbetriebs.
+
+## 2026-10-03 - Juna - Manuelles Ziehen im Vinted-Cloudbrowser ermöglichen
+
+**Befund:** Der Nutzer sieht bei der Vinted-Anmeldung eine Mensch-Prüfung mit
+Slider. Die Browser-Vorschau kann bislang nur klicken, Text und einzelne Tasten
+übertragen; die vom Nutzer erforderliche Ziehbewegung fehlt im gesamten Eingabepfad.
+
+**Änderung:** Maus- und Touch-Gesten werden beim Loslassen mit den tatsächlich
+gemessenen Positionen und Zeiten an dieselbe Sitzung übermittelt. Die API begrenzt
+Pfadlänge, Dauer und Koordinaten; der gemeinsame Chromium-/GoLogin-Adapter gibt die
+Maustaste auch bei Fehlern frei. Abbruch und Sitzungswechsel verwerfen die Aufnahme.
+Ein explizites Dienstmerkmal verhindert Eingaben an einen noch älteren Worker.
+Die Mensch-Prüfung bleibt eine manuelle Nutzeraktion; keine automatische Lösung.
+
+**Einordnung nach Rückfrage:** Die fehlende Ziehfunktion bestand bereits im
+GoLogin-Eingabepfad. Maike Vintage verwendet im laufenden Chromium-Pilot die
+Zuordnung `direct`, also die Serververbindung ohne Residential-Proxy. Der Wechsel
+ändert damit Browserprofil und Netzwerkumgebung. Dass genau diese Änderung die
+Vinted-Prüfung ausgelöst hat, ist nicht bewiesen. Manuelle Bedienbarkeit ist noch
+kein Nachweis für dauerhaft unbeaufsichtigte Synchronisierung.
+
+**Prüfung:** 73 gezielte Angular-Tests und 43 Worker-/Browser-Tests erfolgreich.
+Eine lokale Chromium-Slider-Fixture sowie der vollständige Vorschau-Eingabepfad
+mit Maus und Touch bestätigen die manuelle Übertragung; AXE ohne Befund nach
+Korrektur der Überschriftenfolge in der Vorschau. Typen, Format, Lint und Angular-
+Produktionsbau erfolgreich. Der tatsächliche Vinted-/SMS-Abschluss ist weiterhin offen.
+Eigener Zweig `juna/vinted-browser-drag`; Veröffentlichung noch nicht ausgeführt.
+
+## 2026-10-02 - Juna - Vollständig simulierte Browsertests an Zugangsprüfung anpassen
 
 **Befund:** Die erste PR-Prüfung bestand in allen Code-, Bau-, Datenbank- und
 Komponententests. Der Marktplatz-Browsertest lieferte für die neue private

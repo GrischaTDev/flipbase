@@ -5,6 +5,223 @@ import { join } from 'node:path';
 import { accountIds, mockMarketplace, workspaceId } from './support/marketplace-account-fixture';
 
 test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: 'block' });
+
+for (const challengeStage of ['login', 'identify', 'verify'] as const) {
+  test(`öffnet eine Mensch-Prüfung bei ${challengeStage} automatisch @marketplace-preview @core-smoke`, async ({
+    page,
+  }) => {
+    await mockMarketplace(page, true);
+    const jpeg = Buffer.from(
+      await page.evaluate(() => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 1280;
+        canvas.height = 800;
+        return canvas.toDataURL('image/jpeg').split(',')[1];
+      }),
+      'base64',
+    );
+    await page.route('**/marketplace-browser/healthz', (route) =>
+      route.fulfill({ json: { ok: true, readOnly: false, apiVersion: 2, dragSupported: true } }),
+    );
+    const calls: string[] = [];
+    await page.route('**/marketplace-browser/sessions**', (route) => {
+      const path = new URL(route.request().url()).pathname;
+      const body = route.request().postDataJSON() as Record<string, unknown>;
+      expect(body['workspaceId']).toBe(workspaceId);
+      expect(body['connectionId']).toBe(accountIds[0]);
+      const action = path.split('/').at(-1) ?? '';
+      calls.push(action);
+      if (action === 'sessions')
+        return route.fulfill({ status: 201, json: { id: '25000000-0000-4000-8000-000000000031' } });
+      if (action === 'login')
+        return route.fulfill({
+          json: {
+            status:
+              challengeStage === 'login'
+                ? 'interaction_required'
+                : challengeStage === 'verify'
+                  ? 'verification_required'
+                  : 'submitted',
+          },
+        });
+      if (action === 'identify')
+        return route.fulfill({ status: 422, json: { code: 'vinted_interaction_required' } });
+      if (action === 'verify') return route.fulfill({ json: { status: 'interaction_required' } });
+      if (action === 'frame') return route.fulfill({ contentType: 'image/jpeg', body: jpeg });
+      if (action === 'close') return route.fulfill({ status: 204 });
+      throw new Error(`Unerwarteter Browseraufruf: ${path}`);
+    });
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    await page.goto('/settings/marketplaces');
+    await page.getByRole('button', { name: 'Vinted-Anmeldung für Testkonto A öffnen' }).click();
+    await page.getByRole('textbox', { name: 'Vinted-Mitgliedsname oder E-Mail' }).fill('synthetic');
+    await page.getByLabel('Vinted-Passwort').fill('synthetic');
+    await page.getByRole('button', { name: 'Anmelden und Konto verbinden' }).click();
+    if (challengeStage === 'verify') {
+      await page.getByLabel('Vinted-Bestätigungscode').fill('123456');
+      await page.getByRole('button', { name: 'Code bestätigen', exact: true }).click();
+    }
+    const preview = page.locator('[aria-label="Vinted-Browseransicht"]');
+    await expect(preview).toBeVisible();
+    await expect(preview).toBeFocused();
+    await expect(
+      page.getByText('Vinted braucht Deine Bestätigung.', { exact: false }),
+    ).toBeVisible();
+    await expect(page.locator('app-marketplace-browser-test .animate-spin')).toHaveCount(0);
+    await expect(
+      page.getByRole('button', { name: 'Browserbild anklicken oder mit Maus oder Finger ziehen' }),
+    ).toBeEnabled();
+    await expect(
+      page.getByRole('textbox', { name: 'Vinted-Mitgliedsname oder E-Mail' }),
+    ).toHaveCount(0);
+    const count = calls.length;
+    await page.clock.install();
+    await page.clock.fastForward(120_000);
+    expect(calls).toHaveLength(count);
+    expect(calls.filter((action) => action === 'login')).toHaveLength(1);
+    expect(calls).not.toContain('close');
+    await page.addScriptTag({ content: axe.source });
+    expect(
+      await page.evaluate(
+        async () =>
+          (
+            await (window as unknown as { axe: typeof axe }).axe.run(
+              document.querySelector('app-marketplace-browser-test') as HTMLElement,
+            )
+          ).violations,
+      ),
+    ).toEqual([]);
+    expect(errors).toEqual([]);
+  });
+}
+
+test('überträgt manuelles Ziehen im Browserbild mit Maus und Touch genau einmal @marketplace-preview @core-smoke', async ({
+  page,
+}) => {
+  await mockMarketplace(page, true);
+  const jpeg = Buffer.from(
+    await page.evaluate(() => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 1280;
+      canvas.height = 800;
+      return canvas.toDataURL('image/jpeg').split(',')[1];
+    }),
+    'base64',
+  );
+  await page.route('**/marketplace-browser/healthz', (route) =>
+    route.fulfill({
+      json: {
+        ok: true,
+        readOnly: false,
+        apiVersion: 2,
+        dragSupported: true,
+      },
+    }),
+  );
+  const inputs: { kind: string; points?: { x: number; y: number; elapsedMs: number }[] }[] = [];
+  let frames = 0;
+  let identityChecks = 0;
+  await page.route('**/marketplace-browser/sessions**', async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    const body = route.request().postDataJSON() as Record<string, unknown>;
+    expect(body['workspaceId']).toBe(workspaceId);
+    expect(body['connectionId']).toBe(accountIds[0]);
+    if (path.endsWith('/sessions'))
+      return route.fulfill({ status: 201, json: { id: '25000000-0000-4000-8000-000000000031' } });
+    if (path.endsWith('/frame')) {
+      frames++;
+      return route.fulfill({ contentType: 'image/jpeg', body: jpeg });
+    }
+    if (path.endsWith('/input')) {
+      inputs.push(body['input'] as (typeof inputs)[number]);
+      return route.fulfill({ json: { accepted: true } });
+    }
+    if (path.endsWith('/login')) return route.fulfill({ json: { status: 'submitted' } });
+    if (path.endsWith('/identify')) {
+      identityChecks++;
+      return route.fulfill({ status: 422, json: { code: 'vinted_login_pending' } });
+    }
+    if (path.endsWith('/close')) return route.fulfill({ status: 204 });
+    throw new Error(`Unerwarteter Browseraufruf: ${path}`);
+  });
+  await page.goto('/settings/marketplaces');
+  await page.getByRole('button', { name: 'Vinted-Anmeldung für Testkonto A öffnen' }).click();
+  await page.getByRole('button', { name: 'Browser-Ansicht öffnen' }).click();
+  const preview = page.getByRole('button', {
+    name: 'Browserbild anklicken oder mit Maus oder Finger ziehen',
+  });
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  for (const touch of [false, true]) {
+    if (touch) await page.setViewportSize({ width: 390, height: 1000 });
+    await preview.scrollIntoViewIfNeeded();
+    const rectangle = await preview.boundingBox();
+    if (!rectangle) throw new Error('Browserbild fehlt');
+    const start = {
+      x: rectangle.x + rectangle.width * 0.1,
+      y: rectangle.y + rectangle.height * 0.3,
+    };
+    const end = { x: rectangle.x + rectangle.width * 0.8, y: rectangle.y + rectangle.height * 0.3 };
+    const count = inputs.length;
+    if (touch) {
+      const cdp = await page.context().newCDPSession(page);
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [start] });
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [end] });
+      expect(inputs).toHaveLength(count);
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      await cdp.detach();
+    } else {
+      await page.mouse.move(start.x, start.y);
+      await page.mouse.down();
+      await page.mouse.move(end.x, end.y, { steps: 8 });
+      expect(inputs).toHaveLength(count);
+      await page.mouse.up();
+    }
+    await expect.poll(() => inputs.length).toBe(count + 1);
+    const input = inputs[count];
+    expect(input.kind).toBe('drag');
+    expect(input.points?.[0]?.x).toBeCloseTo(0.1, 2);
+    expect(input.points?.at(-1)?.x).toBeCloseTo(0.8, 2);
+    await expect.poll(() => frames).toBe(count + 2);
+    await expect(preview).toBeEnabled();
+  }
+  const frameBeforeClick = await preview.locator('img').getAttribute('src');
+  if (!frameBeforeClick) throw new Error('Browserbild fehlt');
+  await preview.click({ position: { x: 10, y: 10 } });
+  await expect.poll(() => inputs.length).toBe(3);
+  expect(inputs[2].kind).toBe('click');
+  await expect(preview.locator('img')).not.toHaveAttribute('src', frameBeforeClick);
+  await expect(preview).toBeEnabled();
+  await preview.focus();
+  await expect(preview).toBeFocused();
+  await preview.press('Enter');
+  await expect.poll(() => inputs.length).toBe(4);
+  expect(inputs[3]).toEqual({ kind: 'click', x: 0.5, y: 0.5 });
+  await expect(preview).toBeEnabled();
+  await page.clock.install();
+  await page.getByRole('textbox', { name: 'Vinted-Mitgliedsname oder E-Mail' }).fill('synthetic');
+  await page.getByLabel('Vinted-Passwort').fill('synthetic');
+  await page.getByRole('button', { name: 'Anmelden und Konto verbinden' }).click();
+  await expect(preview).toBeEnabled();
+  await page.clock.fastForward(6000);
+  expect(identityChecks).toBe(0);
+  await expect(page.locator('app-marketplace-browser-test .animate-spin')).toHaveCount(0);
+  expect(await preview.evaluate((element) => getComputedStyle(element).cursor)).toBe('pointer');
+  await expect(preview.locator('img')).toHaveAttribute('draggable', 'false');
+  await page.addScriptTag({ content: axe.source });
+  expect(
+    await page.evaluate(
+      async () =>
+        (
+          await (window as unknown as { axe: typeof axe }).axe.run(
+            document.querySelector('app-marketplace-browser-test') as HTMLElement,
+          )
+        ).violations,
+    ),
+  ).toEqual([]);
+  expect(errors).toEqual([]);
+});
 test('aktiviert und pausiert automatische Vinted-Abrufe je Konto zugänglich @marketplace-preview @core-smoke', async ({
   page,
 }) => {

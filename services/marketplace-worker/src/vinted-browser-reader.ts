@@ -1,4 +1,5 @@
 import type { Page } from 'playwright';
+import { hasVisibleVintedChallenge } from './vinted-browser-challenge.ts';
 
 export interface VintedAccountIdentity {
   id: string;
@@ -22,6 +23,13 @@ export class VintedVerificationRequiredError extends Error {
   constructor() {
     super('Vinted verlangt einen Bestätigungscode');
     this.name = 'VintedVerificationRequiredError';
+  }
+}
+
+export class VintedInteractionRequiredError extends Error {
+  constructor() {
+    super('Vinted verlangt eine manuelle Mensch-Prüfung');
+    this.name = 'VintedInteractionRequiredError';
   }
 }
 
@@ -60,6 +68,14 @@ export async function readVintedAccountIdentity(
   } catch {
     return null;
   }
+  let challengeDetected: boolean;
+  try {
+    challengeDetected = await hasVisibleVintedChallenge(page);
+  } catch {
+    // Ein laufender Seitenwechsel bestätigt weder Identität noch Prüfzustand.
+    return null;
+  }
+  if (challengeDetected) throw new VintedInteractionRequiredError();
   if (new URL(page.url()).pathname === '/member/login/2fa')
     throw new VintedVerificationRequiredError();
   let response: unknown;

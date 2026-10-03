@@ -30,6 +30,12 @@
     @if (store.error(); as error) {
       <app-notice-banner class="mt-4" announcement="alert">{{ error }}</app-notice-banner>
     }
+    @if (store.interactionRequired()) {
+      <app-notice-banner class="mt-4" announcement="status">
+        Vinted braucht Deine Bestätigung. Löse die Mensch-Prüfung in der Browseransicht und klicke
+        anschließend auf „Anmeldung prüfen &amp; verbinden“. Deine Sitzung bleibt geöffnet.
+      </app-notice-banner>
+    }
     @if (store.readOnly()) {
       <app-notice-banner class="mt-4">
         Dieser Test zeigt nur eine öffentliche Seite. Es werden keine Eingaben gesendet.
@@ -78,7 +84,7 @@
             übereinstimmen.
           </p>
         }
-        @if (!showProgress() && !store.awaitingVerification()) {
+        @if (!showProgress() && !store.awaitingVerification() && !store.interactionRequired()) {
           <form
             class="mt-4 max-w-md space-y-4"
             autocomplete="off"
@@ -129,7 +135,7 @@
         }
         @if (showProgress()) {
           <div
-            class="flex min-h-40 cursor-none flex-col items-center justify-center gap-4 text-center"
+            class="flex min-h-40 flex-col items-center justify-center gap-4 text-center"
             role="status"
           >
             <span
@@ -177,12 +183,23 @@
         }
         @if (store.session(); as session) {
           @if (session.frameUrl) {
-            <div class="mt-5 space-y-3 rounded-xl border border-fb-border bg-fb-surface p-4">
+            <div
+              #browserPreview
+              tabindex="-1"
+              aria-label="Vinted-Browseransicht"
+              class="mt-5 space-y-3 rounded-xl border border-fb-border bg-fb-surface p-4"
+            >
               <div class="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <h4 class="text-sm font-semibold text-fb-text-primary">Browser-Vorschau</h4>
+                  <h3 class="text-sm font-semibold text-fb-text-primary">Browser-Vorschau</h3>
                   <p class="text-xs text-fb-text-secondary">
-                    Klicke ins Bild, um Captchas oder Cookies direkt bei Vinted zu bedienen.
+                    @if (store.dragSupported()) {
+                      Klicke ins Bild oder halte und ziehe mit Maus oder Finger. Nach dem Loslassen
+                      wird Deine Bewegung übertragen und das Bild aktualisiert.
+                    } @else {
+                      Klicke ins Bild, um Vinted zu bedienen. Die Ziehfunktion ist momentan nicht
+                      verfügbar.
+                    }
                   </p>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
@@ -204,18 +221,35 @@
               >
                 <button
                   type="button"
-                  class="block max-w-full cursor-pointer focus-visible:outline-2 focus-visible:outline-fb-primary disabled:opacity-50"
-                  aria-label="Browserbild anklicken"
+                  class="relative block max-w-full touch-none select-none cursor-pointer focus-visible:outline-2 focus-visible:outline-fb-primary disabled:opacity-50"
+                  aria-label="Browserbild anklicken oder mit Maus oder Finger ziehen"
                   [disabled]="!store.canAct()"
                   (click)="clickFrame($event)"
+                  (pointerdown)="startPointer($event)"
+                  (pointermove)="movePointer($event)"
+                  (pointerup)="endPointer($event)"
+                  (pointercancel)="cancelPointer($event)"
+                  (lostpointercapture)="cancelPointer($event)"
                 >
                   <img
                     [src]="session.frameUrl"
                     alt="Aktuelles Browserbild der Vinted-Anmeldung"
                     class="block max-w-full"
+                    [draggable]="false"
                   />
+                  @if (pointerPosition(); as position) {
+                    <span
+                      class="pointer-events-none absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border border-black bg-fb-primary"
+                      [style.left.%]="position.x * 100"
+                      [style.top.%]="position.y * 100"
+                      aria-hidden="true"
+                    ></span>
+                  }
                 </button>
               </div>
+              @if (pointerMessage(); as message) {
+                <p role="status" class="text-sm text-fb-text-secondary">{{ message }}</p>
+              }
               <div class="flex flex-wrap items-center gap-2 pt-1">
                 <app-text-field
                   class="min-w-44 flex-1"

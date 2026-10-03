@@ -1,4 +1,6 @@
 import type { Page } from 'playwright';
+import { hasVisibleVintedChallenge } from './vinted-browser-challenge.ts';
+import { VintedInteractionRequiredError } from './vinted-browser-reader.ts';
 
 export interface VintedLoginCredentials {
   username: string;
@@ -36,6 +38,7 @@ export async function submitVintedLogin(
   let currentStep = 'init';
   const authorizeLoginPage = async () => {
     await authorize();
+    if (await hasVisibleVintedChallenge(page)) throw new VintedInteractionRequiredError();
     if (is2FaPage()) return;
     if (!isLoginPage()) throw new Error('Unerwartete Anmeldeseite');
   };
@@ -53,6 +56,8 @@ export async function submitVintedLogin(
       waitUntil: 'domcontentloaded',
       timeout: 20_000,
     });
+    await authorize();
+    if (await hasVisibleVintedChallenge(page)) return 'interaction_required';
     if (is2FaPage()) return 'verification_required';
     currentStep = 'authorize_page';
     await authorizeLoginPage();
@@ -73,9 +78,11 @@ export async function submitVintedLogin(
     const username = page.locator('input[name="username"]');
     const password = page.locator('input[name="password"][type="password"]');
     const submit = page.getByRole('button', { name: 'Weiter', exact: true });
-    for (const control of [username, password, submit]) {
-      await control.waitFor({ state: 'visible', timeout: 10_000 });
-    }
+    await Promise.all(
+      [username, password, submit].map((control) =>
+        control.waitFor({ state: 'visible', timeout: 10_000 }),
+      ),
+    );
     currentStep = 'fill_username';
     await authorizeLoginPage();
     await username.fill(credentials.username, { timeout: 5_000 });
@@ -86,19 +93,13 @@ export async function submitVintedLogin(
     await authorizeLoginPage();
     submissionStarted = true;
     await submit.click({ timeout: 5_000 });
+    if (await hasVisibleVintedChallenge(page)) return 'interaction_required';
     return 'submitted';
   } catch (error) {
-    let currentUrl = 'unknown';
-    let challengeDetected = false;
+    let challengeDetected = error instanceof VintedInteractionRequiredError;
     try {
-      currentUrl = page.url();
-      if (is2FaPage()) return 'verification_required';
-      const content = await page.content().catch(() => '');
-      challengeDetected =
-        content.toLowerCase().includes('datadome') ||
-        content.toLowerCase().includes('captcha') ||
-        content.toLowerCase().includes('challenge') ||
-        content.toLowerCase().includes('geetest');
+      challengeDetected ||= await hasVisibleVintedChallenge(page);
+      if (!challengeDetected && is2FaPage()) return 'verification_required';
     } catch {
       // Fehler bei der Diagnoseabfrage nicht weiterwerfen
     }
@@ -107,9 +108,8 @@ export async function submitVintedLogin(
         `${JSON.stringify({
           event: 'marketplace_login_diagnostic',
           step: currentStep,
-          url: currentUrl,
           challengeDetected,
-          error: error instanceof Error ? error.message : String(error),
+          submissionStarted,
         })}\n`,
       );
     } catch {

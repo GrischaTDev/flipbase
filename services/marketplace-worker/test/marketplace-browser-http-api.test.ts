@@ -13,6 +13,7 @@ import type { VintedEditAccess } from '../src/vinted-edit-access.ts';
 import { VintedImportReadError, type VintedAccountImport } from '../src/vinted-account-import.ts';
 import { GoLoginApiLimitError, GoLoginProfileLimitError } from '../src/gologin-api-limit.ts';
 import {
+  VintedInteractionRequiredError,
   VintedLoginPendingError,
   VintedLoginRejectedError,
   VintedVerificationRequiredError,
@@ -69,6 +70,9 @@ async function setup(
     },
     click: async (x, y) => {
       inputs.push(`click:${x}:${y}`);
+    },
+    drag: async (points) => {
+      inputs.push(`drag:${JSON.stringify(points)}`);
     },
     type: async (value) => {
       inputs.push(`type:${value}`);
@@ -684,7 +688,12 @@ test('reports availability at the same path used by the Angular test page', asyn
   try {
     const response = await fetch(`${api.url}/marketplace-browser/healthz`);
     assert.equal(response.status, 200);
-    assert.deepEqual(await response.json(), { ok: true, readOnly: false, apiVersion: 2 });
+    assert.deepEqual(await response.json(), {
+      ok: true,
+      readOnly: false,
+      apiVersion: 2,
+      dragSupported: true,
+    });
   } finally {
     await api.close();
   }
@@ -793,7 +802,12 @@ test('read-only mode refuses all browser input before accessing the session', as
   const api = await setup(undefined, undefined, true);
   try {
     const response = await fetch(`${api.url}/marketplace-browser/healthz`);
-    assert.deepEqual(await response.json(), { ok: true, readOnly: true, apiVersion: 2 });
+    assert.deepEqual(await response.json(), {
+      ok: true,
+      readOnly: true,
+      apiVersion: 2,
+      dragSupported: false,
+    });
     const scope = { workspaceId: workspaceA, connectionId: accountA };
     await api.request('/marketplace-browser/sessions', scope);
     const input = await api.request(`/marketplace-browser/sessions/${sessionId}/input`, {
@@ -951,6 +965,100 @@ test('returns only a bounded image and accepts individual inputs for the bound a
     );
     assert.deepEqual(api.inputs, ['click:0.25:0.75', 'type:synthetic text', 'press:Tab']);
     assert.equal((await api.request(`${path}/close`, scope)).status, 204);
+  } finally {
+    await api.close();
+  }
+});
+
+test('accepts only the supplied bounded drag path for the authorized session', async () => {
+  const api = await setup();
+  try {
+    const scope = { workspaceId: workspaceA, connectionId: accountA };
+    await api.request('/marketplace-browser/sessions', scope);
+    const points = Array.from({ length: 128 }, (_, index) => ({
+      x: 0.12345678901234568,
+      y: 0.9876543210987654,
+      elapsedMs: index === 127 ? 15_000 : index * 10,
+    }));
+    const body = { ...scope, input: { kind: 'drag', points } };
+    assert.ok(Buffer.byteLength(JSON.stringify(body)) < 16 * 1024);
+    const path = `/marketplace-browser/sessions/${sessionId}/input`;
+    assert.equal((await api.request(path, body, 'token-b')).status, 409);
+    assert.equal((await api.request(path, { ...body, workspaceId: workspaceB })).status, 409);
+    assert.equal((await api.request(path, { ...body, connectionId: accountB })).status, 409);
+    assert.equal(api.runs(), 0);
+    const response = await api.request(path, body, 'token-a-renewed');
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { accepted: true });
+    assert.deepEqual(api.inputs, [`drag:${JSON.stringify(points)}`]);
+    assert.equal(api.runs(), 1);
+  } finally {
+    await api.close();
+  }
+});
+
+test('rejects malformed drag paths before accessing the browser', async () => {
+  const api = await setup();
+  try {
+    const scope = { workspaceId: workspaceA, connectionId: accountA };
+    await api.request('/marketplace-browser/sessions', scope);
+    const firstPoint = { x: 0.1, y: 0.2, elapsedMs: 0 };
+    const lastPoint = { x: 0.8, y: 0.2, elapsedMs: 100 };
+    const invalidPaths: unknown[] = [
+      null,
+      {},
+      [],
+      [firstPoint],
+      [firstPoint, null],
+      Array.from({ length: 129 }, (_, index) => ({ ...firstPoint, elapsedMs: index })),
+      [{ ...firstPoint, elapsedMs: 1 }, lastPoint],
+      [firstPoint, { ...lastPoint, elapsedMs: 0 }],
+      [firstPoint, lastPoint, { ...lastPoint, elapsedMs: 50 }],
+      [firstPoint, { ...lastPoint, elapsedMs: -1 }],
+      [firstPoint, { ...lastPoint, elapsedMs: 0.5 }],
+      [firstPoint, { ...lastPoint, elapsedMs: 15_001 }],
+      [firstPoint, { ...lastPoint, elapsedMs: Infinity }],
+      [firstPoint, { ...lastPoint, x: NaN }],
+      [firstPoint, { ...lastPoint, x: -0.01 }],
+      [firstPoint, { ...lastPoint, y: 1 }],
+      [firstPoint, { ...lastPoint, y: '0.2' }],
+    ];
+    const path = `/marketplace-browser/sessions/${sessionId}/input`;
+    for (const points of invalidPaths) {
+      const response = await api.request(path, { ...scope, input: { kind: 'drag', points } });
+      assert.equal(response.status, 400);
+    }
+    const oversizedResponse = await api.request(path, {
+      ...scope,
+      input: { kind: 'drag', points: [firstPoint, lastPoint] },
+      padding: 'x'.repeat(16 * 1024),
+    });
+    assert.equal(oversizedResponse.status, 413);
+    assert.equal(api.runs(), 0);
+    assert.deepEqual(api.inputs, []);
+  } finally {
+    await api.close();
+  }
+});
+
+test('read-only mode rejects a drag before accessing the browser', async () => {
+  const api = await setup(undefined, undefined, true);
+  try {
+    const scope = { workspaceId: workspaceA, connectionId: accountA };
+    await api.request('/marketplace-browser/sessions', scope);
+    const response = await api.request(`/marketplace-browser/sessions/${sessionId}/input`, {
+      ...scope,
+      input: {
+        kind: 'drag',
+        points: [
+          { x: 0.1, y: 0.2, elapsedMs: 0 },
+          { x: 0.8, y: 0.2, elapsedMs: 100 },
+        ],
+      },
+    });
+    assert.equal(response.status, 403);
+    assert.equal(api.runs(), 0);
+    assert.deepEqual(api.inputs, []);
   } finally {
     await api.close();
   }
@@ -1152,6 +1260,36 @@ test('preserves a pending Vinted code challenge without submitting credentials a
     assert.equal(response.status, 200);
     assert.deepEqual(await response.json(), { status: 'verification_required' });
     assert.deepEqual(api.inputs, []);
+  } finally {
+    await api.close();
+  }
+});
+
+test('preserves a visible human check and browser view without submitting credentials again', async () => {
+  const api = await setup(
+    undefined,
+    undefined,
+    false,
+    undefined,
+    undefined,
+    new VintedInteractionRequiredError(),
+    async () => assert.fail('must not confirm an account awaiting interaction'),
+  );
+  try {
+    const scope = { workspaceId: workspaceA, connectionId: accountA };
+    await api.request('/marketplace-browser/sessions', scope);
+    const response = await api.request(`/marketplace-browser/sessions/${sessionId}/login`, {
+      ...scope,
+      credentials: { username: 'synthetic', password: 'synthetic-secret' },
+    });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { status: 'interaction_required' });
+    assert.deepEqual(api.inputs, []);
+    assert.equal(
+      (await api.request(`/marketplace-browser/sessions/${sessionId}/frame`, scope)).status,
+      200,
+    );
+    assert.equal(api.closes(), 0);
   } finally {
     await api.close();
   }
@@ -1376,6 +1514,7 @@ test('keeps the real broker lease alive after duplicate starts while awaiting lo
     [new VintedLoginRejectedError(), 'vinted_login_rejected'],
     [new VintedLoginPendingError(), 'vinted_login_pending'],
     [new VintedVerificationRequiredError(), 'vinted_verification_required'],
+    [new VintedInteractionRequiredError(), 'vinted_interaction_required'],
   ] as const) {
     let active = true;
     let stopped = false;
