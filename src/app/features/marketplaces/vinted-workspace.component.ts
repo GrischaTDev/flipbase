@@ -63,7 +63,9 @@ export class VintedWorkspaceComponent {
   readonly syncModalOpen = signal(false);
   readonly reconnectLink = computed(() => {
     const account = this.store.selectedConnection();
-    return account ? `/marketplaces/vinted/connect/${account.connectionId}` : null;
+    return account
+      ? `/marketplaces/vinted/${account.executionMode === 'local' ? 'local-connect' : 'connect'}/${account.connectionId}`
+      : null;
   });
 
   constructor() {
@@ -95,6 +97,11 @@ export class VintedWorkspaceComponent {
   }
 
   async sync(): Promise<void> {
+    const account = this.store.selectedConnection();
+    if (account?.executionMode === 'local') {
+      await this.router.navigate(['/marketplaces/vinted/local-connect', account.connectionId]);
+      return;
+    }
     this.syncModalOpen.set(true);
     const succeeded = await this.store.syncSelectedConnection();
     const progress = this.store.syncProgress();

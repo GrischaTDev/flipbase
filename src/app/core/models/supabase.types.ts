@@ -2350,6 +2350,7 @@ export type Database = {
           capabilities: Json
           created_at: string
           display_name: string
+          execution_mode: string
           external_account_id: string | null
           id: string
           last_synced_at: string | null
@@ -2363,6 +2364,7 @@ export type Database = {
           capabilities?: Json
           created_at?: string
           display_name: string
+          execution_mode?: string
           external_account_id?: string | null
           id?: string
           last_synced_at?: string | null
@@ -2376,6 +2378,7 @@ export type Database = {
           capabilities?: Json
           created_at?: string
           display_name?: string
+          execution_mode?: string
           external_account_id?: string | null
           id?: string
           last_synced_at?: string | null
@@ -2554,6 +2557,50 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "marketplace_account_entries"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      marketplace_local_extension_grants: {
+        Row: {
+          approved_by: string
+          connection_id: string
+          expires_at: string
+          external_account_id: string
+          id: number
+          last_seen_at: string | null
+          revoked_at: string | null
+          token_hash: string
+          workspace_id: string
+        }
+        Insert: {
+          approved_by: string
+          connection_id: string
+          expires_at: string
+          external_account_id: string
+          id?: never
+          last_seen_at?: string | null
+          revoked_at?: string | null
+          token_hash: string
+          workspace_id: string
+        }
+        Update: {
+          approved_by?: string
+          connection_id?: string
+          expires_at?: string
+          external_account_id?: string
+          id?: never
+          last_seen_at?: string | null
+          revoked_at?: string | null
+          token_hash?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_local_extension_gra_workspace_id_connection_id_fkey"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: true
+            referencedRelation: "marketplace_connections"
+            referencedColumns: ["workspace_id", "id"]
           },
         ]
       }
@@ -6467,6 +6514,15 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_approve_local_extension: {
+        Args: {
+          p_connection_id: string
+          p_expected_external_account_id: string
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       marketplace_browser_confirm_account: {
         Args: {
           p_connection_id: string
@@ -6545,6 +6601,15 @@ export type Database = {
         }
         Returns: undefined
       }
+      marketplace_ingest_local_extension: {
+        Args: {
+          p_connection_id: string
+          p_snapshot?: Json
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       marketplace_known_favorite_count: {
         Args: { p_body: Json }
         Returns: number
@@ -6556,6 +6621,10 @@ export type Database = {
       marketplace_list_connections: {
         Args: { p_workspace_id: string }
         Returns: Json
+      }
+      marketplace_local_extension_user_valid: {
+        Args: { p_user_id: string }
+        Returns: boolean
       }
       marketplace_mark_favorite_notifications: {
         Args: {
@@ -6589,6 +6658,10 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_read_local_extension: {
+        Args: { p_connection_id: string; p_workspace_id: string }
+        Returns: Json
+      }
       marketplace_read_page: {
         Args: {
           p_connection_id: string
@@ -6613,6 +6686,10 @@ export type Database = {
           p_display_name: string
           p_workspace_id: string
         }
+        Returns: Json
+      }
+      marketplace_revoke_local_extension: {
+        Args: { p_connection_id: string; p_workspace_id: string }
         Returns: Json
       }
       marketplace_set_favorite_notification_settings: {

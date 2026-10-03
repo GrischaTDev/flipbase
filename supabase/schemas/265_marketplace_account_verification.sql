@@ -32,7 +32,7 @@ begin
     from public.marketplace_connections
     where workspace_id = p_workspace_id and id = p_connection_id and marketplace = 'vinted'
     for update;
-  if not found or v_connection.status in ('paused', 'blocked') then
+  if not found or v_connection.execution_mode <> 'cloud' or v_connection.status in ('paused', 'blocked') then
     raise exception 'Kontoverbindung nicht verfügbar' using errcode = '42501';
   end if;
 

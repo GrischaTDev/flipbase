@@ -78,7 +78,7 @@ begin
   perform pg_advisory_xact_lock(91731, 1);
   if not public.marketplace_can_manage(p_workspace_id) then raise exception 'Kontozugriff verweigert' using errcode = '42501'; end if;
   select status into v_status from public.marketplace_connections
-    where workspace_id = p_workspace_id and id = p_connection_id and marketplace = 'vinted' for update;
+    where workspace_id = p_workspace_id and id = p_connection_id and marketplace = 'vinted' and execution_mode = 'cloud' for update;
   if not found then raise exception 'Kontozugriff verweigert' using errcode = '42501'; end if;
   if v_status in ('paused', 'blocked') then raise exception 'Verbindung ist nicht verfügbar' using errcode = '22023'; end if;
   select provider_profile_id into v_profile_id from public.marketplace_browser_profiles
@@ -103,7 +103,7 @@ declare v_status text; v_session public.marketplace_browser_sessions; v_active b
 begin
   if not public.marketplace_can_manage(p_workspace_id) then raise exception 'Kontozugriff verweigert' using errcode = '42501'; end if;
   select status into v_status from public.marketplace_connections
-    where workspace_id = p_workspace_id and id = p_connection_id and marketplace = 'vinted' for update;
+    where workspace_id = p_workspace_id and id = p_connection_id and marketplace = 'vinted' and execution_mode = 'cloud' for update;
   if not found then raise exception 'Kontozugriff verweigert' using errcode = '42501'; end if;
   select * into v_session from public.marketplace_browser_sessions
     where public_id = p_session_id and workspace_id = p_workspace_id and connection_id = p_connection_id
@@ -128,7 +128,7 @@ returns jsonb language plpgsql volatile security definer set search_path = '' as
 declare v_session public.marketplace_browser_sessions;
 begin
   if not public.marketplace_can_manage(p_workspace_id) then raise exception 'Kontozugriff verweigert' using errcode = '42501'; end if;
-  perform 1 from public.marketplace_connections where workspace_id = p_workspace_id and id = p_connection_id and marketplace = 'vinted' for update;
+  perform 1 from public.marketplace_connections where workspace_id = p_workspace_id and id = p_connection_id and marketplace = 'vinted' and execution_mode = 'cloud' for update;
   if not found then raise exception 'Kontozugriff verweigert' using errcode = '42501'; end if;
   select * into v_session from public.marketplace_browser_sessions
     where public_id = p_session_id and workspace_id = p_workspace_id and connection_id = p_connection_id

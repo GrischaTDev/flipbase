@@ -7,6 +7,7 @@ create table public.marketplace_connections (
   marketplace text not null default 'vinted' check (marketplace in ('vinted', 'kleinanzeigen', 'ebay')),
   display_name text not null check (char_length(btrim(display_name)) between 1 and 120 and display_name !~ '[[:cntrl:]]'),
   external_account_id text,
+  execution_mode text not null default 'cloud' check (execution_mode in ('cloud', 'local')),
   status text not null default 'needs_login' check (status in ('disconnected', 'needs_login', 'connected', 'paused', 'blocked')),
   resume_status text check (resume_status in ('disconnected', 'needs_login', 'connected', 'blocked')),
   capabilities jsonb not null default '{}'::jsonb check (jsonb_typeof(capabilities) = 'object'),
@@ -72,8 +73,8 @@ begin
     select jsonb_agg(jsonb_build_object(
       'workspaceId', c.workspace_id, 'connectionId', c.id, 'marketplace', c.marketplace,
       'displayName', c.display_name, 'externalAccountId', c.external_account_id,
-      'status', c.status, 'capabilities', c.capabilities,
-      'allowedActions', jsonb_build_array('profile.read', 'listings.read', 'metrics.read', 'conversations.read', 'messages.sendText', 'listings.update', 'listings.publish', 'sales.read'),
+      'status', c.status, 'executionMode', c.execution_mode, 'capabilities', c.capabilities,
+      'allowedActions', case when c.execution_mode = 'local' then jsonb_build_array('profile.read', 'listings.read') else jsonb_build_array('profile.read', 'listings.read', 'metrics.read', 'conversations.read', 'messages.sendText', 'listings.update', 'listings.publish', 'sales.read') end,
       'lastSyncedAt', c.last_synced_at
     ) order by c.created_at, c.id) from public.marketplace_connections c
     where c.workspace_id = p_workspace_id and c.marketplace = 'vinted'

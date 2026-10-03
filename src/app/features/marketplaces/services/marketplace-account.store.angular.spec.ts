@@ -531,6 +531,27 @@ describe('Wiederholen eines bereits gewählten gespeicherten Gesprächs', () => 
 });
 
 describe('Kontogebundene Marktplatzansicht', () => {
+  it('startet für lokale Verbindungen weder Cloudsync noch Browserbearbeitung', async () => {
+    api.listConnections.mockResolvedValue({
+      canManage: true,
+      connections: [{ ...accountA, executionMode: 'local' }],
+    });
+    await settle();
+    expect(await store.syncSelectedConnection()).toBe(false);
+    await expect(store.readListingEdit(accountA.connectionId, 'publication-a')).rejects.toThrow();
+    await expect(
+      store.saveListingEdit(accountA.connectionId, 'publication-a', {
+        title: 'Titel',
+        description: 'Text',
+        price: '10',
+      }),
+    ).rejects.toThrow();
+    await expect(store.readProfileAbout(accountA.connectionId)).rejects.toThrow();
+    await expect(store.saveProfileAbout(accountA.connectionId, 'Text')).rejects.toThrow();
+    expect(browserApi.syncConnection).not.toHaveBeenCalled();
+    expect(browserApi.readListingEdit).not.toHaveBeenCalled();
+    expect(browserApi.saveListingEdit).not.toHaveBeenCalled();
+  });
   it('übernimmt auch einen manuellen Teilabruf ohne neuen Erfolgszeitpunkt still und ohne Gesprächsverlust', async () => {
     await settle();
     await store.openConversation('conversation-a');

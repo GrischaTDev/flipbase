@@ -1,0 +1,88 @@
+<app-card
+  title="Vinted lokal verbinden"
+  subtitle="Lesender Erweiterungspilot für dieses Browserprofil"
+>
+  @if (connection(); as account) {
+    <p class="text-sm text-fb-text-primary">Kontoverbindung: {{ account.displayName }}</p>
+    <p class="mt-2 text-[13px] text-fb-text-secondary">
+      Installiere den bereitgestellten lokalen Erweiterungspiloten und öffne Vinted in diesem
+      Browserprofil. Melde Dich direkt bei Vinted an. Die Erweiterung ist noch nicht im Chrome Web
+      Store veröffentlicht.
+    </p>
+    <p class="mt-2 text-[13px] text-fb-text-secondary">
+      Pro Browserprofil bleibt ein Vinted-Konto angemeldet. Die Freigabe gilt 24 Stunden. Profil und
+      Inserate werden nur übernommen, wenn Du die Übernahme startest.
+    </p>
+    @if (!accounts.canManage()) {
+      <app-notice-banner class="mt-4" announcement="alert"
+        >Du brauchst Verwaltungszugriff, um diese Verbindung freizugeben.</app-notice-banner
+      >
+    } @else {
+      @if (local.error(); as error) {
+        <app-notice-banner class="mt-4" announcement="alert">{{ error }}</app-notice-banner>
+      }
+      @if (local.notice(); as notice) {
+        <app-notice-banner class="mt-4">{{ notice }}</app-notice-banner>
+      }
+      @if (local.prepared(); as prepared) {
+        <app-card class="mt-4" title="Erkanntes Vinted-Konto bestätigen">
+          <p class="text-sm text-fb-text-primary">@{{ prepared.identity.username }}</p>
+          <p class="mt-2 text-[13px] text-fb-text-secondary">
+            Ist das Dein gewünschtes Konto? Mit Deiner Bestätigung erlaubst Du die lesende
+            Datenübernahme für diese Kontoverbindung.
+          </p>
+          <app-button
+            class="mt-4"
+            variant="primary"
+            [loading]="local.busy()"
+            (clicked)="local.approve()"
+            >Dieses Konto freigeben</app-button
+          >
+        </app-card>
+      }
+      @if (local.binding(); as binding) {
+        <p class="mt-4 text-[13px] text-fb-text-secondary">
+          {{ binding.revoked ? 'Freigabe widerrufen' : 'Freigabe gültig bis' }}
+          {{ binding.expiresAt | date: 'dd.MM.yyyy, HH:mm' }}
+        </p>
+        <div class="mt-4 flex flex-wrap gap-2">
+          <app-button
+            variant="primary"
+            [loading]="local.busy()"
+            [disabled]="binding.revoked"
+            (clicked)="local.sync()"
+            >Profil und Inserate übernehmen</app-button
+          >
+        </div>
+      }
+      @if (local.canRevoke()) {
+        <app-button
+          class="mt-4"
+          variant="destructive"
+          [disabled]="local.busy()"
+          (clicked)="local.revoke()"
+          >Freigabe widerrufen</app-button
+        >
+      }
+      <app-button class="mt-4" [disabled]="local.busy()" (clicked)="local.prepare()">{{
+        local.binding() ? 'Konto erneut prüfen und freigeben' : 'Angemeldetes Vinted-Konto prüfen'
+      }}</app-button>
+      @if (local.imported(); as imported) {
+        <p class="mt-4 text-[13px] text-fb-text-secondary" role="status">
+          Übernommen: {{ imported.counts.profile }} Profil,
+          {{ imported.counts.publication }} Inserate.
+          {{
+            imported.publicationsComplete
+              ? 'Alle Inserate geprüft.'
+              : 'Weitere Inserate sind noch nicht übernommen.'
+          }}
+        </p>
+      }
+    }
+  } @else if (!accounts.loading()) {
+    <app-notice-banner announcement="alert"
+      >Diese Kontoverbindung ist nicht verfügbar. Wähle ein Konto aus Deiner
+      Kontenübersicht.</app-notice-banner
+    >
+  }
+</app-card>

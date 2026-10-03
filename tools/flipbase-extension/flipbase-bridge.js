@@ -1,14 +1,8 @@
 // Flipbase Extension - Content Script für die Flipbase Webanwendung
 
 (function initFlipbaseBridge() {
-  const host = window.location.hostname;
-  // Nur auf localhost, 127.0.0.1 oder Flipbase-Domains ausführen
-  const isAllowedHost =
-    host === 'localhost' ||
-    host === '127.0.0.1' ||
-    host.endsWith('.localhost') ||
-    host.endsWith('.flipbase.de') ||
-    host === 'flipbase.de';
+  const core = globalThis.FlipbaseVintedLocal;
+  const isAllowedHost = window.top === window && core?.isAppOrigin(window.location.origin);
 
   if (!isAllowedHost) {
     return;
@@ -22,13 +16,14 @@
       {
         type: 'FLIPBASE_EXTENSION_STATUS',
         installed: true,
-        version: '1.0.3',
+        version: '1.1.0',
+        vintedLocal: true,
       },
-      '*',
+      window.location.origin,
     );
     window.dispatchEvent(
       new CustomEvent('flipbase:extension-ready', {
-        detail: { version: '1.0.3', ready: true },
+        detail: { version: '1.1.0', ready: true },
       }),
     );
   }
@@ -43,12 +38,39 @@
   setInterval(announceExtension, 1000);
 
   // Reagiere auf Anfragen der Web-App
+  const seenRequests = new Set();
   window.addEventListener('message', (event) => {
     // Sicherheitscheck: Nur Events von der eigenen Seite verarbeiten
-    if (event.source !== window) return;
+    if (event.source !== window || event.origin !== window.location.origin) return;
 
     const data = event.data;
     if (!data || typeof data !== 'object') return;
+
+    const localRequest = core.parseRequest(data, event.origin);
+    if (localRequest) {
+      if (seenRequests.has(localRequest.requestId)) return;
+      seenRequests.add(localRequest.requestId);
+      if (seenRequests.size > 128) seenRequests.delete(seenRequests.values().next().value);
+      chrome.runtime.sendMessage(data, (response) => {
+        const runtimeError = chrome.runtime.lastError;
+        window.postMessage(
+          {
+            type: 'FLIPBASE_VINTED_LOCAL_RESULT',
+            requestId: localRequest.requestId,
+            success: !runtimeError && response?.success === true,
+            ...(!runtimeError && response?.success === true
+              ? { result: response.result }
+              : {
+                  error:
+                    response?.error ??
+                    'Die Flipbase-Erweiterung ist nicht erreichbar. Lade die Seite neu.',
+                }),
+          },
+          window.location.origin,
+        );
+      });
+      return;
+    }
 
     // Ping / Statusprüfung
     if (data.type === 'FLIPBASE_CHECK_EXTENSION') {
@@ -75,7 +97,7 @@
               tabId: response?.tabId,
               error: runtimeError?.message || response?.error,
             },
-            '*',
+            window.location.origin,
           );
         },
       );

@@ -26,6 +26,13 @@ export const MARKETPLACES_ROUTES: Routes = [
           ),
       },
       {
+        path: 'local-connect/:connectionId',
+        loadComponent: () =>
+          import('./components/vinted-local-connect/vinted-local-connect.component').then(
+            (module) => module.VintedLocalConnectComponent,
+          ),
+      },
+      {
         path: 'connect/:connectionId',
         loadComponent: () =>
           import('./components/marketplace-connect/marketplace-connect.component').then(

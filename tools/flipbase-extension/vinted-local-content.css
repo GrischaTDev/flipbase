@@ -1,0 +1,44 @@
+#flipbase-vinted-work-tab {
+  position: fixed;
+  inset: auto 16px 16px auto;
+  z-index: 2147483647;
+  pointer-events: none;
+  font:
+    14px/1.5 system-ui,
+    sans-serif;
+  color: #1f2937;
+}
+
+#flipbase-vinted-work-tab[data-busy='true'] {
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(255 255 255 / 35%);
+  pointer-events: auto;
+}
+
+#flipbase-vinted-work-tab .flipbase-vinted-work-panel {
+  width: min(360px, calc(100vw - 32px));
+  padding: 20px;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  background: white;
+  box-shadow: 0 4px 20px rgb(0 0 0 / 12%);
+  pointer-events: auto;
+}
+
+#flipbase-vinted-work-tab button {
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fcc601;
+  color: #111827;
+  cursor: pointer;
+  font: inherit;
+}
+
+#flipbase-vinted-work-tab button:focus-visible {
+  outline: 2px solid #111827;
+  outline-offset: 3px;
+}

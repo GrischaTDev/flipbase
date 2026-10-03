@@ -22,6 +22,7 @@ export type ConnectionStatus = 'disconnected' | 'needs_login' | 'connected' | 'p
 
 /** Nur öffentliche Verbindungsdaten; Browserprofile und Sitzungsschlüssel bleiben serverseitig. */
 export interface MarketplaceConnection extends AccountScope {
+  readonly executionMode: 'cloud' | 'local';
   readonly marketplace: Marketplace;
   readonly displayName: string;
   readonly externalAccountId: string | null;

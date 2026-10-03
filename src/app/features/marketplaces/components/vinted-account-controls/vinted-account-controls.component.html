@@ -16,11 +16,13 @@
     [disabled]="loading() || !canManage() || account().status !== 'connected'"
     (clicked)="refreshRequested.emit()"
   />
-  <app-vinted-sync-schedule
-    [account]="account()"
-    [canManage]="canManage()"
-    (synchronized)="synchronized.emit($event)"
-  />
+  @if (account().executionMode !== 'local') {
+    <app-vinted-sync-schedule
+      [account]="account()"
+      [canManage]="canManage()"
+      (synchronized)="synchronized.emit($event)"
+    />
+  }
 </div>
 <div class="mt-2 flex justify-end" aria-live="polite" aria-atomic="true">
   @if (account().lastSyncedAt) {

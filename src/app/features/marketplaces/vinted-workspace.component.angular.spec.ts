@@ -1,4 +1,6 @@
 import { VintedFavoriteSettingsComponent } from './components/vinted-favorite-settings/vinted-favorite-settings.component';
+import { VintedLocalConnectComponent } from './components/vinted-local-connect/vinted-local-connect.component';
+import { VintedLocalExtensionApiService } from './services/vinted-local-extension-api.service';
 import { MarketplaceFavoriteNotificationApiService } from './services/marketplace-favorite-notification-api.service';
 import { ElementRef, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
@@ -135,6 +137,10 @@ beforeAll(async () => {
   ];
   resetBindings = await prepareMarketplaceRendering([
     {
+      type: VintedLocalConnectComponent,
+      path: 'src/app/features/marketplaces/components/vinted-local-connect/vinted-local-connect.component.ts',
+    },
+    {
       type: VintedAccountGridComponent,
       path: 'src/app/features/marketplaces/components/vinted-account-grid/vinted-account-grid.component.ts',
     },
@@ -251,6 +257,10 @@ beforeEach(() => {
   TestBed.configureTestingModule({
     providers: [
       {
+        provide: VintedLocalExtensionApiService,
+        useValue: { read: vi.fn().mockResolvedValue(null), approve: vi.fn(), revoke: vi.fn() },
+      },
+      {
         provide: MarketplaceFavoriteNotificationApiService,
         useValue: {
           readSettings: vi.fn().mockImplementation(async (scope: AccountScope) => ({
@@ -274,6 +284,7 @@ beforeEach(() => {
               pathMatch: 'full',
             },
             { path: 'connect/:connectionId', component: MarketplaceConnectComponent },
+            { path: 'local-connect/:connectionId', component: VintedLocalConnectComponent },
             { path: 'listings/:connectionId/:entryId', component: VintedListingDetailComponent },
             ...['overview', 'listings', 'messages', 'sales', 'profile', 'activity'].map(
               (section) => ({
@@ -357,6 +368,34 @@ async function render(url: string) {
   return { harness, element: harness.routeNativeElement as HTMLElement };
 }
 describe('Vinted-Bereich in Flipbase', () => {
+  it('öffnet den lesenden lokalen Piloten ohne Cloudanmeldung und ohne erfundenen Store-Link', async () => {
+    const { element } = await render(
+      `/marketplaces/vinted/local-connect/${fixtureConnections[0].connectionId}`,
+    );
+    expect(element.textContent).toContain('Lesender Erweiterungspilot');
+    expect(element.textContent).toContain('24 Stunden');
+    expect(element.querySelector('app-marketplace-browser-test')).toBeNull();
+    expect(element.querySelector('a[href*="chromewebstore"]')).toBeNull();
+    expect(browserApi.available).not.toHaveBeenCalled();
+    expect(browserApi.syncConnection).not.toHaveBeenCalled();
+    expect(
+      (await axe.run(element, { rules: { 'color-contrast': { enabled: false } } })).violations,
+    ).toEqual([]);
+  });
+  it('leitet die Aktualisierung eines lokalen Kontos zur Erweiterung statt zum Cloudworker', async () => {
+    api.listConnections.mockResolvedValue({
+      canManage: true,
+      connections: [{ ...fixtureConnections[0], executionMode: 'local' }],
+    });
+    const { harness, element } = await render('/marketplaces/vinted/overview');
+    expect(element.querySelector('app-vinted-sync-schedule')).toBeNull();
+    const parent = harness.fixture.debugElement.query(By.directive(VintedWorkspaceComponent))
+      .componentInstance as VintedWorkspaceComponent;
+    await parent.sync();
+    await harness.fixture.whenStable();
+    expect(harness.routeNativeElement?.querySelector('app-vinted-local-connect')).not.toBeNull();
+    expect(browserApi.syncConnection).not.toHaveBeenCalled();
+  });
   it('zeigt beim Einstieg alle Konten als erreichbare Kacheln ohne Kontotabs', async () => {
     const { element } = await render('/marketplaces/vinted');
     expect(element.querySelector('app-vinted-account-grid')).not.toBeNull();
