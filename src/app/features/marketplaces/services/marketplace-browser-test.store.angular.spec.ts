@@ -11,6 +11,7 @@ import {
   MarketplaceBrowserTestApiService,
   VintedLoginPendingError,
   VintedInteractionRequiredError,
+  VintedSessionBlockedError,
   VintedVerificationRequiredError,
 } from './marketplace-browser-test-api.service';
 import { MarketplaceBrowserTestStore } from './marketplace-browser-test.store';
@@ -48,7 +49,7 @@ beforeEach(async () => {
   api = {
     available: vi.fn().mockResolvedValue({ available: true, readOnly: false }),
     open: vi.fn().mockResolvedValue(id),
-    frame: vi.fn().mockResolvedValue(jpeg),
+    frame: vi.fn().mockResolvedValue({ image: jpeg, sessionBlocked: false }),
     input: vi.fn().mockResolvedValue(undefined),
     identify: vi.fn().mockResolvedValue({ externalAccountId: '12345', username: 'my-vinted' }),
     login: vi.fn().mockResolvedValue('submitted'),
@@ -103,6 +104,53 @@ describe('Kontogebundener Browser-Testbereich', () => {
     expect(store.interactionRequired()).toBe(false);
     expect(api.close).toHaveBeenCalledOnce();
   });
+  it('stoppt eine von Vinted blockierte Sitzung ohne weitere automatische Prüfungen', async () => {
+    api.login.mockResolvedValueOnce('session_blocked');
+    api.frame.mockResolvedValueOnce({ image: jpeg, sessionBlocked: true });
+    await store.login({ username: 'synthetic', password: 'synthetic' });
+
+    expect(store.sessionBlocked()).toBe(true);
+    expect(store.interactionRequired()).toBe(false);
+    expect(store.awaitingLogin()).toBe(false);
+    expect(store.session()?.frameUrl).toBe('blob:test');
+    expect(store.canAct()).toBe(false);
+    expect(store.canLogin()).toBe(false);
+
+    await store.checkLogin();
+    await store.input({ kind: 'click', x: 0.5, y: 0.5 });
+    await store.verifyCode('123456');
+    expect(api.identify).not.toHaveBeenCalled();
+    expect(api.input).not.toHaveBeenCalled();
+    expect(api.verify).not.toHaveBeenCalled();
+  });
+
+  it('übernimmt eine erst beim Browserbild erkannte Vinted-Sperre', async () => {
+    api.frame.mockResolvedValueOnce({ image: jpeg, sessionBlocked: true });
+    await store.start();
+
+    expect(store.sessionBlocked()).toBe(true);
+    expect(store.session()?.frameUrl).toBe('blob:test');
+    expect(store.canAct()).toBe(false);
+    expect(store.error()).toBeNull();
+
+    await store.refresh();
+    expect(api.frame).toHaveBeenCalledOnce();
+  });
+
+  it('stoppt auch bei einer blockierten Antwort der manuellen Eingabe', async () => {
+    api.available.mockResolvedValue({ available: true, readOnly: false, dragSupported: true });
+    await store.checkAvailability();
+    await store.start();
+    api.input.mockRejectedValueOnce(new VintedSessionBlockedError());
+    api.frame.mockResolvedValueOnce({ image: jpeg, sessionBlocked: true });
+
+    await store.input({ kind: 'click', x: 0.5, y: 0.5 });
+
+    expect(store.sessionBlocked()).toBe(true);
+    expect(store.canAct()).toBe(false);
+    expect(api.input).toHaveBeenCalledOnce();
+  });
+
   it('öffnet auch eine erst bei der Kontoprüfung erkannte Mensch-Prüfung automatisch', async () => {
     api.identify.mockRejectedValueOnce(new VintedInteractionRequiredError());
     await store.login({ username: 'synthetic', password: 'synthetic' });
