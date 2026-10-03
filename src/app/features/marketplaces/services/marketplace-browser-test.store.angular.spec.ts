@@ -86,6 +86,89 @@ beforeEach(async () => {
 });
 
 describe('Kontogebundener Browser-Testbereich', () => {
+  it('öffnet eine manuelle Anmeldung ohne automatische Anmeldung, Codes oder Kontoprüfung', async () => {
+    await store.startManualLogin();
+    expect(store.manualLogin()).toBe(true);
+    expect(store.session()?.frameUrl).toBe('blob:test');
+    expect(store.canLogin()).toBe(false);
+    await store.login({ username: 'synthetic', password: 'synthetic' });
+    await store.verifyCode('123456');
+    await store.checkLogin();
+    await store.confirmAccount(true);
+    expect(api.open).toHaveBeenCalledOnce();
+    expect(api.login).not.toHaveBeenCalled();
+    expect(api.verify).not.toHaveBeenCalled();
+    expect(api.identify).not.toHaveBeenCalled();
+    expect(api.close).not.toHaveBeenCalled();
+    await store.input({ kind: 'press', key: 'Tab' });
+    expect(api.input).toHaveBeenCalledOnce();
+    await store.confirmAccount();
+    expect(api.identify).toHaveBeenCalledExactlyOnceWith(
+      { workspaceId: accountA.workspaceId, connectionId: accountA.connectionId },
+      id,
+      'token-a',
+    );
+    expect(api.close).toHaveBeenCalledOnce();
+    expect(reloadConnections).toHaveBeenCalledWith(accountA.connectionId);
+    expect(store.manualLogin()).toBe(false);
+  });
+  it('belässt eine noch offene SMS-Prüfung ausschließlich im manuellen Browser', async () => {
+    await store.startManualLogin();
+    api.identify.mockRejectedValueOnce(new VintedVerificationRequiredError());
+    await store.confirmAccount();
+    expect(store.manualLogin()).toBe(true);
+    expect(store.awaitingVerification()).toBe(false);
+    expect(store.error()).toContain('direkt in der Browseransicht');
+    await store.checkLogin();
+    await store.verifyCode('123456');
+    expect(api.identify).toHaveBeenCalledOnce();
+    expect(api.verify).not.toHaveBeenCalled();
+    expect(api.close).not.toHaveBeenCalled();
+    await store.confirmAccount();
+    expect(api.identify).toHaveBeenCalledTimes(2);
+    expect(api.close).toHaveBeenCalledOnce();
+  });
+  it('beendet eine manuelle Anmeldung bei zu frühem Prüfen nicht und erlaubt ihre Fortsetzung', async () => {
+    await store.startManualLogin();
+    api.identify.mockRejectedValueOnce(new VintedLoginPendingError());
+    await store.confirmAccount();
+    expect(store.manualLogin()).toBe(true);
+    expect(store.canAct()).toBe(true);
+    expect(store.error()).toContain('noch nicht abgeschlossen');
+    expect(api.close).not.toHaveBeenCalled();
+    await store.confirmAccount();
+    expect(api.close).toHaveBeenCalledOnce();
+  });
+  it('startet auch bei fehlendem Browserbild keine automatische Anmeldung oder Prüfung', async () => {
+    api.frame.mockRejectedValueOnce(new Error('synthetic frame failure'));
+    await store.startManualLogin();
+    expect(store.manualLogin()).toBe(true);
+    expect(store.session()?.frameUrl).toBeNull();
+    await store.checkLogin();
+    await store.login({ username: 'synthetic', password: 'synthetic' });
+    expect(api.identify).not.toHaveBeenCalled();
+    expect(api.login).not.toHaveBeenCalled();
+    await store.refresh();
+    expect(store.session()?.frameUrl).toBe('blob:test');
+    expect(store.manualLogin()).toBe(true);
+  });
+  it('überträgt den manuellen Modus nicht auf ein anderes Konto oder eine neue Anmeldung', async () => {
+    await store.startManualLogin();
+    selectedId.set(accountB.connectionId);
+    TestBed.tick();
+    expect(store.manualLogin()).toBe(false);
+    await store.start();
+    expect(store.manualLogin()).toBe(false);
+    expect(store.canLogin()).toBe(true);
+  });
+  it('ermöglicht nach bestätigtem Ende wieder eine automatische Anmeldung', async () => {
+    await store.startManualLogin();
+    await store.close();
+    expect(store.manualLogin()).toBe(false);
+    await store.login({ username: 'synthetic', password: 'synthetic' });
+    expect(api.login).toHaveBeenCalledOnce();
+    expect(store.manualLogin()).toBe(false);
+  });
   it('öffnet bei einer Mensch-Prüfung die Vorschau und pausiert ohne erneute Anmeldung', async () => {
     api.login.mockResolvedValueOnce('interaction_required');
     await store.login({ username: 'synthetic', password: 'synthetic' });

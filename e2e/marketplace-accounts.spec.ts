@@ -137,17 +137,22 @@ test('überträgt manuelles Ziehen im Browserbild mit Maus und Touch genau einma
       inputs.push(body['input'] as (typeof inputs)[number]);
       return route.fulfill({ json: { accepted: true } });
     }
-    if (path.endsWith('/login')) return route.fulfill({ json: { status: 'submitted' } });
     if (path.endsWith('/identify')) {
       identityChecks++;
-      return route.fulfill({ status: 422, json: { code: 'vinted_login_pending' } });
+      return route.fulfill({
+        status: 422,
+        json: {
+          code: identityChecks === 1 ? 'vinted_login_pending' : 'vinted_verification_required',
+        },
+      });
     }
     if (path.endsWith('/close')) return route.fulfill({ status: 204 });
     throw new Error(`Unerwarteter Browseraufruf: ${path}`);
   });
   await page.goto('/settings/marketplaces');
   await page.getByRole('button', { name: 'Vinted-Anmeldung für Testkonto A öffnen' }).click();
-  await page.getByRole('button', { name: 'Browser-Ansicht öffnen' }).click();
+  await page.getByRole('button', { name: 'Direkt im Browser anmelden' }).click();
+  await expect(page.locator('[aria-label="Vinted-Browseransicht"]')).toBeFocused();
   const preview = page.getByRole('button', {
     name: 'Browserbild anklicken oder mit Maus oder Finger ziehen',
   });
@@ -200,12 +205,32 @@ test('überträgt manuelles Ziehen im Browserbild mit Maus und Touch genau einma
   expect(inputs[3]).toEqual({ kind: 'click', x: 0.5, y: 0.5 });
   await expect(preview).toBeEnabled();
   await page.clock.install();
-  await page.getByRole('textbox', { name: 'Vinted-Mitgliedsname oder E-Mail' }).fill('synthetic');
-  await page.getByLabel('Vinted-Passwort').fill('synthetic');
-  await page.getByRole('button', { name: 'Anmelden und Konto verbinden' }).click();
+  await expect(page.getByLabel('Vinted-Mitgliedsname oder E-Mail')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Anmelden und Konto verbinden' })).toHaveCount(0);
+  const manualText = page.getByLabel('Text in aktives Feld senden', { exact: true });
+  await expect(manualText).toHaveAttribute('type', 'password');
+  await manualText.fill('synthetic');
+  await page.getByRole('button', { name: 'Senden', exact: true }).click();
+  await expect(manualText).toHaveValue('');
+  await expect.poll(() => inputs.length).toBe(5);
+  expect(inputs[4]).toEqual({ kind: 'type', value: 'synthetic' });
   await expect(preview).toBeEnabled();
-  await page.clock.fastForward(6000);
+  await page.clock.fastForward(120_000);
   expect(identityChecks).toBe(0);
+  const confirmAccount = page.getByRole('button', { name: 'Anmeldung prüfen & verbinden' });
+  await confirmAccount.click();
+  await expect(
+    page.getByText('Die Anmeldung ist noch nicht abgeschlossen.', { exact: false }),
+  ).toBeVisible();
+  await expect(preview).toBeEnabled();
+  await confirmAccount.click();
+  await expect(
+    page.getByText('Vinted benötigt noch Deinen Bestätigungscode.', { exact: false }),
+  ).toBeVisible();
+  await expect(page.getByLabel('Vinted-Bestätigungscode')).toHaveCount(0);
+  await page.clock.fastForward(120_000);
+  expect(identityChecks).toBe(2);
+  await expect(preview).toBeEnabled();
   await expect(page.locator('app-marketplace-browser-test .animate-spin')).toHaveCount(0);
   expect(await preview.evaluate((element) => getComputedStyle(element).cursor)).toBe('pointer');
   await expect(preview.locator('img')).toHaveAttribute('draggable', 'false');
