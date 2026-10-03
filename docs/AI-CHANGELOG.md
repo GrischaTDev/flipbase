@@ -1,5 +1,14 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-03 - Juna - Veröffentlichung der Vinted-Prüfungen freigegeben
+
+**Freigabe:** Der Nutzer hat PR-Erstellung, erfolgreiche Pflichtprüfungen,
+Merge und anschließende Zweig-/Worktree-Bereinigung ausdrücklich bestätigt.
+Der geprüfte Stand enthält manuelle Zieheingaben, verfügbare Browserbedienung
+und automatische Übergabe sichtbarer Mensch-Prüfungen an dieselbe Sitzung.
+Die Veröffentlichung erfolgt über den PR und die bestehenden CI-Bauten.
+Eine echte Live-Übertragung ist weiterhin nicht Bestandteil dieser Änderung.
+
 ## 2026-10-03 - Juna - Mensch-Prüfungen erkennen und Browseransicht automatisch öffnen
 
 **Auftrag:** Sichtbare Vinted-Mensch-Prüfungen erkennen und die Browseransicht
