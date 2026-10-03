@@ -68,6 +68,7 @@ beforeEach(async () => {
           awaitingLogin,
           awaitingVerification: signal(false),
           interactionRequired: signal(false),
+          sessionBlocked: signal(false),
           progress: signal(null),
           error: signal(null),
           checkAvailability: vi.fn(),
