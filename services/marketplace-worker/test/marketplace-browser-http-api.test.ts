@@ -14,6 +14,7 @@ import { VintedImportReadError, type VintedAccountImport } from '../src/vinted-a
 import { GoLoginApiLimitError, GoLoginProfileLimitError } from '../src/gologin-api-limit.ts';
 import {
   VintedInteractionRequiredError,
+  VintedSessionBlockedError,
   VintedLoginPendingError,
   VintedLoginRejectedError,
   VintedVerificationRequiredError,
@@ -68,6 +69,7 @@ async function setup(
       await captureGate;
       return frame;
     },
+    sessionBlocked: async () => false,
     click: async (x, y) => {
       inputs.push(`click:${x}:${y}`);
     },
@@ -173,7 +175,7 @@ async function setup(
     new Promise<void>((resolve, reject) =>
       server.close((error) => (error ? reject(error) : resolve())),
     );
-  return { request, close, url, inputs, runs: () => runs, closes: () => closes };
+  return { request, close, url, inputs, browser, runs: () => runs, closes: () => closes };
 }
 
 test('gleicht nur die gebundene Sitzung ab und stoppt den Browser nach dem Speichern', async () => {
@@ -970,6 +972,30 @@ test('returns only a bounded image and accepts individual inputs for the bound a
   }
 });
 
+test('marks blocked Vinted frames and refuses every further browser input', async () => {
+  const api = await setup();
+  try {
+    const scope = { workspaceId: workspaceA, connectionId: accountA };
+    await api.request('/marketplace-browser/sessions', scope);
+    api.browser.sessionBlocked = async () => true;
+    const path = `/marketplace-browser/sessions/${sessionId}`;
+
+    const frame = await api.request(`${path}/frame`, scope);
+    assert.equal(frame.status, 200);
+    assert.equal(frame.headers.get('X-Flipbase-Vinted-State'), 'session_blocked');
+
+    const input = await api.request(`${path}/input`, {
+      ...scope,
+      input: { kind: 'click', x: 0.5, y: 0.5 },
+    });
+    assert.equal(input.status, 422);
+    assert.deepEqual(await input.json(), { code: 'vinted_session_blocked' });
+    assert.deepEqual(api.inputs, []);
+  } finally {
+    await api.close();
+  }
+});
+
 test('accepts only the supplied bounded drag path for the authorized session', async () => {
   const api = await setup();
   try {
@@ -1295,6 +1321,32 @@ test('preserves a visible human check and browser view without submitting creden
   }
 });
 
+test('preserves a blocked Vinted session without submitting credentials again', async () => {
+  const api = await setup(
+    undefined,
+    undefined,
+    false,
+    undefined,
+    undefined,
+    new VintedSessionBlockedError(),
+    async () => assert.fail('must not confirm a blocked account'),
+  );
+  try {
+    const scope = { workspaceId: workspaceA, connectionId: accountA };
+    await api.request('/marketplace-browser/sessions', scope);
+    const response = await api.request(`/marketplace-browser/sessions/${sessionId}/login`, {
+      ...scope,
+      credentials: { username: 'synthetic', password: 'synthetic-secret' },
+    });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { status: 'session_blocked' });
+    assert.deepEqual(api.inputs, []);
+    assert.equal(api.closes(), 0);
+  } finally {
+    await api.close();
+  }
+});
+
 test('does not report an existing session as connected when account confirmation fails', async () => {
   const api = await setup(
     undefined,
@@ -1514,6 +1566,7 @@ test('keeps the real broker lease alive after duplicate starts while awaiting lo
     [new VintedLoginRejectedError(), 'vinted_login_rejected'],
     [new VintedLoginPendingError(), 'vinted_login_pending'],
     [new VintedVerificationRequiredError(), 'vinted_verification_required'],
+    [new VintedSessionBlockedError(), 'vinted_session_blocked'],
     [new VintedInteractionRequiredError(), 'vinted_interaction_required'],
   ] as const) {
     let active = true;
