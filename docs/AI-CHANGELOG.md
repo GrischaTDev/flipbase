@@ -13,6 +13,13 @@ Maustaste auch bei Fehlern frei. Abbruch und Sitzungswechsel verwerfen die Aufna
 Ein explizites Dienstmerkmal verhindert Eingaben an einen noch älteren Worker.
 Die Mensch-Prüfung bleibt eine manuelle Nutzeraktion; keine automatische Lösung.
 
+**Einordnung nach Rückfrage:** Die fehlende Ziehfunktion bestand bereits im
+GoLogin-Eingabepfad. Maike Vintage verwendet im laufenden Chromium-Pilot die
+Zuordnung `direct`, also die Serververbindung ohne Residential-Proxy. Der Wechsel
+ändert damit Browserprofil und Netzwerkumgebung. Dass genau diese Änderung die
+Vinted-Prüfung ausgelöst hat, ist nicht bewiesen. Manuelle Bedienbarkeit ist noch
+kein Nachweis für dauerhaft unbeaufsichtigte Synchronisierung.
+
 **Prüfung:** 73 gezielte Angular-Tests und 43 Worker-/Browser-Tests erfolgreich.
 Eine lokale Chromium-Slider-Fixture sowie der vollständige Vorschau-Eingabepfad
 mit Maus und Touch bestätigen die manuelle Übertragung; AXE ohne Befund nach
