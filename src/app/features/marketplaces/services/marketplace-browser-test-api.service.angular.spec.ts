@@ -4,6 +4,7 @@ import {
   GoLoginApiLimitError,
   MarketplaceBrowserTestApiService,
   VintedInteractionRequiredError,
+  VintedSessionBlockedError,
 } from './marketplace-browser-test-api.service';
 
 const scope = {
@@ -27,6 +28,29 @@ it.each([false, true])(
     );
   },
 );
+
+it.each([false, true])(
+  'meldet eine Vinted-Sitzungssperre auch beim Hintergrundabruf (%s)',
+  async (allowPending) => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(Response.json({ code: 'vinted_session_blocked' }, { status: 422 })),
+    );
+    await expect(api.identify(scope, id, 'token', allowPending)).rejects.toBeInstanceOf(
+      VintedSessionBlockedError,
+    );
+  },
+);
+
+it('akzeptiert die Sitzungssperre nach einer Codebestätigung', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockResolvedValue(Response.json({ status: 'session_blocked' })),
+  );
+  await expect(api.verify(scope, id, '123456', 'token')).resolves.toBe('session_blocked');
+});
 
 it('akzeptiert die Mensch-Prüfung nach einer Codebestätigung', async () => {
   vi.stubGlobal(
@@ -165,6 +189,18 @@ describe('Browser-Test-API', () => {
     expect(JSON.parse(String(options.body))).toEqual({ ...scope, input });
     expect(new Headers(options.headers).get('Authorization')).toBe('Bearer user-test-token');
   });
+  it('stoppt manuelle Eingaben bei einer bestätigten Vinted-Sitzungssperre', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(Response.json({ code: 'vinted_session_blocked' }, { status: 422 })),
+    );
+    await expect(
+      api.input(scope, id, { kind: 'click', x: 0.5, y: 0.5 }, 'user-test-token'),
+    ).rejects.toBeInstanceOf(VintedSessionBlockedError);
+  });
+
   it('erkennt die SPA-Antwort nicht als aktiven Browserdienst', async () => {
     vi.stubGlobal(
       'fetch',
@@ -263,6 +299,24 @@ describe('Browser-Test-API', () => {
       vi.fn().mockResolvedValue(new Response(bytes, { headers: { 'Content-Type': 'image/jpeg' } })),
     );
     await expect(api.frame(scope, id, 'user-test-token')).rejects.toThrow('ungültig');
+  });
+
+  it('übernimmt den Vinted-Sperrstatus aus dem Browserbild', async () => {
+    const bytes = Uint8Array.from([0xff, 0xd8, 0xff, 0xd9]);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(bytes, {
+          headers: {
+            'Content-Type': 'image/jpeg',
+            'X-Flipbase-Vinted-State': 'session_blocked',
+          },
+        }),
+      ),
+    );
+    await expect(api.frame(scope, id, 'user-test-token')).resolves.toMatchObject({
+      sessionBlocked: true,
+    });
   });
 
   it('erkennt eine serverseitig bestätigte beendete Sitzung', async () => {
