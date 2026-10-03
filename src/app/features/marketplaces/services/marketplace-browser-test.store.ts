@@ -297,8 +297,9 @@ export class MarketplaceBrowserTestStore {
       this.loginDeadline = Date.now() + 60_000;
       this.progressState.set({
         key,
-        message:
-          'Anmeldung wird geprüft. Dein Konto wird nach bestätigter Anmeldung automatisch verbunden …',
+        message: active.frameUrl
+          ? 'Die Anmeldung wurde gesendet. Klicke nach der Vinted-Bestätigung auf „Anmeldung prüfen & verbinden“.'
+          : 'Anmeldung wird geprüft. Dein Konto wird nach bestätigter Anmeldung automatisch verbunden …',
       });
     } catch (error) {
       if (this.isCurrent(key, revision)) this.loginKey.set(null);
@@ -374,7 +375,9 @@ export class MarketplaceBrowserTestStore {
       this.loginDeadline = Date.now() + 60_000;
       this.progressState.set({
         key: active.key,
-        message: 'Code gesendet. Die Anmeldung wird geprüft …',
+        message: active.frameUrl
+          ? 'Code gesendet. Klicke nach der Vinted-Bestätigung auf „Anmeldung prüfen & verbinden“.'
+          : 'Code gesendet. Die Anmeldung wird geprüft …',
       });
     } catch (error) {
       if (this.isCurrent(active.key, revision) && !this.handleConfirmedEnd(error, active.key)) {

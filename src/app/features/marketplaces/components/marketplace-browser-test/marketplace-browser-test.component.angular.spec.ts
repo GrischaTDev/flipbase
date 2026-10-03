@@ -7,9 +7,11 @@ import { createMarketplaceFixtures } from '../../testing/marketplace-fixtures';
 import { MarketplaceBrowserTestComponent } from './marketplace-browser-test.component';
 
 const [account] = createMarketplaceFixtures().connections;
-const session = signal<{ id: string; frameUrl: string } | null>(null);
+const session = signal<{ id: string; frameUrl: string | null } | null>(null);
 const sendInput = vi.fn().mockResolvedValue(undefined);
 const dragSupported = signal(true);
+const awaitingLogin = signal(false);
+const checkLogin = vi.fn().mockResolvedValue(undefined);
 let browserImage: HTMLButtonElement;
 let component: MarketplaceBrowserTestComponent;
 
@@ -34,9 +36,12 @@ function pointer(type: string, x: number, y: number, timestamp: number, pointerI
 }
 
 beforeEach(async () => {
+  vi.useFakeTimers();
   session.set({ id: 'session-a', frameUrl: 'blob:preview' });
   sendInput.mockClear();
   dragSupported.set(true);
+  awaitingLogin.set(false);
+  checkLogin.mockClear();
   TestBed.configureTestingModule({
     providers: [
       {
@@ -60,12 +65,12 @@ beforeEach(async () => {
           canAct: signal(true),
           canLogin: signal(true),
           canStart: signal(false),
-          awaitingLogin: signal(false),
+          awaitingLogin,
           awaitingVerification: signal(false),
           progress: signal(null),
           error: signal(null),
           checkAvailability: vi.fn(),
-          checkLogin: vi.fn().mockResolvedValue(undefined),
+          checkLogin,
           input: sendInput,
         },
       },
@@ -92,7 +97,32 @@ beforeEach(async () => {
   });
 });
 
-afterEach(() => TestBed.resetTestingModule());
+afterEach(() => {
+  TestBed.resetTestingModule();
+  vi.restoreAllMocks();
+  vi.useRealTimers();
+});
+
+it('zeigt bei sichtbarem Browser keinen zweiten großen Ladespinner', () => {
+  awaitingLogin.set(true);
+  expect(component.showProgress()).toBe(false);
+});
+
+it('sperrt die manuelle Browseransicht nicht durch automatische Anmeldeprüfungen', async () => {
+  vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+  awaitingLogin.set(true);
+  await vi.advanceTimersByTimeAsync(6000);
+  expect(checkLogin).not.toHaveBeenCalled();
+});
+
+it('prüft eine Anmeldung im Hintergrund weiterhin automatisch', async () => {
+  vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+  session.set({ id: 'session-a', frameUrl: null });
+  awaitingLogin.set(true);
+  await vi.advanceTimersByTimeAsync(3000);
+  expect(checkLogin).toHaveBeenCalledOnce();
+  expect(component.showProgress()).toBe(true);
+});
 
 it('überträgt eine manuelle Ziehbewegung erst beim Loslassen mit Positionen und Zeiten', () => {
   pointer('pointerdown', 30, 40, 1000);

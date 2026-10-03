@@ -31,6 +31,7 @@ test('überträgt manuelles Ziehen im Browserbild mit Maus und Touch genau einma
   );
   const inputs: { kind: string; points?: { x: number; y: number; elapsedMs: number }[] }[] = [];
   let frames = 0;
+  let identityChecks = 0;
   await page.route('**/marketplace-browser/sessions**', async (route) => {
     const path = new URL(route.request().url()).pathname;
     const body = route.request().postDataJSON() as Record<string, unknown>;
@@ -45,6 +46,11 @@ test('überträgt manuelles Ziehen im Browserbild mit Maus und Touch genau einma
     if (path.endsWith('/input')) {
       inputs.push(body['input'] as (typeof inputs)[number]);
       return route.fulfill({ json: { accepted: true } });
+    }
+    if (path.endsWith('/login')) return route.fulfill({ json: { status: 'submitted' } });
+    if (path.endsWith('/identify')) {
+      identityChecks++;
+      return route.fulfill({ status: 422, json: { code: 'vinted_login_pending' } });
     }
     if (path.endsWith('/close')) return route.fulfill({ status: 204 });
     throw new Error(`Unerwarteter Browseraufruf: ${path}`);
@@ -99,6 +105,16 @@ test('überträgt manuelles Ziehen im Browserbild mit Maus und Touch genau einma
   await expect.poll(() => inputs.length).toBe(4);
   expect(inputs[3]).toEqual({ kind: 'click', x: 0.5, y: 0.5 });
   await expect(preview).toBeEnabled();
+  await page.clock.install();
+  await page.getByRole('textbox', { name: 'Vinted-Mitgliedsname oder E-Mail' }).fill('synthetic');
+  await page.getByLabel('Vinted-Passwort').fill('synthetic');
+  await page.getByRole('button', { name: 'Anmelden und Konto verbinden' }).click();
+  await expect(preview).toBeEnabled();
+  await page.clock.fastForward(6000);
+  expect(identityChecks).toBe(0);
+  await expect(page.locator('app-marketplace-browser-test .animate-spin')).toHaveCount(0);
+  expect(await preview.evaluate((element) => getComputedStyle(element).cursor)).toBe('pointer');
+  await expect(preview.locator('img')).toHaveAttribute('draggable', 'false');
   await page.addScriptTag({ content: axe.source });
   expect(
     await page.evaluate(

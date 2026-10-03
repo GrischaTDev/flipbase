@@ -67,7 +67,9 @@ export class MarketplaceBrowserTestComponent {
       : this.store.canLogin(),
   );
   readonly showProgress = computed(
-    () => this.submitting() || (this.store.awaitingLogin() && !this.store.awaitingVerification()),
+    () =>
+      !this.store.session()?.frameUrl &&
+      (this.submitting() || (this.store.awaitingLogin() && !this.store.awaitingVerification())),
   );
   readonly code = new FormControl('', {
     nonNullable: true,
@@ -89,7 +91,12 @@ export class MarketplaceBrowserTestComponent {
   constructor() {
     void this.store.checkAvailability();
     const interval = setInterval(() => {
-      if (document.visibilityState === 'visible' && !this.pointerGesture) {
+      // Eine sichtbare Browseransicht bleibt für manuelle Eingaben frei.
+      if (
+        document.visibilityState === 'visible' &&
+        !this.pointerGesture &&
+        !this.store.session()?.frameUrl
+      ) {
         const wasAwaitingLogin = this.store.awaitingLogin();
         void this.store.checkLogin().then(() => {
           if (wasAwaitingLogin) this.finishReauthentication();

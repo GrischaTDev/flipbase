@@ -85,6 +85,12 @@ beforeEach(async () => {
 });
 
 describe('Kontogebundener Browser-Testbereich', () => {
+  it('erklärt in einer bereits geöffneten Vorschau die manuelle Kontobestätigung', async () => {
+    await store.start();
+    await store.login({ username: 'synthetic', password: 'synthetic' });
+    expect(store.progress()).toContain('Anmeldung prüfen & verbinden');
+    expect(store.progress()).not.toContain('automatisch');
+  });
   it('sperrt Ziehbewegungen ohne ausdrückliche Unterstützung und lädt nach bestätigter Eingabe ein neues Bild', async () => {
     await store.start();
     const input = {
