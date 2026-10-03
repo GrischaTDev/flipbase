@@ -1,5 +1,5 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
-import type { BrowserInfo } from './gologin-cloud-browser.ts';
+import type { BrowserDragPoint, BrowserInfo } from './gologin-cloud-browser.ts';
 import {
   VintedImportReadError,
   type VintedAccountImport,
@@ -155,10 +155,41 @@ function inputOf(
   body: Record<string, unknown>,
 ):
   | { kind: 'click'; x: number; y: number }
+  | { kind: 'drag'; points: BrowserDragPoint[] }
   | { kind: 'type'; value: string }
   | { kind: 'press'; key: 'Enter' | 'Tab' | 'Escape' | 'Backspace' } {
   const input = body['input'];
   if (!isRecord(input)) throw new RequestError(400);
+  if (input['kind'] === 'drag') {
+    const suppliedPoints = input['points'];
+    if (!Array.isArray(suppliedPoints) || suppliedPoints.length < 2 || suppliedPoints.length > 128)
+      throw new RequestError(400);
+    const points: BrowserDragPoint[] = [];
+    let previousElapsedMs = -1;
+    for (const point of suppliedPoints) {
+      if (
+        !isRecord(point) ||
+        typeof point['x'] !== 'number' ||
+        typeof point['y'] !== 'number' ||
+        !Number.isFinite(point['x']) ||
+        !Number.isFinite(point['y']) ||
+        point['x'] < 0 ||
+        point['x'] >= 1 ||
+        point['y'] < 0 ||
+        point['y'] >= 1 ||
+        typeof point['elapsedMs'] !== 'number' ||
+        !Number.isInteger(point['elapsedMs']) ||
+        point['elapsedMs'] < 0 ||
+        point['elapsedMs'] > 15_000 ||
+        (points.length === 0 && point['elapsedMs'] !== 0) ||
+        point['elapsedMs'] <= previousElapsedMs
+      )
+        throw new RequestError(400);
+      points.push({ x: point['x'], y: point['y'], elapsedMs: point['elapsedMs'] });
+      previousElapsedMs = point['elapsedMs'];
+    }
+    return { kind: 'drag', points };
+  }
   if (
     input['kind'] === 'click' &&
     typeof input['x'] === 'number' &&
@@ -234,6 +265,7 @@ export class MarketplaceBrowserHttpApi {
           ok: true,
           readOnly: this.readOnly,
           apiVersion: 2,
+          dragSupported: !this.readOnly,
           ...(this.scheduledSync ? { scheduledSync: this.scheduledSync() } : {}),
         });
         return;
@@ -639,6 +671,7 @@ export class MarketplaceBrowserHttpApi {
           const input = inputOf(body);
           await this.broker.run(scope, sessionId, async (browser) => {
             if (input.kind === 'click' && browser.click) return browser.click(input.x, input.y);
+            if (input.kind === 'drag' && browser.drag) return browser.drag(input.points);
             if (input.kind === 'type' && browser.type) return browser.type(input.value);
             if (input.kind === 'press' && browser.press) return browser.press(input.key);
             throw new Error('Eingabe nicht verfügbar');

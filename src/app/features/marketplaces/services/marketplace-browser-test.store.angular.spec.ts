@@ -85,6 +85,29 @@ beforeEach(async () => {
 });
 
 describe('Kontogebundener Browser-Testbereich', () => {
+  it('sperrt Ziehbewegungen ohne ausdrückliche Unterstützung und lädt nach bestätigter Eingabe ein neues Bild', async () => {
+    await store.start();
+    const input = {
+      kind: 'drag' as const,
+      points: [
+        { x: 0.1, y: 0.2, elapsedMs: 0 },
+        { x: 0.8, y: 0.2, elapsedMs: 100 },
+      ],
+    };
+    await store.input(input);
+    expect(api.input).not.toHaveBeenCalled();
+    api.available.mockResolvedValue({ available: true, readOnly: false, dragSupported: true });
+    await store.checkAvailability();
+    api.frame.mockClear();
+    await store.input(input);
+    expect(api.input).toHaveBeenCalledWith(
+      { workspaceId: accountA.workspaceId, connectionId: accountA.connectionId },
+      id,
+      input,
+      'token-a',
+    );
+    expect(api.frame).toHaveBeenCalledOnce();
+  });
   it('zeigt eine Vinted-Codeanforderung an und sendet den Code nur für die aktive Verbindung', async () => {
     api.identify.mockRejectedValueOnce(new VintedVerificationRequiredError());
     await store.login({ username: 'synthetic', password: 'synthetic' });

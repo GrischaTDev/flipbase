@@ -1,6 +1,26 @@
 # 🤖 KI-Änderungsprotokoll
 
-## 2026-10-02 – Juna – Vollständig simulierte Browsertests an Zugangsprüfung anpassen
+## 2026-10-03 - Juna - Manuelles Ziehen im Vinted-Cloudbrowser ermöglichen
+
+**Befund:** Der Nutzer sieht bei der Vinted-Anmeldung eine Mensch-Prüfung mit
+Slider. Die Browser-Vorschau kann bislang nur klicken, Text und einzelne Tasten
+übertragen; die vom Nutzer erforderliche Ziehbewegung fehlt im gesamten Eingabepfad.
+
+**Änderung:** Maus- und Touch-Gesten werden beim Loslassen mit den tatsächlich
+gemessenen Positionen und Zeiten an dieselbe Sitzung übermittelt. Die API begrenzt
+Pfadlänge, Dauer und Koordinaten; der gemeinsame Chromium-/GoLogin-Adapter gibt die
+Maustaste auch bei Fehlern frei. Abbruch und Sitzungswechsel verwerfen die Aufnahme.
+Ein explizites Dienstmerkmal verhindert Eingaben an einen noch älteren Worker.
+Die Mensch-Prüfung bleibt eine manuelle Nutzeraktion; keine automatische Lösung.
+
+**Prüfung:** 73 gezielte Angular-Tests und 43 Worker-/Browser-Tests erfolgreich.
+Eine lokale Chromium-Slider-Fixture sowie der vollständige Vorschau-Eingabepfad
+mit Maus und Touch bestätigen die manuelle Übertragung; AXE ohne Befund nach
+Korrektur der Überschriftenfolge in der Vorschau. Typen, Format, Lint und Angular-
+Produktionsbau erfolgreich. Der tatsächliche Vinted-/SMS-Abschluss ist weiterhin offen.
+Eigener Zweig `juna/vinted-browser-drag`; Veröffentlichung noch nicht ausgeführt.
+
+## 2026-10-02 - Juna - Vollständig simulierte Browsertests an Zugangsprüfung anpassen
 
 **Befund:** Die erste PR-Prüfung bestand in allen Code-, Bau-, Datenbank- und
 Komponententests. Der Marktplatz-Browsertest lieferte für die neue private

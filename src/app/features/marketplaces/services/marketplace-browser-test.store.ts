@@ -37,6 +37,7 @@ export class MarketplaceBrowserTestStore {
   private readonly outdatedState = signal(false);
   private readonly availabilityCheckedState = signal(false);
   private readonly readOnlyState = signal(true);
+  private readonly dragSupportedState = signal(false);
   private revision = 0;
   private destroyed = false;
   private readonly loginKey = signal<string | null>(null);
@@ -91,6 +92,7 @@ export class MarketplaceBrowserTestStore {
   readonly outdated = this.outdatedState.asReadonly();
   readonly availabilityChecked = this.availabilityCheckedState.asReadonly();
   readonly readOnly = this.readOnlyState.asReadonly();
+  readonly dragSupported = this.dragSupportedState.asReadonly();
   readonly busy = computed(
     () => this.busyState() === this.contextKey() && this.busyState() !== null,
   );
@@ -149,7 +151,9 @@ export class MarketplaceBrowserTestStore {
       this.availableState.set(availability.available);
       this.outdatedState.set(availability.outdated === true);
       this.readOnlyState.set(availability.readOnly);
+      this.dragSupportedState.set(availability.dragSupported === true && !availability.readOnly);
     } catch {
+      this.dragSupportedState.set(false);
       this.availableState.set(false);
       this.outdatedState.set(false);
       this.readOnlyState.set(true);
@@ -209,7 +213,13 @@ export class MarketplaceBrowserTestStore {
 
   async input(input: BrowserTestInput): Promise<void> {
     const active = this.session();
-    if (!active || this.busy() || this.readOnly()) return;
+    if (
+      !active ||
+      this.busy() ||
+      this.readOnly() ||
+      (input.kind === 'drag' && !this.dragSupported())
+    )
+      return;
     const revision = ++this.revision;
     this.busyState.set(active.key);
     this.errorState.set(null);

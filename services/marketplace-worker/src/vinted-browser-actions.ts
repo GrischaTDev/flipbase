@@ -1,5 +1,6 @@
 import type { Page } from 'playwright';
-import type { BrowserInfo, BrowserConnection } from './gologin-cloud-browser.ts';
+import { setTimeout } from 'node:timers/promises';
+import type { BrowserInfo, BrowserConnection, BrowserDragPoint } from './gologin-cloud-browser.ts';
 import { readVintedAccountImport } from './vinted-account-import.ts';
 import { readVintedAccountIdentity } from './vinted-browser-reader.ts';
 import { submitVintedLogin } from './vinted-browser-login.ts';
@@ -14,6 +15,30 @@ export function currentVintedPage(connection: BrowserConnection): Page {
     .at(-1);
   if (!page) throw new Error('Browserseite fehlt');
   return page;
+}
+
+export async function replayBrowserDrag(page: Page, points: BrowserDragPoint[]): Promise<void> {
+  const firstPoint = points.at(0);
+  if (!firstPoint) throw new Error('Ziehbewegung fehlt');
+  const size =
+    page.viewportSize() ??
+    (await page.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight })));
+  if (size.width <= 0 || size.height <= 0) throw new Error('Browserfenster fehlt');
+  await page.mouse.move(
+    Math.floor(firstPoint.x * size.width),
+    Math.floor(firstPoint.y * size.height),
+  );
+  try {
+    await page.mouse.down();
+    const startedAt = performance.now();
+    for (const point of points.slice(1)) {
+      const remainingMs = point.elapsedMs - (performance.now() - startedAt);
+      if (remainingMs > 0) await setTimeout(Math.ceil(remainingMs));
+      await page.mouse.move(Math.floor(point.x * size.width), Math.floor(point.y * size.height));
+    }
+  } finally {
+    await page.mouse.up();
+  }
 }
 
 export function vintedBrowserActions(connection: BrowserConnection): BrowserInfo {
@@ -36,6 +61,7 @@ export function vintedBrowserActions(connection: BrowserConnection): BrowserInfo
       if (size.width <= 0 || size.height <= 0) throw new Error('Browserfenster fehlt');
       await page.mouse.click(Math.floor(xRatio * size.width), Math.floor(yRatio * size.height));
     },
+    drag: (points) => replayBrowserDrag(currentPage(), points),
     type: async (value) => currentPage().keyboard.insertText(value),
     press: async (key) => currentPage().keyboard.press(key),
     identify: () => readVintedAccountIdentity(currentPage()),

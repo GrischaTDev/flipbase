@@ -8,13 +8,21 @@ import {
 
 export type BrowserTestInput =
   | { kind: 'click'; x: number; y: number }
+  | { kind: 'drag'; points: BrowserDragPoint[] }
   | { kind: 'type'; value: string }
   | { kind: 'press'; key: 'Enter' | 'Tab' | 'Escape' | 'Backspace' };
+
+export interface BrowserDragPoint {
+  x: number;
+  y: number;
+  elapsedMs: number;
+}
 
 export interface BrowserTestAvailability {
   available: boolean;
   readOnly: boolean;
   outdated?: boolean;
+  dragSupported?: boolean;
 }
 
 export interface ConfirmedVintedAccount {
@@ -187,7 +195,13 @@ export class MarketplaceBrowserTestApiService {
         typeof body.readOnly === 'boolean'
       )
         return 'apiVersion' in body && body.apiVersion === 2
-          ? { available: true, readOnly: body.readOnly }
+          ? {
+              available: true,
+              readOnly: body.readOnly,
+              ...('dragSupported' in body && body.dragSupported === true && !body.readOnly
+                ? { dragSupported: true }
+                : {}),
+            }
           : { available: false, readOnly: true, outdated: true };
       return { available: false, readOnly: true };
     } catch {
