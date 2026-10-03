@@ -22,6 +22,7 @@ export interface BrowserDragPoint {
 
 export interface BrowserInfo extends Pick<Browser, 'version'> {
   capture?(): Promise<Uint8Array>;
+  sessionBlocked?(): Promise<boolean>;
   click?(xRatio: number, yRatio: number): Promise<void>;
   drag?(points: BrowserDragPoint[]): Promise<void>;
   type?(value: string): Promise<void>;
