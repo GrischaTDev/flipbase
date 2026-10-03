@@ -25,6 +25,11 @@ export interface BrowserTestAvailability {
   dragSupported?: boolean;
 }
 
+export interface BrowserTestFrame {
+  image: Blob;
+  sessionBlocked: boolean;
+}
+
 export interface ConfirmedVintedAccount {
   readonly externalAccountId: string;
   readonly username: string;
@@ -78,6 +83,7 @@ export type VintedLoginResult =
   | 'form_unavailable'
   | 'submission_unconfirmed'
   | 'interaction_required'
+  | 'session_blocked'
   | 'already_authenticated'
   | 'verification_required';
 
@@ -129,6 +135,14 @@ export class VintedInteractionRequiredError extends Error {
   }
 }
 
+export class VintedSessionBlockedError extends Error {
+  constructor() {
+    super(
+      'Vinted hat diese Browsersitzung oder Netzwerkverbindung vorübergehend blockiert.',
+    );
+  }
+}
+
 export class MarketplaceConnectionRemovalError extends Error {
   constructor() {
     super(
@@ -176,7 +190,11 @@ export class MarketplaceImportError extends Error {
 }
 
 export type VintedVerificationResult =
-  'submitted' | 'form_unavailable' | 'submission_unconfirmed' | 'interaction_required';
+  | 'submitted'
+  | 'form_unavailable'
+  | 'submission_unconfirmed'
+  | 'interaction_required'
+  | 'session_blocked';
 
 const basePath = '/marketplace-browser/sessions';
 const frameLimit = 512 * 1024;
@@ -276,6 +294,13 @@ export class MarketplaceBrowserTestApiService {
         typeof body === 'object' &&
         body !== null &&
         'code' in body &&
+        body.code === 'vinted_session_blocked'
+      )
+        throw new VintedSessionBlockedError();
+      if (
+        typeof body === 'object' &&
+        body !== null &&
+        'code' in body &&
         body.code === 'vinted_interaction_required'
       )
         throw new VintedInteractionRequiredError();
@@ -343,6 +368,7 @@ export class MarketplaceBrowserTestApiService {
       !('status' in body) ||
       (body.status !== 'submitted' &&
         body.status !== 'interaction_required' &&
+        body.status !== 'session_blocked' &&
         body.status !== 'form_unavailable' &&
         body.status !== 'submission_unconfirmed' &&
         body.status !== 'already_authenticated' &&
@@ -352,14 +378,18 @@ export class MarketplaceBrowserTestApiService {
     return body.status;
   }
 
-  async frame(scope: AccountScope, sessionId: string, accessToken: string): Promise<Blob> {
+  async frame(
+    scope: AccountScope,
+    sessionId: string,
+    accessToken: string,
+  ): Promise<BrowserTestFrame> {
     const response = await this.post(`${basePath}/${sessionId}/frame`, scope, accessToken);
     if (response.status === 410) throw new BrowserTestSessionEndedError();
     if (!response.ok || response.headers.get('content-type') !== 'image/jpeg')
       throw new Error('Browserbild nicht verfügbar');
-    const blob = await response.blob();
-    if (blob.size < 4 || blob.size > frameLimit) throw new Error('Browserbild ist ungültig');
-    const bytes = new Uint8Array(await blob.arrayBuffer());
+    const image = await response.blob();
+    if (image.size < 4 || image.size > frameLimit) throw new Error('Browserbild ist ungültig');
+    const bytes = new Uint8Array(await image.arrayBuffer());
     if (
       bytes[0] !== 0xff ||
       bytes[1] !== 0xd8 ||
@@ -367,7 +397,10 @@ export class MarketplaceBrowserTestApiService {
       bytes[bytes.length - 1] !== 0xd9
     )
       throw new Error('Browserbild ist ungültig');
-    return blob;
+    return {
+      image,
+      sessionBlocked: response.headers.get('x-flipbase-vinted-state') === 'session_blocked',
+    };
   }
 
   async verify(
@@ -391,6 +424,7 @@ export class MarketplaceBrowserTestApiService {
       (body.status !== 'submitted' &&
         body.status !== 'form_unavailable' &&
         body.status !== 'interaction_required' &&
+        body.status !== 'session_blocked' &&
         body.status !== 'submission_unconfirmed')
     )
       throw new Error('Ungültige Bestätigungsantwort');
@@ -409,6 +443,16 @@ export class MarketplaceBrowserTestApiService {
       accessToken,
     );
     if (response.status === 410) throw new BrowserTestSessionEndedError();
+    if (response.status === 422) {
+      const body: unknown = await response.json().catch(() => null);
+      if (
+        typeof body === 'object' &&
+        body !== null &&
+        'code' in body &&
+        body.code === 'vinted_session_blocked'
+      )
+        throw new VintedSessionBlockedError();
+    }
     if (!response.ok) throw new Error('Eingabe konnte nicht bestätigt werden');
   }
 
