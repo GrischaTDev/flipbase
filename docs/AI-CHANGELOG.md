@@ -1,5 +1,33 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-03 - Juna - Mensch-Prüfungen erkennen und Browseransicht automatisch öffnen
+
+**Auftrag:** Sichtbare Vinted-Mensch-Prüfungen erkennen und die Browseransicht
+automatisch einblenden, statt mit einem allgemeinen Anmeldefehler abzubrechen.
+
+**Änderung:** Gemeinsame sichtbare DOM-Erkennung vor Eingaben, nach Anmeldung
+und SMS-Code sowie bei späteren Identitätsprüfungen. Versteckte Schutzskripte
+und Frames zählen nicht als Prüfung. Der erwartete Zustand
+`interaction_required` hält dieselbe autorisierte Browsersitzung offen.
+Die Oberfläche lädt die Vorschau automatisch, setzt einmal den Fokus darauf
+und pausiert Anmeldeprüfungen und erneutes Senden. Eine folgende SMS-Anforderung
+bleibt möglich. Konto- und Workspacewechsel verwerfen verspätete Antworten.
+Bildladefehler bleiben sichtbar und können manuell erneut versucht werden.
+
+**Prüfung:** 87 Angular-Tests und vier Vorschau-Browsertests erfolgreich,
+einschließlich automatischer Übergänge bei Anmeldung, Identitätsabruf und SMS,
+AXE sowie Maus-, Touch- und Tastatureingaben. Der bestehende Eingabetest wartet
+nun auf das nach dem Klick tatsächlich aktualisierte Bild vor der nächsten
+Tastatureingabe. Worker-Suite: 259 Tests erfolgreich, fünf vorhandene Windows-
+Skips; zusätzlicher API-Test und 13 Browser-Fixtures erfolgreich. Typprüfungen,
+Lint, Format, Worker-Bau und Angular-Produktionsbau bestanden.
+
+**Grenze:** Erkennung bekannter sichtbarer Prüfmuster, keine automatische Lösung
+und kein Nachweis vollständiger Erkennung künftig geänderter Vinted-Seiten.
+Die angezeigte Ansicht ist weiterhin eine Bildvorschau; ein kontinuierlicher
+Live-Browsertransport ist noch nicht umgesetzt. Keine produktiven Konten geändert,
+kein Push und keine Veröffentlichung in dieser Sitzung.
+
 ## 2026-10-03 - Juna - Bedienfehler und Vinted-Prüfungen erneut abgleichen
 
 **Auftrag:** Der Nutzer meldet verschwindenden Mauszeiger, wiederkehrende Lade-

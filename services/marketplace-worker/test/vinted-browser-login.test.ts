@@ -7,6 +7,7 @@ function pageFixture(origin = 'https://www.vinted.de', missingForm = false) {
   const actions: string[] = [];
   const page = {
     url: () => `${origin}/member/login/email`,
+    evaluate: async () => false,
     goto: async (url: string) => {
       actions.push(url);
     },
@@ -48,6 +49,16 @@ test('submits credentials once to the fixed Vinted login form', async () => {
     'input[name="password"][type="password"]:synthetic',
     'submit',
   ]);
+});
+
+test('detects a visible human check before entering or submitting credentials', async () => {
+  const { page, actions } = pageFixture();
+  page.evaluate = (async () => true) as unknown as Page['evaluate'];
+  assert.equal(
+    await submitVintedLogin(page, { username: 'synthetic', password: 'synthetic' }),
+    'interaction_required',
+  );
+  assert.deepEqual(actions, ['https://www.vinted.de/member/login/email']);
 });
 
 test('never enters credentials after a redirect to another origin', async () => {

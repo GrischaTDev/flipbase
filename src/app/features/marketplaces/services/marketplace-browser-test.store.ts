@@ -10,6 +10,7 @@ import {
   VintedLoginPendingError,
   VintedLoginRejectedError,
   VintedVerificationRequiredError,
+  VintedInteractionRequiredError,
   MarketplaceBrowserTestApiService,
   type BrowserTestInput,
   type VintedLoginCredentials,
@@ -44,6 +45,7 @@ export class MarketplaceBrowserTestStore {
   private readonly loginNeedsClose = signal<string | null>(null);
   private readonly loginPagePendingKey = signal<string | null>(null);
   private readonly verificationKey = signal<string | null>(null);
+  private readonly interactionRequiredKey = signal<string | null>(null);
   private loginDeadline = 0;
   private readonly progressState = signal<{ key: string; message: string } | null>(null);
   readonly progress = computed(() => {
@@ -59,6 +61,9 @@ export class MarketplaceBrowserTestStore {
   );
   readonly awaitingVerification = computed(
     () => this.awaitingLogin() && this.verificationKey() === this.contextKey(),
+  );
+  readonly interactionRequired = computed(
+    () => this.session() !== null && this.interactionRequiredKey() === this.contextKey(),
   );
 
   private readonly contextKey = computed(() => {
@@ -116,6 +121,7 @@ export class MarketplaceBrowserTestStore {
     () =>
       !this.readOnly() &&
       !this.awaitingLogin() &&
+      !this.interactionRequired() &&
       this.loginNeedsClose() !== this.contextKey() &&
       (this.canStart() || this.canAct()),
   );
@@ -259,6 +265,7 @@ export class MarketplaceBrowserTestStore {
     this.loginKey.set(key);
     this.loginPagePendingKey.set(null);
     this.verificationKey.set(null);
+    this.interactionRequiredKey.set(null);
     this.progressState.set({ key, message: 'Die Anmeldung bei Vinted läuft im Hintergrund …' });
     let confirmedByWorker = false;
     try {
@@ -280,7 +287,11 @@ export class MarketplaceBrowserTestStore {
         this.progressState.set(null);
         return;
       }
-      if (result === 'form_unavailable' || result === 'interaction_required') {
+      if (result === 'interaction_required') {
+        await this.pauseForInteraction(active, revision);
+        return;
+      }
+      if (result === 'form_unavailable') {
         this.loginKey.set(null);
         await this.loadFrame(key, revision, active.scope, active.id, this.currentToken()).catch(
           () => undefined,
@@ -288,9 +299,7 @@ export class MarketplaceBrowserTestStore {
         this.errorState.set({
           key,
           message:
-            result === 'interaction_required'
-              ? 'Vinted verlangt eine zusätzliche Prüfung (z. B. Captcha oder Puzzle). In der Browser-Ansicht unten kannst Du die Prüfung direkt im Browserbild lösen.'
-              : 'Das Vinted-Anmeldeformular konnte nicht automatisch bedient werden. Möglicherweise verlangt Vinted eine zusätzliche Prüfung. In der Browser-Ansicht unten kannst Du die Prüfung direkt bedienen.',
+            'Das Vinted-Anmeldeformular konnte nicht automatisch bedient werden. Möglicherweise verlangt Vinted eine zusätzliche Prüfung. In der Browser-Ansicht unten kannst Du die Prüfung direkt bedienen.',
         });
         return;
       }
@@ -353,6 +362,10 @@ export class MarketplaceBrowserTestStore {
     try {
       const result = await this.api.verify(active.scope, active.id, code, this.currentToken());
       if (!this.isCurrent(active.key, revision)) return;
+      if (result === 'interaction_required') {
+        await this.pauseForInteraction(active, revision);
+        return;
+      }
       if (result === 'form_unavailable') {
         this.errorState.set({
           key: active.key,
@@ -412,6 +425,10 @@ export class MarketplaceBrowserTestStore {
       }
       await this.completeConfirmedAccount(active, revision, token);
     } catch (error) {
+      if (this.isCurrent(active.key, revision) && error instanceof VintedInteractionRequiredError) {
+        await this.pauseForInteraction(active, revision);
+        return;
+      }
       if (this.isCurrent(active.key, revision) && error instanceof VintedLoginPendingError) {
         if (allowPending) {
           this.loginPagePendingKey.set(active.key);
@@ -432,6 +449,8 @@ export class MarketplaceBrowserTestStore {
         error instanceof VintedVerificationRequiredError
       ) {
         if (this.verificationKey() !== active.key) this.loginDeadline = Date.now() + 120_000;
+        this.interactionRequiredKey.set(null);
+        this.loginKey.set(active.key);
         this.verificationKey.set(active.key);
         this.progressState.set(null);
         return;
@@ -462,6 +481,7 @@ export class MarketplaceBrowserTestStore {
     this.loginKey.set(null);
     this.loginPagePendingKey.set(null);
     this.verificationKey.set(null);
+    this.interactionRequiredKey.set(null);
     this.progressState.set(null);
     this.busyState.set(active.key);
     this.errorState.set(null);
@@ -513,6 +533,7 @@ export class MarketplaceBrowserTestStore {
     this.loginKey.set(null);
     this.loginPagePendingKey.set(null);
     this.verificationKey.set(null);
+    this.interactionRequiredKey.set(null);
     this.progressState.set(null);
     try {
       await this.accounts.reloadConnections(active.scope.connectionId);
@@ -529,6 +550,24 @@ export class MarketplaceBrowserTestStore {
     const token = this.auth.session()?.access_token;
     if (!token) throw new Error('Anmeldung fehlt');
     return token;
+  }
+
+  private async pauseForInteraction(active: BrowserTestSession, revision: number): Promise<void> {
+    this.loginKey.set(null);
+    this.loginPagePendingKey.set(null);
+    this.verificationKey.set(null);
+    this.progressState.set(null);
+    this.interactionRequiredKey.set(active.key);
+    try {
+      await this.loadFrame(active.key, revision, active.scope, active.id, this.currentToken());
+    } catch (error) {
+      if (this.isCurrent(active.key, revision) && !this.handleConfirmedEnd(error, active.key))
+        this.errorState.set({
+          key: active.key,
+          message:
+            'Das Browserbild konnte nicht geladen werden. Klicke auf „Bild laden“, um die Prüfung zu öffnen.',
+        });
+    }
   }
 
   private cleanupToken(active: BrowserTestSession): string {
@@ -559,6 +598,7 @@ export class MarketplaceBrowserTestStore {
     this.loginNeedsClose.set(null);
     this.loginPagePendingKey.set(null);
     this.verificationKey.set(null);
+    this.interactionRequiredKey.set(null);
     this.errorState.set({
       key,
       message: 'Die Browsersitzung wurde beendet. Du kannst die Anmeldung erneut öffnen.',

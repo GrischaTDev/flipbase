@@ -18,6 +18,7 @@ function fixture(url = 'https://www.vinted.de/member/login/2fa', fields = 1, sub
   };
   const page = {
     url: () => url,
+    evaluate: async () => false,
     locator: () => ({
       count: async () => fields,
       first: () => ({ locator: () => form }),
@@ -41,6 +42,16 @@ test('sendet einen SMS-Code nur einmal auf der festen Vinted-Zweitfaktor-Seite',
   );
   assert.deepEqual(actions, ['fill:0:123456', 'submit']);
   assert.equal(checks, 3);
+});
+
+test('does not send an SMS code while a visible human check blocks the page', async () => {
+  const { page, actions } = fixture();
+  page.evaluate = (async () => true) as unknown as Page['evaluate'];
+  assert.equal(
+    await submitVintedVerificationCode(page, '123456', async () => undefined),
+    'interaction_required',
+  );
+  assert.deepEqual(actions, []);
 });
 
 test('unterstützt sechs einzelne Codefelder ohne automatische Wiederholung', async () => {

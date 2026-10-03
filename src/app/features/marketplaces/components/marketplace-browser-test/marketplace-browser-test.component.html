@@ -30,6 +30,12 @@
     @if (store.error(); as error) {
       <app-notice-banner class="mt-4" announcement="alert">{{ error }}</app-notice-banner>
     }
+    @if (store.interactionRequired()) {
+      <app-notice-banner class="mt-4" announcement="status">
+        Vinted braucht Deine Bestätigung. Löse die Mensch-Prüfung in der Browseransicht und klicke
+        anschließend auf „Anmeldung prüfen &amp; verbinden“. Deine Sitzung bleibt geöffnet.
+      </app-notice-banner>
+    }
     @if (store.readOnly()) {
       <app-notice-banner class="mt-4">
         Dieser Test zeigt nur eine öffentliche Seite. Es werden keine Eingaben gesendet.
@@ -78,7 +84,7 @@
             übereinstimmen.
           </p>
         }
-        @if (!showProgress() && !store.awaitingVerification()) {
+        @if (!showProgress() && !store.awaitingVerification() && !store.interactionRequired()) {
           <form
             class="mt-4 max-w-md space-y-4"
             autocomplete="off"
@@ -177,7 +183,12 @@
         }
         @if (store.session(); as session) {
           @if (session.frameUrl) {
-            <div class="mt-5 space-y-3 rounded-xl border border-fb-border bg-fb-surface p-4">
+            <div
+              #browserPreview
+              tabindex="-1"
+              aria-label="Vinted-Browseransicht"
+              class="mt-5 space-y-3 rounded-xl border border-fb-border bg-fb-surface p-4"
+            >
               <div class="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <h3 class="text-sm font-semibold text-fb-text-primary">Browser-Vorschau</h3>

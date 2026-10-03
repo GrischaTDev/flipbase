@@ -10,6 +10,7 @@ import {
   GoLoginApiLimitError,
   MarketplaceBrowserTestApiService,
   VintedLoginPendingError,
+  VintedInteractionRequiredError,
   VintedVerificationRequiredError,
 } from './marketplace-browser-test-api.service';
 import { MarketplaceBrowserTestStore } from './marketplace-browser-test.store';
@@ -85,6 +86,95 @@ beforeEach(async () => {
 });
 
 describe('Kontogebundener Browser-Testbereich', () => {
+  it('öffnet bei einer Mensch-Prüfung die Vorschau und pausiert ohne erneute Anmeldung', async () => {
+    api.login.mockResolvedValueOnce('interaction_required');
+    await store.login({ username: 'synthetic', password: 'synthetic' });
+    expect(store.interactionRequired()).toBe(true);
+    expect(store.session()?.frameUrl).toBe('blob:test');
+    expect(store.awaitingLogin()).toBe(false);
+    expect(store.error()).toBeNull();
+    expect(store.canLogin()).toBe(false);
+    await store.checkLogin();
+    await store.login({ username: 'synthetic', password: 'synthetic' });
+    expect(api.login).toHaveBeenCalledOnce();
+    expect(api.identify).not.toHaveBeenCalled();
+    expect(api.close).not.toHaveBeenCalled();
+    await store.confirmAccount();
+    expect(store.interactionRequired()).toBe(false);
+    expect(api.close).toHaveBeenCalledOnce();
+  });
+  it('öffnet auch eine erst bei der Kontoprüfung erkannte Mensch-Prüfung automatisch', async () => {
+    api.identify.mockRejectedValueOnce(new VintedInteractionRequiredError());
+    await store.login({ username: 'synthetic', password: 'synthetic' });
+    await store.checkLogin();
+    expect(store.interactionRequired()).toBe(true);
+    expect(store.session()?.frameUrl).toBe('blob:test');
+    expect(store.error()).toBeNull();
+    await store.checkLogin();
+    expect(api.identify).toHaveBeenCalledOnce();
+    expect(api.close).not.toHaveBeenCalled();
+  });
+  it('ersetzt eine Codeanforderung durch die nach dem Code sichtbare Mensch-Prüfung', async () => {
+    api.login.mockResolvedValueOnce('verification_required');
+    api.verify.mockResolvedValueOnce('interaction_required');
+    await store.login({ username: 'synthetic', password: 'synthetic' });
+    await store.verifyCode('123456');
+    expect(store.interactionRequired()).toBe(true);
+    expect(store.awaitingVerification()).toBe(false);
+    expect(store.session()?.frameUrl).toBe('blob:test');
+    expect(api.verify).toHaveBeenCalledOnce();
+    expect(api.close).not.toHaveBeenCalled();
+  });
+  it('zeigt nach einer manuell gelösten Mensch-Prüfung eine anschließende SMS-Anforderung', async () => {
+    api.login.mockResolvedValueOnce('interaction_required');
+    await store.login({ username: 'synthetic', password: 'synthetic' });
+    api.identify.mockRejectedValueOnce(new VintedVerificationRequiredError());
+    await store.confirmAccount();
+    expect(store.interactionRequired()).toBe(false);
+    expect(store.awaitingVerification()).toBe(true);
+    await store.verifyCode('123456');
+    expect(api.verify).toHaveBeenCalledOnce();
+    expect(api.close).not.toHaveBeenCalled();
+  });
+  it('zeigt einen Bildladefehler an, behält aber die manuell fortsetzbare Prüfung', async () => {
+    api.login.mockResolvedValueOnce('interaction_required');
+    api.frame.mockRejectedValueOnce(new Error('offline'));
+    await store.login({ username: 'synthetic', password: 'synthetic' });
+    expect(store.interactionRequired()).toBe(true);
+    expect(store.error()).toContain('Browserbild');
+    expect(store.canAct()).toBe(true);
+    await store.refresh();
+    expect(store.session()?.frameUrl).toBe('blob:test');
+    expect(store.error()).toBeNull();
+    await store.close();
+    expect(store.interactionRequired()).toBe(false);
+  });
+  it('öffnet eine verspätete Mensch-Prüfung nicht im inzwischen ausgewählten Konto', async () => {
+    let resolveLogin: (result: string) => void = () => undefined;
+    api.login.mockImplementationOnce(
+      () =>
+        new Promise<string>((resolve) => {
+          resolveLogin = resolve;
+        }),
+    );
+    await store.start(false);
+    const login = store.login({ username: 'synthetic', password: 'synthetic' });
+    selectedId.set(accountB.connectionId);
+    selectionVersion.update((version) => version + 1);
+    TestBed.tick();
+    resolveLogin('interaction_required');
+    await login;
+    expect(store.interactionRequired()).toBe(false);
+    expect(store.session()).toBeNull();
+    expect(api.frame).not.toHaveBeenCalled();
+  });
+  it('behandelt einen gewöhnlichen Verbindungsfehler nicht als Mensch-Prüfung', async () => {
+    api.login.mockRejectedValueOnce(new Error('offline'));
+    await store.login({ username: 'synthetic', password: 'synthetic' });
+    expect(store.interactionRequired()).toBe(false);
+    expect(api.frame).not.toHaveBeenCalled();
+    expect(store.error()).not.toBeNull();
+  });
   it('erklärt in einer bereits geöffneten Vorschau die manuelle Kontobestätigung', async () => {
     await store.start();
     await store.login({ username: 'synthetic', password: 'synthetic' });
@@ -423,7 +513,7 @@ it('sendet Zugangsdaten nach einem Kontowechsel während des Starts nicht weiter
   expect(api.login).not.toHaveBeenCalled();
 });
 
-it('meldet eine nicht bedienbare Anmeldung des älteren Workers ohne Endlosschleife', async () => {
+it('hält eine manuelle Prüfung ohne automatische Wiederholung geöffnet', async () => {
   api.login = vi.fn().mockResolvedValue('interaction_required');
   api.identify.mockResolvedValue(null);
   await store.login({ username: 'test-user', password: 'synthetic' });
@@ -433,7 +523,8 @@ it('meldet eine nicht bedienbare Anmeldung des älteren Workers ohne Endlosschle
   expect(api.close).not.toHaveBeenCalled();
   expect(store.session()?.id).toBe(id);
   expect(store.awaitingLogin()).toBe(false);
-  expect(store.error()).toContain('zusätzliche Prüfung');
+  expect(store.interactionRequired()).toBe(true);
+  expect(store.error()).toBeNull();
   expect(api.identify).not.toHaveBeenCalled();
 });
 

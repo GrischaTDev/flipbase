@@ -13,6 +13,7 @@ import type { VintedEditAccess } from '../src/vinted-edit-access.ts';
 import { VintedImportReadError, type VintedAccountImport } from '../src/vinted-account-import.ts';
 import { GoLoginApiLimitError, GoLoginProfileLimitError } from '../src/gologin-api-limit.ts';
 import {
+  VintedInteractionRequiredError,
   VintedLoginPendingError,
   VintedLoginRejectedError,
   VintedVerificationRequiredError,
@@ -1264,6 +1265,36 @@ test('preserves a pending Vinted code challenge without submitting credentials a
   }
 });
 
+test('preserves a visible human check and browser view without submitting credentials again', async () => {
+  const api = await setup(
+    undefined,
+    undefined,
+    false,
+    undefined,
+    undefined,
+    new VintedInteractionRequiredError(),
+    async () => assert.fail('must not confirm an account awaiting interaction'),
+  );
+  try {
+    const scope = { workspaceId: workspaceA, connectionId: accountA };
+    await api.request('/marketplace-browser/sessions', scope);
+    const response = await api.request(`/marketplace-browser/sessions/${sessionId}/login`, {
+      ...scope,
+      credentials: { username: 'synthetic', password: 'synthetic-secret' },
+    });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { status: 'interaction_required' });
+    assert.deepEqual(api.inputs, []);
+    assert.equal(
+      (await api.request(`/marketplace-browser/sessions/${sessionId}/frame`, scope)).status,
+      200,
+    );
+    assert.equal(api.closes(), 0);
+  } finally {
+    await api.close();
+  }
+});
+
 test('does not report an existing session as connected when account confirmation fails', async () => {
   const api = await setup(
     undefined,
@@ -1483,6 +1514,7 @@ test('keeps the real broker lease alive after duplicate starts while awaiting lo
     [new VintedLoginRejectedError(), 'vinted_login_rejected'],
     [new VintedLoginPendingError(), 'vinted_login_pending'],
     [new VintedVerificationRequiredError(), 'vinted_verification_required'],
+    [new VintedInteractionRequiredError(), 'vinted_interaction_required'],
   ] as const) {
     let active = true;
     let stopped = false;

@@ -77,7 +77,7 @@ export type VintedLoginResult =
   | 'submitted'
   | 'form_unavailable'
   | 'submission_unconfirmed'
-  | 'interaction_required' // Vorheriger Worker während eines gestaffelten Updates.
+  | 'interaction_required'
   | 'already_authenticated'
   | 'verification_required';
 
@@ -120,6 +120,12 @@ export class VintedLoginPendingError extends Error {
 export class VintedVerificationRequiredError extends Error {
   constructor() {
     super('Vinted verlangt einen Bestätigungscode.');
+  }
+}
+
+export class VintedInteractionRequiredError extends Error {
+  constructor() {
+    super('Vinted verlangt eine manuelle Mensch-Prüfung.');
   }
 }
 
@@ -169,7 +175,8 @@ export class MarketplaceImportError extends Error {
   }
 }
 
-export type VintedVerificationResult = 'submitted' | 'form_unavailable' | 'submission_unconfirmed';
+export type VintedVerificationResult =
+  'submitted' | 'form_unavailable' | 'submission_unconfirmed' | 'interaction_required';
 
 const basePath = '/marketplace-browser/sessions';
 const frameLimit = 512 * 1024;
@@ -265,6 +272,13 @@ export class MarketplaceBrowserTestApiService {
     if (response.status === 410) throw new BrowserTestSessionEndedError();
     if (response.status === 422) {
       const body: unknown = await response.json().catch(() => null);
+      if (
+        typeof body === 'object' &&
+        body !== null &&
+        'code' in body &&
+        body.code === 'vinted_interaction_required'
+      )
+        throw new VintedInteractionRequiredError();
       if (
         typeof body === 'object' &&
         body !== null &&
@@ -376,6 +390,7 @@ export class MarketplaceBrowserTestApiService {
       !('status' in body) ||
       (body.status !== 'submitted' &&
         body.status !== 'form_unavailable' &&
+        body.status !== 'interaction_required' &&
         body.status !== 'submission_unconfirmed')
     )
       throw new Error('Ungültige Bestätigungsantwort');

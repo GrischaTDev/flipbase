@@ -11,6 +11,7 @@ import {
   type BrowserSessionScope,
 } from './marketplace-browser-session-broker.ts';
 import {
+  VintedInteractionRequiredError,
   VintedLoginPendingError,
   VintedLoginRejectedError,
   VintedVerificationRequiredError,
@@ -603,6 +604,8 @@ export class MarketplaceBrowserHttpApi {
                   const identity = await browser.identify();
                   if (identity) return { status: 'already_authenticated' as const, identity };
                 } catch (error) {
+                  if (error instanceof VintedInteractionRequiredError)
+                    return { status: 'interaction_required' as const };
                   if (error instanceof VintedVerificationRequiredError)
                     return { status: 'verification_required' as const };
                   if (!(
@@ -693,12 +696,15 @@ export class MarketplaceBrowserHttpApi {
               if (error instanceof VintedLoginPendingError) return 'login_pending' as const;
               if (error instanceof VintedVerificationRequiredError)
                 return 'verification_required' as const;
+              if (error instanceof VintedInteractionRequiredError)
+                return 'interaction_required' as const;
               throw error;
             }
           });
           if (identity === 'login_rejected') throw new VintedLoginRejectedError();
           if (identity === 'login_pending') throw new VintedLoginPendingError();
           if (identity === 'verification_required') throw new VintedVerificationRequiredError();
+          if (identity === 'interaction_required') throw new VintedInteractionRequiredError();
           if (!identity) throw new RequestError(422);
           await this.accounts.confirm(scope, sessionId, identity);
           json(response, 200, {
@@ -738,6 +744,10 @@ export class MarketplaceBrowserHttpApi {
       }
       if (error instanceof VintedVerificationRequiredError) {
         json(response, 422, { code: 'vinted_verification_required' });
+        return;
+      }
+      if (error instanceof VintedInteractionRequiredError) {
+        json(response, 422, { code: 'vinted_interaction_required' });
         return;
       }
       if (error instanceof GoLoginApiLimitError) {

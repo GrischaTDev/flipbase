@@ -2,12 +2,14 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  ElementRef,
   computed,
   effect,
   inject,
   input,
   output,
   signal,
+  viewChild,
 } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
@@ -48,6 +50,8 @@ interface BrowserPointerGesture {
 export class MarketplaceBrowserTestComponent {
   private credentialsConnectionId: string | undefined;
   private pointerGesture: BrowserPointerGesture | null = null;
+  private focusedInteractionSessionId: string | null = null;
+  private readonly browserPreview = viewChild<ElementRef<HTMLElement>>('browserPreview');
   readonly pointerPosition = signal<{ x: number; y: number } | null>(null);
   readonly pointerMessage = signal<string | null>(null);
   readonly store = inject(MarketplaceBrowserTestStore);
@@ -124,6 +128,19 @@ export class MarketplaceBrowserTestComponent {
     effect(() => {
       const sessionId = this.store.session()?.id;
       if (this.pointerGesture && sessionId !== this.pointerGesture.sessionId) this.resetPointer();
+    });
+    effect(() => {
+      const interactionRequired = this.store.interactionRequired();
+      const sessionId = this.store.session()?.id;
+      const preview = this.browserPreview()?.nativeElement;
+      if (!interactionRequired) {
+        this.focusedInteractionSessionId = null;
+        return;
+      }
+      if (!sessionId || !preview || this.focusedInteractionSessionId === sessionId) return;
+      this.focusedInteractionSessionId = sessionId;
+      preview.focus({ preventScroll: true });
+      preview.scrollIntoView({ block: 'nearest' });
     });
   }
 
