@@ -11,6 +11,7 @@ import {
   VintedLoginRejectedError,
   VintedVerificationRequiredError,
   VintedInteractionRequiredError,
+  VintedSessionBlockedError,
   MarketplaceBrowserTestApiService,
   type BrowserTestInput,
   type VintedLoginCredentials,
@@ -46,6 +47,7 @@ export class MarketplaceBrowserTestStore {
   private readonly loginPagePendingKey = signal<string | null>(null);
   private readonly verificationKey = signal<string | null>(null);
   private readonly interactionRequiredKey = signal<string | null>(null);
+  private readonly sessionBlockedKey = signal<string | null>(null);
   private loginDeadline = 0;
   private readonly progressState = signal<{ key: string; message: string } | null>(null);
   readonly progress = computed(() => {
@@ -64,6 +66,9 @@ export class MarketplaceBrowserTestStore {
   );
   readonly interactionRequired = computed(
     () => this.session() !== null && this.interactionRequiredKey() === this.contextKey(),
+  );
+  readonly sessionBlocked = computed(
+    () => this.session() !== null && this.sessionBlockedKey() === this.contextKey(),
   );
 
   private readonly contextKey = computed(() => {
@@ -116,12 +121,15 @@ export class MarketplaceBrowserTestStore {
       !this.busy()
     );
   });
-  readonly canAct = computed(() => this.session() !== null && !this.busy());
+  readonly canAct = computed(
+    () => this.session() !== null && !this.busy() && !this.sessionBlocked(),
+  );
   readonly canLogin = computed(
     () =>
       !this.readOnly() &&
       !this.awaitingLogin() &&
       !this.interactionRequired() &&
+      !this.sessionBlocked() &&
       this.loginNeedsClose() !== this.contextKey() &&
       (this.canStart() || this.canAct()),
   );
@@ -178,6 +186,7 @@ export class MarketplaceBrowserTestStore {
     const revision = ++this.revision;
     this.busyState.set(key);
     this.errorState.set(null);
+    this.sessionBlockedKey.set(null);
     try {
       const id = await this.api.open(scope, token);
       if (!this.isCurrent(key, revision)) {
@@ -223,6 +232,7 @@ export class MarketplaceBrowserTestStore {
       !active ||
       this.busy() ||
       this.readOnly() ||
+      this.sessionBlocked() ||
       (input.kind === 'drag' && !this.dragSupported())
     )
       return;
@@ -234,6 +244,10 @@ export class MarketplaceBrowserTestStore {
       await this.api.input(active.scope, active.id, input, token);
       await this.loadFrame(active.key, revision, active.scope, active.id, token);
     } catch (error) {
+      if (this.isCurrent(active.key, revision) && error instanceof VintedSessionBlockedError) {
+        await this.pauseForBlockedSession(active, revision);
+        return;
+      }
       if (this.isCurrent(active.key, revision) && !this.handleConfirmedEnd(error, active.key))
         this.errorState.set({
           key: active.key,
@@ -266,6 +280,7 @@ export class MarketplaceBrowserTestStore {
     this.loginPagePendingKey.set(null);
     this.verificationKey.set(null);
     this.interactionRequiredKey.set(null);
+    this.sessionBlockedKey.set(null);
     this.progressState.set({ key, message: 'Die Anmeldung bei Vinted läuft im Hintergrund …' });
     let confirmedByWorker = false;
     try {
@@ -285,6 +300,10 @@ export class MarketplaceBrowserTestStore {
         this.loginDeadline = Date.now() + 120_000;
         this.verificationKey.set(key);
         this.progressState.set(null);
+        return;
+      }
+      if (result === 'session_blocked') {
+        await this.pauseForBlockedSession(active, revision);
         return;
       }
       if (result === 'interaction_required') {
@@ -362,6 +381,10 @@ export class MarketplaceBrowserTestStore {
     try {
       const result = await this.api.verify(active.scope, active.id, code, this.currentToken());
       if (!this.isCurrent(active.key, revision)) return;
+      if (result === 'session_blocked') {
+        await this.pauseForBlockedSession(active, revision);
+        return;
+      }
       if (result === 'interaction_required') {
         await this.pauseForInteraction(active, revision);
         return;
@@ -425,6 +448,10 @@ export class MarketplaceBrowserTestStore {
       }
       await this.completeConfirmedAccount(active, revision, token);
     } catch (error) {
+      if (this.isCurrent(active.key, revision) && error instanceof VintedSessionBlockedError) {
+        await this.pauseForBlockedSession(active, revision);
+        return;
+      }
       if (this.isCurrent(active.key, revision) && error instanceof VintedInteractionRequiredError) {
         await this.pauseForInteraction(active, revision);
         return;
@@ -482,6 +509,7 @@ export class MarketplaceBrowserTestStore {
     this.loginPagePendingKey.set(null);
     this.verificationKey.set(null);
     this.interactionRequiredKey.set(null);
+    this.sessionBlockedKey.set(null);
     this.progressState.set(null);
     this.busyState.set(active.key);
     this.errorState.set(null);
@@ -516,9 +544,10 @@ export class MarketplaceBrowserTestStore {
     if (!this.isCurrent(key, revision)) return;
     const old = this.session();
     if (!old || old.id !== id) return;
-    const frameUrl = URL.createObjectURL(frame);
+    const frameUrl = URL.createObjectURL(frame.image);
     this.state.set({ ...old, frameUrl });
     this.releaseFrame(old.frameUrl);
+    if (frame.sessionBlocked) this.markSessionBlocked(key);
   }
 
   private async completeConfirmedAccount(
@@ -534,6 +563,7 @@ export class MarketplaceBrowserTestStore {
     this.loginPagePendingKey.set(null);
     this.verificationKey.set(null);
     this.interactionRequiredKey.set(null);
+    this.sessionBlockedKey.set(null);
     this.progressState.set(null);
     try {
       await this.accounts.reloadConnections(active.scope.connectionId);
@@ -570,6 +600,32 @@ export class MarketplaceBrowserTestStore {
     }
   }
 
+  private async pauseForBlockedSession(
+    active: BrowserTestSession,
+    revision: number,
+  ): Promise<void> {
+    this.markSessionBlocked(active.key);
+    try {
+      await this.loadFrame(active.key, revision, active.scope, active.id, this.currentToken());
+    } catch (error) {
+      if (this.isCurrent(active.key, revision) && !this.handleConfirmedEnd(error, active.key))
+        this.errorState.set({
+          key: active.key,
+          message:
+            'Vinted hat die Sitzung blockiert. Das letzte Browserbild konnte nicht geladen werden.',
+        });
+    }
+  }
+
+  private markSessionBlocked(key: string): void {
+    this.loginKey.set(null);
+    this.loginPagePendingKey.set(null);
+    this.verificationKey.set(null);
+    this.interactionRequiredKey.set(null);
+    this.progressState.set(null);
+    this.sessionBlockedKey.set(key);
+  }
+
   private cleanupToken(active: BrowserTestSession): string {
     return this.auth.currentUser()?.id === active.userId
       ? (this.auth.session()?.access_token ?? active.accessToken)
@@ -599,6 +655,7 @@ export class MarketplaceBrowserTestStore {
     this.loginPagePendingKey.set(null);
     this.verificationKey.set(null);
     this.interactionRequiredKey.set(null);
+    this.sessionBlockedKey.set(null);
     this.errorState.set({
       key,
       message: 'Die Browsersitzung wurde beendet. Du kannst die Anmeldung erneut öffnen.',
