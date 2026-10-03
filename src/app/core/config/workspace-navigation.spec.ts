@@ -18,17 +18,17 @@ describe('Arbeitsnavigation', () => {
   it('ordnet die Arbeitsbereiche inklusive Tools in fester Reihenfolge', () => {
     assert.deepEqual(
       WORKSPACE_NAVIGATION_GROUPS.map((group) => group.label),
-      ['Einkauf', 'Artikel', 'Tools', 'Verkauf', 'Account-Verwaltung', 'Finanzen'],
+      ['Einkauf', 'Verkauf', 'Artikel', 'Account-Verwaltung', 'Finanzen', 'Tools'],
     );
     assert.deepEqual(
       WORKSPACE_NAVIGATION_GROUPS.map((group) => group.items.map((item) => item.path)),
       [
-        ['/purchases', '/vinted-bot'],
-        ['/catalog', '/image-optimizer'],
-        ['/deal-calculator', '/deal-calculator/ebay'],
+        ['/purchases'],
         ['/sales', '/listings'],
+        ['/catalog', '/image-optimizer'],
         ['/marketplaces/vinted', '/marketplaces/ebay'],
         ['/expenses', '/accounting', '/analytics'],
+        ['/vinted-bot', '/deal-calculator', '/deal-calculator/ebay'],
       ],
     );
   });
@@ -101,7 +101,9 @@ describe('Arbeitsnavigation', () => {
   });
 
   it('behaelt die vorhandenen Untermenues unveraendert', () => {
-    const bot = WORKSPACE_NAVIGATION_GROUPS[0].items.find((item) => item.path === '/vinted-bot');
+    const bot = WORKSPACE_NAVIGATION_GROUPS.find((group) => group.id === 'tools')?.items.find(
+      (item) => item.path === '/vinted-bot',
+    );
     assert.equal(bot?.children, VINTED_BOT_NAVIGATION);
     assert.equal(OPERATOR_NAVIGATION.children, PLATFORM_ADMIN_NAVIGATION);
   });
@@ -164,7 +166,8 @@ describe('Aktive Navigationspfade', () => {
   });
 
   it('markiert Katalog und Bestandsdetails als Artikelbereich', () => {
-    const article = WORKSPACE_NAVIGATION_GROUPS[1].items[0];
+    const article = WORKSPACE_NAVIGATION_GROUPS.find((group) => group.id === 'articles')?.items[0];
+    assert.ok(article);
     for (const path of [
       '/catalog',
       '/catalog/new',

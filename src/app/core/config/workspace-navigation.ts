@@ -53,12 +53,19 @@ export const WORKSPACE_NAVIGATION_GROUPS: readonly WorkspaceNavigationGroup[] = 
     label: 'Einkauf',
     items: [
       { path: '/purchases', labelKey: 'NAV.PURCHASES', label: 'Einkäufe', icon: 'shoppingBag' },
+    ],
+  },
+  {
+    id: 'selling',
+    labelKey: 'NAV.GROUP_SELLING',
+    label: 'Verkauf',
+    items: [
+      { path: '/sales', labelKey: 'NAV.SALES', label: 'Verkäufe', icon: 'trendingUp' },
       {
-        path: '/vinted-bot',
-        labelKey: 'NAV.DEAL_MONITOR',
-        label: 'Vinted Bot',
-        icon: 'bot',
-        children: VINTED_BOT_NAVIGATION,
+        path: '/listings',
+        labelKey: 'NAV.CREATE_LISTING',
+        label: 'Inserate',
+        icon: 'tag',
       },
     ],
   },
@@ -78,39 +85,6 @@ export const WORKSPACE_NAVIGATION_GROUPS: readonly WorkspaceNavigationGroup[] = 
         labelKey: 'NAV.IMAGE_OPTIMIZER',
         label: 'Bildoptimierer',
         icon: 'image',
-      },
-    ],
-  },
-  {
-    id: 'tools',
-    labelKey: 'NAV.GROUP_TOOLS',
-    label: 'Tools',
-    items: [
-      {
-        path: '/deal-calculator',
-        labelKey: 'NAV.DEAL_CALCULATOR',
-        label: 'Deal-Rechner',
-        icon: 'calculator',
-      },
-      {
-        path: '/deal-calculator/ebay',
-        labelKey: 'NAV.EBAY_FEE_CALCULATOR',
-        label: 'eBay-Gebührenrechner',
-        icon: 'calculator',
-      },
-    ],
-  },
-  {
-    id: 'selling',
-    labelKey: 'NAV.GROUP_SELLING',
-    label: 'Verkauf',
-    items: [
-      { path: '/sales', labelKey: 'NAV.SALES', label: 'Verkäufe', icon: 'trendingUp' },
-      {
-        path: '/listings',
-        labelKey: 'NAV.CREATE_LISTING',
-        label: 'Inserate',
-        icon: 'tag',
       },
     ],
   },
@@ -151,6 +125,32 @@ export const WORKSPACE_NAVIGATION_GROUPS: readonly WorkspaceNavigationGroup[] = 
         icon: 'receipt',
       },
       { path: '/analytics', labelKey: 'NAV.REPORTS', label: 'Auswertungen', icon: 'barChart' },
+    ],
+  },
+  {
+    id: 'tools',
+    labelKey: 'NAV.GROUP_TOOLS',
+    label: 'Tools',
+    items: [
+      {
+        path: '/vinted-bot',
+        labelKey: 'NAV.DEAL_MONITOR',
+        label: 'Vinted Bot',
+        icon: 'bot',
+        children: VINTED_BOT_NAVIGATION,
+      },
+      {
+        path: '/deal-calculator',
+        labelKey: 'NAV.DEAL_CALCULATOR',
+        label: 'Deal-Rechner',
+        icon: 'calculator',
+      },
+      {
+        path: '/deal-calculator/ebay',
+        labelKey: 'NAV.EBAY_FEE_CALCULATOR',
+        label: 'eBay-Gebührenrechner',
+        icon: 'calculator',
+      },
     ],
   },
 ];

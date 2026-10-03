@@ -1,5 +1,28 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-03 – Juna – Sidebar nach Arbeitsablauf neu geordnet
+
+**Auftrag und Freigabe:** Die Hauptnavigation soll dem täglichen Ablauf folgen:
+Einkauf, Verkauf, Artikel, Account-Verwaltung und Finanzen; Tools steht als letzte
+Arbeitsgruppe direkt unter Finanzen. Der bisher im Einkauf einsortierte
+Vinted-/Recherchebereich gehört fachlich zu Tools. Der Nutzer hat PR-Erstellung,
+erfolgreiche Pflichtprüfungen und anschließenden Merge ausdrücklich freigegeben.
+
+**Änderung:** Einkauf enthält nur noch Einkäufe. Verkauf folgt direkt danach,
+Artikel anschließend. Tools wurde ans Ende der Arbeitsgruppen verschoben und
+enthält nun zuerst den bestehenden Vinted-Bot-/Recherchebereich, danach
+Deal-Rechner und eBay-Gebührenrechner. Routen und aktive Zustände bleiben
+unverändert. Beide Navigationsprüfungen bilden die neue Reihenfolge ab; feste
+Arraypositionen wurden dort durch fachliche Gruppen-IDs ersetzt.
+
+**Prüfung und Parallelbetrieb:** Der erste PR-Lauf fand drei veraltete
+Node-Erwartungen an die frühere Reihenfolge. Nach Korrektur waren Quality,
+Node-, DOM-, beide Angular-Suites, Browser-Smoke und Required Checks grün.
+Während des Laufs wurde PR #288 gemerged. Dessen Navigationsdateien
+überschneiden sich nicht; der gemeinsame Changelog wurde beim Rebase erhalten.
+Der aktualisierte Stand basiert auf `master` `dc1deb88` und wird nach dem
+Rebase erneut durch die verbindlichen PR-Prüfungen abgesichert.
+
 ## 2026-10-03 - Juna - Veröffentlichung der Vinted-Prüfungen freigegeben
 
 **Freigabe:** Der Nutzer hat PR-Erstellung, erfolgreiche Pflichtprüfungen,

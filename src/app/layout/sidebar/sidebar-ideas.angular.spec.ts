@@ -86,19 +86,19 @@ describe('Arbeitsnavigation und Ideen in der Sidebar', () => {
 
     expect(names).toEqual([
       'Einkauf',
-      'Artikel',
-      'Tools',
       'Verkauf',
+      'Artikel',
       'Account-Verwaltung',
       'Finanzen',
+      'Tools',
     ]);
     expect(links).toEqual([
-      ['/purchases', '/vinted-bot'],
-      ['/catalog', '/image-optimizer'],
-      ['/deal-calculator', '/deal-calculator/ebay'],
+      ['/purchases'],
       ['/sales', '/listings'],
+      ['/catalog', '/image-optimizer'],
       ['/marketplaces/ebay'],
       ['/expenses', '/accounting', '/analytics'],
+      ['/vinted-bot', '/deal-calculator', '/deal-calculator/ebay'],
     ]);
     expect(element.textContent).not.toContain('Warenwirtschaft & Store');
     expect(element.textContent).not.toContain('Werkzeuge & Ertrag');
@@ -222,11 +222,11 @@ describe('Arbeitsnavigation und Ideen in der Sidebar', () => {
 
     expect(names).toEqual([
       'Purchasing',
-      'Products',
-      'Tools',
       'Selling',
+      'Products',
       'Account management',
       'Finances',
+      'Tools',
     ]);
     expect(toggle.textContent?.trim()).toBe('Ideas');
     expect(article?.textContent?.trim()).toBe('Articles');
