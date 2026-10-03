@@ -53,10 +53,22 @@ test('submits credentials once to the fixed Vinted login form', async () => {
 
 test('detects a visible human check before entering or submitting credentials', async () => {
   const { page, actions } = pageFixture();
-  page.evaluate = (async () => true) as unknown as Page['evaluate'];
+  page.evaluate = (async (callback: () => unknown) =>
+    callback.name === 'detectVisibleVintedChallenge') as unknown as Page['evaluate'];
   assert.equal(
     await submitVintedLogin(page, { username: 'synthetic', password: 'synthetic' }),
     'interaction_required',
+  );
+  assert.deepEqual(actions, ['https://www.vinted.de/member/login/email']);
+});
+
+test('stops before entering credentials when Vinted blocks the session', async () => {
+  const { page, actions } = pageFixture();
+  page.evaluate = (async (callback: () => unknown) =>
+    callback.name === 'detectVisibleVintedSessionBlock') as unknown as Page['evaluate'];
+  assert.equal(
+    await submitVintedLogin(page, { username: 'synthetic', password: 'synthetic' }),
+    'session_blocked',
   );
   assert.deepEqual(actions, ['https://www.vinted.de/member/login/email']);
 });
