@@ -1,6 +1,12 @@
 import type { Page } from 'playwright';
-import { hasVisibleVintedChallenge } from './vinted-browser-challenge.ts';
-import { VintedInteractionRequiredError } from './vinted-browser-reader.ts';
+import {
+  hasVisibleVintedChallenge,
+  hasVisibleVintedSessionBlock,
+} from './vinted-browser-challenge.ts';
+import {
+  VintedInteractionRequiredError,
+  VintedSessionBlockedError,
+} from './vinted-browser-reader.ts';
 
 export interface VintedLoginCredentials {
   username: string;
@@ -10,6 +16,7 @@ export interface VintedLoginCredentials {
 export type VintedLoginResult =
   | 'submitted'
   | 'interaction_required'
+  | 'session_blocked'
   | 'form_unavailable'
   | 'submission_unconfirmed'
   | 'verification_required';
@@ -38,6 +45,7 @@ export async function submitVintedLogin(
   let currentStep = 'init';
   const authorizeLoginPage = async () => {
     await authorize();
+    if (await hasVisibleVintedSessionBlock(page)) throw new VintedSessionBlockedError();
     if (await hasVisibleVintedChallenge(page)) throw new VintedInteractionRequiredError();
     if (is2FaPage()) return;
     if (!isLoginPage()) throw new Error('Unerwartete Anmeldeseite');
@@ -57,6 +65,7 @@ export async function submitVintedLogin(
       timeout: 20_000,
     });
     await authorize();
+    if (await hasVisibleVintedSessionBlock(page)) return 'session_blocked';
     if (await hasVisibleVintedChallenge(page)) return 'interaction_required';
     if (is2FaPage()) return 'verification_required';
     currentStep = 'authorize_page';
@@ -93,11 +102,15 @@ export async function submitVintedLogin(
     await authorizeLoginPage();
     submissionStarted = true;
     await submit.click({ timeout: 5_000 });
+    if (await hasVisibleVintedSessionBlock(page)) return 'session_blocked';
     if (await hasVisibleVintedChallenge(page)) return 'interaction_required';
     return 'submitted';
   } catch (error) {
+    let sessionBlocked = error instanceof VintedSessionBlockedError;
     let challengeDetected = error instanceof VintedInteractionRequiredError;
     try {
+      sessionBlocked ||= await hasVisibleVintedSessionBlock(page);
+      if (sessionBlocked) return 'session_blocked';
       challengeDetected ||= await hasVisibleVintedChallenge(page);
       if (!challengeDetected && is2FaPage()) return 'verification_required';
     } catch {
@@ -108,6 +121,7 @@ export async function submitVintedLogin(
         `${JSON.stringify({
           event: 'marketplace_login_diagnostic',
           step: currentStep,
+          sessionBlocked,
           challengeDetected,
           submissionStarted,
         })}\n`,
