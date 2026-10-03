@@ -30,7 +30,13 @@
     @if (store.error(); as error) {
       <app-notice-banner class="mt-4" announcement="alert">{{ error }}</app-notice-banner>
     }
-    @if (store.interactionRequired()) {
+    @if (store.sessionBlocked()) {
+      <app-notice-banner class="mt-4" announcement="alert">
+        Vinted hat diese Browsersitzung oder Netzwerkverbindung vorübergehend blockiert. Flipbase
+        sendet keine weiteren Eingaben, Codes oder Anmeldeprüfungen. Beende die Sitzung und prüfe
+        zuerst die Netzwerk- beziehungsweise Proxy-Verbindung, bevor Du einen neuen Versuch startest.
+      </app-notice-banner>
+    } @else if (store.interactionRequired()) {
       <app-notice-banner class="mt-4" announcement="status">
         Vinted braucht Deine Bestätigung. Löse die Mensch-Prüfung in der Browseransicht und klicke
         anschließend auf „Anmeldung prüfen &amp; verbinden“. Deine Sitzung bleibt geöffnet.
@@ -84,7 +90,12 @@
             übereinstimmen.
           </p>
         }
-        @if (!showProgress() && !store.awaitingVerification() && !store.interactionRequired()) {
+        @if (
+          !showProgress() &&
+          !store.awaitingVerification() &&
+          !store.interactionRequired() &&
+          !store.sessionBlocked()
+        ) {
           <form
             class="mt-4 max-w-md space-y-4"
             autocomplete="off"
