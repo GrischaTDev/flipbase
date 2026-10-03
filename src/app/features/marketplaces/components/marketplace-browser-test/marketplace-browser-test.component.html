@@ -204,7 +204,10 @@
                 <div>
                   <h3 class="text-sm font-semibold text-fb-text-primary">Browser-Vorschau</h3>
                   <p class="text-xs text-fb-text-secondary">
-                    @if (store.dragSupported()) {
+                    @if (store.sessionBlocked()) {
+                      Dieses Bild bleibt nur zur Diagnose sichtbar. Weitere Eingaben an Vinted sind
+                      für diese Sitzung gesperrt.
+                    } @else if (store.dragSupported()) {
                       Klicke ins Bild oder halte und ziehe mit Maus oder Finger. Nach dem Loslassen
                       wird Deine Bewegung übertragen und das Bild aktualisiert.
                     } @else {
