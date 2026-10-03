@@ -12,6 +12,7 @@ import {
 } from './marketplace-browser-session-broker.ts';
 import {
   VintedInteractionRequiredError,
+  VintedSessionBlockedError,
   VintedLoginPendingError,
   VintedLoginRejectedError,
   VintedVerificationRequiredError,
@@ -604,6 +605,8 @@ export class MarketplaceBrowserHttpApi {
                   const identity = await browser.identify();
                   if (identity) return { status: 'already_authenticated' as const, identity };
                 } catch (error) {
+                  if (error instanceof VintedSessionBlockedError)
+                    return { status: 'session_blocked' as const };
                   if (error instanceof VintedInteractionRequiredError)
                     return { status: 'interaction_required' as const };
                   if (error instanceof VintedVerificationRequiredError)
@@ -647,10 +650,12 @@ export class MarketplaceBrowserHttpApi {
           return;
         }
         if (match[2] === 'frame') {
-          const bytes = await this.broker.run(scope, sessionId, async (browser) => {
+          const frame = await this.broker.run(scope, sessionId, async (browser) => {
             if (!browser.capture) throw new Error('Bild nicht verfügbar');
-            return browser.capture();
+            const sessionBlocked = (await browser.sessionBlocked?.()) === true;
+            return { bytes: await browser.capture(), sessionBlocked };
           });
+          const bytes = frame.bytes;
           if (
             !(bytes instanceof Uint8Array) ||
             bytes.byteLength > frameLimit ||
@@ -665,6 +670,9 @@ export class MarketplaceBrowserHttpApi {
             ...responseHeaders,
             'Content-Type': 'image/jpeg',
             'Content-Length': bytes.byteLength,
+            ...(frame.sessionBlocked
+              ? { 'X-Flipbase-Vinted-State': 'session_blocked' }
+              : {}),
           });
           response.end(Buffer.from(bytes));
           return;
@@ -673,11 +681,13 @@ export class MarketplaceBrowserHttpApi {
           if (this.readOnly) throw new RequestError(403);
           const input = inputOf(body);
           await this.broker.run(scope, sessionId, async (browser) => {
-            if (input.kind === 'click' && browser.click) return browser.click(input.x, input.y);
-            if (input.kind === 'drag' && browser.drag) return browser.drag(input.points);
-            if (input.kind === 'type' && browser.type) return browser.type(input.value);
-            if (input.kind === 'press' && browser.press) return browser.press(input.key);
-            throw new Error('Eingabe nicht verfügbar');
+            if ((await browser.sessionBlocked?.()) === true) throw new VintedSessionBlockedError();
+            if (input.kind === 'click' && browser.click) await browser.click(input.x, input.y);
+            else if (input.kind === 'drag' && browser.drag) await browser.drag(input.points);
+            else if (input.kind === 'type' && browser.type) await browser.type(input.value);
+            else if (input.kind === 'press' && browser.press) await browser.press(input.key);
+            else throw new Error('Eingabe nicht verfügbar');
+            if ((await browser.sessionBlocked?.()) === true) throw new VintedSessionBlockedError();
           });
           json(response, 200, { accepted: true });
           return;
@@ -696,6 +706,8 @@ export class MarketplaceBrowserHttpApi {
               if (error instanceof VintedLoginPendingError) return 'login_pending' as const;
               if (error instanceof VintedVerificationRequiredError)
                 return 'verification_required' as const;
+              if (error instanceof VintedSessionBlockedError)
+                return 'session_blocked' as const;
               if (error instanceof VintedInteractionRequiredError)
                 return 'interaction_required' as const;
               throw error;
@@ -704,6 +716,7 @@ export class MarketplaceBrowserHttpApi {
           if (identity === 'login_rejected') throw new VintedLoginRejectedError();
           if (identity === 'login_pending') throw new VintedLoginPendingError();
           if (identity === 'verification_required') throw new VintedVerificationRequiredError();
+          if (identity === 'session_blocked') throw new VintedSessionBlockedError();
           if (identity === 'interaction_required') throw new VintedInteractionRequiredError();
           if (!identity) throw new RequestError(422);
           await this.accounts.confirm(scope, sessionId, identity);
@@ -744,6 +757,10 @@ export class MarketplaceBrowserHttpApi {
       }
       if (error instanceof VintedVerificationRequiredError) {
         json(response, 422, { code: 'vinted_verification_required' });
+        return;
+      }
+      if (error instanceof VintedSessionBlockedError) {
+        json(response, 422, { code: 'vinted_session_blocked' });
         return;
       }
       if (error instanceof VintedInteractionRequiredError) {
