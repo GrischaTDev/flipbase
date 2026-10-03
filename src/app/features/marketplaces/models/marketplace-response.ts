@@ -99,6 +99,12 @@ export function parseMarketplaceConnections(
       !statuses.includes(item['status'] as ConnectionStatus)
     )
       throw new MarketplaceResponseError();
+    if (
+      item['executionMode'] !== undefined &&
+      item['executionMode'] !== 'cloud' &&
+      item['executionMode'] !== 'local'
+    )
+      throw new MarketplaceResponseError();
     ids.add(connectionId);
     const states = record(item['capabilities']);
     const verifiedStates: Partial<
@@ -124,6 +130,7 @@ export function parseMarketplaceConnections(
     return Object.freeze({
       ...scope,
       marketplace: 'vinted',
+      executionMode: item['executionMode'] === 'local' ? 'local' : 'cloud',
       displayName: requiredText(item['displayName']),
       externalAccountId: text(item['externalAccountId']),
       status: item['status'] as ConnectionStatus,

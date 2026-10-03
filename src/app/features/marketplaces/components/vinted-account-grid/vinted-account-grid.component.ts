@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { LucideArrowRight, LucideDynamicIcon } from '@lucide/angular';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import {
   MARKETPLACE_CONNECTION_LABELS,
@@ -18,6 +19,7 @@ import { VintedRatingComponent } from '../vinted-rating/vinted-rating.component'
     DecimalPipe,
     BadgeComponent,
     CardComponent,
+    ButtonComponent,
     ProductThumbnailComponent,
     VintedRatingComponent,
     LucideDynamicIcon,
@@ -33,4 +35,5 @@ export class VintedAccountGridComponent {
   readonly statusLabels = MARKETPLACE_CONNECTION_LABELS;
   readonly statusTones = MARKETPLACE_CONNECTION_TONES;
   readonly arrowIcon = LucideArrowRight;
+  readonly accountsRoute = '/settings/marketplaces';
 }

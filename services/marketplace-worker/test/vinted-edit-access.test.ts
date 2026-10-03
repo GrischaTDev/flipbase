@@ -22,7 +22,9 @@ test('liest nur den RLS-geschützten Eintrag desselben Workspace und Kontos', as
       assert.equal(new Headers(init?.headers).get('apikey'), 'public-key');
       assert.equal(url.searchParams.get('workspace_id'), `eq.${scope.workspaceId}`);
       if (url.pathname.endsWith('/marketplace_connections'))
-        return Response.json([{ external_account_id: '789', status: 'connected' }]);
+        return Response.json([
+          { external_account_id: '789', status: 'connected', execution_mode: 'cloud' },
+        ]);
       assert.equal(url.searchParams.get('connection_id'), `eq.${scope.connectionId}`);
       assert.equal(url.searchParams.get('kind'), 'eq.publication');
       assert.equal(url.searchParams.get('id'), 'eq.25600000-0000-4000-8000-000000000041');
@@ -47,6 +49,26 @@ test('startet keinen Eintragszugriff für fremde oder nicht verbundene Konten', 
     fetch: async () => {
       requests++;
       return Response.json([]);
+    },
+  });
+  await assert.rejects(access.entry(scope, 'publication', '25600000-0000-4000-8000-000000000041'));
+  assert.equal(requests, 1);
+});
+
+test('lehnt lokale Lesekonten vor jedem Schreibzugriff ab', async () => {
+  let requests = 0;
+  const access = new VintedEditAccess({
+    url: 'https://database.example',
+    publishableKey: 'public-key',
+    fetch: async (input) => {
+      requests++;
+      assert.equal(
+        new URL(String(input)).searchParams.get('select'),
+        'external_account_id,status,execution_mode',
+      );
+      return Response.json([
+        { external_account_id: '789', status: 'connected', execution_mode: 'local' },
+      ]);
     },
   });
   await assert.rejects(access.entry(scope, 'publication', '25600000-0000-4000-8000-000000000041'));

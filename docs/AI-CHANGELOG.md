@@ -1,5 +1,60 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-04 - Juna - Lokalen Vinted-Erweiterungspiloten umsetzen
+
+**Auftrag:** Nach dem gemeinsamen Bleam-Rundgang zuerst eine eigene lokale
+Erweiterung mit bestätigter Kontozuordnung und lesendem Profil-/Anzeigenabgleich
+umsetzen. Der vollständige Cloudbetrieb und weitere Automatisierungen bleiben
+Folgepakete. [Entwurf](implementation/vinted-local-and-cloud-design.md) und
+[Umsetzungsplan](implementation/vinted-local-extension-pilot.md).
+Das vollständige [Bleam-Rechercheprotokoll](research/bleam-vinted-analysis.md)
+mit Funktions-, Code-, Netzwerk- und Quellenbefunden ist auf Nutzerwunsch
+ebenfalls enthalten. Es wurde aus den eigenen bisherigen Notizen übernommen;
+der alte Recherchezweig und sein Anwendungscode bleiben unverändert.
+
+**Änderung:** Das Browserprofil erhält eine ausdrücklich bestätigte,
+widerrufbare 24-Stunden-Freigabe. Das Geheimnis bleibt im vertrauenswürdigen
+Erweiterungsspeicher; Flipbase speichert dessen Hash. Ein reservierter Vinted-Tab
+liest Profil und eigene Anzeigen. Die neue Verbindungsseite zeigt das erkannte
+Konto vor der Freigabe und bestätigt einen Import erst anhand des Serverstands.
+Abgebrochene Bindung bleibt wiederholbar und widerrufbar. Lokale Konten können
+keine gleichzeitigen Cloudbrowser, Cloudaufträge oder Cloudzeitpläne starten.
+Der vorhandene Kleinanzeigen-Assistent bleibt erhalten.
+
+**Parallelbetrieb:** Eigener Zweig `juna/vinted-local-extension` vom aktuellen
+`origin/master` bei `df9a64e9`; Backend, Erweiterung und Oberfläche werden in
+getrennten Verantwortungsbereichen geprüft. Der unveröffentlichte
+Cloud-/Recherchezweig bleibt unberührt.
+
+**Prüfung:** 156 gezielte Angular-Fälle, 281 PostgreSQL-Prüfungen einschließlich
+44 neuer Freigabe-/Importfälle, acht Deno-Handlerfälle und 22 betroffene
+Workerfälle bestanden. Zusätzlich ist der vollständige MV3-Weg in echtem
+Chromium gegen lokale Testdaten bestätigt: Vorbereitung, Bindung, lesender
+Import, reservierter Tab, Nutzertab-Button, Ablehnung nach Widerruf und Trennung.
+Anwendungs- und Spec-Typprüfung sowie der Angular-Produktionsbau bestehen;
+der Bau meldet die vorhandene CommonJS-Warnung für `pako` aus `pdf-lib`.
+21 Erweiterungsfälle, 19 bestehende Kleinanzeigen-/Bridgefälle sowie 108
+Workflowprüfungen bestehen; fünf plattformspezifische Workflowfälle werden unter
+Windows übersprungen. Gezieltes ESLint, Prettier, Shared-UI- und Suite-Audit
+bestehen. Der Abschlussreview behebt falsche Prüfungszustände durch unsichtbare
+Frames und ungerenderte Skripttexte sowie alte lokale Bindungen nach Kontolöschung.
+Echte PostgreSQL-Prüfungen laufen in einer eigenen lokalen Datenbank.
+Der Windows-CLI-Startfehler wird durch die
+mitgelieferte Go-CLI derselben Version umgangen. Eine bestehende Migration mit
+`lock table` erhält ausschließlich in der isolierten Prüfumgebung den beim
+Release vorgesehenen Transaktionsrahmen. Die neue Migration wird vom CLI-Diff
+zwischen historischem Datenbankstand und gezielt aus dem deklarierten Schema
+aufgebautem Ziel erzeugt; bestehende Schemaabweichungen anderer Themen werden
+nicht mit übernommen. Explizite Rechteentzüge neuer Objekte wurden aus der
+Schemaquelle ergänzt, weil der CLI-Diff geerbte Standardrechte nicht vollständig
+erfasst. Die erzeugte Migration besteht damit die Rechteprüfungen. Historische
+Migrationsdateien bleiben unverändert; Datenbanktypen wurden neu erzeugt.
+
+**Grenze:** Der erste Pilot startet Abgleiche nur auf Nutzerklick. Keine
+Nachrichten, Angebote, Relistings oder Veröffentlichungen. Anmeldung, SMS und
+Mensch-Prüfungen bleiben manuell. Noch kein Abgleich mit einem echten Vinted-Konto,
+kein Store-Upload, kein Produktionsdeployment und kein Nachweis von Sperrfreiheit.
+
 ## 2026-10-03 - Juna - Manuelle Cloudanmeldung getrennt vorbereiten
 
 **Auftrag und Befund:** Nach bestätigtem Ausgang über `168.119.246.33`

@@ -55,7 +55,7 @@ begin
   end if;
   perform 1 from public.marketplace_connections
     where workspace_id = p_workspace_id and id = p_connection_id
-      and marketplace = 'vinted' and status = 'connected' for update;
+      and marketplace = 'vinted' and execution_mode = 'cloud' and status = 'connected' for update;
   if not found then raise exception 'Konto nicht verbunden' using errcode = '22023'; end if;
   insert into public.marketplace_operations (workspace_id, connection_id, requested_by, authorization_kind, authorization_version)
     values (p_workspace_id, p_connection_id, (select auth.uid()), 'manual_read', 1)

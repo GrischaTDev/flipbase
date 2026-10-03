@@ -20,6 +20,15 @@
       }
       <app-button class="mt-3" link="/settings/marketplaces">Konten verwalten</app-button>
     </app-notice-banner>
+  } @else if (requestedConnection()?.executionMode === 'local') {
+    <app-notice-banner
+      >Dieses Konto nutzt die lokale Erweiterung.
+      <app-button
+        class="mt-3"
+        [link]="'/marketplaces/vinted/local-connect/' + requestedConnection()?.connectionId"
+        >Lokale Verbindung öffnen</app-button
+      >
+    </app-notice-banner>
   } @else if (
     requestedConnection()?.status === 'paused' || requestedConnection()?.status === 'blocked'
   ) {

@@ -640,7 +640,14 @@ export class MarketplaceAccountStore {
   async syncSelectedConnection(): Promise<boolean> {
     const connection = this.selectedConnection();
     const token = this.auth.session()?.access_token;
-    if (!connection || connection.status !== 'connected' || !token || this.busy()) return false;
+    if (
+      !connection ||
+      connection.executionMode === 'local' ||
+      connection.status !== 'connected' ||
+      !token ||
+      this.busy()
+    )
+      return false;
     const scope = this.scope(connection);
     this.syncConnectionId = connection.connectionId;
     this.syncStatus.set(null);
@@ -682,6 +689,24 @@ export class MarketplaceAccountStore {
     return null;
   }
 
+  async refreshLocalConnection(scope: AccountScope): Promise<MarketplaceConnection | null> {
+    const key = this.contextKey();
+    if (!key || !this.canManage() || this.workspace.currentWorkspace()?.id !== scope.workspaceId)
+      return null;
+    const result = await this.api.listConnections(scope.workspaceId);
+    if (!this.isCurrent(key)) return null;
+    if (!result.canManage) {
+      this.handleError(new MarketplaceApiError('forbidden'));
+      return null;
+    }
+    this.accountList.set(result.connections);
+    const connection =
+      result.connections.find((account) => account.connectionId === scope.connectionId) ?? null;
+    if (connection && this.activeId() === scope.connectionId)
+      await this.selectConnection(scope.connectionId);
+    return this.isCurrent(key) ? connection : null;
+  }
+
   cachedListingDescription(
     connectionId: string,
     entry: MarketplaceEntry,
@@ -720,6 +745,10 @@ export class MarketplaceAccountStore {
     const token = this.auth.session()?.access_token;
     if (connection.status !== 'connected' || !token)
       throw new Error('Verbinde Dein Vinted-Konto, um die Beschreibung zu laden.');
+    if (connection.executionMode === 'local')
+      throw new Error(
+        'Übernimm die Inserate über die lokale Erweiterung, um die Beschreibung zu laden.',
+      );
     const request = this.browserApi
       .readListingData(this.scope(connection), entryId, token)
       .then((read) => {
@@ -765,6 +794,7 @@ export class MarketplaceAccountStore {
     const token = this.auth.session()?.access_token;
     if (
       !this.canManage() ||
+      connection?.executionMode === 'local' ||
       connection?.connectionId !== connectionId ||
       connection.status !== 'connected' ||
       !token
@@ -786,6 +816,7 @@ export class MarketplaceAccountStore {
     const token = this.auth.session()?.access_token;
     if (
       !this.canManage() ||
+      connection?.executionMode === 'local' ||
       connection?.connectionId !== connectionId ||
       connection.status !== 'connected' ||
       !token
@@ -822,6 +853,7 @@ export class MarketplaceAccountStore {
     const token = this.auth.session()?.access_token;
     if (
       !this.canManage() ||
+      connection?.executionMode === 'local' ||
       connection?.connectionId !== connectionId ||
       connection.status !== 'connected' ||
       !token
@@ -838,6 +870,7 @@ export class MarketplaceAccountStore {
     const token = this.auth.session()?.access_token;
     if (
       !this.canManage() ||
+      connection?.executionMode === 'local' ||
       connection?.connectionId !== connectionId ||
       connection.status !== 'connected' ||
       !token

@@ -13,6 +13,7 @@ export function createMarketplaceFixtures(): {
   return {
     connections: [
       {
+        executionMode: 'cloud',
         workspaceId: 'fixture-workspace',
         connectionId: 'fixture-account-a',
         marketplace: 'vinted',
@@ -24,6 +25,7 @@ export function createMarketplaceFixtures(): {
         lastSyncedAt: null,
       },
       {
+        executionMode: 'cloud',
         workspaceId: 'fixture-workspace',
         connectionId: 'fixture-account-b',
         marketplace: 'vinted',

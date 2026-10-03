@@ -31,7 +31,7 @@ export class VintedEditAccess {
     entryId?: string,
   ): Promise<ScopedEntry> {
     const connectionUrl = new URL('/rest/v1/marketplace_connections', this.baseUrl);
-    connectionUrl.searchParams.set('select', 'external_account_id,status');
+    connectionUrl.searchParams.set('select', 'external_account_id,status,execution_mode');
     connectionUrl.searchParams.set('workspace_id', `eq.${scope.workspaceId}`);
     connectionUrl.searchParams.set('id', `eq.${scope.connectionId}`);
     connectionUrl.searchParams.set('marketplace', 'eq.vinted');
@@ -40,6 +40,7 @@ export class VintedEditAccess {
     const accountId = connection?.['external_account_id'];
     if (
       connection?.['status'] !== 'connected' ||
+      connection?.['execution_mode'] !== 'cloud' ||
       typeof accountId !== 'string' ||
       !itemIdPattern.test(accountId)
     )

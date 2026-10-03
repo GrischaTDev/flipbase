@@ -80,6 +80,7 @@ export class MarketplaceBrowserTestStore {
       currentWorkspace &&
       !currentWorkspace.archived_at &&
       this.accounts.canManage() &&
+      account?.executionMode !== 'local' &&
       account?.workspaceId === currentWorkspace.id
       ? JSON.stringify([
           userId,

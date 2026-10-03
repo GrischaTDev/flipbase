@@ -168,7 +168,9 @@ export class ChromiumProfileProvisioner {
     if (
       !record(connection) ||
       typeof connection['status'] !== 'string' ||
-      (!allowPaused && ['paused', 'blocked'].includes(connection['status']))
+      (!allowPaused &&
+        (connection['executionMode'] !== 'cloud' ||
+          ['paused', 'blocked'].includes(connection['status'])))
     )
       throw new Error('Kontozugriff verweigert');
     return connection['status'];

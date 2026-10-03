@@ -78,7 +78,10 @@ export class GoLoginProfileProvisioner {
     );
     if (
       !isRecord(account) ||
-      (!allowPaused && (account['status'] === 'paused' || account['status'] === 'blocked'))
+      (!allowPaused &&
+        (account['executionMode'] !== 'cloud' ||
+          account['status'] === 'paused' ||
+          account['status'] === 'blocked'))
     )
       throw new Error('Kontozugriff verweigert');
     return String(account['status']);

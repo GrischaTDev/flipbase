@@ -8,6 +8,7 @@ import {
   signal,
 } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Router } from '@angular/router';
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 import {
   LucideLogIn,
@@ -58,6 +59,7 @@ import { MarketplaceBrowserTestComponent } from '../marketplace-browser-test/mar
 })
 export class MarketplaceAccountsComponent {
   readonly store = inject(MarketplaceAccountStore);
+  private readonly router = inject(Router);
   private readonly workspace = inject(WorkspaceService);
   private readonly auth = inject(AuthService);
   readonly platforms = [{ value: 'vinted', label: 'Vinted' }];
@@ -127,6 +129,10 @@ export class MarketplaceAccountsComponent {
   }
   async openLogin(connection: MarketplaceConnection): Promise<void> {
     if (!this.store.canManage() || this.store.busy()) return;
+    if (connection.executionMode === 'local') {
+      await this.router.navigate(['/marketplaces/vinted/local-connect', connection.connectionId]);
+      return;
+    }
     this.store.clearMutationError();
     await this.store.selectConnection(connection.connectionId);
     if (

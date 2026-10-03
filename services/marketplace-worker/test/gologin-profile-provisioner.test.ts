@@ -29,6 +29,7 @@ function fixture(
     missingProvider?: boolean;
     uncertainDelete?: boolean;
     blocked?: boolean;
+    local?: boolean;
   } = {},
 ) {
   let stored: string | null = options.stored ? profileId : null;
@@ -58,6 +59,7 @@ function fixture(
             workspaceId: scope.workspaceId,
             connectionId: scope.connectionId,
             marketplace: 'vinted',
+            executionMode: options.local ? 'local' : 'cloud',
             status: options.blocked ? 'blocked' : 'needs_login',
           },
         ],
@@ -177,6 +179,7 @@ test('reports a provider API limit before saving a profile for the account', asy
             workspaceId: scope.workspaceId,
             connectionId: scope.connectionId,
             marketplace: 'vinted',
+            executionMode: 'cloud',
             status: 'needs_login',
           },
         ],
@@ -247,4 +250,10 @@ test('entfernt auch eine bereits gesperrte Verbindung ohne erneuten Pausenaufruf
   await f.provisioner.remove(scope, async () => undefined);
   assert.equal(f.counts().paused, false);
   assert.equal(f.counts().removed, true);
+});
+
+test('local accounts cannot provision or contact GoLogin', async () => {
+  const context = fixture({ local: true });
+  await assert.rejects(context.provisioner.prepare(scope));
+  assert.equal(context.counts().created, 0);
 });

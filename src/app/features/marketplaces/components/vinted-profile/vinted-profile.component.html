@@ -39,7 +39,10 @@
             }}
           </p>
         </div>
-        @if (store.selectedConnection()?.status === 'connected') {
+        @if (
+          store.selectedConnection()?.status === 'connected' &&
+          store.selectedConnection()?.executionMode !== 'local'
+        ) {
           <app-vinted-profile-editor [connectionId]="snapshot.connectionId" />
         }
       } @else {

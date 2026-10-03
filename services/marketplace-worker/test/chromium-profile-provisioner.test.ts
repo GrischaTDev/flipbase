@@ -31,7 +31,9 @@ test('new Chromium account rechecks user access and persists namespace without G
           assert.equal(new Headers(options?.headers).get('Authorization'), 'Bearer user-token');
           authorizations++;
           return Response.json({
-            connections: [{ ...scope, marketplace: 'vinted', status: 'login_required' }],
+            connections: [
+              { ...scope, marketplace: 'vinted', executionMode: 'cloud', status: 'login_required' },
+            ],
           });
         }
         if (options?.method === 'POST') {
@@ -71,7 +73,9 @@ test('existing GoLogin mapping is delegated and never silently migrated', async 
       fetch: async (input, options) => {
         if (String(input).includes('marketplace_list_connections'))
           return Response.json({
-            connections: [{ ...scope, marketplace: 'vinted', status: 'connected' }],
+            connections: [
+              { ...scope, marketplace: 'vinted', executionMode: 'cloud', status: 'connected' },
+            ],
           });
         assert.notEqual(options?.method, 'POST');
         return Response.json([{ provider_profile_id: 'existing-gologin' }]);
@@ -98,7 +102,9 @@ test('unresolved stop blocks connection deletion and local archive', async () =>
         const url = String(input);
         if (url.includes('marketplace_list_connections'))
           return Response.json({
-            connections: [{ ...scope, marketplace: 'vinted', status: 'paused' }],
+            connections: [
+              { ...scope, marketplace: 'vinted', executionMode: 'cloud', status: 'paused' },
+            ],
           });
         if (url.includes('marketplace_set_paused')) return Response.json({});
         if (url.includes('marketplace_browser_sessions')) return Response.json([{ id: 1 }]);
@@ -134,7 +140,9 @@ for (const committed of [false, true]) {
         fetch: async (input, options) => {
           if (String(input).includes('marketplace_list_connections'))
             return Response.json({
-              connections: [{ ...scope, marketplace: 'vinted', status: 'needs_login' }],
+              connections: [
+                { ...scope, marketplace: 'vinted', executionMode: 'cloud', status: 'needs_login' },
+              ],
             });
           if (options?.method === 'POST') {
             const profileId = (JSON.parse(String(options.body)) as Record<string, string>)[
@@ -187,7 +195,9 @@ test('empty DB session list does not permit deletion if orphan process stop is u
         const url = String(input);
         if (url.includes('marketplace_list_connections'))
           return Response.json({
-            connections: [{ ...scope, marketplace: 'vinted', status: 'paused' }],
+            connections: [
+              { ...scope, marketplace: 'vinted', executionMode: 'cloud', status: 'paused' },
+            ],
           });
         if (url.includes('marketplace_set_paused')) return Response.json({});
         if (url.includes('marketplace_browser_sessions')) return Response.json([]);
@@ -197,6 +207,34 @@ test('empty DB session list does not permit deletion if orphan process stop is u
     await assert.rejects(provisioner.remove(scope, async () => undefined));
     assert.equal(stops, 1);
     assert.deepEqual(await registry.resolve(profile.profileId), profile);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('local accounts cannot create a Chromium profile or call providers', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'chromium-local-reject-'));
+  try {
+    let requests = 0;
+    const registry = new ChromiumAccountProfileRegistry({ root, hostId: 'host-a' });
+    const provisioner = new ChromiumProfileProvisioner({
+      supabaseUrl: 'https://example.test',
+      publishableKey: 'public',
+      serviceRoleKey: 'server',
+      registry,
+      fetch: async (input) => {
+        requests++;
+        assert.ok(String(input).endsWith('marketplace_list_connections'));
+        return Response.json({
+          connections: [
+            { ...scope, marketplace: 'vinted', status: 'connected', executionMode: 'local' },
+          ],
+        });
+      },
+    });
+    await assert.rejects(provisioner.prepare(scope));
+    assert.equal(requests, 1);
+    assert.equal(await registry.find(scope.workspaceId, scope.connectionId), null);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

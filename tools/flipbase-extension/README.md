@@ -1,50 +1,75 @@
-# Flipbase Listing-Assistent (Browser-Erweiterung)
+# Flipbase Listing-Assistent
 
-Diese Erweiterung verbindet **Flipbase OS** mit Verkaufsportalen wie **Kleinanzeigen**, um Inserate per 1-Klick automatisch, sicher und ohne Bot-Sperren zu übertragen.
+Die Erweiterung unterstützt Kleinanzeigen-Inserate und einen lokalen,
+manuell gestarteten Vinted-Lesepiloten. Der Vinted-Pilot überträgt nur Profil
+und eigene Anzeigen an Flipbase; er verschickt keine Nachrichten oder Angebote
+und veröffentlicht, bearbeitet oder löscht keine Vinted-Anzeigen.
 
----
+## Interne Pilotinstallation (Chrome)
 
-## 🚀 Installation in 30 Sekunden (Google Chrome, Brave, Edge, Opera)
+1. Öffne `chrome://extensions/`.
+2. Aktiviere den Entwicklermodus.
+3. Klicke auf „Entpackte Erweiterung laden“ und wähle `tools/flipbase-extension`
+   im geprüften Arbeitsverzeichnis des Pilotzweigs.
+4. Nach Änderungen lade die Erweiterung über ihre Aktualisierungsschaltfläche
+   neu und lade auch die betroffenen Flipbase-/Vinted-Tabs neu.
 
-1. Öffne in deinem Browser die Erweiterungsverwaltung:
-   - In Chrome: `chrome://extensions/`
-   - In Brave: `brave://extensions/`
-   - In Edge: `edge://extensions/`
-2. Aktiviere oben rechts den Schalter **„Entwicklermodus“** (Developer mode).
-3. Klicke links oben auf **„Entpackte Erweiterung laden“** (Load unpacked).
-4. Wähle diesen Ordner aus:
-   `k:\GitHub\Repos\flipbase\tools\flipbase-extension`
+Die entpackte Installation dient dem internen Test. Ein Chrome-Web-Store-Eintrag
+ist noch nicht veröffentlicht; die spätere Nutzerinstallation soll über den Store
+laufen.
 
-Fertig! Die Erweiterung ist sofort aktiv.
+## Kleinanzeigen
 
-> **Hinweis bei Updates:** Wenn Dateien der Erweiterung geändert werden, klicke in `chrome://extensions` einfach auf das kreisförmige **Aktualisieren-Symbol (⟳)** bei der Kachel des Flipbase Listing-Assistenten.
+1. Öffne in Flipbase das Listing Studio (`/listings`).
+2. Wähle einen Artikel und prüfe Titel, Beschreibung, Preis, Preistyp und PLZ.
+3. Klicke auf „1-Klick auf Kleinanzeigen inserieren“.
+4. Die Erweiterung öffnet das Kleinanzeigen-Formular
+   (`p-anzeige-aufgeben-schritt2.html`) und füllt die unterstützten Felder.
+   Produktbilder aus dem Flipbase-Speicher werden übernommen.
+5. Wähle die Kategorie. Der Assistent zeigt den Erfolg der einzelnen Schritte
+   und welche Angaben Du noch selbst ergänzen musst.
+6. Prüfe alle Angaben und klicke selbst auf „Anzeige aufgeben“.
 
----
+Wenn Du noch nicht angemeldet bist, bleiben die vorbereiteten Angaben 15 Minuten
+verfügbar. Melde Dich an und lade die Formularseite neu. Ändert Kleinanzeigen sein
+Formular, können einzelne Felder manuelle Eingaben verlangen.
 
-## ⚡ So funktioniert es
+## Lokaler Vinted-Pilot
 
-1. Öffne Flipbase und gehe ins **Listing Studio** (`/listings`).
-2. Wähle einen Artikel aus und passe ggf. Titel, Preis (Festpreis oder VB) und Optionen an.
-3. Klicke auf den gelben Button **„⚡ 1-Klick auf Kleinanzeigen inserieren“**.
-4. Ein neuer Tab öffnet direkt das Kleinanzeigen-Formular (`p-anzeige-aufgeben-schritt2.html`):
-   - Titel, Beschreibung, Preis mit Preistyp und die PLZ werden automatisch eingetragen.
-   - Die Produktbilder aus Flipbase werden geladen und hochgeladen.
-   - Oben rechts zeigt der **Flipbase Assistent** jeden Schritt ehrlich an: grün = erledigt,
-     orange = bitte selbst erledigen, rot = fehlgeschlagen.
-5. Du wählst die **Kategorie**. Danach blendet Kleinanzeigen die Versandauswahl ein; der
-   Assistent setzt sie dann automatisch.
-6. Du prüfst die Angaben und klickst auf **„Anzeige aufgeben“**.
+1. Installiere die Erweiterung im Browserprofil Deines Vinted-Kontos. Verwende
+   für weitere Vinted-Konten jeweils ein separates Browserprofil.
+2. Wähle in Flipbase beim Vinted-Konto die lokale Verbindung. Der reservierte
+   Vinted-Tab wird geöffnet. Melde Dich dort selbst an; CAPTCHA und SMS-Prüfungen
+   bearbeitest Du ebenfalls selbst. Starte danach die Verbindung erneut.
+3. Flipbase zeigt die erkannte Vinted-Identität. Bestätige die Zuordnung zu
+   Deinem Arbeitsplatz und zur ausgewählten Kontoverbindung ausdrücklich.
+4. Starte den Profil-/Anzeigenabgleich in Flipbase manuell. Während des Lesens
+   schützt ein Hinweis den Arbeitstab vor konkurrierenden Eingaben. Über
+   „Vinted in einem neuen Tab öffnen“ kannst Du Vinted normal bedienen.
+5. Prüfe Importzeitpunkt und Anzeigenzahl. Ein Teilstand bei mehr als 500 Anzeigen
+   wird als Teilstand ausgewiesen. Unbekannte Datenformate oder ein Kontowechsel
+   stoppen den Import. Beim Trennen wird das lokale Installationsgeheimnis gelöscht;
+   Flipbase widerruft zusätzlich die serverseitige Freigabe.
 
-> Wird das Formular nicht gefunden (z. B. weil du nicht angemeldet bist), bleiben die Daten
-> 15 Minuten gespeichert. Nach dem Anmelden die Formularseite einfach neu laden.
+Noch nicht enthalten: automatische Intervalle, Nachrichten, Relisting und Cloudbetrieb.
+Rechner und Browser müssen für einen lokalen Abgleich laufen. Browserprofile trennen
+Cookies und Anmeldungen, bieten aber keine Garantie gegen Prüfungen oder Sperren.
 
-Die Feldkennungen des Formulars stehen in `autofill-core.js` und wurden am 14.09.2026 live
-geprüft. Ändert Kleinanzeigen das Formular, zeigt der Assistent rote Schritte – dann dort anpassen.
+Vinted-Passwort und Sitzungscookies verbleiben im Browser. Ein widerrufbares
+Installationsgeheimnis wird nur im vertrauenswürdigen Erweiterungshintergrund
+gespeichert; die Weboberfläche erhält dessen Hash und die bestätigte Kontoidentität.
+Nur Profil- und Anzeigendaten werden an den erlaubten Flipbase-Server übertragen.
+Die Erweiterung kann keine beliebige Serveradresse mit diesem Geheimnis aufrufen.
 
----
+Beim erneuten Prüfen einer bereits verbundenen Installation wird ihre Serverfreigabe
+kontrolliert. Nach einer eindeutigen Ablehnung wegen gelöschter, widerrufener oder
+abgelaufener Freigabe wird die alte lokale Zuordnung entfernt und neu vorbereitet.
+Ein Verbindungsfehler oder eine unklare Serverantwort entfernt sie nicht. Eine
+vorhandene Serverfreigabe eines anderen Profils muss weiterhin ausdrücklich
+widerrufen werden; sie wird nicht überschrieben.
 
-## 🔒 Warum diese Lösung 100% sicher ist
+## Prüfungen
 
-- **Kein DataDome-Bann:** Du surfst in deinem echten Browser mit deiner ganz normalen privaten Internetverbindung. Für Kleinanzeigen bist du ein normaler menschlicher Besucher.
-- **Keine Passwörter auf Servern:** Es werden keine Passwörter oder Anmeldedaten irgendwo gespeichert oder übertragen.
-- **Keine Proxy-Kosten:** Funktioniert direkt über deinen Browser.
+`node --test scripts/local-extension-runtime.test.mjs` prüft Verträge, Tokenisolation,
+Kontowechsel, Widerruf, Wiederaufnahme, Pagination und Bridge-/DOM-Verhalten.
+Diese Tests ersetzen keinen echten Chrome-/Vinted-Kontotest und keine Storeprüfung.

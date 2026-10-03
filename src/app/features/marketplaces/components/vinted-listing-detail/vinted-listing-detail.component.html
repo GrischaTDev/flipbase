@@ -1,6 +1,11 @@
 <div class="mb-4 flex items-center justify-between gap-3">
   <app-button link="/marketplaces/vinted/listings">Zurück zu Inseraten</app-button>
-  @if (entry() && !editing() && store.selectedConnection()?.status === 'connected') {
+  @if (
+    entry() &&
+    !editing() &&
+    store.selectedConnection()?.status === 'connected' &&
+    store.selectedConnection()?.executionMode !== 'local'
+  ) {
     <app-button
       variant="primary"
       [loading]="busy()"

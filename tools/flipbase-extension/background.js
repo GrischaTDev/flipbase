@@ -1,6 +1,7 @@
 // Flipbase Extension - Background Service Worker
 
 importScripts('autofill-core.js');
+importScripts('vinted-local-core.js', 'vinted-local-background.js');
 
 // Direkt das Formular öffnen: Auf p-anzeige-aufgeben.html steht nur die
 // Kategorie-Auswahl, die Kategorie lässt sich auch auf Schritt 2 wählen.
