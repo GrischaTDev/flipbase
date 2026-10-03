@@ -46,6 +46,7 @@ export class MarketplaceBrowserTestStore {
   private readonly loginPagePendingKey = signal<string | null>(null);
   private readonly verificationKey = signal<string | null>(null);
   private readonly interactionRequiredKey = signal<string | null>(null);
+  private readonly manualLoginKey = signal<string | null>(null);
   private loginDeadline = 0;
   private readonly progressState = signal<{ key: string; message: string } | null>(null);
   readonly progress = computed(() => {
@@ -64,6 +65,9 @@ export class MarketplaceBrowserTestStore {
   );
   readonly interactionRequired = computed(
     () => this.session() !== null && this.interactionRequiredKey() === this.contextKey(),
+  );
+  readonly manualLogin = computed(
+    () => this.session() !== null && this.manualLoginKey() === this.contextKey(),
   );
 
   private readonly contextKey = computed(() => {
@@ -120,6 +124,7 @@ export class MarketplaceBrowserTestStore {
   readonly canLogin = computed(
     () =>
       !this.readOnly() &&
+      !this.manualLogin() &&
       !this.awaitingLogin() &&
       !this.interactionRequired() &&
       this.loginNeedsClose() !== this.contextKey() &&
@@ -176,6 +181,7 @@ export class MarketplaceBrowserTestStore {
     if (!connection || !key || !token || !userId || !this.canStart()) return;
     const scope = { workspaceId: connection.workspaceId, connectionId: connection.connectionId };
     const revision = ++this.revision;
+    this.manualLoginKey.set(null);
     this.busyState.set(key);
     this.errorState.set(null);
     try {
@@ -192,6 +198,13 @@ export class MarketplaceBrowserTestStore {
     } finally {
       if (this.isCurrent(key, revision)) this.busyState.set(null);
     }
+  }
+
+  async startManualLogin(): Promise<void> {
+    if (this.readOnly() || !this.canStart()) return;
+    const key = this.contextKey();
+    await this.start(true);
+    if (key && this.session()?.key === key) this.manualLoginKey.set(key);
   }
 
   async refresh(): Promise<void> {
@@ -327,7 +340,7 @@ export class MarketplaceBrowserTestStore {
   }
 
   async checkLogin(): Promise<void> {
-    if (!this.awaitingLogin() || this.busy() || this.error()) return;
+    if (this.manualLogin() || !this.awaitingLogin() || this.busy() || this.error()) return;
     if (Date.now() >= this.loginDeadline) {
       const key = this.contextKey();
       this.loginKey.set(null);
@@ -350,7 +363,13 @@ export class MarketplaceBrowserTestStore {
 
   async verifyCode(code: string): Promise<void> {
     const active = this.session();
-    if (!active || !this.awaitingVerification() || this.busy() || !/^[0-9]{4,8}$/.test(code))
+    if (
+      !active ||
+      this.manualLogin() ||
+      !this.awaitingVerification() ||
+      this.busy() ||
+      !/^[0-9]{4,8}$/.test(code)
+    )
       return;
     if (Date.now() >= this.loginDeadline) {
       await this.checkLogin();
@@ -409,7 +428,7 @@ export class MarketplaceBrowserTestStore {
 
   async confirmAccount(allowPending = false): Promise<void> {
     const active = this.session();
-    if (!active || this.busy() || this.readOnly()) return;
+    if (!active || this.busy() || this.readOnly() || (allowPending && this.manualLogin())) return;
     const revision = ++this.revision;
     this.busyState.set(active.key);
     this.errorState.set(null);
@@ -430,6 +449,14 @@ export class MarketplaceBrowserTestStore {
         return;
       }
       if (this.isCurrent(active.key, revision) && error instanceof VintedLoginPendingError) {
+        if (this.manualLogin()) {
+          this.errorState.set({
+            key: active.key,
+            message:
+              'Die Anmeldung ist noch nicht abgeschlossen. Melde Dich direkt in der Browseransicht an und prüfe das Konto anschließend erneut.',
+          });
+          return;
+        }
         if (allowPending) {
           this.loginPagePendingKey.set(active.key);
           this.progressState.set({
@@ -448,6 +475,14 @@ export class MarketplaceBrowserTestStore {
         this.isCurrent(active.key, revision) &&
         error instanceof VintedVerificationRequiredError
       ) {
+        if (this.manualLogin()) {
+          this.errorState.set({
+            key: active.key,
+            message:
+              'Vinted benötigt noch Deinen Bestätigungscode. Gib ihn direkt in der Browseransicht ein und prüfe das Konto anschließend erneut.',
+          });
+          return;
+        }
         if (this.verificationKey() !== active.key) this.loginDeadline = Date.now() + 120_000;
         this.interactionRequiredKey.set(null);
         this.loginKey.set(active.key);

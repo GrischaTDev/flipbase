@@ -1,6 +1,44 @@
 # 🤖 KI-Änderungsprotokoll
 
-## 2026-10-03 – Juna – Sidebar nach Arbeitsablauf neu geordnet
+## 2026-10-03 - Juna - Manuelle Cloudanmeldung getrennt vorbereiten
+
+**Auftrag und Befund:** Nach bestätigtem Ausgang über `168.119.246.33`
+berichtet der Nutzer von erfolgreicher Vinted-Anmeldung mit SMS im normalen
+Windows-Chrome. Die frühere Annahme einer pauschal unbrauchbaren Server-IP ist
+damit nicht haltbar. Der Nutzer beauftragt die Fortsetzung im Cloudbrowser;
+kein Proxykauf und keine IP je Konto vorausgesetzt.
+
+**Änderung:** Der vorhandene Browserzugang startet einen eigenen manuellen
+Anmeldemodus. Das automatische Anmeldeformular verschwindet; automatische
+Login-, Code- und Kontoprüfaufrufe bleiben auch bei fehlendem Browserbild aus.
+Anmeldung und SMS werden direkt in der Browseransicht bedient. Erst ein
+ausdrücklicher Klick bestätigt die Kontoidentität über den bestehenden Worker.
+Zu frühes Prüfen oder eine noch offene SMS lässt die Sitzung manuell fortsetzbar.
+Manuelle Texte werden verdeckt angezeigt und vor dem Senden im Formular entfernt.
+Der Fokus wechselt nach dem Rendern einmal in die Browseransicht.
+
+**Grenze:** Das ist ein kontrollierter Diagnoseweg im bestehenden Cloudprofil,
+kein Nachweis der Vinted-Sperrursache. Die Ansicht transportiert weiterhin
+Screenshots und Eingaben; kein kontinuierlicher Desktopstream. Kein Kopieren
+des lokalen Testprofils, keine Tarnparameter und keine automatische Lösung
+einer Mensch-Prüfung. Ein echter manueller Cloudlogin steht aus.
+
+**Parallelbetrieb:** Eigener Zweig `juna/vinted-manual-login` vom aktuellen
+`origin/master` bei `7fc69921`. Der fremde Sperrzweig bleibt unberührt.
+Die optionale Netzwerkwartung bleibt im separaten, unveröffentlichten
+`juna/vinted-network-pilot`; sie wird nicht in diese Änderung aufgenommen.
+
+**Prüfung:** 95 gezielte Angular-Fälle sowie vier echte lokale Browsertests
+bestanden. Der manuelle Browserfall prüft Maus, Touch, verdecktes Textfeld,
+fehlende Hintergrundprüfungen über zwei Minuten und Fortsetzung bei offener
+Anmeldung/SMS; AXE findet keine Verstöße. Ein zunächst fehlender Fokus wurde
+durch den bestehenden Angular-Nachrender-Ansatz behoben und erneut geprüft.
+Anwendungs- und Spec-Typprüfung, gezieltes ESLint, Shared-UI-Prüfung,
+PR-Smoke-Auswahlvertrag, Format und Produktionsbau bestanden. Bestehende
+`pako`-CommonJS-Warnung im Bau. Alle Browserantworten sind lokale Fixtures;
+kein echter Vinted-Login, keine Produktionsänderung oder Veröffentlichung.
+
+## 2026-10-03 - Juna - Sidebar nach Arbeitsablauf neu geordnet
 
 **Auftrag und Freigabe:** Die Hauptnavigation soll dem täglichen Ablauf folgen:
 Einkauf, Verkauf, Artikel, Account-Verwaltung und Finanzen; Tools steht als letzte

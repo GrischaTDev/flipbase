@@ -3,6 +3,7 @@ import {
   Component,
   DestroyRef,
   ElementRef,
+  afterRenderEffect,
   computed,
   effect,
   inject,
@@ -98,6 +99,7 @@ export class MarketplaceBrowserTestComponent {
       // Eine sichtbare Browseransicht bleibt für manuelle Eingaben frei.
       if (
         document.visibilityState === 'visible' &&
+        !this.store.manualLogin() &&
         !this.pointerGesture &&
         !this.store.session()?.frameUrl
       ) {
@@ -129,18 +131,20 @@ export class MarketplaceBrowserTestComponent {
       const sessionId = this.store.session()?.id;
       if (this.pointerGesture && sessionId !== this.pointerGesture.sessionId) this.resetPointer();
     });
-    effect(() => {
-      const interactionRequired = this.store.interactionRequired();
-      const sessionId = this.store.session()?.id;
-      const preview = this.browserPreview()?.nativeElement;
-      if (!interactionRequired) {
-        this.focusedInteractionSessionId = null;
-        return;
-      }
-      if (!sessionId || !preview || this.focusedInteractionSessionId === sessionId) return;
-      this.focusedInteractionSessionId = sessionId;
-      preview.focus({ preventScroll: true });
-      preview.scrollIntoView({ block: 'nearest' });
+    afterRenderEffect({
+      write: () => {
+        const shouldFocusBrowser = this.store.interactionRequired() || this.store.manualLogin();
+        const sessionId = this.store.session()?.id;
+        const preview = this.browserPreview()?.nativeElement;
+        if (!shouldFocusBrowser) {
+          this.focusedInteractionSessionId = null;
+          return;
+        }
+        if (!sessionId || !preview || this.focusedInteractionSessionId === sessionId) return;
+        this.focusedInteractionSessionId = sessionId;
+        preview.focus({ preventScroll: true });
+        preview.scrollIntoView({ block: 'nearest' });
+      },
     });
   }
 
@@ -323,6 +327,9 @@ export class MarketplaceBrowserTestComponent {
   }
 
   async openManualBrowser(): Promise<void> {
-    await this.store.start(true);
+    this.loginForm.reset();
+    this.code.reset();
+    this.manualTextInput.reset();
+    await this.store.startManualLogin();
   }
 }

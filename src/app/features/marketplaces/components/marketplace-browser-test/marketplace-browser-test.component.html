@@ -84,7 +84,12 @@
             übereinstimmen.
           </p>
         }
-        @if (!showProgress() && !store.awaitingVerification() && !store.interactionRequired()) {
+        @if (
+          !store.manualLogin() &&
+          !showProgress() &&
+          !store.awaitingVerification() &&
+          !store.interactionRequired()
+        ) {
           <form
             class="mt-4 max-w-md space-y-4"
             autocomplete="off"
@@ -127,7 +132,7 @@
                   [loading]="store.busy()"
                   (clicked)="openManualBrowser()"
                 >
-                  Browser-Ansicht öffnen
+                  Direkt im Browser anmelden
                 </app-button>
               }
             </div>
@@ -182,6 +187,13 @@
           }
         }
         @if (store.session(); as session) {
+          @if (store.manualLogin()) {
+            <p role="status" class="mt-4 text-sm text-fb-text-secondary">
+              Melde Dich direkt in der Browseransicht bei Vinted an und gib dort auch Deinen
+              SMS-Code ein. Flipbase sendet keine automatische Anmeldung. Wenn Du in Deinem
+              Vinted-Konto bist, klicke auf „Anmeldung prüfen &amp; verbinden“.
+            </p>
+          }
           @if (session.frameUrl) {
             <div
               #browserPreview
@@ -254,6 +266,9 @@
                 <app-text-field
                   class="min-w-44 flex-1"
                   label="Text in aktives Feld senden"
+                  type="password"
+                  autocomplete="off"
+                  [revealable]="true"
                   [formControl]="manualTextInput"
                   [maxLength]="256"
                 />

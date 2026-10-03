@@ -11,6 +11,8 @@ const session = signal<{ id: string; frameUrl: string | null } | null>(null);
 const sendInput = vi.fn().mockResolvedValue(undefined);
 const dragSupported = signal(true);
 const awaitingLogin = signal(false);
+const manualLogin = signal(false);
+const startManualLogin = vi.fn().mockResolvedValue(undefined);
 const checkLogin = vi.fn().mockResolvedValue(undefined);
 let browserImage: HTMLButtonElement;
 let component: MarketplaceBrowserTestComponent;
@@ -41,6 +43,8 @@ beforeEach(async () => {
   sendInput.mockClear();
   dragSupported.set(true);
   awaitingLogin.set(false);
+  manualLogin.set(false);
+  startManualLogin.mockClear();
   checkLogin.mockClear();
   TestBed.configureTestingModule({
     providers: [
@@ -66,6 +70,8 @@ beforeEach(async () => {
           canLogin: signal(true),
           canStart: signal(false),
           awaitingLogin,
+          manualLogin,
+          startManualLogin,
           awaitingVerification: signal(false),
           interactionRequired: signal(false),
           progress: signal(null),
@@ -123,6 +129,26 @@ it('prüft eine Anmeldung im Hintergrund weiterhin automatisch', async () => {
   await vi.advanceTimersByTimeAsync(3000);
   expect(checkLogin).toHaveBeenCalledOnce();
   expect(component.showProgress()).toBe(true);
+});
+
+it('prüft im manuellen Modus auch ohne Browserbild nicht im Hintergrund', async () => {
+  vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+  session.set({ id: 'session-a', frameUrl: null });
+  manualLogin.set(true);
+  awaitingLogin.set(true);
+  await vi.advanceTimersByTimeAsync(6000);
+  expect(checkLogin).not.toHaveBeenCalled();
+});
+
+it('entfernt Formularinhalte vor dem Wechsel in die manuelle Anmeldung', async () => {
+  component.loginForm.setValue({ username: 'synthetic', password: 'synthetic' });
+  component.code.setValue('123456');
+  component.manualTextInput.setValue('synthetic');
+  await component.openManualBrowser();
+  expect(startManualLogin).toHaveBeenCalledOnce();
+  expect(component.loginForm.getRawValue()).toEqual({ username: '', password: '' });
+  expect(component.code.value).toBe('');
+  expect(component.manualTextInput.value).toBe('');
 });
 
 it('überträgt eine manuelle Ziehbewegung erst beim Loslassen mit Positionen und Zeiten', () => {

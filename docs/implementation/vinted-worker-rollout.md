@@ -1,5 +1,30 @@
 # Vinted-Browserdienst: Veröffentlichung des Admin-Piloten
 
+## Manueller Anmeldevergleich vom 03.10.2026
+
+Der Nutzer bestätigt im vorbereiteten normalen Windows-Chrome den Ausgang
+`168.119.246.33` und erfolgreiche Anmeldung einschließlich SMS-Code. Die
+Server-IP ist für diesen konkreten Versuch nutzbar. Dauerhafter Cloudbetrieb,
+Mehrkontenbetrieb und die Flipbase-Kontoverbindung sind damit nicht bestätigt;
+ein obligatorischer Proxykauf folgt daraus nicht.
+
+Der nächste Vergleich nutzt den vorhandenen Linux-Cloudbrowser und dessen
+bisheriges Kontoprofil. „Direkt im Browser anmelden“ öffnet einen expliziten
+manuellen Modus: keine automatische Anmeldung oder Codeübermittlung und keine
+Kontoprüfung im Hintergrund. Das gilt auch bei einem Bildladefehler. Eine
+offene Anmeldung oder SMS bleibt beim vorzeitigen Prüfen manuell fortsetzbar.
+Anmeldedaten und SMS werden im Browser eingegeben; das Textfeld zum Übertragen
+ist standardmäßig verdeckt. Erst „Anmeldung prüfen & verbinden“ nutzt die
+bestehende autorisierte Kontoidentitätsprüfung. Bei einer Sperrseite den Versuch
+beenden; keine weiteren Loginversuche oder Eingaben senden.
+
+So wird der Anmeldeablauf innerhalb derselben Cloudumgebung verglichen. Die
+Bildvorschau und die Weitergabe einzelner Eingaben bleiben bestehen. Das ist
+noch kein kontinuierlicher Desktopstream und kein Beweis, dass manuelles
+Anmelden die Vinted-Sperre behebt. Windows-Chrome und Linux-Chromium sowie
+ihre Profile unterscheiden sich weiterhin. Kein Export lokaler Cookies,
+keine produktive Netzumstellung und keine Freigabe automatischer Abrufe.
+
 ## Chromium-Pilot vom 02.10.2026 – eigener Cloudbetrieb
 
 ### Ausgeführter Serverpilot vom 02.10.2026
