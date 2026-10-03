@@ -54,7 +54,7 @@ export function vintedBrowserActions(connection: BrowserConnection): BrowserInfo
         animations: 'disabled',
         timeout: 5_000,
       }),
-    sessionBlocked: () => hasVisibleVintedSessionBlock(currentPage()),
+    sessionBlocked: () => hasVisibleVintedSessionBlock(currentPage()).catch(() => false),
     click: async (xRatio, yRatio) => {
       const page = currentPage();
       const size =
