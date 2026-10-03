@@ -1,5 +1,27 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-03 – Juna – Vinted-Sitzungssperre als eigenen Zustand behandeln
+
+**Anlass:** Nach erfolgreicher manueller Slider-Bedienung zeigt Vinted eine
+eindeutige Sperrseite für ungewöhnliche oder automatisierte Aktivitäten. Die
+sichtbare Ausgangsadresse liegt im Hetzner-Netz; zugleich verwendet der aktuelle
+Chromium-Pilot laut Deploy-Konfiguration standardmäßig den direkten Serverausgang.
+Damit ist die Sperrseite fachlich von einer noch lösbaren Mensch-Prüfung zu trennen.
+
+**Änderung:** Der Worker erkennt die sichtbare Vinted-Sperrseite anhand ihrer
+eindeutigen Meldung und führt dafür den eigenen Zustand `session_blocked`.
+Anmeldung, SMS-Bestätigung, Identitätsprüfung und manuelle Browser-Eingaben
+brechen danach ab. Browserbilder tragen den Sperrstatus als Antwortmetadatum,
+damit auch eine erst nach Klick oder Ziehbewegung erscheinende Sperre erkannt
+wird. Die Oberfläche hält das letzte Bild sichtbar, deaktiviert sämtliche
+weiteren Vinted-Eingaben und fordert zum Beenden der Sitzung sowie zur Prüfung
+des Netzwerk-/Proxywegs auf.
+
+**Grenze:** Dieser Umbau löst die Netzwerkursache nicht. Der direkte
+Rechenzentrumsausgang des Chromium-Piloten wird in diesem Zweig nicht durch
+einen neuen Proxy ersetzt; dafür ist eine getrennte, geprüfte Netzwerkkonfiguration
+mit eigenem Zugang erforderlich.
+
 ## 2026-10-03 – Juna – Sidebar nach Arbeitsablauf neu geordnet
 
 **Auftrag und Freigabe:** Die Hauptnavigation soll dem täglichen Ablauf folgen:
