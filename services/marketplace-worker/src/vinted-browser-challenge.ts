@@ -1,24 +1,5 @@
 import type { Page } from 'playwright';
 
-function visible(element: Element): boolean {
-  const rectangle = element.getBoundingClientRect();
-  if (
-    rectangle.width <= 0 ||
-    rectangle.height <= 0 ||
-    rectangle.bottom <= 0 ||
-    rectangle.right <= 0 ||
-    rectangle.top >= innerHeight ||
-    rectangle.left >= innerWidth
-  )
-    return false;
-  for (let ancestor: Element | null = element; ancestor; ancestor = ancestor.parentElement) {
-    const style = getComputedStyle(ancestor);
-    if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0)
-      return false;
-  }
-  return true;
-}
-
 /** Erkennt nur Vinteds sichtbare Sperrseite, nicht allgemeine Fehler oder Captchas. */
 export function isVintedSessionBlockedText(text: string): boolean {
   const normalized = text.replace(/\s+/g, ' ').trim();
@@ -36,23 +17,75 @@ export function isVintedSessionBlockedText(text: string): boolean {
 }
 
 export function detectVisibleVintedSessionBlock(): boolean {
+  const isVisible = (element: Element): boolean => {
+    const rectangle = element.getBoundingClientRect();
+    if (
+      rectangle.width <= 0 ||
+      rectangle.height <= 0 ||
+      rectangle.bottom <= 0 ||
+      rectangle.right <= 0 ||
+      rectangle.top >= innerHeight ||
+      rectangle.left >= innerWidth
+    )
+      return false;
+    for (let ancestor: Element | null = element; ancestor; ancestor = ancestor.parentElement) {
+      const style = getComputedStyle(ancestor);
+      if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0)
+        return false;
+    }
+    return true;
+  };
+  const isBlockedText = (text: string): boolean => {
+    const normalized = text.replace(/\s+/g, ' ').trim();
+    const heading =
+      /(?:deine|ihre) sitzung wurde blockiert|your session (?:was|has been) blocked/i.test(
+        normalized,
+      );
+    const reason =
+      /ungewöhnliche oder automatisierte aktivitäten|unusual or automated activit(?:y|ies)/i.test(
+        normalized,
+      );
+    const access =
+      /vorübergehend (?:deinen|ihren) zugang gesperrt|temporarily blocked (?:your )?access/i.test(
+        normalized,
+      );
+    return heading && (reason || access);
+  };
   const candidates = document.querySelectorAll(
     'body, main, h1, h2, h3, p, [role="alert"], [role="dialog"]',
   );
   let text = '';
   for (const element of Array.from(candidates).slice(0, 200)) {
-    if (!visible(element)) continue;
+    if (!isVisible(element)) continue;
     const value = element instanceof HTMLElement ? element.innerText : '';
     if (value) text += `\n${value.slice(0, 4000)}`;
     if (text.length >= 20_000) break;
   }
-  return isVintedSessionBlockedText(text);
+  return isBlockedText(text);
 }
 
 /** Nur sichtbare Prüfungen zählen; normale Schutzskripte sind kein Eingabezustand. */
 export function detectVisibleVintedChallenge(): boolean {
+  const isVisible = (element: Element): boolean => {
+    const rectangle = element.getBoundingClientRect();
+    if (
+      rectangle.width <= 0 ||
+      rectangle.height <= 0 ||
+      rectangle.bottom <= 0 ||
+      rectangle.right <= 0 ||
+      rectangle.top >= innerHeight ||
+      rectangle.left >= innerWidth
+    )
+      return false;
+    for (let ancestor: Element | null = element; ancestor; ancestor = ancestor.parentElement) {
+      const style = getComputedStyle(ancestor);
+      if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0)
+        return false;
+    }
+    return true;
+  };
   for (const iframe of Array.from(document.querySelectorAll('iframe')).slice(0, 32)) {
-    if (!visible(iframe)) continue;
+    if (!isVisible(iframe)) continue;
     try {
       const source = new URL(iframe.src, location.href);
       const host = source.hostname;
@@ -77,7 +110,7 @@ export function detectVisibleVintedChallenge(): boolean {
     'h1, h2, h3, p, label, button, [role="alert"], [role="dialog"], [role="slider"], [aria-label]',
   );
   for (const element of Array.from(messages).slice(0, 200)) {
-    if (!visible(element)) continue;
+    if (!isVisible(element)) continue;
     const text = element instanceof HTMLElement ? element.innerText : '';
     if (
       humanCheck.test(text.slice(0, 2000)) ||
