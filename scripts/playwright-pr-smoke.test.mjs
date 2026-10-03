@@ -36,6 +36,22 @@ const coreTests = [
   ],
   [
     'marketplace-accounts.spec.ts',
+    'öffnet eine Mensch-Prüfung bei login automatisch @marketplace-preview @core-smoke',
+  ],
+  [
+    'marketplace-accounts.spec.ts',
+    'öffnet eine Mensch-Prüfung bei identify automatisch @marketplace-preview @core-smoke',
+  ],
+  [
+    'marketplace-accounts.spec.ts',
+    'öffnet eine Mensch-Prüfung bei verify automatisch @marketplace-preview @core-smoke',
+  ],
+  [
+    'marketplace-accounts.spec.ts',
+    'überträgt manuelles Ziehen im Browserbild mit Maus und Touch genau einmal @marketplace-preview @core-smoke',
+  ],
+  [
+    'marketplace-accounts.spec.ts',
     'zeigt unbekannte Bewertungen und gespeicherte Teilfehler zugänglich @marketplace-preview @core-smoke',
   ],
   [

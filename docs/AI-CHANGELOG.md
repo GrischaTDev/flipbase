@@ -9,6 +9,11 @@ und automatische Übergabe sichtbarer Mensch-Prüfungen an dieselbe Sitzung.
 Die Veröffentlichung erfolgt über den PR und die bestehenden CI-Bauten.
 Eine echte Live-Übertragung ist weiterhin nicht Bestandteil dieser Änderung.
 
+**CI-Korrektur:** Die Qualitätsprüfung erkennt die vier neuen Kern-Browsertests,
+deren verbindliche Auswahlliste noch fehlte. Die Liste wurde vollständig ergänzt;
+die Prüfung selbst und der Prüfumfang bleiben erhalten. Worker-Tests und beide
+Abbildprüfungen waren bereits erfolgreich.
+
 ## 2026-10-03 - Juna - Mensch-Prüfungen erkennen und Browseransicht automatisch öffnen
 
 **Auftrag:** Sichtbare Vinted-Mensch-Prüfungen erkennen und die Browseransicht
