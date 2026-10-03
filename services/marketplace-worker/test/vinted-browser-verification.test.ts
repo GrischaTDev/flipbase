@@ -46,10 +46,22 @@ test('sendet einen SMS-Code nur einmal auf der festen Vinted-Zweitfaktor-Seite',
 
 test('does not send an SMS code while a visible human check blocks the page', async () => {
   const { page, actions } = fixture();
-  page.evaluate = (async () => true) as unknown as Page['evaluate'];
+  page.evaluate = (async (callback: () => unknown) =>
+    callback.name === 'detectVisibleVintedChallenge') as unknown as Page['evaluate'];
   assert.equal(
     await submitVintedVerificationCode(page, '123456', async () => undefined),
     'interaction_required',
+  );
+  assert.deepEqual(actions, []);
+});
+
+test('sendet keinen SMS-Code, wenn Vinted die Sitzung blockiert hat', async () => {
+  const { page, actions } = fixture();
+  page.evaluate = (async (callback: () => unknown) =>
+    callback.name === 'detectVisibleVintedSessionBlock') as unknown as Page['evaluate'];
+  assert.equal(
+    await submitVintedVerificationCode(page, '123456', async () => undefined),
+    'session_blocked',
   );
   assert.deepEqual(actions, []);
 });
