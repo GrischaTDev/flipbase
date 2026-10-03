@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { Page } from 'playwright';
+import { isVintedSessionBlockedText } from '../src/vinted-browser-challenge.ts';
 import {
   parseVintedAccountIdentity,
   readVintedAccountIdentity,
@@ -35,12 +36,12 @@ test('liest Identität nur auf der festen Vinted-Domain und gibt keine Rohdaten 
     id: '12345',
     username: 'mein-konto',
   });
-  assert.equal(calls, 2);
+  assert.equal(calls, 3);
   assert.equal(
     await readVintedAccountIdentity({ ...page, url: () => 'https://vinted.de.attacker.test/' }),
     null,
   );
-  assert.equal(calls, 2);
+  assert.equal(calls, 3);
 });
 
 test('meldet ein weiterhin sichtbares Vinted-Anmeldeformular als eigenen Prüfzustand', async () => {
@@ -59,7 +60,11 @@ test('meldet die zweite Vinted-Anmeldestufe ohne Identitätsabruf als Codeanford
   const page = {
     url: () => 'https://www.vinted.de/member/login/2fa',
     evaluate: async (callback: () => unknown) => {
-      if (callback.name === 'detectVisibleVintedChallenge') return false;
+      if (
+        callback.name === 'detectVisibleVintedChallenge' ||
+        callback.name === 'detectVisibleVintedSessionBlock'
+      )
+        return false;
       fetched = true;
       return null;
     },
@@ -74,11 +79,34 @@ test('reports a visible challenge before the SMS requirement or private identity
   let checks = 0;
   const page = {
     url: () => 'https://www.vinted.de/member/login/2fa',
-    evaluate: async () => {
+    evaluate: async (callback: () => unknown) => {
       checks++;
-      return true;
+      return callback.name === 'detectVisibleVintedChallenge';
     },
   } as unknown as Pick<Page, 'url' | 'evaluate'>;
   await assert.rejects(readVintedAccountIdentity(page), { name: 'VintedInteractionRequiredError' });
+  assert.equal(checks, 2);
+});
+
+test('erkennt Vinteds sichtbare Sperrseite anhand der eindeutigen Meldung', () => {
+  assert.equal(
+    isVintedSessionBlockedText(
+      'Deine Sitzung wurde blockiert. Wir haben festgestellt, dass von deiner Internetverbindung ungewöhnliche oder automatisierte Aktivitäten ausgehen. Um unsere Community zu schützen, haben wir vorübergehend deinen Zugang gesperrt.',
+    ),
+    true,
+  );
+  assert.equal(isVintedSessionBlockedText('Bitte bestätige, dass du ein Mensch bist.'), false);
+});
+
+test('meldet eine sichtbare Sitzungssperre vor Captcha, SMS und Identitätsabruf', async () => {
+  let checks = 0;
+  const page = {
+    url: () => 'https://www.vinted.de/member/login/2fa',
+    evaluate: async (callback: () => unknown) => {
+      checks++;
+      return callback.name === 'detectVisibleVintedSessionBlock';
+    },
+  } as unknown as Pick<Page, 'url' | 'evaluate'>;
+  await assert.rejects(readVintedAccountIdentity(page), { name: 'VintedSessionBlockedError' });
   assert.equal(checks, 1);
 });
