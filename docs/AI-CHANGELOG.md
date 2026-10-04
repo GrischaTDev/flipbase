@@ -34,7 +34,7 @@ lokalen Verbindungsseite und besteht danach ohne Aufruf des Cloudbrowser-Dienste
 181 betroffene Angular-Prüfungen und acht Navigationsprüfungen bestehen, einschließlich Serverablehnung,
 Dialogabbruch, Workspacewechsel, lokaler Freigabe und bestehender Browserbedienung.
 Anwendungs-/Spec-Typprüfung, gezieltes ESLint, Formatierung, Testsuite-Audit und
-Shared-UI-Prüfung bestehen. 19 Browserprüfungen decken lokale Einrichtung und
+Shared-UI-Prüfung bestehen. 23 Browserprüfungen decken lokale Einrichtung und
 Kontoverwaltung auf Desktop und Mobilgeräten sowie bestehende Cloud-Anmeldung
 ab; die Einrichtungsansichten bestehen AXE ohne Ausnahmen. Die bestehenden
 Kontoseiten sind bei 1440, 390 und 320 Pixeln im hellen und dunklen Design geprüft.
@@ -44,6 +44,10 @@ Die Korrektur ist lokal geprüft; Veröffentlichung und echter Kontotest stehen 
 Die erste vollständige PR-Prüfung fand eine alte Settings-Routenerwartung.
 Der Test prüft jetzt die Weiterleitung und den unveränderten Zugriffsschutz
 des Zielbereichs ausdrücklich; die betroffenen Routentests wurden erneut ausgeführt.
+Die verbindliche Browser-Testliste enthält jetzt außerdem die beiden neuen
+Einrichtungsfälle; der Auswahlvertrag für PR- und Regressionstests wurde geprüft.
+Die Kontokacheltests verwenden das neue Bereichsmenü und bestehen bei 1440,
+1024, 768 und 390 Pixeln einschließlich Kontowechsel und Auswahl nach Neuladen.
 
 **Parallelbetrieb:** Eigener Zweig `juna/vinted-local-account-create` vom aktuellen
 `origin/master` bei `a84d66f3`. Fremde Zweige und der alte Cloud-Recherchezweig
