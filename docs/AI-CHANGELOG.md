@@ -37,6 +37,10 @@ bleibt. Der Browsertest vergleicht den maschinenlesbaren Importzeitpunkt statt
 einer von der lokalen Zeitzone abhängigen Uhrzeit. Ein echter Vinted-Postfachtest und die
 Veröffentlichung stehen aus; regelmäßige Abgleiche bleiben bis zur Abnahme aus.
 
+Im ersten PR-Lauf erwartete der Browser-Smoke noch den alten Pluraltext für
+einen importierten Verlauf. Die Prüfung wurde an den korrigierten Einzahltext
+angepasst und der betroffene Ablauf erneut geprüft.
+
 **Grundlage:** `docs/research/bleam-vinted-analysis.md`, insbesondere Punkt 37;
 gemeinsamer Vertrag und Pilotgrenzen in `docs/implementation/vinted-local-inbox.md`.
 

@@ -365,7 +365,7 @@ for (const width of [1440, 390]) {
     await expect(inbox.locator('time[datetime="' + observedAt + '"]')).toBeVisible();
     await expect(inbox.locator('[data-conversation-heading]')).toHaveText(heading ?? '');
     await expect(
-      page.getByText('1 Gespräche und 1 Nachrichten übernommen.', { exact: false }),
+      page.getByText('1 Gespräch und 1 Nachricht übernommen.', { exact: false }),
     ).toBeVisible();
     expect(bridgeCalls).toEqual([
       'FLIPBASE_VINTED_LOCAL_PREPARE',
