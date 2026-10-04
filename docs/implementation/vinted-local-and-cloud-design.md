@@ -258,6 +258,15 @@ Ursache. Kein GoLogin-Abonnement, Proxykauf oder eigener IP-Vertrag je Konto wir
 hier beschlossen. Vor einer breiten Freigabe außerdem die bereits dokumentierten
 Vinted-Regeln und fehlende Plattformfreigabe der betroffenen Funktionen klären.
 
-**Nächster konkreter Schritt:** Diesen Entwurf prüfen, dann Paket 1 und den
-lokalen Lesepiloten als erste begrenzte Umsetzung detaillieren. Der Entwurf
-autorisiert noch keine Storeveröffentlichung oder Produktionsumstellung.
+## Umsetzungsstand am 4. Oktober 2026
+
+Der lokale Lesepilot ist als Version 0.288.0 veröffentlicht. Die nächste
+vorbereitete Änderung setzt den eigenen Vinted-Menükontext mit Rückweg zu Flipbase
+und eine schrittweise Einrichtung um. Installationserkennung, Anmeldung auf
+Vinted und die ausdrückliche Freigabe des erkannten Kontos bleiben getrennte
+Schritte. Neue lokale Konten benötigen keinen erreichbaren Cloudbrowser.
+
+Der Chrome-Store-Eintrag bleibt offen; die Oberfläche benennt den internen
+Pilotweg ausdrücklich. Der echte Kontotest, Storeveröffentlichung und Cloudbetrieb
+bleiben weitere Schritte. Die neue Menü-/Einrichtungsänderung benötigt noch ihren
+eigenen PR-Abschluss vor der Produktionsveröffentlichung.

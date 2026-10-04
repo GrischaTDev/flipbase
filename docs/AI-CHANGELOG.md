@@ -1,5 +1,51 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-04 - Juna - Vinted-Bereich und lokale Einrichtung zusammenführen
+
+**Auftrag:** Beim echten Erweiterungstest führt „Account hinzufügen“ nach der
+Bezeichnung in eine nicht verfügbare Cloud-Anmeldung. Der lokale Pilot muss auch
+für ein neu angelegtes Konto erreichbar sein. Zusätzlich den vereinbarten eigenen
+Vinted-Menükontext und die schrittweise Erweiterungseinrichtung umsetzen sowie
+den Importhinweis und den doppelten Verwaltungsbutton unter den Kontokacheln entfernen.
+
+**Ursache und Änderung:** Der Anlegen-Dialog wechselte unabhängig vom gewünschten
+Betrieb immer zum Cloudbrowser; der lokale Einstieg war nur für vorhandene
+Kontoeinträge verlinkt. Der Dialog bietet jetzt lokale Erweiterung (Voreinstellung)
+und Cloudbrowser an. Lokal wird der Kontoeintrag angelegt und dessen konkrete
+Server-ID zur lokalen Verbindungsseite weitergegeben. Kontoerkennung und
+ausdrückliche Freigabe bleiben dort unverändert. Cloud-Anmeldung bleibt nach
+bewusster Auswahl erreichbar. Geschlossene Dialoge und geänderter Benutzer-/
+Workspacekontext öffnen keine verspätete Verbindung. Kontoverwaltung und
+Vinted-Seiten teilen denselben Kontostand; neue Konten sind beim direkten Wechsel
+sofort bekannt. Die lokale Verbindungsansicht lädt keine Cloudbrowser-Steuerung.
+
+Die Seitenleiste wechselt innerhalb des Vinted-Bereichs zu dessen Unterseiten
+und bietet oben "Zurück zu Flipbase". Die mobile Navigation folgt demselben
+Kontext. Die bisherige zusätzliche Tab-Leiste entfällt. Bestehende Links zur
+Kontoverwaltung führen in den Vinted-Bereich; die alte Einstellungsadresse wird
+weitergeleitet. Die Einrichtung erklärt Installation, Erreichbarkeit der
+Erweiterung, Anmeldung direkt auf Vinted und die gesonderte Kontofreigabe.
+Bei noch leerer Kontenliste erscheint sie direkt. Eine erkannte Erweiterung
+ersetzt keine Kontofreigabe. Der Chrome-Store-Eintrag fehlt weiterhin; die
+Oberfläche erklärt deshalb ausdrücklich den vorhandenen internen Pilotweg.
+
+**Prüfung:** Der Regressionstest scheitert vor der Änderung an der fehlenden
+lokalen Verbindungsseite und besteht danach ohne Aufruf des Cloudbrowser-Dienstes.
+181 betroffene Angular-Prüfungen und acht Navigationsprüfungen bestehen, einschließlich Serverablehnung,
+Dialogabbruch, Workspacewechsel, lokaler Freigabe und bestehender Browserbedienung.
+Anwendungs-/Spec-Typprüfung, gezieltes ESLint, Formatierung, Testsuite-Audit und
+Shared-UI-Prüfung bestehen. 19 Browserprüfungen decken lokale Einrichtung und
+Kontoverwaltung auf Desktop und Mobilgeräten sowie bestehende Cloud-Anmeldung
+ab; die Einrichtungsansichten bestehen AXE ohne Ausnahmen. Die bestehenden
+Kontoseiten sind bei 1440, 390 und 320 Pixeln im hellen und dunklen Design geprüft.
+Der Produktionsbau besteht mit der vorhandenen `pako`-CommonJS-Warnung.
+Keine Datenbank-, Serverkonfigurations- oder Erweiterungspaketänderung.
+Die Korrektur ist lokal geprüft; Veröffentlichung und echter Kontotest stehen aus.
+
+**Parallelbetrieb:** Eigener Zweig `juna/vinted-local-account-create` vom aktuellen
+`origin/master` bei `a84d66f3`. Fremde Zweige und der alte Cloud-Recherchezweig
+bleiben unverändert.
+
 ## 2026-10-04 - Juna - Lokalen Vinted-Erweiterungspiloten umsetzen
 
 **Auftrag:** Nach dem gemeinsamen Bleam-Rundgang zuerst eine eigene lokale

@@ -53,7 +53,6 @@ import { MarketplaceBrowserTestComponent } from '../marketplace-browser-test/mar
     MarketplaceBrowserTestComponent,
   ],
   templateUrl: './marketplace-accounts.component.html',
-  providers: [MarketplaceAccountStore],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block min-w-0' },
 })
@@ -63,6 +62,10 @@ export class MarketplaceAccountsComponent {
   private readonly workspace = inject(WorkspaceService);
   private readonly auth = inject(AuthService);
   readonly platforms = [{ value: 'vinted', label: 'Vinted' }];
+  readonly connectionMethods = [
+    { value: 'local', label: 'Lokale Erweiterung' },
+    { value: 'cloud', label: 'Cloudbrowser' },
+  ];
   private readonly context = computed(() =>
     JSON.stringify([this.auth.currentUser()?.id, this.workspace.currentWorkspace()?.id]),
   );
@@ -88,7 +91,8 @@ export class MarketplaceAccountsComponent {
       Validators.pattern(/^(?!\s*$)[^\p{Cc}]+$/u),
     ],
   });
-  readonly form = new FormGroup({ name: this.name });
+  readonly connectionMethod = new FormControl<'local' | 'cloud'>('local', { nonNullable: true });
+  readonly form = new FormGroup({ name: this.name, connectionMethod: this.connectionMethod });
   readonly submitted = signal(false);
   readonly labels = MARKETPLACE_CONNECTION_LABELS;
   readonly tones = MARKETPLACE_CONNECTION_TONES;
@@ -107,8 +111,8 @@ export class MarketplaceAccountsComponent {
 
   constructor() {
     effect(() => {
-      if (this.store.busy()) this.name.disable({ emitEvent: false });
-      else this.name.enable({ emitEvent: false });
+      if (this.store.busy()) this.form.disable({ emitEvent: false });
+      else this.form.enable({ emitEvent: false });
     });
     effect(() => {
       const context = this.context();
@@ -118,6 +122,7 @@ export class MarketplaceAccountsComponent {
   openDialog(connection?: MarketplaceConnection): void {
     if (!this.store.canManage() || this.store.busy()) return;
     this.name.reset(connection?.displayName ?? '');
+    this.connectionMethod.reset('local');
     this.submitted.set(false);
     this.store.clearMutationError();
     this.dialogState.set({
@@ -180,6 +185,13 @@ export class MarketplaceAccountsComponent {
     )
       return;
     if (dialog.mode === 'create') {
+      if (this.connectionMethod.value === 'local') {
+        const connectionId = await this.store.createConnection(this.name.value);
+        if (!connectionId || this.dialog() !== dialog || !this.store.canManage()) return;
+        this.closeDialog();
+        await this.router.navigate(['/marketplaces/vinted/local-connect', connectionId]);
+        return;
+      }
       this.dialogState.set({ ...dialog, mode: 'login' });
       return;
     }

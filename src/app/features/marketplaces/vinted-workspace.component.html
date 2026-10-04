@@ -1,6 +1,8 @@
 <app-page-header title="Vinted" [icon]="pageIcon">
-  @if (showingAccounts()) {
-    <app-button header-actions link="/settings/marketplaces">Konten verwalten</app-button>
+  @if (showingManagement()) {
+    <app-button header-actions link="/marketplaces/vinted/accounts">Alle Konten</app-button>
+  } @else if (showingAccounts() || showingSetup() || showingLocalConnection()) {
+    <app-button header-actions link="/marketplaces/vinted/manage">Konten verwalten</app-button>
   } @else if (store.selectedConnection(); as account) {
     <app-vinted-account-controls
       header-actions
@@ -15,7 +17,7 @@
       (synchronized)="store.refreshImportedSnapshot($event, $event.lastSuccessAt)"
     />
   } @else {
-    <app-button header-actions link="/settings/marketplaces">Konten verwalten</app-button>
+    <app-button header-actions link="/marketplaces/vinted/manage">Konten verwalten</app-button>
   }
 </app-page-header>
 <div class="mt-4 space-y-4">
@@ -30,15 +32,7 @@
       >
     </app-notice-banner>
   }
-  @if (!store.loading() && !store.error() && store.connections().length === 0) {
-    <app-card
-      title="Noch kein Vinted-Konto hinzugefügt"
-      subtitle="Füge Dein erstes Konto hinzu und melde Dich bei Vinted an."
-    >
-      <app-button variant="primary" link="/settings/marketplaces">Account hinzufügen</app-button>
-    </app-card>
-  }
-  @if (showingAccounts()) {
+  @if (showingAccounts() || showingSetup() || showingManagement() || showingLocalConnection()) {
     <router-outlet />
   } @else if (store.selectedConnection(); as account) {
     <app-button variant="plain" link="/marketplaces/vinted/accounts" [icon]="backIcon"
@@ -77,11 +71,12 @@
         >
       </app-notice-banner>
     }
-    <app-route-tabs label="Vinted-Bereiche" [tabs]="sections" [activeId]="activeSection()" />
     @if (store.loadingSnapshot()) {
       <p role="status" class="text-[13px] text-fb-text-secondary">Kontodaten werden geladen …</p>
     }
     <router-outlet />
+  } @else if (!store.loading() && !store.error()) {
+    <app-vinted-setup />
   }
 </div>
 @if (syncModalOpen()) {

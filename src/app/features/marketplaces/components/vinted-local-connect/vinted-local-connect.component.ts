@@ -20,6 +20,7 @@ import { VintedLocalExtensionStore } from '../../services/vinted-local-extension
 export class VintedLocalConnectComponent {
   readonly accounts = inject(MarketplaceAccountStore);
   readonly local = inject(VintedLocalExtensionStore);
+  readonly extension = inject(VintedLocalExtensionBridge);
   private readonly route = inject(ActivatedRoute);
   private readonly parameters = toSignal(this.route.paramMap, {
     initialValue: this.route.snapshot.paramMap,
@@ -31,6 +32,7 @@ export class VintedLocalConnectComponent {
         .find((account) => account.connectionId === this.parameters().get('connectionId')) ?? null,
   );
   constructor() {
+    this.extension.checkInstallation();
     effect(() => {
       const connection = this.connection();
       this.local.connection.set(connection);

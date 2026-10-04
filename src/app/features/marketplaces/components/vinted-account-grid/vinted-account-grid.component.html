@@ -84,8 +84,6 @@
       </div>
     }
   </div>
-  <p class="mt-3 text-xs text-fb-text-secondary">
-    Gespeicherte Kontodaten · Verkäufe aus Deinen Importen
-  </p>
+} @else if (!accounts.loading() && !accounts.error()) {
+  <app-vinted-setup />
 }
-<app-button class="mt-4" [link]="accountsRoute">Konten verwalten</app-button>

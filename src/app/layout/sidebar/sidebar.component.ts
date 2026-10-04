@@ -36,6 +36,7 @@ import {
   LucideBot as Bot,
   LucideLightbulb as Lightbulb,
   LucideChevronRight as ChevronRight,
+  LucideArrowLeft as ArrowLeft,
 } from '@lucide/angular';
 import type { LucideIconInput } from '@lucide/angular';
 import type { SubNavigationItem } from '../../core/config/platform-admin-navigation';
@@ -57,6 +58,11 @@ import type {
 import { PlatformOperatorService } from '../../core/services/platform-operator.service';
 import { PwaService } from '../../core/services/pwa.service';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
+import {
+  isVintedWorkspaceRoute,
+  isVintedNavigationActive,
+  VINTED_WORKSPACE_NAVIGATION,
+} from '../../core/config/vinted-workspace-navigation';
 
 const NAVIGATION_ICONS: Record<WorkspaceNavigationIcon, LucideIconInput> = {
   dashboard: LayoutDashboard,
@@ -109,6 +115,9 @@ export class SidebarComponent {
   readonly smartphoneIcon = Smartphone;
   readonly ideasIcon = Lightbulb;
   readonly chevronIcon = ChevronRight;
+  readonly backIcon = ArrowLeft;
+  readonly vintedContext = computed(() => isVintedWorkspaceRoute(this.currentUrl()));
+  readonly vintedNavigation = VINTED_WORKSPACE_NAVIGATION;
   readonly pwaService = inject(PwaService);
 
   // Der Punkt bleibt verborgen, solange die bestehende Operator-Prüfung kein Ja liefert.
@@ -143,7 +152,11 @@ export class SidebarComponent {
     return isNavigationChildActive(child, this.currentUrl());
   }
 
-  iconFor(item: WorkspaceNavigationItem): LucideIconInput {
+  isVintedItemActive(path: string): boolean {
+    return isVintedNavigationActive(path, this.currentUrl());
+  }
+
+  iconFor(item: Pick<WorkspaceNavigationItem, 'icon'>): LucideIconInput {
     return NAVIGATION_ICONS[item.icon];
   }
 }

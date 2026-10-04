@@ -21,7 +21,7 @@
   <div class="h-16 flex shrink-0 items-center justify-between px-3">
     <a
       routerLink="/dashboard"
-      aria-label="Zum Dashboard"
+      [attr.aria-label]="vintedContext() ? 'Zurück zu Flipbase' : 'Zum Dashboard'"
       (click)="closed.emit()"
       class="flex items-center gap-2.5 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/60"
     >
@@ -30,15 +30,20 @@
         in beiden Designs. Der Schriftzug daneben bleibt Text: So faerbt er
         sich mit dem Design mit und laesst sich vorlesen und durchsuchen.
       -->
-      <img
-        ngSrc="images/logo-mark.png"
-        width="36"
-        height="36"
-        alt=""
-        class="fb-logo-mark h-9 w-9"
-        priority
-      />
-      <span class="text-lg font-bold tracking-tight text-fb-text-primary">Flipbase</span>
+      @if (vintedContext()) {
+        <svg [lucideIcon]="backIcon" class="size-4 shrink-0" aria-hidden="true"></svg>
+        <span class="text-sm font-semibold text-fb-text-primary">Zurück zu Flipbase</span>
+      } @else {
+        <img
+          ngSrc="images/logo-mark.png"
+          width="36"
+          height="36"
+          alt=""
+          class="fb-logo-mark h-9 w-9"
+          priority
+        />
+        <span class="text-lg font-bold tracking-tight text-fb-text-primary">Flipbase</span>
+      }
     </a>
 
     <button
@@ -53,106 +58,130 @@
 
   <!-- Arbeitsnavigation: feste fachliche Gruppen statt Arraypositionen. -->
   <nav aria-label="Bereiche" class="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 py-2">
-    <div data-sidebar-primary class="shrink-0 space-y-0.5">
-      <ng-container
-        [ngTemplateOutlet]="navigationItem"
-        [ngTemplateOutletContext]="{ $implicit: dashboardItem, indented: false }"
-      />
-
-      @for (group of navigationGroups; track group.id) {
-        @if (group.items.length > 0) {
-          <div
-            role="group"
-            [attr.data-navigation-group]="group.id"
-            [attr.aria-labelledby]="'sidebar-group-' + group.id"
-          >
-            @let groupLabel = group.labelKey | translate;
-            <div
-              [id]="'sidebar-group-' + group.id"
-              class="px-2 pb-1 pt-3 text-xs font-semibold text-fb-text-muted"
-            >
-              {{ groupLabel === group.labelKey ? group.label : groupLabel }}
-            </div>
-            <ul class="space-y-0.5">
-              @for (item of group.items; track item.path) {
-                @if (item.path !== '/marketplaces/vinted' || isOperator()) {
-                  <li>
-                    <ng-container
-                      [ngTemplateOutlet]="navigationItem"
-                      [ngTemplateOutletContext]="{ $implicit: item, indented: false }"
-                    />
-                  </li>
-                }
-              }
-            </ul>
-          </div>
-        }
-      }
-    </div>
-
-    <div data-sidebar-lower class="mt-auto shrink-0 pt-4">
-      @if (pwaService.isInstallable()) {
-        <button
-          type="button"
-          (click)="pwaService.promptInstall()"
-          class="mb-3 inline-flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-md bg-fb-primary px-2.5 py-2 text-[13px] font-semibold text-fb-on-accent shadow-xs transition-colors hover:bg-fb-primary-hover"
-          title="Flipbase als App auf deinem Gerät installieren"
-        >
-          <svg [lucideIcon]="smartphoneIcon" class="h-3.5 w-3.5"></svg>
-          <span>App installieren</span>
-        </button>
-      }
-      @let ideasLabel = ideasGroup.labelKey | translate;
-      <button
-        type="button"
-        aria-controls="sidebar-ideas"
-        [attr.aria-expanded]="ideasExpanded()"
-        [class.font-semibold]="ideasActive()"
-        (click)="toggleIdeas()"
-        class="w-full flex items-center gap-2 px-2 py-1 leading-5 rounded-md text-left text-[13px] font-medium text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover transition group border border-transparent cursor-pointer"
-      >
-        <svg
-          [lucideIcon]="ideasIcon"
-          class="w-4 h-4 text-fb-text-muted group-hover:text-fb-text-primary shrink-0"
-          aria-hidden="true"
-        ></svg>
-        <span class="min-w-0 break-words">{{
-          ideasLabel === ideasGroup.labelKey ? ideasGroup.label : ideasLabel
-        }}</span>
-        <svg
-          [lucideIcon]="chevronIcon"
-          [class.rotate-90]="ideasExpanded()"
-          class="ml-auto w-4 h-4 shrink-0 transition-transform motion-reduce:transition-none"
-          aria-hidden="true"
-        ></svg>
-      </button>
-      <ul id="sidebar-ideas" [hidden]="!ideasExpanded()" class="space-y-0.5">
-        @for (item of ideasGroup.items; track item.path) {
+    @if (vintedContext()) {
+      <p class="px-2 pb-3 text-lg font-semibold text-fb-text-primary">Vinted</p>
+      <ul class="space-y-0.5">
+        @for (item of vintedNavigation; track item.path) {
           <li>
-            <ng-container
-              [ngTemplateOutlet]="navigationItem"
-              [ngTemplateOutletContext]="{ $implicit: item, indented: true }"
-            />
+            <a
+              [routerLink]="item.path"
+              [attr.aria-current]="isVintedItemActive(item.path) ? 'page' : null"
+              [class.font-semibold]="isVintedItemActive(item.path)"
+              (click)="closed.emit()"
+              class="flex items-center gap-2 px-2 py-1 leading-5 rounded-md text-[13px] font-medium text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover transition group border border-transparent"
+            >
+              <svg
+                [lucideIcon]="iconFor(item)"
+                class="size-4 shrink-0 text-fb-text-muted"
+                aria-hidden="true"
+              ></svg>
+              <span>{{ item.label }}</span>
+            </a>
           </li>
         }
       </ul>
-      <div data-sidebar-divider class="mt-3 border-t border-fb-border-subtle pt-2">
+    } @else {
+      <div data-sidebar-primary class="shrink-0 space-y-0.5">
         <ng-container
           [ngTemplateOutlet]="navigationItem"
-          [ngTemplateOutletContext]="{ $implicit: masterDataItem, indented: false }"
+          [ngTemplateOutletContext]="{ $implicit: dashboardItem, indented: false }"
         />
-        <ng-container
-          [ngTemplateOutlet]="navigationItem"
-          [ngTemplateOutletContext]="{ $implicit: settingsItem, indented: false }"
-        />
-        @if (isOperator()) {
-          <ng-container
-            [ngTemplateOutlet]="navigationItem"
-            [ngTemplateOutletContext]="{ $implicit: operatorItem, indented: false }"
-          />
+
+        @for (group of navigationGroups; track group.id) {
+          @if (group.items.length > 0) {
+            <div
+              role="group"
+              [attr.data-navigation-group]="group.id"
+              [attr.aria-labelledby]="'sidebar-group-' + group.id"
+            >
+              @let groupLabel = group.labelKey | translate;
+              <div
+                [id]="'sidebar-group-' + group.id"
+                class="px-2 pb-1 pt-3 text-xs font-semibold text-fb-text-muted"
+              >
+                {{ groupLabel === group.labelKey ? group.label : groupLabel }}
+              </div>
+              <ul class="space-y-0.5">
+                @for (item of group.items; track item.path) {
+                  @if (item.path !== '/marketplaces/vinted' || isOperator()) {
+                    <li>
+                      <ng-container
+                        [ngTemplateOutlet]="navigationItem"
+                        [ngTemplateOutletContext]="{ $implicit: item, indented: false }"
+                      />
+                    </li>
+                  }
+                }
+              </ul>
+            </div>
+          }
         }
       </div>
-    </div>
+
+      <div data-sidebar-lower class="mt-auto shrink-0 pt-4">
+        @if (pwaService.isInstallable()) {
+          <button
+            type="button"
+            (click)="pwaService.promptInstall()"
+            class="mb-3 inline-flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-md bg-fb-primary px-2.5 py-2 text-[13px] font-semibold text-fb-on-accent shadow-xs transition-colors hover:bg-fb-primary-hover"
+            title="Flipbase als App auf deinem Gerät installieren"
+          >
+            <svg [lucideIcon]="smartphoneIcon" class="h-3.5 w-3.5"></svg>
+            <span>App installieren</span>
+          </button>
+        }
+        @let ideasLabel = ideasGroup.labelKey | translate;
+        <button
+          type="button"
+          aria-controls="sidebar-ideas"
+          [attr.aria-expanded]="ideasExpanded()"
+          [class.font-semibold]="ideasActive()"
+          (click)="toggleIdeas()"
+          class="w-full flex items-center gap-2 px-2 py-1 leading-5 rounded-md text-left text-[13px] font-medium text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover transition group border border-transparent cursor-pointer"
+        >
+          <svg
+            [lucideIcon]="ideasIcon"
+            class="w-4 h-4 text-fb-text-muted group-hover:text-fb-text-primary shrink-0"
+            aria-hidden="true"
+          ></svg>
+          <span class="min-w-0 break-words">{{
+            ideasLabel === ideasGroup.labelKey ? ideasGroup.label : ideasLabel
+          }}</span>
+          <svg
+            [lucideIcon]="chevronIcon"
+            [class.rotate-90]="ideasExpanded()"
+            class="ml-auto w-4 h-4 shrink-0 transition-transform motion-reduce:transition-none"
+            aria-hidden="true"
+          ></svg>
+        </button>
+        <ul id="sidebar-ideas" [hidden]="!ideasExpanded()" class="space-y-0.5">
+          @for (item of ideasGroup.items; track item.path) {
+            <li>
+              <ng-container
+                [ngTemplateOutlet]="navigationItem"
+                [ngTemplateOutletContext]="{ $implicit: item, indented: true }"
+              />
+            </li>
+          }
+        </ul>
+        <div data-sidebar-divider class="mt-3 border-t border-fb-border-subtle pt-2">
+          <ng-container
+            [ngTemplateOutlet]="navigationItem"
+            [ngTemplateOutletContext]="{ $implicit: masterDataItem, indented: false }"
+          />
+          <ng-container
+            [ngTemplateOutlet]="navigationItem"
+            [ngTemplateOutletContext]="{ $implicit: settingsItem, indented: false }"
+          />
+          @if (isOperator()) {
+            <ng-container
+              [ngTemplateOutlet]="navigationItem"
+              [ngTemplateOutletContext]="{ $implicit: operatorItem, indented: false }"
+            />
+          }
+        </div>
+      </div>
+    }
   </nav>
 
   <!-- Ein Linktemplate erhält Markierungen und Untermenüs in allen Gruppen konsistent. -->

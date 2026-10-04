@@ -1,5 +1,6 @@
 import { VintedFavoriteSettingsComponent } from './components/vinted-favorite-settings/vinted-favorite-settings.component';
 import { VintedLocalConnectComponent } from './components/vinted-local-connect/vinted-local-connect.component';
+import { VintedSetupComponent } from './components/vinted-setup/vinted-setup.component';
 import { VintedLocalExtensionApiService } from './services/vinted-local-extension-api.service';
 import { MarketplaceFavoriteNotificationApiService } from './services/marketplace-favorite-notification-api.service';
 import { ElementRef, signal } from '@angular/core';
@@ -136,6 +137,10 @@ beforeAll(async () => {
     [CustomCheckboxComponent, 'custom-checkbox/custom-checkbox.component'],
   ];
   resetBindings = await prepareMarketplaceRendering([
+    {
+      type: VintedSetupComponent,
+      path: 'src/app/features/marketplaces/components/vinted-setup/vinted-setup.component.ts',
+    },
     {
       type: VintedLocalConnectComponent,
       path: 'src/app/features/marketplaces/components/vinted-local-connect/vinted-local-connect.component.ts',
@@ -278,6 +283,8 @@ beforeEach(() => {
           children: [
             { path: '', redirectTo: 'accounts', pathMatch: 'full' },
             { path: 'accounts', component: VintedAccountGridComponent },
+            { path: 'setup', component: VintedSetupComponent },
+            { path: 'manage', component: MarketplaceAccountsComponent },
             {
               path: 'feedback',
               redirectTo: '/marketplaces/vinted/profile#reviews',
@@ -295,7 +302,11 @@ beforeEach(() => {
             ),
           ],
         },
-        { path: 'settings/marketplaces', component: MarketplaceAccountsComponent },
+        {
+          path: 'settings/marketplaces',
+          redirectTo: '/marketplaces/vinted/manage',
+          pathMatch: 'full',
+        },
       ]),
       { provide: MarketplaceApiService, useValue: api },
       {
@@ -401,6 +412,12 @@ describe('Vinted-Bereich in Flipbase', () => {
     expect(element.querySelector('app-vinted-account-grid')).not.toBeNull();
     expect(element.querySelector('nav[aria-label="Vinted-Bereiche"]')).toBeNull();
     expect(element.querySelector('app-vinted-account-controls')).toBeNull();
+    expect(element.textContent).not.toContain(
+      'Gespeicherte Kontodaten · Verkäufe aus Deinen Importen',
+    );
+    expect(
+      element.querySelector('app-vinted-account-grid a[href="/settings/marketplaces"]'),
+    ).toBeNull();
     const links = [...element.querySelectorAll('app-vinted-account-grid app-card a')];
     expect(links).toHaveLength(2);
     expect(links[1].getAttribute('href')).toContain(
@@ -409,6 +426,31 @@ describe('Vinted-Bereich in Flipbase', () => {
     expect(element.textContent).toContain('8');
     expect(element.textContent).toContain('3');
     expect(browserApi.syncConnection).not.toHaveBeenCalled();
+  });
+  it('führt beim ersten Einstieg durch die Erweiterungseinrichtung statt zur Cloudanmeldung', async () => {
+    api.listConnections.mockResolvedValue({ canManage: true, connections: [] });
+    const { element } = await render('/marketplaces/vinted');
+    expect(element.querySelector('app-vinted-setup')).not.toBeNull();
+    expect(element.textContent).toContain('Erweiterung installieren');
+    expect(element.querySelector('app-marketplace-browser-test')).toBeNull();
+    expect(element.querySelector('a[href*="chromewebstore"]')).toBeNull();
+    expect(
+      element.querySelector('app-vinted-setup a[href="/marketplaces/vinted/manage"]'),
+    ).toBeNull();
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        source: window,
+        origin: location.origin,
+        data: { type: 'FLIPBASE_EXTENSION_STATUS', installed: true, vintedLocal: true },
+      }),
+    );
+    TestBed.tick();
+    expect(
+      element.querySelector('app-vinted-setup a[href="/marketplaces/vinted/manage"]'),
+    ).not.toBeNull();
+    expect(element.querySelector('a[href="https://www.vinted.de/"]')?.getAttribute('target')).toBe(
+      '_blank',
+    );
   });
   it('öffnet über eine Kachel das zweite Konto und bleibt beim Wechsel der Bereiche darin', async () => {
     const { harness, element } = await render('/marketplaces/vinted/accounts');
@@ -451,18 +493,10 @@ describe('Vinted-Bereich in Flipbase', () => {
     ).toEqual(['—', '—', '—', '—']);
     expect(element.textContent).toContain('Bewertung noch unbekannt');
   });
-  it('ordnet die Bereiche mit Aktivitäten und ohne separaten Bewertungstab', async () => {
+  it('lässt die Bereichsnavigation der Seitenleiste und zeigt keine doppelten Kontotabs', async () => {
     const { element } = await render('/marketplaces/vinted/overview');
     const links = [...element.querySelectorAll('nav[aria-label="Vinted-Bereiche"] a')];
-    expect(links.map((link) => link.textContent?.trim())).toEqual([
-      'Übersicht',
-      'Nachrichten',
-      'Inserate',
-      'Verkäufe',
-      'Aktivitäten',
-      'Profil',
-    ]);
-    expect(links[0].getAttribute('aria-current')).toBe('page');
+    expect(links).toEqual([]);
     expect(element.querySelector('a[href*="/connect/"]')).toBeNull();
   });
   it.each([
@@ -601,8 +635,7 @@ describe('Vinted-Bereich in Flipbase', () => {
     expect(element.querySelector('[role="combobox"]')?.textContent).toContain('Testkonto A');
     expect(
       [...element.querySelectorAll('app-route-tabs a')].map((a) => a.textContent?.trim()),
-    ).toEqual(['Übersicht', 'Nachrichten', 'Inserate', 'Verkäufe', 'Aktivitäten', 'Profil']);
-    expect(element.querySelector('a[href="/marketplaces/vinted/activity"]')).not.toBeNull();
+    ).toEqual([]);
     element
       .querySelector<HTMLButtonElement>('button[aria-label="Vinted-Kontoeinstellungen"]')
       ?.click();
@@ -610,7 +643,7 @@ describe('Vinted-Bereich in Flipbase', () => {
     await harness.fixture.whenStable();
     harness.detectChanges();
     expect(
-      element.querySelector('[role="dialog"] a[href="/settings/marketplaces"]'),
+      element.querySelector('[role="dialog"] a[href="/marketplaces/vinted/manage"]'),
     ).not.toBeNull();
     expect(
       element.querySelector(
@@ -629,7 +662,7 @@ describe('Vinted-Bereich in Flipbase', () => {
   it('zeigt einen ehrlichen Leerzustand statt eingebauter Beispielkonten', async () => {
     api.listConnections.mockResolvedValue({ canManage: true, connections: [] });
     const { element } = await render('/marketplaces/vinted/overview');
-    expect(element.textContent).toContain('Noch kein Vinted-Konto hinzugefügt');
+    expect(element.textContent).toContain('Willkommen bei Vinted in Flipbase');
     expect(element.textContent).not.toContain('Testkonto');
     expect(api.readSnapshot).not.toHaveBeenCalled();
   });
@@ -666,9 +699,7 @@ describe('Vinted-Bereich in Flipbase', () => {
     harness.detectChanges();
     expect(api.readPublication).not.toHaveBeenCalled();
     expect(element.querySelector('app-vinted-listing-detail')).not.toBeNull();
-    expect(
-      element.querySelector('app-route-tabs a[aria-current="page"]')?.textContent?.trim(),
-    ).toBe('Inserate');
+    expect(element.querySelector('app-route-tabs')).toBeNull();
     expect(element.textContent).toContain('Testschal');
   });
   it('zeigt Verkäufe im dichten Kartenraster ohne den bisherigen Hinweis', async () => {
@@ -766,7 +797,44 @@ describe('Vinted-Bereich in Flipbase', () => {
     expect(element.querySelector('app-card h2')?.textContent).toContain('Vinted-Konten');
     expect(add?.closest('[data-card-header]')).toBeNull();
   });
-  it('wechselt im Kontodialog direkt zur zugehörigen Anmeldung', async () => {
+  it('legt ein neues Konto lokal an, auch wenn der Cloudbrowser nicht verfügbar ist', async () => {
+    const created = {
+      ...fixtureConnections[1],
+      displayName: 'Mein Konto',
+      externalAccountId: null,
+    };
+    api.listConnections.mockResolvedValue({
+      canManage: true,
+      connections: [fixtureConnections[0]],
+    });
+    api.createConnection.mockImplementation(async () => {
+      api.listConnections.mockResolvedValue({
+        canManage: true,
+        connections: [fixtureConnections[0], created],
+      });
+      return created;
+    });
+    const { element, harness } = await render('/marketplaces/vinted/manage');
+    [...element.querySelectorAll<HTMLButtonElement>('button')]
+      .find((button) => button.textContent?.includes('Account hinzufügen'))
+      ?.click();
+    harness.detectChanges();
+    const input = element.querySelector<HTMLInputElement>('input');
+    if (!input) throw new Error('Kontoname fehlt');
+    input.value = 'Mein Konto';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    element
+      .querySelector<HTMLFormElement>('form')
+      ?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await harness.fixture.whenStable();
+    harness.detectChanges();
+    expect(harness.routeNativeElement?.querySelector('app-vinted-local-connect')).not.toBeNull();
+    expect(harness.routeNativeElement?.textContent).toContain('Kontoverbindung: Mein Konto');
+    expect(harness.routeNativeElement?.querySelector('app-marketplace-browser-test')).toBeNull();
+    expect(browserApi.available).not.toHaveBeenCalled();
+    expect(api.createConnection).toHaveBeenCalledWith(created.workspaceId, 'Mein Konto');
+  });
+  it('wechselt im Kontodialog bei Cloudauswahl zur zugehörigen Anmeldung', async () => {
     api.listConnections.mockResolvedValue({ canManage: true, connections: [] });
     const { element, harness } = await render('/settings/marketplaces');
     const button = [...element.querySelectorAll<HTMLButtonElement>('button')].find((node) =>
@@ -775,6 +843,9 @@ describe('Vinted-Bereich in Flipbase', () => {
     expect(button).toBeDefined();
     button?.click();
     harness.detectChanges();
+    const component = harness.fixture.debugElement.query(By.directive(MarketplaceAccountsComponent))
+      .componentInstance as MarketplaceAccountsComponent;
+    component.form.get('connectionMethod')?.setValue('cloud');
     const input = element.querySelector<HTMLInputElement>('input');
     expect(input).not.toBeNull();
     input!.value = 'Mein Konto';
@@ -791,6 +862,48 @@ describe('Vinted-Bereich in Flipbase', () => {
       harness.routeNativeElement?.querySelector('app-marketplace-browser-test'),
     ).not.toBeNull();
     expect(harness.routeNativeElement?.querySelector('[role="dialog"]')).not.toBeNull();
+  });
+  it('behält den Namen bei, wenn das lokale Anlegen vom Server abgelehnt wird', async () => {
+    api.createConnection.mockRejectedValue(new MarketplaceApiError('unavailable'));
+    const { element, harness } = await render('/settings/marketplaces');
+    [...element.querySelectorAll<HTMLButtonElement>('button')]
+      .find((button) => button.textContent?.includes('Account hinzufügen'))
+      ?.click();
+    harness.detectChanges();
+    const component = harness.fixture.debugElement.query(By.directive(MarketplaceAccountsComponent))
+      .componentInstance as MarketplaceAccountsComponent;
+    component.name.setValue('Mein Konto');
+    await component.save();
+    harness.detectChanges();
+    expect(component.name.value).toBe('Mein Konto');
+    expect(component.dialog()?.mode).toBe('create');
+    expect(element.querySelector('[role="alert"]')).not.toBeNull();
+    expect(element.querySelector('app-marketplace-browser-test')).toBeNull();
+    expect(browserApi.available).not.toHaveBeenCalled();
+  });
+  it('öffnet nach dem Schließen des Dialogs keine verspätet angelegte lokale Verbindung', async () => {
+    let finishCreate: ((account: (typeof fixtureConnections)[0]) => void) | undefined;
+    api.createConnection.mockReturnValue(
+      new Promise<(typeof fixtureConnections)[0]>((resolve) => {
+        finishCreate = resolve;
+      }),
+    );
+    const { element, harness } = await render('/settings/marketplaces');
+    [...element.querySelectorAll<HTMLButtonElement>('button')]
+      .find((button) => button.textContent?.includes('Account hinzufügen'))
+      ?.click();
+    harness.detectChanges();
+    const component = harness.fixture.debugElement.query(By.directive(MarketplaceAccountsComponent))
+      .componentInstance as MarketplaceAccountsComponent;
+    component.name.setValue('Mein Konto');
+    const saving = component.save();
+    component.closeDialog();
+    finishCreate?.(fixtureConnections[1]);
+    await saving;
+    harness.detectChanges();
+    expect(component.dialog()).toBeNull();
+    expect(harness.routeNativeElement?.querySelector('app-marketplace-accounts')).not.toBeNull();
+    expect(harness.routeNativeElement?.querySelector('app-vinted-local-connect')).toBeNull();
   });
   it('öffnet nur die zum Link gehörende Kontoverbindung', async () => {
     const { element } = await render(

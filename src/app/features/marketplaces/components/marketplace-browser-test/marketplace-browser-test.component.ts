@@ -155,9 +155,9 @@ export class MarketplaceBrowserTestComponent {
     try {
       const pendingName = this.pendingAccountName();
       if (pendingName) {
-        if (!(await this.accounts.createConnection(pendingName))) return;
-        const connectionId = this.accounts.selectedConnection()?.connectionId;
+        const connectionId = await this.accounts.createConnection(pendingName);
         if (!connectionId) return;
+        if (this.accounts.selectedConnection()?.connectionId !== connectionId) return;
         this.connectionCreated.emit(connectionId);
       }
       this.loginForm.reset();

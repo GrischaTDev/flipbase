@@ -18,6 +18,8 @@ Component({ selector: 'app-test-page', template: '' })(TestPageComponent);
 // weil hier nur die Navigation geprueft wird.
 const routes: Routes = [
   { path: 'dashboard', component: TestPageComponent },
+  { path: 'marketplaces/vinted', component: TestPageComponent },
+  { path: 'marketplaces/vinted/:section', component: TestPageComponent },
   { path: 'vinted-bot', component: TestPageComponent },
   { path: 'vinted-bot/filters', component: TestPageComponent },
   { path: 'vinted-bot/favorites', component: TestPageComponent },
@@ -75,6 +77,7 @@ describe('SidebarComponent', () => {
 
     const element = fixture.nativeElement as HTMLElement;
     return {
+      fixture,
       element,
       adminLink: element.querySelector<HTMLAnchorElement>('a[href="/admin"]'),
       subLinks: Array.from(element.querySelectorAll<HTMLAnchorElement>('[data-sub-navigation] a')),
@@ -202,6 +205,29 @@ describe('SidebarComponent', () => {
     const { element } = await renderAt('/dashboard');
     const vintedLink = element.querySelector('a[href="/marketplaces/vinted"]');
     expect(vintedLink?.querySelector('app-badge')?.textContent?.trim()).toBe('Admin');
+  });
+  it('ersetzt im Vinted-Bereich die Hauptnavigation und stellt sie beim Zurückwechseln wieder her', async () => {
+    const { element, fixture } = await renderAt(
+      '/marketplaces/vinted/messages?connectionId=account-b',
+    );
+    expect(element.querySelector('a[href="/dashboard"]')?.textContent).toContain(
+      'Zurück zu Flipbase',
+    );
+    expect(
+      element
+        .querySelector('a[href="/marketplaces/vinted/messages"]')
+        ?.getAttribute('aria-current'),
+    ).toBe('page');
+    expect(element.querySelector('a[href="/purchases"]')).toBeNull();
+    expect(element.querySelector('a[href="/settings"]')).toBeNull();
+    expect(element.querySelector('a[href="/marketplaces/vinted/manage"]')).not.toBeNull();
+    const result = await axe.run(element, { rules: { 'color-contrast': { enabled: false } } });
+    expect(result.violations).toEqual([]);
+    await TestBed.inject(Router).navigateByUrl('/dashboard');
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(element.querySelector('a[href="/purchases"]')).not.toBeNull();
+    expect(element.querySelector('a[href="/marketplaces/vinted/manage"]')).toBeNull();
   });
 
   it('hat keine automatisch erkennbaren schwerwiegenden Barrieren', async () => {

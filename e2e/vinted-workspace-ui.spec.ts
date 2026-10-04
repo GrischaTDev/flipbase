@@ -6,6 +6,12 @@ import { mockMarketplace, workspaceId, accountIds } from './support/marketplace-
 
 test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: 'block' });
 
+async function openVintedSection(page: Page, label: string, width: number): Promise<void> {
+  if (width < 768)
+    await page.locator('app-bottom-nav').getByRole('button', { name: 'Menü', exact: true }).click();
+  await page.locator('app-sidebar').getByRole('link', { name: label, exact: true }).click();
+}
+
 async function checkSurface(page: Page, selector: string) {
   await page.addScriptTag({ content: axe.source });
   const violations = await page.evaluate(async (selector) => {
@@ -272,7 +278,7 @@ for (const width of [1440, 390, 320]) {
         return route.fulfill({ json: { ok: true } });
       });
 
-      // Der globale Header lädt Favoritenmeldungen auch außerhalb der Vinted-Seite.
+      // Der globale Header lädt Favoritenmeldungen auch in der Kontoverwaltung.
       await page.goto('/settings/marketplaces');
       const bell = page.getByRole('button', { name: 'Benachrichtigungen', exact: true });
       await expect(bell).toContainText('2');
@@ -294,14 +300,22 @@ for (const width of [1440, 390, 320]) {
       await expect(page).toHaveTitle(/Flipbase/);
       await expect(page.locator('vite-error-overlay')).toHaveCount(0);
 
-      const nav = page.getByRole('navigation', { name: 'Vinted-Bereiche' });
+      if (width < 768)
+        await page
+          .locator('app-bottom-nav')
+          .getByRole('button', { name: 'Menü', exact: true })
+          .click();
+      const nav = page.locator('app-sidebar nav');
       await expect(nav.getByRole('link')).toHaveText([
+        'Konten',
+        'Einrichtung',
         'Übersicht',
-        'Nachrichten',
+        'Postfach',
         'Inserate',
         'Verkäufe',
-        'Aktivitäten',
+        'Verlauf',
         'Profil',
+        'Konten verwalten',
       ]);
       await nav.getByRole('link', { name: 'Übersicht', exact: true }).click();
       await expect(page.locator('app-vinted-overview')).toContainText('Frage zum Schal');
@@ -345,7 +359,7 @@ for (const width of [1440, 390, 320]) {
       await account.click();
       await page.getByRole('option', { name: /Testkonto A/ }).click();
 
-      await nav.getByRole('link', { name: 'Inserate', exact: true }).click();
+      await openVintedSection(page, 'Inserate', width);
       await expect(page.locator('[data-metric-increase]')).toHaveCount(0);
       imported.views = 7;
       imported.favorites = 4;
@@ -372,10 +386,9 @@ for (const width of [1440, 390, 320]) {
       const detail = page.locator('app-vinted-listing-detail');
       await expect(detail).toContainText('Gespeicherte Beschreibung des Testschals.');
       await expect(detail).not.toContainText('Beschreibung wird');
-      await expect(nav.getByRole('link', { name: 'Inserate', exact: true })).toHaveAttribute(
-        'aria-current',
-        'page',
-      );
+      await expect(
+        nav.getByRole('link', { name: 'Inserate', exact: true, includeHidden: true }),
+      ).toHaveAttribute('aria-current', 'page');
       const image = detail.locator('app-product-thumbnail').first();
       const imageBounds = await image.boundingBox();
       expect(imageBounds!.height).toBeLessThanOrEqual(width < 768 ? 260 : 420);
@@ -402,7 +415,7 @@ for (const width of [1440, 390, 320]) {
       await page.clock.runFor(30_000);
       await expect(page.locator('[data-metric-increase]')).toHaveCount(0);
 
-      await nav.getByRole('link', { name: 'Nachrichten', exact: true }).click();
+      await openVintedSection(page, 'Postfach', width);
       await page.getByRole('button', { name: /Frage zum Schal/ }).click();
       await expect(page.getByRole('log')).toContainText('Welche Maße hat der Schal?');
       const messageLog = page.getByRole('log');
@@ -482,7 +495,7 @@ for (const width of [1440, 390, 320]) {
       await expect.poll(() => messageLog.evaluate((log) => log.scrollTop)).toBeGreaterThan(0);
       await checkSurface(page, 'app-vinted-messages');
       await screenshot(page, `vinted-messages-${width}-${theme}`);
-      await nav.getByRole('link', { name: 'Aktivitäten', exact: true }).click();
+      await openVintedSection(page, 'Verlauf', width);
       await expect(page.locator('app-vinted-account-content')).toContainText(
         'Noch keine gespeicherten Vinted-Aktivitäten',
       );
@@ -523,7 +536,7 @@ for (const width of [1440, 390, 320]) {
         await page.evaluate(() => {
           document.documentElement.style.zoom = '2';
         });
-        await nav.getByRole('link', { name: 'Nachrichten', exact: true }).click();
+        await openVintedSection(page, 'Postfach', width);
         await page.getByRole('button', { name: /Frage zum Schal/ }).click();
         await expect(page.getByRole('log')).toContainText('Welche Maße hat der Schal?');
         await checkSurface(page, 'app-vinted-messages');

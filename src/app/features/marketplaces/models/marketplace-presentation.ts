@@ -15,11 +15,3 @@ export const MARKETPLACE_CONNECTION_TONES: Readonly<Record<ConnectionStatus, Bad
   blocked: 'critical',
   disconnected: 'neutral',
 };
-export const VINTED_SECTIONS = [
-  { id: 'overview', label: 'Übersicht', path: '/marketplaces/vinted/overview' },
-  { id: 'messages', label: 'Nachrichten', path: '/marketplaces/vinted/messages' },
-  { id: 'listings', label: 'Inserate', path: '/marketplaces/vinted/listings' },
-  { id: 'sales', label: 'Verkäufe', path: '/marketplaces/vinted/sales' },
-  { id: 'activity', label: 'Aktivitäten', path: '/marketplaces/vinted/activity' },
-  { id: 'profile', label: 'Profil', path: '/marketplaces/vinted/profile' },
-];

@@ -3,7 +3,7 @@ import { defineConfig } from '@playwright/test';
 // Gegen eine bereits laufende lokale Vorschau. Keine echte Anmeldung/globalSetup.
 export default defineConfig({
   testDir: '..',
-  testMatch: 'marketplace-accounts.spec.ts',
+  testMatch: ['marketplace-accounts.spec.ts', 'vinted-workspace-ui.spec.ts'],
   outputDir: process.env['MARKETPLACE_TEST_OUTPUT'] ?? '../../test-results/marketplace',
   workers: 1,
   retries: 0,
