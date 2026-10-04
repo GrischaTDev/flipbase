@@ -41,6 +41,9 @@ Kontoseiten sind bei 1440, 390 und 320 Pixeln im hellen und dunklen Design gepr�
 Der Produktionsbau besteht mit der vorhandenen `pako`-CommonJS-Warnung.
 Keine Datenbank-, Serverkonfigurations- oder Erweiterungspaketänderung.
 Die Korrektur ist lokal geprüft; Veröffentlichung und echter Kontotest stehen aus.
+Die erste vollständige PR-Prüfung fand eine alte Settings-Routenerwartung.
+Der Test prüft jetzt die Weiterleitung und den unveränderten Zugriffsschutz
+des Zielbereichs ausdrücklich; die betroffenen Routentests wurden erneut ausgeführt.
 
 **Parallelbetrieb:** Eigener Zweig `juna/vinted-local-account-create` vom aktuellen
 `origin/master` bei `a84d66f3`. Fremde Zweige und der alte Cloud-Recherchezweig
