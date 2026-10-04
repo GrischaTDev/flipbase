@@ -590,7 +590,8 @@ describe('Vinted-Bereich in Flipbase', () => {
       sales: emptyPage(),
     }));
     const { harness, element } = await render('/marketplaces/vinted/messages');
-    expect(element.textContent).toContain('Postfach noch nicht lokal angebunden');
+    expect(element.textContent).toContain('Lokales Postfach');
+    expect(element.textContent).toContain('Lokale Verbindung prüfen');
     expect(element.textContent).not.toContain('Noch keine Gespräche gespeichert');
     expect(element.querySelector('a[href="https://www.vinted.de/inbox"]')).not.toBeNull();
     await harness.navigateByUrl('/marketplaces/vinted/sales');

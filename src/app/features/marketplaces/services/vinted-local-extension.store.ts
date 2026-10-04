@@ -11,6 +11,8 @@ import { parseLocalExtensionApproval } from '../../../../../supabase/functions/_
 import {
   parseLocalExtensionPreparedIdentity,
   parseLocalExtensionSyncResult,
+  parseLocalExtensionInboxSyncResult,
+  type LocalExtensionInboxSyncResult,
   type LocalExtensionPreparedIdentity,
   type LocalExtensionSyncResult,
 } from '../../../../../supabase/functions/_shared/marketplace-local-extension-bridge-contracts';
@@ -47,6 +49,7 @@ export class VintedLocalExtensionStore {
     binding: LocalExtensionBinding | null;
     approval: LocalExtensionApproval | null;
     imported: LocalExtensionSyncResult | null;
+    inboxImported: LocalExtensionInboxSyncResult | null;
     error: string | null;
     notice: string | null;
   }>({
@@ -55,6 +58,7 @@ export class VintedLocalExtensionStore {
     binding: null,
     approval: null,
     imported: null,
+    inboxImported: null,
     error: null,
     notice: null,
   });
@@ -71,6 +75,10 @@ export class VintedLocalExtensionStore {
     () => this.current() && (this.state().binding !== null || this.state().approval !== null),
   );
   readonly imported = computed(() => (this.current() ? this.state().imported : null));
+  readonly inboxImported = computed(() => (this.current() ? this.state().inboxImported : null));
+  readonly messagesAllowed = computed(
+    () => this.hasValidBinding() && this.binding()?.messagesRead === true,
+  );
   readonly error = computed(() => (this.current() ? this.state().error : null));
   readonly notice = computed(() => (this.current() ? this.state().notice : null));
   constructor() {
@@ -126,6 +134,7 @@ export class VintedLocalExtensionStore {
       binding: null,
       approval: null,
       imported: null,
+      inboxImported: null,
       error: null,
       notice: null,
     });
@@ -235,6 +244,91 @@ export class VintedLocalExtensionStore {
       };
     });
   }
+  async approveInbox(): Promise<void> {
+    const binding = this.binding();
+    if (!binding || !this.hasValidBinding()) {
+      this.showSetupNotice();
+      return;
+    }
+    await this.run(async (scope, valid) => {
+      const prepared = parseLocalExtensionPreparedIdentity(
+        await this.bridge.request('FLIPBASE_VINTED_LOCAL_PREPARE'),
+      );
+      if (!valid()) return {};
+      if (!prepared) throw new MarketplaceResponseError();
+      if (prepared.identity.id !== binding.externalAccountId)
+        throw new Error(
+          'In diesem Browserprofil ist ein anderes Vinted-Konto angemeldet. Öffne das Profil mit dem richtigen Konto.',
+        );
+      const approval = await this.api.approveInbox(scope, prepared.tokenHash, prepared.identity.id);
+      if (!valid()) return {};
+      if (Date.parse(approval.expiresAt) !== Date.parse(binding.expiresAt))
+        throw new MarketplaceResponseError();
+      const currentBinding = await this.api.read(scope);
+      if (
+        !currentBinding ||
+        currentBinding.revoked ||
+        !currentBinding.messagesRead ||
+        currentBinding.externalAccountId !== binding.externalAccountId ||
+        Date.parse(currentBinding.expiresAt) !== Date.parse(binding.expiresAt)
+      )
+        throw new MarketplaceResponseError();
+      return {
+        binding: currentBinding,
+        notice: 'Nachrichtenzugriff erlaubt. Du kannst Dein Postfach jetzt synchronisieren.',
+      };
+    });
+  }
+  async syncInbox(): Promise<void> {
+    const binding = this.binding();
+    if (!binding || !this.hasValidBinding()) {
+      this.showSetupNotice();
+      return;
+    }
+    if (!this.messagesAllowed()) {
+      this.state.update((state) => ({
+        ...state,
+        notice: 'Erlaube zuerst den Nachrichtenzugriff für dieses Browserprofil.',
+      }));
+      return;
+    }
+    await this.run(async (scope, valid) => {
+      const inboxImported = parseLocalExtensionInboxSyncResult(
+        await this.bridge.request('FLIPBASE_VINTED_LOCAL_INBOX_SYNC', scope),
+        scope,
+        binding.externalAccountId,
+      );
+      if (!inboxImported || Date.parse(inboxImported.expiresAt) !== Date.parse(binding.expiresAt))
+        throw new MarketplaceResponseError();
+      if (!valid()) return {};
+      const connection = await this.accounts.refreshLocalConnection(scope, true);
+      if (!valid()) return {};
+      if (
+        connection?.executionMode !== 'local' ||
+        connection.status !== 'connected' ||
+        connection.externalAccountId !== binding.externalAccountId ||
+        !connection.lastSyncedAt ||
+        Date.parse(connection.lastSyncedAt) < Date.parse(inboxImported.observedAt) ||
+        connection.capabilities['conversations.read'] !== 'verified'
+      )
+        throw new Error(
+          'Der Postfachabgleich ist noch nicht serverseitig bestätigt. Lade den Verbindungsstatus erneut.',
+        );
+      const currentBinding = await this.api.read(scope);
+      if (
+        !currentBinding ||
+        currentBinding.revoked ||
+        !currentBinding.messagesRead ||
+        currentBinding.externalAccountId !== binding.externalAccountId
+      )
+        throw new MarketplaceResponseError();
+      return {
+        inboxImported,
+        binding: currentBinding,
+        notice: `${inboxImported.counts.conversation} ${inboxImported.counts.conversation === 1 ? 'Gespräch' : 'Gespräche'} und ${inboxImported.counts.message} ${inboxImported.counts.message === 1 ? 'Nachricht' : 'Nachrichten'} übernommen. Verläufe bleiben ein Teilstand; ungelesene Gespräche wurden nicht geöffnet.${inboxImported.nextPage > 1 ? ' Weitere Gespräche kannst Du mit dem nächsten Abgleich übernehmen.' : ''}`,
+      };
+    });
+  }
   async revoke(): Promise<void> {
     await this.run(async (scope, valid) => {
       await this.api.revoke(scope);
@@ -247,6 +341,7 @@ export class VintedLocalExtensionStore {
         approval: null,
         prepared: null,
         imported: null,
+        inboxImported: null,
         notice: 'Die lokale Freigabe wurde widerrufen. Die gespeicherten Daten bleiben erhalten.',
       };
     });

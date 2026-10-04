@@ -28,6 +28,7 @@ export class VintedAccountControlsComponent {
   readonly canManage = input(false);
   readonly refreshing = input(false);
   readonly loading = input(false);
+  readonly refreshLabel = input('Kontodaten aktualisieren');
   readonly accountSelected = output<string | null>();
   readonly refreshRequested = output<void>();
   readonly synchronized = output<MarketplaceSyncSchedule>();

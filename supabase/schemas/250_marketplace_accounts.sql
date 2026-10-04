@@ -74,7 +74,9 @@ begin
       'workspaceId', c.workspace_id, 'connectionId', c.id, 'marketplace', c.marketplace,
       'displayName', c.display_name, 'externalAccountId', c.external_account_id,
       'status', c.status, 'executionMode', c.execution_mode, 'capabilities', c.capabilities,
-      'allowedActions', case when c.execution_mode = 'local' then jsonb_build_array('profile.read', 'listings.read') else jsonb_build_array('profile.read', 'listings.read', 'metrics.read', 'conversations.read', 'messages.sendText', 'listings.update', 'listings.publish', 'sales.read') end,
+      'allowedActions', case when c.execution_mode = 'local' then
+        jsonb_build_array('profile.read', 'listings.read') || case when c.capabilities->>'conversations.read' = 'verified' then jsonb_build_array('conversations.read') else '[]'::jsonb end
+        else jsonb_build_array('profile.read', 'listings.read', 'metrics.read', 'conversations.read', 'messages.sendText', 'listings.update', 'listings.publish', 'sales.read') end,
       'lastSyncedAt', c.last_synced_at
     ) order by c.created_at, c.id) from public.marketplace_connections c
     where c.workspace_id = p_workspace_id and c.marketplace = 'vinted'

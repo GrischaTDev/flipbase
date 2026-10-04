@@ -72,9 +72,7 @@ for (const width of [1440, 390]) {
         { exact: true },
       ),
     ).toBeVisible();
-    await expect(page.locator('app-vinted-setup')).toContainText(
-      'Postfach, Verkäufe und automatische',
-    );
+    await expect(page.locator('app-vinted-setup')).toContainText('Nachrichtenzugriff erlauben');
     await page.addScriptTag({ content: axe.source });
     expect(
       await page.evaluate(
@@ -225,6 +223,170 @@ for (const width of [1440, 390]) {
     ).toBeVisible();
     await expect(page.locator('app-vinted-local-connect')).toHaveCount(0);
     await evidence(page, `vinted-local-updated-${width}`);
+  });
+}
+
+for (const width of [1440, 390]) {
+  test(`Gibt das lokale Postfach frei und erhält das Gespräch bei ${width}px @marketplace-preview @core-smoke`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await mockMarketplace(page);
+    const observedAt = '2026-10-04T19:30:00Z';
+    const account = {
+      workspaceId,
+      connectionId: accountIds[0],
+      marketplace: 'vinted',
+      executionMode: 'local',
+      displayName: 'Lokales Testkonto',
+      externalAccountId: '100',
+      status: 'connected',
+      capabilities: {},
+      allowedActions: [],
+      lastSyncedAt: '2026-10-04T19:00:00Z',
+    };
+    const binding = {
+      externalAccountId: '100',
+      expiresAt: '2099-01-01T00:00:00Z',
+      lastSeenAt: null,
+      revoked: false,
+      messagesRead: false,
+    };
+    let imported = false;
+    const errors: string[] = [];
+    const bridgeCalls: string[] = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    await page.route('**/rpc/marketplace_list_connections', (route) =>
+      route.fulfill({
+        json: {
+          canManage: true,
+          connections: [
+            {
+              ...account,
+              capabilities: imported ? { 'conversations.read': 'verified' } : {},
+              allowedActions: imported ? ['conversations.read'] : [],
+              lastSyncedAt: imported ? observedAt : account.lastSyncedAt,
+            },
+          ],
+        },
+      }),
+    );
+    await page.route('**/rpc/marketplace_read_local_extension', (route) =>
+      route.fulfill({ json: { binding } }),
+    );
+    await page.route('**/rpc/marketplace_approve_local_inbox', (route) => {
+      expect(route.request().postDataJSON()).toEqual({
+        p_workspace_id: workspaceId,
+        p_connection_id: accountIds[0],
+        p_token_hash: 'a'.repeat(64),
+        p_expected_external_account_id: '100',
+      });
+      binding.messagesRead = true;
+      return route.fulfill({
+        json: {
+          workspaceId,
+          connectionId: accountIds[0],
+          externalAccountId: '100',
+          expiresAt: binding.expiresAt,
+          messagesRead: true,
+        },
+      });
+    });
+    await page.exposeFunction('recordLocalInboxFixture', (type: string) => {
+      bridgeCalls.push(type);
+      if (type === 'FLIPBASE_VINTED_LOCAL_INBOX_SYNC') imported = true;
+    });
+    await page.addInitScript(
+      ({ account, binding, observedAt }) => {
+        window.addEventListener('message', async (event) => {
+          if (event.source !== window || event.origin !== location.origin) return;
+          const request = event.data;
+          if (request?.type === 'FLIPBASE_CHECK_EXTENSION')
+            window.postMessage(
+              { type: 'FLIPBASE_EXTENSION_STATUS', installed: true, vintedLocal: true },
+              location.origin,
+            );
+          if (
+            !['FLIPBASE_VINTED_LOCAL_PREPARE', 'FLIPBASE_VINTED_LOCAL_INBOX_SYNC'].includes(
+              request?.type,
+            )
+          )
+            return;
+          await (
+            window as unknown as { recordLocalInboxFixture: (type: string) => Promise<void> }
+          ).recordLocalInboxFixture(request.type);
+          const result =
+            request.type === 'FLIPBASE_VINTED_LOCAL_PREPARE'
+              ? { tokenHash: 'a'.repeat(64), identity: { id: '100', username: 'testkonto' } }
+              : {
+                  workspaceId: account.workspaceId,
+                  connectionId: account.connectionId,
+                  externalAccountId: '100',
+                  expiresAt: binding.expiresAt,
+                  observedAt,
+                  counts: { conversation: 1, message: 1 },
+                  conversationsComplete: true,
+                  nextPage: 1,
+                };
+          window.postMessage(
+            {
+              type: 'FLIPBASE_VINTED_LOCAL_RESULT',
+              requestId: request.requestId,
+              success: true,
+              result,
+            },
+            location.origin,
+          );
+        });
+      },
+      { account, binding, observedAt },
+    );
+    await page.goto('/marketplaces/vinted/messages');
+    const inbox = page.locator('app-vinted-messages');
+    await expect(
+      inbox.getByRole('button', { name: 'Nachrichtenzugriff erlauben', exact: true }),
+    ).toBeEnabled();
+    await inbox.getByRole('button', { name: 'Nachrichtenzugriff erlauben', exact: true }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toContainText('Ungelesene Verläufe bleiben geschlossen');
+    await dialog.getByRole('button', { name: 'Abbrechen', exact: true }).click();
+    expect(binding.messagesRead).toBe(false);
+    expect(bridgeCalls).toEqual([]);
+    await inbox.getByRole('button', { name: 'Nachrichtenzugriff erlauben', exact: true }).click();
+    await dialog.getByRole('button', { name: 'Nachrichtenzugriff erlauben', exact: true }).click();
+    await expect(
+      inbox.getByRole('button', { name: 'Nachrichten synchronisieren', exact: true }),
+    ).toBeEnabled();
+    await inbox.locator('[data-conversation-row] button').first().click();
+    await expect(inbox.getByRole('log')).toBeVisible();
+    const heading = await inbox.locator('[data-conversation-heading]').textContent();
+    await page.getByRole('button', { name: 'Nachrichten aktualisieren', exact: true }).click();
+    await expect(inbox.locator('time[datetime="' + observedAt + '"]')).toBeVisible();
+    await expect(inbox.locator('[data-conversation-heading]')).toHaveText(heading ?? '');
+    await expect(
+      page.getByText('1 Gespräche und 1 Nachrichten übernommen.', { exact: false }),
+    ).toBeVisible();
+    expect(bridgeCalls).toEqual([
+      'FLIPBASE_VINTED_LOCAL_PREPARE',
+      'FLIPBASE_VINTED_LOCAL_INBOX_SYNC',
+    ]);
+    await page.addScriptTag({ content: axe.source });
+    expect(
+      await page.evaluate(
+        async () =>
+          (
+            await (window as unknown as { axe: typeof axe }).axe.run(
+              document.querySelector('app-vinted-messages') as HTMLElement,
+            )
+          ).violations,
+      ),
+    ).toEqual([]);
+    expect(await page.locator('body').evaluate((body) => body.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+    expect(errors).toEqual([]);
+    await evidence(page, `vinted-local-inbox-${width}`);
   });
 }
 

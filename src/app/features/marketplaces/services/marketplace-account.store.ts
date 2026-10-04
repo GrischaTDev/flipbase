@@ -705,7 +705,10 @@ export class MarketplaceAccountStore {
     return null;
   }
 
-  async refreshLocalConnection(scope: AccountScope): Promise<MarketplaceConnection | null> {
+  async refreshLocalConnection(
+    scope: AccountScope,
+    preserveConversation = false,
+  ): Promise<MarketplaceConnection | null> {
     const key = this.contextKey();
     if (!key || !this.canManage() || this.workspace.currentWorkspace()?.id !== scope.workspaceId)
       return null;
@@ -718,8 +721,20 @@ export class MarketplaceAccountStore {
     this.accountList.set(result.connections);
     const connection =
       result.connections.find((account) => account.connectionId === scope.connectionId) ?? null;
-    if (connection && this.activeId() === scope.connectionId)
-      await this.selectConnection(scope.connectionId);
+    if (connection && this.activeId() === scope.connectionId) {
+      if (preserveConversation) {
+        this.pendingImport.set({ scope, lastSyncedAt: connection.lastSyncedAt, force: true });
+        if (
+          !this.loading() &&
+          !this.loadingSnapshot() &&
+          !this.loadingMessages() &&
+          !this.loadingPage() &&
+          !this.busy() &&
+          !this.backgroundFetching()
+        )
+          await this.drainPendingImport();
+      } else await this.selectConnection(scope.connectionId);
+    }
     return this.isCurrent(key) ? connection : null;
   }
 

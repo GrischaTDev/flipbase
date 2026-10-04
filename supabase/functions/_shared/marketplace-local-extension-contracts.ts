@@ -16,12 +16,45 @@ export type LocalExtensionRequest = AccountScope &
   (
     | { readonly action: 'heartbeat' }
     | { readonly action: 'import'; readonly snapshot: LocalExtensionSnapshot }
+    | { readonly action: 'inbox_state' }
+    | { readonly action: 'inbox_import'; readonly batch: LocalExtensionInboxBatch }
   );
+export interface LocalExtensionInboxEntry {
+  readonly kind: 'conversation' | 'message';
+  readonly externalId: string;
+  readonly parentExternalId?: string;
+  readonly sortAt: string;
+  readonly body: Readonly<Record<string, unknown>>;
+}
+export interface LocalExtensionInboxBatch {
+  readonly identity: { readonly id: string };
+  readonly observedAt: string;
+  readonly page: number;
+  readonly nextPage: number;
+  readonly conversationsComplete: boolean;
+  readonly entries: readonly LocalExtensionInboxEntry[];
+}
+export interface LocalExtensionInboxVersion {
+  readonly externalId: string;
+  readonly sourceUpdatedAt: string;
+  readonly detailCheckedAt: string | null;
+  readonly text: string | null;
+  readonly occurredAt: string;
+}
+export interface LocalExtensionInboxState {
+  readonly ok: true;
+  readonly externalAccountId: string;
+  readonly expiresAt: string;
+  readonly messagesRead: boolean;
+  readonly nextPage: number;
+  readonly versions: readonly LocalExtensionInboxVersion[];
+}
 export interface LocalExtensionBinding {
   readonly externalAccountId: string;
   readonly expiresAt: string;
   readonly lastSeenAt: string | null;
   readonly revoked: boolean;
+  readonly messagesRead?: boolean;
 }
 export const localExtensionMaxBytes = 512 * 1024;
 const accountId = /^[1-9][0-9]{0,31}$/;
@@ -89,6 +122,16 @@ const publicationFields = [
   'isClosed',
   'isReserved',
 ];
+const conversationFields = [
+  'title',
+  'text',
+  'occurredAt',
+  'sourceUpdatedAt',
+  'detailCheckedAt',
+  'unread',
+  'imageUrl',
+];
+const messageFields = ['title', 'text', 'occurredAt', 'direction', 'messageType', 'priceLabel'];
 const numericFields = [
   'feedbackCount',
   'feedbackReputation',
@@ -143,6 +186,13 @@ export function parseLocalExtensionRequest(input: unknown): LocalExtensionReques
     return null;
   if (input['action'] === 'heartbeat' && keys(input, ['action', 'workspaceId', 'connectionId']))
     return input as unknown as LocalExtensionRequest;
+  if (input['action'] === 'inbox_state' && keys(input, ['action', 'workspaceId', 'connectionId']))
+    return input as unknown as LocalExtensionRequest;
+  if (
+    input['action'] === 'inbox_import' &&
+    keys(input, ['action', 'workspaceId', 'connectionId', 'batch'])
+  )
+    return parseInboxBatch(input['batch']) ? (input as unknown as LocalExtensionRequest) : null;
   if (
     input['action'] !== 'import' ||
     !keys(input, ['action', 'workspaceId', 'connectionId', 'snapshot'])
@@ -192,10 +242,102 @@ export function parseLocalExtensionRequest(input: unknown): LocalExtensionReques
   }
   return profiles === 1 ? (input as unknown as LocalExtensionRequest) : null;
 }
+function parseInboxBatch(input: unknown): input is LocalExtensionInboxBatch {
+  if (
+    !record(input) ||
+    !keys(input, [
+      'identity',
+      'observedAt',
+      'page',
+      'nextPage',
+      'conversationsComplete',
+      'entries',
+    ]) ||
+    !record(input['identity']) ||
+    !keys(input['identity'], ['id']) ||
+    typeof input['identity']['id'] !== 'string' ||
+    !accountId.test(input['identity']['id']) ||
+    !date(input['observedAt']) ||
+    !Number.isInteger(input['page']) ||
+    (input['page'] as number) < 1 ||
+    (input['page'] as number) > 20 ||
+    !Number.isInteger(input['nextPage']) ||
+    (input['nextPage'] as number) < 1 ||
+    (input['nextPage'] as number) > 20 ||
+    typeof input['conversationsComplete'] !== 'boolean' ||
+    !Array.isArray(input['entries'])
+  )
+    return false;
+  const entries = input['entries'] as unknown[];
+  if (entries.length > 220) return false;
+  let conversations = 0;
+  let messages = 0;
+  const seen = new Set<string>();
+  const parents = new Set<string>();
+  for (const entry of entries) {
+    if (
+      !record(entry) ||
+      !keys(entry, ['kind', 'externalId', 'parentExternalId', 'sortAt', 'body']) ||
+      (entry['kind'] !== 'conversation' && entry['kind'] !== 'message') ||
+      typeof entry['externalId'] !== 'string' ||
+      !/^(?:[1-9][0-9]{0,31}|event:[0-9a-f]{64})$/.test(entry['externalId']) ||
+      !date(entry['sortAt']) ||
+      !record(entry['body'])
+    )
+      return false;
+    const key = `${entry['kind']}:${entry['externalId']}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    const body = entry['body'];
+    if (entry['kind'] === 'conversation') {
+      conversations++;
+      if (
+        Object.hasOwn(entry, 'parentExternalId') ||
+        !keys(body, conversationFields) ||
+        !text(body['title'], 500) ||
+        !body['title'] ||
+        (body['text'] !== null && !text(body['text'], 10000)) ||
+        !date(body['occurredAt']) ||
+        !date(body['sourceUpdatedAt']) ||
+        (body['detailCheckedAt'] !== null && !date(body['detailCheckedAt'])) ||
+        (body['unread'] !== null && typeof body['unread'] !== 'boolean') ||
+        !image(body['imageUrl'])
+      )
+        return false;
+      parents.add(entry['externalId']);
+    } else {
+      messages++;
+      if (
+        typeof entry['parentExternalId'] !== 'string' ||
+        !accountId.test(entry['parentExternalId']) ||
+        !keys(body, messageFields) ||
+        !text(body['title'], 500) ||
+        !body['title'] ||
+        (body['text'] !== null && !text(body['text'], 10000)) ||
+        !date(body['occurredAt']) ||
+        !['inbound', 'outbound', 'unknown'].includes(body['direction'] as string) ||
+        (body['messageType'] !== null && !text(body['messageType'], 500)) ||
+        (body['priceLabel'] !== null && !text(body['priceLabel'], 500))
+      )
+        return false;
+    }
+  }
+  return (
+    conversations <= 20 &&
+    messages <= 200 &&
+    entries.every(
+      (entry) =>
+        !record(entry) ||
+        entry['kind'] !== 'message' ||
+        parents.has(entry['parentExternalId'] as string),
+    )
+  );
+}
 
 export interface LocalExtensionApproval extends AccountScope {
   readonly externalAccountId: string;
   readonly expiresAt: string;
+  readonly messagesRead?: boolean;
 }
 export interface LocalExtensionStatus {
   readonly binding: LocalExtensionBinding | null;
@@ -212,7 +354,8 @@ export function parseLocalExtensionApproval(
     input['connectionId'] === scope.connectionId &&
     typeof input['externalAccountId'] === 'string' &&
     accountId.test(input['externalAccountId']) &&
-    date(input['expiresAt'])
+    date(input['expiresAt']) &&
+    (input['messagesRead'] === undefined || typeof input['messagesRead'] === 'boolean')
     ? (input as unknown as LocalExtensionApproval)
     : null;
 }
@@ -225,9 +368,43 @@ export function parseLocalExtensionStatus(input: unknown): LocalExtensionStatus 
     accountId.test(binding['externalAccountId']) &&
     date(binding['expiresAt']) &&
     (binding['lastSeenAt'] === null || date(binding['lastSeenAt'])) &&
-    typeof binding['revoked'] === 'boolean'
+    typeof binding['revoked'] === 'boolean' &&
+    (binding['messagesRead'] === undefined || typeof binding['messagesRead'] === 'boolean')
     ? (input as unknown as LocalExtensionStatus)
     : null;
+}
+export function parseLocalExtensionInboxState(input: unknown): LocalExtensionInboxState | null {
+  if (
+    !record(input) ||
+    input['ok'] !== true ||
+    typeof input['externalAccountId'] !== 'string' ||
+    !accountId.test(input['externalAccountId']) ||
+    !date(input['expiresAt']) ||
+    typeof input['messagesRead'] !== 'boolean' ||
+    !Number.isInteger(input['nextPage']) ||
+    (input['nextPage'] as number) < 1 ||
+    (input['nextPage'] as number) > 20 ||
+    !Array.isArray(input['versions']) ||
+    input['versions'].length > 400
+  )
+    return null;
+  const seen = new Set<string>();
+  for (const version of input['versions']) {
+    if (
+      !record(version) ||
+      !keys(version, ['externalId', 'sourceUpdatedAt', 'detailCheckedAt', 'text', 'occurredAt']) ||
+      typeof version['externalId'] !== 'string' ||
+      !accountId.test(version['externalId']) ||
+      seen.has(version['externalId']) ||
+      !date(version['sourceUpdatedAt']) ||
+      (version['detailCheckedAt'] !== null && !date(version['detailCheckedAt'])) ||
+      (version['text'] !== null && !text(version['text'], 10000)) ||
+      !date(version['occurredAt'])
+    )
+      return null;
+    seen.add(version['externalId']);
+  }
+  return input as unknown as LocalExtensionInboxState;
 }
 export function parseLocalExtensionRevocation(input: unknown): LocalExtensionRevocation | null {
   return record(input) && input['ok'] === true ? { ok: true } : null;

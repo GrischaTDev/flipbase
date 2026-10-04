@@ -10,8 +10,8 @@
   <app-button
     [icon]="refreshIcon"
     [iconOnly]="true"
-    ariaLabel="Kontodaten aktualisieren"
-    title="Kontodaten aktualisieren"
+    [ariaLabel]="refreshLabel()"
+    [title]="refreshLabel()"
     [loading]="refreshing()"
     [disabled]="loading() || !canManage() || account().status !== 'connected'"
     (clicked)="refreshRequested.emit()"

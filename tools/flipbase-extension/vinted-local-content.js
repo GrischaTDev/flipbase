@@ -208,7 +208,7 @@
       interruptedPageState ?? (sessionBlocked ? 'session_blocked' : pageState()),
     );
     if (
-      !/^\/api\/v2\/(?:users\/current|wardrobe\/[1-9][0-9]{0,31}\/items\?page=(?:[1-9]|1[0-9]|2[0-5])&per_page=20)$/.test(
+      !/^\/api\/v2\/(?:users\/current|wardrobe\/[1-9][0-9]{0,31}\/items\?page=(?:[1-9]|1[0-9]|2[0-5])&per_page=20|inbox\?page=(?:[1-9]|1[0-9]|20)&per_page=20|conversations\/[1-9][0-9]{0,31})$/.test(
         path,
       )
     ) {
@@ -259,7 +259,9 @@
     }
     if (
       sender.id !== chrome.runtime.id ||
-      !['VINTED_LOCAL_IDENTITY', 'VINTED_LOCAL_SNAPSHOT'].includes(request?.type)
+      !['VINTED_LOCAL_IDENTITY', 'VINTED_LOCAL_SNAPSHOT', 'VINTED_LOCAL_INBOX'].includes(
+        request?.type,
+      )
     )
       return false;
     if (busy) {
@@ -283,7 +285,9 @@
         const result =
           request.type === 'VINTED_LOCAL_IDENTITY'
             ? { identity: core.parseIdentity(await readJson('/api/v2/users/current')) }
-            : { snapshot: await core.readSnapshot(readJson, request.externalAccountId) };
+            : request.type === 'VINTED_LOCAL_INBOX'
+              ? { batch: await core.readInbox(readJson, request.externalAccountId, request.state) }
+              : { snapshot: await core.readSnapshot(readJson, request.externalAccountId) };
         setBusy(false);
         sendResponse({ success: true, result });
       } catch (error) {

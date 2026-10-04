@@ -2567,7 +2567,9 @@ export type Database = {
           expires_at: string
           external_account_id: string
           id: number
+          inbox_next_page: number
           last_seen_at: string | null
+          messages_read: boolean
           revoked_at: string | null
           token_hash: string
           workspace_id: string
@@ -2578,7 +2580,9 @@ export type Database = {
           expires_at: string
           external_account_id: string
           id?: never
+          inbox_next_page?: number
           last_seen_at?: string | null
+          messages_read?: boolean
           revoked_at?: string | null
           token_hash: string
           workspace_id: string
@@ -2589,7 +2593,9 @@ export type Database = {
           expires_at?: string
           external_account_id?: string
           id?: never
+          inbox_next_page?: number
           last_seen_at?: string | null
+          messages_read?: boolean
           revoked_at?: string | null
           token_hash?: string
           workspace_id?: string
@@ -6523,6 +6529,15 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_approve_local_inbox: {
+        Args: {
+          p_connection_id: string
+          p_expected_external_account_id: string
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       marketplace_browser_confirm_account: {
         Args: {
           p_connection_id: string
@@ -6601,6 +6616,15 @@ export type Database = {
         }
         Returns: undefined
       }
+      marketplace_import_local_inbox: {
+        Args: {
+          p_batch: Json
+          p_connection_id: string
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       marketplace_ingest_local_extension: {
         Args: {
           p_connection_id: string
@@ -6625,6 +6649,14 @@ export type Database = {
       marketplace_local_extension_user_valid: {
         Args: { p_user_id: string }
         Returns: boolean
+      }
+      marketplace_local_inbox_state: {
+        Args: {
+          p_connection_id: string
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
       }
       marketplace_mark_favorite_notifications: {
         Args: {

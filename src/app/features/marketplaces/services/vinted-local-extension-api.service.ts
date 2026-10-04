@@ -51,6 +51,22 @@ export class VintedLocalExtensionApiService {
     if (!status) throw new MarketplaceResponseError();
     return status.binding;
   }
+  async approveInbox(scope: AccountScope, tokenHash: string, externalAccountId: string) {
+    const approval = parseLocalExtensionApproval(
+      resultOf(
+        await this.client.rpc('marketplace_approve_local_inbox', {
+          p_workspace_id: scope.workspaceId,
+          p_connection_id: scope.connectionId,
+          p_token_hash: tokenHash,
+          p_expected_external_account_id: externalAccountId,
+        }),
+      ),
+      scope,
+    );
+    if (!approval || approval.externalAccountId !== externalAccountId)
+      throw new MarketplaceResponseError();
+    return approval;
+  }
   async revoke(scope: AccountScope): Promise<void> {
     if (
       !parseLocalExtensionRevocation(

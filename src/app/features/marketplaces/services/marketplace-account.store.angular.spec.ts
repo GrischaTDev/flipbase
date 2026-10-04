@@ -112,6 +112,29 @@ beforeEach(() => {
 });
 
 describe('Gespeicherte Vinted-Kontoauswahl', () => {
+  it('erhält beim lokalen Postfachabgleich das Gespräch und wartet auf dessen laufenden Abruf', async () => {
+    await settle();
+    const selection = store.selectionVersion();
+    const pendingMessages = deferred<ReturnType<typeof emptyPage>>();
+    api.readPage.mockReturnValueOnce(pendingMessages.promise);
+    const opening = store.openConversation('conversation-a');
+    api.listConnections.mockResolvedValue({
+      canManage: true,
+      connections: [{ ...accountA, lastSyncedAt: '2026-10-04T18:00:00Z' }, accountB],
+    });
+    api.readSnapshot.mockClear();
+    await store.refreshLocalConnection(accountA, true);
+    expect(api.readSnapshot).not.toHaveBeenCalled();
+    expect(store.selectedConversationId()).toBe('conversation-a');
+    expect(store.selectionVersion()).toBe(selection);
+    pendingMessages.resolve(emptyPage());
+    await opening;
+    await settle();
+    expect(api.readSnapshot).toHaveBeenCalledOnce();
+    expect(api.readPage).toHaveBeenCalledTimes(2);
+    expect(store.selectedConversationId()).toBe('conversation-a');
+    expect(store.selectionVersion()).toBe(selection);
+  });
   it('unterscheidet fehlende lokale Quellen von bestätigten und vorhandenen Cloudquellen', async () => {
     api.listConnections.mockResolvedValue({
       canManage: true,

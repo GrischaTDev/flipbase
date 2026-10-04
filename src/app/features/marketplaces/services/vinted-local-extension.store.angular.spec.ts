@@ -38,6 +38,7 @@ describe('Lokale Vinted-Freigabe', () => {
   let canManage: ReturnType<typeof signal<boolean>>;
   let api: {
     approve: ReturnType<typeof vi.fn>;
+    approveInbox: ReturnType<typeof vi.fn>;
     read: ReturnType<typeof vi.fn>;
     revoke: ReturnType<typeof vi.fn>;
   };
@@ -50,6 +51,7 @@ describe('Lokale Vinted-Freigabe', () => {
     canManage = signal(true);
     api = {
       approve: vi.fn().mockResolvedValue(approval),
+      approveInbox: vi.fn().mockResolvedValue(approval),
       read: vi.fn().mockResolvedValue(null),
       revoke: vi.fn().mockResolvedValue(undefined),
     };
@@ -90,6 +92,117 @@ describe('Lokale Vinted-Freigabe', () => {
     );
     expect(store.binding()).toEqual(binding);
     expect(store.imported()).toBeNull();
+  });
+  it('erweitert eine bestehende Installation erst nach Bestätigung um das Postfach', async () => {
+    api.read.mockResolvedValue(binding);
+    await store.loadConnection({ ...localConnection, connectionId: 'next-account' });
+    expect(store.messagesAllowed()).toBe(false);
+    expect(api.approveInbox).not.toHaveBeenCalled();
+    api.read.mockResolvedValue({ ...binding, messagesRead: true });
+    await store.approveInbox();
+    expect(api.approveInbox).toHaveBeenCalledWith(
+      { ...scope, connectionId: 'next-account' },
+      prepared.tokenHash,
+      '123',
+    );
+    expect(store.messagesAllowed()).toBe(true);
+    expect(bridge.request).toHaveBeenCalledExactlyOnceWith('FLIPBASE_VINTED_LOCAL_PREPARE');
+    expect(store.binding()?.expiresAt).toBe(binding.expiresAt);
+  });
+  it('erteilt dem falschen Browserkonto keinen Postfachzugriff', async () => {
+    api.read.mockResolvedValue(binding);
+    await store.loadConnection({ ...localConnection, connectionId: 'next-account' });
+    bridge.request.mockResolvedValue({ ...prepared, identity: { id: '999', username: 'other' } });
+    await store.approveInbox();
+    expect(api.approveInbox).not.toHaveBeenCalled();
+    expect(store.messagesAllowed()).toBe(false);
+    expect(store.error()).toContain('anderes Vinted-Konto');
+  });
+  it('liest ohne separate Nachrichtenfreigabe kein Postfach', async () => {
+    api.read.mockResolvedValue(binding);
+    await store.loadConnection({ ...localConnection, connectionId: 'next-account' });
+    await store.syncInbox();
+    expect(bridge.request).not.toHaveBeenCalled();
+    expect(store.inboxImported()).toBeNull();
+    expect(store.notice()).toContain('Nachrichtenzugriff');
+  });
+  it('bestätigt einen Postfachimport und erhält das geöffnete Gespräch', async () => {
+    api.read.mockResolvedValue({ ...binding, messagesRead: true });
+    await store.loadConnection(localConnection);
+    // Ein neuer Kontokontext lädt den aktuellen Grant.
+    store.connection.set(null);
+    await settle();
+    await store.loadConnection(localConnection);
+    const inboxImported = {
+      ...approval,
+      observedAt: imported.observedAt,
+      counts: { conversation: 2, message: 3 },
+      conversationsComplete: false,
+      nextPage: 2,
+    };
+    bridge.request.mockResolvedValue(inboxImported);
+    refresh.mockResolvedValue({
+      ...localConnection,
+      status: 'connected',
+      lastSyncedAt: imported.observedAt,
+      capabilities: { 'conversations.read': 'verified' },
+    });
+    await store.syncInbox();
+    expect(bridge.request).toHaveBeenCalledExactlyOnceWith(
+      'FLIPBASE_VINTED_LOCAL_INBOX_SYNC',
+      scope,
+    );
+    expect(refresh).toHaveBeenCalledWith(scope, true);
+    expect(store.inboxImported()).toEqual(inboxImported);
+    expect(store.imported()).toBeNull();
+    expect(store.error()).toBeNull();
+    expect(store.notice()).toContain('Teilstand');
+  });
+  it('übernimmt keinen verspäteten Postfachimport nach Kontowechsel', async () => {
+    api.read.mockResolvedValue({ ...binding, messagesRead: true });
+    await store.loadConnection({ ...localConnection, connectionId: 'next-account' });
+    let finish: ((result: unknown) => void) | undefined;
+    bridge.request.mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const pending = store.syncInbox();
+    store.connection.set(localConnection);
+    finish?.({
+      ...approval,
+      connectionId: 'next-account',
+      observedAt: imported.observedAt,
+      counts: { conversation: 1, message: 1 },
+      conversationsComplete: true,
+      nextPage: 1,
+    });
+    await pending;
+    expect(refresh).not.toHaveBeenCalled();
+    expect(store.inboxImported()).toBeNull();
+  });
+  it('akzeptiert einen gespeicherten Postfachimport neben neueren Profilmetadaten', async () => {
+    api.read.mockResolvedValue({ ...binding, messagesRead: true });
+    await store.loadConnection({ ...localConnection, connectionId: 'next-account' });
+    const inboxImported = {
+      ...approval,
+      connectionId: 'next-account',
+      observedAt: imported.observedAt,
+      counts: { conversation: 1, message: 0 },
+      conversationsComplete: true,
+      nextPage: 1,
+    };
+    bridge.request.mockResolvedValue(inboxImported);
+    refresh.mockResolvedValue({
+      ...localConnection,
+      connectionId: 'next-account',
+      status: 'connected',
+      lastSyncedAt: '2026-10-04T00:01:00Z',
+      capabilities: { 'conversations.read': 'verified' },
+    });
+    await store.syncInbox();
+    expect(store.inboxImported()).toEqual(inboxImported);
+    expect(store.error()).toBeNull();
   });
   it('verweigert ein anderes Konto im selben Browserprofil', async () => {
     bridge.request.mockResolvedValue({ ...prepared, identity: { id: '999', username: 'other' } });

@@ -1,5 +1,45 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-04 - Juna - Lokales Vinted-Postfach anhand der Bleam-Codebefunde
+
+**Auftrag:** Nach bestätigter lokaler Kontoverbindung das Postfach als nächstes
+umsetzen und dabei die dokumentierten Bleam-Codeabläufe verwenden. Eigener Zweig
+`juna/vinted-local-inbox` von `origin/master` bei `72e3204`; fremder Hauptzweig und
+installierte Erweiterung bleiben während der Entwicklung unverändert.
+
+**Umsetzung:** Eine vorhandene Installation erhält erst nach ausdrücklicher
+Bestätigung Nachrichtenlesezugriff, ohne ihre Ablaufzeit zu verlängern. Der
+reservierte Vinted-Tab liest eine Gesprächsseite und höchstens drei geänderte,
+bereits gelesene Verläufe. Gespeicherte Versionen überspringen unveränderte
+Details; der Seitenzähler überlebt einen Neustart. Ungelesene Verläufe bleiben
+geschlossen. Begrenzte UTF-8-Pakete gehen über strikte Verträge atomar in den
+vorhandenen Kontospiegel. Profil-/Inserate- und Postfachzeiten bleiben getrennt;
+Teilimporte löschen keine Daten und bestätigen keine vollständige Nachrichtenhistorie.
+
+Das Postfach bietet Freigabe, direkten Abgleich und dessen Ergebnis. Der
+Kopfbereich aktualisiert dort Nachrichten statt erneut Profil und Inserate.
+Gesprächsauswahl und Leseposition bleiben bei einem Abgleich erhalten; ein
+laufender Gesprächsabruf wird vor dem Hintergrundreload abgeschlossen. Keine
+Nachrichten versenden, keine Verkäufe importieren, kein automatischer Takt und
+kein Cloudumbau. Erweiterungsversion 1.2.0.
+
+**Prüfung:** Die erzeugte und auf den Auftragsumfang begrenzte Migration wurde
+in einer isolierten Datenbank vom Ausgangsstand erneut angewendet; 287 betroffene
+Datenbankfälle bestehen. 44 Erweiterungsfälle prüfen zusätzlich den echten
+Reader-/Edge-Vertrag und die UTF-8-Grenze. Das unabhängige Review fand einen
+Identitätsfeldfehler, eine falsche Zeitgleichheitsprüfung und eine Reload-Race;
+alle drei sind mit Regressionen korrigiert. 143 betroffene Angularfälle, zwölf
+Serverfunktionsfälle unter Node und Deno, zwei Chromeprüfungen bei 1440 und
+390 Pixeln einschließlich AXE, zusätzlich vier bestehende Einrichtungs- und
+Aktualisierungsfälle, Typprüfung, gezieltes ESLint/Prettier, Shared-UI-
+und Testsuite-Audit sowie Produktionsbau bestehen. Die vorhandene pako-Warnung
+bleibt. Der Browsertest vergleicht den maschinenlesbaren Importzeitpunkt statt
+einer von der lokalen Zeitzone abhängigen Uhrzeit. Ein echter Vinted-Postfachtest und die
+Veröffentlichung stehen aus; regelmäßige Abgleiche bleiben bis zur Abnahme aus.
+
+**Grundlage:** `docs/research/bleam-vinted-analysis.md`, insbesondere Punkt 37;
+gemeinsamer Vertrag und Pilotgrenzen in `docs/implementation/vinted-local-inbox.md`.
+
 ## 2026-10-04 - Juna - Lokalen Vinted-Arbeitstab wiederherstellen und direkt synchronisieren
 
 **Auftrag:** Nach dem Erweiterungsupdate scheitert der Profil-/Inserateabgleich

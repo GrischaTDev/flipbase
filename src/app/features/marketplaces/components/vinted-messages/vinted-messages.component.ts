@@ -20,6 +20,8 @@ import { CardComponent } from '../../../../shared/components/card/card.component
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import type { MarketplaceEntry } from '../../models/marketplace-read.models';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
+import { VintedLocalExtensionStore } from '../../services/vinted-local-extension.store';
+import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
 
 interface ReadingPosition {
   key: string;
@@ -38,6 +40,8 @@ interface ReadingPosition {
 })
 export class VintedMessagesComponent {
   readonly store = inject(MarketplaceAccountStore);
+  readonly local = inject(VintedLocalExtensionStore);
+  private readonly dialog = inject(ConfirmDialogService);
   private readonly route = inject(ActivatedRoute);
   private readonly query = toSignal(this.route.queryParamMap, {
     initialValue: this.route.snapshot.queryParamMap,
@@ -160,6 +164,24 @@ export class VintedMessagesComponent {
     this.failedRequest.set(null);
     this.focusConversation = JSON.stringify([this.context(), entry.id]);
     await this.store.openConversation(entry.id);
+  }
+  async approveInbox(): Promise<void> {
+    const account = this.store.selectedConnection();
+    const context = this.context();
+    if (
+      !account ||
+      account.executionMode !== 'local' ||
+      !context ||
+      this.local.busy() ||
+      !this.local.hasValidBinding()
+    )
+      return;
+    const accepted = await this.dialog.frage({
+      titel: 'Nachrichtenzugriff erlauben?',
+      text: `Flipbase darf die Gesprächsliste und bereits gelesene Nachrichten von „${account.displayName}“ über dieses Browserprofil übernehmen. Ungelesene Verläufe bleiben geschlossen. Es werden keine Nachrichten gesendet. Die vorhandene Freigabe gilt weiterhin bis zu ihrem Ablauf und kann in der Kontoverwaltung widerrufen werden.`,
+      bestaetigenText: 'Nachrichtenzugriff erlauben',
+    });
+    if (accepted && context === this.context()) await this.local.approveInbox();
   }
 
   backToList(): void {
