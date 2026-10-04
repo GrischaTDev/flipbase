@@ -2,15 +2,46 @@
   <p role="status" class="mb-3 text-[13px] text-fb-text-secondary">{{ message }}</p>
 }
 @if (store.snapshot(); as snapshot) {
-  @if (store.localInboxUnavailable()) {
-    <app-card class="mb-4" title="Postfach noch nicht lokal angebunden">
+  @if (store.selectedConnection()?.executionMode === 'local') {
+    <app-card class="mb-4" title="Lokales Postfach">
       <p class="text-sm text-fb-text-secondary">
-        Die lokale Pilotversion übernimmt bisher Profil und Inserate. Deine Vinted-Nachrichten
-        werden noch nicht synchronisiert. Vorhandene gespeicherte Gespräche bleiben unten sichtbar.
+        Die Erweiterung übernimmt Deine Gesprächsliste und bereits gelesene Nachrichten im
+        reservierten Vinted-Tab. Ungelesene Verläufe bleiben geschlossen. Der Abgleich startet
+        vorerst manuell; die unten sichtbaren Gespräche sind der in Flipbase gespeicherte Stand.
       </p>
-      <app-button class="mt-3" href="https://www.vinted.de/inbox" target="_blank"
-        >Postfach auf Vinted öffnen</app-button
-      >
+      <div class="mt-3 flex flex-wrap gap-2">
+        @if (!local.hasValidBinding()) {
+          <app-button
+            [link]="
+              '/marketplaces/vinted/local-connect/' + store.selectedConnection()?.connectionId
+            "
+            >Lokale Verbindung prüfen</app-button
+          >
+        } @else if (!local.messagesAllowed()) {
+          <app-button [disabled]="local.busy() || !store.canManage()" (clicked)="approveInbox()"
+            >Nachrichtenzugriff erlauben</app-button
+          >
+        } @else {
+          <app-button
+            [loading]="local.busy()"
+            [disabled]="!store.canManage() || store.selectedConnection()?.status !== 'connected'"
+            (clicked)="local.syncInbox()"
+            >Nachrichten synchronisieren</app-button
+          >
+        }
+        <app-button href="https://www.vinted.de/inbox" target="_blank"
+          >Postfach auf Vinted öffnen</app-button
+        >
+      </div>
+      @if (local.inboxImported(); as imported) {
+        <p class="mt-3 text-xs text-fb-text-secondary">
+          Postfach zuletzt übernommen:
+          <time [attr.datetime]="imported.observedAt">{{
+            imported.observedAt | date: 'dd.MM.yyyy, HH:mm'
+          }}</time>
+          Uhr. Nachrichtenverläufe sind ein Teilstand.
+        </p>
+      }
     </app-card>
   }
   <div class="grid min-w-0 gap-4 lg:grid-cols-[minmax(360px,2fr)_minmax(0,3fr)]">

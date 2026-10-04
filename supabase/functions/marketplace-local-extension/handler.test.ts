@@ -5,6 +5,12 @@ import {
   hashLocalExtensionSecret,
   LocalExtensionStoreError,
 } from './handler.ts';
+import {
+  parseLocalExtensionApproval,
+  parseLocalExtensionInboxState,
+  parseLocalExtensionStatus,
+} from '../_shared/marketplace-local-extension-contracts.ts';
+import { parseLocalExtensionInboxSyncResult } from '../_shared/marketplace-local-extension-bridge-contracts.ts';
 import type { LocalExtensionRequest } from '../_shared/marketplace-local-extension-contracts.ts';
 
 const workspaceId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
@@ -166,4 +172,188 @@ test('database failures do not leak exception details', async () => {
   const response = await handler(request({ action: 'heartbeat', workspaceId, connectionId }));
   assert.equal(response.status, 503);
   assert.deepEqual(await response.json(), { error: 'unavailable' });
+});
+function inboxBatch() {
+  return {
+    identity: { id: '123' },
+    observedAt: '2026-10-04T10:00:00Z',
+    page: 1,
+    nextPage: 2,
+    conversationsComplete: false,
+    entries: [
+      {
+        kind: 'conversation',
+        externalId: '456',
+        sortAt: '2026-10-04T09:00:00Z',
+        body: {
+          title: 'Buyer',
+          text: 'Hello',
+          occurredAt: '2026-10-04T09:00:00Z',
+          sourceUpdatedAt: '2026-10-04T09:00:00Z',
+          detailCheckedAt: '2026-10-04T10:00:00Z',
+          unread: false,
+          imageUrl: null,
+        },
+      },
+      {
+        kind: 'message',
+        externalId: '789',
+        parentExternalId: '456',
+        sortAt: '2026-10-04T09:00:00Z',
+        body: {
+          title: 'Message',
+          text: 'Hello',
+          occurredAt: '2026-10-04T09:00:00Z',
+          direction: 'inbound',
+          messageType: 'text',
+          priceLabel: null,
+        },
+      },
+    ],
+  };
+}
+test('inbox actions route to their own store methods with hashed secret', async () => {
+  const calls: string[] = [];
+  const handler = createLocalExtensionHandler({
+    ingest: async () => {
+      assert.fail('profile import must not handle inbox');
+    },
+    inboxState: async (hash, input) => {
+      assert.equal(hash, await hashLocalExtensionSecret(secret));
+      calls.push(input.action);
+      return { ok: true };
+    },
+    inboxImport: async (hash, input) => {
+      assert.equal(hash, await hashLocalExtensionSecret(secret));
+      calls.push(input.action);
+      return { ok: true };
+    },
+  });
+  assert.equal(
+    (await handler(request({ action: 'inbox_state', workspaceId, connectionId }))).status,
+    200,
+  );
+  assert.equal(
+    (
+      await handler(
+        request({ action: 'inbox_import', workspaceId, connectionId, batch: inboxBatch() }),
+      )
+    ).status,
+    200,
+  );
+  assert.deepEqual(calls, ['inbox_state', 'inbox_import']);
+});
+test('inbox parser refuses credentials, missing parents, duplicate ids and oversized batches', async () => {
+  const handler = createLocalExtensionHandler({
+    ingest: async () => {
+      assert.fail('must not persist');
+    },
+    inboxImport: async () => {
+      assert.fail('must not persist');
+    },
+  });
+  const batch = inboxBatch();
+  const invalid = [
+    {
+      ...batch,
+      entries: [{ ...batch.entries[0], body: { ...batch.entries[0].body, cookies: 'secret' } }],
+    },
+    { ...batch, entries: [batch.entries[1]] },
+    { ...batch, entries: [batch.entries[0], batch.entries[0]] },
+    {
+      ...batch,
+      entries: [
+        batch.entries[0],
+        ...Array(201)
+          .fill(batch.entries[1])
+          .map((entry, index) => ({ ...entry, externalId: String(index + 1) })),
+      ],
+    },
+    {
+      ...batch,
+      identity: { id: '999' },
+      entries: [{ ...batch.entries[0], body: { ...batch.entries[0].body, accessToken: 'secret' } }],
+    },
+  ];
+  for (const badBatch of invalid)
+    assert.equal(
+      (
+        await handler(
+          request({ action: 'inbox_import', workspaceId, connectionId, batch: badBatch }),
+        )
+      ).status,
+      400,
+    );
+});
+test('binding and approval accept legacy absence but reject malformed inbox permission', () => {
+  const scope = { workspaceId, connectionId };
+  const approval = { ...scope, externalAccountId: '123', expiresAt: '2026-10-05T10:00:00Z' };
+  const status = {
+    binding: {
+      externalAccountId: '123',
+      expiresAt: approval.expiresAt,
+      lastSeenAt: null,
+      revoked: false,
+    },
+  };
+  assert.ok(parseLocalExtensionApproval(approval, scope));
+  assert.ok(parseLocalExtensionStatus(status));
+  assert.equal(parseLocalExtensionApproval({ ...approval, messagesRead: 'true' }, scope), null);
+  assert.equal(
+    parseLocalExtensionStatus({ binding: { ...status.binding, messagesRead: 'true' } }),
+    null,
+  );
+});
+test('inbox state and sync result enforce scoped identity and bounded versions', () => {
+  const scope = { workspaceId, connectionId };
+  const result = {
+    ...scope,
+    externalAccountId: '123',
+    expiresAt: '2026-10-05T10:00:00Z',
+    observedAt: '2026-10-04T10:00:00Z',
+    counts: { conversation: 1, message: 1 },
+    conversationsComplete: false,
+    nextPage: 2,
+  };
+  const state = {
+    ok: true,
+    externalAccountId: '123',
+    expiresAt: result.expiresAt,
+    messagesRead: true,
+    nextPage: 2,
+    versions: [
+      {
+        externalId: '456',
+        sourceUpdatedAt: result.observedAt,
+        detailCheckedAt: null,
+        text: 'Hello',
+        occurredAt: result.observedAt,
+      },
+    ],
+  };
+  assert.ok(parseLocalExtensionInboxSyncResult(result, scope, '123'));
+  assert.ok(parseLocalExtensionInboxState(state));
+  assert.equal(
+    parseLocalExtensionInboxSyncResult({ ...result, externalAccountId: '999' }, scope, '123'),
+    null,
+  );
+  assert.equal(
+    parseLocalExtensionInboxSyncResult(
+      { ...result, counts: { conversation: 21, message: 1 } },
+      scope,
+      '123',
+    ),
+    null,
+  );
+  assert.equal(
+    parseLocalExtensionInboxState({ ...state, versions: Array(401).fill(state.versions[0]) }),
+    null,
+  );
+  assert.equal(
+    parseLocalExtensionInboxState({
+      ...state,
+      versions: [{ ...state.versions[0], cookies: 'secret' }],
+    }),
+    null,
+  );
 });

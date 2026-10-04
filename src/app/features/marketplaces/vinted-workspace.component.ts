@@ -56,6 +56,9 @@ export class VintedWorkspaceComponent {
   readonly showingSetup = computed(
     () => this.currentUrl().split(/[?#]/)[0] === '/marketplaces/vinted/setup',
   );
+  readonly showingMessages = computed(
+    () => this.currentUrl().split(/[?#]/)[0] === '/marketplaces/vinted/messages',
+  );
   readonly showingManagement = computed(
     () => this.currentUrl().split(/[?#]/)[0] === '/marketplaces/vinted/manage',
   );
@@ -123,7 +126,8 @@ export class VintedWorkspaceComponent {
         await this.router.navigate(['/marketplaces/vinted/local-connect', account.connectionId]);
         return;
       }
-      await this.local.sync();
+      if (this.showingMessages()) await this.local.syncInbox();
+      else await this.local.sync();
       return;
     }
     this.syncModalOpen.set(true);

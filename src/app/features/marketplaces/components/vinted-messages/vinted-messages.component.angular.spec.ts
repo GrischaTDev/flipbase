@@ -19,6 +19,8 @@ import { parseMarketplacePage, parseMarketplaceSnapshot } from '../../models/mar
 import type { AccountScope } from '../../models/marketplace.models';
 import type { MarketplaceEntry, MarketplacePage } from '../../models/marketplace-read.models';
 import { VintedMessagesComponent } from './vinted-messages.component';
+import { VintedLocalExtensionStore } from '../../services/vinted-local-extension.store';
+import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
 
 const accounts = createMarketplaceFixtures().connections;
 const emptyPage = { items: [], total: 0, nextCursor: null };
@@ -89,6 +91,15 @@ let api: {
   readPage: ReturnType<typeof vi.fn>;
 };
 let store: MarketplaceAccountStore;
+let local: {
+  busy: ReturnType<typeof signal<boolean>>;
+  messagesAllowed: ReturnType<typeof signal<boolean>>;
+  inboxImported: ReturnType<typeof signal<null>>;
+  hasValidBinding: ReturnType<typeof vi.fn>;
+  approveInbox: ReturnType<typeof vi.fn>;
+  syncInbox: ReturnType<typeof vi.fn>;
+};
+let dialog: { frage: ReturnType<typeof vi.fn> };
 beforeAll(async () => {
   restore = await prepareMarketplaceRendering([
     {
@@ -116,10 +127,21 @@ beforeEach(() => {
     readSnapshot: vi.fn().mockImplementation(async (scope: AccountScope) => snapshot(scope)),
     readPage: vi.fn().mockImplementation(async (scope: AccountScope) => messages(scope)),
   };
+  local = {
+    busy: signal(false),
+    messagesAllowed: signal(false),
+    inboxImported: signal(null),
+    hasValidBinding: vi.fn().mockReturnValue(true),
+    approveInbox: vi.fn().mockResolvedValue(undefined),
+    syncInbox: vi.fn().mockResolvedValue(undefined),
+  };
+  dialog = { frage: vi.fn().mockResolvedValue(false) };
   TestBed.configureTestingModule({
     providers: [
       provideRouter([]),
       MarketplaceAccountStore,
+      { provide: VintedLocalExtensionStore, useValue: local },
+      { provide: ConfirmDialogService, useValue: dialog },
       {
         provide: ActivatedRoute,
         useValue: { queryParamMap: params, snapshot: { queryParamMap: params.value } },
@@ -172,6 +194,54 @@ function button(fixture: ComponentFixture<VintedMessagesComponent>, text: string
   return result;
 }
 describe('Kompakter gespeicherter Vinted-Gesprächsbereich', () => {
+  it('fragt vor der lokalen Nachrichtenfreigabe und übernimmt eine Ablehnung', async () => {
+    api.listConnections.mockResolvedValue({
+      canManage: true,
+      connections: [{ ...accounts[0], executionMode: 'local' }],
+    });
+    const fixture = await render();
+    button(fixture, 'Nachrichtenzugriff erlauben').click();
+    await settle(fixture);
+    expect(dialog.frage).toHaveBeenCalledWith(
+      expect.objectContaining({ bestaetigenText: 'Nachrichtenzugriff erlauben' }),
+    );
+    expect(local.approveInbox).not.toHaveBeenCalled();
+    dialog.frage.mockResolvedValue(true);
+    button(fixture, 'Nachrichtenzugriff erlauben').click();
+    await settle(fixture);
+    expect(local.approveInbox).toHaveBeenCalledOnce();
+  });
+  it('aktualisiert ein freigegebenes lokales Postfach über die Erweiterung', async () => {
+    api.listConnections.mockResolvedValue({
+      canManage: true,
+      connections: [{ ...accounts[0], executionMode: 'local' }],
+    });
+    local.messagesAllowed.set(true);
+    const fixture = await render();
+    expect(fixture.nativeElement.textContent).toContain('manuell');
+    button(fixture, 'Nachrichten synchronisieren').click();
+    await settle(fixture);
+    expect(local.syncInbox).toHaveBeenCalledOnce();
+    expect(dialog.frage).not.toHaveBeenCalled();
+  });
+  it('erteilt nach Workspacewechsel während des Dialogs keine Nachrichtenfreigabe', async () => {
+    api.listConnections.mockResolvedValue({
+      canManage: true,
+      connections: [{ ...accounts[0], executionMode: 'local' }],
+    });
+    let finish: ((accepted: boolean) => void) | undefined;
+    dialog.frage.mockReturnValue(
+      new Promise<boolean>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const fixture = await render();
+    button(fixture, 'Nachrichtenzugriff erlauben').click();
+    workspace.set({ id: 'other-workspace', archived_at: null });
+    finish?.(true);
+    await settle(fixture);
+    expect(local.approveInbox).not.toHaveBeenCalled();
+  });
   it('öffnet gespeicherte Nachrichten als Text und kennzeichnet Angebote ohne Schreibaktion', async () => {
     const fixture = await render();
     expect(fixture.nativeElement.textContent).toContain('Anfrage zum Schal');

@@ -72,7 +72,7 @@
 
   async function readFromTab(tabId, request) {
     const readDeadline =
-      operationDeadline - (request.type === 'VINTED_LOCAL_SNAPSHOT' ? 13_000 : 1_000);
+      operationDeadline - (request.type === 'VINTED_LOCAL_IDENTITY' ? 1_000 : 13_000);
     let reserved = await ensureTab(tabId);
     let ready = await waitForReceiver(reserved.tabId, readDeadline);
     if (!ready && !reserved.created && !recoveredTab && now() < readDeadline) {
@@ -143,13 +143,15 @@
     readIdentity: (tabId) => readFromTab(tabId, { type: 'VINTED_LOCAL_IDENTITY' }),
     readSnapshot: (tabId, externalAccountId) =>
       readFromTab(tabId, { type: 'VINTED_LOCAL_SNAPSHOT', externalAccountId }),
+    readInbox: (tabId, externalAccountId, state) =>
+      readFromTab(tabId, { type: 'VINTED_LOCAL_INBOX', externalAccountId, state }),
     edge: async (binding, secret, body) => {
       if (!core.isApiUrl(binding.apiUrl, binding.appOrigin))
         throw new Error('Die Serveradresse ist nicht erlaubt.');
       const serializedBody = JSON.stringify(body);
       if (new TextEncoder().encode(serializedBody).length > 512 * 1024)
         throw new Error(
-          'Die Anzeigendaten überschreiten die maximale Größe dieses Lesepiloten. Es wurde nichts importiert.',
+          'Die Daten überschreiten die maximale Größe dieses Lesepiloten. Es wurde nichts importiert.',
         );
       const timeoutMs = Math.min(6_000, operationDeadline - now());
       if (timeoutMs <= 0)

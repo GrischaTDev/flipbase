@@ -4,6 +4,7 @@ type RequestType =
   | 'FLIPBASE_VINTED_LOCAL_PREPARE'
   | 'FLIPBASE_VINTED_LOCAL_BIND'
   | 'FLIPBASE_VINTED_LOCAL_SYNC'
+  | 'FLIPBASE_VINTED_LOCAL_INBOX_SYNC'
   | 'FLIPBASE_VINTED_LOCAL_DISCONNECT';
 interface PendingRequest {
   readonly resolve: (result: unknown) => void;

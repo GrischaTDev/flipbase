@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { webcrypto } from 'node:crypto';
 import { JSDOM } from 'jsdom';
+import { parseLocalExtensionRequest } from '../supabase/functions/_shared/marketplace-local-extension-contracts.ts';
 
 const require = createRequire(import.meta.url);
 const core = require('../tools/flipbase-extension/vinted-local-core.js');
@@ -29,6 +30,319 @@ const item = {
   favourite_count: 2,
 };
 const scope = { workspaceId, connectionId };
+test('Inbox reader output satisfies the real Edge import contract', async () => {
+  const reader = inboxReader([inboxConversation], {
+    '/api/v2/conversations/51': { conversation: { id: 51, messages: [inboxMessage] } },
+  });
+  const batch = await core.readInbox(
+    reader.read,
+    '123',
+    { nextPage: 1, versions: [] },
+    () => observedAt,
+  );
+  assert.ok(parseLocalExtensionRequest({ ...scope, action: 'inbox_import', batch }));
+  assert.deepEqual(batch.identity, { id: '123' });
+});
+test('Inbox limits UTF-8 batches without claiming truncated details are current', async () => {
+  const messages = Array.from({ length: 200 }, (_, index) => ({
+    ...inboxMessage,
+    id: 1000 + index,
+    entity: { body: 'ä'.repeat(8000), user_id: 456 },
+  }));
+  const reader = inboxReader([inboxConversation], {
+    '/api/v2/conversations/51': { conversation: { id: 51, messages } },
+  });
+  const batch = await core.readInbox(
+    reader.read,
+    '123',
+    { nextPage: 1, versions: [] },
+    () => observedAt,
+  );
+  assert.ok(
+    Buffer.byteLength(JSON.stringify({ ...scope, action: 'inbox_import', batch })) < 512 * 1024,
+  );
+  assert.equal(batch.entries[0].body.detailCheckedAt, null);
+  assert.ok(batch.entries.filter((entry) => entry.kind === 'message').length < 200);
+  assert.ok(parseLocalExtensionRequest({ ...scope, action: 'inbox_import', batch }));
+});
+const inboxConversation = {
+  id: 51,
+  unread: false,
+  updated_at: '2026-10-04T09:00:00Z',
+  description: 'Frage zur Jacke',
+  opposite_user: { login: 'Interessentin' },
+};
+const inboxMessage = {
+  id: 61,
+  entity_type: 'text_message',
+  created_at_ts: '2026-10-04T09:00:00Z',
+  entity: { body: 'Ist die Jacke noch da?', user_id: 456 },
+};
+function inboxReader(conversations, details, pages = 1) {
+  const calls = [];
+  return {
+    calls,
+    read: async (path) => {
+      calls.push(path);
+      if (path === '/api/v2/users/current') return profile;
+      if (path.startsWith('/api/v2/inbox?'))
+        return { conversations, pagination: { total_pages: pages } };
+      const detail = details[path];
+      if (detail instanceof Error) throw detail;
+      if (!detail) throw new Error(`Unexpected request: ${path}`);
+      return detail;
+    },
+  };
+}
+
+test('Inbox reads preserve unread state and normalize only permitted message fields', async () => {
+  const reader = inboxReader([inboxConversation, { ...inboxConversation, id: 52, unread: true }], {
+    '/api/v2/conversations/51': { conversation: { id: 51, messages: [inboxMessage] } },
+  });
+  const batch = await core.readInbox(
+    reader.read,
+    '123',
+    { nextPage: 1, versions: [] },
+    () => observedAt,
+  );
+  assert.equal(batch.entries.length, 3);
+  const importedMessage = batch.entries.find((entry) => entry.kind === 'message');
+  assert.equal(importedMessage.parentExternalId, '51');
+  assert.deepEqual(importedMessage.body, {
+    title: 'text_message',
+    text: 'Ist die Jacke noch da?',
+    occurredAt: '2026-10-04T09:00:00.000Z',
+    direction: 'inbound',
+    messageType: 'text_message',
+    priceLabel: null,
+  });
+  assert.equal(batch.conversationsComplete, true);
+  assert.equal(batch.nextPage, 1);
+  assert.ok(!reader.calls.includes('/api/v2/conversations/52'));
+  assert.ok(!reader.calls.some((path) => path.includes('wardrobe')));
+});
+
+test('Inbox skips unchanged recent details and retains their longer preview', async () => {
+  const reader = inboxReader([inboxConversation], {});
+  const batch = await core.readInbox(
+    reader.read,
+    '123',
+    {
+      nextPage: 1,
+      versions: [
+        {
+          externalId: '51',
+          sourceUpdatedAt: '2026-10-04T09:00:00.000Z',
+          detailCheckedAt: '2026-10-04T09:30:00.000Z',
+          text: 'Längere gespeicherte Nachricht',
+          occurredAt: '2026-10-04T09:00:00.000Z',
+        },
+      ],
+    },
+    () => observedAt,
+  );
+  assert.equal(batch.entries[0].body.text, 'Längere gespeicherte Nachricht');
+  assert.equal(reader.calls.filter((path) => path.startsWith('/api/v2/conversations/')).length, 0);
+});
+
+test('Inbox resumes pages and bounds detail reads without claiming historical message completeness', async () => {
+  const conversations = Array.from({ length: 5 }, (_, index) => ({
+    ...inboxConversation,
+    id: 51 + index,
+  }));
+  const details = Object.fromEntries(
+    conversations.map((entry) => [
+      `/api/v2/conversations/${entry.id}`,
+      {
+        conversation: { id: entry.id, messages: [{ ...inboxMessage, id: entry.id + 100 }] },
+      },
+    ]),
+  );
+  const reader = inboxReader(conversations, details, 3);
+  const batch = await core.readInbox(
+    reader.read,
+    '123',
+    { nextPage: 2, versions: [] },
+    () => observedAt,
+  );
+  assert.ok(reader.calls.includes('/api/v2/inbox?page=2&per_page=20'));
+  assert.equal(reader.calls.filter((path) => path.startsWith('/api/v2/conversations/')).length, 3);
+  assert.equal(batch.nextPage, 3);
+  assert.equal(batch.conversationsComplete, false);
+  assert.equal(batch.entries.find((entry) => entry.externalId === '54').body.detailCheckedAt, null);
+});
+
+test('Inbox rejects changed account, wrong detail identity, ambiguous rows and provider failures', async () => {
+  for (const detail of [
+    { conversation: { id: 52, messages: [] } },
+    new Error('Vinted begrenzt gerade die Abrufe.'),
+  ]) {
+    const reader = inboxReader([inboxConversation], { '/api/v2/conversations/51': detail });
+    await assert.rejects(
+      core.readInbox(reader.read, '123', { nextPage: 1, versions: [] }, () => observedAt),
+    );
+  }
+  const duplicates = inboxReader([inboxConversation, inboxConversation], {});
+  await assert.rejects(
+    core.readInbox(duplicates.read, '123', { nextPage: 1, versions: [] }, () => observedAt),
+  );
+  const changed = inboxReader([{ ...inboxConversation, unread: true }], {});
+  let identities = 0;
+  await assert.rejects(
+    core.readInbox(
+      (path) =>
+        path === '/api/v2/users/current' && ++identities > 1
+          ? Promise.resolve({ user: { id: 999, login: 'anderes-konto' } })
+          : changed.read(path),
+      '123',
+      { nextPage: 1, versions: [] },
+      () => observedAt,
+    ),
+    /gewechselt/,
+  );
+});
+
+test('Inbox truncation does not certify details and system events have stable IDs', async () => {
+  const event = {
+    entity_type: 'status_message',
+    created_at_ts: 1791104400,
+    entity: { title: 'Status', event: 'shipping' },
+  };
+  const messages = Array.from({ length: 202 }, (_, index) => ({
+    ...inboxMessage,
+    id: index + 1000,
+  }));
+  const reader = inboxReader([inboxConversation], {
+    '/api/v2/conversations/51': {
+      conversation: { id: 51, messages: [event, ...messages] },
+    },
+  });
+  const batch = await core.readInbox(
+    reader.read,
+    '123',
+    { nextPage: 1, versions: [] },
+    () => observedAt,
+  );
+  assert.equal(batch.entries.filter((entry) => entry.kind === 'message').length, 200);
+  assert.equal(batch.entries[0].body.detailCheckedAt, null);
+  const eventReader = inboxReader([inboxConversation], {
+    '/api/v2/conversations/51': {
+      conversation: { id: 51, messages: [event] },
+    },
+  });
+  const first = await core.readInbox(
+    eventReader.read,
+    '123',
+    { nextPage: 1, versions: [] },
+    () => observedAt,
+  );
+  const second = await core.readInbox(
+    eventReader.read,
+    '123',
+    { nextPage: 1, versions: [] },
+    () => observedAt,
+  );
+  assert.match(first.entries[1].externalId, /^event:[0-9a-f]{64}$/);
+  assert.equal(first.entries[1].externalId, second.entries[1].externalId);
+});
+
+test('Inbox runtime requires explicit server permission before any Vinted read', async () => {
+  const setup = harness();
+  await setup.runtime.run(request('PREPARE'), appOrigin);
+  await setup.runtime.run(request('BIND', payload), appOrigin);
+  setup.adapter.readInbox = async () => {
+    throw new Error('Inbox reader must not run');
+  };
+  await assert.rejects(
+    setup.runtime.run(request('INBOX_SYNC', scope), appOrigin),
+    /Nachrichtenfreigabe/,
+  );
+  assert.ok(!setup.edgeCalls.some((entry) => entry.action === 'inbox_import'));
+});
+
+test('Inbox runtime imports a separate batch and resumes its server checkpoint after restart', async () => {
+  const setup = harness();
+  await setup.runtime.run(request('PREPARE'), appOrigin);
+  await setup.runtime.run(request('BIND', payload), appOrigin);
+  const receivedPages = [];
+  setup.adapter.edge = async (_binding, authorization, body) => {
+    assert.equal(authorization, secret);
+    setup.edgeCalls.push(body);
+    if (body.action === 'inbox_import')
+      return {
+        ok: true,
+        observedAt,
+        counts: { conversation: 1, message: 1 },
+        nextPage: 3,
+        conversationsComplete: false,
+      };
+    return {
+      ok: true,
+      externalAccountId: '123',
+      expiresAt,
+      messagesRead: true,
+      ...(body.action === 'inbox_state' ? { nextPage: 2, versions: [] } : {}),
+    };
+  };
+  setup.adapter.readInbox = async (_tabId, expectedId, state) => {
+    assert.equal(expectedId, '123');
+    receivedPages.push(state.nextPage);
+    return {
+      tabId: 12,
+      batch: {
+        identity,
+        observedAt,
+        page: 2,
+        nextPage: 3,
+        conversationsComplete: false,
+        entries: [],
+      },
+    };
+  };
+  const result = await core
+    .createRuntime(setup.adapter)
+    .run(request('INBOX_SYNC', scope), appOrigin);
+  assert.deepEqual(receivedPages, [2]);
+  assert.equal(result.nextPage, 3);
+  assert.equal(result.counts.message, 1);
+  assert.ok(!setup.edgeCalls.some((entry) => entry.action === 'import'));
+});
+
+test('Inbox runtime rechecks message permission after the provider read and denies revoked access', async () => {
+  const setup = harness();
+  await setup.runtime.run(request('PREPARE'), appOrigin);
+  await setup.runtime.run(request('BIND', payload), appOrigin);
+  let messagePermission = true;
+  setup.adapter.edge = async (_binding, _authorization, body) => {
+    setup.edgeCalls.push(body);
+    return {
+      ok: true,
+      externalAccountId: '123',
+      expiresAt,
+      messagesRead: messagePermission,
+      ...(body.action === 'inbox_state' ? { nextPage: 1, versions: [] } : {}),
+    };
+  };
+  setup.adapter.readInbox = async () => {
+    messagePermission = false;
+    return {
+      tabId: 12,
+      batch: {
+        identity,
+        observedAt,
+        page: 1,
+        nextPage: 1,
+        conversationsComplete: true,
+        entries: [],
+      },
+    };
+  };
+  await assert.rejects(
+    setup.runtime.run(request('INBOX_SYNC', scope), appOrigin),
+    /Nachrichtenfreigabe/,
+  );
+  assert.ok(!setup.edgeCalls.some((entry) => entry.action === 'inbox_import'));
+});
 const payload = {
   ...scope,
   externalAccountId: '123',
@@ -561,7 +875,10 @@ test('Manifest narrows application and provider access without changing Kleinanz
   assert.deepEqual(manifest.permissions, ['storage', 'activeTab']);
 });
 
-function createReservedTabFixture(markup = '<main><input><button>Vinted-Aktion</button></main>') {
+function createReservedTabFixture(
+  markup = '<main><input><button>Vinted-Aktion</button></main>',
+  responseFor = () => profile,
+) {
   const dom = new JSDOM(`<!doctype html><body>${markup}</body>`, {
     url: 'https://www.vinted.de/',
   });
@@ -592,7 +909,7 @@ function createReservedTabFixture(markup = '<main><input><button>Vinted-Aktion</
     Error,
     URL,
     AbortSignal,
-    fetch: async () => {
+    fetch: async (path) => {
       reads++;
       if (pendingResponse) await pendingResponse;
       return {
@@ -600,7 +917,7 @@ function createReservedTabFixture(markup = '<main><input><button>Vinted-Aktion</
         ok: status === 200,
         url: 'https://www.vinted.de/api/v2/users/current',
         headers: new Headers({ 'Content-Type': 'application/json' }),
-        json: async () => profile,
+        json: async () => responseFor(path),
       };
     },
   });
@@ -623,9 +940,52 @@ function createReservedTabFixture(markup = '<main><input><button>Vinted-Aktion</
       new Promise((resolve) =>
         listener({ type: 'VINTED_LOCAL_IDENTITY' }, { id: 'extension' }, resolve),
       ),
+    readInbox: () =>
+      new Promise((resolve) =>
+        listener(
+          {
+            type: 'VINTED_LOCAL_INBOX',
+            externalAccountId: '123',
+            state: { nextPage: 1, versions: [] },
+          },
+          { id: 'extension' },
+          resolve,
+        ),
+      ),
     mutationsSettled: () => new Promise((resolve) => setImmediate(resolve)),
   };
 }
+
+test('Content inbox reader uses the exact GET whitelist and keeps the reserved tab protected', async () => {
+  const calls = [];
+  const fixture = createReservedTabFixture(undefined, (path) => {
+    calls.push(path);
+    if (path === '/api/v2/users/current') return profile;
+    if (path === '/api/v2/inbox?page=1&per_page=20')
+      return {
+        conversations: [inboxConversation],
+        pagination: { total_pages: 1 },
+      };
+    if (path === '/api/v2/conversations/51')
+      return { conversation: { id: 51, messages: [inboxMessage] } };
+    throw new Error('Unexpected provider path');
+  });
+  try {
+    const response = await fixture.readInbox();
+    assert.equal(response.success, true);
+    assert.equal(
+      response.result.batch.entries.filter((entry) => entry.kind === 'message').length,
+      1,
+    );
+    assert.ok(calls.includes('/api/v2/inbox?page=1&per_page=20'));
+    assert.equal(
+      fixture.dom.window.document.querySelector('#flipbase-vinted-work-tab').dataset.protected,
+      'true',
+    );
+  } finally {
+    fixture.dom.window.close();
+  }
+});
 
 test('Reserved tab stays modal after import and blocks background clicks, typing and focus', async () => {
   const fixture = createReservedTabFixture();

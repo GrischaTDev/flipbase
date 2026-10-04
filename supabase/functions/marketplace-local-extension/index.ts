@@ -13,6 +13,26 @@ const service = createClient(
 );
 Deno.serve(
   createLocalExtensionHandler({
+    async inboxState(tokenHash, input) {
+      const { data, error } = await service.rpc('marketplace_local_inbox_state', {
+        p_workspace_id: input.workspaceId,
+        p_connection_id: input.connectionId,
+        p_token_hash: tokenHash,
+      });
+      if (error) throw mapStoreError(error.code);
+      return data;
+    },
+    async inboxImport(tokenHash, input) {
+      if (input.action !== 'inbox_import') throw new LocalExtensionStoreError('invalid');
+      const { data, error } = await service.rpc('marketplace_import_local_inbox', {
+        p_workspace_id: input.workspaceId,
+        p_connection_id: input.connectionId,
+        p_token_hash: tokenHash,
+        p_batch: input.batch,
+      });
+      if (error) throw mapStoreError(error.code);
+      return data;
+    },
     async ingest(tokenHash, input) {
       const { data, error } = await service.rpc('marketplace_ingest_local_extension', {
         p_workspace_id: input.workspaceId,
@@ -36,3 +56,9 @@ Deno.serve(
     },
   }),
 );
+function mapStoreError(code: string) {
+  if (code === '42501') return new LocalExtensionStoreError('access');
+  if (code === '22023') return new LocalExtensionStoreError('invalid');
+  if (code === '23505' || code === '55P03') return new LocalExtensionStoreError('conflict');
+  return new Error('Database unavailable');
+}

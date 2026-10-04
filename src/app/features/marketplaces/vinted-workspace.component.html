@@ -12,6 +12,11 @@
       [canManage]="store.canManage()"
       [refreshing]="store.busy() || local.busy()"
       [loading]="store.loadingSnapshot()"
+      [refreshLabel]="
+        showingMessages() && account.executionMode === 'local'
+          ? 'Nachrichten aktualisieren'
+          : 'Kontodaten aktualisieren'
+      "
       (accountSelected)="store.selectConnection($event)"
       (refreshRequested)="sync()"
       (synchronized)="store.refreshImportedSnapshot($event, $event.lastSuccessAt)"
@@ -57,7 +62,7 @@
     @if (account.executionMode === 'local') {
       @if (local.busy()) {
         <p role="status" class="text-[13px] text-fb-text-secondary">
-          Profil und Inserate werden aktualisiert. Die Erweiterung öffnet den Vinted-Arbeitstab
+          Daten werden über die Erweiterung übernommen. Der Vinted-Arbeitstab öffnet sich
           automatisch.
         </p>
       }

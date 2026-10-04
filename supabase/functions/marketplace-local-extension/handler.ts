@@ -11,6 +11,8 @@ export class LocalExtensionStoreError extends Error {
 }
 export interface LocalExtensionStore {
   ingest(tokenHash: string, input: LocalExtensionRequest): Promise<unknown>;
+  inboxState?(tokenHash: string, input: LocalExtensionRequest): Promise<unknown>;
+  inboxImport?(tokenHash: string, input: LocalExtensionRequest): Promise<unknown>;
 }
 export async function hashLocalExtensionSecret(secret: string): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(secret));
@@ -66,7 +68,16 @@ export function createLocalExtensionHandler(store: LocalExtensionStore) {
     }
     if (!input) return respond({ error: 'invalid_request' }, 400);
     try {
-      return respond(await store.ingest(await hashLocalExtensionSecret(bearer.slice(7)), input));
+      const tokenHash = await hashLocalExtensionSecret(bearer.slice(7));
+      if (input.action === 'inbox_state') {
+        if (!store.inboxState) return respond({ error: 'unavailable' }, 503);
+        return respond(await store.inboxState(tokenHash, input));
+      }
+      if (input.action === 'inbox_import') {
+        if (!store.inboxImport) return respond({ error: 'unavailable' }, 503);
+        return respond(await store.inboxImport(tokenHash, input));
+      }
+      return respond(await store.ingest(tokenHash, input));
     } catch (error) {
       if (error instanceof LocalExtensionStoreError)
         return respond(

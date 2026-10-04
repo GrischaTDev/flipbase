@@ -1,8 +1,8 @@
 # Flipbase Listing-Assistent
 
 Die Erweiterung unterstützt Kleinanzeigen-Inserate und einen lokalen,
-manuell gestarteten Vinted-Lesepiloten. Der Vinted-Pilot überträgt nur Profil
-und eigene Anzeigen an Flipbase; er verschickt keine Nachrichten oder Angebote
+manuell gestarteten Vinted-Lesepiloten. Der Vinted-Pilot überträgt Profil
+und eigene Anzeigen sowie nach separater Freigabe Gespräche und bereits gelesene Nachrichten an Flipbase; er verschickt keine Nachrichten oder Angebote
 und veröffentlicht, bearbeitet oder löscht keine Vinted-Anzeigen.
 
 ## Interne Pilotinstallation (Chrome)
@@ -56,14 +56,16 @@ Formular, können einzelne Felder manuelle Eingaben verlangen.
    stoppen den Import. Beim Trennen wird das lokale Installationsgeheimnis gelöscht;
    Flipbase widerruft zusätzlich die serverseitige Freigabe.
 
-Noch nicht enthalten: automatische Intervalle, Nachrichten, Verkäufe, Relisting und Cloudbetrieb.
+6. Öffne in Flipbase das Postfach und bestätige „Nachrichtenzugriff erlauben“. Starte danach „Nachrichten synchronisieren“. Ein Lauf liest bis zu 20 Gespräche und drei geänderte, bereits gelesene Verläufe. Weitere Seiten folgen beim nächsten manuellen Abgleich. Ungelesene Verläufe bleiben geschlossen; Nachrichtenhistorien sind ausdrücklich ein Teilstand.
+
+Noch nicht enthalten: automatische Intervalle, Nachrichtenversand, Verkäufe, Relisting und Cloudbetrieb.
 Rechner und Browser müssen für einen lokalen Abgleich laufen. Browserprofile trennen
 Cookies und Anmeldungen, bieten aber keine Garantie gegen Prüfungen oder Sperren.
 
 Vinted-Passwort und Sitzungscookies verbleiben im Browser. Ein widerrufbares
 Installationsgeheimnis wird nur im vertrauenswürdigen Erweiterungshintergrund
 gespeichert; die Weboberfläche erhält dessen Hash und die bestätigte Kontoidentität.
-Nur Profil- und Anzeigendaten werden an den erlaubten Flipbase-Server übertragen.
+Profil- und Anzeigendaten sowie ausdrücklich freigegebene Postfachdaten werden an den erlaubten Flipbase-Server übertragen.
 Die Erweiterung kann keine beliebige Serveradresse mit diesem Geheimnis aufrufen.
 
 Beim erneuten Prüfen einer bereits verbundenen Installation wird ihre Serverfreigabe
