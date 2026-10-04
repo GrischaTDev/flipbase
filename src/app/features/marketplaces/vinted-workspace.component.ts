@@ -1,5 +1,6 @@
 import {
   ChangeDetectionStrategy,
+  DestroyRef,
   Component,
   computed,
   effect,
@@ -9,7 +10,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, NavigationEnd, Router, RouterOutlet } from '@angular/router';
-import { LucideArrowLeft, LucideLogIn, LucideStore } from '@lucide/angular';
+import { LucideArrowLeft, LucideLogIn, LucideStore, LucideMessagesSquare } from '@lucide/angular';
 import { ButtonComponent } from '../../shared/components/button/button.component';
 import { NoticeBannerComponent } from '../../shared/components/notice-banner/notice-banner.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
@@ -20,6 +21,7 @@ import { VintedAccountControlsComponent } from './components/vinted-account-cont
 import { VintedSetupComponent } from './components/vinted-setup/vinted-setup.component';
 import { VintedLocalExtensionBridge } from './services/vinted-local-extension-bridge';
 import { VintedLocalExtensionStore } from './services/vinted-local-extension.store';
+import { VintedMessagingStore } from './services/vinted-messaging.store';
 
 @Component({
   selector: 'app-vinted-workspace',
@@ -33,7 +35,12 @@ import { VintedLocalExtensionStore } from './services/vinted-local-extension.sto
     VintedAccountControlsComponent,
   ],
   templateUrl: './vinted-workspace.component.html',
-  providers: [MarketplaceAccountStore, VintedLocalExtensionBridge, VintedLocalExtensionStore],
+  providers: [
+    MarketplaceAccountStore,
+    VintedLocalExtensionBridge,
+    VintedLocalExtensionStore,
+    VintedMessagingStore,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block min-w-0' },
 })
@@ -65,7 +72,7 @@ export class VintedWorkspaceComponent {
   readonly showingLocalConnection = computed(() =>
     this.currentUrl().split(/[?#]/)[0].startsWith('/marketplaces/vinted/local-connect/'),
   );
-  readonly pageIcon = LucideStore;
+  readonly pageIcon = computed(() => (this.showingMessages() ? LucideMessagesSquare : LucideStore));
   readonly loginIcon = LucideLogIn;
   readonly syncModalOpen = signal(false);
   readonly reconnectLink = computed(() => {
@@ -76,6 +83,11 @@ export class VintedWorkspaceComponent {
   });
 
   constructor() {
+    const bindingTimer = setInterval(() => {
+      if (this.showingMessages() && document.visibilityState !== 'hidden')
+        void this.local.refreshStatus();
+    }, 60000);
+    inject(DestroyRef).onDestroy(() => clearInterval(bindingTimer));
     effect(() => {
       if (!this.showingLocalConnection()) {
         const account = this.store.selectedConnection();

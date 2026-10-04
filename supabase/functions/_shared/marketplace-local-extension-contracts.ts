@@ -16,8 +16,28 @@ export type LocalExtensionRequest = AccountScope &
   (
     | { readonly action: 'heartbeat' }
     | { readonly action: 'import'; readonly snapshot: LocalExtensionSnapshot }
-    | { readonly action: 'inbox_state' }
-    | { readonly action: 'inbox_import'; readonly batch: LocalExtensionInboxBatch }
+    | { readonly action: 'inbox_state'; readonly mode?: 'latest' | 'backfill' }
+    | {
+        readonly action: 'inbox_import';
+        readonly mode?: 'latest' | 'backfill';
+        readonly batch: LocalExtensionInboxBatch;
+      }
+    | { readonly action: 'inbox_detail_state'; readonly conversationId: string }
+    | {
+        readonly action: 'inbox_detail_import';
+        readonly conversationId: string;
+        readonly batch: LocalExtensionInboxBatch;
+      }
+    | { readonly action: 'message_claim' }
+    | { readonly action: 'message_start'; readonly id: string; readonly claimToken: string }
+    | {
+        readonly action: 'message_finish';
+        readonly id: string;
+        readonly claimToken: string;
+        readonly outcome: 'sent' | 'failed' | 'outcome_unknown';
+        readonly externalMessageId?: string;
+        readonly errorCode?: string;
+      }
   );
 export interface LocalExtensionInboxEntry {
   readonly kind: 'conversation' | 'message';
@@ -50,11 +70,13 @@ export interface LocalExtensionInboxState {
   readonly versions: readonly LocalExtensionInboxVersion[];
 }
 export interface LocalExtensionBinding {
+  readonly inboxSyncedAt?: string | null;
   readonly externalAccountId: string;
   readonly expiresAt: string;
   readonly lastSeenAt: string | null;
   readonly revoked: boolean;
   readonly messagesRead?: boolean;
+  readonly messagesSend?: boolean;
 }
 export const localExtensionMaxBytes = 512 * 1024;
 const accountId = /^[1-9][0-9]{0,31}$/;
@@ -130,8 +152,27 @@ const conversationFields = [
   'detailCheckedAt',
   'unread',
   'imageUrl',
+  'itemId',
+  'itemTitle',
+  'itemImageUrl',
+  'itemPrice',
+  'itemCurrency',
+  'partnerId',
+  'lastActiveAt',
+  'transactionStatus',
 ];
-const messageFields = ['title', 'text', 'occurredAt', 'direction', 'messageType', 'priceLabel'];
+const messageFields = [
+  'title',
+  'text',
+  'occurredAt',
+  'direction',
+  'messageType',
+  'priceLabel',
+  'imageUrls',
+  'eventType',
+  'eventGroup',
+  'offerStatus',
+];
 const numericFields = [
   'feedbackCount',
   'feedbackReputation',
@@ -186,13 +227,75 @@ export function parseLocalExtensionRequest(input: unknown): LocalExtensionReques
     return null;
   if (input['action'] === 'heartbeat' && keys(input, ['action', 'workspaceId', 'connectionId']))
     return input as unknown as LocalExtensionRequest;
-  if (input['action'] === 'inbox_state' && keys(input, ['action', 'workspaceId', 'connectionId']))
+  const mode = input['mode'];
+  const validMode = mode === undefined || mode === 'latest' || mode === 'backfill';
+  if (
+    input['action'] === 'inbox_state' &&
+    validMode &&
+    keys(input, ['action', 'workspaceId', 'connectionId', 'mode'])
+  )
     return input as unknown as LocalExtensionRequest;
   if (
     input['action'] === 'inbox_import' &&
-    keys(input, ['action', 'workspaceId', 'connectionId', 'batch'])
+    validMode &&
+    keys(input, ['action', 'workspaceId', 'connectionId', 'mode', 'batch'])
   )
     return parseInboxBatch(input['batch']) ? (input as unknown as LocalExtensionRequest) : null;
+  if (
+    input['action'] === 'inbox_detail_state' &&
+    keys(input, ['action', 'workspaceId', 'connectionId', 'conversationId']) &&
+    typeof input['conversationId'] === 'string' &&
+    uuid.test(input['conversationId'])
+  )
+    return input as unknown as LocalExtensionRequest;
+  if (
+    input['action'] === 'inbox_detail_import' &&
+    keys(input, ['action', 'workspaceId', 'connectionId', 'conversationId', 'batch']) &&
+    typeof input['conversationId'] === 'string' &&
+    uuid.test(input['conversationId'])
+  )
+    return parseInboxBatch(input['batch']) ? (input as unknown as LocalExtensionRequest) : null;
+  if (input['action'] === 'message_claim' && keys(input, ['action', 'workspaceId', 'connectionId']))
+    return input as unknown as LocalExtensionRequest;
+  if (
+    (input['action'] === 'message_start' || input['action'] === 'message_finish') &&
+    keys(input, [
+      'action',
+      'workspaceId',
+      'connectionId',
+      'id',
+      'claimToken',
+      'outcome',
+      'externalMessageId',
+      'errorCode',
+    ]) &&
+    typeof input['id'] === 'string' &&
+    uuid.test(input['id']) &&
+    typeof input['claimToken'] === 'string' &&
+    uuid.test(input['claimToken'])
+  ) {
+    if (
+      input['action'] === 'message_start' &&
+      !Object.hasOwn(input, 'outcome') &&
+      !Object.hasOwn(input, 'externalMessageId') &&
+      !Object.hasOwn(input, 'errorCode')
+    )
+      return input as unknown as LocalExtensionRequest;
+    if (
+      input['action'] === 'message_finish' &&
+      (input['outcome'] === 'sent' ||
+        input['outcome'] === 'failed' ||
+        input['outcome'] === 'outcome_unknown') &&
+      (input['externalMessageId'] === undefined ||
+        (typeof input['externalMessageId'] === 'string' &&
+          accountId.test(input['externalMessageId']))) &&
+      (input['errorCode'] === undefined ||
+        (typeof input['errorCode'] === 'string' && /^[a-z_]{1,80}$/.test(input['errorCode']))) &&
+      (input['outcome'] !== 'sent' || typeof input['externalMessageId'] === 'string') &&
+      (input['outcome'] === 'sent' || input['externalMessageId'] === undefined)
+    )
+      return input as unknown as LocalExtensionRequest;
+  }
   if (
     input['action'] !== 'import' ||
     !keys(input, ['action', 'workspaceId', 'connectionId', 'snapshot'])
@@ -301,7 +404,32 @@ function parseInboxBatch(input: unknown): input is LocalExtensionInboxBatch {
         !date(body['sourceUpdatedAt']) ||
         (body['detailCheckedAt'] !== null && !date(body['detailCheckedAt'])) ||
         (body['unread'] !== null && typeof body['unread'] !== 'boolean') ||
-        !image(body['imageUrl'])
+        !image(body['imageUrl']) ||
+        (body['itemId'] !== undefined &&
+          body['itemId'] !== null &&
+          (typeof body['itemId'] !== 'string' || !accountId.test(body['itemId']))) ||
+        (body['partnerId'] !== undefined &&
+          body['partnerId'] !== null &&
+          (typeof body['partnerId'] !== 'string' || !accountId.test(body['partnerId']))) ||
+        (body['itemTitle'] !== undefined &&
+          body['itemTitle'] !== null &&
+          !text(body['itemTitle'], 500)) ||
+        (body['itemImageUrl'] !== undefined && !image(body['itemImageUrl'])) ||
+        (body['itemPrice'] !== undefined &&
+          body['itemPrice'] !== null &&
+          (typeof body['itemPrice'] !== 'number' ||
+            !Number.isFinite(body['itemPrice']) ||
+            body['itemPrice'] < 0 ||
+            body['itemPrice'] > 1e12)) ||
+        (body['itemCurrency'] !== undefined &&
+          body['itemCurrency'] !== null &&
+          (typeof body['itemCurrency'] !== 'string' || !/^[A-Z]{3}$/.test(body['itemCurrency']))) ||
+        (body['lastActiveAt'] !== undefined &&
+          body['lastActiveAt'] !== null &&
+          !date(body['lastActiveAt'])) ||
+        (body['transactionStatus'] !== undefined &&
+          body['transactionStatus'] !== null &&
+          !text(body['transactionStatus'], 500))
       )
         return false;
       parents.add(entry['externalId']);
@@ -317,7 +445,14 @@ function parseInboxBatch(input: unknown): input is LocalExtensionInboxBatch {
         !date(body['occurredAt']) ||
         !['inbound', 'outbound', 'unknown'].includes(body['direction'] as string) ||
         (body['messageType'] !== null && !text(body['messageType'], 500)) ||
-        (body['priceLabel'] !== null && !text(body['priceLabel'], 500))
+        (body['priceLabel'] !== null && !text(body['priceLabel'], 500)) ||
+        (body['imageUrls'] !== undefined &&
+          (!Array.isArray(body['imageUrls']) ||
+            body['imageUrls'].length > 10 ||
+            !body['imageUrls'].every(image))) ||
+        ['eventType', 'eventGroup', 'offerStatus'].some(
+          (field) => body[field] !== undefined && body[field] !== null && !text(body[field], 500),
+        )
       )
         return false;
     }
@@ -338,6 +473,7 @@ export interface LocalExtensionApproval extends AccountScope {
   readonly externalAccountId: string;
   readonly expiresAt: string;
   readonly messagesRead?: boolean;
+  readonly messagesSend?: boolean;
 }
 export interface LocalExtensionStatus {
   readonly binding: LocalExtensionBinding | null;
@@ -355,7 +491,8 @@ export function parseLocalExtensionApproval(
     typeof input['externalAccountId'] === 'string' &&
     accountId.test(input['externalAccountId']) &&
     date(input['expiresAt']) &&
-    (input['messagesRead'] === undefined || typeof input['messagesRead'] === 'boolean')
+    (input['messagesRead'] === undefined || typeof input['messagesRead'] === 'boolean') &&
+    (input['messagesSend'] === undefined || typeof input['messagesSend'] === 'boolean')
     ? (input as unknown as LocalExtensionApproval)
     : null;
 }
@@ -369,7 +506,11 @@ export function parseLocalExtensionStatus(input: unknown): LocalExtensionStatus 
     date(binding['expiresAt']) &&
     (binding['lastSeenAt'] === null || date(binding['lastSeenAt'])) &&
     typeof binding['revoked'] === 'boolean' &&
-    (binding['messagesRead'] === undefined || typeof binding['messagesRead'] === 'boolean')
+    (binding['messagesRead'] === undefined || typeof binding['messagesRead'] === 'boolean') &&
+    (binding['messagesSend'] === undefined || typeof binding['messagesSend'] === 'boolean') &&
+    (binding['inboxSyncedAt'] === undefined ||
+      binding['inboxSyncedAt'] === null ||
+      date(binding['inboxSyncedAt']))
     ? (input as unknown as LocalExtensionStatus)
     : null;
 }

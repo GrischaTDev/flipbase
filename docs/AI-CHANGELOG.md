@@ -1,5 +1,43 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-05 - Juna - Vinted-Postfach mit Artikelbezug, automatischem Abgleich und Versand
+
+**Auftrag:** Nach dem erfolgreichen echten Postfachimport die anhand der Bleam-
+Screenshots und Codebefunde gewünschte Nachrichtenansicht, regelmäßigen Abgleich
+und Text-/Bildversand umsetzen. Eigener Zweig `juna/vinted-inbox-experience`
+von `origin/master` bei `a187deb2`; fremde Zweige bleiben unverändert.
+
+**Plan:** Kompakter Konto-/Synchronisierungsstatus, Artikelbilder und Produktzeile,
+Suche und fachliche Filter. Neueste Gespräche alle fünf Minuten prüfen, ältere
+Seiten getrennt nachladen. Bewusst geöffneten Verlauf direkt abrufen, automatische
+Prüfungen erhalten ungelesene Verläufe. Versand benötigt eine zusätzliche Freigabe;
+dauerhafte Aufträge unterscheiden Warteschlange, Versuch und bestätigten Versand.
+Unklarer Ausgang führt nicht zu automatischem Neuversand. Einzelner JPEG-/PNG-
+Anhang bleibt begrenzt und kontogebunden. Keine Live-Nachrichten im Entwicklungstest.
+
+**Umsetzung:** Artikelbilder, Produktzeile, Suche, Faktenfilter und Sortierung;
+kompakter Postfachstatus und sichtbare Versandwarteschlange. Erweiterung 1.3.0
+prüft neue Gespräche ungefähr alle fünf Minuten, ältere Seiten minütlich und
+Versandaufträge alle 90 Sekunden. Bewusstes Öffnen lädt den ausgewählten Verlauf.
+Text-/Einzelbildversand benötigt eine eigene Freigabe; unklare Ergebnisse werden
+nicht wiederholt. Bestätigte Nachrichten werden anhand ihrer externen Kennung
+nur einmal angezeigt. Widerruf beendet ungestartete Aufträge sichtbar.
+
+**Prüfung:** Produktionsbau, App-/Testtypen, gezieltes Lint/Format, gemeinsame
+UI-Regeln und Schemaregistrierung bestanden. 26 UI-, 8 Versandstore-, 62 lokale
+Verbindungs-/Workspace-, 21 Modell-, 62 Erweiterungs- und 19 Edge-Prüfungen grün.
+Die erzeugte und auf den Auftrag begrenzte Migration wurde transaktional auf den
+bisherigen Stand angewandt; 292 echte Datenbankprüfungen bestanden. Desktop
+(1440px) und Mobil (390px) bestehen den Postfach-Browsertest samt AXE; ausschließlich
+synthetische Konten, keine Vinted-Anfragen und kein Liveversand. Unabhängiges
+Review von Kontotrennung, Wiederaufnahme, Rechten und Migration abgeschlossen.
+
+**Offen:** Echtkonto-Abnahme nach Veröffentlichung, insbesondere mögliche
+Lesestatusänderung beim bewussten Öffnen und eindeutige Bestätigung von
+Bildnachrichten. Bilder bleiben im Pilot ein einmaliger, gegebenenfalls
+unbestätigter Versuch; darauf weist die Oberfläche vor dem Senden hin.
+Veröffentlichung ist noch nicht freigegeben.
+
 ## 2026-10-04 - Juna - Lokales Vinted-Postfach anhand der Bleam-Codebefunde
 
 **Auftrag:** Nach bestätigter lokaler Kontoverbindung das Postfach als nächstes

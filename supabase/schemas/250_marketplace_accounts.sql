@@ -76,6 +76,7 @@ begin
       'status', c.status, 'executionMode', c.execution_mode, 'capabilities', c.capabilities,
       'allowedActions', case when c.execution_mode = 'local' then
         jsonb_build_array('profile.read', 'listings.read') || case when c.capabilities->>'conversations.read' = 'verified' then jsonb_build_array('conversations.read') else '[]'::jsonb end
+        || case when c.capabilities->>'messages.sendText' = 'verified' then jsonb_build_array('messages.sendText') else '[]'::jsonb end
         else jsonb_build_array('profile.read', 'listings.read', 'metrics.read', 'conversations.read', 'messages.sendText', 'listings.update', 'listings.publish', 'sales.read') end,
       'lastSyncedAt', c.last_synced_at
     ) order by c.created_at, c.id) from public.marketplace_connections c
@@ -153,7 +154,7 @@ begin
     order by e.sort_at desc, e.id desc limit 51
   )
   select coalesce(jsonb_agg((e.body || jsonb_build_object('id', e.id, 'workspaceId', e.workspace_id, 'connectionId', e.connection_id)
-    || case when p_kind = 'message' then jsonb_build_object('conversationId', e.parent_id) else '{}'::jsonb end) order by e.position) filter (where e.position <= 50), '[]'::jsonb),
+    || case when p_kind = 'message' then jsonb_build_object('conversationId', e.parent_id, 'externalId', e.external_id) else '{}'::jsonb end) order by e.position) filter (where e.position <= 50), '[]'::jsonb),
     case when count(*) > 50 then max(e.id::text) filter (where e.position = 50) else null end
     into v_items, v_next from candidates e;
   return jsonb_build_object('items', v_items, 'total', v_total, 'nextCursor', v_next);

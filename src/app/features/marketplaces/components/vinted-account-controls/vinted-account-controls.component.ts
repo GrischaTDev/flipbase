@@ -29,6 +29,11 @@ export class VintedAccountControlsComponent {
   readonly refreshing = input(false);
   readonly loading = input(false);
   readonly refreshLabel = input('Kontodaten aktualisieren');
+  readonly inbox = input(false);
+  readonly inboxSyncedAt = input<string | null>(null);
+  readonly syncedAt = computed(() =>
+    this.inbox() ? this.inboxSyncedAt() : this.account().lastSyncedAt,
+  );
   readonly accountSelected = output<string | null>();
   readonly refreshRequested = output<void>();
   readonly synchronized = output<MarketplaceSyncSchedule>();

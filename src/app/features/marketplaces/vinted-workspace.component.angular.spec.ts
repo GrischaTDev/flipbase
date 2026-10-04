@@ -2,6 +2,7 @@ import { VintedFavoriteSettingsComponent } from './components/vinted-favorite-se
 import { VintedLocalConnectComponent } from './components/vinted-local-connect/vinted-local-connect.component';
 import { VintedSetupComponent } from './components/vinted-setup/vinted-setup.component';
 import { VintedLocalExtensionApiService } from './services/vinted-local-extension-api.service';
+import { VintedMessagingApiService } from './services/vinted-messaging-api.service';
 import { VintedLocalExtensionBridge } from './services/vinted-local-extension-bridge';
 import { MarketplaceFavoriteNotificationApiService } from './services/marketplace-favorite-notification-api.service';
 import { ElementRef, signal } from '@angular/core';
@@ -268,6 +269,10 @@ beforeEach(() => {
   };
   TestBed.configureTestingModule({
     providers: [
+      {
+        provide: VintedMessagingApiService,
+        useValue: { read: vi.fn().mockResolvedValue([]), enqueue: vi.fn() },
+      },
       {
         provide: VintedLocalExtensionApiService,
         useValue: localApi,
@@ -590,10 +595,10 @@ describe('Vinted-Bereich in Flipbase', () => {
       sales: emptyPage(),
     }));
     const { harness, element } = await render('/marketplaces/vinted/messages');
-    expect(element.textContent).toContain('Lokales Postfach');
+    expect(element.textContent).toContain('Verbinde Dein Postfach');
     expect(element.textContent).toContain('Lokale Verbindung prüfen');
     expect(element.textContent).not.toContain('Noch keine Gespräche gespeichert');
-    expect(element.querySelector('a[href="https://www.vinted.de/inbox"]')).not.toBeNull();
+    expect(element.textContent).toContain('Nachrichten noch nicht synchronisiert');
     await harness.navigateByUrl('/marketplaces/vinted/sales');
     expect(element.textContent).toContain('Verkäufe noch nicht lokal angebunden');
     expect(element.textContent).not.toContain('Noch keine gespeicherten Verkäufe');

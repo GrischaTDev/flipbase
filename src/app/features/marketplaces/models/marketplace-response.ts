@@ -170,6 +170,7 @@ export function parseMarketplacePage(
     return {
       ...scopeOf(item, scope),
       id,
+      externalId: text(item['externalId']),
       title: text(item['title']) ?? 'Ohne Bezeichnung',
       text: text(item['text']) ?? text(item['message']) ?? text(item['lastMessage']),
       ...(item['textState'] === 'loaded' || item['textState'] === 'not_loaded'
@@ -209,6 +210,20 @@ export function parseMarketplacePage(
       shipmentStatus: text(item['shipmentStatus']),
       messageType: text(item['messageType']),
       priceLabel: text(item['priceLabel']),
+      itemId: text(item['itemId']),
+      itemTitle: text(item['itemTitle']),
+      itemImageUrl: imageUrl(item['itemImageUrl']),
+      itemPrice: nonnegative(item['itemPrice']),
+      itemCurrency:
+        typeof item['itemCurrency'] === 'string' && /^[A-Z]{3}$/.test(item['itemCurrency'])
+          ? item['itemCurrency']
+          : null,
+      partnerId: text(item['partnerId']),
+      lastActiveAt: timestamp(item['lastActiveAt']),
+      transactionStatus: text(item['transactionStatus']),
+      eventType: text(item['eventType']),
+      eventGroup: text(item['eventGroup']),
+      offerStatus: text(item['offerStatus']),
     };
   });
   return { items, total, nextCursor };

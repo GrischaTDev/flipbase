@@ -1,9 +1,10 @@
 # Flipbase Listing-Assistent
 
-Die Erweiterung unterstützt Kleinanzeigen-Inserate und einen lokalen,
-manuell gestarteten Vinted-Lesepiloten. Der Vinted-Pilot überträgt Profil
-und eigene Anzeigen sowie nach separater Freigabe Gespräche und bereits gelesene Nachrichten an Flipbase; er verschickt keine Nachrichten oder Angebote
-und veröffentlicht, bearbeitet oder löscht keine Vinted-Anzeigen.
+Die Erweiterung unterstützt Kleinanzeigen-Inserate und einen lokalen Vinted-Postfachpiloten.
+Der Vinted-Pilot überträgt Profil und eigene Anzeigen sowie nach separater Freigabe
+Gespräche an Flipbase. Eine zusätzliche Versandfreigabe erlaubt selbst verfasste
+Textnachrichten und einen JPEG-/PNG-Anhang bis 256 KiB. Er veröffentlicht,
+bearbeitet oder löscht keine Vinted-Anzeigen.
 
 ## Interne Pilotinstallation (Chrome)
 
@@ -56,9 +57,26 @@ Formular, können einzelne Felder manuelle Eingaben verlangen.
    stoppen den Import. Beim Trennen wird das lokale Installationsgeheimnis gelöscht;
    Flipbase widerruft zusätzlich die serverseitige Freigabe.
 
-6. Öffne in Flipbase das Postfach und bestätige „Nachrichtenzugriff erlauben“. Starte danach „Nachrichten synchronisieren“. Ein Lauf liest bis zu 20 Gespräche und drei geänderte, bereits gelesene Verläufe. Weitere Seiten folgen beim nächsten manuellen Abgleich. Ungelesene Verläufe bleiben geschlossen; Nachrichtenhistorien sind ausdrücklich ein Teilstand.
+6. Öffne in Flipbase das Postfach und bestätige den Nachrichtenzugriff. Neue
+   Gespräche werden ungefähr alle fünf Minuten abgeglichen; ältere Seiten folgen
+   während des ersten Imports ungefähr minütlich. Ein Lauf liest bis zu 20
+   Gespräche und drei geänderte, bereits gelesene Verläufe. Ungelesene Verläufe
+   werden erst beim ausdrücklichen Öffnen des Gesprächs gelesen. Dabei wird keine
+   gesonderte Markierung als gelesen gesendet. Nachrichtenhistorien bleiben Teilstände.
+7. Erteile für eigene Antworten die gesonderte Versandfreigabe. Ein Auftrag wird
+   serverseitig übernommen, vor dem Versand begonnen und danach mit seinem
+   Ergebnis gemeldet. Bei unklarem Ausgang wird nicht automatisch erneut gesendet.
+   Ein bestätigter neuer Text wird anhand des Gesprächsverlaufs erkannt. Für Bilder
+   ist die zuverlässige Erfolgsbestätigung noch nicht belegt: Der einmalige Versuch
+   wird gegebenenfalls als unbestätigt angezeigt und benötigt einen echten Pilottest.
 
-Noch nicht enthalten: automatische Intervalle, Nachrichtenversand, Verkäufe, Relisting und Cloudbetrieb.
+Chrome-Alarme prüfen Versandaufträge ungefähr alle 90 Sekunden. Nach einem Neustart
+werden ausstehende Ergebnisse erneut gemeldet, ohne die Nachricht erneut zu senden.
+Anmeldung, SMS, Mensch-Prüfung, Kontowechsel und Sperren pausieren die Automatik;
+nach manueller Klärung startest Du den Abgleich ausdrücklich erneut. Bei einer
+Abrufbegrenzung wird die angekündigte Wartezeit auch bei manuellem Refresh eingehalten.
+
+Noch nicht enthalten: automatische Antworten, Angebote, Verkäufe, Relisting und Cloudbetrieb.
 Rechner und Browser müssen für einen lokalen Abgleich laufen. Browserprofile trennen
 Cookies und Anmeldungen, bieten aber keine Garantie gegen Prüfungen oder Sperren.
 

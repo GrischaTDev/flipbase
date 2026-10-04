@@ -13,6 +13,11 @@ export interface LocalExtensionStore {
   ingest(tokenHash: string, input: LocalExtensionRequest): Promise<unknown>;
   inboxState?(tokenHash: string, input: LocalExtensionRequest): Promise<unknown>;
   inboxImport?(tokenHash: string, input: LocalExtensionRequest): Promise<unknown>;
+  inboxDetailState?(tokenHash: string, input: LocalExtensionRequest): Promise<unknown>;
+  inboxDetailImport?(tokenHash: string, input: LocalExtensionRequest): Promise<unknown>;
+  messageClaim?(tokenHash: string, input: LocalExtensionRequest): Promise<unknown>;
+  messageStart?(tokenHash: string, input: LocalExtensionRequest): Promise<unknown>;
+  messageFinish?(tokenHash: string, input: LocalExtensionRequest): Promise<unknown>;
 }
 export async function hashLocalExtensionSecret(secret: string): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(secret));
@@ -77,6 +82,28 @@ export function createLocalExtensionHandler(store: LocalExtensionStore) {
         if (!store.inboxImport) return respond({ error: 'unavailable' }, 503);
         return respond(await store.inboxImport(tokenHash, input));
       }
+      if (input.action === 'inbox_detail_state') {
+        if (!store.inboxDetailState) return respond({ error: 'unavailable' }, 503);
+        return respond(await store.inboxDetailState(tokenHash, input));
+      }
+      if (input.action === 'inbox_detail_import') {
+        if (!store.inboxDetailImport) return respond({ error: 'unavailable' }, 503);
+        return respond(await store.inboxDetailImport(tokenHash, input));
+      }
+      if (input.action === 'message_claim') {
+        if (!store.messageClaim) return respond({ error: 'unavailable' }, 503);
+        return respond(await store.messageClaim(tokenHash, input));
+      }
+      if (input.action === 'message_start') {
+        if (!store.messageStart) return respond({ error: 'unavailable' }, 503);
+        return respond(await store.messageStart(tokenHash, input));
+      }
+      if (input.action === 'message_finish') {
+        if (!store.messageFinish) return respond({ error: 'unavailable' }, 503);
+        return respond(await store.messageFinish(tokenHash, input));
+      }
+      if (input.action !== 'heartbeat' && input.action !== 'import')
+        return respond({ error: 'unavailable' }, 503);
       return respond(await store.ingest(tokenHash, input));
     } catch (error) {
       if (error instanceof LocalExtensionStoreError)
