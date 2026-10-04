@@ -43,15 +43,17 @@ Formular, können einzelne Felder manuelle Eingaben verlangen.
    bearbeitest Du ebenfalls selbst. Starte danach die Verbindung erneut.
 3. Flipbase zeigt die erkannte Vinted-Identität. Bestätige die Zuordnung zu
    Deinem Arbeitsplatz und zur ausgewählten Kontoverbindung ausdrücklich.
-4. Starte den Profil-/Anzeigenabgleich in Flipbase manuell. Während des Lesens
-   schützt ein Hinweis den Arbeitstab vor konkurrierenden Eingaben. Über
+4. Starte den Profil-/Anzeigenabgleich in Flipbase manuell. Ein zentrierter Hinweis
+   mit heller, durchscheinender Sperrfläche hält den Arbeitstab dauerhaft reserviert.
+   Sichtbare Anmeldung, SMS oder Mensch-Prüfung geben die Seite manuell frei;
+   anschließend startest Du den Abgleich in Flipbase erneut. Über
    „Vinted in einem neuen Tab öffnen“ kannst Du Vinted normal bedienen.
 5. Prüfe Importzeitpunkt und Anzeigenzahl. Ein Teilstand bei mehr als 500 Anzeigen
    wird als Teilstand ausgewiesen. Unbekannte Datenformate oder ein Kontowechsel
    stoppen den Import. Beim Trennen wird das lokale Installationsgeheimnis gelöscht;
    Flipbase widerruft zusätzlich die serverseitige Freigabe.
 
-Noch nicht enthalten: automatische Intervalle, Nachrichten, Relisting und Cloudbetrieb.
+Noch nicht enthalten: automatische Intervalle, Nachrichten, Verkäufe, Relisting und Cloudbetrieb.
 Rechner und Browser müssen für einen lokalen Abgleich laufen. Browserprofile trennen
 Cookies und Anmeldungen, bieten aber keine Garantie gegen Prüfungen oder Sperren.
 

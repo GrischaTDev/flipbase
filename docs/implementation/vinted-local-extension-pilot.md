@@ -54,7 +54,7 @@ Verantwortung: Erweiterungs-Agent. Dateien: `tools/flipbase-extension/`, Tests `
 - [x] Tests für Nachrichtengrenze, Geheimnisschutz, Ablauf und Identitätswechsel zuerst fehlschlagen lassen.
 - [x] Vorbereitung, Bindung, Heartbeat, lesenden Abgleich und Trennung implementieren; produktiver API-Ursprung ausschließlich `https://api.flipbase.de`.
 - [x] Höchstens 25 Anzeigen-Seiten mit jeweils 20 Einträgen lesen, Identität vorher und nachher prüfen; Fehler nicht als leere vollständige Liste melden.
-- [x] Reservierten Tab mit Erklärung und Nutzertab-Button versehen; nur bei laufendem Abgleich Eingaben sperren und bei manuellen Prüfungen freigeben.
+- [x] Reservierten Tab mit zentrierter Erklärung, durchscheinender heller Sperrfläche und Nutzertab-Button versehen; auch nach dem Abgleich reserviert lassen und bei manuellen Prüfungen freigeben.
 - [x] Neustart und parallele Anfragen prüfen; vorhandene Kleinanzeigen-Tests erneut ausführen.
 
 ## Aufgabe 3: bestätigter lokaler Verbindungsablauf

@@ -13,6 +13,15 @@
       <app-vinted-listings />
     }
     @case ('sales') {
+      @if (store.localSalesUnavailable()) {
+        <app-card class="mb-4" title="Verkäufe noch nicht lokal angebunden">
+          <p class="text-sm text-fb-text-secondary">
+            Die lokale Pilotversion übernimmt bisher Profil und Inserate. Deine Vinted-Verkäufe
+            werden noch nicht synchronisiert. Vorhandene gespeicherte Verkäufe bleiben unten
+            sichtbar.
+          </p>
+        </app-card>
+      }
       @if (page(); as entries) {
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
           @for (entry of entries.items; track entry.id) {
@@ -48,7 +57,9 @@
               }
             </app-card>
           } @empty {
-            <app-card title="Noch keine gespeicherten Verkäufe" />
+            @if (!store.localSalesUnavailable()) {
+              <app-card title="Noch keine gespeicherten Verkäufe" />
+            }
           }
         </div>
         @if (entries.nextCursor) {

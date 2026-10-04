@@ -549,6 +549,239 @@ test('Manifest narrows application and provider access without changing Kleinanz
   assert.deepEqual(manifest.permissions, ['storage', 'activeTab']);
 });
 
+function createReservedTabFixture(markup = '<main><input><button>Vinted-Aktion</button></main>') {
+  const dom = new JSDOM(`<!doctype html><body>${markup}</body>`, {
+    url: 'https://www.vinted.de/',
+  });
+  const rectangle = { left: 20, top: 20, right: 220, bottom: 120, width: 200, height: 100 };
+  dom.window.HTMLElement.prototype.getBoundingClientRect = () => rectangle;
+  dom.window.Range.prototype.getClientRects = () => [rectangle];
+  let listener;
+  let status = 200;
+  let pendingResponse;
+  let reads = 0;
+  const sentMessages = [];
+  const chrome = {
+    runtime: {
+      id: 'extension',
+      onMessage: { addListener: (callback) => (listener = callback) },
+      sendMessage: (message) => sentMessages.push(message),
+    },
+  };
+  const context = vm.createContext({
+    globalThis: { FlipbaseVintedLocal: core },
+    window: dom.window,
+    location: dom.window.location,
+    document: dom.window.document,
+    chrome,
+    getComputedStyle: dom.window.getComputedStyle.bind(dom.window),
+    Date,
+    Number,
+    Error,
+    URL,
+    AbortSignal,
+    fetch: async () => {
+      reads++;
+      if (pendingResponse) await pendingResponse;
+      return {
+        status,
+        ok: status === 200,
+        url: 'https://www.vinted.de/api/v2/users/current',
+        headers: new Headers({ 'Content-Type': 'application/json' }),
+        json: async () => profile,
+      };
+    },
+  });
+  vm.runInContext(
+    readFileSync(
+      new URL('../tools/flipbase-extension/vinted-local-content.js', import.meta.url),
+      'utf8',
+    ),
+    context,
+  );
+  return {
+    dom,
+    sentMessages,
+    get reads() {
+      return reads;
+    },
+    setStatus: (nextStatus) => (status = nextStatus),
+    holdResponse: (response) => (pendingResponse = response),
+    readIdentity: () =>
+      new Promise((resolve) =>
+        listener({ type: 'VINTED_LOCAL_IDENTITY' }, { id: 'extension' }, resolve),
+      ),
+    mutationsSettled: () => new Promise((resolve) => setImmediate(resolve)),
+  };
+}
+
+test('Reserved tab stays modal after import and blocks background clicks, typing and focus', async () => {
+  const fixture = createReservedTabFixture();
+  const { document } = fixture.dom.window;
+  try {
+    assert.equal((await fixture.readIdentity()).success, true);
+    const overlay = document.querySelector('#flipbase-vinted-work-tab');
+    assert.equal(overlay.dataset.busy, 'false');
+    assert.equal(overlay.dataset.protected, 'true');
+    assert.equal(overlay.getAttribute('role'), 'dialog');
+    assert.equal(overlay.getAttribute('aria-modal'), 'true');
+    assert.ok(document.querySelector('main').hasAttribute('inert'));
+    let backgroundClicks = 0;
+    const backgroundButton = document.querySelector('main button');
+    backgroundButton.addEventListener('click', () => backgroundClicks++);
+    const click = new fixture.dom.window.MouseEvent('click', { bubbles: true, cancelable: true });
+    assert.equal(backgroundButton.dispatchEvent(click), false);
+    assert.equal(backgroundClicks, 0);
+    const input = document.querySelector('input');
+    const typing = new fixture.dom.window.KeyboardEvent('keydown', {
+      key: 'a',
+      bubbles: true,
+      cancelable: true,
+    });
+    assert.equal(input.dispatchEvent(typing), false);
+    input.focus();
+    assert.equal(document.activeElement, overlay.querySelector('button'));
+    overlay.querySelector('button').click();
+    assert.equal(fixture.sentMessages.at(-1).type, 'VINTED_LOCAL_OPEN_USER_TAB');
+    const nextSection = document.createElement('section');
+    document.body.append(nextSection);
+    await fixture.mutationsSettled();
+    assert.ok(nextSection.hasAttribute('inert'));
+  } finally {
+    fixture.dom.window.close();
+  }
+});
+
+test('A newly shown manual challenge releases the page and restores its original inert state', async () => {
+  const fixture = createReservedTabFixture(
+    '<main><input></main><aside inert="original">Hinweis</aside>',
+  );
+  const { document } = fixture.dom.window;
+  try {
+    assert.equal((await fixture.readIdentity()).success, true);
+    const overlay = document.querySelector('#flipbase-vinted-work-tab');
+    const challenge = document.createElement('iframe');
+    challenge.src = 'https://captcha-delivery.com/captcha/';
+    document.querySelector('main').append(challenge);
+    await fixture.mutationsSettled();
+    assert.equal(overlay.dataset.protected, 'false');
+    assert.equal(overlay.getAttribute('aria-modal'), null);
+    assert.ok(!document.querySelector('main').hasAttribute('inert'));
+    assert.equal(document.querySelector('aside').getAttribute('inert'), 'original');
+    const input = document.querySelector('input');
+    assert.equal(
+      input.dispatchEvent(
+        new fixture.dom.window.KeyboardEvent('keydown', {
+          key: 'a',
+          bubbles: true,
+          cancelable: true,
+        }),
+      ),
+      true,
+    );
+    input.focus();
+    assert.equal(document.activeElement, input);
+    assert.equal((await fixture.readIdentity()).success, false);
+    assert.equal(fixture.reads, 1);
+    challenge.remove();
+    await fixture.mutationsSettled();
+    assert.equal(overlay.dataset.protected, 'true');
+    assert.equal(fixture.reads, 1);
+  } finally {
+    fixture.dom.window.close();
+  }
+});
+
+test('Visible login and SMS checks are usable without starting any API read', async () => {
+  for (const markup of [
+    '<main><input type="password"></main>',
+    '<main>Bestätigungscode<input></main>',
+  ]) {
+    const fixture = createReservedTabFixture(markup);
+    try {
+      assert.equal((await fixture.readIdentity()).success, false);
+      assert.equal(fixture.reads, 0);
+      assert.equal(
+        fixture.dom.window.document.querySelector('#flipbase-vinted-work-tab').dataset.protected,
+        'false',
+      );
+      assert.ok(!fixture.dom.window.document.querySelector('main').hasAttribute('inert'));
+    } finally {
+      fixture.dom.window.close();
+    }
+  }
+});
+
+test('A blocked reserved session stays stopped even when the block text disappears', async () => {
+  const fixture = createReservedTabFixture();
+  const { document } = fixture.dom.window;
+  try {
+    await fixture.readIdentity();
+    const main = document.querySelector('main');
+    main.textContent = 'Deine Sitzung wurde blockiert';
+    await fixture.mutationsSettled();
+    main.textContent = 'Garderobe';
+    await fixture.mutationsSettled();
+    const response = await fixture.readIdentity();
+    assert.equal(response.success, false);
+    assert.match(response.error, /Sitzung blockiert/);
+    assert.equal(fixture.reads, 1);
+    assert.equal(document.querySelector('#flipbase-vinted-work-tab').dataset.protected, 'true');
+  } finally {
+    fixture.dom.window.close();
+  }
+});
+
+test('An expired API login releases the reserved page for signing in', async () => {
+  const fixture = createReservedTabFixture();
+  const { document } = fixture.dom.window;
+  try {
+    fixture.setStatus(401);
+    assert.equal((await fixture.readIdentity()).success, false);
+    assert.equal(
+      fixture.dom.window.document.querySelector('#flipbase-vinted-work-tab').dataset.protected,
+      'false',
+    );
+    assert.ok(!fixture.dom.window.document.querySelector('main').hasAttribute('inert'));
+    document.querySelector('main').className = 'updated-wardrobe';
+    await fixture.mutationsSettled();
+    const overlay = document.querySelector('#flipbase-vinted-work-tab');
+    assert.equal(overlay.dataset.protected, 'false');
+    assert.ok(!document.querySelector('main').hasAttribute('inert'));
+    assert.match(overlay.querySelector('p').textContent, /Melde Dich zuerst/);
+    assert.equal(fixture.reads, 1);
+    fixture.setStatus(200);
+    assert.equal((await fixture.readIdentity()).success, true);
+    assert.equal(overlay.dataset.protected, 'true');
+    assert.equal(fixture.reads, 2);
+  } finally {
+    fixture.dom.window.close();
+  }
+});
+
+test('A manual check during an API read stops that read even if the check disappears before the response', async () => {
+  const fixture = createReservedTabFixture();
+  const { document } = fixture.dom.window;
+  try {
+    let finishResponse;
+    fixture.holdResponse(new Promise((resolve) => (finishResponse = resolve)));
+    const read = fixture.readIdentity();
+    const challenge = document.createElement('iframe');
+    challenge.src = 'https://captcha-delivery.com/captcha/';
+    document.querySelector('main').append(challenge);
+    await fixture.mutationsSettled();
+    challenge.remove();
+    await fixture.mutationsSettled();
+    finishResponse();
+    const response = await read;
+    assert.equal(response.success, false);
+    assert.match(response.error, /manuelle Prüfung/);
+    assert.equal(fixture.reads, 1);
+  } finally {
+    fixture.dom.window.close();
+  }
+});
+
 test('Content script ignores transparent and off-screen CAPTCHA frames and pauses for a visible challenge', async () => {
   const cases = [
     {

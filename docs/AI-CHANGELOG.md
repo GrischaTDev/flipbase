@@ -1,5 +1,54 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-04 - Juna - Lokalen Vinted-Test und reservierten Tab korrigieren
+
+**Auftrag:** Nach erfolgreicher Kontoverknüpfung und Anzeigenübernahme den
+reservierten Tab wie dokumentiert zentrieren und schützen, die ausbleibende
+Rückmeldung bei der Erweiterungsprüfung beheben sowie leeres Postfach und
+leere Verkäufe gegen den vereinbarten Funktionsumfang prüfen.
+
+**Ursache und Änderung:** Die Erweiterung zentrierte den Hinweis nur während
+eines laufenden Abrufs; danach wechselte er rechts unten in eine kleine Fläche.
+Der Tab bleibt jetzt auch im Ruhezustand mit hellem durchscheinendem Hintergrund
+geschützt. Eingaben und Hintergrundfokus sind gesperrt. Sichtbare Anmeldung,
+SMS und Mensch-Prüfung geben die Seite manuell frei; auftauchende Prüfungen
+unterbrechen einen laufenden Abruf. Eine blockierte Sitzung bleibt gestoppt.
+Der vorhandene Button öffnet einen normalen Nutzertab.
+Im abschließenden Review wurde eine Wiederanmeldesperre nach HTTP401 gefunden
+und behoben: Auch bei weiteren Änderungen der zwischengespeicherten Seite bleibt
+die Anmeldung bedienbar, bis ein neuer Abgleich ausdrücklich gestartet wird.
+Der Laufzeittest prüft diesen Fall einschließlich anschließendem erfolgreichen Abruf.
+
+Die Installationsprüfung zeigt Lauf, Erfolg und fehlende Antwort ausdrücklich.
+Eine erneute Prüfung lässt eine erkannte Installation bis zum Ergebnis stehen;
+beim Schließen werden Timer entfernt. Bereits installierte Erweiterungen
+benötigen keine erneute Installation. Einrichtung und Kontofreigabe nennen
+den derzeitigen Profil-/Anzeigenumfang. Postfach und Verkäufe zeigen fehlende
+lokale Quellen ausdrücklich, statt einen bestätigten Nullbestand zu suggerieren.
+Gespeicherte Daten bleiben sichtbar; Cloudkonten behalten ihre bisherigen Anzeigen.
+
+Der bestehende Entwurf enthält das nächste Folgepaket für Postfach und erkannte
+Verkäufe, einschließlich neuer ausdrücklicher Freigabe, begrenzter Teilimporte,
+Erhaltung des Lesestatus und eigener Kontoprüfung. Die vorhandenen Cloudleser
+werden nur als Implementierungsnachweis eingeordnet: Ihre Verkaufsprüfung
+erfasst derzeit ausschließlich bestätigte versendete Bestellungen. Kein
+Nachrichtenimport, Versand, automatischer Abgleich oder Backendumbau in diesem Zweig.
+
+**Prüfung:** 132 betroffene Angularfälle und 27 Erweiterungslaufzeitfälle bestehen.
+Zwei Chromeprüfungen bestätigen Einrichtung und Antwortzustände bei 1440 und
+390 Pixeln einschließlich AXE ohne Ausnahmen. Der isolierte Chrome-Test bestätigt
+Zentrierung, Hintergrundsperre und manuelle Freigabe mit Testdaten. Anwendungs-/
+Spec-Typen, gezieltes ESLint/Prettier, Shared-UI-Prüfung, Testsuite-Audit und
+Produktionsbau bestehen; die bestehende `pako`-CommonJS-Warnung bleibt.
+Erweiterungsversion 1.1.1 ist als internes Downloadpaket vorbereitet und gegen
+die Quelldateien abgeglichen. Veröffentlicht ist dieser Zweig noch nicht.
+Der Nutzer bestätigt den bisherigen echten
+Profil-/Anzeigenimport; die korrigierte Erweiterung und weitere Datenquellen
+sind dadurch noch nicht mit einem echten Vinted-Konto geprüft.
+
+**Parallelbetrieb:** Eigener Zweig `juna/vinted-local-data-and-tab` von
+`origin/master` bei `7339a105`. Fremde Zweige bleiben unverändert.
+
 ## 2026-10-04 - Juna - Vinted-Bereich und lokale Einrichtung zusammenführen
 
 **Auftrag:** Beim echten Erweiterungstest führt „Account hinzufügen“ nach der

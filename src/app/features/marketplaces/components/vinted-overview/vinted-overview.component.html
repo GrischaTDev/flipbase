@@ -11,16 +11,26 @@
       </app-card>
       <app-card title="Gespräche" variant="kpi" padding="sm">
         <p data-overview-total class="text-2xl font-semibold tabular-nums text-fb-text-primary">
-          {{ snapshot.conversations.total }}
+          {{
+            store.localInboxUnavailable() && !snapshot.conversations.total
+              ? '–'
+              : snapshot.conversations.total
+          }}
         </p>
+        @if (store.localInboxUnavailable()) {
+          <p class="mt-1 text-xs text-fb-text-secondary">Noch nicht lokal synchronisiert</p>
+        }
         <app-button class="mt-2" variant="plain" link="/marketplaces/vinted/messages"
           >Nachrichten ansehen</app-button
         >
       </app-card>
       <app-card title="Gespeicherte Verkäufe" variant="kpi" padding="sm">
         <p data-overview-total class="text-2xl font-semibold tabular-nums text-fb-text-primary">
-          {{ snapshot.sales.total }}
+          {{ store.localSalesUnavailable() && !snapshot.sales.total ? '–' : snapshot.sales.total }}
         </p>
+        @if (store.localSalesUnavailable()) {
+          <p class="mt-1 text-xs text-fb-text-secondary">Noch nicht lokal synchronisiert</p>
+        }
         <app-button class="mt-2" variant="plain" link="/marketplaces/vinted/sales"
           >Verkäufe ansehen</app-button
         >
@@ -72,7 +82,11 @@
             </li>
           } @empty {
             <li class="py-3 text-[13px] text-fb-text-secondary">
-              Noch keine Vinted-Gespräche gespeichert.
+              {{
+                store.localInboxUnavailable()
+                  ? 'Nachrichten noch nicht lokal synchronisiert.'
+                  : 'Noch keine Vinted-Gespräche gespeichert.'
+              }}
             </li>
           }
         </ul>
@@ -114,7 +128,11 @@
             </li>
           } @empty {
             <li class="py-3 text-[13px] text-fb-text-secondary">
-              Noch keine Vinted-Verkäufe gespeichert.
+              {{
+                store.localSalesUnavailable()
+                  ? 'Verkäufe noch nicht lokal synchronisiert.'
+                  : 'Noch keine Vinted-Verkäufe gespeichert.'
+              }}
             </li>
           }
         </ul>

@@ -61,6 +61,42 @@ describe('Lokale Vinted-Erweiterungsbrücke', () => {
     expect(await pending).toEqual({ identity: 'confirmed' });
     expect(post.mock.calls[0][1]).toBe(location.origin);
   });
+  it('zeigt eine fehlende Installationsantwort und kann danach erneut prüfen', () => {
+    vi.spyOn(window, 'postMessage').mockImplementation(() => undefined);
+    const bridge = TestBed.inject(VintedLocalExtensionBridge);
+    bridge.checkInstallation();
+    expect(bridge.checkingInstallation()).toBe(true);
+    vi.advanceTimersByTime(3_000);
+    expect(bridge.checkingInstallation()).toBe(false);
+    expect(bridge.installationCheckFailed()).toBe(true);
+    bridge.checkInstallation();
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        origin: location.origin,
+        source: window,
+        data: { type: 'FLIPBASE_EXTENSION_STATUS', installed: true, vintedLocal: true },
+      }),
+    );
+    expect(bridge.installed()).toBe(true);
+    expect(bridge.checkingInstallation()).toBe(false);
+    expect(bridge.installationCheckFailed()).toBe(false);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+  it('behält eine erkannte Installation während der erneuten Prüfung bei', () => {
+    vi.spyOn(window, 'postMessage').mockImplementation(() => undefined);
+    const bridge = TestBed.inject(VintedLocalExtensionBridge);
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        origin: location.origin,
+        source: window,
+        data: { type: 'FLIPBASE_EXTENSION_STATUS', installed: true, vintedLocal: true },
+      }),
+    );
+    bridge.checkInstallation();
+    expect(bridge.installed()).toBe(true);
+    TestBed.resetTestingModule();
+    expect(vi.getTimerCount()).toBe(0);
+  });
   it('beendet eine fehlende Erweiterungsantwort nach einer Minute', async () => {
     vi.spyOn(window, 'postMessage').mockImplementation(() => undefined);
     const pending = TestBed.inject(VintedLocalExtensionBridge).request(

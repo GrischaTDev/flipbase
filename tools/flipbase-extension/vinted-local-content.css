@@ -1,31 +1,46 @@
 #flipbase-vinted-work-tab {
   position: fixed;
-  inset: auto 16px 16px auto;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   z-index: 2147483647;
-  pointer-events: none;
+  background: rgb(255 255 255 / 70%);
+  pointer-events: auto;
   font:
     14px/1.5 system-ui,
     sans-serif;
   color: #1f2937;
 }
 
-#flipbase-vinted-work-tab[data-busy='true'] {
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgb(255 255 255 / 35%);
-  pointer-events: auto;
+#flipbase-vinted-work-tab[data-protected='false'] {
+  inset: auto 16px 16px auto;
+  display: block;
+  background: transparent;
+  pointer-events: none;
 }
 
 #flipbase-vinted-work-tab .flipbase-vinted-work-panel {
-  width: min(360px, calc(100vw - 32px));
-  padding: 20px;
+  box-sizing: border-box;
+  width: min(540px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  padding: 32px;
   border: 1px solid #d1d5db;
   border-radius: 12px;
   background: white;
   box-shadow: 0 4px 20px rgb(0 0 0 / 12%);
   pointer-events: auto;
+  text-align: center;
+}
+
+#flipbase-vinted-work-tab strong {
+  font-size: 18px;
+}
+
+#flipbase-vinted-work-tab[data-protected='false'] .flipbase-vinted-work-panel {
+  width: min(360px, calc(100vw - 32px));
+  padding: 20px;
 }
 
 #flipbase-vinted-work-tab button {
