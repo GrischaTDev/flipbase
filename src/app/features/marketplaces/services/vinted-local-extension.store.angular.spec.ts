@@ -172,4 +172,58 @@ describe('Lokale Vinted-Freigabe', () => {
     expect(store.notice()).toContain('widerrufen');
     expect(store.error()).toBeNull();
   });
+  it('wartet vor der direkten Synchronisierung auf die Konto-Freigabe und lädt sie nicht doppelt', async () => {
+    let finish: ((resolvedBinding: typeof binding) => void) | undefined;
+    api.read.mockReturnValue(
+      new Promise<typeof binding>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const next = { ...localConnection, connectionId: 'next-account' };
+    const first = store.loadConnection(next);
+    const second = store.loadConnection(next);
+    expect(store.busy()).toBe(true);
+    TestBed.tick();
+    expect(api.read).toHaveBeenCalledTimes(2);
+    finish?.(binding);
+    await Promise.all([first, second]);
+    expect(store.hasValidBinding()).toBe(true);
+    expect(api.read).toHaveBeenCalledTimes(2);
+  });
+  it('verwirft eine verspätete Freigabe nach Konto- und Workspacewechsel', async () => {
+    let finish: ((resolvedBinding: typeof binding) => void) | undefined;
+    api.read.mockReturnValue(
+      new Promise<typeof binding>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const pending = store.loadConnection({ ...localConnection, connectionId: 'next-account' });
+    workspace.set({ id: 'other-workspace' });
+    finish?.(binding);
+    await pending;
+    expect(store.binding()).toBeNull();
+    expect(store.hasValidBinding()).toBe(false);
+    expect(bridge.request).not.toHaveBeenCalled();
+  });
+  it.each([
+    { ...binding, revoked: true },
+    { ...binding, expiresAt: '2000-01-01T00:00:00Z' },
+  ])('synchronisiert keine widerrufene oder abgelaufene Freigabe', async (invalidBinding) => {
+    api.read.mockResolvedValue(invalidBinding);
+    await store.loadConnection({ ...localConnection, connectionId: 'next-account' });
+    await store.sync();
+    expect(bridge.request).not.toHaveBeenCalled();
+    expect(store.notice()).toContain('gültige lokale Freigabe');
+  });
+  it('startet nach dem Schließen des Bereichs keine Synchronisierung oder neue Freigabeabfrage', async () => {
+    api.read.mockResolvedValue(binding);
+    await store.loadConnection({ ...localConnection, connectionId: 'next-account' });
+    expect(store.isCurrentConnection(store.connection() ?? localConnection)).toBe(true);
+    TestBed.resetTestingModule();
+    await store.sync();
+    await store.loadConnection(localConnection);
+    expect(store.isCurrentConnection(localConnection)).toBe(false);
+    expect(bridge.request).not.toHaveBeenCalled();
+    expect(api.read).toHaveBeenCalledTimes(2);
+  });
 });

@@ -10,7 +10,7 @@
       [connections]="store.connections()"
       [account]="account"
       [canManage]="store.canManage()"
-      [refreshing]="store.busy()"
+      [refreshing]="store.busy() || local.busy()"
       [loading]="store.loadingSnapshot()"
       (accountSelected)="store.selectConnection($event)"
       (refreshRequested)="sync()"
@@ -53,6 +53,23 @@
     }
     @if (store.mutationError(); as error) {
       <app-notice-banner announcement="alert">{{ error }}</app-notice-banner>
+    }
+    @if (account.executionMode === 'local') {
+      @if (local.busy()) {
+        <p role="status" class="text-[13px] text-fb-text-secondary">
+          Profil und Inserate werden aktualisiert. Die Erweiterung öffnet den Vinted-Arbeitstab
+          automatisch.
+        </p>
+      }
+      @if (local.error(); as error) {
+        <app-notice-banner announcement="alert">
+          {{ error }}
+          <app-button class="mt-2" [link]="reconnectLink()">Lokale Verbindung prüfen</app-button>
+        </app-notice-banner>
+      }
+      @if (local.notice(); as notice) {
+        <app-notice-banner>{{ notice }}</app-notice-banner>
+      }
     }
     @if (account.status === 'paused') {
       <app-notice-banner

@@ -59,6 +59,7 @@ export class VintedLocalExtensionStore {
     notice: null,
   });
   private revision = 0;
+  private loadingBinding: Promise<void> = Promise.resolve();
   private destroyed = false;
   private readonly current = computed(
     () => this.context() !== null && this.context() === this.loadedContext(),
@@ -74,32 +75,64 @@ export class VintedLocalExtensionStore {
   readonly notice = computed(() => (this.current() ? this.state().notice : null));
   constructor() {
     effect(() => {
-      const context = this.context();
-      untracked(() => {
-        this.revision++;
-        this.bridge.cancel();
-        this.loadedContext.set(context);
-        this.state.set({
-          busy: false,
-          prepared: null,
-          binding: null,
-          approval: null,
-          imported: null,
-          error: null,
-          notice: null,
-        });
-        if (context)
-          void this.run(async (scope) => {
-            const binding = await this.api.read(scope);
-            return { binding };
-          });
-      });
+      this.context();
+      untracked(() => void this.loadBinding());
     });
     inject(DestroyRef).onDestroy(() => {
       this.destroyed = true;
       this.revision++;
       this.bridge.cancel();
     });
+  }
+  async loadConnection(connection: MarketplaceConnection): Promise<void> {
+    if (this.destroyed) return;
+    this.connection.set(connection);
+    await this.loadBinding();
+  }
+  isCurrentConnection(connection: MarketplaceConnection): boolean {
+    return (
+      !this.destroyed &&
+      this.current() &&
+      this.connection()?.connectionId === connection.connectionId &&
+      this.connection()?.workspaceId === connection.workspaceId
+    );
+  }
+  hasValidBinding(): boolean {
+    const binding = this.binding();
+    const expectedId = this.connection()?.externalAccountId;
+    return (
+      !!binding &&
+      !binding.revoked &&
+      Date.parse(binding.expiresAt) > Date.now() &&
+      (!expectedId || expectedId === binding.externalAccountId)
+    );
+  }
+  showSetupNotice(): void {
+    this.state.update((state) => ({
+      ...state,
+      notice:
+        'Für dieses Konto fehlt eine gültige lokale Freigabe. Prüfe das angemeldete Vinted-Konto und verbinde es erneut.',
+    }));
+  }
+  private loadBinding(): Promise<void> {
+    const context = this.context();
+    if (context === this.loadedContext()) return this.loadingBinding;
+    this.revision++;
+    this.bridge.cancel();
+    this.loadedContext.set(context);
+    this.state.set({
+      busy: false,
+      prepared: null,
+      binding: null,
+      approval: null,
+      imported: null,
+      error: null,
+      notice: null,
+    });
+    this.loadingBinding = context
+      ? this.run(async (scope) => ({ binding: await this.api.read(scope) }))
+      : Promise.resolve();
+    return this.loadingBinding;
   }
   async prepare(): Promise<void> {
     if (this.busy()) return;
@@ -164,7 +197,10 @@ export class VintedLocalExtensionStore {
   }
   async sync(): Promise<void> {
     const binding = this.binding();
-    if (!binding || binding.revoked) return;
+    if (!binding || !this.hasValidBinding()) {
+      this.showSetupNotice();
+      return;
+    }
     await this.run(async (scope, valid) => {
       const imported = parseLocalExtensionSyncResult(
         await this.bridge.request('FLIPBASE_VINTED_LOCAL_SYNC', scope),
@@ -223,7 +259,7 @@ export class VintedLocalExtensionStore {
   ): Promise<void> {
     const context = this.context();
     const connection = this.connection();
-    if (!context || !this.current() || !connection || this.busy()) return;
+    if (this.destroyed || !context || !this.current() || !connection || this.busy()) return;
     const revision = ++this.revision;
     const valid = () => !this.destroyed && revision === this.revision && context === this.context();
     this.state.update((state) => ({ ...state, busy: true, error: null }));

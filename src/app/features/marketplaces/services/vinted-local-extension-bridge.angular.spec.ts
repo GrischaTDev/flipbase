@@ -106,14 +106,14 @@ describe('Lokale Vinted-Erweiterungsbrücke', () => {
     await vi.advanceTimersByTimeAsync(60_000);
     await assertion;
   });
-  it('wartet bei der manuellen Datenübernahme höchstens fünf Minuten', async () => {
+  it('beendet auch eine fehlende Synchronisierungsantwort nach einer Minute', async () => {
     vi.spyOn(window, 'postMessage').mockImplementation(() => undefined);
     const pending = TestBed.inject(VintedLocalExtensionBridge).request(
       'FLIPBASE_VINTED_LOCAL_SYNC',
       { workspaceId: 'workspace', connectionId: 'account' },
     );
     const assertion = expect(pending).rejects.toThrow('Erweiterung');
-    await vi.advanceTimersByTimeAsync(300_000);
+    await vi.advanceTimersByTimeAsync(60_000);
     await assertion;
   });
   it('verwirft offene Anfragen beim Verlassen der Ansicht', async () => {

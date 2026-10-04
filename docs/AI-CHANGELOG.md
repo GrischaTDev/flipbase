@@ -1,5 +1,48 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-04 - Juna - Lokalen Vinted-Arbeitstab wiederherstellen und direkt synchronisieren
+
+**Auftrag:** Nach dem Erweiterungsupdate scheitert der Profil-/Inserateabgleich
+mit „Arbeitstab nicht erreichbar“. Bereits verknüpfte Konten werden beim
+Aktualisieren erneut durch die Einrichtung geschickt. Beides im bestehenden
+lesenden Pilot korrigieren.
+
+**Analyse:** Der Fehler ist im geöffneten Produktionskonto reproduzierbar;
+Chrome hält die Vinted-Hostrechte vor. Der Hintergrund prüft bislang nur den
+Ladezustand des gespeicherten Tabs, nicht die Erreichbarkeit seines
+Inhaltsskripts. Nach einem Erweiterungsupdate und beim verspäteten
+`document_idle` fehlt eine eigene Wiederherstellung. Der genaue Chrome-interne
+Fehler des Nutzerlaufs ist über den verfügbaren Browserzugang nicht sichtbar.
+
+**Umsetzung:** Ein API-freier Handshake wartet auf das Inhaltsskript. Bei einem
+veralteten gespeicherten Empfänger wird höchstens ein frischer eigener Arbeitstab
+pro Vorgang angelegt. Fremde Nutzertabs bleiben unverändert. Ein begonnener
+Vinted-Abruf sowie Anmeldung, SMS, Mensch-Prüfung und Sperren werden nicht
+automatisch wiederholt. Erweiterungsversion ist 1.1.2.
+
+Die Übersicht synchronisiert ein gültig verknüpftes Konto direkt und bleibt auf
+derselben Seite. Nur fehlende, abgelaufene oder widerrufene Freigaben führen zur
+konkreten Einrichtung. Die verbundene Ansicht zeigt Erreichbarkeit und „Jetzt
+synchronisieren“. Wiederholungsversuche bleiben nach Laufzeitfehlern möglich;
+Konto-/Workspacewechsel und Schließen verhindern verspätete Ergebnisse. Eine
+fehlende Erweiterungsantwort endet nach einer statt fünf Minuten; die
+Hintergrundarbeit bleibt auf 50 Sekunden begrenzt.
+
+**Prüfung:** 118 betroffene Angularfälle und 33 Erweiterungslaufzeitfälle bestehen.
+Vier isolierte Chromeprüfungen bestätigen Ersteinrichtung und direkte
+Aktualisierung bei 1440 und 390 Pixeln, einschließlich AXE ohne Ausnahmen.
+Anwendungs-/Spec-Typprüfung, gezieltes ESLint/Prettier, Shared-UI-Prüfung,
+Testsuite-Audit und Produktionsbau bestehen; die bestehende pako-Warnung bleibt.
+Die erste PR-Prüfung meldete zwei fehlende Einträge im verbindlichen
+Browser-Testkatalog. Beide neuen Aktualisierungsfälle sind dort ergänzt und die
+Katalogprüfung wird vor dem erneuten Push ausgeführt.
+Die korrigierte Erweiterung ist noch nicht im echten Vinted-Konto geprüft und
+dieser Zweig noch nicht veröffentlicht. Zugriffsumfang bleibt auf Profil und
+Inserate beschränkt; keine Nachrichten, Verkaufsimporte oder automatische
+Aktionen. Eigener Zweig `juna/vinted-local-recovery` vom aktuellen
+`origin/master` bei `5d0141e9`; fremde Zweige und installierte Erweiterung bleiben
+während der Umsetzung unverändert.
+
 ## 2026-10-04 - Juna - Lokalen Vinted-Test und reservierten Tab korrigieren
 
 **Auftrag:** Nach erfolgreicher Kontoverknüpfung und Anzeigenübernahme den

@@ -12,7 +12,6 @@ import { VintedLocalExtensionStore } from '../../services/vinted-local-extension
 @Component({
   selector: 'app-vinted-local-connect',
   imports: [DatePipe, ButtonComponent, CardComponent, NoticeBannerComponent],
-  providers: [VintedLocalExtensionBridge, VintedLocalExtensionStore],
   templateUrl: './vinted-local-connect.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block min-w-0' },

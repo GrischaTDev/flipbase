@@ -18,6 +18,8 @@ import { MarketplaceSyncProgressComponent } from './components/marketplace-sync-
 import { marketplaceSyncWarningSources } from './models/marketplace-sync-results';
 import { VintedAccountControlsComponent } from './components/vinted-account-controls/vinted-account-controls.component';
 import { VintedSetupComponent } from './components/vinted-setup/vinted-setup.component';
+import { VintedLocalExtensionBridge } from './services/vinted-local-extension-bridge';
+import { VintedLocalExtensionStore } from './services/vinted-local-extension.store';
 
 @Component({
   selector: 'app-vinted-workspace',
@@ -31,12 +33,14 @@ import { VintedSetupComponent } from './components/vinted-setup/vinted-setup.com
     VintedAccountControlsComponent,
   ],
   templateUrl: './vinted-workspace.component.html',
-  providers: [MarketplaceAccountStore],
+  providers: [MarketplaceAccountStore, VintedLocalExtensionBridge, VintedLocalExtensionStore],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block min-w-0' },
 })
 export class VintedWorkspaceComponent {
   readonly store = inject(MarketplaceAccountStore);
+  readonly local = inject(VintedLocalExtensionStore);
+  private readonly extension = inject(VintedLocalExtensionBridge);
   private readonly router = inject(Router);
   private readonly currentUrl = signal(this.router.url);
   private readonly route = inject(ActivatedRoute);
@@ -69,6 +73,13 @@ export class VintedWorkspaceComponent {
   });
 
   constructor() {
+    effect(() => {
+      if (!this.showingLocalConnection()) {
+        const account = this.store.selectedConnection();
+        this.local.connection.set(account?.executionMode === 'local' ? account : null);
+        if (account?.executionMode === 'local') this.extension.checkInstallation();
+      }
+    });
     // Konto-Kacheln adressieren ihr Konto ausdrücklich; Bereichslinks nutzen danach die gespeicherte Auswahl.
     effect(() => {
       const url = this.currentUrl().split(/[?#]/)[0];
@@ -99,7 +110,20 @@ export class VintedWorkspaceComponent {
   async sync(): Promise<void> {
     const account = this.store.selectedConnection();
     if (account?.executionMode === 'local') {
-      await this.router.navigate(['/marketplaces/vinted/local-connect', account.connectionId]);
+      if (this.local.busy()) return;
+      await this.local.loadConnection(account);
+      if (
+        !this.local.isCurrentConnection(account) ||
+        this.store.selectedConnection()?.connectionId !== account.connectionId
+      )
+        return;
+      if (!this.local.hasValidBinding()) {
+        if (this.local.error()) return;
+        this.local.showSetupNotice();
+        await this.router.navigate(['/marketplaces/vinted/local-connect', account.connectionId]);
+        return;
+      }
+      await this.local.sync();
       return;
     }
     this.syncModalOpen.set(true);

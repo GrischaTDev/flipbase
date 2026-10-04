@@ -127,6 +127,107 @@ for (const width of [1440, 390]) {
   });
 }
 
+for (const width of [1440, 390]) {
+  test(`Aktualisiert ein lokal verbundenes Konto direkt bei ${width}px @marketplace-preview @core-smoke`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await mockMarketplace(page);
+    const account = {
+      workspaceId,
+      connectionId: accountIds[0],
+      marketplace: 'vinted',
+      executionMode: 'local',
+      displayName: 'Lokales Testkonto',
+      externalAccountId: '100',
+      status: 'connected',
+      capabilities: {},
+      allowedActions: [],
+      lastSyncedAt: '2026-10-04T19:00:00Z',
+    };
+    const binding = {
+      externalAccountId: '100',
+      expiresAt: '2099-01-01T00:00:00Z',
+      lastSeenAt: null,
+      revoked: false,
+    };
+    await page.route('**/rpc/marketplace_list_connections', (route) =>
+      route.fulfill({ json: { canManage: true, connections: [account] } }),
+    );
+    await page.route('**/rpc/marketplace_read_local_extension', (route) =>
+      route.fulfill({ json: { binding } }),
+    );
+    await page.addInitScript(
+      ({ account, binding }) => {
+        window.addEventListener('message', (event) => {
+          if (event.source !== window || event.origin !== location.origin) return;
+          const request = event.data;
+          if (request?.type === 'FLIPBASE_CHECK_EXTENSION') {
+            window.postMessage(
+              { type: 'FLIPBASE_EXTENSION_STATUS', installed: true, vintedLocal: true },
+              location.origin,
+            );
+          }
+          if (request?.type === 'FLIPBASE_VINTED_LOCAL_SYNC') {
+            window.postMessage(
+              {
+                type: 'FLIPBASE_VINTED_LOCAL_RESULT',
+                requestId: request.requestId,
+                success: true,
+                result: {
+                  workspaceId: account.workspaceId,
+                  connectionId: account.connectionId,
+                  externalAccountId: account.externalAccountId,
+                  expiresAt: binding.expiresAt,
+                  counts: { profile: 1, publication: 11 },
+                  observedAt: account.lastSyncedAt,
+                  publicationsComplete: true,
+                },
+              },
+              location.origin,
+            );
+          }
+        });
+      },
+      { account, binding },
+    );
+    await page.goto(`/marketplaces/vinted/local-connect/${account.connectionId}`);
+    const connection = page.locator('app-vinted-local-connect');
+    await expect(
+      connection.getByRole('button', { name: 'Jetzt synchronisieren', exact: true }),
+    ).toBeEnabled();
+    await expect(connection.getByRole('heading', { name: '2. Bei Vinted anmelden' })).toHaveCount(
+      0,
+    );
+    await expect(connection).toContainText(
+      'Die Erweiterung öffnet ihren reservierten Vinted-Arbeitstab automatisch',
+    );
+    await page.addScriptTag({ content: axe.source });
+    expect(
+      await page.evaluate(
+        async () =>
+          (
+            await (window as unknown as { axe: typeof axe }).axe.run(
+              document.querySelector('app-vinted-local-connect') as HTMLElement,
+            )
+          ).violations,
+      ),
+    ).toEqual([]);
+    await evidence(page, `vinted-local-connected-${width}`);
+    await openVintedSection(page, 'Übersicht', width);
+    await page.getByRole('button', { name: 'Kontodaten aktualisieren', exact: true }).click();
+    await expect(page).toHaveURL(/\/marketplaces\/vinted\/overview$/);
+    await expect(
+      page.getByText('Profil und Inserate wurden übernommen und die lokale Verbindung bestätigt.', {
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(page.locator('app-vinted-local-connect')).toHaveCount(0);
+    await evidence(page, `vinted-local-updated-${width}`);
+  });
+}
+
 for (const challengeStage of ['login', 'identify', 'verify'] as const) {
   test(`öffnet eine Mensch-Prüfung bei ${challengeStage} automatisch @marketplace-preview @core-smoke`, async ({
     page,
