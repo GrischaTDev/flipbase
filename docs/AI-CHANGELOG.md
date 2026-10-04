@@ -33,6 +33,9 @@ Vier isolierte Chromeprüfungen bestätigen Ersteinrichtung und direkte
 Aktualisierung bei 1440 und 390 Pixeln, einschließlich AXE ohne Ausnahmen.
 Anwendungs-/Spec-Typprüfung, gezieltes ESLint/Prettier, Shared-UI-Prüfung,
 Testsuite-Audit und Produktionsbau bestehen; die bestehende pako-Warnung bleibt.
+Die erste PR-Prüfung meldete zwei fehlende Einträge im verbindlichen
+Browser-Testkatalog. Beide neuen Aktualisierungsfälle sind dort ergänzt und die
+Katalogprüfung wird vor dem erneuten Push ausgeführt.
 Die korrigierte Erweiterung ist noch nicht im echten Vinted-Konto geprüft und
 dieser Zweig noch nicht veröffentlicht. Zugriffsumfang bleibt auf Profil und
 Inserate beschränkt; keine Nachrichten, Verkaufsimporte oder automatische

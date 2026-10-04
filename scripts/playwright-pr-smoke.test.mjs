@@ -58,6 +58,10 @@ const coreTests = [
     'marketplace-accounts.spec.ts',
     `Vinted-Bereich führt lokal durch die Einrichtung bei ${width}px @marketplace-preview @core-smoke`,
   ]),
+  ...[1440, 390].map((width) => [
+    'marketplace-accounts.spec.ts',
+    `Aktualisiert ein lokal verbundenes Konto direkt bei ${width}px @marketplace-preview @core-smoke`,
+  ]),
   [
     'company-shop-shipping.spec.ts',
     'Shop und Versand verwenden Unternehmensdaten und bewahren individuelle Absender @core-smoke',
