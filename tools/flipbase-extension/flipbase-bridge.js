@@ -16,14 +16,14 @@
       {
         type: 'FLIPBASE_EXTENSION_STATUS',
         installed: true,
-        version: '1.1.1',
+        version: '1.1.2',
         vintedLocal: true,
       },
       window.location.origin,
     );
     window.dispatchEvent(
       new CustomEvent('flipbase:extension-ready', {
-        detail: { version: '1.1.1', ready: true },
+        detail: { version: '1.1.2', ready: true },
       }),
     );
   }

@@ -2,6 +2,7 @@ import { VintedFavoriteSettingsComponent } from './components/vinted-favorite-se
 import { VintedLocalConnectComponent } from './components/vinted-local-connect/vinted-local-connect.component';
 import { VintedSetupComponent } from './components/vinted-setup/vinted-setup.component';
 import { VintedLocalExtensionApiService } from './services/vinted-local-extension-api.service';
+import { VintedLocalExtensionBridge } from './services/vinted-local-extension-bridge';
 import { MarketplaceFavoriteNotificationApiService } from './services/marketplace-favorite-notification-api.service';
 import { ElementRef, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
@@ -116,6 +117,11 @@ let browserApi: {
   available: ReturnType<typeof vi.fn>;
   syncConnection: ReturnType<typeof vi.fn>;
 };
+let localApi: {
+  read: ReturnType<typeof vi.fn>;
+  approve: ReturnType<typeof vi.fn>;
+  revoke: ReturnType<typeof vi.fn>;
+};
 
 beforeAll(async () => {
   const shared: [unknown, string][] = [
@@ -229,6 +235,7 @@ afterAll(() => resetBindings?.());
 afterEach(() => TestBed.resetTestingModule());
 beforeEach(() => {
   localStorage.clear();
+  localApi = { read: vi.fn().mockResolvedValue(null), approve: vi.fn(), revoke: vi.fn() };
   browserApi = {
     available: vi.fn().mockResolvedValue({ available: false, readOnly: true }),
     syncConnection: vi.fn().mockResolvedValue(undefined),
@@ -263,7 +270,7 @@ beforeEach(() => {
     providers: [
       {
         provide: VintedLocalExtensionApiService,
-        useValue: { read: vi.fn().mockResolvedValue(null), approve: vi.fn(), revoke: vi.fn() },
+        useValue: localApi,
       },
       {
         provide: MarketplaceFavoriteNotificationApiService,
@@ -383,7 +390,7 @@ describe('Vinted-Bereich in Flipbase', () => {
     const { element } = await render(
       `/marketplaces/vinted/local-connect/${fixtureConnections[0].connectionId}`,
     );
-    expect(element.textContent).toContain('Lesender Erweiterungspilot');
+    expect(element.textContent).toContain('Profil und Inserate aus Deinem Browserprofil');
     expect(element.textContent).toContain('24 Stunden');
     expect(element.querySelector('app-marketplace-browser-test')).toBeNull();
     expect(element.querySelector('a[href*="chromewebstore"]')).toBeNull();
@@ -393,7 +400,7 @@ describe('Vinted-Bereich in Flipbase', () => {
       (await axe.run(element, { rules: { 'color-contrast': { enabled: false } } })).violations,
     ).toEqual([]);
   });
-  it('leitet die Aktualisierung eines lokalen Kontos zur Erweiterung statt zum Cloudworker', async () => {
+  it('führt ohne lokale Freigabe zur konkreten Einrichtung statt zum Cloudworker', async () => {
     api.listConnections.mockResolvedValue({
       canManage: true,
       connections: [{ ...fixtureConnections[0], executionMode: 'local' }],
@@ -406,6 +413,120 @@ describe('Vinted-Bereich in Flipbase', () => {
     await harness.fixture.whenStable();
     expect(harness.routeNativeElement?.querySelector('app-vinted-local-connect')).not.toBeNull();
     expect(browserApi.syncConnection).not.toHaveBeenCalled();
+  });
+  it('synchronisiert ein freigegebenes lokales Konto direkt und zeigt die bestätigten Daten ohne Seitenwechsel', async () => {
+    const account = {
+      ...fixtureConnections[0],
+      executionMode: 'local' as const,
+      externalAccountId: '123',
+    };
+    const observedAt = '2026-10-04T19:00:00Z';
+    api.listConnections.mockResolvedValue({ canManage: true, connections: [account] });
+    localApi.read.mockResolvedValue({
+      externalAccountId: '123',
+      expiresAt: '2030-01-01T00:00:00Z',
+      revoked: false,
+      lastSeenAt: null,
+    });
+    const { harness, element } = await render('/marketplaces/vinted/overview');
+    const workspace = harness.fixture.debugElement.query(By.directive(VintedWorkspaceComponent));
+    const parent = workspace.componentInstance as VintedWorkspaceComponent;
+    const request = vi
+      .spyOn(workspace.injector.get(VintedLocalExtensionBridge), 'request')
+      .mockRejectedValueOnce(new Error('Der Arbeitstab war nicht erreichbar.'))
+      .mockResolvedValue({
+        workspaceId: account.workspaceId,
+        connectionId: account.connectionId,
+        externalAccountId: '123',
+        expiresAt: '2030-01-01T00:00:00Z',
+        counts: { profile: 1, publication: 2 },
+        observedAt,
+        publicationsComplete: true,
+      });
+    api.listConnections.mockResolvedValue({
+      canManage: true,
+      connections: [{ ...account, lastSyncedAt: observedAt }],
+    });
+    await parent.sync();
+    expect(parent.local.error()).toContain('Arbeitstab');
+    await parent.sync();
+    harness.detectChanges();
+    expect(request).toHaveBeenCalledTimes(2);
+    expect(request).toHaveBeenLastCalledWith('FLIPBASE_VINTED_LOCAL_SYNC', {
+      workspaceId: account.workspaceId,
+      connectionId: account.connectionId,
+    });
+    expect(parent.local.imported()?.observedAt).toBe(observedAt);
+    expect(parent.store.selectedConnection()?.lastSyncedAt).toBe(observedAt);
+    expect(element.querySelector('app-vinted-local-connect')).toBeNull();
+    expect(element.textContent).toContain('lokale Verbindung bestätigt');
+    expect(browserApi.syncConnection).not.toHaveBeenCalled();
+  });
+  it('zeigt für die gültige Verknüpfung eine Hauptaktion statt der erneuten Installationsschritte', async () => {
+    api.listConnections.mockResolvedValue({
+      canManage: true,
+      connections: [{ ...fixtureConnections[0], executionMode: 'local', externalAccountId: '123' }],
+    });
+    localApi.read.mockResolvedValue({
+      externalAccountId: '123',
+      expiresAt: '2030-01-01T00:00:00Z',
+      revoked: false,
+      lastSeenAt: null,
+    });
+    const { element } = await render(
+      `/marketplaces/vinted/local-connect/${fixtureConnections[0].connectionId}`,
+    );
+    expect(element.textContent).toContain('Konto lokal verknüpft');
+    expect(element.textContent).toContain('Jetzt synchronisieren');
+    expect(element.textContent).toContain('Arbeitstab automatisch');
+    expect(element.textContent).not.toContain('1. Erweiterung installieren');
+    expect(element.querySelector('a[href="https://www.vinted.de/"]')).toBeNull();
+  });
+  it('übernimmt nach einem Kontowechsel kein verspätetes lokales Synchronisierungsergebnis', async () => {
+    const accounts = fixtureConnections.map((account, index) => ({
+      ...account,
+      executionMode: 'local' as const,
+      externalAccountId: String(123 + index),
+    }));
+    api.listConnections.mockResolvedValue({ canManage: true, connections: accounts });
+    localApi.read.mockImplementation(async (scope: AccountScope) => ({
+      externalAccountId: accounts.find((account) => account.connectionId === scope.connectionId)
+        ?.externalAccountId,
+      expiresAt: '2030-01-01T00:00:00Z',
+      revoked: false,
+      lastSeenAt: null,
+    }));
+    const { harness, element } = await render('/marketplaces/vinted/overview');
+    const workspace = harness.fixture.debugElement.query(By.directive(VintedWorkspaceComponent));
+    const parent = workspace.componentInstance as VintedWorkspaceComponent;
+    let finish: ((result: unknown) => void) | undefined;
+    const request = vi
+      .spyOn(workspace.injector.get(VintedLocalExtensionBridge), 'request')
+      .mockReturnValue(
+        new Promise<unknown>((resolve) => {
+          finish = resolve;
+        }),
+      );
+    const pending = parent.sync();
+    for (let index = 0; index < 4; index++) await Promise.resolve();
+    expect(request).toHaveBeenCalledOnce();
+    await parent.store.selectConnection(accounts[1].connectionId);
+    harness.detectChanges();
+    finish?.({
+      workspaceId: accounts[0].workspaceId,
+      connectionId: accounts[0].connectionId,
+      externalAccountId: '123',
+      expiresAt: '2030-01-01T00:00:00Z',
+      counts: { profile: 1, publication: 2 },
+      observedAt: '2026-10-04T19:00:00Z',
+      publicationsComplete: true,
+    });
+    await pending;
+    harness.detectChanges();
+    expect(parent.store.selectedConnection()?.connectionId).toBe(accounts[1].connectionId);
+    expect(parent.local.imported()).toBeNull();
+    expect(api.listConnections).toHaveBeenCalledOnce();
+    expect(element.querySelector('app-vinted-local-connect')).toBeNull();
   });
   it('zeigt beim Einstieg alle Konten als erreichbare Kacheln ohne Kontotabs', async () => {
     const { element } = await render('/marketplaces/vinted');

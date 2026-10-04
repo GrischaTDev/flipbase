@@ -12,7 +12,8 @@ und veröffentlicht, bearbeitet oder löscht keine Vinted-Anzeigen.
 3. Klicke auf „Entpackte Erweiterung laden“ und wähle `tools/flipbase-extension`
    im geprüften Arbeitsverzeichnis des Pilotzweigs.
 4. Nach Änderungen lade die Erweiterung über ihre Aktualisierungsschaltfläche
-   neu und lade auch die betroffenen Flipbase-/Vinted-Tabs neu.
+   und Flipbase neu. Beim nächsten Abgleich stellt die Erweiterung einen
+   nicht mehr erreichbaren eigenen Vinted-Arbeitstab automatisch wieder her.
 
 Die entpackte Installation dient dem internen Test. Ein Chrome-Web-Store-Eintrag
 ist noch nicht veröffentlicht; die spätere Nutzerinstallation soll über den Store
@@ -43,7 +44,9 @@ Formular, können einzelne Felder manuelle Eingaben verlangen.
    bearbeitest Du ebenfalls selbst. Starte danach die Verbindung erneut.
 3. Flipbase zeigt die erkannte Vinted-Identität. Bestätige die Zuordnung zu
    Deinem Arbeitsplatz und zur ausgewählten Kontoverbindung ausdrücklich.
-4. Starte den Profil-/Anzeigenabgleich in Flipbase manuell. Ein zentrierter Hinweis
+4. Starte den Profil-/Anzeigenabgleich mit „Jetzt synchronisieren“ oder direkt
+   über „Kontodaten aktualisieren“ in der Übersicht. Die Erweiterung öffnet oder
+   verwendet ihren Arbeitstab selbst. Ein zentrierter Hinweis
    mit heller, durchscheinender Sperrfläche hält den Arbeitstab dauerhaft reserviert.
    Sichtbare Anmeldung, SMS oder Mensch-Prüfung geben die Seite manuell frei;
    anschließend startest Du den Abgleich in Flipbase erneut. Über

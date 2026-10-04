@@ -253,6 +253,10 @@
   }
 
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (sender.id === chrome.runtime.id && request?.type === 'VINTED_LOCAL_READY') {
+      sendResponse({ success: true, ready: true });
+      return false;
+    }
     if (
       sender.id !== chrome.runtime.id ||
       !['VINTED_LOCAL_IDENTITY', 'VINTED_LOCAL_SNAPSHOT'].includes(request?.type)

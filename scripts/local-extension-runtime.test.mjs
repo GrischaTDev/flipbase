@@ -520,6 +520,18 @@ test('Content script renders a reserved tab and only GETs identity with no cooki
     ),
     context,
   );
+  assert.equal(
+    listener({ type: 'VINTED_LOCAL_READY' }, { id: 'another-extension' }, () => {
+      assert.fail('A foreign extension must not receive readiness.');
+    }),
+    false,
+  );
+  const readiness = await new Promise((resolve) =>
+    listener({ type: 'VINTED_LOCAL_READY' }, { id: 'extension' }, resolve),
+  );
+  assert.equal(readiness.ready, true);
+  assert.equal(calls.length, 0);
+  assert.equal(dom.window.document.querySelector('#flipbase-vinted-work-tab'), null);
   const response = await new Promise((resolve) =>
     listener({ type: 'VINTED_LOCAL_IDENTITY', timeoutMs: 1000 }, { id: 'extension' }, resolve),
   );
@@ -954,12 +966,20 @@ test('Content script reads rendered messages without script translations, hidden
   }
 });
 
-test('Chrome background adapter recovers the reserved tab and refuses non-application senders', async () => {
-  let stored = {};
+function createChromeBackgroundFixture({ receive, existingTab, accelerateTimers = false } = {}) {
+  let stored = existingTab ? { [core.storageKey]: { tabId: existingTab.id } } : {};
   let nextTabId = 10;
   let edgeStatus = 200;
   const tabs = new Map();
+  if (existingTab) tabs.set(existingTab.id, existingTab);
+  const messages = [];
   const edgeCalls = [];
+  let currentTime = Date.now();
+  class FixtureDate extends Date {
+    static now() {
+      return accelerateTimers ? currentTime : Date.now();
+    }
+  }
   const sender = {
     id: 'extension',
     frameId: 0,
@@ -999,6 +1019,12 @@ test('Chrome background adapter recovers the reserved tab and refuses non-applic
         update: async () => {},
         sendMessage: async (tabId, message) => {
           assert.ok(tabs.has(tabId));
+          messages.push({ tabId, message });
+          if (receive) {
+            const response = await receive(tabId, message);
+            if (response !== undefined) return response;
+          }
+          if (message.type === 'VINTED_LOCAL_READY') return { success: true, ready: true };
           assert.ok(message.timeoutMs > 0 && message.timeoutMs <= 35000);
           return {
             success: true,
@@ -1024,13 +1050,20 @@ test('Chrome background adapter recovers the reserved tab and refuses non-applic
       crypto: webcrypto,
       TextEncoder,
       URL,
-      Date,
+      Date: FixtureDate,
       Number,
       Error,
       JSON,
       Uint8Array,
       AbortSignal,
-      setTimeout,
+      setTimeout: (callback, timeoutMs) =>
+        setTimeout(
+          () => {
+            if (accelerateTimers && timeoutMs <= 300) currentTime += timeoutMs;
+            callback();
+          },
+          accelerateTimers && timeoutMs <= 300 ? 1 : timeoutMs,
+        ),
       clearTimeout,
       fetch: async (url, options) => {
         assert.equal(url, payload.apiUrl);
@@ -1067,6 +1100,23 @@ test('Chrome background adapter recovers the reserved tab and refuses non-applic
       call: (message, from = sender) => new Promise((resolve) => listener(message, from, resolve)),
     };
   }
+  return {
+    startBackground,
+    tabs,
+    messages,
+    edgeCalls,
+    validExpires,
+    sender,
+    get stored() {
+      return stored;
+    },
+    setEdgeStatus: (status) => (edgeStatus = status),
+  };
+}
+
+test('Chrome background adapter recovers the reserved tab and refuses non-application senders', async () => {
+  const fixture = createChromeBackgroundFixture();
+  const { startBackground, tabs, edgeCalls, validExpires, sender } = fixture;
   const background = startBackground();
   const prepare = { type: 'FLIPBASE_VINTED_LOCAL_PREPARE', requestId: 'prepare-tab' };
   assert.equal(
@@ -1099,23 +1149,23 @@ test('Chrome background adapter recovers the reserved tab and refuses non-applic
   });
   assert.equal(synced.success, true);
   assert.equal(tabs.size, 1);
-  const installationSecret = stored[core.storageKey].secret;
+  const installationSecret = fixture.stored[core.storageKey].secret;
   assert.ok(!JSON.stringify([prepared, bound, synced]).includes(installationSecret));
   assert.equal(edgeCalls.at(-1).action, 'import');
-  const reservedTabId = stored[core.storageKey].tabId;
+  const reservedTabId = fixture.stored[core.storageKey].tabId;
   tabs.delete(reservedTabId);
   assert.equal((await restarted.call({ ...prepare, requestId: 'prepare-reopen' })).success, true);
   assert.equal(tabs.size, 1);
-  assert.notEqual(stored[core.storageKey].tabId, reservedTabId);
-  edgeStatus = 503;
+  assert.notEqual(fixture.stored[core.storageKey].tabId, reservedTabId);
+  fixture.setEdgeStatus(503);
   assert.equal((await restarted.call({ ...prepare, requestId: 'prepare-offline' })).success, false);
-  assert.equal(stored[core.storageKey].secret, installationSecret);
-  edgeStatus = 401;
+  assert.equal(fixture.stored[core.storageKey].secret, installationSecret);
+  fixture.setEdgeStatus(401);
   const freshPrepare = await restarted.call({ ...prepare, requestId: 'prepare-deleted' });
   assert.equal(freshPrepare.success, true);
   assert.notEqual(freshPrepare.result.tokenHash, prepared.result.tokenHash);
-  assert.equal(stored[core.storageKey].binding, undefined);
-  edgeStatus = 200;
+  assert.equal(fixture.stored[core.storageKey].binding, undefined);
+  fixture.setEdgeStatus(200);
   const freshScope = { workspaceId, connectionId: anotherId };
   const freshBind = await restarted.call({
     type: 'FLIPBASE_VINTED_LOCAL_BIND',
@@ -1134,5 +1184,133 @@ test('Chrome background adapter recovers the reserved tab and refuses non-applic
     ).success,
     true,
   );
-  assert.equal(stored[core.storageKey], undefined);
+  assert.equal(fixture.stored[core.storageKey], undefined);
+});
+
+test('A reloaded extension replaces only its unreachable stored work tab before a single read', async () => {
+  const fixture = createChromeBackgroundFixture({
+    existingTab: { id: 90, url: 'https://www.vinted.de/', status: 'complete', incognito: false },
+    accelerateTimers: true,
+    receive: async (tabId) => {
+      if (tabId === 90)
+        throw new Error('Could not establish connection. Receiving end does not exist.');
+    },
+  });
+  fixture.tabs.set(91, { id: 91, url: 'https://www.vinted.de/', status: 'complete' });
+  const result = await fixture.startBackground().call({
+    type: 'FLIPBASE_VINTED_LOCAL_PREPARE',
+    requestId: 'recover-reloaded-extension',
+  });
+  assert.equal(result.success, true);
+  assert.equal(fixture.stored[core.storageKey].tabId, 10);
+  assert.equal(fixture.tabs.size, 3);
+  assert.ok(!fixture.messages.some(({ tabId }) => tabId === 91));
+  assert.deepEqual(
+    fixture.messages
+      .filter(({ message }) => message.type === 'VINTED_LOCAL_IDENTITY')
+      .map(({ tabId }) => tabId),
+    [10],
+  );
+});
+
+test('A completed tab waits for document-idle receiver readiness without creating another tab', async () => {
+  let readyAttempts = 0;
+  const fixture = createChromeBackgroundFixture({
+    accelerateTimers: true,
+    receive: async (_tabId, message) => {
+      if (message.type === 'VINTED_LOCAL_READY' && ++readyAttempts < 3)
+        throw new Error('Receiving end does not exist.');
+    },
+  });
+  const result = await fixture.startBackground().call({
+    type: 'FLIPBASE_VINTED_LOCAL_PREPARE',
+    requestId: 'wait-for-document-idle',
+  });
+  assert.equal(result.success, true);
+  assert.equal(readyAttempts, 3);
+  assert.equal(fixture.tabs.size, 1);
+  assert.equal(
+    fixture.messages.filter(({ message }) => message.type === 'VINTED_LOCAL_IDENTITY').length,
+    1,
+  );
+});
+
+test('Missing receivers stop after one recovery and perform no Vinted read or import', async () => {
+  const fixture = createChromeBackgroundFixture({
+    existingTab: { id: 90, url: 'https://www.vinted.de/', status: 'complete', incognito: false },
+    accelerateTimers: true,
+    receive: async () => {
+      throw new Error('Receiving end does not exist.');
+    },
+  });
+  const result = await fixture.startBackground().call({
+    type: 'FLIPBASE_VINTED_LOCAL_PREPARE',
+    requestId: 'bounded-receiver-recovery',
+  });
+  assert.equal(result.success, false);
+  assert.match(result.error, /zugreifen darf/);
+  assert.equal(fixture.tabs.size, 2);
+  assert.ok(fixture.messages.every(({ message }) => message.type === 'VINTED_LOCAL_READY'));
+  assert.equal(fixture.edgeCalls.length, 0);
+});
+
+test('An unresponsive newly created receiver times out without opening more tabs', async () => {
+  const fixture = createChromeBackgroundFixture({
+    accelerateTimers: true,
+    receive: () => new Promise(() => {}),
+  });
+  const result = await fixture.startBackground().call({
+    type: 'FLIPBASE_VINTED_LOCAL_PREPARE',
+    requestId: 'unresponsive-receiver',
+  });
+  assert.equal(result.success, false);
+  assert.match(result.error, /zugreifen darf/);
+  assert.equal(fixture.tabs.size, 1);
+  assert.ok(fixture.messages.length < 10);
+  assert.ok(fixture.messages.every(({ message }) => message.type === 'VINTED_LOCAL_READY'));
+  assert.equal(fixture.edgeCalls.length, 0);
+});
+
+test('A receiver transport failure during the read is not retried after the ready handshake', async () => {
+  const fixture = createChromeBackgroundFixture({
+    receive: async (_tabId, message) => {
+      if (message.type === 'VINTED_LOCAL_IDENTITY') throw new Error('Message port closed.');
+    },
+  });
+  const result = await fixture.startBackground().call({
+    type: 'FLIPBASE_VINTED_LOCAL_PREPARE',
+    requestId: 'do-not-repeat-read',
+  });
+  assert.equal(result.success, false);
+  assert.equal(fixture.tabs.size, 1);
+  assert.equal(
+    fixture.messages.filter(({ message }) => message.type === 'VINTED_LOCAL_IDENTITY').length,
+    1,
+  );
+});
+
+test('Provider login, SMS, CAPTCHA and block errors do not recover or repeat the read', async () => {
+  for (const state of [
+    'login_required',
+    'verification_required',
+    'interaction_required',
+    'session_blocked',
+  ]) {
+    const fixture = createChromeBackgroundFixture({
+      receive: async (_tabId, message) =>
+        message.type === 'VINTED_LOCAL_IDENTITY' ? { success: false, error: state } : undefined,
+    });
+    const result = await fixture.startBackground().call({
+      type: 'FLIPBASE_VINTED_LOCAL_PREPARE',
+      requestId: `provider-${state}`,
+    });
+    assert.equal(result.success, false);
+    assert.equal(result.error, state);
+    assert.equal(fixture.tabs.size, 1);
+    assert.equal(
+      fixture.messages.filter(({ message }) => message.type === 'VINTED_LOCAL_IDENTITY').length,
+      1,
+    );
+    assert.equal(fixture.edgeCalls.length, 0);
+  }
 });

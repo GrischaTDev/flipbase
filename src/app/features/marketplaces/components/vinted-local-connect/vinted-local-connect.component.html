@@ -1,56 +1,10 @@
-<app-card
-  title="Vinted lokal verbinden"
-  subtitle="Lesender Erweiterungspilot für dieses Browserprofil"
->
+<app-card title="Vinted lokal verbinden" subtitle="Profil und Inserate aus Deinem Browserprofil">
   @if (connection(); as account) {
     <p class="text-sm text-fb-text-primary">Kontoverbindung: {{ account.displayName }}</p>
-    <h2 class="mt-4 text-sm font-semibold">
-      1. Erweiterung installieren und mit Flipbase verbinden
-    </h2>
-    <p role="status" class="mt-2 text-sm text-fb-text-secondary">
-      @if (extension.checkingInstallation()) {
-        Verbindung wird geprüft …
-      } @else if (extension.installationCheckFailed()) {
-        Keine Antwort. Prüfe die Erweiterung in diesem Browserprofil und lade die Seite neu.
-      } @else {
-        {{
-          extension.installed()
-            ? 'Flipbase-Erweiterung erkannt und erreichbar'
-            : 'Noch keine Flipbase-Erweiterung erkannt'
-        }}
-      }
-    </p>
-    <div class="mt-3 flex flex-wrap gap-2">
-      <app-button
-        [loading]="extension.checkingInstallation()"
-        (clicked)="extension.checkInstallation()"
-        >Erweiterung prüfen</app-button
-      >
-      @if (!extension.installed()) {
-        <app-button link="/marketplaces/vinted/setup">Installationsanleitung öffnen</app-button>
-      }
-    </div>
-    <h2 class="mt-4 text-sm font-semibold">2. Bei Vinted anmelden</h2>
-    <p class="mt-2 text-sm text-fb-text-secondary">
-      Öffne Vinted in diesem Browserprofil und melde Dich direkt in Deinem gewünschten Konto an.
-      Passwort, SMS und Mensch-Prüfungen bearbeitest Du auf Vinted selbst.
-    </p>
-    <app-button class="mt-3" href="https://www.vinted.de/" target="_blank"
-      >Vinted öffnen</app-button
-    >
-    <h2 class="mt-4 text-sm font-semibold">3. Konto prüfen und freigeben</h2>
-    <p class="mt-2 text-[13px] text-fb-text-secondary">
-      Pro Browserprofil bleibt ein Vinted-Konto angemeldet. Die Freigabe gilt 24 Stunden. Profil und
-      Inserate werden nur übernommen, wenn Du die Übernahme startest.
-    </p>
-    <p class="mt-2 text-[13px] text-fb-text-secondary">
-      Postfach, Verkäufe und automatische Aktionen sind in dieser Pilotversion noch nicht lokal
-      angebunden. Eine erfolgreiche Verknüpfung übernimmt diese Daten deshalb noch nicht.
-    </p>
     @if (!accounts.canManage()) {
-      <app-notice-banner class="mt-4" announcement="alert"
-        >Du brauchst Verwaltungszugriff, um diese Verbindung freizugeben.</app-notice-banner
-      >
+      <app-notice-banner class="mt-4" announcement="alert">
+        Du brauchst Verwaltungszugriff, um diese Verbindung freizugeben.
+      </app-notice-banner>
     } @else {
       @if (local.error(); as error) {
         <app-notice-banner class="mt-4" announcement="alert">{{ error }}</app-notice-banner>
@@ -58,54 +12,116 @@
       @if (local.notice(); as notice) {
         <app-notice-banner class="mt-4">{{ notice }}</app-notice-banner>
       }
-      @if (local.prepared(); as prepared) {
-        <app-card class="mt-4" title="Erkanntes Vinted-Konto bestätigen">
-          <p class="text-sm text-fb-text-primary">@{{ prepared.identity.username }}</p>
-          <p class="mt-2 text-[13px] text-fb-text-secondary">
-            Ist das Dein gewünschtes Konto? Mit Deiner Bestätigung erlaubst Du die lesende
-            Datenübernahme für diese Kontoverbindung.
-          </p>
-          <app-button
-            class="mt-4"
-            variant="primary"
-            [loading]="local.busy()"
-            (clicked)="local.approve()"
-            >Dieses Konto freigeben</app-button
-          >
-        </app-card>
-      }
-      @if (local.binding(); as binding) {
-        <p class="mt-4 text-[13px] text-fb-text-secondary">
-          {{ binding.revoked ? 'Freigabe widerrufen' : 'Freigabe gültig bis' }}
-          {{ binding.expiresAt | date: 'dd.MM.yyyy, HH:mm' }}
+      @if (local.hasValidBinding() && !local.prepared()) {
+        <h2 class="mt-4 text-sm font-semibold">Konto lokal verknüpft</h2>
+        <p role="status" class="mt-2 text-sm text-fb-text-secondary">
+          @if (extension.checkingInstallation()) {
+            Erweiterung wird geprüft …
+          } @else if (extension.installed()) {
+            Erweiterung in diesem Browserprofil erreichbar.
+          } @else {
+            Die Erweiterung ist in diesem Browserprofil nicht erreichbar. Prüfe sie in Chrome und
+            lade Flipbase anschließend neu.
+          }
         </p>
-        <div class="mt-4 flex flex-wrap gap-2">
-          <app-button
-            variant="primary"
-            [loading]="local.busy()"
-            [disabled]="binding.revoked"
-            (clicked)="local.sync()"
-            >Profil und Inserate übernehmen</app-button
+        @if (extension.installationCheckFailed()) {
+          <app-button class="mt-3" (clicked)="extension.checkInstallation()"
+            >Erweiterung erneut prüfen</app-button
           >
-        </div>
-      }
-      @if (local.canRevoke()) {
+        }
+        @if (local.binding(); as binding) {
+          <p class="mt-2 text-[13px] text-fb-text-secondary">
+            Freigabe gültig bis {{ binding.expiresAt | date: 'dd.MM.yyyy, HH:mm' }}.
+          </p>
+        }
+        <p class="mt-2 text-sm text-fb-text-secondary">
+          Die Erweiterung öffnet ihren reservierten Vinted-Arbeitstab automatisch. Du musst dafür
+          keinen Tab suchen oder Vinted erneut öffnen. Bleibt eine Anmeldung oder Prüfung offen,
+          erledigst Du sie direkt im Arbeitstab.
+        </p>
         <app-button
           class="mt-4"
-          variant="destructive"
-          [disabled]="local.busy()"
-          (clicked)="local.revoke()"
-          >Freigabe widerrufen</app-button
+          variant="primary"
+          [loading]="local.busy()"
+          (clicked)="local.sync()"
         >
+          Jetzt synchronisieren
+        </app-button>
+      } @else {
+        <h2 class="mt-4 text-sm font-semibold">
+          1. Erweiterung installieren und mit Flipbase verbinden
+        </h2>
+        <p role="status" class="mt-2 text-sm text-fb-text-secondary">
+          @if (extension.checkingInstallation()) {
+            Verbindung wird geprüft …
+          } @else if (extension.installationCheckFailed()) {
+            Keine Antwort. Prüfe die Erweiterung in diesem Browserprofil und lade die Seite neu.
+          } @else {
+            {{
+              extension.installed()
+                ? 'Flipbase-Erweiterung erkannt und erreichbar'
+                : 'Noch keine Flipbase-Erweiterung erkannt'
+            }}
+          }
+        </p>
+        <div class="mt-3 flex flex-wrap gap-2">
+          <app-button
+            [loading]="extension.checkingInstallation()"
+            (clicked)="extension.checkInstallation()"
+          >
+            Erweiterung prüfen
+          </app-button>
+          @if (!extension.installed()) {
+            <app-button link="/marketplaces/vinted/setup">Installationsanleitung öffnen</app-button>
+          }
+        </div>
+        <h2 class="mt-4 text-sm font-semibold">2. Bei Vinted anmelden</h2>
+        <p class="mt-2 text-sm text-fb-text-secondary">
+          Öffne Vinted in diesem Browserprofil und melde Dich direkt in Deinem gewünschten Konto an.
+          Passwort, SMS und Mensch-Prüfungen bearbeitest Du auf Vinted selbst.
+        </p>
+        <app-button class="mt-3" href="https://www.vinted.de/" target="_blank"
+          >Vinted öffnen</app-button
+        >
+        <h2 class="mt-4 text-sm font-semibold">3. Konto prüfen und freigeben</h2>
+        <p class="mt-2 text-[13px] text-fb-text-secondary">
+          Pro Browserprofil bleibt ein Vinted-Konto angemeldet. Die Freigabe gilt 24 Stunden.
+        </p>
+        @if (local.binding(); as binding) {
+          @if (!local.hasValidBinding()) {
+            <app-notice-banner class="mt-4">
+              {{
+                binding.revoked ? 'Die Freigabe wurde widerrufen.' : 'Die Freigabe ist abgelaufen.'
+              }}
+              Prüfe das angemeldete Vinted-Konto und verbinde es erneut.
+            </app-notice-banner>
+          }
+        }
+        @if (local.prepared(); as prepared) {
+          <app-card class="mt-4" title="Erkanntes Vinted-Konto bestätigen">
+            <p class="text-sm text-fb-text-primary">@{{ prepared.identity.username }}</p>
+            <p class="mt-2 text-[13px] text-fb-text-secondary">
+              Ist das Dein gewünschtes Konto? Mit Deiner Bestätigung erlaubst Du die lesende
+              Datenübernahme für diese Kontoverbindung.
+            </p>
+            <app-button
+              class="mt-4"
+              variant="primary"
+              [loading]="local.busy()"
+              (clicked)="local.approve()"
+            >
+              Dieses Konto freigeben
+            </app-button>
+          </app-card>
+        }
+        <app-button
+          class="mt-4"
+          [disabled]="local.busy() || !extension.installed()"
+          (clicked)="local.prepare()"
+        >
+          Angemeldetes Vinted-Konto prüfen
+        </app-button>
       }
-      <app-button
-        class="mt-4"
-        [disabled]="local.busy() || !extension.installed()"
-        (clicked)="local.prepare()"
-        >{{
-          local.binding() ? 'Konto erneut prüfen und freigeben' : 'Angemeldetes Vinted-Konto prüfen'
-        }}</app-button
-      >
       @if (local.imported(); as imported) {
         <p class="mt-4 text-[13px] text-fb-text-secondary" role="status">
           Übernommen: {{ imported.counts.profile }} Profil,
@@ -117,11 +133,28 @@
           }}
         </p>
       }
+      <p class="mt-4 text-[13px] text-fb-text-secondary">
+        Postfach, Verkäufe und automatische Aktionen sind in dieser Pilotversion noch nicht lokal
+        angebunden. Synchronisiert werden Profil und Inserate.
+      </p>
+      @if (local.canRevoke()) {
+        <div class="mt-4 flex flex-wrap gap-2">
+          <app-button variant="destructive" [disabled]="local.busy()" (clicked)="local.revoke()"
+            >Freigabe widerrufen</app-button
+          >
+          @if (local.hasValidBinding() && !local.prepared()) {
+            <app-button
+              [disabled]="local.busy() || !extension.installed()"
+              (clicked)="local.prepare()"
+              >Konto erneut prüfen</app-button
+            >
+          }
+        </div>
+      }
     }
   } @else if (!accounts.loading()) {
-    <app-notice-banner announcement="alert"
-      >Diese Kontoverbindung ist nicht verfügbar. Wähle ein Konto aus Deiner
-      Kontenübersicht.</app-notice-banner
-    >
+    <app-notice-banner announcement="alert">
+      Diese Kontoverbindung ist nicht verfügbar. Wähle ein Konto aus Deiner Kontenübersicht.
+    </app-notice-banner>
   }
 </app-card>

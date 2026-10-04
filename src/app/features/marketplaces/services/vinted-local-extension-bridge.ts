@@ -53,17 +53,14 @@ export class VintedLocalExtensionBridge {
       return Promise.reject(new Error('Die Verbindungsansicht wurde geschlossen.'));
     const requestId = crypto.randomUUID();
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(
-        () => {
-          this.pending.delete(requestId);
-          reject(
-            new Error(
-              'Die Erweiterung hat nicht geantwortet. Prüfe, ob der lokale Pilot installiert und Vinted in diesem Browserprofil geöffnet ist.',
-            ),
-          );
-        },
-        type === 'FLIPBASE_VINTED_LOCAL_SYNC' ? 300_000 : 60_000,
-      );
+      const timer = setTimeout(() => {
+        this.pending.delete(requestId);
+        reject(
+          new Error(
+            'Die Erweiterung hat nicht geantwortet. Prüfe, ob der lokale Pilot installiert und Vinted in diesem Browserprofil geöffnet ist.',
+          ),
+        );
+      }, 60_000);
       this.pending.set(requestId, { resolve, reject, timer });
       window.postMessage(
         { type, requestId, ...(payload === undefined ? {} : { payload }) },

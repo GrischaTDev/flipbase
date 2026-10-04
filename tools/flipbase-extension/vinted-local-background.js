@@ -9,11 +9,13 @@
   };
   const save = async (installation) => chrome.storage.local.set({ [key]: installation });
   let operationDeadline = 0;
+  let recoveredTab = false;
 
   // Das Installationsgeheimnis ist für Content Scripts nicht lesbar.
 
   async function ensureTab(preferredTabId) {
     let tab;
+    let created = false;
     if (Number.isInteger(preferredTabId)) {
       try {
         tab = await chrome.tabs.get(preferredTabId);
@@ -24,6 +26,7 @@
     if (tab && (tab.incognito || !tab.url?.startsWith('https://www.vinted.de/'))) tab = undefined;
     if (!tab) {
       tab = await chrome.tabs.create({ url: 'https://www.vinted.de/', active: true });
+      created = true;
       const installation = await load();
       await save({ ...installation, tabId: tab.id });
     }
@@ -32,19 +35,59 @@
       await new Promise((resolve) => setTimeout(resolve, 150));
       tab = await chrome.tabs.get(tab.id);
     }
-    if (tab.status !== 'complete' || !tab.url?.startsWith('https://www.vinted.de/'))
+    if (
+      tab.status !== 'complete' ||
+      tab.incognito ||
+      !tab.url?.startsWith('https://www.vinted.de/')
+    )
       throw new Error(
         'Der reservierte Vinted-Tab ist noch nicht bereit. Melde Dich dort an und versuche es erneut.',
       );
-    return tab.id;
+    return { tabId: tab.id, created };
+  }
+
+  async function waitForReceiver(tabId, readDeadline) {
+    const readyDeadline = Math.min(now() + 2_000, readDeadline);
+    while (now() < readyDeadline) {
+      let timeout;
+      try {
+        const response = await Promise.race([
+          chrome.tabs.sendMessage(tabId, { type: 'VINTED_LOCAL_READY' }),
+          new Promise((resolve) => {
+            timeout = setTimeout(() => resolve(undefined), Math.min(300, readyDeadline - now()));
+          }),
+        ]);
+        if (response?.success === true && response.ready === true) return true;
+      } catch {
+        // document_idle kann erst nach dem complete-Status den Empfänger anmelden.
+      } finally {
+        clearTimeout(timeout);
+      }
+      await new Promise((resolve) =>
+        setTimeout(resolve, Math.min(150, Math.max(0, readyDeadline - now()))),
+      );
+    }
+    return false;
   }
 
   async function readFromTab(tabId, request) {
-    const reservedTabId = await ensureTab(tabId);
-    const timeoutMs = Math.min(
-      35_000,
-      operationDeadline - now() - (request.type === 'VINTED_LOCAL_SNAPSHOT' ? 13_000 : 1_000),
-    );
+    const readDeadline =
+      operationDeadline - (request.type === 'VINTED_LOCAL_SNAPSHOT' ? 13_000 : 1_000);
+    let reserved = await ensureTab(tabId);
+    let ready = await waitForReceiver(reserved.tabId, readDeadline);
+    if (!ready && !reserved.created && !recoveredTab && now() < readDeadline) {
+      // Nach einem Erweiterungs-Reload bleibt der alte Tab ohne gültiges Content Script offen.
+      // Nur unseren gespeicherten Arbeitstab ersetzen; keine Nutzertabs neu laden.
+      recoveredTab = true;
+      reserved = await ensureTab();
+      ready = await waitForReceiver(reserved.tabId, readDeadline);
+    }
+    if (!ready)
+      throw new Error(
+        'Die Erweiterung konnte den Vinted-Arbeitstab nicht vorbereiten. Prüfe in Chrome, ob sie auf vinted.de zugreifen darf, und versuche es erneut.',
+      );
+    const reservedTabId = reserved.tabId;
+    const timeoutMs = Math.min(35_000, readDeadline - now());
     if (timeoutMs <= 0) throw new Error('Der lokale Vorgang dauerte zu lange. Versuche es erneut.');
     let response;
     let timeout;
@@ -86,6 +129,7 @@
     now,
     begin: () => {
       operationDeadline = now() + 50_000;
+      recoveredTab = false;
     },
     remove: () => chrome.storage.local.remove(key),
     randomSecret: () =>
