@@ -1,5 +1,4 @@
 import { Routes } from '@angular/router';
-import { marketplaceAccessGuard } from '../marketplaces/guards/marketplace-access.guard';
 import { unsavedEntryGuard } from '../../shared/guards/unsaved-entry.guard';
 
 export const SETTINGS_ROUTES: Routes = [
@@ -49,11 +48,8 @@ export const SETTINGS_ROUTES: Routes = [
       },
       {
         path: 'marketplaces',
-        canActivate: [marketplaceAccessGuard],
-        loadComponent: () =>
-          import('../marketplaces/components/marketplace-accounts/marketplace-accounts.component').then(
-            (m) => m.MarketplaceAccountsComponent,
-          ),
+        redirectTo: '/marketplaces/vinted/manage',
+        pathMatch: 'full',
       },
       {
         path: 'notifications',

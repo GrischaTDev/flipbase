@@ -12,6 +12,7 @@ import {
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { VintedAccountPreviewsStore } from '../../services/vinted-account-previews.store';
 import { VintedRatingComponent } from '../vinted-rating/vinted-rating.component';
+import { VintedSetupComponent } from '../vinted-setup/vinted-setup.component';
 
 @Component({
   selector: 'app-vinted-account-grid',
@@ -23,6 +24,7 @@ import { VintedRatingComponent } from '../vinted-rating/vinted-rating.component'
     ProductThumbnailComponent,
     VintedRatingComponent,
     LucideDynamicIcon,
+    VintedSetupComponent,
   ],
   templateUrl: './vinted-account-grid.component.html',
   providers: [VintedAccountPreviewsStore],
@@ -35,5 +37,4 @@ export class VintedAccountGridComponent {
   readonly statusLabels = MARKETPLACE_CONNECTION_LABELS;
   readonly statusTones = MARKETPLACE_CONNECTION_TONES;
   readonly arrowIcon = LucideArrowRight;
-  readonly accountsRoute = '/settings/marketplaces';
 }

@@ -817,9 +817,24 @@ describe('Kontogebundene Marktplatzansicht', () => {
   });
   it('weist ungültige Namen vor dem Speichern zurück', async () => {
     await settle();
-    expect(await store.createConnection('   ')).toBe(false);
+    expect(await store.createConnection('   ')).toBeNull();
     expect(api.createConnection).not.toHaveBeenCalled();
     expect(store.mutationError()).toBeTruthy();
+  });
+  it('gibt beim Anlegen die neue Konto-ID statt der vorherigen Auswahl zurück', async () => {
+    await settle();
+    api.createConnection.mockResolvedValue(accountB);
+    expect(await store.createConnection('Mein Konto')).toBe(accountB.connectionId);
+  });
+  it('gibt nach einem Workspacewechsel keine angelegte Konto-ID frei', async () => {
+    await settle();
+    const pending = deferred<typeof accountB>();
+    api.createConnection.mockReturnValue(pending.promise);
+    const creating = store.createConnection('Mein Konto');
+    currentWorkspace.set(null);
+    await settle();
+    pending.resolve(accountB);
+    expect(await creating).toBeNull();
   });
   it('holt nach erfolgreichem Pausieren den bestätigten Zustand vom Server', async () => {
     await settle();

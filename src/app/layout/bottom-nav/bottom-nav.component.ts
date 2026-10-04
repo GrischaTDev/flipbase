@@ -1,8 +1,9 @@
-import { ChangeDetectionStrategy, Component, inject, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { filter, map } from 'rxjs';
 import { isArticleRoute } from '../../core/config/article-navigation';
+import { isVintedWorkspaceRoute } from '../../core/config/vinted-workspace-navigation';
 import {
   LucideDynamicIcon,
   LucideLayoutDashboard as LayoutDashboard,
@@ -31,6 +32,13 @@ export class BottomNavComponent {
   isArticlesActive(): boolean {
     return isArticleRoute(this.currentUrl());
   }
+  readonly vintedContext = computed(() => isVintedWorkspaceRoute(this.currentUrl()));
+  readonly vintedLinks = [
+    { path: '/dashboard', label: 'Flipbase', icon: LayoutDashboard },
+    { path: '/marketplaces/vinted/accounts', label: 'Konten', icon: Boxes },
+    { path: '/marketplaces/vinted/messages', label: 'Postfach', icon: ShoppingBag },
+    { path: '/marketplaces/vinted/listings', label: 'Inserate', icon: TrendingUp },
+  ];
   readonly isMenuOpen = input<boolean>(false);
   readonly toggleMenu = output<void>();
 

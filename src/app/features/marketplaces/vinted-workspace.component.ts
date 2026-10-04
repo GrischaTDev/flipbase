@@ -11,25 +11,22 @@ import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { LucideArrowLeft, LucideLogIn, LucideStore } from '@lucide/angular';
 import { ButtonComponent } from '../../shared/components/button/button.component';
-import { CardComponent } from '../../shared/components/card/card.component';
 import { NoticeBannerComponent } from '../../shared/components/notice-banner/notice-banner.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
-import { RouteTabsComponent } from '../../shared/components/route-tabs/route-tabs.component';
-import { VINTED_SECTIONS } from './models/marketplace-presentation';
 import { MarketplaceAccountStore } from './services/marketplace-account.store';
 import { MarketplaceSyncProgressComponent } from './components/marketplace-sync-progress/marketplace-sync-progress.component';
 import { marketplaceSyncWarningSources } from './models/marketplace-sync-results';
 import { VintedAccountControlsComponent } from './components/vinted-account-controls/vinted-account-controls.component';
+import { VintedSetupComponent } from './components/vinted-setup/vinted-setup.component';
 
 @Component({
   selector: 'app-vinted-workspace',
   imports: [
     RouterOutlet,
     ButtonComponent,
-    CardComponent,
+    VintedSetupComponent,
     NoticeBannerComponent,
     PageHeaderComponent,
-    RouteTabsComponent,
     MarketplaceSyncProgressComponent,
     VintedAccountControlsComponent,
   ],
@@ -52,12 +49,15 @@ export class VintedWorkspaceComponent {
     ),
   );
   readonly backIcon = LucideArrowLeft;
-  readonly activeSection = computed(
-    () =>
-      this.sections.find((section) => this.currentUrl().split(/[?#]/)[0].startsWith(section.path))
-        ?.id ?? '',
+  readonly showingSetup = computed(
+    () => this.currentUrl().split(/[?#]/)[0] === '/marketplaces/vinted/setup',
   );
-  readonly sections = VINTED_SECTIONS;
+  readonly showingManagement = computed(
+    () => this.currentUrl().split(/[?#]/)[0] === '/marketplaces/vinted/manage',
+  );
+  readonly showingLocalConnection = computed(() =>
+    this.currentUrl().split(/[?#]/)[0].startsWith('/marketplaces/vinted/local-connect/'),
+  );
   readonly pageIcon = LucideStore;
   readonly loginIcon = LucideLogIn;
   readonly syncModalOpen = signal(false);

@@ -98,10 +98,12 @@ for (const width of [1440, 1024, 768, 390]) {
     await expect(select).toContainText('Testkonto B');
     await page.reload();
     await expect(select).toContainText('Testkonto B');
-    await page
-      .getByRole('navigation', { name: 'Vinted-Bereiche' })
-      .getByRole('link', { name: 'Profil', exact: true })
-      .click();
+    if (width < 768)
+      await page
+        .locator('app-bottom-nav')
+        .getByRole('button', { name: 'Menü', exact: true })
+        .click();
+    await page.locator('app-sidebar').getByRole('link', { name: 'Profil', exact: true }).click();
     await expect(page.locator('app-vinted-profile')).toContainText('Profil Testkonto B');
     await page.reload();
     await expect(select).toContainText('Testkonto B');

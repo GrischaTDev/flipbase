@@ -26,6 +26,23 @@ describe('Lokale Vinted-Erweiterungsbrücke', () => {
       }),
     );
   }
+  it('erkennt nur die lokale Vinted-Erweiterung aus dem eigenen Fenster und Origin', () => {
+    const bridge = TestBed.inject(VintedLocalExtensionBridge);
+    const status = (origin: string, source: Window | null, vintedLocal: boolean) =>
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          origin,
+          source,
+          data: { type: 'FLIPBASE_EXTENSION_STATUS', installed: true, vintedLocal },
+        }),
+      );
+    status('https://foreign.example', window, true);
+    status(location.origin, null, true);
+    status(location.origin, window, false);
+    expect(bridge.installed()).toBe(false);
+    status(location.origin, window, true);
+    expect(bridge.installed()).toBe(true);
+  });
   it('ignoriert fremde Quellen, Origins und Anfragekennungen', async () => {
     const post = vi.spyOn(window, 'postMessage').mockImplementation(() => undefined);
     const bridge = TestBed.inject(VintedLocalExtensionBridge);

@@ -1,4 +1,4 @@
-import { DestroyRef, Injectable, inject } from '@angular/core';
+import { DestroyRef, Injectable, inject, signal } from '@angular/core';
 
 type RequestType =
   | 'FLIPBASE_VINTED_LOCAL_PREPARE'
@@ -16,6 +16,7 @@ interface PendingRequest {
 export class VintedLocalExtensionBridge {
   private readonly pending = new Map<string, PendingRequest>();
   private destroyed = false;
+  readonly installed = signal(false);
   constructor() {
     window.addEventListener('message', this.receive);
     inject(DestroyRef).onDestroy(() => {
@@ -30,6 +31,11 @@ export class VintedLocalExtensionBridge {
       request.reject(new Error('Die lokale Verbindungsansicht wurde geschlossen oder gewechselt.'));
     }
     this.pending.clear();
+  }
+  checkInstallation(): void {
+    if (this.destroyed) return;
+    this.installed.set(false);
+    window.postMessage({ type: 'FLIPBASE_CHECK_EXTENSION' }, location.origin);
   }
   request(type: RequestType, payload?: unknown): Promise<unknown> {
     if (this.destroyed)
@@ -63,6 +69,11 @@ export class VintedLocalExtensionBridge {
     )
       return;
     const response = event.data as Record<string, unknown>;
+    if (response['type'] === 'FLIPBASE_EXTENSION_STATUS') {
+      if (response['installed'] === true && response['vintedLocal'] === true)
+        this.installed.set(true);
+      return;
+    }
     if (
       response['type'] !== 'FLIPBASE_VINTED_LOCAL_RESULT' ||
       typeof response['requestId'] !== 'string' ||

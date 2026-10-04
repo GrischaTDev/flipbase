@@ -602,12 +602,15 @@ export class MarketplaceAccountStore {
     this.writeError.set(null);
   }
 
-  async createConnection(name: string): Promise<boolean> {
+  async createConnection(name: string): Promise<string | null> {
     const workspaceId = this.workspace.currentWorkspace()?.id;
-    if (!workspaceId || !this.validName(name)) return false;
-    return this.mutate(
-      async () => (await this.api.createConnection(workspaceId, name.trim())).connectionId,
-    );
+    if (!workspaceId || !this.validName(name)) return null;
+    let connectionId: string | null = null;
+    const created = await this.mutate(async () => {
+      connectionId = (await this.api.createConnection(workspaceId, name.trim())).connectionId;
+      return connectionId;
+    });
+    return created && this.canManage() ? connectionId : null;
   }
   async renameConnection(id: string, name: string): Promise<boolean> {
     const connection = this.connections().find((item) => item.connectionId === id);

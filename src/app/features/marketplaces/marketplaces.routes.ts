@@ -19,6 +19,20 @@ export const MARKETPLACES_ROUTES: Routes = [
     children: [
       { path: '', redirectTo: 'accounts', pathMatch: 'full' },
       {
+        path: 'setup',
+        loadComponent: () =>
+          import('./components/vinted-setup/vinted-setup.component').then(
+            (module) => module.VintedSetupComponent,
+          ),
+      },
+      {
+        path: 'manage',
+        loadComponent: () =>
+          import('./components/marketplace-accounts/marketplace-accounts.component').then(
+            (module) => module.MarketplaceAccountsComponent,
+          ),
+      },
+      {
         path: 'accounts',
         loadComponent: () =>
           import('./components/vinted-account-grid/vinted-account-grid.component').then(

@@ -156,6 +156,7 @@ export async function mockMarketplace(
         ? (route.request().postDataJSON() as Record<string, unknown>)
         : {};
     let json: unknown = [];
+    if (name === 'marketplace_read_local_extension') json = null;
     if (name === 'user') json = user;
     if (name === 'profiles') json = { id: user.id, full_name: 'Marktplatz-Test' };
     if (name === 'is_platform_operator') json = true;

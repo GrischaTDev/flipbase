@@ -1,45 +1,59 @@
 <nav
   class="md:hidden fixed bottom-0 left-0 right-0 h-14 bg-fb-sidebar/95 backdrop-blur-md border-t border-fb-border-subtle flex items-center justify-around px-2 z-30 select-none shadow-lg"
 >
-  <a
-    routerLink="/dashboard"
-    routerLinkActive="font-semibold"
-    ariaCurrentWhenActive="page"
-    class="flex flex-col items-center justify-center gap-1 text-fb-text-muted text-xs w-14 py-1 hover:text-fb-text-primary transition"
-  >
-    <svg [lucideIcon]="DashboardIcon" class="w-4 h-4"></svg>
-    <span>Dashboard</span>
-  </a>
+  @if (vintedContext()) {
+    @for (item of vintedLinks; track item.path) {
+      <a
+        [routerLink]="item.path"
+        routerLinkActive="font-semibold"
+        ariaCurrentWhenActive="page"
+        class="flex flex-col items-center justify-center gap-1 text-fb-text-muted text-xs w-14 py-1 hover:text-fb-text-primary transition"
+      >
+        <svg [lucideIcon]="item.icon" class="size-4" aria-hidden="true"></svg>
+        <span>{{ item.label }}</span>
+      </a>
+    }
+  } @else {
+    <a
+      routerLink="/dashboard"
+      routerLinkActive="font-semibold"
+      ariaCurrentWhenActive="page"
+      class="flex flex-col items-center justify-center gap-1 text-fb-text-muted text-xs w-14 py-1 hover:text-fb-text-primary transition"
+    >
+      <svg [lucideIcon]="DashboardIcon" class="w-4 h-4"></svg>
+      <span>Dashboard</span>
+    </a>
 
-  <a
-    routerLink="/purchases"
-    routerLinkActive="font-semibold"
-    ariaCurrentWhenActive="page"
-    class="flex flex-col items-center justify-center gap-1 text-fb-text-muted text-xs w-14 py-1 hover:text-fb-text-primary transition"
-  >
-    <svg [lucideIcon]="PurchasesIcon" class="w-4 h-4"></svg>
-    <span>Einkauf</span>
-  </a>
+    <a
+      routerLink="/purchases"
+      routerLinkActive="font-semibold"
+      ariaCurrentWhenActive="page"
+      class="flex flex-col items-center justify-center gap-1 text-fb-text-muted text-xs w-14 py-1 hover:text-fb-text-primary transition"
+    >
+      <svg [lucideIcon]="PurchasesIcon" class="w-4 h-4"></svg>
+      <span>Einkauf</span>
+    </a>
 
-  <a
-    routerLink="/catalog"
-    [class.font-semibold]="isArticlesActive()"
-    [attr.aria-current]="isArticlesActive() ? 'page' : null"
-    class="flex flex-col items-center justify-center gap-1 text-fb-text-muted text-xs w-14 py-1 hover:text-fb-text-primary transition"
-  >
-    <svg [lucideIcon]="InventoryIcon" class="w-4 h-4"></svg>
-    <span>Artikel</span>
-  </a>
+    <a
+      routerLink="/catalog"
+      [class.font-semibold]="isArticlesActive()"
+      [attr.aria-current]="isArticlesActive() ? 'page' : null"
+      class="flex flex-col items-center justify-center gap-1 text-fb-text-muted text-xs w-14 py-1 hover:text-fb-text-primary transition"
+    >
+      <svg [lucideIcon]="InventoryIcon" class="w-4 h-4"></svg>
+      <span>Artikel</span>
+    </a>
 
-  <a
-    routerLink="/sales"
-    routerLinkActive="font-semibold"
-    ariaCurrentWhenActive="page"
-    class="flex flex-col items-center justify-center gap-1 text-fb-text-muted text-xs w-14 py-1 hover:text-fb-text-primary transition"
-  >
-    <svg [lucideIcon]="SalesIcon" class="w-4 h-4"></svg>
-    <span>Verkauf</span>
-  </a>
+    <a
+      routerLink="/sales"
+      routerLinkActive="font-semibold"
+      ariaCurrentWhenActive="page"
+      class="flex flex-col items-center justify-center gap-1 text-fb-text-muted text-xs w-14 py-1 hover:text-fb-text-primary transition"
+    >
+      <svg [lucideIcon]="SalesIcon" class="w-4 h-4"></svg>
+      <span>Verkauf</span>
+    </a>
+  }
 
   <button
     type="button"

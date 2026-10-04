@@ -3,19 +3,18 @@
   subtitle="Deine Vinted-Konten in diesem Workspace verbinden und verwalten."
 >
   <p class="text-sm text-fb-text-secondary">
-    Füge Dein Konto hinzu und melde Dich bei Vinted an. Jedes Konto erhält ein eigenes
-    Browserprofil. Der Status „Verbunden“ erscheint nach erfolgreicher Prüfung Deiner Anmeldung.
+    Verbinde Dein Konto über die lokale Erweiterung oder den Cloudbrowser. Verwende für jedes
+    Vinted-Konto ein eigenes Browserprofil. Der Status "Verbunden" erscheint nach erfolgreicher
+    Prüfung Deiner Anmeldung.
   </p>
   <ol class="mt-3 list-inside list-decimal space-y-1 text-sm text-fb-text-secondary">
-    <li>Plattform wählen und Deinem Konto einen Namen geben.</li>
-    <li>Vinted-Zugangsdaten eingeben und gegebenenfalls eine zusätzliche Prüfung abschließen.</li>
+    <li>Deinem Konto einen Namen geben und die Verbindung wählen.</li>
+    <li>Das angemeldete Vinted-Konto lokal bestätigen oder im Cloudbrowser anmelden.</li>
     <li>
-      Das verbundene Profil in Flipbase öffnen. Inserate und Nachrichten folgen in einem weiteren
-      Schritt.
+      Profil und Inserate übernehmen. Im lokalen Pilot werden noch keine Nachrichten übernommen.
     </li>
   </ol>
   <div class="mt-4 flex flex-wrap gap-2">
-    <app-button link="/marketplaces/vinted">Zum Vinted-Bereich</app-button>
     <app-button
       variant="primary"
       [icon]="addIcon"
@@ -244,9 +243,23 @@
           "
         />
         @if (currentDialog.mode === 'create') {
+          <div class="mt-4">
+            <p class="mb-2 text-sm font-medium">Verbindung</p>
+            <app-custom-select
+              ariaLabel="Verbindung"
+              [options]="connectionMethods"
+              [formControl]="connectionMethod"
+            />
+          </div>
           <p class="mt-3 text-sm text-fb-text-secondary">
-            Im nächsten Schritt meldest Du Dich bei Vinted an. Der interne Name hilft Dir, Deine
-            Konten in Flipbase auseinanderzuhalten.
+            @if (connectionMethod.value === 'local') {
+              Im nächsten Schritt prüfst und bestätigst Du das Vinted-Konto, das in diesem
+              Browserprofil angemeldet ist. Dafür muss die Flipbase-Erweiterung installiert sein.
+              Der Cloudbrowser wird nicht benötigt.
+            } @else {
+              Im nächsten Schritt meldest Du Dich im Cloudbrowser bei Vinted an.
+            }
+            Der interne Name hilft Dir, Deine Konten in Flipbase auseinanderzuhalten.
           </p>
         }
         @if (store.mutationError(); as error) {
@@ -268,7 +281,11 @@
             variant="primary"
             [loading]="store.busy()"
             >{{
-              currentDialog.mode === 'rename' ? 'Speichern' : 'Weiter zur Anmeldung'
+              currentDialog.mode === 'rename'
+                ? 'Speichern'
+                : connectionMethod.value === 'local'
+                  ? 'Weiter zur lokalen Verbindung'
+                  : 'Weiter zur Cloud-Anmeldung'
             }}</app-button
           >
         }
