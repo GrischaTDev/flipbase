@@ -109,6 +109,19 @@ export class MarketplaceAccountStore {
   readonly selectedConnection = computed(
     () => this.connections().find((item) => item.connectionId === this.activeId()) ?? null,
   );
+  readonly localInboxUnavailable = computed(() => {
+    const connection = this.selectedConnection();
+    return (
+      connection?.executionMode === 'local' &&
+      connection.capabilities['conversations.read'] !== 'verified'
+    );
+  });
+  readonly localSalesUnavailable = computed(() => {
+    const connection = this.selectedConnection();
+    return (
+      connection?.executionMode === 'local' && connection.capabilities['sales.read'] !== 'verified'
+    );
+  });
   readonly selectionVersion = this.selectionEpoch.asReadonly();
   readonly snapshot = computed(() =>
     this.current() && this.canManage() ? this.accountSnapshot() : null,

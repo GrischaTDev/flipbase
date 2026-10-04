@@ -112,6 +112,49 @@ beforeEach(() => {
 });
 
 describe('Gespeicherte Vinted-Kontoauswahl', () => {
+  it('unterscheidet fehlende lokale Quellen von bestätigten und vorhandenen Cloudquellen', async () => {
+    api.listConnections.mockResolvedValue({
+      canManage: true,
+      connections: [
+        {
+          ...accountA,
+          executionMode: 'local',
+          capabilities: {
+            'profile.read': 'verified',
+            'listings.read': 'verified',
+          },
+        },
+        accountB,
+      ],
+    });
+    await settle();
+    await store.reloadConnections(accountA.connectionId);
+    expect(store.localInboxUnavailable()).toBe(true);
+    expect(store.localSalesUnavailable()).toBe(true);
+    await store.selectConnection(accountB.connectionId);
+    expect(store.localInboxUnavailable()).toBe(false);
+    expect(store.localSalesUnavailable()).toBe(false);
+    api.listConnections.mockResolvedValue({
+      canManage: true,
+      connections: [
+        {
+          ...accountA,
+          executionMode: 'local',
+          capabilities: {
+            'conversations.read': 'verified',
+            'sales.read': 'verified',
+          },
+        },
+        accountB,
+      ],
+    });
+    await store.reloadConnections(accountA.connectionId);
+    expect(store.localInboxUnavailable()).toBe(false);
+    expect(store.localSalesUnavailable()).toBe(false);
+    currentUser.set(null);
+    expect(store.localInboxUnavailable()).toBe(false);
+    expect(store.localSalesUnavailable()).toBe(false);
+  });
   const savedKey = `flipbase:vinted:last-account:${JSON.stringify(['user-a', accountA.workspaceId])}`;
   it('holt neue und geänderte andere Konten für die Kacheln ohne Konto-Neuauswahl nach', async () => {
     await settle();

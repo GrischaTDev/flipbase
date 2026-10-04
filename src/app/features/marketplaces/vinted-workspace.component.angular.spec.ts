@@ -452,6 +452,32 @@ describe('Vinted-Bereich in Flipbase', () => {
       '_blank',
     );
   });
+  it('zeigt nicht angebundene lokale Postfach- und Verkaufsquellen ohne Cloudabruf', async () => {
+    api.listConnections.mockResolvedValue({
+      canManage: true,
+      connections: [
+        {
+          ...fixtureConnections[0],
+          executionMode: 'local',
+          capabilities: {},
+        },
+      ],
+    });
+    api.readSnapshot.mockImplementation(async (scope: AccountScope) => ({
+      ...makeSnapshot(scope),
+      conversations: emptyPage(),
+      sales: emptyPage(),
+    }));
+    const { harness, element } = await render('/marketplaces/vinted/messages');
+    expect(element.textContent).toContain('Postfach noch nicht lokal angebunden');
+    expect(element.textContent).not.toContain('Noch keine Gespräche gespeichert');
+    expect(element.querySelector('a[href="https://www.vinted.de/inbox"]')).not.toBeNull();
+    await harness.navigateByUrl('/marketplaces/vinted/sales');
+    expect(element.textContent).toContain('Verkäufe noch nicht lokal angebunden');
+    expect(element.textContent).not.toContain('Noch keine gespeicherten Verkäufe');
+    expect(browserApi.available).not.toHaveBeenCalled();
+    expect(browserApi.syncConnection).not.toHaveBeenCalled();
+  });
   it('öffnet über eine Kachel das zweite Konto und bleibt beim Wechsel der Bereiche darin', async () => {
     const { harness, element } = await render('/marketplaces/vinted/accounts');
     element.querySelectorAll<HTMLAnchorElement>('app-vinted-account-grid app-card a')[1].click();

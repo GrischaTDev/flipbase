@@ -260,13 +260,60 @@ Vinted-Regeln und fehlende Plattformfreigabe der betroffenen Funktionen klären.
 
 ## Umsetzungsstand am 4. Oktober 2026
 
-Der lokale Lesepilot ist als Version 0.288.0 veröffentlicht. Die nächste
-vorbereitete Änderung setzt den eigenen Vinted-Menükontext mit Rückweg zu Flipbase
-und eine schrittweise Einrichtung um. Installationserkennung, Anmeldung auf
+Der lokale Lesepilot ist als Version 0.288.0 veröffentlicht. Version 0.289.0
+ergänzt den eigenen Vinted-Menükontext mit Rückweg zu Flipbase und eine
+schrittweise Einrichtung. Installationserkennung, Anmeldung auf
 Vinted und die ausdrückliche Freigabe des erkannten Kontos bleiben getrennte
 Schritte. Neue lokale Konten benötigen keinen erreichbaren Cloudbrowser.
 
 Der Chrome-Store-Eintrag bleibt offen; die Oberfläche benennt den internen
-Pilotweg ausdrücklich. Der echte Kontotest, Storeveröffentlichung und Cloudbetrieb
-bleiben weitere Schritte. Die neue Menü-/Einrichtungsänderung benötigt noch ihren
-eigenen PR-Abschluss vor der Produktionsveröffentlichung.
+Pilotweg ausdrücklich. Storeveröffentlichung und Cloudbetrieb bleiben weitere
+Schritte. Der erste echte lokale Kontotest und die nächsten Datenquellen sind
+unten getrennt erfasst.
+
+### Rückmeldung aus dem echten lokalen Kontotest
+
+Die Einrichtung ist inzwischen mit Version 0.289.0 veröffentlicht. Der Nutzer
+bestätigt eine erfolgreiche Kontoverknüpfung und Anzeigenübernahme. Damit ist
+der erste lesende Profil-/Anzeigenweg praktisch bestätigt. Postfach, Verkäufe,
+regelmäßiger Abgleich und Schreibaktionen gehören noch nicht zu diesem Pilot.
+Ihre leeren Ansichten sind deshalb kein Nachweis für ein leeres Vinted-Konto.
+
+Die nächste Korrektur hält den reservierten Tab dauerhaft mit einem zentrierten
+Hinweis und heller, durchscheinender Sperrfläche geschützt. Nur sichtbare
+Anmeldung, SMS oder Mensch-Prüfung geben die Seite zur manuellen Bedienung frei.
+Danach startet kein Abgleich selbstständig. Die Einrichtung zeigt eine
+erreichbare, bereits installierte Erweiterung und eine ausbleibende Antwort
+ausdrücklich. Fehlende lokale Datenquellen erscheinen als noch nicht angebunden;
+gespeicherte Daten aus früheren Importen bleiben sichtbar.
+
+### Nächstes Folgepaket: lesendes lokales Postfach und erkannte Verkäufe
+
+Der nächste Ausbau orientiert sich an den dokumentierten Bleam-Funktionen und
+verwendet unsere eigenen Leseroutinen und Verträge. Reihenfolge und Abnahme:
+
+1. Gesonderte Postfach-/Verkaufsfreigabe pro Konto und Installation speichern.
+   Bereits erteilte Profil-/Anzeigenfreigaben erhalten keine zusätzlichen Rechte.
+   Freigabedialog, RPC, Importvertrag, erlaubte lokale Aktionen und Quellzustände
+   müssen denselben Umfang bestätigen; Schemaänderung und Migration zusammen.
+2. Gesprächsliste gezielt lesen, anschließend nur bereits gelesene Verläufe.
+   Unser Cloudleser nutzt `/api/v2/inbox`, `/api/v2/conversations/{id}` und bei
+   verknüpften Transaktionen `/api/v2/transactions/{id}`. Ungelesene Verläufe
+   werden nicht automatisch geöffnet, um ihren Lesestatus nicht zu verändern.
+3. Nachrichten mit stabiler Ereignis-ID, Gesprächszuordnung und Kontokontext
+   übernehmen. Große Postfächer in begrenzten Teilimporten bearbeiten; nicht die
+   bestehende 35-Sekunden-/512-KiB-Grenze durch einen großen Gesamtabruf ersetzen.
+   Teilfehler erhalten vorhandene Daten und dürfen keinen vollständigen Stand melden.
+4. Verkäufe zunächst nur mit bestätigter Verkäuferidentität und Bestellung
+   übernehmen. Der bestehende Leser erkennt derzeit nur den Status „Versendet“.
+   Diese Daten heißen erkannte Verkäufe und bleiben ein Teilstand; weitere
+   Zustände erst anhand eigener Antworten ergänzen. Angebote zählen nicht als Verkauf.
+5. Echten Abgleich mit gelesenem und ungelesenem Gespräch, eigener Transaktion,
+   Kontowechsel, Neustart, Widerruf und Teilfehler prüfen. Aktualität je Quelle
+   anzeigen; erst danach regelmäßige Abgleiche aktivieren und Intervalle messen.
+
+Danach folgen kontrollierter Nachrichtenversand und Favoritenregeln, gemeinsame
+Aufträge mit Journal und bestätigtem Ergebnis, Sicherungen und Veröffentlichung
+mit eigenem Aktionstab sowie weitere Verhandlungs-/Nachverkaufsregeln. Die
+dokumentierte Featureliste bleibt das Ausbauziel; erfolgreiche Verbindung und
+Anzeigenimport ersetzen keinen Funktionsnachweis für diese Folgepakete.

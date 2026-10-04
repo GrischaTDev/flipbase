@@ -2,6 +2,17 @@
   <p role="status" class="mb-3 text-[13px] text-fb-text-secondary">{{ message }}</p>
 }
 @if (store.snapshot(); as snapshot) {
+  @if (store.localInboxUnavailable()) {
+    <app-card class="mb-4" title="Postfach noch nicht lokal angebunden">
+      <p class="text-sm text-fb-text-secondary">
+        Die lokale Pilotversion übernimmt bisher Profil und Inserate. Deine Vinted-Nachrichten
+        werden noch nicht synchronisiert. Vorhandene gespeicherte Gespräche bleiben unten sichtbar.
+      </p>
+      <app-button class="mt-3" href="https://www.vinted.de/inbox" target="_blank"
+        >Postfach auf Vinted öffnen</app-button
+      >
+    </app-card>
+  }
   <div class="grid min-w-0 gap-4 lg:grid-cols-[minmax(360px,2fr)_minmax(0,3fr)]">
     <section
       aria-labelledby="vinted-conversations-title"
@@ -16,7 +27,11 @@
           tabindex="-1"
           class="text-[13px] font-semibold text-fb-text-primary"
         >
-          Gespräche ({{ snapshot.conversations.total }})
+          Gespräche ({{
+            store.localInboxUnavailable() && !snapshot.conversations.total
+              ? '–'
+              : snapshot.conversations.total
+          }})
         </h2>
         <div class="max-h-[36rem] overflow-y-auto p-2">
           @for (entry of snapshot.conversations.items; track entry.id) {
@@ -59,7 +74,11 @@
             </app-button>
           } @empty {
             <p class="px-3 py-4 text-[13px] text-fb-text-secondary">
-              Noch keine Gespräche gespeichert.
+              {{
+                store.localInboxUnavailable()
+                  ? 'Nachrichten noch nicht lokal synchronisiert.'
+                  : 'Noch keine Gespräche gespeichert.'
+              }}
             </p>
           }
           @if (snapshot.conversations.nextCursor) {

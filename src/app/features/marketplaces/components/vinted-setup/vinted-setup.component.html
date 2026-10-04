@@ -13,6 +13,9 @@
     <app-card title="1. Erweiterung installieren">
       @if (extension.installed()) {
         <app-badge tone="success">Erweiterung erkannt</app-badge>
+        <p class="mt-2 text-sm text-fb-text-secondary">
+          Die Erweiterung ist bereits installiert. Du kannst direkt Dein Vinted-Konto verknüpfen.
+        </p>
       } @else {
         <p class="text-sm text-fb-text-secondary">
           Die Flipbase-Erweiterung ist noch nicht im Chrome Web Store veröffentlicht. Für diesen
@@ -30,9 +33,21 @@
         kommunizieren. Die Freigabe für Dein Vinted-Konto bestätigst Du anschließend gesondert.
       </p>
       <div class="mt-3 flex flex-wrap items-center gap-3">
-        <app-button (clicked)="extension.checkInstallation()">Verbindung prüfen</app-button>
+        <app-button
+          [loading]="extension.checkingInstallation()"
+          (clicked)="extension.checkInstallation()"
+          >Verbindung prüfen</app-button
+        >
         <span role="status" class="text-sm text-fb-text-secondary">
-          {{ extension.installed() ? 'Erweiterung erreichbar' : 'Noch keine Erweiterung erkannt' }}
+          @if (extension.checkingInstallation()) {
+            Verbindung wird geprüft …
+          } @else if (extension.installed()) {
+            Erweiterung erreichbar
+          } @else if (extension.installationCheckFailed()) {
+            Keine Antwort. Prüfe die Erweiterung in diesem Browserprofil und lade die Seite neu.
+          } @else {
+            Noch keine Erweiterung erkannt
+          }
         </span>
       </div>
     </app-card>
@@ -55,6 +70,10 @@
           Konto hinzufügen
         </app-button>
       </div>
+      <p class="mt-3 text-sm text-fb-text-secondary">
+        Diese Pilotversion übernimmt Profil und Inserate. Postfach, Verkäufe und automatische
+        Aktionen werden noch nicht über die lokale Erweiterung abgeglichen.
+      </p>
     </app-card>
   </li>
 </ol>

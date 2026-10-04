@@ -47,6 +47,14 @@ for (const width of [1440, 390]) {
     await expect(
       page.locator('app-vinted-setup').locator('app-button[link="/marketplaces/vinted/manage"] a'),
     ).toHaveAttribute('aria-disabled', 'true');
+    await expect(
+      page.getByText(
+        'Keine Antwort. Prüfe die Erweiterung in diesem Browserprofil und lade die Seite neu.',
+        { exact: true },
+      ),
+    ).toBeVisible();
+    await page.getByRole('button', { name: 'Verbindung prüfen', exact: true }).click();
+    await expect(page.getByText('Verbindung wird geprüft …', { exact: true })).toBeVisible();
     await page.evaluate(() => {
       setInterval(
         () =>
@@ -58,6 +66,15 @@ for (const width of [1440, 390]) {
       );
     });
     await expect(page.getByText('Erweiterung erreichbar', { exact: true })).toBeVisible();
+    await expect(
+      page.getByText(
+        'Die Erweiterung ist bereits installiert. Du kannst direkt Dein Vinted-Konto verknüpfen.',
+        { exact: true },
+      ),
+    ).toBeVisible();
+    await expect(page.locator('app-vinted-setup')).toContainText(
+      'Postfach, Verkäufe und automatische',
+    );
     await page.addScriptTag({ content: axe.source });
     expect(
       await page.evaluate(

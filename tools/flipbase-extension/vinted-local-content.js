@@ -5,18 +5,81 @@
   let overlay;
   let messageLabel;
   let deadline;
+  let protectedTab = false;
+  let sessionBlocked = false;
+  let interruptedPageState;
+  let requiresLoginRetry = false;
+  const disabledElements = new Map();
 
-  for (const eventType of ['keydown', 'beforeinput', 'paste', 'drop']) {
+  for (const eventType of [
+    'pointerdown',
+    'pointerup',
+    'click',
+    'dblclick',
+    'touchstart',
+    'keydown',
+    'beforeinput',
+    'paste',
+    'drop',
+  ]) {
     document.addEventListener(
       eventType,
       (event) => {
-        if (busy && !overlay?.contains(event.target)) {
+        if (protectedTab && !overlay?.contains(event.target)) {
           event.preventDefault();
           event.stopImmediatePropagation();
+        }
+        if (protectedTab && eventType === 'keydown' && event.key === 'Tab') {
+          event.preventDefault();
+          overlay.querySelector('button').focus();
         }
       },
       true,
     );
+  }
+
+  document.addEventListener(
+    'focusin',
+    (event) => {
+      if (protectedTab && !overlay?.contains(event.target)) {
+        overlay.querySelector('button').focus();
+      }
+    },
+    true,
+  );
+
+  function disablePageElements() {
+    for (const element of document.body.children) {
+      if (element === overlay || disabledElements.has(element)) continue;
+      disabledElements.set(element, element.getAttribute('inert'));
+      element.setAttribute('inert', '');
+    }
+  }
+
+  function updateProtection(state) {
+    if (state === 'session_blocked') sessionBlocked = true;
+    const shouldProtect =
+      sessionBlocked ||
+      !['login_required', 'verification_required', 'interaction_required'].includes(state);
+    if (shouldProtect === protectedTab) {
+      if (protectedTab) disablePageElements();
+      return;
+    }
+    protectedTab = shouldProtect;
+    overlay.dataset.protected = String(protectedTab);
+    overlay.setAttribute('role', protectedTab ? 'dialog' : 'region');
+    if (protectedTab) {
+      overlay.setAttribute('aria-modal', 'true');
+      disablePageElements();
+      overlay.querySelector('button').focus();
+    } else {
+      overlay.removeAttribute('aria-modal');
+      for (const [element, originalAttribute] of disabledElements) {
+        if (originalAttribute === null) element.removeAttribute('inert');
+        else element.setAttribute('inert', originalAttribute);
+      }
+      disabledElements.clear();
+    }
   }
 
   function pageState() {
@@ -77,13 +140,17 @@
     overlay = document.createElement('section');
     overlay.id = 'flipbase-vinted-work-tab';
     overlay.setAttribute('aria-label', 'Flipbase-Arbeitstab');
+    overlay.setAttribute('role', 'region');
     const panel = document.createElement('div');
     panel.className = 'flipbase-vinted-work-panel';
     const heading = document.createElement('strong');
+    heading.id = 'flipbase-vinted-work-heading';
     heading.textContent = 'Für Flipbase reservierter Tab';
+    overlay.setAttribute('aria-labelledby', heading.id);
     messageLabel = document.createElement('p');
     messageLabel.textContent =
-      'Hier werden Deine Vinted-Daten gelesen. Verwende für eigene Aktionen einen anderen Tab.';
+      'Dieser Tab ist für Flipbase reserviert. Schließe ihn nicht. Verwende Vinted für eigene Aktionen in einem neuen Tab.';
+    messageLabel.setAttribute('aria-live', 'polite');
     const openButton = document.createElement('button');
     openButton.type = 'button';
     openButton.textContent = 'Vinted in einem neuen Tab öffnen';
@@ -94,9 +161,10 @@
     overlay.append(panel);
     document.body.append(overlay);
     overlay.dataset.busy = String(busy);
+    overlay.dataset.protected = String(protectedTab);
   }
 
-  function setBusy(isBusy, hint) {
+  function setBusy(isBusy, hint, state = pageState()) {
     busy = isBusy;
     ensureOverlay();
     overlay.dataset.busy = String(isBusy);
@@ -104,11 +172,41 @@
       hint ??
       (isBusy
         ? 'Deine Daten werden gelesen. Bitte klicke und tippe währenddessen nicht in diesem Tab.'
-        : 'Hier werden Deine Vinted-Daten gelesen. Verwende für eigene Aktionen einen anderen Tab.');
+        : 'Dieser Tab ist für Flipbase reserviert. Schließe ihn nicht. Verwende Vinted für eigene Aktionen in einem neuen Tab.');
+    updateProtection(state);
   }
 
+  const pageObserver = new window.MutationObserver((mutations) => {
+    if (!overlay?.isConnected || mutations.every((mutation) => overlay.contains(mutation.target)))
+      return;
+    const observedState = pageState();
+    const state =
+      requiresLoginRetry && observedState === 'ready' ? 'login_required' : observedState;
+    if (state !== 'ready') {
+      if (busy) interruptedPageState = state;
+      try {
+        core.assertPageReady(state);
+      } catch (error) {
+        messageLabel.textContent = error.message;
+      }
+    } else if (!protectedTab && !sessionBlocked) {
+      messageLabel.textContent =
+        'Die manuelle Prüfung ist abgeschlossen. Starte den Abgleich in Flipbase erneut.';
+    }
+    updateProtection(state);
+  });
+  pageObserver.observe(document.body, {
+    childList: true,
+    subtree: true,
+    characterData: true,
+    attributes: true,
+    attributeFilter: ['style', 'class', 'hidden', 'src', 'type'],
+  });
+
   async function readJson(path) {
-    core.assertPageReady(pageState());
+    core.assertPageReady(
+      interruptedPageState ?? (sessionBlocked ? 'session_blocked' : pageState()),
+    );
     if (
       !/^\/api\/v2\/(?:users\/current|wardrobe\/[1-9][0-9]{0,31}\/items\?page=(?:[1-9]|1[0-9]|2[0-5])&per_page=20)$/.test(
         path,
@@ -127,8 +225,11 @@
       redirect: 'error',
       signal: AbortSignal.timeout(Math.min(8_000, remaining)),
     });
-    if (response.status === 401)
+    if (response.status === 401) {
+      interruptedPageState = 'login_required';
+      requiresLoginRetry = true;
       throw new Error('Melde Dich zuerst im reservierten Vinted-Tab an.');
+    }
     if (response.status === 403)
       throw new Error(
         'Vinted verweigert den Zugriff. Prüfe die Sitzung im reservierten Vinted-Tab.',
@@ -145,7 +246,9 @@
       );
     }
     const result = await response.json();
-    core.assertPageReady(pageState());
+    core.assertPageReady(
+      interruptedPageState ?? (sessionBlocked ? 'session_blocked' : pageState()),
+    );
     return result;
   }
 
@@ -161,7 +264,9 @@
     }
     (async () => {
       try {
-        core.assertPageReady(pageState());
+        interruptedPageState = undefined;
+        requiresLoginRetry = false;
+        core.assertPageReady(sessionBlocked ? 'session_blocked' : pageState());
         deadline =
           Date.now() +
           Math.min(
@@ -182,7 +287,7 @@
           error instanceof Error && error.name !== 'TimeoutError' && error.name !== 'TypeError'
             ? error.message
             : 'Der Vinted-Abgleich ist fehlgeschlagen. Prüfe Deine Verbindung und versuche es erneut.';
-        setBusy(false, hint);
+        setBusy(false, hint, interruptedPageState ?? pageState());
         sendResponse({ success: false, error: hint });
       }
     })();

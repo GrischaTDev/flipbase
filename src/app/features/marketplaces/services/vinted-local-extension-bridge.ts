@@ -16,11 +16,15 @@ interface PendingRequest {
 export class VintedLocalExtensionBridge {
   private readonly pending = new Map<string, PendingRequest>();
   private destroyed = false;
+  private installationTimer: ReturnType<typeof setTimeout> | undefined;
   readonly installed = signal(false);
+  readonly checkingInstallation = signal(false);
+  readonly installationCheckFailed = signal(false);
   constructor() {
     window.addEventListener('message', this.receive);
     inject(DestroyRef).onDestroy(() => {
       this.destroyed = true;
+      clearTimeout(this.installationTimer);
       window.removeEventListener('message', this.receive);
       this.cancel();
     });
@@ -34,7 +38,14 @@ export class VintedLocalExtensionBridge {
   }
   checkInstallation(): void {
     if (this.destroyed) return;
-    this.installed.set(false);
+    clearTimeout(this.installationTimer);
+    this.checkingInstallation.set(true);
+    this.installationCheckFailed.set(false);
+    this.installationTimer = setTimeout(() => {
+      this.installed.set(false);
+      this.checkingInstallation.set(false);
+      this.installationCheckFailed.set(true);
+    }, 3_000);
     window.postMessage({ type: 'FLIPBASE_CHECK_EXTENSION' }, location.origin);
   }
   request(type: RequestType, payload?: unknown): Promise<unknown> {
@@ -70,8 +81,12 @@ export class VintedLocalExtensionBridge {
       return;
     const response = event.data as Record<string, unknown>;
     if (response['type'] === 'FLIPBASE_EXTENSION_STATUS') {
-      if (response['installed'] === true && response['vintedLocal'] === true)
+      if (response['installed'] === true && response['vintedLocal'] === true) {
+        clearTimeout(this.installationTimer);
         this.installed.set(true);
+        this.checkingInstallation.set(false);
+        this.installationCheckFailed.set(false);
+      }
       return;
     }
     if (

@@ -44,6 +44,8 @@ describe('VintedOverviewComponent', () => {
   let fixture: ComponentFixture<VintedOverviewComponent>;
   let resetBindings: (() => void) | undefined;
   const accountSnapshot = signal<MarketplaceSnapshot | null>(null);
+  const localInboxUnavailable = signal(false);
+  const localSalesUnavailable = signal(false);
 
   beforeAll(async () => {
     resetBindings = await prepareMarketplaceRendering([
@@ -69,14 +71,50 @@ describe('VintedOverviewComponent', () => {
   beforeEach(async () => {
     TestBed.resetTestingModule();
     accountSnapshot.set(snapshot());
+    localInboxUnavailable.set(false);
+    localSalesUnavailable.set(false);
     await TestBed.configureTestingModule({
       imports: [VintedOverviewComponent],
       providers: [
         provideRouter([]),
-        { provide: MarketplaceAccountStore, useValue: { snapshot: accountSnapshot } },
+        {
+          provide: MarketplaceAccountStore,
+          useValue: {
+            snapshot: accountSnapshot,
+            localInboxUnavailable,
+            localSalesUnavailable,
+          },
+        },
       ],
     }).compileComponents();
     fixture = TestBed.createComponent(VintedOverviewComponent);
+  });
+
+  it('zeigt fehlende lokale Datenquellen als unbekannt und erhält gespeicherte Daten', () => {
+    localInboxUnavailable.set(true);
+    localSalesUnavailable.set(true);
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    expect(
+      [...element.querySelectorAll('[data-overview-total]')].map((node) =>
+        node.textContent?.trim(),
+      ),
+    ).toEqual(['0', '–', '–']);
+    expect(element.textContent).toContain('Noch nicht lokal synchronisiert');
+    accountSnapshot.set(
+      snapshot({
+        conversations: { items: [entry('Gespeichertes Gespräch')], total: 1, nextCursor: null },
+        sales: { items: [entry('Gespeicherter Verkauf')], total: 1, nextCursor: null },
+      }),
+    );
+    fixture.detectChanges();
+    expect(
+      [...element.querySelectorAll('[data-overview-total]')].map((node) =>
+        node.textContent?.trim(),
+      ),
+    ).toEqual(['0', '1', '1']);
+    expect(element.textContent).toContain('Gespeichertes Gespräch');
+    expect(element.textContent).toContain('Gespeicherter Verkauf');
   });
 
   it('overviewUsesStoredTotals: zeigt Kontogesamtzahlen statt der geladenen Teilseite', () => {
