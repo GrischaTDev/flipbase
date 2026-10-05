@@ -51,28 +51,39 @@ jobs:
           out = Path(os.environ['RUNNER_TEMP']) / 'label-media'
           def chunk(kind, data):
               return struct.pack('!I', len(data)) + kind + data + struct.pack('!I', zlib.crc32(kind + data))
-          header = b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('!2I5B', 6000, 4000, 8, 2, 0, 0, 0))
-          pixels = chunk(b'IDAT', zlib.compress((b'\x00' + b'\xff'*18000)*4000))
-          end = chunk(b'IEND', b'')
+          def image(w,h):
+              header = b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('!2I5B', w, h, 8, 2, 0, 0, 0))
+              pixels = chunk(b'IDAT', zlib.compress((b'\x00' + b'\xff'*(w*3))*h))
+              end = chunk(b'IEND', b'')
+              return header,pixels,end
+          header,pixels,end=image(6000,4000)
           base = header + pixels + end
           (out / '24mp.png').write_bytes(base)
           padding = b'Comment\x00' + b'x'*(10000000-len(base)-12-8)
           exact = header + chunk(b'tEXt', padding) + pixels + end
           assert len(exact) == 10000000
           (out / '10mb-24mp.png').write_bytes(exact)
+          (out / 'ready.png').write_bytes(b''.join(image(8,8)))
           PY
       - name: Start disposable Supabase stack and probe
         shell: bash
         run: |
           set -euo pipefail
           npx supabase start -x studio,imgproxy,inbucket,logflare,vector
-          npx supabase functions serve label-runtime-probe --no-verify-jwt > "$RUNNER_TEMP/label-media/runtime.log" 2>&1 &
+          npx supabase functions serve --help
+          npx supabase functions serve --no-verify-jwt > "$RUNNER_TEMP/label-media/runtime.log" 2>&1 &
+          server_pid=$!
+          anon_key=$(npx supabase status -o json | python -c 'import sys,json; print(json.load(sys.stdin)["ANON_KEY"])')
+          echo "::add-mask::$anon_key"
+          ready=false
           for i in $(seq 1 60); do
-            if curl --silent --max-time 3 http://127.0.0.1:54351/functions/v1/label-runtime-probe > /dev/null; then break; fi
+            kill -0 "$server_pid"
+            if curl --fail --silent --max-time 5 -H "apikey: $anon_key" -H "Authorization: Bearer $anon_key" --data-binary "@$RUNNER_TEMP/label-media/ready.png" http://127.0.0.1:54351/functions/v1/label-runtime-probe > /dev/null; then ready=true; break; fi
             sleep 2
           done
+          test "$ready" = true
           for file in 24mp.png 10mb-24mp.png; do
-            curl --fail-with-body --silent --show-error --max-time 90 -H 'Content-Type: image/png' --data-binary "@$RUNNER_TEMP/label-media/$file" http://127.0.0.1:54351/functions/v1/label-runtime-probe > "$RUNNER_TEMP/label-media/$file.result.json"
+            curl --fail-with-body --silent --show-error --max-time 90 -H "apikey: $anon_key" -H "Authorization: Bearer $anon_key" -H 'Content-Type: image/png' --data-binary "@$RUNNER_TEMP/label-media/$file" http://127.0.0.1:54351/functions/v1/label-runtime-probe > "$RUNNER_TEMP/label-media/$file.result.json"
           done
       - name: Stop disposable stack
         if: ${{ always() }}
