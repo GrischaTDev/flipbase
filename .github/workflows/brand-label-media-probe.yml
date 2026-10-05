@@ -19,24 +19,28 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '22'
-      - name: Install project CLI and pinned candidate
-        run: |
-          npm ci
-          npm install --prefix "$RUNNER_TEMP/label-codec" --ignore-scripts --save-exact wasm-image-optimization@2.0.11
-          tar -czf "$RUNNER_TEMP/label-codec.tar.gz" -C "$RUNNER_TEMP/label-codec" .
+      - name: Install project CLI
+        run: npm ci
       - name: Prepare isolated image probe
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p supabase/functions/label-runtime-probe "$RUNNER_TEMP/label-media"
           cat > supabase/functions/label-runtime-probe/index.ts <<'TS'
-          import { optimizeImage } from 'npm:wasm-image-optimization@2.0.11/single';
+          import { ImageConverterBase } from 'npm:wasm-image-optimization@2.0.11/single';
+          import createModule from 'npm:wasm-image-optimization@2.0.11/wasm-image-optimization.js';
+          class LabelConverter extends ImageConverterBase {
+            constructor() {
+              super(async (options: Record<string, unknown>) => createModule({ ...options, wasmBinary: await Deno.readFile(new URL('wasm-image-optimization.wasm', import.meta.resolve('npm:wasm-image-optimization@2.0.11/wasm-image-optimization.js'))) }));
+            }
+          }
+          const converter = new LabelConverter();
           Deno.serve(async request => {
             if (request.method === 'GET') return new Response('ready');
             const started = performance.now();
             const bytes = new Uint8Array(await request.arrayBuffer());
-            const detail = await optimizeImage({ image: bytes, width: 2400, height: 2400, fit: 'contain', format: 'png', quality: 92, animation: false });
-            const gallery = await optimizeImage({ image: detail.data, width: 640, height: 640, fit: 'contain', format: 'png', quality: 92, animation: false });
+            const detail = await converter.optimizeImage({ image: bytes, width: 2400, height: 2400, fit: 'contain', format: 'png', quality: 92, animation: false });
+            const gallery = await converter.optimizeImage({ image: detail.data, width: 640, height: 640, fit: 'contain', format: 'png', quality: 92, animation: false });
             return Response.json({ original: { width: detail.originalWidth, height: detail.originalHeight }, detail: { width: detail.width, height: detail.height, bytes: detail.data.length }, gallery: { width: gallery.width, height: gallery.height, bytes: gallery.data.length }, durationMs: performance.now() - started });
           });
           TS
@@ -78,7 +82,7 @@ jobs:
       - name: Stop disposable stack
         if: ${{ always() }}
         run: npx supabase stop --no-backup
-      - name: Upload qualification results and exact candidate package
+      - name: Upload qualification results only
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -86,6 +90,5 @@ jobs:
           path: |
             ${{ runner.temp }}/label-media/*.json
             ${{ runner.temp }}/label-media/runtime.log
-            ${{ runner.temp }}/label-codec.tar.gz
           if-no-files-found: warn
           retention-days: 3
