@@ -158,6 +158,10 @@
       readFromTab(tabId, { type: 'VINTED_LOCAL_INBOX', externalAccountId, state }),
     sendMessage: (tabId, externalAccountId, command) =>
       readFromTab(tabId, { type: 'VINTED_LOCAL_SEND', externalAccountId, command }),
+    readFavorites: (tabId, externalAccountId) =>
+      readFromTab(tabId, { type: 'VINTED_LOCAL_FAVORITES', externalAccountId }),
+    sendFavorite: (tabId, externalAccountId, command) =>
+      readFromTab(tabId, { type: 'VINTED_LOCAL_FAVORITE_SEND', externalAccountId, command }),
     edge: async (binding, secret, body) => {
       if (!core.isApiUrl(binding.apiUrl, binding.appOrigin))
         throw new Error('Die Serveradresse ist nicht erlaubt.');

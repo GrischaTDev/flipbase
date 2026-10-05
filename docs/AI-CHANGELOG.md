@@ -1,5 +1,37 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-05 - Juna - Lokale Vinted-Favoritennachrichten
+
+**Auftrag:** Die nächste freigegebene Automatisierung nach der Bleam-Recherche:
+eine eigene kontoweise Seite für Favoritennachrichten, Vorlagen, Zeit-/Tag-/Preisregeln
+und Versandverzögerung. Bestehende Favoritenmeldungen bleiben separat.
+
+**Stand:** Eigener Arbeitszweig. Der lesende Vinted-Web-Endpunkt wurde im
+freigegebenen Browser mit `mark_as_read=false` bestätigt. Erweiterung und
+Server speichern Favoritenereignisse und einen einzelnen Versandversuch dauerhaft.
+Unklare Ergebnisse werden nur gemeldet, nicht automatisch erneut ausgeführt.
+Die Aktivierung ist ausdrücklich und zunächst ausgeschaltet. Keine Nachricht
+aus dem echten Konto gesendet und keine vorhandene Einstellung verändert.
+
+**Prüfung:** 62 neue und 153 bestehende Datenbankassertions nach Einspielen der
+erzeugten Migration bestanden; vollständiger öffentlicher Schemaabgleich inklusive
+Rechten ohne Unterschiede. Typen aus der migrierten Datenbank neu erzeugt.
+107 betroffene Workflowprüfungen, 21 Deno-Tests einschließlich der RPC-Zuordnung,
+drei Modell- und fünf Angular-Komponententests bestanden. Desktop/Mobil mit AXE,
+Typprüfung, betroffene Format-/Lintprüfung und Produktionsbau bestanden.
+Der zusätzliche Angular-CLI-Testbuilder scheitert an bestehenden Tests in
+Einkauf und Shell; der projektübliche Vitest-Lauf besteht. Erweiterung 1.4.0.
+Nicht veröffentlicht; der echte Favoriten-Versandtest bleibt ausstehend.
+Der erste PR-Browserlauf erkannte die noch veraltete Navigationserwartung;
+der vorhandene Test berücksichtigt jetzt den neuen Menüpunkt.
+Das Abschlussreview ergänzte zwei Regressionstests: Eine erneuerte Freigabe
+braucht erneut eine ausdrückliche Aktivierungsbestätigung. Ein vor dem Versand
+verworfener Favoritenauftrag hinterlässt keinen blockierenden Ergebnisauftrag;
+dieser wird erst nach bestätigtem Serverstart und vor dem Provideraufruf gespeichert.
+Der geladene Erweiterungs-Code hat den vollständigen Scan-/Versandpfad in einem
+isolierten DOM-Test mit synthetischen Antworten bestätigt; fehlende Browserfreigabe
+verhindert bereits das Anlegen der Unterhaltung.
+
 ## 2026-10-05 - Juna - Cloudpilot mit festem IP-Bestand umsetzen
 
 **Auftrag:** Den freigegebenen Cloudpilot mit vorhandenen deutschen Dedicated-ISP-IPs

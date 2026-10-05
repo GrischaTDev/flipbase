@@ -43,6 +43,31 @@ Formular, können einzelne Felder manuelle Eingaben verlangen.
 
 ## Lokaler Vinted-Pilot
 
+### Favoritennachrichten
+
+Erfordert Erweiterung 1.4.0 und die zugehörige veröffentlichte Anwendung/Serverfunktion.
+
+Unter **Vinted → Favoritennachrichten** hinterlegst Du mehrere Texte und
+optionale Regeln für Uhrzeit, Wochentag und Artikelpreis. Die erste passende
+Regel gilt; sonst wird eine Standardvariante ausgewählt. `{article}` setzt den
+Artikeltitel ein. Die Uhrzeit gilt beim Versand in Europe/Berlin, Preisregeln
+nutzen den letzten importierten Preis. Die Wartezeit beträgt 0 bis 10.080 Minuten.
+
+Aktiviere die Automatik ausdrücklich und speichere die Einstellungen. Eine
+gültige lokale Nachrichtenfreigabe ist erforderlich. Favorisierungen vor der
+Aktivierung bleiben ausgeschlossen. Die Erweiterung prüft ungefähr alle fünf
+Minuten und übernimmt einen fälligen Versandauftrag ungefähr alle 90 Sekunden.
+Browser und Profil müssen laufen; verpasste Durchläufe werden nicht in einer
+Schleife nachgeholt. Der sichtbare Verlauf zeigt die letzten 30 Ereignisse.
+
+Vor dem Senden werden Konto, Artikelzustand und vorhandene Gespräche geprüft.
+Für denselben Interessenten und Artikel entsteht höchstens ein automatischer
+Versandversuch. Ein unklarer Versand wird nicht automatisch wiederholt.
+Das Ausschalten oder Ändern der Regeln verwirft noch wartende Nachrichten.
+Angebote und Mehrartikelvorlagen gehören zu einer späteren Erweiterung.
+
+### Verbindung und Postfach
+
 Fehlgeschlagene Nachrichten lassen sich am kleinen Wiederholen-Button direkt
 an der Chatkachel erneut einreihen. Text und Bildanhang bleiben erhalten.
 Bei unklarem Versand aktualisiert Flipbase zuerst den Verlauf. Eine bereits

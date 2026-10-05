@@ -9,6 +9,10 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 
 // Nur die tatsächliche Testauswahl prüfen, nicht Playwrights Parser nachtesten.
 const coreTests = [
+  ...[1440, 390].map((width) => [
+    'vinted-favorite-messages.spec.ts',
+    `Favoritennachrichten bleiben vor Freigabe aus und speichern Regeln bei ${width}px @marketplace-preview @core-smoke`,
+  ]),
   [
     'beta-access-lifecycle.spec.ts',
     'beendet und verlängert eine Beta bei offenem Browser und erhält die Anmeldung @core-smoke',

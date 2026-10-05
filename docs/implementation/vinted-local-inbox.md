@@ -5,6 +5,71 @@ Nutzerauftrag anhand der Bleam-Codebefunde (Rechercheprotokoll, Punkt 37).
 
 ## Folgepaket vom 05.10.2026
 
+### Favoritennachrichten: erste lokale Automatisierung
+
+Die eigene Vinted-Seite **Favoritennachrichten** setzt die belegten Abläufe aus
+dem [Bleam-Rechercheprotokoll, Punkt 39](../research/bleam-vinted-analysis.md)
+mit eigenem Code um. Pro Konto sind mehrere Standardtexte, geordnete Regeln
+nach Uhrzeit, Wochentag und Preis sowie eine Verzögerung bis sieben Tage möglich.
+Die erste passende Regel gilt, sonst ein Standardtext. Die Auswahl einer Variante
+bleibt für denselben Versuch stabil. `{article}` ersetzt den Artikeltitel;
+Uhrzeit und Wochentag beziehen sich auf den Versand in Europe/Berlin.
+
+Aktivierung und Speichern sind getrennt von der Bearbeitung. Die Grundeinstellung
+ist aus. Vor der ersten Aktivierung bestätigt der Nutzer die automatische
+Nachricht und erteilt bei Bedarf die vorhandenen lokalen Lese-/Versandrechte.
+Ein neuer Freigabestand übernimmt die Automatik nicht stillschweigend; die
+erneute Bestätigung setzt den Beginn für neue Favorisierungen neu.
+
+Erweiterung **1.4.0** prüft etwa alle fünf Minuten die neuesten Benachrichtigungen
+über `/web/api/notifications/notifications` mit `mark_as_read=false`, höchstens
+zwei Seiten mit je 100 Einträgen. Nur Favoriten mit bestätigter Interessenten-,
+Artikel- und Ereigniskennung werden übernommen. Dieser lesende Endpunkt wurde
+im freigegebenen Browser bestätigt; die reale neue Favorisierung wurde nicht
+zum automatischen Versand verwendet. Frühere Ereignisse bleiben ausgeschlossen.
+
+Fällige Aufträge werden etwa alle 90 Sekunden einzeln übernommen. Im reservierten,
+inaktiven Arbeitstab werden Konto, verfügbarer Artikel und vorhandene Gespräche
+erneut geprüft. Die Erweiterung erstellt die Unterhaltung mit
+`seller_enters_notification` und nutzt danach den vorhandenen bestätigten
+Nachrichtenversand. Dafür wird kein zusätzlicher Aktionstab geöffnet. Bestehende
+Unterhaltungen und jeder bereits gefüllte zurückgegebene Verlauf werden zunächst
+konservativ ausgelassen. Dieser letzte Fall braucht die Echtkonto-Abnahme.
+
+Ereignis, Claim, Versandbeginn und Ergebnis bleiben in der Datenbank gespeichert.
+Der lokale Ergebnisauftrag wird erst nach bestätigtem Serverstart und vor dem
+Provideraufruf gespeichert. Ein zuvor abgelehnter Auftrag blockiert dadurch
+keine weiteren Abgleiche; ein Abbruch nach Serverstart bleibt dort unklar.
+Ein Versuch pro Interessent/Artikel, kein automatischer Neuversand nach unklarem
+Ausgang. Ein unbegonnener abgelaufener Claim darf wieder aufgenommen werden;
+ein begonnener abgelaufener Versand wird unklar. Nach einem Browserneustart wird
+nur das gespeicherte Ergebnis erneut gemeldet. Regeländerung und Abschalten
+verwerfen noch nicht begonnene Nachrichten. Anmeldung, Identitätswechsel,
+Prüfungsfenster und Abrufbegrenzung verwenden die vorhandenen Pausen.
+
+Der Verlauf zeigt die letzten 30 Ereignisse und den Zeitpunkt der Prüfung.
+Angebote, Mehrartikelvorlagen und der Cloud-Ausführer gehören zum Folgepaket.
+Die bereits vorhandenen Favoritenmeldungen anhand der Inseratzähler bleiben
+separat; diese Automatik beantwortet neue Favorisierungen mit Textnachrichten.
+
+**Prüfung:** 62 neue Datenbankassertions und 153 bestehende lokale Assertions
+nach Einspielen der erzeugten Migration erfolgreich. Der vollständige öffentliche
+Schema-Dump inklusive Rechten stimmt mit dem Zielstand überein. Datenbanktypen
+sind aus der migrierten Datenbank neu erzeugt. 107 betroffene Workflowprüfungen,
+21 Deno-Tests einschließlich der tatsächlichen RPC-Zuordnung, drei Modelltests
+und fünf Angular-Komponententests bestanden. Desktop-/Mobiltest mit AXE,
+Typprüfung, betroffene Lint-/Formatprüfung und Produktionsbau bestanden.
+Der zusätzliche Angular-CLI-Testbuilder scheitert an vorhandenen Tests in
+Einkauf und Shell; der projektübliche Angular-Vitest-Lauf ist grün.
+
+**Rollout und Abnahme:** Anwendung, Migration und Edge Function gehören gemeinsam
+in den PR. Danach den bisherigen entpackten Erweiterungsordner auf 1.4.0
+aktualisieren und die Erweiterung sowie Vinted/Flipbase neu laden. Erst im
+bestätigten Konto einen geprüften deutschen Text aktivieren und eine danach
+eingehende neue Favorisierung vom gespeicherten Ereignis bis zur tatsächlich
+sichtbaren Nachricht abnehmen. Ausschalten, vorhandenes Gespräch und Kontowechsel
+mitprüfen. Keine echte automatische Nachricht ist bislang gesendet.
+
 ### Gespeicherte Gespräche sofort anzeigen und im Hintergrund prüfen
 
 Bereits geladene Verläufe bleiben im Arbeitsspeicher des aktuellen Kontostores
