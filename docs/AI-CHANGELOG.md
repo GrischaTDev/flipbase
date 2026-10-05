@@ -39,6 +39,10 @@ geprüft. Die sechs Cloud-Browserfälle sind in der verbindlichen PR-Auswahl
 registriert; der CI-Datenbankjob prüft parallele IP-Reservierungen. Angularbau,
 Typprüfung und Smoke-Auswahlprüfung erfolgreich.
 
+**CI-Nachprüfung:** Die Docker-Kontextprüfung löst gemeinsame Verträge nun auch
+als `.d.ts` auf und verfolgt deren relative Verweise. Der Cloudvertrag war bereits
+im Baukontext enthalten; die bisherige Prüfung erwartete ausschließlich `.ts`.
+
 ## 2026-10-05 - Juna - IP-Zuordnung bei mehreren Vinted-Konten eingeordnet
 
 **Auftrag:** Separat vom laufenden Extension-Umbau klären, ob zehn

@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { chmod, mkdtemp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
@@ -13,24 +14,33 @@ test('Docker-Kontext enthält alle von Angular verwendeten gemeinsamen Verträge
   const root = fileURLToPath(new URL('../', import.meta.url));
   const rules = (await readFile(join(root, '.dockerignore'), 'utf8')).split(/\r?\n/u);
   const sharedPrefix = 'supabase/functions/_shared/';
+  const resolveContractFile = (directory, modulePath) => {
+    const contractPath = posix.join(directory, modulePath);
+    if (contractPath.endsWith('.ts')) return contractPath;
+    return existsSync(join(root, `${contractPath}.ts`))
+      ? `${contractPath}.ts`
+      : `${contractPath}.d.ts`;
+  };
   const pending = new Set();
   for (const file of await readdir(join(root, 'src'), { recursive: true })) {
     if (!file.endsWith('.ts') || file.endsWith('.spec.ts')) continue;
     const source = await readFile(join(root, 'src', file), 'utf8');
     for (const match of source.matchAll(/['"][^'"]*supabase\/functions\/_shared\/([^'"]+)['"]/gu)) {
-      pending.add(match[1].replace(/\.ts$/u, '') + '.ts');
+      pending.add(resolveContractFile(sharedPrefix, match[1]));
     }
   }
   assert.ok(pending.size > 0, 'Die Prüfung muss tatsächliche Angular-Importe erfassen.');
   for (const file of pending) {
-    const allowIndex = rules.lastIndexOf(`!${sharedPrefix}${file}`);
-    assert.ok(
-      allowIndex > rules.lastIndexOf(`${sharedPrefix}*`),
-      `${sharedPrefix}${file} fehlt im Docker-Kontext.`,
-    );
-    const source = await readFile(join(root, sharedPrefix, file), 'utf8');
-    for (const match of source.matchAll(/from ['"]\.\/([^'"]+)['"]/gu)) {
-      pending.add(match[1].replace(/\.ts$/u, '') + '.ts');
+    if (file.startsWith(sharedPrefix)) {
+      const allowIndex = rules.lastIndexOf(`!${file}`);
+      assert.ok(
+        allowIndex > rules.lastIndexOf(`${sharedPrefix}*`),
+        `${file} fehlt im Docker-Kontext.`,
+      );
+    }
+    const source = await readFile(join(root, file), 'utf8');
+    for (const match of source.matchAll(/from ['"](\.\.?\/[^'"]+)['"]/gu)) {
+      pending.add(resolveContractFile(posix.dirname(file), match[1]));
     }
   }
 });
