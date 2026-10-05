@@ -1,0 +1,89 @@
+name: Label media runtime qualification
+
+on:
+  push:
+    branches: ['juna/brand-labels']
+    paths: ['.github/workflows/brand-label-media-probe.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+      - name: Install project CLI
+        run: npm ci
+      - name: Prepare isolated image probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p supabase/functions/label-runtime-probe "$RUNNER_TEMP/label-media"
+          cat > supabase/functions/label-runtime-probe/index.ts <<'TS'
+          import { ImageMagick, initializeImageMagick, MagickFormat } from 'npm:@imagemagick/magick-wasm@0.0.42';
+          const wasm = await Deno.readFile(new URL('magick.wasm', import.meta.resolve('npm:@imagemagick/magick-wasm@0.0.42')));
+          await initializeImageMagick(wasm);
+          Deno.serve(async request => {
+            const bytes = new Uint8Array(await request.arrayBuffer());
+            const started = performance.now();
+            const result = ImageMagick.read(bytes, image => {
+              const original = { width: image.width, height: image.height };
+              image.autoOrient(); image.strip(); image.quality = 92;
+              image.resize(2400, 2400);
+              const detail = image.write(MagickFormat.Png, data => new Uint8Array(data));
+              image.resize(640, 640);
+              const gallery = image.write(MagickFormat.Png, data => new Uint8Array(data));
+              return { original, detailBytes: detail.length, galleryBytes: gallery.length };
+            });
+            return Response.json({ ...result, durationMs: performance.now() - started });
+          });
+          TS
+          python - <<'PY'
+          import os, struct, zlib
+          from pathlib import Path
+          out = Path(os.environ['RUNNER_TEMP']) / 'label-media'
+          def chunk(kind, data):
+              return struct.pack('!I', len(data)) + kind + data + struct.pack('!I', zlib.crc32(kind + data))
+          header = b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('!2I5B', 6000, 4000, 8, 2, 0, 0, 0))
+          pixels = chunk(b'IDAT', zlib.compress((b'\x00' + b'\xff'*18000)*4000))
+          end = chunk(b'IEND', b'')
+          base = header + pixels + end
+          (out / '24mp.png').write_bytes(base)
+          padding = b'Comment\x00' + b'x'*(10000000-len(base)-12-8)
+          exact = header + chunk(b'tEXt', padding) + pixels + end
+          assert len(exact) == 10000000
+          (out / '10mb-24mp.png').write_bytes(exact)
+          PY
+      - name: Start disposable Supabase stack and probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx supabase start -x studio,imgproxy,inbucket,logflare,vector
+          npx supabase functions serve label-runtime-probe --no-verify-jwt > "$RUNNER_TEMP/label-media/runtime.log" 2>&1 &
+          for i in $(seq 1 60); do
+            if curl --silent --max-time 3 http://127.0.0.1:54351/functions/v1/label-runtime-probe > /dev/null; then break; fi
+            sleep 2
+          done
+          for file in 24mp.png 10mb-24mp.png; do
+            curl --fail-with-body --silent --show-error --max-time 90 -H 'Content-Type: image/png' --data-binary "@$RUNNER_TEMP/label-media/$file" http://127.0.0.1:54351/functions/v1/label-runtime-probe > "$RUNNER_TEMP/label-media/$file.result.json"
+          done
+      - name: Stop disposable stack
+        if: ${{ always() }}
+        run: npx supabase stop --no-backup
+      - name: Upload qualification results only
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: label-media-qualification
+          path: |
+            ${{ runner.temp }}/label-media/*.json
+            ${{ runner.temp }}/label-media/runtime.log
+          if-no-files-found: warn
+          retention-days: 3
