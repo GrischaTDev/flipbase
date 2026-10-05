@@ -306,6 +306,17 @@ Käufen getrennt. IPs mit ungeklärter Nutzung bleiben gesperrt. Schriftlichen E
 selbst auf Konsistenz und Umfang geprüft; noch keine Produktimplementierung,
 keine Migration, kein echter Proxytest und kein Deployment durchgeführt.
 
+**Freigegebener Entwurf und Umsetzungsplan:** Der Nutzer hat den schriftlichen
+Cloud-IP-Entwurf bestätigt. `origin/master` neu geladen und unverändert bei
+`52ac4270` geprüft. Die vorhandene Auswahl lokal/Cloud wird weiterverwendet;
+der lokale Nachrichtenversand benötigt beim Wechsel eine Claim-Sperre und eine
+Prüfung auf laufende oder ungeklärte Sendungen. Der Plan
+`docs/implementation/vinted-cloud-ip-pilot-plan.md` beschreibt fünf geprüfte
+Aufgaben für Datenbank, private Profilbindung, Anmeldung/Bereinigung, Oberfläche
+und Pilotabnahme. Wiederholte Anfragen, ruhende alte Serverprofile, verlorene
+Antworten und unbestätigter Prozessstopp sind ausdrücklich abgedeckt. Noch keine
+Produktänderung, Migrationserzeugung, Proxyregistrierung oder Produktionsumstellung.
+
 **Weitere Quellen:** https://rayobyte.com/tos-and-aup/,
 https://www.trustpilot.com/review/rayobyte.com,
 https://decodo.com/faq/getting-started/fair-usage-policy,
