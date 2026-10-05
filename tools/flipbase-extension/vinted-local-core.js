@@ -300,6 +300,39 @@
     return parsed.toISOString();
   }
 
+  function inboxMessageDate(message) {
+    for (const input of [
+      message.created_at_ts,
+      message.entity?.created_at_ts,
+      message.created_at,
+      message.entity?.created_at,
+    ]) {
+      if (input === null || input === undefined) continue;
+      try {
+        return inboxDate(input);
+      } catch {
+        // Eine weitere vom Anbieter gelieferte Zeit kann gültig sein.
+      }
+    }
+    throw new Error('Vinted lieferte eine ungültige Nachrichtenzeit.');
+  }
+
+  function inboxOfferPrice(entity) {
+    const price = record(entity.price) ? entity.price : {};
+    const original = record(entity.original_price) ? entity.original_price : {};
+    const amount = decimal(price.amount ?? entity.price);
+    const originalAmount = decimal(original.amount ?? entity.original_price);
+    const currency = text(price.currency_code ?? original.currency_code);
+    if (amount === null || !currency || !/^[A-Z]{3}$/.test(currency))
+      return text(entity.price_label);
+    const formatter = new Intl.NumberFormat('de-DE', { style: 'currency', currency });
+    // Beide belegten Preise passen in den vorhandenen Preislabel-Vertrag.
+    return (
+      formatter.format(amount) +
+      (originalAmount !== null ? ` statt ${formatter.format(originalAmount)}` : '')
+    );
+  }
+
   async function inboxMessageEntry(message, conversationId, accountId) {
     if (!record(message) || !record(message.entity))
       throw new Error('Vinted lieferte eine unvollständige Nachricht.');
@@ -309,7 +342,7 @@
       const source = JSON.stringify({
         conversationId,
         type: message.entity_type,
-        createdAt: message.created_at_ts,
+        createdAt: message.created_at_ts ?? inboxMessageDate(message),
         eventGroup: message.event_group,
         eventType: message.event_type,
         entity,
@@ -318,7 +351,7 @@
       externalId = `event:${[...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('')}`;
     }
     const senderId = identifier(entity.user_id) ?? identifier(entity.sender_id);
-    const occurredAt = inboxDate(message.created_at_ts);
+    const occurredAt = inboxMessageDate(message);
     return {
       kind: 'message',
       externalId,
@@ -336,7 +369,9 @@
         occurredAt,
         direction: senderId ? (senderId === accountId ? 'outbound' : 'inbound') : 'unknown',
         messageType: text(message.entity_type),
-        priceLabel: text(entity.price_label),
+        priceLabel: ['offer_request_message', 'offer_message'].includes(message.entity_type)
+          ? inboxOfferPrice(entity)
+          : text(entity.price_label),
         imageUrls: [
           ...new Set(
             [
@@ -360,8 +395,10 @@
         eventGroup: text(message.event_group),
         offerStatus:
           typeof entity.status === 'number' && Number.isSafeInteger(entity.status)
-            ? String(entity.status)
-            : text(entity.status),
+            ? ({ 10: 'pending', 20: 'accepted', 30: 'rejected', 40: 'cancelled' }[entity.status] ??
+              text(entity.status_title) ??
+              String(entity.status))
+            : (text(entity.status) ?? text(entity.status_title)),
       },
     };
   }
@@ -456,9 +493,7 @@
       if (messages.length <= remaining) entry.body.detailCheckedAt = observedAt;
       let latestMessageAt = null;
       for (const message of [...messages]
-        .sort((left, right) =>
-          inboxDate(right.created_at_ts).localeCompare(inboxDate(left.created_at_ts)),
-        )
+        .sort((left, right) => inboxMessageDate(right).localeCompare(inboxMessageDate(left)))
         .slice(0, remaining)) {
         const messageEntry = await inboxMessageEntry(message, externalId, expectedId);
         if (messageIds.has(messageEntry.externalId))
@@ -530,7 +565,8 @@
       itemId: identifier(conversation.item_id ?? item.id ?? transaction.item_id),
       itemTitle: text(conversation.item_title ?? item.title ?? transaction.item_title),
       itemImageUrl: image(
-        photo?.url ??
+        photo?.thumbnails?.find((thumbnail) => thumbnail.type === 'thumb310x430')?.url ??
+          photo?.url ??
           conversation.item_photo?.url ??
           item.photo?.url ??
           transaction.item_photo?.url,
@@ -553,8 +589,17 @@
           detail = await readJson(`/api/v2/conversations/${externalId}`);
           if (identifier(detail?.conversation?.id) !== externalId)
             throw new Error('Das Gespräch wurde gewechselt.');
+          // Details enthalten nicht immer updated_at. Keine Abrufzeit erfinden:
+          // die neueste echte Nachrichtenzeit bzw. bekannte Listenrevision verwenden.
+          const messageDates = Array.isArray(detail.conversation.messages)
+            ? detail.conversation.messages.map(inboxMessageDate).sort()
+            : [];
+          const sourceUpdatedAt =
+            detail.conversation.updated_at ??
+            messageDates.at(-1) ??
+            state.versions.find((version) => version.externalId === externalId)?.sourceUpdatedAt;
           return {
-            conversations: [{ ...detail.conversation, unread: false }],
+            conversations: [{ ...detail.conversation, updated_at: sourceUpdatedAt, unread: false }],
             pagination: { total_pages: 1 },
           };
         }

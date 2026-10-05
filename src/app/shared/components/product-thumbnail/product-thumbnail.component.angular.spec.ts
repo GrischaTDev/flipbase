@@ -25,9 +25,16 @@ describe('ProductThumbnailComponent', () => {
       src: ['src', 1, null],
       alt: ['alt', 1, null],
       size: ['size', 1, null],
+      fit: ['fit', 1, null],
       priority: ['priority', 1, null],
     };
-    metadata.declaredInputs = { src: 'src', alt: 'alt', size: 'size', priority: 'priority' };
+    metadata.declaredInputs = {
+      src: 'src',
+      alt: 'alt',
+      size: 'size',
+      fit: 'fit',
+      priority: 'priority',
+    };
     TestBed.configureTestingModule({ imports: [ProductThumbnailComponent] });
     fixture = TestBed.createComponent(ProductThumbnailComponent);
     fixture.detectChanges();
@@ -63,6 +70,17 @@ describe('ProductThumbnailComponent', () => {
     fixture.componentRef.setInput('priority', true);
     fixture.detectChanges();
     expect(host().querySelector('img')?.getAttribute('loading')).toBe('eager');
+  });
+
+  it('füllt Gesprächsbilder aus, ohne andere Produktansichten zuzuschneiden', () => {
+    fixture.componentRef.setInput('size', 'sm');
+    fixture.componentRef.setInput('src', '/images/product.webp');
+    fixture.detectChanges();
+    expect(host().querySelector('img')?.classList).toContain('object-contain');
+    fixture.componentRef.setInput('fit', 'cover');
+    fixture.detectChanges();
+    expect(host().querySelector('img')?.classList).toContain('object-cover');
+    expect(host().querySelector('img')?.classList).not.toContain('object-contain');
   });
 
   it('ersetzt ein fehlgeschlagenes Bild und versucht eine neue Quelle anschließend wieder', () => {
