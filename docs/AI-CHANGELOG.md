@@ -36,6 +36,12 @@ Ein echter Vinted-Kontotest und die Veröffentlichung stehen noch aus.
 am 05.10.2026 bestätigt. Vor dem PR wurde der aktuelle Hauptzweig bei
 `e4832b0a` übernommen; beide neuen Protokolleinträge bleiben erhalten.
 
+Die erste vollständige PR-Prüfung fand eine fehlende Ressourcenregistrierung
+für den Shared-Spinner im übergeordneten Vinted-Test. Dessen bestehender
+Testaufbau enthält die HTML-Ressource jetzt ebenfalls. Postfach und Workspace
+sind gemeinsam mit 72 Angular-Prüfungen erneut grün; die Anwendung bleibt
+unverändert.
+
 ## 2026-10-05 - Juna - Verkaufsauswahl und Zahlenfelder nach Nutzerabnahme korrigiert
 
 **Auftrag:** Nach der sichtbaren Abnahme von PR #298 die Verkaufserfassung
