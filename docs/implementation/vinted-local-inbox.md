@@ -3,6 +3,56 @@
 Stand: 04.10.2026. Folgepaket zum erfolgreichen Profil-/Inseratepilot, auf
 Nutzerauftrag anhand der Bleam-Codebefunde (Rechercheprotokoll, Punkt 37).
 
+## Folgepaket vom 05.10.2026
+
+Der echte lesende Kontotest war erfolgreich. Der nächste Schritt erweitert den
+Pilot um das produktbezogene Postfach und den laufenden lokalen Betrieb:
+
+1. Artikelbilder in der Gesprächsliste; Partner und bekannte letzte Aktivität
+   im Chatkopf, darunter Artikelbild, Titel und Preis. Fehlende Angaben bleiben
+   leer. Suchfeld, Statusfilter und Sortierung verwenden gespeicherte Fakten.
+2. Kompakter Kontostatus mit Zeitpunkt des letzten Postfachimports und manuellem
+   Aktualisieren statt großen Importzählungen. Aktionsbedarf bleibt sichtbar.
+3. Persistierte Chrome-Alarme prüfen die neuesten Gespräche alle fünf Minuten;
+   ältere Seiten werden separat in begrenzten Ein-Minuten-Schritten nachgeladen.
+   Ausstehende Versandaufträge werden ungefähr alle 90 Sekunden geprüft.
+   Chrome kann Alarme verzögern. Neustarts holen keine unbeschränkten versäumten
+   Durchläufe nach.
+4. Bewusstes Öffnen lädt den ausgewählten Verlauf direkt. Der automatische
+   Abgleich öffnet ungelesene Details weiterhin nicht. Es wird kein expliziter
+   Vinted-Markierungsparameter gesetzt; dessen mögliche Lesewirkung wird beim
+   echten Kontotest geprüft.
+5. Separat freigegebener Text- und Einzelbildversand: maximal 5.000 Zeichen,
+   JPEG/PNG nach Komprimierung maximal 256 KiB. Geschützte Auftragsdaten enthalten
+   Bildbytes, öffentliche Statusantworten nur Dateiname und Format.
+6. Stabile Anfrage-ID verhindert doppeltes Einreihen. Ein Auftrag wird atomar
+   übernommen und vor genau einem Provider-Versuch als begonnen gespeichert.
+   `queued`, `claimed`, `sending`, `sent`, `failed`, `outcome_unknown` und
+   `cancelled` bleiben unterscheidbar. Ein HTTP-Erfolg ohne eindeutigen externen
+   Nachrichtenbeleg zählt nicht als bestätigter Versand. Unbekannte Ergebnisse
+   werden nicht automatisch erneut gesendet.
+
+Bleam-Protokolle dienen als belegte Schnittstellenreferenz; Originalquellcode,
+Pakete und Zugangsdaten werden nicht übernommen. Anmeldung, SMS, Captcha, Sperren
+und Drosselung pausieren den Browserbetrieb. Die gemeinsame Identitätsprüfung,
+Kontofreigabe und Ausführungssperre gelten auch für Alarme und Versand.
+
+Erweiterungsversion: 1.3.0. Die erzeugte Migration wurde transaktional auf den
+bisherigen Stand angewandt; 292 Datenbankprüfungen sind grün. Produktionsbau,
+Typen, gezielte Frontend-/Erweiterungs-/Edge-Tests und die Postfach-Browserprüfung
+auf Desktop und Mobil samt AXE sind bestanden. Es gab keine Live-Vinted-Anfrage
+und keinen echten Versand. Die vollständige Historie wird weiterhin nicht
+behauptet; der kompakte Synchronisierungsstatus nennt den letzten übernommenen
+Stand. Fragen-/Verhandlungsfilter nutzen vorhandene Text- und Statusmerkmale.
+
+Der Bildversand hat noch keinen im Echtkonto belegten Bestätigungsvertrag.
+Nach einem einzelnen Versandversuch bleibt das Ergebnis deshalb gegebenenfalls
+`outcome_unknown`; die Oberfläche weist vor dem Senden darauf hin. Nach dem
+Rollout prüfen wir eine bewusst freigegebene Text-/Bildnachricht und den
+Lesestatus beim bewussten Öffnen eines ungelesenen Gesprächs.
+
+Die folgenden Abschnitte dokumentieren den vorherigen lesenden Pilot 1.2.0.
+
 ## Ziel und Grenzen
 
 Eine bestehende lokale Installation erhält nach ausdrücklicher Bestätigung

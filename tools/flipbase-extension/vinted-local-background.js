@@ -10,6 +10,7 @@
   const save = async (installation) => chrome.storage.local.set({ [key]: installation });
   let operationDeadline = 0;
   let recoveredTab = false;
+  let automaticOperation = false;
 
   // Das Installationsgeheimnis ist für Content Scripts nicht lesbar.
 
@@ -25,7 +26,7 @@
     }
     if (tab && (tab.incognito || !tab.url?.startsWith('https://www.vinted.de/'))) tab = undefined;
     if (!tab) {
-      tab = await chrome.tabs.create({ url: 'https://www.vinted.de/', active: true });
+      tab = await chrome.tabs.create({ url: 'https://www.vinted.de/', active: false });
       created = true;
       const installation = await load();
       await save({ ...installation, tabId: tab.id });
@@ -113,12 +114,16 @@
       clearTimeout(timeout);
     }
     if (response?.success !== true) {
-      await chrome.tabs.update(reservedTabId, { active: true });
-      throw new Error(
+      if (!automaticOperation && request.type !== 'VINTED_LOCAL_SEND')
+        await chrome.tabs.update(reservedTabId, { active: true });
+      const error = new Error(
         typeof response?.error === 'string'
           ? response.error
           : 'Vinted hat den lokalen Abruf nicht bestätigt.',
       );
+      error.code = response?.code;
+      error.retryAfter = response?.retryAfter;
+      throw error;
     }
     return { ...response.result, tabId: reservedTabId };
   }
@@ -127,9 +132,10 @@
     load,
     save,
     now,
-    begin: () => {
+    begin: (request) => {
       operationDeadline = now() + 50_000;
       recoveredTab = false;
+      automaticOperation = request.automatic === true;
     },
     remove: () => chrome.storage.local.remove(key),
     randomSecret: () =>
@@ -145,6 +151,8 @@
       readFromTab(tabId, { type: 'VINTED_LOCAL_SNAPSHOT', externalAccountId }),
     readInbox: (tabId, externalAccountId, state) =>
       readFromTab(tabId, { type: 'VINTED_LOCAL_INBOX', externalAccountId, state }),
+    sendMessage: (tabId, externalAccountId, command) =>
+      readFromTab(tabId, { type: 'VINTED_LOCAL_SEND', externalAccountId, command }),
     edge: async (binding, secret, body) => {
       if (!core.isApiUrl(binding.apiUrl, binding.appOrigin))
         throw new Error('Die Serveradresse ist nicht erlaubt.');
@@ -175,6 +183,50 @@
       return response.json();
     },
   });
+
+  const scheduler = globalThis.FlipbaseVintedScheduler?.createScheduler({
+    load,
+    save,
+    now,
+    run: (action, binding) =>
+      runtime.run(
+        {
+          action: action === 'INBOX_BACKFILL' ? 'INBOX_SYNC' : action,
+          automatic: true,
+          mode: action === 'INBOX_BACKFILL' ? 'backfill' : 'latest',
+          payload: { workspaceId: binding.workspaceId, connectionId: binding.connectionId },
+        },
+        binding.appOrigin,
+      ),
+  });
+  async function ensureAlarm() {
+    if (!chrome.alarms || !scheduler) return;
+    if (!(await chrome.alarms.get('flipbase-vinted-sync')))
+      await chrome.alarms.create('flipbase-vinted-sync', { periodInMinutes: 0.5 });
+  }
+  if (chrome.alarms && scheduler) {
+    chrome.alarms.onAlarm.addListener((alarm) => {
+      if (alarm.name === 'flipbase-vinted-sync')
+        scheduler
+          .tick()
+          .catch(() =>
+            console.warn('Flipbase: Der lokale Zeitplan konnte nicht ausgeführt werden.'),
+          );
+    });
+    chrome.runtime.onStartup?.addListener(() => {
+      ensureAlarm().catch(() =>
+        console.warn('Flipbase: Der lokale Zeitplan konnte nicht ausgeführt werden.'),
+      );
+    });
+    chrome.runtime.onInstalled?.addListener(() => {
+      ensureAlarm().catch(() =>
+        console.warn('Flipbase: Der lokale Zeitplan konnte nicht ausgeführt werden.'),
+      );
+    });
+    ensureAlarm().catch(() =>
+      console.warn('Flipbase: Der lokale Zeitplan konnte nicht ausgeführt werden.'),
+    );
+  }
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message?.type === 'VINTED_LOCAL_OPEN_USER_TAB') {
@@ -208,9 +260,23 @@
       return false;
     const request = core.parseRequest(message, origin);
     if (!request) return false;
-    runtime.run(request, origin).then(
-      (result) => sendResponse({ success: true, result }),
-      (error) =>
+    runtime
+      .run(request, origin)
+      .then(async (result) => {
+        const installation = await load();
+        if (installation) {
+          const schedule = { ...installation.schedule };
+          if (!result.reported && !result.skipped) delete schedule.pauseReason;
+          if (request.action === 'MESSAGES_SEND') schedule.commandsAt = now() + 90_000;
+          if (request.action === 'INBOX_SYNC') {
+            schedule.latestAt = now() + 300_000;
+            schedule.backfillAt = result.nextPage > 1 ? now() + 60_000 : null;
+          }
+          await save({ ...installation, schedule });
+        }
+        sendResponse({ success: true, result });
+      })
+      .catch((error) =>
         sendResponse({
           success: false,
           error:
@@ -218,7 +284,7 @@
               ? error.message
               : 'Die lokale Verbindung konnte nicht bestätigt werden.',
         }),
-    );
+      );
     return true;
   });
 })();

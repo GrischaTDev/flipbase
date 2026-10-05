@@ -25,15 +25,21 @@
   }
 </div>
 <div class="mt-2 flex justify-end" aria-live="polite" aria-atomic="true">
-  @if (account().lastSyncedAt) {
+  @if (syncedAt(); as syncedAt) {
     <app-badge tone="neutral" size="md">
-      <span>Aktualisiert</span>
-      <time [attr.datetime]="account().lastSyncedAt">
-        {{ account().lastSyncedAt | date: 'HH:mm' }} Uhr ·
-        {{ account().lastSyncedAt | date: 'dd.MM.yy' }}
+      <span [attr.title]="syncedAt | date: 'dd.MM.yyyy, HH:mm:ss'">{{
+        inbox() ? 'Synchronisiert' : 'Aktualisiert'
+      }}</span>
+      <time [attr.datetime]="syncedAt" [attr.title]="syncedAt | date: 'dd.MM.yyyy, HH:mm:ss'">
+        @if (!inbox()) {
+          {{ syncedAt | date: 'HH:mm' }} Uhr ·
+          {{ syncedAt | date: 'dd.MM.yy' }}
+        }
       </time>
     </app-badge>
   } @else {
-    <span class="text-xs text-fb-text-secondary">Noch keine Datenübernahme</span>
+    <span class="text-xs text-fb-text-secondary">{{
+      inbox() ? 'Noch nicht synchronisiert' : 'Noch keine Datenübernahme'
+    }}</span>
   }
 </div>

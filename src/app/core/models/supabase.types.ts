@@ -2566,10 +2566,12 @@ export type Database = {
           connection_id: string
           expires_at: string
           external_account_id: string
+          grant_generation: number
           id: number
           inbox_next_page: number
           last_seen_at: string | null
           messages_read: boolean
+          messages_send: boolean
           revoked_at: string | null
           token_hash: string
           workspace_id: string
@@ -2579,10 +2581,12 @@ export type Database = {
           connection_id: string
           expires_at: string
           external_account_id: string
+          grant_generation?: number
           id?: never
           inbox_next_page?: number
           last_seen_at?: string | null
           messages_read?: boolean
+          messages_send?: boolean
           revoked_at?: string | null
           token_hash: string
           workspace_id: string
@@ -2592,10 +2596,12 @@ export type Database = {
           connection_id?: string
           expires_at?: string
           external_account_id?: string
+          grant_generation?: number
           id?: never
           inbox_next_page?: number
           last_seen_at?: string | null
           messages_read?: boolean
+          messages_send?: boolean
           revoked_at?: string | null
           token_hash?: string
           workspace_id?: string
@@ -2605,6 +2611,96 @@ export type Database = {
             foreignKeyName: "marketplace_local_extension_gra_workspace_id_connection_id_fkey"
             columns: ["workspace_id", "connection_id"]
             isOneToOne: true
+            referencedRelation: "marketplace_connections"
+            referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
+      marketplace_local_message_outbox: {
+        Row: {
+          attachment_base64: string | null
+          attachment_mime_type: string | null
+          attachment_name: string | null
+          claim_token: string | null
+          connection_id: string
+          conversation_id: string
+          created_at: string
+          error_code: string | null
+          external_account_id: string
+          external_conversation_id: string
+          external_message_id: string | null
+          grant_generation: number
+          id: string
+          lease_expires_at: string | null
+          message_text: string
+          payload_hash: string
+          request_id: string
+          requested_by: string
+          started_at: string | null
+          state: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          attachment_base64?: string | null
+          attachment_mime_type?: string | null
+          attachment_name?: string | null
+          claim_token?: string | null
+          connection_id: string
+          conversation_id: string
+          created_at?: string
+          error_code?: string | null
+          external_account_id: string
+          external_conversation_id: string
+          external_message_id?: string | null
+          grant_generation: number
+          id?: string
+          lease_expires_at?: string | null
+          message_text: string
+          payload_hash: string
+          request_id: string
+          requested_by: string
+          started_at?: string | null
+          state?: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          attachment_base64?: string | null
+          attachment_mime_type?: string | null
+          attachment_name?: string | null
+          claim_token?: string | null
+          connection_id?: string
+          conversation_id?: string
+          created_at?: string
+          error_code?: string | null
+          external_account_id?: string
+          external_conversation_id?: string
+          external_message_id?: string | null
+          grant_generation?: number
+          id?: string
+          lease_expires_at?: string | null
+          message_text?: string
+          payload_hash?: string
+          request_id?: string
+          requested_by?: string
+          started_at?: string | null
+          state?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_local_message_out_workspace_id_connection_id_c_fkey"
+            columns: ["workspace_id", "connection_id", "conversation_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_account_entries"
+            referencedColumns: ["workspace_id", "connection_id", "id"]
+          },
+          {
+            foreignKeyName: "marketplace_local_message_outbo_workspace_id_connection_id_fkey"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: false
             referencedRelation: "marketplace_connections"
             referencedColumns: ["workspace_id", "id"]
           },
@@ -6538,6 +6634,15 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_approve_local_messaging: {
+        Args: {
+          p_connection_id: string
+          p_expected_external_account_id: string
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       marketplace_browser_confirm_account: {
         Args: {
           p_connection_id: string
@@ -6607,6 +6712,17 @@ export type Database = {
         Args: { p_display_name: string; p_workspace_id: string }
         Returns: Json
       }
+      marketplace_enqueue_local_message: {
+        Args: {
+          p_attachment?: Json
+          p_connection_id: string
+          p_conversation_id: string
+          p_request_id: string
+          p_text: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       marketplace_finalize_favorite_import: {
         Args: {
           p_connection_id: string
@@ -6650,9 +6766,93 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: boolean
       }
+      marketplace_local_inbox_detail_import: {
+        Args: {
+          p_batch: Json
+          p_connection_id: string
+          p_conversation_id: string
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_local_inbox_detail_state: {
+        Args: {
+          p_connection_id: string
+          p_conversation_id: string
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       marketplace_local_inbox_state: {
         Args: {
           p_connection_id: string
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_local_message_authorized: {
+        Args: {
+          p_connection_id: string
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: {
+          approved_by: string
+          connection_id: string
+          expires_at: string
+          external_account_id: string
+          grant_generation: number
+          id: number
+          inbox_next_page: number
+          last_seen_at: string | null
+          messages_read: boolean
+          messages_send: boolean
+          revoked_at: string | null
+          token_hash: string
+          workspace_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "marketplace_local_extension_grants"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      marketplace_local_message_claim: {
+        Args: {
+          p_connection_id: string
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_local_message_finish: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: string
+          p_error_code?: string
+          p_external_message_id?: string
+          p_message_id: string
+          p_outcome: string
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_local_message_public: {
+        Args: {
+          p_message: Database["public"]["Tables"]["marketplace_local_message_outbox"]["Row"]
+        }
+        Returns: Json
+      }
+      marketplace_local_message_start: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: string
+          p_message_id: string
           p_token_hash: string
           p_workspace_id: string
         }
@@ -6692,6 +6892,14 @@ export type Database = {
       }
       marketplace_read_local_extension: {
         Args: { p_connection_id: string; p_workspace_id: string }
+        Returns: Json
+      }
+      marketplace_read_local_messages: {
+        Args: {
+          p_connection_id: string
+          p_conversation_id: string
+          p_workspace_id: string
+        }
         Returns: Json
       }
       marketplace_read_page: {

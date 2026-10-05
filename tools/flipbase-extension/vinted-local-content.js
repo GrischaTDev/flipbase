@@ -228,14 +228,10 @@
     if (response.status === 401) {
       interruptedPageState = 'login_required';
       requiresLoginRetry = true;
-      throw new Error('Melde Dich zuerst im reservierten Vinted-Tab an.');
+      throw providerError(response);
     }
-    if (response.status === 403)
-      throw new Error(
-        'Vinted verweigert den Zugriff. Prüfe die Sitzung im reservierten Vinted-Tab.',
-      );
-    if (response.status === 429)
-      throw new Error('Vinted begrenzt gerade die Abrufe. Versuche es später erneut.');
+    if (response.status === 403) throw providerError(response);
+    if (response.status === 429) throw providerError(response);
     if (
       !response.ok ||
       new URL(response.url).origin !== location.origin ||
@@ -259,9 +255,12 @@
     }
     if (
       sender.id !== chrome.runtime.id ||
-      !['VINTED_LOCAL_IDENTITY', 'VINTED_LOCAL_SNAPSHOT', 'VINTED_LOCAL_INBOX'].includes(
-        request?.type,
-      )
+      ![
+        'VINTED_LOCAL_IDENTITY',
+        'VINTED_LOCAL_SNAPSHOT',
+        'VINTED_LOCAL_INBOX',
+        'VINTED_LOCAL_SEND',
+      ].includes(request?.type)
     )
       return false;
     if (busy) {
@@ -285,9 +284,27 @@
         const result =
           request.type === 'VINTED_LOCAL_IDENTITY'
             ? { identity: core.parseIdentity(await readJson('/api/v2/users/current')) }
-            : request.type === 'VINTED_LOCAL_INBOX'
-              ? { batch: await core.readInbox(readJson, request.externalAccountId, request.state) }
-              : { snapshot: await core.readSnapshot(readJson, request.externalAccountId) };
+            : request.type === 'VINTED_LOCAL_SEND'
+              ? {
+                  outcome: await globalThis.FlipbaseVintedMessages.send(
+                    {
+                      read: readJson,
+                      write: writeProvider,
+                      csrf: document.querySelector('meta[name="csrf-token"]')?.content,
+                    },
+                    request.externalAccountId,
+                    request.command,
+                  ),
+                }
+              : request.type === 'VINTED_LOCAL_INBOX'
+                ? {
+                    batch: await (request.state.detail ? core.readInboxDetail : core.readInbox)(
+                      readJson,
+                      request.externalAccountId,
+                      request.state,
+                    ),
+                  }
+                : { snapshot: await core.readSnapshot(readJson, request.externalAccountId) };
         setBusy(false);
         sendResponse({ success: true, result });
       } catch (error) {
@@ -296,9 +313,68 @@
             ? error.message
             : 'Der Vinted-Abgleich ist fehlgeschlagen. Prüfe Deine Verbindung und versuche es erneut.';
         setBusy(false, hint, interruptedPageState ?? pageState());
-        sendResponse({ success: false, error: hint });
+        sendResponse({
+          success: false,
+          error: hint,
+          code: error.code ?? interruptedPageState,
+          retryAfter: error.retryAfter,
+        });
       }
     })();
     return true;
   });
+
+  function providerError(response) {
+    const error = new Error('Vinted konnte den Vorgang nicht bestätigen. Prüfe Deine Sitzung.');
+    error.httpStatus = response.status;
+    error.code =
+      response.status === 429
+        ? 'rate_limited'
+        : response.status === 401
+          ? 'login_required'
+          : response.status === 403
+            ? 'interaction_required'
+            : 'provider_unavailable';
+    if (response.status === 429) {
+      const raw = response.headers.get('Retry-After');
+      const requested =
+        raw && /^\d{1,6}$/.test(raw.trim())
+          ? Date.now() + Number(raw) * 1_000
+          : Date.parse(raw ?? '');
+      error.retryAfter =
+        Number.isFinite(requested) &&
+        requested > Date.now() &&
+        requested <= Date.now() + 604_800_000
+          ? requested
+          : Date.now() + 300_000;
+    }
+    return error;
+  }
+
+  async function writeProvider(path, request) {
+    if (!/^\/api\/v2\/(?:photos|conversations\/[1-9][0-9]{0,31}\/replies)$/.test(path))
+      throw new Error('Dieser Vinted-Aufruf ist nicht erlaubt.');
+    core.assertPageReady(interruptedPageState ?? pageState());
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) throw new Error('Der Vorgang dauerte zu lange.');
+    const response = await fetch(path, {
+      method: 'POST',
+      credentials: 'include',
+      redirect: 'error',
+      headers: {
+        'X-Csrf-Token': request.csrf,
+        ...(request.json ? { 'Content-Type': 'application/json' } : {}),
+      },
+      body: request.body,
+      signal: AbortSignal.timeout(Math.min(8_000, remaining)),
+    });
+    if (!response.ok) throw providerError(response);
+    if (
+      new URL(response.url).origin !== location.origin ||
+      !response.headers.get('content-type')?.includes('json')
+    )
+      throw new Error('Vinted bestätigt den Versand nicht.');
+    core.assertPageReady(interruptedPageState ?? pageState());
+    return response.json();
+  }
 })();

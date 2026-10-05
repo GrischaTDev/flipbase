@@ -17,10 +17,25 @@ import { MarketplaceAccountStore } from '../../services/marketplace-account.stor
 import { createMarketplaceFixtures } from '../../testing/marketplace-fixtures';
 import { parseMarketplacePage, parseMarketplaceSnapshot } from '../../models/marketplace-response';
 import type { AccountScope } from '../../models/marketplace.models';
-import type { MarketplaceEntry, MarketplacePage } from '../../models/marketplace-read.models';
+import type {
+  LocalQueuedMessage,
+  MarketplaceEntry,
+  MarketplacePage,
+} from '../../models/marketplace-read.models';
 import { VintedMessagesComponent } from './vinted-messages.component';
 import { VintedLocalExtensionStore } from '../../services/vinted-local-extension.store';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
+import { VintedMessagingStore } from '../../services/vinted-messaging.store';
+import { CustomSearchInputComponent } from '../../../../shared/components/custom-search-input/custom-search-input.component';
+import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
+import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
+import imageCompression from 'browser-image-compression';
+import { registerLocaleData } from '@angular/common';
+import localeDe from '@angular/common/locales/de';
+
+vi.mock('browser-image-compression', () => ({
+  default: Object.assign(vi.fn(), { getDataUrlFromFile: vi.fn() }),
+}));
 
 const accounts = createMarketplaceFixtures().connections;
 const emptyPage = { items: [], total: 0, nextCursor: null };
@@ -98,9 +113,18 @@ let local: {
   hasValidBinding: ReturnType<typeof vi.fn>;
   approveInbox: ReturnType<typeof vi.fn>;
   syncInbox: ReturnType<typeof vi.fn>;
+  openInboxConversation: ReturnType<typeof vi.fn>;
+};
+let messaging: {
+  messages: ReturnType<typeof signal<LocalQueuedMessage[]>>;
+  busy: ReturnType<typeof signal<boolean>>;
+  error: ReturnType<typeof signal<string | null>>;
+  load: ReturnType<typeof vi.fn>;
+  send: ReturnType<typeof vi.fn>;
 };
 let dialog: { frage: ReturnType<typeof vi.fn> };
 beforeAll(async () => {
+  registerLocaleData(localeDe, 'de');
   restore = await prepareMarketplaceRendering([
     {
       type: VintedMessagesComponent,
@@ -111,6 +135,9 @@ beforeAll(async () => {
       [BadgeComponent, 'badge'],
       [CardComponent, 'card'],
       [ProductThumbnailComponent, 'product-thumbnail'],
+      [CustomSearchInputComponent, 'custom-search-input'],
+      [CustomSelectComponent, 'custom-select'],
+      [TextFieldComponent, 'text-field'],
     ].map(([type, name]) => ({
       type,
       path: `src/app/shared/components/${name}/${name}.component.ts`,
@@ -120,6 +147,8 @@ beforeAll(async () => {
 afterAll(() => restore?.());
 afterEach(() => TestBed.resetTestingModule());
 beforeEach(() => {
+  vi.mocked(imageCompression).mockReset();
+  vi.mocked(imageCompression.getDataUrlFromFile).mockReset();
   workspace = signal({ id: accounts[0].workspaceId, archived_at: null });
   params = new BehaviorSubject(convertToParamMap({}));
   api = {
@@ -134,6 +163,14 @@ beforeEach(() => {
     hasValidBinding: vi.fn().mockReturnValue(true),
     approveInbox: vi.fn().mockResolvedValue(undefined),
     syncInbox: vi.fn().mockResolvedValue(undefined),
+    openInboxConversation: vi.fn().mockResolvedValue(undefined),
+  };
+  messaging = {
+    messages: signal([]),
+    busy: signal(false),
+    error: signal(null),
+    load: vi.fn().mockResolvedValue(undefined),
+    send: vi.fn().mockResolvedValue(true),
   };
   dialog = { frage: vi.fn().mockResolvedValue(false) };
   TestBed.configureTestingModule({
@@ -141,6 +178,7 @@ beforeEach(() => {
       provideRouter([]),
       MarketplaceAccountStore,
       { provide: VintedLocalExtensionStore, useValue: local },
+      { provide: VintedMessagingStore, useValue: messaging },
       { provide: ConfirmDialogService, useValue: dialog },
       {
         provide: ActivatedRoute,
@@ -194,6 +232,231 @@ function button(fixture: ComponentFixture<VintedMessagesComponent>, text: string
   return result;
 }
 describe('Kompakter gespeicherter Vinted-Gesprächsbereich', () => {
+  it('zeigt den Produktbezug und Nachrichtbilder und sortiert nur nach vorhandenen Zeitangaben', async () => {
+    api.readSnapshot.mockImplementation(async (scope: AccountScope) => {
+      const current = snapshot(scope);
+      return {
+        ...current,
+        conversations: {
+          ...current.conversations,
+          items: [
+            {
+              ...current.conversations.items[0],
+              title: 'Anna',
+              itemTitle: 'Seidenschal',
+              itemPrice: 12,
+              itemCurrency: 'EUR',
+              itemImageUrl: 'https://images.example.org/scarf.jpg',
+              lastActiveAt: '2026-10-01T11:00:00Z',
+            },
+            {
+              ...current.conversations.items[0],
+              id: 'conversation-2',
+              title: 'Ben',
+              occurredAt: '2026-09-30T12:00:00Z',
+              unread: false,
+            },
+          ],
+          total: 2,
+        },
+      };
+    });
+    api.readPage.mockImplementation(async (scope: AccountScope) =>
+      messages(scope, [
+        {
+          id: 'message-image',
+          text: 'Hier das Bild',
+          imageUrls: ['https://images.example.org/message.jpg'],
+        },
+      ]),
+    );
+    const fixture = await render();
+    expect(fixture.componentInstance.visibleConversations().map((entry) => entry.title)).toEqual([
+      'Anna',
+      'Ben',
+    ]);
+    fixture.componentInstance.conversationSort.set('oldest');
+    expect(fixture.componentInstance.visibleConversations().map((entry) => entry.title)).toEqual([
+      'Ben',
+      'Anna',
+    ]);
+    fixture.componentInstance.search.set('Seidenschal');
+    await settle(fixture);
+    button(fixture, 'Anna').click();
+    await settle(fixture);
+    expect(fixture.nativeElement.textContent).toContain('Seidenschal');
+    expect(fixture.nativeElement.textContent).toContain('12,00');
+    expect(fixture.nativeElement.textContent).toContain('Zuletzt aktiv');
+    expect(
+      fixture.nativeElement.querySelector('img[src="https://images.example.org/message.jpg"]'),
+    ).not.toBeNull();
+  });
+  it('sucht in echten Gesprächsdaten und filtert ungelesene Gespräche', async () => {
+    const fixture = await render();
+    fixture.componentInstance.search.set('Schal');
+    fixture.componentInstance.conversationFilter.set('unread');
+    expect(fixture.componentInstance.visibleConversations()).toHaveLength(1);
+    fixture.componentInstance.search.set('Nicht vorhanden');
+    expect(fixture.componentInstance.visibleConversations()).toHaveLength(0);
+    fixture.componentInstance.search.set('');
+    fixture.componentInstance.conversationFilter.set('negotiating');
+    expect(fixture.componentInstance.visibleConversations()).toHaveLength(0);
+  });
+  it('übernimmt einen Versandauftrag und löscht den Entwurf erst bei bestätigter Einreihung', async () => {
+    api.listConnections.mockResolvedValue({
+      canManage: true,
+      connections: [{ ...accounts[0], executionMode: 'local' }],
+    });
+    local.messagesAllowed.set(true);
+    const fixture = await render();
+    button(fixture, 'Anfrage zum Schal').click();
+    await settle(fixture);
+    expect(local.openInboxConversation).toHaveBeenCalledWith('conversation-1');
+    fixture.componentInstance.composer.controls.text.setValue('Hallo!');
+    messaging.send.mockResolvedValue(false);
+    await fixture.componentInstance.sendMessage();
+    expect(fixture.componentInstance.composer.controls.text.value).toBe('Hallo!');
+    messaging.send.mockResolvedValue(true);
+    await fixture.componentInstance.sendMessage();
+    expect(messaging.send).toHaveBeenLastCalledWith(
+      { workspaceId: accounts[0].workspaceId, connectionId: accounts[0].connectionId },
+      'conversation-1',
+      'Hallo!',
+      null,
+    );
+    expect(fixture.componentInstance.composer.controls.text.value).toBe('');
+  });
+  it('kennzeichnet einen unklaren Versand ohne Erfolgsmeldung und ohne Wiederholungsaktion', async () => {
+    api.listConnections.mockResolvedValue({
+      canManage: true,
+      connections: [{ ...accounts[0], executionMode: 'local' }],
+    });
+    const fixture = await render();
+    button(fixture, 'Anfrage zum Schal').click();
+    await settle(fixture);
+    messaging.messages.set([
+      {
+        id: 'queued-1',
+        requestId: 'request-1',
+        conversationId: 'conversation-1',
+        text: 'Versand prüfen',
+        state: 'outcome_unknown',
+        createdAt: '2026-10-05T00:00:00Z',
+        updatedAt: '2026-10-05T00:00:00Z',
+        externalMessageId: null,
+        errorCode: 'timeout',
+        attachment: null,
+      },
+    ]);
+    await settle(fixture);
+    const queued = fixture.nativeElement.querySelector('[data-queue-state="outcome_unknown"]');
+    expect(queued.textContent).toContain('Versandstatus unklar');
+    expect(queued.textContent).not.toContain('Gesendet');
+    expect(queued.querySelector('button')).toBeNull();
+  });
+  it('zeigt eine gesendete Nachricht nur einmal nach exakter externer Zuordnung', async () => {
+    api.listConnections.mockResolvedValue({
+      canManage: true,
+      connections: [{ ...accounts[0], executionMode: 'local' }],
+    });
+    api.readPage.mockImplementation(async (scope: AccountScope) => {
+      const page = messages(scope, [
+        { id: 'message-sent', text: 'Bestätigte Nachricht', direction: 'outbound' },
+      ]);
+      return { ...page, items: page.items.map((entry) => ({ ...entry, externalId: '123' })) };
+    });
+    const fixture = await render();
+    button(fixture, 'Anfrage zum Schal').click();
+    await settle(fixture);
+    const queued: LocalQueuedMessage = {
+      id: 'queued-1',
+      requestId: 'request-1',
+      conversationId: 'conversation-1',
+      text: 'Bestätigte Nachricht',
+      state: 'sent',
+      createdAt: '2026-10-05T00:00:00Z',
+      updatedAt: '2026-10-05T00:00:00Z',
+      externalMessageId: '123',
+      errorCode: null,
+      attachment: null,
+    };
+    messaging.messages.set([queued]);
+    await settle(fixture);
+    expect(fixture.nativeElement.querySelector('[data-queue-state="sent"]')).toBeNull();
+    messaging.messages.set([{ ...queued, externalMessageId: '124' }]);
+    await settle(fixture);
+    expect(fixture.nativeElement.querySelector('[data-queue-state="sent"]')).not.toBeNull();
+  });
+  it('begrenzt den Dateinamen und erklärt vor dem Senden die fehlende Bildbestätigung', async () => {
+    api.listConnections.mockResolvedValue({
+      canManage: true,
+      connections: [{ ...accounts[0], executionMode: 'local' }],
+    });
+    const fixture = await render();
+    button(fixture, 'Anfrage zum Schal').click();
+    await settle(fixture);
+    const file = new File(['small'], `${'ä'.repeat(180)}.png`, { type: 'image/png' });
+    vi.mocked(imageCompression).mockResolvedValue(file);
+    vi.mocked(imageCompression.getDataUrlFromFile).mockResolvedValue(
+      'data:image/png;base64,aGVsbG8=',
+    );
+    const input = document.createElement('input');
+    input.type = 'file';
+    Object.defineProperty(input, 'files', { value: [file] });
+    await fixture.componentInstance.selectAttachment({ target: input } as unknown as Event);
+    await settle(fixture);
+    expect([...(fixture.componentInstance.attachment()?.name ?? '')]).toHaveLength(120);
+    expect(fixture.componentInstance.attachment()?.name).toMatch(/\.png$/u);
+    expect(fixture.nativeElement.querySelector('[role="note"]')?.textContent).toContain(
+      'nicht zuverlässig bestätigt',
+    );
+    expect(messaging.send).not.toHaveBeenCalled();
+  });
+  it('weist überlange Texte ab und verwirft Entwürfe bei Kontowechsel', async () => {
+    const fixture = await render();
+    fixture.componentInstance.composer.controls.text.setValue('x'.repeat(5001));
+    await fixture.componentInstance.sendMessage();
+    expect(messaging.send).not.toHaveBeenCalled();
+    await store.selectConnection(accounts[1].connectionId);
+    await settle(fixture);
+    expect(fixture.componentInstance.composer.controls.text.value).toBe('');
+  });
+  it('verkleinert nur PNG/JPEG und übernimmt kein Bild nach einem Kontowechsel', async () => {
+    const fixture = await render();
+    const input = document.createElement('input');
+    input.type = 'file';
+    Object.defineProperty(input, 'files', {
+      configurable: true,
+      value: [new File(['file'], 'image.gif', { type: 'image/gif' })],
+    });
+    await fixture.componentInstance.selectAttachment({ target: input } as unknown as Event);
+    expect(fixture.componentInstance.composerError()).toContain('PNG');
+    expect(imageCompression).not.toHaveBeenCalled();
+    let complete: ((file: File) => void) | undefined;
+    vi.mocked(imageCompression).mockReturnValue(
+      new Promise((resolve) => {
+        complete = resolve;
+      }),
+    );
+    vi.mocked(imageCompression.getDataUrlFromFile).mockResolvedValue(
+      'data:image/png;base64,aGVsbG8=',
+    );
+    Object.defineProperty(input, 'files', {
+      value: [new File(['file'], 'image.png', { type: 'image/png' })],
+    });
+    const preparation = fixture.componentInstance.selectAttachment({
+      target: input,
+    } as unknown as Event);
+    await store.selectConnection(accounts[1].connectionId);
+    await settle(fixture);
+    complete?.(new File(['small'], 'image.png', { type: 'image/png' }));
+    await preparation;
+    expect(fixture.componentInstance.attachment()).toBeNull();
+    expect(imageCompression).toHaveBeenCalledWith(
+      expect.any(File),
+      expect.objectContaining({ maxSizeMB: 0.25, maxWidthOrHeight: 1600 }),
+    );
+  });
   it('fragt vor der lokalen Nachrichtenfreigabe und übernimmt eine Ablehnung', async () => {
     api.listConnections.mockResolvedValue({
       canManage: true,
@@ -211,17 +474,15 @@ describe('Kompakter gespeicherter Vinted-Gesprächsbereich', () => {
     await settle(fixture);
     expect(local.approveInbox).toHaveBeenCalledOnce();
   });
-  it('aktualisiert ein freigegebenes lokales Postfach über die Erweiterung', async () => {
+  it('zeigt bei freigegebenem Postfach keine zusätzliche Sync-Karte', async () => {
     api.listConnections.mockResolvedValue({
       canManage: true,
       connections: [{ ...accounts[0], executionMode: 'local' }],
     });
     local.messagesAllowed.set(true);
     const fixture = await render();
-    expect(fixture.nativeElement.textContent).toContain('manuell');
-    button(fixture, 'Nachrichten synchronisieren').click();
-    await settle(fixture);
-    expect(local.syncInbox).toHaveBeenCalledOnce();
+    expect(fixture.nativeElement.textContent).not.toContain('Lokales Postfach');
+    expect(fixture.nativeElement.textContent).not.toContain('Nachrichtenzugriff erlauben');
     expect(dialog.frage).not.toHaveBeenCalled();
   });
   it('erteilt nach Workspacewechsel während des Dialogs keine Nachrichtenfreigabe', async () => {
@@ -256,7 +517,7 @@ describe('Kompakter gespeicherter Vinted-Gesprächsbereich', () => {
     expect(host.querySelector('[data-message-kind="system"]')?.textContent).toContain(
       'Bestellung abgeschlossen',
     );
-    expect(host.querySelector('textarea,input')).toBeNull();
+    expect(host.querySelector('textarea')).toBeNull();
     expect(host.querySelector('button')?.textContent).not.toContain('Annehmen');
   });
   it('führt beim Öffnen Fokus zum Gespräch und beim Zurück zur ausgewählten Zeile', async () => {
@@ -269,12 +530,13 @@ describe('Kompakter gespeicherter Vinted-Gesprächsbereich', () => {
     expect(store.selectedConversationId()).toBeNull();
     expect(document.activeElement?.textContent).toContain('Anfrage zum Schal');
   });
-  it('erklärt den noch nicht importierten ungelesenen Verlauf ohne Vinted zu öffnen', async () => {
+  it('erklärt den noch nicht gespeicherten ungelesenen Verlauf ohne Lesestatusgarantie', async () => {
     api.readPage.mockResolvedValue(emptyPage);
     const fixture = await render();
     button(fixture, 'Anfrage zum Schal').click();
     await settle(fixture);
-    expect(fixture.nativeElement.textContent).toContain('Vinted-Lesestatus');
+    expect(fixture.nativeElement.textContent).toContain('ungelesenen Verlauf gespeichert');
+    expect(fixture.nativeElement.textContent).not.toContain('Lesestatus bleibt unverändert');
     expect(fixture.nativeElement.querySelector('a[href*="vinted.de"]')).toBeNull();
   });
   it('wählt bei einem Direktlink ausschließlich ein vorhandenes Konto und dessen Gespräch', async () => {

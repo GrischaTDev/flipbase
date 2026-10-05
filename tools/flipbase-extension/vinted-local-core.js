@@ -1,6 +1,14 @@
 // Reine Verträge und Parser; Chrome-Zugriff bleibt im Hintergrundadapter.
 (function exposeVintedLocalCore(root) {
-  const requestTypes = new Set(['PREPARE', 'BIND', 'SYNC', 'INBOX_SYNC', 'DISCONNECT']);
+  const requestTypes = new Set([
+    'PREPARE',
+    'BIND',
+    'SYNC',
+    'INBOX_SYNC',
+    'INBOX_DETAIL',
+    'MESSAGES_SEND',
+    'DISCONNECT',
+  ]);
   const storageKey = 'vinted_local_installation';
   const requestPrefix = 'FLIPBASE_VINTED_LOCAL_';
   class LocalBindingInvalidError extends Error {
@@ -10,6 +18,11 @@
       );
       this.code = 'local_binding_invalid';
     }
+  }
+  function identityChangedError() {
+    const error = new Error('Das Vinted-Konto wurde gewechselt.');
+    error.code = 'identity_changed';
+    return error;
   }
   const identifier = (value) => {
     const text = typeof value === 'number' && Number.isSafeInteger(value) ? String(value) : value;
@@ -90,8 +103,11 @@
     const payloadKeys =
       action === 'BIND'
         ? ['workspaceId', 'connectionId', 'externalAccountId', 'apiUrl', 'expiresAt', 'tokenHash']
-        : ['workspaceId', 'connectionId'];
+        : action === 'INBOX_DETAIL'
+          ? ['workspaceId', 'connectionId', 'conversationId']
+          : ['workspaceId', 'connectionId'];
     if (Object.keys(payload).some((key) => !payloadKeys.includes(key))) return null;
+    if (action === 'INBOX_DETAIL' && !uuid(payload.conversationId)) return null;
     if (
       action === 'BIND' &&
       (!identifier(payload.externalAccountId) ||
@@ -147,7 +163,11 @@
         'Vinted verlangt einen Bestätigungscode. Gib ihn direkt im reservierten Vinted-Tab ein.',
       login_required: 'Melde Dich zuerst im reservierten Vinted-Tab an und versuche es erneut.',
     };
-    if (state !== 'ready') throw new Error(errors[state] ?? 'Der Vinted-Browser ist nicht bereit.');
+    if (state !== 'ready') {
+      const error = new Error(errors[state] ?? 'Der Vinted-Browser ist nicht bereit.');
+      error.code = state;
+      throw error;
+    }
   }
 
   function parseSnapshot(identity, profile, items, observedAt, publicationsComplete) {
@@ -231,7 +251,7 @@
     let totalPages;
     for (let page = 1; page <= 25; page++) {
       if (parseIdentity(await readJson('/api/v2/users/current')).id !== expectedId)
-        throw new Error('Das Vinted-Konto wurde gewechselt.');
+        throw identityChangedError();
       const response = await readJson(
         `/api/v2/wardrobe/${expectedId}/items?page=${page}&per_page=20`,
       );
@@ -256,7 +276,7 @@
       }
     }
     if (parseIdentity(await readJson('/api/v2/users/current')).id !== expectedId)
-      throw new Error('Das Vinted-Konto wurde gewechselt.');
+      throw identityChangedError();
     return parseSnapshot(identity, profile, items, now(), complete);
   }
 
@@ -317,6 +337,31 @@
         direction: senderId ? (senderId === accountId ? 'outbound' : 'inbound') : 'unknown',
         messageType: text(message.entity_type),
         priceLabel: text(entity.price_label),
+        imageUrls: [
+          ...new Set(
+            [
+              ...(Array.isArray(entity.photos)
+                ? entity.photos.map((photo) =>
+                    typeof photo === 'string'
+                      ? photo
+                      : (photo?.url ??
+                        photo?.full_size_url ??
+                        photo?.image_url ??
+                        photo?.thumbnail),
+                  )
+                : []),
+              ...(Array.isArray(entity.photo_urls) ? entity.photo_urls : []),
+            ]
+              .map(image)
+              .filter(Boolean),
+          ),
+        ].slice(0, 10),
+        eventType: text(message.event_type),
+        eventGroup: text(message.event_group),
+        offerStatus:
+          typeof entity.status === 'number' && Number.isSafeInteger(entity.status)
+            ? String(entity.status)
+            : text(entity.status),
       },
     };
   }
@@ -332,9 +377,9 @@
     )
       throw new Error('Der gespeicherte Postfachstand ist ungültig.');
     const identity = parseIdentity(await readJson('/api/v2/users/current'));
-    if (identity.id !== expectedId) throw new Error('Das Vinted-Konto wurde gewechselt.');
+    if (identity.id !== expectedId) throw identityChangedError();
     const observedAt = now();
-    const page = state.nextPage;
+    const page = state.mode === 'latest' ? 1 : state.nextPage;
     const response = await readJson(`/api/v2/inbox?page=${page}&per_page=20`);
     if (
       !record(response) ||
@@ -377,6 +422,7 @@
           detailCheckedAt: reusable ? previous.detailCheckedAt : null,
           unread: typeof conversation.unread === 'boolean' ? conversation.unread : null,
           imageUrl: image(record(other.photo) ? other.photo.url : null),
+          ...inboxMetadata(conversation),
         },
       };
       entries.push(entry);
@@ -391,7 +437,7 @@
       )
         continue;
       if (parseIdentity(await readJson('/api/v2/users/current')).id !== expectedId)
-        throw new Error('Das Vinted-Konto wurde gewechselt.');
+        throw identityChangedError();
       const detail = await readJson(`/api/v2/conversations/${externalId}`);
       detailReads++;
       if (
@@ -403,10 +449,17 @@
         throw new Error('Vinted lieferte einen anderen oder unvollständigen Gesprächsverlauf.');
       const remaining = 200 - messageCount;
       const messages = detail.conversation.messages;
+      for (const [field, value] of Object.entries(inboxMetadata(detail.conversation))) {
+        if (value !== null) entry.body[field] = value;
+      }
       // Eine begrenzte Teilkopie bestätigt niemals die vollständige Detailrevision.
       if (messages.length <= remaining) entry.body.detailCheckedAt = observedAt;
       let latestMessageAt = null;
-      for (const message of messages.slice(0, remaining)) {
+      for (const message of [...messages]
+        .sort((left, right) =>
+          inboxDate(right.created_at_ts).localeCompare(inboxDate(left.created_at_ts)),
+        )
+        .slice(0, remaining)) {
         const messageEntry = await inboxMessageEntry(message, externalId, expectedId);
         if (messageIds.has(messageEntry.externalId))
           throw new Error('Vinted lieferte mehrdeutige Nachrichten.');
@@ -425,12 +478,17 @@
       }
     }
     if (parseIdentity(await readJson('/api/v2/users/current')).id !== expectedId)
-      throw new Error('Das Vinted-Konto wurde gewechselt.');
+      throw identityChangedError();
     const batch = {
       identity: { id: identity.id },
       observedAt,
       page,
-      nextPage: page < Math.min(totalPages, 20) ? page + 1 : 1,
+      nextPage:
+        state.mode === 'latest' && state.nextPage > 1
+          ? state.nextPage
+          : page < Math.min(totalPages, 20)
+            ? page + 1
+            : 1,
       conversationsComplete: (totalPages === 0 || page === totalPages) && totalPages <= 20,
       entries,
     };
@@ -454,15 +512,88 @@
     return batch;
   }
 
+  function inboxMetadata(conversation) {
+    const item = record(conversation.item) ? conversation.item : {};
+    const transaction = record(conversation.transaction) ? conversation.transaction : {};
+    const other = record(conversation.opposite_user) ? conversation.opposite_user : {};
+    const price = transaction.offer_price ?? item.price;
+    const photos = item.photos ?? conversation.item_photos;
+    const photo = Array.isArray(photos) ? photos[0] : null;
+    let lastActiveAt = null;
+    try {
+      if (other.last_logged_in_at ?? other.last_loged_on_ts)
+        lastActiveAt = inboxDate(other.last_logged_in_at ?? other.last_loged_on_ts);
+    } catch {
+      /* Unbekannte Aktivitätsangaben bleiben leer. */
+    }
+    return {
+      itemId: identifier(conversation.item_id ?? item.id ?? transaction.item_id),
+      itemTitle: text(conversation.item_title ?? item.title ?? transaction.item_title),
+      itemImageUrl: image(
+        photo?.url ??
+          conversation.item_photo?.url ??
+          item.photo?.url ??
+          transaction.item_photo?.url,
+      ),
+      itemPrice: decimal(record(price) ? price.amount : price),
+      itemCurrency: text(record(price) ? price.currency_code : null),
+      partnerId: identifier(other.id),
+      lastActiveAt,
+      transactionStatus: text(transaction.status_title),
+    };
+  }
+
+  async function readInboxDetail(readJson, expectedId, state, now) {
+    const externalId = identifier(state.externalConversationId);
+    if (!externalId) throw new Error('Das Gespräch wurde nicht bestätigt.');
+    let detail;
+    const batch = await readInbox(
+      async (path) => {
+        if (path.startsWith('/api/v2/inbox?')) {
+          detail = await readJson(`/api/v2/conversations/${externalId}`);
+          if (identifier(detail?.conversation?.id) !== externalId)
+            throw new Error('Das Gespräch wurde gewechselt.');
+          return {
+            conversations: [{ ...detail.conversation, unread: false }],
+            pagination: { total_pages: 1 },
+          };
+        }
+        if (path === `/api/v2/conversations/${externalId}`) return detail;
+        return readJson(path);
+      },
+      expectedId,
+      { ...state, nextPage: 1, mode: 'latest', versions: [] },
+      now,
+    );
+    batch.nextPage = state.nextPage;
+    batch.conversationsComplete = false;
+    const conversation = batch.entries.find((entry) => entry.kind === 'conversation');
+    conversation.body.unread =
+      typeof detail.conversation.unread === 'boolean' ? detail.conversation.unread : null;
+    return batch;
+  }
+
   function createRuntime(adapter) {
     let running = false;
     async function run(request, origin) {
       if (running) throw new Error('Ein lokaler Vorgang läuft bereits. Warte bis er beendet ist.');
       running = true;
-      adapter.begin?.();
+      adapter.begin?.(request);
       let acquired = false;
       try {
         let installation = await adapter.load();
+        if (
+          installation?.schedule?.retryAfter > adapter.now() &&
+          request.action !== 'DISCONNECT' &&
+          !(request.action === 'MESSAGES_SEND' && installation.pendingFinish)
+        ) {
+          const error = new Error(
+            'Vinted begrenzt die Abrufe. Warte bis die Pause abgelaufen ist.',
+          );
+          error.code = 'rate_limited';
+          error.retryAfter = installation.schedule.retryAfter;
+          throw error;
+        }
         if (installation?.leaseUntil > adapter.now())
           throw new Error(
             'Ein lokaler Vorgang wird noch ausgeführt. Warte kurz und versuche es erneut.',
@@ -547,8 +678,7 @@
           };
           await adapter.save(installation);
           const current = await adapter.readIdentity(installation.tabId);
-          if (current.identity.id !== payload.externalAccountId)
-            throw new Error('Das Vinted-Konto wurde gewechselt.');
+          if (current.identity.id !== payload.externalAccountId) throw identityChangedError();
           const binding = { ...payload, appOrigin: origin };
           await heartbeat(binding, installation.secret);
           installation.binding = binding;
@@ -567,16 +697,131 @@
           throw new Error(
             'Diese Verbindung gehört nicht zu diesem Browserprofil oder Arbeitsplatz.',
           );
+        if (action === 'MESSAGES_SEND' && installation.pendingFinish) {
+          const finished = await adapter.edge(binding, installation.secret, {
+            action: 'message_finish',
+            workspaceId: binding.workspaceId,
+            connectionId: binding.connectionId,
+            ...installation.pendingFinish,
+          });
+          if (finished?.ok !== true) throw new Error('Das Auftragsergebnis wurde nicht bestätigt.');
+          delete installation.pendingFinish;
+          await adapter.save(installation);
+          return { reported: true };
+        }
         if (Date.parse(binding.expiresAt) <= adapter.now())
           throw new Error('Die lokale Verbindung ist abgelaufen. Verbinde das Konto erneut.');
         const currentGrant = await heartbeat(binding, installation.secret);
-        if (action === 'INBOX_SYNC') {
+        if (action === 'MESSAGES_SEND') {
+          if (currentGrant.messagesSend !== true) return { skipped: true };
+          const claimed = await adapter.edge(binding, installation.secret, {
+            action: 'message_claim',
+            workspaceId: binding.workspaceId,
+            connectionId: binding.connectionId,
+          });
+          if (claimed?.ok !== true)
+            throw new Error('Der Nachrichtenauftrag wurde nicht bestätigt.');
+          if (!claimed.command) return { pending: false };
+          const command = claimed.command;
+          if (
+            !uuid(command.id) ||
+            !uuid(command.claimToken) ||
+            !identifier(command.externalConversationId)
+          )
+            throw new Error('Der Nachrichtenauftrag ist ungültig.');
+          installation.pendingFinish = {
+            id: command.id,
+            claimToken: command.claimToken,
+            outcome: 'outcome_unknown',
+            errorCode: 'interrupted',
+          };
+          await adapter.save(installation);
+          const started = await adapter.edge(binding, installation.secret, {
+            action: 'message_start',
+            workspaceId: binding.workspaceId,
+            connectionId: binding.connectionId,
+            id: command.id,
+            claimToken: command.claimToken,
+          });
+          if (started?.ok !== true)
+            throw new Error('Der Nachrichtenversand wurde nicht freigegeben.');
+          let outcome;
+          try {
+            outcome = (
+              await adapter.sendMessage(installation.tabId, binding.externalAccountId, command)
+            ).outcome;
+          } catch (error) {
+            outcome = {
+              outcome: 'outcome_unknown',
+              errorCode: error.code ?? 'interrupted',
+              ...(error.retryAfter ? { retryAfter: error.retryAfter } : {}),
+            };
+          }
+          if (!['sent', 'failed', 'outcome_unknown'].includes(outcome?.outcome))
+            throw new Error('Der Versandstatus ist ungültig.');
+          const { retryAfter, ...reportedOutcome } = outcome;
+          installation.pendingFinish = {
+            id: command.id,
+            claimToken: command.claimToken,
+            ...reportedOutcome,
+          };
+          if (outcome.errorCode === 'rate_limited')
+            installation.schedule = {
+              ...installation.schedule,
+              retryAfter: retryAfter ?? adapter.now() + 300_000,
+            };
+          else if (
+            [
+              'identity_changed',
+              'login_required',
+              'interaction_required',
+              'verification_required',
+              'session_blocked',
+            ].includes(outcome.errorCode)
+          )
+            installation.schedule = { ...installation.schedule, pauseReason: outcome.errorCode };
+          await adapter.save(installation);
+          const finished = await adapter.edge(binding, installation.secret, {
+            action: 'message_finish',
+            workspaceId: binding.workspaceId,
+            connectionId: binding.connectionId,
+            ...installation.pendingFinish,
+          });
+          if (finished?.ok !== true) throw new Error('Das Auftragsergebnis wurde nicht bestätigt.');
+          delete installation.pendingFinish;
+          await adapter.save(installation);
+          if (outcome.errorCode === 'rate_limited') {
+            const error = new Error('Vinted begrenzt die Abrufe.');
+            error.code = 'rate_limited';
+            error.retryAfter = retryAfter;
+            throw error;
+          }
+          if (
+            [
+              'identity_changed',
+              'login_required',
+              'interaction_required',
+              'verification_required',
+              'session_blocked',
+            ].includes(outcome.errorCode)
+          ) {
+            const error = new Error('Die Vinted-Sitzung muss geprüft werden.');
+            error.code = outcome.errorCode;
+            throw error;
+          }
+          return { outcome: outcome.outcome };
+        }
+        if (action === 'INBOX_SYNC' || action === 'INBOX_DETAIL') {
+          if (request.automatic && currentGrant.messagesRead !== true) return { skipped: true };
           if (currentGrant.messagesRead !== true)
             throw new Error('Erteile zuerst die Nachrichtenfreigabe für dieses Konto in Flipbase.');
           const inboxState = await adapter.edge(binding, installation.secret, {
-            action: 'inbox_state',
+            action: action === 'INBOX_DETAIL' ? 'inbox_detail_state' : 'inbox_state',
             workspaceId: binding.workspaceId,
             connectionId: binding.connectionId,
+            ...(action === 'INBOX_DETAIL'
+              ? { conversationId: payload.conversationId }
+              : { mode: request.mode ?? 'latest' }),
           });
           if (
             inboxState?.ok !== true ||
@@ -587,20 +832,22 @@
             throw new Error(
               'Die Nachrichtenfreigabe wurde nicht bestätigt. Prüfe das Konto in Flipbase.',
             );
-          const inbox = await adapter.readInbox(
-            installation.tabId,
-            binding.externalAccountId,
-            inboxState,
-          );
-          if (inbox.batch.identity.id !== binding.externalAccountId)
-            throw new Error('Das Vinted-Konto wurde gewechselt.');
+          const inbox = await adapter.readInbox(installation.tabId, binding.externalAccountId, {
+            ...inboxState,
+            mode: request.mode ?? 'latest',
+            detail: action === 'INBOX_DETAIL',
+          });
+          if (inbox.batch.identity.id !== binding.externalAccountId) throw identityChangedError();
           if ((await heartbeat(binding, installation.secret)).messagesRead !== true)
             throw new Error('Die Nachrichtenfreigabe ist nicht mehr gültig.');
           const importedInbox = await adapter.edge(binding, installation.secret, {
-            action: 'inbox_import',
+            action: action === 'INBOX_DETAIL' ? 'inbox_detail_import' : 'inbox_import',
             workspaceId: binding.workspaceId,
             connectionId: binding.connectionId,
             batch: inbox.batch,
+            ...(action === 'INBOX_DETAIL'
+              ? { conversationId: payload.conversationId }
+              : { mode: request.mode ?? 'latest' }),
           });
           if (
             importedInbox?.ok !== true ||
@@ -627,8 +874,7 @@
           };
         }
         const read = await adapter.readSnapshot(installation.tabId, binding.externalAccountId);
-        if (read.snapshot.identity.id !== binding.externalAccountId)
-          throw new Error('Das Vinted-Konto wurde gewechselt.');
+        if (read.snapshot.identity.id !== binding.externalAccountId) throw identityChangedError();
         // Vor dem Import erneut auf Widerruf prüfen; kein Teilstand bei Lesefehlern.
         await heartbeat(binding, installation.secret);
         const imported = await adapter.edge(binding, installation.secret, {
@@ -656,6 +902,28 @@
           observedAt: imported.observedAt,
           publicationsComplete: read.snapshot.publicationsComplete,
         };
+      } catch (error) {
+        if (acquired && error.code) {
+          const saved = await adapter.load();
+          if (saved) {
+            const schedule = { ...saved.schedule, lastError: error.code };
+            if (error.code === 'rate_limited')
+              schedule.retryAfter = error.retryAfter ?? adapter.now() + 300_000;
+            else if (
+              [
+                'identity_changed',
+                'login_required',
+                'interaction_required',
+                'verification_required',
+                'session_blocked',
+                'local_binding_invalid',
+              ].includes(error.code)
+            )
+              schedule.pauseReason = error.code;
+            await adapter.save({ ...saved, schedule });
+          }
+        }
+        throw error;
       } finally {
         try {
           if (acquired) {
@@ -704,6 +972,7 @@
     parseSnapshot,
     readSnapshot,
     readInbox,
+    readInboxDetail,
     createRuntime,
   };
   root.FlipbaseVintedLocal = api;

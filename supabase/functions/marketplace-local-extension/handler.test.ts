@@ -357,3 +357,432 @@ test('inbox state and sync result enforce scoped identity and bounded versions',
     null,
   );
 });
+test('message actions route only valid scoped commands to the store', async () => {
+  const calls: string[] = [];
+  const handler = createLocalExtensionHandler({
+    ingest: async () => {
+      assert.fail('message command reached ingest');
+    },
+    messageClaim: async () => {
+      calls.push('claim');
+      return { ok: true, command: null };
+    },
+    messageStart: async () => {
+      calls.push('start');
+      return { ok: true };
+    },
+    messageFinish: async () => {
+      calls.push('finish');
+      return { ok: true };
+    },
+  });
+  for (const body of [
+    { action: 'message_claim', workspaceId, connectionId },
+    {
+      action: 'message_start',
+      workspaceId,
+      connectionId,
+      id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+      claimToken: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+    },
+    {
+      action: 'message_finish',
+      workspaceId,
+      connectionId,
+      id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+      claimToken: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+      outcome: 'sent',
+      externalMessageId: '123',
+    },
+  ])
+    assert.equal((await handler(request(body))).status, 200);
+  assert.deepEqual(calls, ['claim', 'start', 'finish']);
+  assert.equal(
+    (
+      await handler(
+        request({
+          action: 'message_finish',
+          workspaceId,
+          connectionId,
+          id: 'x',
+          claimToken: 'x',
+          outcome: 'sent',
+        }),
+      )
+    ).status,
+    400,
+  );
+});
+test('detail actions keep the database conversation scope and hash without reaching ingest', async () => {
+  const conversationId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+  const calls: LocalExtensionRequest[] = [];
+  const persist = async (tokenHash: string, input: LocalExtensionRequest) => {
+    assert.equal(tokenHash, await hashLocalExtensionSecret(secret));
+    calls.push(input);
+    return { ok: true };
+  };
+  const handler = createLocalExtensionHandler({
+    ingest: async () => {
+      assert.fail('detail action reached profile persistence');
+    },
+    inboxDetailState: persist,
+    inboxDetailImport: persist,
+  });
+  const state = { action: 'inbox_detail_state', workspaceId, connectionId, conversationId };
+  const imported = {
+    action: 'inbox_detail_import',
+    workspaceId,
+    connectionId,
+    conversationId,
+    batch: inboxBatch(),
+  };
+  assert.equal((await handler(request(state))).status, 200);
+  assert.equal((await handler(request(imported))).status, 200);
+  assert.deepEqual(calls, [state, imported]);
+});
+test('latest and backfill modes reach only inbox persistence unchanged', async () => {
+  const calls: LocalExtensionRequest[] = [];
+  const persist = async (_tokenHash: string, input: LocalExtensionRequest) => {
+    calls.push(input);
+    return { ok: true };
+  };
+  const handler = createLocalExtensionHandler({
+    ingest: async () => {
+      assert.fail('inbox mode reached profile persistence');
+    },
+    inboxState: persist,
+    inboxImport: persist,
+  });
+  for (const mode of ['latest', 'backfill']) {
+    const state = { action: 'inbox_state', workspaceId, connectionId, mode };
+    const imported = {
+      action: 'inbox_import',
+      workspaceId,
+      connectionId,
+      mode,
+      batch: inboxBatch(),
+    };
+    assert.equal((await handler(request(state))).status, 200);
+    assert.equal((await handler(request(imported))).status, 200);
+    assert.deepEqual(calls.slice(-2), [state, imported]);
+  }
+});
+test('missing optional action handlers return unavailable and never fall through to ingest', async () => {
+  const conversationId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+  const claimToken = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+  const handler = createLocalExtensionHandler({
+    ingest: async () => {
+      assert.fail('unsupported action reached profile persistence');
+    },
+  });
+  for (const body of [
+    { action: 'inbox_state', workspaceId, connectionId },
+    { action: 'inbox_import', workspaceId, connectionId, batch: inboxBatch() },
+    { action: 'inbox_detail_state', workspaceId, connectionId, conversationId },
+    {
+      action: 'inbox_detail_import',
+      workspaceId,
+      connectionId,
+      conversationId,
+      batch: inboxBatch(),
+    },
+    { action: 'message_claim', workspaceId, connectionId },
+    { action: 'message_start', workspaceId, connectionId, id: conversationId, claimToken },
+    {
+      action: 'message_finish',
+      workspaceId,
+      connectionId,
+      id: conversationId,
+      claimToken,
+      outcome: 'outcome_unknown',
+      errorCode: 'timeout',
+    },
+  ]) {
+    const response = await handler(request(body));
+    assert.equal(response.status, 503);
+    assert.deepEqual(await response.json(), { error: 'unavailable' });
+  }
+});
+test('malformed details, modes, message outcomes and secret-bearing commands never persist', async () => {
+  const conversationId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+  const claimToken = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+  const persist = async () => {
+    assert.fail('malformed action reached persistence');
+  };
+  const handler = createLocalExtensionHandler({
+    ingest: persist,
+    inboxState: persist,
+    inboxImport: persist,
+    inboxDetailState: persist,
+    inboxDetailImport: persist,
+    messageClaim: persist,
+    messageStart: persist,
+    messageFinish: persist,
+  });
+  for (const body of [
+    { action: 'inbox_state', workspaceId, connectionId, mode: 'detail' },
+    {
+      action: 'inbox_import',
+      workspaceId,
+      connectionId,
+      mode: 'latest',
+      batch: { ...inboxBatch(), cookies: 'secret' },
+    },
+    { action: 'inbox_detail_state', workspaceId, connectionId, conversationId: '123' },
+    {
+      action: 'inbox_detail_import',
+      workspaceId,
+      connectionId,
+      conversationId,
+      batch: { ...inboxBatch(), identity: { id: '123', username: 'seller' } },
+    },
+    { action: 'message_claim', workspaceId, connectionId, session: 'secret' },
+    {
+      action: 'message_start',
+      workspaceId,
+      connectionId,
+      id: conversationId,
+      claimToken,
+      outcome: 'sent',
+    },
+    {
+      action: 'message_finish',
+      workspaceId,
+      connectionId,
+      id: conversationId,
+      claimToken,
+      outcome: 'sent',
+    },
+    {
+      action: 'message_finish',
+      workspaceId,
+      connectionId,
+      id: conversationId,
+      claimToken,
+      outcome: 'retry',
+    },
+    {
+      action: 'message_finish',
+      workspaceId,
+      connectionId,
+      id: conversationId,
+      claimToken,
+      outcome: 'failed',
+      externalMessageId: '123',
+    },
+    {
+      action: 'message_finish',
+      workspaceId,
+      connectionId,
+      id: conversationId,
+      claimToken,
+      outcome: 'outcome_unknown',
+      externalMessageId: '123',
+    },
+    {
+      action: 'message_finish',
+      workspaceId,
+      connectionId,
+      id: conversationId,
+      claimToken,
+      outcome: 'failed',
+      errorCode: 'secret token=abc',
+    },
+    { action: 'unknown', workspaceId, connectionId },
+  ])
+    assert.equal((await handler(request(body))).status, 400);
+});
+test('message persistence failures expose only defined errors without database details', async () => {
+  for (const [error, status, code] of [
+    [new LocalExtensionStoreError('access'), 401, 'unauthorized'],
+    [new LocalExtensionStoreError('invalid'), 400, 'invalid_request'],
+    [new LocalExtensionStoreError('conflict'), 409, 'conflict'],
+    [new Error('Database password=private'), 503, 'unavailable'],
+  ] as const) {
+    const handler = createLocalExtensionHandler({
+      ingest: async () => {
+        assert.fail('message failure reached profile persistence');
+      },
+      messageClaim: async () => {
+        throw error;
+      },
+    });
+    const response = await handler(request({ action: 'message_claim', workspaceId, connectionId }));
+    assert.equal(response.status, status);
+    assert.deepEqual(await response.json(), { error: code });
+  }
+});
+test(
+  'edge index maps each action to its scoped RPC and separates latest from backfill',
+  { skip: typeof Deno === 'undefined' },
+  async () => {
+    const originalServe = Deno.serve;
+    const originalFetch = globalThis.fetch;
+    const originalUrl = Deno.env.get('SUPABASE_URL');
+    const originalKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    let handler: ((request: Request) => Promise<Response>) | undefined;
+    const calls: { name: string; parameters: Record<string, unknown> }[] = [];
+    Deno.serve = ((serveHandler: (request: Request) => Promise<Response>) => {
+      handler = serveHandler;
+    }) as typeof Deno.serve;
+    Deno.env.set('SUPABASE_URL', 'https://database.example.test');
+    Deno.env.set('SUPABASE_SERVICE_ROLE_KEY', 'local-test-key');
+    globalThis.fetch = async (input, init) => {
+      const address = input instanceof Request ? input.url : String(input);
+      assert.equal(new URL(address).hostname, 'database.example.test');
+      assert.equal(typeof init?.body, 'string');
+      const name = new URL(address).pathname.split('/').at(-1) ?? '';
+      calls.push({ name, parameters: JSON.parse(String(init?.body)) as Record<string, unknown> });
+      return Response.json({
+        ok: true,
+        externalAccountId: '123',
+        expiresAt: '2026-10-06T10:00:00Z',
+        messagesRead: true,
+        nextPage: 4,
+        versions: [],
+        command: null,
+      });
+    };
+    try {
+      await import('./index.ts');
+      assert.ok(handler);
+      const tokenHash = await hashLocalExtensionSecret(secret);
+      const scopeParameters = {
+        p_workspace_id: workspaceId,
+        p_connection_id: connectionId,
+        p_token_hash: tokenHash,
+      };
+      const conversationId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+      const claimToken = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+      for (const mode of ['latest', 'backfill'] as const) {
+        const response = await handler(
+          request({ action: 'inbox_state', workspaceId, connectionId, mode }),
+        );
+        assert.equal(response.status, 200);
+        assert.equal((await response.json()).nextPage, 4);
+        assert.deepEqual(calls.at(-1), {
+          name: 'marketplace_local_inbox_state',
+          parameters: scopeParameters,
+        });
+        assert.equal(
+          (
+            await handler(
+              request({
+                action: 'inbox_import',
+                workspaceId,
+                connectionId,
+                mode,
+                batch: inboxBatch(),
+              }),
+            )
+          ).status,
+          200,
+        );
+        assert.deepEqual(calls.at(-1), {
+          name: 'marketplace_import_local_inbox',
+          parameters: { ...scopeParameters, p_batch: { ...inboxBatch(), mode } },
+        });
+      }
+      assert.equal(
+        (
+          await handler(
+            request({ action: 'inbox_import', workspaceId, connectionId, batch: inboxBatch() }),
+          )
+        ).status,
+        200,
+      );
+      assert.deepEqual(calls.at(-1), {
+        name: 'marketplace_import_local_inbox',
+        parameters: { ...scopeParameters, p_batch: { ...inboxBatch(), mode: 'backfill' } },
+      });
+      for (const [body, name, parameters] of [
+        [
+          { action: 'inbox_detail_state', workspaceId, connectionId, conversationId },
+          'marketplace_local_inbox_detail_state',
+          { ...scopeParameters, p_conversation_id: conversationId },
+        ],
+        [
+          {
+            action: 'inbox_detail_import',
+            workspaceId,
+            connectionId,
+            conversationId,
+            batch: inboxBatch(),
+          },
+          'marketplace_local_inbox_detail_import',
+          { ...scopeParameters, p_conversation_id: conversationId, p_batch: inboxBatch() },
+        ],
+        [
+          { action: 'message_claim', workspaceId, connectionId },
+          'marketplace_local_message_claim',
+          scopeParameters,
+        ],
+        [
+          { action: 'message_start', workspaceId, connectionId, id: conversationId, claimToken },
+          'marketplace_local_message_start',
+          { ...scopeParameters, p_message_id: conversationId, p_claim_token: claimToken },
+        ],
+        [
+          {
+            action: 'message_finish',
+            workspaceId,
+            connectionId,
+            id: conversationId,
+            claimToken,
+            outcome: 'sent',
+            externalMessageId: '123',
+          },
+          'marketplace_local_message_finish',
+          {
+            ...scopeParameters,
+            p_message_id: conversationId,
+            p_claim_token: claimToken,
+            p_outcome: 'sent',
+            p_external_message_id: '123',
+            p_error_code: null,
+          },
+        ],
+        [
+          {
+            action: 'message_finish',
+            workspaceId,
+            connectionId,
+            id: conversationId,
+            claimToken,
+            outcome: 'outcome_unknown',
+            errorCode: 'timeout',
+          },
+          'marketplace_local_message_finish',
+          {
+            ...scopeParameters,
+            p_message_id: conversationId,
+            p_claim_token: claimToken,
+            p_outcome: 'outcome_unknown',
+            p_external_message_id: null,
+            p_error_code: 'timeout',
+          },
+        ],
+        [
+          { action: 'heartbeat', workspaceId, connectionId },
+          'marketplace_ingest_local_extension',
+          { ...scopeParameters, p_snapshot: null },
+        ],
+        [
+          { action: 'import', workspaceId, connectionId, snapshot: snapshot() },
+          'marketplace_ingest_local_extension',
+          { ...scopeParameters, p_snapshot: snapshot() },
+        ],
+      ] as const) {
+        assert.equal((await handler(request(body))).status, 200);
+        assert.deepEqual(calls.at(-1), { name, parameters });
+      }
+    } finally {
+      Deno.serve = originalServe;
+      globalThis.fetch = originalFetch;
+      if (originalUrl === undefined) Deno.env.delete('SUPABASE_URL');
+      else Deno.env.set('SUPABASE_URL', originalUrl);
+      if (originalKey === undefined) Deno.env.delete('SUPABASE_SERVICE_ROLE_KEY');
+      else Deno.env.set('SUPABASE_SERVICE_ROLE_KEY', originalKey);
+    }
+  },
+);

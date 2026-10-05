@@ -1,4 +1,4 @@
-import { DatePipe } from '@angular/common';
+import { CurrencyPipe, DatePipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -13,15 +13,30 @@ import {
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
-import { LucideArrowLeft } from '@lucide/angular';
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { LucideArrowLeft, LucideImage, LucideSend, LucideTrash2 } from '@lucide/angular';
+import imageCompression from 'browser-image-compression';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
-import type { MarketplaceEntry } from '../../models/marketplace-read.models';
+import type {
+  LocalMessageAttachment,
+  LocalQueuedMessage,
+  MarketplaceEntry,
+} from '../../models/marketplace-read.models';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { VintedLocalExtensionStore } from '../../services/vinted-local-extension.store';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
+import { CustomSearchInputComponent } from '../../../../shared/components/custom-search-input/custom-search-input.component';
+import {
+  CustomSelectComponent,
+  type SelectOption,
+} from '../../../../shared/components/custom-select/custom-select.component';
+import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
+import { VintedMessagingStore } from '../../services/vinted-messaging.store';
+
+type ConversationFilter = 'all' | 'unread' | 'questions' | 'negotiating' | 'sold' | 'system';
 
 interface ReadingPosition {
   key: string;
@@ -33,7 +48,18 @@ interface ReadingPosition {
 
 @Component({
   selector: 'app-vinted-messages',
-  imports: [DatePipe, BadgeComponent, ButtonComponent, CardComponent, ProductThumbnailComponent],
+  imports: [
+    CurrencyPipe,
+    DatePipe,
+    ReactiveFormsModule,
+    BadgeComponent,
+    ButtonComponent,
+    CardComponent,
+    ProductThumbnailComponent,
+    CustomSearchInputComponent,
+    CustomSelectComponent,
+    TextFieldComponent,
+  ],
   templateUrl: './vinted-messages.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block min-w-0' },
@@ -41,6 +67,71 @@ interface ReadingPosition {
 export class VintedMessagesComponent {
   readonly store = inject(MarketplaceAccountStore);
   readonly local = inject(VintedLocalExtensionStore);
+  readonly messaging = inject(VintedMessagingStore);
+  readonly search = signal('');
+  readonly conversationFilter = signal<ConversationFilter | null>('all');
+  readonly conversationSort = signal<'latest' | 'oldest' | null>('latest');
+  readonly filterOptions: readonly SelectOption<ConversationFilter>[] = [
+    { value: 'all', label: 'Alle Gespräche' },
+    { value: 'unread', label: 'Ungelesen' },
+    { value: 'questions', label: 'Fragen' },
+    { value: 'negotiating', label: 'Verhandlung' },
+    { value: 'sold', label: 'Verkauft' },
+    { value: 'system', label: 'System' },
+  ];
+  readonly sortOptions: readonly SelectOption<'latest' | 'oldest'>[] = [
+    { value: 'latest', label: 'Neueste zuerst' },
+    { value: 'oldest', label: 'Älteste zuerst' },
+  ];
+  readonly visibleConversations = computed(() => {
+    const search = this.search().trim().toLocaleLowerCase('de');
+    const filter = this.conversationFilter();
+    return [...(this.store.snapshot()?.conversations.items ?? [])]
+      .filter(
+        (entry) =>
+          (!search ||
+            `${entry.title} ${entry.text ?? ''} ${entry.itemTitle ?? ''}`
+              .toLocaleLowerCase('de')
+              .includes(search)) &&
+          this.matchesFilter(entry, filter),
+      )
+      .sort((first, second) => {
+        const firstTimestamp = Date.parse(first.occurredAt ?? '');
+        const secondTimestamp = Date.parse(second.occurredAt ?? '');
+        if (!Number.isFinite(firstTimestamp)) return Number.isFinite(secondTimestamp) ? 1 : 0;
+        if (!Number.isFinite(secondTimestamp)) return -1;
+        const difference = firstTimestamp - secondTimestamp;
+        return this.conversationSort() === 'oldest' ? difference : -difference;
+      });
+  });
+  readonly composer = new FormGroup({
+    text: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(5000)] }),
+  });
+  readonly attachment = signal<LocalMessageAttachment | null>(null);
+  readonly attachmentPreview = computed(() => {
+    const attachment = this.attachment();
+    return attachment ? `data:${attachment.mimeType};base64,${attachment.base64}` : null;
+  });
+  readonly queuedMessages = computed(() =>
+    this.messaging
+      .messages()
+      .filter(
+        (message) =>
+          message.conversationId === this.store.selectedConversationId() &&
+          !(
+            message.state === 'sent' &&
+            message.externalMessageId &&
+            this.transcript().some((entry) => entry.externalId === message.externalMessageId)
+          ),
+      ),
+  );
+  readonly preparingAttachment = signal(false);
+  readonly composerError = signal<string | null>(null);
+  readonly imageIcon = LucideImage;
+  readonly sendIcon = LucideSend;
+  readonly removeIcon = LucideTrash2;
+  private draftRevision = 0;
+  private openRevision = 0;
   private readonly dialog = inject(ConfirmDialogService);
   private readonly route = inject(ActivatedRoute);
   private readonly query = toSignal(this.route.queryParamMap, {
@@ -96,6 +187,24 @@ export class VintedMessagesComponent {
 
   constructor() {
     effect(() => {
+      this.context();
+      const key = this.conversationKey();
+      untracked(() => {
+        const account = this.store.selectedConnection();
+        const conversationId = this.store.selectedConversationId();
+        this.draftRevision++;
+        this.composer.reset();
+        this.attachment.set(null);
+        this.composerError.set(null);
+        this.preparingAttachment.set(false);
+        if (key && account && conversationId)
+          void this.messaging.load(
+            { workspaceId: account.workspaceId, connectionId: account.connectionId },
+            conversationId,
+          );
+      });
+    });
+    effect(() => {
       const key = this.conversationKey();
       const entry = this.store
         .snapshot()
@@ -145,13 +254,13 @@ export class VintedMessagesComponent {
         return;
       this.handledQuery = signature;
       const entry = snapshot.conversations.items.find((item) => item.id === conversationId);
-      if (entry) untracked(() => void this.openConversation(entry));
+      if (entry) untracked(() => void this.openConversation(entry, false));
       else this.notice.set('Das verlinkte Gespräch ist für dieses Konto nicht verfügbar.');
     });
     afterEveryRender(() => this.restoreReadingPosition());
   }
 
-  async openConversation(entry: MarketplaceEntry): Promise<void> {
+  async openConversation(entry: MarketplaceEntry, readProvider = true): Promise<void> {
     const account = this.store.selectedConnection();
     if (
       !this.store.canManage() ||
@@ -163,7 +272,155 @@ export class VintedMessagesComponent {
     this.notice.set(null);
     this.failedRequest.set(null);
     this.focusConversation = JSON.stringify([this.context(), entry.id]);
+    const revision = ++this.openRevision;
+    const context = this.context();
     await this.store.openConversation(entry.id);
+    if (
+      readProvider &&
+      account.executionMode === 'local' &&
+      this.local.messagesAllowed() &&
+      context === this.context() &&
+      revision === this.openRevision &&
+      this.store.selectedConversationId() === entry.id
+    ) {
+      await this.local.openInboxConversation(entry.id);
+      if (
+        context === this.context() &&
+        revision === this.openRevision &&
+        this.store.selectedConversationId() === entry.id
+      )
+        await this.store.openConversation(entry.id);
+    }
+  }
+
+  private matchesFilter(entry: MarketplaceEntry, filter: ConversationFilter | null): boolean {
+    switch (filter) {
+      case 'unread':
+        return entry.unread === true;
+      case 'questions':
+        return entry.text?.includes('?') === true && this.messageKind(entry) === 'text';
+      case 'negotiating':
+        return (
+          this.messageKind(entry) === 'offer' ||
+          entry.offerStatus === 'pending' ||
+          entry.transactionStatus === 'negotiating'
+        );
+      case 'sold':
+        return (
+          ['sold', 'completed', 'transaction_completed'].includes(entry.transactionStatus ?? '') ||
+          entry.eventType === 'transaction_completed'
+        );
+      case 'system':
+        return this.messageKind(entry) === 'system';
+      default:
+        return true;
+    }
+  }
+
+  queueStatus(message: LocalQueuedMessage): string {
+    switch (message.state) {
+      case 'sent':
+        return 'Gesendet';
+      case 'failed':
+        return 'Senden fehlgeschlagen';
+      case 'outcome_unknown':
+        return 'Versandstatus unklar – bitte auf Vinted prüfen';
+      case 'cancelled':
+        return 'Abgebrochen';
+      case 'sending':
+        return 'Wird gesendet';
+      default:
+        return 'In der Warteschlange';
+    }
+  }
+
+  async selectAttachment(event: Event): Promise<void> {
+    const input = event.target;
+    if (!(input instanceof HTMLInputElement)) return;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    const revision = ++this.draftRevision;
+    this.composerError.set(null);
+    this.preparingAttachment.set(false);
+    if (file.type !== 'image/png' && file.type !== 'image/jpeg') {
+      this.composerError.set('Wähle ein PNG- oder JPEG-Bild.');
+      return;
+    }
+    this.preparingAttachment.set(true);
+    try {
+      const compressed = await imageCompression(file, {
+        maxSizeMB: 0.25,
+        maxWidthOrHeight: 1600,
+        useWebWorker: true,
+        fileType: file.type,
+      });
+      if (compressed.size > 256 * 1024)
+        throw new Error(
+          'Das Bild ist nach der Verkleinerung noch zu groß. Wähle ein kleineres Bild.',
+        );
+      const preview = await imageCompression.getDataUrlFromFile(compressed);
+      if (revision !== this.draftRevision) return;
+      const base64 = preview.slice(preview.indexOf(',') + 1);
+      const extension = file.type === 'image/png' ? '.png' : '.jpg';
+      const filename =
+        file.name
+          .replace(/\.[^.]*$/u, '')
+          .replace(/[\p{Cc}/\\]/gu, '')
+          .trim() || 'Nachrichtenbild';
+      const name = `${[...filename].slice(0, 120 - extension.length).join('')}${extension}`;
+      this.attachment.set({ name, mimeType: file.type, base64 });
+    } catch (error) {
+      if (revision === this.draftRevision)
+        this.composerError.set(
+          error instanceof Error ? error.message : 'Das Bild konnte nicht vorbereitet werden.',
+        );
+    } finally {
+      if (revision === this.draftRevision) this.preparingAttachment.set(false);
+    }
+  }
+
+  clearAttachment(): void {
+    this.draftRevision++;
+    this.attachment.set(null);
+    this.preparingAttachment.set(false);
+    this.composerError.set(null);
+  }
+
+  async sendMessage(): Promise<void> {
+    const account = this.store.selectedConnection();
+    const conversationId = this.store.selectedConversationId();
+    const key = this.conversationKey();
+    const text = this.composer.controls.text.value.trim();
+    const attachment = this.attachment();
+    if (
+      !account ||
+      account.executionMode !== 'local' ||
+      account.status !== 'connected' ||
+      !conversationId ||
+      !key ||
+      !this.store.canManage() ||
+      this.composer.invalid ||
+      (!text && !attachment) ||
+      this.messaging.busy() ||
+      this.preparingAttachment()
+    )
+      return;
+    const accepted = await this.messaging.send(
+      { workspaceId: account.workspaceId, connectionId: account.connectionId },
+      conversationId,
+      text,
+      attachment,
+    );
+    if (
+      accepted &&
+      key === this.conversationKey() &&
+      text === this.composer.controls.text.value.trim() &&
+      attachment === this.attachment()
+    ) {
+      this.composer.reset();
+      this.clearAttachment();
+    }
   }
   async approveInbox(): Promise<void> {
     const account = this.store.selectedConnection();
@@ -178,7 +435,7 @@ export class VintedMessagesComponent {
       return;
     const accepted = await this.dialog.frage({
       titel: 'Nachrichtenzugriff erlauben?',
-      text: `Flipbase darf die Gesprächsliste und bereits gelesene Nachrichten von „${account.displayName}“ über dieses Browserprofil übernehmen. Ungelesene Verläufe bleiben geschlossen. Es werden keine Nachrichten gesendet. Die vorhandene Freigabe gilt weiterhin bis zu ihrem Ablauf und kann in der Kontoverwaltung widerrufen werden.`,
+      text: `Flipbase darf die Gesprächsliste und bereits gelesene Nachrichten von "${account.displayName}" über dieses Browserprofil übernehmen. Automatische Abrufe öffnen keine ungelesenen Verläufe. Wenn Du ein Gespräch bewusst öffnest, wird dessen Verlauf abgerufen. Es werden keine Nachrichten gesendet. Die vorhandene Freigabe gilt weiterhin bis zu ihrem Ablauf und kann in der Kontoverwaltung widerrufen werden.`,
       bestaetigenText: 'Nachrichtenzugriff erlauben',
     });
     if (accepted && context === this.context()) await this.local.approveInbox();
@@ -222,6 +479,7 @@ export class VintedMessagesComponent {
       atBottom: log.scrollHeight - log.clientHeight - log.scrollTop <= 24,
       items: this.transcript()
         .map((item) => item.id)
+        .concat(this.queuedMessages().map((message) => `queue:${message.id}:${message.state}`))
         .join(':'),
     };
   }
@@ -269,6 +527,7 @@ export class VintedMessagesComponent {
     if (this.store.loadingMessages()) return;
     const items = this.transcript()
       .map((item) => item.id)
+      .concat(this.queuedMessages().map((message) => `queue:${message.id}:${message.state}`))
       .join(':');
     if (this.prepending?.key === key && this.store.loadingPage() !== 'message') {
       log.scrollTop = this.prepending.top + Math.max(0, log.scrollHeight - this.prepending.height);

@@ -9,6 +9,111 @@ import { parseLocalExtensionRequest } from '../supabase/functions/_shared/market
 
 const require = createRequire(import.meta.url);
 const core = require('../tools/flipbase-extension/vinted-local-core.js');
+const messages = require('../tools/flipbase-extension/vinted-local-messages.js');
+const scheduler = require('../tools/flipbase-extension/vinted-local-scheduler.js');
+test('Scheduler persists distinct deadlines and never catches up missed periods in a loop', async () => {
+  let stored = { binding: { expiresAt: '2099-01-01T00:00:00Z' } };
+  const calls = [];
+  const run = scheduler.createScheduler({
+    load: async () => stored,
+    save: async (next) => {
+      stored = next;
+    },
+    now: () => 1_000_000,
+    run: async (action) => {
+      calls.push(action);
+      return { nextPage: 2 };
+    },
+  });
+  await run.tick();
+  await run.tick();
+  assert.deepEqual(calls, ['INBOX_SYNC', 'MESSAGES_SEND']);
+  assert.equal(stored.schedule.latestAt, 1_300_000);
+  assert.equal(stored.schedule.commandsAt, 1_090_000);
+  assert.equal(stored.schedule.backfillAt, 1_060_000);
+});
+test('Scheduler preserves a persisted challenge pause across recreation', async () => {
+  const stored = {
+    binding: { expiresAt: '2099-01-01T00:00:00Z' },
+    schedule: { pauseReason: 'interaction_required' },
+  };
+  let calls = 0;
+  await scheduler
+    .createScheduler({
+      load: async () => stored,
+      save: async () => {},
+      now: () => 10,
+      run: async () => {
+        calls++;
+      },
+    })
+    .tick();
+  assert.equal(calls, 0);
+});
+test('Message send verifies account and CSRF before any provider write', async () => {
+  let writes = 0;
+  await assert.rejects(
+    messages.send(
+      {
+        read: async () => ({ user: { id: 999 } }),
+        write: async () => {
+          writes++;
+        },
+        csrf: 'real-token',
+      },
+      '123',
+      { externalConversationId: '51', text: 'Hallo', attachment: null },
+    ),
+  );
+  assert.equal(writes, 0);
+});
+test('Message send performs exactly one reply POST and confirms a new own message by readback', async () => {
+  let detailReads = 0;
+  const writes = [];
+  const outcome = await messages.send(
+    {
+      csrf: 'real-token',
+      read: async (path) =>
+        path.endsWith('/current')
+          ? profile
+          : {
+              conversation: {
+                id: 51,
+                messages:
+                  detailReads++ === 0 ? [] : [{ id: 62, entity: { body: 'Hallo', user_id: 123 } }],
+              },
+            },
+      write: async (path, request) => {
+        writes.push({ path, request });
+        return {};
+      },
+    },
+    '123',
+    { externalConversationId: '51', text: 'Hallo', attachment: null },
+  );
+  assert.equal(writes.length, 1);
+  assert.equal(writes[0].path, '/api/v2/conversations/51/replies');
+  assert.equal(outcome.outcome, 'sent');
+  assert.equal(outcome.externalMessageId, '62');
+});
+test('Ambiguous provider timeout is never retried', async () => {
+  let writes = 0;
+  const outcome = await messages.send(
+    {
+      csrf: 'real-token',
+      read: async (path) =>
+        path.endsWith('/current') ? profile : { conversation: { id: 51, messages: [] } },
+      write: async () => {
+        writes++;
+        throw new Error('timeout');
+      },
+    },
+    '123',
+    { externalConversationId: '51', text: 'Hallo', attachment: null },
+  );
+  assert.equal(writes, 1);
+  assert.equal(outcome.outcome, 'outcome_unknown');
+});
 const appOrigin = 'https://app.flipbase.de';
 const workspaceId = '11111111-1111-4111-8111-111111111111';
 const connectionId = '22222222-2222-4222-8222-222222222222';
@@ -115,6 +220,10 @@ test('Inbox reads preserve unread state and normalize only permitted message fie
     direction: 'inbound',
     messageType: 'text_message',
     priceLabel: null,
+    imageUrls: [],
+    eventType: null,
+    eventGroup: null,
+    offerStatus: null,
   });
   assert.equal(batch.conversationsComplete, true);
   assert.equal(batch.nextPage, 1);
@@ -872,7 +981,7 @@ test('Manifest narrows application and provider access without changing Kleinanz
         script.js.includes('kleinanzeigen-autofill.js') && script.js.includes('autofill-core.js'),
     ),
   );
-  assert.deepEqual(manifest.permissions, ['storage', 'activeTab']);
+  assert.deepEqual(manifest.permissions, ['storage', 'activeTab', 'alarms']);
 });
 
 function createReservedTabFixture(
@@ -1673,4 +1782,406 @@ test('Provider login, SMS, CAPTCHA and block errors do not recover or repeat the
     );
     assert.equal(fixture.edgeCalls.length, 0);
   }
+});
+
+test('Manual reads cannot bypass a persisted provider Retry-After', async () => {
+  const setup = harness();
+  await setup.runtime.run(request('PREPARE'), appOrigin);
+  await setup.runtime.run(request('BIND', payload), appOrigin);
+  await setup.adapter.save({
+    ...setup.saved,
+    schedule: { retryAfter: Date.parse(observedAt) + 120_000 },
+  });
+  const before = setup.edgeCalls.length;
+  await assert.rejects(
+    setup.runtime.run(request('INBOX_SYNC', scope), appOrigin),
+    (error) => error.code === 'rate_limited',
+  );
+  assert.equal(setup.edgeCalls.length, before);
+});
+
+test('Scheduler persists Retry-After and backfills only once when the cursor is pending', async () => {
+  let stored = {
+    binding: { expiresAt: '2099-01-01T00:00:00Z' },
+    schedule: { latestAt: 2_000_000, backfillAt: 1, commandsAt: 2_000_000 },
+  };
+  let time = 1_000_000;
+  const calls = [];
+  const runner = scheduler.createScheduler({
+    load: async () => stored,
+    save: async (next) => {
+      stored = next;
+    },
+    now: () => time,
+    run: async (action) => {
+      calls.push(action);
+      const error = new Error('429');
+      error.code = 'rate_limited';
+      error.retryAfter = 1_500_000;
+      throw error;
+    },
+  });
+  await runner.tick();
+  time = 1_400_000;
+  await runner.tick();
+  assert.deepEqual(calls, ['INBOX_BACKFILL']);
+  assert.equal(stored.schedule.retryAfter, 1_500_000);
+});
+
+test('Latest inbox always reads page one while preserving pending backfill cursor', async () => {
+  const reader = inboxReader([{ ...inboxConversation, unread: true }], {}, 8);
+  const batch = await core.readInbox(
+    reader.read,
+    '123',
+    { nextPage: 3, versions: [], mode: 'latest' },
+    () => observedAt,
+  );
+  assert.ok(reader.calls.includes('/api/v2/inbox?page=1&per_page=20'));
+  assert.equal(batch.nextPage, 3);
+  assert.ok(!reader.calls.some((path) => path.includes('/conversations/')));
+});
+
+test('Explicit detail uses normal GET and preserves unread and the global cursor', async () => {
+  const calls = [];
+  const batch = await core.readInboxDetail(
+    async (path) => {
+      calls.push(path);
+      if (path === '/api/v2/users/current') return profile;
+      if (path === '/api/v2/conversations/51')
+        return {
+          conversation: {
+            ...inboxConversation,
+            unread: true,
+            messages: [inboxMessage],
+            item: { id: 456, title: 'Jacke', price: { amount: '12.00', currency_code: 'EUR' } },
+            opposite_user: { id: 456, login: 'Interessentin', last_loged_on_ts: 1791100800 },
+          },
+        };
+      throw new Error('Unexpected endpoint');
+    },
+    '123',
+    { externalConversationId: '51', nextPage: 3, versions: [] },
+    () => observedAt,
+  );
+  assert.equal(calls.filter((path) => path === '/api/v2/conversations/51').length, 1);
+  assert.ok(!calls.some((path) => path.includes('mark_as_read')));
+  assert.equal(batch.nextPage, 3);
+  assert.equal(batch.conversationsComplete, false);
+  const entry = batch.entries.find((item) => item.kind === 'conversation');
+  assert.equal(entry.body.unread, true);
+  assert.equal(entry.body.itemTitle, 'Jacke');
+  assert.equal(entry.body.itemPrice, 12);
+  assert.equal(entry.body.partnerId, '456');
+  assert.ok(entry.body.lastActiveAt);
+  assert.ok(
+    parseLocalExtensionRequest({
+      ...scope,
+      action: 'inbox_detail_import',
+      conversationId: anotherId,
+      batch,
+    }),
+  );
+});
+
+async function outboxHarness() {
+  const setup = harness();
+  await setup.runtime.run(request('PREPARE'), appOrigin);
+  await setup.runtime.run(request('BIND', payload), appOrigin);
+  const command = {
+    id: anotherId,
+    claimToken: anotherId,
+    externalConversationId: '51',
+    text: 'Hallo',
+    attachment: null,
+  };
+  setup.adapter.edge = async (_binding, _authorization, body) => {
+    assert.ok(parseLocalExtensionRequest(body));
+    setup.edgeCalls.push(body);
+    if (body.action === 'heartbeat')
+      return { ok: true, externalAccountId: '123', expiresAt, messagesSend: true };
+    if (body.action === 'message_claim') return { ok: true, command };
+    return { ok: true };
+  };
+  return setup;
+}
+
+test('Message result retry after worker restart reports without another claim or provider write', async () => {
+  const setup = await outboxHarness();
+  let sends = 0;
+  let rejectFinish = true;
+  const edge = setup.adapter.edge;
+  setup.adapter.edge = async (...args) => {
+    if (args[2].action === 'message_finish' && rejectFinish) throw new Error('offline');
+    return edge(...args);
+  };
+  setup.adapter.sendMessage = async () => {
+    sends++;
+    assert.equal(setup.saved.pendingFinish.outcome, 'outcome_unknown');
+    assert.ok(setup.edgeCalls.some((call) => call.action === 'message_start'));
+    return { outcome: { outcome: 'sent', externalMessageId: '62' } };
+  };
+  await assert.rejects(setup.runtime.run(request('MESSAGES_SEND', scope), appOrigin), /offline/);
+  assert.equal(setup.saved.pendingFinish.externalMessageId, '62');
+  rejectFinish = false;
+  await core.createRuntime(setup.adapter).run(request('MESSAGES_SEND', scope), appOrigin);
+  assert.equal(sends, 1);
+  assert.equal(setup.edgeCalls.filter((call) => call.action === 'message_claim').length, 1);
+  assert.equal(setup.saved.pendingFinish, undefined);
+});
+
+test('Denied server start produces zero provider writes and only reports unknown after restart', async () => {
+  const setup = await outboxHarness();
+  let sends = 0;
+  const edge = setup.adapter.edge;
+  setup.adapter.edge = async (...args) =>
+    args[2].action === 'message_start' ? { ok: false } : edge(...args);
+  setup.adapter.sendMessage = async () => {
+    sends++;
+  };
+  await assert.rejects(
+    setup.runtime.run(request('MESSAGES_SEND', scope), appOrigin),
+    /freigegeben/,
+  );
+  await core.createRuntime(setup.adapter).run(request('MESSAGES_SEND', scope), appOrigin);
+  assert.equal(sends, 0);
+  assert.equal(setup.edgeCalls.filter((call) => call.action === 'message_claim').length, 1);
+});
+
+test('Send permission is optional and disabled by default', async () => {
+  const setup = await outboxHarness();
+  setup.adapter.edge = async (_binding, _secret, body) => {
+    assert.equal(body.action, 'heartbeat');
+    return { ok: true, externalAccountId: '123', expiresAt };
+  };
+  assert.deepEqual(await setup.runtime.run(request('MESSAGES_SEND', scope), appOrigin), {
+    skipped: true,
+  });
+});
+
+test('Send rate limit remains persisted even when finish reporting fails', async () => {
+  const setup = await outboxHarness();
+  const edge = setup.adapter.edge;
+  setup.adapter.edge = async (...args) => {
+    if (args[2].action === 'message_finish') throw new Error('offline');
+    return edge(...args);
+  };
+  setup.adapter.sendMessage = async () => ({
+    outcome: {
+      outcome: 'failed',
+      errorCode: 'rate_limited',
+      retryAfter: Date.parse(observedAt) + 180_000,
+    },
+  });
+  await assert.rejects(setup.runtime.run(request('MESSAGES_SEND', scope), appOrigin), /offline/);
+  assert.equal(setup.saved.schedule.retryAfter, Date.parse(observedAt) + 180_000);
+  assert.equal(setup.saved.pendingFinish.outcome, 'failed');
+});
+
+test('Image send validates binary signature and uploads and posts at most once', async () => {
+  assert.throws(() =>
+    messages.attachmentBytes({
+      name: 'x.png',
+      mimeType: 'image/png',
+      base64: Buffer.from('not an image').toString('base64'),
+    }),
+  );
+  const attachment = {
+    name: 'test.png',
+    mimeType: 'image/png',
+    base64: Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 0]).toString('base64'),
+  };
+  const writes = [];
+  const result = await messages.send(
+    {
+      csrf: 'synthetic-token',
+      read: async (path) =>
+        path.endsWith('/current') ? profile : { conversation: { id: 51, messages: [] } },
+      write: async (path, options) => {
+        writes.push(path);
+        if (path === '/api/v2/photos') {
+          assert.equal(options.body.get('photo[type]'), 'user_msg');
+          return { photo_temp_uuid: anotherId };
+        }
+        assert.deepEqual(JSON.parse(options.body), {
+          reply: {
+            body: null,
+            photo_temp_uuids: [anotherId],
+            is_personal_data_sharing_check_skipped: false,
+          },
+        });
+        return {};
+      },
+    },
+    '123',
+    { externalConversationId: '51', text: null, attachment },
+  );
+  assert.deepEqual(writes, ['/api/v2/photos', '/api/v2/conversations/51/replies']);
+  assert.equal(result.outcome, 'outcome_unknown');
+});
+
+test('Background recreates missing Chrome alarm on startup and uses automatic scoped requests', async () => {
+  let alarm;
+  let onAlarm;
+  let onStartup;
+  let pump;
+  let creates = 0;
+  const operations = [];
+  const chrome = {
+    storage: {
+      local: {
+        setAccessLevel: async () => {},
+        get: async () => ({}),
+        set: async () => {},
+        remove: async () => {},
+      },
+    },
+    alarms: {
+      get: async () => alarm,
+      create: async (name, options) => {
+        creates++;
+        alarm = { name, ...options };
+      },
+      onAlarm: {
+        addListener: (handler) => {
+          onAlarm = handler;
+        },
+      },
+    },
+    runtime: {
+      onMessage: { addListener: () => {} },
+      onStartup: {
+        addListener: (handler) => {
+          onStartup = handler;
+        },
+      },
+      onInstalled: { addListener: () => {} },
+    },
+  };
+  const fakeCore = {
+    ...core,
+    createRuntime: () => ({
+      run: async (request, origin) => {
+        operations.push({ request, origin });
+      },
+    }),
+  };
+  const fakeScheduler = {
+    createScheduler: (adapter) => {
+      pump = adapter.run;
+      return {
+        tick: async () => {
+          operations.push('alarm');
+        },
+      };
+    },
+  };
+  vm.runInNewContext(
+    readFileSync(
+      new URL('../tools/flipbase-extension/vinted-local-background.js', import.meta.url),
+      'utf8',
+    ),
+    {
+      globalThis: { FlipbaseVintedLocal: fakeCore, FlipbaseVintedScheduler: fakeScheduler },
+      chrome,
+      Date,
+      console,
+    },
+  );
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(creates, 1);
+  assert.equal(alarm.periodInMinutes, 0.5);
+  alarm = undefined;
+  onStartup();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(creates, 2);
+  onAlarm({ name: 'flipbase-vinted-sync' });
+  await pump('INBOX_BACKFILL', { ...scope, appOrigin });
+  assert.equal(operations[0], 'alarm');
+  assert.equal(operations[1].request.action, 'INBOX_SYNC');
+  assert.equal(operations[1].request.mode, 'backfill');
+  assert.equal(operations[1].request.automatic, true);
+  assert.equal(operations[1].origin, appOrigin);
+});
+
+test('Scheduler and manual runtime cannot execute overlapping operations', async () => {
+  const setup = await outboxHarness();
+  let finish;
+  setup.adapter.sendMessage = async () => {
+    await new Promise((resolve) => {
+      finish = resolve;
+    });
+    return { outcome: { outcome: 'outcome_unknown', errorCode: 'reply_unconfirmed' } };
+  };
+  const sending = setup.runtime.run(request('MESSAGES_SEND', scope), appOrigin);
+  while (!finish) await new Promise((resolve) => setImmediate(resolve));
+  const calls = [];
+  const runner = scheduler.createScheduler({
+    ...setup.adapter,
+    run: async (action) => {
+      calls.push(action);
+    },
+  });
+  await runner.tick();
+  assert.deepEqual(calls, []);
+  await assert.rejects(setup.runtime.run(request('INBOX_SYNC', scope), appOrigin), /Vorgang/);
+  finish();
+  await sending;
+});
+
+test('A scoped pending finish is reported after grant expiry without heartbeat, claim or provider write', async () => {
+  const setup = await outboxHarness();
+  await setup.adapter.save({
+    ...setup.saved,
+    pendingFinish: {
+      id: anotherId,
+      claimToken: anotherId,
+      outcome: 'sent',
+      externalMessageId: '62',
+    },
+  });
+  setup.setTime(Date.parse(expiresAt) + 1000);
+  const calls = [];
+  setup.adapter.edge = async (_binding, _secret, body) => {
+    calls.push(body.action);
+    assert.equal(body.action, 'message_finish');
+    return { ok: true };
+  };
+  setup.adapter.sendMessage = async () => {
+    throw new Error('No provider send during reporting');
+  };
+  const restarted = core.createRuntime(setup.adapter);
+  await assert.rejects(
+    restarted.run(request('MESSAGES_SEND', { ...scope, connectionId: anotherId }), appOrigin),
+    /Browserprofil/,
+  );
+  assert.deepEqual(calls, []);
+  assert.deepEqual(await restarted.run(request('MESSAGES_SEND', scope), appOrigin), {
+    reported: true,
+  });
+  assert.deepEqual(calls, ['message_finish']);
+  assert.equal(setup.saved.pendingFinish, undefined);
+});
+
+test('Scheduler reports persisted results despite expired grant and provider pause without an inbox read', async () => {
+  let stored = {
+    binding: { expiresAt: '2000-01-01T00:00:00Z' },
+    pendingFinish: { outcome: 'outcome_unknown' },
+    schedule: { pauseReason: 'session_blocked', retryAfter: 5_000_000 },
+  };
+  const calls = [];
+  const runner = scheduler.createScheduler({
+    load: async () => stored,
+    save: async (next) => {
+      stored = next;
+    },
+    now: () => 1_000_000,
+    run: async (action) => {
+      calls.push(action);
+      return { reported: true };
+    },
+  });
+  await runner.tick();
+  await runner.tick();
+  assert.deepEqual(calls, ['MESSAGES_SEND']);
+  assert.equal(stored.schedule.pauseReason, 'session_blocked');
 });

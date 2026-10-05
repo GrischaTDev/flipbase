@@ -19,6 +19,59 @@ const snapshot = () => ({
 const entry = (body: object = {}) => ({ ...scope, id: 'entry-a', title: 'Schal', ...body });
 
 describe('Marktplatz-Antworten', () => {
+  it('trennt Artikelbilder und Partnerbild und normalisiert optionale Gesprächsdaten', () => {
+    const conversation = parseMarketplacePage(
+      {
+        items: [
+          entry({
+            imageUrl: 'https://images.vinted.net/avatar.jpg',
+            itemImageUrl: 'https://images.vinted.net/boots.jpg',
+            itemId: '123',
+            itemTitle: 'Chelsea Boots',
+            itemPrice: 58,
+            itemCurrency: 'EUR',
+            partnerId: '456',
+            lastActiveAt: '2026-10-05T10:00:00Z',
+            transactionStatus: 'completed',
+          }),
+        ],
+        total: 1,
+        nextCursor: null,
+      },
+      scope,
+    ).items[0];
+    expect(conversation).toMatchObject({
+      imageUrl: 'https://images.vinted.net/avatar.jpg',
+      itemImageUrl: 'https://images.vinted.net/boots.jpg',
+      itemPrice: 58,
+      itemTitle: 'Chelsea Boots',
+      lastActiveAt: '2026-10-05T10:00:00Z',
+      transactionStatus: 'completed',
+    });
+  });
+  it('lässt ungültige Artikeldaten und letzte Aktivität leer', () => {
+    const conversation = parseMarketplacePage(
+      {
+        items: [
+          entry({
+            itemImageUrl: 'javascript:alert(1)',
+            itemPrice: -10,
+            itemCurrency: '???',
+            lastActiveAt: 'irgendwann',
+          }),
+        ],
+        total: 1,
+        nextCursor: null,
+      },
+      scope,
+    ).items[0];
+    expect(conversation).toMatchObject({
+      itemImageUrl: null,
+      itemPrice: null,
+      itemCurrency: null,
+      lastActiveAt: null,
+    });
+  });
   it('übernimmt ausschließlich echte Konten des angefragten Workspaces', () => {
     const data = { canManage: true, connections: createMarketplaceFixtures().connections };
     const result = parseMarketplaceConnections(data, scope.workspaceId);

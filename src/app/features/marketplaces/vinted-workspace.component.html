@@ -1,4 +1,4 @@
-<app-page-header title="Vinted" [icon]="pageIcon">
+<app-page-header [title]="showingMessages() ? 'Nachrichten' : 'Vinted'" [icon]="pageIcon()">
   @if (showingManagement()) {
     <app-button header-actions link="/marketplaces/vinted/accounts">Alle Konten</app-button>
   } @else if (showingAccounts() || showingSetup() || showingLocalConnection()) {
@@ -12,6 +12,8 @@
       [canManage]="store.canManage()"
       [refreshing]="store.busy() || local.busy()"
       [loading]="store.loadingSnapshot()"
+      [inbox]="showingMessages() && account.executionMode === 'local'"
+      [inboxSyncedAt]="local.binding()?.inboxSyncedAt ?? local.inboxImported()?.observedAt ?? null"
       [refreshLabel]="
         showingMessages() && account.executionMode === 'local'
           ? 'Nachrichten aktualisieren'
@@ -40,9 +42,11 @@
   @if (showingAccounts() || showingSetup() || showingManagement() || showingLocalConnection()) {
     <router-outlet />
   } @else if (store.selectedConnection(); as account) {
-    <app-button variant="plain" link="/marketplaces/vinted/accounts" [icon]="backIcon"
-      >Alle Konten</app-button
-    >
+    @if (!showingMessages()) {
+      <app-button variant="plain" link="/marketplaces/vinted/accounts" [icon]="backIcon"
+        >Alle Konten</app-button
+      >
+    }
     @if (store.busy()) {
       <div
         role="status"
@@ -60,7 +64,7 @@
       <app-notice-banner announcement="alert">{{ error }}</app-notice-banner>
     }
     @if (account.executionMode === 'local') {
-      @if (local.busy()) {
+      @if (local.busy() && !showingMessages()) {
         <p role="status" class="text-[13px] text-fb-text-secondary">
           Daten werden über die Erweiterung übernommen. Der Vinted-Arbeitstab öffnet sich
           automatisch.
@@ -72,7 +76,7 @@
           <app-button class="mt-2" [link]="reconnectLink()">Lokale Verbindung prüfen</app-button>
         </app-notice-banner>
       }
-      @if (local.notice(); as notice) {
+      @if (!showingMessages() && local.notice(); as notice) {
         <app-notice-banner>{{ notice }}</app-notice-banner>
       }
     }

@@ -346,6 +346,68 @@ export class VintedLocalExtensionStore {
       };
     });
   }
+  async approveSend(): Promise<boolean> {
+    const binding = this.binding();
+    if (!binding || !this.hasValidBinding() || !this.messagesAllowed() || this.busy()) return false;
+    await this.run(async (scope, valid) => {
+      const prepared = parseLocalExtensionPreparedIdentity(
+        await this.bridge.request('FLIPBASE_VINTED_LOCAL_PREPARE'),
+      );
+      if (!valid()) return {};
+      if (!prepared || prepared.identity.id !== binding.externalAccountId)
+        throw new Error('Prüfe das angemeldete Vinted-Konto in diesem Browserprofil.');
+      const approval = await this.api.approveMessaging(
+        scope,
+        prepared.tokenHash,
+        prepared.identity.id,
+      );
+      if (!valid()) return {};
+      if (Date.parse(approval.expiresAt) !== Date.parse(binding.expiresAt))
+        throw new MarketplaceResponseError();
+      const currentBinding = await this.api.read(scope);
+      if (
+        !currentBinding ||
+        currentBinding.revoked ||
+        !currentBinding.messagesSend ||
+        currentBinding.externalAccountId !== binding.externalAccountId ||
+        Date.parse(currentBinding.expiresAt) !== Date.parse(binding.expiresAt)
+      )
+        throw new MarketplaceResponseError();
+      return { binding: currentBinding };
+    });
+    return this.hasValidBinding() && this.binding()?.messagesSend === true && !this.error();
+  }
+  async openInboxConversation(conversationId: string): Promise<void> {
+    const binding = this.binding();
+    if (!binding || !this.messagesAllowed() || !/^[0-9a-f-]{36}$/i.test(conversationId)) return;
+    await this.run(async (scope, valid) => {
+      const inboxImported = parseLocalExtensionInboxSyncResult(
+        await this.bridge.request('FLIPBASE_VINTED_LOCAL_INBOX_DETAIL', {
+          ...scope,
+          conversationId,
+        }),
+        scope,
+        binding.externalAccountId,
+      );
+      if (!valid()) return {};
+      if (!inboxImported || Date.parse(inboxImported.expiresAt) !== Date.parse(binding.expiresAt))
+        throw new MarketplaceResponseError();
+      await this.accounts.refreshLocalConnection(scope, true);
+      if (!valid()) return {};
+      const currentBinding = await this.api.read(scope);
+      if (
+        !currentBinding ||
+        currentBinding.revoked ||
+        currentBinding.externalAccountId !== binding.externalAccountId
+      )
+        throw new MarketplaceResponseError();
+      return { inboxImported, binding: currentBinding };
+    });
+  }
+  async refreshStatus(): Promise<void> {
+    if (this.busy() || !this.hasValidBinding()) return;
+    await this.run(async (scope) => ({ binding: await this.api.read(scope) }));
+  }
   private async run(
     operation: (
       scope: AccountScope,

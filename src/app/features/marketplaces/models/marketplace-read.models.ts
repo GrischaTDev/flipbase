@@ -8,6 +8,7 @@ export interface MarketplacePage<T> {
 }
 export interface MarketplaceEntry extends AccountScope {
   readonly id: string;
+  readonly externalId?: string | null;
   readonly title: string;
   readonly text: string | null;
   readonly textState?: 'loaded' | 'not_loaded';
@@ -27,6 +28,39 @@ export interface MarketplaceEntry extends AccountScope {
   readonly shipmentStatus: string | null;
   readonly messageType: string | null;
   readonly priceLabel: string | null;
+  readonly itemId?: string | null;
+  readonly itemTitle?: string | null;
+  readonly itemImageUrl?: string | null;
+  readonly itemPrice?: number | null;
+  readonly itemCurrency?: string | null;
+  readonly partnerId?: string | null;
+  readonly lastActiveAt?: string | null;
+  readonly transactionStatus?: string | null;
+  readonly eventType?: string | null;
+  readonly eventGroup?: string | null;
+  readonly offerStatus?: string | null;
+}
+
+export interface LocalMessageAttachment {
+  readonly name: string;
+  readonly mimeType: 'image/jpeg' | 'image/png';
+  readonly base64: string;
+}
+export interface LocalQueuedMessage {
+  readonly id: string;
+  readonly requestId: string;
+  readonly conversationId: string;
+  readonly text: string | null;
+  readonly state:
+    'queued' | 'claimed' | 'sending' | 'sent' | 'failed' | 'outcome_unknown' | 'cancelled';
+  readonly createdAt: string;
+  readonly updatedAt: string;
+  readonly externalMessageId: string | null;
+  readonly errorCode: string | null;
+  readonly attachment: {
+    readonly name: string;
+    readonly mimeType: 'image/jpeg' | 'image/png';
+  } | null;
 }
 export interface MarketplaceFeedback {
   readonly id: string;

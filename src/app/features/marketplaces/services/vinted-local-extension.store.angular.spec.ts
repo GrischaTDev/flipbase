@@ -39,6 +39,7 @@ describe('Lokale Vinted-Freigabe', () => {
   let api: {
     approve: ReturnType<typeof vi.fn>;
     approveInbox: ReturnType<typeof vi.fn>;
+    approveMessaging: ReturnType<typeof vi.fn>;
     read: ReturnType<typeof vi.fn>;
     revoke: ReturnType<typeof vi.fn>;
   };
@@ -52,6 +53,7 @@ describe('Lokale Vinted-Freigabe', () => {
     api = {
       approve: vi.fn().mockResolvedValue(approval),
       approveInbox: vi.fn().mockResolvedValue(approval),
+      approveMessaging: vi.fn().mockResolvedValue(approval),
       read: vi.fn().mockResolvedValue(null),
       revoke: vi.fn().mockResolvedValue(undefined),
     };
@@ -92,6 +94,37 @@ describe('Lokale Vinted-Freigabe', () => {
     );
     expect(store.binding()).toEqual(binding);
     expect(store.imported()).toBeNull();
+  });
+  it('erteilt Versandrecht ausschließlich der gleichen Installation ohne Verlängerung', async () => {
+    api.read.mockResolvedValue({ ...binding, messagesRead: true });
+    await store.loadConnection({ ...localConnection, connectionId: 'next-account' });
+    api.read.mockResolvedValue({ ...binding, messagesRead: true, messagesSend: true });
+    expect(await store.approveSend()).toBe(true);
+    expect(api.approveMessaging).toHaveBeenCalledWith(
+      { ...scope, connectionId: 'next-account' },
+      prepared.tokenHash,
+      '123',
+    );
+    expect(store.binding()?.expiresAt).toBe(binding.expiresAt);
+  });
+  it('liest explizit ein Gespräch ohne den Kontowechsel zu überholen', async () => {
+    api.read.mockResolvedValue({ ...binding, messagesRead: true });
+    await store.loadConnection({ ...localConnection, connectionId: 'next-account' });
+    bridge.request.mockResolvedValue({
+      ...approval,
+      connectionId: 'next-account',
+      observedAt: imported.observedAt,
+      counts: { conversation: 1, message: 1 },
+      conversationsComplete: false,
+      nextPage: 1,
+    });
+    await store.openInboxConversation('00000000-0000-4000-8000-000000000001');
+    expect(bridge.request).toHaveBeenCalledWith('FLIPBASE_VINTED_LOCAL_INBOX_DETAIL', {
+      ...scope,
+      connectionId: 'next-account',
+      conversationId: '00000000-0000-4000-8000-000000000001',
+    });
+    expect(refresh).toHaveBeenCalledWith({ ...scope, connectionId: 'next-account' }, true);
   });
   it('erweitert eine bestehende Installation erst nach Bestätigung um das Postfach', async () => {
     api.read.mockResolvedValue(binding);
