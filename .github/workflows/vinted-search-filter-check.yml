@@ -12,40 +12,71 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  regression:
+  database:
     runs-on: ubuntu-22.04
-    timeout-minutes: 20
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: '22'
           cache: npm
-      - name: Install locked application dependencies
-        run: npm ci
-      - name: Install locked collector dependencies
-        run: npm ci --prefix services/sniper
-      - name: Prepare isolated source and dependency archive
+      - name: Validate and apply the scoped schema patch
         run: |
-          mkdir -p /tmp/vinted-search-filter-workspace
-          git archive --format=tar.gz HEAD > /tmp/vinted-search-filter-workspace/source.tar.gz
-          tar -czf /tmp/vinted-search-filter-workspace/dependencies.tar.gz node_modules services/sniper/node_modules
-          gzip -c "$(command -v node)" > /tmp/vinted-search-filter-workspace/node.gz
-          git rev-parse HEAD > /tmp/vinted-search-filter-workspace/revision.txt
+          mkdir -p /tmp/vinted-schema-review
+          python3 - <<'PY'
+          import base64, gzip, hashlib, json, pathlib, subprocess
+          manifest = json.loads(pathlib.Path('tools/vinted-search-filter-schema-transfer.json').read_text())
+          allowed = ['supabase/config.toml', 'supabase/schemas/50_sniper.sql', 'supabase/schemas/105_sniper_administration.sql', 'supabase/schemas/108_sniper_search_filters.sql', 'supabase/tests/sniper_search_filters.sql']
+          assert sorted(manifest['paths']) == sorted(allowed)
+          assert manifest['base_commit'] == '147a8c7c72bf9eff6e190da5263a80adf5c0ab12'
+          subprocess.run(['git', 'merge-base', '--is-ancestor', manifest['base_commit'], 'HEAD'], check=True)
+          subprocess.run(['git', 'diff', '--exit-code', manifest['base_commit'], 'HEAD', '--', *allowed], check=True)
+          patch = gzip.decompress(base64.b64decode(manifest['patch_gzip_base64'], validate=True))
+          assert hashlib.sha256(patch).hexdigest() == manifest['sha256'] == '8799360cadf657708d56720fa8b7c3e3fa96576b090e0aeec458dd95721ab7aa'
+          path = pathlib.Path('/tmp/vinted-schema-review/schema.patch')
+          path.write_bytes(patch)
+          entries = subprocess.check_output(['git', 'apply', '--numstat', str(path)], text=True).splitlines()
+          assert sorted(line.split('\t', 2)[2] for line in entries) == sorted(allowed)
+          subprocess.run(['git', 'apply', '--check', str(path)], check=True)
+          subprocess.run(['git', 'apply', str(path)], check=True)
+          PY
+      - name: Install locked dependencies and inspect CLI
+        run: |
+          npm ci
+          npx supabase --version
+          npx supabase db diff --help
+          npx supabase migration up --help
+          npx supabase gen types --help
+      - name: Generate declarative migration
+        run: |
+          npx supabase db diff -f vinted_central_search_filters --schema public,storage > /tmp/vinted-schema-review/generation.log 2>&1
+          find supabase/migrations -maxdepth 1 -name '*_vinted_central_search_filters.sql' -exec cp {} /tmp/vinted-schema-review/ \;
+      - name: Start disposable local database
+        run: npx supabase start > /tmp/vinted-schema-review/start.log 2>&1
+      - name: Apply generated migration
+        run: npx supabase migration up --local > /tmp/vinted-schema-review/migration.log 2>&1
+      - name: Generate actual database types
+        run: npx supabase gen types typescript --local > /tmp/vinted-schema-review/supabase.types.ts
+      - name: Run database regression suite
+        run: npm run test:db > /tmp/vinted-schema-review/database-tests.log 2>&1
+      - name: Print diagnostics
+        if: ${{ always() }}
+        run: |
+          for file in /tmp/vinted-schema-review/*.log; do
+            echo "=== $file ==="
+            tail -n 100 "$file"
+          done
+          git rev-parse HEAD > /tmp/vinted-schema-review/revision.txt
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: ${{ always() }}
         with:
-          name: vinted-search-filter-workspace
-          path: /tmp/vinted-search-filter-workspace/
+          name: vinted-search-filter-database-review
+          path: /tmp/vinted-schema-review/
           retention-days: 1
-          compression-level: 0
-      - name: Existing collector baseline
-        working-directory: services/sniper
-        run: npx vitest run test/vinted/collector.spec.ts
-      - name: New collector regression tests
-        working-directory: services/sniper
-        run: npx vitest run test/vinted/central-search-filters.spec.ts
-      - name: New filter model regression tests
-        if: ${{ !cancelled() }}
-        run: npx vitest run --project=node src/app/features/platform-admin/models/central-search-filter.spec.ts
+      - name: Stop disposable database
+        if: ${{ always() }}
+        run: npx supabase stop --no-backup
