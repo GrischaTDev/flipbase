@@ -66,6 +66,10 @@ const coreTests = [
     'marketplace-accounts.spec.ts',
     `Gibt das lokale Postfach frei und erhält das Gespräch bei ${width}px @marketplace-preview @core-smoke`,
   ]),
+  [
+    'vinted-inbox-experience.spec.ts',
+    'zeigt einen bekannten Chat sofort auch während Datenbank und Vinted noch aktualisieren @core-smoke',
+  ],
   ...[1440, 390].flatMap((width) =>
     ['light', 'dark'].map((theme) => [
       'vinted-inbox-experience.spec.ts',

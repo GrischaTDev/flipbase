@@ -244,7 +244,46 @@ describe('Vollständiges Laden eines Gesprächs', () => {
     local.messagesAllowed.set(true);
   }
 
-  it('zeigt nur den Spinner bis Vinted-Import und gespeicherter Verlauf fertig sind', async () => {
+  it('zeigt den mittigen Spinner nur solange noch kein gespeicherter Verlauf vorliegt', async () => {
+    useLocalAccount();
+    let finishRead: ((page: MarketplacePage<MarketplaceEntry>) => void) | undefined;
+    api.readPage.mockReturnValueOnce(
+      new Promise<MarketplacePage<MarketplaceEntry>>((resolve) => {
+        finishRead = resolve;
+      }),
+    );
+    let finishProvider: (() => void) | undefined;
+    local.openInboxConversation.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finishProvider = resolve;
+        }),
+    );
+    const fixture = await render();
+    const entry = store.snapshot()?.conversations.items[0];
+    if (!entry) throw new Error('Testgespräch fehlt');
+    const opening = fixture.componentInstance.openConversation(entry);
+    await settle(fixture);
+    expect(fixture.nativeElement.querySelector('[data-conversation-loading]')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-conversation-heading]')).toBeNull();
+    finishRead?.(messages(accounts[0]));
+    await settle(fixture);
+    expect(fixture.nativeElement.querySelector('[data-conversation-loading]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[role="log"]')?.textContent).toContain(
+      '<b>Hallo!</b>',
+    );
+    expect(fixture.nativeElement.querySelector('[data-conversation-sync]')?.textContent).toContain(
+      'Wird aktualisiert',
+    );
+    finishProvider?.();
+    await opening;
+    await settle(fixture);
+    expect(fixture.nativeElement.querySelector('[data-conversation-sync]')?.textContent).toContain(
+      'Synchronisiert',
+    );
+  });
+
+  it('zeigt gespeicherte Daten während der Vinted-Prüfung und aktualisiert nur den Status', async () => {
     useLocalAccount();
     let finishProvider: (() => void) | undefined;
     local.openInboxConversation.mockImplementation(
@@ -260,11 +299,20 @@ describe('Vollständiges Laden eines Gesprächs', () => {
     await settle(fixture);
     const root = fixture.nativeElement as HTMLElement;
     expect(local.openInboxConversation).toHaveBeenCalledWith(entry.id);
-    expect(root.querySelector('[data-conversation-loading]')).not.toBeNull();
-    expect(root.querySelector('[data-conversation-heading]')).toBeNull();
-    expect(root.querySelector('[data-conversation-item]')).toBeNull();
-    expect(root.querySelector('[role="log"]')).toBeNull();
-    expect(root.querySelector('[data-message-composer]')).toBeNull();
+    expect(root.querySelector('[data-conversation-loading]')).toBeNull();
+    expect(root.querySelector('[data-conversation-heading]')).not.toBeNull();
+    expect(root.querySelector('[data-conversation-item]')).not.toBeNull();
+    expect(root.querySelector('[role="log"]')?.textContent).toContain('<b>Hallo!</b>');
+    expect(root.querySelector('[data-message-composer]')).not.toBeNull();
+    expect(root.querySelector('[data-conversation-sync]')?.textContent).toContain(
+      'Wird aktualisiert',
+    );
+    expect(root.querySelector('[data-conversation-sync] .bg-fb-badge-warning')).not.toBeNull();
+    api.readPage.mockResolvedValueOnce(
+      messages(accounts[0], [
+        { id: 'message-1', text: 'Aktualisierte Nachricht', direction: 'inbound' },
+      ]),
+    );
     finishProvider?.();
     await opening;
     await settle(fixture);
@@ -275,6 +323,7 @@ describe('Vollständiges Laden eines Gesprächs', () => {
     );
     expect(root.querySelector('[data-message-composer]')).not.toBeNull();
     expect(root.querySelector('[data-conversation-sync]')?.textContent).toContain('Synchronisiert');
+    expect(root.querySelector('[role="log"]')?.textContent).toContain('Aktualisierte Nachricht');
     expect(document.activeElement).toBe(root.querySelector('[data-conversation-heading]'));
   });
 
@@ -289,7 +338,9 @@ describe('Vollständiges Laden eines Gesprächs', () => {
     await fixture.componentInstance.openConversation(entry);
     await settle(fixture);
     expect(fixture.nativeElement.querySelector('[data-conversation-loading]')).toBeNull();
-    expect(fixture.nativeElement.querySelector('[data-conversation-sync]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-conversation-sync]')?.textContent).toContain(
+      'Aktualisierung fehlgeschlagen',
+    );
     expect(fixture.nativeElement.querySelector('[role="log"]')).not.toBeNull();
   });
 
@@ -323,7 +374,9 @@ describe('Vollständiges Laden eines Gesprächs', () => {
     completions[0]();
     await first;
     await settle(fixture);
-    expect(fixture.nativeElement.querySelector('[data-conversation-loading]')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-conversation-sync]')?.textContent).toContain(
+      'Wird aktualisiert',
+    );
     completions[1]();
     await second;
     await settle(fixture);

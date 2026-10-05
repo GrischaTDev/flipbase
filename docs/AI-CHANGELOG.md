@@ -1,5 +1,41 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-05 - Juna - Gespeicherte Vinted-Chats während des Abgleichs anzeigen
+
+**Auftrag:** Vorhandene Chatdaten sofort anzeigen, Vinted beim bewussten Öffnen
+weiter prüfen und den laufenden Abgleich am orangefarbenen Status mit Spinner
+zeigen. Bleams tatsächlichen Abruf mit Browser-Use vergleichen. Eigener Zweig
+`juna/vinted-chat-background-refresh` von `origin/master` bei `b506d4fc`.
+
+**Befund und Umsetzung:** Drei beobachtete Chatwechsel in Bleam rufen dessen
+Nachrichtenserver ab; eine Antwort liefert einen am Vortag gespeicherten Verlauf
+als „fresh“. Das ist kein Nachweis eines frischen Vinted-Abrufs bei jedem Klick.
+In Flipbase verdeckte der gemeinsame Spinner bereits gespeicherte Nachrichten.
+Der Kontostore hält jetzt bis zu 50 gelesene Gesprächsseiten im Arbeitsspeicher;
+beim Wiederöffnen erscheinen diese sofort, während die bisherigen Abrufe laufen.
+Ein erster Datenbankstand wird vor dem Vinted-Import angezeigt. Nur fehlende
+Verläufe erhalten den mittigen Spinner. Shared-Badges unterscheiden laufenden,
+erfolgreichen und fehlgeschlagenen Abgleich. Ältere geladene Nachrichten bleiben
+erhalten; aufeinanderfolgende Detailabrufe konkurrieren nicht im lokalen Dienst.
+Konto-/Workspace-/Nutzerwechsel und Rechteentzug entfernen den privaten Cache.
+Keine Erweiterungs-, Rechte-, Datenbank- oder Abhängigkeitsänderung.
+
+**Prüfung:** Regression zuerst mit vier erwarteten Fehlschlägen nachgewiesen;
+134 Angular-Prüfungen einschließlich Kontentrennung, Fehlern, Gesprächswechsel,
+erhaltener älterer Nachrichten und sichtbarer Aktualisierung sind grün. Fünf
+Chromium-Prüfungen mit synthetischen Daten bestehen auf Desktop und Mobilgerät
+in beiden Themes einschließlich AXE. Typprüfung, betroffener Lint,
+Shared-UI-Prüfung (136 Dateien ohne Befund), Formatierung und Produktionsbau
+sind erfolgreich. Der separate Bleam-Vergleich liest reale Ansichten, sendet
+aber keine Nachrichten. Ein echter Flipbase-Vinted-Kontotest und Veröffentlichung
+stehen noch aus.
+
+**Freigabe:** PR, Merge nach erfolgreichen Pflichtprüfungen und Aufräumen wurden
+am 05.10.2026 bestätigt. Der Hauptzweig steht unverändert bei `b506d4fc`.
+
+Die erste PR-Prüfung fand den neuen Browserfall nicht in der verbindlichen
+Smoke-Testliste. Der Eintrag ist ergänzt; die Testauswahl wird erneut geprüft.
+
 ## 2026-10-05 - Juna - Vinted-Gespräch vollständig laden und Zeitangaben vereinfachen
 
 **Auftrag:** Relative deutsche Zeitangaben, Partnerbild, verständliche Angebote,

@@ -152,11 +152,12 @@ export class VintedMessagesComponent {
   readonly removeIcon = LucideTrash2;
   private draftRevision = 0;
   private openRevision = 0;
+  private providerRead: Promise<void> = Promise.resolve();
   readonly now = signal(Date.now());
   private readonly openingConversation = signal<{ context: string | null; id: string } | null>(
     null,
   );
-  readonly isOpeningConversation = computed(() => {
+  readonly isRefreshingConversation = computed(() => {
     const opening = this.openingConversation();
     return (
       opening !== null &&
@@ -164,6 +165,9 @@ export class VintedMessagesComponent {
       opening.id === this.store.selectedConversationId()
     );
   });
+  readonly isOpeningConversation = computed(
+    () => this.isRefreshingConversation() && !this.store.messages()?.items.length,
+  );
   private readonly dialog = inject(ConfirmDialogService);
   private readonly route = inject(ActivatedRoute);
   private readonly query = toSignal(this.route.queryParamMap, {
@@ -366,6 +370,10 @@ export class VintedMessagesComponent {
       },
     });
     this.openingConversation.set({ context, id: entry.id });
+    const isCurrent = () =>
+      context === this.context() &&
+      revision === this.openRevision &&
+      this.store.selectedConversationId() === entry.id;
     try {
       await this.store.openConversation(entry.id);
       if (
@@ -373,17 +381,17 @@ export class VintedMessagesComponent {
         account.executionMode === 'local' &&
         this.local.messagesAllowed() &&
         !this.store.error() &&
-        context === this.context() &&
-        revision === this.openRevision &&
-        this.store.selectedConversationId() === entry.id
+        isCurrent()
       ) {
-        await this.local.openInboxConversation(entry.id);
-        if (
-          context === this.context() &&
-          revision === this.openRevision &&
-          this.store.selectedConversationId() === entry.id
-        )
-          await this.store.openConversation(entry.id);
+        // Der lokale Dienst führt nur einen Abruf gleichzeitig aus. Veraltete
+        // Auswahlen warten dessen Ende ab und starten anschließend keinen Abruf.
+        const read = this.providerRead.then(async () => {
+          if (!isCurrent() || !this.local.messagesAllowed()) return;
+          await this.local.openInboxConversation(entry.id);
+          if (isCurrent()) await this.store.openConversation(entry.id);
+        });
+        this.providerRead = read;
+        await read;
       }
     } finally {
       if (revision === this.openRevision) this.openingConversation.set(null);

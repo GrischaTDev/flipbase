@@ -215,7 +215,7 @@
             aria-label="Gespeicherter Gesprächsverlauf"
             aria-live="off"
             tabindex="0"
-            [attr.aria-busy]="store.loadingMessages()"
+            [attr.aria-busy]="isRefreshingConversation() || store.loadingMessages()"
             class="min-h-0 flex-1 space-y-3 overflow-y-auto p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-fb-text-primary"
             (scroll)="captureReadingPosition()"
           >
@@ -358,19 +358,33 @@
                 </p>
               }
             }
-            @if (!store.error() && !local.error() && !store.loadingMessages() && store.messages()) {
+            @if (store.messages()) {
               <div
                 data-conversation-sync
+                role="status"
                 class="py-2 text-center"
-                [attr.title]="store.selectedConnection()?.lastSyncedAt | date: 'dd.MM.yyyy, HH:mm'"
+                [attr.title]="
+                  store.error() ||
+                  local.error() ||
+                  (store.selectedConnection()?.lastSyncedAt | date: 'dd.MM.yyyy, HH:mm')
+                "
               >
-                <app-badge tone="success"
-                  ><span
-                    aria-hidden="true"
-                    class="mr-1 inline-block size-1.5 rounded-full bg-current"
-                  ></span
-                  >Synchronisiert</app-badge
-                >
+                @if (isRefreshingConversation() || store.loadingMessages()) {
+                  <app-badge tone="caution">
+                    <app-loading-indicator size="sm" />
+                    Wird aktualisiert
+                  </app-badge>
+                } @else if (store.error() || local.error()) {
+                  <app-badge tone="caution">Aktualisierung fehlgeschlagen</app-badge>
+                } @else {
+                  <app-badge tone="success">
+                    <span
+                      aria-hidden="true"
+                      class="mr-1 inline-block size-1.5 rounded-full bg-current"
+                    ></span>
+                    Synchronisiert
+                  </app-badge>
+                }
               </div>
             }
             @for (queued of queuedMessages(); track queued.id) {

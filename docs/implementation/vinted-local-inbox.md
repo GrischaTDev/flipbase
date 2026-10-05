@@ -5,6 +5,28 @@ Nutzerauftrag anhand der Bleam-Codebefunde (Rechercheprotokoll, Punkt 37).
 
 ## Folgepaket vom 05.10.2026
 
+### Gespeicherte Gespräche sofort anzeigen und im Hintergrund prüfen
+
+Bereits geladene Verläufe bleiben im Arbeitsspeicher des aktuellen Kontostores
+(höchstens 50 Gespräche). Beim Wiederöffnen erscheinen Kopf, Artikel, Nachrichten
+und Antwortfooter sofort. Ohne diesen Zwischenspeicher wird zuerst der vorhandene
+Datenbankstand gelesen; sobald Nachrichten vorliegen, erscheinen sie bereits
+während des nachfolgenden Vinted-Abgleichs. Ein noch fehlender Verlauf zeigt
+den mittigen gelben Ladeindikator.
+
+Der orange Shared-Status „Wird aktualisiert“ bleibt bis zum Ende von
+Datenbankabruf, Vinted-Import und erneutem Datenbanklesen sichtbar. Danach
+erscheint der grüne Status; bei Fehlern bleiben die gespeicherten Nachrichten
+sichtbar und der Status nennt den fehlgeschlagenen Abgleich. Bereits nachgeladene
+ältere Nachrichten werden ebenfalls erneut aus der Datenbank gelesen, damit
+der sichtbare Verlauf nicht auf die erste Seite zurückfällt.
+
+Die bewusste Vinted-Prüfung bei jedem Öffnen bleibt erhalten. Schnell wechselnde
+Auswahlen warten den laufenden Detailabruf ab; überholte Auswahlen starten danach
+keinen zusätzlichen Abruf. Konto-/Nutzer-/Workspacewechsel, Rechteentzug und
+Zerstören des Stores leeren den Zwischenspeicher. Nachrichten werden nicht in
+localStorage geschrieben. Die Erweiterung und ihre Rechte bleiben unverändert.
+
 ### Korrektur nach der Kontoabnahme: Erweiterung 1.3.1
 
 Der Antworteditor bleibt im Kartenfooter, der Gesprächskopf darüber mit letzter
