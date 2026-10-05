@@ -824,23 +824,44 @@
               : !identifier(command.externalConversationId))
           )
             throw new Error('Der Nachrichtenauftrag ist ungültig.');
-          installation.pendingFinish = {
+          const pendingFinish = {
             ...(favorite ? { favorite: true } : {}),
             id: command.id,
             claimToken: command.claimToken,
             outcome: 'outcome_unknown',
             errorCode: 'interrupted',
           };
-          await adapter.save(installation);
-          const started = await adapter.edge(binding, installation.secret, {
-            action: favorite ? 'favorite_start' : 'message_start',
-            workspaceId: binding.workspaceId,
-            connectionId: binding.connectionId,
-            id: command.id,
-            claimToken: command.claimToken,
-          });
+          if (!favorite) {
+            installation.pendingFinish = pendingFinish;
+            await adapter.save(installation);
+          }
+          let started;
+          try {
+            started = await adapter.edge(binding, installation.secret, {
+              action: favorite ? 'favorite_start' : 'message_start',
+              workspaceId: binding.workspaceId,
+              connectionId: binding.connectionId,
+              id: command.id,
+              claimToken: command.claimToken,
+            });
+          } catch (error) {
+            if (favorite && error instanceof LocalBindingInvalidError) {
+              // Eine Einstellungsänderung kann den Claim verwerfen; der nächste Heartbeat prüft den Grant.
+              const rejected = new Error(
+                'Dieser Favoritenauftrag wurde vor dem Versand verworfen.',
+              );
+              rejected.code = 'favorite_not_started';
+              throw rejected;
+            }
+            throw error;
+          }
           if (started?.ok !== true)
             throw new Error('Der Nachrichtenversand wurde nicht freigegeben.');
+          if (favorite) {
+            // Der Serverzustand verhindert Wiederholung nach einem Abbruch vor dieser Speicherung.
+            installation.pendingFinish = pendingFinish;
+            await adapter.save(installation);
+          }
           let outcome;
           try {
             const sent = await (favorite ? adapter.sendFavorite : adapter.sendMessage)(

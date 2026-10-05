@@ -37,6 +37,9 @@ Unterhaltungen und jeder bereits gefüllte zurückgegebene Verlauf werden zunäc
 konservativ ausgelassen. Dieser letzte Fall braucht die Echtkonto-Abnahme.
 
 Ereignis, Claim, Versandbeginn und Ergebnis bleiben in der Datenbank gespeichert.
+Der lokale Ergebnisauftrag wird erst nach bestätigtem Serverstart und vor dem
+Provideraufruf gespeichert. Ein zuvor abgelehnter Auftrag blockiert dadurch
+keine weiteren Abgleiche; ein Abbruch nach Serverstart bleibt dort unklar.
 Ein Versuch pro Interessent/Artikel, kein automatischer Neuversand nach unklarem
 Ausgang. Ein unbegonnener abgelaufener Claim darf wieder aufgenommen werden;
 ein begonnener abgelaufener Versand wird unklar. Nach einem Browserneustart wird
@@ -52,9 +55,9 @@ separat; diese Automatik beantwortet neue Favorisierungen mit Textnachrichten.
 **Prüfung:** 62 neue Datenbankassertions und 153 bestehende lokale Assertions
 nach Einspielen der erzeugten Migration erfolgreich. Der vollständige öffentliche
 Schema-Dump inklusive Rechten stimmt mit dem Zielstand überein. Datenbanktypen
-sind aus der migrierten Datenbank neu erzeugt. 106 betroffene Workflowprüfungen,
+sind aus der migrierten Datenbank neu erzeugt. 107 betroffene Workflowprüfungen,
 21 Deno-Tests einschließlich der tatsächlichen RPC-Zuordnung, drei Modelltests
-und vier Angular-Komponententests bestanden. Desktop-/Mobiltest mit AXE,
+und fünf Angular-Komponententests bestanden. Desktop-/Mobiltest mit AXE,
 Typprüfung, betroffene Lint-/Formatprüfung und Produktionsbau bestanden.
 Der zusätzliche Angular-CLI-Testbuilder scheitert an vorhandenen Tests in
 Einkauf und Shell; der projektübliche Angular-Vitest-Lauf ist grün.

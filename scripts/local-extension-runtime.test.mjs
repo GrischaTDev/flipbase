@@ -2365,6 +2365,31 @@ test('A favorite receipt after restart is reported as favorite without another c
   assert.ok(!setup.edgeCalls.some((call) => call.action === 'message_finish'));
 });
 
+test('A denied favorite start leaves no receipt and does not block later manual messages', async () => {
+  const setup = await favoriteHarness();
+  let sends = 0;
+  const edge = setup.adapter.edge;
+  setup.adapter.edge = async (...args) => {
+    if (args[2].action === 'favorite_start') throw new core.LocalBindingInvalidError();
+    if (args[2].action === 'message_claim') return { ok: true, command: null };
+    return edge(...args);
+  };
+  setup.adapter.sendFavorite = async () => {
+    sends++;
+  };
+  await assert.rejects(
+    setup.runtime.run(request('FAVORITES_SEND', scope), appOrigin),
+    (error) => error.code === 'favorite_not_started',
+  );
+  assert.equal(setup.saved.pendingFinish, undefined);
+  assert.equal(sends, 0);
+  assert.deepEqual(
+    await core.createRuntime(setup.adapter).run(request('MESSAGES_SEND', scope), appOrigin),
+    { pending: false },
+  );
+  assert.ok(!setup.edgeCalls.some((call) => call.action === 'favorite_finish'));
+});
+
 test('Favorite contracts reject forged targets, extra keys and unproven sent receipts', () => {
   const input = {
     ...scope,

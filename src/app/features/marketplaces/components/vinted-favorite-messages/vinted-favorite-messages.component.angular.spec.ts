@@ -116,6 +116,19 @@ describe('Favorite message account and activation lifecycle', () => {
     expect(fixture.componentInstance.settings()?.version).toBe(0);
     expect(fixture.componentInstance.settings()?.active).toBe(true);
   });
+  it('asks again after a renewed grant even when send permission is already approved', async () => {
+    const activeSettings = { ...settings, enabled: true, active: true, version: 3 };
+    api.read.mockResolvedValue(activeSettings);
+    const fixture = await render();
+    fixture.componentInstance.form.controls.templates.at(0).setValue('Geänderter Text');
+    api.read.mockResolvedValue({ ...activeSettings, active: false });
+    await fixture.componentInstance.save();
+    expect(dialog.frage).toHaveBeenCalledOnce();
+    expect(api.save).not.toHaveBeenCalled();
+    dialog.frage.mockResolvedValueOnce(true);
+    await fixture.componentInstance.save();
+    expect(api.save).toHaveBeenCalledOnce();
+  });
   it('does not reset edits after a refreshed account record with the same scope', async () => {
     const fixture = await render();
     fixture.componentInstance.form.controls.templates.at(0).setValue('Mein Text');

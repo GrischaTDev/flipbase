@@ -215,7 +215,9 @@ export class VintedFavoriteMessagesComponent {
     this.error.set(null);
     this.saved.set(false);
     try {
-      if (values.enabled && (!settings.enabled || !this.local.binding()?.messagesSend)) {
+      const currentSettings = values.enabled ? await this.api.read(settings) : settings;
+      if (!this.isCurrent(context, revision)) return;
+      if (values.enabled && (!currentSettings.active || !this.local.binding()?.messagesSend)) {
         const confirmed = await this.dialog.frage({
           titel: 'Favoritennachrichten aktivieren?',
           text: 'Flipbase sendet Deine Vorlagen automatisch an neue Interessenten dieses Kontos. Frühere Favorisierungen werden ausgelassen. Dein Browser muss laufen.',

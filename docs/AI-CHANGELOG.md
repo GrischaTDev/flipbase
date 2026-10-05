@@ -16,14 +16,18 @@ aus dem echten Konto gesendet und keine vorhandene Einstellung verändert.
 **Prüfung:** 62 neue und 153 bestehende Datenbankassertions nach Einspielen der
 erzeugten Migration bestanden; vollständiger öffentlicher Schemaabgleich inklusive
 Rechten ohne Unterschiede. Typen aus der migrierten Datenbank neu erzeugt.
-106 betroffene Workflowprüfungen, 21 Deno-Tests einschließlich der RPC-Zuordnung,
-drei Modell- und vier Angular-Komponententests bestanden. Desktop/Mobil mit AXE,
+107 betroffene Workflowprüfungen, 21 Deno-Tests einschließlich der RPC-Zuordnung,
+drei Modell- und fünf Angular-Komponententests bestanden. Desktop/Mobil mit AXE,
 Typprüfung, betroffene Format-/Lintprüfung und Produktionsbau bestanden.
 Der zusätzliche Angular-CLI-Testbuilder scheitert an bestehenden Tests in
 Einkauf und Shell; der projektübliche Vitest-Lauf besteht. Erweiterung 1.4.0.
 Nicht veröffentlicht; der echte Favoriten-Versandtest bleibt ausstehend.
 Der erste PR-Browserlauf erkannte die noch veraltete Navigationserwartung;
 der vorhandene Test berücksichtigt jetzt den neuen Menüpunkt.
+Das Abschlussreview ergänzte zwei Regressionstests: Eine erneuerte Freigabe
+braucht erneut eine ausdrückliche Aktivierungsbestätigung. Ein vor dem Versand
+verworfener Favoritenauftrag hinterlässt keinen blockierenden Ergebnisauftrag;
+dieser wird erst nach bestätigtem Serverstart und vor dem Provideraufruf gespeichert.
 Der geladene Erweiterungs-Code hat den vollständigen Scan-/Versandpfad in einem
 isolierten DOM-Test mit synthetischen Antworten bestätigt; fehlende Browserfreigabe
 verhindert bereits das Anlegen der Unterhaltung.
