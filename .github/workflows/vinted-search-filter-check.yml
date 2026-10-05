@@ -24,7 +24,7 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - name: Validate and apply the scoped schema patch
+      - name: Validate the scoped schema patch
         run: |
           mkdir -p /tmp/vinted-schema-review
           python3 - <<'PY'
@@ -42,7 +42,6 @@ jobs:
           entries = subprocess.check_output(['git', 'apply', '--numstat', str(path)], text=True).splitlines()
           assert sorted(line.split('\t', 2)[2] for line in entries) == sorted(allowed)
           subprocess.run(['git', 'apply', '--check', str(path)], check=True)
-          subprocess.run(['git', 'apply', str(path)], check=True)
           PY
       - name: Install locked dependencies and inspect CLI
         run: |
@@ -51,11 +50,25 @@ jobs:
           npx supabase db diff --help
           npx supabase migration up --help
           npx supabase gen types --help
-      - name: Generate declarative migration
+      - name: Capture pre-existing declarative drift in a disposable baseline
         run: |
+          npx supabase db diff -f vinted_generation_baseline --schema public,storage > /tmp/vinted-schema-review/baseline-generation.log 2>&1
+          find supabase/migrations -maxdepth 1 -name '*_vinted_generation_baseline.sql' -exec cp {} /tmp/vinted-schema-review/ \;
+      - name: Generate only the new filter changes
+        run: |
+          git apply /tmp/vinted-schema-review/schema.patch
           npx supabase db diff -f vinted_central_search_filters --schema public,storage > /tmp/vinted-schema-review/generation.log 2>&1
           find supabase/migrations -maxdepth 1 -name '*_vinted_central_search_filters.sql' -exec cp {} /tmp/vinted-schema-review/ \;
-      - name: Start disposable local database
+          find supabase/migrations -maxdepth 1 -name '*_vinted_generation_baseline.sql' -delete
+          python3 - <<'PY'
+          from pathlib import Path
+          files = list(Path('supabase/migrations').glob('*_vinted_central_search_filters.sql'))
+          assert len(files) == 1
+          text = files[0].read_text()
+          for excluded in ['public.marketplace_', 'public.purchase_', 'public.catalog_product_', 'public.expense_', 'public.listing_images', 'public.beta_discord_links']:
+              assert excluded not in text, f'Unrelated schema drift: {excluded}'
+          PY
+      - name: Start disposable database with only the real feature migration
         run: npx supabase start > /tmp/vinted-schema-review/start.log 2>&1
       - name: Apply generated migration
         run: npx supabase migration up --local > /tmp/vinted-schema-review/migration.log 2>&1
@@ -68,7 +81,7 @@ jobs:
         run: |
           for file in /tmp/vinted-schema-review/*.log; do
             echo "=== $file ==="
-            tail -n 100 "$file"
+            tail -n 80 "$file"
           done
           git rev-parse HEAD > /tmp/vinted-schema-review/revision.txt
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
