@@ -27,6 +27,21 @@ const scopeA: BrowserSessionScope = {
 };
 const scopeB = { ...scopeA, connectionId: 'account-b' };
 
+test('setup session cannot be reused through normal or another setup scope', async () => {
+  const { broker } = setup();
+  const setupScope = { ...scopeA, cloudSetup: { setupId: 'setup-a' } };
+  const id = await broker.open(setupScope);
+  await assert.rejects(
+    broker.run(scopeA, id, async () => undefined),
+    /Sitzungszugriff/,
+  );
+  await assert.rejects(
+    broker.run({ ...scopeA, cloudSetup: { setupId: 'setup-b' } }, id, async () => undefined),
+    /Sitzungszugriff/,
+  );
+  await broker.close(setupScope, id);
+});
+
 function setup() {
   const leases = new Map<string, BrowserLease>();
   const stopped: string[] = [];

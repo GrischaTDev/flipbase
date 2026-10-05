@@ -2,7 +2,7 @@ import type {
   CloudSetupRequest,
   CloudSetupResult,
   CloudSetupView,
-} from '../../../supabase/functions/_shared/marketplace-cloud-setup-contracts.d.ts';
+} from './marketplace-cloud-setup-contracts.d.ts';
 import { parseCloudSetupView, parseCloudSetupResult } from './marketplace-cloud-setup-response.ts';
 import type { BrowserSessionScope } from './marketplace-browser-session-broker.ts';
 import { chromiumAccountProfileIdPattern } from './chromium-account-profile-registry.ts';

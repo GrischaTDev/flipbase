@@ -23,6 +23,8 @@ import type { VintedListingEditFields } from './vinted-browser-listing-edit.ts';
 import type { MarketplaceSyncRunner } from './marketplace-sync-runner.ts';
 import type { SupabaseVintedListingCache } from './supabase-vinted-listing-cache.ts';
 import type { SupabaseVintedProfileCache } from './supabase-vinted-profile-cache.ts';
+import type { MarketplaceCloudSetup } from './marketplace-cloud-setup.ts';
+import type { CloudSetupRequest } from './marketplace-cloud-setup-contracts.d.ts';
 
 interface BrowserBroker {
   open(scope: BrowserSessionScope): Promise<string>;
@@ -65,6 +67,10 @@ interface BrowserApiOptions {
   listingCache?: Pick<SupabaseVintedListingCache, 'save'>;
   profileCache?: Pick<SupabaseVintedProfileCache, 'save'>;
   readOnly?: boolean;
+  cloudSetups?: Pick<
+    MarketplaceCloudSetup,
+    'availability' | 'begin' | 'read' | 'open' | 'authorize' | 'verify' | 'complete' | 'cancel'
+  >;
   scheduledSync?: () => {
     enabled: boolean;
     authorizationVersion: number;
@@ -232,6 +238,7 @@ export class MarketplaceBrowserHttpApi {
   private readonly listingCache?: BrowserApiOptions['listingCache'];
   private readonly profileCache?: BrowserApiOptions['profileCache'];
   private readonly readOnly: boolean;
+  private readonly cloudSetups?: BrowserApiOptions['cloudSetups'];
   private readonly scheduledSync?: BrowserApiOptions['scheduledSync'];
   private readonly inFlight = new Set<string>();
 
@@ -247,6 +254,7 @@ export class MarketplaceBrowserHttpApi {
     this.profileCache = options.profileCache;
     this.scheduledSync = options.scheduledSync;
     this.readOnly = options.readOnly ?? false;
+    this.cloudSetups = options.cloudSetups;
   }
 
   createServer(): Server {
@@ -260,7 +268,7 @@ export class MarketplaceBrowserHttpApi {
 
   private async handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
     try {
-      const path = new URL(request.url ?? '/', 'http://localhost').pathname;
+      let path = new URL(request.url ?? '/', 'http://localhost').pathname;
       if (request.method === 'GET' && path === '/marketplace-browser/healthz') {
         json(response, 200, {
           ok: true,
@@ -282,7 +290,78 @@ export class MarketplaceBrowserHttpApi {
       }
       if (!uuidPattern.test(userId)) throw new RequestError(401);
       const body = await readBody(request);
-      const scope = scopeOf(body, userId, token);
+      if (
+        path === '/marketplace-browser/cloud-setups/availability' ||
+        path === '/marketplace-browser/cloud-setups/begin'
+      ) {
+        if (!this.cloudSetups || this.readOnly) throw new RequestError(503);
+        const workspaceId = body['workspaceId'];
+        if (typeof workspaceId !== 'string' || !uuidPattern.test(workspaceId))
+          throw new RequestError(400);
+        if (path.endsWith('/availability')) {
+          if (Object.keys(body).length !== 1) throw new RequestError(400);
+          json(response, 200, {
+            canSetup: await this.cloudSetups.availability(workspaceId, token),
+          });
+          return;
+        }
+        const requestId = body['requestId'];
+        const connectionId = body['connectionId'];
+        const displayName = body['displayName'];
+        if (
+          typeof requestId !== 'string' ||
+          !uuidPattern.test(requestId) ||
+          Object.keys(body).length !== 3 ||
+          (connectionId !== undefined
+            ? typeof connectionId !== 'string' ||
+              !uuidPattern.test(connectionId) ||
+              displayName !== undefined
+            : typeof displayName !== 'string' || !displayName.trim() || displayName.length > 120)
+        )
+          throw new RequestError(400);
+        const setupRequest: CloudSetupRequest =
+          typeof connectionId === 'string'
+            ? { workspaceId, connectionId, requestId }
+            : { workspaceId, displayName: displayName as string, requestId };
+        try {
+          json(response, 200, { ...(await this.cloudSetups.begin(setupRequest, userId, token)) });
+        } catch {
+          json(response, 503, {
+            code: 'cloud_ip_check_failed',
+            error:
+              'Die Cloud-IP-Verfügbarkeit konnte nicht geprüft werden. Bitte versuche es erneut.',
+          });
+        }
+        return;
+      }
+      let scope = scopeOf(body, userId, token);
+      let accounts = this.accounts;
+      const setupMatch = path.match(
+        /^\/marketplace-browser\/cloud-setups\/([0-9a-f-]{36})\/(read|open|complete|cancel|frame|input|login|verify|identify)$/i,
+      );
+      if (setupMatch) {
+        const setupId = setupMatch[1];
+        const action = setupMatch[2];
+        if (!setupId || !uuidPattern.test(setupId) || !this.cloudSetups || this.readOnly)
+          throw new RequestError(404);
+        if (action === 'read' || action === 'complete' || action === 'cancel') {
+          json(response, 200, { ...(await this.cloudSetups[action](scope, setupId)) });
+          return;
+        }
+        if (action === 'open') {
+          json(response, 201, { id: await this.cloudSetups.open(scope, setupId) });
+          return;
+        }
+        scope = await this.cloudSetups.authorize(scope, setupId);
+        const setup = await this.cloudSetups.read(scope, setupId);
+        if (!setup.sessionId) throw new RequestError(410);
+        const cloudSetups = this.cloudSetups;
+        accounts = {
+          confirm: (accountScope, _sessionId, identity) =>
+            cloudSetups.verify(accountScope, setupId, identity),
+        };
+        path = `${pathPrefix}/${setup.sessionId}/${action}`;
+      }
       if (path === '/marketplace-browser/connections/sync/start') {
         if (this.readOnly) throw new RequestError(403);
         if (!this.operations) throw new RequestError(503);
@@ -596,7 +675,6 @@ export class MarketplaceBrowserHttpApi {
           delete body['credentials'];
           credentials['username'] = '';
           credentials['password'] = '';
-          const accounts = this.accounts;
           try {
             const result = await this.broker.run(scope, sessionId, async (browser) => {
               if (accounts && browser.identify) {
@@ -672,19 +750,35 @@ export class MarketplaceBrowserHttpApi {
         if (match[2] === 'input') {
           if (this.readOnly) throw new RequestError(403);
           const input = inputOf(body);
-          await this.broker.run(scope, sessionId, async (browser) => {
-            if (input.kind === 'click' && browser.click) return browser.click(input.x, input.y);
-            if (input.kind === 'drag' && browser.drag) return browser.drag(input.points);
-            if (input.kind === 'type' && browser.type) return browser.type(input.value);
-            if (input.kind === 'press' && browser.press) return browser.press(input.key);
-            throw new Error('Eingabe nicht verfügbar');
+          const accepted = await this.broker.run(scope, sessionId, async (browser) => {
+            if (scope.cloudSetup) {
+              if (!browser.identify) return false;
+              try {
+                if (await browser.identify()) return false;
+              } catch (failure) {
+                if (!(
+                  failure instanceof VintedLoginPendingError ||
+                  failure instanceof VintedLoginRejectedError ||
+                  failure instanceof VintedVerificationRequiredError ||
+                  failure instanceof VintedInteractionRequiredError
+                ))
+                  throw failure;
+              }
+            }
+            if (input.kind === 'click' && browser.click) await browser.click(input.x, input.y);
+            else if (input.kind === 'drag' && browser.drag) await browser.drag(input.points);
+            else if (input.kind === 'type' && browser.type) await browser.type(input.value);
+            else if (input.kind === 'press' && browser.press) await browser.press(input.key);
+            else throw new Error('Eingabe nicht verfügbar');
+            return true;
           });
+          if (!accepted) throw new RequestError(403);
           json(response, 200, { accepted: true });
           return;
         }
         if (match[2] === 'identify') {
           if (this.readOnly) throw new RequestError(403);
-          if (!this.accounts) throw new RequestError(503);
+          if (!accounts) throw new RequestError(503);
           const identity = await this.broker.run(scope, sessionId, async (browser) => {
             if (!browser.identify) return null;
             try {
@@ -706,7 +800,7 @@ export class MarketplaceBrowserHttpApi {
           if (identity === 'verification_required') throw new VintedVerificationRequiredError();
           if (identity === 'interaction_required') throw new VintedInteractionRequiredError();
           if (!identity) throw new RequestError(422);
-          await this.accounts.confirm(scope, sessionId, identity);
+          await accounts.confirm(scope, sessionId, identity);
           json(response, 200, {
             workspaceId: scope.workspaceId,
             connectionId: scope.connectionId,

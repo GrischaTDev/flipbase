@@ -10,6 +10,48 @@ const scope = {
   userAccessToken: 'user-test-token',
 };
 
+test('setup lease uses only setup reserve and check RPCs', async () => {
+  const calls: string[] = [];
+  const setupScope = { ...scope, cloudSetup: { setupId: 'setup-a' } };
+  const store = new SupabaseBrowserSessionStore({
+    url: 'https://example.test',
+    publishableKey: 'public',
+    serviceRoleKey: 'server',
+    runtime: { workerId: 'worker-a', workerEpoch: 3 },
+    fetch: async (url, request) => {
+      const name = new URL(String(url)).pathname.split('/').at(-1) ?? '';
+      calls.push(name);
+      if (name === 'user') return Response.json({ id: scope.userId });
+      if (name === 'marketplace_browser_session_bind_worker') return Response.json(true);
+      const body = JSON.parse(String(request?.body));
+      assert.equal(body.p_setup_id, 'setup-a');
+      if (name === 'marketplace_cloud_setup_session_reserve')
+        return Response.json({
+          id: 'lease-a',
+          workspaceId: scope.workspaceId,
+          connectionId: scope.connectionId,
+          state: 'active',
+          expiresAt: new Date(Date.now() + 60000).toISOString(),
+        });
+      return Response.json({
+        id: 'lease-a',
+        workspaceId: scope.workspaceId,
+        connectionId: scope.connectionId,
+        active: true,
+      });
+    },
+  });
+  const lease = await store.acquire(setupScope);
+  assert.equal(await store.assertActive(lease), true);
+  assert.deepEqual(calls, [
+    'user',
+    'marketplace_cloud_setup_session_reserve',
+    'marketplace_browser_session_bind_worker',
+    'user',
+    'marketplace_cloud_setup_session_check',
+  ]);
+});
+
 test('known PostgreSQL busy rejection preserves the worker and returns a neutral busy error', async () => {
   let recoveries = 0;
   let reservations = 0;

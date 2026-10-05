@@ -2,7 +2,7 @@ import type {
   CloudSetupState,
   CloudSetupView,
   CloudSetupResult,
-} from '../../../supabase/functions/_shared/marketplace-cloud-setup-contracts.d.ts';
+} from './marketplace-cloud-setup-contracts.d.ts';
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const states: readonly CloudSetupState[] = [

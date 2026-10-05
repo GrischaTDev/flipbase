@@ -7,13 +7,16 @@ und dem Wechsel von der lokalen Erweiterung zur Cloud umsetzen. Automatische
 Bestellungen und Abrechnung bleiben ein späteres Paket.
 
 **Stand:** Eigener Arbeitszweig auf dem aktuellen Integrationsstand. Private
-IP-Metadaten, dauerhafte Reservierung und atomare Übergabe sind implementiert;
-Profil-, Worker- und Oberflächenintegration folgen im selben Zweig. Der andere
+IP-Metadaten, dauerhafte Reservierung und atomare Übergabe sind implementiert.
+Profile und begrenzte Worker-Einrichtung sind angebunden; die Oberfläche folgt
+im selben Zweig. Der andere
 Extension-Zweig wird nicht verändert. Bestehende gemeinsame Planung ergänzt.
 
-**Prüfung:** 43 neue Datenbankassertions und 123 bestehende lokale Assertions
+**Prüfung:** 46 neue Datenbankassertions und 123 bestehende lokale Assertions
 bestanden. Zwei echte parallele Datenbanksitzungen belegen eine einzige
-Reservierung bei einer freien IP. Noch kein Produktionswechsel oder echter
+Reservierung bei einer freien IP. 282 Workertests bestanden, fünf
+Umgebungsprüfungen übersprungen; Worker-Typprüfung und Bau bestanden.
+Noch kein Produktionswechsel oder echter
 Proxy-/Vinted-Test; Zugangsdaten werden nicht im Repository gespeichert.
 
 ## 2026-10-05 - Juna - IP-Zuordnung bei mehreren Vinted-Konten eingeordnet

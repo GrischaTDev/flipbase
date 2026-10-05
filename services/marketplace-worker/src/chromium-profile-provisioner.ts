@@ -3,7 +3,10 @@ import {
   ChromiumAccountProfileRegistry,
   chromiumAccountProfileIdPattern,
 } from './chromium-account-profile-registry.ts';
-import type { SupabaseMarketplaceCloudSetupStore } from './supabase-marketplace-cloud-setup-store.ts';
+import type {
+  SupabaseMarketplaceCloudSetupStore,
+  PrivateCloudSetup,
+} from './supabase-marketplace-cloud-setup-store.ts';
 import type { ChromiumNetwork } from './chromium-network-profiles.ts';
 
 interface ProvisionerOptions {
@@ -18,6 +21,7 @@ interface ProvisionerOptions {
     'readAuthorized' | 'step' | 'assertNetwork'
   >;
   networks?: { resolve(networkId: string): ChromiumNetwork };
+  cleanupCloudConnection?: (scope: BrowserSessionScope) => Promise<void>;
   legacy?: {
     prepare(scope: BrowserSessionScope): Promise<void>;
     remove?(scope: BrowserSessionScope, stopSessions: () => Promise<void>): Promise<void>;
@@ -142,6 +146,27 @@ export class ChromiumProfileProvisioner {
     if (sessions.length) throw new Error('Browserstopp nicht bestätigt');
   }
 
+  async cleanupCloudSetup(scope: BrowserSessionScope, setup: PrivateCloudSetup): Promise<void> {
+    const store = this.options.cloudSetups;
+    if (!store || !this.options.stopProfile || setup.setup.state !== 'cleanup_pending')
+      throw new Error('Cloudbereinigung nicht freigegeben');
+    const remembered = await this.options.registry.find(scope.workspaceId, scope.connectionId);
+    const profileId =
+      setup.profileId ?? (remembered?.networkId === setup.networkId ? remembered.profileId : null);
+    if (profileId) {
+      if (remembered) {
+        if (remembered.profileId !== profileId || remembered.networkId !== setup.networkId)
+          throw new Error('Ungeklärte private Profilzuordnung');
+        await this.options.stopProfile(profileId);
+      }
+      await this.assertStopped(scope);
+      if (setup.profileId) await store.step(scope, setup.setup.setupId, 'detach', { profileId });
+      else if ((await this.mapping(scope)) !== null)
+        throw new Error('Ungebundenes Cloudprofil ist weiterhin zugeordnet');
+      await this.options.registry.archive(profileId);
+    } else await this.assertStopped(scope);
+  }
+
   async remove(scope: BrowserSessionScope, stopSessions: () => Promise<void>): Promise<void> {
     const status = await this.authorize(scope, true);
     const profileId = await this.mapping(scope);
@@ -179,6 +204,7 @@ export class ChromiumProfileProvisioner {
       if (remaining.length) throw new Error('Browsersitzung wird noch beendet');
     }
     await this.authorize(scope, true);
+    await this.options.cleanupCloudConnection?.(scope);
     const deleted = await this.rows(
       'marketplace_connections',
       { workspace_id: `eq.${scope.workspaceId}`, id: `eq.${scope.connectionId}`, select: 'id' },

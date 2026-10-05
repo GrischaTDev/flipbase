@@ -31,6 +31,7 @@ import { SupabaseVintedProfileCache } from './supabase-vinted-profile-cache.ts';
 import { MarketplaceSyncDispatcher } from './marketplace-sync-dispatcher.ts';
 import { SupabaseMarketplaceSyncDispatchStore } from './supabase-marketplace-sync-dispatch-store.ts';
 import { SupabaseMarketplaceCloudSetupStore } from './supabase-marketplace-cloud-setup-store.ts';
+import { MarketplaceCloudSetup } from './marketplace-cloud-setup.ts';
 
 async function main(): Promise<void> {
   const config = marketplaceBrowserServerConfig(process.env);
@@ -48,6 +49,7 @@ async function main(): Promise<void> {
   let browser: LocalPlaywrightBrowser | GoLoginCloudBrowser | MarketplaceProfileBrowser;
   let profiles: GoLoginProfileProvisioner | ChromiumProfileProvisioner | undefined;
   let registry: ChromiumAccountProfileRegistry | undefined;
+  let cloudSetups: MarketplaceCloudSetup | undefined;
   let networks: ChromiumNetworkProfiles | undefined;
   let chromiumProfileOptions:
     ConstructorParameters<typeof ChromiumProfileProvisioner>[0] | undefined;
@@ -105,6 +107,7 @@ async function main(): Promise<void> {
       registry: chromiumRegistry,
       legacy: legacyProfiles,
       stopProfile: (profileId) => browser.stop(profileId),
+      cleanupCloudConnection: (scope) => cloudSetups?.releaseConnection(scope) ?? Promise.resolve(),
     };
   }
   const isCloud = config.provider !== 'local';
@@ -182,6 +185,10 @@ async function main(): Promise<void> {
     authorizeRuntime: dispatcher ? () => dispatcher.heartbeat() : undefined,
   });
   await broker.ready();
+  if (cloudSetupStore && profiles instanceof ChromiumProfileProvisioner) {
+    cloudSetups = new MarketplaceCloudSetup({ store: cloudSetupStore, profiles, broker });
+    await cloudSetups.recover(true);
+  }
   const importWriter = isCloud
     ? new SupabaseVintedImportWriter({
         url: config.supabaseUrl,
@@ -205,6 +212,7 @@ async function main(): Promise<void> {
     broker,
     users: new SupabaseBrowserUserVerifier(config.supabaseUrl, config.publishableKey),
     profiles,
+    cloudSetups,
     accounts: isCloud
       ? new SupabaseVintedAccountWriter({
           url: config.supabaseUrl,
@@ -254,7 +262,8 @@ async function main(): Promise<void> {
     reconciling = true;
     void broker
       .reconcile()
-      .catch(() => undefined)
+      .then(() => cloudSetups?.recover())
+      .catch(() => process.stderr.write('Browserbereinigung bleibt ausstehend!\n'))
       .finally(() => {
         reconciling = false;
       });

@@ -302,6 +302,8 @@ interface MarketplaceCloudSetup {
 
 Die HTTP-API ergänzt `POST /marketplace-browser/cloud-setups/begin` und
 `POST /marketplace-browser/cloud-setups/{setupId}/{read|complete|cancel}`.
+Der ausdrückliche Schritt `{setupId}/open` bereitet das Profil vor und startet
+die Anmeldung. `read` liest nur den Zustand und startet keinen Browser.
 Anmeldeaktionen erhalten denselben Setup-Pfad mit `{frame|input|login|verify|identify}`.
 Jede Anfrage prüft Benutzer und Setup-Zuordnung serverseitig. Ein vom Client
 gesendetes `cloudSetup`-Objekt wird nicht als Berechtigung übernommen.
