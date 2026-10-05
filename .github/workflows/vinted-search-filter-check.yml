@@ -1,0 +1,38 @@
+name: Vinted search filter development check
+
+on:
+  push:
+    branches: [juna/vinted-central-search-filters]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vinted-central-search-filters-check
+  cancel-in-progress: true
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked application dependencies
+        run: npm ci
+      - name: Install locked collector dependencies
+        run: npm ci --prefix services/sniper
+      - name: Existing collector baseline
+        working-directory: services/sniper
+        run: npx vitest run test/vinted/collector.spec.ts
+      - name: New collector regression tests
+        working-directory: services/sniper
+        run: npx vitest run test/vinted/central-search-filters.spec.ts
+      - name: New filter model regression tests
+        if: ${{ !cancelled() }}
+        run: npx vitest run --project=node src/app/features/platform-admin/models/central-search-filter.spec.ts
