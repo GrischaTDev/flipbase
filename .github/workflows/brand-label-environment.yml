@@ -1,0 +1,45 @@
+name: Label integration environment
+
+on:
+  push:
+    branches: ['juna/brand-labels']
+    paths: ['.github/workflows/brand-label-environment.yml']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: label-integration-environment
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out the integration branch without credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up the project Node version
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+      - name: Archive tracked sources only
+        run: |
+          mkdir -p "$RUNNER_TEMP/label-integration"
+          git archive --format=tar.gz HEAD > "$RUNNER_TEMP/label-integration/source.tar.gz"
+          git rev-parse HEAD > "$RUNNER_TEMP/label-integration/source-commit.txt"
+          sha256sum package-lock.json > "$RUNNER_TEMP/label-integration/lock.sha256"
+      - name: Install the locked public dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts
+      - name: Package dependency files without runner or Git configuration
+        run: tar -czf "$RUNNER_TEMP/label-integration/node-modules.tar.gz" node_modules
+      - name: Upload temporary integration files
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: label-integration-environment
+          path: ${{ runner.temp }}/label-integration/
+          if-no-files-found: error
+          retention-days: 1
