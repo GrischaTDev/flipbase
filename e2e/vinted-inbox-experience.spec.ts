@@ -70,6 +70,8 @@ async function inboxFixture(page: Page, longHistory = false) {
   let providerRequests = 0;
   let pendingDetail: Promise<void> | null = null;
   let finishDetail: (() => void) | undefined;
+  let pendingStoredMessages: Promise<void> | null = null;
+  let finishStoredMessages: (() => void) | undefined;
   await page.route('https://www.vinted.de/**', (route) => {
     providerRequests++;
     return route.abort();
@@ -152,9 +154,10 @@ async function inboxFixture(page: Page, longHistory = false) {
       },
     }),
   );
-  await page.route('**/rest/v1/rpc/marketplace_read_page', (route) => {
+  await page.route('**/rest/v1/rpc/marketplace_read_page', async (route) => {
     const body = route.request().postDataJSON();
     if (body['p_kind'] !== 'message') return route.fallback();
+    if (pendingStoredMessages) await pendingStoredMessages;
     return route.fulfill({
       json: {
         items: [
@@ -252,6 +255,15 @@ async function inboxFixture(page: Page, longHistory = false) {
   return {
     enqueues,
     bridgeCalls,
+    pauseStoredMessages() {
+      pendingStoredMessages = new Promise<void>((resolve) => {
+        finishStoredMessages = resolve;
+      });
+    },
+    resumeStoredMessages() {
+      finishStoredMessages?.();
+      pendingStoredMessages = null;
+    },
     pauseDetails() {
       pendingDetail = new Promise<void>((resolve) => {
         finishDetail = resolve;
@@ -280,6 +292,41 @@ async function checkAxe(page: Page) {
   expect(violations).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 }
+
+test('zeigt einen bekannten Chat sofort auch während Datenbank und Vinted noch aktualisieren @core-smoke', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 960 });
+  const fixture = await inboxFixture(page);
+  await page.goto('/marketplaces/vinted/messages');
+  const rows = page.locator('[data-conversation-row]');
+  await expect(rows).toHaveCount(2);
+  const conversation = page.getByRole('region', { name: 'Gespräch', exact: true });
+  await rows.nth(0).getByRole('button').click();
+  await expect(conversation.locator('[data-conversation-sync]')).toContainText('Synchronisiert');
+  await rows.nth(1).getByRole('button').click();
+  await expect(conversation.getByRole('heading', { name: 'Ben', exact: true })).toBeVisible();
+  await expect(conversation.locator('[data-conversation-sync]')).toContainText('Synchronisiert');
+  fixture.pauseStoredMessages();
+  fixture.pauseDetails();
+  await rows.nth(0).getByRole('button').click();
+  await expect(conversation.getByRole('heading', { name: 'Anna', exact: true })).toBeVisible();
+  await expect(conversation.getByText('Vintage Lederjacke', { exact: true })).toBeVisible();
+  await expect(conversation.getByRole('log')).toContainText('Abgelehnt');
+  await expect(conversation.locator('[data-conversation-loading]')).toHaveCount(0);
+  await expect(conversation.locator('[data-conversation-sync]')).toContainText('Wird aktualisiert');
+  fixture.resumeStoredMessages();
+  await expect
+    .poll(
+      () =>
+        fixture.bridgeCalls.filter((type) => type === 'FLIPBASE_VINTED_LOCAL_INBOX_DETAIL').length,
+    )
+    .toBe(3);
+  await expect(conversation.locator('[data-conversation-sync]')).toContainText('Wird aktualisiert');
+  fixture.resumeDetails();
+  await expect(conversation.locator('[data-conversation-sync]')).toContainText('Synchronisiert');
+  await checkAxe(page);
+});
 
 for (const { width, theme } of [
   { width: 1440, theme: 'light' },
@@ -330,6 +377,7 @@ for (const { width, theme } of [
     await page.getByRole('option', { name: 'Ungelesen (1)', exact: true }).click();
     await expect(rows).toHaveCount(1);
     fixture.pauseDetails();
+    fixture.pauseStoredMessages();
     await rows.first().getByRole('button').click();
     const conversation = page.getByRole('region', { name: 'Gespräch', exact: true });
     await expect(conversation.locator('[data-conversation-loading]')).toBeVisible();
@@ -339,6 +387,20 @@ for (const { width, theme } of [
     if (screenshotDirectory)
       await page.screenshot({
         path: join(screenshotDirectory, `vinted-inbox-loading-${width}-${theme}.png`),
+        fullPage: true,
+      });
+    fixture.resumeStoredMessages();
+    await expect(conversation.getByRole('heading', { name: 'Anna', exact: true })).toBeVisible();
+    await expect(conversation.locator('[data-conversation-loading]')).toHaveCount(0);
+    await expect(conversation.getByRole('log')).toBeVisible();
+    await expect(conversation.locator('[data-message-composer]')).toBeVisible();
+    await expect(conversation.locator('[data-conversation-sync]')).toContainText(
+      'Wird aktualisiert',
+    );
+    await checkAxe(page);
+    if (screenshotDirectory)
+      await page.screenshot({
+        path: join(screenshotDirectory, `vinted-inbox-refreshing-${width}-${theme}.png`),
         fullPage: true,
       });
     fixture.resumeDetails();

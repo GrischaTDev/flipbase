@@ -564,6 +564,71 @@ describe('Inseratbeschreibungen und Kennzahlen', () => {
   });
 });
 describe('Wiederholen eines bereits gewählten gespeicherten Gesprächs', () => {
+  it('behält bereits nachgeladene ältere Nachrichten beim erneuten Abgleich', async () => {
+    await settle();
+    const entry = snapshot(accountA).conversations.items[0];
+    const recent = { ...entry, id: 'message-new', conversationId: 'conversation-a' };
+    const older = { ...entry, id: 'message-old', conversationId: 'conversation-a' };
+    api.readPage.mockResolvedValueOnce({ items: [recent], total: 2, nextCursor: 'older' });
+    await store.openConversation('conversation-a');
+    api.readPage.mockResolvedValueOnce({ items: [older], total: 2, nextCursor: null });
+    await store.loadMore('message');
+    api.readPage.mockResolvedValueOnce({ items: [recent], total: 2, nextCursor: 'older' });
+    api.readPage.mockResolvedValueOnce({ items: [older], total: 2, nextCursor: null });
+    await store.openConversation('conversation-a');
+    expect(store.messages()?.items.map((message) => message.id)).toEqual([
+      'message-new',
+      'message-old',
+    ]);
+    expect(store.messages()?.nextCursor).toBeNull();
+    expect(api.readPage).toHaveBeenLastCalledWith(
+      { workspaceId: accountA.workspaceId, connectionId: accountA.connectionId },
+      'message',
+      'older',
+      'conversation-a',
+    );
+  });
+  it('zeigt einen zuvor geöffneten Verlauf sofort und prüft die Datenbank erneut', async () => {
+    await settle();
+    const initial = snapshot(accountA);
+    api.readSnapshot.mockResolvedValueOnce({
+      ...initial,
+      conversations: {
+        items: [
+          ...initial.conversations.items,
+          { ...initial.conversations.items[0], id: 'conversation-b' },
+        ],
+        total: 2,
+        nextCursor: null,
+      },
+    });
+    await store.selectConnection(accountA.connectionId);
+    api.readPage.mockResolvedValueOnce({ items: [], total: 7, nextCursor: 'older' });
+    await store.openConversation('conversation-a');
+    await store.openConversation('conversation-b');
+    const pending = deferred<ReturnType<typeof emptyPage>>();
+    api.readPage.mockReturnValueOnce(pending.promise);
+    const opening = store.openConversation('conversation-a');
+    expect(store.messages()?.total).toBe(7);
+    expect(store.loadingMessages()).toBe(true);
+    pending.resolve({ items: [], total: 8, nextCursor: null });
+    await opening;
+    expect(store.messages()?.total).toBe(8);
+  });
+
+  it('verwendet den Verlauf nicht für ein anderes Konto mit derselben Gesprächs-ID', async () => {
+    await settle();
+    api.readPage.mockResolvedValueOnce({ items: [], total: 7, nextCursor: null });
+    await store.openConversation('conversation-a');
+    await store.selectConnection(accountB.connectionId);
+    const pending = deferred<ReturnType<typeof emptyPage>>();
+    api.readPage.mockReturnValueOnce(pending.promise);
+    const opening = store.openConversation('conversation-a');
+    expect(store.messages()).toBeNull();
+    pending.resolve(emptyPage());
+    await opening;
+    expect(store.messages()?.total).toBe(0);
+  });
   it('erlaubt nur die zuvor validierte Auswahl außerhalb der ersten Snapshotseite', async () => {
     await settle();
     await store.openConversation('conversation-a');

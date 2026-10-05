@@ -11,6 +11,26 @@ und der [lokale Pilotplan](../implementation/vinted-local-extension-pilot.md).
 Das Protokoll enthält eigene Notizen; Zugangsdaten, Kontodumps und kopierte
 Anwendungspakete werden nicht mit veröffentlicht.
 
+## Nachrichtenabruf beim Chatwechsel: Live-Abgleich vom 05.10.2026
+
+Im geöffneten Bleam-Postfach wurden zwei bereits bekannte Gespräche und danach
+das erste Gespräch erneut ausgewählt. CDP bestätigt jeweils einen GET auf
+`/api/messaging/conversations/<id>` am Bleam-Nachrichtenserver. Während des
+Wechsels verschwindet der Gesprächsbereich kurz zugunsten eines Ladeindikators.
+
+Eine gelesene Antwort enthält `thread_state: fresh`, `thread.synced_at` und
+`thread_hash`. Der gespeicherte Zeitpunkt lag am Vortag; dennoch erscheint
+„Synchronisiert“. Der sichtbare Spinner belegt damit einen Abruf bei Bleam,
+keinen frischen Vinted-Abgleich bei jedem Klick. Ob dessen Server beim Abruf
+zusätzlich einen Auftrag auslöst, ist aus dieser Beobachtung nicht nachgewiesen.
+Es wurden keine Nachrichten gesendet und keine Bot-Einstellungen geändert.
+
+Nutzerentscheidung für Flipbase: Bekannte Daten sofort zeigen und Vinted beim
+bewussten Öffnen weiter prüfen. Der Verlauf bleibt währenddessen sichtbar;
+ein orangefarbener Status mit Spinner zeigt den Abgleich, danach wird er grün.
+Ein noch fehlender Verlauf erhält den mittigen Ladeindikator. Fehler behalten
+die gespeicherten Daten und bestätigen keinen neuen erfolgreichen Abgleich.
+
 ## Cloudbetrieb und Bleam-Abgleich vom 03.10.2026
 
 Ziel bleibt ein eigener, rund um die Uhr erreichbarer Cloudbetrieb für überwiegend

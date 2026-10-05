@@ -69,6 +69,7 @@ export class MarketplaceAccountStore {
   private readonly accountSnapshot = signal<MarketplaceSnapshot | null>(null);
   private readonly conversationId = signal<string | null>(null);
   private readonly messagePage = signal<MarketplacePage<MarketplaceEntry> | null>(null);
+  private readonly conversationPages = new Map<string, MarketplacePage<MarketplaceEntry>>();
   private readonly access = signal(false);
   private readonly fetching = signal(false);
   private readonly fetchingSnapshot = signal(false);
@@ -239,6 +240,7 @@ export class MarketplaceAccountStore {
     const revision = ++this.connectionsRevision;
     this.selectionRevision++;
     this.clearDescriptions();
+    this.conversationPages.clear();
     this.selectionEpoch.update((value) => value + 1);
     this.conversationRevision++;
     this.accountList.set([]);
@@ -280,6 +282,7 @@ export class MarketplaceAccountStore {
     const key = this.contextKey();
     if (!connection || !key || !this.canManage()) return;
     this.clearDescriptions();
+    this.conversationPages.clear();
     if (this.metricConnectionId !== connection.connectionId) {
       this.clearListingMetrics();
       this.metricConnectionId = connection.connectionId;
@@ -421,18 +424,20 @@ export class MarketplaceAccountStore {
         conversation === this.conversationId() &&
         conversationRevision === this.conversationRevision
       ) {
-        const messages = await this.api.readPage(
+        const messages = await this.readConversationMessages(
           this.scope(connection),
-          'message',
-          null,
           conversation,
+          () =>
+            isCurrent() &&
+            conversation === this.conversationId() &&
+            conversationRevision === this.conversationRevision,
         );
         if (
           isCurrent() &&
           conversation === this.conversationId() &&
           conversationRevision === this.conversationRevision
         )
-          this.messagePage.set(messages);
+          this.acceptConversationMessages(conversation, messages);
       }
     } catch (error) {
       if (isCurrent()) this.handleError(error);
@@ -521,17 +526,24 @@ export class MarketplaceAccountStore {
     const selection = this.selectionRevision;
     if (this.fetchingPage() === 'message') this.fetchingPage.set(null);
     this.conversationId.set(id);
-    if (!alreadySelected) this.messagePage.set(null);
+    if (!alreadySelected) this.messagePage.set(this.conversationPages.get(id) ?? null);
     this.fetchingMessages.set(true);
     this.loadError.set(null);
     try {
-      const result = await this.api.readPage(this.scope(connection), 'message', null, id);
+      const result = await this.readConversationMessages(
+        this.scope(connection),
+        id,
+        () =>
+          this.isCurrent(key) &&
+          revision === this.conversationRevision &&
+          selection === this.selectionRevision,
+      );
       if (
         this.isCurrent(key) &&
         revision === this.conversationRevision &&
         selection === this.selectionRevision
       )
-        this.messagePage.set(result);
+        this.acceptConversationMessages(id, result);
     } catch (error) {
       if (
         this.isCurrent(key) &&
@@ -580,8 +592,10 @@ export class MarketplaceAccountStore {
         ...new Map([...page.items, ...result.items].map((item) => [item.id, item])).values(),
       ];
       const combined = { ...result, items };
-      if (kind === 'message') this.messagePage.set(combined);
-      else {
+      if (kind === 'message') {
+        const conversationId = this.selectedConversationId();
+        if (conversationId) this.acceptConversationMessages(conversationId, combined);
+      } else {
         if (kind === 'publication') this.observeListingMetrics(result.items);
         this.accountSnapshot.update((value) =>
           value ? { ...value, [snapshotPages[kind]]: combined } : value,
@@ -969,6 +983,7 @@ export class MarketplaceAccountStore {
   }
   private reset(): void {
     this.clearDescriptions();
+    this.conversationPages.clear();
     this.clearListingMetrics();
     this.selectionEpoch.update((value) => value + 1);
     this.accountList.set([]);
@@ -992,6 +1007,38 @@ export class MarketplaceAccountStore {
   private clearDescriptions(): void {
     this.descriptions.clear();
     this.descriptionRequests.clear();
+  }
+  private acceptConversationMessages(id: string, page: MarketplacePage<MarketplaceEntry>): void {
+    this.conversationPages.delete(id);
+    this.conversationPages.set(id, page);
+    if (this.conversationPages.size > 50) {
+      const oldest = this.conversationPages.keys().next().value;
+      if (oldest) this.conversationPages.delete(oldest);
+    }
+    this.messagePage.set(page);
+  }
+  private async readConversationMessages(
+    scope: AccountScope,
+    id: string,
+    isCurrent: () => boolean,
+  ): Promise<MarketplacePage<MarketplaceEntry>> {
+    const target = this.conversationPages.get(id)?.items.length ?? 0;
+    let page = await this.api.readPage(scope, 'message', null, id);
+    const seen = new Set<string>();
+    // Bereits geöffnete ältere Nachrichten bleiben auch beim Abgleich sichtbar.
+    while (isCurrent() && page.items.length < target && page.nextCursor) {
+      const cursor = page.nextCursor;
+      if (seen.has(cursor) || seen.size >= 100) throw new MarketplaceResponseError();
+      seen.add(cursor);
+      const next = await this.api.readPage(scope, 'message', cursor, id);
+      page = {
+        ...next,
+        items: [
+          ...new Map([...page.items, ...next.items].map((entry) => [entry.id, entry])).values(),
+        ],
+      };
+    }
+    return page;
   }
   private cacheDescription(id: string, description: VintedListingDescription): void {
     this.descriptions.delete(id);
