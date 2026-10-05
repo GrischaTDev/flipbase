@@ -15,6 +15,8 @@
 - „Cloudprofile erhalten jeweils eine eigene feste deutsche Dedicated-ISP-IP.“
 - „Automatische Käufe, Verlängerungen, Kündigungen und Änderungen an Kundenabonnements sind spätere Aufgaben.“
 - „Proxyzugangsdaten bleiben in der bestehenden privaten Serverkonfiguration“.
+- Der gemessene Ausgang erhält eine eindeutige private Prüfsumme; zwei Kennungen
+  derselben tatsächlichen IP dürfen nicht als zwei freie IPs gelten.
 - Ohne freie IP: „Aktuell sind keine freien Cloud-IPs vorhanden.“
 - Bei einem Prüffehler: „Die Cloud-IP-Verfügbarkeit konnte nicht geprüft werden. Bitte versuche es erneut.“
 - „Bestehende Datensätze behalten ihre Verbindungs-ID.“
@@ -500,7 +502,13 @@ gemessenen Ausgang abgleichen; bei widersprüchlichen Ergebnissen nicht freigebe
 
 ## Abschluss und Ausführung
 
-Die fünf lokalen Aufgaben sind umgesetzt und geprüft. Der unabhängige Review des
-gesamten Zweigs und die Freigabe für Push/PR stehen noch aus. Die produktive
+Die fünf lokalen Aufgaben sind umgesetzt und geprüft, mit PR 303 auf
+`origin/master` (`b916699a`) zusammengeführt. Der unabhängige Review des gesamten
+Zweigs ist erfolgt. Seine drei Befunde sind korrigiert: tatsächlicher
+REST-Spaltenname, eindeutiger gemessener IP-Ausgang und Unsicherheitssperre für
+verlorene Einrichtungssitzungen. Datenbank- und echte lokale REST-Regressionen,
+Workerprüfung, Desktop/Mobil-Browserfälle samt AXE sowie Format/Lint,
+Typprüfungen und Bauten bestehen. Die Freigabe für Push/PR steht noch aus.
+Die produktive
 Registrierung der gekauften IP, eine echte Kontozuordnung und der Hetzner-Livetest
 sind nicht ausgeführt. Sie bleiben ausdrücklich getrennte Freigabeschritte.

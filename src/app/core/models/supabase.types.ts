@@ -2360,6 +2360,7 @@ export type Database = {
           country_code: string
           created_at: string
           enabled: boolean
+          exit_ip_fingerprint: string
           expires_at: string
           id: number
           is_dedicated_isp: boolean
@@ -2372,6 +2373,7 @@ export type Database = {
           country_code: string
           created_at?: string
           enabled?: boolean
+          exit_ip_fingerprint: string
           expires_at: string
           id?: never
           is_dedicated_isp?: boolean
@@ -2384,6 +2386,7 @@ export type Database = {
           country_code?: string
           created_at?: string
           enabled?: boolean
+          exit_ip_fingerprint?: string
           expires_at?: string
           id?: never
           is_dedicated_isp?: boolean

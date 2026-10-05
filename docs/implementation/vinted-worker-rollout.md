@@ -43,7 +43,10 @@ keiner Freigabe und keinem direkten Ausweichzugang. Das ist ein Konnektivitäts-
 und Standorttest, kein Nachweis erfolgreicher Vinted-Anmeldung.
 
 Die Datenbank erhält nur Netzwerkkennung, Bestellreferenz, Land, ISP-Eigenschaft,
-Ablaufzeit und Prüfzeit. Die CLI überschreibt keine bestehende Zuordnung und
+Ablaufzeit, Prüfzeit und eine SHA-256-Prüfsumme des gemessenen IP-Ausgangs.
+Eine eindeutige Datenbankregel verhindert, dass derselbe Ausgang unter mehreren
+Kennungen als freie IP erscheint. Erneutes Registrieren mit verändertem Ausgang
+wird abgewiesen. Die CLI überschreibt keine bestehende Zuordnung und
 prüft nach verlorener Schreibantwort die tatsächlich gespeicherte Zeile.
 `--list` zeigt Kennung, Bestellreferenz, Ablaufzeit und Belegungszustand; keine
 Proxyadresse oder Zugangsdaten. Eine abgelaufene oder deaktivierte IP sperrt

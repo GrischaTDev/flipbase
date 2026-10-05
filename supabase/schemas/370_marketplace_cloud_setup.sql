@@ -3,6 +3,7 @@
 create table public.marketplace_cloud_ips (
   id bigint generated always as identity primary key,
   network_id text not null unique check (network_id ~ '^[a-z0-9][a-z0-9_-]{0,63}$' and network_id<>'direct'),
+  exit_ip_fingerprint text not null unique check (exit_ip_fingerprint ~ '^[0-9a-f]{64}$'),
   provider text not null default 'iproyal' check (provider='iproyal'),
   order_reference text not null check (char_length(order_reference) between 1 and 128),
   country_code text not null check (country_code ~ '^[A-Z]{2}$'),

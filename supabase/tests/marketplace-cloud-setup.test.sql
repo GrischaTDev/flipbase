@@ -16,10 +16,11 @@ insert into public.workspace_members(workspace_id,user_id,role) values
 insert into public.marketplace_connections(id,workspace_id,display_name) values
  ('37100000-0000-4000-8000-000000000021','37100000-0000-4000-8000-000000000011','Local A'),
  ('37100000-0000-4000-8000-000000000022','37100000-0000-4000-8000-000000000011','Local B');
-insert into public.marketplace_cloud_ips(network_id,order_reference,country_code,expires_at,enabled,verified_at) values
- ('expired-ip','order-expired','DE',now()-interval '1 day',true,now()),
- ('foreign-ip','order-foreign','FR',now()+interval '30 days',true,now()),
- ('iproyal-test-a','order-test','DE',now()+interval '30 days',true,now());
+insert into public.marketplace_cloud_ips(network_id,exit_ip_fingerprint,order_reference,country_code,expires_at,enabled,verified_at) values
+ ('expired-ip',repeat('1',64),'order-expired','DE',now()-interval '1 day',true,now()),
+ ('foreign-ip',repeat('2',64),'order-foreign','FR',now()+interval '30 days',true,now()),
+ ('iproyal-test-a',repeat('3',64),'order-test','DE',now()+interval '30 days',true,now());
+select throws_ok($$insert into public.marketplace_cloud_ips(network_id,exit_ip_fingerprint,order_reference,country_code,expires_at) values('same-exit-alias',repeat('3',64),'order-test','DE',now()+interval '30 days')$$,'23505',null,'The same physical exit cannot become a second free IP');
 create function pg_temp.begin_setup(p_connection uuid default '37100000-0000-4000-8000-000000000021',p_request uuid default '37100000-0000-4000-8000-000000000031',p_name text default null)
 returns jsonb language sql as $$ select public.marketplace_cloud_setup_begin('37100000-0000-4000-8000-000000000011',p_connection,p_request,p_name); $$;
 create function pg_temp.step(p_action text,p_identity text default null,p_profile text default null) returns jsonb language sql as $$

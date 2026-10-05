@@ -70,7 +70,7 @@ try {
     insert into public.workspaces(id,name) values('${workspace}','Cloud Paralleltest');
     insert into public.workspace_members(workspace_id,user_id,role) values('${workspace}','${user}','owner');
     insert into public.marketplace_connections(id,workspace_id,display_name,execution_mode) values ${connections.map((id) => `('${id}','${workspace}','Test','local')`).join(',')};
-    insert into public.marketplace_cloud_ips(network_id,order_reference,country_code,expires_at,enabled,verified_at) values('${network}','test','DE',clock_timestamp()+interval '1 day',true,clock_timestamp()); commit;`);
+    insert into public.marketplace_cloud_ips(network_id,exit_ip_fingerprint,order_reference,country_code,expires_at,enabled,verified_at) values('${network}',repeat('e',64),'test','DE',clock_timestamp()+interval '1 day',true,clock_timestamp()); commit;`);
   const first = start(`${reserve(0)} select 'first-reserved';`);
   await wait(() => first.output().includes('first-reserved'), 'Erste Reservierung fehlt');
   const second = start(`${reserve(1)} commit;`);

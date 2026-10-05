@@ -11,17 +11,25 @@ IP-Metadaten, dauerhafte Reservierung und atomare Übergabe sind implementiert.
 Profile, begrenzte Worker-Einrichtung und die Oberfläche sind angebunden. Der andere
 Extension-Zweig wird nicht verändert. Bestehende gemeinsame Planung ergänzt.
 
-**Prüfung:** 46 neue Datenbankassertions und 123 bestehende lokale Assertions
+**Prüfung:** 47 neue Datenbankassertions und 123 bestehende lokale Assertions
 bestanden. Zwei echte parallele Datenbanksitzungen belegen eine einzige
-Reservierung bei einer freien IP. 287 Workertests bestanden, sechs
+Reservierung bei einer freien IP. 292 Workertests bestanden, sechs
 Umgebungsprüfungen unter Windows übersprungen; neun Netzwerk- und
 Registrierungsprüfungen unter Linux ohne Auslassung bestanden.
-Worker-Typprüfung und Bau, betroffene Angulartests und Angularbau bestanden.
+Worker-Typprüfung und Bau, 149 betroffene Angular-Assertions sowie zwei
+Vertragsprüfungen nach Integration von PR 303 und Angularbau bestanden.
 31 Browserprüfungen einschließlich Kapazitätsmeldung, lokalem Betrieb und
 Cloudwechsel auf Desktop/Mobil bestanden; AXE-Prüfungen eingeschlossen.
 Die private Bestandsregistrierung prüft Standort, Laufzeit und Dateirechte.
-Noch kein Produktionswechsel oder echter
-Proxy-/Vinted-Test; Zugangsdaten werden nicht im Repository gespeichert.
+Der unabhängige Review fand einen falschen REST-Spaltennamen, fehlende
+Eindeutigkeit des tatsächlichen IP-Ausgangs und eine fehlende Unsicherheitssperre
+bei verlorener Cloud-Sitzungsreservierung. Alle drei korrigiert und mit erwarteten
+Fehlschlägen sowie anschließend erfolgreichen Prüfungen abgesichert. Die
+Registrierung einschließlich gleichzeitiger IP-Aliase lief gegen den isolierten
+echten PostgREST-Dienst; der Proxy-Ausgang war dabei eine künstliche Testantwort.
+Beide erzeugten Migrationen lokal neu eingespielt und Typen erneut generiert.
+Noch kein Produktionswechsel oder echter Proxy-/Vinted-Test; Zugangsdaten
+werden nicht im Repository gespeichert. Push und PR benötigen die Freigabe.
 
 ## 2026-10-05 - Juna - IP-Zuordnung bei mehreren Vinted-Konten eingeordnet
 

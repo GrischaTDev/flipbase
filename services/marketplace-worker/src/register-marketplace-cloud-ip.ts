@@ -1,6 +1,7 @@
 import { lstat } from 'node:fs/promises';
 import { isAbsolute } from 'node:path';
 import { isIP } from 'node:net';
+import { createHash } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { ChromiumNetworkProfiles, type ChromiumNetwork } from './chromium-network-profiles.ts';
@@ -24,7 +25,7 @@ interface RegistrationOptions {
 }
 const safeError = () => new Error('Cloud-IP konnte nicht sicher geprüft oder registriert werden.');
 const columns =
-  'network_id,provider,order_reference,country_code,is_dedicated_isp,expires_at,is_enabled,verified_at';
+  'network_id,exit_ip_fingerprint,provider,order_reference,country_code,is_dedicated_isp,expires_at,enabled,verified_at';
 function record(candidate: unknown): candidate is Record<string, unknown> {
   return !!candidate && typeof candidate === 'object' && !Array.isArray(candidate);
 }
@@ -53,15 +54,16 @@ function database(options: RegistrationOptions): {
     },
   };
 }
-function matches(row: unknown, registration: Registration): boolean {
+function matches(row: unknown, registration: Registration, exitFingerprint: string): boolean {
   return (
     record(row) &&
     row['network_id'] === registration.networkId &&
+    row['exit_ip_fingerprint'] === exitFingerprint &&
     row['provider'] === 'iproyal' &&
     row['order_reference'] === registration.orderReference &&
     row['country_code'] === 'DE' &&
     row['is_dedicated_isp'] === true &&
-    row['is_enabled'] === true &&
+    row['enabled'] === true &&
     typeof row['verified_at'] === 'string' &&
     Number.isFinite(Date.parse(row['verified_at'])) &&
     typeof row['expires_at'] === 'string' &&
@@ -149,6 +151,7 @@ export async function registerMarketplaceCloudIp(
       (first === 100 && second >= 64 && second <= 127)
     )
       throw safeError();
+    const exitFingerprint = createHash('sha256').update(exit.ip).digest('hex');
     const db = database(options);
     const read = async (): Promise<unknown[]> => {
       const response = await db.request(
@@ -162,17 +165,18 @@ export async function registerMarketplaceCloudIp(
     };
     const existing = await read();
     if (existing.length) {
-      if (!matches(existing[0], registration)) throw safeError();
+      if (!matches(existing[0], registration, exitFingerprint)) throw safeError();
       return { networkId: registration.networkId, status: 'already_registered' };
     }
     const body = {
       network_id: registration.networkId,
+      exit_ip_fingerprint: exitFingerprint,
       provider: 'iproyal',
       order_reference: registration.orderReference,
       country_code: 'DE',
       is_dedicated_isp: true,
       expires_at: new Date(registration.expiresAt).toISOString(),
-      is_enabled: true,
+      enabled: true,
       verified_at: new Date(now()).toISOString(),
     };
     try {
@@ -187,7 +191,7 @@ export async function registerMarketplaceCloudIp(
       /* Die bestätigte Zeile klärt eine verlorene Schreibantwort ohne weitere Bestellung. */
     }
     const confirmed = await read();
-    if (!matches(confirmed[0], registration)) throw safeError();
+    if (!matches(confirmed[0], registration, exitFingerprint)) throw safeError();
     return { networkId: registration.networkId, status: 'registered' };
   } catch {
     throw safeError();
@@ -222,7 +226,7 @@ export async function listMarketplaceCloudIps(
         (setup: unknown) =>
           record(setup) && typeof setup['state'] === 'string' && setup['state'] !== 'cancelled',
       );
-      const state = !row['is_enabled']
+      const state = !row['enabled']
         ? 'disabled'
         : !(Date.parse(row['expires_at']) > now)
           ? 'expired'

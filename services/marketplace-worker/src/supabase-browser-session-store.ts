@@ -239,6 +239,9 @@ export class SupabaseBrowserSessionStore {
     userAccessToken: string,
     body: Record<string, string>,
   ): Promise<unknown> {
+    const isReservation =
+      name === 'marketplace_browser_session_reserve' ||
+      name === 'marketplace_cloud_setup_session_reserve';
     let response: Response;
     try {
       response = await this.request(new URL(`/rest/v1/rpc/${name}`, this.baseUrl), {
@@ -248,10 +251,10 @@ export class SupabaseBrowserSessionStore {
         signal: AbortSignal.timeout(10_000),
       });
     } catch {
-      if (name === 'marketplace_browser_session_reserve') this.onReservationUncertain?.();
+      if (isReservation) this.onReservationUncertain?.();
       throw new Error('Browser-Datenbank nicht erreichbar');
     }
-    if (name === 'marketplace_browser_session_reserve' && response.status === 500) {
+    if (isReservation && response.status === 500) {
       let rejection: unknown;
       try {
         rejection = await response.clone().json();
@@ -267,8 +270,7 @@ export class SupabaseBrowserSessionStore {
     try {
       return await this.read(response);
     } catch {
-      if (name === 'marketplace_browser_session_reserve' && (response.ok || response.status >= 500))
-        this.onReservationUncertain?.();
+      if (isReservation && (response.ok || response.status >= 500)) this.onReservationUncertain?.();
       throw new Error('Browser-Datenbank nicht erreichbar');
     }
   }

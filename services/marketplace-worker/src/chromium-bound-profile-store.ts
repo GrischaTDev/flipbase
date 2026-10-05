@@ -4,9 +4,7 @@ import type { BrowserLease, BrowserSessionScope } from './marketplace-browser-se
 interface BoundProfileStoreOptions {
   profiles: { resolve(lease: BrowserLease): Promise<string> };
   registry: {
-    resolve(
-      profileId: string,
-    ): Promise<{
+    resolve(profileId: string): Promise<{
       profileId: string;
       workspaceId: string;
       connectionId: string;

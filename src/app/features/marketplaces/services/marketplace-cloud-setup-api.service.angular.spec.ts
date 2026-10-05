@@ -29,16 +29,14 @@ it('sendet die Bestellung authentifiziert und trennt Kapazität von technischen 
 it('verwirft eine fremde Einrichtungsantwort', async () => {
   vi.stubGlobal(
     'fetch',
-    vi
-      .fn()
-      .mockResolvedValue(
-        Response.json({
-          ...request,
-          setupId: request.requestId,
-          state: 'reserved',
-          sessionId: null,
-        }),
-      ),
+    vi.fn().mockResolvedValue(
+      Response.json({
+        ...request,
+        setupId: request.requestId,
+        state: 'reserved',
+        sessionId: null,
+      }),
+    ),
   );
   await expect(
     api.action({ ...request, setupId: request.requestId }, 'read', 'test-token'),
