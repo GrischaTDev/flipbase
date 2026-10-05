@@ -107,33 +107,35 @@
                                 {{ variant }}
                               </p>
                             }
-                            @if (validationAttempted() && line.controls.target.invalid) {
-                              <p
-                                [id]="'target-error-' + index"
-                                role="alert"
-                                class="mt-1 text-xs text-fb-critical"
-                              >
-                                Bitte wähle einen verfügbaren Artikel aus.
-                              </p>
-                            }
-                            @if (validationAttempted() && line.controls.quantity.invalid) {
-                              <p
-                                [id]="'quantity-error-' + index"
-                                role="alert"
-                                class="mt-1 text-xs text-fb-critical"
-                              >
-                                Bitte prüfe die Menge und den verfügbaren Bestand.
-                              </p>
-                            }
-                            @if (validationAttempted() && line.controls.unitSalePrice.invalid) {
-                              <p
-                                [id]="'price-error-' + index"
-                                role="alert"
-                                class="mt-1 text-xs text-fb-critical"
-                              >
-                                Bitte gib einen Verkaufspreis ab 0,01 € ein.
-                              </p>
-                            }
+                            <div data-sale-line-errors>
+                              @if (validationAttempted() && line.controls.target.invalid) {
+                                <p
+                                  [id]="'target-error-' + index"
+                                  role="alert"
+                                  class="mt-1 text-xs text-fb-critical"
+                                >
+                                  Bitte wähle einen verfügbaren Artikel aus.
+                                </p>
+                              }
+                              @if (validationAttempted() && line.controls.quantity.invalid) {
+                                <p
+                                  [id]="'quantity-error-' + index"
+                                  role="alert"
+                                  class="mt-1 text-xs text-fb-critical"
+                                >
+                                  Bitte prüfe die Menge und den verfügbaren Bestand.
+                                </p>
+                              }
+                              @if (validationAttempted() && line.controls.unitSalePrice.invalid) {
+                                <p
+                                  [id]="'price-error-' + index"
+                                  role="alert"
+                                  class="mt-1 text-xs text-fb-critical"
+                                >
+                                  Bitte gib einen Verkaufspreis ab 0,01 € ein.
+                                </p>
+                              }
+                            </div>
                           </div>
                         </div>
                       </td>
