@@ -47,6 +47,11 @@ Pflichtprüfungen, Veröffentlichung und Aufräumen wurden am 05.10.2026 mit
 "ja" freigegeben. Der Hauptzweig steht vor dem Abschluss unverändert bei
 `b916699a`.
 
+**CI-Nachprüfung:** Die vollständige Workflow-Prüfung erkannte den neuen
+Browserfall als fehlenden Eintrag in der verbindlichen Smoke-Auswahl. Der
+Fall ist in der Erwartungsliste ergänzt; die Auswahl bleibt vollständig und
+prüft den zusätzlichen Wiederholungsablauf ausdrücklich mit.
+
 ## 2026-10-05 - Juna - Vinted-Nachrichtenversand und Postfachstatus korrigieren
 
 **Auftrag:** Den abgeschnittenen Systemnachrichtenfilter verbreitern, „Alle“

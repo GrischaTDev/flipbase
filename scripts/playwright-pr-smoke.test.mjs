@@ -70,6 +70,10 @@ const coreTests = [
     'vinted-inbox-experience.spec.ts',
     'zeigt einen bekannten Chat sofort auch während Datenbank und Vinted noch aktualisieren @core-smoke',
   ],
+  [
+    'vinted-inbox-experience.spec.ts',
+    'prüft unklaren Versand vor der Wiederholung und versetzt den Mausfokus nicht @core-smoke',
+  ],
   ...[1440, 390].flatMap((width) =>
     ['light', 'dark'].map((theme) => [
       'vinted-inbox-experience.spec.ts',
