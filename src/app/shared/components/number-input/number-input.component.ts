@@ -8,11 +8,6 @@ import {
   signal,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
-import {
-  LucideChevronDown as ChevronDown,
-  LucideChevronUp as ChevronUp,
-  LucideDynamicIcon,
-} from '@lucide/angular';
 
 let nextUniqueId = 0;
 
@@ -26,7 +21,6 @@ let nextUniqueId = 0;
  */
 @Component({
   selector: 'app-number-input',
-  imports: [LucideDynamicIcon],
   templateUrl: './number-input.component.html',
   styleUrl: './number-input.component.scss',
   host: {
@@ -57,7 +51,8 @@ export class NumberInputComponent implements ControlValueAccessor {
   readonly ariaInvalid = input<boolean | string | null>(null);
   readonly asCurrency = input<boolean>(false);
   readonly disabled = input<boolean>(false);
-  readonly showStepper = input(true);
+  /** Kompatibilität für bestehende Aufrufer; visuelle Stepper werden nicht mehr gerendert. */
+  readonly showStepper = input(false);
 
   // Backward-compatible German Inputs (legacy aliases)
   readonly platzhalter = input<string>('');
@@ -163,6 +158,4 @@ export class NumberInputComponent implements ControlValueAccessor {
     this.value.set(val);
   }
 
-  protected readonly incrementIcon = ChevronUp;
-  protected readonly decrementIcon = ChevronDown;
 }
