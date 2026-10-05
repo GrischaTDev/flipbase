@@ -12,12 +12,11 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 let nextUniqueId = 0;
 
 /**
- * Zahlenfeld mit eigenen Schaltflaechen zum Hoch- und Runterzaehlen.
+ * Einheitliches Zahlenfeld ohne sichtbare Hoch-/Runter-Schaltflächen.
  *
- * Die Pfeilchen, die der Browser an ein `input[type=number]` haengt, zeichnet
- * er selbst. In einer einheitlichen Oberflaeche fallen sie auf.
- * Sie sind deshalb ausgeblendet (siehe styles.css), und diese Komponente
- * uebernimmt ihre Aufgabe im Design der Anwendung.
+ * Die nativen Browser-Spinner bleiben über die globalen Feldregeln ausgeblendet.
+ * Werte werden direkt eingegeben; min, max und step bleiben für Validierung,
+ * Tastaturbedienung und numerische Semantik erhalten.
  */
 @Component({
   selector: 'app-number-input',
