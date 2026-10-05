@@ -76,6 +76,13 @@
             </div>
           </div>
         </app-card>
+        @if (tile.connection.executionMode === 'local' && cloud.canSetup()) {
+          <app-button
+            class="mt-2"
+            [link]="'/marketplaces/vinted/connect/' + tile.connection.connectionId"
+            >Auf Cloud wechseln</app-button
+          >
+        }
         <app-button
           class="mt-2"
           [link]="'/marketplaces/vinted/local-connect/' + tile.connection.connectionId"

@@ -36,7 +36,36 @@
         anschließend auf „Anmeldung prüfen &amp; verbinden“. Deine Sitzung bleibt geöffnet.
       </app-notice-banner>
     }
-    @if (store.readOnly()) {
+    @if (store.cloudCancelled()) {
+      <app-notice-banner announcement="status"
+        >Die Cloud-Einrichtung wurde abgebrochen. Schließe diesen Dialog. Du kannst die Einrichtung
+        anschließend erneut beginnen.</app-notice-banner
+      >
+    } @else if (store.cloudCompleted()) {
+      <app-notice-banner announcement="status"
+        >Cloud aktiv. Dein Konto ist verbunden.</app-notice-banner
+      >
+      <app-button class="mt-3" link="/marketplaces/vinted/profile"
+        >Verbundenes Profil ansehen</app-button
+      >
+    } @else if (store.cloudVerified()) {
+      <app-notice-banner announcement="status">
+        @if (store.busy()) {
+          Der Cloud-Wechsel wird abgeschlossen.
+        } @else {
+          Deine Anmeldung ist geprüft. Aktiviere jetzt Cloud, um die lokale Ausführung für dieses
+          Konto zu beenden. Laufende lokale Aktionen müssen zuvor abgeschlossen sein.
+        }
+      </app-notice-banner>
+      <div class="mt-3 flex flex-wrap gap-2">
+        <app-button variant="primary" [loading]="store.busy()" (clicked)="store.completeCloud()"
+          >Cloud aktivieren</app-button
+        >
+        <app-button [disabled]="store.busy()" (clicked)="store.close()"
+          >Einrichtung abbrechen</app-button
+        >
+      </div>
+    } @else if (store.readOnly()) {
       <app-notice-banner class="mt-4">
         Dieser Test zeigt nur eine öffentliche Seite. Es werden keine Eingaben gesendet.
       </app-notice-banner>
@@ -66,7 +95,10 @@
       }
     } @else {
       @if (
-        selectedConnection?.status === 'connected' && !store.session() && !reconnectRequested()
+        selectedConnection?.status === 'connected' &&
+        !store.cloudSetup() &&
+        !store.session() &&
+        !reconnectRequested()
       ) {
         <p role="status" class="mt-4 text-sm font-medium">Dein Vinted-Konto ist verbunden.</p>
         <div class="mt-3 flex flex-wrap gap-2">

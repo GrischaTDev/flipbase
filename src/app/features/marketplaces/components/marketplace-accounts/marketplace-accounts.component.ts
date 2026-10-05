@@ -34,6 +34,7 @@ import {
   MARKETPLACE_CONNECTION_TONES,
 } from '../../models/marketplace-presentation';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
+import { MarketplaceCloudSetupStore } from '../../services/marketplace-cloud-setup.store';
 import { MarketplaceBrowserTestComponent } from '../marketplace-browser-test/marketplace-browser-test.component';
 
 @Component({
@@ -53,19 +54,21 @@ import { MarketplaceBrowserTestComponent } from '../marketplace-browser-test/mar
     MarketplaceBrowserTestComponent,
   ],
   templateUrl: './marketplace-accounts.component.html',
+  providers: [MarketplaceCloudSetupStore],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block min-w-0' },
 })
 export class MarketplaceAccountsComponent {
   readonly store = inject(MarketplaceAccountStore);
+  readonly cloud = inject(MarketplaceCloudSetupStore);
   private readonly router = inject(Router);
   private readonly workspace = inject(WorkspaceService);
   private readonly auth = inject(AuthService);
   readonly platforms = [{ value: 'vinted', label: 'Vinted' }];
-  readonly connectionMethods = [
+  readonly connectionMethods = computed(() => [
     { value: 'local', label: 'Lokale Erweiterung' },
-    { value: 'cloud', label: 'Cloudbrowser' },
-  ];
+    ...(this.cloud.canSetup() ? [{ value: 'cloud', label: 'Cloudbrowser' }] : []),
+  ]);
   private readonly context = computed(() =>
     JSON.stringify([this.auth.currentUser()?.id, this.workspace.currentWorkspace()?.id]),
   );
@@ -74,6 +77,7 @@ export class MarketplaceAccountsComponent {
     connectionId: string | null;
     mode: 'create' | 'rename' | 'login' | 'delete';
     newAccount: boolean;
+    cloudSetupId?: string;
   } | null>(null);
   readonly dialog = computed(() =>
     this.dialogState()?.context === this.context() ? this.dialogState() : null,
@@ -111,7 +115,7 @@ export class MarketplaceAccountsComponent {
 
   constructor() {
     effect(() => {
-      if (this.store.busy()) this.form.disable({ emitEvent: false });
+      if (this.store.busy() || this.cloud.busy()) this.form.disable({ emitEvent: false });
       else this.form.enable({ emitEvent: false });
     });
     effect(() => {
@@ -120,7 +124,8 @@ export class MarketplaceAccountsComponent {
     });
   }
   openDialog(connection?: MarketplaceConnection): void {
-    if (!this.store.canManage() || this.store.busy()) return;
+    if (!this.store.canManage() || this.store.busy() || this.cloud.busy()) return;
+    this.cloud.clearError();
     this.name.reset(connection?.displayName ?? '');
     this.connectionMethod.reset('local');
     this.submitted.set(false);
@@ -169,6 +174,7 @@ export class MarketplaceAccountsComponent {
       this.closeDialog();
   }
   closeDialog(): void {
+    void this.cloud.cancel();
     this.dialogState.set(null);
     this.name.reset();
     this.submitted.set(false);
@@ -181,7 +187,8 @@ export class MarketplaceAccountsComponent {
       dialog.mode === 'login' ||
       dialog.mode === 'delete' ||
       this.name.invalid ||
-      this.store.busy()
+      this.store.busy() ||
+      this.cloud.busy()
     )
       return;
     if (dialog.mode === 'create') {
@@ -192,7 +199,14 @@ export class MarketplaceAccountsComponent {
         await this.router.navigate(['/marketplaces/vinted/local-connect', connectionId]);
         return;
       }
-      this.dialogState.set({ ...dialog, mode: 'login' });
+      const setup = await this.cloud.begin({ displayName: this.name.value.trim() });
+      if (setup && this.dialog() === dialog)
+        this.dialogState.set({
+          ...dialog,
+          mode: 'login',
+          connectionId: setup.connectionId,
+          cloudSetupId: setup.setupId,
+        });
       return;
     }
     if (
@@ -206,5 +220,26 @@ export class MarketplaceAccountsComponent {
     const dialog = this.dialog();
     if (dialog?.mode === 'login' && dialog.newAccount && !dialog.connectionId)
       this.dialogState.set({ ...dialog, connectionId });
+  }
+
+  async upgrade(connection: MarketplaceConnection): Promise<void> {
+    if (
+      connection.executionMode !== 'local' ||
+      connection.status === 'paused' ||
+      connection.status === 'blocked' ||
+      !this.cloud.canSetup() ||
+      this.store.busy()
+    )
+      return;
+    const context = this.context();
+    const setup = await this.cloud.begin({ connectionId: connection.connectionId });
+    if (setup && context === this.context())
+      this.dialogState.set({
+        context,
+        connectionId: connection.connectionId,
+        mode: 'login',
+        newAccount: false,
+        cloudSetupId: setup.setupId,
+      });
   }
 }

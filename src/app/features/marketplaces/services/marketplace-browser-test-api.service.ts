@@ -1,5 +1,10 @@
 import { Injectable } from '@angular/core';
 import type { AccountScope } from '../models/marketplace.models';
+import { parseCloudSetupView, type CloudSetupView } from '../models/marketplace-cloud-setup';
+
+export interface BrowserTestScope extends AccountScope {
+  cloudSetupId?: string;
+}
 import type { VintedListingReadResult } from '../models/vinted-listing-description';
 import {
   parseMarketplaceSyncSourceResults,
@@ -216,8 +221,12 @@ export class MarketplaceBrowserTestApiService {
     }
   }
 
-  async open(scope: AccountScope, accessToken: string): Promise<string> {
-    const response = await this.post(basePath, scope, accessToken);
+  async open(scope: BrowserTestScope, accessToken: string): Promise<string> {
+    const response = await this.post(
+      scope.cloudSetupId ? this.sessionPath(scope, '', 'open') : basePath,
+      scope,
+      accessToken,
+    );
     if (response.status !== 201) {
       if (response.status === 409) {
         const body: unknown = await response.json().catch(() => null);
@@ -263,12 +272,16 @@ export class MarketplaceBrowserTestApiService {
   }
 
   async identify(
-    scope: AccountScope,
+    scope: BrowserTestScope,
     sessionId: string,
     accessToken: string,
     allowPending = false,
   ): Promise<ConfirmedVintedAccount | null> {
-    const response = await this.post(`${basePath}/${sessionId}/identify`, scope, accessToken);
+    const response = await this.post(
+      this.sessionPath(scope, sessionId, 'identify'),
+      scope,
+      accessToken,
+    );
     if (response.status === 410) throw new BrowserTestSessionEndedError();
     if (response.status === 422) {
       const body: unknown = await response.json().catch(() => null);
@@ -324,13 +337,13 @@ export class MarketplaceBrowserTestApiService {
   }
 
   async login(
-    scope: AccountScope,
+    scope: BrowserTestScope,
     sessionId: string,
     credentials: VintedLoginCredentials,
     accessToken: string,
   ): Promise<VintedLoginResult> {
     const response = await this.post(
-      `${basePath}/${sessionId}/login`,
+      this.sessionPath(scope, sessionId, 'login'),
       { ...scope, credentials },
       accessToken,
     );
@@ -352,8 +365,12 @@ export class MarketplaceBrowserTestApiService {
     return body.status;
   }
 
-  async frame(scope: AccountScope, sessionId: string, accessToken: string): Promise<Blob> {
-    const response = await this.post(`${basePath}/${sessionId}/frame`, scope, accessToken);
+  async frame(scope: BrowserTestScope, sessionId: string, accessToken: string): Promise<Blob> {
+    const response = await this.post(
+      this.sessionPath(scope, sessionId, 'frame'),
+      scope,
+      accessToken,
+    );
     if (response.status === 410) throw new BrowserTestSessionEndedError();
     if (!response.ok || response.headers.get('content-type') !== 'image/jpeg')
       throw new Error('Browserbild nicht verfügbar');
@@ -371,13 +388,13 @@ export class MarketplaceBrowserTestApiService {
   }
 
   async verify(
-    scope: AccountScope,
+    scope: BrowserTestScope,
     sessionId: string,
     code: string,
     accessToken: string,
   ): Promise<VintedVerificationResult> {
     const response = await this.post(
-      `${basePath}/${sessionId}/verify`,
+      this.sessionPath(scope, sessionId, 'verify'),
       { ...scope, code },
       accessToken,
     );
@@ -398,13 +415,13 @@ export class MarketplaceBrowserTestApiService {
   }
 
   async input(
-    scope: AccountScope,
+    scope: BrowserTestScope,
     sessionId: string,
     input: BrowserTestInput,
     accessToken: string,
   ): Promise<void> {
     const response = await this.post(
-      `${basePath}/${sessionId}/input`,
+      this.sessionPath(scope, sessionId, 'input'),
       { ...scope, input },
       accessToken,
     );
@@ -412,19 +429,61 @@ export class MarketplaceBrowserTestApiService {
     if (!response.ok) throw new Error('Eingabe konnte nicht bestätigt werden');
   }
 
-  async close(scope: AccountScope, sessionId: string, accessToken: string): Promise<void> {
-    const response = await this.post(`${basePath}/${sessionId}/close`, scope, accessToken);
+  async close(scope: BrowserTestScope, sessionId: string, accessToken: string): Promise<void> {
+    const response = await this.post(
+      this.sessionPath(scope, sessionId, 'close'),
+      scope,
+      accessToken,
+    );
+    if (scope.cloudSetupId && response.ok) {
+      parseCloudSetupView(await response.json(), { ...scope, setupId: scope.cloudSetupId });
+      return;
+    }
     if (response.status !== 204) throw new Error('Browser-Stopp konnte nicht bestätigt werden');
   }
 
-  async deleteConnection(scope: AccountScope, accessToken: string): Promise<void> {
+  async completeCloud(scope: BrowserTestScope, accessToken: string): Promise<CloudSetupView> {
+    if (!scope.cloudSetupId) throw new Error('Cloud-Einrichtung fehlt');
+    try {
+      const response = await this.post(this.sessionPath(scope, '', 'complete'), scope, accessToken);
+      if (!response.ok) throw new Error('Cloud-Abschluss ausstehend');
+      const setup = parseCloudSetupView(await response.json(), {
+        ...scope,
+        setupId: scope.cloudSetupId,
+      });
+      if (setup.state !== 'completed') throw new Error('Cloud-Abschluss ausstehend');
+      return setup;
+    } catch {
+      const response = await this.post(this.sessionPath(scope, '', 'read'), scope, accessToken);
+      if (response.ok) {
+        const setup = parseCloudSetupView(await response.json(), {
+          ...scope,
+          setupId: scope.cloudSetupId,
+        });
+        if (setup.state === 'completed') return setup;
+      }
+      throw new Error(
+        'Cloud konnte noch nicht aktiviert werden. Beende laufende lokale Aktionen und versuche den Abschluss erneut.',
+      );
+    }
+  }
+
+  private sessionPath(scope: BrowserTestScope, sessionId: string, action: string): string {
+    if (scope.cloudSetupId) {
+      if (!uuidPattern.test(scope.cloudSetupId)) throw new Error('Ungültige Cloud-Einrichtung');
+      return `/marketplace-browser/cloud-setups/${scope.cloudSetupId}/${action === 'close' ? 'cancel' : action}`;
+    }
+    return `${basePath}/${sessionId}/${action}`;
+  }
+
+  async deleteConnection(scope: BrowserTestScope, accessToken: string): Promise<void> {
     if ((await this.available()).outdated) throw new MarketplaceWorkerOutdatedError();
     const response = await this.post('/marketplace-browser/connections/delete', scope, accessToken);
     if (response.status !== 204) throw new MarketplaceConnectionRemovalError();
   }
 
   async syncConnection(
-    scope: AccountScope,
+    scope: BrowserTestScope,
     accessToken: string,
     onProgress?: (progress: MarketplaceSyncProgress) => void,
   ): Promise<void> {
@@ -499,7 +558,7 @@ export class MarketplaceBrowserTestApiService {
   }
 
   async readListingEdit(
-    scope: AccountScope,
+    scope: BrowserTestScope,
     entryId: string,
     accessToken: string,
   ): Promise<VintedListingEditFields> {
@@ -507,7 +566,7 @@ export class MarketplaceBrowserTestApiService {
   }
 
   async readListingData(
-    scope: AccountScope,
+    scope: BrowserTestScope,
     entryId: string,
     accessToken: string,
   ): Promise<VintedListingReadResult> {
@@ -544,7 +603,7 @@ export class MarketplaceBrowserTestApiService {
   }
 
   async saveListingEdit(
-    scope: AccountScope,
+    scope: BrowserTestScope,
     entryId: string,
     fields: VintedListingEditFields,
     accessToken: string,
@@ -571,7 +630,7 @@ export class MarketplaceBrowserTestApiService {
       throw new VintedEditUnconfirmedError();
   }
 
-  async readProfileAbout(scope: AccountScope, accessToken: string): Promise<string> {
+  async readProfileAbout(scope: BrowserTestScope, accessToken: string): Promise<string> {
     const response = await this.post('/marketplace-browser/profile/edit/read', scope, accessToken);
     if (response.status === 404) throw new MarketplaceWorkerOutdatedError();
     if (!response.ok) throw new Error('Das Vinted-Profilformular konnte nicht geladen werden.');
@@ -587,7 +646,7 @@ export class MarketplaceBrowserTestApiService {
   }
 
   async saveProfileAbout(
-    scope: AccountScope,
+    scope: BrowserTestScope,
     about: string,
     accessToken: string,
     expectedAbout?: string,
@@ -622,6 +681,10 @@ export class MarketplaceBrowserTestApiService {
     accessToken: string,
     timeoutMs = 90_000,
   ): Promise<Response> {
+    if (body && typeof body === 'object' && 'cloudSetupId' in body) {
+      const { cloudSetupId: _setupId, ...request } = body;
+      body = request;
+    }
     return fetch(path, {
       method: 'POST',
       headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },

@@ -6,6 +6,7 @@ import { ButtonComponent } from '../../../../shared/components/button/button.com
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
+import { MarketplaceCloudSetupStore } from '../../services/marketplace-cloud-setup.store';
 import { MarketplaceBrowserTestComponent } from '../marketplace-browser-test/marketplace-browser-test.component';
 
 @Component({
@@ -17,11 +18,13 @@ import { MarketplaceBrowserTestComponent } from '../marketplace-browser-test/mar
     MarketplaceBrowserTestComponent,
   ],
   templateUrl: './marketplace-connect.component.html',
+  providers: [MarketplaceCloudSetupStore],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block min-w-0' },
 })
 export class MarketplaceConnectComponent {
   readonly accounts = inject(MarketplaceAccountStore);
+  readonly cloud = inject(MarketplaceCloudSetupStore);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly requestedId = toSignal(
@@ -52,6 +55,20 @@ export class MarketplaceConnectComponent {
   }
 
   close(): void {
+    void this.cloud.cancel();
     void this.router.navigate(['/marketplaces/vinted']);
+  }
+
+  async upgrade(): Promise<void> {
+    const connection = this.requestedConnection();
+    if (
+      !connection ||
+      !this.selected() ||
+      connection.executionMode !== 'local' ||
+      connection.status === 'paused' ||
+      connection.status === 'blocked'
+    )
+      return;
+    await this.cloud.begin({ connectionId: connection.connectionId });
   }
 }

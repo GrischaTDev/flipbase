@@ -12,6 +12,40 @@ const scope = {
 };
 const id = '25600000-0000-4000-8000-000000000031';
 const api = new MarketplaceBrowserTestApiService();
+it('liest nach verlorener Abschlussantwort den bestätigten Zustand, ohne erneut zu schreiben', async () => {
+  const fetchMock = vi
+    .fn()
+    .mockRejectedValueOnce(new Error('lost ACK'))
+    .mockResolvedValueOnce(
+      Response.json({ ...scope, setupId: id, state: 'completed', sessionId: null }),
+    );
+  vi.stubGlobal('fetch', fetchMock);
+  expect((await api.completeCloud({ ...scope, cloudSetupId: id }, 'token')).state).toBe(
+    'completed',
+  );
+  expect(fetchMock.mock.calls.map(([path]) => path)).toEqual([
+    `/marketplace-browser/cloud-setups/${id}/complete`,
+    `/marketplace-browser/cloud-setups/${id}/read`,
+  ]);
+});
+
+it('öffnet und beendet Einrichtungen ausschließlich über ihren Setup-Pfad', async () => {
+  const fetchMock = vi
+    .fn()
+    .mockResolvedValueOnce(Response.json({ id }, { status: 201 }))
+    .mockResolvedValueOnce(
+      Response.json({ ...scope, setupId: id, state: 'cleanup_pending', sessionId: null }),
+    );
+  vi.stubGlobal('fetch', fetchMock);
+  const setupScope = { ...scope, cloudSetupId: id };
+  await api.open(setupScope, 'token');
+  await api.close(setupScope, id, 'token');
+  expect(fetchMock.mock.calls.map(([path]) => path)).toEqual([
+    `/marketplace-browser/cloud-setups/${id}/open`,
+    `/marketplace-browser/cloud-setups/${id}/cancel`,
+  ]);
+  expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual(scope);
+});
 
 it.each([false, true])(
   'unterscheidet Mensch-Prüfungen auch beim Hintergrundabruf (%s)',

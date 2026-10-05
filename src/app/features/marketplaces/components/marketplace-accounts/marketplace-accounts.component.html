@@ -1,3 +1,8 @@
+@if (!dialog()) {
+  @if (cloud.error(); as error) {
+    <app-notice-banner class="mb-4" announcement="alert">{{ error }}</app-notice-banner>
+  }
+}
 <app-card
   title="Vinted-Konten"
   subtitle="Deine Vinted-Konten in diesem Workspace verbinden und verwalten."
@@ -78,6 +83,20 @@
                   (clicked)="openLogin(account)"
                   >Anmeldung öffnen</app-button
                 >
+                @if (account.executionMode === 'local' && cloud.canSetup()) {
+                  <app-button
+                    size="slim"
+                    variant="secondary"
+                    [disabled]="
+                      cloud.busy() ||
+                      store.busy() ||
+                      account.status === 'paused' ||
+                      account.status === 'blocked'
+                    "
+                    (clicked)="upgrade(account)"
+                    >Auf Cloud wechseln</app-button
+                  >
+                }
                 <app-table-action-button
                   [label]="account.displayName + ' umbenennen'"
                   [icon]="editIcon"
@@ -131,6 +150,20 @@
               (clicked)="openLogin(account)"
               >Anmeldung fortsetzen</app-button
             >
+            @if (account.executionMode === 'local' && cloud.canSetup()) {
+              <app-button
+                size="slim"
+                variant="secondary"
+                [disabled]="
+                  cloud.busy() ||
+                  store.busy() ||
+                  account.status === 'paused' ||
+                  account.status === 'blocked'
+                "
+                (clicked)="upgrade(account)"
+                >Auf Cloud wechseln</app-button
+              >
+            }
             <app-table-action-button
               [label]="account.displayName + ' umbenennen'"
               [icon]="editIcon"
@@ -207,6 +240,7 @@
     @if (currentDialog.mode === 'login') {
       <app-marketplace-browser-test
         [compact]="true"
+        [cloudSetupId]="currentDialog.cloudSetupId ?? null"
         [pendingAccountName]="
           currentDialog.newAccount && !currentDialog.connectionId ? name.value : null
         "
@@ -223,6 +257,9 @@
         <app-notice-banner class="mt-3" announcement="alert">{{ error }}</app-notice-banner>
       }
     } @else {
+      @if (cloud.error(); as error) {
+        <app-notice-banner class="mb-4" announcement="alert">{{ error }}</app-notice-banner>
+      }
       <form id="marketplace-account-form" [formGroup]="form" (ngSubmit)="save()">
         @if (currentDialog.mode === 'create') {
           <div class="mb-4">
@@ -247,7 +284,7 @@
             <p class="mb-2 text-sm font-medium">Verbindung</p>
             <app-custom-select
               ariaLabel="Verbindung"
-              [options]="connectionMethods"
+              [options]="connectionMethods()"
               [formControl]="connectionMethod"
             />
           </div>
@@ -271,7 +308,10 @@
       <div modal-footer class="flex justify-end gap-2">
         <app-button [disabled]="store.busy()" (clicked)="closeDialog()">Abbrechen</app-button>
         @if (currentDialog.mode === 'delete') {
-          <app-button variant="destructive" [loading]="store.busy()" (clicked)="confirmDelete()"
+          <app-button
+            variant="destructive"
+            [loading]="store.busy() || cloud.busy()"
+            (clicked)="confirmDelete()"
             >Konto löschen</app-button
           >
         } @else {
@@ -279,7 +319,7 @@
             type="submit"
             formId="marketplace-account-form"
             variant="primary"
-            [loading]="store.busy()"
+            [loading]="store.busy() || cloud.busy()"
             >{{
               currentDialog.mode === 'rename'
                 ? 'Speichern'

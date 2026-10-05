@@ -1,7 +1,6 @@
 import { DestroyRef, Injectable, computed, effect, inject, signal } from '@angular/core';
 import { AuthService } from '../../../core/services/auth.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
-import type { AccountScope } from '../models/marketplace.models';
 import { MarketplaceAccountStore } from './marketplace-account.store';
 import {
   BrowserTestSessionEndedError,
@@ -14,12 +13,13 @@ import {
   MarketplaceBrowserTestApiService,
   type BrowserTestInput,
   type VintedLoginCredentials,
+  type BrowserTestScope,
 } from './marketplace-browser-test-api.service';
 
 interface BrowserTestSession {
   key: string;
   userId: string;
-  scope: AccountScope;
+  scope: BrowserTestScope;
   accessToken: string;
   id: string;
   frameUrl: string | null;
@@ -31,6 +31,16 @@ export class MarketplaceBrowserTestStore {
   private readonly auth = inject(AuthService);
   private readonly workspace = inject(WorkspaceService);
   private readonly api = inject(MarketplaceBrowserTestApiService);
+  private readonly cloudSetupId = signal<string | null>(null);
+  private readonly cloudVerifiedKey = signal<string | null>(null);
+  private readonly cloudCompletedState = signal(false);
+  private readonly cloudCancelledState = signal(false);
+  readonly cloudCancelled = this.cloudCancelledState.asReadonly();
+  readonly cloudVerified = computed(
+    () => this.cloudVerifiedKey() !== null && this.cloudVerifiedKey() === this.contextKey(),
+  );
+  readonly cloudCompleted = this.cloudCompletedState.asReadonly();
+  readonly cloudSetup = this.cloudSetupId.asReadonly();
   private readonly state = signal<BrowserTestSession | null>(null);
   private readonly busyState = signal<string | null>(null);
   private readonly errorState = signal<{ key: string; message: string } | null>(null);
@@ -80,13 +90,14 @@ export class MarketplaceBrowserTestStore {
       currentWorkspace &&
       !currentWorkspace.archived_at &&
       this.accounts.canManage() &&
-      account?.executionMode !== 'local' &&
+      (account?.executionMode !== 'local' || this.cloudSetupId() !== null) &&
       account?.workspaceId === currentWorkspace.id
       ? JSON.stringify([
           userId,
           currentWorkspace.id,
           account.connectionId,
           this.accounts.selectionVersion(),
+          this.cloudSetupId(),
         ])
       : null;
   });
@@ -118,10 +129,13 @@ export class MarketplaceBrowserTestStore {
       connection.status !== 'paused' &&
       connection.status !== 'blocked' &&
       !this.session() &&
+      !this.cloudCancelled() &&
       !this.busy()
     );
   });
-  readonly canAct = computed(() => this.session() !== null && !this.busy());
+  readonly canAct = computed(
+    () => this.session() !== null && !this.busy() && !this.cloudVerified(),
+  );
   readonly canLogin = computed(
     () =>
       !this.readOnly() &&
@@ -157,6 +171,41 @@ export class MarketplaceBrowserTestStore {
     });
   }
 
+  configureCloudSetup(setupId: string | null): void {
+    if (setupId === this.cloudSetupId()) return;
+    this.revision++;
+    this.cloudVerifiedKey.set(null);
+    this.cloudCompletedState.set(false);
+    this.cloudCancelledState.set(false);
+    this.cloudSetupId.set(setupId);
+  }
+
+  async completeCloud(): Promise<void> {
+    const active = this.session();
+    if (!active || !this.cloudVerified() || this.busy()) return;
+    const revision = ++this.revision;
+    this.busyState.set(active.key);
+    this.errorState.set(null);
+    try {
+      await this.api.completeCloud(active.scope, this.currentToken());
+      if (!this.isCurrent(active.key, revision)) return;
+      this.cloudCompletedState.set(true);
+      this.cloudVerifiedKey.set(null);
+      this.releaseFrame(active.frameUrl);
+      this.state.set(null);
+      await this.accounts.reloadConnections(active.scope.connectionId);
+    } catch {
+      if (this.isCurrent(active.key, revision))
+        this.errorState.set({
+          key: active.key,
+          message:
+            'Der Cloud-Wechsel ist noch ausstehend. Beende laufende lokale Aktionen und versuche den Abschluss erneut.',
+        });
+    } finally {
+      if (this.busyState() === active.key) this.busyState.set(null);
+    }
+  }
+
   async checkAvailability(): Promise<void> {
     try {
       const availability = await this.api.available();
@@ -180,7 +229,12 @@ export class MarketplaceBrowserTestStore {
     const token = this.auth.session()?.access_token;
     const userId = this.auth.currentUser()?.id;
     if (!connection || !key || !token || !userId || !this.canStart()) return;
-    const scope = { workspaceId: connection.workspaceId, connectionId: connection.connectionId };
+    const setupId = this.cloudSetupId();
+    const scope: BrowserTestScope = {
+      workspaceId: connection.workspaceId,
+      connectionId: connection.connectionId,
+      ...(setupId ? { cloudSetupId: setupId } : {}),
+    };
     const revision = ++this.revision;
     this.manualLoginKey.set(null);
     this.busyState.set(key);
@@ -237,6 +291,7 @@ export class MarketplaceBrowserTestStore {
       !active ||
       this.busy() ||
       this.readOnly() ||
+      this.cloudVerified() ||
       (input.kind === 'drag' && !this.dragSupported())
     )
       return;
@@ -526,6 +581,11 @@ export class MarketplaceBrowserTestStore {
       if (this.isCurrent(active.key, revision)) {
         this.releaseFrame(active.frameUrl);
         this.state.set(null);
+        if (active.scope.cloudSetupId) {
+          this.cloudVerifiedKey.set(null);
+          this.cloudCancelledState.set(true);
+          await this.accounts.reloadConnections(active.scope.connectionId);
+        }
         this.loginNeedsClose.set(null);
       }
     } catch {
@@ -544,7 +604,7 @@ export class MarketplaceBrowserTestStore {
   private async loadFrame(
     key: string,
     revision: number,
-    scope: AccountScope,
+    scope: BrowserTestScope,
     id: string,
     token: string,
   ): Promise<void> {
@@ -562,6 +622,14 @@ export class MarketplaceBrowserTestStore {
     revision: number,
     token: string,
   ): Promise<void> {
+    if (active.scope.cloudSetupId) {
+      this.cloudVerifiedKey.set(active.key);
+      this.loginKey.set(null);
+      this.verificationKey.set(null);
+      this.interactionRequiredKey.set(null);
+      this.progressState.set(null);
+      return;
+    }
     await this.api.close(active.scope, active.id, token);
     if (!this.isCurrent(active.key, revision)) return;
     this.releaseFrame(active.frameUrl);

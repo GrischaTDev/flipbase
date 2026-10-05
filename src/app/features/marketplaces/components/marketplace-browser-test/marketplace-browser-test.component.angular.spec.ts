@@ -77,6 +77,7 @@ beforeEach(async () => {
           progress: signal(null),
           error: signal(null),
           checkAvailability: vi.fn(),
+          configureCloudSetup: vi.fn(),
           checkLogin,
           input: sendInput,
         },

@@ -60,6 +60,7 @@ export class MarketplaceBrowserTestComponent {
   readonly compact = input(false);
   readonly reconnectOnOpen = input(false);
   readonly pendingAccountName = input<string | null>(null);
+  readonly cloudSetupId = input<string | null>(null);
   readonly connectionCreated = output<string>();
   readonly submitting = signal(false);
   readonly reconnectRequested = signal(false);
@@ -94,6 +95,7 @@ export class MarketplaceBrowserTestComponent {
   });
 
   constructor() {
+    effect(() => this.store.configureCloudSetup(this.cloudSetupId()));
     void this.store.checkAvailability();
     const interval = setInterval(() => {
       // Eine sichtbare Browseransicht bleibt für manuelle Eingaben frei.

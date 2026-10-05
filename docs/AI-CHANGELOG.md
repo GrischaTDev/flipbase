@@ -8,8 +8,7 @@ Bestellungen und Abrechnung bleiben ein späteres Paket.
 
 **Stand:** Eigener Arbeitszweig auf dem aktuellen Integrationsstand. Private
 IP-Metadaten, dauerhafte Reservierung und atomare Übergabe sind implementiert.
-Profile und begrenzte Worker-Einrichtung sind angebunden; die Oberfläche folgt
-im selben Zweig. Der andere
+Profile, begrenzte Worker-Einrichtung und die Oberfläche sind angebunden. Der andere
 Extension-Zweig wird nicht verändert. Bestehende gemeinsame Planung ergänzt.
 
 **Prüfung:** 46 neue Datenbankassertions und 123 bestehende lokale Assertions
