@@ -16,6 +16,11 @@ bearbeitet oder löscht keine Vinted-Anzeigen.
    und Flipbase neu. Beim nächsten Abgleich stellt die Erweiterung einen
    nicht mehr erreichbaren eigenen Vinted-Arbeitstab automatisch wieder her.
 
+Chrome lädt dabei ausschließlich die Dateien aus dem bereits ausgewählten
+Ordner erneut. Ein neues ZIP oder ein weiterer entpackter Ordner aktualisiert
+die bestehende Installation nicht; verwende beim Pilotupdate weiterhin den
+bisherigen Installationsordner oder wähle den neuen Ordner ausdrücklich.
+
 Die entpackte Installation dient dem internen Test. Ein Chrome-Web-Store-Eintrag
 ist noch nicht veröffentlicht; die spätere Nutzerinstallation soll über den Store
 laufen.
@@ -37,6 +42,14 @@ verfügbar. Melde Dich an und lade die Formularseite neu. Ändert Kleinanzeigen 
 Formular, können einzelne Felder manuelle Eingaben verlangen.
 
 ## Lokaler Vinted-Pilot
+
+Fehlgeschlagene Nachrichten lassen sich am kleinen Wiederholen-Button direkt
+an der Chatkachel erneut einreihen. Text und Bildanhang bleiben erhalten.
+Bei unklarem Versand aktualisiert Flipbase zuerst den Verlauf. Eine bereits
+vorhandene eigene Textnachricht wird nicht erneut eingereiht; andernfalls
+bestätigst Du nach Prüfung auf Vinted, dass die Nachricht nicht gesendet wurde.
+Prüfe dabei auch einen Bildanhang. Die Aktion bestätigt die Einreihung, erst
+das Ergebnis der Erweiterung bestätigt den tatsächlichen Versand.
 
 1. Installiere die Erweiterung im Browserprofil Deines Vinted-Kontos. Verwende
    für weitere Vinted-Konten jeweils ein separates Browserprofil.

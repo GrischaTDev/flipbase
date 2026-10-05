@@ -22,6 +22,7 @@ import {
   LucideTrash2,
   LucideTag,
   LucideInfo,
+  LucideRefreshCw,
 } from '@lucide/angular';
 import imageCompression from 'browser-image-compression';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
@@ -87,6 +88,8 @@ interface ReadingPosition {
   host: { class: 'block min-w-0' },
 })
 export class VintedMessagesComponent {
+  readonly retryIcon = LucideRefreshCw;
+  readonly retryingMessageId = signal<string | null>(null);
   readonly store = inject(MarketplaceAccountStore);
   readonly local = inject(VintedLocalExtensionStore);
   readonly messaging = inject(VintedMessagingStore);
@@ -348,7 +351,11 @@ export class VintedMessagesComponent {
     afterEveryRender(() => this.restoreReadingPosition());
   }
 
-  async openConversation(entry: MarketplaceEntry, readProvider = true): Promise<void> {
+  async openConversation(
+    entry: MarketplaceEntry,
+    readProvider = true,
+    shouldFocus = false,
+  ): Promise<void> {
     const account = this.store.selectedConnection();
     if (
       !this.store.canManage() ||
@@ -359,7 +366,7 @@ export class VintedMessagesComponent {
       return;
     this.notice.set(null);
     this.failedRequest.set(null);
-    this.focusConversation = JSON.stringify([this.context(), entry.id]);
+    this.focusConversation = shouldFocus ? JSON.stringify([this.context(), entry.id]) : null;
     const revision = ++this.openRevision;
     const context = this.context();
     const key = JSON.stringify([context, entry.id]);
@@ -441,6 +448,70 @@ export class VintedMessagesComponent {
         return 'Wird gesendet';
       default:
         return 'In der Warteschlange';
+    }
+  }
+
+  canRetryMessage(message: LocalQueuedMessage): boolean {
+    return (
+      (message.state === 'failed' || message.state === 'outcome_unknown') &&
+      this.store.canManage() &&
+      this.store.selectedConnection()?.executionMode === 'local' &&
+      this.store.selectedConnection()?.status === 'connected' &&
+      this.local.hasValidBinding() &&
+      this.local.messagesAllowed()
+    );
+  }
+
+  async retryMessage(message: LocalQueuedMessage): Promise<void> {
+    const account = this.store.selectedConnection();
+    const conversation = this.conversation();
+    const key = this.conversationKey();
+    if (
+      !account ||
+      !conversation ||
+      !key ||
+      message.conversationId !== conversation.id ||
+      !this.canRetryMessage(message) ||
+      this.retryingMessageId() ||
+      this.messaging.busy() ||
+      this.local.busy()
+    )
+      return;
+    this.retryingMessageId.set(message.id);
+    try {
+      if (message.state === 'outcome_unknown') {
+        await this.openConversation(conversation);
+        if (key !== this.conversationKey() || this.local.error() || this.store.error()) return;
+        const alreadyPresent =
+          !message.attachment &&
+          this.transcript().some(
+            (entry) =>
+              entry.direction === 'outbound' &&
+              entry.text === message.text &&
+              Date.parse(entry.occurredAt ?? '') >= Date.parse(message.createdAt),
+          );
+        if (alreadyPresent) {
+          await this.dialog.zeigeHinweis(
+            'Nachricht bereits vorhanden',
+            'Diese Nachricht ist bereits im Vinted-Verlauf vorhanden. Sie wird nicht erneut gesendet.',
+          );
+          return;
+        }
+        const confirmed = await this.dialog.frage({
+          titel: 'Nachricht erneut senden?',
+          text: 'Der bisherige Versandstatus ist unklar. Prüfe den Vinted-Verlauf: Wenn die Nachricht dort bereits steht, brich ab. Bestätige nur, wenn sie nicht gesendet wurde. Bei einem Bildanhang prüfe auch das Bild.',
+          bestaetigenText: 'Nicht gesendet – erneut senden',
+        });
+        if (!confirmed || key !== this.conversationKey()) return;
+      }
+      await this.messaging.retry(
+        { workspaceId: account.workspaceId, connectionId: account.connectionId },
+        conversation.id,
+        message.id,
+        message.state === 'outcome_unknown',
+      );
+    } finally {
+      if (this.retryingMessageId() === message.id) this.retryingMessageId.set(null);
     }
   }
 

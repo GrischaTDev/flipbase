@@ -59,4 +59,25 @@ export class VintedMessagingApiService {
       requestId,
     );
   }
+  async retry(
+    scope: AccountScope,
+    conversationId: string,
+    messageId: string,
+    confirmedUnknown: boolean,
+  ) {
+    return parseLocalMessageEnqueue(
+      resultOf(
+        await this.client.rpc('marketplace_retry_local_message', {
+          p_workspace_id: scope.workspaceId,
+          p_connection_id: scope.connectionId,
+          p_conversation_id: conversationId,
+          p_message_id: messageId,
+          p_confirmed_unknown: confirmedUnknown,
+        }),
+      ),
+      scope,
+      conversationId,
+      messageId,
+    );
+  }
 }

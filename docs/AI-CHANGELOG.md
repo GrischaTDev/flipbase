@@ -1,5 +1,52 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-05 - Juna - Vinted-Nachrichten wiederholen und automatischen Fokus korrigieren
+
+**Auftrag:** Nach erfolgreichem echtem Versand störenden automatischen Button-
+und Überschriftenfokus entfernen. Fehlgeschlagene Nachrichten direkt an ihrer
+Chatkachel wiederholen können. Eigener Zweig `juna/vinted-message-retry-focus`
+von `origin/master` bei `b916699a`.
+
+**Umsetzung:** Erweiterung 1.3.4 fokussiert beim Sperren der Vinted-Seite den
+neutralen Hinweiscontainer. Der Button erhält seinen sichtbaren Fokus weiterhin
+bei Tastaturbedienung. Das Postfach setzt den Fokus nach einem Mausklick oder
+einer Aktualisierung nicht mehr auf den Gesprächsnamen; bei Tastaturauswahl
+bleibt die gezielte Navigation erhalten. Ein kleiner gemeinsamer Icon-Button
+an fehlgeschlagenen beziehungsweise unklaren Nachrichten startet die bewusste
+Wiederholung mit gespeichertem Text und Anhang. Unklarer Versand verlangt
+einen frischen Verlauf, einen Vergleich vorhandener eigener Textnachrichten
+und eine ausdrückliche Bestätigung. Auch die Serverfunktion verweigert eine
+bereits im importierten Verlauf vorhandene Textnachricht. Abgebrochene
+Bestätigungen legen keinen Auftrag an.
+
+**Auftragsgrenzen:** Die alte Nachrichten-ID kennzeichnet dauerhaft genau
+eine Wiederholung; verlorene HTTP-Bestätigungen erzeugen keinen zweiten
+Wiederholungsauftrag. Ein verspäteter Erfolg des ursprünglichen Auftrags
+stoppt den Ersatz, solange dessen Versand noch nicht begonnen hat. Bereits
+laufende externe Anfragen lassen sich nicht zurücknehmen; insbesondere bei
+Bildern bleibt die manuelle Prüfung eines unklaren Versands erforderlich.
+Bestehende Konto-, Nutzer- und Versandfreigaben gelten auch für Wiederholungen.
+
+**Prüfung:** Erwartete Fehlschläge reproduzieren die bisherigen Fokus- und
+Wiederholungsfehler. 73 Erweiterungsprüfungen, 30 neue und 37 bestehende
+Versandprüfungen in isolierten Datenbankkopien sind grün. Die Migration wurde
+transaktional auf dem Hauptzweigschema eingespielt; die Typen stammen aus
+dieser isolierten Schemafassung. Der CLI-Abgleich ließ den geänderten Körper
+einer bestehenden Funktion aus; die Migration wurde deshalb aus den geprüften
+Datenbankdefinitionen beider Funktionen erzeugt und erneut eingespielt.
+47 Angular-Prüfungen und sechs Chromium-Fälle sind ebenfalls grün: kein
+Mausfokus auf dem Chatnamen, abgebrochene und bestätigte Wiederholung,
+sofortiger Cacheverlauf, Statusreihenfolge, Desktop/Mobilgerät, beide Themes
+und AXE. Typprüfung, betroffener Lint, Formatierung, Migrations- und
+Schemaregistrierungsprüfungen, Suite-Audit, Shared-UI-Prüfung und
+Produktionsbau sind erfolgreich. Das Pilotpaket 1.3.4 ist vorbereitet und
+gegen alle 14 Quelldateien geprüft.
+Keine echte Vinted-Nachricht versendet, keine Produktionsdaten verändert und
+die installierte Nutzererweiterung nicht ersetzt. PR, Merge nach erfolgreichen
+Pflichtprüfungen, Veröffentlichung und Aufräumen wurden am 05.10.2026 mit
+"ja" freigegeben. Der Hauptzweig steht vor dem Abschluss unverändert bei
+`b916699a`.
+
 ## 2026-10-05 - Juna - Vinted-Nachrichtenversand und Postfachstatus korrigieren
 
 **Auftrag:** Den abgeschnittenen Systemnachrichtenfilter verbreitern, „Alle“

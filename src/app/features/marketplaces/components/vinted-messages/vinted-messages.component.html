@@ -71,7 +71,7 @@
               contentAlign="start"
               [attr.data-conversation-row]="entry.id"
               [ariaPressed]="store.selectedConversationId() === entry.id"
-              (clicked)="openConversation(entry)"
+              (clicked)="openConversation(entry, true, $event.detail === 0)"
             >
               <span class="flex min-w-0 items-center gap-3">
                 <app-product-thumbnail
@@ -359,9 +359,32 @@
                 class="ml-auto w-fit max-w-[90%] space-y-1 rounded-2xl rounded-br-sm bg-fb-brand-strong px-3 py-2 text-fb-on-accent"
                 [attr.data-queue-state]="queued.state"
               >
-                @if (queued.text) {
-                  <p class="whitespace-pre-wrap break-words text-[13px]">{{ queued.text }}</p>
-                }
+                <div class="flex items-start justify-between gap-2">
+                  @if (queued.text) {
+                    <p class="whitespace-pre-wrap break-words text-[13px]">{{ queued.text }}</p>
+                  }
+                  @if (canRetryMessage(queued)) {
+                    <app-button
+                      class="shrink-0"
+                      size="slim"
+                      [icon]="retryIcon"
+                      [iconOnly]="true"
+                      [ariaLabel]="
+                        queued.state === 'outcome_unknown'
+                          ? 'Versand prüfen und wiederholen'
+                          : 'Nachricht erneut senden'
+                      "
+                      [title]="
+                        queued.state === 'outcome_unknown'
+                          ? 'Versand prüfen und wiederholen'
+                          : 'Nachricht erneut senden'
+                      "
+                      [loading]="retryingMessageId() === queued.id"
+                      [disabled]="messaging.busy() || local.busy() || retryingMessageId() !== null"
+                      (clicked)="retryMessage(queued)"
+                    />
+                  }
+                </div>
                 @if (queued.attachment) {
                   <p class="text-xs">Bild: {{ queued.attachment.name }}</p>
                 }

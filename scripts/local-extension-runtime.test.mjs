@@ -1296,7 +1296,7 @@ test('Reserved tab stays modal after import and blocks background clicks, typing
     });
     assert.equal(input.dispatchEvent(typing), false);
     input.focus();
-    assert.equal(document.activeElement, overlay.querySelector('button'));
+    assert.equal(document.activeElement, overlay);
     overlay.querySelector('button').click();
     assert.equal(fixture.sentMessages.at(-1).type, 'VINTED_LOCAL_OPEN_USER_TAB');
     const nextSection = document.createElement('section');

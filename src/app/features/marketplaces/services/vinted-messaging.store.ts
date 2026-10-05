@@ -40,7 +40,17 @@ export class VintedMessagingStore {
   private readonly current = computed(
     () => this.context() !== null && this.context() === this.loadedContext(),
   );
-  readonly messages = computed(() => (this.current() ? this.storedMessages() : []));
+  readonly messages = computed(() =>
+    this.current()
+      ? this.storedMessages().filter(
+          (message) =>
+            !(
+              message.state === 'cancelled' &&
+              ['retried', 'original_sent'].includes(message.errorCode ?? '')
+            ),
+        )
+      : [],
+  );
   readonly busy = computed(() => this.current() && this.sending());
   readonly error = computed(() => (this.current() ? (this.failure() ?? this.readFailure()) : null));
   private revision = 0;
@@ -159,15 +169,7 @@ export class VintedMessagingStore {
     this.sending.set(true);
     this.failure.set(null);
     try {
-      if (!this.local.binding()?.messagesSend) {
-        const confirmed = await this.dialog.frage({
-          titel: 'Nachrichtenversand erlauben?',
-          text: 'Flipbase darf Deine bewusst gesendeten Nachrichten und Bilder über dieses Vinted-Browserprofil versenden. Die Freigabe gilt nur für das verbundene Konto bis zum Ende der bestehenden Freigabe.',
-          bestaetigenText: 'Versand erlauben',
-        });
-        if (!confirmed || !valid()) return false;
-        if (!(await this.local.approveSend()) || !valid()) return false;
-      }
+      if (!(await this.ensureSendPermission(valid))) return false;
       if (!valid() || !this.local.hasValidBinding()) return false;
       // Nach verlorener HTTP-Bestätigung bleibt dieselbe Nutzereingabe dieselbe Anfrage.
       const fingerprint = JSON.stringify([context, text, attachment]);
@@ -192,5 +194,66 @@ export class VintedMessagingStore {
     } finally {
       if (valid()) this.sending.set(false);
     }
+  }
+  async retry(
+    scope: AccountScope,
+    conversationId: string,
+    messageId: string,
+    confirmedUnknown: boolean,
+  ): Promise<boolean> {
+    const message = this.messages().find(
+      (entry) => entry.id === messageId && entry.conversationId === conversationId,
+    );
+    if (
+      !this.matches(scope, conversationId) ||
+      this.sending() ||
+      this.local.busy() ||
+      !this.local.messagesAllowed() ||
+      !this.local.hasValidBinding() ||
+      !message ||
+      (message.state !== 'failed' && message.state !== 'outcome_unknown') ||
+      (message.state === 'outcome_unknown' && !confirmedUnknown)
+    )
+      return false;
+    const context = this.context();
+    const revision = this.revision;
+    const valid = () =>
+      this.matches(scope, conversationId) &&
+      context === this.context() &&
+      revision === this.revision;
+    this.readRevision++;
+    this.sending.set(true);
+    this.failure.set(null);
+    try {
+      if (!(await this.ensureSendPermission(valid))) return false;
+      const queued = await this.api.retry(scope, conversationId, messageId, confirmedUnknown);
+      if (!valid()) return false;
+      this.storedMessages.update((messages) => [
+        ...messages.filter((entry) => entry.id !== messageId && entry.id !== queued.id),
+        queued,
+      ]);
+      void this.bridge.request('FLIPBASE_VINTED_LOCAL_MESSAGES_SEND', scope).catch(() => undefined);
+      return true;
+    } catch {
+      if (valid())
+        this.failure.set(
+          'Die Wiederholung konnte nicht bestätigt werden. Aktualisiere den Versandstatus und versuche es erneut.',
+        );
+      return false;
+    } finally {
+      if (valid()) this.sending.set(false);
+    }
+  }
+  private async ensureSendPermission(isCurrent: () => boolean): Promise<boolean> {
+    if (!this.local.binding()?.messagesSend) {
+      const confirmed = await this.dialog.frage({
+        titel: 'Nachrichtenversand erlauben?',
+        text: 'Flipbase darf Deine bewusst gesendeten Nachrichten und Bilder über dieses Vinted-Browserprofil versenden. Die Freigabe gilt nur für das verbundene Konto bis zum Ende der bestehenden Freigabe.',
+        bestaetigenText: 'Versand erlauben',
+      });
+      if (!confirmed || !isCurrent()) return false;
+      if (!(await this.local.approveSend()) || !isCurrent()) return false;
+    }
+    return isCurrent() && this.local.hasValidBinding();
   }
 }
