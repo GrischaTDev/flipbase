@@ -9,7 +9,12 @@
   [hasFooter]="false"
   (closed)="close()"
 >
-  @if (accounts.loading()) {
+  @if (cloud.error(); as error) {
+    <app-notice-banner class="mb-4" announcement="alert">{{ error }}</app-notice-banner>
+  }
+  @if (activeCloudSetup(); as setup) {
+    <app-marketplace-browser-test [compact]="true" [cloudSetupId]="setup.setupId" />
+  } @else if (accounts.loading()) {
     <p role="status" class="text-sm text-fb-text-secondary">Kontoverbindung wird geladen …</p>
   } @else if (!requestedConnection()) {
     <app-notice-banner announcement="alert">
@@ -28,6 +33,20 @@
         [link]="'/marketplaces/vinted/local-connect/' + requestedConnection()?.connectionId"
         >Lokale Verbindung öffnen</app-button
       >
+      @if (cloud.canSetup()) {
+        <app-button
+          class="mt-3"
+          variant="primary"
+          [loading]="cloud.busy()"
+          [disabled]="
+            !selected() ||
+            requestedConnection()?.status === 'paused' ||
+            requestedConnection()?.status === 'blocked'
+          "
+          (clicked)="upgrade()"
+          >Auf Cloud wechseln</app-button
+        >
+      }
     </app-notice-banner>
   } @else if (
     requestedConnection()?.status === 'paused' || requestedConnection()?.status === 'blocked'

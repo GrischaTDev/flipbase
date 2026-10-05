@@ -24,6 +24,7 @@ interface RegistryOptions {
 interface NewAccountProfile {
   workspaceId: string;
   connectionId: string;
+  networkId?: string;
   previousGoLoginProfileId?: string;
 }
 
@@ -64,6 +65,7 @@ export class ChromiumAccountProfileRegistry {
       if (
         !bindingPattern.test(account.workspaceId) ||
         !bindingPattern.test(account.connectionId) ||
+        (account.networkId !== undefined && !bindingPattern.test(account.networkId)) ||
         (account.previousGoLoginProfileId !== undefined &&
           (!bindingPattern.test(account.previousGoLoginProfileId) ||
             account.previousGoLoginProfileId.startsWith('chromium_')))
@@ -85,7 +87,7 @@ export class ChromiumAccountProfileRegistry {
         workspaceId: account.workspaceId,
         connectionId: account.connectionId,
         hostId: this.hostId,
-        networkId: this.networkId,
+        networkId: account.networkId ?? this.networkId,
         ...(account.previousGoLoginProfileId
           ? { previousGoLoginProfileId: account.previousGoLoginProfileId }
           : {}),
@@ -111,8 +113,12 @@ export class ChromiumAccountProfileRegistry {
   }
 
   async resolve(profileId: string): Promise<ChromiumAccountProfile> {
+    return this.readProfile(profileId);
+  }
+
+  private async readProfile(profileId: string, archived = false): Promise<ChromiumAccountProfile> {
     if (!chromiumAccountProfileIdPattern.test(profileId)) throw error();
-    const path = join(this.root, 'registry', `${profileId}.json`);
+    const path = join(this.root, archived ? 'archive' : 'registry', `${profileId}.json`);
     await this.assertSafePath(path);
     const status = await lstat(path);
     if (
@@ -178,9 +184,16 @@ export class ChromiumAccountProfileRegistry {
     return found;
   }
 
-  /** Nur nach bestätigtem Prozessstopp und bestätigter Verbindungslöschung aufrufen. */
+  /** Nur nach bestätigtem Prozessstopp und bestätigter Entfernung der Profilzuordnung aufrufen. */
   async archive(profileId: string): Promise<void> {
-    await this.resolve(profileId);
+    try {
+      await this.resolve(profileId);
+    } catch (failure) {
+      if (!missing(failure)) throw failure;
+      // Nach verlorenem Abschluss-ACK ist nur das bereits validierte Archiv ein Erfolgsnachweis.
+      await this.readProfile(profileId, true);
+      return;
+    }
     for (const suffix of ['running', 'recovery']) {
       try {
         await lstat(join(this.root, 'profiles', `${profileId}.${suffix}`));

@@ -9,6 +9,8 @@ export interface BrowserSessionScope {
   connectionId: string;
   userId: string;
   userAccessToken: string;
+  /** Nur nach serverseitiger Einrichtungsprüfung setzen; niemals aus HTTP-Nutzdaten übernehmen. */
+  cloudSetup?: { setupId: string };
   /** Interne, ausschließlich lesende Auftragserlaubnis; niemals aus HTTP-Nutzdaten übernehmen. */
   syncRead?: {
     operationId: string;
@@ -78,6 +80,7 @@ function sameScope(left: BrowserSessionScope, right: BrowserSessionScope): boole
     left.workspaceId === right.workspaceId &&
     left.connectionId === right.connectionId &&
     left.userId === right.userId &&
+    left.cloudSetup?.setupId === right.cloudSetup?.setupId &&
     Boolean(left.syncRead) === Boolean(right.syncRead) &&
     (!left.syncRead ||
       (left.syncRead.operationId === right.syncRead?.operationId &&

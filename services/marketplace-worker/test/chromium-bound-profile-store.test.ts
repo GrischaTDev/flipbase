@@ -19,6 +19,22 @@ const lease: BrowserLease = {
   },
 };
 
+test('reserved network mismatch fails before a browser can open', async () => {
+  const profiles = new ChromiumBoundProfileStore({
+    profiles: { resolve: async () => profileId },
+    registry: {
+      resolve: async () => ({
+        profileId,
+        workspaceId: lease.scope.workspaceId,
+        connectionId: lease.scope.connectionId,
+        networkId: 'direct',
+      }),
+    },
+    assertNetwork: async () => ({ profileId, networkId: 'iproyal-test-a' }),
+  });
+  await assert.rejects(profiles.resolve(lease));
+});
+
 test('scheduled sessions cannot open a Chromium profile bound to another account', async () => {
   let starts = 0;
   let releases = 0;

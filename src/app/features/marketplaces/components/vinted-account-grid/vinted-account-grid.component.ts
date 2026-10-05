@@ -10,6 +10,7 @@ import {
   MARKETPLACE_CONNECTION_TONES,
 } from '../../models/marketplace-presentation';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
+import { MarketplaceCloudSetupStore } from '../../services/marketplace-cloud-setup.store';
 import { VintedAccountPreviewsStore } from '../../services/vinted-account-previews.store';
 import { VintedRatingComponent } from '../vinted-rating/vinted-rating.component';
 import { VintedSetupComponent } from '../vinted-setup/vinted-setup.component';
@@ -27,12 +28,13 @@ import { VintedSetupComponent } from '../vinted-setup/vinted-setup.component';
     VintedSetupComponent,
   ],
   templateUrl: './vinted-account-grid.component.html',
-  providers: [VintedAccountPreviewsStore],
+  providers: [VintedAccountPreviewsStore, MarketplaceCloudSetupStore],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block min-w-0' },
 })
 export class VintedAccountGridComponent {
   readonly accounts = inject(MarketplaceAccountStore);
+  readonly cloud = inject(MarketplaceCloudSetupStore);
   readonly previews = inject(VintedAccountPreviewsStore);
   readonly statusLabels = MARKETPLACE_CONNECTION_LABELS;
   readonly statusTones = MARKETPLACE_CONNECTION_TONES;

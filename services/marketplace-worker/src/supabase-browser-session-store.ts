@@ -60,11 +60,15 @@ export class SupabaseBrowserSessionStore {
     if ((await this.authenticatedUserId(scope.userAccessToken)) !== scope.userId)
       throw new Error('Sitzungszugriff verweigert');
     const value = await this.callUserRpc(
-      'marketplace_browser_session_reserve',
+      scope.cloudSetup
+        ? 'marketplace_cloud_setup_session_reserve'
+        : 'marketplace_browser_session_reserve',
       scope.userAccessToken,
       {
         p_workspace_id: scope.workspaceId,
-        p_connection_id: scope.connectionId,
+        ...(scope.cloudSetup
+          ? { p_setup_id: scope.cloudSetup.setupId }
+          : { p_connection_id: scope.connectionId }),
       },
     );
     if (
@@ -129,11 +133,15 @@ export class SupabaseBrowserSessionStore {
     if ((await this.authenticatedUserId(lease.scope.userAccessToken)) !== lease.scope.userId)
       return false;
     const value = await this.callUserRpc(
-      'marketplace_browser_session_check',
+      lease.scope.cloudSetup
+        ? 'marketplace_cloud_setup_session_check'
+        : 'marketplace_browser_session_check',
       lease.scope.userAccessToken,
       {
         p_workspace_id: lease.scope.workspaceId,
-        p_connection_id: lease.scope.connectionId,
+        ...(lease.scope.cloudSetup
+          ? { p_setup_id: lease.scope.cloudSetup.setupId }
+          : { p_connection_id: lease.scope.connectionId }),
         p_session_id: lease.id,
       },
     );
@@ -154,6 +162,10 @@ export class SupabaseBrowserSessionStore {
     url.searchParams.set('connection_id', `eq.${lease.scope.connectionId}`);
     url.searchParams.set('started_by', `eq.${lease.scope.userId}`);
     url.searchParams.set('state', 'eq.active');
+    url.searchParams.set(
+      'cloud_setup_id',
+      lease.scope.cloudSetup ? `eq.${lease.scope.cloudSetup.setupId}` : 'is.null',
+    );
     const rows = await this.read(
       await this.request(url, {
         headers: this.serverHeaders(),
@@ -227,6 +239,9 @@ export class SupabaseBrowserSessionStore {
     userAccessToken: string,
     body: Record<string, string>,
   ): Promise<unknown> {
+    const isReservation =
+      name === 'marketplace_browser_session_reserve' ||
+      name === 'marketplace_cloud_setup_session_reserve';
     let response: Response;
     try {
       response = await this.request(new URL(`/rest/v1/rpc/${name}`, this.baseUrl), {
@@ -236,10 +251,10 @@ export class SupabaseBrowserSessionStore {
         signal: AbortSignal.timeout(10_000),
       });
     } catch {
-      if (name === 'marketplace_browser_session_reserve') this.onReservationUncertain?.();
+      if (isReservation) this.onReservationUncertain?.();
       throw new Error('Browser-Datenbank nicht erreichbar');
     }
-    if (name === 'marketplace_browser_session_reserve' && response.status === 500) {
+    if (isReservation && response.status === 500) {
       let rejection: unknown;
       try {
         rejection = await response.clone().json();
@@ -255,8 +270,7 @@ export class SupabaseBrowserSessionStore {
     try {
       return await this.read(response);
     } catch {
-      if (name === 'marketplace_browser_session_reserve' && (response.ok || response.status >= 500))
-        this.onReservationUncertain?.();
+      if (isReservation && (response.ok || response.status >= 500)) this.onReservationUncertain?.();
       throw new Error('Browser-Datenbank nicht erreichbar');
     }
   }

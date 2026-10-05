@@ -1,13 +1,19 @@
 import { chromiumAccountProfileIdPattern } from './chromium-account-profile-registry.ts';
-import type { BrowserLease } from './marketplace-browser-session-broker.ts';
+import type { BrowserLease, BrowserSessionScope } from './marketplace-browser-session-broker.ts';
 
 interface BoundProfileStoreOptions {
   profiles: { resolve(lease: BrowserLease): Promise<string> };
   registry: {
-    resolve(
-      profileId: string,
-    ): Promise<{ profileId: string; workspaceId: string; connectionId: string }>;
+    resolve(profileId: string): Promise<{
+      profileId: string;
+      workspaceId: string;
+      connectionId: string;
+      networkId?: string;
+    }>;
   };
+  assertNetwork?: (
+    scope: BrowserSessionScope,
+  ) => Promise<{ profileId: string; networkId: string } | null>;
 }
 
 /** Automatische Abrufe umgehen die manuelle Vorbereitung, deshalb gilt die Bindung bei jedem Start. */
@@ -19,6 +25,9 @@ export class ChromiumBoundProfileStore {
 
   async resolve(lease: BrowserLease): Promise<string> {
     const profileId = await this.options.profiles.resolve(lease);
+    const network = await this.options.assertNetwork?.(lease.scope);
+    if (network && network.profileId !== profileId)
+      throw new Error('Cloudprofilzuordnung wurde geändert');
     if (!profileId.toLowerCase().startsWith('chromium_')) return profileId;
     if (!chromiumAccountProfileIdPattern.test(profileId))
       throw new Error('Ungültige Chromiumprofilreferenz');
@@ -26,7 +35,8 @@ export class ChromiumBoundProfileStore {
     if (
       profile.profileId !== profileId ||
       profile.workspaceId !== lease.scope.workspaceId ||
-      profile.connectionId !== lease.scope.connectionId
+      profile.connectionId !== lease.scope.connectionId ||
+      (network && profile.networkId !== network.networkId)
     )
       throw new Error('Browserprofil gehört zu einer anderen Verbindung');
     return profileId;

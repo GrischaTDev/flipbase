@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ChromiumAccountProfileRegistry } from '../src/chromium-account-profile-registry.ts';
 import { ChromiumProfileProvisioner } from '../src/chromium-profile-provisioner.ts';
+import type { PrivateCloudSetup } from '../src/supabase-marketplace-cloud-setup-store.ts';
 
 const scope = {
   workspaceId: 'workspace-a',
@@ -12,6 +13,85 @@ const scope = {
   userId: 'user-a',
   userAccessToken: 'user-token',
 };
+
+for (const uncertainStop of [false, true]) {
+  test(`cloud setup replaces only a stopped old profile, uncertain=${uncertainStop}`, async () => {
+    const root = await mkdtemp(join(tmpdir(), 'chromium-cloud-provision-'));
+    try {
+      const registry = new ChromiumAccountProfileRegistry({ root, hostId: 'host-a' });
+      const old = await registry.create({
+        workspaceId: scope.workspaceId,
+        connectionId: scope.connectionId,
+      });
+      let mapping: string | null = old.profileId;
+      let privateSetup: PrivateCloudSetup = {
+        setup: { ...scope, setupId: 'setup-a', state: 'reserved', sessionId: null },
+        networkId: 'iproyal-test-a',
+        profileId: null,
+        previousProfileId: null,
+        expiresAt: '2099-01-01T00:00:00Z',
+        ipExpiresAt: '2099-01-01T00:00:00Z',
+      };
+      const events: string[] = [];
+      const provisioner = new ChromiumProfileProvisioner({
+        supabaseUrl: 'https://example.test',
+        publishableKey: 'public',
+        serviceRoleKey: 'server',
+        registry,
+        networks: { resolve: () => ({ kind: 'proxy', server: 'http://proxy.example.test:12323' }) },
+        stopProfile: async () => {
+          events.push('stop');
+          if (uncertainStop) throw new Error('uncertain');
+        },
+        cloudSetups: {
+          readAuthorized: async () => privateSetup,
+          assertNetwork: async () => null,
+          step: async (_scope, _id, action, fields) => {
+            events.push(action);
+            if (action === 'unmap') {
+              assert.equal(fields?.profileId, old.profileId);
+              mapping = null;
+              privateSetup = { ...privateSetup, previousProfileId: old.profileId };
+            }
+            if (action === 'bind') {
+              mapping = fields?.profileId ?? null;
+              privateSetup = {
+                ...privateSetup,
+                profileId: mapping,
+                setup: { ...privateSetup.setup, state: 'login' },
+              };
+              throw new Error('lost binding ACK');
+            }
+            return privateSetup;
+          },
+        },
+        fetch: async (url, request) => {
+          assert.notEqual(request?.method, 'DELETE');
+          if (String(url).includes('marketplace_browser_sessions')) return Response.json([]);
+          return Response.json(mapping ? [{ provider_profile_id: mapping }] : []);
+        },
+      });
+      if (uncertainStop) {
+        await assert.rejects(provisioner.prepareCloudSetup(scope, 'setup-a'));
+        assert.deepEqual(events, ['stop']);
+        assert.equal(
+          (await registry.find(scope.workspaceId, scope.connectionId))?.profileId,
+          old.profileId,
+        );
+      } else {
+        await provisioner.prepareCloudSetup(scope, 'setup-a');
+        assert.deepEqual(events, ['stop', 'unmap', 'bind']);
+        assert.ok(mapping);
+        assert.notEqual(mapping, old.profileId);
+        assert.equal((await registry.resolve(mapping)).networkId, 'iproyal-test-a');
+        await provisioner.prepareCloudSetup(scope, 'setup-a');
+        assert.deepEqual(events, ['stop', 'unmap', 'bind']);
+      }
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+}
 
 test('new Chromium account rechecks user access and persists namespace without GoLogin APIs', async () => {
   const root = await mkdtemp(join(tmpdir(), 'chromium-provision-'));

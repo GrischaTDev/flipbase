@@ -33,6 +33,7 @@ supabase/functions/*
 !supabase/functions/_shared/
 supabase/functions/_shared/*
 !supabase/functions/_shared/marketplace-contracts.ts
+!supabase/functions/_shared/marketplace-cloud-setup-contracts.d.ts
 !supabase/functions/_shared/marketplace-local-extension-contracts.ts
 !supabase/functions/_shared/marketplace-local-extension-bridge-contracts.ts
 !supabase/functions/_shared/ebay-contracts.ts

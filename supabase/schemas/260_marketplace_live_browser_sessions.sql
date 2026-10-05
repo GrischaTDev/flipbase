@@ -101,15 +101,17 @@ create or replace function public.marketplace_browser_session_check(p_workspace_
 returns jsonb language plpgsql volatile security definer set search_path = '' as $$
 declare v_status text; v_session public.marketplace_browser_sessions; v_active boolean;
 begin
+  perform pg_advisory_xact_lock(91731,1);
   if not public.marketplace_can_manage(p_workspace_id) then raise exception 'Kontozugriff verweigert' using errcode = '42501'; end if;
   select status into v_status from public.marketplace_connections
     where workspace_id = p_workspace_id and id = p_connection_id and marketplace = 'vinted' and execution_mode = 'cloud' for update;
   if not found then raise exception 'Kontozugriff verweigert' using errcode = '42501'; end if;
   select * into v_session from public.marketplace_browser_sessions
     where public_id = p_session_id and workspace_id = p_workspace_id and connection_id = p_connection_id
-      and started_by = (select auth.uid()) for update;
+      and started_by = (select auth.uid()) and cloud_setup_id is null for update;
   if not found then raise exception 'Sitzungszugriff verweigert' using errcode = '42501'; end if;
-  if v_session.state = 'active' and (v_session.expires_at <= clock_timestamp() or v_status in ('paused', 'blocked')) then
+  if v_session.state = 'active' and (v_session.expires_at <= clock_timestamp() or v_status in ('paused', 'blocked')
+    or not public.marketplace_cloud_network_valid(p_workspace_id,p_connection_id)) then
     update public.marketplace_browser_sessions set state = 'stopping',
       stop_reason = case when v_status in ('paused', 'blocked') then 'paused' else 'expired' end
       where id = v_session.id returning * into v_session;

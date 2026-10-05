@@ -2236,6 +2236,7 @@ export type Database = {
       marketplace_browser_sessions: {
         Row: {
           absolute_expires_at: string | null
+          cloud_setup_id: string | null
           connection_id: string
           created_at: string
           expires_at: string
@@ -2254,6 +2255,7 @@ export type Database = {
         }
         Insert: {
           absolute_expires_at?: string | null
+          cloud_setup_id?: string | null
           connection_id: string
           created_at?: string
           expires_at: string
@@ -2272,6 +2274,7 @@ export type Database = {
         }
         Update: {
           absolute_expires_at?: string | null
+          cloud_setup_id?: string | null
           connection_id?: string
           created_at?: string
           expires_at?: string
@@ -2289,6 +2292,13 @@ export type Database = {
           workspace_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "marketplace_browser_sessions_cloud_setup_id_fkey"
+            columns: ["cloud_setup_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_cloud_setups"
+            referencedColumns: ["public_id"]
+          },
           {
             foreignKeyName: "marketplace_browser_sessions_workspace_id_connection_id_fkey"
             columns: ["workspace_id", "connection_id"]
@@ -2338,6 +2348,138 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "marketplace_browser_test_sessio_workspace_id_connection_id_fkey"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_connections"
+            referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
+      marketplace_cloud_ips: {
+        Row: {
+          country_code: string
+          created_at: string
+          enabled: boolean
+          exit_ip_fingerprint: string
+          expires_at: string
+          id: number
+          is_dedicated_isp: boolean
+          network_id: string
+          order_reference: string
+          provider: string
+          verified_at: string | null
+        }
+        Insert: {
+          country_code: string
+          created_at?: string
+          enabled?: boolean
+          exit_ip_fingerprint: string
+          expires_at: string
+          id?: never
+          is_dedicated_isp?: boolean
+          network_id: string
+          order_reference: string
+          provider?: string
+          verified_at?: string | null
+        }
+        Update: {
+          country_code?: string
+          created_at?: string
+          enabled?: boolean
+          exit_ip_fingerprint?: string
+          expires_at?: string
+          id?: never
+          is_dedicated_isp?: boolean
+          network_id?: string
+          order_reference?: string
+          provider?: string
+          verified_at?: string | null
+        }
+        Relationships: []
+      }
+      marketplace_cloud_setups: {
+        Row: {
+          cloud_ip_id: number
+          connection_id: string
+          created_at: string
+          expected_external_account_id: string | null
+          expected_grant_generation: number | null
+          expected_grant_revoked_at: string | null
+          expires_at: string
+          id: number
+          is_new_connection: boolean
+          previous_provider_profile_id: string | null
+          provider_profile_id: string | null
+          public_id: string
+          request_id: string
+          requested_by: string
+          requested_name: string | null
+          state: string
+          updated_at: string
+          verified_external_account_id: string | null
+          verified_username: string | null
+          worker_epoch: number | null
+          worker_id: string | null
+          workspace_id: string
+        }
+        Insert: {
+          cloud_ip_id: number
+          connection_id: string
+          created_at?: string
+          expected_external_account_id?: string | null
+          expected_grant_generation?: number | null
+          expected_grant_revoked_at?: string | null
+          expires_at?: string
+          id?: never
+          is_new_connection: boolean
+          previous_provider_profile_id?: string | null
+          provider_profile_id?: string | null
+          public_id?: string
+          request_id: string
+          requested_by: string
+          requested_name?: string | null
+          state?: string
+          updated_at?: string
+          verified_external_account_id?: string | null
+          verified_username?: string | null
+          worker_epoch?: number | null
+          worker_id?: string | null
+          workspace_id: string
+        }
+        Update: {
+          cloud_ip_id?: number
+          connection_id?: string
+          created_at?: string
+          expected_external_account_id?: string | null
+          expected_grant_generation?: number | null
+          expected_grant_revoked_at?: string | null
+          expires_at?: string
+          id?: never
+          is_new_connection?: boolean
+          previous_provider_profile_id?: string | null
+          provider_profile_id?: string | null
+          public_id?: string
+          request_id?: string
+          requested_by?: string
+          requested_name?: string | null
+          state?: string
+          updated_at?: string
+          verified_external_account_id?: string | null
+          verified_username?: string | null
+          worker_epoch?: number | null
+          worker_id?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_cloud_setups_cloud_ip_id_fkey"
+            columns: ["cloud_ip_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_cloud_ips"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketplace_cloud_setups_workspace_id_connection_id_fkey"
             columns: ["workspace_id", "connection_id"]
             isOneToOne: false
             referencedRelation: "marketplace_connections"
@@ -6707,6 +6849,59 @@ export type Database = {
       marketplace_can_manage: {
         Args: { p_workspace_id: string }
         Returns: boolean
+      }
+      marketplace_cloud_network_valid: {
+        Args: { p_connection_id: string; p_workspace_id: string }
+        Returns: boolean
+      }
+      marketplace_cloud_setup_begin: {
+        Args: {
+          p_connection_id: string
+          p_display_name: string
+          p_request_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_cloud_setup_cancel: {
+        Args: { p_setup_id: string; p_workspace_id: string }
+        Returns: Json
+      }
+      marketplace_cloud_setup_public: {
+        Args: {
+          p_setup: Database["public"]["Tables"]["marketplace_cloud_setups"]["Row"]
+        }
+        Returns: Json
+      }
+      marketplace_cloud_setup_read: {
+        Args: { p_setup_id: string; p_workspace_id: string }
+        Returns: Json
+      }
+      marketplace_cloud_setup_session_check: {
+        Args: {
+          p_session_id: string
+          p_setup_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_cloud_setup_session_reserve: {
+        Args: { p_setup_id: string; p_workspace_id: string }
+        Returns: Json
+      }
+      marketplace_cloud_setup_update: {
+        Args: {
+          p_action: string
+          p_external_account_id?: string
+          p_profile_id?: string
+          p_setup_id: string
+          p_user_id: string
+          p_username?: string
+          p_worker_epoch: number
+          p_worker_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
       }
       marketplace_create_connection: {
         Args: { p_display_name: string; p_workspace_id: string }

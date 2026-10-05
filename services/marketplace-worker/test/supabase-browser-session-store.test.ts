@@ -2,6 +2,11 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { SupabaseBrowserSessionStore } from '../src/supabase-browser-session-store.ts';
 import { MarketplaceBrowserSessionBusyError } from '../src/marketplace-browser-session-broker.ts';
+import { MarketplaceBrowserSessionBroker } from '../src/marketplace-browser-session-broker.ts';
+import {
+  MarketplaceBrowserRecovery,
+  SupabaseBrowserRecoveryStore,
+} from '../src/marketplace-browser-recovery.ts';
 
 const scope = {
   workspaceId: 'workspace-a',
@@ -9,6 +14,170 @@ const scope = {
   userId: 'user-a',
   userAccessToken: 'user-test-token',
 };
+
+for (const failure of ['lost', 'malformed', 'busy'] as const) {
+  test(`setup reservation uses the existing uncertainty fence: ${failure}`, async () => {
+    let recoveries = 0;
+    const store = new SupabaseBrowserSessionStore({
+      url: 'https://example.test',
+      publishableKey: 'public',
+      serviceRoleKey: 'server',
+      onReservationUncertain: () => {
+        recoveries++;
+      },
+      fetch: async (input) => {
+        if (new URL(String(input)).pathname === '/auth/v1/user')
+          return Response.json({ id: scope.userId });
+        if (failure === 'lost') throw new Error('lost ACK');
+        if (failure === 'malformed') return new Response('{', { status: 200 });
+        return Response.json({ code: '55P03' }, { status: 500 });
+      },
+    });
+    await assert.rejects(
+      store.acquire({ ...scope, cloudSetup: { setupId: 'setup-a' } }),
+      (error: unknown) =>
+        error instanceof Error &&
+        (failure !== 'busy' || error instanceof MarketplaceBrowserSessionBusyError),
+    );
+    assert.equal(recoveries, failure === 'busy' ? 0 : 1);
+  });
+}
+
+test('a lost setup reserve ACK fences the worker and restart stops the orphan before reopening', async () => {
+  const events: string[] = [];
+  let active = false;
+  let loseReply = true;
+  let authorized = true;
+  let sessionId = 'orphan-session';
+  const request: typeof fetch = async (input, init) => {
+    const path = new URL(String(input)).pathname;
+    if (path === '/auth/v1/user') return Response.json({ id: scope.userId });
+    if (path.endsWith('marketplace_cloud_setup_session_reserve')) {
+      assert.equal(active, false);
+      active = true;
+      if (loseReply) throw new Error('lost committed ACK');
+      return Response.json({
+        id: sessionId,
+        workspaceId: scope.workspaceId,
+        connectionId: scope.connectionId,
+        state: 'active',
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      });
+    }
+    if (path.endsWith('marketplace_cloud_setup_session_check'))
+      return Response.json({
+        id: sessionId,
+        workspaceId: scope.workspaceId,
+        connectionId: scope.connectionId,
+        active,
+      });
+    assert.equal(path, '/rest/v1/marketplace_browser_sessions');
+    if (init?.method === 'PATCH') {
+      const body = JSON.parse(String(init.body)) as Record<string, unknown>;
+      events.push(String(body['state']));
+      if (body['state'] === 'closed') active = false;
+    }
+    return Response.json(
+      active || init?.method === 'PATCH'
+        ? [{ public_id: sessionId, provider_profile_id: 'profile-a' }]
+        : [],
+    );
+  };
+  const recovery = new MarketplaceBrowserRecovery(
+    new SupabaseBrowserRecoveryStore({
+      url: 'https://example.test',
+      serviceRoleKey: 'server',
+      fetch: request,
+    }),
+    {
+      stop: async () => {
+        events.push('physical-stop');
+      },
+    },
+  );
+  const leases = new SupabaseBrowserSessionStore({
+    url: 'https://example.test',
+    publishableKey: 'public',
+    serviceRoleKey: 'server',
+    fetch: request,
+    onReservationUncertain: () => {
+      authorized = false;
+      events.push('runtime-fenced');
+    },
+  });
+  const createBroker = () =>
+    new MarketplaceBrowserSessionBroker({
+      leases,
+      recovery,
+      authorizeRuntime: async () => authorized,
+      profiles: { resolve: async () => 'profile-a' },
+      browsers: {
+        open: async () => ({
+          close: async () => undefined,
+          run: async (operation) => operation({ version: () => 'test' }),
+        }),
+        stop: async () => undefined,
+      },
+    });
+  const setupScope = { ...scope, cloudSetup: { setupId: 'setup-a' } };
+  const first = createBroker();
+  await assert.rejects(first.open(setupScope));
+  assert.equal(active, true);
+  assert.equal(authorized, false);
+  await assert.rejects(first.open(setupScope), /Worker-Zugriff unterbrochen/);
+  authorized = true;
+  loseReply = false;
+  const restarted = createBroker();
+  await restarted.ready();
+  assert.deepEqual(events, ['runtime-fenced', 'stopping', 'physical-stop', 'closed']);
+  assert.equal(active, false);
+  sessionId = 'new-session';
+  assert.equal(await restarted.open(setupScope), sessionId);
+  await restarted.close(setupScope, sessionId);
+  assert.equal(active, false);
+});
+
+test('setup lease uses only setup reserve and check RPCs', async () => {
+  const calls: string[] = [];
+  const setupScope = { ...scope, cloudSetup: { setupId: 'setup-a' } };
+  const store = new SupabaseBrowserSessionStore({
+    url: 'https://example.test',
+    publishableKey: 'public',
+    serviceRoleKey: 'server',
+    runtime: { workerId: 'worker-a', workerEpoch: 3 },
+    fetch: async (url, request) => {
+      const name = new URL(String(url)).pathname.split('/').at(-1) ?? '';
+      calls.push(name);
+      if (name === 'user') return Response.json({ id: scope.userId });
+      if (name === 'marketplace_browser_session_bind_worker') return Response.json(true);
+      const body = JSON.parse(String(request?.body));
+      assert.equal(body.p_setup_id, 'setup-a');
+      if (name === 'marketplace_cloud_setup_session_reserve')
+        return Response.json({
+          id: 'lease-a',
+          workspaceId: scope.workspaceId,
+          connectionId: scope.connectionId,
+          state: 'active',
+          expiresAt: new Date(Date.now() + 60000).toISOString(),
+        });
+      return Response.json({
+        id: 'lease-a',
+        workspaceId: scope.workspaceId,
+        connectionId: scope.connectionId,
+        active: true,
+      });
+    },
+  });
+  const lease = await store.acquire(setupScope);
+  assert.equal(await store.assertActive(lease), true);
+  assert.deepEqual(calls, [
+    'user',
+    'marketplace_cloud_setup_session_reserve',
+    'marketplace_browser_session_bind_worker',
+    'user',
+    'marketplace_cloud_setup_session_check',
+  ]);
+});
 
 test('known PostgreSQL busy rejection preserves the worker and returns a neutral busy error', async () => {
   let recoveries = 0;

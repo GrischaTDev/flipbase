@@ -5,6 +5,29 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ChromiumAccountProfileRegistry } from '../src/chromium-account-profile-registry.ts';
 
+test('explicit account network survives a registry restart', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'chromium-cloud-ip-'));
+  try {
+    const registry = new ChromiumAccountProfileRegistry({ root, hostId: 'host-a' });
+    const profile = await registry.create({
+      workspaceId: 'workspace-a',
+      connectionId: 'account-a',
+      networkId: 'iproyal-test-a',
+    });
+    const restarted = new ChromiumAccountProfileRegistry({ root, hostId: 'host-a' });
+    assert.equal((await restarted.resolve(profile.profileId)).networkId, 'iproyal-test-a');
+    await assert.rejects(
+      registry.create({
+        workspaceId: 'workspace-a',
+        connectionId: 'account-b',
+        networkId: '../invalid',
+      }),
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test('registry persists immutable account and host binding across restart', async () => {
   const root = await mkdtemp(join(tmpdir(), 'chromium-registry-'));
   try {
@@ -60,6 +83,7 @@ test('archive preserves private profile state and refuses an outstanding runtime
     await mkdir(running);
     await assert.rejects(registry.archive(profile.profileId));
     await rmdir(running);
+    await registry.archive(profile.profileId);
     await registry.archive(profile.profileId);
     assert.equal(
       await readFile(join(root, 'archive', profile.profileId, 'session-test'), 'utf8'),

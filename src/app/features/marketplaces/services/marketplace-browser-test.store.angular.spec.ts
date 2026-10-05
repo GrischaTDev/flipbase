@@ -31,6 +31,7 @@ let api: {
   login: ReturnType<typeof vi.fn>;
   verify: ReturnType<typeof vi.fn>;
   close: ReturnType<typeof vi.fn>;
+  completeCloud: ReturnType<typeof vi.fn>;
 };
 let reloadConnections: ReturnType<typeof vi.fn>;
 let store: MarketplaceBrowserTestStore;
@@ -54,6 +55,7 @@ beforeEach(async () => {
     login: vi.fn().mockResolvedValue('submitted'),
     verify: vi.fn().mockResolvedValue('submitted'),
     close: vi.fn().mockResolvedValue(undefined),
+    completeCloud: vi.fn().mockResolvedValue({ state: 'completed' }),
   };
   reloadConnections = vi.fn().mockResolvedValue(undefined);
   TestBed.resetTestingModule();
@@ -86,6 +88,36 @@ beforeEach(async () => {
 });
 
 describe('Kontogebundener Browser-Testbereich', () => {
+  it('aktiviert Cloud erst nach gesondertem Abschluss und erhält die Konto-ID', async () => {
+    store.configureCloudSetup(id);
+    await store.startManualLogin();
+    await store.confirmAccount();
+    expect(store.cloudVerified()).toBe(true);
+    expect(store.canAct()).toBe(false);
+    expect(api.completeCloud).not.toHaveBeenCalled();
+    expect(api.close).not.toHaveBeenCalled();
+    await store.completeCloud();
+    expect(api.completeCloud).toHaveBeenCalledWith(
+      { workspaceId: accountA.workspaceId, connectionId: accountA.connectionId, cloudSetupId: id },
+      'token-a',
+    );
+    expect(reloadConnections).toHaveBeenCalledWith(accountA.connectionId);
+    expect(store.cloudCompleted()).toBe(true);
+  });
+  it('hält einen unbestätigten Cloud-Abschluss reserviert und wiederholbar', async () => {
+    store.configureCloudSetup(id);
+    await store.startManualLogin();
+    await store.confirmAccount();
+    api.completeCloud.mockRejectedValueOnce(new Error('internal secret'));
+    await store.completeCloud();
+    expect(store.cloudVerified()).toBe(true);
+    expect(store.canAct()).toBe(false);
+    expect(store.session()).not.toBeNull();
+    expect(store.error()).toContain('ausstehend');
+    expect(api.close).not.toHaveBeenCalled();
+    await store.completeCloud();
+    expect(store.cloudCompleted()).toBe(true);
+  });
   it('öffnet eine manuelle Anmeldung ohne automatische Anmeldung, Codes oder Kontoprüfung', async () => {
     await store.startManualLogin();
     expect(store.manualLogin()).toBe(true);

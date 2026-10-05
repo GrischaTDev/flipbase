@@ -1,5 +1,66 @@
 # Vinted-Browserdienst: Veröffentlichung des Admin-Piloten
 
+## Vorbereiteter IP-Bestand vom 05.10.2026
+
+Die Umsetzung enthält die Einrichtung mit vorhandenem IP-Bestand und den
+Wechsel eines lokalen Kontos zur Cloud. Automatische IP-Bestellung, Kündigung
+und Abrechnung sind nicht enthalten. Dieser Stand ist noch nicht produktiv
+aktiviert. Die gekaufte IP wurde weder registriert noch einem Konto zugeordnet.
+Der echte Pilot braucht die Freigabe der aktuellen Serverkonfiguration und
+die ausdrückliche Benennung des Kontos; historische Kontonamen gelten dafür
+nicht als neue Auswahl.
+
+Nach PR und gesonderter Betriebsfreigabe zunächst den tatsächlich laufenden
+Pilot-Compose, dessen Image-SHA und die private Environment-Datei prüfen.
+Der vorhandene nur lesende Mount `/run/flipbase` reicht für die Netzwerkdatei;
+kein neuer öffentlicher Zugang ist erforderlich. Die Datei
+`/run/flipbase/chromium-networks.json` gehört UID/GID 1000 und hat Modus 0600.
+`MARKETPLACE_CHROMIUM_NETWORK_FILE` verweist in der privaten Worker-Umgebung
+auf diesen absoluten Pfad. Proxyadresse, Benutzername und Passwort ausschließlich
+privat übermitteln. Das Dateiformat steht im
+[IP-Pilotplan](vinted-cloud-ip-pilot-plan.md). Bestehende Netzwerkkennungen und
+ihre Zugangsdaten während belegter Konten nicht umschreiben.
+
+Die Wartungsbefehle im geprüften Worker-Abbild lauten:
+
+```sh
+docker exec -u 1000:1000 flipbase-marketplace-worker \
+  node dist/register-marketplace-cloud-ip.js --list
+
+docker exec -u 1000:1000 flipbase-marketplace-worker \
+  node dist/register-marketplace-cloud-ip.js \
+  --file /run/flipbase/chromium-networks.json \
+  --network iproyal-pilot-a --order ACTUAL_ORDER_REFERENCE \
+  --country DE --dedicated-isp --expires ACTUAL_UTC_EXPIRY
+```
+
+Bestellregion, Dedicated-ISP-Eigenschaft und genaue Ablaufzeit aus der
+IPRoyal-Bestellung übernehmen. Die CLI testet den explizit ausgewählten Proxy
+über HTTPS gegen die [dokumentierte Geo-IP-Auskunft](https://ipwhois.io/documentation).
+Nur ein bestätigter deutscher IPv4-Ausgang und eine noch gültige deutsche
+Bestellung erlauben die Registrierung. Ein fehlgeschlagener Test führt zu
+keiner Freigabe und keinem direkten Ausweichzugang. Das ist ein Konnektivitäts-
+und Standorttest, kein Nachweis erfolgreicher Vinted-Anmeldung.
+
+Die Datenbank erhält nur Netzwerkkennung, Bestellreferenz, Land, ISP-Eigenschaft,
+Ablaufzeit, Prüfzeit und eine SHA-256-Prüfsumme des gemessenen IP-Ausgangs.
+Eine eindeutige Datenbankregel verhindert, dass derselbe Ausgang unter mehreren
+Kennungen als freie IP erscheint. Erneutes Registrieren mit verändertem Ausgang
+wird abgewiesen. Die CLI überschreibt keine bestehende Zuordnung und
+prüft nach verlorener Schreibantwort die tatsächlich gespeicherte Zeile.
+`--list` zeigt Kennung, Bestellreferenz, Ablaufzeit und Belegungszustand; keine
+Proxyadresse oder Zugangsdaten. Eine abgelaufene oder deaktivierte IP sperrt
+neue Sitzungen und weitere Cloudaufträge des zugeordneten Kontos.
+
+Der anschließende echte Pilot umfasst Anmeldung und Identitätsprüfung am
+ausgewählten Konto, lesenden Profil-/Inserateabruf, einen Worker-Neustart mit
+derselben Zuordnung und den Kapazitätshinweis beim zweiten künstlichen Versuch.
+Automatische Abrufe und Schreibaktionen bleiben ausgeschaltet. Bei unbestätigtem
+Browserstopp bleibt die IP belegt; keine Reservierung manuell freigeben.
+
+Lokale Prüfung: Datenbank- und Workertests, Angular-Bau sowie Browserfixtures
+mit künstlichen Konten. Der tatsächliche Hetzner-/Vinted-Nachweis ist offen.
+
 ## Manueller Anmeldevergleich vom 03.10.2026
 
 Der Nutzer bestätigt im vorbereiteten normalen Windows-Chrome den Ausgang
