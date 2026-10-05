@@ -248,7 +248,7 @@ async function checkAxe(page: Page) {
 }
 
 for (const width of [1440, 390]) {
-  test(`lokales Postfach mit Artikel, Suche, Filter und Versandwarteschlange ${width}px @marketplace-preview`, async ({
+  test(`lokales Postfach mit Artikel, Suche, Filter und Versandwarteschlange ${width}px @marketplace-preview @core-smoke`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 960 });
