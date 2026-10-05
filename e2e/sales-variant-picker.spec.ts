@@ -97,7 +97,7 @@ test('wählt verkaufbare Varianten im gemeinsamen Modal und zeigt Nummer vor Dat
   await expect(picker.locator(`[data-product-option="catalog:${secondId}"]`)).toContainText(
     'Verfügbar: 2 Stück',
   );
-  await expect(picker.locator(`[data-product-option="catalog:${emptyId}"]`)).toBeDisabled();
+  await expect(picker.locator(`[data-product-option="catalog:${emptyId}"]`)).toHaveCount(0);
   await expect(picker.getByRole('button', { name: 'Neue Variante', exact: true })).toHaveCount(0);
   await expect(picker.getByRole('button', { name: 'Produkt erstellen', exact: true })).toHaveCount(
     0,
