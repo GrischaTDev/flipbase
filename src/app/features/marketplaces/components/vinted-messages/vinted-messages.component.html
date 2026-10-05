@@ -287,6 +287,11 @@
                       <span>· {{ status }}</span>
                     }
                   </div>
+                  @if (entry.text && entry.title && entry.text !== entry.title) {
+                    <span class="block break-words [overflow-wrap:anywhere]">{{
+                      entry.title
+                    }}</span>
+                  }
                 }
                 @if (kind === 'system') {
                   <svg
@@ -295,11 +300,9 @@
                     aria-hidden="true"
                   ></svg>
                 }
-                @if (kind !== 'offer' || (entry.text && entry.text !== entry.title)) {
-                  <span class="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{{
-                    entry.text ?? entry.title
-                  }}</span>
-                }
+                <span class="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{{
+                  entry.text ?? entry.title
+                }}</span>
                 @for (imageUrl of entry.imageUrls ?? []; track imageUrl) {
                   <a
                     [href]="imageUrl"

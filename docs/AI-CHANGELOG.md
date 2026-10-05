@@ -43,6 +43,11 @@ hellen und dunklen Design; Auswahl- und Regressionstest sind erneut grün.
 Der Synchronisierungszeitpunkt bleibt auch in der Kontopille als `time` mit
 `datetime` und Hover-Text erhalten. Die beiden bestehenden Freigabeabläufe und
 vier Layoutabläufe sind gemeinsam im Browser geprüft.
+Der vollständige Browserlauf fand außerdem einen ausgeblendeten Angebotstitel.
+Gespeicherte Angebotstitel und Texte bleiben jetzt neben Preis und Status
+sichtbar. Alle sechs bestehenden Vinted-Ansichtsvarianten auf 1440, 390 und
+320 Pixeln sind erneut grün, einschließlich Datumswerten, Kontrast, Tastatur
+und 200-Prozent-Zoom. Ihre Messung erfasst die neuen Textelemente und Uhrzeiten.
 
 **Offen:** Installation und echte Kontoabnahme nach freigegebenem Rollout.
 Die laufende App und installierte Erweiterung bleiben bis dahin unverändert.
