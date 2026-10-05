@@ -39,6 +39,8 @@ Produktionsbau sind grün.
 
 **Offen:** Installation und echte Kontoabnahme nach freigegebenem Rollout.
 Die laufende App und installierte Erweiterung bleiben bis dahin unverändert.
+PR, Merge nach erfolgreichen Pflichtprüfungen, Veröffentlichung und Aufräumen
+sind am 05.10.2026 vom Nutzer freigegeben.
 
 ## 2026-10-05 - Juna - Vinted-Postfach mit Artikelbezug, automatischem Abgleich und Versand
 
