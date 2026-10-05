@@ -17,7 +17,7 @@ const scope = { workspaceId, connectionId };
 const imageUrl = 'https://images.example.test/jacket.svg';
 const expiresAt = '2099-10-05T12:00:00Z';
 
-async function inboxFixture(page: Page) {
+async function inboxFixture(page: Page, longHistory = false) {
   await mockMarketplace(page, false, false, false, false, []);
   const now = new Date().toISOString();
   const account = {
@@ -155,6 +155,18 @@ async function inboxFixture(page: Page) {
     return route.fulfill({
       json: {
         items: [
+          ...(longHistory
+            ? Array.from({ length: 24 }, (_, index) => ({
+                ...scope,
+                id: `25000000-0000-4000-8000-${String(index + 100).padStart(12, '0')}`,
+                conversationId: body['p_parent_id'],
+                title: 'Nachricht',
+                text: `Ältere Nachricht ${index + 1}: Vielen Dank für Deine Rückmeldung zur Jacke.`,
+                direction: index % 2 ? 'outbound' : 'inbound',
+                occurredAt: now,
+                messageType: 'text_message',
+              }))
+            : []),
           {
             ...scope,
             id: '25000000-0000-4000-8000-000000000061',
@@ -184,12 +196,22 @@ async function inboxFixture(page: Page) {
             direction: 'inbound',
             occurredAt: now,
             messageType: 'offer_request_message',
-            offerStatus: 'pending',
-            priceLabel: '50,00 €',
+            offerStatus: 'rejected',
+            priceLabel: '50,00 € statt 58,00 €',
             imageUrls: [imageUrl],
           },
+          {
+            ...scope,
+            id: '25000000-0000-4000-8000-000000000064',
+            conversationId: body['p_parent_id'],
+            title: 'Verkauft',
+            text: 'Verkauft',
+            direction: 'unknown',
+            occurredAt: now,
+            messageType: 'status_message',
+          },
         ].reverse(),
-        total: 3,
+        total: longHistory ? 28 : 4,
         nextCursor: null,
       },
     });
@@ -247,17 +269,26 @@ async function checkAxe(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 }
 
-for (const width of [1440, 390]) {
-  test(`lokales Postfach mit Artikel, Suche, Filter und Versandwarteschlange ${width}px @marketplace-preview @core-smoke`, async ({
+for (const { width, theme } of [
+  { width: 1440, theme: 'light' },
+  { width: 390, theme: 'light' },
+  { width: 1440, theme: 'dark' },
+  { width: 390, theme: 'dark' },
+]) {
+  test(`lokales Postfach mit Artikel, Suche, Filter und Versandwarteschlange ${width}px ${theme} @marketplace-preview @core-smoke`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 960 });
     await page.emulateMedia({ reducedMotion: 'reduce' });
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
-    const fixture = await inboxFixture(page);
+    const fixture = await inboxFixture(page, theme === 'dark');
     await page.goto('/marketplaces/vinted/messages');
-    await expect(page.getByRole('heading', { name: 'Gespräche', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Gespräche', exact: true })).toBeVisible({
+      timeout: 15000,
+    });
+    if (theme === 'dark')
+      await page.getByRole('button', { name: 'Zu dunklem Design wechseln', exact: true }).click();
     const rows = page.locator('[data-conversation-row]');
     await expect(rows).toHaveCount(2);
     await checkAxe(page);
@@ -265,7 +296,7 @@ for (const width of [1440, 390]) {
     if (screenshotDirectory) {
       await mkdir(screenshotDirectory, { recursive: true });
       await page.screenshot({
-        path: join(screenshotDirectory, `vinted-inbox-list-${width}.png`),
+        path: join(screenshotDirectory, `vinted-inbox-list-${width}-${theme}.png`),
         fullPage: true,
       });
     }
@@ -281,16 +312,60 @@ for (const width of [1440, 390]) {
     await expect(rows).toHaveCount(1);
     await search.fill('');
     await page.getByRole('combobox', { name: 'Gespräche filtern' }).click();
-    await page.getByRole('option', { name: 'Ungelesen', exact: true }).click();
+    await expect(
+      page.getByRole('option', { name: 'Systemnachrichten (0)', exact: true }),
+    ).toBeVisible();
+    await page.getByRole('option', { name: 'Ungelesen (1)', exact: true }).click();
     await expect(rows).toHaveCount(1);
     await rows.first().getByRole('button').click();
     const conversation = page.getByRole('region', { name: 'Gespräch', exact: true });
     await expect(conversation.getByRole('heading', { name: 'Anna', exact: true })).toBeVisible();
     await expect(conversation.getByText('Vintage Lederjacke', { exact: true })).toBeVisible();
-    await expect(conversation.getByText('58,00 €', { exact: true })).toBeVisible();
+    await expect(
+      conversation.locator('[data-conversation-item]').getByText('58,00 €', { exact: true }),
+    ).toBeVisible();
     await expect(conversation.getByRole('img', { name: 'Vintage Lederjacke' })).toBeVisible();
     await expect(conversation.getByText('Zuletzt aktiv', { exact: false })).toBeVisible();
     await expect(page.getByRole('log')).toContainText('50,00 €');
+    await expect(page.getByRole('log').locator('del')).toHaveText('58,00 €');
+    await expect(page.getByRole('log')).toContainText('Abgelehnt');
+    await expect(page.locator('[data-message-kind="system"]')).toHaveCSS(
+      'background-color',
+      'rgba(0, 0, 0, 0)',
+    );
+    await expect(page.locator('[data-message-kind="system"]')).toHaveCSS('text-align', 'center');
+    await expect(page.locator('[data-message-day]')).toHaveCount(1);
+    const productImage = rows.first().locator('img');
+    if (width >= 1024) await expect(productImage).toHaveCSS('object-fit', 'cover');
+    const composer = conversation.locator('form');
+    const composerBounds = await composer.boundingBox();
+    const cardBounds = await conversation.locator('app-card').boundingBox();
+    expect(composerBounds).not.toBeNull();
+    expect(cardBounds).not.toBeNull();
+    expect(
+      (cardBounds?.y ?? 0) +
+        (cardBounds?.height ?? 0) -
+        ((composerBounds?.y ?? 0) + (composerBounds?.height ?? 0)),
+    ).toBeLessThan(20);
+    await expect(conversation.getByRole('textbox', { name: 'Deine Nachricht' })).toHaveAttribute(
+      'rows',
+      '1',
+    );
+    await expect(conversation.getByRole('textbox', { name: 'Deine Nachricht' })).toHaveCSS(
+      'border-radius',
+      '16px',
+    );
+    if (theme === 'dark') {
+      const log = page.getByRole('log');
+      expect(await log.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(
+        true,
+      );
+      const footerBeforeScroll = await composer.boundingBox();
+      await log.evaluate((element) => {
+        element.scrollTop = 0;
+      });
+      expect((await composer.boundingBox())?.y).toBe(footerBeforeScroll?.y);
+    }
     await expect
       .poll(() => fixture.bridgeCalls.includes('FLIPBASE_VINTED_LOCAL_INBOX_DETAIL'))
       .toBe(true);
@@ -320,8 +395,14 @@ for (const width of [1440, 390]) {
     await checkAxe(page);
     const directory = process.env['MARKETPLACE_SCREENSHOT_DIR'];
     if (directory) {
+      await page.getByRole('log').evaluate((element) => {
+        element.scrollTop = element.scrollHeight;
+      });
       await mkdir(directory, { recursive: true });
-      await page.screenshot({ path: join(directory, `vinted-inbox-${width}.png`), fullPage: true });
+      await page.screenshot({
+        path: join(directory, `vinted-inbox-${width}-${theme}.png`),
+        fullPage: true,
+      });
     }
     if (width < 1024) {
       await page.getByRole('button', { name: 'Zur Gesprächsliste' }).click();

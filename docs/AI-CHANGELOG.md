@@ -30,6 +30,60 @@ statt die beiden schmalen Eingabezellen zu verschieben.
 versus Einkauf, fehlende sichtbare Stepper sowie die neue Fehlerplatzierung
 angepasst. PR und Merge stehen noch aus.
 
+## 2026-10-05 - Juna - Vinted-Postfachlayout und Arbeitstab korrigieren
+
+**Auftrag:** Die beanstandete Postfachansicht anhand der Nutzerbilder und des
+sichtbaren Bleam-Postfachs korrigieren; Arbeitstab im Hintergrund halten und
+ungültige Nachrichtenzeiten untersuchen. Eigener Zweig
+`juna/vinted-inbox-layout-fixes` von `origin/master` bei `b05ff1c4`.
+
+**Befund und Umsetzung:** Der Antworteditor lag im Karteninhalt statt im Footer;
+Produktbilder nutzten die vollständige Bilddarstellung statt einen gefüllten
+Rahmen. Jetzt bleiben Gesprächskopf und Antwortfooter stehen, während nur der
+Verlauf scrollt. Artikelstreifen, letzte bekannte Partneraktivität, Tagestrenner,
+Uhrzeiten, Angebotsbeträge mit ursprünglichem Preis und Entscheidung, Filterzahlen
+einschließlich Null sowie Kontopille ergänzen die Ansicht. Bestehende gemeinsame
+UI-Bausteine erhalten ausdrücklich wählbare Varianten; die Standarddarstellung
+anderer Seiten bleibt erhalten.
+
+Der Hintergrunddienst aktivierte den Arbeitstab bei manuellen Abruffehlern.
+Dieser Fokuswechsel entfällt. Der gespeicherte Tab wird wiederverwendet oder
+inaktiv angelegt, angeheftet und an erster Stelle eingeordnet. Titel und gelbes
+Flipbase-Symbol kennzeichnen ausschließlich den reservierten Tab. Das Anheften
+ist auch im Bleam-Hintergrundcode belegt; den nativen Rahmen zeichnet Chrome.
+
+Gesprächsdetails enthalten nicht immer `updated_at`; Nachrichten können ihre
+Zeit am äußeren Objekt oder in `entity` liefern. Die Erweiterung verwendet
+echte Nachrichtenzeiten beziehungsweise die bekannte Listenrevision als
+Ersatz, niemals die Abrufzeit. Ungültige Daten bleiben Fehler. Angebotsstatus
+und beide Preise passen weiterhin in den bestehenden Importvertrag; bereits
+importierte Systemereignisse behalten ihre Schlüssel. Erweiterung 1.3.1,
+keine Datenbankänderung.
+
+**Prüfung:** Postfach-Browsertests auf 1440 und 390 Pixeln, jeweils hell und dunkel,
+einschließlich AXE, gefüllter Bilder, Angebotsdarstellung und festem Footer bei
+kurzem und langem Verlauf bestanden. Synthetische Konten, keine Vinted-Anfragen
+und keine echten Nachrichten. 118 gezielte Angular-/UI-Tests und 66
+Erweiterungstests bestanden; Typen, Lint/Format, gemeinsame UI-Regeln und
+Produktionsbau sind grün.
+
+Die erste PR-Prüfung fand noch die bisherigen Namen der Postfach-Browsertests
+im Prüfkatalog. Der Katalog enthält jetzt beide Bildschirmbreiten jeweils im
+hellen und dunklen Design; Auswahl- und Regressionstest sind erneut grün.
+Der Synchronisierungszeitpunkt bleibt auch in der Kontopille als `time` mit
+`datetime` und Hover-Text erhalten. Die beiden bestehenden Freigabeabläufe und
+vier Layoutabläufe sind gemeinsam im Browser geprüft.
+Der vollständige Browserlauf fand außerdem einen ausgeblendeten Angebotstitel.
+Gespeicherte Angebotstitel und Texte bleiben jetzt neben Preis und Status
+sichtbar. Alle sechs bestehenden Vinted-Ansichtsvarianten auf 1440, 390 und
+320 Pixeln sind erneut grün, einschließlich Datumswerten, Kontrast, Tastatur
+und 200-Prozent-Zoom. Ihre Messung erfasst die neuen Textelemente und Uhrzeiten.
+
+**Offen:** Installation und echte Kontoabnahme nach freigegebenem Rollout.
+Die laufende App und installierte Erweiterung bleiben bis dahin unverändert.
+PR, Merge nach erfolgreichen Pflichtprüfungen, Veröffentlichung und Aufräumen
+sind am 05.10.2026 vom Nutzer freigegeben.
+
 ## 2026-10-05 - Juna - Zahlenfelder und Verkaufspositionen vereinheitlicht
 
 **Auftrag:** Die Plus-/Minus-Bedienung gemeinsamer Zahlenfelder soll nicht mehr wie

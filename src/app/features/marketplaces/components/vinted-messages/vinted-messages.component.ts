@@ -14,7 +14,14 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { LucideArrowLeft, LucideImage, LucideSend, LucideTrash2 } from '@lucide/angular';
+import {
+  LucideArrowLeft,
+  LucideImagePlus,
+  LucideSend,
+  LucideTrash2,
+  LucideTag,
+  LucideInfo,
+} from '@lucide/angular';
 import imageCompression from 'browser-image-compression';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
@@ -38,6 +45,15 @@ import { VintedMessagingStore } from '../../services/vinted-messaging.store';
 
 type ConversationFilter = 'all' | 'unread' | 'questions' | 'negotiating' | 'sold' | 'system';
 
+const conversationFilters: readonly SelectOption<ConversationFilter>[] = [
+  { value: 'all', label: 'Alle Gespräche' },
+  { value: 'unread', label: 'Ungelesen' },
+  { value: 'questions', label: 'Fragen' },
+  { value: 'negotiating', label: 'Verhandlung' },
+  { value: 'sold', label: 'Verkauft' },
+  { value: 'system', label: 'Systemnachrichten' },
+];
+
 interface ReadingPosition {
   key: string;
   height: number;
@@ -59,6 +75,8 @@ interface ReadingPosition {
     CustomSearchInputComponent,
     CustomSelectComponent,
     TextFieldComponent,
+    LucideTag,
+    LucideInfo,
   ],
   templateUrl: './vinted-messages.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -71,14 +89,12 @@ export class VintedMessagesComponent {
   readonly search = signal('');
   readonly conversationFilter = signal<ConversationFilter | null>('all');
   readonly conversationSort = signal<'latest' | 'oldest' | null>('latest');
-  readonly filterOptions: readonly SelectOption<ConversationFilter>[] = [
-    { value: 'all', label: 'Alle Gespräche' },
-    { value: 'unread', label: 'Ungelesen' },
-    { value: 'questions', label: 'Fragen' },
-    { value: 'negotiating', label: 'Verhandlung' },
-    { value: 'sold', label: 'Verkauft' },
-    { value: 'system', label: 'System' },
-  ];
+  readonly filterOptions = computed<readonly SelectOption<ConversationFilter>[]>(() =>
+    conversationFilters.map((option) => ({
+      ...option,
+      label: `${option.label} (${(this.store.snapshot()?.conversations.items ?? []).filter((entry) => this.matchesFilter(entry, option.value)).length})`,
+    })),
+  );
   readonly sortOptions: readonly SelectOption<'latest' | 'oldest'>[] = [
     { value: 'latest', label: 'Neueste zuerst' },
     { value: 'oldest', label: 'Älteste zuerst' },
@@ -127,7 +143,7 @@ export class VintedMessagesComponent {
   );
   readonly preparingAttachment = signal(false);
   readonly composerError = signal<string | null>(null);
-  readonly imageIcon = LucideImage;
+  readonly imageIcon = LucideImagePlus;
   readonly sendIcon = LucideSend;
   readonly removeIcon = LucideTrash2;
   private draftRevision = 0;
@@ -169,7 +185,42 @@ export class VintedMessagesComponent {
         : null)
     );
   });
-  readonly transcript = computed(() => [...(this.store.messages()?.items ?? [])].reverse());
+  readonly transcript = computed(() =>
+    [...(this.store.messages()?.items ?? [])].reverse().sort((first, second) => {
+      const firstDate = Date.parse(first.occurredAt ?? '');
+      const secondDate = Date.parse(second.occurredAt ?? '');
+      if (!Number.isFinite(firstDate)) return Number.isFinite(secondDate) ? 1 : 0;
+      if (!Number.isFinite(secondDate)) return -1;
+      return firstDate - secondDate;
+    }),
+  );
+  readonly datedTranscript = computed(() =>
+    this.transcript().map((entry, index, entries) => ({
+      entry,
+      startsDay:
+        index === 0 ||
+        this.messageDay(entry.occurredAt) !== this.messageDay(entries[index - 1].occurredAt),
+    })),
+  );
+  readonly hasPendingMessages = computed(() =>
+    this.queuedMessages().some((message) =>
+      ['queued', 'claimed', 'sending'].includes(message.state),
+    ),
+  );
+  readonly lastActiveLabel = computed(() => {
+    const timestamp = this.conversation()?.lastActiveAt;
+    if (!timestamp) return 'Aktivität nicht verfügbar';
+    const seconds = Math.max(0, (Date.now() - Date.parse(timestamp)) / 1000);
+    if (!Number.isFinite(seconds)) return 'Aktivität nicht verfügbar';
+    if (seconds < 60) return 'Zuletzt aktiv gerade eben';
+    const [amount, unit]: [number, Intl.RelativeTimeFormatUnit] =
+      seconds < 3600
+        ? [Math.floor(seconds / 60), 'minute']
+        : seconds < 86400
+          ? [Math.floor(seconds / 3600), 'hour']
+          : [Math.floor(seconds / 86400), 'day'];
+    return `Zuletzt aktiv ${new Intl.RelativeTimeFormat('de', { numeric: 'always' }).format(-amount, unit)}`;
+  });
   private readonly failedRequest = signal<{
     key: string | null;
     kind: 'message' | 'conversation';
@@ -311,7 +362,9 @@ export class VintedMessagesComponent {
           entry.eventType === 'transaction_completed'
         );
       case 'system':
-        return this.messageKind(entry) === 'system';
+        return (
+          this.messageKind(entry) === 'system' || /^(?:vinted|support_vinted)$/i.test(entry.title)
+        );
       default:
         return true;
     }
@@ -496,11 +549,46 @@ export class VintedMessagesComponent {
   }
 
   messageKind(entry: MarketplaceEntry): 'system' | 'offer' | 'text' {
-    return entry.messageType === 'status_message' || entry.messageType === 'action_message'
+    return entry.messageType === 'status_message' ||
+      entry.messageType === 'action_message' ||
+      entry.messageType === 'payment_message'
       ? 'system'
       : entry.messageType === 'offer_request_message' || entry.messageType === 'offer_message'
         ? 'offer'
         : 'text';
+  }
+
+  private messageDay(timestamp: string | null): string {
+    return timestamp ? new Date(timestamp).toLocaleDateString('de-DE') : '';
+  }
+
+  offerLabel(entry: MarketplaceEntry): string {
+    return entry.direction === 'outbound' ? 'Angebot gesendet' : 'Angebot erhalten';
+  }
+
+  offerPrices(entry: MarketplaceEntry): { offered: string | null; original: string | null } {
+    const [offered, original] = (entry.priceLabel ?? '').split(' statt ');
+    return { offered: offered || null, original: original || null };
+  }
+
+  offerStatusLabel(entry: MarketplaceEntry): string | null {
+    switch (entry.offerStatus?.toLocaleLowerCase('de')) {
+      case 'accepted':
+      case '20':
+        return 'Angenommen';
+      case 'declined':
+      case 'rejected':
+      case '30':
+        return 'Abgelehnt';
+      case 'pending':
+      case '10':
+        return 'Offen';
+      case 'cancelled':
+      case '40':
+        return 'Abgebrochen';
+      default:
+        return entry.offerStatus ?? null;
+    }
   }
 
   private restoreReadingPosition(): void {

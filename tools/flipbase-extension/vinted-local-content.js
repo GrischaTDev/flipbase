@@ -136,6 +136,15 @@
   }
 
   function ensureOverlay() {
+    document.title = 'Flipbase · Vinted-Arbeitstab';
+    let tabIcon = document.head.querySelector('[data-flipbase-work-tab-icon]');
+    if (!tabIcon) {
+      tabIcon = document.createElement('link');
+      tabIcon.rel = 'icon';
+      tabIcon.dataset.flipbaseWorkTabIcon = '';
+      tabIcon.href = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#fcc601"/><path d="M10 8h14v4H14v4h8v4h-8v6h-4z" fill="#171717"/></svg>')}`;
+      document.head.append(tabIcon);
+    }
     if (overlay?.isConnected) return;
     overlay = document.createElement('section');
     overlay.id = 'flipbase-vinted-work-tab';

@@ -22,6 +22,7 @@ export class CardComponent {
   readonly padding = input<CardPadding>('md');
   readonly rounded = input<CardRounded>('lg');
   readonly overflowVisible = input(false);
+  readonly contentLayout = input<'default' | 'fill'>('default');
   /** Ganzflächiger Link für Karten ohne weitere interaktive Inhalte. */
   readonly link = input<string | null>(null);
   readonly queryParams = input<Params | null>(null);

@@ -19,7 +19,7 @@ export type ButtonVariant =
 
 export type TableActionTone = 'brand' | 'positive' | 'warning' | 'critical';
 
-export type ButtonSize = 'slim' | 'md' | 'lg' | 'search';
+export type ButtonSize = 'slim' | 'md' | 'lg' | 'search' | 'comfortable';
 
 @Component({
   selector: 'app-button',
@@ -38,6 +38,7 @@ export class ButtonComponent {
   readonly tone = input<TableActionTone>('brand');
   readonly size = input<ButtonSize>('md');
   readonly density = input<'default' | 'compact'>('default');
+  readonly shape = input<'default' | 'circle'>('default');
   readonly loading = input<boolean>(false);
   readonly disabled = input<boolean>(false);
   readonly icon = input<LucideIconInput | null>(null);
@@ -128,18 +129,22 @@ export class ButtonComponent {
           md: 'h-7 w-7 px-0 text-[13px] rounded-lg gap-0',
           lg: 'h-8 w-8 px-0 text-[13px] rounded-lg gap-0',
           search: 'h-9 w-9 px-0 text-[13px] rounded-lg gap-0',
+          comfortable: 'h-10 w-10 px-0 text-[13px] rounded-lg gap-0',
         }
       : {
           slim: 'h-7 text-[13px] rounded-lg gap-1.5',
           md: 'h-7 text-[13px] rounded-lg gap-1.5',
           lg: 'h-8 text-[13px] rounded-lg gap-2',
           search: 'h-9 text-[13px] rounded-lg gap-1.5',
+          comfortable: 'h-10 text-[13px] rounded-lg gap-1.5',
         };
     const horizontalPadding = this.iconOnly()
       ? ''
       : this.variant() === 'plain'
         ? 'px-0'
-        : { slim: 'px-2', md: 'px-3', lg: 'px-4', search: 'px-2' }[this.size()];
+        : { slim: 'px-2', md: 'px-3', lg: 'px-4', search: 'px-2', comfortable: 'px-3' }[
+            this.size()
+          ];
 
     return [
       base,
@@ -152,7 +157,9 @@ export class ButtonComponent {
         ? this.density() === 'compact'
           ? 'min-h-11 rounded-lg py-2 text-[13px]'
           : 'min-h-18 rounded-lg py-3 text-sm'
-        : sizeStyles[this.size()],
+        : this.shape() === 'circle'
+          ? sizeStyles[this.size()].replace('rounded-lg', 'rounded-full')
+          : sizeStyles[this.size()],
       horizontalPadding,
     ]
       .filter(Boolean)

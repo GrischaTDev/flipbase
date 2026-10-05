@@ -48,7 +48,7 @@ async function measureMessageText(page: Page) {
       });
       return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
     };
-    return [...log.querySelectorAll('article p')].map((paragraph) => {
+    return [...log.querySelectorAll('article > span, article time')].map((paragraph) => {
       const layers: number[][] = [];
       for (let ancestor: Element | null = paragraph; ancestor; ancestor = ancestor.parentElement)
         layers.push(color(getComputedStyle(ancestor).backgroundColor));
@@ -61,7 +61,7 @@ async function measureMessageText(page: Page) {
       const backgroundLuminance = luminance(background);
       return {
         text: paragraph.textContent?.trim() ?? '',
-        isTimestamp: paragraph === paragraph.closest('article')?.lastElementChild,
+        isTimestamp: paragraph.tagName === 'TIME',
         fontSize: parseFloat(style.fontSize),
         contrast:
           (Math.max(foregroundLuminance, backgroundLuminance) + 0.05) /
@@ -454,24 +454,29 @@ for (const width of [1440, 390, 320]) {
           ),
         };
       });
-      expect(positions.rightGap).toBeLessThanOrEqual(13);
+      expect(positions.rightGap).toBeLessThanOrEqual(24);
       for (const offset of positions.centerOffsets) expect(offset).toBeLessThanOrEqual(1);
       const textMeasurements = await measureMessageText(page);
       const timestamps = textMeasurements.filter((measurement) => measurement.isTimestamp);
       const expectedTimestamps = await page.evaluate(() => {
         const formatter = new Intl.DateTimeFormat('de-DE', {
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
           hour: '2-digit',
           minute: '2-digit',
           hourCycle: 'h23',
         });
-        return Array.from({ length: 6 }, (_, index) =>
-          formatter.format(new Date(`2026-09-26T12:0${index}:00Z`)),
+        return Array.from(
+          { length: 6 },
+          (_, index) => `${formatter.format(new Date(`2026-09-26T12:0${index}:00Z`))} Uhr`,
         );
       });
       expect(timestamps.map((measurement) => measurement.text)).toEqual(expectedTimestamps);
+      await expect(messageLog.locator('article time')).toHaveCount(6);
+      for (let index = 0; index < 6; index++) {
+        await expect(messageLog.locator('article time').nth(index)).toHaveAttribute(
+          'datetime',
+          `2026-09-26T12:0${index}:00Z`,
+        );
+      }
       for (const measurement of textMeasurements) {
         expect(measurement.contrast, `${theme}: ${measurement.text}`).toBeGreaterThanOrEqual(4.5);
         expect(measurement.fontSize).toBeGreaterThanOrEqual(measurement.isTimestamp ? 12 : 13);

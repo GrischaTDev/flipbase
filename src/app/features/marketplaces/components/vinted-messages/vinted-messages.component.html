@@ -19,13 +19,16 @@
       }
     </div>
   }
-  <div class="grid min-w-0 gap-4 lg:grid-cols-[minmax(300px,1fr)_minmax(0,2fr)]">
+  <div
+    data-inbox-layout
+    class="grid h-[calc(100dvh-13rem)] min-h-[28rem] min-w-0 gap-4 lg:grid-cols-[minmax(280px,1fr)_minmax(0,2.5fr)]"
+  >
     <section
       aria-labelledby="vinted-conversations-title"
-      class="min-w-0 lg:block"
+      class="h-full min-h-0 min-w-0 lg:block"
       [class.hidden]="store.selectedConversationId() !== null"
     >
-      <app-card padding="none" class="h-full min-w-0">
+      <app-card padding="none" contentLayout="fill" class="h-full min-h-0 min-w-0">
         <h2
           card-header
           #listHeading
@@ -35,7 +38,7 @@
         >
           Gespräche
         </h2>
-        <div class="space-y-2 border-b border-fb-line p-3">
+        <div class="shrink-0 space-y-2 border-b border-fb-line p-3">
           <app-custom-search-input
             [(value)]="search"
             ariaLabel="Gespräche suchen"
@@ -46,7 +49,7 @@
           <div class="grid grid-cols-2 gap-2">
             <app-custom-select
               [(value)]="conversationFilter"
-              [options]="filterOptions"
+              [options]="filterOptions()"
               ariaLabel="Gespräche filtern"
               variant="toolbar"
             />
@@ -58,7 +61,7 @@
             />
           </div>
         </div>
-        <div class="max-h-[36rem] overflow-y-auto p-2">
+        <div class="min-h-0 flex-1 overflow-y-auto p-2">
           @for (entry of visibleConversations(); track entry.id) {
             <app-button
               variant="list-row"
@@ -74,6 +77,7 @@
                   [src]="entry.itemImageUrl ?? entry.imageUrl"
                   [alt]="''"
                   size="sm"
+                  fit="cover"
                 />
                 <span class="min-w-0 flex-1">
                   <span class="flex items-center justify-between gap-2">
@@ -124,49 +128,59 @@
       </app-card>
     </section>
     <section
-      class="min-w-0 lg:block"
+      class="h-full min-h-0 min-w-0 lg:block"
       [class.hidden]="store.selectedConversationId() === null"
       aria-label="Gespräch"
     >
-      <app-card padding="none" class="h-full min-w-0">
+      <app-card padding="none" contentLayout="fill" class="h-full min-h-0 min-w-0">
         <ng-container card-header>
           @if (conversation(); as conversation) {
-            <div class="flex min-w-0 flex-wrap items-center gap-2">
-              <app-button class="shrink-0 lg:hidden" [icon]="backIcon" (clicked)="backToList()"
-                >Zur Gesprächsliste</app-button
-              >
-              <h2
-                #conversationHeading
-                data-conversation-heading
-                tabindex="-1"
-                class="min-w-0 flex-1 truncate text-[13px] font-semibold text-fb-text-primary"
-              >
-                {{ conversation.title }}
-              </h2>
-              @if (conversation.lastActiveAt) {
-                <span class="w-full text-xs text-fb-text-secondary sm:ml-auto sm:w-auto sm:shrink-0"
-                  >Zuletzt aktiv
-                  <time [attr.datetime]="conversation.lastActiveAt">{{
-                    conversation.lastActiveAt | date: 'dd.MM., HH:mm'
-                  }}</time></span
+            <div class="flex min-w-0 items-center gap-2">
+              <app-button
+                class="shrink-0 lg:hidden"
+                [icon]="backIcon"
+                [iconOnly]="true"
+                ariaLabel="Zur Gesprächsliste"
+                (clicked)="backToList()"
+              />
+              <div class="min-w-0 flex-1">
+                <h2
+                  #conversationHeading
+                  data-conversation-heading
+                  tabindex="-1"
+                  class="truncate text-[13px] font-semibold text-fb-text-primary"
                 >
+                  {{ conversation.title }}
+                </h2>
+                <p
+                  data-partner-activity
+                  class="mt-0.5 text-xs text-fb-text-secondary"
+                  [attr.title]="conversation.lastActiveAt | date: 'dd.MM.yyyy, HH:mm'"
+                >
+                  {{ lastActiveLabel() }}
+                </p>
+              </div>
+              @if (conversation.unread) {
+                <app-badge tone="brand">Ungelesen</app-badge>
               }
             </div>
           }
         </ng-container>
         @if (conversation(); as conversation) {
-          @if (conversation.itemTitle) {
-            <div class="flex items-center gap-3 border-b border-fb-line px-4 py-3">
+          @if (conversation.itemTitle || conversation.itemId || conversation.itemImageUrl) {
+            <div
+              data-conversation-item
+              class="flex shrink-0 items-center gap-3 border-b border-fb-line px-3 py-2"
+            >
               <app-product-thumbnail
                 [src]="conversation.itemImageUrl ?? null"
-                [alt]="conversation.itemTitle"
+                [alt]="conversation.itemTitle ?? 'Artikel'"
                 size="sm"
+                fit="cover"
               />
-              <div class="min-w-0 flex-1">
-                <p class="truncate text-[13px] font-semibold text-fb-text-primary">
-                  {{ conversation.itemTitle }}
-                </p>
-              </div>
+              <p class="min-w-0 flex-1 truncate text-[13px] text-fb-text-primary">
+                {{ conversation.itemTitle ?? 'Artikel nicht verfügbar' }}
+              </p>
               @if (
                 conversation.itemPrice !== null &&
                 conversation.itemPrice !== undefined &&
@@ -179,38 +193,10 @@
                   }}
                 </p>
               }
+              @if (conversation.transactionStatus) {
+                <app-badge tone="neutral">{{ conversation.transactionStatus }}</app-badge>
+              }
             </div>
-          }
-          @if (store.messages()?.nextCursor) {
-            <app-button
-              class="mx-3 mt-3"
-              [loading]="store.loadingPage() === 'message'"
-              (clicked)="loadOlderMessages()"
-              >Ältere Nachrichten laden</app-button
-            >
-          }
-          @if (store.error(); as error) {
-            <div class="px-3 pt-3">
-              <p role="alert" class="text-[13px] text-fb-text-secondary">{{ error }}</p>
-              <app-button class="mt-2" (clicked)="retryFailedRequest()">
-                @switch (retryKind()) {
-                  @case ('message') {
-                    Ältere Nachrichten erneut laden
-                  }
-                  @case ('conversation') {
-                    Weitere Gespräche erneut laden
-                  }
-                  @default {
-                    Nachrichten erneut laden
-                  }
-                }
-              </app-button>
-            </div>
-          }
-          @if (store.loadingMessages() && transcript().length > 0) {
-            <p role="status" class="px-3 pt-3 text-[13px] text-fb-text-secondary">
-              Nachrichten werden geladen …
-            </p>
           }
           <div
             #messageLog
@@ -219,117 +205,158 @@
             aria-live="off"
             tabindex="0"
             [attr.aria-busy]="store.loadingMessages()"
-            class="max-h-[36rem] min-h-40 space-y-2 overflow-y-auto p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-fb-text-primary"
+            class="min-h-0 flex-1 space-y-3 overflow-y-auto p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-fb-text-primary"
             (scroll)="captureReadingPosition()"
           >
-            @if (store.loadingMessages() && transcript().length === 0) {
+            @if (store.messages()?.nextCursor) {
+              <div class="text-center">
+                <app-button
+                  [loading]="store.loadingPage() === 'message'"
+                  (clicked)="loadOlderMessages()"
+                  >Ältere Nachrichten laden</app-button
+                >
+              </div>
+            }
+            @if (store.error(); as error) {
+              <div>
+                <p role="alert" class="text-[13px] text-fb-text-secondary">{{ error }}</p>
+                <app-button class="mt-2" (clicked)="retryFailedRequest()">
+                  @switch (retryKind()) {
+                    @case ('message') {
+                      Ältere Nachrichten erneut laden
+                    }
+                    @case ('conversation') {
+                      Weitere Gespräche erneut laden
+                    }
+                    @default {
+                      Nachrichten erneut laden
+                    }
+                  }
+                </app-button>
+              </div>
+            }
+            @if (store.loadingMessages()) {
               <p role="status" class="text-[13px] text-fb-text-secondary">
                 Nachrichten werden geladen …
               </p>
-            } @else {
-              @for (entry of transcript(); track entry.id) {
-                <article
-                  class="w-fit max-w-[90%] rounded-lg border border-fb-line px-3 py-2"
-                  [attr.data-message-kind]="messageKind(entry)"
-                  [attr.data-message-direction]="entry.direction"
-                  [class.ml-auto]="
-                    messageKind(entry) !== 'system' && entry.direction === 'outbound'
-                  "
-                  [class.mx-auto]="messageKind(entry) === 'system' || entry.direction === 'unknown'"
-                  [class.bg-fb-well]="
-                    messageKind(entry) === 'system' || entry.direction === 'outbound'
-                  "
-                  [class.bg-fb-surface]="
-                    messageKind(entry) !== 'system' && entry.direction !== 'outbound'
-                  "
-                  [class.text-center]="messageKind(entry) === 'system'"
-                >
-                  @if (messageKind(entry) === 'offer') {
-                    <p class="text-[13px] font-semibold text-fb-text-primary">{{ entry.title }}</p>
-                    @if (entry.priceLabel) {
-                      <p class="mt-1 text-[13px] font-semibold text-fb-text-primary">
-                        {{ entry.priceLabel }}
-                      </p>
-                    }
-                  }
-                  @if (
-                    messageKind(entry) !== 'offer' || (entry.text && entry.text !== entry.title)
-                  ) {
-                    <p
-                      class="whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-[13px] text-fb-text-primary"
-                    >
-                      {{ entry.text ?? entry.title }}
-                    </p>
-                  }
-                  @for (imageUrl of entry.imageUrls ?? []; track imageUrl) {
-                    <a
-                      [href]="imageUrl"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="mt-2 block"
-                      aria-label="Nachrichtenbild öffnen"
-                    >
-                      <img
-                        [src]="imageUrl"
-                        alt="Bild in dieser Nachricht"
-                        loading="lazy"
-                        class="max-h-60 max-w-full rounded-lg object-contain"
-                      />
-                    </a>
-                  }
-                  @if (messageKind(entry) === 'offer' && entry.offerStatus) {
-                    <app-badge
-                      class="mt-2"
-                      [tone]="
-                        entry.offerStatus === 'accepted'
-                          ? 'success'
-                          : entry.offerStatus === 'rejected'
-                            ? 'critical'
-                            : 'neutral'
-                      "
-                      >{{
-                        entry.offerStatus === 'accepted'
-                          ? 'Angenommen'
-                          : entry.offerStatus === 'rejected'
-                            ? 'Abgelehnt'
-                            : entry.offerStatus === 'pending'
-                              ? 'Offen'
-                              : entry.offerStatus
-                      }}</app-badge
-                    >
-                  }
+            }
+            @for (row of datedTranscript(); track row.entry.id) {
+              @let entry = row.entry;
+              @let kind = messageKind(entry);
+              @if (row.startsDay) {
+                <div data-message-day class="py-2 text-center text-xs text-fb-text-secondary">
                   @if (entry.occurredAt) {
-                    <p class="mt-1 text-xs text-fb-text-secondary">
-                      <time [attr.datetime]="entry.occurredAt">{{
-                        entry.occurredAt | date: 'dd.MM.yyyy, HH:mm'
-                      }}</time>
-                    </p>
+                    <time [attr.datetime]="entry.occurredAt">{{
+                      entry.occurredAt | date: 'EEEE, d. MMMM yyyy' : undefined : 'de'
+                    }}</time>
+                  } @else {
+                    Datum nicht verfügbar
                   }
-                </article>
-              } @empty {
-                @if (!store.error() && conversation.unread) {
-                  <p class="text-[13px] text-fb-text-secondary">
-                    Noch keine Nachrichten für diesen ungelesenen Verlauf gespeichert.
-                  </p>
-                } @else if (!store.error()) {
-                  <p class="text-[13px] text-fb-text-secondary">
-                    Noch keine Nachrichten für dieses Gespräch gespeichert.
-                  </p>
+                </div>
+              }
+              <article
+                class="w-fit max-w-[90%] text-[13px] sm:max-w-[78%]"
+                [attr.data-message-kind]="kind"
+                [attr.data-message-direction]="entry.direction"
+                [class.ml-auto]="kind !== 'system' && entry.direction === 'outbound'"
+                [class.mx-auto]="kind === 'system' || entry.direction === 'unknown'"
+                [class.text-center]="kind === 'system'"
+                [class.rounded-2xl]="kind !== 'system'"
+                [class.rounded-br-sm]="kind !== 'system' && entry.direction === 'outbound'"
+                [class.rounded-bl-sm]="kind !== 'system' && entry.direction === 'inbound'"
+                [class.px-3]="kind !== 'system'"
+                [class.py-2]="kind !== 'system'"
+                [class.bg-fb-brand-strong]="kind !== 'system' && entry.direction === 'outbound'"
+                [class.text-fb-on-accent]="kind !== 'system' && entry.direction === 'outbound'"
+                [class.bg-fb-well]="kind !== 'system' && entry.direction !== 'outbound'"
+                [class.text-fb-text-primary]="kind !== 'system' && entry.direction !== 'outbound'"
+                [class.text-fb-text-secondary]="kind === 'system'"
+              >
+                @if (kind === 'offer') {
+                  @let prices = offerPrices(entry);
+                  <div class="flex flex-wrap items-center gap-1 text-[13px] font-semibold">
+                    <svg lucideTag class="size-3.5 shrink-0" aria-hidden="true"></svg>
+                    <span>{{ offerLabel(entry) }}</span>
+                    @if (prices.offered) {
+                      <span>· {{ prices.offered }}</span>
+                    }
+                    @if (prices.original) {
+                      <del class="font-normal opacity-70">{{ prices.original }}</del>
+                    }
+                    @if (offerStatusLabel(entry); as status) {
+                      <span>· {{ status }}</span>
+                    }
+                  </div>
+                  @if (entry.text && entry.title && entry.text !== entry.title) {
+                    <span class="block break-words [overflow-wrap:anywhere]">{{
+                      entry.title
+                    }}</span>
+                  }
                 }
+                @if (kind === 'system') {
+                  <svg
+                    lucideInfo
+                    class="mr-1 inline size-3.5 align-text-bottom"
+                    aria-hidden="true"
+                  ></svg>
+                }
+                <span class="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{{
+                  entry.text ?? entry.title
+                }}</span>
+                @for (imageUrl of entry.imageUrls ?? []; track imageUrl) {
+                  <a
+                    [href]="imageUrl"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="mt-2 block"
+                    aria-label="Nachrichtenbild öffnen"
+                    ><img
+                      [src]="imageUrl"
+                      alt="Bild in dieser Nachricht"
+                      loading="lazy"
+                      class="max-h-60 max-w-full rounded-lg object-contain"
+                  /></a>
+                }
+                <div
+                  class="mt-1 text-xs"
+                  [class.text-right]="kind !== 'system'"
+                  [class.text-fb-text-secondary]="
+                    kind === 'system' || entry.direction !== 'outbound'
+                  "
+                  [class.text-fb-on-accent]="kind !== 'system' && entry.direction === 'outbound'"
+                >
+                  @if (entry.occurredAt) {
+                    <time
+                      [attr.datetime]="entry.occurredAt"
+                      [attr.title]="entry.occurredAt | date: 'dd.MM.yyyy, HH:mm'"
+                      >{{ entry.occurredAt | date: 'HH:mm' }} Uhr</time
+                    >
+                  } @else {
+                    Uhrzeit nicht verfügbar
+                  }
+                </div>
+              </article>
+            } @empty {
+              @if (!store.error() && !store.loadingMessages()) {
+                <p class="text-[13px] text-fb-text-secondary">
+                  {{
+                    conversation.unread
+                      ? 'Noch keine Nachrichten für diesen ungelesenen Verlauf gespeichert.'
+                      : 'Noch keine Nachrichten für dieses Gespräch gespeichert.'
+                  }}
+                </p>
               }
             }
             @for (queued of queuedMessages(); track queued.id) {
               <div
-                class="mx-3 mb-2 ml-auto max-w-[90%] space-y-1 rounded-lg border border-fb-line bg-fb-well px-3 py-2"
+                class="ml-auto w-fit max-w-[90%] space-y-1 rounded-2xl rounded-br-sm bg-fb-brand-strong px-3 py-2 text-fb-on-accent"
                 [attr.data-queue-state]="queued.state"
               >
                 @if (queued.text) {
-                  <p class="whitespace-pre-wrap break-words text-[13px] text-fb-text-primary">
-                    {{ queued.text }}
-                  </p>
+                  <p class="whitespace-pre-wrap break-words text-[13px]">{{ queued.text }}</p>
                 }
                 @if (queued.attachment) {
-                  <p class="text-xs text-fb-text-secondary">Bild: {{ queued.attachment.name }}</p>
+                  <p class="text-xs">Bild: {{ queued.attachment.name }}</p>
                 }
                 <app-badge
                   [tone]="
@@ -343,22 +370,35 @@
                   "
                   >{{ queueStatus(queued) }}</app-badge
                 >
-                <p class="text-xs text-fb-text-secondary">
-                  <time [attr.datetime]="queued.createdAt">{{
-                    queued.createdAt | date: 'HH:mm'
-                  }}</time>
+                <p class="text-right text-xs">
+                  <time [attr.datetime]="queued.createdAt"
+                    >{{ queued.createdAt | date: 'dd.MM.yyyy, HH:mm' }} Uhr</time
+                  >
                 </p>
               </div>
             }
           </div>
-          @if (store.selectedConnection()?.executionMode === 'local') {
+        } @else {
+          <div class="flex flex-1 items-center justify-center p-4">
+            <p class="text-[13px] text-fb-text-secondary">Wähle ein Gespräch aus.</p>
+          </div>
+        }
+        <ng-container card-footer>
+          @if (conversation() && store.selectedConnection()?.executionMode === 'local') {
             <form
+              data-message-composer
               [formGroup]="composer"
               (ngSubmit)="sendMessage()"
-              class="space-y-2 border-t border-fb-line p-3"
+              class="space-y-2"
             >
               @if (messaging.error() ?? composerError(); as error) {
                 <p role="alert" class="text-[13px] text-fb-text-secondary">{{ error }}</p>
+              }
+              @if (hasPendingMessages()) {
+                <p role="status" class="text-xs text-fb-text-secondary">
+                  Deine Nachricht wartet auf den Versand. Die Erweiterung sendet sie beim nächsten
+                  Durchlauf.
+                </p>
               }
               @if (attachmentPreview(); as preview) {
                 <div class="flex items-center gap-3">
@@ -383,20 +423,7 @@
                   Vinted, ob Dein Bild angekommen ist, bevor Du es erneut sendest.
                 </p>
               }
-              <app-text-field
-                formControlName="text"
-                label="Deine Nachricht"
-                [labelHidden]="true"
-                placeholder="Nachricht schreiben …"
-                [multiline]="3"
-                [maxLength]="5000"
-                [error]="
-                  composer.controls.text.hasError('maxlength')
-                    ? 'Die Nachricht darf höchstens 5.000 Zeichen enthalten.'
-                    : null
-                "
-              />
-              <div class="flex items-center justify-between gap-2">
+              <div class="flex items-end gap-2">
                 <input
                   #attachmentInput
                   type="file"
@@ -407,15 +434,40 @@
                 />
                 <app-button
                   [icon]="imageIcon"
+                  [iconOnly]="true"
+                  size="comfortable"
+                  shape="circle"
+                  variant="ghost"
+                  ariaLabel="Bild hinzufügen"
+                  title="Bild hinzufügen"
                   [loading]="preparingAttachment()"
                   [disabled]="messaging.busy() || preparingAttachment()"
                   (clicked)="attachmentInput.click()"
-                  >Bild hinzufügen</app-button
-                >
+                />
+                <app-text-field
+                  class="min-w-0 flex-1"
+                  formControlName="text"
+                  label="Deine Nachricht"
+                  [labelHidden]="true"
+                  placeholder="Schreibe Deine Antwort …"
+                  [multiline]="1"
+                  appearance="message"
+                  [maxLength]="5000"
+                  [error]="
+                    composer.controls.text.hasError('maxlength')
+                      ? 'Die Nachricht darf höchstens 5.000 Zeichen enthalten.'
+                      : null
+                  "
+                />
                 <app-button
                   type="submit"
                   variant="primary"
                   [icon]="sendIcon"
+                  [iconOnly]="true"
+                  size="comfortable"
+                  shape="circle"
+                  ariaLabel="Senden"
+                  title="Senden"
                   [loading]="messaging.busy()"
                   [disabled]="
                     composer.invalid ||
@@ -424,14 +476,11 @@
                     !store.canManage() ||
                     store.selectedConnection()?.status !== 'connected'
                   "
-                  >Senden</app-button
-                >
+                />
               </div>
             </form>
           }
-        } @else {
-          <p class="p-4 text-[13px] text-fb-text-secondary">Wähle ein Gespräch aus.</p>
-        }
+        </ng-container>
       </app-card>
     </section>
   </div>

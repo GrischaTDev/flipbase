@@ -200,6 +200,84 @@ function inboxReader(conversations, details, pages = 1) {
   };
 }
 
+test('Opening a detail without updated_at uses the dated messages and imports its article and activity', async () => {
+  const reader = inboxReader([], {
+    '/api/v2/conversations/51': {
+      conversation: {
+        id: 51,
+        opposite_user: { id: 456, login: 'Anna', last_logged_in_at: '2026-10-04T08:00:00Z' },
+        transaction: {
+          item_id: 456,
+          item_title: 'Jacke',
+          offer_price: { amount: '14.00', currency_code: 'EUR' },
+        },
+        messages: [
+          {
+            id: 61,
+            entity_type: 'message',
+            entity: { body: 'Hallo', user_id: 456, created_at_ts: 1791104400 },
+          },
+          {
+            id: 62,
+            entity_type: 'message',
+            created_at: '2026-10-04T10:00:00Z',
+            entity: { body: 'Danke', user_id: 123 },
+          },
+        ],
+      },
+    },
+  });
+  const batch = await core.readInboxDetail(
+    reader.read,
+    '123',
+    { externalConversationId: '51', nextPage: 1, versions: [] },
+    () => observedAt,
+  );
+  const conversation = batch.entries.find((entry) => entry.kind === 'conversation');
+  assert.equal(conversation.body.itemTitle, 'Jacke');
+  assert.equal(conversation.body.lastActiveAt, '2026-10-04T08:00:00.000Z');
+  assert.equal(batch.entries.filter((entry) => entry.kind === 'message').length, 2);
+  assert.ok(
+    parseLocalExtensionRequest({
+      ...scope,
+      action: 'inbox_detail_import',
+      conversationId: anotherId,
+      batch,
+    }),
+  );
+});
+
+test('Offer import preserves both prices and a textual decision in the existing message contract', async () => {
+  const reader = inboxReader([inboxConversation], {
+    '/api/v2/conversations/51': {
+      conversation: {
+        id: 51,
+        messages: [
+          {
+            ...inboxMessage,
+            entity_type: 'offer_request_message',
+            entity: {
+              user_id: 456,
+              price: { amount: '11.00', currency_code: 'EUR' },
+              original_price: { amount: '14.00', currency_code: 'EUR' },
+              status_title: 'Abgelehnt',
+            },
+          },
+        ],
+      },
+    },
+  });
+  const batch = await core.readInbox(
+    reader.read,
+    '123',
+    { nextPage: 1, versions: [] },
+    () => observedAt,
+  );
+  const offer = batch.entries.find((entry) => entry.kind === 'message');
+  assert.match(offer.body.priceLabel, /11,00.*14,00/u);
+  assert.equal(offer.body.offerStatus, 'Abgelehnt');
+});
+
 test('Inbox reads preserve unread state and normalize only permitted message fields', async () => {
   const reader = inboxReader([inboxConversation, { ...inboxConversation, id: 52, unread: true }], {
     '/api/v2/conversations/51': { conversation: { id: 51, messages: [inboxMessage] } },
@@ -353,6 +431,17 @@ test('Inbox truncation does not certify details and system events have stable ID
   );
   assert.match(first.entries[1].externalId, /^event:[0-9a-f]{64}$/);
   assert.equal(first.entries[1].externalId, second.entries[1].externalId);
+  const existingSource = JSON.stringify({
+    conversationId: '51',
+    type: event.entity_type,
+    createdAt: event.created_at_ts,
+    entity: event.entity,
+  });
+  const existingDigest = await webcrypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(existingSource),
+  );
+  assert.equal(first.entries[1].externalId, `event:${Buffer.from(existingDigest).toString('hex')}`);
 });
 
 test('Inbox runtime requires explicit server permission before any Vinted read', async () => {
@@ -1443,6 +1532,8 @@ function createChromeBackgroundFixture({ receive, existingTab, accelerateTimers 
   if (existingTab) tabs.set(existingTab.id, existingTab);
   const messages = [];
   const edgeCalls = [];
+  const createdTabs = [];
+  const updatedTabs = [];
   let currentTime = Date.now();
   class FixtureDate extends Date {
     static now() {
@@ -1476,8 +1567,10 @@ function createChromeBackgroundFixture({ receive, existingTab, accelerateTimers 
         onMessage: { addListener: (listener) => listeners.push(listener) },
       },
       tabs: {
-        create: async ({ url }) => {
-          const tab = { id: nextTabId++, url, status: 'complete', incognito: false };
+        create: async (options) => {
+          createdTabs.push(options);
+          const { url } = options;
+          const tab = { ...options, id: nextTabId++, url, status: 'complete', incognito: false };
           tabs.set(tab.id, tab);
           return tab;
         },
@@ -1485,7 +1578,17 @@ function createChromeBackgroundFixture({ receive, existingTab, accelerateTimers 
           if (!tabs.has(tabId)) throw new Error('closed');
           return tabs.get(tabId);
         },
-        update: async () => {},
+        update: async (tabId, options) => {
+          updatedTabs.push({ tabId, ...options });
+          const tab = { ...tabs.get(tabId), ...options };
+          tabs.set(tabId, tab);
+          return tab;
+        },
+        move: async (tabId, options) => {
+          const tab = { ...tabs.get(tabId), ...options };
+          tabs.set(tabId, tab);
+          return tab;
+        },
         sendMessage: async (tabId, message) => {
           assert.ok(tabs.has(tabId));
           messages.push({ tabId, message });
@@ -1574,6 +1677,8 @@ function createChromeBackgroundFixture({ receive, existingTab, accelerateTimers 
     tabs,
     messages,
     edgeCalls,
+    createdTabs,
+    updatedTabs,
     validExpires,
     sender,
     get stored() {
@@ -1781,6 +1886,52 @@ test('Provider login, SMS, CAPTCHA and block errors do not recover or repeat the
       1,
     );
     assert.equal(fixture.edgeCalls.length, 0);
+    assert.equal(fixture.createdTabs[0].active, false);
+    assert.equal(fixture.createdTabs[0].pinned, true);
+    assert.equal(fixture.createdTabs[0].index, 0);
+    assert.ok(fixture.updatedTabs.every((tab) => tab.active !== true));
+  }
+});
+
+test('The reserved tab stays pinned, is reused and never steals focus during reads', async () => {
+  const fixture = createChromeBackgroundFixture({
+    existingTab: {
+      id: 91,
+      url: 'https://www.vinted.de/',
+      status: 'complete',
+      pinned: false,
+      index: 5,
+    },
+  });
+  const background = fixture.startBackground();
+  for (const requestId of ['first-read', 'second-read'])
+    assert.equal(
+      (await background.call({ type: 'FLIPBASE_VINTED_LOCAL_PREPARE', requestId })).success,
+      true,
+    );
+  assert.equal(fixture.createdTabs.length, 0);
+  assert.equal(fixture.tabs.size, 1);
+  assert.equal(fixture.tabs.get(91).pinned, true);
+  assert.equal(fixture.tabs.get(91).autoDiscardable, false);
+  assert.equal(fixture.tabs.get(91).index, 0);
+  assert.ok(fixture.updatedTabs.every((tab) => tab.active !== true));
+});
+
+test('Only the reserved page receives the Flipbase title and yellow tab icon', async () => {
+  const fixture = createReservedTabFixture();
+  try {
+    const { document } = fixture.dom.window;
+    assert.equal(document.querySelector('[data-flipbase-work-tab-icon]'), null);
+    await fixture.readIdentity();
+    assert.equal(document.title, 'Flipbase · Vinted-Arbeitstab');
+    assert.match(
+      document.querySelector('[data-flipbase-work-tab-icon]').href,
+      /^data:image\/svg\+xml,/,
+    );
+    await fixture.readIdentity();
+    assert.equal(document.querySelectorAll('[data-flipbase-work-tab-icon]').length, 1);
+  } finally {
+    fixture.dom.window.close();
   }
 });
 

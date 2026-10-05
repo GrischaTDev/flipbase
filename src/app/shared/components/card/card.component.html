@@ -2,6 +2,7 @@
   <div
     data-card-header
     class="flex items-center justify-between border-b border-fb-line px-4 py-3 md:px-5 md:py-3.5"
+    [class.shrink-0]="contentLayout() === 'fill'"
   >
     <div class="min-w-0">
       @if (title()) {
@@ -16,16 +17,29 @@
     </div>
   </div>
 } @else {
-  <div class="empty:hidden border-b border-fb-line px-4 py-3 md:px-5 md:py-3.5">
+  <div
+    class="empty:hidden border-b border-fb-line px-4 py-3 md:px-5 md:py-3.5"
+    [class.shrink-0]="contentLayout() === 'fill'"
+  >
     <ng-content select="[card-header]" />
   </div>
 }
 
-<div class="flex-1" [class]="contentPaddingClass()">
+<div
+  class="flex-1"
+  [class]="contentPaddingClass()"
+  [class.flex]="contentLayout() === 'fill'"
+  [class.flex-col]="contentLayout() === 'fill'"
+  [class.min-h-0]="contentLayout() === 'fill'"
+  [class.overflow-hidden]="contentLayout() === 'fill'"
+>
   <ng-content />
 </div>
 
-<div class="empty:hidden border-t border-fb-line bg-fb-subtle/50 px-4 py-3 md:px-5">
+<div
+  class="empty:hidden border-t border-fb-line bg-fb-subtle/50 px-4 py-3 md:px-5"
+  [class.shrink-0]="contentLayout() === 'fill'"
+>
   <ng-content select="[card-footer]" />
 </div>
 @if (link(); as target) {
