@@ -36,6 +36,7 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop';
 import {
   LucidePlus as Plus,
+  LucideSearch as Search,
   LucideTrendingUp as TrendingUp,
   LucideTrash2 as Trash2,
 } from '@lucide/angular';
@@ -61,6 +62,7 @@ import {
 import { DatePickerComponent } from '../../../../shared/components/date-picker/date-picker.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
+import { TableActionButtonComponent } from '../../../../shared/components/table-action-button/table-action-button.component';
 import { TwoColumnLayoutComponent } from '../../../../shared/components/two-column-layout/two-column-layout.component';
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
@@ -96,6 +98,7 @@ type ShippingFormMode = ShippingMode | 'unknown';
     DatePickerComponent,
     ButtonComponent,
     CardComponent,
+    TableActionButtonComponent,
     TwoColumnLayoutComponent,
     NumberInputComponent,
     TextFieldComponent,
@@ -145,6 +148,7 @@ export class SaleCreateModalComponent {
 
   readonly removeIcon = Trash2;
   readonly plusIcon = Plus;
+  readonly searchIcon = Search;
   readonly trendingIcon = TrendingUp;
   readonly isSubmitting = signal(false);
   readonly isPersisted = signal(false);
@@ -353,6 +357,10 @@ export class SaleCreateModalComponent {
   });
   private readonly formValue = toSignal(this.form.valueChanges, {
     initialValue: this.form.getRawValue(),
+  });
+  readonly hasSelectedSaleLines = computed(() => {
+    this.formValue();
+    return this.lines.controls.some((line) => !!line.controls.target.value);
   });
   readonly versandAuswahl = computed<SelectOption<ShippingFormMode>[]>(() => {
     this.formValue();
@@ -584,20 +592,39 @@ export class SaleCreateModalComponent {
     this.closeArticlePicker();
   }
 
-  articleLabel(line: SaleLineForm): string {
+  articleTitle(line: SaleLineForm): string {
     const index = this.lines.controls.indexOf(line);
     const recorded = this.sale()?.lines?.[index];
     if (recorded) return recorded.title_snapshot;
     const entry = this.saleArticleEntries().find(
       (candidate) => candidate.id === line.controls.target.value,
     );
-    return entry
-      ? [entry.title, entry.size ? `Größe ${entry.size}` : null, entry.color, entry.conditionLabel]
-          .filter(Boolean)
-          .join(' · ')
-      : (this.targetForLine(line)?.title ??
-          (index === 0 ? this.saleTarget()?.title : null) ??
-          'Noch kein Artikel ausgewählt');
+    return (
+      entry?.title ??
+      this.targetForLine(line)?.title ??
+      this.externalDraft()?.lines[index]?.title ??
+      (index === 0 ? this.saleTarget()?.title : null) ??
+      'Artikel auswählen'
+    );
+  }
+
+  articleVariantLabel(line: SaleLineForm): string | null {
+    const entry = this.saleArticleEntries().find(
+      (candidate) => candidate.id === line.controls.target.value,
+    );
+    if (!entry) return null;
+    const details = [
+      entry.size ? `Größe ${entry.size}` : null,
+      entry.color,
+      entry.conditionLabel,
+    ].filter(Boolean);
+    return details.length ? details.join(' · ') : null;
+  }
+
+  articleLabel(line: SaleLineForm): string {
+    const title = this.articleTitle(line);
+    const variant = this.articleVariantLabel(line);
+    return variant ? `${title} · ${variant}` : title;
   }
 
   articleImage(line: SaleLineForm): string | null {
@@ -647,10 +674,16 @@ export class SaleCreateModalComponent {
       this.isSubmitting()
     )
       return;
-    if (this.lines.length > 1) {
-      this.lines.removeAt(index);
+    if (!this.lines.controls[index]) return;
+    if (this.lines.length === 1) {
+      const line = this.lines.at(0);
+      line.reset({ target: '', quantity: 1, unitSalePrice: 0 });
+      this.updateQuantityValidator(line);
       this.form.markAsDirty();
+      return;
     }
+    this.lines.removeAt(index);
+    this.form.markAsDirty();
   }
   onTargetChange(index: number, value: string): void {
     if (this.istBearbeitung() || this.legacyReconciliation()) return;
