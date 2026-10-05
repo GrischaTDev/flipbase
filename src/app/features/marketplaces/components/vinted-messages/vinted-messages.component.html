@@ -90,13 +90,13 @@
                         class="shrink-0 text-xs text-fb-text-secondary"
                         [attr.datetime]="entry.occurredAt"
                         [attr.title]="entry.occurredAt | date: 'dd.MM.yyyy, HH:mm'"
-                        >{{ entry.occurredAt | date: 'dd.MM., HH:mm' }}</time
+                        >{{ conversationTime(entry.occurredAt) }}</time
                       >
                     }
                   </span>
                   <span class="mt-1 flex items-center justify-between gap-2">
                     <span class="min-w-0 flex-1 truncate text-xs text-fb-text-secondary">{{
-                      entry.text ?? 'Gespräch öffnen'
+                      messageBody(entry) ?? 'Gespräch öffnen'
                     }}</span>
                     @if (entry.unread) {
                       <app-badge tone="brand">Neu</app-badge>
@@ -134,70 +134,81 @@
     >
       <app-card padding="none" contentLayout="fill" class="h-full min-h-0 min-w-0">
         <ng-container card-header>
-          @if (conversation(); as conversation) {
-            <div class="flex min-w-0 items-center gap-2">
-              <app-button
-                class="shrink-0 lg:hidden"
-                [icon]="backIcon"
-                [iconOnly]="true"
-                ariaLabel="Zur Gesprächsliste"
-                (clicked)="backToList()"
-              />
-              <div class="min-w-0 flex-1">
-                <h2
-                  #conversationHeading
-                  data-conversation-heading
-                  tabindex="-1"
-                  class="truncate text-[13px] font-semibold text-fb-text-primary"
-                >
-                  {{ conversation.title }}
-                </h2>
-                <p
-                  data-partner-activity
-                  class="mt-0.5 text-xs text-fb-text-secondary"
-                  [attr.title]="conversation.lastActiveAt | date: 'dd.MM.yyyy, HH:mm'"
-                >
-                  {{ lastActiveLabel() }}
-                </p>
+          @if (!isOpeningConversation()) {
+            @if (conversation(); as conversation) {
+              <div class="flex min-w-0 items-center gap-2">
+                <app-button
+                  class="shrink-0 lg:hidden"
+                  [icon]="backIcon"
+                  [iconOnly]="true"
+                  ariaLabel="Zur Gesprächsliste"
+                  (clicked)="backToList()"
+                />
+                <app-product-thumbnail [src]="conversation.imageUrl" alt="" size="avatar" />
+                <div class="min-w-0 flex-1">
+                  <h2
+                    #conversationHeading
+                    data-conversation-heading
+                    tabindex="-1"
+                    class="truncate text-[13px] font-semibold text-fb-text-primary"
+                  >
+                    {{ conversation.title }}
+                  </h2>
+                  <p
+                    data-partner-activity
+                    class="mt-0.5 text-xs text-fb-text-secondary"
+                    [attr.title]="conversation.lastActiveAt | date: 'dd.MM.yyyy, HH:mm'"
+                  >
+                    {{ lastActiveLabel() }}
+                  </p>
+                </div>
+                @if (conversation.unread) {
+                  <app-badge tone="brand">Ungelesen</app-badge>
+                }
               </div>
-              @if (conversation.unread) {
-                <app-badge tone="brand">Ungelesen</app-badge>
-              }
-            </div>
+            }
           }
         </ng-container>
-        @if (conversation(); as conversation) {
-          @if (conversation.itemTitle || conversation.itemId || conversation.itemImageUrl) {
-            <div
-              data-conversation-item
-              class="flex shrink-0 items-center gap-3 border-b border-fb-line px-3 py-2"
-            >
-              <app-product-thumbnail
-                [src]="conversation.itemImageUrl ?? null"
-                [alt]="conversation.itemTitle ?? 'Artikel'"
-                size="sm"
-                fit="cover"
-              />
-              <p class="min-w-0 flex-1 truncate text-[13px] text-fb-text-primary">
-                {{ conversation.itemTitle ?? 'Artikel nicht verfügbar' }}
+        @if (isOpeningConversation()) {
+          <div
+            data-conversation-loading
+            role="status"
+            aria-label="Gespräch wird geladen"
+            class="flex min-h-0 flex-1 items-center justify-center text-fb-brand-strong"
+          >
+            <app-loading-indicator size="md" />
+            <span class="sr-only">Gespräch wird geladen …</span>
+          </div>
+        } @else if (conversation(); as conversation) {
+          <div
+            data-conversation-item
+            class="flex shrink-0 items-center gap-3 border-b border-fb-line px-3 py-2"
+          >
+            <app-product-thumbnail
+              [src]="conversation.itemImageUrl ?? null"
+              [alt]="conversation.itemTitle ?? 'Artikel'"
+              size="sm"
+              fit="cover"
+            />
+            <p class="min-w-0 flex-1 truncate text-[13px] text-fb-text-primary">
+              {{ conversation.itemTitle ?? 'Artikel nicht verfügbar' }}
+            </p>
+            @if (
+              conversation.itemPrice !== null &&
+              conversation.itemPrice !== undefined &&
+              conversation.itemCurrency
+            ) {
+              <p class="ml-auto shrink-0 text-[13px] font-semibold text-fb-text-primary">
+                {{
+                  conversation.itemPrice
+                    | currency: conversation.itemCurrency : 'symbol' : '1.2-2' : 'de'
+                }}
               </p>
-              @if (
-                conversation.itemPrice !== null &&
-                conversation.itemPrice !== undefined &&
-                conversation.itemCurrency
-              ) {
-                <p class="ml-auto shrink-0 text-[13px] font-semibold text-fb-text-primary">
-                  {{
-                    conversation.itemPrice
-                      | currency: conversation.itemCurrency : 'symbol' : '1.2-2' : 'de'
-                  }}
-                </p>
-              }
-              @if (conversation.transactionStatus) {
-                <app-badge tone="neutral">{{ conversation.transactionStatus }}</app-badge>
-              }
-            </div>
-          }
+            }
+            @if (conversation.transactionStatus) {
+              <app-badge tone="neutral">{{ conversation.transactionStatus }}</app-badge>
+            }
+          </div>
           <div
             #messageLog
             role="log"
@@ -247,7 +258,7 @@
                 <div data-message-day class="py-2 text-center text-xs text-fb-text-secondary">
                   @if (entry.occurredAt) {
                     <time [attr.datetime]="entry.occurredAt">{{
-                      entry.occurredAt | date: 'EEEE, d. MMMM yyyy' : undefined : 'de'
+                      messageDayLabel(entry.occurredAt)
                     }}</time>
                   } @else {
                     Datum nicht verfügbar
@@ -287,10 +298,8 @@
                       <span>· {{ status }}</span>
                     }
                   </div>
-                  @if (entry.text && entry.title && entry.text !== entry.title) {
-                    <span class="block break-words [overflow-wrap:anywhere]">{{
-                      entry.title
-                    }}</span>
+                  @if (offerTitle(entry); as title) {
+                    <span class="block break-words [overflow-wrap:anywhere]">{{ title }}</span>
                   }
                 }
                 @if (kind === 'system') {
@@ -300,9 +309,11 @@
                     aria-hidden="true"
                   ></svg>
                 }
-                <span class="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{{
-                  entry.text ?? entry.title
-                }}</span>
+                @if (messageBody(entry); as body) {
+                  <span class="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{{
+                    body
+                  }}</span>
+                }
                 @for (imageUrl of entry.imageUrls ?? []; track imageUrl) {
                   <a
                     [href]="imageUrl"
@@ -347,6 +358,21 @@
                 </p>
               }
             }
+            @if (!store.error() && !local.error() && !store.loadingMessages() && store.messages()) {
+              <div
+                data-conversation-sync
+                class="py-2 text-center"
+                [attr.title]="store.selectedConnection()?.lastSyncedAt | date: 'dd.MM.yyyy, HH:mm'"
+              >
+                <app-badge tone="success"
+                  ><span
+                    aria-hidden="true"
+                    class="mr-1 inline-block size-1.5 rounded-full bg-current"
+                  ></span
+                  >Synchronisiert</app-badge
+                >
+              </div>
+            }
             @for (queued of queuedMessages(); track queued.id) {
               <div
                 class="ml-auto w-fit max-w-[90%] space-y-1 rounded-2xl rounded-br-sm bg-fb-brand-strong px-3 py-2 text-fb-on-accent"
@@ -384,7 +410,11 @@
           </div>
         }
         <ng-container card-footer>
-          @if (conversation() && store.selectedConnection()?.executionMode === 'local') {
+          @if (
+            !isOpeningConversation() &&
+            conversation() &&
+            store.selectedConnection()?.executionMode === 'local'
+          ) {
             <form
               data-message-composer
               [formGroup]="composer"

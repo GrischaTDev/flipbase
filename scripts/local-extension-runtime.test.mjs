@@ -987,6 +987,7 @@ test('Content script renders a reserved tab and only GETs identity with no cooki
   const chrome = {
     runtime: {
       id: 'extension',
+      getURL: (path) => `chrome-extension://extension/${path}`,
       onMessage: {
         addListener: (callback) => {
           listener = callback;
@@ -1053,6 +1054,9 @@ test('Content script renders a reserved tab and only GETs identity with no cooki
     dom.window.document.querySelector('#flipbase-vinted-work-tab').dataset.busy,
     'false',
   );
+  const logo = dom.window.document.querySelector('.flipbase-vinted-work-logo');
+  assert.equal(logo.src, 'chrome-extension://extension/images/flipbase-mark.png');
+  assert.equal(logo.alt, 'Flipbase');
   dom.window.document.querySelector('button').click();
   assert.equal(calls.at(-1).type, 'VINTED_LOCAL_OPEN_USER_TAB');
   dom.window.close();
@@ -1071,6 +1075,13 @@ test('Manifest narrows application and provider access without changing Kleinanz
     ),
   );
   assert.deepEqual(manifest.permissions, ['storage', 'activeTab', 'alarms']);
+  assert.deepEqual(manifest.web_accessible_resources, [
+    { resources: ['images/flipbase-mark.png'], matches: ['https://www.vinted.de/*'] },
+  ]);
+  assert.deepEqual(
+    readFileSync(new URL('../tools/flipbase-extension/images/flipbase-mark.png', import.meta.url)),
+    readFileSync(new URL('../public/images/logo-mark.png', import.meta.url)),
+  );
 });
 
 function createReservedTabFixture(
@@ -1091,6 +1102,7 @@ function createReservedTabFixture(
   const chrome = {
     runtime: {
       id: 'extension',
+      getURL: (path) => `chrome-extension://extension/${path}`,
       onMessage: { addListener: (callback) => (listener = callback) },
       sendMessage: (message) => sentMessages.push(message),
     },
@@ -1387,6 +1399,7 @@ test('Content script ignores transparent and off-screen CAPTCHA frames and pause
     const chrome = {
       runtime: {
         id: 'extension',
+        getURL: (path) => `chrome-extension://extension/${path}`,
         onMessage: {
           addListener: (callback) => {
             listener = callback;
@@ -1473,6 +1486,7 @@ test('Content script reads rendered messages without script translations, hidden
     const chrome = {
       runtime: {
         id: 'extension',
+        getURL: (path) => `chrome-extension://extension/${path}`,
         onMessage: { addListener: (callback) => (listener = callback) },
       },
     };

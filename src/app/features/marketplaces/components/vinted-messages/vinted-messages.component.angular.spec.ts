@@ -22,6 +22,7 @@ import type {
   MarketplaceEntry,
   MarketplacePage,
 } from '../../models/marketplace-read.models';
+import { LoadingIndicatorComponent } from '../../../../shared/components/loading-indicator/loading-indicator.component';
 import { VintedMessagesComponent } from './vinted-messages.component';
 import { VintedLocalExtensionStore } from '../../services/vinted-local-extension.store';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
@@ -107,6 +108,7 @@ let api: {
 };
 let store: MarketplaceAccountStore;
 let local: {
+  error: ReturnType<typeof signal<string | null>>;
   busy: ReturnType<typeof signal<boolean>>;
   messagesAllowed: ReturnType<typeof signal<boolean>>;
   inboxImported: ReturnType<typeof signal<null>>;
@@ -138,6 +140,7 @@ beforeAll(async () => {
       [CustomSearchInputComponent, 'custom-search-input'],
       [CustomSelectComponent, 'custom-select'],
       [TextFieldComponent, 'text-field'],
+      [LoadingIndicatorComponent, 'loading-indicator'],
     ].map(([type, name]) => ({
       type,
       path: `src/app/shared/components/${name}/${name}.component.ts`,
@@ -157,6 +160,7 @@ beforeEach(() => {
     readPage: vi.fn().mockImplementation(async (scope: AccountScope) => messages(scope)),
   };
   local = {
+    error: signal<string | null>(null),
     busy: signal(false),
     messagesAllowed: signal(false),
     inboxImported: signal(null),
@@ -231,6 +235,179 @@ function button(fixture: ComponentFixture<VintedMessagesComponent>, text: string
   if (!result) throw new Error(`Button fehlt: ${text}`);
   return result;
 }
+describe('Vollständiges Laden eines Gesprächs', () => {
+  function useLocalAccount() {
+    api.listConnections.mockResolvedValue({
+      canManage: true,
+      connections: [{ ...accounts[0], executionMode: 'local' }],
+    });
+    local.messagesAllowed.set(true);
+  }
+
+  it('zeigt nur den Spinner bis Vinted-Import und gespeicherter Verlauf fertig sind', async () => {
+    useLocalAccount();
+    let finishProvider: (() => void) | undefined;
+    local.openInboxConversation.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finishProvider = resolve;
+        }),
+    );
+    const fixture = await render();
+    const entry = store.snapshot()?.conversations.items[0];
+    if (!entry) throw new Error('Testgespräch fehlt');
+    const opening = fixture.componentInstance.openConversation(entry);
+    await settle(fixture);
+    const root = fixture.nativeElement as HTMLElement;
+    expect(local.openInboxConversation).toHaveBeenCalledWith(entry.id);
+    expect(root.querySelector('[data-conversation-loading]')).not.toBeNull();
+    expect(root.querySelector('[data-conversation-heading]')).toBeNull();
+    expect(root.querySelector('[data-conversation-item]')).toBeNull();
+    expect(root.querySelector('[role="log"]')).toBeNull();
+    expect(root.querySelector('[data-message-composer]')).toBeNull();
+    finishProvider?.();
+    await opening;
+    await settle(fixture);
+    expect(root.querySelector('[data-conversation-loading]')).toBeNull();
+    expect(root.querySelector('[data-conversation-heading]')).not.toBeNull();
+    expect(root.querySelector('[data-conversation-item]')?.textContent).toContain(
+      'Artikel nicht verfügbar',
+    );
+    expect(root.querySelector('[data-message-composer]')).not.toBeNull();
+    expect(root.querySelector('[data-conversation-sync]')?.textContent).toContain('Synchronisiert');
+    expect(document.activeElement).toBe(root.querySelector('[data-conversation-heading]'));
+  });
+
+  it('beendet den Spinner bei Fehlern und behauptet keinen erfolgreichen Abgleich', async () => {
+    useLocalAccount();
+    local.openInboxConversation.mockImplementation(async () => {
+      local.error.set('Vinted ist nicht erreichbar');
+    });
+    const fixture = await render();
+    const entry = store.snapshot()?.conversations.items[0];
+    if (!entry) throw new Error('Testgespräch fehlt');
+    await fixture.componentInstance.openConversation(entry);
+    await settle(fixture);
+    expect(fixture.nativeElement.querySelector('[data-conversation-loading]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-conversation-sync]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[role="log"]')).not.toBeNull();
+  });
+
+  it('lässt einen älteren Abruf den Spinner des inzwischen gewählten Gesprächs nicht entfernen', async () => {
+    useLocalAccount();
+    api.readSnapshot.mockImplementation(async (scope: AccountScope) => {
+      const current = snapshot(scope);
+      return {
+        ...current,
+        conversations: {
+          items: [
+            current.conversations.items[0],
+            { ...current.conversations.items[0], id: 'conversation-2', title: 'Ben' },
+          ],
+          total: 2,
+          nextCursor: null,
+        },
+      };
+    });
+    const completions: (() => void)[] = [];
+    local.openInboxConversation.mockImplementation(
+      () => new Promise<void>((resolve) => completions.push(resolve)),
+    );
+    const fixture = await render();
+    const entries = store.snapshot()?.conversations.items;
+    if (!entries) throw new Error('Testgespräche fehlen');
+    const first = fixture.componentInstance.openConversation(entries[0]);
+    await settle(fixture);
+    const second = fixture.componentInstance.openConversation(entries[1]);
+    await settle(fixture);
+    completions[0]();
+    await first;
+    await settle(fixture);
+    expect(fixture.nativeElement.querySelector('[data-conversation-loading]')).not.toBeNull();
+    completions[1]();
+    await second;
+    await settle(fixture);
+    expect(fixture.nativeElement.querySelector('[data-conversation-loading]')).toBeNull();
+    expect(
+      fixture.nativeElement.querySelector('[data-conversation-heading]')?.textContent,
+    ).toContain('Ben');
+  });
+
+  it('behält das bekannte Artikelbild bei fehlenden Artikeldetails und zeigt das Partnerbild im Kopf', async () => {
+    useLocalAccount();
+    let available = true;
+    api.readSnapshot.mockImplementation(async (scope: AccountScope) => {
+      const current = snapshot(scope);
+      return {
+        ...current,
+        conversations: {
+          ...current.conversations,
+          items: [
+            {
+              ...current.conversations.items[0],
+              imageUrl: 'https://images.example.org/avatar.jpg',
+              itemImageUrl: available ? 'https://images.example.org/scarf.jpg' : null,
+              itemTitle: available ? 'Seidenschal' : null,
+            },
+          ],
+        },
+      };
+    });
+    const fixture = await render();
+    const entry = store.snapshot()?.conversations.items[0];
+    if (!entry) throw new Error('Testgespräch fehlt');
+    local.openInboxConversation.mockImplementation(async () => {
+      available = false;
+      await store.refreshLocalConnection(
+        { workspaceId: entry.workspaceId, connectionId: entry.connectionId },
+        true,
+      );
+    });
+    await fixture.componentInstance.openConversation(entry);
+    await settle(fixture);
+    const strip = fixture.nativeElement.querySelector('[data-conversation-item]');
+    expect(strip?.textContent).toContain('Artikel nicht verfügbar');
+    expect(strip?.querySelector('img')?.getAttribute('src')).toBe(
+      'https://images.example.org/scarf.jpg',
+    );
+    expect(
+      fixture.nativeElement.querySelector('img[src="https://images.example.org/avatar.jpg"]'),
+    ).not.toBeNull();
+  });
+
+  it('entfernt technische Angebotstitel und erhält echte zusätzliche Texte und Entscheidungen', async () => {
+    api.readPage.mockImplementation(async (scope: AccountScope) =>
+      messages(scope, [
+        {
+          id: 'offer-1',
+          messageType: 'offer_message',
+          title: 'Offer Message',
+          text: 'offer_message',
+          priceLabel: '11,00 € statt 14,00 €',
+          offerStatus: 'rejected',
+        },
+        {
+          id: 'offer-2',
+          messageType: 'offer_request_message',
+          title: 'offer_request_message',
+          text: 'Kannst Du 12 Euro machen?',
+          priceLabel: '12,00 €',
+        },
+      ]),
+    );
+    const fixture = await render();
+    const entry = store.snapshot()?.conversations.items[0];
+    if (!entry) throw new Error('Testgespräch fehlt');
+    await fixture.componentInstance.openConversation(entry);
+    await settle(fixture);
+    const log = fixture.nativeElement.querySelector('[role="log"]');
+    expect(log?.textContent).not.toMatch(/Offer Message|offer_message|offer_request_message/);
+    expect(log?.textContent).toContain('11,00 €');
+    expect(log?.textContent).toContain('Abgelehnt');
+    expect(log?.textContent).toContain('Kannst Du 12 Euro machen?');
+  });
+});
+
 describe('Kompakter gespeicherter Vinted-Gesprächsbereich', () => {
   it('zählt alle Filter einschließlich leerer Kategorien und sortiert datierte Angebotsereignisse', async () => {
     const fixture = await render();

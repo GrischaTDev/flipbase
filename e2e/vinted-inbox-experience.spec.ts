@@ -68,21 +68,24 @@ async function inboxFixture(page: Page, longHistory = false) {
   const enqueues: Record<string, unknown>[] = [];
   const bridgeCalls: string[] = [];
   let providerRequests = 0;
+  let pendingDetail: Promise<void> | null = null;
+  let finishDetail: (() => void) | undefined;
   await page.route('https://www.vinted.de/**', (route) => {
     providerRequests++;
     return route.abort();
   });
-  await page.exposeFunction('inboxBridgeObserved', (type: string) => {
+  await page.exposeFunction('inboxBridgeObserved', async (type: string) => {
     bridgeCalls.push(type);
+    if (type === 'FLIPBASE_VINTED_LOCAL_INBOX_DETAIL' && pendingDetail) await pendingDetail;
     account.lastSyncedAt = new Date().toISOString();
   });
   await page.addInitScript(
     ({ scope, expiresAt, observedAt }) => {
-      window.addEventListener('message', (event) => {
+      window.addEventListener('message', async (event) => {
         if (event.source !== window || !event.data?.type?.startsWith('FLIPBASE_VINTED_LOCAL_'))
           return;
         if (event.data.type === 'FLIPBASE_VINTED_LOCAL_RESULT') return;
-        void (
+        await (
           window as unknown as { inboxBridgeObserved(type: string): Promise<void> }
         ).inboxBridgeObserved(event.data.type);
         window.postMessage(
@@ -249,6 +252,15 @@ async function inboxFixture(page: Page, longHistory = false) {
   return {
     enqueues,
     bridgeCalls,
+    pauseDetails() {
+      pendingDetail = new Promise<void>((resolve) => {
+        finishDetail = resolve;
+      });
+    },
+    resumeDetails() {
+      finishDetail?.();
+      pendingDetail = null;
+    },
     get providerRequests() {
       return providerRequests;
     },
@@ -317,9 +329,22 @@ for (const { width, theme } of [
     ).toBeVisible();
     await page.getByRole('option', { name: 'Ungelesen (1)', exact: true }).click();
     await expect(rows).toHaveCount(1);
+    fixture.pauseDetails();
     await rows.first().getByRole('button').click();
     const conversation = page.getByRole('region', { name: 'Gespräch', exact: true });
+    await expect(conversation.locator('[data-conversation-loading]')).toBeVisible();
+    await expect(conversation.locator('[data-conversation-item]')).toHaveCount(0);
+    await expect(conversation.getByRole('log')).toHaveCount(0);
+    await expect(conversation.locator('[data-message-composer]')).toHaveCount(0);
+    if (screenshotDirectory)
+      await page.screenshot({
+        path: join(screenshotDirectory, `vinted-inbox-loading-${width}-${theme}.png`),
+        fullPage: true,
+      });
+    fixture.resumeDetails();
     await expect(conversation.getByRole('heading', { name: 'Anna', exact: true })).toBeVisible();
+    await expect(conversation.locator('[data-conversation-loading]')).toHaveCount(0);
+    await expect(conversation.locator('[data-conversation-sync]')).toContainText('Synchronisiert');
     await expect(conversation.getByText('Vintage Lederjacke', { exact: true })).toBeVisible();
     await expect(
       conversation.locator('[data-conversation-item]').getByText('58,00 €', { exact: true }),
@@ -335,6 +360,7 @@ for (const { width, theme } of [
     );
     await expect(page.locator('[data-message-kind="system"]')).toHaveCSS('text-align', 'center');
     await expect(page.locator('[data-message-day]')).toHaveCount(1);
+    await expect(page.locator('[data-message-day]')).toHaveText('Heute');
     const productImage = rows.first().locator('img');
     if (width >= 1024) await expect(productImage).toHaveCSS('object-fit', 'cover');
     const composer = conversation.locator('form');
@@ -400,7 +426,7 @@ for (const { width, theme } of [
       });
       await mkdir(directory, { recursive: true });
       await page.screenshot({
-        path: join(directory, `vinted-inbox-${width}-${theme}.png`),
+        path: join(directory, `vinted-inbox-conversation-${width}-${theme}.png`),
         fullPage: true,
       });
     }

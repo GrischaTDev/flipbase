@@ -152,6 +152,12 @@
     overlay.setAttribute('role', 'region');
     const panel = document.createElement('div');
     panel.className = 'flipbase-vinted-work-panel';
+    const logo = document.createElement('img');
+    logo.className = 'flipbase-vinted-work-logo';
+    logo.src = chrome.runtime.getURL('images/flipbase-mark.png');
+    logo.alt = 'Flipbase';
+    logo.width = 48;
+    logo.height = 48;
     const heading = document.createElement('strong');
     heading.id = 'flipbase-vinted-work-heading';
     heading.textContent = 'Für Flipbase reservierter Tab';
@@ -166,7 +172,7 @@
     openButton.addEventListener('click', () =>
       chrome.runtime.sendMessage({ type: 'VINTED_LOCAL_OPEN_USER_TAB' }),
     );
-    panel.append(heading, messageLabel, openButton);
+    panel.append(logo, heading, messageLabel, openButton);
     overlay.append(panel);
     document.body.append(overlay);
     overlay.dataset.busy = String(busy);

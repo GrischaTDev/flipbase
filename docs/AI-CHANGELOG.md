@@ -1,5 +1,47 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-05 - Juna - Vinted-Gespräch vollständig laden und Zeitangaben vereinfachen
+
+**Auftrag:** Relative deutsche Zeitangaben, Partnerbild, verständliche Angebote,
+zusammenhängendes Laden des Chats, sichtbarer Abgleichstatus und kompakter
+reservierter Tab nach dem Nutzerbild. Eigener Zweig `juna/vinted-inbox-loading`
+von `origin/master` bei `ff576ce3`.
+
+**Befund und Umsetzung:** Der gespeicherte Verlauf erschien vor dem aktuellen
+Vinted-Import. Ein gemeinsamer gelber Shared-Spinner deckt jetzt den gesamten
+Öffnungsvorgang ab; Kopf, Artikel, Verlauf und Antwortfooter erscheinen danach
+zusammen. Ein älterer Abruf kann den Spinner eines neu gewählten Gesprächs nicht
+entfernen. Bekannte Artikelbilder bleiben bei fehlenden Details für dasselbe
+Gespräch erhalten; der Artikelstreifen zeigt dann „Artikel nicht verfügbar“.
+Der Partneravatar steht neben dem Namen. Relative Listenzeiten und Heute/Gestern
+im Verlauf behalten genaue Zeitangaben als Tooltip beziehungsweise datetime.
+Technische Angebotstitel werden ausgeblendet, echte Texte und Preise bleiben.
+Der Abgleichstatus erscheint nur ohne Abruffehler. Das Erweiterungsmodal nutzt
+das vorhandene Flipbase-Logo und einen 28-Pixel-Button (44 Pixel bei Touch),
+Erweiterung 1.3.2. Keine Änderungen an Datenbank oder Automatisierungsrechten.
+
+**Prüfung:** Gezielt werden Datumsgrenzen, vollständiger Ladeablauf, Fehler,
+Gesprächswechsel, erhaltene Bilder und Angebotsplatzhalter geprüft. Browserprüfungen
+laufen mit Testdaten in beiden Themes und Bildschirmgrößen; der zusätzliche
+Bleam-Livezugriff scheiterte an „Debugger unattached“. Layoutgrundlage ist deshalb
+der Nutzerscreenshot. 32 Angular-Tests, vier Datumsprüfungen, 66 Erweiterungsprüfungen und zwei
+Smoke-Auswahlprüfungen sind grün. Zehn Chromium-Prüfungen (Desktop, 390/320 Pixel,
+hell/dunkel einschließlich AXE), Typprüfung, betroffener Lint, Shared-UI-Prüfung
+und Produktionsbau sind erfolgreich. Lokal wurde der bereits vorhandene Chromium
+1243 über eine temporäre Konfiguration mit vollständig simulierten Daten genutzt;
+die verbindliche PR-Prüfung bleibt separat. Formatierung und Diff-Prüfung sind grün.
+Ein echter Vinted-Kontotest und die Veröffentlichung stehen noch aus.
+
+**Freigabe:** PR, Merge nach erfolgreichen Pflichtprüfungen und Aufräumen wurden
+am 05.10.2026 bestätigt. Vor dem PR wurde der aktuelle Hauptzweig bei
+`e4832b0a` übernommen; beide neuen Protokolleinträge bleiben erhalten.
+
+Die erste vollständige PR-Prüfung fand eine fehlende Ressourcenregistrierung
+für den Shared-Spinner im übergeordneten Vinted-Test. Dessen bestehender
+Testaufbau enthält die HTML-Ressource jetzt ebenfalls. Postfach und Workspace
+sind gemeinsam mit 72 Angular-Prüfungen erneut grün; die Anwendung bleibt
+unverändert.
+
 ## 2026-10-05 - Juna - Verkaufsauswahl und Zahlenfelder nach Nutzerabnahme korrigiert
 
 **Auftrag:** Nach der sichtbaren Abnahme von PR #298 die Verkaufserfassung

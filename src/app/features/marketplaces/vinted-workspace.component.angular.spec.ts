@@ -43,6 +43,7 @@ import {
   MarketplaceWorkerOutdatedError,
 } from './services/marketplace-browser-test-api.service';
 import { ButtonComponent } from '../../shared/components/button/button.component';
+import { LoadingIndicatorComponent } from '../../shared/components/loading-indicator/loading-indicator.component';
 import { CardComponent } from '../../shared/components/card/card.component';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
 import { CustomSelectComponent } from '../../shared/components/custom-select/custom-select.component';
@@ -127,6 +128,7 @@ let localApi: {
 beforeAll(async () => {
   const shared: [unknown, string][] = [
     [ButtonComponent, 'button/button.component'],
+    [LoadingIndicatorComponent, 'loading-indicator/loading-indicator.component'],
     [CardComponent, 'card/card.component'],
     [BadgeComponent, 'badge/badge.component'],
     [CustomSelectComponent, 'custom-select/custom-select.component'],
