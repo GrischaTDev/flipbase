@@ -37,6 +37,10 @@ und keine echten Nachrichten. 118 gezielte Angular-/UI-Tests und 66
 Erweiterungstests bestanden; Typen, Lint/Format, gemeinsame UI-Regeln und
 Produktionsbau sind grün.
 
+Die erste PR-Prüfung fand noch die bisherigen Namen der Postfach-Browsertests
+im Prüfkatalog. Der Katalog enthält jetzt beide Bildschirmbreiten jeweils im
+hellen und dunklen Design; Auswahl- und Regressionstest sind erneut grün.
+
 **Offen:** Installation und echte Kontoabnahme nach freigegebenem Rollout.
 Die laufende App und installierte Erweiterung bleiben bis dahin unverändert.
 PR, Merge nach erfolgreichen Pflichtprüfungen, Veröffentlichung und Aufräumen

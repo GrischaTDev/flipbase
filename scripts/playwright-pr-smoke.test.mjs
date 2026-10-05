@@ -66,10 +66,12 @@ const coreTests = [
     'marketplace-accounts.spec.ts',
     `Gibt das lokale Postfach frei und erhält das Gespräch bei ${width}px @marketplace-preview @core-smoke`,
   ]),
-  ...[1440, 390].map((width) => [
-    'vinted-inbox-experience.spec.ts',
-    `lokales Postfach mit Artikel, Suche, Filter und Versandwarteschlange ${width}px @marketplace-preview @core-smoke`,
-  ]),
+  ...[1440, 390].flatMap((width) =>
+    ['light', 'dark'].map((theme) => [
+      'vinted-inbox-experience.spec.ts',
+      `lokales Postfach mit Artikel, Suche, Filter und Versandwarteschlange ${width}px ${theme} @marketplace-preview @core-smoke`,
+    ]),
+  ),
   [
     'company-shop-shipping.spec.ts',
     'Shop und Versand verwenden Unternehmensdaten und bewahren individuelle Absender @core-smoke',
