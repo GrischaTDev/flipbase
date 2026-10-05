@@ -36,7 +36,8 @@ Review von Kontotrennung, Wiederaufnahme, Rechten und Migration abgeschlossen.
 Lesestatusänderung beim bewussten Öffnen und eindeutige Bestätigung von
 Bildnachrichten. Bilder bleiben im Pilot ein einmaliger, gegebenenfalls
 unbestätigter Versuch; darauf weist die Oberfläche vor dem Senden hin.
-Veröffentlichung ist noch nicht freigegeben.
+PR, Merge nach erfolgreichen Pflichtprüfungen und anschließende Veröffentlichung
+sind am 05.10.2026 vom Nutzer freigegeben.
 
 ## 2026-10-04 - Juna - Lokales Vinted-Postfach anhand der Bleam-Codebefunde
 
