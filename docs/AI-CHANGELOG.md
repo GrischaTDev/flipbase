@@ -40,6 +40,9 @@ Produktionsbau sind grün.
 Die erste PR-Prüfung fand noch die bisherigen Namen der Postfach-Browsertests
 im Prüfkatalog. Der Katalog enthält jetzt beide Bildschirmbreiten jeweils im
 hellen und dunklen Design; Auswahl- und Regressionstest sind erneut grün.
+Der Synchronisierungszeitpunkt bleibt auch in der Kontopille als `time` mit
+`datetime` und Hover-Text erhalten. Die beiden bestehenden Freigabeabläufe und
+vier Layoutabläufe sind gemeinsam im Browser geprüft.
 
 **Offen:** Installation und echte Kontoabnahme nach freigegebenem Rollout.
 Die laufende App und installierte Erweiterung bleiben bis dahin unverändert.

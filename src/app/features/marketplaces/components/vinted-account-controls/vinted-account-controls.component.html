@@ -37,9 +37,13 @@
         profile()?.username ? '@' + profile()?.username : account().displayName
       }}</span>
       <span aria-hidden="true">·</span>
-      <span [attr.title]="syncedAt() | date: 'dd.MM.yyyy, HH:mm:ss'">{{
-        syncedAt() ? 'Synchronisiert' : 'Noch nicht synchronisiert'
-      }}</span>
+      @if (syncedAt(); as syncedAt) {
+        <time [attr.datetime]="syncedAt" [attr.title]="syncedAt | date: 'dd.MM.yyyy, HH:mm:ss'">
+          Synchronisiert
+        </time>
+      } @else {
+        <span>Noch nicht synchronisiert</span>
+      }
     </app-badge>
   } @else if (syncedAt(); as syncedAt) {
     <app-badge tone="neutral" size="md">
