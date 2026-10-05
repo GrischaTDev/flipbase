@@ -1,5 +1,51 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-05 - Juna - Privaten Cloud-IP-Piloten und automatischen Anbieterabgleich vorbereiten
+
+**Auftrag:** Nach PR 305 den gekauften Proxy auf Hetzner einrichten und den
+echten Cloudwechsel vorbereiten. Die Betriebsfreigabe wurde ausdrücklich erteilt.
+Nutzerpräzisierung: Bereits gekaufte IPs beim Hinzufügen und Cloudwechsel automatisch
+über IPRoyal einlesen; automatische Bestellungen bleiben aus.
+
+**Stand:** Die geprüften Worker- und Chromium-Abbilder des Merge-Commits
+`02dbcfbd` veröffentlicht und auf Hetzner geladen. Der bisherige Worker war seit
+04.10.2026 beendet. Eigene private Pilotkonfiguration und Rückwegkopien unter
+`/opt/flipbase-marketplace/pilot-02dbcfbd/` angelegt. Proxyzugangsdaten ausschließlich
+in einer persistenten privaten Serverdatei mit Eigentümer 1000:1000 und Modus 0600.
+IPRoyal-Bestellung 84454713 als deutsche Dedicated-ISP-IP im Bestand registriert.
+Die Anbieteroberfläche nennt nur den 04.11.2026; als vorsichtige lokale
+Nutzungsgrenze gilt 04.11.2026, 00:00 Uhr Berlin (`2026-11-03T23:00:00Z`).
+Das ist keine behauptete genaue Ablaufuhrzeit des Anbieters.
+
+**Ergänzung:** Im eigenen Zweig prüft die Einrichtung zunächst die bestehende
+Pilot-/Workspace-Berechtigung, liest dann alle gekauften ISP-Dedicated-Bestellungen
+und reserviert anschließend atomar. Deutsche neue IPs werden geprüft und nur in
+der privaten Netzwerkdatei ergänzt. Bestehende Kennungen, Sperren und Zuordnungen
+bleiben erhalten. Unvollständige API-Antworten verhindern neue Reservierungen.
+Bestellkäufe, Verlängerungen und Abrechnung sind nicht enthalten. Planung für Cloud
+und lokale Erweiterung entsprechend aktualisiert; deren Zweig bleibt unberührt.
+
+**Prüfung:** Expliziter HTTPS-Proxytest aus dem isolierten Browsernetz bestätigt
+Deutschland und den gekauften Ausgang. Beide Imageworkflows erfolgreich;
+Host-Firewall und Pilotnetz geprüft. Worker gesund, öffentliche API Version 2,
+Automatik und Vinted-Schreibfunktionen ausgeschaltet. Nach Worker-Neustart
+weiterhin genau eine freie IP und öffentlicher Healthcheck HTTP 200. Anonyme
+Cloud-Einrichtung wird mit HTTP 401 abgewiesen. Bestehende Konten, Profile und
+unklare lokale Versandresultate nicht verändert. Separater Flipbase-Tab vorbereitet.
+Ein echtes Konto wurde noch nicht ausgewählt oder zur Cloud umgeschaltet;
+Anmeldung, Identitätsprüfung und Abruf bleiben bis zur Kontoauswahl offen.
+Für den Anbieterabgleich sind 73 betroffene Workertests unter Windows erfolgreich;
+die einzige dort ausgelassene Dateirechteprüfung ist im Linuxlauf enthalten:
+33 Prüfungen ohne Auslassung erfolgreich. Typprüfung, Workerbau und gezieltes Lint
+bestanden. Der neue Dienst verarbeitet außerdem die echte IPRoyal-Antwort mit
+explizitem deutschem Proxytest erfolgreich: zwei Anbieter-GETs und ein Datenbank-GET,
+keine produktiven Schreibaufrufe. Produktive Netzwerkdatei unverändert. API-Token
+privat auf dem Server vorbereitet, noch nicht in den laufenden Worker aufgenommen.
+Die API nennt keine Zeitzone zur Ablaufuhrzeit; der neue Abgleich verwendet bis zur
+Klärung 00:00 UTC am Tag vor dem Ablauftag. Veröffentlichung des ergänzten Codes
+steht noch aus; die normale Einrichtung erfordert keine manuelle Kontoauswahl hier
+im Chat. Die konkrete Kontoauswahl oben betrifft ausschließlich den echten Pilottest.
+
 ## 2026-10-05 - Juna - Cloudpilot mit festem IP-Bestand umsetzen
 
 **Auftrag:** Den freigegebenen Cloudpilot mit vorhandenen deutschen Dedicated-ISP-IPs

@@ -130,4 +130,15 @@ export class ChromiumNetworkProfiles {
     if (!network) throw new Error('Chromium-Netzwerk fehlt');
     return { ...network };
   }
+
+  /** Neue Zugänge ergänzen; laufende Konten behalten unverändert ihr Netzwerk. */
+  async reload(path: string): Promise<void> {
+    const updated = await ChromiumNetworkProfiles.load(path);
+    for (const [id, network] of this.profiles) {
+      const replacement = updated.resolve(id);
+      if (JSON.stringify(network) !== JSON.stringify(replacement))
+        throw new Error('Bestehendes Chromium-Netzwerk darf nicht verändert werden');
+    }
+    for (const [id, network] of updated.profiles) this.profiles.set(id, network);
+  }
 }

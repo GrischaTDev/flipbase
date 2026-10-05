@@ -59,8 +59,12 @@ Den Entwurf und diesen Plan in den Implementierungszweig übernehmen.
 | Bestehendes Rollout-Dokument                             | Konkreter manueller Pilot, Ablaufzeit und tatsächlich erreichte Prüfungen                     |
 
 Die unten genannten neuen Funktionen sind geplante Projektfunktionen. Sie sind
-keine bereits vorhandenen Anbieter-APIs. Ein IPRoyal-API-Abgleich und automatisches
-Nachkaufen gehören nicht zu dieser Umsetzung.
+keine bereits vorhandenen Anbieter-APIs. Nach Nutzerpräzisierung am 05.10.2026
+gehört der lesende IPRoyal-Abgleich vor jeder neuen Cloud-Einrichtung dazu:
+Berechtigung prüfen, gekaufte deutsche Dedicated-ISP-IPs vollständig einlesen,
+private Zugänge ergänzen und anschließend atomar reservieren. Automatisches
+Nachkaufen bleibt außerhalb dieser Umsetzung. Der öffentliche Einrichtungsvertrag
+und die vorhandenen Reservierungstabellen bleiben bestehen.
 
 ### Task 1: IP-Bestand und atomare Kontoeinrichtung
 

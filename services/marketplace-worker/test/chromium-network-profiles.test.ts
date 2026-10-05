@@ -5,6 +5,43 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { ChromiumNetworkProfiles } from '../src/chromium-network-profiles.ts';
 
+test('live reload appends networks without changing or removing existing account routes', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'flipbase-network-reload-'));
+  const path = join(root, 'networks.json');
+  const first = {
+    id: 'isp-first',
+    kind: 'proxy',
+    server: 'http://proxy.example.test:10000',
+    username: 'first',
+    password: 'original',
+  };
+  const second = {
+    id: 'isp-second',
+    kind: 'proxy',
+    server: 'http://proxy.example.test:10001',
+    username: 'second',
+    password: 'second',
+  };
+  const save = (networkProfiles: unknown[]) =>
+    writeFile(path, JSON.stringify({ networkProfiles }), { mode: 0o600 });
+  try {
+    await save([first]);
+    const networks = await ChromiumNetworkProfiles.load(path);
+    await save([first, second]);
+    await networks.reload(path);
+    assert.equal(networks.resolve('isp-second').kind, 'proxy');
+    const before = networks.resolve('isp-first');
+    await save([{ ...first, password: 'changed' }, second]);
+    await assert.rejects(networks.reload(path));
+    assert.deepEqual(networks.resolve('isp-first'), before);
+    await save([first]);
+    await assert.rejects(networks.reload(path));
+    assert.equal(networks.resolve('isp-second').kind, 'proxy');
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test('direct access is deliberate and an unknown proxy never falls back to it', async () => {
   const networks = await ChromiumNetworkProfiles.load();
   assert.deepEqual(networks.resolve('direct'), { kind: 'direct' });

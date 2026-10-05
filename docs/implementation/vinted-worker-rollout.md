@@ -1,5 +1,60 @@
 # Vinted-Browserdienst: Veröffentlichung des Admin-Piloten
 
+## Privater IP-Betrieb vom 05.10.2026
+
+Der zusätzliche lesende IPRoyal-Abgleich ist im Arbeitszweig vorbereitet und geprüft,
+noch nicht im laufenden Abbild enthalten. Der private Schlüssel liegt unter
+`/opt/flipbase-marketplace/pilot-02dbcfbd/iproyal.env` mit Modus 0600. Nach geprüftem
+PR/Release wird `IPROYAL_API_TOKEN` in die private Worker-Umgebung übernommen;
+keinen Schlüssel in Compose, Frontend oder Git aufnehmen. Der vorhandene persistente
+Mount der Netzwerkdatei ist dafür beschreibbar. Beim Hinzufügen und Cloudwechsel
+folgen Berechtigungsprüfung, Anbieterabgleich und atomare Reservierung. Es werden
+keine Bestellungen ausgelöst. Der Abgleich nutzt ausschließlich das für Flipbase
+vorgesehene IPRoyal-Konto; externe Nutzungen sind in der Anbieter-API nicht erkennbar.
+
+Der neue Dienst ist gegen die echte Bestellung lesend geprüft: zwei Anbieter-GETs,
+ein Datenbank-GET, bestätigter deutscher Ausgang und keine produktiven Schreibaufrufe.
+Die erwartete Ablaufaktualisierung wurde nur simuliert. Die Anbieter-API liefert
+`expire_date` ohne dokumentierte Zeitzone; der neue Abgleich setzt vorsichtig
+00:00 UTC am Tag vor dem Ablauftag als eigene Nutzungsgrenze. Die unten genannte
+manuelle Registrierung bleibt bis zur Aktivierung des neuen Abgleichs unverändert.
+33 Linuxprüfungen einschließlich privater Dateirechte bestanden ohne Auslassung.
+
+Nach ausdrücklicher Betriebsfreigabe sind beide geprüften Abbilder von
+`02dbcfbddaba4dfae0736bbd879d265fe2296b5a` veröffentlicht und auf Hetzner geladen.
+Die Imageworkflows `37348139184` und `37348143804` sind erfolgreich.
+Der vorherige Worker von `dc1deb88` war seit 04.10.2026 mit Exitcode 1 beendet;
+alle 201 alten Browsersitzungen waren geschlossen. Keine laufenden Browser
+oder Kontoprofile wurden umgestellt.
+
+Aktives Compose und private Environment-Dateien liegen jetzt unter
+`/opt/flipbase-marketplace/pilot-02dbcfbd/`. Der Unterordner `rollback` enthält
+die vorherige Konfiguration. Die persistente Proxydatei liegt außerhalb der
+Kontoprofile unter `/opt/flipbase-marketplace/chromium/cloud-networks.json`
+(UID/GID 1000, Modus 0600), im Controller unter
+`/var/lib/flipbase-marketplace/cloud-networks.json`. Die private Worker-Umgebung
+setzt `MARKETPLACE_CHROMIUM_NETWORK_FILE` auf diesen Pfad. Es gibt keinen neuen
+öffentlichen Port und keine Zugangsdaten im Repository.
+
+Der explizite HTTPS-Test aus `flipbase-browser` bestätigt die gekaufte IP und
+Deutschland. IPRoyal-Bestellung 84454713 zeigt `ISP Dedicated`, `Germany`,
+30 Tage und den Ablauf 04.11.2026. Eine Uhrzeit ist dort nicht sichtbar;
+die Registrierung verwendet als vorsichtige eigene Nutzungsgrenze den
+04.11.2026 um 00:00 Uhr Berlin (`2026-11-03T23:00:00Z`), keine behauptete
+Anbieteruhrzeit. Die Kennung `iproyal-pilot-a` ist geprüft und frei.
+
+Worker- und öffentlicher Healthcheck sind gesund. API Version 2,
+`MARKETPLACE_SCHEDULED_SYNC_ENABLED=0` und
+`MARKETPLACE_CHROMIUM_WRITES_ENABLED=0` sind bestätigt. Nach Worker-Neustart
+bleibt genau dieselbe IP frei; anonyme Cloud-Einrichtung antwortet mit 401.
+Dies belegt Infrastruktur und IP-Bestand, noch keinen echten Vinted-Zugang.
+
+Offen: ausdrückliche Auswahl des Pilotkontos, Anmeldung/SMS, Identitätsprüfung,
+Abschluss des Cloudwechsels, lesender Abruf und Neustart mit dieser Kontozuordnung.
+Historische Kontonamen sind keine neue Kontoauswahl. Bestehende lokale
+Nachrichten mit unklarem Versandresultat werden nicht erneut gesendet oder
+manuell bereinigt; ein Wechsel muss die vorhandene Sperre berücksichtigen.
+
 ## Vorbereiteter IP-Bestand vom 05.10.2026
 
 Die Umsetzung enthält die Einrichtung mit vorhandenem IP-Bestand und den
