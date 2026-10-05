@@ -28,7 +28,10 @@ statt die beiden schmalen Eingabezellen zu verschieben.
 
 **Prüfung:** Komponenten- und Browserprüfungen werden auf Nullbestand im Verkauf
 versus Einkauf, fehlende sichtbare Stepper sowie die neue Fehlerplatzierung
-angepasst. PR und Merge stehen noch aus.
+angepasst.
+
+**Freigabe:** PR-Erstellung, Pflichtprüfungen und Merge nach erfolgreicher CI
+wurden am 05.10.2026 vom Nutzer freigegeben.
 
 ## 2026-10-05 - Juna - Vinted-Postfachlayout und Arbeitstab korrigieren
 
