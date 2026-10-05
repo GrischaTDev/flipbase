@@ -349,24 +349,29 @@ for (const width of [1440, 390]) {
     ).toBeEnabled();
     await inbox.getByRole('button', { name: 'Nachrichtenzugriff erlauben', exact: true }).click();
     const dialog = page.getByRole('dialog');
-    await expect(dialog).toContainText('Ungelesene Verläufe bleiben geschlossen');
+    await expect(dialog).toContainText('Automatische Abrufe öffnen keine ungelesenen Verläufe');
     await dialog.getByRole('button', { name: 'Abbrechen', exact: true }).click();
     expect(binding.messagesRead).toBe(false);
     expect(bridgeCalls).toEqual([]);
     await inbox.getByRole('button', { name: 'Nachrichtenzugriff erlauben', exact: true }).click();
     await dialog.getByRole('button', { name: 'Nachrichtenzugriff erlauben', exact: true }).click();
     await expect(
-      inbox.getByRole('button', { name: 'Nachrichten synchronisieren', exact: true }),
+      page.getByRole('button', { name: 'Nachrichten aktualisieren', exact: true }),
     ).toBeEnabled();
     await inbox.locator('[data-conversation-row] button').first().click();
     await expect(inbox.getByRole('log')).toBeVisible();
     const heading = await inbox.locator('[data-conversation-heading]').textContent();
     await page.getByRole('button', { name: 'Nachrichten aktualisieren', exact: true }).click();
-    await expect(inbox.locator('time[datetime="' + observedAt + '"]')).toBeVisible();
+    await expect(
+      page.locator('app-vinted-account-controls time[datetime="' + observedAt + '"]'),
+    ).toBeAttached();
+    await expect(
+      page.locator('app-vinted-account-controls').getByText('Synchronisiert', { exact: true }),
+    ).toBeVisible();
     await expect(inbox.locator('[data-conversation-heading]')).toHaveText(heading ?? '');
     await expect(
       page.getByText('1 Gespräch und 1 Nachricht übernommen.', { exact: false }),
-    ).toBeVisible();
+    ).not.toBeVisible();
     expect(bridgeCalls).toEqual([
       'FLIPBASE_VINTED_LOCAL_PREPARE',
       'FLIPBASE_VINTED_LOCAL_INBOX_SYNC',
