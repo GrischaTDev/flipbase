@@ -166,7 +166,7 @@ export class VintedMessagesComponent {
     );
   });
   readonly isOpeningConversation = computed(
-    () => this.isRefreshingConversation() && !this.store.messages()?.items.length,
+    () => this.isRefreshingConversation() && !this.conversation(),
   );
   private readonly dialog = inject(ConfirmDialogService);
   private readonly route = inject(ActivatedRoute);

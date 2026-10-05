@@ -158,6 +158,7 @@ async function inboxFixture(page: Page, longHistory = false) {
     const body = route.request().postDataJSON();
     if (body['p_kind'] !== 'message') return route.fallback();
     if (pendingStoredMessages) await pendingStoredMessages;
+    if (body['p_parent_id'] === secondConversationId) return route.fulfill({ json: emptyPage() });
     return route.fulfill({
       json: {
         items: [
@@ -304,8 +305,41 @@ test('zeigt einen bekannten Chat sofort auch während Datenbank und Vinted noch 
   const conversation = page.getByRole('region', { name: 'Gespräch', exact: true });
   await rows.nth(0).getByRole('button').click();
   await expect(conversation.locator('[data-conversation-sync]')).toContainText('Synchronisiert');
+  const firstMessageBounds = await conversation
+    .locator('[data-message-kind]')
+    .first()
+    .boundingBox();
+  fixture.pauseStoredMessages();
+  fixture.pauseDetails();
   await rows.nth(1).getByRole('button').click();
   await expect(conversation.getByRole('heading', { name: 'Ben', exact: true })).toBeVisible();
+  await expect(conversation.getByText('Blauer Schal', { exact: true })).toBeVisible();
+  await expect(conversation.locator('[data-message-composer]')).toBeVisible();
+  await expect(conversation.locator('[data-conversation-loading]')).toHaveCount(0);
+  await expect(conversation.locator('[data-message-kind]')).toHaveCount(0);
+  await expect(conversation.locator('[data-conversation-sync]')).toContainText('Wird aktualisiert');
+  await expect(conversation.getByText('Nachrichten werden geladen', { exact: false })).toHaveCount(
+    0,
+  );
+  fixture.resumeStoredMessages();
+  await expect
+    .poll(
+      () =>
+        fixture.bridgeCalls.filter((type) => type === 'FLIPBASE_VINTED_LOCAL_INBOX_DETAIL').length,
+    )
+    .toBe(2);
+  await expect(conversation.locator('[data-conversation-loading]')).toHaveCount(0);
+  await expect(conversation.locator('[data-message-kind]')).toHaveCount(0);
+  await checkAxe(page);
+  const screenshotDirectory = process.env['MARKETPLACE_SCREENSHOT_DIR'];
+  if (screenshotDirectory) {
+    await mkdir(screenshotDirectory, { recursive: true });
+    await page.screenshot({
+      path: join(screenshotDirectory, 'vinted-empty-chat-refreshing.png'),
+      fullPage: true,
+    });
+  }
+  fixture.resumeDetails();
   await expect(conversation.locator('[data-conversation-sync]')).toContainText('Synchronisiert');
   fixture.pauseStoredMessages();
   fixture.pauseDetails();
@@ -315,6 +349,12 @@ test('zeigt einen bekannten Chat sofort auch während Datenbank und Vinted noch 
   await expect(conversation.getByRole('log')).toContainText('Abgelehnt');
   await expect(conversation.locator('[data-conversation-loading]')).toHaveCount(0);
   await expect(conversation.locator('[data-conversation-sync]')).toContainText('Wird aktualisiert');
+  await expect(conversation.getByText('Nachrichten werden geladen', { exact: false })).toHaveCount(
+    0,
+  );
+  expect((await conversation.locator('[data-message-kind]').first().boundingBox())?.y).toBe(
+    firstMessageBounds?.y,
+  );
   fixture.resumeStoredMessages();
   await expect
     .poll(
@@ -380,10 +420,17 @@ for (const { width, theme } of [
     fixture.pauseStoredMessages();
     await rows.first().getByRole('button').click();
     const conversation = page.getByRole('region', { name: 'Gespräch', exact: true });
-    await expect(conversation.locator('[data-conversation-loading]')).toBeVisible();
-    await expect(conversation.locator('[data-conversation-item]')).toHaveCount(0);
-    await expect(conversation.getByRole('log')).toHaveCount(0);
-    await expect(conversation.locator('[data-message-composer]')).toHaveCount(0);
+    await expect(conversation.locator('[data-conversation-loading]')).toHaveCount(0);
+    await expect(conversation.getByRole('heading', { name: 'Anna', exact: true })).toBeVisible();
+    await expect(conversation.locator('[data-conversation-item]')).toBeVisible();
+    await expect(conversation.getByRole('log')).toBeVisible();
+    await expect(conversation.locator('[data-message-composer]')).toBeVisible();
+    await expect(conversation.locator('[data-conversation-sync]')).toContainText(
+      'Wird aktualisiert',
+    );
+    await expect(
+      conversation.getByText('Nachrichten werden geladen', { exact: false }),
+    ).toHaveCount(0);
     if (screenshotDirectory)
       await page.screenshot({
         path: join(screenshotDirectory, `vinted-inbox-loading-${width}-${theme}.png`),

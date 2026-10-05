@@ -1,5 +1,31 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-05 - Juna - Leere Vinted-Chats ohne Layoutsprung öffnen
+
+**Auftrag:** Bekannte Gesprächsköpfe und Artikel auch ohne gespeicherte
+Nachrichten sofort zeigen. Den zusätzlichen Ladehinweis oberhalb des Verlaufs
+entfernen, da der gemeinsame Abgleichstatus die laufende Aktualisierung zeigt.
+Eigener Zweig `juna/vinted-empty-chat-display` von `origin/master` bei `52ac4270`.
+
+**Befund und Umsetzung:** Die Ladebedingung verwendete die Nachrichtenanzahl
+statt der bekannten Gesprächskopfdaten. Ein leerer Verlauf verdeckte deshalb
+auch Kopf, Artikel und Antwortfeld. Die Bedingung prüft nun die Kopfdaten; der
+Abgleichstatus bleibt auch während des ersten Nachrichtenabrufs sichtbar.
+Der zweite Ladehinweis im Verlauf entfällt. Abrufe, Kontotrennung und
+Versandberechtigungen bleiben unverändert.
+
+**Prüfung:** Beide Fehler zuerst mit zwei erwarteten Fehlschlägen reproduziert;
+danach 134 Angular-Tests und fünf Chromium-Prüfungen mit synthetischen Daten
+grün. Bekannte Kopfdaten bleiben bei verzögerten Abrufen und leerem Verlauf
+sichtbar; die Position vorhandener Nachrichten bleibt beim Wiederöffnen gleich.
+Desktop/Mobilgerät, beide Themes und AXE sind geprüft. Typprüfung, betroffener
+Lint, Shared-UI-Prüfung (136 Dateien ohne Befund), zwei Prüfungen der
+Smoke-Testauswahl, Formatierung und Produktionsbau sind erfolgreich.
+Veröffentlichung und ein echter Kontotest stehen noch aus.
+
+**Freigabe:** PR, Merge nach erfolgreichen Pflichtprüfungen und Aufräumen wurden
+am 05.10.2026 bestätigt. Der Hauptzweig steht unverändert bei `52ac4270`.
+
 ## 2026-10-05 - Juna - Gespeicherte Vinted-Chats während des Abgleichs anzeigen
 
 **Auftrag:** Vorhandene Chatdaten sofort anzeigen, Vinted beim bewussten Öffnen

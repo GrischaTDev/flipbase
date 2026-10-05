@@ -246,11 +246,6 @@
                 </app-button>
               </div>
             }
-            @if (store.loadingMessages()) {
-              <p role="status" class="text-[13px] text-fb-text-secondary">
-                Nachrichten werden geladen …
-              </p>
-            }
             @for (row of datedTranscript(); track row.entry.id) {
               @let entry = row.entry;
               @let kind = messageKind(entry);
@@ -358,35 +353,33 @@
                 </p>
               }
             }
-            @if (store.messages()) {
-              <div
-                data-conversation-sync
-                role="status"
-                class="py-2 text-center"
-                [attr.title]="
-                  store.error() ||
-                  local.error() ||
-                  (store.selectedConnection()?.lastSyncedAt | date: 'dd.MM.yyyy, HH:mm')
-                "
-              >
-                @if (isRefreshingConversation() || store.loadingMessages()) {
-                  <app-badge tone="caution">
-                    <app-loading-indicator size="sm" />
-                    Wird aktualisiert
-                  </app-badge>
-                } @else if (store.error() || local.error()) {
-                  <app-badge tone="caution">Aktualisierung fehlgeschlagen</app-badge>
-                } @else {
-                  <app-badge tone="success">
-                    <span
-                      aria-hidden="true"
-                      class="mr-1 inline-block size-1.5 rounded-full bg-current"
-                    ></span>
-                    Synchronisiert
-                  </app-badge>
-                }
-              </div>
-            }
+            <div
+              data-conversation-sync
+              role="status"
+              class="py-2 text-center"
+              [attr.title]="
+                store.error() ||
+                local.error() ||
+                (store.selectedConnection()?.lastSyncedAt | date: 'dd.MM.yyyy, HH:mm')
+              "
+            >
+              @if (isRefreshingConversation() || store.loadingMessages()) {
+                <app-badge tone="caution">
+                  <app-loading-indicator size="sm" />
+                  Wird aktualisiert
+                </app-badge>
+              } @else if (store.error() || local.error()) {
+                <app-badge tone="caution">Aktualisierung fehlgeschlagen</app-badge>
+              } @else {
+                <app-badge tone="success">
+                  <span
+                    aria-hidden="true"
+                    class="mr-1 inline-block size-1.5 rounded-full bg-current"
+                  ></span>
+                  Synchronisiert
+                </app-badge>
+              }
+            </div>
             @for (queued of queuedMessages(); track queued.id) {
               <div
                 class="ml-auto w-fit max-w-[90%] space-y-1 rounded-2xl rounded-br-sm bg-fb-brand-strong px-3 py-2 text-fb-on-accent"
