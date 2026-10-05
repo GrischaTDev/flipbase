@@ -51,6 +51,12 @@ Pflichtprüfungen, Veröffentlichung und Aufräumen wurden am 05.10.2026 mit
 Browserfall als fehlenden Eintrag in der verbindlichen Smoke-Auswahl. Der
 Fall ist in der Erwartungsliste ergänzt; die Auswahl bleibt vollständig und
 prüft den zusätzlichen Wiederholungsablauf ausdrücklich mit.
+Der bisherige Bereichstest erwartete den automatischen Überschriftenfokus
+auch nach einem Mausklick. Er wählt das Gespräch jetzt per Tastatur aus und
+prüft damit weiterhin Fokusübergabe, Tab-Navigation und Verlaufsscrollen;
+der neue Postfachfall prüft getrennt den Mausklick ohne Fokuswechsel.
+Alle sechs Bereichsvarianten mit 1440, 390 und 320 px sowie hellem und
+dunklem Design sind nach dieser Anpassung lokal erfolgreich.
 
 ## 2026-10-05 - Juna - Vinted-Nachrichtenversand und Postfachstatus korrigieren
 

@@ -416,7 +416,9 @@ for (const width of [1440, 390, 320]) {
       await expect(page.locator('[data-metric-increase]')).toHaveCount(0);
 
       await openVintedSection(page, 'Postfach', width);
-      await page.getByRole('button', { name: /Frage zum Schal/ }).click();
+      const conversationButton = page.getByRole('button', { name: /Frage zum Schal/ });
+      await conversationButton.focus();
+      await conversationButton.press('Enter');
       await expect(page.getByRole('log')).toContainText('Welche Maße hat der Schal?');
       const messageLog = page.getByRole('log');
       await expect(messageLog.locator('article')).toHaveCount(6);
