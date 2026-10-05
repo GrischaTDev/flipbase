@@ -1,5 +1,351 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-05 - Juna - IP-Zuordnung bei mehreren Vinted-Konten eingeordnet
+
+**Auftrag:** Separat vom laufenden Extension-Umbau klären, ob zehn
+Browserprofile eine gemeinsame Dedicated IP nutzen können oder jedes Konto
+eine eigene IP benötigt.
+
+**Befund:** Eine gemeinsame IP ist technisch möglich, bietet aber keine
+Trennung der Netzwerkadresse. Normale Chrome-Profile trennen Sitzungen und
+Cookies, verschleiern das Gerät jedoch nicht automatisch. Bleam dokumentiert
+eine gemeinsame französische Ausgangs-IP für seine Cloud-Sitzungen und
+optionale Dedicated IPs pro Sitzung. GoLogin erlaubt mehrere Profile je Proxy,
+empfiehlt für stärkere Trennung jedoch eigene Proxies je Profil. Seine
+Dedicated IP kostet laut aktueller Dokumentation 5 US-Dollar monatlich je IP.
+Eine eigene IP ist keine Garantie gegen Kontoverknüpfung oder Sperren.
+
+**Prüfung:** Offizielle Bleam- und GoLogin-Hilfe sowie MDN zu Browser-
+Fingerprinting am 05.10.2026 gelesen. Keine echten Vinted-Konten getestet;
+keine Anwendung, Erweiterung oder Infrastruktur geändert.
+
+**Ergänzung:** Die öffentliche Suche nach Bleams IP-Lieferant liefert keinen
+belastbaren Anbieterbeleg und keinen Nachweis für GoLogin. Bleam nennt in
+seiner Datenschutzerklärung Hetzner in Deutschland als Hosting-Anbieter für
+Backend und Cloud-Sitzungen. Das belegt nicht den Lieferanten der französischen
+Ausgangs-IPs. Die Liste der Unterauftragnehmer ist laut Bleam auf Anfrage
+erhältlich. Datenschutzerklärung, Impressum und Bedingungen geprüft.
+
+**Kostenvergleich:** Hetzner nennt für zusätzliche Cloud Floating IPv4s
+3,57 Euro monatlich inklusive 19 Prozent Umsatzsteuer; bei Dedicated Servern
+2,02 Euro monatlich plus 5,83 Euro Einrichtung je zusätzlicher Einzel-IP.
+Cloud Primary IPv4s sind günstiger, ersetzen aber keine zusätzlichen Adressen
+an einem Server. Ein eigener Proxy und eine ausdrückliche Zuordnung der
+Ausgangsadressen wären nötig. Hetzner-Adressen sind Rechenzentrumsadressen;
+GoLogin beschreibt seine Dedicated IPs als ISP-Proxies. Die aktuelle
+GoLogin-Kaufhilfe verlangt ein bezahltes Hauptabo plus 5 US-Dollar je IP,
+während der August-Blog allgemeiner von Verfügbarkeit für alle Nutzer spricht.
+Ein eigenständiger IP-Kauf ohne Hauptabo bleibt deshalb unbestätigt.
+Keine IP bestellt, kein Konto oder Server geändert.
+
+**Bedarfsabhängige Bestellung:** Proxy-Seller dokumentiert ISP-Einzelbestellung,
+Preiskalkulation, Zahlung und Verlängerung per API. Seine Angebotsseite wirbt
+mit unbegrenztem Traffic, die Vertragsbedingungen nennen jedoch standardmäßig
+100 GB und 100 parallele Verbindungen je IP. IPRoyal bietet ebenfalls
+Bestell- und Verlängerungs-APIs, begrenzt ungedrosselten Traffic laut Fair Use
+aber auf einen Pool von 100 GB je IP pro 30 Tagen. Webshares Unlimited-Tarife
+garantieren mindestens 10 TB je Tarif vor möglicher Drosselung.
+Rayobyte nennt für statische ISP-Proxys keine festen Traffic- oder Threadlimits,
+hat ein Resellerprogramm mit API und reguläre Tarife ab fünf IPs zu je
+5 US-Dollar monatlich. Reseller-Mindestabnahme und Einzelbeschaffung bleiben
+dort zu klären. Proxy-Cheap bewirbt statische ISP-Proxys mit unbegrenztem
+Traffic und ein Resellerprogramm ohne verpflichtende Einzahlung in Tier 0;
+automatische Bereitstellung ist für sein WHMCS-Modul dokumentiert, eine eigene
+Flipbase-Anbindung wurde nicht getestet. Vorgeschlagener Ablauf: bestätigte
+Kundenzahlung, bedarfsabhängige Bestellung, feste Profilzuordnung, rechtzeitige
+Verlängerung und Ende der Verlängerung zum Aboende. Keine Bestellung oder
+Implementierung vorgenommen; reale Vinted-Eignung aller Anbieter ungeprüft.
+
+**Vertiefter Anbieterabgleich:** Die öffentliche Postman-Dokumentation von
+Proxy-Cheap beschreibt Einzelbestellung mit `quantity: 1`, Monatslaufzeit,
+Preiskalkulation, Verlängerung und Abschalten der automatischen Verlängerung
+je Proxy. Die Angebotsseite zeigt 2,71 US-Dollar monatlich; der konkrete
+deutsche Dedicated-Tarif wurde nicht im Checkout oder mit einem Kundenkonto
+geprüft. Tier 0 erfordert laut Resellerseite keine verpflichtende Einzahlung.
+ProxyWing nennt 3 US-Dollar für eine einzelne ISP-IP und dokumentiert Kauf,
+Verlängerung sowie einen Guthaben-Autorenew-Schalter. Seine Bedingungen nennen
+jedoch 100 GB je IP und Monat und unterscheiden diesen Schalter von einer
+vollständigen Kündigung; der dokumentierte API-Schalter allein verhindert
+andere autorisierte automatische Zahlungen nicht. Deshalb keine Empfehlung
+als verifiziert unbegrenzte, vollständig kündigbare Alternative.
+Decodos veröffentlichter Dedicated-Einstieg enthält drei IPs für 9,99
+US-Dollar monatlich zuzüglich Umsatzsteuer. Einzelbeschaffung und selektive
+Kündigung über eine Bestell-API bleiben dort unbestätigt.
+
+Reddit- und Trustpilot-Berichte zeigen Beschwerden über IP-Klassifizierung,
+Qualität, Support und Erstattungen bei Proxy-Cheap und ProxyWing. Das sind
+Einzelberichte ohne eigene technische Verifikation. Ein Reddit-Bericht über
+Proxy-Sellers Traffic-Drosselung wird bezüglich der 100-GB-Grenze durch dessen
+Vertragsbedingungen und die öffentliche Anbieterantwort gestützt. Vor einer
+Anbindung sind reale Eignung, IP-Erhalt über Verlängerungen, Verfügbarkeit,
+exakter Länderpreis und Ende aller Kosten zum Aboende zu prüfen. Recherche
+und API-Dokumentation geprüft; keine kostenpflichtige API aufgerufen.
+
+**Verschärfte Auswahl:** Der Nutzer schließt Proxy-Cheap wegen der Bewertungen
+aus und verlangt deutsche IPs, Zuverlässigkeit, passende Kauf-/Kündigungs-API
+und unbegrenzten Traffic. Die weitere Recherche korrigiert auch Rayobytes
+bisherige Einordnung: Seine Hilfe nennt keine Traffic-Grenzen, Abschnitt 13
+der Bedingungen definiert aber mehr als 0,03 TB je Dedicated/Static
+Residential-IP in 30 Tagen als übermäßige Nutzung mit Prüfung auf Zusatzkosten.
+Oberhalb von 10 TB monatlich werden zusätzlich 30 US-Dollar je 10 TB genannt.
+Deshalb keine verifizierte Unlimited-Empfehlung trotz besserem Trustpilot-
+Score von 4,1 bei 142 Bewertungen (21 Prozent Ein-Stern-Bewertungen).
+Decodo nennt für Dedicated-ISP-Tarife 10 TB je Aboperiode und 100 GB je IP;
+Einschränkungen greifen laut FAQ erst beim Erreichen beider Schwellen.
+Byteful (vormals Ping Proxies) nennt 200 GB Fair Use je ISP-IP. MarsProxies
+bewirbt deutsche ISP-Einzel-IPs für 2,99 US-Dollar mit unbegrenztem Traffic
+und hat 4,5 bei 386 Trustpilot-Bewertungen, untersagt in den Standardbedingungen
+jedoch Weiterverkauf und Bereitstellung an Dritte; seine öffentliche API-Doku
+belegt den erforderlichen ISP-Bestell-/Kündigungsablauf nicht. Infatica hat
+bei Trustpilot 2,7 bei 32 Bewertungen. Keiner der weiter geprüften Anbieter
+ist auf Basis der öffentlichen Nachweise für alle Anforderungen bestätigt.
+Ein gesondertes Partnerangebot müsste deutschen ISP-Bestand, unbegrenzten
+Traffic ohne volumenabhängige Drosselung/Zusatzkosten sowie Beschaffung und
+Kostenende je einzelner IP ausdrücklich abdecken. Keine Anbieter kontaktiert.
+
+**IPRoyal-Nachprüfung:** Deutsche Dedicated-ISP-IPs und Tarife ab 2,70
+US-Dollar für 30 Tage werden angeboten. Die Orders-API dokumentiert variable
+Mengen, Kauf, Verlängerung und Abschalten der automatischen Verlängerung je
+Bestellung. Deutsche Einzel-IP-Verfügbarkeit und tatsächlicher Endpreis sind
+nicht im Kundenkonto getestet. Die Fair-Use-Hilfe bestätigt 100 GB je IP
+als Pool je Bestellung pro 30 Tagen; Abschnitt 8 der Bedingungen erlaubt
+nach Verbrauch eine Geschwindigkeitsreduktion um bis zu 95 Prozent.
+Trustpilot blendet aktuell den Gesamtscore wegen eines Richtlinienverstoßes
+aus und erklärt, gefälschte Bewertungen entfernt zu haben. Das belegt keinen
+technischen Ausfall, liefert aber keinen positiven Zuverlässigkeitsnachweis.
+Standardbedingungen enthalten außerdem Einschränkungen für Bereitstellung
+an Dritte. Ein Partnervertrag bleibt für Flipbase zu klären. Keine IP gekauft.
+Die ISP-Preisseite nennt unbegrenzte Sitzungen und Threads; die Abrechnung
+pro Proxy hebt die Fair-Use-Grenze für Datenvolumen nicht auf. ISP ist die
+passende Produktart für feste IPs, der Standardtarif erfüllt jedoch nicht
+die Anforderung unbegrenzten Datenvolumens ohne Drosselung.
+Zusätzliche Quelle: https://iproyal.com/pricing/isp-proxies/.
+
+**Google-Vergleich der ersten Ergebnisse:** Im Browser die ersten
+Ergebnisseiten für `ISP proxies` und `Germany ISP proxies unlimited bandwidth`
+gelesen. Die angezeigte Reihenfolge ist personalisiert und enthält Anzeigen,
+Vergleichsartikel und doppelte Anbieter. Zehn relevante Anbieter aus diesen
+Ergebnissen verglichen, ohne eine allgemeingültige Top-10-Rangliste zu behaupten.
+Neu geprüft: Roundproxies, Shifter, Webshare, DoubleData, Proxying,
+Lightning Proxies, Bright Data und ProxyEmpire; IPRoyal und ProxyWing erneut
+gegen die Bedingungen geprüft. Proxying bewirbt deutsche exklusive ISP-IPs
+ab einer IP für 2,25 USD und Unlimited-Traffic, aber keine öffentliche
+Bestell-/Verlängerungs-/Kündigungs-API gefunden. Lightning bewirbt DE-Einzel-IPs
+ab 4 USD und Unlimited; Reseller-Zugang verlangt Rang und Einzahlung,
+konkrete ISP-Lebenszyklus-Endpunkte nicht öffentlich belegt. Trustpilot zeigt
+je nach Länderseite Warnung oder niedrigen Score; kein positiver
+Zuverlässigkeitsnachweis. Roundproxies listet 10 IPs für 14 USD; die Reseller-API
+verwaltet Zuteilungen gegen Kapazität, ausdrücklich ohne Bestellungen oder
+Paketabrechnung. Bedingungen erlauben Fair-Use-Eingriffe ohne hier gefundene
+konkrete ISP-GB-Grenze. Shifters aktuelle Dokumentation erlaubt wechselnde
+Ausgangs-IP bei konstanter Stadt/ASN; kleinstes gelistetes Paket 25 IPs.
+DoubleData listet Dedicated ab 10 IPs zu 2,50 USD/IP; öffentliche Bestell-API
+nicht belegt. Webshare listet Dedicated ab 20 IPs für 42 USD mit 250 GB bis
+Unlimited je Auswahl; Unlimited garantiert mindestens 10 TB je Abo vor
+Drosselung. Kauf und Abschalten der Abo-Verlängerung dokumentiert, individuelle
+DE-IP-Buchung und Kostenende nicht verifiziert. Bright Data Dedicated ab
+10 IPs für 35 USD mit 100 GB/IP gepooltem Fair Use. ProxyEmpire deutsche
+Einzel-IP 3,50 USD mit 100-GB-Softcap. Kein Anbieter ohne offene Punkte für
+sämtliche Flipbase-Anforderungen bestätigt; keine Käufe oder Kontaktaufnahme.
+Quellen: https://roundproxies.com/isp-proxies/,
+https://roundproxies.com/terms-of-service/,
+https://docs.roundproxies.com/reseller,
+https://shifter.io/de/docs/products/isp-proxies/,
+https://shifter.io/de/pricing/isp-proxies,
+https://www.webshare.io/dedicated-static-residential-proxy,
+https://help.webshare.io/en/articles/10599445-fair-usage-policy,
+https://apidocs.webshare.io/subscription/auto_renewal,
+https://doubledata.com/pricing/isp-proxies,
+https://www.proxying.io/location/germany-proxies,
+https://www.proxying.io/isp-proxies, https://www.proxying.io/terms,
+https://lightningproxies.net/products/isp-proxies,
+https://lightningproxies.net/reseller-program,
+https://www.trustpilot.com/review/lightningproxies.net,
+https://brightdata.de/proxy-types/isp-proxies,
+https://proxyempire.io/static-residential-proxies/.
+
+**Vertiefung Proxying und Shifter mit zwei beauftragten Recherche-Agenten:**
+Shifter Lite/Spark live im Browser bestätigt: vier Proxys für aktuell
+10 USD/Monat (30-Prozent-Aktion; regulär angezeigt 14 USD). Die frühere
+25-IP-Untergrenze galt nur dem regulären Tab und ist entsprechend korrigiert.
+Aktuelle Shifter-ISP-IPs halten Stadt/ASN, können jedoch die öffentliche
+Ausgangsadresse ändern. Aktuelle API-Übersicht schließt Verwaltungs-API für
+heutige ISP-Pakete ausdrücklich aus; öffentliche ISP-API ist Legacy und
+belegt keinen Kauf. Monatliche Kündigung und Downgrade im Panel dokumentiert,
+kein API-Kostenende je einzelner IP. Unlimited beworben, keine quantitative
+GB-Schwelle in gelesenen aktuellen ISP-Seiten/Terms gefunden; das ist keine
+Garantie völliger Einschränkungsfreiheit. Exklusivität aktueller Ausgangs-IP
+und SaaS-Freigabe offen; Standardbedingungen schränken Drittzugriff ein.
+Proxying-Reseller-Seite neu gefunden: öffentliche Postman-Dokumentation,
+manuelle Freigabe und 250-USD-Startguthaben. Static-Proxies-Abschnitt verspricht
+automatische Käufe aus Guthaben, enthält aber nur einen leeren GET-Platzhalter
+ohne URL und Antwort. Konkrete ISP-Kauf-/Renew-/Cancel-Endpunkte damit nicht
+öffentlich belegt; frühere Aussage 'keine öffentliche API gefunden' präzisiert.
+Deutsche exklusive Telekom-ISP-IPs, Einzelmenge und Unlimited beworben;
+monatliche Produktseite nennt IP-Erhalt durch Verlängerung und Abo-Kündigung.
+Beworbene Einzelpreise widersprechen sich zwischen 2,00 und 2,25 USD;
+deutscher Checkout-Preis nicht gekauft/verifiziert. Kein quantitatives FUP-
+Kontingent gefunden; Terms geben keine Verfügbarkeits-/Performancegarantie.
+Trustpilot Proxying hat null Bewertungen; kein positiver Zuverlässigkeits-
+nachweis. Guthaben-Verfall/Mindestverbrauch nicht öffentlich geklärt.
+Proxying-White-Label-Programm nennt Software-/Multi-Account-Anwendungen;
+SaaS-Nutzung ist daher im freigegebenen Reseller-Modell grundsätzlich beworben.
+Shifter Trustpilot zeigt 2,5/5 bei nur sechs Bewertungen; kleine Stichprobe
+ohne speziellen Nachweis zur Zuverlässigkeit des aktuellen deutschen ISP-Tarifs.
+Keine Accounts angelegt, Anbieter kontaktiert oder IPs gekauft.
+Quellen: https://shifter.io/de/pricing/isp-proxies,
+https://shifter.io/docs/api/,
+https://shifter.io/docs/api/proxies/isp-proxies/,
+https://shifter.io/docs/products/isp-proxies/,
+https://shifter.io/docs/resources/billing/,
+https://shifter.io/docs/resources/partnerships/,
+https://shifter.io/terms-and-conditions,
+https://shifter.io/docs/products/isp-proxies/faq/,
+https://www.trustpilot.com/review/shifter.io,
+https://www.proxying.io/white-label-proxy-reseller-program,
+https://www.proxying.io/isp-pricing,
+https://documenter.getpostman.com/view/36999071/2sB3BHkorp,
+https://www.trustpilot.com/review/proxying.io.
+Quellen: https://iproyal.com/isp-proxies/,
+https://help.iproyal.com/en/articles/12094903-what-is-the-fair-usage-policy,
+https://iproyal.com/terms-of-service/,
+https://www.trustpilot.com/review/iproyal.com,
+https://docs.iproyal.com/proxies/isp/api/orders.
+
+**Einordnung der Shifter-Vertrauenssignale:** Die Website behauptet mehr als
+50.000 Kunden, ohne aktive zahlende Kunden oder den Zählzeitraum zu definieren.
+Für die vom Nutzer genannten Kundenlogos wurde keine unabhängige Bestätigung
+gefunden. Das widerlegt die Behauptungen nicht. Trustpilot zeigt sechs
+Bewertungen, 2,5/5 und 83 Prozent Ein-Stern-Bewertungen; das Profil ist nicht
+beansprucht und hat laut Trustpilot keine Historie von Bewertungseinladungen.
+Diese kleine, freiwillige Stichprobe erlaubt keine belastbare Gesamtaussage.
+Der Nutzer schließt eine Vorauszahlung von 250 USD aus; Proxying ist unter
+dieser Bedingung kein passender Kandidat. Quellen: https://shifter.io/,
+https://www.trustpilot.com/review/shifter.io.
+
+**100-GB-Auswahl und Vintz.ai:** Der Nutzer akzeptiert jetzt zunächst 100 GB
+pro IP für einen Praxistest. IPRoyal bestätigt Einzelbestellungen, Deutschland,
+100 GB/IP je 30-Tage-Zyklus, anschließend bis zu 95 Prozent Drosselung.
+Die öffentliche API dokumentiert Bestellung, Kartenbezahlung und ein-/abschaltbare
+automatische Verlängerung. Ab-Preis 2,70 USD/30 Tage; tatsächlicher deutscher
+Checkout-Preis nicht geprüft. Weitere 100 GB kosten laut FAQ 2,50 USD je IP,
+nur für den laufenden Zyklus. Trustpilot sperrt die Bewertung wegen entfernter
+Fake-Reviews; daher kein belastbarer Vertrauensnachweis. ProxyWing nennt eine
+deutsche Einzel-IP für 3 USD/Monat und 100 GB/IP als Fair Usage; danach sind
+Einschränkungen/Sperren möglich. Kauf und Verlängerung per API aus Guthaben
+sind dokumentiert, Kündigungs-Endpunkt fehlt; Mindestaufladung ungeklärt.
+Vintz.ai bestätigt in der Datenschutzerklärung GoLogin-Profile pro Konto,
+Playwright und eigene Proxys. Die Preis-FAQ nennt einen enthaltenen Proxy pro
+Konto (Pro 3, Scale 30), mit Anfrage und Verfügbarkeitsbestätigung durch das
+Team. Dieselbe Seite wirbt inzwischen für Studio-Credits ohne Abonnement;
+aktuelles Mehrkontenangebot daher widersprüchlich, IP-Anbieter/Volumen und
+Exklusivität nicht verifiziert. Keine Accounts erstellt oder Käufe ausgeführt.
+Quellen: https://help.iproyal.com/en/articles/7222122-can-i-buy-one-isp-proxy,
+https://docs.iproyal.com/proxies/isp/api/orders,
+https://iproyal.com/terms-of-service/,
+https://help.iproyal.com/en/articles/13867938-how-to-purchase-additional-data-for-my-isp-or-datacenter-proxies,
+https://www.trustpilot.com/review/iproyal.com,
+https://proxywing.com/proxies-isp,
+https://proxywing.com/policy,
+https://proxywing.com/documentation/api/isp,
+https://vintz.ai/privacy, https://vintz.ai/pricing.
+
+**IPRoyal-Laufzeiten erklärt:** 24 Stunden, 30, 60 und 90 Tage sind die
+Mietlaufzeiten pro IP. Die 60-/90-Tage-Ab-Preise sind auf 30 Tage umgerechnet:
+2,55 USD × 2 = 5,10 USD und 2,40 USD × 3 = 7,20 USD pro IP für die Laufzeit.
+IPRoyal bestätigt im eigenen Vergleichsartikel den monatlichen 90-Tage-Preis.
+Konkrete Bestellsumme für Deutschland nicht geprüft; Dashboard verlangt Login.
+Quellen: https://iproyal.com/pricing/isp-proxies/,
+https://iproyal.com/blog/iproyal-vs-oxylabs/.
+
+**IPRoyal-Produktempfehlung eingeordnet:** Der Nutzer-Screenshot zeigt nach
+einem Domain-/Scraping-Test Empfehlungen für rotierende Residential- und
+Mobile-Proxys. Der offizielle ISP-Quick-Start dokumentiert den direkten Weg
+über Dashboard → ISP → Create a new order; für den vorgesehenen Test:
+Dedicated, Deutschland, eine IP, 30 Tage, Fresh IPs every renewal deaktiviert.
+Der erfolgreiche Scraping-Test belegt keine Eignung einer konkreten deutschen
+ISP-IP. Quelle: https://iproyal.com/quick-start-guides/static-residential-proxies/.
+
+**IPRoyal-Mehrgerätezugriff:** Laut offizieller FAQ zählt die öffentliche
+Quell-IP der Verbindung zum Proxy. Mehrere Sitzungen aus derselben Quell-IP
+benötigen keinen Mehrgeräte-Zuschlag. Für ausschließlich vom Hetzner-Server
+ausgehende Browser-/Proxy-Verbindungen kann die Option deaktiviert bleiben.
+Ein lokaler Browser oder tatsächlich in GoLogin-Cloud laufender Browser kann
+eine andere Quelle sein; bloßes Steuern über Hetzner ändert diese Quelle nicht.
+Quelle: https://help.iproyal.com/en/articles/7222629-how-many-sessions-can-i-use-at-once.
+
+**Gekaufte IPRoyal-IP und Vorbereitung der Cloud-Anbindung:** Der Nutzer hat
+eine IP für 30 Tage gekauft und die Proxy-Zugangsansicht bereitgestellt.
+HTTP/HTTPS mit Port 12323 ist für den bestehenden Playwright-Pfad geeignet.
+Keine Zugangsdaten in Projektdateien oder Protokolle übernommen. Aktueller
+Integrationsstand origin/master 52ac4270/PR 301 gelesen; fremde Arbeitszweige
+nicht verändert. ChromiumNetworkProfiles und ChromiumPersistentBrowser laden
+bereits private HTTP-Proxy-Konfigurationen und übergeben getrennte Credentials.
+Die Registry verwendet beim Anlegen derzeit eine gemeinsame voreingestellte
+networkId; die neue IP darf nicht global allen neuen Konten zugeordnet werden.
+marketplace_approve_local_extension unterstützt Cloud → lokal, aber ein
+bestätigter Rückwechsel lokal → Cloud fehlt. Vorschlag zur Durchsicht:
+kontogebundene Proxy-Zuweisung, Cloud-Einrichtung mit erneuter Anmeldung und
+Prüfung derselben Vinted-Identität, exklusiver Wechsel des Ausführers unter
+Erhalt der Connection-ID und importierten Daten. Bei Fehlschlag kein Cloudstart;
+keine ungeprüfte Cookieübernahme oder Wiederholung unklarer Schreibaktionen.
+Zuerst ein lesender Cloudpilot mit der gekauften IP, automatische Beschaffung
+und bezahlte allgemeine Freigabe als Folgepaket. Pilotkonto beim Nutzer
+angefragt. Kein Proxytest, Server-Rollout oder Produktcode geändert.
+Quelle: https://iproyal.com/integrations/proxy-integration-with-playwright/.
+
+**Cloud-IP-Bestand und schriftlicher Pilotentwurf:** Der Nutzer hat den
+Wechselablauf grundsätzlich bestätigt und ergänzt: zuerst eine vorhandene freie
+IP verwenden, bei leerem Bestand „Aktuell sind keine freien Cloud-IPs vorhanden.“
+anzeigen, automatische Käufe später ergänzen. Der Entwurf
+`docs/implementation/vinted-cloud-ip-pilot.md` hält kontoweise, atomare Reservierung,
+den unveränderten lokalen Betrieb bei fehlender Kapazität und den sicheren Wechsel
+derselben Verbindung zur Cloud fest. Initial wird die gekaufte IP privat registriert;
+ein späterer lesender Abgleich gekaufter IPRoyal-Bestellungen wird von automatischen
+Käufen getrennt. IPs mit ungeklärter Nutzung bleiben gesperrt. Schriftlichen Entwurf
+selbst auf Konsistenz und Umfang geprüft; noch keine Produktimplementierung,
+keine Migration, kein echter Proxytest und kein Deployment durchgeführt.
+
+**Weitere Quellen:** https://rayobyte.com/tos-and-aup/,
+https://www.trustpilot.com/review/rayobyte.com,
+https://decodo.com/faq/getting-started/fair-usage-policy,
+https://byteful.com/other-proxies/geosurf-alternative,
+https://marsproxies.com/proxies/isp-proxies/,
+https://marsproxies.com/terms-of-service/, https://docs.marsproxies.com/,
+https://www.trustpilot.com/review/marsproxies.com,
+https://www.trustpilot.com/review/infatica.io.
+
+**Vertiefte Quellen:** https://docs.proxy-cheap.com/,
+https://proxywing.com/proxies-isp, https://proxywing.com/documentation/api/isp,
+https://proxywing.com/documentation/api/account, https://proxywing.com/policy,
+https://decodo.com/proxies/isp-proxies/pricing,
+https://www.trustpilot.com/review/proxy-cheap.com,
+https://www.trustpilot.com/review/proxywing.com,
+https://www.reddit.com/r/proxies/comments/1t137gu/i_need_one_static_residential_ip_which_passes_as/,
+https://www.reddit.com/r/proxies/comments/1w75x4x/warning_proxysellers_hidden_100gb_fup_policy_zero/.
+
+**Zusätzliche Quellen:** https://docs.proxy-seller.com/api-v1/order-actions,
+https://proxy-seller.com/trust-center/public-offer/,
+https://docs.iproyal.com/proxies/isp/api/orders,
+https://help.iproyal.com/en/articles/13867938-how-to-purchase-additional-data-for-my-isp-or-datacenter-proxies,
+https://help.webshare.io/en/articles/10599445-fair-usage-policy,
+https://rayobyte.com/products/isp-proxies/, https://rayobyte.com/resell-proxies/,
+https://portal.rayobyte.com/en/support/solutions/articles/64000262796-what-limits-do-you-have-for-bandwidth-and-threads-,
+https://www.proxy-cheap.com/white-label-reseller,
+https://www.proxy-cheap.com/services/static-residential-proxies.
+
+**Quellen:** https://docs.hetzner.com/de/general/infrastructure-and-availability/ipv4-pricing/,
+https://docs.hetzner.com/cloud/floating-ips/overview/,
+https://docs.hetzner.com/cloud/servers/primary-ips/overview/,
+https://support.gologin.com/en/articles/15030060-purchasing-gologin-proxies,
+https://support.gologin.com/en/articles/15030065-faq-gologin-proxies,
+https://gologin.com/blog/gologin-in-august/,
+https://bleam.app/fr/privacy, https://bleam.app/fr/legal,
+https://bleam.app/fr/terms, https://bleam.app/fr/help/bleam-cloud,
+https://bleam.app/en/help/connecter-plusieurs-comptes,
+https://support.gologin.com/en/articles/14839275-faq-proxies,
+https://support.gologin.com/en/articles/15030057-how-gologin-proxies-work,
+https://developer.mozilla.org/en-US/docs/Glossary/Fingerprinting.
 ## 2026-10-05 - Juna - Vinted-Nachrichten wiederholen und automatischen Fokus korrigieren
 
 **Auftrag:** Nach erfolgreichem echtem Versand störenden automatischen Button-
