@@ -502,13 +502,18 @@ gemessenen Ausgang abgleichen; bei widersprüchlichen Ergebnissen nicht freigebe
 
 ## Abschluss und Ausführung
 
-Die fünf lokalen Aufgaben sind umgesetzt und geprüft, mit PR 303 auf
-`origin/master` (`b916699a`) zusammengeführt. Der unabhängige Review des gesamten
+Die fünf lokalen Aufgaben sind umgesetzt und geprüft, mit PR 304 auf
+`origin/master` (`9527ac72`) zusammengeführt. Der unabhängige Review des gesamten
 Zweigs ist erfolgt. Seine drei Befunde sind korrigiert: tatsächlicher
 REST-Spaltenname, eindeutiger gemessener IP-Ausgang und Unsicherheitssperre für
 verlorene Einrichtungssitzungen. Datenbank- und echte lokale REST-Regressionen,
 Workerprüfung, Desktop/Mobil-Browserfälle samt AXE sowie Format/Lint,
-Typprüfungen und Bauten bestehen. Die Freigabe für Push/PR steht noch aus.
+Typprüfungen und Bauten bestehen. Zusätzliche Datenbankfälle bestätigen die
+Sperre expliziter lokaler Nachrichtenwiederholungen während und nach dem Wechsel.
+Die sechs Cloud-Browserfälle sind in der PR-Testauswahl registriert;
+parallele IP-Reservierungen werden im Datenbankjob geprüft.
+Push, PR und Merge nach erfolgreichen Pflichtprüfungen wurden am 05.10.2026
+mit „los“ freigegeben.
 Die produktive
 Registrierung der gekauften IP, eine echte Kontozuordnung und der Hetzner-Livetest
 sind nicht ausgeführt. Sie bleiben ausdrücklich getrennte Freigabeschritte.

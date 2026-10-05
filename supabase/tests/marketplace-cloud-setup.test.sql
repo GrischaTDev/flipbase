@@ -50,6 +50,7 @@ reset role;
 select is((select count(*)::integer from public.marketplace_connections where workspace_id='37100000-0000-4000-8000-000000000011'),2,'Capacity failure leaves connection count unchanged');
 select is((select ip.network_id from public.marketplace_cloud_setups setup join public.marketplace_cloud_ips ip on ip.id=setup.cloud_ip_id),'iproyal-test-a','Expired and foreign IPs are excluded');
 update public.marketplace_connections set status='connected' where id='37100000-0000-4000-8000-000000000021';
+update public.marketplace_local_extension_grants set messages_read=true,messages_send=true where connection_id='37100000-0000-4000-8000-000000000021';
 set local role service_role;
 select public.marketplace_worker_claim('37100000-0000-4000-8000-000000000041');
 select is(pg_temp.step('claim')->'setup'->>'state','reserved','Current worker binds the reservation');
@@ -79,6 +80,8 @@ select throws_ok($$select pg_temp.step('finalize')$$,'55P03',null,'Sending messa
 update public.marketplace_local_message_outbox set state='outcome_unknown';
 select throws_ok($$select pg_temp.step('finalize')$$,'55P03',null,'Ambiguous provider outcome is never retried or bypassed');
 update public.marketplace_local_message_outbox set state='queued',claim_token=null;
+insert into public.marketplace_local_message_outbox(id,workspace_id,connection_id,conversation_id,external_conversation_id,external_account_id,grant_generation,requested_by,request_id,payload_hash,message_text,state,claim_token) values
+ ('37100000-0000-4000-8000-000000000064','37100000-0000-4000-8000-000000000011','37100000-0000-4000-8000-000000000021','37100000-0000-4000-8000-000000000061','777','123',1,'37100000-0000-4000-8000-000000000001','37100000-0000-4000-8000-000000000065',repeat('d',64),'Retry test','failed','37100000-0000-4000-8000-000000000066');
 select is(pg_temp.step('finalize')->'setup'->>'state','finalizing','Prepared transition pauses new local actions');
 select throws_ok($$select pg_temp.step('complete')$$,'55P03',null,'Unconfirmed browser stop blocks completion');
 reset role;
@@ -86,7 +89,9 @@ select ok((select revoked_at is null from public.marketplace_local_extension_gra
 select throws_ok($$update public.marketplace_local_extension_grants set grant_generation=grant_generation+1 where connection_id='37100000-0000-4000-8000-000000000021'$$,'55P03',null,'Grant cannot rotate during finalization');
 set local role authenticated;
 select throws_ok($$select public.marketplace_approve_local_extension('37100000-0000-4000-8000-000000000011','37100000-0000-4000-8000-000000000021',repeat('b',64),'123')$$,'55P03',null,'Authenticated approval cannot bypass the finalization fence');
+select throws_ok($$select public.marketplace_retry_local_message('37100000-0000-4000-8000-000000000011','37100000-0000-4000-8000-000000000021','37100000-0000-4000-8000-000000000061','37100000-0000-4000-8000-000000000064')$$,'55P03',null,'Explicit local retry cannot bypass the finalization fence');
 reset role;
+select is((select state from public.marketplace_local_message_outbox where id='37100000-0000-4000-8000-000000000064'),'failed','Blocked retry preserves the original message');
 update public.marketplace_browser_sessions set state='closed',provider_stopped_at=clock_timestamp() where connection_id='37100000-0000-4000-8000-000000000021';
 set local role service_role;
 select is(pg_temp.step('complete')->'setup'->>'state','completed','Confirmed stop permits atomic completion');
@@ -99,6 +104,7 @@ select is((select state from public.marketplace_local_message_outbox where reque
 select is((select count(*)::integer from public.marketplace_account_entries where id='37100000-0000-4000-8000-000000000061'),1,'Existing conversation keeps its identity');
 select throws_ok($$delete from public.marketplace_connections where id='37100000-0000-4000-8000-000000000021'$$,'23503',null,'Deletion cannot free an uncleared IP');
 set local role authenticated;
+select throws_ok($$select public.marketplace_retry_local_message('37100000-0000-4000-8000-000000000011','37100000-0000-4000-8000-000000000021','37100000-0000-4000-8000-000000000061','37100000-0000-4000-8000-000000000064')$$,'42501',null,'Completed cloud upgrade rejects local retries');
 select public.marketplace_browser_session_reserve('37100000-0000-4000-8000-000000000011','37100000-0000-4000-8000-000000000021');
 reset role;
 update public.marketplace_cloud_ips set expires_at=clock_timestamp()-interval '1 second' where network_id='iproyal-test-a';

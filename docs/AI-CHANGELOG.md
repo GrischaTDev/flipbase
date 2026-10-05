@@ -11,13 +11,13 @@ IP-Metadaten, dauerhafte Reservierung und atomare Übergabe sind implementiert.
 Profile, begrenzte Worker-Einrichtung und die Oberfläche sind angebunden. Der andere
 Extension-Zweig wird nicht verändert. Bestehende gemeinsame Planung ergänzt.
 
-**Prüfung:** 47 neue Datenbankassertions und 123 bestehende lokale Assertions
+**Prüfung:** 50 neue Datenbankassertions und 123 bestehende lokale Assertions
 bestanden. Zwei echte parallele Datenbanksitzungen belegen eine einzige
 Reservierung bei einer freien IP. 292 Workertests bestanden, sechs
 Umgebungsprüfungen unter Windows übersprungen; neun Netzwerk- und
 Registrierungsprüfungen unter Linux ohne Auslassung bestanden.
-Worker-Typprüfung und Bau, 149 betroffene Angular-Assertions sowie zwei
-Vertragsprüfungen nach Integration von PR 303 und Angularbau bestanden.
+Worker-Typprüfung und Bau, 196 betroffene Angular-Assertions sowie zwei
+Vertragsprüfungen nach Integration von PR 304 und Angularbau bestanden.
 31 Browserprüfungen einschließlich Kapazitätsmeldung, lokalem Betrieb und
 Cloudwechsel auf Desktop/Mobil bestanden; AXE-Prüfungen eingeschlossen.
 Die private Bestandsregistrierung prüft Standort, Laufzeit und Dateirechte.
@@ -30,6 +30,14 @@ echten PostgREST-Dienst; der Proxy-Ausgang war dabei eine künstliche Testantwor
 Beide erzeugten Migrationen lokal neu eingespielt und Typen erneut generiert.
 Noch kein Produktionswechsel oder echter Proxy-/Vinted-Test; Zugangsdaten
 werden nicht im Repository gespeichert. Push und PR benötigen die Freigabe.
+
+**Abschlussfreigabe:** Push, PR, Merge nach erfolgreichen Pflichtprüfungen und
+Aufräumen am 05.10.2026 mit „los“ bestätigt. Den inzwischen veröffentlichten
+PR 304 eingebunden; 203 Datenbank- und 196 betroffene Angular-Assertions bestehen.
+Explizite lokale Nachrichtenwiederholung während/nach Cloudwechsel zusätzlich
+geprüft. Die sechs Cloud-Browserfälle sind in der verbindlichen PR-Auswahl
+registriert; der CI-Datenbankjob prüft parallele IP-Reservierungen. Angularbau,
+Typprüfung und Smoke-Auswahlprüfung erfolgreich.
 
 ## 2026-10-05 - Juna - IP-Zuordnung bei mehreren Vinted-Konten eingeordnet
 
@@ -388,6 +396,7 @@ https://bleam.app/en/help/connecter-plusieurs-comptes,
 https://support.gologin.com/en/articles/14839275-faq-proxies,
 https://support.gologin.com/en/articles/15030057-how-gologin-proxies-work,
 https://developer.mozilla.org/en-US/docs/Glossary/Fingerprinting.
+
 ## 2026-10-05 - Juna - Vinted-Nachrichten wiederholen und automatischen Fokus korrigieren
 
 **Auftrag:** Nach erfolgreichem echtem Versand störenden automatischen Button-
