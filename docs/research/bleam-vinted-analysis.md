@@ -11,6 +11,32 @@ und der [lokale Pilotplan](../implementation/vinted-local-extension-pilot.md).
 Das Protokoll enthält eigene Notizen; Zugangsdaten, Kontodumps und kopierte
 Anwendungspakete werden nicht mit veröffentlicht.
 
+## CSRF und Nachrichtenversand: Codeabgleich vom 05.10.2026
+
+Nach dem fehlgeschlagenen Flipbase-Versand wurden die erhaltenen statischen
+Analysekopien von Bleam 6.0.14 erneut geprüft. In der formatierten `base.js`
+liest `getCSRFToken` zuerst das Metafeld `csrf-token`; fehlt es, liefert
+die Funktion einen fest eingebauten Ersatzwert (Zeilen 45847–45850).
+Dieser konkrete Ersatzweg war im bisherigen Protokoll nicht festgehalten.
+Die frühere Auftrags-, Intervall- und Tabanalyse ersetzt diesen Headerabgleich nicht.
+
+Die Nachrichtenfunktion verwendet den Schutzwert im Header `X-Csrf-Token`
+und sendet einen POST an `/api/v2/conversations/<id>/replies`. Der JSON-Body
+enthält `reply.body` und `reply.photo_temp_uuids`; bei einem Bild ergänzt
+sie eine weitere Prüfoption (Zeilen 48862–48881). Favoritennachrichten
+verwenden denselben Nachrichtendienst mit einem eigenen Idempotenzschlüssel
+(Zeilen 28746–28755). Keine Nachricht durch diese Untersuchung versendet.
+
+Flipbase setzte zuvor ausschließlich das Metafeld voraus. Auf der aktuell
+geöffneten Vinted-Seite fehlt dieses Feld, während ein Next.js-JSON-Frame
+einen Schutzwert liefert. Die vorbereitete Erweiterung 1.3.3 liest diesen
+tatsächlichen Seitenwert zusätzlich zum Metafeld, ohne Skriptausführung oder
+fest eingebauten Ersatzwert. Das Header-/Aufrufformat entspricht dem
+belegten Bleam-Weg; die Ermittlung des Schutzwerts ist bewusst anders.
+Keine Schutzwerte oder kopierten Paketdateien werden im Repository gespeichert.
+Der Codeabgleich bestätigt weder einen realen Flipbase-Versand noch die
+Gültigkeit von Bleams Ersatzwert für andere Sitzungen oder spätere Versionen.
+
 ## Nachrichtenabruf beim Chatwechsel: Live-Abgleich vom 05.10.2026
 
 Im geöffneten Bleam-Postfach wurden zwei bereits bekannte Gespräche und danach

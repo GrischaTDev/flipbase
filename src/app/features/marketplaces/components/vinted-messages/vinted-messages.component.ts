@@ -49,7 +49,7 @@ import { VintedMessagingStore } from '../../services/vinted-messaging.store';
 type ConversationFilter = 'all' | 'unread' | 'questions' | 'negotiating' | 'sold' | 'system';
 
 const conversationFilters: readonly SelectOption<ConversationFilter>[] = [
-  { value: 'all', label: 'Alle Gespräche' },
+  { value: 'all', label: 'Alle' },
   { value: 'unread', label: 'Ungelesen' },
   { value: 'questions', label: 'Fragen' },
   { value: 'negotiating', label: 'Verhandlung' },
@@ -96,7 +96,10 @@ export class VintedMessagesComponent {
   readonly filterOptions = computed<readonly SelectOption<ConversationFilter>[]>(() =>
     conversationFilters.map((option) => ({
       ...option,
-      label: `${option.label} (${(this.store.snapshot()?.conversations.items ?? []).filter((entry) => this.matchesFilter(entry, option.value)).length})`,
+      label:
+        option.value === 'all'
+          ? option.label
+          : `${option.label} (${(this.store.snapshot()?.conversations.items ?? []).filter((entry) => this.matchesFilter(entry, option.value)).length})`,
     })),
   );
   readonly sortOptions: readonly SelectOption<'latest' | 'oldest'>[] = [

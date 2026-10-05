@@ -484,7 +484,7 @@ describe('Kompakter gespeicherter Vinted-Gesprächsbereich', () => {
   it('zählt alle Filter einschließlich leerer Kategorien und sortiert datierte Angebotsereignisse', async () => {
     const fixture = await render();
     expect(fixture.componentInstance.filterOptions().map((option) => option.label)).toEqual([
-      'Alle Gespräche (1)',
+      'Alle',
       'Ungelesen (1)',
       'Fragen (1)',
       'Verhandlung (0)',
@@ -647,6 +647,9 @@ describe('Kompakter gespeicherter Vinted-Gesprächsbereich', () => {
     expect(queued.textContent).toContain('Versandstatus unklar');
     expect(queued.textContent).not.toContain('Gesendet');
     expect(queued.querySelector('button')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[role="log"]').lastElementChild).toBe(
+      fixture.nativeElement.querySelector('[data-conversation-sync]'),
+    );
   });
   it('zeigt eine gesendete Nachricht nur einmal nach exakter externer Zuordnung', async () => {
     api.listConnections.mockResolvedValue({

@@ -1,5 +1,46 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-05 - Juna - Vinted-Nachrichtenversand und Postfachstatus korrigieren
+
+**Auftrag:** Den abgeschnittenen Systemnachrichtenfilter verbreitern, „Alle“
+ohne Zähler anzeigen, geschlossene Arbeitstabs beim Versand wiederherstellen
+und den Abgleichstatus hinter sämtliche Nachrichten setzen. Eigener Zweig
+`juna/vinted-message-send-recovery` von `origin/master` bei `8b4a0719`.
+
+**Befund und Umsetzung:** Die geöffnete echte Vinted-Seite besitzt kein
+CSRF-Metafeld; der benötigte Schutzwert steht stattdessen in einem
+Next.js-JSON-Frame. Die Erweiterung 1.3.3 liest beide Formate ohne
+Skriptausführung. Vor der Auftragsübernahme prüft sie die Identität und stellt
+einen geschlossenen Arbeitstab im Hintergrund wieder her. Die neue Tabnummer
+bleibt auch nach Neustart gespeichert. Fehler vor dem eigentlichen Versand
+werden als nicht gesendet gemeldet; nach einem angenommenen Versand bleibt
+ein fehlgeschlagener Nachweis unklar. Es gibt keinen automatischen Neuversand
+unklarer Ergebnisse. Das Filtermenü nutzt eine auf 240 px verbreiterte Variante
+des gemeinsamen Selects; übrige Filter behalten ihre Zähler. Der Abgleichstatus
+steht auch hinter eingereihten Nachrichten.
+
+**Prüfung:** Fehler zuerst durch erwartete Fehlschläge reproduziert. 73 Erweiterungs-
+und 159 Angular-Prüfungen sowie fünf Chromium-Fälle mit synthetischen Daten sind grün:
+Tabwiederherstellung, Neustart, fehlende Sitzung, neuer Schutzwert, einmaliger
+Versand, Filterbreite, Statusreihenfolge, Desktop/Mobilgerät, beide Themes und AXE.
+Typprüfung, betroffener Lint, Formatierung, zwei Smoke-Auswahlprüfungen,
+Shared-UI-Prüfung (136 Dateien ohne Befund) und Produktionsbau sind erfolgreich.
+Die reale Seite wurde nur lesend untersucht. Die Nachricht mit unklarem Status
+wurde nicht erneut gesendet; ein echter Versand mit der korrigierten Erweiterung
+und die Veröffentlichung stehen noch aus.
+
+**Nachträglicher Bleam-Abgleich:** Auf Rückfrage auch die gespeicherte
+Bleam-6.0.14-`base.js` erneut am konkreten Versandpfad geprüft. Bleam liest
+das gleiche Metafeld, hat dafür jedoch einen fest eingebauten Ersatzwert.
+Dieser Detailpunkt fehlte im bisherigen Protokoll und wurde ergänzt.
+POST-Pfad, Schutzheader und Nachrichtenbody stimmen im Grundformat mit
+Flipbase überein. Flipbase liest den aktuell bereitgestellten Seitenwert;
+Bleams Ersatzwert wurde nicht übernommen. Keine Nachricht versendet.
+
+**Freigabe:** PR, Merge nach erfolgreichen Pflichtprüfungen, Veröffentlichung
+und Aufräumen wurden am 05.10.2026 mit „dann los“ bestätigt. Der aktuelle
+Hauptzweig wurde vor dem Abschluss erneut geprüft und steht bei `8b4a0719`.
+
 ## 2026-10-05 - Juna - Leere Vinted-Chats ohne Layoutsprung öffnen
 
 **Auftrag:** Bekannte Gesprächsköpfe und Artikel auch ohne gespeicherte

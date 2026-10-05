@@ -3,6 +3,30 @@
     const text = typeof input === 'number' && Number.isSafeInteger(input) ? String(input) : input;
     return typeof text === 'string' && /^[1-9][0-9]{0,31}$/.test(text) ? text : null;
   };
+  function readCsrfToken(document) {
+    const validToken = (token) => typeof token === 'string' && token.trim() && token.length <= 512;
+    const metadata = document.querySelector('meta[name="csrf-token"]')?.content;
+    if (validToken(metadata)) return metadata;
+    // Aktuelle Vinted-Seiten liefern den Schutzwert in einem Next.js-JSON-Frame.
+    // Nur JSON lesen; ausgelieferte Skripte niemals ausführen.
+    for (const script of document.scripts) {
+      if (script.src) continue;
+      const frame = script.textContent?.trim().match(/^self\.__next_f\.push\(([\s\S]*)\);?$/);
+      if (!frame) continue;
+      try {
+        const payload = JSON.parse(frame[1]);
+        const match =
+          typeof payload?.[1] === 'string'
+            ? payload[1].match(/"CSRF_TOKEN"\s*:\s*("(?:[^"\\]|\\.)*")/)
+            : null;
+        const token = match ? JSON.parse(match[1]) : null;
+        if (validToken(token)) return token;
+      } catch {
+        // Unvollständige oder andere Frames sind keine Sitzungsfreigabe.
+      }
+    }
+    return null;
+  }
   function attachmentBytes(attachment) {
     if (!attachment) return null;
     if (
@@ -34,11 +58,6 @@
     )
       throw new Error('Ungültiger Nachrichtenauftrag.');
     const bytes = attachmentBytes(command.attachment);
-    if (typeof adapter.csrf !== 'string' || !adapter.csrf.trim() || adapter.csrf.length > 512) {
-      const error = new Error('Vinted bestätigt die Browserfreigabe nicht. Öffne Vinted erneut.');
-      error.code = 'login_required';
-      throw error;
-    }
     async function identity() {
       if (identifier((await adapter.read('/api/v2/users/current'))?.user?.id) !== accountId) {
         const error = new Error('Das Vinted-Konto wurde gewechselt.');
@@ -54,14 +73,20 @@
         throw new Error('Vinted bestätigt den Gesprächsverlauf nicht.');
       return response.conversation.messages;
     }
-    await identity();
-    const baseline = new Set(
-      detail(await adapter.read(`/api/v2/conversations/${conversationId}`))
-        .map((message) => identifier(message.id) ?? identifier(message.entity?.id))
-        .filter(Boolean),
-    );
     let replyAttempted = false;
+    let replyAccepted = false;
     try {
+      if (typeof adapter.csrf !== 'string' || !adapter.csrf.trim() || adapter.csrf.length > 512) {
+        const error = new Error('Vinted bestätigt die Browserfreigabe nicht. Öffne Vinted erneut.');
+        error.code = 'login_required';
+        throw error;
+      }
+      await identity();
+      const baseline = new Set(
+        detail(await adapter.read(`/api/v2/conversations/${conversationId}`))
+          .map((message) => identifier(message.id) ?? identifier(message.entity?.id))
+          .filter(Boolean),
+      );
       let temporaryPhotos = null;
       if (bytes) {
         await identity();
@@ -87,6 +112,7 @@
         csrf: adapter.csrf,
         json: true,
       });
+      replyAccepted = true;
       await identity();
       const after = detail(await adapter.read(`/api/v2/conversations/${conversationId}`));
       const matches = after.filter((message) => {
@@ -109,7 +135,8 @@
     } catch (error) {
       const failed =
         !replyAttempted ||
-        (Number.isInteger(error.httpStatus) &&
+        (!replyAccepted &&
+          Number.isInteger(error.httpStatus) &&
           error.httpStatus >= 400 &&
           error.httpStatus < 500 &&
           error.httpStatus !== 408);
@@ -120,7 +147,7 @@
       };
     }
   }
-  const api = { send, attachmentBytes };
+  const api = { send, attachmentBytes, readCsrfToken };
   root.FlipbaseVintedMessages = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(globalThis);
