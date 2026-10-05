@@ -10,7 +10,6 @@
   const save = async (installation) => chrome.storage.local.set({ [key]: installation });
   let operationDeadline = 0;
   let recoveredTab = false;
-  let automaticOperation = false;
 
   // Das Installationsgeheimnis ist für Content Scripts nicht lesbar.
 
@@ -26,11 +25,20 @@
     }
     if (tab && (tab.incognito || !tab.url?.startsWith('https://www.vinted.de/'))) tab = undefined;
     if (!tab) {
-      tab = await chrome.tabs.create({ url: 'https://www.vinted.de/', active: false });
+      tab = await chrome.tabs.create({
+        url: 'https://www.vinted.de/',
+        active: false,
+        pinned: true,
+        index: 0,
+      });
       created = true;
       const installation = await load();
       await save({ ...installation, tabId: tab.id });
     }
+    if (!tab.pinned || tab.autoDiscardable !== false)
+      tab = await chrome.tabs.update(tab.id, { pinned: true, autoDiscardable: false });
+    if (Number.isInteger(tab.index) && tab.index > 0)
+      tab = await chrome.tabs.move(tab.id, { index: 0 });
     const startedAt = now();
     while (tab.status !== 'complete' && now() - startedAt < 12_000 && now() < operationDeadline) {
       await new Promise((resolve) => setTimeout(resolve, 150));
@@ -114,8 +122,6 @@
       clearTimeout(timeout);
     }
     if (response?.success !== true) {
-      if (!automaticOperation && request.type !== 'VINTED_LOCAL_SEND')
-        await chrome.tabs.update(reservedTabId, { active: true });
       const error = new Error(
         typeof response?.error === 'string'
           ? response.error
@@ -132,10 +138,9 @@
     load,
     save,
     now,
-    begin: (request) => {
+    begin: () => {
       operationDeadline = now() + 50_000;
       recoveredTab = false;
-      automaticOperation = request.automatic === true;
     },
     remove: () => chrome.storage.local.remove(key),
     randomSecret: () =>

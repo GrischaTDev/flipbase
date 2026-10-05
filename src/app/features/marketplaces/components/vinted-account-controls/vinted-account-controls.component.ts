@@ -8,6 +8,8 @@ import type { MarketplaceConnection } from '../../models/marketplace.models';
 import { MARKETPLACE_CONNECTION_LABELS } from '../../models/marketplace-presentation';
 import type { MarketplaceSyncSchedule } from '../../models/marketplace-sync-schedule';
 import { VintedSyncScheduleComponent } from '../vinted-sync-schedule/vinted-sync-schedule.component';
+import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
+import type { MarketplaceProfile } from '../../models/marketplace-read.models';
 
 @Component({
   selector: 'app-vinted-account-controls',
@@ -17,6 +19,7 @@ import { VintedSyncScheduleComponent } from '../vinted-sync-schedule/vinted-sync
     ButtonComponent,
     CustomSelectComponent,
     VintedSyncScheduleComponent,
+    ProductThumbnailComponent,
   ],
   templateUrl: './vinted-account-controls.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -31,6 +34,7 @@ export class VintedAccountControlsComponent {
   readonly refreshLabel = input('Kontodaten aktualisieren');
   readonly inbox = input(false);
   readonly inboxSyncedAt = input<string | null>(null);
+  readonly profile = input<MarketplaceProfile | null>(null);
   readonly syncedAt = computed(() =>
     this.inbox() ? this.inboxSyncedAt() : this.account().lastSyncedAt,
   );

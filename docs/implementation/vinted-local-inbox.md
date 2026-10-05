@@ -5,6 +5,33 @@ Nutzerauftrag anhand der Bleam-Codebefunde (Rechercheprotokoll, Punkt 37).
 
 ## Folgepaket vom 05.10.2026
 
+### Korrektur nach der Kontoabnahme: Erweiterung 1.3.1
+
+Der Antworteditor bleibt im Kartenfooter, der Gesprächskopf darüber mit letzter
+bekannter Aktivität und schlankem Artikelstreifen. Der Verlauf scrollt separat;
+Tagestrenner und Uhrzeiten, Angebotsbeträge mit durchgestrichenem Ausgangspreis
+und Entscheidung bilden den Ablauf ab. Produktbilder füllen den Listenrahmen.
+Filter zeigen die Anzahl der **gespeicherten** Gespräche je Kategorie, auch Null.
+Die Kontopille zeigt Profil und letzten Postfachabgleich; Warteschlangenhinweise
+erscheinen erst bei tatsächlich ausstehenden Nachrichten.
+
+Der eigene Arbeitstab bleibt bei bewussten Gesprächsabrufen und Fehlern im
+Hintergrund. Fehlende Tabs werden inaktiv angelegt, gespeicherte wiederverwendet.
+Der Tab ist angeheftet und steht zuerst, mit gelbem Flipbase-Symbol und Titel;
+sein Rahmen folgt dem Browserdesign. Anmeldungen und Prüfungen bleiben manuell
+bedienbar, führen aber nicht mehr zu einem ungefragten Fokuswechsel.
+
+Detailantworten ohne `updated_at` verwenden die neueste echte Nachrichtenzeit
+oder die bekannte Listenrevision. Unterstützt werden `created_at_ts` und
+`created_at` am Nachrichtenobjekt und in `entity`; fehlende oder ungültige Zeiten
+werden nicht erfunden. Die Schlüssel vorhandener Systemereignisse bleiben
+stabil. Angebotsstatus 10/20/30/40 wird als offen/angenommen/abgelehnt/abgebrochen
+angezeigt. Beide belegten Beträge stehen im bestehenden `priceLabel`-Feld;
+hierfür ist keine Migration nötig.
+
+Die Änderungen sind lokal mit synthetischen Konten prüfbar. Die Echtkonto-Abnahme
+erfordert nach Veröffentlichung auch ein Neuladen der Erweiterung 1.3.1.
+
 Der echte lesende Kontotest war erfolgreich. Der nächste Schritt erweitert den
 Pilot um das produktbezogene Postfach und den laufenden lokalen Betrieb:
 

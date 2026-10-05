@@ -46,6 +46,7 @@ export class TextFieldComponent implements ControlValueAccessor {
   readonly placeholder = input<string>('');
   readonly type = input<TextFieldType>('text');
   readonly size = input<'default' | 'comfortable'>('default');
+  readonly appearance = input<'default' | 'message'>('default');
   readonly revealable = input<boolean>(false);
   readonly showPasswordLabel = input<string>('Passwort anzeigen');
   readonly hidePasswordLabel = input<string>('Passwort verbergen');
@@ -95,7 +96,7 @@ export class TextFieldComponent implements ControlValueAccessor {
 
   protected readonly inputClasses = computed(() => {
     const base =
-      'linear-input min-h-8 w-full rounded-lg px-3 py-1 text-[13px] transition-colors outline-none ' +
+      'linear-input min-h-8 w-full px-3 text-[13px] transition-colors outline-none ' +
       'disabled:cursor-not-allowed disabled:opacity-40';
 
     const mono = this.monospaced() ? 'font-mono' : '';
@@ -107,7 +108,11 @@ export class TextFieldComponent implements ControlValueAccessor {
     const pr = this.clearable() || this.suffix() || this.revealable() ? 'pr-10' : '';
     const size = this.size() === 'comfortable' ? '!min-h-10' : '';
 
-    return [base, mono, err, pl, pr, size].filter(Boolean).join(' ');
+    const appearance =
+      this.appearance() === 'message'
+        ? '!min-h-10 max-h-40 resize-none !rounded-2xl !bg-fb-well py-2.5'
+        : 'rounded-lg py-1';
+    return [base, mono, err, pl, pr, size, appearance].filter(Boolean).join(' ');
   });
 
   private onChange: (value: string) => void = () => undefined;

@@ -25,21 +25,34 @@
   }
 </div>
 <div class="mt-2 flex justify-end" aria-live="polite" aria-atomic="true">
-  @if (syncedAt(); as syncedAt) {
-    <app-badge tone="neutral" size="md">
-      <span [attr.title]="syncedAt | date: 'dd.MM.yyyy, HH:mm:ss'">{{
-        inbox() ? 'Synchronisiert' : 'Aktualisiert'
+  @if (inbox()) {
+    <app-badge tone="neutral" size="comfortable" shape="pill">
+      <app-product-thumbnail
+        [src]="profile()?.imageUrl ?? null"
+        [alt]="''"
+        size="badge"
+        [flush]="true"
+      />
+      <span class="max-w-40 truncate">{{
+        profile()?.username ? '@' + profile()?.username : account().displayName
       }}</span>
+      <span aria-hidden="true">·</span>
+      @if (syncedAt(); as syncedAt) {
+        <time [attr.datetime]="syncedAt" [attr.title]="syncedAt | date: 'dd.MM.yyyy, HH:mm:ss'">
+          Synchronisiert
+        </time>
+      } @else {
+        <span>Noch nicht synchronisiert</span>
+      }
+    </app-badge>
+  } @else if (syncedAt(); as syncedAt) {
+    <app-badge tone="neutral" size="md">
+      Aktualisiert
       <time [attr.datetime]="syncedAt" [attr.title]="syncedAt | date: 'dd.MM.yyyy, HH:mm:ss'">
-        @if (!inbox()) {
-          {{ syncedAt | date: 'HH:mm' }} Uhr ·
-          {{ syncedAt | date: 'dd.MM.yy' }}
-        }
+        {{ syncedAt | date: 'HH:mm' }} Uhr · {{ syncedAt | date: 'dd.MM.yy' }}
       </time>
     </app-badge>
   } @else {
-    <span class="text-xs text-fb-text-secondary">{{
-      inbox() ? 'Noch nicht synchronisiert' : 'Noch keine Datenübernahme'
-    }}</span>
+    <span class="text-xs text-fb-text-secondary">{{ 'Noch keine Datenübernahme' }}</span>
   }
 </div>

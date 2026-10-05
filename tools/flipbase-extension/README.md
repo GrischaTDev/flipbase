@@ -41,7 +41,9 @@ Formular, können einzelne Felder manuelle Eingaben verlangen.
 1. Installiere die Erweiterung im Browserprofil Deines Vinted-Kontos. Verwende
    für weitere Vinted-Konten jeweils ein separates Browserprofil.
 2. Wähle in Flipbase beim Vinted-Konto die lokale Verbindung. Der reservierte
-   Vinted-Tab wird geöffnet. Melde Dich dort selbst an; CAPTCHA und SMS-Prüfungen
+   Vinted-Tab wird im Hintergrund geöffnet und oben angeheftet. Das gelbe
+   Flipbase-Symbol und der Titel „Flipbase · Vinted-Arbeitstab“ kennzeichnen ihn.
+   Öffne ihn selbst, falls eine Anmeldung oder Prüfung nötig ist. CAPTCHA und SMS-Prüfungen
    bearbeitest Du ebenfalls selbst. Starte danach die Verbindung erneut.
 3. Flipbase zeigt die erkannte Vinted-Identität. Bestätige die Zuordnung zu
    Deinem Arbeitsplatz und zur ausgewählten Kontoverbindung ausdrücklich.

@@ -9,6 +9,7 @@
       class="w-full sm:w-auto"
       [connections]="store.connections()"
       [account]="account"
+      [profile]="store.snapshot()?.profile ?? null"
       [canManage]="store.canManage()"
       [refreshing]="store.busy() || local.busy()"
       [loading]="store.loadingSnapshot()"

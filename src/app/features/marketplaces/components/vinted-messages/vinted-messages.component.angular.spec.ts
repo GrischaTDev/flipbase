@@ -227,11 +227,56 @@ async function render() {
 function button(fixture: ComponentFixture<VintedMessagesComponent>, text: string) {
   const result = [
     ...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('button'),
-  ].find((node) => node.textContent?.includes(text));
+  ].find((node) => node.textContent?.includes(text) || node.getAttribute('aria-label') === text);
   if (!result) throw new Error(`Button fehlt: ${text}`);
   return result;
 }
 describe('Kompakter gespeicherter Vinted-Gesprächsbereich', () => {
+  it('zählt alle Filter einschließlich leerer Kategorien und sortiert datierte Angebotsereignisse', async () => {
+    const fixture = await render();
+    expect(fixture.componentInstance.filterOptions().map((option) => option.label)).toEqual([
+      'Alle Gespräche (1)',
+      'Ungelesen (1)',
+      'Fragen (1)',
+      'Verhandlung (0)',
+      'Verkauft (0)',
+      'Systemnachrichten (0)',
+    ]);
+    api.readPage.mockImplementation(async (scope: AccountScope) =>
+      messages(scope, [
+        {
+          id: 'later',
+          text: 'Verkauft',
+          occurredAt: '2026-10-02T08:00:00Z',
+          messageType: 'status_message',
+        },
+        {
+          id: 'offer',
+          occurredAt: '2026-10-01T20:00:00Z',
+          direction: 'inbound',
+          messageType: 'offer_request_message',
+          priceLabel: '11,00 € statt 14,00 €',
+          offerStatus: 'rejected',
+        },
+      ]),
+    );
+    const conversation = store.snapshot()?.conversations.items[0];
+    if (!conversation) throw new Error('Testgespräch fehlt');
+    await fixture.componentInstance.openConversation(conversation);
+    await settle(fixture);
+    const root = fixture.nativeElement as HTMLElement;
+    expect(
+      [...root.querySelectorAll('[data-message-kind]')].map((entry) =>
+        entry.getAttribute('data-message-kind'),
+      ),
+    ).toEqual(['offer', 'system']);
+    expect(root.querySelectorAll('[data-message-day]')).toHaveLength(2);
+    expect(root.querySelector('del')?.textContent).toBe('14,00 €');
+    expect(root.textContent).toContain('Angebot erhalten');
+    expect(root.textContent).toContain('Abgelehnt');
+    expect(root.textContent).toContain('Aktivität nicht verfügbar');
+  });
+
   it('zeigt den Produktbezug und Nachrichtbilder und sortiert nur nach vorhandenen Zeitangaben', async () => {
     api.readSnapshot.mockImplementation(async (scope: AccountScope) => {
       const current = snapshot(scope);
