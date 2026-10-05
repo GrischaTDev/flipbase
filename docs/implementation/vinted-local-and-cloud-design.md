@@ -258,6 +258,21 @@ Ursache. Kein GoLogin-Abonnement, Proxykauf oder eigener IP-Vertrag je Konto wir
 hier beschlossen. Vor einer breiten Freigabe außerdem die bereits dokumentierten
 Vinted-Regeln und fehlende Plattformfreigabe der betroffenen Funktionen klären.
 
+## Ergänzung am 5. Oktober 2026: Cloudpilot mit festem IP-Bestand
+
+Der Nutzer hat den [Cloudpilot mit fester IP-Zuordnung](vinted-cloud-ip-pilot.md)
+und seinen [Umsetzungsplan](vinted-cloud-ip-pilot-plan.md) freigegeben. Jedes
+Cloudkonto erhält eine vorhandene, geprüfte deutsche Dedicated-ISP-IP. Ist keine
+frei, erscheint eine Kapazitätsmeldung. Automatische IP-Bestellungen und
+Kundenabrechnung folgen später.
+
+Ein lokales Konto behält beim Upgrade seine Verbindungs-ID und vorhandenen
+Daten. Die lokale Freigabe wird erst nach geprüfter Identität und bestätigtem
+Cloudbrowserstopp atomar widerrufen. Ein Abbruch erhält den lokalen Betrieb;
+die IP wird erst nach bestätigter Bereinigung wieder frei. Dieses Paket wird
+auf einem eigenen Zweig umgesetzt. Der lokale Erweiterungsausbau läuft weiter;
+seine Funktionsnachweise und ausstehenden Pakete bleiben gesondert abzunehmen.
+
 ## Umsetzungsstand am 4. Oktober 2026
 
 Der lokale Lesepilot ist als Version 0.288.0 veröffentlicht. Version 0.289.0

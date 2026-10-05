@@ -60,7 +60,7 @@ Die unten genannten neuen Funktionen sind geplante Projektfunktionen. Sie sind
 keine bereits vorhandenen Anbieter-APIs. Ein IPRoyal-API-Abgleich und automatisches
 Nachkaufen gehören nicht zu dieser Umsetzung.
 
-## Aufgabe 1: IP-Bestand und atomare Kontoeinrichtung
+### Task 1: IP-Bestand und atomare Kontoeinrichtung
 
 **Dateien:** Neu `supabase/schemas/370_marketplace_cloud_setup.sql`,
 `supabase/tests/marketplace-cloud-setup.test.sql`,
@@ -76,13 +76,7 @@ Migration und `src/app/core/models/supabase.types.ts` ausschließlich generieren
 
 ```ts
 export type CloudSetupState =
-  | 'reserved'
-  | 'login'
-  | 'verified'
-  | 'finalizing'
-  | 'completed'
-  | 'cleanup_pending'
-  | 'cancelled';
+  'reserved' | 'login' | 'verified' | 'finalizing' | 'completed' | 'cleanup_pending' | 'cancelled';
 export type CloudSetupRequest =
   | { workspaceId: string; connectionId: string; requestId: string }
   | { workspaceId: string; displayName: string; requestId: string };
@@ -94,8 +88,7 @@ export interface CloudSetupView {
   sessionId: string | null;
 }
 export type CloudSetupResult =
-  | { status: 'ready'; setup: CloudSetupView }
-  | { status: 'no_capacity' };
+  { status: 'ready'; setup: CloudSetupView } | { status: 'no_capacity' };
 ```
 
 Serverintern enthält eine Einrichtung zusätzlich `networkId`, `profileId`,
@@ -218,7 +211,7 @@ npx supabase test db supabase/tests/marketplace-local-messaging.test.sql
       Datenbank die vorhandene CI-Erzeugung nutzen; keinen handgeschriebenen
       Migrationsersatz anlegen. Commit: `feat(core): add atomic cloud IP reservations`.
 
-## Aufgabe 2: Privates Profil mit reservierter Netzwerkkennung
+### Task 2: Privates Profil mit reservierter Netzwerkkennung
 
 **Dateien:** Ändern `services/marketplace-worker/src/chromium-account-profile-registry.ts`,
 `chromium-profile-provisioner.ts`, `main.ts` und zugehörige Tests in `test/`.
@@ -285,7 +278,7 @@ npm run build
 
       Commit: `feat(core): bind cloud setup profiles to reserved IPs`.
 
-## Aufgabe 3: Begrenzte Anmeldung, Abschluss und Wiederherstellung
+### Task 3: Begrenzte Anmeldung, Abschluss und Wiederherstellung
 
 **Dateien:** Neu Worker `src/marketplace-cloud-setup.ts`,
 `test/marketplace-cloud-setup.test.ts`. Ändern
@@ -366,7 +359,7 @@ assert.equal(repeatedComplete.setupId, firstComplete.setupId);
       Recoverytests ausführen; danach `npm run typecheck` und `npm run build`.
       Commit: `feat(core): complete and recover cloud account setup safely`.
 
-## Aufgabe 4: Bestehende Kontooberfläche um Cloud-Einrichtung erweitern
+### Task 4: Bestehende Kontooberfläche um Cloud-Einrichtung erweitern
 
 **Dateien:** Neu im Marketplace-Feature `models/marketplace-cloud-setup.ts`
 (Parser und Reexport des gemeinsamen Vertrags),
@@ -433,7 +426,7 @@ this.setup.set(result.setup);
       Templateprüfung ausführen. Vorhandene Marketplace-Browser-/Accounttests
       ergänzend ausführen. Commit: `feat(ui): add cloud setup and local account upgrade`.
 
-## Aufgabe 5: Private Bestandsaufnahme und vollständige Pilotprüfung
+### Task 5: Private Bestandsaufnahme und vollständige Pilotprüfung
 
 **Dateien:** Neu Worker `src/register-marketplace-cloud-ip.ts`,
 `test/register-marketplace-cloud-ip.test.ts`. Ergänzen

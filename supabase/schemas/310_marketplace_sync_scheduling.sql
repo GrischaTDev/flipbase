@@ -174,7 +174,8 @@ begin
       and (retry_after is null or retry_after<=clock_timestamp()) order by next_due_at,id loop
       select * into v_connection from public.marketplace_connections where workspace_id=v_schedule.workspace_id and id=v_schedule.connection_id and marketplace='vinted' for update;
       perform 1 from public.marketplace_sync_schedules where id=v_schedule.id for update;
-      if v_connection.execution_mode <> 'cloud' or v_connection.status is distinct from 'connected' or not public.marketplace_sync_authorization_valid(v_schedule.workspace_id,v_schedule.activated_by) then
+      if v_connection.execution_mode <> 'cloud' or v_connection.status is distinct from 'connected' or not public.marketplace_sync_authorization_valid(v_schedule.workspace_id,v_schedule.activated_by)
+        or not public.marketplace_cloud_network_valid(v_schedule.workspace_id,v_schedule.connection_id) then
         update public.marketplace_sync_schedules set enabled=false,authorization_version=authorization_version+1,paused_reason='access_revoked',next_due_at=null,updated_at=clock_timestamp() where id=v_schedule.id;
         continue;
       end if;
@@ -196,6 +197,7 @@ begin
     perform 1 from public.marketplace_operations where id=v_operation.id and state='queued' for update;
     if not found then continue; end if;
     if v_operation.authorization_kind is null or v_connection.execution_mode <> 'cloud' or v_connection.status is distinct from 'connected' or not public.marketplace_sync_authorization_valid(v_operation.workspace_id,v_operation.requested_by)
+      or not public.marketplace_cloud_network_valid(v_operation.workspace_id,v_operation.connection_id)
       or (v_operation.authorization_kind='scheduled_read' and (v_schedule.id is null or not v_schedule.enabled or v_schedule.authorization_version is distinct from v_operation.schedule_authorization_version or v_schedule.activated_by<>v_operation.requested_by)) then
       update public.marketplace_operations set state='failed',error_code='access',finished_at=clock_timestamp() where id=v_operation.id;
       continue;
@@ -230,7 +232,8 @@ begin
   select * into v_operation from public.marketplace_operations where id=p_operation_id;
   if not found then return v_inactive; end if;
   select * into v_connection from public.marketplace_connections where workspace_id=v_operation.workspace_id and id=v_operation.connection_id and marketplace='vinted' for update;
-  if not found or v_connection.execution_mode <> 'cloud' or v_connection.status<>'connected' then return v_inactive; end if;
+  if not found or v_connection.execution_mode <> 'cloud' or v_connection.status<>'connected'
+    or not public.marketplace_cloud_network_valid(v_operation.workspace_id,v_operation.connection_id) then return v_inactive; end if;
   if v_operation.authorization_kind='scheduled_read' then
     select * into v_schedule from public.marketplace_sync_schedules where id=v_operation.schedule_id and workspace_id=v_operation.workspace_id and connection_id=v_operation.connection_id for update;
     if not found or not v_schedule.enabled or v_schedule.authorization_version is distinct from v_operation.schedule_authorization_version or v_schedule.activated_by<>v_operation.requested_by then return v_inactive; end if;
