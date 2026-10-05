@@ -25,7 +25,7 @@ Verkaufszustand, Entfernen der letzten Position und Variantenanzeige. Ein lokale
 Projektlauf ist in dieser Umgebung mangels Checkout/Abhängigkeiten nicht möglich;
 die vollständigen Pflichtprüfungen müssen deshalb im PR laufen.
 
-**Offen:** PR, CI und Merge sind noch nicht freigegeben.
+**Freigabe:** PR-Erstellung, Abwarten der Pflichtprüfungen und Merge nach erfolgreicher CI wurden am 05.10.2026 vom Nutzer freigegeben.
 
 ## 2026-10-05 - Juna - Vinted-Postfach mit Artikelbezug, automatischem Abgleich und Versand
 
