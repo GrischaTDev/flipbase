@@ -46,7 +46,9 @@
               <thead class="sr-only md:not-sr-only md:table-header-group">
                 <tr class="text-fb-text-secondary">
                   <th scope="col" class="border-b border-fb-line py-2 text-left">Artikel</th>
-                  <th scope="col" class="w-28 border-b border-fb-line px-2 py-2 text-left">Menge</th>
+                  <th scope="col" class="w-28 border-b border-fb-line px-2 py-2 text-left">
+                    Menge
+                  </th>
                   <th scope="col" class="w-32 border-b border-fb-line px-2 py-2 text-left">
                     Stückpreis
                   </th>
@@ -83,7 +85,9 @@
                                 contentAlign="start"
                                 [title]="articleLabel(line)"
                                 [ariaLabel]="articleTitle(line) + ' – Artikel ändern'"
-                                [disabled]="isSubmitting() || selectionLoading() || !!selectionError()"
+                                [disabled]="
+                                  isSubmitting() || selectionLoading() || !!selectionError()
+                                "
                                 [attr.data-sale-target-invalid]="
                                   line.controls.target.invalid && line.controls.target.touched
                                 "
@@ -163,10 +167,7 @@
                               : ''
                           "
                         />
-                        @if (
-                          line.controls.unitSalePrice.invalid &&
-                          line.controls.unitSalePrice.touched
-                        ) {
+                        @if (line.controls.unitSalePrice.invalid && line.controls.unitSalePrice.touched) {
                           <p
                             [id]="'price-error-' + index"
                             role="alert"
