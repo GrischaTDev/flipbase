@@ -1,5 +1,38 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-05 - Juna - Verkaufsauswahl und Zahlenfelder nach Nutzerabnahme korrigiert
+
+**Auftrag:** Nach der sichtbaren Abnahme von PR #298 die Verkaufserfassung
+nachschärfen: Im Verkaufsdialog nur tatsächlich verfügbare Artikel zeigen,
+während die Einkaufsauswahl Nullbestand weiterhin für Nachkäufe anzeigen darf.
+Die schmalen Mengen-/Preisfelder dürfen nicht von Stepper-Schaltflächen verdrängt
+werden; Preisfehler sollen die Tabellenzeile nicht unter dem Preisfeld
+auseinanderziehen. Zusätzlich die aktuelle Polaris-Dokumentation gegen die
+beobachtete Shopify-Admin-Darstellung prüfen. Eigener Zweig
+`juna/sales-entry-controls-followup` vom Merge-Stand `38601bcd`; der parallele
+Vinted-PR #297 bleibt unangetastet.
+
+**Befund:** Das aktuelle Polaris-`Number field` unterstützt `step` und beschreibt
+eine Erhöhung/Verringerung über Buttons. Das aktuelle App-Home-`Money field`
+führt dagegen keine `step`-Eigenschaft und keine sichtbare Stepper-Bedienung in
+seiner API auf. Für Flipbase wurde deshalb die einheitliche Nutzerentscheidung
+getroffen, an Zahlen- und Geldfeldern gar keine sichtbaren Stepper zu zeigen.
+
+**Umsetzung:** Der gemeinsame `NumberInputComponent` rendert keine Plus-/Minus-
+oder Pfeil-Schaltflächen mehr; Grenzen und Schrittweite bleiben intern erhalten.
+Die Verkaufsauswahl filtert Einträge mit Nullbestand oder ungeklärtem Bestand
+vor der gemeinsamen Artikelauswahl aus. Der Einkauf nutzt dieselbe Auswahl weiter
+ohne diesen Verkaufsfilter. Mengen- und Preisfehler der kompakten Verkaufszeile
+werden erst nach einem Speicherversuch und gesammelt beim Artikel angezeigt,
+statt die beiden schmalen Eingabezellen zu verschieben.
+
+**Prüfung:** Komponenten- und Browserprüfungen werden auf Nullbestand im Verkauf
+versus Einkauf, fehlende sichtbare Stepper sowie die neue Fehlerplatzierung
+angepasst.
+
+**Freigabe:** PR-Erstellung, Pflichtprüfungen und Merge nach erfolgreicher CI
+wurden am 05.10.2026 vom Nutzer freigegeben.
+
 ## 2026-10-05 - Juna - Vinted-Postfachlayout und Arbeitstab korrigieren
 
 **Auftrag:** Die beanstandete Postfachansicht anhand der Nutzerbilder und des

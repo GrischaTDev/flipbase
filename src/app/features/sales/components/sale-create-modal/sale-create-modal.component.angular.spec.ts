@@ -136,6 +136,7 @@ describe('SaleCreateModalComponent', () => {
         isSubmitting: signal(false),
         isPersisted: signal(false),
         errorMessage: signal<string | null>(null),
+        validationAttempted: signal(false),
         istBearbeitung: () => bestehenderVerkauf !== null,
         totalPrice: () => 19.98,
         created,
@@ -1289,6 +1290,38 @@ describe('SaleCreateModalComponent', () => {
           'Die tatsächlichen Versandkosten dürfen nicht negativ sein.',
         );
         expect(host.textContent).toContain('Der Betrag darf nicht negativ sein.');
+      });
+
+      it('zeigt den fehlenden Verkaufspreis erst nach dem Absenden beim Artikel statt unter dem Preisfeld', async () => {
+        const { fixture, items } = await erstelleGerendertenDialog();
+        const component = fixture.componentInstance;
+        items.set([
+          {
+            id: 'available-item',
+            workspace_id: 'workspace-1',
+            title: 'Artikel',
+            condition: 'used',
+            status: 'ready',
+            sale_state: 'no_active_sale',
+            allocated_purchase_cost: 0,
+          },
+        ]);
+        component.lines.at(0).controls.target.setValue('inventory:available-item');
+        component.lines.at(0).controls.unitSalePrice.setValue(0);
+        fixture.detectChanges();
+
+        const host = fixture.nativeElement as HTMLElement;
+        expect(host.textContent).not.toContain('Bitte gib einen Verkaufspreis ab 0,01 € ein.');
+
+        await component.onSubmit();
+        fixture.detectChanges();
+
+        const lineErrors = host.querySelector('[data-sale-line-errors]') as HTMLElement;
+        expect(lineErrors.textContent).toContain('Bitte gib einen Verkaufspreis ab 0,01 € ein.');
+        const priceCell = host.querySelector('#price-0')?.closest('td');
+        expect(priceCell?.textContent).not.toContain(
+          'Bitte gib einen Verkaufspreis ab 0,01 € ein.',
+        );
       });
 
       it('lässt invalides Absenden zu, markiert alle Felder und fokussiert das erste fehlerhafte Feld', async () => {

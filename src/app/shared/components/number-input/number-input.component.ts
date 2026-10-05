@@ -8,21 +8,18 @@ import {
   signal,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
-import { LucideDynamicIcon, LucideMinus as Minus, LucidePlus as Plus } from '@lucide/angular';
 
 let nextUniqueId = 0;
 
 /**
- * Zahlenfeld mit eigenen Schaltflaechen zum Hoch- und Runterzaehlen.
+ * Einheitliches Zahlenfeld ohne sichtbare Hoch-/Runter-Schaltflächen.
  *
- * Die Pfeilchen, die der Browser an ein `input[type=number]` haengt, zeichnet
- * er selbst. In einer einheitlichen Oberflaeche fallen sie auf.
- * Sie sind deshalb ausgeblendet (siehe styles.css), und diese Komponente
- * uebernimmt ihre Aufgabe im Design der Anwendung.
+ * Die nativen Browser-Spinner bleiben über die globalen Feldregeln ausgeblendet.
+ * Werte werden direkt eingegeben; min, max und step bleiben für Validierung,
+ * Tastaturbedienung und numerische Semantik erhalten.
  */
 @Component({
   selector: 'app-number-input',
-  imports: [LucideDynamicIcon],
   templateUrl: './number-input.component.html',
   styleUrl: './number-input.component.scss',
   host: {
@@ -53,7 +50,8 @@ export class NumberInputComponent implements ControlValueAccessor {
   readonly ariaInvalid = input<boolean | string | null>(null);
   readonly asCurrency = input<boolean>(false);
   readonly disabled = input<boolean>(false);
-  readonly showStepper = input(true);
+  /** Kompatibilität für bestehende Aufrufer; visuelle Stepper werden nicht mehr gerendert. */
+  readonly showStepper = input(false);
 
   // Backward-compatible German Inputs (legacy aliases)
   readonly platzhalter = input<string>('');
@@ -158,7 +156,4 @@ export class NumberInputComponent implements ControlValueAccessor {
     this.onChange(val);
     this.value.set(val);
   }
-
-  protected readonly plusIcon = Plus;
-  protected readonly minusIcon = Minus;
 }

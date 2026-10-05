@@ -153,6 +153,7 @@ export class SaleCreateModalComponent {
   readonly isSubmitting = signal(false);
   readonly isPersisted = signal(false);
   readonly errorMessage = signal<string | null>(null);
+  readonly validationAttempted = signal(false);
   readonly isLoadingStock = signal(false);
   readonly stockLoadError = signal<string | null>(null);
   private stockLoadRequestId = 0;
@@ -265,12 +266,18 @@ export class SaleCreateModalComponent {
     this.formValue();
     const replacing = this.articlePickerLineIndex();
     const draft = this.externalDraft();
+    const availableEntries = this.saleArticleEntries().filter(
+      (entry) =>
+        typeof entry.availableQuantity === 'number' &&
+        Number.isSafeInteger(entry.availableQuantity) &&
+        entry.availableQuantity > 0,
+    );
     if (draft && replacing !== null) {
       const sourceLineId = draft.lines[replacing]?.sourceLineId;
       const required = draft.lines
         .filter((line) => line.sourceLineId === sourceLineId)
         .reduce((sum, line) => sum + line.quantity, 0);
-      return this.saleArticleEntries().map((entry) => {
+      return availableEntries.map((entry) => {
         const used = this.lines.controls.reduce(
           (sum, line, index) =>
             draft.lines[index]?.sourceLineId !== sourceLineId &&
@@ -295,7 +302,7 @@ export class SaleCreateModalComponent {
         .filter((_line, index) => index !== replacing)
         .map((line) => line.controls.target.value),
     );
-    return this.saleArticleEntries().map((entry) => ({
+    return availableEntries.map((entry) => ({
       ...entry,
       disabledReason:
         entry.disabledReason ?? (used.has(entry.id) ? 'Bereits im Verkauf enthalten' : null),
@@ -726,10 +733,12 @@ export class SaleCreateModalComponent {
       return;
     if (this.workspaceService?.currentWorkspace()) this.validateSaleTargets();
     if (this.form.invalid) {
+      this.validationAttempted.set(true);
       this.form.markAllAsTouched();
       this.focusFirstInvalidField();
       return;
     }
+    this.validationAttempted.set(false);
     this.isSubmitting.set(true);
     this.errorMessage.set(null);
     try {
