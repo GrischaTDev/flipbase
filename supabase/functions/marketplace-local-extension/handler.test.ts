@@ -16,6 +16,50 @@ import type { LocalExtensionRequest } from '../_shared/marketplace-local-extensi
 const workspaceId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const connectionId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const secret = 'ab'.repeat(32);
+test('favorite actions reach only favorite persistence with the scoped secret hash', async () => {
+  const received: LocalExtensionRequest[] = [];
+  const handler = createLocalExtensionHandler({
+    ingest: async () => assert.fail('favorite actions must not use the profile importer'),
+    favorites: async (tokenHash, input) => {
+      assert.equal(tokenHash, await hashLocalExtensionSecret(secret));
+      received.push(input);
+      return { ok: true };
+    },
+  });
+  const id = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+  const claimToken = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+  const payloads = [
+    { action: 'favorites_state', workspaceId, connectionId },
+    { action: 'favorite_claim', workspaceId, connectionId },
+    {
+      action: 'favorites_import',
+      workspaceId,
+      connectionId,
+      events: [{ externalId: id, actorId: '789', itemId: '456', eventAt: '2026-10-05T10:00:00Z' }],
+    },
+    { action: 'favorite_start', workspaceId, connectionId, id, claimToken },
+    {
+      action: 'favorite_finish',
+      workspaceId,
+      connectionId,
+      id,
+      claimToken,
+      outcome: 'sent',
+      externalMessageId: '888',
+    },
+  ];
+  for (const payload of payloads) assert.equal((await handler(request(payload))).status, 200);
+  assert.deepEqual(received, payloads);
+});
+test('favorite actions fail closed when favorite persistence is unavailable', async () => {
+  const handler = createLocalExtensionHandler({
+    ingest: async () => assert.fail('must not fall through'),
+  });
+  assert.equal(
+    (await handler(request({ action: 'favorite_claim', workspaceId, connectionId }))).status,
+    503,
+  );
+});
 function request(body: unknown, token = secret) {
   return new Request('https://example.test/local', {
     method: 'POST',
@@ -696,6 +740,46 @@ test(
         parameters: { ...scopeParameters, p_batch: { ...inboxBatch(), mode: 'backfill' } },
       });
       for (const [body, name, parameters] of [
+        [
+          { action: 'favorites_state', workspaceId, connectionId },
+          'marketplace_local_favorites_state',
+          scopeParameters,
+        ],
+        [
+          { action: 'favorites_import', workspaceId, connectionId, events: [] },
+          'marketplace_import_local_favorites',
+          { ...scopeParameters, p_events: [] },
+        ],
+        [
+          { action: 'favorite_claim', workspaceId, connectionId },
+          'marketplace_local_favorite_claim',
+          scopeParameters,
+        ],
+        [
+          { action: 'favorite_start', workspaceId, connectionId, id: conversationId, claimToken },
+          'marketplace_local_favorite_start',
+          { ...scopeParameters, p_event_id: conversationId, p_claim_token: claimToken },
+        ],
+        [
+          {
+            action: 'favorite_finish',
+            workspaceId,
+            connectionId,
+            id: conversationId,
+            claimToken,
+            outcome: 'sent',
+            externalMessageId: '888',
+          },
+          'marketplace_local_favorite_finish',
+          {
+            ...scopeParameters,
+            p_event_id: conversationId,
+            p_claim_token: claimToken,
+            p_outcome: 'sent',
+            p_external_message_id: '888',
+            p_error_code: null,
+          },
+        ],
         [
           { action: 'inbox_detail_state', workspaceId, connectionId, conversationId },
           'marketplace_local_inbox_detail_state',
