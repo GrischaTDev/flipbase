@@ -33,6 +33,9 @@ stehen noch aus.
 **Freigabe:** PR, Merge nach erfolgreichen Pflichtprüfungen und Aufräumen wurden
 am 05.10.2026 bestätigt. Der Hauptzweig steht unverändert bei `b506d4fc`.
 
+Die erste PR-Prüfung fand den neuen Browserfall nicht in der verbindlichen
+Smoke-Testliste. Der Eintrag ist ergänzt; die Testauswahl wird erneut geprüft.
+
 ## 2026-10-05 - Juna - Vinted-Gespräch vollständig laden und Zeitangaben vereinfachen
 
 **Auftrag:** Relative deutsche Zeitangaben, Partnerbild, verständliche Angebote,
