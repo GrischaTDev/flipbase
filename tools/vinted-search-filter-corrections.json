@@ -1,0 +1,1 @@
+{"replacements":[{"path":"src/app/features/platform-admin/vinted-bot-shell/vinted-bot-shell.component.angular.spec.ts","before_sha256":"852a7f00311e98c6fb9897ff0741792c844b60445974f2ca5e56e0289b86065d","after_sha256":"20fe395d225e74fff9657d222ce74fd66d8e2430b3e887ec71dbea4084eefa18","before":"['Markenfilter', 'Botbetrieb']","after":"['Suchfilter', 'Botbetrieb']"}]}
