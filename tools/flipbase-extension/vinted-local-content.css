@@ -25,17 +25,35 @@
   width: min(540px, calc(100vw - 32px));
   max-height: calc(100dvh - 32px);
   overflow: auto;
-  padding: 32px;
+  padding: 24px;
   border: 1px solid #d1d5db;
   border-radius: 12px;
   background: white;
-  box-shadow: 0 4px 20px rgb(0 0 0 / 12%);
+  box-shadow: 0 4px 20px rgb(0 0 0 / 8%);
   pointer-events: auto;
   text-align: center;
 }
 
+#flipbase-vinted-work-tab .flipbase-vinted-work-logo {
+  display: block;
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 16px;
+  object-fit: contain;
+}
+
 #flipbase-vinted-work-tab strong {
-  font-size: 18px;
+  display: block;
+  font-size: 16px;
+  line-height: 24px;
+}
+
+#flipbase-vinted-work-tab p {
+  max-width: 420px;
+  margin: 8px auto 20px;
+  color: #4b5563;
+  font-size: 13px;
+  line-height: 20px;
 }
 
 #flipbase-vinted-work-tab[data-protected='false'] .flipbase-vinted-work-panel {
@@ -44,16 +62,25 @@
 }
 
 #flipbase-vinted-work-tab button {
-  padding: 10px 12px;
+  min-height: 28px;
+  padding: 0 12px;
   border: 1px solid #d1d5db;
   border-radius: 6px;
   background: #fcc601;
   color: #111827;
   cursor: pointer;
-  font: inherit;
+  font:
+    550 13px/20px system-ui,
+    sans-serif;
 }
 
 #flipbase-vinted-work-tab button:focus-visible {
   outline: 2px solid #111827;
   outline-offset: 3px;
+}
+
+@media (pointer: coarse) {
+  #flipbase-vinted-work-tab button {
+    min-height: 44px;
+  }
 }

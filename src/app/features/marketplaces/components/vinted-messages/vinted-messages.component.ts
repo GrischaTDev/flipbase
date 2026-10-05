@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   ElementRef,
+  DestroyRef,
   afterEveryRender,
   computed,
   effect,
@@ -41,6 +42,8 @@ import {
   type SelectOption,
 } from '../../../../shared/components/custom-select/custom-select.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
+import { LoadingIndicatorComponent } from '../../../../shared/components/loading-indicator/loading-indicator.component';
+import { formatConversationTime, formatMessageDay } from './vinted-message-time';
 import { VintedMessagingStore } from '../../services/vinted-messaging.store';
 
 type ConversationFilter = 'all' | 'unread' | 'questions' | 'negotiating' | 'sold' | 'system';
@@ -75,6 +78,7 @@ interface ReadingPosition {
     CustomSearchInputComponent,
     CustomSelectComponent,
     TextFieldComponent,
+    LoadingIndicatorComponent,
     LucideTag,
     LucideInfo,
   ],
@@ -148,6 +152,18 @@ export class VintedMessagesComponent {
   readonly removeIcon = LucideTrash2;
   private draftRevision = 0;
   private openRevision = 0;
+  readonly now = signal(Date.now());
+  private readonly openingConversation = signal<{ context: string | null; id: string } | null>(
+    null,
+  );
+  readonly isOpeningConversation = computed(() => {
+    const opening = this.openingConversation();
+    return (
+      opening !== null &&
+      opening.context === this.context() &&
+      opening.id === this.store.selectedConversationId()
+    );
+  });
   private readonly dialog = inject(ConfirmDialogService);
   private readonly route = inject(ActivatedRoute);
   private readonly query = toSignal(this.route.queryParamMap, {
@@ -178,12 +194,15 @@ export class VintedMessagesComponent {
     const current = this.store
       .snapshot()
       ?.conversations.items.find((entry) => entry.id === this.store.selectedConversationId());
-    return (
-      current ??
-      (this.savedConversation()?.key === this.conversationKey()
-        ? (this.savedConversation()?.entry ?? null)
-        : null)
-    );
+    const saved = this.savedConversation();
+    if (current)
+      return {
+        ...current,
+        itemImageUrl:
+          current.itemImageUrl ??
+          (saved?.key === this.conversationKey() ? saved.entry.itemImageUrl : null),
+      };
+    return saved?.key === this.conversationKey() ? saved.entry : null;
   });
   readonly transcript = computed(() =>
     [...(this.store.messages()?.items ?? [])].reverse().sort((first, second) => {
@@ -210,7 +229,7 @@ export class VintedMessagesComponent {
   readonly lastActiveLabel = computed(() => {
     const timestamp = this.conversation()?.lastActiveAt;
     if (!timestamp) return 'Aktivität nicht verfügbar';
-    const seconds = Math.max(0, (Date.now() - Date.parse(timestamp)) / 1000);
+    const seconds = Math.max(0, (this.now() - Date.parse(timestamp)) / 1000);
     if (!Number.isFinite(seconds)) return 'Aktivität nicht verfügbar';
     if (seconds < 60) return 'Zuletzt aktiv gerade eben';
     const [amount, unit]: [number, Intl.RelativeTimeFormatUnit] =
@@ -237,6 +256,8 @@ export class VintedMessagesComponent {
   private focusListRow: string | null = null;
 
   constructor() {
+    const clock = setInterval(() => this.now.set(Date.now()), 60_000);
+    inject(DestroyRef).onDestroy(() => clearInterval(clock));
     effect(() => {
       this.context();
       const key = this.conversationKey();
@@ -262,8 +283,17 @@ export class VintedMessagesComponent {
         ?.conversations.items.find((item) => item.id === this.store.selectedConversationId());
       untracked(() => {
         if (!key) this.savedConversation.set(null);
-        else if (entry) this.savedConversation.set({ key, entry });
-        else if (this.savedConversation()?.key !== key) this.savedConversation.set(null);
+        else if (entry) {
+          const previous = this.savedConversation();
+          this.savedConversation.set({
+            key,
+            entry: {
+              ...entry,
+              itemImageUrl:
+                entry.itemImageUrl ?? (previous?.key === key ? previous.entry.itemImageUrl : null),
+            },
+          });
+        } else if (this.savedConversation()?.key !== key) this.savedConversation.set(null);
       });
     });
     effect(() => {
@@ -325,22 +355,38 @@ export class VintedMessagesComponent {
     this.focusConversation = JSON.stringify([this.context(), entry.id]);
     const revision = ++this.openRevision;
     const context = this.context();
-    await this.store.openConversation(entry.id);
-    if (
-      readProvider &&
-      account.executionMode === 'local' &&
-      this.local.messagesAllowed() &&
-      context === this.context() &&
-      revision === this.openRevision &&
-      this.store.selectedConversationId() === entry.id
-    ) {
-      await this.local.openInboxConversation(entry.id);
+    const key = JSON.stringify([context, entry.id]);
+    const previous = this.savedConversation();
+    this.savedConversation.set({
+      key,
+      entry: {
+        ...entry,
+        itemImageUrl:
+          entry.itemImageUrl ?? (previous?.key === key ? previous.entry.itemImageUrl : null),
+      },
+    });
+    this.openingConversation.set({ context, id: entry.id });
+    try {
+      await this.store.openConversation(entry.id);
       if (
+        readProvider &&
+        account.executionMode === 'local' &&
+        this.local.messagesAllowed() &&
+        !this.store.error() &&
         context === this.context() &&
         revision === this.openRevision &&
         this.store.selectedConversationId() === entry.id
-      )
-        await this.store.openConversation(entry.id);
+      ) {
+        await this.local.openInboxConversation(entry.id);
+        if (
+          context === this.context() &&
+          revision === this.openRevision &&
+          this.store.selectedConversationId() === entry.id
+        )
+          await this.store.openConversation(entry.id);
+      }
+    } finally {
+      if (revision === this.openRevision) this.openingConversation.set(null);
     }
   }
 
@@ -495,6 +541,8 @@ export class VintedMessagesComponent {
   }
 
   backToList(): void {
+    this.openRevision++;
+    this.openingConversation.set(null);
     this.focusListRow = this.store.selectedConversationId();
     this.focusConversation = null;
     this.store.clearConversation();
@@ -503,7 +551,7 @@ export class VintedMessagesComponent {
   async retryMessages(): Promise<void> {
     const entry = this.conversation();
     this.failedRequest.set(null);
-    if (entry) await this.store.openConversation(entry.id);
+    if (entry) await this.openConversation(entry);
   }
 
   async retryFailedRequest(): Promise<void> {
@@ -558,6 +606,31 @@ export class VintedMessagesComponent {
         : 'text';
   }
 
+  conversationTime(timestamp: string | null): string {
+    return formatConversationTime(timestamp, this.now());
+  }
+
+  messageDayLabel(timestamp: string | null): string {
+    return formatMessageDay(timestamp, this.now());
+  }
+
+  messageBody(entry: MarketplaceEntry): string | null {
+    if (this.messageKind(entry) !== 'offer') return entry.text ?? entry.title;
+    return this.offerText(entry.text) ?? this.offerText(entry.title);
+  }
+
+  offerTitle(entry: MarketplaceEntry): string | null {
+    const title = this.offerText(entry.title);
+    return title && this.offerText(entry.text) && title !== entry.text ? title : null;
+  }
+
+  private offerText(text: string | null | undefined): string | null {
+    const trimmed = text?.trim();
+    return !trimmed || /^(?:offer[ _-](?:request[ _-])?message|Nachricht|Angebot)$/i.test(trimmed)
+      ? null
+      : trimmed;
+  }
+
   private messageDay(timestamp: string | null): string {
     return timestamp ? new Date(timestamp).toLocaleDateString('de-DE') : '';
   }
@@ -602,7 +675,7 @@ export class VintedMessagesComponent {
       this.focusListRow = null;
     }
     const key = this.conversationKey();
-    if (this.focusConversation === key && key) {
+    if (this.focusConversation === key && key && this.heading() && !this.isOpeningConversation()) {
       this.heading()?.nativeElement.focus({ preventScroll: true });
       this.focusConversation = null;
     }
