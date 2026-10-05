@@ -15,17 +15,6 @@
   <app-two-column-layout ratio="2-1" data-testid="sale-entry-workspace">
     <div main class="space-y-4" data-testid="sale-entry-main">
       <app-card title="Verkaufspositionen" padding="md" rounded="xl">
-        <div card-header-actions>
-          @if (!externalDraft() && !legacyReconciliation() && !istBearbeitung()) {
-            <app-button
-              size="slim"
-              [icon]="plusIcon"
-              [disabled]="isSubmitting()"
-              (clicked)="openArticlePicker()"
-              >Artikel hinzufügen</app-button
-            >
-          }
-        </div>
         @if (selectionError(); as error) {
           <div class="mb-4 space-y-2">
             <p role="alert" class="text-[13px] text-fb-critical">
@@ -44,124 +33,190 @@
             einen verfügbaren Artikel zu.
           </p>
         }
-        <div formArrayName="lines" class="space-y-4">
-          @for (line of lines.controls; track line; let index = $index) {
-            <div
-              [formGroupName]="index"
-              class="space-y-3 border-b border-fb-line pb-4 last:border-0 last:pb-0"
+
+        @if (hasSelectedSaleLines() || externalDraft()) {
+          <div formArrayName="lines">
+            <table
+              data-shared-ui-exception="embedded-table"
+              class="block w-full table-fixed text-[13px] md:table"
             >
-              <div class="flex items-start gap-3">
-                <app-product-thumbnail [src]="articleImage(line)" />
-                <div class="min-w-0 flex-1">
-                  <p class="mb-1.5 text-[13px] font-semibold">
-                    Artikel <span aria-hidden="true" class="text-fb-primary">*</span>
-                  </p>
-                  @if (externalDraft(); as draft) {
-                    <p class="mb-1 text-xs text-fb-text-muted">
-                      Bestellposition: {{ draft.lines[index].title }}
-                    </p>
-                  }
-                  <p class="text-[13px]" data-sale-article-label>{{ articleLabel(line) }}</p>
-                  @if (!legacyReconciliation() && !istBearbeitung()) {
-                    <app-button
-                      class="mt-2"
-                      variant="secondary"
-                      size="slim"
-                      [attr.data-sale-target-invalid]="
-                        line.controls.target.invalid && line.controls.target.touched
-                      "
-                      [ariaLabel]="'Artikel für Verkaufsposition ' + (index + 1) + ' auswählen'"
-                      [disabled]="isSubmitting()"
-                      (clicked)="openArticlePicker(index)"
-                      >{{
-                        line.controls.target.value ? 'Artikel ändern' : 'Artikel auswählen'
-                      }}</app-button
+              <caption class="sr-only">
+                Verkaufspositionen
+              </caption>
+              <thead class="sr-only md:not-sr-only md:table-header-group">
+                <tr class="text-fb-text-secondary">
+                  <th scope="col" class="border-b border-fb-line py-2 text-left">Artikel</th>
+                  <th scope="col" class="w-28 border-b border-fb-line px-2 py-2 text-left">Menge</th>
+                  <th scope="col" class="w-32 border-b border-fb-line px-2 py-2 text-left">
+                    Stückpreis
+                  </th>
+                  <th scope="col" class="w-24 border-b border-fb-line px-2 py-2 text-right">
+                    Gesamt
+                  </th>
+                  <th scope="col" class="w-20 border-b border-fb-line py-2 text-right">Aktionen</th>
+                </tr>
+              </thead>
+              <tbody class="block divide-y divide-fb-line md:table-row-group">
+                @for (line of lines.controls; track line; let index = $index) {
+                  @if (line.controls.target.value || externalDraft()) {
+                    <tr
+                      [formGroupName]="index"
+                      data-sale-line
+                      class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-x-3 gap-y-2 py-3 md:table-row md:py-0"
                     >
+                      <td class="col-span-2 min-w-0 md:py-3 md:pr-3">
+                        <div
+                          class="grid min-w-0 grid-cols-[2.5rem_minmax(0,1fr)] items-center gap-x-2"
+                        >
+                          <app-product-thumbnail [src]="articleImage(line)" />
+                          <div class="min-w-0">
+                            @if (externalDraft(); as draft) {
+                              <p class="mb-1 text-xs text-fb-text-muted">
+                                Bestellposition: {{ draft.lines[index].title }}
+                              </p>
+                            }
+                            @if (!legacyReconciliation() && !istBearbeitung()) {
+                              <app-button
+                                data-sale-article-label
+                                variant="plain"
+                                [fullWidth]="true"
+                                contentAlign="start"
+                                [title]="articleLabel(line)"
+                                [ariaLabel]="articleTitle(line) + ' – Artikel ändern'"
+                                [disabled]="isSubmitting() || selectionLoading() || !!selectionError()"
+                                [attr.data-sale-target-invalid]="
+                                  line.controls.target.invalid && line.controls.target.touched
+                                "
+                                (clicked)="openArticlePicker(index)"
+                              >
+                                <span class="w-full break-words text-left">{{
+                                  articleTitle(line)
+                                }}</span>
+                              </app-button>
+                            } @else {
+                              <p data-sale-article-label class="break-words font-medium">
+                                {{ articleTitle(line) }}
+                              </p>
+                            }
+                            @if (articleVariantLabel(line); as variant) {
+                              <p data-sale-article-variant class="mt-1 text-xs text-fb-text-muted">
+                                {{ variant }}
+                              </p>
+                            }
+                            @if (line.controls.target.invalid && line.controls.target.touched) {
+                              <p role="alert" class="mt-1 text-xs text-fb-critical">
+                                Bitte wähle einen verfügbaren Artikel aus.
+                              </p>
+                            }
+                          </div>
+                        </div>
+                      </td>
+                      <td class="min-w-0 md:px-2 md:py-3">
+                        <label [for]="'quantity-' + index" class="mb-1 block text-xs md:sr-only">
+                          Menge
+                        </label>
+                        <app-number-input
+                          [id]="'quantity-' + index"
+                          [min]="1"
+                          [max]="availableQuantity(line)"
+                          formControlName="quantity"
+                          ariaLabel="Menge"
+                          [ariaInvalid]="
+                            line.controls.quantity.touched && line.controls.quantity.invalid
+                          "
+                          [ariaDescribedby]="'quantity-help-' + index"
+                        />
+                        @if (line.controls.quantity.invalid && line.controls.quantity.touched) {
+                          <p
+                            [id]="'quantity-help-' + index"
+                            role="alert"
+                            class="mt-1 text-xs text-fb-critical"
+                          >
+                            Gib eine ganze Menge innerhalb des verfügbaren Bestands ein.
+                          </p>
+                        }
+                      </td>
+                      <td class="min-w-0 md:px-2 md:py-3">
+                        <label [for]="'price-' + index" class="mb-1 block text-xs md:sr-only">
+                          Stückpreis
+                        </label>
+                        <app-number-input
+                          [id]="'price-' + index"
+                          [min]="0.01"
+                          [step]="0.01"
+                          [showStepper]="false"
+                          unit="€"
+                          formControlName="unitSalePrice"
+                          ariaLabel="Preis je Stück (€)"
+                          [ariaInvalid]="
+                            line.controls.unitSalePrice.touched &&
+                            line.controls.unitSalePrice.invalid
+                          "
+                          [ariaDescribedby]="
+                            line.controls.unitSalePrice.touched &&
+                            line.controls.unitSalePrice.invalid
+                              ? 'price-error-' + index
+                              : ''
+                          "
+                        />
+                        @if (
+                          line.controls.unitSalePrice.invalid &&
+                          line.controls.unitSalePrice.touched
+                        ) {
+                          <p
+                            [id]="'price-error-' + index"
+                            role="alert"
+                            class="mt-1 text-xs text-fb-critical"
+                          >
+                            Gib einen Verkaufspreis von mindestens 0,01 € ein.
+                          </p>
+                        }
+                      </td>
+                      <td class="col-span-2 text-right tabular-nums md:px-2 md:py-3">
+                        <span class="mr-2 text-xs text-fb-text-muted md:hidden">Gesamt</span>
+                        {{
+                          line.controls.quantity.value * line.controls.unitSalePrice.value
+                            | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+                        }}
+                      </td>
+                      <td class="col-start-3 row-start-1 self-start text-right md:py-3">
+                        @if (!externalDraft() && !legacyReconciliation() && !istBearbeitung()) {
+                          <app-table-action-button
+                            [icon]="removeIcon"
+                            [label]="articleTitle(line) + ' entfernen'"
+                            tone="critical"
+                            [disabled]="isSubmitting()"
+                            (clicked)="removeLine(index)"
+                          />
+                        }
+                      </td>
+                    </tr>
                   }
-                  @if (line.controls.target.invalid && line.controls.target.touched) {
-                    <p role="alert" class="mt-1 text-xs text-fb-critical">
-                      Bitte wähle einen verfügbaren Artikel aus.
-                    </p>
-                  }
-                </div>
-                <app-button
-                  variant="destructive"
-                  [icon]="removeIcon"
-                  [iconOnly]="true"
-                  [disabled]="
-                    !!externalDraft() ||
-                    lines.length === 1 ||
-                    !!legacyReconciliation() ||
-                    istBearbeitung() ||
-                    isSubmitting()
-                  "
-                  [ariaLabel]="'Verkaufsposition ' + (index + 1) + ' entfernen'"
-                  (clicked)="removeLine(index)"
-                />
-              </div>
-              <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
-                  <label [for]="'quantity-' + index" class="mb-1.5 block text-[13px] font-semibold"
-                    >Menge</label
-                  >
-                  <app-number-input
-                    [id]="'quantity-' + index"
-                    [min]="1"
-                    [max]="availableQuantity(line)"
-                    formControlName="quantity"
-                    ariaLabel="Menge"
-                    [ariaInvalid]="line.controls.quantity.touched && line.controls.quantity.invalid"
-                    [ariaDescribedby]="'quantity-help-' + index"
-                  />
-                  <p [id]="'quantity-help-' + index" class="mt-1 text-xs text-fb-text-muted">
-                    @if (line.controls.quantity.invalid && line.controls.quantity.touched) {
-                      <span class="text-fb-critical"
-                        >Gib eine ganze Menge innerhalb des verfügbaren Bestands ein. Andere
-                        Verkaufspositionen zählen mit.</span
-                      >
-                    } @else if (
-                      !istBearbeitung() &&
-                      !legacyReconciliation() &&
-                      availableQuantity(line) !== null
-                    ) {
-                      Für diese Position verfügbar: {{ availableQuantity(line) }}
-                    }
-                  </p>
-                </div>
-                <div>
-                  <label [for]="'price-' + index" class="mb-1.5 block text-[13px] font-semibold"
-                    >Preis je Stück (€)</label
-                  >
-                  <app-number-input
-                    [id]="'price-' + index"
-                    [min]="0.01"
-                    [step]="0.01"
-                    unit="€"
-                    formControlName="unitSalePrice"
-                    ariaLabel="Preis je Stück (€)"
-                    [ariaInvalid]="
-                      line.controls.unitSalePrice.touched && line.controls.unitSalePrice.invalid
-                    "
-                    [ariaDescribedby]="
-                      line.controls.unitSalePrice.touched && line.controls.unitSalePrice.invalid
-                        ? 'price-error-' + index
-                        : ''
-                    "
-                  />
-                  @if (line.controls.unitSalePrice.invalid && line.controls.unitSalePrice.touched) {
-                    <p
-                      [id]="'price-error-' + index"
-                      role="alert"
-                      class="mt-1 text-xs text-fb-critical"
-                    >
-                      Gib einen Verkaufspreis von mindestens 0,01 € ein.
-                    </p>
-                  }
-                </div>
-              </div>
-            </div>
-          }
-        </div>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <p class="py-4 text-center text-[13px] text-fb-text-muted">
+            Noch keine Verkaufsposition hinzugefügt.
+          </p>
+        }
+
+        @if (!externalDraft() && !legacyReconciliation() && !istBearbeitung()) {
+          <div class="flex items-center gap-2 border-t border-fb-line pt-3">
+            <app-button
+              data-add-sale-products
+              class="min-w-0 flex-1"
+              variant="ghost"
+              size="search"
+              [fullWidth]="true"
+              [icon]="searchIcon"
+              [disabled]="isSubmitting() || selectionLoading() || !!selectionError()"
+              (clicked)="openArticlePicker()"
+              >Artikel suchen oder hinzufügen</app-button
+            >
+          </div>
+        }
       </app-card>
 
       <app-card title="Versand und Gebühren" padding="md" rounded="xl" [overflowVisible]="true">
@@ -185,6 +240,7 @@
               id="platform-fee"
               [min]="0"
               [step]="0.01"
+              [showStepper]="false"
               unit="€"
               formControlName="platformFee"
               [ariaLabel]="externalDraft() ? 'Plattformgebühr, erforderlich' : 'Plattformgebühr'"
@@ -220,6 +276,7 @@
               id="shipping-revenue"
               [min]="0"
               [step]="0.01"
+              [showStepper]="false"
               unit="€"
               formControlName="shippingRevenue"
               ariaLabel="Versand vom Käufer erhalten"
@@ -255,6 +312,7 @@
               id="shipping-cost"
               [min]="0"
               [step]="0.01"
+              [showStepper]="false"
               unit="€"
               formControlName="shippingCost"
               [ariaLabel]="
@@ -387,6 +445,7 @@
                     [id]="'cost-amount-' + index"
                     [min]="0"
                     [step]="0.01"
+              [showStepper]="false"
                     unit="€"
                     formControlName="amount"
                     ariaLabel="Betrag in Euro"
