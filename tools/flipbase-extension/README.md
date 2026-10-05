@@ -65,7 +65,12 @@ Formular, können einzelne Felder manuelle Eingaben verlangen.
    Gespräche und drei geänderte, bereits gelesene Verläufe. Ungelesene Verläufe
    werden erst beim ausdrücklichen Öffnen des Gesprächs gelesen. Dabei wird keine
    gesonderte Markierung als gelesen gesendet. Nachrichtenhistorien bleiben Teilstände.
-7. Erteile für eigene Antworten die gesonderte Versandfreigabe. Ein Auftrag wird
+7. Erteile für eigene Antworten die gesonderte Versandfreigabe. Die aktuelle
+   Vinted-Identität wird vor der Auftragsübernahme geprüft. Einen geschlossenen
+   Arbeitstab öffnet die Erweiterung dafür im Hintergrund neu und verwendet ihn weiter.
+   Der Schutzwert für den Versand wird aus der aktuellen Vinted-Seite gelesen.
+   Fehler vor dem Nachrichtenversand gelten als nicht gesendet; ein fehlgeschlagener
+   Nachweis nach angenommenem Versand bleibt ausdrücklich unklar. Ein Auftrag wird
    serverseitig übernommen, vor dem Versand begonnen und danach mit seinem
    Ergebnis gemeldet. Bei unklarem Ausgang wird nicht automatisch erneut gesendet.
    Ein bestätigter neuer Text wird anhand des Gesprächsverlaufs erkannt. Für Bilder

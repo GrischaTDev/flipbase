@@ -177,6 +177,7 @@
       [style.left.px]="supportsPopover ? panelPosition().left : null"
       [style.top.px]="supportsPopover ? panelPosition().top : null"
       [style.width.px]="supportsPopover ? panelPosition().width : null"
+      [style.min-width.px]="supportsPopover ? panelPosition().width : minPanelWidth()"
       [style.max-height.px]="supportsPopover ? panelPosition().maxHeight : null"
     >
       <div class="space-y-0.5 px-1">

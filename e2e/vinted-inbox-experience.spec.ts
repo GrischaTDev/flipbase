@@ -411,9 +411,18 @@ for (const { width, theme } of [
     await expect(rows).toHaveCount(1);
     await search.fill('');
     await page.getByRole('combobox', { name: 'Gespräche filtern' }).click();
+    await expect(page.getByRole('option', { name: 'Alle', exact: true })).toBeVisible();
     await expect(
       page.getByRole('option', { name: 'Systemnachrichten (0)', exact: true }),
     ).toBeVisible();
+    const systemFilter = page.getByRole('option', { name: 'Systemnachrichten (0)', exact: true });
+    expect((await systemFilter.boundingBox())?.width).toBeGreaterThan(200);
+    expect(
+      await systemFilter
+        .locator('span')
+        .first()
+        .evaluate((element) => element.scrollWidth <= element.clientWidth),
+    ).toBe(true);
     await page.getByRole('option', { name: 'Ungelesen (1)', exact: true }).click();
     await expect(rows).toHaveCount(1);
     fixture.pauseDetails();
@@ -509,6 +518,11 @@ for (const { width, theme } of [
       .fill('Testantwort\nmit zweiter Zeile');
     await conversation.getByRole('button', { name: 'Senden', exact: true }).click();
     await expect(page.locator('[data-queue-state="queued"]')).toContainText('Testantwort');
+    expect(
+      await page
+        .getByRole('log')
+        .evaluate((element) => element.lastElementChild?.hasAttribute('data-conversation-sync')),
+    ).toBe(true);
     expect(fixture.enqueues).toHaveLength(1);
     expect(fixture.enqueues[0]['p_text']).toBe('Testantwort\nmit zweiter Zeile');
     await expect

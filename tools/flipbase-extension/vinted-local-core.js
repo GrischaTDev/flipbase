@@ -759,6 +759,10 @@
         const currentGrant = await heartbeat(binding, installation.secret);
         if (action === 'MESSAGES_SEND') {
           if (currentGrant.messagesSend !== true) return { skipped: true };
+          const current = await adapter.readIdentity(installation.tabId);
+          if (current.identity.id !== binding.externalAccountId) throw identityChangedError();
+          installation.tabId = current.tabId;
+          await adapter.save(installation);
           const claimed = await adapter.edge(binding, installation.secret, {
             action: 'message_claim',
             workspaceId: binding.workspaceId,
@@ -792,9 +796,13 @@
             throw new Error('Der Nachrichtenversand wurde nicht freigegeben.');
           let outcome;
           try {
-            outcome = (
-              await adapter.sendMessage(installation.tabId, binding.externalAccountId, command)
-            ).outcome;
+            const sent = await adapter.sendMessage(
+              installation.tabId,
+              binding.externalAccountId,
+              command,
+            );
+            if (Number.isInteger(sent.tabId)) installation.tabId = sent.tabId;
+            outcome = sent.outcome;
           } catch (error) {
             outcome = {
               outcome: 'outcome_unknown',

@@ -79,6 +79,7 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
   readonly size = input<'sm' | 'md'>('sm');
   readonly disabled = input<boolean>(false);
   readonly widthClass = input<string>('w-full');
+  readonly minPanelWidth = input(160);
   readonly openDirection = input<'auto' | 'down' | 'up'>('auto');
   readonly ariaLabel = input.required<string>();
   readonly triggerId = input<string>('');
@@ -238,7 +239,10 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
           const rect = this.trigger().nativeElement.getBoundingClientRect();
           const margin = 8;
           const gap = 6;
-          const width = Math.min(Math.max(rect.width, 160), window.innerWidth - margin * 2);
+          const width = Math.min(
+            Math.max(rect.width, this.minPanelWidth()),
+            window.innerWidth - margin * 2,
+          );
           const available = this.isDropUp()
             ? rect.top - gap - margin
             : window.innerHeight - rect.bottom - gap - margin;

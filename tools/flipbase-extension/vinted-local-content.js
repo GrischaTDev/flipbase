@@ -305,7 +305,7 @@
                     {
                       read: readJson,
                       write: writeProvider,
-                      csrf: document.querySelector('meta[name="csrf-token"]')?.content,
+                      csrf: globalThis.FlipbaseVintedMessages.readCsrfToken(document),
                     },
                     request.externalAccountId,
                     request.command,

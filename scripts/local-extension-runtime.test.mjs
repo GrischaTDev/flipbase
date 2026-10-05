@@ -52,8 +52,8 @@ test('Scheduler preserves a persisted challenge pause across recreation', async 
 });
 test('Message send verifies account and CSRF before any provider write', async () => {
   let writes = 0;
-  await assert.rejects(
-    messages.send(
+  assert.deepEqual(
+    await messages.send(
       {
         read: async () => ({ user: { id: 999 } }),
         write: async () => {
@@ -64,8 +64,49 @@ test('Message send verifies account and CSRF before any provider write', async (
       '123',
       { externalConversationId: '51', text: 'Hallo', attachment: null },
     ),
+    { outcome: 'failed', errorCode: 'identity_changed' },
   );
   assert.equal(writes, 0);
+});
+test('Message send reports missing CSRF and failed initial reads as unsent', async () => {
+  for (const csrf of [undefined, 'synthetic-token']) {
+    let writes = 0;
+    const outcome = await messages.send(
+      {
+        csrf,
+        read: async () => {
+          throw new Error('offline');
+        },
+        write: async () => {
+          writes++;
+        },
+      },
+      '123',
+      { externalConversationId: '51', text: 'Hallo', attachment: null },
+    );
+    assert.equal(outcome.outcome, 'failed');
+    assert.equal(writes, 0);
+  }
+});
+test('Browser CSRF reads current Next.js frames and legacy metadata without executing scripts', () => {
+  const token = 'synthetic-token';
+  const frame = JSON.stringify([1, '0:{"config":{"CSRF_TOKEN":' + JSON.stringify(token) + '}}\n']);
+  const dom = new JSDOM('<script>self.__next_f.push(' + frame + ')</script>');
+  assert.equal(messages.readCsrfToken(dom.window.document), token);
+  dom.window.document.head.insertAdjacentHTML(
+    'beforeend',
+    '<meta name="csrf-token" content="legacy-token">',
+  );
+  assert.equal(messages.readCsrfToken(dom.window.document), 'legacy-token');
+  for (const source of [
+    'self.__next_f.push(notJson)',
+    'self.__next_f.push([1,"CSRF_TOKEN"])',
+    'otherFunction(' + frame + ')',
+    'self.__next_f.push(' + JSON.stringify([1, '{"CSRF_TOKEN":""}']) + ')',
+  ]) {
+    const invalid = new JSDOM('<script>' + source + '</script>');
+    assert.equal(messages.readCsrfToken(invalid.window.document), null);
+  }
 });
 test('Message send performs exactly one reply POST and confirms a new own message by readback', async () => {
   let detailReads = 0;
@@ -106,6 +147,31 @@ test('Ambiguous provider timeout is never retried', async () => {
       write: async () => {
         writes++;
         throw new Error('timeout');
+      },
+    },
+    '123',
+    { externalConversationId: '51', text: 'Hallo', attachment: null },
+  );
+  assert.equal(writes, 1);
+  assert.equal(outcome.outcome, 'outcome_unknown');
+});
+test('A rejected readback after an accepted reply does not claim the message was unsent', async () => {
+  let writes = 0;
+  const outcome = await messages.send(
+    {
+      csrf: 'synthetic-token',
+      read: async (path) => {
+        if (writes) {
+          const error = new Error('login expired');
+          error.httpStatus = 401;
+          error.code = 'login_required';
+          throw error;
+        }
+        return path.endsWith('/current') ? profile : { conversation: { id: 51, messages: [] } };
+      },
+      write: async () => {
+        writes++;
+        return {};
       },
     },
     '123',
@@ -1108,7 +1174,7 @@ function createReservedTabFixture(
     },
   };
   const context = vm.createContext({
-    globalThis: { FlipbaseVintedLocal: core },
+    globalThis: { FlipbaseVintedLocal: core, FlipbaseVintedMessages: messages },
     window: dom.window,
     location: dom.window.location,
     document: dom.window.document,
@@ -1119,7 +1185,7 @@ function createReservedTabFixture(
     Error,
     URL,
     AbortSignal,
-    fetch: async (path) => {
+    fetch: async (path, options) => {
       reads++;
       if (pendingResponse) await pendingResponse;
       return {
@@ -1127,7 +1193,7 @@ function createReservedTabFixture(
         ok: status === 200,
         url: 'https://www.vinted.de/api/v2/users/current',
         headers: new Headers({ 'Content-Type': 'application/json' }),
-        json: async () => responseFor(path),
+        json: async () => responseFor(path, options),
       };
     },
   });
@@ -1149,6 +1215,14 @@ function createReservedTabFixture(
     readIdentity: () =>
       new Promise((resolve) =>
         listener({ type: 'VINTED_LOCAL_IDENTITY' }, { id: 'extension' }, resolve),
+      ),
+    sendMessage: (command) =>
+      new Promise((resolve) =>
+        listener(
+          { type: 'VINTED_LOCAL_SEND', externalAccountId: '123', command },
+          { id: 'extension' },
+          resolve,
+        ),
       ),
     readInbox: () =>
       new Promise((resolve) =>
@@ -1538,7 +1612,12 @@ test('Content script reads rendered messages without script translations, hidden
   }
 });
 
-function createChromeBackgroundFixture({ receive, existingTab, accelerateTimers = false } = {}) {
+function createChromeBackgroundFixture({
+  receive,
+  existingTab,
+  edgeResponse,
+  accelerateTimers = false,
+} = {}) {
   let stored = existingTab ? { [core.storageKey]: { tabId: existingTab.id } } : {};
   let nextTabId = 10;
   let edgeStatus = 200;
@@ -1663,13 +1742,15 @@ function createChromeBackgroundFixture({ receive, existingTab, accelerateTimers 
           status: edgeStatus,
           ok: edgeStatus === 200,
           json: async () =>
-            body.action === 'heartbeat'
-              ? { ok: true, externalAccountId: '123', expiresAt: validExpires }
-              : {
-                  ok: true,
-                  counts: { profile: 1, publication: 1 },
-                  observedAt: body.snapshot.observedAt,
-                },
+            edgeResponse
+              ? edgeResponse(body, validExpires)
+              : body.action === 'heartbeat'
+                ? { ok: true, externalAccountId: '123', expiresAt: validExpires }
+                : {
+                    ok: true,
+                    counts: { profile: 1, publication: 1 },
+                    observedAt: body.snapshot.observedAt,
+                  },
         };
       },
     });
@@ -1773,6 +1854,124 @@ test('Chrome background adapter recovers the reserved tab and refuses non-applic
     true,
   );
   assert.equal(fixture.stored[core.storageKey], undefined);
+});
+
+test('Closed send work tab is restored in the background once and reused after worker restart', async () => {
+  let sent = false;
+  const fixture = createChromeBackgroundFixture({
+    receive: async (_tabId, request) => {
+      if (request.type === 'VINTED_LOCAL_SEND') {
+        assert.equal(sent, false);
+        sent = true;
+        return { success: true, result: { outcome: { outcome: 'sent', externalMessageId: '62' } } };
+      }
+    },
+    edgeResponse: (body, validExpires) => {
+      if (body.action === 'heartbeat')
+        return {
+          ok: true,
+          externalAccountId: '123',
+          expiresAt: validExpires,
+          messagesSend: true,
+        };
+      if (body.action === 'message_claim')
+        return {
+          ok: true,
+          command: sent
+            ? null
+            : {
+                id: anotherId,
+                claimToken: anotherId,
+                externalConversationId: '51',
+                text: 'Hallo',
+                attachment: null,
+              },
+        };
+      return { ok: true };
+    },
+  });
+  const background = fixture.startBackground();
+  const prepared = await background.call({
+    type: 'FLIPBASE_VINTED_LOCAL_PREPARE',
+    requestId: 'prepare-send',
+  });
+  assert.equal(prepared.success, true);
+  assert.equal(
+    (
+      await background.call({
+        type: 'FLIPBASE_VINTED_LOCAL_BIND',
+        requestId: 'bind-send',
+        payload: {
+          ...payload,
+          expiresAt: fixture.validExpires,
+          tokenHash: prepared.result.tokenHash,
+        },
+      })
+    ).success,
+    true,
+  );
+  const oldTabId = fixture.stored[core.storageKey].tabId;
+  fixture.tabs.delete(oldTabId);
+  const sendRequest = {
+    type: 'FLIPBASE_VINTED_LOCAL_MESSAGES_SEND',
+    requestId: 'send-closed-tab',
+    payload: scope,
+  };
+  assert.equal((await background.call(sendRequest)).success, true);
+  const newTabId = fixture.stored[core.storageKey].tabId;
+  assert.notEqual(newTabId, oldTabId);
+  assert.equal(fixture.createdTabs.length, 2);
+  assert.ok(fixture.createdTabs.every((tab) => !tab.active && tab.pinned && tab.index === 0));
+  assert.equal(
+    fixture.messages.find((entry) => entry.message.type === 'VINTED_LOCAL_SEND').tabId,
+    newTabId,
+  );
+  assert.equal(
+    (await fixture.startBackground().call({ ...sendRequest, requestId: 'send-restart' })).success,
+    true,
+  );
+  assert.equal(fixture.createdTabs.length, 2);
+  assert.equal(
+    fixture.messages.filter((entry) => entry.message.type === 'VINTED_LOCAL_SEND').length,
+    1,
+  );
+});
+
+test('Content sends with the current Next.js CSRF frame and verifies the provider reply', async () => {
+  let sent = false;
+  const frame = JSON.stringify([1, '{"CSRF_TOKEN":"synthetic-token"}']);
+  const fixture = createReservedTabFixture(
+    '<main></main><script>self.__next_f.push(' + frame + ')</script>',
+    (path, options) => {
+      if (path === '/api/v2/users/current') return profile;
+      if (options?.method === 'POST') {
+        assert.equal(path, '/api/v2/conversations/51/replies');
+        assert.equal(options.headers['X-Csrf-Token'], 'synthetic-token');
+        assert.equal(sent, false);
+        sent = true;
+        return {};
+      }
+      return {
+        conversation: {
+          id: 51,
+          messages: sent ? [{ id: 62, entity: { body: 'Hallo', user_id: 123 } }] : [],
+        },
+      };
+    },
+  );
+  try {
+    const response = await fixture.sendMessage({
+      externalConversationId: '51',
+      text: 'Hallo',
+      attachment: null,
+    });
+    assert.equal(response.success, true, response.error);
+    assert.equal(response.result.outcome.outcome, 'sent');
+    assert.equal(response.result.outcome.externalMessageId, '62');
+    assert.equal(sent, true);
+  } finally {
+    fixture.dom.window.close();
+  }
 });
 
 test('A reloaded extension replaces only its unreachable stored work tab before a single read', async () => {
@@ -2069,6 +2268,46 @@ async function outboxHarness() {
   };
   return setup;
 }
+
+test('Message worker restores and verifies its tab before claiming, and persists the sending tab', async () => {
+  const setup = await outboxHarness();
+  const order = [];
+  setup.adapter.readIdentity = async () => {
+    order.push('identity');
+    return { identity, tabId: 77 };
+  };
+  const edge = setup.adapter.edge;
+  setup.adapter.edge = async (...args) => {
+    order.push(args[2].action);
+    return edge(...args);
+  };
+  setup.adapter.sendMessage = async (tabId) => {
+    assert.equal(tabId, 77);
+    order.push('send');
+    return { tabId: 88, outcome: { outcome: 'sent', externalMessageId: '62' } };
+  };
+  await setup.runtime.run(request('MESSAGES_SEND', scope), appOrigin);
+  assert.ok(order.indexOf('identity') < order.indexOf('message_claim'));
+  assert.equal(setup.saved.tabId, 88);
+});
+
+test('Message worker leaves the job unclaimed when the restored session cannot be verified', async () => {
+  const setup = await outboxHarness();
+  setup.adapter.readIdentity = async () => {
+    const error = new Error('login');
+    error.code = 'login_required';
+    throw error;
+  };
+  setup.adapter.sendMessage = async () => {
+    throw new Error('must not send');
+  };
+  await assert.rejects(
+    setup.runtime.run(request('MESSAGES_SEND', scope), appOrigin),
+    (error) => error.code === 'login_required',
+  );
+  assert.equal(setup.edgeCalls.filter((call) => call.action === 'message_claim').length, 0);
+  assert.equal(setup.saved.pendingFinish, undefined);
+});
 
 test('Message result retry after worker restart reports without another claim or provider write', async () => {
   const setup = await outboxHarness();
