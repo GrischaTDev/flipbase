@@ -244,7 +244,7 @@ describe('Vollständiges Laden eines Gesprächs', () => {
     local.messagesAllowed.set(true);
   }
 
-  it('zeigt den mittigen Spinner nur solange noch kein gespeicherter Verlauf vorliegt', async () => {
+  it('zeigt bekannte Kopfdaten sofort auch während ein leerer Verlauf geprüft wird', async () => {
     useLocalAccount();
     let finishRead: ((page: MarketplacePage<MarketplaceEntry>) => void) | undefined;
     api.readPage.mockReturnValueOnce(
@@ -264,14 +264,20 @@ describe('Vollständiges Laden eines Gesprächs', () => {
     if (!entry) throw new Error('Testgespräch fehlt');
     const opening = fixture.componentInstance.openConversation(entry);
     await settle(fixture);
-    expect(fixture.nativeElement.querySelector('[data-conversation-loading]')).not.toBeNull();
-    expect(fixture.nativeElement.querySelector('[data-conversation-heading]')).toBeNull();
-    finishRead?.(messages(accounts[0]));
+    expect(fixture.nativeElement.querySelector('[data-conversation-loading]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-conversation-heading]')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-conversation-item]')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-message-composer]')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-conversation-sync]')?.textContent).toContain(
+      'Wird aktualisiert',
+    );
+    expect(fixture.nativeElement.textContent).not.toContain('Nachrichten werden geladen');
+    api.readPage.mockResolvedValue(messages(accounts[0], []));
+    finishRead?.(messages(accounts[0], []));
     await settle(fixture);
     expect(fixture.nativeElement.querySelector('[data-conversation-loading]')).toBeNull();
-    expect(fixture.nativeElement.querySelector('[role="log"]')?.textContent).toContain(
-      '<b>Hallo!</b>',
-    );
+    expect(fixture.nativeElement.querySelector('[role="log"]')).not.toBeNull();
+    expect(fixture.nativeElement.querySelectorAll('[data-message-kind]')).toHaveLength(0);
     expect(fixture.nativeElement.querySelector('[data-conversation-sync]')?.textContent).toContain(
       'Wird aktualisiert',
     );
@@ -308,12 +314,25 @@ describe('Vollständiges Laden eines Gesprächs', () => {
       'Wird aktualisiert',
     );
     expect(root.querySelector('[data-conversation-sync] .bg-fb-badge-warning')).not.toBeNull();
-    api.readPage.mockResolvedValueOnce(
+    let finishReload: ((page: MarketplacePage<MarketplaceEntry>) => void) | undefined;
+    api.readPage.mockReturnValueOnce(
+      new Promise<MarketplacePage<MarketplaceEntry>>((resolve) => {
+        finishReload = resolve;
+      }),
+    );
+    finishProvider?.();
+    await settle(fixture);
+    expect(store.loadingMessages()).toBe(true);
+    expect(root.textContent).not.toContain('Nachrichten werden geladen');
+    expect(root.querySelector('[role="log"]')?.textContent).toContain('<b>Hallo!</b>');
+    expect(root.querySelector('[data-conversation-sync]')?.textContent).toContain(
+      'Wird aktualisiert',
+    );
+    finishReload?.(
       messages(accounts[0], [
         { id: 'message-1', text: 'Aktualisierte Nachricht', direction: 'inbound' },
       ]),
     );
-    finishProvider?.();
     await opening;
     await settle(fixture);
     expect(root.querySelector('[data-conversation-loading]')).toBeNull();
