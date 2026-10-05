@@ -27,6 +27,19 @@ jobs:
         run: npm ci
       - name: Install locked collector dependencies
         run: npm ci --prefix services/sniper
+      - name: Prepare isolated source and dependency archive
+        run: |
+          mkdir -p /tmp/vinted-search-filter-workspace
+          git archive --format=tar.gz HEAD > /tmp/vinted-search-filter-workspace/source.tar.gz
+          tar -czf /tmp/vinted-search-filter-workspace/dependencies.tar.gz node_modules services/sniper/node_modules
+          cp "$(command -v node)" /tmp/vinted-search-filter-workspace/node
+          git rev-parse HEAD > /tmp/vinted-search-filter-workspace/revision.txt
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: vinted-search-filter-workspace
+          path: /tmp/vinted-search-filter-workspace/
+          retention-days: 1
+          compression-level: 0
       - name: Existing collector baseline
         working-directory: services/sniper
         run: npx vitest run test/vinted/collector.spec.ts
