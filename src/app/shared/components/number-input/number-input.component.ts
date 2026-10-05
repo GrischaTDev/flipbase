@@ -156,5 +156,4 @@ export class NumberInputComponent implements ControlValueAccessor {
     this.onChange(val);
     this.value.set(val);
   }
-
 }
