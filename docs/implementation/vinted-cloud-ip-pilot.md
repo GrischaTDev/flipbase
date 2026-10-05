@@ -1,6 +1,6 @@
 # Vinted-Cloudpilot mit IPRoyal-IP-Bestand
 
-Stand: 05.10.2026. Schriftlicher Entwurf zur Durchsicht; noch keine Umsetzung.
+Stand: 05.10.2026. Freigegebener Pilot; lesenden Anbieterabgleich ergänzen.
 Ergänzt den [gemeinsamen Entwurf für Erweiterung und Cloud](vinted-local-and-cloud-design.md).
 
 ## Ziel und Umfang
@@ -11,8 +11,10 @@ Kontozuordnung und gespeicherten Anzeigen, Nachrichten und Verlaufsdaten bleiben
 erhalten. Cloudprofile erhalten jeweils eine eigene feste deutsche Dedicated-ISP-IP.
 
 Der erste Pilot verwendet die bereits gekaufte IPRoyal-IP für ein vom Nutzer
-benanntes Testkonto. Der IP-Bestand enthält zunächst diese eine manuell
-registrierte IP. Automatische Käufe, Verlängerungen, Kündigungen und Änderungen
+benanntes Testkonto. Beim Einrichten und beim Cloudwechsel liest der Server
+automatisch bereits gekaufte IPs aus dem IPRoyal-Konto ein. Die dort für Flipbase
+gekauften, geprüften und hier noch nicht belegten IPs bilden den freien Bestand.
+Automatische Käufe, Verlängerungen, Kündigungen und Änderungen
 an Kundenabonnements sind spätere Aufgaben. Ein fehlender Bestand löst keinen
 Kauf aus. Die Cloudoption wird zunächst nur für freigeschaltete Pilotnutzer angeboten.
 
@@ -49,18 +51,29 @@ die Kundenoberfläche erhält keine Passwörter oder API-Schlüssel. Nur autoris
 Serveroperationen dürfen den gemeinsamen Bestand verwalten. Kunden sehen allein
 die Verfügbarkeit und den Zustand ihrer eigenen Kontoeinrichtung.
 
-IPRoyal dokumentiert das Lesen bestehender Bestellungen über `GET /orders`.
-Ein späterer lesender API-Abgleich übernimmt aktive gekaufte IPs und deren
-Laufzeiten in den Bestand; die Flipbase-Zuordnung bleibt unsere eigene Wahrheit.
+IPRoyal dokumentiert `GET /products` und `GET /orders` mit `product_id` und
+`X-Access-Token`. Der lesende API-Abgleich übernimmt aktive gekaufte deutsche
+`ISP Dedicated`-IPs und deren Laufzeiten; die Flipbase-Zuordnung bleibt unsere
+eigene Wahrheit. Vor dem Abgleich wird die vorhandene Pilot-/Workspace-Berechtigung
+geprüft. Alle Bestellseiten müssen vollständig und konsistent gelesen sein,
+bevor der Bestand verändert wird. Ein Anbieterfehler erlaubt keine Reservierung
+aus einem möglicherweise veralteten Bestand.
 Der Anbieterbestand zum Verkauf ist kein Bestand bereits gekaufter IPs.
-IPs, die außerhalb von Flipbase genutzt werden, dürfen nicht automatisch als frei
-übernommen werden. Für den ersten Piloten ist kein IPRoyal-API-Schlüssel erforderlich.
+Das verwendete IPRoyal-Konto ist für Flipbase vorgesehen; externe IP-Nutzungen
+kann die API nicht erkennen. Bestehende Sperren und Reservierungen bleiben erhalten.
+Der API-Schlüssel bleibt ausschließlich in der privaten Worker-Umgebung.
+Netzwerkdateien werden nur um neue Zugänge ergänzt; geänderte vorhandene Zugangsdaten
+stoppen den Abgleich statt laufende Konten umzuschreiben. Nicht mehr gelieferte IPs
+laufen im Bestand aus, ihre Zuordnung wird dabei nicht freigegeben.
+Die API liefert eine Ablaufuhrzeit ohne dokumentierte Zeitzone. Bis zur Klärung
+gilt als vorsichtige eigene Nutzungsgrenze 00:00 UTC am Tag vor dem Ablauftag.
 
 ## Reservierung und fehlende Kapazität
 
 1. Nach Auswahl von „Cloud“ prüft der Server Zugriffsrechte, Kontozustand und
    vorhandene Einrichtung. Wiederholte Anfragen verwenden dieselbe Reservierung.
-2. Eine Datenbanktransaktion reserviert die nächste verfügbare IP. Die älteste
+2. Der Server gleicht die bereits gekauften IPRoyal-IPs ab. Anschließend
+   reserviert eine Datenbanktransaktion die nächste verfügbare IP. Die älteste
    Registrierung wird zuerst gewählt; bei gleichem Zeitpunkt entscheidet die
    interne Kennung. Eine eindeutige Zuordnung verhindert, dass zwei gleichzeitig
    eingerichtete Konten dieselbe IP erhalten.

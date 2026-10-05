@@ -94,6 +94,23 @@ const chromiumPilot = {
   MARKETPLACE_CHROMIUM_NETWORK: 'flipbase-browser',
 };
 
+test('provider inventory credentials stay server-only and require a private network file', () => {
+  assert.throws(() =>
+    marketplaceBrowserServerConfig({ ...chromiumPilot, IPROYAL_API_TOKEN: 'fixture-token' }),
+  );
+  const result = marketplaceBrowserServerConfig({
+    ...chromiumPilot,
+    IPROYAL_API_TOKEN: 'fixture-token',
+    MARKETPLACE_CHROMIUM_NETWORK_FILE: '/var/lib/flipbase-marketplace/cloud-networks.json',
+  });
+  assert.equal(result.ipRoyalApiToken, 'fixture-token');
+  assert.equal(
+    marketplaceBrowserServerConfig({ ...configured, IPROYAL_API_TOKEN: 'fixture-token' })
+      .ipRoyalApiToken,
+    undefined,
+  );
+});
+
 test('chromium pilot works without GoLogin credentials and starts with scheduling paused', () => {
   const result = marketplaceBrowserServerConfig(chromiumPilot);
   assert.equal(result.provider, 'chromium');

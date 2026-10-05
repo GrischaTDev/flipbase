@@ -32,6 +32,7 @@ import { MarketplaceSyncDispatcher } from './marketplace-sync-dispatcher.ts';
 import { SupabaseMarketplaceSyncDispatchStore } from './supabase-marketplace-sync-dispatch-store.ts';
 import { SupabaseMarketplaceCloudSetupStore } from './supabase-marketplace-cloud-setup-store.ts';
 import { MarketplaceCloudSetup } from './marketplace-cloud-setup.ts';
+import { IpRoyalCloudIpSync } from './iproyal-cloud-ip-sync.ts';
 
 async function main(): Promise<void> {
   const config = marketplaceBrowserServerConfig(process.env);
@@ -186,7 +187,28 @@ async function main(): Promise<void> {
   });
   await broker.ready();
   if (cloudSetupStore && profiles instanceof ChromiumProfileProvisioner) {
-    cloudSetups = new MarketplaceCloudSetup({ store: cloudSetupStore, profiles, broker });
+    const inventory =
+      config.ipRoyalApiToken && config.chromiumNetworkFile && networks
+        ? new IpRoyalCloudIpSync({
+            token: config.ipRoyalApiToken,
+            file: config.chromiumNetworkFile,
+            networks,
+            url: config.supabaseUrl,
+            serviceRoleKey: config.serviceRoleKey,
+          })
+        : undefined;
+    cloudSetups = new MarketplaceCloudSetup({
+      store: cloudSetupStore,
+      profiles,
+      broker,
+      refreshInventory: inventory
+        ? async () => {
+            await dispatcher?.heartbeat();
+            await inventory.refresh();
+            await dispatcher?.heartbeat();
+          }
+        : undefined,
+    });
     await cloudSetups.recover(true);
   }
   const importWriter = isCloud

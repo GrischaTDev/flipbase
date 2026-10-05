@@ -15,6 +15,7 @@ export interface MarketplaceBrowserServerConfig {
   chromiumNetwork?: string;
   chromiumNetworkId?: string;
   chromiumNetworkFile?: string;
+  ipRoyalApiToken?: string;
   chromiumSeccompProfile?: string;
   chromiumWritesEnabled?: boolean;
 }
@@ -66,6 +67,7 @@ export function marketplaceBrowserServerConfig(
   const chromiumNetwork = environment['MARKETPLACE_CHROMIUM_NETWORK'];
   const chromiumNetworkId = environment['MARKETPLACE_CHROMIUM_NETWORK_ID'] ?? 'direct';
   const chromiumNetworkFile = environment['MARKETPLACE_CHROMIUM_NETWORK_FILE'];
+  const ipRoyalApiToken = environment['IPROYAL_API_TOKEN'];
   const chromiumWritesFlag = environment['MARKETPLACE_CHROMIUM_WRITES_ENABLED'] ?? '0';
   const chromiumSeccompProfile =
     environment['MARKETPLACE_CHROMIUM_SECCOMP_PROFILE'] ??
@@ -85,6 +87,7 @@ export function marketplaceBrowserServerConfig(
       (chromiumWritesFlag !== '0' && chromiumWritesFlag !== '1') ||
       !/^[a-z0-9][a-z0-9_-]{0,63}$/.test(chromiumNetworkId) ||
       (chromiumNetworkId !== 'direct' && !chromiumNetworkFile) ||
+      (ipRoyalApiToken !== undefined && (!ipRoyalApiToken.trim() || !chromiumNetworkFile)) ||
       (chromiumNetworkFile !== undefined && !privateLinuxPath(chromiumNetworkFile)) ||
       !privateLinuxPath(chromiumSeccompProfile))
   )
@@ -132,6 +135,7 @@ export function marketplaceBrowserServerConfig(
           chromiumNetwork,
           chromiumNetworkId,
           chromiumNetworkFile,
+          ipRoyalApiToken,
           chromiumSeccompProfile,
           chromiumWritesEnabled: chromiumWritesFlag === '1',
         }

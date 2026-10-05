@@ -264,7 +264,9 @@ Der Nutzer hat den [Cloudpilot mit fester IP-Zuordnung](vinted-cloud-ip-pilot.md
 und seinen [Umsetzungsplan](vinted-cloud-ip-pilot-plan.md) freigegeben. Jedes
 Cloudkonto erhält eine vorhandene, geprüfte deutsche Dedicated-ISP-IP. Ist keine
 frei, erscheint eine Kapazitätsmeldung. Automatische IP-Bestellungen und
-Kundenabrechnung folgen später.
+Kundenabrechnung folgen später. Beim Hinzufügen oder Cloudwechsel liest der Server
+bereits gekaufte deutsche Dedicated-ISP-IPs automatisch aus dem IPRoyal-Konto ein;
+eine manuelle Registrierung ist im normalen Einrichtungsablauf nicht erforderlich.
 
 Ein lokales Konto behält beim Upgrade seine Verbindungs-ID und vorhandenen
 Daten. Die lokale Freigabe wird erst nach geprüfter Identität und bestätigtem

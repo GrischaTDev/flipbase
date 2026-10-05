@@ -13,7 +13,11 @@ const scope = {
 const setupId = '37100000-0000-4000-8000-000000000031';
 const sessionId = '37100000-0000-4000-8000-000000000032';
 
-function fixture(uncertainStop = false, lostCompleteReply = false) {
+function fixture(
+  uncertainStop = false,
+  lostCompleteReply = false,
+  inventory?: { authorized?: boolean; fails?: boolean },
+) {
   let view: CloudSetupView = {
     workspaceId: scope.workspaceId,
     connectionId: scope.connectionId,
@@ -32,9 +36,21 @@ function fixture(uncertainStop = false, lostCompleteReply = false) {
     ipExpiresAt: '2099-01-01T00:00:00Z',
   });
   const service = new MarketplaceCloudSetup({
+    refreshInventory: inventory
+      ? async () => {
+          events.push('sync-inventory');
+          if (inventory.fails) throw new Error('provider unavailable');
+        }
+      : undefined,
     store: {
-      availability: async () => true,
-      begin: async () => ({ status: 'no_capacity' }),
+      availability: async () => {
+        if (inventory) events.push('authorize');
+        return inventory?.authorized !== false;
+      },
+      begin: async () => {
+        if (inventory) events.push('reserve');
+        return { status: 'no_capacity' };
+      },
       read: async () => view,
       readAuthorized: async () => privateView(),
       rows: async () => recoveryRows,
@@ -98,6 +114,33 @@ function fixture(uncertainStop = false, lostCompleteReply = false) {
     view: () => view,
   };
 }
+
+test('both new accounts and local upgrades refresh authorized inventory before atomic reservation', async () => {
+  for (const request of [
+    { workspaceId: scope.workspaceId, displayName: 'Testkonto', requestId: setupId },
+    { workspaceId: scope.workspaceId, connectionId: scope.connectionId, requestId: setupId },
+  ]) {
+    const item = fixture(false, false, {});
+    assert.deepEqual(await item.service.begin(request, scope.userId, scope.userAccessToken), {
+      status: 'no_capacity',
+    });
+    assert.deepEqual(item.events, ['authorize', 'sync-inventory', 'reserve']);
+  }
+});
+
+test('unauthorized requests cannot read provider inventory and provider failures cannot reserve stale IPs', async () => {
+  const request = {
+    workspaceId: scope.workspaceId,
+    connectionId: scope.connectionId,
+    requestId: setupId,
+  };
+  const denied = fixture(false, false, { authorized: false });
+  await assert.rejects(denied.service.begin(request, scope.userId, scope.userAccessToken));
+  assert.deepEqual(denied.events, ['authorize']);
+  const unavailable = fixture(false, false, { fails: true });
+  await assert.rejects(unavailable.service.begin(request, scope.userId, scope.userAccessToken));
+  assert.deepEqual(unavailable.events, ['authorize', 'sync-inventory']);
+});
 
 test('completion verifies identity, finalizes, stops browser and only then commits', async () => {
   const fixtureState = fixture();
