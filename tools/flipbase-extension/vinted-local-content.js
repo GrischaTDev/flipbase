@@ -42,7 +42,7 @@
     'focusin',
     (event) => {
       if (protectedTab && !overlay?.contains(event.target)) {
-        overlay.querySelector('button').focus();
+        overlay.focus({ preventScroll: true });
       }
     },
     true,
@@ -71,7 +71,7 @@
     if (protectedTab) {
       overlay.setAttribute('aria-modal', 'true');
       disablePageElements();
-      overlay.querySelector('button').focus();
+      overlay.focus({ preventScroll: true });
     } else {
       overlay.removeAttribute('aria-modal');
       for (const [element, originalAttribute] of disabledElements) {
@@ -148,6 +148,7 @@
     if (overlay?.isConnected) return;
     overlay = document.createElement('section');
     overlay.id = 'flipbase-vinted-work-tab';
+    overlay.tabIndex = -1;
     overlay.setAttribute('aria-label', 'Flipbase-Arbeitstab');
     overlay.setAttribute('role', 'region');
     const panel = document.createElement('div');

@@ -11,6 +11,7 @@
     14px/1.5 system-ui,
     sans-serif;
   color: #1f2937;
+  outline: none;
 }
 
 #flipbase-vinted-work-tab[data-protected='false'] {

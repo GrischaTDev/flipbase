@@ -66,6 +66,7 @@ async function inboxFixture(page: Page, longHistory = false) {
   ];
   const queue: Record<string, unknown>[] = [];
   const enqueues: Record<string, unknown>[] = [];
+  const retries: Record<string, unknown>[] = [];
   const bridgeCalls: string[] = [];
   let providerRequests = 0;
   let pendingDetail: Promise<void> | null = null;
@@ -253,8 +254,41 @@ async function inboxFixture(page: Page, longHistory = false) {
     queue.push(message);
     return route.fulfill({ json: { ok: true, ...scope, message } });
   });
+  await page.route('**/rest/v1/rpc/marketplace_retry_local_message', (route) => {
+    const body = route.request().postDataJSON();
+    retries.push(body);
+    const source = queue.find((message) => message['id'] === body['p_message_id']);
+    if (!source) throw new Error('Wiederholte Nachricht fehlt in der Testwarteschlange');
+    source['state'] = 'cancelled';
+    source['errorCode'] = 'retried';
+    const message = {
+      ...source,
+      id: '25000000-0000-4000-8000-000000000072',
+      requestId: body['p_message_id'],
+      state: 'queued',
+      errorCode: null,
+      updatedAt: now,
+    };
+    queue.push(message);
+    return route.fulfill({ json: { ok: true, ...scope, message } });
+  });
   return {
     enqueues,
+    retries,
+    addUncertainMessage() {
+      queue.push({
+        id: '25000000-0000-4000-8000-000000000071',
+        requestId: '25000000-0000-4000-8000-000000000073',
+        conversationId,
+        text: 'Diese Testnachricht wurde noch nicht bestätigt.',
+        state: 'outcome_unknown',
+        createdAt: now,
+        updatedAt: now,
+        externalMessageId: null,
+        errorCode: 'timeout',
+        attachment: null,
+      });
+    },
     bridgeCalls,
     pauseStoredMessages() {
       pendingStoredMessages = new Promise<void>((resolve) => {
@@ -279,6 +313,51 @@ async function inboxFixture(page: Page, longHistory = false) {
     },
   };
 }
+
+test('prüft unklaren Versand vor der Wiederholung und versetzt den Mausfokus nicht @core-smoke', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 960 });
+  const fixture = await inboxFixture(page);
+  fixture.addUncertainMessage();
+  await page.goto('/marketplaces/vinted/messages');
+  const rows = page.locator('[data-conversation-row]');
+  await expect(rows).toHaveCount(2);
+  await rows.nth(0).getByRole('button').click();
+  const conversation = page.getByRole('region', { name: 'Gespräch', exact: true });
+  await expect(conversation.getByRole('heading', { name: 'Anna', exact: true })).not.toBeFocused();
+  const retry = conversation.getByRole('button', { name: 'Versand prüfen und wiederholen' });
+  await expect(retry).toBeVisible();
+  await checkAxe(page);
+  const screenshotDirectory = process.env['MARKETPLACE_SCREENSHOT_DIR'];
+  if (screenshotDirectory) {
+    await mkdir(screenshotDirectory, { recursive: true });
+    await page.screenshot({
+      path: join(screenshotDirectory, 'vinted-message-retry.png'),
+      fullPage: true,
+    });
+  }
+  await retry.click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toContainText('Prüfe den Vinted-Verlauf');
+  await dialog.getByRole('button', { name: 'Abbrechen', exact: true }).click();
+  expect(fixture.retries).toHaveLength(0);
+  await retry.click();
+  await dialog.getByRole('button', { name: 'Nicht gesendet – erneut senden', exact: true }).click();
+  await expect(conversation.locator('[data-queue-state="queued"]')).toContainText(
+    'Diese Testnachricht wurde noch nicht bestätigt.',
+  );
+  await expect(conversation.locator('[data-queue-state="outcome_unknown"]')).toHaveCount(0);
+  expect(fixture.retries).toHaveLength(1);
+  expect(fixture.retries[0]['p_confirmed_unknown']).toBe(true);
+  expect(fixture.bridgeCalls).toContain('FLIPBASE_VINTED_LOCAL_MESSAGES_SEND');
+  expect(
+    await conversation
+      .getByRole('log')
+      .evaluate((element) => element.lastElementChild?.hasAttribute('data-conversation-sync')),
+  ).toBe(true);
+  await checkAxe(page);
+});
 
 async function checkAxe(page: Page) {
   await page.addScriptTag({ content: axe.source });

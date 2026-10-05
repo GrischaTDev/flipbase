@@ -123,8 +123,9 @@ let messaging: {
   error: ReturnType<typeof signal<string | null>>;
   load: ReturnType<typeof vi.fn>;
   send: ReturnType<typeof vi.fn>;
+  retry: ReturnType<typeof vi.fn>;
 };
-let dialog: { frage: ReturnType<typeof vi.fn> };
+let dialog: { frage: ReturnType<typeof vi.fn>; zeigeHinweis: ReturnType<typeof vi.fn> };
 beforeAll(async () => {
   registerLocaleData(localeDe, 'de');
   restore = await prepareMarketplaceRendering([
@@ -175,8 +176,12 @@ beforeEach(() => {
     error: signal(null),
     load: vi.fn().mockResolvedValue(undefined),
     send: vi.fn().mockResolvedValue(true),
+    retry: vi.fn().mockResolvedValue(true),
   };
-  dialog = { frage: vi.fn().mockResolvedValue(false) };
+  dialog = {
+    frage: vi.fn().mockResolvedValue(false),
+    zeigeHinweis: vi.fn().mockResolvedValue(true),
+  };
   TestBed.configureTestingModule({
     providers: [
       provideRouter([]),
@@ -343,7 +348,7 @@ describe('Vollständiges Laden eines Gesprächs', () => {
     expect(root.querySelector('[data-message-composer]')).not.toBeNull();
     expect(root.querySelector('[data-conversation-sync]')?.textContent).toContain('Synchronisiert');
     expect(root.querySelector('[role="log"]')?.textContent).toContain('Aktualisierte Nachricht');
-    expect(document.activeElement).toBe(root.querySelector('[data-conversation-heading]'));
+    expect(document.activeElement).not.toBe(root.querySelector('[data-conversation-heading]'));
   });
 
   it('beendet den Spinner bei Fehlern und behauptet keinen erfolgreichen Abgleich', async () => {
@@ -620,11 +625,12 @@ describe('Kompakter gespeicherter Vinted-Gesprächsbereich', () => {
     );
     expect(fixture.componentInstance.composer.controls.text.value).toBe('');
   });
-  it('kennzeichnet einen unklaren Versand ohne Erfolgsmeldung und ohne Wiederholungsaktion', async () => {
+  it('kennzeichnet einen unklaren Versand und verlangt vor der Wiederholung eine Bestätigung', async () => {
     api.listConnections.mockResolvedValue({
       canManage: true,
       connections: [{ ...accounts[0], executionMode: 'local' }],
     });
+    local.messagesAllowed.set(true);
     const fixture = await render();
     button(fixture, 'Anfrage zum Schal').click();
     await settle(fixture);
@@ -646,7 +652,22 @@ describe('Kompakter gespeicherter Vinted-Gesprächsbereich', () => {
     const queued = fixture.nativeElement.querySelector('[data-queue-state="outcome_unknown"]');
     expect(queued.textContent).toContain('Versandstatus unklar');
     expect(queued.textContent).not.toContain('Gesendet');
-    expect(queued.querySelector('button')).toBeNull();
+    expect(queued.querySelector('button')?.getAttribute('aria-label')).toBe(
+      'Versand prüfen und wiederholen',
+    );
+    button(fixture, 'Versand prüfen und wiederholen').click();
+    await settle(fixture);
+    expect(dialog.frage).toHaveBeenCalledOnce();
+    expect(messaging.retry).not.toHaveBeenCalled();
+    dialog.frage.mockResolvedValue(true);
+    button(fixture, 'Versand prüfen und wiederholen').click();
+    await settle(fixture);
+    expect(messaging.retry).toHaveBeenCalledWith(
+      { workspaceId: accounts[0].workspaceId, connectionId: accounts[0].connectionId },
+      'conversation-1',
+      'queued-1',
+      true,
+    );
     expect(fixture.nativeElement.querySelector('[role="log"]').lastElementChild).toBe(
       fixture.nativeElement.querySelector('[data-conversation-sync]'),
     );
@@ -683,6 +704,44 @@ describe('Kompakter gespeicherter Vinted-Gesprächsbereich', () => {
     messaging.messages.set([{ ...queued, externalMessageId: '124' }]);
     await settle(fixture);
     expect(fixture.nativeElement.querySelector('[data-queue-state="sent"]')).not.toBeNull();
+  });
+  it('sendet einen unklaren Auftrag nicht erneut, wenn der frische Verlauf denselben Text enthält', async () => {
+    api.listConnections.mockResolvedValue({
+      canManage: true,
+      connections: [{ ...accounts[0], executionMode: 'local' }],
+    });
+    local.messagesAllowed.set(true);
+    api.readPage.mockImplementation(async (scope: AccountScope) =>
+      messages(scope, [
+        {
+          id: 'already-sent',
+          text: 'Schon gesendet',
+          direction: 'outbound',
+          occurredAt: '2026-10-05T10:01:00Z',
+        },
+      ]),
+    );
+    const fixture = await render();
+    button(fixture, 'Anfrage zum Schal').click();
+    await settle(fixture);
+    const queued: LocalQueuedMessage = {
+      id: 'queued-1',
+      requestId: 'request-1',
+      conversationId: 'conversation-1',
+      text: 'Schon gesendet',
+      state: 'outcome_unknown',
+      createdAt: '2026-10-05T10:00:00Z',
+      updatedAt: '2026-10-05T10:00:30Z',
+      externalMessageId: null,
+      errorCode: 'timeout',
+      attachment: null,
+    };
+    messaging.messages.set([queued]);
+    await fixture.componentInstance.retryMessage(queued);
+    expect(local.openInboxConversation).toHaveBeenCalledTimes(2);
+    expect(dialog.zeigeHinweis).toHaveBeenCalledOnce();
+    expect(dialog.frage).not.toHaveBeenCalled();
+    expect(messaging.retry).not.toHaveBeenCalled();
   });
   it('begrenzt den Dateinamen und erklärt vor dem Senden die fehlende Bildbestätigung', async () => {
     api.listConnections.mockResolvedValue({
@@ -817,7 +876,15 @@ describe('Kompakter gespeicherter Vinted-Gesprächsbereich', () => {
     expect(host.querySelector('textarea')).toBeNull();
     expect(host.querySelector('button')?.textContent).not.toContain('Annehmen');
   });
-  it('führt beim Öffnen Fokus zum Gespräch und beim Zurück zur ausgewählten Zeile', async () => {
+  it('verschiebt bei einem Mausklick den Fokus nicht auf den Gesprächstitel', async () => {
+    const fixture = await render();
+    const trigger = button(fixture, 'Anfrage zum Schal');
+    trigger.focus();
+    trigger.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
+    await settle(fixture);
+    expect(document.activeElement).toBe(trigger);
+  });
+  it('führt bei Tastaturbedienung Fokus zum Gespräch und beim Zurück zur ausgewählten Zeile', async () => {
     const fixture = await render();
     button(fixture, 'Anfrage zum Schal').click();
     await settle(fixture);

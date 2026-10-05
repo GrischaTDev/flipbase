@@ -6928,6 +6928,16 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_retry_local_message: {
+        Args: {
+          p_confirmed_unknown?: boolean
+          p_connection_id: string
+          p_conversation_id: string
+          p_message_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       marketplace_revoke_local_extension: {
         Args: { p_connection_id: string; p_workspace_id: string }
         Returns: Json
