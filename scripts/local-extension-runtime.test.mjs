@@ -27,9 +27,11 @@ test('Scheduler persists distinct deadlines and never catches up missed periods 
   });
   await run.tick();
   await run.tick();
-  assert.deepEqual(calls, ['INBOX_SYNC', 'MESSAGES_SEND']);
+  assert.deepEqual(calls, ['INBOX_SYNC', 'MESSAGES_SEND', 'FAVORITES_SYNC', 'FAVORITES_SEND']);
   assert.equal(stored.schedule.latestAt, 1_300_000);
   assert.equal(stored.schedule.commandsAt, 1_090_000);
+  assert.equal(stored.schedule.favoritesAt, 1_300_000);
+  assert.equal(stored.schedule.favoriteCommandsAt, 1_090_000);
   assert.equal(stored.schedule.backfillAt, 1_060_000);
 });
 test('Scheduler preserves a persisted challenge pause across recreation', async () => {
@@ -2268,6 +2270,127 @@ async function outboxHarness() {
   };
   return setup;
 }
+
+async function favoriteHarness(enabled = true) {
+  const setup = await outboxHarness();
+  setup.adapter.edge = async (_binding, _secret, body) => {
+    assert.ok(parseLocalExtensionRequest(body));
+    setup.edgeCalls.push(body);
+    if (body.action === 'heartbeat')
+      return {
+        ok: true,
+        externalAccountId: '123',
+        expiresAt,
+        messagesRead: true,
+        messagesSend: true,
+      };
+    if (body.action === 'favorites_state')
+      return { ok: true, enabled, externalAccountId: '123', expiresAt };
+    if (body.action === 'favorite_claim')
+      return {
+        ok: true,
+        command: {
+          id: anotherId,
+          claimToken: anotherId,
+          actorId: '456',
+          itemId: '777',
+          text: 'Danke für Dein Interesse!',
+        },
+      };
+    return { ok: true };
+  };
+  setup.adapter.readFavorites = async () => ({
+    tabId: 77,
+    events: [{ externalId: anotherId, actorId: '456', itemId: '777', eventAt: observedAt }],
+  });
+  setup.adapter.sendFavorite = async () => ({
+    tabId: 77,
+    outcome: { outcome: 'sent', externalMessageId: '62' },
+  });
+  return setup;
+}
+
+test('Disabled favorites perform no provider reads or writes and never claim', async () => {
+  const setup = await favoriteHarness(false);
+  setup.adapter.readIdentity =
+    setup.adapter.readFavorites =
+    setup.adapter.sendFavorite =
+      async () => {
+        throw new Error('must not touch Vinted');
+      };
+  assert.deepEqual(await setup.runtime.run(request('FAVORITES_SYNC', scope), appOrigin), {
+    skipped: true,
+  });
+  assert.deepEqual(await setup.runtime.run(request('FAVORITES_SEND', scope), appOrigin), {
+    skipped: true,
+  });
+  assert.ok(!setup.edgeCalls.some((call) => call.action === 'favorite_claim'));
+});
+
+test('Favorite import stays scoped and sending persists the start before one provider attempt', async () => {
+  const setup = await favoriteHarness();
+  await setup.runtime.run(request('FAVORITES_SYNC', scope), appOrigin);
+  assert.equal(setup.saved.tabId, 77);
+  assert.equal(setup.edgeCalls.find((call) => call.action === 'favorites_import').events.length, 1);
+  setup.adapter.sendFavorite = async () => {
+    assert.equal(setup.saved.pendingFinish.favorite, true);
+    assert.equal(setup.saved.pendingFinish.outcome, 'outcome_unknown');
+    assert.ok(setup.edgeCalls.some((call) => call.action === 'favorite_start'));
+    return { outcome: { outcome: 'skipped', errorCode: 'inactive_item' } };
+  };
+  assert.deepEqual(await setup.runtime.run(request('FAVORITES_SEND', scope), appOrigin), {
+    outcome: 'skipped',
+  });
+});
+
+test('A favorite receipt after restart is reported as favorite without another claim or send', async () => {
+  const setup = await favoriteHarness();
+  let sends = 0;
+  let offline = true;
+  const edge = setup.adapter.edge;
+  setup.adapter.edge = async (...args) => {
+    if (args[2].action === 'favorite_finish' && offline) throw new Error('offline');
+    return edge(...args);
+  };
+  setup.adapter.sendFavorite = async () => {
+    sends++;
+    return { outcome: { outcome: 'sent', externalMessageId: '62' } };
+  };
+  await assert.rejects(setup.runtime.run(request('FAVORITES_SEND', scope), appOrigin), /offline/);
+  offline = false;
+  await core.createRuntime(setup.adapter).run(request('MESSAGES_SEND', scope), appOrigin);
+  assert.equal(sends, 1);
+  assert.equal(setup.edgeCalls.filter((call) => call.action === 'favorite_claim').length, 1);
+  assert.equal(setup.saved.pendingFinish, undefined);
+  assert.ok(!setup.edgeCalls.some((call) => call.action === 'message_finish'));
+});
+
+test('Favorite contracts reject forged targets, extra keys and unproven sent receipts', () => {
+  const input = {
+    ...scope,
+    action: 'favorites_import',
+    events: [{ externalId: anotherId, actorId: '456', itemId: '777', eventAt: observedAt }],
+  };
+  assert.ok(parseLocalExtensionRequest(input));
+  assert.equal(
+    parseLocalExtensionRequest({ ...input, events: [{ ...input.events[0], actorId: null }] }),
+    null,
+  );
+  assert.equal(
+    parseLocalExtensionRequest({ ...input, events: [{ ...input.events[0], token: 'secret' }] }),
+    null,
+  );
+  assert.equal(
+    parseLocalExtensionRequest({
+      ...scope,
+      action: 'favorite_finish',
+      id: anotherId,
+      claimToken: anotherId,
+      outcome: 'sent',
+    }),
+    null,
+  );
+});
 
 test('Message worker restores and verifies its tab before claiming, and persists the sending tab', async () => {
   const setup = await outboxHarness();

@@ -17,6 +17,13 @@ export const MARKETPLACES_ROUTES: Routes = [
     loadComponent: () =>
       import('./vinted-workspace.component').then((m) => m.VintedWorkspaceComponent),
     children: [
+      {
+        path: 'favorite-messages',
+        loadComponent: () =>
+          import('./components/vinted-favorite-messages/vinted-favorite-messages.component').then(
+            (module) => module.VintedFavoriteMessagesComponent,
+          ),
+      },
       { path: '', redirectTo: 'accounts', pathMatch: 'full' },
       {
         path: 'setup',

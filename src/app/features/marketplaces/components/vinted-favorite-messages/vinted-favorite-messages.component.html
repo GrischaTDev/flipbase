@@ -1,0 +1,294 @@
+<div class="space-y-4">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <h2 class="text-base font-semibold text-fb-text">Favoritennachrichten</h2>
+      <p class="mt-1 text-[13px] text-fb-text-secondary">
+        Antworte neuen Interessenten automatisch mit Deinen Vorlagen.
+      </p>
+    </div>
+    <div class="flex items-center gap-2">
+      <app-badge
+        [tone]="settings()?.active ? 'success' : settings()?.enabled ? 'caution' : 'neutral'"
+        >{{
+          settings()?.active ? 'Aktiv' : settings()?.enabled ? 'Freigabe prüfen' : 'Ausgeschaltet'
+        }}</app-badge
+      >
+      <app-button [disabled]="busy() || loading()" (clicked)="reload()"
+        >Verlauf aktualisieren</app-button
+      >
+    </div>
+  </div>
+  @if (loading()) {
+    <p role="status" class="text-[13px] text-fb-text-secondary">Einstellungen werden geladen …</p>
+  }
+  @if (error(); as error) {
+    <app-notice-banner announcement="alert">{{ error }}</app-notice-banner>
+  }
+  @if (saved()) {
+    <p role="status" class="text-[13px] text-fb-text-secondary">
+      Deine Einstellungen sind gespeichert.
+    </p>
+  }
+  @if (store.selectedConnection()?.executionMode !== 'local') {
+    <app-notice-banner
+      >Favoritennachrichten stehen zunächst mit der lokalen Erweiterung zur
+      Verfügung.</app-notice-banner
+    >
+  }
+  <form [formGroup]="form" (ngSubmit)="save()">
+    <fieldset class="space-y-4" [disabled]="busy() || loading() || !settings()">
+      <app-card title="Automatische Nachrichten">
+        <app-custom-checkbox
+          formControlName="enabled"
+          label="Favoritennachrichten für dieses Konto aktivieren"
+          [disabled]="store.selectedConnection()?.executionMode !== 'local'"
+        />
+        <p class="mt-3 text-[13px] text-fb-text-secondary">
+          Ab Erweiterung 1.4.0 werden neue Favorisierungen ungefähr alle fünf Minuten geprüft. Dein
+          Browser und das passende Profil müssen geöffnet sein. Frühere Favorisierungen und
+          bestehende Gespräche werden ausgelassen.
+        </p>
+      </app-card>
+      <app-card
+        title="Standardnachricht"
+        subtitle="Ohne passende Regel wird eine Deiner Textvarianten ausgewählt."
+      >
+        <div class="space-y-3">
+          @for (template of form.controls.templates.controls; track template; let index = $index) {
+            <div class="flex items-start gap-2">
+              <app-text-field
+                class="min-w-0 flex-1"
+                [label]="'Textvariante ' + (index + 1)"
+                [multiline]="3"
+                [maxLength]="2000"
+                [formControl]="template"
+              />
+              <app-button
+                class="mt-6"
+                variant="plain"
+                [icon]="deleteIcon"
+                [iconOnly]="true"
+                [ariaLabel]="'Textvariante ' + (index + 1) + ' entfernen'"
+                [disabled]="form.controls.templates.length === 1"
+                (clicked)="removeTemplate(form.controls.templates, index)"
+              />
+            </div>
+          }
+          <app-button
+            [disabled]="form.controls.templates.length >= 10"
+            (clicked)="addTemplate(form.controls.templates)"
+            >Textvariante hinzufügen</app-button
+          >
+          <p class="text-[13px] text-fb-text-secondary">
+            Mit &#123;article&#125; fügst Du den Artikeltitel ein. Prüfe die Sprache Deiner
+            Nachricht vor dem Aktivieren.
+          </p>
+        </div>
+      </app-card>
+      <app-card
+        title="Bedingte Nachrichten"
+        subtitle="Die erste passende Regel gilt. Die Reihenfolge kannst Du ändern."
+      >
+        <div class="space-y-4">
+          @for (rule of form.controls.rules.controls; track rule; let index = $index) {
+            <section
+              class="space-y-3 rounded-lg border border-fb-border-subtle p-3"
+              [formGroup]="rule"
+              [attr.aria-label]="'Regel ' + (index + 1)"
+            >
+              <div class="flex items-end gap-2">
+                <app-text-field
+                  class="min-w-0 flex-1"
+                  label="Regelname"
+                  formControlName="name"
+                  [maxLength]="80"
+                />
+                <app-button
+                  variant="plain"
+                  [icon]="upIcon"
+                  [iconOnly]="true"
+                  ariaLabel="Regel nach oben"
+                  [disabled]="index === 0"
+                  (clicked)="moveRule(index, -1)"
+                />
+                <app-button
+                  variant="plain"
+                  [icon]="downIcon"
+                  [iconOnly]="true"
+                  ariaLabel="Regel nach unten"
+                  [disabled]="index === form.controls.rules.length - 1"
+                  (clicked)="moveRule(index, 1)"
+                />
+                <app-button
+                  variant="plain"
+                  [icon]="deleteIcon"
+                  [iconOnly]="true"
+                  ariaLabel="Regel entfernen"
+                  (clicked)="removeRule(index)"
+                />
+              </div>
+              <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div>
+                  <label class="mb-1 block text-[13px]" [for]="'favorite-start-' + index"
+                    >Ab Stunde</label
+                  ><app-number-input
+                    [id]="'favorite-start-' + index"
+                    formControlName="startHour"
+                    [min]="0"
+                    [max]="23"
+                    placeholder="Jederzeit"
+                  />
+                </div>
+                <div>
+                  <label class="mb-1 block text-[13px]" [for]="'favorite-end-' + index"
+                    >Bis Stunde (ausschließlich)</label
+                  ><app-number-input
+                    [id]="'favorite-end-' + index"
+                    formControlName="endHour"
+                    [min]="0"
+                    [max]="23"
+                    placeholder="Jederzeit"
+                  />
+                </div>
+                <div>
+                  <label class="mb-1 block text-[13px]" [for]="'favorite-min-' + index"
+                    >Preis ab</label
+                  ><app-number-input
+                    [id]="'favorite-min-' + index"
+                    formControlName="minPrice"
+                    [min]="0"
+                    [max]="1000000"
+                    [step]="0.01"
+                    unit="€"
+                    placeholder="Ohne Grenze"
+                  />
+                </div>
+                <div>
+                  <label class="mb-1 block text-[13px]" [for]="'favorite-max-' + index"
+                    >Preis bis</label
+                  ><app-number-input
+                    [id]="'favorite-max-' + index"
+                    formControlName="maxPrice"
+                    [min]="0"
+                    [max]="1000000"
+                    [step]="0.01"
+                    unit="€"
+                    placeholder="Ohne Grenze"
+                  />
+                </div>
+              </div>
+              <fieldset>
+                <legend class="mb-2 text-[13px]">
+                  Wochentage · keine Auswahl bedeutet jeden Tag
+                </legend>
+                <div class="flex flex-wrap gap-4">
+                  @for (day of rule.controls.days.controls; track day; let dayIndex = $index) {
+                    <app-custom-checkbox [formControl]="day" [label]="days[dayIndex]" />
+                  }
+                </div>
+              </fieldset>
+              @for (
+                template of rule.controls.templates.controls;
+                track template;
+                let textIndex = $index
+              ) {
+                <div class="flex items-start gap-2">
+                  <app-text-field
+                    class="min-w-0 flex-1"
+                    [label]="'Regeltext ' + (textIndex + 1)"
+                    [multiline]="3"
+                    [maxLength]="2000"
+                    [formControl]="template"
+                  /><app-button
+                    class="mt-6"
+                    variant="plain"
+                    [icon]="deleteIcon"
+                    [iconOnly]="true"
+                    ariaLabel="Regeltext entfernen"
+                    [disabled]="rule.controls.templates.length === 1"
+                    (clicked)="removeTemplate(rule.controls.templates, textIndex)"
+                  />
+                </div>
+              }
+              <app-button
+                [disabled]="rule.controls.templates.length >= 10"
+                (clicked)="addTemplate(rule.controls.templates)"
+                >Regeltext hinzufügen</app-button
+              >
+            </section>
+          }
+          <app-button [disabled]="form.controls.rules.length >= 20" (clicked)="addRule()"
+            >Regel hinzufügen</app-button
+          >
+          <p class="text-[13px] text-fb-text-secondary">
+            Uhrzeit und Wochentag gelten beim Versand in Europe/Berlin. Ein Fenster von 22 bis 8 Uhr
+            gilt über Nacht. Preisregeln verwenden den zuletzt übernommenen Artikelpreis.
+          </p>
+        </div>
+      </app-card>
+      <app-card title="Verzögerung vor dem Senden">
+        <label for="favorite-delay" class="mb-1 block text-[13px]"
+          >Wartezeit nach der Favorisierung</label
+        >
+        <app-number-input
+          class="max-w-xs"
+          id="favorite-delay"
+          formControlName="delayMinutes"
+          [min]="0"
+          [max]="10080"
+          unit="Minuten"
+        />
+        <p class="mt-2 text-[13px] text-fb-text-secondary">
+          0 Minuten bedeutet: beim nächsten Durchlauf. Maximal sieben Tage. Änderungen an Regeln
+          oder das Ausschalten verwerfen noch wartende Nachrichten.
+        </p>
+      </app-card>
+      <div class="flex justify-end">
+        <app-button
+          type="submit"
+          variant="primary"
+          [loading]="busy()"
+          [disabled]="!settings() || loading()"
+          >Einstellungen speichern</app-button
+        >
+      </div>
+    </fieldset>
+  </form>
+  <app-card title="Letzte Favoritennachrichten">
+    <p class="mb-3 text-[13px] text-fb-text-secondary">
+      Letzte Prüfung:
+      {{
+        settings()?.lastCheckedAt
+          ? (settings()?.lastCheckedAt | date: 'dd.MM.yyyy, HH:mm')
+          : 'Noch nicht geprüft'
+      }}
+    </p>
+    @for (event of settings()?.events ?? []; track event.id) {
+      <div class="border-t border-fb-border-subtle py-3">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <strong class="text-[13px]">{{ event.title }}</strong
+          ><app-badge
+            [tone]="
+              event.state === 'sent'
+                ? 'success'
+                : event.state === 'failed' || event.state === 'outcome_unknown'
+                  ? 'caution'
+                  : 'neutral'
+            "
+            >{{ stateLabels[event.state] }}</app-badge
+          >
+        </div>
+        <p class="mt-1 text-xs text-fb-text-secondary">
+          {{ event.eventAt | date: 'dd.MM.yyyy, HH:mm' }}
+        </p>
+        @if (event.text) {
+          <p class="mt-2 whitespace-pre-wrap text-[13px]">{{ event.text }}</p>
+        }
+      </div>
+    } @empty {
+      <p class="text-[13px] text-fb-text-secondary">
+        Noch keine neuen Favoritennachrichten für dieses Konto.
+      </p>
+    }
+  </app-card>
+</div>

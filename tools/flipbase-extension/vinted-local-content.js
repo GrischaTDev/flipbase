@@ -226,6 +226,9 @@
     if (
       !/^\/api\/v2\/(?:users\/current|wardrobe\/[1-9][0-9]{0,31}\/items\?page=(?:[1-9]|1[0-9]|2[0-5])&per_page=20|inbox\?page=(?:[1-9]|1[0-9]|20)&per_page=20|conversations\/[1-9][0-9]{0,31})$/.test(
         path,
+      ) &&
+      !/^\/web\/api\/notifications\/notifications\?page=[12]&per_page=100&mark_as_read=false$/.test(
+        path,
       )
     ) {
       throw new Error('Dieser Vinted-Abruf ist nicht erlaubt.');
@@ -276,6 +279,8 @@
         'VINTED_LOCAL_SNAPSHOT',
         'VINTED_LOCAL_INBOX',
         'VINTED_LOCAL_SEND',
+        'VINTED_LOCAL_FAVORITES',
+        'VINTED_LOCAL_FAVORITE_SEND',
       ].includes(request?.type)
     )
       return false;
@@ -300,27 +305,47 @@
         const result =
           request.type === 'VINTED_LOCAL_IDENTITY'
             ? { identity: core.parseIdentity(await readJson('/api/v2/users/current')) }
-            : request.type === 'VINTED_LOCAL_SEND'
+            : request.type === 'VINTED_LOCAL_FAVORITES'
               ? {
-                  outcome: await globalThis.FlipbaseVintedMessages.send(
-                    {
-                      read: readJson,
-                      write: writeProvider,
-                      csrf: globalThis.FlipbaseVintedMessages.readCsrfToken(document),
-                    },
+                  events: await globalThis.FlipbaseVintedFavorites.read(
+                    readJson,
                     request.externalAccountId,
-                    request.command,
                   ),
                 }
-              : request.type === 'VINTED_LOCAL_INBOX'
+              : request.type === 'VINTED_LOCAL_FAVORITE_SEND'
                 ? {
-                    batch: await (request.state.detail ? core.readInboxDetail : core.readInbox)(
-                      readJson,
+                    outcome: await globalThis.FlipbaseVintedFavorites.send(
+                      {
+                        read: readJson,
+                        write: writeProvider,
+                        csrf: globalThis.FlipbaseVintedMessages.readCsrfToken(document),
+                      },
                       request.externalAccountId,
-                      request.state,
+                      request.command,
+                      globalThis.FlipbaseVintedMessages,
                     ),
                   }
-                : { snapshot: await core.readSnapshot(readJson, request.externalAccountId) };
+                : request.type === 'VINTED_LOCAL_SEND'
+                  ? {
+                      outcome: await globalThis.FlipbaseVintedMessages.send(
+                        {
+                          read: readJson,
+                          write: writeProvider,
+                          csrf: globalThis.FlipbaseVintedMessages.readCsrfToken(document),
+                        },
+                        request.externalAccountId,
+                        request.command,
+                      ),
+                    }
+                  : request.type === 'VINTED_LOCAL_INBOX'
+                    ? {
+                        batch: await (request.state.detail ? core.readInboxDetail : core.readInbox)(
+                          readJson,
+                          request.externalAccountId,
+                          request.state,
+                        ),
+                      }
+                    : { snapshot: await core.readSnapshot(readJson, request.externalAccountId) };
         setBusy(false);
         sendResponse({ success: true, result });
       } catch (error) {
@@ -368,7 +393,9 @@
   }
 
   async function writeProvider(path, request) {
-    if (!/^\/api\/v2\/(?:photos|conversations\/[1-9][0-9]{0,31}\/replies)$/.test(path))
+    if (
+      !/^\/api\/v2\/(?:photos|conversations|conversations\/[1-9][0-9]{0,31}\/replies)$/.test(path)
+    )
       throw new Error('Dieser Vinted-Aufruf ist nicht erlaubt.');
     core.assertPageReady(interruptedPageState ?? pageState());
     const remaining = deadline - Date.now();

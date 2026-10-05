@@ -30,6 +30,10 @@
           due.push(['INBOX_BACKFILL', 'backfillAt', 60_000]);
         if (!(schedule.commandsAt > adapter.now()))
           due.push(['MESSAGES_SEND', 'commandsAt', 90_000]);
+        if (!installation.pendingFinish && !(schedule.favoritesAt > adapter.now()))
+          due.push(['FAVORITES_SYNC', 'favoritesAt', 300_000]);
+        if (!installation.pendingFinish && !(schedule.favoriteCommandsAt > adapter.now()))
+          due.push(['FAVORITES_SEND', 'favoriteCommandsAt', 90_000]);
         for (const [action, field, delay] of due) {
           schedule[field] = adapter.now() + delay;
           installation = await adapter.load();
@@ -37,7 +41,7 @@
           await adapter.save({ ...installation, schedule });
           try {
             const result = await adapter.run(action, installation.binding);
-            if (action !== 'MESSAGES_SEND')
+            if (action === 'INBOX_SYNC' || action === 'INBOX_BACKFILL')
               schedule.backfillAt = result.nextPage > 1 ? adapter.now() + 60_000 : null;
           } catch (error) {
             if (

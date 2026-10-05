@@ -10,6 +10,7 @@ export class LocalExtensionStoreError extends Error {
   }
 }
 export interface LocalExtensionStore {
+  favorites?(tokenHash: string, input: LocalExtensionRequest): Promise<unknown>;
   ingest(tokenHash: string, input: LocalExtensionRequest): Promise<unknown>;
   inboxState?(tokenHash: string, input: LocalExtensionRequest): Promise<unknown>;
   inboxImport?(tokenHash: string, input: LocalExtensionRequest): Promise<unknown>;
@@ -74,6 +75,18 @@ export function createLocalExtensionHandler(store: LocalExtensionStore) {
     if (!input) return respond({ error: 'invalid_request' }, 400);
     try {
       const tokenHash = await hashLocalExtensionSecret(bearer.slice(7));
+      if (
+        [
+          'favorites_state',
+          'favorites_import',
+          'favorite_claim',
+          'favorite_start',
+          'favorite_finish',
+        ].includes(input.action)
+      ) {
+        if (!store.favorites) return respond({ error: 'unavailable' }, 503);
+        return respond(await store.favorites(tokenHash, input));
+      }
       if (input.action === 'inbox_state') {
         if (!store.inboxState) return respond({ error: 'unavailable' }, 503);
         return respond(await store.inboxState(tokenHash, input));

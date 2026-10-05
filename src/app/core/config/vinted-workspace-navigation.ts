@@ -11,6 +11,7 @@ export const VINTED_WORKSPACE_NAVIGATION: readonly VintedNavigationItem[] = [
   { path: '/marketplaces/vinted/setup', label: 'Einrichtung', icon: 'bookOpen' },
   { path: '/marketplaces/vinted/overview', label: 'Übersicht', icon: 'dashboard' },
   { path: '/marketplaces/vinted/messages', label: 'Postfach', icon: 'shoppingBag' },
+  { path: '/marketplaces/vinted/favorite-messages', label: 'Favoritennachrichten', icon: 'bot' },
   { path: '/marketplaces/vinted/listings', label: 'Inserate', icon: 'tag' },
   { path: '/marketplaces/vinted/sales', label: 'Verkäufe', icon: 'trendingUp' },
   { path: '/marketplaces/vinted/activity', label: 'Verlauf', icon: 'bookOpen' },

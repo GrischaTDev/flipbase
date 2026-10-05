@@ -2540,6 +2540,118 @@ export type Database = {
           },
         ]
       }
+      marketplace_favorite_message_events: {
+        Row: {
+          actor_id: string
+          claim_token: string | null
+          connection_id: string
+          error_code: string | null
+          event_at: string
+          external_id: string
+          external_message_id: string | null
+          id: string
+          item_id: string
+          lease_expires_at: string | null
+          message_text: string | null
+          setting_version: number
+          state: string
+          title: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          actor_id: string
+          claim_token?: string | null
+          connection_id: string
+          error_code?: string | null
+          event_at: string
+          external_id: string
+          external_message_id?: string | null
+          id?: string
+          item_id: string
+          lease_expires_at?: string | null
+          message_text?: string | null
+          setting_version: number
+          state?: string
+          title: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          actor_id?: string
+          claim_token?: string | null
+          connection_id?: string
+          error_code?: string | null
+          event_at?: string
+          external_id?: string
+          external_message_id?: string | null
+          id?: string
+          item_id?: string
+          lease_expires_at?: string | null
+          message_text?: string | null
+          setting_version?: number
+          state?: string
+          title?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_favorite_message_ev_workspace_id_connection_id_fkey"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_connections"
+            referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
+      marketplace_favorite_message_settings: {
+        Row: {
+          activated_at: string | null
+          config: Json
+          connection_id: string
+          enabled: boolean
+          external_account_id: string | null
+          grant_generation: number | null
+          id: number
+          last_checked_at: string | null
+          version: number
+          workspace_id: string
+        }
+        Insert: {
+          activated_at?: string | null
+          config: Json
+          connection_id: string
+          enabled?: boolean
+          external_account_id?: string | null
+          grant_generation?: number | null
+          id?: never
+          last_checked_at?: string | null
+          version?: number
+          workspace_id: string
+        }
+        Update: {
+          activated_at?: string | null
+          config?: Json
+          connection_id?: string
+          enabled?: boolean
+          external_account_id?: string | null
+          grant_generation?: number | null
+          id?: never
+          last_checked_at?: string | null
+          version?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_favorite_message_se_workspace_id_connection_id_fkey"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: true
+            referencedRelation: "marketplace_connections"
+            referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
       marketplace_favorite_notification_events: {
         Row: {
           connection_id: string
@@ -6918,6 +7030,14 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_favorite_message_config_valid: {
+        Args: { p_config: Json }
+        Returns: boolean
+      }
+      marketplace_favorite_message_text: {
+        Args: { p_at: string; p_config: Json; p_price: number; p_seed: string }
+        Returns: string
+      }
       marketplace_finalize_favorite_import: {
         Args: {
           p_connection_id: string
@@ -6926,6 +7046,15 @@ export type Database = {
           p_workspace_id: string
         }
         Returns: undefined
+      }
+      marketplace_import_local_favorites: {
+        Args: {
+          p_connection_id: string
+          p_events: Json
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
       }
       marketplace_import_local_inbox: {
         Args: {
@@ -6960,6 +7089,45 @@ export type Database = {
       marketplace_local_extension_user_valid: {
         Args: { p_user_id: string }
         Returns: boolean
+      }
+      marketplace_local_favorite_claim: {
+        Args: {
+          p_connection_id: string
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_local_favorite_finish: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: string
+          p_error_code?: string
+          p_event_id: string
+          p_external_message_id?: string
+          p_outcome: string
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_local_favorite_start: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: string
+          p_event_id: string
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_local_favorites_state: {
+        Args: {
+          p_connection_id: string
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
       }
       marketplace_local_inbox_detail_import: {
         Args: {
@@ -7069,6 +7237,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      marketplace_read_favorite_messages: {
+        Args: { p_connection_id: string; p_workspace_id: string }
+        Returns: Json
+      }
       marketplace_read_favorite_notification_settings: {
         Args: { p_connection_id: string; p_workspace_id: string }
         Returns: Json
@@ -7135,6 +7307,16 @@ export type Database = {
       }
       marketplace_revoke_local_extension: {
         Args: { p_connection_id: string; p_workspace_id: string }
+        Returns: Json
+      }
+      marketplace_save_favorite_messages: {
+        Args: {
+          p_config: Json
+          p_connection_id: string
+          p_enabled: boolean
+          p_expected_version: number
+          p_workspace_id: string
+        }
         Returns: Json
       }
       marketplace_set_favorite_notification_settings: {
