@@ -25,22 +25,22 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [ ! -x /usr/lib/postgresql/17/bin/postgres ]; then
-            sudo apt-get update
-            sudo apt-get install -y --no-install-recommends postgresql-17
-          fi
           out="$RUNNER_TEMP/label-tools"
           mkdir -p "$out/pg/usr/lib/postgresql" "$out/pg/usr/share/postgresql" "$out/pg/deps" "$out/bin" "$out/media"
-          cp -a /usr/lib/postgresql/17 "$out/pg/usr/lib/postgresql/"
-          cp -a /usr/share/postgresql/17 "$out/pg/usr/share/postgresql/"
+          docker pull postgres:17-bookworm
+          docker run -d --name label-pg-tools --entrypoint sleep postgres:17-bookworm 900
+          trap 'docker rm -f label-pg-tools >/dev/null' EXIT
+          docker cp label-pg-tools:/usr/lib/postgresql/17 "$out/pg/usr/lib/postgresql/"
+          docker cp label-pg-tools:/usr/share/postgresql/17 "$out/pg/usr/share/postgresql/"
           while IFS= read -r lib; do
             case "$(basename "$lib")" in libc.so.*|libm.so.*|libpthread.so.*|libdl.so.*|librt.so.*|ld-linux*) continue ;; esac
-            cp -L "$lib" "$out/pg/deps/"
-          done < <(find /usr/lib/postgresql/17 -type f \( -perm -111 -o -name '*.so' \) -exec ldd {} \; 2>/dev/null | awk '/=> \// {print $3}' | sort -u)
+            docker cp -L "label-pg-tools:$lib" "$out/pg/deps/"
+          done < <(docker exec label-pg-tools bash -c 'ldd /usr/lib/postgresql/17/bin/postgres /usr/lib/postgresql/17/bin/psql /usr/lib/postgresql/17/lib/pgcrypto.so' | awk '/=> \// {print $3}' | sort -u)
           cp "$(command -v deno)" "$out/bin/deno"
           cp "$(command -v node)" "$out/bin/node"
           npm install --prefix "$out/media" --ignore-scripts --save-exact @imagemagick/magick-wasm@0.0.42
-          /usr/lib/postgresql/17/bin/postgres --version > "$out/versions.txt"
+          docker exec label-pg-tools postgres --version > "$out/versions.txt"
+          docker image inspect postgres:17-bookworm --format '{{json .RepoDigests}}' >> "$out/versions.txt"
           deno --version >> "$out/versions.txt"
           node --version >> "$out/versions.txt"
           tar -czf "$RUNNER_TEMP/label-validation-tools.tar.gz" -C "$out" .
