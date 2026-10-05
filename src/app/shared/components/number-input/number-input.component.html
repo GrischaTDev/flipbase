@@ -14,50 +14,14 @@
     (input)="handleInput($event)"
     (blur)="handleBlur()"
     class="linear-input min-h-8 w-full rounded-md px-2.5 py-1 text-[13px] transition-colors"
-    [class.pr-14]="showStepper() && !!effectiveUnit()"
-    [class.pr-8]="
-      (showStepper() && !effectiveUnit()) || (!showStepper() && !!effectiveUnit())
-    "
+    [class.pr-8]="!!effectiveUnit()"
     [class.font-mono]="effectiveAsCurrency()"
     [class.font-bold]="effectiveAsCurrency()"
   />
 
   @if (effectiveUnit()) {
-    <span
-      class="pointer-events-none absolute text-[13px] text-fb-text-dimmed"
-      [class.right-8]="showStepper()"
-      [class.right-3]="!showStepper()"
-    >
+    <span class="pointer-events-none absolute right-3 text-[13px] text-fb-text-dimmed">
       {{ effectiveUnit() }}
     </span>
-  }
-
-  @if (showStepper()) {
-    <div
-      data-number-stepper
-      class="absolute inset-y-px right-px flex w-6 flex-col overflow-hidden rounded-r-md border-l border-fb-line"
-    >
-      <button
-        type="button"
-        tabindex="-1"
-        [disabled]="effectiveDisabled() || isAtMax()"
-        (click)="increment()"
-        class="flex min-h-0 flex-1 cursor-pointer items-center justify-center border-b border-fb-line bg-transparent text-fb-text-muted transition-colors hover:bg-fb-primary/10 hover:text-fb-primary disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-fb-text-muted"
-        aria-label="Wert erhöhen"
-      >
-        <svg [lucideIcon]="incrementIcon" class="size-2.5" aria-hidden="true"></svg>
-      </button>
-
-      <button
-        type="button"
-        tabindex="-1"
-        [disabled]="effectiveDisabled() || isAtMin()"
-        (click)="decrement()"
-        class="flex min-h-0 flex-1 cursor-pointer items-center justify-center bg-transparent text-fb-text-muted transition-colors hover:bg-fb-primary/10 hover:text-fb-primary disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-fb-text-muted"
-        aria-label="Wert verringern"
-      >
-        <svg [lucideIcon]="decrementIcon" class="size-2.5" aria-hidden="true"></svg>
-      </button>
-    </div>
   }
 </div>
