@@ -8,7 +8,11 @@ import {
   signal,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
-import { LucideDynamicIcon, LucideMinus as Minus, LucidePlus as Plus } from '@lucide/angular';
+import {
+  LucideChevronDown as ChevronDown,
+  LucideChevronUp as ChevronUp,
+  LucideDynamicIcon,
+} from '@lucide/angular';
 
 let nextUniqueId = 0;
 
@@ -159,6 +163,6 @@ export class NumberInputComponent implements ControlValueAccessor {
     this.value.set(val);
   }
 
-  protected readonly plusIcon = Plus;
-  protected readonly minusIcon = Minus;
+  protected readonly incrementIcon = ChevronUp;
+  protected readonly decrementIcon = ChevronDown;
 }
