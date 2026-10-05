@@ -143,6 +143,22 @@ describe('NumberInputComponent', () => {
     expect(component.value()).toBe(12.34);
   });
 
+  it('renders increment controls as one integrated field segment', () => {
+    fixture.detectChanges();
+    const host: HTMLElement = fixture.nativeElement;
+    const stepper = host.querySelector<HTMLElement>('[data-number-stepper]');
+    if (!stepper) throw new Error('Number stepper missing');
+    expect(stepper.classList.contains('border-l')).toBe(true);
+    expect(stepper.classList.contains('rounded-r-md')).toBe(true);
+
+    const buttons = [...stepper.querySelectorAll('button')];
+    expect(buttons).toHaveLength(2);
+    expect(buttons[0]?.classList.contains('border')).toBe(false);
+    expect(buttons[0]?.classList.contains('rounded-md')).toBe(false);
+    expect(buttons[1]?.classList.contains('border-l')).toBe(true);
+    expect(buttons[1]?.classList.contains('rounded-md')).toBe(false);
+  });
+
   it('should increment value by step', () => {
     component.writeValue(10);
     component.increment();

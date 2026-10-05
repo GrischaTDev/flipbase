@@ -54,6 +54,33 @@ Die laufende App und installierte Erweiterung bleiben bis dahin unverändert.
 PR, Merge nach erfolgreichen Pflichtprüfungen, Veröffentlichung und Aufräumen
 sind am 05.10.2026 vom Nutzer freigegeben.
 
+## 2026-10-05 - Juna - Zahlenfelder und Verkaufspositionen vereinheitlicht
+
+**Auftrag:** Die Plus-/Minus-Bedienung gemeinsamer Zahlenfelder soll nicht mehr wie
+zwei eigenständige Karten im Eingabefeld wirken. Gleichzeitig soll die
+Verkaufserfassung bei der Artikelauswahl und Positionsdarstellung wieder dem
+kompakten Muster der Einkaufserfassung folgen. Eigener Zweig
+`juna/sales-entry-number-input-polish` vom aktuellen `master`
+(`b05ff1c4`); fremde Zweige bleiben unverändert.
+
+**Umsetzung:** Der gemeinsame `NumberInputComponent` zeichnet Minus und Plus nun
+als integriertes rechtes Feldsegment mit einer äußeren und einer inneren
+Trennlinie statt als zwei gerahmte Einzelbuttons. Geldfelder der Verkaufserfassung
+verzichten auf den 1-Cent-Stepper. Verkaufspositionen starten sichtbar leer und
+verwenden unten die gemeinsame Aktion „Artikel suchen oder hinzufügen“. Gewählte
+Artikel erscheinen als kompakte Liste mit Bild, Name, Variante, Menge, Stückpreis,
+Gesamt und zurückhaltender Löschaktion. Auch die letzte normale Position lässt
+sich entfernen; intern bleibt dafür die leere Formularzeile als Validierungszustand
+erhalten. Externe Bestellpositionen behalten ihre notwendige Einzelzuordnung.
+
+**Prüfung:** Betroffene Unit-/Angular- und Browserprüfungen wurden an die neue
+Darstellung angepasst, einschließlich integriertem Zahlen-Stepper, leerem
+Verkaufszustand, Entfernen der letzten Position und Variantenanzeige. Ein lokaler
+Projektlauf ist in dieser Umgebung mangels Checkout/Abhängigkeiten nicht möglich;
+die vollständigen Pflichtprüfungen müssen deshalb im PR laufen.
+
+**Freigabe:** PR-Erstellung, Abwarten der Pflichtprüfungen und Merge nach erfolgreicher CI wurden am 05.10.2026 vom Nutzer freigegeben.
+
 ## 2026-10-05 - Juna - Vinted-Postfach mit Artikelbezug, automatischem Abgleich und Versand
 
 **Auftrag:** Nach dem erfolgreichen echten Postfachimport die anhand der Bleam-

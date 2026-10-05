@@ -86,7 +86,7 @@ test('wählt verkaufbare Varianten im gemeinsamen Modal und zeigt Nummer vor Dat
   await openDashboard(page);
   // Direkter Einstieg, ohne zuvor einen Einkauf oder die Bestandsansicht zu öffnen.
   await page.goto('/sales/new');
-  await page.getByRole('button', { name: 'Artikel hinzufügen', exact: true }).click();
+  await page.getByRole('button', { name: 'Artikel suchen oder hinzufügen', exact: true }).click();
   const picker = page.locator('app-article-picker');
   await expect(picker.getByLabel('Artikel suchen', { exact: true })).toBeVisible();
   await picker.getByLabel('Artikel suchen', { exact: true }).fill('Sneaker');
@@ -135,8 +135,8 @@ test('wählt verkaufbare Varianten im gemeinsamen Modal und zeigt Nummer vor Dat
   }
   await picker.getByRole('button', { name: 'Hinzufügen (2)', exact: true }).click();
   await expect(picker).toHaveCount(0);
-  await expect(page.locator('[data-sale-article-label]').nth(0)).toContainText('Größe 36,5');
-  await expect(page.locator('[data-sale-article-label]').nth(1)).toContainText('Größe 38');
+  await expect(page.locator('[data-sale-article-variant]').nth(0)).toContainText('Größe 36,5');
+  await expect(page.locator('[data-sale-article-variant]').nth(1)).toContainText('Größe 38');
   await page.getByRole('spinbutton', { name: 'Preis je Stück (€)', exact: true }).nth(0).fill('40');
   await page.getByRole('spinbutton', { name: 'Preis je Stück (€)', exact: true }).nth(1).fill('25');
   const quantities = page.getByRole('spinbutton', { name: 'Menge', exact: true });

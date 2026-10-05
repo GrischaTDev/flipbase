@@ -25,6 +25,7 @@ import { PurchaseService } from '../../../../core/services/purchase.service';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
+import { TableActionButtonComponent } from '../../../../shared/components/table-action-button/table-action-button.component';
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 import { DatePickerComponent } from '../../../../shared/components/date-picker/date-picker.component';
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
@@ -190,6 +191,21 @@ describe('SaleCreateModalComponent', () => {
     }
 
     describe('SaleCreateModalComponent – Aktionsmeldungen', () => {
+      it('entfernt auch die letzte ausgewählte Verkaufsposition in den leeren Zustand', () => {
+        const { komponente } = erstelleKomponente();
+
+        expect(komponente.lines.at(0).controls.target.value).toBe('catalog:led-lamp-1');
+        komponente.removeLine(0);
+
+        expect(komponente.lines.length).toBe(1);
+        expect(komponente.lines.at(0).getRawValue()).toEqual({
+          target: '',
+          quantity: 1,
+          unitSalePrice: 0,
+        });
+        expect(komponente.form.dirty).toBe(true);
+      });
+
       it('bietet exakt ready oder listed ohne aktiven Verkauf an und behandelt fehlenden Zustand fail-closed', () => {
         TestBed.resetTestingModule();
         const statuses: readonly ItemStatus[] = [
@@ -803,6 +819,10 @@ describe('SaleCreateModalComponent', () => {
         'ariaHaspopup',
       ]);
       bridgeInputMetadata(
+        (TableActionButtonComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp,
+        ['icon', 'label', 'tone', 'disabled', 'loading', 'link', 'href', 'queryParams'],
+      );
+      bridgeInputMetadata(
         (NumberInputComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp,
         [
           'value',
@@ -1170,6 +1190,10 @@ describe('SaleCreateModalComponent', () => {
 
         const host = fixture.nativeElement as HTMLElement;
         expect(host.textContent).toContain('Verkaufspositionen');
+        expect(host.textContent).toContain('Noch keine Verkaufsposition hinzugefügt.');
+        expect(host.textContent).toContain('Artikel suchen oder hinzufügen');
+        expect(host.querySelector('[data-sale-line]')).toBeNull();
+        expect(host.querySelector('app-table-action-button')).toBeNull();
         expect(host.textContent).toContain('Versand und Gebühren');
         expect(host.textContent).toContain('Verkaufsübersicht');
         expect(host.textContent).toContain('Verkaufsdetails');
