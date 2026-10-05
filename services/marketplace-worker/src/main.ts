@@ -30,6 +30,7 @@ import { SupabaseVintedListingCache } from './supabase-vinted-listing-cache.ts';
 import { SupabaseVintedProfileCache } from './supabase-vinted-profile-cache.ts';
 import { MarketplaceSyncDispatcher } from './marketplace-sync-dispatcher.ts';
 import { SupabaseMarketplaceSyncDispatchStore } from './supabase-marketplace-sync-dispatch-store.ts';
+import { SupabaseMarketplaceCloudSetupStore } from './supabase-marketplace-cloud-setup-store.ts';
 
 async function main(): Promise<void> {
   const config = marketplaceBrowserServerConfig(process.env);
@@ -47,6 +48,9 @@ async function main(): Promise<void> {
   let browser: LocalPlaywrightBrowser | GoLoginCloudBrowser | MarketplaceProfileBrowser;
   let profiles: GoLoginProfileProvisioner | ChromiumProfileProvisioner | undefined;
   let registry: ChromiumAccountProfileRegistry | undefined;
+  let networks: ChromiumNetworkProfiles | undefined;
+  let chromiumProfileOptions:
+    ConstructorParameters<typeof ChromiumProfileProvisioner>[0] | undefined;
   if (config.provider === 'local') {
     if (!config.publicTestUrl) throw new Error('Öffentliche Testseite fehlt');
     browser = new LocalPlaywrightBrowser(config.publicTestUrl);
@@ -70,8 +74,9 @@ async function main(): Promise<void> {
       networkId: config.chromiumNetworkId,
     });
     registry = chromiumRegistry;
-    const networks = await ChromiumNetworkProfiles.load(config.chromiumNetworkFile);
+    networks = await ChromiumNetworkProfiles.load(config.chromiumNetworkFile);
     networks.resolve(config.chromiumNetworkId);
+    const configuredNetworks = networks;
     const launcher = new ChromiumContainerLauncher({
       image: config.chromiumImage,
       profileRoot: join(config.serverProfileRoot, 'profiles'),
@@ -87,20 +92,20 @@ async function main(): Promise<void> {
       }),
       network: {
         resolve: async (profileId) =>
-          networks.resolve((await chromiumRegistry.resolve(profileId)).networkId),
+          configuredNetworks.resolve((await chromiumRegistry.resolve(profileId)).networkId),
       },
       launch: (directory, settings) => launcher.launch(directory, settings ?? {}),
       recoverRuntime: (profileId) => launcher.recover(profileId),
     });
     browser = new MarketplaceProfileBrowser({ chromium, goLogin, chromiumRegistry });
-    profiles = new ChromiumProfileProvisioner({
+    chromiumProfileOptions = {
       supabaseUrl: config.supabaseUrl,
       publishableKey: config.publishableKey,
       serviceRoleKey: config.serviceRoleKey,
       registry: chromiumRegistry,
       legacy: legacyProfiles,
       stopProfile: (profileId) => browser.stop(profileId),
-    });
+    };
   }
   const isCloud = config.provider !== 'local';
   const dispatchStore = isCloud
@@ -131,6 +136,21 @@ async function main(): Promise<void> {
     : undefined;
   // Erst die alleinige Runtime beanspruchen; ein zweiter Prozess darf keine Recovery ausführen.
   const runtime = await dispatcher?.initialize();
+  const cloudSetupStore =
+    registry && runtime && networks
+      ? new SupabaseMarketplaceCloudSetupStore({
+          url: config.supabaseUrl,
+          publishableKey: config.publishableKey,
+          serviceRoleKey: config.serviceRoleKey,
+          runtime,
+        })
+      : undefined;
+  if (chromiumProfileOptions)
+    profiles = new ChromiumProfileProvisioner({
+      ...chromiumProfileOptions,
+      cloudSetups: cloudSetupStore,
+      networks,
+    });
   dispatcher?.startMonitoring();
   const leases = new SupabaseBrowserSessionStore({
     url: config.supabaseUrl,
@@ -148,7 +168,15 @@ async function main(): Promise<void> {
   );
   const broker = new MarketplaceBrowserSessionBroker({
     leases,
-    profiles: registry ? new ChromiumBoundProfileStore({ profiles: leases, registry }) : leases,
+    profiles: registry
+      ? new ChromiumBoundProfileStore({
+          profiles: leases,
+          registry,
+          assertNetwork: cloudSetupStore
+            ? (scope) => cloudSetupStore.assertNetwork(scope)
+            : undefined,
+        })
+      : leases,
     browsers: browser,
     recovery,
     authorizeRuntime: dispatcher ? () => dispatcher.heartbeat() : undefined,

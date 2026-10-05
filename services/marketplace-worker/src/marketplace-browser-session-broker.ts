@@ -9,6 +9,8 @@ export interface BrowserSessionScope {
   connectionId: string;
   userId: string;
   userAccessToken: string;
+  /** Nur nach serverseitiger Einrichtungsprüfung setzen; niemals aus HTTP-Nutzdaten übernehmen. */
+  cloudSetup?: { setupId: string };
   /** Interne, ausschließlich lesende Auftragserlaubnis; niemals aus HTTP-Nutzdaten übernehmen. */
   syncRead?: {
     operationId: string;

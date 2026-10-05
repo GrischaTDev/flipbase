@@ -3,6 +3,8 @@ import {
   ChromiumAccountProfileRegistry,
   chromiumAccountProfileIdPattern,
 } from './chromium-account-profile-registry.ts';
+import type { SupabaseMarketplaceCloudSetupStore } from './supabase-marketplace-cloud-setup-store.ts';
+import type { ChromiumNetwork } from './chromium-network-profiles.ts';
 
 interface ProvisionerOptions {
   supabaseUrl: string;
@@ -11,6 +13,11 @@ interface ProvisionerOptions {
   registry: ChromiumAccountProfileRegistry;
   stopProfile?: (profileId: string) => Promise<void>;
   fetch?: typeof fetch;
+  cloudSetups?: Pick<
+    SupabaseMarketplaceCloudSetupStore,
+    'readAuthorized' | 'step' | 'assertNetwork'
+  >;
+  networks?: { resolve(networkId: string): ChromiumNetwork };
   legacy?: {
     prepare(scope: BrowserSessionScope): Promise<void>;
     remove?(scope: BrowserSessionScope, stopSessions: () => Promise<void>): Promise<void>;
@@ -41,6 +48,98 @@ export class ChromiumProfileProvisioner {
     const operation = this.prepareAccount(scope).finally(() => this.pending.delete(key));
     this.pending.set(key, operation);
     return operation;
+  }
+
+  async prepareCloudSetup(scope: BrowserSessionScope, setupId: string): Promise<void> {
+    const key = `${scope.workspaceId}:${scope.connectionId}`;
+    const existing = this.pending.get(key);
+    if (existing) {
+      await existing;
+      return this.prepareCloudSetup(scope, setupId);
+    }
+    const operation = this.prepareReservedProfile(scope, setupId).finally(() =>
+      this.pending.delete(key),
+    );
+    this.pending.set(key, operation);
+    return operation;
+  }
+
+  private async prepareReservedProfile(scope: BrowserSessionScope, setupId: string): Promise<void> {
+    const store = this.options.cloudSetups;
+    if (!store || !this.options.networks || !this.options.stopProfile)
+      throw new Error('Cloud-Einrichtung fehlt');
+    let setup = await store.readAuthorized(scope, setupId);
+    if (
+      setup.networkId === 'direct' ||
+      this.options.networks.resolve(setup.networkId).kind !== 'proxy'
+    )
+      throw new Error('Reserviertes Proxy-Netzwerk fehlt');
+    if (
+      !['reserved', 'login', 'verified'].includes(setup.setup.state) ||
+      !(Date.parse(setup.expiresAt) > Date.now())
+    )
+      throw new Error('Einrichtung nicht verfügbar');
+    if (setup.profileId) {
+      const bound = await this.options.registry.resolve(setup.profileId);
+      if (
+        bound.workspaceId !== scope.workspaceId ||
+        bound.connectionId !== scope.connectionId ||
+        bound.networkId !== setup.networkId ||
+        (await this.mapping(scope)) !== bound.profileId
+      )
+        throw new Error('Reservierte Profilzuordnung wurde geändert');
+      return;
+    }
+    const oldMapping = await this.mapping(scope);
+    if (oldMapping) {
+      if (this.chromium(oldMapping)) await this.assertBinding(scope, oldMapping);
+      await this.options.stopProfile(oldMapping);
+      await this.assertStopped(scope);
+      setup = await store.step(scope, setupId, 'unmap', { profileId: oldMapping });
+      if ((await this.mapping(scope)) !== null)
+        throw new Error('Alte Profilzuordnung besteht weiterhin');
+      if (this.chromium(oldMapping)) await this.options.registry.archive(oldMapping);
+    }
+    let remembered = await this.options.registry.find(scope.workspaceId, scope.connectionId);
+    if (remembered && remembered.networkId !== setup.networkId) {
+      // Ein unterbrochenes Archivieren darf nur bei der dokumentierten alten Referenz fortgesetzt werden.
+      if (remembered.profileId !== setup.previousProfileId)
+        throw new Error('Ungeklärte private Profilzuordnung');
+      await this.options.stopProfile(remembered.profileId);
+      await this.assertStopped(scope);
+      if ((await this.mapping(scope)) !== null) throw new Error('Profil ist weiterhin zugeordnet');
+      await this.options.registry.archive(remembered.profileId);
+      remembered = null;
+    }
+    const profile =
+      remembered ??
+      (await this.options.registry.create({
+        workspaceId: scope.workspaceId,
+        connectionId: scope.connectionId,
+        networkId: setup.networkId,
+        ...(setup.previousProfileId && !this.chromium(setup.previousProfileId)
+          ? { previousGoLoginProfileId: setup.previousProfileId }
+          : {}),
+      }));
+    try {
+      await store.step(scope, setupId, 'bind', { profileId: profile.profileId });
+    } catch {
+      const committed = await store.readAuthorized(scope, setupId);
+      if (committed.profileId !== profile.profileId || committed.networkId !== profile.networkId)
+        throw new Error('Cloudprofilzuordnung muss geprüft werden');
+    }
+    if ((await this.mapping(scope)) !== profile.profileId)
+      throw new Error('Cloudprofilzuordnung konnte nicht bestätigt werden');
+  }
+
+  private async assertStopped(scope: BrowserSessionScope): Promise<void> {
+    const sessions = await this.rows('marketplace_browser_sessions', {
+      select: 'id',
+      workspace_id: `eq.${scope.workspaceId}`,
+      connection_id: `eq.${scope.connectionId}`,
+      state: 'in.(active,stopping)',
+    });
+    if (sessions.length) throw new Error('Browserstopp nicht bestätigt');
   }
 
   async remove(scope: BrowserSessionScope, stopSessions: () => Promise<void>): Promise<void> {
@@ -93,6 +192,18 @@ export class ChromiumProfileProvisioner {
 
   private async prepareAccount(scope: BrowserSessionScope): Promise<void> {
     const existing = await this.mapping(scope);
+    const network = await this.options.cloudSetups?.assertNetwork(scope);
+    if (network) {
+      if (
+        existing !== network.profileId ||
+        !this.options.networks ||
+        this.options.networks.resolve(network.networkId).kind !== 'proxy'
+      )
+        throw new Error('Cloudnetzwerkzuordnung wurde geändert');
+      const bound = await this.options.registry.resolve(network.profileId);
+      if (bound.networkId !== network.networkId)
+        throw new Error('Cloudnetzwerkzuordnung wurde geändert');
+    }
     if (existing) {
       if (this.chromium(existing)) await this.assertBinding(scope, existing);
       else {

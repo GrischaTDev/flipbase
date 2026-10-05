@@ -51,7 +51,7 @@ Den Entwurf und diesen Plan in den Implementierungszweig übernehmen.
 | -------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
 | `supabase/schemas/370_marketplace_cloud_setup.sql`       | Bestand, Einrichtung, serverseitige Zustandsübergänge                                         |
 | Bestehende lokale/Cloud-Schemafunktionen                 | Claim-Sperre beim Abschluss, spezielle Einrichtungssitzung, IP-Prüfung normaler Cloudaufträge |
-| `_shared/marketplace-cloud-setup-contracts.ts`           | Gemeinsamer öffentlicher Einrichtungsvertrag; keine Geheimnisse                               |
+| `_shared/marketplace-cloud-setup-contracts.d.ts`         | Gemeinsamer öffentlicher Einrichtungsvertrag; keine Geheimnisse                               |
 | Worker-Profilregistry und neuer Cloud-Einrichtungsdienst | Privates Profil, Anmeldung, Identität, bestätigte Bereinigung                                 |
 | Marktplatz-Kontoverwaltung und Browserdialog             | Auswahl, Upgrade, Fortschritt, Kapazitätsmeldung                                              |
 | Bestehendes Rollout-Dokument                             | Konkreter manueller Pilot, Ablaufzeit und tatsächlich erreichte Prüfungen                     |
@@ -65,7 +65,7 @@ Nachkaufen gehören nicht zu dieser Umsetzung.
 **Dateien:** Neu `supabase/schemas/370_marketplace_cloud_setup.sql`,
 `supabase/tests/marketplace-cloud-setup.test.sql`,
 `supabase/test-support/marketplace-cloud-setup-concurrency.mjs`,
-`supabase/functions/_shared/marketplace-cloud-setup-contracts.ts`.
+`supabase/functions/_shared/marketplace-cloud-setup-contracts.d.ts`.
 Ändern `supabase/config.toml`, `supabase/schemas/350_marketplace_local_extension.sql`,
 `supabase/schemas/360_marketplace_local_messaging.sql`,
 `supabase/schemas/260_marketplace_live_browser_sessions.sql`,
