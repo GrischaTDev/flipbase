@@ -1,7 +1,9 @@
 <app-page-header [title]="showingMessages() ? 'Nachrichten' : 'Vinted'" [icon]="pageIcon()">
   @if (showingManagement()) {
     <app-button header-actions link="/marketplaces/vinted/accounts">Alle Konten</app-button>
-  } @else if (showingAccounts() || showingSetup() || showingLocalConnection()) {
+  } @else if (
+    showingAccounts() || showingSetup() || showingLocalConnection() || showingCloudConnection()
+  ) {
     <app-button header-actions link="/marketplaces/vinted/manage">Konten verwalten</app-button>
   } @else if (store.selectedConnection(); as account) {
     <app-vinted-account-controls
@@ -40,7 +42,13 @@
       >
     </app-notice-banner>
   }
-  @if (showingAccounts() || showingSetup() || showingManagement() || showingLocalConnection()) {
+  @if (
+    showingAccounts() ||
+    showingSetup() ||
+    showingManagement() ||
+    showingLocalConnection() ||
+    showingCloudConnection()
+  ) {
     <router-outlet />
   } @else if (store.selectedConnection(); as account) {
     @if (!showingMessages()) {

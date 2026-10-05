@@ -17,7 +17,11 @@ let workspace: ReturnType<typeof signal<{ id: string }>>;
 let store: MarketplaceCloudSetupStore;
 const api = { available: vi.fn(), begin: vi.fn(), action: vi.fn() };
 const reloadConnections = vi.fn();
+const canManage = signal(true);
+const loading = signal(false);
 beforeEach(async () => {
+  canManage.set(true);
+  loading.set(false);
   TestBed.resetTestingModule();
   vi.clearAllMocks();
   api.available.mockResolvedValue(true);
@@ -39,13 +43,27 @@ beforeEach(async () => {
       { provide: WorkspaceService, useValue: { currentWorkspace: workspace } },
       {
         provide: MarketplaceAccountStore,
-        useValue: { canManage: signal(true), reloadConnections },
+        useValue: { canManage, loading, reloadConnections },
       },
     ],
   });
   store = TestBed.inject(MarketplaceCloudSetupStore);
   TestBed.tick();
   await Promise.resolve();
+});
+it('behält die Reservierung während des vorübergehend fehlenden Verwaltungsrechts beim Nachladen', async () => {
+  reloadConnections.mockImplementation(async () => {
+    loading.set(true);
+    canManage.set(false);
+    TestBed.tick();
+    await Promise.resolve();
+    canManage.set(true);
+    loading.set(false);
+    TestBed.tick();
+  });
+  await store.begin({ connectionId: setup.connectionId });
+  expect(store.setup()).toEqual(setup);
+  expect(api.action).not.toHaveBeenCalled();
 });
 it('legt bei fehlender Kapazität kein Konto an und lädt keine Kontoliste', async () => {
   api.begin.mockResolvedValue({ status: 'no_capacity' });

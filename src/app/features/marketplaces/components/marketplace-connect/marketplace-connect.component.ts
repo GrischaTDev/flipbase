@@ -39,6 +39,10 @@ export class MarketplaceConnectComponent {
     () =>
       this.accounts.connections().find((item) => item.connectionId === this.requestedId()) ?? null,
   );
+  readonly activeCloudSetup = computed(() => {
+    const setup = this.cloud.setup();
+    return setup?.connectionId === this.requestedId() ? setup : null;
+  });
   readonly selected = computed(
     () =>
       this.requestedConnection() !== null &&

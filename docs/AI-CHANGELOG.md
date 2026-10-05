@@ -13,8 +13,13 @@ Extension-Zweig wird nicht verändert. Bestehende gemeinsame Planung ergänzt.
 
 **Prüfung:** 46 neue Datenbankassertions und 123 bestehende lokale Assertions
 bestanden. Zwei echte parallele Datenbanksitzungen belegen eine einzige
-Reservierung bei einer freien IP. 282 Workertests bestanden, fünf
-Umgebungsprüfungen übersprungen; Worker-Typprüfung und Bau bestanden.
+Reservierung bei einer freien IP. 287 Workertests bestanden, sechs
+Umgebungsprüfungen unter Windows übersprungen; neun Netzwerk- und
+Registrierungsprüfungen unter Linux ohne Auslassung bestanden.
+Worker-Typprüfung und Bau, betroffene Angulartests und Angularbau bestanden.
+31 Browserprüfungen einschließlich Kapazitätsmeldung, lokalem Betrieb und
+Cloudwechsel auf Desktop/Mobil bestanden; AXE-Prüfungen eingeschlossen.
+Die private Bestandsregistrierung prüft Standort, Laufzeit und Dateirechte.
 Noch kein Produktionswechsel oder echter
 Proxy-/Vinted-Test; Zugangsdaten werden nicht im Repository gespeichert.
 

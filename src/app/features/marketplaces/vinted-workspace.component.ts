@@ -72,6 +72,9 @@ export class VintedWorkspaceComponent {
   readonly showingLocalConnection = computed(() =>
     this.currentUrl().split(/[?#]/)[0].startsWith('/marketplaces/vinted/local-connect/'),
   );
+  readonly showingCloudConnection = computed(() =>
+    this.currentUrl().split(/[?#]/)[0].startsWith('/marketplaces/vinted/connect/'),
+  );
   readonly pageIcon = computed(() => (this.showingMessages() ? LucideMessagesSquare : LucideStore));
   readonly loginIcon = LucideLogIn;
   readonly syncModalOpen = signal(false);

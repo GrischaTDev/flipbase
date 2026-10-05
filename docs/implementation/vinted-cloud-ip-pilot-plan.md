@@ -1,6 +1,6 @@
 # Umsetzungsplan: Vinted-Cloudpilot mit festem IP-Bestand
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Eine vorhandene freie IPRoyal-IP sicher einem Cloudkonto zuordnen und lokale Konten ohne Verlust ihrer Daten zur Cloud wechseln lassen.
 
@@ -96,7 +96,7 @@ Serverintern enthält eine Einrichtung zusätzlich `networkId`, `profileId`,
 Fristen. Diese Felder nicht in `CloudSetupView` aufnehmen. Zustände als echte
 Übergänge validieren; `verified` allein erlaubt keine Cloudjobs.
 
-- [ ] SQL-Tests mit zwei Arbeitsplätzen, Pilotoperator und Nichtoperator,
+- [x] SQL-Tests mit zwei Arbeitsplätzen, Pilotoperator und Nichtoperator,
       einer deutschen aktiven IP, einer abgelaufenen IP und zwei lokalen Konten
       schreiben. Vorhandene Fixtures aus `marketplace-local-extension.test.sql`
       übernehmen. Folgende konkrete Assertions hinzufügen:
@@ -123,9 +123,9 @@ select is(
 );
 ```
 
-- [ ] Tests zunächst gegen fehlende Funktionen scheitern lassen:
+- [x] Tests zunächst gegen fehlende Funktionen scheitern lassen:
       `npx supabase test db supabase/tests/marketplace-cloud-setup.test.sql`.
-- [ ] Tabellen `marketplace_cloud_ips` und `marketplace_cloud_setups` anlegen:
+- [x] Tabellen `marketplace_cloud_ips` und `marketplace_cloud_setups` anlegen:
       Identity-IDs, Tabellenkommentare, RLS mit separaten Service-Role-Policies.
       Keine direkten Tabellenrechte für Kunden. IP-Felder: eindeutige
       `network_id`, Anbieter-/Bestellreferenz, Land, Dedicated-ISP-Kennzeichen,
@@ -133,7 +133,7 @@ select is(
       Einrichtung: öffentliche UUID, Benutzer/Arbeitsplatz/Verbindung, IP-Referenz,
       Request-ID, Ausgangsidentität/Grant-Generation, Zustand und Workerbindung.
       Keine Proxyzugangsdaten in den Tabellen.
-- [ ] `marketplace_cloud_setup_begin(uuid,uuid,uuid,text) returns jsonb`
+- [x] `marketplace_cloud_setup_begin(uuid,uuid,uuid,text) returns jsonb`
       für authentifizierte Pilotoperatoren implementieren. Zweiter Parameter darf
       für ein neues Konto `null` sein; dann den Anzeigenamen validieren. Bei
       Wiederholung vorhandene Einrichtung zurückgeben und geänderte Nutzdaten
@@ -162,13 +162,13 @@ limit 1 for update of ip skip locked;
       hält die IP weiterhin zugeordnet. Fremde Arbeitsplätze und nicht freigegebene
       Pilotnutzer erhalten `42501`; leere Kapazität ist ein reguläres Ergebnis.
 
-- [ ] Benutzer-RPC `marketplace_cloud_setup_read(workspace,setup)` und
+- [x] Benutzer-RPC `marketplace_cloud_setup_read(workspace,setup)` und
       `marketplace_cloud_setup_cancel(workspace,setup)` hinzufügen. Abbruch setzt
       nur `cleanup_pending`; bereits abgeschlossener Wechsel bleibt abgeschlossen.
       Server-RPCs für Profilbindung, bestätigte Identität, Abschluss und bestätigte
       Freigabe ausschließlich an `service_role` vergeben. Diese prüfen zusätzlich
       den initiierenden Benutzer, aktuelle Arbeitsplatzrechte und Worker-Epoch.
-- [ ] Den Abschluss als zwei kontrollierte Schritte implementieren:
+- [x] Den Abschluss als zwei kontrollierte Schritte implementieren:
       `marketplace_cloud_setup_finalize` setzt unter Kontosperre `finalizing`,
       prüft Generation/Identität und blockiert neue lokale Enqueue-/Claim-/Start-
       Versuche. `claimed`, `sending` und `outcome_unknown` blockieren den Übergang.
@@ -179,20 +179,20 @@ limit 1 for update of ip skip locked;
       atomar Betriebsart, IP-Zuordnung und Grant-Widerruf. Grant-Generation erhöhen;
       Capability-Nachweise auf bestätigte Cloudfähigkeiten beschränken. IDs und
       vorhandene Konto-/Anzeigendatensätze nicht löschen oder neu zuordnen.
-- [ ] `cloud_setup_id` als optionale FK an Browsersitzungen ergänzen. Nur die neue
+- [x] `cloud_setup_id` als optionale FK an Browsersitzungen ergänzen. Nur die neue
       `marketplace_cloud_setup_session_reserve(workspace,setup)` darf eine solche
       Sitzung bei lokalem Konto erzeugen. Allgemeine Session-Reserve, Operations
       und Schedules bleiben für lokale Konten verboten. Check/Heartbeat prüfen
       Einrichtung, Benutzer, Sitzung, Worker und Ablauf. Normale Cloudsessions
       sowie Sync-Check/-Heartbeat prüfen bei IP-verwalteten Konten die aktive
       Zuordnung; bestehende fremde Legacykonten nicht ungefragt umstellen.
-- [ ] Tests für widerrufene Rechte/Generation, falsche Identität, gesperrte oder
+- [x] Tests für widerrufene Rechte/Generation, falsche Identität, gesperrte oder
       abgelaufene IP, laufenden Versand, wiederholten Abschluss und verspäteten
       lokalen Import ergänzen. Zwei echte parallele Datenbanksitzungen mit der
       vorhandenen Concurrency-Harness-Struktur aus
       `supabase/test-support/ebay-order-import-concurrency.mjs` starten: genau eine
       IP-Reservierung, genau eine Kapazitätsmeldung. Ein serieller Test genügt nicht.
-- [ ] Schemadatei am Ende der bestehenden `schema_paths` registrieren. Im eigenen
+- [x] Schemadatei am Ende der bestehenden `schema_paths` registrieren. Im eigenen
       wegwerfbaren Supabase-Testprojekt Migration erzeugen, vollständig lesen,
       auf Transaktionalität und Rechte prüfen, anschließend Replay und Typen:
 
@@ -226,7 +226,7 @@ profileId)`, `assertNetwork(scope)` und `confirmCleanup(scope, setupId)`.
 `prepareCloudSetup(scope, setupId): Promise<void>` ist ein eigener
 Provisionerpfad; `prepare(scope)` lockert keine bestehenden Cloudberechtigungen.
 
-- [ ] Registrytest schreiben und zunächst scheitern lassen:
+- [x] Registrytest schreiben und zunächst scheitern lassen:
 
 ```ts
 test('an explicit account network survives a registry restart', async () => {
@@ -246,12 +246,12 @@ test('an explicit account network survives a registry restart', async () => {
 });
 ```
 
-- [ ] Kennung mit bestehendem Pattern validieren und
+- [x] Kennung mit bestehendem Pattern validieren und
       `networkId: account.networkId ?? this.networkId` speichern. Der neue
       Provisionerpfad verweigert `direct`, unbekannte Konfigurationen und abweichende
       Bindungen, bevor ein Browser startet. Proxy-Datei weiter mit bestehenden
       privaten Dateirechten laden; keine Zugangsdaten im Manifest ablegen.
-- [ ] Vorhandenes ruhendes Serverprofil eines lokalen Kontos berücksichtigen:
+- [x] Vorhandenes ruhendes Serverprofil eines lokalen Kontos berücksichtigen:
       alle bisherigen Sitzungen kontrolliert beenden, Prozessstopp bestätigen,
       ausschließlich die alte Browserprofilzuordnung entfernen und das Profil
       privat archivieren. Danach frisches Profil für dieselbe Verbindung mit der
@@ -259,16 +259,16 @@ test('an explicit account network survives a registry restart', async () => {
       „bestätigt unzugeordnet und beendet“ begrenzen; die Verbindung nicht löschen.
       Bei unklarem Stopp oder widersprüchlicher Zuordnung blockieren. Vorhandene
       Legacy-Anbieterprofile privat referenzieren, nicht beim Anbieter löschen.
-- [ ] Profilbindung bei verlorenem DB-ACK nachlesen. Wiederholte Vorbereitung
+- [x] Profilbindung bei verlorenem DB-ACK nachlesen. Wiederholte Vorbereitung
       verwendet dasselbe profilgebundene Setup. Nach Neustart darf ein Manifest
       mit unklarer DB-Bindung nicht durch ein weiteres Profil ersetzt werden.
       IP- und Workerbindung vor jeder Browserverwendung erneut prüfen.
-- [ ] Store- und Provisionertests: ungültige Fremdzuordnung, ruhendes Profil mit
+- [x] Store- und Provisionertests: ungültige Fremdzuordnung, ruhendes Profil mit
       alter Kennung, fehlende Proxydatei, unbestätigter Stopp, Profil-ACK verloren,
       gleicher Vorgang nach Neustart. Erwartung jeweils kein direkter Ersatzstart.
       In `main.ts` nur die neuen Abhängigkeiten verbinden; kein globaler Wechsel
       von `MARKETPLACE_CHROMIUM_NETWORK_ID` auf die gekaufte IP.
-- [ ] Im Worker ausführen:
+- [x] Im Worker ausführen:
 
 ```powershell
 node --experimental-strip-types --test test/chromium-account-profile-registry.test.ts test/chromium-profile-provisioner.test.ts test/supabase-marketplace-cloud-setup-store.test.ts
@@ -308,12 +308,12 @@ Anmeldeaktionen erhalten denselben Setup-Pfad mit `{frame|input|login|verify|ide
 Jede Anfrage prüft Benutzer und Setup-Zuordnung serverseitig. Ein vom Client
 gesendetes `cloudSetup`-Objekt wird nicht als Berechtigung übernommen.
 
-- [ ] HTTP-/Brokertests zuerst schreiben: Ein Setup-Browser kann über normale
+- [x] HTTP-/Brokertests zuerst schreiben: Ein Setup-Browser kann über normale
       Session-, Sync- oder Edit-Routen nicht verwendet werden. Normaler Browser
       kann umgekehrt nicht als Setup ausgegeben werden. Fehlerkapazität liefert
       `{ status: 'no_capacity' }`; technische DB-Fehler liefern HTTP 503 mit
       `cloud_ip_check_failed`, ohne Einrichtungs-/Browserstart.
-- [ ] Interne Setup-Referenz erst nach `readAuthorized` erzeugen. Sessionstore
+- [x] Interne Setup-Referenz erst nach `readAuthorized` erzeugen. Sessionstore
       verwendet dann die spezielle Reserve-RPC aus Aufgabe 1. Bekannte Login-,
       SMS- und Identitätsadapter wiederverwenden. Identität nur im Setup
       bestätigen; nicht vorzeitig `SupabaseVintedAccountWriter.confirm` aufrufen.
@@ -321,19 +321,19 @@ gesendetes `cloudSetup`-Objekt wird nicht als Berechtigung übernommen.
       nach beobachtetem Login nur Identitätsprüfung/Abschluss zulassen. Keine
       automatischen Kontosynchronisierungen, Nachrichten oder Listingänderungen
       während der Einrichtung. Bei Sperrseite den Versuch beenden.
-- [ ] Abschlussfolge implementieren: Browseridentität lesen → serverseitige
+- [x] Abschlussfolge implementieren: Browseridentität lesen → serverseitige
       Identitätsbestätigung → `finalize` → Browser kontrolliert beenden →
       bestätigten Stopp prüfen → `complete`. Ein Stoppfehler lässt `finalizing`
       bestehen; keine Cloudjobs und keine IP-Freigabe. Wiederholter Abschluss
       liest den tatsächlich erreichten Zustand. Erfolgreicher Abschluss öffnet
       keine zweite Browsersitzung und aktiviert keine Automatik von selbst.
-- [ ] Abbruchfolge: `cancel` → neue Browseraktionen sperren → Browser beenden →
+- [x] Abbruchfolge: `cancel` → neue Browseraktionen sperren → Browser beenden →
       Setup-Profilzuordnung kontrolliert entfernen → privates Profil archivieren →
       `confirmCleanup`. Erst dann `cancelled` und IP verfügbar. Beim Abbruch aus
       `finalizing` lokale Claim-Sperre aufheben, ohne Grant oder Versandhistorie
       zurückzusetzen. Eine verlorene Antwort nach `completed` darf keinen Abbruch
       des nun aktiven Cloudkontos auslösen.
-- [ ] Wiederherstellung integriert vorhandene Worker-Epoch-/Stopnachweise.
+- [x] Wiederherstellung integriert vorhandene Worker-Epoch-/Stopnachweise.
       Setup-Sitzungen nach einem Neustart prüfen; abgelaufene Vorgänge in
       Bereinigung überführen. Kein Timer gibt IPs ungeprüft frei. Beim Wechsel
       zurück zur Erweiterung nach bestätigtem Cloudstopp auch die private
@@ -343,7 +343,7 @@ gesendetes `cloudSetup`-Objekt wird nicht als Berechtigung übernommen.
       geprüft hat. Die Benutzer-Abbruchfunktion bleibt für abgeschlossene
       Cloudwechsel wirkungslos. Ist die Freigabe
       ungeklärt, bleibt die IP gesperrt und das Problem administrativ sichtbar.
-- [ ] Folgende konkrete Ablaufassertions mit injizierten Store-/Browseradaptern
+- [x] Folgende konkrete Ablaufassertions mit injizierten Store-/Browseradaptern
       im Worker-Test ergänzen; Testfixtures enthalten nur künstliche IPs:
 
 ```ts
@@ -357,7 +357,7 @@ assert.equal(repeatedComplete.setupId, firstComplete.setupId);
       Zusätzlich abweichende Identität, widerrufene Rechte, verlorene Antwort nach
       Commit und eine während des Logins abgelaufene IP prüfen.
 
-- [ ] Im Worker die neuen Tests sowie HTTP-API-, Sessionstore-, Broker- und
+- [x] Im Worker die neuen Tests sowie HTTP-API-, Sessionstore-, Broker- und
       Recoverytests ausführen; danach `npm run typecheck` und `npm run build`.
       Commit: `feat(core): complete and recover cloud account setup safely`.
 
@@ -380,11 +380,11 @@ Signals `setup`, `busy` und `error`. Browserdialog erhält
 `cloudSetupId = input<string | null>(null)`; der API-Service wählt anhand dieser
 Referenz den Setup-Pfad. Keine Proxyfelder in Formularen.
 
-- [ ] UI-Test für die echte neue Cloud-Kontoverknüpfung schreiben: API gibt
+- [x] UI-Test für die echte neue Cloud-Kontoverknüpfung schreiben: API gibt
       `no_capacity` zurück; erwarteter Hinweis erscheint, Konto wird nicht
       angelegt, Browserdialog bleibt geschlossen. Lokale Auswahl bleibt nutzbar.
       Erst gegen die fehlende Integration scheitern lassen.
-- [ ] Bestehende Auswahl „Lokale Erweiterung“/„Cloudbrowser“ behalten. Bei Cloud
+- [x] Bestehende Auswahl „Lokale Erweiterung“/„Cloudbrowser“ behalten. Bei Cloud
       zuerst `begin` aufrufen. Nach `ready` Kontoliste laden und Browserdialog mit
       `setupId` öffnen. Bei lokalem Konto Verwaltungsaktion „Auf Cloud wechseln“
       hinzufügen; dieselbe Verbindung an `begin` übergeben. Nur für freigegebene
@@ -393,11 +393,11 @@ Referenz den Setup-Pfad. Keine Proxyfelder in Formularen.
       Abfrage mit `workspaceId` ergänzen; Antwort `{ canSetup: boolean }` enthält
       allein die Pilot-/Verwaltungsfreigabe. Die eigentliche Kapazitätsprüfung
       bleibt in `begin`, damit eine frühere Anzeige keine IP verspricht.
-- [ ] Strict Parser prüft Zustand, UUIDs, Arbeitsplatz-/Verbindungsbezug und
+- [x] Strict Parser prüft Zustand, UUIDs, Arbeitsplatz-/Verbindungsbezug und
       öffentliche Feldliste. Bei falscher Antwort fester Fehler statt Übernahme
       fremder Kontoansicht. Setup-API und Store benutzen denselben neuen Vertrag;
       keine temporären Frontend-DTOs als Ersatz für fehlende Backendfunktionen.
-- [ ] Meldung exakt abbilden:
+- [x] Meldung exakt abbilden:
 
 ```ts
 if (result.status === 'no_capacity') {
@@ -407,22 +407,22 @@ if (result.status === 'no_capacity') {
 this.setup.set(result.setup);
 ```
 
-- [ ] Bestehende manuelle Anmeldung und SMS-Bedienung im Browserdialog verwenden.
+- [x] Bestehende manuelle Anmeldung und SMS-Bedienung im Browserdialog verwenden.
       „Anmeldung prüfen & verbinden“ prüft im Setup die Identität; eigener
       Abschluss zeigt „Cloud aktiv“. Den normalen Browserwriter nicht umgehen.
       In `finalizing` den ausstehenden Wechsel sichtbar machen und Versand
       sperren. Bei `completed` Kontoliste samt bestehenden Daten nachladen;
       `connectionId` erhalten. Bei Abbruch den lokalen Zustand nachladen.
-- [ ] Arbeitsplatz-/Benutzer-/Kontowechsel und Destroy invalidieren laufende
+- [x] Arbeitsplatz-/Benutzer-/Kontowechsel und Destroy invalidieren laufende
       Antworten mit dem etablierten Kontext-/Revisionsmuster. Den privaten
       Setupzustand nicht über `localStorage` oder URLs mit Zugangsdaten speichern.
       Nach Verbindungsabbruch zunächst `read` nutzen; gleicher `requestId` bei
       Wiederholung, keine automatischen neuen Einrichtungen.
-- [ ] Angular-Tests für fehlende IP, Doppelklick, technischen Fehler, verworfene
+- [x] Angular-Tests für fehlende IP, Doppelklick, technischen Fehler, verworfene
       verspätete Antwort, abgebrochenes Upgrade und erfolgreicher Wechsel mit
       unveränderter Konto-ID schreiben. Servertests aus Aufgabe 3 beweisen die
       Sicherheit; UI-Tests prüfen die sichtbare Bedienung und Statusübergänge.
-- [ ] Betroffene Angulartests mit
+- [x] Betroffene Angulartests mit
       `npm run test:angular -- src/app/features/marketplaces/services/marketplace-cloud-setup.store.angular.spec.ts src/app/features/marketplaces/components/marketplace-accounts/marketplace-accounts.component.angular.spec.ts`
       ausführen. Geänderte Dateien formatieren/linten, `npm run build` für echte
       Templateprüfung ausführen. Vorhandene Marketplace-Browser-/Accounttests
@@ -445,7 +445,7 @@ Bestellreferenz, Ablaufzeit und Zustand, ohne Proxyzugangsdaten. Für den Stando
 die deutsche Bestellregion und eine externe Geo-IP-Auskunft zum tatsächlich
 gemessenen Ausgang abgleichen; bei widersprüchlichen Ergebnissen nicht freigeben.
 
-- [ ] CLI-Tests schreiben: falsche Dateirechte, Symlink, fehlende Zugangsdaten,
+- [x] CLI-Tests schreiben: falsche Dateirechte, Symlink, fehlende Zugangsdaten,
       falscher Standort, abgelaufene Bestellung und DB-ACK-Verlust. Keiner dieser
       Fälle registriert eine ungeprüfte freie IP; Geheimnisse erscheinen weder
       in Fehlertexten noch in der Standardausgabe.
@@ -472,12 +472,12 @@ gemessenen Ausgang abgleichen; bei widersprüchlichen Ergebnissen nicht freigebe
       Standort IP nicht freigeben. Ablaufzeit aus der konkreten Bestellung
       übernehmen, nicht aus dem Datum des Screenshots schätzen.
 
-- [ ] Geänderte Worker-/Datenbank-/Angularprüfungen erneut nur bei weiteren
+- [x] Geänderte Worker-/Datenbank-/Angularprüfungen erneut nur bei weiteren
       Änderungen ausführen. Für den fertigen PR laufen die verpflichtenden
       vollständigen CI-Prüfungen. Lokal zusätzlich Schema-/Migrationserkennung,
       Format/Lint, Workerbau und Angularbau prüfen. Datenbank-Concurrencytest
       tatsächlich gegen die isolierte Datenbank ausführen.
-- [ ] Bestehende E2E-Fälle in `e2e/marketplace-accounts.spec.ts` und
+- [x] Bestehende E2E-Fälle in `e2e/marketplace-accounts.spec.ts` und
       `e2e/vinted-account-grid.spec.ts` um Kapazitätsmeldung und Upgrade erweitern.
       Bildschirme auf Desktop/Mobil prüfen; AXE-Checks bestehen lassen. Alle
       Testkonten und IPs hierfür sind künstliche Fixtures.
@@ -500,9 +500,7 @@ gemessenen Ausgang abgleichen; bei widersprüchlichen Ergebnissen nicht freigebe
 
 ## Abschluss und Ausführung
 
-Der Plan ist fachlich und technisch durchgesehen. Er ist noch nicht umgesetzt.
-Empfohlen ist die direkte Umsetzung in dieser Sitzung: Die fünf Aufgaben hängen
-eng an denselben Zuständen und Schnittstellen; das spart wiederholte Übergaben.
-Danach erfolgt eine unabhängige Prüfung des gesamten Zweigs. Alternativ können
-einzelne Aufgaben mit separaten Implementierungs- und Prüfagenten ausgeführt werden.
-Vor Beginn den Plan vom Nutzer prüfen und die Ausführungsart wählen lassen.
+Die fünf lokalen Aufgaben sind umgesetzt und geprüft. Der unabhängige Review des
+gesamten Zweigs und die Freigabe für Push/PR stehen noch aus. Die produktive
+Registrierung der gekauften IP, eine echte Kontozuordnung und der Hetzner-Livetest
+sind nicht ausgeführt. Sie bleiben ausdrücklich getrennte Freigabeschritte.

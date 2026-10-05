@@ -16,6 +16,7 @@ import { prepareMarketplaceRendering } from '../../../../e2e/support/marketplace
 import { AuthService } from '../../core/services/auth.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { MarketplaceApiError, MarketplaceApiService } from './services/marketplace-api.service';
+import { MarketplaceCloudSetupApiService } from './services/marketplace-cloud-setup-api.service';
 import { createMarketplaceFixtures } from './testing/marketplace-fixtures';
 import { parseMarketplaceSnapshot } from './models/marketplace-response';
 import type { AccountScope } from './models/marketplace.models';
@@ -63,6 +64,7 @@ import { TableColumnPickerComponent } from '../../shared/components/table-column
 import { CustomCheckboxComponent } from '../../shared/components/custom-checkbox/custom-checkbox.component';
 
 const fixtureConnections = createMarketplaceFixtures().connections;
+const cloudApi = { available: vi.fn(), begin: vi.fn(), action: vi.fn() };
 const emptyPage = () => ({ items: [], total: 0, nextCursor: null });
 const makeSnapshot = (scope: AccountScope) =>
   parseMarketplaceSnapshot(
@@ -237,6 +239,9 @@ beforeAll(async () => {
 afterAll(() => resetBindings?.());
 afterEach(() => TestBed.resetTestingModule());
 beforeEach(() => {
+  cloudApi.available.mockResolvedValue(true);
+  cloudApi.begin.mockReset();
+  cloudApi.action.mockResolvedValue({ state: 'cancelled' });
   localStorage.clear();
   localApi = { read: vi.fn().mockResolvedValue(null), approve: vi.fn(), revoke: vi.fn() };
   browserApi = {
@@ -370,6 +375,7 @@ beforeEach(() => {
             .mockResolvedValue({ title: 'Testschal', description: 'Ein Schal', price: '12,50' }),
         },
       },
+      { provide: MarketplaceCloudSetupApiService, useValue: cloudApi },
     ],
   });
 });
@@ -991,6 +997,24 @@ describe('Vinted-Bereich in Flipbase', () => {
   });
   it('wechselt im Kontodialog bei Cloudauswahl zur zugehörigen Anmeldung', async () => {
     api.listConnections.mockResolvedValue({ canManage: true, connections: [] });
+    const created = {
+      ...fixtureConnections[0],
+      displayName: 'Mein Konto',
+      executionMode: 'local' as const,
+    };
+    cloudApi.begin.mockImplementation(async () => {
+      api.listConnections.mockResolvedValue({ canManage: true, connections: [created] });
+      return {
+        status: 'ready',
+        setup: {
+          workspaceId: created.workspaceId,
+          connectionId: created.connectionId,
+          setupId: '25500000-0000-4000-8000-000000000031',
+          state: 'reserved',
+          sessionId: null,
+        },
+      };
+    });
     const { element, harness } = await render('/settings/marketplaces');
     const button = [...element.querySelectorAll<HTMLButtonElement>('button')].find((node) =>
       node.textContent?.includes('Account hinzufügen'),

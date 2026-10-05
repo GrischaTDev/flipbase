@@ -16,11 +16,7 @@ export class MarketplaceCloudSetupStore {
   private readonly workspace = inject(WorkspaceService);
   private readonly accounts = inject(MarketplaceAccountStore);
   private readonly context = computed(() =>
-    JSON.stringify([
-      this.auth.currentUser()?.id,
-      this.workspace.currentWorkspace()?.id,
-      this.accounts.canManage(),
-    ]),
+    JSON.stringify([this.auth.currentUser()?.id, this.workspace.currentWorkspace()?.id]),
   );
   private readonly availability = signal<{ context: string; allowed: boolean } | null>(null);
   private readonly active = signal<{
@@ -34,10 +30,15 @@ export class MarketplaceCloudSetupStore {
   private revision = 0;
   private destroyed = false;
   readonly canSetup = computed(
-    () => this.availability()?.context === this.context() && this.availability()?.allowed === true,
+    () =>
+      this.accounts.canManage() &&
+      this.availability()?.context === this.context() &&
+      this.availability()?.allowed === true,
   );
   readonly setup = computed(() =>
-    this.active()?.context === this.context() ? (this.active()?.setup ?? null) : null,
+    this.active()?.context === this.context() && this.busyContext() !== this.context()
+      ? (this.active()?.setup ?? null)
+      : null,
   );
   readonly busy = computed(() => this.busyContext() === this.context());
   readonly error = computed(() =>
@@ -53,7 +54,13 @@ export class MarketplaceCloudSetupStore {
         void this.checkAvailability(context, workspace.id, token);
       else this.availability.set(null);
       const active = this.active();
-      if (active && active.context !== context) {
+      if (
+        active &&
+        (active.context !== context ||
+          (!this.accounts.loading() && !this.accounts.canManage()) ||
+          workspace?.archived_at ||
+          !token)
+      ) {
         this.active.set(null);
         void this.api.action(active.setup, 'cancel', active.token).catch(() => undefined);
       }

@@ -2,9 +2,52 @@ import { expect, test } from '@playwright/test';
 import axe from 'axe-core';
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import { accountIds, mockMarketplace } from './support/marketplace-account-fixture';
+import { accountIds, mockMarketplace, workspaceId } from './support/marketplace-account-fixture';
 
 test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: 'block' });
+
+for (const width of [1440, 390]) {
+  test(`wechselt dasselbe lokale Konto über die Kachel zur Cloud bei ${width}px @marketplace-preview @core-smoke`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    const calls = await mockMarketplace(page, true, false, false, false, [], undefined, true);
+    await page.goto('/marketplaces/vinted/accounts');
+    await page.getByRole('link', { name: 'Auf Cloud wechseln', exact: true }).first().click();
+    await expect(page).toHaveURL(new RegExp(`/connect/${accountIds[0]}$`));
+    await page.getByRole('button', { name: 'Auf Cloud wechseln', exact: true }).click();
+    await page
+      .getByRole('textbox', { name: 'Vinted-Mitgliedsname oder E-Mail' })
+      .fill('synthetic-user');
+    await page.getByLabel('Vinted-Passwort').fill('synthetic-password');
+    await page.getByRole('button', { name: 'Anmelden und Konto verbinden', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Cloud aktivieren', exact: true })).toBeVisible({
+      timeout: 15_000,
+    });
+    await page.getByRole('button', { name: 'Cloud aktivieren', exact: true }).click();
+    await expect(
+      page.getByText('Cloud aktiv. Dein Konto ist verbunden.', { exact: true }),
+    ).toBeVisible();
+    expect(
+      calls.filter((call) => call.name === 'browser_cloud_setup_complete').map((call) => call.body),
+    ).toEqual([{ workspaceId, connectionId: accountIds[0] }]);
+    expect(calls.filter((call) => call.name === 'marketplace_create_connection')).toHaveLength(0);
+    await page.addScriptTag({ content: axe.source });
+    expect(
+      await page.evaluate(
+        async () =>
+          (
+            await (window as unknown as { axe: typeof axe }).axe.run(
+              document.querySelector('[role="dialog"]') as HTMLElement,
+            )
+          ).violations,
+      ),
+    ).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+  });
+}
 
 for (const width of [1440, 1024, 768, 390]) {
   test(`öffnet Vinted-Kontokacheln und behält die Auswahl nach Neuladen bei ${width}px @marketplace-preview @core-smoke`, async ({

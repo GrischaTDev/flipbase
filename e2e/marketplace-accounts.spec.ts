@@ -19,6 +19,43 @@ async function openVintedSection(page: Page, label: string, width: number): Prom
 }
 
 for (const width of [1440, 390]) {
+  test(`Cloud-Einrichtung ohne freie IP bleibt lokal nutzbar bei ${width}px @marketplace-preview @core-smoke`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    const calls = await mockMarketplace(page, true);
+    await page.route('**/marketplace-browser/cloud-setups/begin', (route) =>
+      route.fulfill({ json: { status: 'no_capacity' } }),
+    );
+    await page.goto('/marketplaces/vinted/manage');
+    await page.getByRole('button', { name: 'Account hinzufügen', exact: true }).click();
+    await page.getByRole('textbox', { name: 'Interner Name in Flipbase' }).fill('Cloudtest');
+    await chooseCloudConnection(page);
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toContainText('Aktuell sind keine freien Cloud-IPs vorhanden.');
+    await expect(page.locator('app-marketplace-browser-test')).toHaveCount(0);
+    expect(calls.filter((call) => call.name === 'marketplace_create_connection')).toHaveLength(0);
+    await page.addScriptTag({ content: axe.source });
+    expect(
+      await page.evaluate(
+        async () =>
+          (
+            await (window as unknown as { axe: typeof axe }).axe.run(
+              document.querySelector('[role="dialog"]') as HTMLElement,
+            )
+          ).violations,
+      ),
+    ).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+    await evidence(page, `vinted-cloud-no-capacity-${width}`);
+    await page.getByRole('combobox', { name: 'Verbindung', exact: true }).click();
+    await page.getByRole('option', { name: 'Lokale Erweiterung', exact: true }).click();
+    await page.getByRole('button', { name: 'Weiter zur lokalen Verbindung', exact: true }).click();
+    await expect(page).toHaveURL(/\/local-connect\//);
+  });
+
   test(`Vinted-Bereich führt lokal durch die Einrichtung bei ${width}px @marketplace-preview @core-smoke`, async ({
     page,
   }) => {
@@ -29,7 +66,8 @@ for (const width of [1440, 390]) {
     const browserCalls: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
     page.on('request', (request) => {
-      if (request.url().includes('/marketplace-browser/')) browserCalls.push(request.url());
+      if (/marketplace-browser\/(sessions|cloud-setups\/(?!availability))/.test(request.url()))
+        browserCalls.push(request.url());
     });
     await page.goto('/marketplaces/vinted');
     await expect(
@@ -1098,9 +1136,11 @@ for (const width of [1440, 390]) {
       .fill('Neues Testkonto');
     await chooseCloudConnection(page);
     const accounts = page.locator('app-marketplace-accounts');
-    await expect(page.getByRole('dialog')).toContainText('Neues Testkonto');
+    await expect(page.getByRole('textbox', { name: 'Interner Name in Flipbase' })).toHaveValue(
+      'Neues Testkonto',
+    );
     await expect(page.getByRole('dialog')).toContainText(
-      'Browserdienst ist auf dem Server nicht erreichbar',
+      'Aktuell sind keine freien Cloud-IPs vorhanden.',
     );
     await page.getByRole('button', { name: 'Dialog schließen' }).click();
     await expect(accounts.getByText('Neues Testkonto')).toHaveCount(0);
@@ -1154,7 +1194,7 @@ for (const width of [1440, 390]) {
 }
 
 for (const width of [1440, 390]) {
-  test(`Account hinzufügen führt automatisch zur bestätigten Anmeldung bei ${width}px @marketplace-preview`, async ({
+  test(`Account hinzufügen reserviert eine IP und aktiviert Cloud ausdrücklich bei ${width}px @marketplace-preview @core-smoke`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 1000 });
@@ -1200,9 +1240,13 @@ for (const width of [1440, 390]) {
     await expect(page.getByRole('button', { name: 'Bild aktualisieren' })).toHaveCount(0);
     await evidence(page, `vinted-background-login-${width}`);
     // Die Anmeldung prüft die Bestätigung alle drei Sekunden; die Fixture wartet einmal bewusst.
-    await expect(page.getByText('Dein Vinted-Konto ist verbunden.', { exact: true })).toBeVisible({
+    await expect(page.getByRole('button', { name: 'Cloud aktivieren', exact: true })).toBeVisible({
       timeout: 15_000,
     });
+    await page.getByRole('button', { name: 'Cloud aktivieren', exact: true }).click();
+    await expect(
+      page.getByText('Cloud aktiv. Dein Konto ist verbunden.', { exact: true }),
+    ).toBeVisible();
     expect(calls.filter((call) => call.name === 'unexpected_frame')).toHaveLength(0);
     const logins = calls.filter((call) => call.name === 'browser_login');
     expect(logins).toHaveLength(1);
