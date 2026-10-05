@@ -286,6 +286,8 @@ Primäre, sekundäre und weitere Aktionsvarianten vermitteln unterschiedliche Wi
 
 Für Flipbase wird je Variante Normal, Hover, Pressed, Focus-visible, Disabled und Loading geprüft. Icon-only-Buttons benötigen einen zugänglichen Namen. Buttonhöhe, Iconmaß, Abstand zum Text, Rand und Schatten zusammen dokumentieren. Kein pauschales Skalieren aller Buttons beim Drücken ohne Referenzprüfung.
 
+Nutzerentscheidung vom 05.10.2026: Gemeinsame Zahlenfelder zeigen **keine sichtbaren Plus-/Minus- oder Pfeil-Stepper**. Werte werden direkt eingegeben; `min`, `max` und `step` bleiben für Validierung und numerische Semantik erhalten. Das folgt bewusst der ruhigen Feldwirkung im Shopify-Admin und insbesondere dem aktuellen Polaris-`Money field`, das für Preise und Kosten eigene Währungsdarstellung, Grenzen und Validierung vorsieht, aber in der aktuellen App-Home-Referenz keine Stepper-Eigenschaft anbietet. Das Polaris-`Number field` unterstützt zwar schrittweise Änderung über Buttons; Flipbase übernimmt diese sichtbare Bedienung wegen der kompakten Tabellen- und Formularfelder trotzdem nicht. [Number field](https://shopify.dev/docs/api/app-home/latest/web-components/forms/number-field) · [Money field](https://shopify.dev/docs/api/app-home/latest/web-components/forms/money-field)
+
 ### Formulare und Speichern
 
 Lange Formulare in benannte Abschnitte aufteilen; bei mehr als fünf Eingaben strukturiert gruppieren. Bedingte Eingaben erst zeigen, wenn relevant. Umfangreiche Bearbeitung gehört auf eine eigene Seite, nicht in ein überfülltes Modal. Shopify verwendet eine kontextbezogene Speichernleiste statt stiller automatischer Speicherung großer Formulare. [Forms](https://shopify.dev/docs/apps/design/user-experience/forms)
