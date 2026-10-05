@@ -89,7 +89,7 @@
                                   isSubmitting() || selectionLoading() || !!selectionError()
                                 "
                                 [attr.data-sale-target-invalid]="
-                                  line.controls.target.invalid && line.controls.target.touched
+                                  validationAttempted() && line.controls.target.invalid
                                 "
                                 (clicked)="openArticlePicker(index)"
                               >
@@ -107,9 +107,31 @@
                                 {{ variant }}
                               </p>
                             }
-                            @if (line.controls.target.invalid && line.controls.target.touched) {
-                              <p role="alert" class="mt-1 text-xs text-fb-critical">
+                            @if (validationAttempted() && line.controls.target.invalid) {
+                              <p
+                                [id]="'target-error-' + index"
+                                role="alert"
+                                class="mt-1 text-xs text-fb-critical"
+                              >
                                 Bitte wähle einen verfügbaren Artikel aus.
+                              </p>
+                            }
+                            @if (validationAttempted() && line.controls.quantity.invalid) {
+                              <p
+                                [id]="'quantity-error-' + index"
+                                role="alert"
+                                class="mt-1 text-xs text-fb-critical"
+                              >
+                                Bitte prüfe die Menge und den verfügbaren Bestand.
+                              </p>
+                            }
+                            @if (validationAttempted() && line.controls.unitSalePrice.invalid) {
+                              <p
+                                [id]="'price-error-' + index"
+                                role="alert"
+                                class="mt-1 text-xs text-fb-critical"
+                              >
+                                Bitte gib einen Verkaufspreis ab 0,01 € ein.
                               </p>
                             }
                           </div>
@@ -123,26 +145,16 @@
                           [id]="'quantity-' + index"
                           [min]="1"
                           [max]="availableQuantity(line)"
+                          [showStepper]="false"
                           formControlName="quantity"
                           ariaLabel="Menge"
-                          [ariaInvalid]="
-                            line.controls.quantity.touched && line.controls.quantity.invalid
-                          "
+                          [ariaInvalid]="validationAttempted() && line.controls.quantity.invalid"
                           [ariaDescribedby]="
-                            line.controls.quantity.touched && line.controls.quantity.invalid
-                              ? 'quantity-help-' + index
+                            validationAttempted() && line.controls.quantity.invalid
+                              ? 'quantity-error-' + index
                               : ''
                           "
                         />
-                        @if (line.controls.quantity.invalid && line.controls.quantity.touched) {
-                          <p
-                            [id]="'quantity-help-' + index"
-                            role="alert"
-                            class="mt-1 text-xs text-fb-critical"
-                          >
-                            Gib eine ganze Menge innerhalb des verfügbaren Bestands ein.
-                          </p>
-                        }
                       </td>
                       <td class="min-w-0 md:px-2 md:py-3">
                         <label [for]="'price-' + index" class="mb-1 block text-xs md:sr-only">
@@ -156,28 +168,13 @@
                           unit="€"
                           formControlName="unitSalePrice"
                           ariaLabel="Preis je Stück (€)"
-                          [ariaInvalid]="
-                            line.controls.unitSalePrice.touched &&
-                            line.controls.unitSalePrice.invalid
-                          "
+                          [ariaInvalid]="validationAttempted() && line.controls.unitSalePrice.invalid"
                           [ariaDescribedby]="
-                            line.controls.unitSalePrice.touched &&
-                            line.controls.unitSalePrice.invalid
+                            validationAttempted() && line.controls.unitSalePrice.invalid
                               ? 'price-error-' + index
                               : ''
                           "
                         />
-                        @if (
-                          line.controls.unitSalePrice.invalid && line.controls.unitSalePrice.touched
-                        ) {
-                          <p
-                            [id]="'price-error-' + index"
-                            role="alert"
-                            class="mt-1 text-xs text-fb-critical"
-                          >
-                            Gib einen Verkaufspreis von mindestens 0,01 € ein.
-                          </p>
-                        }
                       </td>
                       <td class="col-span-2 text-right tabular-nums md:px-2 md:py-3">
                         <span class="mr-2 text-xs text-fb-text-muted md:hidden">Gesamt</span>
@@ -247,7 +244,6 @@
               id="platform-fee"
               [min]="0"
               [step]="0.01"
-              [showStepper]="false"
               unit="€"
               formControlName="platformFee"
               [ariaLabel]="externalDraft() ? 'Plattformgebühr, erforderlich' : 'Plattformgebühr'"
@@ -283,7 +279,6 @@
               id="shipping-revenue"
               [min]="0"
               [step]="0.01"
-              [showStepper]="false"
               unit="€"
               formControlName="shippingRevenue"
               ariaLabel="Versand vom Käufer erhalten"
@@ -319,7 +314,6 @@
               id="shipping-cost"
               [min]="0"
               [step]="0.01"
-              [showStepper]="false"
               unit="€"
               formControlName="shippingCost"
               [ariaLabel]="
@@ -452,7 +446,6 @@
                     [id]="'cost-amount-' + index"
                     [min]="0"
                     [step]="0.01"
-                    [showStepper]="false"
                     unit="€"
                     formControlName="amount"
                     ariaLabel="Betrag in Euro"
