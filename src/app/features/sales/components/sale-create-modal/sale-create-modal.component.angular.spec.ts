@@ -1319,7 +1319,9 @@ describe('SaleCreateModalComponent', () => {
         const lineErrors = host.querySelector('[data-sale-line-errors]') as HTMLElement;
         expect(lineErrors.textContent).toContain('Bitte gib einen Verkaufspreis ab 0,01 € ein.');
         const priceCell = host.querySelector('#price-0')?.closest('td');
-        expect(priceCell?.textContent).not.toContain('Bitte gib einen Verkaufspreis ab 0,01 € ein.');
+        expect(priceCell?.textContent).not.toContain(
+          'Bitte gib einen Verkaufspreis ab 0,01 € ein.',
+        );
       });
 
       it('lässt invalides Absenden zu, markiert alle Felder und fokussiert das erste fehlerhafte Feld', async () => {
