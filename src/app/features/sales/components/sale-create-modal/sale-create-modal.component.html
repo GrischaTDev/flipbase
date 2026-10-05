@@ -167,7 +167,9 @@
                               : ''
                           "
                         />
-                        @if (line.controls.unitSalePrice.invalid && line.controls.unitSalePrice.touched) {
+                        @if (
+                          line.controls.unitSalePrice.invalid && line.controls.unitSalePrice.touched
+                        ) {
                           <p
                             [id]="'price-error-' + index"
                             role="alert"
