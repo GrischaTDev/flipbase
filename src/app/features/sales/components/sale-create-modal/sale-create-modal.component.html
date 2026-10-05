@@ -124,7 +124,11 @@
                           [ariaInvalid]="
                             line.controls.quantity.touched && line.controls.quantity.invalid
                           "
-                          [ariaDescribedby]="'quantity-help-' + index"
+                          [ariaDescribedby]="
+                            line.controls.quantity.touched && line.controls.quantity.invalid
+                              ? 'quantity-help-' + index
+                              : ''
+                          "
                         />
                         @if (line.controls.quantity.invalid && line.controls.quantity.touched) {
                           <p
@@ -445,7 +449,7 @@
                     [id]="'cost-amount-' + index"
                     [min]="0"
                     [step]="0.01"
-              [showStepper]="false"
+                    [showStepper]="false"
                     unit="€"
                     formControlName="amount"
                     ariaLabel="Betrag in Euro"
