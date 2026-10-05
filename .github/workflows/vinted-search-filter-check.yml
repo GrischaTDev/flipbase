@@ -96,7 +96,7 @@ jobs:
           if fixes.exists():
               for fix in json.loads(fixes.read_text())['replacements']:
                   path = fix['path']
-                  assert path.startswith(('src/app/features/platform-admin/', 'services/sniper/', 'e2e/sniper-administration', 'docs/', 'supabase/tests/sniper_')) and '..' not in pathlib.PurePosixPath(path).parts
+                  assert (path.startswith(('src/app/features/platform-admin/', 'services/sniper/', 'e2e/sniper-administration', 'docs/', 'supabase/tests/sniper_')) or path == 'scripts/playwright-pr-smoke.test.mjs') and '..' not in pathlib.PurePosixPath(path).parts
                   file = root / path
                   text = file.read_text()
                   assert hashlib.sha256(text.encode()).hexdigest() == fix['before_sha256']
@@ -188,8 +188,38 @@ jobs:
           test "$GITHUB_REF" = refs/heads/juna/vinted-central-search-filters
           test "$(git ls-remote origin refs/heads/juna/vinted-central-search-filters | cut -f1)" = "$GITHUB_SHA"
           python3 - <<'PY'
-          import json, pathlib, subprocess
+          import json, os, pathlib, re, subprocess
           review = pathlib.Path('/tmp/vinted-integration-review')
+          def read_log(name):
+              return re.sub(r'\x1b\[[0-9;]*m', '', (review / name).read_text())
+          def count(name, pattern):
+              matches = re.findall(pattern, read_log(name))
+              assert matches, name
+              return matches[-1]
+          application = count('application-tests.log', r'Tests\s+(\d+)\s+passed')
+          collector = count('collector-tests.log', r'Tests\s+(\d+)\s+passed')
+          database = count('database-tests.log', r'Files=\d+, Tests=(\d+)')
+          browser = count('browser-tests.log', r'(\d+) passed')
+          workflow = count('workflow-tests.log', r'# pass (\d+)')
+          skipped = count('workflow-tests.log', r'# skipped (\d+)')
+          evidence = (
+              f"**Abschlussprüfung:** Lauf `{os.environ['GITHUB_RUN_ID']}` besteht "
+              f"{application} Anwendungstests, {collector} Collector-Tests, {database} "
+              f"Datenbankassertions und {browser} Browserabläufe. {workflow} Workflow-Tests "
+              f"bestehen; {skipped} vorhandener umgebungsabhängiger Fall bleibt übersprungen. "
+              "Produktionsbau, Formatierung, Lint, Typen, Shared-UI-Architektur und "
+              "der Abgleich der generierten Datenbanktypen bestehen. Die temporären "
+              "Transportdateien und der Prüfworkflow sind aus dem fertigen Dateistand "
+              "entfernt. PR, Merge und Produktion bleiben unverändert.\n\n"
+          )
+          file = pathlib.Path('docs/AI-CHANGELOG.md')
+          text = file.read_text()
+          marker = '**Stand:** Eigener Zweig `juna/vinted-central-search-filters`.'
+          assert text.count(marker) == 1
+          file.write_text(text.replace(marker, evidence + marker, 1))
+          plan = pathlib.Path('docs/superpowers/plans/2026-10-05-vinted-search-filter-progress.md')
+          plan.write_text(plan.read_text() + '\n## Abschlussprüfung\n\n' + evidence)
+          subprocess.run(['node', 'node_modules/prettier/bin/prettier.cjs', '--write', str(file), str(plan)], check=True)
           paths = json.loads((review / 'product-paths.json').read_text())
           subprocess.run(['git', 'add', '--', *paths], check=True)
           changed = subprocess.check_output(['git', 'diff', '--cached', '--name-only'], text=True).splitlines()
