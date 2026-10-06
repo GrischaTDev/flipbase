@@ -117,6 +117,27 @@ describe('AttributePickerComponent', () => {
     ).toHaveLength(2);
   });
 
+  it('unterstützt mehrere Farben mit Farbpunkten auf den Chips und schaltet gewählte Farben um', () => {
+    const { fixture, values } = create(true);
+    fixture.componentRef.setInput('label', 'Farbe');
+    fixture.componentRef.setInput('options', ['Rot', 'Blau', 'Grün']);
+    fixture.componentRef.setInput('swatches', { Rot: '#ef4444', Blau: '#3b82f6', Grün: '#22c55e' });
+    fixture.componentInstance.choose('Rot');
+    fixture.detectChanges();
+    fixture.componentInstance.choose('Blau');
+    fixture.detectChanges();
+
+    expect(values).toEqual(['Rot', 'Rot · Blau']);
+    const dots = (fixture.nativeElement as HTMLElement).querySelectorAll(
+      '.linear-input span span[aria-hidden="true"]',
+    );
+    expect(dots).toHaveLength(2);
+
+    fixture.componentInstance.choose('Rot');
+    fixture.detectChanges();
+    expect(values.at(-1)).toBe('Blau');
+  });
+
   it('zeigt bei geöffneter Suche keine AXE-Verstöße', async () => {
     const { fixture } = create();
     fixture.componentInstance.open();

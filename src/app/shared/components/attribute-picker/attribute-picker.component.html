@@ -13,6 +13,13 @@
           <span
             class="inline-flex items-center gap-1 rounded-md border border-fb-border bg-fb-subtle px-1.5 py-0.5 text-[13px] text-fb-text-primary"
           >
+            @if (swatches()[item]) {
+              <span
+                class="size-3 shrink-0 rounded-full border border-fb-border"
+                [style]="swatchStyle(item)"
+                aria-hidden="true"
+              ></span>
+            }
             {{ item }}
             <button
               type="button"
