@@ -10,6 +10,37 @@ import test from 'node:test';
 const deployScript = fileURLToPath(new URL('../deploy/deploy.sh', import.meta.url));
 const dockerfile = fileURLToPath(new URL('../docker/Dockerfile', import.meta.url));
 
+test('öffentliche Proxy-Regeln sperren beide MCP-Einstiegspunkte vor der API-Freigabe', async () => {
+  const configuration = await readFile(new URL('../deploy/Caddyfile', import.meta.url), 'utf8');
+  const publicMatcher = configuration.match(/^\s*@supabase_api path (.+)$/mu)?.[1].split(/\s+/u);
+  assert.ok(publicMatcher, 'Die erlaubten öffentlichen API-Pfade müssen ausdrücklich sein.');
+  assert.ok(
+    publicMatcher.every(
+      (path) => !['/mcp', '/mcp/*', '/api/mcp', '/api/mcp/*', '/*'].includes(path),
+    ),
+    'Verwaltungszugriff darf nicht von einer öffentlichen API-Freigabe erfasst werden.',
+  );
+  const blockedMatcher = configuration.match(/^\s*@supabase_mcp path (.+)$/mu)?.[1].split(/\s+/u);
+  for (const path of ['/mcp', '/mcp/*', '/api/mcp', '/api/mcp/*'])
+    assert.ok(blockedMatcher?.includes(path), `MCP-Einstiegspunkt ${path} muss gesperrt sein.`);
+  assert.match(configuration, /handle @supabase_mcp\s*\{\s*respond 404\s*\}/u);
+  assert.ok(
+    configuration.indexOf('handle @supabase_mcp') < configuration.indexOf('handle @supabase_api'),
+  );
+});
+
+test('jede öffentliche TLS-Domain erhält HSTS ohne pauschale Subdomainbindung', async () => {
+  const configuration = await readFile(new URL('../deploy/Caddyfile', import.meta.url), 'utf8');
+  const sites = configuration
+    .split(/^(?=\S.*\{$)/mu)
+    .filter((section) => /^\S.*\{$/mu.test(section));
+  assert.equal(sites.length, 5);
+  for (const site of sites) {
+    assert.match(site, />Strict-Transport-Security "max-age=300"/u);
+    assert.doesNotMatch(site, /Strict-Transport-Security "[^"]*(?:includeSubDomains|preload)/u);
+  }
+});
+
 test('Docker-Kontext enthält alle von Angular verwendeten gemeinsamen Verträge', async () => {
   const root = fileURLToPath(new URL('../', import.meta.url));
   const rules = (await readFile(join(root, '.dockerignore'), 'utf8')).split(/\r?\n/u);
