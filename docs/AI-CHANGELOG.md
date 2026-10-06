@@ -1,5 +1,15 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-07 - Juna - Klarere Meldung zur pausierten Cloud-Automatik veröffentlichen
+
+**Freigabe:** Der Nutzer bestätigt PR-Erstellung, Merge nach erfolgreichen
+Pflichtprüfungen und Bereinigung des eigenen Zweigs. Der aktuelle master
+mit den Speicheränderungen wird übernommen; beide Protokollabschnitte bleiben
+erhalten. Die Änderung erklärt den früheren automatischen Abruffehler und
+die davon unabhängige manuelle Aktualisierung. Automatikfreigabe und
+Browserdienst werden durch diese Textkorrektur nicht verändert. Nach dem
+Merge wird die tatsächlich veröffentlichte Web-Version geprüft.
+
 ## 2026-10-06 - Juna - Alten automatischen Abruffehler nach erfolgreicher Cloud-Verknüpfung einordnen
 
 **Auftrag:** Die Cloud-Verknüpfung gelingt und manuelle Kontenaktualisierungen
@@ -27,6 +37,7 @@ erfolgreichen Prüfungen und PR-Freigabe.
 bestanden. Typprüfung, ESLint, Prettier und Angular-Produktionsbau erfolgreich;
 nur die bestehende CommonJS-Warnung zu `pako`. Die Änderung ist lokal geprüft,
 noch nicht veröffentlicht.
+
 ## 2026-10-06 - Juna - Speichermelder mit eingeschränktem Verwaltungszugang einrichten
 
 **Befund und Korrektur:** PR #323 ist nach vollständig grünen Prüfungen gemergt und produktiv. Die Einrichtung scheiterte zunächst daran, dass der produktive PostgreSQL-Verwaltungszugang kein Superuser ist und daher auch `NOSUPERUSER` nicht setzen darf. Das Installationsskript prüft nun die sicheren Standardattribute der neu angelegten Rolle beziehungsweise lehnt unerwartete Verwaltungsrechte einer vorhandenen Rolle ab. Es ändert ausschließlich Login, Vererbung, Verbindungslimit und SCRAM-Passwort; keine Erweiterung des Verwaltungszugangs. Die Provisionierung ist vollständig transaktional.
