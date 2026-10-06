@@ -2,6 +2,8 @@
 
 ## 2026-10-06 - Juna - offene Sicherheitsgrenzen serverseitig schließen
 
+**Freigabe:** Der Nutzer bestätigt Branch-Push, PR-Erstellung, Merge-Commit nach erfolgreichen Pflichtprüfungen und anschließendes Aufräumen des eigenen Zweigs samt Worktree. Der vorbereitete Installationsweg hält den Webhook-Dienst vor der Rechte-Migration verfügbar und trennt die Chromium-Serverumstellung vom Web-Release.
+
 **Auftrag:** Die beiden offenen Befunde nach PR #320 einschließlich der dafür
 notwendigen Serveränderungen im eigenen Zweig `juna/security-backend-boundaries` beheben.
 
