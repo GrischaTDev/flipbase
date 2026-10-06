@@ -120,12 +120,16 @@ Zuerst das UI-Paket aus Schritten 1–4 umsetzen und prüfen. Danach den echten 
 ## Umsetzungsbefunde
 
 Abschlussprüfung: 108 Angular-, 30 Modell-, 121 Erweiterungs-, 186 Edge- und
-180 Datenbankprüfungen sind bestanden. Dazu kommen 22 Browserfälle einschließlich
+180 Datenbankprüfungen sind bestanden. Dazu kommen 40 Browserfälle einschließlich
 AXE, Formatierung, Lint, Typprüfung und Produktionsbau. Die neue Migration wurde
 transaktional auf den vorherigen Stand angewandt; Schema, Funktionsrechte und
 erzeugte Typen sind abgeglichen. Das unabhängige Review hat keine offenen
 wesentlichen Befunde. Erweiterung 1.7.0 ist separat als Testpaket vorbereitet;
 die vorhandene Chrome-Installation bleibt bis zum freigegebenen Release unverändert.
+Die zusätzlichen 18 bestehenden Kontenabläufe prüfen auch Sortierung,
+lokale Einrichtung, Postfachfreigabe und Cloudwechsel. Die feste CI-Testliste
+enthält die acht neuen Bildschirm-/Kontenfälle; alte Kartenassertionen prüfen
+die neue Betriebsart-Anzeige.
 
 Der Angebotsweg nutzt den dokumentierten POST auf `/api/v2/transactions/{id}/offers`
 mit `offer.currency = EUR` und einem Centpreis als Dezimaltext. Gespräch,

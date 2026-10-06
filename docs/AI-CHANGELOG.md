@@ -27,6 +27,8 @@ bei 320 bis 1440 Pixeln, heller/dunkler Oberfläche und AXE. Reviewfehler zu
 Badgeüberlauf, Mobilformular, HTTP-Ablehnungen und verspäteten Belegen behoben.
 Die CI-Prüfung der Browser-Testauswahl ist um die acht zusätzlichen Fälle
 für kleine Displays, zehn Konten und lange Profilstatus ergänzt.
+Zusätzlich bestehen 18 bisherige Browser-Kontenabläufe; ihre Betriebsart-Assertion
+prüft den kompakten Lokal-Badge statt der entfernten alten Beschriftung.
 
 **Grenzen:** Mindestens halber Artikelpreis ist unsere konservative Grenze,
 keine belegte offizielle Vinted-Regel. Ein konkreter Angebotsbeleg wird verlangt;

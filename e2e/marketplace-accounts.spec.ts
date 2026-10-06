@@ -15,7 +15,9 @@ for (const width of [1440, 390]) {
     const calls = await mockMarketplace(page, false, false, false, false, [], undefined, true);
     await page.goto('/marketplaces/vinted/accounts');
     await expect(page.getByText('8 von 10 Plätzen frei')).toBeVisible();
-    await expect(page.getByText('Lokal verknüpft', { exact: true })).toHaveCount(2);
+    await expect(
+      page.locator('app-vinted-account-grid app-badge').getByText('Lokal', { exact: true }),
+    ).toHaveCount(2);
     await expect(page.getByRole('link', { name: 'Konten verwalten', exact: true })).toHaveCount(0);
     await page
       .getByRole('button', { name: 'Testkonto A nach hinten verschieben', exact: true })
