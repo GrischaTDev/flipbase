@@ -45,9 +45,27 @@ create table if not exists public.sniper_queries (
     notes text,
     title text not null default 'Markenfilter',
     deleted_at timestamptz,
+    brand_ids integer[] not null default '{}',
+    brand_names text[] not null default '{}',
+    title_keywords text[] not null default '{}',
+    keyword_mode text not null default 'all' check (keyword_mode in ('all', 'any')),
+    filter_revision integer not null default 1 check (filter_revision > 0),
+    filter_format_version integer not null default 0 check (filter_format_version in (0, 1)),
+    request_cursor integer not null default 0 check (request_cursor >= 0),
+    seeded_requests integer[] not null default '{}',
+    constraint sniper_queries_brand_list_valid check (
+        cardinality(brand_ids) <= 10 and cardinality(brand_ids) = cardinality(brand_names)
+        and coalesce(array_ndims(brand_ids), 1) = 1 and array_position(brand_ids, null) is null
+        and 0 < all(brand_ids)
+    ),
+    constraint sniper_queries_keywords_valid check (
+        cardinality(title_keywords) <= 10 and coalesce(array_ndims(title_keywords), 1) = 1
+        and array_position(title_keywords, null) is null
+    ),
     constraint sniper_queries_filter_required check (
         nullif(btrim(search_text), '') is not null or catalog_id is not null
         or (brand_id is not null and brand_id > 0)
+        or cardinality(brand_ids) > 0 or cardinality(title_keywords) > 0
     ),
     constraint sniper_queries_interval_valid check (poll_interval_ms between 10000 and 86400000),
     constraint sniper_queries_price_range_valid check (price_from is null or price_to is null or price_from <= price_to),

@@ -20,9 +20,9 @@ import { LoadingIndicatorComponent } from '../../../../shared/components/loading
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { DataTableComponent } from '../../../../shared/components/data-table/data-table.component';
 import { SniperQueryEditorComponent } from '../../components/sniper-query-editor/sniper-query-editor.component';
-import { SniperBrandCreateComponent } from '../../components/sniper-brand-create/sniper-brand-create.component';
 import { SniperAdminService } from '../../services/sniper-admin.service';
 import { SniperAdminState } from '../../services/sniper-admin-state';
+import { VintedCategoryService } from '../../services/vinted-category.service';
 import { QueryDraft, SniperQuery, queryStatusLabel } from '../../models/sniper-query.model';
 
 @Component({
@@ -36,7 +36,6 @@ import { QueryDraft, SniperQuery, queryStatusLabel } from '../../models/sniper-q
     ModalShellComponent,
     DataTableComponent,
     SniperQueryEditorComponent,
-    SniperBrandCreateComponent,
   ],
   templateUrl: './sniper-queries.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -46,9 +45,10 @@ export class SniperQueriesComponent {
   private readonly element = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly injector = inject(Injector);
   private readonly editor = viewChild(SniperQueryEditorComponent);
-  private readonly creator = viewChild(SniperBrandCreateComponent);
   readonly state = inject(SniperAdminState);
   private readonly api = inject(SniperAdminService);
+  private readonly categoryApi = inject(VintedCategoryService);
+  readonly categoryPaths = signal<ReadonlyMap<number, string>>(new Map());
   private readonly confirmation = inject(ConfirmDialogService);
   private readonly destroyRef = inject(DestroyRef);
   readonly editorOpen = signal(false);
@@ -63,16 +63,15 @@ export class SniperQueriesComponent {
     const term = this.search().toLocaleLowerCase('de');
     return this.state
       .queries()
-      .filter((q) => [q.title, q.notes].join(' ').toLocaleLowerCase('de').includes(term));
+      .filter((q) =>
+        [q.title, q.notes, this.queryConditions(q)]
+          .join(' ')
+          .toLocaleLowerCase('de')
+          .includes(term),
+      );
   });
   readonly activeCount = computed(
     () => this.state.queries().filter((query) => query.is_active).length,
-  );
-  readonly existingBrandIds = computed(() =>
-    this.state
-      .queries()
-      .filter((query) => this.isBrandOnly(query))
-      .flatMap((query) => (query.brand_id === null ? [] : [query.brand_id])),
   );
   readonly statusLabel = queryStatusLabel;
   readonly editIcon = LucidePencil;
@@ -80,15 +79,48 @@ export class SniperQueriesComponent {
   readonly activateIcon = LucidePlay;
   readonly deleteIcon = LucideTrash2;
 
+  constructor() {
+    void this.loadCategoryPaths();
+  }
+
+  private async loadCategoryPaths(): Promise<void> {
+    try {
+      const snapshot = await this.categoryApi.readSnapshot();
+      if (!this.destroyRef.destroyed)
+        this.categoryPaths.set(
+          new Map(snapshot.categories.map((category) => [category.id, category.path])),
+        );
+    } catch {
+      /* Ein fehlender Kategoriestand darf die Verwaltung nicht blockieren. */
+    }
+  }
+
+  queryConditions(query: SniperQuery): string {
+    const category =
+      query.catalog_id === null
+        ? 'Alle Kategorien'
+        : (this.categoryPaths().get(query.catalog_id) ?? 'Kategorie momentan nicht verfügbar');
+    const names = query.brand_names?.length
+      ? query.brand_names.join(' oder ')
+      : query.brand_id
+        ? 'Gespeicherte Marke'
+        : 'Alle Marken';
+    const terms = query.title_keywords?.length
+      ? `${query.keyword_mode === 'any' ? 'Einer der Titelbegriffe' : 'Alle Titelbegriffe'}: ${query.title_keywords.join(', ')}`
+      : '';
+    const legacy = query.search_text ? `Vinted-Suchtext: ${query.search_text}` : '';
+    return [category, names, terms, legacy].filter(Boolean).join(' · ');
+  }
+
   hasUnsavedChanges(): boolean {
-    return this.editor()?.form.dirty || this.creator()?.hasUnsavedChanges() || false;
+    return this.editor()?.hasUnsavedChanges() || false;
   }
   isSaving(): boolean {
     return this.saving() || this.busyId() !== null;
   }
 
   queryTitle(query: SniperQuery): string {
-    return query.title || (query.brand_id ? `Marke ${query.brand_id}` : 'Unbenannter Markenfilter');
+    return query.title || 'Unbenannter Suchfilter';
   }
 
   isBrandOnly(query: SniperQuery): boolean {
@@ -105,7 +137,6 @@ export class SniperQueriesComponent {
 
   openEditor(query: SniperQuery | null = null): void {
     if (this.isSaving()) return;
-    if (query && !this.isBrandOnly(query)) return;
     this.editing.set(query);
     this.error.set(null);
     this.message.set(null);
@@ -128,7 +159,7 @@ export class SniperQueriesComponent {
     if (this.hasUnsavedChanges()) {
       const discard = await this.confirmation.frage({
         titel: 'Änderungen verwerfen?',
-        text: 'Deine Änderungen am Markenfilter wurden noch nicht gespeichert.',
+        text: 'Deine Änderungen am Suchfilter wurden noch nicht gespeichert.',
         bestaetigenText: 'Verwerfen',
         gefahr: true,
       });
@@ -142,7 +173,7 @@ export class SniperQueriesComponent {
     this.busyId.set(query.id);
     try {
       const confirmed = await this.confirmation.frage({
-        titel: 'Markenfilter löschen?',
+        titel: 'Suchfilter löschen?',
         text: `Der Filter „${this.queryTitle(query)}“ wird für alle Nutzer entfernt. Weitere Abfragen werden gestoppt. Bereits gefundene Artikel, Favoriten und persönliche Suchfilter bleiben erhalten. Eine laufende Abfrage kann noch abgeschlossen werden.`,
         bestaetigenText: 'Löschen',
         gefahr: true,
@@ -151,7 +182,7 @@ export class SniperQueriesComponent {
       this.error.set(null);
       await this.api.delete(query.id);
       if (this.destroyRef.destroyed) return;
-      this.message.set(`Markenfilter „${this.queryTitle(query)}“ gelöscht.`);
+      this.message.set(`Suchfilter „${this.queryTitle(query)}“ gelöscht.`);
       await this.state.refreshAfterMutation();
     } catch (error) {
       this.error.set(error instanceof Error ? error.message : 'Löschen fehlgeschlagen.');
@@ -185,36 +216,10 @@ export class SniperQueriesComponent {
       this.closeEditor();
       this.message.set(
         draft.id
-          ? 'Änderungen gespeichert.'
-          : 'Markenfilter gespeichert. Du kannst ihn jetzt aktivieren.',
+          ? 'Änderungen gespeichert. Bei neuen Suchbedingungen bleibt der Filter bis zur Aktivierung pausiert.'
+          : 'Suchfilter gespeichert. Du kannst ihn jetzt aktivieren.',
       );
       await this.state.refreshAfterMutation();
-    } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'Speichern fehlgeschlagen.');
-    } finally {
-      this.saving.set(false);
-    }
-  }
-
-  async saveMany(drafts: QueryDraft[]): Promise<void> {
-    if (this.saving() || !drafts.length) return;
-    this.saving.set(true);
-    this.error.set(null);
-    try {
-      const { savedIds, failedNames } = await this.api.saveMany(drafts);
-      if (this.destroyRef.destroyed) return;
-      this.creator()?.removeSaved(savedIds);
-      if (savedIds.length) await this.state.refreshAfterMutation();
-      if (failedNames.length) {
-        this.error.set(
-          `Diese Marken konnten nicht angelegt werden: ${failedNames.join(', ')}. Bitte erneut versuchen.`,
-        );
-      } else {
-        this.closeEditor();
-        this.message.set(
-          `${savedIds.length} ${savedIds.length === 1 ? 'Markenfilter wurde' : 'Markenfilter wurden'} pausiert angelegt. Du kannst sie jetzt aktivieren.`,
-        );
-      }
     } catch (error) {
       this.error.set(error instanceof Error ? error.message : 'Speichern fehlgeschlagen.');
     } finally {
@@ -242,8 +247,8 @@ export class SniperQueriesComponent {
       }
       this.message.set(
         query.is_active
-          ? 'Markenfilter pausiert. Eine bereits laufende Abfrage kann noch abgeschlossen werden.'
-          : 'Markenfilter aktiviert. Die erste Vinted-Abfrage läuft jetzt an.',
+          ? 'Suchfilter pausiert. Eine bereits laufende Abfrage kann noch abgeschlossen werden.'
+          : 'Suchfilter aktiviert. Die erste Vinted-Abfrage läuft jetzt an.',
       );
       await this.state.refreshAfterMutation();
     } catch (error) {

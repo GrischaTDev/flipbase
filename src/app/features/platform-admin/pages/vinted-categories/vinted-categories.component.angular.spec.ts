@@ -95,6 +95,13 @@ describe('VintedCategoriesComponent', () => {
     vi.useRealTimers();
   });
 
+  it('explains that the same category tree serves central and personal search filters', async () => {
+    await build(status);
+    const text = (fixture.nativeElement as HTMLElement).textContent?.replace(/\s+/gu, ' ');
+    expect(text).toContain('zentralen und persönlichen Suchfiltern');
+    expect(text).not.toContain('Zentrale Markenfilter sammeln über alle Kategorien');
+  });
+
   it('shows completed category refreshes automatically and stops polling after leaving', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     await build({

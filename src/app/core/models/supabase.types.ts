@@ -4921,14 +4921,19 @@ export type Database = {
       sniper_queries: {
         Row: {
           brand_id: number | null
+          brand_ids: number[]
+          brand_names: string[]
           catalog_id: number | null
           consecutive_failures: number
           created_at: string
           deleted_at: string | null
+          filter_format_version: number
+          filter_revision: number
           id: string
           is_active: boolean
           is_seeded: boolean
           is_standard: boolean
+          keyword_mode: string
           last_attempt_at: string | null
           last_error_at: string | null
           last_error_kind: string | null
@@ -4943,21 +4948,29 @@ export type Database = {
           price_from: number | null
           price_to: number | null
           query_key: string
+          request_cursor: number
           run_state: string
           search_text: string | null
+          seeded_requests: number[]
           title: string
+          title_keywords: string[]
           updated_at: string
         }
         Insert: {
           brand_id?: number | null
+          brand_ids?: number[]
+          brand_names?: string[]
           catalog_id?: number | null
           consecutive_failures?: number
           created_at?: string
           deleted_at?: string | null
+          filter_format_version?: number
+          filter_revision?: number
           id?: string
           is_active?: boolean
           is_seeded?: boolean
           is_standard?: boolean
+          keyword_mode?: string
           last_attempt_at?: string | null
           last_error_at?: string | null
           last_error_kind?: string | null
@@ -4972,21 +4985,29 @@ export type Database = {
           price_from?: number | null
           price_to?: number | null
           query_key: string
+          request_cursor?: number
           run_state?: string
           search_text?: string | null
+          seeded_requests?: number[]
           title?: string
+          title_keywords?: string[]
           updated_at?: string
         }
         Update: {
           brand_id?: number | null
+          brand_ids?: number[]
+          brand_names?: string[]
           catalog_id?: number | null
           consecutive_failures?: number
           created_at?: string
           deleted_at?: string | null
+          filter_format_version?: number
+          filter_revision?: number
           id?: string
           is_active?: boolean
           is_seeded?: boolean
           is_standard?: boolean
+          keyword_mode?: string
           last_attempt_at?: string | null
           last_error_at?: string | null
           last_error_kind?: string | null
@@ -5001,9 +5022,12 @@ export type Database = {
           price_from?: number | null
           price_to?: number | null
           query_key?: string
+          request_cursor?: number
           run_state?: string
           search_text?: string | null
+          seeded_requests?: number[]
           title?: string
+          title_keywords?: string[]
           updated_at?: string
         }
         Relationships: []
@@ -5058,6 +5082,8 @@ export type Database = {
           reported_at: string
           request_budget: number
           requests_last_minute: number
+          search_filter_reported_at: string | null
+          search_filter_version: number
           vinted_connected_since: string | null
           vinted_last_success_at: string | null
         }
@@ -5068,6 +5094,8 @@ export type Database = {
           reported_at: string
           request_budget: number
           requests_last_minute: number
+          search_filter_reported_at?: string | null
+          search_filter_version?: number
           vinted_connected_since?: string | null
           vinted_last_success_at?: string | null
         }
@@ -5078,6 +5106,8 @@ export type Database = {
           reported_at?: string
           request_budget?: number
           requests_last_minute?: number
+          search_filter_reported_at?: string | null
+          search_filter_version?: number
           vinted_connected_since?: string | null
           vinted_last_success_at?: string | null
         }
@@ -6356,6 +6386,15 @@ export type Database = {
         Args: { p_lease_id: string; p_request_id: string }
         Returns: undefined
       }
+      complete_sniper_search_filter_run: {
+        Args: {
+          p_cursor: number
+          p_listings: Json
+          p_query_id: string
+          p_revision: number
+        }
+        Returns: Json
+      }
       correct_purchase_costing: {
         Args: {
           p_costs: Json
@@ -7461,6 +7500,7 @@ export type Database = {
         Args: { p_details: Json }
         Returns: Json
       }
+      normalize_sniper_keyword: { Args: { p_value: string }; Returns: string }
       place_store_order: {
         Args: {
           p_buyer_notes: string
@@ -7625,6 +7665,20 @@ export type Database = {
       }
       record_sniper_listing_category: {
         Args: { p_external_ids: string[]; p_query_id: string }
+        Returns: undefined
+      }
+      record_sniper_search_filter_failure: {
+        Args: {
+          p_cursor: number
+          p_error_kind: string
+          p_error_message: string
+          p_failure_count: number
+          p_next_attempt_at: string
+          p_query_id: string
+          p_revision: number
+          p_run_state: string
+          p_status: string
+        }
         Returns: undefined
       }
       refresh_purchase_receiving_status: {
@@ -7797,6 +7851,23 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      save_sniper_search_filter: {
+        Args: {
+          p_brands: Json
+          p_catalog_id: number
+          p_expected_revision: number
+          p_id: string
+          p_keyword_mode: string
+          p_notes: string
+          p_poll_interval_ms: number
+          p_price_from?: number
+          p_price_to?: number
+          p_search_text?: string
+          p_title: string
+          p_title_keywords: string[]
+        }
+        Returns: string
       }
       save_sniper_watchlist: {
         Args: {

@@ -32,6 +32,13 @@ export interface SniperQuery {
   lastPolledAt: string | null;
   lastStatus: QueryStatus;
   consecutiveFailures: number;
+  brandIds?: number[];
+  titleKeywords?: string[];
+  keywordMode?: 'all' | 'any';
+  filterRevision?: number;
+  filterFormatVersion?: number;
+  requestCursor?: number;
+  seededRequests?: number[];
 }
 
 const ABSENT = '-';

@@ -25,8 +25,8 @@ export interface VintedBotNavigationItem {
 export const VINTED_BOT_NAVIGATION: readonly VintedBotNavigationItem[] = [
   {
     path: 'queries',
-    label: 'Markenfilter',
-    description: 'Zentrale Marken des Bots',
+    label: 'Suchfilter',
+    description: 'Kategorien, Marken und Titelbegriffe',
     icon: LucideListChecks,
   },
   {

@@ -734,3 +734,50 @@ describe('QueryScheduler', () => {
     });
   });
 });
+
+describe('guarded search filter scheduling', () => {
+  const current = () => makeQuery({ filterFormatVersion: 1, filterRevision: 3, requestCursor: 7 });
+  it('counts an atomic completion without a second unguarded write or evaluation', async () => {
+    const completeRun = vi
+      .fn()
+      .mockResolvedValue({ accepted: true, created: 2, seeded: false, hits: 1 });
+    const { scheduler, queries, listings } = build(current(), { listings: { completeRun } });
+    const report = await scheduler.runOnce(NOW);
+    expect(report).toMatchObject({ polled: 1, newListings: 2, newHits: 1, seeded: 0 });
+    expect(completeRun).toHaveBeenCalledWith([makeListing('a'), makeListing('b')], current());
+    expect(listings.saveNew).not.toHaveBeenCalled();
+    expect(listings.evaluateHits).not.toHaveBeenCalled();
+    expect(queries.markPolled).not.toHaveBeenCalled();
+    expect(queries.markSeeded).not.toHaveBeenCalled();
+  });
+  it('does not report seeded or stale responses as new listings', async () => {
+    for (const outcome of [
+      { accepted: false, created: 0, seeded: false, hits: 0 },
+      { accepted: true, created: 2, seeded: true, hits: 0 },
+    ]) {
+      const completeRun = vi.fn().mockResolvedValue(outcome);
+      const { scheduler, queries } = build(current(), { listings: { completeRun } });
+      expect(await scheduler.runOnce(NOW)).toMatchObject({
+        newListings: 0,
+        newHits: 0,
+        seeded: outcome.seeded ? 1 : 0,
+      });
+      expect(queries.markPolled).not.toHaveBeenCalled();
+    }
+  });
+  it('fails closed before HTTP when guarded persistence is not available', async () => {
+    const { scheduler, collector, listings } = build(current());
+    expect((await scheduler.runOnce(NOW)).failed).toBe(1);
+    expect(collector.collect).not.toHaveBeenCalled();
+    expect(listings.saveNew).not.toHaveBeenCalled();
+  });
+  it('keeps the global request budget for extended search filters', async () => {
+    const budget = new RequestBudget(1, () => NOW.getTime());
+    budget.record();
+    const completeRun = vi.fn();
+    const { scheduler, collector } = build(current(), { budget, listings: { completeRun } });
+    expect((await scheduler.runOnce(NOW)).skippedForBudget).toBe(1);
+    expect(collector.collect).not.toHaveBeenCalled();
+    expect(completeRun).not.toHaveBeenCalled();
+  });
+});

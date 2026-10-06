@@ -31,8 +31,78 @@ Ausgangsschema eingespielt; Schemaabgleich ohne Differenz und Typen daraus
 erzeugt. Formatierung, ESLint, Typen und Shared-UI-Prüfung erfolgreich.
 Produktionsbau und unabhängiges Abschlussreview erfolgreich; gefundene
 Dialog-/Selectfehler sind behoben und durch Regressionstests abgesichert.
-Noch kein neuer PR und keine Produktionsveröffentlichung; kein echter
-Vinted-Kontotest der neuen Blase und kein Storeeintrag.
+Kein echter Vinted-Kontotest der neuen Blase und kein Storeeintrag.
+
+**Freigabe und Integration:** Der Nutzer hat PR, Merge nach grünen Pflichtchecks,
+Veröffentlichung und Aufräumen bestätigt. Aktuelles `origin/master` einschließlich
+PR 308 integriert. Beide Protokolleinträge sowie Schema 108 und 390 bleiben
+erhalten; generierte Suchfiltertypen und eigener Sortiervertrag sind vollständig.
+234 betroffene Angularprüfungen, Typprüfung, Produktionsbau sowie Schema- und
+Browserauswahlprüfungen auch auf dem integrierten Stand erfolgreich. Unabhängiger
+Integrationsreview ohne Befund. Die vollständige kombinierte Datenbank- und
+Anwendungsprüfung folgt im PR; noch keine Produktionsänderung.
+
+## 2026-10-05 - Juna - Zentrale Vinted-Suchfilter integrieren
+
+**Auftrag:** Die reinen Markenfilter der Administration um vollständige Kategoriepfade,
+optionale Marken und Titelbegriffe mit UND-/ODER-Verknüpfung erweitern. Erstellen und
+Bearbeiten sollen dieselben Shared-Komponenten verwenden. Bereits zentral gezielt
+abrufen statt nur im Nutzerfeed auszublenden.
+
+**Umsetzung:** Gemeinsamer Editor mit Ebenen-/Vollpfadsuche, paginiertem konsistentem
+Kategoriebaum und verständlicher Vorschau. Suchvorschläge statt zufälliger Startmarken;
+dieselbe Marke bleibt in mehreren unterschiedlichen Filtern möglich. Neue RPC mit
+Betreiberprüfung, kanonischem Schlüssel und optimistischer Revision. Der Collector
+rotiert Marken und ODER-Begriffe innerhalb des vorhandenen Abrufbudgets. Titelregeln
+werden vor der Speicherung geprüft. Atomare Übernahme verhindert doppelte Funde,
+veraltete Antworten und wiederholtes Einlesen derselben Abrufposition. Ältere breite
+Filter, Funde und Favoriten bleiben erhalten; geänderte Bedingungen starten pausiert.
+
+**Migrationsprüfung:** Aus deklarativen Schemas erzeugt. Bereits bestehende sachfremde
+Schemaabweichungen getrennt als temporäre Generator-Basis erfasst. Vier unverändert
+wiederholte Marketplace-Constraint-Anweisungen wurden nur nach exaktem Abgleich mit
+dieser Basis automatisch abgezogen. Die Featuremigration enthält keine Änderungen an
+Einkaufs-/Bildrechten und keine Marketplace-Änderungen. Die breite erste Vorschau zeigte
+zwei sachfremde Datenbanktestfehler; diese Vorschau gehört nicht zum Feature.
+
+**Geprüfter Integrationslauf:** Lauf `37379725898` besteht 3.753 Anwendungstests,
+246 Collector-Tests, 2.959 Datenbankassertions und beide Browserabläufe (Desktop hell,
+1440 px; Mobil dunkel, 390 px). Der vollständige Angular-Produktionsbau, Formatierung,
+Lint und Typprüfungen bestehen. Die aus der migrierten Datenbank erzeugten Typen sind
+identisch zum Quellstand. Die Browserprüfung verwendet lokale HTTP-Fixtures, keine
+Vinted-Konten; AXE, Speichern, Wiederöffnen, Aktivieren/Pausieren und Löschen sind
+enthalten. Die Screenshots wurden auf Umbruch und Dialogdarstellung geprüft.
+
+**Nachprüfung:** Der Lauf war insgesamt noch rot, weil die manuelle Browserauswahl
+zwei alte Testnamen erwartete. Die Zuordnung wurde an die umbenannten, jetzt in der
+PR-Kernauswahl enthaltenen Tests angeglichen; kein Fall entfällt. Zusätzlich korrigiert
+ist der veraltete Kategorienhilfetext (neuer Test zuerst rot, anschließend grün).
+Tastatur-, Escape- und Außenklickprüfungen des Markenwählers bleiben enthalten. Der
+abschließende Lauf muss alle Prüfungen erneut bestehen, bevor der eigene Zweig den
+fertigen Stand ohne temporäre Transportdateien übernimmt.
+
+**Umgebungsgrenzen:** Lokaler Bundle-Bau überschritt die 4-GB-Grenze; der Bau auf GitHub
+besteht. Ein lokaler Browserprobeaufruf war vor dem Seitenladen durch Browserrichtlinien
+blockiert; maßgeblich sind die erfolgreichen regulären Browserläufe auf GitHub. Kein
+realer Vinted-Abruf und kein unabhängiger zweiter Reviewer. Bestehende npm-Auditmeldungen
+und die CommonJS-Warnung zu `pako` sind nicht Teil dieses Filterumbaus; Abhängigkeiten
+und Lockdateien wurden nicht geändert.
+
+**Fortsetzung am 06.10.2026:** Der Browsertest übersprang die eigene Tab-Station
+„Suche zurücksetzen“. Die Prüfung bildet jetzt die tatsächliche Vorwärts-/Rückwärts-
+Fokusfolge, Enter zum Zurücksetzen sowie Escape und Fokuswiederherstellung ab.
+Dabei wurde ein echter Fehler gefunden: Der Markenwähler fing Enter auch auf dem
+Zurücksetzen-Button ab. Ein neuer DOM-Regressionstest scheiterte daran zuerst und
+besteht nach Begrenzung der Treffersteuerung auf das Eingabefeld. Die anfängliche
+Routenprüfung wartet auf den sichtbaren Seiteninhalt; die genaue Zieladresse und
+sämtliche übrigen Erwartungen bleiben unverändert. Die vollständige Browserprüfung
+läuft erneut auf dem isolierten Runner, nicht gegen produktive Konten.
+
+**Abschlussprüfung vom 06.10.2026:** Lauf `37423402985`: 3764 Anwendungstests, 246 Collector-Tests, 3021 Datenbankassertions und 4 Browserabläufe bestanden. Desktop hell und Mobil dunkel jeweils zweimal ohne Wiederholungsversuch; Enter zum Zurücksetzen, Tab/Shift+Tab, Escape, Fokuswiederherstellung und AXE enthalten. 179 Workflow-Tests bestanden; 1 vorhandener optionaler Umgebungsfall übersprungen. Produktionsbau, Formatierung, Lint und Typprüfungen erfolgreich. Generierte Datenbanktypen stimmen exakt. Aktuelles master einschließlich PR 306 und 307 integriert. Temporäre Transportdateien und Prüfworkflow sind entfernt. Kein PR, kein Merge nach master und keine Produktionsänderung; Abschlussfreigabe steht noch aus.
+
+**Stand:** Eigener Zweig `juna/vinted-central-search-filters`. Keine Änderung an
+`master`, laufenden Filtern oder produktiven Daten. Kein PR und kein Merge freigegeben.
+Die temporären Transport- und Prüfdateien werden vor Abschluss entfernt.
 
 ## 2026-10-05 - Juna - Privaten Cloud-IP-Piloten und automatischen Anbieterabgleich vorbereiten
 
