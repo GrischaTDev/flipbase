@@ -1,0 +1,70 @@
+name: Vinted feed database check
+on:
+  push:
+    branches: [juna/vinted-feed-account-favorites]
+    paths:
+      - .github/workflows/vinted-feed-check.yml
+      - tools/vinted-feed-database-check.py
+      - supabase/schemas/400_sniper_favorites.sql
+      - supabase/schemas/401_sniper_feed_search.sql
+      - supabase/tests/sniper_account_favorites.sql
+      - supabase/tests/sniper_feed_search.sql
+permissions:
+  contents: read
+concurrency:
+  group: vinted-feed-favorites-database
+  cancel-in-progress: true
+jobs:
+  database:
+    if: github.repository == 'GrischaTDev/flipbase' && github.ref == 'refs/heads/juna/vinted-feed-account-favorites'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked test dependencies
+        run: |
+          mkdir -p /tmp/feed-db-review
+          npm ci > /tmp/feed-db-review/install.log 2>&1
+      - name: Start disposable database from existing migrations
+        run: npx supabase start > /tmp/feed-db-review/start.log 2>&1
+      - name: Require the new favorite regression to fail on the old schema
+        run: |
+          if npx supabase test db supabase/tests/sniper_account_favorites.sql > /tmp/feed-db-review/baseline.log 2>&1; then
+            echo 'Die neue Funktion war unerwartet bereits vorhanden.'
+            exit 1
+          fi
+          grep -E 'sniper_favorites|save_sniper_favorite' /tmp/feed-db-review/baseline.log
+      - name: Apply only the proposed declarations to the disposable database
+        run: python3 tools/vinted-feed-database-check.py > /tmp/feed-db-review/apply.log 2>&1
+      - name: Generate migration and database types
+        run: |
+          npx supabase db diff --from migrations --to local --schema public --use-migra -f vinted_feed_account_favorites > /tmp/feed-db-review/generator.log 2>&1
+          cp supabase/migrations/*_vinted_feed_account_favorites.sql /tmp/feed-db-review/
+          npx supabase gen types typescript --local > /tmp/feed-db-review/supabase.types.ts
+      - name: Rebuild from generated migration and verify types
+        run: |
+          npx supabase db reset --local > /tmp/feed-db-review/reset.log 2>&1
+          npx supabase gen types typescript --local > /tmp/feed-db-review/rebuilt.types.ts
+          diff -u /tmp/feed-db-review/supabase.types.ts /tmp/feed-db-review/rebuilt.types.ts
+      - name: All database regressions
+        run: npm run test:db > /tmp/feed-db-review/database-tests.log 2>&1
+      - name: Record check result
+        if: always()
+        run: |
+          for log in /tmp/feed-db-review/*.log; do echo "=== $log ==="; tail -n 40 "$log"; done
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: vinted-feed-database-review
+          path: /tmp/feed-db-review/
+          retention-days: 3
+      - name: Stop disposable database
+        if: always()
+        run: |
+          if test -x node_modules/.bin/supabase; then node_modules/.bin/supabase stop --no-backup; fi
