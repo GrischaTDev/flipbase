@@ -45,9 +45,11 @@ Component({
   ],
 })(AccountManagementStub);
 class FavoriteSettingsStub {}
-Component({ selector: 'app-vinted-favorite-settings', template: '', inputs: ['account'] })(
-  FavoriteSettingsStub,
-);
+Component({
+  selector: 'app-vinted-favorite-settings',
+  template: '<h3>Benachrichtigungen</h3>',
+  inputs: ['account'],
+})(FavoriteSettingsStub);
 
 const account = { ...createMarketplaceFixtures().connections[0], executionMode: 'local' as const };
 const accountList = signal<readonly MarketplaceConnection[]>([account]);
@@ -84,6 +86,7 @@ const local = {
   sync: vi.fn(),
   revoke: vi.fn(),
 };
+const cloud = { canSetup: signal(true), busy: signal(false) };
 let restore: (() => void) | undefined;
 beforeAll(async () => {
   const resourceFiles = new Map(
@@ -127,6 +130,8 @@ beforeEach(() => {
   selected.set(null);
   accounts.busy.set(false);
   runtime.checking.set(false);
+  cloud.canSetup.set(true);
+  cloud.busy.set(false);
   readiness.set({
     ...account,
     state: 'ready',
@@ -161,7 +166,7 @@ beforeEach(() => {
         'utf8',
       ),
       providers: [
-        { provide: MarketplaceCloudSetupStore, useValue: { canSetup: signal(true) } },
+        { provide: MarketplaceCloudSetupStore, useValue: cloud },
         {
           provide: VintedAccountPreviewsStore,
           useValue: {
@@ -207,7 +212,6 @@ describe('Kompakte Vinted-Konten', () => {
     expect(primaryAction(element)?.textContent).toContain('Synchronisieren');
     expect(element.querySelectorAll('app-card app-button[variant="primary"]')).toHaveLength(1);
     expect(element.querySelector('app-card app-badge')?.textContent).toContain('Lokal');
-    expect(element.querySelector('[cdkDropList]')?.className).not.toContain('grid-cols-4');
     primaryAction(element)?.click();
     await Promise.resolve();
     await Promise.resolve();
@@ -244,30 +248,73 @@ describe('Kompakte Vinted-Konten', () => {
     expect(accounts.syncSelectedConnection).toHaveBeenCalledOnce();
     expect(local.sync).not.toHaveBeenCalled();
   });
-  it('bündelt Prüfung und Cloudwechsel im Zahnrad und erhält Löschen und Reihenfolgepfeile', async () => {
+  it('sortiert Karten per Tastatur ohne Griff oder Pfeilbuttons und zeigt den Cloudwechsel direkt', async () => {
     accountList.set([account, { ...account, connectionId: 'account-b', displayName: 'Konto B' }]);
     const { element, fixture } = await render();
     expect(element.querySelectorAll('app-card')).toHaveLength(2);
+    expect(element.querySelector('[cdkDragHandle]')).toBeNull();
+    expect(element.querySelector('button[aria-label$="verschieben"]')).toBeNull();
     element
-      .querySelector<HTMLButtonElement>('button[aria-label$="nach hinten verschieben"]')
-      ?.click();
+      .querySelector('app-card a')
+      ?.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'ArrowRight', altKey: true, bubbles: true }),
+      );
     await Promise.resolve();
     expect(accounts.reorderConnections).toHaveBeenCalledWith(['account-b', account.connectionId]);
+    const upgrade = [...element.querySelectorAll<HTMLButtonElement>('app-card button')].find(
+      (button) => button.textContent?.includes('Auf Cloud wechseln'),
+    );
+    expect(upgrade).toBeDefined();
+    upgrade?.click();
+    expect(fixture.componentInstance.management()?.upgrade).toHaveBeenCalledWith(account);
+    expect(TestBed.inject(Router).url).toBe('/');
+  });
+  it('ordnet Einstellungen nach Aufgaben und erklärt die Wirkung von Trennen und Entfernen', async () => {
+    const { element, fixture } = await render();
     element.querySelector<HTMLButtonElement>('button[aria-label$="einstellen"]')?.click();
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
     const dialog = element.querySelector('[role="dialog"]');
-    expect(dialog?.textContent).toContain('Auf Cloud wechseln');
+    expect(
+      [...(dialog?.querySelectorAll('h3') ?? [])].map((heading) => heading.textContent?.trim()),
+    ).toEqual(['Verbindung', 'Benachrichtigungen', 'Kontoverwaltung', 'Trennen und entfernen']);
     expect(dialog?.textContent).toContain('Verbindung prüfen');
     expect(dialog?.textContent).toContain('Konto entfernen');
-    const upgrade = [...(dialog?.querySelectorAll<HTMLButtonElement>('button') ?? [])].find(
+    expect(dialog?.textContent).toContain('gespeicherten Daten bleiben erhalten');
+    expect(dialog?.textContent).not.toContain('Auf Cloud wechseln');
+    const result = await axe.run(element, { rules: { 'color-contrast': { enabled: false } } });
+    expect(result.violations).toEqual([]);
+  });
+  it('zeigt einen nicht verfügbaren Cloudwechsel ohne die lokale Synchronisierung zu sperren', async () => {
+    cloud.canSetup.set(false);
+    const { element } = await render();
+    const upgrade = [...element.querySelectorAll<HTMLButtonElement>('app-card button')].find(
       (button) => button.textContent?.includes('Auf Cloud wechseln'),
     );
-    upgrade?.click();
-    expect(fixture.componentInstance.management()?.upgrade).toHaveBeenCalledWith(account);
-    expect(fixture.componentInstance.settingsAccount()).toBeNull();
+    expect(upgrade?.disabled).toBe(true);
+    expect((primaryAction(element) as HTMLButtonElement).disabled).toBe(false);
+    primaryAction(element)?.click();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(local.sync).toHaveBeenCalledOnce();
   });
+  it.each(['mousedown', 'touchstart'])(
+    'nimmt Bedienelemente bei %s vom Ziehen aus und lässt die übrige Kartenfläche ziehbar',
+    async (eventType) => {
+      const { element } = await render();
+      const pointerDown = vi.fn();
+      element.addEventListener(eventType, pointerDown);
+      element
+        .querySelector('app-card app-button[variant="primary"] svg')
+        ?.dispatchEvent(new Event(eventType, { bubbles: true }));
+      expect(pointerDown).not.toHaveBeenCalled();
+      element
+        .querySelector('app-card div.relative.z-10')
+        ?.dispatchEvent(new Event(eventType, { bubbles: true }));
+      expect(pointerDown).toHaveBeenCalledOnce();
+    },
+  );
   it('kennzeichnet ein ungebundenes Konto trotz fremder Bereitschaft nicht als verbunden', async () => {
     accountList.set([{ ...account, externalAccountId: null }]);
     const { element } = await render();
@@ -281,7 +328,7 @@ describe('Kompakte Vinted-Konten', () => {
       accountList.set([{ ...account, executionMode: 'cloud', status }]);
       const { element } = await render();
       expect(primaryAction(element)?.textContent).toContain(
-        status === 'paused' || status === 'blocked' ? 'Einstellungen öffnen' : 'Cloud-Anmeldung',
+        status === 'paused' || status === 'blocked' ? 'Einstellungen öffnen' : 'Cloud verbinden',
       );
       expect(accounts.syncSelectedConnection).not.toHaveBeenCalled();
     },

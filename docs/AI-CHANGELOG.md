@@ -1,5 +1,27 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-06 - Juna - Vinted-Karten direkt ziehen und Einstellungen ordnen
+
+**Auftrag und Änderung:** Die Kontenkarten bleiben höchstens 320 Pixel breit.
+Festhalten und Ziehen der Karte ersetzt die sichtbaren Griffe und Pfeile; ein
+markierter Platzhalter zeigt das Ablageziel. Tastaturbedienung bleibt über
+Alt und die Pfeiltasten links/rechts erhalten. Bedienelemente lösen keinen
+Ziehvorgang aus. Bewertungen stehen unten links. „Auf Cloud wechseln“ liegt
+direkt neben der Hauptaktion. „Cloud verbinden“ bezeichnet die Wiederaufnahme
+eines bestehenden Cloudkontos. Die Einrichtung nutzt weiterhin die bestehende
+Kapazitätsprüfung und Reservierung vor der Anmeldung; eine kostenpflichtige
+IP-Buchung wird nicht eingeführt. Die Einstellungen gliedern Verbindung,
+Benachrichtigungen, Kontoverwaltung sowie Trennen/Entfernen mit erklärten Folgen.
+
+**Prüfung:** 104 betroffene Angularprüfungen und 22 Browserfälle bestanden.
+Die gezielt gerenderten Regressionen prüfen
+Reihenfolgespeicherung, Maus/Touch, Tastatur, direkte Cloud-Einrichtung,
+fehlende Kapazität ohne Verlust des lokalen Kontos, geschützte Anmeldung,
+schmale Ansichten und Barrierefreiheit im hellen/dunklen Theme. Produktionsbau,
+Typprüfung, ESLint, Formatierung sowie Shared-UI- und PR-Testauswahlprüfung
+bestanden. Ausschließlich synthetische Browserdaten; keine Anmeldung bei Vinted,
+keine Kontoänderung in Produktion, keine neue Migration oder Erweiterungsversion.
+
 ## 2026-10-06 - Juna - Festhängende Cloud-Bereinigung nach Anmeldeabbruch beheben
 
 **Befund:** Nach dem manuellen Cloudversuch bleibt die Einrichtung auf

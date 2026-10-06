@@ -22,10 +22,11 @@ for (const width of [1440, 320]) {
     const positions = await grid.locator('app-card').evaluateAll((cards) =>
       cards.map((card) => {
         const bounds = card.getBoundingClientRect();
-        return { top: bounds.top, left: bounds.left, right: bounds.right };
+        return { top: bounds.top, left: bounds.left, right: bounds.right, width: bounds.width };
       }),
     );
     expect(positions.every((position) => position.left >= 0 && position.right <= width)).toBe(true);
+    expect(positions.every((position) => position.width <= 321)).toBe(true);
     const firstRow = positions.filter((position) => Math.abs(position.top - positions[0].top) <= 1);
     expect(firstRow.length).toBe(width === 320 ? 1 : 3);
     await grid.getByRole('button', { name: 'Testkonto J einstellen', exact: true }).click();
@@ -40,8 +41,23 @@ for (const width of [1440, 390, 320]) {
     await page.setViewportSize({ width, height: 1000 });
     const calls = await mockMarketplace(page, true, false, false, false, [], undefined, true);
     await page.goto('/marketplaces/vinted/accounts');
-    await page.getByRole('button', { name: 'Testkonto A einstellen', exact: true }).click();
-    await page.getByRole('button', { name: 'Auf Cloud wechseln', exact: true }).first().click();
+    const actions = page
+      .locator('app-vinted-account-grid app-card')
+      .first()
+      .locator('button')
+      .filter({ hasNot: page.locator('svg.lucide-settings') });
+    await expect(actions).toHaveCount(2);
+    if (width > 320) {
+      const positions = await actions.evaluateAll((buttons) =>
+        buttons.map((button) => button.getBoundingClientRect().top),
+      );
+      expect(Math.abs(positions[0] - positions[1])).toBeLessThanOrEqual(1);
+    }
+    await page
+      .locator('app-vinted-account-grid app-card')
+      .first()
+      .getByRole('button', { name: 'Auf Cloud wechseln', exact: true })
+      .click();
     await expect(page).toHaveURL(/\/marketplaces\/vinted\/accounts$/);
     await expect(page.getByRole('dialog', { name: 'Vinted-Anmeldung', exact: true })).toBeVisible();
     await page

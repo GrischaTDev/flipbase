@@ -1194,8 +1194,10 @@ describe('Vinted-Bereich in Flipbase', () => {
     const { element, harness } = await render('/marketplaces/vinted/accounts');
     const reads = api.readAccountPreview.mock.calls.length;
     element
-      .querySelector<HTMLButtonElement>('button[aria-label="Testkonto A nach hinten verschieben"]')
-      ?.click();
+      .querySelector<HTMLAnchorElement>('app-card a[aria-label="Testkonto A öffnen"]')
+      ?.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'ArrowRight', altKey: true, bubbles: true }),
+      );
     await harness.fixture.whenStable();
     harness.detectChanges();
     expect(api.reorderConnections).toHaveBeenCalledWith(fixtureConnections[0].workspaceId, [
