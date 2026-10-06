@@ -1,5 +1,43 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-07 - Juna - Klarere Meldung zur pausierten Cloud-Automatik veröffentlichen
+
+**Freigabe:** Der Nutzer bestätigt PR-Erstellung, Merge nach erfolgreichen
+Pflichtprüfungen und Bereinigung des eigenen Zweigs. Der aktuelle master
+mit den Speicheränderungen wird übernommen; beide Protokollabschnitte bleiben
+erhalten. Die Änderung erklärt den früheren automatischen Abruffehler und
+die davon unabhängige manuelle Aktualisierung. Automatikfreigabe und
+Browserdienst werden durch diese Textkorrektur nicht verändert. Nach dem
+Merge wird die tatsächlich veröffentlichte Web-Version geprüft.
+
+## 2026-10-06 - Juna - Alten automatischen Abruffehler nach erfolgreicher Cloud-Verknüpfung einordnen
+
+**Auftrag:** Die Cloud-Verknüpfung gelingt und manuelle Kontenaktualisierungen
+sind grün, während der Seitenkopf eine pausierte Automatik und eine
+Vinted-Ablehnung meldet.
+
+**Live-Diagnose:** Die gebundene Maike-Vintage-Verbindung ist `connected` im
+Cloudmodus. Drei heutige manuelle Abrufe sind erfolgreich abgeschlossen und
+gespeichert, ohne Quellenfehler. Profil, Inserate, Gesprächsübersicht und
+Bewertungen sind vollständig; Nachrichten und Verkäufe bleiben fehlerfreie
+Teilstände. Der getrennte Zeitplan ist seit dem 2. Oktober nach einem
+automatischen Abruf mit `forbidden` pausiert. Der Worker meldet weiterhin
+deaktivierte Zeitsteuerung. Nur Statusmetadaten werden gelesen; keine
+Kontoinhalte, Zugangsdaten, Datenbankkorrektur oder neue Anbieteranfrage.
+
+**Korrektur:** Der Ablehnungshinweis benennt den letzten automatischen Abruf
+und erklärt, dass manuelle Aktualisierungen unabhängig davon möglich sind.
+Eine manuelle Aktualisierung erteilt keine neue Automatikfreigabe. Der
+Pausengrund bleibt erhalten; weder Zeitsteuerung noch Schreibaktionen werden
+aktiviert. Ein gezielter Dialogtest prüft diese Trennung auch bei einem
+neueren manuellen Aktualisierungszeitpunkt. Veröffentlichung erst nach
+erfolgreichen Prüfungen und PR-Freigabe.
+
+**Prüfung:** 87 gezielte Angular-Tests für Zeitplan, Kontrollzeile und Workspace
+bestanden. Typprüfung, ESLint, Prettier und Angular-Produktionsbau erfolgreich;
+nur die bestehende CommonJS-Warnung zu `pako`. Die Änderung ist lokal geprüft,
+noch nicht veröffentlicht.
+
 ## 2026-10-06 - Juna - offene Sicherheitsgrenzen serverseitig schließen
 
 **Freigabe:** Der Nutzer bestätigt Branch-Push, PR-Erstellung, Merge-Commit nach erfolgreichen Pflichtprüfungen und anschließendes Aufräumen des eigenen Zweigs samt Worktree. Der vorbereitete Installationsweg hält den Webhook-Dienst vor der Rechte-Migration verfügbar und trennt die Chromium-Serverumstellung vom Web-Release.

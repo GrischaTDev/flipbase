@@ -127,6 +127,28 @@ async function render(openSettings = false) {
   return fixture;
 }
 describe('Automatische Aktualisierung je Vinted-Konto', () => {
+  it('ordnet eine alte Abrufablehnung dem Zeitplan zu, auch nach einer neueren manuellen Aktualisierung', async () => {
+    api.read.mockResolvedValue({
+      ...schedule,
+      pausedReason: 'forbidden',
+      lastAttemptAt: '2026-10-02T15:13:28Z',
+    });
+    api.availability.mockResolvedValue({ enabled: false, allowedIntervals: [] });
+    const fixture = await render();
+    fixture.componentRef.setInput('account', {
+      ...account,
+      lastSyncedAt: '2026-10-06T21:26:40Z',
+    });
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(fixture.componentInstance.headerNotice()?.text).toContain(
+      'Der letzte automatische Abruf wurde von Vinted abgelehnt',
+    );
+    expect(fixture.componentInstance.headerNotice()?.text).toContain('manuell aktualisieren');
+    expect(fixture.componentInstance.headerStatus()?.label).toBe('Automatik pausiert');
+    expect(api.set).not.toHaveBeenCalled();
+  });
+
   it('schließt den Einstellungsdialog beim Öffnen der Vinted-Anmeldeseite', async () => {
     const router = TestBed.inject(Router);
     router.resetConfig([

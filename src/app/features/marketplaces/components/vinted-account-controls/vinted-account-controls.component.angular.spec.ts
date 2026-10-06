@@ -158,9 +158,9 @@ describe('Benachrichtigungseinstellungen bei lokalen Vinted-Konten', () => {
       'Automatik pausiert',
     );
     expect(element.querySelector('[data-account-controls] app-notice-banner')).toBeNull();
-    expect(element.textContent).not.toContain('Vinted hat den Abruf abgelehnt');
+    expect(element.textContent).not.toContain('Der letzte automatische Abruf');
     expect(fixture.componentInstance.scheduleNotice()?.text).toContain(
-      'Vinted hat den Abruf abgelehnt',
+      'Der letzte automatische Abruf wurde von Vinted abgelehnt',
     );
     fixture.componentRef.setInput('account', account);
     await settle(fixture);

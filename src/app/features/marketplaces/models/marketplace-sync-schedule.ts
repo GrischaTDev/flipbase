@@ -5,7 +5,8 @@ export const MARKETPLACE_SYNC_INTERVALS = [3, 5, 10, 15, 30, 60] as const;
 export type MarketplaceSyncInterval = (typeof MARKETPLACE_SYNC_INTERVALS)[number];
 export const MARKETPLACE_SYNC_PAUSE_LABELS = {
   needs_login: 'Vinted verlangt eine neue Anmeldung. Öffne die Vinted-Anmeldung für dieses Konto.',
-  forbidden: 'Vinted hat den Abruf abgelehnt. Prüfe die Kontoverbindung.',
+  forbidden:
+    'Der letzte automatische Abruf wurde von Vinted abgelehnt. Die Automatik bleibt pausiert. Kontodaten kannst Du weiterhin manuell aktualisieren.',
   challenge:
     'Vinted verlangt eine zusätzliche Prüfung. Öffne die Vinted-Anmeldung für dieses Konto.',
   rate_limited: 'Der Anbieter verlangt eine Wartezeit. Der nächste Abruf wartet.',
