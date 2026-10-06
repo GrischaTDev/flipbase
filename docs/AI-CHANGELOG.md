@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-06 - Juna - Sicherheitskorrekturen über PR abschließen
+
+**Freigabe:** Der Nutzer bestätigt Push, PR-Erstellung, Merge-Commit nach
+erfolgreichen Pflichtprüfungen und anschließendes Aufräumen des eigenen Zweigs
+`juna/security-report-triage` samt Worktree. Der aktuelle master einschließlich
+PR #318 und #319 ist enthalten. Serverseitiger Webhook-Versand und die Trennung
+des Docker-Controllers bleiben als nummerierte Backend-Issues offen.
+
 ## 2026-10-06 - Juna - bestätigte Sicherheitsbefunde korrigieren
 
 **Auftrag:** Nach Freigabe die bestätigten Befunde im eigenen Zweig
