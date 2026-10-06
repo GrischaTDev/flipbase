@@ -64,7 +64,7 @@ export function presentVintedLocalReadiness(
   action: 'check' | 'renew' | 'login' | 'settings' | 'profile';
 } {
   if (account.status === 'paused')
-    return { label: 'Pausiert', tone: 'caution', action: 'settings' };
+    return { label: 'Automatik pausiert', tone: 'caution', action: 'settings' };
   if (account.status === 'blocked')
     return { label: 'Kontoprüfung erforderlich', tone: 'critical', action: 'settings' };
   if (account.status === 'disconnected')
@@ -83,7 +83,7 @@ export function presentVintedLocalReadiness(
     return { label: 'In anderem Browserprofil verknüpft', tone: 'neutral', action: 'profile' };
   switch (readiness.state) {
     case 'ready':
-      return { label: 'Browserprofil bereit', tone: 'success', action: 'check' };
+      return { label: 'Erweiterung verbunden', tone: 'success', action: 'check' };
     case 'unbound':
       return {
         label: 'Dieses Browserprofil ist nicht verknüpft',
@@ -95,7 +95,7 @@ export function presentVintedLocalReadiness(
     case 'revoked':
       return { label: 'Freigabe widerrufen', tone: 'caution', action: 'renew' };
     case 'paused':
-      return { label: 'Abgleich pausiert', tone: 'caution', action: 'settings' };
+      return { label: 'Automatik pausiert', tone: 'caution', action: 'settings' };
     case 'login_required':
       return { label: 'Bei Vinted anmelden', tone: 'caution', action: 'login' };
     case 'identity_mismatch':

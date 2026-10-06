@@ -12,7 +12,6 @@ import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { LucideArrowLeft, LucideLogIn, LucideStore, LucideMessagesSquare } from '@lucide/angular';
 import { ButtonComponent } from '../../shared/components/button/button.component';
-import { BadgeComponent } from '../../shared/components/badge/badge.component';
 import { presentVintedLocalReadiness } from './models/vinted-local-readiness';
 import { NoticeBannerComponent } from '../../shared/components/notice-banner/notice-banner.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
@@ -20,6 +19,7 @@ import { MarketplaceAccountStore } from './services/marketplace-account.store';
 import { MarketplaceSyncProgressComponent } from './components/marketplace-sync-progress/marketplace-sync-progress.component';
 import { marketplaceSyncWarningSources } from './models/marketplace-sync-results';
 import { VintedAccountControlsComponent } from './components/vinted-account-controls/vinted-account-controls.component';
+import type { VintedSyncHeaderState } from './components/vinted-sync-schedule/vinted-sync-schedule.component';
 import { VintedSetupComponent } from './components/vinted-setup/vinted-setup.component';
 import { VintedLocalExtensionBridge } from './services/vinted-local-extension-bridge';
 import { VintedLocalExtensionStore } from './services/vinted-local-extension.store';
@@ -31,7 +31,6 @@ import { VintedLocalRuntimeStore } from './services/vinted-local-runtime.store';
   imports: [
     RouterOutlet,
     ButtonComponent,
-    BadgeComponent,
     VintedSetupComponent,
     NoticeBannerComponent,
     PageHeaderComponent,
@@ -81,6 +80,24 @@ export class VintedWorkspaceComponent {
   readonly pageIcon = computed(() => (this.showingMessages() ? LucideMessagesSquare : LucideStore));
   readonly loginIcon = LucideLogIn;
   readonly syncModalOpen = signal(false);
+  readonly cloudHeaderState = signal<VintedSyncHeaderState | null>(null);
+  readonly currentCloudHeaderState = computed(() => {
+    const state = this.cloudHeaderState();
+    const account = this.store.selectedConnection();
+    return account?.executionMode === 'cloud' &&
+      state?.workspaceId === account.workspaceId &&
+      state.connectionId === account.connectionId
+      ? state
+      : null;
+  });
+  readonly scheduleNotice = computed(() => {
+    const notice = this.currentCloudHeaderState()?.notice;
+    return notice &&
+      notice.text !== this.store.error() &&
+      notice.text !== this.store.mutationError()
+      ? notice
+      : null;
+  });
   readonly runtimeStatus = computed(() => {
     const account = this.store.selectedConnection();
     return account?.executionMode === 'local'
@@ -97,6 +114,32 @@ export class VintedWorkspaceComponent {
     return account
       ? `/marketplaces/vinted/${account.executionMode === 'local' ? 'local-connect' : 'connect'}/${account.connectionId}`
       : null;
+  });
+  readonly runtimeNotice = computed(() => {
+    const account = this.store.selectedConnection();
+    const status = this.runtimeStatus();
+    if (
+      !account ||
+      account.status !== 'connected' ||
+      !status ||
+      this.runtime.checking() ||
+      this.local.error() ||
+      this.store.mutationError()
+    )
+      return null;
+    if (status.tone === 'success') return null;
+    switch (status.action) {
+      case 'profile':
+        return 'Öffne das Browserprofil mit dem passenden Vinted-Konto oder prüfe die lokale Kontoverbindung.';
+      case 'renew':
+        return 'Die Freigabe für dieses Browserprofil fehlt oder ist nicht mehr gültig. Verknüpfe das Konto erneut.';
+      case 'login':
+        return 'Bestätige Deine Vinted-Anmeldung und eine gegebenenfalls erforderliche Anbieterprüfung im verknüpften Browserprofil.';
+      case 'settings':
+        return 'Die lokale Automatik ist angehalten. Prüfe den Zustand und die Freigabe in der Kontenübersicht.';
+      case 'check':
+        return 'Die lokale Verbindung ist noch nicht bestätigt. Prüfe die Erweiterung und die Freigabe am Konto.';
+    }
   });
 
   constructor() {

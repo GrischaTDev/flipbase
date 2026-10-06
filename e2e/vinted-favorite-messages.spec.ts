@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import axe from 'axe-core';
 import { mockMarketplace, accountIds, workspaceId } from './support/marketplace-account-fixture';
 test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: 'block' });
-for (const width of [1440, 390]) {
+for (const width of [1440, 1024, 390, 320]) {
   test(`Favoritennachrichten bleiben vor Freigabe aus und speichern Regeln bei ${width}px @marketplace-preview @core-smoke`, async ({
     page,
   }) => {
@@ -39,6 +39,12 @@ for (const width of [1440, 390]) {
     const view = page.locator('app-vinted-favorite-messages');
     await expect(view.getByText('Ausgeschaltet', { exact: true })).toBeVisible();
     await expect(view.getByRole('textbox', { name: 'Textvariante 1' })).toBeVisible();
+    const offerToggle = view.getByRole('checkbox', { name: 'Angebot mitschicken', exact: true });
+    await expect(offerToggle).toHaveAttribute('aria-checked', 'false');
+    await offerToggle.click();
+    await expect(
+      view.getByText('Beispiel: Artikelpreis 40,00 € → Angebot 35,00 €.', { exact: true }),
+    ).toBeVisible();
     await view.getByRole('button', { name: 'Regel hinzufügen', exact: true }).click();
     await view.getByRole('textbox', { name: 'Regelname' }).fill('Nacht');
     await view.getByLabel('Ab Stunde', { exact: true }).fill('22');
@@ -55,6 +61,7 @@ for (const width of [1440, 390]) {
     expect(saves[0]['p_enabled']).toBe(false);
     expect(saves[0]['p_config']).toMatchObject({
       timezone: 'Europe/Berlin',
+      offer: { type: 'amount', value: 5 },
       rules: [{ startHour: 22, endHour: 8, days: [1] }],
     });
     const activation = view.getByRole('checkbox', {

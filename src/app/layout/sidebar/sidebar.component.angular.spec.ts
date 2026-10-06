@@ -8,6 +8,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { PlatformOperatorService } from '../../core/services/platform-operator.service';
+import { prepareMarketplaceRendering } from '../../../../e2e/support/marketplace-rendering';
 import { PwaService } from '../../core/services/pwa.service';
 import { SidebarComponent } from './sidebar.component';
 
@@ -51,6 +52,9 @@ describe('SidebarComponent', () => {
         'utf8',
       ),
     );
+    await prepareMarketplaceRendering([
+      { type: SidebarComponent, path: 'src/app/layout/sidebar/sidebar.component.ts' },
+    ]);
   });
 
   afterEach(() => TestBed.resetTestingModule());
@@ -239,5 +243,33 @@ describe('SidebarComponent', () => {
         ['critical', 'serious'].includes(violation.impact ?? ''),
       ),
     ).toEqual([]);
+  });
+  it('zeigt nicht anklickbare Vinted-Gruppen und schließt mobile Navigation beim Linkklick', async () => {
+    const { element, fixture } = await renderAt('/marketplaces/vinted/favorite-messages');
+    fixture.componentRef.setInput('isOpen', true);
+    fixture.detectChanges();
+    const closed = vi.fn();
+    fixture.componentInstance.closed.subscribe(closed);
+    const groups = [...element.querySelectorAll<HTMLElement>('[data-vinted-navigation-group]')];
+    expect(groups.map((group) => group.querySelector('[id]')?.textContent?.trim())).toEqual([
+      'Konto',
+      'Automatisierungen',
+    ]);
+    expect(groups[0]?.querySelectorAll('a')).toHaveLength(6);
+    expect(groups[1]?.querySelectorAll('a')).toHaveLength(1);
+    for (const group of groups) {
+      const label = group.querySelector('[id]');
+      expect(label?.tagName).toBe('DIV');
+      expect(label?.querySelector('a, button')).toBeNull();
+      expect(label?.getAttribute('tabindex')).toBeNull();
+    }
+    const links = [...element.querySelectorAll<HTMLAnchorElement>('nav a')];
+    expect(links[0].textContent?.trim()).toBe('Konten');
+    expect(links.at(-1)?.textContent?.trim()).toBe('Favoritennachrichten');
+    expect(links.filter((link) => link.getAttribute('aria-current') === 'page')).toHaveLength(1);
+    links[1].click();
+    expect(closed).toHaveBeenCalledOnce();
+    await fixture.whenStable();
+    expect(TestBed.inject(Router).url).toBe('/marketplaces/vinted/overview');
   });
 });

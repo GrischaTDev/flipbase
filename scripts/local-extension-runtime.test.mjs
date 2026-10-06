@@ -57,7 +57,7 @@ function accountBubbleFixture({
               connectionId: storedBinding?.connectionId ?? null,
               externalAccountId: storedBinding?.externalAccountId ?? null,
               checkedAt: '2026-10-06T10:00:00.000Z',
-              version: '1.6.0',
+              version: '1.7.0',
             },
           };
         }
@@ -1389,7 +1389,7 @@ test('Website bridge checks source and origin, preserves request correlation and
   assert.equal(replies.at(-1).origin, appOrigin);
   assert.ok(!JSON.stringify(replies).includes(secret));
   const announcement = replies.findLast(({ reply }) => reply.type === 'FLIPBASE_EXTENSION_STATUS');
-  assert.equal(announcement.reply.version, '1.6.0');
+  assert.equal(announcement.reply.version, '1.7.0');
   assert.equal(announcement.reply.localAccount.boundUsername, 'maike');
   assert.equal(announcement.reply.localAccount.boundConnectionId, connectionId);
 });
@@ -1597,7 +1597,7 @@ test('Manifest narrows application and provider access without changing Kleinanz
     script.matches.includes('https://www.vinted.de/*'),
   );
   assert.equal(vintedContent.js.at(-1), 'vinted-local-account.js');
-  assert.equal(manifest.version, '1.6.0');
+  assert.equal(manifest.version, '1.7.0');
   assert.ok(
     manifest.content_scripts.some(
       (script) =>
@@ -2369,7 +2369,7 @@ test('Readiness is unbound without opening Vinted and never exposes installation
     connectionId: null,
     externalAccountId: null,
     checkedAt: observedAt,
-    version: '1.6.0',
+    version: '1.7.0',
   });
   assert.deepEqual(setup.edgeCalls, []);
 });
@@ -3124,6 +3124,187 @@ async function favoriteHarness(enabled = true) {
   });
   return setup;
 }
+
+test('Favorite offer resumes after message checkpoint without repeating the confirmed text', async () => {
+  const setup = await favoriteHarness();
+  const edge = setup.adapter.edge;
+  let stage = 'message';
+  let sends = 0;
+  setup.adapter.edge = async (...args) => {
+    const result = await edge(...args);
+    if (args[2].action === 'favorite_claim') {
+      assert.equal(args[2].offerSupported, true);
+      result.command = {
+        ...result.command,
+        stage,
+        offer: { type: 'amount', value: 5 },
+        ...(stage === 'offer'
+          ? { conversationId: '15', transactionId: '22', externalMessageId: '62' }
+          : {}),
+      };
+    }
+    if (args[2].action === 'favorite_message_sent') stage = 'offer';
+    return result;
+  };
+  setup.adapter.sendFavorite = async () => {
+    sends++;
+    return {
+      outcome: {
+        outcome: 'sent',
+        externalMessageId: '62',
+        conversationId: '15',
+        transactionId: '22',
+      },
+    };
+  };
+  setup.adapter.prepareFavoriteOffer = async () => ({
+    outcome: { originalPriceCents: 4000, offerPriceCents: 3500 },
+  });
+  setup.adapter.sendFavoriteOffer = async () => {
+    assert.equal(setup.saved.pendingFinish.favoriteAction, 'favorite_offer_finish');
+    assert.equal(setup.saved.pendingFinish.outcome, 'outcome_unknown');
+    assert.ok(setup.edgeCalls.some((call) => call.action === 'favorite_offer_start'));
+    return { outcome: { outcome: 'sent', externalOfferId: '99' } };
+  };
+  await setup.runtime.run(request('FAVORITES_SEND', scope), appOrigin);
+  assert.ok(setup.edgeCalls.some((call) => call.action === 'favorite_message_sent'));
+  await core.createRuntime(setup.adapter).run(request('FAVORITES_SEND', scope), appOrigin);
+  assert.equal(sends, 1);
+  assert.equal(setup.edgeCalls.at(-1).action, 'favorite_offer_finish');
+  assert.equal(setup.saved.pendingFinish, undefined);
+});
+
+test('Lost favorite message checkpoint is replayed after restart without a second provider write', async () => {
+  const setup = await favoriteHarness();
+  const edge = setup.adapter.edge;
+  let offline = true;
+  let sends = 0;
+  setup.adapter.edge = async (...args) => {
+    if (args[2].action === 'favorite_message_sent' && offline) throw new Error('offline');
+    const result = await edge(...args);
+    if (args[2].action === 'favorite_claim')
+      result.command.offer = { type: 'percentage', value: 10 };
+    return result;
+  };
+  setup.adapter.sendFavorite = async () => {
+    sends++;
+    return {
+      outcome: {
+        outcome: 'sent',
+        externalMessageId: '62',
+        conversationId: '15',
+        transactionId: '22',
+      },
+    };
+  };
+  await assert.rejects(setup.runtime.run(request('FAVORITES_SEND', scope), appOrigin), /offline/);
+  assert.equal(setup.saved.pendingFinish.favoriteAction, 'favorite_message_sent');
+  offline = false;
+  await core.createRuntime(setup.adapter).run(request('MESSAGES_SEND', scope), appOrigin);
+  assert.equal(sends, 1);
+  assert.equal(setup.edgeCalls.at(-1).action, 'favorite_message_sent');
+});
+
+async function offerRuntimeFixture() {
+  const setup = await favoriteHarness();
+  const edge = setup.adapter.edge;
+  setup.adapter.edge = async (...args) => {
+    const result = await edge(...args);
+    if (args[2].action === 'favorite_claim')
+      result.command = {
+        ...result.command,
+        stage: 'offer',
+        offer: { type: 'amount', value: 5 },
+        conversationId: '15',
+        transactionId: '22',
+        externalMessageId: '62',
+      };
+    return result;
+  };
+  setup.adapter.sendFavorite = async () => {
+    throw new Error('confirmed message must never repeat');
+  };
+  setup.adapter.prepareFavoriteOffer = async () => ({
+    outcome: { originalPriceCents: 4000, offerPriceCents: 3500 },
+  });
+  setup.adapter.sendFavoriteOffer = async () => ({
+    outcome: { outcome: 'sent', externalOfferId: '99' },
+  });
+  return setup;
+}
+test('Lost offer completion replays the stored receipt without a new claim or offer write', async () => {
+  const setup = await offerRuntimeFixture();
+  const edge = setup.adapter.edge;
+  let offline = true;
+  let offers = 0;
+  setup.adapter.edge = async (...args) => {
+    if (args[2].action === 'favorite_offer_finish' && offline) throw new Error('offline');
+    return edge(...args);
+  };
+  setup.adapter.sendFavoriteOffer = async () => {
+    offers++;
+    return { outcome: { outcome: 'sent', externalOfferId: '99' } };
+  };
+  await assert.rejects(setup.runtime.run(request('FAVORITES_SEND', scope), appOrigin), /offline/);
+  offline = false;
+  await core.createRuntime(setup.adapter).run(request('FAVORITES_SEND', scope), appOrigin);
+  assert.equal(offers, 1);
+  assert.equal(setup.edgeCalls.filter((call) => call.action === 'favorite_claim').length, 1);
+  assert.equal(setup.saved.pendingFinish, undefined);
+});
+test('Refused offer start and invalid live item result in zero offer writes', async () => {
+  for (const mode of ['refused', 'inactive']) {
+    const setup = await offerRuntimeFixture();
+    let offers = 0;
+    const edge = setup.adapter.edge;
+    setup.adapter.edge = async (...args) => {
+      if (mode === 'refused' && args[2].action === 'favorite_offer_start')
+        throw new core.LocalBindingInvalidError();
+      return edge(...args);
+    };
+    if (mode === 'inactive')
+      setup.adapter.prepareFavoriteOffer = async () => ({
+        outcome: { outcome: 'skipped', errorCode: 'inactive_item' },
+      });
+    setup.adapter.sendFavoriteOffer = async () => {
+      offers++;
+    };
+    await assert.rejects(setup.runtime.run(request('FAVORITES_SEND', scope), appOrigin));
+    assert.equal(offers, 0);
+    assert.equal(setup.saved.pendingFinish, undefined);
+    assert.notEqual(setup.saved.schedule?.pauseReason, 'local_binding_invalid');
+    assert.equal(
+      setup.edgeCalls.some((call) => call.action === 'favorite_offer_finish'),
+      mode === 'inactive',
+    );
+  }
+});
+test('Offer result reporting holds the runtime lock until its acknowledgement', async () => {
+  const setup = await offerRuntimeFixture();
+  const edge = setup.adapter.edge;
+  let acknowledge;
+  let finishStarted;
+  const observed = new Promise((resolve) => {
+    finishStarted = resolve;
+  });
+  setup.adapter.edge = async (...args) => {
+    if (args[2].action === 'favorite_offer_finish') {
+      finishStarted();
+      await new Promise((resolve) => {
+        acknowledge = resolve;
+      });
+    }
+    return edge(...args);
+  };
+  const sending = setup.runtime.run(request('FAVORITES_SEND', scope), appOrigin);
+  await observed;
+  await assert.rejects(
+    setup.runtime.run(request('MESSAGES_SEND', scope), appOrigin),
+    /läuft bereits/,
+  );
+  acknowledge();
+  await sending;
+});
 
 test('Disabled favorites perform no provider reads or writes and never claim', async () => {
   const setup = await favoriteHarness(false);

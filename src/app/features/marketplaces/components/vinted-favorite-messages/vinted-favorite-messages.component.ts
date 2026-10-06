@@ -1,12 +1,14 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   DestroyRef,
   effect,
   inject,
   signal,
   untracked,
 } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { DatePipe } from '@angular/common';
 import { FormArray, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { LucideArrowUp, LucideArrowDown, LucideTrash2 } from '@lucide/angular';
@@ -19,17 +21,56 @@ import { NoticeBannerComponent } from '../../../../shared/components/notice-bann
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
+import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { VintedLocalExtensionStore } from '../../services/vinted-local-extension.store';
 import { VintedFavoriteMessageApiService } from '../../services/vinted-favorite-message-api.service';
 import {
   favoriteMessageStateLabels,
+  favoriteOfferStateLabels,
+  favoriteOfferPriceCents,
+  validateFavoriteOffer,
   validateFavoriteMessageConfig,
   type FavoriteMessageConfig,
   type FavoriteMessageRule,
   type FavoriteMessageSettings,
+  type FavoriteOfferConfig,
 } from '../../models/vinted-favorite-messages';
+
+const offerFailureLabels: Readonly<Record<string, string>> = {
+  missing_transaction: 'Für dieses Gespräch fehlt die Zuordnung zu einem Vinted-Angebot.',
+  inactive_item: 'Der Artikel ist nicht mehr für ein Angebot verfügbar.',
+  invalid_price: 'Der berechnete Angebotspreis liegt außerhalb unserer zulässigen Preisgrenzen.',
+  transaction_changed:
+    'Das zugehörige Vinted-Gespräch hat sich geändert. Das geplante Angebot wurde ausgelassen.',
+  price_changed: 'Der Artikelpreis hat sich geändert. Das geplante Angebot wurde ausgelassen.',
+  configuration_changed:
+    'Deine Nachrichteneinstellungen haben sich geändert. Das geplante Angebot wurde angehalten.',
+  timeout:
+    'Die Antwort auf das Angebot hat zu lange gedauert. Prüfe auf Vinted, ob das Angebot angekommen ist.',
+  provider_rejected: 'Vinted hat das Angebot abgelehnt.',
+  provider_unavailable: 'Der Vinted-Dienst für Angebote ist vorübergehend nicht verfügbar.',
+  auth: 'Die Freigabe für dieses Angebot konnte nicht bestätigt werden. Prüfe Deine Kontoverbindung.',
+  identity: 'Das angemeldete Vinted-Konto passt nicht zu diesem Auftrag. Prüfe das Browserprofil.',
+  login: 'Melde Dich im verknüpften Browserprofil wieder bei Vinted an.',
+  interaction: 'Vinted verlangt eine Bestätigung durch Dich. Öffne das Gespräch auf Vinted.',
+  verification:
+    'Vinted verlangt eine zusätzliche Prüfung. Öffne Vinted im verknüpften Browserprofil.',
+  session_blocked: 'Die Vinted-Sitzung konnte nicht verwendet werden. Prüfe Deine Kontoverbindung.',
+  identity_changed:
+    'Das angemeldete Vinted-Konto passt nicht zu diesem Auftrag. Prüfe das Browserprofil.',
+  login_required: 'Melde Dich im verknüpften Browserprofil wieder bei Vinted an.',
+  interaction_required:
+    'Vinted verlangt eine Bestätigung durch Dich. Öffne Vinted im verknüpften Browserprofil.',
+  verification_required:
+    'Vinted verlangt eine zusätzliche Prüfung. Öffne Vinted im verknüpften Browserprofil.',
+  interrupted: 'Die Verarbeitung des Angebots wurde unterbrochen. Prüfe das Gespräch auf Vinted.',
+  rate_limited: 'Vinted verlangt eine Wartezeit. Prüfe das Gespräch auf Vinted.',
+  unavailable: 'Vinted war für diesen Angebotsversand nicht erreichbar.',
+  offer_unconfirmed:
+    'Der Angebotsversand wurde nicht eindeutig bestätigt. Prüfe das Gespräch auf Vinted.',
+};
 
 const textControl = (text = '') =>
   new FormControl(text, {
@@ -66,6 +107,7 @@ function ruleForm(rule?: FavoriteMessageRule) {
     TextFieldComponent,
     NumberInputComponent,
     CustomCheckboxComponent,
+    CustomSelectComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -83,11 +125,20 @@ export class VintedFavoriteMessagesComponent {
   readonly saved = signal(false);
   readonly days = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
   readonly stateLabels = favoriteMessageStateLabels;
+  readonly offerStateLabels = favoriteOfferStateLabels;
+  readonly formId = 'vinted-favorite-settings';
+  readonly offerTypeOptions = [
+    { value: 'amount', label: 'Fester Nachlass in Euro' },
+    { value: 'percentage', label: 'Nachlass in Prozent' },
+  ];
   readonly deleteIcon = LucideTrash2;
   readonly upIcon = LucideArrowUp;
   readonly downIcon = LucideArrowDown;
   readonly form = new FormGroup({
     enabled: new FormControl(false, { nonNullable: true }),
+    offerEnabled: new FormControl(false, { nonNullable: true }),
+    offerType: new FormControl<FavoriteOfferConfig['type']>('amount', { nonNullable: true }),
+    offerValue: new FormControl<number | null>(5),
     templates: new FormArray([
       textControl(
         'Hallo! Danke für Dein Interesse an {article}. Wenn Du Fragen hast, schreib mir gerne. 😊',
@@ -95,6 +146,40 @@ export class VintedFavoriteMessagesComponent {
     ]),
     rules: new FormArray<ReturnType<typeof ruleForm>>([]),
     delayMinutes: new FormControl<number | null>(0),
+  });
+  private readonly formValues = toSignal(this.form.valueChanges, {
+    initialValue: this.form.getRawValue(),
+  });
+  readonly offerPreviewPriceCents = computed(() => {
+    const values = this.formValues();
+    return values.offerEnabled
+      ? favoriteOfferPriceCents(4000, {
+          type: values.offerType ?? 'amount',
+          value: values.offerValue ?? -1,
+        })
+      : null;
+  });
+  readonly offerInvalid = computed(() => {
+    const values = this.formValues();
+    return (
+      !!values.offerEnabled &&
+      !validateFavoriteOffer({ type: values.offerType, value: values.offerValue })
+    );
+  });
+  readonly offerValidationMessage = computed(() => {
+    const values = this.formValues();
+    if (!values.offerEnabled) return null;
+    if (this.offerInvalid())
+      return values.offerType === 'percentage'
+        ? 'Gib einen Nachlass von 1 bis 50 Prozent mit höchstens zwei Dezimalstellen ein.'
+        : 'Gib einen positiven Nachlass in Euro mit höchstens zwei Dezimalstellen ein.';
+    return this.offerPreviewPriceCents() === null
+      ? 'Beim Beispielpreis von 40 € wäre dieser Nachlass zu hoch. Ein Angebot muss mindestens die Hälfte des aktuellen Artikelpreises betragen.'
+      : null;
+  });
+  private readonly offerPriceFormatter = new Intl.NumberFormat('de-DE', {
+    style: 'currency',
+    currency: 'EUR',
   });
   private revision = 0;
   private context: string | null = null;
@@ -118,6 +203,7 @@ export class VintedFavoriteMessagesComponent {
         this.saved.set(false);
         this.busy.set(false);
         this.loading.set(!!context);
+        this.applyConfig(null, false);
         if (context) void this.reload();
       });
     });
@@ -195,7 +281,19 @@ export class VintedFavoriteMessagesComponent {
     const context = this.context;
     if (!settings || !account || !context || this.busy() || this.loading()) return;
     const values = this.form.getRawValue();
+    const offer: FavoriteOfferConfig | null = values.offerEnabled
+      ? { type: values.offerType, value: values.offerValue ?? -1 }
+      : null;
+    if (offer && !validateFavoriteOffer(offer)) {
+      this.error.set(
+        values.offerType === 'percentage'
+          ? 'Prüfe Deinen Nachlass: 1 bis 50 Prozent mit höchstens zwei Dezimalstellen.'
+          : 'Prüfe Deinen Nachlass: ein positiver Eurobetrag mit höchstens zwei Dezimalstellen.',
+      );
+      return;
+    }
     const config: FavoriteMessageConfig = {
+      offer,
       templates: values.templates,
       delayMinutes: values.delayMinutes ?? -1,
       timezone: 'Europe/Berlin',
@@ -244,7 +342,10 @@ export class VintedFavoriteMessagesComponent {
     }
   }
   private applySettings(settings: FavoriteMessageSettings): void {
-    const config = settings.config ?? {
+    this.applyConfig(settings.config, settings.enabled);
+  }
+  private applyConfig(storedConfig: FavoriteMessageConfig | null, enabled: boolean): void {
+    const config = storedConfig ?? {
       templates: [
         'Hallo! Danke für Dein Interesse an {article}. Wenn Du Fragen hast, schreib mir gerne. 😊',
       ],
@@ -255,9 +356,23 @@ export class VintedFavoriteMessagesComponent {
     config.templates.forEach((text) => this.form.controls.templates.push(textControl(text)));
     this.form.controls.rules.clear();
     config.rules.forEach((rule) => this.form.controls.rules.push(ruleForm(rule)));
-    this.form.controls.enabled.setValue(settings.enabled);
+    this.form.controls.enabled.setValue(enabled);
+    const offer = storedConfig?.offer;
+    this.form.controls.offerEnabled.setValue(!!offer);
+    this.form.controls.offerType.setValue(offer?.type ?? 'amount');
+    this.form.controls.offerValue.setValue(offer?.value ?? 5);
     this.form.controls.delayMinutes.setValue(config.delayMinutes);
     this.form.markAsPristine();
+  }
+  formatOfferPrice(priceCents: number): string {
+    return this.offerPriceFormatter.format(priceCents / 100);
+  }
+  offerFailureReason(errorCode: string | null | undefined): string | null {
+    if (!errorCode) return null;
+    const reason = Object.hasOwn(offerFailureLabels, errorCode)
+      ? offerFailureLabels[errorCode]
+      : null;
+    return reason ?? 'Der genaue Angebotsgrund ist nicht verfügbar. Prüfe das Gespräch auf Vinted.';
   }
   private isCurrent(context: string, revision: number): boolean {
     const account = this.store.selectedConnection();

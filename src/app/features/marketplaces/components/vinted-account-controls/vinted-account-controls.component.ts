@@ -7,15 +7,22 @@ import {
   input,
   output,
   signal,
+  untracked,
 } from '@angular/core';
 import { LucideRefreshCw, LucideSettings } from '@lucide/angular';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
-import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
+import {
+  BadgeComponent,
+  type BadgeTone,
+} from '../../../../shared/components/badge/badge.component';
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 import type { MarketplaceConnection } from '../../models/marketplace.models';
 import { MARKETPLACE_CONNECTION_LABELS } from '../../models/marketplace-presentation';
 import type { MarketplaceSyncSchedule } from '../../models/marketplace-sync-schedule';
-import { VintedSyncScheduleComponent } from '../vinted-sync-schedule/vinted-sync-schedule.component';
+import {
+  VintedSyncScheduleComponent,
+  type VintedSyncHeaderState,
+} from '../vinted-sync-schedule/vinted-sync-schedule.component';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import type { MarketplaceProfile } from '../../models/marketplace-read.models';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
@@ -47,6 +54,24 @@ export class VintedAccountControlsComponent {
   readonly inbox = input(false);
   readonly inboxSyncedAt = input<string | null>(null);
   readonly profile = input<MarketplaceProfile | null>(null);
+  readonly runtimeStatus = input<{ label: string; tone: BadgeTone } | null>(null);
+  readonly cloudHeaderState = signal<VintedSyncHeaderState | null>(null);
+  readonly currentCloudHeaderState = computed(() => {
+    const account = this.account();
+    const state = this.cloudHeaderState();
+    return account.executionMode === 'cloud' &&
+      state?.workspaceId === account.workspaceId &&
+      state.connectionId === account.connectionId
+      ? state
+      : null;
+  });
+  readonly scheduleStateChanged = output<VintedSyncHeaderState | null>();
+  readonly headerStatus = computed(() =>
+    this.account().executionMode === 'local'
+      ? this.runtimeStatus()
+      : (this.currentCloudHeaderState()?.status ?? null),
+  );
+  readonly scheduleNotice = computed(() => this.currentCloudHeaderState()?.notice ?? null);
   readonly syncedAt = computed(() =>
     this.inbox() ? this.inboxSyncedAt() : this.account().lastSyncedAt,
   );
@@ -66,6 +91,10 @@ export class VintedAccountControlsComponent {
   );
 
   constructor() {
+    effect(() => {
+      const state = this.currentCloudHeaderState();
+      untracked(() => this.scheduleStateChanged.emit(state));
+    });
     effect(() => {
       const account = this.account();
       const canManage = this.canManage();
