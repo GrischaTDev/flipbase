@@ -1,5 +1,33 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-06 - Juna - automatischen Seitenneuladeweg im echten Cloudbrowser prüfen
+
+**Auftrag:** Nach dem Nutzerhinweis auf sein manuelles Neuladen den vorhandenen
+HTTP-401-Wiederanlauf ohne weitere Nutzerbedienung prüfen. Das Profil und die
+gespeicherten Anmeldedaten bleiben erhalten; keine produktive Kontoumstellung.
+
+**Prüfung:** 31 bestehende Tests für Kontoimport und Identität bestanden,
+einschließlich erfolgreicher 401-Erneuerung, entzogener Freigabe und Abbruch
+bei 403/429. Im echten Chrome bestätigt ein kurzer Baselineabruf das Konto
+mit zwei HTTP-200-Antworten ohne Neuladen. Anschließend beantwortet ein
+temporärer Playwright-Test ausschließlich den ersten Profil-GET synthetisch
+mit HTTP 401. Der unveränderte produktive Import lädt selbst einmal das
+Hauptdokument neu; danach wird die erwartete Identität bestätigt. Fünf weitere
+beobachtete API-Antworten liefern HTTP 200, keine sichtbare Mensch-Prüfung und
+keine beobachteten API-Schreibaufrufe. Der Test endet vor dem erneuten Abruf
+von Inseraten/Gesprächen. Die temporäre Antwortsimulation wird entfernt und
+der Testclient beendet; der Browser bleibt geöffnet. Keine Datenbankzugriffe.
+
+**Messgrenze:** Zwei Hauptframe-Navigationsereignisse bedeuten hier einen echten
+Dokumentabruf plus ein weiteres Browserereignis. Die zunächst zu strenge
+Testbedingung wurde auf die tatsächliche Hauptdokumentanfrage korrigiert;
+der wiederholte begrenzte Test bestätigt genau einen solchen Abruf. Kein
+Produktcode geändert. Dieser Test beweist den automatischen 401-Ablauf bei
+gültiger gespeicherter Anmeldung, nicht die Erneuerung wirklich abgelaufener
+Anmeldedaten. Die Ursache des vorherigen echten 401 bleibt offen. Der
+vorhandene Synchronisierungsrunner ruft diesen Import direkt auf; die
+gesonderte Identitätsprüfung des Loginablaufs ist damit nicht mitgeprüft.
+
 ## 2026-10-06 - Juna - echten lesenden Cloudabruf bei Maike Vintage prüfen
 
 **Auftrag:** Nach der erneuten Nutzerbestätigung der angemeldeten Vinted-Startseite

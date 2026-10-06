@@ -178,6 +178,41 @@ Anmeldeerkennung und Browserkonfiguration wurden nicht geändert. Vor einer
 regulären Cloudfreigabe den bestehenden Erneuerungsweg ohne manuelles Neuladen
 gezielt abnehmen.
 
+### Automatischer HTTP-401-Wiederanlauf ohne manuelles Neuladen
+
+Nach dem Nutzerhinweis auf sein manuelles Neuladen wurde der vorhandene
+Wiederanlauf getrennt geprüft. 31 bestehende Tests für Kontoimport und
+Identität bestehen, einschließlich erfolgreicher Erneuerung, erneuter
+Freigabe vor dem Seitenwechsel und fehlender Wiederholung bei HTTP 403/429.
+Der produktive Synchronisierungsrunner verwendet `readVintedAccountImport`
+direkt; dessen 401-Wiederanlauf ist damit auch im regulären Leseabruf erreichbar.
+
+Im selben echten Chromeprofil bestätigt ein begrenzter Baselineabruf mit
+zwei HTTP-200-Antworten Maike Vintage, ohne Seitenwechsel. Für die zweite
+Stufe beantwortet ausschließlich der temporäre Playwright-Test den ersten
+GET auf `/api/v2/users/current` synthetisch mit HTTP 401. Der unveränderte
+produktive Import startet danach selbst das Neuladen der Vinted-Startseite.
+Genau ein Hauptdokumentabruf ist beobachtet; zusätzliche Navigationsereignisse
+des Hauptframes werden nicht als weitere Seitenabrufe gezählt. Eine zunächst
+auf diese Ereignisse bezogene Testbedingung wurde korrigiert und der
+begrenzte Versuch wiederholt.
+
+Nach dem automatischen Neuladen wird die erwartete Identität bestätigt.
+Fünf weitere beobachtete API-Antworten liefern HTTP 200, keine sichtbare
+Mensch-Prüfung und keine beobachteten API-Schreibaufrufe. Der Test endet vor
+dem erneuten Abruf der weiteren Kontobereiche. Antwortsimulation und
+Testverbindung werden anschließend entfernt, ohne den Browser zu schließen.
+Keine gespeicherten Anmeldedaten verändert, keine Datenbankzugriffe und
+keine Änderung am Produktcode. Die Testgrenzen betragen 15 API-Anfragen,
+40 Sekunden für weitere Abrufe und 60 Sekunden absolute Laufzeit.
+
+Dieser Nachweis bestätigt die automatische Reaktion auf HTTP 401 im echten
+Chrome mit einer weiterhin gültigen gespeicherten Anmeldung. Er ersetzt
+keinen Test mit tatsächlich abgelaufenen Anmeldedaten und beweist nicht die
+Ursache des ursprünglichen 401. Die separate `readVintedAccountIdentity`-
+Prüfung des Anmeldeabschlusses besitzt diesen Wiederanlauf bisher nicht;
+der erfolgreiche Importtest bestätigt deren Erneuerungsverhalten nicht.
+
 Der nächste Integrationsschritt verbindet diesen Browserstart und das
 dauerhafte Profil mit dem bereits vorhandenen Cloud-Einrichtungsablauf:
 atomare IP-Reservierung, eindeutige Kontozuordnung, geschützte Live-Bedienung
