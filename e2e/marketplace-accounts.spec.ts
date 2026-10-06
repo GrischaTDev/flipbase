@@ -15,7 +15,7 @@ for (const width of [1440, 390]) {
     const calls = await mockMarketplace(page, false, false, false, false, [], undefined, true);
     await page.goto('/marketplaces/vinted/accounts');
     await expect(page.getByText('8 von 10 Plätzen frei')).toBeVisible();
-    await expect(page.getByText('Lokal verbunden', { exact: true })).toHaveCount(2);
+    await expect(page.getByText('Lokal verknüpft', { exact: true })).toHaveCount(2);
     await expect(page.getByRole('link', { name: 'Konten verwalten', exact: true })).toHaveCount(0);
     await page
       .getByRole('button', { name: 'Testkonto A nach hinten verschieben', exact: true })
@@ -126,7 +126,16 @@ for (const width of [1440, 390]) {
   }) => {
     await page.setViewportSize({ width, height: 1000 });
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    const calls = await mockMarketplace(page);
+    const calls = await mockMarketplace(
+      page,
+      false,
+      false,
+      false,
+      false,
+      undefined,
+      undefined,
+      true,
+    );
     const errors: string[] = [];
     const browserCalls: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
@@ -144,7 +153,13 @@ for (const width of [1440, 390]) {
       page.locator('app-vinted-account-grid').getByRole('link', { name: 'Konten verwalten' }),
     ).toHaveCount(0);
     await expect(page.locator('app-sidebar a[href="/purchases"]')).toHaveCount(0);
-    await openVintedSection(page, 'Einrichtung', width);
+    await openVintedSection(page, 'Konten', width);
+    await page.getByRole('link', { name: 'Lokal verbinden', exact: true }).first().click();
+    await page.getByRole('link', { name: 'Installationsanleitung öffnen', exact: true }).click();
+    await expect(page).toHaveURL(/\/marketplaces\/vinted\/setup$/);
+    await expect(
+      page.locator('app-sidebar').getByRole('link', { name: 'Einrichtung', exact: true }),
+    ).toHaveCount(0);
     await expect(page.getByRole('heading', { name: '2. Erweiterung installieren' })).toBeVisible();
     await expect(page.locator('app-vinted-setup a[href*="chromewebstore"]')).toHaveCount(0);
     await expect(
@@ -164,7 +179,12 @@ for (const width of [1440, 390]) {
       setInterval(
         () =>
           window.postMessage(
-            { type: 'FLIPBASE_EXTENSION_STATUS', installed: true, vintedLocal: true },
+            {
+              type: 'FLIPBASE_EXTENSION_STATUS',
+              installed: true,
+              vintedLocal: true,
+              localAccount: null,
+            },
             location.origin,
           ),
         100,
@@ -268,7 +288,39 @@ for (const width of [1440, 390]) {
           const request = event.data;
           if (request?.type === 'FLIPBASE_CHECK_EXTENSION') {
             window.postMessage(
-              { type: 'FLIPBASE_EXTENSION_STATUS', installed: true, vintedLocal: true },
+              {
+                type: 'FLIPBASE_EXTENSION_STATUS',
+                installed: true,
+                vintedLocal: true,
+                localAccount: {
+                  state: 'linked',
+                  boundConnectionId: account.connectionId,
+                  boundUsername: 'testkonto',
+                  expiresAt: binding.expiresAt,
+                },
+              },
+              location.origin,
+            );
+          }
+          if (
+            ['FLIPBASE_VINTED_LOCAL_READINESS', 'FLIPBASE_VINTED_LOCAL_RECHECK'].includes(
+              request?.type,
+            )
+          ) {
+            window.postMessage(
+              {
+                type: 'FLIPBASE_VINTED_LOCAL_RESULT',
+                requestId: request.requestId,
+                success: true,
+                result: {
+                  state: 'ready',
+                  workspaceId: account.workspaceId,
+                  connectionId: account.connectionId,
+                  externalAccountId: account.externalAccountId,
+                  checkedAt: account.lastSyncedAt,
+                  version: '1.0.0',
+                },
+              },
               location.origin,
             );
           }
@@ -409,9 +461,41 @@ for (const width of [1440, 390]) {
           const request = event.data;
           if (request?.type === 'FLIPBASE_CHECK_EXTENSION')
             window.postMessage(
-              { type: 'FLIPBASE_EXTENSION_STATUS', installed: true, vintedLocal: true },
+              {
+                type: 'FLIPBASE_EXTENSION_STATUS',
+                installed: true,
+                vintedLocal: true,
+                localAccount: {
+                  state: 'linked',
+                  boundConnectionId: account.connectionId,
+                  boundUsername: 'testkonto',
+                  expiresAt: binding.expiresAt,
+                },
+              },
               location.origin,
             );
+          if (
+            ['FLIPBASE_VINTED_LOCAL_READINESS', 'FLIPBASE_VINTED_LOCAL_RECHECK'].includes(
+              request?.type,
+            )
+          ) {
+            window.postMessage(
+              {
+                type: 'FLIPBASE_VINTED_LOCAL_RESULT',
+                requestId: request.requestId,
+                success: true,
+                result: {
+                  state: 'ready',
+                  workspaceId: account.workspaceId,
+                  connectionId: account.connectionId,
+                  externalAccountId: account.externalAccountId,
+                  checkedAt: observedAt,
+                  version: '1.0.0',
+                },
+              },
+              location.origin,
+            );
+          }
           if (
             !['FLIPBASE_VINTED_LOCAL_PREPARE', 'FLIPBASE_VINTED_LOCAL_INBOX_SYNC'].includes(
               request?.type,

@@ -39,6 +39,7 @@ vi.mock('browser-image-compression', () => ({
 }));
 
 const accounts = createMarketplaceFixtures().connections;
+const detailResult = { status: 'success', observedAt: '2026-10-06T10:00:00Z' } as const;
 const emptyPage = { items: [], total: 0, nextCursor: null };
 function snapshot(scope: AccountScope) {
   return parseMarketplaceSnapshot(
@@ -168,7 +169,7 @@ beforeEach(() => {
     hasValidBinding: vi.fn().mockReturnValue(true),
     approveInbox: vi.fn().mockResolvedValue(undefined),
     syncInbox: vi.fn().mockResolvedValue(undefined),
-    openInboxConversation: vi.fn().mockResolvedValue(undefined),
+    openInboxConversation: vi.fn().mockResolvedValue(detailResult),
   };
   messaging = {
     messages: signal([]),
@@ -249,6 +250,174 @@ describe('Vollständiges Laden eines Gesprächs', () => {
     local.messagesAllowed.set(true);
   }
 
+  it('liest beim bewussten Übersichtseinstieg denselben Vinted-Detailverlauf', async () => {
+    useLocalAccount();
+    params.next(
+      convertToParamMap({
+        connectionId: accounts[0].connectionId,
+        conversationId: 'conversation-1',
+      }),
+    );
+    const fixture = await render();
+    await settle(fixture);
+    expect(local.openInboxConversation).toHaveBeenCalledWith(
+      'conversation-1',
+      expect.any(Function),
+    );
+  });
+  it('wartet beim Übersichtseinstieg die noch laufende Prüfung des Nachrichtenzugriffs ab', async () => {
+    useLocalAccount();
+    local.messagesAllowed.set(false);
+    local.busy.set(true);
+    let finish: (() => void) | undefined;
+    local.openInboxConversation.mockImplementation(() =>
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      }).then(() => detailResult),
+    );
+    params.next(
+      convertToParamMap({
+        connectionId: accounts[0].connectionId,
+        conversationId: 'conversation-1',
+      }),
+    );
+    const fixture = await render();
+    await settle(fixture);
+    expect(local.openInboxConversation).toHaveBeenCalledWith(
+      'conversation-1',
+      expect.any(Function),
+    );
+    expect(fixture.nativeElement.querySelector('[data-conversation-sync]')?.textContent).toContain(
+      'Wird aktualisiert',
+    );
+    local.messagesAllowed.set(true);
+    local.busy.set(false);
+    finish?.();
+    await settle(fixture);
+    expect(local.openInboxConversation).toHaveBeenCalledTimes(1);
+  });
+  it('kennzeichnet Cache und unbekannten Artikel neutral trotz neuer Kontosynchronisation', async () => {
+    const fixture = await render();
+    button(fixture, 'Anfrage zum Schal').click();
+    await settle(fixture);
+    expect(fixture.nativeElement.querySelector('[data-conversation-sync]')?.textContent).toContain(
+      'Gespeicherter Stand',
+    );
+    expect(
+      fixture.nativeElement.querySelector('[data-conversation-sync]')?.textContent,
+    ).not.toContain('Synchronisiert');
+    expect(fixture.nativeElement.querySelector('[data-conversation-item]')?.textContent).toContain(
+      'Artikel noch nicht geladen',
+    );
+  });
+  it('überträgt einen fremden lokalen Fehler nicht auf ein gespeichertes Gespräch', async () => {
+    const fixture = await render();
+    local.error.set('Ein anderer Abruf ist fehlgeschlagen');
+    button(fixture, 'Anfrage zum Schal').click();
+    await settle(fixture);
+    expect(fixture.nativeElement.querySelector('[data-conversation-sync]')?.textContent).toContain(
+      'Gespeicherter Stand',
+    );
+  });
+  it('zeigt nur den tatsächlichen Prüfzeitpunkt dieses Gesprächs als bestätigt', async () => {
+    useLocalAccount();
+    let checked = false;
+    api.readSnapshot.mockImplementation(async (scope: AccountScope) => {
+      const current = snapshot(scope);
+      return {
+        ...current,
+        conversations: {
+          ...current.conversations,
+          items: current.conversations.items.map((entry) => ({
+            ...entry,
+            detailCheckedAt: checked ? '2026-10-06T10:00:00Z' : null,
+          })),
+        },
+      };
+    });
+    const fixture = await render();
+    const entry = store.snapshot()?.conversations.items[0];
+    if (!entry) throw new Error('Testgespräch fehlt');
+    local.openInboxConversation.mockImplementation(async () => {
+      checked = true;
+      await store.refreshLocalConnection(entry, true);
+      return detailResult;
+    });
+    await fixture.componentInstance.openConversation(entry);
+    await settle(fixture);
+    const status = fixture.nativeElement.querySelector('[data-conversation-sync]');
+    expect(status?.textContent).toContain('Synchronisiert');
+    expect(status?.getAttribute('title')).toContain('06.10.2026');
+  });
+  it('bestätigt nach fehlgeschlagenem Snapshotlesen keinen alten Gesprächsstempel als neuen Abgleich', async () => {
+    useLocalAccount();
+    api.readSnapshot.mockImplementation(async (scope: AccountScope) => {
+      const current = snapshot(scope);
+      return {
+        ...current,
+        conversations: {
+          ...current.conversations,
+          items: current.conversations.items.map((entry) => ({
+            ...entry,
+            detailCheckedAt: '2026-10-05T10:00:00Z',
+          })),
+        },
+      };
+    });
+    const fixture = await render();
+    const entry = store.snapshot()?.conversations.items[0];
+    if (!entry) throw new Error('Testgespräch fehlt');
+    local.openInboxConversation.mockImplementation(async () => {
+      api.readSnapshot.mockRejectedValueOnce(new Error('Snapshot nicht erreichbar'));
+      await store.refreshLocalConnection(entry, true);
+      return detailResult;
+    });
+    await fixture.componentInstance.openConversation(entry);
+    await settle(fixture);
+    const status = fixture.nativeElement.querySelector('[data-conversation-sync]');
+    expect(status?.textContent).not.toContain('Synchronisiert');
+    expect(status?.textContent).toContain('Aktualisierung fehlgeschlagen');
+    expect(fixture.nativeElement.querySelector('[role="log"]')?.textContent).toContain(
+      '<b>Hallo!</b>',
+    );
+  });
+  it('behält einen Detailfehler beim betroffenen Gespräch und nicht beim nächsten', async () => {
+    useLocalAccount();
+    api.readSnapshot.mockImplementation(async (scope: AccountScope) => {
+      const current = snapshot(scope);
+      return {
+        ...current,
+        conversations: {
+          ...current.conversations,
+          items: [
+            current.conversations.items[0],
+            { ...current.conversations.items[0], id: 'conversation-2', title: 'Ben' },
+          ],
+          total: 2,
+        },
+      };
+    });
+    local.openInboxConversation.mockResolvedValueOnce({
+      status: 'failed',
+      error: 'Vinted ist nicht erreichbar',
+    });
+    const fixture = await render();
+    const entries = store.snapshot()?.conversations.items;
+    if (!entries) throw new Error('Testgespräche fehlen');
+    await fixture.componentInstance.openConversation(entries[0]);
+    await settle(fixture);
+    expect(fixture.nativeElement.querySelector('[data-conversation-sync]')?.textContent).toContain(
+      'Aktualisierung fehlgeschlagen',
+    );
+    expect(fixture.nativeElement.textContent).toContain('Vinted ist nicht erreichbar');
+    await fixture.componentInstance.openConversation(entries[1]);
+    await settle(fixture);
+    expect(fixture.nativeElement.querySelector('[data-conversation-sync]')?.textContent).toContain(
+      'Gespeicherter Stand',
+    );
+    expect(fixture.nativeElement.textContent).not.toContain('Vinted ist nicht erreichbar');
+  });
+
   it('zeigt bekannte Kopfdaten sofort auch während ein leerer Verlauf geprüft wird', async () => {
     useLocalAccount();
     let finishRead: ((page: MarketplacePage<MarketplaceEntry>) => void) | undefined;
@@ -258,11 +427,10 @@ describe('Vollständiges Laden eines Gesprächs', () => {
       }),
     );
     let finishProvider: (() => void) | undefined;
-    local.openInboxConversation.mockImplementation(
-      () =>
-        new Promise<void>((resolve) => {
-          finishProvider = resolve;
-        }),
+    local.openInboxConversation.mockImplementation(() =>
+      new Promise<void>((resolve) => {
+        finishProvider = resolve;
+      }).then(() => detailResult),
     );
     const fixture = await render();
     const entry = store.snapshot()?.conversations.items[0];
@@ -290,18 +458,17 @@ describe('Vollständiges Laden eines Gesprächs', () => {
     await opening;
     await settle(fixture);
     expect(fixture.nativeElement.querySelector('[data-conversation-sync]')?.textContent).toContain(
-      'Synchronisiert',
+      'Gespeicherter Stand',
     );
   });
 
   it('zeigt gespeicherte Daten während der Vinted-Prüfung und aktualisiert nur den Status', async () => {
     useLocalAccount();
     let finishProvider: (() => void) | undefined;
-    local.openInboxConversation.mockImplementation(
-      () =>
-        new Promise<void>((resolve) => {
-          finishProvider = resolve;
-        }),
+    local.openInboxConversation.mockImplementation(() =>
+      new Promise<void>((resolve) => {
+        finishProvider = resolve;
+      }).then(() => detailResult),
     );
     const fixture = await render();
     const entry = store.snapshot()?.conversations.items[0];
@@ -309,7 +476,7 @@ describe('Vollständiges Laden eines Gesprächs', () => {
     const opening = fixture.componentInstance.openConversation(entry);
     await settle(fixture);
     const root = fixture.nativeElement as HTMLElement;
-    expect(local.openInboxConversation).toHaveBeenCalledWith(entry.id);
+    expect(local.openInboxConversation).toHaveBeenCalledWith(entry.id, expect.any(Function));
     expect(root.querySelector('[data-conversation-loading]')).toBeNull();
     expect(root.querySelector('[data-conversation-heading]')).not.toBeNull();
     expect(root.querySelector('[data-conversation-item]')).not.toBeNull();
@@ -343,10 +510,12 @@ describe('Vollständiges Laden eines Gesprächs', () => {
     expect(root.querySelector('[data-conversation-loading]')).toBeNull();
     expect(root.querySelector('[data-conversation-heading]')).not.toBeNull();
     expect(root.querySelector('[data-conversation-item]')?.textContent).toContain(
-      'Artikel nicht verfügbar',
+      'Artikel noch nicht geladen',
     );
     expect(root.querySelector('[data-message-composer]')).not.toBeNull();
-    expect(root.querySelector('[data-conversation-sync]')?.textContent).toContain('Synchronisiert');
+    expect(root.querySelector('[data-conversation-sync]')?.textContent).toContain(
+      'Gespeicherter Stand',
+    );
     expect(root.querySelector('[role="log"]')?.textContent).toContain('Aktualisierte Nachricht');
     expect(document.activeElement).not.toBe(root.querySelector('[data-conversation-heading]'));
   });
@@ -355,6 +524,7 @@ describe('Vollständiges Laden eines Gesprächs', () => {
     useLocalAccount();
     local.openInboxConversation.mockImplementation(async () => {
       local.error.set('Vinted ist nicht erreichbar');
+      return { status: 'failed', error: 'Vinted ist nicht erreichbar' };
     });
     const fixture = await render();
     const entry = store.snapshot()?.conversations.items[0];
@@ -385,8 +555,8 @@ describe('Vollständiges Laden eines Gesprächs', () => {
       };
     });
     const completions: (() => void)[] = [];
-    local.openInboxConversation.mockImplementation(
-      () => new Promise<void>((resolve) => completions.push(resolve)),
+    local.openInboxConversation.mockImplementation(() =>
+      new Promise<void>((resolve) => completions.push(resolve)).then(() => detailResult),
     );
     const fixture = await render();
     const entries = store.snapshot()?.conversations.items;
@@ -425,6 +595,9 @@ describe('Vollständiges Laden eines Gesprächs', () => {
               imageUrl: 'https://images.example.org/avatar.jpg',
               itemImageUrl: available ? 'https://images.example.org/scarf.jpg' : null,
               itemTitle: available ? 'Seidenschal' : null,
+              itemPrice: available ? 58 : null,
+              itemCurrency: available ? 'EUR' : null,
+              lastActiveAt: available ? '2026-10-05T10:00:00Z' : null,
             },
           ],
         },
@@ -439,11 +612,17 @@ describe('Vollständiges Laden eines Gesprächs', () => {
         { workspaceId: entry.workspaceId, connectionId: entry.connectionId },
         true,
       );
+      return detailResult;
     });
     await fixture.componentInstance.openConversation(entry);
     await settle(fixture);
     const strip = fixture.nativeElement.querySelector('[data-conversation-item]');
-    expect(strip?.textContent).toContain('Artikel nicht verfügbar');
+    expect(strip?.textContent).toContain('Seidenschal');
+    expect(fixture.componentInstance.conversation()).toMatchObject({
+      itemPrice: 58,
+      itemCurrency: 'EUR',
+      lastActiveAt: '2026-10-05T10:00:00Z',
+    });
     expect(strip?.querySelector('img')?.getAttribute('src')).toBe(
       'https://images.example.org/scarf.jpg',
     );
@@ -528,7 +707,7 @@ describe('Kompakter gespeicherter Vinted-Gesprächsbereich', () => {
     expect(root.querySelector('del')?.textContent).toBe('14,00 €');
     expect(root.textContent).toContain('Angebot erhalten');
     expect(root.textContent).toContain('Abgelehnt');
-    expect(root.textContent).toContain('Aktivität nicht verfügbar');
+    expect(root.textContent).toContain('Letzte Aktivität unbekannt');
   });
 
   it('zeigt den Produktbezug und Nachrichtbilder und sortiert nur nach vorhandenen Zeitangaben', async () => {
@@ -610,7 +789,10 @@ describe('Kompakter gespeicherter Vinted-Gesprächsbereich', () => {
     const fixture = await render();
     button(fixture, 'Anfrage zum Schal').click();
     await settle(fixture);
-    expect(local.openInboxConversation).toHaveBeenCalledWith('conversation-1');
+    expect(local.openInboxConversation).toHaveBeenCalledWith(
+      'conversation-1',
+      expect.any(Function),
+    );
     fixture.componentInstance.composer.controls.text.setValue('Hallo!');
     messaging.send.mockResolvedValue(false);
     await fixture.componentInstance.sendMessage();

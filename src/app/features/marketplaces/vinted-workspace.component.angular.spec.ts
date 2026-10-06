@@ -411,6 +411,31 @@ async function render(url: string) {
   return { harness, element: harness.routeNativeElement as HTMLElement };
 }
 describe('Vinted-Bereich in Flipbase', () => {
+  it('öffnet den Einstellungslink nur für das Konto im aktuellen Workspace', async () => {
+    const account = fixtureConnections[0];
+    const { element } = await render(
+      `/marketplaces/vinted/accounts?settings=${account.connectionId}&workspaceId=${account.workspaceId}`,
+    );
+    expect(element.querySelector('app-modal-shell')?.textContent).toContain(account.displayName);
+    expect(element.querySelector('app-modal-shell')?.textContent).toContain('Einstellungen');
+  });
+  it('öffnet keine Einstellung aus einer fremden Workspace-URL', async () => {
+    const account = fixtureConnections[0];
+    const { element } = await render(
+      `/marketplaces/vinted/accounts?settings=${account.connectionId}&workspaceId=other-workspace`,
+    );
+    expect(element.querySelector('app-modal-shell')).toBeNull();
+  });
+  it('fordert eine bestätigte Trennung statt beim Deep-Link zu widerrufen', async () => {
+    const account = { ...fixtureConnections[0], executionMode: 'local' as const };
+    api.listConnections.mockResolvedValue({ canManage: true, connections: [account] });
+    const { element } = await render(
+      `/marketplaces/vinted/accounts?disconnect=${account.connectionId}&workspaceId=${account.workspaceId}`,
+    );
+    expect(element.textContent).toContain('Lokale Freigabe trennen');
+    expect(element.textContent).toContain('Du bleibst bei Vinted angemeldet');
+    expect(localApi.revoke).not.toHaveBeenCalled();
+  });
   it('öffnet den lesenden lokalen Piloten ohne Cloudanmeldung und ohne erfundenen Store-Link', async () => {
     const { element } = await render(
       `/marketplaces/vinted/local-connect/${fixtureConnections[0].connectionId}`,
@@ -456,8 +481,17 @@ describe('Vinted-Bereich in Flipbase', () => {
     const { harness, element } = await render('/marketplaces/vinted/overview');
     const workspace = harness.fixture.debugElement.query(By.directive(VintedWorkspaceComponent));
     const parent = workspace.componentInstance as VintedWorkspaceComponent;
+    const bridge = workspace.injector.get(VintedLocalExtensionBridge);
+    vi.spyOn(parent.runtime, 'check').mockResolvedValue();
+    bridge.installed.set(true);
+    bridge.localAccount.set({
+      boundUsername: 'synthetic-test',
+      boundConnectionId: account.connectionId,
+      expiresAt: '2030-01-01T00:00:00Z',
+      state: 'linked',
+    });
     const request = vi
-      .spyOn(workspace.injector.get(VintedLocalExtensionBridge), 'request')
+      .spyOn(bridge, 'request')
       .mockRejectedValueOnce(new Error('Der Arbeitstab war nicht erreichbar.'))
       .mockResolvedValue({
         workspaceId: account.workspaceId,
@@ -524,14 +558,20 @@ describe('Vinted-Bereich in Flipbase', () => {
     const { harness, element } = await render('/marketplaces/vinted/overview');
     const workspace = harness.fixture.debugElement.query(By.directive(VintedWorkspaceComponent));
     const parent = workspace.componentInstance as VintedWorkspaceComponent;
+    const bridge = workspace.injector.get(VintedLocalExtensionBridge);
+    bridge.installed.set(true);
+    bridge.localAccount.set({
+      boundUsername: 'synthetic-test',
+      boundConnectionId: accounts[0].connectionId,
+      expiresAt: '2030-01-01T00:00:00Z',
+      state: 'linked',
+    });
     let finish: ((result: unknown) => void) | undefined;
-    const request = vi
-      .spyOn(workspace.injector.get(VintedLocalExtensionBridge), 'request')
-      .mockReturnValue(
-        new Promise<unknown>((resolve) => {
-          finish = resolve;
-        }),
-      );
+    const request = vi.spyOn(bridge, 'request').mockReturnValue(
+      new Promise<unknown>((resolve) => {
+        finish = resolve;
+      }),
+    );
     const pending = parent.sync();
     for (let index = 0; index < 4; index++) await Promise.resolve();
     expect(request).toHaveBeenCalledOnce();
@@ -983,7 +1023,7 @@ describe('Vinted-Bereich in Flipbase', () => {
     const { element, harness } = await render('/marketplaces/vinted/accounts');
     expect(element.querySelector('button[aria-label="Testkonto A einstellen"]')).not.toBeNull();
     expect(element.querySelector('button[aria-label="Testkonto B einstellen"]')).not.toBeNull();
-    expect(element.textContent).toContain('Lokal verbunden');
+    expect(element.textContent).toContain('Lokal verknüpft');
     expect(element.textContent).toContain('Mit Cloud verbunden');
     expect(element.querySelector('a[href="/marketplaces/vinted/manage"]')).toBeNull();
     element

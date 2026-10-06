@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { isVintedNavigationActive, isVintedWorkspaceRoute } from './vinted-workspace-navigation';
+import {
+  VINTED_WORKSPACE_NAVIGATION,
+  isVintedNavigationActive,
+  isVintedWorkspaceRoute,
+} from './vinted-workspace-navigation';
 
 describe('Vinted-Bereichsgrenzen', () => {
+  it('behält Einrichtung außerhalb des täglichen Menüs', () => {
+    expect(
+      VINTED_WORKSPACE_NAVIGATION.some((item) => item.path === '/marketplaces/vinted/setup'),
+    ).toBe(false);
+  });
   it.each([
     ['/marketplaces/vinted?connectionId=account-a', true],
     ['/marketplaces/vinted/local-connect/account-a', true],

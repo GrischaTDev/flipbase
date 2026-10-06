@@ -43,7 +43,14 @@ describe('Lokale Vinted-Freigabe', () => {
     read: ReturnType<typeof vi.fn>;
     revoke: ReturnType<typeof vi.fn>;
   };
-  let bridge: { request: ReturnType<typeof vi.fn>; cancel: ReturnType<typeof vi.fn> };
+  let bridge: {
+    request: ReturnType<typeof vi.fn>;
+    cancel: ReturnType<typeof vi.fn>;
+    localAccount: ReturnType<
+      typeof signal<{ boundConnectionId: string; state: string } | null | undefined>
+    >;
+    installed: ReturnType<typeof signal<boolean>>;
+  };
   let refresh: ReturnType<typeof vi.fn>;
   beforeEach(async () => {
     TestBed.resetTestingModule();
@@ -57,7 +64,12 @@ describe('Lokale Vinted-Freigabe', () => {
       read: vi.fn().mockResolvedValue(null),
       revoke: vi.fn().mockResolvedValue(undefined),
     };
-    bridge = { request: vi.fn().mockResolvedValue(prepared), cancel: vi.fn() };
+    bridge = {
+      request: vi.fn().mockResolvedValue(prepared),
+      cancel: vi.fn(),
+      localAccount: signal({ boundConnectionId: localConnection.connectionId, state: 'linked' }),
+      installed: signal(true),
+    };
     refresh = vi.fn().mockResolvedValue({
       ...localConnection,
       status: 'connected',
@@ -80,6 +92,23 @@ describe('Lokale Vinted-Freigabe', () => {
     store.connection.set(localConnection);
     await settle();
   });
+  async function loadConnection(
+    connection: Parameters<VintedLocalExtensionStore['loadConnection']>[0],
+  ): Promise<void> {
+    bridge.localAccount.set({ boundConnectionId: connection.connectionId, state: 'linked' });
+    await store.loadConnection(connection);
+  }
+  it.each([null, undefined])(
+    'startet ohne bestätigte Profilbindung (%s) keinen Live-Abruf',
+    async (profile) => {
+      api.read.mockResolvedValue({ ...binding, messagesRead: true });
+      await loadConnection({ ...localConnection, connectionId: 'next-account' });
+      bridge.localAccount.set(profile);
+      expect(store.canUseBrowserProfile()).toBe(false);
+      await store.syncInbox();
+      expect(bridge.request).not.toHaveBeenCalled();
+    },
+  );
   it('erteilt vor ausdrücklicher Bestätigung keine Freigabe', async () => {
     await store.prepare();
     expect(store.prepared()?.identity).toEqual(prepared.identity);
@@ -97,7 +126,7 @@ describe('Lokale Vinted-Freigabe', () => {
   });
   it('erteilt Versandrecht ausschließlich der gleichen Installation ohne Verlängerung', async () => {
     api.read.mockResolvedValue({ ...binding, messagesRead: true });
-    await store.loadConnection({ ...localConnection, connectionId: 'next-account' });
+    await loadConnection({ ...localConnection, connectionId: 'next-account' });
     api.read.mockResolvedValue({ ...binding, messagesRead: true, messagesSend: true });
     expect(await store.approveSend()).toBe(true);
     expect(api.approveMessaging).toHaveBeenCalledWith(
@@ -109,7 +138,7 @@ describe('Lokale Vinted-Freigabe', () => {
   });
   it('liest explizit ein Gespräch ohne den Kontowechsel zu überholen', async () => {
     api.read.mockResolvedValue({ ...binding, messagesRead: true });
-    await store.loadConnection({ ...localConnection, connectionId: 'next-account' });
+    await loadConnection({ ...localConnection, connectionId: 'next-account' });
     bridge.request.mockResolvedValue({
       ...approval,
       connectionId: 'next-account',
@@ -126,9 +155,118 @@ describe('Lokale Vinted-Freigabe', () => {
     });
     expect(refresh).toHaveBeenCalledWith({ ...scope, connectionId: 'next-account' }, true);
   });
+  it('wartet einen laufenden Vorgang ab statt einen übersprungenen Detailabruf zu bestätigen', async () => {
+    api.read.mockResolvedValue({ ...binding, messagesRead: true });
+    await loadConnection({ ...localConnection, connectionId: 'next-account' });
+    let finish: ((result: unknown) => void) | undefined;
+    bridge.request.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const preparation = store.prepare();
+    const detail = store.openInboxConversation('00000000-0000-4000-8000-000000000001');
+    let completed = false;
+    void detail.then(() => {
+      completed = true;
+    });
+    await Promise.resolve();
+    expect(completed).toBe(false);
+    bridge.request.mockResolvedValue({
+      ...approval,
+      connectionId: 'next-account',
+      observedAt: imported.observedAt,
+      counts: { conversation: 1, message: 0 },
+      conversationsComplete: false,
+      nextPage: 1,
+    });
+    finish?.(prepared);
+    await preparation;
+    expect(await detail).toEqual({ status: 'success', observedAt: imported.observedAt });
+    expect(bridge.request).toHaveBeenLastCalledWith('FLIPBASE_VINTED_LOCAL_INBOX_DETAIL', {
+      ...scope,
+      connectionId: 'next-account',
+      conversationId: '00000000-0000-4000-8000-000000000001',
+    });
+  });
+  it('führt mit einer fremden Profilbindung keinen Live-Detailabruf aus', async () => {
+    api.read.mockResolvedValue({ ...binding, messagesRead: true });
+    await loadConnection({ ...localConnection, connectionId: 'next-account' });
+    bridge.localAccount.set({ boundConnectionId: 'other-account', state: 'linked' });
+    expect(await store.openInboxConversation('00000000-0000-4000-8000-000000000001')).toMatchObject(
+      { status: 'failed' },
+    );
+    expect(bridge.request).not.toHaveBeenCalled();
+  });
+  it('erteilt einer fremden Profilbindung kein Versandrecht', async () => {
+    api.read.mockResolvedValue({ ...binding, messagesRead: true });
+    await loadConnection({ ...localConnection, connectionId: 'next-account' });
+    bridge.localAccount.set({ boundConnectionId: 'other-account', state: 'linked' });
+    expect(await store.approveSend()).toBe(false);
+    expect(api.approveMessaging).not.toHaveBeenCalled();
+    expect(bridge.request).not.toHaveBeenCalled();
+  });
+  it('verwirft einen wartenden Detailabruf nach Kontowechsel', async () => {
+    api.read.mockResolvedValue({ ...binding, messagesRead: true });
+    await loadConnection({ ...localConnection, connectionId: 'next-account' });
+    let finish: ((result: unknown) => void) | undefined;
+    bridge.request.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const preparation = store.prepare();
+    const detail = store.openInboxConversation('00000000-0000-4000-8000-000000000001');
+    store.connection.set(localConnection);
+    await settle();
+    finish?.(prepared);
+    await preparation;
+    expect(await detail).toEqual({ status: 'cancelled' });
+    expect(bridge.request).not.toHaveBeenCalledWith(
+      'FLIPBASE_VINTED_LOCAL_INBOX_DETAIL',
+      expect.anything(),
+    );
+  });
+  it('öffnet nach der Wartezeit ausschließlich das noch ausgewählte Gespräch', async () => {
+    api.read.mockResolvedValue({ ...binding, messagesRead: true });
+    await loadConnection({ ...localConnection, connectionId: 'next-account' });
+    let finish: ((result: unknown) => void) | undefined;
+    bridge.request.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const preparation = store.prepare();
+    const firstId = '00000000-0000-4000-8000-000000000001';
+    const secondId = '00000000-0000-4000-8000-000000000002';
+    let selectedId = firstId;
+    const first = store.openInboxConversation(firstId, () => selectedId === firstId);
+    selectedId = secondId;
+    const second = store.openInboxConversation(secondId, () => selectedId === secondId);
+    bridge.request.mockResolvedValue({
+      ...approval,
+      connectionId: 'next-account',
+      observedAt: imported.observedAt,
+      counts: { conversation: 1, message: 0 },
+      conversationsComplete: false,
+      nextPage: 1,
+    });
+    finish?.(prepared);
+    await preparation;
+    expect(await first).toEqual({ status: 'cancelled' });
+    expect((await second).status).toBe('success');
+    expect(
+      bridge.request.mock.calls.filter(([type]) => type === 'FLIPBASE_VINTED_LOCAL_INBOX_DETAIL'),
+    ).toEqual([
+      [
+        'FLIPBASE_VINTED_LOCAL_INBOX_DETAIL',
+        { ...scope, connectionId: 'next-account', conversationId: secondId },
+      ],
+    ]);
+  });
   it('erweitert eine bestehende Installation erst nach Bestätigung um das Postfach', async () => {
     api.read.mockResolvedValue(binding);
-    await store.loadConnection({ ...localConnection, connectionId: 'next-account' });
+    await loadConnection({ ...localConnection, connectionId: 'next-account' });
     expect(store.messagesAllowed()).toBe(false);
     expect(api.approveInbox).not.toHaveBeenCalled();
     api.read.mockResolvedValue({ ...binding, messagesRead: true });
@@ -144,7 +282,7 @@ describe('Lokale Vinted-Freigabe', () => {
   });
   it('erteilt dem falschen Browserkonto keinen Postfachzugriff', async () => {
     api.read.mockResolvedValue(binding);
-    await store.loadConnection({ ...localConnection, connectionId: 'next-account' });
+    await loadConnection({ ...localConnection, connectionId: 'next-account' });
     bridge.request.mockResolvedValue({ ...prepared, identity: { id: '999', username: 'other' } });
     await store.approveInbox();
     expect(api.approveInbox).not.toHaveBeenCalled();
@@ -153,7 +291,7 @@ describe('Lokale Vinted-Freigabe', () => {
   });
   it('liest ohne separate Nachrichtenfreigabe kein Postfach', async () => {
     api.read.mockResolvedValue(binding);
-    await store.loadConnection({ ...localConnection, connectionId: 'next-account' });
+    await loadConnection({ ...localConnection, connectionId: 'next-account' });
     await store.syncInbox();
     expect(bridge.request).not.toHaveBeenCalled();
     expect(store.inboxImported()).toBeNull();
@@ -161,11 +299,11 @@ describe('Lokale Vinted-Freigabe', () => {
   });
   it('bestätigt einen Postfachimport und erhält das geöffnete Gespräch', async () => {
     api.read.mockResolvedValue({ ...binding, messagesRead: true });
-    await store.loadConnection(localConnection);
+    await loadConnection(localConnection);
     // Ein neuer Kontokontext lädt den aktuellen Grant.
     store.connection.set(null);
     await settle();
-    await store.loadConnection(localConnection);
+    await loadConnection(localConnection);
     const inboxImported = {
       ...approval,
       observedAt: imported.observedAt,
@@ -193,7 +331,7 @@ describe('Lokale Vinted-Freigabe', () => {
   });
   it('übernimmt keinen verspäteten Postfachimport nach Kontowechsel', async () => {
     api.read.mockResolvedValue({ ...binding, messagesRead: true });
-    await store.loadConnection({ ...localConnection, connectionId: 'next-account' });
+    await loadConnection({ ...localConnection, connectionId: 'next-account' });
     let finish: ((result: unknown) => void) | undefined;
     bridge.request.mockReturnValue(
       new Promise((resolve) => {
@@ -216,7 +354,7 @@ describe('Lokale Vinted-Freigabe', () => {
   });
   it('akzeptiert einen gespeicherten Postfachimport neben neueren Profilmetadaten', async () => {
     api.read.mockResolvedValue({ ...binding, messagesRead: true });
-    await store.loadConnection({ ...localConnection, connectionId: 'next-account' });
+    await loadConnection({ ...localConnection, connectionId: 'next-account' });
     const inboxImported = {
       ...approval,
       connectionId: 'next-account',
@@ -356,18 +494,18 @@ describe('Lokale Vinted-Freigabe', () => {
     { ...binding, expiresAt: '2000-01-01T00:00:00Z' },
   ])('synchronisiert keine widerrufene oder abgelaufene Freigabe', async (invalidBinding) => {
     api.read.mockResolvedValue(invalidBinding);
-    await store.loadConnection({ ...localConnection, connectionId: 'next-account' });
+    await loadConnection({ ...localConnection, connectionId: 'next-account' });
     await store.sync();
     expect(bridge.request).not.toHaveBeenCalled();
     expect(store.notice()).toContain('gültige lokale Freigabe');
   });
   it('startet nach dem Schließen des Bereichs keine Synchronisierung oder neue Freigabeabfrage', async () => {
     api.read.mockResolvedValue(binding);
-    await store.loadConnection({ ...localConnection, connectionId: 'next-account' });
+    await loadConnection({ ...localConnection, connectionId: 'next-account' });
     expect(store.isCurrentConnection(store.connection() ?? localConnection)).toBe(true);
     TestBed.resetTestingModule();
     await store.sync();
-    await store.loadConnection(localConnection);
+    await loadConnection(localConnection);
     expect(store.isCurrentConnection(localConnection)).toBe(false);
     expect(bridge.request).not.toHaveBeenCalled();
     expect(api.read).toHaveBeenCalledTimes(2);

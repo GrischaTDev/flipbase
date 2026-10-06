@@ -21,6 +21,15 @@ import { MarketplaceAccountStore } from './marketplace-account.store';
 import { VintedLocalExtensionApiService } from './vinted-local-extension-api.service';
 import { VintedLocalExtensionBridge } from './vinted-local-extension-bridge';
 
+type LocalOperationResult =
+  | { readonly status: 'success' }
+  | { readonly status: 'failed'; readonly error: string }
+  | { readonly status: 'cancelled' };
+
+export type LocalInboxConversationReadResult =
+  | { readonly status: 'success'; readonly observedAt: string }
+  | Exclude<LocalOperationResult, { readonly status: 'success' }>;
+
 @Injectable()
 export class VintedLocalExtensionStore {
   private readonly api = inject(VintedLocalExtensionApiService);
@@ -64,6 +73,7 @@ export class VintedLocalExtensionStore {
   });
   private revision = 0;
   private loadingBinding: Promise<void> = Promise.resolve();
+  private operationFinished: Promise<void> = Promise.resolve();
   private destroyed = false;
   private readonly current = computed(
     () => this.context() !== null && this.context() === this.loadedContext(),
@@ -115,6 +125,16 @@ export class VintedLocalExtensionStore {
       (!expectedId || expectedId === binding.externalAccountId)
     );
   }
+  canUseBrowserProfile(): boolean {
+    const profile = this.bridge.localAccount();
+    return (
+      this.current() &&
+      this.bridge.installed() &&
+      !!profile &&
+      profile.boundConnectionId === this.connection()?.connectionId &&
+      profile.state === 'linked'
+    );
+  }
   showSetupNotice(): void {
     this.state.update((state) => ({
       ...state,
@@ -139,7 +159,7 @@ export class VintedLocalExtensionStore {
       notice: null,
     });
     this.loadingBinding = context
-      ? this.run(async (scope) => ({ binding: await this.api.read(scope) }))
+      ? this.run(async (scope) => ({ binding: await this.api.read(scope) })).then(() => undefined)
       : Promise.resolve();
     return this.loadingBinding;
   }
@@ -211,6 +231,7 @@ export class VintedLocalExtensionStore {
       return;
     }
     await this.run(async (scope, valid) => {
+      this.assertMatchingBrowserBinding(scope);
       const imported = parseLocalExtensionSyncResult(
         await this.bridge.request('FLIPBASE_VINTED_LOCAL_SYNC', scope),
         scope,
@@ -251,6 +272,7 @@ export class VintedLocalExtensionStore {
       return;
     }
     await this.run(async (scope, valid) => {
+      this.assertMatchingBrowserBinding(scope);
       const prepared = parseLocalExtensionPreparedIdentity(
         await this.bridge.request('FLIPBASE_VINTED_LOCAL_PREPARE'),
       );
@@ -293,6 +315,7 @@ export class VintedLocalExtensionStore {
       return;
     }
     await this.run(async (scope, valid) => {
+      this.assertMatchingBrowserBinding(scope);
       const inboxImported = parseLocalExtensionInboxSyncResult(
         await this.bridge.request('FLIPBASE_VINTED_LOCAL_INBOX_SYNC', scope),
         scope,
@@ -350,6 +373,7 @@ export class VintedLocalExtensionStore {
     const binding = this.binding();
     if (!binding || !this.hasValidBinding() || !this.messagesAllowed() || this.busy()) return false;
     await this.run(async (scope, valid) => {
+      this.assertMatchingBrowserBinding(scope);
       const prepared = parseLocalExtensionPreparedIdentity(
         await this.bridge.request('FLIPBASE_VINTED_LOCAL_PREPARE'),
       );
@@ -377,10 +401,30 @@ export class VintedLocalExtensionStore {
     });
     return this.hasValidBinding() && this.binding()?.messagesSend === true && !this.error();
   }
-  async openInboxConversation(conversationId: string): Promise<void> {
+  async openInboxConversation(
+    conversationId: string,
+    isCurrent: () => boolean = () => true,
+  ): Promise<LocalInboxConversationReadResult> {
+    const context = this.context();
+    while (this.busy()) {
+      await this.operationFinished;
+      if (this.destroyed || context !== this.context() || !isCurrent())
+        return { status: 'cancelled' };
+    }
     const binding = this.binding();
-    if (!binding || !this.messagesAllowed() || !/^[0-9a-f-]{36}$/i.test(conversationId)) return;
-    await this.run(async (scope, valid) => {
+    if (
+      !context ||
+      context !== this.context() ||
+      !isCurrent() ||
+      !binding ||
+      !this.messagesAllowed() ||
+      !/^[0-9a-f-]{36}$/i.test(conversationId)
+    )
+      return { status: 'cancelled' };
+    let observedAt: string | null = null;
+    const result = await this.run(async (scope, valid) => {
+      this.assertMatchingBrowserBinding(scope);
+      if (!valid() || !isCurrent()) return {};
       const inboxImported = parseLocalExtensionInboxSyncResult(
         await this.bridge.request('FLIPBASE_VINTED_LOCAL_INBOX_DETAIL', {
           ...scope,
@@ -389,20 +433,38 @@ export class VintedLocalExtensionStore {
         scope,
         binding.externalAccountId,
       );
-      if (!valid()) return {};
+      if (!valid() || !isCurrent()) return {};
       if (!inboxImported || Date.parse(inboxImported.expiresAt) !== Date.parse(binding.expiresAt))
         throw new MarketplaceResponseError();
       await this.accounts.refreshLocalConnection(scope, true);
-      if (!valid()) return {};
+      if (!valid() || !isCurrent()) return {};
       const currentBinding = await this.api.read(scope);
+      if (!valid() || !isCurrent()) return {};
       if (
         !currentBinding ||
         currentBinding.revoked ||
         currentBinding.externalAccountId !== binding.externalAccountId
       )
         throw new MarketplaceResponseError();
+      observedAt = inboxImported.observedAt;
       return { inboxImported, binding: currentBinding };
     });
+    return result.status === 'success'
+      ? observedAt
+        ? { status: 'success', observedAt }
+        : { status: 'cancelled' }
+      : result;
+  }
+  private assertMatchingBrowserBinding(scope: AccountScope): void {
+    const profile = this.bridge.localAccount();
+    if (profile && profile.boundConnectionId !== scope.connectionId)
+      throw new Error(
+        'Dieses Konto ist in einem anderen Browserprofil verknüpft. Öffne das passende Profil.',
+      );
+    if (!this.canUseBrowserProfile())
+      throw new Error(
+        'Dieses Browserprofil ist derzeit nicht für Live-Abrufe bereit. Prüfe die Verbindung in der Kontoverwaltung.',
+      );
   }
   async refreshStatus(): Promise<void> {
     if (this.busy() || !this.hasValidBinding()) return;
@@ -413,10 +475,15 @@ export class VintedLocalExtensionStore {
       scope: AccountScope,
       valid: () => boolean,
     ) => Promise<Partial<ReturnType<typeof this.state>>>,
-  ): Promise<void> {
+  ): Promise<LocalOperationResult> {
     const context = this.context();
     const connection = this.connection();
-    if (this.destroyed || !context || !this.current() || !connection || this.busy()) return;
+    if (this.destroyed || !context || !this.current() || !connection || this.busy())
+      return { status: 'cancelled' };
+    let finishOperation: (() => void) | undefined;
+    this.operationFinished = new Promise<void>((resolve) => {
+      finishOperation = resolve;
+    });
     const revision = ++this.revision;
     const valid = () => !this.destroyed && revision === this.revision && context === this.context();
     this.state.update((state) => ({ ...state, busy: true, error: null }));
@@ -425,18 +492,25 @@ export class VintedLocalExtensionStore {
         { workspaceId: connection.workspaceId, connectionId: connection.connectionId },
         valid,
       );
-      if (valid()) this.state.update((state) => ({ ...state, ...update }));
+      if (!valid()) return { status: 'cancelled' };
+      this.state.update((state) => ({ ...state, ...update }));
+      return { status: 'success' };
     } catch (error) {
-      if (valid())
+      if (valid()) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'Die lokale Verbindung konnte nicht bestätigt werden.';
         this.state.update((state) => ({
           ...state,
-          error:
-            error instanceof Error
-              ? error.message
-              : 'Die lokale Verbindung konnte nicht bestätigt werden.',
+          error: message,
         }));
+        return { status: 'failed', error: message };
+      }
+      return { status: 'cancelled' };
     } finally {
       if (valid()) this.state.update((state) => ({ ...state, busy: false }));
+      finishOperation?.();
     }
   }
 }

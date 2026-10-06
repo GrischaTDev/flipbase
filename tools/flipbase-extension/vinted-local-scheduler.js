@@ -12,6 +12,17 @@
             Date.parse(installation.binding.expiresAt) <= adapter.now())
         )
           return;
+        if (
+          !installation.pendingFinish &&
+          installation.schedule?.pauseReason === 'login_required' &&
+          adapter.readiness &&
+          !(installation.leaseUntil > adapter.now())
+        ) {
+          const result = await adapter.readiness(installation.binding);
+          if (result.state !== 'ready') return;
+          installation = await adapter.load();
+          if (!installation?.binding) return;
+        }
         const schedule = { ...installation.schedule };
         if (
           (!installation.pendingFinish &&

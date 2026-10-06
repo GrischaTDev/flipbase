@@ -87,14 +87,20 @@
 }
 
 #flipbase-vinted-account {
+  --fb-account-brand: #fcc601;
+  --fb-account-text: #111827;
+  --fb-account-muted: #596273;
+  --fb-account-border: #d9dde5;
+  --fb-account-focus: #4f46e5;
   position: fixed;
   right: 20px;
   bottom: 20px;
   z-index: 2147483646;
+  color-scheme: light;
   font:
     13px/20px system-ui,
     sans-serif;
-  color: #1f2937;
+  color: var(--fb-account-text);
 }
 
 #flipbase-vinted-account * {
@@ -105,15 +111,24 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 52px;
-  height: 52px;
-  margin-left: auto;
-  border: 1px solid #d1d5db;
+  width: 56px;
+  height: 56px;
+  margin: 0;
+  padding: 12px;
+  border: 0;
   border-radius: 50%;
-  background: #fcc601;
-  box-shadow: 0 4px 20px rgb(0 0 0 / 8%);
+  background: white;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 16%);
   cursor: pointer;
-  padding: 8px;
+  transition:
+    transform 150ms ease,
+    box-shadow 150ms ease;
+}
+
+#flipbase-vinted-account-toggle:hover {
+  transform: scale(1.06);
+  background: white;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 20%);
 }
 
 #flipbase-vinted-account-toggle img {
@@ -123,19 +138,35 @@
   object-fit: contain;
 }
 
-#flipbase-vinted-account-panel {
-  width: min(320px, calc(100vw - 40px));
-  max-height: calc(100dvh - 100px);
-  overflow: auto;
+#flipbase-vinted-account-backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 16px;
-  margin-bottom: 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 12px;
+  background: rgb(0 0 0 / 48%);
+  isolation: isolate;
+}
+
+#flipbase-vinted-account-panel {
+  width: min(480px, 100%);
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 24px;
+  margin: 0;
+  border: 0;
+  border-radius: 16px;
   background: white;
-  box-shadow: 0 4px 20px rgb(0 0 0 / 8%);
+  box-shadow:
+    0 8px 24px -8px rgb(0 0 0 / 28%),
+    0 8px 16px -4px rgb(0 0 0 / 5%),
+    0 3px 6px rgb(0 0 0 / 5%);
   text-align: left;
 }
 
+#flipbase-vinted-account-backdrop[hidden],
 #flipbase-vinted-account-panel[hidden] {
   display: none;
 }
@@ -144,68 +175,151 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--fb-account-border);
 }
 
 #flipbase-vinted-account-heading {
-  font-size: 16px;
-  line-height: 24px;
+  margin: 0;
+  color: var(--fb-account-text);
+  font:
+    600 18px/24px system-ui,
+    sans-serif;
 }
 
 #flipbase-vinted-account-panel button {
+  flex: 0 0 auto;
   width: 44px;
   height: 44px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
   background: white;
-  color: #1f2937;
+  color: var(--fb-account-text);
   font:
     24px/24px system-ui,
     sans-serif;
   cursor: pointer;
 }
 
+#flipbase-vinted-account-panel button:hover {
+  background: #eef0f4;
+}
+
+#flipbase-vinted-account-panel .flipbase-vinted-account-recheck {
+  width: auto;
+  height: auto;
+  min-height: 36px;
+  padding: 8px 12px;
+  border: 1px solid var(--fb-account-border);
+  font:
+    550 13px/20px system-ui,
+    sans-serif;
+}
+
 #flipbase-vinted-account p {
   margin: 12px 0;
-  color: #4b5563;
+  color: var(--fb-account-muted);
   font: inherit;
   overflow-wrap: anywhere;
 }
 
-#flipbase-vinted-account .flipbase-vinted-account-identity,
-#flipbase-vinted-account .flipbase-vinted-account-status {
-  color: #1f2937;
+#flipbase-vinted-account .flipbase-vinted-account-identity {
+  margin-bottom: 4px;
+  color: var(--fb-account-text);
   font-weight: 600;
+}
+
+#flipbase-vinted-account .flipbase-vinted-account-assignment {
+  margin-top: 0;
+}
+
+#flipbase-vinted-account .flipbase-vinted-account-status {
+  display: inline-block;
+  margin-bottom: 0;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: #e8ebef;
+  color: #47515d;
+  font-weight: 600;
+}
+
+#flipbase-vinted-account .flipbase-vinted-account-status[data-state='ready'] {
+  background: #d8f2e8;
+  color: #08674d;
+}
+
+#flipbase-vinted-account .flipbase-vinted-account-checked,
+#flipbase-vinted-account .flipbase-vinted-account-note {
+  font-size: 12px;
 }
 
 #flipbase-vinted-account a {
   display: flex;
-  min-height: 44px;
+  min-height: 36px;
   align-items: center;
   justify-content: center;
   margin-top: 8px;
-  padding: 4px 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
+  padding: 8px 12px;
+  border: 1px solid var(--fb-account-border);
+  border-radius: 8px;
   background: white;
-  color: #111827;
+  color: var(--fb-account-text);
   text-decoration: none;
+  text-align: center;
   font:
     550 13px/20px system-ui,
     sans-serif;
 }
 
 #flipbase-vinted-account a[data-account-link] {
-  background: #fcc601;
+  border-color: transparent;
+  background: var(--fb-account-brand);
+  color: #303030;
 }
 
-#flipbase-vinted-account button:hover,
 #flipbase-vinted-account a:hover {
-  border-color: #111827;
+  background: #eef0f4;
+}
+
+#flipbase-vinted-account a[data-account-link]:hover {
+  background: #e5b201;
+}
+
+#flipbase-vinted-account button:focus:not(:focus-visible),
+#flipbase-vinted-account a:focus:not(:focus-visible) {
+  outline: none;
 }
 
 #flipbase-vinted-account button:focus-visible,
 #flipbase-vinted-account a:focus-visible {
-  outline: 2px solid #111827;
+  outline: 2px solid var(--fb-account-focus);
   outline-offset: 3px;
+}
+
+@media (pointer: coarse) {
+  #flipbase-vinted-account a,
+  #flipbase-vinted-account-panel .flipbase-vinted-account-recheck {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 480px) {
+  #flipbase-vinted-account {
+    right: 16px;
+    bottom: 16px;
+  }
+  #flipbase-vinted-account-panel {
+    padding: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #flipbase-vinted-account-toggle {
+    transition: none;
+  }
+  #flipbase-vinted-account-toggle:hover {
+    transform: none;
+  }
 }

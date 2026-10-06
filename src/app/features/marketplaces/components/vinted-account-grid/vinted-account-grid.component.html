@@ -26,6 +26,9 @@
 @if (accounts.mutationError(); as error) {
   <app-notice-banner class="mb-4" announcement="alert">{{ error }}</app-notice-banner>
 }
+@if (runtime.error(); as error) {
+  <app-notice-banner class="mb-4" announcement="alert">{{ error }}</app-notice-banner>
+}
 @if (orderNotice(); as notice) {
   <p role="status" class="mb-3 text-xs text-fb-text-secondary">{{ notice }}</p>
 }
@@ -116,6 +119,20 @@
                 }
               </div>
             </div>
+            @if (tile.connection.executionMode === 'local') {
+              @let status = runtimeStatus(tile.connection);
+              <div class="mt-3" aria-live="polite">
+                <app-badge size="sm" [tone]="status.tone">{{ status.label }}</app-badge>
+                @if (
+                  runtime.readiness()?.state === 'permission_required' && status.action === 'check'
+                ) {
+                  <p class="mt-2 text-xs text-fb-text-secondary">
+                    Erlaube der Flipbase-Erweiterung in Chrome unter „Erweiterungen“ den
+                    Websitezugriff auf www.vinted.de. Prüfe die Verbindung danach erneut.
+                  </p>
+                }
+              </div>
+            }
             <div class="my-4 min-h-10">
               @if (profile?.feedbackCount !== null && profile?.feedbackCount !== undefined) {
                 <app-vinted-rating
@@ -167,20 +184,52 @@
               >Auf Cloud wechseln</app-button
             >
           }
-          <app-button
-            [link]="'/marketplaces/vinted/local-connect/' + tile.connection.connectionId"
-            [disabled]="
-              !accounts.canManage() ||
-              accounts.busy() ||
-              tile.connection.status === 'paused' ||
-              tile.connection.status === 'blocked'
-            "
-            >{{
-              tile.connection.executionMode === 'local' && tile.connection.status === 'connected'
-                ? 'Lokale Verbindung'
-                : 'Lokal verbinden'
-            }}</app-button
-          >
+          @if (tile.connection.executionMode === 'local' && tile.connection.externalAccountId) {
+            @let status = runtimeStatus(tile.connection);
+            @if (status.action === 'renew') {
+              <app-button
+                [link]="'/marketplaces/vinted/local-connect/' + tile.connection.connectionId"
+                >Freigabe erneuern</app-button
+              >
+            } @else if (status.action === 'login') {
+              <app-button link="https://www.vinted.de/" target="_blank">Vinted öffnen</app-button>
+              <app-button [disabled]="runtime.checking()" (clicked)="checkLocalConnection()"
+                >Erneut prüfen</app-button
+              >
+            } @else if (status.action === 'settings') {
+              <app-button (clicked)="openSettings(tile.connection)"
+                >Einstellungen öffnen</app-button
+              >
+            } @else if (status.action === 'profile') {
+              <p class="text-xs text-fb-text-secondary">
+                Öffne das Browserprofil dieses Kontos für Live-Aktionen.
+              </p>
+            } @else {
+              <app-button [disabled]="runtime.checking()" (clicked)="checkLocalConnection()"
+                >Verbindung prüfen</app-button
+              >
+              @if (status.tone === 'success') {
+                <app-button [disabled]="local.busy()" (clicked)="syncLocalAccount(tile.connection)"
+                  >Jetzt synchronisieren</app-button
+                >
+              }
+            }
+          } @else {
+            <app-button
+              [link]="'/marketplaces/vinted/local-connect/' + tile.connection.connectionId"
+              [disabled]="
+                !accounts.canManage() ||
+                accounts.busy() ||
+                tile.connection.status === 'paused' ||
+                tile.connection.status === 'blocked'
+              "
+              >{{
+                tile.connection.executionMode === 'local' && tile.connection.status === 'connected'
+                  ? 'Lokale Verbindung'
+                  : 'Lokal verbinden'
+              }}</app-button
+            >
+          }
           @if (tile.connection.executionMode === 'cloud') {
             <app-button
               [disabled]="
@@ -202,6 +251,31 @@
 }
 
 <app-marketplace-accounts />
+@if (disconnectAccount(); as account) {
+  <app-modal-shell
+    title="Lokale Freigabe trennen"
+    presentation="center"
+    size="md"
+    (closed)="closeDisconnect()"
+  >
+    <p class="text-sm text-fb-text-secondary">
+      Die lokale Freigabe für {{ account.displayName }} wird widerrufen. Deine gespeicherten Daten
+      bleiben erhalten und Du bleibst bei Vinted angemeldet.
+    </p>
+    @if (local.error(); as error) {
+      <app-notice-banner class="mt-3" announcement="alert">{{ error }}</app-notice-banner>
+    }
+    <div modal-footer class="flex justify-end gap-2">
+      <app-button [disabled]="local.busy()" (clicked)="closeDisconnect()">Abbrechen</app-button>
+      <app-button
+        variant="destructive"
+        [disabled]="local.busy() || !accounts.canManage()"
+        (clicked)="disconnectLocalAccount()"
+        >Freigabe trennen</app-button
+      >
+    </div>
+  </app-modal-shell>
+}
 @if (settingsAccount(); as account) {
   <app-modal-shell
     [title]="account.displayName + ' – Einstellungen'"
@@ -218,6 +292,16 @@
       <app-vinted-favorite-settings [account]="account" />
     </fieldset>
     <div class="mt-5 flex flex-wrap gap-2 border-t border-fb-line pt-4">
+      @if (account.executionMode === 'local') {
+        <app-button [link]="'/marketplaces/vinted/local-connect/' + account.connectionId"
+          >Freigabe erneuern</app-button
+        >
+        <app-button
+          [disabled]="local.busy() || !accounts.canManage()"
+          (clicked)="openDisconnect(account)"
+          >Lokale Freigabe trennen</app-button
+        >
+      }
       <app-button
         [disabled]="accounts.busy() || accounts.loading() || !accounts.canManage()"
         (clicked)="rename(account)"

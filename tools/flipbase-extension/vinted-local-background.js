@@ -14,6 +14,16 @@
   // Das Installationsgeheimnis ist für Content Scripts nicht lesbar.
 
   async function ensureTab(preferredTabId) {
+    if (
+      chrome.permissions &&
+      !(await chrome.permissions.contains({ origins: ['https://www.vinted.de/*'] }))
+    ) {
+      const error = new Error(
+        'Erlaube der Flipbase-Erweiterung in Chrome den Zugriff auf www.vinted.de.',
+      );
+      error.code = 'permission_required';
+      throw error;
+    }
     let tab;
     let created = false;
     if (Number.isInteger(preferredTabId)) {
@@ -88,8 +98,15 @@
       // Nach einem Erweiterungs-Reload bleibt der alte Tab ohne gültiges Content Script offen.
       // Nur unseren gespeicherten Arbeitstab ersetzen; keine Nutzertabs neu laden.
       recoveredTab = true;
+      const staleTabId = reserved.tabId;
       reserved = await ensureTab();
       ready = await waitForReceiver(reserved.tabId, readDeadline);
+      if (ready) await chrome.tabs.remove(staleTabId);
+      else {
+        await chrome.tabs.remove(reserved.tabId);
+        const installation = await load();
+        if (installation) await save({ ...installation, tabId: staleTabId });
+      }
     }
     if (!ready)
       throw new Error(
@@ -138,6 +155,7 @@
     load,
     save,
     now,
+    version: chrome.runtime.getManifest?.().version ?? '1.6.0',
     begin: () => {
       operationDeadline = now() + 50_000;
       recoveredTab = false;
@@ -197,6 +215,7 @@
     load,
     save,
     now,
+    readiness: (binding) => runtime.run({ action: 'READINESS' }, binding.appOrigin),
     run: (action, binding) =>
       runtime.run(
         {
@@ -208,6 +227,32 @@
         binding.appOrigin,
       ),
   });
+  let readinessPending;
+  function restoreReadiness() {
+    if (readinessPending) return readinessPending;
+    readinessPending = (async () => {
+      const installation = await load();
+      if (installation?.binding)
+        await runtime.run({ action: 'READINESS' }, installation.binding.appOrigin);
+    })()
+      .catch(() => console.warn('Flipbase: Die lokale Verbindung konnte nicht geprüft werden.'))
+      .finally(() => {
+        readinessPending = undefined;
+      });
+    return readinessPending;
+  }
+  chrome.runtime.onStartup?.addListener(restoreReadiness);
+  chrome.runtime.onInstalled?.addListener(restoreReadiness);
+  if (chrome.runtime.onStartup) restoreReadiness();
+  chrome.tabs?.onRemoved?.addListener((tabId) => {
+    load()
+      .then((installation) => {
+        if (installation?.binding && tabId === installation.tabId) return restoreReadiness();
+      })
+      .catch(() => console.warn('Flipbase: Der lokale Arbeitstab konnte nicht geprüft werden.'));
+  });
+  chrome.permissions?.onAdded?.addListener(restoreReadiness);
+  chrome.permissions?.onRemoved?.addListener(restoreReadiness);
   async function ensureAlarm() {
     if (!chrome.alarms || !scheduler) return;
     if (!(await chrome.alarms.get('flipbase-vinted-sync')))
@@ -238,7 +283,14 @@
   }
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message?.type === 'VINTED_LOCAL_ACCOUNT_STATUS') {
+    if (
+      [
+        'VINTED_LOCAL_ACCOUNT_STATUS',
+        'VINTED_LOCAL_ACCOUNT_READINESS',
+        'VINTED_LOCAL_ACCOUNT_RECHECK',
+      ].includes(message?.type)
+    ) {
+      if (Object.keys(message).length !== 1) return false;
       let origin;
       try {
         origin = new URL(sender.url ?? '').origin;
@@ -257,15 +309,37 @@
       (async () => {
         const installation = await load();
         const binding = installation?.binding;
+        if (
+          ['VINTED_LOCAL_ACCOUNT_READINESS', 'VINTED_LOCAL_ACCOUNT_RECHECK'].includes(message.type)
+        ) {
+          if (origin !== 'https://www.vinted.de') return sendResponse({ success: false });
+          const result = binding
+            ? await runtime.run(
+                {
+                  action: message.type === 'VINTED_LOCAL_ACCOUNT_RECHECK' ? 'RECHECK' : 'READINESS',
+                },
+                binding.appOrigin,
+              )
+            : runtime.readStatus(installation);
+          return sendResponse({ success: true, result });
+        }
+        if (binding && origin !== 'https://www.vinted.de' && binding.appOrigin !== origin)
+          return sendResponse({
+            success: true,
+            result: { localAccount: null, readiness: runtime.readStatus(null) },
+          });
+        const readiness = runtime.readStatus(installation);
         const expiresAt = Date.parse(binding?.expiresAt);
         const state =
-          installation?.schedule?.pauseReason === 'local_binding_invalid'
+          installation?.schedule?.pauseReason === 'local_binding_revoked'
             ? 'revoked'
-            : !Number.isFinite(expiresAt) || expiresAt <= now()
-              ? 'expired'
-              : installation?.schedule?.pauseReason || installation?.schedule?.retryAfter > now()
-                ? 'paused'
-                : 'linked';
+            : installation?.schedule?.pauseReason === 'local_binding_invalid'
+              ? 'unavailable'
+              : !Number.isFinite(expiresAt) || expiresAt <= now()
+                ? 'expired'
+                : installation?.schedule?.pauseReason || installation?.schedule?.retryAfter > now()
+                  ? 'paused'
+                  : 'linked';
         const localAccount = binding
           ? {
               boundUsername: installation.identity?.username ?? null,
@@ -280,17 +354,19 @@
             origin === 'https://www.vinted.de'
               ? {
                   reserved: sender.tab.id === installation?.tabId,
+                  readiness,
                   binding: binding
                     ? {
                         externalAccountId: binding.externalAccountId,
                         username: localAccount.boundUsername,
                         connectionId: binding.connectionId,
+                        workspaceId: binding.workspaceId,
                         appOrigin: binding.appOrigin,
                         state,
                       }
                     : null,
                 }
-              : { localAccount },
+              : { localAccount, readiness },
         });
       })().catch(() => sendResponse({ success: false }));
       return true;
@@ -332,7 +408,12 @@
         const installation = await load();
         if (installation) {
           const schedule = { ...installation.schedule };
-          if (!result.reported && !result.skipped) delete schedule.pauseReason;
+          if (
+            !['READINESS', 'RECHECK'].includes(request.action) &&
+            !result.reported &&
+            !result.skipped
+          )
+            delete schedule.pauseReason;
           if (request.action === 'MESSAGES_SEND') schedule.commandsAt = now() + 90_000;
           if (request.action === 'INBOX_SYNC') {
             schedule.latestAt = now() + 300_000;

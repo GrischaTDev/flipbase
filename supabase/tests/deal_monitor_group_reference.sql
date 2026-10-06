@@ -44,7 +44,7 @@ select 'excluded-' || i, 'Ausschluss', 'https://example.test',
             when i = 2 then '88000000-0000-4000-8000-000000000004'::uuid
             else '88000000-0000-4000-8000-000000000001'::uuid end,
        case when i = 4 then 'USD' else 'EUR' end,
-       case when i = 3 then now() - interval '14 days 1 second' else now() end
+       case when i = 3 then now() - interval '7 days 1 second' else now() end
 from generate_series(1, 7) as i;
 select results_eq($$select reference_price, sample_size from public.sniper_reference_price(88001, 'Nike', 'Gut')$$,
   $$values (40::numeric, 8)$$, 'Vergleich enthaelt nur gueltige aktuelle EUR-Angebote derselben Kategorie');
@@ -83,9 +83,9 @@ update public.sniper_listings set item_price = 100 where external_id in ('group-
 select is((select unusable_reason from public.sniper_reference_price(88001, 'Nike', 'Gut')), null::text, 'Drei von neun am Preislimit sind erlaubt');
 update public.sniper_listings set item_price = 100 where external_id = 'group-4';
 select is((select unusable_reason from public.sniper_reference_price(88001, 'Nike', 'Gut')), 'at_price_ceiling', 'Vier von neun am Preislimit werden verworfen');
-update public.sniper_listings set first_seen_at = now() - interval '14 days' where external_id = 'group-8';
-select is((select sample_size from public.sniper_reference_price(88001, 'Nike', 'Gut')), 9, 'Die 14-Tage-Grenze ist eingeschlossen');
-update public.sniper_listings set first_seen_at = now() - interval '14 days 1 second' where external_id = 'group-8';
+update public.sniper_listings set first_seen_at = now() - interval '7 days' where external_id = 'group-8';
+select is((select sample_size from public.sniper_reference_price(88001, 'Nike', 'Gut')), 9, 'Die 7-Tage-Grenze ist eingeschlossen');
+update public.sniper_listings set first_seen_at = now() - interval '7 days 1 second' where external_id = 'group-8';
 select is((select sample_size from public.sniper_reference_price(88001, 'Nike', 'Gut')), 8, 'Aeltere Angebote verlassen das Fenster');
 
 select * from finish();

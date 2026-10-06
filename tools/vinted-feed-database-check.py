@@ -2,8 +2,24 @@
 import pathlib
 import re
 import subprocess
+import sys
 
 root = pathlib.Path.cwd()
+if len(sys.argv) == 2:
+    migration = pathlib.Path(sys.argv[1])
+    assert migration.parent == root / 'supabase/migrations' or migration.parent == pathlib.Path('supabase/migrations')
+    assert migration.name.endswith('_vinted_feed_account_favorites.sql')
+    # Der Diff-Generator berücksichtigt bei CREATE TABLE die lokalen Default-Grants
+    # nicht vollständig. Die expliziten Rechte stammen unverändert aus den Deklarationen.
+    acl = []
+    for name in ['400_sniper_favorites.sql', '401_sniper_feed_search.sql']:
+        declaration = (root / 'supabase/schemas' / name).read_text()
+        acl.extend(re.findall(r'^(?:revoke|grant)\s+[^;]+;', declaration, re.M | re.I))
+    assert any('revoke all on public.sniper_favorites' in statement.lower() for statement in acl)
+    migration.write_text(migration.read_text() + '\n-- Explizite deklarative Rechte auch nach einem Neuaufbau sicherstellen.\n' + '\n'.join(acl) + '\n')
+    print('Explizite Rechte aus den freigegebenen Deklarationen in die Migration übernommen.')
+    sys.exit(0)
+
 statements = []
 paths = ['50_sniper.sql', '106_sniper_watchlists.sql', '107_sniper_feed_brands.sql', '360_beta_business_access.sql']
 for name in paths:

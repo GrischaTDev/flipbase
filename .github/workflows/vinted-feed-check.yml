@@ -1,4 +1,5 @@
 name: Vinted feed database check
+
 on:
   push:
     branches: [juna/vinted-feed-account-favorites]
@@ -9,11 +10,16 @@ on:
       - supabase/schemas/401_sniper_feed_search.sql
       - supabase/tests/sniper_account_favorites.sql
       - supabase/tests/sniper_feed_search.sql
+      - supabase/tests/deal_monitor_retention.sql
+      - supabase/tests/deal_monitor_group_reference.sql
+
 permissions:
   contents: read
+
 concurrency:
   group: vinted-feed-favorites-database
   cancel-in-progress: true
+
 jobs:
   database:
     if: github.repository == 'GrischaTDev/flipbase' && github.ref == 'refs/heads/juna/vinted-feed-account-favorites'
@@ -27,43 +33,44 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - name: Install locked test dependencies
+      - name: Install locked dependencies
         run: |
           mkdir -p /tmp/feed-db-review
           npm ci > /tmp/feed-db-review/install.log 2>&1
-      - name: Start disposable database from existing migrations
+      - name: Start disposable database
         run: npx supabase start > /tmp/feed-db-review/start.log 2>&1
-      - name: Require the new favorite regression to fail on the old schema
+      - name: Confirm missing account favorite support on baseline
         run: |
           if npx supabase test db supabase/tests/sniper_account_favorites.sql > /tmp/feed-db-review/baseline.log 2>&1; then
-            echo 'Die neue Funktion war unerwartet bereits vorhanden.'
+            echo 'Die neue Regression muss auf dem unveränderten Migrationsstand fehlschlagen.'
             exit 1
           fi
           grep -E 'sniper_favorites|save_sniper_favorite' /tmp/feed-db-review/baseline.log
-      - name: Apply only the proposed declarations to the disposable database
+      - name: Apply scoped declarations only in the disposable database
         run: python3 tools/vinted-feed-database-check.py > /tmp/feed-db-review/apply.log 2>&1
-      - name: Generate migration and database types
+      - name: Generate migration and carry explicit declaration privileges
         run: |
           npx supabase migration new vinted_feed_account_favorites > /tmp/feed-db-review/migration-name.log 2>&1
           migration=$(find supabase/migrations -maxdepth 1 -name '*_vinted_feed_account_favorites.sql')
           test -n "$migration"
           npx supabase db diff --from migrations --to local --schema public --use-migra > "$migration" 2> /tmp/feed-db-review/generator.log
           test -s "$migration"
+          python3 tools/vinted-feed-database-check.py "$migration"
           cp "$migration" /tmp/feed-db-review/
           npx supabase gen types typescript --local > /tmp/feed-db-review/supabase.types.ts
-      - name: Rebuild from generated migration and verify types
+      - name: Rebuild from the generated migration and verify exact types
         run: |
           npx supabase db reset --local > /tmp/feed-db-review/reset.log 2>&1
           npx supabase gen types typescript --local > /tmp/feed-db-review/rebuilt.types.ts
           diff -u /tmp/feed-db-review/supabase.types.ts /tmp/feed-db-review/rebuilt.types.ts
-      - name: All database regressions
+      - name: Verify the full database contract including privilege denials
         run: npm run test:db > /tmp/feed-db-review/database-tests.log 2>&1
-      - name: Record check result
+      - name: Diagnostics
         if: always()
         run: |
-          for name in apply baseline generator migration-name reset database-tests; do
-            log="/tmp/feed-db-review/$name.log"
-            if test -f "$log"; then echo "=== $name ==="; tail -n 45 "$log"; fi
+          for name in baseline apply generator reset database-tests; do
+            file="/tmp/feed-db-review/$name.log"
+            if test -f "$file"; then echo "=== $name ==="; tail -n 45 "$file"; fi
           done
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: always()
@@ -79,4 +86,4 @@ jobs:
       - name: Stop disposable database
         if: always()
         run: |
-          if test -x node_modules/.bin/supabase; then node_modules/.bin/supabase stop --no-backup; fi
+          if test -x node_modules/.bin/supabase; then npx --no-install supabase stop --no-backup; fi
