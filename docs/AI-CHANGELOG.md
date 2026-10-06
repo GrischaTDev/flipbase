@@ -1,5 +1,15 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-06 - Juna - Korrektur der Cloud-Anmeldebestätigung veröffentlichen
+
+**Freigabe:** Der Nutzer bestätigt PR-Erstellung, Merge nach erfolgreichen
+Pflichtprüfungen und anschließende Bereinigung des eigenen Zweigs. Die lokal
+geprüfte Korrektur der Identitätsprüfung, der kompakte Anmeldedialog und das
+bestehende Rolloutprotokoll werden gemeinsam integriert. Anschließend wird
+der Browserdienst auf das geprüfte Workerimage aktualisiert; das bereits
+abgenommene unveränderte Chrome-Sitzungsimage bleibt erhalten. Eine erfolgreiche
+produktive Kontoverknüpfung bleibt bis zum echten Nutzerabschluss offen.
+
 ## 2026-10-06 - Juna - Cloud-Anmeldung trotz verbliebenem Loginformular bestätigen
 
 **Auftrag:** Die manuelle Anmeldung mit SMS gelingt, aber „Anmeldung prüfen &
