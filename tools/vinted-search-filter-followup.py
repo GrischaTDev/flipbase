@@ -1,6 +1,6 @@
 """Einmalige, ausschließlich auf den eigenen Featurezweig begrenzte Nachprüfung."""
 from pathlib import Path
-import base64, gzip, hashlib, json, os, subprocess, textwrap
+import ast, base64, gzip, hashlib, json, os, subprocess, textwrap
 
 root = Path.cwd()
 review = Path('/tmp/vinted-integration-review')
@@ -20,7 +20,13 @@ start = "          python3 - <<'PY'\n"
 prepare = textwrap.dedent(old.split(start, 1)[1].split('          PY\n', 1)[0])
 exec(compile(prepare, '<verified-original-preparation>', 'exec'))
 
-patch = gzip.decompress(base64.b64decode('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', validate=True))
+# Den bereits geprüften Patch aus dem festen Vorgänger lesen, statt Binärtext erneut zu übertragen.
+prior = ast.parse(git('show', '1e2243f9ac2b634e7a3f5c732ecbf7d80768142c:tools/vinted-search-filter-followup.py'))
+encoded = [node.args[0].value for node in ast.walk(prior)
+           if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+           and node.func.attr == 'b64decode' and isinstance(node.args[0], ast.Constant)]
+assert len(encoded) == 1
+patch = gzip.decompress(base64.b64decode(encoded[0], validate=True))
 assert hashlib.sha256(patch).hexdigest() == '5f358ccc141904488f3c0f71f727a6f92aa5e33e8d8f4c38c365d06a5ae5a2e6'
 file = review / 'followup.patch'
 file.write_bytes(patch)
