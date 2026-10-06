@@ -26,6 +26,7 @@ def provision_statement(password):
     server_key_base64 = base64.b64encode(server_key).decode("ascii")
     verifier = f"SCRAM-SHA-256$4096:{salt_base64}${stored_key_base64}:{server_key_base64}"
     return f"""
+begin;
 do $$
 begin
     if to_regprocedure('public.report_server_storage(bigint,bigint,bigint)') is null then
@@ -40,10 +41,17 @@ begin
     ) then
         raise exception 'Der Meldezugang besitzt unerwartete Rollenmitgliedschaften';
     end if;
+    if exists (
+        select 1 from pg_roles where rolname = 'flipbase_storage_reporter'
+            and (rolsuper or rolcreatedb or rolcreaterole or rolreplication or rolbypassrls)
+    ) then
+        raise exception 'Der Meldezugang besitzt unerwartete Verwaltungsrechte';
+    end if;
 end;
 $$;
-alter role flipbase_storage_reporter with login noinherit nosuperuser
-    nocreatedb nocreaterole noreplication nobypassrls connection limit 1 password '{verifier}';
+-- Auch das Abschalten von SUPERUSER/REPLICATION braucht hohe Rechte. Die
+-- sicheren CREATE-ROLE-Defaults oben prüfen, statt solche Attribute zu ändern.
+alter role flipbase_storage_reporter with login noinherit connection limit 1 password '{verifier}';
 alter role flipbase_storage_reporter set statement_timeout = '10s';
 alter role flipbase_storage_reporter set idle_in_transaction_session_timeout = '10s';
 alter role flipbase_storage_reporter set search_path = pg_catalog;
@@ -51,6 +59,7 @@ grant connect on database postgres to flipbase_storage_reporter;
 grant usage on schema public to flipbase_storage_reporter;
 grant execute on function public.report_server_storage(bigint,bigint,bigint)
     to flipbase_storage_reporter;
+commit;
 """
 
 
