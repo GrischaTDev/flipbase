@@ -1,5 +1,67 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-06 - Juna - Lokalen Vinted-Betrieb und Postfach wiederaufnehmen
+
+**Auftrag:** Den bestätigten Entwurf für automatische lokale Wiederaufnahme,
+Konten-basierte Reparatur, korrekte Gesprächsdetails und das Blasenmodal umsetzen.
+
+**Änderung:** Gespeicherte Bindung und aktuelle Browserbereitschaft bleiben
+getrennt. Start, Erweiterungsreload und ein geschlossener eigener Arbeitstab
+führen zu einer begrenzten Prüfung mit inaktivem Ersatz des eigenen Tabs.
+Unbekannte Identität, fehlende Berechtigung, Widerruf, Pause und Vinted-Prüfungen
+stoppen Live-Aktionen. CAPTCHA/SMS werden ausschließlich nach ausdrücklichem
+erneutem Prüfen und bestätigter Freigabe/Identität fortgesetzt. Die Kontenseite
+bietet Status, Prüfung, Synchronisierung, Einstellungen und Freigabeerneuerung;
+Einrichtung entfällt aus der täglichen Navigation. Ohne bewusste Kontowahl wird
+das zu diesem Profil passende Konto vorgeschlagen. Die weiße Blase öffnet ein
+zentriertes Modal mit echten Einstellungs-/Trennlinks; keine erfundenen Schalter.
+
+Übersicht und Postfach nutzen denselben Detailabruf mit vorhandenem Cache.
+Ein wartender Abruf für ein abgewähltes Gespräch wird verworfen. Der Footer
+berücksichtigt den tatsächlichen Gesprächsstempel und Abruffehler statt eines
+pauschalen Erfolgs. Teilimporte erhalten bekannte Artikel-/Aktivitätsangaben.
+Die erzeugte Migration `20261006091649_vinted_preserve_conversation_metadata.sql`
+ändert nur die bestehende Importfunktion; Signatur und Datenbanktypen bleiben
+identisch. Erweiterung 1.6.0 und zugehöriger Umsetzungsplan sind vorbereitet.
+
+**Prüfung:** Regressionen zunächst rot; 238 Angular-, 40 Modell-/Parser-/Routen-
+und 122 Erweiterungsprüfungen grün. 132 pgTAP-Prüfungen nach Anwendung der
+erzeugten Migration erfolgreich; anschließender Schemaabgleich ohne Differenz.
+Zwölf Chromium-Postfach-/Kontenabläufe mit
+synthetischen Daten sowie echtes Modal-JavaScript/CSS/Logo bei 1440, 390 und
+320 Pixeln geprüft; sechs Modal-AXE-Läufe einschließlich Farbkontrast ohne
+Befund. Tastatur, Escape, Fokus-Rückgabe und reduzierte Bewegung erfolgreich.
+ESLint, Anwendung-/Testtypen, Formatierung, Produktionsbau und unabhängiges
+Review erfolgreich. Kein echter Vinted-Neustart-/Kontotest, keine Nachricht,
+keine Produktionsänderung und kein Update der Nutzerinstallation. Bei einem
+uneindeutigen Serverfehler wird weiterhin nur „nicht bestätigt“ gemeldet;
+ein Widerruf wird daraus nicht erfunden. PR/Release bedürfen der Abschlussfreigabe.
+
+## 2026-10-06 - Juna - Lokalen Vinted-Betrieb und Blasenmodal untersuchen
+
+**Auftrag:** Unklare Wiederaufnahme nach geschlossenem Arbeitstab, fehlende
+Gesprächsdetails und verwirrende Einrichtungswege untersuchen; Bleam-Blase live
+vergleichen und daraus einen belastbaren Entwurf erstellen.
+
+**Befund:** Übersichtseinstieg überspringt Detailsync; Gesprächsfooter zeigt ohne
+eigenen Erfolgsnachweis grün. Fehlende Metadaten und Teilimporte können bekannte
+Artikelangaben verdrängen. Erreichbares Content Script, gespeicherte Bindung und
+aktuelle Betriebsbereitschaft werden vermischt. Loginpausen bleiben gespeichert;
+Pause und Widerruf werden teilweise gleich behandelt. Tab-Recovery existiert,
+braucht aber Websiteberechtigungsprüfung und begrenzten Ersatz eigener Tabs.
+
+**Ergebnis:** Analyse und Zielablauf in
+`docs/implementation/vinted-local-session-recovery-design.md`: gemeinsame
+Bereitschaftsprüfung, Konten-basierte Wiederaufnahme, klare Gesprächszustände,
+Metadatenerhalt, Einrichtung nur im Hinzufügeablauf und weißes Blasenmodal mit
+vorhandenen Einstellungen. Nicht implementierte Assistenten bleiben Ausbaupakete.
+
+**Prüfung:** Drei getrennte lesende Codeanalysen auf master `5c968829`; beide
+Blasen live geöffnet und betroffenen Postfach-Deeplink gelesen. Keine Konten,
+Automatik oder Produktionsdaten geändert, keine Nachricht gesendet. Kein echter
+Neustart-/Wiederanlauftest. Ein gezielter Runtime-Testversuch brach bereits beim
+Import wegen fehlendem jsdom im isolierten Analysecheckout ab; keine Installation.
+
 ## 2026-10-06 - Juna - Vinted-Kontenübersicht und lokale Einrichtung vereinheitlichen
 
 **Auftrag:** Lokale Glockeneinstellung zugänglich machen und die Kontenübersicht

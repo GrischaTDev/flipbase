@@ -8,7 +8,6 @@ export interface VintedNavigationItem {
 
 export const VINTED_WORKSPACE_NAVIGATION: readonly VintedNavigationItem[] = [
   { path: '/marketplaces/vinted/accounts', label: 'Konten', icon: 'users' },
-  { path: '/marketplaces/vinted/setup', label: 'Einrichtung', icon: 'bookOpen' },
   { path: '/marketplaces/vinted/overview', label: 'Übersicht', icon: 'dashboard' },
   { path: '/marketplaces/vinted/messages', label: 'Postfach', icon: 'shoppingBag' },
   { path: '/marketplaces/vinted/favorite-messages', label: 'Favoritennachrichten', icon: 'bot' },

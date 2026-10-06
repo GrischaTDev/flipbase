@@ -24,9 +24,11 @@ describe('Vinted-Versandzustand', () => {
   let binding: ReturnType<typeof signal<{ messagesSend: boolean }>>;
   let user: ReturnType<typeof signal<{ id: string } | null>>;
   let account: ReturnType<typeof signal<object | null>>;
+  let canUseBrowserProfile: ReturnType<typeof vi.fn>;
   beforeEach(() => {
     TestBed.resetTestingModule();
     binding = signal({ messagesSend: false });
+    canUseBrowserProfile = vi.fn().mockReturnValue(true);
     user = signal<{ id: string } | null>({ id: 'user' });
     account = signal<object | null>({ ...scope, executionMode: 'local', status: 'connected' });
     api = {
@@ -64,6 +66,7 @@ describe('Vinted-Versandzustand', () => {
             binding,
             messagesAllowed: signal(true),
             hasValidBinding: () => true,
+            canUseBrowserProfile,
             busy: signal(false),
             error: signal(null),
             approveSend: approve,
@@ -88,6 +91,13 @@ describe('Vinted-Versandzustand', () => {
   });
   it('legt nach abgelehnter Freigabe keinen Auftrag an', async () => {
     confirm.mockResolvedValue(false);
+    await store.load(scope, conversationId);
+    expect(await store.send(scope, conversationId, 'Hallo', null)).toBe(false);
+    expect(api.enqueue).not.toHaveBeenCalled();
+  });
+  it('reiht mit einer fremden Profilbindung trotz gespeichertem Versandrecht nichts ein', async () => {
+    binding.set({ messagesSend: true });
+    canUseBrowserProfile.mockReturnValue(false);
     await store.load(scope, conversationId);
     expect(await store.send(scope, conversationId, 'Hallo', null)).toBe(false);
     expect(api.enqueue).not.toHaveBeenCalled();

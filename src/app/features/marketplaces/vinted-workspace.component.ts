@@ -12,6 +12,8 @@ import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { LucideArrowLeft, LucideLogIn, LucideStore, LucideMessagesSquare } from '@lucide/angular';
 import { ButtonComponent } from '../../shared/components/button/button.component';
+import { BadgeComponent } from '../../shared/components/badge/badge.component';
+import { presentVintedLocalReadiness } from './models/vinted-local-readiness';
 import { NoticeBannerComponent } from '../../shared/components/notice-banner/notice-banner.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { MarketplaceAccountStore } from './services/marketplace-account.store';
@@ -22,12 +24,14 @@ import { VintedSetupComponent } from './components/vinted-setup/vinted-setup.com
 import { VintedLocalExtensionBridge } from './services/vinted-local-extension-bridge';
 import { VintedLocalExtensionStore } from './services/vinted-local-extension.store';
 import { VintedMessagingStore } from './services/vinted-messaging.store';
+import { VintedLocalRuntimeStore } from './services/vinted-local-runtime.store';
 
 @Component({
   selector: 'app-vinted-workspace',
   imports: [
     RouterOutlet,
     ButtonComponent,
+    BadgeComponent,
     VintedSetupComponent,
     NoticeBannerComponent,
     PageHeaderComponent,
@@ -40,6 +44,7 @@ import { VintedMessagingStore } from './services/vinted-messaging.store';
     VintedLocalExtensionBridge,
     VintedLocalExtensionStore,
     VintedMessagingStore,
+    VintedLocalRuntimeStore,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block min-w-0' },
@@ -47,6 +52,7 @@ import { VintedMessagingStore } from './services/vinted-messaging.store';
 export class VintedWorkspaceComponent {
   readonly store = inject(MarketplaceAccountStore);
   readonly local = inject(VintedLocalExtensionStore);
+  readonly runtime = inject(VintedLocalRuntimeStore);
   private readonly extension = inject(VintedLocalExtensionBridge);
   private readonly router = inject(Router);
   private readonly currentUrl = signal(this.router.url);
@@ -75,6 +81,17 @@ export class VintedWorkspaceComponent {
   readonly pageIcon = computed(() => (this.showingMessages() ? LucideMessagesSquare : LucideStore));
   readonly loginIcon = LucideLogIn;
   readonly syncModalOpen = signal(false);
+  readonly runtimeStatus = computed(() => {
+    const account = this.store.selectedConnection();
+    return account?.executionMode === 'local'
+      ? presentVintedLocalReadiness(
+          account,
+          this.runtime.readiness(),
+          this.runtime.checking(),
+          this.extension.installed(),
+        )
+      : null;
+  });
   readonly reconnectLink = computed(() => {
     const account = this.store.selectedConnection();
     return account
@@ -83,9 +100,53 @@ export class VintedWorkspaceComponent {
   });
 
   constructor() {
+    effect(() => {
+      const readiness = this.runtime.readiness();
+      const selectedExplicitly = this.store.hasExplicitConnectionSelection();
+      const connections = this.store.connections();
+      if (selectedExplicitly || this.store.loading() || readiness?.state !== 'ready') return;
+      const bound = connections.find(
+        (account) =>
+          account.connectionId === readiness.connectionId &&
+          account.workspaceId === readiness.workspaceId &&
+          account.executionMode === 'local' &&
+          account.externalAccountId === readiness.externalAccountId,
+      );
+      if (bound) untracked(() => void this.store.suggestConnection(bound.connectionId));
+    });
+    let checkedContext: string | null = null;
+    effect(() => {
+      const connections = this.store.connections();
+      const installed = this.extension.installed();
+      const context = this.runtime.contextKey();
+      if (!context || !installed) {
+        checkedContext = null;
+        return;
+      }
+      if (
+        !installed ||
+        this.store.loading() ||
+        !this.store.canManage() ||
+        !context ||
+        !connections.some((account) => account.executionMode === 'local')
+      )
+        return;
+      if (checkedContext === context) return;
+      checkedContext = context;
+      untracked(() => void this.runtime.check());
+    });
+    const checkOnReturn = () => {
+      if (document.visibilityState === 'visible') void this.runtime.check();
+    };
+    document.addEventListener('visibilitychange', checkOnReturn);
+    inject(DestroyRef).onDestroy(() =>
+      document.removeEventListener('visibilitychange', checkOnReturn),
+    );
     const bindingTimer = setInterval(() => {
-      if (this.showingMessages() && document.visibilityState !== 'hidden')
-        void this.local.refreshStatus();
+      if (document.visibilityState !== 'hidden') {
+        void this.runtime.check();
+        if (this.showingMessages()) void this.local.refreshStatus();
+      }
     }, 60000);
     inject(DestroyRef).onDestroy(() => clearInterval(bindingTimer));
     effect(() => {

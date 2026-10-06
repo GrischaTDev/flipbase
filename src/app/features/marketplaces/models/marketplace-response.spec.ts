@@ -32,6 +32,7 @@ describe('Marktplatz-Antworten', () => {
             itemCurrency: 'EUR',
             partnerId: '456',
             lastActiveAt: '2026-10-05T10:00:00Z',
+            detailCheckedAt: '2026-10-06T10:00:00Z',
             transactionStatus: 'completed',
           }),
         ],
@@ -46,6 +47,7 @@ describe('Marktplatz-Antworten', () => {
       itemPrice: 58,
       itemTitle: 'Chelsea Boots',
       lastActiveAt: '2026-10-05T10:00:00Z',
+      detailCheckedAt: '2026-10-06T10:00:00Z',
       transactionStatus: 'completed',
     });
   });

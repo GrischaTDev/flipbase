@@ -37,7 +37,31 @@ function accountBubbleFixture({
       onMessage: { addListener: (callback) => (listener = callback) },
       sendMessage: async (message) => {
         calls.push(message);
-        return { success: true, result: status ?? { reserved: false, binding: null } };
+        const storedStatus = status ?? { reserved: false, binding: null };
+        const storedBinding = storedStatus.binding
+          ? { ...storedStatus.binding, workspaceId }
+          : null;
+        if (message.type === 'VINTED_LOCAL_ACCOUNT_READINESS') {
+          const state = storedBinding
+            ? String(identityResponse.user.id) !== storedBinding.externalAccountId
+              ? 'identity_mismatch'
+              : storedBinding.state === 'linked'
+                ? 'ready'
+                : storedBinding.state
+            : 'unbound';
+          return {
+            success: true,
+            result: {
+              state,
+              workspaceId: storedBinding?.workspaceId ?? null,
+              connectionId: storedBinding?.connectionId ?? null,
+              externalAccountId: storedBinding?.externalAccountId ?? null,
+              checkedAt: '2026-10-06T10:00:00.000Z',
+              version: '1.6.0',
+            },
+          };
+        }
+        return { success: true, result: { ...storedStatus, binding: storedBinding } };
       },
     },
   };
@@ -103,7 +127,7 @@ test('Ordinary Vinted pages offer an accessible Flipbase bubble and authenticate
     );
     assert.equal(requests[0].options.method, 'GET');
     assert.equal(requests[0].options.credentials, 'include');
-    assert.equal(document.querySelector('main').hasAttribute('inert'), false);
+    assert.equal(document.querySelector('main').hasAttribute('inert'), true);
     panel.dispatchEvent(
       new fixture.dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
     );
@@ -117,9 +141,9 @@ test('Ordinary Vinted pages offer an accessible Flipbase bubble and authenticate
 test('Account bubble reports bound, expired, paused and changed identities without rebinding', async () => {
   for (const scenario of [
     { state: 'linked', current: profile, label: /Lokal verknüpft/ },
-    { state: 'expired', current: profile, label: /Freigabe abgelaufen/ },
-    { state: 'paused', current: profile, label: /Abgleich pausiert/ },
-    { state: 'revoked', current: profile, label: /Freigabe nicht mehr gültig/ },
+    { state: 'expired', current: profile, label: /Freigabe erneuern/ },
+    { state: 'paused', current: profile, label: /Pausiert/ },
+    { state: 'revoked', current: profile, label: /Nicht mehr freigegeben/ },
     {
       state: 'linked',
       current: { user: { id: 456, login: 'anderes-konto' } },
@@ -147,16 +171,18 @@ test('Account bubble reports bound, expired, paused and changed identities witho
       assert.match(panel.textContent, scenario.label);
       const accountLink = panel.querySelector('[data-account-link]');
       if (scenario.current.user.id === 456) {
-        assert.equal(accountLink, null);
         assert.match(panel.textContent, /separates Browserprofil/);
         assert.match(panel.textContent, /maike/);
-      } else {
-        assert.equal(
-          accountLink.href,
-          `${appOrigin}/marketplaces/vinted/local-connect/${connectionId}`,
-        );
       }
-      assert.ok(fixture.calls.every((message) => message.type === 'VINTED_LOCAL_ACCOUNT_STATUS'));
+      assert.equal(
+        accountLink.href,
+        `${appOrigin}/marketplaces/vinted/accounts?connectionId=${connectionId}&workspaceId=${workspaceId}`,
+      );
+      assert.ok(
+        fixture.calls.every((message) =>
+          ['VINTED_LOCAL_ACCOUNT_STATUS', 'VINTED_LOCAL_ACCOUNT_READINESS'].includes(message.type),
+        ),
+      );
     } finally {
       fixture.dom.window.close();
     }
@@ -290,7 +316,8 @@ test('Background account status exposes only local account metadata to a trusted
   assert.deepEqual(fixture.stored, snapshot);
   assert.equal(fixture.edgeCalls.length, edgeCalls);
   const appStatus = await background.call(status);
-  assert.deepEqual(Object.keys(appStatus.result), ['localAccount']);
+  assert.deepEqual(Object.keys(appStatus.result), ['localAccount', 'readiness']);
+  assert.equal(appStatus.result.readiness.state, 'unavailable');
   assert.deepEqual(Object.keys(appStatus.result.localAccount).sort(), [
     'boundConnectionId',
     'boundUsername',
@@ -303,6 +330,8 @@ test('Background account status exposes only local account metadata to a trusted
   fixture.stored[core.storageKey].schedule = { pauseReason: 'interaction_required' };
   assert.equal((await background.call(status)).result.localAccount.state, 'paused');
   fixture.stored[core.storageKey].schedule = { pauseReason: 'local_binding_invalid' };
+  assert.equal((await background.call(status)).result.localAccount.state, 'unavailable');
+  fixture.stored[core.storageKey].schedule = { pauseReason: 'local_binding_revoked' };
   assert.equal((await background.call(status)).result.localAccount.state, 'revoked');
   fixture.stored[core.storageKey].schedule = {};
   fixture.stored[core.storageKey].binding.expiresAt = '2000-01-01T00:00:00Z';
@@ -1360,9 +1389,117 @@ test('Website bridge checks source and origin, preserves request correlation and
   assert.equal(replies.at(-1).origin, appOrigin);
   assert.ok(!JSON.stringify(replies).includes(secret));
   const announcement = replies.findLast(({ reply }) => reply.type === 'FLIPBASE_EXTENSION_STATUS');
-  assert.equal(announcement.reply.version, '1.5.0');
+  assert.equal(announcement.reply.version, '1.6.0');
   assert.equal(announcement.reply.localAccount.boundUsername, 'maike');
   assert.equal(announcement.reply.localAccount.boundConnectionId, connectionId);
+});
+
+test('Website bridge announces reachability only after background confirmation and recovers after failure', () => {
+  const announcements = [];
+  const readyEvents = [];
+  const callbacks = [];
+  const calls = [];
+  const document = { documentElement: { dataset: {} }, readyState: 'complete' };
+  let tick;
+  const runtime = {
+    lastError: undefined,
+    sendMessage: (message, callback) => {
+      calls.push(message);
+      callbacks.push(callback);
+    },
+  };
+  const window = {
+    location: { origin: appOrigin },
+    postMessage: (reply) => announcements.push(reply),
+    dispatchEvent: (event) => readyEvents.push(event.detail),
+    addEventListener() {},
+  };
+  window.top = window;
+  vm.runInNewContext(
+    readFileSync(
+      new URL('../tools/flipbase-extension/flipbase-bridge.js', import.meta.url),
+      'utf8',
+    ),
+    {
+      window,
+      document,
+      globalThis: { FlipbaseVintedLocal: core },
+      chrome: { runtime },
+      CustomEvent: class {
+        constructor(_type, options) {
+          this.detail = options.detail;
+        }
+      },
+      setInterval: (callback) => {
+        tick = callback;
+      },
+    },
+  );
+  assert.equal(announcements.at(-1).installed, false);
+  assert.equal(announcements.at(-1).vintedLocal, false);
+  assert.equal(announcements.at(-1).backgroundReachable, false);
+  assert.equal(document.documentElement.dataset.flipbaseExtensionInstalled, 'false');
+  assert.equal(readyEvents.length, 0);
+  callbacks.shift()({ success: true, result: { localAccount: null } });
+  assert.equal(announcements.at(-1).installed, true);
+  assert.equal(announcements.at(-1).vintedLocal, true);
+  assert.equal(announcements.at(-1).backgroundReachable, true);
+  assert.equal(readyEvents.at(-1).ready, true);
+  tick();
+  runtime.lastError = { message: 'Receiving end does not exist' };
+  callbacks.shift()({ success: true, result: { localAccount: { state: 'linked' } } });
+  assert.equal(announcements.at(-1).installed, false);
+  assert.equal(announcements.at(-1).vintedLocal, false);
+  assert.equal(announcements.at(-1).backgroundReachable, false);
+  assert.equal(announcements.at(-1).localAccount, undefined);
+  assert.equal(readyEvents.length, 1);
+  assert.equal(document.documentElement.dataset.flipbaseExtensionInstalled, 'false');
+  runtime.lastError = undefined;
+  tick();
+  callbacks.shift()({ success: false });
+  assert.equal(announcements.at(-1).installed, false);
+  tick();
+  callbacks.shift()({ success: true, result: { localAccount: null } });
+  assert.equal(announcements.at(-1).installed, true);
+  assert.ok(calls.every((message) => message.type === 'VINTED_LOCAL_ACCOUNT_STATUS'));
+});
+
+test('Website bridge keeps an invalidated runtime unavailable without crashing its periodic status check', () => {
+  const announcements = [];
+  let tick;
+  const window = {
+    location: { origin: appOrigin },
+    postMessage: (reply) => announcements.push(reply),
+    dispatchEvent() {},
+    addEventListener() {},
+  };
+  window.top = window;
+  const runtime = {
+    sendMessage: () => {
+      throw new Error('Extension context invalidated');
+    },
+  };
+  assert.doesNotThrow(() =>
+    vm.runInNewContext(
+      readFileSync(
+        new URL('../tools/flipbase-extension/flipbase-bridge.js', import.meta.url),
+        'utf8',
+      ),
+      {
+        window,
+        document: { documentElement: { dataset: {} }, readyState: 'complete' },
+        globalThis: { FlipbaseVintedLocal: core },
+        chrome: { runtime },
+        CustomEvent: class {},
+        setInterval: (callback) => {
+          tick = callback;
+        },
+      },
+    ),
+  );
+  assert.doesNotThrow(() => tick());
+  assert.equal(announcements.at(-1).installed, false);
+  assert.equal(announcements.at(-1).vintedLocal, false);
 });
 
 test('Content script renders a reserved tab and only GETs identity with no cookies exported', async () => {
@@ -1460,7 +1597,7 @@ test('Manifest narrows application and provider access without changing Kleinanz
     script.matches.includes('https://www.vinted.de/*'),
   );
   assert.equal(vintedContent.js.at(-1), 'vinted-local-account.js');
-  assert.equal(manifest.version, '1.5.0');
+  assert.equal(manifest.version, '1.6.0');
   assert.ok(
     manifest.content_scripts.some(
       (script) =>
@@ -1943,6 +2080,8 @@ function createChromeBackgroundFixture({
   receive,
   existingTab,
   edgeResponse,
+  permissionGranted = true,
+  enableLifecycle = false,
   accelerateTimers = false,
 } = {}) {
   let stored = existingTab ? { [core.storageKey]: { tabId: existingTab.id } } : {};
@@ -1970,6 +2109,7 @@ function createChromeBackgroundFixture({
   const validExpires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
   function startBackground() {
     const listeners = [];
+    const lifecycle = {};
     const local = {
       setAccessLevel: async (options) => assert.equal(options.accessLevel, 'TRUSTED_CONTEXTS'),
       get: async (key) => ({ [key]: structuredClone(stored[key]) }),
@@ -1982,11 +2122,36 @@ function createChromeBackgroundFixture({
     };
     const chrome = {
       storage: { local },
+      permissions: { contains: async () => permissionGranted },
       runtime: {
         id: 'extension',
         onMessage: { addListener: (listener) => listeners.push(listener) },
+        ...(enableLifecycle
+          ? {
+              onStartup: {
+                addListener: (listener) => {
+                  lifecycle.startup = listener;
+                },
+              },
+              onInstalled: {
+                addListener: (listener) => {
+                  lifecycle.installed = listener;
+                },
+              },
+            }
+          : {}),
       },
       tabs: {
+        ...(enableLifecycle
+          ? {
+              onRemoved: {
+                addListener: (listener) => {
+                  lifecycle.removed = listener;
+                },
+              },
+            }
+          : {}),
+        remove: async (tabId) => tabs.delete(tabId),
         create: async (options) => {
           createdTabs.push(options);
           const { url } = options;
@@ -2091,6 +2256,7 @@ function createChromeBackgroundFixture({
     const listener = listeners[0];
     return {
       listener,
+      lifecycle,
       call: (message, from = sender) => new Promise((resolve) => listener(message, from, resolve)),
     };
   }
@@ -2109,6 +2275,327 @@ function createChromeBackgroundFixture({
     setEdgeStatus: (status) => (edgeStatus = status),
   };
 }
+
+test('Readiness accepts only a payload-free trusted request', () => {
+  const message = { type: 'FLIPBASE_VINTED_LOCAL_READINESS', requestId: 'readiness' };
+  assert.deepEqual(core.parseRequest(message, appOrigin), {
+    action: 'READINESS',
+    requestId: 'readiness',
+  });
+  assert.equal(core.parseRequest({ ...message, payload: scope }, appOrigin), null);
+  assert.equal(core.parseRequest(message, 'https://evil.test'), null);
+});
+
+test('Explicit recheck accepts only a payload-free trusted request', () => {
+  const message = { type: 'FLIPBASE_VINTED_LOCAL_RECHECK', requestId: 'recheck' };
+  assert.deepEqual(core.parseRequest(message, appOrigin), {
+    action: 'RECHECK',
+    requestId: 'recheck',
+  });
+  assert.equal(core.parseRequest({ ...message, payload: scope }, appOrigin), null);
+  assert.equal(core.parseRequest(message, 'https://evil.test'), null);
+});
+
+test('Explicit recheck can recover a completed human check without sending while automatic readiness stays paused', async () => {
+  for (const pauseReason of ['interaction_required', 'verification_required']) {
+    const setup = harness();
+    await setup.runtime.run(request('PREPARE'), appOrigin);
+    await setup.runtime.run(request('BIND', payload), appOrigin);
+    await setup.adapter.save({ ...setup.saved, schedule: { pauseReason } });
+    setup.edgeCalls.length = 0;
+    assert.equal(
+      (await setup.runtime.run(request('READINESS'), appOrigin)).state,
+      'challenge_required',
+    );
+    assert.deepEqual(setup.edgeCalls, []);
+    assert.equal(setup.saved.schedule.pauseReason, pauseReason);
+    assert.equal((await setup.runtime.run(request('RECHECK'), appOrigin)).state, 'ready');
+    assert.equal(setup.saved.schedule.pauseReason, undefined);
+    assert.deepEqual(
+      setup.edgeCalls.map((entry) => entry.action),
+      ['heartbeat'],
+    );
+  }
+});
+
+test('Explicit recheck preserves incomplete challenges and never clears a manual pause, revocation, block or identity change', async () => {
+  for (const [pauseReason, expected] of [
+    ['interaction_required', 'challenge_required'],
+    ['verification_required', 'challenge_required'],
+    ['manual', 'paused'],
+    ['local_binding_revoked', 'revoked'],
+    ['session_blocked', 'blocked'],
+    ['identity_changed', 'identity_mismatch'],
+  ]) {
+    const setup = harness();
+    await setup.runtime.run(request('PREPARE'), appOrigin);
+    await setup.runtime.run(request('BIND', payload), appOrigin);
+    await setup.adapter.save({ ...setup.saved, schedule: { pauseReason } });
+    setup.edgeCalls.length = 0;
+    setup.adapter.readIdentity = async () => {
+      assert.ok(['interaction_required', 'verification_required'].includes(pauseReason));
+      const error = new Error('Human check still visible');
+      error.code = pauseReason;
+      throw error;
+    };
+    assert.equal((await setup.runtime.run(request('RECHECK'), appOrigin)).state, expected);
+    assert.equal(setup.saved.schedule.pauseReason, pauseReason);
+    assert.ok(setup.edgeCalls.every((entry) => entry.action === 'heartbeat'));
+  }
+});
+
+test('Explicit recheck rejects a changed identity after a completed challenge', async () => {
+  const setup = harness();
+  await setup.runtime.run(request('PREPARE'), appOrigin);
+  await setup.runtime.run(request('BIND', payload), appOrigin);
+  await setup.adapter.save({ ...setup.saved, schedule: { pauseReason: 'interaction_required' } });
+  setup.setIdentity({ id: '456', username: 'other' });
+  setup.edgeCalls.length = 0;
+  assert.equal((await setup.runtime.run(request('RECHECK'), appOrigin)).state, 'identity_mismatch');
+  assert.equal(setup.saved.binding.externalAccountId, '123');
+  assert.deepEqual(
+    setup.edgeCalls.map((entry) => entry.action),
+    ['heartbeat'],
+  );
+});
+
+test('Readiness is unbound without opening Vinted and never exposes installation secrets', async () => {
+  const setup = harness();
+  setup.adapter.readIdentity = async () => assert.fail('Unbound readiness must not open Vinted');
+  const result = await setup.runtime.run(request('READINESS'), appOrigin);
+  assert.deepEqual(result, {
+    state: 'unbound',
+    workspaceId: null,
+    connectionId: null,
+    externalAccountId: null,
+    checkedAt: observedAt,
+    version: '1.6.0',
+  });
+  assert.deepEqual(setup.edgeCalls, []);
+});
+
+test('Readiness restores only a verified identity and clears only an ordinary login pause without sends', async () => {
+  const setup = harness();
+  await setup.runtime.run(request('PREPARE'), appOrigin);
+  await setup.runtime.run(request('BIND', payload), appOrigin);
+  await setup.adapter.save({
+    ...setup.saved,
+    schedule: { pauseReason: 'login_required' },
+    pendingFinish: { outcome: 'outcome_unknown' },
+  });
+  setup.edgeCalls.length = 0;
+  const result = await setup.runtime.run(request('READINESS'), appOrigin);
+  assert.equal(result.state, 'ready');
+  assert.equal(result.workspaceId, workspaceId);
+  assert.equal(result.connectionId, connectionId);
+  assert.equal(result.externalAccountId, '123');
+  assert.equal(setup.saved.schedule.pauseReason, undefined);
+  assert.ok(setup.saved.pendingFinish);
+  assert.deepEqual(
+    setup.edgeCalls.map((entry) => entry.action),
+    ['heartbeat'],
+  );
+  assert.ok(!JSON.stringify(result).includes(secret));
+  assert.equal(
+    (await setup.runtime.run(request('READINESS'), 'https://flipbase.de')).state,
+    'unbound',
+  );
+  setup.setIdentity({ id: '456', username: 'other' });
+  assert.equal(
+    (await setup.runtime.run(request('READINESS'), appOrigin)).state,
+    'identity_mismatch',
+  );
+});
+
+test('Readiness preserves manual pauses, challenges, blocked sessions and explicit revocation', async () => {
+  for (const [pauseReason, expected] of [
+    ['manual', 'paused'],
+    ['interaction_required', 'challenge_required'],
+    ['verification_required', 'challenge_required'],
+    ['session_blocked', 'blocked'],
+    ['local_binding_revoked', 'revoked'],
+  ]) {
+    const setup = harness();
+    await setup.runtime.run(request('PREPARE'), appOrigin);
+    await setup.runtime.run(request('BIND', payload), appOrigin);
+    await setup.adapter.save({ ...setup.saved, schedule: { pauseReason } });
+    setup.adapter.readIdentity = async () => assert.fail('Do not bypass pause');
+    setup.edgeCalls.length = 0;
+    assert.equal((await setup.runtime.run(request('READINESS'), appOrigin)).state, expected);
+    assert.equal(setup.saved.schedule.pauseReason, pauseReason);
+    assert.deepEqual(setup.edgeCalls, []);
+  }
+});
+
+test('Readiness distinguishes expired grants from ambiguous server rejection', async () => {
+  const setup = harness();
+  await setup.runtime.run(request('PREPARE'), appOrigin);
+  await setup.runtime.run(request('BIND', payload), appOrigin);
+  setup.adapter.edge = async () => {
+    throw new core.LocalBindingInvalidError();
+  };
+  assert.equal((await setup.runtime.run(request('READINESS'), appOrigin)).state, 'unavailable');
+  setup.setTime(Date.parse(expiresAt) + 1);
+  assert.equal((await setup.runtime.run(request('READINESS'), appOrigin)).state, 'expired');
+});
+
+test('Denied Chrome website access performs no tab creation or receiver recovery', async () => {
+  const fixture = createChromeBackgroundFixture({ permissionGranted: false });
+  const result = await fixture
+    .startBackground()
+    .call({ type: 'FLIPBASE_VINTED_LOCAL_PREPARE', requestId: 'permission-denied' });
+  assert.equal(result.success, false);
+  assert.equal(fixture.createdTabs.length, 0);
+  assert.equal(fixture.messages.length, 0);
+});
+
+test('A bound worker restart immediately verifies readiness without claiming or sending', async () => {
+  const fixture = createChromeBackgroundFixture({ enableLifecycle: true });
+  const first = fixture.startBackground();
+  await new Promise((resolve) => setImmediate(resolve));
+  await first.call({ type: 'FLIPBASE_VINTED_LOCAL_PREPARE', requestId: 'startup-prepare' });
+  await first.call({
+    type: 'FLIPBASE_VINTED_LOCAL_BIND',
+    requestId: 'startup-bind',
+    payload: {
+      ...payload,
+      tokenHash: fixture.stored[core.storageKey].tokenHash,
+      expiresAt: fixture.validExpires,
+    },
+  });
+  fixture.tabs.delete(fixture.stored[core.storageKey].tabId);
+  fixture.edgeCalls.length = 0;
+  const restarted = fixture.startBackground();
+  await new Promise((resolve) => setTimeout(resolve, 15));
+  assert.equal(fixture.stored[core.storageKey].readiness?.state, 'ready');
+  assert.equal(fixture.tabs.size, 1);
+  assert.deepEqual(
+    fixture.edgeCalls.map((entry) => entry.action),
+    ['heartbeat'],
+  );
+  assert.ok(fixture.createdTabs.every((entry) => entry.active === false && entry.pinned));
+  const lostTabId = fixture.stored[core.storageKey].tabId;
+  fixture.tabs.delete(lostTabId);
+  restarted.lifecycle.removed(lostTabId);
+  await new Promise((resolve) => setTimeout(resolve, 15));
+  assert.notEqual(fixture.stored[core.storageKey].tabId, lostTabId);
+  assert.equal(fixture.tabs.size, 1);
+  assert.equal(fixture.stored[core.storageKey].readiness.state, 'ready');
+});
+
+test('Bound application and ordinary Vinted frames receive the same safe checked readiness', async () => {
+  const fixture = createChromeBackgroundFixture();
+  const background = fixture.startBackground();
+  await background.call({ type: 'FLIPBASE_VINTED_LOCAL_PREPARE', requestId: 'checked-prepare' });
+  await background.call({
+    type: 'FLIPBASE_VINTED_LOCAL_BIND',
+    requestId: 'checked-bind',
+    payload: {
+      ...payload,
+      tokenHash: fixture.stored[core.storageKey].tokenHash,
+      expiresAt: fixture.validExpires,
+    },
+  });
+  const checked = await background.call({
+    type: 'FLIPBASE_VINTED_LOCAL_READINESS',
+    requestId: 'checked-readiness',
+  });
+  assert.equal(checked.success, true);
+  assert.equal(checked.result.state, 'ready');
+  assert.deepEqual(Object.keys(checked.result).sort(), [
+    'checkedAt',
+    'connectionId',
+    'externalAccountId',
+    'state',
+    'version',
+    'workspaceId',
+  ]);
+  const sender = {
+    ...fixture.sender,
+    origin: 'https://www.vinted.de',
+    url: 'https://www.vinted.de/',
+  };
+  const status = await background.call({ type: 'VINTED_LOCAL_ACCOUNT_STATUS' }, sender);
+  assert.equal(status.result.readiness.state, 'ready');
+  assert.equal(status.result.binding.workspaceId, workspaceId);
+  const explicit = await background.call({ type: 'VINTED_LOCAL_ACCOUNT_READINESS' }, sender);
+  assert.equal(explicit.result.state, 'ready');
+  fixture.stored[core.storageKey].schedule = { pauseReason: 'interaction_required' };
+  fixture.edgeCalls.length = 0;
+  assert.equal(
+    (await background.call({ type: 'VINTED_LOCAL_ACCOUNT_READINESS' }, sender)).result.state,
+    'challenge_required',
+  );
+  assert.deepEqual(fixture.edgeCalls, []);
+  assert.equal(
+    (await background.call({ type: 'VINTED_LOCAL_ACCOUNT_RECHECK' }, sender)).result.state,
+    'ready',
+  );
+  assert.deepEqual(
+    fixture.edgeCalls.map((entry) => entry.action),
+    ['heartbeat'],
+  );
+  fixture.stored[core.storageKey].schedule = { pauseReason: 'manual' };
+  assert.equal(
+    (
+      await background.call({
+        type: 'FLIPBASE_VINTED_LOCAL_RECHECK',
+        requestId: 'manual-pause-preserved',
+      })
+    ).result.state,
+    'paused',
+  );
+  assert.equal(fixture.stored[core.storageKey].schedule.pauseReason, 'manual');
+  assert.equal(
+    background.listener({ type: 'VINTED_LOCAL_ACCOUNT_READINESS', payload: scope }, sender, () =>
+      assert.fail('Unexpected status'),
+    ),
+    false,
+  );
+  assert.equal(
+    background.listener({ type: 'VINTED_LOCAL_ACCOUNT_RECHECK', payload: scope }, sender, () =>
+      assert.fail('Unexpected recheck'),
+    ),
+    false,
+  );
+  assert.ok(!JSON.stringify(status).includes(fixture.stored[core.storageKey].secret));
+  const foreignApp = {
+    ...fixture.sender,
+    origin: 'https://flipbase.de',
+    url: 'https://flipbase.de/',
+  };
+  const foreign = await background.call({ type: 'VINTED_LOCAL_ACCOUNT_STATUS' }, foreignApp);
+  assert.equal(foreign.result.localAccount, null);
+  assert.equal(foreign.result.readiness.workspaceId, null);
+});
+
+test('Scheduler rechecks a login pause once but never checks a persisted human challenge', async () => {
+  let stored = { binding: { expiresAt }, schedule: { pauseReason: 'login_required' } };
+  let checks = 0;
+  const calls = [];
+  const runner = scheduler.createScheduler({
+    now: () => Date.parse(observedAt),
+    load: async () => stored,
+    save: async (next) => {
+      stored = next;
+    },
+    readiness: async () => {
+      checks++;
+      stored = { ...stored, schedule: {} };
+      return { state: 'ready' };
+    },
+    run: async (action) => {
+      calls.push(action);
+      return {};
+    },
+  });
+  await runner.tick();
+  assert.equal(checks, 1);
+  assert.equal(calls[0], 'INBOX_SYNC');
+  stored.schedule.pauseReason = 'interaction_required';
+  await runner.tick();
+  assert.equal(checks, 1);
+});
 
 test('Chrome background adapter recovers the reserved tab and refuses non-application senders', async () => {
   const fixture = createChromeBackgroundFixture();
@@ -2317,7 +2804,9 @@ test('A reloaded extension replaces only its unreachable stored work tab before 
   });
   assert.equal(result.success, true);
   assert.equal(fixture.stored[core.storageKey].tabId, 10);
-  assert.equal(fixture.tabs.size, 3);
+  assert.equal(fixture.tabs.size, 2);
+  assert.equal(fixture.tabs.has(90), false);
+  assert.equal(fixture.tabs.has(91), true);
   assert.ok(!fixture.messages.some(({ tabId }) => tabId === 91));
   assert.deepEqual(
     fixture.messages
@@ -2363,7 +2852,8 @@ test('Missing receivers stop after one recovery and perform no Vinted read or im
   });
   assert.equal(result.success, false);
   assert.match(result.error, /zugreifen darf/);
-  assert.equal(fixture.tabs.size, 2);
+  assert.equal(fixture.tabs.size, 1);
+  assert.equal(fixture.stored[core.storageKey].tabId, 90);
   assert.ok(fixture.messages.every(({ message }) => message.type === 'VINTED_LOCAL_READY'));
   assert.equal(fixture.edgeCalls.length, 0);
 });

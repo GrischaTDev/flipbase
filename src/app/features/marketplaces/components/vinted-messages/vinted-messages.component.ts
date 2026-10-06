@@ -47,6 +47,23 @@ import { LoadingIndicatorComponent } from '../../../../shared/components/loading
 import { formatConversationTime, formatMessageDay } from './vinted-message-time';
 import { VintedMessagingStore } from '../../services/vinted-messaging.store';
 
+function preserveConversationMetadata(
+  entry: MarketplaceEntry,
+  previous?: MarketplaceEntry | null,
+): MarketplaceEntry {
+  return {
+    ...entry,
+    itemId: entry.itemId ?? previous?.itemId ?? null,
+    itemTitle: entry.itemTitle ?? previous?.itemTitle ?? null,
+    itemImageUrl: entry.itemImageUrl ?? previous?.itemImageUrl ?? null,
+    itemPrice: entry.itemPrice ?? previous?.itemPrice ?? null,
+    itemCurrency: entry.itemCurrency ?? previous?.itemCurrency ?? null,
+    partnerId: entry.partnerId ?? previous?.partnerId ?? null,
+    lastActiveAt: entry.lastActiveAt ?? previous?.lastActiveAt ?? null,
+    transactionStatus: entry.transactionStatus ?? previous?.transactionStatus ?? null,
+  };
+}
+
 type ConversationFilter = 'all' | 'unread' | 'questions' | 'negotiating' | 'sold' | 'system';
 
 const conversationFilters: readonly SelectOption<ConversationFilter>[] = [
@@ -159,6 +176,24 @@ export class VintedMessagesComponent {
   private draftRevision = 0;
   private openRevision = 0;
   private providerRead: Promise<void> = Promise.resolve();
+  private readonly conversationRead = signal<{
+    key: string;
+    error: string | null;
+    observedAt: string | null;
+  } | null>(null);
+  readonly conversationReadError = computed(() =>
+    this.conversationRead()?.key === this.conversationKey() ? this.conversationRead()?.error : null,
+  );
+  readonly conversationCheckedAt = computed(() => {
+    const read = this.conversationRead();
+    const checkedAt = this.conversation()?.detailCheckedAt;
+    return read?.key === this.conversationKey() &&
+      read?.observedAt &&
+      checkedAt &&
+      Date.parse(checkedAt) >= Date.parse(read.observedAt)
+      ? checkedAt
+      : null;
+  });
   readonly now = signal(Date.now());
   private readonly openingConversation = signal<{ context: string | null; id: string } | null>(
     null,
@@ -206,12 +241,10 @@ export class VintedMessagesComponent {
       ?.conversations.items.find((entry) => entry.id === this.store.selectedConversationId());
     const saved = this.savedConversation();
     if (current)
-      return {
-        ...current,
-        itemImageUrl:
-          current.itemImageUrl ??
-          (saved?.key === this.conversationKey() ? saved.entry.itemImageUrl : null),
-      };
+      return preserveConversationMetadata(
+        current,
+        saved?.key === this.conversationKey() ? saved.entry : null,
+      );
     return saved?.key === this.conversationKey() ? saved.entry : null;
   });
   readonly transcript = computed(() =>
@@ -238,9 +271,9 @@ export class VintedMessagesComponent {
   );
   readonly lastActiveLabel = computed(() => {
     const timestamp = this.conversation()?.lastActiveAt;
-    if (!timestamp) return 'Aktivität nicht verfügbar';
+    if (!timestamp) return 'Letzte Aktivität unbekannt';
     const seconds = Math.max(0, (this.now() - Date.parse(timestamp)) / 1000);
-    if (!Number.isFinite(seconds)) return 'Aktivität nicht verfügbar';
+    if (!Number.isFinite(seconds)) return 'Letzte Aktivität unbekannt';
     if (seconds < 60) return 'Zuletzt aktiv gerade eben';
     const [amount, unit]: [number, Intl.RelativeTimeFormatUnit] =
       seconds < 3600
@@ -297,11 +330,10 @@ export class VintedMessagesComponent {
           const previous = this.savedConversation();
           this.savedConversation.set({
             key,
-            entry: {
-              ...entry,
-              itemImageUrl:
-                entry.itemImageUrl ?? (previous?.key === key ? previous.entry.itemImageUrl : null),
-            },
+            entry: preserveConversationMetadata(
+              entry,
+              previous?.key === key ? previous.entry : null,
+            ),
           });
         } else if (this.savedConversation()?.key !== key) this.savedConversation.set(null);
       });
@@ -345,7 +377,7 @@ export class VintedMessagesComponent {
         return;
       this.handledQuery = signature;
       const entry = snapshot.conversations.items.find((item) => item.id === conversationId);
-      if (entry) untracked(() => void this.openConversation(entry, false));
+      if (entry) untracked(() => void this.openConversation(entry));
       else this.notice.set('Das verlinkte Gespräch ist für dieses Konto nicht verfügbar.');
     });
     afterEveryRender(() => this.restoreReadingPosition());
@@ -373,12 +405,9 @@ export class VintedMessagesComponent {
     const previous = this.savedConversation();
     this.savedConversation.set({
       key,
-      entry: {
-        ...entry,
-        itemImageUrl:
-          entry.itemImageUrl ?? (previous?.key === key ? previous.entry.itemImageUrl : null),
-      },
+      entry: preserveConversationMetadata(entry, previous?.key === key ? previous.entry : null),
     });
+    this.conversationRead.set({ key, error: null, observedAt: null });
     this.openingConversation.set({ context, id: entry.id });
     const isCurrent = () =>
       context === this.context() &&
@@ -386,19 +415,25 @@ export class VintedMessagesComponent {
       this.store.selectedConversationId() === entry.id;
     try {
       await this.store.openConversation(entry.id);
-      if (
-        readProvider &&
-        account.executionMode === 'local' &&
-        this.local.messagesAllowed() &&
-        !this.store.error() &&
-        isCurrent()
-      ) {
+      if (readProvider && account.executionMode === 'local' && !this.store.error() && isCurrent()) {
         // Der lokale Dienst führt nur einen Abruf gleichzeitig aus. Veraltete
         // Auswahlen warten dessen Ende ab und starten anschließend keinen Abruf.
         const read = this.providerRead.then(async () => {
-          if (!isCurrent() || !this.local.messagesAllowed()) return;
-          await this.local.openInboxConversation(entry.id);
-          if (isCurrent()) await this.store.openConversation(entry.id);
+          if (!isCurrent()) return;
+          const result = await this.local.openInboxConversation(entry.id, isCurrent);
+          if (!isCurrent()) return;
+          if (result.status === 'failed') {
+            this.conversationRead.set({ key, error: result.error, observedAt: null });
+          } else if (result.status === 'success') {
+            const refreshError = this.store.error();
+            await this.store.openConversation(entry.id);
+            if (isCurrent())
+              this.conversationRead.set({
+                key,
+                error: this.store.error() ?? refreshError,
+                observedAt: result.observedAt,
+              });
+          }
         });
         this.providerRead = read;
         await read;
@@ -481,7 +516,8 @@ export class VintedMessagesComponent {
     try {
       if (message.state === 'outcome_unknown') {
         await this.openConversation(conversation);
-        if (key !== this.conversationKey() || this.local.error() || this.store.error()) return;
+        if (key !== this.conversationKey() || this.conversationReadError() || this.store.error())
+          return;
         const alreadyPresent =
           !message.attachment &&
           this.transcript().some(
