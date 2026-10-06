@@ -25,6 +25,8 @@ Schema-/Rechteabgleich identisch und Typen regeneriert. Chromium prüft Karten
 einschließlich zehn Konten, Favoritenformular, Navigation, Header und Dialoge
 bei 320 bis 1440 Pixeln, heller/dunkler Oberfläche und AXE. Reviewfehler zu
 Badgeüberlauf, Mobilformular, HTTP-Ablehnungen und verspäteten Belegen behoben.
+Die CI-Prüfung der Browser-Testauswahl ist um die acht zusätzlichen Fälle
+für kleine Displays, zehn Konten und lange Profilstatus ergänzt.
 
 **Grenzen:** Mindestens halber Artikelpreis ist unsere konservative Grenze,
 keine belegte offizielle Vinted-Regel. Ein konkreter Angebotsbeleg wird verlangt;
