@@ -18,6 +18,13 @@ IMAGE_REPOSITORIES = {
     "ghcr.io/grischatdev/flipbase-chromium-session",
     "flipbase-sniper",
 }
+SUPABASE_REPOSITORY_GROUPS = [
+    {f"supabase/{service}", f"public.ecr.aws/supabase/{service}"}
+    for service in (
+        "postgres", "gotrue", "storage-api", "realtime", "edge-runtime",
+        "postgres-meta", "studio", "supavisor",
+    )
+]
 NIGHTLY_PATTERN = re.compile(
     r"^(db|storage|env)_(\d{4}-\d{2}-\d{2}_\d{4})\.(sql\.gz|tar\.gz|txt)\.age$"
 )
@@ -67,11 +74,44 @@ def image_repositories(image):
     return {reference.split("@", 1)[0].rsplit(":", 1)[0] for reference in references}
 
 
-def select_old_images(images, referenced_ids):
+def read_supabase_compose_images():
+    # Nur Image-Namen ausgeben lassen, niemals die aufgelöste Konfiguration mit Secrets.
+    labels = json.loads(run_command([
+        "docker", "container", "inspect", "--format", "{{json .Config.Labels}}", "supabase-db",
+    ]).stdout)
+    configuration = (labels or {}).get("com.docker.compose.project.config_files")
+    if not configuration:
+        raise ValueError("Supabase-Compose-Dateien fehlen; keine Supabase-Images bereinigt.")
+    arguments = ["docker", "compose"]
+    for filename in configuration.split(","):
+        arguments.extend(["-f", filename])
+    arguments.extend(["config", "--images"])
+    references = sorted(set(run_command(arguments).stdout.split()))
+    protected = set()
+    for reference in references:
+        result = subprocess.run(
+            ["docker", "image", "inspect", "--format", "{{.Id}}", reference],
+            capture_output=True, text=True,
+        )
+        if result.returncode == 0:
+            protected.add(result.stdout.strip())
+        else:
+            # Ein fehlendes vorgesehenes Image braucht keine lokale Löschung;
+            # andere Inspektionsfehler sollen den Lauf sicher abbrechen.
+            if "No such image" not in result.stderr:
+                raise ValueError("Supabase-Compose-Image konnte nicht geprüft werden.")
+    return protected
+
+
+def select_old_images(images, referenced_ids, include_supabase=False):
     protected_ids = set(referenced_ids)
-    for repository in IMAGE_REPOSITORIES:
+    groups = [{repository} for repository in IMAGE_REPOSITORIES]
+    if include_supabase:
+        groups.extend(SUPABASE_REPOSITORY_GROUPS)
+    allowed_repositories = set().union(*groups)
+    for repositories in groups:
         versions = sorted(
-            (image for image in images if repository in image_repositories(image)),
+            (image for image in images if repositories & image_repositories(image)),
             key=lambda image: (
                 datetime.fromisoformat(
                     re.sub(r"(\.\d{6})\d+", r"\1", image["created"]).replace("Z", "+00:00")
@@ -89,7 +129,7 @@ def select_old_images(images, referenced_ids):
         for image in images
         if image["id"] not in protected_ids
         and image_repositories(image)
-        and image_repositories(image) <= IMAGE_REPOSITORIES
+        and image_repositories(image) <= allowed_repositories
     ]
 
 
@@ -173,9 +213,12 @@ def storage_locks(deploy_directory):
         yield
 
 
-def apply_images(images):
+def apply_images(images, include_supabase=False):
     for image in images:
-        if image["id"] in read_referenced_images():
+        protected = read_referenced_images()
+        if include_supabase:
+            protected.update(read_supabase_compose_images())
+        if image["id"] in protected:
             continue
         # Keine erzwungene Löschung und keine automatische Bereinigung fremder Eltern.
         references = image.get("tags") or image.get("digests") or []
@@ -195,6 +238,10 @@ def main():
         "--verify-offsite", action="store_true", help="Externe Kopien bereits in der Vorschau prüfen"
     )
     parser.add_argument("--scope", choices=("all", "images", "backups"), default="all")
+    parser.add_argument(
+        "--include-supabase", action="store_true",
+        help="Auch Supabase-Caches begrenzen; Container und Compose-Versionen schützen",
+    )
     parser.add_argument("--backup-directory", type=Path, default=Path("/var/backups/flipbase"))
     parser.add_argument("--deploy-directory", type=Path, default=Path("/opt/flipbase"))
     arguments = parser.parse_args()
@@ -206,7 +253,10 @@ def main():
     # Auch die Vorschau misst einen Stand außerhalb laufender Deployments/Sicherungen.
     with storage_locks(arguments.deploy_directory):
         if arguments.scope in ("all", "images"):
-            images = select_old_images(read_images(), read_referenced_images())
+            protected = read_referenced_images()
+            if arguments.include_supabase:
+                protected.update(read_supabase_compose_images())
+            images = select_old_images(read_images(), protected, arguments.include_supabase)
         if arguments.scope in ("all", "backups"):
             backups, verification, kept_releases, kept_nightly_sets = plan_backups(
                 arguments.backup_directory
@@ -217,7 +267,9 @@ def main():
             "images_to_remove": len(images),
             "images_to_remove_by_repository": {
                 repository: sum(repository in image_repositories(image) for image in images)
-                for repository in sorted(IMAGE_REPOSITORIES)
+                for repository in sorted(IMAGE_REPOSITORIES | (
+                    set().union(*SUPABASE_REPOSITORY_GROUPS) if arguments.include_supabase else set()
+                ))
             },
             "backup_files_to_remove": len(backups),
             "backup_bytes_to_reclaim": sum(path.stat().st_size for path in backups),
@@ -228,7 +280,7 @@ def main():
             verify_offsite(arguments.backup_directory, verification)
             print("Verbleibende Sicherungen extern inhaltlich bestätigt.", flush=True)
         if arguments.apply:
-            apply_images(images)
+            apply_images(images, arguments.include_supabase)
             # Erst alle externen Kopien prüfen, dann die erste lokale Datei entfernen.
             verify_offsite(arguments.backup_directory, verification)
             if any(file_identity(path) != identity for path, identity in identities.items()):

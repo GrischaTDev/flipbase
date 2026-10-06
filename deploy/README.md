@@ -136,7 +136,11 @@ Die Aufbewahrung ist getrennt nach Zweck:
 
 - Alle von laufenden oder gestoppten Containern verwendeten Images bleiben bestehen.
   Zusätzlich bleiben je Flipbase-Dienst zwei unbenutzte Rückfallversionen erhalten.
-  Ein Dienst ohne Container behält seine drei neuesten Versionen. Fremde Images,
+  Ein Dienst ohne Container behält seine drei neuesten Versionen. Mit
+  `--include-supabase` gilt dieselbe Grenze für Supabase. Docker-Hub- und ECR-Namen
+  desselben Dienstes teilen die Grenze; ein Image wird anhand seiner ID gezählt.
+  Alle in den aktiven Compose-Dateien vorgesehenen Images bleiben zusätzlich
+  geschützt. Fehlende Compose-Metadaten brechen die Bereinigung ab. Fremde Images,
   Container und Volumes werden nicht entfernt.
 - Lokal bleiben drei verschlüsselte Sicherungen vor Release-Migrationen sowie
   sieben vollständige nächtliche Sätze aus Datenbank, Dateien und Konfiguration.
@@ -161,7 +165,7 @@ Nach Review und ausdrücklicher Freigabe auf dem Produktionsserver installieren:
 `/opt/flipbase/`, die geprüften `backup.sh` und `migration-backup.sh` ebenfalls
 root-eigen mit Modus `0700`. Die bisherige automatische altersbasierte Löschung
 in `backup.sh` entfällt zugunsten der Inhaltsprüfung und Satzaufbewahrung.
-Zunächst `python3 -B /opt/flipbase/cleanup-server-storage.py --verify-offsite`
+Zunächst `python3 -B /opt/flipbase/cleanup-server-storage.py --include-supabase --verify-offsite`
 prüfen, dann die freigegebene Auswahl einmal mit `--apply` ausführen und freien
 Speicher sowie Dienste gegenprüfen. `cron-server-storage` als root-eigene Datei
 mit Modus `0644` nach `/etc/cron.d/flipbase-server-storage` legen; der Auftrag
@@ -258,7 +262,9 @@ Weitere unbenutzte Supabase-Versionen und große Browser-Rückfallversionen erkl
 den Hauptteil des zusätzlichen Einsparpotenzials. Der aktive Chromium-Stand ist
 kleiner als die beiden erhaltenen Vorgänger. Zusätzlich laufen zeitweise isolierte
 Datenbanktests anderer Sitzungen; deren Container und Images werden nicht entfernt.
-Supabase-Images gehören bisher absichtlich nicht zur automatischen Anwendungsliste.
+Die freigegebene Supabase-Begrenzung ist im stündlichen Auftrag eingeschaltet;
+sie schützt alle Container- und Compose-Versionen plus zwei zusätzliche Versionen
+je Dienst. Das Entfernen eines Images verändert keine Datenbank und keine Volumes.
 Ein späterer Bereinigungsschritt muss Aliasse aus Docker Hub/ECR, aktuelle
 Compose-Konfigurationen und alle Container gemeinsam berücksichtigen. Docker-
 Volumen, Datenbankdateien und Browserprofile sind keine pauschalen Löschkandidaten.

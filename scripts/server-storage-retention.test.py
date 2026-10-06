@@ -80,6 +80,50 @@ class ImageRetentionTests(unittest.TestCase):
                     retention.apply_images([image(1)])
                 self.assertEqual(1, command.call_count)
 
+    def test_supabase_registry_aliases_share_two_cache_slots(self):
+        images = [image(number, ["supabase/postgres"]) for number in range(1, 6)]
+        images[2]["tags"].append("public.ecr.aws/supabase/postgres:v3")
+        images[3]["tags"] = ["public.ecr.aws/supabase/postgres:v4"]
+        selected = retention.select_old_images(images, {images[0]["id"]}, True)
+        self.assertEqual(images[1:3], selected)
+        self.assertEqual([], retention.select_old_images(images, set()))
+
+    def test_supabase_foreign_alias_and_every_configured_version_are_protected(self):
+        images = [image(number, ["supabase/storage-api"]) for number in range(1, 7)]
+        images[1]["tags"].append("other.example/storage:keep")
+        selected = retention.select_old_images(images, {images[0]["id"], images[2]["id"]}, True)
+        self.assertEqual([images[3]], selected)
+
+    def test_supabase_apply_rechecks_compose_before_removal(self):
+        candidate = image(1, ["supabase/postgres"])
+        with patch.object(retention, "read_referenced_images", return_value=set()), patch.object(
+            retention, "read_supabase_compose_images", return_value={candidate["id"]}
+        ), patch.object(retention, "run_command") as command:
+            retention.apply_images([candidate], True)
+            command.assert_not_called()
+
+    def test_compose_queries_only_image_names_and_rejects_missing_configuration(self):
+        with patch.object(retention, "run_command") as command, patch.object(
+            retention.subprocess, "run"
+        ) as inspect:
+            command.side_effect = [
+                subprocess.CompletedProcess([], 0, json.dumps({
+                    "com.docker.compose.project.config_files": "/opt/supabase/docker-compose.yml,/opt/supabase/docker-compose.pg17.yml",
+                })),
+                subprocess.CompletedProcess([], 0, "supabase/postgres:v1\nsupabase/postgres:v1\n"),
+            ]
+            inspect.return_value = subprocess.CompletedProcess([], 0, "sha256:protected\n")
+            self.assertEqual({"sha256:protected"}, retention.read_supabase_compose_images())
+            self.assertEqual([
+                "docker", "compose", "-f", "/opt/supabase/docker-compose.yml",
+                "-f", "/opt/supabase/docker-compose.pg17.yml", "config", "--images",
+            ], command.call_args.args[0])
+            self.assertEqual(1, inspect.call_count)
+        with patch.object(retention, "run_command") as command:
+            command.return_value.stdout = "{}"
+            with self.assertRaises(ValueError):
+                retention.read_supabase_compose_images()
+
 
 class BackupRetentionTests(unittest.TestCase):
     def setUp(self):
