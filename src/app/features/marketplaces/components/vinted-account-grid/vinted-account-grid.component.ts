@@ -42,6 +42,10 @@ import {
   MARKETPLACE_CONNECTION_TONES,
 } from '../../models/marketplace-presentation';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
+import { VintedLocalExtensionStore } from '../../services/vinted-local-extension.store';
+import { VintedLocalExtensionBridge } from '../../services/vinted-local-extension-bridge';
+import { VintedLocalRuntimeStore } from '../../services/vinted-local-runtime.store';
+import { presentVintedLocalReadiness } from '../../models/vinted-local-readiness';
 import { MarketplaceCloudSetupStore } from '../../services/marketplace-cloud-setup.store';
 import { VintedAccountPreviewsStore } from '../../services/vinted-account-previews.store';
 import { MarketplaceAccountsComponent } from '../marketplace-accounts/marketplace-accounts.component';
@@ -75,6 +79,21 @@ import { VintedSetupComponent } from '../vinted-setup/vinted-setup.component';
 })
 export class VintedAccountGridComponent {
   readonly accounts = inject(MarketplaceAccountStore);
+  readonly runtime = inject(VintedLocalRuntimeStore);
+  readonly extension = inject(VintedLocalExtensionBridge);
+  readonly local = inject(VintedLocalExtensionStore);
+  private readonly disconnectSelection = signal<{
+    context: string;
+    account: MarketplaceConnection;
+  } | null>(null);
+  readonly disconnectAccount = computed(() => {
+    const selection = this.disconnectSelection();
+    return selection?.context === this.context() &&
+      this.accounts.canManage() &&
+      selection.account.workspaceId === this.workspace.currentWorkspace()?.id
+      ? selection.account
+      : null;
+  });
   readonly cloud = inject(MarketplaceCloudSetupStore);
   readonly previews = inject(VintedAccountPreviewsStore);
   readonly management = viewChild(MarketplaceAccountsComponent);
@@ -124,6 +143,34 @@ export class VintedAccountGridComponent {
 
   constructor() {
     effect(() => {
+      const parameters = this.queryParams();
+      const settingsId = parameters.get('settings');
+      const disconnectId = parameters.get('disconnect');
+      const workspaceId = parameters.get('workspaceId');
+      const account = this.accounts
+        .connections()
+        .find((candidate) => candidate.connectionId === (settingsId ?? disconnectId));
+      if ((!settingsId && !disconnectId) || this.accounts.loading() || !this.accounts.canManage())
+        return;
+      untracked(() => {
+        void this.router.navigate([], {
+          relativeTo: this.route,
+          queryParams: { settings: null, disconnect: null, workspaceId: null },
+          queryParamsHandling: 'merge',
+          replaceUrl: true,
+        });
+        if (
+          !account ||
+          account.workspaceId !== workspaceId ||
+          account.workspaceId !== this.workspace.currentWorkspace()?.id
+        )
+          return;
+        if (settingsId) this.openSettings(account);
+        else if (account.executionMode === 'local')
+          this.disconnectSelection.set({ context: this.context(), account });
+      });
+    });
+    effect(() => {
       const selection = this.settingsSelection();
       if (selection && !this.settingsAccount()) this.settingsSelection.set(null);
     });
@@ -151,8 +198,62 @@ export class VintedAccountGridComponent {
 
   connectionLabel(account: MarketplaceConnection): string {
     if (account.status === 'connected')
-      return account.executionMode === 'local' ? 'Lokal verbunden' : 'Mit Cloud verbunden';
+      return account.executionMode === 'local' ? 'Lokal verknüpft' : 'Mit Cloud verbunden';
     return MARKETPLACE_CONNECTION_LABELS[account.status];
+  }
+
+  runtimeStatus(account: MarketplaceConnection) {
+    return presentVintedLocalReadiness(
+      account,
+      this.runtime.readiness(),
+      this.runtime.checking(),
+      this.extension.installed(),
+    );
+  }
+  async checkLocalConnection(): Promise<void> {
+    this.extension.checkInstallation();
+    await this.runtime.check(true);
+  }
+  async syncLocalAccount(account: MarketplaceConnection): Promise<void> {
+    const context = this.context();
+    await this.runtime.check();
+    const readiness = this.runtime.readiness();
+    if (
+      context !== this.context() ||
+      !this.accounts.canManage() ||
+      readiness?.state !== 'ready' ||
+      readiness.workspaceId !== account.workspaceId ||
+      readiness.connectionId !== account.connectionId ||
+      (account.externalAccountId && readiness.externalAccountId !== account.externalAccountId) ||
+      account.status === 'paused' ||
+      account.status === 'blocked'
+    )
+      return;
+    await this.local.loadConnection(account);
+    if (!this.local.isCurrentConnection(account) || !this.local.hasValidBinding()) return;
+    await this.local.sync();
+  }
+  async disconnectLocalAccount(): Promise<void> {
+    const account = this.disconnectAccount();
+    if (!account || !this.accounts.canManage() || this.accounts.busy() || this.local.busy()) return;
+    await this.local.loadConnection(account);
+    if (!this.local.isCurrentConnection(account)) return;
+    await this.local.revoke();
+    if (!this.local.error()) this.disconnectSelection.set(null);
+    await this.runtime.check();
+  }
+  closeDisconnect(): void {
+    this.disconnectSelection.set(null);
+  }
+  openDisconnect(account: MarketplaceConnection): void {
+    if (
+      !this.accounts.canManage() ||
+      account.workspaceId !== this.workspace.currentWorkspace()?.id ||
+      account.executionMode !== 'local'
+    )
+      return;
+    this.closeSettings();
+    this.disconnectSelection.set({ context: this.context(), account });
   }
 
   openSettings(account: MarketplaceConnection): void {

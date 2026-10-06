@@ -192,7 +192,7 @@
               fit="cover"
             />
             <p class="min-w-0 flex-1 truncate text-[13px] text-fb-text-primary">
-              {{ conversation.itemTitle ?? 'Artikel nicht verfügbar' }}
+              {{ conversation.itemTitle ?? 'Artikel noch nicht geladen' }}
             </p>
             @if (
               conversation.itemPrice !== null &&
@@ -245,6 +245,14 @@
                     }
                   }
                 </app-button>
+              </div>
+            }
+            @if (conversationReadError(); as error) {
+              <div>
+                <p role="alert" class="text-[13px] text-fb-text-secondary">{{ error }}</p>
+                <app-button class="mt-2" (clicked)="retryMessages()"
+                  >Nachrichten erneut laden</app-button
+                >
               </div>
             }
             @for (row of datedTranscript(); track row.entry.id) {
@@ -413,8 +421,8 @@
               class="py-2 text-center"
               [attr.title]="
                 store.error() ||
-                local.error() ||
-                (store.selectedConnection()?.lastSyncedAt | date: 'dd.MM.yyyy, HH:mm')
+                conversationReadError() ||
+                (conversationCheckedAt() | date: 'dd.MM.yyyy, HH:mm')
               "
             >
               @if (isRefreshingConversation() || store.loadingMessages()) {
@@ -422,9 +430,9 @@
                   <app-loading-indicator size="sm" />
                   Wird aktualisiert
                 </app-badge>
-              } @else if (store.error() || local.error()) {
+              } @else if (store.error() || conversationReadError()) {
                 <app-badge tone="caution">Aktualisierung fehlgeschlagen</app-badge>
-              } @else {
+              } @else if (conversationCheckedAt()) {
                 <app-badge tone="success">
                   <span
                     aria-hidden="true"
@@ -432,6 +440,8 @@
                   ></span>
                   Synchronisiert
                 </app-badge>
+              } @else {
+                <app-badge tone="neutral">Gespeicherter Stand</app-badge>
               }
             </div>
           </div>

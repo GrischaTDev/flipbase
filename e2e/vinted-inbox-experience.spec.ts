@@ -48,6 +48,7 @@ async function inboxFixture(page: Page, longHistory = false) {
       itemCurrency: 'EUR',
       partnerId: '991',
       lastActiveAt: now,
+      detailCheckedAt: null as string | null,
       transactionStatus: 'Offen',
     },
     {
@@ -62,6 +63,7 @@ async function inboxFixture(page: Page, longHistory = false) {
       itemImageUrl: imageUrl,
       itemPrice: 12,
       itemCurrency: 'EUR',
+      detailCheckedAt: null as string | null,
     },
   ];
   const queue: Record<string, unknown>[] = [];
@@ -77,20 +79,68 @@ async function inboxFixture(page: Page, longHistory = false) {
     providerRequests++;
     return route.abort();
   });
-  await page.exposeFunction('inboxBridgeObserved', async (type: string) => {
-    bridgeCalls.push(type);
-    if (type === 'FLIPBASE_VINTED_LOCAL_INBOX_DETAIL' && pendingDetail) await pendingDetail;
-    account.lastSyncedAt = new Date().toISOString();
-  });
+  await page.exposeFunction(
+    'inboxBridgeObserved',
+    async (type: string, requestedConversationId?: string) => {
+      bridgeCalls.push(type);
+      if (type === 'FLIPBASE_VINTED_LOCAL_INBOX_DETAIL' && pendingDetail) await pendingDetail;
+      if (type === 'FLIPBASE_VINTED_LOCAL_INBOX_DETAIL') {
+        const conversation = conversations.find((entry) => entry.id === requestedConversationId);
+        if (conversation) conversation.detailCheckedAt = now;
+      }
+      account.lastSyncedAt = new Date().toISOString();
+    },
+  );
   await page.addInitScript(
     ({ scope, expiresAt, observedAt }) => {
       window.addEventListener('message', async (event) => {
+        if (event.source === window && event.data?.type === 'FLIPBASE_CHECK_EXTENSION') {
+          window.postMessage(
+            {
+              type: 'FLIPBASE_EXTENSION_STATUS',
+              installed: true,
+              vintedLocal: true,
+              localAccount: {
+                boundUsername: 'synthetic-test',
+                boundConnectionId: scope.connectionId,
+                expiresAt,
+                state: 'linked',
+              },
+            },
+            location.origin,
+          );
+          return;
+        }
         if (event.source !== window || !event.data?.type?.startsWith('FLIPBASE_VINTED_LOCAL_'))
           return;
         if (event.data.type === 'FLIPBASE_VINTED_LOCAL_RESULT') return;
+        if (
+          ['FLIPBASE_VINTED_LOCAL_READINESS', 'FLIPBASE_VINTED_LOCAL_RECHECK'].includes(
+            event.data.type,
+          )
+        ) {
+          window.postMessage(
+            {
+              type: 'FLIPBASE_VINTED_LOCAL_RESULT',
+              requestId: event.data.requestId,
+              success: true,
+              result: {
+                state: 'ready',
+                ...scope,
+                externalAccountId: '123',
+                checkedAt: observedAt,
+                version: '1.0.0',
+              },
+            },
+            location.origin,
+          );
+          return;
+        }
         await (
-          window as unknown as { inboxBridgeObserved(type: string): Promise<void> }
-        ).inboxBridgeObserved(event.data.type);
+          window as unknown as {
+            inboxBridgeObserved(type: string, conversationId?: string): Promise<void>;
+          }
+        ).inboxBridgeObserved(event.data.type, event.data.payload?.conversationId);
         window.postMessage(
           {
             type: 'FLIPBASE_VINTED_LOCAL_RESULT',

@@ -281,6 +281,19 @@ describe('Gespeicherte Vinted-Kontoauswahl', () => {
     expect(store.localSalesUnavailable()).toBe(false);
   });
   const savedKey = `flipbase:vinted:last-account:${JSON.stringify(['user-a', accountA.workspaceId])}`;
+  it('nimmt ohne bewusste Kontowahl den Vorschlag des Browserprofils an', async () => {
+    await settle();
+    expect(store.hasExplicitConnectionSelection()).toBe(false);
+    await store.suggestConnection(accountB.connectionId);
+    expect(store.selectedConnection()?.connectionId).toBe(accountB.connectionId);
+    expect(store.hasExplicitConnectionSelection()).toBe(false);
+  });
+  it('ersetzt eine bewusste Kontowahl nicht durch das Browserprofil', async () => {
+    await settle();
+    await store.selectConnection(accountA.connectionId);
+    await store.suggestConnection(accountB.connectionId);
+    expect(store.selectedConnection()?.connectionId).toBe(accountA.connectionId);
+  });
   it('holt neue und geänderte andere Konten für die Kacheln ohne Konto-Neuauswahl nach', async () => {
     await settle();
     const added = { ...accountB, connectionId: 'account-c', displayName: 'Konto C' };

@@ -65,6 +65,7 @@ export class MarketplaceAccountStore {
   );
   private readonly accountList = signal<readonly MarketplaceConnection[]>([]);
   private readonly activeId = signal<string | null>(null);
+  readonly hasExplicitConnectionSelection = signal(false);
   private readonly selectionEpoch = signal(0);
   private readonly accountSnapshot = signal<MarketplaceSnapshot | null>(null);
   private readonly conversationId = signal<string | null>(null);
@@ -240,7 +241,9 @@ export class MarketplaceAccountStore {
     const key = this.contextKey();
     const workspaceId = this.workspace.currentWorkspace()?.id;
     if (!key || !workspaceId || !this.current()) return;
-    const previousId = preferredId ?? this.activeId() ?? this.readSavedConnection(key);
+    const savedId = this.readSavedConnection(key);
+    const previousId = preferredId ?? this.activeId() ?? savedId;
+    const wasExplicit = this.hasExplicitConnectionSelection();
     const revision = ++this.connectionsRevision;
     this.selectionRevision++;
     this.clearDescriptions();
@@ -272,8 +275,14 @@ export class MarketplaceAccountStore {
       const selected =
         result.connections.find((item) => item.connectionId === previousId) ??
         result.connections[0];
-      if (selected) await this.selectConnection(selected.connectionId);
-      else this.clearListingMetrics();
+      if (selected) {
+        this.hasExplicitConnectionSelection.set(
+          (wasExplicit && selected.connectionId === previousId) ||
+            (savedId !== null && selected.connectionId === savedId) ||
+            (preferredId !== undefined && selected.connectionId === preferredId),
+        );
+        await this.selectConnection(selected.connectionId, false);
+      } else this.clearListingMetrics();
     } catch (error) {
       if (this.isCurrent(key) && revision === this.connectionsRevision) this.handleError(error);
     } finally {
@@ -281,7 +290,16 @@ export class MarketplaceAccountStore {
     }
   }
 
-  async selectConnection(connectionId: string | null): Promise<void> {
+  async suggestConnection(connectionId: string): Promise<void> {
+    if (
+      this.hasExplicitConnectionSelection() ||
+      this.selectedConnection()?.connectionId === connectionId
+    )
+      return;
+    await this.selectConnection(connectionId, false);
+  }
+
+  async selectConnection(connectionId: string | null, rememberSelection = true): Promise<void> {
     const connection = this.connections().find((item) => item.connectionId === connectionId);
     const key = this.contextKey();
     if (!connection || !key || !this.canManage()) return;
@@ -299,7 +317,10 @@ export class MarketplaceAccountStore {
     this.selectionEpoch.update((value) => value + 1);
     this.conversationRevision++;
     this.activeId.set(connection.connectionId);
-    this.saveConnection(key, connection.connectionId);
+    if (rememberSelection) {
+      this.hasExplicitConnectionSelection.set(true);
+      this.saveConnection(key, connection.connectionId);
+    }
     this.accountSnapshot.set(null);
     this.messagePage.set(null);
     this.conversationId.set(null);
@@ -1022,6 +1043,7 @@ export class MarketplaceAccountStore {
     this.loadError.set(errorMessage(error));
   }
   private reset(): void {
+    this.hasExplicitConnectionSelection.set(false);
     this.clearDescriptions();
     this.conversationPages.clear();
     this.clearListingMetrics();

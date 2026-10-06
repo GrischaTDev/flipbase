@@ -2,6 +2,8 @@
 (function exposeVintedLocalCore(root) {
   const requestTypes = new Set([
     'PREPARE',
+    'READINESS',
+    'RECHECK',
     'BIND',
     'SYNC',
     'INBOX_SYNC',
@@ -96,10 +98,12 @@
       return null;
     const action = message.type.slice(requestPrefix.length);
     if (!requestTypes.has(action)) return null;
-    const allowedKeys =
-      action === 'PREPARE' ? ['type', 'requestId'] : ['type', 'requestId', 'payload'];
+    const allowedKeys = ['PREPARE', 'READINESS', 'RECHECK'].includes(action)
+      ? ['type', 'requestId']
+      : ['type', 'requestId', 'payload'];
     if (Object.keys(message).some((key) => !allowedKeys.includes(key))) return null;
-    if (action === 'PREPARE') return { action, requestId: message.requestId };
+    if (['PREPARE', 'READINESS', 'RECHECK'].includes(action))
+      return { action, requestId: message.requestId };
     const payload = message.payload;
     if (!record(payload) || !uuid(payload.workspaceId) || !uuid(payload.connectionId)) return null;
     const payloadKeys =
@@ -622,7 +626,114 @@
 
   function createRuntime(adapter) {
     let running = false;
+    const readinessStates = {
+      login_required: 'login_required',
+      identity_changed: 'identity_mismatch',
+      permission_required: 'permission_required',
+      interaction_required: 'challenge_required',
+      verification_required: 'challenge_required',
+      session_blocked: 'blocked',
+      local_binding_revoked: 'revoked',
+      local_binding_paused: 'paused',
+      local_binding_expired: 'expired',
+      local_binding_invalid: 'unavailable',
+    };
+    function publicReadiness(installation, state, checkedAt = adapter.now()) {
+      const binding = installation?.binding;
+      return {
+        state,
+        workspaceId: binding?.workspaceId ?? null,
+        connectionId: binding?.connectionId ?? null,
+        externalAccountId: binding?.externalAccountId ?? null,
+        checkedAt: new Date(checkedAt).toISOString(),
+        version: adapter.version ?? '1.6.0',
+      };
+    }
+    function readStatus(installation) {
+      if (!installation?.binding) return publicReadiness(null, 'unbound');
+      if (!(Date.parse(installation.binding.expiresAt) > adapter.now()))
+        return publicReadiness(installation, 'expired');
+      const pauseReason = installation.schedule?.pauseReason;
+      if (pauseReason)
+        return publicReadiness(
+          installation,
+          readinessStates[pauseReason] ?? 'paused',
+          installation.readiness?.checkedAt ?? adapter.now(),
+        );
+      if (installation.schedule?.retryAfter > adapter.now())
+        return publicReadiness(installation, 'paused');
+      return publicReadiness(
+        installation,
+        installation.readiness?.state ?? 'unavailable',
+        installation.readiness?.checkedAt ?? adapter.now(),
+      );
+    }
+    async function checkReadiness(origin, { explicit = false } = {}) {
+      let installation = await adapter.load();
+      if (!installation?.binding || installation.binding.appOrigin !== origin)
+        return publicReadiness(null, 'unbound');
+      if (running || installation.leaseUntil > adapter.now())
+        return publicReadiness(installation, 'unavailable');
+      running = true;
+      adapter.begin?.({ action: 'READINESS' });
+      let acquired = false;
+      let state = 'unavailable';
+      try {
+        if (!(Date.parse(installation.binding.expiresAt) > adapter.now())) {
+          state = 'expired';
+        } else {
+          const pauseReason = installation.schedule?.pauseReason;
+          if (
+            pauseReason &&
+            !['login_required', 'local_binding_invalid', 'permission_required'].includes(
+              pauseReason,
+            ) &&
+            !(explicit && ['interaction_required', 'verification_required'].includes(pauseReason))
+          ) {
+            state = readinessStates[pauseReason] ?? 'paused';
+          } else if (installation.schedule?.retryAfter > adapter.now()) {
+            state = 'paused';
+          } else {
+            installation = { ...installation, leaseUntil: adapter.now() + 55_000 };
+            await adapter.save(installation);
+            acquired = true;
+            await heartbeat(installation.binding, installation.secret);
+            const current = await adapter.readIdentity(installation.tabId);
+            if (current.identity.id !== installation.binding.externalAccountId)
+              throw identityChangedError();
+            installation.tabId = current.tabId;
+            installation.identity = current.identity;
+            installation.schedule = { ...installation.schedule };
+            delete installation.schedule.pauseReason;
+            delete installation.schedule.lastError;
+            state = 'ready';
+          }
+        }
+      } catch (error) {
+        state = readinessStates[error.code] ?? 'unavailable';
+        installation = await adapter.load();
+        if (installation && error.code) {
+          installation.schedule = { ...installation.schedule, lastError: error.code };
+          if (readinessStates[error.code]) installation.schedule.pauseReason = error.code;
+          if (error.code === 'rate_limited')
+            installation.schedule.retryAfter = error.retryAfter ?? adapter.now() + 300_000;
+        }
+      } finally {
+        try {
+          if (installation?.binding) {
+            if (acquired) delete installation.leaseUntil;
+            installation.readiness = { state, checkedAt: adapter.now() };
+            await adapter.save(installation);
+          }
+        } finally {
+          running = false;
+        }
+      }
+      return publicReadiness(installation, state);
+    }
     async function run(request, origin) {
+      if (['READINESS', 'RECHECK'].includes(request.action))
+        return checkReadiness(origin, { explicit: request.action === 'RECHECK' });
       if (running) throw new Error('Ein lokaler Vorgang läuft bereits. Warte bis er beendet ist.');
       running = true;
       adapter.begin?.(request);
@@ -1085,7 +1196,7 @@
         );
       return result;
     }
-    return { run };
+    return { run, readStatus };
   }
 
   const api = {

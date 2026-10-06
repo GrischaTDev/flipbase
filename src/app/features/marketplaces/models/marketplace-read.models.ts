@@ -35,6 +35,7 @@ export interface MarketplaceEntry extends AccountScope {
   readonly itemCurrency?: string | null;
   readonly partnerId?: string | null;
   readonly lastActiveAt?: string | null;
+  readonly detailCheckedAt?: string | null;
   readonly transactionStatus?: string | null;
   readonly eventType?: string | null;
   readonly eventGroup?: string | null;

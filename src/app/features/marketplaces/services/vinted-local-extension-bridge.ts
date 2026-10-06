@@ -1,6 +1,8 @@
 import { DestroyRef, Injectable, inject, signal } from '@angular/core';
 
 type RequestType =
+  | 'FLIPBASE_VINTED_LOCAL_READINESS'
+  | 'FLIPBASE_VINTED_LOCAL_RECHECK'
   | 'FLIPBASE_VINTED_LOCAL_PREPARE'
   | 'FLIPBASE_VINTED_LOCAL_BIND'
   | 'FLIPBASE_VINTED_LOCAL_SYNC'
@@ -18,7 +20,7 @@ export interface VintedLocalAccountStatus {
   readonly boundUsername: string | null;
   readonly boundConnectionId: string;
   readonly expiresAt: string;
-  readonly state: 'linked' | 'expired' | 'paused' | 'revoked';
+  readonly state: 'linked' | 'expired' | 'paused' | 'revoked' | 'unavailable';
 }
 function parseLocalAccountStatus(candidate: unknown): VintedLocalAccountStatus | null | undefined {
   if (candidate === undefined || candidate === null) return candidate;
@@ -42,7 +44,8 @@ function parseLocalAccountStatus(candidate: unknown): VintedLocalAccountStatus |
     (fields['state'] !== 'linked' &&
       fields['state'] !== 'expired' &&
       fields['state'] !== 'paused' &&
-      fields['state'] !== 'revoked')
+      fields['state'] !== 'revoked' &&
+      fields['state'] !== 'unavailable')
   )
     throw new Error('Ungültiger lokaler Kontostatus');
   return Object.freeze({
@@ -123,6 +126,11 @@ export class VintedLocalExtensionBridge {
       return;
     const response = event.data as Record<string, unknown>;
     if (response['type'] === 'FLIPBASE_EXTENSION_STATUS') {
+      if (response['installed'] === false && response['vintedLocal'] === false) {
+        this.installed.set(false);
+        this.localAccount.set(undefined);
+        return;
+      }
       if (response['installed'] === true && response['vintedLocal'] === true) {
         let localAccount: VintedLocalAccountStatus | null | undefined;
         try {

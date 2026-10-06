@@ -220,6 +220,7 @@ export function parseMarketplacePage(
           : null,
       partnerId: text(item['partnerId']),
       lastActiveAt: timestamp(item['lastActiveAt']),
+      detailCheckedAt: timestamp(item['detailCheckedAt']),
       transactionStatus: text(item['transactionStatus']),
       eventType: text(item['eventType']),
       eventGroup: text(item['eventGroup']),

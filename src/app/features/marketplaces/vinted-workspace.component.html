@@ -2,26 +2,32 @@
   @if (showingSetup() || showingLocalConnection() || showingCloudConnection()) {
     <app-button header-actions link="/marketplaces/vinted/accounts">Alle Konten</app-button>
   } @else if (!showingAccounts() && store.selectedConnection(); as account) {
-    <app-vinted-account-controls
-      header-actions
-      class="w-full sm:w-auto"
-      [connections]="store.connections()"
-      [account]="account"
-      [profile]="store.snapshot()?.profile ?? null"
-      [canManage]="store.canManage()"
-      [refreshing]="store.busy() || local.busy()"
-      [loading]="store.loadingSnapshot()"
-      [inbox]="showingMessages() && account.executionMode === 'local'"
-      [inboxSyncedAt]="local.binding()?.inboxSyncedAt ?? local.inboxImported()?.observedAt ?? null"
-      [refreshLabel]="
-        showingMessages() && account.executionMode === 'local'
-          ? 'Nachrichten aktualisieren'
-          : 'Kontodaten aktualisieren'
-      "
-      (accountSelected)="store.selectConnection($event)"
-      (refreshRequested)="sync()"
-      (synchronized)="store.refreshImportedSnapshot($event, $event.lastSuccessAt)"
-    />
+    <div header-actions class="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+      @if (runtimeStatus(); as status) {
+        <app-badge [tone]="status.tone" size="sm">{{ status.label }}</app-badge>
+      }
+      <app-vinted-account-controls
+        class="w-full sm:w-auto"
+        [connections]="store.connections()"
+        [account]="account"
+        [profile]="store.snapshot()?.profile ?? null"
+        [canManage]="store.canManage()"
+        [refreshing]="store.busy() || local.busy()"
+        [loading]="store.loadingSnapshot()"
+        [inbox]="showingMessages() && account.executionMode === 'local'"
+        [inboxSyncedAt]="
+          local.binding()?.inboxSyncedAt ?? local.inboxImported()?.observedAt ?? null
+        "
+        [refreshLabel]="
+          showingMessages() && account.executionMode === 'local'
+            ? 'Nachrichten aktualisieren'
+            : 'Kontodaten aktualisieren'
+        "
+        (accountSelected)="store.selectConnection($event)"
+        (refreshRequested)="sync()"
+        (synchronized)="store.refreshImportedSnapshot($event, $event.lastSuccessAt)"
+      />
+    </div>
   } @else if (!showingAccounts()) {
     <app-button header-actions link="/marketplaces/vinted/accounts">Alle Konten</app-button>
   }
@@ -74,7 +80,9 @@
       @if (local.error(); as error) {
         <app-notice-banner announcement="alert">
           {{ error }}
-          <app-button class="mt-2" [link]="reconnectLink()">Lokale Verbindung prüfen</app-button>
+          <app-button class="mt-2" link="/marketplaces/vinted/accounts"
+            >Verbindung am Konto prüfen</app-button
+          >
         </app-notice-banner>
       }
       @if (!showingMessages() && local.notice(); as notice) {

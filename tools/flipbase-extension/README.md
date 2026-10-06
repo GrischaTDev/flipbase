@@ -45,18 +45,37 @@ Formular, können einzelne Felder manuelle Eingaben verlangen.
 
 ### Konto direkt auf Vinted prüfen
 
-Ab Erweiterung 1.5.0 erscheint unten rechts auf normalen Vinted-Seiten das
-Flipbase-Logo. Ein Klick liest Deine aktuelle Vinted-Identität und zeigt die
-gespeicherte lokale Zuordnung. Die Seite bleibt normal bedienbar. Du kannst das
-kleine Fenster mit Escape oder dem Schließen-Button schließen.
+Ab Erweiterung 1.6.0 öffnet die weiße Logo-Blase ein zentriertes Modal.
+Gespeicherte Kontozuordnung und aktuell geprüfte Browserbereitschaft werden
+getrennt angezeigt. „Einstellungen öffnen“ führt zu den Einstellungen dieses
+Kontos; „Lokale Freigabe trennen“ führt zu einer ausdrücklichen Bestätigung in
+Flipbase. Dein Vinted-Login und bereits importierte Daten bleiben erhalten.
+
+Beim Browserstart und nach dem Schließen eines eigenen Arbeitstabs prüft die
+Erweiterung eine bestehende Freigabe und stellt den Tab bei erlaubtem Zugriff
+im Hintergrund wieder her. Ein gewöhnlicher behobener Loginfehler kann nach
+bestätigter Identität fortgesetzt werden. Abgelaufene Freigaben, manuelle Pausen
+und Vinted-Prüfungen erfordern die entsprechende Nutzeraktion. Eine Statusprüfung
+führt selbst keinen Versand aus und verlängert keine Freigabe.
+
+Auf der Kontenseite siehst Du „Lokal verknüpft“ und zusätzlich den aktuellen
+Profilstatus. Dort kannst Du die Verbindung prüfen und Daten synchronisieren;
+der Einrichtungsablauf ist für Hinzufügen und Freigabeerneuerung vorgesehen.
+
+Auf normalen Vinted-Seiten erscheint unten rechts das Flipbase-Logo. Ein Klick
+liest Deine aktuelle Vinted-Identität und prüft die lokale Betriebsbereitschaft.
+Das Modal kannst Du mit Escape oder dem Schließen-Button schließen; danach ist
+die Seite wieder normal bedienbar.
 
 Mit „Vinted-Konto verknüpfen“ öffnest Du Flipbase im selben Browserprofil und
 fügst dort ein lokales Konto hinzu. Die Anmeldung und die ausdrückliche
 Kontofreigabe laufen weiterhin in Flipbase. Bei einem bereits gebundenen Profil
 führt der Button zur bestehenden Verbindung. Ein anderes aktives Vinted-Konto
 erhält einen Hinweis auf ein separates Browserprofil; es ersetzt die Zuordnung
-nicht. Angezeigte Freigaben stammen aus dem lokalen Speicher, der aktuelle
-Serverstatus wird beim Prüfen der Verbindung in Flipbase bestätigt.
+nicht. Die gespeicherte Zuordnung stammt aus dem lokalen Speicher; die
+Bereitschaft wird zusätzlich über die bestehende Serverfreigabe und die
+aktuelle Vinted-Sitzung geprüft. Bei uneindeutigen Serverfehlern wird kein
+Widerruf oder Erfolg behauptet.
 
 Im reservierten Arbeitstab erscheint dieses Kontofenster nicht. Dort bleibt
 die vorhandene Sperrfläche für automatische Vorgänge beziehungsweise die

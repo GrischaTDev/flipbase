@@ -294,12 +294,12 @@ begin
       select * into v_existing from public.marketplace_account_entries where workspace_id=p_workspace_id and connection_id=p_connection_id and kind='conversation' and external_id=v_entry->>'externalId' for update;
       insert into public.marketplace_account_entries(workspace_id,connection_id,kind,external_id,body,sort_at,observed_at)
         values(p_workspace_id,p_connection_id,'conversation',v_entry->>'externalId',
-          case when v_existing.id is not null and v_existing.body->>'sourceUpdatedAt'=v_entry->'body'->>'sourceUpdatedAt' and v_entry->'body'->>'detailCheckedAt' is null
-            then v_entry->'body' || coalesce((
+          v_entry->'body' || coalesce((
               select jsonb_object_agg(field.key,field.value) from jsonb_each(v_existing.body) field
               where field.key=any(array['itemId','itemTitle','itemImageUrl','itemPrice','itemCurrency','partnerId','lastActiveAt','transactionStatus'])
                 and (v_entry->'body'->field.key is null or v_entry->'body'->field.key='null'::jsonb)
-            ),'{}'::jsonb) || jsonb_build_object('text',v_existing.body->'text','occurredAt',v_existing.body->'occurredAt','detailCheckedAt',v_existing.body->'detailCheckedAt') else v_entry->'body' end,
+            ),'{}'::jsonb) || case when v_existing.id is not null and v_existing.body->>'sourceUpdatedAt'=v_entry->'body'->>'sourceUpdatedAt' and v_entry->'body'->>'detailCheckedAt' is null
+            then jsonb_build_object('text',v_existing.body->'text','occurredAt',v_existing.body->'occurredAt','detailCheckedAt',v_existing.body->'detailCheckedAt') else '{}'::jsonb end,
           (v_entry->>'sortAt')::timestamptz,v_observed)
         on conflict(workspace_id,connection_id,kind,external_id) do update set body=excluded.body,sort_at=excluded.sort_at,observed_at=excluded.observed_at;
     else

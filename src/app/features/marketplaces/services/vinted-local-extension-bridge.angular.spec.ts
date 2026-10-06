@@ -3,6 +3,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { VintedLocalExtensionBridge } from './vinted-local-extension-bridge';
 
 describe('Lokale Vinted-Erweiterungsbrücke', () => {
+  it('nimmt die Erreichbarkeitsmeldung bei verlorenem Hintergrunddienst zurück', () => {
+    const bridge = TestBed.inject(VintedLocalExtensionBridge);
+    accountStatus(null);
+    expect(bridge.installed()).toBe(true);
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        origin: location.origin,
+        source: window,
+        data: { type: 'FLIPBASE_EXTENSION_STATUS', installed: false, vintedLocal: false },
+      }),
+    );
+    expect(bridge.installed()).toBe(false);
+    expect(bridge.localAccount()).toBeUndefined();
+  });
   beforeEach(() => {
     TestBed.configureTestingModule({ providers: [VintedLocalExtensionBridge] });
     vi.useFakeTimers();

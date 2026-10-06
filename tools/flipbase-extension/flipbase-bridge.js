@@ -9,35 +9,47 @@
   }
 
   let localAccount;
+  let readiness;
+  let backgroundReachable = false;
   function announceExtension() {
     if (document.documentElement) {
-      document.documentElement.dataset.flipbaseExtensionInstalled = 'true';
+      document.documentElement.dataset.flipbaseExtensionInstalled = String(backgroundReachable);
     }
     window.postMessage(
       {
         type: 'FLIPBASE_EXTENSION_STATUS',
-        installed: true,
-        version: '1.5.0',
-        vintedLocal: true,
+        installed: backgroundReachable,
+        backgroundReachable,
+        version: '1.6.0',
+        vintedLocal: backgroundReachable,
         ...(localAccount !== undefined ? { localAccount } : {}),
+        ...(readiness !== undefined ? { readiness } : {}),
       },
       window.location.origin,
     );
-    window.dispatchEvent(
-      new CustomEvent('flipbase:extension-ready', {
-        detail: { version: '1.5.0', ready: true },
-      }),
-    );
+    if (backgroundReachable)
+      window.dispatchEvent(
+        new CustomEvent('flipbase:extension-ready', {
+          detail: { version: '1.6.0', ready: true },
+        }),
+      );
   }
 
   function refreshLocalAccount() {
-    chrome.runtime.sendMessage({ type: 'VINTED_LOCAL_ACCOUNT_STATUS' }, (response) => {
-      localAccount =
-        !chrome.runtime.lastError && response?.success === true
-          ? (response.result?.localAccount ?? null)
-          : undefined;
+    try {
+      chrome.runtime.sendMessage({ type: 'VINTED_LOCAL_ACCOUNT_STATUS' }, (response) => {
+        backgroundReachable = !chrome.runtime.lastError && response?.success === true;
+        localAccount = backgroundReachable ? (response.result?.localAccount ?? null) : undefined;
+        readiness = backgroundReachable ? response.result?.readiness : undefined;
+        announceExtension();
+      });
+    } catch {
+      // Ein nach dem Erweiterungsreload ungültiger Kontext bestätigt keine Erreichbarkeit.
+      backgroundReachable = false;
+      localAccount = undefined;
+      readiness = undefined;
       announceExtension();
-    });
+    }
   }
 
   // Sofort und bei DOM-Events ankündigen

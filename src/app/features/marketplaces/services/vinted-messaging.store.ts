@@ -154,6 +154,7 @@ export class VintedMessagingStore {
       this.local.busy() ||
       !this.local.messagesAllowed() ||
       !this.local.hasValidBinding() ||
+      !this.local.canUseBrowserProfile() ||
       text.length > 5000 ||
       (!text.trim() && !attachment)
     )
@@ -170,7 +171,8 @@ export class VintedMessagingStore {
     this.failure.set(null);
     try {
       if (!(await this.ensureSendPermission(valid))) return false;
-      if (!valid() || !this.local.hasValidBinding()) return false;
+      if (!valid() || !this.local.hasValidBinding() || !this.local.canUseBrowserProfile())
+        return false;
       // Nach verlorener HTTP-Bestätigung bleibt dieselbe Nutzereingabe dieselbe Anfrage.
       const fingerprint = JSON.stringify([context, text, attachment]);
       const requestId = this.intents.get(fingerprint) ?? crypto.randomUUID();
@@ -183,7 +185,10 @@ export class VintedMessagingStore {
         queued,
       ]);
       // Ein Wecksignal bestätigt nur den Auftrag; es ersetzt keine Versandbestätigung.
-      void this.bridge.request('FLIPBASE_VINTED_LOCAL_MESSAGES_SEND', scope).catch(() => undefined);
+      if (this.local.canUseBrowserProfile())
+        void this.bridge
+          .request('FLIPBASE_VINTED_LOCAL_MESSAGES_SEND', scope)
+          .catch(() => undefined);
       return true;
     } catch {
       if (valid())
@@ -210,6 +215,7 @@ export class VintedMessagingStore {
       this.local.busy() ||
       !this.local.messagesAllowed() ||
       !this.local.hasValidBinding() ||
+      !this.local.canUseBrowserProfile() ||
       !message ||
       (message.state !== 'failed' && message.state !== 'outcome_unknown') ||
       (message.state === 'outcome_unknown' && !confirmedUnknown)
@@ -226,13 +232,18 @@ export class VintedMessagingStore {
     this.failure.set(null);
     try {
       if (!(await this.ensureSendPermission(valid))) return false;
+      if (!valid() || !this.local.hasValidBinding() || !this.local.canUseBrowserProfile())
+        return false;
       const queued = await this.api.retry(scope, conversationId, messageId, confirmedUnknown);
       if (!valid()) return false;
       this.storedMessages.update((messages) => [
         ...messages.filter((entry) => entry.id !== messageId && entry.id !== queued.id),
         queued,
       ]);
-      void this.bridge.request('FLIPBASE_VINTED_LOCAL_MESSAGES_SEND', scope).catch(() => undefined);
+      if (this.local.canUseBrowserProfile())
+        void this.bridge
+          .request('FLIPBASE_VINTED_LOCAL_MESSAGES_SEND', scope)
+          .catch(() => undefined);
       return true;
     } catch {
       if (valid())
@@ -254,6 +265,6 @@ export class VintedMessagingStore {
       if (!confirmed || !isCurrent()) return false;
       if (!(await this.local.approveSend()) || !isCurrent()) return false;
     }
-    return isCurrent() && this.local.hasValidBinding();
+    return isCurrent() && this.local.hasValidBinding() && this.local.canUseBrowserProfile();
   }
 }
