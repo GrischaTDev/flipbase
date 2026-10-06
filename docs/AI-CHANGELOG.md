@@ -1,5 +1,150 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-05 - Juna - Zentrale Vinted-Suchfilter integrieren
+
+**Auftrag:** Die reinen Markenfilter der Administration um vollständige Kategoriepfade,
+optionale Marken und Titelbegriffe mit UND-/ODER-Verknüpfung erweitern. Erstellen und
+Bearbeiten sollen dieselben Shared-Komponenten verwenden. Bereits zentral gezielt
+abrufen statt nur im Nutzerfeed auszublenden.
+
+**Umsetzung:** Gemeinsamer Editor mit Ebenen-/Vollpfadsuche, paginiertem konsistentem
+Kategoriebaum und verständlicher Vorschau. Suchvorschläge statt zufälliger Startmarken;
+dieselbe Marke bleibt in mehreren unterschiedlichen Filtern möglich. Neue RPC mit
+Betreiberprüfung, kanonischem Schlüssel und optimistischer Revision. Der Collector
+rotiert Marken und ODER-Begriffe innerhalb des vorhandenen Abrufbudgets. Titelregeln
+werden vor der Speicherung geprüft. Atomare Übernahme verhindert doppelte Funde,
+veraltete Antworten und wiederholtes Einlesen derselben Abrufposition. Ältere breite
+Filter, Funde und Favoriten bleiben erhalten; geänderte Bedingungen starten pausiert.
+
+**Migrationsprüfung:** Aus deklarativen Schemas erzeugt. Bereits bestehende sachfremde
+Schemaabweichungen getrennt als temporäre Generator-Basis erfasst. Vier unverändert
+wiederholte Marketplace-Constraint-Anweisungen wurden nur nach exaktem Abgleich mit
+dieser Basis automatisch abgezogen. Die Featuremigration enthält keine Änderungen an
+Einkaufs-/Bildrechten und keine Marketplace-Änderungen. Die breite erste Vorschau zeigte
+zwei sachfremde Datenbanktestfehler; diese Vorschau gehört nicht zum Feature.
+
+**Geprüfter Integrationslauf:** Lauf `37379725898` besteht 3.753 Anwendungstests,
+246 Collector-Tests, 2.959 Datenbankassertions und beide Browserabläufe (Desktop hell,
+1440 px; Mobil dunkel, 390 px). Der vollständige Angular-Produktionsbau, Formatierung,
+Lint und Typprüfungen bestehen. Die aus der migrierten Datenbank erzeugten Typen sind
+identisch zum Quellstand. Die Browserprüfung verwendet lokale HTTP-Fixtures, keine
+Vinted-Konten; AXE, Speichern, Wiederöffnen, Aktivieren/Pausieren und Löschen sind
+enthalten. Die Screenshots wurden auf Umbruch und Dialogdarstellung geprüft.
+
+**Nachprüfung:** Der Lauf war insgesamt noch rot, weil die manuelle Browserauswahl
+zwei alte Testnamen erwartete. Die Zuordnung wurde an die umbenannten, jetzt in der
+PR-Kernauswahl enthaltenen Tests angeglichen; kein Fall entfällt. Zusätzlich korrigiert
+ist der veraltete Kategorienhilfetext (neuer Test zuerst rot, anschließend grün).
+Tastatur-, Escape- und Außenklickprüfungen des Markenwählers bleiben enthalten. Der
+abschließende Lauf muss alle Prüfungen erneut bestehen, bevor der eigene Zweig den
+fertigen Stand ohne temporäre Transportdateien übernimmt.
+
+**Umgebungsgrenzen:** Lokaler Bundle-Bau überschritt die 4-GB-Grenze; der Bau auf GitHub
+besteht. Ein lokaler Browserprobeaufruf war vor dem Seitenladen durch Browserrichtlinien
+blockiert; maßgeblich sind die erfolgreichen regulären Browserläufe auf GitHub. Kein
+realer Vinted-Abruf und kein unabhängiger zweiter Reviewer. Bestehende npm-Auditmeldungen
+und die CommonJS-Warnung zu `pako` sind nicht Teil dieses Filterumbaus; Abhängigkeiten
+und Lockdateien wurden nicht geändert.
+
+**Fortsetzung am 06.10.2026:** Der Browsertest übersprang die eigene Tab-Station
+„Suche zurücksetzen“. Die Prüfung bildet jetzt die tatsächliche Vorwärts-/Rückwärts-
+Fokusfolge, Enter zum Zurücksetzen sowie Escape und Fokuswiederherstellung ab.
+Dabei wurde ein echter Fehler gefunden: Der Markenwähler fing Enter auch auf dem
+Zurücksetzen-Button ab. Ein neuer DOM-Regressionstest scheiterte daran zuerst und
+besteht nach Begrenzung der Treffersteuerung auf das Eingabefeld. Die anfängliche
+Routenprüfung wartet auf den sichtbaren Seiteninhalt; die genaue Zieladresse und
+sämtliche übrigen Erwartungen bleiben unverändert. Die vollständige Browserprüfung
+läuft erneut auf dem isolierten Runner, nicht gegen produktive Konten.
+
+**Abschlussprüfung vom 06.10.2026:** Lauf `37423402985`: 3764 Anwendungstests, 246 Collector-Tests, 3021 Datenbankassertions und 4 Browserabläufe bestanden. Desktop hell und Mobil dunkel jeweils zweimal ohne Wiederholungsversuch; Enter zum Zurücksetzen, Tab/Shift+Tab, Escape, Fokuswiederherstellung und AXE enthalten. 179 Workflow-Tests bestanden; 1 vorhandener optionaler Umgebungsfall übersprungen. Produktionsbau, Formatierung, Lint und Typprüfungen erfolgreich. Generierte Datenbanktypen stimmen exakt. Aktuelles master einschließlich PR 306 und 307 integriert. Temporäre Transportdateien und Prüfworkflow sind entfernt. Kein PR, kein Merge nach master und keine Produktionsänderung; Abschlussfreigabe steht noch aus.
+
+**Stand:** Eigener Zweig `juna/vinted-central-search-filters`. Keine Änderung an
+`master`, laufenden Filtern oder produktiven Daten. Kein PR und kein Merge freigegeben.
+Die temporären Transport- und Prüfdateien werden vor Abschluss entfernt.
+
+## 2026-10-05 - Juna - Privaten Cloud-IP-Piloten und automatischen Anbieterabgleich vorbereiten
+
+**Auftrag:** Nach PR 305 den gekauften Proxy auf Hetzner einrichten und den
+echten Cloudwechsel vorbereiten. Die Betriebsfreigabe wurde ausdrücklich erteilt.
+Nutzerpräzisierung: Bereits gekaufte IPs beim Hinzufügen und Cloudwechsel automatisch
+über IPRoyal einlesen; automatische Bestellungen bleiben aus.
+
+**Stand:** Die geprüften Worker- und Chromium-Abbilder des Merge-Commits
+`02dbcfbd` veröffentlicht und auf Hetzner geladen. Der bisherige Worker war seit
+04.10.2026 beendet. Eigene private Pilotkonfiguration und Rückwegkopien unter
+`/opt/flipbase-marketplace/pilot-02dbcfbd/` angelegt. Proxyzugangsdaten ausschließlich
+in einer persistenten privaten Serverdatei mit Eigentümer 1000:1000 und Modus 0600.
+IPRoyal-Bestellung 84454713 als deutsche Dedicated-ISP-IP im Bestand registriert.
+Die Anbieteroberfläche nennt nur den 04.11.2026; als vorsichtige lokale
+Nutzungsgrenze gilt 04.11.2026, 00:00 Uhr Berlin (`2026-11-03T23:00:00Z`).
+Das ist keine behauptete genaue Ablaufuhrzeit des Anbieters.
+
+**Ergänzung:** Im eigenen Zweig prüft die Einrichtung zunächst die bestehende
+Pilot-/Workspace-Berechtigung, liest dann alle gekauften ISP-Dedicated-Bestellungen
+und reserviert anschließend atomar. Deutsche neue IPs werden geprüft und nur in
+der privaten Netzwerkdatei ergänzt. Bestehende Kennungen, Sperren und Zuordnungen
+bleiben erhalten. Unvollständige API-Antworten verhindern neue Reservierungen.
+Bestellkäufe, Verlängerungen und Abrechnung sind nicht enthalten. Planung für Cloud
+und lokale Erweiterung entsprechend aktualisiert; deren Zweig bleibt unberührt.
+
+**Prüfung:** Expliziter HTTPS-Proxytest aus dem isolierten Browsernetz bestätigt
+Deutschland und den gekauften Ausgang. Beide Imageworkflows erfolgreich;
+Host-Firewall und Pilotnetz geprüft. Worker gesund, öffentliche API Version 2,
+Automatik und Vinted-Schreibfunktionen ausgeschaltet. Nach Worker-Neustart
+weiterhin genau eine freie IP und öffentlicher Healthcheck HTTP 200. Anonyme
+Cloud-Einrichtung wird mit HTTP 401 abgewiesen. Bestehende Konten, Profile und
+unklare lokale Versandresultate nicht verändert. Separater Flipbase-Tab vorbereitet.
+Ein echtes Konto wurde noch nicht ausgewählt oder zur Cloud umgeschaltet;
+Anmeldung, Identitätsprüfung und Abruf bleiben bis zur Kontoauswahl offen.
+Für den Anbieterabgleich sind 73 betroffene Workertests unter Windows erfolgreich;
+die einzige dort ausgelassene Dateirechteprüfung ist im Linuxlauf enthalten:
+33 Prüfungen ohne Auslassung erfolgreich. Typprüfung, Workerbau und gezieltes Lint
+bestanden. Der neue Dienst verarbeitet außerdem die echte IPRoyal-Antwort mit
+explizitem deutschem Proxytest erfolgreich: zwei Anbieter-GETs und ein Datenbank-GET,
+keine produktiven Schreibaufrufe. Produktive Netzwerkdatei unverändert. API-Token
+privat auf dem Server vorbereitet, noch nicht in den laufenden Worker aufgenommen.
+Die API nennt keine Zeitzone zur Ablaufuhrzeit; der neue Abgleich verwendet bis zur
+Klärung 00:00 UTC am Tag vor dem Ablauftag. Veröffentlichung des ergänzten Codes
+steht noch aus; die normale Einrichtung erfordert keine manuelle Kontoauswahl hier
+im Chat. Die konkrete Kontoauswahl oben betrifft ausschließlich den echten Pilottest.
+**Abschlussfreigabe:** PR, Pflichtprüfungen, Merge und Aufräumen mit „los“
+bestätigt. Den inzwischen veröffentlichten PR 306 aus `origin/master` eingebunden;
+beide Einträge im Änderungsprotokoll bleiben erhalten. Anschließend den geprüften
+Anbieterabgleich im vorhandenen privaten Worker aktivieren, ohne Kontoauswahl,
+automatischen IP-Kauf oder Vinted-Schreibaufruf.
+
+## 2026-10-05 - Juna - Lokale Vinted-Favoritennachrichten
+
+**Auftrag:** Die nächste freigegebene Automatisierung nach der Bleam-Recherche:
+eine eigene kontoweise Seite für Favoritennachrichten, Vorlagen, Zeit-/Tag-/Preisregeln
+und Versandverzögerung. Bestehende Favoritenmeldungen bleiben separat.
+
+**Stand:** Eigener Arbeitszweig. Der lesende Vinted-Web-Endpunkt wurde im
+freigegebenen Browser mit `mark_as_read=false` bestätigt. Erweiterung und
+Server speichern Favoritenereignisse und einen einzelnen Versandversuch dauerhaft.
+Unklare Ergebnisse werden nur gemeldet, nicht automatisch erneut ausgeführt.
+Die Aktivierung ist ausdrücklich und zunächst ausgeschaltet. Keine Nachricht
+aus dem echten Konto gesendet und keine vorhandene Einstellung verändert.
+
+**Prüfung:** 62 neue und 153 bestehende Datenbankassertions nach Einspielen der
+erzeugten Migration bestanden; vollständiger öffentlicher Schemaabgleich inklusive
+Rechten ohne Unterschiede. Typen aus der migrierten Datenbank neu erzeugt.
+107 betroffene Workflowprüfungen, 21 Deno-Tests einschließlich der RPC-Zuordnung,
+drei Modell- und fünf Angular-Komponententests bestanden. Desktop/Mobil mit AXE,
+Typprüfung, betroffene Format-/Lintprüfung und Produktionsbau bestanden.
+Der zusätzliche Angular-CLI-Testbuilder scheitert an bestehenden Tests in
+Einkauf und Shell; der projektübliche Vitest-Lauf besteht. Erweiterung 1.4.0.
+Nicht veröffentlicht; der echte Favoriten-Versandtest bleibt ausstehend.
+Der erste PR-Browserlauf erkannte die noch veraltete Navigationserwartung;
+der vorhandene Test berücksichtigt jetzt den neuen Menüpunkt.
+Das Abschlussreview ergänzte zwei Regressionstests: Eine erneuerte Freigabe
+braucht erneut eine ausdrückliche Aktivierungsbestätigung. Ein vor dem Versand
+verworfener Favoritenauftrag hinterlässt keinen blockierenden Ergebnisauftrag;
+dieser wird erst nach bestätigtem Serverstart und vor dem Provideraufruf gespeichert.
+Der geladene Erweiterungs-Code hat den vollständigen Scan-/Versandpfad in einem
+isolierten DOM-Test mit synthetischen Antworten bestätigt; fehlende Browserfreigabe
+verhindert bereits das Anlegen der Unterhaltung.
+
 ## 2026-10-05 - Juna - Cloudpilot mit festem IP-Bestand umsetzen
 
 **Auftrag:** Den freigegebenen Cloudpilot mit vorhandenen deutschen Dedicated-ISP-IPs

@@ -12,6 +12,7 @@ import type {
 import type { VintedAccountIdentity } from './vinted-browser-reader.ts';
 
 interface SetupOptions {
+  refreshInventory?: () => Promise<void>;
   store: Pick<
     SupabaseMarketplaceCloudSetupStore,
     'availability' | 'begin' | 'read' | 'cancel' | 'readAuthorized' | 'step' | 'rows'
@@ -44,11 +45,16 @@ export class MarketplaceCloudSetup {
   availability(workspaceId: string, accessToken: string): Promise<boolean> {
     return this.options.store.availability(workspaceId, accessToken);
   }
-  begin(
+  async begin(
     request: CloudSetupRequest,
     _userId: string,
     accessToken: string,
   ): Promise<CloudSetupResult> {
+    if (this.options.refreshInventory) {
+      if (!(await this.options.store.availability(request.workspaceId, accessToken)))
+        throw new Error('Cloud-Einrichtung ist nicht freigegeben');
+      await this.options.refreshInventory();
+    }
     return this.options.store.begin(request, accessToken);
   }
   read(scope: BrowserSessionScope, setupId: string): Promise<CloudSetupView> {

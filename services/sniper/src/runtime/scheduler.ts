@@ -2,6 +2,7 @@ import type { MarketplaceListing } from '../domain/listing.js';
 import type { QueryStatus, SniperQuery } from '../domain/query.js';
 import type { Logger } from '../log.js';
 import type { OriginState } from '../store/origin-state.store.js';
+import type { SearchFilterRunResult } from '../store/listing.store.js';
 import type { RequestBudget } from './budget.js';
 import { evaluateFailure, type RetryDecision } from './retry-policy.js';
 import { VintedCollectorError } from '../vinted/errors.js';
@@ -9,7 +10,13 @@ import { VintedCollectorError } from '../vinted/errors.js';
 export interface QueryStoreLike {
   dueQueries(now: Date): Promise<SniperQuery[]>;
   recordSuccess?(id: string, now?: Date): Promise<void>;
-  recordFailure?(id: string, decision: RetryDecision, now?: Date): Promise<void>;
+  recordFailure?(
+    id: string,
+    decision: RetryDecision,
+    now?: Date,
+    revision?: number,
+    cursor?: number,
+  ): Promise<void>;
   markSeeded(id: string): Promise<void>;
   markPolled?(id: string, status: QueryStatus): Promise<void>;
   deactivate?(id: string): Promise<void>;
@@ -83,6 +90,7 @@ export interface CollectorLike {
 }
 
 export interface ListingStoreLike {
+  completeRun?(listings: MarketplaceListing[], query: SniperQuery): Promise<SearchFilterRunResult>;
   saveNew(
     listings: MarketplaceListing[],
     discoveredByQueryId: string,
@@ -249,6 +257,9 @@ export class QueryScheduler {
     now: Date,
     isProbe: boolean,
   ): Promise<{ haltedOrigin: boolean }> {
+    if (query.filterFormatVersion === 1 && !this.deps.listings.completeRun) {
+      throw new Error('Updated search filter ingestion is unavailable');
+    }
     let listings: MarketplaceListing[];
 
     try {
@@ -264,6 +275,18 @@ export class QueryScheduler {
       delete report.originPause;
     }
 
+    if (query.filterFormatVersion === 1) {
+      const completed = await this.deps.listings.completeRun!(listings, query);
+      report.polled += 1;
+      if (completed.accepted) {
+        report.newHits += completed.hits;
+        if (completed.seeded) report.seeded += 1;
+        else report.newListings += completed.created;
+      } else {
+        this.deps.log.info('outdated_search_filter_response_discarded', { queryId: query.id });
+      }
+      return { haltedOrigin: false };
+    }
     const created = await this.deps.listings.saveNew(listings, query.id);
     report.polled += 1;
 
@@ -330,7 +353,15 @@ export class QueryScheduler {
     });
 
     if (this.deps.queries.recordFailure) {
-      await this.deps.queries.recordFailure(query.id, decision, now);
+      if (query.filterFormatVersion === 1)
+        await this.deps.queries.recordFailure(
+          query.id,
+          decision,
+          now,
+          query.filterRevision,
+          query.requestCursor ?? 0,
+        );
+      else await this.deps.queries.recordFailure(query.id, decision, now);
     } else if (this.deps.queries.markPolled) {
       const status: QueryStatus =
         decision.errorKind === 'rate_limited'

@@ -2540,6 +2540,118 @@ export type Database = {
           },
         ]
       }
+      marketplace_favorite_message_events: {
+        Row: {
+          actor_id: string
+          claim_token: string | null
+          connection_id: string
+          error_code: string | null
+          event_at: string
+          external_id: string
+          external_message_id: string | null
+          id: string
+          item_id: string
+          lease_expires_at: string | null
+          message_text: string | null
+          setting_version: number
+          state: string
+          title: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          actor_id: string
+          claim_token?: string | null
+          connection_id: string
+          error_code?: string | null
+          event_at: string
+          external_id: string
+          external_message_id?: string | null
+          id?: string
+          item_id: string
+          lease_expires_at?: string | null
+          message_text?: string | null
+          setting_version: number
+          state?: string
+          title: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          actor_id?: string
+          claim_token?: string | null
+          connection_id?: string
+          error_code?: string | null
+          event_at?: string
+          external_id?: string
+          external_message_id?: string | null
+          id?: string
+          item_id?: string
+          lease_expires_at?: string | null
+          message_text?: string | null
+          setting_version?: number
+          state?: string
+          title?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_favorite_message_ev_workspace_id_connection_id_fkey"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_connections"
+            referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
+      marketplace_favorite_message_settings: {
+        Row: {
+          activated_at: string | null
+          config: Json
+          connection_id: string
+          enabled: boolean
+          external_account_id: string | null
+          grant_generation: number | null
+          id: number
+          last_checked_at: string | null
+          version: number
+          workspace_id: string
+        }
+        Insert: {
+          activated_at?: string | null
+          config: Json
+          connection_id: string
+          enabled?: boolean
+          external_account_id?: string | null
+          grant_generation?: number | null
+          id?: never
+          last_checked_at?: string | null
+          version?: number
+          workspace_id: string
+        }
+        Update: {
+          activated_at?: string | null
+          config?: Json
+          connection_id?: string
+          enabled?: boolean
+          external_account_id?: string | null
+          grant_generation?: number | null
+          id?: never
+          last_checked_at?: string | null
+          version?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_favorite_message_se_workspace_id_connection_id_fkey"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: true
+            referencedRelation: "marketplace_connections"
+            referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
       marketplace_favorite_notification_events: {
         Row: {
           connection_id: string
@@ -4806,14 +4918,19 @@ export type Database = {
       sniper_queries: {
         Row: {
           brand_id: number | null
+          brand_ids: number[]
+          brand_names: string[]
           catalog_id: number | null
           consecutive_failures: number
           created_at: string
           deleted_at: string | null
+          filter_format_version: number
+          filter_revision: number
           id: string
           is_active: boolean
           is_seeded: boolean
           is_standard: boolean
+          keyword_mode: string
           last_attempt_at: string | null
           last_error_at: string | null
           last_error_kind: string | null
@@ -4828,21 +4945,29 @@ export type Database = {
           price_from: number | null
           price_to: number | null
           query_key: string
+          request_cursor: number
           run_state: string
           search_text: string | null
+          seeded_requests: number[]
           title: string
+          title_keywords: string[]
           updated_at: string
         }
         Insert: {
           brand_id?: number | null
+          brand_ids?: number[]
+          brand_names?: string[]
           catalog_id?: number | null
           consecutive_failures?: number
           created_at?: string
           deleted_at?: string | null
+          filter_format_version?: number
+          filter_revision?: number
           id?: string
           is_active?: boolean
           is_seeded?: boolean
           is_standard?: boolean
+          keyword_mode?: string
           last_attempt_at?: string | null
           last_error_at?: string | null
           last_error_kind?: string | null
@@ -4857,21 +4982,29 @@ export type Database = {
           price_from?: number | null
           price_to?: number | null
           query_key: string
+          request_cursor?: number
           run_state?: string
           search_text?: string | null
+          seeded_requests?: number[]
           title?: string
+          title_keywords?: string[]
           updated_at?: string
         }
         Update: {
           brand_id?: number | null
+          brand_ids?: number[]
+          brand_names?: string[]
           catalog_id?: number | null
           consecutive_failures?: number
           created_at?: string
           deleted_at?: string | null
+          filter_format_version?: number
+          filter_revision?: number
           id?: string
           is_active?: boolean
           is_seeded?: boolean
           is_standard?: boolean
+          keyword_mode?: string
           last_attempt_at?: string | null
           last_error_at?: string | null
           last_error_kind?: string | null
@@ -4886,9 +5019,12 @@ export type Database = {
           price_from?: number | null
           price_to?: number | null
           query_key?: string
+          request_cursor?: number
           run_state?: string
           search_text?: string | null
+          seeded_requests?: number[]
           title?: string
+          title_keywords?: string[]
           updated_at?: string
         }
         Relationships: []
@@ -4943,6 +5079,8 @@ export type Database = {
           reported_at: string
           request_budget: number
           requests_last_minute: number
+          search_filter_reported_at: string | null
+          search_filter_version: number
           vinted_connected_since: string | null
           vinted_last_success_at: string | null
         }
@@ -4953,6 +5091,8 @@ export type Database = {
           reported_at: string
           request_budget: number
           requests_last_minute: number
+          search_filter_reported_at?: string | null
+          search_filter_version?: number
           vinted_connected_since?: string | null
           vinted_last_success_at?: string | null
         }
@@ -4963,6 +5103,8 @@ export type Database = {
           reported_at?: string
           request_budget?: number
           requests_last_minute?: number
+          search_filter_reported_at?: string | null
+          search_filter_version?: number
           vinted_connected_since?: string | null
           vinted_last_success_at?: string | null
         }
@@ -6241,6 +6383,15 @@ export type Database = {
         Args: { p_lease_id: string; p_request_id: string }
         Returns: undefined
       }
+      complete_sniper_search_filter_run: {
+        Args: {
+          p_cursor: number
+          p_listings: Json
+          p_query_id: string
+          p_revision: number
+        }
+        Returns: Json
+      }
       correct_purchase_costing: {
         Args: {
           p_costs: Json
@@ -6918,6 +7069,14 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_favorite_message_config_valid: {
+        Args: { p_config: Json }
+        Returns: boolean
+      }
+      marketplace_favorite_message_text: {
+        Args: { p_at: string; p_config: Json; p_price: number; p_seed: string }
+        Returns: string
+      }
       marketplace_finalize_favorite_import: {
         Args: {
           p_connection_id: string
@@ -6926,6 +7085,15 @@ export type Database = {
           p_workspace_id: string
         }
         Returns: undefined
+      }
+      marketplace_import_local_favorites: {
+        Args: {
+          p_connection_id: string
+          p_events: Json
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
       }
       marketplace_import_local_inbox: {
         Args: {
@@ -6960,6 +7128,45 @@ export type Database = {
       marketplace_local_extension_user_valid: {
         Args: { p_user_id: string }
         Returns: boolean
+      }
+      marketplace_local_favorite_claim: {
+        Args: {
+          p_connection_id: string
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_local_favorite_finish: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: string
+          p_error_code?: string
+          p_event_id: string
+          p_external_message_id?: string
+          p_outcome: string
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_local_favorite_start: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: string
+          p_event_id: string
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_local_favorites_state: {
+        Args: {
+          p_connection_id: string
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
       }
       marketplace_local_inbox_detail_import: {
         Args: {
@@ -7069,6 +7276,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      marketplace_read_favorite_messages: {
+        Args: { p_connection_id: string; p_workspace_id: string }
+        Returns: Json
+      }
       marketplace_read_favorite_notification_settings: {
         Args: { p_connection_id: string; p_workspace_id: string }
         Returns: Json
@@ -7135,6 +7346,16 @@ export type Database = {
       }
       marketplace_revoke_local_extension: {
         Args: { p_connection_id: string; p_workspace_id: string }
+        Returns: Json
+      }
+      marketplace_save_favorite_messages: {
+        Args: {
+          p_config: Json
+          p_connection_id: string
+          p_enabled: boolean
+          p_expected_version: number
+          p_workspace_id: string
+        }
         Returns: Json
       }
       marketplace_set_favorite_notification_settings: {
@@ -7272,6 +7493,7 @@ export type Database = {
         Args: { p_details: Json }
         Returns: Json
       }
+      normalize_sniper_keyword: { Args: { p_value: string }; Returns: string }
       place_store_order: {
         Args: {
           p_buyer_notes: string
@@ -7436,6 +7658,20 @@ export type Database = {
       }
       record_sniper_listing_category: {
         Args: { p_external_ids: string[]; p_query_id: string }
+        Returns: undefined
+      }
+      record_sniper_search_filter_failure: {
+        Args: {
+          p_cursor: number
+          p_error_kind: string
+          p_error_message: string
+          p_failure_count: number
+          p_next_attempt_at: string
+          p_query_id: string
+          p_revision: number
+          p_run_state: string
+          p_status: string
+        }
         Returns: undefined
       }
       refresh_purchase_receiving_status: {
@@ -7608,6 +7844,23 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      save_sniper_search_filter: {
+        Args: {
+          p_brands: Json
+          p_catalog_id: number
+          p_expected_revision: number
+          p_id: string
+          p_keyword_mode: string
+          p_notes: string
+          p_poll_interval_ms: number
+          p_price_from?: number
+          p_price_to?: number
+          p_search_text?: string
+          p_title: string
+          p_title_keywords: string[]
+        }
+        Returns: string
       }
       save_sniper_watchlist: {
         Args: {

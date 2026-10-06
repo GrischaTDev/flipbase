@@ -1,0 +1,266 @@
+import { createRequire } from 'node:module';
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+import { JSDOM } from 'jsdom';
+const require = createRequire(import.meta.url);
+const favorites = require('../tools/flipbase-extension/vinted-local-favorites.js');
+const core = require('../tools/flipbase-extension/vinted-local-core.js');
+const messages = require('../tools/flipbase-extension/vinted-local-messages.js');
+const notification = {
+  id: '38100000-0000-4000-8000-000000000041',
+  entry_type: 20,
+  subject_id: 42,
+  link: '/items/42/want_it/new?offering_id=73',
+  updated_at: '2026-10-05T17:07:58Z',
+};
+test('read favorites preserves unread notifications and normalizes the proven provider format', async () => {
+  const calls = [];
+  const entries = await favorites.read(
+    async (path) => {
+      calls.push(path);
+      return path.endsWith('/current') ? { user: { id: 9 } } : { notifications: [notification] };
+    },
+    '9',
+    Date.parse('2026-10-05T18:00:00Z'),
+  );
+  assert.deepEqual(entries, [
+    {
+      externalId: notification.id,
+      actorId: '73',
+      itemId: '42',
+      eventAt: '2026-10-05T17:07:58.000Z',
+    },
+  ]);
+  assert.ok(calls[1].endsWith('mark_as_read=false'));
+});
+test('read rejects changed identity, malformed dates and failed notification responses', async () => {
+  await assert.rejects(
+    favorites.read(async () => ({ user: { id: 8 } }), '9'),
+    /gewechselt/,
+  );
+  for (const response of [{}, { notifications: [{ ...notification, updated_at: 'not a date' }] }])
+    await assert.rejects(
+      favorites.read(
+        async (path) => (path.endsWith('/current') ? { user: { id: 9 } } : response),
+        '9',
+      ),
+    );
+});
+test('read ignores unrelated notifications and deduplicates overlapping pages', async () => {
+  const rows = Array.from({ length: 100 }, () => notification);
+  const entries = await favorites.read(
+    async (path) =>
+      path.endsWith('/current')
+        ? { user: { id: 9 } }
+        : { notifications: rows, pagination: { total_pages: 2 } },
+    '9',
+    Date.parse('2026-10-06'),
+  );
+  assert.equal(entries.length, 1);
+});
+function setup({ existing = false, history = false, fail = false } = {}) {
+  const writes = [];
+  const messages = { send: async () => ({ outcome: 'sent', externalMessageId: '123' }) };
+  const adapter = {
+    csrf: 'synthetic',
+    read: async (path) =>
+      path.endsWith('/current')
+        ? { user: { id: 9 } }
+        : path.includes('wardrobe/')
+          ? { items: [{ id: 42, is_closed: false }], pagination: { total_pages: 1 } }
+          : path.includes('inbox?')
+            ? { conversations: existing ? [{ opposite_user: { id: 73 } }] : [] }
+            : {
+                conversation: {
+                  id: 15,
+                  opposite_user: { id: 73 },
+                  messages: history ? [{ id: 1 }] : [],
+                },
+              },
+    write: async (path, request) => {
+      writes.push({ path, request });
+      if (fail) throw new Error('lost response');
+      return { conversation: { id: 15, opposite_user: { id: 73 } } };
+    },
+  };
+  return { adapter, messages, writes };
+}
+const command = { actorId: '73', itemId: '42', text: 'Danke für Dein Interesse!' };
+test('favorite sends through the existing confirmed message sender', async () => {
+  const fixture = setup();
+  assert.equal(
+    (await favorites.send(fixture.adapter, '9', command, fixture.messages)).outcome,
+    'sent',
+  );
+  assert.equal(JSON.parse(fixture.writes[0].request.body).initiator, 'seller_enters_notification');
+});
+test('existing conversation never receives a new automatic favorite message', async () => {
+  for (const options of [{ existing: true }, { history: true }]) {
+    const fixture = setup(options);
+    assert.equal(
+      (await favorites.send(fixture.adapter, '9', command, fixture.messages)).outcome,
+      'skipped',
+    );
+  }
+});
+test('lost conversation creation response is unknown and never retried', async () => {
+  const fixture = setup({ fail: true });
+  assert.equal(
+    (await favorites.send(fixture.adapter, '9', command, fixture.messages)).outcome,
+    'outcome_unknown',
+  );
+  assert.equal(fixture.writes.length, 1);
+});
+
+test('inactive or unknown items do not create a conversation', async () => {
+  for (const item of [
+    null,
+    { id: 42, is_closed: true },
+    { id: 42, is_closed: false, is_reserved: true },
+  ]) {
+    const fixture = setup();
+    const read = fixture.adapter.read;
+    fixture.adapter.read = (path) =>
+      path.includes('wardrobe/')
+        ? Promise.resolve({ items: item ? [item] : [], pagination: { total_pages: 1 } })
+        : read(path);
+    assert.equal(
+      (await favorites.send(fixture.adapter, '9', command, fixture.messages)).outcome,
+      'skipped',
+    );
+    assert.equal(fixture.writes.length, 0);
+  }
+});
+
+test('identity changes or a challenge stop before creating a conversation', async () => {
+  const fixture = setup();
+  const read = fixture.adapter.read;
+  let identities = 0;
+  fixture.adapter.read = (path) =>
+    path.endsWith('/current')
+      ? Promise.resolve({ user: { id: ++identities === 1 ? 9 : 8 } })
+      : read(path);
+  const outcome = await favorites.send(fixture.adapter, '9', command, fixture.messages);
+  assert.equal(outcome.errorCode, 'identity_changed');
+  assert.equal(fixture.writes.length, 0);
+});
+
+test('missing browser authorization fails before the first favorite write', async () => {
+  const fixture = setup();
+  fixture.adapter.csrf = null;
+  const result = await favorites.send(fixture.adapter, '9', command, fixture.messages);
+  assert.equal(result.outcome, 'failed');
+  assert.equal(result.errorCode, 'login_required');
+  assert.equal(fixture.writes.length, 0);
+});
+
+test('installed content script scans unread favorites and confirms one reply through the existing sender', async () => {
+  const dom = new JSDOM(
+    '<!doctype html><head><meta name="csrf-token" content="synthetic-csrf"></head><body><main>Garderobe</main></body>',
+    { url: 'https://www.vinted.de/' },
+  );
+  dom.window.Range.prototype.getClientRects = () => [];
+  let listener;
+  const chrome = {
+    runtime: {
+      id: 'extension',
+      getURL: (path) => `chrome-extension://extension/${path}`,
+      onMessage: {
+        addListener: (callback) => {
+          listener = callback;
+        },
+      },
+    },
+  };
+  const writes = [];
+  let sent = false;
+  const fetch = async (path, options) => {
+    assert.equal(options.credentials, 'include');
+    let payload;
+    if (options.method === 'POST') {
+      assert.equal(options.headers['X-Csrf-Token'], 'synthetic-csrf');
+      writes.push({ path, body: JSON.parse(options.body) });
+      if (path.endsWith('/replies')) sent = true;
+      payload = { conversation: { id: 15 } };
+    } else if (path.endsWith('/current')) payload = { user: { id: 9 } };
+    else if (path.includes('/notifications/')) {
+      assert.ok(path.endsWith('mark_as_read=false'));
+      payload = {
+        notifications: [{ ...notification, updated_at: new Date(Date.now() - 1000).toISOString() }],
+      };
+    } else if (path.includes('/wardrobe/'))
+      payload = { items: [{ id: 42, is_closed: false }], pagination: { total_pages: 1 } };
+    else if (path.includes('/inbox?')) payload = { conversations: [] };
+    else
+      payload = {
+        conversation: {
+          id: 15,
+          opposite_user: { id: 73 },
+          messages: sent ? [{ id: 123, entity: { user_id: 9, body: command.text } }] : [],
+        },
+      };
+    return {
+      status: 200,
+      ok: true,
+      url: `https://www.vinted.de${path}`,
+      headers: new Headers({ 'Content-Type': 'application/json' }),
+      json: async () => payload,
+    };
+  };
+  dom.window.FlipbaseVintedLocal = core;
+  dom.window.FlipbaseVintedFavorites = favorites;
+  dom.window.FlipbaseVintedMessages = messages;
+  const context = vm.createContext({
+    globalThis: dom.window,
+    window: dom.window,
+    location: dom.window.location,
+    document: dom.window.document,
+    chrome,
+    URL,
+    AbortSignal,
+    fetch,
+    getComputedStyle: dom.window.getComputedStyle.bind(dom.window),
+    Date,
+    Error,
+    Number,
+  });
+  try {
+    vm.runInContext(
+      readFileSync(
+        new URL('../tools/flipbase-extension/vinted-local-content.js', import.meta.url),
+        'utf8',
+      ),
+      context,
+    );
+    const scan = await new Promise((resolve) =>
+      listener(
+        { type: 'VINTED_LOCAL_FAVORITES', externalAccountId: '9', timeoutMs: 1000 },
+        { id: 'extension' },
+        resolve,
+      ),
+    );
+    assert.equal(scan.success, true);
+    assert.equal(scan.result.events.length, 1);
+    assert.equal(writes.length, 0);
+    const reply = await new Promise((resolve) =>
+      listener(
+        { type: 'VINTED_LOCAL_FAVORITE_SEND', externalAccountId: '9', command, timeoutMs: 1000 },
+        { id: 'extension' },
+        resolve,
+      ),
+    );
+    assert.equal(reply.success, true);
+    assert.equal(reply.result.outcome.outcome, 'sent');
+    assert.equal(reply.result.outcome.externalMessageId, '123');
+    assert.deepEqual(
+      writes.map((write) => write.path),
+      ['/api/v2/conversations', '/api/v2/conversations/15/replies'],
+    );
+    assert.equal(writes[0].body.opposite_user_id, '73');
+    assert.equal(writes[1].body.reply.body, command.text);
+  } finally {
+    dom.window.close();
+  }
+});

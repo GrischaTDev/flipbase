@@ -72,7 +72,7 @@ function matches(row: unknown, registration: Registration, exitFingerprint: stri
 }
 
 /** Ein expliziter Proxytest prüft nur den Ausgang, niemals eine Vinted-Anmeldung. */
-async function probeGermanExit(
+export async function probeGermanExit(
   network: Extract<ChromiumNetwork, { kind: 'proxy' }>,
 ): Promise<{ ip: string; countryCode: string }> {
   const { request } = await import('playwright');

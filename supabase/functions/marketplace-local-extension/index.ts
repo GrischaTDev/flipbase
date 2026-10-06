@@ -13,6 +13,42 @@ const service = createClient(
 );
 Deno.serve(
   createLocalExtensionHandler({
+    async favorites(tokenHash, input) {
+      const scope = {
+        p_workspace_id: input.workspaceId,
+        p_connection_id: input.connectionId,
+        p_token_hash: tokenHash,
+      };
+      const result =
+        input.action === 'favorites_state'
+          ? await service.rpc('marketplace_local_favorites_state', scope)
+          : input.action === 'favorites_import'
+            ? await service.rpc('marketplace_import_local_favorites', {
+                ...scope,
+                p_events: input.events,
+              })
+            : input.action === 'favorite_claim'
+              ? await service.rpc('marketplace_local_favorite_claim', scope)
+              : input.action === 'favorite_start'
+                ? await service.rpc('marketplace_local_favorite_start', {
+                    ...scope,
+                    p_event_id: input.id,
+                    p_claim_token: input.claimToken,
+                  })
+                : input.action === 'favorite_finish'
+                  ? await service.rpc('marketplace_local_favorite_finish', {
+                      ...scope,
+                      p_event_id: input.id,
+                      p_claim_token: input.claimToken,
+                      p_outcome: input.outcome,
+                      p_external_message_id: input.externalMessageId ?? null,
+                      p_error_code: input.errorCode ?? null,
+                    })
+                  : null;
+      if (!result) throw new LocalExtensionStoreError('invalid');
+      if (result.error) throw mapStoreError(result.error.code);
+      return result.data;
+    },
     async inboxState(tokenHash, input) {
       if (input.action !== 'inbox_state') throw new LocalExtensionStoreError('invalid');
       const { data, error } = await service.rpc('marketplace_local_inbox_state', {

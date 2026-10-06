@@ -36,6 +36,17 @@ async function mockAdministration(page: Page) {
   let rejectSave = false;
   let runtimeAge = 0;
   let categoryRequestedAt: string | null = null;
+  const refreshedAt = new Date(Date.now() - 60000).toISOString();
+  const categories = [
+    { id: 1, parent_id: null, title: 'Herren', path: 'Herren', is_leaf: false },
+    { id: 2, parent_id: 1, title: 'Kleidung', path: 'Herren > Kleidung', is_leaf: false },
+    { id: 79, parent_id: 2, title: 'Jacken', path: 'Herren > Kleidung > Jacken', is_leaf: true },
+    { id: 80, parent_id: 2, title: 'Hosen', path: 'Herren > Kleidung > Hosen', is_leaf: true },
+    { id: 3, parent_id: null, title: 'Damen', path: 'Damen', is_leaf: false },
+    { id: 16, parent_id: 3, title: 'Schuhe', path: 'Damen > Schuhe', is_leaf: false },
+    { id: 1049, parent_id: 16, title: 'Stiefel', path: 'Damen > Schuhe > Stiefel', is_leaf: true },
+    { id: 1050, parent_id: 16, title: 'Sneaker', path: 'Damen > Schuhe > Sneaker', is_leaf: true },
+  ];
   // Auch die Sitzungsmeldungen bleiben lokal; es wird kein echter Server verbunden.
   await page.routeWebSocket(/127\.0\.0\.1:54351/, (socket) => {
     socket.onMessage((message) => {
@@ -111,54 +122,58 @@ async function mockAdministration(page: Page) {
         categoryRequestedAt = new Date().toISOString();
       }
       json = {
-        refreshed_at: new Date(Date.now() - 60_000).toISOString(),
+        refreshed_at: refreshedAt,
         requested_at: categoryRequestedAt,
         last_attempt_at: null,
-        category_count: 2,
+        category_count: categories.length,
         last_error: null,
       };
     }
-    if (name === 'vinted_categories')
-      json =
-        Number(url.searchParams.get('offset') ?? 0) === 0
-          ? [
-              { id: 1049, parent_id: 16, title: 'Stiefel', path: 'Damen > Schuhe > Stiefel' },
-              { id: 1050, parent_id: 16, title: 'Sneaker', path: 'Damen > Schuhe > Sneaker' },
-            ]
-          : [];
-    if (['upsert_sniper_query', 'set_sniper_query_active', 'delete_sniper_query'].includes(name)) {
+    if (name === 'vinted_categories') {
+      const available =
+        url.searchParams.get('is_leaf') === 'eq.true'
+          ? categories.filter((category) => category.is_leaf)
+          : categories;
+      json = Number(url.searchParams.get('offset') ?? 0) === 0 ? available : [];
+    }
+    if (
+      ['save_sniper_search_filter', 'set_sniper_query_active', 'delete_sniper_query'].includes(name)
+    ) {
       const body = route.request().postDataJSON() as Record<string, unknown>;
       calls.push({ name, body });
-      if (rejectSave && name === 'upsert_sniper_query') {
+      if (rejectSave && name === 'save_sniper_search_filter') {
         await route.fulfill({
           status: 400,
           json: { message: 'Speichern vorübergehend fehlgeschlagen' },
         });
         return;
       }
-      if (name === 'upsert_sniper_query') {
-        if (body['p_id'])
-          Object.assign(
-            rows.find((row) => row['id'] === body['p_id'])!,
-            {
-              title: body['p_title'],
-              notes: body['p_notes'],
-              poll_interval_ms: body['p_poll_interval_ms'],
-            },
-          );
+      if (name === 'save_sniper_search_filter') {
+        const brands = body['p_brands'] as { id: number; name: string }[];
+        const existing = rows.find((row) => row['id'] === body['p_id']);
+        const conditions = {
+          title: body['p_title'],
+          notes: body['p_notes'],
+          catalog_id: body['p_catalog_id'],
+          brand_ids: brands.map((brand) => brand.id),
+          brand_names: brands.map((brand) => brand.name),
+          brand_id: brands.length === 1 ? brands[0].id : null,
+          title_keywords: body['p_title_keywords'],
+          keyword_mode: body['p_keyword_mode'],
+          poll_interval_ms: body['p_poll_interval_ms'],
+          search_text: body['p_search_text'],
+          price_from: body['p_price_from'],
+          price_to: body['p_price_to'],
+          filter_revision: Number(existing?.['filter_revision'] ?? 0) + 1,
+          filter_format_version: 1,
+        };
+        if (existing) Object.assign(existing, conditions);
         else
           rows.push({
+            ...conditions,
             id: `query-${rows.length + 1}`,
-            title: body['p_title'],
-            query_key: `vinted|search=|catalog=-|brand=${body['p_brand_id']}|price_from=-|price_to=-`,
             marketplace: 'vinted',
-            search_text: null,
-            catalog_id: null,
-            brand_id: body['p_brand_id'],
-            price_from: null,
-            price_to: null,
-            poll_interval_ms: body['p_poll_interval_ms'],
-            notes: body['p_notes'],
+            query_key: `fixture-${rows.length + 1}`,
             is_active: false,
             is_seeded: false,
             is_standard: false,
@@ -169,7 +184,7 @@ async function mockAdministration(page: Page) {
             updated_at: new Date().toISOString(),
             deleted_at: null,
           });
-        json = 'query-1';
+        json = existing?.['id'] ?? rows.at(-1)?.['id'];
       } else if (name === 'delete_sniper_query') {
         Object.assign(
           rows.find((row) => row['id'] === body['p_id'])!,
@@ -243,7 +258,7 @@ async function openVintedBotSection(page: Page, name: string) {
 }
 
 for (const theme of ['light', 'dark']) {
-  test(`Markenfilter verwalten und Kategorien im Botbetrieb ${theme} @pr-smoke`, async ({
+  test(`verwaltet zentrale Kategorie-, Marken- und Titel-Suchfilter ${theme} @core-smoke`, async ({
     page,
   }, testInfo) => {
     await page.setViewportSize({ width: theme === 'dark' ? 390 : 1440, height: 1000 });
@@ -258,112 +273,168 @@ for (const theme of ['light', 'dark']) {
         consoleMessages.push({ type: message.type(), text: message.text() });
     });
     await page.goto('/admin/queries');
-    await expect(page).toHaveURL(/\/admin\/vinted-bot\/queries$/);
-    await expect(page).toHaveTitle(/Flipbase/);
-    await expect(page.locator('vite-error-overlay')).toHaveCount(0);
     const create = page
       .locator('[data-new-query]')
-      .getByRole('button', { name: 'Neuer Markenfilter', exact: true });
-    await expect(create).toBeVisible();
+      .getByRole('button', { name: 'Neuer Suchfilter', exact: true });
+    // Erst die lazy geladene Seite abwarten; danach muss auch die alte Adresse umgeleitet sein.
+    await create.waitFor({ state: 'visible' });
+    await expect(page).toHaveURL(/\/admin\/vinted-bot\/queries$/);
+    await expect(page.locator('vite-error-overlay')).toHaveCount(0);
     await create.click();
-    const creator = page.getByRole('dialog', { name: 'Neuen Markenfilter anlegen', exact: true });
-    await expect(creator).toBeVisible();
-    await expect(
-      page.getByRole('button', { name: 'Markenfilter anlegen', exact: true }),
-    ).toBeDisabled();
-    const trigger = page.locator('#vinted-brand-picker');
+    const editor = page.getByRole('dialog', { name: 'Neuen Suchfilter anlegen', exact: true });
+    await expect(editor).toBeVisible();
+    await editor
+      .getByRole('textbox', { name: 'Filtername', exact: true })
+      .fill('Nike Herrenjacken – Vintage');
+    await editor.getByRole('button', { name: 'Direkt suchen', exact: true }).click();
+    const category = editor.getByRole('combobox', {
+      name: 'Vinted-Kategorie nach vollständigem Pfad suchen',
+      exact: true,
+    });
+    await category.click();
+    await page.getByRole('option', { name: 'Herren > Kleidung > Jacken', exact: true }).click();
+    const trigger = editor.locator('#vinted-brand-picker');
     await trigger.click();
-    const picker = page.getByRole('dialog', { name: 'Vinted-Marken', exact: true });
-    const search = page.getByRole('combobox', { name: 'Vinted-Marken suchen', exact: true });
+    const picker = page.getByRole('dialog', { name: 'Marken · optional', exact: true });
+    const search = picker.getByRole('combobox');
+    await expect(picker.getByRole('option')).toHaveCount(0);
+    await search.fill('Nike');
     await expect(picker.getByRole('option', { name: 'Nike', exact: true })).toBeVisible();
-    await search.fill('Patagonia');
-    await expect(picker.getByRole('option', { name: 'Patagonia', exact: true })).toBeVisible();
-    await expect(search).toHaveAttribute('type', 'text');
-    await expect(
-      picker.getByRole('button', { name: 'Suche zurücksetzen', exact: true }),
-    ).toBeVisible();
-    await checkAxe(page);
-    await page.screenshot({ path: testInfo.outputPath('brand-search.png'), fullPage: true });
-    await page.getByRole('textbox', { name: 'Notiz', exact: true }).click();
+    // Außerhalb schließen und Escape dürfen den übergeordneten Editor nicht schließen.
+    await editor.getByRole('textbox', { name: 'Filtername', exact: true }).click();
     await expect(picker).not.toBeVisible();
-    await expect(creator).toBeVisible();
+    await expect(editor).toBeVisible();
     await trigger.click();
-    await expect(search).toHaveValue('Patagonia');
+    await expect(search).toHaveValue('Nike');
     await search.press('Escape');
     await expect(picker).not.toBeVisible();
-    await expect(creator).toBeVisible();
+    await expect(editor).toBeVisible();
     await trigger.click();
     await search.press('ArrowDown');
     await search.press('Enter');
-    await expect(
-      page.getByRole('button', { name: 'Patagonia aus Auswahl entfernen', exact: true }),
-    ).toBeVisible();
-    await search.fill('Nike');
-    await picker.getByRole('option', { name: 'Nike', exact: true }).click();
     await picker.getByRole('button', { name: 'Auswahl schließen', exact: true }).click();
-    await expect(picker).not.toBeVisible();
-    await page
+    await editor
+      .getByRole('textbox', { name: 'Stichwörter im Titel · optional', exact: true })
+      .fill('Vintage');
+    await editor
+      .getByRole('textbox', { name: 'Stichwörter im Titel · optional', exact: true })
+      .press('Enter');
+    await expect(editor.getByRole('status')).toContainText('Titel enthält alle Begriffe: vintage');
+    await editor.getByRole('button', { name: 'Erweiterte Einstellungen', exact: true }).click();
+    await editor
       .getByRole('spinbutton', { name: 'Abstand zwischen Abfragen in Sekunden', exact: true })
       .fill('30');
-    await page.getByRole('textbox', { name: 'Notiz', exact: true }).fill('Sportmarken');
+    await editor.getByRole('textbox', { name: 'Notiz', exact: true }).fill('Sportmarken');
+    await checkAxe(page);
+    await page.screenshot({
+      path: testInfo.outputPath('specific-search-filter.png'),
+      fullPage: true,
+    });
     backend.failSave(true);
-    await page.getByRole('button', { name: 'Markenfilter anlegen', exact: true }).click();
-    await expect(creator.getByRole('alert')).toContainText('konnten nicht angelegt');
+    await editor.getByRole('button', { name: 'Suchfilter speichern', exact: true }).click();
+    await expect(editor.getByRole('alert')).toContainText('Speichern vorübergehend fehlgeschlagen');
     await expect(
-      page.getByRole('button', { name: 'Patagonia aus Auswahl entfernen', exact: true }),
+      editor.getByRole('button', { name: 'Nike aus Auswahl entfernen', exact: true }),
     ).toBeVisible();
     backend.failSave(false);
-    await page.getByRole('button', { name: 'Markenfilter anlegen', exact: true }).click();
-    await expect(creator).not.toBeVisible();
-    await expect(page.getByRole('table')).toContainText('Patagonia');
-    await expect(page.getByRole('table')).toContainText('Nike');
-    await expect(page.getByRole('table')).toContainText('Pausiert');
-    await page.getByRole('button', { name: 'Markenfilter aktivieren: Nike', exact: true }).click();
+    await editor.getByRole('button', { name: 'Suchfilter speichern', exact: true }).click();
+    await expect(editor).not.toBeVisible();
+    await expect(page.getByRole('table')).toContainText('Herren > Kleidung > Jacken');
+    const title = 'Nike Herrenjacken – Vintage';
+    await page
+      .getByRole('button', { name: `Suchfilter aktivieren: ${title}`, exact: true })
+      .click();
     await expect(page.getByRole('status').filter({ hasText: 'Wird geprüft' })).toBeVisible();
-    await page.getByRole('button', { name: 'Markenfilter pausieren: Nike', exact: true }).click();
-    await page.getByRole('button', { name: 'Markenfilter bearbeiten: Nike', exact: true }).click();
-    const editor = page.getByRole('dialog', { name: 'Markenfilter bearbeiten', exact: true });
-    await page.getByRole('textbox', { name: 'Filtername', exact: true }).fill('Nike geändert');
-    await page.getByRole('textbox', { name: 'Notiz' }).fill('Gezielter Testbereich');
-    await editor.getByRole('button', { name: 'Dialog schließen', exact: true }).click();
+    await page.getByRole('button', { name: `Suchfilter pausieren: ${title}`, exact: true }).click();
+    await page
+      .getByRole('button', { name: `Suchfilter bearbeiten: ${title}`, exact: true })
+      .click();
+    const editing = page.getByRole('dialog', { name: 'Suchfilter bearbeiten', exact: true });
+    await expect(
+      editing.getByRole('button', { name: 'Nike aus Auswahl entfernen', exact: true }),
+    ).toBeVisible();
+    await expect(
+      editing.getByRole('button', { name: 'vintage aus Titelbegriffen entfernen', exact: true }),
+    ).toBeVisible();
+    await editing.getByRole('textbox', { name: 'Filtername', exact: true }).fill('Nike geändert');
+    await editing.getByRole('button', { name: 'Dialog schließen', exact: true }).click();
     const discard = page.getByRole('dialog', { name: 'Änderungen verwerfen?', exact: true });
     await expect(discard).toBeVisible();
     await discard.getByRole('button', { name: 'Abbrechen', exact: true }).click();
-    await expect(editor).toBeVisible();
-    await page.getByRole('button', { name: 'Änderungen speichern', exact: true }).click();
+    await editing.getByRole('button', { name: 'Erweiterte Einstellungen', exact: true }).click();
+    await editing
+      .getByRole('textbox', { name: 'Notiz', exact: true })
+      .fill('Gezielter Testbereich');
+    await editing.getByRole('button', { name: 'Änderungen speichern', exact: true }).click();
     await expect(page.getByRole('table')).toContainText('Gezielter Testbereich');
     await expect(create).toBeFocused();
+    await page.reload();
+    await expect(page.getByRole('table')).toContainText('Nike geändert');
+    await create.click();
+    const second = page.getByRole('dialog', { name: 'Neuen Suchfilter anlegen', exact: true });
+    await second.getByRole('textbox', { name: 'Filtername', exact: true }).fill('Herren komplett');
+    await second.getByRole('combobox', { name: 'Bereich auswählen', exact: true }).click();
+    await page.getByRole('option', { name: 'Herren', exact: true }).click();
+    // Übergeordnete Kategorien sind ausdrücklich ohne Marke speicherbar.
+    await second.getByRole('button', { name: 'Suchfilter speichern', exact: true }).click();
+    await expect(page.getByRole('table')).toContainText('Herren komplett');
+    expect(
+      backend.calls.some(
+        (call) =>
+          call.name === 'save_sniper_search_filter' &&
+          call.body['p_catalog_id'] === 1 &&
+          (call.body['p_brands'] as unknown[]).length === 0,
+      ),
+    ).toBe(true);
+    await create.click();
+    const third = page.getByRole('dialog', { name: 'Neuen Suchfilter anlegen', exact: true });
+    await third.locator('#vinted-brand-picker').click();
+    const thirdPicker = page.getByRole('dialog', { name: 'Marken · optional', exact: true });
+    await thirdPicker.getByRole('combobox').fill('Nike');
+    await expect(thirdPicker.getByRole('option', { name: 'Nike', exact: true })).toBeVisible();
+    const thirdSearch = thirdPicker.getByRole('combobox');
+    const clearSearch = thirdPicker.getByRole('button', {
+      name: 'Suche zurücksetzen',
+      exact: true,
+    });
+    const closePicker = thirdPicker.getByRole('button', { name: 'Auswahl schließen', exact: true });
+    // Bei gefüllter Suche ist die zugängliche Zurücksetzen-Aktion eine eigene Tab-Station.
+    await thirdSearch.press('Tab');
+    await expect(clearSearch).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(closePicker).toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    await expect(clearSearch).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(thirdSearch).toHaveValue('');
+    await expect(thirdSearch).toBeFocused();
+    await expect(clearSearch).toHaveCount(0);
+    await expect(thirdPicker.getByRole('option')).toHaveCount(0);
+    // Ohne Suchwert folgt direkt Schließen; Escape lässt den übergeordneten Editor offen.
+    await page.keyboard.press('Tab');
+    await expect(closePicker).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(thirdPicker).not.toBeVisible();
+    await expect(third.locator('#vinted-brand-picker')).toBeFocused();
+    await expect(third).toBeVisible();
+    await third.getByRole('button', { name: 'Dialog schließen', exact: true }).click();
     await checkAxe(page);
     await page.screenshot({ path: testInfo.outputPath('query-list.png'), fullPage: true });
     const deleteButton = page.getByRole('button', {
-      name: 'Markenfilter löschen: Nike geändert',
+      name: 'Suchfilter löschen: Nike geändert',
       exact: true,
     });
     await deleteButton.click();
-    const confirmation = page.getByRole('dialog', { name: 'Markenfilter löschen?', exact: true });
+    const confirmation = page.getByRole('dialog', { name: 'Suchfilter löschen?', exact: true });
     await expect(confirmation).toContainText('Favoriten');
     await checkAxe(page);
     await confirmation.getByRole('button', { name: 'Abbrechen', exact: true }).click();
     await expect(deleteButton).toBeFocused();
     expect(backend.calls.filter((call) => call.name === 'delete_sniper_query')).toHaveLength(0);
-    await expect(deleteButton).toBeVisible();
     await deleteButton.click();
     await confirmation.getByRole('button', { name: 'Löschen', exact: true }).click();
     await expect(page.getByRole('table')).not.toContainText('Nike geändert');
     await expect(create).toBeFocused();
-    expect(backend.calls.filter((call) => call.name === 'delete_sniper_query')).toHaveLength(1);
-    await create.click();
-    await trigger.click();
-    await expect(picker.getByRole('option', { name: 'Nike', exact: true })).toBeVisible();
-    await expect(picker.getByRole('option', { name: 'Patagonia', exact: true })).toHaveCount(0);
-    await search.press('Tab');
-    await expect(
-      picker.getByRole('button', { name: 'Auswahl schließen', exact: true }),
-    ).toBeFocused();
-    await page.keyboard.press('Escape');
-    await expect(picker).not.toBeVisible();
-    await expect(creator).toBeVisible();
-    await creator.getByRole('button', { name: 'Dialog schließen', exact: true }).click();
     await openVintedBotSection(page, 'Botbetrieb');
     await expect(page.getByRole('heading', { name: 'Vinted-Zugriff', exact: true })).toBeVisible();
     await expect(page.getByText('Vinted verbunden', { exact: true })).toBeVisible();
@@ -401,8 +472,8 @@ for (const theme of ['light', 'dark']) {
     expect(
       backend.calls.some(
         (call) =>
-          call.name === 'upsert_sniper_query' &&
-          call.body['p_brand_id'] === 53 &&
+          call.name === 'save_sniper_search_filter' &&
+          (call.body['p_brands'] as { id: number }[]).some((brand) => brand.id === 53) &&
           call.body['p_poll_interval_ms'] === 30000,
       ),
     ).toBe(true);

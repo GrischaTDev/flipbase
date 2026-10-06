@@ -11,7 +11,9 @@ create table public.sniper_runtime_status (
     request_budget integer not null check (request_budget > 0),
     last_cycle_error text,
     vinted_connected_since timestamptz,
-    vinted_last_success_at timestamptz
+    vinted_last_success_at timestamptz,
+    search_filter_version integer not null default 0,
+    search_filter_reported_at timestamptz
 );
 comment on table public.sniper_runtime_status is 'Letzte Betriebsmeldung des einzigen Sammlers mit dem aktuellen Abschnitt erfolgreicher Vinted-Abfragen; fehlende oder alte Meldung ist kein gesunder Betrieb.';
 alter table public.sniper_runtime_status enable row level security;
@@ -68,7 +70,7 @@ begin
         if not found then raise exception 'Sammelauftrag nicht gefunden'; end if;
         -- Ein Auftrag bleibt eine reine Markensuche. Alte Sammelauftraege mit
         -- weiteren Filtern bleiben lesbar, koennen hier aber nicht umgedeutet werden.
-        if v_existing.marketplace <> 'vinted'
+        if v_existing.filter_format_version <> 0 or v_existing.marketplace <> 'vinted'
             or v_existing.query_key is distinct from v_key
             or v_existing.brand_id is distinct from p_brand_id
             or v_existing.search_text is not null
@@ -124,22 +126,17 @@ grant execute on function public.upsert_sniper_query(uuid, text, integer, intege
 
 create or replace function public.set_sniper_query_active(p_id uuid, p_active boolean)
 returns void language plpgsql security definer set search_path = '' as $$
+declare v_query public.sniper_queries;
 begin
     if not public.is_platform_operator() then
         raise exception 'Nur die Administration darf Sammelauftraege verwalten' using errcode = '42501';
     end if;
     if p_active is null then raise exception 'Bitte den gewuenschten Status angeben'; end if;
-    if p_active and not exists (
-        select 1
-        from public.sniper_queries
-        where id = p_id
-          and marketplace = 'vinted'
-          and search_text is null
-          and catalog_id is null
-          and brand_id is not null
-          and price_from is null
-          and price_to is null
-    ) then
+    select * into v_query from public.sniper_queries where id = p_id and deleted_at is null for update;
+    if not found then raise exception 'Sammelauftrag nicht gefunden'; end if;
+    if p_active and (v_query.marketplace <> 'vinted' or (v_query.filter_format_version = 0 and
+        (v_query.search_text is not null or v_query.catalog_id is not null or v_query.brand_id is null
+         or v_query.price_from is not null or v_query.price_to is not null))) then
         raise exception 'Nur reine Markenfilter koennen aktiviert werden';
     end if;
     if p_active and not exists (
@@ -147,13 +144,22 @@ begin
     ) then
         raise exception 'Keine aktuelle Betriebsmeldung. Bitte zuerst den Bot starten oder aktualisieren';
     end if;
+    if p_active and v_query.filter_format_version = 1 then
+        if v_query.catalog_id is not null and not exists (select 1 from public.vinted_categories where id = v_query.catalog_id) then
+            raise exception 'Die ausgewählte Kategorie ist nicht mehr verfügbar.' using errcode = '22023';
+        end if;
+        if not exists (select 1 from public.sniper_runtime_status where id = 1 and search_filter_version >= 1
+            and search_filter_reported_at >= now() - interval '2 minutes') then
+            raise exception 'Bitte zuerst den Abrufdienst für die neuen Suchfilter aktualisieren.' using errcode = '55000';
+        end if;
+    end if;
+    perform set_config('flipbase.sniper_run', v_query.id::text || ':' || v_query.filter_revision::text, true);
     update public.sniper_queries set is_active = p_active,
         run_state = case when p_active then 'ready' else run_state end,
         next_attempt_at = case when p_active then null else next_attempt_at end,
         consecutive_failures = case when p_active then 0 else consecutive_failures end,
-        updated_at = now()
-    where id = p_id and deleted_at is null;
-    if not found then raise exception 'Sammelauftrag nicht gefunden'; end if;
+        updated_at = now() where id = p_id;
+    perform set_config('flipbase.sniper_run', '', true);
 end;
 $$;
 revoke all on function public.set_sniper_query_active(uuid, boolean) from public, anon, authenticated;

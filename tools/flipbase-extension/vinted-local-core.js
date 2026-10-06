@@ -7,6 +7,8 @@
     'INBOX_SYNC',
     'INBOX_DETAIL',
     'MESSAGES_SEND',
+    'FAVORITES_SYNC',
+    'FAVORITES_SEND',
     'DISCONNECT',
   ]);
   const storageKey = 'vinted_local_installation';
@@ -630,7 +632,10 @@
         if (
           installation?.schedule?.retryAfter > adapter.now() &&
           request.action !== 'DISCONNECT' &&
-          !(request.action === 'MESSAGES_SEND' && installation.pendingFinish)
+          !(
+            ['MESSAGES_SEND', 'FAVORITES_SEND'].includes(request.action) &&
+            installation.pendingFinish
+          )
         ) {
           const error = new Error(
             'Vinted begrenzt die Abrufe. Warte bis die Pause abgelaufen ist.',
@@ -742,12 +747,13 @@
           throw new Error(
             'Diese Verbindung gehört nicht zu diesem Browserprofil oder Arbeitsplatz.',
           );
-        if (action === 'MESSAGES_SEND' && installation.pendingFinish) {
+        if (['MESSAGES_SEND', 'FAVORITES_SEND'].includes(action) && installation.pendingFinish) {
+          const { favorite, ...receipt } = installation.pendingFinish;
           const finished = await adapter.edge(binding, installation.secret, {
-            action: 'message_finish',
+            action: favorite ? 'favorite_finish' : 'message_finish',
             workspaceId: binding.workspaceId,
             connectionId: binding.connectionId,
-            ...installation.pendingFinish,
+            ...receipt,
           });
           if (finished?.ok !== true) throw new Error('Das Auftragsergebnis wurde nicht bestätigt.');
           delete installation.pendingFinish;
@@ -757,14 +763,52 @@
         if (Date.parse(binding.expiresAt) <= adapter.now())
           throw new Error('Die lokale Verbindung ist abgelaufen. Verbinde das Konto erneut.');
         const currentGrant = await heartbeat(binding, installation.secret);
-        if (action === 'MESSAGES_SEND') {
+        if (action === 'FAVORITES_SYNC') {
+          if (currentGrant.messagesRead !== true || currentGrant.messagesSend !== true)
+            return { skipped: true };
+          const state = await adapter.edge(binding, installation.secret, {
+            action: 'favorites_state',
+            workspaceId: binding.workspaceId,
+            connectionId: binding.connectionId,
+          });
+          if (state?.ok !== true || state.externalAccountId !== binding.externalAccountId)
+            throw new Error('Die Favoritenfreigabe wurde nicht bestätigt.');
+          if (state.enabled !== true) return { skipped: true };
+          const favorites = await adapter.readFavorites(
+            installation.tabId,
+            binding.externalAccountId,
+          );
+          installation.tabId = favorites.tabId;
+          await adapter.save(installation);
+          const imported = await adapter.edge(binding, installation.secret, {
+            action: 'favorites_import',
+            workspaceId: binding.workspaceId,
+            connectionId: binding.connectionId,
+            events: favorites.events,
+          });
+          if (imported?.ok !== true)
+            throw new Error('Der Favoritenabgleich wurde nicht bestätigt.');
+          return { imported: true };
+        }
+        if (action === 'MESSAGES_SEND' || action === 'FAVORITES_SEND') {
+          const favorite = action === 'FAVORITES_SEND';
           if (currentGrant.messagesSend !== true) return { skipped: true };
+          if (favorite) {
+            const state = await adapter.edge(binding, installation.secret, {
+              action: 'favorites_state',
+              workspaceId: binding.workspaceId,
+              connectionId: binding.connectionId,
+            });
+            if (state?.ok !== true || state.externalAccountId !== binding.externalAccountId)
+              throw new Error('Die Favoritenfreigabe wurde nicht bestätigt.');
+            if (state.enabled !== true) return { skipped: true };
+          }
           const current = await adapter.readIdentity(installation.tabId);
           if (current.identity.id !== binding.externalAccountId) throw identityChangedError();
           installation.tabId = current.tabId;
           await adapter.save(installation);
           const claimed = await adapter.edge(binding, installation.secret, {
-            action: 'message_claim',
+            action: favorite ? 'favorite_claim' : 'message_claim',
             workspaceId: binding.workspaceId,
             connectionId: binding.connectionId,
           });
@@ -775,28 +819,52 @@
           if (
             !uuid(command.id) ||
             !uuid(command.claimToken) ||
-            !identifier(command.externalConversationId)
+            (favorite
+              ? !identifier(command.actorId) || !identifier(command.itemId)
+              : !identifier(command.externalConversationId))
           )
             throw new Error('Der Nachrichtenauftrag ist ungültig.');
-          installation.pendingFinish = {
+          const pendingFinish = {
+            ...(favorite ? { favorite: true } : {}),
             id: command.id,
             claimToken: command.claimToken,
             outcome: 'outcome_unknown',
             errorCode: 'interrupted',
           };
-          await adapter.save(installation);
-          const started = await adapter.edge(binding, installation.secret, {
-            action: 'message_start',
-            workspaceId: binding.workspaceId,
-            connectionId: binding.connectionId,
-            id: command.id,
-            claimToken: command.claimToken,
-          });
+          if (!favorite) {
+            installation.pendingFinish = pendingFinish;
+            await adapter.save(installation);
+          }
+          let started;
+          try {
+            started = await adapter.edge(binding, installation.secret, {
+              action: favorite ? 'favorite_start' : 'message_start',
+              workspaceId: binding.workspaceId,
+              connectionId: binding.connectionId,
+              id: command.id,
+              claimToken: command.claimToken,
+            });
+          } catch (error) {
+            if (favorite && error instanceof LocalBindingInvalidError) {
+              // Eine Einstellungsänderung kann den Claim verwerfen; der nächste Heartbeat prüft den Grant.
+              const rejected = new Error(
+                'Dieser Favoritenauftrag wurde vor dem Versand verworfen.',
+              );
+              rejected.code = 'favorite_not_started';
+              throw rejected;
+            }
+            throw error;
+          }
           if (started?.ok !== true)
             throw new Error('Der Nachrichtenversand wurde nicht freigegeben.');
+          if (favorite) {
+            // Der Serverzustand verhindert Wiederholung nach einem Abbruch vor dieser Speicherung.
+            installation.pendingFinish = pendingFinish;
+            await adapter.save(installation);
+          }
           let outcome;
           try {
-            const sent = await adapter.sendMessage(
+            const sent = await (favorite ? adapter.sendFavorite : adapter.sendMessage)(
               installation.tabId,
               binding.externalAccountId,
               command,
@@ -810,10 +878,15 @@
               ...(error.retryAfter ? { retryAfter: error.retryAfter } : {}),
             };
           }
-          if (!['sent', 'failed', 'outcome_unknown'].includes(outcome?.outcome))
+          if (
+            !['sent', 'failed', 'outcome_unknown', ...(favorite ? ['skipped'] : [])].includes(
+              outcome?.outcome,
+            )
+          )
             throw new Error('Der Versandstatus ist ungültig.');
           const { retryAfter, ...reportedOutcome } = outcome;
           installation.pendingFinish = {
+            ...(favorite ? { favorite: true } : {}),
             id: command.id,
             claimToken: command.claimToken,
             ...reportedOutcome,
@@ -835,10 +908,12 @@
             installation.schedule = { ...installation.schedule, pauseReason: outcome.errorCode };
           await adapter.save(installation);
           const finished = await adapter.edge(binding, installation.secret, {
-            action: 'message_finish',
+            action: favorite ? 'favorite_finish' : 'message_finish',
             workspaceId: binding.workspaceId,
             connectionId: binding.connectionId,
-            ...installation.pendingFinish,
+            id: command.id,
+            claimToken: command.claimToken,
+            ...reportedOutcome,
           });
           if (finished?.ok !== true) throw new Error('Das Auftragsergebnis wurde nicht bestätigt.');
           delete installation.pendingFinish;

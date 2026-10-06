@@ -145,6 +145,8 @@ export class SearchMultiSelectComponent {
   }
 
   onSearchKeydown(event: KeyboardEvent): void {
+    // Nur das Eingabefeld steuert die Treffer; Enter auf Zurücksetzen bleibt eine Buttonaktion.
+    if (!(event.target instanceof HTMLInputElement)) return;
     const options = this.options();
     switch (event.key) {
       case 'ArrowDown':

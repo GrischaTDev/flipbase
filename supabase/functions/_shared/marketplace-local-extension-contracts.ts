@@ -14,6 +14,17 @@ export interface LocalExtensionSnapshot {
 }
 export type LocalExtensionRequest = AccountScope &
   (
+    | { readonly action: 'favorites_state' | 'favorite_claim' }
+    | { readonly action: 'favorites_import'; readonly events: readonly LocalFavoriteEvent[] }
+    | { readonly action: 'favorite_start'; readonly id: string; readonly claimToken: string }
+    | {
+        readonly action: 'favorite_finish';
+        readonly id: string;
+        readonly claimToken: string;
+        readonly outcome: 'sent' | 'failed' | 'outcome_unknown' | 'skipped';
+        readonly externalMessageId?: string;
+        readonly errorCode?: string;
+      }
     | { readonly action: 'heartbeat' }
     | { readonly action: 'import'; readonly snapshot: LocalExtensionSnapshot }
     | { readonly action: 'inbox_state'; readonly mode?: 'latest' | 'backfill' }
@@ -39,6 +50,12 @@ export type LocalExtensionRequest = AccountScope &
         readonly errorCode?: string;
       }
   );
+export interface LocalFavoriteEvent {
+  readonly externalId: string;
+  readonly actorId: string;
+  readonly itemId: string;
+  readonly eventAt: string;
+}
 export interface LocalExtensionInboxEntry {
   readonly kind: 'conversation' | 'message';
   readonly externalId: string;
@@ -227,6 +244,33 @@ export function parseLocalExtensionRequest(input: unknown): LocalExtensionReques
     return null;
   if (input['action'] === 'heartbeat' && keys(input, ['action', 'workspaceId', 'connectionId']))
     return input as unknown as LocalExtensionRequest;
+  if (
+    ['favorites_state', 'favorite_claim'].includes(String(input['action'])) &&
+    keys(input, ['action', 'workspaceId', 'connectionId'])
+  )
+    return input as unknown as LocalExtensionRequest;
+  if (
+    input['action'] === 'favorites_import' &&
+    keys(input, ['action', 'workspaceId', 'connectionId', 'events'])
+  ) {
+    const events = input['events'];
+    return Array.isArray(events) &&
+      events.length <= 200 &&
+      events.every(
+        (event) =>
+          record(event) &&
+          keys(event, ['externalId', 'actorId', 'itemId', 'eventAt']) &&
+          typeof event['externalId'] === 'string' &&
+          uuid.test(event['externalId']) &&
+          typeof event['actorId'] === 'string' &&
+          accountId.test(event['actorId']) &&
+          typeof event['itemId'] === 'string' &&
+          accountId.test(event['itemId']) &&
+          date(event['eventAt']),
+      )
+      ? (input as unknown as LocalExtensionRequest)
+      : null;
+  }
   const mode = input['mode'];
   const validMode = mode === undefined || mode === 'latest' || mode === 'backfill';
   if (
@@ -258,7 +302,10 @@ export function parseLocalExtensionRequest(input: unknown): LocalExtensionReques
   if (input['action'] === 'message_claim' && keys(input, ['action', 'workspaceId', 'connectionId']))
     return input as unknown as LocalExtensionRequest;
   if (
-    (input['action'] === 'message_start' || input['action'] === 'message_finish') &&
+    (input['action'] === 'message_start' ||
+      input['action'] === 'message_finish' ||
+      input['action'] === 'favorite_start' ||
+      input['action'] === 'favorite_finish') &&
     keys(input, [
       'action',
       'workspaceId',
@@ -275,17 +322,18 @@ export function parseLocalExtensionRequest(input: unknown): LocalExtensionReques
     uuid.test(input['claimToken'])
   ) {
     if (
-      input['action'] === 'message_start' &&
+      (input['action'] === 'message_start' || input['action'] === 'favorite_start') &&
       !Object.hasOwn(input, 'outcome') &&
       !Object.hasOwn(input, 'externalMessageId') &&
       !Object.hasOwn(input, 'errorCode')
     )
       return input as unknown as LocalExtensionRequest;
     if (
-      input['action'] === 'message_finish' &&
+      (input['action'] === 'message_finish' || input['action'] === 'favorite_finish') &&
       (input['outcome'] === 'sent' ||
         input['outcome'] === 'failed' ||
-        input['outcome'] === 'outcome_unknown') &&
+        input['outcome'] === 'outcome_unknown' ||
+        (input['action'] === 'favorite_finish' && input['outcome'] === 'skipped')) &&
       (input['externalMessageId'] === undefined ||
         (typeof input['externalMessageId'] === 'string' &&
           accountId.test(input['externalMessageId']))) &&

@@ -107,7 +107,7 @@ describe('VintedBotShellComponent', () => {
       '/admin/vinted-bot/queries',
       '/admin/vinted-bot/operation',
     ]);
-    ['Markenfilter', 'Botbetrieb'].forEach((label, index) =>
+    ['Suchfilter', 'Botbetrieb'].forEach((label, index) =>
       expect(links[index].textContent).toContain(label),
     );
     expect(element.querySelector('app-custom-select')).not.toBeNull();

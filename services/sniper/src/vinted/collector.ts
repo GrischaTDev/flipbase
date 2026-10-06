@@ -1,5 +1,7 @@
 import type { MarketplaceListing } from '../domain/listing.js';
 import type { SniperQuery } from '../domain/query.js';
+import { searchFilterRequest } from '../domain/search-filter-request.js';
+import { createTitleKeywordMatcher } from '../domain/title-keywords.js';
 import { parseVintedCatalogPage } from './catalog-page.js';
 import {
   ForbiddenError,
@@ -30,13 +32,18 @@ export class VintedCollector {
   ) {}
 
   async collect(query: SniperQuery): Promise<MarketplaceListing[]> {
+    const request = searchFilterRequest(query);
+    const titleMatches = createTitleKeywordMatcher(
+      query.titleKeywords ?? [],
+      query.keywordMode ?? 'all',
+    );
     const url = new URL(CATALOG_PATH, this.options.baseUrl);
-    if (query.searchText) url.searchParams.set('search_text', query.searchText);
+    if (request.searchText) url.searchParams.set('search_text', request.searchText);
     url.searchParams.set('order', 'newest_first');
     url.searchParams.set('page', '1');
     url.searchParams.set('per_page', PER_PAGE);
     if (query.catalogId !== null) url.searchParams.set('catalog_ids', String(query.catalogId));
-    if (query.brandId !== null) url.searchParams.set('brand_ids', String(query.brandId));
+    if (request.brandId !== null) url.searchParams.set('brand_ids', String(request.brandId));
     if (query.priceTo !== null) url.searchParams.set('price_to', String(query.priceTo));
     if (query.priceFrom !== null) url.searchParams.set('price_from', String(query.priceFrom));
 
@@ -76,7 +83,7 @@ export class VintedCollector {
       }
 
       this.connectionState?.recordSuccess();
-      return listings;
+      return listings.filter((listing) => titleMatches(listing.title));
     } catch (error) {
       this.connectionState?.recordFailure();
       throw error;

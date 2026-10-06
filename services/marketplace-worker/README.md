@@ -40,6 +40,16 @@ Sicherheitsabfragen und manuelle Leseabrufe nutzen die vorhandene Browseroberfl�
 
 Die Netzwerkkennung wird unveränderlich im Kontomanifest gespeichert. Fehlende
 Zugänge verhindern den Start; es gibt keinen automatischen Netzwerkwechsel.
+Mit serverseitigem `IPROYAL_API_TOKEN` liest der Worker beim Hinzufügen eines
+Cloudkontos oder beim Cloudwechsel zuerst die bereits gekauften Bestellungen
+aus dem IPRoyal-Konto. Dieses Konto muss für den Flipbase-Bestand vorgesehen
+sein; Nutzungen außerhalb von Flipbase meldet die Anbieter-API nicht.
+Neue deutsche Dedicated-ISP-IPs werden vor der Reservierung geprüft und privat
+ergänzt. Die Netzwerkdatei braucht dafür einen persistenten beschreibbaren Mount,
+Modus 0600 und den Worker als Eigentümer. Belegte und administrativ gesperrte IPs
+bleiben gebunden beziehungsweise gesperrt. API-Fehler brechen die Einrichtung ab;
+ohne freie IP erscheint die Kapazitätsmeldung. Ohne API-Token bleibt der manuell
+registrierte Bestand verwendbar. Es gibt keine automatischen Käufe.
 Umstellung, Wartungsbefehl und Rückweg sind im
 [Rolloutplan](../../docs/implementation/vinted-worker-rollout.md) beschrieben.
 Linux-Sandbox, tatsächlicher Vinted-Zugang, mobile Anmeldung und ausreichende

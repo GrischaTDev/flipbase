@@ -25,10 +25,17 @@ interface QueryRow {
   last_polled_at: string | null;
   last_status: QueryStatus;
   consecutive_failures: number;
+  brand_ids: number[];
+  title_keywords: string[];
+  keyword_mode: 'all' | 'any';
+  filter_revision: number;
+  filter_format_version: number;
+  request_cursor: number;
+  seeded_requests: number[];
 }
 
 const COLUMNS =
-  'id, query_key, marketplace, search_text, catalog_id, brand_id, price_to, price_from, poll_interval_ms, is_seeded, is_active, run_state, next_attempt_at, last_attempt_at, last_success_at, last_error_kind, last_error_at, last_error_message, last_polled_at, last_status, consecutive_failures';
+  'id, query_key, marketplace, search_text, catalog_id, brand_id, price_to, price_from, poll_interval_ms, is_seeded, is_active, run_state, next_attempt_at, last_attempt_at, last_success_at, last_error_kind, last_error_at, last_error_message, last_polled_at, last_status, consecutive_failures, brand_ids, title_keywords, keyword_mode, filter_revision, filter_format_version, request_cursor, seeded_requests';
 
 function toQuery(row: QueryRow): SniperQuery {
   return {
@@ -55,6 +62,13 @@ function toQuery(row: QueryRow): SniperQuery {
     lastPolledAt: row.last_polled_at,
     lastStatus: row.last_status,
     consecutiveFailures: row.consecutive_failures,
+    brandIds: row.brand_ids ?? [],
+    titleKeywords: row.title_keywords ?? [],
+    keywordMode: row.keyword_mode ?? 'all',
+    filterRevision: row.filter_revision ?? 1,
+    filterFormatVersion: row.filter_format_version ?? 0,
+    requestCursor: row.request_cursor ?? 0,
+    seededRequests: row.seeded_requests ?? [],
   };
 }
 
@@ -140,7 +154,13 @@ export class QueryStore {
    * Wichtig: `is_active` wird hier NIEMALS veraendert - technische Fehler
    * steuern ausschliesslich run_state und next_attempt_at.
    */
-  async recordFailure(id: string, decision: RetryDecision, now: Date = new Date()): Promise<void> {
+  async recordFailure(
+    id: string,
+    decision: RetryDecision,
+    now: Date = new Date(),
+    revision?: number,
+    cursor?: number,
+  ): Promise<void> {
     const timestamp = now.toISOString();
     let status: QueryStatus = 'failed';
     if (decision.errorKind === 'rate_limited') {
@@ -149,6 +169,21 @@ export class QueryStore {
       status = 'forbidden';
     }
 
+    if (revision !== undefined) {
+      const { error } = await this.client.rpc('record_sniper_search_filter_failure', {
+        p_query_id: id,
+        p_revision: revision,
+        p_cursor: cursor,
+        p_run_state: decision.runState,
+        p_next_attempt_at: decision.nextAttemptAt?.toISOString() ?? null,
+        p_error_kind: decision.errorKind,
+        p_error_message: decision.errorMessage,
+        p_failure_count: decision.consecutiveFailures,
+        p_status: status,
+      });
+      if (error) throw new Error(`recording search filter failure failed: ${error.message}`);
+      return;
+    }
     const { error } = await this.client
       .from('sniper_queries')
       .update({
