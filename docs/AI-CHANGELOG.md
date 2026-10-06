@@ -1,5 +1,94 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-06 - Juna - Korrektur der Cloud-Anmeldebestätigung veröffentlichen
+
+**Freigabe:** Der Nutzer bestätigt PR-Erstellung, Merge nach erfolgreichen
+Pflichtprüfungen und anschließende Bereinigung des eigenen Zweigs. Die lokal
+geprüfte Korrektur der Identitätsprüfung, der kompakte Anmeldedialog und das
+bestehende Rolloutprotokoll werden gemeinsam integriert. Anschließend wird
+der Browserdienst auf das geprüfte Workerimage aktualisiert; das bereits
+abgenommene unveränderte Chrome-Sitzungsimage bleibt erhalten. Eine erfolgreiche
+produktive Kontoverknüpfung bleibt bis zum echten Nutzerabschluss offen.
+
+## 2026-10-06 - Juna - Cloud-Anmeldung trotz verbliebenem Loginformular bestätigen
+
+**Auftrag:** Die manuelle Anmeldung mit SMS gelingt, aber „Anmeldung prüfen &
+verbinden“ meldet weiterhin ein Anmeldeformular. Zugangsdaten kompakter darstellen
+und die zugehörige Meldung direkt bei der großen Browseransicht platzieren.
+
+**Live-Diagnose:** Im laufenden Cloudprofil sind ein alter, inaktiver Login-Tab
+mit Passwortfeld und ein sichtbarer Vinted-Tab vorhanden. Die unveränderte
+Identitätsprüfung bricht im Login-Tab vor dem Kontoprüfungsabruf ab. Ein eigener
+begrenzter GET auf denselben Tab liefert dagegen HTTP 200 und bestätigt die
+erwartete Maike-Vintage-ID. Auch der sichtbare Tab bestätigt diese Identität.
+Es werden nur Status und Übereinstimmung ausgegeben, keine Zugangsdaten oder
+Kontoinhalte. Die Ursache der veralteten Seite selbst ist damit nicht bewiesen.
+
+**Korrektur:** Die feste Vinted-Kontoprüfung erhält Vorrang vor einem verbliebenen
+E-Mail-Anmeldeformular. Nur HTTP 401 wertet dessen Ablehnungshinweis aus.
+Mensch-Prüfung, SMS-Stufe, Domainprüfung und Validierung der Kontoidentität
+bleiben erhalten. Kein Konto wird anhand eines sichtbaren Seitenelements
+oder einer ungültigen API-Antwort verbunden; keine automatischen Loginversuche.
+
+**Dialog:** Die Zugangsdaten stehen in einer eigenen kompakten Karte, auf breiten
+Ansichten nebeneinander und ohne die bisherige schmale Formularbegrenzung.
+Browserfehler, Fortschritt und Prüfhinweise erscheinen einmal innerhalb der
+großen Vorschaukarte. Ohne Browserbild und nach bestätigter Anmeldung bleiben
+Fehler weiterhin sichtbar, insbesondere beim gesonderten „Cloud aktivieren“.
+
+**Prüfung:** 49 gezielte Worker-Tests und neun echte Browsertests mit synthetischen
+Antworten bestehen. Darunter: gültige Identität trotz altem Formular, HTTP 401,
+Ablehnung, HTTP 403, ungültige Identität und unveränderte Mensch-Prüfung.
+47 Angular-Tests bestehen einschließlich vier gerenderter Dialogtests und
+DOM-AXE-Prüfung ohne in JSDOM nicht messbaren Farbkontrast. Worker-Typprüfung
+und Worker-Bau sowie Angular-Produktionsbau bestanden. Geänderte Dateien werden
+formatiert und gelintet. Der erste Angular-Bau mit einem Verzeichnisverweis
+auf fremde Abhängigkeiten scheiterte an Windows-Assetpfaden; mit eigenen,
+unverändert aus dem Lockfile installierten Abhängigkeiten besteht er.
+
+**Grenzen:** Noch keine Veröffentlichung dieser Korrektur. Die ursprüngliche
+Cloud-Sitzung war vor dem separaten Live-Test des korrigierten Lesers bereits
+geschlossen; dieser Test wurde ohne Neustart oder Kontobestätigung beendet.
+Der neue Leser ist deshalb durch synthetische Browsertests, noch nicht durch
+eine erneute produktive Kontoverknüpfung bestätigt. Keine Datenbankänderung,
+kein Versand und keine Änderung an der lokalen Erweiterung. Der bereits
+geprüfte Rolloutnachweis bleibt im selben eigenen Zweig erhalten.
+
+## 2026-10-06 - Juna - Cloud-Browserdienst auf Hetzner aktivieren
+
+**Freigabe:** Der Nutzer bestätigt die Aktualisierung des Browserdienstes nach
+Platzprüfung. PR #317 ist integriert; Web-Version 0.303.0 sowie die separat
+geprüften Worker- und Chromeimages stammen aus `d73e990b`.
+
+**Betrieb:** Nur die beiden Imagereferenzen der bisherigen Compose-Konfiguration
+werden auf feste Digests umgestellt. Vor und nach dem Wechsel: keine offenen
+Browsersitzungen und keine laufenden Marketplace-Aufträge. Der unabhängige
+noVNC-Pilot wird sauber gestoppt; das angemeldete Maike-Vintage-Profil bleibt
+gespeichert, mit `profile.exit_type='Normal'`. Regenerierbarer, ungenutzter
+Build-Cache wird freigegeben; keine Images, Volumes oder Nutzerprofile gelöscht.
+Nach dem Laden der Images sind rund 5,5 GB frei. Die vorige Konfiguration und
+beide bisherigen Images bleiben für eine Rücknahme erhalten.
+
+**Firewall:** Die Regeln des separaten Piloten standen vor den regulären
+Cloudregeln und verhinderten dadurch deren strikte Reihenfolgeprüfung. Nur
+die vorhandenen regulären Sprungregeln werden nach vorne verschoben; sämtliche
+Regeln und Sperren bleiben erhalten. Der bestehende Prüfdienst bestätigt
+anschließend wieder die aktuelle Firewallfreigabe.
+
+**Prüfung:** Der Worker ist gesund, ohne Neustarts. Öffentlicher Healthcheck
+HTTP 200; Cloud-Einrichtung ohne Anmeldung HTTP 401. Ein eigener synthetischer
+Browser ohne Vinted-Zugang bestätigt auf Hetzner Namespace- und Seccomp-Sandbox,
+`navigator.webdriver=false`, CDP-Verbindung ohne Kontextvorgaben, native
+Bildschirmaufnahme und echte Texteingabe. Geordneter Stopp mit Exitcode 0;
+Testcontainer einschließlich seines flüchtigen Profils entfernt. Kein
+Nachrichteninhalt, Passwort oder Browserbild gespeichert.
+
+**Offen:** Maike Vintage ist durch diesen Rollout noch nicht in Flipbase mit
+Cloud verbunden. Die reguläre Anmeldung, automatische IP-Reservierung,
+Kontobestätigung und der erste lesende Abgleich sind die nächsten Live-Prüfungen.
+Automatischer Zeitplan und Cloud-Schreibaktionen bleiben deaktiviert. Details
+und Image-Digests stehen im bestehenden Worker-Rolloutprotokoll.
+
 ## 2026-10-06 – Juna – Einkaufskosten bei unbepreisten Artikeln korrigiert und Mehrfach-Farbauswahl ermöglicht
 
 **Auftrag:** Bei der Einkaufserfassung soll die Kostenübersicht den aktuellen Gesamtpreis weiterhin anhand aller ausgefüllten Stückpreise berechnen, selbst wenn neu hinzugefügte Positionen noch keinen Preis tragen (statt 0 anzuzeigen). Bei der Produkterstellung soll die Farbauswahl mehrere Farben unterstützen.
