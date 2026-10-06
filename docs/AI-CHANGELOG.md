@@ -1,5 +1,31 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-06 - Juna - echten lesenden Cloudabruf bei Maike Vintage prüfen
+
+**Auftrag:** Nach der erneuten Nutzerbestätigung der angemeldeten Vinted-Startseite
+den vorhandenen produktiven Kontoabruf im unabhängigen Chrome-Pilot testen.
+Das Browserprofil bleibt erhalten und ist weiterhin keiner Flipbase-Verbindung
+zugeordnet. Kein produktiver Workerwechsel oder Datenbankimport.
+
+**Nachweis:** Der unveränderte kompilierte Kontoimport aus dem laufenden Worker
+liefert ein Profil, fünf Inserate, acht Gespräche, 28 Nachrichten aus bereits
+gelesenen Gesprächen und zwei Bewertungen. Profil, Inserate, Gesprächsübersicht
+und Bewertungen sind vollständig gemäß dem bestehenden Leser. Nachrichten und
+Verkäufe bleiben ausdrücklich Teilstände; ungelesene Gespräche werden nicht
+geöffnet. Zwei Identitätsprüfungen bestätigen Maike Vintage vor den weiteren
+Kontobereichen und nach dem Import. 17 Quellanfragen plus diese beiden Prüfungen
+liefern ausschließlich HTTP 200. Keine sichtbare Mensch-Prüfung, kein beobachteter
+API-Schreibaufruf und kein Datenbankzugang. Der Testclient endet ohne Browserstopp.
+
+**Einordnung:** Eine vorherige einzelne Identitätsprüfung lieferte HTTP 401 und
+wurde beendet. Im anschließenden produktiven Import trat dieser Fehler nicht
+erneut auf; dessen vorhandener Seitenneuladeweg wurde deshalb nicht ausgelöst.
+Die Ursache des ersten 401 ist nicht nachgewiesen. Es wurden keine Cookies,
+Passwörter, Nachrichteninhalte oder vollständigen Antworten gespeichert oder
+ausgegeben. Der Test ist auf 40 API-Anfragen und 120 Sekunden begrenzt.
+Cloud-Verknüpfung, Favoritenereignisse, Schreibaktionen und Dauerbetrieb bleiben
+eigene Abnahmen. Keine Funktion oder Anmeldeerkennung geändert.
+
 ## 2026-10-06 - Juna - Maike-Vintage-Anmeldung im eigenen Cloudbrowser nachweisen
 
 **Nutzerbestätigung:** Der Nutzer wählt ausdrücklich Maike Vintage statt seines

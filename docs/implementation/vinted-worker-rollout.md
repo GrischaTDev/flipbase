@@ -140,6 +140,44 @@ und der reguläre Flipbase-Cloudwechsel bleiben eigene Abnahmen. Das Pilotprofil
 gehört jetzt ausschließlich zu Maike Vintage; keine weiteren Konten darin anmelden
 und die gekaufte IP währenddessen nicht parallel einer anderen Einrichtung geben.
 
+### Echter lesender Kontoabruf mit Maike Vintage
+
+Nach der erneuten Bestätigung der angemeldeten Startseite durch den Nutzer
+wurde der unveränderte kompilierte `readVintedAccountImport` aus dem laufenden
+Worker im selben Pilotprofil ausgeführt. Der temporäre Testclient benötigt
+keine Datenbankzugangsdaten und ruft weder Dispatcher noch Importwriter auf.
+Die erwartete Identität wird vor dem Abruf weiterer Kontobereiche und nach
+dem Import bestätigt. Ausgabe und Dokumentation enthalten ausschließlich
+Status, Mengen und den bereits bestätigten Kontonamen.
+
+Nachweis: ein Profil, fünf Inserate, acht Gespräche, 28 Nachrichten aus bereits
+gelesenen Gesprächen und zwei Bewertungen. Die vorhandenen Bereichsergebnisse
+markieren Profil, Inserate, Gesprächsübersicht und Bewertungen als vollständig.
+Nachrichten und Verkäufe bleiben gemäß dem bestehenden Leser Teilstände;
+ungelesene Gespräche werden nicht geöffnet. Ein vollständiger Nachrichtenfeed,
+Verkaufsabgleich oder Favoritenereignisabruf ist damit nicht nachgewiesen.
+
+17 Quellanfragen und zwei Identitätsprüfungen lieferten HTTP 200, ohne sichtbare
+Mensch-Prüfung. Keine beobachteten API-Schreibaufrufe und kein Datenbankimport.
+Der Testclient endete nach etwa sechs Sekunden ohne `Browser.close`; das
+angemeldete Profil bleibt im geöffneten Browser erhalten. Die Testgrenzen
+betragen 40 API-Anfragen, 90 Sekunden für weitere Leseaufträge und 120 Sekunden
+absolute Laufzeit. HTTP 403/429 oder eine sichtbare Prüfung beenden den Versuch.
+
+Eine unmittelbar vorherige einzelne Identitätsprüfung lieferte HTTP 401 und
+wurde beendet. Dieser Fehler war beim anschließenden Import nicht erneut
+vorhanden: alle beobachteten Antworten waren erfolgreich, der im produktiven
+Leser vorhandene einmalige Seitenneuladeweg wurde nicht ausgelöst. Die Ursache
+des ersten 401 bleibt offen; keine Behebung oder dauerhaft gültige Sitzung
+daraus ableiten. Anmeldeerkennung und Browserkonfiguration wurden nicht geändert.
+
+Der nächste Integrationsschritt verbindet diesen Browserstart und das
+dauerhafte Profil mit dem bereits vorhandenen Cloud-Einrichtungsablauf:
+atomare IP-Reservierung, eindeutige Kontozuordnung, geschützte Live-Bedienung
+sowie bestätigter Abschluss oder Abbruch. Die lokale Ausführung wird erst
+nach erfolgreicher Cloudverknüpfung abgelöst. Der separate Pilot darf die
+gekaufte IP währenddessen nicht parallel weiterverwenden.
+
 ## Privater IP-Betrieb vom 05.10.2026
 
 Der zusätzliche lesende IPRoyal-Abgleich ist im Arbeitszweig vorbereitet und geprüft,
