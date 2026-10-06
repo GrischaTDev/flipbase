@@ -167,9 +167,16 @@ absolute Laufzeit. HTTP 403/429 oder eine sichtbare Prüfung beenden den Versuch
 Eine unmittelbar vorherige einzelne Identitätsprüfung lieferte HTTP 401 und
 wurde beendet. Dieser Fehler war beim anschließenden Import nicht erneut
 vorhanden: alle beobachteten Antworten waren erfolgreich, der im produktiven
-Leser vorhandene einmalige Seitenneuladeweg wurde nicht ausgelöst. Die Ursache
-des ersten 401 bleibt offen; keine Behebung oder dauerhaft gültige Sitzung
-daraus ableiten. Anmeldeerkennung und Browserkonfiguration wurden nicht geändert.
+Leser vorhandene einmalige Seitenneuladeweg wurde nicht ausgelöst. Der Nutzer
+bestätigt anschließend, während des ersten API-Fehlers die Vinted-Seite manuell
+neu geladen zu haben. Der erfolgreiche Import folgt diesem manuellen Eingriff
+und beweist deshalb keine selbstständige Sitzungserneuerung durch den Worker.
+Eine Erneuerung der API-Anmeldung beim Seitenaufbau ist eine plausible Erklärung;
+ein eingefrorener Browser und die genaue Ursache des ersten 401 sind nicht
+nachgewiesen. Keine Behebung oder dauerhaft gültige Sitzung daraus ableiten.
+Anmeldeerkennung und Browserkonfiguration wurden nicht geändert. Vor einer
+regulären Cloudfreigabe den bestehenden Erneuerungsweg ohne manuelles Neuladen
+gezielt abnehmen.
 
 Der nächste Integrationsschritt verbindet diesen Browserstart und das
 dauerhafte Profil mit dem bereits vorhandenen Cloud-Einrichtungsablauf:

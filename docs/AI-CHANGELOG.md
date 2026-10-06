@@ -20,7 +20,12 @@ API-Schreibaufruf und kein Datenbankzugang. Der Testclient endet ohne Browsersto
 **Einordnung:** Eine vorherige einzelne Identitätsprüfung lieferte HTTP 401 und
 wurde beendet. Im anschließenden produktiven Import trat dieser Fehler nicht
 erneut auf; dessen vorhandener Seitenneuladeweg wurde deshalb nicht ausgelöst.
-Die Ursache des ersten 401 ist nicht nachgewiesen. Es wurden keine Cookies,
+Der Nutzer bestätigt nachträglich, während des ersten API-Fehlers die Vinted-Seite
+manuell neu geladen zu haben. Der erfolgreiche Folgeabruf ist deshalb nach
+diesem manuellen Eingriff einzuordnen, nicht als Nachweis selbstständiger
+Sitzungserneuerung. Eine Erneuerung der API-Anmeldung durch den Seitenaufbau
+ist eine plausible Erklärung; ein eingefrorener Browser ist nicht nachgewiesen.
+Die genaue Ursache des ersten 401 bleibt offen. Es wurden keine Cookies,
 Passwörter, Nachrichteninhalte oder vollständigen Antworten gespeichert oder
 ausgegeben. Der Test ist auf 40 API-Anfragen und 120 Sekunden begrenzt.
 Cloud-Verknüpfung, Favoritenereignisse, Schreibaktionen und Dauerbetrieb bleiben
