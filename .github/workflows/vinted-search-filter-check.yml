@@ -1,4 +1,4 @@
-name: Vinted search filter integration check
+name: Vinted search filter final check
 
 on:
   push:
@@ -16,7 +16,7 @@ jobs:
   integration:
     if: github.repository == 'GrischaTDev/flipbase' && github.ref == 'refs/heads/juna/vinted-central-search-filters'
     runs-on: ubuntu-22.04
-    timeout-minutes: 40
+    timeout-minutes: 35
     env:
       NG_BUILD_MAX_WORKERS: '2'
     steps:
@@ -28,7 +28,7 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - name: Download generator evidence from this repository
+      - name: Prepare the verified feature on current master
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -37,86 +37,13 @@ jobs:
             -H "Authorization: Bearer $GH_TOKEN" \
             https://api.github.com/repos/GrischaTDev/flipbase/actions/artifacts/11371194246/zip \
             -o /tmp/vinted-integration-review/generator.zip
-      - name: Verify and prepare the exact integration tree
-        run: |
-          python3 - <<'PY'
-          import base64, gzip, hashlib, json, lzma, pathlib, re, subprocess, zipfile
-          root = pathlib.Path.cwd()
-          review = pathlib.Path('/tmp/vinted-integration-review')
-          base = '147a8c7c72bf9eff6e190da5263a80adf5c0ab12'
-          subprocess.run(['git', 'merge-base', '--is-ancestor', base, 'HEAD'], check=True)
-          paths = []
-          for kind, expected in [('schema', '8799360cadf657708d56720fa8b7c3e3fa96576b090e0aeec458dd95721ab7aa'), ('code', 'a4ed25c607ffaaaa60f3d9987d4a3732c73e74ccca940704804d0b1b010f910a')]:
-              manifest = json.loads((root / f'tools/vinted-search-filter-{kind}-transfer.json').read_text())
-              assert manifest['base_commit'] == base
-              if kind == 'schema':
-                  patch = gzip.decompress(base64.b64decode(manifest['patch_gzip_base64'], validate=True))
-              else:
-                  assert manifest['parts'] == [f'tools/vinted-search-filter-code.part{i}.b64' for i in range(4)]
-                  encoded = ''.join((root / p).read_text().strip() for p in manifest['parts'])
-                  patch = lzma.decompress(base64.b64decode(encoded, validate=True))
-              assert hashlib.sha256(patch).hexdigest() == manifest['sha256'] == expected
-              allowed = manifest['paths']
-              assert all(not pathlib.PurePosixPath(p).is_absolute() and '..' not in pathlib.PurePosixPath(p).parts for p in allowed)
-              subprocess.run(['git', 'diff', '--exit-code', base, 'HEAD', '--', *allowed], check=True)
-              file = review / f'{kind}.patch'
-              file.write_bytes(patch)
-              actual = subprocess.check_output(['git', 'apply', '--numstat', str(file)], text=True).splitlines()
-              assert sorted(line.split('\t', 2)[2] for line in actual) == sorted(allowed)
-              subprocess.run(['git', 'apply', '--check', str(file)], check=True)
-              subprocess.run(['git', 'apply', str(file)], check=True)
-              paths.extend(allowed)
-          archive = review / 'generator.zip'
-          assert hashlib.sha256(archive.read_bytes()).hexdigest() == '8cf2c9f33362541f946b9090094188c5a6e153036e9b709654f2130880e719dd'
-          baseline_name = '20261005213927_vinted_generation_baseline.sql'
-          migration_name = '20261005213950_vinted_central_search_filters.sql'
-          with zipfile.ZipFile(archive) as zipped:
-              baseline_bytes = zipped.read(baseline_name)
-              migration_bytes = zipped.read(migration_name)
-          assert hashlib.sha256(baseline_bytes).hexdigest() == 'cb8330a89fee809d62ddd4785167fa96a49e54c1dc9a5367611d99843a26f5e7'
-          assert hashlib.sha256(migration_bytes).hexdigest() == '1ac9418b7a05b323ceffa69a1a23631dd4c1a2fd1cfefd15f35e1b0b4767b240'
-          baseline = baseline_bytes.decode()
-          migration = migration_bytes.decode()
-          for table, constraint in [('marketplace_browser_profiles', 'marketplace_browser_profiles_provider_profile_id_check'), ('marketplace_connections', 'marketplace_connections_display_name_check')]:
-              for operation in ['DROP', 'ADD']:
-                  pattern = rf'^ALTER TABLE public\.{table}\n  {operation} CONSTRAINT {constraint}\b[^;]*;\n\n'
-                  entries = re.findall(pattern, migration, re.M)
-                  assert len(entries) == 1 and entries == re.findall(pattern, baseline, re.M)
-                  migration = migration.replace(entries[0], '', 1)
-          for excluded in ['public.marketplace_', 'public.purchase_', 'public.catalog_product_', 'public.expense_', 'public.listing_images', 'public.beta_discord_links']:
-              assert excluded not in migration
-          header = '-- Zentrale Vinted-Suchfilter: Kategorien, Marken und Titelbegriffe mit revisionsgesicherter Übernahme.\n-- Betrifft sniper_queries, sniper_listings, sniper_runtime_status und die zugehörigen RPCs.\n-- Generiert aus den deklarativen Schemas; vier mit der Generator-Basis identische,\n-- sachfremde Constraint-Neuausgaben wurden beim Zusammenstellen automatisch abgezogen.\n'
-          migration = (header + migration).encode()
-          assert hashlib.sha256(migration).hexdigest() == '3eaff7f00f87a1cda6cf53ea7a73e22d08e3342273a00febb066a7c3e13f282a'
-          migration_path = 'supabase/migrations/' + migration_name
-          assert not (root / migration_path).exists()
-          (root / migration_path).write_bytes(migration)
-          paths.append(migration_path)
-          fixes = root / 'tools/vinted-search-filter-corrections.json'
-          if fixes.exists():
-              for fix in json.loads(fixes.read_text())['replacements']:
-                  path = fix['path']
-                  assert (path.startswith(('src/app/features/platform-admin/', 'services/sniper/', 'e2e/sniper-administration', 'docs/', 'supabase/tests/sniper_')) or path == 'scripts/playwright-pr-smoke.test.mjs') and '..' not in pathlib.PurePosixPath(path).parts
-                  file = root / path
-                  text = file.read_text()
-                  assert hashlib.sha256(text.encode()).hexdigest() == fix['before_sha256']
-                  assert text.count(fix['before']) == 1
-                  text = text.replace(fix['before'], fix['after'], 1)
-                  assert hashlib.sha256(text.encode()).hexdigest() == fix['after_sha256']
-                  file.write_text(text)
-                  paths.append(path)
-          (review / 'product-paths.json').write_text(json.dumps(sorted(set(paths))))
-          temporary = ['.github/workflows/vinted-search-filter-check.yml', 'tools/vinted-search-filter-schema-transfer.json', 'tools/vinted-search-filter-code-transfer.json', 'tools/vinted-search-filter-corrections.json'] + [f'tools/vinted-search-filter-code.part{i}.b64' for i in range(4)]
-          subprocess.run(['git', 'rm', '--', *temporary], check=True)
-          (review / 'temporary-paths.json').write_text(json.dumps(temporary))
-          PY
+          python3 tools/vinted-search-filter-followup.py > /tmp/vinted-integration-review/preparation.log 2>&1
+          git write-tree > /tmp/vinted-integration-review/prepared-tree.txt
       - name: Install locked dependencies
         run: |
           npm ci > /tmp/vinted-integration-review/install.log 2>&1
           npm ci --prefix services/sniper >> /tmp/vinted-integration-review/install.log 2>&1
-      - name: Formatting, lint and types
-        id: quality
-        continue-on-error: true
+      - name: Formatting, lint, types and workflow contracts
         run: |
           npm run format:check > /tmp/vinted-integration-review/format.log 2>&1
           npm run lint > /tmp/vinted-integration-review/lint.log 2>&1
@@ -124,93 +51,61 @@ jobs:
           npm run typecheck --prefix services/sniper > /tmp/vinted-integration-review/collector-types.log 2>&1
           npm run test:audit > /tmp/vinted-integration-review/audit.log 2>&1
           npm run test:workflow > /tmp/vinted-integration-review/workflow-tests.log 2>&1
-      - name: All collector tests
-        id: collector
-        continue-on-error: true
-        run: npm test --prefix services/sniper > /tmp/vinted-integration-review/collector-tests.log 2>&1
-      - name: All application tests
-        id: application
-        continue-on-error: true
-        run: npx vitest run --maxWorkers=4 > /tmp/vinted-integration-review/application-tests.log 2>&1
       - name: Production Angular build
-        id: build
-        continue-on-error: true
         env:
           NODE_OPTIONS: --max-old-space-size=4096
         run: npm run build > /tmp/vinted-integration-review/build.log 2>&1
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        if: steps.build.outcome == 'success'
-        with:
-          name: vinted-filter-production-build
-          path: dist/
-          retention-days: 1
-      - name: Start isolated database and apply only scoped migration
-        id: database_start
-        continue-on-error: true
+      - name: Start disposable database and verify generated types
         run: |
           npx supabase start > /tmp/vinted-integration-review/database-start.log 2>&1
           npx supabase migration up --local > /tmp/vinted-integration-review/migration.log 2>&1
           npx supabase gen types typescript --local > /tmp/vinted-integration-review/supabase.types.ts
           diff -u src/app/core/models/supabase.types.ts /tmp/vinted-integration-review/supabase.types.ts > /tmp/vinted-integration-review/types-diff.log
-      - name: Full database regression suite
-        id: database
-        if: steps.database_start.outcome == 'success'
-        continue-on-error: true
-        run: npm run test:db > /tmp/vinted-integration-review/database-tests.log 2>&1
-      - name: Desktop and mobile browser regression
-        id: browser
-        if: steps.database_start.outcome == 'success' && steps.build.outcome == 'success'
-        continue-on-error: true
+      - name: Desktop and mobile keyboard regression twice without retries
         run: |
           npx playwright install --with-deps chromium > /tmp/vinted-integration-review/browser-install.log 2>&1
-          npx playwright test e2e/sniper-administration.spec.ts --workers=1 --timeout=90000 > /tmp/vinted-integration-review/browser-tests.log 2>&1
-      - name: Require every check before accepting the feature
-        env:
-          QUALITY: ${{ steps.quality.outcome }}
-          COLLECTOR: ${{ steps.collector.outcome }}
-          APPLICATION: ${{ steps.application.outcome }}
-          BUILD: ${{ steps.build.outcome }}
-          DATABASE_START: ${{ steps.database_start.outcome }}
-          DATABASE: ${{ steps.database.outcome }}
-          BROWSER: ${{ steps.browser.outcome }}
-        run: |
-          python3 - <<'PY'
-          import os
-          names = ['QUALITY', 'COLLECTOR', 'APPLICATION', 'BUILD', 'DATABASE_START', 'DATABASE', 'BROWSER']
-          result = {name: os.environ[name] for name in names}
-          print(result)
-          assert all(value == 'success' for value in result.values())
-          PY
-      - name: Save verified implementation on this feature branch only
+          npx playwright test e2e/sniper-administration.spec.ts --workers=1 --retries=0 --repeat-each=2 --timeout=90000 > /tmp/vinted-integration-review/browser-tests.log 2>&1
+      - name: All collector tests
+        run: npm test --prefix services/sniper > /tmp/vinted-integration-review/collector-tests.log 2>&1
+      - name: Full database regression suite
+        run: npm run test:db > /tmp/vinted-integration-review/database-tests.log 2>&1
+      - name: All application tests
+        run: npx vitest run --maxWorkers=4 > /tmp/vinted-integration-review/application-tests.log 2>&1
+      - name: Record evidence and commit only the verified feature branch
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           test "$GITHUB_REF" = refs/heads/juna/vinted-central-search-filters
           test "$(git ls-remote origin refs/heads/juna/vinted-central-search-filters | cut -f1)" = "$GITHUB_SHA"
+          test "$(git ls-remote origin refs/heads/master | cut -f1)" = "$(cat /tmp/vinted-integration-review/merged-master.txt)"
           python3 - <<'PY'
           import json, os, pathlib, re, subprocess
           review = pathlib.Path('/tmp/vinted-integration-review')
-          def read_log(name):
-              return re.sub(r'\x1b\[[0-9;]*m', '', (review / name).read_text())
           def count(name, pattern):
-              matches = re.findall(pattern, read_log(name))
+              text = re.sub(r'\x1b\[[0-9;]*m', '', (review / name).read_text())
+              matches = re.findall(pattern, text)
               assert matches, name
               return matches[-1]
-          application = count('application-tests.log', r'Tests\s+(\d+)\s+passed')
-          collector = count('collector-tests.log', r'Tests\s+(\d+)\s+passed')
-          database = count('database-tests.log', r'Files=\d+, Tests=(\d+)')
-          browser = count('browser-tests.log', r'(\d+) passed')
-          workflow = count('workflow-tests.log', r'# pass (\d+)')
-          skipped = count('workflow-tests.log', r'# skipped (\d+)')
+          counts = {
+              'application': count('application-tests.log', r'Tests\s+(\d+)\s+passed'),
+              'collector': count('collector-tests.log', r'Tests\s+(\d+)\s+passed'),
+              'database': count('database-tests.log', r'Files=\d+, Tests=(\d+)'),
+              'browser': count('browser-tests.log', r'(\d+) passed'),
+              'workflow': count('workflow-tests.log', r'# pass (\d+)'),
+              'workflow_skipped': count('workflow-tests.log', r'# skipped (\d+)'),
+          }
           evidence = (
-              f"**Abschlussprüfung:** Lauf `{os.environ['GITHUB_RUN_ID']}` besteht "
-              f"{application} Anwendungstests, {collector} Collector-Tests, {database} "
-              f"Datenbankassertions und {browser} Browserabläufe. {workflow} Workflow-Tests "
-              f"bestehen; {skipped} vorhandener umgebungsabhängiger Fall bleibt übersprungen. "
-              "Produktionsbau, Formatierung, Lint, Typen, Shared-UI-Architektur und "
-              "der Abgleich der generierten Datenbanktypen bestehen. Die temporären "
-              "Transportdateien und der Prüfworkflow sind aus dem fertigen Dateistand "
-              "entfernt. PR, Merge und Produktion bleiben unverändert.\n\n"
+              f"**Abschlussprüfung vom 06.10.2026:** Lauf `{os.environ['GITHUB_RUN_ID']}`: "
+              f"{counts['application']} Anwendungstests, {counts['collector']} Collector-Tests, "
+              f"{counts['database']} Datenbankassertions und {counts['browser']} Browserabläufe "
+              "bestanden. Desktop hell und Mobil dunkel jeweils zweimal ohne Wiederholungsversuch; "
+              "Enter zum Zurücksetzen, Tab/Shift+Tab, Escape, Fokuswiederherstellung und AXE enthalten. "
+              f"{counts['workflow']} Workflow-Tests bestanden; {counts['workflow_skipped']} "
+              "vorhandener optionaler Umgebungsfall übersprungen. Produktionsbau, Formatierung, "
+              "Lint und Typprüfungen erfolgreich. Generierte Datenbanktypen stimmen exakt. "
+              "Aktuelles master einschließlich PR 306 und 307 integriert. Temporäre Transportdateien "
+              "und Prüfworkflow sind entfernt. Kein PR, kein Merge nach master und keine "
+              "Produktionsänderung; Abschlussfreigabe steht noch aus.\n\n"
           )
           file = pathlib.Path('docs/AI-CHANGELOG.md')
           text = file.read_text()
@@ -221,37 +116,42 @@ jobs:
           plan.write_text(plan.read_text() + '\n## Abschlussprüfung\n\n' + evidence)
           subprocess.run(['node', 'node_modules/prettier/bin/prettier.cjs', '--write', str(file), str(plan)], check=True)
           paths = json.loads((review / 'product-paths.json').read_text())
-          subprocess.run(['git', 'add', '--', *paths], check=True)
-          changed = subprocess.check_output(['git', 'diff', '--cached', '--name-only'], text=True).splitlines()
-          allowed = set(paths + json.loads((review / 'temporary-paths.json').read_text()))
-          assert set(changed).issubset(allowed)
+          upstream = json.loads((review / 'upstream-paths.json').read_text())
+          temporary = json.loads((review / 'temporary-paths.json').read_text())
+          subprocess.run(['git', 'add', '--', *sorted(set(paths + upstream))], check=True)
+          master = (review / 'merged-master.txt').read_text().strip()
+          changed = subprocess.check_output(['git', 'diff', '--cached', '--name-only', master], text=True).splitlines()
+          assert set(changed) <= set(paths + temporary)
+          assert not any(pathlib.Path(path).exists() for path in temporary)
           subprocess.run(['git', 'diff', '--cached', '--check'], check=True)
+          (review / 'counts.json').write_text(json.dumps(counts, indent=2))
           PY
           git config user.name 'Grischa Tänzer'
           git config user.email 'Grischa.Taenzer@gmail.com'
-          git commit -m 'feat(sniper): add central category brand and title search filters'
+          tree="$(git write-tree)"
+          master="$(cat /tmp/vinted-integration-review/merged-master.txt)"
+          commit="$(git commit-tree "$tree" -p "$GITHUB_SHA" -p "$master" -m 'feat(sniper): integrate verified central category brand and title filters')"
           authorization="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
-          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $authorization" push origin HEAD:refs/heads/juna/vinted-central-search-filters
-          git rev-parse HEAD > /tmp/vinted-integration-review/verified-commit.txt
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $authorization" push origin "$commit":refs/heads/juna/vinted-central-search-filters
+          printf '%s\n' "$commit" > /tmp/vinted-integration-review/verified-commit.txt
+          git archive "$commit" | gzip > /tmp/vinted-integration-review/verified-source.tar.gz
       - name: Collect diagnostics
         if: always()
         run: |
-          for file in /tmp/vinted-integration-review/*.log; do
-            echo "=== $file ==="
-            tail -n 45 "$file"
+          for name in preparation format lint types collector-types workflow-tests build types-diff browser-tests collector-tests database-tests application-tests; do
+            file="/tmp/vinted-integration-review/$name.log"
+            if test -f "$file"; then echo "=== $name ==="; tail -n 35 "$file"; fi
           done
           git diff --binary HEAD > /tmp/vinted-integration-review/integration.patch
-          cp supabase/migrations/*_vinted_central_search_filters.sql /tmp/vinted-integration-review/ 2>/dev/null || true
           git rev-parse HEAD > /tmp/vinted-integration-review/revision.txt
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: always()
         with:
-          name: vinted-search-filter-integration-review
+          name: vinted-search-filter-followup-review
           path: |
             /tmp/vinted-integration-review/
             test-results/
-            playwright-report/
-          retention-days: 1
+          retention-days: 3
       - name: Stop disposable database
         if: always()
-        run: npx supabase stop --no-backup
+        run: npx --no-install supabase stop --no-backup
