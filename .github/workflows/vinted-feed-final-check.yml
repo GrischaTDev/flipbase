@@ -1,0 +1,200 @@
+name: Vinted feed final integration
+
+on:
+  push:
+    branches: [juna/vinted-feed-account-favorites]
+    paths: [.github/workflows/vinted-feed-final-check.yml]
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: vinted-feed-final-integration
+  cancel-in-progress: true
+
+jobs:
+  integration:
+    if: github.repository == 'GrischaTDev/flipbase' && github.ref == 'refs/heads/juna/vinted-feed-account-favorites'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 35
+    env:
+      NG_BUILD_MAX_WORKERS: '2'
+      NODE_OPTIONS: --max-old-space-size=4096
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Prepare the reviewed changes without touching production
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p /tmp/feed-final-review
+          git config user.name 'Grischa Tänzer'
+          git config user.email 'Grischa.Taenzer@gmail.com'
+          git merge --no-commit --no-ff b343611fffb6f289292ca23e9b14ff9429b2868e
+          curl --fail --silent --show-error --location -H "Authorization: Bearer $GH_TOKEN" \
+            https://api.github.com/repos/GrischaTDev/flipbase/actions/artifacts/11410580455/zip \
+            -o /tmp/feed-final-review/database.zip
+          python3 - <<'PY'
+          import base64, hashlib, json, lzma, pathlib, re, subprocess, zipfile
+          root = pathlib.Path.cwd()
+          review = pathlib.Path('/tmp/feed-final-review')
+          patches = [
+              ((root/'tools/vinted-feed-account.patch').read_bytes(), 'a9885e3a404c5379a97a2990d3fb717e3061b2ee00d538f12865312c51e87b8f'),
+              (lzma.decompress(base64.b64decode(''.join((root/f'tools/vinted-feed-ui.part{i}.b64').read_text().strip() for i in range(5)), validate=True)), '7c9580615d607ecc678a9556e39d89c7f0ba94785fd2470ecb38ff359fcd1d18'),
+          ]
+          paths = set()
+          for i, (data, digest) in enumerate(patches):
+              assert hashlib.sha256(data).hexdigest() == digest, 'Die Übertragung stimmt nicht mit dem lokal geprüften Quellstand überein.'
+              patch = review/f'changes-{i}.patch'
+              patch.write_bytes(data)
+              entries = subprocess.check_output(['git','apply','--numstat',str(patch)], text=True).splitlines()
+              for entry in entries:
+                  path = entry.split('\t',2)[2]
+                  assert '..' not in pathlib.PurePosixPath(path).parts and path.startswith(('src/','e2e/','services/sniper/','supabase/schemas/','docs/design/'))
+                  paths.add(path)
+              subprocess.run(['git','apply','--check',str(patch)], check=True)
+              subprocess.run(['git','apply',str(patch)], check=True)
+          archive = review/'database.zip'
+          assert hashlib.sha256(archive.read_bytes()).hexdigest() == '533df66749cf084aef03d36b88382dd40d229210f53ebd3b6545f26a55bcccc3'
+          with zipfile.ZipFile(archive) as zipped:
+              names = [name for name in zipped.namelist() if name.endswith('/20261006113233_vinted_feed_account_favorites.sql') or name == '20261006113233_vinted_feed_account_favorites.sql']
+              assert len(names) == 1
+              sql = zipped.read(names[0])
+          migration = 'supabase/migrations/20261006113233_vinted_feed_account_favorites.sql'
+          assert not (root/migration).exists()
+          assert b'create table "public"."sniper_favorites"' in sql or b'create table public.sniper_favorites' in sql
+          assert b'revoke all on public.sniper_favorites' in sql.lower()
+          (root/migration).write_bytes(sql)
+          paths.add(migration)
+          config = root/'supabase/config.toml'
+          text = config.read_text()
+          for name in ['400_sniper_favorites.sql','401_sniper_feed_search.sql']:
+              assert name not in text
+          text, count = re.subn(r'(schema_paths\s*=\s*\[)(.*?)(\])', lambda m: m[1]+m[2].rstrip().rstrip(',')+', "./schemas/400_sniper_favorites.sql", "./schemas/401_sniper_feed_search.sql"'+m[3], text, count=1, flags=re.S)
+          assert count == 1
+          config.write_text(text)
+          paths.add('supabase/config.toml')
+          smoke = root/'scripts/playwright-pr-smoke.test.mjs'
+          text = smoke.read_text()
+          title = 'Account-Favoriten bleiben auf Tablet und Desktop nach Feed-Bereinigung erhalten @core-smoke'
+          assert title not in text and text.count('const coreTests = [') == 1
+          smoke.write_text(text.replace('const coreTests = [', "const coreTests = [\n  ['deal-monitor.spec.ts', '"+title+"'],",1))
+          paths.add('scripts/playwright-pr-smoke.test.mjs')
+          paths.update(['supabase/schemas/400_sniper_favorites.sql','supabase/schemas/401_sniper_feed_search.sql','supabase/tests/sniper_account_favorites.sql','supabase/tests/sniper_feed_search.sql','supabase/tests/deal_monitor_retention.sql','supabase/tests/deal_monitor_group_reference.sql','src/app/core/models/supabase.types.ts','docs/AI-CHANGELOG.md','docs/superpowers/plans/2026-10-06-vinted-feed-account-favorites.md'])
+          changelog = root/'docs/AI-CHANGELOG.md'
+          text = changelog.read_text()
+          heading, remaining = text.split('\n',1)
+          entry = '''
+          ## 2026-10-06 - Juna - Vinted Feed und persönliche Account-Favoriten
+
+          **Auftrag:** Feed auf sieben Tage begrenzen, persönliche Favoriten geräteübergreifend und ohne automatische Löschung erhalten. Titelsuche, fünf Desktopspalten, zurückhaltendere Bildaktionen, Heute/Gestern und ein gemeinsamer Kategorie-Wähler.
+
+          **Umsetzung:** Favoriten sind separate geprüfte Artikelkopien je Benutzer und Workspace. Bestätigte Schreibvorgänge und generationsgebundene Ladeantworten schützen bei Geräte-/Accountwechseln. Der ausdrückliche Altimport löscht seine Browserquelle erst nach bestätigter Speicherung; entfernte Einträge werden nicht durch alte Gerätebestände wiederhergestellt. Keine stille 500er-Verdrängung. Bilddateien werden nicht gespiegelt. Sichtbare Fenster gleichen die Liste beim Öffnen und alle 30 Sekunden ab.
+
+          **Feed:** Titelsuche wird vor der Seitengrenze in der Datenbank angewendet. Bereinigung und Referenzvergleich verwenden sieben Tage. Favoriten haben keine Verknüpfung, durch die eine Feed-Bereinigung sie löschen könnte. Desktop zeigt fünf Karten; kleinere Bildaktionen behalten auf Touchgeräten große Bedienflächen. Kategorie-Auswahl verwendet den bestehenden gemeinsamen Picker mit einer getrennten Vinted-Datenquelle. Titelwort-Verknüpfung wird erst bei mehreren Begriffen eingeblendet.
+
+          **Prüfstand:** Neue Favoriten-, Datums- und Kategoriequellentests wurden zuerst gegen den bisherigen Stand rot und danach grün geprüft. Die erzeugte Datenbankmigration bestand nach frischem Neuaufbau 3.091 Datenbankprüfungen einschließlich Rechteentzügen. Lokaler Produktionsbau wurde durch die Speichergrenze beendet. Deshalb wird der vollständige integrierte Stand einschließlich aktueller master-Änderungen auf einem isolierten GitHub-Runner geprüft. Kein unabhängiger zweiter Reviewer und kein echter Vinted-Abruf. PR und Produktion bleiben bis zur Abschlussfreigabe unverändert.
+
+          '''
+          import textwrap
+          changelog.write_text(heading+'\n'+textwrap.dedent(entry)+remaining.lstrip('\n'))
+          temporary = ['tools/vinted-feed-account.patch']+[f'tools/vinted-feed-ui.part{i}.b64' for i in range(5)]+['.github/workflows/vinted-feed-check.yml','tools/vinted-feed-database-check.py','.github/workflows/vinted-feed-final-check.yml']
+          subprocess.run(['git','rm','--',*temporary], check=True)
+          (review/'product-paths.json').write_text(json.dumps(sorted(paths)))
+          (review/'temporary-paths.json').write_text(json.dumps(temporary))
+          PY
+      - name: Install locked dependencies
+        run: |
+          npm ci > /tmp/feed-final-review/install.log 2>&1
+          npm ci --prefix services/sniper >> /tmp/feed-final-review/install.log 2>&1
+      - name: Start disposable database and regenerate current types
+        run: |
+          npx supabase start > /tmp/feed-final-review/database-start.log 2>&1
+          npx supabase migration up --local > /tmp/feed-final-review/migration.log 2>&1
+          npx supabase gen types typescript --local > src/app/core/models/supabase.types.ts
+      - name: Formatting lint types and test contracts
+        run: |
+          python3 - <<'PY'
+          import json,subprocess
+          paths=json.load(open('/tmp/feed-final-review/product-paths.json'))
+          paths=[p for p in paths if p.endswith(('.ts','.html','.md','.mjs'))]
+          subprocess.run(['node','node_modules/prettier/bin/prettier.cjs','--write',*paths],check=True)
+          PY
+          npm run format:check > /tmp/feed-final-review/format.log 2>&1
+          npm run lint > /tmp/feed-final-review/lint.log 2>&1
+          npm run typecheck > /tmp/feed-final-review/types.log 2>&1
+          npm run test:audit > /tmp/feed-final-review/audit.log 2>&1
+          npm run test:workflow > /tmp/feed-final-review/workflow.log 2>&1
+      - name: Affected application and shared component tests
+        run: |
+          npx vitest run src/app/features/deal-monitor src/app/features/platform-admin src/app/shared/components/category-picker src/app/shared/components/search-multi-select src/app/shared/components/button --maxWorkers=2 > /tmp/feed-final-review/application.log 2>&1
+          npm test --prefix services/sniper > /tmp/feed-final-review/collector.log 2>&1
+      - name: Production Angular build
+        run: npm run build > /tmp/feed-final-review/build.log 2>&1
+      - name: Full database regression after the generated migration
+        run: npm run test:db > /tmp/feed-final-review/database.log 2>&1
+      - name: Desktop tablet and shared picker browser regression
+        run: |
+          npx playwright install --with-deps chromium > /tmp/feed-final-review/browser-install.log 2>&1
+          npx playwright test e2e/deal-monitor.spec.ts e2e/sniper-administration.spec.ts --workers=1 --retries=0 --timeout=90000 > /tmp/feed-final-review/browser.log 2>&1
+      - name: Commit the verified feature only on its own branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$GITHUB_REF" = refs/heads/juna/vinted-feed-account-favorites
+          test "$(git ls-remote origin "$GITHUB_REF" | cut -f1)" = "$GITHUB_SHA"
+          python3 - <<'PY'
+          import json,os,pathlib,re,subprocess
+          review=pathlib.Path('/tmp/feed-final-review')
+          def count(file,pattern):
+              text=re.sub(r'\x1b\[[0-9;]*m','',(review/file).read_text())
+              matches=re.findall(pattern,text)
+              assert matches,(file,pattern)
+              return matches[-1]
+          result=f"\n**Abschlussprüfung:** Lauf `{os.environ['GITHUB_RUN_ID']}`: {count('application.log',r'Tests\s+(\d+)\s+passed')} betroffene Anwendungstests, {count('collector.log',r'Tests\s+(\d+)\s+passed')} Collector-Tests, {count('database.log',r'Files=\d+, Tests=(\d+)')} Datenbankprüfungen und {count('browser.log',r'(\d+) passed')} Browserabläufe bestanden. Produktionsbau, Formatierung, Lint, Typen und Workflow-Verträge bestanden. Temporäre Prüfdateien entfernt. Keine Änderung an Produktion; Abschlussfreigabe für PR und Merge steht aus.\n"
+          for path in ['docs/AI-CHANGELOG.md','docs/superpowers/plans/2026-10-06-vinted-feed-account-favorites.md']:
+              file=pathlib.Path(path)
+              if path.endswith('AI-CHANGELOG.md'):
+                  text=file.read_text(); marker='## 2026-10-06 - Juna - Vinted Feed und persönliche Account-Favoriten\n'
+                  assert text.count(marker)==1
+                  file.write_text(text.replace(marker,marker+result,1))
+              else: file.write_text(file.read_text()+result)
+          subprocess.run(['node','node_modules/prettier/bin/prettier.cjs','--write','docs/AI-CHANGELOG.md','docs/superpowers/plans/2026-10-06-vinted-feed-account-favorites.md'],check=True)
+          paths=json.loads((review/'product-paths.json').read_text())
+          subprocess.run(['git','add','--',*paths],check=True)
+          changed=subprocess.check_output(['git','diff','--cached','--name-only','b343611fffb6f289292ca23e9b14ff9429b2868e'],text=True).splitlines()
+          assert set(changed).issubset(set(paths)),set(changed)-set(paths)
+          subprocess.run(['git','diff','--cached','--check'],check=True)
+          PY
+          git commit -m 'feat(sniper): add persistent account favorites and a focused seven-day feed'
+          authorization="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          echo "::add-mask::$authorization"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $authorization" push origin HEAD:refs/heads/juna/vinted-feed-account-favorites
+          git rev-parse HEAD > /tmp/feed-final-review/verified-commit.txt
+      - name: Collect scoped diagnostics
+        if: always()
+        run: |
+          for file in /tmp/feed-final-review/*.log; do echo "=== $file ==="; tail -n 55 "$file"; done
+          git status --short
+          git rev-parse HEAD > /tmp/feed-final-review/revision.txt
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: vinted-feed-final-review
+          path: |
+            /tmp/feed-final-review/*.log
+            /tmp/feed-final-review/*commit.txt
+            /tmp/feed-final-review/revision.txt
+            test-results/
+          retention-days: 3
+      - name: Stop disposable database
+        if: always()
+        run: |
+          if test -x node_modules/.bin/supabase; then node_modules/.bin/supabase stop --no-backup; fi
