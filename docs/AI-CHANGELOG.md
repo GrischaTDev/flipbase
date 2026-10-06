@@ -1,5 +1,23 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-06 - Juna - Manuellen Vinted-Login über die IPRoyal-IP bestätigt
+
+**Nachweis:** Der Nutzer bestätigt im vorbereiteten separaten Windows-Chrome:
+Datenschutzbanner bedient, Slider selbst gelöst, SMS-Code eingegeben und danach
+im bestehenden Vinted-Konto angemeldet. Der geprüfte Proxy-Testzugang verwendet
+dieselbe IPRoyal-IP wie der bisherige Cloudversuch. Damit ist die konkrete IP
+für diesen manuellen Login nutzbar. Die Browserumgebung, das Profil, der
+Anmeldeablauf und der Zeitpunkt unterscheiden sich weiterhin; eine einzelne
+Ursache der vorherigen Cloud-Sperre ist dadurch nicht nachgewiesen.
+
+**Nächster Vergleich:** Der vorhandene Modus „Direkt im Browser anmelden“ in
+Flipbase deaktiviert automatische Anmeldung, Codeübermittlung und laufende
+Identitätsabfragen. Ein manueller Cloudversuch kann dadurch Eingabeablauf und
+Browserumgebung weiter eingrenzen. Keine Cookies übertragen und keine
+Kontoverknüpfung umgestellt. Der IP-Pool meldet aktuell wieder `free`.
+Die Cookie-Korrektur ist lokal geprüft und wartet weiterhin auf die explizite
+PR-/Merge-Freigabe; die Loginbestätigung ist keine solche Freigabe.
+
 ## 2026-10-06 - Juna - Gleichzeitige Cookie-Klicks bei der Cloud-Anmeldung beheben
 
 **Auftrag:** Prüfen, ob das verzögert angezeigte Datenschutzbanner den
