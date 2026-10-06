@@ -122,7 +122,7 @@ export class VintedAccountGridComponent {
   private dragContext: string | null = null;
   readonly statusTones = MARKETPLACE_CONNECTION_TONES;
   readonly refreshIcon = LucideRefreshCw;
-  readonly dragStartDelay = { mouse: 180, touch: 250 } as const;
+  readonly dragStartDelay = { mouse: 0, touch: 250 } as const;
   readonly settingsIcon = LucideSettings;
   readonly addIcon = LucidePlus;
   readonly deleteIcon = LucideTrash2;

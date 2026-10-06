@@ -38,7 +38,7 @@
 }
 @if (accounts.connections().length) {
   <div
-    class="grid grid-cols-[repeat(auto-fill,minmax(min(100%,18rem),20rem))] gap-4"
+    class="grid grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),23rem))] gap-4"
     cdkDropList
     cdkDropListOrientation="mixed"
     [cdkDropListData]="connectionIds()"
@@ -77,7 +77,7 @@
           [queryParams]="{ connectionId: account.connectionId }"
           [linkLabel]="account.displayName + ' öffnen'"
         >
-          <div class="flex h-full min-w-0 flex-col gap-3 p-3">
+          <div class="flex h-full min-w-0 flex-col gap-4 p-4">
             <div class="flex min-w-0 items-start gap-3">
               <app-product-thumbnail [src]="profile?.imageUrl ?? null" alt="" size="avatar" />
               <div class="min-w-0 flex-1">
@@ -119,6 +119,13 @@
               />
             </div>
             <div class="mt-auto space-y-3">
+              @if (profile?.feedbackCount !== null && profile?.feedbackCount !== undefined) {
+                <app-vinted-rating
+                  class="block"
+                  [count]="profile.feedbackCount"
+                  [reputation]="profile.feedbackReputation"
+                />
+              }
               <div
                 class="relative z-10 flex flex-wrap items-center gap-2"
                 (mousedown)="stopActionDrag($event)"
@@ -220,12 +227,6 @@
                   >
                 }
               </div>
-              @if (profile?.feedbackCount !== null && profile?.feedbackCount !== undefined) {
-                <app-vinted-rating
-                  [count]="profile.feedbackCount"
-                  [reputation]="profile.feedbackReputation"
-                />
-              }
             </div>
             @if (tile.error) {
               <p class="text-xs text-fb-text-secondary">Vorschau gerade nicht verfügbar</p>
