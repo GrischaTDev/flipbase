@@ -1,5 +1,88 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-06 - Juna - Gleichzeitige Cookie-Klicks bei der Cloud-Anmeldung beheben
+
+**Auftrag:** Prüfen, ob das verzögert angezeigte Datenschutzbanner den
+Formularfehler im laufenden Cloud-Test erklären kann, und den bestätigten
+Fehler gezielt beheben.
+
+**Änderung:** Der Worker wartet nacheinander auf Benutzername, Passwort und
+Weiter-Button. Die bisher parallelen Warteoperationen konnten denselben
+Cookie-Handler gleichzeitig auslösen. Ein Aufruf entfernte das Banner,
+während ein weiterer Klick auf das bereits entfernte Element scheiterte.
+Eine neue synthetische Browserseite bildet ein verzögertes Cookie-Banner ab,
+das das darunterliegende Formular aus dem Barrierefreiheitsbaum ausblendet.
+Der Regressionstest reproduzierte vor der Änderung einen Cookie-Klick-Timeout
+mit dem gleichen Diagnoseschritt `wait_controls` und besteht nach der Änderung.
+Die notwendige Cookie-Auswahl, Berechtigungs- und CAPTCHA-Prüfungen sowie der
+Schutz vor erneutem Senden nach unklarem Ausgang bleiben bestehen.
+
+**Prüfung:** Alle 20 echten Browserfixtures bestanden, ebenso Worker-Typprüfung,
+Bau und gezieltes ESLint. Unter Windows bestanden 298 Workerprüfungen; fünf
+vorhandene IPRoyal-Dateirechtefälle scheiterten, sieben waren plattformbedingt
+übersprungen. Im isolierten Linux-Testcontainer ohne Netzwerk, Zugangsdaten,
+Produktionsvolumes oder Docker-Socket bestanden 309 Prüfungen mit einer
+übersprungenen Prüfung. Formatierung und Diff-Prüfung erfolgreich. Kein
+Produktionspatch oder echter Login ausgeführt. Die separate Vinted-Sitzungssperre
+nach dem Slider ist damit nicht als behoben nachgewiesen; der manuelle
+Chrome-Vergleich mit derselben IPRoyal-IP bleibt offen.
+
+## 2026-10-06 - Juna - Manuellen Chrome-Vergleich mit derselben IPRoyal-IP vorbereiten
+
+**Auftrag:** Nach der Vinted-Sitzungssperre den bestätigten Browservergleich
+fortsetzen, ohne die produktive Kontoverknüpfung umzustellen.
+
+**Vorbereitung:** Die vorhandene GoLogin-API ist erreichbar und meldet zwei
+Profile; kein Profil erstellt, geändert oder gestartet. Auf Windows ist Chrome
+154.0.8037.98 vorhanden. Ein privater temporärer HTTPS-CONNECT-Relay bindet
+nur an 127.0.0.1, authentifiziert gegenüber der vorhandenen IPRoyal-IP und
+beendet sich nach zwei Stunden. Zugangsdaten liegen ausschließlich im privaten
+Testordner mit Zugriff für den aktuellen Windows-Nutzer. Die Desktop-Verknüpfung
+`Flipbase IPRoyal Test.lnk` verwendet einen eigenen Chrome-Profilordner und
+diesen Relay, zunächst nur für einen öffentlichen IP-Nachweis. Die bestehenden
+Chrome-Profile und Systemeinstellungen bleiben unverändert.
+
+**Prüfung:** HTTPS-Verbindung durch den Relay erfolgreich; Ausgangs-IP stimmt
+mit der gekauften Proxy-IP überein und unterscheidet sich von der Hetzner-IP.
+Kein Vinted-Login, kein CAPTCHA, keine Zugangsdaten- oder Cookieübertragung
+an Vinted durch die Diagnose. Der Nutzer muss das vorbereitete Chrome-Fenster
+öffnen und den manuellen Anmeldevergleich durchführen. Gleiche IP grenzt den
+Netzwerkweg ein; OS, Browserversion, Sitzung und Zeitpunkt bleiben verschieden.
+Kein Produktpatch, Deployment oder automatischer Cloud-Wechsel.
+
+## 2026-10-06 - Juna - Vinted-Sitzungssperre im Cloud-Test eingrenzen
+
+**Auftrag:** Nach manueller Slider-Prüfung die tatsächliche Vinted-Sitzungssperre
+und die Unterschiede zum früheren GoLogin-Test untersuchen.
+
+**Befund:** Die auf der Sperrseite genannte Ausgangs-IP stimmt mit der privat
+konfigurierten IPRoyal-IP überein. Ein unabhängiger HTTPS-Aufruf über den
+konfigurierten Proxy bestätigt dieselbe Ausgangs-IP, Land DE und keinen
+Hetzner-Server-Ausgang. Die Einrichtung steht noch auf `login`. Der
+Cloudbrowser verwendet normales Playwright-Chromium mit persistentem Profil;
+er übernimmt keine GoLogin-Browserprofilkonfiguration. IPRoyal beschreibt
+ISP-Proxys als bei ISPs registrierte, in Rechenzentren gehostete Adressen.
+GoLogin dokumentiert zusätzlich pro Profil gespeicherte Browser-Eigenschaften.
+IP-Einstufung, Browserumgebung, Sitzungsverlauf und deren Kombination bleiben
+mögliche, nicht nachgewiesene Ursachen. Die ursprüngliche Browsersitzung war
+bei der weitergehenden Live-Inspektion bereits beendet. Kein weiterer
+Vinted-Aufruf, Anmeldeversuch, Profilwechsel oder Produktionspatch ausgeführt.
+
+## 2026-10-06 - Juna - Cloud-Anmeldeabbruch vor der Zugangsdaten-Eingabe untersuchen
+
+**Auftrag:** Das trotz sichtbarem E-Mail-/Passwortformular nicht automatisch
+bedienbare Vinted-Login für den Cloud-Test untersuchen.
+
+**Befund:** Das Produktionsprotokoll zeigt `wait_controls`, keine erkannte
+zusätzliche Prüfung und keinen begonnenen Anmeldeversuch. Die laufende Seite
+hat je ein sichtbares Benutzername-/Passwortfeld und einen eindeutigen
+Weiter-Button. Drei öffentliche Kontrollläufe über denselben Browser/Proxy
+erreichen die Eingabestelle. Die Diagnose bricht vor jeder Eingabe und
+Übermittlung ab; echte Zugangsdaten wurden nicht gelesen oder verwendet.
+Der ursprüngliche Fehler ist bislang nicht reproduziert. Keine Änderung an
+Anmeldelogik, Produktionskonfiguration, Konten oder IP-Zuordnungen. Ein erneuter
+Nutzerversuch ist für die weitere Eingrenzung angefragt.
+
 ## 2026-10-06 - Juna - Lokalen Vinted-Betrieb und Postfach wiederaufnehmen
 
 **Auftrag:** Den bestätigten Entwurf für automatische lokale Wiederaufnahme,
