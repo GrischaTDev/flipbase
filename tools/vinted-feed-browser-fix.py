@@ -54,6 +54,20 @@ regression = """describe('ButtonComponent', () => {
   });
 """
 replace_once(path, "describe('ButtonComponent', () => {\n", regression)
+
+# Der Trace zeigt erfolgreiche API-Antworten und die richtige Seite erst rund
+# acht Sekunden nach dem vollständigen Dokumentwechsel. Die bisherigen
+# Fünf-Sekunden-Assertions liefen davor auf der leeren App-Hülle. Zunächst auf
+# den sichtbaren Seitenkopf warten; sämtliche fachlichen Assertions behalten.
+navigation = r"^([ \t]*)await (page|tablet)\.(?:goto\('[^'\n]+'\)|reload\(\));$"
+for path, expected in [('e2e/deal-monitor.spec.ts', 11), ('e2e/sniper-administration.spec.ts', 4)]:
+    file = root / path
+    text = file.read_text()
+    assert len(re.findall(navigation, text, re.M)) == expected
+    text = re.sub(navigation, lambda m: m[0] + '\n' + m[1] + 'await ' + m[2] + ".locator('app-page-header').waitFor({ state: 'visible', timeout: 30_000 });", text, flags=re.M)
+    file.write_text(text)
+    paths.add(path)
+
 verification = review / 'verify.py'
 text = verification.read_text()
 assert text.count("BASE = 'b343611fffb6f289292ca23e9b14ff9429b2868e'") == 1
@@ -65,7 +79,10 @@ entry = ('\n**Nachprüfung:** Die Browserfehler wurden auf zwei veraltete Rollen
          'und Touch-Einstellungen. Die Bildaktionen bleiben am Desktop klein; schmale Ansichten '
          'haben zusätzlich zur Touch-Regel mindestens 44 px. Die vorhandenen Größenassertions '
          'bleiben erhalten. Lokaler CSS-Browsernachweis: vorher 28 px, nachher 44 px bei 390 px; '
-         'bei 1440 px unverändert 28 px. Die vollständige Integrationsnachprüfung steht noch aus.\n')
+         'bei 1440 px unverändert 28 px. Der nächste Trace belegte zusätzlich den sichtbaren '
+         'Seitenaufbau erst nach rund acht Sekunden bei bereits nach fünf Sekunden abgelaufenen '
+         'Assertions. Dokumentwechsel warten jetzt begrenzt auf den Seitenkopf, ohne Zieladressen '
+         'oder fachliche Prüfungen abzuschwächen. Die vollständige Integrationsnachprüfung steht noch aus.\n')
 changelog = root / 'docs/AI-CHANGELOG.md'
 text = changelog.read_text()
 heading = '## 2026-10-06 - Juna - Vinted Feed und persönliche Account-Favoriten\n'
