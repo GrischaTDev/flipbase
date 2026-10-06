@@ -17,6 +17,12 @@ test('Umstellung kopiert nur Zuordnungen und Worker-Sperren, niemals echte Brows
     await mkdir(join(source, 'profiles', `${profileId}.running`));
     await writeFile(join(source, 'registry', `${profileId}.json`), JSON.stringify({ profileId }));
     await writeFile(join(source, 'profiles', profileId, 'Cookies'), 'private-browser-data');
+    const networks = {
+      networkProfiles: [
+        { id: 'existing-network', kind: 'proxy', server: 'http://proxy.example.net:8080' },
+      ],
+    };
+    await writeFile(join(source, 'cloud-networks.json'), JSON.stringify(networks));
     await writeFile(
       join(source, 'profiles', `${profileId}.running`, 'owner.json'),
       '{"workerPid":9876}',
@@ -39,6 +45,10 @@ test('Umstellung kopiert nur Zuordnungen und Worker-Sperren, niemals echte Brows
       9876,
     );
     assert.match(await readFile(join(root, 'token'), 'utf8'), /^[a-f0-9]{64}$/);
+    assert.deepEqual(
+      JSON.parse(await readFile(join(target, 'cloud-networks.json'), 'utf8')),
+      networks,
+    );
     await assert.rejects(prepareChromiumBroker({ source, target, tokenPath: join(root, 'token') }));
   } finally {
     await rm(root, { recursive: true, force: true });

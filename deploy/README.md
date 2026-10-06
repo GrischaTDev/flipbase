@@ -68,10 +68,16 @@ Die Chromium-Umstellung erfolgt nach erfolgreichen Image-Smokes getrennt vom
 Web-Release. Worker und Kontobrowser zuerst über ihre bisherigen regulären
 Stoppwege bestätigt beenden; bei Exitcode 75, 137 oder unklarem Zustand abbrechen.
 Dann auf dem Pilothost `node deploy/prepare-chromium-broker.mjs` aus dem geprüften
-Dateistand ausführen. Das Werkzeug kopiert ausschließlich Zuordnungen und
-Worker-PID-Sperren nach `/opt/flipbase-marketplace/chromium-worker`; die echten
+Dateistand ausführen. Das Werkzeug kopiert ausschließlich Zuordnungen,
+Worker-PID-Sperren und `cloud-networks.json` nach
+`/opt/flipbase-marketplace/chromium-worker`. Die echten
 Profile und Archive unter `chromium` bleiben erhalten. Ein vorhandenes oder
 unvollständiges Metadatenziel muss vor erneutem Aufruf geprüft werden.
+Ohne Node auf dem Host kann das geprüfte Broker-Abbild das Werkzeug einmalig
+als root ausführen: Netzwerk deaktivieren und ausschließlich das Werkzeug lesend,
+`/opt/flipbase-marketplace` sowie den Docker-Socket einbinden. Es werden keine
+Supabase-Zugangsdaten an dieses Werkzeug übergeben. Die privaten Worker-Einstellungen
+einschließlich `MARKETPLACE_CHROMIUM_NETWORK_FILE` müssen erhalten bleiben.
 
 Worker, Broker und Sitzungsimage aus demselben gemergten Commit veröffentlichen.
 `FLIPBASE_CHROMIUM_BROKER_IMAGE` auf den vollständigen SHA-Tag setzen und die

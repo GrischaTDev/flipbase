@@ -51,6 +51,9 @@ export async function prepareChromiumBroker({ source, target, tokenPath, ownerId
   };
   await directory(target);
   for (const child of ['registry', 'profiles', 'archive']) await directory(join(target, child));
+  const networkFile = join(source, 'cloud-networks.json');
+  if (await status(networkFile))
+    await copyMetadata(networkFile, join(target, 'cloud-networks.json'));
   for (const child of ['registry', 'archive']) {
     const inputDirectory = join(source, child);
     if (!(await status(inputDirectory))) continue;
