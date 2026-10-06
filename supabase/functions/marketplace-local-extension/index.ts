@@ -28,7 +28,10 @@ Deno.serve(
                 p_events: input.events,
               })
             : input.action === 'favorite_claim'
-              ? await service.rpc('marketplace_local_favorite_claim', scope)
+              ? await service.rpc('marketplace_local_favorite_claim', {
+                  ...scope,
+                  p_offer_supported: input.offerSupported ?? false,
+                })
               : input.action === 'favorite_start'
                 ? await service.rpc('marketplace_local_favorite_start', {
                     ...scope,
@@ -44,7 +47,33 @@ Deno.serve(
                       p_external_message_id: input.externalMessageId ?? null,
                       p_error_code: input.errorCode ?? null,
                     })
-                  : null;
+                  : input.action === 'favorite_message_sent'
+                    ? await service.rpc('marketplace_local_favorite_message_sent', {
+                        ...scope,
+                        p_event_id: input.id,
+                        p_claim_token: input.claimToken,
+                        p_external_message_id: input.externalMessageId,
+                        p_conversation_id: input.conversationId,
+                        p_transaction_id: input.transactionId ?? null,
+                      })
+                    : input.action === 'favorite_offer_start'
+                      ? await service.rpc('marketplace_local_favorite_offer_start', {
+                          ...scope,
+                          p_event_id: input.id,
+                          p_claim_token: input.claimToken,
+                          p_original_price_cents: input.originalPriceCents,
+                          p_offer_price_cents: input.offerPriceCents,
+                        })
+                      : input.action === 'favorite_offer_finish'
+                        ? await service.rpc('marketplace_local_favorite_offer_finish', {
+                            ...scope,
+                            p_event_id: input.id,
+                            p_claim_token: input.claimToken,
+                            p_outcome: input.outcome,
+                            p_external_offer_id: input.externalOfferId ?? null,
+                            p_error_code: input.errorCode ?? null,
+                          })
+                        : null;
       if (!result) throw new LocalExtensionStoreError('invalid');
       if (result.error) throw mapStoreError(result.error.code);
       return result.data;

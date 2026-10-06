@@ -411,6 +411,92 @@ async function render(url: string) {
   return { harness, element: harness.routeNativeElement as HTMLElement };
 }
 describe('Vinted-Bereich in Flipbase', () => {
+  it('meldet ein passendes geprüftes Profil als verbunden und erklärt einen Profilwechsel unter dem Header', async () => {
+    const account = {
+      ...fixtureConnections[0],
+      executionMode: 'local' as const,
+      workspaceId: '35000000-0000-4000-8000-000000000001',
+      connectionId: '35000000-0000-4000-8000-000000000002',
+      externalAccountId: '12345',
+    };
+    TestBed.inject(WorkspaceService).currentWorkspace.set({ id: account.workspaceId } as ReturnType<
+      WorkspaceService['currentWorkspace']
+    >);
+    api.listConnections.mockResolvedValue({ canManage: true, connections: [account] });
+    const { element, harness } = await render('/marketplaces/vinted/overview');
+    const parent = harness.fixture.debugElement.query(By.directive(VintedWorkspaceComponent))
+      .componentInstance as VintedWorkspaceComponent;
+    const workspace = harness.fixture.debugElement.query(By.directive(VintedWorkspaceComponent));
+    const bridge = workspace.injector.get(VintedLocalExtensionBridge);
+    const readiness = {
+      state: 'ready',
+      workspaceId: account.workspaceId,
+      connectionId: account.connectionId,
+      externalAccountId: account.externalAccountId,
+      checkedAt: '2026-10-06T10:00:00Z',
+      version: '1.6.0',
+    };
+    const request = vi.spyOn(bridge, 'request').mockResolvedValue(readiness);
+    bridge.installed.set(true);
+    harness.detectChanges();
+    await parent.runtime.check();
+    await harness.fixture.whenStable();
+    harness.detectChanges();
+    const row = element.querySelector('[data-account-controls]');
+    expect(row?.textContent).toContain('Erweiterung verbunden');
+    request.mockResolvedValue({
+      ...readiness,
+      connectionId: '35000000-0000-4000-8000-000000000009',
+    });
+    await parent.runtime.check();
+    harness.detectChanges();
+    expect(row?.textContent).not.toContain('Erweiterung verbunden');
+    expect(row?.textContent).toContain('In anderem Browserprofil verknüpft');
+    const notice = [...element.querySelectorAll('app-notice-banner')].find((notice) =>
+      notice.textContent?.includes('Browserprofil mit dem passenden Vinted-Konto'),
+    );
+    expect(notice).toBeDefined();
+    expect(notice?.closest('app-page-header')).toBeNull();
+  });
+  it('zeigt die Cloudpause in den Kontrollen und den Abrufgrund einmal unter dem Seitenkopf', async () => {
+    const scheduleApi = TestBed.inject(MarketplaceSyncScheduleApiService);
+    vi.mocked(scheduleApi.read).mockImplementation(async (scope) => ({
+      ...scope,
+      enabled: false,
+      intervalMinutes: 15,
+      nextDueAt: null,
+      lastAttemptAt: null,
+      lastSuccessAt: null,
+      pausedReason: 'forbidden',
+      retryAfter: null,
+      authorizationVersion: 1,
+    }));
+    const { element } = await render('/marketplaces/vinted/overview');
+    const header = element.querySelector('app-page-header');
+    expect(header?.querySelector('[data-account-controls] app-badge')?.textContent).toContain(
+      'Automatik pausiert',
+    );
+    expect(header?.querySelector('app-notice-banner')).toBeNull();
+    const notices = [...element.querySelectorAll('app-notice-banner')].filter((notice) =>
+      notice.textContent?.includes('Vinted hat den Abruf abgelehnt'),
+    );
+    expect(notices).toHaveLength(1);
+    expect(notices[0].closest('app-page-header')).toBeNull();
+  });
+  it('behält Cloudfehler mit Wiederholen unter dem Seitenkopf und räumt sie nach erfolgreichem Abruf auf', async () => {
+    const scheduleApi = TestBed.inject(MarketplaceSyncScheduleApiService);
+    vi.mocked(scheduleApi.read).mockRejectedValueOnce(new Error('synthetic failure'));
+    const { element, harness } = await render('/marketplaces/vinted/overview');
+    const notice = [...element.querySelectorAll('app-notice-banner')].find((notice) =>
+      notice.textContent?.includes('automatische Aktualisierung konnte nicht geladen'),
+    );
+    expect(notice).toBeDefined();
+    expect(notice?.closest('app-page-header')).toBeNull();
+    notice?.querySelector<HTMLButtonElement>('button')?.click();
+    await harness.fixture.whenStable();
+    harness.detectChanges();
+    expect(element.textContent).not.toContain('automatische Aktualisierung konnte nicht geladen');
+  });
   it('öffnet den Einstellungslink nur für das Konto im aktuellen Workspace', async () => {
     const account = fixtureConnections[0];
     const { element } = await render(
@@ -604,13 +690,14 @@ describe('Vinted-Bereich in Flipbase', () => {
     expect(
       element.querySelector('app-vinted-account-grid a[href="/settings/marketplaces"]'),
     ).toBeNull();
-    const links = [...element.querySelectorAll('app-vinted-account-grid app-card a')];
+    const links = [
+      ...element.querySelectorAll('app-vinted-account-grid app-card a[aria-label$="öffnen"]'),
+    ];
     expect(links).toHaveLength(2);
     expect(links[1].getAttribute('href')).toContain(
       `connectionId=${fixtureConnections[1].connectionId}`,
     );
-    expect(element.textContent).toContain('8');
-    expect(element.textContent).toContain('3');
+    expect(element.querySelector('app-vinted-account-grid dd')).toBeNull();
     expect(browserApi.syncConnection).not.toHaveBeenCalled();
   });
   it('führt beim ersten Einstieg durch die Erweiterungseinrichtung statt zur Cloudanmeldung', async () => {
@@ -667,7 +754,11 @@ describe('Vinted-Bereich in Flipbase', () => {
   });
   it('öffnet über eine Kachel das zweite Konto und bleibt beim Wechsel der Bereiche darin', async () => {
     const { harness, element } = await render('/marketplaces/vinted/accounts');
-    element.querySelectorAll<HTMLAnchorElement>('app-vinted-account-grid app-card a')[1].click();
+    element
+      .querySelectorAll<HTMLAnchorElement>(
+        'app-vinted-account-grid app-card a[aria-label$="öffnen"]',
+      )[1]
+      .click();
     await harness.fixture.whenStable();
     harness.detectChanges();
     const parent = harness.fixture.debugElement.query(By.directive(VintedWorkspaceComponent))
@@ -687,9 +778,11 @@ describe('Vinted-Bereich in Flipbase', () => {
   it('hält andere Kontokacheln erreichbar, wenn eine Vorschau scheitert', async () => {
     api.readAccountPreview.mockRejectedValueOnce(new Error('preview failed'));
     const { element } = await render('/marketplaces/vinted/accounts');
-    expect(element.querySelectorAll('app-vinted-account-grid app-card a')).toHaveLength(2);
+    expect(
+      element.querySelectorAll('app-vinted-account-grid app-card a[aria-label$="öffnen"]'),
+    ).toHaveLength(2);
     expect(element.textContent).toContain('Vorschau gerade nicht verfügbar');
-    expect(element.textContent).toContain('Verkäufe');
+    expect(element.querySelector('app-vinted-account-grid dd')).toBeNull();
   });
   it('zeigt ohne importiertes Profil unbekannte Werte statt scheinbarer Nullen', async () => {
     api.readAccountPreview.mockImplementation(async (scope: AccountScope) => ({
@@ -699,12 +792,8 @@ describe('Vinted-Bereich in Flipbase', () => {
       saleCount: 0,
     }));
     const { element } = await render('/marketplaces/vinted/accounts');
-    expect(
-      [...element.querySelectorAll('app-vinted-account-grid dd')].map((node) =>
-        node.textContent?.trim(),
-      ),
-    ).toEqual(['—', '—', '—', '—']);
-    expect(element.textContent).toContain('Bewertung noch unbekannt');
+    expect(element.querySelector('app-vinted-account-grid dd')).toBeNull();
+    expect(element.textContent).not.toContain('Bewertung noch unbekannt');
   });
   it('lässt die Bereichsnavigation der Seitenleiste und zeigt keine doppelten Kontotabs', async () => {
     const { element } = await render('/marketplaces/vinted/overview');
@@ -1023,8 +1112,11 @@ describe('Vinted-Bereich in Flipbase', () => {
     const { element, harness } = await render('/marketplaces/vinted/accounts');
     expect(element.querySelector('button[aria-label="Testkonto A einstellen"]')).not.toBeNull();
     expect(element.querySelector('button[aria-label="Testkonto B einstellen"]')).not.toBeNull();
-    expect(element.textContent).toContain('Lokal verknüpft');
-    expect(element.textContent).toContain('Mit Cloud verbunden');
+    const badgeLabels = [...element.querySelectorAll('app-vinted-account-grid app-badge')].map(
+      (badge) => badge.textContent?.trim(),
+    );
+    expect(badgeLabels).toContain('Lokal');
+    expect(badgeLabels).toContain('Cloud');
     expect(element.querySelector('a[href="/marketplaces/vinted/manage"]')).toBeNull();
     element
       .querySelector<HTMLButtonElement>('button[aria-label="Testkonto A einstellen"]')

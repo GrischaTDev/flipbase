@@ -55,10 +55,129 @@ test('favorite actions fail closed when favorite persistence is unavailable', as
   const handler = createLocalExtensionHandler({
     ingest: async () => assert.fail('must not fall through'),
   });
-  assert.equal(
-    (await handler(request({ action: 'favorite_claim', workspaceId, connectionId }))).status,
-    503,
-  );
+  const scope = {
+    workspaceId,
+    connectionId,
+    id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+    claimToken: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+  };
+  for (const payload of [
+    { action: 'favorite_claim', workspaceId, connectionId },
+    { action: 'favorite_claim', workspaceId, connectionId, offerSupported: true },
+    { ...scope, action: 'favorite_message_sent', externalMessageId: '888', conversationId: '777' },
+    { ...scope, action: 'favorite_offer_start', originalPriceCents: 4000, offerPriceCents: 3500 },
+    { ...scope, action: 'favorite_offer_finish', outcome: 'sent', externalOfferId: '999' },
+  ])
+    assert.equal((await handler(request(payload))).status, 503);
+});
+test('favorite offer actions preserve checkpoints, capabilities and cents at the persistence boundary', async () => {
+  const received: LocalExtensionRequest[] = [];
+  const handler = createLocalExtensionHandler({
+    ingest: async () => assert.fail('offer actions must not use the profile importer'),
+    favorites: async (tokenHash, input) => {
+      assert.equal(tokenHash, await hashLocalExtensionSecret(secret));
+      received.push(input);
+      return { ok: true };
+    },
+  });
+  const scope = {
+    workspaceId,
+    connectionId,
+    id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+    claimToken: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+  };
+  const payloads = [
+    { action: 'favorite_claim', workspaceId, connectionId, offerSupported: true },
+    { action: 'favorite_claim', workspaceId, connectionId, offerSupported: false },
+    {
+      ...scope,
+      action: 'favorite_message_sent',
+      externalMessageId: '888',
+      conversationId: '777',
+      transactionId: '666',
+    },
+    {
+      ...scope,
+      action: 'favorite_message_sent',
+      externalMessageId: '888',
+      conversationId: '777',
+      transactionId: null,
+    },
+    { ...scope, action: 'favorite_message_sent', externalMessageId: '888', conversationId: '777' },
+    { ...scope, action: 'favorite_offer_start', originalPriceCents: 4000, offerPriceCents: 3500 },
+    { ...scope, action: 'favorite_offer_finish', outcome: 'sent', externalOfferId: '999' },
+    {
+      ...scope,
+      action: 'favorite_offer_finish',
+      outcome: 'failed',
+      errorCode: 'provider_rejected',
+    },
+    { ...scope, action: 'favorite_offer_finish', outcome: 'outcome_unknown', errorCode: 'timeout' },
+    { ...scope, action: 'favorite_offer_finish', outcome: 'skipped', errorCode: 'inactive_item' },
+  ];
+  for (const payload of payloads) assert.equal((await handler(request(payload))).status, 200);
+  assert.deepEqual(received, payloads);
+});
+test('favorite offer contracts reject secrets, missing receipts and invalid cent values before persistence', async () => {
+  const handler = createLocalExtensionHandler({
+    ingest: async () => assert.fail('invalid offer reached importer'),
+    favorites: async () => assert.fail('invalid offer reached persistence'),
+  });
+  const scope = {
+    workspaceId,
+    connectionId,
+    id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+    claimToken: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+  };
+  const checkpoint = {
+    ...scope,
+    action: 'favorite_message_sent',
+    externalMessageId: '888',
+    conversationId: '777',
+    transactionId: '666',
+  };
+  const start = {
+    ...scope,
+    action: 'favorite_offer_start',
+    originalPriceCents: 4000,
+    offerPriceCents: 3500,
+  };
+  const finish = {
+    ...scope,
+    action: 'favorite_offer_finish',
+    outcome: 'sent',
+    externalOfferId: '999',
+  };
+  for (const payload of [
+    { action: 'favorite_claim', workspaceId, connectionId, offerSupported: 'true' },
+    { action: 'favorite_claim', workspaceId, connectionId, offerSupported: null },
+    { action: 'favorite_claim', workspaceId, connectionId, cookies: 'secret' },
+    { ...checkpoint, externalMessageId: null },
+    { ...checkpoint, conversationId: null },
+    { ...checkpoint, transactionId: 'invalid' },
+    { ...checkpoint, externalMessageId: '0' },
+    { ...checkpoint, outcome: 'sent' },
+    { ...checkpoint, cookies: 'secret' },
+    { ...start, originalPriceCents: 0 },
+    { ...start, originalPriceCents: 100_000_001 },
+    { ...start, originalPriceCents: 1.5 },
+    { ...start, originalPriceCents: '4000' },
+    { ...start, offerPriceCents: -1 },
+    { ...start, offerPriceCents: 100_000_001 },
+    { ...start, offerPriceCents: 1.5 },
+    { ...start, externalOfferId: '999' },
+    { ...finish, externalOfferId: undefined },
+    { ...finish, externalOfferId: '0' },
+    { ...finish, externalOfferId: null },
+    { ...finish, outcome: 'failed' },
+    { ...finish, outcome: 'outcome_unknown' },
+    { ...finish, outcome: 'skipped' },
+    { ...finish, outcome: 'retry' },
+    { ...finish, errorCode: 'secret=token' },
+    { ...finish, externalMessageId: '888' },
+    { ...finish, session: 'secret' },
+  ])
+    assert.equal((await handler(request(payload))).status, 400);
 });
 function request(body: unknown, token = secret) {
   return new Request('https://example.test/local', {
@@ -753,7 +872,112 @@ test(
         [
           { action: 'favorite_claim', workspaceId, connectionId },
           'marketplace_local_favorite_claim',
-          scopeParameters,
+          { ...scopeParameters, p_offer_supported: false },
+        ],
+        [
+          { action: 'favorite_claim', workspaceId, connectionId, offerSupported: true },
+          'marketplace_local_favorite_claim',
+          { ...scopeParameters, p_offer_supported: true },
+        ],
+        [
+          {
+            action: 'favorite_message_sent',
+            workspaceId,
+            connectionId,
+            id: conversationId,
+            claimToken,
+            externalMessageId: '888',
+            conversationId: '777',
+            transactionId: '666',
+          },
+          'marketplace_local_favorite_message_sent',
+          {
+            ...scopeParameters,
+            p_event_id: conversationId,
+            p_claim_token: claimToken,
+            p_external_message_id: '888',
+            p_conversation_id: '777',
+            p_transaction_id: '666',
+          },
+        ],
+        [
+          {
+            action: 'favorite_message_sent',
+            workspaceId,
+            connectionId,
+            id: conversationId,
+            claimToken,
+            externalMessageId: '888',
+            conversationId: '777',
+          },
+          'marketplace_local_favorite_message_sent',
+          {
+            ...scopeParameters,
+            p_event_id: conversationId,
+            p_claim_token: claimToken,
+            p_external_message_id: '888',
+            p_conversation_id: '777',
+            p_transaction_id: null,
+          },
+        ],
+        [
+          {
+            action: 'favorite_offer_start',
+            workspaceId,
+            connectionId,
+            id: conversationId,
+            claimToken,
+            originalPriceCents: 4000,
+            offerPriceCents: 3500,
+          },
+          'marketplace_local_favorite_offer_start',
+          {
+            ...scopeParameters,
+            p_event_id: conversationId,
+            p_claim_token: claimToken,
+            p_original_price_cents: 4000,
+            p_offer_price_cents: 3500,
+          },
+        ],
+        [
+          {
+            action: 'favorite_offer_finish',
+            workspaceId,
+            connectionId,
+            id: conversationId,
+            claimToken,
+            outcome: 'sent',
+            externalOfferId: '999',
+          },
+          'marketplace_local_favorite_offer_finish',
+          {
+            ...scopeParameters,
+            p_event_id: conversationId,
+            p_claim_token: claimToken,
+            p_outcome: 'sent',
+            p_external_offer_id: '999',
+            p_error_code: null,
+          },
+        ],
+        [
+          {
+            action: 'favorite_offer_finish',
+            workspaceId,
+            connectionId,
+            id: conversationId,
+            claimToken,
+            outcome: 'skipped',
+            errorCode: 'inactive_item',
+          },
+          'marketplace_local_favorite_offer_finish',
+          {
+            ...scopeParameters,
+            p_event_id: conversationId,
+            p_claim_token: claimToken,
+            p_outcome: 'skipped',
+            p_external_offer_id: null,
+            p_error_code: 'inactive_item',
+          },
         ],
         [
           { action: 'favorite_start', workspaceId, connectionId, id: conversationId, claimToken },

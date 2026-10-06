@@ -1,4 +1,3 @@
-import { DecimalPipe } from '@angular/common';
 import {
   CdkDrag,
   CdkDragHandle,
@@ -19,14 +18,13 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import {
-  LucideArrowRight,
+  LucideRefreshCw,
   LucideArrowUp,
   LucideArrowDown,
   LucideGripVertical,
   LucideSettings,
   LucidePlus,
   LucideTrash2,
-  LucideDynamicIcon,
 } from '@lucide/angular';
 import { AuthService } from '../../../../core/services/auth.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
@@ -56,7 +54,6 @@ import { VintedSetupComponent } from '../vinted-setup/vinted-setup.component';
 @Component({
   selector: 'app-vinted-account-grid',
   imports: [
-    DecimalPipe,
     CdkDrag,
     CdkDragHandle,
     CdkDropList,
@@ -67,7 +64,6 @@ import { VintedSetupComponent } from '../vinted-setup/vinted-setup.component';
     NoticeBannerComponent,
     ProductThumbnailComponent,
     VintedRatingComponent,
-    LucideDynamicIcon,
     VintedSetupComponent,
     MarketplaceAccountsComponent,
     VintedFavoriteSettingsComponent,
@@ -75,7 +71,7 @@ import { VintedSetupComponent } from '../vinted-setup/vinted-setup.component';
   templateUrl: './vinted-account-grid.component.html',
   providers: [VintedAccountPreviewsStore, MarketplaceCloudSetupStore],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'block min-w-0' },
+  host: { class: 'block min-w-0 @container' },
 })
 export class VintedAccountGridComponent {
   readonly accounts = inject(MarketplaceAccountStore);
@@ -133,7 +129,7 @@ export class VintedAccountGridComponent {
   private dragOrder: readonly string[] | null = null;
   private dragContext: string | null = null;
   readonly statusTones = MARKETPLACE_CONNECTION_TONES;
-  readonly arrowIcon = LucideArrowRight;
+  readonly refreshIcon = LucideRefreshCw;
   readonly upIcon = LucideArrowUp;
   readonly downIcon = LucideArrowDown;
   readonly dragIcon = LucideGripVertical;
@@ -209,6 +205,57 @@ export class VintedAccountGridComponent {
       this.runtime.checking(),
       this.extension.installed(),
     );
+  }
+  accountStatus(account: MarketplaceConnection) {
+    if (
+      account.executionMode === 'local' &&
+      !account.externalAccountId &&
+      account.status !== 'paused' &&
+      account.status !== 'blocked'
+    )
+      return {
+        label: 'Lokal noch nicht verbunden',
+        tone: 'neutral' as const,
+        action: 'renew' as const,
+      };
+    return account.executionMode === 'local'
+      ? this.runtimeStatus(account)
+      : {
+          label: MARKETPLACE_CONNECTION_LABELS[account.status],
+          tone: this.statusTones[account.status],
+          action: 'settings' as const,
+        };
+  }
+  openCloudLogin(account: MarketplaceConnection): void {
+    this.closeSettings();
+    void this.management()?.openLogin(account);
+  }
+  upgradeToCloud(account: MarketplaceConnection): void {
+    this.closeSettings();
+    void this.management()?.upgrade(account);
+  }
+  async syncCloudAccount(account: MarketplaceConnection): Promise<void> {
+    if (
+      !this.accounts.canManage() ||
+      this.accounts.busy() ||
+      account.executionMode !== 'cloud' ||
+      account.status !== 'connected'
+    )
+      return;
+    const context = this.context();
+    await this.accounts.selectConnection(account.connectionId);
+    const selected = this.accounts.selectedConnection();
+    if (
+      context !== this.context() ||
+      !this.accounts.canManage() ||
+      this.accounts.busy() ||
+      selected?.connectionId !== account.connectionId ||
+      selected.workspaceId !== account.workspaceId ||
+      selected.executionMode !== 'cloud' ||
+      selected.status !== 'connected'
+    )
+      return;
+    await this.accounts.syncSelectedConnection();
   }
   async checkLocalConnection(): Promise<void> {
     this.extension.checkInstallation();

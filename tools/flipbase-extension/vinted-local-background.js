@@ -155,7 +155,7 @@
     load,
     save,
     now,
-    version: chrome.runtime.getManifest?.().version ?? '1.6.0',
+    version: chrome.runtime.getManifest?.().version ?? '1.7.0',
     begin: () => {
       operationDeadline = now() + 50_000;
       recoveredTab = false;
@@ -180,6 +180,14 @@
       readFromTab(tabId, { type: 'VINTED_LOCAL_FAVORITES', externalAccountId }),
     sendFavorite: (tabId, externalAccountId, command) =>
       readFromTab(tabId, { type: 'VINTED_LOCAL_FAVORITE_SEND', externalAccountId, command }),
+    prepareFavoriteOffer: (tabId, externalAccountId, command) =>
+      readFromTab(tabId, {
+        type: 'VINTED_LOCAL_FAVORITE_OFFER_PREPARE',
+        externalAccountId,
+        command,
+      }),
+    sendFavoriteOffer: (tabId, externalAccountId, command) =>
+      readFromTab(tabId, { type: 'VINTED_LOCAL_FAVORITE_OFFER_SEND', externalAccountId, command }),
     edge: async (binding, secret, body) => {
       if (!core.isApiUrl(binding.apiUrl, binding.appOrigin))
         throw new Error('Die Serveradresse ist nicht erlaubt.');

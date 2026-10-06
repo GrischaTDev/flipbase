@@ -2550,12 +2550,19 @@ export type Database = {
           connection_id: string
           error_code: string | null
           event_at: string
+          external_conversation_id: string | null
           external_id: string
           external_message_id: string | null
+          external_offer_id: string | null
+          external_transaction_id: string | null
           id: string
           item_id: string
           lease_expires_at: string | null
           message_text: string | null
+          offer_config: Json | null
+          offer_error_code: string | null
+          offer_price_cents: number | null
+          offer_state: string
           setting_version: number
           state: string
           title: string
@@ -2568,12 +2575,19 @@ export type Database = {
           connection_id: string
           error_code?: string | null
           event_at: string
+          external_conversation_id?: string | null
           external_id: string
           external_message_id?: string | null
+          external_offer_id?: string | null
+          external_transaction_id?: string | null
           id?: string
           item_id: string
           lease_expires_at?: string | null
           message_text?: string | null
+          offer_config?: Json | null
+          offer_error_code?: string | null
+          offer_price_cents?: number | null
+          offer_state?: string
           setting_version: number
           state?: string
           title: string
@@ -2586,12 +2600,19 @@ export type Database = {
           connection_id?: string
           error_code?: string | null
           event_at?: string
+          external_conversation_id?: string | null
           external_id?: string
           external_message_id?: string | null
+          external_offer_id?: string | null
+          external_transaction_id?: string | null
           id?: string
           item_id?: string
           lease_expires_at?: string | null
           message_text?: string | null
+          offer_config?: Json | null
+          offer_error_code?: string | null
+          offer_price_cents?: number | null
+          offer_state?: string
           setting_version?: number
           state?: string
           title?: string
@@ -7132,14 +7153,24 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: boolean
       }
-      marketplace_local_favorite_claim: {
-        Args: {
-          p_connection_id: string
-          p_token_hash: string
-          p_workspace_id: string
-        }
-        Returns: Json
-      }
+      marketplace_local_favorite_claim:
+        | {
+            Args: {
+              p_connection_id: string
+              p_token_hash: string
+              p_workspace_id: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_connection_id: string
+              p_offer_supported: boolean
+              p_token_hash: string
+              p_workspace_id: string
+            }
+            Returns: Json
+          }
       marketplace_local_favorite_finish: {
         Args: {
           p_claim_token: string
@@ -7148,6 +7179,44 @@ export type Database = {
           p_event_id: string
           p_external_message_id?: string
           p_outcome: string
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_local_favorite_message_sent: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: string
+          p_conversation_id: string
+          p_event_id: string
+          p_external_message_id: string
+          p_token_hash: string
+          p_transaction_id?: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_local_favorite_offer_finish: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: string
+          p_error_code?: string
+          p_event_id: string
+          p_external_offer_id?: string
+          p_outcome: string
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_local_favorite_offer_start: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: string
+          p_event_id: string
+          p_offer_price_cents: number
+          p_original_price_cents: number
           p_token_hash: string
           p_workspace_id: string
         }

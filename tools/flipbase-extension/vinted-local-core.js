@@ -646,7 +646,7 @@
         connectionId: binding?.connectionId ?? null,
         externalAccountId: binding?.externalAccountId ?? null,
         checkedAt: new Date(checkedAt).toISOString(),
-        version: adapter.version ?? '1.6.0',
+        version: adapter.version ?? '1.7.0',
       };
     }
     function readStatus(installation) {
@@ -859,9 +859,14 @@
             'Diese Verbindung gehört nicht zu diesem Browserprofil oder Arbeitsplatz.',
           );
         if (['MESSAGES_SEND', 'FAVORITES_SEND'].includes(action) && installation.pendingFinish) {
-          const { favorite, ...receipt } = installation.pendingFinish;
+          const { favorite, favoriteAction, ...receipt } = installation.pendingFinish;
+          if (
+            favoriteAction &&
+            !['favorite_message_sent', 'favorite_offer_finish'].includes(favoriteAction)
+          )
+            throw new Error('Das gespeicherte Favoritenergebnis ist ungültig.');
           const finished = await adapter.edge(binding, installation.secret, {
-            action: favorite ? 'favorite_finish' : 'message_finish',
+            action: favoriteAction ?? (favorite ? 'favorite_finish' : 'message_finish'),
             workspaceId: binding.workspaceId,
             connectionId: binding.connectionId,
             ...receipt,
@@ -922,6 +927,7 @@
             action: favorite ? 'favorite_claim' : 'message_claim',
             workspaceId: binding.workspaceId,
             connectionId: binding.connectionId,
+            ...(favorite ? { offerSupported: true } : {}),
           });
           if (claimed?.ok !== true)
             throw new Error('Der Nachrichtenauftrag wurde nicht bestätigt.');
@@ -935,6 +941,122 @@
               : !identifier(command.externalConversationId))
           )
             throw new Error('Der Nachrichtenauftrag ist ungültig.');
+          if (favorite && command.stage === 'offer') {
+            if (
+              !record(command.offer) ||
+              !identifier(command.conversationId) ||
+              !identifier(command.transactionId) ||
+              !identifier(command.externalMessageId)
+            )
+              throw new Error('Der Angebotsauftrag ist ungültig.');
+            const finishOffer = async (outcome) => {
+              const { retryAfter, ...receipt } = outcome;
+              installation.pendingFinish = {
+                favorite: true,
+                favoriteAction: 'favorite_offer_finish',
+                id: command.id,
+                claimToken: command.claimToken,
+                ...receipt,
+              };
+              if (outcome.errorCode === 'rate_limited')
+                installation.schedule = {
+                  ...installation.schedule,
+                  retryAfter: retryAfter ?? adapter.now() + 300_000,
+                };
+              await adapter.save(installation);
+              const result = await adapter.edge(binding, installation.secret, {
+                action: 'favorite_offer_finish',
+                workspaceId: binding.workspaceId,
+                connectionId: binding.connectionId,
+                id: command.id,
+                claimToken: command.claimToken,
+                ...receipt,
+              });
+              if (result?.ok !== true)
+                throw new Error('Das Angebotsergebnis wurde nicht bestätigt.');
+              delete installation.pendingFinish;
+              await adapter.save(installation);
+              if (outcome.errorCode) {
+                const error = new Error('Das Angebot konnte nicht gesendet werden.');
+                error.code = outcome.errorCode;
+                error.retryAfter = retryAfter;
+                throw error;
+              }
+              return { outcome: 'sent', offerOutcome: outcome.outcome };
+            };
+            let prepared;
+            try {
+              const response = await adapter.prepareFavoriteOffer(
+                installation.tabId,
+                binding.externalAccountId,
+                command,
+              );
+              if (Number.isInteger(response.tabId)) installation.tabId = response.tabId;
+              prepared = response.outcome;
+            } catch (error) {
+              prepared = {
+                outcome: 'failed',
+                errorCode: error.code ?? 'unavailable',
+                ...(error.retryAfter ? { retryAfter: error.retryAfter } : {}),
+              };
+            }
+            if (prepared?.outcome) return await finishOffer(prepared);
+            if (
+              !Number.isSafeInteger(prepared?.originalPriceCents) ||
+              !Number.isSafeInteger(prepared?.offerPriceCents)
+            )
+              return await finishOffer({ outcome: 'failed', errorCode: 'invalid_price' });
+            let started;
+            try {
+              started = await adapter.edge(binding, installation.secret, {
+                action: 'favorite_offer_start',
+                workspaceId: binding.workspaceId,
+                connectionId: binding.connectionId,
+                id: command.id,
+                claimToken: command.claimToken,
+                ...prepared,
+              });
+            } catch (error) {
+              if (error instanceof LocalBindingInvalidError) {
+                const rejected = new Error(
+                  'Dieser Angebotsauftrag wurde vor dem Versand verworfen.',
+                );
+                rejected.code = 'favorite_not_started';
+                throw rejected;
+              }
+              throw error;
+            }
+            if (started?.ok !== true)
+              throw new Error('Der Angebotsversand wurde nicht freigegeben.');
+            installation.pendingFinish = {
+              favorite: true,
+              favoriteAction: 'favorite_offer_finish',
+              id: command.id,
+              claimToken: command.claimToken,
+              outcome: 'outcome_unknown',
+              errorCode: 'interrupted',
+            };
+            await adapter.save(installation);
+            let outcome;
+            try {
+              const response = await adapter.sendFavoriteOffer(
+                installation.tabId,
+                binding.externalAccountId,
+                { ...command, ...prepared },
+              );
+              if (Number.isInteger(response.tabId)) installation.tabId = response.tabId;
+              outcome = response.outcome;
+            } catch (error) {
+              outcome = {
+                outcome: 'outcome_unknown',
+                errorCode: error.code ?? 'interrupted',
+                ...(error.retryAfter ? { retryAfter: error.retryAfter } : {}),
+              };
+            }
+            if (!['sent', 'failed', 'outcome_unknown', 'skipped'].includes(outcome?.outcome))
+              throw new Error('Der Angebotsstatus ist ungültig.');
+            return await finishOffer(outcome);
+          }
           const pendingFinish = {
             ...(favorite ? { favorite: true } : {}),
             id: command.id,
@@ -995,9 +1117,19 @@
             )
           )
             throw new Error('Der Versandstatus ist ungültig.');
-          const { retryAfter, ...reportedOutcome } = outcome;
+          const { retryAfter, conversationId, transactionId, ...messageOutcome } = outcome;
+          const checkpoint =
+            favorite && command.offer && outcome.outcome === 'sent' && identifier(conversationId);
+          const reportedOutcome = checkpoint
+            ? {
+                externalMessageId: messageOutcome.externalMessageId,
+                conversationId,
+                transactionId: identifier(transactionId),
+              }
+            : messageOutcome;
           installation.pendingFinish = {
             ...(favorite ? { favorite: true } : {}),
+            ...(checkpoint ? { favoriteAction: 'favorite_message_sent' } : {}),
             id: command.id,
             claimToken: command.claimToken,
             ...reportedOutcome,
@@ -1019,7 +1151,11 @@
             installation.schedule = { ...installation.schedule, pauseReason: outcome.errorCode };
           await adapter.save(installation);
           const finished = await adapter.edge(binding, installation.secret, {
-            action: favorite ? 'favorite_finish' : 'message_finish',
+            action: checkpoint
+              ? 'favorite_message_sent'
+              : favorite
+                ? 'favorite_finish'
+                : 'message_finish',
             workspaceId: binding.workspaceId,
             connectionId: binding.connectionId,
             id: command.id,
