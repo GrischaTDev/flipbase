@@ -37,6 +37,16 @@ keine Produktionsänderung und kein Update der Nutzerinstallation. Bei einem
 uneindeutigen Serverfehler wird weiterhin nur „nicht bestätigt“ gemeldet;
 ein Widerruf wird daraus nicht erfunden. PR/Release bedürfen der Abschlussfreigabe.
 
+**Abschlussfreigabe und CI-Nachprüfung:** Der Nutzer hat PR, Merge nach grünen
+Pflichtchecks, Veröffentlichung und Aufräumen bestätigt. PR 310 enthält den
+geprüften Stand. Der erste Browser-Smoke erkannte überholte Testannahmen zum
+Bindungstext und dem entfernten Einrichtungsmenü. Die Tests verwenden nun den
+realen Konten-/Installationsweg und bestätigen die Profilbindung ausdrücklich;
+kein Produktverhalten oder Pflichtcheck wurde umgangen. Alle 51 betroffenen
+Chromiumfälle in sechs Dateien sind lokal grün; Formatierung, ESLint und
+Testtypen der Testkorrektur erfolgreich. Die vollständigen PR-Prüfungen laufen
+nach dem Testfix erneut.
+
 ## 2026-10-06 - Juna - Lokalen Vinted-Betrieb und Blasenmodal untersuchen
 
 **Auftrag:** Unklare Wiederaufnahme nach geschlossenem Arbeitstab, fehlende

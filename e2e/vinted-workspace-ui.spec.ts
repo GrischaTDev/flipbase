@@ -308,7 +308,6 @@ for (const width of [1440, 390, 320]) {
       const nav = page.locator('app-sidebar nav');
       await expect(nav.getByRole('link')).toHaveText([
         'Konten',
-        'Einrichtung',
         'Übersicht',
         'Postfach',
         'Favoritennachrichten',

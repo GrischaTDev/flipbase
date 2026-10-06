@@ -114,6 +114,28 @@ async function inboxFixture(page: Page, longHistory = false) {
         if (event.source !== window || !event.data?.type?.startsWith('FLIPBASE_VINTED_LOCAL_'))
           return;
         if (event.data.type === 'FLIPBASE_VINTED_LOCAL_RESULT') return;
+        if (
+          ['FLIPBASE_VINTED_LOCAL_READINESS', 'FLIPBASE_VINTED_LOCAL_RECHECK'].includes(
+            event.data.type,
+          )
+        ) {
+          window.postMessage(
+            {
+              type: 'FLIPBASE_VINTED_LOCAL_RESULT',
+              requestId: event.data.requestId,
+              success: true,
+              result: {
+                state: 'ready',
+                ...scope,
+                externalAccountId: '123',
+                checkedAt: observedAt,
+                version: '1.0.0',
+              },
+            },
+            location.origin,
+          );
+          return;
+        }
         await (
           window as unknown as {
             inboxBridgeObserved(type: string, conversationId?: string): Promise<void>;

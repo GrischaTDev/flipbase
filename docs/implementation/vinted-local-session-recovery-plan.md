@@ -60,7 +60,7 @@ Falsches Profil darf keine Live-Aktion ausführen. Fehlende Websiteberechtigung 
 
 - Erweiterung 1.6.0: 122 Laufzeit-/Favoriten-/Modalprüfungen grün.
 - 238 gezielte Angularprüfungen und 40 Modell-/Parser-/Navigationsprüfungen grün; einschließlich bestehender Einrichtung und Favoritenseiten.
-- Zwölf Chromiumabläufe für Konten und Postfach mit synthetischen Daten grün; Cache, Suche, Filter, Auftragsergebnisse und mobile/helle/dunkle Darstellung geprüft.
+- 51 Chromiumabläufe in sechs betroffenen Konten-/Workspace-/Postfach-/Favoriten-/Inseratdateien mit synthetischen Daten grün; Cache, Suche, Filter, Auftragsergebnisse und mobile/helle/dunkle Darstellung geprüft. Bestehende Einrichtungstests nutzen den Kontenweg, die Profiltestdaten bestätigen Bindung und Bereitschaft ausdrücklich.
 - Modal mit echten Erweiterungsdateien und synthetischen Antworten bei 1440, 390 und 320 Pixeln geprüft. Sechs AXE-Läufe einschließlich Farbkontrast ohne Befund; Tastatur, Fokus-Rückgabe, Escape und reduzierte Bewegung geprüft.
 - Migration `20261006091649_vinted_preserve_conversation_metadata.sql` aus isoliertem Schemaabgleich erzeugt und auf Ausgangsschema angewandt. 132 pgTAP-Prüfungen grün; anschließender Schemaabgleich ohne Differenz. Generierte Ausgangs-/Zieltypen byteidentisch.
 - ESLint, Anwendung-/Testtypen, Formatierung, Shared-UI- und Testsuite-Zuordnung sowie Produktionsbau grün. Bestehende CommonJS-Warnung der PDF-Bibliothek bleibt unverändert.
@@ -77,4 +77,5 @@ Nutzerinstallation wird erst nach veröffentlichter App/Migration im bisherigen
 Ordner aktualisiert. Noch offen sind der echte Chrome-Neustart/Erweiterungsreload
 mit Nutzerkonto und der kontrollierte Produktionsnachtest. Es wurden keine
 echten Nachrichten gesendet, Automatikschalter verändert oder Produktionsdaten
-geschrieben. PR/Veröffentlichung erfordern die Abschlussfreigabe gemäß AGENTS.md.
+geschrieben. Die Abschlussfreigabe gemäß AGENTS.md ist erteilt; PR 310 wird erst
+nach erfolgreicher vollständiger CI-Prüfung per Merge-Commit integriert.
