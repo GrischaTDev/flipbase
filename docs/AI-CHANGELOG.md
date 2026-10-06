@@ -1,5 +1,40 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-06 - Juna - Cloud-Browserdienst auf Hetzner aktivieren
+
+**Freigabe:** Der Nutzer bestätigt die Aktualisierung des Browserdienstes nach
+Platzprüfung. PR #317 ist integriert; Web-Version 0.303.0 sowie die separat
+geprüften Worker- und Chromeimages stammen aus `d73e990b`.
+
+**Betrieb:** Nur die beiden Imagereferenzen der bisherigen Compose-Konfiguration
+werden auf feste Digests umgestellt. Vor und nach dem Wechsel: keine offenen
+Browsersitzungen und keine laufenden Marketplace-Aufträge. Der unabhängige
+noVNC-Pilot wird sauber gestoppt; das angemeldete Maike-Vintage-Profil bleibt
+gespeichert, mit `profile.exit_type='Normal'`. Regenerierbarer, ungenutzter
+Build-Cache wird freigegeben; keine Images, Volumes oder Nutzerprofile gelöscht.
+Nach dem Laden der Images sind rund 5,5 GB frei. Die vorige Konfiguration und
+beide bisherigen Images bleiben für eine Rücknahme erhalten.
+
+**Firewall:** Die Regeln des separaten Piloten standen vor den regulären
+Cloudregeln und verhinderten dadurch deren strikte Reihenfolgeprüfung. Nur
+die vorhandenen regulären Sprungregeln werden nach vorne verschoben; sämtliche
+Regeln und Sperren bleiben erhalten. Der bestehende Prüfdienst bestätigt
+anschließend wieder die aktuelle Firewallfreigabe.
+
+**Prüfung:** Der Worker ist gesund, ohne Neustarts. Öffentlicher Healthcheck
+HTTP 200; Cloud-Einrichtung ohne Anmeldung HTTP 401. Ein eigener synthetischer
+Browser ohne Vinted-Zugang bestätigt auf Hetzner Namespace- und Seccomp-Sandbox,
+`navigator.webdriver=false`, CDP-Verbindung ohne Kontextvorgaben, native
+Bildschirmaufnahme und echte Texteingabe. Geordneter Stopp mit Exitcode 0;
+Testcontainer einschließlich seines flüchtigen Profils entfernt. Kein
+Nachrichteninhalt, Passwort oder Browserbild gespeichert.
+
+**Offen:** Maike Vintage ist durch diesen Rollout noch nicht in Flipbase mit
+Cloud verbunden. Die reguläre Anmeldung, automatische IP-Reservierung,
+Kontobestätigung und der erste lesende Abgleich sind die nächsten Live-Prüfungen.
+Automatischer Zeitplan und Cloud-Schreibaktionen bleiben deaktiviert. Details
+und Image-Digests stehen im bestehenden Worker-Rolloutprotokoll.
+
 ## 2026-10-06 - Juna - Cloud-Chrome über PR #317 abschließen
 
 **Freigabe:** Der Nutzer bestätigt PR-Erstellung, Merge nach erfolgreichen Pflichtprüfungen und anschließende Bereinigung des eigenen Zweigs. Der aktuelle master f53eb483 wird übernommen; sein Feed und beide Protokollarchive bleiben erhalten. Der einzige Merge-Konflikt betrifft die vorangestellten Einträge im Änderungsprotokoll. Image-Prüfungen und produktive Cloud-Verknüpfung bleiben bis zu ihrem tatsächlichen Nachweis offen.
