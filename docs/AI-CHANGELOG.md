@@ -1,5 +1,29 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-06 - Juna - Vinted-Kartengröße und direktes Ziehen korrigieren
+
+**Befund:** Die 180 Millisekunden Startverzögerung für die Maus bricht den
+Ziehvorgang ab, sobald die Bewegungsschwelle vor Ablauf erreicht wird. Der
+bisherige Browsertest hielt die Maus vorher 300 Millisekunden still und
+erfasste diesen normalen Bedienfall nicht. Ohne diese künstliche Wartezeit
+scheitert der Test vor der Korrektur am fehlenden Ablageplatzhalter.
+
+**Änderung:** Mausziehen beginnt ohne Startverzögerung, wie in den vorhandenen
+Bildeditoren. Touch behält 250 Millisekunden gegen unbeabsichtigtes Verschieben
+beim Scrollen. Die Karten sind bis zu 368 statt 320 Pixel breit und haben mehr
+Innenabstand. Aktionen stehen mit Abstand unter der Bewertung. Sichtbare Griffe
+und Pfeile bleiben entfallen; normale Klicks, geschützte Aktionsbuttons und
+Tastaturbedienung bleiben erhalten.
+
+**Prüfung:** 69 betroffene Angularprüfungen und 14 Browserfälle bestanden:
+direktes Mausziehen, Touch, Ablageplatzhalter, persistente Reihenfolge,
+Kartenbreite, Bewertung vor Aktionen, Navigation, schmale Ansichten,
+Cloud-Einrichtung und Barrierefreiheit. Typprüfung, ESLint, Formatierung,
+Shared-UI-Prüfung, PR-Testauswahl und Produktionsbau bestanden. Die bestehende
+Produktionsansicht wurde im Nutzerbrowser gelesen; die korrigierte Ansicht
+wurde mit synthetischen Browserdaten geprüft. Keine echten Vinted-Aktionen,
+keine Erweiterungsänderung und kein Deployment.
+
 ## 2026-10-06 - Juna - Vinted-Karten direkt ziehen und Einstellungen ordnen
 
 **Auftrag und Änderung:** Die Kontenkarten bleiben höchstens 320 Pixel breit.

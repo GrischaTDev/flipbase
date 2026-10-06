@@ -26,7 +26,8 @@ for (const width of [1440, 320]) {
       }),
     );
     expect(positions.every((position) => position.left >= 0 && position.right <= width)).toBe(true);
-    expect(positions.every((position) => position.width <= 321)).toBe(true);
+    expect(positions.every((position) => position.width <= 369)).toBe(true);
+    if (width === 1440) expect(positions.every((position) => position.width >= 352)).toBe(true);
     const firstRow = positions.filter((position) => Math.abs(position.top - positions[0].top) <= 1);
     expect(firstRow.length).toBe(width === 320 ? 1 : 3);
     await grid.getByRole('button', { name: 'Testkonto J einstellen', exact: true }).click();
@@ -151,6 +152,13 @@ for (const width of [1440, 1024, 768, 390, 320]) {
     await expect(grid.locator('app-card dd')).toHaveCount(0);
     await expect(grid.locator('app-card').last()).not.toContainText('Inserate');
     await expect(grid.locator('app-card').last()).not.toContainText('Verkäufe');
+    const firstCard = grid.locator('app-card').first();
+    const rating = await firstCard.locator('app-vinted-rating').boundingBox();
+    const action = await firstCard
+      .getByRole('button', { name: 'Synchronisieren', exact: true })
+      .boundingBox();
+    if (!rating || !action) throw new Error('Bewertung oder Kartenaktion fehlt');
+    expect(action.y).toBeGreaterThanOrEqual(rating.y + rating.height + 8);
     await expect(page.getByRole('navigation', { name: 'Vinted-Bereiche' })).toHaveCount(0);
     await expect(page.getByRole('combobox', { name: 'Vinted-Konto auswählen' })).toHaveCount(0);
     await page.addScriptTag({ content: axe.source });
