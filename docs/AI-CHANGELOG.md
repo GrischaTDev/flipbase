@@ -1,5 +1,24 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-06 - Juna - Favoritenmeldungen für lokale Vinted-Konten erreichbar machen
+
+**Auftrag:** Die Einstellung für Favoritenbenachrichtigungen ist beim lokalen
+Vinted-Konto nicht auffindbar.
+
+**Änderung:** Lokale Konten erhalten neben der Aktualisierung das bestehende
+Zahnrad mit einem Shared-Dialog für die kontoweise Glockeneinstellung. Der
+bisherige Cloud-Dialog bleibt erhalten. Kontowechsel und Rechteentzug schließen
+den lokalen Dialog; reine Datenaktualisierungen lassen ihn geöffnet.
+
+**Prüfung:** Regression reproduziert: drei neue Renderingprüfungen scheitern
+am fehlenden lokalen Zugang; bestehender Cloud-Dialog und Favoriteneinstellung
+funktionieren. Nach Korrektur bestehen alle 21 betroffenen Angularprüfungen,
+einschließlich lokaler Bedienung, echter Einstellungsabfragen, Speichern,
+Kontowechsel, Rechteentzug und Cloud-Dialog. AXE-Prüfung ohne Farbkontrast im
+JSDOM-Lauf ohne Befund. Formatierung, ESLint, Typprüfung, Shared-UI-Prüfung und
+Produktionsbau erfolgreich. Noch nicht veröffentlicht; keine Kontoeinstellung
+geändert.
+
 ## 2026-10-05 - Juna - Privaten Cloud-IP-Piloten und automatischen Anbieterabgleich vorbereiten
 
 **Auftrag:** Nach PR 305 den gekauften Proxy auf Hetzner einrichten und den

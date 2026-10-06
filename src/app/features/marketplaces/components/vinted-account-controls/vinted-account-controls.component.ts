@@ -1,6 +1,14 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
-import { LucideRefreshCw } from '@lucide/angular';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  input,
+  output,
+  signal,
+} from '@angular/core';
+import { LucideRefreshCw, LucideSettings } from '@lucide/angular';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
@@ -10,6 +18,8 @@ import type { MarketplaceSyncSchedule } from '../../models/marketplace-sync-sche
 import { VintedSyncScheduleComponent } from '../vinted-sync-schedule/vinted-sync-schedule.component';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import type { MarketplaceProfile } from '../../models/marketplace-read.models';
+import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
+import { VintedFavoriteSettingsComponent } from '../vinted-favorite-settings/vinted-favorite-settings.component';
 
 @Component({
   selector: 'app-vinted-account-controls',
@@ -20,6 +30,8 @@ import type { MarketplaceProfile } from '../../models/marketplace-read.models';
     CustomSelectComponent,
     VintedSyncScheduleComponent,
     ProductThumbnailComponent,
+    ModalShellComponent,
+    VintedFavoriteSettingsComponent,
   ],
   templateUrl: './vinted-account-controls.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -42,6 +54,9 @@ export class VintedAccountControlsComponent {
   readonly refreshRequested = output<void>();
   readonly synchronized = output<MarketplaceSyncSchedule>();
   readonly refreshIcon = LucideRefreshCw;
+  readonly settingsIcon = LucideSettings;
+  readonly localSettingsOpen = signal(false);
+  private settingsAccountKey: string | null = null;
   readonly accountOptions = computed(() =>
     this.connections().map((account) => ({
       value: account.connectionId,
@@ -49,4 +64,18 @@ export class VintedAccountControlsComponent {
       description: MARKETPLACE_CONNECTION_LABELS[account.status],
     })),
   );
+
+  constructor() {
+    effect(() => {
+      const account = this.account();
+      const canManage = this.canManage();
+      const key = JSON.stringify([
+        account.workspaceId,
+        account.connectionId,
+        account.executionMode,
+      ]);
+      if (key !== this.settingsAccountKey || !canManage) this.localSettingsOpen.set(false);
+      this.settingsAccountKey = key;
+    });
+  }
 }

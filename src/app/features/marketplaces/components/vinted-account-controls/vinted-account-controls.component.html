@@ -16,7 +16,18 @@
     [disabled]="loading() || !canManage() || account().status !== 'connected'"
     (clicked)="refreshRequested.emit()"
   />
-  @if (account().executionMode !== 'local') {
+  @if (account().executionMode === 'local') {
+    <app-button
+      [icon]="settingsIcon"
+      [iconOnly]="true"
+      ariaLabel="Vinted-Kontoeinstellungen"
+      title="Kontoeinstellungen"
+      ariaHaspopup="dialog"
+      [ariaExpanded]="localSettingsOpen()"
+      [disabled]="!canManage()"
+      (clicked)="localSettingsOpen.set(true)"
+    />
+  } @else {
     <app-vinted-sync-schedule
       [account]="account()"
       [canManage]="canManage()"
@@ -24,6 +35,16 @@
     />
   }
 </div>
+@if (account().executionMode === 'local' && canManage() && localSettingsOpen()) {
+  <app-modal-shell
+    title="Vinted-Kontoeinstellungen"
+    size="sm"
+    [hasFooter]="false"
+    (closed)="localSettingsOpen.set(false)"
+  >
+    <app-vinted-favorite-settings [account]="account()" />
+  </app-modal-shell>
+}
 <div class="mt-2 flex justify-end" aria-live="polite" aria-atomic="true">
   @if (inbox()) {
     <app-badge tone="neutral" size="comfortable" shape="pill">
