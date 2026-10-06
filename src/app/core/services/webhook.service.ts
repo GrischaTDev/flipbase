@@ -69,7 +69,7 @@ export class WebhookService {
   private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
   private readonly workspaceService = inject(WorkspaceService, { optional: true });
 
-  readonly config = signal<WebhookConfig>(this.loadConfig());
+  readonly config = signal<WebhookConfig>(createDefaultWebhookConfig());
   readonly notifications = signal<AppNotification[]>([]);
   readonly loadedWorkspaceId = signal<string | null>(null);
   private loadVersion = 0;
@@ -77,6 +77,13 @@ export class WebhookService {
   readonly unreadCount = computed(() => this.notifications().filter((n) => !n.read).length);
 
   constructor() {
+    // Alte Browserkopien enthalten Zugangsdaten und sind nicht an einen Workspace gebunden.
+    try {
+      getStorage()?.removeItem(STORAGE_KEY_CONFIG);
+    } catch {
+      // Gesperrter Browserspeicher wird weder gelesen noch erneut beschrieben.
+    }
+
     // Hinweis: effect() benoetigt einen ChangeDetectionScheduler. Die
     // Service-Tests erzeugen die Dienste noch mit einem blanken Injector, in
     // dem dieser fehlt. Bis die Testumgebung auf TestBed mit jsdom
@@ -90,16 +97,6 @@ export class WebhookService {
     } catch {
       // nur Testumgebung ohne Scheduler
     }
-  }
-
-  private loadConfig(): WebhookConfig {
-    try {
-      const storage = getStorage();
-      const stored = storage?.getItem(STORAGE_KEY_CONFIG);
-      if (stored) return JSON.parse(stored);
-    } catch {}
-
-    return createDefaultWebhookConfig();
   }
 
   async loadFromSupabase(workspaceId: string): Promise<void> {
@@ -151,9 +148,6 @@ export class WebhookService {
           soundEnabled: d.sound_enabled,
         };
         this.config.set(cfg);
-        try {
-          getStorage()?.setItem(STORAGE_KEY_CONFIG, JSON.stringify(cfg));
-        } catch {}
       }
 
       const mapped: AppNotification[] = (
@@ -192,13 +186,18 @@ export class WebhookService {
 
   async updateConfig(cfg: Partial<WebhookConfig>): Promise<WebhookMutationResult<WebhookConfig>> {
     const workspaceId = this.workspaceService?.currentWorkspace()?.id ?? null;
-    const updated = { ...this.config(), ...cfg };
     const persistent = this.istPersistenterModus();
     if (persistent && !workspaceId)
       return this.webhookFehler(
         'Speichern der Webhook-Konfiguration',
         new Error('Kein aktiver Workspace.'),
       );
+    if (persistent && this.loadedWorkspaceId() !== workspaceId)
+      return this.webhookFehler(
+        'Speichern der Webhook-Konfiguration',
+        new Error('Die Webhook-Konfiguration des aktiven Workspace ist noch nicht geladen.'),
+      );
+    const updated = { ...this.config(), ...cfg };
     if (persistent) {
       try {
         const { data, error } = await this.supabase!.client.from('webhook_configs')
@@ -240,9 +239,6 @@ export class WebhookService {
       }
     }
     this.config.set(updated);
-    try {
-      getStorage()?.setItem(STORAGE_KEY_CONFIG, JSON.stringify(updated));
-    } catch {}
     return { data: updated, error: null, reportedBySyncStatus: false };
   }
 
@@ -585,7 +581,7 @@ export class WebhookService {
         };
       }
     } else {
-      return { success: true, message: 'Custom Webhook Test erfolgreich ausgeführt.' };
+      return { success: false, message: 'Eigene Webhooks werden derzeit noch nicht versendet.' };
     }
   }
 

@@ -3,6 +3,9 @@ import { removeLegacyBusinessCache } from './legacy-business-cache';
 
 /** Bereitet den Browser-Speicher vollständig vor, bevor Angular Dienste erzeugt. */
 export function prepareBrowserStorage(storage: Storage): void {
+  // Zugangsdaten vor der Präfix-Migration und auch ohne lazy Webhook-Dienst entfernen.
+  storage.removeItem('flipbase_webhook_config');
+  storage.removeItem('reflip_webhook_config');
   uebernehmeAltenBrowserSpeicher(storage);
   removeLegacyBusinessCache(storage);
 }

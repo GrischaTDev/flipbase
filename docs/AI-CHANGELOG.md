@@ -1,5 +1,58 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-06 - Juna - Sicherheitskorrekturen über PR abschließen
+
+**Freigabe:** Der Nutzer bestätigt Push, PR-Erstellung, Merge-Commit nach
+erfolgreichen Pflichtprüfungen und anschließendes Aufräumen des eigenen Zweigs
+`juna/security-report-triage` samt Worktree. Der aktuelle master einschließlich
+PR #318 und #319 ist enthalten. Serverseitiger Webhook-Versand und die Trennung
+des Docker-Controllers bleiben als nummerierte Backend-Issues offen.
+
+## 2026-10-06 - Juna - bestätigte Sicherheitsbefunde korrigieren
+
+**Auftrag:** Nach Freigabe die bestätigten Befunde im eigenen Zweig
+`juna/security-report-triage` korrigieren und prüfen.
+
+**Umsetzung:** Caddy sperrt `/mcp` und `/api/mcp` einschließlich Unterpfaden vor
+der öffentlichen API-Freigabe. Alle fünf TLS-Domains erhalten HSTS mit zunächst
+300 Sekunden ohne Subdomainbindung oder Preload. Webhook-Konfigurationen werden
+nicht mehr im Browser gespeichert; beide früheren Speicherschlüssel werden bereits
+vor Angular und der Präfix-Migration entfernt. Speichern setzt die vollständig
+geladene Konfiguration des aktiven Workspace voraus. Eigene Webhook-Tests melden
+den fehlenden Versand korrekt. Nodemailer gehört im Hauptprojekt nur noch zu den
+Testabhängigkeiten. Die zusammengehörigen Angular-Pakete sind auf 22.2.1 aktualisiert;
+die abhängigen Buildpakete einschließlich Piscina 5.3.2 sind neu aufgelöst.
+
+**Prüfung:** Paket-Audit ohne bekannte Schwachstellen, vollständige Anwendungssuiten
+(Node, DOM, Angular), 222 Workflow-Tests sowie Build, Lint und Typprüfung bestanden.
+Die unabhängige Prüfung zeigte zwei zusätzliche Browser-/Workspace-Pfade; die neuen
+Regressionstests reproduzierten sie vor der Korrektur und bestehen danach zusammen
+mit den zugehörigen Service-, Speicher- und gerenderten Einstellungsprüfungen.
+Caddy-Konfiguration validiert und mit dem installierten Image in einem kurzlebigen
+Container ohne Netzanschluss gegen lokale Testgegenstellen geprüft: sechs MCP-Pfade
+abgewiesen, öffentliche APIs und angemeldetes Studio erreichbar, anonymes Studio
+abgewiesen, Browserroute und HSTS aller fünf Hosts erhalten. Testcontainer entfernt.
+Die währenddessen gemergten PRs #318 und #319 sind aus `origin/master` übernommen;
+alle Protokolleinträge bleiben erhalten. Auf den verbundenen Ständen bestehen
+zusätzlich 127 Einstellungs-/Produkt-/Einkaufstests und vier Browserdialogtests
+sowie die Typprüfung und der Produktionsbau.
+
+**Offen:** Produktionskonfiguration nur gelesen, keine Auslieferung. Das installierte
+Envoy verweigert MCP bereits; Caddy ergänzt die äußere Sperre. Serverseitiger
+Webhook-Geheimnisspeicher und die Trennung des Docker-Controllers erfordern Backend-
+beziehungsweise Betriebsarbeit. Gemäß der Frontend-Grenze liegen dafür die nummerierten
+Dateien `01-webhook-secrets-and-server-dispatch.md` und
+`02-docker-controller-privilege-boundary.md` auf dem Desktop unter
+`Backend Issues/security-report-triage`. Keine Backend-, Schema- oder Edge-Änderung.
+
+## 2026-10-06 - Juna - externen Sicherheitsbericht prüfen
+
+**Auftrag:** Die Befunde des bereitgestellten Sicherheitsberichts am aktuellen Projektstand prüfen und Sicherheitsrisiken von Funktionsfehlern und Wartungsaufgaben unterscheiden.
+
+**Analyse:** Der untersuchte Arbeitsstand `c7d5c2cc` und `origin/master` `d73e990b` enthalten dieselben für den Bericht relevanten Konfigurationen. `/mcp` umgeht im Caddyfile Authelia; eine anonyme administrative Zugriffsmöglichkeit bleibt ohne die installierte Gateway-Konfiguration unbewiesen. HSTS fehlt in den versionierten Headerkonfigurationen. Der Chromium-Pilotcontroller erhält den Docker-Socket, die Browsercontainer erhalten ihn nicht; eine reine Freigabe von Container-Erstellung und Start würde gefährliche Hostmounts nicht verhindern. Telegram-Token und Discord-Webhook-URL werden im Browser verarbeitet und lokal gespeichert; die Tabelle ist durch Workspace-RLS geschützt. Custom-Webhooks besitzen dagegen keinen tatsächlichen Versand, und ihr Test meldet ohne Anfrage Erfolg. Nodemailer wird außerhalb der Edge Function nur im Testfixture importiert und gehört dort in die Entwicklungsabhängigkeiten; das Produktionsimage enthält keinen Node-Laufzeitserver. Die beiden Marketplace-Preview-Workflows haben keinen passenden Remotezweig mehr; der Product-Preview-PR #46 ist bereits gemergt, sein lokaler Worktree besteht noch. Die beiden genannten Hilfsskripte haben keine gefundenen produktiven Aufrufer; daraus folgt bei manuellen Wartungswerkzeugen noch keine sichere Löschfreigabe. 20 ignorierte `.superpowers`-Dateien sind weiterhin versioniert. Die genannten großen Dateien existieren mit den angegebenen Größen; ihre Aufteilung ist eine Wartungsaufgabe.
+
+**Prüfung:** Statische Quellcode-, Konfigurations-, Schema-, Lockfile- und CI-Prüfung sowie lesende GitHub-Abfragen. Die aktuellen Herstellerhinweise zu Supabase-MCP, Docker, HSTS und den betroffenen Angular-/Piscina-Paketen wurden geprüft. `npm audit --json --ignore-scripts` meldet 13 betroffene Pakete (3 kritisch, 7 hoch, 3 moderat). Ohne Entwicklungsabhängigkeiten bleibt ein hoher Angular-Router-Befund; dessen SSR-Voraussetzung fehlt bei der dokumentierten statischen Browserauslieferung. Keine Tests, Builds, Exploitversuche oder Produktionszugriffe. Kein Produktcode geändert; nur dieser vorgeschriebene Sitzungseintrag im eigenen Worktree.
+
 ## 2026-10-06 - Juna - Korrektur der Cloud-Anmeldebestätigung veröffentlichen
 
 **Freigabe:** Der Nutzer bestätigt PR-Erstellung, Merge nach erfolgreichen
