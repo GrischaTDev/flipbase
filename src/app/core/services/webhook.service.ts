@@ -116,11 +116,9 @@ export class WebhookService {
 
     try {
       const [cfgRes, notifRes] = await Promise.all([
-        this.supabase.client
-          .from('webhook_configs')
-          .select('*')
-          .eq('workspace_id', requestedWorkspaceId)
-          .maybeSingle(),
+        this.supabase.client.functions.invoke<WebhookConfig>('webhook-dispatch', {
+          body: { action: 'read', workspaceId: requestedWorkspaceId },
+        }),
         this.supabase.client
           .from('app_notifications')
           .select('*')
@@ -132,23 +130,7 @@ export class WebhookService {
       if (!this.isCurrentLoad(requestedWorkspaceId, loadVersion)) return;
       if (cfgRes.error || notifRes.error) throw cfgRes.error ?? notifRes.error;
 
-      if (cfgRes.data) {
-        const d = cfgRes.data;
-        const cfg: WebhookConfig = {
-          discordEnabled: d.discord_enabled,
-          discordWebhookUrl: d.discord_webhook_url || '',
-          telegramEnabled: d.telegram_enabled,
-          telegramBotToken: d.telegram_bot_token || '',
-          telegramChatId: d.telegram_chat_id || '',
-          customWebhookEnabled: d.custom_webhook_enabled,
-          customWebhookUrl: d.custom_webhook_url || '',
-          notifyOnSale: d.notify_on_sale,
-          notifyOnPurchase: d.notify_on_purchase,
-          notifyOnLowMargin: d.notify_on_low_margin,
-          soundEnabled: d.sound_enabled,
-        };
-        this.config.set(cfg);
-      }
+      if (cfgRes.data) this.config.set(this.publicConfig(cfgRes.data));
 
       const mapped: AppNotification[] = (
         (notifRes.data ?? []) as Tables<'app_notifications'>[]
@@ -197,49 +179,48 @@ export class WebhookService {
         'Speichern der Webhook-Konfiguration',
         new Error('Die Webhook-Konfiguration des aktiven Workspace ist noch nicht geladen.'),
       );
-    const updated = { ...this.config(), ...cfg };
-    if (persistent) {
+    let updated = this.publicConfig({ ...this.config(), ...cfg });
+    if (persistent && this.supabase && workspaceId) {
       try {
-        const { data, error } = await this.supabase!.client.from('webhook_configs')
-          .upsert(
-            {
-              workspace_id: workspaceId!,
-              discord_enabled: updated.discordEnabled,
-              discord_webhook_url: updated.discordWebhookUrl,
-              telegram_enabled: updated.telegramEnabled,
-              telegram_bot_token: updated.telegramBotToken,
-              telegram_chat_id: updated.telegramChatId,
-              custom_webhook_enabled: updated.customWebhookEnabled,
-              custom_webhook_url: updated.customWebhookUrl,
-              notify_on_sale: updated.notifyOnSale,
-              notify_on_purchase: updated.notifyOnPurchase,
-              notify_on_low_margin: updated.notifyOnLowMargin,
-              sound_enabled: updated.soundEnabled,
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: 'workspace_id' },
-          )
-          .select('id')
-          .single();
-        if (error || !data) {
+        const { data, error } = await this.supabase.client.functions.invoke<WebhookConfig>(
+          'webhook-dispatch',
+          {
+            body: { action: 'save', workspaceId, settings: cfg },
+          },
+        );
+        if (error || !data)
           return this.webhookFehler(
             'Speichern der Webhook-Konfiguration',
-            error ?? new Error('Die Datenbank hat keine Webhook-Konfiguration zurückgegeben.'),
+            error ?? new Error('Keine bestätigte Webhook-Konfiguration.'),
           );
-        }
+        if (!this.isCurrentWorkspace(workspaceId))
+          return {
+            data: null,
+            error: new Error('Der Workspace wurde während des Speicherns gewechselt.'),
+            reportedBySyncStatus: false,
+          };
+        updated = this.publicConfig(data);
       } catch (error: unknown) {
         return this.webhookFehler('Speichern der Webhook-Konfiguration', error);
-      }
-      if (!this.isCurrentWorkspace(workspaceId!)) {
-        return {
-          data: null,
-          error: new Error('Der Workspace wurde während des Speicherns gewechselt.'),
-          reportedBySyncStatus: false,
-        };
       }
     }
     this.config.set(updated);
     return { data: updated, error: null, reportedBySyncStatus: false };
+  }
+
+  private publicConfig(settings: WebhookConfig): WebhookConfig {
+    return {
+      discordEnabled: settings.discordEnabled,
+      hasDiscordCredentials: settings.hasDiscordCredentials ?? false,
+      telegramEnabled: settings.telegramEnabled,
+      hasTelegramCredentials: settings.hasTelegramCredentials ?? false,
+      customWebhookEnabled: settings.customWebhookEnabled,
+      hasCustomWebhookCredentials: settings.hasCustomWebhookCredentials ?? false,
+      notifyOnSale: settings.notifyOnSale,
+      notifyOnPurchase: settings.notifyOnPurchase,
+      notifyOnLowMargin: settings.notifyOnLowMargin,
+      soundEnabled: settings.soundEnabled,
+    };
   }
 
   addNotification(n: Omit<AppNotification, 'id' | 'timestamp' | 'read'>): void {
@@ -417,6 +398,12 @@ export class WebhookService {
    * Triggers notifications when a new sale occurs.
    */
   async sendSaleNotification(sale: Sale, itemTitle: string): Promise<void> {
+    if (
+      this.supabase &&
+      (this.workspaceService?.currentWorkspace()?.id !== sale.workspace_id ||
+        this.loadedWorkspaceId() !== sale.workspace_id)
+    )
+      return;
     const cfg = this.config();
     if (!cfg.notifyOnSale) return;
 
@@ -433,55 +420,12 @@ export class WebhookService {
       link: '/sales',
     });
 
-    // 2. Discord Webhook
-    if (cfg.discordEnabled && cfg.discordWebhookUrl) {
-      try {
-        const payload = {
-          username: 'Flipbase Reselling Bot',
-          avatar_url: 'https://cdn-icons-png.flaticon.com/512/891/891462.png',
-          embeds: [
-            {
-              title: 'Neuer Verkauf gebucht!',
-              description: `**${itemTitle}** wurde erfolgreich verkauft.`,
-              color: 1095937,
-              fields: [
-                { name: 'Verkaufspreis', value: `${price} €`, inline: true },
-                { name: 'Reingewinn', value: `+${profit} €`, inline: true },
-                { name: 'ROI', value: `${roi}%`, inline: true },
-                { name: 'Plattform', value: platform, inline: true },
-              ],
-              footer: { text: 'Flipbase OS • Reselling Intelligence' },
-              timestamp: new Date().toISOString(),
-            },
-          ],
-        };
-        await fetch(cfg.discordWebhookUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-      } catch (e) {
-        this.logger.warn('Discord webhook dispatch error:', e);
-      }
-    }
-
-    // 3. Telegram Bot
-    if (cfg.telegramEnabled && cfg.telegramBotToken && cfg.telegramChatId) {
-      try {
-        const text = `*NEUER SALE GEBUCHT!*\n\n*Artikel:* ${itemTitle}\n*Verkaufspreis:* ${price} €\n*Reingewinn:* +${profit} € (ROI: ${roi}%)\n*Plattform:* ${platform}`;
-        const url = `https://api.telegram.org/bot${cfg.telegramBotToken}/sendMessage`;
-        await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: cfg.telegramChatId,
-            text,
-            parse_mode: 'Markdown',
-          }),
-        });
-      } catch (e) {
-        this.logger.warn('Telegram webhook dispatch error:', e);
-      }
+    const workspaceId = this.workspaceService?.currentWorkspace()?.id;
+    if (this.supabase && workspaceId) {
+      const { error } = await this.supabase.client.functions.invoke('webhook-dispatch', {
+        body: { action: 'sale', workspaceId, saleId: sale.id },
+      });
+      if (error) this.logger.warn('Webhook-Versand fehlgeschlagen.');
     }
   }
 
@@ -517,72 +461,27 @@ export class WebhookService {
   async sendTestNotification(
     channel: 'discord' | 'telegram' | 'custom',
   ): Promise<{ success: boolean; message: string }> {
-    const cfg = this.config();
-
-    if (channel === 'discord') {
-      if (!cfg.discordWebhookUrl) {
-        return { success: false, message: 'Bitte gib eine gültige Discord Webhook-URL ein.' };
-      }
-      try {
-        const payload = {
-          username: 'Flipbase Reselling Bot',
-          embeds: [
-            {
-              title: 'Flipbase Test-Nachricht',
-              description:
-                'Deine Discord-Webhook-Integration ist **erfolgreich aktiv** und empfangsbereit!',
-              color: 6514673,
-              fields: [
-                { name: 'System', value: 'Flipbase OS 2026', inline: true },
-                { name: 'Status', value: 'Verbunden (Aktiv)', inline: true },
-              ],
-            },
-          ],
-        };
-        const res = await fetch(cfg.discordWebhookUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        if (!res.ok) {
-          return { success: false, message: `Discord API Fehler: HTTP ${res.status}` };
-        }
-        return { success: true, message: 'Discord-Testnachricht erfolgreich gesendet!' };
-      } catch (err: unknown) {
-        return {
+    const workspaceId = this.workspaceService?.currentWorkspace()?.id;
+    if (!this.supabase || !workspaceId || this.loadedWorkspaceId() !== workspaceId)
+      return {
+        success: false,
+        message: 'Die Einstellungen des aktiven Workspace sind noch nicht geladen.',
+      };
+    const { data, error } = await this.supabase.client.functions.invoke<{ success: boolean }>(
+      'webhook-dispatch',
+      {
+        body: { action: 'test', workspaceId, channel },
+      },
+    );
+    if (!this.isCurrentWorkspace(workspaceId))
+      return { success: false, message: 'Der Workspace wurde gewechselt.' };
+    return error || data?.success !== true
+      ? {
           success: false,
-          message: `Fehler beim Senden: ${err instanceof Error ? err.message : String(err)}`,
-        };
-      }
-    } else if (channel === 'telegram') {
-      if (!cfg.telegramBotToken || !cfg.telegramChatId) {
-        return { success: false, message: 'Bitte gib Bot-Token und Chat-ID ein.' };
-      }
-      try {
-        const text = `*Flipbase Test-Nachricht*\n\nDeine Telegram-Bot-Integration ist *erfolgreich aktiv* und empfangsbereit!`;
-        const url = `https://api.telegram.org/bot${cfg.telegramBotToken}/sendMessage`;
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: cfg.telegramChatId,
-            text,
-            parse_mode: 'Markdown',
-          }),
-        });
-        if (!res.ok) {
-          return { success: false, message: `Telegram API Fehler: HTTP ${res.status}` };
+          message:
+            'Webhook-Versand fehlgeschlagen. Prüfe Zugangsdaten und warte vor einem erneuten Test.',
         }
-        return { success: true, message: 'Telegram-Testnachricht erfolgreich gesendet!' };
-      } catch (err: unknown) {
-        return {
-          success: false,
-          message: `Fehler beim Senden: ${err instanceof Error ? err.message : String(err)}`,
-        };
-      }
-    } else {
-      return { success: false, message: 'Eigene Webhooks werden derzeit noch nicht versendet.' };
-    }
+      : { success: true, message: 'Testnachricht wurde versendet.' };
   }
 
   private playChimeSound(): void {

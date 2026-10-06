@@ -52,6 +52,39 @@ Ohne die Servereinrichtung zeigt die Admin-Seite „Browser-Testdienst ist nicht
 verbunden“. Das Zusammenführen dieses Branches allein schaltet den
 Live-Browser nicht frei.
 
+### Webhooks und privater Chromium-Broker
+
+Vor dem Merge der Webhook-Umstellung den geprüften Ordner
+`supabase/functions/webhook-dispatch` nach
+`/opt/supabase/volumes/functions/webhook-dispatch` installieren und den
+Funktionsdienst neu laden. Die vorhandenen Supabase-Umgebungsvariablen genügen;
+keine neuen Zugangsdaten sind erforderlich. Eine Anfrage ohne Anmeldung muss
+abgewiesen werden. Erst danach darf der Release die Migration anwenden: sie
+entzieht auch alten Browsern den direkten Zugriff auf gespeicherte Zugangsdaten.
+Die Funktion muss beim Rückfall auf ältere Webversionen erhalten bleiben;
+ein Rückfall darf die Datenbankrechte nicht wieder öffnen.
+
+Die Chromium-Umstellung erfolgt nach erfolgreichen Image-Smokes getrennt vom
+Web-Release. Worker und Kontobrowser zuerst über ihre bisherigen regulären
+Stoppwege bestätigt beenden; bei Exitcode 75, 137 oder unklarem Zustand abbrechen.
+Dann auf dem Pilothost `node deploy/prepare-chromium-broker.mjs` aus dem geprüften
+Dateistand ausführen. Das Werkzeug kopiert ausschließlich Zuordnungen und
+Worker-PID-Sperren nach `/opt/flipbase-marketplace/chromium-worker`; die echten
+Profile und Archive unter `chromium` bleiben erhalten. Ein vorhandenes oder
+unvollständiges Metadatenziel muss vor erneutem Aufruf geprüft werden.
+
+Worker, Broker und Sitzungsimage aus demselben gemergten Commit veröffentlichen.
+`FLIPBASE_CHROMIUM_BROKER_IMAGE` auf den vollständigen SHA-Tag setzen und die
+neue `docker-compose.marketplace-chromium-pilot.yml` installieren. Der Broker
+bekommt weder `marketplace-worker.env` noch Supabase-Schlüssel. Den geprüften
+Firewall-Skriptstand als root installieren und `setup`, danach `verify` ausführen;
+ältere installierte Skripte werden vom Setup bewusst nicht überschrieben.
+Der Broker erhält ausschließlich den zweiten CDP-Zugang `172.30.88.3`; die
+Attestierung muss `v2` melden. Das alte Sitzungsimage erlaubt diesen Zugang nicht.
+Erst danach die neue Compose-Konfiguration starten und Start, native Bedienung,
+Stopp, Wiederanlauf und Archivierung mit einem freigegebenen Konto abnehmen.
+Ein bloßer Web-Release schaltet den neuen Broker nicht produktiv frei.
+
 Bei jedem Push auf `master` läuft [`.github/workflows/ci.yml`](../.github/workflows/ci.yml):
 
 1. **Required checks** – Format, Lint, Typen und alle ausgewählten Prüfungen.

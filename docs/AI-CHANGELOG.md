@@ -1,5 +1,18 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-06 - Juna - offene Sicherheitsgrenzen serverseitig schließen
+
+**Auftrag:** Die beiden offenen Befunde nach PR #320 einschließlich der dafür
+notwendigen Serveränderungen im eigenen Zweig `juna/security-backend-boundaries` beheben.
+
+**Umsetzung:** Webhook-Konfigurationen nur noch über einen angemeldeten Funktionsdienst
+lesen und ändern; gespeicherte Zugangsdaten bleiben serverseitig. Versandziele und
+Workspace-Zugriff werden am Server geprüft. Ein privater Broker übernimmt die
+Docker-Operationen und die echten Chromium-Profile; der Worker erhält nur getrennte
+Metadaten und einen begrenzten Auftragskanal.
+
+**Prüfung:** In Arbeit; keine Produktionseinstellungen geändert, kein Deployment.
+
 ## 2026-10-06 - Juna - Sicherheitskorrekturen über PR abschließen
 
 **Freigabe:** Der Nutzer bestätigt Push, PR-Erstellung, Merge-Commit nach

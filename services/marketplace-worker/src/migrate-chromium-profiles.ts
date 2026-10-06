@@ -225,21 +225,15 @@ async function main(): Promise<void> {
     throw new Error(
       'pilot|migrate|rollback WORKSPACE_ID CONNECTION_ID [EXPECTED_PROFILE_ID] angeben',
     );
+  const { ChromiumBrokerClient } = await import('./chromium-broker-client.ts');
+  const launcher = await ChromiumBrokerClient.create(join(root, 'profiles'));
   const registry = new ChromiumAccountProfileRegistry({
     root,
     hostId,
     networkId: environment['MARKETPLACE_CHROMIUM_NETWORK_ID'] ?? 'direct',
+    archiveProfile: (profileId) => launcher.archive(profileId),
   });
-  const { ChromiumContainerLauncher } = await import('./chromium-container-launcher.ts');
   const { ChromiumProfileStore } = await import('./chromium-profile-store.ts');
-  const launcher = new ChromiumContainerLauncher({
-    image,
-    profileRoot: join(root, 'profiles'),
-    hostProfileRoot,
-    hostId,
-    network: config.chromiumNetwork ?? '',
-    seccompProfile: config.chromiumSeccompProfile,
-  });
   const profiles = new ChromiumProfileStore({
     root: join(root, 'profiles'),
     inspectProfileProcesses: (directory) => launcher.inspectProfileProcesses(directory),

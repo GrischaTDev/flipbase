@@ -20,6 +20,7 @@ interface RegistryOptions {
   root: string;
   hostId: string;
   networkId?: string;
+  archiveProfile?: (profileId: string) => Promise<void>;
 }
 interface NewAccountProfile {
   workspaceId: string;
@@ -45,6 +46,7 @@ export class ChromiumAccountProfileRegistry {
   private readonly root: string;
   private readonly hostId: string;
   private readonly networkId: string;
+  private readonly archiveProfile?: RegistryOptions['archiveProfile'];
   private pending: Promise<unknown> = Promise.resolve();
 
   constructor(options: RegistryOptions) {
@@ -55,6 +57,7 @@ export class ChromiumAccountProfileRegistry {
       !bindingPattern.test(options.networkId ?? 'direct')
     )
       throw error();
+    this.archiveProfile = options.archiveProfile;
     this.root = resolve(options.root);
     this.hostId = options.hostId;
     this.networkId = options.networkId ?? 'direct';
@@ -202,6 +205,7 @@ export class ChromiumAccountProfileRegistry {
         if (!missing(failure)) throw failure;
       }
     }
+    await this.archiveProfile?.(profileId);
     const archive = join(this.root, 'archive');
     await this.privateDirectory(archive);
     const profileDirectory = join(this.root, 'profiles', profileId);

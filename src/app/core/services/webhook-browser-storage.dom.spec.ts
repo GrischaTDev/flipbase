@@ -55,7 +55,7 @@ describe('Webhook-Zugangsdaten im Browserspeicher', () => {
       discordWebhookUrl: 'https://discord.com/api/webhooks/123/secret',
     });
 
-    expect(service.config().telegramBotToken).toBe('new-secret');
+    expect(service.config().telegramBotToken).toBeUndefined();
     expect(writeStorage).not.toHaveBeenCalled();
     expect(localStorage.length).toBe(0);
   });
@@ -90,7 +90,32 @@ describe('Webhook-Zugangsdaten im Browserspeicher', () => {
     };
     const injector = Injector.create({
       providers: [
-        { provide: SupabaseService, useValue: { client: { from: () => query } } },
+        {
+          provide: SupabaseService,
+          useValue: {
+            client: {
+              from: (table: string) => {
+                expect(table).toBe('app_notifications');
+                return query;
+              },
+              functions: {
+                invoke: async () => ({
+                  data: {
+                    telegramEnabled: true,
+                    hasTelegramCredentials: true,
+                    notifyOnSale: true,
+                    discordEnabled: false,
+                    customWebhookEnabled: false,
+                    notifyOnPurchase: true,
+                    notifyOnLowMargin: true,
+                    soundEnabled: true,
+                  },
+                  error: null,
+                }),
+              },
+            },
+          },
+        },
         {
           provide: WorkspaceService,
           useValue: { currentWorkspace: signal({ id: 'workspace-1' }) },
@@ -102,7 +127,8 @@ describe('Webhook-Zugangsdaten im Browserspeicher', () => {
     await service.loadFromSupabase('workspace-1');
 
     expect(service.loadedWorkspaceId()).toBe('workspace-1');
-    expect(service.config().telegramBotToken).toBe('database-secret');
+    expect(service.config().telegramBotToken).toBeUndefined();
+    expect(service.config().hasTelegramCredentials).toBe(true);
     expect(service.config().telegramEnabled).toBe(true);
     expect(writeStorage).not.toHaveBeenCalled();
     expect(localStorage.length).toBe(0);

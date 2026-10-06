@@ -5906,6 +5906,41 @@ export type Database = {
           },
         ]
       }
+      webhook_dispatch_claims: {
+        Row: {
+          channel: string
+          claimed_at: string
+          delivered_at: string | null
+          event: string
+          id: string
+          workspace_id: string
+        }
+        Insert: {
+          channel: string
+          claimed_at?: string
+          delivered_at?: string | null
+          event: string
+          id?: string
+          workspace_id: string
+        }
+        Update: {
+          channel?: string
+          claimed_at?: string
+          delivered_at?: string | null
+          event?: string
+          id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_dispatch_claims_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workspace_company_profiles: {
         Row: {
           bank_account_holder: string | null
@@ -6423,6 +6458,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      claim_server_webhook_dispatch: {
+        Args: { p_channel: string; p_event: string; p_workspace_id: string }
+        Returns: boolean
       }
       clear_sniper_favorites: {
         Args: { p_expected_user_id: string; p_workspace_id: string }
@@ -7978,6 +8017,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      save_server_webhook_config: {
+        Args: { p_patch: Json; p_workspace_id: string }
+        Returns: Json
       }
       save_sniper_favorite: {
         Args: {
