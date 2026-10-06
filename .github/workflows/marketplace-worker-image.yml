@@ -119,7 +119,7 @@ jobs:
           docker network connect chromium-control chromium-worker-fixture
           docker start --attach chromium-worker-fixture
           [[ "$(docker inspect --format '{{.State.ExitCode}}' chromium-worker-fixture)" == 0 ]]
-          test -f /opt/flipbase-marketplace/chromium/archive/chromium_41000000-0000-4000-8000-000000000001/Default/Preferences
+          sudo test -f /opt/flipbase-marketplace/chromium/archive/chromium_41000000-0000-4000-8000-000000000001/Default/Preferences
           [[ "$(docker ps -aq --filter label=de.flipbase.chromium.role=session)" == '' ]]
 
       - name: Publish verified worker
