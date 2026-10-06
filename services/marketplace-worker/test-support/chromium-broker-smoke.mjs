@@ -29,9 +29,11 @@ const context = await client.launch(`${root}/${profileId}`, {
 });
 const page = context.pages()[0];
 assert.ok(page);
-await page.setContent('<label>Broker test<input id="native-input"></label>');
-await page.locator('#native-input').focus();
+await page.setContent(
+  '<html><body style="margin:0"><textarea id="native-input" aria-label="Broker test" style="width:100vw;height:100vh;box-sizing:border-box"></textarea></body></html>',
+);
 const desktop = client.desktop(`${root}/${profileId}`);
+await desktop.click(0.5, 0.75);
 await desktop.type('broker-fixture');
 assert.equal(await page.locator('#native-input').inputValue(), 'broker-fixture');
 const image = await desktop.capture();
