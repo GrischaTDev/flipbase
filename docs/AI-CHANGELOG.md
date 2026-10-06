@@ -42,6 +42,15 @@ Browserauswahlprüfungen auch auf dem integrierten Stand erfolgreich. Unabhängi
 Integrationsreview ohne Befund. Die vollständige kombinierte Datenbank- und
 Anwendungsprüfung folgt im PR; noch keine Produktionsänderung.
 
+**CI-Nachprüfung:** Die vollständigen Qualitäts-, Angular-, Node-, DOM-, Worker-
+und Datenbankprüfungen waren erfolgreich. Der Browser-Smoke fand eine alte
+Link-Erwartung für den nun direkten Cloud-Dialog; außerdem wurde die entfernte
+doppelte Verwaltungsoption noch im Menü erwartet. Beide Browserverträge wurden
+an den neuen Ablauf angepasst. Zwölf zusätzliche Chromiumprüfungen für
+Cloudwechsel, Kontenauswahl, Navigation und Favoritenglocke bei 1440, 1024, 768,
+390 und 320 Pixeln sowie hell/dunkel erfolgreich; unabhängiger Review ohne
+Befund. Die vollständigen Pflichtchecks werden für diesen Stand erneut geprüft.
+
 ## 2026-10-05 - Juna - Zentrale Vinted-Suchfilter integrieren
 
 **Auftrag:** Die reinen Markenfilter der Administration um vollständige Kategoriepfade,

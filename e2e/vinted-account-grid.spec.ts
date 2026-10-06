@@ -13,9 +13,9 @@ for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 1000 });
     const calls = await mockMarketplace(page, true, false, false, false, [], undefined, true);
     await page.goto('/marketplaces/vinted/accounts');
-    await page.getByRole('link', { name: 'Auf Cloud wechseln', exact: true }).first().click();
-    await expect(page).toHaveURL(new RegExp(`/connect/${accountIds[0]}$`));
-    await page.getByRole('button', { name: 'Auf Cloud wechseln', exact: true }).click();
+    await page.getByRole('button', { name: 'Auf Cloud wechseln', exact: true }).first().click();
+    await expect(page).toHaveURL(/\/marketplaces\/vinted\/accounts$/);
+    await expect(page.getByRole('dialog', { name: 'Vinted-Anmeldung', exact: true })).toBeVisible();
     await page
       .getByRole('textbox', { name: 'Vinted-Mitgliedsname oder E-Mail' })
       .fill('synthetic-user');
