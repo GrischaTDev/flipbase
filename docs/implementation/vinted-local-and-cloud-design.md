@@ -334,3 +334,39 @@ Aufträge mit Journal und bestätigtem Ergebnis, Sicherungen und Veröffentlichu
 mit eigenem Aktionstab sowie weitere Verhandlungs-/Nachverkaufsregeln. Die
 dokumentierte Featureliste bleibt das Ausbauziel; erfolgreiche Verbindung und
 Anzeigenimport ersetzen keinen Funktionsnachweis für diese Folgepakete.
+
+## Kontenübersicht und Profilverknüpfung am 6. Oktober 2026
+
+Die Kontenseite ist der gemeinsame Einstieg zum Hinzufügen und Verwalten.
+Die bisherige Verwaltungsadresse leitet dorthin weiter; die Navigation enthält
+keine zweite Verwaltungsseite. Jede Kachel zeigt lokale oder Cloudverbindung
+und öffnet eigene Einstellungen mit Glockenmeldungen, Umbenennen, Pause und
+Entfernen der Flipbase-Verknüpfung. Das lokale Browserprofil und das eigentliche
+Vinted-Konto werden dabei nicht gelöscht.
+
+Zehn Kontoplätze gelten pro Workspace gemeinsam für lokale, Cloud- und noch
+ausstehende Verbindungen. Die Datenbank prüft alle Anlagewege atomar. Bestehende
+Workspaces mit mehr als zehn Konten werden nicht bereinigt; weitere Anlagen sind
+gesperrt. Konten können am Griff gezogen oder per Pfeiltaste verschoben werden.
+Die vollständige Reihenfolge wird berechtigungsgeprüft gespeichert. Bestätigte
+Metadaten ändern weder Kontenauswahl noch gespeicherte Chatdaten; Vorschauen
+werden beim reinen Sortieren nicht erneut gelesen.
+
+Lokale Einrichtung: eigenes Chrome-/Brave-Profil, Erweiterung darin installieren,
+Vinted und Flipbase anmelden, über die Flipbase-Logo-Blase die Kontoanlage öffnen,
+erkannten Kontonamen prüfen und ausdrücklich freigeben. Bekannte bestehende
+Profilbindungen verhindern die lokale Neuanlage; auch pausierte oder abgelaufene
+Bindungen gehören weiterhin zu diesem Profil. Eine veraltete Erweiterung ohne
+Kontostatus liefert einen unbekannten Zustand. Die bestehende serverseitige
+Bindungsprüfung bleibt verbindlich. Die Blase verschwindet in reservierten
+Arbeits- und Aktionstabs; dort bleibt der Sperrhinweis.
+
+Die Cloudauswahl zeigt die Kapazitätsprüfung im eigenen Ladedialog. Der vorhandene
+Einrichtungsaufruf gleicht gekaufte IPs ab und reserviert atomar eine freie IP.
+Eine fehlende IP führt zur Kapazitätsmeldung. Automatische Käufe und Backupanzeige
+gehören nicht zu diesem Paket. Der Chrome-Web-Store-Eintrag ist weiterhin offen;
+der Pilot beschreibt die Installation des entpackten Pakets.
+
+Erweiterungspaket: 1.5.0. Nach Veröffentlichung wird der bereits in Chrome
+registrierte Installationsordner aktualisiert, damit „Neu laden“ die neue Version
+nutzt. Bis zur PR-Freigabe bleiben Produktion und installierte Erweiterung unverändert.

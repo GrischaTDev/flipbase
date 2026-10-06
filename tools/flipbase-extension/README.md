@@ -43,6 +43,25 @@ Formular, können einzelne Felder manuelle Eingaben verlangen.
 
 ## Lokaler Vinted-Pilot
 
+### Konto direkt auf Vinted prüfen
+
+Ab Erweiterung 1.5.0 erscheint unten rechts auf normalen Vinted-Seiten das
+Flipbase-Logo. Ein Klick liest Deine aktuelle Vinted-Identität und zeigt die
+gespeicherte lokale Zuordnung. Die Seite bleibt normal bedienbar. Du kannst das
+kleine Fenster mit Escape oder dem Schließen-Button schließen.
+
+Mit „Vinted-Konto verknüpfen“ öffnest Du Flipbase im selben Browserprofil und
+fügst dort ein lokales Konto hinzu. Die Anmeldung und die ausdrückliche
+Kontofreigabe laufen weiterhin in Flipbase. Bei einem bereits gebundenen Profil
+führt der Button zur bestehenden Verbindung. Ein anderes aktives Vinted-Konto
+erhält einen Hinweis auf ein separates Browserprofil; es ersetzt die Zuordnung
+nicht. Angezeigte Freigaben stammen aus dem lokalen Speicher, der aktuelle
+Serverstatus wird beim Prüfen der Verbindung in Flipbase bestätigt.
+
+Im reservierten Arbeitstab erscheint dieses Kontofenster nicht. Dort bleibt
+die vorhandene Sperrfläche für automatische Vorgänge beziehungsweise die
+manuelle Vinted-Anmeldung erhalten.
+
 ### Favoritennachrichten
 
 Erfordert Erweiterung 1.4.0 und die zugehörige veröffentlichte Anwendung/Serverfunktion.

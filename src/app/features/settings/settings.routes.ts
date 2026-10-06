@@ -48,7 +48,7 @@ export const SETTINGS_ROUTES: Routes = [
       },
       {
         path: 'marketplaces',
-        redirectTo: '/marketplaces/vinted/manage',
+        redirectTo: '/marketplaces/vinted/accounts',
         pathMatch: 'full',
       },
       {

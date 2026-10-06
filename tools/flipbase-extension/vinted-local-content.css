@@ -85,3 +85,127 @@
     min-height: 44px;
   }
 }
+
+#flipbase-vinted-account {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 2147483646;
+  font:
+    13px/20px system-ui,
+    sans-serif;
+  color: #1f2937;
+}
+
+#flipbase-vinted-account * {
+  box-sizing: border-box;
+}
+
+#flipbase-vinted-account-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  margin-left: auto;
+  border: 1px solid #d1d5db;
+  border-radius: 50%;
+  background: #fcc601;
+  box-shadow: 0 4px 20px rgb(0 0 0 / 8%);
+  cursor: pointer;
+  padding: 8px;
+}
+
+#flipbase-vinted-account-toggle img {
+  display: block;
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+#flipbase-vinted-account-panel {
+  width: min(320px, calc(100vw - 40px));
+  max-height: calc(100dvh - 100px);
+  overflow: auto;
+  padding: 16px;
+  margin-bottom: 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  background: white;
+  box-shadow: 0 4px 20px rgb(0 0 0 / 8%);
+  text-align: left;
+}
+
+#flipbase-vinted-account-panel[hidden] {
+  display: none;
+}
+
+#flipbase-vinted-account .flipbase-vinted-account-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+#flipbase-vinted-account-heading {
+  font-size: 16px;
+  line-height: 24px;
+}
+
+#flipbase-vinted-account-panel button {
+  width: 44px;
+  height: 44px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: white;
+  color: #1f2937;
+  font:
+    24px/24px system-ui,
+    sans-serif;
+  cursor: pointer;
+}
+
+#flipbase-vinted-account p {
+  margin: 12px 0;
+  color: #4b5563;
+  font: inherit;
+  overflow-wrap: anywhere;
+}
+
+#flipbase-vinted-account .flipbase-vinted-account-identity,
+#flipbase-vinted-account .flipbase-vinted-account-status {
+  color: #1f2937;
+  font-weight: 600;
+}
+
+#flipbase-vinted-account a {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 8px;
+  padding: 4px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: white;
+  color: #111827;
+  text-decoration: none;
+  font:
+    550 13px/20px system-ui,
+    sans-serif;
+}
+
+#flipbase-vinted-account a[data-account-link] {
+  background: #fcc601;
+}
+
+#flipbase-vinted-account button:hover,
+#flipbase-vinted-account a:hover {
+  border-color: #111827;
+}
+
+#flipbase-vinted-account button:focus-visible,
+#flipbase-vinted-account a:focus-visible {
+  outline: 2px solid #111827;
+  outline-offset: 3px;
+}

@@ -11,6 +11,308 @@ const require = createRequire(import.meta.url);
 const core = require('../tools/flipbase-extension/vinted-local-core.js');
 const messages = require('../tools/flipbase-extension/vinted-local-messages.js');
 const scheduler = require('../tools/flipbase-extension/vinted-local-scheduler.js');
+
+function accountBubbleFixture({
+  status,
+  identityResponse = profile,
+  identityStatus = 200,
+  includeWorkTab = false,
+} = {}) {
+  const dom = new JSDOM(
+    '<!doctype html><body><main><button>Vinted verwenden</button></main></body>',
+    {
+      url: 'https://www.vinted.de/member/999-unrelated-profile',
+      runScripts: 'outside-only',
+    },
+  );
+  const calls = [];
+  const requests = [];
+  let listener;
+  dom.window.Range.prototype.getClientRects = () => [];
+  dom.window.FlipbaseVintedLocal = core;
+  dom.window.chrome = {
+    runtime: {
+      id: 'extension',
+      getURL: (path) => `chrome-extension://extension/${path}`,
+      onMessage: { addListener: (callback) => (listener = callback) },
+      sendMessage: async (message) => {
+        calls.push(message);
+        return { success: true, result: status ?? { reserved: false, binding: null } };
+      },
+    },
+  };
+  if (includeWorkTab)
+    dom.window.eval(
+      readFileSync(
+        new URL('../tools/flipbase-extension/vinted-local-content.js', import.meta.url),
+        'utf8',
+      ),
+    );
+  dom.window.AbortSignal = AbortSignal;
+  dom.window.fetch = async (path, options) => {
+    requests.push({ path, options });
+    return {
+      ok: identityStatus === 200,
+      status: identityStatus,
+      url: 'https://www.vinted.de/api/v2/users/current',
+      headers: new Headers({ 'Content-Type': 'application/json' }),
+      json: async () => identityResponse,
+    };
+  };
+  dom.window.eval(
+    readFileSync(
+      new URL('../tools/flipbase-extension/vinted-local-account.js', import.meta.url),
+      'utf8',
+    ),
+  );
+  const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+  return {
+    dom,
+    document: dom.window.document,
+    calls,
+    requests,
+    flush,
+    readIdentity: () =>
+      new Promise((resolve) =>
+        listener({ type: 'VINTED_LOCAL_IDENTITY' }, { id: 'extension' }, resolve),
+      ),
+  };
+}
+
+test('Ordinary Vinted pages offer an accessible Flipbase bubble and authenticated account linking', async () => {
+  const fixture = accountBubbleFixture();
+  try {
+    await fixture.flush();
+    const { document, requests } = fixture;
+    const toggle = document.querySelector('#flipbase-vinted-account-toggle');
+    assert.ok(toggle);
+    assert.equal(toggle.getAttribute('aria-expanded'), 'false');
+    assert.equal(requests.length, 0, 'Loading an ordinary page must not read Vinted identity');
+    toggle.click();
+    await fixture.flush();
+    const panel = document.querySelector('#flipbase-vinted-account-panel');
+    assert.equal(panel.hidden, false);
+    assert.match(panel.textContent, /maike/);
+    assert.match(panel.textContent, /Noch nicht mit Flipbase verknüpft/);
+    const link = panel.querySelector('[data-account-link]');
+    assert.equal(link.textContent, 'Vinted-Konto verknüpfen');
+    assert.equal(link.href, 'https://app.flipbase.de/marketplaces/vinted/accounts?add=local');
+    assert.deepEqual(
+      requests.map(({ path }) => path),
+      ['/api/v2/users/current'],
+    );
+    assert.equal(requests[0].options.method, 'GET');
+    assert.equal(requests[0].options.credentials, 'include');
+    assert.equal(document.querySelector('main').hasAttribute('inert'), false);
+    panel.dispatchEvent(
+      new fixture.dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+    );
+    assert.equal(panel.hidden, true);
+    assert.equal(document.activeElement, toggle);
+  } finally {
+    fixture.dom.window.close();
+  }
+});
+
+test('Account bubble reports bound, expired, paused and changed identities without rebinding', async () => {
+  for (const scenario of [
+    { state: 'linked', current: profile, label: /Lokal verknüpft/ },
+    { state: 'expired', current: profile, label: /Freigabe abgelaufen/ },
+    { state: 'paused', current: profile, label: /Abgleich pausiert/ },
+    { state: 'revoked', current: profile, label: /Freigabe nicht mehr gültig/ },
+    {
+      state: 'linked',
+      current: { user: { id: 456, login: 'anderes-konto' } },
+      label: /Anderes Vinted-Konto/,
+    },
+  ]) {
+    const fixture = accountBubbleFixture({
+      status: {
+        reserved: false,
+        binding: {
+          externalAccountId: '123',
+          username: 'maike',
+          state: scenario.state,
+          appOrigin,
+          connectionId,
+        },
+      },
+      identityResponse: scenario.current,
+    });
+    try {
+      await fixture.flush();
+      fixture.document.querySelector('#flipbase-vinted-account-toggle').click();
+      await fixture.flush();
+      const panel = fixture.document.querySelector('#flipbase-vinted-account-panel');
+      assert.match(panel.textContent, scenario.label);
+      const accountLink = panel.querySelector('[data-account-link]');
+      if (scenario.current.user.id === 456) {
+        assert.equal(accountLink, null);
+        assert.match(panel.textContent, /separates Browserprofil/);
+        assert.match(panel.textContent, /maike/);
+      } else {
+        assert.equal(
+          accountLink.href,
+          `${appOrigin}/marketplaces/vinted/local-connect/${connectionId}`,
+        );
+      }
+      assert.ok(fixture.calls.every((message) => message.type === 'VINTED_LOCAL_ACCOUNT_STATUS'));
+    } finally {
+      fixture.dom.window.close();
+    }
+  }
+});
+
+test('Missing Vinted identity never claims linkage or links a profile from the page URL', async () => {
+  for (const identityStatus of [401, 403, 429, 500]) {
+    const fixture = accountBubbleFixture({ identityStatus });
+    try {
+      await fixture.flush();
+      fixture.document.querySelector('#flipbase-vinted-account-toggle').click();
+      await fixture.flush();
+      const panel = fixture.document.querySelector('#flipbase-vinted-account-panel');
+      assert.doesNotMatch(panel.textContent, /Lokal verknüpft|999/);
+      assert.equal(panel.querySelector('[data-account-link]'), null);
+    } finally {
+      fixture.dom.window.close();
+    }
+  }
+});
+
+test('Reserved Vinted work tabs never offer the ordinary account bubble', async () => {
+  const fixture = accountBubbleFixture({ status: { reserved: true }, includeWorkTab: true });
+  try {
+    await fixture.flush();
+    assert.equal(fixture.document.querySelector('#flipbase-vinted-account'), null);
+    assert.equal(fixture.requests.length, 0);
+    assert.equal(
+      fixture.document.querySelector('#flipbase-vinted-work-tab').dataset.protected,
+      'true',
+    );
+    assert.equal(fixture.document.querySelector('main').hasAttribute('inert'), true);
+  } finally {
+    fixture.dom.window.close();
+  }
+});
+
+test('Starting a reserved operation removes an open bubble and preserves the blocking work overlay', async () => {
+  const fixture = accountBubbleFixture({ includeWorkTab: true });
+  try {
+    await fixture.flush();
+    fixture.document.querySelector('#flipbase-vinted-account-toggle').click();
+    await fixture.flush();
+    const outcome = await fixture.readIdentity();
+    assert.equal(outcome.success, true);
+    assert.equal(fixture.document.querySelector('#flipbase-vinted-account'), null);
+    assert.equal(
+      fixture.document.querySelector('#flipbase-vinted-work-tab').dataset.protected,
+      'true',
+    );
+    assert.equal(fixture.document.querySelector('main').hasAttribute('inert'), true);
+  } finally {
+    fixture.dom.window.close();
+  }
+});
+
+test('Account bubble has accessible controls and dialog labelling', async () => {
+  const fixture = accountBubbleFixture();
+  try {
+    await fixture.flush();
+    fixture.document.querySelector('#flipbase-vinted-account-toggle').click();
+    await fixture.flush();
+    fixture.dom.window.eval(require('axe-core').source);
+    const result = await fixture.dom.window.axe.run(
+      fixture.document.querySelector('#flipbase-vinted-account'),
+      { rules: { 'color-contrast': { enabled: false } } },
+    );
+    assert.equal(
+      result.violations.length,
+      0,
+      JSON.stringify(
+        result.violations.map((violation) => ({
+          id: violation.id,
+          nodes: violation.nodes.map((node) => node.html),
+        })),
+      ),
+    );
+  } finally {
+    fixture.dom.window.close();
+  }
+});
+
+test('Background account status exposes only local account metadata to a trusted ordinary Vinted frame', async () => {
+  const fixture = createChromeBackgroundFixture();
+  const background = fixture.startBackground();
+  const sender = {
+    id: 'extension',
+    frameId: 0,
+    origin: 'https://www.vinted.de',
+    url: 'https://www.vinted.de/',
+    tab: { id: 90, incognito: false },
+  };
+  const status = { type: 'VINTED_LOCAL_ACCOUNT_STATUS' };
+  for (const untrusted of [
+    { ...sender, id: 'foreign' },
+    { ...sender, frameId: 1 },
+    { ...sender, origin: 'https://evil.test' },
+    { ...sender, url: 'https://evil.test/' },
+    { ...sender, tab: { id: 90, incognito: true } },
+  ])
+    assert.equal(
+      background.listener(status, untrusted, () => assert.fail('Untrusted status response')),
+      false,
+    );
+  const unbound = await background.call(status, sender);
+  assert.equal(unbound.success, true);
+  assert.equal(unbound.result.binding, null);
+  assert.equal(fixture.createdTabs.length, 0);
+  assert.equal((await background.call(status)).result.localAccount, null);
+  await background.call({ type: 'FLIPBASE_VINTED_LOCAL_PREPARE', requestId: 'bubble-prepare' });
+  await background.call({
+    type: 'FLIPBASE_VINTED_LOCAL_BIND',
+    requestId: 'bubble-bind',
+    payload: {
+      ...scope,
+      tokenHash: fixture.stored[core.storageKey].tokenHash,
+      externalAccountId: '123',
+      expiresAt: fixture.validExpires,
+      apiUrl: 'https://api.flipbase.de/functions/v1/marketplace-local-extension',
+    },
+  });
+  const snapshot = structuredClone(fixture.stored);
+  const edgeCalls = fixture.edgeCalls.length;
+  const bound = await background.call(status, sender);
+  assert.equal(bound.result.binding.externalAccountId, '123');
+  assert.equal(bound.result.binding.username, 'maike');
+  assert.equal(bound.result.binding.state, 'linked');
+  assert.ok(!JSON.stringify(bound).includes(snapshot[core.storageKey].secret));
+  assert.ok(!JSON.stringify(bound).includes(snapshot[core.storageKey].tokenHash));
+  assert.deepEqual(fixture.stored, snapshot);
+  assert.equal(fixture.edgeCalls.length, edgeCalls);
+  const appStatus = await background.call(status);
+  assert.deepEqual(Object.keys(appStatus.result), ['localAccount']);
+  assert.deepEqual(Object.keys(appStatus.result.localAccount).sort(), [
+    'boundConnectionId',
+    'boundUsername',
+    'expiresAt',
+    'state',
+  ]);
+  assert.equal(appStatus.result.localAccount.boundConnectionId, connectionId);
+  assert.equal(appStatus.result.localAccount.boundUsername, 'maike');
+  assert.equal(appStatus.result.localAccount.expiresAt, fixture.validExpires);
+  fixture.stored[core.storageKey].schedule = { pauseReason: 'interaction_required' };
+  assert.equal((await background.call(status)).result.localAccount.state, 'paused');
+  fixture.stored[core.storageKey].schedule = { pauseReason: 'local_binding_invalid' };
+  assert.equal((await background.call(status)).result.localAccount.state, 'revoked');
+  fixture.stored[core.storageKey].schedule = {};
+  fixture.stored[core.storageKey].binding.expiresAt = '2000-01-01T00:00:00Z';
+  assert.equal((await background.call(status)).result.localAccount.state, 'expired');
+  const reserved = await background.call(status, {
+    ...sender,
+    tab: { id: snapshot[core.storageKey].tabId },
+  });
+  assert.equal(reserved.result.reserved, true);
+});
 test('Scheduler persists distinct deadlines and never catches up missed periods in a loop', async () => {
   let stored = { binding: { expiresAt: '2099-01-01T00:00:00Z' } };
   const calls = [];
@@ -1019,6 +1321,20 @@ test('Website bridge checks source and origin, preserves request correlation and
     chrome: {
       runtime: {
         sendMessage: (message, callback) => {
+          if (message.type === 'VINTED_LOCAL_ACCOUNT_STATUS') {
+            callback({
+              success: true,
+              result: {
+                localAccount: {
+                  boundUsername: 'maike',
+                  boundConnectionId: connectionId,
+                  expiresAt,
+                  state: 'linked',
+                },
+              },
+            });
+            return;
+          }
           sent.push(message);
           callback({ success: true, result: { tokenHash, identity } });
         },
@@ -1043,6 +1359,10 @@ test('Website bridge checks source and origin, preserves request correlation and
   assert.equal(replies.at(-1).reply.requestId, 'prepare-1');
   assert.equal(replies.at(-1).origin, appOrigin);
   assert.ok(!JSON.stringify(replies).includes(secret));
+  const announcement = replies.findLast(({ reply }) => reply.type === 'FLIPBASE_EXTENSION_STATUS');
+  assert.equal(announcement.reply.version, '1.5.0');
+  assert.equal(announcement.reply.localAccount.boundUsername, 'maike');
+  assert.equal(announcement.reply.localAccount.boundConnectionId, connectionId);
 });
 
 test('Content script renders a reserved tab and only GETs identity with no cookies exported', async () => {
@@ -1136,6 +1456,11 @@ test('Manifest narrows application and provider access without changing Kleinanz
   );
   assert.ok(!manifest.host_permissions.includes('<all_urls>'));
   assert.ok(!manifest.content_scripts.some((script) => script.matches.includes('<all_urls>')));
+  const vintedContent = manifest.content_scripts.find((script) =>
+    script.matches.includes('https://www.vinted.de/*'),
+  );
+  assert.equal(vintedContent.js.at(-1), 'vinted-local-account.js');
+  assert.equal(manifest.version, '1.5.0');
   assert.ok(
     manifest.content_scripts.some(
       (script) =>

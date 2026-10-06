@@ -21,6 +21,8 @@ export class VintedAccountPreviewsStore {
       this.accounts.canManage(),
       this.accounts
         .connections()
+        .slice()
+        .sort((first, second) => first.connectionId.localeCompare(second.connectionId))
         .map(({ workspaceId, connectionId, lastSyncedAt }) => [
           workspaceId,
           connectionId,

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Flipbase Listing-Assistent",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Verbindet Dein Vinted-Postfach mit Flipbase und unterstützt Kleinanzeigen-Inserate.",
   "permissions": ["storage", "activeTab", "alarms"],
   "host_permissions": [
@@ -32,7 +32,8 @@
         "vinted-local-core.js",
         "vinted-local-messages.js",
         "vinted-local-favorites.js",
-        "vinted-local-content.js"
+        "vinted-local-content.js",
+        "vinted-local-account.js"
       ],
       "css": ["vinted-local-content.css"],
       "run_at": "document_idle"

@@ -14,6 +14,45 @@ interface PendingRequest {
   readonly timer: ReturnType<typeof setTimeout>;
 }
 
+export interface VintedLocalAccountStatus {
+  readonly boundUsername: string | null;
+  readonly boundConnectionId: string;
+  readonly expiresAt: string;
+  readonly state: 'linked' | 'expired' | 'paused' | 'revoked';
+}
+function parseLocalAccountStatus(candidate: unknown): VintedLocalAccountStatus | null | undefined {
+  if (candidate === undefined || candidate === null) return candidate;
+  if (typeof candidate !== 'object' || Array.isArray(candidate))
+    throw new Error('Ungültiger lokaler Kontostatus');
+  const fields = candidate as Record<string, unknown>;
+  if (
+    Object.keys(fields).length !== 4 ||
+    (fields['boundUsername'] !== null &&
+      (typeof fields['boundUsername'] !== 'string' ||
+        !fields['boundUsername'].trim() ||
+        fields['boundUsername'].length > 120 ||
+        /\p{Cc}/u.test(fields['boundUsername']))) ||
+    typeof fields['boundConnectionId'] !== 'string' ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      fields['boundConnectionId'],
+    ) ||
+    typeof fields['expiresAt'] !== 'string' ||
+    !/^\d{4}-\d\d-\d\dT/.test(fields['expiresAt']) ||
+    !Number.isFinite(Date.parse(fields['expiresAt'])) ||
+    (fields['state'] !== 'linked' &&
+      fields['state'] !== 'expired' &&
+      fields['state'] !== 'paused' &&
+      fields['state'] !== 'revoked')
+  )
+    throw new Error('Ungültiger lokaler Kontostatus');
+  return Object.freeze({
+    boundUsername: fields['boundUsername'],
+    boundConnectionId: fields['boundConnectionId'],
+    expiresAt: fields['expiresAt'],
+    state: fields['state'],
+  });
+}
+
 /** Die Brücke transportiert nur öffentliche Freigabedaten, keine Vinted-Sitzung. */
 @Injectable()
 export class VintedLocalExtensionBridge {
@@ -23,10 +62,12 @@ export class VintedLocalExtensionBridge {
   readonly installed = signal(false);
   readonly checkingInstallation = signal(false);
   readonly installationCheckFailed = signal(false);
+  readonly localAccount = signal<VintedLocalAccountStatus | null | undefined>(undefined);
   constructor() {
     window.addEventListener('message', this.receive);
     inject(DestroyRef).onDestroy(() => {
       this.destroyed = true;
+      this.localAccount.set(undefined);
       clearTimeout(this.installationTimer);
       window.removeEventListener('message', this.receive);
       this.cancel();
@@ -46,6 +87,7 @@ export class VintedLocalExtensionBridge {
     this.installationCheckFailed.set(false);
     this.installationTimer = setTimeout(() => {
       this.installed.set(false);
+      this.localAccount.set(undefined);
       this.checkingInstallation.set(false);
       this.installationCheckFailed.set(true);
     }, 3_000);
@@ -82,7 +124,14 @@ export class VintedLocalExtensionBridge {
     const response = event.data as Record<string, unknown>;
     if (response['type'] === 'FLIPBASE_EXTENSION_STATUS') {
       if (response['installed'] === true && response['vintedLocal'] === true) {
+        let localAccount: VintedLocalAccountStatus | null | undefined;
+        try {
+          localAccount = parseLocalAccountStatus(response['localAccount']);
+        } catch {
+          return;
+        }
         clearTimeout(this.installationTimer);
+        this.localAccount.set(localAccount);
         this.installed.set(true);
         this.checkingInstallation.set(false);
         this.installationCheckFailed.set(false);

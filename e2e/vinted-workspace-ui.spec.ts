@@ -316,7 +316,6 @@ for (const width of [1440, 390, 320]) {
         'Verkäufe',
         'Verlauf',
         'Profil',
-        'Konten verwalten',
       ]);
       await nav.getByRole('link', { name: 'Übersicht', exact: true }).click();
       await expect(page.locator('app-vinted-overview')).toContainText('Frage zum Schal');

@@ -32,13 +32,7 @@ export const MARKETPLACES_ROUTES: Routes = [
             (module) => module.VintedSetupComponent,
           ),
       },
-      {
-        path: 'manage',
-        loadComponent: () =>
-          import('./components/marketplace-accounts/marketplace-accounts.component').then(
-            (module) => module.MarketplaceAccountsComponent,
-          ),
-      },
+      { path: 'manage', redirectTo: 'accounts', pathMatch: 'full' },
       {
         path: 'accounts',
         loadComponent: () =>

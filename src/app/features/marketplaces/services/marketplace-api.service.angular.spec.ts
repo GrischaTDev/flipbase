@@ -26,6 +26,20 @@ beforeEach(() => {
   api = TestBed.inject(MarketplaceApiService);
 });
 describe('Marktplatz-API', () => {
+  it('sendet ausschließlich die Workspace-Reihenfolge und verlangt eine Schreibbestätigung', async () => {
+    rpc.mockResolvedValueOnce({ data: { ok: true }, error: null });
+    await api.reorderConnections(scope.workspaceId, ['account-b', 'account-a']);
+    expect(rpc).toHaveBeenCalledExactlyOnceWith('marketplace_reorder_connections', {
+      p_workspace_id: scope.workspaceId,
+      p_connection_ids: ['account-b', 'account-a'],
+    });
+    rpc.mockResolvedValueOnce({ data: null, error: null });
+    await expect(api.reorderConnections(scope.workspaceId, [])).rejects.toThrow();
+  });
+  it('übersetzt die atomare Kontogrenze in einen verständlichen Fehler', async () => {
+    rpc.mockResolvedValueOnce({ data: null, error: { code: '54000' } });
+    await expect(api.createConnection(scope.workspaceId, 'Elftes Konto')).rejects.toThrow('zehn');
+  });
   it('liest für Kontokacheln nur ein scoped Profil und zwei Anzahlen, keine vollständigen Listen', async () => {
     const queries: {
       filters: Record<string, string>;

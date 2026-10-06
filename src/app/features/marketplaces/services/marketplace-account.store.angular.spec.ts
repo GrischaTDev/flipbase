@@ -67,6 +67,7 @@ let api: {
   readPage: ReturnType<typeof vi.fn>;
   createConnection: ReturnType<typeof vi.fn>;
   renameConnection: ReturnType<typeof vi.fn>;
+  reorderConnections: ReturnType<typeof vi.fn>;
   setPaused: ReturnType<typeof vi.fn>;
   readPublication: ReturnType<typeof vi.fn>;
 };
@@ -95,6 +96,7 @@ beforeEach(() => {
     readPage: vi.fn().mockResolvedValue(emptyPage()),
     createConnection: vi.fn(),
     renameConnection: vi.fn().mockResolvedValue(undefined),
+    reorderConnections: vi.fn().mockResolvedValue(undefined),
     setPaused: vi.fn().mockResolvedValue(undefined),
     readPublication: vi.fn().mockResolvedValue(null),
   };
@@ -112,6 +114,106 @@ beforeEach(() => {
 });
 
 describe('Gespeicherte Vinted-Kontoauswahl', () => {
+  it('speichert die Reihenfolge bestätigt und erhält Auswahl, Gespräch und Snapshot ohne Abruf', async () => {
+    await settle();
+    await store.selectConnection(accountB.connectionId);
+    await store.openConversation('conversation-a');
+    const selectedSnapshot = store.snapshot();
+    const selectionVersion = store.selectionVersion();
+    api.readSnapshot.mockClear();
+    api.readPage.mockClear();
+    browserApi.syncConnection.mockClear();
+    const pending = deferred<void>();
+    api.reorderConnections.mockReturnValueOnce(pending.promise);
+    api.listConnections.mockResolvedValue({ canManage: true, connections: [accountB, accountA] });
+    const saving = store.reorderConnections([accountB.connectionId, accountA.connectionId]);
+    expect(store.connections()[0].connectionId).toBe(accountA.connectionId);
+    expect(store.busy()).toBe(true);
+    pending.resolve(undefined);
+    expect(await saving).toBe(true);
+    expect(api.reorderConnections).toHaveBeenCalledExactlyOnceWith(accountA.workspaceId, [
+      accountB.connectionId,
+      accountA.connectionId,
+    ]);
+    expect(store.connections()[0].connectionId).toBe(accountB.connectionId);
+    expect(store.selectedConnection()?.connectionId).toBe(accountB.connectionId);
+    expect(store.snapshot()).toBe(selectedSnapshot);
+    expect(store.selectedConversationId()).toBe('conversation-a');
+    expect(store.selectionVersion()).toBe(selectionVersion);
+    expect(api.readSnapshot).not.toHaveBeenCalled();
+    expect(api.readPage).not.toHaveBeenCalled();
+    expect(browserApi.syncConnection).not.toHaveBeenCalled();
+  });
+  it('lässt die bestätigte Reihenfolge bei Fehler unverändert und lehnt unvollständige IDs ab', async () => {
+    await settle();
+    expect(await store.reorderConnections([accountB.connectionId])).toBe(false);
+    expect(await store.reorderConnections([accountB.connectionId, accountB.connectionId])).toBe(
+      false,
+    );
+    expect(api.reorderConnections).not.toHaveBeenCalled();
+    api.reorderConnections.mockRejectedValueOnce(new MarketplaceApiError('request_failed'));
+    expect(await store.reorderConnections([accountB.connectionId, accountA.connectionId])).toBe(
+      false,
+    );
+    expect(store.connections()[0].connectionId).toBe(accountA.connectionId);
+    expect(store.mutationError()).toBeTruthy();
+  });
+  it('verwirft die Antwort einer Sortierung nach Workspacewechsel', async () => {
+    await settle();
+    const pending = deferred<void>();
+    api.reorderConnections.mockReturnValueOnce(pending.promise);
+    const saving = store.reorderConnections([accountB.connectionId, accountA.connectionId]);
+    currentWorkspace.set(null);
+    await settle();
+    pending.resolve(undefined);
+    expect(await saving).toBe(false);
+    expect(store.connections()).toEqual([]);
+    expect(store.busy()).toBe(false);
+  });
+  it('verdrängt nach parallelem Neuladen keine Kontoliste mit einer alten Sortierantwort', async () => {
+    await settle();
+    const pending = deferred<void>();
+    api.reorderConnections.mockReturnValueOnce(pending.promise);
+    const saving = store.reorderConnections([accountB.connectionId, accountA.connectionId]);
+    api.listConnections.mockResolvedValueOnce({
+      canManage: true,
+      connections: [accountB, accountA],
+    });
+    await store.reloadConnections();
+    const listReads = api.listConnections.mock.calls.length;
+    pending.resolve(undefined);
+    expect(await saving).toBe(false);
+    expect(api.listConnections).toHaveBeenCalledTimes(listReads);
+    expect(store.canManage()).toBe(true);
+    expect(store.connections()[0].connectionId).toBe(accountB.connectionId);
+  });
+  it('räumt private Kontodaten auf, wenn die Rechte beim Bestätigen der Sortierung entzogen sind', async () => {
+    await settle();
+    api.listConnections.mockRejectedValueOnce(new MarketplaceApiError('forbidden'));
+    expect(await store.reorderConnections([accountB.connectionId, accountA.connectionId])).toBe(
+      false,
+    );
+    expect(store.canManage()).toBe(false);
+    expect(store.connections()).toEqual([]);
+    expect(store.snapshot()).toBeNull();
+  });
+  it('zählt auch vorbereitete lokale und Cloudkonten gegen zehn Plätze und blockiert eine weitere Anlage', async () => {
+    api.listConnections.mockResolvedValue({
+      canManage: true,
+      connections: Array.from({ length: 10 }, (_, index) => ({
+        ...accountA,
+        connectionId: `account-${index}`,
+        executionMode: index % 2 ? 'local' : 'cloud',
+        status: 'needs_login',
+      })),
+    });
+    await settle();
+    expect(store.accountLimit).toBe(10);
+    expect(store.remainingSlots()).toBe(0);
+    expect(await store.createConnection('Elftes Konto')).toBeNull();
+    expect(api.createConnection).not.toHaveBeenCalled();
+    expect(store.mutationError()).toContain('zehn');
+  });
   it('erhält beim lokalen Postfachabgleich das Gespräch und wartet auf dessen laufenden Abruf', async () => {
     await settle();
     const selection = store.selectionVersion();

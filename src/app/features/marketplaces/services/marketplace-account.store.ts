@@ -106,6 +106,10 @@ export class MarketplaceAccountStore {
   );
 
   readonly connections = computed(() => (this.current() ? this.accountList() : []));
+  readonly accountLimit = 10;
+  readonly remainingSlots = computed(() =>
+    Math.max(0, this.accountLimit - this.connections().length),
+  );
   readonly canManage = computed(() => this.current() && this.access());
   readonly selectedConnection = computed(
     () => this.connections().find((item) => item.connectionId === this.activeId()) ?? null,
@@ -630,6 +634,10 @@ export class MarketplaceAccountStore {
   }
 
   async createConnection(name: string): Promise<string | null> {
+    if (!this.remainingSlots()) {
+      this.writeError.set('Du kannst höchstens zehn Vinted-Konten pro Workspace hinzufügen.');
+      return null;
+    }
     const workspaceId = this.workspace.currentWorkspace()?.id;
     if (!workspaceId || !this.validName(name)) return null;
     let connectionId: string | null = null;
@@ -638,6 +646,38 @@ export class MarketplaceAccountStore {
       return connectionId;
     });
     return created && this.canManage() ? connectionId : null;
+  }
+  async reorderConnections(connectionIds: readonly string[]): Promise<boolean> {
+    const key = this.contextKey();
+    const workspaceId = this.workspace.currentWorkspace()?.id;
+    if (!key || !workspaceId || this.loading()) return false;
+    const orderedIds = [...connectionIds];
+    const connections = this.connections();
+    if (
+      orderedIds.length !== connections.length ||
+      new Set(orderedIds).size !== connections.length ||
+      orderedIds.some(
+        (connectionId) =>
+          !connections.some((connection) => connection.connectionId === connectionId),
+      )
+    )
+      return false;
+    const initialRevision = this.connectionsRevision;
+    let isConfirmed = false;
+    const saved = await this.mutate(async () => {
+      await this.api.reorderConnections(workspaceId, orderedIds);
+      if (!this.isCurrent(key) || !this.canManage() || initialRevision !== this.connectionsRevision)
+        return undefined;
+      const revision = ++this.connectionsRevision;
+      const result = await this.api.listConnections(workspaceId);
+      if (!this.isCurrent(key) || revision !== this.connectionsRevision) return undefined;
+      if (!result.canManage) throw new MarketplaceApiError('forbidden');
+      // Die bestätigte Metadatenreihenfolge verändert weder Auswahl noch geöffnete Kontodaten.
+      this.accountList.set(result.connections);
+      isConfirmed = true;
+      return undefined;
+    }, false);
+    return saved && isConfirmed;
   }
   async renameConnection(id: string, name: string): Promise<boolean> {
     const connection = this.connections().find((item) => item.connectionId === id);

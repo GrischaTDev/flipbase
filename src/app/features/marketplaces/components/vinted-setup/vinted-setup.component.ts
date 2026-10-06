@@ -14,6 +14,7 @@ import { VintedLocalExtensionBridge } from '../../services/vinted-local-extensio
 })
 export class VintedSetupComponent {
   readonly extension = inject(VintedLocalExtensionBridge);
+  readonly localAccountQueryParams = { add: 'local' };
   constructor() {
     this.extension.checkInstallation();
   }

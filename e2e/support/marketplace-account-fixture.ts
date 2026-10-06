@@ -327,6 +327,21 @@ export async function mockMarketplace(
       };
     if (name === 'marketplace_mark_favorite_notifications') json = { ok: true };
     if (name === 'marketplace_list_connections') json = { canManage: true, connections: accounts };
+    if (name === 'marketplace_reorder_connections') {
+      const identifiers = body['p_connection_ids'];
+      if (
+        !Array.isArray(identifiers) ||
+        identifiers.length !== accounts.length ||
+        new Set(identifiers).size !== accounts.length
+      )
+        return route.fulfill({ status: 400 });
+      const reordered = identifiers.flatMap((identifier) =>
+        accounts.filter((account) => account.connectionId === identifier),
+      );
+      if (reordered.length !== accounts.length) return route.fulfill({ status: 400 });
+      accounts.splice(0, accounts.length, ...reordered);
+      json = { ok: true };
+    }
     if (name === 'marketplace_create_connection') {
       const account = {
         ...accounts[0],

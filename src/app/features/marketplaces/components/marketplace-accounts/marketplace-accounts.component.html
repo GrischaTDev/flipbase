@@ -1,203 +1,25 @@
-@if (!dialog()) {
-  @if (cloud.error(); as error) {
-    <app-notice-banner class="mb-4" announcement="alert">{{ error }}</app-notice-banner>
-  }
-}
-<app-card
-  title="Vinted-Konten"
-  subtitle="Deine Vinted-Konten in diesem Workspace verbinden und verwalten."
->
-  <p class="text-sm text-fb-text-secondary">
-    Verbinde Dein Konto über die lokale Erweiterung oder den Cloudbrowser. Verwende für jedes
-    Vinted-Konto ein eigenes Browserprofil. Der Status "Verbunden" erscheint nach erfolgreicher
-    Prüfung Deiner Anmeldung.
-  </p>
-  <ol class="mt-3 list-inside list-decimal space-y-1 text-sm text-fb-text-secondary">
-    <li>Deinem Konto einen Namen geben und die Verbindung wählen.</li>
-    <li>Das angemeldete Vinted-Konto lokal bestätigen oder im Cloudbrowser anmelden.</li>
-    <li>
-      Profil und Inserate übernehmen. Im lokalen Pilot werden noch keine Nachrichten übernommen.
-    </li>
-  </ol>
-  <div class="mt-4 flex flex-wrap gap-2">
-    <app-button
-      variant="primary"
-      [icon]="addIcon"
-      [disabled]="!store.canManage() || store.busy()"
-      (clicked)="openDialog()"
-      >Account hinzufügen</app-button
-    >
-  </div>
-</app-card>
-@if (store.mutationError(); as error) {
-  @if (!dialog()) {
-    <app-notice-banner class="mt-4" announcement="alert">{{ error }}</app-notice-banner>
-  }
-}
-<app-data-table
-  class="mt-4"
-  ariaLabel="Vinted-Kontoverbindungen"
-  [searchEnabled]="false"
-  [loading]="store.loading()"
-  [errorMessage]="store.error()"
-  [hasRows]="connectedAccounts().length > 0"
-  emptyTitle="Noch keine verbundenen Konten"
-  emptyText="Dein Konto erscheint hier, sobald die Vinted-Anmeldung bestätigt wurde."
->
-  <p table-view class="text-sm font-medium">Verbundene Konten ({{ connectedAccounts().length }})</p>
-  <app-button table-error-action class="mt-3" (clicked)="store.reloadConnections()"
-    >Erneut versuchen</app-button
+@if (checkingCloud()) {
+  <app-modal-shell
+    title="Cloud-Verfügbarkeit wird geprüft"
+    presentation="center"
+    size="sm"
+    [hasFooter]="false"
+    (closed)="closeDialog()"
   >
-  <div table-content class="overflow-x-auto">
-    <table class="min-w-full text-left text-[13px]">
-      <thead class="border-b border-fb-line text-fb-text-muted">
-        <tr>
-          <th scope="col" class="px-4 py-3">Konto</th>
-          <th scope="col" class="px-4 py-3">Status</th>
-          <th scope="col" class="px-4 py-3">Letzte Datenübernahme</th>
-          <th scope="col" class="px-4 py-3 text-right">Aktionen</th>
-        </tr>
-      </thead>
-      <tbody class="divide-y divide-fb-line">
-        @for (account of connectedAccounts(); track account.connectionId) {
-          <tr>
-            <td class="px-4 py-3 font-medium text-fb-text-primary">{{ account.displayName }}</td>
-            <td class="whitespace-nowrap px-4 py-3">
-              <app-badge [tone]="tones[account.status]">{{ labels[account.status] }}</app-badge>
-            </td>
-            <td class="whitespace-nowrap px-4 py-3 text-fb-text-secondary">
-              {{
-                account.lastSyncedAt
-                  ? (account.lastSyncedAt | date: 'dd.MM.yyyy, HH:mm')
-                  : 'Noch keine'
-              }}
-            </td>
-            <td class="px-4 py-3">
-              <div class="flex justify-end gap-1">
-                <app-button
-                  size="slim"
-                  variant="secondary"
-                  [icon]="loginIcon"
-                  [ariaLabel]="'Vinted-Anmeldung für ' + account.displayName + ' öffnen'"
-                  [disabled]="account.status === 'paused' || account.status === 'blocked'"
-                  (clicked)="openLogin(account)"
-                  >Anmeldung öffnen</app-button
-                >
-                @if (account.executionMode === 'local' && cloud.canSetup()) {
-                  <app-button
-                    size="slim"
-                    variant="secondary"
-                    [disabled]="
-                      cloud.busy() ||
-                      store.busy() ||
-                      account.status === 'paused' ||
-                      account.status === 'blocked'
-                    "
-                    (clicked)="upgrade(account)"
-                    >Auf Cloud wechseln</app-button
-                  >
-                }
-                <app-table-action-button
-                  [label]="account.displayName + ' umbenennen'"
-                  [icon]="editIcon"
-                  [disabled]="store.busy()"
-                  (clicked)="openDialog(account)"
-                />
-                <app-table-action-button
-                  [label]="
-                    account.displayName +
-                    (account.status === 'paused' ? ' fortsetzen' : ' pausieren')
-                  "
-                  [icon]="account.status === 'paused' ? resumeIcon : pauseIcon"
-                  [disabled]="store.busy() || account.status === 'blocked'"
-                  (clicked)="store.setPaused(account.connectionId, account.status !== 'paused')"
-                />
-                <app-table-action-button
-                  [label]="account.displayName + ' löschen'"
-                  [icon]="deleteIcon"
-                  tone="critical"
-                  [disabled]="store.busy()"
-                  (clicked)="openDelete(account)"
-                />
-              </div>
-            </td>
-          </tr>
-        }
-      </tbody>
-    </table>
-  </div>
-</app-data-table>
-@if (pendingAccounts().length > 0) {
-  <app-card
-    class="mt-4"
-    title="Anmeldung ausstehend"
-    subtitle="Diese Konten sind noch nicht als Vinted-Konto bestätigt. Du kannst die Anmeldung fortsetzen oder den Eintrag löschen."
-  >
-    <div class="divide-y divide-fb-line">
-      @for (account of pendingAccounts(); track account.connectionId) {
-        <div class="flex flex-wrap items-center justify-between gap-3 py-3">
-          <div class="min-w-0">
-            <p class="font-medium text-fb-text-primary">{{ account.displayName }}</p>
-            <app-badge [tone]="tones[account.status]">{{ labels[account.status] }}</app-badge>
-          </div>
-          <div class="flex flex-wrap items-center justify-end gap-1">
-            <app-button
-              size="slim"
-              variant="secondary"
-              [icon]="loginIcon"
-              [ariaLabel]="'Vinted-Anmeldung für ' + account.displayName + ' öffnen'"
-              [disabled]="account.status === 'paused' || account.status === 'blocked'"
-              (clicked)="openLogin(account)"
-              >Anmeldung fortsetzen</app-button
-            >
-            @if (account.executionMode === 'local' && cloud.canSetup()) {
-              <app-button
-                size="slim"
-                variant="secondary"
-                [disabled]="
-                  cloud.busy() ||
-                  store.busy() ||
-                  account.status === 'paused' ||
-                  account.status === 'blocked'
-                "
-                (clicked)="upgrade(account)"
-                >Auf Cloud wechseln</app-button
-              >
-            }
-            <app-table-action-button
-              [label]="account.displayName + ' umbenennen'"
-              [icon]="editIcon"
-              [disabled]="store.busy()"
-              (clicked)="openDialog(account)"
-            />
-            <app-table-action-button
-              [label]="
-                account.displayName + (account.status === 'paused' ? ' fortsetzen' : ' pausieren')
-              "
-              [icon]="account.status === 'paused' ? resumeIcon : pauseIcon"
-              [disabled]="store.busy() || account.status === 'blocked'"
-              (clicked)="store.setPaused(account.connectionId, account.status !== 'paused')"
-            />
-            <app-table-action-button
-              [label]="account.displayName + ' löschen'"
-              [icon]="deleteIcon"
-              tone="critical"
-              [disabled]="store.busy()"
-              (clicked)="openDelete(account)"
-            />
-          </div>
-        </div>
-      }
+    <div class="flex items-center gap-3" role="status" aria-live="polite">
+      <app-loading-indicator size="md" />
+      <p class="text-sm text-fb-text-secondary">
+        Eine freie Cloud-IP für Dein Vinted-Konto wird geprüft und reserviert.
+      </p>
     </div>
-  </app-card>
-}
-@if (dialog(); as currentDialog) {
+  </app-modal-shell>
+} @else if (dialog(); as currentDialog) {
   <app-modal-shell
     [title]="
       currentDialog.mode === 'rename'
         ? 'Kontoverbindung umbenennen'
         : currentDialog.mode === 'delete'
-          ? 'Vinted-Konto löschen'
+          ? 'Vinted-Verknüpfung entfernen'
           : currentDialog.mode === 'login' && !currentDialog.newAccount
             ? 'Vinted-Anmeldung'
             : 'Vinted-Konto hinzufügen'
@@ -248,10 +70,11 @@
       />
     } @else if (currentDialog.mode === 'delete') {
       <p class="text-sm text-fb-text-secondary">
-        Möchtest Du
-        <strong class="text-fb-text-primary">{{ dialogConnection()?.displayName }}</strong> wirklich
-        löschen? Gespeicherte Kontodaten und das eigene Browserprofil werden entfernt. Eine laufende
-        Anmeldung wird zuerst beendet.
+        Möchtest Du die Flipbase-Verknüpfung mit
+        <strong class="text-fb-text-primary">{{ dialogConnection()?.displayName }}</strong>
+        entfernen? Die in Flipbase gespeicherten Kontodaten werden entfernt und eine laufende
+        Cloud-Anmeldung wird zuerst beendet. Dein lokales Browserprofil und Dein Vinted-Konto
+        bleiben erhalten.
       </p>
       @if (store.mutationError(); as error) {
         <app-notice-banner class="mt-3" announcement="alert">{{ error }}</app-notice-banner>
@@ -262,6 +85,16 @@
       }
       <form id="marketplace-account-form" [formGroup]="form" (ngSubmit)="save()">
         @if (currentDialog.mode === 'create') {
+          <p class="mb-4 text-sm text-fb-text-secondary">
+            {{ store.connections().length }} von {{ store.accountLimit }} Vinted-Konten in diesem
+            Workspace.
+          </p>
+          @if (store.remainingSlots() === 0) {
+            <app-notice-banner class="mb-4" announcement="alert">
+              In diesem Workspace sind höchstens {{ store.accountLimit }} Vinted-Konten möglich.
+              Entferne zuerst eine nicht mehr benötigte Flipbase-Verknüpfung.
+            </app-notice-banner>
+          }
           <div class="mb-4">
             <p class="mb-2 text-sm font-medium">Plattform</p>
             <app-custom-select ariaLabel="Plattform" [options]="platforms" value="vinted" />
@@ -288,14 +121,48 @@
               [formControl]="connectionMethod"
             />
           </div>
-          <p class="mt-3 text-sm text-fb-text-secondary">
-            @if (connectionMethod.value === 'local') {
-              Im nächsten Schritt prüfst und bestätigst Du das Vinted-Konto, das in diesem
-              Browserprofil angemeldet ist. Dafür muss die Flipbase-Erweiterung installiert sein.
-              Der Cloudbrowser wird nicht benötigt.
-            } @else {
-              Im nächsten Schritt meldest Du Dich im Cloudbrowser bei Vinted an.
+          @if (connectionMethod.value === 'local') {
+            @if (extension.localAccount(); as binding) {
+              <app-notice-banner class="mt-4" announcement="alert">
+                Dieses Browserprofil ist bereits mit
+                {{ binding.boundUsername ? '@' + binding.boundUsername : 'einem Vinted-Konto' }}
+                verknüpft. Auch eine abgelaufene oder pausierte Freigabe bleibt diesem Profil
+                zugeordnet. Verwende für ein weiteres Konto ein neues Browserprofil.
+              </app-notice-banner>
+            } @else if (extension.localAccount() === undefined) {
+              <app-notice-banner class="mt-4">
+                Die Kontobindung dieses Browserprofils ist noch nicht bekannt. Verwende für ein
+                weiteres Vinted-Konto immer ein eigenes Browserprofil.
+              </app-notice-banner>
             }
+            <p class="mt-4 text-sm text-fb-text-secondary">
+              Über „Verknüpfen“ in der Flipbase-Logo-Blase gelangst Du zu dieser Einrichtung. Fahre
+              jetzt hier mit der vorbereiteten Kontoverbindung fort.
+            </p>
+            <ol class="mt-4 list-decimal space-y-2 pl-5 text-sm text-fb-text-secondary">
+              <li>
+                Erstelle für jedes Vinted-Konto ein eigenes Browserprofil in Chrome oder Brave.
+              </li>
+              <li>
+                Installiere das bereitgestellte Flipbase-Erweiterungspaket in diesem Profil: Öffne
+                die Erweiterungsverwaltung, aktiviere den Entwicklermodus und wähle „Entpackte
+                Erweiterung laden“.
+              </li>
+              <li>
+                Melde Dich in diesem Profil bei Deinem gewünschten Vinted-Konto und bei Flipbase an.
+              </li>
+              <li>
+                Wähle „Weiter zur lokalen Verbindung“. Prüfe anschließend den erkannten Vinted-Namen
+                und bestätige dieses Konto.
+              </li>
+            </ol>
+          } @else {
+            <p class="mt-3 text-sm text-fb-text-secondary">
+              Zuerst wird eine freie Cloud-IP geprüft und reserviert. Anschließend meldest Du Dich
+              im Cloudbrowser bei Vinted an.
+            </p>
+          }
+          <p class="mt-3 text-sm text-fb-text-secondary">
             Der interne Name hilft Dir, Deine Konten in Flipbase auseinanderzuhalten.
           </p>
         }
@@ -310,15 +177,17 @@
         @if (currentDialog.mode === 'delete') {
           <app-button
             variant="destructive"
+            [disabled]="controlsDisabled()"
             [loading]="store.busy() || cloud.busy()"
             (clicked)="confirmDelete()"
-            >Konto löschen</app-button
+            >Verknüpfung entfernen</app-button
           >
         } @else {
           <app-button
             type="submit"
             formId="marketplace-account-form"
             variant="primary"
+            [disabled]="controlsDisabled() || creationBlocked()"
             [loading]="store.busy() || cloud.busy()"
             >{{
               currentDialog.mode === 'rename'
@@ -332,4 +201,6 @@
       </div>
     }
   </app-modal-shell>
+} @else if (cloud.error(); as error) {
+  <app-notice-banner announcement="alert">{{ error }}</app-notice-banner>
 }

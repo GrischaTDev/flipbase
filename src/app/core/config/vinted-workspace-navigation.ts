@@ -16,7 +16,6 @@ export const VINTED_WORKSPACE_NAVIGATION: readonly VintedNavigationItem[] = [
   { path: '/marketplaces/vinted/sales', label: 'Verkäufe', icon: 'trendingUp' },
   { path: '/marketplaces/vinted/activity', label: 'Verlauf', icon: 'bookOpen' },
   { path: '/marketplaces/vinted/profile', label: 'Profil', icon: 'store' },
-  { path: '/marketplaces/vinted/manage', label: 'Konten verwalten', icon: 'settings' },
 ];
 
 export function isVintedWorkspaceRoute(url: string): boolean {

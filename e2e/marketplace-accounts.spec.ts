@@ -6,6 +6,71 @@ import { accountIds, mockMarketplace, workspaceId } from './support/marketplace-
 
 test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: 'block' });
 
+for (const width of [1440, 390]) {
+  test(`Kontenkacheln sortieren und lokale Einstellungen öffnen bei ${width}px @marketplace-preview @core-smoke`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 950 });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    const calls = await mockMarketplace(page, false, false, false, false, [], undefined, true);
+    await page.goto('/marketplaces/vinted/accounts');
+    await expect(page.getByText('8 von 10 Plätzen frei')).toBeVisible();
+    await expect(page.getByText('Lokal verbunden', { exact: true })).toHaveCount(2);
+    await expect(page.getByRole('link', { name: 'Konten verwalten', exact: true })).toHaveCount(0);
+    await page
+      .getByRole('button', { name: 'Testkonto A nach hinten verschieben', exact: true })
+      .click();
+    const names = page.locator('app-vinted-account-grid h3');
+    await expect(names).toHaveText(['Testkonto B', 'Testkonto A']);
+    await page.reload();
+    await expect(names).toHaveText(['Testkonto B', 'Testkonto A']);
+    const handle = page.getByRole('button', { name: 'Testkonto A ziehen', exact: true });
+    const first = page.locator('app-vinted-account-grid [cdkDrag]').first();
+    await expect(handle).toBeEnabled();
+    await handle.scrollIntoViewIfNeeded();
+    await first.scrollIntoViewIfNeeded();
+    const start = await handle.boundingBox();
+    const end = await first.boundingBox();
+    if (!start || !end) throw new Error('Konten-Griff fehlt');
+    await page.mouse.move(start.x + start.width / 2, start.y + start.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(start.x + start.width / 2 + 8, start.y + start.height / 2 + 8, {
+      steps: 5,
+    });
+    await page.mouse.move(end.x + end.width / 2, end.y + 50, { steps: 16 });
+    await page.mouse.up();
+    await expect
+      .poll(() => calls.filter((call) => call.name === 'marketplace_reorder_connections').length)
+      .toBe(2);
+    await expect(page.getByText('Kontenreihenfolge gespeichert.', { exact: true })).toBeVisible();
+    await expect(names).toHaveText(['Testkonto A', 'Testkonto B']);
+    await page.getByRole('button', { name: 'Testkonto A einstellen', exact: true }).click();
+    await expect(page.getByRole('dialog')).toContainText('Neue Favoriten in der Glocke anzeigen');
+    await expect(page.getByRole('button', { name: 'Konto entfernen', exact: true })).toBeVisible();
+    await page.addScriptTag({ content: axe.source });
+    expect(
+      await page.evaluate(
+        async () =>
+          (
+            await (window as unknown as { axe: typeof axe }).axe.run(
+              document.querySelector('[role="dialog"]') as HTMLElement,
+            )
+          ).violations,
+      ),
+    ).toEqual([]);
+    await evidence(page, `vinted-account-settings-${width}`);
+    await page.getByRole('button', { name: 'Dialog schließen', exact: true }).click();
+    await page.getByRole('button', { name: 'Konto hinzufügen', exact: true }).click();
+    await expect(page.getByRole('dialog')).toContainText('Browserprofil');
+    await expect(page.getByRole('dialog')).toContainText('Chrome');
+    await expect(page.locator('a[href*="chromewebstore"]')).toHaveCount(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+    await evidence(page, `vinted-account-add-${width}`);
+  });
+}
+
 async function chooseCloudConnection(page: Page): Promise<void> {
   await page.getByRole('combobox', { name: 'Verbindung', exact: true }).click();
   await page.getByRole('option', { name: 'Cloudbrowser', exact: true }).click();
@@ -28,7 +93,7 @@ for (const width of [1440, 390]) {
       route.fulfill({ json: { status: 'no_capacity' } }),
     );
     await page.goto('/marketplaces/vinted/manage');
-    await page.getByRole('button', { name: 'Account hinzufügen', exact: true }).click();
+    await page.getByRole('button', { name: 'Konto hinzufügen', exact: true }).click();
     await page.getByRole('textbox', { name: 'Interner Name in Flipbase' }).fill('Cloudtest');
     await chooseCloudConnection(page);
     const dialog = page.getByRole('dialog');
@@ -80,10 +145,12 @@ for (const width of [1440, 390]) {
     ).toHaveCount(0);
     await expect(page.locator('app-sidebar a[href="/purchases"]')).toHaveCount(0);
     await openVintedSection(page, 'Einrichtung', width);
-    await expect(page.getByRole('heading', { name: '1. Erweiterung installieren' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '2. Erweiterung installieren' })).toBeVisible();
     await expect(page.locator('app-vinted-setup a[href*="chromewebstore"]')).toHaveCount(0);
     await expect(
-      page.locator('app-vinted-setup').locator('app-button[link="/marketplaces/vinted/manage"] a'),
+      page
+        .locator('app-vinted-setup')
+        .locator('app-button[link="/marketplaces/vinted/accounts"] a'),
     ).toHaveAttribute('aria-disabled', 'true');
     await expect(
       page.getByText(
@@ -106,11 +173,11 @@ for (const width of [1440, 390]) {
     await expect(page.getByText('Erweiterung erreichbar', { exact: true })).toBeVisible();
     await expect(
       page.getByText(
-        'Die Erweiterung ist bereits installiert. Du kannst direkt Dein Vinted-Konto verknüpfen.',
+        'Die Erweiterung ist in diesem Browserprofil installiert. Ein anderes Profil benötigt seine eigene Installation.',
         { exact: true },
       ),
     ).toBeVisible();
-    await expect(page.locator('app-vinted-setup')).toContainText('Nachrichtenzugriff erlauben');
+    await expect(page.locator('app-vinted-setup')).toContainText('Nachrichtenzugriff freigeben');
     await page.addScriptTag({ content: axe.source });
     expect(
       await page.evaluate(
@@ -127,8 +194,8 @@ for (const width of [1440, 390]) {
       .locator('app-vinted-setup')
       .getByRole('link', { name: 'Konto hinzufügen', exact: true })
       .click();
-    await expect(page).toHaveURL(/\/marketplaces\/vinted\/manage$/);
-    await page.getByRole('button', { name: 'Account hinzufügen', exact: true }).click();
+    await expect(page).toHaveURL(/\/marketplaces\/vinted\/accounts(?:\?.*)?$/);
+    await expect(page.getByRole('dialog')).toBeVisible();
     await page
       .getByRole('textbox', { name: 'Interner Name in Flipbase', exact: true })
       .fill('Lokales Testkonto');
@@ -481,7 +548,11 @@ for (const challengeStage of ['login', 'identify', 'verify'] as const) {
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
     await page.goto('/settings/marketplaces');
-    await page.getByRole('button', { name: 'Vinted-Anmeldung für Testkonto A öffnen' }).click();
+    await page
+      .locator('app-vinted-account-grid [cdkDrag]')
+      .first()
+      .getByRole('button', { name: 'Cloud-Anmeldung', exact: true })
+      .click();
     await page.getByRole('textbox', { name: 'Vinted-Mitgliedsname oder E-Mail' }).fill('synthetic');
     await page.getByLabel('Vinted-Passwort').fill('synthetic');
     await page.getByRole('button', { name: 'Anmelden und Konto verbinden' }).click();
@@ -577,7 +648,11 @@ test('überträgt manuelles Ziehen im Browserbild mit Maus und Touch genau einma
     throw new Error(`Unerwarteter Browseraufruf: ${path}`);
   });
   await page.goto('/settings/marketplaces');
-  await page.getByRole('button', { name: 'Vinted-Anmeldung für Testkonto A öffnen' }).click();
+  await page
+    .locator('app-vinted-account-grid [cdkDrag]')
+    .first()
+    .getByRole('button', { name: 'Cloud-Anmeldung', exact: true })
+    .click();
   await page.getByRole('button', { name: 'Direkt im Browser anmelden' }).click();
   await expect(page.locator('[aria-label="Vinted-Browseransicht"]')).toBeFocused();
   const preview = page.getByRole('button', {
@@ -982,7 +1057,7 @@ test('erklärt eine volle GoLogin-Profilliste ohne Vinted-Anmeldeversuch @market
 }) => {
   const calls = await mockMarketplace(page, true, false, false, true);
   await page.goto('/settings/marketplaces');
-  await page.getByRole('button', { name: 'Account hinzufügen', exact: true }).click();
+  await page.getByRole('button', { name: 'Konto hinzufügen', exact: true }).click();
   await page.getByRole('textbox', { name: 'Interner Name in Flipbase' }).fill('Neuer Zugang');
   await chooseCloudConnection(page);
   await page.getByRole('textbox', { name: 'Vinted-Mitgliedsname oder E-Mail' }).fill('synthetic');
@@ -1000,7 +1075,11 @@ test('sperrt die Anmeldung bei einem veralteten Browserdienst @marketplace-previ
     route.fulfill({ json: { ok: true, readOnly: false } }),
   );
   await page.goto('/settings/marketplaces');
-  await page.getByRole('button', { name: 'Vinted-Anmeldung für Testkonto A öffnen' }).click();
+  await page
+    .locator('app-vinted-account-grid [cdkDrag]')
+    .first()
+    .getByRole('button', { name: 'Cloud-Anmeldung', exact: true })
+    .click();
   await expect(page.getByText(/Browserdienst.*aktualisiert/)).toBeVisible();
   await expect(page.getByLabel('Vinted-Passwort')).toHaveCount(0);
 });
@@ -1051,7 +1130,9 @@ test('zeigt unbestätigte Konten getrennt von verbundenen Konten @marketplace-pr
 }) => {
   await mockMarketplace(page);
   await page.goto('/settings/marketplaces');
-  await expect(page.getByRole('heading', { name: 'Anmeldung ausstehend' })).toBeVisible();
+  await expect(
+    page.locator('app-vinted-account-grid').getByText('Anmeldung ausstehend', { exact: true }),
+  ).toHaveCount(2);
   await expect(page.locator('app-data-table').getByText('Testkonto A')).toHaveCount(0);
   await expect(page.getByText('Testkonto A')).toBeVisible();
 });
@@ -1122,20 +1203,20 @@ for (const width of [1440, 390]) {
     await page.getByRole('button', { name: 'Vinted-Kontoeinstellungen', exact: true }).click();
     await page
       .getByRole('dialog', { name: 'Vinted-Kontoeinstellungen', exact: true })
-      .getByRole('link', { name: 'Konten verwalten', exact: true })
+      .getByRole('link', { name: 'Kontenübersicht', exact: true })
       .click();
-    const accountsHeading = page.getByRole('heading', { name: 'Vinted-Konten', exact: true });
+    const accountsHeading = page.getByRole('heading', { name: 'Deine Vinted-Konten', exact: true });
     await expect(accountsHeading).toBeVisible();
     expect(
       await accountsHeading.evaluate((element) => element.scrollWidth <= element.clientWidth),
       'Die Kontenüberschrift darf auf kleinen Bildschirmen nicht von den Aktionen verdrängt werden.',
     ).toBe(true);
-    await page.getByRole('button', { name: 'Account hinzufügen', exact: true }).click();
+    await page.getByRole('button', { name: 'Konto hinzufügen', exact: true }).click();
     await page
       .getByRole('textbox', { name: 'Interner Name in Flipbase', exact: true })
       .fill('Neues Testkonto');
     await chooseCloudConnection(page);
-    const accounts = page.locator('app-marketplace-accounts');
+    const accounts = page.locator('app-vinted-account-grid');
     await expect(page.getByRole('textbox', { name: 'Interner Name in Flipbase' })).toHaveValue(
       'Neues Testkonto',
     );
@@ -1145,25 +1226,23 @@ for (const width of [1440, 390]) {
     await page.getByRole('button', { name: 'Dialog schließen' }).click();
     await expect(accounts.getByText('Neues Testkonto')).toHaveCount(0);
     expect(calls.filter((call) => call.name === 'marketplace_create_connection')).toHaveLength(0);
-    await page.getByRole('button', { name: 'Testkonto A umbenennen', exact: true }).click();
+    await page.getByRole('button', { name: 'Testkonto A einstellen', exact: true }).click();
+    await page.getByRole('button', { name: 'Umbenennen', exact: true }).click();
     await page
       .getByRole('textbox', { name: 'Interner Name in Flipbase', exact: true })
       .fill('Umbenanntes Testkonto');
     await page.getByRole('button', { name: 'Speichern', exact: true }).click();
     await expect(accounts.getByText('Umbenanntes Testkonto')).toBeVisible();
     await page
-      .getByRole('button', { name: 'Umbenanntes Testkonto pausieren', exact: true })
+      .getByRole('button', { name: 'Umbenanntes Testkonto einstellen', exact: true })
       .click();
+    await page.getByRole('button', { name: 'Pausieren', exact: true }).click();
     await expect(accounts.getByText('Pausiert', { exact: true })).toBeVisible();
-    await page
-      .getByRole('button', { name: 'Umbenanntes Testkonto fortsetzen', exact: true })
-      .click();
-    await expect(
-      page.getByRole('button', { name: 'Umbenanntes Testkonto pausieren', exact: true }),
-    ).toBeVisible();
-    await page.getByRole('button', { name: 'Umbenanntes Testkonto löschen' }).click();
-    await expect(page.getByRole('dialog')).toContainText('Gespeicherte Kontodaten');
-    await page.getByRole('button', { name: 'Konto löschen', exact: true }).click();
+    await page.getByRole('button', { name: 'Fortsetzen', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Pausieren', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Konto entfernen', exact: true }).click();
+    await expect(page.getByRole('dialog')).toContainText('Flipbase');
+    await page.getByRole('button', { name: 'Verknüpfung entfernen', exact: true }).click();
     await expect(accounts.getByText('Umbenanntes Testkonto')).toHaveCount(0);
     await evidence(page, `vinted-accounts-${width}`);
     expect(
@@ -1181,7 +1260,7 @@ for (const width of [1440, 390]) {
       async () =>
         (
           await (window as unknown as { axe: typeof axe }).axe.run(
-            document.querySelector('app-marketplace-accounts') as HTMLElement,
+            document.querySelector('app-vinted-account-grid') as HTMLElement,
           )
         ).violations,
     );
@@ -1194,18 +1273,18 @@ for (const width of [1440, 390]) {
 }
 
 for (const width of [1440, 390]) {
-  test(`Account hinzufügen reserviert eine IP und aktiviert Cloud ausdrücklich bei ${width}px @marketplace-preview @core-smoke`, async ({
+  test(`Konto hinzufügen reserviert eine IP und aktiviert Cloud ausdrücklich bei ${width}px @marketplace-preview @core-smoke`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 1000 });
     const calls = await mockMarketplace(page, true);
     await page.goto('/settings/marketplaces');
-    await page.getByRole('button', { name: 'Account hinzufügen', exact: true }).click();
+    await page.getByRole('button', { name: 'Konto hinzufügen', exact: true }).click();
     await page
       .getByRole('textbox', { name: 'Interner Name in Flipbase', exact: true })
       .fill('Mein Testkonto');
     await chooseCloudConnection(page);
-    await expect(page).toHaveURL(/\/marketplaces\/vinted\/manage$/);
+    await expect(page).toHaveURL(/\/marketplaces\/vinted\/accounts$/);
     await expect(page.getByRole('dialog')).toContainText('Anmeldung');
     expect(calls.filter((call) => call.name === 'marketplace_create_connection')).toHaveLength(0);
     await expect(page.locator('app-data-table').getByText('Mein Testkonto')).toHaveCount(0);
@@ -1316,7 +1395,11 @@ test('zeigt den SMS-Code im Kontodialog und bindet ihn an das gewählte Konto @m
   await page.setViewportSize({ width: 390, height: 1000 });
   const calls = await mockMarketplace(page, true, false, true);
   await page.goto('/settings/marketplaces');
-  await page.getByRole('button', { name: 'Vinted-Anmeldung für Testkonto A öffnen' }).click();
+  await page
+    .locator('app-vinted-account-grid [cdkDrag]')
+    .first()
+    .getByRole('button', { name: 'Cloud-Anmeldung', exact: true })
+    .click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toContainText('Testkonto A');
   await dialog

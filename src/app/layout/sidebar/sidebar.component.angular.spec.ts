@@ -220,7 +220,7 @@ describe('SidebarComponent', () => {
     ).toBe('page');
     expect(element.querySelector('a[href="/purchases"]')).toBeNull();
     expect(element.querySelector('a[href="/settings"]')).toBeNull();
-    expect(element.querySelector('a[href="/marketplaces/vinted/manage"]')).not.toBeNull();
+    expect(element.querySelector('a[href="/marketplaces/vinted/manage"]')).toBeNull();
     const result = await axe.run(element, { rules: { 'color-contrast': { enabled: false } } });
     expect(result.violations).toEqual([]);
     await TestBed.inject(Router).navigateByUrl('/dashboard');

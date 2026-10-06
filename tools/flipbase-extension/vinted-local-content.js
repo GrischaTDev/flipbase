@@ -115,6 +115,7 @@
         !text ||
         element.closest('script, style, noscript, template') ||
         overlay?.contains(element) ||
+        document.getElementById('flipbase-vinted-account')?.contains(element) ||
         !hasVisibleStyle(element)
       )
         continue;
@@ -136,6 +137,7 @@
   }
 
   function ensureOverlay() {
+    globalThis.FlipbaseVintedAccount?.remove();
     document.title = 'Flipbase · Vinted-Arbeitstab';
     let tabIcon = document.head.querySelector('[data-flipbase-work-tab-icon]');
     if (!tabIcon) {
@@ -191,6 +193,8 @@
         : 'Dieser Tab ist für Flipbase reserviert. Schließe ihn nicht. Verwende Vinted für eigene Aktionen in einem neuen Tab.');
     updateProtection(state);
   }
+
+  globalThis.FlipbaseVintedWorkTab = { reserve: () => setBusy(false), pageState };
 
   const pageObserver = new window.MutationObserver((mutations) => {
     if (!overlay?.isConnected || mutations.every((mutation) => overlay.contains(mutation.target)))

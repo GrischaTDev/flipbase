@@ -114,6 +114,12 @@ function createSelect(
       value: () => new ElementRef(triggerOf(fixture)),
     });
   }
+  Object.defineProperty(fixture.componentInstance, 'panel', {
+    value: () => {
+      const panel = fixture.nativeElement.querySelector('[role="listbox"]');
+      return panel ? new ElementRef(panel) : undefined;
+    },
+  });
   return fixture;
 }
 
@@ -321,7 +327,11 @@ describe('CustomSelectComponent', () => {
     }));
     const fixture = createSelect({ options: longOptions });
     keydown(fixture, 'ArrowDown');
+    const panel = fixture.nativeElement.querySelector('[role="listbox"]') as HTMLElement;
+    Object.defineProperty(panel, 'clientHeight', { value: 120 });
+    vi.spyOn(panel, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 100, 160, 120));
     const lastOption = optionElements(fixture)[11];
+    vi.spyOn(lastOption, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 354, 160, 36));
     const scrollIntoView = vi.fn<(options?: ScrollIntoViewOptions) => void>();
     Object.defineProperty(lastOption, 'scrollIntoView', {
       configurable: true,
@@ -332,7 +342,53 @@ describe('CustomSelectComponent', () => {
     await fixture.whenRenderingDone();
 
     expect(triggerOf(fixture).getAttribute('aria-activedescendant')).toBe(lastOption?.id);
-    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' });
+    expect(panel.scrollTop).toBe(170);
+    expect(scrollIntoView).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { top: 80, expectedScrollTop: 40 },
+    { top: 140, expectedScrollTop: 60 },
+  ])(
+    'scrollt nur das Panel zur oberen Option oder lässt eine sichtbare Option stehen ($top)',
+    async ({ top, expectedScrollTop }) => {
+      const fixture = createSelect({ value: 'vinted' });
+      keydown(fixture, 'ArrowDown');
+      const panel = fixture.nativeElement.querySelector('[role="listbox"]') as HTMLElement;
+      panel.scrollTop = 60;
+      Object.defineProperty(panel, 'clientHeight', { value: 120 });
+      vi.spyOn(panel, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 100, 160, 120));
+      const firstOption = optionElements(fixture)[0];
+      vi.spyOn(firstOption, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, top, 160, 36));
+      const scrollIntoView = vi.fn(() => document.body.dispatchEvent(new Event('scroll')));
+      Object.defineProperty(firstOption, 'scrollIntoView', { value: scrollIntoView });
+
+      keydown(fixture, 'Home');
+      await fixture.whenRenderingDone();
+
+      expect(panel.scrollTop).toBe(expectedScrollTop);
+      expect(scrollIntoView).not.toHaveBeenCalled();
+      expect(fixture.componentInstance.isOpen()).toBe(true);
+    },
+  );
+
+  it('lässt das Panel bei Listenscroll und verspätetem Fokusscroll offen und schließt bei bewegtem Anker', () => {
+    const fixture = createSelect();
+    const triggerRect = vi.spyOn(triggerOf(fixture), 'getBoundingClientRect');
+    triggerRect.mockReturnValue(new DOMRect(10, 100, 160, 32));
+    triggerOf(fixture).click();
+    fixture.detectChanges();
+    const panel = fixture.nativeElement.querySelector('[role="listbox"]') as HTMLElement;
+
+    panel.dispatchEvent(new Event('scroll'));
+    expect(fixture.componentInstance.isOpen()).toBe(true);
+
+    document.body.dispatchEvent(new Event('scroll'));
+    expect(fixture.componentInstance.isOpen()).toBe(true);
+
+    triggerRect.mockReturnValue(new DOMRect(10, 80, 160, 32));
+    document.body.dispatchEvent(new Event('scroll'));
+    expect(fixture.componentInstance.isOpen()).toBe(false);
   });
 
   it('öffnet mit ArrowUp ohne Auswahl am Ende und navigiert rückwärts mit Startbegrenzung', () => {
@@ -554,24 +610,24 @@ describe('CustomSelectComponent', () => {
     const fixture = createSelect();
     triggerOf(fixture).click();
     fixture.detectChanges();
-    const scrollCalls = optionElements(fixture).map(() =>
-      vi.fn<(options?: ScrollIntoViewOptions) => void>(),
-    );
-    optionElements(fixture).forEach((option, index) => {
-      Object.defineProperty(option, 'scrollIntoView', {
-        configurable: true,
-        value: scrollCalls[index],
-      });
+    const panel = fixture.nativeElement.querySelector('[role="listbox"]') as HTMLElement;
+    Object.defineProperty(panel, 'clientHeight', { value: 120 });
+    vi.spyOn(panel, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 100, 160, 120));
+    const setScrollTop = vi.fn<(scrollTop: number) => void>();
+    Object.defineProperty(panel, 'scrollTop', {
+      get: () => 0,
+      set: setScrollTop,
     });
+    vi.spyOn(optionElements(fixture)[0], 'getBoundingClientRect').mockReturnValue(
+      new DOMRect(0, 354, 160, 36),
+    );
 
     optionElements(fixture)[1]?.click();
     fixture.detectChanges();
     await fixture.whenRenderingDone();
 
     expect(fixture.componentInstance.isOpen()).toBe(false);
-    expect(scrollCalls.every((scrollIntoView) => scrollIntoView.mock.calls.length === 0)).toBe(
-      true,
-    );
+    expect(setScrollTop).not.toHaveBeenCalled();
   });
 
   it('schließt bei einem Außenklick ohne Wertänderung', () => {

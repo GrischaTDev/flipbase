@@ -8,6 +8,7 @@
     return;
   }
 
+  let localAccount;
   function announceExtension() {
     if (document.documentElement) {
       document.documentElement.dataset.flipbaseExtensionInstalled = 'true';
@@ -16,26 +17,38 @@
       {
         type: 'FLIPBASE_EXTENSION_STATUS',
         installed: true,
-        version: '1.4.0',
+        version: '1.5.0',
         vintedLocal: true,
+        ...(localAccount !== undefined ? { localAccount } : {}),
       },
       window.location.origin,
     );
     window.dispatchEvent(
       new CustomEvent('flipbase:extension-ready', {
-        detail: { version: '1.4.0', ready: true },
+        detail: { version: '1.5.0', ready: true },
       }),
     );
   }
 
+  function refreshLocalAccount() {
+    chrome.runtime.sendMessage({ type: 'VINTED_LOCAL_ACCOUNT_STATUS' }, (response) => {
+      localAccount =
+        !chrome.runtime.lastError && response?.success === true
+          ? (response.result?.localAccount ?? null)
+          : undefined;
+      announceExtension();
+    });
+  }
+
   // Sofort und bei DOM-Events ankündigen
   announceExtension();
+  refreshLocalAccount();
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', announceExtension);
   }
 
   // Regelmäßig senden, damit neu gemountete SPAs es immer sofort mitbekommen
-  setInterval(announceExtension, 1000);
+  setInterval(refreshLocalAccount, 1000);
 
   // Reagiere auf Anfragen der Web-App
   const seenRequests = new Set();
@@ -75,6 +88,7 @@
     // Ping / Statusprüfung
     if (data.type === 'FLIPBASE_CHECK_EXTENSION') {
       announceExtension();
+      refreshLocalAccount();
       return;
     }
 

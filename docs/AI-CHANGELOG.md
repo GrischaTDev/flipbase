@@ -1,5 +1,56 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-06 - Juna - Vinted-Kontenübersicht und lokale Einrichtung vereinheitlichen
+
+**Auftrag:** Lokale Glockeneinstellung zugänglich machen und die Kontenübersicht
+mit Sortieren, Hinzufügen, Einstellungen pro Konto, klaren Verbindungsarten und
+getrenntem Profil-/Cloudablauf überarbeiten.
+
+**Änderung:** Eine gemeinsame Kontenseite ersetzt die separate Verwaltung.
+Kacheln erhalten Zuggriff, zugängliche Verschiebepfeile, Zahnrad und getrennte
+Verbindungsaktionen. Zehn Plätze gelten inklusive offener Einrichtungen und
+werden atomar geprüft; die Reihenfolge wird kontoberechtigt gespeichert.
+Sortieren erhält Vorschauen und geöffnete Daten. Lokale Einstellungen bleiben
+auch am Kontokopf erreichbar. Die lokale Anleitung beschreibt ein Profil pro
+Konto und verhindert eine bekannte Doppelbindung. Erweiterung 1.5.0 ergänzt die
+Flipbase-Logo-Blase auf normalen Vinted-Seiten. Reservierte Arbeitstabs behalten
+die Sperrfläche. Cloudprüfung und Reservierung verwenden den vorhandenen Ablauf
+mit eigenem Ladedialog. Keine automatischen IP-Käufe, Backups oder realen
+Kontolöschungen/Versandaktionen.
+
+**Prüfung:** Zuerst rote Regressionen für Kontoaktionen, Reihenfolge, unnötige
+Vorschauabrufe und Dialog-/Select-Ladezustände. 234 betroffene Angularprüfungen,
+108 Workflow-/Erweiterungsprüfungen (davon 95 Erweiterung), drei Routentests und
+27 Chromium-Kontenabläufe mit Testdaten erfolgreich. Desktop und Mobil prüfen
+Sortieren, Einstellungen, lokale Einrichtung, Cloudreservierung, SMS und
+Anmeldungsfehler. Echte Browser-AXE-Prüfungen inklusive Farbkontrast ohne Befund;
+Erweiterungsblase mit echten Assets bei 1440, 390 und 320 Pixeln geprüft.
+Vollständige pgTAP-Suite mit 2972 Prüfungen und drei echte Datenbank-Parallelfälle
+erfolgreich. Migration aus isolierter Datenbank erzeugt, transaktional auf
+Ausgangsschema eingespielt; Schemaabgleich ohne Differenz und Typen daraus
+erzeugt. Formatierung, ESLint, Typen und Shared-UI-Prüfung erfolgreich.
+Produktionsbau und unabhängiges Abschlussreview erfolgreich; gefundene
+Dialog-/Selectfehler sind behoben und durch Regressionstests abgesichert.
+Kein echter Vinted-Kontotest der neuen Blase und kein Storeeintrag.
+
+**Freigabe und Integration:** Der Nutzer hat PR, Merge nach grünen Pflichtchecks,
+Veröffentlichung und Aufräumen bestätigt. Aktuelles `origin/master` einschließlich
+PR 308 integriert. Beide Protokolleinträge sowie Schema 108 und 390 bleiben
+erhalten; generierte Suchfiltertypen und eigener Sortiervertrag sind vollständig.
+234 betroffene Angularprüfungen, Typprüfung, Produktionsbau sowie Schema- und
+Browserauswahlprüfungen auch auf dem integrierten Stand erfolgreich. Unabhängiger
+Integrationsreview ohne Befund. Die vollständige kombinierte Datenbank- und
+Anwendungsprüfung folgt im PR; noch keine Produktionsänderung.
+
+**CI-Nachprüfung:** Die vollständigen Qualitäts-, Angular-, Node-, DOM-, Worker-
+und Datenbankprüfungen waren erfolgreich. Der Browser-Smoke fand eine alte
+Link-Erwartung für den nun direkten Cloud-Dialog; außerdem wurde die entfernte
+doppelte Verwaltungsoption noch im Menü erwartet. Beide Browserverträge wurden
+an den neuen Ablauf angepasst. Zwölf zusätzliche Chromiumprüfungen für
+Cloudwechsel, Kontenauswahl, Navigation und Favoritenglocke bei 1440, 1024, 768,
+390 und 320 Pixeln sowie hell/dunkel erfolgreich; unabhängiger Review ohne
+Befund. Die vollständigen Pflichtchecks werden für diesen Stand erneut geprüft.
+
 ## 2026-10-05 - Juna - Zentrale Vinted-Suchfilter integrieren
 
 **Auftrag:** Die reinen Markenfilter der Administration um vollständige Kategoriepfade,
