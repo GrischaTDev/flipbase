@@ -1,4 +1,4 @@
 # Hält lokale Rückfallversionen und verifiziert extern vorhandene Sicherungen klein.
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
-17 * * * * root /usr/bin/python3 -B /opt/flipbase/cleanup-server-storage.py --apply >> /var/log/flipbase-storage-cleanup.log 2>&1
+17 * * * * root /usr/bin/python3 -B /opt/flipbase/cleanup-server-storage.py --include-supabase --apply >> /var/log/flipbase-storage-cleanup.log 2>&1
