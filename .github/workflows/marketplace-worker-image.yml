@@ -19,7 +19,7 @@ jobs:
       contents: read
       packages: write
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - name: Check out reviewed commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -46,15 +46,28 @@ jobs:
           load: true
           tags: ghcr.io/grischatdev/flipbase-marketplace-worker:sha-${{ github.sha }}
 
-      - name: Check controller modules and Docker client
+      - name: Build private Chromium broker
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: services/marketplace-worker
+          file: services/marketplace-worker/Dockerfile
+          target: chromium-broker
+          push: false
+          load: true
+          tags: ghcr.io/grischatdev/flipbase-chromium-broker:sha-${{ github.sha }}
+
+      - name: Check worker and private broker separation
         env:
           WORKER_IMAGE: ghcr.io/grischatdev/flipbase-marketplace-worker:sha-${{ github.sha }}
+          BROKER_IMAGE: ghcr.io/grischatdev/flipbase-chromium-broker:sha-${{ github.sha }}
         run: |
-          docker run --rm --entrypoint docker "$WORKER_IMAGE" --version
-          docker run --rm --entrypoint node "$WORKER_IMAGE" --input-type=module -e "await import('./dist/chromium-container-launcher.js'); await import('./dist/chromium-profile-provisioner.js'); await import('./dist/migrate-chromium-profiles.js')"
+          docker run --rm --entrypoint sh "$WORKER_IMAGE" -c '! command -v docker && test ! -e /var/run/docker.sock'
+          docker run --rm --entrypoint docker "$BROKER_IMAGE" --version
+          docker run --rm --entrypoint node "$WORKER_IMAGE" --input-type=module -e "await import('./dist/chromium-broker-client.js'); await import('./dist/chromium-profile-provisioner.js'); await import('./dist/migrate-chromium-profiles.js')"
 
-      - name: Check non-root controller sandbox configuration
+      - name: Check non-root broker sandbox configuration
         env:
+          BROKER_IMAGE: ghcr.io/grischatdev/flipbase-chromium-broker:sha-${{ github.sha }}
           WORKER_IMAGE: ghcr.io/grischatdev/flipbase-marketplace-worker:sha-${{ github.sha }}
         run: |
           set -euo pipefail
@@ -62,11 +75,55 @@ jobs:
           trap 'docker rm -f "$fixture" >/dev/null 2>&1 || true' EXIT
           chmod 0644 deploy/chromium-seccomp.json
           docker_group=$(stat -c %g /var/run/docker.sock)
-          docker run --rm --user=1000:1000 --group-add="$docker_group" --read-only --cap-drop=ALL --security-opt=no-new-privileges:true --mount=type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock --mount="type=bind,src=$PWD/deploy/chromium-seccomp.json,dst=/opt/flipbase-marketplace/chromium-seccomp.json,readonly" --entrypoint docker "$WORKER_IMAGE" create --name "$fixture" --network=none --user=1000:1000 --read-only --cap-drop=ALL --security-opt=no-new-privileges:true --security-opt=seccomp=/opt/flipbase-marketplace/chromium-seccomp.json --entrypoint node "$WORKER_IMAGE" -e 'process.exit(0)'
+          docker run --rm --user=1000:1000 --group-add="$docker_group" --read-only --cap-drop=ALL --security-opt=no-new-privileges:true --mount=type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock --mount="type=bind,src=$PWD/deploy/chromium-seccomp.json,dst=/opt/flipbase-marketplace/chromium-seccomp.json,readonly" --entrypoint docker "$BROKER_IMAGE" create --name "$fixture" --network=none --user=1000:1000 --read-only --cap-drop=ALL --security-opt=no-new-privileges:true --security-opt=seccomp=/opt/flipbase-marketplace/chromium-seccomp.json --entrypoint node "$WORKER_IMAGE" -e 'process.exit(0)'
           docker start --attach "$fixture"
           [[ "$(docker inspect --format '{{.State.ExitCode}}' "$fixture")" == 0 ]]
           docker rm "$fixture" >/dev/null
 
+      - name: Build session for broker integration smoke
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: services/marketplace-worker
+          file: services/marketplace-worker/Dockerfile.chromium-session
+          build-contexts: pilot=tools/cloud-browser-pilot
+          push: false
+          load: true
+          tags: ghcr.io/grischatdev/flipbase-chromium-session:sha-${{ github.sha }}
+
+      - name: Check broker boundary with an actual browser and separate worker filesystem
+        env:
+          WORKER_IMAGE: ghcr.io/grischatdev/flipbase-marketplace-worker:sha-${{ github.sha }}
+          BROKER_IMAGE: ghcr.io/grischatdev/flipbase-chromium-broker:sha-${{ github.sha }}
+          SESSION_IMAGE: ghcr.io/grischatdev/flipbase-chromium-session:sha-${{ github.sha }}
+        run: |
+          set -euo pipefail
+          sudo bash deploy/bootstrap-marketplace-chromium-pilot.sh setup
+          docker network create --internal chromium-control
+          metadata="$RUNNER_TEMP/chromium-worker"
+          mkdir -p "$metadata"
+          sudo chown 1000:1000 "$metadata"
+          token_file="$RUNNER_TEMP/chromium-broker-token"
+          openssl rand -hex 32 > "$token_file"
+          sudo chown 1000:1000 "$token_file"
+          sudo chmod 0400 "$token_file"
+          cleanup() {
+            docker rm -f chromium-worker-fixture chromium-host-broker >/dev/null 2>&1 || true
+            docker ps -aq --filter label=de.flipbase.chromium.role=session | xargs -r docker rm -f >/dev/null 2>&1 || true
+            docker network rm chromium-control >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          docker create --name chromium-host-broker --network flipbase-browser --ip 172.30.88.3 --user=1000:1000 --group-add="$(stat -c %g /var/run/docker.sock)" --read-only --cap-drop=ALL --security-opt=no-new-privileges:true --tmpfs=/tmp:rw,nosuid,nodev,size=64m,uid=1000,gid=1000,mode=700 --mount=type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock --mount=type=bind,src=/opt/flipbase-marketplace/chromium,dst=/var/lib/flipbase-chromium --mount="type=bind,src=$token_file,dst=/run/secrets/chromium-broker-token,readonly" --mount=type=bind,src=/run/flipbase,dst=/run/flipbase,readonly --mount=type=bind,src=/opt/flipbase-marketplace/chromium-seccomp.json,dst=/opt/flipbase-marketplace/chromium-seccomp.json,readonly -e MARKETPLACE_CHROMIUM_IMAGE="$SESSION_IMAGE" -e MARKETPLACE_CHROMIUM_HOST_ID=pilot-01 "$BROKER_IMAGE"
+          docker network connect --alias chromium-host-control chromium-control chromium-host-broker
+          docker start chromium-host-broker
+          docker create --name chromium-worker-fixture --network flipbase-browser --ip 172.30.88.2 --user=1000:1000 --read-only --cap-drop=ALL --security-opt=no-new-privileges:true --tmpfs=/tmp:rw,nosuid,nodev,size=64m,uid=1000,gid=1000,mode=700 --mount="type=bind,src=$metadata,dst=/var/lib/flipbase-marketplace" --mount="type=bind,src=$token_file,dst=/run/secrets/chromium-broker-token,readonly" --mount="type=bind,src=$PWD/services/marketplace-worker/test-support,dst=/app/test-support,readonly" --entrypoint node "$WORKER_IMAGE" test-support/chromium-broker-smoke.mjs
+          docker network connect chromium-control chromium-worker-fixture
+          docker start --attach chromium-worker-fixture
+          [[ "$(docker inspect --format '{{.State.ExitCode}}' chromium-worker-fixture)" == 0 ]]
+          sudo test -f /opt/flipbase-marketplace/chromium/archive/chromium_41000000-0000-4000-8000-000000000001/Default/Preferences
+          [[ "$(docker ps -aq --filter label=de.flipbase.chromium.role=session)" == '' ]]
+
       - name: Publish verified worker
         if: github.event_name == 'workflow_dispatch'
-        run: docker push "ghcr.io/grischatdev/flipbase-marketplace-worker:sha-$GITHUB_SHA"
+        run: |
+          docker push "ghcr.io/grischatdev/flipbase-marketplace-worker:sha-$GITHUB_SHA"
+          docker push "ghcr.io/grischatdev/flipbase-chromium-broker:sha-$GITHUB_SHA"

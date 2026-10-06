@@ -35,8 +35,22 @@
         />
       </div>
       @if (webhookForm.controls.discordEnabled.value) {
+        @if (webhookService.config().hasDiscordCredentials) {
+          <p class="text-xs text-fb-text-muted">
+            Zugangsdaten sind hinterlegt. Lass die Felder leer, um sie beizubehalten.
+          </p>
+          <button
+            type="button"
+            (click)="clearWebhookCredentials('discord')"
+            [disabled]="isSavingWebhookConfig() || isTestingWebhook() || isLoadingWorkspaceConfig()"
+            class="linear-btn-secondary min-h-11 rounded-xl px-3 text-xs"
+          >
+            Zugangsdaten löschen
+          </button>
+        }
         <app-text-field
           formControlName="discordWebhookUrl"
+          type="password"
           label="Discord Webhook-URL"
           placeholder="https://discord.com/api/webhooks/..."
         /><button
@@ -58,8 +72,22 @@
         />
       </div>
       @if (webhookForm.controls.telegramEnabled.value) {
+        @if (webhookService.config().hasTelegramCredentials) {
+          <p class="text-xs text-fb-text-muted">
+            Zugangsdaten sind hinterlegt. Lass die Felder leer, um sie beizubehalten.
+          </p>
+          <button
+            type="button"
+            (click)="clearWebhookCredentials('telegram')"
+            [disabled]="isSavingWebhookConfig() || isTestingWebhook() || isLoadingWorkspaceConfig()"
+            class="linear-btn-secondary min-h-11 rounded-xl px-3 text-xs"
+          >
+            Zugangsdaten löschen
+          </button>
+        }
         <app-text-field
           formControlName="telegramBotToken"
+          type="password"
           label="Telegram Bot Token"
           placeholder="Telegram Bot Token"
         /><app-text-field
@@ -85,8 +113,22 @@
         />
       </div>
       @if (webhookForm.controls.customWebhookEnabled.value) {
+        @if (webhookService.config().hasCustomWebhookCredentials) {
+          <p class="text-xs text-fb-text-muted">
+            Zugangsdaten sind hinterlegt. Lass die Felder leer, um sie beizubehalten.
+          </p>
+          <button
+            type="button"
+            (click)="clearWebhookCredentials('custom')"
+            [disabled]="isSavingWebhookConfig() || isTestingWebhook() || isLoadingWorkspaceConfig()"
+            class="linear-btn-secondary min-h-11 rounded-xl px-3 text-xs"
+          >
+            Zugangsdaten löschen
+          </button>
+        }
         <app-text-field
           formControlName="customWebhookUrl"
+          type="password"
           label="Webhook-URL"
           placeholder="Webhook-URL"
         /><button

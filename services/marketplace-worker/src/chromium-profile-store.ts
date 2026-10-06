@@ -282,6 +282,15 @@ export class ChromiumProfileStore {
     };
   }
 
+  // Der Broker besitzt die echten Profilverzeichnisse exklusiv. Worker-Sperren
+  // bleiben im getrennten Metadatenverzeichnis und behalten die Worker-PID.
+  async prepareStopped(profileId: string): Promise<string> {
+    const { directory } = await this.prepare(profileId);
+    await this.assertStopped(directory);
+    await this.removeStoppedSingletonLinks(directory);
+    return directory;
+  }
+
   async recoverStopped(profileId: string): Promise<void> {
     const { directory, lockDirectory } = await this.prepare(profileId);
     try {

@@ -91,7 +91,7 @@ export class ChromiumContainerLauncher {
   private readonly execute: DockerExecute;
   private readonly desktops = new Map<
     string,
-    { containerId: string; width: number; height: number }
+    { containerId: string; width: number; height: number; endpoint: string }
   >();
 
   constructor(options: ChromiumContainerLauncherOptions) {
@@ -146,7 +146,7 @@ export class ChromiumContainerLauncher {
       if (
         attestation.bootId !== bootId ||
         attestation.network !== this.options.network ||
-        attestation.policy !== 'v1' ||
+        attestation.policy !== 'v2' ||
         typeof attestation.checkedAt !== 'number' ||
         Date.now() - attestation.checkedAt > 90_000 ||
         attestation.checkedAt > Date.now()
@@ -385,6 +385,7 @@ export class ChromiumContainerLauncher {
         throw new Error('Browseranzeige fehlt');
       this.desktops.set(profileId, {
         containerId,
+        endpoint: `http://${address}:9222`,
         width: dimensions.width,
         height: dimensions.height,
       });
@@ -433,5 +434,11 @@ export class ChromiumContainerLauncher {
           input,
         ),
     });
+  }
+
+  endpoint(directory: string): string {
+    const session = this.desktops.get(this.profileId(directory));
+    if (!session) throw new Error('Browsersitzung fehlt');
+    return session.endpoint;
   }
 }
