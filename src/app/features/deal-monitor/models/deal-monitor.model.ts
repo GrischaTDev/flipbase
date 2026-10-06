@@ -48,6 +48,7 @@ export interface FeedRequest {
   size: string | null;
   minPrice: number | null;
   maxPrice: number | null;
+  titleQuery?: string;
   cursor?: { time: string; id: string };
 }
 export interface FeedCategory {

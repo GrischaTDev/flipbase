@@ -19,36 +19,30 @@ Barrierefreiheit und korrekte Fachabläufe bleiben verbindlich. Ein Konflikt wir
 
 ## Vinted-Feed: Karten und Kompakt-Modus
 
-Nutzerentscheidung vom 02.10.2026: Seitentitel und die bestehende Such-/
-Filterleiste bleiben unverändert. Neue Funde stehen weiterhin oben; zusätzliche
-Sortierung und ein Wechsel zwischen Raster und Liste sind nicht vorgesehen.
-Der „Kompakt“-Button steht bei „Gespeicherte Funde“ und ändert ausschließlich
-die Darstellung. Sein Zustand gilt für die geöffnete Feed-Seite und wird nicht
-dauerhaft gespeichert.
+Nutzerentscheidung vom 06.10.2026: Der Seitentitel heißt „Vinted Feed“. Die zusätzliche
+sichtbare Überschrift „Gespeicherte Funde“ entfällt. Der Feed zeigt und bereinigt
+gewöhnliche Funde nach sieben Tagen; persönliche Account-Favoriten bleiben davon
+unabhängig bis zum manuellen Entfernen bestehen. Oben ergänzt eine serverseitige
+Titelsuche die bisherigen Filter. Sie löst keine neuen Vinted-Abfragen aus.
 
-Die Standardkarte zeigt ein Hauptbild im Hochformat 3:4, das Favoritenherz unten
-rechts auf dem Bild, Titel und Preis nebeneinander sowie kompakte Badges für
-Marke, Größe und Zustand. Die Marke behält den Brand-Badge. Lange Angaben dürfen
-umbruchfähig sein; Merkmalbezeichnungen bleiben für Screenreader vorhanden.
-Datum, Teilen und der Vinted-Link bilden die kurze Abschlusszeile. Weitere
-Artikelbilder bleiben in der Großansicht verfügbar.
+Auf breiten Desktopansichten zeigt das Raster fünf Karten. Kleinere Ansichten
+bleiben responsiv. Der Kompakt-Schalter ändert nur die Darstellung und wird nicht
+dauerhaft gespeichert. Standardkarten behalten ihr Hauptbild im Format 3:4;
+Kompaktkarten zeigen weiterhin 3:5 ohne den Informationsbereich unter dem Bild.
+Bildaktionen nutzen die kompakte Dichte des gemeinsamen image-overlay-Buttons:
+28 × 28 px bei präzisem Zeiger, mindestens 44 × 44 px auf Touch-Geräten,
+16-px-Symbole und eine zurückhaltende halbtransparente Fläche. Gemerkte Artikel
+behalten das erkennbare gefüllte Herz. Die Preisfläche im Kompaktbild verwendet
+16-px-Schrift. Sichtbarer Tastaturfokus und Kontrast bleiben erforderlich.
 
-Im Kompakt-Modus entfällt der Informationsbereich unter dem Bild. Das größere
-Hochformatbild 3:5 trägt den Preis unten links; rechts stehen gleich große
-Icon-Buttons für den Vinted-Link und das Favoritenherz. Der Vinted-Link hat
-keine sichtbare Beschriftung, aber einen eindeutigen zugänglichen Namen und
-einen Tooltip. Der Hinweis „Noch nicht kaufbar“ bleibt bei betroffenen Artikeln
-auch hier sichtbar. Beide Bildformate sind die vereinbarte Flipbase-Gestaltung,
-keine nachgemessenen Vinted-Originalwerte.
+Fundzeiten heißen am jeweiligen Kalendertag „Heute“ oder „Gestern“, sonst erscheint
+das Datum mit Uhrzeit. Bei abweichendem Jahr wird auch das Jahr gezeigt. Die
+vollständige Zeit bleibt als Tooltip und maschinenlesbarer Wert hinterlegt.
 
-Bildaktionen verwenden die gemeinsame `image-overlay`-Variante des
-`ButtonComponent`: dunkle Fläche und helle Symbole in beiden Themes,
-Logo-Gelb und gefülltes Herz bei gemerkten Artikeln, sichtbarer Tastaturfokus
-und in beiden Zeigerarten eine Fläche von mindestens 44 × 44 px. Die native Bildvorschau ist eine
-eigene Aktion mit Bildinhalt, keine zweite Variante der Shared-Aktionsbuttons.
-Vorschau und Bildaktionen sind benachbarte Bedienelemente, nicht ineinander
-verschachtelt. Fehlende oder defekte Bilder zeigen einen Ersatz beziehungsweise
-einen klaren Leerzustand; Preis und Aktionen bleiben zugänglich.
+Der zentrale Suchfilter verwendet dieselbe aufklappbare Kategorieauswahl wie das
+Artikelanlegen, aber eine getrennte Vinted-Datenquelle mit echten Vinted-IDs.
+Mehrere Titelbegriffe werden erst ab zwei Einträgen über die verständliche Frage
+„Welche Stichwörter müssen vorkommen?“ erläutert. Bestehende ODER-Regeln bleiben erhalten.
 
 ## Aktionen, Artikeldaten und Bilder in Erfassungsmasken
 

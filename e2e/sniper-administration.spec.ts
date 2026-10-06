@@ -273,6 +273,7 @@ for (const theme of ['light', 'dark']) {
         consoleMessages.push({ type: message.type(), text: message.text() });
     });
     await page.goto('/admin/queries');
+    await page.locator('app-page-header').waitFor({ state: 'visible', timeout: 30_000 });
     const create = page
       .locator('[data-new-query]')
       .getByRole('button', { name: 'Neuer Suchfilter', exact: true });
@@ -286,13 +287,13 @@ for (const theme of ['light', 'dark']) {
     await editor
       .getByRole('textbox', { name: 'Filtername', exact: true })
       .fill('Nike Herrenjacken – Vintage');
-    await editor.getByRole('button', { name: 'Direkt suchen', exact: true }).click();
-    const category = editor.getByRole('combobox', {
-      name: 'Vinted-Kategorie nach vollständigem Pfad suchen',
-      exact: true,
-    });
-    await category.click();
-    await page.getByRole('option', { name: 'Herren > Kleidung > Jacken', exact: true }).click();
+    await editor.locator('app-vinted-category-picker button[aria-haspopup="dialog"]').click();
+    const categoryPanel = page.getByRole('dialog', { name: 'Kategorie · optional', exact: true });
+    await categoryPanel.getByRole('combobox', { name: 'Kategorie suchen' }).fill('Herren Jacken');
+    await categoryPanel
+      .getByRole('option')
+      .filter({ hasText: 'Herren › Kleidung › Jacken' })
+      .click();
     const trigger = editor.locator('#vinted-brand-picker');
     await trigger.click();
     const picker = page.getByRole('dialog', { name: 'Marken · optional', exact: true });
@@ -369,12 +370,21 @@ for (const theme of ['light', 'dark']) {
     await expect(page.getByRole('table')).toContainText('Gezielter Testbereich');
     await expect(create).toBeFocused();
     await page.reload();
+    await page.locator('app-page-header').waitFor({ state: 'visible', timeout: 30_000 });
     await expect(page.getByRole('table')).toContainText('Nike geändert');
     await create.click();
     const second = page.getByRole('dialog', { name: 'Neuen Suchfilter anlegen', exact: true });
     await second.getByRole('textbox', { name: 'Filtername', exact: true }).fill('Herren komplett');
-    await second.getByRole('combobox', { name: 'Bereich auswählen', exact: true }).click();
-    await page.getByRole('option', { name: 'Herren', exact: true }).click();
+    await second.locator('app-vinted-category-picker button[aria-haspopup="dialog"]').click();
+    const parentCategoryPanel = page.getByRole('dialog', {
+      name: 'Kategorie · optional',
+      exact: true,
+    });
+    await parentCategoryPanel.getByRole('option', { name: /^Herren.*Unterkategorien$/ }).click();
+    await parentCategoryPanel
+      .getByRole('button', { name: 'Herren auswählen', exact: true })
+      .click();
+    await expect(parentCategoryPanel).not.toBeVisible();
     // Übergeordnete Kategorien sind ausdrücklich ohne Marke speicherbar.
     await second.getByRole('button', { name: 'Suchfilter speichern', exact: true }).click();
     await expect(page.getByRole('table')).toContainText('Herren komplett');
@@ -464,9 +474,11 @@ for (const theme of ['light', 'dark']) {
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     ).toBe(true);
     await page.goto('/admin/vinted-bot/categories');
+    await page.locator('app-page-header').waitFor({ state: 'visible', timeout: 30_000 });
     await expect(page).toHaveURL(/\/admin\/vinted-bot\/operation$/);
     backend.staleRuntime();
     await page.reload();
+    await page.locator('app-page-header').waitFor({ state: 'visible', timeout: 30_000 });
     await expect(page.getByText('Betriebsstand unbestätigt', { exact: true })).toBeVisible();
     expect(backend.calls.filter((call) => call.name === 'vinted_category_syncs')).toHaveLength(1);
     expect(

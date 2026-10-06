@@ -407,7 +407,7 @@ as $$
         from public.sniper_listings as listing
         where listing.discovered_by_query_id = p_query_id
           and listing.condition is not distinct from p_condition
-          and listing.first_seen_at >= now() - interval '14 days'
+          and listing.first_seen_at >= now() - interval '7 days'
     ),
     grenze as (
         select price_to from public.sniper_queries where id = p_query_id
@@ -438,7 +438,7 @@ as $$
 $$;
 
 comment on function public.sniper_reference_price(uuid, text) is
-    'Median der Artikelpreise einer Abfrage im selben Zustand ueber 14 Tage. Liefert null mit Begruendung, wenn die Gruppe zu klein ist oder am Preislimit klebt.';
+    'Median der Artikelpreise einer Abfrage im selben Zustand ueber 7 Tage. Liefert null mit Begruendung, wenn die Gruppe zu klein ist oder am Preislimit klebt.';
 
 -- Postgres macht Funktionen standardmaessig fuer PUBLIC ausfuehrbar, womit auch
 -- anon sie aufrufen koennte. Gefaehrlich waere das hier nicht - die Funktion
@@ -471,7 +471,7 @@ as $$
           and query.marketplace = 'vinted'
           and listing.marketplace = 'vinted'
           and listing.condition is not distinct from p_condition
-          and listing.first_seen_at >= now() - interval '14 days'
+          and listing.first_seen_at >= now() - interval '7 days'
           and listing.currency = 'EUR'
           and listing.item_price > 0
           and listing.item_price < 'Infinity'::numeric
@@ -506,7 +506,7 @@ as $$
 $$;
 
 comment on function public.sniper_reference_price(integer, text, text) is
-    '14-Tage-Median aus mindestens acht EUR-Angeboten derselben Kategorie, Marke und desselben Zustands. Bei zu kleiner Markengruppe Rueckfall auf Kategorie/Zustand. Preislimit jedes Entdeckungsauftrags beachten.';
+    '7-Tage-Median aus mindestens acht EUR-Angeboten derselben Kategorie, Marke und desselben Zustands. Bei zu kleiner Markengruppe Rueckfall auf Kategorie/Zustand. Preislimit jedes Entdeckungsauftrags beachten.';
 
 revoke all on function public.sniper_reference_price(integer, text, text) from public, anon, authenticated;
 grant execute on function public.sniper_reference_price(integer, text, text) to service_role;
@@ -529,7 +529,7 @@ begin
 
     with expired as (
         select id from public.sniper_listings
-        where first_seen_at < now() - interval '30 days'
+        where first_seen_at < now() - interval '7 days'
         order by first_seen_at, id
         limit p_batch_size
         for update skip locked
@@ -545,7 +545,7 @@ end;
 $$;
 
 comment on function public.sniper_purge_expired_listings(integer) is
-    'Loescht paketweise Angebote nach 30 Tagen seit Erstfund samt zugehoerigen Treffern. Nur der Dienst darf die Bereinigung ausloesen.';
+    'Loescht paketweise Angebote nach 7 Tagen seit Erstfund samt zugehoerigen Treffern. Nur der Dienst darf die Bereinigung ausloesen.';
 revoke all on function public.sniper_purge_expired_listings(integer) from public, anon, authenticated;
 grant execute on function public.sniper_purge_expired_listings(integer) to service_role;
 

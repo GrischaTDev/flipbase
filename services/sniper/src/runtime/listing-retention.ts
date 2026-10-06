@@ -22,7 +22,7 @@ export class ListingRetention {
       // Volles Paket: Rueckstand im naechsten Sammeltakt weiter abbauen.
       // Sonst koennte der Zulauf schneller sein als ein Paket pro Minute.
       if (deleted >= 1000) retryDelayMs = 0;
-      if (deleted > 0) this.log.info('listings_expired', { deleted, retentionDays: 30 });
+      if (deleted > 0) this.log.info('listings_expired', { deleted, retentionDays: 7 });
     } catch {
       this.error = 'Alte Artikel konnten nicht bereinigt werden. Der Dienst versucht es erneut.';
       this.log.error('listing_retention_failed', { reason: this.error });

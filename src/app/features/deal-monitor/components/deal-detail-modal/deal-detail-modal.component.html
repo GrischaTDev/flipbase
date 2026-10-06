@@ -168,7 +168,11 @@
             <span>Entdeckt</span>
           </dt>
           <dd class="text-xs text-fb-text-muted">
-            {{ item().first_seen_at | date: 'dd.MM.yyyy · HH:mm:ss' }}
+            <time
+              [attr.datetime]="item().first_seen_at"
+              [title]="item().first_seen_at | date: 'dd.MM.yyyy · HH:mm:ss'"
+              >{{ discoveredLabel() }}</time
+            >
           </dd>
         </div>
       </dl>
@@ -182,12 +186,16 @@
     </div>
   </div>
 
+  @if (favoritesService.error(); as message) {
+    <p role="alert" class="text-sm text-fb-critical">{{ message }}</p>
+  }
   <div modal-footer class="flex w-full flex-wrap items-center justify-between gap-3">
     <div class="flex flex-wrap items-center gap-2">
       <app-button
         variant="secondary"
         [icon]="icons.heart"
         [ariaPressed]="isFavorite()"
+        [disabled]="!favoritesService.ready() || favoritesService.busy()"
         (clicked)="toggleFavorite()"
         >{{ isFavorite() ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen' }}</app-button
       >

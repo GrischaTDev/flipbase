@@ -6,6 +6,8 @@ import {
   Injector,
   afterNextRender,
   computed,
+  effect,
+  untracked,
   forwardRef,
   inject,
   input,
@@ -21,6 +23,7 @@ import {
   LucideDynamicIcon,
   LucideX,
 } from '@lucide/angular';
+import type { CategoryPickerSource } from '../../../core/models/category-picker-source';
 import { ProductCategory, categoryPathParts } from '../../../core/models/product-category.models';
 import { ProductCategoryService } from '../../../core/services/product-category.service';
 
@@ -54,7 +57,10 @@ let nextCategoryPickerId = 0;
   host: { class: 'block w-full', '(document:click)': 'onDocumentClick($event)' },
 })
 export class CategoryPickerComponent implements ControlValueAccessor {
-  private readonly categories = inject(ProductCategoryService);
+  readonly source = input<CategoryPickerSource | null>(null);
+  private get categories(): CategoryPickerSource {
+    return this.source() ?? this.injector.get(ProductCategoryService);
+  }
   private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly injector = inject(Injector);
   private readonly destroyRef = inject(DestroyRef);
@@ -123,6 +129,17 @@ export class CategoryPickerComponent implements ControlValueAccessor {
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
+    effect(() => {
+      if (!this.source()) return;
+      untracked(() => {
+        this.close(false);
+        this.requestToken++;
+        this.valueToken++;
+        this.selected.set(null);
+        this.trail.set([]);
+        this.writeValue(this.value());
+      });
+    });
     const updateOnViewportChange = (event: Event) => {
       if (this.panel()?.nativeElement.contains(event.target as Node)) return;
       if (this.isOpen()) this.positionPanel(false);

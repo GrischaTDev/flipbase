@@ -8,7 +8,7 @@ insert into public.sniper_query_subscriptions (id, workspace_id, query_id)
 values ('89000000-0000-4000-8000-000000000003', '89000000-0000-4000-8000-000000000002', '89000000-0000-4000-8000-000000000001');
 insert into public.sniper_listings (external_id, title, url, item_price, total_price, discovered_by_query_id, first_seen_at)
 select 'retention-' || i, 'Test', 'https://example.test', 10, 10, '89000000-0000-4000-8000-000000000001',
-       now() - interval '30 days' + (i - 3) * interval '1 second'
+       now() - interval '7 days' + (i - 3) * interval '1 second'
 from generate_series(1, 4) as i;
 insert into public.sniper_hits (subscription_id, listing_id, reference_price, discount_percent)
 select '89000000-0000-4000-8000-000000000003', id, 20, 50 from public.sniper_listings where external_id like 'retention-%';
@@ -20,7 +20,7 @@ reset role;
 select ok(not exists(select 1 from public.sniper_listings where external_id = 'retention-1'), 'Aeltester Fund zuerst geloescht');
 select is((select count(*)::integer from public.sniper_hits), 3, 'Zugehoeriger Treffer wird mitgeloescht');
 select is(public.sniper_purge_expired_listings(), 1, 'Naechster Aufruf holt den Rest nach');
-select is((select count(*)::integer from public.sniper_listings where external_id in ('retention-3','retention-4')), 2, 'Genau 30 Tage und neuere Funde bleiben erhalten');
+select is((select count(*)::integer from public.sniper_listings where external_id in ('retention-3','retention-4')), 2, 'Genau 7 Tage und neuere Funde bleiben erhalten');
 select is(public.sniper_purge_expired_listings(), 0, 'Leerer Folgelauf ist folgenlos');
 select ok(exists(select 1 from public.sniper_queries where query_key = 'retention') and exists(select 1 from public.sniper_query_subscriptions where id = '89000000-0000-4000-8000-000000000003'), 'Auftrag und Abonnement bleiben erhalten');
 select throws_ok('select public.sniper_purge_expired_listings(0)', '22023', null, 'Ungueltige Paketgroesse abgelehnt');

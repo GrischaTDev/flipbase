@@ -1,3 +1,6 @@
+import { DealFavoritesService } from './services/deal-favorites.service';
+import { CustomSearchInputComponent } from '../../shared/components/custom-search-input/custom-search-input.component';
+import { createDealFavoritesFixture } from '../../../test-support/deal-favorites.fixture';
 import '@angular/compiler';
 import { ElementRef, EventEmitter, signal, ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
@@ -55,6 +58,8 @@ function registerSignalInputs(
 }
 
 const componentResources: Readonly<Record<string, string>> = {
+  './custom-search-input.component.html':
+    'src/app/shared/components/custom-search-input/custom-search-input.component.html',
   './deal-monitor.component.html': 'src/app/features/deal-monitor/deal-monitor.component.html',
   './page-header.component.html':
     'src/app/shared/components/page-header/page-header.component.html',
@@ -121,6 +126,11 @@ describe('DealMonitorComponent', () => {
       return readFile(resolve(resourcePath), 'utf8');
     });
 
+    registerSignalInputs(
+      CustomSearchInputComponent,
+      ['id', 'ariaLabel', 'placeholder', 'value', 'maxLength'],
+      ['searched'],
+    );
     registerSignalInputs(PageHeaderComponent, ['title', 'subtitle', 'badge', 'icon']);
     registerSignalInputs(
       ButtonComponent,
@@ -243,12 +253,27 @@ describe('DealMonitorComponent', () => {
     TestBed.configureTestingModule({
       providers: [
         DealMonitorComponent,
+        { provide: DealFavoritesService, useValue: createDealFavoritesFixture() },
         { provide: DealMonitorService, useValue: mockApi },
         { provide: WorkspaceService, useValue: { currentWorkspace } },
         { provide: ElementRef, useValue: new ElementRef(document.createElement('div')) },
       ],
     });
     comp = TestBed.inject(DealMonitorComponent);
+  });
+
+  it('setzt die Titelsuche nach Entprellung serverseitig und beim Zurücksetzen zurück', async () => {
+    TestBed.flushEffects();
+    comp.searchChanged('Vintage');
+    await new Promise((resolve) => setTimeout(resolve, 280));
+    TestBed.flushEffects();
+    expect(mockApi.feed).toHaveBeenLastCalledWith(
+      expect.objectContaining({ titleQuery: 'Vintage' }),
+    );
+    comp.resetFilters();
+    TestBed.flushEffects();
+    expect(comp.searchEntry()).toBe('');
+    expect(mockApi.feed).toHaveBeenLastCalledWith(expect.objectContaining({ titleQuery: '' }));
   });
 
   it('initializes size filter and options', () => {
@@ -304,7 +329,7 @@ describe('DealMonitorComponent', () => {
     expect(mockApi.feed).toHaveBeenLastCalledWith(expect.objectContaining({ minPrice: 12 }));
     await fixture.whenStable();
     fixture.detectChanges();
-    expect(host.textContent).toContain('Letzte 30 Tage');
+    expect(host.textContent).toContain('Letzte 7 Tage');
     expect((await axe.run(host)).violations).toEqual([]);
     fixture.destroy();
   });

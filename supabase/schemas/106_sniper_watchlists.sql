@@ -226,7 +226,7 @@ begin
             or item_price is null
             or item_price <= 0
             or item_price >= 'Infinity'::numeric
-            or first_seen_at < now() - interval '14 days'
+            or first_seen_at < now() - interval '7 days'
           )
         limit p_batch_size
         for update skip locked
@@ -325,7 +325,7 @@ begin
                 and (p_watchlist_id is null or watchlist.id = p_watchlist_id)
             order by found.created_at desc, found.id desc limit 1
         ) as hit on true
-        where listing.first_seen_at >= now() - interval '30 days'
+        where listing.first_seen_at >= now() - interval '7 days'
             and (p_before_time is null or (listing.first_seen_at, listing.id) < (p_before_time, p_before_id))
             and (not p_deals_only or hit.reference_price is not null)
             and (p_watchlist_id is null or p_deals_only or public.sniper_watchlist_matches(v_watchlist, listing))

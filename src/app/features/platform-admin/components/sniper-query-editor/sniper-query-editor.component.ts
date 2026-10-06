@@ -105,8 +105,8 @@ export class SniperQueryEditorComponent {
       .map((brand) => ({ value: brand.id, label: brand.name })),
   );
   readonly modeOptions = [
-    { value: 'all' as const, label: 'Alle Begriffe' },
-    { value: 'any' as const, label: 'Mindestens ein Begriff' },
+    { value: 'all' as const, label: 'Alle' },
+    { value: 'any' as const, label: 'Mindestens eines' },
   ];
   readonly subrequestCount = computed(
     () =>
