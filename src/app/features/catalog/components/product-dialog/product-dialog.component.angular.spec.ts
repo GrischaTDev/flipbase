@@ -234,6 +234,20 @@ describe('ProductDialogComponent picker integration', () => {
     expect(template).toContain('<app-brand-management-dialog');
   });
 
+  it('erlaubt Mehrfachauswahl bei der Farbe', async () => {
+    const template = await readFile(
+      resolve(
+        process.cwd(),
+        'src/app/features/catalog/components/product-dialog/product-dialog.component.html',
+      ),
+      'utf8',
+    );
+
+    expect(template).toMatch(
+      /label="Farbe"[\s\S]*?\[multiple\]="true"[\s\S]*?formControlName="color"/,
+    );
+  });
+
   it('bindet Testauswahlen an die ID-Controls und leert beide Picker als null', async () => {
     const fixture = TestBed.createComponent(ProductDialogComponent);
     await settle(fixture);
