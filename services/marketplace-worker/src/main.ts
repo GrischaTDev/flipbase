@@ -3,7 +3,7 @@ import { GoLoginProfileProvisioner } from './gologin-profile-provisioner.ts';
 import { join } from 'node:path';
 import { ChromiumAccountProfileRegistry } from './chromium-account-profile-registry.ts';
 import { ChromiumBoundProfileStore } from './chromium-bound-profile-store.ts';
-import { ChromiumContainerLauncher } from './chromium-container-launcher.ts';
+import { ChromiumBrokerClient } from './chromium-broker-client.ts';
 import { ChromiumNetworkProfiles } from './chromium-network-profiles.ts';
 import { ChromiumPersistentBrowser } from './chromium-persistent-browser.ts';
 import { ChromiumProfileProvisioner } from './chromium-profile-provisioner.ts';
@@ -71,24 +71,18 @@ async function main(): Promise<void> {
       !config.chromiumNetworkId
     )
       throw new Error('Chromium-Konfiguration fehlt');
+    const profileRoot = join(config.serverProfileRoot, 'profiles');
+    const launcher = await ChromiumBrokerClient.create(profileRoot);
     const chromiumRegistry = new ChromiumAccountProfileRegistry({
       root: config.serverProfileRoot,
       hostId: config.chromiumHostId,
       networkId: config.chromiumNetworkId,
+      archiveProfile: (profileId) => launcher.archive(profileId),
     });
     registry = chromiumRegistry;
     networks = await ChromiumNetworkProfiles.load(config.chromiumNetworkFile);
     networks.resolve(config.chromiumNetworkId);
     const configuredNetworks = networks;
-    const profileRoot = join(config.serverProfileRoot, 'profiles');
-    const launcher = new ChromiumContainerLauncher({
-      image: config.chromiumImage,
-      profileRoot,
-      hostProfileRoot: config.chromiumHostProfileRoot,
-      hostId: config.chromiumHostId,
-      network: config.chromiumNetwork,
-      seccompProfile: config.chromiumSeccompProfile,
-    });
     const chromium = new ChromiumPersistentBrowser({
       profileStore: new ChromiumProfileStore({
         root: profileRoot,

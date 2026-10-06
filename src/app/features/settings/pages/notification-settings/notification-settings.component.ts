@@ -18,7 +18,7 @@ import { TextFieldComponent } from '../../../../shared/components/text-field/tex
 })
 export class NotificationSettingsComponent {
   readonly webPushService = inject(WebPushService);
-  private readonly webhookService = inject(WebhookService);
+  readonly webhookService = inject(WebhookService);
   private readonly workspaceService = inject(WorkspaceService);
   private readonly toast = inject(ToastService);
   private readonly syncStatus = inject(SyncStatusService);
@@ -71,7 +71,16 @@ export class NotificationSettingsComponent {
         return;
       }
       const value = this.webhookService.config();
-      this.webhookForm.patchValue(value, { emitEvent: false });
+      this.webhookForm.patchValue(
+        {
+          ...value,
+          discordWebhookUrl: '',
+          telegramBotToken: '',
+          telegramChatId: '',
+          customWebhookUrl: '',
+        },
+        { emitEvent: false },
+      );
       this.isLoadingWorkspaceConfig.set(false);
     });
   }
@@ -156,6 +165,11 @@ export class NotificationSettingsComponent {
     } finally {
       this.isTestingWebhook.set(false);
     }
+  }
+  async clearWebhookCredentials(channel: 'discord' | 'telegram' | 'custom'): Promise<void> {
+    const result = await this.webhookService.updateConfig({ clearCredentials: [channel] });
+    if (result.error) this.toast.error('Zugangsdaten konnten nicht gelöscht werden.');
+    else this.toast.success('Zugangsdaten wurden gelöscht.');
   }
   private saveWebhookConfig(): ReturnType<WebhookService['updateConfig']> {
     const value = this.webhookForm.getRawValue();

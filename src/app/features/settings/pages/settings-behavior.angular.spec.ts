@@ -1321,9 +1321,7 @@ async function renderNotifications(
 describe('Benachrichtigungseinstellungen – echte Angular-Fixture', () => {
   it('leert A-Geheimnisse beim Wechsel, ignoriert verspätetes A und patcht erst geladenes B', async () => {
     const { fixture, currentWorkspace, config, loadedWorkspaceId } = await renderNotifications();
-    expect(fixture.componentInstance.webhookForm.controls.telegramBotToken.value).toBe(
-      'telegram-a-secret',
-    );
+    expect(fixture.componentInstance.webhookForm.controls.telegramBotToken.value).toBe('');
     expect(fixture.componentInstance.isLoadingWorkspaceConfig()).toBe(false);
 
     currentWorkspace.set(workspace('workspace-b', 'Workspace B'));
@@ -1345,12 +1343,8 @@ describe('Benachrichtigungseinstellungen – echte Angular-Fixture', () => {
     loadedWorkspaceId.set('workspace-b');
     flushEffects(fixture);
 
-    expect(fixture.componentInstance.webhookForm.controls.telegramBotToken.value).toBe(
-      'telegram-b-secret',
-    );
-    expect(fixture.componentInstance.webhookForm.controls.discordWebhookUrl.value).toBe(
-      'https://discord.example/telegram-b-secret',
-    );
+    expect(fixture.componentInstance.webhookForm.controls.telegramBotToken.value).toBe('');
+    expect(fixture.componentInstance.webhookForm.controls.discordWebhookUrl.value).toBe('');
     expect(fixture.componentInstance.isLoadingWorkspaceConfig()).toBe(false);
   });
 

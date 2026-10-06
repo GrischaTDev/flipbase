@@ -14,7 +14,7 @@ let finishing = false;
 let isReady = false;
 const sockets = new Set<import('node:net').Socket>();
 const server = createServer((incoming, outgoing) => {
-  if (incoming.socket.remoteAddress !== '172.30.88.2') {
+  if (!['172.30.88.2', '172.30.88.3'].includes(incoming.socket.remoteAddress ?? '')) {
     outgoing.writeHead(403).end();
     return;
   }
@@ -57,7 +57,7 @@ server.on('connection', (socket) => {
 });
 server.on('upgrade', (incoming, socket, head) => {
   if (
-    incoming.socket.remoteAddress !== '172.30.88.2' ||
+    !['172.30.88.2', '172.30.88.3'].includes(incoming.socket.remoteAddress ?? '') ||
     !/^\/devtools\/browser\/[a-zA-Z0-9-]+$/.test(incoming.url ?? '')
   ) {
     socket.destroy();

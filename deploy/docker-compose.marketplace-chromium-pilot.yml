@@ -24,14 +24,11 @@ services:
     tmpfs:
       - /tmp:rw,nosuid,nodev,size=64m,uid=1000,gid=1000,mode=700
     volumes:
-      # Ausschließlich der vertrauenswürdige Controller verwaltet Docker; Browser erhalten keinen Socket.
-      - /var/run/docker.sock:/var/run/docker.sock
-      - /opt/flipbase-marketplace/chromium:/var/lib/flipbase-marketplace
-      - /run/flipbase:/run/flipbase:ro
-      # Docker liest das Sandboxprofil im Controller, bevor es den Hostdaemon aufruft.
-      - /opt/flipbase-marketplace/chromium-seccomp.json:/opt/flipbase-marketplace/chromium-seccomp.json:ro
-    group_add:
-      - ${MARKETPLACE_DOCKER_GROUP_ID:?Host-Docker-Gruppen-ID erforderlich}
+      # Ausschließlich Metadaten und Worker-PID-Sperren, keine echten Browserprofile.
+      - /opt/flipbase-marketplace/chromium-worker:/var/lib/flipbase-marketplace
+      - /opt/flipbase-marketplace/chromium-broker-token:/run/secrets/chromium-broker-token:ro
+    depends_on:
+      - chromium-host-broker
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
     pids_limit: 128
@@ -46,7 +43,39 @@ services:
       flipbase-browser:
         ipv4_address: 172.30.88.2
       supabase_default: {}
+      chromium-control: {}
+  chromium-host-broker:
+    image: ${FLIPBASE_CHROMIUM_BROKER_IMAGE:?Geprüftes Broker-Abbild erforderlich}
+    restart: 'no'
+    init: true
+    user: '1000:1000'
+    environment:
+      MARKETPLACE_CHROMIUM_IMAGE: ${MARKETPLACE_CHROMIUM_IMAGE:?Geprüftes Sitzungs-Abbild erforderlich}
+      MARKETPLACE_CHROMIUM_HOST_ID: pilot-01
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=64m,uid=1000,gid=1000,mode=700
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /opt/flipbase-marketplace/chromium:/var/lib/flipbase-chromium
+      - /opt/flipbase-marketplace/chromium-broker-token:/run/secrets/chromium-broker-token:ro
+      - /run/flipbase:/run/flipbase:ro
+      - /opt/flipbase-marketplace/chromium-seccomp.json:/opt/flipbase-marketplace/chromium-seccomp.json:ro
+    group_add:
+      - ${MARKETPLACE_DOCKER_GROUP_ID:?Host-Docker-Gruppen-ID erforderlich}
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 128
+    mem_limit: 512m
+    stop_grace_period: 3m
+    networks:
+      flipbase-browser:
+        ipv4_address: 172.30.88.3
+      chromium-control:
+        aliases: [chromium-host-control]
 networks:
+  chromium-control:
+    internal: true
   flipbase-browser:
     external: true
   supabase_default:

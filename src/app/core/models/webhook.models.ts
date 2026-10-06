@@ -1,4 +1,8 @@
 export interface WebhookConfig {
+  hasDiscordCredentials?: boolean;
+  hasTelegramCredentials?: boolean;
+  hasCustomWebhookCredentials?: boolean;
+  clearCredentials?: ('discord' | 'telegram' | 'custom')[];
   discordEnabled: boolean;
   discordWebhookUrl?: string;
   telegramEnabled: boolean;

@@ -24,6 +24,7 @@ fi
 network=flipbase-browser
 subnet=172.30.88.0/24
 controller=172.30.88.2
+broker=172.30.88.3
 bridge=br-flipbase
 chain=FLIPBASE_CHROMIUM
 host_chain=FLIPBASE_CHROMIUM_HOST
@@ -76,6 +77,18 @@ for own_chain in "$chain" "$host_chain"; do
 done
 ensure_rule "$chain" -s "$controller/32" -d "$subnet" -p tcp --dport 9222 -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
 ensure_rule "$chain" -s "$subnet" -d "$controller/32" -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+# Vor die vorhandenen DROP-Regeln setzen, auch beim Upgrade eines v1-Hosts.
+for direction in forward reverse; do
+  if [[ "$direction" == forward ]]; then
+    rule=(-s "$broker/32" -d "$subnet" -p tcp --dport 9222 -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT)
+  else
+    rule=(-s "$subnet" -d "$broker/32" -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT)
+  fi
+  if ! iptables -w -C "$chain" "${rule[@]}" 2>/dev/null; then
+    [[ "$mode" == setup ]] || exit 1
+    iptables -w -I "$chain" 1 "${rule[@]}"
+  fi
+done
 for destination in "${blocked[@]}"; do ensure_rule "$chain" -s "$subnet" -d "$destination" -j DROP; done
 ensure_rule "$chain" -j RETURN
 ensure_rule "$host_chain" -s "$controller/32" -j RETURN
@@ -98,7 +111,7 @@ for parent in FORWARD INPUT; do
   [[ "$(ip6tables -w -S "$parent" | sed -n '2p')" == "-A $parent -i $bridge -j DROP" ]] || exit 1
 done
 # Alle geprüften Regeln sind geordnet; zusätzliche frühere Regeln verhindern Freigabe.
-[[ "$(iptables -w -S "$chain" | wc -l)" == 14 ]] || exit 1
+[[ "$(iptables -w -S "$chain" | wc -l)" == 16 ]] || exit 1
 [[ "$(iptables -w -S "$host_chain" | wc -l)" == 3 ]] || exit 1
 [[ "$(iptables -w -S "$chain" | tail -n 1)" == "-A $chain -j RETURN" ]] || exit 1
 [[ "$(iptables -w -S "$host_chain" | tail -n 1)" == "-A $host_chain -j DROP" ]] || exit 1
@@ -127,7 +140,7 @@ fi
 install -d -m 0755 /run/flipbase
 proof="$(mktemp /run/flipbase/chromium-firewall-status.XXXXXX)"
 trap 'status=$?; rm -f "$proof"; if (( status != 0 )); then rm -f /run/flipbase/chromium-firewall-status.json; fi' EXIT
-python3 -c 'import json,time;print(json.dumps({"bootId":open("/proc/sys/kernel/random/boot_id").read().strip(),"network":"flipbase-browser","policy":"v1","checkedAt":int(time.time()*1000)}))' > "$proof"
+python3 -c 'import json,time;print(json.dumps({"bootId":open("/proc/sys/kernel/random/boot_id").read().strip(),"network":"flipbase-browser","policy":"v2","checkedAt":int(time.time()*1000)}))' > "$proof"
 chmod 0644 "$proof"
 mv "$proof" /run/flipbase/chromium-firewall-status.json
 echo 'Chromium-Pilotnetz und Host-Firewall geprüft.'

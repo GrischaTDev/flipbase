@@ -16,14 +16,14 @@ describe('Webhook & Notification Service', () => {
     vi.unstubAllGlobals();
   });
 
-  it('meldet für den nicht implementierten Custom-Versand keinen Erfolg', async () => {
+  it('versendet ohne angemeldeten Workspace keinen Webhook', async () => {
     const fetcher = vi.fn();
     vi.stubGlobal('fetch', fetcher);
 
     const result = await webhookService.sendTestNotification('custom');
 
     expect(result.success).toBe(false);
-    expect(result.message).toContain('noch nicht versendet');
+    expect(result.message).toContain('noch nicht geladen');
     expect(fetcher).not.toHaveBeenCalled();
   });
 
@@ -42,9 +42,7 @@ describe('Webhook & Notification Service', () => {
     });
 
     expect(webhookService.config().discordEnabled).toBe(true);
-    expect(webhookService.config().discordWebhookUrl).toBe(
-      'https://discord.com/api/webhooks/123/abc',
-    );
+    expect(webhookService.config().discordWebhookUrl).toBeUndefined();
   });
 
   it('should add notifications and mark all as read', () => {
@@ -136,7 +134,7 @@ describe('Webhook & Notification Service', () => {
     expect(webhookService.notifications()[0].message).not.toContain('0,00');
   });
 
-  it('meldet eine aufgelöste Discord-HTTP-Fehlerantwort als Fehlschlag', async () => {
+  it('umgeht für Discord die fehlende Serveranmeldung nicht', async () => {
     webhookService.config.update((config) => ({
       ...config,
       discordWebhookUrl: 'https://discord.com/api/webhooks/123/abc',
@@ -149,7 +147,7 @@ describe('Webhook & Notification Service', () => {
     const result = await webhookService.sendTestNotification('discord');
 
     expect(result.success).toBe(false);
-    expect(result.message).toContain('HTTP 429');
+    expect(result.message).toContain('noch nicht geladen');
   });
 
   it('verlinkt die Meldung auf den Einkauf, nicht auf die Uebersicht', () => {

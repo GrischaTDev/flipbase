@@ -119,8 +119,8 @@ jobs:
 
       - name: Check and test marketplace functions in Deno
         run: |
-          deno check --no-config --node-modules-dir=none supabase/functions/ebay-account/index.ts supabase/functions/ebay-account-deletion/index.ts supabase/functions/marketplace-search/index.ts supabase/functions/marketplace-local-extension/index.ts
-          deno test --no-config --node-modules-dir=none --allow-env supabase/functions/ebay-account/handler.test.ts supabase/functions/ebay-account-deletion/handler.test.ts supabase/functions/ebay-account-deletion/endpoint.test.ts supabase/functions/_shared/ebay-api.test.ts supabase/functions/_shared/ebay-order-amounts.test.ts supabase/functions/_shared/ebay-order-source.test.ts supabase/functions/ebay-account/connection-read.test.ts supabase/functions/ebay-account/order-import.test.ts supabase/functions/marketplace-local-extension/handler.test.ts
+          deno check --no-config --node-modules-dir=none supabase/functions/webhook-dispatch/index.ts supabase/functions/ebay-account/index.ts supabase/functions/ebay-account-deletion/index.ts supabase/functions/marketplace-search/index.ts supabase/functions/marketplace-local-extension/index.ts
+          deno test --no-config --node-modules-dir=none --allow-env supabase/functions/webhook-dispatch/handler.test.ts supabase/functions/webhook-dispatch/public-webhook-post.test.ts supabase/functions/webhook-dispatch/sale-notification.test.ts supabase/functions/ebay-account/handler.test.ts supabase/functions/ebay-account-deletion/handler.test.ts supabase/functions/ebay-account-deletion/endpoint.test.ts supabase/functions/_shared/ebay-api.test.ts supabase/functions/_shared/ebay-order-amounts.test.ts supabase/functions/_shared/ebay-order-source.test.ts supabase/functions/ebay-account/connection-read.test.ts supabase/functions/ebay-account/order-import.test.ts supabase/functions/marketplace-local-extension/handler.test.ts
 
       - name: Install marketplace worker dependencies
         run: npm ci --prefix services/marketplace-worker --ignore-scripts
