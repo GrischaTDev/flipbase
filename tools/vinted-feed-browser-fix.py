@@ -25,15 +25,15 @@ replace_once('e2e/sniper-administration.spec.ts',
     "await second.getByRole('combobox', { name: 'Bereich auswählen', exact: true }).click();\n    await page.getByRole('option', { name: 'Herren', exact: true }).click();",
     "await second.locator('app-vinted-category-picker button[aria-haspopup=\"dialog\"]').click();\n    const parentCategoryPanel = page.getByRole('dialog', { name: 'Kategorie · optional', exact: true });\n    await parentCategoryPanel.getByRole('option', { name: /^Herren.*Unterkategorien$/ }).click();\n    await parentCategoryPanel.getByRole('button', { name: 'Herren auswählen', exact: true }).click();\n    await expect(parentCategoryPanel).not.toBeVisible();")
 
-# Die Beweisaufnahme zeigte 28 px bei 390 px und pointer:fine. Kleine Ansichten
-# behalten daher unabhängig von der wechselnden Zeigererkennung 44-px-Ziele.
-# Die Desktopgröße bleibt 28 px, Symbole und Transparenz bleiben unverändert.
+# Der Größenanteil wird separat aufgebaut. Nur die vollständige Ausdrucksgrenze
+# der Bildaktionsvariante verwenden, nicht die Reihenfolge einzelner CSS-Klassen.
 button = root / 'src/app/shared/components/button/button.component.ts'
 text = button.read_text()
-match = re.search(r"'image-overlay':\s*'([^']*)'", text)
-assert match and 'min-h-7 min-w-7' in match[1], 'Erwartete Bildaktionsvariante fehlt.'
-replacement = match[1].replace('min-h-7 min-w-7', 'min-h-7 min-w-7 max-sm:min-h-11 max-sm:min-w-11', 1)
-button.write_text(text[:match.start(1)] + replacement + text[match.end(1):])
+match = re.search(r"('image-overlay':\s*)(.*?)(,\s*\n\s*destructive:)", text, re.S)
+assert match and 'bg-zinc-900/60' in match[2], 'Erwartete Bildaktionsvariante fehlt.'
+assert 'max-sm:min-w-11' not in match[2]
+replacement = "'max-sm:min-h-11 max-sm:min-w-11 ' + (" + match[2] + ')'
+button.write_text(text[:match.start(2)] + replacement + text[match.end(2):])
 paths.add('src/app/shared/components/button/button.component.ts')
 
 path = 'src/app/shared/components/button/button.component.angular.spec.ts'
@@ -54,7 +54,6 @@ regression = """describe('ButtonComponent', () => {
   });
 """
 replace_once(path, "describe('ButtonComponent', () => {\n", regression)
-
 verification = review / 'verify.py'
 text = verification.read_text()
 assert text.count("BASE = 'b343611fffb6f289292ca23e9b14ff9429b2868e'") == 1
