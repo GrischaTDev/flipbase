@@ -14,4 +14,5 @@ export const PLATFORM_ADMIN_NAVIGATION: readonly SubNavigationItem[] = [
   { label: 'Bewerbungen', path: '/admin/applications' },
   { label: 'Nutzer', path: '/admin/users' },
   { label: 'Vinted Bot', path: '/admin/vinted-bot' },
+  { label: 'Server-Speicher', path: '/admin/server-storage' },
 ];

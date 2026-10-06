@@ -175,7 +175,11 @@ Die Aufbewahrung ist getrennt nach Zweck:
 
 - Alle von laufenden oder gestoppten Containern verwendeten Images bleiben bestehen.
   Zusätzlich bleiben je Flipbase-Dienst zwei unbenutzte Rückfallversionen erhalten.
-  Ein Dienst ohne Container behält seine drei neuesten Versionen. Fremde Images,
+  Ein Dienst ohne Container behält seine drei neuesten Versionen. Mit
+  `--include-supabase` gilt dieselbe Grenze für Supabase. Docker-Hub- und ECR-Namen
+  desselben Dienstes teilen die Grenze; ein Image wird anhand seiner ID gezählt.
+  Alle in den aktiven Compose-Dateien vorgesehenen Images bleiben zusätzlich
+  geschützt. Fehlende Compose-Metadaten brechen die Bereinigung ab. Fremde Images,
   Container und Volumes werden nicht entfernt.
 - Lokal bleiben drei verschlüsselte Sicherungen vor Release-Migrationen sowie
   sieben vollständige nächtliche Sätze aus Datenbank, Dateien und Konfiguration.
@@ -200,7 +204,7 @@ Nach Review und ausdrücklicher Freigabe auf dem Produktionsserver installieren:
 `/opt/flipbase/`, die geprüften `backup.sh` und `migration-backup.sh` ebenfalls
 root-eigen mit Modus `0700`. Die bisherige automatische altersbasierte Löschung
 in `backup.sh` entfällt zugunsten der Inhaltsprüfung und Satzaufbewahrung.
-Zunächst `python3 -B /opt/flipbase/cleanup-server-storage.py --verify-offsite`
+Zunächst `python3 -B /opt/flipbase/cleanup-server-storage.py --include-supabase --verify-offsite`
 prüfen, dann die freigegebene Auswahl einmal mit `--apply` ausführen und freien
 Speicher sowie Dienste gegenprüfen. `cron-server-storage` als root-eigene Datei
 mit Modus `0644` nach `/etc/cron.d/flipbase-server-storage` legen; der Auftrag
@@ -218,23 +222,91 @@ getrennt geschützte Sicherungen und regelmäßige Wiederherstellungsprüfungen.
 
 ### Speicher im Betreiberbereich anzeigen
 
-Ein lokaler, gehärteter Systemd-Timer kann jede Minute ausschließlich Gesamtgröße,
+Ein lokaler, gehärteter Systemd-Timer meldet jede Minute ausschließlich Gesamtgröße,
 belegten und für die Anwendung verfügbaren Speicher sowie Messzeit für die
-Root-Partition erfassen. Dieser Prozess braucht für die Größenmessung weder
+Root-Partition. Dieser Prozess braucht für die Größenmessung weder
 Rootrechte noch einen Docker-Socket. Das Ergebnis wird über eine eng begrenzte
 Schreibfunktion mit eigenen Zugangsdaten an die bestehende Datenbank gemeldet.
 Der Zugang darf ausschließlich den einen Messdatensatz aktualisieren, nicht
 Kundendaten lesen oder die allgemeine Service-Rolle verwenden.
 
-Eine zusätzliche Tabelle/RPC mit RLS gibt Leserechte ausschließlich bestehenden
+Die Tabelle `server_storage_status` mit RLS gibt Leserechte ausschließlich bestehenden
 Plattformbetreibern über `public.is_platform_operator()`. Das Adminpanel verwendet
 seine bestehende Anmeldung. Öffentlich neue Ports, SSH-Zugang aus dem Browser,
 Docker-Socket im Webcontainer und frei ausführbare Serverbefehle sind dafür nicht
-erforderlich. Die Anzeige zeigt absolute Werte, Prozent und Messzeit; nach einer
-ausbleibenden Meldung wird der Stand als veraltet markiert. Warnstufen bei 80 und
-90 Prozent beziehungsweise weniger als 10 und 5 GiB frei wären sinnvoll.
-Das ist ein Architekturvorschlag; Tabelle, Rechte, Meldeprozess und UI sind noch
-nicht implementiert und benötigen eine eigene geprüfte Umsetzung.
+erforderlich. Unter **Administration → Server-Speicher** stehen absolute Werte,
+Prozent und Messzeit. Nach drei Minuten ohne neue Messung oder einem Ladefehler
+ist der Stand unbestätigt. Warnstufen: 80/90 Prozent oder weniger als 10/5 GiB frei.
+Die Prozentberechnung entspricht `df`: Reservierte Systemblöcke zählen nicht zum
+für Anwendungen verfügbaren Platz. Reservierter Speicher wird separat erläutert.
+
+Die Migration erzeugt weder einen Login noch ein Passwort. Nach ihrem regulären
+Release wird der lokale Zugang einmalig auf dem Server eingerichtet:
+
+1. Falls `/usr/bin/psql` fehlt, nur den PostgreSQL-Client installieren
+   (`apt-get install postgresql-client`), keinen zusätzlichen Datenbankserver.
+2. `install-server-storage-monitor.py`, `report-server-storage.py`,
+   `flipbase-server-storage.service` und `flipbase-server-storage.timer` in einen
+   ausschließlich von root beschreibbaren Installationsordner kopieren.
+3. Dort als root `python3 -B install-server-storage-monitor.py` ausführen.
+   Der Installer prüft die vorhandene Meldefunktion, erzeugt ein eigenes Passwort,
+   legt das root-eigene Credential unter `/etc/flipbase/server-storage.pg_service.conf`
+   mit Modus 0600 ab und startet zunächst eine Meldung, danach den Minutentimer.
+4. `systemctl status flipbase-server-storage.timer` und
+   `journalctl -u flipbase-server-storage.service -n 10` prüfen. Im Adminpanel müssen
+   aktuelle Werte mit aktuellem Messzeitpunkt erscheinen; Nichtbetreiber sehen sie nicht.
+
+Der Meldeprozess läuft als temporärer unprivilegierter Systemd-Nutzer. Er verbindet
+sich ausschließlich mit dem schon vorhandenen Loopback-Datenbankport. Der eigene
+Login besitzt keine Rollenmitgliedschaften, keine Tabellenrechte und ausschließlich
+EXECUTE auf `report_server_storage(bigint,bigint,bigint)`. Die Funktion kann nur den
+Datensatz mit ID 1 ersetzen, keine Messhistorie aufbauen. Sie läuft mit festen
+Tabellenbezügen und leerem `search_path`; PUBLIC, Anon, Anmeldung und allgemeine
+Dienstrolle erhalten keine Ausführungsrechte. Der Browser erhält keine Meldezugangsdaten.
+
+Systemd reicht die Zugangsdaten über `LoadCredential` an libpq weiter;
+`PGSERVICEFILE` verweist nur auf diesen geschützten Dateipfad. Passwort und
+Verbindungsfehler werden nicht protokolliert. Schon beim Einrichten gelangt nur
+ein SCRAM-Verifier ins SQL, kein Klartextpasswort für Datenbank-Auditlogs.
+Die PostgreSQL-
+[Service-Datei](https://www.postgresql.org/docs/17/libpq-pgservice.html) verhindert
+Passwörter in Prozessargumenten. Die Rechte folgen dem Supabase-
+[RLS-Modell](https://supabase.com/docs/guides/database/postgres/row-level-security).
+Eine erneute Installation rotiert ausschließlich dieses Meldepasswort. Nach einem
+Restore den Installer erneut ausführen; Kundenzugangsdaten bleiben davon unabhängig.
+
+Der CLI-Abgleich hat bei neuen Objekten pauschale bestehende Default-Grants nicht
+vollständig aufgehoben. `scripts/server-storage-migration.mjs` ergänzt deshalb die
+expliziten Rechte aus dem deklarativen Schema in die neu erzeugte Migration.
+Die DB-Tests prüfen diesen Fall einschließlich sofortigem Entzug von Betreiberrechten.
+
+### Gemessene Restbelegung am 6. Oktober 2026
+
+Nach der ersten Bereinigung: ungefähr 44 GiB belegt, 29 GiB verfügbar, 61 Prozent.
+Die folgenden Größen sind gemessene Verzeichnisgrößen; Docker-Imagegrößen und
+Container-Mounts dürfen nicht zusätzlich dazu addiert werden.
+
+| Bereich                             | Belegung      | Einordnung                                                                           |
+| ----------------------------------- | ------------- | ------------------------------------------------------------------------------------ |
+| Docker/containerd                   | etwa 30 GiB   | Komprimierte Images und entpackte Schichten; mehrere Supabase- und Browser-Versionen |
+| Docker-Verwaltung, Logs und Volumes | etwa 1,7 GiB  | Containerlogs knapp 1 GiB, überwiegend Envoy, Realtime und Pooler                    |
+| Swapdatei                           | 4 GiB         | Auslagerungsspeicher des Betriebssystems                                             |
+| Lokale Sicherungen                  | etwa 2,7 GiB  | Drei Release-Sicherungen und sieben vollständige Tagesstände                         |
+| PostgreSQL-Daten                    | etwa 2,2 GiB  | Feed allein etwa 1,9 GiB inklusive Indizes und ausgelagerter Werte                   |
+| Systemlogs                          | etwa 0,6 GiB  | Journal etwa 0,5 GiB                                                                 |
+| Betriebssystem unter `/usr`         | etwa 1,9 GiB  | Programme und Bibliotheken                                                           |
+| Browserprofile und Diagnoseordner   | etwa 0,45 GiB | Echte Profile nicht als Cache löschen                                                |
+
+Weitere unbenutzte Supabase-Versionen und große Browser-Rückfallversionen erklären
+den Hauptteil des zusätzlichen Einsparpotenzials. Der aktive Chromium-Stand ist
+kleiner als die beiden erhaltenen Vorgänger. Zusätzlich laufen zeitweise isolierte
+Datenbanktests anderer Sitzungen; deren Container und Images werden nicht entfernt.
+Die freigegebene Supabase-Begrenzung ist im stündlichen Auftrag eingeschaltet;
+sie schützt alle Container- und Compose-Versionen plus zwei zusätzliche Versionen
+je Dienst. Das Entfernen eines Images verändert keine Datenbank und keine Volumes.
+Ein späterer Bereinigungsschritt muss Aliasse aus Docker Hub/ECR, aktuelle
+Compose-Konfigurationen und alle Container gemeinsam berücksichtigen. Docker-
+Volumen, Datenbankdateien und Browserprofile sind keine pauschalen Löschkandidaten.
 
 | Datei                           | Ort auf dem Server                               |
 | ------------------------------- | ------------------------------------------------ |
