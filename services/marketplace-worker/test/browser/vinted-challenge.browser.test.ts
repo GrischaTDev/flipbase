@@ -104,3 +104,62 @@ for (const step of ['login', 'sms'] as const) {
     }
   });
 }
+
+for (const scenario of ['authenticated', 'pending', 'rejected', 'invalid', 'forbidden'] as const) {
+  test(`checks the account API before a remaining login form: ${scenario}`, async () => {
+    const browser = await chromium.launch({ headless: true });
+    try {
+      const page = await browser.newPage();
+      let identityFetches = 0;
+      let submissions = 0;
+      await page.route('**/*', (route) => {
+        const request = route.request();
+        if (request.method() !== 'GET') submissions++;
+        if (new URL(request.url()).pathname === '/api/v2/users/current') {
+          identityFetches++;
+          return route.fulfill({
+            status:
+              scenario === 'pending' || scenario === 'rejected'
+                ? 401
+                : scenario === 'forbidden'
+                  ? 403
+                  : 200,
+            contentType: 'application/json',
+            body: JSON.stringify(
+              scenario === 'invalid'
+                ? { user: { id: 0 } }
+                : { user: { id: 12345, login: 'fixture' } },
+            ),
+          });
+        }
+        return route.fulfill({
+          contentType: 'text/html',
+          body: '<meta charset="utf-8"><input name="password" type="password"><p>Ungültiger Mitgliedsname oder Passwort</p>',
+        });
+      });
+      await page.goto('https://www.vinted.de/member/login/email');
+      if (scenario === 'authenticated') {
+        assert.deepEqual(await readVintedAccountIdentity(page), {
+          id: '12345',
+          username: 'fixture',
+        });
+      } else if (scenario === 'pending' || scenario === 'rejected') {
+        if (scenario === 'pending')
+          await page.locator('p').evaluate((paragraph) => paragraph.remove());
+        await assert.rejects(readVintedAccountIdentity(page), {
+          name: scenario === 'pending' ? 'VintedLoginPendingError' : 'Error',
+          message:
+            scenario === 'pending'
+              ? 'Vinted zeigt weiterhin das Anmeldeformular'
+              : 'Vinted hat die Zugangsdaten abgelehnt',
+        });
+      } else {
+        assert.equal(await readVintedAccountIdentity(page), null);
+      }
+      assert.equal(identityFetches, 1);
+      assert.equal(submissions, 0);
+    } finally {
+      await browser.close();
+    }
+  });
+}
