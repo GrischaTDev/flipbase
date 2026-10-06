@@ -1,0 +1,27 @@
+[Unit]
+Description=Flipbase server storage measurement
+After=network.target docker.service
+
+[Service]
+Type=oneshot
+DynamicUser=yes
+LoadCredential=pg-service:/etc/flipbase/server-storage.pg_service.conf
+Environment=PGSERVICEFILE=%d/pg-service
+ExecStart=/usr/bin/python3 -B /opt/flipbase/report-server-storage.py
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_INET AF_UNIX
+IPAddressDeny=any
+IPAddressAllow=localhost
+TimeoutStartSec=20
+MemoryMax=128M
+UMask=0077
