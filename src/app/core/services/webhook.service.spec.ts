@@ -16,6 +16,17 @@ describe('Webhook & Notification Service', () => {
     vi.unstubAllGlobals();
   });
 
+  it('meldet für den nicht implementierten Custom-Versand keinen Erfolg', async () => {
+    const fetcher = vi.fn();
+    vi.stubGlobal('fetch', fetcher);
+
+    const result = await webhookService.sendTestNotification('custom');
+
+    expect(result.success).toBe(false);
+    expect(result.message).toContain('noch nicht versendet');
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
   it('should initialize with default config and no notifications', () => {
     const cfg = webhookService.config();
     expect(cfg.notifyOnSale).toBe(true);

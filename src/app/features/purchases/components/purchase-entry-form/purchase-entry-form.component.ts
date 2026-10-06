@@ -844,13 +844,16 @@ export class PurchaseEntryFormComponent {
   private updatePurchaseBasePriceFromLines(lines: readonly PurchaseLineDraft[]): void {
     if (this.form.controls.pricing_mode.value === 'total') return;
 
+    if (lines.length === 0) {
+      this.form.controls.purchase_price.setValue(null, { emitEvent: false });
+      this.purchaseBasePrice.set(null);
+      return;
+    }
+
     const knownTotals = lines
       .map((line) => line.lineTotal)
       .filter((value): value is number => value !== null);
-    const purchaseBasePrice =
-      knownTotals.length === lines.length
-        ? Number(knownTotals.reduce((sum, value) => sum + value, 0).toFixed(2))
-        : null;
+    const purchaseBasePrice = Number(knownTotals.reduce((sum, value) => sum + value, 0).toFixed(2));
     this.form.controls.purchase_price.setValue(purchaseBasePrice, { emitEvent: false });
     this.purchaseBasePrice.set(purchaseBasePrice);
   }

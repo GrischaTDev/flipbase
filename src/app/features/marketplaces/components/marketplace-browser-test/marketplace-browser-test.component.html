@@ -27,14 +27,22 @@
     @if (accounts.mutationError(); as error) {
       <app-notice-banner class="mt-4" announcement="alert">{{ error }}</app-notice-banner>
     }
-    @if (store.error(); as error) {
-      <app-notice-banner class="mt-4" announcement="alert">{{ error }}</app-notice-banner>
-    }
-    @if (store.interactionRequired()) {
-      <app-notice-banner class="mt-4" announcement="status">
-        Vinted braucht Deine Bestätigung. Löse die Mensch-Prüfung in der Browseransicht und klicke
-        anschließend auf „Anmeldung prüfen &amp; verbinden“. Deine Sitzung bleibt geöffnet.
-      </app-notice-banner>
+    @if (
+      !store.session()?.frameUrl ||
+      store.readOnly() ||
+      store.cloudVerified() ||
+      store.cloudCompleted() ||
+      store.cloudCancelled()
+    ) {
+      @if (store.error(); as error) {
+        <app-notice-banner class="mt-4" announcement="alert">{{ error }}</app-notice-banner>
+      }
+      @if (store.interactionRequired()) {
+        <app-notice-banner class="mt-4" announcement="status">
+          Vinted braucht Deine Bestätigung. Löse die Mensch-Prüfung in der Browseransicht und klicke
+          anschließend auf "Anmeldung prüfen &amp; verbinden". Deine Sitzung bleibt geöffnet.
+        </app-notice-banner>
+      }
     }
     @if (store.cloudCancelled()) {
       <app-notice-banner announcement="status"
@@ -122,59 +130,60 @@
           !store.awaitingVerification() &&
           !store.interactionRequired()
         ) {
-          <form
-            class="mt-4 max-w-md space-y-4"
-            autocomplete="off"
-            [formGroup]="loginForm"
-            (ngSubmit)="login()"
-          >
-            <app-text-field
-              label="Vinted-Mitgliedsname oder E-Mail"
-              autocomplete="off"
-              [formControl]="loginForm.controls.username"
-              [required]="true"
-              [maxLength]="256"
-            />
-            <app-text-field
-              label="Vinted-Passwort"
-              type="password"
-              autocomplete="new-password"
-              [revealable]="true"
-              [formControl]="loginForm.controls.password"
-              [required]="true"
-              [maxLength]="256"
-            />
-            <p class="text-xs text-fb-text-secondary">
-              Die Anmeldung läuft im Hintergrund in Deinem eigenen Kontoprofil. Cookiehinweise
-              werden auf notwendige Cookies beschränkt. Flipbase speichert Dein Passwort nicht.
-            </p>
-            <div class="flex flex-wrap gap-2">
-              <app-button
-                type="submit"
-                variant="primary"
-                [disabled]="submitting() || !canSubmitLogin() || loginForm.invalid"
-              >
-                Anmelden und Konto verbinden
-              </app-button>
-              @if (!store.session()) {
-                <app-button
-                  type="button"
-                  variant="secondary"
-                  [disabled]="!store.canStart()"
-                  [loading]="store.busy()"
-                  (clicked)="openManualBrowser()"
-                >
-                  Direkt im Browser anmelden
-                </app-button>
-              }
-            </div>
-            @if (!store.session()) {
+          <app-card class="mt-4" title="Anmeldedaten" variant="subtle" padding="sm">
+            <form class="space-y-3" autocomplete="off" [formGroup]="loginForm" (ngSubmit)="login()">
+              <div class="grid gap-3 sm:grid-cols-2">
+                <app-text-field
+                  class="min-w-0"
+                  label="Vinted-Mitgliedsname oder E-Mail"
+                  autocomplete="off"
+                  [formControl]="loginForm.controls.username"
+                  [required]="true"
+                  [maxLength]="256"
+                />
+                <app-text-field
+                  class="min-w-0"
+                  label="Vinted-Passwort"
+                  type="password"
+                  autocomplete="new-password"
+                  [revealable]="true"
+                  [formControl]="loginForm.controls.password"
+                  [required]="true"
+                  [maxLength]="256"
+                />
+              </div>
               <p class="text-xs text-fb-text-secondary">
-                Für "Direkt im Browser anmelden" bleiben diese Felder leer. Gib Deine Zugangsdaten
-                anschließend direkt in der Browseransicht ein.
+                Die Anmeldung läuft im Hintergrund in Deinem eigenen Kontoprofil. Cookiehinweise
+                werden auf notwendige Cookies beschränkt. Flipbase speichert Dein Passwort nicht.
               </p>
-            }
-          </form>
+              <div class="flex flex-wrap gap-2">
+                <app-button
+                  type="submit"
+                  variant="primary"
+                  [disabled]="submitting() || !canSubmitLogin() || loginForm.invalid"
+                >
+                  Anmelden und Konto verbinden
+                </app-button>
+                @if (!store.session()) {
+                  <app-button
+                    type="button"
+                    variant="secondary"
+                    [disabled]="!store.canStart()"
+                    [loading]="store.busy()"
+                    (clicked)="openManualBrowser()"
+                  >
+                    Direkt im Browser anmelden
+                  </app-button>
+                }
+              </div>
+              @if (!store.session()) {
+                <p class="text-xs text-fb-text-secondary">
+                  Für "Direkt im Browser anmelden" bleiben diese Felder leer. Gib Deine Zugangsdaten
+                  anschließend direkt in der Browseransicht ein.
+                </p>
+              }
+            </form>
+          </app-card>
         }
         @if (showProgress()) {
           <div
@@ -220,126 +229,148 @@
           </form>
         }
         @if (store.progress(); as progress) {
-          @if (!showProgress()) {
+          @if (!showProgress() && !store.session()?.frameUrl) {
             <p role="status" class="mt-4 text-sm text-fb-text-secondary">{{ progress }}</p>
           }
         }
         @if (store.session(); as session) {
-          @if (store.manualLogin()) {
-            <p role="status" class="mt-4 text-sm text-fb-text-secondary">
-              Die Browseransicht startet auf der Vinted-Startseite. Wähle dort "Einloggen" für Dein
-              bestehendes Konto und bestätige bei Bedarf die notwendigen Cookies. Gib Deine
-              Zugangsdaten und einen angeforderten SMS-Code direkt in der Browseransicht ein. Wenn
-              Du in Deinem Vinted-Konto bist, klicke auf "Anmeldung prüfen &amp; verbinden".
-            </p>
-          }
           @if (session.frameUrl) {
-            <div
-              #browserPreview
-              tabindex="-1"
-              aria-label="Vinted-Browseransicht"
-              class="mt-5 space-y-3 rounded-xl border border-fb-border bg-fb-surface p-4"
-            >
-              <div class="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <h3 class="text-sm font-semibold text-fb-text-primary">Browser-Vorschau</h3>
-                  <p class="text-xs text-fb-text-secondary">
-                    @if (store.dragSupported()) {
-                      Klicke ins Bild oder halte und ziehe mit Maus oder Finger. Nach dem Loslassen
-                      wird Deine Bewegung übertragen und das Bild aktualisiert.
-                    } @else {
-                      Klicke ins Bild, um Vinted zu bedienen. Die Ziehfunktion ist momentan nicht
-                      verfügbar.
-                    }
-                  </p>
-                </div>
-                <div class="flex flex-wrap items-center gap-2">
-                  <app-button size="slim" [disabled]="!store.canAct()" (clicked)="store.refresh()">
-                    Bild aktualisieren
-                  </app-button>
-                  <app-button
-                    size="slim"
-                    variant="primary"
-                    [disabled]="!store.canAct()"
-                    (clicked)="store.confirmAccount()"
-                  >
-                    Anmeldung prüfen & verbinden
-                  </app-button>
-                </div>
-              </div>
-              <div
-                class="max-w-full overflow-auto rounded-lg border border-fb-border/60 bg-black/5"
-              >
-                <button
-                  type="button"
-                  class="relative block w-full touch-none select-none cursor-pointer focus-visible:outline-2 focus-visible:outline-fb-primary disabled:opacity-50"
-                  aria-label="Browserbild anklicken oder mit Maus oder Finger ziehen"
-                  [disabled]="!store.canAct()"
-                  (click)="clickFrame($event)"
-                  (pointerdown)="startPointer($event)"
-                  (pointermove)="movePointer($event)"
-                  (pointerup)="endPointer($event)"
-                  (pointercancel)="cancelPointer($event)"
-                  (lostpointercapture)="cancelPointer($event)"
-                >
-                  <img
-                    [src]="session.frameUrl"
-                    alt="Aktuelles Browserbild der Vinted-Anmeldung"
-                    class="block w-full"
-                    [draggable]="false"
-                  />
-                  @if (pointerPosition(); as position) {
-                    <span
-                      class="pointer-events-none absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border border-black bg-fb-primary"
-                      [style.left.%]="position.x * 100"
-                      [style.top.%]="position.y * 100"
-                      aria-hidden="true"
-                    ></span>
+            <div #browserPreview tabindex="-1" aria-label="Vinted-Browseransicht" class="mt-4">
+              <app-card title="Browser-Vorschau" padding="sm">
+                <div class="space-y-3">
+                  @if (store.error(); as error) {
+                    <app-notice-banner announcement="alert">{{ error }}</app-notice-banner>
                   }
-                </button>
-              </div>
-              @if (pointerMessage(); as message) {
-                <p role="status" class="text-sm text-fb-text-secondary">{{ message }}</p>
-              }
-              <p class="text-xs text-fb-text-secondary">
-                Für Texte klicke zuerst das gewünschte Feld im Browserbild an. Füge dann E-Mail,
-                Passwort oder Code unten ein und klicke auf "Senden". Wenn sich die Seite nach einer
-                Eingabe weiter verändert, klicke auf "Bild aktualisieren".
-              </p>
-              <div class="flex flex-wrap items-center gap-2 pt-1">
-                <app-text-field
-                  class="min-w-44 flex-1"
-                  label="Text in aktives Feld senden"
-                  type="password"
-                  autocomplete="off"
-                  [revealable]="true"
-                  [formControl]="manualTextInput"
-                  [maxLength]="256"
-                />
-                <app-button
-                  class="self-end"
-                  [disabled]="!store.canAct() || !manualTextInput.value"
-                  (clicked)="sendManualText()"
-                >
-                  Senden
-                </app-button>
-                <div class="flex gap-1 self-end">
-                  <app-button size="slim" [disabled]="!store.canAct()" (clicked)="sendKey('Enter')"
-                    >Enter</app-button
+                  @if (store.interactionRequired()) {
+                    <app-notice-banner announcement="status">
+                      Vinted braucht Deine Bestätigung. Löse die Mensch-Prüfung hier im Browser und
+                      klicke anschließend auf "Anmeldung prüfen &amp; verbinden".
+                    </app-notice-banner>
+                  }
+                  @if (store.progress(); as progress) {
+                    <p role="status" class="text-sm text-fb-text-secondary">{{ progress }}</p>
+                  }
+                  @if (store.manualLogin()) {
+                    <p class="text-xs text-fb-text-secondary">
+                      Wähle im Browser "Einloggen". Gib dort Deine Zugangsdaten und einen
+                      angeforderten SMS-Code ein. Sobald Du angemeldet bist, klicke auf "Anmeldung
+                      prüfen &amp; verbinden".
+                    </p>
+                  }
+                  <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p class="text-xs text-fb-text-secondary">
+                        @if (store.dragSupported()) {
+                          Klicke ins Bild oder halte und ziehe mit Maus oder Finger. Nach dem
+                          Loslassen wird Deine Bewegung übertragen und das Bild aktualisiert.
+                        } @else {
+                          Klicke ins Bild, um Vinted zu bedienen. Die Ziehfunktion ist momentan
+                          nicht verfügbar.
+                        }
+                      </p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                      <app-button
+                        size="slim"
+                        [disabled]="!store.canAct()"
+                        (clicked)="store.refresh()"
+                      >
+                        Bild aktualisieren
+                      </app-button>
+                      <app-button
+                        size="slim"
+                        variant="primary"
+                        [disabled]="!store.canAct()"
+                        (clicked)="store.confirmAccount()"
+                      >
+                        Anmeldung prüfen & verbinden
+                      </app-button>
+                    </div>
+                  </div>
+                  <div
+                    class="max-w-full overflow-auto rounded-lg border border-fb-border/60 bg-black/5"
                   >
-                  <app-button size="slim" [disabled]="!store.canAct()" (clicked)="sendKey('Tab')"
-                    >Tab</app-button
-                  >
-                  <app-button size="slim" [disabled]="!store.canAct()" (clicked)="sendKey('Escape')"
-                    >Esc</app-button
-                  >
+                    <button
+                      type="button"
+                      class="relative block w-full touch-none select-none cursor-pointer focus-visible:outline-2 focus-visible:outline-fb-primary disabled:opacity-50"
+                      aria-label="Browserbild anklicken oder mit Maus oder Finger ziehen"
+                      [disabled]="!store.canAct()"
+                      (click)="clickFrame($event)"
+                      (pointerdown)="startPointer($event)"
+                      (pointermove)="movePointer($event)"
+                      (pointerup)="endPointer($event)"
+                      (pointercancel)="cancelPointer($event)"
+                      (lostpointercapture)="cancelPointer($event)"
+                    >
+                      <img
+                        [src]="session.frameUrl"
+                        alt="Aktuelles Browserbild der Vinted-Anmeldung"
+                        class="block w-full"
+                        [draggable]="false"
+                      />
+                      @if (pointerPosition(); as position) {
+                        <span
+                          class="pointer-events-none absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border border-black bg-fb-primary"
+                          [style.left.%]="position.x * 100"
+                          [style.top.%]="position.y * 100"
+                          aria-hidden="true"
+                        ></span>
+                      }
+                    </button>
+                  </div>
+                  @if (pointerMessage(); as message) {
+                    <p role="status" class="text-sm text-fb-text-secondary">{{ message }}</p>
+                  }
+                  <p class="text-xs text-fb-text-secondary">
+                    Für Texte klicke zuerst das gewünschte Feld im Browserbild an. Füge dann E-Mail,
+                    Passwort oder Code unten ein und klicke auf "Senden". Wenn sich die Seite nach
+                    einer Eingabe weiter verändert, klicke auf "Bild aktualisieren".
+                  </p>
+                  <div class="flex flex-wrap items-center gap-2 pt-1">
+                    <app-text-field
+                      class="min-w-44 flex-1"
+                      label="Text in aktives Feld senden"
+                      type="password"
+                      autocomplete="off"
+                      [revealable]="true"
+                      [formControl]="manualTextInput"
+                      [maxLength]="256"
+                    />
+                    <app-button
+                      class="self-end"
+                      [disabled]="!store.canAct() || !manualTextInput.value"
+                      (clicked)="sendManualText()"
+                    >
+                      Senden
+                    </app-button>
+                    <div class="flex gap-1 self-end">
+                      <app-button
+                        size="slim"
+                        [disabled]="!store.canAct()"
+                        (clicked)="sendKey('Enter')"
+                        >Enter</app-button
+                      >
+                      <app-button
+                        size="slim"
+                        [disabled]="!store.canAct()"
+                        (clicked)="sendKey('Tab')"
+                        >Tab</app-button
+                      >
+                      <app-button
+                        size="slim"
+                        [disabled]="!store.canAct()"
+                        (clicked)="sendKey('Escape')"
+                        >Esc</app-button
+                      >
+                    </div>
+                  </div>
+                  <div class="flex justify-end pt-1">
+                    <app-button variant="destructive" size="slim" (clicked)="store.close()">
+                      Anmeldung beenden
+                    </app-button>
+                  </div>
                 </div>
-              </div>
-              <div class="flex justify-end pt-1">
-                <app-button variant="destructive" size="slim" (clicked)="store.close()">
-                  Anmeldung beenden
-                </app-button>
-              </div>
+              </app-card>
             </div>
           } @else {
             <div class="mt-4 flex flex-wrap gap-2">

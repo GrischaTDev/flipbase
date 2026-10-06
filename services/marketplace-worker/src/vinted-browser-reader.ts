@@ -81,12 +81,6 @@ export async function readVintedAccountIdentity(
   let response: unknown;
   try {
     response = await page.evaluate(async () => {
-      if (location.pathname === '/member/login/email') {
-        if (document.body.innerText.includes('Ungültiger Mitgliedsname oder Passwort'))
-          return { loginRejected: true };
-        if (document.querySelector('input[name="password"][type="password"]'))
-          return { loginPending: true };
-      }
       const result = await fetch('/api/v2/users/current', {
         method: 'GET',
         credentials: 'include',
@@ -95,7 +89,16 @@ export async function readVintedAccountIdentity(
         signal: AbortSignal.timeout(8_000),
       });
       if (new URL(result.url).origin !== 'https://www.vinted.de') return null;
-      if (result.status === 401) return { loginPending: true };
+      if (result.status === 401) {
+        // Ein alter Login-Tab kann trotz gültiger Anmeldung in einem anderen Tab
+        // sein Formular behalten. Nur eine abgelehnte Kontoprüfung wertet es aus.
+        if (
+          location.pathname === '/member/login/email' &&
+          document.body.innerText.includes('Ungültiger Mitgliedsname oder Passwort')
+        )
+          return { loginRejected: true };
+        return { loginPending: true };
+      }
       if (!result.ok || !result.headers.get('content-type')?.includes('application/json'))
         return null;
       const value: unknown = await result.json();

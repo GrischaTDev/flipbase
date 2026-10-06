@@ -8,7 +8,13 @@
 # Authelia mit Anmeldeseite und zweitem Faktor.
 # ---------------------------------------------------------------------------
 {$PROXY_DOMAIN} {
-	@supabase_api path /auth/v1/* /rest/v1/* /graphql/v1 /realtime/v1/* /storage/v1/* /functions/v1/* /mcp /sso/*
+	# MCP bleibt intern, auch wenn der Gateway spaeter anders konfiguriert wird.
+	@supabase_mcp path /mcp /mcp/* /api/mcp /api/mcp/*
+	handle @supabase_mcp {
+		respond 404
+	}
+
+	@supabase_api path /auth/v1/* /rest/v1/* /graphql/v1 /realtime/v1/* /storage/v1/* /functions/v1/* /sso/*
 
 	handle @supabase_api {
 		reverse_proxy api-gw:8000
@@ -23,6 +29,9 @@
 		reverse_proxy studio:3000
 	}
 
+	# Kurze Anfangslaufzeit; Subdomains und Preload werden nicht pauschal gebunden.
+	# Erst beim Senden setzen, damit auch Authelia-Ablehnungen den Header behalten.
+	header >Strict-Transport-Security "max-age=300"
 	header -server
 }
 
@@ -34,6 +43,7 @@
 auth.flipbase.de {
 	reverse_proxy authelia:9091
 
+	header >Strict-Transport-Security "max-age=300"
 	header X-Robots-Tag "noindex, nofollow"
 	header -server
 }
@@ -53,6 +63,7 @@ app.flipbase.de {
 	}
 
 	# Verwaltungsoberflaeche gehoert nicht in Suchmaschinen.
+	header >Strict-Transport-Security "max-age=300"
 	header X-Robots-Tag "noindex, nofollow"
 	header -server
 }
@@ -63,6 +74,7 @@ app.flipbase.de {
 # ---------------------------------------------------------------------------
 www.flipbase.de {
 	redir https://flipbase.de{uri} permanent
+	header >Strict-Transport-Security "max-age=300"
 	header -server
 }
 
@@ -77,6 +89,7 @@ flipbase.de {
 
 	header {
 		-server
+		>Strict-Transport-Security "max-age=300"
 		X-Content-Type-Options nosniff
 		X-Frame-Options DENY
 		Referrer-Policy strict-origin-when-cross-origin

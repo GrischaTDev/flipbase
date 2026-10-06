@@ -34,6 +34,165 @@
 
 **Prüfung und Grenzen:** `df`, begrenzte Verzeichnisgrößenmessungen, `docker system df`, ausschließlich ausgewählte Container-Metadaten, aggregierte Backup-Dateigrößen, SQL-Größen/Statistiken, die produktive Löschfunktion sowie gefilterte Bereinigungslogs gelesen. Keine Serverdateien, Datenbankdaten oder Container verändert, keine Images oder Backups gelöscht. Die Untersuchung dokumentiert einen Zeitpunkt; die laufende Feedbereinigung verändert die Zahlen. Das Protokoll liegt in einem eigenen Analysezweig; fremde Zweige bleiben unverändert.
 
+## 2026-10-06 - Juna - Sicherheitskorrekturen über PR abschließen
+
+**Freigabe:** Der Nutzer bestätigt Push, PR-Erstellung, Merge-Commit nach
+erfolgreichen Pflichtprüfungen und anschließendes Aufräumen des eigenen Zweigs
+`juna/security-report-triage` samt Worktree. Der aktuelle master einschließlich
+PR #318 und #319 ist enthalten. Serverseitiger Webhook-Versand und die Trennung
+des Docker-Controllers bleiben als nummerierte Backend-Issues offen.
+
+## 2026-10-06 - Juna - bestätigte Sicherheitsbefunde korrigieren
+
+**Auftrag:** Nach Freigabe die bestätigten Befunde im eigenen Zweig
+`juna/security-report-triage` korrigieren und prüfen.
+
+**Umsetzung:** Caddy sperrt `/mcp` und `/api/mcp` einschließlich Unterpfaden vor
+der öffentlichen API-Freigabe. Alle fünf TLS-Domains erhalten HSTS mit zunächst
+300 Sekunden ohne Subdomainbindung oder Preload. Webhook-Konfigurationen werden
+nicht mehr im Browser gespeichert; beide früheren Speicherschlüssel werden bereits
+vor Angular und der Präfix-Migration entfernt. Speichern setzt die vollständig
+geladene Konfiguration des aktiven Workspace voraus. Eigene Webhook-Tests melden
+den fehlenden Versand korrekt. Nodemailer gehört im Hauptprojekt nur noch zu den
+Testabhängigkeiten. Die zusammengehörigen Angular-Pakete sind auf 22.2.1 aktualisiert;
+die abhängigen Buildpakete einschließlich Piscina 5.3.2 sind neu aufgelöst.
+
+**Prüfung:** Paket-Audit ohne bekannte Schwachstellen, vollständige Anwendungssuiten
+(Node, DOM, Angular), 222 Workflow-Tests sowie Build, Lint und Typprüfung bestanden.
+Die unabhängige Prüfung zeigte zwei zusätzliche Browser-/Workspace-Pfade; die neuen
+Regressionstests reproduzierten sie vor der Korrektur und bestehen danach zusammen
+mit den zugehörigen Service-, Speicher- und gerenderten Einstellungsprüfungen.
+Caddy-Konfiguration validiert und mit dem installierten Image in einem kurzlebigen
+Container ohne Netzanschluss gegen lokale Testgegenstellen geprüft: sechs MCP-Pfade
+abgewiesen, öffentliche APIs und angemeldetes Studio erreichbar, anonymes Studio
+abgewiesen, Browserroute und HSTS aller fünf Hosts erhalten. Testcontainer entfernt.
+Die währenddessen gemergten PRs #318 und #319 sind aus `origin/master` übernommen;
+alle Protokolleinträge bleiben erhalten. Auf den verbundenen Ständen bestehen
+zusätzlich 127 Einstellungs-/Produkt-/Einkaufstests und vier Browserdialogtests
+sowie die Typprüfung und der Produktionsbau.
+
+**Offen:** Produktionskonfiguration nur gelesen, keine Auslieferung. Das installierte
+Envoy verweigert MCP bereits; Caddy ergänzt die äußere Sperre. Serverseitiger
+Webhook-Geheimnisspeicher und die Trennung des Docker-Controllers erfordern Backend-
+beziehungsweise Betriebsarbeit. Gemäß der Frontend-Grenze liegen dafür die nummerierten
+Dateien `01-webhook-secrets-and-server-dispatch.md` und
+`02-docker-controller-privilege-boundary.md` auf dem Desktop unter
+`Backend Issues/security-report-triage`. Keine Backend-, Schema- oder Edge-Änderung.
+
+## 2026-10-06 - Juna - externen Sicherheitsbericht prüfen
+
+**Auftrag:** Die Befunde des bereitgestellten Sicherheitsberichts am aktuellen Projektstand prüfen und Sicherheitsrisiken von Funktionsfehlern und Wartungsaufgaben unterscheiden.
+
+**Analyse:** Der untersuchte Arbeitsstand `c7d5c2cc` und `origin/master` `d73e990b` enthalten dieselben für den Bericht relevanten Konfigurationen. `/mcp` umgeht im Caddyfile Authelia; eine anonyme administrative Zugriffsmöglichkeit bleibt ohne die installierte Gateway-Konfiguration unbewiesen. HSTS fehlt in den versionierten Headerkonfigurationen. Der Chromium-Pilotcontroller erhält den Docker-Socket, die Browsercontainer erhalten ihn nicht; eine reine Freigabe von Container-Erstellung und Start würde gefährliche Hostmounts nicht verhindern. Telegram-Token und Discord-Webhook-URL werden im Browser verarbeitet und lokal gespeichert; die Tabelle ist durch Workspace-RLS geschützt. Custom-Webhooks besitzen dagegen keinen tatsächlichen Versand, und ihr Test meldet ohne Anfrage Erfolg. Nodemailer wird außerhalb der Edge Function nur im Testfixture importiert und gehört dort in die Entwicklungsabhängigkeiten; das Produktionsimage enthält keinen Node-Laufzeitserver. Die beiden Marketplace-Preview-Workflows haben keinen passenden Remotezweig mehr; der Product-Preview-PR #46 ist bereits gemergt, sein lokaler Worktree besteht noch. Die beiden genannten Hilfsskripte haben keine gefundenen produktiven Aufrufer; daraus folgt bei manuellen Wartungswerkzeugen noch keine sichere Löschfreigabe. 20 ignorierte `.superpowers`-Dateien sind weiterhin versioniert. Die genannten großen Dateien existieren mit den angegebenen Größen; ihre Aufteilung ist eine Wartungsaufgabe.
+
+**Prüfung:** Statische Quellcode-, Konfigurations-, Schema-, Lockfile- und CI-Prüfung sowie lesende GitHub-Abfragen. Die aktuellen Herstellerhinweise zu Supabase-MCP, Docker, HSTS und den betroffenen Angular-/Piscina-Paketen wurden geprüft. `npm audit --json --ignore-scripts` meldet 13 betroffene Pakete (3 kritisch, 7 hoch, 3 moderat). Ohne Entwicklungsabhängigkeiten bleibt ein hoher Angular-Router-Befund; dessen SSR-Voraussetzung fehlt bei der dokumentierten statischen Browserauslieferung. Keine Tests, Builds, Exploitversuche oder Produktionszugriffe. Kein Produktcode geändert; nur dieser vorgeschriebene Sitzungseintrag im eigenen Worktree.
+
+## 2026-10-06 - Juna - Korrektur der Cloud-Anmeldebestätigung veröffentlichen
+
+**Freigabe:** Der Nutzer bestätigt PR-Erstellung, Merge nach erfolgreichen
+Pflichtprüfungen und anschließende Bereinigung des eigenen Zweigs. Die lokal
+geprüfte Korrektur der Identitätsprüfung, der kompakte Anmeldedialog und das
+bestehende Rolloutprotokoll werden gemeinsam integriert. Anschließend wird
+der Browserdienst auf das geprüfte Workerimage aktualisiert; das bereits
+abgenommene unveränderte Chrome-Sitzungsimage bleibt erhalten. Eine erfolgreiche
+produktive Kontoverknüpfung bleibt bis zum echten Nutzerabschluss offen.
+
+## 2026-10-06 - Juna - Cloud-Anmeldung trotz verbliebenem Loginformular bestätigen
+
+**Auftrag:** Die manuelle Anmeldung mit SMS gelingt, aber „Anmeldung prüfen &
+verbinden“ meldet weiterhin ein Anmeldeformular. Zugangsdaten kompakter darstellen
+und die zugehörige Meldung direkt bei der großen Browseransicht platzieren.
+
+**Live-Diagnose:** Im laufenden Cloudprofil sind ein alter, inaktiver Login-Tab
+mit Passwortfeld und ein sichtbarer Vinted-Tab vorhanden. Die unveränderte
+Identitätsprüfung bricht im Login-Tab vor dem Kontoprüfungsabruf ab. Ein eigener
+begrenzter GET auf denselben Tab liefert dagegen HTTP 200 und bestätigt die
+erwartete Maike-Vintage-ID. Auch der sichtbare Tab bestätigt diese Identität.
+Es werden nur Status und Übereinstimmung ausgegeben, keine Zugangsdaten oder
+Kontoinhalte. Die Ursache der veralteten Seite selbst ist damit nicht bewiesen.
+
+**Korrektur:** Die feste Vinted-Kontoprüfung erhält Vorrang vor einem verbliebenen
+E-Mail-Anmeldeformular. Nur HTTP 401 wertet dessen Ablehnungshinweis aus.
+Mensch-Prüfung, SMS-Stufe, Domainprüfung und Validierung der Kontoidentität
+bleiben erhalten. Kein Konto wird anhand eines sichtbaren Seitenelements
+oder einer ungültigen API-Antwort verbunden; keine automatischen Loginversuche.
+
+**Dialog:** Die Zugangsdaten stehen in einer eigenen kompakten Karte, auf breiten
+Ansichten nebeneinander und ohne die bisherige schmale Formularbegrenzung.
+Browserfehler, Fortschritt und Prüfhinweise erscheinen einmal innerhalb der
+großen Vorschaukarte. Ohne Browserbild und nach bestätigter Anmeldung bleiben
+Fehler weiterhin sichtbar, insbesondere beim gesonderten „Cloud aktivieren“.
+
+**Prüfung:** 49 gezielte Worker-Tests und neun echte Browsertests mit synthetischen
+Antworten bestehen. Darunter: gültige Identität trotz altem Formular, HTTP 401,
+Ablehnung, HTTP 403, ungültige Identität und unveränderte Mensch-Prüfung.
+47 Angular-Tests bestehen einschließlich vier gerenderter Dialogtests und
+DOM-AXE-Prüfung ohne in JSDOM nicht messbaren Farbkontrast. Worker-Typprüfung
+und Worker-Bau sowie Angular-Produktionsbau bestanden. Geänderte Dateien werden
+formatiert und gelintet. Der erste Angular-Bau mit einem Verzeichnisverweis
+auf fremde Abhängigkeiten scheiterte an Windows-Assetpfaden; mit eigenen,
+unverändert aus dem Lockfile installierten Abhängigkeiten besteht er.
+
+**Grenzen:** Noch keine Veröffentlichung dieser Korrektur. Die ursprüngliche
+Cloud-Sitzung war vor dem separaten Live-Test des korrigierten Lesers bereits
+geschlossen; dieser Test wurde ohne Neustart oder Kontobestätigung beendet.
+Der neue Leser ist deshalb durch synthetische Browsertests, noch nicht durch
+eine erneute produktive Kontoverknüpfung bestätigt. Keine Datenbankänderung,
+kein Versand und keine Änderung an der lokalen Erweiterung. Der bereits
+geprüfte Rolloutnachweis bleibt im selben eigenen Zweig erhalten.
+
+## 2026-10-06 - Juna - Cloud-Browserdienst auf Hetzner aktivieren
+
+**Freigabe:** Der Nutzer bestätigt die Aktualisierung des Browserdienstes nach
+Platzprüfung. PR #317 ist integriert; Web-Version 0.303.0 sowie die separat
+geprüften Worker- und Chromeimages stammen aus `d73e990b`.
+
+**Betrieb:** Nur die beiden Imagereferenzen der bisherigen Compose-Konfiguration
+werden auf feste Digests umgestellt. Vor und nach dem Wechsel: keine offenen
+Browsersitzungen und keine laufenden Marketplace-Aufträge. Der unabhängige
+noVNC-Pilot wird sauber gestoppt; das angemeldete Maike-Vintage-Profil bleibt
+gespeichert, mit `profile.exit_type='Normal'`. Regenerierbarer, ungenutzter
+Build-Cache wird freigegeben; keine Images, Volumes oder Nutzerprofile gelöscht.
+Nach dem Laden der Images sind rund 5,5 GB frei. Die vorige Konfiguration und
+beide bisherigen Images bleiben für eine Rücknahme erhalten.
+
+**Firewall:** Die Regeln des separaten Piloten standen vor den regulären
+Cloudregeln und verhinderten dadurch deren strikte Reihenfolgeprüfung. Nur
+die vorhandenen regulären Sprungregeln werden nach vorne verschoben; sämtliche
+Regeln und Sperren bleiben erhalten. Der bestehende Prüfdienst bestätigt
+anschließend wieder die aktuelle Firewallfreigabe.
+
+**Prüfung:** Der Worker ist gesund, ohne Neustarts. Öffentlicher Healthcheck
+HTTP 200; Cloud-Einrichtung ohne Anmeldung HTTP 401. Ein eigener synthetischer
+Browser ohne Vinted-Zugang bestätigt auf Hetzner Namespace- und Seccomp-Sandbox,
+`navigator.webdriver=false`, CDP-Verbindung ohne Kontextvorgaben, native
+Bildschirmaufnahme und echte Texteingabe. Geordneter Stopp mit Exitcode 0;
+Testcontainer einschließlich seines flüchtigen Profils entfernt. Kein
+Nachrichteninhalt, Passwort oder Browserbild gespeichert.
+
+**Offen:** Maike Vintage ist durch diesen Rollout noch nicht in Flipbase mit
+Cloud verbunden. Die reguläre Anmeldung, automatische IP-Reservierung,
+Kontobestätigung und der erste lesende Abgleich sind die nächsten Live-Prüfungen.
+Automatischer Zeitplan und Cloud-Schreibaktionen bleiben deaktiviert. Details
+und Image-Digests stehen im bestehenden Worker-Rolloutprotokoll.
+
+## 2026-10-06 – Juna – Einkaufskosten bei unbepreisten Artikeln korrigiert und Mehrfach-Farbauswahl ermöglicht
+
+**Auftrag:** Bei der Einkaufserfassung soll die Kostenübersicht den aktuellen Gesamtpreis weiterhin anhand aller ausgefüllten Stückpreise berechnen, selbst wenn neu hinzugefügte Positionen noch keinen Preis tragen (statt 0 anzuzeigen). Bei der Produkterstellung soll die Farbauswahl mehrere Farben unterstützen.
+
+**Änderung:**
+
+- Im Einkaufsformular (`PurchaseEntryFormComponent`) berechnet `updatePurchaseBasePriceFromLines` den Warenwert nun als Summe aller vorhandenen, ausgefüllten Positionspreise (`lineTotal`). Frisch hinzugefügte, noch unbepreiste Zeilen setzen den Kopfpreis und die Kostenübersicht nicht mehr auf `null`/`0` zurück.
+- Im `AttributePickerComponent` werden ausgewählte Werte bei `multiple: true` mit Farbpunkten (Swatches) dargestellt, sofern für die Farbe ein Farbwert hinterlegt ist. Klicks auf bereits gewählte Optionen schalten diese wieder ab (Toggle).
+- In der Produkterstellung (`ProductDialogComponent`), der Variantenanlage (`ProductVariantCreateFormComponent`) und den Artikeldetails (`ProductDetailComponent`) ist die Farbauswahl nun für Mehrfachauswahl (`[multiple]="true"`) aktiviert.
+
+**Prüfung:**
+
+- Angular-Komponententests für `PurchaseEntryFormComponent`, `AttributePickerComponent`, `ProductDialogComponent`, `ProductVariantCreateFormComponent` und `ProductDetailComponent` erfolgreich ausgeführt (302 Tests in 29 Testdateien).
+- Prettier-Formatierung und ESLint ohne Fehler/Warnungen abgeschlossen.
+- TypeScript-Typprüfung (`npm run typecheck`) ohne Fehler.
+- Angular-Produktionsbau (`ng build`) erfolgreich durchgelaufen.
+
 ## 2026-10-06 - Juna - Cloud-Chrome über PR #317 abschließen
 
 **Freigabe:** Der Nutzer bestätigt PR-Erstellung, Merge nach erfolgreichen Pflichtprüfungen und anschließende Bereinigung des eigenen Zweigs. Der aktuelle master f53eb483 wird übernommen; sein Feed und beide Protokollarchive bleiben erhalten. Der einzige Merge-Konflikt betrifft die vorangestellten Einträge im Änderungsprotokoll. Image-Prüfungen und produktive Cloud-Verknüpfung bleiben bis zu ihrem tatsächlichen Nachweis offen.

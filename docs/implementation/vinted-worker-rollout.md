@@ -1,5 +1,85 @@
 # Vinted-Browserdienst: Veröffentlichung des Admin-Piloten
 
+## Aktivierter Chrome-Browserdienst vom 06.10.2026
+
+Nach ausdrücklicher Freigabe zur Aktualisierung läuft der Worker aus dem
+Merge-Commit `d73e990b96a54f8fa4a8fbe72b0a390bbc242b3d` von PR #317. Die Web-App
+liefert diesen Stand als Version 0.303.0. Beide separaten Image-Workflows haben
+ihre jeweiligen Prüfungen erfolgreich abgeschlossen:
+
+- Worker, Workflow `37506513725`:
+  `ghcr.io/grischatdev/flipbase-marketplace-worker@sha256:b91935aa907d4d2855e456ef1f42e0d3c1d55a4ff02bae3c6c26d75126433f6c`
+- Chrome-Sitzung, Workflow `37506518448`:
+  `ghcr.io/grischatdev/flipbase-chromium-session@sha256:b0b9c8c7e33b3166807846f608da9a3878d05a45ac452bf32609cb5ac44e7c1c`
+
+Die aktive Compose-Konfiguration liegt unter
+`/opt/flipbase-marketplace/pilot-d73e990b/`. Ihr aufgelöster Inhalt wurde mit
+`pilot-b343611f` verglichen: ausschließlich Workerimage und Sitzungsimage sind
+geändert. Der geheime Workerzugang bleibt unverändert; beide Umgebungsdateien
+haben Modus 0600. Es läuft weiterhin genau ein Worker. Automatische Zeitpläne
+und Cloud-Schreibaktionen sind weiterhin deaktiviert.
+
+Vor und nach dem Wechsel wurden keine offenen Browsersitzungen und keine
+laufenden Marketplace-Aufträge festgestellt. Der eigenständige noVNC-Pilot
+und sein Wächtersystem sind gestoppt; das angemeldete Profil unter
+`/opt/flipbase-marketplace/cloud-browser-pilot/profile/chrome` bleibt erhalten.
+Chrome bestätigt `profile.exit_type='Normal'`. Der einzige registrierte
+IPRoyal-Zugang war nach dem Rollout weiterhin frei. Die Anmeldung im Pilot
+ist damit noch keine reguläre Cloud-Verknüpfung in Flipbase.
+
+### Speicher und Firewall
+
+Vor dem Download waren nur 1,6 GB frei. Ausschließlich ungenutzter,
+regenerierbarer Docker-Build-Cache älter als eine Stunde wurde freigegeben;
+Images, Volumes und Browserprofile blieben erhalten. Nach dem Laden beider
+Images waren rund 5,5 GB frei. Die veröffentlichten Digests wurden jeweils
+beim Download und anhand der laufenden Konfiguration bestätigt.
+
+Die Abschlussprüfung fand keine aktuelle Firewallfreigabe: Der separate
+Pilot hatte seine Sprungregeln vor die regulären Cloudregeln eingefügt.
+Damit scheiterte deren bestehende strikte Reihenfolgeprüfung. Die vorhandenen
+Sprünge zu `FLIPBASE_CHROMIUM` und `FLIPBASE_CHROMIUM_HOST` stehen nun wieder
+zuerst. Vorher-/Nachher-Vergleich bestätigt dieselbe vollständige Regelmenge;
+keine Sperre wurde entfernt. Der reguläre Systemdienst erzeugt anschließend
+wieder die aktuelle Freigabe unter `/run/flipbase/`.
+
+Ein erneuter Start des eigenständigen Piloten kann diese Reihenfolge wieder
+ändern. Für die reguläre Cloud-Einrichtung bleibt er deshalb gestoppt. Bei
+einer späteren Wiederaufnahme muss die Firewallprüfung erneut abgenommen
+werden; seine IP darf dann keinem regulären Cloudkonto zugeordnet sein.
+
+### Tatsächlich ausgeführte Prüfungen
+
+Der Worker ist gesund, ohne Neustart. Der öffentliche Endpunkt
+`https://app.flipbase.de/marketplace-browser/healthz` liefert HTTP 200 mit
+`ok=true`, `readOnly=false` und deaktiviertem Zeitplan. Ein anonymer POST auf
+`/marketplace-browser/cloud-setups/begin` wird mit HTTP 401 abgewiesen.
+
+Ein separater synthetischer Browser im regulären Containernetz bestätigt auf
+Hetzner Namespace- und Seccomp-BPF-Sandbox, `navigator.webdriver=false` und die
+Verbindung vom Worker ohne Playwright-Kontextvorgaben. Native Bildschirmaufnahme
+liefert ein gültiges JPEG; Maus, Texteingabe und Backspace werden im Testfeld
+bestätigt. Geordneter Stopp: Exitcode 0, kein OOM. Der eigene Testcontainer
+mit ausschließlich flüchtigem Profil wird danach entfernt. Kein Vinted-Login,
+keine produktive IP-Reservierung und kein Versand in diesem Test.
+
+### Nächste Live-Prüfung und Rückweg
+
+In Flipbase beim bestehenden lokalen Konto Maike Vintage „Auf Cloud wechseln“
+und anschließend „Direkt im Browser anmelden“ wählen. Die oberen Zugangsfelder
+bleiben dafür leer. Anmeldung und SMS erfolgen in der Browseransicht des
+Flipbase-Dialogs; danach „Anmeldung prüfen & verbinden“. Erst eine erfolgreiche
+Kontobestätigung beweist die reguläre Cloud-Verknüpfung. Anschließend IP-Zuordnung,
+Kontomodus, lokale Freigabe und den ersten lesenden Abgleich prüfen. Kein
+automatischer Nachrichtenversand oder Favoritenauftrag als Teil dieser Abnahme.
+
+Für einen Rückweg bleiben `pilot-b343611f`, das Workerimage `sha-b343611f…` und
+das vorherige Sitzungsimage `sha-02dbcfbd…` erhalten. Vor einer Rücknahme neue
+Cloud-Sitzungen und laufende Aufträge prüfen und geordnet beenden lassen;
+Profil-/IP-Zuordnungen nicht löschen. Die vorige Compose-Konfiguration startet
+anschließend wieder denselben Worker. Das unabhängige Maike-Vintage-Profil
+wird dabei weder übertragen noch ersetzt.
+
 ## Isolierter normaler Chrome-Pilot vom 06.10.2026
 
 Der freigegebene Vergleich liegt unter `tools/cloud-browser-pilot/`. Er startet

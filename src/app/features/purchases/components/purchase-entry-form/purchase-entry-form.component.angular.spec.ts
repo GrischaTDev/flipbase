@@ -1543,7 +1543,7 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
     );
   });
 
-  it('behält den Kopfpreis null, solange eine normale Position noch unbepreist ist', () => {
+  it('berechnet den Kopfpreis aus den bereits ausgefüllten Positionspreisen, auch wenn eine weitere Position noch unbepreist ist', () => {
     const { komponente } = erstelleKomponente();
     komponente.form.controls.purchase_price.setValue(null);
 
@@ -1560,19 +1560,43 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
         estimatedMarketValue: null,
       },
       {
-        catalogProductId: 'catalog-free',
-        titleSnapshot: 'Kostenlose Ware',
+        catalogProductId: 'catalog-camera',
+        titleSnapshot: 'Kamera',
         lineKind: 'quantity',
         orderedQuantity: 1,
         condition: 'used',
         priceMode: 'priced',
-        unitPurchasePrice: 0,
-        lineTotal: 0,
+        unitPurchasePrice: 45,
+        lineTotal: 45,
         estimatedMarketValue: null,
       },
     ]);
 
+    expect(komponente.form.controls.purchase_price.value).toBe(45);
+    expect(komponente.purchaseBasePrice()).toBe(45);
+  });
+
+  it('setzt den abgeleiteten Kopfpreis auf null zurück, sobald alle Positionen entfernt wurden', () => {
+    const { komponente } = erstelleKomponente();
+
+    komponente.onPurchaseLinesChanged([
+      {
+        catalogProductId: 'catalog-camera',
+        titleSnapshot: 'Kamera',
+        lineKind: 'quantity',
+        orderedQuantity: 1,
+        condition: 'used',
+        priceMode: 'priced',
+        unitPurchasePrice: 30,
+        lineTotal: 30,
+        estimatedMarketValue: null,
+      },
+    ]);
+    expect(komponente.purchaseBasePrice()).toBe(30);
+
+    komponente.onPurchaseLinesChanged([]);
     expect(komponente.form.controls.purchase_price.value).toBeNull();
+    expect(komponente.purchaseBasePrice()).toBeNull();
   });
 
   it('summiert ausdrücklich bepreiste Nullpositionen zu einem echten Kopfpreis von null Euro', () => {
