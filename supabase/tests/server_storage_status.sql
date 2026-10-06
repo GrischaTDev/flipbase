@@ -10,6 +10,8 @@ begin
     end if;
 end;
 $$;
+-- CI-Postgres ist kein Superuser; der Rollenwechsel gilt nur in diesem Test.
+grant flipbase_storage_reporter to current_user with set true;
 grant usage on schema public to flipbase_storage_reporter;
 grant execute on function public.report_server_storage(bigint,bigint,bigint) to flipbase_storage_reporter;
 
