@@ -32,6 +32,7 @@ test(
       PATH: `${bin}:${process.env.PATH}`,
       FLIPBASE_BACKUP_DIR: destination,
       FLIPBASE_BACKUP_RECIPIENT: recipient,
+      FLIPBASE_DEPLOY_DIR: root,
     };
     const run = (extra = {}) =>
       spawnSync('bash', [resolve('deploy/migration-backup.sh')], {
