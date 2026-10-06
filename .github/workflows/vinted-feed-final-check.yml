@@ -3,7 +3,7 @@ name: Vinted feed final integration
 on:
   push:
     branches: [juna/vinted-feed-account-favorites]
-    paths: [.github/workflows/vinted-feed-final-check.yml]
+    paths: [.github/workflows/vinted-feed-final-check.yml, tools/vinted-feed-browser-fix.py]
 
 permissions:
   contents: write
@@ -37,12 +37,13 @@ jobs:
           mkdir -p /tmp/feed-final-review
           git config user.name 'Grischa Tänzer'
           git config user.email 'Grischa.Taenzer@gmail.com'
-          git merge --no-commit --no-ff b343611fffb6f289292ca23e9b14ff9429b2868e
+          git merge --no-commit --no-ff 4cd2e7f5bacde0fb53e73c56432de5c792b3dbaa
           curl --fail --silent --show-error --location -H "Authorization: Bearer $GH_TOKEN" \
             https://api.github.com/repos/GrischaTDev/flipbase/actions/artifacts/11410580455/zip \
             -o /tmp/feed-final-review/database.zip
           cp tools/vinted-feed-verify.py /tmp/feed-final-review/verify.py
           python3 /tmp/feed-final-review/verify.py prepare > /tmp/feed-final-review/prepare.log 2>&1
+          python3 tools/vinted-feed-browser-fix.py >> /tmp/feed-final-review/prepare.log 2>&1
       - name: Install locked dependencies
         run: |
           npm ci > /tmp/feed-final-review/install.log 2>&1
@@ -76,7 +77,7 @@ jobs:
       - name: Desktop tablet and shared picker browser regression
         run: |
           npx playwright install --with-deps chromium > /tmp/feed-final-review/browser-install.log 2>&1
-          npx playwright test e2e/deal-monitor.spec.ts e2e/sniper-administration.spec.ts --workers=1 --retries=0 --timeout=90000 > /tmp/feed-final-review/browser.log 2>&1
+          npx playwright test e2e/deal-monitor.spec.ts e2e/sniper-administration.spec.ts --workers=1 --retries=0 --timeout=90000 --trace=retain-on-failure > /tmp/feed-final-review/browser.log 2>&1
       - name: Commit the verified feature only on its own branch
         env:
           GH_TOKEN: ${{ github.token }}
