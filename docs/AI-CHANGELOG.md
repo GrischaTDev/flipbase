@@ -1,5 +1,60 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-06 - Juna - Maike-Vintage-Anmeldung im eigenen Cloudbrowser nachweisen
+
+**Nutzerbestätigung:** Der Nutzer wählt ausdrücklich Maike Vintage statt seines
+Hauptkontos. Die manuelle Anmeldung im separaten Hetzner-Chrome gelingt mit
+E-Mail/Passwort und SMS-Code, ohne Slider. Die sichtbare angemeldete Oberfläche
+ist bestätigt. Passwörter, Codes und Cookies wurden nicht ausgelesen oder übertragen.
+
+**Vergleich:** Der reguläre Stopp speichert `profile.exit_type='Normal'`.
+Nach Neustart desselben Profils ist Vinted weiterhin angemeldet, ohne neue
+Verifizierung. Ein weiterer Neustart aktiviert ausschließlich den privaten
+Debugport; auch dann bleibt die Anmeldung erhalten. Playwright 1.63.0 aus dem
+bereits laufenden Worker wird danach nur in den temporären Pilotordner kopiert.
+Der erste Anschluss zählt lediglich Kontext und Vinted-Tab. Der zweite liest
+Browsermetadaten und führt die unveränderte produktive Identitätsprüfung einmal
+aus. Sie bestätigt `maikevintage`, ohne sichtbare Mensch-Prüfung oder Sperre.
+Die Testprozesse trennen ihre Verbindung beim Ende, ohne den Browser zu schließen.
+
+**Grenzen:** Normales Linux-Chrome 154.0.8037.97, `webdriver=false`, Zeitzone
+Europe/Berlin; die tatsächlich gemessene Browsersprache ist Englisch, obwohl
+der Start `--lang=de-DE` übergibt. Keine Sprach-/Gerätewerte nachträglich geändert.
+Andere Kontowahl, neues Profil, Browserversion, Eingabeweg und Zeitpunkt verhindern
+eine eindeutige Zuordnung der früheren Sperre zu Playwright oder Chromium.
+Keine produktive Kontoumstellung oder IP-Reservierung, kein automatischer Abgleich,
+Versand oder Favoritenauftrag. Authentifizierte Synchronisierung, längerfristiger
+Betrieb und sichere Einbindung des Serverprofils in Flipbase stehen aus.
+
+## 2026-10-06 - Juna - isolierten normalen Chrome-Cloudvergleich vorbereiten
+
+**Auftrag:** Den freigegebenen Vergleich auf dem eigenen Hetzner-Server beginnen:
+normales Chrome, eigenes dauerhaftes Profil, bestehende freie IPRoyal-IP und
+Live-Fernbedienung zunächst ohne angeschlossenes Playwright. Keine Rückkehr zu
+GoLogin und kein Umbau der produktiven Kontoverknüpfung.
+
+**Umsetzung:** Separates Pilottool mit offiziellem Chrome, privatem SSH/noVNC-Zugang,
+Proxy-Authentifizierung ohne TLS-Entschlüsselung und eigener Firewall gegen direkte
+Verbindungen. Ein Wächter stoppt den Pilot bei belegter IP oder fehlendem
+Firewallnachweis. Der Pilot verwendet keinen Datenbankzugang und kopiert kein
+bestehendes Kontoprofil. Die vorhandene Erweiterung wird nicht verändert:
+ihre produktive Freigabe setzt weiterhin den lokalen Ausführungsmodus voraus.
+Deshalb benötigt die spätere Cloud-Erweiterung eine geprüfte eigene Bindung.
+
+**Prüfung:** Acht synthetische Prüfungen bestehen unter Windows und Linux,
+auch beim Imagebau ohne Rootrechte. Formatierung, gezieltes JavaScript-Lint,
+Node-Syntax, PowerShell- und Bash-Syntax geprüft. Hetzner startet regulären
+Google Chrome 154.0.8037.97 mit geschlossenem Debugport. Sichtbarer HTTPS-Test
+bestätigt die bekannte IPRoyal-IP und Deutschland; direkter TCP-Ausgang ist
+gesperrt. Ein synthetischer Cookie bleibt nach Neustart im Browser erhalten.
+Der Stopp über Fensterverwaltung erhält die Anzeige bis zum Chromeende und
+bestätigt anschließend `profile.exit_type='Normal'`. Der alte Hinweis aus dem
+ersten synthetischen Stoppversuch wurde im Browser regulär bestätigt; keine
+Profilwerte umgeschrieben. VNC bleibt nur über Loopback/SSH erreichbar.
+Der produktive Worker, Kontoverknüpfungen und IP-Reservierungen sind unverändert.
+Der echte manuelle Vinted-Login, die lokale Tastatur-/Zwischenablageabnahme durch
+den Nutzer und der Vergleich mit angeschlossenem Playwright stehen aus.
+
 ## 2026-10-06 - Juna - Vinted-Kartengröße und direktes Ziehen korrigieren
 
 **Befund:** Die 180 Millisekunden Startverzögerung für die Maus bricht den

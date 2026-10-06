@@ -1,5 +1,145 @@
 # Vinted-Browserdienst: Veröffentlichung des Admin-Piloten
 
+## Isolierter normaler Chrome-Pilot vom 06.10.2026
+
+Der freigegebene Vergleich liegt unter `tools/cloud-browser-pilot/`. Er startet
+den regulären Google-Chrome für Linux direkt als Betriebssystemprozess, ohne
+Playwright, Browser-Injektionen oder GoLogin. Xvfb, Openbox, x11vnc und noVNC
+übertragen das laufende Bild und echte Desktop-Eingaben. Das eigene Profil liegt
+unter `/opt/flipbase-marketplace/cloud-browser-pilot/profile/chrome`; weder lokale
+Cookies noch bestehende Cloudprofile werden kopiert. Linux bleibt Linux: dieser
+Versuch bildet keinen Windows-Browser nach und beweist keine Sperrfreiheit.
+
+Der private Proxy wird aus der vorhandenen Serverdatei übernommen. Im Container
+liegt ausschließlich der ausgewählte Zugang. Ein lokaler HTTP-Forwarder ergänzt
+die Proxy-Authentifizierung, ohne HTTPS zu entschlüsseln. Die Container-Firewall
+erlaubt nur die konkrete Proxyadresse und deren Port. Direkter Internetzugang,
+Hostdienste und andere Container bleiben gesperrt. Der Browser läuft als UID
+1000 mit Sandbox, privatem Profilmount und ohne Docker- oder Datenbankzugriff.
+
+Die vorhandene IP muss beim Start im regulären Bestand `free` sein. Der Pilot
+legt keine produktive Konto- oder IP-Reservierung an. Ein eigener 15-Sekunden-
+Wächter beendet ausschließlich den Pilot, wenn die IP belegt oder die Firewall
+nicht mehr nachweisbar ist. Das ist kein atomarer Ersatz für die spätere
+Kontoreservierung: Während dieses manuellen Vergleichs keine zusätzliche
+Cloud-Einrichtung in Flipbase starten. Die bestehenden Kontoverknüpfungen und
+der lokale Auftragsexecutor werden durch diesen Browser nicht verändert.
+
+### Start und Zugang
+
+Nur die geprüften Tooldateien nach
+`/opt/flipbase-marketplace/cloud-browser-pilot/` übertragen; keine Geheimnisse
+in Git oder Build-Kontext aufnehmen. Die dortige `pilot.sh` erlaubt nur diesen
+absoluten Betriebsordner und prüft die Eigentumsmarkierung vorhandener Container.
+
+```sh
+chmod 700 /opt/flipbase-marketplace/cloud-browser-pilot/pilot.sh
+/opt/flipbase-marketplace/cloud-browser-pilot/pilot.sh build
+/opt/flipbase-marketplace/cloud-browser-pilot/pilot.sh start
+/opt/flipbase-marketplace/cloud-browser-pilot/pilot.sh status
+```
+
+`build` installiert Chrome aus dem signierten offiziellen APT-Repository.
+Seine tatsächliche Version und Image-ID beim Vergleich festhalten; der Anbieter
+kann `stable` ändern. Kein Produktivimage oder laufender Worker wird ersetzt.
+
+Auf dem autorisierten Windows-Rechner öffnet `tools/cloud-browser-pilot/open-pilot.ps1`
+den SSH-Tunnel im Hintergrund und zeigt dessen Prozess-ID. Anschließend
+`http://127.0.0.1:6088/vnc.html?autoconnect=1&resize=scale` öffnen. Der Serverport
+ist ausschließlich an Loopback gebunden; weder VNC noch CDP haben einen öffentlichen
+Port. Der SSH-Schlüssel schützt den Zugang. noVNC benötigt im internen Container
+kein separates Passwort. Über die Seitenleiste lassen sich Zwischenablage,
+Vollbild und Skalierung bedienen. Browserinteraktion findet innerhalb des
+übertragenen Desktops statt.
+
+### Vergleich in getrennten Stufen
+
+1. Neutralen HTTPS-IP-Test und die Bedienung prüfen. Einen synthetischen
+   Testcookie setzen, Chrome geordnet stoppen und dasselbe Profil erneut starten.
+   Der Cookie muss erhalten bleiben. Das bestätigt noch keinen Vinted-Login.
+2. Im manuellen Modus öffnet der Nutzer Vinted und erledigt Datenschutzbanner,
+   Login, Mensch-Prüfung und SMS selbst. Keine automatischen Wiederholungen bei
+   einer Sperre. Die sichtbare angemeldete Identität und anschließend deren Erhalt
+   nach geordnetem Neustart prüfen. Passwortspeicherung ist nicht erforderlich.
+3. Erst nach erfolgreicher manueller Anmeldung `pilot.sh stop`, dann
+   `pilot.sh debug`: gleicher Browser und gleiches Profil, zusätzlich nur ein
+   lokaler Debugport. Zunächst erneut ohne angeschlossenen Controller prüfen.
+   Danach Playwright ausdrücklich lesend anbinden. Damit werden Debugport und
+   tatsächliche Instrumentierung getrennt verglichen. Kein Sync oder Versand.
+4. Die vorhandene Erweiterung separat untersuchen. Manifest 1.7.0 ist technisch
+   im normalen Chrome installierbar, aber die bestehende Freigabe setzt
+   `execution_mode='local'` voraus. Ein unverändertes produktives Verknüpfen im
+   Serverbrowser könnte den lokalen Executor ersetzen und anschließend Aufträge
+   übernehmen. Deshalb im Vergleich zunächst nur ungebunden installieren; einen
+   sicheren Cloud-Executor erst mit eigener serverseitiger Bindungsprüfung und
+   ausdrücklicher Abnahme integrieren. Die Erweiterung wird hier nicht verändert.
+
+```sh
+# Geordneter Stopp; das Testprofil bleibt erhalten.
+/opt/flipbase-marketplace/cloud-browser-pilot/pilot.sh stop
+```
+
+Den lokalen SSH-Prozess anschließend anhand der beim Start ausgegebenen ID
+beenden. Pilotprofile nicht ungeprüft löschen: nach einem echten Login enthalten
+sie vertrauliche Sitzungsdaten. Profil-/IP-Übernahme in den regulären Cloudbetrieb
+und eine produktive Kontoumstellung sind weitere Schritte nach diesem Nachweis.
+
+Grundlagen: [Google APT-Signaturen](https://www.google.com/linuxrepositories/),
+[noVNC-Bedienung und Einbettung](https://novnc.com/noVNC/docs/EMBEDDING.html).
+
+**Technischer Nachweis auf Hetzner:** Regulärer Chrome 154.0.8037.97, UID 1000,
+geschlossener Debugport und privater Loopback-Port 6088. Der sichtbare HTTPS-Test
+bestätigt den bekannten IPRoyal-Ausgang `196.44.122.35` und `DE`. Ein direkter
+TCP-Versuch zu einem anderen öffentlichen Ziel scheitert. Acht synthetische
+Prüfungen bestehen unter Windows und im Linuximage als UID 1000. Der über eine
+neutrale Testseite gesetzte Cookie ist nach Neustart weiterhin im Browser
+lesbar. Die Fensterverwaltung schließt Chrome vor den übrigen Desktopdiensten;
+danach ist `profile.exit_type='Normal'` bestätigt. Ein unbestätigter Stopp
+verhindert den automatischen Neustart des Pilotcontainers. Die IP bleibt im
+produktiven Bestand frei; Kontozuordnungen wurden nicht geändert. Vor der
+manuellen Kontoanmeldung die lokale Automatik des Testkontos pausieren.
+Der folgende echte Anmeldevergleich ergänzt diesen technischen Nachweis.
+
+### Echter Anmeldevergleich mit Maike Vintage
+
+Der Nutzer wählt ausdrücklich **Maike Vintage**, um sein Hauptkonto nicht für
+weitere Versuche zu verwenden. Er bestätigt erfolgreiche Anmeldung mit Passwort
+und SMS-Code im Serverbrowser, ohne Slider. Die angemeldete Oberfläche ist
+anschließend sichtbar. Für diesen Vergleich wurden keine Zugangsdaten oder
+Sitzungscookies exportiert.
+
+Die reguläre Fensterverwaltung schließt das authentifizierte Profil sauber
+(`profile.exit_type='Normal'`). Nach dem Neustart desselben Profils zeigt die
+Vinted-Startseite weiterhin die Kontofunktionen statt des Loginbuttons; eine
+erneute SMS oder Mensch-Prüfung ist nicht erforderlich. Dasselbe gilt nach
+einem weiteren Neustart mit aktiviertem, ausschließlich lokal erreichbarem
+Debugport, zunächst ohne angeschlossenen Controller.
+
+Playwright 1.63.0 und die kompilierten Leser `vinted-browser-reader.js` sowie
+`vinted-browser-challenge.js` werden aus dem bereits laufenden Worker ausschließlich
+nach `/tmp/pw-client` im Pilotcontainer kopiert. Der normale Browserstart bleibt
+unabhängig von Playwright; nach einem Containerneustart fehlt dieser temporäre
+Testclient wieder. Der Anschluss an `http://127.0.0.1:9222` bestätigt einen Kontext
+und genau einen Vinted-Tab. Ein zweiter kurzer Anschluss liest Browsermetadaten
+und führt die bestehende produktive `readVintedAccountIdentity` einmal aus.
+Der native Browser-GET bestätigt **`maikevintage`**. Kein neuer Loginversuch,
+kein automatischer Seitenwechsel, kein Versand oder Favoritenauftrag.
+Die Testprozesse enden anschließend, ohne `Browser.close` auszuführen.
+
+Gemessen: Linux-Chrome 154.0.8037.97, `navigator.webdriver=false`,
+`navigator.language='en-US'`, Sprachen `en-US,en`, Zeitzone `Europe/Berlin`.
+Der Parameter `--lang=de-DE` allein bestätigt daher keine deutsche Browsersprache.
+Diese Einstellungen werden während des Vergleichs nicht nachträglich verändert.
+
+Damit sind ein echter Login, dessen Erhalt nach Neustart und eine einzelne
+lesende Identitätsprüfung mit Playwright nachgewiesen. **Keine Ursache der
+früheren Sperre ist dadurch eindeutig bewiesen:** insbesondere Konto, neues
+Profil, Browserversion, Eingabeweg und Zeitpunkt unterscheiden sich vom
+früheren Versuch. Datenabgleich, Schreibaktionen, Stabilität über längere Zeit
+und der reguläre Flipbase-Cloudwechsel bleiben eigene Abnahmen. Das Pilotprofil
+gehört jetzt ausschließlich zu Maike Vintage; keine weiteren Konten darin anmelden
+und die gekaufte IP währenddessen nicht parallel einer anderen Einrichtung geben.
+
 ## Privater IP-Betrieb vom 05.10.2026
 
 Der zusätzliche lesende IPRoyal-Abgleich ist im Arbeitszweig vorbereitet und geprüft,
