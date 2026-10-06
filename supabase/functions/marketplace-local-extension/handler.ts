@@ -82,6 +82,9 @@ export function createLocalExtensionHandler(store: LocalExtensionStore) {
           'favorite_claim',
           'favorite_start',
           'favorite_finish',
+          'favorite_message_sent',
+          'favorite_offer_start',
+          'favorite_offer_finish',
         ].includes(input.action)
       ) {
         if (!store.favorites) return respond({ error: 'unavailable' }, 503);

@@ -34,7 +34,19 @@ describe('Lokale Vinted-Betriebsbereitschaft', () => {
         false,
         true,
       ).label,
-    ).toBe('Pausiert');
+    ).toBe('Automatik pausiert');
+  });
+  it('zeigt die verbundene Erweiterung erst nach passender Bereitschaftsprüfung', () => {
+    expect(
+      presentVintedLocalReadiness(account, { ...ready, state: 'ready' }, false, true),
+    ).toMatchObject({ label: 'Erweiterung verbunden', tone: 'success' });
+    expect(presentVintedLocalReadiness(account, null, false, true).tone).not.toBe('success');
+    expect(
+      presentVintedLocalReadiness(account, { ...ready, state: 'ready' }, false, false).tone,
+    ).not.toBe('success');
+    expect(
+      presentVintedLocalReadiness(account, { ...ready, state: 'paused' }, false, true),
+    ).toMatchObject({ label: 'Automatik pausiert', tone: 'caution' });
   });
   it('zeigt eine laufende Prüfung ausdrücklich statt Bereitschaft', () => {
     expect(

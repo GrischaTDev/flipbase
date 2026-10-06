@@ -1,4 +1,7 @@
-<div class="flex flex-wrap items-center gap-2">
+<div data-account-controls class="flex min-w-0 flex-wrap items-center justify-end gap-2">
+  @if (headerStatus(); as status) {
+    <app-badge class="max-w-full" [tone]="status.tone" size="sm">{{ status.label }}</app-badge>
+  }
   <div class="min-w-0 flex-1 basis-36 sm:w-48 sm:flex-none sm:basis-auto">
     <app-custom-select
       ariaLabel="Vinted-Konto auswählen"
@@ -29,8 +32,10 @@
     />
   } @else {
     <app-vinted-sync-schedule
+      [compact]="true"
       [account]="account()"
       [canManage]="canManage()"
+      (headerStateChanged)="cloudHeaderState.set($event)"
       (synchronized)="synchronized.emit($event)"
     />
   }

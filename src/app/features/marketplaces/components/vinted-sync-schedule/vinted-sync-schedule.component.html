@@ -8,7 +8,7 @@
   [disabled]="!canManage()"
   (clicked)="settingsOpen.set(true)"
 />
-@if (store.schedule(); as schedule) {
+@if (!compact() && store.schedule(); as schedule) {
   @if (!schedule.enabled) {
     <p class="mt-1 text-xs text-fb-text-secondary">Automatik pausiert</p>
   }
@@ -20,7 +20,7 @@
     </p>
   }
 }
-@if (!settingsOpen() && store.error(); as error) {
+@if (!compact() && !settingsOpen() && store.error(); as error) {
   <app-notice-banner class="mt-2" announcement="alert">
     {{ error }}
     <app-button class="mt-2" [disabled]="store.loading()" (clicked)="store.reload()"

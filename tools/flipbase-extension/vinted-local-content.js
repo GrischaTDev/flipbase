@@ -285,6 +285,8 @@
         'VINTED_LOCAL_SEND',
         'VINTED_LOCAL_FAVORITES',
         'VINTED_LOCAL_FAVORITE_SEND',
+        'VINTED_LOCAL_FAVORITE_OFFER_PREPARE',
+        'VINTED_LOCAL_FAVORITE_OFFER_SEND',
       ].includes(request?.type)
     )
       return false;
@@ -316,9 +318,16 @@
                     request.externalAccountId,
                   ),
                 }
-              : request.type === 'VINTED_LOCAL_FAVORITE_SEND'
+              : [
+                    'VINTED_LOCAL_FAVORITE_OFFER_PREPARE',
+                    'VINTED_LOCAL_FAVORITE_OFFER_SEND',
+                  ].includes(request.type)
                 ? {
-                    outcome: await globalThis.FlipbaseVintedFavorites.send(
+                    outcome: await globalThis.FlipbaseVintedFavorites[
+                      request.type === 'VINTED_LOCAL_FAVORITE_OFFER_PREPARE'
+                        ? 'prepareOffer'
+                        : 'sendOffer'
+                    ](
                       {
                         read: readJson,
                         write: writeProvider,
@@ -326,12 +335,11 @@
                       },
                       request.externalAccountId,
                       request.command,
-                      globalThis.FlipbaseVintedMessages,
                     ),
                   }
-                : request.type === 'VINTED_LOCAL_SEND'
+                : request.type === 'VINTED_LOCAL_FAVORITE_SEND'
                   ? {
-                      outcome: await globalThis.FlipbaseVintedMessages.send(
+                      outcome: await globalThis.FlipbaseVintedFavorites.send(
                         {
                           read: readJson,
                           write: writeProvider,
@@ -339,17 +347,28 @@
                         },
                         request.externalAccountId,
                         request.command,
+                        globalThis.FlipbaseVintedMessages,
                       ),
                     }
-                  : request.type === 'VINTED_LOCAL_INBOX'
+                  : request.type === 'VINTED_LOCAL_SEND'
                     ? {
-                        batch: await (request.state.detail ? core.readInboxDetail : core.readInbox)(
-                          readJson,
+                        outcome: await globalThis.FlipbaseVintedMessages.send(
+                          {
+                            read: readJson,
+                            write: writeProvider,
+                            csrf: globalThis.FlipbaseVintedMessages.readCsrfToken(document),
+                          },
                           request.externalAccountId,
-                          request.state,
+                          request.command,
                         ),
                       }
-                    : { snapshot: await core.readSnapshot(readJson, request.externalAccountId) };
+                    : request.type === 'VINTED_LOCAL_INBOX'
+                      ? {
+                          batch: await (
+                            request.state.detail ? core.readInboxDetail : core.readInbox
+                          )(readJson, request.externalAccountId, request.state),
+                        }
+                      : { snapshot: await core.readSnapshot(readJson, request.externalAccountId) };
         setBusy(false);
         sendResponse({ success: true, result });
       } catch (error) {
@@ -398,7 +417,9 @@
 
   async function writeProvider(path, request) {
     if (
-      !/^\/api\/v2\/(?:photos|conversations|conversations\/[1-9][0-9]{0,31}\/replies)$/.test(path)
+      !/^\/api\/v2\/(?:photos|conversations|conversations\/[1-9][0-9]{0,31}\/replies|transactions\/[1-9][0-9]{0,31}\/offers)$/.test(
+        path,
+      )
     )
       throw new Error('Dieser Vinted-Aufruf ist nicht erlaubt.');
     core.assertPageReady(interruptedPageState ?? pageState());

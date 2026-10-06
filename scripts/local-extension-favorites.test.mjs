@@ -88,6 +88,120 @@ function setup({ existing = false, history = false, fail = false } = {}) {
   return { adapter, messages, writes };
 }
 const command = { actorId: '73', itemId: '42', text: 'Danke für Dein Interesse!' };
+function offerFixture() {
+  const fixture = setup();
+  const originalRead = fixture.adapter.read;
+  fixture.adapter.read = async (path) => {
+    const result = await originalRead(path);
+    if (path.includes('/wardrobe/'))
+      result.items[0].price = { amount: '40.00', currency_code: 'EUR' };
+    if (result.conversation) {
+      result.conversation.transaction = { id: 22, item_id: 42 };
+    }
+    return result;
+  };
+  fixture.adapter.write = async (path, request) => {
+    fixture.writes.push({ path, request });
+    return { offer: { id: 99, price: '35.00', currency: 'EUR' } };
+  };
+  fixture.command = {
+    ...command,
+    conversationId: '15',
+    transactionId: '22',
+    offer: { type: 'amount', value: 5 },
+  };
+  return fixture;
+}
+test('real offer uses the proven transaction endpoint after checking live EUR price', async () => {
+  const fixture = offerFixture();
+  const prepared = await favorites.prepareOffer(fixture.adapter, '9', fixture.command);
+  assert.deepEqual(prepared, { originalPriceCents: 4000, offerPriceCents: 3500 });
+  const sent = await favorites.sendOffer(fixture.adapter, '9', { ...fixture.command, ...prepared });
+  assert.deepEqual(sent, { outcome: 'sent', externalOfferId: '99' });
+  assert.equal(fixture.writes[0].path, '/api/v2/transactions/22/offers');
+  assert.deepEqual(JSON.parse(fixture.writes[0].request.body), {
+    offer: { currency: 'EUR', price: '35.00' },
+  });
+});
+test('changed live price and missing transaction stop before an offer write', async () => {
+  for (const mutation of [
+    (result) => {
+      if (result.items) result.items[0].price.amount = '42.00';
+    },
+    (result) => {
+      if (result.conversation) result.conversation.transaction = null;
+    },
+    (result) => {
+      if (result.items) result.items[0].price.currency_code = 'USD';
+    },
+  ]) {
+    const fixture = offerFixture();
+    const originalRead = fixture.adapter.read;
+    fixture.adapter.read = async (path) => {
+      const result = await originalRead(path);
+      mutation(result);
+      return result;
+    };
+    const sent = await favorites.sendOffer(fixture.adapter, '9', {
+      ...fixture.command,
+      originalPriceCents: 4000,
+      offerPriceCents: 3500,
+    });
+    assert.equal(sent.outcome, 'skipped');
+    assert.equal(fixture.writes.length, 0);
+  }
+});
+test('unconfirmed offer receipt is unknown and never repeated', async () => {
+  const fixture = offerFixture();
+  fixture.adapter.write = async () => {
+    fixture.writes.push({});
+    throw new Error('lost response');
+  };
+  const sent = await favorites.sendOffer(fixture.adapter, '9', {
+    ...fixture.command,
+    originalPriceCents: 4000,
+    offerPriceCents: 3500,
+  });
+  assert.equal(sent.outcome, 'outcome_unknown');
+  assert.equal(fixture.writes.length, 1);
+});
+test('explicit Vinted validation response is a confirmed failure', async () => {
+  const fixture = offerFixture();
+  fixture.adapter.write = async () => ({
+    code: 99,
+    message_code: 'validation_error',
+    errors: ['synthetic'],
+  });
+  const sent = await favorites.sendOffer(fixture.adapter, '9', {
+    ...fixture.command,
+    originalPriceCents: 4000,
+    offerPriceCents: 3500,
+  });
+  assert.deepEqual(sent, { outcome: 'failed', errorCode: 'provider_rejected' });
+});
+test('confirmed provider rejection is failed while timeout and server errors remain unknown', async () => {
+  for (const httpStatus of [400, 401, 403, 408, 422, 429, 500]) {
+    const fixture = offerFixture();
+    fixture.adapter.write = async () => {
+      throw Object.assign(new Error('provider reply'), { httpStatus, code: 'provider_rejected' });
+    };
+    const sent = await favorites.sendOffer(fixture.adapter, '9', {
+      ...fixture.command,
+      originalPriceCents: 4000,
+      offerPriceCents: 3500,
+    });
+    assert.equal(
+      sent.outcome,
+      httpStatus >= 400 && httpStatus < 500 && httpStatus !== 408 ? 'failed' : 'outcome_unknown',
+    );
+  }
+});
+test('offer calculation preserves cents and refuses discounts over half the price', () => {
+  assert.equal(favorites.offerPriceCents(4000, { type: 'percentage', value: 10 }), 3600);
+  assert.equal(favorites.offerPriceCents(999, { type: 'percentage', value: 10 }), 899);
+  assert.equal(favorites.offerPriceCents(600, { type: 'amount', value: 5 }), null);
+  assert.equal(favorites.offerPriceCents(1, { type: 'percentage', value: 10 }), null);
+});
 test('favorite sends through the existing confirmed message sender', async () => {
   const fixture = setup();
   assert.equal(
@@ -183,7 +297,9 @@ test('installed content script scans unread favorites and confirms one reply thr
       assert.equal(options.headers['X-Csrf-Token'], 'synthetic-csrf');
       writes.push({ path, body: JSON.parse(options.body) });
       if (path.endsWith('/replies')) sent = true;
-      payload = { conversation: { id: 15 } };
+      payload = path.endsWith('/offers')
+        ? { offer: { id: 99, price: '35.00', currency: 'EUR' } }
+        : { conversation: { id: 15 } };
     } else if (path.endsWith('/current')) payload = { user: { id: 9 } };
     else if (path.includes('/notifications/')) {
       assert.ok(path.endsWith('mark_as_read=false'));
@@ -191,13 +307,17 @@ test('installed content script scans unread favorites and confirms one reply thr
         notifications: [{ ...notification, updated_at: new Date(Date.now() - 1000).toISOString() }],
       };
     } else if (path.includes('/wardrobe/'))
-      payload = { items: [{ id: 42, is_closed: false }], pagination: { total_pages: 1 } };
+      payload = {
+        items: [{ id: 42, is_closed: false, price: { amount: '40.00', currency_code: 'EUR' } }],
+        pagination: { total_pages: 1 },
+      };
     else if (path.includes('/inbox?')) payload = { conversations: [] };
     else
       payload = {
         conversation: {
           id: 15,
           opposite_user: { id: 73 },
+          transaction: { id: 22, item_id: 42 },
           messages: sent ? [{ id: 123, entity: { user_id: 9, body: command.text } }] : [],
         },
       };
@@ -260,6 +380,46 @@ test('installed content script scans unread favorites and confirms one reply thr
     );
     assert.equal(writes[0].body.opposite_user_id, '73');
     assert.equal(writes[1].body.reply.body, command.text);
+    const offerCommand = {
+      ...command,
+      conversationId: '15',
+      transactionId: '22',
+      offer: { type: 'amount', value: 5 },
+    };
+    const prepared = await new Promise((resolve) =>
+      listener(
+        {
+          type: 'VINTED_LOCAL_FAVORITE_OFFER_PREPARE',
+          externalAccountId: '9',
+          command: offerCommand,
+          timeoutMs: 1000,
+        },
+        { id: 'extension' },
+        resolve,
+      ),
+    );
+    assert.equal(prepared.success, true);
+    assert.deepEqual(JSON.parse(JSON.stringify(prepared.result.outcome)), {
+      originalPriceCents: 4000,
+      offerPriceCents: 3500,
+    });
+    assert.equal(writes.length, 2);
+    const offerSent = await new Promise((resolve) =>
+      listener(
+        {
+          type: 'VINTED_LOCAL_FAVORITE_OFFER_SEND',
+          externalAccountId: '9',
+          command: { ...offerCommand, ...prepared.result.outcome },
+          timeoutMs: 1000,
+        },
+        { id: 'extension' },
+        resolve,
+      ),
+    );
+    assert.equal(offerSent.success, true);
+    assert.equal(offerSent.result.outcome.externalOfferId, '99');
+    assert.equal(writes[2].path, '/api/v2/transactions/22/offers');
+    assert.deepEqual(writes[2].body, { offer: { currency: 'EUR', price: '35.00' } });
   } finally {
     dom.window.close();
   }

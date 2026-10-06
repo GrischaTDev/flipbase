@@ -1,8 +1,22 @@
 {
   "manifest_version": 3,
   "name": "Flipbase Listing-Assistent",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "Verbindet Dein Vinted-Postfach mit Flipbase und unterstützt Kleinanzeigen-Inserate.",
+  "icons": {
+    "16": "images/flipbase-mark-16.png",
+    "32": "images/flipbase-mark-32.png",
+    "48": "images/flipbase-mark-48.png",
+    "128": "images/flipbase-mark-128.png"
+  },
+  "action": {
+    "default_icon": {
+      "16": "images/flipbase-mark-16.png",
+      "24": "images/flipbase-mark-24.png",
+      "32": "images/flipbase-mark-32.png"
+    },
+    "default_title": "Flipbase Listing-Assistent"
+  },
   "permissions": ["storage", "activeTab", "alarms"],
   "host_permissions": [
     "https://www.vinted.de/*",

@@ -1,5 +1,61 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-06 - Juna - Kompakte Vinted-Konten und optionale Favoritenangebote umsetzen
+
+**Auftrag:** Den bestätigten Plan für Kontenkarten, Bereichsgruppen, ausgerichtete
+Statuszeile, Erweiterungslogo und echte Euro-/Prozentangebote umsetzen.
+
+**Änderung:** Kompakte Kontenkarten enthalten eine Hauptaktion und das Zahnrad;
+Kennzahlen entfallen dort. Konto und Automatisierungen gruppieren die Navigation.
+Erweiterungsstatus, Kontenauswahl und Werkzeuge stehen gemeinsam; Fehlerhinweise
+bleiben darunter. Favoritennachrichten speichern oben rechts. Erweiterung 1.7.0
+enthält Toolbaricons aus dem vorhandenen Flipbase-Logo.
+
+Angebote bleiben standardmäßig aus. Ein konkreter Nachlass in Euro oder Prozent
+wird ohne stilles Begrenzen gespeichert und am Beispielpreis erklärt. Nachricht
+und Angebot erhalten getrennte Belege, Claim-Stufen und Verlaufsergebnisse.
+Aktuelles Konto, eigener aktiver Artikel, EUR-Preis und Transaktion werden vor
+dem Angebot geprüft. Alte Erweiterungen übernehmen solche Aufträge nicht.
+Save während der Leseprüfung verwirft nur den noch nicht gestarteten Schritt;
+verspätete Meldungen blockieren den weiteren Nachrichtenversand nicht.
+
+**Prüfung:** Gezielte Angular-, Modell-, Erweiterungs-, Deno- und pgTAP-Prüfungen;
+Migration transaktional auf dem vorherigen Schema angewandt, vollständiger
+Schema-/Rechteabgleich identisch und Typen regeneriert. Chromium prüft Karten
+einschließlich zehn Konten, Favoritenformular, Navigation, Header und Dialoge
+bei 320 bis 1440 Pixeln, heller/dunkler Oberfläche und AXE. Reviewfehler zu
+Badgeüberlauf, Mobilformular, HTTP-Ablehnungen und verspäteten Belegen behoben.
+Die CI-Prüfung der Browser-Testauswahl ist um die acht zusätzlichen Fälle
+für kleine Displays, zehn Konten und lange Profilstatus ergänzt.
+Zusätzlich bestehen 18 bisherige Browser-Kontenabläufe; ihre Betriebsart-Assertion
+prüft den kompakten Lokal-Badge statt der entfernten alten Beschriftung.
+
+**Grenzen:** Mindestens halber Artikelpreis ist unsere konservative Grenze,
+keine belegte offizielle Vinted-Regel. Ein konkreter Angebotsbeleg wird verlangt;
+ein unbekanntes reales Antwortformat bleibt unklar statt eines scheinbaren
+Erfolgs. Der Live-Angebotstest und das angeheftete Chrome-Icon bleiben nach
+Release zu prüfen. Keine reale Nachricht/Angebot, Regelaktivierung,
+Produktionsänderung oder Aktualisierung der Nutzerinstallation ausgeführt.
+Details: `docs/implementation/vinted-account-ui-offers-plan.md`.
+
+## 2026-10-06 - Juna - Vinted-Kontenoberfläche und optionale Angebote planen
+
+**Auftrag:** Kompakte Kontenkarten, gruppierte Vinted-Navigation, ausgerichtete
+Status-/Kontensteuerung, Speichern oben rechts, Erweiterungslogo und optionale
+Euro-/Prozentangebote bei Favoritennachrichten als Schrittfolge festhalten.
+
+**Befund:** Kartenaktionen stehen außerhalb der Card; lokaler Status und
+Cloud-Pausentexte sind nicht Teil derselben Kontrollzeile. Inserat-/Verkaufszahlen
+vergrößern die Karten. Favoriten senden bisher nur Text; Angebotskonfiguration
+und bestätigter Angebotsversand fehlen. Das Manifest enthält keine Toolbaricons.
+
+**Ergebnis:** `docs/implementation/vinted-account-ui-offers-plan.md` trennt das
+zuerst umzusetzende UI-Paket vom echten Angebotsversand. Es enthält Zieltexte,
+Dateibereiche, getrennte Nachricht-/Angebotsergebnisse, Altversionsverhalten und
+gezielte Prüfungen. Bestehende Bleam-Befunde und offizielle Chrome-Iconangaben
+wurden abgeglichen. Nur Dokumentation geändert; keine Produktimplementierung,
+Migration, Aktivierung, Nachricht oder Veröffentlichung in dieser Sitzung.
+
 ## 2026-10-06 - Juna - Lokalen Vinted-Betrieb und Postfach wiederaufnehmen
 
 **Auftrag:** Den bestätigten Entwurf für automatische lokale Wiederaufnahme,

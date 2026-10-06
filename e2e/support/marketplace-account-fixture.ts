@@ -26,6 +26,7 @@ export async function mockMarketplace(
     imageUrls?: readonly string[];
   },
   localAccounts = false,
+  accountCount = accountIds.length,
 ) {
   await page.route('**/marketplace-browser/healthz', (route) =>
     browserLogin
@@ -60,12 +61,17 @@ export async function mockMarketplace(
     { user, token },
   );
   await page.routeWebSocket(/127\.0\.0\.1:54351/, (socket) => socket.close());
-  const accounts = accountIds.map((connectionId, index) => ({
+  const connectionIds = Array.from(
+    { length: accountCount },
+    (_, index) =>
+      accountIds[index] ?? `25000000-0000-4000-8000-${String(21 + index).padStart(12, '0')}`,
+  );
+  const accounts = connectionIds.map((connectionId, index) => ({
     workspaceId,
     connectionId,
     marketplace: 'vinted',
     executionMode: localAccounts ? 'local' : 'cloud',
-    displayName: `Testkonto ${index === 0 ? 'A' : 'B'}`,
+    displayName: `Testkonto ${String.fromCharCode(65 + index)}`,
     externalAccountId: importedFeedbacks ? String(100 + index) : null,
     status: importedFeedbacks ? 'connected' : 'needs_login',
     capabilities: {},

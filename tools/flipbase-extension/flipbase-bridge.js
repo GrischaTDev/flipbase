@@ -20,7 +20,7 @@
         type: 'FLIPBASE_EXTENSION_STATUS',
         installed: backgroundReachable,
         backgroundReachable,
-        version: '1.6.0',
+        version: '1.7.0',
         vintedLocal: backgroundReachable,
         ...(localAccount !== undefined ? { localAccount } : {}),
         ...(readiness !== undefined ? { readiness } : {}),
@@ -30,7 +30,7 @@
     if (backgroundReachable)
       window.dispatchEvent(
         new CustomEvent('flipbase:extension-ready', {
-          detail: { version: '1.6.0', ready: true },
+          detail: { version: '1.7.0', ready: true },
         }),
       );
   }
