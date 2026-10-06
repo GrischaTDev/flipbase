@@ -80,6 +80,32 @@ it('behält beim Upgrade dieselbe Konto-ID', async () => {
   );
   expect(reloadConnections).toHaveBeenCalledWith(setup.connectionId);
 });
+it('behandelt eine fertige IP-Zuordnung nicht als abbrechbare Reservierung', async () => {
+  const completed = { ...setup, state: 'completed' };
+  api.begin.mockResolvedValue({ status: 'ready', setup: completed });
+  expect(await store.begin({ connectionId: setup.connectionId })).toEqual(completed);
+  expect(store.setup()).toBeNull();
+  await store.cancel();
+  TestBed.resetTestingModule();
+  await Promise.resolve();
+  expect(api.action).not.toHaveBeenCalled();
+});
+it('kündigt eine verspätet bestätigte fertige Zuordnung nach Workspace-Wechsel nicht', async () => {
+  let resolve: (result: unknown) => void = () => undefined;
+  api.begin.mockReturnValue(
+    new Promise((callback) => {
+      resolve = callback;
+    }),
+  );
+  const pending = store.begin({ connectionId: setup.connectionId });
+  workspace.set({ id: setup.connectionId });
+  TestBed.tick();
+  resolve({ status: 'ready', setup: { ...setup, state: 'completed' } });
+  expect(await pending).toBeNull();
+  expect(store.setup()).toBeNull();
+  expect(reloadConnections).not.toHaveBeenCalled();
+  expect(api.action).not.toHaveBeenCalled();
+});
 it('verwendet nach verlorener Antwort dieselbe Request-ID', async () => {
   api.begin.mockRejectedValueOnce(new Error('internal secret'));
   await store.begin({ displayName: 'Cloudtest' });

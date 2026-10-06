@@ -242,7 +242,6 @@ export class MarketplaceAccountsComponent {
 
   async upgrade(connection: MarketplaceConnection): Promise<void> {
     if (
-      connection.executionMode !== 'local' ||
       !this.store.canManage() ||
       !this.hasConnection(connection) ||
       connection.status === 'paused' ||
@@ -273,6 +272,11 @@ export class MarketplaceAccountsComponent {
     try {
       const setup = await this.cloud.begin(target);
       if (!this.isCurrent(context, revision)) return;
+      if (setup?.state === 'completed') {
+        this.dialogState.set(null);
+        await this.router.navigate(['/marketplaces/vinted/overview']);
+        return;
+      }
       if (setup)
         this.dialogState.set({
           ...dialog,

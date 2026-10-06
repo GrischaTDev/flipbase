@@ -219,6 +219,8 @@ export class ChromiumProfileProvisioner {
   private async prepareAccount(scope: BrowserSessionScope): Promise<void> {
     const existing = await this.mapping(scope);
     const network = await this.options.cloudSetups?.assertNetwork(scope);
+    if (this.options.cloudSetups && !network && (!existing || this.chromium(existing)))
+      throw new Error('Cloud-IP muss zuerst über die Kontoeinstellungen eingerichtet werden');
     if (network) {
       if (
         existing !== network.profileId ||

@@ -131,7 +131,7 @@
                 (mousedown)="stopActionDrag($event)"
                 (touchstart)="stopActionDrag($event)"
               >
-                @if (account.executionMode === 'local') {
+                @if (account.executionMode === 'local' || account.executionMode === 'cloud') {
                   <app-button
                     size="slim"
                     [disabled]="
@@ -148,7 +148,11 @@
                         : 'Cloud-Einrichtung derzeit nicht verfügbar'
                     "
                     (clicked)="upgradeToCloud(account)"
-                    >Auf Cloud wechseln</app-button
+                    >{{
+                      account.executionMode === 'local'
+                        ? 'Auf Cloud wechseln'
+                        : 'Cloud-IP einrichten'
+                    }}</app-button
                   >
                 }
                 @if (account.status === 'paused' || account.status === 'blocked') {

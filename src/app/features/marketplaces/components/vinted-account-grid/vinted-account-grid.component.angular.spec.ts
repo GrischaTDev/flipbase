@@ -248,6 +248,29 @@ describe('Kompakte Vinted-Konten', () => {
     expect(accounts.syncSelectedConnection).toHaveBeenCalledOnce();
     expect(local.sync).not.toHaveBeenCalled();
   });
+  it('öffnet die IP-Einrichtung für ein bestehendes Cloudkonto', async () => {
+    const cloudAccount = { ...account, executionMode: 'cloud' as const };
+    accountList.set([cloudAccount]);
+    const { element, fixture } = await render();
+    const setup = [...element.querySelectorAll<HTMLButtonElement>('app-card button')].find(
+      (button) => button.textContent?.includes('Cloud-IP einrichten'),
+    );
+    expect(setup?.disabled).toBe(false);
+    setup?.click();
+    expect(fixture.componentInstance.management()?.upgrade).toHaveBeenCalledWith(cloudAccount);
+    expect(element.textContent).not.toContain('Auf Cloud wechseln');
+  });
+  it.each(['paused', 'blocked'] as const)(
+    'sperrt die IP-Einrichtung eines %s Cloudkontos',
+    async (status) => {
+      accountList.set([{ ...account, executionMode: 'cloud', status }]);
+      const { element } = await render();
+      const setup = [...element.querySelectorAll<HTMLButtonElement>('app-card button')].find(
+        (button) => button.textContent?.includes('Cloud-IP einrichten'),
+      );
+      expect(setup?.disabled).toBe(true);
+    },
+  );
   it('sortiert Karten per Tastatur ohne Griff oder Pfeilbuttons und zeigt den Cloudwechsel direkt', async () => {
     accountList.set([account, { ...account, connectionId: 'account-b', displayName: 'Konto B' }]);
     const { element, fixture } = await render();

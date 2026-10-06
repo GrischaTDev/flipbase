@@ -54,6 +54,60 @@ const cloud = {
   begin: vi.fn().mockResolvedValue({ status: 'no_capacity' }),
   action: vi.fn().mockResolvedValue(undefined),
 };
+
+it('reserviert für ein bestehendes Cloudkonto eine IP und öffnet den Einrichtungsdialog', async () => {
+  const fixture = TestBed.createComponent(MarketplaceAccountsComponent);
+  fixture.detectChanges();
+  await fixture.whenStable();
+  const cloudAccount = { ...account, executionMode: 'cloud' as const };
+  connections.set([cloudAccount]);
+  cloud.begin.mockResolvedValueOnce({
+    status: 'ready',
+    setup: {
+      workspaceId: account.workspaceId,
+      connectionId: account.connectionId,
+      setupId: '37100000-0000-4000-8000-000000000031',
+      sessionId: null,
+      state: 'reserved',
+    },
+  });
+  await fixture.componentInstance.upgrade(cloudAccount);
+  expect(cloud.begin).toHaveBeenCalledWith(
+    expect.objectContaining({ connectionId: account.connectionId }),
+    expect.any(String),
+  );
+  expect(fixture.componentInstance.dialog()).toMatchObject({
+    mode: 'login',
+    connectionId: account.connectionId,
+    cloudSetupId: '37100000-0000-4000-8000-000000000031',
+  });
+});
+
+it('öffnet für ein bereits fertig eingerichtetes Cloudkonto keinen neuen Anmeldedialog', async () => {
+  const fixture = TestBed.createComponent(MarketplaceAccountsComponent);
+  fixture.detectChanges();
+  await fixture.whenStable();
+  const cloudAccount = { ...account, executionMode: 'cloud' as const };
+  connections.set([cloudAccount]);
+  const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+  cloud.begin.mockResolvedValueOnce({
+    status: 'ready',
+    setup: {
+      workspaceId: account.workspaceId,
+      connectionId: account.connectionId,
+      setupId: '37100000-0000-4000-8000-000000000031',
+      sessionId: null,
+      state: 'completed',
+    },
+  });
+  await fixture.componentInstance.upgrade(cloudAccount);
+  expect(fixture.componentInstance.dialog()).toBeNull();
+  expect(navigate).toHaveBeenCalledWith(['/marketplaces/vinted/overview']);
+  expect(fixture.componentInstance.cloud.setup()).toBeNull();
+  fixture.destroy();
+  await Promise.resolve();
+  expect(cloud.action).not.toHaveBeenCalled();
+});
 beforeEach(() => {
   TestBed.resetTestingModule();
   vi.clearAllMocks();

@@ -1,5 +1,38 @@
 # Vinted-Browserdienst: Veröffentlichung des Admin-Piloten
 
+## Umstellung älterer Cloudkonten vom 07.10.2026: geprüft, noch nicht veröffentlicht
+
+Der vorhandene Cloud-Einrichtungsablauf unterstützt nun bereits verbundene
+Cloudkonten ohne abgeschlossene IP-Reservierung. In der Kontokarte öffnet
+„Cloud-IP einrichten“ diesen Ablauf. Der Server reserviert eine freie,
+verifizierte deutsche ISP-IP; bei fehlender Kapazität bleibt das Konto
+unverändert. Automatisches Nachbestellen gehört weiterhin nicht dazu.
+
+Eine erfolgreiche Reservierung pausiert den bisherigen Zeitplan und widerruft
+dessen Abrufberechtigung. Laufende oder ungeklärte Aktionen verhindern den
+Wechsel. Nach bestätigtem Browserstopp wird das alte Profil archiviert und
+ein eigenes Profil mit der reservierten IP erstellt. Die Anmeldung muss die
+bisherige Vinted-Identität bestätigen; Kontoverbindung und gespeicherte Daten
+bleiben erhalten. Ein Abbruch startet den alten Zeitplan nicht wieder.
+Manuelle und geplante Chromiumstarts ohne bestätigte IP-Zuordnung werden vor
+dem Browserstart abgewiesen.
+
+Die erzeugte Migration `20261006232708_legacy_cloud_proxy_setup.sql` ersetzt
+ausschließlich zwei Einrichtungsfunktionen. Ihr transaktionales Replay auf einer
+separaten Datenbank mit dem bisherigen Migrationsstand besteht 76 Assertions.
+Funktionsrechte und API-Typen bleiben erhalten; Worker-Suite, gezielte
+Angular-/Workflow-Tests, Typen, Lint, Format und Angular-Bau bestehen.
+
+Nach dem freigegebenen grünen PR Web-App, Migration und Worker aus demselben
+Merge-Stand veröffentlichen. Dabei die aktuelle Broker-/Firewall-Konfiguration
+beibehalten; Maikes Zeitplan, globale Zeitsteuerung und Schreibaktionen bleiben
+zunächst ausgeschaltet. Dann in Flipbase bei Maike „Cloud-IP einrichten“ wählen,
+im neuen Browserprofil anmelden und die Identität bestätigen. Ein SMS-Code wird
+vom Nutzer eingegeben. Erst nach Prüfung der reservierten IP, des tatsächlichen
+Profilausgangs und eines erfolgreichen manuellen Abrufs werden geplante Abrufe
+wieder freigegeben. Einen erfolgreichen Proxybetrieb belegen erst diese
+Live-Prüfungen, nicht die isolierten Tests.
+
 ## Geplanter Abrufpilot vom 07.10.2026: Zeitsteuerung bestätigt, Proxyzuordnung offen
 
 Der Nutzer gibt einen ausschließlich lesenden Pilot für Maike Vintage frei.

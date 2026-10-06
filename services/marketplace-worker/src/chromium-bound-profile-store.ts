@@ -29,6 +29,8 @@ export class ChromiumBoundProfileStore {
     if (network && network.profileId !== profileId)
       throw new Error('Cloudprofilzuordnung wurde geändert');
     if (!profileId.toLowerCase().startsWith('chromium_')) return profileId;
+    if (this.options.assertNetwork && !network)
+      throw new Error('Cloud-IP muss zuerst über die Kontoeinstellungen eingerichtet werden');
     if (!chromiumAccountProfileIdPattern.test(profileId))
       throw new Error('Ungültige Chromiumprofilreferenz');
     const profile = await this.options.registry.resolve(profileId);

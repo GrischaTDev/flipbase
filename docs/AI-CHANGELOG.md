@@ -1,5 +1,38 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-07 - Juna - Bestehende Cloudkonten auf reservierte Proxyprofile umstellen
+
+**Auftrag:** Nach dem lesenden Pilot beauftragt der Nutzer den fehlenden
+geregelten Wechsel älterer Cloudkonten auf ein reserviertes ISP-Profil.
+Maikes produktiver Zeitplan bleibt pausiert. Andere Sitzungen und Zweige
+werden nicht verändert.
+
+**Umsetzung:** Der vorhandene Einrichtungsablauf wird für ältere Cloudkonten
+ohne abgeschlossene IP-Zuordnung geöffnet. Die Kontoaktion prüft den Bestand
+und verwendet denselben Anmelde-/Identitätsablauf wie der Lokal-zu-Cloud-Wechsel.
+Laufende und ungeklärte Aufträge verhindern die Umstellung; ein vorhandener
+Zeitplan wird erst nach erfolgreicher Reservierung widerrufen. Alte Profile
+werden nach bestätigtem Stopp archiviert. Reguläre manuelle und geplante
+Chromiumstarts benötigen anschließend eine bestätigte Proxyreservierung;
+Abbruch oder fehlende Kapazität erzeugen keinen stillen direkten Zugang.
+Fertige Zuordnungen öffnen keinen neuen Anmeldedialog und werden beim Verlassen
+der Seite nicht als laufende Reservierung abgebrochen.
+
+**Prüfung:** 329 Worker-Tests bestehen, sieben bestehende Tests sind übersprungen.
+61 Angular-Tests einschließlich Cloud-Kontoaktion und fertig eingerichteter
+Zuordnung, 14 Workflow-Tests, Typprüfung, Lint, Format und Angular-Bau bestehen.
+Die Migration wird mit Supabases PgDelta aus dem tatsächlichen Vergleich zweier
+isolierter Testdatenbanken erzeugt: genau zwei Funktionen, transaktional, ohne
+Tabellen- oder Rechteänderung. Ihr Replay gegen die bisherigen Migrationen
+besteht 76 pgTAP-Assertions; Funktionsdefinitionen und Rechte stimmen mit dem
+deklarativen Ziel überein. Die nach der Migration neu erzeugten API-Typen sind
+gegenüber dem ebenfalls neu erzeugten Ausgangsstand unverändert. Es werden
+keine echten Kontodaten in die Testdatenbank kopiert.
+
+**Betriebsgrenze:** Noch nicht veröffentlicht. Maikes Zeitplan und die globale
+Zeitplan-/Schreibfreigabe bleiben deaktiviert. Keine produktive Anmeldung,
+Profiländerung oder Datenbankmigration wird vor dem geprüften PR ausgeführt.
+
 ## 2026-10-07 - Juna - Lesende Cloud-Automatik mit Maike Vintage testen
 
 **Freigabe:** Nach dem vorgeschlagenen Pilotablauf beauftragt der Nutzer die
