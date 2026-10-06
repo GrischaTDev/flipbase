@@ -3,6 +3,8 @@
 # Unabhängig vom toleranteren nächtlichen backup.sh; Fehler brechen ab.
 set -euo pipefail
 umask 077
+exec 8>"${FLIPBASE_DEPLOY_DIR:-/opt/flipbase}/backup.lock"
+flock -w 60 8 || { echo 'Andere Sicherung oder Bereinigung aktiv.' >&2; exit 1; }
 directory="${FLIPBASE_BACKUP_DIR:-/var/backups/flipbase}"
 recipient="${FLIPBASE_BACKUP_RECIPIENT:-/opt/flipbase/sicherung-schluessel.pub}"
 [[ -s "$recipient" ]] || { echo 'Backup-Empfaengerschluessel fehlt.' >&2; exit 1; }

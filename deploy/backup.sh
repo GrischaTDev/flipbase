@@ -7,14 +7,18 @@
 #   2. Alles verschluesseln - der Abzug enthaelt Steuerdaten und saemtliche
 #      Schluessel der Installation
 #   3. Verschluesselte Kopie auf den zweiten Server uebertragen
-#   4. Alte Staende hier und dort entfernen
+#   4. Separate Bereinigung hält lokale Sätze klein; der zweite Server räumt selbst auf
 #
 # Aufruf per Cron, siehe /etc/cron.d/flipbase-backup
 #
 set -euo pipefail
+umask 077
+
+# Gemeinsame Sperre mit Release-Sicherung und Speicherbereinigung.
+exec 8>/opt/flipbase/backup.lock
+flock -w 60 8 || { echo 'Andere Sicherung oder Bereinigung aktiv.' >&2; exit 1; }
 
 ZIEL="/var/backups/flipbase"
-TAGE=14
 STAMPEL=$(date +%Y-%m-%d_%H%M)
 SCHLUESSEL_PUB="/opt/flipbase/sicherung-schluessel.pub"
 FERN_ZIEL="flipbackup@168.119.165.201:"  # rrsync sperrt das Zielverzeichnis ein - der Pfad ist deshalb relativ
@@ -85,6 +89,6 @@ else
 fi
 
 # --- Alte Staende entfernen -------------------------------------------
-geloescht=$(find "$ZIEL" -type f -mtime "+${TAGE}" -print -delete | wc -l)
-log "Aufgeraeumt: $geloescht Datei(en) aelter als $TAGE Tage entfernt"
+# Die separate Bereinigung prüft externe Kopien und behält ganze Sicherungssätze.
+# Eine fehlgeschlagene Auslagerung darf keine bisherige lokale Sicherung löschen.
 log "Belegt gesamt: $(du -sh "$ZIEL" | cut -f1)"

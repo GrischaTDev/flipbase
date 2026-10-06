@@ -130,6 +130,73 @@ Backend auszuliefern.
 
 ## Was wohin gehört
 
+### Lokalen Speicher begrenzen
+
+Die Aufbewahrung ist getrennt nach Zweck:
+
+- Alle von laufenden oder gestoppten Containern verwendeten Images bleiben bestehen.
+  Zusätzlich bleiben je Flipbase-Dienst zwei unbenutzte Rückfallversionen erhalten.
+  Ein Dienst ohne Container behält seine drei neuesten Versionen. Fremde Images,
+  Container und Volumes werden nicht entfernt.
+- Lokal bleiben drei verschlüsselte Sicherungen vor Release-Migrationen sowie
+  sieben vollständige nächtliche Sätze aus Datenbank, Dateien und Konfiguration.
+  Unvollständige oder unbekannte Dateien werden nicht automatisch gelöscht.
+  Lesbare Duplikate vollständiger Sätze werden nach der externen Prüfung entfernt.
+- Die externe Aufbewahrung auf dem zweiten Server bleibt bei etwa 30 Tagen.
+  Sie ersetzt keine getrennte Wiederherstellungsprüfung. Änderungen ihrer
+  Aufbewahrung erfolgen ausschließlich auf dem zweiten Server; der
+  Produktionsschlüssel erhält weiterhin keine Löschrechte dort.
+
+`cleanup-server-storage.py` zeigt ohne `--apply` nur die Auswahl. Mit
+`--verify-offsite` vergleicht die Vorschau die verbleibenden Sicherungen über den
+bestehenden SSH-/rsync-Zugang inhaltlich. Fehlende oder abweichende Kopien verhindern
+die lokale Backup-Löschung. Bei laufenden Deployments oder Sicherungen bricht die
+Bereinigung an der gemeinsamen Sperre ab und der nächste Cronlauf versucht es erneut.
+Die Images werden unabhängig von der Erreichbarkeit des Backupservers bereinigt.
+Freigegebene Bytes der Backupdateien sind exakt; Imagegrößen enthalten gemeinsam
+genutzte Schichten und erlauben erst nach der Bereinigung eine exakte Aussage.
+
+Nach Review und ausdrücklicher Freigabe auf dem Produktionsserver installieren:
+`cleanup-server-storage.py` als root-eigene Datei mit Modus `0700` unter
+`/opt/flipbase/`, die geprüften `backup.sh` und `migration-backup.sh` ebenfalls
+root-eigen mit Modus `0700`. Die bisherige automatische altersbasierte Löschung
+in `backup.sh` entfällt zugunsten der Inhaltsprüfung und Satzaufbewahrung.
+Zunächst `python3 -B /opt/flipbase/cleanup-server-storage.py --verify-offsite`
+prüfen, dann die freigegebene Auswahl einmal mit `--apply` ausführen und freien
+Speicher sowie Dienste gegenprüfen. `cron-server-storage` als root-eigene Datei
+mit Modus `0644` nach `/etc/cron.d/flipbase-server-storage` legen; der Auftrag
+läuft stündlich. Er erfordert nur das bereits vorhandene Python 3, Docker und rsync.
+Eine entfallene Rückfallversion kann später aus der Registry geladen werden;
+ein Datenbank-Rollback bleibt eine gesondert zu prüfende Wiederherstellung.
+
+Die Zahlen für drei Releases, sieben lokale Tagesstände und zwei Rückfallimages
+sind die konkrete Flipbase-Regel, keine allgemeingültige Sicherheitsnorm.
+Zweckbezogene, tägliche und längere getrennte Aufbewahrung sowie eine Vorschau
+entsprechen den dokumentierten Möglichkeiten von
+[restic](https://restic.readthedocs.io/en/stable/060_forget.html).
+[CISA](https://www.cisa.gov/stopransomware/ransomware-guide) empfiehlt verschlüsselte,
+getrennt geschützte Sicherungen und regelmäßige Wiederherstellungsprüfungen.
+
+### Speicher im Betreiberbereich anzeigen
+
+Ein lokaler, gehärteter Systemd-Timer kann jede Minute ausschließlich Gesamtgröße,
+belegten und für die Anwendung verfügbaren Speicher sowie Messzeit für die
+Root-Partition erfassen. Dieser Prozess braucht für die Größenmessung weder
+Rootrechte noch einen Docker-Socket. Das Ergebnis wird über eine eng begrenzte
+Schreibfunktion mit eigenen Zugangsdaten an die bestehende Datenbank gemeldet.
+Der Zugang darf ausschließlich den einen Messdatensatz aktualisieren, nicht
+Kundendaten lesen oder die allgemeine Service-Rolle verwenden.
+
+Eine zusätzliche Tabelle/RPC mit RLS gibt Leserechte ausschließlich bestehenden
+Plattformbetreibern über `public.is_platform_operator()`. Das Adminpanel verwendet
+seine bestehende Anmeldung. Öffentlich neue Ports, SSH-Zugang aus dem Browser,
+Docker-Socket im Webcontainer und frei ausführbare Serverbefehle sind dafür nicht
+erforderlich. Die Anzeige zeigt absolute Werte, Prozent und Messzeit; nach einer
+ausbleibenden Meldung wird der Stand als veraltet markiert. Warnstufen bei 80 und
+90 Prozent beziehungsweise weniger als 10 und 5 GiB frei wären sinnvoll.
+Das ist ein Architekturvorschlag; Tabelle, Rechte, Meldeprozess und UI sind noch
+nicht implementiert und benötigen eine eigene geprüfte Umsetzung.
+
 | Datei                           | Ort auf dem Server                               |
 | ------------------------------- | ------------------------------------------------ |
 | `Caddyfile`                     | `/opt/supabase/volumes/proxy/caddy/Caddyfile`    |
