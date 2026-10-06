@@ -59,7 +59,13 @@ const item: FeedItem = {
   watchlist_title: null,
 };
 
-const favorites = { isFavorite: vi.fn(() => false), toggle: vi.fn() };
+const favorites = {
+  ready: () => true,
+  busy: () => false,
+  error: () => null,
+  isFavorite: vi.fn(() => false),
+  toggle: vi.fn(),
+};
 
 describe('DealCardComponent', () => {
   beforeAll(async () => {
@@ -80,6 +86,8 @@ describe('DealCardComponent', () => {
     registerSignalInputs(
       ButtonComponent,
       [
+        'density',
+        'disabled',
         'variant',
         'size',
         'icon',

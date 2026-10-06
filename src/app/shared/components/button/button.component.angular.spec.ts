@@ -19,6 +19,20 @@ beforeAll(async () => {
 });
 
 describe('ButtonComponent', () => {
+  it('sichert kleine Bildaktionen in schmalen Ansichten ohne globale Größenänderung ab', () => {
+    fixture.componentRef.setInput('variant', 'image-overlay');
+    fixture.componentRef.setInput('iconOnly', true);
+    fixture.componentRef.setInput('size', 'slim');
+    fixture.detectChanges();
+    const button: HTMLButtonElement = fixture.nativeElement.querySelector('button');
+    expect(button.classList).toContain('max-sm:min-h-11');
+    expect(button.classList).toContain('max-sm:min-w-11');
+    expect(button.classList).toContain('pointer-coarse:min-w-11');
+    expect(button.classList).toContain('w-7');
+    fixture.componentRef.setInput('variant', 'secondary');
+    fixture.detectChanges();
+    expect(button.classList).not.toContain('max-sm:min-w-11');
+  });
   it('hält Bildaktionen in beiden Themes lesbar und markiert gemerkte Artikel', () => {
     fixture.componentRef.setInput('variant', 'image-overlay');
     fixture.componentRef.setInput('iconOnly', true);

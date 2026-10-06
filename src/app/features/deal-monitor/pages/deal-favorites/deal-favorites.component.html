@@ -1,5 +1,8 @@
-<div class="mx-auto flex max-w-7xl flex-col gap-6 p-4 sm:p-6">
-  <app-page-header title="Favoriten" subtitle="Deine gemerkten Artikel aus dem Vinted-Bot">
+<div class="mx-auto flex max-w-[1800px] flex-col gap-6 p-4 sm:p-6">
+  <app-page-header
+    title="Favoriten"
+    subtitle="Deine persönlichen Favoriten – auf allen Geräten, bis Du sie entfernst."
+  >
     @if (count() > 0) {
       <app-badge header-badge tone="neutral">{{ countBadge() }}</app-badge>
     }
@@ -9,6 +12,7 @@
           variant="secondary"
           size="slim"
           [icon]="icons.trash"
+          [disabled]="!favoritesService.ready() || favoritesService.busy()"
           (clicked)="confirmClear.set(true)"
           >Alle leeren</app-button
         >
@@ -16,6 +20,28 @@
     }
   </app-page-header>
 
+  @if (favoritesService.loading()) {
+    <p role="status" class="text-sm">Favoriten werden abgeglichen …</p>
+  }
+  @if (favoritesService.error(); as message) {
+    <p role="alert" class="text-sm text-fb-critical">
+      {{ message }} <app-button (clicked)="favoritesService.refresh()">Erneut laden</app-button>
+    </p>
+  }
+  @if (favoritesService.legacyCount() > 0) {
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <p class="text-sm">
+        In diesem Browser liegen {{ favoritesService.legacyCount() }} lokale Favoriten. Übernimm sie
+        in Deinen angemeldeten Account, damit sie auch auf dem Tablet verfügbar sind.
+      </p>
+      <app-button
+        [disabled]="!favoritesService.ready()"
+        [loading]="favoritesService.busy()"
+        (clicked)="favoritesService.importLegacy()"
+        >Lokale Favoriten in meinen Account übernehmen</app-button
+      >
+    </div>
+  }
   @if (count() > 0) {
     <!-- Filter bar -->
     <div
@@ -45,7 +71,7 @@
     </div>
 
     @if (filteredFavorites().length > 0) {
-      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         @for (item of filteredFavorites(); track item.id) {
           <app-deal-card [item]="item" (inspect)="selectedDeal.set($event)" />
         }
@@ -70,7 +96,7 @@
         >
       </div>
     }
-  } @else {
+  } @else if (favoritesService.ready() && !favoritesService.error()) {
     <!-- Empty state -->
     <div
       class="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-fb-border bg-fb-surface p-16 text-center"
@@ -83,11 +109,11 @@
       <div class="space-y-1">
         <h3 class="text-lg font-semibold text-fb-text-primary">Noch keine Favoriten gemerkt</h3>
         <p class="max-w-md text-sm text-fb-text-secondary">
-          Klicke bei Artikeln im Vinted-Bot auf das Herz-Symbol, um sie hier für einen späteren
+          Klicke bei Artikeln im Vinted Feed auf das Herz-Symbol, um sie hier für einen späteren
           schnellen Zugriff zu speichern.
         </p>
       </div>
-      <app-button routerLink="/vinted-bot">Zum Vinted-Bot Feed</app-button>
+      <app-button routerLink="/vinted-bot">Zum Vinted Feed</app-button>
     </div>
   }
 </div>
@@ -102,9 +128,14 @@
       Möchtest du wirklich alle gemerkten Artikel aus deinen Favoriten entfernen? Diese Aktion kann
       nicht rückgängig gemacht werden.
     </p>
+    @if (favoritesService.error(); as message) {
+      <p role="alert">{{ message }}</p>
+    }
     <div modal-footer class="flex gap-2">
       <app-button (clicked)="confirmClear.set(false)">Abbrechen</app-button>
-      <app-button variant="destructive" (clicked)="clearAll()">Alle entfernen</app-button>
+      <app-button variant="destructive" [loading]="favoritesService.busy()" (clicked)="clearAll()"
+        >Alle entfernen</app-button
+      >
     </div>
   </app-modal-shell>
 }

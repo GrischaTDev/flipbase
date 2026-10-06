@@ -17,7 +17,7 @@ describe('ListingRetention', () => {
     const log = { info: vi.fn(), error: vi.fn() };
     const retention = new ListingRetention(purge, log, () => now);
     await retention.runIfDue();
-    expect(log.info).toHaveBeenCalledWith('listings_expired', { deleted: 2, retentionDays: 30 });
+    expect(log.info).toHaveBeenCalledWith('listings_expired', { deleted: 2, retentionDays: 7 });
     now += 59_999;
     await retention.runIfDue();
     expect(purge).toHaveBeenCalledTimes(1);

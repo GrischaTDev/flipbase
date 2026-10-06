@@ -20,6 +20,8 @@ import { BadgeComponent } from '../../../../shared/components/badge/badge.compon
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { FeedItem, safeVintedImage, safeVintedLink } from '../../models/deal-monitor.model';
 import { DealFavoritesService } from '../../services/deal-favorites.service';
+import { FeedClockService } from '../../services/feed-clock.service';
+import { discoveryDate } from '../../utils/discovery-date';
 import { shareVintedListing } from '../../utils/share-vinted-listing';
 
 @Component({
@@ -42,11 +44,11 @@ export class DealCardComponent {
   readonly compact = input(false);
   readonly inspect = output<FeedItem>();
 
-  private readonly favoritesService = inject(DealFavoritesService);
+  readonly favoritesService = inject(DealFavoritesService);
   private readonly failedImages = signal<ReadonlySet<string>>(new Set());
   readonly shareMessage = signal<string | null>(null);
 
-  readonly isFavorite = computed(() => this.favoritesService.isFavorite(this.item().id));
+  readonly isFavorite = computed(() => this.favoritesService.isFavorite(this.item()));
 
   readonly images = computed(() =>
     [...new Set(this.item().image_urls.map(safeVintedImage))].filter(
@@ -59,6 +61,10 @@ export class DealCardComponent {
     heart: LucideHeart,
     share: LucideShare2,
   };
+  private readonly clock = inject(FeedClockService);
+  readonly discoveredLabel = computed(() =>
+    discoveryDate(this.item().first_seen_at, this.clock.now()),
+  );
   readonly link = computed(() => safeVintedLink(this.item().url));
 
   imageFailed(url: string): void {
@@ -67,7 +73,7 @@ export class DealCardComponent {
 
   toggleFavorite(event?: Event): void {
     event?.stopPropagation();
-    this.favoritesService.toggle(this.item());
+    void this.favoritesService.toggle(this.item());
   }
 
   openDetail(event?: Event): void {

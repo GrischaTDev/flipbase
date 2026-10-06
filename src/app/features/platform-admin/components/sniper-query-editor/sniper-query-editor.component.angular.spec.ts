@@ -1,3 +1,4 @@
+import { CategoryPickerComponent } from '../../../../shared/components/category-picker/category-picker.component';
 import '@angular/compiler';
 import { ɵresolveComponentResources } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
@@ -57,6 +58,7 @@ beforeAll(async () => {
     if (matches.length !== 1) throw new Error(`Test-Ressource ${url} ist nicht eindeutig.`);
     return readFile(matches[0], 'utf8');
   });
+  registerSignalInputs(CategoryPickerComponent, ['source', 'label', 'placeholder', 'helpText']);
   registerSignalInputs(
     SniperQueryEditorComponent,
     ['query', 'saving', 'saveError'],

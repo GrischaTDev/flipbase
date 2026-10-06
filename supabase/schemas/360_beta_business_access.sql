@@ -5049,7 +5049,7 @@ begin
                 and (p_watchlist_id is null or watchlist.id = p_watchlist_id)
             order by found.created_at desc, found.id desc limit 1
         ) as hit on true
-        where listing.first_seen_at >= now() - interval '30 days'
+        where listing.first_seen_at >= now() - interval '7 days'
             and (p_before_time is null or (listing.first_seen_at, listing.id) < (p_before_time, p_before_id))
             and (not p_deals_only or hit.reference_price is not null)
             and (p_watchlist_id is null or p_deals_only or public.sniper_watchlist_matches(v_watchlist, listing))
@@ -5941,7 +5941,7 @@ begin
                 and (p_watchlist_id is null or watchlist.id = p_watchlist_id)
             order by found.created_at desc, found.id desc limit 1
         ) as hit on true
-        where listing.first_seen_at >= now() - interval '30 days'
+        where listing.first_seen_at >= now() - interval '7 days'
             and (p_before_time is null or (listing.first_seen_at, listing.id) < (p_before_time, p_before_id))
             and (p_brand is null or lower(btrim(listing.brand)) = lower(btrim(p_brand)))
             and (p_watchlist_id is null or public.sniper_watchlist_matches(v_watchlist, listing))
@@ -5975,7 +5975,7 @@ begin
         where query.marketplace = 'vinted'
             and query.is_active
             and query.brand_id is not null
-            and listing.first_seen_at >= now() - interval '30 days'
+            and listing.first_seen_at >= now() - interval '7 days'
             and nullif(btrim(listing.brand), '') is not null
         order by 1;
 end;
@@ -6035,7 +6035,7 @@ begin
                 and (p_watchlist_id is null or watchlist.id = p_watchlist_id)
             order by found.created_at desc, found.id desc limit 1
         ) as hit on true
-        where listing.first_seen_at >= now() - interval '30 days'
+        where listing.first_seen_at >= now() - interval '7 days'
             and (p_before_time is null or (listing.first_seen_at, listing.id) < (p_before_time, p_before_id))
             and (p_brand is null or lower(btrim(listing.brand)) = lower(btrim(p_brand)))
             and (p_size is null or public.sniper_feed_matches_size(listing.size, p_size))

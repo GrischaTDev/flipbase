@@ -93,8 +93,12 @@ export class ButtonComponent {
         ? 'bg-fb-critical-surface text-fb-critical border border-fb-critical-border shadow-sm hover:bg-fb-critical-border'
         : 'bg-fb-surface text-fb-critical border border-fb-border shadow-sm hover:bg-fb-critical-surface hover:border-fb-critical-border',
       'image-overlay':
-        'min-h-11 min-w-11 border border-white/25 bg-zinc-900/85 shadow-sm hover:bg-zinc-900 focus-visible:outline-fb-brand-strong ' +
-        (this.ariaPressed() ? 'text-fb-brand-strong' : 'text-white'),
+        'max-sm:min-h-11 max-sm:min-w-11 ' +
+        ((this.density() === 'compact'
+          ? 'min-h-7 min-w-7 border border-white/25 bg-zinc-900/60 '
+          : 'min-h-11 min-w-11 border border-white/25 bg-zinc-900/85 ') +
+          'shadow-sm hover:bg-zinc-900 focus-visible:outline-fb-brand-strong ' +
+          (this.ariaPressed() ? 'text-fb-brand-strong' : 'text-white')),
       destructive:
         'bg-fb-critical-surface hover:bg-fb-critical-border text-fb-critical border border-fb-critical-border shadow-sm font-semibold focus-visible:outline-fb-critical',
       ghost:

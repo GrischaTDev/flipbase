@@ -1,3 +1,4 @@
+import { createDealFavoritesFixture } from '../../../../../test-support/deal-favorites.fixture';
 import '@angular/compiler';
 import { ElementRef, signal, ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
@@ -119,7 +120,7 @@ describe('DealFavoritesComponent', () => {
     TestBed.configureTestingModule({
       providers: [
         DealFavoritesComponent,
-        DealFavoritesService,
+        { provide: DealFavoritesService, useValue: createDealFavoritesFixture() },
         { provide: WorkspaceService, useValue: { currentWorkspace } },
         { provide: ElementRef, useValue: new ElementRef(document.createElement('div')) },
       ],
@@ -153,12 +154,12 @@ describe('DealFavoritesComponent', () => {
     expect(comp.filteredFavorites().length).toBe(3);
   });
 
-  it('clears all favorites', () => {
+  it('clears all favorites', async () => {
     favoritesService.add(mockItem('1', 'XL'));
     favoritesService.add(mockItem('2', 'M'));
     expect(comp.count()).toBe(2);
 
-    comp.clearAll();
+    await comp.clearAll();
     expect(comp.count()).toBe(0);
     expect(comp.confirmClear()).toBe(false);
   });

@@ -4759,6 +4759,44 @@ export type Database = {
           },
         ]
       }
+      sniper_favorites: {
+        Row: {
+          external_id: string
+          id: string
+          removed_at: string | null
+          saved_at: string
+          snapshot: Json | null
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          external_id: string
+          id?: string
+          removed_at?: string | null
+          saved_at?: string
+          snapshot?: Json | null
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          external_id?: string
+          id?: string
+          removed_at?: string | null
+          saved_at?: string
+          snapshot?: Json | null
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sniper_favorites_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sniper_hits: {
         Row: {
           created_at: string
@@ -6386,6 +6424,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      clear_sniper_favorites: {
+        Args: { p_expected_user_id: string; p_workspace_id: string }
+        Returns: boolean
+      }
       company_document_party: {
         Args: { p_workspace_id: string }
         Returns: Json
@@ -6758,6 +6800,14 @@ export type Database = {
       has_purchase_recorded_sales: {
         Args: { p_purchase_id: string; p_workspace_id: string }
         Returns: boolean
+      }
+      import_sniper_favorites: {
+        Args: {
+          p_expected_user_id: string
+          p_items: Json
+          p_workspace_id: string
+        }
+        Returns: number
       }
       inspect_beta_registration: {
         Args: { p_token_hash: string }
@@ -7845,6 +7895,14 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      remove_sniper_favorite: {
+        Args: {
+          p_expected_user_id: string
+          p_external_id: string
+          p_workspace_id: string
+        }
+        Returns: boolean
+      }
       reopen_purchase_costing: {
         Args: { p_purchase_id: string; p_workspace_id: string }
         Returns: Json
@@ -7920,6 +7978,15 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      save_sniper_favorite: {
+        Args: {
+          p_expected_user_id: string
+          p_import_only?: boolean
+          p_item: Json
+          p_workspace_id: string
+        }
+        Returns: boolean
       }
       save_sniper_search_filter: {
         Args: {
@@ -8107,6 +8174,10 @@ export type Database = {
         Args: { p_logo_path: string; p_workspace_id: string }
         Returns: Json
       }
+      sniper_check_favorite_scope: {
+        Args: { p_expected_user_id: string; p_workspace_id: string }
+        Returns: string
+      }
       sniper_evaluate_hits: {
         Args: { p_query_id: string; p_report_hits?: boolean }
         Returns: number
@@ -8118,6 +8189,16 @@ export type Database = {
       sniper_evaluate_watchlist_hits: {
         Args: { p_query_id: string; p_report_hits?: boolean }
         Returns: number
+      }
+      sniper_favorites_page: {
+        Args: {
+          p_before_id?: string
+          p_before_time?: string
+          p_expected_user_id: string
+          p_limit?: number
+          p_workspace_id: string
+        }
+        Returns: Json
       }
       sniper_feed: {
         Args: {
@@ -8159,6 +8240,22 @@ export type Database = {
         Args: { p_filter_size: string; p_listing_size: string }
         Returns: boolean
       }
+      sniper_feed_search: {
+        Args: {
+          p_before_id: string
+          p_before_time: string
+          p_brand: string
+          p_limit: number
+          p_max_price: number
+          p_min_price: number
+          p_size: string
+          p_title_query?: string
+          p_watchlist_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      sniper_normalize_favorite_item: { Args: { p_item: Json }; Returns: Json }
       sniper_purge_expired_listings: {
         Args: { p_batch_size?: number }
         Returns: number

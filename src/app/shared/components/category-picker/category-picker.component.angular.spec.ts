@@ -58,7 +58,15 @@ const service = {
   getById: vi.fn(async (id: string) => all.find((category) => category.id === id) ?? null),
 };
 
-const inputNames = ['label', 'labelHidden', 'placeholder', 'suggestion', 'helpText', 'id'];
+const inputNames = [
+  'source',
+  'label',
+  'labelHidden',
+  'placeholder',
+  'suggestion',
+  'helpText',
+  'id',
+];
 let restoreMetadata = (): void => undefined;
 
 beforeAll(async () => {
@@ -375,5 +383,24 @@ describe('CategoryPickerComponent', () => {
     });
 
     expect(result.violations).toEqual([]);
+  });
+});
+
+describe('Auswechselbare Kategoriequelle', () => {
+  it('verwendet bei Vinted niemals den Shopify-Dienst', async () => {
+    const source = {
+      getById: vi.fn(async () => laptops),
+      loadChildren: vi.fn(async () => [laptops]),
+      search: vi.fn(async () => ({ categories: [laptops], hasMore: false })),
+    };
+    const fixture = TestBed.createComponent(CategoryPickerComponent);
+    fixture.componentRef.setInput('source', source);
+    fixture.detectChanges();
+    fixture.componentInstance.open();
+    await settle(fixture);
+    expect(source.loadChildren).toHaveBeenCalled();
+    expect(service.loadChildren).not.toHaveBeenCalled();
+    fixture.componentInstance.select(laptops);
+    expect(fixture.componentInstance.value()).toBe(laptops.id);
   });
 });

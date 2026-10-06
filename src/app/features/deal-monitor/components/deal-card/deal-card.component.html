@@ -33,10 +33,10 @@
         </app-badge>
       }
 
-      <div class="pointer-events-none absolute right-3 bottom-3 left-3 flex items-center gap-2">
+      <div class="pointer-events-none absolute right-2 bottom-2 left-2 flex items-center gap-2">
         @if (compact()) {
           <p
-            class="rounded-lg bg-zinc-900/85 px-2 py-1 text-xl font-semibold whitespace-nowrap text-white"
+            class="rounded-lg bg-zinc-900/70 px-2 py-1 text-base font-semibold whitespace-nowrap text-white"
           >
             {{ item().item_price | currency: item().currency }}
           </p>
@@ -46,7 +46,8 @@
             @if (link(); as href) {
               <app-button
                 variant="image-overlay"
-                size="lg"
+                density="compact"
+                size="md"
                 [href]="href"
                 target="_blank"
                 [icon]="icons.external"
@@ -58,10 +59,12 @@
           }
           <app-button
             variant="image-overlay"
-            size="lg"
+            density="compact"
+            size="md"
             [icon]="icons.heart"
             [iconOnly]="true"
             [ariaPressed]="isFavorite()"
+            [disabled]="!favoritesService.ready() || favoritesService.busy()"
             [ariaLabel]="isFavorite() ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'"
             [title]="isFavorite() ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'"
             (clicked)="toggleFavorite($event)"
@@ -143,7 +146,7 @@
               [attr.datetime]="item().first_seen_at"
               [title]="'Entdeckt: ' + (item().first_seen_at | date: 'dd.MM.yyyy · HH:mm')"
             >
-              {{ item().first_seen_at | date: 'dd.MM. · HH:mm' }}
+              {{ discoveredLabel() }}
             </time>
           </p>
           <div class="flex shrink-0 items-center gap-1.5">
