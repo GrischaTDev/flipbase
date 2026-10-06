@@ -168,6 +168,12 @@
                 </app-button>
               }
             </div>
+            @if (!store.session()) {
+              <p class="text-xs text-fb-text-secondary">
+                Für "Direkt im Browser anmelden" bleiben diese Felder leer. Gib Deine Zugangsdaten
+                anschließend direkt in der Browseransicht ein.
+              </p>
+            }
           </form>
         }
         @if (showProgress()) {
@@ -221,9 +227,10 @@
         @if (store.session(); as session) {
           @if (store.manualLogin()) {
             <p role="status" class="mt-4 text-sm text-fb-text-secondary">
-              Melde Dich direkt in der Browseransicht bei Vinted an und gib dort auch Deinen
-              SMS-Code ein. Flipbase sendet keine automatische Anmeldung. Wenn Du in Deinem
-              Vinted-Konto bist, klicke auf „Anmeldung prüfen &amp; verbinden“.
+              Die Browseransicht startet auf der Vinted-Startseite. Wähle dort "Einloggen" für Dein
+              bestehendes Konto und bestätige bei Bedarf die notwendigen Cookies. Gib Deine
+              Zugangsdaten und einen angeforderten SMS-Code direkt in der Browseransicht ein. Wenn
+              Du in Deinem Vinted-Konto bist, klicke auf "Anmeldung prüfen &amp; verbinden".
             </p>
           }
           @if (session.frameUrl) {

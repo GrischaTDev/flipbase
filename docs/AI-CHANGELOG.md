@@ -1,5 +1,34 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-06 - Juna - Festhängende Cloud-Bereinigung nach Anmeldeabbruch beheben
+
+**Befund:** Nach dem manuellen Cloudversuch bleibt die Einrichtung auf
+`cleanup_pending`, die zugehörige Browsersitzung auf `active`. Docker bestätigt
+den eigenen Profilcontainer als `exited`, ohne laufenden Prozess, Neustart oder
+Speicherabbruch, mit Exitcode 1. Die bisherige Stoppprüfung akzeptiert nur 0 oder
+den Startfehler 78 und blockiert dadurch die reguläre Bereinigung dauerhaft.
+Der genaue Auslöser des Laufzeitfehlers ist damit nicht nachgewiesen.
+
+**Änderung:** Auch der bekannte Laufzeitfehler 1 darf nach vollständig bestätigtem
+Docker-Stopp bereinigt werden. Eigentums- und Profilprüfung sowie der Nachweis
+der Containerentfernung bleiben erforderlich. Laufende, pausierte, neu startende,
+unvollständig belegte oder zwangsweise beendete Zustände bleiben gesperrt.
+Zusätzlich meldet eine nicht angemeldete Vinted-Startseite mit HTTP 401 jetzt
+eine noch offene Anmeldung, damit ein zu früher Prüfversuch fortgesetzt werden
+kann. Der Dialog erklärt die Startseite, den Einstieg über Einloggen und die
+direkte Eingabe in der Vorschau; die oberen Felder sind dafür nicht erforderlich.
+
+**Prüfung:** Neue Regressionen scheiterten vor der Korrektur und bestehen danach.
+21 Browserfixtures und 71 betroffene Angularprüfungen bestanden. Die vollständige
+Linux-Workersuite im isolierten Testcontainer bestand mit 312 Prüfungen und einer
+übersprungenen Prüfung. Worker-Typprüfung und Bau, Angular-Produktionsbau mit
+Node 24.19.0 sowie gezieltes ESLint bestanden. Der systemweite Node 22.16.0 ist
+für die aktuelle Angular-CLI zu alt; keine Installation oder Paketänderung nötig.
+Keine produktive IP-Freigabe, keine Datenbankkorrektur und kein Deployment
+ausgeführt. Die festhängende Einrichtung bleibt bis zur Veröffentlichung und
+bestätigten regulären Bereinigung reserviert. Der erfolgreiche Cloudlogin und
+die anschließende Cloudaktivierung stehen weiterhin aus.
+
 ## 2026-10-06 - Juna - Manuellen Vinted-Login über die IPRoyal-IP bestätigt
 
 **Nachweis:** Der Nutzer bestätigt im vorbereiteten separaten Windows-Chrome:

@@ -205,6 +205,29 @@ test('reports a visible rejected login without polling identity or retrying cred
   }
 });
 
+test('reports an anonymous homepage as pending and permits a subsequent login check', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    let authenticated = false;
+    await page.route('**/*', (route) => {
+      if (new URL(route.request().url()).pathname === '/api/v2/users/current')
+        return route.fulfill({
+          status: authenticated ? 200 : 401,
+          contentType: 'application/json',
+          body: authenticated ? JSON.stringify({ user: { id: 123, login: 'seller' } }) : '{}',
+        });
+      return route.fulfill({ contentType: 'text/html', body: '<main>Vinted</main>' });
+    });
+    await page.goto('https://www.vinted.de/');
+    await assert.rejects(readVintedAccountIdentity(page), { name: 'VintedLoginPendingError' });
+    authenticated = true;
+    assert.deepEqual(await readVintedAccountIdentity(page), { id: '123', username: 'seller' });
+  } finally {
+    await browser.close();
+  }
+});
+
 test('reports a remaining login form without using the private identity route', async () => {
   const { readVintedAccountIdentity } = await import('../../src/vinted-browser-reader.ts');
   const browser = await chromium.launch({ headless: true });
