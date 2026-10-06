@@ -1,54 +1,37 @@
-import { DatePipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   computed,
   effect,
   inject,
   signal,
 } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
-import {
-  LucideLogIn,
-  LucidePencil,
-  LucidePause,
-  LucidePlay,
-  LucidePlus,
-  LucideTrash2,
-} from '@lucide/angular';
 import { AuthService } from '../../../../core/services/auth.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
-import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
-import { CardComponent } from '../../../../shared/components/card/card.component';
-import { DataTableComponent } from '../../../../shared/components/data-table/data-table.component';
+import { LoadingIndicatorComponent } from '../../../../shared/components/loading-indicator/loading-indicator.component';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
-import { TableActionButtonComponent } from '../../../../shared/components/table-action-button/table-action-button.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import type { MarketplaceConnection } from '../../models/marketplace.models';
-import {
-  MARKETPLACE_CONNECTION_LABELS,
-  MARKETPLACE_CONNECTION_TONES,
-} from '../../models/marketplace-presentation';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { MarketplaceCloudSetupStore } from '../../services/marketplace-cloud-setup.store';
+import { VintedLocalExtensionBridge } from '../../services/vinted-local-extension-bridge';
 import { MarketplaceBrowserTestComponent } from '../marketplace-browser-test/marketplace-browser-test.component';
 
 @Component({
   selector: 'app-marketplace-accounts',
   imports: [
-    DatePipe,
     ReactiveFormsModule,
-    BadgeComponent,
     ButtonComponent,
-    CardComponent,
-    DataTableComponent,
+    LoadingIndicatorComponent,
     ModalShellComponent,
     NoticeBannerComponent,
-    TableActionButtonComponent,
     TextFieldComponent,
     CustomSelectComponent,
     MarketplaceBrowserTestComponent,
@@ -61,9 +44,22 @@ import { MarketplaceBrowserTestComponent } from '../marketplace-browser-test/mar
 export class MarketplaceAccountsComponent {
   readonly store = inject(MarketplaceAccountStore);
   readonly cloud = inject(MarketplaceCloudSetupStore);
+  readonly extension = inject(VintedLocalExtensionBridge);
   private readonly router = inject(Router);
   private readonly workspace = inject(WorkspaceService);
   private readonly auth = inject(AuthService);
+  private dialogRevision = 0;
+  private destroyed = false;
+  private readonly checkingContext = signal<string | null>(null);
+  // Beim Neuladen ist der Zugriff kurz unbekannt; der bestätigte Dialogkontext bleibt bestehen.
+  private readonly canKeepDialogOpen = computed(
+    () =>
+      !this.workspace.currentWorkspace()?.archived_at &&
+      (this.store.canManage() || this.store.loading()),
+  );
+  readonly checkingCloud = computed(
+    () => this.canKeepDialogOpen() && this.checkingContext() === this.context(),
+  );
   readonly platforms = [{ value: 'vinted', label: 'Vinted' }];
   readonly connectionMethods = computed(() => [
     { value: 'local', label: 'Lokale Erweiterung' },
@@ -80,7 +76,9 @@ export class MarketplaceAccountsComponent {
     cloudSetupId?: string;
   } | null>(null);
   readonly dialog = computed(() =>
-    this.dialogState()?.context === this.context() ? this.dialogState() : null,
+    this.canKeepDialogOpen() && this.dialogState()?.context === this.context()
+      ? this.dialogState()
+      : null,
   );
   readonly dialogConnection = computed(
     () =>
@@ -96,38 +94,50 @@ export class MarketplaceAccountsComponent {
     ],
   });
   readonly connectionMethod = new FormControl<'local' | 'cloud'>('local', { nonNullable: true });
+  private readonly selectedMethod = toSignal(this.connectionMethod.valueChanges, {
+    initialValue: this.connectionMethod.value,
+  });
   readonly form = new FormGroup({ name: this.name, connectionMethod: this.connectionMethod });
   readonly submitted = signal(false);
-  readonly labels = MARKETPLACE_CONNECTION_LABELS;
-  readonly tones = MARKETPLACE_CONNECTION_TONES;
-  readonly connectedAccounts = computed(() =>
-    this.store.connections().filter((account) => account.externalAccountId !== null),
+  readonly controlsDisabled = computed(
+    () => this.store.loading() || !this.store.canManage() || this.store.busy() || this.cloud.busy(),
   );
-  readonly pendingAccounts = computed(() =>
-    this.store.connections().filter((account) => account.externalAccountId === null),
+  readonly creationBlocked = computed(
+    () =>
+      this.dialog()?.mode === 'create' &&
+      (this.store.remainingSlots() === 0 ||
+        (this.selectedMethod() === 'local' && this.extension.localAccount() != null)),
   );
-  readonly addIcon = LucidePlus;
-  readonly loginIcon = LucideLogIn;
-  readonly editIcon = LucidePencil;
-  readonly pauseIcon = LucidePause;
-  readonly resumeIcon = LucidePlay;
-  readonly deleteIcon = LucideTrash2;
 
   constructor() {
     effect(() => {
-      if (this.store.busy() || this.cloud.busy()) this.form.disable({ emitEvent: false });
+      if (this.controlsDisabled()) this.form.disable({ emitEvent: false });
       else this.form.enable({ emitEvent: false });
     });
     effect(() => {
       const context = this.context();
-      if (this.dialogState() && this.dialogState()?.context !== context) this.closeDialog();
+      if (
+        (this.dialogState() || this.checkingContext()) &&
+        (!this.canKeepDialogOpen() ||
+          (this.dialogState() && this.dialogState()?.context !== context) ||
+          (this.checkingContext() && this.checkingContext() !== context))
+      )
+        this.closeDialog();
+    });
+    inject(DestroyRef).onDestroy(() => {
+      this.destroyed = true;
+      this.dialogRevision++;
     });
   }
-  openDialog(connection?: MarketplaceConnection): void {
-    if (!this.store.canManage() || this.store.busy() || this.cloud.busy()) return;
+  openDialog(connection?: MarketplaceConnection, method: 'local' | 'cloud' = 'local'): void {
+    if (this.controlsDisabled()) return;
+    if (connection && !this.hasConnection(connection)) return;
+    this.dialogRevision++;
+    this.checkingContext.set(null);
     this.cloud.clearError();
     this.name.reset(connection?.displayName ?? '');
-    this.connectionMethod.reset('local');
+    this.connectionMethod.reset(method);
+    if (!connection && method === 'local') this.extension.checkInstallation();
     this.submitted.set(false);
     this.store.clearMutationError();
     this.dialogState.set({
@@ -138,7 +148,15 @@ export class MarketplaceAccountsComponent {
     });
   }
   async openLogin(connection: MarketplaceConnection): Promise<void> {
-    if (!this.store.canManage() || this.store.busy()) return;
+    if (
+      this.controlsDisabled() ||
+      !this.hasConnection(connection) ||
+      connection.status === 'paused' ||
+      connection.status === 'blocked'
+    )
+      return;
+    const context = this.context();
+    const revision = ++this.dialogRevision;
     if (connection.executionMode === 'local') {
       await this.router.navigate(['/marketplaces/vinted/local-connect', connection.connectionId]);
       return;
@@ -146,19 +164,20 @@ export class MarketplaceAccountsComponent {
     this.store.clearMutationError();
     await this.store.selectConnection(connection.connectionId);
     if (
-      !this.store.canManage() ||
+      !this.isCurrent(context, revision) ||
       this.store.selectedConnection()?.connectionId !== connection.connectionId
     )
       return;
     this.dialogState.set({
-      context: this.context(),
+      context,
       connectionId: connection.connectionId,
       mode: 'login',
       newAccount: false,
     });
   }
   openDelete(connection: MarketplaceConnection): void {
-    if (!this.store.canManage() || this.store.busy()) return;
+    if (this.controlsDisabled() || !this.hasConnection(connection)) return;
+    this.dialogRevision++;
     this.store.clearMutationError();
     this.dialogState.set({
       context: this.context(),
@@ -168,18 +187,22 @@ export class MarketplaceAccountsComponent {
     });
   }
   async confirmDelete(): Promise<void> {
+    if (this.controlsDisabled()) return;
     const dialog = this.dialog();
     if (!dialog || dialog.mode !== 'delete' || !dialog.connectionId || this.store.busy()) return;
     if ((await this.store.deleteConnection(dialog.connectionId)) && this.dialogState() === dialog)
       this.closeDialog();
   }
   closeDialog(): void {
+    this.dialogRevision++;
     void this.cloud.cancel();
+    this.checkingContext.set(null);
     this.dialogState.set(null);
     this.name.reset();
     this.submitted.set(false);
   }
   async save(): Promise<void> {
+    if (this.controlsDisabled()) return;
     this.submitted.set(true);
     const dialog = this.dialog();
     if (
@@ -192,6 +215,7 @@ export class MarketplaceAccountsComponent {
     )
       return;
     if (dialog.mode === 'create') {
+      if (this.creationBlocked()) return;
       if (this.connectionMethod.value === 'local') {
         const connectionId = await this.store.createConnection(this.name.value);
         if (!connectionId || this.dialog() !== dialog || !this.store.canManage()) return;
@@ -199,19 +223,13 @@ export class MarketplaceAccountsComponent {
         await this.router.navigate(['/marketplaces/vinted/local-connect', connectionId]);
         return;
       }
-      const setup = await this.cloud.begin({ displayName: this.name.value.trim() });
-      if (setup && this.dialog() === dialog)
-        this.dialogState.set({
-          ...dialog,
-          mode: 'login',
-          connectionId: setup.connectionId,
-          cloudSetupId: setup.setupId,
-        });
+      await this.beginCloud({ displayName: this.name.value.trim() }, dialog);
       return;
     }
     if (
       dialog.connectionId &&
-      (await this.store.renameConnection(dialog.connectionId, this.name.value))
+      (await this.store.renameConnection(dialog.connectionId, this.name.value)) &&
+      this.dialog() === dialog
     )
       this.closeDialog();
   }
@@ -225,21 +243,62 @@ export class MarketplaceAccountsComponent {
   async upgrade(connection: MarketplaceConnection): Promise<void> {
     if (
       connection.executionMode !== 'local' ||
+      !this.store.canManage() ||
+      !this.hasConnection(connection) ||
       connection.status === 'paused' ||
       connection.status === 'blocked' ||
       !this.cloud.canSetup() ||
-      this.store.busy()
+      this.store.busy() ||
+      this.cloud.busy()
     )
       return;
-    const context = this.context();
-    const setup = await this.cloud.begin({ connectionId: connection.connectionId });
-    if (setup && context === this.context())
-      this.dialogState.set({
-        context,
+    await this.beginCloud(
+      { connectionId: connection.connectionId },
+      {
+        context: this.context(),
         connectionId: connection.connectionId,
         mode: 'login',
         newAccount: false,
-        cloudSetupId: setup.setupId,
-      });
+      },
+    );
+  }
+  private async beginCloud(
+    target: { connectionId: string } | { displayName: string },
+    dialog: NonNullable<ReturnType<typeof this.dialog>>,
+  ): Promise<void> {
+    if (this.controlsDisabled()) return;
+    const context = this.context();
+    const revision = ++this.dialogRevision;
+    this.checkingContext.set(context);
+    try {
+      const setup = await this.cloud.begin(target);
+      if (!this.isCurrent(context, revision)) return;
+      if (setup)
+        this.dialogState.set({
+          ...dialog,
+          connectionId: setup.connectionId,
+          mode: 'login',
+          cloudSetupId: setup.setupId,
+        });
+    } finally {
+      if (!this.destroyed && revision === this.dialogRevision) this.checkingContext.set(null);
+    }
+  }
+  private isCurrent(context: string, revision: number): boolean {
+    return (
+      !this.destroyed &&
+      this.store.canManage() &&
+      context === this.context() &&
+      revision === this.dialogRevision
+    );
+  }
+  private hasConnection(connection: MarketplaceConnection): boolean {
+    return this.store
+      .connections()
+      .some(
+        (existing) =>
+          existing.connectionId === connection.connectionId &&
+          existing.workspaceId === connection.workspaceId,
+      );
   }
 }

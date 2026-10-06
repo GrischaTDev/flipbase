@@ -1,15 +1,47 @@
-@if (accounts.connections().length) {
-  <div class="mb-4 space-y-1">
+<div class="mb-4 flex flex-wrap items-start justify-between gap-3">
+  <div class="space-y-1">
     <h2 class="text-sm font-semibold text-fb-text-primary">Deine Vinted-Konten</h2>
-    <p class="text-[13px] text-fb-text-secondary">Wähle ein Konto, um seine Übersicht zu öffnen.</p>
+    <p class="text-[13px] text-fb-text-secondary">
+      {{ accounts.remainingSlots() }} von {{ accounts.accountLimit }} Plätzen frei
+    </p>
+    @if (accounts.connections().length > 1) {
+      <p class="text-xs text-fb-text-secondary">
+        Ziehe die Konten am Griff in Deine gewünschte Reihenfolge oder nutze die Pfeile.
+      </p>
+    }
   </div>
+  <app-button
+    variant="primary"
+    [icon]="addIcon"
+    [disabled]="
+      !accounts.canManage() ||
+      accounts.loading() ||
+      accounts.busy() ||
+      accounts.remainingSlots() === 0
+    "
+    (clicked)="management()?.openDialog()"
+    >Konto hinzufügen</app-button
+  >
+</div>
+@if (accounts.mutationError(); as error) {
+  <app-notice-banner class="mb-4" announcement="alert">{{ error }}</app-notice-banner>
+}
+@if (orderNotice(); as notice) {
+  <p role="status" class="mb-3 text-xs text-fb-text-secondary">{{ notice }}</p>
+}
+@if (accounts.connections().length) {
   <div
     class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"
+    cdkDropList
+    cdkDropListOrientation="mixed"
+    [cdkDropListData]="connectionIds()"
+    [cdkDropListDisabled]="!accounts.canManage() || accounts.busy()"
+    (cdkDropListDropped)="drop($event)"
     aria-label="Vinted-Konten"
   >
-    @for (tile of previews.tiles(); track tile.connection.connectionId) {
+    @for (tile of previews.tiles(); track tile.connection.connectionId; let index = $index) {
       @let profile = tile.preview?.profile;
-      <div>
+      <div cdkDrag [cdkDragData]="tile.connection.connectionId" (cdkDragStarted)="startDrag()">
         <app-card
           padding="none"
           link="/marketplaces/vinted/overview"
@@ -19,8 +51,54 @@
           <div class="flex h-full flex-col p-4">
             <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
               <app-badge size="sm" [tone]="statusTones[tile.connection.status]">{{
-                statusLabels[tile.connection.status]
+                connectionLabel(tile.connection)
               }}</app-badge>
+              <div class="relative z-10 flex items-center gap-1">
+                @if (accounts.connections().length > 1) {
+                  <app-button
+                    cdkDragHandle
+                    variant="ghost"
+                    size="slim"
+                    [iconOnly]="true"
+                    [icon]="dragIcon"
+                    [disabled]="!accounts.canManage() || accounts.busy()"
+                    [ariaLabel]="tile.connection.displayName + ' ziehen'"
+                    title="Reihenfolge ändern"
+                  />
+                  <app-button
+                    variant="ghost"
+                    size="slim"
+                    [iconOnly]="true"
+                    [icon]="upIcon"
+                    [disabled]="!accounts.canManage() || accounts.busy() || index === 0"
+                    [ariaLabel]="tile.connection.displayName + ' nach vorne verschieben'"
+                    (clicked)="move(tile.connection, -1)"
+                  />
+                  <app-button
+                    variant="ghost"
+                    size="slim"
+                    [iconOnly]="true"
+                    [icon]="downIcon"
+                    [disabled]="
+                      !accounts.canManage() ||
+                      accounts.busy() ||
+                      index === accounts.connections().length - 1
+                    "
+                    [ariaLabel]="tile.connection.displayName + ' nach hinten verschieben'"
+                    (clicked)="move(tile.connection, 1)"
+                  />
+                }
+                <app-button
+                  variant="ghost"
+                  size="slim"
+                  [iconOnly]="true"
+                  [icon]="settingsIcon"
+                  [disabled]="!accounts.canManage() || accounts.busy()"
+                  [ariaLabel]="tile.connection.displayName + ' einstellen'"
+                  [ariaHaspopup]="'dialog'"
+                  (clicked)="openSettings(tile.connection)"
+                />
+              </div>
             </div>
             <div class="flex min-w-0 items-center gap-3">
               <app-product-thumbnail [src]="profile?.imageUrl ?? null" alt="" size="profile" />
@@ -76,21 +154,92 @@
             </div>
           </div>
         </app-card>
-        @if (tile.connection.executionMode === 'local' && cloud.canSetup()) {
+        <div class="mt-2 flex flex-wrap gap-2">
+          @if (tile.connection.executionMode === 'local' && cloud.canSetup()) {
+            <app-button
+              [disabled]="
+                !accounts.canManage() ||
+                accounts.busy() ||
+                tile.connection.status === 'paused' ||
+                tile.connection.status === 'blocked'
+              "
+              (clicked)="management()?.upgrade(tile.connection)"
+              >Auf Cloud wechseln</app-button
+            >
+          }
           <app-button
-            class="mt-2"
-            [link]="'/marketplaces/vinted/connect/' + tile.connection.connectionId"
-            >Auf Cloud wechseln</app-button
+            [link]="'/marketplaces/vinted/local-connect/' + tile.connection.connectionId"
+            [disabled]="
+              !accounts.canManage() ||
+              accounts.busy() ||
+              tile.connection.status === 'paused' ||
+              tile.connection.status === 'blocked'
+            "
+            >{{
+              tile.connection.executionMode === 'local' && tile.connection.status === 'connected'
+                ? 'Lokale Verbindung'
+                : 'Lokal verbinden'
+            }}</app-button
           >
-        }
-        <app-button
-          class="mt-2"
-          [link]="'/marketplaces/vinted/local-connect/' + tile.connection.connectionId"
-          >Lokal verbinden</app-button
-        >
+          @if (tile.connection.executionMode === 'cloud') {
+            <app-button
+              [disabled]="
+                !accounts.canManage() ||
+                accounts.busy() ||
+                tile.connection.status === 'paused' ||
+                tile.connection.status === 'blocked'
+              "
+              (clicked)="management()?.openLogin(tile.connection)"
+              >Cloud-Anmeldung</app-button
+            >
+          }
+        </div>
       </div>
     }
   </div>
 } @else if (!accounts.loading() && !accounts.error()) {
   <app-vinted-setup />
+}
+
+<app-marketplace-accounts />
+@if (settingsAccount(); as account) {
+  <app-modal-shell
+    [title]="account.displayName + ' – Einstellungen'"
+    presentation="center"
+    size="md"
+    [hasFooter]="false"
+    (closed)="closeSettings()"
+  >
+    <p class="mb-4 text-sm text-fb-text-secondary">
+      {{ connectionLabel(account) }} ·
+      {{ account.executionMode === 'local' ? 'Lokale Erweiterung' : 'Cloudbrowser' }}
+    </p>
+    <fieldset [disabled]="accounts.loading() || !accounts.canManage()">
+      <app-vinted-favorite-settings [account]="account" />
+    </fieldset>
+    <div class="mt-5 flex flex-wrap gap-2 border-t border-fb-line pt-4">
+      <app-button
+        [disabled]="accounts.busy() || accounts.loading() || !accounts.canManage()"
+        (clicked)="rename(account)"
+        >Umbenennen</app-button
+      >
+      <app-button
+        [disabled]="
+          accounts.busy() ||
+          accounts.loading() ||
+          !accounts.canManage() ||
+          account.status === 'blocked'
+        "
+        (clicked)="setPaused(account)"
+        >{{ account.status === 'paused' ? 'Fortsetzen' : 'Pausieren' }}</app-button
+      >
+      <app-button
+        variant="destructive"
+        [icon]="deleteIcon"
+        [disabled]="accounts.busy() || accounts.loading() || !accounts.canManage()"
+        (clicked)="remove(account)"
+        >Konto entfernen</app-button
+      >
+    </div>
+  </app-modal-shell>
 }

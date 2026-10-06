@@ -682,7 +682,7 @@
             installation.binding.externalAccountId !== identity.identity.id
           )
             throw new Error(
-              'Im Browser ist ein anderes Vinted-Konto aktiv. Trenne zuerst die bisherige Verbindung.',
+              'Im Browser ist ein anderes Vinted-Konto aktiv. Verwende dafür ein separates Browserprofil mit Flipbase-Erweiterung.',
             );
           if (
             !installation.secret ||
@@ -719,7 +719,7 @@
               existingScope.appOrigin !== origin)
           )
             throw new Error(
-              'Dieses Browserprofil ist bereits mit einem anderen Konto verbunden. Trenne es zuerst.',
+              'Dieses Browserprofil ist bereits mit einem anderen Konto verbunden. Verwende für ein weiteres Konto ein separates Browserprofil mit Flipbase-Erweiterung.',
             );
           installation.pendingScope = {
             workspaceId: payload.workspaceId,

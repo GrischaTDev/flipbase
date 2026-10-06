@@ -30,6 +30,13 @@ export class VintedLocalConnectComponent {
         .connections()
         .find((account) => account.connectionId === this.parameters().get('connectionId')) ?? null,
   );
+  readonly otherProfileAccount = computed(() => {
+    const binding = this.extension.localAccount();
+    const connection = this.connection();
+    return binding && connection && binding.boundConnectionId !== connection.connectionId
+      ? binding
+      : null;
+  });
   constructor() {
     this.extension.checkInstallation();
     effect(() => {

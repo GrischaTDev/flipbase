@@ -26,6 +26,97 @@ describe('Lokale Vinted-Erweiterungsbrücke', () => {
       }),
     );
   }
+  function accountStatus(localAccount?: unknown): void {
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        origin: location.origin,
+        source: window,
+        data: {
+          type: 'FLIPBASE_EXTENSION_STATUS',
+          installed: true,
+          vintedLocal: true,
+          ...(localAccount === undefined ? {} : { localAccount }),
+        },
+      }),
+    );
+  }
+  it('unterscheidet unbekannte und freie Browserprofile', () => {
+    const bridge = TestBed.inject(VintedLocalExtensionBridge);
+    expect(bridge.localAccount()).toBeUndefined();
+    accountStatus();
+    expect(bridge.installed()).toBe(true);
+    expect(bridge.localAccount()).toBeUndefined();
+    accountStatus(null);
+    expect(bridge.localAccount()).toBeNull();
+    accountStatus();
+    expect(bridge.localAccount()).toBeUndefined();
+  });
+  it.each(['linked', 'expired', 'paused', 'revoked'] as const)(
+    'übernimmt öffentliche Profilbindung im Zustand %s',
+    (state) => {
+      const bridge = TestBed.inject(VintedLocalExtensionBridge);
+      const binding = {
+        boundUsername: 'my-vinted-account',
+        boundConnectionId: '35000000-0000-4000-8000-000000000021',
+        expiresAt: '2026-10-07T10:00:00.000Z',
+        state,
+      };
+      accountStatus(binding);
+      expect(bridge.localAccount()).toEqual(binding);
+      expect(Object.isFrozen(bridge.localAccount())).toBe(true);
+    },
+  );
+  it.each([
+    {
+      boundUsername: '',
+      boundConnectionId: '35000000-0000-4000-8000-000000000021',
+      expiresAt: '2026-10-07T10:00:00.000Z',
+      state: 'linked',
+    },
+    {
+      boundUsername: 'konto',
+      boundConnectionId: 'other',
+      expiresAt: '2026-10-07T10:00:00.000Z',
+      state: 'linked',
+    },
+    {
+      boundUsername: null,
+      boundConnectionId: '35000000-0000-4000-8000-000000000021',
+      expiresAt: 'later',
+      state: 'linked',
+    },
+    {
+      boundUsername: null,
+      boundConnectionId: '35000000-0000-4000-8000-000000000021',
+      expiresAt: '2026-10-07T10:00:00.000Z',
+      state: 'unknown',
+    },
+    {
+      boundUsername: null,
+      boundConnectionId: '35000000-0000-4000-8000-000000000021',
+      expiresAt: '2026-10-07T10:00:00.000Z',
+      state: 'linked',
+      token: 'private',
+    },
+  ])('ignoriert ungültige öffentliche Profilbindungen', (binding) => {
+    const bridge = TestBed.inject(VintedLocalExtensionBridge);
+    accountStatus(binding);
+    expect(bridge.localAccount()).toBeUndefined();
+    expect(bridge.installed()).toBe(false);
+  });
+  it('verwirft Profilbindung nach ausbleibender neuer Installationsantwort', () => {
+    vi.spyOn(window, 'postMessage').mockImplementation(() => undefined);
+    const bridge = TestBed.inject(VintedLocalExtensionBridge);
+    accountStatus({
+      boundUsername: null,
+      boundConnectionId: '35000000-0000-4000-8000-000000000021',
+      expiresAt: '2026-10-07T10:00:00.000Z',
+      state: 'linked',
+    });
+    bridge.checkInstallation();
+    vi.advanceTimersByTime(3_000);
+    expect(bridge.localAccount()).toBeUndefined();
+  });
   it('erkennt nur die lokale Vinted-Erweiterung aus dem eigenen Fenster und Origin', () => {
     const bridge = TestBed.inject(VintedLocalExtensionBridge);
     const status = (origin: string, source: Window | null, vintedLocal: boolean) =>

@@ -238,6 +238,63 @@
   }
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message?.type === 'VINTED_LOCAL_ACCOUNT_STATUS') {
+      let origin;
+      try {
+        origin = new URL(sender.url ?? '').origin;
+      } catch {
+        return false;
+      }
+      if (
+        sender.id !== chrome.runtime.id ||
+        sender.frameId !== 0 ||
+        !Number.isInteger(sender.tab?.id) ||
+        sender.tab.incognito ||
+        sender.origin !== origin ||
+        (origin !== 'https://www.vinted.de' && !core.isAppOrigin(origin))
+      )
+        return false;
+      (async () => {
+        const installation = await load();
+        const binding = installation?.binding;
+        const expiresAt = Date.parse(binding?.expiresAt);
+        const state =
+          installation?.schedule?.pauseReason === 'local_binding_invalid'
+            ? 'revoked'
+            : !Number.isFinite(expiresAt) || expiresAt <= now()
+              ? 'expired'
+              : installation?.schedule?.pauseReason || installation?.schedule?.retryAfter > now()
+                ? 'paused'
+                : 'linked';
+        const localAccount = binding
+          ? {
+              boundUsername: installation.identity?.username ?? null,
+              boundConnectionId: binding.connectionId,
+              expiresAt: binding.expiresAt,
+              state,
+            }
+          : null;
+        sendResponse({
+          success: true,
+          result:
+            origin === 'https://www.vinted.de'
+              ? {
+                  reserved: sender.tab.id === installation?.tabId,
+                  binding: binding
+                    ? {
+                        externalAccountId: binding.externalAccountId,
+                        username: localAccount.boundUsername,
+                        connectionId: binding.connectionId,
+                        appOrigin: binding.appOrigin,
+                        state,
+                      }
+                    : null,
+                }
+              : { localAccount },
+        });
+      })().catch(() => sendResponse({ success: false }));
+      return true;
+    }
     if (message?.type === 'VINTED_LOCAL_OPEN_USER_TAB') {
       (async () => {
         const installation = await load();

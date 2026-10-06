@@ -10,28 +10,42 @@
 </app-card>
 <ol class="mt-4 space-y-4" aria-label="Vinted einrichten">
   <li>
-    <app-card title="1. Erweiterung installieren">
+    <app-card title="1. Eigenes Browserprofil erstellen">
+      <p class="text-sm text-fb-text-secondary">
+        Verwende für jedes Vinted-Konto ein eigenes Browserprofil. Erstelle in Chrome oder Brave
+        über das Profilmenü ein neues Profil. Öffne Vinted und Flipbase anschließend in diesem
+        Profil. Ein weiterer Tab im selben Profil trennt die Konten nicht.
+      </p>
+    </app-card>
+  </li>
+  <li>
+    <app-card title="2. Erweiterung installieren">
       @if (extension.installed()) {
         <app-badge tone="success">Erweiterung erkannt</app-badge>
         <p class="mt-2 text-sm text-fb-text-secondary">
-          Die Erweiterung ist bereits installiert. Du kannst direkt Dein Vinted-Konto verknüpfen.
+          Die Erweiterung ist in diesem Browserprofil installiert. Ein anderes Profil benötigt seine
+          eigene Installation.
         </p>
       } @else {
         <p class="text-sm text-fb-text-secondary">
           Die Flipbase-Erweiterung ist noch nicht im Chrome Web Store veröffentlicht. Für diesen
-          Pilot installierst Du das bereitgestellte Erweiterungspaket in Chrome: Öffne die
-          Erweiterungsverwaltung, aktiviere den Entwicklermodus und wähle „Entpackte Erweiterung
+          Pilot installierst Du das bereitgestellte Erweiterungspaket in Chrome oder Brave: Öffne
+          die Erweiterungsverwaltung, aktiviere den Entwicklermodus und wähle „Entpackte Erweiterung
           laden“. Lade danach diese Seite neu.
         </p>
       }
     </app-card>
   </li>
   <li>
-    <app-card title="2. Erweiterung mit Flipbase verbinden">
+    <app-card title="3. Bei Vinted anmelden">
       <p class="text-sm text-fb-text-secondary">
-        Öffne Flipbase im selben Browserprofil wie die Erweiterung. Prüfe hier, ob beide miteinander
-        kommunizieren. Die Freigabe für Dein Vinted-Konto bestätigst Du anschließend gesondert.
+        Melde Dich direkt auf Vinted in Deinem gewünschten Konto an. Passwort, SMS-Code und
+        Mensch-Prüfungen gibst Du dort selbst ein. Öffne Flipbase und melde Dich im selben
+        Browserprofil an.
       </p>
+      <app-button class="mt-3" href="https://www.vinted.de/" target="_blank"
+        >Vinted öffnen</app-button
+      >
       <div class="mt-3 flex flex-wrap items-center gap-3">
         <app-button
           [loading]="extension.checkingInstallation()"
@@ -53,27 +67,27 @@
     </app-card>
   </li>
   <li>
-    <app-card title="3. Bei Vinted anmelden und Konto verknüpfen">
+    <app-card title="4. Über die Logo-Blase verknüpfen">
       <p class="text-sm text-fb-text-secondary">
-        Melde Dich direkt auf Vinted im gewünschten Konto an. Passwort, SMS-Code und
-        Mensch-Prüfungen gibst Du dort selbst ein. Füge anschließend das Konto in Flipbase hinzu und
-        bestätige den erkannten Vinted-Namen. Erst dann erteilst Du die lesende Freigabe für Profil
-        und Inserate.
+        Öffne die Flipbase-Logo-Blase und wähle „Verknüpfen“. Gib Deinem Konto einen internen Namen
+        und bestätige den erkannten Vinted-Namen. Pro Browserprofil kann ein Vinted-Konto lokal
+        verknüpft werden. Für ein weiteres Konto erstellst Du ein neues Profil und wiederholst die
+        Schritte dort.
       </p>
       <div class="mt-3 flex flex-wrap gap-2">
-        <app-button href="https://www.vinted.de/" target="_blank">Vinted öffnen</app-button>
         <app-button
           variant="primary"
-          link="/marketplaces/vinted/manage"
+          link="/marketplaces/vinted/accounts"
+          [queryParams]="localAccountQueryParams"
           [disabled]="!extension.installed()"
         >
           Konto hinzufügen
         </app-button>
       </div>
       <p class="mt-3 text-sm text-fb-text-secondary">
-        Diese Pilotversion übernimmt Profil und Inserate. Im Postfach kannst Du zusätzlich den
-        Nachrichtenzugriff erlauben und Gespräche manuell übernehmen. Verkäufe und automatische
-        Aktionen werden noch nicht über die lokale Erweiterung abgeglichen.
+        Profil und Inserate werden über die lokale Erweiterung übernommen. Im Postfach kannst Du
+        zusätzlich den Nachrichtenzugriff freigeben und Gespräche synchronisieren. Verkäufe werden
+        noch nicht über die lokale Erweiterung abgeglichen.
       </p>
     </app-card>
   </li>

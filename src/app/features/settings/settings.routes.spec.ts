@@ -46,14 +46,18 @@ describe('SETTINGS_ROUTES', () => {
   it('leitet die bisherige Kontoverwaltung in den geschützten Vinted-Bereich um', () => {
     const legacyRoute = SETTINGS_ROUTES[0].children?.find((route) => route.path === 'marketplaces');
     expect(legacyRoute).toMatchObject({
-      redirectTo: '/marketplaces/vinted/manage',
+      redirectTo: '/marketplaces/vinted/accounts',
       pathMatch: 'full',
     });
     expect(legacyRoute?.loadComponent).toBeUndefined();
     const vintedRoute = MARKETPLACES_ROUTES.find((route) => route.path === 'vinted');
     expect(vintedRoute?.canActivate).toContain(marketplaceAccessGuard);
+    expect(vintedRoute?.children?.find((route) => route.path === 'manage')).toMatchObject({
+      redirectTo: 'accounts',
+      pathMatch: 'full',
+    });
     expect(
-      vintedRoute?.children?.find((route) => route.path === 'manage')?.loadComponent,
+      vintedRoute?.children?.find((route) => route.path === 'accounts')?.loadComponent,
     ).toBeTypeOf('function');
   });
 });

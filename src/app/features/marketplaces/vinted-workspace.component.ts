@@ -66,9 +66,6 @@ export class VintedWorkspaceComponent {
   readonly showingMessages = computed(
     () => this.currentUrl().split(/[?#]/)[0] === '/marketplaces/vinted/messages',
   );
-  readonly showingManagement = computed(
-    () => this.currentUrl().split(/[?#]/)[0] === '/marketplaces/vinted/manage',
-  );
   readonly showingLocalConnection = computed(() =>
     this.currentUrl().split(/[?#]/)[0].startsWith('/marketplaces/vinted/local-connect/'),
   );

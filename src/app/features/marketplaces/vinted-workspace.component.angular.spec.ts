@@ -114,6 +114,7 @@ let api: {
   readPublication: ReturnType<typeof vi.fn>;
   readPage: ReturnType<typeof vi.fn>;
   createConnection: ReturnType<typeof vi.fn>;
+  reorderConnections: ReturnType<typeof vi.fn>;
   renameConnection: ReturnType<typeof vi.fn>;
   setPaused: ReturnType<typeof vi.fn>;
 };
@@ -271,6 +272,7 @@ beforeEach(() => {
       .mockImplementation(async (scope: AccountScope) => makeSnapshot(scope).publications.items[0]),
     readPage: vi.fn().mockResolvedValue(emptyPage()),
     createConnection: vi.fn(),
+    reorderConnections: vi.fn().mockResolvedValue(undefined),
     renameConnection: vi.fn().mockResolvedValue(undefined),
     setPaused: vi.fn().mockResolvedValue(undefined),
   };
@@ -303,7 +305,7 @@ beforeEach(() => {
             { path: '', redirectTo: 'accounts', pathMatch: 'full' },
             { path: 'accounts', component: VintedAccountGridComponent },
             { path: 'setup', component: VintedSetupComponent },
-            { path: 'manage', component: MarketplaceAccountsComponent },
+            { path: 'manage', redirectTo: 'accounts', pathMatch: 'full' },
             {
               path: 'feedback',
               redirectTo: '/marketplaces/vinted/profile#reviews',
@@ -385,6 +387,16 @@ async function render(url: string) {
   harness.detectChanges();
   // Der Vitest-JIT-Lauf erzeugt noch keine Signal-ViewQuery-Metadaten.
   // Die Produktionskomponente bleibt unverändert; der Browsertest prüft AOT.
+  for (const debug of harness.fixture.debugElement.queryAll(
+    By.directive(VintedAccountGridComponent),
+  )) {
+    const grid = debug.componentInstance as VintedAccountGridComponent;
+    const child = debug.query(By.directive(MarketplaceAccountsComponent));
+    if (child && !grid.management())
+      Object.defineProperty(grid, 'management', {
+        value: signal(child.componentInstance as MarketplaceAccountsComponent),
+      });
+  }
   for (const debug of harness.fixture.debugElement.queryAll(By.directive(CustomSelectComponent))) {
     const component = debug.componentInstance as { trigger: () => ElementRef<HTMLElement> };
     try {
@@ -569,7 +581,7 @@ describe('Vinted-Bereich in Flipbase', () => {
     expect(element.querySelector('app-marketplace-browser-test')).toBeNull();
     expect(element.querySelector('a[href*="chromewebstore"]')).toBeNull();
     expect(
-      element.querySelector('app-vinted-setup a[href="/marketplaces/vinted/manage"]'),
+      element.querySelector('app-vinted-setup a[href^="/marketplaces/vinted/accounts"]'),
     ).toBeNull();
     window.dispatchEvent(
       new MessageEvent('message', {
@@ -580,7 +592,7 @@ describe('Vinted-Bereich in Flipbase', () => {
     );
     TestBed.tick();
     expect(
-      element.querySelector('app-vinted-setup a[href="/marketplaces/vinted/manage"]'),
+      element.querySelector('app-vinted-setup a[href^="/marketplaces/vinted/accounts"]'),
     ).not.toBeNull();
     expect(element.querySelector('a[href="https://www.vinted.de/"]')?.getAttribute('target')).toBe(
       '_blank',
@@ -629,7 +641,7 @@ describe('Vinted-Bereich in Flipbase', () => {
       fixtureConnections[1].connectionId,
     );
     expect(
-      harness.routeNativeElement?.querySelector('a[href="/marketplaces/vinted/accounts"]'),
+      harness.routeNativeElement?.querySelector('a[href^="/marketplaces/vinted/accounts"]'),
     ).not.toBeNull();
   });
   it('hält andere Kontokacheln erreichbar, wenn eine Vorschau scheitert', async () => {
@@ -804,7 +816,7 @@ describe('Vinted-Bereich in Flipbase', () => {
     await harness.fixture.whenStable();
     harness.detectChanges();
     expect(
-      element.querySelector('[role="dialog"] a[href="/marketplaces/vinted/manage"]'),
+      element.querySelector('[role="dialog"] a[href^="/marketplaces/vinted/accounts"]'),
     ).not.toBeNull();
     expect(
       element.querySelector(
@@ -952,11 +964,118 @@ describe('Vinted-Bereich in Flipbase', () => {
   it('hält die Kontenaktionen außerhalb des schmalen Kartenkopfs', async () => {
     const { element } = await render('/settings/marketplaces');
     const add = [...element.querySelectorAll<HTMLButtonElement>('button')].find((button) =>
-      button.textContent?.includes('Account hinzufügen'),
+      button.textContent?.includes('Konto hinzufügen'),
     );
     expect(add).toBeDefined();
-    expect(element.querySelector('app-card h2')?.textContent).toContain('Vinted-Konten');
+    expect(element.querySelector('app-vinted-account-grid h2')?.textContent).toContain(
+      'Vinted-Konten',
+    );
     expect(add?.closest('[data-card-header]')).toBeNull();
+  });
+  it('bietet Hinzufügen und Einstellungen direkt auf den Konto-Kacheln an', async () => {
+    api.listConnections.mockResolvedValue({
+      canManage: true,
+      connections: fixtureConnections.map((account, index) => ({
+        ...account,
+        executionMode: index === 0 ? 'local' : 'cloud',
+      })),
+    });
+    const { element, harness } = await render('/marketplaces/vinted/accounts');
+    expect(element.querySelector('button[aria-label="Testkonto A einstellen"]')).not.toBeNull();
+    expect(element.querySelector('button[aria-label="Testkonto B einstellen"]')).not.toBeNull();
+    expect(element.textContent).toContain('Lokal verbunden');
+    expect(element.textContent).toContain('Mit Cloud verbunden');
+    expect(element.querySelector('a[href="/marketplaces/vinted/manage"]')).toBeNull();
+    element
+      .querySelector<HTMLButtonElement>('button[aria-label="Testkonto A einstellen"]')
+      ?.click();
+    harness.detectChanges();
+    await harness.fixture.whenStable();
+    harness.detectChanges();
+    expect(element.querySelector('[role="dialog"]')?.textContent).toContain(
+      'Neue Favoriten in der Glocke anzeigen',
+    );
+    expect(element.querySelector('[role="dialog"]')?.textContent).toContain('Konto entfernen');
+  });
+  it('behält Kontoeinstellungen beim Neuladen und schließt bei bestätigtem Rechteentzug', async () => {
+    const { element, harness } = await render('/marketplaces/vinted/accounts');
+    element
+      .querySelector<HTMLButtonElement>('button[aria-label="Testkonto A einstellen"]')
+      ?.click();
+    harness.detectChanges();
+    const grid = harness.fixture.debugElement.query(By.directive(VintedAccountGridComponent))
+      .componentInstance as VintedAccountGridComponent;
+    let finish:
+      | ((result: { canManage: boolean; connections: typeof fixtureConnections }) => void)
+      | undefined;
+    api.listConnections.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const saving = grid.setPaused(fixtureConnections[0]);
+    for (let index = 0; index < 8; index++) await Promise.resolve();
+    harness.detectChanges();
+    expect(element.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(element.querySelector<HTMLFieldSetElement>('fieldset')?.disabled).toBe(true);
+    finish?.({
+      canManage: true,
+      connections: fixtureConnections.map((account, index) => ({
+        ...account,
+        status: index === 0 ? 'paused' : account.status,
+      })),
+    });
+    await saving;
+    harness.detectChanges();
+    expect(element.querySelector('[role="dialog"]')?.textContent).toContain('Fortsetzen');
+    api.listConnections.mockResolvedValue({ canManage: false, connections: [] });
+    await grid.accounts.reloadConnections();
+    harness.detectChanges();
+    expect(element.querySelector('[role="dialog"]')).toBeNull();
+  });
+  it('zeigt alle zehn Plätze einschließlich noch nicht angemeldeter Konten', async () => {
+    api.listConnections.mockResolvedValue({
+      canManage: true,
+      connections: Array.from({ length: 10 }, (_, index) => ({
+        ...fixtureConnections[0],
+        connectionId: '25000000-0000-4000-8000-' + String(index + 1).padStart(12, '0'),
+        externalAccountId: null,
+      })),
+    });
+    const { element } = await render('/marketplaces/vinted/accounts');
+    expect(element.textContent).toContain('0 von 10 Plätzen frei');
+    const add = [...element.querySelectorAll<HTMLButtonElement>('button')].find(
+      (button) => button.textContent?.trim() === 'Konto hinzufügen',
+    );
+    expect(add?.disabled).toBe(true);
+  });
+  it('ändert die Reihenfolge per Tastatur und behält bestehende Vorschauen', async () => {
+    api.reorderConnections.mockImplementation(async (_workspaceId: string, ids: string[]) => {
+      api.listConnections.mockResolvedValue({
+        canManage: true,
+        connections: ids.flatMap((id) =>
+          fixtureConnections.filter((account) => account.connectionId === id),
+        ),
+      });
+    });
+    const { element, harness } = await render('/marketplaces/vinted/accounts');
+    const reads = api.readAccountPreview.mock.calls.length;
+    element
+      .querySelector<HTMLButtonElement>('button[aria-label="Testkonto A nach hinten verschieben"]')
+      ?.click();
+    await harness.fixture.whenStable();
+    harness.detectChanges();
+    expect(api.reorderConnections).toHaveBeenCalledWith(fixtureConnections[0].workspaceId, [
+      fixtureConnections[1].connectionId,
+      fixtureConnections[0].connectionId,
+    ]);
+    expect(api.readAccountPreview).toHaveBeenCalledTimes(reads);
+    expect(
+      [...element.querySelectorAll('app-vinted-account-grid h3')].map((node) =>
+        node.textContent?.trim(),
+      ),
+    ).toEqual(['Testkonto B', 'Testkonto A']);
   });
   it('legt ein neues Konto lokal an, auch wenn der Cloudbrowser nicht verfügbar ist', async () => {
     const created = {
@@ -977,7 +1096,7 @@ describe('Vinted-Bereich in Flipbase', () => {
     });
     const { element, harness } = await render('/marketplaces/vinted/manage');
     [...element.querySelectorAll<HTMLButtonElement>('button')]
-      .find((button) => button.textContent?.includes('Account hinzufügen'))
+      .find((button) => button.textContent?.includes('Konto hinzufügen'))
       ?.click();
     harness.detectChanges();
     const input = element.querySelector<HTMLInputElement>('input');
@@ -1017,7 +1136,7 @@ describe('Vinted-Bereich in Flipbase', () => {
     });
     const { element, harness } = await render('/settings/marketplaces');
     const button = [...element.querySelectorAll<HTMLButtonElement>('button')].find((node) =>
-      node.textContent?.includes('Account hinzufügen'),
+      node.textContent?.includes('Konto hinzufügen'),
     );
     expect(button).toBeDefined();
     button?.click();
@@ -1046,7 +1165,7 @@ describe('Vinted-Bereich in Flipbase', () => {
     api.createConnection.mockRejectedValue(new MarketplaceApiError('unavailable'));
     const { element, harness } = await render('/settings/marketplaces');
     [...element.querySelectorAll<HTMLButtonElement>('button')]
-      .find((button) => button.textContent?.includes('Account hinzufügen'))
+      .find((button) => button.textContent?.includes('Konto hinzufügen'))
       ?.click();
     harness.detectChanges();
     const component = harness.fixture.debugElement.query(By.directive(MarketplaceAccountsComponent))
@@ -1069,7 +1188,7 @@ describe('Vinted-Bereich in Flipbase', () => {
     );
     const { element, harness } = await render('/settings/marketplaces');
     [...element.querySelectorAll<HTMLButtonElement>('button')]
-      .find((button) => button.textContent?.includes('Account hinzufügen'))
+      .find((button) => button.textContent?.includes('Konto hinzufügen'))
       ?.click();
     harness.detectChanges();
     const component = harness.fixture.debugElement.query(By.directive(MarketplaceAccountsComponent))

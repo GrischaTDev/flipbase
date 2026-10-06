@@ -1,23 +1,38 @@
 # 🤖 KI-Änderungsprotokoll
 
-## 2026-10-06 - Juna - Favoritenmeldungen für lokale Vinted-Konten erreichbar machen
+## 2026-10-06 - Juna - Vinted-Kontenübersicht und lokale Einrichtung vereinheitlichen
 
-**Auftrag:** Die Einstellung für Favoritenbenachrichtigungen ist beim lokalen
-Vinted-Konto nicht auffindbar.
+**Auftrag:** Lokale Glockeneinstellung zugänglich machen und die Kontenübersicht
+mit Sortieren, Hinzufügen, Einstellungen pro Konto, klaren Verbindungsarten und
+getrenntem Profil-/Cloudablauf überarbeiten.
 
-**Änderung:** Lokale Konten erhalten neben der Aktualisierung das bestehende
-Zahnrad mit einem Shared-Dialog für die kontoweise Glockeneinstellung. Der
-bisherige Cloud-Dialog bleibt erhalten. Kontowechsel und Rechteentzug schließen
-den lokalen Dialog; reine Datenaktualisierungen lassen ihn geöffnet.
+**Änderung:** Eine gemeinsame Kontenseite ersetzt die separate Verwaltung.
+Kacheln erhalten Zuggriff, zugängliche Verschiebepfeile, Zahnrad und getrennte
+Verbindungsaktionen. Zehn Plätze gelten inklusive offener Einrichtungen und
+werden atomar geprüft; die Reihenfolge wird kontoberechtigt gespeichert.
+Sortieren erhält Vorschauen und geöffnete Daten. Lokale Einstellungen bleiben
+auch am Kontokopf erreichbar. Die lokale Anleitung beschreibt ein Profil pro
+Konto und verhindert eine bekannte Doppelbindung. Erweiterung 1.5.0 ergänzt die
+Flipbase-Logo-Blase auf normalen Vinted-Seiten. Reservierte Arbeitstabs behalten
+die Sperrfläche. Cloudprüfung und Reservierung verwenden den vorhandenen Ablauf
+mit eigenem Ladedialog. Keine automatischen IP-Käufe, Backups oder realen
+Kontolöschungen/Versandaktionen.
 
-**Prüfung:** Regression reproduziert: drei neue Renderingprüfungen scheitern
-am fehlenden lokalen Zugang; bestehender Cloud-Dialog und Favoriteneinstellung
-funktionieren. Nach Korrektur bestehen alle 21 betroffenen Angularprüfungen,
-einschließlich lokaler Bedienung, echter Einstellungsabfragen, Speichern,
-Kontowechsel, Rechteentzug und Cloud-Dialog. AXE-Prüfung ohne Farbkontrast im
-JSDOM-Lauf ohne Befund. Formatierung, ESLint, Typprüfung, Shared-UI-Prüfung und
-Produktionsbau erfolgreich. Noch nicht veröffentlicht; keine Kontoeinstellung
-geändert.
+**Prüfung:** Zuerst rote Regressionen für Kontoaktionen, Reihenfolge, unnötige
+Vorschauabrufe und Dialog-/Select-Ladezustände. 234 betroffene Angularprüfungen,
+108 Workflow-/Erweiterungsprüfungen (davon 95 Erweiterung), drei Routentests und
+27 Chromium-Kontenabläufe mit Testdaten erfolgreich. Desktop und Mobil prüfen
+Sortieren, Einstellungen, lokale Einrichtung, Cloudreservierung, SMS und
+Anmeldungsfehler. Echte Browser-AXE-Prüfungen inklusive Farbkontrast ohne Befund;
+Erweiterungsblase mit echten Assets bei 1440, 390 und 320 Pixeln geprüft.
+Vollständige pgTAP-Suite mit 2972 Prüfungen und drei echte Datenbank-Parallelfälle
+erfolgreich. Migration aus isolierter Datenbank erzeugt, transaktional auf
+Ausgangsschema eingespielt; Schemaabgleich ohne Differenz und Typen daraus
+erzeugt. Formatierung, ESLint, Typen und Shared-UI-Prüfung erfolgreich.
+Produktionsbau und unabhängiges Abschlussreview erfolgreich; gefundene
+Dialog-/Selectfehler sind behoben und durch Regressionstests abgesichert.
+Noch kein neuer PR und keine Produktionsveröffentlichung; kein echter
+Vinted-Kontotest der neuen Blase und kein Storeeintrag.
 
 ## 2026-10-05 - Juna - Privaten Cloud-IP-Piloten und automatischen Anbieterabgleich vorbereiten
 

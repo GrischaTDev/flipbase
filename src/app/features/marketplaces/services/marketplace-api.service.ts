@@ -26,13 +26,15 @@ interface RpcResult {
   error: { code?: string } | null;
 }
 export class MarketplaceApiError extends Error {
-  constructor(readonly code: 'forbidden' | 'unavailable' | 'request_failed') {
+  constructor(readonly code: 'forbidden' | 'unavailable' | 'request_failed' | 'account_limit') {
     super(
-      code === 'forbidden'
-        ? 'Du hast keinen Verwaltungszugriff auf diese Marktplatzkonten.'
-        : code === 'unavailable'
-          ? 'Die Marktplatzverwaltung ist auf diesem Server noch nicht verfügbar.'
-          : 'Die Anfrage konnte nicht bestätigt werden. Lade die Ansicht erneut, bevor du die Aktion wiederholst.',
+      code === 'account_limit'
+        ? 'Du kannst höchstens zehn Vinted-Konten pro Workspace hinzufügen.'
+        : code === 'forbidden'
+          ? 'Du hast keinen Verwaltungszugriff auf diese Marktplatzkonten.'
+          : code === 'unavailable'
+            ? 'Die Marktplatzverwaltung ist auf diesem Server noch nicht verfügbar.'
+            : 'Die Anfrage konnte nicht bestätigt werden. Lade die Ansicht erneut, bevor du die Aktion wiederholst.',
     );
   }
 }
@@ -40,11 +42,13 @@ function dataOf(result: RpcResult): unknown {
   if (result.error) {
     const code = result.error.code;
     throw new MarketplaceApiError(
-      code === '42501' || code === 'PGRST301'
-        ? 'forbidden'
-        : code === 'PGRST202' || code === '42883'
-          ? 'unavailable'
-          : 'request_failed',
+      code === '54000'
+        ? 'account_limit'
+        : code === '42501' || code === 'PGRST301'
+          ? 'forbidden'
+          : code === 'PGRST202' || code === '42883'
+            ? 'unavailable'
+            : 'request_failed',
     );
   }
   return result.data;
@@ -139,6 +143,14 @@ export class MarketplaceApiService {
         p_workspace_id: scope.workspaceId,
         p_connection_id: scope.connectionId,
         p_display_name: displayName,
+      }),
+    );
+  }
+  async reorderConnections(workspaceId: string, connectionIds: readonly string[]): Promise<void> {
+    confirmWrite(
+      await this.client.rpc('marketplace_reorder_connections', {
+        p_workspace_id: workspaceId,
+        p_connection_ids: [...connectionIds],
       }),
     );
   }

@@ -6,6 +6,14 @@
         Du brauchst Verwaltungszugriff, um diese Verbindung freizugeben.
       </app-notice-banner>
     } @else {
+      @if (otherProfileAccount(); as binding) {
+        <app-notice-banner class="mt-4" announcement="alert">
+          Dieses Browserprofil ist bereits mit
+          {{ binding.boundUsername ? '@' + binding.boundUsername : 'einem anderen Vinted-Konto' }}
+          verknüpft. Öffne für diese Verbindung das passende Browserprofil oder erstelle in Chrome
+          oder Brave ein neues Profil und installiere die Erweiterung dort.
+        </app-notice-banner>
+      }
       @if (local.error(); as error) {
         <app-notice-banner class="mt-4" announcement="alert">{{ error }}</app-notice-banner>
       }
@@ -20,8 +28,8 @@
           } @else if (extension.installed()) {
             Erweiterung in diesem Browserprofil erreichbar.
           } @else {
-            Die Erweiterung ist in diesem Browserprofil nicht erreichbar. Prüfe sie in Chrome und
-            lade Flipbase anschließend neu.
+            Die Erweiterung ist in diesem Browserprofil nicht erreichbar. Prüfe sie in Chrome oder
+            Brave und lade Flipbase anschließend neu.
           }
         </p>
         @if (extension.installationCheckFailed()) {
@@ -48,9 +56,13 @@
           Jetzt synchronisieren
         </app-button>
       } @else {
-        <h2 class="mt-4 text-sm font-semibold">
-          1. Erweiterung installieren und mit Flipbase verbinden
-        </h2>
+        <h2 class="mt-4 text-sm font-semibold">1. Browserprofil und Erweiterung vorbereiten</h2>
+        <p class="mt-2 text-sm text-fb-text-secondary">
+          Für jedes Vinted-Konto brauchst Du ein eigenes Browserprofil. Erstelle in Chrome oder
+          Brave ein neues Profil und installiere das bereitgestellte Flipbase-Erweiterungspaket
+          dort. Öffne die Erweiterungsverwaltung, aktiviere den Entwicklermodus und wähle „Entpackte
+          Erweiterung laden“. Melde Dich anschließend in diesem Profil bei Flipbase an.
+        </p>
         <p role="status" class="mt-2 text-sm text-fb-text-secondary">
           @if (extension.checkingInstallation()) {
             Verbindung wird geprüft …
@@ -83,9 +95,12 @@
         <app-button class="mt-3" href="https://www.vinted.de/" target="_blank"
           >Vinted öffnen</app-button
         >
-        <h2 class="mt-4 text-sm font-semibold">3. Konto prüfen und freigeben</h2>
+        <h2 class="mt-4 text-sm font-semibold">3. Vorbereitete Verbindung bestätigen</h2>
         <p class="mt-2 text-[13px] text-fb-text-secondary">
-          Pro Browserprofil bleibt ein Vinted-Konto angemeldet. Die Freigabe gilt 24 Stunden.
+          Diese Flipbase-Verknüpfung ist bereits vorbereitet. Wähle „Angemeldetes Vinted-Konto
+          prüfen“ und prüfe den erkannten Vinted-Namen. Bestätige es anschließend mit „Dieses Konto
+          freigeben“. Pro Browserprofil bleibt ein Vinted-Konto angemeldet. Die Freigabe gilt 24
+          Stunden.
         </p>
         @if (local.binding(); as binding) {
           @if (!local.hasValidBinding()) {
@@ -108,6 +123,7 @@
               class="mt-4"
               variant="primary"
               [loading]="local.busy()"
+              [disabled]="otherProfileAccount() !== null"
               (clicked)="local.approve()"
             >
               Dieses Konto freigeben
@@ -116,7 +132,7 @@
         }
         <app-button
           class="mt-4"
-          [disabled]="local.busy() || !extension.installed()"
+          [disabled]="local.busy() || !extension.installed() || otherProfileAccount() !== null"
           (clicked)="local.prepare()"
         >
           Angemeldetes Vinted-Konto prüfen
@@ -134,8 +150,9 @@
         </p>
       }
       <p class="mt-4 text-[13px] text-fb-text-secondary">
-        Postfach, Verkäufe und automatische Aktionen sind in dieser Pilotversion noch nicht lokal
-        angebunden. Synchronisiert werden Profil und Inserate.
+        Profil und Inserate werden lokal synchronisiert. Im Postfach kannst Du zusätzlich den
+        Nachrichtenzugriff freigeben und Gespräche synchronisieren. Verkäufe werden noch nicht über
+        die lokale Erweiterung abgeglichen.
       </p>
       @if (local.canRevoke()) {
         <div class="mt-4 flex flex-wrap gap-2">
@@ -144,7 +161,7 @@
           >
           @if (local.hasValidBinding() && !local.prepared()) {
             <app-button
-              [disabled]="local.busy() || !extension.installed()"
+              [disabled]="local.busy() || !extension.installed() || otherProfileAccount() !== null"
               (clicked)="local.prepare()"
               >Konto erneut prüfen</app-button
             >

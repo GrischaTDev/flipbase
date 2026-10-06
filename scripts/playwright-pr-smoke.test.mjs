@@ -68,7 +68,11 @@ const coreTests = [
   ]),
   ...[1440, 390].map((width) => [
     'marketplace-accounts.spec.ts',
-    `Account hinzufügen reserviert eine IP und aktiviert Cloud ausdrücklich bei ${width}px @marketplace-preview @core-smoke`,
+    `Konto hinzufügen reserviert eine IP und aktiviert Cloud ausdrücklich bei ${width}px @marketplace-preview @core-smoke`,
+  ]),
+  ...[1440, 390].map((width) => [
+    'marketplace-accounts.spec.ts',
+    `Kontenkacheln sortieren und lokale Einstellungen öffnen bei ${width}px @marketplace-preview @core-smoke`,
   ]),
   ...[1440, 390].map((width) => [
     'marketplace-accounts.spec.ts',

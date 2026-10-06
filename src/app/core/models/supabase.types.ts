@@ -2498,6 +2498,7 @@ export type Database = {
           last_synced_at: string | null
           marketplace: string
           resume_status: string | null
+          sort_order: number
           status: string
           updated_at: string
           workspace_id: string
@@ -2512,6 +2513,7 @@ export type Database = {
           last_synced_at?: string | null
           marketplace?: string
           resume_status?: string | null
+          sort_order?: number
           status?: string
           updated_at?: string
           workspace_id: string
@@ -2526,6 +2528,7 @@ export type Database = {
           last_synced_at?: string | null
           marketplace?: string
           resume_status?: string | null
+          sort_order?: number
           status?: string
           updated_at?: string
           workspace_id?: string
@@ -7293,6 +7296,10 @@ export type Database = {
           p_display_name: string
           p_workspace_id: string
         }
+        Returns: Json
+      }
+      marketplace_reorder_connections: {
+        Args: { p_connection_ids: string[]; p_workspace_id: string }
         Returns: Json
       }
       marketplace_retry_local_message: {

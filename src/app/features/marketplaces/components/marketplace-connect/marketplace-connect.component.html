@@ -23,7 +23,7 @@
       } @else {
         Diese Kontoverbindung ist in diesem Workspace nicht verfügbar.
       }
-      <app-button class="mt-3" link="/marketplaces/vinted/manage">Konten verwalten</app-button>
+      <app-button class="mt-3" link="/marketplaces/vinted/accounts">Kontenübersicht</app-button>
     </app-notice-banner>
   } @else if (requestedConnection()?.executionMode === 'local') {
     <app-notice-banner
@@ -54,7 +54,7 @@
     <app-notice-banner announcement="alert">
       Diese Kontoverbindung ist pausiert oder gesperrt. Für sie kann keine Anmeldung gestartet
       werden.
-      <app-button class="mt-3" link="/marketplaces/vinted/manage">Konten verwalten</app-button>
+      <app-button class="mt-3" link="/marketplaces/vinted/accounts">Kontenübersicht</app-button>
     </app-notice-banner>
   } @else if (!selected()) {
     <p role="status" class="text-sm text-fb-text-secondary">Konto wird ausgewählt …</p>

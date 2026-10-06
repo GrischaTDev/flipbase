@@ -39,6 +39,16 @@ beforeEach(() => {
 });
 
 describe('Vinted-Kontovorschauen', () => {
+  it('sortiert vorhandene Vorschauen ohne erneute Datenabfragen', async () => {
+    await settle();
+    connections.set([...fixtures.connections].reverse());
+    await settle();
+    expect(store.tiles().map((tile) => tile.connection.connectionId)).toEqual(
+      [...fixtures.connections].reverse().map((account) => account.connectionId),
+    );
+    expect(readAccountPreview).toHaveBeenCalledTimes(2);
+    expect(store.tiles().every((tile) => !tile.loading)).toBe(true);
+  });
   it('verwirft verspätete Vorschauen nach einem Workspacewechsel', async () => {
     let resolve!: (value: MarketplaceAccountPreview) => void;
     readAccountPreview.mockReturnValueOnce(

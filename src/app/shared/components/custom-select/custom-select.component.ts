@@ -102,6 +102,7 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
   readonly query = signal('');
   private readonly activeOption = signal<SelectOption<T> | null>(null);
   private suppressSearchFocus = false;
+  private openTriggerRect: DOMRect | null = null;
 
   readonly visibleOptions = computed(() => {
     if (!this.searchable()) return this.options();
@@ -168,8 +169,16 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
   constructor() {
     // Scrollen der Liste ist erlaubt; bei bewegtem Anker schließen, statt ein losgelöstes Menü zu zeigen.
     const onScroll = (event: Event) => {
+      if (!this.isOpen()) return;
       if (this.panel()?.nativeElement.contains(event.target as Node)) return;
-      if (this.isOpen()) this.closeDropdown(false);
+      const triggerRect = this.trigger().nativeElement.getBoundingClientRect();
+      // Der Fokusscroll vor dem Öffnen kann sein Ereignis erst danach zustellen.
+      if (
+        triggerRect.top === this.openTriggerRect?.top &&
+        triggerRect.left === this.openTriggerRect.left
+      )
+        return;
+      this.closeDropdown(false);
     };
     const onResize = () => {
       if (this.isOpen()) this.closeDropdown(false);
@@ -211,6 +220,7 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
 
   openDropdown(initial: 'selected' | 'first' | 'last'): void {
     if (this.effectiveDisabled()) return;
+    this.openTriggerRect = this.trigger().nativeElement.getBoundingClientRect();
     if (this.searchable() && !this.isOpen()) this.query.set('');
 
     if (this.openDirection() === 'auto') {
@@ -426,13 +436,19 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
       {
         mixedReadWrite: () => {
           if (!this.isOpen()) return;
+          const panel = this.panel()?.nativeElement;
           const option =
             this.elementRef.nativeElement.querySelectorAll<HTMLElement>('[role="option"]')[
               this.activeIndex()
             ];
-          option?.scrollIntoView?.({
-            block: 'nearest',
-          });
+          if (!panel || !option || panel.clientHeight === 0) return;
+          const panelTop = panel.getBoundingClientRect().top + panel.clientTop;
+          const panelBottom = panelTop + panel.clientHeight;
+          const optionRect = option.getBoundingClientRect();
+          // scrollIntoView bewegt auch den Dialog und würde dessen Select schließen.
+          if (optionRect.top < panelTop) panel.scrollTop += optionRect.top - panelTop;
+          else if (optionRect.bottom > panelBottom)
+            panel.scrollTop += optionRect.bottom - panelBottom;
         },
       },
       { injector: this.injector },

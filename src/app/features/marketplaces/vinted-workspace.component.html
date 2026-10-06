@@ -1,11 +1,7 @@
 <app-page-header [title]="showingMessages() ? 'Nachrichten' : 'Vinted'" [icon]="pageIcon()">
-  @if (showingManagement()) {
+  @if (showingSetup() || showingLocalConnection() || showingCloudConnection()) {
     <app-button header-actions link="/marketplaces/vinted/accounts">Alle Konten</app-button>
-  } @else if (
-    showingAccounts() || showingSetup() || showingLocalConnection() || showingCloudConnection()
-  ) {
-    <app-button header-actions link="/marketplaces/vinted/manage">Konten verwalten</app-button>
-  } @else if (store.selectedConnection(); as account) {
+  } @else if (!showingAccounts() && store.selectedConnection(); as account) {
     <app-vinted-account-controls
       header-actions
       class="w-full sm:w-auto"
@@ -26,8 +22,8 @@
       (refreshRequested)="sync()"
       (synchronized)="store.refreshImportedSnapshot($event, $event.lastSuccessAt)"
     />
-  } @else {
-    <app-button header-actions link="/marketplaces/vinted/manage">Konten verwalten</app-button>
+  } @else if (!showingAccounts()) {
+    <app-button header-actions link="/marketplaces/vinted/accounts">Alle Konten</app-button>
   }
 </app-page-header>
 <div class="mt-4 space-y-4">
@@ -43,11 +39,7 @@
     </app-notice-banner>
   }
   @if (
-    showingAccounts() ||
-    showingSetup() ||
-    showingManagement() ||
-    showingLocalConnection() ||
-    showingCloudConnection()
+    showingAccounts() || showingSetup() || showingLocalConnection() || showingCloudConnection()
   ) {
     <router-outlet />
   } @else if (store.selectedConnection(); as account) {

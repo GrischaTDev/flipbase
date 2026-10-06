@@ -275,6 +275,10 @@ jobs:
         env:
           CLOUD_SETUP_TEST_DB_CONTAINER: supabase_db_flipbase-supabase
         run: node supabase/test-support/marketplace-cloud-setup-concurrency.mjs
+      - name: Check Vinted account slots and order concurrency
+        env:
+          ACCOUNT_ORDER_TEST_DB_CONTAINER: supabase_db_flipbase-supabase
+        run: node supabase/test-support/marketplace-account-order-concurrency.mjs
 
       - name: Test parallel eBay order imports
         env:
