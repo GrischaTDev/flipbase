@@ -11,7 +11,7 @@ Workspace-Zugriff werden am Server geprüft. Ein privater Broker übernimmt die
 Docker-Operationen und die echten Chromium-Profile; der Worker erhält nur getrennte
 Metadaten und einen begrenzten Auftragskanal.
 
-**Prüfung:** In Arbeit; keine Produktionseinstellungen geändert, kein Deployment.
+**Prüfung:** Produktionsbau, Formatierung, ESLint und Typprüfung bestanden. Die vollständigen Node-, DOM- und Edge-Suites bestehen; die Angular-Suite besteht mit vier Prozessen (189 Dateien, 1.901 Tests). Der unbegrenzte Gesamtaufruf wurde nach lokalen Zeitüberschreitungen beendet. Worker: 326 Tests bestanden, sieben bestehende Fälle übersprungen. Alle 190 Migrationen in einer isolierten Datenbank angewendet; abschließend 3.229 Datenbanktests bestanden. Der Transport mit geprüfter IP und TLS-Host wurde in einer isolierten User-Worker-Instanz derselben installierten Edge-Runtime-Version bestätigt. Ein unabhängiger Review fand drei Versandregressionen; Kanalisolation, Wiederholung fehlgeschlagener Nachrichten und der bisherige Kennzahlenvertrag sind korrigiert und geprüft. Der aktuelle origin/master ist enthalten. Testcontainer entfernt; keine Produktionseinstellungen geändert und kein Deployment. Tatsächliche Image-Bauten, Broker-Browser-Smoke und produktive Serverumstellung stehen aus.
 
 ## 2026-10-06 - Juna - Serverbereinigung und automatische Aufbewahrung freigegeben
 
