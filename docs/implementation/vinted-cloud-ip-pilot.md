@@ -131,6 +131,34 @@ den vorhandenen lokalen Verknüpfungsablauf nach beendetem Cloudbetrieb.
 
 ## Abnahme
 
+### Normales Chrome für die vorhandene Cloud-Einrichtung
+
+Der neue Sitzungscontainer startet Google Chrome direkt mit dem vorhandenen
+Kontoprofil unter `/profile`. Playwright verbindet sich erst anschließend über
+den privaten Worker-Zugang; es startet diesen Browser nicht. Die manuelle
+Browseransicht überträgt Eingaben über die Betriebssystemtastatur und -maus.
+Die vorhandenen authentifizierten Sitzungsendpunkte bleiben erhalten. Ein
+öffentlicher VNC-Port wird dafür nicht benötigt. Proxy-Zugangsdaten werden
+über den vorhandenen Pilot-Weiterleiter verwendet; nur HTTP-Proxyanschlüsse
+sind in dieser Runtime zulässig.
+
+Worker und Sitzungsimage müssen gemeinsam auf geprüfte Versionen aktualisiert
+werden. Das Sitzungsimage trägt `de.flipbase.chromium.runtime=chrome-desktop-v1`;
+der neue Worker verweigert den Start mit einem alten Image. Vor der Aktivierung
+müssen die laufenden Kontobrowser bestätigt beendet sein. Neue Versionen erst
+nach erfolgreichen PR-Prüfungen und Image-Smokes verwenden. Die bestehende
+Profilablage und IP-Zuordnung werden dabei nicht kopiert oder umgeschrieben.
+Ein unbestätigter Chrome-Stopp liefert Exitcode 75 und bleibt gesperrt.
+
+Das separat angemeldete Maike-Vintage-Pilotprofil ist weiterhin nicht mit einer
+Flipbase-Verbindung verknüpft. Vor dem späteren Kontotest den unabhängigen Pilot
+bestätigt stoppen, sein Profil erhalten und eine freie IP über die vorhandene
+Cloud-Einrichtung reservieren lassen. Kein paralleler Betrieb über dieselbe IP.
+Die produktive Verbindung muss anschließend dieselbe Vinted-Konto-ID bestätigen.
+Die Pilotanmeldung und lesenden Abrufe sind dokumentiert; die vollständige
+Verknüpfung, Umstellung von der Erweiterung, Schreibaktionen und Dauerbetrieb
+bleiben eigene Abnahmen. Automatischer IP-Kauf ist weiterhin nicht Bestandteil.
+
 - Gleichzeitige Einrichtungen mit nur einer freien IP: genau eine Reservierung;
   der zweite Nutzer erhält die Kapazitätsmeldung.
 - Wiederholte Anfragen, verlorene Antworten und Worker-Neustart: unveränderte
@@ -144,8 +172,8 @@ den vorhandenen lokalen Verknüpfungsablauf nach beendetem Cloudbetrieb.
 - Zugriffsprüfung: fremde Arbeitsplätze können weder Reservierungen verändern
   noch Zugangsdaten oder fremde Einrichtungszustände lesen.
 - Echter Pilot auf Hetzner: Proxy erreichbar, Ausgangs-IP und deutscher Standort
-  geprüft, Anmeldung und lesender Datenabgleich für das benannte Konto nachgewiesen.
-  Dieser Nachweis steht aus.
+  geprüft, Anmeldung und lesender Datenabgleich im separaten Pilot nachgewiesen.
+  Die Abnahme nach produktiver Flipbase-Cloud-Verknüpfung steht noch aus.
 
 ## Grundlagen
 

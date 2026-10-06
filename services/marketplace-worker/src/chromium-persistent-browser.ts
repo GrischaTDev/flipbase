@@ -3,6 +3,7 @@ import {
   CloudBrowserStopUncertainError,
   type BrowserConnection,
   type CloudBrowserHandle,
+  type BrowserDesktop,
 } from './gologin-cloud-browser.ts';
 import { ChromiumProfileStore, type ChromiumProfileLease } from './chromium-profile-store.ts';
 import { vintedBrowserActions } from './vinted-browser-actions.ts';
@@ -17,6 +18,7 @@ export interface ChromiumPersistentBrowserOptions {
   recoverRuntime?: (profileId: string) => Promise<void>;
   headless?: boolean;
   trustedTestStartUrl?: string;
+  desktop?: (profileId: string) => BrowserDesktop;
 }
 
 interface ActiveProfile {
@@ -80,9 +82,11 @@ export class ChromiumPersistentBrowser {
   private readonly startUrl: string;
   private readonly headless: boolean;
   private readonly active = new Map<string, ActiveProfile>();
+  private readonly desktop?: ChromiumPersistentBrowserOptions['desktop'];
 
   constructor(options: ChromiumPersistentBrowserOptions) {
     this.profileStore = options.profileStore;
+    this.desktop = options.desktop;
     this.network = options.network ?? { resolve: async () => ({ kind: 'direct' }) };
     this.launch =
       options.launch ??
@@ -138,7 +142,7 @@ export class ChromiumPersistentBrowser {
       };
       const page = context.pages().at(0) ?? (await context.newPage());
       await page.goto(this.startUrl, { waitUntil: 'domcontentloaded', timeout: 20_000 });
-      const browserInfo = vintedBrowserActions(connection);
+      const browserInfo = vintedBrowserActions(connection, this.desktop?.(profileId));
       return {
         run: async (operation) => {
           if (entry.stopped || entry.contextClosed || entry.closing)

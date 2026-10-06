@@ -1,5 +1,39 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-06 - Juna - normalen Chrome in die bestehende Cloud-Einrichtung integrieren
+
+**Auftrag:** Den erfolgreich angemeldeten eigenständigen Chrome-Pilot als
+Browsermodell für Flipbase übernehmen. Vorhandene Cloud-IP-Reservierung,
+Kontoprüfung, Wiederaufnahme und Abbruch verwenden; kein GoLogin-Abonnement.
+
+**Umsetzung:** Das Sitzungsimage startet Google Chrome als eigenen Betriebssystemprozess
+mit isoliertem Profil, Sandbox und Anzeige. Erst danach verbindet sich der Worker
+über seinen privaten CDP-Zugang ohne Playwright-Kontextvorgaben. Der bereits geprüfte
+Proxy-Weiterleiter und der reguläre Fensterschließweg werden aus dem Pilot verwendet.
+Zugangsdaten gelangen über eine private Startdatei und den Eingabekanal in den Container,
+nicht über Browserargumente. Die manuelle Browseransicht nutzt native Bildschirmaufnahme,
+Maus und Tastatur im verifizierten Kontocontainer. Unbestätigter regulärer Browserstopp
+führt zu Exitcode 75; Profil und IP bleiben dadurch reserviert. Ein altes Sitzungsimage
+wird vor einem neuen Containerstart abgewiesen. Die Anmeldedialoge erhalten die
+vorhandene große Dialogvariante und erklären das Einfügen von Text.
+
+**Prüfung:** 38 gezielte Worker-Tests, Worker-Typprüfung und Worker-Bau sowie
+43 Angular-Tests einschließlich vorhandener gerenderter Kontodialogprüfungen bestanden.
+Geänderte TypeScript- und HTML-Dateien sind gelintet. Der Angular-Produktionsbau
+besteht mit dem gebündelten Node 24.19.0; die systemweite Version 22.16.0 ist für
+die aktuelle Angular-CLI zu alt. Die vollständige Worker-Suite besteht in einem
+temporären Linux-Testordner mit 327 erfolgreichen und einem übersprungenen Test.
+Unter Windows besteht sie mit Node 24.19.0 mit 321 erfolgreichen und sieben
+übersprungenen Tests. Fünf unveränderte IPRoyal-Abgleichstests schlagen nur mit
+dem alten systemweiten Node 22.16.0 fehl. Acht Tests der wiederverwendeten
+Pilot-Helfer sowie YAML- und Shell-Syntaxprüfung bestehen. Das neue Browserimage erhält in CI eine Prüfung
+für echte native Eingaben, Bildschirmaufnahme, Profiltrennung und regulären Stopp.
+
+**Grenzen:** Das neue Image wurde noch nicht gebaut oder aktiviert; sein Linux-Smoke
+läuft im PR. Keine produktive Cloud-Verknüpfung oder Datenbankänderung. Das angemeldete
+Maike-Vintage-Pilotprofil bleibt erhalten. Anbieterprüfungen oder Sperren können
+weiterhin auftreten; aus dem Pilot folgt keine Garantie für jedes Konto.
+
 ## 2026-10-06 - Juna - automatischen Seitenneuladeweg im echten Cloudbrowser prüfen
 
 **Auftrag:** Nach dem Nutzerhinweis auf sein manuelles Neuladen den vorhandenen

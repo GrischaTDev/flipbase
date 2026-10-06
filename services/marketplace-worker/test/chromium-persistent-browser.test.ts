@@ -8,6 +8,45 @@ import { ChromiumPersistentBrowser } from '../src/chromium-persistent-browser.ts
 import { ChromiumProfileStore } from '../src/chromium-profile-store.ts';
 import { CloudBrowserStopUncertainError } from '../src/gologin-cloud-browser.ts';
 
+test('binds native desktop controls to the opened profile and blocks them after closing', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'flipbase-chromium-'));
+  const clicks: number[][] = [];
+  try {
+    const provider = new ChromiumPersistentBrowser({
+      profileStore: new ChromiumProfileStore({ root, inspectProfileProcesses: async () => [] }),
+      launch: async () =>
+        ({
+          browser: () => ({ version: () => 'fixture' }),
+          pages: () => [{ goto: async () => undefined }],
+          close: async () => undefined,
+        }) as unknown as BrowserContext,
+      desktop: (profileId) => {
+        assert.equal(profileId, 'account-a');
+        return {
+          capture: async () => Buffer.from('fixture'),
+          click: async (x, y) => {
+            clicks.push([x, y]);
+          },
+          drag: async () => undefined,
+          type: async () => undefined,
+          press: async () => undefined,
+        };
+      },
+    });
+    const handle = await provider.open('account-a');
+    await handle.run(async (browser) => browser.click?.(0.5, 0.75));
+    assert.deepEqual(clicks, [[0.5, 0.75]]);
+    await handle.close();
+    await assert.rejects(
+      handle.run(async (browser) => browser.click?.(0.1, 0.2)),
+      /beendet/,
+    );
+    assert.equal(clicks.length, 1);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test('blocks browser actions after an unconfirmed close and permits a confirmed retry', async () => {
   const root = await mkdtemp(join(tmpdir(), 'flipbase-chromium-'));
   let closeFails = true;

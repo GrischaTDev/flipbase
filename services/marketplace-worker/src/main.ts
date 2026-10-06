@@ -80,9 +80,10 @@ async function main(): Promise<void> {
     networks = await ChromiumNetworkProfiles.load(config.chromiumNetworkFile);
     networks.resolve(config.chromiumNetworkId);
     const configuredNetworks = networks;
+    const profileRoot = join(config.serverProfileRoot, 'profiles');
     const launcher = new ChromiumContainerLauncher({
       image: config.chromiumImage,
-      profileRoot: join(config.serverProfileRoot, 'profiles'),
+      profileRoot,
       hostProfileRoot: config.chromiumHostProfileRoot,
       hostId: config.chromiumHostId,
       network: config.chromiumNetwork,
@@ -90,7 +91,7 @@ async function main(): Promise<void> {
     });
     const chromium = new ChromiumPersistentBrowser({
       profileStore: new ChromiumProfileStore({
-        root: join(config.serverProfileRoot, 'profiles'),
+        root: profileRoot,
         inspectProfileProcesses: (directory) => launcher.inspectProfileProcesses(directory),
       }),
       network: {
@@ -99,6 +100,7 @@ async function main(): Promise<void> {
       },
       launch: (directory, settings) => launcher.launch(directory, settings ?? {}),
       recoverRuntime: (profileId) => launcher.recover(profileId),
+      desktop: (profileId) => launcher.desktop(join(profileRoot, profileId)),
     });
     browser = new MarketplaceProfileBrowser({ chromium, goLogin, chromiumRegistry });
     chromiumProfileOptions = {

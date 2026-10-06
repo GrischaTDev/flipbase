@@ -1,6 +1,11 @@
 import type { Page } from 'playwright';
 import { setTimeout } from 'node:timers/promises';
-import type { BrowserInfo, BrowserConnection, BrowserDragPoint } from './gologin-cloud-browser.ts';
+import type {
+  BrowserInfo,
+  BrowserConnection,
+  BrowserDragPoint,
+  BrowserDesktop,
+} from './gologin-cloud-browser.ts';
 import { readVintedAccountImport } from './vinted-account-import.ts';
 import { readVintedAccountIdentity } from './vinted-browser-reader.ts';
 import { submitVintedLogin } from './vinted-browser-login.ts';
@@ -41,11 +46,15 @@ export async function replayBrowserDrag(page: Page, points: BrowserDragPoint[]):
   }
 }
 
-export function vintedBrowserActions(connection: BrowserConnection): BrowserInfo {
+export function vintedBrowserActions(
+  connection: BrowserConnection,
+  desktop?: BrowserDesktop,
+): BrowserInfo {
   const currentPage = () => currentVintedPage(connection);
   return {
     version: () => connection.version(),
     capture: () =>
+      desktop?.capture() ??
       currentPage().screenshot({
         type: 'jpeg',
         quality: 65,
@@ -54,6 +63,7 @@ export function vintedBrowserActions(connection: BrowserConnection): BrowserInfo
         timeout: 5_000,
       }),
     click: async (xRatio, yRatio) => {
+      if (desktop) return desktop.click(xRatio, yRatio);
       const page = currentPage();
       const size =
         page.viewportSize() ??
@@ -61,9 +71,9 @@ export function vintedBrowserActions(connection: BrowserConnection): BrowserInfo
       if (size.width <= 0 || size.height <= 0) throw new Error('Browserfenster fehlt');
       await page.mouse.click(Math.floor(xRatio * size.width), Math.floor(yRatio * size.height));
     },
-    drag: (points) => replayBrowserDrag(currentPage(), points),
-    type: async (value) => currentPage().keyboard.insertText(value),
-    press: async (key) => currentPage().keyboard.press(key),
+    drag: (points) => desktop?.drag(points) ?? replayBrowserDrag(currentPage(), points),
+    type: (value) => desktop?.type(value) ?? currentPage().keyboard.insertText(value),
+    press: (key) => desktop?.press(key) ?? currentPage().keyboard.press(key),
     identify: () => readVintedAccountIdentity(currentPage()),
     importAccount: (authorize, onStage, previousConversations) =>
       readVintedAccountImport(currentPage(), authorize, onStage, previousConversations),

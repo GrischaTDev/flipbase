@@ -25,7 +25,13 @@
             : 'Vinted-Konto hinzufügen'
     "
     presentation="center"
-    [size]="currentDialog.mode === 'rename' || currentDialog.mode === 'delete' ? 'sm' : 'md'"
+    [size]="
+      currentDialog.mode === 'login'
+        ? 'full'
+        : currentDialog.mode === 'rename' || currentDialog.mode === 'delete'
+          ? 'sm'
+          : 'md'
+    "
     [hasFooter]="currentDialog.mode !== 'login'"
     (closed)="closeDialog()"
   >
