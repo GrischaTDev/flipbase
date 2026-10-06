@@ -478,7 +478,7 @@ describe('Vinted-Bereich in Flipbase', () => {
     );
     expect(header?.querySelector('app-notice-banner')).toBeNull();
     const notices = [...element.querySelectorAll('app-notice-banner')].filter((notice) =>
-      notice.textContent?.includes('Vinted hat den Abruf abgelehnt'),
+      notice.textContent?.includes('Der letzte automatische Abruf wurde von Vinted abgelehnt'),
     );
     expect(notices).toHaveLength(1);
     expect(notices[0].closest('app-page-header')).toBeNull();
