@@ -68,6 +68,39 @@ test('waits for the form and dismisses a late cookie overlay without a screensho
   }
 });
 
+test('dismisses late cookie consent when the login form is hidden from the accessibility tree', async () => {
+  const browser = await chromium.launch({ headless: true });
+  const fixture = await readFile(
+    new URL('../fixtures/vinted-login-cookie-hidden.html', import.meta.url),
+    'utf8',
+  );
+  try {
+    const page = await browser.newPage();
+    const submissions: string[] = [];
+    await page.route('**/*', (route) => {
+      const request = route.request();
+      const path = new URL(request.url()).pathname;
+      if (path === '/member/login/email')
+        return route.fulfill({ contentType: 'text/html', body: fixture });
+      if (path === '/synthetic-session') {
+        submissions.push(request.postData() ?? '');
+        return route.fulfill({ contentType: 'text/html', body: '<h1>Bestätigt</h1>' });
+      }
+      return route.abort();
+    });
+    assert.equal(
+      await submitVintedLogin(page, { username: 'synthetic', password: 'synthetic' }),
+      'submitted',
+    );
+    await page.waitForURL('https://www.vinted.de/synthetic-session');
+    assert.deepEqual(submissions, [
+      'cookie_choice=necessary&username=synthetic&password=synthetic',
+    ]);
+  } finally {
+    await browser.close();
+  }
+});
+
 test('real browser submits only to our intercepted fixture and keeps account contexts separate', async () => {
   const browser = await chromium.launch({ headless: true });
   const fixture = await readFile(new URL('../fixtures/vinted-login.html', import.meta.url), 'utf8');
@@ -167,6 +200,29 @@ test('reports a visible rejected login without polling identity or retrying cred
     await page.goto('https://www.vinted.de/member/login/email');
     await assert.rejects(readVintedAccountIdentity(page), /Zugangsdaten/);
     assert.equal(identityRequests, 0);
+  } finally {
+    await browser.close();
+  }
+});
+
+test('reports an anonymous homepage as pending and permits a subsequent login check', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    let authenticated = false;
+    await page.route('**/*', (route) => {
+      if (new URL(route.request().url()).pathname === '/api/v2/users/current')
+        return route.fulfill({
+          status: authenticated ? 200 : 401,
+          contentType: 'application/json',
+          body: authenticated ? JSON.stringify({ user: { id: 123, login: 'seller' } }) : '{}',
+        });
+      return route.fulfill({ contentType: 'text/html', body: '<main>Vinted</main>' });
+    });
+    await page.goto('https://www.vinted.de/');
+    await assert.rejects(readVintedAccountIdentity(page), { name: 'VintedLoginPendingError' });
+    authenticated = true;
+    assert.deepEqual(await readVintedAccountIdentity(page), { id: '123', username: 'seller' });
   } finally {
     await browser.close();
   }

@@ -37,7 +37,12 @@ const makeItem = (i: number) => ({
   watchlist_title: i === 1 ? 'Meine Sneaker' : null,
 });
 
-async function fixture(page: Page) {
+type FavoriteFixtureStore = Map<string, Record<string, unknown> | null>;
+async function fixture(
+  page: Page,
+  favoriteStore: FavoriteFixtureStore = new Map(),
+  userId = '92000000-0000-4000-8000-000000000001',
+) {
   // Lokale Bildantworten statt fremder Produktfotos: prüft Raster und Fehlerzustände.
   await page.route('https://images1.vinted.net/feed-fixture/**', async (route) => {
     if (route.request().url().endsWith('/broken.svg')) {
@@ -51,7 +56,7 @@ async function fixture(page: Page) {
     });
   });
   const user = {
-    id: '92000000-0000-4000-8000-000000000001',
+    id: userId,
     email: 'feed@example.test',
     aud: 'authenticated',
     role: 'authenticated',
@@ -80,10 +85,21 @@ async function fixture(page: Page) {
   const watchlists: Record<string, unknown>[] = [];
   const calls: { name: string; body: Record<string, unknown> }[] = [];
   let failSave = false;
+  let failFavorites = false;
   let covered = true;
   let watchlistGate: Promise<void> | null = null;
   let releaseWatchlists: (() => void) | undefined;
   let waitingForWatchlists = false;
+  await page.routeWebSocket(/127\.0\.0\.1:54351/, (socket) => {
+    socket.onMessage((message) => {
+      if (typeof message !== 'string') return;
+      const [joinRef, ref, topic, event] = JSON.parse(message) as unknown[];
+      if (['phx_join', 'phx_leave', 'heartbeat'].includes(String(event)))
+        socket.send(
+          JSON.stringify([joinRef, ref, topic, 'phx_reply', { status: 'ok', response: {} }]),
+        );
+    });
+  });
   await page.route('http://127.0.0.1:54351/**', async (route) => {
     const url = new URL(route.request().url());
     const name = url.pathname.split('/').at(-1) ?? '';
@@ -133,14 +149,69 @@ async function fixture(page: Page) {
       json = firstWorkspace && Number(url.searchParams.get('offset') ?? 0) === 0 ? watchlists : [];
     }
     if (name === 'sniper_supported_brands') json = [{ brand: 'Nike' }];
-    if (name === 'sniper_feed_filtered') {
+    if (name === 'sniper_feed_search') {
       const body = route.request().postDataJSON() as Record<string, unknown>;
       calls.push({ name, body });
       json = {
-        items: body['p_workspace_id'] === secondWorkspace ? [makeItem(700)] : items,
+        items: (body['p_workspace_id'] === secondWorkspace ? [makeItem(700)] : items).filter(
+          (item) =>
+            String(body['p_title_query'] ?? '')
+              .toLowerCase()
+              .split(/\s+/u)
+              .every((word) => item.title.toLowerCase().includes(word)),
+        ),
         covered,
         reported_at: new Date().toISOString(),
       };
+    }
+    if (
+      [
+        'sniper_favorites_page',
+        'save_sniper_favorite',
+        'remove_sniper_favorite',
+        'clear_sniper_favorites',
+        'import_sniper_favorites',
+      ].includes(name)
+    ) {
+      const body = route.request().postDataJSON() as Record<string, unknown>;
+      calls.push({ name, body });
+      const scope = `${user.id}:${body['p_workspace_id']}:`;
+      const key = (item: Record<string, unknown>) =>
+        scope + /\/items\/(\d+)/u.exec(String(item['url']))?.[1];
+      if (
+        body['p_expected_user_id'] !== user.id ||
+        (failFavorites && name !== 'sniper_favorites_page')
+      ) {
+        await route.fulfill({ status: 400, json: { message: 'Speichern fehlgeschlagen' } });
+        return;
+      }
+      if (name === 'sniper_favorites_page')
+        json = {
+          items: [...favoriteStore.entries()]
+            .filter(([id, item]) => id.startsWith(scope) && item !== null)
+            .map(([, item]) => item),
+          next_cursor: null,
+        };
+      if (name === 'save_sniper_favorite') {
+        const item = body['p_item'] as Record<string, unknown>;
+        if (!favoriteStore.get(key(item))) favoriteStore.set(key(item), item);
+        json = true;
+      }
+      if (name === 'remove_sniper_favorite') {
+        favoriteStore.set(scope + body['p_external_id'], null);
+        json = true;
+      }
+      if (name === 'clear_sniper_favorites') {
+        for (const id of favoriteStore.keys())
+          if (id.startsWith(scope)) favoriteStore.set(id, null);
+        json = true;
+      }
+      if (name === 'import_sniper_favorites') {
+        const rows = body['p_items'] as Record<string, unknown>[];
+        for (const item of rows)
+          if (!favoriteStore.has(key(item))) favoriteStore.set(key(item), item);
+        json = rows.length;
+      }
     }
     if (name === 'save_sniper_watchlist') {
       const body = route.request().postDataJSON() as Record<string, unknown>;
@@ -175,6 +246,12 @@ async function fixture(page: Page) {
   });
   return {
     calls,
+    clearFeed: () => {
+      items = [];
+    },
+    failFavorites: (value: boolean) => {
+      failFavorites = value;
+    },
     add: (...ids: number[]) => {
       items = [...(ids.length ? ids : [99]).map(makeItem), ...items];
     },
@@ -222,10 +299,11 @@ for (const theme of ['light', 'dark'] as const) {
     const mock = await fixture(page);
     // Ueber die fruehere Adresse, damit auch die Weiterleitung abgedeckt ist.
     await page.goto('/deal-monitor');
+    await page.locator('app-page-header').waitFor({ state: 'visible', timeout: 30_000 });
     await expect(page).toHaveURL(/\/vinted-bot$/);
-    await expect(page.getByRole('heading', { name: 'Vinted Bot', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Vinted Feed', exact: true })).toBeVisible();
     await expect(page.getByRole('article')).toHaveCount(8);
-    const finds = page.getByRole('region', { name: 'Gespeicherte Funde', exact: true });
+    const finds = page.getByRole('region', { name: 'Artikel im Vinted Feed', exact: true });
     await expect(finds.getByRole('article')).toHaveCount(8);
     await expect(page.getByText('Weitere Funde', { exact: true })).toHaveCount(0);
     await expect(
@@ -279,7 +357,9 @@ for (const theme of ['light', 'dark'] as const) {
       expect(allCards[1].x).toBeLessThan(allCards[2].x);
       expect(allCards[0].y).toBeCloseTo(allCards[1].y, 0);
       expect(allCards[1].y).toBeCloseTo(allCards[2].y, 0);
-      expect(allCards[0].width).toBeCloseTo(allCards[3].width, 0);
+      expect(allCards[0].width).toBeCloseTo(allCards[4].width, 0);
+      expect(allCards[4].y).toBeCloseTo(allCards[0].y, 0);
+      expect(allCards[5].y).toBeGreaterThan(allCards[0].y);
     }
     const viewItem = firstCard.getByRole('link', {
       name: 'Nike Sneaker 1 – auf Vinted ansehen (neuer Tab)',
@@ -310,6 +390,7 @@ for (const theme of ['light', 'dark'] as const) {
     await page.screenshot({ path: `test-results/deal-monitor-${theme}.png`, fullPage: true });
 
     await page.goto('/vinted-bot/filters');
+    await page.locator('app-page-header').waitFor({ state: 'visible', timeout: 30_000 });
     await expect(page.getByRole('heading', { name: 'Suchfilter', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Neuer Suchfilter', exact: true }).click();
     await expect(page.getByLabel('Name des Suchfilters')).toBeFocused();
@@ -351,12 +432,14 @@ for (const theme of ['light', 'dark'] as const) {
     ).toBe(true);
     mock.uncovered();
     await page.goto('/vinted-bot');
+    await page.locator('app-page-header').waitFor({ state: 'visible', timeout: 30_000 });
     await expect(
       page.getByText('Für diesen Bereich sammelt der Monitor noch nicht.', { exact: false }),
     ).toBeVisible();
     // Der bestehende Workspace-Schutz sperrt den Wechsel auf der
     // Erfassungsseite; nach dem Speichern geht es zurück zum Feed.
     await page.goto('/vinted-bot/filters');
+    await page.locator('app-page-header').waitFor({ state: 'visible', timeout: 30_000 });
     await page.getByRole('button', { name: 'Neuer Suchfilter', exact: true }).click();
     await page.getByLabel('Name des Suchfilters').fill('Verzögert gespeichert');
     mock.holdWatchlists();
@@ -369,20 +452,22 @@ for (const theme of ['light', 'dark'] as const) {
       page.getByRole('form', { name: 'Suchfilter bearbeiten', exact: true }),
     ).toHaveCount(0);
     await page.goto('/vinted-bot');
-    await expect(page.getByRole('heading', { name: 'Vinted Bot', exact: true })).toBeVisible();
+    await page.locator('app-page-header').waitFor({ state: 'visible', timeout: 30_000 });
+    await expect(page.getByRole('heading', { name: 'Vinted Feed', exact: true })).toBeVisible();
     await expect(workspaceSwitch).toBeEnabled();
     await workspaceSwitch.click();
     await page.getByRole('button', { name: 'Zweitbereich', exact: true }).click();
     await page.goto('/vinted-bot');
+    await page.locator('app-page-header').waitFor({ state: 'visible', timeout: 30_000 });
     await expect(
       page.getByRole('article', { name: 'Nike Sneaker 700', exact: true }),
     ).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Vinted Bot', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Vinted Feed', exact: true })).toBeVisible();
     await expect(
       page.getByRole('article', { name: 'Nike Sneaker 700', exact: true }),
     ).toBeVisible();
     expect(
-      mock.calls.filter((call) => call.name === 'sniper_feed_filtered').at(-1)?.body[
+      mock.calls.filter((call) => call.name === 'sniper_feed_search').at(-1)?.body[
         'p_workspace_id'
       ],
     ).toBe(secondWorkspace);
@@ -415,9 +500,10 @@ for (const theme of ['light', 'dark'] as const) {
         });
         const mock = await fixture(page);
         await page.goto('/vinted-bot');
+        await page.locator('app-page-header').waitFor({ state: 'visible', timeout: 30_000 });
         await expect(page).toHaveURL(/\/vinted-bot$/);
         await expect(page).toHaveTitle(/Flipbase/);
-        await expect(page.getByRole('heading', { name: 'Vinted Bot', exact: true })).toBeVisible();
+        await expect(page.getByRole('heading', { name: 'Vinted Feed', exact: true })).toBeVisible();
         await expect(page.getByRole('article')).toHaveCount(8);
         const pageHeader = page.locator('app-page-header');
         const filters = page.locator('[data-feed-filters]');
@@ -449,7 +535,7 @@ for (const theme of ['light', 'dark'] as const) {
         expect(normalPhoto!.height / normalPhoto!.width).toBeCloseTo(4 / 3, 2);
         await checkAxe(page);
         await page
-          .getByRole('region', { name: 'Gespeicherte Funde' })
+          .getByRole('region', { name: 'Artikel im Vinted Feed' })
           .screenshot({ path: testInfo.outputPath('feed-standard.png') });
 
         await toggle.focus();
@@ -485,7 +571,7 @@ for (const theme of ['light', 'dark'] as const) {
         expect(await filterMarkup()).toBe(filtersBefore);
         await checkAxe(page);
         await page
-          .getByRole('region', { name: 'Gespeicherte Funde' })
+          .getByRole('region', { name: 'Artikel im Vinted Feed' })
           .screenshot({ path: testInfo.outputPath('feed-compact.png') });
         if (viewport.width === 390) {
           const touchState = await savedFavorite.evaluate((button) => ({
@@ -534,10 +620,91 @@ for (const theme of ['light', 'dark'] as const) {
         });
         expect(
           mock.calls
-            .filter((call) => call.name === 'sniper_feed_filtered')
+            .filter((call) => call.name === 'sniper_feed_search')
             .every((call) => call.body['p_workspace_id'] === workspace),
         ).toBe(true);
       });
     });
   }
 }
+
+test('Account-Favoriten bleiben auf Tablet und Desktop nach Feed-Bereinigung erhalten @core-smoke', async ({
+  page,
+  browser,
+}, testInfo) => {
+  const store: FavoriteFixtureStore = new Map();
+  const desktop = await fixture(page, store);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto('/vinted-bot');
+  await page.locator('app-page-header').waitFor({ state: 'visible', timeout: 30_000 });
+  await expect(page.getByRole('heading', { name: 'Vinted Feed', exact: true })).toBeVisible();
+  const search = page.getByRole('searchbox', { name: 'Artikel im Titel durchsuchen', exact: true });
+  await search.fill('Sneaker 2');
+  await expect(page.getByRole('article')).toHaveCount(1);
+  expect(
+    desktop.calls.filter((call) => call.name === 'sniper_feed_search').at(-1)?.body[
+      'p_title_query'
+    ],
+  ).toBe('Sneaker 2');
+  desktop.failFavorites(true);
+  await page.getByRole('button', { name: 'Zu Favoriten hinzufügen', exact: true }).click();
+  await expect(
+    page.getByRole('alert').filter({ hasText: 'Änderung konnte nicht gespeichert' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Zu Favoriten hinzufügen', exact: true }),
+  ).toHaveAttribute('aria-pressed', 'false');
+  desktop.failFavorites(false);
+  await page.getByRole('button', { name: 'Zu Favoriten hinzufügen', exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: 'Aus Favoriten entfernen', exact: true }),
+  ).toBeVisible();
+  desktop.clearFeed();
+  const tabletContext = await browser.newContext({
+    baseURL: new URL(page.url()).origin,
+    hasTouch: true,
+    isMobile: true,
+    viewport: { width: 1024, height: 900 },
+    storageState: { cookies: [], origins: [] },
+  });
+  const tablet = await tabletContext.newPage();
+  try {
+    const tabletBackend = await fixture(tablet, store);
+    tabletBackend.clearFeed();
+    await tablet.goto('/vinted-bot/favorites');
+    await tablet.locator('app-page-header').waitFor({ state: 'visible', timeout: 30_000 });
+    await expect(
+      tablet.getByRole('article', { name: 'Nike Sneaker 2', exact: true }),
+    ).toBeVisible();
+    await checkAxe(tablet);
+    await tablet.screenshot({
+      path: testInfo.outputPath('account-favorites-tablet.png'),
+      fullPage: true,
+    });
+    await page.goto('/vinted-bot/favorites');
+    await page.locator('app-page-header').waitFor({ state: 'visible', timeout: 30_000 });
+    await expect(page.getByRole('article')).toHaveCount(1);
+    await tablet.getByRole('button', { name: 'Aus Favoriten entfernen', exact: true }).click();
+    await expect(tablet.getByRole('article')).toHaveCount(0);
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await expect(page.getByRole('article')).toHaveCount(0);
+    // Ein alter Browserimport darf den auf dem Tablet entfernten Favoriten nicht wiederherstellen.
+    await page.evaluate(
+      ({ workspace, item }) =>
+        localStorage.setItem('flipbase_vinted_favorites_' + workspace, JSON.stringify([item])),
+      { workspace, item: makeItem(2) },
+    );
+    await page.reload();
+    await page.locator('app-page-header').waitFor({ state: 'visible', timeout: 30_000 });
+    const legacy = page.getByRole('button', {
+      name: 'Lokale Favoriten in meinen Account übernehmen',
+      exact: true,
+    });
+    await expect(legacy).toBeEnabled();
+    await legacy.click();
+    await expect(legacy).not.toBeVisible();
+    await expect(page.getByRole('article')).toHaveCount(0);
+  } finally {
+    await tabletContext.close();
+  }
+});

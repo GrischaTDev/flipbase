@@ -20,6 +20,8 @@ import { DealCardComponent } from './components/deal-card/deal-card.component';
 import { DealDetailModalComponent } from './components/deal-detail-modal/deal-detail-modal.component';
 import { DealMonitorService } from './services/deal-monitor.service';
 import { DealFeedState } from './services/deal-feed-state';
+import { DealFavoritesService } from './services/deal-favorites.service';
+import { CustomSearchInputComponent } from '../../shared/components/custom-search-input/custom-search-input.component';
 import { FeedItem, Watchlist } from './models/deal-monitor.model';
 
 @Component({
@@ -30,6 +32,7 @@ import { FeedItem, Watchlist } from './models/deal-monitor.model';
     CardComponent,
     CustomSelectComponent,
     NumberInputComponent,
+    CustomSearchInputComponent,
     DealCardComponent,
     DealDetailModalComponent,
   ],
@@ -38,6 +41,10 @@ import { FeedItem, Watchlist } from './models/deal-monitor.model';
 })
 export class DealMonitorComponent {
   private readonly api = inject(DealMonitorService);
+  readonly favorites = inject(DealFavoritesService);
+  readonly searchEntry = signal('');
+  readonly titleQuery = signal('');
+  private searchTimer?: ReturnType<typeof setTimeout>;
   readonly workspace = inject(WorkspaceService).currentWorkspace;
   private readonly destroyRef = inject(DestroyRef);
   private readonly document = inject(DOCUMENT);
@@ -85,7 +92,8 @@ export class DealMonitorComponent {
       this.selectedBrand() !== null ||
       this.selectedSize() !== null ||
       this.minPrice() !== null ||
-      this.maxPrice() !== null,
+      this.maxPrice() !== null ||
+      this.searchEntry().trim().length > 0,
   );
   readonly priceError = computed(() => {
     const min = this.minPrice();
@@ -115,6 +123,9 @@ export class DealMonitorComponent {
         this.selectedSize.set(null);
         this.minPrice.set(null);
         this.maxPrice.set(null);
+        clearTimeout(this.searchTimer);
+        this.searchEntry.set('');
+        this.titleQuery.set('');
         this.watchlists.set([]);
         this.brands.set([]);
         this.error.set(null);
@@ -135,10 +146,11 @@ export class DealMonitorComponent {
       const minPrice = this.minPrice();
       const maxPrice = this.maxPrice();
       const priceError = this.priceError();
+      const titleQuery = this.titleQuery();
       if (priceError) return;
       untracked(() =>
         this.state.setContext(
-          workspace ? { workspace, watchlist, brand, size, minPrice, maxPrice } : null,
+          workspace ? { workspace, watchlist, brand, size, minPrice, maxPrice, titleQuery } : null,
         ),
       );
     });
@@ -151,6 +163,7 @@ export class DealMonitorComponent {
     this.timer = setTimeout(() => void tick(), 2_000);
     this.destroyRef.onDestroy(() => {
       clearTimeout(this.timer);
+      clearTimeout(this.searchTimer);
       this.listGeneration++;
       this.brandGeneration++;
       this.state.destroy();
@@ -189,11 +202,24 @@ export class DealMonitorComponent {
     }
   }
 
+  searchChanged(value: string): void {
+    this.searchEntry.set(value);
+    clearTimeout(this.searchTimer);
+    if (!value.trim()) {
+      this.titleQuery.set('');
+      return;
+    }
+    this.searchTimer = setTimeout(() => this.titleQuery.set(value.trim()), 250);
+  }
+
   toggleCompact(): void {
     this.compact.update((compact) => !compact);
   }
 
   resetFilters(): void {
+    clearTimeout(this.searchTimer);
+    this.searchEntry.set('');
+    this.titleQuery.set('');
     this.selected.set(null);
     this.selectedBrand.set(null);
     this.selectedSize.set(null);

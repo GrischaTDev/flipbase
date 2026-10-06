@@ -130,6 +130,42 @@ function settingsButton(
 }
 
 describe('Benachrichtigungseinstellungen bei lokalen Vinted-Konten', () => {
+  it('ordnet den geprüften lokalen Status vor Auswahl und Aktionen in derselben Kontrollzeile an', async () => {
+    const fixture = await render();
+    fixture.componentRef.setInput('runtimeStatus', {
+      label: 'Erweiterung verbunden',
+      tone: 'success',
+    });
+    await settle(fixture);
+    const row = fixture.nativeElement.querySelector('[data-account-controls]') as HTMLElement;
+    expect(row).not.toBeNull();
+    expect(row.querySelector('app-badge')?.textContent).toContain('Erweiterung verbunden');
+    expect(row.querySelector('[role="combobox"]')).not.toBeNull();
+    expect(row.querySelectorAll('button[aria-label="Vinted-Kontoeinstellungen"]')).toHaveLength(1);
+  });
+  it('zeigt Cloudpause links in der Kontrollzeile und gibt Abrufgründe separat weiter', async () => {
+    scheduleApi.read.mockResolvedValue({
+      ...account,
+      enabled: false,
+      intervalMinutes: 15,
+      pausedReason: 'forbidden',
+    });
+    const fixture = await render();
+    fixture.componentRef.setInput('account', { ...account, executionMode: 'cloud' });
+    await settle(fixture);
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelector('[data-account-controls] app-badge')?.textContent).toContain(
+      'Automatik pausiert',
+    );
+    expect(element.querySelector('[data-account-controls] app-notice-banner')).toBeNull();
+    expect(element.textContent).not.toContain('Vinted hat den Abruf abgelehnt');
+    expect(fixture.componentInstance.scheduleNotice()?.text).toContain(
+      'Vinted hat den Abruf abgelehnt',
+    );
+    fixture.componentRef.setInput('account', account);
+    await settle(fixture);
+    expect(fixture.componentInstance.scheduleNotice()).toBeNull();
+  });
   it('öffnet und speichert die echte Favoriteneinstellung ohne Cloud-Abrufe', async () => {
     const fixture = await render();
     expect(settingsButton(fixture)).not.toBeNull();

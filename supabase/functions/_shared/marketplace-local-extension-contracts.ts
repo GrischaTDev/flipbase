@@ -14,7 +14,8 @@ export interface LocalExtensionSnapshot {
 }
 export type LocalExtensionRequest = AccountScope &
   (
-    | { readonly action: 'favorites_state' | 'favorite_claim' }
+    | { readonly action: 'favorites_state' }
+    | { readonly action: 'favorite_claim'; readonly offerSupported?: boolean }
     | { readonly action: 'favorites_import'; readonly events: readonly LocalFavoriteEvent[] }
     | { readonly action: 'favorite_start'; readonly id: string; readonly claimToken: string }
     | {
@@ -23,6 +24,29 @@ export type LocalExtensionRequest = AccountScope &
         readonly claimToken: string;
         readonly outcome: 'sent' | 'failed' | 'outcome_unknown' | 'skipped';
         readonly externalMessageId?: string;
+        readonly errorCode?: string;
+      }
+    | {
+        readonly action: 'favorite_message_sent';
+        readonly id: string;
+        readonly claimToken: string;
+        readonly externalMessageId: string;
+        readonly conversationId: string;
+        readonly transactionId?: string | null;
+      }
+    | {
+        readonly action: 'favorite_offer_start';
+        readonly id: string;
+        readonly claimToken: string;
+        readonly originalPriceCents: number;
+        readonly offerPriceCents: number;
+      }
+    | {
+        readonly action: 'favorite_offer_finish';
+        readonly id: string;
+        readonly claimToken: string;
+        readonly outcome: 'sent' | 'failed' | 'outcome_unknown' | 'skipped';
+        readonly externalOfferId?: string;
         readonly errorCode?: string;
       }
     | { readonly action: 'heartbeat' }
@@ -245,10 +269,66 @@ export function parseLocalExtensionRequest(input: unknown): LocalExtensionReques
   if (input['action'] === 'heartbeat' && keys(input, ['action', 'workspaceId', 'connectionId']))
     return input as unknown as LocalExtensionRequest;
   if (
-    ['favorites_state', 'favorite_claim'].includes(String(input['action'])) &&
+    input['action'] === 'favorites_state' &&
     keys(input, ['action', 'workspaceId', 'connectionId'])
   )
     return input as unknown as LocalExtensionRequest;
+  if (
+    input['action'] === 'favorite_claim' &&
+    keys(input, ['action', 'workspaceId', 'connectionId', 'offerSupported']) &&
+    (input['offerSupported'] === undefined || typeof input['offerSupported'] === 'boolean')
+  )
+    return input as unknown as LocalExtensionRequest;
+  if (
+    ['favorite_message_sent', 'favorite_offer_start', 'favorite_offer_finish'].includes(
+      String(input['action']),
+    ) &&
+    typeof input['id'] === 'string' &&
+    uuid.test(input['id']) &&
+    typeof input['claimToken'] === 'string' &&
+    uuid.test(input['claimToken'])
+  ) {
+    const scopeKeys = ['action', 'workspaceId', 'connectionId', 'id', 'claimToken'];
+    if (
+      input['action'] === 'favorite_message_sent' &&
+      keys(input, [...scopeKeys, 'externalMessageId', 'conversationId', 'transactionId']) &&
+      typeof input['externalMessageId'] === 'string' &&
+      accountId.test(input['externalMessageId']) &&
+      typeof input['conversationId'] === 'string' &&
+      accountId.test(input['conversationId']) &&
+      (input['transactionId'] === undefined ||
+        input['transactionId'] === null ||
+        (typeof input['transactionId'] === 'string' && accountId.test(input['transactionId'])))
+    )
+      return input as unknown as LocalExtensionRequest;
+    if (
+      input['action'] === 'favorite_offer_start' &&
+      keys(input, [...scopeKeys, 'originalPriceCents', 'offerPriceCents']) &&
+      [input['originalPriceCents'], input['offerPriceCents']].every(
+        (price) =>
+          typeof price === 'number' &&
+          Number.isSafeInteger(price) &&
+          price > 0 &&
+          price <= 100_000_000,
+      )
+    )
+      return input as unknown as LocalExtensionRequest;
+    if (
+      input['action'] === 'favorite_offer_finish' &&
+      keys(input, [...scopeKeys, 'outcome', 'externalOfferId', 'errorCode']) &&
+      ['sent', 'failed', 'outcome_unknown', 'skipped'].includes(String(input['outcome'])) &&
+      (input['externalOfferId'] === undefined ||
+        (typeof input['externalOfferId'] === 'string' &&
+          accountId.test(input['externalOfferId']))) &&
+      (input['errorCode'] === undefined ||
+        (typeof input['errorCode'] === 'string' && /^[a-z_]{1,80}$/.test(input['errorCode']))) &&
+      (input['outcome'] === 'sent'
+        ? typeof input['externalOfferId'] === 'string'
+        : input['externalOfferId'] === undefined)
+    )
+      return input as unknown as LocalExtensionRequest;
+    return null;
+  }
   if (
     input['action'] === 'favorites_import' &&
     keys(input, ['action', 'workspaceId', 'connectionId', 'events'])

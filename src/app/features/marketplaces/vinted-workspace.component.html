@@ -2,32 +2,28 @@
   @if (showingSetup() || showingLocalConnection() || showingCloudConnection()) {
     <app-button header-actions link="/marketplaces/vinted/accounts">Alle Konten</app-button>
   } @else if (!showingAccounts() && store.selectedConnection(); as account) {
-    <div header-actions class="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
-      @if (runtimeStatus(); as status) {
-        <app-badge [tone]="status.tone" size="sm">{{ status.label }}</app-badge>
-      }
-      <app-vinted-account-controls
-        class="w-full sm:w-auto"
-        [connections]="store.connections()"
-        [account]="account"
-        [profile]="store.snapshot()?.profile ?? null"
-        [canManage]="store.canManage()"
-        [refreshing]="store.busy() || local.busy()"
-        [loading]="store.loadingSnapshot()"
-        [inbox]="showingMessages() && account.executionMode === 'local'"
-        [inboxSyncedAt]="
-          local.binding()?.inboxSyncedAt ?? local.inboxImported()?.observedAt ?? null
-        "
-        [refreshLabel]="
-          showingMessages() && account.executionMode === 'local'
-            ? 'Nachrichten aktualisieren'
-            : 'Kontodaten aktualisieren'
-        "
-        (accountSelected)="store.selectConnection($event)"
-        (refreshRequested)="sync()"
-        (synchronized)="store.refreshImportedSnapshot($event, $event.lastSuccessAt)"
-      />
-    </div>
+    <app-vinted-account-controls
+      header-actions
+      class="w-full sm:w-auto sm:max-w-[min(36rem,60vw)]"
+      [runtimeStatus]="runtimeStatus()"
+      [connections]="store.connections()"
+      [account]="account"
+      [profile]="store.snapshot()?.profile ?? null"
+      [canManage]="store.canManage()"
+      [refreshing]="store.busy() || local.busy()"
+      [loading]="store.loadingSnapshot()"
+      [inbox]="showingMessages() && account.executionMode === 'local'"
+      [inboxSyncedAt]="local.binding()?.inboxSyncedAt ?? local.inboxImported()?.observedAt ?? null"
+      [refreshLabel]="
+        showingMessages() && account.executionMode === 'local'
+          ? 'Nachrichten aktualisieren'
+          : 'Kontodaten aktualisieren'
+      "
+      (accountSelected)="store.selectConnection($event)"
+      (refreshRequested)="sync()"
+      (synchronized)="store.refreshImportedSnapshot($event, $event.lastSuccessAt)"
+      (scheduleStateChanged)="cloudHeaderState.set($event)"
+    />
   } @else if (!showingAccounts()) {
     <app-button header-actions link="/marketplaces/vinted/accounts">Alle Konten</app-button>
   }
@@ -49,6 +45,27 @@
   ) {
     <router-outlet />
   } @else if (store.selectedConnection(); as account) {
+    @if (scheduleNotice(); as notice) {
+      <app-notice-banner [announcement]="notice.alert ? 'alert' : 'status'">
+        {{ notice.text }}
+        @if (notice.retry) {
+          <app-button
+            class="mt-2"
+            [disabled]="currentCloudHeaderState()?.loading ?? false"
+            (clicked)="currentCloudHeaderState()?.reload()"
+            >Erneut versuchen</app-button
+          >
+        }
+      </app-notice-banner>
+    }
+    @if (runtimeNotice(); as notice) {
+      <app-notice-banner [announcement]="runtimeStatus()?.tone === 'critical' ? 'alert' : 'status'">
+        {{ notice }}
+        <app-button class="mt-2" link="/marketplaces/vinted/accounts"
+          >Verbindung am Konto prüfen</app-button
+        >
+      </app-notice-banner>
+    }
     @if (!showingMessages()) {
       <app-button variant="plain" link="/marketplaces/vinted/accounts" [icon]="backIcon"
         >Alle Konten</app-button
@@ -67,7 +84,7 @@
         }
       </div>
     }
-    @if (store.mutationError(); as error) {
+    @if (store.mutationError() !== store.error() ? store.mutationError() : null; as error) {
       <app-notice-banner announcement="alert">{{ error }}</app-notice-banner>
     }
     @if (account.executionMode === 'local') {
@@ -77,7 +94,12 @@
           automatisch.
         </p>
       }
-      @if (local.error(); as error) {
+      @if (
+        local.error() !== store.mutationError() && local.error() !== store.error()
+          ? local.error()
+          : null;
+        as error
+      ) {
         <app-notice-banner announcement="alert">
           {{ error }}
           <app-button class="mt-2" link="/marketplaces/vinted/accounts"

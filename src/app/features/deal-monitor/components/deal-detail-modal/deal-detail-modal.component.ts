@@ -26,6 +26,8 @@ import { BadgeComponent } from '../../../../shared/components/badge/badge.compon
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { FeedItem, safeVintedImage, safeVintedLink } from '../../models/deal-monitor.model';
 import { DealFavoritesService } from '../../services/deal-favorites.service';
+import { FeedClockService } from '../../services/feed-clock.service';
+import { discoveryDate } from '../../utils/discovery-date';
 import { shareVintedListing } from '../../utils/share-vinted-listing';
 
 @Component({
@@ -47,7 +49,7 @@ export class DealDetailModalComponent {
   readonly item = input.required<FeedItem>();
   readonly closed = output<void>();
 
-  private readonly favoritesService = inject(DealFavoritesService);
+  readonly favoritesService = inject(DealFavoritesService);
 
   readonly activeImageIndex = signal<number>(0);
   readonly shareMessage = signal<string | null>(null);
@@ -66,7 +68,11 @@ export class DealDetailModalComponent {
     return images[index] ?? images[0] ?? null;
   });
 
-  readonly isFavorite = computed(() => this.favoritesService.isFavorite(this.item().id));
+  readonly isFavorite = computed(() => this.favoritesService.isFavorite(this.item()));
+  private readonly clock = inject(FeedClockService);
+  readonly discoveredLabel = computed(() =>
+    discoveryDate(this.item().first_seen_at, this.clock.now()),
+  );
   readonly link = computed(() => safeVintedLink(this.item().url));
 
   readonly referenceLabel = computed(() =>
@@ -111,7 +117,7 @@ export class DealDetailModalComponent {
   }
 
   toggleFavorite(): void {
-    this.favoritesService.toggle(this.item());
+    void this.favoritesService.toggle(this.item());
   }
 
   async share(): Promise<void> {

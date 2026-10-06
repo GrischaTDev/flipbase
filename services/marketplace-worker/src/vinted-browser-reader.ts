@@ -94,11 +94,9 @@ export async function readVintedAccountIdentity(
         cache: 'no-store',
         signal: AbortSignal.timeout(8_000),
       });
-      if (
-        new URL(result.url).origin !== 'https://www.vinted.de' ||
-        !result.ok ||
-        !result.headers.get('content-type')?.includes('application/json')
-      )
+      if (new URL(result.url).origin !== 'https://www.vinted.de') return null;
+      if (result.status === 401) return { loginPending: true };
+      if (!result.ok || !result.headers.get('content-type')?.includes('application/json'))
         return null;
       const value: unknown = await result.json();
       if (typeof value !== 'object' || value === null || !('user' in value)) return null;

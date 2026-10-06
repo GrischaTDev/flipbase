@@ -37,7 +37,7 @@ import { matchesSize } from '../../utils/size-matcher';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DealFavoritesComponent {
-  private readonly favoritesService = inject(DealFavoritesService);
+  readonly favoritesService = inject(DealFavoritesService);
 
   readonly favorites = this.favoritesService.favorites;
   readonly count = this.favoritesService.count;
@@ -75,8 +75,7 @@ export class DealFavoritesComponent {
     sliders: LucideSlidersHorizontal,
   };
 
-  clearAll(): void {
-    this.favoritesService.clear();
-    this.confirmClear.set(false);
+  async clearAll(): Promise<void> {
+    if (await this.favoritesService.clear()) this.confirmClear.set(false);
   }
 }

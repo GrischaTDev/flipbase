@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <title>Eigene Cookie-Anmeldetestseite</title>
+  </head>
+  <body>
+    <h1>Eigene Testseite – kein Vinted-Zugriff</h1>
+    <template>
+      <main aria-hidden="true">
+        <form action="/synthetic-session" method="post">
+          <input type="hidden" name="cookie_choice" value="unset" />
+          <label>Testmitglied <input name="username" /></label>
+          <label>Testpasswort <input name="password" type="password" /></label>
+          <button type="submit">Weiter</button>
+        </form>
+      </main>
+      <section role="dialog" style="position: fixed; inset: 0; background: white; z-index: 999">
+        <p>Eigener Cookie-Testdialog</p>
+        <button id="onetrust-reject-all-handler">Notwendige auswählen</button>
+      </section>
+    </template>
+    <script>
+      setTimeout(() => {
+        document.body.append(document.querySelector('template').content.cloneNode(true));
+        document.querySelector('#onetrust-reject-all-handler').addEventListener('click', () => {
+          document.querySelector('main').removeAttribute('aria-hidden');
+          document.querySelector('input[name="cookie_choice"]').value = 'necessary';
+          document.querySelector('section').remove();
+        });
+      }, 3000);
+    </script>
+  </body>
+</html>

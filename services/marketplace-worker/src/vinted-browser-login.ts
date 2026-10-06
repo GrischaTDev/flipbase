@@ -78,11 +78,10 @@ export async function submitVintedLogin(
     const username = page.locator('input[name="username"]');
     const password = page.locator('input[name="password"][type="password"]');
     const submit = page.getByRole('button', { name: 'Weiter', exact: true });
-    await Promise.all(
-      [username, password, submit].map((control) =>
-        control.waitFor({ state: 'visible', timeout: 10_000 }),
-      ),
-    );
+    // Paralleles Warten kann den Cookie-Handler mehrfach gleichzeitig auslösen.
+    for (const control of [username, password, submit]) {
+      await control.waitFor({ state: 'visible', timeout: 10_000 });
+    }
     currentStep = 'fill_username';
     await authorizeLoginPage();
     await username.fill(credentials.username, { timeout: 5_000 });

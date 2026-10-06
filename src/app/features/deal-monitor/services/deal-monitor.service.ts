@@ -59,7 +59,7 @@ export class DealMonitorService {
   }
 
   async feed(request: FeedRequest): Promise<FeedPage> {
-    const { data, error } = await this.client.rpc('sniper_feed_filtered', {
+    const { data, error } = await this.client.rpc('sniper_feed_search', {
       p_workspace_id: request.workspace,
       p_watchlist_id: request.watchlist!,
       p_brand: request.brand!,
@@ -69,6 +69,7 @@ export class DealMonitorService {
       p_before_time: (request.cursor?.time ?? null)!,
       p_before_id: (request.cursor?.id ?? null)!,
       p_limit: 60,
+      p_title_query: request.titleQuery ?? '',
     });
     if (error) throw new Error('Artikel konnten nicht geladen werden. Bitte erneut versuchen.');
     if (!data || typeof data !== 'object' || Array.isArray(data) || !Array.isArray(data['items']))

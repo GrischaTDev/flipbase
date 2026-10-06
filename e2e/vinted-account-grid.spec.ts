@@ -6,14 +6,59 @@ import { accountIds, mockMarketplace, workspaceId } from './support/marketplace-
 
 test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: 'block' });
 
-for (const width of [1440, 390]) {
+for (const width of [1440, 320]) {
+  test(`zehn Konten bleiben kompakt und erreichbar bei ${width}px @marketplace-preview @core-smoke`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await mockMarketplace(page, false, false, false, false, [], undefined, true, 10);
+    await page.goto('/marketplaces/vinted/accounts');
+    const grid = page.locator('app-vinted-account-grid');
+    await expect(grid.locator('app-card')).toHaveCount(10);
+    await expect(grid).toContainText('0 von 10 Plätzen frei');
+    await expect(
+      page.getByRole('button', { name: 'Konto hinzufügen', exact: true }),
+    ).toBeDisabled();
+    const positions = await grid.locator('app-card').evaluateAll((cards) =>
+      cards.map((card) => {
+        const bounds = card.getBoundingClientRect();
+        return { top: bounds.top, left: bounds.left, right: bounds.right, width: bounds.width };
+      }),
+    );
+    expect(positions.every((position) => position.left >= 0 && position.right <= width)).toBe(true);
+    expect(positions.every((position) => position.width <= 369)).toBe(true);
+    if (width === 1440) expect(positions.every((position) => position.width >= 352)).toBe(true);
+    const firstRow = positions.filter((position) => Math.abs(position.top - positions[0].top) <= 1);
+    expect(firstRow.length).toBe(width === 320 ? 1 : 3);
+    await grid.getByRole('button', { name: 'Testkonto J einstellen', exact: true }).click();
+    await expect(page.getByRole('dialog')).toContainText('Testkonto J');
+  });
+}
+
+for (const width of [1440, 390, 320]) {
   test(`wechselt dasselbe lokale Konto über die Kachel zur Cloud bei ${width}px @marketplace-preview @core-smoke`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 1000 });
     const calls = await mockMarketplace(page, true, false, false, false, [], undefined, true);
     await page.goto('/marketplaces/vinted/accounts');
-    await page.getByRole('button', { name: 'Auf Cloud wechseln', exact: true }).first().click();
+    const actions = page
+      .locator('app-vinted-account-grid app-card')
+      .first()
+      .locator('button')
+      .filter({ hasNot: page.locator('svg.lucide-settings') });
+    await expect(actions).toHaveCount(2);
+    if (width > 320) {
+      const positions = await actions.evaluateAll((buttons) =>
+        buttons.map((button) => button.getBoundingClientRect().top),
+      );
+      expect(Math.abs(positions[0] - positions[1])).toBeLessThanOrEqual(1);
+    }
+    await page
+      .locator('app-vinted-account-grid app-card')
+      .first()
+      .getByRole('button', { name: 'Auf Cloud wechseln', exact: true })
+      .click();
     await expect(page).toHaveURL(/\/marketplaces\/vinted\/accounts$/);
     await expect(page.getByRole('dialog', { name: 'Vinted-Anmeldung', exact: true })).toBeVisible();
     await page
@@ -49,7 +94,7 @@ for (const width of [1440, 390]) {
   });
 }
 
-for (const width of [1440, 1024, 768, 390]) {
+for (const width of [1440, 1024, 768, 390, 320]) {
   test(`öffnet Vinted-Kontokacheln und behält die Auswahl nach Neuladen bei ${width}px @marketplace-preview @core-smoke`, async ({
     page,
   }) => {
@@ -104,7 +149,16 @@ for (const width of [1440, 1024, 768, 390]) {
     await expect(grid).toContainText('@maike.vintage');
     await expect(grid).toContainText('@vintage.studio');
     await expect(grid.getByRole('img', { name: '4,8 von 5 Sternen' })).toBeVisible();
-    await expect(grid.locator('app-card').last().locator('dd')).toHaveText(['18', '23']);
+    await expect(grid.locator('app-card dd')).toHaveCount(0);
+    await expect(grid.locator('app-card').last()).not.toContainText('Inserate');
+    await expect(grid.locator('app-card').last()).not.toContainText('Verkäufe');
+    const firstCard = grid.locator('app-card').first();
+    const rating = await firstCard.locator('app-vinted-rating').boundingBox();
+    const action = await firstCard
+      .getByRole('button', { name: 'Synchronisieren', exact: true })
+      .boundingBox();
+    if (!rating || !action) throw new Error('Bewertung oder Kartenaktion fehlt');
+    expect(action.y).toBeGreaterThanOrEqual(rating.y + rating.height + 8);
     await expect(page.getByRole('navigation', { name: 'Vinted-Bereiche' })).toHaveCount(0);
     await expect(page.getByRole('combobox', { name: 'Vinted-Konto auswählen' })).toHaveCount(0);
     await page.addScriptTag({ content: axe.source });
@@ -162,5 +216,81 @@ for (const width of [1440, 1024, 768, 390]) {
     await expect(page.getByRole('navigation', { name: 'Vinted-Bereiche' })).toHaveCount(0);
     expect(errors).toEqual([]);
     expect(workerRequests).toEqual([]);
+  });
+}
+
+for (const width of [390, 320]) {
+  test(`langer lokaler Profilstatus bleibt im Kontenbadge bei ${width}px @marketplace-preview @core-smoke`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await mockMarketplace(page, false, false, false, false, [], undefined, true);
+    await page.addInitScript(
+      ({ workspaceId, connectionId }) => {
+        window.addEventListener('message', (event) => {
+          if (event.source !== window || event.origin !== location.origin) return;
+          if (event.data?.type === 'FLIPBASE_CHECK_EXTENSION') {
+            window.postMessage(
+              {
+                type: 'FLIPBASE_EXTENSION_STATUS',
+                installed: true,
+                vintedLocal: true,
+                localAccount: null,
+              },
+              location.origin,
+            );
+          }
+          if (
+            event.data?.type === 'FLIPBASE_VINTED_LOCAL_READINESS' ||
+            event.data?.type === 'FLIPBASE_VINTED_LOCAL_RECHECK'
+          ) {
+            window.postMessage(
+              {
+                type: 'FLIPBASE_VINTED_LOCAL_RESULT',
+                requestId: event.data.requestId,
+                success: true,
+                result: {
+                  state: 'ready',
+                  workspaceId,
+                  connectionId,
+                  externalAccountId: '101',
+                  checkedAt: new Date().toISOString(),
+                  version: '1.6.0',
+                },
+              },
+              location.origin,
+            );
+          }
+        });
+      },
+      { workspaceId, connectionId: accountIds[1] },
+    );
+    await page.goto('/marketplaces/vinted/accounts');
+    const status = page
+      .locator('app-vinted-account-grid app-card')
+      .first()
+      .locator('app-badge')
+      .last()
+      .locator('span');
+    await expect(status).toHaveText('In anderem Browserprofil verknüpft');
+    const bounds = await status.evaluate((element) => {
+      const badge = element.getBoundingClientRect();
+      const text = document.createRange();
+      text.selectNodeContents(element);
+      const label = text.getBoundingClientRect();
+      return {
+        top: label.top - badge.top,
+        bottom: badge.bottom - label.bottom,
+        height: badge.height,
+      };
+    });
+    expect(bounds.top).toBeGreaterThanOrEqual(0);
+    expect(bounds.bottom).toBeGreaterThanOrEqual(0);
+    expect(bounds.height).toBeGreaterThanOrEqual(20);
+    await page.getByRole('button', { name: 'Browserprofil prüfen', exact: true }).click();
+    await expect(page.getByRole('dialog')).toContainText('Öffne das Browserprofil dieses Kontos');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
   });
 }

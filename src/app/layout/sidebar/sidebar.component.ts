@@ -61,7 +61,8 @@ import { BadgeComponent } from '../../shared/components/badge/badge.component';
 import {
   isVintedWorkspaceRoute,
   isVintedNavigationActive,
-  VINTED_WORKSPACE_NAVIGATION,
+  VINTED_ACCOUNTS_NAVIGATION,
+  VINTED_WORKSPACE_NAVIGATION_GROUPS,
 } from '../../core/config/vinted-workspace-navigation';
 
 const NAVIGATION_ICONS: Record<WorkspaceNavigationIcon, LucideIconInput> = {
@@ -117,7 +118,8 @@ export class SidebarComponent {
   readonly chevronIcon = ChevronRight;
   readonly backIcon = ArrowLeft;
   readonly vintedContext = computed(() => isVintedWorkspaceRoute(this.currentUrl()));
-  readonly vintedNavigation = VINTED_WORKSPACE_NAVIGATION;
+  readonly vintedAccountsItem = VINTED_ACCOUNTS_NAVIGATION;
+  readonly vintedNavigationGroups = VINTED_WORKSPACE_NAVIGATION_GROUPS;
   readonly pwaService = inject(PwaService);
 
   // Der Punkt bleibt verborgen, solange die bestehende Operator-Prüfung kein Ja liefert.

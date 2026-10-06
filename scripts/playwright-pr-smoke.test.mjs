@@ -9,11 +9,15 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 
 // Nur die tatsächliche Testauswahl prüfen, nicht Playwrights Parser nachtesten.
 const coreTests = [
+  [
+    'deal-monitor.spec.ts',
+    'Account-Favoriten bleiben auf Tablet und Desktop nach Feed-Bereinigung erhalten @core-smoke',
+  ],
   ...['light', 'dark'].map((theme) => [
     'sniper-administration.spec.ts',
     `verwaltet zentrale Kategorie-, Marken- und Titel-Suchfilter ${theme} @core-smoke`,
   ]),
-  ...[1440, 390].map((width) => [
+  ...[1440, 1024, 390, 320].map((width) => [
     'vinted-favorite-messages.spec.ts',
     `Favoritennachrichten bleiben vor Freigabe aus und speichern Regeln bei ${width}px @marketplace-preview @core-smoke`,
   ]),
@@ -153,13 +157,21 @@ const coreTests = [
     'sidebar-navigation.spec.ts',
     'hält die Sidebar kompakt und hebt den aktiven Bereich in Logo-Gelb hervor @pr-smoke',
   ],
-  ...[1440, 1024, 768, 390].map((width) => [
+  ...[1440, 1024, 768, 390, 320].map((width) => [
     'vinted-account-grid.spec.ts',
     `öffnet Vinted-Kontokacheln und behält die Auswahl nach Neuladen bei ${width}px @marketplace-preview @core-smoke`,
   ]),
-  ...[1440, 390].map((width) => [
+  ...[1440, 390, 320].map((width) => [
     'vinted-account-grid.spec.ts',
     `wechselt dasselbe lokale Konto über die Kachel zur Cloud bei ${width}px @marketplace-preview @core-smoke`,
+  ]),
+  ...[1440, 320].map((width) => [
+    'vinted-account-grid.spec.ts',
+    `zehn Konten bleiben kompakt und erreichbar bei ${width}px @marketplace-preview @core-smoke`,
+  ]),
+  ...[390, 320].map((width) => [
+    'vinted-account-grid.spec.ts',
+    `langer lokaler Profilstatus bleibt im Kontenbadge bei ${width}px @marketplace-preview @core-smoke`,
   ]),
   ...[1440, 390, 320].flatMap((width) =>
     ['light', 'dark'].map((theme) => [

@@ -1,3 +1,4 @@
+import { createDealFavoritesFixture } from '../../../../../test-support/deal-favorites.fixture';
 import '@angular/compiler';
 import { ElementRef, signal, ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
@@ -87,7 +88,16 @@ describe('DealDetailModalComponent', () => {
       'closeOnBackdrop',
       'hasFooter',
     ]);
-    registerSignalInputs(ButtonComponent, ['variant', 'size', 'icon', 'iconPosition', 'ariaLabel']);
+    registerSignalInputs(ButtonComponent, [
+      'disabled',
+      'href',
+      'ariaPressed',
+      'variant',
+      'size',
+      'icon',
+      'iconPosition',
+      'ariaLabel',
+    ]);
     registerSignalInputs(BadgeComponent, ['tone']);
     registerSignalInputs(DealDetailModalComponent, ['item']);
   });
@@ -104,7 +114,7 @@ describe('DealDetailModalComponent', () => {
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       providers: [
-        DealFavoritesService,
+        { provide: DealFavoritesService, useValue: createDealFavoritesFixture() },
         { provide: WorkspaceService, useValue: { currentWorkspace } },
         { provide: ElementRef, useValue: new ElementRef(document.createElement('div')) },
       ],

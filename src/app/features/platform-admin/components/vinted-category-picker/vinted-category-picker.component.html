@@ -1,43 +1,20 @@
 <div class="flex min-w-0 flex-col gap-2">
-  <div class="flex flex-wrap items-center justify-between gap-2">
-    <p class="text-sm font-medium text-fb-text-primary">Kategorie · optional</p>
-    <app-button size="slim" [disabled]="disabled()" (clicked)="directSearch.set(!directSearch())">
-      {{ directSearch() ? 'Nach Bereichen auswählen' : 'Direkt suchen' }}
-    </app-button>
-  </div>
-  @if (!tree()) {
+  @if (source(); as categorySource) {
+    <app-category-picker
+      label="Kategorie · optional"
+      placeholder="Alle Kategorien"
+      helpText="Wähle einen Bereich oder suche direkt nach einem Kategoriepfad. Oberkategorien schließen ihre Unterkategorien ein."
+      [source]="categorySource"
+      [formControl]="selection"
+    />
+  } @else {
     <p role="alert" class="text-sm text-fb-text-primary">
       Der Kategoriebaum ist unvollständig. Bitte lade die Kategorien erneut.
     </p>
-  } @else if (directSearch()) {
-    <app-custom-select
-      [options]="allOptions()"
-      [searchable]="true"
-      [value]="value()"
-      [disabled]="disabled()"
-      ariaLabel="Vinted-Kategorie nach vollständigem Pfad suchen"
-      placeholder="Kategorie suchen"
-      (valueChange)="chooseDirect($event)"
-    />
-  } @else {
-    @for (level of levels(); track level.parentId) {
-      <div class="flex min-w-0 flex-col gap-1">
-        <p class="text-xs text-fb-text-secondary">{{ level.label }}</p>
-        <app-custom-select
-          [options]="level.options"
-          [searchable]="true"
-          [value]="level.selectedId"
-          [disabled]="disabled()"
-          [ariaLabel]="level.label + ' auswählen'"
-          placeholder="Keine Einschränkung"
-          (valueChange)="choose(level.parentId, $event)"
-        />
-      </div>
-    }
   }
   @if (missingSelection()) {
     <p role="alert" class="text-sm text-fb-text-primary">
-      Die gespeicherte Kategorie ist nicht mehr verfügbar. Bitte wähle sie neu aus oder entferne die
+      Die gespeicherte Kategorie ist nicht mehr verfügbar. Wähle sie neu aus oder entferne die
       Einschränkung ausdrücklich.
     </p>
     <app-button
@@ -47,9 +24,5 @@
       (clicked)="chooseDirect(null)"
       >Kategorieeinschränkung entfernen</app-button
     >
-  } @else {
-    <p class="text-xs text-fb-text-muted">
-      {{ selected()?.path ?? 'Alle Kategorien innerhalb Deiner übrigen Bedingungen.' }}
-    </p>
   }
 </div>

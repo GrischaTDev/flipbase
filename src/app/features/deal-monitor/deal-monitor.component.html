@@ -1,6 +1,6 @@
-<section class="mx-auto flex w-full max-w-screen-2xl flex-col gap-5 p-4 sm:p-6">
+<section class="mx-auto flex w-full max-w-[1800px] flex-col gap-5 p-4 sm:p-6">
   <app-page-header
-    title="Vinted Bot"
+    title="Vinted Feed"
     subtitle="Neue Vinted-Artikel entdecken und für später merken."
     [icon]="pageIcon"
   />
@@ -15,6 +15,17 @@
 
   <app-card data-feed-filters padding="sm" [overflowVisible]="true" rounded="xl">
     <div class="flex flex-wrap items-end gap-3">
+      <div class="w-full min-w-0 sm:min-w-52 sm:flex-1">
+        <label for="feed-title-search" class="mb-1 block text-sm">Artikel durchsuchen</label>
+        <app-custom-search-input
+          id="feed-title-search"
+          ariaLabel="Artikel im Titel durchsuchen"
+          placeholder="Stichwort im Titel …"
+          [maxLength]="200"
+          [value]="searchEntry()"
+          (searched)="searchChanged($event)"
+        />
+      </div>
       <div class="w-full min-w-0 sm:w-56">
         <label for="feed-watchlist" class="mb-1 block text-sm">Suchfilter</label
         ><app-custom-select
@@ -100,6 +111,11 @@
     <p role="alert">{{ text }} <app-button (clicked)="loadBrands()">Erneut laden</app-button></p>
   }
 
+  @if (favorites.error(); as message) {
+    <p role="alert" class="text-sm text-fb-critical">
+      {{ message }} <app-button (clicked)="favorites.refresh()">Favoriten erneut laden</app-button>
+    </p>
+  }
   @if (state.error(); as text) {
     <p role="alert">{{ text }} <app-button (clicked)="state.refresh()">Erneut laden</app-button></p>
   }
@@ -138,16 +154,16 @@
     @if (feedItems().length === 0) {
       <app-card
         ><h2 class="text-base font-semibold">
-          @if (selectedSize() || minPrice() !== null || maxPrice() !== null) {
+          @if (filtersActive()) {
             Keine Artikel für diese Filter gefunden
           } @else {
             Noch keine passenden Artikel
           }
         </h2>
         <p class="mt-2 text-sm text-fb-text-secondary">
-          @if (selectedSize() || minPrice() !== null || maxPrice() !== null) {
-            Passe Größe oder Preis an. Der Feed durchsucht die gespeicherten Funde der letzten 30
-            Tage.
+          @if (filtersActive()) {
+            Passe Suchwort, Marke, Größe oder Preis an. Der Feed durchsucht die gespeicherten Funde
+            der letzten 7 Tage.
           } @else {
             Hier erscheinen passende Funde, sobald der Bot Artikel gesammelt hat. Du kannst auch
             einen anderen Suchfilter oder eine andere Marke wählen.
@@ -156,10 +172,10 @@
       >
     } @else {
       <section aria-labelledby="feed-finds-title" (focusin)="state.pause()">
-        <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 id="feed-finds-title" class="text-base font-semibold">Gespeicherte Funde</h2>
+        <div class="mb-3 flex flex-wrap items-center justify-end gap-2">
+          <h2 id="feed-finds-title" class="sr-only">Artikel im Vinted Feed</h2>
           <div class="flex items-center gap-3">
-            <p class="text-xs text-fb-text-muted">Letzte 30 Tage</p>
+            <p class="text-xs text-fb-text-muted">Letzte 7 Tage</p>
             <app-button
               [variant]="compact() ? 'primary' : 'secondary'"
               [icon]="compactIcon"
@@ -173,7 +189,7 @@
         <div class="space-y-4">
           <div
             id="feed-finds-grid"
-            class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+            class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
           >
             @for (item of feedItems(); track item.id) {
               <app-deal-card

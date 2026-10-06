@@ -1,5 +1,249 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-06 - Juna - Vinted Feed und persönliche Account-Favoriten
+
+**Abschlussprüfung:** Lauf `37497892235`: 222 betroffene Anwendungstests, 246 Collector-Tests, 3209 Datenbankprüfungen und 9 Browserabläufe bestanden. Produktionsbau, Formatierung, Lint, Typen und Workflow-Verträge bestanden. Temporäre Prüfdateien entfernt. Keine Änderung an Produktion; Abschlussfreigabe für PR und Merge steht aus.
+
+**Nachprüfung:** Die Browserfehler wurden auf zwei veraltete Rollen-/Komponentenannahmen und ein 28-px-Bildziel bei schmaler Ansicht mit feinem Zeiger zurückgeführt. Die Suchfeldrolle und die Auswahl einer Oberkategorie entsprechen nun der wirklichen Shared-Komponente. Ein eigener Tablet-Kontext bekommt ausdrücklich seine Basisadresse und Touch-Einstellungen. Die Bildaktionen bleiben am Desktop klein; schmale Ansichten haben zusätzlich zur Touch-Regel mindestens 44 px. Die vorhandenen Größenassertions bleiben erhalten. Lokaler CSS-Browsernachweis: vorher 28 px, nachher 44 px bei 390 px; bei 1440 px unverändert 28 px. Der nächste Trace belegte zusätzlich den sichtbaren Seitenaufbau erst nach rund acht Sekunden bei bereits nach fünf Sekunden abgelaufenen Assertions. Dokumentwechsel warten jetzt begrenzt auf den Seitenkopf, ohne Zieladressen oder fachliche Prüfungen abzuschwächen. Die vollständige Integrationsnachprüfung steht noch aus.
+
+**Auftrag:** Sieben-Tage-Feed, geräteübergreifende persönliche Favoriten ohne automatische Löschung, Titelsuche, fünf Desktopspalten, kleinere Bildaktionen, Heute/Gestern und gemeinsamer Kategorie-Wähler.
+
+**Umsetzung:** Separate geprüfte Artikelkopien je Benutzer und Workspace ohne Fremdschlüssel zum Feed. Bestätigte Schreibzugriffe, Accountwechsel-Schutz und ausdrücklicher Altimport. Alte Gerätebestände stellen entfernte Favoriten nicht wieder her. Keine 500er-Verdrängung, keine Bildspiegelung. Abgleich beim Öffnen und alle 30 Sekunden in sichtbaren Fenstern. Titelabfrage vor Seitengrenze; Bereinigung und Referenzpreise nach sieben Tagen. Bestehender Kategorie-Picker mit Vinted-Datenquelle statt zweitem Nachbau.
+
+**Prüfung:** Neue Favoriten-, Datums- und Kategorietests zuerst rot und danach grün. Generierte Migration nach frischem Aufbau mit 3.091 Datenbankprüfungen bestanden. Lokaler Produktionsbau durch Speichergrenze beendet; Integration wird deshalb im isolierten Runner geprüft. Kein unabhängiger zweiter Reviewer, kein echter Vinted-Abruf und keine Produktionsänderung. PR-/Merge-Freigabe steht aus.
+
+## 2026-10-06 - Juna - Vinted-Kartengröße und direktes Ziehen korrigieren
+
+**Befund:** Die 180 Millisekunden Startverzögerung für die Maus bricht den
+Ziehvorgang ab, sobald die Bewegungsschwelle vor Ablauf erreicht wird. Der
+bisherige Browsertest hielt die Maus vorher 300 Millisekunden still und
+erfasste diesen normalen Bedienfall nicht. Ohne diese künstliche Wartezeit
+scheitert der Test vor der Korrektur am fehlenden Ablageplatzhalter.
+
+**Änderung:** Mausziehen beginnt ohne Startverzögerung, wie in den vorhandenen
+Bildeditoren. Touch behält 250 Millisekunden gegen unbeabsichtigtes Verschieben
+beim Scrollen. Die Karten sind bis zu 368 statt 320 Pixel breit und haben mehr
+Innenabstand. Aktionen stehen mit Abstand unter der Bewertung. Sichtbare Griffe
+und Pfeile bleiben entfallen; normale Klicks, geschützte Aktionsbuttons und
+Tastaturbedienung bleiben erhalten.
+
+**Prüfung:** 69 betroffene Angularprüfungen und 14 Browserfälle bestanden:
+direktes Mausziehen, Touch, Ablageplatzhalter, persistente Reihenfolge,
+Kartenbreite, Bewertung vor Aktionen, Navigation, schmale Ansichten,
+Cloud-Einrichtung und Barrierefreiheit. Typprüfung, ESLint, Formatierung,
+Shared-UI-Prüfung, PR-Testauswahl und Produktionsbau bestanden. Die bestehende
+Produktionsansicht wurde im Nutzerbrowser gelesen; die korrigierte Ansicht
+wurde mit synthetischen Browserdaten geprüft. Keine echten Vinted-Aktionen,
+keine Erweiterungsänderung und kein Deployment.
+
+## 2026-10-06 - Juna - Vinted-Karten direkt ziehen und Einstellungen ordnen
+
+**Auftrag und Änderung:** Die Kontenkarten bleiben höchstens 320 Pixel breit.
+Festhalten und Ziehen der Karte ersetzt die sichtbaren Griffe und Pfeile; ein
+markierter Platzhalter zeigt das Ablageziel. Tastaturbedienung bleibt über
+Alt und die Pfeiltasten links/rechts erhalten. Bedienelemente lösen keinen
+Ziehvorgang aus. Bewertungen stehen unten links. „Auf Cloud wechseln“ liegt
+direkt neben der Hauptaktion. „Cloud verbinden“ bezeichnet die Wiederaufnahme
+eines bestehenden Cloudkontos. Die Einrichtung nutzt weiterhin die bestehende
+Kapazitätsprüfung und Reservierung vor der Anmeldung; eine kostenpflichtige
+IP-Buchung wird nicht eingeführt. Die Einstellungen gliedern Verbindung,
+Benachrichtigungen, Kontoverwaltung sowie Trennen/Entfernen mit erklärten Folgen.
+
+**Prüfung:** 104 betroffene Angularprüfungen und 22 Browserfälle bestanden.
+Die gezielt gerenderten Regressionen prüfen
+Reihenfolgespeicherung, Maus/Touch, Tastatur, direkte Cloud-Einrichtung,
+fehlende Kapazität ohne Verlust des lokalen Kontos, geschützte Anmeldung,
+schmale Ansichten und Barrierefreiheit im hellen/dunklen Theme. Produktionsbau,
+Typprüfung, ESLint, Formatierung sowie Shared-UI- und PR-Testauswahlprüfung
+bestanden. Ausschließlich synthetische Browserdaten; keine Anmeldung bei Vinted,
+keine Kontoänderung in Produktion, keine neue Migration oder Erweiterungsversion.
+
+## 2026-10-06 - Juna - Festhängende Cloud-Bereinigung nach Anmeldeabbruch beheben
+
+**Befund:** Nach dem manuellen Cloudversuch bleibt die Einrichtung auf
+`cleanup_pending`, die zugehörige Browsersitzung auf `active`. Docker bestätigt
+den eigenen Profilcontainer als `exited`, ohne laufenden Prozess, Neustart oder
+Speicherabbruch, mit Exitcode 1. Die bisherige Stoppprüfung akzeptiert nur 0 oder
+den Startfehler 78 und blockiert dadurch die reguläre Bereinigung dauerhaft.
+Der genaue Auslöser des Laufzeitfehlers ist damit nicht nachgewiesen.
+
+**Änderung:** Auch der bekannte Laufzeitfehler 1 darf nach vollständig bestätigtem
+Docker-Stopp bereinigt werden. Eigentums- und Profilprüfung sowie der Nachweis
+der Containerentfernung bleiben erforderlich. Laufende, pausierte, neu startende,
+unvollständig belegte oder zwangsweise beendete Zustände bleiben gesperrt.
+Zusätzlich meldet eine nicht angemeldete Vinted-Startseite mit HTTP 401 jetzt
+eine noch offene Anmeldung, damit ein zu früher Prüfversuch fortgesetzt werden
+kann. Der Dialog erklärt die Startseite, den Einstieg über Einloggen und die
+direkte Eingabe in der Vorschau; die oberen Felder sind dafür nicht erforderlich.
+
+**Prüfung:** Neue Regressionen scheiterten vor der Korrektur und bestehen danach.
+21 Browserfixtures und 71 betroffene Angularprüfungen bestanden. Die vollständige
+Linux-Workersuite im isolierten Testcontainer bestand mit 312 Prüfungen und einer
+übersprungenen Prüfung. Worker-Typprüfung und Bau, Angular-Produktionsbau mit
+Node 24.19.0 sowie gezieltes ESLint bestanden. Der systemweite Node 22.16.0 ist
+für die aktuelle Angular-CLI zu alt; keine Installation oder Paketänderung nötig.
+Keine produktive IP-Freigabe, keine Datenbankkorrektur und kein Deployment
+ausgeführt. Die festhängende Einrichtung bleibt bis zur Veröffentlichung und
+bestätigten regulären Bereinigung reserviert. Der erfolgreiche Cloudlogin und
+die anschließende Cloudaktivierung stehen weiterhin aus.
+
+## 2026-10-06 - Juna - Manuellen Vinted-Login über die IPRoyal-IP bestätigt
+
+**Nachweis:** Der Nutzer bestätigt im vorbereiteten separaten Windows-Chrome:
+Datenschutzbanner bedient, Slider selbst gelöst, SMS-Code eingegeben und danach
+im bestehenden Vinted-Konto angemeldet. Der geprüfte Proxy-Testzugang verwendet
+dieselbe IPRoyal-IP wie der bisherige Cloudversuch. Damit ist die konkrete IP
+für diesen manuellen Login nutzbar. Die Browserumgebung, das Profil, der
+Anmeldeablauf und der Zeitpunkt unterscheiden sich weiterhin; eine einzelne
+Ursache der vorherigen Cloud-Sperre ist dadurch nicht nachgewiesen.
+
+**Nächster Vergleich:** Der vorhandene Modus „Direkt im Browser anmelden“ in
+Flipbase deaktiviert automatische Anmeldung, Codeübermittlung und laufende
+Identitätsabfragen. Ein manueller Cloudversuch kann dadurch Eingabeablauf und
+Browserumgebung weiter eingrenzen. Keine Cookies übertragen und keine
+Kontoverknüpfung umgestellt. Der IP-Pool meldet aktuell wieder `free`.
+Die Cookie-Korrektur ist lokal geprüft und wartet weiterhin auf die explizite
+PR-/Merge-Freigabe; die Loginbestätigung ist keine solche Freigabe.
+
+## 2026-10-06 - Juna - Gleichzeitige Cookie-Klicks bei der Cloud-Anmeldung beheben
+
+**Auftrag:** Prüfen, ob das verzögert angezeigte Datenschutzbanner den
+Formularfehler im laufenden Cloud-Test erklären kann, und den bestätigten
+Fehler gezielt beheben.
+
+**Änderung:** Der Worker wartet nacheinander auf Benutzername, Passwort und
+Weiter-Button. Die bisher parallelen Warteoperationen konnten denselben
+Cookie-Handler gleichzeitig auslösen. Ein Aufruf entfernte das Banner,
+während ein weiterer Klick auf das bereits entfernte Element scheiterte.
+Eine neue synthetische Browserseite bildet ein verzögertes Cookie-Banner ab,
+das das darunterliegende Formular aus dem Barrierefreiheitsbaum ausblendet.
+Der Regressionstest reproduzierte vor der Änderung einen Cookie-Klick-Timeout
+mit dem gleichen Diagnoseschritt `wait_controls` und besteht nach der Änderung.
+Die notwendige Cookie-Auswahl, Berechtigungs- und CAPTCHA-Prüfungen sowie der
+Schutz vor erneutem Senden nach unklarem Ausgang bleiben bestehen.
+
+**Prüfung:** Alle 20 echten Browserfixtures bestanden, ebenso Worker-Typprüfung,
+Bau und gezieltes ESLint. Unter Windows bestanden 298 Workerprüfungen; fünf
+vorhandene IPRoyal-Dateirechtefälle scheiterten, sieben waren plattformbedingt
+übersprungen. Im isolierten Linux-Testcontainer ohne Netzwerk, Zugangsdaten,
+Produktionsvolumes oder Docker-Socket bestanden 309 Prüfungen mit einer
+übersprungenen Prüfung. Formatierung und Diff-Prüfung erfolgreich. Kein
+Produktionspatch oder echter Login ausgeführt. Die separate Vinted-Sitzungssperre
+nach dem Slider ist damit nicht als behoben nachgewiesen; der manuelle
+Chrome-Vergleich mit derselben IPRoyal-IP bleibt offen.
+
+## 2026-10-06 - Juna - Manuellen Chrome-Vergleich mit derselben IPRoyal-IP vorbereiten
+
+**Auftrag:** Nach der Vinted-Sitzungssperre den bestätigten Browservergleich
+fortsetzen, ohne die produktive Kontoverknüpfung umzustellen.
+
+**Vorbereitung:** Die vorhandene GoLogin-API ist erreichbar und meldet zwei
+Profile; kein Profil erstellt, geändert oder gestartet. Auf Windows ist Chrome
+154.0.8037.98 vorhanden. Ein privater temporärer HTTPS-CONNECT-Relay bindet
+nur an 127.0.0.1, authentifiziert gegenüber der vorhandenen IPRoyal-IP und
+beendet sich nach zwei Stunden. Zugangsdaten liegen ausschließlich im privaten
+Testordner mit Zugriff für den aktuellen Windows-Nutzer. Die Desktop-Verknüpfung
+`Flipbase IPRoyal Test.lnk` verwendet einen eigenen Chrome-Profilordner und
+diesen Relay, zunächst nur für einen öffentlichen IP-Nachweis. Die bestehenden
+Chrome-Profile und Systemeinstellungen bleiben unverändert.
+
+**Prüfung:** HTTPS-Verbindung durch den Relay erfolgreich; Ausgangs-IP stimmt
+mit der gekauften Proxy-IP überein und unterscheidet sich von der Hetzner-IP.
+Kein Vinted-Login, kein CAPTCHA, keine Zugangsdaten- oder Cookieübertragung
+an Vinted durch die Diagnose. Der Nutzer muss das vorbereitete Chrome-Fenster
+öffnen und den manuellen Anmeldevergleich durchführen. Gleiche IP grenzt den
+Netzwerkweg ein; OS, Browserversion, Sitzung und Zeitpunkt bleiben verschieden.
+Kein Produktpatch, Deployment oder automatischer Cloud-Wechsel.
+
+## 2026-10-06 - Juna - Vinted-Sitzungssperre im Cloud-Test eingrenzen
+
+**Auftrag:** Nach manueller Slider-Prüfung die tatsächliche Vinted-Sitzungssperre
+und die Unterschiede zum früheren GoLogin-Test untersuchen.
+
+**Befund:** Die auf der Sperrseite genannte Ausgangs-IP stimmt mit der privat
+konfigurierten IPRoyal-IP überein. Ein unabhängiger HTTPS-Aufruf über den
+konfigurierten Proxy bestätigt dieselbe Ausgangs-IP, Land DE und keinen
+Hetzner-Server-Ausgang. Die Einrichtung steht noch auf `login`. Der
+Cloudbrowser verwendet normales Playwright-Chromium mit persistentem Profil;
+er übernimmt keine GoLogin-Browserprofilkonfiguration. IPRoyal beschreibt
+ISP-Proxys als bei ISPs registrierte, in Rechenzentren gehostete Adressen.
+GoLogin dokumentiert zusätzlich pro Profil gespeicherte Browser-Eigenschaften.
+IP-Einstufung, Browserumgebung, Sitzungsverlauf und deren Kombination bleiben
+mögliche, nicht nachgewiesene Ursachen. Die ursprüngliche Browsersitzung war
+bei der weitergehenden Live-Inspektion bereits beendet. Kein weiterer
+Vinted-Aufruf, Anmeldeversuch, Profilwechsel oder Produktionspatch ausgeführt.
+
+## 2026-10-06 - Juna - Cloud-Anmeldeabbruch vor der Zugangsdaten-Eingabe untersuchen
+
+**Auftrag:** Das trotz sichtbarem E-Mail-/Passwortformular nicht automatisch
+bedienbare Vinted-Login für den Cloud-Test untersuchen.
+
+**Befund:** Das Produktionsprotokoll zeigt `wait_controls`, keine erkannte
+zusätzliche Prüfung und keinen begonnenen Anmeldeversuch. Die laufende Seite
+hat je ein sichtbares Benutzername-/Passwortfeld und einen eindeutigen
+Weiter-Button. Drei öffentliche Kontrollläufe über denselben Browser/Proxy
+erreichen die Eingabestelle. Die Diagnose bricht vor jeder Eingabe und
+Übermittlung ab; echte Zugangsdaten wurden nicht gelesen oder verwendet.
+Der ursprüngliche Fehler ist bislang nicht reproduziert. Keine Änderung an
+Anmeldelogik, Produktionskonfiguration, Konten oder IP-Zuordnungen. Ein erneuter
+Nutzerversuch ist für die weitere Eingrenzung angefragt.
+
+## 2026-10-06 - Juna - Kompakte Vinted-Konten und optionale Favoritenangebote umsetzen
+
+**Auftrag:** Den bestätigten Plan für Kontenkarten, Bereichsgruppen, ausgerichtete
+Statuszeile, Erweiterungslogo und echte Euro-/Prozentangebote umsetzen.
+
+**Änderung:** Kompakte Kontenkarten enthalten eine Hauptaktion und das Zahnrad;
+Kennzahlen entfallen dort. Konto und Automatisierungen gruppieren die Navigation.
+Erweiterungsstatus, Kontenauswahl und Werkzeuge stehen gemeinsam; Fehlerhinweise
+bleiben darunter. Favoritennachrichten speichern oben rechts. Erweiterung 1.7.0
+enthält Toolbaricons aus dem vorhandenen Flipbase-Logo.
+
+Angebote bleiben standardmäßig aus. Ein konkreter Nachlass in Euro oder Prozent
+wird ohne stilles Begrenzen gespeichert und am Beispielpreis erklärt. Nachricht
+und Angebot erhalten getrennte Belege, Claim-Stufen und Verlaufsergebnisse.
+Aktuelles Konto, eigener aktiver Artikel, EUR-Preis und Transaktion werden vor
+dem Angebot geprüft. Alte Erweiterungen übernehmen solche Aufträge nicht.
+Save während der Leseprüfung verwirft nur den noch nicht gestarteten Schritt;
+verspätete Meldungen blockieren den weiteren Nachrichtenversand nicht.
+
+**Prüfung:** Gezielte Angular-, Modell-, Erweiterungs-, Deno- und pgTAP-Prüfungen;
+Migration transaktional auf dem vorherigen Schema angewandt, vollständiger
+Schema-/Rechteabgleich identisch und Typen regeneriert. Chromium prüft Karten
+einschließlich zehn Konten, Favoritenformular, Navigation, Header und Dialoge
+bei 320 bis 1440 Pixeln, heller/dunkler Oberfläche und AXE. Reviewfehler zu
+Badgeüberlauf, Mobilformular, HTTP-Ablehnungen und verspäteten Belegen behoben.
+Die CI-Prüfung der Browser-Testauswahl ist um die acht zusätzlichen Fälle
+für kleine Displays, zehn Konten und lange Profilstatus ergänzt.
+Zusätzlich bestehen 18 bisherige Browser-Kontenabläufe; ihre Betriebsart-Assertion
+prüft den kompakten Lokal-Badge statt der entfernten alten Beschriftung.
+
+**Grenzen:** Mindestens halber Artikelpreis ist unsere konservative Grenze,
+keine belegte offizielle Vinted-Regel. Ein konkreter Angebotsbeleg wird verlangt;
+ein unbekanntes reales Antwortformat bleibt unklar statt eines scheinbaren
+Erfolgs. Der Live-Angebotstest und das angeheftete Chrome-Icon bleiben nach
+Release zu prüfen. Keine reale Nachricht/Angebot, Regelaktivierung,
+Produktionsänderung oder Aktualisierung der Nutzerinstallation ausgeführt.
+Details: `docs/implementation/vinted-account-ui-offers-plan.md`.
+
+## 2026-10-06 - Juna - Vinted-Kontenoberfläche und optionale Angebote planen
+
+**Auftrag:** Kompakte Kontenkarten, gruppierte Vinted-Navigation, ausgerichtete
+Status-/Kontensteuerung, Speichern oben rechts, Erweiterungslogo und optionale
+Euro-/Prozentangebote bei Favoritennachrichten als Schrittfolge festhalten.
+
+**Befund:** Kartenaktionen stehen außerhalb der Card; lokaler Status und
+Cloud-Pausentexte sind nicht Teil derselben Kontrollzeile. Inserat-/Verkaufszahlen
+vergrößern die Karten. Favoriten senden bisher nur Text; Angebotskonfiguration
+und bestätigter Angebotsversand fehlen. Das Manifest enthält keine Toolbaricons.
+
+**Ergebnis:** `docs/implementation/vinted-account-ui-offers-plan.md` trennt das
+zuerst umzusetzende UI-Paket vom echten Angebotsversand. Es enthält Zieltexte,
+Dateibereiche, getrennte Nachricht-/Angebotsergebnisse, Altversionsverhalten und
+gezielte Prüfungen. Bestehende Bleam-Befunde und offizielle Chrome-Iconangaben
+wurden abgeglichen. Nur Dokumentation geändert; keine Produktimplementierung,
+Migration, Aktivierung, Nachricht oder Veröffentlichung in dieser Sitzung.
+
 ## 2026-10-06 - Juna - Lokalen Vinted-Betrieb und Postfach wiederaufnehmen
 
 **Auftrag:** Den bestätigten Entwurf für automatische lokale Wiederaufnahme,

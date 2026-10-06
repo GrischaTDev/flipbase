@@ -1,12 +1,12 @@
 <div class="space-y-4">
-  <div class="flex flex-wrap items-center justify-between gap-3">
-    <div>
+  <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <div class="min-w-0">
       <h2 class="text-base font-semibold text-fb-text">Favoritennachrichten</h2>
       <p class="mt-1 text-[13px] text-fb-text-secondary">
         Antworte neuen Interessenten automatisch mit Deinen Vorlagen.
       </p>
     </div>
-    <div class="flex items-center gap-2">
+    <div class="flex min-w-0 flex-wrap items-center justify-end gap-2">
       <app-badge
         [tone]="settings()?.active ? 'success' : settings()?.enabled ? 'caution' : 'neutral'"
         >{{
@@ -15,6 +15,14 @@
       >
       <app-button [disabled]="busy() || loading()" (clicked)="reload()"
         >Verlauf aktualisieren</app-button
+      >
+      <app-button
+        type="submit"
+        variant="primary"
+        [formId]="formId"
+        [loading]="busy()"
+        [disabled]="!settings() || loading()"
+        >Einstellungen speichern</app-button
       >
     </div>
   </div>
@@ -35,8 +43,8 @@
       Verfügung.</app-notice-banner
     >
   }
-  <form [formGroup]="form" (ngSubmit)="save()">
-    <fieldset class="space-y-4" [disabled]="busy() || loading() || !settings()">
+  <form class="min-w-0" [id]="formId" [formGroup]="form" (ngSubmit)="save()">
+    <fieldset class="min-w-0 space-y-4" [disabled]="busy() || loading() || !settings()">
       <app-card title="Automatische Nachrichten">
         <app-custom-checkbox
           formControlName="enabled"
@@ -48,6 +56,60 @@
           Browser und das passende Profil müssen geöffnet sein. Frühere Favorisierungen und
           bestehende Gespräche werden ausgelassen.
         </p>
+      </app-card>
+      <app-card title="Optionales Angebot">
+        <app-custom-checkbox formControlName="offerEnabled" label="Angebot mitschicken" />
+        <p class="mt-2 text-[13px] text-fb-text-secondary">
+          Nach der bestätigten Nachricht wird ein echtes Vinted-Angebot gesendet. Diese Vorgabe gilt
+          für alle Text- und Zeitregeln dieses Kontos. Dafür brauchst Du Erweiterung 1.7.0 oder
+          neuer.
+        </p>
+        @if (form.controls.offerEnabled.value) {
+          <div class="mt-3 grid gap-3 sm:grid-cols-2">
+            <div>
+              <label class="mb-1 block text-[13px]" for="favorite-offer-type"
+                >Art des Nachlasses</label
+              >
+              <app-custom-select
+                triggerId="favorite-offer-type"
+                ariaLabel="Art des Nachlasses"
+                [options]="offerTypeOptions"
+                formControlName="offerType"
+              />
+            </div>
+            <div>
+              <label class="mb-1 block text-[13px]" for="favorite-offer-value">Nachlass</label>
+              <app-number-input
+                id="favorite-offer-value"
+                formControlName="offerValue"
+                [min]="form.controls.offerType.value === 'percentage' ? 1 : 0.01"
+                [max]="form.controls.offerType.value === 'percentage' ? 50 : 1000000"
+                [step]="0.01"
+                [unit]="form.controls.offerType.value === 'percentage' ? '%' : '€'"
+                ariaDescribedby="favorite-offer-preview"
+                [ariaInvalid]="offerInvalid()"
+              />
+            </div>
+          </div>
+          <div
+            id="favorite-offer-preview"
+            aria-live="polite"
+            class="mt-3 text-[13px] text-fb-text-secondary"
+          >
+            @if (offerPreviewPriceCents(); as previewPriceCents) {
+              <p>
+                Beispiel: Artikelpreis 40,00 € → Angebot {{ formatOfferPrice(previewPriceCents) }}.
+              </p>
+            }
+            @if (offerValidationMessage(); as validationMessage) {
+              <p>{{ validationMessage }}</p>
+            }
+            <p class="mt-1">
+              Beim Versand werden der aktuelle Artikelpreis und unsere Preisgrenzen erneut geprüft.
+              Ungültige Angebote werden ausgelassen; der Nachlass wird nicht automatisch angepasst.
+            </p>
+          </div>
+        }
       </app-card>
       <app-card
         title="Standardnachricht"
@@ -243,15 +305,6 @@
           oder das Ausschalten verwerfen noch wartende Nachrichten.
         </p>
       </app-card>
-      <div class="flex justify-end">
-        <app-button
-          type="submit"
-          variant="primary"
-          [loading]="busy()"
-          [disabled]="!settings() || loading()"
-          >Einstellungen speichern</app-button
-        >
-      </div>
     </fieldset>
   </form>
   <app-card title="Letzte Favoritennachrichten">
@@ -275,14 +328,34 @@
                   ? 'caution'
                   : 'neutral'
             "
-            >{{ stateLabels[event.state] }}</app-badge
+            >Nachricht: {{ stateLabels[event.state] }}</app-badge
           >
+          @if (event.offerState && event.offerState !== 'not_requested') {
+            <app-badge
+              [tone]="
+                event.offerState === 'sent'
+                  ? 'success'
+                  : event.offerState === 'failed' || event.offerState === 'outcome_unknown'
+                    ? 'caution'
+                    : 'neutral'
+              "
+              >{{ offerStateLabels[event.offerState] }}</app-badge
+            >
+          }
         </div>
         <p class="mt-1 text-xs text-fb-text-secondary">
           {{ event.eventAt | date: 'dd.MM.yyyy, HH:mm' }}
         </p>
         @if (event.text) {
           <p class="mt-2 whitespace-pre-wrap text-[13px]">{{ event.text }}</p>
+        }
+        @if (event.offerPriceCents; as priceCents) {
+          <p class="mt-2 text-[13px] text-fb-text-secondary">
+            Angebotspreis: {{ formatOfferPrice(priceCents) }}
+          </p>
+        }
+        @if (offerFailureReason(event.offerErrorCode); as reason) {
+          <p class="mt-2 text-[13px] text-fb-text-secondary">{{ reason }}</p>
         }
       </div>
     } @empty {

@@ -50,16 +50,20 @@ function array(input: unknown): unknown[] {
   return input;
 }
 
-function isCleanStartupFailure(state: Record<string, unknown>): boolean {
+function isConfirmedStopped(state: Record<string, unknown>): boolean {
   return (
-    state.ExitCode === 78 &&
     state.Status === 'exited' &&
     state.Running === false &&
+    state.Paused === false &&
     state.Dead === false &&
     state.Restarting === false &&
     state.Pid === 0 &&
     state.OOMKilled === false
   );
+}
+
+function isCleanStartupFailure(state: Record<string, unknown>): boolean {
+  return state.ExitCode === 78 && isConfirmedStopped(state);
 }
 
 export class ChromiumContainerLauncher {
@@ -247,7 +251,12 @@ export class ChromiumContainerLauncher {
       container = await this.inspect(containerId, profileId);
     }
     const state = record(container.State);
-    if (state.Running !== false || (state.ExitCode !== 0 && !isCleanStartupFailure(state)))
+    // Auch ein Laufzeitfehler (1) kann bereits beendet sein. Der Exitcode allein
+    // bestätigt den Stopp nicht; Prozess- und Containerzustand müssen ihn belegen.
+    if (
+      !isConfirmedStopped(state) ||
+      (state.ExitCode !== 0 && state.ExitCode !== 1 && state.ExitCode !== 78)
+    )
       throw new CloudBrowserStopUncertainError();
     await this.execute(['rm', containerId]);
     if ((await this.containers(profileId)).includes(containerId))

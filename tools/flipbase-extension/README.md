@@ -159,7 +159,18 @@ Anmeldung, SMS, Mensch-Prüfung, Kontowechsel und Sperren pausieren die Automati
 nach manueller Klärung startest Du den Abgleich ausdrücklich erneut. Bei einer
 Abrufbegrenzung wird die angekündigte Wartezeit auch bei manuellem Refresh eingehalten.
 
-Noch nicht enthalten: automatische Antworten, Angebote, Verkäufe, Relisting und Cloudbetrieb.
+Ab Erweiterung 1.7.0 können Favoritennachrichten auf ausdrücklichen Wunsch ein
+echtes Vinted-Angebot mit festem Euro- oder prozentualem Nachlass ergänzen. Die
+Option bleibt standardmäßig aus. Erst nach bestätigtem Textversand wird ein
+separater Angebotsauftrag übernommen. Aktiver eigener Artikel, Kontobindung,
+EUR-Preis und Transaktionsbezug werden erneut geprüft. Unsere konservative
+Preisgrenze erlaubt höchstens 50 Prozent Nachlass; ein unzulässiger Nachlass
+wird ausgelassen, niemals still angepasst. Nachricht und Angebot erscheinen
+mit getrennten Ergebnissen. Eine unbestätigte Angebotsantwort wird nicht
+automatisch wiederholt. Das tatsächliche Antwortformat und der Erfolg auf
+Vinted benötigen noch einen ausdrücklich ausgewählten Live-Pilottest.
+
+Noch nicht enthalten: automatische Antworten, Verkäufe, Relisting und Cloudbetrieb.
 Rechner und Browser müssen für einen lokalen Abgleich laufen. Browserprofile trennen
 Cookies und Anmeldungen, bieten aber keine Garantie gegen Prüfungen oder Sperren.
 

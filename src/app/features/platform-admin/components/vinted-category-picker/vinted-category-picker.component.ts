@@ -1,24 +1,25 @@
-import { ChangeDetectionStrategy, Component, computed, input, model, signal } from '@angular/core';
-import { LucideX } from '@lucide/angular';
 import {
-  CustomSelectComponent,
-  SelectOption,
-} from '../../../../shared/components/custom-select/custom-select.component';
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  input,
+  model,
+  untracked,
+} from '@angular/core';
+import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { LucideX } from '@lucide/angular';
+import { CategoryPickerComponent } from '../../../../shared/components/category-picker/category-picker.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { VintedCategory } from '../../models/vinted-category.model';
 import { buildVintedCategoryTree } from '../../models/vinted-category-tree';
+import { vintedCategorySource } from '../../models/vinted-category-source';
 
-interface CategoryLevel {
-  parentId: number | null;
-  selectedId: number | null;
-  label: string;
-  options: SelectOption<number | null>[];
-}
-
-/** Fachliche Zusammensetzung bestehender Auswahlfelder; lädt selbst keine Daten. */
+/** Verwendet denselben Picker wie das Artikelanlegen, aber ausschließlich Vinted-Kategorien. */
 @Component({
   selector: 'app-vinted-category-picker',
-  imports: [CustomSelectComponent, ButtonComponent],
+  imports: [CategoryPickerComponent, ButtonComponent, ReactiveFormsModule],
   templateUrl: './vinted-category-picker.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -26,64 +27,41 @@ export class VintedCategoryPickerComponent {
   readonly categories = input<readonly VintedCategory[]>([]);
   readonly value = model<number | null>(null);
   readonly disabled = input(false);
-  readonly directSearch = signal(false);
+  readonly selection = new FormControl<string | null>(null);
   readonly removeIcon = LucideX;
-  readonly tree = computed(() => {
+  readonly source = computed(() => {
     try {
-      return buildVintedCategoryTree(this.categories());
+      return vintedCategorySource(this.categories());
     } catch {
       return null;
     }
   });
-  readonly selected = computed(() =>
-    this.value() === null ? null : (this.tree()?.get(this.value()!) ?? null),
-  );
-  readonly missingSelection = computed(() => this.value() !== null && !this.selected());
-  readonly allOptions = computed<SelectOption<number | null>[]>(() => [
-    { value: null, label: 'Keine Kategorieeinschränkung' },
-    ...(this.tree()?.search('') ?? []).map((entry) => ({ value: entry.id, label: entry.path })),
-  ]);
-  readonly levels = computed<CategoryLevel[]>(() => {
-    const tree = this.tree();
-    if (!tree) return [];
-    const selected = this.selected();
-    const chain = selected ? [...selected.ancestorIds, selected.id] : [];
-    const result: CategoryLevel[] = [];
-    let parentId: number | null = null;
-    for (let level = 0; ; level += 1) {
-      const children = tree.children(parentId);
-      if (!children.length) break;
-      result.push({
-        parentId,
-        selectedId: chain[level] ?? null,
-        label: level === 0 ? 'Bereich' : `Unterkategorie ${level}`,
-        options: [
-          {
-            value: null,
-            label:
-              parentId === null
-                ? 'Keine Einschränkung'
-                : 'Gesamter Bereich einschließlich Unterkategorien',
-          },
-          ...children.map((entry) => ({ value: entry.id, label: entry.title })),
-        ],
-      });
-      if (chain[level] === undefined) break;
-      parentId = chain[level]!;
+  readonly missingSelection = computed(() => {
+    if (this.value() === null) return false;
+    try {
+      return !buildVintedCategoryTree(this.categories()).get(this.value()!);
+    } catch {
+      return true;
     }
-    return result;
   });
 
-  choose(parentId: number | null, id: number | null): void {
-    if (this.disabled()) return;
-    if (id === null) {
-      this.value.set(parentId);
-      return;
-    }
-    if (this.tree()?.get(id)?.parentId === parentId) this.value.set(id);
+  constructor() {
+    effect(() => {
+      const value = this.value();
+      const disabled = this.disabled();
+      untracked(() => {
+        this.selection.setValue(value === null ? null : String(value), { emitEvent: false });
+        if (disabled) this.selection.disable({ emitEvent: false });
+        else this.selection.enable({ emitEvent: false });
+      });
+    });
+    this.selection.valueChanges
+      .pipe(takeUntilDestroyed())
+      .subscribe((value) => this.chooseDirect(value === null ? null : Number(value)));
   }
 
   chooseDirect(id: number | null): void {
-    if (!this.disabled() && (id === null || this.tree()?.get(id))) this.value.set(id);
+    if (this.disabled()) return;
+    if (id === null || this.categories().some((row) => row.id === id)) this.value.set(id);
   }
 }

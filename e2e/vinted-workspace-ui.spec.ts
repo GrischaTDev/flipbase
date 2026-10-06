@@ -190,7 +190,11 @@ for (const width of [1440, 390, 320]) {
       page.on('console', (message) => {
         if (message.type() === 'error' && !message.text().includes('WebSocket'))
           errors.push(message.text());
-        if (message.type() === 'warning') warnings.push(message.text());
+        if (
+          message.type() === 'warning' &&
+          message.text() !== 'Service Worker registration blocked by Playwright'
+        )
+          warnings.push(message.text());
       });
       await page.route('https://images.example.test/**', (route) =>
         route.fulfill({
@@ -310,12 +314,14 @@ for (const width of [1440, 390, 320]) {
         'Konten',
         'Übersicht',
         'Postfach',
-        'Favoritennachrichten',
         'Inserate',
         'Verkäufe',
         'Verlauf',
         'Profil',
+        'Favoritennachrichten',
       ]);
+      await expect(nav.getByText('Konto', { exact: true })).toBeVisible();
+      await expect(nav.getByText('Automatisierungen', { exact: true })).toBeVisible();
       await nav.getByRole('link', { name: 'Übersicht', exact: true }).click();
       await expect(page.locator('app-vinted-overview')).toContainText('Frage zum Schal');
       const controlBounds = await Promise.all([

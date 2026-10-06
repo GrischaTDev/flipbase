@@ -1,11 +1,33 @@
 import { describe, expect, it } from 'vitest';
 import {
   VINTED_WORKSPACE_NAVIGATION,
+  VINTED_WORKSPACE_NAVIGATION_GROUPS,
   isVintedNavigationActive,
   isVintedWorkspaceRoute,
 } from './vinted-workspace-navigation';
 
 describe('Vinted-Bereichsgrenzen', () => {
+  it('ordnet Konten zuerst und Kontoseiten und Automatisierungen in explizite Gruppen', () => {
+    expect(VINTED_WORKSPACE_NAVIGATION[0].label).toBe('Konten');
+    expect(VINTED_WORKSPACE_NAVIGATION_GROUPS.map((group) => group.label)).toEqual([
+      'Konto',
+      'Automatisierungen',
+    ]);
+    expect(VINTED_WORKSPACE_NAVIGATION_GROUPS[0].items.map((item) => item.label)).toEqual([
+      'Übersicht',
+      'Postfach',
+      'Inserate',
+      'Verkäufe',
+      'Verlauf',
+      'Profil',
+    ]);
+    expect(VINTED_WORKSPACE_NAVIGATION_GROUPS[1].items.map((item) => item.label)).toEqual([
+      'Favoritennachrichten',
+    ]);
+    expect(VINTED_WORKSPACE_NAVIGATION.slice(1)).toEqual(
+      VINTED_WORKSPACE_NAVIGATION_GROUPS.flatMap((group) => group.items),
+    );
+  });
   it('behält Einrichtung außerhalb des täglichen Menüs', () => {
     expect(
       VINTED_WORKSPACE_NAVIGATION.some((item) => item.path === '/marketplaces/vinted/setup'),
