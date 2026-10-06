@@ -1,5 +1,43 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-07 - Juna - Lesende Cloud-Automatik mit Maike Vintage testen
+
+**Freigabe:** Nach dem vorgeschlagenen Pilotablauf beauftragt der Nutzer die
+Aktivierung ausschließlich für Maike Vintage. Mehrere geplante Abrufe,
+Browserabschluss, Wiederanlauf und Fehlerpausen werden geprüft. Versand und
+sonstige Vinted-Schreibaktionen bleiben deaktiviert.
+
+**Vorprüfung:** Die Cloud-Verbindung ist bestätigt. Es existiert genau ein
+gespeicherter Zeitplan, bislang mit altem `forbidden` pausiert. Kein anderer
+Zeitplan ist aktiviert. Ein anfänglich laufender manueller Abruf ist vor der
+Umstellung beendet. Die aktuelle gehärtete Worker-/Broker-Konfiguration
+wird direkt vom Server geprüft und erhalten; keine Rückkehr zur früheren
+Docker-Socket-Konfiguration im Worker. Zugangsdaten und Kontoinhalte werden
+nicht protokolliert.
+
+**Live-Ergebnis:** Zwei echte geplante Abrufe am 07.10. um 00:50 und 00:53 Uhr
+(Berlin) speichern erfolgreich ihre Ergebnisse und beenden den Browser. Der
+zweite läuft nach einem geordneten Worker-Neustart ohne erneute Anmeldung.
+Profil, Inserate, Gespräche und Bewertungen sind vollständig; Nachrichten und
+Verkäufe bleiben fehlerfreie Teilstände. Insgesamt 60 gezielte Worker-Tests
+bestehen, darunter Anmeldeverlust, Abbruch bei 403/429, Rate-Limit-Pause,
+Zugriffsentzug, geordneter Dienstabschluss und Auftragsabgrenzung. Ein echter
+Anbieterfehler wird im produktiven Konto nicht künstlich ausgelöst.
+
+**Abweichung und Endzustand:** Die anschließende direkte Prüfung des privaten
+Profilmanifests zeigt für Maike `networkId=direct`; für diese Verbindung
+existiert kein Cloud-Einrichtungsdatensatz. Der verifizierte, gültige deutsche
+ISP-Zugang `iproyal-pilot-a` ist im Bestand vorhanden, aber diesem Profil nicht
+zugeordnet. Der Pilot bestätigt deshalb die Zeitsteuerung, nicht den
+gewünschten Proxybetrieb. Diese Bindungsprüfung hätte vor der Aktivierung
+erfolgen müssen. Maikes Zeitplan wird über die regulären Kontoeinstellungen
+pausiert und auf 15 Minuten gespeichert. Die globale Dienstfreigabe wird
+geordnet auf die vorherige Sicherheitskonfiguration zurückgenommen. Es gibt
+keine offenen Sitzungen, laufenden Aufträge oder Browsercontainer; der Worker
+ist gesund. Profil, Verbindung und Proxybestand bleiben erhalten. Vor einer
+erneuten Freigabe braucht dieses ältere Cloudkonto einen unterstützten Wechsel
+in die kontogebundene IP-Einrichtung; keine manuelle Manifest-/Datenbankänderung.
+
 ## 2026-10-07 - Juna - Klarere Meldung zur pausierten Cloud-Automatik veröffentlichen
 
 **Freigabe:** Der Nutzer bestätigt PR-Erstellung, Merge nach erfolgreichen
