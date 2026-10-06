@@ -109,6 +109,7 @@ function fixture(
             State: {
               Status: running ? 'running' : 'exited',
               Running: running,
+              Paused: false,
               Dead: false,
               Restarting: false,
               Pid: running ? 100 : 0,
@@ -180,7 +181,7 @@ test('browser allocation must leave the controller address outside its dynamic p
   );
 });
 
-test('requires graceful exit and retains unresolved containers', async () => {
+test('retains containers after forced or unresolved shutdown', async () => {
   const { launcher, calls } = fixture(137);
   const context = await launcher.launch('/controller/profiles/account-1', {
     chromiumSandbox: true,
@@ -294,15 +295,44 @@ test('recovers a confirmed clean startup failure and allows the same profile to 
   assert.ok(await launcher.launch('/controller/profiles/account-1'));
 });
 
-test('keeps unknown failures and unproven startup exits quarantined', async () => {
+test('recovers a stopped runtime failure without restarting its container', async () => {
+  const { launcher, calls } = fixture(1, true, { initiallyExited: true });
+  await launcher.recover('account-1');
+  assert.equal(
+    calls.some((call) => call.args[0] === 'stop'),
+    false,
+  );
+  assert.ok(calls.some((call) => call.args[0] === 'rm'));
+  assert.deepEqual(await launcher.inspectProfileProcesses('/controller/profiles/account-1'), []);
+});
+
+test('confirms a runtime failure during close before releasing its profile', async () => {
+  const { launcher } = fixture(1);
+  const context = await launcher.launch('/controller/profiles/account-1');
+  await context.close();
+  assert.deepEqual(await launcher.inspectProfileProcesses('/controller/profiles/account-1'), []);
+});
+
+test('keeps unknown failures and unproven exits quarantined', async () => {
   for (const [exitCode, state] of [
-    [1, {}],
     [137, {}],
+    [1, { Status: 'dead' }],
+    [1, { Running: true }],
+    [1, { Dead: true }],
+    [1, { Restarting: true }],
+    [1, { Pid: 100 }],
+    [1, { OOMKilled: true }],
+    [1, { Paused: true }],
+    [1, { Paused: null }],
+    [1, { ExitCode: '1' }],
+    [0, { Pid: 100 }],
+    [0, { Restarting: true }],
     [78, { Status: 'dead' }],
     [78, { Status: 'created' }],
     [78, { Status: null }],
     [78, { Running: null }],
     [78, { Running: true }],
+    [78, { Paused: null }],
     [78, { Dead: true }],
     [78, { Dead: null }],
     [78, { Restarting: true }],
@@ -325,6 +355,15 @@ test('keeps unknown failures and unproven startup exits quarantined', async () =
 
 test('does not release a clean startup failure until removal is confirmed', async () => {
   const { launcher } = fixture(78, true, {
+    initiallyExited: true,
+    removalUnconfirmed: true,
+  });
+  await assert.rejects(() => launcher.recover('account-1'));
+  assert.deepEqual(await launcher.inspectProfileProcesses('/controller/profiles/account-1'), [1]);
+});
+
+test('keeps a stopped runtime failure reserved until removal is confirmed', async () => {
+  const { launcher } = fixture(1, true, {
     initiallyExited: true,
     removalUnconfirmed: true,
   });

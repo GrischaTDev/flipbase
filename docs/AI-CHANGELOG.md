@@ -1,5 +1,135 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-06 - Juna - Festhängende Cloud-Bereinigung nach Anmeldeabbruch beheben
+
+**Befund:** Nach dem manuellen Cloudversuch bleibt die Einrichtung auf
+`cleanup_pending`, die zugehörige Browsersitzung auf `active`. Docker bestätigt
+den eigenen Profilcontainer als `exited`, ohne laufenden Prozess, Neustart oder
+Speicherabbruch, mit Exitcode 1. Die bisherige Stoppprüfung akzeptiert nur 0 oder
+den Startfehler 78 und blockiert dadurch die reguläre Bereinigung dauerhaft.
+Der genaue Auslöser des Laufzeitfehlers ist damit nicht nachgewiesen.
+
+**Änderung:** Auch der bekannte Laufzeitfehler 1 darf nach vollständig bestätigtem
+Docker-Stopp bereinigt werden. Eigentums- und Profilprüfung sowie der Nachweis
+der Containerentfernung bleiben erforderlich. Laufende, pausierte, neu startende,
+unvollständig belegte oder zwangsweise beendete Zustände bleiben gesperrt.
+Zusätzlich meldet eine nicht angemeldete Vinted-Startseite mit HTTP 401 jetzt
+eine noch offene Anmeldung, damit ein zu früher Prüfversuch fortgesetzt werden
+kann. Der Dialog erklärt die Startseite, den Einstieg über Einloggen und die
+direkte Eingabe in der Vorschau; die oberen Felder sind dafür nicht erforderlich.
+
+**Prüfung:** Neue Regressionen scheiterten vor der Korrektur und bestehen danach.
+21 Browserfixtures und 71 betroffene Angularprüfungen bestanden. Die vollständige
+Linux-Workersuite im isolierten Testcontainer bestand mit 312 Prüfungen und einer
+übersprungenen Prüfung. Worker-Typprüfung und Bau, Angular-Produktionsbau mit
+Node 24.19.0 sowie gezieltes ESLint bestanden. Der systemweite Node 22.16.0 ist
+für die aktuelle Angular-CLI zu alt; keine Installation oder Paketänderung nötig.
+Keine produktive IP-Freigabe, keine Datenbankkorrektur und kein Deployment
+ausgeführt. Die festhängende Einrichtung bleibt bis zur Veröffentlichung und
+bestätigten regulären Bereinigung reserviert. Der erfolgreiche Cloudlogin und
+die anschließende Cloudaktivierung stehen weiterhin aus.
+
+## 2026-10-06 - Juna - Manuellen Vinted-Login über die IPRoyal-IP bestätigt
+
+**Nachweis:** Der Nutzer bestätigt im vorbereiteten separaten Windows-Chrome:
+Datenschutzbanner bedient, Slider selbst gelöst, SMS-Code eingegeben und danach
+im bestehenden Vinted-Konto angemeldet. Der geprüfte Proxy-Testzugang verwendet
+dieselbe IPRoyal-IP wie der bisherige Cloudversuch. Damit ist die konkrete IP
+für diesen manuellen Login nutzbar. Die Browserumgebung, das Profil, der
+Anmeldeablauf und der Zeitpunkt unterscheiden sich weiterhin; eine einzelne
+Ursache der vorherigen Cloud-Sperre ist dadurch nicht nachgewiesen.
+
+**Nächster Vergleich:** Der vorhandene Modus „Direkt im Browser anmelden“ in
+Flipbase deaktiviert automatische Anmeldung, Codeübermittlung und laufende
+Identitätsabfragen. Ein manueller Cloudversuch kann dadurch Eingabeablauf und
+Browserumgebung weiter eingrenzen. Keine Cookies übertragen und keine
+Kontoverknüpfung umgestellt. Der IP-Pool meldet aktuell wieder `free`.
+Die Cookie-Korrektur ist lokal geprüft und wartet weiterhin auf die explizite
+PR-/Merge-Freigabe; die Loginbestätigung ist keine solche Freigabe.
+
+## 2026-10-06 - Juna - Gleichzeitige Cookie-Klicks bei der Cloud-Anmeldung beheben
+
+**Auftrag:** Prüfen, ob das verzögert angezeigte Datenschutzbanner den
+Formularfehler im laufenden Cloud-Test erklären kann, und den bestätigten
+Fehler gezielt beheben.
+
+**Änderung:** Der Worker wartet nacheinander auf Benutzername, Passwort und
+Weiter-Button. Die bisher parallelen Warteoperationen konnten denselben
+Cookie-Handler gleichzeitig auslösen. Ein Aufruf entfernte das Banner,
+während ein weiterer Klick auf das bereits entfernte Element scheiterte.
+Eine neue synthetische Browserseite bildet ein verzögertes Cookie-Banner ab,
+das das darunterliegende Formular aus dem Barrierefreiheitsbaum ausblendet.
+Der Regressionstest reproduzierte vor der Änderung einen Cookie-Klick-Timeout
+mit dem gleichen Diagnoseschritt `wait_controls` und besteht nach der Änderung.
+Die notwendige Cookie-Auswahl, Berechtigungs- und CAPTCHA-Prüfungen sowie der
+Schutz vor erneutem Senden nach unklarem Ausgang bleiben bestehen.
+
+**Prüfung:** Alle 20 echten Browserfixtures bestanden, ebenso Worker-Typprüfung,
+Bau und gezieltes ESLint. Unter Windows bestanden 298 Workerprüfungen; fünf
+vorhandene IPRoyal-Dateirechtefälle scheiterten, sieben waren plattformbedingt
+übersprungen. Im isolierten Linux-Testcontainer ohne Netzwerk, Zugangsdaten,
+Produktionsvolumes oder Docker-Socket bestanden 309 Prüfungen mit einer
+übersprungenen Prüfung. Formatierung und Diff-Prüfung erfolgreich. Kein
+Produktionspatch oder echter Login ausgeführt. Die separate Vinted-Sitzungssperre
+nach dem Slider ist damit nicht als behoben nachgewiesen; der manuelle
+Chrome-Vergleich mit derselben IPRoyal-IP bleibt offen.
+
+## 2026-10-06 - Juna - Manuellen Chrome-Vergleich mit derselben IPRoyal-IP vorbereiten
+
+**Auftrag:** Nach der Vinted-Sitzungssperre den bestätigten Browservergleich
+fortsetzen, ohne die produktive Kontoverknüpfung umzustellen.
+
+**Vorbereitung:** Die vorhandene GoLogin-API ist erreichbar und meldet zwei
+Profile; kein Profil erstellt, geändert oder gestartet. Auf Windows ist Chrome
+154.0.8037.98 vorhanden. Ein privater temporärer HTTPS-CONNECT-Relay bindet
+nur an 127.0.0.1, authentifiziert gegenüber der vorhandenen IPRoyal-IP und
+beendet sich nach zwei Stunden. Zugangsdaten liegen ausschließlich im privaten
+Testordner mit Zugriff für den aktuellen Windows-Nutzer. Die Desktop-Verknüpfung
+`Flipbase IPRoyal Test.lnk` verwendet einen eigenen Chrome-Profilordner und
+diesen Relay, zunächst nur für einen öffentlichen IP-Nachweis. Die bestehenden
+Chrome-Profile und Systemeinstellungen bleiben unverändert.
+
+**Prüfung:** HTTPS-Verbindung durch den Relay erfolgreich; Ausgangs-IP stimmt
+mit der gekauften Proxy-IP überein und unterscheidet sich von der Hetzner-IP.
+Kein Vinted-Login, kein CAPTCHA, keine Zugangsdaten- oder Cookieübertragung
+an Vinted durch die Diagnose. Der Nutzer muss das vorbereitete Chrome-Fenster
+öffnen und den manuellen Anmeldevergleich durchführen. Gleiche IP grenzt den
+Netzwerkweg ein; OS, Browserversion, Sitzung und Zeitpunkt bleiben verschieden.
+Kein Produktpatch, Deployment oder automatischer Cloud-Wechsel.
+
+## 2026-10-06 - Juna - Vinted-Sitzungssperre im Cloud-Test eingrenzen
+
+**Auftrag:** Nach manueller Slider-Prüfung die tatsächliche Vinted-Sitzungssperre
+und die Unterschiede zum früheren GoLogin-Test untersuchen.
+
+**Befund:** Die auf der Sperrseite genannte Ausgangs-IP stimmt mit der privat
+konfigurierten IPRoyal-IP überein. Ein unabhängiger HTTPS-Aufruf über den
+konfigurierten Proxy bestätigt dieselbe Ausgangs-IP, Land DE und keinen
+Hetzner-Server-Ausgang. Die Einrichtung steht noch auf `login`. Der
+Cloudbrowser verwendet normales Playwright-Chromium mit persistentem Profil;
+er übernimmt keine GoLogin-Browserprofilkonfiguration. IPRoyal beschreibt
+ISP-Proxys als bei ISPs registrierte, in Rechenzentren gehostete Adressen.
+GoLogin dokumentiert zusätzlich pro Profil gespeicherte Browser-Eigenschaften.
+IP-Einstufung, Browserumgebung, Sitzungsverlauf und deren Kombination bleiben
+mögliche, nicht nachgewiesene Ursachen. Die ursprüngliche Browsersitzung war
+bei der weitergehenden Live-Inspektion bereits beendet. Kein weiterer
+Vinted-Aufruf, Anmeldeversuch, Profilwechsel oder Produktionspatch ausgeführt.
+
+## 2026-10-06 - Juna - Cloud-Anmeldeabbruch vor der Zugangsdaten-Eingabe untersuchen
+
+**Auftrag:** Das trotz sichtbarem E-Mail-/Passwortformular nicht automatisch
+bedienbare Vinted-Login für den Cloud-Test untersuchen.
+
+**Befund:** Das Produktionsprotokoll zeigt `wait_controls`, keine erkannte
+zusätzliche Prüfung und keinen begonnenen Anmeldeversuch. Die laufende Seite
+hat je ein sichtbares Benutzername-/Passwortfeld und einen eindeutigen
+Weiter-Button. Drei öffentliche Kontrollläufe über denselben Browser/Proxy
+erreichen die Eingabestelle. Die Diagnose bricht vor jeder Eingabe und
+Übermittlung ab; echte Zugangsdaten wurden nicht gelesen oder verwendet.
+Der ursprüngliche Fehler ist bislang nicht reproduziert. Keine Änderung an
+Anmeldelogik, Produktionskonfiguration, Konten oder IP-Zuordnungen. Ein erneuter
+Nutzerversuch ist für die weitere Eingrenzung angefragt.
+
 ## 2026-10-06 - Juna - Kompakte Vinted-Konten und optionale Favoritenangebote umsetzen
 
 **Auftrag:** Den bestätigten Plan für Kontenkarten, Bereichsgruppen, ausgerichtete
