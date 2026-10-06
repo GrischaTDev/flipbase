@@ -140,6 +140,86 @@ und der reguläre Flipbase-Cloudwechsel bleiben eigene Abnahmen. Das Pilotprofil
 gehört jetzt ausschließlich zu Maike Vintage; keine weiteren Konten darin anmelden
 und die gekaufte IP währenddessen nicht parallel einer anderen Einrichtung geben.
 
+### Echter lesender Kontoabruf mit Maike Vintage
+
+Nach der erneuten Bestätigung der angemeldeten Startseite durch den Nutzer
+wurde der unveränderte kompilierte `readVintedAccountImport` aus dem laufenden
+Worker im selben Pilotprofil ausgeführt. Der temporäre Testclient benötigt
+keine Datenbankzugangsdaten und ruft weder Dispatcher noch Importwriter auf.
+Die erwartete Identität wird vor dem Abruf weiterer Kontobereiche und nach
+dem Import bestätigt. Ausgabe und Dokumentation enthalten ausschließlich
+Status, Mengen und den bereits bestätigten Kontonamen.
+
+Nachweis: ein Profil, fünf Inserate, acht Gespräche, 28 Nachrichten aus bereits
+gelesenen Gesprächen und zwei Bewertungen. Die vorhandenen Bereichsergebnisse
+markieren Profil, Inserate, Gesprächsübersicht und Bewertungen als vollständig.
+Nachrichten und Verkäufe bleiben gemäß dem bestehenden Leser Teilstände;
+ungelesene Gespräche werden nicht geöffnet. Ein vollständiger Nachrichtenfeed,
+Verkaufsabgleich oder Favoritenereignisabruf ist damit nicht nachgewiesen.
+
+17 Quellanfragen und zwei Identitätsprüfungen lieferten HTTP 200, ohne sichtbare
+Mensch-Prüfung. Keine beobachteten API-Schreibaufrufe und kein Datenbankimport.
+Der Testclient endete nach etwa sechs Sekunden ohne `Browser.close`; das
+angemeldete Profil bleibt im geöffneten Browser erhalten. Die Testgrenzen
+betragen 40 API-Anfragen, 90 Sekunden für weitere Leseaufträge und 120 Sekunden
+absolute Laufzeit. HTTP 403/429 oder eine sichtbare Prüfung beenden den Versuch.
+
+Eine unmittelbar vorherige einzelne Identitätsprüfung lieferte HTTP 401 und
+wurde beendet. Dieser Fehler war beim anschließenden Import nicht erneut
+vorhanden: alle beobachteten Antworten waren erfolgreich, der im produktiven
+Leser vorhandene einmalige Seitenneuladeweg wurde nicht ausgelöst. Der Nutzer
+bestätigt anschließend, während des ersten API-Fehlers die Vinted-Seite manuell
+neu geladen zu haben. Der erfolgreiche Import folgt diesem manuellen Eingriff
+und beweist deshalb keine selbstständige Sitzungserneuerung durch den Worker.
+Eine Erneuerung der API-Anmeldung beim Seitenaufbau ist eine plausible Erklärung;
+ein eingefrorener Browser und die genaue Ursache des ersten 401 sind nicht
+nachgewiesen. Keine Behebung oder dauerhaft gültige Sitzung daraus ableiten.
+Anmeldeerkennung und Browserkonfiguration wurden nicht geändert. Vor einer
+regulären Cloudfreigabe den bestehenden Erneuerungsweg ohne manuelles Neuladen
+gezielt abnehmen.
+
+### Automatischer HTTP-401-Wiederanlauf ohne manuelles Neuladen
+
+Nach dem Nutzerhinweis auf sein manuelles Neuladen wurde der vorhandene
+Wiederanlauf getrennt geprüft. 31 bestehende Tests für Kontoimport und
+Identität bestehen, einschließlich erfolgreicher Erneuerung, erneuter
+Freigabe vor dem Seitenwechsel und fehlender Wiederholung bei HTTP 403/429.
+Der produktive Synchronisierungsrunner verwendet `readVintedAccountImport`
+direkt; dessen 401-Wiederanlauf ist damit auch im regulären Leseabruf erreichbar.
+
+Im selben echten Chromeprofil bestätigt ein begrenzter Baselineabruf mit
+zwei HTTP-200-Antworten Maike Vintage, ohne Seitenwechsel. Für die zweite
+Stufe beantwortet ausschließlich der temporäre Playwright-Test den ersten
+GET auf `/api/v2/users/current` synthetisch mit HTTP 401. Der unveränderte
+produktive Import startet danach selbst das Neuladen der Vinted-Startseite.
+Genau ein Hauptdokumentabruf ist beobachtet; zusätzliche Navigationsereignisse
+des Hauptframes werden nicht als weitere Seitenabrufe gezählt. Eine zunächst
+auf diese Ereignisse bezogene Testbedingung wurde korrigiert und der
+begrenzte Versuch wiederholt.
+
+Nach dem automatischen Neuladen wird die erwartete Identität bestätigt.
+Fünf weitere beobachtete API-Antworten liefern HTTP 200, keine sichtbare
+Mensch-Prüfung und keine beobachteten API-Schreibaufrufe. Der Test endet vor
+dem erneuten Abruf der weiteren Kontobereiche. Antwortsimulation und
+Testverbindung werden anschließend entfernt, ohne den Browser zu schließen.
+Keine gespeicherten Anmeldedaten verändert, keine Datenbankzugriffe und
+keine Änderung am Produktcode. Die Testgrenzen betragen 15 API-Anfragen,
+40 Sekunden für weitere Abrufe und 60 Sekunden absolute Laufzeit.
+
+Dieser Nachweis bestätigt die automatische Reaktion auf HTTP 401 im echten
+Chrome mit einer weiterhin gültigen gespeicherten Anmeldung. Er ersetzt
+keinen Test mit tatsächlich abgelaufenen Anmeldedaten und beweist nicht die
+Ursache des ursprünglichen 401. Die separate `readVintedAccountIdentity`-
+Prüfung des Anmeldeabschlusses besitzt diesen Wiederanlauf bisher nicht;
+der erfolgreiche Importtest bestätigt deren Erneuerungsverhalten nicht.
+
+Der nächste Integrationsschritt verbindet diesen Browserstart und das
+dauerhafte Profil mit dem bereits vorhandenen Cloud-Einrichtungsablauf:
+atomare IP-Reservierung, eindeutige Kontozuordnung, geschützte Live-Bedienung
+sowie bestätigter Abschluss oder Abbruch. Die lokale Ausführung wird erst
+nach erfolgreicher Cloudverknüpfung abgelöst. Der separate Pilot darf die
+gekaufte IP währenddessen nicht parallel weiterverwenden.
+
 ## Privater IP-Betrieb vom 05.10.2026
 
 Der zusätzliche lesende IPRoyal-Abgleich ist im Arbeitszweig vorbereitet und geprüft,

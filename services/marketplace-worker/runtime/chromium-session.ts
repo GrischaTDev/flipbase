@@ -1,11 +1,15 @@
 import { spawn, type ChildProcess } from 'node:child_process';
-import { readFile, unlink } from 'node:fs/promises';
-import { createServer, request } from 'node:http';
+import { lstat, readFile, unlink } from 'node:fs/promises';
+import { createServer, request, type Server } from 'node:http';
 import { connect } from 'node:net';
-import { chromium, type BrowserContext } from 'playwright';
+import { createProxyForwarder } from '../../../tools/cloud-browser-pilot/proxy-forwarder.mjs';
+import { closeChromeWindows } from '../../../tools/cloud-browser-pilot/chrome-window-close.mjs';
+import { parseChromeSessionConfiguration } from './chrome-session-config.ts';
 
-let context: BrowserContext | undefined;
+let browser: ChildProcess | undefined;
 let display: ChildProcess | undefined;
+let windowManager: ChildProcess | undefined;
+let proxy: Server | undefined;
 let finishing = false;
 let isReady = false;
 const sockets = new Set<import('node:net').Socket>();
@@ -82,13 +86,31 @@ async function finish(exitCode: 0 | 1 | 78): Promise<void> {
   if (finishing) return;
   finishing = true;
   process.exitCode = exitCode;
-  try {
-    await context?.close();
-  } catch {
-    process.exitCode = 1;
+  if (browser && browser.exitCode === null && browser.signalCode === null) {
+    const exited = new Promise<void>((resolve) => {
+      const deadline = setTimeout(resolve, 8_000);
+      browser?.once('exit', () => {
+        clearTimeout(deadline);
+        resolve();
+      });
+    });
+    try {
+      await closeChromeWindows();
+    } catch {
+      process.exitCode = 75;
+    }
+    await exited;
+    // 75 hält Profil und IP reserviert, wenn ein sauberer Chrome-Stopp unbestätigt bleibt.
+    if (browser.exitCode === null && browser.signalCode === null) {
+      process.exitCode = 75;
+      browser.kill('SIGKILL');
+    }
   }
   for (const socket of sockets) socket.destroy();
   server.close();
+  proxy?.closeAllConnections();
+  proxy?.close();
+  windowManager?.kill('SIGTERM');
   display?.kill('SIGTERM');
 }
 process.on('SIGTERM', () => {
@@ -100,6 +122,30 @@ process.on('SIGINT', () => {
 server.on('error', () => {
   void finish(isReady ? 1 : 78);
 });
+
+async function waitForSocket(address: string | number): Promise<void> {
+  for (let attempt = 0; attempt < 100 && !finishing; attempt++) {
+    const ready = await new Promise<boolean>((resolve) => {
+      const socket = typeof address === 'string' ? connect(address) : connect(address, '127.0.0.1');
+      socket.setTimeout(250);
+      socket.on('connect', () => {
+        socket.destroy();
+        resolve(true);
+      });
+      socket.on('error', () => {
+        socket.destroy();
+        resolve(false);
+      });
+      socket.on('timeout', () => {
+        socket.destroy();
+        resolve(false);
+      });
+    });
+    if (ready) return;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error('Chrome-Sitzungsdienst nicht bereit');
+}
 
 async function startup(): Promise<void> {
   let serialized: string | undefined;
@@ -113,55 +159,57 @@ async function startup(): Promise<void> {
     }
   }
   if (!serialized || serialized.length > 16_384) throw new Error('Sitzungskonfiguration fehlt');
+  const metadata = await lstat('/tmp/startup.json');
+  if (!metadata.isFile() || metadata.isSymbolicLink() || (metadata.mode & 0o077) !== 0)
+    throw new Error('Private Sitzungskonfiguration erforderlich');
   await unlink('/tmp/startup.json');
-  const options: unknown = JSON.parse(serialized);
-  if (!options || typeof options !== 'object' || Array.isArray(options))
-    throw new Error('Ungültige Sitzungskonfiguration');
-  const settings = options as Record<string, unknown>;
-  if (
-    Object.keys(settings).some(
-      (key) => !['headless', 'locale', 'viewport', 'proxy'].includes(key),
-    ) ||
-    typeof settings.headless !== 'boolean' ||
-    typeof settings.locale !== 'string'
-  )
-    throw new Error('Ungültige Sitzungskonfiguration');
-  if (!settings.headless) {
-    display = spawn('Xvfb', [':99', '-screen', '0', '1280x900x24', '-nolisten', 'tcp', '-ac'], {
-      stdio: 'ignore',
-    });
-    display.on('error', () => {
+  const settings = parseChromeSessionConfiguration(JSON.parse(serialized));
+  try {
+    await lstat('/profile/SingletonLock');
+    throw new Error('Chromeprofil ist noch gesperrt');
+  } catch (error) {
+    if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error;
+  }
+  process.env.DISPLAY = ':99';
+  process.env.HOME = '/home/node';
+  process.env.TZ = 'Europe/Berlin';
+  if (settings.proxy) {
+    proxy = createProxyForwarder(settings.proxy);
+    proxy.on('error', () => {
       void finish(isReady ? 1 : 78);
     });
-    display.on('exit', () => {
-      if (!finishing) void finish(isReady ? 1 : 78);
-    });
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await new Promise<void>((resolve) => proxy?.listen(3128, '127.0.0.1', resolve));
   }
-  context = await chromium.launchPersistentContext('/profile', {
-    headless: settings.headless,
-    locale: settings.locale,
-    viewport: settings.viewport as { width: number; height: number },
-    ...(settings.proxy
-      ? { proxy: settings.proxy as { server: string; username?: string; password?: string } }
-      : {}),
-    chromiumSandbox: true,
-    acceptDownloads: false,
-    timeout: 60_000,
-    env: { PATH: process.env.PATH ?? '', HOME: '/home/node', DISPLAY: ':99' },
-    args: ['--remote-debugging-port=9223'],
+  if (finishing) return;
+  display = spawn(
+    'Xvfb',
+    [':99', '-screen', '0', `${settings.width}x${settings.height}x24`, '-nolisten', 'tcp', '-ac'],
+    { stdio: 'ignore' },
+  );
+  display.on('error', () => {
+    void finish(isReady ? 1 : 78);
   });
-  context.on('close', () => {
-    void finish(isReady ? 0 : 78);
+  display.on('exit', () => {
+    if (!finishing) void finish(isReady ? 1 : 78);
   });
-  if (finishing) {
-    try {
-      await context.close();
-    } catch {
-      process.exitCode = 1;
-    }
-    return;
-  }
+  await waitForSocket('/tmp/.X11-unix/X99');
+  if (finishing) return;
+  windowManager = spawn('openbox', [], { stdio: 'ignore' });
+  windowManager.on('error', () => {
+    void finish(isReady ? 1 : 78);
+  });
+  windowManager.on('exit', () => {
+    if (!finishing) void finish(isReady ? 1 : 78);
+  });
+  browser = spawn('google-chrome-stable', settings.argumentsList, { stdio: 'ignore' });
+  browser.on('error', () => {
+    void finish(isReady ? 1 : 78);
+  });
+  browser.on('exit', (code) => {
+    if (!finishing) void finish(isReady ? (code === 0 ? 0 : 1) : 78);
+  });
+  await waitForSocket(9223);
+  if (finishing) return;
   server.listen(9222, '0.0.0.0', () => {
     isReady = true;
   });

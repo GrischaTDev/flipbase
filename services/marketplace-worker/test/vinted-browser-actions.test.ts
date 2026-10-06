@@ -1,7 +1,45 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { Page } from 'playwright';
-import { replayBrowserDrag } from '../src/vinted-browser-actions.ts';
+import { replayBrowserDrag, vintedBrowserActions } from '../src/vinted-browser-actions.ts';
+
+test('manual desktop controls do not use Playwright page input or screenshot', async () => {
+  const calls: string[] = [];
+  const connection = {
+    version: () => 'fixture',
+    close: async () => undefined,
+    contexts: () => {
+      throw new Error('Playwright page controls must not be used');
+    },
+  };
+  const actions = vintedBrowserActions(connection, {
+    capture: async () => {
+      calls.push('capture');
+      return new Uint8Array([1]);
+    },
+    click: async () => {
+      calls.push('click');
+    },
+    drag: async () => {
+      calls.push('drag');
+    },
+    type: async () => {
+      calls.push('type');
+    },
+    press: async () => {
+      calls.push('press');
+    },
+  });
+  await actions.capture?.();
+  await actions.click?.(0.5, 0.5);
+  await actions.drag?.([
+    { x: 0, y: 0, elapsedMs: 0 },
+    { x: 1, y: 1, elapsedMs: 100 },
+  ]);
+  await actions.type?.('fixture');
+  await actions.press?.('Enter');
+  assert.deepEqual(calls, ['capture', 'click', 'drag', 'type', 'press']);
+});
 
 function dragPage(failure?: 'down' | 'move') {
   const events: { name: string; elapsedMs: number }[] = [];

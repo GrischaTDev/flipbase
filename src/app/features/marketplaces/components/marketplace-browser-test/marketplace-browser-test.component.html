@@ -272,7 +272,7 @@
               >
                 <button
                   type="button"
-                  class="relative block max-w-full touch-none select-none cursor-pointer focus-visible:outline-2 focus-visible:outline-fb-primary disabled:opacity-50"
+                  class="relative block w-full touch-none select-none cursor-pointer focus-visible:outline-2 focus-visible:outline-fb-primary disabled:opacity-50"
                   aria-label="Browserbild anklicken oder mit Maus oder Finger ziehen"
                   [disabled]="!store.canAct()"
                   (click)="clickFrame($event)"
@@ -285,7 +285,7 @@
                   <img
                     [src]="session.frameUrl"
                     alt="Aktuelles Browserbild der Vinted-Anmeldung"
-                    class="block max-w-full"
+                    class="block w-full"
                     [draggable]="false"
                   />
                   @if (pointerPosition(); as position) {
@@ -301,6 +301,11 @@
               @if (pointerMessage(); as message) {
                 <p role="status" class="text-sm text-fb-text-secondary">{{ message }}</p>
               }
+              <p class="text-xs text-fb-text-secondary">
+                Für Texte klicke zuerst das gewünschte Feld im Browserbild an. Füge dann E-Mail,
+                Passwort oder Code unten ein und klicke auf "Senden". Wenn sich die Seite nach einer
+                Eingabe weiter verändert, klicke auf "Bild aktualisieren".
+              </p>
               <div class="flex flex-wrap items-center gap-2 pt-1">
                 <app-text-field
                   class="min-w-44 flex-1"

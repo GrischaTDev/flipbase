@@ -17,6 +17,7 @@ function fixture(
     initiallyExited?: boolean;
     state?: Record<string, unknown>;
     startupFailure?: boolean;
+    legacyRuntime?: boolean;
   } = {},
 ) {
   const calls: { args: string[]; input?: string }[] = [];
@@ -48,8 +49,22 @@ function fixture(
       if (settings.startupFailure) throw new Error('Chromium startup failed');
       return browser;
     },
+    executeDesktop: async (args, input) => {
+      calls.push({ args, input });
+      return Buffer.alloc(0);
+    },
     execute: async (args, input) => {
       calls.push({ args, input });
+      if (args[0] === 'image')
+        return JSON.stringify([
+          {
+            Config: {
+              Labels: !settings.legacyRuntime
+                ? { 'de.flipbase.chromium.runtime': 'chrome-desktop-v1' }
+                : {},
+            },
+          },
+        ]);
       if (args[0] === 'network')
         return JSON.stringify([
           {
@@ -87,6 +102,9 @@ function fixture(
             Id: containerId,
             Config: {
               Labels: {
+                ...(!settings.legacyRuntime
+                  ? { 'de.flipbase.chromium.runtime': 'chrome-desktop-v1' }
+                  : {}),
                 'de.flipbase.chromium.role': 'session',
                 'de.flipbase.chromium.host': 'pilot-01',
                 'de.flipbase.chromium.profile': settings.foreignProfile
@@ -170,6 +188,36 @@ test('creates only a private constrained session and sends secrets through stdin
   assert.ok(calls.some((call) => call.input?.includes('private-password')));
   await context.close();
   assert.deepEqual(await launcher.inspectProfileProcesses('/controller/profiles/account-1'), []);
+});
+
+test('native desktop input stays in the verified profile container and stops after closure', async () => {
+  const { launcher, calls } = fixture();
+  const context = await launcher.launch('/controller/profiles/account-1');
+  const desktop = launcher.desktop('/controller/profiles/account-1');
+  await desktop.type('fixture-private-password');
+  const input = calls.find((call) => call.args.includes('xdotool'));
+  assert.ok(input?.args.includes(containerId));
+  assert.equal(input?.input, 'fixture-private-password');
+  assert.equal(
+    input?.args.some((argument) => argument.includes('fixture-private-password')),
+    false,
+  );
+  await context.close();
+  await assert.rejects(desktop.type('fixture-private-password'));
+});
+
+test('rejects a legacy browser image before connecting its runtime', async () => {
+  const { launcher } = fixture(0, false, { legacyRuntime: true });
+  await assert.rejects(launcher.launch('/controller/profiles/account-1'));
+});
+
+test('unconfirmed graceful stop retains its container and profile reservation', async () => {
+  const { launcher, calls } = fixture(75, true, { initiallyExited: true });
+  await assert.rejects(launcher.recover('account-1'));
+  assert.equal(
+    calls.some((call) => call.args[0] === 'rm'),
+    false,
+  );
 });
 
 test('browser allocation must leave the controller address outside its dynamic pool', async () => {

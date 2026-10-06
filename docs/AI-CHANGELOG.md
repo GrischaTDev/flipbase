@@ -1,5 +1,102 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-06 - Juna - Cloud-Chrome über PR #317 abschließen
+
+**Freigabe:** Der Nutzer bestätigt PR-Erstellung, Merge nach erfolgreichen Pflichtprüfungen und anschließende Bereinigung des eigenen Zweigs. Der aktuelle master f53eb483 wird übernommen; sein Feed und beide Protokollarchive bleiben erhalten. Der einzige Merge-Konflikt betrifft die vorangestellten Einträge im Änderungsprotokoll. Image-Prüfungen und produktive Cloud-Verknüpfung bleiben bis zu ihrem tatsächlichen Nachweis offen.
+
+## 2026-10-06 - Juna - normalen Chrome in die bestehende Cloud-Einrichtung integrieren
+
+**Auftrag:** Den erfolgreich angemeldeten eigenständigen Chrome-Pilot als
+Browsermodell für Flipbase übernehmen. Vorhandene Cloud-IP-Reservierung,
+Kontoprüfung, Wiederaufnahme und Abbruch verwenden; kein GoLogin-Abonnement.
+
+**Umsetzung:** Das Sitzungsimage startet Google Chrome als eigenen Betriebssystemprozess
+mit isoliertem Profil, Sandbox und Anzeige. Erst danach verbindet sich der Worker
+über seinen privaten CDP-Zugang ohne Playwright-Kontextvorgaben. Der bereits geprüfte
+Proxy-Weiterleiter und der reguläre Fensterschließweg werden aus dem Pilot verwendet.
+Zugangsdaten gelangen über eine private Startdatei und den Eingabekanal in den Container,
+nicht über Browserargumente. Die manuelle Browseransicht nutzt native Bildschirmaufnahme,
+Maus und Tastatur im verifizierten Kontocontainer. Unbestätigter regulärer Browserstopp
+führt zu Exitcode 75; Profil und IP bleiben dadurch reserviert. Ein altes Sitzungsimage
+wird vor einem neuen Containerstart abgewiesen. Die Anmeldedialoge erhalten die
+vorhandene große Dialogvariante und erklären das Einfügen von Text.
+
+**Prüfung:** 38 gezielte Worker-Tests, Worker-Typprüfung und Worker-Bau sowie
+43 Angular-Tests einschließlich vorhandener gerenderter Kontodialogprüfungen bestanden.
+Geänderte TypeScript- und HTML-Dateien sind gelintet. Der Angular-Produktionsbau
+besteht mit dem gebündelten Node 24.19.0; die systemweite Version 22.16.0 ist für
+die aktuelle Angular-CLI zu alt. Die vollständige Worker-Suite besteht in einem
+temporären Linux-Testordner mit 327 erfolgreichen und einem übersprungenen Test.
+Unter Windows besteht sie mit Node 24.19.0 mit 321 erfolgreichen und sieben
+übersprungenen Tests. Fünf unveränderte IPRoyal-Abgleichstests schlagen nur mit
+dem alten systemweiten Node 22.16.0 fehl. Acht Tests der wiederverwendeten
+Pilot-Helfer sowie YAML- und Shell-Syntaxprüfung bestehen. Das neue Browserimage erhält in CI eine Prüfung
+für echte native Eingaben, Bildschirmaufnahme, Profiltrennung und regulären Stopp.
+
+**Grenzen:** Das neue Image wurde noch nicht gebaut oder aktiviert; sein Linux-Smoke
+läuft im PR. Keine produktive Cloud-Verknüpfung oder Datenbankänderung. Das angemeldete
+Maike-Vintage-Pilotprofil bleibt erhalten. Anbieterprüfungen oder Sperren können
+weiterhin auftreten; aus dem Pilot folgt keine Garantie für jedes Konto.
+
+## 2026-10-06 - Juna - automatischen Seitenneuladeweg im echten Cloudbrowser prüfen
+
+**Auftrag:** Nach dem Nutzerhinweis auf sein manuelles Neuladen den vorhandenen
+HTTP-401-Wiederanlauf ohne weitere Nutzerbedienung prüfen. Das Profil und die
+gespeicherten Anmeldedaten bleiben erhalten; keine produktive Kontoumstellung.
+
+**Prüfung:** 31 bestehende Tests für Kontoimport und Identität bestanden,
+einschließlich erfolgreicher 401-Erneuerung, entzogener Freigabe und Abbruch
+bei 403/429. Im echten Chrome bestätigt ein kurzer Baselineabruf das Konto
+mit zwei HTTP-200-Antworten ohne Neuladen. Anschließend beantwortet ein
+temporärer Playwright-Test ausschließlich den ersten Profil-GET synthetisch
+mit HTTP 401. Der unveränderte produktive Import lädt selbst einmal das
+Hauptdokument neu; danach wird die erwartete Identität bestätigt. Fünf weitere
+beobachtete API-Antworten liefern HTTP 200, keine sichtbare Mensch-Prüfung und
+keine beobachteten API-Schreibaufrufe. Der Test endet vor dem erneuten Abruf
+von Inseraten/Gesprächen. Die temporäre Antwortsimulation wird entfernt und
+der Testclient beendet; der Browser bleibt geöffnet. Keine Datenbankzugriffe.
+
+**Messgrenze:** Zwei Hauptframe-Navigationsereignisse bedeuten hier einen echten
+Dokumentabruf plus ein weiteres Browserereignis. Die zunächst zu strenge
+Testbedingung wurde auf die tatsächliche Hauptdokumentanfrage korrigiert;
+der wiederholte begrenzte Test bestätigt genau einen solchen Abruf. Kein
+Produktcode geändert. Dieser Test beweist den automatischen 401-Ablauf bei
+gültiger gespeicherter Anmeldung, nicht die Erneuerung wirklich abgelaufener
+Anmeldedaten. Die Ursache des vorherigen echten 401 bleibt offen. Der
+vorhandene Synchronisierungsrunner ruft diesen Import direkt auf; die
+gesonderte Identitätsprüfung des Loginablaufs ist damit nicht mitgeprüft.
+
+## 2026-10-06 - Juna - echten lesenden Cloudabruf bei Maike Vintage prüfen
+
+**Auftrag:** Nach der erneuten Nutzerbestätigung der angemeldeten Vinted-Startseite
+den vorhandenen produktiven Kontoabruf im unabhängigen Chrome-Pilot testen.
+Das Browserprofil bleibt erhalten und ist weiterhin keiner Flipbase-Verbindung
+zugeordnet. Kein produktiver Workerwechsel oder Datenbankimport.
+
+**Nachweis:** Der unveränderte kompilierte Kontoimport aus dem laufenden Worker
+liefert ein Profil, fünf Inserate, acht Gespräche, 28 Nachrichten aus bereits
+gelesenen Gesprächen und zwei Bewertungen. Profil, Inserate, Gesprächsübersicht
+und Bewertungen sind vollständig gemäß dem bestehenden Leser. Nachrichten und
+Verkäufe bleiben ausdrücklich Teilstände; ungelesene Gespräche werden nicht
+geöffnet. Zwei Identitätsprüfungen bestätigen Maike Vintage vor den weiteren
+Kontobereichen und nach dem Import. 17 Quellanfragen plus diese beiden Prüfungen
+liefern ausschließlich HTTP 200. Keine sichtbare Mensch-Prüfung, kein beobachteter
+API-Schreibaufruf und kein Datenbankzugang. Der Testclient endet ohne Browserstopp.
+
+**Einordnung:** Eine vorherige einzelne Identitätsprüfung lieferte HTTP 401 und
+wurde beendet. Im anschließenden produktiven Import trat dieser Fehler nicht
+erneut auf; dessen vorhandener Seitenneuladeweg wurde deshalb nicht ausgelöst.
+Der Nutzer bestätigt nachträglich, während des ersten API-Fehlers die Vinted-Seite
+manuell neu geladen zu haben. Der erfolgreiche Folgeabruf ist deshalb nach
+diesem manuellen Eingriff einzuordnen, nicht als Nachweis selbstständiger
+Sitzungserneuerung. Eine Erneuerung der API-Anmeldung durch den Seitenaufbau
+ist eine plausible Erklärung; ein eingefrorener Browser ist nicht nachgewiesen.
+Die genaue Ursache des ersten 401 bleibt offen. Es wurden keine Cookies,
+Passwörter, Nachrichteninhalte oder vollständigen Antworten gespeichert oder
+ausgegeben. Der Test ist auf 40 API-Anfragen und 120 Sekunden begrenzt.
+Cloud-Verknüpfung, Favoritenereignisse, Schreibaktionen und Dauerbetrieb bleiben
+eigene Abnahmen. Keine Funktion oder Anmeldeerkennung geändert.
+
 ## 2026-10-06 - Juna - Account-Favoriten über PR #316 abschließen
 
 **Freigabe:** Der Nutzer hat PR-Erstellung, Merge nach erfolgreichen Pflichtprüfungen und das anschließende Aufräumen des eigenen Featurezweigs ausdrücklich bestätigt. PR #316 führt `juna/vinted-feed-account-favorites` nach `master`.

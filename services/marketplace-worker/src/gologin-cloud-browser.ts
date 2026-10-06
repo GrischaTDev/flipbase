@@ -58,6 +58,10 @@ export interface CloudBrowserHandle {
   run<T>(operation: (browser: BrowserInfo) => Promise<T>): Promise<T>;
 }
 
+export type BrowserDesktop = Required<
+  Pick<BrowserInfo, 'capture' | 'click' | 'drag' | 'type' | 'press'>
+>;
+
 interface GoLoginCloudBrowserOptions {
   token: string;
   startUrl?: 'https://www.vinted.de/';

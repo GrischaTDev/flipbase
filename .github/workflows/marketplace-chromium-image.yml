@@ -8,6 +8,8 @@ on:
       - 'deploy/*chromium*'
       - 'deploy/flipbase-chromium-firewall.*'
       - '.github/workflows/marketplace-chromium-image.yml'
+      - 'tools/cloud-browser-pilot/proxy-forwarder.mjs'
+      - 'tools/cloud-browser-pilot/chrome-window-close.mjs'
 permissions:
   contents: read
 jobs:
@@ -31,6 +33,7 @@ jobs:
         with:
           context: services/marketplace-worker
           file: services/marketplace-worker/Dockerfile.chromium-session
+          build-contexts: pilot=tools/cloud-browser-pilot
           load: true
           push: false
           tags: ghcr.io/grischatdev/flipbase-chromium-session:sha-${{ github.sha }}
@@ -46,7 +49,7 @@ jobs:
           sudo chown -R 1000:1000 "$profile_root"
           sudo chmod 700 "$profile_root" "$profile_root/fixture-a" "$profile_root/fixture-b"
           trap 'docker rm -f chromium-fixture >/dev/null 2>&1 || true' EXIT
-          for phase in write blocked read isolated; do
+          for phase in write blocked read native-read isolated; do
             profile=fixture-a
             if [[ "$phase" == isolated ]]; then profile=fixture-b; fi
             if [[ "$phase" == blocked ]]; then
@@ -83,18 +86,43 @@ jobs:
               let browser;
               let lastFailure;
               for(let attempt=0;attempt<60&&!browser;attempt++) {
-                try { browser=await chromium.connectOverCDP(`http://${process.argv[1]}:9222`,{timeout:1000}); }
+                try { browser=await chromium.connectOverCDP(`http://${process.argv[1]}:9222`,{timeout:1000,noDefaults:true}); }
                 catch (failure) { lastFailure=failure; await new Promise(resolve=>setTimeout(resolve,500)); }
               }
               assert.ok(browser,`Sandboxed Chromium must start: ${lastFailure}`);
               const context=browser.contexts()[0];
               const cookies=await context.cookies();
               const marker=cookies.find(cookie=>cookie.name==="fixture_marker");
-              if(process.argv[2]==="read") assert.equal(marker?.value,"persistent");
+              if(["read","native-read"].includes(process.argv[2])) assert.equal(marker?.value,"persistent");
               if(process.argv[2]==="isolated") assert.equal(marker,undefined);
               if(process.argv[2]==="write") await context.addCookies([{name:"fixture_marker",value:"persistent",domain:"fixture.invalid",path:"/",expires:Date.now()/1000+3600}]);
+              const page=context.pages()[0];
+              assert.equal(await page.evaluate(()=>navigator.webdriver),false);
+              await page.setContent("<html><body style=\"margin:0\"><textarea aria-label=\"Fixture\" style=\"width:100vw;height:100vh;box-sizing:border-box\"></textarea></body></html>");
+              process.exit(0);
+            ' "$container_ip" "$phase"
+            docker exec "$container_id" node --experimental-strip-types --input-type=module -e '
+              import { execFile } from "node:child_process";
+              import { ChromiumDesktopControls } from "/app/runtime/chromium-desktop-controls.ts";
+              const desktop=new ChromiumDesktopControls({width:1280,height:900,authorize:async()=>{},execute:(args,input)=>new Promise((resolve,reject)=>{
+                const child=execFile(args[0],args.slice(1),{encoding:"buffer",timeout:15000,maxBuffer:8*1024*1024},(error,stdout)=>error?reject(error):resolve(stdout));
+                child.stdin.end(input??"");
+              })});
+              await desktop.capture();
+              await desktop.click(0.5,0.75);
+              await desktop.type("native-desktop-fixture-x");
+              await desktop.press("Backspace");
+              await desktop.drag([{x:0.2,y:0.5,elapsedMs:0},{x:0.7,y:0.5,elapsedMs:150}]);
+            '
+            docker run --rm --network flipbase-browser --ip 172.30.88.2 --user=1000:1000 --read-only --cap-drop=ALL --security-opt=no-new-privileges:true --tmpfs=/tmp:rw,nosuid,nodev,size=64m,uid=1000,gid=1000,mode=700 --entrypoint node "$SESSION_IMAGE" --input-type=module -e '
+              import assert from "node:assert/strict";
+              import { chromium } from "playwright";
+              const browser=await chromium.connectOverCDP(`http://${process.argv[1]}:9222`,{noDefaults:true});
+              assert.equal(await browser.contexts()[0].pages()[0].locator("textarea").inputValue(),"native-desktop-fixture-");
+              if(process.argv[2]==="read") process.exit(0);
               await (await browser.newBrowserCDPSession()).send("Browser.close").catch(()=>{});
             ' "$container_ip" "$phase"
+            if [[ "$phase" == read ]]; then docker stop --time 30 "$container_id" >/dev/null; fi
             for ((attempt = 0; attempt < 60; attempt++)); do
               if [[ "$(docker inspect --format '{{.State.Running}}' "$container_id")" == false ]]; then break; fi
               sleep 1
@@ -113,7 +141,7 @@ jobs:
           sudo dmesg | tail -n 60 || true
           docker run --rm --network flipbase-browser --init --user=1000:1000 --read-only --cap-drop=ALL --security-opt=no-new-privileges:true --security-opt="seccomp=$PWD/deploy/chromium-seccomp.json" --memory=2g --pids-limit=512 --shm-size=256m --tmpfs=/tmp:rw,nosuid,nodev,size=512m,uid=1000,gid=1000,mode=700 --tmpfs=/home/node:rw,nosuid,nodev,size=64m,uid=1000,gid=1000,mode=700 --tmpfs=/profile:rw,nosuid,nodev,size=128m,uid=1000,gid=1000,mode=700 --entrypoint node "$SESSION_IMAGE" --input-type=module -e '
             import { chromium } from "playwright";
-            const context = await chromium.launchPersistentContext("/profile", { headless: true, chromiumSandbox: true, acceptDownloads: false, env: {PATH: process.env.PATH, HOME: "/home/node"} });
+            const context = await chromium.launchPersistentContext("/profile", { executablePath: "/usr/bin/google-chrome-stable", headless: true, chromiumSandbox: true, acceptDownloads: false, env: {PATH: process.env.PATH, HOME: "/home/node"} });
             await context.close();
           '
       - name: Log in to container registry

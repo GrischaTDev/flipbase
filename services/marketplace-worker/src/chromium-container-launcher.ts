@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { posix } from 'node:path';
 import { chromium, type Browser, type BrowserContext } from 'playwright';
 import { CloudBrowserStopUncertainError } from './gologin-cloud-browser.ts';
+import { ChromiumDesktopControls } from './chromium-desktop-controls.ts';
 
 type LaunchOptions = NonNullable<Parameters<typeof chromium.launchPersistentContext>[1]>;
 type DockerExecute = (argumentsList: string[], input?: string) => Promise<string>;
@@ -18,6 +19,7 @@ export interface ChromiumContainerLauncherOptions {
   execute?: DockerExecute;
   connect?: (endpoint: string) => Promise<Browser>;
   verifyFirewall?: () => Promise<void>;
+  executeDesktop?: (argumentsList: string[], input?: string) => Promise<Buffer>;
 }
 
 async function executeDocker(argumentsList: string[], input?: string): Promise<string> {
@@ -35,6 +37,24 @@ async function executeDocker(argumentsList: string[], input?: string): Promise<s
         error
           ? reject(new Error('Docker-Sitzungsoperation fehlgeschlagen'))
           : resolve(stdout.trim()),
+    );
+    child.stdin?.end(input ?? '');
+  });
+}
+
+async function executeDockerDesktop(argumentsList: string[], input?: string): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const child = execFile(
+      'docker',
+      ['--host=unix:///var/run/docker.sock', ...argumentsList],
+      {
+        encoding: 'buffer',
+        timeout: 15_000,
+        maxBuffer: 8 * 1024 * 1024,
+        env: { PATH: process.env.PATH, HOME: process.env.HOME },
+      },
+      (error, stdout) =>
+        error ? reject(new Error('Private Browserbedienung fehlgeschlagen')) : resolve(stdout),
     );
     child.stdin?.end(input ?? '');
   });
@@ -69,6 +89,10 @@ function isCleanStartupFailure(state: Record<string, unknown>): boolean {
 export class ChromiumContainerLauncher {
   private readonly options: ChromiumContainerLauncherOptions;
   private readonly execute: DockerExecute;
+  private readonly desktops = new Map<
+    string,
+    { containerId: string; width: number; height: number }
+  >();
 
   constructor(options: ChromiumContainerLauncherOptions) {
     if (
@@ -261,6 +285,7 @@ export class ChromiumContainerLauncher {
     await this.execute(['rm', containerId]);
     if ((await this.containers(profileId)).includes(containerId))
       throw new CloudBrowserStopUncertainError();
+    if (this.desktops.get(profileId)?.containerId === containerId) this.desktops.delete(profileId);
   }
 
   async recover(profileId: string): Promise<void> {
@@ -274,6 +299,11 @@ export class ChromiumContainerLauncher {
     const profileId = this.profileId(directory);
     const launchOptions = this.safeLaunchOptions(options);
     await this.verifyNetwork();
+    const image = record(
+      array(JSON.parse(await this.execute(['image', 'inspect', this.options.image])))[0],
+    );
+    if (record(record(image.Config).Labels)['de.flipbase.chromium.runtime'] !== 'chrome-desktop-v1')
+      throw new Error('Das Cloud-Browserimage benötigt den normalen Chrome-Desktop');
     if ((await this.inspectProfileProcesses(directory)).length)
       throw new CloudBrowserStopUncertainError();
     const containerId = (
@@ -350,6 +380,14 @@ export class ChromiumContainerLauncher {
       const context = browser.contexts()[0];
       if (!context || browser.contexts().length !== 1)
         throw new Error('Chromium-Profilkontext fehlt');
+      const dimensions = record(launchOptions.viewport);
+      if (typeof dimensions.width !== 'number' || typeof dimensions.height !== 'number')
+        throw new Error('Browseranzeige fehlt');
+      this.desktops.set(profileId, {
+        containerId,
+        width: dimensions.width,
+        height: dimensions.height,
+      });
       let closing: Promise<void> | undefined;
       context.close = () => {
         closing ??= (async () => {
@@ -374,5 +412,26 @@ export class ChromiumContainerLauncher {
       }
       throw new Error('Chromium-Containerstart fehlgeschlagen');
     }
+  }
+
+  desktop(directory: string): ChromiumDesktopControls {
+    const profileId = this.profileId(directory);
+    const session = this.desktops.get(profileId);
+    if (!session) throw new Error('Browseranzeige fehlt');
+    return new ChromiumDesktopControls({
+      width: session.width,
+      height: session.height,
+      authorize: async () => {
+        if (this.desktops.get(profileId) !== session) throw new Error('Browsersitzung beendet');
+        const state = record((await this.inspect(session.containerId, profileId)).State);
+        if (state.Running !== true || state.Paused !== false || state.Restarting !== false)
+          throw new Error('Browsersitzung nicht verfügbar');
+      },
+      execute: (argumentsList, input) =>
+        (this.options.executeDesktop ?? executeDockerDesktop)(
+          ['exec', '-i', session.containerId, ...argumentsList],
+          input,
+        ),
+    });
   }
 }
