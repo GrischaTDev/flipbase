@@ -9,6 +9,10 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 
 // Nur die tatsächliche Testauswahl prüfen, nicht Playwrights Parser nachtesten.
 const coreTests = [
+  ...['light', 'dark'].map((theme) => [
+    'sniper-administration.spec.ts',
+    `verwaltet zentrale Kategorie-, Marken- und Titel-Suchfilter ${theme} @core-smoke`,
+  ]),
   ...[1440, 390].map((width) => [
     'vinted-favorite-messages.spec.ts',
     `Favoritennachrichten bleiben vor Freigabe aus und speichern Regeln bei ${width}px @marketplace-preview @core-smoke`,
@@ -212,11 +216,11 @@ const regressionTests = [
   ],
   [
     'sniper-administration.spec.ts',
-    'Markenfilter verwalten und Kategorien im Botbetrieb dark @pr-smoke',
+    'verwaltet zentrale Kategorie-, Marken- und Titel-Suchfilter dark @core-smoke',
   ],
   [
     'sniper-administration.spec.ts',
-    'Markenfilter verwalten und Kategorien im Botbetrieb light @pr-smoke',
+    'verwaltet zentrale Kategorie-, Marken- und Titel-Suchfilter light @core-smoke',
   ],
 ];
 

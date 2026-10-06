@@ -14,46 +14,37 @@
 
   @if (editorOpen()) {
     <app-modal-shell
-      [title]="editing() ? 'Markenfilter bearbeiten' : 'Neuen Markenfilter anlegen'"
+      [title]="editing() ? 'Suchfilter bearbeiten' : 'Neuen Suchfilter anlegen'"
       size="md"
       [hasFooter]="false"
       (closed)="modalClosed()"
     >
-      @if (editing()) {
-        <app-sniper-query-editor
-          [query]="editing()"
-          [saving]="saving()"
-          (saved)="save($event)"
-          (cancelled)="modalClosed()"
-        />
-      } @else {
-        <app-sniper-brand-create
-          [existingBrandIds]="existingBrandIds()"
-          [saving]="saving()"
-          [saveError]="error()"
-          (saved)="saveMany($event)"
-          (cancelled)="modalClosed()"
-        />
-      }
+      <app-sniper-query-editor
+        [query]="editing()"
+        [saving]="saving()"
+        [saveError]="error()"
+        (saved)="save($event)"
+        (cancelled)="modalClosed()"
+      />
     </app-modal-shell>
   }
 
   <app-data-table
-    ariaLabel="Zentrale Vinted-Markenfilter"
+    ariaLabel="Zentrale Vinted-Suchfilter"
     [searchValue]="search()"
-    searchPlaceholder="Nach Filtername oder Notiz suchen"
-    searchAriaLabel="Zentrale Markenfilter durchsuchen"
+    searchPlaceholder="Nach Name, Bedingungen oder Notiz suchen"
+    searchAriaLabel="Zentrale Suchfilter durchsuchen"
     [loading]="!state.loaded() && !state.error()"
     [hasRows]="filtered().length > 0"
-    loadingText="Markenfilter werden geladen …"
+    loadingText="Suchfilter werden geladen …"
     [emptyTitle]="
       state.queries().length === 0
-        ? 'Noch keine Markenfilter'
-        : 'Keine Markenfilter für diese Suche gefunden'
+        ? 'Noch keine Suchfilter'
+        : 'Keine Suchfilter für diese Suche gefunden'
     "
     [emptyText]="
       state.queries().length === 0
-        ? 'Lege den ersten zentralen Markenfilter an.'
+        ? 'Lege den ersten zentralen Suchfilter an.'
         : 'Passe den Suchbegriff an.'
     "
     (searchValueChange)="search.set($event)"
@@ -66,7 +57,7 @@
       [disabled]="editorOpen() || busyId() !== null || !state.loaded()"
       (clicked)="openEditor()"
     >
-      Neuer Markenfilter
+      Neuer Suchfilter
     </app-button>
 
     <div
@@ -74,9 +65,11 @@
       class="flex flex-wrap items-center justify-between gap-2 border-b border-fb-line px-4 py-2.5"
     >
       <p class="text-sm text-fb-text-secondary">
-        {{ state.queries().length }} Markenfilter · {{ activeCount() }} aktiv
+        {{ state.queries().length }} Suchfilter · {{ activeCount() }} aktiv
       </p>
-      <p class="text-xs text-fb-text-muted">Die Filter gelten zentral für alle Nutzer.</p>
+      <p class="text-xs text-fb-text-muted">
+        Die Filter gelten zentral für alle Nutzer. Breite Filter bei Bedarf ausdrücklich pausieren.
+      </p>
     </div>
 
     <div
@@ -84,11 +77,11 @@
       class="overflow-x-auto focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
       tabindex="0"
       role="region"
-      aria-label="Zentrale Markenfilter durchblättern"
+      aria-label="Zentrale Suchfilter durchblättern"
     >
       <table class="linear-table min-w-[900px]">
         <caption class="sr-only">
-          Zentrale Vinted-Markenfilter
+          Zentrale Vinted-Suchfilter
         </caption>
         <thead>
           <tr>
@@ -105,6 +98,9 @@
               <th scope="row" class="min-w-[300px] text-left font-normal">
                 <p class="break-words font-medium text-fb-text-primary">
                   {{ queryTitle(query) }}
+                </p>
+                <p class="mt-0.5 max-w-[420px] break-words text-xs text-fb-text-secondary">
+                  {{ queryConditions(query) }}
                 </p>
                 @if (query.notes) {
                   <p
@@ -146,11 +142,11 @@
               </td>
               <td class="min-w-[110px] whitespace-nowrap">
                 <div class="flex justify-end gap-1">
-                  @if (isBrandOnly(query)) {
+                  @if (query.marketplace === 'vinted') {
                     <app-table-action-button
                       [icon]="editIcon"
                       [disabled]="editorOpen() || busyId() !== null"
-                      [label]="'Markenfilter bearbeiten: ' + queryTitle(query)"
+                      [label]="'Suchfilter bearbeiten: ' + queryTitle(query)"
                       (clicked)="openEditor(query)"
                     />
                   } @else {
@@ -165,11 +161,13 @@
                     [icon]="query.is_active ? pauseIcon : activateIcon"
                     [tone]="query.is_active ? 'warning' : 'positive'"
                     [disabled]="
-                      busyId() !== null || editorOpen() || (!isBrandOnly(query) && !query.is_active)
+                      busyId() !== null ||
+                      editorOpen() ||
+                      (query.filter_format_version !== 1 && !isBrandOnly(query) && !query.is_active)
                     "
                     [loading]="busyId() === query.id"
                     [label]="
-                      (query.is_active ? 'Markenfilter pausieren: ' : 'Markenfilter aktivieren: ') +
+                      (query.is_active ? 'Suchfilter pausieren: ' : 'Suchfilter aktivieren: ') +
                       queryTitle(query)
                     "
                     (clicked)="toggle(query)"
@@ -179,7 +177,7 @@
                     [attr.data-delete-query]="query.id"
                     tone="critical"
                     [disabled]="busyId() !== null || editorOpen()"
-                    [label]="'Markenfilter löschen: ' + queryTitle(query)"
+                    [label]="'Suchfilter löschen: ' + queryTitle(query)"
                     (clicked)="delete(query)"
                   />
                 </div>
@@ -197,7 +195,7 @@
       [disabled]="editorOpen() || busyId() !== null || !state.loaded()"
       (clicked)="openEditor()"
     >
-      Neuer Markenfilter
+      Neuer Suchfilter
     </app-button>
   </app-data-table>
 </section>

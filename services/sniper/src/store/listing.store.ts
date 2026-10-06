@@ -1,9 +1,63 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import type { MarketplaceListing } from '../domain/listing.js';
+import type { SniperQuery } from '../domain/query.js';
+import { createTitleKeywordMatcher } from '../domain/title-keywords.js';
+import { searchFilterRequest } from '../domain/search-filter-request.js';
+
+export interface SearchFilterRunResult {
+  accepted: boolean;
+  created: number;
+  seeded: boolean;
+  hits: number;
+}
 
 export class ListingStore {
   constructor(private readonly client: SupabaseClient) {}
+
+  async completeRun(
+    listings: MarketplaceListing[],
+    query: SniperQuery,
+  ): Promise<SearchFilterRunResult> {
+    if (
+      query.filterFormatVersion !== 1 ||
+      !Number.isInteger(query.filterRevision) ||
+      query.filterRevision! < 1
+    ) {
+      throw new Error('Invalid guarded search filter revision');
+    }
+    searchFilterRequest(query);
+    const matches = createTitleKeywordMatcher(
+      query.titleKeywords ?? [],
+      query.keywordMode ?? 'all',
+    );
+    const { data, error } = await this.client.rpc('complete_sniper_search_filter_run', {
+      p_query_id: query.id,
+      p_revision: query.filterRevision,
+      p_cursor: query.requestCursor ?? 0,
+      p_listings: listings
+        .filter((listing) => matches(listing.title))
+        .map((listing) => listingRow(listing, query.id)),
+    });
+    if (error) throw new Error(`completing search filter run failed: ${error.message}`);
+    const payload = data as Partial<SearchFilterRunResult> | null;
+    if (
+      typeof payload?.accepted !== 'boolean' ||
+      typeof payload.seeded !== 'boolean' ||
+      !Number.isInteger(payload.created) ||
+      payload.created! < 0 ||
+      !Number.isInteger(payload.hits) ||
+      payload.hits! < 0
+    ) {
+      throw new Error('Invalid search filter completion response');
+    }
+    return {
+      accepted: payload.accepted,
+      seeded: payload.seeded,
+      created: payload.created!,
+      hits: payload.hits!,
+    };
+  }
 
   /**
    * Schreibt alle uebergebenen Angebote und liefert ausschliesslich die
@@ -28,29 +82,7 @@ export class ListingStore {
       return [];
     }
 
-    const rows = listings.map((listing) => ({
-      marketplace: listing.marketplace,
-      external_id: listing.externalId,
-      title: listing.title,
-      url: listing.url,
-      description: listing.description,
-      image_urls: listing.imageUrls,
-      item_price: listing.itemPrice.amount,
-      total_price: listing.totalPrice.amount,
-      currency: listing.totalPrice.currency,
-      brand: listing.brand,
-      size: listing.size,
-      condition: listing.condition,
-      country_code: listing.countryCode,
-      seller_name: listing.seller.name,
-      seller_avatar_url: listing.seller.avatarUrl,
-      seller_rating: listing.seller.rating,
-      seller_review_count: listing.seller.reviewCount,
-      is_hidden: listing.isHidden,
-      item_updated_at: listing.itemUpdatedAt,
-      photo_uploaded_at: listing.photoUploadedAt,
-      discovered_by_query_id: discoveredByQueryId,
-    }));
+    const rows = listings.map((listing) => listingRow(listing, discoveredByQueryId));
 
     const { data, error } = await this.client
       .from('sniper_listings')
@@ -133,4 +165,30 @@ export class ListingStore {
       throw new Error('purging listings returned an invalid count');
     return data;
   }
+}
+
+function listingRow(listing: MarketplaceListing, queryId: string) {
+  return {
+    marketplace: listing.marketplace,
+    external_id: listing.externalId,
+    title: listing.title,
+    url: listing.url,
+    description: listing.description,
+    image_urls: listing.imageUrls,
+    item_price: listing.itemPrice.amount,
+    total_price: listing.totalPrice.amount,
+    currency: listing.totalPrice.currency,
+    brand: listing.brand,
+    size: listing.size,
+    condition: listing.condition,
+    country_code: listing.countryCode,
+    seller_name: listing.seller.name,
+    seller_avatar_url: listing.seller.avatarUrl,
+    seller_rating: listing.seller.rating,
+    seller_review_count: listing.seller.reviewCount,
+    is_hidden: listing.isHidden,
+    item_updated_at: listing.itemUpdatedAt,
+    photo_uploaded_at: listing.photoUploadedAt,
+    discovered_by_query_id: queryId,
+  };
 }

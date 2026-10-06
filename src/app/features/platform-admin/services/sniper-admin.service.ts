@@ -48,6 +48,28 @@ export class SniperAdminService {
   }
 
   async save(draft: QueryDraft): Promise<void> {
+    if (
+      draft.catalogId !== undefined ||
+      draft.brands !== undefined ||
+      draft.titleKeywords !== undefined
+    ) {
+      const { error } = await this.client.rpc('save_sniper_search_filter', {
+        p_id: draft.id!,
+        p_title: draft.title,
+        p_catalog_id: draft.catalogId!,
+        p_brands: (draft.brands ?? []).map((brand) => ({ id: brand.id, name: brand.name })),
+        p_title_keywords: draft.titleKeywords ?? [],
+        p_keyword_mode: draft.keywordMode ?? 'all',
+        p_poll_interval_ms: draft.intervalSeconds * 1000,
+        p_notes: draft.notes,
+        p_expected_revision: draft.revision!,
+        p_search_text: draft.searchText!,
+        p_price_from: draft.priceFrom!,
+        p_price_to: draft.priceTo!,
+      });
+      if (error) throw new Error(error.message);
+      return;
+    }
     const { error } = await this.client.rpc('upsert_sniper_query', {
       p_id: draft.id!,
       p_title: draft.title,

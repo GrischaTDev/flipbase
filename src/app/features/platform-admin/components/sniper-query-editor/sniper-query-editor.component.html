@@ -1,52 +1,203 @@
 <form
   [formGroup]="form"
   (ngSubmit)="submit()"
-  class="flex flex-col gap-5"
-  aria-label="Zentralen Markenfilter bearbeiten"
+  class="flex flex-col gap-4"
+  aria-label="Zentralen Vinted-Suchfilter bearbeiten"
 >
-  <fieldset [disabled]="saving()" class="flex min-w-0 flex-col gap-5">
-    <p class="text-sm text-fb-text-secondary">
-      Ein Markenfilter sammelt passende Artikel zentral für die Nutzer. Kategorien, Suchbegriffe,
-      Preise und Zustände wählen Nutzer anschließend in ihren persönlichen Suchfiltern.
-    </p>
-
+  <fieldset [disabled]="saving()" class="flex min-w-0 flex-col gap-4">
     <app-text-field
       label="Filtername"
       formControlName="title"
-      placeholder="Zum Beispiel Nike"
-      helpText="Dieser Name wird nur in dieser Übersicht angezeigt."
+      placeholder="Zum Beispiel Nike Herrenjacken – Vintage"
+      helpText="Interner Name. Er verändert die Suchbedingungen nicht."
     />
 
-    <div class="flex flex-col gap-1">
-      <label for="sniper-interval" class="text-sm text-fb-text-primary"
-        >Abstand zwischen Abfragen in Sekunden</label
-      >
-      <app-number-input
-        id="sniper-interval"
-        ariaLabel="Abstand zwischen Abfragen in Sekunden"
-        formControlName="intervalSeconds"
-        [min]="10"
-        [max]="86400"
-      />
-      <p class="text-xs text-fb-text-muted">Erlaubt sind 10 Sekunden bis 24 Stunden.</p>
-    </div>
-
-    <app-text-field
-      label="Notiz"
-      formControlName="notes"
-      [multiline]="3"
-      placeholder="Zum Beispiel zentrale Sportmarken"
+    @if (categoryLoading()) {
+      <p role="status" class="text-sm text-fb-text-muted">Kategorien werden geladen …</p>
+    }
+    @if (categoryError(); as message) {
+      <div class="flex flex-wrap items-center gap-2">
+        <p role="alert" class="text-sm">{{ message }}</p>
+        <app-button
+          size="slim"
+          [disabled]="saving() || categoryLoading()"
+          (clicked)="loadCategories()"
+          >Kategorien erneut laden</app-button
+        >
+      </div>
+    }
+    <app-vinted-category-picker
+      [categories]="categories()"
+      [value]="catalogId()"
+      [disabled]="saving() || categoryLoading()"
+      (valueChange)="categoryChanged($event)"
     />
-
-    @if (error(); as message) {
-      <p role="alert" class="text-sm text-fb-text-primary">{{ message }}</p>
+    @if (categoryStatus()?.refreshedAt; as refreshedAt) {
+      <p class="text-xs text-fb-text-muted">
+        Kategoriestand: {{ refreshedAt | date: 'dd.MM.yyyy, HH:mm' }}.
+        @if (categoryStale()) {
+          Der gespeicherte Stand ist älter als 24 Stunden.
+        }
+      </p>
     }
 
+    <app-search-multi-select
+      controlId="vinted-brand-picker"
+      label="Marken · optional"
+      placeholder="Alle Marken"
+      searchPlaceholder="Vinted-Marke suchen"
+      singularLabel="Marke"
+      pluralLabel="Marken"
+      helpText="Ohne Auswahl gelten alle Marken. Suche mit mindestens zwei Zeichen. Die Ergebnisse sind Suchvorschläge, kein vollständiges Markenverzeichnis. Eine Marke darf in mehreren Suchfiltern vorkommen."
+      [emptyText]="
+        brandTerm().trim().length < 2
+          ? 'Gib mindestens zwei Zeichen ein, um Marken zu suchen.'
+          : 'Keine weiteren passenden Marken gefunden.'
+      "
+      [options]="brandOptions()"
+      [selectedCount]="brands().length"
+      [loading]="brandLoading()"
+      [error]="brandError()"
+      [disabled]="saving()"
+      (searchTermChange)="brandSearchChanged($event)"
+      (optionSelected)="addBrand($event)"
+      (retry)="searchBrands()"
+    />
+    @if (brands().length) {
+      <div class="flex flex-wrap gap-2" aria-label="Ausgewählte Marken">
+        @for (brand of brands(); track brand.id) {
+          <app-button
+            variant="secondary"
+            size="slim"
+            [icon]="removeIcon"
+            iconPosition="end"
+            [ariaLabel]="brand.name + ' aus Auswahl entfernen'"
+            [disabled]="saving()"
+            (clicked)="removeBrand(brand.id)"
+            >{{ brand.name }}</app-button
+          >
+        }
+      </div>
+    }
+
+    @if (hasUnresolvedBrandNames()) {
+      <p class="text-xs text-fb-text-muted">
+        Bei diesem älteren Filter fehlt der Markenname. Die gespeicherte Marke bleibt unverändert.
+        Zum Ändern entferne sie und wähle sie neu aus.
+      </p>
+    }
+    <div class="flex flex-wrap items-end gap-2">
+      <app-text-field
+        class="min-w-0 flex-1"
+        label="Stichwörter im Titel · optional"
+        formControlName="keywordEntry"
+        placeholder="Zum Beispiel Vintage oder Trackpants"
+        helpText="Ein Wort oder eine Wortgruppe je Eintrag. Enter fügt den Begriff hinzu. Nur der Artikeltitel zählt, nicht die Beschreibung."
+        (keydown.enter)="keywordKeydown($event)"
+      />
+      <app-button size="slim" [disabled]="saving()" (clicked)="addKeyword()">Hinzufügen</app-button>
+    </div>
+    @if (keywords().length) {
+      <div class="flex flex-wrap gap-2" aria-label="Titelbegriffe">
+        @for (keyword of keywords(); track keyword) {
+          <app-button
+            variant="secondary"
+            size="slim"
+            [icon]="removeIcon"
+            iconPosition="end"
+            [ariaLabel]="keyword + ' aus Titelbegriffen entfernen'"
+            [disabled]="saving()"
+            (clicked)="removeKeyword(keyword)"
+            >{{ keyword }}</app-button
+          >
+        }
+      </div>
+    }
+    <div class="flex flex-col gap-1">
+      <p class="text-sm text-fb-text-primary">Verknüpfung der Titelbegriffe</p>
+      <app-custom-select
+        [options]="modeOptions"
+        formControlName="keywordMode"
+        ariaLabel="Titelbegriffe verknüpfen"
+      />
+    </div>
+    <p role="status" class="text-sm text-fb-text-secondary">{{ summary() }}</p>
+
+    <app-button size="slim" [disabled]="saving()" (clicked)="advanced.set(!advanced())">
+      {{ advanced() ? 'Erweiterte Einstellungen schließen' : 'Erweiterte Einstellungen' }}
+    </app-button>
+    @if (advanced()) {
+      <div class="flex flex-col gap-3">
+        <div class="flex flex-col gap-1">
+          <label for="sniper-interval" class="text-sm text-fb-text-primary"
+            >Abstand zwischen Abfragen in Sekunden</label
+          >
+          <app-number-input
+            id="sniper-interval"
+            ariaLabel="Abstand zwischen Abfragen in Sekunden"
+            formControlName="intervalSeconds"
+            [min]="10"
+            [max]="86400"
+          />
+          <p class="text-xs text-fb-text-muted">
+            Erlaubt sind 10 Sekunden bis 24 Stunden. {{ subrequestCount() }} Teilabfragen werden
+            nacheinander ausgeführt. Ein kompletter Durchlauf braucht mindestens
+            {{ subrequestCount() * (formValue().intervalSeconds ?? 20) }} Sekunden. Das gemeinsame
+            Abruflimit und Wartezeiten gelten zusätzlich.
+          </p>
+        </div>
+        @if (hasLegacyConditions()) {
+          <app-text-field
+            label="Bestehender Vinted-Suchtext"
+            formControlName="searchText"
+            helpText="Zusätzliche Bedingung dieses älteren Filters. Sie bleibt erhalten, solange Du sie nicht ausdrücklich entfernst."
+          />
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div class="flex flex-col gap-1">
+              <label for="sniper-price-from" class="text-sm">Bestehender Mindestpreis</label>
+              <app-number-input
+                id="sniper-price-from"
+                ariaLabel="Bestehender Mindestpreis"
+                formControlName="priceFrom"
+                [min]="0"
+                [step]="0.01"
+              />
+            </div>
+            <div class="flex flex-col gap-1">
+              <label for="sniper-price-to" class="text-sm">Bestehender Höchstpreis</label>
+              <app-number-input
+                id="sniper-price-to"
+                ariaLabel="Bestehender Höchstpreis"
+                formControlName="priceTo"
+                [min]="0"
+                [step]="0.01"
+              />
+            </div>
+          </div>
+        }
+        <app-text-field
+          label="Notiz"
+          formControlName="notes"
+          [multiline]="3"
+          placeholder="Interne Notiz – verändert die Suchbedingungen nicht"
+        />
+      </div>
+    }
+    <p class="text-xs text-fb-text-muted">
+      Neue Filter und Änderungen an den Suchbedingungen bleiben zunächst pausiert. Bereits gefundene
+      Artikel und Favoriten bleiben erhalten.
+    </p>
+    @if (error(); as message) {
+      <p role="alert" class="text-sm">{{ message }}</p>
+    }
+    @if (saveError(); as message) {
+      <p role="alert" class="text-sm">{{ message }}</p>
+    }
     <div class="flex flex-wrap justify-end gap-2">
       <app-button [disabled]="saving()" (clicked)="cancelled.emit()">Abbrechen</app-button>
-      <app-button type="submit" variant="primary" [loading]="saving()">
-        {{ editing() ? 'Änderungen speichern' : 'Markenfilter speichern' }}
-      </app-button>
+      <app-button type="submit" variant="primary" [loading]="saving()">{{
+        editing() ? 'Änderungen speichern' : 'Suchfilter speichern'
+      }}</app-button>
     </div>
   </fieldset>
 </form>

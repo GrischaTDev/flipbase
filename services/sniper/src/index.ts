@@ -59,7 +59,8 @@ const scheduler = new QueryScheduler({
   queries: {
     dueQueries: (now) => queries.dueQueries(now),
     recordSuccess: (id, now) => queries.recordSuccess(id, now),
-    recordFailure: (id, decision, now) => queries.recordFailure(id, decision, now),
+    recordFailure: (id, decision, now, revision, cursor) =>
+      queries.recordFailure(id, decision, now, revision, cursor),
     markPolled: (id, status) => queries.markPolled(id, status),
     markSeeded: (id) => queries.markSeeded(id),
   },
@@ -190,6 +191,8 @@ while (!controller.signal.aborted) {
     const { error } = await client.from('sniper_runtime_status').upsert({
       id: 1,
       reported_at: new Date().toISOString(),
+      search_filter_version: 1,
+      search_filter_reported_at: new Date().toISOString(),
       requests_last_minute: snapshot.requests,
       rejected_last_minute: snapshot.rejected,
       request_budget: config.requestsPerMinute,

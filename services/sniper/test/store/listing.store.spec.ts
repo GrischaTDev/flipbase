@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { describe, expect, it } from 'vitest';
 import { ListingStore } from '../../src/store/listing.store.js';
+import type { SniperQuery } from '../../src/domain/query.js';
 import type { MarketplaceListing } from '../../src/domain/listing.js';
 
 function listing(externalId: string): MarketplaceListing {
@@ -95,6 +96,69 @@ describe('ListingStore HTTP contract', () => {
     const { store } = storeWithResponses([{ body: { message: 'db lock timeout' }, status: 500 }]);
     await expect(store.evaluatePending(100)).rejects.toThrow(
       'evaluating pending watchlists failed: db lock timeout',
+    );
+  });
+});
+
+const guardedQuery = {
+  id: 'query-id',
+  marketplace: 'vinted',
+  searchText: null,
+  catalogId: 79,
+  brandId: 53,
+  brandIds: [53],
+  titleKeywords: ['vintage'],
+  keywordMode: 'all',
+  filterFormatVersion: 1,
+  filterRevision: 7,
+  requestCursor: 3,
+} as SniperQuery;
+
+describe('atomic search filter ingestion HTTP contract', () => {
+  it('sends only matching titles with the exact revision and monotonic cursor to one RPC', async () => {
+    const { store, requests } = storeWithResponses([
+      { body: { accepted: true, created: 1, hits: 0, seeded: false } },
+    ]);
+    const good = { ...listing('matching'), title: 'VINTAGE Nike Jacke' };
+    const wrong = { ...listing('description-only'), description: 'Vintage', title: 'Nike Jacke' };
+    expect(await store.completeRun([good, wrong], guardedQuery)).toEqual({
+      accepted: true,
+      created: 1,
+      hits: 0,
+      seeded: false,
+    });
+    expect(requests).toHaveLength(1);
+    expect(requests[0]?.path).toBe('/rest/v1/rpc/complete_sniper_search_filter_run');
+    expect(requests[0]?.body).toMatchObject({
+      p_query_id: 'query-id',
+      p_revision: 7,
+      p_cursor: 3,
+      p_listings: [{ external_id: 'matching', title: 'VINTAGE Nike Jacke' }],
+    });
+    expect((requests[0]?.body as { p_listings: unknown[] }).p_listings).toHaveLength(1);
+  });
+  it('preserves a stale result rejection instead of reporting it as new listings', async () => {
+    const { store } = storeWithResponses([
+      { body: { accepted: false, created: 0, hits: 0, seeded: false } },
+    ]);
+    expect((await store.completeRun([], guardedQuery)).accepted).toBe(false);
+  });
+  it('still submits an empty response so its request lane can be seeded atomically', async () => {
+    const { store, requests } = storeWithResponses([
+      { body: { accepted: true, created: 0, hits: 0, seeded: true } },
+    ]);
+    expect((await store.completeRun([], guardedQuery)).seeded).toBe(true);
+    expect(requests[0]?.body).toMatchObject({ p_listings: [] });
+  });
+  it.each([
+    null,
+    {},
+    { accepted: true, created: -1, hits: 0, seeded: false },
+    { accepted: true, created: 0, hits: 0.5, seeded: false },
+  ])('rejects an invalid server result: %j', async (body) => {
+    const { store } = storeWithResponses([{ body }]);
+    await expect(store.completeRun([], guardedQuery)).rejects.toThrow(
+      'Invalid search filter completion response',
     );
   });
 });
