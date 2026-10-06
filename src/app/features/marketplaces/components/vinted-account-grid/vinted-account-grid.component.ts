@@ -1,6 +1,6 @@
 import {
   CdkDrag,
-  CdkDragHandle,
+  CdkDragPlaceholder,
   CdkDropList,
   moveItemInArray,
   type CdkDragDrop,
@@ -17,15 +17,7 @@ import {
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
-import {
-  LucideRefreshCw,
-  LucideArrowUp,
-  LucideArrowDown,
-  LucideGripVertical,
-  LucideSettings,
-  LucidePlus,
-  LucideTrash2,
-} from '@lucide/angular';
+import { LucideRefreshCw, LucideSettings, LucidePlus, LucideTrash2 } from '@lucide/angular';
 import { AuthService } from '../../../../core/services/auth.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
@@ -55,7 +47,7 @@ import { VintedSetupComponent } from '../vinted-setup/vinted-setup.component';
   selector: 'app-vinted-account-grid',
   imports: [
     CdkDrag,
-    CdkDragHandle,
+    CdkDragPlaceholder,
     CdkDropList,
     BadgeComponent,
     CardComponent,
@@ -130,9 +122,7 @@ export class VintedAccountGridComponent {
   private dragContext: string | null = null;
   readonly statusTones = MARKETPLACE_CONNECTION_TONES;
   readonly refreshIcon = LucideRefreshCw;
-  readonly upIcon = LucideArrowUp;
-  readonly downIcon = LucideArrowDown;
-  readonly dragIcon = LucideGripVertical;
+  readonly dragStartDelay = { mouse: 180, touch: 250 } as const;
   readonly settingsIcon = LucideSettings;
   readonly addIcon = LucidePlus;
   readonly deleteIcon = LucideTrash2;
@@ -190,12 +180,6 @@ export class VintedAccountGridComponent {
         management.openDialog(undefined, method);
       });
     });
-  }
-
-  connectionLabel(account: MarketplaceConnection): string {
-    if (account.status === 'connected')
-      return account.executionMode === 'local' ? 'Lokal verknüpft' : 'Mit Cloud verbunden';
-    return MARKETPLACE_CONNECTION_LABELS[account.status];
   }
 
   runtimeStatus(account: MarketplaceConnection) {
@@ -326,6 +310,10 @@ export class VintedAccountGridComponent {
     this.dragContext = this.context();
     this.orderNotice.set(null);
   }
+  stopActionDrag(event: Event): void {
+    if (event.target instanceof Element && event.target.closest('app-button'))
+      event.stopPropagation();
+  }
   async drop(event: CdkDragDrop<string[]>): Promise<void> {
     const order = this.dragOrder;
     const context = this.dragContext;
@@ -345,6 +333,17 @@ export class VintedAccountGridComponent {
     const index = order.indexOf(account.connectionId);
     if (index < 0) return;
     await this.changeOrder(order, index, index + direction);
+  }
+  reorderWithKeyboard(event: KeyboardEvent, account: MarketplaceConnection): void {
+    if (
+      !event.altKey ||
+      !(event.target instanceof HTMLElement) ||
+      event.target.closest('app-button')
+    )
+      return;
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+    event.preventDefault();
+    void this.move(account, event.key === 'ArrowLeft' ? -1 : 1);
   }
   private async changeOrder(
     order: readonly string[],

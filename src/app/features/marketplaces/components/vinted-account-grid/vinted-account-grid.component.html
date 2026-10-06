@@ -6,7 +6,11 @@
     </p>
     @if (accounts.connections().length > 1) {
       <p class="text-xs text-fb-text-secondary">
-        Ziehe die Konten am Griff in Deine gewünschte Reihenfolge oder nutze die Pfeile.
+        Halte eine Karte kurz fest und ziehe sie an die gewünschte Position.
+      </p>
+      <p class="sr-only">
+        Mit der Tastatur: Karte fokussieren und mit Alt und den Pfeiltasten links oder rechts
+        verschieben.
       </p>
     }
   </div>
@@ -34,7 +38,7 @@
 }
 @if (accounts.connections().length) {
   <div
-    class="grid grid-cols-1 gap-4 @min-[640px]:grid-cols-2 @min-[1040px]:grid-cols-3"
+    class="grid grid-cols-[repeat(auto-fill,minmax(min(100%,18rem),20rem))] gap-4"
     cdkDropList
     cdkDropListOrientation="mixed"
     [cdkDropListData]="connectionIds()"
@@ -42,12 +46,16 @@
     (cdkDropListDropped)="drop($event)"
     aria-label="Vinted-Konten"
   >
-    @for (tile of previews.tiles(); track tile.connection.connectionId; let index = $index) {
+    @for (tile of previews.tiles(); track tile.connection.connectionId) {
       @let account = tile.connection;
       @let profile = tile.preview?.profile;
       @let status = accountStatus(account);
       <div
         cdkDrag
+        tabindex="-1"
+        cdkDragPreviewContainer="parent"
+        [cdkDragStartDelay]="dragStartDelay"
+        (keydown)="reorderWithKeyboard($event, account)"
         [cdkDragDisabled]="
           !accounts.canManage() || accounts.busy() || accounts.connections().length < 2
         "
@@ -55,13 +63,21 @@
         (cdkDragStarted)="startDrag()"
         class="min-w-0"
       >
+        <ng-template cdkDragPlaceholder>
+          <div
+            class="flex h-full min-h-40 items-center justify-center rounded-lg border-2 border-dashed border-fb-primary bg-fb-primary/10 p-4 text-xs text-fb-text-secondary"
+            aria-hidden="true"
+          >
+            Hier ablegen
+          </div>
+        </ng-template>
         <app-card
           padding="none"
           link="/marketplaces/vinted/overview"
           [queryParams]="{ connectionId: account.connectionId }"
           [linkLabel]="account.displayName + ' öffnen'"
         >
-          <div class="flex h-full min-w-0 flex-col gap-3 p-4">
+          <div class="flex h-full min-w-0 flex-col gap-3 p-3">
             <div class="flex min-w-0 items-start gap-3">
               <app-product-thumbnail [src]="profile?.imageUrl ?? null" alt="" size="avatar" />
               <div class="min-w-0 flex-1">
@@ -90,6 +106,8 @@
               </div>
               <app-button
                 class="relative z-10 shrink-0"
+                (mousedown)="$event.stopPropagation()"
+                (touchstart)="$event.stopPropagation()"
                 variant="ghost"
                 size="slim"
                 [iconOnly]="true"
@@ -100,123 +118,113 @@
                 (clicked)="openSettings(account)"
               />
             </div>
-            @if (profile?.feedbackCount !== null && profile?.feedbackCount !== undefined) {
-              <app-vinted-rating
-                [count]="profile.feedbackCount"
-                [reputation]="profile.feedbackReputation"
-              />
-            }
-            <div class="relative z-10 mt-auto flex flex-wrap items-center justify-between gap-2">
-              <div class="flex min-w-0 items-center gap-0.5">
-                @if (accounts.connections().length > 1) {
+            <div class="mt-auto space-y-3">
+              <div
+                class="relative z-10 flex flex-wrap items-center gap-2"
+                (mousedown)="stopActionDrag($event)"
+                (touchstart)="stopActionDrag($event)"
+              >
+                @if (account.executionMode === 'local') {
                   <app-button
-                    cdkDragHandle
-                    variant="ghost"
                     size="slim"
-                    [iconOnly]="true"
-                    [icon]="dragIcon"
-                    [disabled]="!accounts.canManage() || accounts.busy()"
-                    [ariaLabel]="account.displayName + ' ziehen'"
-                    title="Reihenfolge ändern"
-                  />
-                  <app-button
-                    variant="ghost"
-                    size="slim"
-                    [iconOnly]="true"
-                    [icon]="upIcon"
-                    [disabled]="!accounts.canManage() || accounts.busy() || index === 0"
-                    [ariaLabel]="account.displayName + ' nach vorne verschieben'"
-                    (clicked)="move(account, -1)"
-                  />
-                  <app-button
-                    variant="ghost"
-                    size="slim"
-                    [iconOnly]="true"
-                    [icon]="downIcon"
                     [disabled]="
                       !accounts.canManage() ||
+                      !cloud.canSetup() ||
+                      cloud.busy() ||
                       accounts.busy() ||
-                      index === accounts.connections().length - 1
+                      account.status === 'paused' ||
+                      account.status === 'blocked'
                     "
-                    [ariaLabel]="account.displayName + ' nach hinten verschieben'"
-                    (clicked)="move(account, 1)"
-                  />
+                    [title]="
+                      cloud.canSetup()
+                        ? 'Prüft freie Cloud-IPs und startet die Einrichtung'
+                        : 'Cloud-Einrichtung derzeit nicht verfügbar'
+                    "
+                    (clicked)="upgradeToCloud(account)"
+                    >Auf Cloud wechseln</app-button
+                  >
                 }
-              </div>
-              @if (account.status === 'paused' || account.status === 'blocked') {
-                <app-button
-                  variant="primary"
-                  size="slim"
-                  [disabled]="!accounts.canManage() || accounts.busy()"
-                  (clicked)="openSettings(account)"
-                  >Einstellungen öffnen</app-button
-                >
-              } @else if (account.executionMode === 'cloud') {
-                @if (account.status === 'connected') {
+                @if (account.status === 'paused' || account.status === 'blocked') {
+                  <app-button
+                    variant="primary"
+                    size="slim"
+                    [disabled]="!accounts.canManage() || accounts.busy()"
+                    (clicked)="openSettings(account)"
+                    >Einstellungen öffnen</app-button
+                  >
+                } @else if (account.executionMode === 'cloud') {
+                  @if (account.status === 'connected') {
+                    <app-button
+                      variant="primary"
+                      size="slim"
+                      [icon]="refreshIcon"
+                      [disabled]="!accounts.canManage() || accounts.busy()"
+                      (clicked)="syncCloudAccount(account)"
+                      >Synchronisieren</app-button
+                    >
+                  } @else {
+                    <app-button
+                      variant="primary"
+                      size="slim"
+                      [disabled]="!accounts.canManage() || accounts.busy()"
+                      (clicked)="openCloudLogin(account)"
+                      >Cloud verbinden</app-button
+                    >
+                  }
+                } @else if (!account.externalAccountId || status.action === 'renew') {
+                  <app-button
+                    variant="primary"
+                    size="slim"
+                    [link]="'/marketplaces/vinted/local-connect/' + account.connectionId"
+                    [disabled]="!accounts.canManage() || accounts.busy()"
+                    >{{
+                      account.externalAccountId ? 'Freigabe erneuern' : 'Lokal verbinden'
+                    }}</app-button
+                  >
+                } @else if (status.action === 'login') {
+                  <app-button
+                    variant="primary"
+                    size="slim"
+                    href="https://www.vinted.de/"
+                    target="_blank"
+                    >Vinted öffnen</app-button
+                  >
+                } @else if (status.action === 'settings' || status.action === 'profile') {
+                  <app-button
+                    variant="primary"
+                    size="slim"
+                    [disabled]="!accounts.canManage() || accounts.busy()"
+                    (clicked)="openSettings(account)"
+                    >{{
+                      status.action === 'profile' ? 'Browserprofil prüfen' : 'Einstellungen öffnen'
+                    }}</app-button
+                  >
+                } @else if (status.tone === 'success') {
                   <app-button
                     variant="primary"
                     size="slim"
                     [icon]="refreshIcon"
-                    [disabled]="!accounts.canManage() || accounts.busy()"
-                    (clicked)="syncCloudAccount(account)"
+                    [disabled]="
+                      !accounts.canManage() || accounts.busy() || local.busy() || runtime.checking()
+                    "
+                    (clicked)="syncLocalAccount(account)"
                     >Synchronisieren</app-button
                   >
                 } @else {
                   <app-button
                     variant="primary"
                     size="slim"
-                    [disabled]="!accounts.canManage() || accounts.busy()"
-                    (clicked)="openCloudLogin(account)"
-                    >Cloud-Anmeldung</app-button
+                    [disabled]="!accounts.canManage() || accounts.busy() || runtime.checking()"
+                    (clicked)="checkLocalConnection()"
+                    >Verbindung prüfen</app-button
                   >
                 }
-              } @else if (!account.externalAccountId || status.action === 'renew') {
-                <app-button
-                  variant="primary"
-                  size="slim"
-                  [link]="'/marketplaces/vinted/local-connect/' + account.connectionId"
-                  [disabled]="!accounts.canManage() || accounts.busy()"
-                  >{{
-                    account.externalAccountId ? 'Freigabe erneuern' : 'Lokal verbinden'
-                  }}</app-button
-                >
-              } @else if (status.action === 'login') {
-                <app-button
-                  variant="primary"
-                  size="slim"
-                  href="https://www.vinted.de/"
-                  target="_blank"
-                  >Vinted öffnen</app-button
-                >
-              } @else if (status.action === 'settings' || status.action === 'profile') {
-                <app-button
-                  variant="primary"
-                  size="slim"
-                  [disabled]="!accounts.canManage() || accounts.busy()"
-                  (clicked)="openSettings(account)"
-                  >{{
-                    status.action === 'profile' ? 'Browserprofil prüfen' : 'Einstellungen öffnen'
-                  }}</app-button
-                >
-              } @else if (status.tone === 'success') {
-                <app-button
-                  variant="primary"
-                  size="slim"
-                  [icon]="refreshIcon"
-                  [disabled]="
-                    !accounts.canManage() || accounts.busy() || local.busy() || runtime.checking()
-                  "
-                  (clicked)="syncLocalAccount(account)"
-                  >Synchronisieren</app-button
-                >
-              } @else {
-                <app-button
-                  variant="primary"
-                  size="slim"
-                  [disabled]="!accounts.canManage() || accounts.busy() || runtime.checking()"
-                  (clicked)="checkLocalConnection()"
-                  >Verbindung prüfen</app-button
-                >
+              </div>
+              @if (profile?.feedbackCount !== null && profile?.feedbackCount !== undefined) {
+                <app-vinted-rating
+                  [count]="profile.feedbackCount"
+                  [reputation]="profile.feedbackReputation"
+                />
               }
             </div>
             @if (tile.error) {
@@ -266,107 +274,151 @@
     [hasFooter]="false"
     (closed)="closeSettings()"
   >
-    <p class="mb-4 text-sm text-fb-text-secondary">
-      {{ connectionLabel(account) }} ·
-      {{ account.executionMode === 'local' ? 'Lokale Erweiterung' : 'Cloudbrowser' }}
-    </p>
-    @if (account.executionMode === 'local') {
-      <div class="mb-4 space-y-2">
+    <div class="space-y-5">
+      <section class="space-y-3" aria-label="Verbindung">
+        <div>
+          <h3 class="text-sm font-semibold text-fb-text-primary">Verbindung</h3>
+          <p class="mt-1 text-[13px] text-fb-text-secondary">
+            {{
+              account.executionMode === 'local'
+                ? 'Dieses Konto wird über die Erweiterung im zugehörigen Browserprofil ausgeführt.'
+                : 'Dieses Konto wird über den Cloudbrowser ausgeführt.'
+            }}
+          </p>
+        </div>
         <app-badge
-          class="max-w-full [&>span]:h-auto [&>span]:min-h-5 [&>span]:py-0.5"
           size="sm"
           [tone]="status.tone"
+          class="max-w-full [&>span]:h-auto [&>span]:min-h-5 [&>span]:py-0.5"
           >{{ status.label }}</app-badge
         >
-        @if (status.action === 'profile') {
-          <p class="text-[13px] text-fb-text-secondary">
-            Öffne das Browserprofil dieses Kontos für Live-Aktionen. Prüfe dort, ob bei Vinted das
-            passende Konto angemeldet ist.
-          </p>
+        @if (account.executionMode === 'local') {
+          @if (status.action === 'profile') {
+            <p class="text-[13px] text-fb-text-secondary">
+              Öffne das Browserprofil dieses Kontos. Prüfe dort, ob bei Vinted das passende Konto
+              angemeldet ist.
+            </p>
+          }
+          @if (runtime.readiness()?.state === 'permission_required' && status.action === 'check') {
+            <p class="text-[13px] text-fb-text-secondary">
+              Erlaube der Flipbase-Erweiterung in Chrome den Websitezugriff auf www.vinted.de. Prüfe
+              die Verbindung danach erneut.
+            </p>
+          }
+          <div class="flex flex-wrap gap-2">
+            <app-button
+              size="slim"
+              [disabled]="runtime.checking() || !accounts.canManage() || accounts.busy()"
+              (clicked)="checkLocalConnection()"
+              >Verbindung prüfen</app-button
+            >
+            <app-button size="slim" href="https://www.vinted.de/" target="_blank"
+              >Vinted öffnen</app-button
+            >
+            @if (!account.externalAccountId || status.action === 'renew') {
+              <app-button
+                size="slim"
+                [link]="'/marketplaces/vinted/local-connect/' + account.connectionId"
+                [disabled]="accounts.busy() || !accounts.canManage()"
+                >Freigabe erneuern</app-button
+              >
+            }
+          </div>
+        } @else {
+          <div class="flex flex-wrap gap-2">
+            <app-button
+              size="slim"
+              [disabled]="
+                !accounts.canManage() ||
+                accounts.busy() ||
+                account.status === 'paused' ||
+                account.status === 'blocked'
+              "
+              (clicked)="openCloudLogin(account)"
+              >Cloud verbinden</app-button
+            >
+            <app-button
+              size="slim"
+              [link]="'/marketplaces/vinted/local-connect/' + account.connectionId"
+              [disabled]="
+                !accounts.canManage() ||
+                accounts.busy() ||
+                account.status === 'paused' ||
+                account.status === 'blocked'
+              "
+              >Lokal verbinden</app-button
+            >
+          </div>
         }
-        @if (runtime.readiness()?.state === 'permission_required' && status.action === 'check') {
-          <p class="text-[13px] text-fb-text-secondary">
-            Erlaube der Flipbase-Erweiterung in Chrome unter „Erweiterungen“ den Websitezugriff auf
-            www.vinted.de. Prüfe die Verbindung danach erneut.
+      </section>
+      <section aria-label="Benachrichtigungen">
+        <fieldset [disabled]="accounts.loading() || !accounts.canManage()">
+          <app-vinted-favorite-settings [account]="account" />
+        </fieldset>
+      </section>
+      <section class="space-y-3 border-t border-fb-line pt-4" aria-label="Kontoverwaltung">
+        <h3 class="text-sm font-semibold text-fb-text-primary">Kontoverwaltung</h3>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <p class="min-w-0 flex-1 text-[13px] text-fb-text-secondary">
+            Ändere den Anzeigenamen in Flipbase. Dein Vinted-Profil bleibt unverändert.
           </p>
-        }
-      </div>
-    }
-    <fieldset [disabled]="accounts.loading() || !accounts.canManage()">
-      <app-vinted-favorite-settings [account]="account" />
-    </fieldset>
-    <div class="mt-5 flex flex-wrap gap-2 border-t border-fb-line pt-4">
-      @if (account.executionMode === 'local') {
-        <app-button
-          [disabled]="runtime.checking() || !accounts.canManage() || accounts.busy()"
-          (clicked)="checkLocalConnection()"
-          >Verbindung prüfen</app-button
-        >
-        <app-button href="https://www.vinted.de/" target="_blank">Vinted öffnen</app-button>
-        @if (cloud.canSetup()) {
           <app-button
+            size="slim"
+            [disabled]="accounts.busy() || accounts.loading() || !accounts.canManage()"
+            (clicked)="rename(account)"
+            >Umbenennen</app-button
+          >
+        </div>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <p class="min-w-0 flex-1 text-[13px] text-fb-text-secondary">
+            {{
+              account.status === 'paused'
+                ? 'Setze den Abgleich und die Automatisierungen für dieses Konto fort.'
+                : 'Pausiere den Abgleich und die Automatisierungen für dieses Konto.'
+            }}
+          </p>
+          <app-button
+            size="slim"
             [disabled]="
-              !accounts.canManage() ||
               accounts.busy() ||
-              account.status === 'paused' ||
+              accounts.loading() ||
+              !accounts.canManage() ||
               account.status === 'blocked'
             "
-            (clicked)="upgradeToCloud(account)"
-            >Auf Cloud wechseln</app-button
+            (clicked)="setPaused(account)"
+            >{{ account.status === 'paused' ? 'Fortsetzen' : 'Pausieren' }}</app-button
           >
+        </div>
+      </section>
+      <section class="space-y-3 border-t border-fb-line pt-4" aria-label="Trennen und entfernen">
+        <h3 class="text-sm font-semibold text-fb-text-primary">Trennen und entfernen</h3>
+        @if (account.executionMode === 'local') {
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <p class="min-w-0 flex-1 text-[13px] text-fb-text-secondary">
+              Trenne die lokale Erweiterung. Deine gespeicherten Daten bleiben erhalten.
+            </p>
+            <app-button
+              size="slim"
+              [disabled]="local.busy() || accounts.busy() || !accounts.canManage()"
+              (clicked)="openDisconnect(account)"
+              >Freigabe trennen</app-button
+            >
+          </div>
         }
-        <app-button [link]="'/marketplaces/vinted/local-connect/' + account.connectionId"
-          >Freigabe erneuern</app-button
-        >
-        <app-button
-          [disabled]="local.busy() || !accounts.canManage()"
-          (clicked)="openDisconnect(account)"
-          >Lokale Freigabe trennen</app-button
-        >
-      } @else {
-        <app-button
-          [disabled]="
-            !accounts.canManage() ||
-            accounts.busy() ||
-            account.status === 'paused' ||
-            account.status === 'blocked'
-          "
-          (clicked)="openCloudLogin(account)"
-          >Cloud-Anmeldung</app-button
-        >
-        <app-button
-          [link]="'/marketplaces/vinted/local-connect/' + account.connectionId"
-          [disabled]="
-            !accounts.canManage() ||
-            accounts.busy() ||
-            account.status === 'paused' ||
-            account.status === 'blocked'
-          "
-          >Lokal verbinden</app-button
-        >
-      }
-      <app-button
-        [disabled]="accounts.busy() || accounts.loading() || !accounts.canManage()"
-        (clicked)="rename(account)"
-        >Umbenennen</app-button
-      >
-      <app-button
-        [disabled]="
-          accounts.busy() ||
-          accounts.loading() ||
-          !accounts.canManage() ||
-          account.status === 'blocked'
-        "
-        (clicked)="setPaused(account)"
-        >{{ account.status === 'paused' ? 'Fortsetzen' : 'Pausieren' }}</app-button
-      >
-      <app-button
-        variant="destructive"
-        [icon]="deleteIcon"
-        [disabled]="accounts.busy() || accounts.loading() || !accounts.canManage()"
-        (clicked)="remove(account)"
-        >Konto entfernen</app-button
-      >
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <p class="min-w-0 flex-1 text-[13px] text-fb-text-secondary">
+            Entferne das Konto aus Flipbase. Dein Vinted-Konto wird nicht gelöscht.
+          </p>
+          <app-button
+            variant="destructive"
+            size="slim"
+            [icon]="deleteIcon"
+            [disabled]="accounts.busy() || accounts.loading() || !accounts.canManage()"
+            (clicked)="remove(account)"
+            >Konto entfernen</app-button
+          >
+        </div>
+      </section>
     </div>
   </app-modal-shell>
 }
