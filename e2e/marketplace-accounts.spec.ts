@@ -47,7 +47,6 @@ for (const width of [1440, 390]) {
     } else {
       await page.mouse.move(pickup.x, pickup.y);
       await page.mouse.down();
-      await page.waitForTimeout(300);
       await page.mouse.move(pickup.x + 8, pickup.y + 8, { steps: 5 });
     }
     await expect(page.locator('.cdk-drag-placeholder')).toContainText('Hier ablegen');
@@ -70,6 +69,8 @@ for (const width of [1440, 390]) {
     await expect(page.getByText('Kontenreihenfolge gespeichert.', { exact: true })).toBeVisible();
     await expect(names).toHaveText(['Testkonto A', 'Testkonto B']);
     await expect(page).toHaveURL(/\/marketplaces\/vinted\/accounts$/);
+    await page.reload();
+    await expect(names).toHaveText(['Testkonto A', 'Testkonto B']);
     if (width === 1440) {
       await page.getByRole('button', { name: 'Zu dunklem Design wechseln', exact: true }).click();
       await evidence(page, 'vinted-account-grid-dark-1440');
