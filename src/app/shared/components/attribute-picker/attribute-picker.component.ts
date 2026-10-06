@@ -159,8 +159,12 @@ export class AttributePickerComponent implements ControlValueAccessor {
     if (!value || this.isDisabled()) return;
     if (this.multiple()) {
       const selected = this.selected();
-      if (!selected.some((item) => normalized(item) === normalized(value)))
+      const existingIndex = selected.findIndex((item) => normalized(item) === normalized(value));
+      if (existingIndex >= 0) {
+        this.setValue(selected.filter((_, index) => index !== existingIndex).join(' · '));
+      } else {
         this.setValue([...selected, value].join(' · '));
+      }
       this.query.set('');
       this.isEditing.set(false);
       this.open();
