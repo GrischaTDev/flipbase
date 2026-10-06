@@ -1,0 +1,11 @@
+[Unit]
+Description=Refresh Flipbase server storage once per minute
+
+[Timer]
+OnBootSec=30s
+OnUnitInactiveSec=60s
+AccuracySec=5s
+Unit=flipbase-server-storage.service
+
+[Install]
+WantedBy=timers.target

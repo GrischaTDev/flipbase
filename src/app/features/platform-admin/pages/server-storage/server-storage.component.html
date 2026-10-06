@@ -1,0 +1,86 @@
+<section class="mx-auto max-w-6xl space-y-4">
+  <app-page-header
+    title="Server-Speicher"
+    subtitle="Speicherplatz des Flipbase-Servers"
+    [icon]="storageIcon"
+  >
+    <app-button
+      header-actions
+      [icon]="refreshIcon"
+      [loading]="state.loading()"
+      (clicked)="state.refresh()"
+    >
+      Aktualisieren
+    </app-button>
+  </app-page-header>
+
+  @if (state.error(); as message) {
+    <p role="alert" class="text-sm text-fb-critical">{{ message }}</p>
+  }
+  @if (!state.loaded() && state.loading()) {
+    <p role="status" class="text-sm text-fb-text-secondary">Speicherstand wird geladen.</p>
+  }
+
+  @if (state.snapshot(); as snapshot) {
+    <app-card title="Belegung">
+      <div class="space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <p class="text-2xl font-semibold tabular-nums text-fb-text-primary">
+            {{ state.usedPercent() | number: '1.0-1' }} % belegt
+          </p>
+          <app-badge [tone]="state.status().tone">{{ state.status().label }}</app-badge>
+        </div>
+        <div
+          role="meter"
+          aria-label="Belegung des Server-Speichers"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          [attr.aria-valuenow]="state.usedPercent()"
+          class="h-3 overflow-hidden rounded-full bg-fb-surface-alt"
+        >
+          <div class="h-full bg-fb-text-primary" [style.width.%]="state.usedPercent()"></div>
+        </div>
+        <p class="text-sm text-fb-text-secondary">
+          Gemessen am
+          <time [attr.datetime]="snapshot.reported_at">{{
+            snapshot.reported_at | date: 'dd.MM.yyyy, HH:mm:ss'
+          }}</time
+          >. Die Anzeige aktualisiert sich jede Minute.
+        </p>
+        @if (state.stale()) {
+          <p role="status" class="text-sm text-fb-critical">
+            Die letzte Meldung ist nicht aktuell. Die Werte zeigen den zuletzt bekannten Stand.
+          </p>
+        }
+      </div>
+    </app-card>
+
+    <div class="grid gap-3 sm:grid-cols-3">
+      <app-card title="Gesamtgröße" variant="kpi">
+        <p class="text-2xl font-semibold tabular-nums text-fb-text-primary">
+          {{ state.totalGiB() | number: '1.0-1' }} GiB
+        </p>
+      </app-card>
+      <app-card title="Belegt" variant="kpi">
+        <p class="text-2xl font-semibold tabular-nums text-fb-text-primary">
+          {{ state.usedGiB() | number: '1.0-1' }} GiB
+        </p>
+      </app-card>
+      <app-card title="Verfügbar" variant="kpi">
+        <p class="text-2xl font-semibold tabular-nums text-fb-text-primary">
+          {{ state.availableGiB() | number: '1.0-1' }} GiB
+        </p>
+      </app-card>
+    </div>
+    <p class="text-sm text-fb-text-secondary">
+      Zusätzlich sind {{ state.reservedGiB() | number: '1.0-1' }} GiB für das System reserviert. Die
+      Prozentanzeige berücksichtigt den für Anwendungen verfügbaren Platz.
+    </p>
+  } @else if (state.loaded() && !state.error()) {
+    <app-card title="Noch keine Speichermeldung">
+      <p class="text-sm text-fb-text-secondary">
+        Der Server hat noch keinen Speicherstand gemeldet.
+      </p>
+    </app-card>
+  }
+</section>

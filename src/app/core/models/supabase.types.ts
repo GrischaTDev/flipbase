@@ -4660,6 +4660,30 @@ export type Database = {
           },
         ]
       }
+      server_storage_status: {
+        Row: {
+          available_bytes: number
+          id: number
+          reported_at: string
+          total_bytes: number
+          used_bytes: number
+        }
+        Insert: {
+          available_bytes: number
+          id?: number
+          reported_at?: string
+          total_bytes: number
+          used_bytes: number
+        }
+        Update: {
+          available_bytes?: number
+          id?: number
+          reported_at?: string
+          total_bytes?: number
+          used_bytes?: number
+        }
+        Relationships: []
+      }
       shipping_orders: {
         Row: {
           bundled_item_titles: string[] | null
@@ -7918,6 +7942,14 @@ export type Database = {
       replace_bank_transactions: {
         Args: { p_transactions: Json; p_workspace_id: string }
         Returns: number
+      }
+      report_server_storage: {
+        Args: {
+          p_available_bytes: number
+          p_total_bytes: number
+          p_used_bytes: number
+        }
+        Returns: undefined
       }
       resolve_legacy_sold_item: {
         Args: {

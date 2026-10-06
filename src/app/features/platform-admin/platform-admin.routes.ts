@@ -7,6 +7,13 @@ import { unsavedEntryGuard } from '../../shared/guards/unsaved-entry.guard';
 export const platformAdminRoutes: Routes = [
   { path: '', redirectTo: 'applications', pathMatch: 'full' },
   {
+    path: 'server-storage',
+    loadComponent: () =>
+      import('./pages/server-storage/server-storage.component').then(
+        (component) => component.ServerStorageComponent,
+      ),
+  },
+  {
     path: 'applications',
     loadComponent: () =>
       import('./pages/beta-applications/beta-applications.component').then(
