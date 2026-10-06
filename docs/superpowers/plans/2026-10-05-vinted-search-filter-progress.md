@@ -35,3 +35,7 @@ Aktuelle Einzelergebnisse und offene Prüfungen stehen im AI-Changelog. Temporä
 ## Abschlussprüfung
 
 **Abschlussprüfung vom 06.10.2026:** Lauf `37423402985`: 3764 Anwendungstests, 246 Collector-Tests, 3021 Datenbankassertions und 4 Browserabläufe bestanden. Desktop hell und Mobil dunkel jeweils zweimal ohne Wiederholungsversuch; Enter zum Zurücksetzen, Tab/Shift+Tab, Escape, Fokuswiederherstellung und AXE enthalten. 179 Workflow-Tests bestanden; 1 vorhandener optionaler Umgebungsfall übersprungen. Produktionsbau, Formatierung, Lint und Typprüfungen erfolgreich. Generierte Datenbanktypen stimmen exakt. Aktuelles master einschließlich PR 306 und 307 integriert. Temporäre Transportdateien und Prüfworkflow sind entfernt. Kein PR, kein Merge nach master und keine Produktionsänderung; Abschlussfreigabe steht noch aus.
+
+## PR-Freigabe vom 06.10.2026
+
+Der Nutzer hat PR-Erstellung und Merge nach erfolgreichen Pflichtprüfungen ausdrücklich freigegeben. PR #308 richtet den geprüften Featurezweig gegen `master`. Der Produktcode und die Migration sind gegenüber dem erfolgreichen Abschlusslauf unverändert. Vor dem Merge müssen die regulären PR-Prüfungen erfolgreich abgeschlossen sein; danach werden der Merge-Commit, der Produktionslauf und die Entfernung des eigenen Remotezweigs kontrolliert. Noch keine Freigabe zum Überspringen fehlender oder fehlgeschlagener Prüfungen.
