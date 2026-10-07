@@ -1,4 +1,4 @@
--- Verhaltensprüfungen für den Schemakandidaten. Noch NICHT ausgeführt.
+-- Verhaltensprüfungen für den Schemakandidaten.
 -- Die Fixture simuliert ausschließlich Auth-ID, Betreiberrolle und Zugangsstatus.
 begin;
 insert into public.label_brands(name, slug) values ('Testmarke', 'testmarke');
@@ -19,13 +19,22 @@ select set_config('request.jwt.claims', '{"user_metadata":{"role":"admin"}}', tr
 select label_test.assert_true(not public.can_read_label_library(), 'Manipulierte Nutzer-Metadaten erteilen keine Betreiberrechte');
 
 do $$
-declare name text;
+declare name text; editable_column text;
 begin
   foreach name in array array['label_brands','label_brand_lines','label_references','label_revisions',
    'label_image_assets','label_revision_images','label_image_permissions','label_change_events',
    'label_edit_requests','label_library_settings'] loop
     perform label_test.expect_error(format('insert into public.%I default values', name), '42501', name || ': INSERT für Leser gesperrt');
-    perform label_test.expect_error(format('update public.%I set id = id', name), '42501', name || ': UPDATE für Leser gesperrt');
+    -- Eine normale Spalte prüfen: GENERATED ALWAYS wird sonst schon vor ACL
+    -- mit 428C9 abgewiesen und würde die eigentliche Rechteprüfung verdecken.
+    editable_column := case name
+      when 'label_brands' then 'name' when 'label_brand_lines' then 'name'
+      when 'label_references' then 'archived' when 'label_revisions' then 'version'
+      when 'label_image_assets' then 'processing_status' when 'label_revision_images' then 'position'
+      when 'label_image_permissions' then 'status' when 'label_change_events' then 'action'
+      when 'label_edit_requests' then 'action' when 'label_library_settings' then 'reader_enabled'
+    end;
+    perform label_test.expect_error(format('update public.%I set %I = %I', name, editable_column, editable_column), '42501', name || ': UPDATE für Leser gesperrt');
     perform label_test.expect_error(format('delete from public.%I', name), '42501', name || ': DELETE für Leser gesperrt');
     perform label_test.expect_error(format('truncate public.%I', name), '42501', name || ': TRUNCATE für Leser gesperrt');
   end loop;
