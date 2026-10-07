@@ -2,7 +2,7 @@ import { ChildProcess } from 'node:child_process';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { ChromeProcess } from '../../src/browser/chrome-process.js';
 
 describe('ChromeProcess', () => {
@@ -16,7 +16,9 @@ describe('ChromeProcess', () => {
         {
           spawn: () => {
             spawned = true;
-            return new ChildProcess();
+            const child = new ChildProcess();
+            vi.spyOn(child, 'kill').mockReturnValue(false);
+            return child;
           },
         },
       );
@@ -35,6 +37,7 @@ describe('ChromeProcess', () => {
         {
           spawn: () => {
             const child = new ChildProcess();
+            vi.spyOn(child, 'kill').mockReturnValue(false);
             children.push(child);
             return child;
           },
@@ -60,6 +63,8 @@ describe('ChromeProcess', () => {
         {
           spawn: () => {
             const child = new ChildProcess();
+            // Nicht gestartete Testprozesse dürfen keine echten Betriebssystemsignale senden.
+            vi.spyOn(child, 'kill').mockReturnValue(false);
             children.push(child);
             return child;
           },
@@ -69,6 +74,8 @@ describe('ChromeProcess', () => {
       );
       await runtime.start();
       await expect(runtime.stop()).rejects.toThrow('nicht bestätigt');
+      expect(children[2]?.kill).toHaveBeenNthCalledWith(1, 'SIGTERM');
+      expect(children[2]?.kill).toHaveBeenNthCalledWith(2, 'SIGKILL');
       await expect(runtime.start()).rejects.toThrow();
       expect(children).toHaveLength(3);
     } finally {

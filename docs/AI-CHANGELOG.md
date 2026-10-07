@@ -47,6 +47,23 @@ Der einzige Konflikt betrifft dieses Protokoll; beide Sitzungseinträge bleiben
 erhalten. Anschließend bestehen erneut alle 299 Botprüfungen sowie 337
 Workerprüfungen bei sieben bestehenden Ausnahmen, Worker-Typprüfung und -Bau.
 
+**PR und Servervorbereitung:** PR #333 ist erstellt. Vor der Veröffentlichung
+werden Deployskript und Botkonfiguration auf dem Server unter einem privaten
+Betreiberbackup gesichert. Der Dateivergleich enthält ausschließlich die
+geprüfte Browservorbereitung. Das geprüfte Deployskript und der bestehende
+öffentliche Auth-Key sind installiert; der produktive Bot bleibt bis zum
+erfolgreichen Merge auf der bisherigen Fassung.
+
+**Linux-CI-Korrektur:** Der erste Botlauf wird durch ein Signal beendet. Ein
+isolierter Linux-Test reproduziert den Abbruch im Prozess-Test: künstliche
+`ChildProcess`-Objekte rufen die echte Betriebssystem-Signalmethode auf. Die
+Tests ersetzen diese Methode jetzt durch eine Attrappe und prüfen weiterhin
+`SIGTERM`, anschließend `SIGKILL` und die gesperrte Wiederverwendung bei nicht
+bestätigtem Ende. Alle 299 Botprüfungen bestehen danach auch im Linux-Container
+ohne Netz; der gezielte Windows-Test, Typprüfung, Lint und Formatierung bestehen.
+Die übrigen Prüfungen des ersten PR-Laufs einschließlich Browserprüfung sind
+erfolgreich. Die Pflichtprüfungen werden für den korrigierten Stand erneut ausgeführt.
+
 **Releasevertrag:** Webimage enthält die passende Bot-Compose-/Seccomp-Konfiguration.
 Der Betreiber muss das geprüfte Deployskript und den öffentlichen Auth-Key vor
 der ersten Veröffentlichung bereitstellen. Keine produktive Browserfreigabe und
