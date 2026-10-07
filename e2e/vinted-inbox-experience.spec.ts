@@ -545,7 +545,9 @@ for (const { width, theme } of [
       page.getByRole('option', { name: 'Systemnachrichten (0)', exact: true }),
     ).toBeVisible();
     const systemFilter = page.getByRole('option', { name: 'Systemnachrichten (0)', exact: true });
-    expect((await systemFilter.boundingBox())?.width).toBeGreaterThan(200);
+    await expect
+      .poll(async () => (await systemFilter.boundingBox())?.width ?? 0)
+      .toBeGreaterThan(200);
     expect(
       await systemFilter
         .locator('span')

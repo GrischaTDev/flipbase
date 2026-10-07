@@ -69,6 +69,12 @@ Logout widerrufen; normale Passwortsitzungen bleiben erhalten. Der produktive
 Auth-Dienst kennzeichnet bestätigte Reset-Links als `otp`; die Passwortseite
 berücksichtigt diese verifizierte Sitzungsart, mit eigener Angular-Regression.
 
+Der PR-Browserlauf zeigt eine kurzzeitig noch nicht angepasste Breite im
+Auswahlmenü. Die Layoutprüfung wartet nun auf die geforderte Breite statt nur
+auf Sichtbarkeit; ihre Grenze bleibt unverändert. Der Beta-Lebenszyklustest
+zeigt bei fehlgeschlagenem Funktionsaufruf zusätzlich dessen öffentliche
+Fehlerantwort, damit vor einem Merge die tatsächliche Ursache sichtbar ist.
+
 ## 2026-10-07 - Juna - Fehler beim erneuten Cloud-Seitenaufruf sichtbar machen
 
 **Auftrag:** Den freigegebenen Cloud-Abruf-Fix veröffentlichen und mehrere
