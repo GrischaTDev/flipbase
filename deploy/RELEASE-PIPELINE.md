@@ -159,6 +159,37 @@ zusätzliche Argumente akzeptiert der Deploy-Schlüssel nicht.
 
 ## Fehler, Sicherung und Rückfall
 
+### Eigener Browser für den zentralen Vinted-Bot
+
+Vor dem ersten Browserrelease das geprüfte `deploy/deploy.sh` wie beim obigen
+Bootstrap mit Betreiberzugang installieren; der eingeschränkte CI-Schlüssel
+aktualisiert dieses Skript nicht. In `/opt/flipbase-sniper/sniper.env` zusätzlich
+`SUPABASE_ANON_KEY` aus der bestehenden öffentlichen Supabase-Konfiguration
+bereitstellen. Den vorhandenen Service-Role-Key beibehalten und keine Schlüssel
+in Ausgaben schreiben. Diese Servervorbereitung erfolgt erst nach Releasefreigabe.
+
+Das Webrelease liefert Compose und Chromium-Seccomp versionstreu unter
+`/opt/flipbase/` mit. Das Deployskript prüft den öffentlichen Auth-Key und legt
+das separate Profil `/opt/flipbase-sniper/browser` mit UID/GID 1000 und Modus
+0700 an. Bestehende Profile mit anderen Rechten oder symbolischen Links werden
+abgewiesen. Anschließend übernimmt es die geprüften Laufzeitdateien und prüft
+Compose vor dem Botstart. Ein Digestrelease erledigt dies vor dem Webstart.
+
+Chrome verwendet seine Sandbox, `/tmp` und 128 MiB Shared Memory. Die Browser-API
+bindet ausschließlich an `172.18.0.1:8081`, CDP an `127.0.0.1:9228` und die
+Gesundheitsendpunkte an `127.0.0.1:8080`. Nur `/sniper-browser/*` wird über die
+Appdomain geroutet; jede Aktion prüft Anmeldung und Betreiberrolle. Die
+Gatewayadresse gehört zum bestehenden Produktionsnetz und muss bei einem
+Netzwechsel mit API-Konfiguration und Caddyroute gemeinsam angepasst werden.
+
+Bei einer bestätigten Vinted-Prüfseite öffnen Betreiber im Botbetrieb
+„Vinted-Zugriff prüfen“. Die Sitzung gilt höchstens zehn Minuten. Schließen
+und Zeitablauf heben die Pause nicht auf. „Zugriff erneut prüfen“ gibt den Bot
+erst nach einem gültigen, gespeicherten Katalog des unveränderten aktiven Filters
+frei. Ein Anbieterzeitlimit oder fehlende aktive Filter verhindert diesen Abruf.
+Eine fortgesetzte Ablehnung bleibt sichtbar; der Browser garantiert keine
+Freigabe durch Vinted.
+
 Eine lokale Dateisperre hält die ganze Auslieferung zusammen; der interne Runner
 sperrt zusätzlich alle von ihm ausgeführten Migrationen. Er prüft alle ausstehenden
 Freigaben vor dem Backup, wendet sie sortiert an und registriert jede in derselben

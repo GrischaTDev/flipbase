@@ -3,6 +3,17 @@ import { z } from 'zod';
 const EnvSchema = z.object({
   SUPABASE_URL: z.string().min(1),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
+  SUPABASE_ANON_KEY: z.string().default(''),
+  SNIPER_BROWSER_HOST: z
+    .string()
+    .refine(
+      (host) => host === '127.0.0.1' || host === '172.18.0.1',
+      'Browser control must use a private address',
+    )
+    .default('127.0.0.1'),
+  SNIPER_BROWSER_PORT: z.coerce.number().int().min(1).max(65535).default(8081),
+  SNIPER_BROWSER_CDP_PORT: z.coerce.number().int().min(1).max(65535).default(9228),
+  SNIPER_BROWSER_PROFILE_DIR: z.string().min(1).default('/var/lib/flipbase-sniper/browser'),
   VINTED_BASE_URL: z.string().min(1).default('https://www.vinted.de'),
   SNIPER_REQUESTS_PER_MINUTE: z.coerce.number().int().min(1).default(30),
   SNIPER_TICK_INTERVAL_MS: z.coerce.number().int().min(1000).default(5000),
@@ -19,6 +30,11 @@ const EnvSchema = z.object({
 });
 
 export interface SnipeConfig {
+  supabaseAnonKey: string;
+  browserHost: string;
+  browserPort: number;
+  browserCdpPort: number;
+  browserProfileDir: string;
   supabaseUrl: string;
   supabaseServiceRoleKey: string;
   vintedBaseUrl: string;
@@ -35,6 +51,11 @@ export function loadConfig(env: NodeJS.ProcessEnv): SnipeConfig {
   const parsed = EnvSchema.parse(env);
 
   return {
+    supabaseAnonKey: parsed.SUPABASE_ANON_KEY,
+    browserHost: parsed.SNIPER_BROWSER_HOST,
+    browserPort: parsed.SNIPER_BROWSER_PORT,
+    browserCdpPort: parsed.SNIPER_BROWSER_CDP_PORT,
+    browserProfileDir: parsed.SNIPER_BROWSER_PROFILE_DIR,
     supabaseUrl: parsed.SUPABASE_URL,
     supabaseServiceRoleKey: parsed.SUPABASE_SERVICE_ROLE_KEY,
     vintedBaseUrl: parsed.VINTED_BASE_URL,

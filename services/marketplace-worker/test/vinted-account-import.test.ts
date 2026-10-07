@@ -19,6 +19,114 @@ function importPage(overrides: (path: string) => unknown): Page {
   } as unknown as Page;
 }
 
+test('retries a read once after navigation destroys its execution context', async () => {
+  let interrupted = false;
+  let loadWaits = 0;
+  let authorizations = 0;
+  const page = importPage((path) => {
+    if (path.includes('/users/current') && !interrupted) {
+      interrupted = true;
+      throw new Error(
+        'page.evaluate: Execution context was destroyed, most likely because of a navigation.',
+      );
+    }
+    return undefined;
+  });
+  page.isClosed = () => false;
+  page.waitForFunction = async () => {
+    loadWaits++;
+    return { dispose: async () => undefined } as Awaited<ReturnType<Page['waitForFunction']>>;
+  };
+  const snapshot = await readVintedAccountImport(page, async () => {
+    authorizations++;
+  });
+  assert.equal(snapshot.identity.id, '123');
+  assert.equal(snapshot.sourceRequestCount, 5);
+  assert.equal(loadWaits, 1);
+  assert.ok(authorizations >= 6);
+});
+
+test('a revoked authorization prevents the navigation retry', async () => {
+  let reads = 0;
+  let authorizations = 0;
+  const page = importPage(() => {
+    reads++;
+    throw new Error('Execution context was destroyed, most likely because of a navigation.');
+  });
+  page.isClosed = () => false;
+  await assert.rejects(
+    readVintedAccountImport(page, async () => {
+      if (++authorizations > 1) throw new Error('access revoked');
+    }),
+    VintedImportReadError,
+  );
+  assert.equal(reads, 1);
+  assert.equal(authorizations, 2);
+});
+
+test('a repeated context loss ends after one retry and keeps only a fixed diagnosis', async () => {
+  let reads = 0;
+  const page = importPage(() => {
+    reads++;
+    throw new Error('Execution context was destroyed: private provider details');
+  });
+  page.isClosed = () => false;
+  page.waitForFunction = async () =>
+    ({ dispose: async () => undefined }) as Awaited<ReturnType<Page['waitForFunction']>>;
+  await assert.rejects(
+    readVintedAccountImport(page, async () => undefined),
+    (error: unknown) =>
+      error instanceof VintedImportReadError &&
+      error.cause instanceof VintedImportRequestError &&
+      error.cause.browserReadFailure === 'navigation' &&
+      error.cause.cause === undefined,
+  );
+  assert.equal(reads, 2);
+});
+
+test('navigation to a login challenge prevents another account request', async () => {
+  let reads = 0;
+  let address = 'https://www.vinted.de/';
+  const page = importPage(() => {
+    reads++;
+    address = 'https://www.vinted.de/member/login/2fa';
+    throw new Error('Execution context was destroyed');
+  });
+  page.url = () => address;
+  page.isClosed = () => false;
+  page.waitForFunction = async () =>
+    ({ dispose: async () => undefined }) as Awaited<ReturnType<Page['waitForFunction']>>;
+  await assert.rejects(
+    readVintedAccountImport(page, async () => undefined),
+    VintedImportReadError,
+  );
+  assert.equal(reads, 1);
+});
+
+test('closed pages and script failures are not retried or exposed', async () => {
+  for (const [message, diagnosis] of [
+    ['Target page, context or browser has been closed', 'closed'],
+    ['ReferenceError: private script error', 'script'],
+    ['private script error', 'unknown'],
+  ] as const) {
+    let reads = 0;
+    const page = importPage(() => {
+      reads++;
+      throw new Error(message);
+    });
+    await assert.rejects(
+      readVintedAccountImport(page, async () => undefined),
+      (error: unknown) =>
+        error instanceof VintedImportReadError &&
+        error.cause instanceof VintedImportRequestError &&
+        error.cause.reason === 'browser_context' &&
+        error.cause.browserReadFailure === diagnosis &&
+        !error.message.includes(message),
+    );
+    assert.equal(reads, 1);
+  }
+});
+
 test('erneuert eine vorhandene Sitzung nach initialer 401 ohne erneute Zugangsdaten', async () => {
   let restored = false;
   let profileReads = 0;
@@ -42,6 +150,41 @@ test('erneuert eine vorhandene Sitzung nach initialer 401 ohne erneute Zugangsda
   assert.equal(snapshot.identity.id, '123');
   assert.equal(profileReads, 2);
   assert.equal(snapshot.sourceRequestCount, 5);
+});
+
+test('failed session reloads preserve only a fixed browser diagnosis without another read', async () => {
+  for (const [message, diagnosis] of [
+    ['Navigation is interrupted by another navigation: private URL', 'navigation_interrupted'],
+    ['page.goto: net::ERR_ABORTED at https://private.example', 'navigation_aborted'],
+    ['page.goto: net::ERR_PROXY_CONNECTION_FAILED at https://private.example', 'network'],
+    ['page.goto: Timeout 20000ms exceeded: private URL', 'timeout'],
+    ['Target page, context or browser has been closed: private details', 'closed'],
+    ['private browser error', 'unknown'],
+  ] as const) {
+    let profileReads = 0;
+    let navigations = 0;
+    const page = importPage(() => {
+      profileReads++;
+      return { flipbaseRequestFailure: 'unauthorized' };
+    });
+    page.goto = async () => {
+      navigations++;
+      throw new Error(message);
+    };
+    await assert.rejects(
+      readVintedAccountImport(page, async () => undefined),
+      (error: unknown) =>
+        error instanceof VintedImportReadError &&
+        error.stage === 'profile' &&
+        error.cause instanceof VintedImportRequestError &&
+        error.cause.reason === 'browser_context' &&
+        error.cause.browserReadFailure === diagnosis &&
+        error.cause.cause === undefined &&
+        !error.cause.message.includes('private'),
+    );
+    assert.equal(profileReads, 1);
+    assert.equal(navigations, 1);
+  }
 });
 
 test('entzogener Zugriff verhindert bereits das Neuladen zur Sitzungswiederherstellung', async () => {

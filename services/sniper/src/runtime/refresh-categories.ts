@@ -27,7 +27,7 @@ export interface RefreshDeps {
    * zugleich seine Arbeit ein.
    */
   hasCapacity: () => boolean;
-  originState?: Pick<OriginStateStoreLike, 'getState' | 'setCooldown'>;
+  originState?: Pick<OriginStateStoreLike, 'getState' | 'setCooldown' | 'setBlocked'>;
   maxAgeMs: number;
   log: Logger;
 }
@@ -78,7 +78,13 @@ export async function refreshCategoriesIfDue(
 
     try {
       const decision = evaluateFailure(error, { consecutiveFailures: 0 }, now);
-      if (deps.originState && decision.originUpdate?.blockedUntil) {
+      if (deps.originState && decision.originUpdate?.state === 'blocked') {
+        await deps.originState.setBlocked(
+          'vinted',
+          decision.originUpdate.reason,
+          decision.originUpdate.blockedUntil ?? undefined,
+        );
+      } else if (deps.originState && decision.originUpdate?.blockedUntil) {
         await deps.originState.setCooldown(
           'vinted',
           decision.originUpdate.blockedUntil,

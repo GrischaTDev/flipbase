@@ -10,6 +10,34 @@ import test from 'node:test';
 const deployScript = fileURLToPath(new URL('../deploy/deploy.sh', import.meta.url));
 const dockerfile = fileURLToPath(new URL('../docker/Dockerfile', import.meta.url));
 
+test('der Botbrowser wird privat geroutet und mit dem geprüften Release vorbereitet', async () => {
+  const [caddy, compose, deploy, webImage] = await Promise.all([
+    readFile(new URL('../deploy/Caddyfile', import.meta.url), 'utf8'),
+    readFile(new URL('../deploy/docker-compose.sniper.yml', import.meta.url), 'utf8'),
+    readFile(deployScript, 'utf8'),
+    readFile(dockerfile, 'utf8'),
+  ]);
+  assert.match(caddy, /handle @sniper_browser\s*\{\s*reverse_proxy 172\.18\.0\.1:8081/u);
+  assert.doesNotMatch(caddy, /9228|\/json\/|sniper.*168\.119/u);
+  assert.match(compose, /SNIPER_BROWSER_HOST: 172\.18\.0\.1/u);
+  assert.match(compose, /shm_size: 128m/u);
+  assert.match(compose, /stop_grace_period: 90s/u);
+  assert.match(compose, /SYS_CHROOT/u);
+  assert.match(compose, /seccomp:/u);
+  assert.match(
+    webImage,
+    /\/app\/deploy\/docker-compose\.sniper\.yml \/opt\/flipbase\/docker-compose\.sniper\.yml/u,
+  );
+  const preparation = deploy.indexOf('prepare_sniper_browser_runtime');
+  const start = deploy.indexOf('up -d --pull never sniper');
+  assert.ok(preparation >= 0 && start > preparation);
+  assert.match(
+    deploy,
+    /docker cp "\$artifact_container":\/opt\/flipbase\/docker-compose\.sniper\.yml/u,
+  );
+  assert.match(deploy, /SUPABASE_ANON_KEY/u);
+});
+
 test('öffentliche Proxy-Regeln sperren beide MCP-Einstiegspunkte vor der API-Freigabe', async () => {
   const configuration = await readFile(new URL('../deploy/Caddyfile', import.meta.url), 'utf8');
   const publicMatcher = configuration.match(/^\s*@supabase_api path (.+)$/mu)?.[1].split(/\s+/u);
@@ -257,7 +285,7 @@ esac
 );
 
 test(
-  'rollt ein separates Sniper-Abbild aus und wartet auf dessen Healthcheck',
+  'rollt ein separates Sniper-Abbild aus und legt dessen Profil ohne Host-Benutzer an',
   { skip: process.platform === 'win32' },
   async () => {
     const root = await mkdtemp(join(tmpdir(), 'flipbase-sniper-deploy-'));
@@ -265,6 +293,27 @@ test(
     const log = join(root, 'docker.log');
     await mkdir(bin);
     try {
+      const profileLog = join(root, 'profile.log');
+      await writeFile(
+        join(bin, 'install'),
+        `#!/bin/sh
+case " $* " in
+  *" -o "*|*" -g "*) echo "install: invalid user: '1000'" >&2; exit 1 ;;
+esac
+exec /usr/bin/install "$@"
+`,
+        { mode: 0o755 },
+      );
+      await writeFile(join(bin, 'chown'), '#!/bin/sh\nprintf "%s\\n" "$*" >> "$PROFILE_LOG"\n', {
+        mode: 0o755,
+      });
+      await writeFile(
+        join(root, 'sniper.env'),
+        'SUPABASE_ANON_KEY=public-fixture-key-for-authentication\n',
+      );
+      await writeFile(join(bin, 'stat'), '#!/bin/sh\necho "${PROFILE_OWNER:-1000:1000:700}"\n', {
+        mode: 0o755,
+      });
       await writeFile(
         join(bin, 'docker'),
         `#!/bin/bash
@@ -278,6 +327,13 @@ case "$1" in
    fi
    ;;
  inspect) echo healthy ;;
+ cp)
+   case "$2" in
+     *docker-compose.sniper.yml) printf 'services:\\n  sniper:\\n    image: fixture\\n' > "$3" ;;
+     *chromium-seccomp.json) printf '{"defaultAction":"SCMP_ACT_ERRNO"}' > "$3" ;;
+     *) exit 92 ;;
+   esac
+   ;;
  logout|image) ;;
  *) exit 91 ;;
 esac
@@ -293,11 +349,13 @@ esac
         SSH_ORIGINAL_COMMAND: 'web sha-1234567 sniper sha-7654321',
         DOCKER_LOG: log,
         EXPECTED_SNIPER_IMAGE: 'ghcr.io/grischatdev/flipbase-sniper:sha-7654321',
+        PROFILE_LOG: profileLog,
       });
 
       assert.equal(result.code, 0, result.stderr);
       assert.match(result.stdout, /flipbase-web ist gesund\./);
       assert.match(result.stdout, /flipbase-sniper ist gesund\./);
+      assert.equal(await readFile(profileLog, 'utf8'), `1000:1000 ${join(root, 'browser')}\n`);
       const dockerCalls = await readFile(log, 'utf8');
       assert.match(dockerCalls, /compose -f .* pull sniper/);
       assert.match(dockerCalls, /compose -f .* up -d --pull never sniper/);
@@ -327,6 +385,31 @@ esac
         `sniper ${digest} extra`,
       ])
         assert.equal((await runDeploy({ ...environment, SSH_ORIGINAL_COMMAND: command })).code, 2);
+      assert.ok(
+        dockerCalls.indexOf('config --quiet') < dockerCalls.indexOf('up -d --pull never sniper'),
+      );
+      assert.equal(
+        await readFile(join(root, 'docker-compose.sniper.yml'), 'utf8'),
+        'services:\n  sniper:\n    image: fixture\n',
+      );
+      assert.equal(
+        await readFile(join(root, 'chromium-seccomp.json'), 'utf8'),
+        '{"defaultAction":"SCMP_ACT_ERRNO"}',
+      );
+      await writeFile(join(root, 'sniper.env'), 'SUPABASE_ANON_KEY=""\n');
+      await writeFile(log, '');
+      const missingKey = await runDeploy({
+        ...process.env,
+        PATH: `${bin}:${process.env.PATH ?? ''}`,
+        FLIPBASE_DEPLOY_DIR: root,
+        FLIPBASE_SNIPER_COMPOSE_FILE: join(root, 'docker-compose.sniper.yml'),
+        SSH_ORIGINAL_COMMAND: 'sniper sha-7654321',
+        DOCKER_LOG: log,
+        EXPECTED_SNIPER_IMAGE: 'ghcr.io/grischatdev/flipbase-sniper:sha-7654321',
+      });
+      assert.notEqual(missingKey.code, 0);
+      assert.match(missingKey.stderr, /SUPABASE_ANON_KEY fehlt/);
+      assert.doesNotMatch(await readFile(log, 'utf8'), /up -d/);
     } finally {
       await rm(root, { force: true, recursive: true });
     }

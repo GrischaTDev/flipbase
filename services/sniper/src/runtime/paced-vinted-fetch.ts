@@ -7,15 +7,22 @@ export interface VintedRequestTiming {
   now?: () => number;
   sleep?: Sleep;
 }
+export interface VintedNavigationTiming {
+  remainingDelay(): number;
+  recordManualNavigation(): void;
+}
 
 /** Gemeinsamer Abstand fuer Katalog, Wiederholungen und Kategorieabrufe. */
-export function pacedVintedFetch(fetchFn: FetchLike, timing: VintedRequestTiming): FetchLike {
+export function pacedVintedFetch(
+  fetchFn: FetchLike,
+  timing: VintedRequestTiming,
+): FetchLike & VintedNavigationTiming {
   const now = timing.now ?? (() => performance.now());
   const wait = timing.sleep ?? sleep;
   let lastStarted = -Infinity;
   let previous: Promise<void> = Promise.resolve();
 
-  return (input, init) => {
+  const fetch: FetchLike = (input, init) => {
     const request = previous.then(async () => {
       init?.signal?.throwIfAborted();
       const remaining = timing.minimumIntervalMs - (now() - lastStarted);
@@ -38,4 +45,10 @@ export function pacedVintedFetch(fetchFn: FetchLike, timing: VintedRequestTiming
     );
     return request;
   };
+  return Object.assign(fetch, {
+    remainingDelay: () => Math.max(0, timing.minimumIntervalMs - (now() - lastStarted)),
+    recordManualNavigation: () => {
+      lastStarted = now();
+    },
+  });
 }

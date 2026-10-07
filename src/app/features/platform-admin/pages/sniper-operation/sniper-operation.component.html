@@ -13,13 +13,15 @@
       <div class="flex flex-col gap-4">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <h2 class="text-base font-semibold text-fb-text-primary">Vinted-Zugriff</h2>
-          <app-badge [tone]="uptimeSeconds !== null ? 'success' : 'caution'">
+          <app-badge [tone]="uptimeSeconds !== null && !manualRequired() ? 'success' : 'caution'">
             {{
               state.stale() || state.error()
                 ? 'Betriebsstand unbestätigt'
-                : uptimeSeconds !== null
-                  ? 'Vinted verbunden'
-                  : 'Vinted nicht bestätigt'
+                : manualRequired()
+                  ? 'Manuelle Prüfung erforderlich'
+                  : uptimeSeconds !== null
+                    ? 'Vinted verbunden'
+                    : 'Vinted nicht bestätigt'
             }}
           </app-badge>
         </div>
@@ -54,8 +56,27 @@
               </p>
             }
           </div>
-          <app-button link="/admin/vinted-bot/queries">Markenfilter verwalten</app-button>
+          <div class="flex flex-wrap gap-2">
+            @if (manualRequired()) {
+              <app-button
+                variant="primary"
+                [disabled]="
+                  browserOpen() ||
+                  (browserStatus()?.state === 'manual' && !browserStatus()?.sessionId)
+                "
+                (clicked)="browserOpen.set(true)"
+                >Vinted-Zugriff prüfen</app-button
+              >
+            }
+            <app-button link="/admin/vinted-bot/queries">Markenfilter verwalten</app-button>
+          </div>
         </div>
+        @if (browserStatus()?.message; as message) {
+          <p role="status" class="text-sm text-fb-text-secondary">{{ message }}</p>
+        }
+        @if (browserError(); as message) {
+          <p role="alert" class="text-sm text-fb-critical">{{ message }}</p>
+        }
         @if (state.runtime()?.last_cycle_error; as failure) {
           <p role="status" class="text-sm text-fb-critical">Letzter Durchlauf: {{ failure }}</p>
         }
@@ -89,7 +110,8 @@
             <p class="font-medium">{{ query.title }} · {{ statusLabel(query) }}</p>
             @if (query.next_attempt_at) {
               <p class="text-fb-text-secondary">
-                Nächste Wiederprüfung: {{ query.next_attempt_at | date: 'dd.MM.yyyy, HH:mm:ss' }}
+                {{ manualRequired() ? 'Frühester manueller Abruf' : 'Nächste Wiederprüfung' }}:
+                {{ query.next_attempt_at | date: 'dd.MM.yyyy, HH:mm:ss' }}
               </p>
             }
             @if (query.run_state === 'invalid') {
@@ -127,9 +149,10 @@
             </div>
           </dl>
           <p>
-            Alle Marken teilen sich den Zugriff und das Anfragebudget. Bei einer Zugriffspause prüft
-            der Bot mit einer einzelnen Anfrage, ob Vinted wieder erreichbar ist. Vorgaben des
-            Anbieters haben Vorrang.
+            Alle Marken teilen sich den Zugriff und das Anfragebudget. Bei einer bestätigten
+            Prüfseite bleibt der Bot bis zur manuellen Prüfung pausiert. Andere vorübergehende
+            Zugriffspausen werden mit einer einzelnen Anfrage geprüft. Vorgaben des Anbieters haben
+            Vorrang.
           </p>
           <p>
             Eine aktuelle Betriebsmeldung bestätigt den laufenden Dienst. Erfolgreiche
@@ -163,3 +186,6 @@
     </app-card>
   }
 </section>
+@if (browserOpen()) {
+  <app-sniper-browser-connect (closed)="closeBrowser()" />
+}
