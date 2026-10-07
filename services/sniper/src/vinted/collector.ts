@@ -29,7 +29,10 @@ export class VintedCollector {
     private readonly connectionState?: VintedConnectionState,
   ) {}
 
-  async collect(query: SniperQuery): Promise<MarketplaceListing[]> {
+  async collect(
+    query: SniperQuery,
+    options: { allowRetries?: boolean } = {},
+  ): Promise<MarketplaceListing[]> {
     const titleMatches = createTitleKeywordMatcher(
       query.titleKeywords ?? [],
       query.keywordMode ?? 'all',
@@ -37,7 +40,7 @@ export class VintedCollector {
     const url = buildVintedCatalogUrl(query, this.options.baseUrl);
 
     try {
-      const response = await this.request(url, query.id);
+      const response = await this.request(url, query.id, options.allowRetries ?? true);
       const body = await response.text();
 
       // Challenge-Erkennung: Cloudflare oder Datadome kann bei HTTP 200 eine Challenge-Seite ausliefern
@@ -76,7 +79,7 @@ export class VintedCollector {
     }
   }
 
-  private async request(url: URL, queryId?: string): Promise<Response> {
+  private async request(url: URL, queryId?: string, allowRetries = true): Promise<Response> {
     let retryIndex = 0;
 
     for (;;) {
@@ -110,7 +113,7 @@ export class VintedCollector {
         });
       }
 
-      if (response.status >= 500 && retryIndex < RETRY_DELAYS_MS.length) {
+      if (response.status >= 500 && allowRetries && retryIndex < RETRY_DELAYS_MS.length) {
         await this.sleepFn(RETRY_DELAYS_MS[retryIndex]!);
         retryIndex += 1;
         continue;

@@ -2,6 +2,7 @@ import 'dotenv/config';
 
 import { loadConfig } from './config.js';
 import { ChromeVintedBrowser } from './browser/vinted-browser.js';
+import { BrowserSessionController } from './browser/browser-session.js';
 import { createHealthState, startHealthServer } from './health.js';
 import { createLogger } from './log.js';
 import { RequestBudget } from './runtime/budget.js';
@@ -55,6 +56,17 @@ const queries = new QueryStore(client);
 const originState = new OriginStateStore(client);
 const categories = new CategoryStore(client);
 const listings = new ListingStore(client);
+const collector = new VintedCollector(sessionOptions, counted, sleep, vintedConnection);
+const browserSession = new BrowserSessionController({
+  baseUrl: config.vintedBaseUrl,
+  minimumIntervalMs: config.requestMinIntervalMs,
+  browser,
+  originState,
+  queries,
+  listings,
+  collector,
+  budget,
+});
 const retention = new ListingRetention(() => listings.purgeExpired(), log);
 const evaluator = new WatchlistEvaluator({
   listings: {
@@ -73,7 +85,7 @@ const scheduler = new QueryScheduler({
     markSeeded: (id) => queries.markSeeded(id),
   },
   originState,
-  collector: new VintedCollector(sessionOptions, counted, sleep, vintedConnection),
+  collector,
   listings,
   budget,
   log,
@@ -115,51 +127,61 @@ while (!controller.signal.aborted) {
     // vorher mit `hasCapacity()` um Erlaubnis, genau wie der Taktgeber vor
     // jeder Abfrage. Nur mitzaehlen ohne fragen hiesse: Diese eine Anfrage
     // laesst sich nie verweigern, verbraucht aber das Budget der anderen.
-    await refreshCategoriesIfDue(
-      {
-        store: categories,
-        originState,
-        hasCapacity: () => budget.hasCapacity(),
-        fetchHomepage: async () => {
-          try {
-            const response = await counted(config.vintedBaseUrl);
-            const retryAfterSeconds = parseRetryAfter(response.headers.get('retry-after'));
-            if (response.status === 403 || response.headers.get('cf-mitigated') === 'challenge') {
-              throw new ForbiddenError('Vinted refused the category request', {
-                status: response.status,
-                challengeDetected: response.headers.get('cf-mitigated') === 'challenge',
-                retryAfterSeconds,
-              });
+    const report = (await browserSession.runAutomatic(async () => {
+      await refreshCategoriesIfDue(
+        {
+          store: categories,
+          originState,
+          hasCapacity: () => budget.hasCapacity(),
+          fetchHomepage: async () => {
+            try {
+              const response = await counted(config.vintedBaseUrl);
+              const retryAfterSeconds = parseRetryAfter(response.headers.get('retry-after'));
+              if (response.status === 403 || response.headers.get('cf-mitigated') === 'challenge') {
+                throw new ForbiddenError('Vinted refused the category request', {
+                  status: response.status,
+                  challengeDetected: response.headers.get('cf-mitigated') === 'challenge',
+                  retryAfterSeconds,
+                });
+              }
+              if (response.status === 429)
+                throw new RateLimitedError(undefined, { retryAfterSeconds });
+              if (!response.ok) throw new Error(`HTTP ${response.status}`);
+              const html = await response.text();
+              if (
+                html.includes('challenge-running') ||
+                html.includes('<title>Just a moment...</title>')
+              ) {
+                throw new ForbiddenError('Vinted category challenge detected', {
+                  status: response.status,
+                  phase: 'body',
+                  challengeDetected: true,
+                  retryAfterSeconds,
+                });
+              }
+              vintedConnection.recordSuccess();
+              return html;
+            } catch (error) {
+              vintedConnection.recordFailure();
+              throw error;
             }
-            if (response.status === 429)
-              throw new RateLimitedError(undefined, { retryAfterSeconds });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            const html = await response.text();
-            if (
-              html.includes('challenge-running') ||
-              html.includes('<title>Just a moment...</title>')
-            ) {
-              throw new ForbiddenError('Vinted category challenge detected', {
-                status: response.status,
-                phase: 'body',
-                challengeDetected: true,
-                retryAfterSeconds,
-              });
-            }
-            vintedConnection.recordSuccess();
-            return html;
-          } catch (error) {
-            vintedConnection.recordFailure();
-            throw error;
-          }
+          },
+          maxAgeMs: config.categoryMaxAgeMs,
+          log,
         },
-        maxAgeMs: config.categoryMaxAgeMs,
-        log,
-      },
-      now,
-    );
+        now,
+      );
 
-    const report = await scheduler.runOnce(now);
+      return scheduler.runOnce(now);
+    })) ?? {
+      polled: 0,
+      skippedForBudget: 0,
+      newListings: 0,
+      seeded: 0,
+      failed: 0,
+      newHits: 0,
+      originPause: { reason: 'interaction_required', until: null },
+    };
     health.recordCycle(report, now);
     if (report.failed > 0)
       cycleError = 'Der Sammeldurchlauf enthält Fehler. Bitte Aufträge und Dienstprotokoll prüfen.';
@@ -173,7 +195,10 @@ while (!controller.signal.aborted) {
       const nextAttempt = report.originPause.until
         ? `${new Date(report.originPause.until).toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })} Uhr (deutscher Zeit)`
         : 'der nächsten verfügbaren Gelegenheit';
-      cycleError = `${reason}. Automatische Wiederprüfung ab ${nextAttempt}.`;
+      cycleError =
+        report.originPause.reason === 'interaction_required'
+          ? 'Manuelle Prüfung erforderlich. Öffne die Botsitzung im Adminbereich. Der Bot bleibt bis zum bestätigten Katalogzugriff pausiert.'
+          : `${reason}. Automatische Wiederprüfung ab ${nextAttempt}.`;
     }
   } catch (error) {
     // Eine gescheiterte Runde beendet den Dienst nicht. Der naechste Takt

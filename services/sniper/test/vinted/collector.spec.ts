@@ -149,6 +149,11 @@ describe('VintedCollector', () => {
 
     expect(delays).toEqual([500, 1000]);
   });
+  it('uses exactly one request when verifying a manually approved session', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(new Response('', { status: 503 }));
+    await expect(build(fetchFn).collect(query, { allowRetries: false })).rejects.toThrow();
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
 
   it('rejects a response that violates the schema', async () => {
     const fetchFn = vi.fn().mockResolvedValueOnce(Response.json({ items: [{ nope: true }] }));
