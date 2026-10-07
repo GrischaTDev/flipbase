@@ -29,6 +29,7 @@ export interface VintedAccountImport {
   areas: VintedImportAreas;
   rejectedSaleIds?: string[];
   sourceRequestCount?: number;
+  browserReadFailures?: VintedBrowserReadFailure[];
 }
 
 export interface VintedConversationVersion {
@@ -68,14 +69,34 @@ export type VintedRequestFailure =
   | 'network'
   | 'browser_context';
 
+export type VintedBrowserReadFailure = 'navigation' | 'closed' | 'script' | 'unknown';
+
+function classifyBrowserReadFailure(error: unknown): VintedBrowserReadFailure {
+  const message = error instanceof Error ? error.message : '';
+  if (
+    message.includes('Execution context was destroyed') ||
+    message.includes('Cannot find context with specified id')
+  )
+    return 'navigation';
+  if (message.includes('Target page, context or browser has been closed')) return 'closed';
+  if (message.includes('ReferenceError') || message.includes('TypeError')) return 'script';
+  return 'unknown';
+}
+
 export class VintedImportRequestError extends Error {
   readonly reason: VintedRequestFailure;
   readonly retryAfter?: string;
+  readonly browserReadFailure?: VintedBrowserReadFailure;
 
-  constructor(reason: VintedRequestFailure, retryAfter?: string) {
+  constructor(
+    reason: VintedRequestFailure,
+    retryAfter?: string,
+    browserFailure?: VintedBrowserReadFailure,
+  ) {
     super('Vinted-Datenantwort nicht verfügbar');
     this.reason = reason;
     this.retryAfter = retryAfter;
+    this.browserReadFailure = browserFailure;
   }
 }
 
@@ -423,9 +444,16 @@ export function parseVintedAccountImport(
 interface SourceReadContext {
   count: number;
   blocked?: VintedImportRequestError;
+  authorize: () => Promise<void>;
+  browserFailures: VintedBrowserReadFailure[];
 }
 
-async function vintedJson(page: Page, path: string, context?: SourceReadContext): Promise<unknown> {
+async function vintedJson(
+  page: Page,
+  path: string,
+  context?: SourceReadContext,
+  hasRetriedNavigation = false,
+): Promise<unknown> {
   if (context?.blocked) throw context.blocked;
   if (context) context.count++;
   let result: unknown;
@@ -484,8 +512,37 @@ async function vintedJson(page: Page, path: string, context?: SourceReadContext)
         return failure('invalid_response');
       }
     }, path);
-  } catch {
-    throw new VintedImportRequestError('browser_context');
+  } catch (error) {
+    const failure = classifyBrowserReadFailure(error);
+    if (context && context.browserFailures.length < 8) context.browserFailures.push(failure);
+    // Nur unterbrochene GETs im selben angemeldeten Dokument einmal wiederholen.
+    if (failure === 'navigation' && !hasRetriedNavigation && !page.isClosed()) {
+      await context?.authorize();
+      try {
+        // Der alte Ladezustand kann vor dem neuen Navigations-Commit noch "geladen" sein.
+        const documentReady = await page.waitForFunction(
+          () => document.readyState !== 'loading',
+          undefined,
+          { timeout: 12_000 },
+        );
+        await documentReady.dispose();
+      } catch (loadError) {
+        throw new VintedImportRequestError(
+          'browser_context',
+          undefined,
+          classifyBrowserReadFailure(loadError),
+        );
+      }
+      const address = new URL(page.url());
+      if (
+        address.origin === 'https://www.vinted.de' &&
+        !address.pathname.startsWith('/member/login')
+      ) {
+        await context?.authorize();
+        return vintedJson(page, path, context, true);
+      }
+    }
+    throw new VintedImportRequestError('browser_context', undefined, failure);
   }
   const reason = record(result)?.['flipbaseRequestFailure'];
   if (
@@ -562,7 +619,7 @@ export async function readVintedAccountImport(
   onStage?: (stage: 'profile' | 'publications' | 'conversations' | 'sales') => Promise<void>,
   previousConversations: VintedConversationVersion[] = [],
 ): Promise<VintedAccountImport> {
-  const reads: SourceReadContext = { count: 0 };
+  const reads: SourceReadContext = { count: 0, authorize, browserFailures: [] };
   await atImportStage('navigation', async () => {
     try {
       if (new URL(page.url()).origin === 'https://www.vinted.de') return;
@@ -727,6 +784,10 @@ export async function readVintedAccountImport(
       feedbacks.values,
       areas,
     );
-    return { ...snapshot, sourceRequestCount: reads.count };
+    return {
+      ...snapshot,
+      sourceRequestCount: reads.count,
+      ...(reads.browserFailures.length ? { browserReadFailures: reads.browserFailures } : {}),
+    };
   });
 }
