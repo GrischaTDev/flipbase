@@ -4,8 +4,9 @@
 
 **Freigabe:** Der Nutzer bestätigt Entwurf, Umsetzungsplan und die Umsetzung in
 dieser Sitzung mit einer unabhängigen Gesamtprüfung. Die ausdrückliche Ausnahme
-für den Node-Bot gilt weiterhin. Veröffentlichung und Servervorbereitung folgen
-erst nach der gesonderten PR-Freigabe.
+für den Node-Bot gilt weiterhin. Nach den erfolgreichen lokalen Prüfungen
+bestätigt der Nutzer die PR-Erstellung, den Merge nach erfolgreichen
+Pflichtprüfungen sowie die anschließende Servervorbereitung und Veröffentlichung.
 
 **Änderung:** Eigener nativer Chrome mit persistentem Botprofil. Automatische
 Dokumentabrufe führen keine Seitenskripte aus. Bestätigte Prüfseiten sperren alle
@@ -50,7 +51,7 @@ Workerprüfungen bei sieben bestehenden Ausnahmen, Worker-Typprüfung und -Bau.
 Der Betreiber muss das geprüfte Deployskript und den öffentlichen Auth-Key vor
 der ersten Veröffentlichung bereitstellen. Keine produktive Browserfreigabe und
 keine wiederhergestellte Liveverbindung behauptet. Die unabhängige Gesamtprüfung
-ist mit den geprüften Korrekturen abgeschlossen; die PR-Freigabe steht noch aus.
+ist mit den geprüften Korrekturen abgeschlossen; die PR-Freigabe liegt vor.
 
 ## 2026-10-07 - Juna - Eigene Browsersitzung für den Artikelbot entwerfen
 
