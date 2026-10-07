@@ -108,6 +108,16 @@ unter Kontoeinstellungen die Automatik fortsetzen. Ein erfolgreicher geplanter
 Abruf über den Proxy ist noch nicht bestätigt. Kein automatischer Nachrichten-
 oder Angebotsversand und kein anderer Kontoterminplan wurden aktiviert.
 
+## 2026-10-07 - Juna - Borg-Umbau umgesetzt und vollständigen Restore geprüft
+
+**Auftrag:** Den recherchierten schlanken Backup-Aufbau auf dem vorhandenen zweiten Server umsetzen.
+
+**Umsetzung:** Ein aktueller Rohstand auf dem Hauptserver statt täglich neuer Bild-Vollarchive. Der Backupserver holt neue Stände über einen eigenen, auf seine IP und `rrsync -ro` beschränkten Leseschlüssel. Borg, Repository-Zugang und Bereinigung bleiben vollständig auf dem Backupserver; der Hauptserver erhält keine Borg-Passphrase und keinen Repo-Löschzugriff. Nach vollständigem Zurücklesen und Prüfsummenvergleich bestätigt eine kleine Datei den Stand; erst dann darf die Quelle ihren Vorgänger ersetzen. Bereits bestätigte Stände übertragen bei weiteren Abfragen nur das Manifest. Fehler, beschädigte Inhalte, veränderte Storage-Daten und Stände älter als 26 Stunden werden abgewiesen. Sieben Tages- und vier zusätzliche Wochenstände, drei vorhandene Release-Abzüge und begrenzter Altbestand; die strikte Migrationssicherung bleibt erhalten. PostgreSQL-Konfiguration mit dem separaten pgsodium-Schlüssel wird ebenfalls erfasst. Eine rootgeschützte Bestätigungsdatei wird atomar publiziert, ohne Verknüpfungen im Uploadordner zu folgen.
+
+**Pilot und Prüfung:** Borg 1.2.8 aus den Ubuntu-Paketen auf dem zweiten Server eingerichtet, ohne bestehende Pakete zu aktualisieren oder Anwendungscontainer neu zu starten. Neuer vollständiger Stand mit 261 Dateien und rund 403 MB Rohinhalt erfolgreich übertragen und aus Borg zurückgelesen. Zwei Pilotstände haben zusammen 309.855.298 komprimierte Bytes, tatsächlich 156.986.506 eindeutige komprimierte Bytes; Repo-Verzeichnis 157.097.984 Bytes. Repository-Limit 8.000.000.000 Bytes. Isolierter Restore mit dem identischen Supabase-PG17-Abbild erfolgreich: 105 öffentliche Tabellen, vier Auth-Konten, 117 Storage-Objekte, passende Storage-Metadaten und sämtliche 117 referenzierten Bilddateien vorhanden. PostgreSQL-17-Grantor erfordert denselben Bootstrap-Superuser `supabase_admin`; nur dessen vorhandene CREATE-ROLE-Zeile wird übersprungen, alle übrigen SQL-Fehler bleiben strikt. Recovery-Paket verschlüsselt auf beiden Servern abgelegt und nach Entschlüsselung ausschließlich per Hash mit den Originalen verglichen; keine Schlüssel oder Datensätze ausgegeben. 11 neue Schutztests und 18 bestehende Retention-Tests unter Linux erfolgreich; neue Workflow-Datei gelintet und formatiert. Fremde Shellbefehle über den Leseschlüssel abgewiesen.
+
+**Stand:** Neue Zeitpläne und Umschaltung sind vorbereitet, aber noch nicht aktiviert; bestehende Nachtläufe und Altstände bleiben bis zum freigegebenen PR bestehen. Betriebsanleitung enthält Installation, Rückfallweg, einen wöchentlichen lokalen Restore-Test und den separaten Test eines tatsächlich aus Borg extrahierten Stands. Eine dritte unabhängige Schlüsselkopie außerhalb beider Server bleibt nicht verifiziert.
+
 ## 2026-10-07 - Juna - Vinted-Anmeldemodal 1:1 an freigegebenen Entwurf angleichen
 
 **Auftrag:** Das Vinted-Anmeldemodal exakt an den freigegebenen Polaris-Entwurf
@@ -166,6 +176,36 @@ Anmeldewege verständlich strukturieren.
 (inkl. AXE-Barrierefreiheit) und 50 Tests in `vinted-workspace` bestehen. TypeScript-
 Typprüfung, ESLint, Prettier-Formatierung und `scripts/check-admin-shared-ui.mjs`
 bestehen fehlerfrei (0 Findings).
+
+## 2026-10-07 - Juna - Zweiten Server gezielt bereinigt
+
+**Auftrag:** Im Zuge der Speicher- und Sicherungsanalyse auch auf dem zweiten Server Platz freigeben.
+
+**Umsetzung:** Nach konkreter Vorschau 73 ältere verschlüsselte Release-Abzüge mit 10.389.338.139 Bytes entfernt. Die neuesten drei Release-Abzüge und alle täglichen Sicherungen bleiben erhalten. Sämtliche 24 auf dem Hauptserver aufbewahrten Sicherungsdateien vor und nach der Bereinigung per SHA-256 mit dem zweiten Server abgeglichen. Neun eindeutig dem Agency-Care-Worker zugeordnete, ungetaggte und von keinem Container verwendete Images ohne Erzwingen entfernt; aktives Image, Compose-Referenzen und zwei zusätzliche Vorgängerversionen geschützt. Archivierte Systemjournale nach Rotation auf etwa 476 MiB reduziert. Keine Volumes, Container, Anwendungsdaten oder VS-Code-Installationen gelöscht.
+
+**Prüfung:** Root-Belegung von 90 auf 59 Prozent, verfügbare Bytes von 3.951.255.552 auf 15.715.565.568; insgesamt 11.764.310.016 Bytes beziehungsweise etwa 10,96 GiB freigegeben. Alle sechs Container haben nachher dieselben IDs, Images, Laufzustände und Startzeiten. Vorschau und Ergebnis als rootgeschützte JSON-Protokolle auf dem zweiten Server abgelegt. Die vorhandene altersbasierte Backup-Cronregel und die Sicherungsarchitektur wurden bei diesem einmaligen Lauf nicht umgestellt; die dauerhafte neue Aufbewahrung bleibt Teil des Vorschlags.
+
+## 2026-10-07 - Juna - Borg mit Restic, Kopia und gehosteten Sicherungszielen verglichen
+
+**Auftrag:** Prüfen, ob Borg die passende Wahl ist oder eine andere Sicherungslösung für Flipbase besser passt.
+
+**Ergebnis:** Herstellerdokumentation zu Borg, Restic, Kopia und BorgBase verglichen und das Recherchepapier ergänzt. Borg bleibt der bevorzugte Kandidat für den vorhandenen SSH-Backupserver; Restic ist die passendere Option bei einem direkt S3-basierten Sicherungsziel. Ein späterer S3-Bildspeicher allein erzwingt keinen Werkzeugwechsel. Gehostete Repositorys reduzieren Zielserver-Wartung, ersetzen aber weder den konsistenten PostgreSQL-Abzug noch die Einrichtung und Restore-Prüfung des eigenen Laufs. Keine produktiven Installationen, Löschungen oder Änderungen; keine pauschale Leistungsüberlegenheit ohne Benchmark behauptet.
+
+## 2026-10-07 - Juna - Sicherungsvorschlag auf kleine Web-App und Objektspeicher zugeschnitten
+
+**Auftrag:** Übrigen Platzverbrauch auf dem Backupserver erklären und eine schlanke Lösung für ein Ein-Personen-Projekt ohne aktuelle Nutzer, später 50–100 Nutzer, einschließlich Blob-/Objektspeicher recherchieren.
+
+**Analyse:** Ausschließlich lesende Verzeichnisgrößen und Docker-Summen auf dem zweiten Server geprüft: 38-GiB-Partition, 33 GiB belegt, 91 Prozent. Etwa 14 GiB Flipbase-Sicherungen, 8 GiB Docker-Verzeichnis, 4,6 GiB VS-Code-Server/Insiders, 2,1 GiB Logs und 2,3 GiB Systemdateien. Die Maschine betreibt auch n8n und weitere Dienste. Docker meldet 3,971 GB theoretisch freigebbare Images; keine pauschale Löschung vorgenommen. Herstellerquellen zu Supabase-S3, R2-Tarifen/EU-Speicherort, Hetzner Storage Box/Object Storage und Blob-Datenhaltung geprüft.
+
+**Vorschlag:** Den pauschalen Stunden-Aufbau im Recherchepapier durch einen täglichen Startlauf mit sieben Tages- und vier Wochenständen, drei geschützten Release-Punkten und Wiederverwendung unveränderter Dateien ersetzt. Vor echten Nutzern Verlustziel erneut festlegen. Bestehenden Backupserver zunächst nach begrenzter Bereinigung weiterverwenden, keine zusätzliche Bestellung voraussetzen. R2 als Kandidat für private Bilddateien über das bestehende Supabase-Backend erläutert; ein explizites 25-GB-Nutzungsbeispiel ergibt ungefähr 0,23 USD reine monatliche Speicherkosten nach Freikontingent, ohne zusätzliche Anfragen/Dienste/Backups/Steuern. Keine Umwandlung in Programmcode und keine automatische Fotokomprimierung durch Objektspeicher. Keine Infrastruktur, Zugangsdaten, produktiven Sicherungen oder Kundendaten verändert.
+
+## 2026-10-07 - Juna - Sicherungskonzept recherchiert und beide Server geprüft
+
+**Auftrag:** Ermitteln, welche Sicherungen Flipbase tatsächlich benötigt und wie Wiederherstellungspunkte platzsparend und sicher aufbewahrt werden.
+
+**Analyse:** BSI-, Behörden-, Supabase-, PostgreSQL-, Restic- und pgBackRest-Dokumentation recherchiert. Beide Server ausschließlich lesend geprüft: Nächtliche Sicherung um 03:30 Uhr, sieben lokale Sätze, drei lokale Release-Abzüge, etwa 2,4 GiB lokale Sicherungen. PostgreSQL-Archivierung ist ausgeschaltet. Der Backupserver meldet 90 Prozent Belegung; rund 14 GiB Flipbase-Sicherungen, darunter 76 Release-Abzüge mit 9,98 GiB. Die dortige 30-Tage-Regel begrenzt das Alter, nicht die Zahl der Release-Abzüge. Erzwungenes `rrsync -wo -no-del` bestätigt. Der lokale abweichende Hosteintrag wurde nicht überschrieben: Die ED25519-Identität wurde über den bereits vertrauten Produktionsserver abgeglichen und für die lesende Prüfung temporär festgelegt. Keine privaten Schlüssel oder Kundendaten gelesen.
+
+**Ergebnis:** `deploy/BACKUP-STRATEGY.md` enthält den konkreten Vorschlag einschließlich Verlustziel, deduplizierter Dateisicherung, begrenzter Release-Aufbewahrung, unabhängiger Kopie, vollständigen Restore-Tests, Datenbank-/Storage-Konsistenz und unverändertem Schutz gegen Löschen durch den Anwendungsserver. Die Rückfrage zum tolerierbaren Datenverlust ist noch offen. Vor einer Restic-Umstellung müssen Backend, Initialplatz und vollständige Wiederherstellung nachgewiesen werden. Keine produktiven Änderungen oder Löschungen; eigener Recherchezweig, fremde Zweige unverändert.
 
 ## 2026-10-07 - Juna - Cloud-PR freigeben und Browserprüfung eindeutig machen
 

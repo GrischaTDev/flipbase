@@ -1,0 +1,4 @@
+# Prüft wöchentlich eine private Kopie; verändert weder Quelle noch Produktion.
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+30 4 * * 0 root /usr/bin/python3 -B /opt/flipbase/test-backup-restore.py /var/backups/flipbase-snapshot/current >> /var/log/flipbase-backup-restore.log 2>&1

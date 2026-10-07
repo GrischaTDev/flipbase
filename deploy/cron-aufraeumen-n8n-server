@@ -1,7 +1,5 @@
-# Entfernt ausgelagerte Flipbase-Sicherungen, die aelter als 30 Tage sind.
-#
-# Bewusst hier und nicht auf dem Flipbase-Server: Dessen Schluessel darf nur
-# hinzufuegen. So kann ein Angreifer dort die Kopien nicht mit loeschen.
+# Borg läuft ausschließlich auf dem Backupserver. Der Hauptserver besitzt keinen Repo-Zugang.
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
-15 4 * * * root find /srv/flipbase-backup/daten -type f -name '*.age' -mtime +30 -delete
+40 * * * * root /usr/bin/python3 -B /opt/flipbase-backup/backup-server.py >> /var/log/flipbase-backup-pull.log 2>&1
+15 4 * * * root /usr/bin/python3 -B /opt/flipbase-backup/backup-server.py --cleanup-legacy >> /var/log/flipbase-backup-retention.log 2>&1
