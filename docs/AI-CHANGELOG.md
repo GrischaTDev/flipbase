@@ -61,6 +61,14 @@ begrenzt. Die neuen Fremdschlüssel treffen produktiv auf keine ungültigen
 arbeitsbereichsübergreifenden Beziehungen. Servervorbereitung und Veröffentlichung
 werden vor dem Merge geprüft.
 
+Das rootgeschützte Deployskript und das Auth-Overlay sind nach Sicherung auf dem
+Server vorbereitet. Direkte API-Kontrollen mit einem anschließend entfernten
+Testkonto liefern 400 ohne bisheriges Passwort, 400 bei falschem Passwort und
+200 bei korrektem Passwort. Zwei alte Beta-OTP-Sitzungen werden über den nativen
+Logout widerrufen; normale Passwortsitzungen bleiben erhalten. Der produktive
+Auth-Dienst kennzeichnet bestätigte Reset-Links als `otp`; die Passwortseite
+berücksichtigt diese verifizierte Sitzungsart, mit eigener Angular-Regression.
+
 ## 2026-10-07 - Juna - Fehler beim erneuten Cloud-Seitenaufruf sichtbar machen
 
 **Auftrag:** Den freigegebenen Cloud-Abruf-Fix veröffentlichen und mehrere

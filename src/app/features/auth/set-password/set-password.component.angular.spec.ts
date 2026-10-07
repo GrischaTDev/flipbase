@@ -227,7 +227,7 @@ describe('SetPasswordComponent', () => {
     expect(updateUser).not.toHaveBeenCalled();
   });
 
-  it.each(['invite', 'recovery'])(
+  it.each(['invite', 'recovery', 'otp'])(
     'erhält die serverbestätigte %s-Passwortvergabe',
     async (method) => {
       const { component, updateUser, signOut, signInWithPassword } = createComponent({ method });

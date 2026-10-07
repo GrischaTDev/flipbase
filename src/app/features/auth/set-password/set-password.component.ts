@@ -199,6 +199,7 @@ export class SetPasswordComponent implements OnInit {
     if (this.authService.canAccessApp()) {
       const { data, error } = await this.supabase.client.auth.getClaims();
       const methods: unknown = data?.claims.amr;
+      // GoTrue kennzeichnet auch bestätigte Einladungs- und Recovery-Links als OTP.
       isVerifiedPasswordSetup =
         !error &&
         Array.isArray(methods) &&
@@ -207,7 +208,7 @@ export class SetPasswordComponent implements OnInit {
             method !== null &&
             typeof method === 'object' &&
             'method' in method &&
-            ['invite', 'recovery'].includes(String(method.method)),
+            ['invite', 'recovery', 'otp'].includes(String(method.method)),
         );
     }
     // Diese Anzeige ersetzt nicht die serverseitige Prüfung des bisherigen Passworts.
