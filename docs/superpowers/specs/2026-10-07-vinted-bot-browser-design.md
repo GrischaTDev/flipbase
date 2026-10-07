@@ -72,8 +72,10 @@ oder Proxyrotation sind kein Bestandteil.
 ## Pause und Wiederaufnahme
 
 1. Ein bestätigtes `cf-mitigated: challenge` oder die bestehende bestätigte
-   Prüfseitenerkennung setzt `sniper_origin_state` auf `blocked`, ohne Ablaufzeit,
-   mit Grund `interaction_required`. Die vorhandenen Fehler- und Abrufdaten
+   Prüfseitenerkennung setzt `sniper_origin_state` auf `blocked`, ohne automatische
+   Ablaufzeit, mit Grund `interaction_required`. Ein vorhandenes `Retry-After`
+   wird als frühester Zeitpunkt einer manuellen Navigation gespeichert; dessen
+   Ablauf hebt die Sperre nicht auf. Die vorhandenen Fehler- und Abrufdaten
    bleiben sichtbar.
 2. Scheduler und Kategorieauffrischung respektieren diesen Grund dauerhaft.
    Bestehende alte Sperren behalten ihre bisherige Behandlung. Andere 403,

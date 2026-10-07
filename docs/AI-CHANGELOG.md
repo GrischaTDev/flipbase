@@ -1,5 +1,145 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-07 - Juna - Eigene Browsersitzung für den Artikelbot entwerfen
+
+**Freigabe:** Der Nutzer erlaubt ausdrücklich Änderungen am serverseitigen
+Node-Bot als Ausnahme zur allgemeinen Frontend-Grenze. Die vorgeschlagene
+eigene Botsitzung mit manueller Prüfung wird als konkreter Entwurf ausgearbeitet.
+
+**Entwurf:** Persistentes eigenes Chrome-Profil, dauerhafte gemeinsame Pause
+bei bestätigter Prüfseite und exklusiver manueller Zugriff im Adminbereich.
+Wiederaufnahme erst nach erfolgreich geparstem und revisionsgesichert
+angenommenem Katalog. Die heutige Behandlung alter `blocked`-Zustände würde
+sonst neue Proben starten; der neue Grund `interaction_required` muss deshalb
+gezielt dauerhaft respektiert werden. Kategorieabrufe und manuelle Bedienung
+teilen die Abrufsperre. Betreiberrechte werden bei jedem Browser-API-Aufruf
+serverseitig geprüft. Persönliche Kontositzungen bleiben getrennt.
+
+**Stand:** Der Nutzer hat den schriftlichen Entwurf ausdrücklich freigegeben.
+Der konkrete Umsetzungsplan liegt unter
+`docs/superpowers/plans/2026-10-07-vinted-bot-browser.md`: sechs Aufgaben mit
+Schnittstellen, Regressionstests, Authentifizierung, UI und Releasevertrag.
+Die Prüfung konkretisiert im Entwurf, dass ein `Retry-After` den frühesten
+manuellen Abruf bestimmt, die dauerhafte Sperre aber nicht automatisch aufhebt.
+Plan und Schnittstellen sind intern gegen den Entwurf geprüft; Planfreigabe
+und Ausführungswahl stehen aus. Keine Produktcode-, Schema-, Paket- oder
+Releaseänderungen und keine weiteren produktiven Vinted-Anfragen. Formatierung
+und Git-Diff bestehen; Anwendungstests sind noch nicht sinnvoll.
+
+## 2026-10-07 - Juna - Erneute Ablehnungen und regulären Chrome-Vergleich prüfen
+
+**Auftrag:** Nach dem fehlgeschlagenen ersten langsameren Abrufversuch die
+Reparatur weiter untersuchen. Der Nutzer bestätigt den zentralen Artikelbot
+im Adminbereich, nicht die persönlichen Kontoverbindungen.
+
+**Befund:** Auch die automatischen Proben um 12:59:50 und 13:04:51 Uhr scheitern
+mit HTTP 403 und erkannter Cloudflare-Prüfseite. Die aktuellen Suchbedingungen
+erzeugen weiterhin denselben Kategorie-/Markenabruf; die Ablehnung geschieht
+vor Parser und Titelprüfung. Die passive Socketbeobachtung erfasst die kurze
+Vinted-Verbindung nicht und beweist deshalb deren tatsächliche IP-Familie nicht.
+
+**Browservergleich:** „Nike Neu“ wird kurz pausiert, damit keine reguläre Probe
+parallel läuft. Nach Ende der bereits gespeicherten Zugriffspause erhält genau
+ein Abruf derselben Katalogadresse in Google Chrome 155.0.8059.39 um 13:09:56 Uhr
+ebenfalls HTTP 403 mit `cf-mitigated: challenge`. Die Prüfseite wird vor
+Darstellung und Ausführung beendet; keine Challenge-Lösung wird versucht.
+Ein frischer Browser erhält damit ebenfalls eine Prüfseite. Das ist kein Test
+einer legitimen manuellen Freigabe und beweist keine dauerhafte IP-Sperre.
+
+**Betrieb:** Vorhandenes geprüftes Chrome-Abbild, aktivierte Sandbox, isolierter
+Container ohne Produktionsvolumes oder Kontodaten, dieselbe Serveranbindung,
+keine Proxies oder veränderte Browseridentität. Testcontainer anschließend
+automatisch entfernt und seine Abwesenheit geprüft. Nach mindestens 60 Sekunden
+Abstand wird ausschließlich der eigene pausierte Auftrag per Revisionsprüfung
+wieder aktiviert; 60 Sekunden Takt und Suchbedingungen bleiben erhalten. Um
+13:12:31 Uhr ist Nike aktiv, Adidas/Ralph Lauren bleiben deaktiviert. Die
+reguläre Probe um 13:11:24 Uhr ist erneut abgewiesen; der Zugang ist nicht repariert.
+
+**Nächster Schritt und Grenze:** Die offiziellen Cloudflare-Verträge bestätigen
+die Grenze reiner HTTP-Clients und nicht unterstützte automatische Challenge-
+Löser. Die dokumentierte Vinted-Pro-API ist kein geprüfter Ersatz für die
+allgemeine Markensuche. Ein Browserwechsel allein ist ebenfalls keine belegte
+Reparatur. Ein geregelter Zugriffspfad mit expliziter Freigabe muss festgelegt
+werden. Wegen der aktuellen globalen Backend-Grenze ist eine ausdrückliche
+Ausnahme für Änderungen an `services/sniper` angefragt und noch offen. Der
+nummerierte Auftrag mit Befunden, Grenzen und Abnahme liegt unter
+`C:\Users\gt\Desktop\Backend Issues\vinted-access-analysis\01-vinted-article-bot-challenge-recovery.md`.
+Keine Anwendungscode-, Schema-, Paket- oder Releaseänderung ausgeführt.
+
+## 2026-10-07 - Juna - Langsameren Abruf des zentralen Artikelbots produktiv testen
+
+**Freigabe:** Der Nutzer bestätigt mit „los“ den vorgeschlagenen Versuch mit
+längeren Abrufabständen für den zentralen Marken-/Artikelbot im Adminbereich.
+
+**Vorprüfung:** Vor der Änderung ist die automatische Probe um 12:41:21 Uhr
+bereits erfolgreich. Seitdem liefern die regulären Abrufe wieder Artikel.
+Diese Erholung geschieht beim bisherigen Zehn-Sekunden-Solltakt und darf nicht
+der späteren Änderung zugeschrieben werden.
+
+**Änderung:** Am 7. Oktober um 12:53:52 Uhr wird ausschließlich der aktive
+Suchauftrag „Nike Neu“ von zehn auf 60 Sekunden gestellt. Eine kurze Transaktion
+prüft und sperrt den erwarteten Auftrag und bricht bei einer abweichenden
+Einstellung oder weiteren aktiven Aufträgen ab. Ein Vergleich der vollständigen
+Zeile erlaubt nur das Intervall, den Änderungsstempel und die vom vorhandenen
+Trigger erhöhte Formularrevision. Suchbedingungen, Aktivierung, Cursor und
+Fehlerzustand bleiben erhalten. Der Container wird nicht neu gestartet;
+Zugriffspausen werden nicht zurückgesetzt. Kein Schema- oder Produktcodeumbau.
+
+**Prüfung:** Die Transaktion ist bestätigt; der gespeicherte Solltakt beträgt
+60.000 Millisekunden. Der erste nachfolgende automatische Abruf um 12:54:48 Uhr
+scheitert erneut mit HTTP 403 und `challengeDetected=true`, etwa 65 Sekunden
+nach dem letzten erfolgreichen Abruf. Die gemeinsame Pause und die einzelne
+nächste Wiederprüfung ab 12:59:47 Uhr sind korrekt gespeichert. Um 12:55:21 Uhr
+stehen weiterhin 60 Sekunden, ein Folgefehler und keine seit der Änderung neu
+entdeckten Artikel in der Datenbank. Die Intervalländerung verhindert diese
+nächste Ablehnung nicht. Damit ist weder eine Lösung noch ein Ausschluss des
+Abrufrhythmus als Mitursache bewiesen; eine schon bestehende Anbieterbewertung
+kann fortwirken. Für weitere Beobachtung bleibt die freigegebene Einstellung
+bei 60 Sekunden. Keine zusätzlichen Vinted-Anfragen oder produktiven Änderungen.
+Nur Betriebswerte und Logs gelesen; Formatierung und Git-Diff des Protokolls
+geprüft. Keine Anwendungstests oder Builds für diese reine Betriebseinstellung.
+
+## 2026-10-07 - Juna - Wiederkehrende Zugriffssperren des zentralen Vinted-Artikelbots untersuchen
+
+**Auftrag:** Die häufige Meldung „Zugriff abgewiesen“ seit dem letzten Update
+im administrativen Bereich des zentralen Marken-/Artikelbots untersuchen.
+
+**Befund:** Lesende Server- und Datenbankprüfung um 12:31 Uhr deutscher Zeit.
+Der Container `flipbase-sniper` läuft mit `sha-da3069f`, Hostnetzwerk und ohne
+Neustarts seit 11:56 Uhr. Bereits sein erster Durchlauf übernimmt eine
+gespeicherte Zugriffspause. Alle sieben protokollierten Abrufe von 12:00 bis
+12:31 Uhr scheitern mit HTTP 403 und `challengeDetected=true` in der
+Anfragephase. Die Cloudflare-Prüfseite ist damit anhand des vom Sammler
+ausgewerteten Antwortheaders erkannt; ihr Auslöser bleibt unbewiesen.
+
+Nur „Nike Neu“ ist aktiv: Kategorie 2050, Marke 53, Sollintervall zehn Sekunden.
+Adidas und Ralph Lauren sind deaktiviert. Der letzte erfolgreiche Abruf und
+Artikel-Erstfund stammen vom 7. Oktober um 11:30:24 Uhr; im letzten
+Stundenfenster wurden keine neuen Artikel gespeichert. Der Dienst hält die
+gemeinsame Pause ein und führt etwa alle fünf Minuten eine einzelne Probe aus.
+Das konfigurierte Minutenbudget von 30 ist eine Obergrenze, keine gemessene
+Anfragerate. Ein hoher Anfragetakt oder eine konkrete IP-Sperre ist als Ursache
+nicht nachgewiesen.
+
+**Updateabgleich:** Zwischen dem lokal vorgefundenen Stand `b0cdf268` und dem
+produktiven `da3069f1` sowie seit dem Suchfeed-Stand `c40f9f42` gibt es keine
+Änderungen an Botquellcode, Bot-Lockfile oder Bot-Compose. Die vorherige Änderung
+vom 6. Oktober ergänzt die Suchfilterverarbeitung; Anfrageabstand, Fehlerpolitik
+und Netzwerkpräferenz bleiben im geprüften Vergleich unverändert. Der heutige
+Neustart kann deshalb nicht als Beginn dieser Zugriffspause gelten. Eine
+Regression durch die früheren Suchfilteränderungen ist dadurch nicht vollständig
+ausgeschlossen. Der Audit vom 1. Oktober dokumentiert bereits denselben
+Fehlertyp, beweist aber keine identische Ursache für den aktuellen Vorfall.
+
+**Prüfung und Grenze:** Dockerstatus und gefilterte Botlogs gelesen, produktive
+SQL-Abfragen ausschließlich in `begin read only` mit anschließendem Rollback,
+Git-Unterschiede geprüft und den offiziellen Cloudflare-Vertrag zu
+`cf-mitigated: challenge` abgeglichen. Keine zusätzlichen Vinted-Anfragen,
+keine Kontoaktionen, keine produktiven Änderungen und kein Anbieterzugriff
+umgangen. Kein bestätigter Codefehler und keine Korrektur behauptet. Nur dieser
+Sitzungseintrag wird im eigenen Analysezweig ergänzt; keine Anwendungstests
+oder Builds für die reine Diagnose ausgeführt.
+
 ## 2026-10-07 - Juna - Neue Vinted-Bewertungen in der Glocke melden
 
 **Auftrag:** Neue Bewertungen nach einem Kontoabruf dauerhaft in der
