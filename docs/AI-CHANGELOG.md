@@ -1,5 +1,28 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-07 - Juna - Botprofil ohne passenden Host-Benutzer anlegen
+
+**Auftrag und Befund:** Den freigegebenen Vinted-Browserrelease nach dem
+erfolgreichen Merge von PR #333 fertigstellen. Der erste Produktionslauf stoppt
+vor dem Austausch der Anwendung: `install (uutils coreutils) 0.8.0` lehnt
+`-o 1000 -g 1000` ab, weil kein entsprechender Host-Benutzer vorhanden ist.
+Die bestehende Anwendung und der bisherige Bot laufen weiter.
+
+**Korrektur:** Das Deployskript legt das private Verzeichnis mit Modus `0700`
+an und setzt anschließend den numerischen Eigentümer per `chown 1000:1000`.
+Die Prüfung bestehender Profile und das Anhalten bei Fehlern bleiben erhalten.
+Es wird kein Host-Benutzer angelegt. Der neue Zweig basiert ausschließlich auf
+dem aktuellen `origin/master`; der bereits gemergte Featurezweig ist gelöscht.
+
+**Prüfung:** Die Linux-Deploymentfixture simuliert fehlende Host-Benutzer und
+scheitert zunächst mit derselben Meldung. Nach der Korrektur bestehen alle acht
+Deploytests ohne Netzwerk, Formatierung, Lint und Git-Diff. Eine isolierte leere
+Teststruktur auf dem echten Server bestätigt `700 1000:1000` mit dessen
+Installationswerkzeug; sie wird danach entfernt. Das leere eigene Botprofil wird
+als freigegebene Servervorbereitung mit denselben Rechten angelegt. Der bereits
+vollständig geprüfte Release kann damit wiederholt werden; die dauerhafte
+Skriptkorrektur wird über einen eigenen PR geprüft und veröffentlicht.
+
 ## 2026-10-07 - Juna - Manuellen Browserzugriff für den Artikelbot umsetzen
 
 **Freigabe:** Der Nutzer bestätigt Entwurf, Umsetzungsplan und die Umsetzung in

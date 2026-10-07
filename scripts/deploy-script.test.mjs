@@ -285,7 +285,7 @@ esac
 );
 
 test(
-  'rollt ein separates Sniper-Abbild aus und wartet auf dessen Healthcheck',
+  'rollt ein separates Sniper-Abbild aus und legt dessen Profil ohne Host-Benutzer an',
   { skip: process.platform === 'win32' },
   async () => {
     const root = await mkdtemp(join(tmpdir(), 'flipbase-sniper-deploy-'));
@@ -293,7 +293,20 @@ test(
     const log = join(root, 'docker.log');
     await mkdir(bin);
     try {
-      await mkdir(join(root, 'browser'), { mode: 0o700 });
+      const profileLog = join(root, 'profile.log');
+      await writeFile(
+        join(bin, 'install'),
+        `#!/bin/sh
+case " $* " in
+  *" -o "*|*" -g "*) echo "install: invalid user: '1000'" >&2; exit 1 ;;
+esac
+exec /usr/bin/install "$@"
+`,
+        { mode: 0o755 },
+      );
+      await writeFile(join(bin, 'chown'), '#!/bin/sh\nprintf "%s\\n" "$*" >> "$PROFILE_LOG"\n', {
+        mode: 0o755,
+      });
       await writeFile(
         join(root, 'sniper.env'),
         'SUPABASE_ANON_KEY=public-fixture-key-for-authentication\n',
@@ -335,11 +348,13 @@ esac
         SSH_ORIGINAL_COMMAND: 'web sha-1234567 sniper sha-7654321',
         DOCKER_LOG: log,
         EXPECTED_SNIPER_IMAGE: 'ghcr.io/grischatdev/flipbase-sniper:sha-7654321',
+        PROFILE_LOG: profileLog,
       });
 
       assert.equal(result.code, 0, result.stderr);
       assert.match(result.stdout, /flipbase-web ist gesund\./);
       assert.match(result.stdout, /flipbase-sniper ist gesund\./);
+      assert.equal(await readFile(profileLog, 'utf8'), `1000:1000 ${join(root, 'browser')}\n`);
       const dockerCalls = await readFile(log, 'utf8');
       assert.match(dockerCalls, /compose -f .* pull sniper/);
       assert.match(dockerCalls, /compose -f .* up -d --pull never sniper/);

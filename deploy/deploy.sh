@@ -153,7 +153,9 @@ prepare_sniper_browser_runtime() {
       echo 'Das eigene Botprofil muss UID/GID 1000 und Modus 0700 besitzen.' >&2; return 1;
     }
   else
-    install -d -o 1000 -g 1000 -m 700 "$SNIPER_BROWSER_PROFILE_PATH"
+    # Numerische Container-IDs brauchen keinen passenden Benutzer auf dem Host.
+    install -d -m 700 "$SNIPER_BROWSER_PROFILE_PATH"
+    chown 1000:1000 "$SNIPER_BROWSER_PROFILE_PATH"
   fi
   docker cp "$artifact_container":/opt/flipbase/docker-compose.sniper.yml "$temporary/docker-compose.sniper.yml"
   docker cp "$artifact_container":/opt/flipbase/chromium-seccomp.json "$temporary/chromium-seccomp.json"
