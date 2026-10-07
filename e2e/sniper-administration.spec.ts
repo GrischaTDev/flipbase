@@ -6,6 +6,9 @@ test.use({ storageState: { cookies: [], origins: [] } });
 
 /** Ausschliesslich lokale HTTP-Fixtures; kein Betreiberkonto und keine echten Botauftraege. */
 async function mockAdministration(page: Page) {
+  await page.route('**/sniper-browser/**', (route) =>
+    route.fulfill({ json: { state: 'ready', sessionId: null, expiresAt: null, message: null } }),
+  );
   const user = {
     id: 'a0000000-0000-4000-8000-000000000001',
     email: 'admin@example.test',
@@ -211,6 +214,84 @@ async function mockAdministration(page: Page) {
     },
   };
 }
+
+test('prüft den Vinted-Bot manuell und behält bei Ablehnung die Pause @core-smoke', async ({
+  page,
+}) => {
+  await mockAdministration(page);
+  const id = '12345678-1234-1234-1234-123456789012';
+  const commands: unknown[] = [];
+  const authenticated: boolean[] = [];
+  let opened = 0;
+  let closed = 0;
+  let manual = false;
+  await page.route('**/sniper-browser/**', async (route) => {
+    const request = route.request();
+    authenticated.push(Boolean(request.headers()['authorization']?.startsWith('Bearer ')));
+    expect(new URL(request.url()).search).toBe('');
+    if (request.url().endsWith('/frame')) {
+      // Lokales Bildfixture, keine echte Vinted-Seite.
+      const screenshot = await page.screenshot({ type: 'jpeg' });
+      await route.fulfill({ contentType: 'image/jpeg', body: screenshot });
+      return;
+    }
+    if (request.url().endsWith('/input')) {
+      commands.push(request.postDataJSON());
+      await route.fulfill({ status: 204 });
+      return;
+    }
+    if (request.url().endsWith('/verify')) {
+      manual = false;
+      await route.fulfill({
+        status: 409,
+        json: { message: 'Vinted verlangt weiterhin eine manuelle Prüfung.' },
+      });
+      return;
+    }
+    if (request.method() === 'DELETE') {
+      closed += 1;
+      manual = false;
+      await route.fulfill({ status: 204 });
+      return;
+    }
+    if (request.url().endsWith('/sessions')) {
+      opened += 1;
+      manual = true;
+    }
+    await route.fulfill({
+      json: {
+        state: manual ? 'manual' : 'interaction_required',
+        sessionId: manual ? id : null,
+        expiresAt: manual ? new Date(Date.now() + 600000).toISOString() : null,
+        message: null,
+      },
+    });
+  });
+  await page.goto('/admin/vinted-bot/operation');
+  await expect(page.getByText('Manuelle Prüfung erforderlich', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Vinted-Zugriff prüfen', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Vinted-Zugriff manuell prüfen', exact: true });
+  await expect(dialog.getByAltText('Aktuelle Vinted-Seite im Botbrowser')).toBeVisible();
+  await checkAxe(page);
+  const viewport = dialog.getByRole('application');
+  await viewport.focus();
+  await page.keyboard.press('Enter');
+  await expect.poll(() => commands).toContainEqual({ kind: 'key', key: 'Enter' });
+  await page.keyboard.press('Shift+Tab');
+  await expect(viewport).not.toBeFocused();
+  await dialog.getByLabel('Text an Vinted senden', { exact: true }).fill('Test');
+  await dialog.getByRole('button', { name: 'Text senden', exact: true }).click();
+  await expect.poll(() => commands).toContainEqual({ kind: 'text', text: 'Test' });
+  await dialog.getByRole('button', { name: 'Zugriff erneut prüfen', exact: true }).click();
+  await expect(dialog.getByRole('alert')).toContainText('weiterhin eine manuelle Prüfung');
+  await expect(dialog.getByAltText('Aktuelle Vinted-Seite im Botbrowser')).toHaveCount(0);
+  await dialog.getByRole('button', { name: 'Schließen', exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(page.getByText('Manuelle Prüfung erforderlich', { exact: true })).toBeVisible();
+  expect(opened).toBe(1);
+  expect(closed).toBe(1);
+  expect(authenticated.every(Boolean)).toBe(true);
+});
 
 async function checkAxe(page: Page) {
   await page.addScriptTag({ content: axe.source });
