@@ -85,6 +85,7 @@ for (const width of [1440, 390, 320]) {
       await page.setViewportSize({ width, height: 900 });
       await page.emulateMedia({ reducedMotion: 'reduce' });
       const imported = {
+        conversationId,
         publicationsTotal: 1,
         views: 5,
         favorites: 2,

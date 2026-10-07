@@ -39,6 +39,11 @@ bestehende Prüfung gegen Bedienelemente in Nachrichten bleibt unverändert.
 Alle sechs lokalen Browserprüfungen mit künstlichen Antworten bestehen bei
 1440, 390 und 320 Pixeln im hellen und dunklen Design einschließlich AXE-Prüfungen.
 Die vollständige CI-Nachprüfung auf diesem korrigierten Stand steht noch aus.
+Die UUID gilt ausdrücklich für diese Cloud-Testdaten; die unabhängigen lokalen
+Extension-Testantworten behalten ihre bisherigen Gesprächs-IDs. Ein pauschaler
+Austausch würde dort einen bislang nicht simulierten Detailabruf aktivieren.
+Der gemeinsame lokale Nachweis besteht mit acht Browserprüfungen: sechs Cloud-
+Ansichten und beide unveränderten lokalen Postfach-Abläufe.
 
 ## 2026-10-07 - Juna - Cloud-Browserdienst wiederherstellen und Wiederanlauf absichern
 
