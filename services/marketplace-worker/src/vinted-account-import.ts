@@ -69,7 +69,15 @@ export type VintedRequestFailure =
   | 'network'
   | 'browser_context';
 
-export type VintedBrowserReadFailure = 'navigation' | 'closed' | 'script' | 'unknown';
+export type VintedBrowserReadFailure =
+  | 'navigation'
+  | 'navigation_interrupted'
+  | 'navigation_aborted'
+  | 'timeout'
+  | 'network'
+  | 'closed'
+  | 'script'
+  | 'unknown';
 
 function classifyBrowserReadFailure(error: unknown): VintedBrowserReadFailure {
   const message = error instanceof Error ? error.message : '';
@@ -79,6 +87,10 @@ function classifyBrowserReadFailure(error: unknown): VintedBrowserReadFailure {
   )
     return 'navigation';
   if (message.includes('Target page, context or browser has been closed')) return 'closed';
+  if (message.includes('interrupted by another navigation')) return 'navigation_interrupted';
+  if (message.includes('net::ERR_ABORTED')) return 'navigation_aborted';
+  if (message.includes('net::ERR_')) return 'network';
+  if (/Timeout(?:Error| \d+ms exceeded)/.test(message)) return 'timeout';
   if (message.includes('ReferenceError') || message.includes('TypeError')) return 'script';
   return 'unknown';
 }
@@ -647,8 +659,12 @@ export async function readVintedAccountImport(
       await authorize();
       try {
         await page.goto('https://www.vinted.de/', { waitUntil: 'load', timeout: 20_000 });
-      } catch {
-        throw new VintedImportRequestError('browser_context');
+      } catch (reloadError) {
+        throw new VintedImportRequestError(
+          'browser_context',
+          undefined,
+          classifyBrowserReadFailure(reloadError),
+        );
       }
       for (let attempt = 0; attempt < 3; attempt++) {
         if (attempt > 0) await wait(750 * attempt);

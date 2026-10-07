@@ -7,6 +7,43 @@ import {
   VintedImportRequestError,
 } from '../../src/vinted-account-import.ts';
 
+test('an aborted session reload retains its fixed diagnosis in an actual Chromium browser', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    let navigations = 0;
+    let profileReads = 0;
+    await page.route('**/*', (route) => {
+      const path = new URL(route.request().url()).pathname;
+      if (path === '/') {
+        navigations++;
+        if (navigations > 1) return route.abort('aborted');
+        return route.fulfill({ contentType: 'text/html', body: '<body>Fixture</body>' });
+      }
+      if (path === '/api/v2/users/current') {
+        profileReads++;
+        return route.fulfill({ status: 401, json: {} });
+      }
+      return route.abort();
+    });
+    await page.goto('https://www.vinted.de/');
+    await assert.rejects(
+      readVintedAccountImport(page, async () => undefined),
+      (error: unknown) =>
+        error instanceof VintedImportReadError &&
+        error.stage === 'profile' &&
+        error.cause instanceof VintedImportRequestError &&
+        error.cause.reason === 'browser_context' &&
+        error.cause.browserReadFailure === 'navigation_aborted' &&
+        error.cause.cause === undefined,
+    );
+    assert.equal(navigations, 2);
+    assert.equal(profileReads, 1);
+  } finally {
+    await browser.close();
+  }
+});
+
 for (const interruptedPath of ['/api/v2/users/current', '/api/v2/inbox']) {
   test(`a document reload during ${interruptedPath} preserves the read in the same browser`, async () => {
     const browser = await chromium.launch({ headless: true });
