@@ -97,8 +97,8 @@ describe('VintedCollector', () => {
     expect(url.searchParams.get('per_page')).toBe('96');
     expect(url.searchParams.get('price_to')).toBe('50');
     const requestInit = fetchFn.mock.calls[0]?.[1] as RequestInit;
-    expect(new Headers(requestInit.headers).get('cookie')).toBeNull();
-    expect(new Headers(requestInit.headers).get('accept')).toContain('text/html');
+    expect(new Headers(requestInit?.headers).get('cookie')).toBeNull();
+    expect(new Headers(requestInit?.headers).get('user-agent')).toBeNull();
   });
 
   it('returns normalized listings', async () => {
@@ -165,97 +165,23 @@ describe('VintedCollector', () => {
     expect(url.searchParams.get('price_from')).toBe('10');
   });
 
-  it('sends modern browser headers including sec-ch-ua', async () => {
-    const fetchFn = vi.fn().mockResolvedValueOnce(catalog());
-
-    await build(fetchFn).collect(query);
-
-    const headers = (fetchFn.mock.calls[0]?.[1] as RequestInit).headers as Record<string, string>;
-    expect(headers['Sec-Ch-Ua']).toContain('Google Chrome');
-    expect(headers['Sec-Fetch-Dest']).toBe('document');
-    expect(headers['Sec-Fetch-Mode']).toBe('navigate');
-  });
-
-  it('persists cookies across requests and clears them on 403', async () => {
-    const responseWithCookie = new Response(catalogPage(), {
-      status: 200,
-      headers: {
-        'content-type': 'text/html; charset=utf-8',
-        'set-cookie': 'anon_id=abc123; Path=/',
-      },
-    });
-    const secondResponse = catalog();
-    const forbiddenResponse = new Response('', { status: 403 });
-    const recoveryResponse = catalog();
-
+  it('leaves cookies and browser identity to the native browser transport', async () => {
     const fetchFn = vi
       .fn()
-      .mockResolvedValueOnce(responseWithCookie)
-      .mockResolvedValueOnce(secondResponse)
-      .mockResolvedValueOnce(forbiddenResponse)
-      .mockResolvedValueOnce(recoveryResponse);
-
-    const collector = build(fetchFn);
-
-    // 1. First request has no cookies, receives anon_id cookie
-    await collector.collect(query);
-    const firstHeaders = (fetchFn.mock.calls[0]?.[1] as RequestInit).headers as Record<
-      string,
-      string
-    >;
-    expect(firstHeaders['Cookie']).toBeUndefined();
-
-    // 2. Second request sends the stored cookie
-    await collector.collect(query);
-    const secondHeaders = (fetchFn.mock.calls[1]?.[1] as RequestInit).headers as Record<
-      string,
-      string
-    >;
-    expect(secondHeaders['Cookie']).toBe('anon_id=abc123');
-
-    // 3. Third request fails with 403, which clears cookies
-    await expect(collector.collect(query)).rejects.toBeInstanceOf(ForbiddenError);
-
-    // 4. Fourth request has no cookies again
-    await collector.collect(query);
-    const fourthHeaders = (fetchFn.mock.calls[3]?.[1] as RequestInit).headers as Record<
-      string,
-      string
-    >;
-    expect(fourthHeaders['Cookie']).toBeUndefined();
-  });
-
-  it('drops cached cookies after catalog data disappears so the next attempt starts fresh', async () => {
-    const responseWithCookie = new Response(catalogPage(), {
-      status: 200,
-      headers: { 'set-cookie': 'anon_id=old-session; Path=/' },
-    });
-    const pageWithoutItems = new Response('<html><title>Artikel | Vinted</title></html>', {
-      status: 200,
-    });
-    const fetchFn = vi
-      .fn()
-      .mockResolvedValueOnce(responseWithCookie)
-      .mockResolvedValueOnce(pageWithoutItems)
+      .mockResolvedValueOnce(
+        new Response(catalogPage(), { headers: { 'set-cookie': 'private=secret' } }),
+      )
       .mockResolvedValueOnce(catalog());
     const collector = build(fetchFn);
-
     await collector.collect(query);
-    await expect(collector.collect(query)).rejects.toThrow('catalog item data');
     await collector.collect(query);
-
-    const failedHeaders = (fetchFn.mock.calls[1]?.[1] as RequestInit).headers as Record<
-      string,
-      string
-    >;
-    const recoveryHeaders = (fetchFn.mock.calls[2]?.[1] as RequestInit).headers as Record<
-      string,
-      string
-    >;
-    expect(failedHeaders['Cookie']).toBe('anon_id=old-session');
-    expect(recoveryHeaders['Cookie']).toBeUndefined();
+    for (const call of fetchFn.mock.calls) {
+      const headers = new Headers((call[1] as RequestInit | undefined)?.headers);
+      expect(headers.get('cookie')).toBeNull();
+      expect(headers.get('user-agent')).toBeNull();
+      expect(headers.get('sec-ch-ua')).toBeNull();
+    }
   });
-
   it('extracts retryAfterSeconds on 429 when Retry-After header is present', async () => {
     const fetchFn = vi.fn().mockResolvedValueOnce(
       new Response('', {

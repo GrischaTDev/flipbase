@@ -1,6 +1,7 @@
 import 'dotenv/config';
 
 import { loadConfig } from './config.js';
+import { ChromeVintedBrowser } from './browser/vinted-browser.js';
 import { createHealthState, startHealthServer } from './health.js';
 import { createLogger } from './log.js';
 import { RequestBudget } from './runtime/budget.js';
@@ -33,8 +34,15 @@ const budget = new RequestBudget(config.requestsPerMinute);
 // Jede ausgehende Anfrage meldet sich selbst beim Budget - Katalogabfrage,
 // Wiederholungen nach 5xx und der getrennte Kategorieabruf gleichermassen.
 const metrics = new RequestMetrics();
+const browser = new ChromeVintedBrowser(config.vintedBaseUrl, {
+  profileDir: config.browserProfileDir,
+  cdpPort: config.browserCdpPort,
+});
 const counted = pacedVintedFetch(
-  countingFetch(metrics.wrap(fetch), () => budget.record()),
+  countingFetch(
+    metrics.wrap((input, init) => browser.fetch(input, init)),
+    () => budget.record(),
+  ),
   {
     minimumIntervalMs: config.requestMinIntervalMs,
     requestTimeoutMs: config.requestTimeoutMs,
@@ -114,12 +122,7 @@ while (!controller.signal.aborted) {
         hasCapacity: () => budget.hasCapacity(),
         fetchHomepage: async () => {
           try {
-            const response = await counted(config.vintedBaseUrl, {
-              headers: {
-                Accept: 'text/html,application/xhtml+xml',
-                'User-Agent': config.userAgent,
-              },
-            });
+            const response = await counted(config.vintedBaseUrl);
             const retryAfterSeconds = parseRetryAfter(response.headers.get('retry-after'));
             if (response.status === 403 || response.headers.get('cf-mitigated') === 'challenge') {
               throw new ForbiddenError('Vinted refused the category request', {
@@ -210,4 +213,5 @@ while (!controller.signal.aborted) {
   await sleep(config.tickIntervalMs);
 }
 
+await browser.close();
 log.info('stopped');
