@@ -3,6 +3,7 @@ import 'dotenv/config';
 import { loadConfig } from './config.js';
 import { ChromeVintedBrowser } from './browser/vinted-browser.js';
 import { BrowserSessionController } from './browser/browser-session.js';
+import { createOperatorVerifier, startBrowserApi } from './browser/browser-http-api.js';
 import { createHealthState, startHealthServer } from './health.js';
 import { createLogger } from './log.js';
 import { RequestBudget } from './runtime/budget.js';
@@ -89,6 +90,17 @@ const scheduler = new QueryScheduler({
   listings,
   budget,
   log,
+});
+
+const browserApi = startBrowserApi({
+  host: config.browserHost,
+  port: config.browserPort,
+  session: browserSession,
+  verifyOperator: createOperatorVerifier(config),
+});
+browserApi.on('error', () => {
+  log.error('browser_api_failed', { reason: 'Private Browser-API konnte nicht gestartet werden.' });
+  process.exit(1);
 });
 
 // Ein Dienst, den die Ueberwachung nicht erreichen kann, ist schlimmer als
@@ -239,4 +251,5 @@ while (!controller.signal.aborted) {
 }
 
 await browser.close();
+browserApi.close();
 log.info('stopped');
