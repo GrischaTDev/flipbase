@@ -53,6 +53,8 @@ COPY --from=build /app/dist/flipbase/browser /usr/share/nginx/html
 COPY --from=build /app/landing /usr/share/nginx/landing
 # Landingpage und Sicherheitsrichtlinie stammen immer aus demselben Release.
 COPY --from=build /app/deploy/Caddyfile /opt/flipbase/Caddyfile
+COPY --from=build /app/deploy/docker-compose.sniper.yml /opt/flipbase/docker-compose.sniper.yml
+COPY --from=build /app/deploy/chromium-seccomp.json /opt/flipbase/chromium-seccomp.json
 # Migrationsdateien gehören zum Release, sind aber niemals öffentlich erreichbar.
 COPY --from=build /app/release-migrations /opt/flipbase/migrations/
 

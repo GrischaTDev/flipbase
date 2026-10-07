@@ -20,7 +20,7 @@ export class ChromeProcess {
   private ready = false;
   private failed = false;
   private stopping = false;
-  private readonly environment = { ...process.env, DISPLAY: ':99' };
+  private readonly environment: NodeJS.ProcessEnv = { ...process.env, DISPLAY: ':99' };
 
   constructor(
     readonly options: ChromeProcessOptions,
@@ -29,6 +29,9 @@ export class ChromeProcess {
 
   get endpoint(): string {
     return `http://127.0.0.1:${this.options.cdpPort}`;
+  }
+  get isReady(): boolean {
+    return this.ready;
   }
 
   async start(): Promise<void> {
@@ -59,6 +62,7 @@ export class ChromeProcess {
   }
 
   private async startProcesses(): Promise<void> {
+    if (this.environment.HOME) await mkdir(this.environment.HOME, { recursive: true, mode: 0o700 });
     await mkdir(this.options.profileDir, { recursive: true, mode: 0o700 });
     const profile = await lstat(this.options.profileDir);
     if (!profile.isDirectory() || profile.isSymbolicLink())
@@ -157,11 +161,17 @@ export class ChromeProcess {
     });
   }
 
-  async stop(): Promise<void> {
+  async stop(gracePeriodMs = 0): Promise<void> {
     this.stopping = true;
     for (const child of [...this.children].reverse()) {
       if (child.exitCode !== null || child.signalCode !== null) continue;
       const exited = new Promise<void>((resolve) => child.once('exit', () => resolve()));
+      // Chrome erhält nach dem regulären Browser.close Zeit, Profil und Sperre
+      // selbst zu schließen. Fremde oder übrig gebliebene Sperren löschen wir nicht.
+      if (gracePeriodMs && child === this.children.at(-1)) {
+        await Promise.race([exited, sleep(gracePeriodMs)]);
+        if (child.exitCode !== null || child.signalCode !== null) continue;
+      }
       child.kill('SIGTERM');
       let confirmed = false;
       await Promise.race([

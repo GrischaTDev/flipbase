@@ -1,5 +1,37 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-07 - Juna - Manuellen Browserzugriff für den Artikelbot umsetzen
+
+**Freigabe:** Der Nutzer bestätigt Entwurf, Umsetzungsplan und die Umsetzung in
+dieser Sitzung mit einer unabhängigen Gesamtprüfung. Die ausdrückliche Ausnahme
+für den Node-Bot gilt weiterhin. Veröffentlichung und Servervorbereitung folgen
+erst nach der gesonderten PR-Freigabe.
+
+**Änderung:** Eigener nativer Chrome mit persistentem Botprofil. Automatische
+Dokumentabrufe führen keine Seitenskripte aus. Bestätigte Prüfseiten sperren alle
+gemeinsamen Botabrufe dauerhaft; reguläre Zeitlimits bleiben erhalten. Betreiber
+öffnen im Botbetrieb eine exklusive, zeitlich begrenzte Sitzung mit Browserbild,
+nativer Eingabe und manueller Wiederprüfung. Anmeldung und Betreiberrolle werden
+bei jeder API-Aktion geprüft. Erst der revisionsgesichert angenommene Katalog
+eines weiterhin aktiven Filters gibt den Bot frei. Persönliche Kontoprofile und
+Datenbankschema bleiben unverändert.
+
+**Prüfung:** 292 Botprüfungen, zehn gezielte Angular-Prüfungen, Typprüfung und
+Produktionsbau erfolgreich. Der echte Admin-Browsertest bestätigt Tastatur,
+Fokus, Fehlerpause und AXE. Die isolierte lokale Chrome-Prüfung bestätigt aktive
+Namespace-/Seccomp-Sandbox, private CDP-Adresse, native Eingabe, Bildabruf,
+unterdrückte automatische Seitenskripte und Cookies nach regulärem Neustart.
+Sie findet zunächst eine zurückbleibende Profilsperre; reguläres Browserende vor
+Prozessbeendigung behebt sie. Alle acht Deploytests laufen in Linux erfolgreich,
+einschließlich Laufzeitdateien vor Botstart und Abbruch bei fehlendem Auth-Key.
+Shared-UI-Prüfung und Suitezuordnung bestehen.
+
+**Releasevertrag:** Webimage enthält die passende Bot-Compose-/Seccomp-Konfiguration.
+Der Betreiber muss das geprüfte Deployskript und den öffentlichen Auth-Key vor
+der ersten Veröffentlichung bereitstellen. Keine produktive Browserfreigabe und
+keine wiederhergestellte Liveverbindung behauptet. Die unabhängige Gesamtprüfung
+und die PR-Freigabe stehen noch aus.
+
 ## 2026-10-07 - Juna - Eigene Browsersitzung für den Artikelbot entwerfen
 
 **Freigabe:** Der Nutzer erlaubt ausdrücklich Änderungen am serverseitigen

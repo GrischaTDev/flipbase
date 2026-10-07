@@ -244,6 +244,21 @@ export class ChromeVintedBrowser implements VintedBrowser {
   }
 
   async close(): Promise<void> {
-    await this.runtime.stop();
+    try {
+      if (this.runtime.isReady) {
+        const browser = await chromium.connectOverCDP(this.runtime.endpoint, {
+          noDefaults: true,
+          timeout: 5000,
+        });
+        try {
+          const session = await browser.newBrowserCDPSession();
+          await session.send('Browser.close');
+        } finally {
+          await browser.close().catch(() => undefined);
+        }
+      }
+    } finally {
+      await this.runtime.stop(2000);
+    }
   }
 }

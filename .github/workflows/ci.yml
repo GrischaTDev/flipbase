@@ -335,6 +335,7 @@ jobs:
         run: |
           docker build --tag flipbase-sniper:ci .
           node scripts/smoke-image.mjs flipbase-sniper:ci
+          node scripts/smoke-browser-image.mjs flipbase-sniper:ci
 
   browser-smoke:
     name: Browser smoke
