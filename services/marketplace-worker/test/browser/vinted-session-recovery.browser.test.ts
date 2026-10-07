@@ -7,6 +7,54 @@ import {
   VintedImportRequestError,
 } from '../../src/vinted-account-import.ts';
 
+for (const interruptedPath of ['/api/v2/users/current', '/api/v2/inbox']) {
+  test(`a document reload during ${interruptedPath} preserves the read in the same browser`, async () => {
+    const browser = await chromium.launch({ headless: true });
+    try {
+      const page = await browser.newPage();
+      let interruptedReads = 0;
+      await page.route('**/*', async (route) => {
+        const path = new URL(route.request().url()).pathname;
+        if (path === '/')
+          return route.fulfill({ contentType: 'text/html', body: '<body>Fixture</body>' });
+        if (path === interruptedPath && ++interruptedReads === 1) {
+          // Die laufende Browser-Leseanfrage verliert ihren Dokumentkontext.
+          await page.goto('https://www.vinted.de/').catch(() => undefined);
+          return;
+        }
+        return route.fulfill({
+          json:
+            path === '/api/v2/users/current'
+              ? { user: { id: 123, login: 'synthetic' } }
+              : {
+                  items: [],
+                  conversations: [],
+                  user_feedbacks: [],
+                  pagination: { total_pages: 1 },
+                },
+        });
+      });
+      await page.goto('https://www.vinted.de/');
+      const snapshot = await readVintedAccountImport(page, async () => undefined);
+      assert.equal(snapshot.identity.id, '123');
+      assert.equal(snapshot.areas.profile.status, 'complete');
+      assert.equal(
+        snapshot.areas.conversations.status,
+        'complete',
+        JSON.stringify({
+          areas: snapshot.areas,
+          failures: snapshot.browserReadFailures,
+          interruptedReads,
+        }),
+      );
+      assert.equal(interruptedReads, 2);
+      assert.equal(snapshot.sourceRequestCount, 5);
+    } finally {
+      await browser.close();
+    }
+  });
+}
+
 test('verzögerte vorhandene Anmeldung wird ohne Zugangsdaten im selben Browser wiederhergestellt', async () => {
   const browser = await chromium.launch({ headless: true });
   try {

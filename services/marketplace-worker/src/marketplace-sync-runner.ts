@@ -93,6 +93,7 @@ export class MarketplaceSyncRunner {
     let failedStage: MarketplaceSyncError = 'browser';
     let requestFailure: VintedImportRequestError['reason'] | undefined;
     let retryAfter: string | undefined;
+    let browserReadFailures: VintedAccountImport['browserReadFailures'];
     let currentStage: MarketplaceSyncStage = 'browser';
     let stageStartedAt = Date.now();
     const moveTo = async (nextStage: MarketplaceSyncStage): Promise<void> => {
@@ -133,6 +134,9 @@ export class MarketplaceSyncRunner {
             if (error.cause instanceof VintedImportRequestError) {
               requestFailure = error.cause.reason;
               retryAfter = error.cause.retryAfter;
+              browserReadFailures = error.cause.browserReadFailure
+                ? [error.cause.browserReadFailure]
+                : undefined;
               if (requestFailure === 'unauthorized') failedStage = 'identity';
             }
           }
@@ -169,6 +173,7 @@ export class MarketplaceSyncRunner {
         outcome: 'completed',
         elapsedMs: Date.now() - stageStartedAt,
         sourceRequestCount: snapshot.sourceRequestCount,
+        browserReadFailures: snapshot.browserReadFailures,
       });
     } catch (error) {
       if (error instanceof MarketplaceBrowserSessionEndedError)
@@ -187,6 +192,7 @@ export class MarketplaceSyncRunner {
         elapsedMs: Date.now() - stageStartedAt,
         errorCode: failedStage,
         requestFailure,
+        browserReadFailures,
       });
       try {
         await this.operations.fail(scope, id, runnerId, failedStage, requestFailure, retryAfter);
