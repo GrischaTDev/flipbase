@@ -17,6 +17,7 @@ import { ConfirmDialogService } from '../../shared/components/confirm-dialog/con
 import { ToastService } from '../../shared/components/toast/toast.service';
 import { HeaderComponent } from './header.component';
 import type { AppNotification } from '../../core/models/webhook.models';
+import { MarketplaceFeedbackNotificationStore } from '../../features/marketplaces/services/marketplace-feedback-notification.store';
 import { MarketplaceFavoriteNotificationStore } from '../../features/marketplaces/services/marketplace-favorite-notification.store';
 
 const generalNotification: AppNotification = {
@@ -58,6 +59,8 @@ describe('HeaderComponent', () => {
     favorites: AppNotification[] = [],
     unreadFavorites = 0,
     generalNotifications = favorites.length ? [generalNotification] : [],
+    feedback: AppNotification[] = [],
+    unreadFeedback = feedback.length,
   ) {
     await TestBed.configureTestingModule({
       imports: [HeaderComponent],
@@ -96,6 +99,17 @@ describe('HeaderComponent', () => {
             notifications: signal(favorites),
             unreadCount: signal(unreadFavorites),
             error: signal<string | null>(null),
+            reload: vi.fn(async () => undefined),
+            markAsRead: vi.fn(async () => undefined),
+            markAllAsRead: vi.fn(async () => undefined),
+            clearNotifications: vi.fn(async () => undefined),
+          },
+        },
+        {
+          provide: MarketplaceFeedbackNotificationStore,
+          useValue: {
+            notifications: signal(feedback),
+            unreadCount: signal(unreadFeedback),
             reload: vi.fn(async () => undefined),
             markAsRead: vi.fn(async () => undefined),
             markAllAsRead: vi.fn(async () => undefined),
@@ -238,5 +252,29 @@ describe('HeaderComponent', () => {
     }
     expect(languageSwitch?.classList).toContain('h-9');
     expect(userButton?.classList).toContain('h-9');
+  });
+  it('zeigt neue Bewertungen und zählt alle drei Meldungsströme in der Glocke', async () => {
+    const review: AppNotification = {
+      ...favoriteNotification,
+      id: 'marketplace-feedback:7',
+      title: 'Neue Bewertung · Maike Vintage',
+      message: 'Bewertung von anna · 5 von 5 Sternen.',
+      link: '/marketplaces/vinted/profile?connectionId=account-a#reviews',
+    };
+    const fixture = await renderHeader(
+      [favoriteNotification],
+      70,
+      [generalNotification],
+      [review],
+      3,
+    );
+    fixture.componentInstance.toggleNotificationDropdown();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.unreadCount()).toBe(74);
+    expect(fixture.nativeElement.textContent).toContain('Neue Bewertung · Maike Vintage');
+    const link = fixture.nativeElement.querySelector(
+      'a[href="/marketplaces/vinted/profile?connectionId=account-a#reviews"]',
+    );
+    expect(link).not.toBeNull();
   });
 });

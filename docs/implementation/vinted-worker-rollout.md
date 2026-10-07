@@ -1,5 +1,50 @@
 # Vinted-Browserdienst: Veröffentlichung des Admin-Piloten
 
+## Erster geplanter Proxyabruf vom 07.10.2026: erfolgreich
+
+Der Nutzer aktiviert Maikes Zeitplan in Flipbase: 15 Minuten,
+Berechtigungsversion 22, nächster Termin zunächst 08:58:51 UTC.
+Ohne zusätzliche manuelle Aktualisierung startet der Auftrag mit
+`authorization_kind=scheduled_read` um 08:59:04.796 UTC und endet
+um 08:59:11.912 UTC erfolgreich. Der Importzeitpunkt ist 08:59:08.540 UTC.
+Profil, Inserate, Gesprächsübersicht und Bewertungen sind vollständig;
+Nachrichten und Verkäufe fehlerfreie Teilstände. Keine erneute Anmeldung.
+
+Nach Abschluss bestätigt die Prüfung die unveränderte Profilbindung
+`iproyal-pilot-a`, einen gesunden Worker und keine offenen Cloudaktionen,
+Browsersitzungen oder regulären Browsercontainer. Maikes Zeitplan bleibt
+aktiviert, ohne Pausengrund, mit nächstem Termin 09:14:11.913 UTC.
+Andere Kontoterminpläne und Schreibaktionen bleiben deaktiviert.
+Der Nachweis gilt für den ersten regulären automatischen Proxyabruf;
+ein Langzeitlauf und vollständige Nachrichten-/Verkaufsabdeckung stehen aus.
+
+## Proxy-Zeitsteuerung vom 07.10.2026: Dienst freigegeben, Konto noch pausiert
+
+Nach Veröffentlichung von PR #326 meldet der Nutzer Maike Vintage erneut an.
+Die abgeschlossene Cloud-Einrichtung und das unveränderliche Profilmanifest
+bestätigen nun `networkId=iproyal-pilot-a`. Ein zusätzlicher Proxy-Ausgangstest
+bestätigt `DE` und den registrierten IP-Fingerabdruck, ohne Vinted aufzurufen.
+Der manuelle Kontoabruf vom 08:36:52 bis 08:36:57 UTC endet erfolgreich;
+Nachrichten und Verkäufe bleiben fehlerfreie Teilstände.
+
+Die neue private Konfiguration
+`/opt/flipbase-marketplace/cloud-proxy-scheduled-20261007/` unterscheidet sich
+vom aktiven Stand `cloud-proxy-release-3ff25694` ausschließlich durch
+`MARKETPLACE_SCHEDULED_SYNC_ENABLED=1`. Der Worker bleibt auf Digest
+`sha256:9a3684d5c9ef868b1730c90e41ce5978e7b00c25a5af7f45d3663cf4f161b260`,
+Schreibaktionen bleiben deaktiviert. Vor dem geordneten Worker-Neustart sind
+keine offenen oder ungeklärten Cloudaktionen, Browsersitzungen oder regulären
+Browsercontainer vorhanden. Hostbroker und Sitzungsimage bleiben unverändert;
+Gesundheitsprüfung und aktuelle Firewallfreigabe mit Policy `v2` bestehen.
+
+Maikes Zeitplan bleibt `enabled=false`, Abstand 15 Minuten, ohne nächsten
+Termin, Pausengrund oder Fehlerserie. Der Nutzer kann in Flipbase über
+Kontoeinstellungen „Automatik fortsetzen“ wählen. Erst ein anschließend
+erfolgreicher geplanter Abruf belegt den automatischen Proxybetrieb.
+Für einen Rückweg bleibt `cloud-proxy-release-3ff25694` mit global
+deaktivierter Zeitsteuerung erhalten. Vor einem Rückwechsel den Kontoterminplan
+pausieren und laufende Cloudarbeit vollständig beenden.
+
 ## Umstellung älterer Cloudkonten vom 07.10.2026: geprüft, noch nicht veröffentlicht
 
 Der vorhandene Cloud-Einrichtungsablauf unterstützt nun bereits verbundene

@@ -1,5 +1,113 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-07 - Juna - Neue Vinted-Bewertungen in der Glocke melden
+
+**Auftrag:** Neue Bewertungen nach einem Kontoabruf dauerhaft in der
+Benachrichtigungsglocke anzeigen, zusätzlich zur Korrektur ihrer Herkunft.
+
+**Umsetzung:** Der übernommene Profilstand erzeugt serverseitig eine Meldung je
+neuer Bewertungskennung. Der erste erfolgreiche Abruf übernimmt nur den
+Ausgangsbestand; bestehende Profile verwenden ihren vorherigen Bestand.
+Mitgliederbewertungen, automatische und noch unbekannte Herkunft werden
+gemeldet. Wiederholungen, Herkunfts-/Textkorrekturen, fehlgeschlagene oder
+veraltete Importe erzeugen keine zusätzlichen Meldungen. Beim Leeren bleiben
+die bekannten Kennungen gespeichert, damit Meldungen nicht wiederkehren.
+
+Die Glocke vereint allgemeine Meldungen, Favoriten und Bewertungen. Ein Klick
+führt zur Bewertungsübersicht des zugehörigen Kontos. Lesestatus und Leeren
+gelten workspaceweit wie beim vorhandenen Favoritenstrom. Ein eigener privater
+Broadcastkanal invalidiert den Feed ohne Kontodetails; regelmäßiges Nachladen
+sichert Wiederverbindungen ab. Betreiber- und Workspace-Adminrechte bleiben
+erforderlich; Browser können keine Meldungen erzeugen oder Details ändern.
+
+**Datenbank:** Deklaratives Schema, registrierte Migration und neu erzeugte
+API-Typen. Die Migration stammt aus dem Supabase-PgDelta-Katalogabgleich;
+objektbezogene ACLs werden aus dem Zielkatalog explizit ergänzt, einschließlich
+der Identitätssequenz. Der Transaktionsrahmen bleibt beim Releasepaket.
+Isolierte Datenbanken enthalten ausschließlich Schema und synthetische
+Testkonten. Keine Produktionsdaten oder Kontozugänge werden kopiert.
+
+**Prüfung:** 44 Datenbankprüfungen bestehen sowohl auf dem deklarativen Ziel
+als auch nach Migration mit der Produktionsrolle. Objektberechtigungen sind
+abgeglichen. 20 Modell-/Headeraktionstests und 24 Angular-Tests bestehen;
+Typprüfung, Format, Lint und Anwendungsbau bestehen. Testzuordnung,
+Schemaregistrierung und die betroffenen Workflowprüfungen bestehen ebenfalls.
+Die produktive Veröffentlichung und eine tatsächlich neu eingegangene
+Bewertung sind noch nicht bestätigt.
+
+## 2026-10-07 - Juna - Herkunft und Datum von Cloud-Bewertungen korrigieren
+
+**Auftrag:** Bewertungen von Mitgliedern und automatische Vinted-Bewertungen
+korrekt unterscheiden. Im Cloudkonto erscheinen beide importierten Einträge
+als „Herkunft unbekannt“ und dadurch in keiner der beiden Kategorien.
+
+**Ursache:** Zwei kontrollierte manuelle Kontoabrufe bestätigen die echte
+Antwortform von `/api/v2/feedbacks`: `system_feedback=false` bei beiden
+Mitgliederbewertungen. Der Import berücksichtigt bislang nur `is_automatic`
+und `feedback_type`. Außerdem überdeckt das lokalisierte `created_at` den
+gültigen ISO-Zeitstempel in `created_at_ts`, wodurch das Abrufdatum erscheint.
+Die Diagnose liest nur Feldnamen, Herkunftskennzeichen und Zeitstempel;
+Zugangsdaten oder vollständige Anbieterantworten werden nicht protokolliert.
+
+**Korrektur:** Der Worker wertet das ausdrückliche boolesche Kennzeichen
+`system_feedback` aus und bevorzugt `created_at_ts`. Bestehende Kennzeichen
+bleiben unterstützt, fehlende oder unpassende Werte bleiben unbekannt.
+Keine Herkunftserkennung anhand des Freitexts, kein Frontend-Workaround und
+keine Datenbankmigration. Nach Veröffentlichung ersetzt ein regulärer Abruf
+die bisher unbekannten Herkunftswerte und falschen Daten.
+
+**Prüfung:** Der neue Regressionstest scheitert vor der Änderung an der
+unbekannten Herkunft. Nach der Korrektur bestehen 27 Importtests und die
+Worker-Suite mit 330 bestandenen und sieben bestehenden übersprungenen Tests.
+Worker-Typprüfung einschließlich Produktionsbau-Typen, acht Angular-Tests der
+Bewertungsanzeige sowie Format und gezieltes Lint bestehen. Veröffentlichung
+und Bestätigung der korrigierten produktiven Anzeige stehen noch aus.
+
+## 2026-10-07 - Juna - Ersten geplanten Proxyabruf beobachten
+
+**Auftrag:** Der Nutzer aktiviert Maikes Automatik in Flipbase. Den ersten
+geplanten Abruf ohne zusätzliche manuelle Aktualisierung beobachten.
+
+**Vorprüfung:** Der gespeicherte Zeitplan ist aktiviert, mit Abstand 15 Minuten
+und Berechtigungsversion 22. Nächster Termin ist der 07.10., 08:58:51 UTC.
+Kein anderes Konto ist aktiviert, keine Cloudaktion oder Browsersitzung offen.
+Der Worker bestätigt aktive Zeitsteuerung, aktuelle Firewallfreigabe und
+deaktivierte Schreibaktionen.
+
+**Ergebnis:** Der erste Auftrag mit `authorization_kind=scheduled_read`
+startet um 08:59:04 UTC und endet um 08:59:11 UTC erfolgreich. Der gespeicherte
+Datenstand stammt aus 08:59:08 UTC. Profil, Inserate, Gesprächsübersicht und
+Bewertungen sind vollständig; Nachrichten und Verkäufe fehlerfreie Teilstände.
+Keine neue Anmeldung erforderlich. Der Kontoterminplan bleibt aktiviert mit
+Berechtigungsversion 22, ohne Pausengrund; nächster Termin 09:14:11 UTC.
+Nach dem Abruf sind keine Cloudaktionen, Browsersitzungen oder regulären
+Browsercontainer offen. Die Profilbindung bleibt `iproyal-pilot-a` und die
+Gesundheitsprüfung des Workers besteht. Dies bestätigt den ersten geplanten
+Proxyabruf, noch keinen Langzeitbetrieb oder automatische Schreibaktionen.
+
+## 2026-10-07 - Juna - Proxyverbindung prüfen und Cloud-Zeitsteuerung freigeben
+
+**Auftrag:** Nach erfolgreicher Cloud-Verbindung erklären und prüfen, warum
+Maike Vintage weiterhin eine pausierte Automatik anzeigt; den bereits
+freigegebenen lesenden Pilot über die reservierte IP vorbereiten.
+
+**Live-Prüfung:** Maikes neues Profil ist an `iproyal-pilot-a` gebunden,
+die Cloud-Einrichtung abgeschlossen. Ein erneuter Ausgangstest bestätigt
+Deutschland und denselben IP-Fingerabdruck wie der registrierte Zugang.
+Der manuelle Abruf vom 07.10., 08:36:52 bis 08:36:57 UTC endet erfolgreich:
+Profil, Inserate, Gesprächsübersicht und Bewertungen vollständig;
+Nachrichten und Verkäufe als fehlerfreie Teilstände. Der Kontoterminplan
+ist deaktiviert, ohne Pausengrund und ohne aufeinanderfolgende Fehler.
+
+**Betrieb:** Eine private Kopie der aktuellen Produktionskonfiguration
+aktiviert ausschließlich die globale Zeitsteuerung. Worker- und Browserimage,
+Hostbroker, Firewall, Profil und deaktivierte Schreibaktionen bleiben erhalten.
+Der Worker wurde bei leerer Warteschlange geordnet neu gestartet und ist gesund.
+Maikes Kontoschalter bleibt deaktiviert; in Flipbase kann der Nutzer jetzt
+unter Kontoeinstellungen die Automatik fortsetzen. Ein erfolgreicher geplanter
+Abruf über den Proxy ist noch nicht bestätigt. Kein automatischer Nachrichten-
+oder Angebotsversand und kein anderer Kontoterminplan wurden aktiviert.
+
 ## 2026-10-07 - Juna - Borg-Umbau umgesetzt und vollständigen Restore geprüft
 
 **Auftrag:** Den recherchierten schlanken Backup-Aufbau auf dem vorhandenen zweiten Server umsetzen.

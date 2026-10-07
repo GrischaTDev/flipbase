@@ -168,10 +168,16 @@ function parseFeedbacks(rawFeedbacks: unknown[], fallbackDate: string): Record<s
     const authorName =
       string(author?.['login']) ?? string(author?.['username']) ?? string(author?.['name']);
     const isAutoFlag =
-      item?.['is_automatic'] === true || string(item?.['feedback_type']) === 'automatic';
+      item?.['system_feedback'] === true ||
+      item?.['is_automatic'] === true ||
+      string(item?.['feedback_type']) === 'automatic';
     const textStr =
       string(item?.['feedback']) ?? string(item?.['body']) ?? string(item?.['comment']) ?? '';
-    const isAutomatic = isAutoFlag ? true : item?.['is_automatic'] === false ? false : null;
+    const isAutomatic = isAutoFlag
+      ? true
+      : item?.['system_feedback'] === false || item?.['is_automatic'] === false
+        ? false
+        : null;
     const rawRating = count(item?.['rating']);
     const ratingNum = rawRating !== null && rawRating <= 5 ? rawRating : null;
     const itemObj = record(item?.['item']) ?? record(item?.['transaction']);
@@ -183,8 +189,8 @@ function parseFeedbacks(rawFeedbacks: unknown[], fallbackDate: string): Record<s
       rating: ratingNum,
       text: textStr,
       occurredAt: date(
-        item?.['created_at'] ?? item?.['created_at_ts'] ?? item?.['updated_at'],
-        fallbackDate,
+        item?.['created_at_ts'],
+        date(item?.['created_at'] ?? item?.['updated_at'], fallbackDate),
       ),
       isAutomatic,
       itemTitle,
