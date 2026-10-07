@@ -14,6 +14,48 @@ const scope = {
   userAccessToken: 'user-token',
 };
 
+for (const existingProfile of [false, true]) {
+  test(`a missing reserved IP cannot reuse or recreate a direct profile: existing=${existingProfile}`, async () => {
+    const root = await mkdtemp(join(tmpdir(), 'chromium-missing-proxy-'));
+    try {
+      const registry = new ChromiumAccountProfileRegistry({ root, hostId: 'host-a' });
+      const old = existingProfile ? await registry.create(scope) : null;
+      const provisioner = new ChromiumProfileProvisioner({
+        supabaseUrl: 'https://example.test',
+        publishableKey: 'public',
+        serviceRoleKey: 'server',
+        registry,
+        cloudSetups: {
+          assertNetwork: async () => null,
+          readAuthorized: async () => {
+            throw new Error('no setup');
+          },
+          step: async () => {
+            throw new Error('no transition');
+          },
+        },
+        fetch: async (input, request) => {
+          if (String(input).includes('marketplace_list_connections'))
+            return Response.json({
+              connections: [
+                { ...scope, marketplace: 'vinted', executionMode: 'cloud', status: 'connected' },
+              ],
+            });
+          assert.notEqual(request?.method, 'POST');
+          return Response.json(old ? [{ provider_profile_id: old.profileId }] : []);
+        },
+      });
+      await assert.rejects(provisioner.prepare(scope), /Cloud-IP muss zuerst/);
+      assert.equal(
+        (await registry.find(scope.workspaceId, scope.connectionId))?.profileId ?? null,
+        old?.profileId ?? null,
+      );
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+}
+
 for (const uncertainStop of [false, true]) {
   test(`cloud setup replaces only a stopped old profile, uncertain=${uncertainStop}`, async () => {
     const root = await mkdtemp(join(tmpdir(), 'chromium-cloud-provision-'));

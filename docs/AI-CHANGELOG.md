@@ -1,5 +1,89 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-07 - Juna - Cloud-PR freigeben und Browserprüfung eindeutig machen
+
+**Freigabe:** Der Nutzer bestätigt PR, erfolgreiche Pflichtprüfungen, Merge
+und anschließende Bereinigung des eigenen Zweigs. Die Cloud-Automatik bleibt
+bis zum bestätigten Proxy-Anmeldeversuch pausiert.
+
+**CI-Korrektur:** Der Browser-Smoke scheitert im bestehenden Sniper-Test an
+einem mehrdeutigen Status-Locator: Markenauswahl und Suchfilter-Zusammenfassung
+haben beide `role="status"`. Die Prüfung wird auf die Zusammenfassung mit der
+ausgewählten Kategorie eingegrenzt; die verlangten Titel-Stichwörter bleiben
+unverändert. Kein Sniper-Produktcode wird geändert. Format, Lint und das Laden
+beider Testvarianten bestehen; der vollständige Browsernachweis folgt in CI.
+
+## 2026-10-07 - Juna - Bestehende Cloudkonten auf reservierte Proxyprofile umstellen
+
+**Auftrag:** Nach dem lesenden Pilot beauftragt der Nutzer den fehlenden
+geregelten Wechsel älterer Cloudkonten auf ein reserviertes ISP-Profil.
+Maikes produktiver Zeitplan bleibt pausiert. Andere Sitzungen und Zweige
+werden nicht verändert.
+
+**Umsetzung:** Der vorhandene Einrichtungsablauf wird für ältere Cloudkonten
+ohne abgeschlossene IP-Zuordnung geöffnet. Die Kontoaktion prüft den Bestand
+und verwendet denselben Anmelde-/Identitätsablauf wie der Lokal-zu-Cloud-Wechsel.
+Laufende und ungeklärte Aufträge verhindern die Umstellung; ein vorhandener
+Zeitplan wird erst nach erfolgreicher Reservierung widerrufen. Alte Profile
+werden nach bestätigtem Stopp archiviert. Reguläre manuelle und geplante
+Chromiumstarts benötigen anschließend eine bestätigte Proxyreservierung;
+Abbruch oder fehlende Kapazität erzeugen keinen stillen direkten Zugang.
+Fertige Zuordnungen öffnen keinen neuen Anmeldedialog und werden beim Verlassen
+der Seite nicht als laufende Reservierung abgebrochen.
+
+**Prüfung:** 329 Worker-Tests bestehen, sieben bestehende Tests sind übersprungen.
+61 Angular-Tests einschließlich Cloud-Kontoaktion und fertig eingerichteter
+Zuordnung, 14 Workflow-Tests, Typprüfung, Lint, Format und Angular-Bau bestehen.
+Die Migration wird mit Supabases PgDelta aus dem tatsächlichen Vergleich zweier
+isolierter Testdatenbanken erzeugt: genau zwei Funktionen, transaktional, ohne
+Tabellen- oder Rechteänderung. Ihr Replay gegen die bisherigen Migrationen
+besteht 76 pgTAP-Assertions; Funktionsdefinitionen und Rechte stimmen mit dem
+deklarativen Ziel überein. Die nach der Migration neu erzeugten API-Typen sind
+gegenüber dem ebenfalls neu erzeugten Ausgangsstand unverändert. Es werden
+keine echten Kontodaten in die Testdatenbank kopiert.
+
+**Betriebsgrenze:** Noch nicht veröffentlicht. Maikes Zeitplan und die globale
+Zeitplan-/Schreibfreigabe bleiben deaktiviert. Keine produktive Anmeldung,
+Profiländerung oder Datenbankmigration wird vor dem geprüften PR ausgeführt.
+
+## 2026-10-07 - Juna - Lesende Cloud-Automatik mit Maike Vintage testen
+
+**Freigabe:** Nach dem vorgeschlagenen Pilotablauf beauftragt der Nutzer die
+Aktivierung ausschließlich für Maike Vintage. Mehrere geplante Abrufe,
+Browserabschluss, Wiederanlauf und Fehlerpausen werden geprüft. Versand und
+sonstige Vinted-Schreibaktionen bleiben deaktiviert.
+
+**Vorprüfung:** Die Cloud-Verbindung ist bestätigt. Es existiert genau ein
+gespeicherter Zeitplan, bislang mit altem `forbidden` pausiert. Kein anderer
+Zeitplan ist aktiviert. Ein anfänglich laufender manueller Abruf ist vor der
+Umstellung beendet. Die aktuelle gehärtete Worker-/Broker-Konfiguration
+wird direkt vom Server geprüft und erhalten; keine Rückkehr zur früheren
+Docker-Socket-Konfiguration im Worker. Zugangsdaten und Kontoinhalte werden
+nicht protokolliert.
+
+**Live-Ergebnis:** Zwei echte geplante Abrufe am 07.10. um 00:50 und 00:53 Uhr
+(Berlin) speichern erfolgreich ihre Ergebnisse und beenden den Browser. Der
+zweite läuft nach einem geordneten Worker-Neustart ohne erneute Anmeldung.
+Profil, Inserate, Gespräche und Bewertungen sind vollständig; Nachrichten und
+Verkäufe bleiben fehlerfreie Teilstände. Insgesamt 60 gezielte Worker-Tests
+bestehen, darunter Anmeldeverlust, Abbruch bei 403/429, Rate-Limit-Pause,
+Zugriffsentzug, geordneter Dienstabschluss und Auftragsabgrenzung. Ein echter
+Anbieterfehler wird im produktiven Konto nicht künstlich ausgelöst.
+
+**Abweichung und Endzustand:** Die anschließende direkte Prüfung des privaten
+Profilmanifests zeigt für Maike `networkId=direct`; für diese Verbindung
+existiert kein Cloud-Einrichtungsdatensatz. Der verifizierte, gültige deutsche
+ISP-Zugang `iproyal-pilot-a` ist im Bestand vorhanden, aber diesem Profil nicht
+zugeordnet. Der Pilot bestätigt deshalb die Zeitsteuerung, nicht den
+gewünschten Proxybetrieb. Diese Bindungsprüfung hätte vor der Aktivierung
+erfolgen müssen. Maikes Zeitplan wird über die regulären Kontoeinstellungen
+pausiert und auf 15 Minuten gespeichert. Die globale Dienstfreigabe wird
+geordnet auf die vorherige Sicherheitskonfiguration zurückgenommen. Es gibt
+keine offenen Sitzungen, laufenden Aufträge oder Browsercontainer; der Worker
+ist gesund. Profil, Verbindung und Proxybestand bleiben erhalten. Vor einer
+erneuten Freigabe braucht dieses ältere Cloudkonto einen unterstützten Wechsel
+in die kontogebundene IP-Einrichtung; keine manuelle Manifest-/Datenbankänderung.
+
 ## 2026-10-07 - Juna - Klarere Meldung zur pausierten Cloud-Automatik veröffentlichen
 
 **Freigabe:** Der Nutzer bestätigt PR-Erstellung, Merge nach erfolgreichen

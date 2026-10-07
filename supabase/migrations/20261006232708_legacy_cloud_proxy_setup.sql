@@ -1,94 +1,21 @@
--- Gekaufte ISP-IPs, kontogebundene Einrichtung und kontrollierter Lokal-/Cloudwechsel.
--- Geheimnisse bleiben im privaten Netzwerkbestand des Chromiumworkers.
-create table public.marketplace_cloud_ips (
-  id bigint generated always as identity primary key,
-  network_id text not null unique check (network_id ~ '^[a-z0-9][a-z0-9_-]{0,63}$' and network_id<>'direct'),
-  exit_ip_fingerprint text not null unique check (exit_ip_fingerprint ~ '^[0-9a-f]{64}$'),
-  provider text not null default 'iproyal' check (provider='iproyal'),
-  order_reference text not null check (char_length(order_reference) between 1 and 128),
-  country_code text not null check (country_code ~ '^[A-Z]{2}$'),
-  is_dedicated_isp boolean not null default true,
-  expires_at timestamptz not null check (isfinite(expires_at)),
-  enabled boolean not null default false,
-  verified_at timestamptz,
-  created_at timestamptz not null default now()
-);
-comment on table public.marketplace_cloud_ips is 'Administrativ geprüfte gekaufte ISP-IPs; nur Netzwerkreferenzen, keine Proxyzugangsdaten.';
-alter table public.marketplace_cloud_ips enable row level security;
-revoke all on public.marketplace_cloud_ips from public,anon,authenticated;
-grant all on public.marketplace_cloud_ips to service_role;
-revoke all on sequence public.marketplace_cloud_ips_id_seq from public,anon,authenticated;
-grant usage,select on sequence public.marketplace_cloud_ips_id_seq to service_role;
-create policy "Worker reads cloud IPs" on public.marketplace_cloud_ips for select to service_role using(true);
-create policy "Worker inserts cloud IPs" on public.marketplace_cloud_ips for insert to service_role with check(true);
-create policy "Worker updates cloud IPs" on public.marketplace_cloud_ips for update to service_role using(true) with check(true);
-create policy "Worker deletes cloud IPs" on public.marketplace_cloud_ips for delete to service_role using(true);
+-- Umstellung bestehender Cloudkonten über reservierte Proxyprofile; aktualisiert zwei Einrichtungsfunktionen.
+-- Migration unit 1: schema_changes
+-- Transaction mode: transactional
+-- Boundary reason: default
 
-create table public.marketplace_cloud_setups (
-  id bigint generated always as identity primary key,
-  public_id uuid not null default gen_random_uuid() unique,
-  workspace_id uuid not null,
-  connection_id uuid not null,
-  requested_by uuid not null references auth.users(id),
-  request_id uuid not null,
-  requested_name text,
-  is_new_connection boolean not null,
-  cloud_ip_id bigint not null references public.marketplace_cloud_ips(id),
-  state text not null default 'reserved' check (state in ('reserved','login','verified','finalizing','completed','cleanup_pending','cancelled')),
-  expected_external_account_id text,
-  expected_grant_generation bigint,
-  expected_grant_revoked_at timestamptz,
-  verified_external_account_id text,
-  verified_username text,
-  provider_profile_id text check (provider_profile_id ~ '^chromium_[0-9a-f-]{36}$'),
-  previous_provider_profile_id text check (previous_provider_profile_id ~ '^[a-zA-Z0-9_-]{1,128}$'),
-  worker_id uuid,
-  worker_epoch bigint,
-  expires_at timestamptz not null default now()+interval '30 minutes',
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  unique(workspace_id,requested_by,request_id),
-  foreign key(workspace_id,connection_id) references public.marketplace_connections(workspace_id,id) on delete cascade
-);
-comment on table public.marketplace_cloud_setups is 'Dauerhafte IP-Reservierung und Zustandswechsel; Freigabe erst nach bestätigter Browserbereinigung.';
-create unique index marketplace_cloud_ip_reserved on public.marketplace_cloud_setups(cloud_ip_id) where state<>'cancelled';
-create unique index marketplace_cloud_connection_reserved on public.marketplace_cloud_setups(workspace_id,connection_id) where state<>'cancelled';
-create index marketplace_cloud_setup_requester on public.marketplace_cloud_setups(requested_by,workspace_id);
-alter table public.marketplace_cloud_setups enable row level security;
-revoke all on public.marketplace_cloud_setups from public,anon,authenticated;
-grant all on public.marketplace_cloud_setups to service_role;
-revoke all on sequence public.marketplace_cloud_setups_id_seq from public,anon,authenticated;
-grant usage,select on sequence public.marketplace_cloud_setups_id_seq to service_role;
-create policy "Worker reads cloud setups" on public.marketplace_cloud_setups for select to service_role using(true);
-create policy "Worker inserts cloud setups" on public.marketplace_cloud_setups for insert to service_role with check(true);
-create policy "Worker updates cloud setups" on public.marketplace_cloud_setups for update to service_role using(true) with check(true);
-create policy "Worker deletes cloud setups" on public.marketplace_cloud_setups for delete to service_role using(true);
+set check_function_bodies = false;
 
-alter table public.marketplace_browser_sessions add column cloud_setup_id uuid references public.marketplace_cloud_setups(public_id);
-create index marketplace_browser_cloud_setup on public.marketplace_browser_sessions(cloud_setup_id);
-
-create or replace function public.marketplace_cloud_setup_public(p_setup public.marketplace_cloud_setups)
-returns jsonb language sql stable security invoker set search_path='' as $$
-  select jsonb_build_object('workspaceId',p_setup.workspace_id,'connectionId',p_setup.connection_id,
-    'setupId',p_setup.public_id,'state',p_setup.state,'sessionId',(
-      select public_id from public.marketplace_browser_sessions where cloud_setup_id=p_setup.public_id
-        and state in ('active','stopping') order by created_at desc limit 1));
-$$;
-revoke all on function public.marketplace_cloud_setup_public(public.marketplace_cloud_setups) from public,anon,authenticated;
-grant execute on function public.marketplace_cloud_setup_public(public.marketplace_cloud_setups) to service_role;
-
-create or replace function public.marketplace_cloud_network_valid(p_workspace_id uuid,p_connection_id uuid)
-returns boolean language sql stable security definer set search_path='' as $$
-  select not exists(select 1 from public.marketplace_cloud_setups where workspace_id=p_workspace_id and connection_id=p_connection_id)
-    or exists(select 1 from public.marketplace_cloud_setups setup join public.marketplace_cloud_ips ip on ip.id=setup.cloud_ip_id
-      where setup.workspace_id=p_workspace_id and setup.connection_id=p_connection_id and setup.state='completed'
-        and ip.enabled and ip.country_code='DE' and ip.is_dedicated_isp and ip.verified_at is not null and ip.expires_at>now());
-$$;
-revoke all on function public.marketplace_cloud_network_valid(uuid,uuid) from public,anon,authenticated;
-grant execute on function public.marketplace_cloud_network_valid(uuid,uuid) to service_role;
-
-create or replace function public.marketplace_cloud_setup_begin(p_workspace_id uuid,p_connection_id uuid,p_request_id uuid,p_display_name text)
-returns jsonb language plpgsql volatile security definer set search_path='' as $$
+create or replace function public.marketplace_cloud_setup_begin (
+  p_workspace_id  uuid,
+  p_connection_id uuid,
+  p_request_id    uuid,
+  p_display_name  text
+)
+  returns jsonb
+  language plpgsql
+  security definer
+  set search_path to ''
+  as $function$
 declare v_setup public.marketplace_cloud_setups; v_connection public.marketplace_connections; v_ip_id bigint; v_generation bigint; v_revoked_at timestamptz;
 begin
   perform pg_advisory_xact_lock(91731,1);
@@ -136,44 +63,23 @@ begin
     returning * into v_setup;
   return jsonb_build_object('status','ready','setup',public.marketplace_cloud_setup_public(v_setup));
 end;
-$$;
-revoke all on function public.marketplace_cloud_setup_begin(uuid,uuid,uuid,text) from public,anon;
-grant execute on function public.marketplace_cloud_setup_begin(uuid,uuid,uuid,text) to authenticated;
+$function$;
 
-create or replace function public.marketplace_cloud_setup_read(p_workspace_id uuid,p_setup_id uuid)
-returns jsonb language plpgsql volatile security definer set search_path='' as $$
-declare v_setup public.marketplace_cloud_setups;
-begin
-  if not public.marketplace_can_manage(p_workspace_id) or not public.marketplace_local_extension_user_valid((select auth.uid())) then raise exception 'Kontozugriff verweigert' using errcode='42501'; end if;
-  select * into v_setup from public.marketplace_cloud_setups where workspace_id=p_workspace_id and public_id=p_setup_id and requested_by=(select auth.uid());
-  if not found then raise exception 'Einrichtungszugriff verweigert' using errcode='42501'; end if;
-  return public.marketplace_cloud_setup_public(v_setup);
-end;
-$$;
-revoke all on function public.marketplace_cloud_setup_read(uuid,uuid) from public,anon;
-grant execute on function public.marketplace_cloud_setup_read(uuid,uuid) to authenticated;
-
-create or replace function public.marketplace_cloud_setup_cancel(p_workspace_id uuid,p_setup_id uuid)
-returns jsonb language plpgsql volatile security definer set search_path='' as $$
-declare v_setup public.marketplace_cloud_setups;
-begin
-  perform pg_advisory_xact_lock(91731,1);
-  perform public.marketplace_cloud_setup_read(p_workspace_id,p_setup_id);
-  select * into v_setup from public.marketplace_cloud_setups where public_id=p_setup_id for update;
-  if v_setup.state not in ('completed','cancelled') then
-    update public.marketplace_cloud_setups set state='cleanup_pending',updated_at=clock_timestamp() where id=v_setup.id returning * into v_setup;
-  end if;
-  return public.marketplace_cloud_setup_public(v_setup);
-end;
-$$;
-revoke all on function public.marketplace_cloud_setup_cancel(uuid,uuid) from public,anon;
-grant execute on function public.marketplace_cloud_setup_cancel(uuid,uuid) to authenticated;
-
--- Alle privaten Übergänge teilen dieselbe Sperrreihenfolge und Workerprüfung.
-create or replace function public.marketplace_cloud_setup_update(
-  p_workspace_id uuid,p_setup_id uuid,p_user_id uuid,p_worker_id uuid,p_worker_epoch bigint,p_action text,
-  p_profile_id text default null,p_external_account_id text default null,p_username text default null)
-returns jsonb language plpgsql volatile security invoker set search_path='' as $$
+create or replace function public.marketplace_cloud_setup_update (
+  p_workspace_id        uuid,
+  p_setup_id            uuid,
+  p_user_id             uuid,
+  p_worker_id           uuid,
+  p_worker_epoch        bigint,
+  p_action              text,
+  p_profile_id          text   default null::text,
+  p_external_account_id text   default null::text,
+  p_username            text   default null::text
+)
+  returns jsonb
+  language plpgsql
+  set search_path to ''
+  as $function$
 declare v_setup public.marketplace_cloud_setups; v_connection public.marketplace_connections; v_ip public.marketplace_cloud_ips; v_generation bigint; v_revoked_at timestamptz;
 begin
   perform pg_advisory_xact_lock(91731,1);
@@ -288,93 +194,4 @@ begin
   return jsonb_build_object('setup',public.marketplace_cloud_setup_public(v_setup),'networkId',v_ip.network_id,
     'profileId',v_setup.provider_profile_id,'previousProfileId',v_setup.previous_provider_profile_id,'expiresAt',v_setup.expires_at,'ipExpiresAt',v_ip.expires_at);
 end;
-$$;
-revoke all on function public.marketplace_cloud_setup_update(uuid,uuid,uuid,uuid,bigint,text,text,text,text) from public,anon,authenticated;
-grant execute on function public.marketplace_cloud_setup_update(uuid,uuid,uuid,uuid,bigint,text,text,text,text) to service_role;
-
-create or replace function public.marketplace_cloud_setup_session_reserve(p_workspace_id uuid,p_setup_id uuid)
-returns jsonb language plpgsql volatile security definer set search_path='' as $$
-declare v_setup public.marketplace_cloud_setups; v_session public.marketplace_browser_sessions;
-begin
-  perform pg_advisory_xact_lock(91731,1);
-  perform public.marketplace_cloud_setup_read(p_workspace_id,p_setup_id);
-  select * into v_setup from public.marketplace_cloud_setups where public_id=p_setup_id for update;
-  if v_setup.state not in ('login','verified') or v_setup.provider_profile_id is null or v_setup.expires_at<=clock_timestamp() then raise exception 'Einrichtung nicht verfügbar' using errcode='55000'; end if;
-  if exists(select 1 from public.marketplace_browser_sessions where state in ('active','stopping')) then raise exception 'Browser wird bereits bedient oder bereinigt' using errcode='55P03'; end if;
-  insert into public.marketplace_browser_sessions(workspace_id,connection_id,started_by,provider_profile_id,expires_at,cloud_setup_id)
-    values(p_workspace_id,v_setup.connection_id,(select auth.uid()),v_setup.provider_profile_id,least(v_setup.expires_at,clock_timestamp()+interval '10 minutes'),p_setup_id) returning * into v_session;
-  return jsonb_build_object('id',v_session.public_id,'workspaceId',v_session.workspace_id,'connectionId',v_session.connection_id,'state',v_session.state,'expiresAt',v_session.expires_at);
-end;
-$$;
-revoke all on function public.marketplace_cloud_setup_session_reserve(uuid,uuid) from public,anon;
-grant execute on function public.marketplace_cloud_setup_session_reserve(uuid,uuid) to authenticated;
-
-create or replace function public.marketplace_cloud_setup_session_check(p_workspace_id uuid,p_setup_id uuid,p_session_id uuid)
-returns jsonb language plpgsql volatile security definer set search_path='' as $$
-declare v_setup public.marketplace_cloud_setups; v_session public.marketplace_browser_sessions; v_active boolean;
-begin
-  perform pg_advisory_xact_lock(91731,1);
-  perform public.marketplace_cloud_setup_read(p_workspace_id,p_setup_id);
-  select * into v_setup from public.marketplace_cloud_setups where public_id=p_setup_id;
-  select * into v_session from public.marketplace_browser_sessions where cloud_setup_id=p_setup_id and public_id=p_session_id and started_by=(select auth.uid()) for update;
-  if not found then raise exception 'Sitzungszugriff verweigert' using errcode='42501'; end if;
-  v_active:=v_session.state='active' and v_session.expires_at>clock_timestamp() and v_setup.expires_at>clock_timestamp()
-    and v_setup.state in ('login','verified') and exists(select 1 from public.marketplace_cloud_ips where id=v_setup.cloud_ip_id and enabled and country_code='DE' and is_dedicated_isp and verified_at is not null and expires_at>clock_timestamp())
-    and exists(select 1 from public.marketplace_worker_runtime where id=1 and worker_id=v_session.worker_id and worker_epoch=v_session.worker_epoch and expires_at>clock_timestamp());
-  return jsonb_build_object('id',v_session.public_id,'workspaceId',v_session.workspace_id,'connectionId',v_session.connection_id,'active',v_active);
-end;
-$$;
-revoke all on function public.marketplace_cloud_setup_session_check(uuid,uuid,uuid) from public,anon;
-grant execute on function public.marketplace_cloud_setup_session_check(uuid,uuid,uuid) to authenticated;
-
-create or replace function public.marketplace_require_cloud_execution()
-returns trigger language plpgsql volatile security invoker set search_path='' as $$
-declare v_setup_id uuid;
-begin
-  perform pg_advisory_xact_lock(91731,1);
-  perform 1 from public.marketplace_connections where workspace_id=new.workspace_id and id=new.connection_id for update;
-  if tg_table_name='marketplace_browser_sessions' then v_setup_id:=new.cloud_setup_id; end if;
-  if v_setup_id is not null then
-    if not exists(select 1 from public.marketplace_cloud_setups setup join public.marketplace_cloud_ips ip on ip.id=setup.cloud_ip_id
-      where setup.public_id=v_setup_id and setup.workspace_id=new.workspace_id and setup.connection_id=new.connection_id
-        and setup.requested_by=new.started_by and setup.provider_profile_id=new.provider_profile_id and setup.state in ('login','verified')
-        and setup.expires_at>clock_timestamp() and ip.enabled and ip.country_code='DE' and ip.is_dedicated_isp and ip.verified_at is not null and ip.expires_at>clock_timestamp()) then
-      raise exception 'Ungültige Cloud-Einrichtungssitzung' using errcode='42501'; end if;
-  elsif not exists(select 1 from public.marketplace_connections where workspace_id=new.workspace_id and id=new.connection_id and execution_mode='cloud')
-    or not public.marketplace_cloud_network_valid(new.workspace_id,new.connection_id) then
-    raise exception 'Keine aktive Cloudfreigabe' using errcode='42501';
-  end if;
-  return new;
-end;
-$$;
-
--- Eine Verbindung darf den Bestand nicht durch Kaskadenlöschung vorzeitig freigeben.
-create or replace function public.marketplace_prevent_cloud_setup_delete()
-returns trigger language plpgsql volatile security invoker set search_path='' as $$
-begin
-  if exists(select 1 from public.marketplace_cloud_setups where workspace_id=old.workspace_id and connection_id=old.id and state<>'cancelled') then
-    raise exception 'Cloud-IP muss zuerst bereinigt werden' using errcode='23503'; end if;
-  return old;
-end;
-$$;
-revoke all on function public.marketplace_prevent_cloud_setup_delete() from public,anon,authenticated;
-create trigger marketplace_prevent_cloud_setup_delete before delete on public.marketplace_connections for each row execute function public.marketplace_prevent_cloud_setup_delete();
-
--- Finale Übergabe sperrt neue lokale Versandclaims und erneute Freigaben.
-create or replace function public.marketplace_guard_cloud_finalizing()
-returns trigger language plpgsql volatile security invoker set search_path='' as $$
-begin
-  perform pg_advisory_xact_lock(91731,1);
-  if exists(select 1 from public.marketplace_cloud_setups where workspace_id=new.workspace_id and connection_id=new.connection_id and state='finalizing') then
-    if tg_table_name='marketplace_local_message_outbox' then
-      if new.state in ('queued','claimed','sending') then raise exception 'Cloudwechsel wird abgeschlossen' using errcode='55P03'; end if;
-    elsif new.revoked_at is null then
-      raise exception 'Cloudwechsel wird abgeschlossen' using errcode='55P03';
-    end if;
-  end if;
-  return new;
-end;
-$$;
-revoke all on function public.marketplace_guard_cloud_finalizing() from public,anon,authenticated;
-create trigger marketplace_local_outbox_cloud_fence before insert or update on public.marketplace_local_message_outbox for each row execute function public.marketplace_guard_cloud_finalizing();
-create trigger marketplace_local_grant_cloud_fence before insert or update on public.marketplace_local_extension_grants for each row execute function public.marketplace_guard_cloud_finalizing();
+$function$;

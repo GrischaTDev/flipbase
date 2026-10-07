@@ -1,5 +1,109 @@
 # Vinted-Browserdienst: Veröffentlichung des Admin-Piloten
 
+## Umstellung älterer Cloudkonten vom 07.10.2026: geprüft, noch nicht veröffentlicht
+
+Der vorhandene Cloud-Einrichtungsablauf unterstützt nun bereits verbundene
+Cloudkonten ohne abgeschlossene IP-Reservierung. In der Kontokarte öffnet
+„Cloud-IP einrichten“ diesen Ablauf. Der Server reserviert eine freie,
+verifizierte deutsche ISP-IP; bei fehlender Kapazität bleibt das Konto
+unverändert. Automatisches Nachbestellen gehört weiterhin nicht dazu.
+
+Eine erfolgreiche Reservierung pausiert den bisherigen Zeitplan und widerruft
+dessen Abrufberechtigung. Laufende oder ungeklärte Aktionen verhindern den
+Wechsel. Nach bestätigtem Browserstopp wird das alte Profil archiviert und
+ein eigenes Profil mit der reservierten IP erstellt. Die Anmeldung muss die
+bisherige Vinted-Identität bestätigen; Kontoverbindung und gespeicherte Daten
+bleiben erhalten. Ein Abbruch startet den alten Zeitplan nicht wieder.
+Manuelle und geplante Chromiumstarts ohne bestätigte IP-Zuordnung werden vor
+dem Browserstart abgewiesen.
+
+Die erzeugte Migration `20261006232708_legacy_cloud_proxy_setup.sql` ersetzt
+ausschließlich zwei Einrichtungsfunktionen. Ihr transaktionales Replay auf einer
+separaten Datenbank mit dem bisherigen Migrationsstand besteht 76 Assertions.
+Funktionsrechte und API-Typen bleiben erhalten; Worker-Suite, gezielte
+Angular-/Workflow-Tests, Typen, Lint, Format und Angular-Bau bestehen.
+
+Nach dem freigegebenen grünen PR Web-App, Migration und Worker aus demselben
+Merge-Stand veröffentlichen. Dabei die aktuelle Broker-/Firewall-Konfiguration
+beibehalten; Maikes Zeitplan, globale Zeitsteuerung und Schreibaktionen bleiben
+zunächst ausgeschaltet. Dann in Flipbase bei Maike „Cloud-IP einrichten“ wählen,
+im neuen Browserprofil anmelden und die Identität bestätigen. Ein SMS-Code wird
+vom Nutzer eingegeben. Erst nach Prüfung der reservierten IP, des tatsächlichen
+Profilausgangs und eines erfolgreichen manuellen Abrufs werden geplante Abrufe
+wieder freigegeben. Einen erfolgreichen Proxybetrieb belegen erst diese
+Live-Prüfungen, nicht die isolierten Tests.
+
+## Geplanter Abrufpilot vom 07.10.2026: Zeitsteuerung bestätigt, Proxyzuordnung offen
+
+Der Nutzer gibt einen ausschließlich lesenden Pilot für Maike Vintage frei.
+Bei der Vorprüfung ist genau ein Zeitplan gespeichert und kein anderes
+Cloudkonto verbunden. Die aktuelle gehärtete Worker-/Broker-Konfiguration
+wird direkt am Host bestätigt und erhalten:
+
+- Worker:
+  `ghcr.io/grischatdev/flipbase-marketplace-worker@sha256:9310654925d865ded00a0d45b5fcc97741ef3a6af8aeedad2b35351283992de9`
+- Chrome-Sitzung:
+  `ghcr.io/grischatdev/flipbase-chromium-session@sha256:9846105f9766f2c640c027c6090dff3c6dccee51b9336cbc0a87dfcef0f9588c`
+- Aktive und nach dem Pilot wiederhergestellte Konfiguration:
+  `/opt/flipbase-marketplace/security-release-7fc98d60/`
+
+Unter `/opt/flipbase-marketplace/scheduled-pilot-20261007/` liegt eine private
+Konfigurationskopie. Ein Vergleich der vollständig aufgelösten Compose-Daten
+bestätigt als einzige Änderung `MARKETPLACE_SCHEDULED_SYNC_ENABLED=1`.
+Schreibaktionen bleiben mit `MARKETPLACE_CHROMIUM_WRITES_ENABLED=0` deaktiviert.
+Der Worker erhält keinen Docker-Socket; der bestehende Hostbroker wird nicht
+neu gestartet. Firewallfreigabe mit Policy `v2`, passender Boot-ID und aktuellem
+Zeitstempel sowie öffentliche HTTP-200-Gesundheitsprüfung sind bestätigt.
+
+Maikes Zeitplan wird in den authentifizierten Kontoeinstellungen zunächst
+auf drei Minuten gestellt und aktiviert. Der eigene Flipbase-Testtab ist
+während der geplanten Abrufe geschlossen; andere Nutzer-Tabs werden nicht
+geschlossen. Es wird keine manuelle Aktualisierung gestartet.
+
+| Geplanter Abruf, UTC | Abschluss, UTC | Ergebnis                              |
+| -------------------- | -------------- | ------------------------------------- |
+| 06.10., 22:50:22.756 | 22:50:27.432   | erfolgreich gespeichert und bereinigt |
+| 06.10., 22:53:39.970 | 22:53:44.810   | erfolgreich nach Worker-Neustart      |
+
+Der Neustart endet um 22:52:00 UTC. Vor dem Stopp sind keine Sitzungen,
+Aufträge oder Browsercontainer aktiv; Exitcode 0, kein OOM. Nach dem Start
+bleiben Zeitplan, Anmeldung und Image-Digests erhalten. Beide geplanten
+Abrufe liefern Profil, Inserate, Gesprächsübersicht und Bewertungen
+vollständig. Nachrichten und Verkäufe bleiben fehlerfreie Teilstände.
+Nach Abschluss gibt es keine offenen Sitzungen, laufenden Aufträge oder
+übrig gebliebenen regulären Browsercontainer.
+
+Die zusätzliche Prüfung der tatsächlichen Profilbindung findet eine
+Abweichung: Maikes unveränderliches Profilmanifest enthält `networkId=direct`.
+Für die Verbindung existiert kein Datensatz in `marketplace_cloud_setups`.
+Der registrierte Zugang `iproyal-pilot-a` ist aktiviert, verifiziert, deutsch,
+dediziert und noch gültig, aber nicht das Netzwerk dieses Profils. Die
+erfolgreichen Abrufe beweisen daher keinen Betrieb über den gekauften Proxy.
+Die IP-Prüfung hätte bereits vor der Aktivierung erfolgen müssen.
+
+Der Pilot wird nach zwei Abrufen beendet. In den normalen Kontoeinstellungen
+ist `enabled=false`, `interval_minutes=15`, `next_due_at=null` gespeichert.
+Die vorherige Sicherheitskonfiguration läuft wieder gesund mit global
+deaktiviertem Zeitplan und deaktivierten Schreibaktionen. Browserprofil,
+Kontoverbindung und IP-Bestand werden weder gelöscht noch von Hand umgebunden.
+Die temporäre Pilotkonfiguration bleibt als Nachweis erhalten, ist aber inaktiv.
+
+Vor einer Wiederaufnahme muss das ältere Cloudprofil über einen unterstützten
+Kontowechsel in die reguläre IP-Reservierung überführt werden. Der aktuelle
+Einrichtungsablauf akzeptiert bestehende lokale Konten, lehnt bereits
+verbundene Cloudkonten ohne Einrichtungsdatensatz ab. Das Manifest manuell zu
+ändern oder die vorhandene Anmeldung ungeprüft auf eine andere IP zu setzen
+ist kein abgenommener Übergang.
+
+Lokal bestehen 60 Tests aus `marketplace-sync-dispatcher`,
+`marketplace-sync-runner`, `supabase-marketplace-operation-store` und
+`vinted-account-import`. Geprüft sind unter anderem 401, sofortiger Abbruch
+bei 403/429 ohne weitere Quellanfrage, Rate-Limit-Pause, entzogener Zugriff,
+Kontogrenzen und geordneter Dienstabschluss. Keine echten Anbieterfehler
+werden dafür im produktiven Konto provoziert. Die folgenden älteren
+Rolloutabschnitte dokumentieren historische Stände und sind kein Rückweg
+aus der aktuellen Sicherheitskonfiguration.
+
 ## Aktivierter Chrome-Browserdienst vom 06.10.2026
 
 Nach ausdrücklicher Freigabe zur Aktualisierung läuft der Worker aus dem

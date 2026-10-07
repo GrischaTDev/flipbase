@@ -35,6 +35,40 @@ test('reserved network mismatch fails before a browser can open', async () => {
   await assert.rejects(profiles.resolve(lease));
 });
 
+test('a legacy Chromium profile without a reserved IP cannot start a scheduled browser', async () => {
+  let starts = 0;
+  let releases = 0;
+  const broker = new MarketplaceBrowserSessionBroker({
+    leases: {
+      acquire: async () => lease,
+      assertActive: async () => true,
+      release: async () => {
+        releases++;
+      },
+    },
+    profiles: new ChromiumBoundProfileStore({
+      profiles: { resolve: async () => profileId },
+      registry: {
+        resolve: async () => {
+          throw new Error('must not reach the private profile');
+        },
+      },
+      assertNetwork: async () => null,
+    }),
+    browsers: {
+      open: async () => {
+        starts++;
+        throw new Error('must not start');
+      },
+      stop: async () => undefined,
+    },
+    recovery: { recover: async () => undefined },
+  });
+  await assert.rejects(broker.open(lease.scope), /Browserstart fehlgeschlagen/);
+  assert.equal(starts, 0);
+  assert.equal(releases, 1);
+});
+
 test('scheduled sessions cannot open a Chromium profile bound to another account', async () => {
   let starts = 0;
   let releases = 0;

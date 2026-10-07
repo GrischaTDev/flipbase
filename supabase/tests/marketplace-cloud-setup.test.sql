@@ -121,5 +121,85 @@ select throws_ok($$select pg_temp.step('cleanup')$$,'55P03',null,'Mapped profile
 select lives_ok($$select pg_temp.step('detach',null,'chromium_37100000-0000-4000-8000-000000000051')$$,'Stopped unassigned profile can be detached');
 select is(pg_temp.step('cleanup')->'setup'->>'state','cancelled','Confirmed cleanup frees the IP');
 reset role;
+-- Bereits verbundene Cloudkonten ohne IP-Reservierung behalten Konto und Daten.
+update public.marketplace_cloud_ips set expires_at=now()+interval '30 days' where network_id='iproyal-test-a';
+insert into public.marketplace_connections(id,workspace_id,display_name,external_account_id,execution_mode,status) values
+ ('37100000-0000-4000-8000-000000000023','37100000-0000-4000-8000-000000000011','Legacy Cloud','777','cloud','connected');
+insert into public.marketplace_browser_profiles(workspace_id,connection_id,provider_profile_id) values
+ ('37100000-0000-4000-8000-000000000011','37100000-0000-4000-8000-000000000023','chromium_37100000-0000-4000-8000-000000000071');
+insert into public.marketplace_sync_schedules(workspace_id,connection_id,activated_by,enabled,next_due_at,authorization_version) values
+ ('37100000-0000-4000-8000-000000000011','37100000-0000-4000-8000-000000000023','37100000-0000-4000-8000-000000000001',true,now()+interval '15 minutes',3);
+insert into public.marketplace_operations(workspace_id,connection_id,requested_by,state) values
+ ('37100000-0000-4000-8000-000000000011','37100000-0000-4000-8000-000000000023','37100000-0000-4000-8000-000000000001','queued');
+create function pg_temp.begin_legacy() returns jsonb language sql as $$
+ select pg_temp.begin_setup('37100000-0000-4000-8000-000000000023','37100000-0000-4000-8000-000000000034');
+$$;
+create function pg_temp.legacy_step(p_action text,p_identity text default null,p_profile text default null) returns jsonb language sql as $$
+ select public.marketplace_cloud_setup_update('37100000-0000-4000-8000-000000000011',
+  (select public_id from public.marketplace_cloud_setups where request_id='37100000-0000-4000-8000-000000000034'),
+  '37100000-0000-4000-8000-000000000001','37100000-0000-4000-8000-000000000041',1,p_action,p_profile,p_identity,'legacy-seller');
+$$;
+set local role authenticated;
+select throws_ok($$select pg_temp.begin_legacy()$$,'55P03',null,'An active read prevents legacy cloud migration');
+reset role;
+update public.marketplace_operations set state='failed' where connection_id='37100000-0000-4000-8000-000000000023';
+set local role authenticated;
+select is(pg_temp.begin_legacy()->>'status','ready','An existing cloud account reserves a free ISP IP');
+select is(pg_temp.begin_legacy()->'setup'->>'state','reserved','Legacy reservation is idempotent');
+reset role;
+select is((select expected_external_account_id from public.marketplace_cloud_setups where connection_id='37100000-0000-4000-8000-000000000023'),'777','Legacy identity is retained for verification');
+select ok((select not enabled and next_due_at is null and authorization_version=4 from public.marketplace_sync_schedules where connection_id='37100000-0000-4000-8000-000000000023'),'Only a successful reservation revokes the old schedule once');
+select is((select provider_profile_id from public.marketplace_browser_profiles where connection_id='37100000-0000-4000-8000-000000000023'),'chromium_37100000-0000-4000-8000-000000000071','Reservation does not silently rewrite the old profile');
+set local role service_role;
+select lives_ok($$select pg_temp.legacy_step('claim')$$,'Worker claims the legacy transition');
+reset role;
+select throws_ok($$insert into public.marketplace_operations(workspace_id,connection_id,requested_by,state) values
+ ('37100000-0000-4000-8000-000000000011','37100000-0000-4000-8000-000000000023','37100000-0000-4000-8000-000000000001','queued')$$,'42501',null,'A reserved transition rejects late normal reads');
+set local role service_role;
+select lives_ok($$select pg_temp.legacy_step('unmap',null,'chromium_37100000-0000-4000-8000-000000000071')$$,'Confirmed old profile can be detached');
+select lives_ok($$select pg_temp.legacy_step('bind',null,'chromium_37100000-0000-4000-8000-000000000072')$$,'A separate proxy profile is bound');
+reset role;
+set local role authenticated;
+select public.marketplace_cloud_setup_session_reserve('37100000-0000-4000-8000-000000000011',(pg_temp.begin_legacy()->'setup'->>'setupId')::uuid);
+reset role;
+set local role service_role;
+select public.marketplace_browser_session_bind_worker((select public_id from public.marketplace_browser_sessions where connection_id='37100000-0000-4000-8000-000000000023'),'37100000-0000-4000-8000-000000000041',1);
+select throws_ok($$select pg_temp.legacy_step('verify','999')$$,'23505',null,'Legacy migration rejects another signed-in account');
+select lives_ok($$select pg_temp.legacy_step('verify','777')$$,'The same account can confirm its proxy profile');
+select lives_ok($$select pg_temp.legacy_step('finalize')$$,'Verified legacy migration prepares completion');
+reset role;
+update public.marketplace_browser_sessions set state='closed',provider_stopped_at=clock_timestamp() where connection_id='37100000-0000-4000-8000-000000000023';
+set local role service_role;
+select is(pg_temp.legacy_step('complete')->'setup'->>'state','completed','Stopped proxy browser completes the legacy transition');
+reset role;
+select is((select external_account_id from public.marketplace_connections where id='37100000-0000-4000-8000-000000000023'),'777','Migration keeps the existing account identity');
+select ok((select not enabled from public.marketplace_sync_schedules where connection_id='37100000-0000-4000-8000-000000000023'),'Completion does not automatically resume the schedule');
+set local role authenticated;
+select is(pg_temp.begin_setup('37100000-0000-4000-8000-000000000023','37100000-0000-4000-8000-000000000035')->'setup'->>'state','completed','A configured cloud account reuses its completed setup');
+select is(pg_temp.begin_setup('37100000-0000-4000-8000-000000000022','37100000-0000-4000-8000-000000000036')->>'status','no_capacity','A bound legacy account does not share its proxy');
+reset role;
+insert into public.marketplace_connections(id,workspace_id,display_name,external_account_id,execution_mode,status) values
+ ('37100000-0000-4000-8000-000000000024','37100000-0000-4000-8000-000000000011','Legacy Cancel','778','cloud','connected');
+insert into public.marketplace_browser_profiles(workspace_id,connection_id,provider_profile_id) values
+ ('37100000-0000-4000-8000-000000000011','37100000-0000-4000-8000-000000000024','chromium_37100000-0000-4000-8000-000000000073');
+insert into public.marketplace_sync_schedules(workspace_id,connection_id,activated_by,enabled,next_due_at,authorization_version) values
+ ('37100000-0000-4000-8000-000000000011','37100000-0000-4000-8000-000000000024','37100000-0000-4000-8000-000000000001',true,now()+interval '15 minutes',7);
+set local role authenticated;
+select is(pg_temp.begin_setup('37100000-0000-4000-8000-000000000024','37100000-0000-4000-8000-000000000037')->>'status','no_capacity','Legacy account also receives the capacity failure');
+reset role;
+select ok((select enabled and next_due_at is not null and authorization_version=7 from public.marketplace_sync_schedules where connection_id='37100000-0000-4000-8000-000000000024'),'No capacity does not change an existing schedule');
+insert into public.marketplace_cloud_ips(network_id,exit_ip_fingerprint,order_reference,country_code,expires_at,enabled,verified_at) values
+ ('iproyal-test-b',repeat('4',64),'order-test-b','DE',now()+interval '30 days',true,now());
+set local role authenticated;
+select is(pg_temp.begin_setup('37100000-0000-4000-8000-000000000024','37100000-0000-4000-8000-000000000037')->>'status','ready','Capacity retry can reserve an IP for the same legacy account');
+select is(public.marketplace_cloud_setup_cancel('37100000-0000-4000-8000-000000000011',(pg_temp.begin_setup('37100000-0000-4000-8000-000000000024','37100000-0000-4000-8000-000000000037')->'setup'->>'setupId')::uuid)->>'state','cleanup_pending','Cancelling legacy setup first requests controlled cleanup');
+reset role;
+set local role service_role;
+select public.marketplace_cloud_setup_update('37100000-0000-4000-8000-000000000011',(select public_id from public.marketplace_cloud_setups where request_id='37100000-0000-4000-8000-000000000037'),'37100000-0000-4000-8000-000000000001','37100000-0000-4000-8000-000000000041',1,'recover');
+select is(public.marketplace_cloud_setup_update('37100000-0000-4000-8000-000000000011',(select public_id from public.marketplace_cloud_setups where request_id='37100000-0000-4000-8000-000000000037'),'37100000-0000-4000-8000-000000000001','37100000-0000-4000-8000-000000000041',1,'cleanup')->'setup'->>'state','cancelled','Confirmed cleanup releases the cancelled reservation');
+reset role;
+select is((select external_account_id from public.marketplace_connections where id='37100000-0000-4000-8000-000000000024'),'778','Cancellation keeps the legacy connection');
+select is((select provider_profile_id from public.marketplace_browser_profiles where connection_id='37100000-0000-4000-8000-000000000024'),'chromium_37100000-0000-4000-8000-000000000073','Cancellation before browser opening retains the old profile mapping');
+select ok((select not enabled from public.marketplace_sync_schedules where connection_id='37100000-0000-4000-8000-000000000024'),'Cancellation does not restart the old schedule');
 select * from finish();
 rollback;

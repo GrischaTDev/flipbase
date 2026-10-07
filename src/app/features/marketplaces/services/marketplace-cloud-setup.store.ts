@@ -97,7 +97,7 @@ export class MarketplaceCloudSetupStore {
     try {
       const result = await this.api.begin(request, token);
       if (!this.isCurrent(context, revision)) {
-        if (result.status === 'ready')
+        if (result.status === 'ready' && result.setup.state !== 'completed')
           void this.api.action(result.setup, 'cancel', token).catch(() => undefined);
         return null;
       }
@@ -106,7 +106,9 @@ export class MarketplaceCloudSetupStore {
         this.errorState.set({ context, message: CLOUD_CAPACITY_MESSAGE });
         return null;
       }
-      this.active.set({ context, setup: result.setup, token });
+      this.active.set(
+        result.setup.state === 'completed' ? null : { context, setup: result.setup, token },
+      );
       this.pendingRequest = null;
       await this.accounts.reloadConnections(result.setup.connectionId);
       return this.isCurrent(context, revision) ? result.setup : null;

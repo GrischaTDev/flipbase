@@ -320,7 +320,9 @@ for (const theme of ['light', 'dark']) {
     await editor
       .getByRole('textbox', { name: 'Stichwörter im Titel · optional', exact: true })
       .press('Enter');
-    await expect(editor.getByRole('status')).toContainText('Titel enthält alle Begriffe: vintage');
+    await expect(
+      editor.getByRole('status').filter({ hasText: 'Herren > Kleidung > Jacken' }),
+    ).toContainText('Titel enthält alle Begriffe: vintage');
     await editor.getByRole('button', { name: 'Erweiterte Einstellungen', exact: true }).click();
     await editor
       .getByRole('spinbutton', { name: 'Abstand zwischen Abfragen in Sekunden', exact: true })
