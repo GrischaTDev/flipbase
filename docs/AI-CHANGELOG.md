@@ -19,8 +19,10 @@ zurückgesetzt. Neue Fehler dieses Anmeldeversuchs bleiben sichtbar. Keine
 Änderung an Worker, Browserprofil, Proxy, Datenbank oder Sitzungsdaten.
 
 **Prüfung:** Die beiden Regressionstests scheitern vorher am gespeicherten
-Abruffehler. Nach der Korrektur bestehen 116 Angular-Tests für Browser-Store,
-Anmeldedialog und Vinted-Arbeitsbereich. Formatierung, gezieltes ESLint und der
+Abruffehler. Nach der Korrektur bestehen 120 Angular-Tests für Browser-Store,
+Anmeldedialog, Vinted-Arbeitsbereich und Marktplatz-Testseite. Die Service-Ersatzobjekte
+auf der Testseite berücksichtigen ebenfalls das Zurücksetzen alter Meldungen.
+Formatierung, gezieltes ESLint und der
 Angular-Produktionsbau sind erfolgreich. Die Live-Kontobestätigung und vorherigen
 403-Abrufe wurden nur über vorhandene Servermetadaten und Protokolle geprüft.
 Ein erfolgreicher neuer Cloud-Abruf ist damit noch nicht nachgewiesen.
