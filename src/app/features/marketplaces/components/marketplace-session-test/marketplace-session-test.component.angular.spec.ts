@@ -81,6 +81,7 @@ beforeEach(() => {
           selectionVersion: signal(0),
           canManage: signal(true),
           mutationError: signal(null),
+          clearMutationError: vi.fn(),
         },
       },
       {
@@ -181,6 +182,7 @@ it('bietet nach abgelehntem Login wieder das leere Formular an und stoppt den Pr
       selectionVersion: signal(0),
       canManage: signal(true),
       mutationError: signal(null),
+      clearMutationError: vi.fn(),
     },
   });
   Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: () => 'blob:test' });

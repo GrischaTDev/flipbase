@@ -34,6 +34,7 @@ let api: {
   completeCloud: ReturnType<typeof vi.fn>;
 };
 let reloadConnections: ReturnType<typeof vi.fn>;
+let mutationError: ReturnType<typeof signal<string | null>>;
 let store: MarketplaceBrowserTestStore;
 
 beforeEach(async () => {
@@ -58,6 +59,7 @@ beforeEach(async () => {
     completeCloud: vi.fn().mockResolvedValue({ state: 'completed' }),
   };
   reloadConnections = vi.fn().mockResolvedValue(undefined);
+  mutationError = signal<string | null>(null);
   TestBed.resetTestingModule();
   TestBed.configureTestingModule({
     providers: [
@@ -72,6 +74,7 @@ beforeEach(async () => {
           selectionVersion,
           canManage: signal(true),
           reloadConnections,
+          clearMutationError: () => mutationError.set(null),
         },
       },
       { provide: WorkspaceService, useValue: { currentWorkspace: workspace } },
@@ -88,6 +91,29 @@ beforeEach(async () => {
 });
 
 describe('Kontogebundener Browser-Testbereich', () => {
+  it('zeigt nach bestätigter Anmeldung keinen Fehler eines vorherigen Datenabrufs', async () => {
+    mutationError.set('Die Aktualisierung ist beim Lesen des Profils fehlgeschlagen.');
+
+    await store.startManualLogin();
+    await store.confirmAccount();
+
+    expect(mutationError()).toBeNull();
+    expect(store.error()).toBeNull();
+    expect(api.identify).toHaveBeenCalledOnce();
+    expect(api.close).toHaveBeenCalledOnce();
+  });
+
+  it('erhält einen aktuellen Fehler des neuen Anmeldeversuchs', async () => {
+    mutationError.set('Die Aktualisierung ist beim Lesen des Profils fehlgeschlagen.');
+    api.open.mockRejectedValueOnce(new Error('Browser unavailable'));
+
+    await store.startManualLogin();
+
+    expect(mutationError()).toBeNull();
+    expect(store.error()).toBe('Die Browsersitzung konnte nicht bestätigt werden.');
+    expect(api.identify).not.toHaveBeenCalled();
+  });
+
   it('aktiviert Cloud erst nach gesondertem Abschluss und erhält die Konto-ID', async () => {
     store.configureCloudSetup(id);
     await store.startManualLogin();
