@@ -2,7 +2,12 @@ import { expect, test, type Page } from '@playwright/test';
 import axe from 'axe-core';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { mockMarketplace, workspaceId, accountIds } from './support/marketplace-account-fixture';
+import {
+  mockMarketplace,
+  workspaceId,
+  accountIds,
+  conversationId,
+} from './support/marketplace-account-fixture';
 
 test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: 'block' });
 
@@ -154,7 +159,7 @@ for (const width of [1440, 390, 320]) {
         const body = route.request().postDataJSON();
         if (body['p_kind'] !== 'message') return route.fallback();
         expect(body['p_workspace_id']).toBe(workspaceId);
-        expect(body['p_parent_id']).toBe('conversation-1');
+        expect(body['p_parent_id']).toBe(conversationId);
         return route.fulfill({
           json: {
             items: messages.map((message) => ({
@@ -426,6 +431,13 @@ for (const width of [1440, 390, 320]) {
       await conversationButton.press('Enter');
       await expect(page.getByRole('log')).toContainText('Welche Maße hat der Schal?');
       const messageLog = page.getByRole('log');
+      await expect(messageLog.locator('[data-conversation-sync]')).toContainText('Synchronisiert');
+      expect(calls.filter((call) => call.name === 'browser_read_conversation')).toEqual([
+        {
+          name: 'browser_read_conversation',
+          body: { workspaceId, connectionId: accountIds[0], conversationId },
+        },
+      ]);
       await expect(messageLog.locator('article')).toHaveCount(6);
       await expect(messageLog.locator('[data-message-direction="outbound"]')).toContainText(
         'Testantwort: 180 × 30 cm.',
@@ -558,7 +570,11 @@ for (const width of [1440, 390, 320]) {
         await screenshot(page, `vinted-settings-200-percent-${theme}`);
         await dialog.press('Escape');
       }
-      expect(calls.some((call) => call.name.startsWith('browser_'))).toBe(false);
+      expect(
+        calls.filter(
+          (call) => call.name.startsWith('browser_') && call.name !== 'browser_read_conversation',
+        ),
+      ).toEqual([]);
       expect(errors).toEqual([]);
       expect(warnings).toEqual([]);
     });

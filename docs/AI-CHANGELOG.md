@@ -30,6 +30,16 @@ und Worker, gezieltes ESLint und Formatierung bestehen. Der Anwendungsbau meldet
 weiterhin die bekannte CommonJS-Warnung für `pako`. Noch kein Deployment und kein
 echter Vinted-Detailabruf mit dieser Änderung.
 
+**CI-Nachprüfung am 08.10.:** Der Browser-Oberflächentest verwendet bislang eine
+ungültige Gesprächs-ID und bildet den neuen Cloud-Abruf nicht ab. Dadurch erscheint
+korrekt der Fehler mit Wiederholknopf. Die künstliche Testantwort erhält eine UUID,
+den bestätigten Abruf und den gemeinsam übernommenen Detailprüfzeitpunkt. Der Test
+prüft jetzt zusätzlich die Kontozuordnung des Abrufs und "Synchronisiert". Die
+bestehende Prüfung gegen Bedienelemente in Nachrichten bleibt unverändert.
+Alle sechs lokalen Browserprüfungen mit künstlichen Antworten bestehen bei
+1440, 390 und 320 Pixeln im hellen und dunklen Design einschließlich AXE-Prüfungen.
+Die vollständige CI-Nachprüfung auf diesem korrigierten Stand steht noch aus.
+
 ## 2026-10-07 - Juna - Cloud-Browserdienst wiederherstellen und Wiederanlauf absichern
 
 **Auftrag:** Die Meldungen zum nicht erreichbaren Browserdienst und wartenden
