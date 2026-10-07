@@ -1,5 +1,50 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-07 - Juna - Ersten geplanten Proxyabruf beobachten
+
+**Auftrag:** Der Nutzer aktiviert Maikes Automatik in Flipbase. Den ersten
+geplanten Abruf ohne zusätzliche manuelle Aktualisierung beobachten.
+
+**Vorprüfung:** Der gespeicherte Zeitplan ist aktiviert, mit Abstand 15 Minuten
+und Berechtigungsversion 22. Nächster Termin ist der 07.10., 08:58:51 UTC.
+Kein anderes Konto ist aktiviert, keine Cloudaktion oder Browsersitzung offen.
+Der Worker bestätigt aktive Zeitsteuerung, aktuelle Firewallfreigabe und
+deaktivierte Schreibaktionen.
+
+**Ergebnis:** Der erste Auftrag mit `authorization_kind=scheduled_read`
+startet um 08:59:04 UTC und endet um 08:59:11 UTC erfolgreich. Der gespeicherte
+Datenstand stammt aus 08:59:08 UTC. Profil, Inserate, Gesprächsübersicht und
+Bewertungen sind vollständig; Nachrichten und Verkäufe fehlerfreie Teilstände.
+Keine neue Anmeldung erforderlich. Der Kontoterminplan bleibt aktiviert mit
+Berechtigungsversion 22, ohne Pausengrund; nächster Termin 09:14:11 UTC.
+Nach dem Abruf sind keine Cloudaktionen, Browsersitzungen oder regulären
+Browsercontainer offen. Die Profilbindung bleibt `iproyal-pilot-a` und die
+Gesundheitsprüfung des Workers besteht. Dies bestätigt den ersten geplanten
+Proxyabruf, noch keinen Langzeitbetrieb oder automatische Schreibaktionen.
+
+## 2026-10-07 - Juna - Proxyverbindung prüfen und Cloud-Zeitsteuerung freigeben
+
+**Auftrag:** Nach erfolgreicher Cloud-Verbindung erklären und prüfen, warum
+Maike Vintage weiterhin eine pausierte Automatik anzeigt; den bereits
+freigegebenen lesenden Pilot über die reservierte IP vorbereiten.
+
+**Live-Prüfung:** Maikes neues Profil ist an `iproyal-pilot-a` gebunden,
+die Cloud-Einrichtung abgeschlossen. Ein erneuter Ausgangstest bestätigt
+Deutschland und denselben IP-Fingerabdruck wie der registrierte Zugang.
+Der manuelle Abruf vom 07.10., 08:36:52 bis 08:36:57 UTC endet erfolgreich:
+Profil, Inserate, Gesprächsübersicht und Bewertungen vollständig;
+Nachrichten und Verkäufe als fehlerfreie Teilstände. Der Kontoterminplan
+ist deaktiviert, ohne Pausengrund und ohne aufeinanderfolgende Fehler.
+
+**Betrieb:** Eine private Kopie der aktuellen Produktionskonfiguration
+aktiviert ausschließlich die globale Zeitsteuerung. Worker- und Browserimage,
+Hostbroker, Firewall, Profil und deaktivierte Schreibaktionen bleiben erhalten.
+Der Worker wurde bei leerer Warteschlange geordnet neu gestartet und ist gesund.
+Maikes Kontoschalter bleibt deaktiviert; in Flipbase kann der Nutzer jetzt
+unter Kontoeinstellungen die Automatik fortsetzen. Ein erfolgreicher geplanter
+Abruf über den Proxy ist noch nicht bestätigt. Kein automatischer Nachrichten-
+oder Angebotsversand und kein anderer Kontoterminplan wurden aktiviert.
+
 ## 2026-10-07 - Juna - Vinted-Anmeldefenster nach Shopify-Polaris überarbeiten
 
 **Auftrag:** Das Vinted-Anmeldefenster stimmig, aufgeräumt und passend zur
