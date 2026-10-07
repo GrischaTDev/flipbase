@@ -77,6 +77,19 @@ describe('evaluateFailure', () => {
     expect(decision.originUpdate?.blockedUntil?.toISOString()).toBe('2026-09-15T12:30:00.000Z');
   });
 
+  it('preserves the manual challenge pause when Retry-After is unsafe', () => {
+    for (const retryAfterSeconds of [Infinity, NaN, Number.MAX_VALUE, 86_401]) {
+      const decision = evaluateFailure(
+        new ForbiddenError('Challenge', { challengeDetected: true, retryAfterSeconds }),
+        makeQuery(),
+        NOW,
+      );
+      expect(decision.runState).toBe('blocked');
+      expect(decision.nextAttemptAt).toBeNull();
+      expect(decision.originUpdate?.blockedUntil).toBeNull();
+    }
+  });
+
   it('never probes before the provider retry delay on a forbidden response', () => {
     const decision = evaluateFailure(
       new ForbiddenError('Refused', { retryAfterSeconds: 1800 }),

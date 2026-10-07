@@ -1,5 +1,80 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-07 - Juna - Meldungen des Sicherheits-Scans prüfen und korrigieren
+
+**Auftrag:** Alle 19 Meldungen des vorhandenen Scans gegen den aktuellen
+Repositorystand prüfen, bestätigte Fehler beheben und relevante Abläufe testen.
+
+**Umsetzung:** 17 Meldungen erhalten gezielte Korrekturen: getrennte Registry-
+Berechtigungen für PRs und Veröffentlichungen, Sniper-Deployment über den
+gebauten Digest, ausdrückliche Verbindungserlaubnis im Erweiterungsfenster,
+begrenzte Beta-Anfragen und Vinted-Antworten, Merkzettel-Limits, abgesicherte
+Passwortänderungen, Adminrechte für Webhook-Ziele, Fremdschlüssel innerhalb
+desselben Arbeitsbereichs, Bereinigung globaler Finanz-Caches, begrenzte
+Kontoauszugs- und Bildimporte, stabile Kategorieprüfung, frühzeitige Entfernung
+des Beta-Tokens, neutrale Beta-Antworten, begrenztes Retry-After und reservierte
+Discord-Bindung vor der externen Rollenvergabe.
+
+Die unabhängige Prüfung findet zusätzliche Wege in diesen Grenzen. Die
+Korrekturen verhindern dauerhaft privilegierte Recovery-Sitzungen bei neuen
+Beta-Abschlüssen, beenden verwendete Einladungs-/Recovery-Sitzungen nach dem
+Passwortsetzen, entkoppeln SMTP vom öffentlichen Antwortpfad, speichern den
+größten Kategorieumfang über Neustarts und prüfen Fotoarray-Längen vor Zod-
+Kopien. Bildzuschnitte behalten die tatsächliche Browserorientierung. Zwei
+generierte Migrationen begleiten die Schemaänderungen; API-Typen stammen aus
+der isolierten Datenbank. Der bestehende Test für beschädigte Einkaufsdaten
+legt seine absichtlich ungültige Zeile nur im vorhandenen Replikations-Fixture
+an; die produktive Fremdschlüsselprüfung bleibt aktiv.
+
+**Offen:** Zwei Meldungen zur vollständigen Übernahme des zentralen Chromium-
+Workers benötigen eine gemeinsame Trennung von Browserarbeit und Verwaltung.
+Für den vorhandenen kleinen Server ist eine Variante im bereits gestarteten
+Browsercontainer vorbereitet: unveränderte Speichergrenzen, ein gleichzeitiger
+Cloud-Abruf und die bestehende Warteschlange. Keine Worker pro Nutzer. Dieser
+Umbau einschließlich GoLogin und Hostregeln ist noch nicht umgesetzt.
+
+**Prüfung:** Beide Migrationen lassen sich mit der vollständigen Historie und
+synthetischen Daten anwenden. 3.343 SQL-Prüfungen und 25 Sniper-Integrationsprüfungen
+bestehen. Parallele Datenbankverbindungen können weder Merkzettel-Limits noch
+die eindeutige Discord-Bindung umgehen. Direkte GoTrue-API-Prüfungen bestätigen
+den Passwortschutz einschließlich erneuerter Sitzungen; Einladung und Reset
+bleiben möglich. Der zuvor speicherintensive Katalogtrigger mit 1,5 Millionen
+Vorschaubildern wird bei 110 MiB gemessenem Prozessmaximum abgewiesen. Caddy-
+Konfiguration und Actionlint bestehen. Format, Lint, Typen, Workflow-Prüfungen,
+Suite-Audit, 1.760 Node-, 306 DOM-, 210 Edge- und 39 Landing-Prüfungen sowie
+der Produktionsbau bestehen. Der Gesamtbefehl scheitert zunächst an einem
+unveränderten Deal-Monitor-Test mit fünf Sekunden Zeitlimit. Der Einzeltest
+und anschließend alle 1.944 Angular-Prüfungen bestehen mit vier gleichzeitigen
+Testprozessen; das Zeitlimit bleibt unverändert. Sieben Deployskript-Prüfungen
+bestehen zusätzlich unter Linux ohne die Windows-bedingten Auslassungen.
+
+**Einführung:** Noch kein Push, Merge oder produktiver Eingriff. Das aktualisierte
+rootgeschützte Deployskript, die GoTrue-Einstellung und die neue Erweiterung
+müssen gemeinsam mit der Anwendung eingeführt werden. Früher ausgegebene
+Beta-Recovery-Sitzungen müssen vor der Freigabe widerrufen werden.
+
+**Fortsetzung nach Freigabe:** Der Nutzer gibt PR, Pflichtprüfungen und Merge frei.
+Der aktuelle master mit den unabhängig veröffentlichten Browseränderungen wird
+übernommen. Botprofil-Vorbereitung, manuelle Prüfpause und optionale Wiederholungen
+bleiben erhalten; Antwortgrößen und Retry-After bleiben auch in diesen Wegen
+begrenzt. Die neuen Fremdschlüssel treffen produktiv auf keine ungültigen
+arbeitsbereichsübergreifenden Beziehungen. Servervorbereitung und Veröffentlichung
+werden vor dem Merge geprüft.
+
+Das rootgeschützte Deployskript und das Auth-Overlay sind nach Sicherung auf dem
+Server vorbereitet. Direkte API-Kontrollen mit einem anschließend entfernten
+Testkonto liefern 400 ohne bisheriges Passwort, 400 bei falschem Passwort und
+200 bei korrektem Passwort. Zwei alte Beta-OTP-Sitzungen werden über den nativen
+Logout widerrufen; normale Passwortsitzungen bleiben erhalten. Der produktive
+Auth-Dienst kennzeichnet bestätigte Reset-Links als `otp`; die Passwortseite
+berücksichtigt diese verifizierte Sitzungsart, mit eigener Angular-Regression.
+
+Der PR-Browserlauf zeigt eine kurzzeitig noch nicht angepasste Breite im
+Auswahlmenü. Die Layoutprüfung wartet nun auf die geforderte Breite statt nur
+auf Sichtbarkeit; ihre Grenze bleibt unverändert. Der Beta-Lebenszyklustest
+zeigt bei fehlgeschlagenem Funktionsaufruf zusätzlich dessen öffentliche
+Fehlerantwort, damit vor einem Merge die tatsächliche Ursache sichtbar ist.
+
 ## 2026-10-07 - Juna - Fehler beim erneuten Cloud-Seitenaufruf sichtbar machen
 
 **Auftrag:** Den freigegebenen Cloud-Abruf-Fix veröffentlichen und mehrere

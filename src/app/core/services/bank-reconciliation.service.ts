@@ -3,6 +3,7 @@ import { StoreService } from './store.service';
 import { SalesService } from './sales.service';
 import { PurchaseService } from './purchase.service';
 import { SupabaseService } from './supabase.service';
+import { AuthService } from './auth.service';
 import { WorkspaceService } from './workspace.service';
 import { LoggerService } from './logger.service';
 import { SyncFehlerAktion, SyncStatusService } from './sync-status.service';
@@ -30,7 +31,25 @@ function neueKennung(): string {
   return createSecureClientUuid();
 }
 
-const STORAGE_KEY_BANK_TRANSACTIONS = 'flipbase_bank_transactions';
+export const MAX_BANK_FILE_BYTES = 10 * 1024 * 1024;
+export const MAX_BANK_TRANSACTIONS = 5000;
+
+interface BankContext {
+  workspaceId: string | null;
+  userId: string | null;
+  revision: number;
+}
+function assertBankTextSize(text: string): void {
+  if (
+    text.length > MAX_BANK_FILE_BYTES ||
+    new TextEncoder().encode(text).byteLength > MAX_BANK_FILE_BYTES
+  )
+    throw new Error('Kontoauszüge dürfen höchstens 10 MiB groß sein.');
+}
+function assertBankTransactionCount(count: number): void {
+  if (count > MAX_BANK_TRANSACTIONS)
+    throw new Error('Ein Kontoauszug darf höchstens 5000 Transaktionen enthalten.');
+}
 
 @Injectable({
   providedIn: 'root',
@@ -41,21 +60,28 @@ export class BankReconciliationService {
   // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
   private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
   private readonly workspaceService = inject(WorkspaceService, { optional: true });
+  private readonly auth = inject(AuthService, { optional: true });
+  private contextKey = '';
+  private contextRevision = 0;
+  private loadRequestId = 0;
+  private requestedContextRevision = -1;
   private readonly syncStatus = inject(SyncStatusService, { optional: true });
   private readonly storeService = inject(StoreService);
   private readonly salesService = inject(SalesService);
   private readonly purchaseService = inject(PurchaseService);
 
-  readonly transactions = signal<BankTransaction[]>(this.loadStoredTransactions());
+  readonly transactions = signal<BankTransaction[]>([]);
   readonly isProcessing = signal<boolean>(false);
   readonly selectedTransaction = signal<BankTransaction | null>(null);
 
   constructor() {
+    this.captureContext();
     try {
       effect(() => {
-        const ws = this.workspaceService?.currentWorkspace();
-        if (ws) {
-          this.loadFromSupabase(ws.id);
+        const context = this.captureContext();
+        if (context.workspaceId && context.revision !== this.requestedContextRevision) {
+          this.requestedContextRevision = context.revision;
+          void this.loadFromSupabase(context.workspaceId);
         }
       });
     } catch {
@@ -65,6 +91,9 @@ export class BankReconciliationService {
 
   async loadFromSupabase(workspaceId: string): Promise<void> {
     if (!this.supabase) return;
+    const context = this.captureContext();
+    if (context.workspaceId !== workspaceId) return;
+    const requestId = ++this.loadRequestId;
 
     try {
       const { data, error } = await this.supabase.client
@@ -73,7 +102,9 @@ export class BankReconciliationService {
         .eq('workspace_id', workspaceId)
         .order('booking_date', { ascending: false });
 
-      if (!error && data && data.length > 0) {
+      if (!this.isCurrentContext(context) || requestId !== this.loadRequestId) return;
+      if (error) throw error;
+      if (data) {
         const mapped: BankTransaction[] = (data as Tables<'bank_transactions'>[]).map((t) => ({
           id: t.id,
           bookingDate: t.booking_date,
@@ -90,7 +121,6 @@ export class BankReconciliationService {
           bookedAt: t.booked_at || undefined,
         }));
         this.transactions.set(mapped);
-        this.persistLocalCache(mapped);
       }
     } catch (err) {
       this.logger.error('Verbindungsfehler beim Laden der Banktransaktionen:', err);
@@ -136,36 +166,26 @@ export class BankReconciliationService {
     };
   });
 
-  private loadStoredTransactions(): BankTransaction[] {
-    try {
-      if (typeof window !== 'undefined') {
-        const stored = localStorage.getItem(STORAGE_KEY_BANK_TRANSACTIONS);
-        if (stored) return JSON.parse(stored);
-      }
-    } catch {}
-    return [];
+  private captureContext(): BankContext {
+    const workspaceId = this.workspaceService?.currentWorkspace()?.id ?? null;
+    const userId = this.auth?.currentUser()?.id ?? null;
+    const key = JSON.stringify([workspaceId, userId]);
+    if (this.supabase && key !== this.contextKey) {
+      this.contextKey = key;
+      this.contextRevision++;
+      this.loadRequestId++;
+      this.transactions.set([]);
+      this.selectedTransaction.set(null);
+    }
+    return { workspaceId, userId, revision: this.contextRevision };
   }
 
-  /**
-   * Sichert die Bankbewegungen - im Browser **und** in der Datenbank.
-   *
-   * Die Datenbankhaelfte fehlte komplett: Die Tabelle `bank_transactions` wurde
-   * nur gelesen, nie beschrieben. Der gesamte Kontenabgleich - importierte
-   * Auszuege, Zuordnungen, gebuchte Vorgaenge - lag damit allein im
-   * Browser-Speicher eines einzigen Geraets. Ein anderer Rechner zeigte nichts,
-   * ein geleerter Browser loeschte alles, und die naechtliche Sicherung
-   * erfasste nichts davon. Fuer Buchhaltungsdaten ist das der falsche Ort.
-   *
-   * Der Browser-Speicher bleibt als schneller Zwischenspeicher bestehen.
-   */
-  private persistLocalCache(liste: BankTransaction[]): void {
-    try {
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(STORAGE_KEY_BANK_TRANSACTIONS, JSON.stringify(liste));
-      }
-    } catch {
-      // Ohne Browser-Speicher bleibt die Datenbank die Quelle.
-    }
+  private isCurrentContext(context: BankContext): boolean {
+    return (
+      context.revision === this.contextRevision &&
+      context.workspaceId === (this.workspaceService?.currentWorkspace()?.id ?? null) &&
+      context.userId === (this.auth?.currentUser()?.id ?? null)
+    );
   }
 
   /**
@@ -177,11 +197,22 @@ export class BankReconciliationService {
   private async persistTransactions(
     liste: BankTransaction[],
     vorgang: string,
+    context = this.captureContext(),
   ): Promise<BankMutationResult> {
+    if (!this.isCurrentContext(context))
+      return this.fehlgeschlageneMutation(
+        vorgang,
+        new Error('Der Arbeitsbereich wurde inzwischen gewechselt.'),
+      );
     const ws = this.workspaceService?.currentWorkspace();
+    this.loadRequestId++;
     if (!this.supabase) {
+      if (!this.isCurrentContext(context))
+        return this.fehlgeschlageneMutation(
+          vorgang,
+          new Error('Der Arbeitsbereich wurde inzwischen gewechselt.'),
+        );
       this.transactions.set(liste);
-      this.persistLocalCache(liste);
       return { status: 'success', success: true, message: `${vorgang} erfolgreich.` };
     }
     if (!ws) {
@@ -211,8 +242,12 @@ export class BankReconciliationService {
         return this.fehlgeschlageneMutation(vorgang, error ?? new Error('Kein Datenbanktreffer.'));
       }
 
+      if (!this.isCurrentContext(context))
+        return this.fehlgeschlageneMutation(
+          vorgang,
+          new Error('Der Arbeitsbereich wurde inzwischen gewechselt.'),
+        );
       this.transactions.set(liste);
-      this.persistLocalCache(liste);
       return { status: 'success', success: true, message: `${vorgang} erfolgreich.` };
     } catch (e: unknown) {
       return this.fehlgeschlageneMutation(vorgang, e);
@@ -238,9 +273,15 @@ export class BankReconciliationService {
    * Primary File Import Dispatcher. Auto-detects whether file is CSV, MT940 or CAMT.053 XML.
    */
   async importBankStatementFile(file: File): Promise<BankStatementImportResult> {
+    const context = this.captureContext();
     this.isProcessing.set(true);
     try {
+      if (file.size > MAX_BANK_FILE_BYTES)
+        throw new Error('Kontoauszüge dürfen höchstens 10 MiB groß sein.');
       const text = await file.text();
+      assertBankTextSize(text);
+      if (!this.isCurrentContext(context))
+        throw new Error('Der Arbeitsbereich wurde inzwischen gewechselt.');
       const fileName = file.name.toLowerCase();
 
       let parsed: BankTransaction[] = [];
@@ -281,6 +322,7 @@ export class BankReconciliationService {
       const persistenz = await this.persistTransactions(
         matched,
         'Importieren der Banktransaktionen',
+        context,
       );
       if (persistenz.status === 'failed') {
         return {
@@ -336,6 +378,7 @@ export class BankReconciliationService {
    * Parses German bank CSV formats (Sparkasse, DKB, Volksbank, N26, Commerzbank, PayPal).
    */
   public parseCsv(content: string): BankTransaction[] {
+    assertBankTextSize(content);
     const lines = content
       .split(/\r?\n/)
       .map((l) => l.trim())
@@ -404,6 +447,7 @@ export class BankReconciliationService {
 
       if (!bookingDate || isNaN(amount)) continue;
 
+      assertBankTransactionCount(results.length + 1);
       results.push({
         id: neueKennung(),
         bookingDate,
@@ -424,8 +468,10 @@ export class BankReconciliationService {
    * Parses standard MT940 SWIFT bank statement text files.
    */
   public parseMt940(content: string): BankTransaction[] {
+    assertBankTextSize(content);
     const results: BankTransaction[] = [];
     const blocks = content.split(':61:');
+    assertBankTransactionCount(blocks.length - 1);
 
     for (let i = 1; i < blocks.length; i++) {
       const block = blocks[i];
@@ -470,6 +516,7 @@ export class BankReconciliationService {
         }
       }
 
+      assertBankTransactionCount(results.length + 1);
       results.push({
         id: neueKennung(),
         bookingDate,
@@ -489,52 +536,51 @@ export class BankReconciliationService {
    * Parses CAMT.053 XML standard ISO 20022 bank statements.
    */
   public parseCamt053Xml(xmlString: string): BankTransaction[] {
+    assertBankTextSize(xmlString);
     const results: BankTransaction[] = [];
-    try {
-      const parser = new DOMParser();
-      const xmlDoc = parser.parseFromString(xmlString, 'text/xml');
-      const entries = xmlDoc.getElementsByTagName('Ntry');
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(xmlString, 'text/xml');
+    const entries = xmlDoc.getElementsByTagName('Ntry');
+    assertBankTransactionCount(entries.length);
 
-      for (const ntry of Array.from(entries)) {
-        // Date
-        const dtElement = ntry.getElementsByTagName('Dt')[0];
-        const rawDate = dtElement?.textContent || new Date().toISOString().split('T')[0];
+    for (const ntry of Array.from(entries)) {
+      // Date
+      const dtElement = ntry.getElementsByTagName('Dt')[0];
+      const rawDate = dtElement?.textContent || new Date().toISOString().split('T')[0];
 
-        // Amount & Indicator
-        const amtElement = ntry.getElementsByTagName('Amt')[0];
-        const cdtDbtInd = ntry.getElementsByTagName('CdtDbtInd')[0]?.textContent || 'CRDT';
-        let amount = parseFloat(amtElement?.textContent || '0');
-        if (cdtDbtInd === 'DBIT') amount = -amount;
+      // Amount & Indicator
+      const amtElement = ntry.getElementsByTagName('Amt')[0];
+      const cdtDbtInd = ntry.getElementsByTagName('CdtDbtInd')[0]?.textContent || 'CRDT';
+      let amount = parseFloat(amtElement?.textContent || '0');
+      if (cdtDbtInd === 'DBIT') amount = -amount;
 
-        // Currency
-        const currency = amtElement?.getAttribute('Ccy') || 'EUR';
+      // Currency
+      const currency = amtElement?.getAttribute('Ccy') || 'EUR';
 
-        // Counterparty & Purpose
-        const dbtrNm = ntry
-          .getElementsByTagName('Dbtr')[0]
-          ?.getElementsByTagName('Nm')[0]?.textContent;
-        const cdtrNm = ntry
-          .getElementsByTagName('Cdtr')[0]
-          ?.getElementsByTagName('Nm')[0]?.textContent;
-        const counterpartyName = (amount > 0 ? dbtrNm : cdtrNm) || 'Bankkunde';
+      // Counterparty & Purpose
+      const dbtrNm = ntry
+        .getElementsByTagName('Dbtr')[0]
+        ?.getElementsByTagName('Nm')[0]?.textContent;
+      const cdtrNm = ntry
+        .getElementsByTagName('Cdtr')[0]
+        ?.getElementsByTagName('Nm')[0]?.textContent;
+      const counterpartyName = (amount > 0 ? dbtrNm : cdtrNm) || 'Bankkunde';
 
-        const iban = ntry.getElementsByTagName('IBAN')[0]?.textContent;
-        const ustrd = ntry.getElementsByTagName('Ustrd')[0]?.textContent || 'SEPA Zahlung';
+      const iban = ntry.getElementsByTagName('IBAN')[0]?.textContent;
+      const ustrd = ntry.getElementsByTagName('Ustrd')[0]?.textContent || 'SEPA Zahlung';
 
-        results.push({
-          id: neueKennung(),
-          bookingDate: rawDate,
-          counterpartyName,
-          counterpartyIban: iban,
-          purpose: ustrd,
-          amount,
-          currency,
-          sourceFormat: 'camt053',
-          status: 'pending',
-        });
-      }
-    } catch {}
-
+      results.push({
+        id: neueKennung(),
+        bookingDate: rawDate,
+        counterpartyName,
+        counterpartyIban: iban,
+        purpose: ustrd,
+        amount,
+        currency,
+        sourceFormat: 'camt053',
+        status: 'pending',
+      });
+    }
     return results;
   }
 
@@ -751,6 +797,8 @@ export class BankReconciliationService {
     txId: string,
     aktion?: SyncFehlerAktion,
   ): Promise<BankMutationResult> {
+    const context = this.captureContext();
+    this.loadRequestId++;
     const list = this.transactions();
     const tx = list.find((t) => t.id === txId);
     if (!tx || !tx.match) {
@@ -794,6 +842,12 @@ export class BankReconciliationService {
       }
     }
 
+    if (!this.isCurrentContext(context))
+      return this.fehlgeschlageneMutation(
+        'Buchen der Banktransaktion',
+        new Error('Der Arbeitsbereich wurde inzwischen gewechselt.'),
+        aktion,
+      );
     const aktualisiert = list.map((t) =>
       t.id === txId ? { ...t, status: 'booked' as const, bookedAt: now } : t,
     );
@@ -802,7 +856,6 @@ export class BankReconciliationService {
       if (persistenz.status === 'failed') return persistenz;
     } else {
       this.transactions.set(aktualisiert);
-      this.persistLocalCache(aktualisiert);
     }
 
     if (tx.match.targetType === 'store_order') {
@@ -826,6 +879,7 @@ export class BankReconciliationService {
    * Batch books all transactions with high confidence (>= 90%).
    */
   async bookAllExactMatches(): Promise<BankBatchBookingResult> {
+    const context = this.captureContext();
     const list = this.transactions();
     const toBook = list.filter(
       (t) => t.status === 'matched' && t.match && t.match.confidence >= 90,
@@ -845,6 +899,16 @@ export class BankReconciliationService {
     try {
       const results = [];
       for (const tx of toBook) {
+        if (!this.isCurrentContext(context)) {
+          results.push(
+            this.fehlgeschlageneMutation(
+              'Buchen der Banktransaktion',
+              new Error('Der Arbeitsbereich wurde inzwischen gewechselt.'),
+              aktion,
+            ),
+          );
+          break;
+        }
         results.push(await this.bookTransactionWithinAction(tx.id, aktion));
       }
       const bookedCount = results.filter(({ status }) => status === 'success').length;
@@ -870,6 +934,7 @@ export class BankReconciliationService {
    * Manually assigns an unmatched transaction.
    */
   async manualAssign(txId: string, match: BankReconciliationMatch): Promise<BankMutationResult> {
+    this.captureContext();
     if (!this.transactions().some((tx) => tx.id === txId)) {
       return {
         status: 'failed',
@@ -894,6 +959,12 @@ export class BankReconciliationService {
    * Ignores a transaction from reconciliation.
    */
   async ignoreTransaction(txId: string): Promise<BankMutationResult> {
+    const context = this.captureContext();
+    if (this.supabase && !context.workspaceId)
+      return this.fehlgeschlageneMutation(
+        'Ignorieren der Banktransaktion',
+        new Error('Kein aktiver Workspace.'),
+      );
     const vorhanden = this.transactions().some((tx) => tx.id === txId);
     if (!vorhanden) {
       return {

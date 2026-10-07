@@ -21,6 +21,32 @@ const categories: VintedCategory[] = [
 ];
 
 describe('CategoryStore', () => {
+  it('rejects a small replacement, cycles and missing parents without touching a large existing tree', async () => {
+    const baseline = Array.from({ length: 120 }, (_, index) => ({
+      id: index + 1,
+      parentId: null,
+      title: `Category ${index}`,
+      slug: `category-${index}`,
+      path: `Category ${index}`,
+      isLeaf: true,
+    }));
+    await store.replaceAll(baseline);
+    const first = baseline[0],
+      second = baseline[1];
+    if (!first || !second) throw new Error('Missing category fixtures');
+    await expect(store.replaceAll([first])).rejects.toThrow();
+    await expect(
+      store.replaceAll([
+        { ...first, parentId: 2 },
+        { ...second, parentId: 1 },
+      ]),
+    ).rejects.toThrow();
+    await expect(store.replaceAll([{ ...first, parentId: 999 }])).rejects.toThrow();
+    const { count } = await client
+      .from('vinted_categories')
+      .select('id', { count: 'exact', head: true });
+    expect(count).toBe(120);
+  });
   beforeEach(async () => {
     await client.from('vinted_categories').delete().gte('id', 0);
     await client
@@ -30,9 +56,32 @@ describe('CategoryStore', () => {
         requested_at: null,
         last_attempt_at: null,
         category_count: 0,
+        category_count_high_water: 0,
         last_error: null,
       })
       .eq('id', 1);
+  });
+
+  it('keeps the maximum across refreshes and new store instances against staged shrinking', async () => {
+    const baseline = Array.from({ length: 120 }, (_, index) => ({
+      id: index + 1,
+      parentId: null,
+      title: `Category ${index}`,
+      slug: `category-${index}`,
+      path: `Category ${index}`,
+      isLeaf: true,
+    }));
+    await store.replaceAll(baseline);
+    await store.replaceAll(baseline.slice(0, 60));
+    await store.markRefreshed(60, new Date());
+    const restarted = new CategoryStore(client);
+    await expect(restarted.replaceAll(baseline.slice(0, 30))).rejects.toThrow();
+    await expect(restarted.replaceAll(baseline.slice(0, 1))).rejects.toThrow();
+    const { count } = await client
+      .from('vinted_categories')
+      .select('id', { count: 'exact', head: true });
+    expect(count).toBe(60);
+    await restarted.replaceAll(baseline);
   });
 
   it('schreibt den Baum und liest den Stand zurueck', async () => {

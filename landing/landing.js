@@ -148,11 +148,7 @@
 
   var successDialog = document.getElementById('beta-success-dialog');
   var successContent = document.getElementById('beta-success-content');
-  var existingContent = document.getElementById('beta-existing-content');
   var successEmail = document.getElementById('beta-success-email');
-  var existingEmail = document.getElementById('beta-existing-email');
-  var receiptSent = document.getElementById('beta-success-receipt-sent');
-  var receiptFailed = document.getElementById('beta-success-receipt-failed');
   var dialogCloseButton = document.getElementById('beta-success-close');
   var dialogConfirmButton = document.getElementById('beta-success-confirm');
   var pageRegions = Array.prototype.slice.call(
@@ -170,30 +166,12 @@
     if (returnFocusTo) returnFocusTo.focus();
   }
 
-  function showSuccessDialog(email, receiptEmailSent, submitButton) {
+  function showSuccessDialog(email, submitButton) {
     returnFocusTo = submitButton;
     successContent.hidden = false;
-    existingContent.hidden = true;
     successDialog.setAttribute('aria-labelledby', 'beta-success-title');
     successDialog.setAttribute('aria-describedby', 'beta-success-description beta-success-receipt');
     successEmail.textContent = email;
-    receiptSent.hidden = !receiptEmailSent;
-    receiptFailed.hidden = receiptEmailSent;
-    successDialog.hidden = false;
-    document.body.classList.add('beta-dialog-open');
-    pageRegions.forEach(function (region) {
-      region.inert = true;
-    });
-    dialogCloseButton.focus();
-  }
-
-  function showExistingDialog(email, submitButton) {
-    returnFocusTo = submitButton;
-    successContent.hidden = true;
-    existingContent.hidden = false;
-    successDialog.setAttribute('aria-labelledby', 'beta-existing-title');
-    successDialog.setAttribute('aria-describedby', 'beta-existing-description');
-    existingEmail.textContent = email;
     successDialog.hidden = false;
     document.body.classList.add('beta-dialog-open');
     pageRegions.forEach(function (region) {
@@ -271,22 +249,11 @@
     })
       .then(function (response) {
         if (response.ok) {
-          return response.json().then(function (payload) {
+          return response.json().then(function () {
             message.textContent = '';
-            showSuccessDialog(submittedEmail, payload.receiptEmailSent === true, button);
+            showSuccessDialog(submittedEmail, button);
             form.reset();
             document.dispatchEvent(new Event('flipbase:beta-application-created'));
-          });
-        } else if (response.status === 409) {
-          return response.json().then(function (payload) {
-            var existingApplication =
-              payload.error === 'application_existing' || payload.error === 'application_exists';
-            if (existingApplication) {
-              message.textContent = '';
-              showExistingDialog(submittedEmail, button);
-              return;
-            }
-            announce(message, 'error');
           });
         } else {
           announce(message, response.status === 429 ? 'throttled' : 'error');

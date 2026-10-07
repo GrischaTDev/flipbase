@@ -445,6 +445,7 @@ export class AuthService {
 
       const { error: updateError } = await this.supabase.client.auth.updateUser({
         password: newPassword,
+        current_password: currentPassword,
       });
       if (updateError) {
         return {

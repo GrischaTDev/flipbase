@@ -62,17 +62,17 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "activity_logs_inventory_item_id_fkey"
-            columns: ["inventory_item_id"]
+            columns: ["workspace_id", "inventory_item_id"]
             isOneToOne: false
             referencedRelation: "inventory_item_sale_states"
-            referencedColumns: ["inventory_item_id"]
+            referencedColumns: ["workspace_id", "inventory_item_id"]
           },
           {
             foreignKeyName: "activity_logs_inventory_item_id_fkey"
-            columns: ["inventory_item_id"]
+            columns: ["workspace_id", "inventory_item_id"]
             isOneToOne: false
             referencedRelation: "inventory_items"
-            referencedColumns: ["id"]
+            referencedColumns: ["workspace_id", "id"]
           },
           {
             foreignKeyName: "activity_logs_workspace_id_fkey"
@@ -365,21 +365,21 @@ export type Database = {
           created_at: string
           discord_user_id: string
           id: number
-          role_assigned_at: string
+          role_assigned_at: string | null
         }
         Insert: {
           auth_user_id: string
           created_at?: string
           discord_user_id: string
           id?: never
-          role_assigned_at?: string
+          role_assigned_at?: string | null
         }
         Update: {
           auth_user_id?: string
           created_at?: string
           discord_user_id?: string
           id?: never
-          role_assigned_at?: string
+          role_assigned_at?: string | null
         }
         Relationships: []
       }
@@ -1582,10 +1582,10 @@ export type Database = {
           },
           {
             foreignKeyName: "inventory_items_purchase_id_fkey"
-            columns: ["purchase_id"]
+            columns: ["workspace_id", "purchase_id"]
             isOneToOne: false
             referencedRelation: "purchases"
-            referencedColumns: ["id"]
+            referencedColumns: ["workspace_id", "id"]
           },
           {
             foreignKeyName: "inventory_items_purchase_line_id_fkey"
@@ -2082,17 +2082,17 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "market_research_inventory_item_id_fkey"
-            columns: ["inventory_item_id"]
+            columns: ["workspace_id", "inventory_item_id"]
             isOneToOne: false
             referencedRelation: "inventory_item_sale_states"
-            referencedColumns: ["inventory_item_id"]
+            referencedColumns: ["workspace_id", "inventory_item_id"]
           },
           {
             foreignKeyName: "market_research_inventory_item_id_fkey"
-            columns: ["inventory_item_id"]
+            columns: ["workspace_id", "inventory_item_id"]
             isOneToOne: false
             referencedRelation: "inventory_items"
-            referencedColumns: ["id"]
+            referencedColumns: ["workspace_id", "id"]
           },
           {
             foreignKeyName: "market_research_workspace_id_fkey"
@@ -3528,17 +3528,17 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "price_tracked_items_inventory_item_id_fkey"
-            columns: ["inventory_item_id"]
+            columns: ["workspace_id", "inventory_item_id"]
             isOneToOne: false
             referencedRelation: "inventory_item_sale_states"
-            referencedColumns: ["inventory_item_id"]
+            referencedColumns: ["workspace_id", "inventory_item_id"]
           },
           {
             foreignKeyName: "price_tracked_items_inventory_item_id_fkey"
-            columns: ["inventory_item_id"]
+            columns: ["workspace_id", "inventory_item_id"]
             isOneToOne: false
             referencedRelation: "inventory_items"
-            referencedColumns: ["id"]
+            referencedColumns: ["workspace_id", "id"]
           },
           {
             foreignKeyName: "price_tracked_items_workspace_id_fkey"
@@ -4819,10 +4819,10 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "shipping_orders_sale_id_fkey"
-            columns: ["sale_id"]
+            columns: ["workspace_id", "sale_id"]
             isOneToOne: false
             referencedRelation: "sales"
-            referencedColumns: ["id"]
+            referencedColumns: ["workspace_id", "id"]
           },
           {
             foreignKeyName: "shipping_orders_workspace_id_fkey"
@@ -5894,6 +5894,7 @@ export type Database = {
       vinted_category_syncs: {
         Row: {
           category_count: number
+          category_count_high_water: number
           id: number
           last_attempt_at: string | null
           last_error: string | null
@@ -5902,6 +5903,7 @@ export type Database = {
         }
         Insert: {
           category_count?: number
+          category_count_high_water?: number
           id?: number
           last_attempt_at?: string | null
           last_error?: string | null
@@ -5910,6 +5912,7 @@ export type Database = {
         }
         Update: {
           category_count?: number
+          category_count_high_water?: number
           id?: number
           last_attempt_at?: string | null
           last_error?: string | null

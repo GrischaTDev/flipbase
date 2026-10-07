@@ -675,7 +675,7 @@ jobs:
         env:
           APP_TAG: ${{ needs.image.outputs.app_tag }}
           APP_DIGEST: ${{ needs.image.outputs.app_digest }}
-          SNIPER_TAG: ${{ needs.image.outputs.sniper_tag }}
+          SNIPER_DIGEST: ${{ needs.image.outputs.sniper_digest }}
           APPLICATION_CHANGED: ${{ needs.changes.outputs.application }}
           SNIPER_CHANGED: ${{ needs.changes.outputs.sniper }}
           RELEASE_MIGRATIONS_V1: ${{ vars.RELEASE_MIGRATIONS_V1 }}
@@ -691,9 +691,9 @@ jobs:
             fi
           fi
           if [ "$SNIPER_CHANGED" = true ]; then
-            [[ "$SNIPER_TAG" =~ ^sha-[0-9a-f]{7}$ ]]
+            [[ "$SNIPER_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
             if [ -n "$command" ]; then command="$command "; fi
-            command="${command}sniper $SNIPER_TAG"
+            command="${command}sniper $SNIPER_DIGEST"
           fi
           test -n "$command"
           printf '%s' "$REGISTRY_TOKEN" \

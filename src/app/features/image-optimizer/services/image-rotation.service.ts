@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { Size } from '../models/platform-profile';
+import { assertImageSize, readImageSize } from './image-import-limits';
 
 @Injectable({ providedIn: 'root' })
 export class ImageRotationService {
@@ -13,6 +14,7 @@ export class ImageRotationService {
    * JPEG kodieren und das Bild verloere sichtbar an Qualitaet.
    */
   async rotate(file: File, quarters: 0 | 1 | 2 | 3): Promise<{ dataUrl: string; size: Size }> {
+    await readImageSize(file);
     const source = await this.loadOriginalFile(file);
     const width = source.width;
     const height = source.height;
@@ -24,6 +26,7 @@ export class ImageRotationService {
 
     let blob: Blob;
     try {
+      assertImageSize({ width, height });
       const pen = canvas.getContext('2d');
       if (!pen) throw new Error('Der Browser stellt keine Zeichenflaeche bereit.');
 

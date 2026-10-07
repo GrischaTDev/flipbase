@@ -14,13 +14,13 @@ permissions:
   contents: read
 jobs:
   chromium-session-image:
-    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/master'
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
       contents: read
-      packages: write
-    steps:
+    # Beide Jobs pruefen dieselben Images; PR-Code erhaelt keine Registry-Schreibrechte.
+    steps: &chromium-image-steps
       - name: Check out reviewed commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -154,3 +154,12 @@ jobs:
       - name: Publish verified Chromium session
         if: github.event_name == 'workflow_dispatch'
         run: docker push "ghcr.io/grischatdev/flipbase-chromium-session:sha-$GITHUB_SHA"
+
+  publish-chromium-session-image:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    steps: *chromium-image-steps

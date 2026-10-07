@@ -6,6 +6,8 @@ import {
   runInInjectionContext,
   signal,
 } from '@angular/core';
+import { SupabaseService } from './supabase.service';
+import { WorkspaceService } from './workspace.service';
 import { BankReconciliationService } from './bank-reconciliation.service';
 import { StoreService } from './store.service';
 import { SalesService } from './sales.service';
@@ -267,9 +269,14 @@ describe('BankReconciliationService', () => {
         },
       };
 
-      const s = service as unknown as Record<string, unknown>;
-      s['supabase'] = { client };
-      s['workspaceService'] = { currentWorkspace: () => ({ id: 'ws-1' }) };
+      const persistenceInjector = createEnvironmentInjector(
+        [
+          { provide: SupabaseService, useValue: { client } },
+          { provide: WorkspaceService, useValue: { currentWorkspace: () => ({ id: 'ws-1' }) } },
+        ],
+        injector,
+      );
+      service = runInInjectionContext(persistenceInjector, () => new BankReconciliationService());
 
       return { gesendet };
     }

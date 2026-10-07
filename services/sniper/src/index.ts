@@ -21,6 +21,7 @@ import { OriginStateStore } from './store/origin-state.store.js';
 import { QueryStore } from './store/query.store.js';
 import { createSupabaseClient } from './store/supabase.js';
 import { VintedCollector } from './vinted/collector.js';
+import { readVintedPage } from './vinted/response-body.js';
 import { preferIpv6 } from './vinted/network.js';
 import { sleep } from './vinted/session.js';
 import { ForbiddenError, RateLimitedError, parseRetryAfter } from './vinted/errors.js';
@@ -160,7 +161,7 @@ while (!controller.signal.aborted) {
               if (response.status === 429)
                 throw new RateLimitedError(undefined, { retryAfterSeconds });
               if (!response.ok) throw new Error(`HTTP ${response.status}`);
-              const html = await response.text();
+              const html = await readVintedPage(response);
               if (
                 html.includes('challenge-running') ||
                 html.includes('<title>Just a moment...</title>')

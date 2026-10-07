@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { assertPageSize, parseBoundedPageJson } from './response-body.js';
 import { VintedItemSchema, type VintedItem } from './schema.js';
 
 const MoneySchema = z.object({
@@ -7,7 +8,13 @@ const MoneySchema = z.object({
 });
 
 const ThumbnailUrlsSchema = z
-  .union([z.string(), z.array(z.string())])
+  .union([
+    z.string().max(4096),
+    z
+      .unknown()
+      .refine((urls) => Array.isArray(urls) && urls.length <= 100)
+      .pipe(z.array(z.string().max(4096))),
+  ])
   .nullish()
   .transform((val): string[] => {
     if (!val) return [];
@@ -23,11 +30,15 @@ const CatalogProductSchema = z
     totalItemPrice: MoneySchema,
     thumbnailUrls: ThumbnailUrlsSchema,
     photos: z
-      .array(
-        z.object({
-          url: z.string().nullish(),
-          isMain: z.boolean().nullish(),
-        }),
+      .unknown()
+      .refine((photos) => Array.isArray(photos) && photos.length <= 100)
+      .pipe(
+        z.array(
+          z.object({
+            url: z.string().max(4096).nullish(),
+            isMain: z.boolean().nullish(),
+          }),
+        ),
       )
       .nullish(),
     user: z
@@ -45,11 +56,13 @@ const CatalogProductSchema = z
   .passthrough();
 
 const CatalogItemsStateSchema = z.object({
-  items: z.array(
-    z.object({
-      productItem: z.unknown(),
-    }),
-  ),
+  items: z
+    .array(
+      z.object({
+        productItem: z.unknown(),
+      }),
+    )
+    .max(200),
 });
 
 const FLIGHT_PUSH_MARKER = 'self.__next_f.push([1,';
@@ -97,7 +110,7 @@ function readJsonString(source: string, start: number): string | null {
     }
 
     if (character === '"') {
-      const parsed: unknown = JSON.parse(source.slice(start, index + 1));
+      const parsed = parseBoundedPageJson(source.slice(start, index + 1));
       return typeof parsed === 'string' ? parsed : null;
     }
   }
@@ -186,13 +199,14 @@ function toLegacyItem(product: z.infer<typeof CatalogProductSchema>, baseUrl: st
 }
 
 export function parseVintedCatalogPage(page: string, baseUrl: string): VintedItem[] {
+  assertPageSize(page);
   const flightPayload = decodeFlightPayload(page);
   const markerStart = flightPayload.indexOf(ITEMS_MARKER);
   if (markerStart < 0) throw new Error('Vinted catalog page has no catalog item data');
 
   const stateStart = markerStart + '"items":'.length;
   const state = CatalogItemsStateSchema.parse(
-    JSON.parse(extractJsonObject(flightPayload, stateStart)) as unknown,
+    parseBoundedPageJson(extractJsonObject(flightPayload, stateStart)),
   );
 
   return state.items.map((entry) => {

@@ -4,7 +4,7 @@ create table if not exists public.beta_discord_links (
     id bigint generated always as identity primary key,
     auth_user_id uuid not null unique references auth.users (id) on delete cascade,
     discord_user_id text not null unique,
-    role_assigned_at timestamptz not null default now(),
+    role_assigned_at timestamptz,
     created_at timestamptz not null default now()
 );
 

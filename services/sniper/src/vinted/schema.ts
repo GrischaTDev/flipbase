@@ -37,11 +37,15 @@ export const VintedItemSchema = z.object({
     })
     .nullish(),
   photos: z
-    .array(
-      z.object({
-        url: z.string().nullish(),
-        is_main: z.boolean().nullish(),
-      }),
+    .unknown()
+    .refine((photos) => Array.isArray(photos) && photos.length <= 100)
+    .pipe(
+      z.array(
+        z.object({
+          url: z.string().max(4096).nullish(),
+          is_main: z.boolean().nullish(),
+        }),
+      ),
     )
     .nullish(),
   photo: z

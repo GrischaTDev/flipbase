@@ -832,6 +832,15 @@
             throw new Error(
               'Dieses Browserprofil ist bereits mit einem anderen Konto verbunden. Verwende für ein weiteres Konto ein separates Browserprofil mit Flipbase-Erweiterung.',
             );
+          // Seitennachrichten dürfen die Freigabe im Erweiterungsfenster nicht ersetzen.
+          if (
+            !adapter.confirmBinding ||
+            !(await adapter.confirmBinding(
+              { ...payload, appOrigin: origin },
+              installation.identity,
+            ))
+          )
+            throw new Error('Die Verbindung wurde in der Erweiterung nicht bestätigt.');
           installation.pendingScope = {
             workspaceId: payload.workspaceId,
             connectionId: payload.connectionId,

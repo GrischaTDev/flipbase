@@ -323,6 +323,7 @@ case "$1" in
  compose)
    if [[ "$2" == "-f" ]]; then
      [[ "$FLIPBASE_SNIPER_IMAGE" == "$EXPECTED_SNIPER_IMAGE" ]] || exit 90
+     if [[ "$4" == config ]]; then echo "\${CONFIGURED_SNIPER_IMAGE:-$EXPECTED_SNIPER_IMAGE}"; fi
    fi
    ;;
  inspect) echo healthy ;;
@@ -358,6 +359,32 @@ esac
       const dockerCalls = await readFile(log, 'utf8');
       assert.match(dockerCalls, /compose -f .* pull sniper/);
       assert.match(dockerCalls, /compose -f .* up -d --pull never sniper/);
+      const digest = `sha256:${'b'.repeat(64)}`;
+      const environment = {
+        ...process.env,
+        PATH: `${bin}:${process.env.PATH ?? ''}`,
+        FLIPBASE_DEPLOY_DIR: root,
+        FLIPBASE_LANDING_DIR: join(root, 'absent'),
+        FLIPBASE_SNIPER_COMPOSE_FILE: join(root, 'docker-compose.sniper.yml'),
+        SSH_ORIGINAL_COMMAND: `sniper ${digest}`,
+        DOCKER_LOG: log,
+        EXPECTED_SNIPER_IMAGE: `ghcr.io/grischatdev/flipbase-sniper@${digest}`,
+      };
+      const immutable = await runDeploy(environment);
+      assert.equal(immutable.code, 0, immutable.stderr);
+      await writeFile(log, '');
+      const stale = await runDeploy({
+        ...environment,
+        CONFIGURED_SNIPER_IMAGE: 'ghcr.io/grischatdev/flipbase-sniper:latest',
+      });
+      assert.notEqual(stale.code, 0);
+      assert.doesNotMatch(await readFile(log, 'utf8'), /pull sniper|up .*sniper/);
+      for (const command of [
+        'sniper latest',
+        `sniper sha256:${'b'.repeat(65)}`,
+        `sniper ${digest} extra`,
+      ])
+        assert.equal((await runDeploy({ ...environment, SSH_ORIGINAL_COMMAND: command })).code, 2);
       assert.ok(
         dockerCalls.indexOf('config --quiet') < dockerCalls.indexOf('up -d --pull never sniper'),
       );
