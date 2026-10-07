@@ -112,6 +112,16 @@ else
   TAG="${WEB_TAG:-$SNIPER_REFERENCE}"
 fi
 
+sniper_image=""
+if [[ -n "$SNIPER_REFERENCE" ]]; then
+  if [[ "$SNIPER_REFERENCE" =~ ^sha256:[a-f0-9]{64}$ ]]; then
+    sniper_image="$SNIPER_IMAGE_REPOSITORY@$SNIPER_REFERENCE"
+  else
+    # Alte Kennzeichnungen bleiben ausschließlich für bewusste manuelle Rückfälle.
+    sniper_image="$SNIPER_IMAGE_REPOSITORY:$SNIPER_REFERENCE"
+  fi
+fi
+
 cd "$VERZEICHNIS"
 exec 9>"$VERZEICHNIS/deploy.lock"
 flock -w 60 9 || { echo 'Anderes Deployment aktiv.' >&2; exit 1; }
@@ -161,7 +171,7 @@ prepare_sniper_browser_runtime() {
   docker cp "$artifact_container":/opt/flipbase/chromium-seccomp.json "$temporary/chromium-seccomp.json"
   install -m 644 "$temporary/chromium-seccomp.json" "$SNIPER_SECCOMP_FILE"
   install -m 644 "$temporary/docker-compose.sniper.yml" "$SNIPER_COMPOSE_FILE"
-  FLIPBASE_SNIPER_IMAGE="$SNIPER_IMAGE_REPOSITORY:$SNIPER_TAG" docker compose -f "$SNIPER_COMPOSE_FILE" config --quiet
+  FLIPBASE_SNIPER_IMAGE="$sniper_image" docker compose -f "$SNIPER_COMPOSE_FILE" config --quiet
 }
 
 if [[ -n "$release_image" ]]; then
@@ -174,7 +184,7 @@ if [[ -n "$release_image" ]]; then
   mkdir "$temporary/migrations"
   docker cp "$release_container":/opt/flipbase/migrations/. "$temporary/migrations/"
   "$VERZEICHNIS/apply-release-migrations.sh" "$temporary/migrations"
-  if [[ -n "$SNIPER_TAG" ]]; then prepare_sniper_browser_runtime "$release_container"; fi
+  if [[ -n "$SNIPER_REFERENCE" ]]; then prepare_sniper_browser_runtime "$release_container"; fi
   # Auch der Start verwendet den Digest. Eine inzwischen verschobene Markierung
   # kann dadurch kein anderes als das geprüfte Abbild starten.
   FLIPBASE_IMAGE="$release_image" docker compose up -d --pull never web
@@ -186,14 +196,10 @@ fi
 if [[ -n "$SNIPER_REFERENCE" ]]; then
   if [[ -z "$release_image" ]]; then prepare_sniper_browser_runtime flipbase-web; fi
   if [[ "$SNIPER_REFERENCE" =~ ^sha256:[a-f0-9]{64}$ ]]; then
-    sniper_image="$SNIPER_IMAGE_REPOSITORY@$SNIPER_REFERENCE"
     configured_sniper_image="$(FLIPBASE_SNIPER_IMAGE="$sniper_image" docker compose -f "$SNIPER_COMPOSE_FILE" config --images sniper)"
     [[ "$configured_sniper_image" = "$sniper_image" ]] || {
       echo 'Compose verwendet nicht den Sniper-Digest; Serverbootstrap erforderlich.' >&2; exit 1;
     }
-  else
-    # Alte Kennzeichnungen bleiben ausschließlich für bewusste manuelle Rückfälle.
-    sniper_image="$SNIPER_IMAGE_REPOSITORY:$SNIPER_REFERENCE"
   fi
   FLIPBASE_SNIPER_IMAGE="$sniper_image" docker compose -f "$SNIPER_COMPOSE_FILE" pull sniper
   FLIPBASE_SNIPER_IMAGE="$sniper_image" docker compose -f "$SNIPER_COMPOSE_FILE" up -d --pull never sniper

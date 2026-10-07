@@ -53,6 +53,14 @@ rootgeschützte Deployskript, die GoTrue-Einstellung und die neue Erweiterung
 müssen gemeinsam mit der Anwendung eingeführt werden. Früher ausgegebene
 Beta-Recovery-Sitzungen müssen vor der Freigabe widerrufen werden.
 
+**Fortsetzung nach Freigabe:** Der Nutzer gibt PR, Pflichtprüfungen und Merge frei.
+Der aktuelle master mit den unabhängig veröffentlichten Browseränderungen wird
+übernommen. Botprofil-Vorbereitung, manuelle Prüfpause und optionale Wiederholungen
+bleiben erhalten; Antwortgrößen und Retry-After bleiben auch in diesen Wegen
+begrenzt. Die neuen Fremdschlüssel treffen produktiv auf keine ungültigen
+arbeitsbereichsübergreifenden Beziehungen. Servervorbereitung und Veröffentlichung
+werden vor dem Merge geprüft.
+
 ## 2026-10-07 - Juna - Fehler beim erneuten Cloud-Seitenaufruf sichtbar machen
 
 **Auftrag:** Den freigegebenen Cloud-Abruf-Fix veröffentlichen und mehrere
