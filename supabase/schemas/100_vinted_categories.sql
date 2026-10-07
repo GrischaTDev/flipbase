@@ -55,6 +55,7 @@ create table if not exists public.vinted_category_syncs (
     requested_at timestamptz,
     last_attempt_at timestamptz,
     category_count integer not null default 0,
+    category_count_high_water integer not null default 0,
     last_error text
 );
 

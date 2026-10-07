@@ -10,6 +10,7 @@ function fixture() {
   const row = { ...defaultSettings, discord_enabled: true, discord_webhook_url: secret };
   const ports: WebhookPorts = {
     authorize: async () => true,
+    administer: async () => true,
     read: async () => {
       calls.push('read');
       return row;
@@ -137,5 +138,25 @@ Deno.test(
       true,
     );
     assert.deepEqual(completed, ['telegram']);
+  },
+);
+
+Deno.test(
+  'Mitglieder dürfen lesen und Verkaufsmeldungen senden, aber keine Ziele ändern oder testen',
+  async () => {
+    for (const action of ['save', 'test']) {
+      const { ports, calls } = fixture();
+      ports.administer = async () => false;
+      await assert.rejects(
+        handleWebhook({ action, workspaceId, channel: 'discord', settings: {} }, ports),
+      );
+      assert.deepEqual(calls, []);
+    }
+    for (const action of ['read', 'sale']) {
+      const { ports, calls } = fixture();
+      ports.administer = async () => false;
+      await handleWebhook({ action, workspaceId, saleId }, ports);
+      assert.ok(calls.includes('read'));
+    }
   },
 );

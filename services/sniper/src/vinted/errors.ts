@@ -108,6 +108,17 @@ export class VintedHttpError extends VintedCollectorError {
   }
 }
 
+export const MAX_RETRY_AFTER_SECONDS = 24 * 60 * 60;
+
+export function validRetryAfterSeconds(seconds: number | undefined): number | undefined {
+  return typeof seconds === 'number' &&
+    Number.isSafeInteger(seconds) &&
+    seconds >= 0 &&
+    seconds <= MAX_RETRY_AFTER_SECONDS
+    ? seconds
+    : undefined;
+}
+
 export function parseRetryAfter(
   header: string | null | undefined,
   now: Date = new Date(),
@@ -122,7 +133,7 @@ export function parseRetryAfter(
   // RFC 9110: integer seconds
   if (/^\d+$/.test(trimmed)) {
     const seconds = parseInt(trimmed, 10);
-    return Number.isFinite(seconds) && seconds >= 0 ? seconds : undefined;
+    return validRetryAfterSeconds(seconds);
   }
 
   // Reject decimal numbers
@@ -132,7 +143,7 @@ export function parseRetryAfter(
   const timestamp = Date.parse(trimmed);
   if (!Number.isNaN(timestamp)) {
     const diffSeconds = Math.ceil((timestamp - now.getTime()) / 1000);
-    return diffSeconds >= 0 ? diffSeconds : 0;
+    return validRetryAfterSeconds(Math.max(0, diffSeconds));
   }
 
   return undefined;

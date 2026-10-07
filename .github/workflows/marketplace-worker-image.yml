@@ -13,14 +13,14 @@ permissions:
   contents: read
 
 jobs:
-  publish:
-    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/master'
+  verify:
+    if: github.event_name == 'pull_request'
     permissions:
       contents: read
-      packages: write
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    steps:
+    # Beide Jobs pruefen dieselben Images; PR-Code erhaelt keine Registry-Schreibrechte.
+    steps: &worker-image-steps
       - name: Check out reviewed commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -127,3 +127,12 @@ jobs:
         run: |
           docker push "ghcr.io/grischatdev/flipbase-marketplace-worker:sha-$GITHUB_SHA"
           docker push "ghcr.io/grischatdev/flipbase-chromium-broker:sha-$GITHUB_SHA"
+
+  publish:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master'
+    permissions:
+      contents: read
+      packages: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps: *worker-image-steps

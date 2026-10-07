@@ -58,6 +58,7 @@ import {
   applyAdjustmentsToAll,
 } from './services/image-collection';
 import { ImageRotationService } from './services/image-rotation.service';
+import { assertImageBatch, assertImageSize, readImageSize } from './services/image-import-limits';
 import { PhotoGuideState } from './services/photo-guide-state';
 import { findResolutionIssue, checkOutput } from './services/platform-validation';
 import { togglePlatformIn } from './services/platform-selection';
@@ -153,6 +154,9 @@ export class ImageOptimizerComponent {
   readonly isMetadataOpen = signal(false);
 
   readonly isBusy = signal(false);
+  private importing = false;
+  private readonly metadataQueue = new KeyedQueue<number>();
+  private readonly measurementQueue = new KeyedQueue<number>();
   readonly rotationsPending = computed(() => this.rotationQueue.pendingCount() > 0);
   readonly error = signal<string | null>(null);
   readonly isDragActive = signal(false);
@@ -367,8 +371,8 @@ export class ImageOptimizerComponent {
     this.images.update((list) => [...toggleReviewedIn(list, id)]);
   }
 
-  addFiles(files: readonly File[]): void {
-    if (this.isBusy() || files.length === 0) return;
+  async addFiles(files: readonly File[]): Promise<void> {
+    if (this.isBusy() || this.importing || files.length === 0) return;
 
     const { images, skipped } = splitImageFiles(files);
 
@@ -382,6 +386,30 @@ export class ImageOptimizerComponent {
     }
     if (images.length === 0) return;
 
+    this.importing = true;
+    let sizes: Size[];
+    try {
+      assertImageBatch([...this.images().map((image) => image.file), ...images]);
+      sizes = [];
+      for (const file of images) sizes.push(await readImageSize(file));
+      if (this.destroyed || this.isBusy()) return;
+      assertImageBatch(
+        [...this.images().map((image) => image.file), ...images],
+        [
+          ...this.images().flatMap((image) => (image.naturalSize ? [image.naturalSize] : [])),
+          ...sizes,
+        ],
+      );
+    } catch (error) {
+      this.toast.warning(
+        'Bilder nicht hinzugefügt',
+        error instanceof Error ? error.message : 'Die Bilder konnten nicht geprüft werden.',
+      );
+      return;
+    } finally {
+      this.importing = false;
+    }
+
     const added: OptimizerImage[] = images.map((file) => ({
       id: createLocalClientId('image'),
       file,
@@ -389,6 +417,7 @@ export class ImageOptimizerComponent {
       crops: {},
       rotation: 0,
       loadError: null,
+      // Der Container nennt rohe Pixel; erst der Browser berücksichtigt EXIF-Orientierung.
       naturalSize: null,
       reviewed: false,
       adjustments: defaultAdjustments(),
@@ -400,9 +429,15 @@ export class ImageOptimizerComponent {
       this.activateImage(added[0].id);
     }
 
-    for (const image of added) {
-      void this.measureNaturalSize(image.id, image.dataUrl);
-      void this.readMetadata(image.id, image.file);
+    for (const [index, image] of added.entries()) {
+      void this.measurementQueue.enqueue(index % 2, async () => {
+        if (this.images().some((current) => current.id === image.id))
+          await this.measureNaturalSize(image.id, image.dataUrl);
+      });
+      void this.metadataQueue.enqueue(index % 2, async () => {
+        if (this.images().some((current) => current.id === image.id))
+          await this.readMetadata(image.id, image.file);
+      });
     }
   }
 
@@ -420,6 +455,7 @@ export class ImageOptimizerComponent {
    * die Vorbelegung auch ohne `dataUrl` ansteuern kann.
    */
   applyNaturalSize(id: string, size: Size, dataUrl?: string): void {
+    assertImageSize(size);
     const selected = this.selectedPlatforms();
     this.images.update((list) =>
       list.map((image) =>

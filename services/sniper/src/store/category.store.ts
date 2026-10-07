@@ -47,6 +47,28 @@ export class CategoryStore {
   }
 
   async replaceAll(categories: VintedCategory[]): Promise<void> {
+    if (categories.length === 0 || categories.length > 10000)
+      throw new Error('Ungültige Kategorienmenge');
+    const identifiers = new Set<number>();
+    for (const category of categories) {
+      if (
+        !Number.isSafeInteger(category.id) ||
+        category.id <= 0 ||
+        identifiers.has(category.id) ||
+        typeof category.title !== 'string' ||
+        !category.title.trim() ||
+        category.title.length > 200 ||
+        typeof category.slug !== 'string' ||
+        !category.slug ||
+        category.slug.length > 2048 ||
+        typeof category.path !== 'string' ||
+        !category.path ||
+        category.path.length > 8000 ||
+        typeof category.isLeaf !== 'boolean'
+      )
+        throw new Error('Ungültige Kategorie');
+      identifiers.add(category.id);
+    }
     // Markieren und nachraeumen statt erst-leeren-dann-schreiben: Ein
     // Zeitstempel fuer den ganzen Lauf wird auf jede geschriebene Zeile
     // gesetzt. Erst wenn wirklich alle Bloecke durch sind, verschwinden die
@@ -65,39 +87,55 @@ export class CategoryStore {
     // Reihenfolge kaputt machen.
     const byId = new Map(categories.map((category) => [category.id, category] as const));
     const depthCache = new Map<number, number>();
+    const visiting = new Set<number>();
 
     const depthOf = (category: VintedCategory): number => {
       const cached = depthCache.get(category.id);
       if (cached !== undefined) return cached;
 
-      // Vor der Rekursion eintragen: Ein Kreis in den Eingabedaten (A verweist
-      // auf B, B auf A) liefe sonst bis zum Ueberlauf des Aufrufstapels. So
-      // bricht er bei der bereits besuchten Kategorie ab.
-      //
-      // Die Tiefe, die dabei herauskommt, haengt von der Reihenfolge der
-      // Aufrufe ab und ist willkuerlich - und anders als bei einem fehlenden
-      // Elternteil faengt die Datenbank das nicht auf: Liegen beide Zeilen im
-      // selben Schreibblock, sind am Ende der Anweisung beide vorhanden und die
-      // Fremdschluesselpruefung ist zufrieden. Ein Kreis wuerde also still
-      // gespeichert. Vinted liefert einen Baum, keinen Graphen; kaeme dort je
-      // ein Kreis an, braeuchte es eine eigene Pruefung vor dem Schreiben.
-      depthCache.set(category.id, 0);
+      // Kreise müssen vor dem ersten Schreibblock auffallen.
+      if (visiting.has(category.id)) throw new Error('Kreis im Kategoriebaum');
+      visiting.add(category.id);
 
       let depth = 0;
       if (category.parentId !== null) {
         const parent = byId.get(category.parentId);
-        // Ein Elternteil, der im selben Lauf nicht mitkommt, ist ein Fehler
-        // in den Eingabedaten (siehe Test dazu). depthOf gibt hier trotzdem
-        // einen Wert zurueck, statt abzustuerzen - die Fremdschluesselpruefung
-        // der Datenbank soll den Fehler melden, nicht diese Sortierung.
-        depth = parent ? 1 + depthOf(parent) : 1;
+        // Auch einzelne Knoten brauchen ihren Elternteil im vollständigen Baum.
+        if (!parent) throw new Error('Elternkategorie fehlt');
+        depth = 1 + depthOf(parent);
       }
-
+      if (depth > 32) throw new Error('Der Kategoriebaum ist zu tief');
+      visiting.delete(category.id);
       depthCache.set(category.id, depth);
       return depth;
     };
 
     const ordered = [...categories].sort((left, right) => depthOf(left) - depthOf(right));
+    for (const category of ordered) depthOf(category);
+
+    // Ein drastischer Rückgang ist kein verlässlich vollständiger neuer Bestand.
+    const { count, error: countError } = await this.client
+      .from('vinted_categories')
+      .select('id', { count: 'exact', head: true });
+    if (countError || count === null) throw new Error('Vorheriger Kategorieumfang nicht verfügbar');
+    const { data: sync, error: syncError } = await this.client
+      .from('vinted_category_syncs')
+      .select('category_count_high_water')
+      .eq('id', 1)
+      .single();
+    const highWater = sync?.['category_count_high_water'];
+    if (syncError || !Number.isSafeInteger(highWater) || highWater < 0)
+      throw new Error('Vorheriger Kategorieumfang nicht verfügbar');
+    const previousMaximum = Math.max(count, highWater);
+    if (previousMaximum >= 100 && categories.length < previousMaximum / 2)
+      throw new Error('Kategoriebaum unerwartet unvollständig; bisheriger Bestand bleibt erhalten');
+
+    // Der Referenzumfang darf auch über Neustarts und mehrere Auffrischungen nicht schrumpfen.
+    const { error: highWaterError } = await this.client
+      .from('vinted_category_syncs')
+      .update({ category_count_high_water: Math.max(previousMaximum, categories.length) })
+      .eq('id', 1);
+    if (highWaterError) throw new Error(highWaterError.message);
 
     const rows = ordered.map((category) => ({
       id: category.id,

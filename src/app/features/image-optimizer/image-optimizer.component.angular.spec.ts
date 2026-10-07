@@ -13,6 +13,7 @@ import { maximumCrop } from './services/crops';
 import { reviewedCount as countReviewed } from './services/image-collection';
 import { ImageRotationService } from './services/image-rotation.service';
 import { MetadataReaderService } from './services/metadata-reader.service';
+import { ImageExportService } from './services/image-export.service';
 
 /**
  * Erzeugt die echte Komponente ueber den echten Konstruktor, statt einzelne
@@ -29,45 +30,126 @@ function createComponent(): ImageOptimizerComponent {
 }
 
 function jpegFile(name: string): File {
-  return new File([''], name, { type: 'image/jpeg' });
+  return new File(
+    [new Uint8Array([255, 216, 255, 192, 0, 11, 8, 3, 232, 3, 232, 1, 1, 17, 0])],
+    name,
+    { type: 'image/jpeg' },
+  );
 }
 
 describe('ImageOptimizerComponent', () => {
+  describe('Importgrenzen', () => {
+    beforeEach(() => TestBed.resetTestingModule());
+    afterEach(() => {
+      vi.restoreAllMocks();
+      vi.unstubAllGlobals();
+    });
+
+    it('verwirft einen zu großen Batch vor Object-URLs und Metadaten', async () => {
+      const metadataRead = vi.fn();
+      TestBed.configureTestingModule({
+        providers: [{ provide: MetadataReaderService, useValue: { read: metadataRead } }],
+      });
+      const component = createComponent();
+      const createUrl = vi.spyOn(URL, 'createObjectURL');
+      await component.addFiles(Array.from({ length: 25 }, (_, index) => jpegFile(`${index}.jpg`)));
+      expect(component.images()).toEqual([]);
+      expect(createUrl).not.toHaveBeenCalled();
+      expect(metadataRead).not.toHaveBeenCalled();
+      expect(TestBed.inject(ToastService).toasts()[0]?.title).toBe('Bilder nicht hinzugefügt');
+    });
+
+    it('verwirft auch gemischte Batches vollständig vor dem ersten Decoder', async () => {
+      const metadataRead = vi.fn();
+      TestBed.configureTestingModule({
+        providers: [{ provide: MetadataReaderService, useValue: { read: metadataRead } }],
+      });
+      const component = createComponent();
+      const createUrl = vi.spyOn(URL, 'createObjectURL');
+      const bomb = new File(
+        [new Uint8Array([255, 216, 255, 192, 0, 11, 8, 255, 255, 255, 255, 1, 1, 17, 0])],
+        'bomb.jpg',
+        { type: 'image/jpeg' },
+      );
+      await component.addFiles([jpegFile('ordinary.jpg'), bomb]);
+      expect(component.images()).toEqual([]);
+      expect(createUrl).not.toHaveBeenCalled();
+      expect(metadataRead).not.toHaveBeenCalled();
+    });
+
+    it('nutzt beim sofortigen Export die Browserorientierung statt roher Headermaße', async () => {
+      const render = vi.fn().mockResolvedValue(new Blob());
+      TestBed.configureTestingModule({
+        providers: [
+          { provide: ImageExportService, useValue: { create: render } },
+          {
+            provide: MetadataReaderService,
+            useValue: { read: () => Promise.resolve(pendingMetadata()) },
+          },
+        ],
+      });
+      let imagesCreated = 0;
+      class OrientedImage {
+        naturalWidth = 3000;
+        naturalHeight = 4000;
+        onload: (() => void) | null = null;
+        set src(_url: string) {
+          // Die erste Nachmessung bleibt offen; erst der Export dekodiert.
+          if (++imagesCreated > 1) queueMicrotask(() => this.onload?.());
+        }
+      }
+      vi.stubGlobal('Image', OrientedImage);
+      vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+      const component = createComponent();
+      component.selectedPlatformIds.set(['kleinanzeigen']);
+      const file = new File(
+        [new Uint8Array([255, 216, 255, 192, 0, 11, 8, 11, 184, 15, 160, 1, 1, 17, 0])],
+        'portrait.jpg',
+        { type: 'image/jpeg' },
+      );
+      await component.addFiles([file]);
+      expect(component.images()[0]?.naturalSize).toBeNull();
+      expect(component.images()[0]?.crops).toEqual({});
+      await component.exportImages();
+      expect(render.mock.calls[0]?.[1]).toEqual({ x: 0, y: 0, width: 3000, height: 4000 });
+    });
+  });
+
   describe('Anpassungen', () => {
     beforeAll(() => TestBed.resetTestingModule());
 
     const brightened: Adjustments = { ...defaultAdjustments(), brightness: 1.3 };
 
     /** Fuegt zwei Bilder hinzu; das erste wird dabei automatisch aktiv. */
-    function addTwoImages(component: ImageOptimizerComponent): {
+    async function addTwoImages(component: ImageOptimizerComponent): Promise<{
       firstId: string;
       secondId: string;
-    } {
-      component.addFiles([jpegFile('a.jpg'), jpegFile('b.jpg')]);
+    }> {
+      await component.addFiles([jpegFile('a.jpg'), jpegFile('b.jpg')]);
       const [first, second] = component.images();
       return { firstId: first.id, secondId: second.id };
     }
 
     describe('ImageOptimizerComponent – Farbe und Belichtung', () => {
-      it('liefert eine leere Filterkette, solange das aktive Bild unveraendert ist', () => {
+      it('liefert eine leere Filterkette, solange das aktive Bild unveraendert ist', async () => {
         const component = createComponent();
-        addTwoImages(component);
+        await addTwoImages(component);
 
         expect(component.activeLook().filter).toBe('');
       });
 
-      it('aendert die Filterkette des aktiven Bildes, sobald Anpassungen gesetzt werden', () => {
+      it('aendert die Filterkette des aktiven Bildes, sobald Anpassungen gesetzt werden', async () => {
         const component = createComponent();
-        addTwoImages(component);
+        await addTwoImages(component);
 
         component.setAdjustments(brightened);
 
         expect(component.activeLook().filter).toBe(toFilterString(brightened));
       });
 
-      it('wirkt sich nur auf das aktive Bild aus - ein zweites Bild bleibt unveraendert', () => {
+      it('wirkt sich nur auf das aktive Bild aus - ein zweites Bild bleibt unveraendert', async () => {
         const component = createComponent();
-        const { secondId } = addTwoImages(component);
+        const { secondId } = await addTwoImages(component);
 
         component.setAdjustments(brightened);
 
@@ -79,9 +161,9 @@ describe('ImageOptimizerComponent', () => {
         expect(component.activeLook().filter).toBe('');
       });
 
-      it('uebertraegt beim "Auf alle anwenden" die Werte des aktiven Bildes auf jedes Bild', () => {
+      it('uebertraegt beim "Auf alle anwenden" die Werte des aktiven Bildes auf jedes Bild', async () => {
         const component = createComponent();
-        const { firstId, secondId } = addTwoImages(component);
+        const { firstId, secondId } = await addTwoImages(component);
 
         component.setAdjustments(brightened);
         component.applyAdjustmentsToAllImages();
@@ -95,9 +177,9 @@ describe('ImageOptimizerComponent', () => {
         );
       });
 
-      it('setzt waehrend eines laufenden Exports keine Anpassungen', () => {
+      it('setzt waehrend eines laufenden Exports keine Anpassungen', async () => {
         const component = createComponent();
-        addTwoImages(component);
+        await addTwoImages(component);
         component.isBusy.set(true);
 
         component.setAdjustments(brightened);
@@ -270,7 +352,7 @@ describe('ImageOptimizerComponent', () => {
       it('startet mit "pending" und traegt nach dem Lesen die Metadaten am richtigen Bild ein', async () => {
         const component = createComponent();
 
-        component.addFiles([jpegFile('with-gps.jpg'), jpegFile('ohne.jpg')]);
+        await component.addFiles([jpegFile('with-gps.jpg'), jpegFile('ohne.jpg')]);
         const [first, second] = component.images();
         expect(first.metadata.status).toBe('pending');
         expect(second.metadata.status).toBe('pending');
@@ -322,7 +404,7 @@ describe('ImageOptimizerComponent', () => {
     }
 
     describe('ImageOptimizerComponent – Fortschrittsanzeige', () => {
-      it('markiert ein Bild als durchgesehen, sobald es aktiv gesetzt wird', () => {
+      it('markiert ein Bild als durchgesehen, sobald es aktiv gesetzt wird', async () => {
         const component = createComponent([image('a'), image('b')]);
 
         component.setActiveImage('a');
@@ -331,7 +413,7 @@ describe('ImageOptimizerComponent', () => {
         expect(component.images().find((entry) => entry.id === 'b')?.reviewed).toBe(false);
       });
 
-      it('laesst ein bereits durchgesehenes Bild beim erneuten Anzeigen unveraendert', () => {
+      it('laesst ein bereits durchgesehenes Bild beim erneuten Anzeigen unveraendert', async () => {
         const component = createComponent([image('a', { reviewed: true })]);
 
         component.setActiveImage('a');
@@ -339,7 +421,7 @@ describe('ImageOptimizerComponent', () => {
         expect(component.images().find((entry) => entry.id === 'a')?.reviewed).toBe(true);
       });
 
-      it('tut beim Anzeigen waehrend eines laufenden Exports nichts', () => {
+      it('tut beim Anzeigen waehrend eines laufenden Exports nichts', async () => {
         const component = createComponent([image('a')]);
         Object.assign(component, { isBusy: signal(true) });
 
@@ -348,7 +430,7 @@ describe('ImageOptimizerComponent', () => {
         expect(component.images().find((entry) => entry.id === 'a')?.reviewed).toBe(false);
       });
 
-      it('schaltet die Markierung von Hand in beide Richtungen um', () => {
+      it('schaltet die Markierung von Hand in beide Richtungen um', async () => {
         const component = createComponent([image('a')]);
 
         component.toggleReviewed('a');
@@ -358,7 +440,7 @@ describe('ImageOptimizerComponent', () => {
         expect(component.images().find((entry) => entry.id === 'a')?.reviewed).toBe(false);
       });
 
-      it('schaltet die Markierung waehrend eines laufenden Exports nicht um', () => {
+      it('schaltet die Markierung waehrend eines laufenden Exports nicht um', async () => {
         const component = createComponent([image('a')]);
         Object.assign(component, { isBusy: signal(true) });
 
@@ -367,7 +449,7 @@ describe('ImageOptimizerComponent', () => {
         expect(component.images().find((entry) => entry.id === 'a')?.reviewed).toBe(false);
       });
 
-      it('zaehlt die durchgesehenen Bilder ueber den echten Zustand statt einem festen Wert', () => {
+      it('zaehlt die durchgesehenen Bilder ueber den echten Zustand statt einem festen Wert', async () => {
         const component = createComponent([
           image('a', { reviewed: true }),
           image('b'),
@@ -381,10 +463,10 @@ describe('ImageOptimizerComponent', () => {
         expect(component.reviewedCount()).toBe(3);
       });
 
-      it('zaehlt das nach dem ersten Hochladen automatisch geoeffnete Bild bereits mit', () => {
-        const component = createComponent([]);
+      it('zaehlt das nach dem ersten Hochladen automatisch geoeffnete Bild bereits mit', async () => {
+        const component = TestBed.runInInjectionContext(() => new ImageOptimizerComponent());
 
-        component.addFiles([new File(['x'], 'first.jpg', { type: 'image/jpeg' })]);
+        await component.addFiles([jpegFile('first.jpg')]);
 
         expect(component.activeImageId()).toBe(component.images()[0]?.id);
         expect(component.images()[0]?.reviewed).toBe(true);
@@ -624,11 +706,11 @@ describe('ImageOptimizerComponent', () => {
       component.applyNaturalSize(id, size);
     }
 
-    it('gibt jeder gewaehlten Plattform ihr Maximum, sobald die Groesse bekannt ist', () => {
+    it('gibt jeder gewaehlten Plattform ihr Maximum, sobald die Groesse bekannt ist', async () => {
       const component = createComponent();
       component.togglePlatform('ebay');
       component.togglePlatform('vinted');
-      component.addFiles([jpegFile('a.jpg')]);
+      await component.addFiles([jpegFile('a.jpg')]);
       const id = component.images()[0].id;
 
       withSize(component, id, { width: 3000, height: 4000 });
@@ -638,12 +720,12 @@ describe('ImageOptimizerComponent', () => {
       expect(crops.ebay!.width).toBeCloseTo(3000, 3);
     });
 
-    it('gibt einer spaeter zugewaehlten Plattform ebenfalls ihr Maximum', () => {
+    it('gibt einer spaeter zugewaehlten Plattform ebenfalls ihr Maximum', async () => {
       // Der gemeldete Fall: eBay steht, Vinted kommt dazu. Ohne die Regel
       // erbte Vinted vom eBay-Quadrat und waere um ein Drittel zu schmal.
       const component = createComponent();
       component.togglePlatform('ebay');
-      component.addFiles([jpegFile('a.jpg')]);
+      await component.addFiles([jpegFile('a.jpg')]);
       const id = component.images()[0].id;
       withSize(component, id, { width: 3000, height: 4000 });
 
@@ -652,10 +734,10 @@ describe('ImageOptimizerComponent', () => {
       expect(component.images()[0].crops.vinted!.width).toBeCloseTo(2666.6667, 3);
     });
 
-    it('erbt vom aktiven Rahmen, sobald der Nutzer gezogen hat', () => {
+    it('erbt vom aktiven Rahmen, sobald der Nutzer gezogen hat', async () => {
       const component = createComponent();
       component.togglePlatform('ebay');
-      component.addFiles([jpegFile('a.jpg')]);
+      await component.addFiles([jpegFile('a.jpg')]);
       const id = component.images()[0].id;
       withSize(component, id, { width: 3000, height: 4000 });
 
@@ -692,7 +774,7 @@ describe('ImageOptimizerComponent', () => {
     it('belegt nach einer Drehung die Zuschnitte mit dem Maximum der gedrehten Groesse neu vor', async () => {
       const component = createComponent();
       component.togglePlatform('ebay');
-      component.addFiles([jpegFile('a.jpg')]);
+      await component.addFiles([jpegFile('a.jpg')]);
       const id = component.images()[0].id;
       component.applyNaturalSize(id, { width: 3000, height: 4000 });
 
@@ -721,15 +803,15 @@ describe('ImageOptimizerComponent – Metadaten-Fenster', () => {
     return TestBed.runInInjectionContext(() => new ImageOptimizerComponent());
   }
 
-  it('startet geschlossen', () => {
+  it('startet geschlossen', async () => {
     const component = createComponent();
 
     expect(component.isMetadataOpen()).toBe(false);
   });
 
-  it('bleibt fuer das aktive Bild offen, wenn isMetadataOpen gesetzt wird', () => {
+  it('bleibt fuer das aktive Bild offen, wenn isMetadataOpen gesetzt wird', async () => {
     const component = createComponent();
-    component.addFiles([jpegFile('a.jpg')]);
+    await component.addFiles([jpegFile('a.jpg')]);
 
     component.isMetadataOpen.set(true);
 
@@ -737,9 +819,9 @@ describe('ImageOptimizerComponent – Metadaten-Fenster', () => {
     expect(component.activeImage()).not.toBeNull();
   });
 
-  it('schliesst sich wieder, wenn das Fenster das Schliessen meldet', () => {
+  it('schliesst sich wieder, wenn das Fenster das Schliessen meldet', async () => {
     const component = createComponent();
-    component.addFiles([jpegFile('a.jpg')]);
+    await component.addFiles([jpegFile('a.jpg')]);
     component.isMetadataOpen.set(true);
 
     component.isMetadataOpen.set(false);
@@ -755,7 +837,7 @@ describe('ImageOptimizerComponent – Exportfortschritt', () => {
     return TestBed.runInInjectionContext(() => new ImageOptimizerComponent());
   }
 
-  it('zeigt waehrend des Exports, wie weit er ist', () => {
+  it('zeigt waehrend des Exports, wie weit er ist', async () => {
     const component = createComponent();
 
     component.reportExportProgress(3, 12);
@@ -766,7 +848,7 @@ describe('ImageOptimizerComponent – Exportfortschritt', () => {
     expect(status.title).toContain('12');
   });
 
-  it('zeigt nach dem Ende wieder den Bereitschaftstext', () => {
+  it('zeigt nach dem Ende wieder den Bereitschaftstext', async () => {
     // Bliebe der Fortschritt stehen, saehe ein fertiger Export wie ein
     // haengengebliebener aus.
     const component = createComponent();
@@ -787,18 +869,18 @@ describe('ImageOptimizerComponent – Exportvorschau je Kachel', () => {
   }
 
   describe('issuesByPlatform', () => {
-    it('bleibt leer, solange kein Bild aktiv ist', () => {
+    it('bleibt leer, solange kein Bild aktiv ist', async () => {
       const component = createComponent();
       component.togglePlatform('ebay');
 
       expect(component.issuesByPlatform().size).toBe(0);
     });
 
-    it('nennt nur Plattformen, deren Ausgabe die Mindestmasse unterschreitet', () => {
+    it('nennt nur Plattformen, deren Ausgabe die Mindestmasse unterschreitet', async () => {
       const component = createComponent();
       component.togglePlatform('ebay');
       component.togglePlatform('kleinanzeigen');
-      component.addFiles([jpegFile('a.jpg')]);
+      await component.addFiles([jpegFile('a.jpg')]);
       const id = component.images()[0].id;
 
       // Kleinanzeigen nennt keine Mindestmasse, eBay verlangt 500 px.
@@ -810,10 +892,10 @@ describe('ImageOptimizerComponent – Exportvorschau je Kachel', () => {
       expect(issues.has('kleinanzeigen')).toBe(false);
     });
 
-    it('ist wieder leer, sobald ein groesserer Ausschnitt gewaehlt wird', () => {
+    it('ist wieder leer, sobald ein groesserer Ausschnitt gewaehlt wird', async () => {
       const component = createComponent();
       component.togglePlatform('ebay');
-      component.addFiles([jpegFile('a.jpg')]);
+      await component.addFiles([jpegFile('a.jpg')]);
       const id = component.images()[0].id;
       component.applyNaturalSize(id, { width: 300, height: 300 });
 
@@ -826,13 +908,13 @@ describe('ImageOptimizerComponent – Exportvorschau je Kachel', () => {
   });
 
   describe('enlargedPlatform', () => {
-    it('bleibt geschlossen, solange keine Kennung gemerkt ist', () => {
+    it('bleibt geschlossen, solange keine Kennung gemerkt ist', async () => {
       const component = createComponent();
 
       expect(component.enlargedPlatform()).toBeNull();
     });
 
-    it('loest die gemerkte Kennung auf ein ausgewaehltes Profil auf', () => {
+    it('loest die gemerkte Kennung auf ein ausgewaehltes Profil auf', async () => {
       const component = createComponent();
       component.togglePlatform('vinted');
 
@@ -841,7 +923,7 @@ describe('ImageOptimizerComponent – Exportvorschau je Kachel', () => {
       expect(component.enlargedPlatform()?.id).toBe('vinted');
     });
 
-    it('haelt das Fenster nicht offen, sobald die Plattform abgewaehlt wird', () => {
+    it('haelt das Fenster nicht offen, sobald die Plattform abgewaehlt wird', async () => {
       // Ueber `selectedPlatforms()` statt `platformById()` aufgeloest -
       // sonst zeigte das Fenster nach dem Abwaehlen weiter ein Profil, fuer
       // das es gar keinen Ausschnitt mehr gibt.
@@ -859,9 +941,9 @@ describe('ImageOptimizerComponent – Exportvorschau je Kachel', () => {
 describe('ImageOptimizerComponent – Umsortieren per Ziehen', () => {
   beforeAll(() => TestBed.resetTestingModule());
 
-  it('verschiebt ein Bild an die abgelegte Position', () => {
+  it('verschiebt ein Bild an die abgelegte Position', async () => {
     const component = createComponent();
-    component.addFiles([jpegFile('a.jpg'), jpegFile('b.jpg'), jpegFile('c.jpg')]);
+    await component.addFiles([jpegFile('a.jpg'), jpegFile('b.jpg'), jpegFile('c.jpg')]);
     const [a, b, c] = component.images().map((image) => image.id);
 
     component.reorderImage(2, 0);
@@ -869,9 +951,9 @@ describe('ImageOptimizerComponent – Umsortieren per Ziehen', () => {
     expect(component.images().map((image) => image.id)).toEqual([c, a, b]);
   });
 
-  it('laesst die Reihenfolge waehrend eines Exports in Ruhe', () => {
+  it('laesst die Reihenfolge waehrend eines Exports in Ruhe', async () => {
     const component = createComponent();
-    component.addFiles([jpegFile('a.jpg'), jpegFile('b.jpg')]);
+    await component.addFiles([jpegFile('a.jpg'), jpegFile('b.jpg')]);
     const before = component.images().map((image) => image.id);
     component.isBusy.set(true);
 

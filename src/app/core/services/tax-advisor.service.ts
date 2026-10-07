@@ -8,11 +8,16 @@ import { Purchase, Sale, TaxCalculationResult } from '../models/flipbase.models'
 import { WebhookService } from './webhook.service';
 import { WebPushService } from './web-push.service';
 import { SupabaseService } from './supabase.service';
+import { AuthService } from './auth.service';
 import { WorkspaceService } from './workspace.service';
 import { SyncStatusService } from './sync-status.service';
 import { TaxEngineService } from './tax-engine.service';
 
-const STORAGE_KEY_ADVISOR = 'flipbase_tax_advisor_config';
+interface AdvisorContext {
+  workspaceId: string | null;
+  userId: string | null;
+  revision: number;
+}
 
 @Injectable({
   providedIn: 'root',
@@ -20,12 +25,17 @@ const STORAGE_KEY_ADVISOR = 'flipbase_tax_advisor_config';
 export class TaxAdvisorService {
   private readonly supabase = inject(SupabaseService, { optional: true });
   private readonly taxEngine = inject(TaxEngineService);
-  private readonly syncStatus = inject(SyncStatusService, { optional: true })!;
+  private readonly syncStatus = inject(SyncStatusService, { optional: true });
   private readonly workspaceService = inject(WorkspaceService, { optional: true });
+  private readonly auth = inject(AuthService, { optional: true });
+  private contextKey = '';
+  private contextRevision = 0;
+  private loadRequestId = 0;
+  private requestedContextRevision = -1;
   private readonly webhookService = inject(WebhookService, { optional: true });
   private readonly webPushService = inject(WebPushService, { optional: true });
 
-  readonly advisorConfig = signal<TaxAdvisorConfig>(this.loadAdvisorConfig());
+  readonly advisorConfig = signal<TaxAdvisorConfig>(this.defaultAdvisorConfig());
   readonly isPreparingReport = signal<boolean>(false);
   readonly lastPreparationResult = signal<{
     status: 'prepared';
@@ -34,6 +44,7 @@ export class TaxAdvisorService {
   } | null>(null);
 
   constructor() {
+    this.captureContext();
     // Hinweis: effect() benoetigt einen ChangeDetectionScheduler. Die
     // Service-Tests erzeugen die Dienste noch mit einem blanken Injector, in
     // dem dieser fehlt. Bis die Testumgebung auf TestBed mit jsdom
@@ -41,9 +52,10 @@ export class TaxAdvisorService {
     // fehl. Danach ersatzlos entfernen.
     try {
       effect(() => {
-        const ws = this.workspaceService?.currentWorkspace();
-        if (ws) {
-          this.loadFromSupabase(ws.id);
+        const context = this.captureContext();
+        if (context.workspaceId && context.revision !== this.requestedContextRevision) {
+          this.requestedContextRevision = context.revision;
+          void this.loadFromSupabase(context.workspaceId);
         }
       });
     } catch {
@@ -51,19 +63,12 @@ export class TaxAdvisorService {
     }
   }
 
-  private loadAdvisorConfig(): TaxAdvisorConfig {
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        const stored = localStorage.getItem(STORAGE_KEY_ADVISOR);
-        if (stored) return JSON.parse(stored);
-      }
-    } catch {}
-
+  private defaultAdvisorConfig(): TaxAdvisorConfig {
     return {
-      firmName: 'Kanzlei Dr. Müller & Partner Steuerberater',
-      advisorEmail: 'mandanten@steuerberatung-mueller.de',
-      clientNumber: '10854',
-      consultantNumber: '20941',
+      firmName: this.supabase ? '' : 'Kanzlei Dr. Müller & Partner Steuerberater',
+      advisorEmail: this.supabase ? '' : 'mandanten@steuerberatung-mueller.de',
+      clientNumber: this.supabase ? '' : '10854',
+      consultantNumber: this.supabase ? '' : '20941',
       skrStandard: 'SKR03',
       autoSendOnFirstOfMonth: false,
       includeDiffTaxJournal: true,
@@ -72,8 +77,33 @@ export class TaxAdvisorService {
     };
   }
 
+  private captureContext(): AdvisorContext {
+    const workspaceId = this.workspaceService?.currentWorkspace()?.id ?? null;
+    const userId = this.auth?.currentUser()?.id ?? null;
+    const key = JSON.stringify([workspaceId, userId]);
+    if (this.supabase && key !== this.contextKey) {
+      this.contextKey = key;
+      this.contextRevision++;
+      this.loadRequestId++;
+      this.advisorConfig.set(this.defaultAdvisorConfig());
+      this.lastPreparationResult.set(null);
+    }
+    return { workspaceId, userId, revision: this.contextRevision };
+  }
+
+  private isCurrentContext(context: AdvisorContext): boolean {
+    return (
+      context.revision === this.contextRevision &&
+      context.workspaceId === (this.workspaceService?.currentWorkspace()?.id ?? null) &&
+      context.userId === (this.auth?.currentUser()?.id ?? null)
+    );
+  }
+
   async loadFromSupabase(workspaceId: string): Promise<void> {
     if (!this.supabase) return;
+    const context = this.captureContext();
+    if (context.workspaceId !== workspaceId) return;
+    const requestId = ++this.loadRequestId;
 
     try {
       const { data, error } = await this.supabase.client
@@ -82,7 +112,13 @@ export class TaxAdvisorService {
         .eq('workspace_id', workspaceId)
         .maybeSingle();
 
-      if (!error && data) {
+      if (!this.isCurrentContext(context) || requestId !== this.loadRequestId) return;
+      if (error) throw error;
+      if (!data) {
+        this.advisorConfig.set(this.defaultAdvisorConfig());
+        return;
+      }
+      if (data) {
         const cfg: TaxAdvisorConfig = {
           firmName: data.firm_name || '',
           advisorEmail: data.advisor_email || '',
@@ -95,26 +131,17 @@ export class TaxAdvisorService {
           includePdfReport: data.include_pdf_report,
         };
         this.advisorConfig.set(cfg);
-        try {
-          if (typeof window !== 'undefined' && window.localStorage) {
-            localStorage.setItem(STORAGE_KEY_ADVISOR, JSON.stringify(cfg));
-          }
-        } catch {}
       }
     } catch (err) {
-      this.syncStatus.melde('Laden der Steuerberaterkonfiguration', err);
+      this.syncStatus?.melde('Laden der Steuerberaterkonfiguration', err);
     }
   }
 
   updateAdvisorConfig(updates: Partial<TaxAdvisorConfig>): void {
+    const context = this.captureContext();
+    this.loadRequestId++;
     const updated = { ...this.advisorConfig(), ...updates };
     this.advisorConfig.set(updated);
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        localStorage.setItem(STORAGE_KEY_ADVISOR, JSON.stringify(updated));
-      }
-    } catch {}
-
     const ws = this.workspaceService?.currentWorkspace();
     if (this.supabase && ws) {
       this.supabase.client
@@ -136,8 +163,10 @@ export class TaxAdvisorService {
           { onConflict: 'workspace_id' },
         )
         .then(({ error }) => {
+          if (!this.isCurrentContext(context)) return;
+          this.loadRequestId++;
           if (error) {
-            this.syncStatus.melde('Speichern der Steuerberaterkonfiguration', error);
+            this.syncStatus?.melde('Speichern der Steuerberaterkonfiguration', error);
           }
         });
     }

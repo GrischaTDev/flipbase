@@ -10,6 +10,43 @@
   const save = async (installation) => chrome.storage.local.set({ [key]: installation });
   let operationDeadline = 0;
   let recoveredTab = false;
+  let pendingConsent;
+
+  async function confirmBinding(binding, identity) {
+    const nonce = crypto.randomUUID();
+    const url = chrome.runtime.getURL(`pairing.html#${nonce}`);
+    return new Promise((resolve, reject) => {
+      const finish = (approved) => {
+        if (pendingConsent?.nonce !== nonce) return;
+        clearTimeout(pendingConsent.timeout);
+        const windowId = pendingConsent.windowId;
+        pendingConsent = undefined;
+        if (Number.isInteger(windowId)) chrome.windows.remove(windowId).catch(() => {});
+        resolve(approved === true);
+      };
+      pendingConsent = {
+        nonce,
+        url,
+        binding,
+        identity,
+        finish,
+        timeout: setTimeout(() => finish(false), 25_000),
+      };
+      chrome.windows
+        .create({ url, type: 'popup', width: 540, height: 620, focused: true })
+        .then((window) => {
+          if (pendingConsent?.nonce === nonce) pendingConsent.windowId = window.id;
+          else if (Number.isInteger(window.id)) chrome.windows.remove(window.id).catch(() => {});
+        })
+        .catch((error) => {
+          finish(false);
+          reject(error);
+        });
+    });
+  }
+  chrome.windows?.onRemoved?.addListener((windowId) => {
+    if (pendingConsent?.windowId === windowId) pendingConsent.finish(false);
+  });
 
   // Das Installationsgeheimnis ist für Content Scripts nicht lesbar.
 
@@ -155,6 +192,7 @@
     load,
     save,
     now,
+    confirmBinding,
     version: chrome.runtime.getManifest?.().version ?? '1.7.0',
     begin: () => {
       operationDeadline = now() + 50_000;
@@ -291,6 +329,34 @@
   }
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (['VINTED_PAIRING_READ', 'VINTED_PAIRING_CONFIRM'].includes(message?.type)) {
+      if (
+        !pendingConsent ||
+        sender.id !== chrome.runtime.id ||
+        sender.url !== pendingConsent.url ||
+        (sender.frameId !== undefined && sender.frameId !== 0) ||
+        sender.tab?.incognito ||
+        message.nonce !== pendingConsent.nonce ||
+        Object.keys(message).some((key) => !['type', 'nonce', 'approved'].includes(key))
+      )
+        return false;
+      if (message.type === 'VINTED_PAIRING_READ') {
+        const { workspaceId, connectionId, appOrigin, externalAccountId, expiresAt } =
+          pendingConsent.binding;
+        sendResponse({
+          workspaceId,
+          connectionId,
+          appOrigin,
+          externalAccountId,
+          expiresAt,
+          username: pendingConsent.identity.username,
+        });
+      } else {
+        pendingConsent.finish(message.approved === true);
+        sendResponse({ ok: true });
+      }
+      return false;
+    }
     if (
       [
         'VINTED_LOCAL_ACCOUNT_STATUS',

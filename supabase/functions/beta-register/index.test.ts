@@ -70,6 +70,26 @@ Deno.test('Erst der bestätigte Fachabschluss liefert eine Sitzung', async () =>
   assertEquals(response.status, 200);
   assertEquals(deps.steps, ['begin', 'password', 'complete', 'session']);
 });
+Deno.test('Die Sitzung verwendet das gerade gesetzte Passwort des bestätigten Kontos', async () => {
+  let credentials: unknown;
+  const deps = dependencies({
+    session: async (...arguments_) => {
+      credentials = arguments_;
+      return { access_token: 'access', refresh_token: 'refresh' };
+    },
+  });
+  const response = await createBetaRegistrationHandler(deps.value)(
+    request({
+      action: 'complete',
+      token,
+      password: 'Long-password1!',
+      acceptedTerms: true,
+      requestId,
+    }),
+  );
+  assertEquals(response.status, 200);
+  assertEquals(credentials, ['user-1', 'beta@example.test', 'Long-password1!']);
+});
 Deno.test('Ablauf zwischen Passwortvergabe und Abschluss liefert keinen Zugang', async () => {
   const deps = dependencies({ complete: () => Promise.reject(new Error('expired')) });
   const response = await createBetaRegistrationHandler(deps.value)(
@@ -112,3 +132,55 @@ Deno.test('Drosselung greift vor Linkprüfung und Passwortvergabe', async () => 
   assertEquals(response.status, 429);
   assertEquals(deps.steps, []);
 });
+
+Deno.test('Auch ungültige und übergroße Bodies werden vor dem Lesen gedrosselt', async () => {
+  for (const body of ['{', 'null', '[]', 'x'.repeat(4097)]) {
+    let attempts = 0;
+    const deps = dependencies({
+      allowAttempt: async () => {
+        attempts++;
+        return true;
+      },
+    });
+    const response = await createBetaRegistrationHandler(deps.value)(
+      new Request('https://test.invalid', {
+        method: 'POST',
+        headers: { Origin: 'https://app.flipbase.de' },
+        body,
+      }),
+    );
+    assertEquals(response.status, body.length > 4096 ? 413 : 400);
+    assertEquals(attempts, 1);
+    assertEquals(deps.steps, []);
+  }
+});
+Deno.test(
+  'Fehlgeschlagene Drosselung liest keinen Body und führt keinen Fachabschluss aus',
+  async () => {
+    let reads = 0;
+    const deps = dependencies({
+      allowAttempt: async () => {
+        throw new Error('database unavailable');
+      },
+    });
+    const body = new ReadableStream<Uint8Array>(
+      {
+        pull(controller) {
+          reads++;
+          controller.enqueue(new Uint8Array(5000));
+        },
+      },
+      { highWaterMark: 0 },
+    );
+    const response = await createBetaRegistrationHandler(deps.value)(
+      new Request('https://test.invalid', {
+        method: 'POST',
+        headers: { Origin: 'https://app.flipbase.de' },
+        body,
+      }),
+    );
+    assertEquals(response.status, 503);
+    assertEquals(reads, 0);
+    assertEquals(deps.steps, []);
+  },
+);

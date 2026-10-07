@@ -15,6 +15,13 @@
 	}
 
 	@supabase_api path /auth/v1/* /rest/v1/* /graphql/v1 /realtime/v1/* /storage/v1/* /functions/v1/* /sso/*
+	@beta_requests path /functions/v1/beta-application /functions/v1/beta-register
+	handle @beta_requests {
+		request_body {
+			max_size 4KB
+		}
+		reverse_proxy api-gw:8000
+	}
 
 	handle @supabase_api {
 		reverse_proxy api-gw:8000

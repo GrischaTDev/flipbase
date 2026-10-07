@@ -3,6 +3,7 @@ import type { SniperQuery } from '../domain/query.js';
 import { searchFilterRequest } from '../domain/search-filter-request.js';
 import { createTitleKeywordMatcher } from '../domain/title-keywords.js';
 import { parseVintedCatalogPage } from './catalog-page.js';
+import { readVintedPage } from './response-body.js';
 import {
   ForbiddenError,
   parseRetryAfter,
@@ -49,7 +50,7 @@ export class VintedCollector {
 
     try {
       const response = await this.request(url, query.id);
-      const body = await response.text();
+      const body = await readVintedPage(response);
 
       // Challenge-Erkennung: Cloudflare oder Datadome kann bei HTTP 200 eine Challenge-Seite ausliefern
       if (

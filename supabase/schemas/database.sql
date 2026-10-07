@@ -171,7 +171,7 @@ alter table public.purchase_costs add constraint purchase_costs_workspace_purcha
 CREATE TABLE IF NOT EXISTS public.inventory_items (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     workspace_id UUID NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
-    purchase_id UUID REFERENCES public.purchases(id) ON DELETE RESTRICT,
+    purchase_id uuid,
     category TEXT,
     title TEXT NOT NULL,
     brand TEXT,
@@ -194,7 +194,9 @@ CREATE TABLE IF NOT EXISTS public.inventory_items (
     archived_at timestamptz,
     archived_by uuid references auth.users(id) on delete restrict,
     unique (workspace_id, id),
-    tax_purchase_cost numeric(12,2) check (tax_purchase_cost >= 0 and tax_purchase_cost < 'Infinity'::numeric)
+    tax_purchase_cost numeric(12,2) check (tax_purchase_cost >= 0 and tax_purchase_cost < 'Infinity'::numeric),
+    constraint inventory_items_purchase_id_fkey foreign key (workspace_id, purchase_id)
+        references public.purchases(workspace_id, id) on delete restrict
 );
 
 CREATE TABLE IF NOT EXISTS public.item_costs (
@@ -224,7 +226,7 @@ CREATE TABLE IF NOT EXISTS public.item_media (
 CREATE TABLE IF NOT EXISTS public.market_research (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     workspace_id UUID NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
-    inventory_item_id UUID REFERENCES public.inventory_items(id) ON DELETE SET NULL,
+    inventory_item_id uuid,
     query TEXT NOT NULL,
     fair_value NUMERIC,
     fast_sale_price NUMERIC,
@@ -232,7 +234,9 @@ CREATE TABLE IF NOT EXISTS public.market_research (
     confidence_score NUMERIC,
     deal_score NUMERIC,
     max_buy_price NUMERIC,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    constraint market_research_inventory_item_id_fkey foreign key (workspace_id, inventory_item_id)
+        references public.inventory_items(workspace_id, id) on delete set null (inventory_item_id)
 );
 
 CREATE TABLE IF NOT EXISTS public.research_comparables (
@@ -700,10 +704,12 @@ create index business_events_entity_created_id_idx
 CREATE TABLE IF NOT EXISTS public.activity_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     workspace_id UUID NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
-    inventory_item_id UUID REFERENCES public.inventory_items(id) ON DELETE CASCADE,
+    inventory_item_id uuid,
     action TEXT NOT NULL,
     notes TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    constraint activity_logs_inventory_item_id_fkey foreign key (workspace_id, inventory_item_id)
+        references public.inventory_items(workspace_id, id) on delete cascade
 );
 
 -- ==============================================================================
@@ -785,7 +791,7 @@ CREATE TABLE IF NOT EXISTS public.email_confirmations (
 CREATE TABLE IF NOT EXISTS public.shipping_orders (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     workspace_id UUID NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
-    sale_id UUID REFERENCES public.sales(id) ON DELETE RESTRICT,
+    sale_id uuid,
     order_number TEXT NOT NULL,
     order_date DATE NOT NULL DEFAULT CURRENT_DATE,
     platform TEXT NOT NULL,
@@ -807,7 +813,9 @@ CREATE TABLE IF NOT EXISTS public.shipping_orders (
     bundled_item_titles TEXT[] DEFAULT '{}',
     shipped_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    bundled_orders_snapshot JSONB
+    bundled_orders_snapshot JSONB,
+    constraint shipping_orders_sale_id_fkey foreign key (workspace_id, sale_id)
+        references public.sales(workspace_id, id) on delete restrict
 );
 
 CREATE TABLE IF NOT EXISTS public.carrier_configs (
@@ -907,7 +915,7 @@ CREATE TABLE IF NOT EXISTS public.bank_transactions (
 CREATE TABLE IF NOT EXISTS public.price_tracked_items (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     workspace_id UUID NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
-    inventory_item_id UUID REFERENCES public.inventory_items(id) ON DELETE SET NULL,
+    inventory_item_id uuid,
     title TEXT NOT NULL,
     category TEXT,
     current_our_price NUMERIC NOT NULL DEFAULT 0.00,
@@ -923,7 +931,9 @@ CREATE TABLE IF NOT EXISTS public.price_tracked_items (
     alert_triggered TEXT NOT NULL DEFAULT 'none',
     last_checked_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     is_tracking_active BOOLEAN NOT NULL DEFAULT TRUE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    constraint price_tracked_items_inventory_item_id_fkey foreign key (workspace_id, inventory_item_id)
+        references public.inventory_items(workspace_id, id) on delete set null (inventory_item_id)
 );
 
 -- ==============================================================================

@@ -11,6 +11,7 @@ import type { WebhookSale } from './sale-notification.ts';
 
 export interface WebhookPorts {
   authorize(workspaceId: string): Promise<boolean>;
+  administer(workspaceId: string): Promise<boolean>;
   read(workspaceId: string): Promise<WebhookRow | null>;
   save(workspaceId: string, patch: Record<string, boolean | string | null>): Promise<WebhookRow>;
   claim(workspaceId: string, event: string, channel: WebhookChannel): Promise<boolean>;
@@ -76,6 +77,11 @@ export async function handleWebhook(input: unknown, ports: WebhookPorts): Promis
     !(await ports.authorize(workspaceId))
   )
     throw new Error('Kein Zugriff auf diesen Workspace');
+  if (
+    (request.action === 'save' || request.action === 'test') &&
+    !(await ports.administer(workspaceId))
+  )
+    throw new Error('Administrationsrechte erforderlich');
   if (request.action === 'save')
     return publicSettings(await ports.save(workspaceId, settingsPatch(request.settings)));
   const row = (await ports.read(workspaceId)) ?? defaultSettings;

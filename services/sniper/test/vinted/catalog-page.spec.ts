@@ -33,4 +33,31 @@ describe('parseVintedCatalogPage', () => {
       parseVintedCatalogPage('<html><body>loading</body></html>', 'https://www.vinted.de'),
     ).toThrow('catalog item data');
   });
+
+  it('rejects oversized photo arrays before creating normalized image copies', () => {
+    const product = {
+      id: 1,
+      title: 'Ordinary item',
+      url: '/items/1',
+      totalItemPrice: { amount: '10', currencyCode: 'EUR' },
+    };
+    const page = (fields: Record<string, unknown>) =>
+      JSON.stringify({ items: { items: [{ productItem: { ...product, ...fields } }] } });
+    for (const fields of [
+      { thumbnailUrls: Array.from({ length: 101 }, () => 'https://images.vinted.test/a.jpg') },
+      { photos: Array.from({ length: 101 }, () => ({ url: 'https://images.vinted.test/a.jpg' })) },
+    ])
+      expect(() => parseVintedCatalogPage(page(fields), 'https://www.vinted.de')).toThrow();
+    expect(
+      parseVintedCatalogPage(
+        page({
+          photos: [
+            { url: 'https://images.vinted.test/a.jpg' },
+            { url: 'https://images.vinted.test/b.jpg' },
+          ],
+        }),
+        'https://www.vinted.de',
+      )[0]?.photos,
+    ).toHaveLength(2);
+  });
 });

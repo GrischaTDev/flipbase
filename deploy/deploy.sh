@@ -40,7 +40,7 @@ if [ "$BEFEHL" = "migrationen" ]; then
 fi
 
 WEB_TAG=""
-SNIPER_TAG=""
+SNIPER_REFERENCE=""
 release_image=""
 
 # Die Kennzeichnung landet in einem Docker-Befehl. Sie wird deshalb streng
@@ -67,17 +67,17 @@ elif [[ "${parts[0]:-}" == "release-v1" ]]; then
     exit 1
   fi
   if [[ ${#parts[@]} -eq 4 ]]; then
-    if [[ "${parts[2]}" != "sniper" || ! "${parts[3]:-}" =~ ^sha-[0-9a-f]{7}$ ]]; then
+    if [[ "${parts[2]}" != "sniper" || ( ! "${parts[3]:-}" =~ ^sha-[0-9a-f]{7}$ && ! "${parts[3]:-}" =~ ^sha256:[a-f0-9]{64}$ ) ]]; then
       echo 'Ungueltige Sniper-Kennzeichnung.' >&2
       exit 2
     fi
-    SNIPER_TAG="${parts[3]}"
+    SNIPER_REFERENCE="${parts[3]}"
   fi
 elif [[ ${#parts[@]} -eq 2 || ${#parts[@]} -eq 4 ]]; then
   for ((index = 0; index < ${#parts[@]}; index += 2)); do
     service="${parts[index]}"
     tag="${parts[index + 1]}"
-    if [[ ! "$tag" =~ ^sha-[0-9a-f]{7}$ ]]; then
+    if [[ ! "$tag" =~ ^sha-[0-9a-f]{7}$ && ( "$service" != "sniper" || ! "$tag" =~ ^sha256:[a-f0-9]{64}$ ) ]]; then
       echo 'Ungueltige Image-Kennzeichnung.' >&2
       exit 2
     fi
@@ -87,8 +87,8 @@ elif [[ ${#parts[@]} -eq 2 || ${#parts[@]} -eq 4 ]]; then
         WEB_TAG="$tag"
         ;;
       sniper)
-        [[ -z "$SNIPER_TAG" ]] || { echo 'Sniper wurde doppelt angegeben.' >&2; exit 2; }
-        SNIPER_TAG="$tag"
+        [[ -z "$SNIPER_REFERENCE" ]] || { echo 'Sniper wurde doppelt angegeben.' >&2; exit 2; }
+        SNIPER_REFERENCE="$tag"
         ;;
       *)
         echo 'Unbekannter Dienst.' >&2
@@ -101,7 +101,7 @@ else
   exit 2
 fi
 
-if [[ -z "$WEB_TAG" && -z "$release_image" && -z "$SNIPER_TAG" ]]; then
+if [[ -z "$WEB_TAG" && -z "$release_image" && -z "$SNIPER_REFERENCE" ]]; then
   echo 'Kein Dienst zum Ausrollen angegeben.' >&2
   exit 2
 fi
@@ -109,7 +109,7 @@ fi
 if [[ -n "$release_image" ]]; then
   TAG="release-v1"
 else
-  TAG="${WEB_TAG:-$SNIPER_TAG}"
+  TAG="${WEB_TAG:-$SNIPER_REFERENCE}"
 fi
 
 cd "$VERZEICHNIS"
@@ -150,8 +150,17 @@ elif [[ -n "$WEB_TAG" ]]; then
   IMAGE_TAG="$WEB_TAG" docker compose up -d web
 fi
 
-if [[ -n "$SNIPER_TAG" ]]; then
-  sniper_image="$SNIPER_IMAGE_REPOSITORY:$SNIPER_TAG"
+if [[ -n "$SNIPER_REFERENCE" ]]; then
+  if [[ "$SNIPER_REFERENCE" =~ ^sha256:[a-f0-9]{64}$ ]]; then
+    sniper_image="$SNIPER_IMAGE_REPOSITORY@$SNIPER_REFERENCE"
+    configured_sniper_image="$(FLIPBASE_SNIPER_IMAGE="$sniper_image" docker compose -f "$SNIPER_COMPOSE_FILE" config --images sniper)"
+    [[ "$configured_sniper_image" = "$sniper_image" ]] || {
+      echo 'Compose verwendet nicht den Sniper-Digest; Serverbootstrap erforderlich.' >&2; exit 1;
+    }
+  else
+    # Alte Kennzeichnungen bleiben ausschließlich für bewusste manuelle Rückfälle.
+    sniper_image="$SNIPER_IMAGE_REPOSITORY:$SNIPER_REFERENCE"
+  fi
   FLIPBASE_SNIPER_IMAGE="$sniper_image" docker compose -f "$SNIPER_COMPOSE_FILE" pull sniper
   FLIPBASE_SNIPER_IMAGE="$sniper_image" docker compose -f "$SNIPER_COMPOSE_FILE" up -d --pull never sniper
 fi
@@ -238,6 +247,6 @@ if [[ -n "$WEB_TAG" || -n "$release_image" ]]; then
   fi
 fi
 
-if [[ -n "$SNIPER_TAG" ]]; then
+if [[ -n "$SNIPER_REFERENCE" ]]; then
   wait_for_healthy flipbase-sniper
 fi
