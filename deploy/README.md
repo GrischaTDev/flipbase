@@ -664,11 +664,18 @@ Authenticator-App; deren aktuellen Code zur Registrierung bestätigen.
 
 ## Sicherung
 
+Der vorbereitete Borg-Umbau, die Umschaltung und der vollständige Restore-Test sind
+in [BACKUP-OPERATIONS.md](BACKUP-OPERATIONS.md) beschrieben. Die folgende age-Anleitung
+bleibt für den bisherigen Betrieb und die vorhandenen Release-/Altsicherungen relevant.
+
 Läuft nachts um 03:30 Uhr auf dem Flipbase-Server und erfasst Datenbank
 (inklusive Rollen), hochgeladene Dateien und die `.env` mit allen Schlüsseln.
 
 Danach wird alles **verschlüsselt** und auf den zweiten Server (n8n,
-`168.119.165.201`) übertragen. Aufbewahrung: 14 Tage örtlich, 30 Tage dort.
+`168.119.165.201`) übertragen. Bisherige lokale Aufbewahrung: sieben vollständige
+Tagesstände und drei Release-Punkte; der externe Altbestand war altersbasiert auf
+etwa 30 Tage begrenzt. Nach der Borg-Umschaltung gelten die begrenzten Tages- und
+Wochenstände aus der Betriebsanleitung.
 
 ### ⚠️ Der private Schlüssel muss auch woanders liegen
 
