@@ -1,0 +1,29 @@
+name: Label database candidate
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'supabase/test-support/brand-label-candidate/**'
+      - 'scripts/run-brand-label-database-tests.mjs'
+      - '.github/workflows/brand-label-candidate.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: label-candidate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  database-candidate:
+    name: Label SQL candidate (isolated PostgreSQL 17)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out test sources
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Test isolated database candidate
+        run: node scripts/run-brand-label-database-tests.mjs
