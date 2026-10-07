@@ -4,6 +4,7 @@ import {
   MarketplaceSyncDispatcher,
   type MarketplaceSyncDispatchStore,
   type MarketplaceSyncTimers,
+  type MarketplaceRuntimeLossReason,
 } from '../src/marketplace-sync-dispatcher.ts';
 import type { BrowserSessionScope } from '../src/marketplace-browser-session-broker.ts';
 import { MarketplaceSyncRunner } from '../src/marketplace-sync-runner.ts';
@@ -24,7 +25,7 @@ function pending<T>() {
 }
 
 test('an uncertain interactive reservation disables capabilities and future claims exactly once', async () => {
-  const { dispatcher, calls, lost } = fixture({}, undefined, true);
+  const { dispatcher, calls, lost, lossReasons } = fixture({}, undefined, true);
   await dispatcher.initialize();
   dispatcher.start();
   dispatcher.invalidate();
@@ -33,11 +34,12 @@ test('an uncertain interactive reservation disables capabilities and future clai
   assert.equal(dispatcher.scheduledEnabled, false);
   assert.equal(calls.includes('claim'), false);
   assert.equal(lost(), 1);
+  assert.deepEqual(lossReasons, ['reservation_uncertain']);
   await dispatcher.drain();
 });
 
 test('a rejected preclaimed runner loses runtime before another claim', async () => {
-  const { dispatcher, calls, lost } = fixture(
+  const { dispatcher, calls, lost, lossReasons } = fixture(
     {},
     async () => {
       throw new Error('Uncertain reserved session');
@@ -50,6 +52,7 @@ test('a rejected preclaimed runner loses runtime before another claim', async ()
   await dispatcher.poll();
   assert.equal(calls.filter((call) => call === 'claim').length, 1);
   assert.equal(lost(), 1);
+  assert.deepEqual(lossReasons, ['run_failed']);
   assert.equal(dispatcher.scheduledEnabled, false);
   await dispatcher.drain();
 });
@@ -82,6 +85,7 @@ function fixture(
   let lost = 0;
   let nextRunner = 0;
   const calls: string[] = [];
+  const lossReasons: MarketplaceRuntimeLossReason[] = [];
   const callbacks = new Map<number, () => void>();
   const timers: MarketplaceSyncTimers = {
     setInterval: (callback, milliseconds) => {
@@ -126,8 +130,9 @@ function fixture(
   const dispatcher = new MarketplaceSyncDispatcher({
     store,
     run,
-    onRuntimeLost: () => {
+    onRuntimeLost: (reason) => {
       lost++;
+      lossReasons.push(reason);
     },
     includeScheduled,
     maxJobsPerPoll,
@@ -141,6 +146,7 @@ function fixture(
     calls,
     callbacks,
     lost: () => lost,
+    lossReasons,
     advance: (milliseconds: number) => {
       current += milliseconds;
     },
@@ -520,7 +526,7 @@ test('ungeklärte Browserbereinigung erlaubt keine erfolgreiche Runtimefreigabe'
 });
 
 test('fehlgeschlagener Runtime-Heartbeat setzt Fähigkeiten sofort zurück', async () => {
-  const { dispatcher, lost } = fixture(
+  const { dispatcher, lost, lossReasons } = fixture(
     {
       heartbeatWorker: async () => {
         throw new Error('private response');
@@ -535,6 +541,42 @@ test('fehlgeschlagener Runtime-Heartbeat setzt Fähigkeiten sofort zurück', asy
   assert.equal(dispatcher.ready, false);
   assert.equal(dispatcher.scheduledEnabled, false);
   assert.equal(lost(), 1);
+  assert.deepEqual(lossReasons, ['heartbeat_failed']);
+});
+
+test('an uncertain claim reports only its fixed category before stopping further work', async () => {
+  const { dispatcher, lossReasons } = fixture({
+    claim: async () => {
+      throw new Error('private provider response and credentials');
+    },
+  });
+  await dispatcher.initialize();
+  await dispatcher.poll();
+  await dispatcher.poll();
+  assert.deepEqual(lossReasons, ['claim_failed']);
+  assert.equal(dispatcher.runtimeActive, false);
+});
+
+test('runtime loss distinguishes rejected, late and expired authorizations', async () => {
+  const rejected = fixture({ heartbeatWorker: async () => false });
+  await rejected.dispatcher.initialize();
+  await rejected.dispatcher.heartbeat();
+  assert.deepEqual(rejected.lossReasons, ['heartbeat_rejected']);
+
+  const late = fixture();
+  const answer = pending<boolean>();
+  const delayed = fixture({ heartbeatWorker: async () => answer.promise });
+  await delayed.dispatcher.initialize();
+  const heartbeat = delayed.dispatcher.heartbeat();
+  delayed.advance(90_000);
+  answer.resolve(true);
+  await heartbeat;
+  assert.deepEqual(delayed.lossReasons, ['heartbeat_expired']);
+
+  await late.dispatcher.initialize();
+  late.advance(90_000);
+  await late.dispatcher.poll();
+  assert.deepEqual(late.lossReasons, ['runtime_expired']);
 });
 
 test('lange Recovery hält Runtime per Monitoring aktiv ohne vorzeitig Aufträge zu starten', async () => {
