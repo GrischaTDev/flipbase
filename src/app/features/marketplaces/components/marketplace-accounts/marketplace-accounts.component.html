@@ -27,6 +27,8 @@
     [subtitle]="
       currentDialog.mode === 'login' ? 'Melde Dich an, um Dein Vinted-Konto zu verbinden' : ''
     "
+    [icon]="currentDialog.mode === 'login' ? loginIcon : null"
+    [iconTone]="currentDialog.mode === 'login' ? 'brand' : 'info'"
     presentation="center"
     [size]="
       currentDialog.mode === 'login'
