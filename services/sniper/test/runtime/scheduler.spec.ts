@@ -152,6 +152,136 @@ function build(query: SniperQuery, overrides: Record<string, unknown> = {}) {
 }
 
 describe('QueryScheduler', () => {
+  function pausedOrigin(reason = 'forbidden') {
+    return {
+      getState: async () => ({
+        origin: 'vinted',
+        state: 'blocked' as const,
+        blockedUntil: null,
+        reason,
+        probeInFlight: false,
+        updatedAt: NOW.toISOString(),
+      }),
+      tryAcquireProbe: vi.fn(async () => true),
+      releaseProbe: vi.fn(async () => undefined),
+      setCooldown: vi.fn(async () => undefined),
+      setBlocked: vi.fn(async () => undefined),
+      reset: vi.fn(async () => undefined),
+    };
+  }
+
+  it('never probes a manual interaction block after a restart or elapsed time', async () => {
+    const origin = pausedOrigin('interaction_required');
+    const { scheduler, collector } = build(makeQuery(), { originState: origin });
+    const report = await scheduler.runOnce(new Date('2027-10-07T12:00:00Z'));
+    expect(report.polled).toBe(0);
+    expect(report.originPause?.reason).toBe('interaction_required');
+    expect(collector.collect).not.toHaveBeenCalled();
+    expect(origin.tryAcquireProbe).not.toHaveBeenCalled();
+  });
+
+  it('persists the shared challenge pause even when query error storage fails', async () => {
+    const origin = pausedOrigin();
+    const { scheduler } = build(makeQuery(), {
+      originState: origin,
+      collector: {
+        collect: async () => {
+          throw new ForbiddenError('challenge', { challengeDetected: true });
+        },
+      },
+      queries: {
+        recordFailure: async () => {
+          throw new Error('query storage failed');
+        },
+      },
+    });
+    await scheduler.runOnce(NOW);
+    expect(origin.setBlocked).toHaveBeenCalledWith('vinted', 'interaction_required', undefined);
+  });
+  it('records the challenge pause before trying to release a legacy probe in the database', async () => {
+    const origin = pausedOrigin();
+    origin.releaseProbe.mockRejectedValue(new Error('probe storage failed'));
+    const { scheduler } = build(makeQuery(), {
+      originState: origin,
+      collector: {
+        collect: async () => {
+          throw new ForbiddenError('challenge', { challengeDetected: true });
+        },
+      },
+    });
+    await expect(scheduler.runOnce(NOW)).rejects.toThrow('probe storage failed');
+    expect(origin.setBlocked).toHaveBeenCalledWith('vinted', 'interaction_required', undefined);
+  });
+
+  it.each(['query', 'origin'])(
+    'halts every later query when %s storage fails after a challenge',
+    async (storage) => {
+      const origin = {
+        ...pausedOrigin(),
+        getState: async () => ({
+          origin: 'vinted',
+          state: 'ready' as const,
+          reason: null,
+          blockedUntil: null,
+          probeInFlight: false,
+          updatedAt: NOW.toISOString(),
+        }),
+      };
+      if (storage === 'origin')
+        origin.setBlocked.mockRejectedValue(new Error('origin storage failed'));
+      const collect = vi
+        .fn()
+        .mockRejectedValue(new ForbiddenError('challenge', { challengeDetected: true }));
+      const recordFailure = vi.fn().mockRejectedValue(new Error('query storage failed'));
+      const { scheduler } = buildMany([makeQuery({ id: 'first' }), makeQuery({ id: 'second' })], {
+        originState: origin,
+        collector: { collect },
+        queries: { recordFailure },
+      });
+      const report = await scheduler.runOnce(NOW);
+      expect(collect).toHaveBeenCalledTimes(1);
+      expect(report.originPause?.reason).toBe('interaction_required');
+    },
+  );
+
+  it.each([false, true])(
+    'retains the origin pause when guarded storage fails (throws=%s)',
+    async (throws) => {
+      const origin = pausedOrigin();
+      const completeRun = throws
+        ? vi.fn(async () => {
+            throw new Error('storage failed');
+          })
+        : vi.fn(async () => ({ accepted: false, created: 0, seeded: false, hits: 0 }));
+      const { scheduler } = build(makeQuery({ filterFormatVersion: 1 }), {
+        originState: origin,
+        listings: { completeRun },
+      });
+      await scheduler.runOnce(NOW);
+      expect(origin.releaseProbe).not.toHaveBeenCalledWith('vinted', true);
+      expect(origin.releaseProbe).toHaveBeenCalledWith('vinted', false);
+    },
+  );
+
+  it('releases a successful probe only after guarded storage accepts the response', async () => {
+    const origin = pausedOrigin();
+    const events: string[] = [];
+    origin.releaseProbe.mockImplementation(async (_origin?: string, success?: boolean) => {
+      if (success) events.push('ready');
+    });
+    const { scheduler } = build(makeQuery({ filterFormatVersion: 1 }), {
+      originState: origin,
+      listings: {
+        completeRun: async () => {
+          events.push('stored');
+          return { accepted: true, created: 1, seeded: false, hits: 1 };
+        },
+      },
+    });
+    await scheduler.runOnce(NOW);
+    expect(events).toEqual(['stored', 'ready']);
+  });
+
   it('stores listings and counts the new ones', async () => {
     const { scheduler, listings } = build(makeQuery());
 

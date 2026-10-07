@@ -6,19 +6,33 @@ services:
     container_name: flipbase-sniper
     restart: unless-stopped
     init: true
-    # Vinted stellt die IPv4-Adresse des Produktionsservers unter eine
-    # Cloudflare-Pruefung. Das Host-Netzwerk stellt dem Dienst die vorhandene
-    # IPv6-Route bereit; der Node-Prozess bevorzugt IPv6 beim DNS-Aufloesen.
+    # Der längste zulässige Abruf darf vor dem regulären Chrome-Ende auslaufen.
+    stop_grace_period: 90s
+    # Vorhandene Serveranbindung; API nur am internen Docker-Gateway,
+    # Gesundheitsendpunkte und Chrome-Steuerung ausschließlich an Loopback.
     network_mode: host
     env_file:
       - ${SNIPER_ENV_FILE:-/opt/flipbase-sniper/sniper.env}
+    environment:
+      SNIPER_BROWSER_HOST: 172.18.0.1
+      SNIPER_BROWSER_PORT: '8081'
+      SNIPER_BROWSER_CDP_PORT: '9228'
+      SNIPER_BROWSER_PROFILE_DIR: /var/lib/flipbase-sniper/browser
+    volumes:
+      - ${SNIPER_BROWSER_PROFILE_PATH:-/opt/flipbase-sniper/browser}:/var/lib/flipbase-sniper/browser
+    tmpfs:
+      - /tmp:size=384m,mode=1777
+    shm_size: 128m
     read_only: true
     cap_drop:
       - ALL
+    cap_add:
+      - SYS_CHROOT
     security_opt:
       - no-new-privileges:true
-    pids_limit: 128
-    mem_limit: 256m
+      - seccomp:${SNIPER_SECCOMP_FILE:-/opt/flipbase-sniper/chromium-seccomp.json}
+    pids_limit: 256
+    mem_limit: 1g
     logging:
       driver: json-file
       options:

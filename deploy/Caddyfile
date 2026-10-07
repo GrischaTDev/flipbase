@@ -54,6 +54,10 @@ auth.flipbase.de {
 # deshalb reicht Caddy die Antwort unveraendert durch.
 # ---------------------------------------------------------------------------
 app.flipbase.de {
+	@sniper_browser path /sniper-browser/*
+	handle @sniper_browser {
+		reverse_proxy 172.18.0.1:8081
+	}
 	@marketplace_browser path /marketplace-browser/*
 	handle @marketplace_browser {
 		reverse_proxy flipbase-marketplace-worker:4179

@@ -7,6 +7,14 @@ const validEnv = {
 };
 
 describe('loadConfig', () => {
+  it('keeps browser control private and the profile separate by default', () => {
+    const config = loadConfig(validEnv);
+    expect(config.browserHost).toBe('127.0.0.1');
+    expect(config.browserPort).toBe(8081);
+    expect(config.browserProfileDir).toBe('/var/lib/flipbase-sniper/browser');
+    expect(config.browserCdpPort).toBe(9228);
+    expect(() => loadConfig({ ...validEnv, SNIPER_BROWSER_HOST: '0.0.0.0' })).toThrow();
+  });
   it('loads configurable request spacing and timeout', () => {
     const config = loadConfig({
       ...validEnv,

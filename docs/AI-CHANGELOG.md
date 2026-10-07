@@ -34,6 +34,247 @@ sechs Chromium-Tests. Zusätzlich bestehen 339 Worker-Tests bei sieben bestehend
 Veröffentlichung dieser Diagnose-Ergänzung und Bestätigung der konkreten
 produktiven Navigationsausnahme stehen noch aus.
 
+**Fortsetzung nach Freigabe:** Der Nutzer gibt den zusätzlichen PR und dessen
+Veröffentlichung frei. Weitere automatische Abrufe um 14:02 und 14:18 UTC sind
+erfolgreich. Um 14:33 UTC scheitert die Identitätsbestätigung mit `unauthorized`;
+der Zeitplan ist jetzt wegen `needs_login` angehalten und hat Berechtigungsversion 23. Die Veröffentlichung aktiviert diesen Zeitplan nicht eigenmächtig.
+Der aktuelle `origin/master` mit den unabhängig veröffentlichten Botänderungen
+wird übernommen; ausschließlich dieses Protokoll kollidiert. Alle Einträge beider
+Sitzungen bleiben erhalten, persönliches Cloudprofil und Botprofil bleiben getrennt.
+
+## 2026-10-07 - Juna - Botprofil ohne passenden Host-Benutzer anlegen
+
+**Auftrag und Befund:** Den freigegebenen Vinted-Browserrelease nach dem
+erfolgreichen Merge von PR #333 fertigstellen. Der erste Produktionslauf stoppt
+vor dem Austausch der Anwendung: `install (uutils coreutils) 0.8.0` lehnt
+`-o 1000 -g 1000` ab, weil kein entsprechender Host-Benutzer vorhanden ist.
+Die bestehende Anwendung und der bisherige Bot laufen weiter.
+
+**Korrektur:** Das Deployskript legt das private Verzeichnis mit Modus `0700`
+an und setzt anschließend den numerischen Eigentümer per `chown 1000:1000`.
+Die Prüfung bestehender Profile und das Anhalten bei Fehlern bleiben erhalten.
+Es wird kein Host-Benutzer angelegt. Der neue Zweig basiert ausschließlich auf
+dem aktuellen `origin/master`; der bereits gemergte Featurezweig ist gelöscht.
+
+**Prüfung:** Die Linux-Deploymentfixture simuliert fehlende Host-Benutzer und
+scheitert zunächst mit derselben Meldung. Nach der Korrektur bestehen alle acht
+Deploytests ohne Netzwerk, Formatierung, Lint und Git-Diff. Eine isolierte leere
+Teststruktur auf dem echten Server bestätigt `700 1000:1000` mit dessen
+Installationswerkzeug; sie wird danach entfernt. Das leere eigene Botprofil wird
+als freigegebene Servervorbereitung mit denselben Rechten angelegt. Der bereits
+vollständig geprüfte Release kann damit wiederholt werden; die dauerhafte
+Skriptkorrektur wird über einen eigenen PR geprüft und veröffentlicht.
+
+## 2026-10-07 - Juna - Manuellen Browserzugriff für den Artikelbot umsetzen
+
+**Freigabe:** Der Nutzer bestätigt Entwurf, Umsetzungsplan und die Umsetzung in
+dieser Sitzung mit einer unabhängigen Gesamtprüfung. Die ausdrückliche Ausnahme
+für den Node-Bot gilt weiterhin. Nach den erfolgreichen lokalen Prüfungen
+bestätigt der Nutzer die PR-Erstellung, den Merge nach erfolgreichen
+Pflichtprüfungen sowie die anschließende Servervorbereitung und Veröffentlichung.
+
+**Änderung:** Eigener nativer Chrome mit persistentem Botprofil. Automatische
+Dokumentabrufe führen keine Seitenskripte aus. Bestätigte Prüfseiten sperren alle
+gemeinsamen Botabrufe dauerhaft; reguläre Zeitlimits bleiben erhalten. Betreiber
+öffnen im Botbetrieb eine exklusive, zeitlich begrenzte Sitzung mit Browserbild,
+nativer Eingabe und manueller Wiederprüfung. Anmeldung und Betreiberrolle werden
+bei jeder API-Aktion geprüft. Erst der revisionsgesichert angenommene Katalog
+eines weiterhin aktiven Filters gibt den Bot frei. Persönliche Kontoprofile und
+Datenbankschema bleiben unverändert.
+
+**Prüfung:** 299 Botprüfungen, elf gezielte Angular-Prüfungen, Typprüfung und
+Produktionsbau erfolgreich. Der echte Admin-Browsertest bestätigt Tastatur,
+Fokus, Fehlerpause und AXE. Die isolierte lokale Chrome-Prüfung bestätigt aktive
+Namespace-/Seccomp-Sandbox, private CDP-Adresse, native Eingabe, Bildabruf,
+unterdrückte automatische Seitenskripte und Cookies nach regulärem Neustart.
+Sie findet zunächst eine zurückbleibende Profilsperre; reguläres Browserende vor
+Prozessbeendigung behebt sie. Alle acht Deploytests laufen in Linux erfolgreich,
+einschließlich Laufzeitdateien vor Botstart und Abbruch bei fehlendem Auth-Key.
+Shared-UI-Prüfung und Suitezuordnung bestehen.
+
+**Unabhängige Gesamtprüfung:** Vier funktionale Fehler werden lesend reproduziert
+und anschließend jeweils mit fehlschlagendem Regressionstest behoben. Die
+gemeinsame Zugriffssperre gilt jetzt auch bei Origin-, Query- oder Probe-
+Speicherfehlern; fehlgeschlagene dauerhafte Speicherung wird ohne weitere Abrufe
+wiederholt. Eine hängende Navigation wird sofort abgebrochen. Manueller Zugriff
+teilt den tatsächlichen letzten Abrufzeitpunkt mit Kategorien und anderen
+Filtern. Schließen während der Verifikation entwertet die Lease sofort und
+verwirft verspätete Ergebnisse im Dialog. Die letzte Prüfung besteht erneut:
+299 Botprüfungen, elf Angular-Prüfungen, drei Admin-Browsertests, 227 Workflow-
+Prüfungen (fünf Plattformausnahmen; die acht Deploytests laufen separat vollständig
+unter Linux), Typen, Lint, Bau und Sandbox-Image. Caddyvalidierung und
+Formatter bestehen. Die Auswahlprüfung enthält den neuen PR-Browsertest.
+Der Container erhält 90 Sekunden zum regulären Beenden, damit laufende Abrufe
+das saubere Schließen des Chrome-Profils nicht verhindern.
+
+**Integration:** Der aktuelle `origin/master` (`41f3174e`) wird übernommen.
+Der einzige Konflikt betrifft dieses Protokoll; beide Sitzungseinträge bleiben
+erhalten. Anschließend bestehen erneut alle 299 Botprüfungen sowie 337
+Workerprüfungen bei sieben bestehenden Ausnahmen, Worker-Typprüfung und -Bau.
+
+**PR und Servervorbereitung:** PR #333 ist erstellt. Vor der Veröffentlichung
+werden Deployskript und Botkonfiguration auf dem Server unter einem privaten
+Betreiberbackup gesichert. Der Dateivergleich enthält ausschließlich die
+geprüfte Browservorbereitung. Das geprüfte Deployskript und der bestehende
+öffentliche Auth-Key sind installiert; der produktive Bot bleibt bis zum
+erfolgreichen Merge auf der bisherigen Fassung.
+
+**Linux-CI-Korrektur:** Der erste Botlauf wird durch ein Signal beendet. Ein
+isolierter Linux-Test reproduziert den Abbruch im Prozess-Test: künstliche
+`ChildProcess`-Objekte rufen die echte Betriebssystem-Signalmethode auf. Die
+Tests ersetzen diese Methode jetzt durch eine Attrappe und prüfen weiterhin
+`SIGTERM`, anschließend `SIGKILL` und die gesperrte Wiederverwendung bei nicht
+bestätigtem Ende. Alle 299 Botprüfungen bestehen danach auch im Linux-Container
+ohne Netz; der gezielte Windows-Test, Typprüfung, Lint und Formatierung bestehen.
+Die übrigen Prüfungen des ersten PR-Laufs einschließlich Browserprüfung sind
+erfolgreich. Die Pflichtprüfungen werden für den korrigierten Stand erneut ausgeführt.
+
+**Releasevertrag:** Webimage enthält die passende Bot-Compose-/Seccomp-Konfiguration.
+Der Betreiber muss das geprüfte Deployskript und den öffentlichen Auth-Key vor
+der ersten Veröffentlichung bereitstellen. Keine produktive Browserfreigabe und
+keine wiederhergestellte Liveverbindung behauptet. Die unabhängige Gesamtprüfung
+ist mit den geprüften Korrekturen abgeschlossen; die PR-Freigabe liegt vor.
+
+## 2026-10-07 - Juna - Eigene Browsersitzung für den Artikelbot entwerfen
+
+**Freigabe:** Der Nutzer erlaubt ausdrücklich Änderungen am serverseitigen
+Node-Bot als Ausnahme zur allgemeinen Frontend-Grenze. Die vorgeschlagene
+eigene Botsitzung mit manueller Prüfung wird als konkreter Entwurf ausgearbeitet.
+
+**Entwurf:** Persistentes eigenes Chrome-Profil, dauerhafte gemeinsame Pause
+bei bestätigter Prüfseite und exklusiver manueller Zugriff im Adminbereich.
+Wiederaufnahme erst nach erfolgreich geparstem und revisionsgesichert
+angenommenem Katalog. Die heutige Behandlung alter `blocked`-Zustände würde
+sonst neue Proben starten; der neue Grund `interaction_required` muss deshalb
+gezielt dauerhaft respektiert werden. Kategorieabrufe und manuelle Bedienung
+teilen die Abrufsperre. Betreiberrechte werden bei jedem Browser-API-Aufruf
+serverseitig geprüft. Persönliche Kontositzungen bleiben getrennt.
+
+**Stand:** Der Nutzer hat den schriftlichen Entwurf ausdrücklich freigegeben.
+Der konkrete Umsetzungsplan liegt unter
+`docs/superpowers/plans/2026-10-07-vinted-bot-browser.md`: sechs Aufgaben mit
+Schnittstellen, Regressionstests, Authentifizierung, UI und Releasevertrag.
+Die Prüfung konkretisiert im Entwurf, dass ein `Retry-After` den frühesten
+manuellen Abruf bestimmt, die dauerhafte Sperre aber nicht automatisch aufhebt.
+Plan und Schnittstellen sind intern gegen den Entwurf geprüft; Planfreigabe
+und Ausführungswahl stehen aus. Keine Produktcode-, Schema-, Paket- oder
+Releaseänderungen und keine weiteren produktiven Vinted-Anfragen. Formatierung
+und Git-Diff bestehen; Anwendungstests sind noch nicht sinnvoll.
+
+## 2026-10-07 - Juna - Erneute Ablehnungen und regulären Chrome-Vergleich prüfen
+
+**Auftrag:** Nach dem fehlgeschlagenen ersten langsameren Abrufversuch die
+Reparatur weiter untersuchen. Der Nutzer bestätigt den zentralen Artikelbot
+im Adminbereich, nicht die persönlichen Kontoverbindungen.
+
+**Befund:** Auch die automatischen Proben um 12:59:50 und 13:04:51 Uhr scheitern
+mit HTTP 403 und erkannter Cloudflare-Prüfseite. Die aktuellen Suchbedingungen
+erzeugen weiterhin denselben Kategorie-/Markenabruf; die Ablehnung geschieht
+vor Parser und Titelprüfung. Die passive Socketbeobachtung erfasst die kurze
+Vinted-Verbindung nicht und beweist deshalb deren tatsächliche IP-Familie nicht.
+
+**Browservergleich:** „Nike Neu“ wird kurz pausiert, damit keine reguläre Probe
+parallel läuft. Nach Ende der bereits gespeicherten Zugriffspause erhält genau
+ein Abruf derselben Katalogadresse in Google Chrome 155.0.8059.39 um 13:09:56 Uhr
+ebenfalls HTTP 403 mit `cf-mitigated: challenge`. Die Prüfseite wird vor
+Darstellung und Ausführung beendet; keine Challenge-Lösung wird versucht.
+Ein frischer Browser erhält damit ebenfalls eine Prüfseite. Das ist kein Test
+einer legitimen manuellen Freigabe und beweist keine dauerhafte IP-Sperre.
+
+**Betrieb:** Vorhandenes geprüftes Chrome-Abbild, aktivierte Sandbox, isolierter
+Container ohne Produktionsvolumes oder Kontodaten, dieselbe Serveranbindung,
+keine Proxies oder veränderte Browseridentität. Testcontainer anschließend
+automatisch entfernt und seine Abwesenheit geprüft. Nach mindestens 60 Sekunden
+Abstand wird ausschließlich der eigene pausierte Auftrag per Revisionsprüfung
+wieder aktiviert; 60 Sekunden Takt und Suchbedingungen bleiben erhalten. Um
+13:12:31 Uhr ist Nike aktiv, Adidas/Ralph Lauren bleiben deaktiviert. Die
+reguläre Probe um 13:11:24 Uhr ist erneut abgewiesen; der Zugang ist nicht repariert.
+
+**Nächster Schritt und Grenze:** Die offiziellen Cloudflare-Verträge bestätigen
+die Grenze reiner HTTP-Clients und nicht unterstützte automatische Challenge-
+Löser. Die dokumentierte Vinted-Pro-API ist kein geprüfter Ersatz für die
+allgemeine Markensuche. Ein Browserwechsel allein ist ebenfalls keine belegte
+Reparatur. Ein geregelter Zugriffspfad mit expliziter Freigabe muss festgelegt
+werden. Wegen der aktuellen globalen Backend-Grenze ist eine ausdrückliche
+Ausnahme für Änderungen an `services/sniper` angefragt und noch offen. Der
+nummerierte Auftrag mit Befunden, Grenzen und Abnahme liegt unter
+`C:\Users\gt\Desktop\Backend Issues\vinted-access-analysis\01-vinted-article-bot-challenge-recovery.md`.
+Keine Anwendungscode-, Schema-, Paket- oder Releaseänderung ausgeführt.
+
+## 2026-10-07 - Juna - Langsameren Abruf des zentralen Artikelbots produktiv testen
+
+**Freigabe:** Der Nutzer bestätigt mit „los“ den vorgeschlagenen Versuch mit
+längeren Abrufabständen für den zentralen Marken-/Artikelbot im Adminbereich.
+
+**Vorprüfung:** Vor der Änderung ist die automatische Probe um 12:41:21 Uhr
+bereits erfolgreich. Seitdem liefern die regulären Abrufe wieder Artikel.
+Diese Erholung geschieht beim bisherigen Zehn-Sekunden-Solltakt und darf nicht
+der späteren Änderung zugeschrieben werden.
+
+**Änderung:** Am 7. Oktober um 12:53:52 Uhr wird ausschließlich der aktive
+Suchauftrag „Nike Neu“ von zehn auf 60 Sekunden gestellt. Eine kurze Transaktion
+prüft und sperrt den erwarteten Auftrag und bricht bei einer abweichenden
+Einstellung oder weiteren aktiven Aufträgen ab. Ein Vergleich der vollständigen
+Zeile erlaubt nur das Intervall, den Änderungsstempel und die vom vorhandenen
+Trigger erhöhte Formularrevision. Suchbedingungen, Aktivierung, Cursor und
+Fehlerzustand bleiben erhalten. Der Container wird nicht neu gestartet;
+Zugriffspausen werden nicht zurückgesetzt. Kein Schema- oder Produktcodeumbau.
+
+**Prüfung:** Die Transaktion ist bestätigt; der gespeicherte Solltakt beträgt
+60.000 Millisekunden. Der erste nachfolgende automatische Abruf um 12:54:48 Uhr
+scheitert erneut mit HTTP 403 und `challengeDetected=true`, etwa 65 Sekunden
+nach dem letzten erfolgreichen Abruf. Die gemeinsame Pause und die einzelne
+nächste Wiederprüfung ab 12:59:47 Uhr sind korrekt gespeichert. Um 12:55:21 Uhr
+stehen weiterhin 60 Sekunden, ein Folgefehler und keine seit der Änderung neu
+entdeckten Artikel in der Datenbank. Die Intervalländerung verhindert diese
+nächste Ablehnung nicht. Damit ist weder eine Lösung noch ein Ausschluss des
+Abrufrhythmus als Mitursache bewiesen; eine schon bestehende Anbieterbewertung
+kann fortwirken. Für weitere Beobachtung bleibt die freigegebene Einstellung
+bei 60 Sekunden. Keine zusätzlichen Vinted-Anfragen oder produktiven Änderungen.
+Nur Betriebswerte und Logs gelesen; Formatierung und Git-Diff des Protokolls
+geprüft. Keine Anwendungstests oder Builds für diese reine Betriebseinstellung.
+
+## 2026-10-07 - Juna - Wiederkehrende Zugriffssperren des zentralen Vinted-Artikelbots untersuchen
+
+**Auftrag:** Die häufige Meldung „Zugriff abgewiesen“ seit dem letzten Update
+im administrativen Bereich des zentralen Marken-/Artikelbots untersuchen.
+
+**Befund:** Lesende Server- und Datenbankprüfung um 12:31 Uhr deutscher Zeit.
+Der Container `flipbase-sniper` läuft mit `sha-da3069f`, Hostnetzwerk und ohne
+Neustarts seit 11:56 Uhr. Bereits sein erster Durchlauf übernimmt eine
+gespeicherte Zugriffspause. Alle sieben protokollierten Abrufe von 12:00 bis
+12:31 Uhr scheitern mit HTTP 403 und `challengeDetected=true` in der
+Anfragephase. Die Cloudflare-Prüfseite ist damit anhand des vom Sammler
+ausgewerteten Antwortheaders erkannt; ihr Auslöser bleibt unbewiesen.
+
+Nur „Nike Neu“ ist aktiv: Kategorie 2050, Marke 53, Sollintervall zehn Sekunden.
+Adidas und Ralph Lauren sind deaktiviert. Der letzte erfolgreiche Abruf und
+Artikel-Erstfund stammen vom 7. Oktober um 11:30:24 Uhr; im letzten
+Stundenfenster wurden keine neuen Artikel gespeichert. Der Dienst hält die
+gemeinsame Pause ein und führt etwa alle fünf Minuten eine einzelne Probe aus.
+Das konfigurierte Minutenbudget von 30 ist eine Obergrenze, keine gemessene
+Anfragerate. Ein hoher Anfragetakt oder eine konkrete IP-Sperre ist als Ursache
+nicht nachgewiesen.
+
+**Updateabgleich:** Zwischen dem lokal vorgefundenen Stand `b0cdf268` und dem
+produktiven `da3069f1` sowie seit dem Suchfeed-Stand `c40f9f42` gibt es keine
+Änderungen an Botquellcode, Bot-Lockfile oder Bot-Compose. Die vorherige Änderung
+vom 6. Oktober ergänzt die Suchfilterverarbeitung; Anfrageabstand, Fehlerpolitik
+und Netzwerkpräferenz bleiben im geprüften Vergleich unverändert. Der heutige
+Neustart kann deshalb nicht als Beginn dieser Zugriffspause gelten. Eine
+Regression durch die früheren Suchfilteränderungen ist dadurch nicht vollständig
+ausgeschlossen. Der Audit vom 1. Oktober dokumentiert bereits denselben
+Fehlertyp, beweist aber keine identische Ursache für den aktuellen Vorfall.
+
+**Prüfung und Grenze:** Dockerstatus und gefilterte Botlogs gelesen, produktive
+SQL-Abfragen ausschließlich in `begin read only` mit anschließendem Rollback,
+Git-Unterschiede geprüft und den offiziellen Cloudflare-Vertrag zu
+`cf-mitigated: challenge` abgeglichen. Keine zusätzlichen Vinted-Anfragen,
+keine Kontoaktionen, keine produktiven Änderungen und kein Anbieterzugriff
+umgangen. Kein bestätigter Codefehler und keine Korrektur behauptet. Nur dieser
+Sitzungseintrag wird im eigenen Analysezweig ergänzt; keine Anwendungstests
+oder Builds für die reine Diagnose ausgeführt.
+
 ## 2026-10-07 - Juna - Unterbrochene Cloud-Leseanfragen begrenzt wiederholen
 
 **Auftrag:** Sporadische Browserfehler beim automatischen Abruf von Maike

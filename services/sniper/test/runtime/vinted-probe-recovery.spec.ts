@@ -45,8 +45,13 @@ describe('Vinted recovery across brands and worker restarts', () => {
       setCooldown: async (_origin, until, reason) => {
         state = { ...state, state: 'cooldown', blockedUntil: until.toISOString(), reason };
       },
-      setBlocked: async () => {
-        throw new Error('Permanent blocks are unexpected');
+      setBlocked: async (_origin, reason, notBefore) => {
+        state = {
+          ...state,
+          state: 'blocked',
+          reason,
+          blockedUntil: notBefore?.toISOString() ?? null,
+        };
       },
       tryAcquireProbe: async () => true,
       releaseProbe: async (_origin, success) => {
@@ -105,6 +110,23 @@ describe('Vinted recovery across brands and worker restarts', () => {
         log: { info: () => undefined, error: () => undefined },
       });
     const delays: number[] = [];
+    if (challengeDetected) {
+      await makeScheduler().runOnce(now);
+      expect(state).toMatchObject({
+        state: 'blocked',
+        reason: 'interaction_required',
+        blockedUntil: null,
+      });
+      refused = false;
+      for (const minutes of [5, 60, 24 * 60]) {
+        const paused = await makeScheduler().runOnce(new Date(now.getTime() + minutes * 60_000));
+        expect(paused.polled).toBe(0);
+        expect(paused.originPause).toEqual({ reason: 'interaction_required', until: null });
+      }
+      expect(attempted).toEqual(['q0']);
+      expect(queries.every((query) => query.isActive)).toBe(true);
+      return;
+    }
     for (let attempt = 0; attempt < 5; attempt++) {
       // Neue Instanz: Die Wiederherstellung muss auch nach einem Neustart gelten.
       await makeScheduler().runOnce(now);
@@ -131,7 +153,7 @@ describe('Vinted recovery across brands and worker restarts', () => {
     await verifyRecovery(false, [5, 10, 20, 40, 60]);
   });
 
-  it('probes confirmed challenges every five minutes and resumes all brands after recovery', async () => {
-    await verifyRecovery(true, [5, 5, 5, 5, 5]);
+  it('keeps all brands paused after a confirmed challenge across worker restarts', async () => {
+    await verifyRecovery(true, []);
   });
 });

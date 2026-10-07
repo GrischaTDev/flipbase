@@ -27,10 +27,6 @@ const SERVER_ERROR_DELAYS_MS = [30_000, 60_000, 120_000, 300_000, 600_000, 900_0
 
 // Eine 403 ohne bestaetigten Pruefseitenhinweis behaelt die steigende Pause.
 const FORBIDDEN_DELAYS_MS = [300_000, 600_000, 1_200_000, 2_400_000, 3_600_000] as const;
-// Am 01.10.2026 lieferte derselbe Sammler nach einer Cloudflare-Pruefseite
-// wieder Artikel, waehrend der Scheduler noch in seiner 40-Minuten-Pause war.
-// Bis zur Erholung bleiben alle Abrufe pausiert; danach darf nur eine Probe laufen.
-const CHALLENGE_PROBE_INTERVAL_MS = 5 * 60_000;
 
 /**
  * Reine, vollstaendig mit injizierter Uhr testbare Fehlerpolitik.
@@ -70,11 +66,23 @@ export function evaluateFailure(
   }
 
   if (error instanceof ForbiddenError) {
+    if (error.challengeDetected) {
+      const notBefore =
+        error.retryAfterSeconds && error.retryAfterSeconds > 0
+          ? new Date(now.getTime() + error.retryAfterSeconds * 1000)
+          : null;
+      return {
+        runState: 'blocked',
+        nextAttemptAt: notBefore,
+        errorKind: 'forbidden',
+        errorMessage: rawMessage,
+        consecutiveFailures: failures,
+        originUpdate: { state: 'blocked', blockedUntil: notBefore, reason: 'interaction_required' },
+      };
+    }
     const delayIndex = Math.min(failures - 1, FORBIDDEN_DELAYS_MS.length - 1);
     const waitMs = Math.max(
-      error.challengeDetected === true
-        ? CHALLENGE_PROBE_INTERVAL_MS
-        : FORBIDDEN_DELAYS_MS[Math.max(0, delayIndex)]!,
+      FORBIDDEN_DELAYS_MS[Math.max(0, delayIndex)] ?? 3_600_000,
       (error.retryAfterSeconds ?? 0) * 1000,
     );
     const nextAttemptAt = new Date(now.getTime() + waitMs);

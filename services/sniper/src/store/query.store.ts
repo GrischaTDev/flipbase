@@ -109,6 +109,10 @@ export class QueryStore {
   constructor(private readonly client: SupabaseClient) {}
 
   async dueQueries(now: Date): Promise<SniperQuery[]> {
+    return (await this.activeQueries()).filter((query) => isDue(query, now));
+  }
+
+  async activeQueries(): Promise<SniperQuery[]> {
     const { data, error } = await this.client
       .from('sniper_queries')
       .select(COLUMNS)
@@ -121,7 +125,7 @@ export class QueryStore {
       throw new Error(`loading queries failed: ${error.message}`);
     }
 
-    return (data as QueryRow[]).map(toQuery).filter((query) => isDue(query, now));
+    return (data as QueryRow[]).map(toQuery);
   }
 
   /**

@@ -132,6 +132,38 @@ trap cleanup EXIT
 echo "Rolle $TAG aus..."
 
 docker login "$REGISTRY" --username flipbase-deploy --password-stdin >/dev/null
+
+prepare_sniper_browser_runtime() {
+  local artifact_container="$1"
+  local runtime_directory
+  runtime_directory="$(dirname "$SNIPER_COMPOSE_FILE")"
+  local environment_file="${SNIPER_ENV_FILE:-$runtime_directory/sniper.env}"
+  export SNIPER_ENV_FILE="$environment_file"
+  export SNIPER_BROWSER_PROFILE_PATH="${SNIPER_BROWSER_PROFILE_PATH:-$runtime_directory/browser}"
+  export SNIPER_SECCOMP_FILE="${SNIPER_SECCOMP_FILE:-$runtime_directory/chromium-seccomp.json}"
+  # Keine Schlüssel kopieren oder protokollieren. Der öffentliche Auth-Key muss
+  # bei der einmaligen, freigegebenen Servervorbereitung bereitgestellt sein.
+  if ! grep -Eq "^SUPABASE_ANON_KEY=['\"]?[A-Za-z0-9._-]{20,}['\"]?$" "$environment_file"; then
+    echo 'SUPABASE_ANON_KEY fehlt in der Botkonfiguration; Servervorbereitung erforderlich.' >&2
+    return 1
+  fi
+  if [ -e "$SNIPER_BROWSER_PROFILE_PATH" ]; then
+    [ -d "$SNIPER_BROWSER_PROFILE_PATH" ] && [ ! -L "$SNIPER_BROWSER_PROFILE_PATH" ] \
+      && [ "$(stat -c '%u:%g:%a' "$SNIPER_BROWSER_PROFILE_PATH")" = '1000:1000:700' ] || {
+      echo 'Das eigene Botprofil muss UID/GID 1000 und Modus 0700 besitzen.' >&2; return 1;
+    }
+  else
+    # Numerische Container-IDs brauchen keinen passenden Benutzer auf dem Host.
+    install -d -m 700 "$SNIPER_BROWSER_PROFILE_PATH"
+    chown 1000:1000 "$SNIPER_BROWSER_PROFILE_PATH"
+  fi
+  docker cp "$artifact_container":/opt/flipbase/docker-compose.sniper.yml "$temporary/docker-compose.sniper.yml"
+  docker cp "$artifact_container":/opt/flipbase/chromium-seccomp.json "$temporary/chromium-seccomp.json"
+  install -m 644 "$temporary/chromium-seccomp.json" "$SNIPER_SECCOMP_FILE"
+  install -m 644 "$temporary/docker-compose.sniper.yml" "$SNIPER_COMPOSE_FILE"
+  FLIPBASE_SNIPER_IMAGE="$SNIPER_IMAGE_REPOSITORY:$SNIPER_TAG" docker compose -f "$SNIPER_COMPOSE_FILE" config --quiet
+}
+
 if [[ -n "$release_image" ]]; then
   configured_image="$(FLIPBASE_IMAGE="$release_image" docker compose config --images web)"
   [[ "$configured_image" = "$release_image" ]] || {
@@ -142,6 +174,7 @@ if [[ -n "$release_image" ]]; then
   mkdir "$temporary/migrations"
   docker cp "$release_container":/opt/flipbase/migrations/. "$temporary/migrations/"
   "$VERZEICHNIS/apply-release-migrations.sh" "$temporary/migrations"
+  if [[ -n "$SNIPER_TAG" ]]; then prepare_sniper_browser_runtime "$release_container"; fi
   # Auch der Start verwendet den Digest. Eine inzwischen verschobene Markierung
   # kann dadurch kein anderes als das geprüfte Abbild starten.
   FLIPBASE_IMAGE="$release_image" docker compose up -d --pull never web
@@ -151,6 +184,7 @@ elif [[ -n "$WEB_TAG" ]]; then
 fi
 
 if [[ -n "$SNIPER_TAG" ]]; then
+  if [[ -z "$release_image" ]]; then prepare_sniper_browser_runtime flipbase-web; fi
   sniper_image="$SNIPER_IMAGE_REPOSITORY:$SNIPER_TAG"
   FLIPBASE_SNIPER_IMAGE="$sniper_image" docker compose -f "$SNIPER_COMPOSE_FILE" pull sniper
   FLIPBASE_SNIPER_IMAGE="$sniper_image" docker compose -f "$SNIPER_COMPOSE_FILE" up -d --pull never sniper

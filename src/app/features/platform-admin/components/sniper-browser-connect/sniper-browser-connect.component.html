@@ -1,0 +1,78 @@
+<app-modal-shell
+  title="Vinted-Zugriff manuell prüfen"
+  subtitle="Der Bot bleibt bis zur erfolgreichen Wiederprüfung pausiert."
+  size="xl"
+  (closed)="close()"
+>
+  <div class="space-y-4">
+    @if (error(); as message) {
+      <p role="alert" class="text-sm text-fb-critical">{{ message }}</p>
+    }
+    @if (confirmed()) {
+      <p role="status">
+        Vinted-Zugriff bestätigt. Die aktiven Markenfilter werden wieder abgefragt.
+      </p>
+    } @else if (session()) {
+      <p role="status" class="text-sm text-fb-text-secondary">
+        Sitzung läuft noch {{ remainingSeconds() }} Sekunden. Bediene die Vinted-Seite im Bild.
+        Verlasse die Bedienfläche mit Umschalt + Tab.
+      </p>
+      <div
+        tabindex="0"
+        role="application"
+        aria-label="Vinted-Browser bedienen: Enter, Tab, Escape und Rücktaste"
+        (click)="click($event)"
+        (keydown)="keydown($event)"
+        class="overflow-hidden focus-visible:outline-2 focus-visible:outline-fb-primary"
+      >
+        @if (frameUrl(); as frame) {
+          <img
+            [src]="frame"
+            alt="Aktuelle Vinted-Seite im Botbrowser"
+            class="block h-auto w-full"
+          />
+        } @else {
+          <p role="status">Browserbild wird geladen …</p>
+        }
+      </div>
+      <div class="flex flex-wrap items-end gap-2">
+        <app-text-field
+          label="Text an Vinted senden"
+          [formControl]="text"
+          [maxLength]="256"
+          class="flex-1"
+        />
+        <app-button [disabled]="busy() || !frameUrl() || text.invalid" (clicked)="sendText()"
+          >Text senden</app-button
+        >
+      </div>
+      <div class="flex flex-wrap gap-2" aria-label="Tasten an Vinted senden">
+        <app-button [disabled]="busy() || !frameUrl()" (clicked)="press('Enter')">Enter</app-button>
+        <app-button [disabled]="busy() || !frameUrl()" (clicked)="press('Tab')">Tab</app-button>
+        <app-button [disabled]="busy() || !frameUrl()" (clicked)="press('Escape')"
+          >Escape</app-button
+        >
+        <app-button [disabled]="busy() || !frameUrl()" (clicked)="press('Backspace')"
+          >Rücktaste</app-button
+        >
+      </div>
+    } @else if (busy()) {
+      <p role="status">Browsersitzung wird vorbereitet oder geprüft …</p>
+    } @else {
+      <p role="status">
+        Der Bot bleibt pausiert. Schließe den Dialog und öffne die manuelle Prüfung bei Bedarf
+        erneut.
+      </p>
+    }
+  </div>
+  <div modal-footer class="flex justify-end gap-2">
+    <app-button (clicked)="close()" [disabled]="busy()">Schließen</app-button>
+    <app-button
+      variant="primary"
+      [loading]="busy()"
+      [disabled]="!session() || busy()"
+      (clicked)="verify()"
+      >Zugriff erneut prüfen</app-button
+    >
+  </div>
+</app-modal-shell>
