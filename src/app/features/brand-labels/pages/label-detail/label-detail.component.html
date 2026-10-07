@@ -1,0 +1,146 @@
+<section class="mx-auto max-w-6xl space-y-4">
+  @let view = state.view();
+  <app-page-header
+    [title]="view.detail?.title ?? 'Label ansehen'"
+    [subtitle]="view.detail?.content?.brandName ?? 'Marken & Labels'"
+    [icon]="tagIcon"
+  >
+    <app-button
+      header-actions
+      link="/tools/brand-labels"
+      [queryParams]="backQueryParams()"
+      [icon]="backIcon"
+      >Zurück zur Übersicht</app-button
+    >
+  </app-page-header>
+
+  @if (view.phase === 'loading') {
+    <p role="status" class="py-8 text-sm text-fb-text-secondary">Label wird geladen.</p>
+  } @else if (view.phase === 'error') {
+    <app-card title="Eintrag konnte nicht geladen werden">
+      <p role="alert" class="text-sm text-fb-critical">{{ view.error }}</p>
+      <app-button class="mt-3" (clicked)="state.refresh()">Erneut laden</app-button>
+    </app-card>
+  } @else if (view.phase === 'unavailable' || !view.detail) {
+    <app-card title="Dieser Eintrag ist nicht verfügbar">
+      <p class="text-sm text-fb-text-secondary">
+        Der Eintrag ist nicht veröffentlicht oder für Deinen Zugang nicht verfügbar. Daraus lässt
+        sich keine Aussage über die Echtheit eines Labels ableiten.
+      </p>
+      <app-button class="mt-3" (clicked)="state.refresh()">Erneut prüfen</app-button>
+    </app-card>
+  } @else if (view.detail; as detail) {
+    <p class="text-sm text-fb-text-secondary">
+      Diese Referenz hilft beim Vergleichen. Sie ersetzt keinen Echtheitsnachweis für ein
+      Kleidungsstück.
+    </p>
+    <div class="grid items-start gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+      <div class="space-y-4">
+        <app-card title="Referenzbilder">
+          <p class="mb-4 text-sm text-fb-text-secondary">
+            Die geschützte Bildanzeige wird noch fertiggestellt. Die freigegebenen
+            Bildbeschreibungen stehen bereits zur Verfügung.
+          </p>
+          <div class="grid gap-4 sm:grid-cols-2">
+            @for (image of detail.images; track image.assetId) {
+              <figure class="space-y-2">
+                <div class="flex aspect-[4/3] items-center justify-center rounded-lg bg-fb-subtle">
+                  <app-product-thumbnail
+                    [src]="null"
+                    [alt]="image.alt"
+                    size="reference"
+                    fit="contain"
+                  />
+                </div>
+                <figcaption class="space-y-1 text-[13px] text-fb-text-secondary">
+                  <p class="font-medium text-fb-text-primary">{{ image.caption || image.alt }}</p>
+                  @if (image.referenceItem) {
+                    <p>{{ image.referenceItem }}</p>
+                  }
+                  @if (image.attribution) {
+                    <p>Bildnachweis: {{ image.attribution }}</p>
+                  }
+                </figcaption>
+              </figure>
+            }
+          </div>
+        </app-card>
+        <app-card title="Erkennungsmerkmale">
+          <ul class="list-disc space-y-2 pl-5 text-sm text-fb-text-primary">
+            @for (feature of detail.content.features; track $index) {
+              <li>{{ feature }}</li>
+            }
+          </ul>
+        </app-card>
+        @if (detail.content.checkHints.length) {
+          <app-card title="Darauf solltest Du achten">
+            <ul class="list-disc space-y-2 pl-5 text-sm text-fb-text-primary">
+              @for (hint of detail.content.checkHints; track $index) {
+                <li>{{ hint.text }}</li>
+              }
+            </ul>
+          </app-card>
+        }
+      </div>
+      <div class="space-y-4">
+        <app-card title="Zeitraum und Einordnung">
+          <div class="space-y-3 text-sm text-fb-text-primary">
+            <p class="font-semibold">{{ detail.timeSummary }}</p>
+            <p class="text-fb-text-secondary">{{ evidenceLabels[detail.content.evidenceLevel] }}</p>
+            @if (detail.content.brandLineName) {
+              <p>Markenlinie: {{ detail.content.brandLineName }}</p>
+            }
+            @for (interval of detail.content.intervals; track $index) {
+              <p>{{ intervalLabel(interval) }}</p>
+            }
+            <p class="text-fb-text-secondary">
+              Zeitangaben sind eine Einordnung, kein Herstellungsnachweis für Deinen Artikel.
+            </p>
+            @if (detail.content.reviewedAt) {
+              <p class="text-fb-text-secondary">
+                Zuletzt redaktionell geprüft: {{ detail.content.reviewedAt | date: 'dd.MM.yyyy' }}
+              </p>
+            }
+          </div>
+        </app-card>
+        @if (detail.content.limitations.length) {
+          <app-card title="Grenzen der Einordnung">
+            <ul class="list-disc space-y-2 pl-5 text-sm text-fb-text-primary">
+              @for (limitation of detail.content.limitations; track $index) {
+                <li>{{ limitation }}</li>
+              }
+            </ul>
+          </app-card>
+        }
+        <app-card title="Quellen">
+          <ol class="list-decimal space-y-4 pl-5 text-[13px] text-fb-text-primary">
+            @for (source of detail.content.sources; track source.id) {
+              <li>
+                @if (source.url) {
+                  <a
+                    [href]="source.url"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="underline underline-offset-2"
+                    >{{ source.title }}</a
+                  >
+                } @else {
+                  <span class="font-medium">{{ source.title }}</span>
+                }
+                <p class="text-fb-text-secondary">{{ source.publisher }}</p>
+                @if (source.locator) {
+                  <p class="text-fb-text-secondary">{{ source.locator }}</p>
+                }
+                @if (source.accessedAt) {
+                  <p class="text-fb-text-secondary">
+                    Abgerufen: {{ source.accessedAt | date: 'dd.MM.yyyy' }}
+                  </p>
+                }
+              </li>
+            }
+          </ol>
+        </app-card>
+      </div>
+    </div>
+  }
+</section>
