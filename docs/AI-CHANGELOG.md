@@ -41,6 +41,11 @@ Formatter bestehen. Die Auswahlprüfung enthält den neuen PR-Browsertest.
 Der Container erhält 90 Sekunden zum regulären Beenden, damit laufende Abrufe
 das saubere Schließen des Chrome-Profils nicht verhindern.
 
+**Integration:** Der aktuelle `origin/master` (`41f3174e`) wird übernommen.
+Der einzige Konflikt betrifft dieses Protokoll; beide Sitzungseinträge bleiben
+erhalten. Anschließend bestehen erneut alle 299 Botprüfungen sowie 337
+Workerprüfungen bei sieben bestehenden Ausnahmen, Worker-Typprüfung und -Bau.
+
 **Releasevertrag:** Webimage enthält die passende Bot-Compose-/Seccomp-Konfiguration.
 Der Betreiber muss das geprüfte Deployskript und den öffentlichen Auth-Key vor
 der ersten Veröffentlichung bereitstellen. Keine produktive Browserfreigabe und
@@ -186,6 +191,44 @@ keine Kontoaktionen, keine produktiven Änderungen und kein Anbieterzugriff
 umgangen. Kein bestätigter Codefehler und keine Korrektur behauptet. Nur dieser
 Sitzungseintrag wird im eigenen Analysezweig ergänzt; keine Anwendungstests
 oder Builds für die reine Diagnose ausgeführt.
+
+## 2026-10-07 - Juna - Unterbrochene Cloud-Leseanfragen begrenzt wiederholen
+
+**Auftrag:** Sporadische Browserfehler beim automatischen Abruf von Maike
+Vintage untersuchen, die Ursache eingrenzen und die regelmäßige Aktualisierung
+gezielt absichern.
+
+**Produktive Diagnose:** Nach dem Bewertungsupdate folgen erfolgreiche
+automatische Abrufe um 11:00 und 11:15 UTC; um 11:31 scheitert der Profilschritt
+mit `browser_context`. Der reguläre Folgeversuch um 12:01 UTC läuft erfolgreich
+und beendet den Wartestatus. Beim kontrollierten Starttest sind zusätzliche
+Navigationen innerhalb derselben Vinted-Seite sichtbar. Die produktive
+Fehlerkategorie verliert bisher die konkrete Ausnahme; eine abschließende
+Zuordnung dieses sporadischen Fehlers bleibt deshalb offen.
+
+**Reproduktion und Korrektur:** Zwei echte Chromium-Tests zeigen den Ausfall
+beim Dokumentwechsel während Profil- und Postfachanfragen. Ein zerstörter
+Ausführungskontext wartet jetzt auf ein auswertbares, geladenes Dokument und
+wiederholt ausschließlich die betroffene GET-Anfrage genau einmal. Profil,
+IP und Sitzung bleiben gleich; Zugriff wird vor dem Warten und vor der
+Wiederholung neu geprüft. Anmelde-/Zweitfaktorseiten, geschlossene Browser,
+Skriptfehler und HTTP-Ablehnungen starten keine zusätzliche Wiederholung.
+Auch ein zweiter Dokumentverlust bleibt ein sichtbarer Quellenfehler.
+
+**Diagnoseausgabe:** Feste Kategorien für Navigation, geschlossene Browser,
+Skriptfehler und unbekannte Fehler bleiben sowohl bei fehlgeschlagenen als
+auch bei übernommenen Teilabrufen erkennbar. Die Ausgabe enthält höchstens
+acht Kategorien, keine Rohfehler, Anbieterantworten oder Zugangsdaten.
+
+**Prüfung:** Die neuen Unit- und Chromium-Regressionen scheitern vor der
+Korrektur. Nach der Änderung bestehen 337 Worker-Tests bei sieben bestehenden
+übersprungenen Prüfungen und die fünf echten
+Browsertests zur Sitzungswiederherstellung, Typprüfung, Worker-Bau, Format
+und gezieltes Lint. Drei kontrollierte Leseproben mit dem geänderten Import
+im bestehenden Cloudprofil laufen durch, ohne Produktionsdaten zu schreiben.
+Der produktive Worker bleibt unverändert; temporäre Prüfmodule wurden
+entfernt. Mehrere automatische Durchläufe mit der neuen Version und die
+Bestätigung der genauen produktiven Fehlerursache stehen noch aus.
 
 ## 2026-10-07 - Juna - Neue Vinted-Bewertungen in der Glocke melden
 
