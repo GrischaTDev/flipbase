@@ -228,9 +228,9 @@ handle @sniper_browser {
 ## Abschluss und produktive Abnahme
 
 - [x] Gesamten Branch gegen die freigegebene Spec prüfen. Keine behobene Liveverbindung behaupten. Abhängigkeiten, Rollenprüfung, Pause, Speicherreihenfolge und Artefakt-/Serverkonfiguration unabhängig prüfen lassen.
-- [ ] Gezielte lokale Prüfungen müssen erfolgreich sein; Ergebnisse und notwendige Servervorbereitung konkret berichten. Projektfrage stellen: „Soll ich jetzt den PR erstellen und nach erfolgreichen Tests mergen?“
-- [ ] Nach Freigabe Branch pushen, deutschen PR erstellen und im Chat anhängen, Pflichtprüfungen abwarten, Merge-Commit verwenden. Releasepfad und bereitgestellte Browserkonfiguration prüfen; fehlende Voraussetzung vor dem Start beheben oder Release begründet stoppen.
-- [ ] Nach Veröffentlichung wartet die manuelle Sitzung auf den Betreiber. Er bedient eine tatsächlich angebotene Prüfung selbst. Der Bot nimmt einen gültigen aktiven Katalog an; anschließend mindestens zehn reguläre 60-Sekunden-Abrufe beobachten. Eine erneute Prüfseite pausiert sofort und dauerhaft. Bei weiter abgewiesenem Zugriff den Befund melden.
+- [x] Gezielte lokale Prüfungen erfolgreich; Ergebnisse und Servervorbereitung berichtet. Der Nutzer hat PR, Merge nach erfolgreichen Pflichtprüfungen und Veröffentlichung freigegeben.
+- [x] PR #333 und Profilkorrektur #334 angehängt und nach erfolgreichen Pflichtprüfungen mit Merge-Commit integriert. Version v0.309.4 ist erfolgreich veröffentlicht und öffentlich dem erwarteten Commit zugeordnet. Auth-Key, eigenes Profil, geprüftes Deployskript und gezielte interne Firewallfreigabe sind bereitgestellt.
+- [x] Nach Veröffentlichung 35 reguläre Abrufe ohne Fehler beobachtet. Der angemeldete Adminbereich bestätigt „Vinted verbunden“ und keine Fehlermeldung am aktiven Filter. Eine manuelle Sitzung war mangels angebotener Prüfseite nicht nötig. Die erneute Prüfseite und deren dauerhafte Pause sind lokal und in CI geprüft, nicht künstlich im Produktionsbetrieb ausgelöst.
 - [ ] Erst nach bestätigtem Merge eigenen Remote-/lokalen Branch und zugehörigen Worktree nach Projektregel aufräumen. Persönliche Kontositzungen und Produktionssuchbedingungen bleiben getrennt von diesem Abschluss.
 
 ## Ausführungswahl
@@ -244,6 +244,6 @@ Empfohlen: Umsetzung durch Juna in dieser Sitzung, Aufgabe für Aufgabe, danach 
 - `runAutomatic` liefert bei absichtlich pausierter Arbeit `undefined`. Eine falsche Statuszuordnung würde einen ausgelassenen Abruf als Fehler anzeigen.
 - Die Auth-Prüfung folgt dem bestehenden Worker: Benutzerabfrage und Rollenprüfung verwenden denselben Benutzer-JWT, ohne den gemeinsamen Supabase-Auth-Zustand zu ändern. Ein falscher Vertrag würde gültigen Betreibern den Zugriff verweigern; Rollenentzug und Identität werden geprüft.
 - Compose und Seccomp kommen aus dem geprüften Webartefakt. Die bestehende eingeschränkte CI-Berechtigung erfordert vor der ersten Veröffentlichung die Bereitstellung des geprüften Deployskripts und des öffentlichen Auth-Keys durch den Betreiber. Ohne diese Vorbereitung startet der Release nicht.
-- Die echte manuelle Vinted-Prüfung und zehn reguläre Abrufe bleiben Teil der produktiven Abnahme nach Veröffentlichungsfreigabe. Lokale Prüfungen belegen keine wiederhergestellte Vinted-Verbindung.
+- Die produktive Verbindung ist durch 35 reguläre Abrufe und den angemeldeten Adminbereich bestätigt. Eine echte manuelle Vinted-Prüfung wurde nicht angeboten und deshalb nicht durchgeführt; ihr Verhalten ist durch lokale Prüfungen und CI belegt.
 
 Keine kleineren Befunde wurden zurückgestellt. Die abschließenden Prüfungen bestehen: 299 Botprüfungen, elf Angular-Prüfungen, drei Admin-Browsertests, 227 Workflow-Prüfungen, acht Linux-Deploytests, Typprüfung, Lint, Produktionsbau, Caddyvalidierung und beide Docker-Prüfungen.

@@ -1,5 +1,26 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-07 - Juna - Vinted-Browserrelease produktiv abnehmen
+
+**Abschluss:** PR #333 und die Profilkorrektur #334 sind nach erfolgreichen
+Pflichtprüfungen gemergt. Version v0.309.4 ist einschließlich Produktionsbau,
+Image-Smoke und öffentlicher Versionsprüfung erfolgreich veröffentlicht.
+Der neue Bot läuft seit 16:26 Uhr mit seinem eigenen Chrome-Profil und sammelt
+über 35 Minuten regulär Artikel ohne fehlgeschlagene Abrufe.
+
+**Servervorbereitung:** Die private Browser-API war vom Caddy-Container durch
+die bestehende Host-Firewall nicht erreichbar. Nach Prüfung der tatsächlichen
+Container-IP, Bridge und Gateway sowie privater Sicherung der Regeln erlaubt
+UFW ausschließlich diesem Container den internen Port 8081. Der öffentliche
+Statusendpunkt antwortet ohne Anmeldung jetzt mit 401 statt 502. Die
+Releaseanleitung enthält diese Voraussetzung und den Abgleich bei Netzwechseln.
+
+**Live-Abnahme:** Der angemeldete Adminbereich zeigt „Vinted verbunden“, null
+abgewiesene Anfragen in der letzten Minute und keine Fehlermeldung am aktiven
+Markenfilter. Der Container ist gesund; der Webrelease hat ihn nicht neu
+gestartet. Eine manuelle Prüfsitzung war im laufenden Betrieb nicht nötig;
+deren Freigabe- und Abbruchverhalten wurde lokal und in CI geprüft.
+
 ## 2026-10-07 - Juna - Botprofil ohne passenden Host-Benutzer anlegen
 
 **Auftrag und Befund:** Den freigegebenen Vinted-Browserrelease nach dem

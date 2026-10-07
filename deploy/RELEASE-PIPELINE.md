@@ -163,6 +163,22 @@ Appdomain geroutet; jede Aktion prüft Anmeldung und Betreiberrolle. Die
 Gatewayadresse gehört zum bestehenden Produktionsnetz und muss bei einem
 Netzwechsel mit API-Konfiguration und Caddyroute gemeinsam angepasst werden.
 
+Bei aktiver Host-Firewall muss außerdem ausschließlich der bestehende
+Caddy-Container die Browser-API erreichen können. Vor der Freigabe dessen
+aktuelle IP, Gateway und Docker-Bridge prüfen und die Firewallregeln privat
+sichern. Im bestätigten Produktionsnetz lautet die gezielte UFW-Regel:
+
+```bash
+ufw allow in on br-3b3934a0d38f proto tcp from 172.18.0.12 to 172.18.0.1 port 8081 comment "Flipbase Vinted browser proxy"
+```
+
+Diese Adressen nicht ungeprüft auf andere Netze übertragen. Nach einem Wechsel
+der Container-IP oder Bridge die Regel mit der Caddyroute abgleichen und die
+alte Freigabe gezielt ersetzen. Port 8081 nicht öffentlich oder für das gesamte
+Subnetz öffnen; CDP bleibt ausschließlich lokal. Ohne Anmeldung muss
+`https://app.flipbase.de/sniper-browser/status` mit 401 antworten. 502 deutet auf
+eine nicht erreichbare interne API hin.
+
 Bei einer bestätigten Vinted-Prüfseite öffnen Betreiber im Botbetrieb
 „Vinted-Zugriff prüfen“. Die Sitzung gilt höchstens zehn Minuten. Schließen
 und Zeitablauf heben die Pause nicht auf. „Zugriff erneut prüfen“ gibt den Bot
