@@ -1,5 +1,18 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-07 - Juna - Cloud-PR freigeben und Browserprüfung eindeutig machen
+
+**Freigabe:** Der Nutzer bestätigt PR, erfolgreiche Pflichtprüfungen, Merge
+und anschließende Bereinigung des eigenen Zweigs. Die Cloud-Automatik bleibt
+bis zum bestätigten Proxy-Anmeldeversuch pausiert.
+
+**CI-Korrektur:** Der Browser-Smoke scheitert im bestehenden Sniper-Test an
+einem mehrdeutigen Status-Locator: Markenauswahl und Suchfilter-Zusammenfassung
+haben beide `role="status"`. Die Prüfung wird auf die Zusammenfassung mit der
+ausgewählten Kategorie eingegrenzt; die verlangten Titel-Stichwörter bleiben
+unverändert. Kein Sniper-Produktcode wird geändert. Format, Lint und das Laden
+beider Testvarianten bestehen; der vollständige Browsernachweis folgt in CI.
+
 ## 2026-10-07 - Juna - Bestehende Cloudkonten auf reservierte Proxyprofile umstellen
 
 **Auftrag:** Nach dem lesenden Pilot beauftragt der Nutzer den fehlenden
