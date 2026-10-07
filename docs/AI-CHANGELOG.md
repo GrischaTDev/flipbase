@@ -1,5 +1,30 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-07 - Juna - Alten Abruffehler aus der Vinted-Anmeldung entfernen
+
+**Auftrag:** Prüfen, warum trotz angemeldetem Cloud-Konto nach dem Verbinden ein
+Profilabruf-Fehler angezeigt wird.
+
+**Befund:** Der Server hat Maikes Kontobestätigung am 07.10.2026 um 17:09:24 UTC
+angenommen. Die beiden manuellen Profilabrufe davor (17:07:56 und 17:08:19 UTC)
+scheiterten mit `forbidden`, entsprechend HTTP 403 beim Lesen von
+`/api/v2/users/current`. Der Anmeldedialog zeigte deren gespeicherten
+`mutationError` weiter an. Eine fehlgeschlagene Anmeldung folgt daraus nicht.
+Die genaue Ursache der HTTP-403-Ablehnung bleibt offen. Der bestehende Zeitplan
+ist weiterhin mit `needs_login` deaktiviert; diese Analyse aktiviert ihn nicht.
+
+**Umsetzung:** Beim tatsächlichen Start eines neuen Browser-Anmeldeversuchs
+wird der alte Kontofehler über die vorhandene Methode `clearMutationError`
+zurückgesetzt. Neue Fehler dieses Anmeldeversuchs bleiben sichtbar. Keine
+Änderung an Worker, Browserprofil, Proxy, Datenbank oder Sitzungsdaten.
+
+**Prüfung:** Die beiden Regressionstests scheitern vorher am gespeicherten
+Abruffehler. Nach der Korrektur bestehen 116 Angular-Tests für Browser-Store,
+Anmeldedialog und Vinted-Arbeitsbereich. Formatierung, gezieltes ESLint und der
+Angular-Produktionsbau sind erfolgreich. Die Live-Kontobestätigung und vorherigen
+403-Abrufe wurden nur über vorhandene Servermetadaten und Protokolle geprüft.
+Ein erfolgreicher neuer Cloud-Abruf ist damit noch nicht nachgewiesen.
+
 ## 2026-10-07 - Juna - Meldungen des Sicherheits-Scans prüfen und korrigieren
 
 **Auftrag:** Alle 19 Meldungen des vorhandenen Scans gegen den aktuellen
