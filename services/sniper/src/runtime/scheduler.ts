@@ -226,6 +226,7 @@ export class QueryScheduler {
           cycleHalted = true;
         }
       } catch (error) {
+        cycleHalted = report.originPause !== undefined;
         if (report.failed === failedBefore) {
           report.failed += 1;
         }
@@ -340,10 +341,6 @@ export class QueryScheduler {
   ): Promise<RetryDecision> {
     report.failed += 1;
 
-    if (isProbe) {
-      await this.originStore.releaseProbe(this.origin, false);
-    }
-
     const decision = evaluateFailure(error, query, now);
 
     this.deps.log.error('query_failed', {
@@ -381,6 +378,8 @@ export class QueryScheduler {
         );
       }
     }
+
+    if (isProbe) await this.originStore.releaseProbe(this.origin, false);
 
     if (this.deps.queries.recordFailure) {
       if (query.filterFormatVersion === 1)

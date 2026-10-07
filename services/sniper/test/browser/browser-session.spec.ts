@@ -6,6 +6,7 @@ import { ForbiddenError } from '../../src/vinted/errors.js';
 
 function setup() {
   let clock = Date.parse('2026-10-07T12:00:00Z');
+  let lastNavigation = -Infinity;
   let origin: OriginState = {
     origin: 'vinted',
     state: 'blocked',
@@ -43,7 +44,7 @@ function setup() {
   };
   const events: string[] = [];
   const behavior = {
-    collect: async () => undefined,
+    collect: async (): Promise<void> => undefined,
     complete: async () => undefined,
     accepted: true,
     capacity: true,
@@ -51,6 +52,12 @@ function setup() {
   const controller = new BrowserSessionController({
     baseUrl: 'https://www.vinted.de',
     minimumIntervalMs: 10_000,
+    navigationTiming: {
+      remainingDelay: () => Math.max(0, 10_000 - (clock - lastNavigation)),
+      recordManualNavigation: () => {
+        lastNavigation = clock;
+      },
+    },
     now: () => new Date(clock),
     browser: {
       fetch: async () => new Response(''),
@@ -118,6 +125,9 @@ function setup() {
     query,
     events,
     behavior,
+    automaticNavigation: () => {
+      lastNavigation = clock;
+    },
     advance: (ms: number) => {
       clock += ms;
     },
@@ -129,6 +139,39 @@ function setup() {
 }
 
 describe('BrowserSessionController', () => {
+  it('waits for the latest actual category or other-filter request before opening', async () => {
+    const { controller, automaticNavigation, advance, events } = setup();
+    automaticNavigation();
+    await expect(controller.open('owner')).rejects.toMatchObject({ status: 409 });
+    expect(events.some((event) => event.startsWith('open:'))).toBe(false);
+    advance(10_000);
+    const opened = await controller.open('owner');
+    await controller.close('owner', String(opened.sessionId));
+  });
+  it('keeps the bot blocked when its owner closes an in-flight verification', async () => {
+    const { controller, advance, behavior, events, state } = setup();
+    const opened = await controller.open('owner');
+    advance(60_000);
+    let start: () => void = () => undefined;
+    let finish: () => void = () => undefined;
+    const started = new Promise<void>((resolve) => {
+      start = resolve;
+    });
+    behavior.collect = () =>
+      new Promise<void>((resolve) => {
+        finish = resolve;
+        start();
+      });
+    const verification = controller.verify('owner', String(opened.sessionId));
+    await started;
+    const closing = controller.close('owner', String(opened.sessionId));
+    finish();
+    await expect(verification).rejects.toMatchObject({ status: 409 });
+    await expect(closing).resolves.toBeUndefined();
+    expect(state().state).toBe('blocked');
+    expect(events).not.toContain('ready');
+    expect(events).not.toContain('stored');
+  });
   it('allows only one operator and rejects foreign input or closing', async () => {
     const { controller, events } = setup();
     const opened = await controller.open('owner');

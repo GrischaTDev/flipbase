@@ -198,6 +198,51 @@ describe('QueryScheduler', () => {
     await scheduler.runOnce(NOW);
     expect(origin.setBlocked).toHaveBeenCalledWith('vinted', 'interaction_required', undefined);
   });
+  it('records the challenge pause before trying to release a legacy probe in the database', async () => {
+    const origin = pausedOrigin();
+    origin.releaseProbe.mockRejectedValue(new Error('probe storage failed'));
+    const { scheduler } = build(makeQuery(), {
+      originState: origin,
+      collector: {
+        collect: async () => {
+          throw new ForbiddenError('challenge', { challengeDetected: true });
+        },
+      },
+    });
+    await expect(scheduler.runOnce(NOW)).rejects.toThrow('probe storage failed');
+    expect(origin.setBlocked).toHaveBeenCalledWith('vinted', 'interaction_required', undefined);
+  });
+
+  it.each(['query', 'origin'])(
+    'halts every later query when %s storage fails after a challenge',
+    async (storage) => {
+      const origin = {
+        ...pausedOrigin(),
+        getState: async () => ({
+          origin: 'vinted',
+          state: 'ready' as const,
+          reason: null,
+          blockedUntil: null,
+          probeInFlight: false,
+          updatedAt: NOW.toISOString(),
+        }),
+      };
+      if (storage === 'origin')
+        origin.setBlocked.mockRejectedValue(new Error('origin storage failed'));
+      const collect = vi
+        .fn()
+        .mockRejectedValue(new ForbiddenError('challenge', { challengeDetected: true }));
+      const recordFailure = vi.fn().mockRejectedValue(new Error('query storage failed'));
+      const { scheduler } = buildMany([makeQuery({ id: 'first' }), makeQuery({ id: 'second' })], {
+        originState: origin,
+        collector: { collect },
+        queries: { recordFailure },
+      });
+      const report = await scheduler.runOnce(NOW);
+      expect(collect).toHaveBeenCalledTimes(1);
+      expect(report.originPause?.reason).toBe('interaction_required');
+    },
+  );
 
   it.each([false, true])(
     'retains the origin pause when guarded storage fails (throws=%s)',

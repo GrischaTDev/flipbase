@@ -184,15 +184,19 @@ export class SniperBrowserConnectComponent {
     if (!id || this.busy()) return;
     this.busy.set(true);
     this.error.set(null);
-    this.clearSession();
+    this.clearSession(true);
+    const generation = this.generation;
     try {
       const result = await this.api.verify(id);
+      if (this.ended || generation !== this.generation) return;
       if (result.state !== 'ready') throw new Error(result.message ?? 'Der Bot bleibt pausiert.');
       this.confirmed.set(true);
     } catch (error) {
+      if (this.ended || generation !== this.generation) return;
       this.showError(error);
       await this.api.close(id).catch(() => undefined);
     } finally {
+      if (!this.ended && generation === this.generation) this.clearSession();
       this.busy.set(false);
     }
   }
@@ -210,7 +214,7 @@ export class SniperBrowserConnectComponent {
     }
     this.closed.emit();
   }
-  private clearSession(): void {
+  private clearSession(keepLease = false): void {
     this.generation += 1;
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
@@ -218,7 +222,7 @@ export class SniperBrowserConnectComponent {
     const frame = this.frameUrl();
     this.frameUrl.set(null);
     if (frame) URL.revokeObjectURL(frame);
-    this.session.set(null);
+    if (!keepLease) this.session.set(null);
   }
   private showError(error: unknown): void {
     this.error.set(

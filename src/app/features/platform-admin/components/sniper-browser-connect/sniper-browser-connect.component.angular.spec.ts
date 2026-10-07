@@ -107,4 +107,21 @@ describe('SniperBrowserConnectComponent', () => {
     expect(fixture.componentInstance.error()).toContain('abgelaufen');
     fixture.destroy();
   });
+  it('cancels the actual lease on close during verification and discards its late result', async () => {
+    let finish: (status: unknown) => void = () => undefined;
+    api.verify.mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const fixture = TestBed.createComponent(SniperBrowserConnectComponent);
+    await vi.waitFor(() => expect(fixture.componentInstance.session()?.sessionId).toBe(sessionId));
+    const verifying = fixture.componentInstance.verify();
+    await fixture.componentInstance.close();
+    expect(api.close).toHaveBeenCalledWith(sessionId);
+    finish({ state: 'ready', sessionId: null, expiresAt: null, message: null });
+    await verifying;
+    expect(fixture.componentInstance.confirmed()).toBe(false);
+    fixture.destroy();
+  });
 });

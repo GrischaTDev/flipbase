@@ -6,6 +6,8 @@ services:
     container_name: flipbase-sniper
     restart: unless-stopped
     init: true
+    # Der längste zulässige Abruf darf vor dem regulären Chrome-Ende auslaufen.
+    stop_grace_period: 90s
     # Vorhandene Serveranbindung; API nur am internen Docker-Gateway,
     # Gesundheitsendpunkte und Chrome-Steuerung ausschließlich an Loopback.
     network_mode: host

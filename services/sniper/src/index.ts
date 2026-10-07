@@ -54,13 +54,14 @@ const vintedConnection = new VintedConnectionState();
 
 const health = createHealthState(() => budget.usageRatio());
 const queries = new QueryStore(client);
-const originState = new OriginStateStore(client);
+const originState = new OriginStateStore(client, log);
 const categories = new CategoryStore(client);
 const listings = new ListingStore(client);
 const collector = new VintedCollector(sessionOptions, counted, sleep, vintedConnection);
 const browserSession = new BrowserSessionController({
   baseUrl: config.vintedBaseUrl,
   minimumIntervalMs: config.requestMinIntervalMs,
+  navigationTiming: counted,
   browser,
   originState,
   queries,

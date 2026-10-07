@@ -21,6 +21,7 @@ test('der Botbrowser wird privat geroutet und mit dem geprüften Release vorbere
   assert.doesNotMatch(caddy, /9228|\/json\/|sniper.*168\.119/u);
   assert.match(compose, /SNIPER_BROWSER_HOST: 172\.18\.0\.1/u);
   assert.match(compose, /shm_size: 128m/u);
+  assert.match(compose, /stop_grace_period: 90s/u);
   assert.match(compose, /SYS_CHROOT/u);
   assert.match(compose, /seccomp:/u);
   assert.match(

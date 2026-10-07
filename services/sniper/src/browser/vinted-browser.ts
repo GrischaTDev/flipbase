@@ -119,9 +119,12 @@ export async function readBrowserDocument(
       ],
     });
     requestSignal.throwIfAborted();
-    const navigation = await session.send('Page.navigate', { url: url.href });
-    if (navigation.errorText && !settled) throw new Error('Browsernavigation fehlgeschlagen.');
-    return await response;
+    const navigation = session.send('Page.navigate', { url: url.href }).then((result) => {
+      if (result.errorText && !settled) throw new Error('Browsernavigation fehlgeschlagen.');
+      return response;
+    });
+    // Auch vor der Navigationsantwort muss Timeout/Abbruch die Bereinigung erreichen.
+    return await Promise.race([navigation, response]);
   } finally {
     settled = true;
     session.off('Fetch.requestPaused', onPaused);

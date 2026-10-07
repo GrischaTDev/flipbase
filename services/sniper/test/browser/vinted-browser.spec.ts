@@ -74,6 +74,41 @@ describe('readBrowserDocument', () => {
     expect(commands).toHaveLength(0);
     expect(events.listenerCount('Fetch.requestPaused')).toBe(0);
   });
+  it('stops a still-pending navigation immediately after abort', async () => {
+    const { session, events, commands } = protocol(200, [], 'catalog');
+    const controller = new AbortController();
+    const send = session.send.bind(session);
+    let navigating: () => void = () => undefined;
+    const started = new Promise<void>((resolve) => {
+      navigating = resolve;
+    });
+    session.send = ((method: string, params?: Record<string, unknown>) => {
+      if (method === 'Page.navigate') {
+        commands.push({ method, params });
+        navigating();
+        return new Promise(() => undefined);
+      }
+      return send(method as 'IO.read', params as { handle: string });
+    }) as CDPSession['send'];
+    const reading = readBrowserDocument(
+      session,
+      new URL('https://www.vinted.de/catalog'),
+      controller.signal,
+    ).then(
+      () => 'unexpected success',
+      (error: unknown) => (error instanceof Error ? error.message : 'unknown'),
+    );
+    await started;
+    controller.abort(new Error('navigation expired'));
+    const result = await Promise.race([
+      reading,
+      new Promise<string>((resolve) => setTimeout(() => resolve('still navigating'), 100)),
+    ]);
+    expect(result).toBe('navigation expired');
+    expect(commands.some((command) => command.method === 'Page.stopLoading')).toBe(true);
+    expect(commands.some((command) => command.method === 'Fetch.disable')).toBe(true);
+    expect(events.listenerCount('Fetch.requestPaused')).toBe(0);
+  });
   it('fails a paused document before disabling interception after an in-flight abort', async () => {
     const { session, commands } = protocol(200, [], '<script>unsafe()</script>');
     const controller = new AbortController();

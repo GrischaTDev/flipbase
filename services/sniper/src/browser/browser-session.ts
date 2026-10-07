@@ -3,6 +3,7 @@ import type { SniperQuery } from '../domain/query.js';
 import type { MarketplaceListing } from '../domain/listing.js';
 import type { SearchFilterRunResult } from '../store/listing.store.js';
 import type { OriginStateStoreLike } from '../runtime/scheduler.js';
+import type { VintedNavigationTiming } from '../runtime/paced-vinted-fetch.js';
 import { buildVintedCatalogUrl } from '../vinted/collector.js';
 import { VintedCollectorError } from '../vinted/errors.js';
 import type { VintedBrowser } from './vinted-browser.js';
@@ -16,6 +17,7 @@ import {
 interface BrowserSessionDependencies {
   baseUrl: string;
   minimumIntervalMs: number;
+  navigationTiming: VintedNavigationTiming;
   now?: () => Date;
   browser: VintedBrowser;
   originState: OriginStateStoreLike;
@@ -35,6 +37,7 @@ interface ManualLease {
   expiresAt: Date;
   queryId: string;
   revision: number;
+  cancelled: boolean;
 }
 const LEASE_MS = 10 * 60_000;
 
@@ -78,7 +81,13 @@ export class BrowserSessionController implements BrowserSession {
 
   private requireLease(owner: string, sessionId: string): ManualLease {
     const lease = this.lease;
-    if (!lease || lease.owner !== owner || lease.id !== sessionId || this.now() >= lease.expiresAt)
+    if (
+      !lease ||
+      lease.cancelled ||
+      lease.owner !== owner ||
+      lease.id !== sessionId ||
+      this.now() >= lease.expiresAt
+    )
       throw new BrowserSessionError(409, 'Deine Botsitzung ist abgelaufen oder nicht verfügbar.');
     return lease;
   }
@@ -137,6 +146,7 @@ export class BrowserSessionController implements BrowserSession {
       origin.blockedUntil ? Date.parse(origin.blockedUntil) : 0,
       query.nextAttemptAt ? Date.parse(query.nextAttemptAt) : 0,
       lastAttempt + Math.max(query.pollIntervalMs, this.deps.minimumIntervalMs),
+      this.now().getTime() + this.deps.navigationTiming.remainingDelay(),
     );
     if (notBefore > this.now().getTime())
       throw new BrowserSessionError(
@@ -169,9 +179,20 @@ export class BrowserSessionController implements BrowserSession {
       await this.deps.originState.setBlocked('vinted', 'interaction_required', deadline);
       this.localPause = true;
       this.deps.budget.record();
+      this.deps.navigationTiming.recordManualNavigation();
       try {
         await this.deps.browser.openManual(url);
+        this.deps.navigationTiming.recordManualNavigation();
+        // Chrome-Startzeit darf den Abstand zum tatsächlich geöffneten Katalog nicht verkürzen.
+        await this.deps.originState.setBlocked(
+          'vinted',
+          'interaction_required',
+          new Date(
+            this.now().getTime() + Math.max(query.pollIntervalMs, this.deps.minimumIntervalMs),
+          ),
+        );
       } catch {
+        await this.deps.browser.close().catch(() => undefined);
         this.unavailable = true;
         throw new BrowserSessionError(503, 'Die Browsersitzung konnte nicht geöffnet werden.');
       }
@@ -181,6 +202,7 @@ export class BrowserSessionController implements BrowserSession {
         expiresAt: new Date(this.now().getTime() + LEASE_MS),
         queryId: query.id,
         revision: query.filterRevision ?? 0,
+        cancelled: false,
       };
       this.lease = lease;
       this.message = null;
@@ -268,10 +290,12 @@ export class BrowserSessionController implements BrowserSession {
   }
 
   async close(owner: string, sessionId: string): Promise<void> {
+    // Der Abbruch muss den laufenden Nachweis sofort ungültig machen,
+    // während dessen Browserbereinigung weiterhin exklusiv erfolgt.
+    const lease = this.requireLease(owner, sessionId);
+    lease.cancelled = true;
     return this.exclusive(async () => {
-      await this.expire();
-      this.requireLease(owner, sessionId);
-      await this.endLease();
+      if (this.lease?.id === lease.id) await this.endLease();
     });
   }
 

@@ -17,7 +17,9 @@ function storeWithResponses(responses: unknown[]) {
           body: JSON.parse(String(init?.body ?? 'null')) as unknown,
         });
         if (responses.length === 0) throw new Error('Unexpected HTTP request');
-        return new Response(JSON.stringify(responses.shift()), {
+        const response = responses.shift();
+        if (response instanceof Response) return response;
+        return new Response(JSON.stringify(response), {
           status: 200,
           headers: { 'content-type': 'application/json' },
         });
@@ -28,6 +30,24 @@ function storeWithResponses(responses: unknown[]) {
 }
 
 describe('OriginStateStore.tryAcquireProbe', () => {
+  it('keeps a failed challenge write locally blocked and retries persistence before any later work', async () => {
+    const failure = () => Response.json({ message: 'database unavailable' }, { status: 400 });
+    const { store, requests } = storeWithResponses([failure(), failure(), null, null]);
+    await expect(store.setBlocked('vinted', 'interaction_required', NOW)).rejects.toThrow(
+      'database unavailable',
+    );
+    expect(await store.getState('vinted')).toMatchObject({
+      state: 'blocked',
+      reason: 'interaction_required',
+      blockedUntil: NOW.toISOString(),
+    });
+    expect(await store.getState('vinted')).toMatchObject({
+      state: 'blocked',
+      reason: 'interaction_required',
+    });
+    expect(requests.map((request) => request.method)).toEqual(['POST', 'POST', 'POST']);
+    await store.reset('vinted');
+  });
   it('persists a manual provider deadline without changing the permanent block', async () => {
     const { store, requests } = storeWithResponses([null]);
     await store.setBlocked('vinted', 'interaction_required', NOW);

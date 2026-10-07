@@ -16,7 +16,7 @@ bei jeder API-Aktion geprüft. Erst der revisionsgesichert angenommene Katalog
 eines weiterhin aktiven Filters gibt den Bot frei. Persönliche Kontoprofile und
 Datenbankschema bleiben unverändert.
 
-**Prüfung:** 292 Botprüfungen, zehn gezielte Angular-Prüfungen, Typprüfung und
+**Prüfung:** 299 Botprüfungen, elf gezielte Angular-Prüfungen, Typprüfung und
 Produktionsbau erfolgreich. Der echte Admin-Browsertest bestätigt Tastatur,
 Fokus, Fehlerpause und AXE. Die isolierte lokale Chrome-Prüfung bestätigt aktive
 Namespace-/Seccomp-Sandbox, private CDP-Adresse, native Eingabe, Bildabruf,
@@ -26,11 +26,26 @@ Prozessbeendigung behebt sie. Alle acht Deploytests laufen in Linux erfolgreich,
 einschließlich Laufzeitdateien vor Botstart und Abbruch bei fehlendem Auth-Key.
 Shared-UI-Prüfung und Suitezuordnung bestehen.
 
+**Unabhängige Gesamtprüfung:** Vier funktionale Fehler werden lesend reproduziert
+und anschließend jeweils mit fehlschlagendem Regressionstest behoben. Die
+gemeinsame Zugriffssperre gilt jetzt auch bei Origin-, Query- oder Probe-
+Speicherfehlern; fehlgeschlagene dauerhafte Speicherung wird ohne weitere Abrufe
+wiederholt. Eine hängende Navigation wird sofort abgebrochen. Manueller Zugriff
+teilt den tatsächlichen letzten Abrufzeitpunkt mit Kategorien und anderen
+Filtern. Schließen während der Verifikation entwertet die Lease sofort und
+verwirft verspätete Ergebnisse im Dialog. Die letzte Prüfung besteht erneut:
+299 Botprüfungen, elf Angular-Prüfungen, drei Admin-Browsertests, 227 Workflow-
+Prüfungen (fünf Plattformausnahmen; die acht Deploytests laufen separat vollständig
+unter Linux), Typen, Lint, Bau und Sandbox-Image. Caddyvalidierung und
+Formatter bestehen. Die Auswahlprüfung enthält den neuen PR-Browsertest.
+Der Container erhält 90 Sekunden zum regulären Beenden, damit laufende Abrufe
+das saubere Schließen des Chrome-Profils nicht verhindern.
+
 **Releasevertrag:** Webimage enthält die passende Bot-Compose-/Seccomp-Konfiguration.
 Der Betreiber muss das geprüfte Deployskript und den öffentlichen Auth-Key vor
 der ersten Veröffentlichung bereitstellen. Keine produktive Browserfreigabe und
 keine wiederhergestellte Liveverbindung behauptet. Die unabhängige Gesamtprüfung
-und die PR-Freigabe stehen noch aus.
+ist mit den geprüften Korrekturen abgeschlossen; die PR-Freigabe steht noch aus.
 
 ## 2026-10-07 - Juna - Eigene Browsersitzung für den Artikelbot entwerfen
 
