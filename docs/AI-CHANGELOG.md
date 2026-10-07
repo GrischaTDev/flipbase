@@ -1,5 +1,33 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-07 - Juna - Herkunft und Datum von Cloud-Bewertungen korrigieren
+
+**Auftrag:** Bewertungen von Mitgliedern und automatische Vinted-Bewertungen
+korrekt unterscheiden. Im Cloudkonto erscheinen beide importierten Einträge
+als „Herkunft unbekannt“ und dadurch in keiner der beiden Kategorien.
+
+**Ursache:** Zwei kontrollierte manuelle Kontoabrufe bestätigen die echte
+Antwortform von `/api/v2/feedbacks`: `system_feedback=false` bei beiden
+Mitgliederbewertungen. Der Import berücksichtigt bislang nur `is_automatic`
+und `feedback_type`. Außerdem überdeckt das lokalisierte `created_at` den
+gültigen ISO-Zeitstempel in `created_at_ts`, wodurch das Abrufdatum erscheint.
+Die Diagnose liest nur Feldnamen, Herkunftskennzeichen und Zeitstempel;
+Zugangsdaten oder vollständige Anbieterantworten werden nicht protokolliert.
+
+**Korrektur:** Der Worker wertet das ausdrückliche boolesche Kennzeichen
+`system_feedback` aus und bevorzugt `created_at_ts`. Bestehende Kennzeichen
+bleiben unterstützt, fehlende oder unpassende Werte bleiben unbekannt.
+Keine Herkunftserkennung anhand des Freitexts, kein Frontend-Workaround und
+keine Datenbankmigration. Nach Veröffentlichung ersetzt ein regulärer Abruf
+die bisher unbekannten Herkunftswerte und falschen Daten.
+
+**Prüfung:** Der neue Regressionstest scheitert vor der Änderung an der
+unbekannten Herkunft. Nach der Korrektur bestehen 27 Importtests und die
+Worker-Suite mit 330 bestandenen und sieben bestehenden übersprungenen Tests.
+Worker-Typprüfung einschließlich Produktionsbau-Typen, acht Angular-Tests der
+Bewertungsanzeige sowie Format und gezieltes Lint bestehen. Veröffentlichung
+und Bestätigung der korrigierten produktiven Anzeige stehen noch aus.
+
 ## 2026-10-07 - Juna - Ersten geplanten Proxyabruf beobachten
 
 **Auftrag:** Der Nutzer aktiviert Maikes Automatik in Flipbase. Den ersten
@@ -44,6 +72,7 @@ Maikes Kontoschalter bleibt deaktiviert; in Flipbase kann der Nutzer jetzt
 unter Kontoeinstellungen die Automatik fortsetzen. Ein erfolgreicher geplanter
 Abruf über den Proxy ist noch nicht bestätigt. Kein automatischer Nachrichten-
 oder Angebotsversand und kein anderer Kontoterminplan wurden aktiviert.
+
 ## 2026-10-07 - Juna - Vinted-Anmeldemodal 1:1 an freigegebenen Entwurf angleichen
 
 **Auftrag:** Das Vinted-Anmeldemodal exakt an den freigegebenen Polaris-Entwurf

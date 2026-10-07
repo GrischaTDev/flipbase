@@ -698,6 +698,47 @@ test('übernimmt echte Chatnachrichten mit Entity-ID und Systemereignisse ohne I
   assert.equal(conversation.body['occurredAt'], systemMessage.sortAt);
 });
 
+test('ordnet aktuelle Vinted-Bewertungen nach system_feedback und ISO-Zeitstempel zu', () => {
+  const snapshot = parseVintedAccountImport(
+    { id: '123', username: 'testkonto' },
+    { user: { id: 123 } },
+    [],
+    [],
+    [],
+    '2026-10-07T09:00:00Z',
+    [],
+    [
+      {
+        id: 901,
+        feedback: 'Alles super!',
+        rating: 5,
+        system_feedback: false,
+        is_system_comment: null,
+        external_type: null,
+        created_at: '29.09. 11:45 Uhr',
+        created_at_ts: '2026-09-29T11:45:54+02:00',
+        user: { login: 'member_1' },
+      },
+      {
+        id: 902,
+        feedback: 'Die Transaktion wurde erfolgreich abgeschlossen.',
+        rating: 5,
+        system_feedback: true,
+        created_at: '23.09. 16:40 Uhr',
+        created_at_ts: '2026-09-23T16:40:35+02:00',
+        user: { login: 'member_2' },
+      },
+      { id: 903, system_feedback: 'false', is_system_comment: false },
+    ],
+  );
+  const feedbacks = snapshot.entries[0]?.body['feedbacks'] as Record<string, unknown>[];
+  assert.equal(feedbacks[0]?.['isAutomatic'], false);
+  assert.equal(feedbacks[0]?.['occurredAt'], '2026-09-29T09:45:54.000Z');
+  assert.equal(feedbacks[1]?.['isAutomatic'], true);
+  assert.equal(feedbacks[1]?.['occurredAt'], '2026-09-23T14:40:35.000Z');
+  assert.equal(feedbacks[2]?.['isAutomatic'], null);
+});
+
 test('ordnet Feedbacks mit Kennzeichnung für automatische Bewertungen dem Profil zu', () => {
   const result = parseVintedAccountImport(
     { id: '123', username: 'testkonto' },
