@@ -18,9 +18,10 @@ Anmeldewege verständlich strukturieren.
    (896 px).
 3. **Konto-Identitätszeile:** Ein kompakter Streifen fasst den Namen des
    ausgewählten Kontos mit Statusindikator und Bereit-Status zusammen.
-4. **Klare 2-Wege-Auswahl:** Ein Segmented-Control-Umschalter trennt die
-   beiden Methoden („Zugangsdaten eingeben“ vs. „Direkt im Browser“). Der primäre
-   Anmeldebutton nutzt die Markenfarbe Flipbase-Gelb (`#fcc601`) in voller Breite.
+4. **Klare 2-Wege-Aktionen:** Primärer Anmeldebutton („Anmelden und Konto verbinden“)
+   in Markenfarbe Flipbase-Gelb (`#fcc601`) neben direktem sekundären Button
+   („Direkt im Browser anmelden“) für Google-/Apple-Login und manuelle Eingabe
+   ohne Umwege über Zwischen-Tabs.
 5. **Datenschutz & Sicherheit:** Ein dezenter Trust-Hinweis mit Schild-Symbol
    erklärt die sichere Ausführung im isolierten Cloud-Profil und die flüchtige
    Handhabung von Passwörtern. Redundante Fußzeilen und Abbrechen-Links entfallen.
