@@ -11,6 +11,7 @@ const files = [
   '371_brand_label_content.sql',
   '371_brand_label_operations.sql',
   'content-and-operations.sql',
+  '373_brand_label_read.sql',
   'reader-access.sql',
 ];
 const name = `flipbase-label-test-${randomUUID()}`;
