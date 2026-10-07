@@ -64,6 +64,7 @@ export class MarketplaceBrowserTestComponent {
   readonly pendingAccountName = input<string | null>(null);
   readonly cloudSetupId = input<string | null>(null);
   readonly connectionCreated = output<string>();
+  readonly activeTab = signal<'credentials' | 'browser'>('credentials');
   readonly previewActive = output<boolean>();
   readonly isPreviewActive = computed(
     () =>
@@ -137,6 +138,7 @@ export class MarketplaceBrowserTestComponent {
       const connectionId = this.store.connection()?.connectionId;
       if (connectionId === this.credentialsConnectionId) return;
       this.credentialsConnectionId = connectionId;
+      this.activeTab.set('credentials');
       this.loginForm.reset();
       this.code.reset();
       this.manualTextInput.reset();
@@ -344,6 +346,7 @@ export class MarketplaceBrowserTestComponent {
   }
 
   async openManualBrowser(): Promise<void> {
+    this.activeTab.set('browser');
     this.loginForm.reset();
     this.code.reset();
     this.manualTextInput.reset();

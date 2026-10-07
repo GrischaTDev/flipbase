@@ -44,6 +44,33 @@ Maikes Kontoschalter bleibt deaktiviert; in Flipbase kann der Nutzer jetzt
 unter Kontoeinstellungen die Automatik fortsetzen. Ein erfolgreicher geplanter
 Abruf über den Proxy ist noch nicht bestätigt. Kein automatischer Nachrichten-
 oder Angebotsversand und kein anderer Kontoterminplan wurden aktiviert.
+## 2026-10-07 - Juna - Vinted-Anmeldemodal 1:1 an freigegebenen Entwurf angleichen
+
+**Auftrag:** Das Vinted-Anmeldemodal exakt an den freigegebenen Polaris-Entwurf
+(Mockup) anpassen. Die Segmented-Control-Methode-Tabs wiederherstellen, den
+Konto-Identitätsstreifen bündig unter der Kopfzeile platzieren, das Kopfzeilen-
+Icon ergänzen und die 2 Ansichten (Formular vs. interaktive Browseransicht) mit
+voller Aktionsbreite umsetzen.
+
+**Umsetzung:**
+
+1. **Bündiger Identitätsstreifen:** Der Konto-Identitätsstreifen sitzt mit
+   `-mx-5 -mt-5` randbündig direkt unter der Kopfzeilentrennlinie mit
+   Konto-Badge (Teal-Statuspunkt) und Bereit-Status.
+2. **Kopfzeilen-Icon:** Einbindung von `LucideLink2` mit `brand`-Farbton auf
+   `app-modal-shell` in `MarketplaceAccountsComponent` und `MarketplaceConnectComponent`.
+3. **Segmented Method Tabs:** Pill-Container mit den beiden Methoden
+   („Zugangsdaten eingeben“ mit Schloss-Icon und „Direkt im Browser“ mit Bildschirm-Icon)
+   zum Umschalten zwischen Formular und Direktansicht.
+4. **Ansicht 1 (Zugangsdaten):** 2-spaltige Eingabefelder, Trust-Box mit grünem Schild,
+   breiter primärer Aktionsbutton („Anmelden und Konto verbinden“) in Flipbase-Gelb
+   mit Pfeilsymbol sowie dezenter Direktbrowser-Link darunter.
+5. **Ansicht 2 (Direkt im Browser):** Zentrierte Informationskarte mit
+   Bildschirm-Icon, Erklärungstext und „Browser-Sitzung starten“-Aktion.
+
+**Prüfung:** 99 Angular-Unit-Tests in `marketplace-browser-test`, `marketplace-accounts`
+und `vinted-workspace` (inkl. AXE-Barrierefreiheit) bestehen. TypeScript-Typprüfung,
+ESLint, Prettier und Admin-UI-Check fehlerfrei (0 Findings).
 
 ## 2026-10-07 - Juna - Vinted-Anmeldefenster nach Shopify-Polaris überarbeiten
 

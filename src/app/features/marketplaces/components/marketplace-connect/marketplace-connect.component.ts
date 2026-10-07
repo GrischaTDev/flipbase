@@ -15,6 +15,7 @@ import {
   ModalShellComponent,
 } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
+import { LucideLink2 } from '@lucide/angular';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { MarketplaceCloudSetupStore } from '../../services/marketplace-cloud-setup.store';
 import { MarketplaceBrowserTestComponent } from '../marketplace-browser-test/marketplace-browser-test.component';
@@ -37,6 +38,7 @@ export class MarketplaceConnectComponent {
   readonly cloud = inject(MarketplaceCloudSetupStore);
   readonly previewActive = signal(false);
   readonly modalSize = computed<ModalSize>(() => (this.previewActive() ? 'xl' : 'lg'));
+  protected readonly loginIcon = LucideLink2;
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly requestedId = toSignal(

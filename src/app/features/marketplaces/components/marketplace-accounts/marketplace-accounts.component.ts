@@ -22,6 +22,7 @@ import type { MarketplaceConnection } from '../../models/marketplace.models';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { MarketplaceCloudSetupStore } from '../../services/marketplace-cloud-setup.store';
 import { VintedLocalExtensionBridge } from '../../services/vinted-local-extension-bridge';
+import { LucideLink2 } from '@lucide/angular';
 import { MarketplaceBrowserTestComponent } from '../marketplace-browser-test/marketplace-browser-test.component';
 
 @Component({
@@ -46,6 +47,7 @@ export class MarketplaceAccountsComponent {
   readonly cloud = inject(MarketplaceCloudSetupStore);
   readonly extension = inject(VintedLocalExtensionBridge);
   readonly loginPreviewActive = signal(false);
+  protected readonly loginIcon = LucideLink2;
   private readonly router = inject(Router);
   private readonly workspace = inject(WorkspaceService);
   private readonly auth = inject(AuthService);
