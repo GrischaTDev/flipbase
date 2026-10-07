@@ -25,7 +25,7 @@ export interface QueryStoreLike {
 export interface OriginStateStoreLike {
   getState(origin: string): Promise<OriginState>;
   setCooldown(origin: string, blockedUntil: Date, reason: string): Promise<void>;
-  setBlocked(origin: string, reason: string): Promise<void>;
+  setBlocked(origin: string, reason: string, notBefore?: Date): Promise<void>;
   tryAcquireProbe(origin: string, now: Date): Promise<boolean>;
   releaseProbe(origin: string, success: boolean): Promise<void>;
   reset(origin: string): Promise<void>;
@@ -55,9 +55,9 @@ class InMemoryOriginStateStore implements OriginStateStoreLike {
     this.probeInFlight = false;
   }
 
-  async setBlocked(origin: string, reason: string): Promise<void> {
+  async setBlocked(origin: string, reason: string, notBefore?: Date): Promise<void> {
     this.state = 'blocked';
-    this.blockedUntil = null;
+    this.blockedUntil = notBefore?.toISOString() ?? null;
     this.reason = reason;
     this.probeInFlight = false;
   }
@@ -141,6 +141,11 @@ export class QueryScheduler {
     const originState = await this.originStore.getState(origin);
 
     let isProbeCycle = false;
+
+    if (originState.state === 'blocked' && originState.reason === 'interaction_required') {
+      report.originPause = { reason: 'interaction_required', until: null };
+      return report;
+    }
 
     // Origin ist im Cooldown (z. B. nach 429 oder 403). Ein aelterer Zustand
     // 'blocked' ohne Ablaufzeit gilt als abgelaufener Cooldown, damit eine
@@ -269,14 +274,10 @@ export class QueryScheduler {
       return { haltedOrigin: decision.originUpdate !== undefined };
     }
 
-    // Erfolgreicher Abruf!
-    if (isProbe) {
-      await this.originStore.releaseProbe(this.origin, true);
-      delete report.originPause;
-    }
-
     if (query.filterFormatVersion === 1) {
-      const completed = await this.deps.listings.completeRun!(listings, query);
+      const completeRun = this.deps.listings.completeRun;
+      if (!completeRun) throw new Error('Updated search filter ingestion is unavailable');
+      const completed = await completeRun.call(this.deps.listings, listings, query);
       report.polled += 1;
       if (completed.accepted) {
         report.newHits += completed.hits;
@@ -284,6 +285,10 @@ export class QueryScheduler {
         else report.newListings += completed.created;
       } else {
         this.deps.log.info('outdated_search_filter_response_discarded', { queryId: query.id });
+      }
+      if (isProbe) {
+        await this.originStore.releaseProbe(this.origin, completed.accepted);
+        if (completed.accepted) delete report.originPause;
       }
       return { haltedOrigin: false };
     }
@@ -316,6 +321,11 @@ export class QueryScheduler {
       await this.deps.queries.recordSuccess(query.id, now);
     } else if (this.deps.queries.markPolled) {
       await this.deps.queries.markPolled(query.id, 'ok');
+    }
+
+    if (isProbe) {
+      await this.originStore.releaseProbe(this.origin, true);
+      delete report.originPause;
     }
 
     return { haltedOrigin: false };
@@ -352,6 +362,26 @@ export class QueryScheduler {
         : {}),
     });
 
+    if (decision.originUpdate) {
+      report.originPause = {
+        reason: decision.originUpdate.reason,
+        until: decision.originUpdate.blockedUntil?.toISOString() ?? null,
+      };
+      if (decision.originUpdate.state === 'cooldown' && decision.originUpdate.blockedUntil) {
+        await this.originStore.setCooldown(
+          this.origin,
+          decision.originUpdate.blockedUntil,
+          decision.originUpdate.reason,
+        );
+      } else if (decision.originUpdate.state === 'blocked') {
+        await this.originStore.setBlocked(
+          this.origin,
+          decision.originUpdate.reason,
+          decision.originUpdate.blockedUntil ?? undefined,
+        );
+      }
+    }
+
     if (this.deps.queries.recordFailure) {
       if (query.filterFormatVersion === 1)
         await this.deps.queries.recordFailure(
@@ -370,22 +400,6 @@ export class QueryScheduler {
             ? 'forbidden'
             : 'failed';
       await this.deps.queries.markPolled(query.id, status);
-    }
-
-    if (decision.originUpdate) {
-      report.originPause = {
-        reason: decision.originUpdate.reason,
-        until: decision.originUpdate.blockedUntil?.toISOString() ?? null,
-      };
-      if (decision.originUpdate.state === 'cooldown' && decision.originUpdate.blockedUntil) {
-        await this.originStore.setCooldown(
-          this.origin,
-          decision.originUpdate.blockedUntil,
-          decision.originUpdate.reason,
-        );
-      } else if (decision.originUpdate.state === 'blocked') {
-        await this.originStore.setBlocked(this.origin, decision.originUpdate.reason);
-      }
     }
 
     return decision;

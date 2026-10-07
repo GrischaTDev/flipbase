@@ -28,6 +28,17 @@ function storeWithResponses(responses: unknown[]) {
 }
 
 describe('OriginStateStore.tryAcquireProbe', () => {
+  it('persists a manual provider deadline without changing the permanent block', async () => {
+    const { store, requests } = storeWithResponses([null]);
+    await store.setBlocked('vinted', 'interaction_required', NOW);
+    expect(requests[0]?.body).toEqual(
+      expect.objectContaining({
+        state: 'blocked',
+        reason: 'interaction_required',
+        blocked_until: NOW.toISOString(),
+      }),
+    );
+  });
   it('acquires a free probe without touching a second condition', async () => {
     const { store, requests } = storeWithResponses([[{ origin: 'vinted' }]]);
 

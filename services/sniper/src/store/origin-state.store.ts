@@ -61,11 +61,11 @@ export class OriginStateStore {
     }
   }
 
-  async setBlocked(origin: string, reason: string): Promise<void> {
+  async setBlocked(origin: string, reason: string, notBefore?: Date): Promise<void> {
     const { error } = await this.client.from('sniper_origin_state').upsert({
       origin,
       state: 'blocked',
-      blocked_until: null,
+      blocked_until: notBefore?.toISOString() ?? null,
       reason,
       probe_in_flight: false,
       updated_at: new Date().toISOString(),

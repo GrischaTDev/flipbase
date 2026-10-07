@@ -41,7 +41,7 @@ Neue Adminmodule: `models/sniper-browser.model.ts`, `services/sniper-browser.ser
 
 Die bestehenden Module für Retry, Scheduler, Kategorieauffrischung, Collector, Konfiguration und Prozessstart werden gezielt angepasst. Dockerbau, Compose, Caddy und deren Tests bilden die Veröffentlichungsvoraussetzungen ab.
 
-## Aufgabe 1: Dauerhafte Prüfungspause und sichere Erfolgsreihenfolge
+## Task 1: Dauerhafte Prüfungspause und sichere Erfolgsreihenfolge
 
 **Dateien:** Ändern: `services/sniper/src/runtime/retry-policy.ts`, `scheduler.ts`, `refresh-categories.ts`; Tests: die gleichnamigen Dateien unter `services/sniper/test/runtime/`.
 
@@ -79,7 +79,7 @@ if (originState.state === 'blocked' && originState.reason === 'interaction_requi
 - [ ] Die Probe erst nach angenommenem `completeRun` freigeben. Bei `{ accepted: false }` oder abgelehntem Speicherpromise `releaseProbe(origin, true)` nicht aufrufen. Für alte Filterformate folgt die Freigabe ebenfalls erst auf erfolgreiches Speichern und Erfolgsaufzeichnung.
 - [ ] Alle drei betroffenen Testdateien ausführen; anschließend `npm run typecheck`. Commit: `fix(sniper): pause confirmed challenges until manual verification`.
 
-## Aufgabe 2: Regulären Browser und eigenen Katalogtransport bereitstellen
+## Task 2: Regulären Browser und eigenen Katalogtransport bereitstellen
 
 **Dateien:** Neu: `services/sniper/src/browser/vinted-browser.ts`, `browser-desktop.ts`, `browser-types.ts`; ändern: `services/sniper/src/vinted/collector.ts`, `config.ts`, `index.ts`, `package.json`/`package-lock.json`; Tests: `test/browser/vinted-browser.spec.ts`, `browser-desktop.spec.ts`, vorhandene Collector-, Konfigurations- und Timingtests.
 
@@ -109,7 +109,7 @@ export interface VintedBrowser {
 - [ ] Bestehende `pacedVintedFetch`, `countingFetch`, `RequestMetrics` und Budget verwenden; Kategorieabruf verwendet denselben Transport. Browsernebenanfragen bleiben im automatischen Modus verhindert. Native Desktopsteuerung übernimmt begrenzte `xdotool`-/Bildschirmbild-Muster des Workers, Text über stdin, keine Shellinterpolation.
 - [ ] Tests ergänzen für Timeout mit verspäteter Antwort, Profilkonflikt, Prozessabsturz und fehlgeschlagenen Shutdown: keine zweite Sitzung. Alle Collector-, Browser-, Timing- und Konfigurationstests sowie `npm run typecheck` und `npm run build` ausführen. Commit: `feat(sniper): collect catalogs through a dedicated browser profile`.
 
-## Aufgabe 3: Exklusive manuelle Sitzung und geprüfte Wiederaufnahme
+## Task 3: Exklusive manuelle Sitzung und geprüfte Wiederaufnahme
 
 **Dateien:** Neu: `services/sniper/src/browser/browser-session.ts`; ändern: `browser-types.ts`, `services/sniper/src/store/query.store.ts`, `runtime/scheduler.ts`, `index.ts`; Tests: `test/browser/browser-session.spec.ts` und relevante Scheduler-/QueryStoretests.
 
@@ -156,7 +156,7 @@ Dieser Ausschnitt liegt innerhalb der exklusiven Operation nach erneut geprüfte
 - [ ] Regressionen ergänzen: Filteränderung/Deaktivierung während Antwort, Speichern wirft, Sitzung läuft während Prüfung ab, erneute Prüfseite, Providerwartezeit, kein aktiver Auftrag, Neustart mit bestehender Dauersperre. Jeder Fall prüft explizit, dass `reset` nicht aufgerufen und keine Nebenprobe gestartet wird. Die bestehenden Testfixtures/Factories statt Produktionsdaten verwenden.
 - [ ] Betroffene Tests, `npm run typecheck` und `npm run build` ausführen. Commit: `feat(sniper): require accepted catalog proof before resuming collection`.
 
-## Aufgabe 4: Betreiber-API mit vollständiger Authentifizierung
+## Task 4: Betreiber-API mit vollständiger Authentifizierung
 
 **Dateien:** Neu: `services/sniper/src/browser/browser-http-api.ts`; ändern: `services/sniper/src/config.ts`, `index.ts`; Test: `test/browser/browser-http-api.spec.ts`.
 
@@ -178,7 +178,7 @@ Dieser Ausschnitt liegt innerhalb der exklusiven Operation nach erneut geprüfte
 - [ ] Tests für abgelaufenes Token, nach Öffnen entzogene Betreiberrolle, fremde UUID, ungültige Koordinaten, zu großen Body, ungültiges/zu großes Bild und API-Verfügbarkeit ohne laufenden Chrome ergänzen. Verifikation und Sitzungsschließen dürfen keine ungeschützten Sonderwege erhalten.
 - [ ] Bot-API-Tests, Konfigurationstests und Typprüfung ausführen. Commit: `feat(sniper): expose operator-protected manual browser controls`.
 
-## Aufgabe 5: Manuellen Zugriff in der vorhandenen Adminseite anbieten
+## Task 5: Manuellen Zugriff in der vorhandenen Adminseite anbieten
 
 **Dateien:** Neu: `src/app/features/platform-admin/models/sniper-browser.model.ts`, `services/sniper-browser.service.ts`, `components/sniper-browser-connect/sniper-browser-connect.component.ts/.html`; ändern: `pages/sniper-operation/sniper-operation.component.ts/.html`; Tests: neue `*.angular.spec.ts` neben Service/Dialog und `e2e/sniper-administration.spec.ts`.
 
@@ -202,7 +202,7 @@ Beim Schließen dieselbe URL widerrufen und den Signalwert leeren; eine Antwort 
 - [ ] Botseite um den neuen Status „Manuelle Prüfung erforderlich“ und Öffnenknopf ergänzen. Tests für doppelte Klicks, 401/403/409, Verifikationsfehler, abgelaufene Sitzung und verspätete Screenshots nach Close schreiben. E2E mit ausschließlich gefälschten Browserantworten um Tastatur/Fokus und vorhandene AXE-Prüfung ergänzen.
 - [ ] Gezielt Angular-Tests für Dialog/Service und betroffene Adminseite ausführen; `npm run typecheck`, gezieltes ESLint, `npm run build`. Commit: `feat(sniper): add manual Vinted verification to the admin bot page`.
 
-## Aufgabe 6: Browserfähiges Abbild und überprüfbaren Releasevertrag erstellen
+## Task 6: Browserfähiges Abbild und überprüfbaren Releasevertrag erstellen
 
 **Dateien:** Ändern: `services/sniper/Dockerfile`, `.dockerignore`, `scripts/smoke-image.mjs`; `deploy/docker-compose.sniper.yml`, `deploy/Caddyfile`, `deploy/deploy.sh`, `scripts/deploy-script.test.mjs`; bei relevanter Erkennung `.github/workflows/ci.yml`; neue Bot-Browsersmoketests unter `services/sniper/test/browser/`.
 
