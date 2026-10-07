@@ -1,5 +1,40 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-07 - Juna - Cloud-Browserdienst wiederherstellen und Wiederanlauf absichern
+
+**Auftrag:** Die Meldungen zum nicht erreichbaren Browserdienst und wartenden
+Cloud-Abruf für Maike Vintage untersuchen und beheben.
+
+**Befund:** Der Worker endet am 07.10.2026 um 19:11:21 UTC mit Exitcode 1,
+ohne OOM-Abbruch. Seine Neustartregel ist `no`; der öffentliche Endpunkt liefert
+HTTP 502. Davor sind automatische Abrufe um 18:40 und 18:56 UTC erfolgreich.
+Der fehlgeschlagene Abruf um 19:11 UTC endet in der Browserphase. Die Protokolle
+benennen den genauen Auslöser des Prozessendes nicht. Maike bleibt verbunden,
+der 15-Minuten-Zeitplan bleibt aktiviert und wartet wegen `network` bis
+19:41:21 UTC. Speicher, Festplatte und Firewallprüfung sind unauffällig.
+
+**Betrieb:** Nach Bestätigung, dass keine offenen Aufträge, Browsersitzungen oder
+Kontobrowsercontainer bestehen, wird ausschließlich der vorhandene Worker
+erneut gestartet. Öffentliche Gesundheitsprüfung und Workerstatus sind danach
+erfolgreich. Profil, Proxy und Zeitplan bleiben erhalten; Schreibaktionen sind
+weiterhin deaktiviert. Dieser Neustart belegt noch keinen anschließenden Abruf.
+
+**Umsetzung:** Die Compose-Vorlage erhält ausschließlich für den Worker
+`restart: unless-stopped`. Die bestehende Berechtigungsprüfung und Recovery
+bleiben Voraussetzung jedes Neustarts. Runtime-Abbrüche melden eine feste,
+typisierte Fehlerkategorie, damit fehlgeschlagene Reservierung, Auftrag und
+Lebenszeichen unterschieden werden können. Private Fehlertexte werden nicht
+weitergegeben. Die Serverkonfiguration wird erst nach PR-Freigabe angepasst.
+
+**Prüfung:** 51 gezielte Worker-Tests für Runtime, Browser-Recovery und
+Sitzungsreservierung sowie Worker-Typprüfung und Bau bestehen. Ergänzte
+Regressionstests prüfen alle sieben Abbruchkategorien und die einmalige
+Sperrung weiterer Aufträge. Formatierung, gezieltes ESLint und Compose-Prüfung
+bestehen. Die Compose-Prüfung bestätigt den Worker-Wiederanlauf, die erhaltene
+Broker-Startregel und deaktivierte Schreibaktionen. Der öffentliche Dienst ist
+bei der abschließenden Prüfung gesund; ein Abruf nach der Wiederherstellung
+ist noch nicht nachgewiesen.
+
 ## 2026-10-07 - Juna - Alten Abruffehler aus der Vinted-Anmeldung entfernen
 
 **Auftrag:** Prüfen, warum trotz angemeldetem Cloud-Konto nach dem Verbinden ein

@@ -25,7 +25,7 @@ export interface MarketplaceSyncTimers {
 interface DispatcherOptions {
   store: MarketplaceSyncDispatchStore;
   run(scope: BrowserSessionScope): Promise<void>;
-  onRuntimeLost(): void | Promise<void>;
+  onRuntimeLost(reason: MarketplaceRuntimeLossReason): void | Promise<void>;
   includeScheduled?: boolean;
   maxJobsPerPoll?: number;
   workerId?: string;
@@ -33,6 +33,14 @@ interface DispatcherOptions {
   timers?: MarketplaceSyncTimers;
   now?: () => number;
 }
+export type MarketplaceRuntimeLossReason =
+  | 'claim_failed'
+  | 'run_failed'
+  | 'heartbeat_rejected'
+  | 'heartbeat_expired'
+  | 'heartbeat_failed'
+  | 'runtime_expired'
+  | 'reservation_uncertain';
 export class MarketplaceSyncDispatcher {
   private readonly options: DispatcherOptions;
   private readonly workerId: string;
@@ -124,7 +132,7 @@ export class MarketplaceSyncDispatcher {
       );
     } catch {
       // Ein verlorener Claim kann bereits eine Sitzung reserviert haben. Recovery gehört zum Neustart.
-      this.loseRuntime();
+      this.loseRuntime('claim_failed');
       return false;
     }
     if (!scope || !this.checkRuntime()) return false;
@@ -133,7 +141,7 @@ export class MarketplaceSyncDispatcher {
       await this.options.run(scope);
     } catch {
       // Bekannte Fehler schließt der Runner selbst ab. Eine Rejection lässt die Reservierung ungeklärt.
-      this.loseRuntime();
+      this.loseRuntime('run_failed');
       return false;
     }
     return true;
@@ -154,7 +162,7 @@ export class MarketplaceSyncDispatcher {
     try {
       const active = await this.options.store.heartbeatWorker(lease.workerId, lease.workerEpoch);
       if (!active || this.lost || renewStartedAt + 90_000 <= this.now()) {
-        this.loseRuntime();
+        this.loseRuntime(active ? 'heartbeat_expired' : 'heartbeat_rejected');
         return false;
       }
       // Konservativ ab Anfragebeginn zählen; Transportzeit verlängert keine Serverberechtigung.
@@ -164,7 +172,7 @@ export class MarketplaceSyncDispatcher {
       });
       return true;
     } catch {
-      this.loseRuntime();
+      this.loseRuntime('heartbeat_failed');
       return false;
     }
   }
@@ -194,7 +202,7 @@ export class MarketplaceSyncDispatcher {
 
   /** Eine möglicherweise bereits reservierte Sitzung verlangt Recovery vor weiteren Claims. */
   invalidate(): void {
-    this.loseRuntime();
+    this.loseRuntime('reservation_uncertain');
   }
 
   async drain(): Promise<void> {
@@ -227,11 +235,11 @@ export class MarketplaceSyncDispatcher {
 
   private checkRuntime(): boolean {
     if (this.runtimeActive) return true;
-    if (this.lease && !this.lost) this.loseRuntime();
+    if (this.lease && !this.lost) this.loseRuntime('runtime_expired');
     return false;
   }
 
-  private loseRuntime(): void {
+  private loseRuntime(reason: MarketplaceRuntimeLossReason): void {
     if (this.lost) return;
     this.lost = true;
     this.stop();
@@ -239,7 +247,7 @@ export class MarketplaceSyncDispatcher {
     this.heartbeatTimer = undefined;
     // Der Callback darf selbst drain() aufrufen, ohne auf seine eigene Promise zu warten.
     try {
-      void Promise.resolve(this.options.onRuntimeLost()).catch(() => undefined);
+      void Promise.resolve(this.options.onRuntimeLost(reason)).catch(() => undefined);
     } catch {
       // Verlorene Berechtigung bleibt unabhängig von der Shutdown-Rückmeldung gesperrt.
     }

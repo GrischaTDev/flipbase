@@ -125,7 +125,11 @@ async function main(): Promise<void> {
           if (!syncRunner) return Promise.reject(new Error('Abrufdienst ist noch nicht bereit'));
           return syncRunner.runDispatched(scope);
         },
-        onRuntimeLost: () => {
+        onRuntimeLost: (reason) => {
+          // Nur feste Fehlerkategorien protokollieren, keine privaten Antworten oder Zugangsdaten.
+          process.stderr.write(
+            `${JSON.stringify({ event: 'marketplace_runtime_lost', reason })}\n`,
+          );
           void Promise.resolve()
             .then(async () => {
               await workerLifecycle.stop?.();
