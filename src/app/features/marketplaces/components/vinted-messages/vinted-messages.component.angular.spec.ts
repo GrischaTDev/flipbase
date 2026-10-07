@@ -108,6 +108,7 @@ let api: {
   readPage: ReturnType<typeof vi.fn>;
 };
 let store: MarketplaceAccountStore;
+let browserApi: { readConversation: ReturnType<typeof vi.fn> };
 let local: {
   error: ReturnType<typeof signal<string | null>>;
   busy: ReturnType<typeof signal<boolean>>;
@@ -183,6 +184,7 @@ beforeEach(() => {
     frage: vi.fn().mockResolvedValue(false),
     zeigeHinweis: vi.fn().mockResolvedValue(true),
   };
+  browserApi = { readConversation: vi.fn().mockResolvedValue(detailResult.observedAt) };
   TestBed.configureTestingModule({
     providers: [
       provideRouter([]),
@@ -203,10 +205,11 @@ beforeEach(() => {
       },
       { provide: WorkspaceService, useValue: { currentWorkspace: workspace } },
       { provide: MarketplaceApiService, useValue: api },
-      { provide: MarketplaceBrowserTestApiService, useValue: {} },
+      { provide: MarketplaceBrowserTestApiService, useValue: browserApi },
     ],
   });
   store = TestBed.inject(MarketplaceAccountStore);
+  vi.spyOn(store, 'refreshCloudConversation').mockResolvedValue({ status: 'cancelled' });
 });
 async function settle(fixture: ComponentFixture<VintedMessagesComponent>) {
   fixture.detectChanges();
@@ -349,6 +352,67 @@ describe('Vollständiges Laden eines Gesprächs', () => {
     expect(status?.textContent).toContain('Synchronisiert');
     expect(status?.getAttribute('title')).toContain('06.10.2026');
   });
+  it('zeigt ein Cloud-Gespräch nach tatsächlicher Detailübernahme als synchronisiert', async () => {
+    vi.mocked(store.refreshCloudConversation).mockRestore();
+    let checked = false;
+    api.readPage.mockImplementation(async (scope: AccountScope) =>
+      messages(scope, [
+        {
+          id: 'cloud-message',
+          text: checked ? 'Aktuelle Cloud-Nachricht' : 'Alter Verlauf',
+          direction: 'inbound',
+        },
+      ]),
+    );
+    api.readSnapshot.mockImplementation(async (scope: AccountScope) => {
+      const current = snapshot(scope);
+      return {
+        ...current,
+        conversations: {
+          ...current.conversations,
+          items: current.conversations.items.map((entry) => ({
+            ...entry,
+            detailCheckedAt: checked ? detailResult.observedAt : null,
+          })),
+        },
+      };
+    });
+    browserApi.readConversation.mockImplementation(async () => {
+      checked = true;
+      return detailResult.observedAt;
+    });
+    const fixture = await render();
+    const entry = store.snapshot()?.conversations.items[0];
+    if (!entry) throw new Error('Testgespräch fehlt');
+    await fixture.componentInstance.openConversation(entry);
+    await settle(fixture);
+    expect(fixture.nativeElement.querySelector('[data-conversation-sync]')?.textContent).toContain(
+      'Synchronisiert',
+    );
+    expect(local.openInboxConversation).not.toHaveBeenCalled();
+    expect(fixture.nativeElement.querySelector('[role="log"]')?.textContent).toContain(
+      'Aktuelle Cloud-Nachricht',
+    );
+  });
+  it('behält nach abgelehntem Cloud-Abruf den gespeicherten Verlauf mit Fehlerhinweis', async () => {
+    vi.mocked(store.refreshCloudConversation).mockRestore();
+    browserApi.readConversation.mockRejectedValue(new Error('Gespräch nicht erreichbar'));
+    const fixture = await render();
+    const entry = store.snapshot()?.conversations.items[0];
+    if (!entry) throw new Error('Testgespräch fehlt');
+    await fixture.componentInstance.openConversation(entry);
+    await settle(fixture);
+    expect(fixture.nativeElement.querySelector('[data-conversation-sync]')?.textContent).toContain(
+      'Aktualisierung fehlgeschlagen',
+    );
+    expect(fixture.nativeElement.querySelector('[role="log"]')?.textContent).toContain(
+      '<b>Hallo!</b>',
+    );
+    expect(
+      fixture.nativeElement.querySelector('[data-conversation-sync]')?.textContent,
+    ).not.toContain('Synchronisiert');
+  });
+
   it('bestätigt nach fehlgeschlagenem Snapshotlesen keinen alten Gesprächsstempel als neuen Abgleich', async () => {
     useLocalAccount();
     api.readSnapshot.mockImplementation(async (scope: AccountScope) => {

@@ -415,12 +415,15 @@ export class VintedMessagesComponent {
       this.store.selectedConversationId() === entry.id;
     try {
       await this.store.openConversation(entry.id);
-      if (readProvider && account.executionMode === 'local' && !this.store.error() && isCurrent()) {
-        // Der lokale Dienst führt nur einen Abruf gleichzeitig aus. Veraltete
+      if (readProvider && !this.store.error() && isCurrent()) {
+        // Je Ansicht läuft nur ein Abruf gleichzeitig. Veraltete
         // Auswahlen warten dessen Ende ab und starten anschließend keinen Abruf.
         const read = this.providerRead.then(async () => {
           if (!isCurrent()) return;
-          const result = await this.local.openInboxConversation(entry.id, isCurrent);
+          const result =
+            account.executionMode === 'local'
+              ? await this.local.openInboxConversation(entry.id, isCurrent)
+              : await this.store.refreshCloudConversation(entry.id, isCurrent);
           if (!isCurrent()) return;
           if (result.status === 'failed') {
             this.conversationRead.set({ key, error: result.error, observedAt: null });

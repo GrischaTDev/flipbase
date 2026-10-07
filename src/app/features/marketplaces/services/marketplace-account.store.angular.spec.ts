@@ -53,6 +53,7 @@ let currentWorkspace: ReturnType<typeof signal<{ id: string; archived_at?: strin
 let currentUser: ReturnType<typeof signal<{ id: string } | null>>;
 let accessSession: ReturnType<typeof signal<{ access_token: string } | null>>;
 let browserApi: {
+  readConversation: ReturnType<typeof vi.fn>;
   syncConnection: ReturnType<typeof vi.fn>;
   deleteConnection: ReturnType<typeof vi.fn>;
   readListingData: ReturnType<typeof vi.fn>;
@@ -80,6 +81,7 @@ beforeEach(() => {
   currentUser = signal<{ id: string } | null>({ id: 'user-a' });
   accessSession = signal<{ access_token: string } | null>({ access_token: 'token-a' });
   browserApi = {
+    readConversation: vi.fn().mockResolvedValue('2026-10-07T21:00:00Z'),
     syncConnection: vi.fn().mockResolvedValue(undefined),
     deleteConnection: vi.fn().mockResolvedValue(undefined),
     readListingData: vi.fn(),
@@ -111,6 +113,53 @@ beforeEach(() => {
     ],
   });
   store = TestBed.inject(MarketplaceAccountStore);
+});
+
+describe('Cloud-Gesprächsabruf', () => {
+  it('übernimmt bestätigte Details ohne Konto oder Gesprächsauswahl zu verlieren', async () => {
+    await settle();
+    await store.openConversation('conversation-a');
+    const result = await store.refreshCloudConversation('conversation-a', () => true);
+    expect(result).toEqual({ status: 'success', observedAt: '2026-10-07T21:00:00Z' });
+    expect(store.selectedConnection()?.connectionId).toBe(accountA.connectionId);
+    expect(store.selectedConversationId()).toBe('conversation-a');
+    expect(browserApi.readConversation).toHaveBeenCalledWith(
+      { workspaceId: accountA.workspaceId, connectionId: accountA.connectionId },
+      'conversation-a',
+      'token-a',
+    );
+  });
+  it('übernimmt nach einem Kontowechsel keine verspätete Abrufbestätigung', async () => {
+    await settle();
+    await store.openConversation('conversation-a');
+    const response = deferred<string>();
+    browserApi.readConversation.mockReturnValue(response.promise);
+    const read = store.refreshCloudConversation('conversation-a', () => true);
+    await store.selectConnection(accountB.connectionId);
+    response.resolve('2026-10-07T21:00:00Z');
+    expect(await read).toEqual({ status: 'cancelled' });
+    expect(store.selectedConnection()?.connectionId).toBe(accountB.connectionId);
+    expect(store.selectedConversationId()).toBeNull();
+  });
+  it('startet keinen Anbieterabruf für eine bereits veraltete Gesprächsauswahl', async () => {
+    await settle();
+    await store.openConversation('conversation-a');
+    expect(await store.refreshCloudConversation('conversation-a', () => false)).toEqual({
+      status: 'cancelled',
+    });
+    expect(browserApi.readConversation).not.toHaveBeenCalled();
+  });
+  it('behält gespeicherte Nachrichten bei einem abgelehnten Cloud-Abruf', async () => {
+    await settle();
+    await store.openConversation('conversation-a');
+    const saved = store.messages();
+    browserApi.readConversation.mockRejectedValue(new Error('Gespräch nicht erreichbar'));
+    expect(await store.refreshCloudConversation('conversation-a', () => true)).toEqual({
+      status: 'failed',
+      error: 'Gespräch nicht erreichbar',
+    });
+    expect(store.messages()).toBe(saved);
+  });
 });
 
 describe('Gespeicherte Vinted-Kontoauswahl', () => {

@@ -1,5 +1,35 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-07 - Juna - Cloud-Gespräche beim Öffnen aktuell abrufen
+
+**Auftrag:** Den bislang nur lokal vorhandenen Gesprächsabruf an den eigenen
+Cloud-Browser anschließen und den Prüfzeitpunkt nachvollziehbar anzeigen.
+
+**Befund:** Die Gesprächsansicht lädt bei Cloud-Konten nur gespeicherte Nachrichten.
+Der direkte Anbieterabruf ist auf `executionMode = local` begrenzt; deshalb fehlt
+die aktuelle Gesprächsbestätigung. Der automatische Cloud-Kontoabruf ist auf dem
+Server um 20:56 und 21:11 UTC erfolgreich, die Nachrichtenquelle bleibt teilweise
+gelesen. Eine Kontosynchronisation bestätigt nicht sämtliche Gesprächsdetails.
+
+**Umsetzung:** Beim Öffnen eines Cloud-Gesprächs liest der vorhandene Browserdienst
+das ausdrücklich ausgewählte Gespräch. Die RLS-geschützte Eintragszuordnung,
+angemeldete Kontoidentität und aktive Browserreservierung werden geprüft.
+Der bestehende Kontoimport übernimmt Nachrichten und Detailprüfzeitpunkt gemeinsam;
+andere ungelesene Gespräche werden nicht geöffnet. Vorhandene Versionen erhalten
+die unveränderten Detailprüfzeitpunkte anderer Gespräche. Die Ansicht übernimmt
+die aktualisierten Daten ohne Konto- oder Gesprächswechsel. Veraltete Auswahlen
+übernehmen keine verspätete Bestätigung; Fehler lassen gespeicherte Nachrichten
+sichtbar. „Synchronisiert“ bleibt an den tatsächlich übernommenen Prüfzeitpunkt
+gebunden. Cloud-Schreibaktionen werden nicht freigeschaltet.
+
+**Prüfstand:** Regressionstests zeigen vor der Umsetzung die fehlende Detailprüfung
+und anschließend neue Nachrichten und bestätigten Prüfzeitpunkt. 187 betroffene
+Angular-Tests bestehen. Die Worker-Suite besteht mit 347 erfolgreichen Tests und
+sieben unveränderten Auslassungen. Typprüfung und Produktionsbau für Anwendung
+und Worker, gezieltes ESLint und Formatierung bestehen. Der Anwendungsbau meldet
+weiterhin die bekannte CommonJS-Warnung für `pako`. Noch kein Deployment und kein
+echter Vinted-Detailabruf mit dieser Änderung.
+
 ## 2026-10-07 - Juna - Cloud-Browserdienst wiederherstellen und Wiederanlauf absichern
 
 **Auftrag:** Die Meldungen zum nicht erreichbaren Browserdienst und wartenden

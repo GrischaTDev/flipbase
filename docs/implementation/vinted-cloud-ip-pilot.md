@@ -3,6 +3,24 @@
 Stand: 05.10.2026. Freigegebener Pilot; lesenden Anbieterabgleich ergänzen.
 Ergänzt den [gemeinsamen Entwurf für Erweiterung und Cloud](vinted-local-and-cloud-design.md).
 
+## Ergänzung vom 07.10.2026: Gesprächsabruf
+
+Beim ausdrücklichen Öffnen eines Cloud-Gesprächs liest der Browserdienst dessen
+Details über das bestehende Kontoprofil und die zugewiesene IP. Die Leseroute
+`/marketplace-browser/conversations/read` erhält die Flipbase-Gesprächs-ID;
+die Anbieter-ID wird ausschließlich aus dem kontogebundenen Eintrag ermittelt.
+Der bestehende Kontoimport liest Profil, Inserate, Gesprächsliste und Bewertungen
+und zusätzlich genau diesen Gesprächsverlauf. Die Übernahme verwendet die
+vorhandene transaktionale Importfunktion und benötigt keine Schemaänderung.
+
+Nur ein bestätigter Detailabruf mit übernommenem Prüfzeitpunkt erlaubt die Anzeige
+„Synchronisiert“. Ein Fehler behält den gespeicherten Verlauf; eine andere
+Konto- oder Gesprächsauswahl verwirft verspätete Rückmeldungen. Der automatische
+Hintergrundabruf öffnet weiterhin keine ungelesenen Gespräche. Vollständiger
+Nachrichtenabgleich im Hintergrund und Cloud-Schreibaktionen sind getrennte,
+noch offene Schritte. Der echte Detailabruf wird erst nach Veröffentlichung
+dieser Änderung am Pilotkonto geprüft.
+
 ## Ziel und Umfang
 
 Nutzer können ein Vinted-Konto lokal mit der Erweiterung oder in der Cloud
