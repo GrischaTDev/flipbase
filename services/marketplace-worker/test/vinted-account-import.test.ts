@@ -152,6 +152,41 @@ test('erneuert eine vorhandene Sitzung nach initialer 401 ohne erneute Zugangsda
   assert.equal(snapshot.sourceRequestCount, 5);
 });
 
+test('failed session reloads preserve only a fixed browser diagnosis without another read', async () => {
+  for (const [message, diagnosis] of [
+    ['Navigation is interrupted by another navigation: private URL', 'navigation_interrupted'],
+    ['page.goto: net::ERR_ABORTED at https://private.example', 'navigation_aborted'],
+    ['page.goto: net::ERR_PROXY_CONNECTION_FAILED at https://private.example', 'network'],
+    ['page.goto: Timeout 20000ms exceeded: private URL', 'timeout'],
+    ['Target page, context or browser has been closed: private details', 'closed'],
+    ['private browser error', 'unknown'],
+  ] as const) {
+    let profileReads = 0;
+    let navigations = 0;
+    const page = importPage(() => {
+      profileReads++;
+      return { flipbaseRequestFailure: 'unauthorized' };
+    });
+    page.goto = async () => {
+      navigations++;
+      throw new Error(message);
+    };
+    await assert.rejects(
+      readVintedAccountImport(page, async () => undefined),
+      (error: unknown) =>
+        error instanceof VintedImportReadError &&
+        error.stage === 'profile' &&
+        error.cause instanceof VintedImportRequestError &&
+        error.cause.reason === 'browser_context' &&
+        error.cause.browserReadFailure === diagnosis &&
+        error.cause.cause === undefined &&
+        !error.cause.message.includes('private'),
+    );
+    assert.equal(profileReads, 1);
+    assert.equal(navigations, 1);
+  }
+});
+
 test('entzogener Zugriff verhindert bereits das Neuladen zur Sitzungswiederherstellung', async () => {
   let authorizations = 0;
   let navigations = 0;

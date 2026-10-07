@@ -1,5 +1,39 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-07 - Juna - Fehler beim erneuten Cloud-Seitenaufruf sichtbar machen
+
+**Auftrag:** Den freigegebenen Cloud-Abruf-Fix veröffentlichen und mehrere
+reguläre automatische Abrufe mit Maike Vintage prüfen.
+
+**Produktiver Stand:** PR #332 ist mit grünen Pflichtprüfungen als v0.308.1
+veröffentlicht. Ausschließlich das Worker-Image wurde ausgetauscht; Browserdienst,
+Profil, Proxybindung und Berechtigungsversion 22 bleiben erhalten. Drei
+kontrollierte Leseproben und ein vollständiger manueller Flipbase-Abruf laufen
+durch. Automatische Abrufe um 13:02 und 13:17 UTC sind erfolgreich und beenden
+den alten Wartestatus. Um 13:32 UTC scheitert der Profilschritt erneut mit
+`browser_context`; der aktivierte Zeitplan wartet regulär bis 14:02 UTC.
+
+**Eingrenzung:** Das neue Fehlerereignis enthält keine Browserkategorie.
+Der entsprechende Fehlerpfad verwirft die Ausnahme beim erneuten Seitenaufruf
+nach einer initialen 401-Antwort. Welche konkrete Navigationsausnahme im
+Produktivbetrieb auftrat, ist deshalb weiterhin nicht bewiesen. Sechs weitere
+kontrollierte Starts liefern jeweils 200 und reproduzieren diesen Ausfall nicht.
+Die bisherigen erfolgreichen Abrufe belegen daher keine abgeschlossene Korrektur.
+
+**Änderung:** Auch dieser Seitenaufruf erhält jetzt eine feste Fehlerkategorie.
+Unterschieden werden unterbrochene oder abgebrochene Navigation, Zeitüberschreitung,
+Netzwerk, geschlossener Browser, Skriptfehler und unbekannte Fehler. Die bestehende
+Ausgabe bleibt auf acht Kategorien begrenzt und verwirft beliebige Fremdwerte.
+Rohfehler, URLs, Anbieterantworten und Zugangsdaten werden nicht gespeichert.
+Es kommen keine Wiederholungen oder sonstigen Änderungen am Abrufverhalten hinzu.
+
+**Prüfung:** Neue Unit- und echte Chromium-Regressionen scheitern vor der
+Ergänzung und bestehen danach. 41 gezielte Tests sind erfolgreich, einschließlich
+sechs Chromium-Tests. Zusätzlich bestehen 339 Worker-Tests bei sieben bestehenden
+übersprungenen Prüfungen, Typprüfung, Worker-Bau, Formatierung und gezieltes Lint.
+Veröffentlichung dieser Diagnose-Ergänzung und Bestätigung der konkreten
+produktiven Navigationsausnahme stehen noch aus.
+
 ## 2026-10-07 - Juna - Unterbrochene Cloud-Leseanfragen begrenzt wiederholen
 
 **Auftrag:** Sporadische Browserfehler beim automatischen Abruf von Maike

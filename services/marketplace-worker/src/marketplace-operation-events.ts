@@ -19,7 +19,18 @@ export interface MarketplaceOperationEvent {
 export class MarketplaceOperationEvents {
   record(event: MarketplaceOperationEvent): void {
     const browserReadFailures = event.browserReadFailures
-      ?.filter((failure) => ['navigation', 'closed', 'script', 'unknown'].includes(failure))
+      ?.filter((failure) =>
+        [
+          'navigation',
+          'navigation_interrupted',
+          'navigation_aborted',
+          'timeout',
+          'network',
+          'closed',
+          'script',
+          'unknown',
+        ].includes(failure),
+      )
       .slice(0, 8);
     const line = `${JSON.stringify({
       event: 'marketplace_sync_stage',
