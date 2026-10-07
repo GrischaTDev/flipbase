@@ -51,9 +51,11 @@ try {
   started = true;
   let ready = false;
   for (let attempt = 0; attempt < 40; attempt += 1) {
+    // Der temporäre Initialisierungsserver akzeptiert nur Unix-Sockets.
+    // TCP auf Loopback wird erst vom endgültigen Server angeboten.
     const probe = spawnSync(
       'docker',
-      ['exec', name, 'pg_isready', '-U', 'postgres', '-d', 'label_test'],
+      ['exec', name, 'pg_isready', '--host', '127.0.0.1', '-U', 'postgres', '-d', 'label_test'],
       { encoding: 'utf8', timeout: 5000 },
     );
     if (!probe.error && probe.status === 0) {
