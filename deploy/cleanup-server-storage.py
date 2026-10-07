@@ -140,7 +140,7 @@ def is_encrypted_backup(path):
         return backup.readline(80) == b"age-encryption.org/v1\n" and path.stat().st_size > 32
 
 
-def plan_backups(directory):
+def plan_backups(directory, nightly_count=7, weekly_count=0):
     if directory.is_symlink() or directory.resolve() == Path(directory.anchor):
         raise ValueError("Unsicheres Sicherungsverzeichnis.")
     directory = directory.resolve(strict=True)
@@ -157,8 +157,17 @@ def plan_backups(directory):
         (stamp for stamp, files in nightly.items() if set(files) == set(BACKUP_EXTENSIONS)),
         reverse=True,
     )
+    kept_nightly = complete_sets[:nightly_count]
+    weeks = set()
+    for stamp in complete_sets[nightly_count:]:
+        week = datetime.strptime(stamp, "%Y-%m-%d_%H%M").isocalendar()[:2]
+        if len(weeks) < weekly_count and week not in weeks:
+            kept_nightly.append(stamp)
+            weeks.add(week)
     encrypted_to_remove = releases[3:]
-    for stamp in complete_sets[7:]:
+    for stamp in complete_sets:
+        if stamp in kept_nightly:
+            continue
         encrypted_to_remove.extend(nightly[stamp].values())
     # Lesbare Duplikate erst entfernen, wenn die verschlüsselte Kopie extern stimmt.
     duplicates = {}
@@ -175,9 +184,9 @@ def plan_backups(directory):
     # Die zugesagten Wiederherstellungspunkte müssen vor jeder lokalen Löschung
     # auch extern vollständig vorliegen; alte Punkte dürfen nach dieser Regel gehen.
     verification = list(releases[:3])
-    for stamp in complete_sets[:7]:
+    for stamp in kept_nightly:
         verification.extend(nightly[stamp].values())
-    return candidates, verification, releases[:3], complete_sets[:7]
+    return candidates, verification, releases[:3], kept_nightly
 
 
 def verify_offsite(directory, paths):
@@ -243,6 +252,7 @@ def main():
         help="Auch Supabase-Caches begrenzen; Container und Compose-Versionen schützen",
     )
     parser.add_argument("--backup-directory", type=Path, default=Path("/var/backups/flipbase"))
+    parser.add_argument("--nightly-count", type=int, choices=range(1, 8), default=7)
     parser.add_argument("--deploy-directory", type=Path, default=Path("/opt/flipbase"))
     arguments = parser.parse_args()
     images = []
@@ -259,7 +269,7 @@ def main():
             images = select_old_images(read_images(), protected, arguments.include_supabase)
         if arguments.scope in ("all", "backups"):
             backups, verification, kept_releases, kept_nightly_sets = plan_backups(
-                arguments.backup_directory
+                arguments.backup_directory, nightly_count=arguments.nightly_count
             )
         identities = {path: file_identity(path) for path in set(backups) | set(verification)}
         print(json.dumps({
