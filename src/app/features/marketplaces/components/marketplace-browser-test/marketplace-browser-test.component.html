@@ -1,17 +1,51 @@
-<app-card
-  [title]="compact() ? '' : store.readOnly() ? 'Öffentlicher Browser-Test' : 'Vinted-Anmeldung'"
-  [subtitle]="compact() ? '' : 'Melde Dich mit Deinem Vinted-Konto an.'"
-  [variant]="compact() ? 'subtle' : 'surface'"
->
+@if (!compact()) {
+  <app-card
+    [title]="store.readOnly() ? 'Öffentlicher Browser-Test' : 'Vinted-Anmeldung'"
+    [subtitle]="store.readOnly() ? '' : 'Melde Dich mit Deinem Vinted-Konto an.'"
+    variant="surface"
+  >
+    <ng-container *ngTemplateOutlet="browserContent" />
+  </app-card>
+} @else {
+  <div class="space-y-4">
+    <ng-container *ngTemplateOutlet="browserContent" />
+  </div>
+}
+
+<ng-template #browserContent>
   @let selectedConnection = pendingAccountName() ? null : store.connection();
   @if (selectedConnection || pendingAccountName()) {
-    <p class="mb-3 text-sm text-fb-text-secondary">
-      Ausgewähltes Konto:
-      <strong class="text-fb-text-primary">{{
-        selectedConnection?.displayName || pendingAccountName()
-      }}</strong>
-    </p>
+    @if (compact()) {
+      <div
+        class="flex items-center justify-between rounded-lg border border-fb-line bg-fb-subtle/50 px-3.5 py-2 text-xs"
+      >
+        <div class="flex min-w-0 items-center gap-2">
+          <span class="shrink-0 text-fb-text-secondary">Konto:</span>
+          <span class="inline-flex truncate items-center gap-1.5 font-medium text-fb-text-primary">
+            <span class="size-1.5 shrink-0 rounded-full bg-teal-400"></span>
+            {{ selectedConnection?.displayName || pendingAccountName() }}
+          </span>
+        </div>
+        <span
+          class="shrink-0 rounded border border-fb-line bg-fb-surface px-2 py-0.5 text-[11px] text-fb-text-secondary"
+        >
+          @if (selectedConnection?.status === 'connected') {
+            Verbunden
+          } @else {
+            Cloud-Profil bereit
+          }
+        </span>
+      </div>
+    } @else {
+      <p class="mb-3 text-sm text-fb-text-secondary">
+        Ausgewähltes Konto:
+        <strong class="text-fb-text-primary">{{
+          selectedConnection?.displayName || pendingAccountName()
+        }}</strong>
+      </p>
+    }
   }
+
   @if (!store.availabilityChecked()) {
     <p role="status" class="text-sm text-fb-text-secondary">Anmeldung wird vorbereitet …</p>
   } @else if (!store.available()) {
@@ -45,17 +79,17 @@
       }
     }
     @if (store.cloudCancelled()) {
-      <app-notice-banner announcement="status"
-        >Die Cloud-Einrichtung wurde abgebrochen. Schließe diesen Dialog. Du kannst die Einrichtung
-        anschließend erneut beginnen.</app-notice-banner
-      >
+      <app-notice-banner announcement="status">
+        Die Cloud-Einrichtung wurde abgebrochen. Schließe diesen Dialog. Du kannst die Einrichtung
+        anschließend erneut beginnen.
+      </app-notice-banner>
     } @else if (store.cloudCompleted()) {
-      <app-notice-banner announcement="status"
-        >Cloud aktiv. Dein Konto ist verbunden.</app-notice-banner
-      >
-      <app-button class="mt-3" link="/marketplaces/vinted/profile"
-        >Verbundenes Profil ansehen</app-button
-      >
+      <app-notice-banner announcement="status">
+        Cloud aktiv. Dein Konto ist verbunden.
+      </app-notice-banner>
+      <app-button class="mt-3" link="/marketplaces/vinted/profile">
+        Verbundenes Profil ansehen
+      </app-button>
     } @else if (store.cloudVerified()) {
       <app-notice-banner announcement="status">
         @if (store.busy()) {
@@ -66,12 +100,12 @@
         }
       </app-notice-banner>
       <div class="mt-3 flex flex-wrap gap-2">
-        <app-button variant="primary" [loading]="store.busy()" (clicked)="store.completeCloud()"
-          >Cloud aktivieren</app-button
-        >
-        <app-button [disabled]="store.busy()" (clicked)="store.close()"
-          >Einrichtung abbrechen</app-button
-        >
+        <app-button variant="primary" [loading]="store.busy()" (clicked)="store.completeCloud()">
+          Cloud aktivieren
+        </app-button>
+        <app-button [disabled]="store.busy()" (clicked)="store.close()">
+          Einrichtung abbrechen
+        </app-button>
       </div>
     } @else if (store.readOnly()) {
       <app-notice-banner class="mt-4">
@@ -88,9 +122,9 @@
         </app-button>
       } @else {
         <div class="mt-4 flex flex-wrap gap-2">
-          <app-button [disabled]="!store.canAct()" (clicked)="store.refresh()"
-            >Bild aktualisieren</app-button
-          >
+          <app-button [disabled]="!store.canAct()" (clicked)="store.refresh()">
+            Bild aktualisieren
+          </app-button>
           <app-button variant="destructive" (clicked)="store.close()">Test beenden</app-button>
         </div>
         @if (store.session()?.frameUrl; as frameUrl) {
@@ -111,9 +145,9 @@
         <p role="status" class="mt-4 text-sm font-medium">Dein Vinted-Konto ist verbunden.</p>
         <div class="mt-3 flex flex-wrap gap-2">
           <app-button link="/marketplaces/vinted/profile">Verbundenes Profil ansehen</app-button>
-          <app-button variant="secondary" (clicked)="reconnectRequested.set(true)"
-            >Anmeldung erneuern</app-button
-          >
+          <app-button variant="secondary" (clicked)="reconnectRequested.set(true)">
+            Anmeldung erneuern
+          </app-button>
         </div>
       } @else {
         @if (
@@ -130,73 +164,167 @@
           !store.awaitingVerification() &&
           !store.interactionRequired()
         ) {
-          <app-card class="mt-4" title="Anmeldedaten" variant="subtle" padding="sm">
-            <form class="space-y-3" autocomplete="off" [formGroup]="loginForm" (ngSubmit)="login()">
-              <div class="grid gap-3 sm:grid-cols-2">
-                <app-text-field
-                  class="min-w-0"
-                  label="Vinted-Mitgliedsname oder E-Mail"
-                  autocomplete="off"
-                  [formControl]="loginForm.controls.username"
-                  [required]="true"
-                  [maxLength]="256"
-                />
-                <app-text-field
-                  class="min-w-0"
-                  label="Vinted-Passwort"
-                  type="password"
-                  autocomplete="new-password"
-                  [revealable]="true"
-                  [formControl]="loginForm.controls.password"
-                  [required]="true"
-                  [maxLength]="256"
-                />
-              </div>
-              <p class="text-xs text-fb-text-secondary">
-                Die Anmeldung läuft im Hintergrund in Deinem eigenen Kontoprofil. Cookiehinweise
-                werden auf notwendige Cookies beschränkt. Flipbase speichert Dein Passwort nicht.
-              </p>
-              <div class="flex flex-wrap gap-2">
-                <app-button
-                  type="submit"
-                  variant="primary"
-                  [disabled]="submitting() || !canSubmitLogin() || loginForm.invalid"
+          @if (compact()) {
+            <div class="space-y-4">
+              <form
+                class="space-y-4"
+                autocomplete="off"
+                [formGroup]="loginForm"
+                (ngSubmit)="login()"
+              >
+                <div class="grid gap-3 sm:grid-cols-2">
+                  <app-text-field
+                    class="min-w-0"
+                    label="Vinted-Mitgliedsname oder E-Mail"
+                    autocomplete="off"
+                    [formControl]="loginForm.controls.username"
+                    [required]="true"
+                    [maxLength]="256"
+                  />
+                  <app-text-field
+                    class="min-w-0"
+                    label="Vinted-Passwort"
+                    type="password"
+                    autocomplete="new-password"
+                    [revealable]="true"
+                    [formControl]="loginForm.controls.password"
+                    [required]="true"
+                    [maxLength]="256"
+                  />
+                </div>
+
+                <div
+                  class="flex items-start gap-2.5 rounded-lg border border-fb-line bg-fb-subtle/50 p-3 text-xs text-fb-text-secondary"
                 >
-                  Anmelden und Konto verbinden
-                </app-button>
-                @if (!store.session()) {
-                  <app-button
-                    type="button"
-                    variant="secondary"
-                    [disabled]="!store.canStart()"
-                    [loading]="store.busy()"
-                    (clicked)="openManualBrowser()"
+                  <svg
+                    class="mt-0.5 size-4 shrink-0 text-emerald-500"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
                   >
-                    Direkt im Browser anmelden
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                  </svg>
+                  <div class="leading-relaxed">
+                    <strong class="font-medium text-fb-text-primary">Sichere Verbindung:</strong>
+                    Die Anmeldung läuft direkt im geschützten Cloud-Profil dieses Kontos. Flipbase
+                    speichert Dein Passwort nicht.
+                  </div>
+                </div>
+
+                <div class="flex flex-col gap-2.5 pt-1 sm:flex-row">
+                  <app-button
+                    class="flex-1"
+                    type="submit"
+                    variant="primary"
+                    [disabled]="submitting() || !canSubmitLogin() || loginForm.invalid"
+                  >
+                    Anmelden und Konto verbinden
                   </app-button>
+                  @if (!store.session()) {
+                    <app-button
+                      type="button"
+                      variant="secondary"
+                      [disabled]="!store.canStart()"
+                      [loading]="store.busy()"
+                      (clicked)="openManualBrowser()"
+                    >
+                      Direkt im Browser anmelden
+                    </app-button>
+                  }
+                </div>
+
+                @if (!store.session()) {
+                  <p class="text-center text-xs text-fb-text-secondary">
+                    Tipp: Wähle „Direkt im Browser anmelden“, wenn Du Google-/Apple-Login nutzt oder
+                    Deine Zugangsdaten direkt auf Vinted eingeben möchtest.
+                  </p>
                 }
-              </div>
-              @if (!store.session()) {
+              </form>
+            </div>
+          } @else {
+            <app-card class="mt-4" title="Anmeldedaten" variant="subtle" padding="sm">
+              <form
+                class="space-y-3"
+                autocomplete="off"
+                [formGroup]="loginForm"
+                (ngSubmit)="login()"
+              >
+                <div class="grid gap-3 sm:grid-cols-2">
+                  <app-text-field
+                    class="min-w-0"
+                    label="Vinted-Mitgliedsname oder E-Mail"
+                    autocomplete="off"
+                    [formControl]="loginForm.controls.username"
+                    [required]="true"
+                    [maxLength]="256"
+                  />
+                  <app-text-field
+                    class="min-w-0"
+                    label="Vinted-Passwort"
+                    type="password"
+                    autocomplete="new-password"
+                    [revealable]="true"
+                    [formControl]="loginForm.controls.password"
+                    [required]="true"
+                    [maxLength]="256"
+                  />
+                </div>
                 <p class="text-xs text-fb-text-secondary">
-                  Für "Direkt im Browser anmelden" bleiben diese Felder leer. Gib Deine Zugangsdaten
-                  anschließend direkt in der Browseransicht ein.
+                  Die Anmeldung läuft direkt im geschützten Cloud-Profil dieses Kontos. Flipbase
+                  speichert Dein Passwort nicht.
                 </p>
-              }
-            </form>
-          </app-card>
+                <div class="flex flex-wrap gap-2">
+                  <app-button
+                    type="submit"
+                    variant="primary"
+                    [disabled]="submitting() || !canSubmitLogin() || loginForm.invalid"
+                  >
+                    Anmelden und Konto verbinden
+                  </app-button>
+                  @if (!store.session()) {
+                    <app-button
+                      type="button"
+                      variant="secondary"
+                      [disabled]="!store.canStart()"
+                      [loading]="store.busy()"
+                      (clicked)="openManualBrowser()"
+                    >
+                      Direkt im Browser anmelden
+                    </app-button>
+                  }
+                </div>
+                @if (!store.session()) {
+                  <p class="text-xs text-fb-text-secondary">
+                    Für "Direkt im Browser anmelden" bleiben diese Felder leer. Gib Deine
+                    Zugangsdaten anschließend direkt in der Browseransicht ein.
+                  </p>
+                }
+              </form>
+            </app-card>
+          }
         }
         @if (showProgress()) {
           <div
-            class="flex min-h-40 flex-col items-center justify-center gap-4 text-center"
+            class="flex min-h-40 flex-col items-center justify-center gap-4 py-6 text-center"
             role="status"
           >
             <span
               class="h-10 w-10 animate-spin rounded-full border-4 border-fb-primary/25 border-t-fb-primary"
               aria-hidden="true"
             ></span>
-            <p class="max-w-sm text-sm text-fb-text-secondary">
-              {{ store.progress() || 'Deine Anmeldung wird vorbereitet …' }}
-            </p>
+            <div>
+              <h3 class="text-sm font-semibold text-fb-text-primary">
+                Anmeldung wird ausgeführt …
+              </h3>
+              <p class="mt-1 max-w-sm text-xs text-fb-text-secondary">
+                {{
+                  store.progress() ||
+                    'Dein Browserprofil wird gestartet und die Vinted-Sitzung initialisiert.'
+                }}
+              </p>
+            </div>
           </div>
         }
         @if (store.awaitingVerification()) {
@@ -205,6 +333,20 @@
             [formGroup]="codeForm"
             (ngSubmit)="verifyCode()"
           >
+            <div
+              class="mx-auto flex size-10 items-center justify-center rounded-full border border-amber-500/20 bg-amber-500/10 text-amber-500"
+            >
+              <svg
+                class="size-5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+              </svg>
+            </div>
             <h3 class="text-base font-semibold text-fb-text-primary">Bestätigungscode eingeben</h3>
             <p class="text-sm text-fb-text-secondary">
               Vinted hat eine zusätzliche Bestätigung angefordert. Gib den Code aus Deiner SMS hier
@@ -292,7 +434,7 @@
                   >
                     <button
                       type="button"
-                      class="relative block w-full touch-none select-none cursor-pointer focus-visible:outline-2 focus-visible:outline-fb-primary disabled:opacity-50"
+                      class="relative block w-full cursor-pointer touch-none select-none focus-visible:outline-2 focus-visible:outline-fb-primary disabled:opacity-50"
                       aria-label="Browserbild anklicken oder mit Maus oder Finger ziehen"
                       [disabled]="!store.canAct()"
                       (click)="clickFrame($event)"
@@ -388,4 +530,4 @@
   } @else {
     <p class="text-sm text-fb-text-secondary">Wähle oben ein Konto aus.</p>
   }
-</app-card>
+</ng-template>

@@ -1,5 +1,36 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-07 - Juna - Vinted-Anmeldefenster nach Shopify-Polaris überarbeiten
+
+**Auftrag:** Das Vinted-Anmeldefenster stimmig, aufgeräumt und passend zur
+Polaris-Designlinie gestalten. Die dreifache Kasten-in-Kasten-Verschachtelung
+beseitigen, die breite Leere im Anmeldeschritt beheben und die beiden
+Anmeldewege verständlich strukturieren.
+
+**Umsetzung:**
+
+1. **Entschachtelung:** Das Modal (`app-modal-shell`) bildet den direkten Rahmen.
+   Im Kompaktmodus entfallen die verschachtelten `app-card`-Container um das
+   Formular.
+2. **Kompakte Anfangsgröße & dynamische Erweiterung:** Der Dialog startet fokussiert
+   in `size="lg"` (ca. 620 px) und erweitert sich über ein `previewActive`-Signal
+   erst bei aktiver interaktiver Browser-Vorschau (Captcha/Stream) auf `size="xl"`
+   (896 px).
+3. **Konto-Identitätszeile:** Ein kompakter Streifen fasst den Namen des
+   ausgewählten Kontos mit Statusindikator und Bereit-Status zusammen.
+4. **Klare 2-Wege-Aktionen:** Primärer Anmeldebutton („Anmelden und Konto verbinden“)
+   in Markenfarbe Flipbase-Gelb (`#fcc601`) neben direktem sekundären Button
+   („Direkt im Browser anmelden“) für Google-/Apple-Login und manuelle Eingabe
+   ohne Umwege über Zwischen-Tabs.
+5. **Datenschutz & Sicherheit:** Ein dezenter Trust-Hinweis mit Schild-Symbol
+   erklärt die sichere Ausführung im isolierten Cloud-Profil und die flüchtige
+   Handhabung von Passwörtern. Redundante Fußzeilen und Abbrechen-Links entfallen.
+
+**Prüfung:** 103 Tests in `marketplace-browser-test`, 30 Tests in `marketplace-accounts`
+(inkl. AXE-Barrierefreiheit) und 50 Tests in `vinted-workspace` bestehen. TypeScript-
+Typprüfung, ESLint, Prettier-Formatierung und `scripts/check-admin-shared-ui.mjs`
+bestehen fehlerfrei (0 Findings).
+
 ## 2026-10-07 - Juna - Cloud-PR freigeben und Browserprüfung eindeutig machen
 
 **Freigabe:** Der Nutzer bestätigt PR, erfolgreiche Pflichtprüfungen, Merge

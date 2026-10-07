@@ -24,10 +24,15 @@
             ? 'Vinted-Anmeldung'
             : 'Vinted-Konto hinzufügen'
     "
+    [subtitle]="
+      currentDialog.mode === 'login' ? 'Melde Dich an, um Dein Vinted-Konto zu verbinden' : ''
+    "
     presentation="center"
     [size]="
       currentDialog.mode === 'login'
-        ? 'full'
+        ? loginPreviewActive()
+          ? 'xl'
+          : 'lg'
         : currentDialog.mode === 'rename' || currentDialog.mode === 'delete'
           ? 'sm'
           : 'md'
@@ -72,6 +77,7 @@
         [pendingAccountName]="
           currentDialog.newAccount && !currentDialog.connectionId ? name.value : null
         "
+        (previewActive)="loginPreviewActive.set($event)"
         (connectionCreated)="connectionCreated($event)"
       />
     } @else if (currentDialog.mode === 'delete') {

@@ -1,9 +1,19 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { map } from 'rxjs';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
-import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
+import {
+  type ModalSize,
+  ModalShellComponent,
+} from '../../../../shared/components/modal-shell/modal-shell.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { MarketplaceCloudSetupStore } from '../../services/marketplace-cloud-setup.store';
@@ -25,6 +35,8 @@ import { MarketplaceBrowserTestComponent } from '../marketplace-browser-test/mar
 export class MarketplaceConnectComponent {
   readonly accounts = inject(MarketplaceAccountStore);
   readonly cloud = inject(MarketplaceCloudSetupStore);
+  readonly previewActive = signal(false);
+  readonly modalSize = computed<ModalSize>(() => (this.previewActive() ? 'xl' : 'lg'));
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly requestedId = toSignal(
