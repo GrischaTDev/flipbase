@@ -2793,6 +2793,56 @@ export type Database = {
           },
         ]
       }
+      marketplace_feedback_notifications: {
+        Row: {
+          author_name: string | null
+          cleared_at: string | null
+          connection_id: string
+          external_feedback_id: string
+          id: number
+          is_automatic: boolean | null
+          notified_at: string | null
+          observed_at: string
+          rating: number | null
+          read: boolean
+          workspace_id: string
+        }
+        Insert: {
+          author_name?: string | null
+          cleared_at?: string | null
+          connection_id: string
+          external_feedback_id: string
+          id?: never
+          is_automatic?: boolean | null
+          notified_at?: string | null
+          observed_at: string
+          rating?: number | null
+          read?: boolean
+          workspace_id: string
+        }
+        Update: {
+          author_name?: string | null
+          cleared_at?: string | null
+          connection_id?: string
+          external_feedback_id?: string
+          id?: never
+          is_automatic?: boolean | null
+          notified_at?: string | null
+          observed_at?: string
+          rating?: number | null
+          read?: boolean
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_feedback_notificati_workspace_id_connection_id_fkey"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_connections"
+            referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
       marketplace_listing_metric_observations: {
         Row: {
           connection_id: string
@@ -7453,6 +7503,14 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_mark_feedback_notifications: {
+        Args: {
+          p_clear?: boolean
+          p_notification_id?: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       marketplace_prepare_favorite_import: {
         Args: {
           p_connection_id: string
@@ -7470,6 +7528,10 @@ export type Database = {
         Returns: Json
       }
       marketplace_read_favorite_notifications: {
+        Args: { p_workspace_id: string }
+        Returns: Json
+      }
+      marketplace_read_feedback_notifications: {
         Args: { p_workspace_id: string }
         Returns: Json
       }

@@ -1,5 +1,40 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-07 - Juna - Neue Vinted-Bewertungen in der Glocke melden
+
+**Auftrag:** Neue Bewertungen nach einem Kontoabruf dauerhaft in der
+Benachrichtigungsglocke anzeigen, zusätzlich zur Korrektur ihrer Herkunft.
+
+**Umsetzung:** Der übernommene Profilstand erzeugt serverseitig eine Meldung je
+neuer Bewertungskennung. Der erste erfolgreiche Abruf übernimmt nur den
+Ausgangsbestand; bestehende Profile verwenden ihren vorherigen Bestand.
+Mitgliederbewertungen, automatische und noch unbekannte Herkunft werden
+gemeldet. Wiederholungen, Herkunfts-/Textkorrekturen, fehlgeschlagene oder
+veraltete Importe erzeugen keine zusätzlichen Meldungen. Beim Leeren bleiben
+die bekannten Kennungen gespeichert, damit Meldungen nicht wiederkehren.
+
+Die Glocke vereint allgemeine Meldungen, Favoriten und Bewertungen. Ein Klick
+führt zur Bewertungsübersicht des zugehörigen Kontos. Lesestatus und Leeren
+gelten workspaceweit wie beim vorhandenen Favoritenstrom. Ein eigener privater
+Broadcastkanal invalidiert den Feed ohne Kontodetails; regelmäßiges Nachladen
+sichert Wiederverbindungen ab. Betreiber- und Workspace-Adminrechte bleiben
+erforderlich; Browser können keine Meldungen erzeugen oder Details ändern.
+
+**Datenbank:** Deklaratives Schema, registrierte Migration und neu erzeugte
+API-Typen. Die Migration stammt aus dem Supabase-PgDelta-Katalogabgleich;
+objektbezogene ACLs werden aus dem Zielkatalog explizit ergänzt, einschließlich
+der Identitätssequenz. Der Transaktionsrahmen bleibt beim Releasepaket.
+Isolierte Datenbanken enthalten ausschließlich Schema und synthetische
+Testkonten. Keine Produktionsdaten oder Kontozugänge werden kopiert.
+
+**Prüfung:** 44 Datenbankprüfungen bestehen sowohl auf dem deklarativen Ziel
+als auch nach Migration mit der Produktionsrolle. Objektberechtigungen sind
+abgeglichen. 20 Modell-/Headeraktionstests und 24 Angular-Tests bestehen;
+Typprüfung, Format, Lint und Anwendungsbau bestehen. Testzuordnung,
+Schemaregistrierung und die betroffenen Workflowprüfungen bestehen ebenfalls.
+Die produktive Veröffentlichung und eine tatsächlich neu eingegangene
+Bewertung sind noch nicht bestätigt.
+
 ## 2026-10-07 - Juna - Herkunft und Datum von Cloud-Bewertungen korrigieren
 
 **Auftrag:** Bewertungen von Mitgliedern und automatische Vinted-Bewertungen
