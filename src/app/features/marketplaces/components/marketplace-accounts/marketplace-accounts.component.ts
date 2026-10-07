@@ -45,6 +45,7 @@ export class MarketplaceAccountsComponent {
   readonly store = inject(MarketplaceAccountStore);
   readonly cloud = inject(MarketplaceCloudSetupStore);
   readonly extension = inject(VintedLocalExtensionBridge);
+  readonly loginPreviewActive = signal(false);
   private readonly router = inject(Router);
   private readonly workspace = inject(WorkspaceService);
   private readonly auth = inject(AuthService);
@@ -197,6 +198,7 @@ export class MarketplaceAccountsComponent {
     this.dialogRevision++;
     void this.cloud.cancel();
     this.checkingContext.set(null);
+    this.loginPreviewActive.set(false);
     this.dialogState.set(null);
     this.name.reset();
     this.submitted.set(false);

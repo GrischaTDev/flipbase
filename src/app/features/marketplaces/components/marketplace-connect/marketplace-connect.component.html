@@ -4,8 +4,9 @@
       ? 'Vinted-Anmeldung – ' + requestedConnection()?.displayName
       : 'Vinted-Anmeldung'
   "
+  subtitle="Melde Dich an, um Dein Vinted-Konto zu verbinden"
   presentation="center"
-  size="full"
+  [size]="modalSize()"
   [hasFooter]="false"
   (closed)="close()"
 >
@@ -13,7 +14,11 @@
     <app-notice-banner class="mb-4" announcement="alert">{{ error }}</app-notice-banner>
   }
   @if (activeCloudSetup(); as setup) {
-    <app-marketplace-browser-test [compact]="true" [cloudSetupId]="setup.setupId" />
+    <app-marketplace-browser-test
+      [compact]="true"
+      [cloudSetupId]="setup.setupId"
+      (previewActive)="previewActive.set($event)"
+    />
   } @else if (accounts.loading()) {
     <p role="status" class="text-sm text-fb-text-secondary">Kontoverbindung wird geladen …</p>
   } @else if (!requestedConnection()) {
@@ -62,6 +67,10 @@
     @if (accounts.error(); as error) {
       <app-notice-banner class="mb-4" announcement="alert">{{ error }}</app-notice-banner>
     }
-    <app-marketplace-browser-test [compact]="true" [reconnectOnOpen]="reconnectRequested()" />
+    <app-marketplace-browser-test
+      [compact]="true"
+      [reconnectOnOpen]="reconnectRequested()"
+      (previewActive)="previewActive.set($event)"
+    />
   }
 </app-modal-shell>

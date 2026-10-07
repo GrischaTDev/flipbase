@@ -1,3 +1,4 @@
+import { NgTemplateOutlet } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -37,6 +38,7 @@ interface BrowserPointerGesture {
 @Component({
   selector: 'app-marketplace-browser-test',
   imports: [
+    NgTemplateOutlet,
     ButtonComponent,
     CardComponent,
     NoticeBannerComponent,
@@ -62,6 +64,17 @@ export class MarketplaceBrowserTestComponent {
   readonly pendingAccountName = input<string | null>(null);
   readonly cloudSetupId = input<string | null>(null);
   readonly connectionCreated = output<string>();
+  readonly activeTab = signal<'credentials' | 'browser'>('credentials');
+  readonly previewActive = output<boolean>();
+  readonly isPreviewActive = computed(
+    () =>
+      this.compact() &&
+      Boolean(
+        this.store.session()?.frameUrl ||
+        this.store.manualLogin() ||
+        this.store.interactionRequired(),
+      ),
+  );
   readonly submitting = signal(false);
   readonly reconnectRequested = signal(false);
   readonly canSubmitLogin = computed(() =>
@@ -95,6 +108,9 @@ export class MarketplaceBrowserTestComponent {
   });
 
   constructor() {
+    effect(() => {
+      this.previewActive.emit(this.isPreviewActive());
+    });
     effect(() => this.store.configureCloudSetup(this.cloudSetupId()));
     void this.store.checkAvailability();
     const interval = setInterval(() => {
@@ -122,6 +138,7 @@ export class MarketplaceBrowserTestComponent {
       const connectionId = this.store.connection()?.connectionId;
       if (connectionId === this.credentialsConnectionId) return;
       this.credentialsConnectionId = connectionId;
+      this.activeTab.set('credentials');
       this.loginForm.reset();
       this.code.reset();
       this.manualTextInput.reset();
@@ -329,6 +346,7 @@ export class MarketplaceBrowserTestComponent {
   }
 
   async openManualBrowser(): Promise<void> {
+    this.activeTab.set('browser');
     this.loginForm.reset();
     this.code.reset();
     this.manualTextInput.reset();
