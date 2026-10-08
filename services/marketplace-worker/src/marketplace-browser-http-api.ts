@@ -69,6 +69,7 @@ interface BrowserApiOptions {
     ): Promise<Record<'profile' | 'publication' | 'conversation' | 'message' | 'sale', number>>;
   };
   edits?: VintedEditAccess;
+  conversationAccess?: VintedEditAccess;
   operations?: Pick<MarketplaceSyncRunner, 'start' | 'read'>;
   listingCache?: Pick<SupabaseVintedListingCache, 'save'>;
   profileCache?: Pick<SupabaseVintedProfileCache, 'save'>;
@@ -240,6 +241,7 @@ export class MarketplaceBrowserHttpApi {
   private readonly accounts?: BrowserApiOptions['accounts'];
   private readonly imports?: BrowserApiOptions['imports'];
   private readonly edits?: VintedEditAccess;
+  private readonly conversationAccess?: VintedEditAccess;
   private readonly operations?: BrowserApiOptions['operations'];
   private readonly listingCache?: BrowserApiOptions['listingCache'];
   private readonly profileCache?: BrowserApiOptions['profileCache'];
@@ -255,6 +257,7 @@ export class MarketplaceBrowserHttpApi {
     this.accounts = options.accounts;
     this.imports = options.imports;
     this.edits = options.edits;
+    this.conversationAccess = options.conversationAccess;
     this.operations = options.operations;
     this.listingCache = options.listingCache;
     this.profileCache = options.profileCache;
@@ -595,10 +598,14 @@ export class MarketplaceBrowserHttpApi {
             !uuidPattern.test(body['conversationId'])
           )
             throw new RequestError(400);
-          if (!this.edits) throw new RequestError(503);
+          if (!this.conversationAccess) throw new RequestError(503);
           conversationId = body['conversationId'];
           try {
-            requestedConversation = await this.edits.entry(scope, 'conversation', conversationId);
+            requestedConversation = await this.conversationAccess.entry(
+              scope,
+              'conversation',
+              conversationId,
+            );
           } catch {
             throw new RequestError(403);
           }
