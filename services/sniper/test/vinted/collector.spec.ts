@@ -161,6 +161,18 @@ describe('VintedCollector', () => {
     await expect(build(fetchFn).collect(query)).rejects.toThrow();
   });
 
+  it('retains the accepted HTTP status when the document contains no catalog', async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValue(new Response('<html>empty catalog</html>', { status: 200 }));
+    await expect(build(fetchFn).collect(query)).rejects.toMatchObject({
+      kind: 'parser_error',
+      status: 200,
+      phase: 'parse',
+      queryId: query.id,
+    });
+  });
+
   it('reicht die Preisuntergrenze an Vinted weiter', async () => {
     const fetchFn = vi.fn().mockResolvedValueOnce(catalog());
 

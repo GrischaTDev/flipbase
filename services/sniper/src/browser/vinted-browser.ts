@@ -2,10 +2,12 @@ import { chromium, type CDPSession } from 'playwright';
 import type { BrowserInput } from './browser-types.js';
 import { BrowserDesktop } from './browser-desktop.js';
 import { ChromeProcess, type ChromeProcessOptions } from './chrome-process.js';
+import { VintedNetworkError } from '../vinted/errors.js';
 
 interface PausedRequest {
   requestId: string;
   resourceType: string;
+  frameId: string;
   request: { url: string };
   responseStatusCode?: number;
   responseErrorReason?: string;
@@ -21,6 +23,11 @@ export async function readBrowserDocument(
   const timeout = AbortSignal.timeout(20_000);
   const requestSignal = signal ? AbortSignal.any([signal, timeout]) : timeout;
   let settled = false;
+  let completed = false;
+  let mainFrameId = '';
+  let loaderId: string | undefined;
+  let documentResponse: Response | undefined;
+  const loadedDocuments = new Set<string>();
   const pausedRequests = new Set<string>();
   let resolveResponse: (response: Response) => void = () => undefined;
   let rejectResponse: (error: unknown) => void = () => undefined;
@@ -34,9 +41,29 @@ export async function readBrowserDocument(
     rejectResponse(requestSignal.reason);
   };
   requestSignal.addEventListener('abort', onAbort, { once: true });
+  const completeDocument = () => {
+    if (!settled && documentResponse && loaderId && loadedDocuments.has(loaderId)) {
+      settled = true;
+      completed = true;
+      resolveResponse(documentResponse);
+    }
+  };
+  const onLifecycle = (event: { frameId: string; loaderId: string; name: string }) => {
+    if (event.frameId !== mainFrameId || event.name !== 'load') return;
+    loadedDocuments.add(event.loaderId);
+    completeDocument();
+  };
   const processPaused = async (event: PausedRequest) => {
     pausedRequests.add(event.requestId);
-    if (settled || event.resourceType !== 'Document' || event.request.url !== url.href) {
+    if (!settled && event.frameId !== mainFrameId) {
+      await session.send(
+        event.responseStatusCode === undefined ? 'Fetch.continueRequest' : 'Fetch.continueResponse',
+        { requestId: event.requestId },
+      );
+      pausedRequests.delete(event.requestId);
+      return;
+    }
+    if (settled || event.request.url !== url.href) {
       await session.send('Fetch.failRequest', {
         requestId: event.requestId,
         errorReason: 'Aborted',
@@ -45,7 +72,7 @@ export async function readBrowserDocument(
       return;
     }
     if (event.responseStatusCode === undefined) {
-      if (event.responseErrorReason) throw new Error('Browserabruf fehlgeschlagen.');
+      if (event.responseErrorReason) throw browserNetworkError(event.responseErrorReason);
       await session.send('Fetch.continueRequest', { requestId: event.requestId });
       pausedRequests.delete(event.requestId);
       return;
@@ -77,28 +104,42 @@ export async function readBrowserDocument(
       }
     }
     requestSignal.throwIfAborted();
-    // Der Browser behält Cookies, führt aber weder Seitencode noch Weiterleitungen aus.
+    documentResponse = new Response(
+      [204, 304].includes(status) ? null : Buffer.concat(chunks).toString('utf8'),
+      { status, headers },
+    );
+    // Weiterleitungen starten keinen unbestellten Katalog-/Loginabruf.
+    if ([204, 304].includes(status) || (status >= 300 && status < 400)) {
+      await session.send('Fetch.failRequest', {
+        requestId: event.requestId,
+        errorReason: 'Aborted',
+      });
+      pausedRequests.delete(event.requestId);
+      settled = true;
+      completed = true;
+      resolveResponse(documentResponse);
+      return;
+    }
+    // Das gelesene Original bleibt ausführbar: Sitzungs-Skripte dürfen Cookies erneuern.
+    // CDP liefert entpackte Bytes; deren ursprüngliche Längen-/Kodierungsheader entfallen.
     await session.send('Fetch.fulfillRequest', {
       requestId: event.requestId,
-      responseCode: 200,
-      responseHeaders: [
-        ...(event.responseHeaders ?? []).filter(
-          (header) => header.name.toLowerCase() === 'set-cookie',
-        ),
-        { name: 'content-type', value: 'text/html' },
-        { name: 'cache-control', value: 'no-store' },
-      ],
-      body: Buffer.from('<!doctype html><title>Flipbase</title>').toString('base64'),
+      responseCode: status,
+      responseHeaders: (event.responseHeaders ?? []).filter(
+        (header) => !['content-encoding', 'content-length'].includes(header.name.toLowerCase()),
+      ),
+      body: Buffer.concat(chunks).toString('base64'),
     });
-    if (settled) return;
     pausedRequests.delete(event.requestId);
-    settled = true;
-    resolveResponse(
-      new Response([204, 304].includes(status) ? null : Buffer.concat(chunks).toString('utf8'), {
-        status,
-        headers,
-      }),
-    );
+    if (settled) return;
+    // Eine bekannte Ablehnung darf nicht durch langsame Nebenanfragen zum Timeout werden.
+    if (!documentResponse.ok || headers.get('cf-mitigated') === 'challenge') {
+      settled = true;
+      completed = true;
+      resolveResponse(documentResponse);
+      return;
+    }
+    completeDocument();
   };
   const onPaused = (event: PausedRequest) => {
     void processPaused(event).catch((error: unknown) => {
@@ -109,18 +150,25 @@ export async function readBrowserDocument(
     });
   };
   session.on('Fetch.requestPaused', onPaused);
+  session.on('Page.lifecycleEvent', onLifecycle);
   try {
-    await session.send('Network.setBypassServiceWorker', { bypass: true });
-    await session.send('Network.setCacheDisabled', { cacheDisabled: true });
+    await session.send('Page.enable');
+    const { frameTree } = await session.send('Page.getFrameTree');
+    mainFrameId = frameTree.frame.id;
+    await session.send('Page.setLifecycleEventsEnabled', { enabled: true });
+    await session.send('Network.setBypassServiceWorker', { bypass: false });
+    await session.send('Network.setCacheDisabled', { cacheDisabled: false });
     await session.send('Fetch.enable', {
       patterns: [
-        { urlPattern: '*', requestStage: 'Request' },
-        { urlPattern: '*', requestStage: 'Response' },
+        { urlPattern: '*', resourceType: 'Document', requestStage: 'Request' },
+        { urlPattern: '*', resourceType: 'Document', requestStage: 'Response' },
       ],
     });
     requestSignal.throwIfAborted();
     const navigation = session.send('Page.navigate', { url: url.href }).then((result) => {
-      if (result.errorText && !settled) throw new Error('Browsernavigation fehlgeschlagen.');
+      if (result.errorText && !settled) throw browserNetworkError(result.errorText);
+      loaderId = result.loaderId;
+      completeDocument();
       return response;
     });
     // Auch vor der Navigationsantwort muss Timeout/Abbruch die Bereinigung erreichen.
@@ -128,15 +176,24 @@ export async function readBrowserDocument(
   } finally {
     settled = true;
     session.off('Fetch.requestPaused', onPaused);
+    session.off('Page.lifecycleEvent', onLifecycle);
     requestSignal.removeEventListener('abort', onAbort);
-    await session.send('Page.stopLoading').catch(() => undefined);
+    // Erfolgreiche Seiten bleiben lebendig, auch für verzögert gestartete Erneuerung.
+    if (!completed) await session.send('Page.stopLoading').catch(() => undefined);
     for (const requestId of pausedRequests) {
       await session
         .send('Fetch.failRequest', { requestId, errorReason: 'Aborted' })
         .catch(() => undefined);
     }
     await session.send('Fetch.disable').catch(() => undefined);
+    await session.send('Page.setLifecycleEventsEnabled', { enabled: false }).catch(() => undefined);
   }
+}
+
+function browserNetworkError(reason: string): VintedNetworkError {
+  // Nur Chromiums Fehlerkennung übernehmen, keine URLs oder Browserdetails protokollieren.
+  const code = reason.match(/^net::ERR_[A-Z0-9_]+$|^[A-Za-z]+$/)?.[0] ?? 'Unknown';
+  return new VintedNetworkError(`Browserabruf fehlgeschlagen (${code}).`);
 }
 
 export interface VintedBrowser {

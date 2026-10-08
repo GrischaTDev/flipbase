@@ -1,5 +1,106 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-08 - Juna - Sitzungs-Skripte im automatischen Vinted-Katalog erhalten
+
+**Auftrag:** Den belegten Unterschied zwischen manueller Seitenladung und
+automatischem Dokumentabruf gezielt beheben und wiederholte Abrufe prüfen.
+
+**Änderung:** Chrome erhält das originale HTML mit Status, Cookies und
+Sicherheitsheadern; externe Skripte und eingebettete Dokumente dürfen normal
+laden. Ein erfolgreicher Katalog wartet auf das Ladeereignis seiner eigenen
+Navigation und bleibt danach für verzögerte Sitzungs-Skripte geöffnet. Bekannte
+HTTP-Ablehnungen werden sofort weitergegeben. Größenlimit, Abbruch, Zeitlimit,
+gemeinsamer Abrufabstand und manuelle Schutzprüfung bleiben bestehen. Chromiums
+Netzwerkfehler werden als solche mit sicherer Fehlerkennung eingeordnet;
+Parserfehler behalten den tatsächlich erhaltenen HTTP-Status.
+
+**Prüfung:** Der neue Container-Test scheitert am bisherigen Bot wegen
+unterbundener Skripte. Der geänderte Bot besteht Skripterneuerung über mehrere
+lokale Katalogabrufe, originale Challenge-Antwort, Abbruch/Wiederaufnahme,
+manuelle Bild-/Texteingabe, exklusive Bedienung und Cookiepersistenz nach
+Chrome-Neustart. Sandbox und privater CDP-Zugang bleiben geprüft. Alle 318
+Diensttests, Typprüfung, Dienstbau, gezieltes ESLint und Formatierung bestehen.
+Docker-Bau und beide vorhandenen Abbildprüfungen bestehen.
+
+**Grenze:** Ausschließlich lokaler Testkatalog ohne Vinted-Abrufe. Die konkrete
+Vinted-Schutzregel bleibt unbekannt; Produktionsvergleich und 48-Stunden-Abnahme
+folgen nach freigegebener Veröffentlichung. Dabei auch Ladezeiten und zusätzlichen
+Ressourcenverkehr beobachten. Keine Filter-, IP-, Proxy- oder Schemaänderung.
+
+## 2026-10-08 - Juna - Wiederkehrende Vinted-Ablehnungen technisch eingrenzen
+
+**Auftrag:** Die Ursache der wiederholten Feedunterbrechungen untersuchen und
+den bisherigen Abruf mit öffentlich dokumentierten Vinted-Bots vergleichen.
+
+**Befund:** Der laufende Bot verwendet denselben Dokumentleser wie der lokale
+Stand: Katalogantworten werden gelesen, in Chrome aber durch leeres HTML ersetzt;
+alle Nebenanfragen und Seitenskripte werden unterbunden. Eine passive CDP-Messung
+bestätigt originale Cloudflare-HTTP-200-Antworten und das anschließend künstlich
+ausgelieferte Dokument. Die normalen Vinted-Seiten enthalten ein DataDome-Skript
+unter `static-assets.vinted.com/datadome/5.9.4/tags.js`. Im eigenen Botprofil
+liegen Cloudflare- und DataDome-Cookies aus der manuellen Freigabe; nur Namen
+und Zeitstempel wurden gelesen, keine Cookiewerte exportiert. Tatsächliche
+Chrome-Verbindungen gehen direkt von der Hetzner-IPv6 zu Cloudflare. Der
+automatische Katalog läuft mit gemeinsamem Mindestabstand von zehn Sekunden.
+
+**Prüfung:** Ein isolierter lokaler HTTP-/Chrome-Vergleich verwendet die
+unveränderte `readBrowserDocument`-Funktion. Eine Seite mit erforderlicher
+Skripterneuerung bleibt bei normalem Chrome-Laden dreimal erfolgreich. Der
+bisherige Dokumentleser unterbindet die Erneuerung und erhält nach einem
+erfolgreichen Folgeabruf HTTP 403. Dieser Test beweist den Mechanismus an einem
+lokalen Modell, nicht die unbekannte Vinted-WAF-Regel. Passive Produktionsmessung
+ändert keine Filter, Browseridentität, Schutzregeln oder Produktionsdateien.
+
+**Weitere Diagnosegrenze:** Nach der Wiederaufnahme traten vorübergehende
+Browserfehler bei Adidas/Nike und eine Adidas-Antwort ohne lesbare Katalogdaten
+auf; die Folgeabrufe erholten sich. Der Transport verwirft den konkreten
+`responseErrorReason`, und die Parserfehlermeldung enthält weder HTTP-Status
+noch eine sichere Seitenklassifikation. Das verhindert eine präzise Zuordnung.
+
+**Folgerung:** Normalen Browser-Seitenlebenszyklus mit sicherer, begrenzter
+Diagnose gegen den bisherigen Leser vergleichen; IP, Profil, Filter und Takt
+dabei konstant halten. Erst danach die feste Serveranbindung separat bewerten.
+Abnahme über mindestens 48 Stunden mit allen drei Filtern, ohne manuelle
+Freigaben, einschließlich dokumentiertem Datenalter und Fehlerarten. Keine
+Produktionsumstellung und kein Nachweis einer dauerhaften Lösung in dieser Sitzung.
+
+**Quellen:** Cloudflare dokumentiert clientseitige Erneuerung und mögliche
+erneute Prüfung trotz nicht abgelaufenem Cookie; DataDome beschreibt die
+erforderliche JavaScript-/Cookie-Kommunikation. Veröffentlichte Botprojekte
+dokumentieren Proxy-Pools und teilweise zusätzliche Anti-Bot-Dienste; deren
+Angaben sind kein verifizierter Zuverlässigkeitsnachweis. Fyndits öffentliches
+Projekt warnt selbst vor nicht mehr gepflegtem Code.
+
+- https://developers.cloudflare.com/cloudflare-challenges/challenge-types/javascript-detections/
+- https://developers.cloudflare.com/cloudflare-challenges/concepts/clearance/
+- https://docs.datadome.co/docs/javascript-tag
+- https://github.com/teddy-vltn/vinted-discord-bot/blob/main/readme.md
+- https://github.com/masolupo/vinted-live-feed
+- https://pro-docs.svc.vinted.com/
+
+## 2026-10-08 - Juna - Erneute Vinted-Feedpause prüfen und Zugriff wiederherstellen
+
+**Auftrag:** Die erneut ausbleibenden Feeddaten und die Anzeige
+„Wartet auf manuelle Vinted-Prüfung“ im Adminbereich untersuchen.
+
+**Befund:** Der gemeinsame Vinted-Zustand ist seit 14:42:30 Uhr deutscher Zeit
+mit `interaction_required` gesperrt. Der zugehörige Ralph-Lauren-Abruf wurde
+abgewiesen; Adidas und Nike waren unmittelbar davor erfolgreich. Alle drei
+Filter sind inzwischen mit 20 Sekunden und Kategorie Herren/Kleidung aktiv.
+Der Botprozess läuft, fragt während dieser gespeicherten Pause aber keine
+neuen Vinted-Artikel ab. Der Containerstart um 16:38 Uhr hat die Pause erhalten.
+
+**Maßnahme und Prüfung:** Die vorhandene angemeldete Admin-Botsitzung zeigt
+den normalen Vinted-Katalog ohne CAPTCHA. Die bestehende Wiederprüfung
+bestätigt den Zugriff um 22:44:10 Uhr und setzt den gemeinsamen Zustand auf
+`ready`. Bis 22:46 Uhr bestätigen die Datenbank und zehn automatische Abrufe
+erfolgreiche Abfragen aller drei Marken sowie 353 neue Artikel ohne Fehler.
+Keine Änderung an Filtern, Botcode oder Produktionskonfiguration.
+
+**Grenze:** Die Wiederherstellung belegt keine dauerhafte Beseitigung der
+wiederkehrenden Vinted-Sperre. Die genaue Ursache der Anbieterablehnung bleibt
+ungeklärt; sie ist durch diese Daten nicht als Adidas-Filterfehler bewiesen.
+
 ## 2026-10-08 - Juna - Gemeinsames Cloud-Postfach umsetzen
 
 **Auftrag:** Gemeinsames Cloud-/Extensionpostfach mit Nachrichtenversand,
