@@ -1,5 +1,23 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-09 - Juna - Profilbilder neben Vinted-Chatnachrichten ergänzen
+
+**Auftrag:** Runde Profilbilder neben den Nachrichten wie in Vinted ergänzen.
+
+**Änderung:** Eingehende Nachrichten und Angebote zeigen links das vorhandene
+Kontaktbild; eigene Nachrichten zeigen rechts das Bild des ausgewählten Vinted-Kontos.
+Systemmeldungen und unbekannte Absender erhalten kein zugeordnetes Profilbild.
+Der bestehende Shared-Bildbaustein übernimmt Kreisform, Zuschnitt und Platzhalter
+bei fehlenden oder fehlerhaften Bildern. Cloud und Extension verwenden dieselbe
+Darstellung; zusätzliche Anbieterabrufe oder Versandaktionen sind nicht erforderlich.
+
+**Prüfung:** 47 Komponententests und sechs Browserprüfungen bestehen, einschließlich
+Cloud bei 1440/390 px sowie lokal im hellen/dunklen Design, jeweils mit AXE.
+Absenderzuordnung und Platzhalter bei fehlerhaften Bildern sind geprüft.
+Produktionsbau, Typprüfung, ESLint, Formatierung und Shared-UI-Prüfung bestehen.
+Die Vorschau verwendet ausschließlich künstliche Daten; keine Vinted-Schreibaktion.
+Die Ergänzung gehört zum noch nicht veröffentlichten Bildimport-Zweig.
+
 ## 2026-10-09 - Juna - Cloud-Testbild prüfen und Gesprächsbilder übernehmen
 
 **Auftrag:** Die noch offenen Bild-/Favoriten-/Dauerbetriebstests fortsetzen;
