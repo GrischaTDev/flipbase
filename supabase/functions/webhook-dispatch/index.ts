@@ -40,6 +40,10 @@ Deno.serve(async (request) => {
         const { data, error } = await user.rpc('can_access_workspace', { ws_id: workspaceId });
         return !error && data === true;
       },
+      administer: async (workspaceId) => {
+        const { data, error } = await user.rpc('can_administer_workspace', { ws_id: workspaceId });
+        return !error && data === true;
+      },
       read: async (workspaceId) => {
         const { data, error } = await server
           .from('webhook_configs')

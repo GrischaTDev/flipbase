@@ -10,6 +10,10 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 // Nur die tatsächliche Testauswahl prüfen, nicht Playwrights Parser nachtesten.
 const coreTests = [
   [
+    'sniper-administration.spec.ts',
+    'prüft den Vinted-Bot manuell und behält bei Ablehnung die Pause @core-smoke',
+  ],
+  [
     'deal-monitor.spec.ts',
     'Account-Favoriten bleiben auf Tablet und Desktop nach Feed-Bereinigung erhalten @core-smoke',
   ],
@@ -17,9 +21,15 @@ const coreTests = [
     'sniper-administration.spec.ts',
     `verwaltet zentrale Kategorie-, Marken- und Titel-Suchfilter ${theme} @core-smoke`,
   ]),
-  ...[1440, 1024, 390, 320].map((width) => [
-    'vinted-favorite-messages.spec.ts',
-    `Favoritennachrichten bleiben vor Freigabe aus und speichern Regeln bei ${width}px @marketplace-preview @core-smoke`,
+  ...['Extension', 'Cloud'].flatMap((mode) =>
+    [1440, 1024, 390, 320].map((width) => [
+      'vinted-favorite-messages.spec.ts',
+      `Favoritennachrichten (${mode}) bleiben vor Freigabe aus und speichern Regeln bei ${width}px @marketplace-preview @core-smoke`,
+    ]),
+  ),
+  ...[1440, 390].map((width) => [
+    'vinted-inbox-experience.spec.ts',
+    `Cloud-Glocke öffnet das richtige Gespräch und sendet ohne Extension bei ${width}px @core-smoke`,
   ]),
   [
     'beta-access-lifecycle.spec.ts',
@@ -229,6 +239,10 @@ const regressionTests = [
   [
     'purchase-tax-costs.spec.ts',
     'preserves additional purchase costs after reopening at 1440px @pr-smoke',
+  ],
+  [
+    'sniper-administration.spec.ts',
+    'prüft den Vinted-Bot manuell und behält bei Ablehnung die Pause @core-smoke',
   ],
   [
     'sniper-administration.spec.ts',

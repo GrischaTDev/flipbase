@@ -1,0 +1,21 @@
+{
+  "conversation": {
+    "id": 700,
+    "read_by_current_user": false,
+    "opposite_user": { "id": 91 },
+    "messages": [
+      {
+        "id": 501,
+        "entity_type": "offer_request_message",
+        "created_at_ts": "2026-10-08T10:00:00+02:00",
+        "entity": { "user_id": 91, "body": "", "title": "" }
+      },
+      {
+        "entity_type": "message",
+        "created_at_ts": "2026-10-08T10:01:00+02:00",
+        "entity": { "id": 502, "user_id": 91, "body": "", "photos": [] }
+      }
+    ]
+  },
+  "code": 0
+}

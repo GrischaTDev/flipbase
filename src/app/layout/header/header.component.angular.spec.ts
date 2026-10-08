@@ -19,6 +19,7 @@ import { HeaderComponent } from './header.component';
 import type { AppNotification } from '../../core/models/webhook.models';
 import { MarketplaceFeedbackNotificationStore } from '../../features/marketplaces/services/marketplace-feedback-notification.store';
 import { MarketplaceFavoriteNotificationStore } from '../../features/marketplaces/services/marketplace-favorite-notification.store';
+import { MarketplaceMessageNotificationStore } from '../../features/marketplaces/services/marketplace-message-notification.store';
 
 const generalNotification: AppNotification = {
   id: 'general-1',
@@ -61,6 +62,8 @@ describe('HeaderComponent', () => {
     generalNotifications = favorites.length ? [generalNotification] : [],
     feedback: AppNotification[] = [],
     unreadFeedback = feedback.length,
+    messages: AppNotification[] = [],
+    unreadMessages = messages.length,
   ) {
     await TestBed.configureTestingModule({
       imports: [HeaderComponent],
@@ -116,6 +119,17 @@ describe('HeaderComponent', () => {
             clearNotifications: vi.fn(async () => undefined),
           },
         },
+        {
+          provide: MarketplaceMessageNotificationStore,
+          useValue: {
+            notifications: signal(messages),
+            unreadCount: signal(unreadMessages),
+            reload: vi.fn(async () => undefined),
+            markAsRead: vi.fn(async () => undefined),
+            markAllAsRead: vi.fn(async () => undefined),
+            clearNotifications: vi.fn(async () => undefined),
+          },
+        },
         { provide: ConfirmDialogService, useValue: { zeigeHinweis: vi.fn() } },
         { provide: ThemeService, useValue: { isDark: signal(false), toggleTheme: vi.fn() } },
         { provide: PwaService, useValue: { isOnline: signal(true) } },
@@ -133,6 +147,35 @@ describe('HeaderComponent', () => {
     await fixture.whenStable();
     return fixture;
   }
+
+  it('zeigt Nachrichteneingänge mit Kontogespräch und markiert nur die Flipbase-Meldung', async () => {
+    const incoming: AppNotification = {
+      ...generalNotification,
+      id: 'marketplace-message:7',
+      title: 'Neue Nachricht · Testkonto',
+      link: '/marketplaces/vinted/messages?connectionId=account-a&conversationId=conversation-a',
+    };
+    const fixture = await renderHeader([], 0, [], [], 0, [incoming], 67);
+    const element = fixture.nativeElement as HTMLElement;
+    const bell = element.querySelector<HTMLButtonElement>(
+      'button[aria-controls="header-notification-menu"]',
+    );
+    expect(bell?.textContent).toContain('67');
+    bell?.click();
+    fixture.detectChanges();
+    expect(
+      element.querySelector<HTMLAnchorElement>('#header-notification-menu a')?.getAttribute('href'),
+    ).toBe(incoming.link);
+    const messages = TestBed.inject(MarketplaceMessageNotificationStore);
+    await fixture.componentInstance.oeffneBenachrichtigung(incoming);
+    expect(messages.markAsRead).toHaveBeenCalledWith('marketplace-message:7');
+    expect(TestBed.inject(WebhookService).markAsRead).not.toHaveBeenCalled();
+    expect(messages.reload).toHaveBeenCalledOnce();
+    await fixture.componentInstance.onMarkAllNotificationsRead();
+    await fixture.componentInstance.onClearNotifications();
+    expect(messages.markAllAsRead).toHaveBeenCalledOnce();
+    expect(messages.clearNotifications).toHaveBeenCalledOnce();
+  });
 
   it('erhält Kontoparameter in Sammellinks und Suchparameter samt Abschnitt in allgemeinen Links', async () => {
     const fixture = await renderHeader(

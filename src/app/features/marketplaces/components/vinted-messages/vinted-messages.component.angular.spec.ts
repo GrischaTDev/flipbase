@@ -108,17 +108,21 @@ let api: {
   readPage: ReturnType<typeof vi.fn>;
 };
 let store: MarketplaceAccountStore;
+let browserApi: { readConversation: ReturnType<typeof vi.fn> };
 let local: {
   error: ReturnType<typeof signal<string | null>>;
   busy: ReturnType<typeof signal<boolean>>;
   messagesAllowed: ReturnType<typeof signal<boolean>>;
   inboxImported: ReturnType<typeof signal<null>>;
-  hasValidBinding: ReturnType<typeof vi.fn>;
+  hasValidBinding: ReturnType<typeof vi.fn<() => boolean>>;
   approveInbox: ReturnType<typeof vi.fn>;
   syncInbox: ReturnType<typeof vi.fn>;
   openInboxConversation: ReturnType<typeof vi.fn>;
 };
 let messaging: {
+  canSend: ReturnType<typeof vi.fn<() => boolean>>;
+  cloudSendAllowed: ReturnType<typeof signal<boolean>>;
+  revokeCloudSend: ReturnType<typeof vi.fn>;
   messages: ReturnType<typeof signal<LocalQueuedMessage[]>>;
   busy: ReturnType<typeof signal<boolean>>;
   error: ReturnType<typeof signal<string | null>>;
@@ -172,6 +176,17 @@ beforeEach(() => {
     openInboxConversation: vi.fn().mockResolvedValue(detailResult),
   };
   messaging = {
+    canSend: vi.fn().mockImplementation(() => {
+      const store = TestBed.inject(MarketplaceAccountStore);
+      return (
+        store.canManage() &&
+        store.selectedConnection()?.status === 'connected' &&
+        (store.selectedConnection()?.executionMode === 'cloud' ||
+          (local.hasValidBinding() && local.messagesAllowed()))
+      );
+    }),
+    cloudSendAllowed: signal(false),
+    revokeCloudSend: vi.fn(),
     messages: signal([]),
     busy: signal(false),
     error: signal(null),
@@ -183,6 +198,7 @@ beforeEach(() => {
     frage: vi.fn().mockResolvedValue(false),
     zeigeHinweis: vi.fn().mockResolvedValue(true),
   };
+  browserApi = { readConversation: vi.fn().mockResolvedValue(detailResult.observedAt) };
   TestBed.configureTestingModule({
     providers: [
       provideRouter([]),
@@ -203,10 +219,11 @@ beforeEach(() => {
       },
       { provide: WorkspaceService, useValue: { currentWorkspace: workspace } },
       { provide: MarketplaceApiService, useValue: api },
-      { provide: MarketplaceBrowserTestApiService, useValue: {} },
+      { provide: MarketplaceBrowserTestApiService, useValue: browserApi },
     ],
   });
   store = TestBed.inject(MarketplaceAccountStore);
+  vi.spyOn(store, 'refreshCloudConversation').mockResolvedValue({ status: 'cancelled' });
 });
 async function settle(fixture: ComponentFixture<VintedMessagesComponent>) {
   fixture.detectChanges();
@@ -349,6 +366,67 @@ describe('Vollständiges Laden eines Gesprächs', () => {
     expect(status?.textContent).toContain('Synchronisiert');
     expect(status?.getAttribute('title')).toContain('06.10.2026');
   });
+  it('zeigt ein Cloud-Gespräch nach tatsächlicher Detailübernahme als synchronisiert', async () => {
+    vi.mocked(store.refreshCloudConversation).mockRestore();
+    let checked = false;
+    api.readPage.mockImplementation(async (scope: AccountScope) =>
+      messages(scope, [
+        {
+          id: 'cloud-message',
+          text: checked ? 'Aktuelle Cloud-Nachricht' : 'Alter Verlauf',
+          direction: 'inbound',
+        },
+      ]),
+    );
+    api.readSnapshot.mockImplementation(async (scope: AccountScope) => {
+      const current = snapshot(scope);
+      return {
+        ...current,
+        conversations: {
+          ...current.conversations,
+          items: current.conversations.items.map((entry) => ({
+            ...entry,
+            detailCheckedAt: checked ? detailResult.observedAt : null,
+          })),
+        },
+      };
+    });
+    browserApi.readConversation.mockImplementation(async () => {
+      checked = true;
+      return detailResult.observedAt;
+    });
+    const fixture = await render();
+    const entry = store.snapshot()?.conversations.items[0];
+    if (!entry) throw new Error('Testgespräch fehlt');
+    await fixture.componentInstance.openConversation(entry);
+    await settle(fixture);
+    expect(fixture.nativeElement.querySelector('[data-conversation-sync]')?.textContent).toContain(
+      'Synchronisiert',
+    );
+    expect(local.openInboxConversation).not.toHaveBeenCalled();
+    expect(fixture.nativeElement.querySelector('[role="log"]')?.textContent).toContain(
+      'Aktuelle Cloud-Nachricht',
+    );
+  });
+  it('behält nach abgelehntem Cloud-Abruf den gespeicherten Verlauf mit Fehlerhinweis', async () => {
+    vi.mocked(store.refreshCloudConversation).mockRestore();
+    browserApi.readConversation.mockRejectedValue(new Error('Gespräch nicht erreichbar'));
+    const fixture = await render();
+    const entry = store.snapshot()?.conversations.items[0];
+    if (!entry) throw new Error('Testgespräch fehlt');
+    await fixture.componentInstance.openConversation(entry);
+    await settle(fixture);
+    expect(fixture.nativeElement.querySelector('[data-conversation-sync]')?.textContent).toContain(
+      'Aktualisierung fehlgeschlagen',
+    );
+    expect(fixture.nativeElement.querySelector('[role="log"]')?.textContent).toContain(
+      '<b>Hallo!</b>',
+    );
+    expect(
+      fixture.nativeElement.querySelector('[data-conversation-sync]')?.textContent,
+    ).not.toContain('Synchronisiert');
+  });
+
   it('bestätigt nach fehlgeschlagenem Snapshotlesen keinen alten Gesprächsstempel als neuen Abgleich', async () => {
     useLocalAccount();
     api.readSnapshot.mockImplementation(async (scope: AccountScope) => {
@@ -1055,8 +1133,28 @@ describe('Kompakter gespeicherter Vinted-Gesprächsbereich', () => {
     expect(host.querySelector('[data-message-kind="system"]')?.textContent).toContain(
       'Bestellung abgeschlossen',
     );
-    expect(host.querySelector('textarea')).toBeNull();
+    expect(host.querySelector('textarea')).not.toBeNull();
+    expect(messaging.send).not.toHaveBeenCalled();
     expect(host.querySelector('button')?.textContent).not.toContain('Annehmen');
+  });
+  it('zeigt für Cloud das gemeinsame Schreibfeld und den Widerruf der Versandfreigabe', async () => {
+    const fixture = await render();
+    button(fixture, 'Anfrage zum Schal').click();
+    await settle(fixture);
+    expect(fixture.nativeElement.querySelector('[data-message-composer]')).not.toBeNull();
+    fixture.componentInstance.composer.controls.text.setValue('Cloudtest');
+    await fixture.componentInstance.sendMessage();
+    expect(messaging.send).toHaveBeenLastCalledWith(
+      { workspaceId: accounts[0].workspaceId, connectionId: accounts[0].connectionId },
+      'conversation-1',
+      'Cloudtest',
+      null,
+    );
+    expect(local.openInboxConversation).not.toHaveBeenCalled();
+    messaging.cloudSendAllowed.set(true);
+    await settle(fixture);
+    button(fixture, 'Cloud-Versandfreigabe widerrufen').click();
+    expect(messaging.revokeCloudSend).toHaveBeenCalledOnce();
   });
   it('verschiebt bei einem Mausklick den Fokus nicht auf den Gesprächstitel', async () => {
     const fixture = await render();

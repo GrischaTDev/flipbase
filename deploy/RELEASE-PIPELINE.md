@@ -88,6 +88,17 @@ alten Migrationsrückstand ungeprüft einzuspielen.
 
 Diese Schritte sind Voraussetzungen, **kein Bestandteil dieser Umsetzung auf dem Server**:
 
+Für die Sicherheitskorrekturen vom 07.10.2026 muss das Auth-Overlay
+`docker-compose.beta-application.yml` gemeinsam mit der Anwendung eingeführt
+werden. Der Auth-Dienst muss `GOTRUE_SECURITY_UPDATE_PASSWORD_REQUIRE_CURRENT_PASSWORD=true`
+übernehmen; ein direkter Passwortwechsel ohne bisheriges Passwort muss danach
+abgewiesen werden. Einladungen und bestätigte Passwort-Resets bleiben möglich.
+Früher für bereits abgeschlossene Beta-Anmeldungen erzeugte Recovery-Sitzungen
+müssen vor Freigabe des neuen Stands widerrufen werden; neue Beta-Abschlüsse
+liefern normale Passwortsitzungen. Die neue Erweiterung muss installiert beziehungsweise
+neu geladen sein, damit ihre verbindliche Verbindungserlaubnis wirksam ist.
+Diese Voraussetzungen sind produktiv noch nicht bestätigt.
+
 1. Betreiberzugang getrennt vom eingeschränkten CI-Schlüssel verwenden. Aktuelle
    Serverdateien sichern und Unterschiede prüfen. `/opt/flipbase/deploy.sh`,
    `/opt/flipbase/apply-release-migrations.sh` und `/opt/flipbase/migration-backup.sh`
@@ -102,6 +113,12 @@ Diese Schritte sind Voraussetzungen, **kein Bestandteil dieser Umsetzung auf dem
    `FLIPBASE_IMAGE=ghcr.io/grischatdev/flipbase@sha256:<64-hex> docker compose config --images web`
    aus `/opt/flipbase` prüfen. Die Ausgabe muss genau dieser Digest sein.
    Das Deployskript prüft dies ebenfalls vor jeder Migration.
+   Auch `/opt/flipbase/docker-compose.sniper.yml` muss `FLIPBASE_SNIPER_IMAGE`
+   übernehmen. Vor der ersten Pipeline mit Sniper-Digest das aktualisierte,
+   rootgeschützte Deployskript installieren und mit
+   `FLIPBASE_SNIPER_IMAGE=ghcr.io/grischatdev/flipbase-sniper@sha256:<64-hex> docker compose -f docker-compose.sniper.yml config --images sniper`
+   den exakt ausgewählten Digest prüfen. Die Pipeline übermittelt anschließend
+   den gebauten Digest statt einer veränderbaren Kurzkennzeichnung.
 3. Docker Compose, Bash, `flock`, `sha256sum`, `age`, `gzip`, `rsync` und SSH müssen
    verfügbar sein. Der PostgreSQL-Container heißt `supabase-db`, Datenbank `postgres`,
    Rolle `postgres`. Bestehende Historie verlangt `version` als eindeutigen Schlüssel
@@ -132,13 +149,62 @@ Diese Schritte sind Voraussetzungen, **kein Bestandteil dieser Umsetzung auf dem
    CI-Schlüssel. Erst nach Bootstrap, Backlogprüfung und Backup-/Restoretest die
    Repository-Variable `RELEASE_MIGRATIONS_V1=true` setzen. Nicht nur den CI-Check entfernen.
 
-Der neue erlaubte SSH-Befehl lautet ausschließlich `release-v1 sha256:<64-hex>`.
+Der erlaubte SSH-Befehl lautet `release-v1 sha256:<64-hex>` und kann um
+`sniper sha256:<64-hex>` ergänzt werden. Ein reines Sniper-Deployment verwendet
+`sniper sha256:<64-hex>`. Alte Kurzkennzeichnungen bleiben nur für manuelle Rückfälle erhalten.
 Registry-Anmeldung erfolgt über stdin in einem privaten temporären Docker-Verzeichnis.
 Dieses wird auch beim Abbruch entfernt. Image und SQL kommen aus demselben Digest;
 beim Start wird ebenfalls dieser Digest verwendet. Beliebige Uploadpfade oder
 zusätzliche Argumente akzeptiert der Deploy-Schlüssel nicht.
 
 ## Fehler, Sicherung und Rückfall
+
+### Eigener Browser für den zentralen Vinted-Bot
+
+Vor dem ersten Browserrelease das geprüfte `deploy/deploy.sh` wie beim obigen
+Bootstrap mit Betreiberzugang installieren; der eingeschränkte CI-Schlüssel
+aktualisiert dieses Skript nicht. In `/opt/flipbase-sniper/sniper.env` zusätzlich
+`SUPABASE_ANON_KEY` aus der bestehenden öffentlichen Supabase-Konfiguration
+bereitstellen. Den vorhandenen Service-Role-Key beibehalten und keine Schlüssel
+in Ausgaben schreiben. Diese Servervorbereitung erfolgt erst nach Releasefreigabe.
+
+Das Webrelease liefert Compose und Chromium-Seccomp versionstreu unter
+`/opt/flipbase/` mit. Das Deployskript prüft den öffentlichen Auth-Key und legt
+das separate Profil `/opt/flipbase-sniper/browser` mit UID/GID 1000 und Modus
+0700 an. Bestehende Profile mit anderen Rechten oder symbolischen Links werden
+abgewiesen. Anschließend übernimmt es die geprüften Laufzeitdateien und prüft
+Compose vor dem Botstart. Ein Digestrelease erledigt dies vor dem Webstart.
+
+Chrome verwendet seine Sandbox, `/tmp` und 128 MiB Shared Memory. Die Browser-API
+bindet ausschließlich an `172.18.0.1:8081`, CDP an `127.0.0.1:9228` und die
+Gesundheitsendpunkte an `127.0.0.1:8080`. Nur `/sniper-browser/*` wird über die
+Appdomain geroutet; jede Aktion prüft Anmeldung und Betreiberrolle. Die
+Gatewayadresse gehört zum bestehenden Produktionsnetz und muss bei einem
+Netzwechsel mit API-Konfiguration und Caddyroute gemeinsam angepasst werden.
+
+Bei aktiver Host-Firewall muss außerdem ausschließlich der bestehende
+Caddy-Container die Browser-API erreichen können. Vor der Freigabe dessen
+aktuelle IP, Gateway und Docker-Bridge prüfen und die Firewallregeln privat
+sichern. Im bestätigten Produktionsnetz lautet die gezielte UFW-Regel:
+
+```bash
+ufw allow in on br-3b3934a0d38f proto tcp from 172.18.0.12 to 172.18.0.1 port 8081 comment "Flipbase Vinted browser proxy"
+```
+
+Diese Adressen nicht ungeprüft auf andere Netze übertragen. Nach einem Wechsel
+der Container-IP oder Bridge die Regel mit der Caddyroute abgleichen und die
+alte Freigabe gezielt ersetzen. Port 8081 nicht öffentlich oder für das gesamte
+Subnetz öffnen; CDP bleibt ausschließlich lokal. Ohne Anmeldung muss
+`https://app.flipbase.de/sniper-browser/status` mit 401 antworten. 502 deutet auf
+eine nicht erreichbare interne API hin.
+
+Bei einer bestätigten Vinted-Prüfseite öffnen Betreiber im Botbetrieb
+„Vinted-Zugriff prüfen“. Die Sitzung gilt höchstens zehn Minuten. Schließen
+und Zeitablauf heben die Pause nicht auf. „Zugriff erneut prüfen“ gibt den Bot
+erst nach einem gültigen, gespeicherten Katalog des unveränderten aktiven Filters
+frei. Ein Anbieterzeitlimit oder fehlende aktive Filter verhindert diesen Abruf.
+Eine fortgesetzte Ablehnung bleibt sichtbar; der Browser garantiert keine
+Freigabe durch Vinted.
 
 Eine lokale Dateisperre hält die ganze Auslieferung zusammen; der interne Runner
 sperrt zusätzlich alle von ihm ausgeführten Migrationen. Er prüft alle ausstehenden

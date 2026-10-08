@@ -17,14 +17,14 @@ const scope = { workspaceId, connectionId };
 const imageUrl = 'https://images.example.test/jacket.svg';
 const expiresAt = '2099-10-05T12:00:00Z';
 
-async function inboxFixture(page: Page, longHistory = false) {
+async function inboxFixture(page: Page, longHistory = false, cloud = false) {
   await mockMarketplace(page, false, false, false, false, []);
   const now = new Date().toISOString();
   const account = {
     ...scope,
     marketplace: 'vinted',
-    executionMode: 'local',
-    displayName: 'Lokales Testkonto',
+    executionMode: cloud ? 'cloud' : 'local',
+    displayName: cloud ? 'Cloud-Testkonto' : 'Lokales Testkonto',
     externalAccountId: '123',
     status: 'connected',
     capabilities: { 'conversations.read': 'verified' },
@@ -192,7 +192,7 @@ async function inboxFixture(page: Page, longHistory = false) {
         ...scope,
         profile: {
           ...scope,
-          displayName: 'Lokales Testkonto',
+          displayName: account.displayName,
           username: 'synthetic-test',
           location: 'Deutschland',
           bio: null,
@@ -274,7 +274,20 @@ async function inboxFixture(page: Page, longHistory = false) {
       },
     });
   });
-  await page.route('**/rest/v1/rpc/marketplace_read_local_messages', (route) =>
+  await page.route('**/rest/v1/rpc/marketplace_read_message_permission', (route) =>
+    route.fulfill({
+      json: { executionMode: account.executionMode, allowed: true, authorizationVersion: 1 },
+    }),
+  );
+  await page.route('**/marketplace-browser/conversations/read', (route) => {
+    const body = route.request().postDataJSON();
+    expect(body).toEqual({ ...scope, conversationId: body['conversationId'] });
+    const conversation = conversations.find((entry) => entry.id === body['conversationId']);
+    if (!conversation) throw new Error('Cloud-Testgespräch fehlt');
+    conversation.detailCheckedAt = now;
+    return route.fulfill({ json: { conversationId: conversation.id, observedAt: now } });
+  });
+  await page.route('**/rest/v1/rpc/marketplace_read_messages', (route) =>
     route.fulfill({
       json: {
         ok: true,
@@ -286,7 +299,7 @@ async function inboxFixture(page: Page, longHistory = false) {
       },
     }),
   );
-  await page.route('**/rest/v1/rpc/marketplace_enqueue_local_message', (route) => {
+  await page.route('**/rest/v1/rpc/marketplace_enqueue_message', (route) => {
     const body = route.request().postDataJSON();
     enqueues.push(body);
     const message = {
@@ -304,7 +317,7 @@ async function inboxFixture(page: Page, longHistory = false) {
     queue.push(message);
     return route.fulfill({ json: { ok: true, ...scope, message } });
   });
-  await page.route('**/rest/v1/rpc/marketplace_retry_local_message', (route) => {
+  await page.route('**/rest/v1/rpc/marketplace_retry_message', (route) => {
     const body = route.request().postDataJSON();
     retries.push(body);
     const source = queue.find((message) => message['id'] === body['p_message_id']);
@@ -408,6 +421,69 @@ test('prüft unklaren Versand vor der Wiederholung und versetzt den Mausfokus ni
   ).toBe(true);
   await checkAxe(page);
 });
+
+for (const width of [1440, 390]) {
+  test(`Cloud-Glocke öffnet das richtige Gespräch und sendet ohne Extension bei ${width}px @core-smoke`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 960 });
+    const fixture = await inboxFixture(page, false, true);
+    const marks: Record<string, unknown>[] = [];
+    let read = false;
+    await page.route('**/rest/v1/rpc/marketplace_read_message_notifications', (route) =>
+      route.fulfill({
+        json: {
+          workspaceId,
+          unreadCount: read ? 0 : 1,
+          items: [
+            {
+              id: '7',
+              connectionId,
+              conversationId,
+              accountName: 'Cloud-Testkonto',
+              senderName: 'Anna',
+              eventKind: 'message',
+              observedAt: new Date().toISOString(),
+              read,
+            },
+          ],
+        },
+      }),
+    );
+    await page.route('**/rest/v1/rpc/marketplace_mark_message_notifications', (route) => {
+      marks.push(route.request().postDataJSON());
+      read = true;
+      return route.fulfill({ json: { ok: true } });
+    });
+    await page.goto('/marketplaces/vinted/messages');
+    await page.getByRole('button', { name: 'Benachrichtigungen', exact: true }).click();
+    await page.getByRole('link').filter({ hasText: 'Neue Nachricht · Cloud-Testkonto' }).click();
+    await expect(page).toHaveURL(
+      new RegExp(`connectionId=${connectionId}.*conversationId=${conversationId}`),
+    );
+    const conversation = page.getByRole('region', { name: 'Gespräch', exact: true });
+    await expect(conversation.getByRole('heading', { name: 'Anna', exact: true })).toBeVisible();
+    await expect(conversation.getByText('Vintage Lederjacke', { exact: true })).toBeVisible();
+    await conversation
+      .getByRole('textbox', { name: 'Deine Nachricht', exact: true })
+      .fill('Danke für Dein Interesse.');
+    await conversation.getByRole('button', { name: 'Senden', exact: true }).click();
+    await expect(conversation.locator('[data-queue-state="queued"]')).toContainText(
+      'Danke für Dein Interesse.',
+    );
+    expect(fixture.enqueues).toHaveLength(1);
+    expect(fixture.enqueues[0]).toMatchObject({
+      p_workspace_id: workspaceId,
+      p_connection_id: connectionId,
+      p_conversation_id: conversationId,
+    });
+    expect(marks).toHaveLength(1);
+    expect(marks[0]).toMatchObject({ p_workspace_id: workspaceId, p_notification_id: '7' });
+    expect(fixture.bridgeCalls.filter((type) => type.includes('LOCAL_'))).toEqual([]);
+    expect(fixture.providerRequests).toBe(0);
+    await checkAxe(page);
+  });
+}
 
 async function checkAxe(page: Page) {
   await page.addScriptTag({ content: axe.source });
@@ -545,7 +621,9 @@ for (const { width, theme } of [
       page.getByRole('option', { name: 'Systemnachrichten (0)', exact: true }),
     ).toBeVisible();
     const systemFilter = page.getByRole('option', { name: 'Systemnachrichten (0)', exact: true });
-    expect((await systemFilter.boundingBox())?.width).toBeGreaterThan(200);
+    await expect
+      .poll(async () => (await systemFilter.boundingBox())?.width ?? 0)
+      .toBeGreaterThan(200);
     expect(
       await systemFilter
         .locator('span')

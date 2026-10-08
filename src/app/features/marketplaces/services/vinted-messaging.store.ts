@@ -8,6 +8,7 @@ import { MarketplaceAccountStore } from './marketplace-account.store';
 import { VintedLocalExtensionStore } from './vinted-local-extension.store';
 import { VintedLocalExtensionBridge } from './vinted-local-extension-bridge';
 import { VintedMessagingApiService } from './vinted-messaging-api.service';
+import type { MarketplaceMessagePermission } from '../models/vinted-messaging-response';
 @Injectable()
 export class VintedMessagingStore {
   private readonly api = inject(VintedMessagingApiService);
@@ -22,6 +23,7 @@ export class VintedMessagingStore {
   private readonly failure = signal<string | null>(null);
   private readonly readFailure = signal<string | null>(null);
   private readonly loadedContext = signal<string | null>(null);
+  private readonly cloudPermission = signal<MarketplaceMessagePermission | null>(null);
   private readonly context = computed(() => {
     const account = this.accounts.selectedConnection();
     const workspace = this.workspace.currentWorkspace();
@@ -31,10 +33,18 @@ export class VintedMessagingStore {
       workspace &&
       !workspace.archived_at &&
       this.accounts.canManage() &&
-      account?.executionMode === 'local' &&
+      account &&
+      (account.executionMode === 'local' || account.executionMode === 'cloud') &&
       account.workspaceId === workspace.id &&
       conversation
-      ? JSON.stringify([user.id, workspace.id, account.connectionId, conversation])
+      ? JSON.stringify([
+          user.id,
+          workspace.id,
+          account.connectionId,
+          account.executionMode,
+          account.externalAccountId,
+          conversation,
+        ])
       : null;
   });
   private readonly current = computed(
@@ -53,6 +63,25 @@ export class VintedMessagingStore {
   );
   readonly busy = computed(() => this.current() && this.sending());
   readonly error = computed(() => (this.current() ? (this.failure() ?? this.readFailure()) : null));
+  readonly canSend = computed(() => this.context() !== null && this.canDispatch());
+  readonly cloudSendAllowed = computed(
+    () =>
+      this.current() &&
+      this.accounts.selectedConnection()?.executionMode === 'cloud' &&
+      this.cloudPermission()?.allowed === true,
+  );
+  private canDispatch(): boolean {
+    const account = this.accounts.selectedConnection();
+    if (account?.status !== 'connected') return false;
+    return account.executionMode === 'cloud'
+      ? typeof account.externalAccountId === 'string' &&
+          /^[1-9][0-9]{0,31}$/.test(account.externalAccountId)
+      : account.executionMode === 'local' &&
+          !this.local.busy() &&
+          this.local.messagesAllowed() &&
+          this.local.hasValidBinding() &&
+          this.local.canUseBrowserProfile();
+  }
   private revision = 0;
   private destroyed = false;
   private activeRead: string | null = null;
@@ -70,6 +99,7 @@ export class VintedMessagingStore {
         this.sending.set(false);
         this.failure.set(null);
         this.readFailure.set(null);
+        this.cloudPermission.set(null);
         this.lastReadAt = 0;
         const account = this.accounts.selectedConnection();
         const conversationId = this.accounts.selectedConversationId();
@@ -120,7 +150,12 @@ export class VintedMessagingStore {
     const readRevision = ++this.readRevision;
     this.activeRead = context;
     try {
-      const messages = await this.api.read(scope, conversationId);
+      const [messages, permission] = await Promise.all([
+        this.api.read(scope, conversationId),
+        this.accounts.selectedConnection()?.executionMode === 'cloud'
+          ? this.api.readPermission(scope)
+          : Promise.resolve(null),
+      ]);
       if (
         this.matches(scope, conversationId) &&
         this.context() === context &&
@@ -128,6 +163,7 @@ export class VintedMessagingStore {
         readRevision === this.readRevision
       ) {
         this.storedMessages.set(messages);
+        this.cloudPermission.set(permission?.executionMode === 'cloud' ? permission : null);
         this.lastReadAt = Date.now();
         this.readFailure.set(null);
       }
@@ -151,10 +187,7 @@ export class VintedMessagingStore {
     if (
       !this.matches(scope, conversationId) ||
       this.sending() ||
-      this.local.busy() ||
-      !this.local.messagesAllowed() ||
-      !this.local.hasValidBinding() ||
-      !this.local.canUseBrowserProfile() ||
+      !this.canDispatch() ||
       text.length > 5000 ||
       (!text.trim() && !attachment)
     )
@@ -170,9 +203,8 @@ export class VintedMessagingStore {
     this.sending.set(true);
     this.failure.set(null);
     try {
-      if (!(await this.ensureSendPermission(valid))) return false;
-      if (!valid() || !this.local.hasValidBinding() || !this.local.canUseBrowserProfile())
-        return false;
+      if (!(await this.ensureSendPermission(scope, valid))) return false;
+      if (!valid() || !this.canDispatch()) return false;
       // Nach verlorener HTTP-Bestätigung bleibt dieselbe Nutzereingabe dieselbe Anfrage.
       const fingerprint = JSON.stringify([context, text, attachment]);
       const requestId = this.intents.get(fingerprint) ?? crypto.randomUUID();
@@ -185,7 +217,10 @@ export class VintedMessagingStore {
         queued,
       ]);
       // Ein Wecksignal bestätigt nur den Auftrag; es ersetzt keine Versandbestätigung.
-      if (this.local.canUseBrowserProfile())
+      if (
+        this.accounts.selectedConnection()?.executionMode === 'local' &&
+        this.local.canUseBrowserProfile()
+      )
         void this.bridge
           .request('FLIPBASE_VINTED_LOCAL_MESSAGES_SEND', scope)
           .catch(() => undefined);
@@ -212,10 +247,7 @@ export class VintedMessagingStore {
     if (
       !this.matches(scope, conversationId) ||
       this.sending() ||
-      this.local.busy() ||
-      !this.local.messagesAllowed() ||
-      !this.local.hasValidBinding() ||
-      !this.local.canUseBrowserProfile() ||
+      !this.canDispatch() ||
       !message ||
       (message.state !== 'failed' && message.state !== 'outcome_unknown') ||
       (message.state === 'outcome_unknown' && !confirmedUnknown)
@@ -231,16 +263,18 @@ export class VintedMessagingStore {
     this.sending.set(true);
     this.failure.set(null);
     try {
-      if (!(await this.ensureSendPermission(valid))) return false;
-      if (!valid() || !this.local.hasValidBinding() || !this.local.canUseBrowserProfile())
-        return false;
+      if (!(await this.ensureSendPermission(scope, valid))) return false;
+      if (!valid() || !this.canDispatch()) return false;
       const queued = await this.api.retry(scope, conversationId, messageId, confirmedUnknown);
       if (!valid()) return false;
       this.storedMessages.update((messages) => [
         ...messages.filter((entry) => entry.id !== messageId && entry.id !== queued.id),
         queued,
       ]);
-      if (this.local.canUseBrowserProfile())
+      if (
+        this.accounts.selectedConnection()?.executionMode === 'local' &&
+        this.local.canUseBrowserProfile()
+      )
         void this.bridge
           .request('FLIPBASE_VINTED_LOCAL_MESSAGES_SEND', scope)
           .catch(() => undefined);
@@ -255,7 +289,28 @@ export class VintedMessagingStore {
       if (valid()) this.sending.set(false);
     }
   }
-  private async ensureSendPermission(isCurrent: () => boolean): Promise<boolean> {
+  private async ensureSendPermission(
+    scope: AccountScope,
+    isCurrent: () => boolean,
+  ): Promise<boolean> {
+    const account = this.accounts.selectedConnection();
+    if (account?.executionMode === 'cloud') {
+      const identity = account.externalAccountId;
+      if (!identity) return false;
+      const permission = await this.api.readPermission(scope);
+      if (!isCurrent() || permission.executionMode !== 'cloud') return false;
+      this.cloudPermission.set(permission);
+      if (permission.allowed) return true;
+      const confirmed = await this.dialog.frage({
+        titel: 'Cloud-Nachrichtenversand erlauben?',
+        text: 'Flipbase darf Deine bewusst gesendeten Nachrichten und Bilder über das Cloud-Profil dieses Vinted-Kontos versenden. Du kannst die Freigabe hier widerrufen.',
+        bestaetigenText: 'Versand erlauben',
+      });
+      if (!confirmed || !isCurrent()) return false;
+      const approved = await this.api.approveCloud(scope, identity);
+      if (isCurrent() && approved.executionMode === 'cloud') this.cloudPermission.set(approved);
+      return isCurrent() && approved.executionMode === 'cloud' && approved.allowed;
+    }
     if (!this.local.binding()?.messagesSend) {
       const confirmed = await this.dialog.frage({
         titel: 'Nachrichtenversand erlauben?',
@@ -266,5 +321,34 @@ export class VintedMessagingStore {
       if (!(await this.local.approveSend()) || !isCurrent()) return false;
     }
     return isCurrent() && this.local.hasValidBinding() && this.local.canUseBrowserProfile();
+  }
+  async revokeCloudSend(): Promise<void> {
+    const account = this.accounts.selectedConnection();
+    const permission = this.cloudPermission();
+    const context = this.context();
+    if (
+      !context ||
+      !account ||
+      account.executionMode !== 'cloud' ||
+      !permission?.allowed ||
+      this.sending()
+    )
+      return;
+    const revision = this.revision;
+    const isCurrent = () =>
+      context === this.context() && revision === this.revision && !this.destroyed;
+    this.sending.set(true);
+    this.failure.set(null);
+    try {
+      const revoked = await this.api.revokeCloud(account, permission.authorizationVersion);
+      if (isCurrent()) this.cloudPermission.set(revoked);
+    } catch {
+      if (isCurrent())
+        this.failure.set(
+          'Die Versandfreigabe konnte nicht widerrufen werden. Aktualisiere den Versandstatus und versuche es erneut.',
+        );
+    } finally {
+      if (isCurrent()) this.sending.set(false);
+    }
   }
 }

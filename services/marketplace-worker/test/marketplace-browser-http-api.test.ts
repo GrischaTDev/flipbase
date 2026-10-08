@@ -57,6 +57,7 @@ async function setup(
     authorizationVersion: number;
     allowedIntervals: number[];
   },
+  conversationAccess = edits,
 ) {
   const inputs: string[] = [];
   let owner: BrowserSessionScope | undefined;
@@ -145,6 +146,7 @@ async function setup(
     accounts: confirm ? { confirm: async (scope, id) => confirm(scope, id) } : undefined,
     imports: writeImport ? { write: writeImport } : undefined,
     edits,
+    conversationAccess,
     operations,
     listingCache,
     profileCache,
@@ -216,6 +218,188 @@ test('gleicht nur die gebundene Sitzung ab und stoppt den Browser nach dem Speic
     assert.equal((await response.json()).observedAt, imports.observedAt);
     assert.deepEqual(written, [`${workspaceA}:${accountA}:${sessionId}:123`]);
     assert.equal(api.closes(), 1);
+  } finally {
+    await api.close();
+  }
+});
+
+test('conversation reads work without enabling profile or listing edits', async () => {
+  const entryId = '25600000-0000-4000-8000-000000000041';
+  const observedAt = '2026-10-07T21:00:00Z';
+  let writes = 0;
+  const edits = {
+    entry: async (scope: BrowserSessionScope, kind: string, id?: string) => {
+      assert.equal(scope.connectionId, accountA);
+      assert.equal(kind, 'conversation');
+      assert.equal(id, entryId);
+      return { externalId: '456', accountId: '123' };
+    },
+  } as VintedEditAccess;
+  const api = await setup(
+    undefined,
+    undefined,
+    false,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    async () => {
+      writes++;
+      return { profile: 1, publication: 0, conversation: 1, message: 1, sale: 0 };
+    },
+    undefined,
+    {
+      importAccount: async (authorize, _stage, _previous, target) => {
+        assert.deepEqual(target, { externalId: '456', accountId: '123' });
+        await authorize();
+        return {
+          identity: { id: '123', username: 'test' },
+          observedAt,
+          entries: [
+            {
+              kind: 'conversation',
+              externalId: '456',
+              sortAt: observedAt,
+              body: { detailCheckedAt: observedAt },
+            },
+          ],
+          areas: {
+            profile: { status: 'complete' },
+            publications: { status: 'complete' },
+            conversations: { status: 'complete' },
+            messages: { status: 'partial' },
+            sales: { status: 'partial' },
+            feedback: { status: 'complete' },
+          },
+        };
+      },
+    },
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    edits,
+  );
+  try {
+    const response = await api.request('/marketplace-browser/conversations/read', {
+      workspaceId: workspaceA,
+      connectionId: accountA,
+      conversationId: entryId,
+    });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { conversationId: entryId, observedAt });
+    assert.equal(writes, 1);
+    assert.equal(api.closes(), 1);
+    for (const path of [
+      '/marketplace-browser/profile/edit/save',
+      '/marketplace-browser/listings/edit/save',
+    ]) {
+      const response = await api.request(path, {
+        workspaceId: workspaceA,
+        connectionId: accountA,
+      });
+      assert.equal(response.status, 503);
+    }
+    assert.equal(writes, 1);
+    assert.equal(api.closes(), 1);
+  } finally {
+    await api.close();
+  }
+});
+
+test('conversation reads refuse unconfirmed details without overwriting saved messages', async () => {
+  const entryId = '25600000-0000-4000-8000-000000000041';
+  const edits = {
+    entry: async () => ({ externalId: '456', accountId: '123' }),
+  } as unknown as VintedEditAccess;
+  for (const identityId of ['123', '999']) {
+    const api = await setup(
+      undefined,
+      undefined,
+      false,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      async () => assert.fail('unconfirmed import'),
+      edits,
+      {
+        importAccount: async () => ({
+          identity: { id: identityId, username: 'test' },
+          observedAt: '2026-10-07T21:00:00Z',
+          entries: [
+            {
+              kind: 'conversation',
+              externalId: '456',
+              sortAt: '2026-10-07T21:00:00Z',
+              body: { detailCheckedAt: '2026-10-06T21:00:00Z' },
+            },
+          ],
+          areas: {
+            profile: { status: 'complete' },
+            publications: { status: 'complete' },
+            conversations: { status: 'complete' },
+            messages: { status: 'partial' },
+            sales: { status: 'partial' },
+            feedback: { status: 'complete' },
+          },
+        }),
+      },
+    );
+    try {
+      const response = await api.request('/marketplace-browser/conversations/read', {
+        workspaceId: workspaceA,
+        connectionId: accountA,
+        conversationId: entryId,
+      });
+      assert.equal(response.status, 502);
+      assert.equal((await response.json()).stage, 'messages');
+      assert.equal(api.closes(), 1);
+    } finally {
+      await api.close();
+    }
+  }
+});
+
+test('conversation reads reject invalid and foreign entries before starting the browser', async () => {
+  const edits = {
+    entry: async () => {
+      throw new Error('private access details');
+    },
+  } as unknown as VintedEditAccess;
+  const api = await setup(
+    undefined,
+    undefined,
+    false,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    async () => assert.fail('must not import'),
+    edits,
+  );
+  try {
+    for (const conversationId of ['invalid', '25600000-0000-4000-8000-000000000041']) {
+      const response = await api.request('/marketplace-browser/conversations/read', {
+        workspaceId: workspaceA,
+        connectionId: accountA,
+        conversationId,
+      });
+      assert.equal(response.status, conversationId === 'invalid' ? 400 : 403);
+      assert.ok(!(await response.text()).includes('private'));
+    }
+    assert.equal(api.runs(), 0);
+    assert.equal(api.closes(), 0);
   } finally {
     await api.close();
   }

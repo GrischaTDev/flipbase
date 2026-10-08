@@ -1,4 +1,5 @@
 import type { AccountScope } from './marketplace-contracts.ts';
+import type { MarketplaceInboxEventBatch } from './marketplace-inbox-event-contracts.d.ts';
 
 export interface LocalExtensionEntry {
   readonly kind: 'profile' | 'publication';
@@ -88,6 +89,7 @@ export interface LocalExtensionInboxEntry {
   readonly body: Readonly<Record<string, unknown>>;
 }
 export interface LocalExtensionInboxBatch {
+  readonly inboxEvents?: MarketplaceInboxEventBatch & { readonly version: 1 };
   readonly identity: { readonly id: string };
   readonly observedAt: string;
   readonly page: number;
@@ -483,6 +485,7 @@ function parseInboxBatch(input: unknown): input is LocalExtensionInboxBatch {
       'nextPage',
       'conversationsComplete',
       'entries',
+      'inboxEvents',
     ]) ||
     !record(input['identity']) ||
     !keys(input['identity'], ['id']) ||
@@ -500,6 +503,12 @@ function parseInboxBatch(input: unknown): input is LocalExtensionInboxBatch {
   )
     return false;
   const entries = input['entries'] as unknown[];
+  if (
+    input['inboxEvents'] !== undefined &&
+    (!isMarketplaceInboxEventBatch(input['inboxEvents']) ||
+      input['inboxEvents'].observedAt !== input['observedAt'])
+  )
+    return false;
   if (entries.length > 220) return false;
   let conversations = 0;
   let messages = 0;
@@ -677,4 +686,74 @@ export function parseLocalExtensionInboxState(input: unknown): LocalExtensionInb
 }
 export function parseLocalExtensionRevocation(input: unknown): LocalExtensionRevocation | null {
   return record(input) && input['ok'] === true ? { ok: true } : null;
+}
+
+function exactInboxEventKeys(input: Record<string, unknown>, fields: readonly string[]) {
+  return (
+    Object.keys(input).length === fields.length &&
+    Object.keys(input).every((field) => fields.includes(field))
+  );
+}
+function inboxEventTimestamp(input: unknown): input is string {
+  return (
+    typeof input === 'string' &&
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(input) &&
+    Number.isFinite(Date.parse(input)) &&
+    new Date(input).toISOString() === input
+  );
+}
+const inboxEventIdentifier = /^[1-9][0-9]{0,31}$/;
+export function isMarketplaceInboxEventBatch(
+  input: unknown,
+): input is MarketplaceInboxEventBatch & { readonly version: 1 } {
+  if (
+    !record(input) ||
+    !exactInboxEventKeys(input, [
+      'version',
+      'observedAt',
+      'events',
+      'complete',
+      'coveredConversationIds',
+    ]) ||
+    input['version'] !== 1 ||
+    !inboxEventTimestamp(input['observedAt']) ||
+    typeof input['complete'] !== 'boolean' ||
+    !Array.isArray(input['events']) ||
+    input['events'].length > 600 ||
+    !Array.isArray(input['coveredConversationIds']) ||
+    input['coveredConversationIds'].length > 3
+  )
+    return false;
+  const covered = input['coveredConversationIds'];
+  if (
+    !covered.every((id) => typeof id === 'string' && inboxEventIdentifier.test(id)) ||
+    new Set(covered).size !== covered.length
+  )
+    return false;
+  const seen = new Set<string>();
+  for (const event of input['events']) {
+    if (
+      !record(event) ||
+      !exactInboxEventKeys(event, [
+        'externalId',
+        'externalConversationId',
+        'occurredAt',
+        'direction',
+        'source',
+      ]) ||
+      typeof event['externalId'] !== 'string' ||
+      !/^(message|offer_request_message):[1-9][0-9]{0,31}$/.test(event['externalId']) ||
+      typeof event['externalConversationId'] !== 'string' ||
+      !inboxEventIdentifier.test(event['externalConversationId']) ||
+      !inboxEventTimestamp(event['occurredAt']) ||
+      event['occurredAt'] > input['observedAt'] ||
+      event['direction'] !== 'inbound' ||
+      event['source'] !== 'conversation_snapshot'
+    )
+      return false;
+    const key = `${event['externalConversationId']}:${event['externalId']}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+  }
+  return true;
 }

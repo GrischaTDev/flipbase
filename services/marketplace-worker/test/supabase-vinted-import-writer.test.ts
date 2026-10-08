@@ -33,6 +33,12 @@ test('liest Gesprächsversionen nur für die aktive Sitzung und das gebundene Ko
             detailCheckedAt: '2026-09-28T09:30:00Z',
             text: 'Letzte Nachricht',
             occurredAt: '2026-09-28T09:20:00Z',
+            itemId: '81',
+            itemTitle: 'Saved article',
+            itemImageUrl: 'https://images.example.test/article.jpg',
+            itemPrice: 24,
+            itemCurrency: 'EUR',
+            transactionStatus: 'Offer received',
           },
         },
       ]);
@@ -41,6 +47,8 @@ test('liest Gesprächsversionen nur für die aktive Sitzung und das gebundene Ko
   const versions = await writer.conversationVersions(scope, 'dddddddd-dddd-4ddd-8ddd-dddddddddddd');
   assert.equal(versions.length, 1);
   assert.equal(versions[0]?.text, 'Letzte Nachricht');
+  assert.equal(versions[0]?.itemTitle, 'Saved article');
+  assert.equal(versions[0]?.itemPrice, 24);
   assert.equal(calls[1]?.searchParams.get('workspace_id'), `eq.${scope.workspaceId}`);
   assert.equal(calls[1]?.searchParams.get('connection_id'), `eq.${scope.connectionId}`);
   assert.equal(calls[1]?.searchParams.get('kind'), 'eq.conversation');

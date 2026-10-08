@@ -40,14 +40,19 @@ function makeQuery(overrides: Partial<SniperQuery> = {}): SniperQuery {
 describe('evaluateFailure', () => {
   const NOW = new Date('2026-09-15T12:00:00.000Z');
 
-  it('schedules one challenge recovery probe after five minutes despite repeated failures', () => {
+  it('requires manual interaction despite repeated challenge failures', () => {
     const decision = evaluateFailure(
       new ForbiddenError('Challenge', { challengeDetected: true }),
       makeQuery({ consecutiveFailures: 3 }),
       NOW,
     );
-    expect(decision.nextAttemptAt?.toISOString()).toBe('2026-09-15T12:05:00.000Z');
-    expect(decision.originUpdate?.blockedUntil?.toISOString()).toBe('2026-09-15T12:05:00.000Z');
+    expect(decision.runState).toBe('blocked');
+    expect(decision.nextAttemptAt).toBeNull();
+    expect(decision.originUpdate).toEqual({
+      state: 'blocked',
+      blockedUntil: null,
+      reason: 'interaction_required',
+    });
     expect(decision.consecutiveFailures).toBe(4);
   });
 
@@ -59,6 +64,7 @@ describe('evaluateFailure', () => {
     );
     expect(decision.nextAttemptAt?.toISOString()).toBe('2026-09-15T12:30:00.000Z');
     expect(decision.originUpdate?.blockedUntil?.toISOString()).toBe('2026-09-15T12:30:00.000Z');
+    expect(decision.originUpdate?.state).toBe('blocked');
   });
 
   it('does not shorten a rate limit because of a challenge marker', () => {
@@ -69,6 +75,19 @@ describe('evaluateFailure', () => {
     );
     expect(decision.errorKind).toBe('rate_limited');
     expect(decision.originUpdate?.blockedUntil?.toISOString()).toBe('2026-09-15T12:30:00.000Z');
+  });
+
+  it('preserves the manual challenge pause when Retry-After is unsafe', () => {
+    for (const retryAfterSeconds of [Infinity, NaN, Number.MAX_VALUE, 86_401]) {
+      const decision = evaluateFailure(
+        new ForbiddenError('Challenge', { challengeDetected: true, retryAfterSeconds }),
+        makeQuery(),
+        NOW,
+      );
+      expect(decision.runState).toBe('blocked');
+      expect(decision.nextAttemptAt).toBeNull();
+      expect(decision.originUpdate?.blockedUntil).toBeNull();
+    }
   });
 
   it('never probes before the provider retry delay on a forbidden response', () => {

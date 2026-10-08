@@ -3,7 +3,8 @@ services:
   marketplace-worker:
     container_name: flipbase-marketplace-worker
     image: ${FLIPBASE_MARKETPLACE_IMAGE:?Geprüftes Worker-Abbild erforderlich}
-    restart: 'no'
+    # Recovery bestätigt beim Neustart zuerst Workerberechtigung und Browserbereinigung.
+    restart: unless-stopped
     init: true
     user: '1000:1000'
     env_file:
@@ -40,8 +41,6 @@ services:
         max-size: '10m'
         max-file: '3'
     networks:
-      flipbase-browser:
-        ipv4_address: 172.30.88.2
       supabase_default: {}
       chromium-control: {}
   chromium-host-broker:

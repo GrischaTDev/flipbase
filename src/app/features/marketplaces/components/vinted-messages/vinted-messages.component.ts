@@ -415,12 +415,15 @@ export class VintedMessagesComponent {
       this.store.selectedConversationId() === entry.id;
     try {
       await this.store.openConversation(entry.id);
-      if (readProvider && account.executionMode === 'local' && !this.store.error() && isCurrent()) {
-        // Der lokale Dienst führt nur einen Abruf gleichzeitig aus. Veraltete
+      if (readProvider && !this.store.error() && isCurrent()) {
+        // Je Ansicht läuft nur ein Abruf gleichzeitig. Veraltete
         // Auswahlen warten dessen Ende ab und starten anschließend keinen Abruf.
         const read = this.providerRead.then(async () => {
           if (!isCurrent()) return;
-          const result = await this.local.openInboxConversation(entry.id, isCurrent);
+          const result =
+            account.executionMode === 'local'
+              ? await this.local.openInboxConversation(entry.id, isCurrent)
+              : await this.store.refreshCloudConversation(entry.id, isCurrent);
           if (!isCurrent()) return;
           if (result.status === 'failed') {
             this.conversationRead.set({ key, error: result.error, observedAt: null });
@@ -489,11 +492,7 @@ export class VintedMessagesComponent {
   canRetryMessage(message: LocalQueuedMessage): boolean {
     return (
       (message.state === 'failed' || message.state === 'outcome_unknown') &&
-      this.store.canManage() &&
-      this.store.selectedConnection()?.executionMode === 'local' &&
-      this.store.selectedConnection()?.status === 'connected' &&
-      this.local.hasValidBinding() &&
-      this.local.messagesAllowed()
+      this.messaging.canSend()
     );
   }
 
@@ -508,8 +507,7 @@ export class VintedMessagesComponent {
       message.conversationId !== conversation.id ||
       !this.canRetryMessage(message) ||
       this.retryingMessageId() ||
-      this.messaging.busy() ||
-      this.local.busy()
+      this.messaging.busy()
     )
       return;
     this.retryingMessageId.set(message.id);
@@ -612,7 +610,7 @@ export class VintedMessagesComponent {
     const attachment = this.attachment();
     if (
       !account ||
-      account.executionMode !== 'local' ||
+      !this.messaging.canSend() ||
       account.status !== 'connected' ||
       !conversationId ||
       !key ||

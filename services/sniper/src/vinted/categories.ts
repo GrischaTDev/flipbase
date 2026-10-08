@@ -18,6 +18,8 @@
  * Escapes.
  */
 
+import { assertPageSize, parseBoundedPageJson } from './response-body.js';
+
 export interface VintedCategory {
   id: number;
   parentId: number | null;
@@ -56,8 +58,24 @@ function findStringEnd(text: string, openQuote: number): number {
 /** Schneidet ab `start` ein ausgeglichenes JSON-Array aus. */
 function sliceArray(text: string, start: number): string | null {
   let depth = 0;
+  let quoted = false;
+  let escaped = false;
 
   for (let index = start; index < text.length; index++) {
+    const character = text[index];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (quoted && character === '\\') {
+      escaped = true;
+      continue;
+    }
+    if (character === '"') {
+      quoted = !quoted;
+      continue;
+    }
+    if (quoted) continue;
     if (text[index] === '[') depth++;
     else if (text[index] === ']') {
       depth--;
@@ -68,7 +86,7 @@ function sliceArray(text: string, start: number): string | null {
   return null;
 }
 
-function findTree(html: string): TreeNode[] | null {
+function findTree(html: string): unknown {
   for (
     let at = html.indexOf(PUSH_MARKER);
     at !== -1;
@@ -82,7 +100,9 @@ function findTree(html: string): TreeNode[] | null {
 
     let payload: string;
     try {
-      payload = JSON.parse(html.slice(openQuote, closeQuote + 1)) as string;
+      const decoded = parseBoundedPageJson(html.slice(openQuote, closeQuote + 1));
+      if (typeof decoded !== 'string') continue;
+      payload = decoded;
     } catch {
       continue;
     }
@@ -94,7 +114,7 @@ function findTree(html: string): TreeNode[] | null {
     if (array === null) continue;
 
     try {
-      return JSON.parse(array) as TreeNode[];
+      return parseBoundedPageJson(array);
     } catch {
       continue;
     }
@@ -111,15 +131,40 @@ function slugOf(node: TreeNode): string {
 }
 
 export function parseCategoryTree(html: string): VintedCategory[] {
+  assertPageSize(html);
   const tree = findTree(html);
 
   if (tree === null) throw new Error('Kein catalogTree im HTML gefunden');
+  if (!Array.isArray(tree)) throw new Error('Der catalogTree ist ungültig');
   if (tree.length === 0) throw new Error('Der catalogTree ist leer');
 
   const flat: VintedCategory[] = [];
 
-  const walk = (nodes: TreeNode[], parentId: number | null, parentPath: string): void => {
-    for (const node of nodes) {
+  const seen = new Set<number>();
+  const walk = (
+    nodes: unknown[],
+    parentId: number | null,
+    parentPath: string,
+    depth: number,
+  ): void => {
+    if (depth > 32) throw new Error('Der Kategoriebaum ist zu tief');
+    for (const candidate of nodes) {
+      if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate))
+        throw new Error('Ungültige Kategorie');
+      const node = candidate as TreeNode;
+      if (
+        !Number.isSafeInteger(node.id) ||
+        node.id <= 0 ||
+        seen.has(node.id) ||
+        typeof node.title !== 'string' ||
+        !node.title.trim() ||
+        node.title.length > 200 ||
+        (node.url !== undefined && (typeof node.url !== 'string' || node.url.length > 2048)) ||
+        (node.catalogs !== undefined && !Array.isArray(node.catalogs))
+      )
+        throw new Error('Ungültige Kategorie');
+      seen.add(node.id);
+      if (seen.size > 10000) throw new Error('Zu viele Kategorien');
       const children = node.catalogs ?? [];
       const path = parentPath === '' ? node.title : `${parentPath} > ${node.title}`;
 
@@ -132,11 +177,11 @@ export function parseCategoryTree(html: string): VintedCategory[] {
         isLeaf: children.length === 0,
       });
 
-      if (children.length > 0) walk(children, node.id, path);
+      if (children.length > 0) walk(children, node.id, path, depth + 1);
     }
   };
 
-  walk(tree, null, '');
+  walk(tree, null, '', 0);
 
   return flat;
 }

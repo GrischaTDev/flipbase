@@ -2,7 +2,7 @@ import type {
   MarketplaceSyncError,
   MarketplaceSyncStage,
 } from './supabase-marketplace-operation-store.ts';
-import type { VintedRequestFailure } from './vinted-account-import.ts';
+import type { VintedRequestFailure, VintedBrowserReadFailure } from './vinted-account-import.ts';
 
 export interface MarketplaceOperationEvent {
   operationId: string;
@@ -12,11 +12,26 @@ export interface MarketplaceOperationEvent {
   errorCode?: MarketplaceSyncError;
   requestFailure?: VintedRequestFailure;
   sourceRequestCount?: number;
+  browserReadFailures?: VintedBrowserReadFailure[];
 }
 
 /** Ausschließlich feste Metadaten, niemals Anbieterantworten oder Anmeldedaten. */
 export class MarketplaceOperationEvents {
   record(event: MarketplaceOperationEvent): void {
+    const browserReadFailures = event.browserReadFailures
+      ?.filter((failure) =>
+        [
+          'navigation',
+          'navigation_interrupted',
+          'navigation_aborted',
+          'timeout',
+          'network',
+          'closed',
+          'script',
+          'unknown',
+        ].includes(failure),
+      )
+      .slice(0, 8);
     const line = `${JSON.stringify({
       event: 'marketplace_sync_stage',
       operationId: event.operationId,
@@ -25,7 +40,10 @@ export class MarketplaceOperationEvents {
       elapsedMs: Math.max(0, Math.round(event.elapsedMs)),
       ...(event.errorCode ? { errorCode: event.errorCode } : {}),
       ...(event.requestFailure ? { requestFailure: event.requestFailure } : {}),
-      ...(Number.isSafeInteger(event.sourceRequestCount) && event.sourceRequestCount! >= 0
+      ...(browserReadFailures?.length ? { browserReadFailures } : {}),
+      ...(typeof event.sourceRequestCount === 'number' &&
+      Number.isSafeInteger(event.sourceRequestCount) &&
+      event.sourceRequestCount >= 0
         ? { sourceRequestCount: event.sourceRequestCount }
         : {}),
     })}\n`;

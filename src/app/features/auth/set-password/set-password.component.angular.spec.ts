@@ -18,6 +18,7 @@ import { TextFieldComponent } from '../../../shared/components/text-field/text-f
 import { ButtonComponent } from '../../../shared/components/button/button.component';
 import { TRANSLATIONS_DE } from '../../../core/i18n/translations';
 import { BetaRegistrationProgressComponent } from '../../onboarding/components/beta-registration-progress/beta-registration-progress.component';
+import { BetaRegistrationService } from '../services/beta-registration.service';
 
 beforeAll(async () => {
   const lookup: Record<string, string> = {
@@ -99,6 +100,7 @@ describe('SetPasswordComponent', () => {
       updateUserError?: Error | null;
       activationError?: Error | null;
       review?: boolean;
+      method?: string;
     } = {},
   ) {
     const updateUser = vi.fn().mockResolvedValue({
@@ -109,6 +111,12 @@ describe('SetPasswordComponent', () => {
       client: {
         auth: {
           updateUser,
+          signOut: vi.fn().mockResolvedValue({ error: null }),
+          signInWithPassword: vi.fn().mockResolvedValue({ data: {}, error: null }),
+          getClaims: vi.fn().mockResolvedValue({
+            data: { claims: { amr: [{ method: options.method ?? 'invite' }] } },
+            error: null,
+          }),
         },
       },
     };
@@ -117,6 +125,7 @@ describe('SetPasswordComponent', () => {
       sessionReady: Promise.resolve(),
       isAuthenticated: vi.fn().mockReturnValue(options.isAuthenticated ?? true),
       canAccessApp: vi.fn().mockReturnValue(options.isAuthenticated ?? true),
+      changePassword: vi.fn().mockResolvedValue({ error: null, reportedBySyncStatus: false }),
       activatePendingBetaAccess: vi.fn().mockImplementation(async () => {
         if (options.activationError) throw options.activationError;
       }),
@@ -155,6 +164,10 @@ describe('SetPasswordComponent', () => {
     const fakeRouter = {
       navigate: vi.fn().mockResolvedValue(true),
     };
+    const registration = {
+      inspect: vi.fn().mockResolvedValue({}),
+      complete: vi.fn().mockResolvedValue({}),
+    };
 
     TestBed.configureTestingModule({
       imports: [SetPasswordComponent],
@@ -164,6 +177,7 @@ describe('SetPasswordComponent', () => {
         { provide: ThemeService, useValue: fakeTheme },
         { provide: TranslateService, useValue: fakeTranslate },
         { provide: Router, useValue: fakeRouter },
+        { provide: BetaRegistrationService, useValue: registration },
         {
           provide: ActivatedRoute,
           useValue: {
@@ -180,6 +194,10 @@ describe('SetPasswordComponent', () => {
       updateUser,
       activatePendingBetaAccess: fakeAuth.activatePendingBetaAccess,
       fakeRouter,
+      changePassword: fakeAuth.changePassword,
+      registration,
+      signOut: fakeSupabase.client.auth.signOut,
+      signInWithPassword: fakeSupabase.client.auth.signInWithPassword,
     };
   }
 
@@ -190,6 +208,73 @@ describe('SetPasswordComponent', () => {
     expect(component.form.controls.password.value).toBe('');
     expect(component.form.controls.confirmPassword.value).toBe('');
     expect(component.form.controls.acceptTerms.value).toBe(false);
+  });
+
+  it('verlangt für eine normale Sitzung das bisherige Passwort und nutzt die erneute Prüfung', async () => {
+    const { component, updateUser, changePassword } = createComponent({ method: 'password' });
+    await component.ngOnInit();
+    component.form.patchValue({
+      password: 'NewPassword123!',
+      confirmPassword: 'NewPassword123!',
+      acceptTerms: true,
+    });
+    await component.onSubmit();
+    expect(changePassword).not.toHaveBeenCalled();
+    expect(updateUser).not.toHaveBeenCalled();
+    component.form.controls.currentPassword.setValue('OldPassword123!');
+    await component.onSubmit();
+    expect(changePassword).toHaveBeenCalledWith('OldPassword123!', 'NewPassword123!');
+    expect(updateUser).not.toHaveBeenCalled();
+  });
+
+  it.each(['invite', 'recovery', 'otp'])(
+    'erhält die serverbestätigte %s-Passwortvergabe',
+    async (method) => {
+      const { component, updateUser, signOut, signInWithPassword } = createComponent({ method });
+      await component.ngOnInit();
+      component.form.patchValue({
+        password: 'NewPassword123!',
+        confirmPassword: 'NewPassword123!',
+        acceptTerms: true,
+      });
+      await component.onSubmit();
+      expect(component.isPasswordChange()).toBe(false);
+      expect(updateUser).toHaveBeenCalledOnce();
+      expect(signOut).toHaveBeenCalledWith({ scope: 'local' });
+      expect(signInWithPassword).toHaveBeenCalledWith({
+        email: 'test@example.de',
+        password: 'NewPassword123!',
+      });
+      expect(updateUser.mock.invocationCallOrder[0]).toBeLessThan(
+        signOut.mock.invocationCallOrder[0],
+      );
+      expect(signOut.mock.invocationCallOrder[0]).toBeLessThan(
+        signInWithPassword.mock.invocationCallOrder[0],
+      );
+    },
+  );
+
+  it('entfernt den Beta-Token vor der Prüfung aus der URL und behält ihn nur für den Abschluss im Speicher', async () => {
+    history.replaceState(null, '', '#beta_token=test-secret&keep=1');
+    const { component, registration } = createComponent();
+    registration.inspect.mockImplementation(async () => {
+      expect(window.location.hash).toBe('#keep=1');
+      return {};
+    });
+    await component.ngOnInit();
+    component.form.patchValue({
+      password: 'NewPassword123!',
+      confirmPassword: 'NewPassword123!',
+      acceptTerms: true,
+    });
+    await component.onSubmit();
+    expect(registration.inspect).toHaveBeenCalledWith('test-secret');
+    expect(registration.complete).toHaveBeenCalledWith(
+      'test-secret',
+      'NewPassword123!',
+      expect.any(String),
+    );
+    expect(window.location.href).not.toContain('test-secret');
   });
 
   it('erkennt ungleiche Passwoerter als Mismatch', () => {

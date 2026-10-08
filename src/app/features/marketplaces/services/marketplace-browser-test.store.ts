@@ -229,6 +229,7 @@ export class MarketplaceBrowserTestStore {
     const token = this.auth.session()?.access_token;
     const userId = this.auth.currentUser()?.id;
     if (!connection || !key || !token || !userId || !this.canStart()) return;
+    this.accounts.clearMutationError();
     const setupId = this.cloudSetupId();
     const scope: BrowserTestScope = {
       workspaceId: connection.workspaceId,

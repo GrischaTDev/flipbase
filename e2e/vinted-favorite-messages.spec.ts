@@ -2,12 +2,20 @@ import { expect, test } from '@playwright/test';
 import axe from 'axe-core';
 import { mockMarketplace, accountIds, workspaceId } from './support/marketplace-account-fixture';
 test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: 'block' });
-for (const width of [1440, 1024, 390, 320]) {
-  test(`Favoritennachrichten bleiben vor Freigabe aus und speichern Regeln bei ${width}px @marketplace-preview @core-smoke`, async ({
+for (const { width, cloud } of [1440, 1024, 390, 320].flatMap((width) => [
+  { width, cloud: false },
+  { width, cloud: true },
+])) {
+  test(`Favoritennachrichten (${cloud ? 'Cloud' : 'Extension'}) bleiben vor Freigabe aus und speichern Regeln bei ${width}px @marketplace-preview @core-smoke`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 1000 });
-    await mockMarketplace(page, false, false, false, false, [], undefined, true);
+    await mockMarketplace(page, false, false, false, false, [], undefined, !cloud);
+    await page.route('**/rest/v1/rpc/marketplace_read_message_permission', (route) =>
+      route.fulfill({
+        json: { executionMode: cloud ? 'cloud' : 'local', allowed: false, authorizationVersion: 0 },
+      }),
+    );
     let settings = {
       workspaceId,
       connectionId: accountIds[0],
@@ -71,7 +79,11 @@ for (const width of [1440, 1024, 390, 320]) {
     await expect(activation).toHaveAttribute('aria-checked', 'true');
     await view.getByRole('button', { name: 'Einstellungen speichern' }).click();
     const confirmation = page.getByRole('dialog');
-    await expect(confirmation).toContainText('Frühere Favorisierungen werden ausgelassen');
+    await expect(confirmation).toContainText(
+      cloud
+        ? 'Frühere Favorisierungen und bestehende Gespräche werden ausgelassen'
+        : 'Frühere Favorisierungen werden ausgelassen',
+    );
     await confirmation.getByRole('button', { name: 'Abbrechen', exact: true }).click();
     expect(saves).toHaveLength(1);
     await page.addScriptTag({ content: axe.source });
@@ -94,7 +106,7 @@ for (const width of [1440, 1024, 390, 320]) {
     expect(overflow).toEqual([]);
     expect(errors).toEqual([]);
     await page.screenshot({
-      path: `test-results/vinted-favorite-messages-${width}.png`,
+      path: `test-results/vinted-favorite-messages-${cloud ? 'cloud' : 'local'}-${width}.png`,
       fullPage: true,
     });
   });

@@ -27,6 +27,65 @@ const scopeA: BrowserSessionScope = {
 };
 const scopeB = { ...scopeA, connectionId: 'account-b' };
 
+test('message claims cannot be borrowed by another claim or an interactive login', async () => {
+  const { broker } = setup();
+  const writeScope = {
+    ...scopeA,
+    userAccessToken: '',
+    messageWrite: {
+      messageId: 'message-a',
+      claimToken: 'claim-a',
+      workerId: 'worker-a',
+      workerEpoch: 1,
+      runnerId: 'runner-a',
+      sessionId: 'lease-1',
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      absoluteExpiresAt: new Date(Date.now() + 600_000).toISOString(),
+    },
+  };
+  const id = await broker.open(writeScope);
+  await assert.rejects(
+    broker.run(scopeA, id, async () => undefined),
+    /Sitzungszugriff/,
+  );
+  await assert.rejects(
+    broker.run(
+      { ...writeScope, messageWrite: { ...writeScope.messageWrite, claimToken: 'other-claim' } },
+      id,
+      async () => undefined,
+    ),
+    /Sitzungszugriff/,
+  );
+  await assert.rejects(
+    broker.run(
+      { ...writeScope, messageWrite: { ...writeScope.messageWrite, workerEpoch: 2 } },
+      id,
+      async () => undefined,
+    ),
+    /Sitzungszugriff/,
+  );
+  await broker.close(writeScope, id);
+});
+
+test('a write claim cannot coexist with a read or setup authorization', async () => {
+  const { broker } = setup();
+  const mixedScope = {
+    ...scopeA,
+    cloudSetup: { setupId: 'setup-a' },
+    messageWrite: {
+      messageId: 'message-a',
+      claimToken: 'claim-a',
+      workerId: 'worker-a',
+      workerEpoch: 1,
+      runnerId: 'runner-a',
+      sessionId: 'lease-1',
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      absoluteExpiresAt: new Date(Date.now() + 600_000).toISOString(),
+    },
+  };
+  await assert.rejects(broker.open(mixedScope), /Sitzungszugriff/);
+});
+
 test('setup session cannot be reused through normal or another setup scope', async () => {
   const { broker } = setup();
   const setupScope = { ...scopeA, cloudSetup: { setupId: 'setup-a' } };
@@ -42,11 +101,18 @@ test('setup session cannot be reused through normal or another setup scope', asy
   await broker.close(setupScope, id);
 });
 
-function setup() {
+function setup(
+  options: {
+    now?: () => number;
+    authorizeScope?: (scope: BrowserSessionScope) => Promise<void>;
+  } = {},
+) {
   const leases = new Map<string, BrowserLease>();
   const stopped: string[] = [];
   const broker = createTestBroker({
+    now: options.now,
     leases: {
+      authorizeScope: options.authorizeScope ?? (async () => undefined),
       acquire: async (scope) => {
         if (
           [...leases.values()].some(
@@ -58,7 +124,7 @@ function setup() {
         const lease = {
           id: `lease-${leases.size + 1}`,
           scope: { ...scope },
-          expiresAt: Date.now() + 60_000,
+          expiresAt: Date.now() + 600_000,
           active: true,
         };
         leases.set(lease.id, lease);
@@ -609,3 +675,84 @@ test('retries lease release without allowing actions after provider stop', async
   assert.equal(releaseAttempts, 2);
   assert.equal(stops, 2);
 });
+
+test('short account action session keeps its lease until confirmed stop and reuses one browser', async () => {
+  const { broker, leases, stopped } = setup();
+  const first = await broker.openAction(scopeA);
+  await broker.finishAction(scopeA, first);
+  assert.equal(leases.get(first)?.active, true);
+  assert.deepEqual(stopped, []);
+  assert.equal(await broker.openAction({ ...scopeA, userAccessToken: 'renewed' }), first);
+  await broker.finishAction(scopeA, first);
+  const second = await broker.openAction(scopeB);
+  assert.notEqual(second, first);
+  assert.equal(leases.get(first)?.active, false);
+  assert.deepEqual(stopped, ['provider-account-a']);
+  await broker.close(scopeB, second);
+});
+
+test('idle reusable session yields to the existing queue only after confirmed cleanup', async () => {
+  const { broker, leases, stopped } = setup();
+  const id = await broker.openAction(scopeA);
+  await broker.prepareDispatch();
+  assert.deepEqual(stopped, []);
+  await broker.finishAction(scopeA, id);
+  await broker.prepareDispatch();
+  assert.deepEqual(stopped, ['provider-account-a']);
+  assert.equal(leases.get(id)?.active, false);
+});
+
+test('another action cannot borrow a held session even for the same account', async () => {
+  const { broker } = setup();
+  const id = await broker.openAction(scopeA);
+  await assert.rejects(broker.openAction(scopeA), /Browsersitzung/);
+  await assert.rejects(broker.openAction(scopeB), /Browsersitzung/);
+  await broker.close(scopeA, id);
+});
+
+test('reuse cannot bypass a revoked account lease', async () => {
+  const { broker, leases, stopped } = setup();
+  const id = await broker.openAction(scopeA);
+  await broker.finishAction(scopeA, id);
+  const lease = leases.get(id);
+  assert.ok(lease);
+  lease.active = false;
+  await assert.rejects(broker.openAction(scopeA), /abgelaufen/);
+  assert.deepEqual(stopped, ['provider-account-a']);
+});
+
+test('unauthorized replacement cannot stop an idle session belonging to another account', async () => {
+  const { broker, leases, stopped } = setup({
+    authorizeScope: async () => {
+      throw new Error('Sitzungszugriff verweigert');
+    },
+  });
+  const id = await broker.openAction(scopeA);
+  await broker.finishAction(scopeA, id);
+  await assert.rejects(broker.openAction(scopeB), /verweigert/);
+  assert.deepEqual(stopped, []);
+  assert.equal(leases.get(id)?.active, true);
+  assert.equal(await broker.openAction(scopeA), id);
+  await broker.close(scopeA, id);
+});
+
+for (const age of [20000, 120000]) {
+  test(`account action cannot borrow a session beyond its reuse cutoff: ${age}`, async () => {
+    let now = Date.now();
+    const { broker, stopped } = setup({ now: () => now });
+    const first = await broker.openAction(scopeA);
+    if (age === 120000) {
+      for (let index = 0; index < 11; index++) {
+        await broker.finishAction(scopeA, first);
+        now += 10000;
+        assert.equal(await broker.openAction(scopeA), first);
+      }
+    }
+    await broker.finishAction(scopeA, first);
+    now += age === 120000 ? 10000 : age;
+    const next = await broker.openAction(scopeA);
+    assert.notEqual(next, first);
+    assert.deepEqual(stopped, ['provider-account-a']);
+    await broker.close(scopeA, next);
+  });
+}

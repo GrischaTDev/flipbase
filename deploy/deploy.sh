@@ -40,7 +40,7 @@ if [ "$BEFEHL" = "migrationen" ]; then
 fi
 
 WEB_TAG=""
-SNIPER_TAG=""
+SNIPER_REFERENCE=""
 release_image=""
 
 # Die Kennzeichnung landet in einem Docker-Befehl. Sie wird deshalb streng
@@ -67,17 +67,17 @@ elif [[ "${parts[0]:-}" == "release-v1" ]]; then
     exit 1
   fi
   if [[ ${#parts[@]} -eq 4 ]]; then
-    if [[ "${parts[2]}" != "sniper" || ! "${parts[3]:-}" =~ ^sha-[0-9a-f]{7}$ ]]; then
+    if [[ "${parts[2]}" != "sniper" || ( ! "${parts[3]:-}" =~ ^sha-[0-9a-f]{7}$ && ! "${parts[3]:-}" =~ ^sha256:[a-f0-9]{64}$ ) ]]; then
       echo 'Ungueltige Sniper-Kennzeichnung.' >&2
       exit 2
     fi
-    SNIPER_TAG="${parts[3]}"
+    SNIPER_REFERENCE="${parts[3]}"
   fi
 elif [[ ${#parts[@]} -eq 2 || ${#parts[@]} -eq 4 ]]; then
   for ((index = 0; index < ${#parts[@]}; index += 2)); do
     service="${parts[index]}"
     tag="${parts[index + 1]}"
-    if [[ ! "$tag" =~ ^sha-[0-9a-f]{7}$ ]]; then
+    if [[ ! "$tag" =~ ^sha-[0-9a-f]{7}$ && ( "$service" != "sniper" || ! "$tag" =~ ^sha256:[a-f0-9]{64}$ ) ]]; then
       echo 'Ungueltige Image-Kennzeichnung.' >&2
       exit 2
     fi
@@ -87,8 +87,8 @@ elif [[ ${#parts[@]} -eq 2 || ${#parts[@]} -eq 4 ]]; then
         WEB_TAG="$tag"
         ;;
       sniper)
-        [[ -z "$SNIPER_TAG" ]] || { echo 'Sniper wurde doppelt angegeben.' >&2; exit 2; }
-        SNIPER_TAG="$tag"
+        [[ -z "$SNIPER_REFERENCE" ]] || { echo 'Sniper wurde doppelt angegeben.' >&2; exit 2; }
+        SNIPER_REFERENCE="$tag"
         ;;
       *)
         echo 'Unbekannter Dienst.' >&2
@@ -101,7 +101,7 @@ else
   exit 2
 fi
 
-if [[ -z "$WEB_TAG" && -z "$release_image" && -z "$SNIPER_TAG" ]]; then
+if [[ -z "$WEB_TAG" && -z "$release_image" && -z "$SNIPER_REFERENCE" ]]; then
   echo 'Kein Dienst zum Ausrollen angegeben.' >&2
   exit 2
 fi
@@ -109,7 +109,17 @@ fi
 if [[ -n "$release_image" ]]; then
   TAG="release-v1"
 else
-  TAG="${WEB_TAG:-$SNIPER_TAG}"
+  TAG="${WEB_TAG:-$SNIPER_REFERENCE}"
+fi
+
+sniper_image=""
+if [[ -n "$SNIPER_REFERENCE" ]]; then
+  if [[ "$SNIPER_REFERENCE" =~ ^sha256:[a-f0-9]{64}$ ]]; then
+    sniper_image="$SNIPER_IMAGE_REPOSITORY@$SNIPER_REFERENCE"
+  else
+    # Alte Kennzeichnungen bleiben ausschließlich für bewusste manuelle Rückfälle.
+    sniper_image="$SNIPER_IMAGE_REPOSITORY:$SNIPER_REFERENCE"
+  fi
 fi
 
 cd "$VERZEICHNIS"
@@ -132,6 +142,38 @@ trap cleanup EXIT
 echo "Rolle $TAG aus..."
 
 docker login "$REGISTRY" --username flipbase-deploy --password-stdin >/dev/null
+
+prepare_sniper_browser_runtime() {
+  local artifact_container="$1"
+  local runtime_directory
+  runtime_directory="$(dirname "$SNIPER_COMPOSE_FILE")"
+  local environment_file="${SNIPER_ENV_FILE:-$runtime_directory/sniper.env}"
+  export SNIPER_ENV_FILE="$environment_file"
+  export SNIPER_BROWSER_PROFILE_PATH="${SNIPER_BROWSER_PROFILE_PATH:-$runtime_directory/browser}"
+  export SNIPER_SECCOMP_FILE="${SNIPER_SECCOMP_FILE:-$runtime_directory/chromium-seccomp.json}"
+  # Keine Schlüssel kopieren oder protokollieren. Der öffentliche Auth-Key muss
+  # bei der einmaligen, freigegebenen Servervorbereitung bereitgestellt sein.
+  if ! grep -Eq "^SUPABASE_ANON_KEY=['\"]?[A-Za-z0-9._-]{20,}['\"]?$" "$environment_file"; then
+    echo 'SUPABASE_ANON_KEY fehlt in der Botkonfiguration; Servervorbereitung erforderlich.' >&2
+    return 1
+  fi
+  if [ -e "$SNIPER_BROWSER_PROFILE_PATH" ]; then
+    [ -d "$SNIPER_BROWSER_PROFILE_PATH" ] && [ ! -L "$SNIPER_BROWSER_PROFILE_PATH" ] \
+      && [ "$(stat -c '%u:%g:%a' "$SNIPER_BROWSER_PROFILE_PATH")" = '1000:1000:700' ] || {
+      echo 'Das eigene Botprofil muss UID/GID 1000 und Modus 0700 besitzen.' >&2; return 1;
+    }
+  else
+    # Numerische Container-IDs brauchen keinen passenden Benutzer auf dem Host.
+    install -d -m 700 "$SNIPER_BROWSER_PROFILE_PATH"
+    chown 1000:1000 "$SNIPER_BROWSER_PROFILE_PATH"
+  fi
+  docker cp "$artifact_container":/opt/flipbase/docker-compose.sniper.yml "$temporary/docker-compose.sniper.yml"
+  docker cp "$artifact_container":/opt/flipbase/chromium-seccomp.json "$temporary/chromium-seccomp.json"
+  install -m 644 "$temporary/chromium-seccomp.json" "$SNIPER_SECCOMP_FILE"
+  install -m 644 "$temporary/docker-compose.sniper.yml" "$SNIPER_COMPOSE_FILE"
+  FLIPBASE_SNIPER_IMAGE="$sniper_image" docker compose -f "$SNIPER_COMPOSE_FILE" config --quiet
+}
+
 if [[ -n "$release_image" ]]; then
   configured_image="$(FLIPBASE_IMAGE="$release_image" docker compose config --images web)"
   [[ "$configured_image" = "$release_image" ]] || {
@@ -142,6 +184,7 @@ if [[ -n "$release_image" ]]; then
   mkdir "$temporary/migrations"
   docker cp "$release_container":/opt/flipbase/migrations/. "$temporary/migrations/"
   "$VERZEICHNIS/apply-release-migrations.sh" "$temporary/migrations"
+  if [[ -n "$SNIPER_REFERENCE" ]]; then prepare_sniper_browser_runtime "$release_container"; fi
   # Auch der Start verwendet den Digest. Eine inzwischen verschobene Markierung
   # kann dadurch kein anderes als das geprüfte Abbild starten.
   FLIPBASE_IMAGE="$release_image" docker compose up -d --pull never web
@@ -150,8 +193,14 @@ elif [[ -n "$WEB_TAG" ]]; then
   IMAGE_TAG="$WEB_TAG" docker compose up -d web
 fi
 
-if [[ -n "$SNIPER_TAG" ]]; then
-  sniper_image="$SNIPER_IMAGE_REPOSITORY:$SNIPER_TAG"
+if [[ -n "$SNIPER_REFERENCE" ]]; then
+  if [[ -z "$release_image" ]]; then prepare_sniper_browser_runtime flipbase-web; fi
+  if [[ "$SNIPER_REFERENCE" =~ ^sha256:[a-f0-9]{64}$ ]]; then
+    configured_sniper_image="$(FLIPBASE_SNIPER_IMAGE="$sniper_image" docker compose -f "$SNIPER_COMPOSE_FILE" config --images sniper)"
+    [[ "$configured_sniper_image" = "$sniper_image" ]] || {
+      echo 'Compose verwendet nicht den Sniper-Digest; Serverbootstrap erforderlich.' >&2; exit 1;
+    }
+  fi
   FLIPBASE_SNIPER_IMAGE="$sniper_image" docker compose -f "$SNIPER_COMPOSE_FILE" pull sniper
   FLIPBASE_SNIPER_IMAGE="$sniper_image" docker compose -f "$SNIPER_COMPOSE_FILE" up -d --pull never sniper
 fi
@@ -238,6 +287,6 @@ if [[ -n "$WEB_TAG" || -n "$release_image" ]]; then
   fi
 fi
 
-if [[ -n "$SNIPER_TAG" ]]; then
+if [[ -n "$SNIPER_REFERENCE" ]]; then
   wait_for_healthy flipbase-sniper
 fi

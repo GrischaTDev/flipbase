@@ -1,5 +1,7 @@
 const LEGACY_BUSINESS_CACHE_KEYS = [
   'flipbase_saved_returns',
+  'flipbase_bank_transactions',
+  'flipbase_tax_advisor_config',
   'flipbase_price_radar_items',
   'flipbase_shipping_orders',
   'flipbase_carrier_config',

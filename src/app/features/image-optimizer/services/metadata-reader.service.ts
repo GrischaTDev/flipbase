@@ -10,6 +10,7 @@ import { readCapturedAt } from './capture-date';
 import { detectFormat, ImageFormat } from './image-format';
 import { toFields } from './metadata-fields';
 import { readDigitalSourceType, readWebpChunks } from './webp-metadata';
+import { assertImageBatch } from './image-import-limits';
 
 /**
  * `pick` (Filterung nach einzelnen Feldnamen) wurde ausprobiert und funktioniert
@@ -68,6 +69,7 @@ export class MetadataReaderService {
     const base = pendingMetadata();
 
     try {
+      assertImageBatch([file]);
       const signature = new Uint8Array(await file.slice(0, SIGNATURE_BYTES).arrayBuffer());
       const format = detectFormat(signature);
 

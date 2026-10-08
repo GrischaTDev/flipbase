@@ -1,5 +1,5 @@
 -- Bestätigt nur die Identität einer aktiven, kontogebundenen Browsersitzung.
--- Betroffen: marketplace_connections, marketplace_account_entries und marketplace_browser_sessions.
+-- Betroffen: marketplace_connections, marketplace_account_entries, marketplace_browser_sessions und marketplace_sync_schedules.
 create or replace function public.marketplace_browser_confirm_account(
   p_workspace_id uuid,
   p_connection_id uuid,
@@ -77,6 +77,14 @@ begin
   values (p_workspace_id, p_connection_id, true, p_user_id, 15,
     v_observed_at + interval '15 minutes')
   on conflict (workspace_id, connection_id) do nothing;
+
+  -- Die bestätigte Identität löst nur den alten Anmeldefehler. Eine Pause
+  -- bleibt erhalten; veraltete Auftragsabschlüsse dürfen ihn nicht zurücksetzen.
+  update public.marketplace_sync_schedules
+    set paused_reason = null, retry_after = null, consecutive_failures = 0,
+      authorization_version = authorization_version + 1, updated_at = v_observed_at
+    where workspace_id = p_workspace_id and connection_id = p_connection_id
+      and paused_reason = 'needs_login';
 
   insert into public.marketplace_account_entries
     (workspace_id, connection_id, kind, external_id, body, sort_at, observed_at)

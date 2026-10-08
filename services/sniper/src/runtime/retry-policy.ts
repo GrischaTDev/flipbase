@@ -6,6 +6,7 @@ import {
   VintedCollectorError,
   VintedParserError,
   VintedTimeoutError,
+  validRetryAfterSeconds,
 } from '../vinted/errors.js';
 
 export interface OriginDecision {
@@ -27,10 +28,6 @@ const SERVER_ERROR_DELAYS_MS = [30_000, 60_000, 120_000, 300_000, 600_000, 900_0
 
 // Eine 403 ohne bestaetigten Pruefseitenhinweis behaelt die steigende Pause.
 const FORBIDDEN_DELAYS_MS = [300_000, 600_000, 1_200_000, 2_400_000, 3_600_000] as const;
-// Am 01.10.2026 lieferte derselbe Sammler nach einer Cloudflare-Pruefseite
-// wieder Artikel, waehrend der Scheduler noch in seiner 40-Minuten-Pause war.
-// Bis zur Erholung bleiben alle Abrufe pausiert; danach darf nur eine Probe laufen.
-const CHALLENGE_PROBE_INTERVAL_MS = 5 * 60_000;
 
 /**
  * Reine, vollstaendig mit injizierter Uhr testbare Fehlerpolitik.
@@ -46,8 +43,9 @@ export function evaluateFailure(
 
   if (error instanceof RateLimitedError) {
     let waitMs: number;
-    if (typeof error.retryAfterSeconds === 'number' && error.retryAfterSeconds > 0) {
-      waitMs = error.retryAfterSeconds * 1000;
+    const retryAfterSeconds = validRetryAfterSeconds(error.retryAfterSeconds);
+    if (retryAfterSeconds !== undefined && retryAfterSeconds > 0) {
+      waitMs = retryAfterSeconds * 1000;
     } else {
       // Exponentiell 60s, 120s, 240s... bis max 60 Minuten (3600s)
       const exponent = Math.min(Math.max(0, failures - 1), 6);
@@ -70,12 +68,25 @@ export function evaluateFailure(
   }
 
   if (error instanceof ForbiddenError) {
+    if (error.challengeDetected) {
+      const retryAfterSeconds = validRetryAfterSeconds(error.retryAfterSeconds);
+      const notBefore =
+        retryAfterSeconds && retryAfterSeconds > 0
+          ? new Date(now.getTime() + retryAfterSeconds * 1000)
+          : null;
+      return {
+        runState: 'blocked',
+        nextAttemptAt: notBefore,
+        errorKind: 'forbidden',
+        errorMessage: rawMessage,
+        consecutiveFailures: failures,
+        originUpdate: { state: 'blocked', blockedUntil: notBefore, reason: 'interaction_required' },
+      };
+    }
     const delayIndex = Math.min(failures - 1, FORBIDDEN_DELAYS_MS.length - 1);
     const waitMs = Math.max(
-      error.challengeDetected === true
-        ? CHALLENGE_PROBE_INTERVAL_MS
-        : FORBIDDEN_DELAYS_MS[Math.max(0, delayIndex)]!,
-      (error.retryAfterSeconds ?? 0) * 1000,
+      FORBIDDEN_DELAYS_MS[Math.max(0, delayIndex)] ?? 3_600_000,
+      (validRetryAfterSeconds(error.retryAfterSeconds) ?? 0) * 1000,
     );
     const nextAttemptAt = new Date(now.getTime() + waitMs);
     return {

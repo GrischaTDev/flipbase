@@ -20,6 +20,29 @@ export interface BrowserSessionScope {
     expiresAt: string;
     absoluteExpiresAt: string;
   };
+  /** Interner, dauerhaft gebundener Versandversuch; niemals aus HTTP-Nutzdaten übernehmen. */
+  messageWrite?: {
+    messageId: string;
+    claimToken: string;
+    workerId: string;
+    workerEpoch: number;
+    runnerId: string;
+    sessionId: string;
+    expiresAt: string;
+    absoluteExpiresAt: string;
+  };
+  /** Eigene Favoritenphase; keine Freigabe für manuelle Aufträge oder Kontoabrufe. */
+  favoriteWrite?: {
+    eventId: string;
+    phase: 'message' | 'offer';
+    claimToken: string;
+    workerId: string;
+    workerEpoch: number;
+    runnerId: string;
+    sessionId: string;
+    expiresAt: string;
+    absoluteExpiresAt: string;
+  };
 }
 
 export class MarketplaceBrowserSessionBusyError extends Error {
@@ -48,6 +71,7 @@ interface BrowserLeaseStore {
   acquire(scope: BrowserSessionScope): Promise<BrowserLease>;
   assertActive(lease: BrowserLease): Promise<boolean>;
   release(lease: BrowserLease): Promise<void>;
+  authorizeScope?(scope: BrowserSessionScope): Promise<void>;
 }
 
 interface BrowserProfileStore {
@@ -65,6 +89,7 @@ interface BrowserSessionBrokerOptions {
   browsers: CloudBrowserProvider;
   recovery: { recover(): Promise<void> };
   authorizeRuntime?: () => Promise<boolean>;
+  now?: () => number;
 }
 
 interface ActiveBrowserSession {
@@ -73,6 +98,12 @@ interface ActiveBrowserSession {
   browser?: CloudBrowserHandle;
   stopPending: boolean;
   stopPromise?: Promise<void>;
+  reusable?: {
+    held: boolean;
+    idleSince: number;
+    absoluteEnd: number;
+    idleCleanup?: ReturnType<typeof setTimeout>;
+  };
 }
 
 function sameScope(left: BrowserSessionScope, right: BrowserSessionScope): boolean {
@@ -82,6 +113,23 @@ function sameScope(left: BrowserSessionScope, right: BrowserSessionScope): boole
     left.userId === right.userId &&
     left.cloudSetup?.setupId === right.cloudSetup?.setupId &&
     Boolean(left.syncRead) === Boolean(right.syncRead) &&
+    Boolean(left.messageWrite) === Boolean(right.messageWrite) &&
+    Boolean(left.favoriteWrite) === Boolean(right.favoriteWrite) &&
+    (!left.favoriteWrite ||
+      (left.favoriteWrite.eventId === right.favoriteWrite?.eventId &&
+        left.favoriteWrite.phase === right.favoriteWrite?.phase &&
+        left.favoriteWrite.claimToken === right.favoriteWrite?.claimToken &&
+        left.favoriteWrite.workerId === right.favoriteWrite?.workerId &&
+        left.favoriteWrite.workerEpoch === right.favoriteWrite?.workerEpoch &&
+        left.favoriteWrite.runnerId === right.favoriteWrite?.runnerId &&
+        left.favoriteWrite.sessionId === right.favoriteWrite?.sessionId)) &&
+    (!left.messageWrite ||
+      (left.messageWrite.messageId === right.messageWrite?.messageId &&
+        left.messageWrite.claimToken === right.messageWrite?.claimToken &&
+        left.messageWrite.workerId === right.messageWrite?.workerId &&
+        left.messageWrite.workerEpoch === right.messageWrite?.workerEpoch &&
+        left.messageWrite.runnerId === right.messageWrite?.runnerId &&
+        left.messageWrite.sessionId === right.messageWrite?.sessionId)) &&
     (!left.syncRead ||
       (left.syncRead.operationId === right.syncRead?.operationId &&
         left.syncRead.runnerId === right.syncRead?.runnerId &&
@@ -94,12 +142,87 @@ export class MarketplaceBrowserSessionBroker {
   private readonly options: BrowserSessionBrokerOptions;
   private recovered = false;
   private recoveryPromise?: Promise<void>;
+  private openingAction = false;
 
   constructor(options: BrowserSessionBrokerOptions) {
     this.options = options;
   }
 
+  async openAction(scope: BrowserSessionScope): Promise<string> {
+    if (scope.syncRead || scope.cloudSetup) return this.open(scope);
+    if (this.openingAction) throw new MarketplaceBrowserSessionBusyError();
+    this.openingAction = true;
+    try {
+      const now = this.options.now?.() ?? Date.now();
+      for (const [id, session] of this.sessions) {
+        if (!session.reusable || session.reusable.held || session.stopPending)
+          throw new MarketplaceBrowserSessionBusyError();
+        if (
+          sameScope(scope, session.lease.scope) &&
+          now - session.reusable.idleSince < 20000 &&
+          now < session.reusable.absoluteEnd
+        ) {
+          clearTimeout(session.reusable.idleCleanup);
+          session.reusable.held = true;
+          await this.run(scope, id, async () => undefined);
+          return id;
+        }
+        if (!sameScope(scope, session.lease.scope)) {
+          if (!this.options.leases.authorizeScope) throw new MarketplaceBrowserSessionBusyError();
+          await this.options.leases.authorizeScope(scope);
+        }
+        await this.terminate(id, session);
+      }
+      const id = await this.open(scope);
+      const session = this.find(scope, id);
+      session.reusable = {
+        held: true,
+        idleSince: now,
+        absoluteEnd: Math.min(now + 120000, session.lease.expiresAt),
+      };
+      return id;
+    } finally {
+      this.openingAction = false;
+    }
+  }
+
+  async finishAction(scope: BrowserSessionScope, sessionId: string): Promise<void> {
+    const session = this.find(scope, sessionId);
+    if (!session.reusable) return this.close(scope, sessionId);
+    await this.run(scope, sessionId, async () => undefined);
+    const now = this.options.now?.() ?? Date.now();
+    if (now >= session.reusable.absoluteEnd) return this.terminate(sessionId, session);
+    session.reusable.held = false;
+    session.reusable.idleSince = now;
+    clearTimeout(session.reusable.idleCleanup);
+    session.reusable.idleCleanup = setTimeout(
+      () => {
+        if (this.sessions.get(sessionId) === session && session.reusable && !session.reusable.held)
+          void this.terminate(sessionId, session).catch(() => undefined);
+      },
+      Math.min(20000, Math.max(1, session.reusable.absoluteEnd - now)),
+    );
+    session.reusable.idleCleanup.unref();
+  }
+
+  /** Vor dem Queue-Claim den freien Browserplatz tatsächlich bereinigen. */
+  async prepareDispatch(): Promise<void> {
+    if (this.openingAction) return;
+    this.openingAction = true;
+    try {
+      for (const [id, session] of this.sessions)
+        if (session.reusable && !session.reusable.held) await this.terminate(id, session);
+    } finally {
+      this.openingAction = false;
+    }
+  }
+
   async open(scope: BrowserSessionScope): Promise<string> {
+    if (
+      [scope.cloudSetup, scope.syncRead, scope.messageWrite, scope.favoriteWrite].filter(Boolean)
+        .length > 1
+    )
+      throw new Error('Sitzungszugriff verweigert');
     if (!(await this.runtimeAuthorized())) throw new Error('Worker-Zugriff unterbrochen');
     await this.ensureRecovered();
     const lease = await this.options.leases.acquire({ ...scope });
@@ -217,7 +340,12 @@ export class MarketplaceBrowserSessionBroker {
         active = false;
       }
       if (session.lease.expiresAt <= Date.now()) active = false;
-      if (!active || session.stopPending) {
+      const now = this.options.now?.() ?? Date.now();
+      const idle =
+        session.reusable &&
+        !session.reusable.held &&
+        (now - session.reusable.idleSince >= 20000 || now >= session.reusable.absoluteEnd);
+      if (!active || session.stopPending || idle) {
         try {
           await this.terminate(id, session);
         } catch {
@@ -255,6 +383,7 @@ export class MarketplaceBrowserSessionBroker {
     if (this.sessions.get(sessionId) !== session) return Promise.resolve();
     if (session.stopPromise) return session.stopPromise;
     session.stopPending = true;
+    clearTimeout(session.reusable?.idleCleanup);
     session.stopPromise = (async () => {
       try {
         // Ein alter Prozess darf ein inzwischen vom Nachfolger gestartetes Profil nicht stoppen.

@@ -1,14 +1,15 @@
 FROM node:22.23.2-alpine3.24 AS build
-WORKDIR /app
-COPY package.json package-lock.json ./
+WORKDIR /app/services/marketplace-worker
+COPY services/marketplace-worker/package.json services/marketplace-worker/package-lock.json ./
 RUN npm ci --ignore-scripts
-COPY tsconfig.json tsconfig.build.json ./
-COPY src ./src
+COPY services/marketplace-worker/tsconfig.json services/marketplace-worker/tsconfig.build.json ./
+COPY services/marketplace-worker/src ./src
+COPY supabase/functions/_shared/marketplace-message-contracts.d.ts supabase/functions/_shared/marketplace-inbox-event-contracts.d.ts /app/supabase/functions/_shared/
 RUN npm run build
 
 FROM node:22.23.2-alpine3.24 AS dependencies
 WORKDIR /app
-COPY package.json package-lock.json ./
+COPY services/marketplace-worker/package.json services/marketplace-worker/package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
 FROM node:22.23.2-alpine3.24 AS runtime
@@ -16,7 +17,7 @@ ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=dependencies /app/package.json ./package.json
 COPY --from=dependencies /app/node_modules ./node_modules
-COPY --from=build /app/dist ./dist
+COPY --from=build /app/services/marketplace-worker/dist ./dist
 USER node
 EXPOSE 4179
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \

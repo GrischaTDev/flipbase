@@ -3,6 +3,24 @@
 Stand: 05.10.2026. Freigegebener Pilot; lesenden Anbieterabgleich ergänzen.
 Ergänzt den [gemeinsamen Entwurf für Erweiterung und Cloud](vinted-local-and-cloud-design.md).
 
+## Ergänzung vom 07.10.2026: Gesprächsabruf
+
+Beim ausdrücklichen Öffnen eines Cloud-Gesprächs liest der Browserdienst dessen
+Details über das bestehende Kontoprofil und die zugewiesene IP. Die Leseroute
+`/marketplace-browser/conversations/read` erhält die Flipbase-Gesprächs-ID;
+die Anbieter-ID wird ausschließlich aus dem kontogebundenen Eintrag ermittelt.
+Der bestehende Kontoimport liest Profil, Inserate, Gesprächsliste und Bewertungen
+und zusätzlich genau diesen Gesprächsverlauf. Die Übernahme verwendet die
+vorhandene transaktionale Importfunktion und benötigt keine Schemaänderung.
+
+Nur ein bestätigter Detailabruf mit übernommenem Prüfzeitpunkt erlaubt die Anzeige
+„Synchronisiert“. Ein Fehler behält den gespeicherten Verlauf; eine andere
+Konto- oder Gesprächsauswahl verwirft verspätete Rückmeldungen. Der automatische
+Hintergrundabruf öffnet weiterhin keine ungelesenen Gespräche. Vollständiger
+Nachrichtenabgleich im Hintergrund und Cloud-Schreibaktionen sind getrennte,
+noch offene Schritte. Der echte Detailabruf wird erst nach Veröffentlichung
+dieser Änderung am Pilotkonto geprüft.
+
 ## Ziel und Umfang
 
 Nutzer können ein Vinted-Konto lokal mit der Erweiterung oder in der Cloud
@@ -133,21 +151,55 @@ den vorhandenen lokalen Verknüpfungsablauf nach beendetem Cloudbetrieb.
 
 ### Normales Chrome für die vorhandene Cloud-Einrichtung
 
-Der neue Sitzungscontainer startet Google Chrome direkt mit dem vorhandenen
-Kontoprofil unter `/profile`. Playwright verbindet sich erst anschließend über
-den privaten Worker-Zugang; es startet diesen Browser nicht. Die manuelle
+Der Sitzungscontainer startet Google Chrome direkt mit dem vorhandenen
+Kontoprofil unter `/profile`. Playwright verbindet sich innerhalb desselben
+Containers ausschließlich über Loopback; es startet diesen Browser nicht. Die manuelle
 Browseransicht überträgt Eingaben über die Betriebssystemtastatur und -maus.
 Die vorhandenen authentifizierten Sitzungsendpunkte bleiben erhalten. Ein
 öffentlicher VNC-Port wird dafür nicht benötigt. Proxy-Zugangsdaten werden
 über den vorhandenen Pilot-Weiterleiter verwendet; nur HTTP-Proxyanschlüsse
 sind in dieser Runtime zulässig.
 
-Worker und Sitzungsimage müssen gemeinsam auf geprüfte Versionen aktualisiert
-werden. Das Sitzungsimage trägt `de.flipbase.chromium.runtime=chrome-desktop-v1`;
+Controller, Broker und Sitzungsimage müssen gemeinsam auf geprüfte Versionen aktualisiert
+werden. Das Sitzungsimage trägt `de.flipbase.chromium.runtime=isolated-actions-v1`;
 der neue Worker verweigert den Start mit einem alten Image. Vor der Aktivierung
 müssen die laufenden Kontobrowser bestätigt beendet sein. Neue Versionen erst
 nach erfolgreichen PR-Prüfungen und Image-Smokes verwenden. Die bestehende
 Profilablage und IP-Zuordnung werden dabei nicht kopiert oder umgeschrieben.
+
+### Ergänzung vom 08.10.2026: begrenzte Wiederverwendung und Prozessrechte
+
+Der bestehende eine Cloudplatz bleibt erhalten: Controller und Broker jeweils
+512 MiB, höchstens eine aktive oder zu bereinigende Sitzung mit 2 GiB. Aufeinanderfolgende
+Aktionen desselben Kontos können den Container innerhalb von 20 Sekunden Leerlauf
+und bis zwei Minuten nach seiner Erstellung erneut verwenden. Die Freigabe wird
+bei jeder Aktion erneut geprüft. Ein Kontowechsel startet einen frischen Container;
+gespeicherte Profile und Anmeldungen bleiben erhalten. Vor einem Queue-Claim wird
+eine freie wiederverwendbare Sitzung vollständig beendet. Die Datenbankreservierung
+bleibt bis zum bestätigten physischen Stopp aktiv. Einrichtung und manuelle
+Anmeldesitzungen behalten ihre bestehenden Zeitgrenzen.
+
+Browser- und Playwright-Auswertung laufen im unprivilegierten Sitzungscontainer
+mit genau einem Profil und ohne Docker-Socket oder globale Schlüssel. Der
+Controller erhält feste Aktionen statt CDP-Zugang. GoLogin nutzt denselben
+isolierten Auswerter über einen kurzlebigen, profilspezifischen Broker-Tunnel;
+der globale Anbieterschlüssel bleibt im vertrauenswürdigen Controller und Broker.
+Ein vollständig übernommener Controller oder Docker-Broker bleibt daher eine
+offene Vertrauensgrenze der ursprünglichen Security-Meldungen.
+
+Die Umstellung erfordert keine neue Maschine oder Datenbankmigration. Vor Aktivierung
+Aufträge anhalten und laufende Sitzungen bestätigt bereinigen, dann geprüfte
+Controller-, Broker- und Sitzungsimages gemeinsam wechseln. Die Host-Firewall
+muss auf Richtlinie `v3` aktualisiert und bestätigt werden. Das Setup überschreibt
+abweichende bereits installierte Host-Dateien bewusst nicht: die vorhandene,
+root-eigene Bootstrap-Datei vorher mit der geprüften neuen Version ersetzen,
+dann `setup` ausführen und `verify` bestätigen. Der alte Timer muss währenddessen
+angehalten sein; erst die neue Richtlinie darf neue Starts freigeben.
+Die GoLogin-Compose-Datei bindet nun ebenfalls Broker, isoliertes Sitzungsimage,
+Profilmetadaten, Broker-Schlüssel und geprüfte Host-Firewall ein. Bestehende
+GoLogin-Installationen benötigen diese bisher nur im Chromium-Pilot vorhandenen
+Voraussetzungen vor der Umstellung. Anschließend echte Anmeldung, Abruf und
+Profilpersistenz mit dem zugeordneten Konto prüfen. Die lokale Erweiterung bleibt unverändert.
 Ein unbestätigter Chrome-Stopp liefert Exitcode 75 und bleibt gesperrt.
 
 Das separat angemeldete Maike-Vintage-Pilotprofil ist weiterhin nicht mit einer

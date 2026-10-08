@@ -12,6 +12,59 @@ const core = require('../tools/flipbase-extension/vinted-local-core.js');
 const messages = require('../tools/flipbase-extension/vinted-local-messages.js');
 const scheduler = require('../tools/flipbase-extension/vinted-local-scheduler.js');
 
+test('Trusted pairing window names the exact scope, renders plain text and requires an explicit decision', async () => {
+  const html = readFileSync(
+    new URL('../tools/flipbase-extension/pairing.html', import.meta.url),
+    'utf8',
+  );
+  const script = readFileSync(
+    new URL('../tools/flipbase-extension/pairing.js', import.meta.url),
+    'utf8',
+  );
+  const dom = new JSDOM(html, {
+    url: 'https://extension.test/pairing.html#nonce',
+    runScripts: 'outside-only',
+  });
+  const closeFixture = dom.window.close.bind(dom.window);
+  const calls = [];
+  const scope = {
+    username: '<script>hostile()</script>',
+    externalAccountId: '123',
+    appOrigin: 'https://app.flipbase.de',
+    workspaceId: 'workspace-123',
+    connectionId: 'connection-456',
+  };
+  dom.window.chrome = {
+    runtime: {
+      sendMessage: async (message) => {
+        calls.push({ ...message });
+        return message.type === 'VINTED_PAIRING_READ' ? scope : true;
+      },
+    },
+  };
+  dom.window.close = () => {};
+  try {
+    dom.window.eval(script);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const details = dom.window.document.getElementById('details');
+    assert.ok(details.textContent.includes(scope.username));
+    assert.equal(details.querySelector('script'), null);
+    assert.ok(details.textContent.includes(scope.workspaceId));
+    assert.ok(details.textContent.includes(scope.connectionId));
+    assert.deepEqual(calls, [{ type: 'VINTED_PAIRING_READ', nonce: 'nonce' }]);
+    dom.window.eval(require('axe-core').source);
+    const accessibility = await dom.window.axe.run(dom.window.document, {
+      rules: { 'color-contrast': { enabled: false } },
+    });
+    assert.equal(accessibility.violations.length, 0);
+    dom.window.document.getElementById('approve').click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.deepEqual(calls[1], { type: 'VINTED_PAIRING_CONFIRM', nonce: 'nonce', approved: true });
+  } finally {
+    closeFixture();
+  }
+});
+
 function accountBubbleFixture({
   status,
   identityResponse = profile,
@@ -970,6 +1023,7 @@ function harness() {
     },
     randomSecret: () => secret,
     hash: async () => tokenHash,
+    confirmBinding: async () => true,
     readIdentity: async () => ({ identity: currentIdentity, tabId: 12 }),
     readSnapshot: async () => ({
       tabId: 12,
@@ -1597,7 +1651,7 @@ test('Manifest narrows application and provider access without changing Kleinanz
     script.matches.includes('https://www.vinted.de/*'),
   );
   assert.equal(vintedContent.js.at(-1), 'vinted-local-account.js');
-  assert.equal(manifest.version, '1.7.0');
+  assert.equal(manifest.version, '1.7.1');
   assert.ok(
     manifest.content_scripts.some(
       (script) =>
@@ -2083,6 +2137,7 @@ function createChromeBackgroundFixture({
   permissionGranted = true,
   enableLifecycle = false,
   accelerateTimers = false,
+  consent = true,
 } = {}) {
   let stored = existingTab ? { [core.storageKey]: { tabId: existingTab.id } } : {};
   let nextTabId = 10;
@@ -2093,6 +2148,7 @@ function createChromeBackgroundFixture({
   const edgeCalls = [];
   const createdTabs = [];
   const updatedTabs = [];
+  const consentWindows = [];
   let currentTime = Date.now();
   class FixtureDate extends Date {
     static now() {
@@ -2125,6 +2181,7 @@ function createChromeBackgroundFixture({
       permissions: { contains: async () => permissionGranted },
       runtime: {
         id: 'extension',
+        getURL: (path) => `chrome-extension://extension/${path}`,
         onMessage: { addListener: (listener) => listeners.push(listener) },
         ...(enableLifecycle
           ? {
@@ -2140,6 +2197,25 @@ function createChromeBackgroundFixture({
               },
             }
           : {}),
+      },
+      windows: {
+        create: async (options) => {
+          consentWindows.push(options);
+          if (consent !== null)
+            queueMicrotask(() => {
+              listeners[0](
+                {
+                  type: 'VINTED_PAIRING_CONFIRM',
+                  nonce: options.url.split('#')[1],
+                  approved: consent,
+                },
+                { id: 'extension', frameId: 0, url: options.url },
+                () => {},
+              );
+            });
+          return { id: 99 };
+        },
+        remove: async () => {},
       },
       tabs: {
         ...(enableLifecycle
@@ -2267,6 +2343,7 @@ function createChromeBackgroundFixture({
     edgeCalls,
     createdTabs,
     updatedTabs,
+    consentWindows,
     validExpires,
     sender,
     get stored() {
@@ -2275,6 +2352,65 @@ function createChromeBackgroundFixture({
     setEdgeStatus: (status) => (edgeStatus = status),
   };
 }
+
+test('Pairing requires an extension-window decision and rejects website forgeries and replay', async () => {
+  const fixture = createChromeBackgroundFixture({ consent: null });
+  const background = fixture.startBackground();
+  await background.call({ type: 'FLIPBASE_VINTED_LOCAL_PREPARE', requestId: 'consent-prepare' });
+  const bindingPayload = {
+    ...payload,
+    tokenHash: fixture.stored[core.storageKey].tokenHash,
+    expiresAt: fixture.validExpires,
+  };
+  const binding = background.call({
+    type: 'FLIPBASE_VINTED_LOCAL_BIND',
+    requestId: 'consent-bind',
+    payload: bindingPayload,
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(fixture.edgeCalls.length, 0);
+  assert.equal(fixture.stored[core.storageKey].binding, undefined);
+  const url = fixture.consentWindows[0].url;
+  const nonce = url.split('#')[1];
+  const decision = { type: 'VINTED_PAIRING_CONFIRM', nonce, approved: true };
+  for (const sender of [fixture.sender, { id: 'other', url }, { id: 'extension', frameId: 1, url }])
+    assert.equal(
+      background.listener(decision, sender, () => assert.fail('Forged approval')),
+      false,
+    );
+  assert.equal(fixture.edgeCalls.length, 0);
+  const sender = { id: 'extension', frameId: 0, url };
+  const details = await background.call({ type: 'VINTED_PAIRING_READ', nonce }, sender);
+  assert.equal(details.workspaceId, workspaceId);
+  assert.equal(details.externalAccountId, '123');
+  assert.ok(!JSON.stringify(details).includes(fixture.stored[core.storageKey].secret));
+  await background.call({ ...decision, approved: false }, sender);
+  assert.equal((await binding).success, false);
+  assert.equal(fixture.edgeCalls.length, 0);
+  assert.equal(
+    background.listener(decision, sender, () => assert.fail('Replay')),
+    false,
+  );
+});
+
+test('Runtime fails closed without its trusted consent adapter and permits explicit approval', async () => {
+  const setup = harness();
+  await setup.runtime.run(request('PREPARE'), appOrigin);
+  setup.adapter.confirmBinding = undefined;
+  await assert.rejects(
+    () => setup.runtime.run(request('BIND', payload), appOrigin),
+    /nicht bestätigt/,
+  );
+  assert.equal(setup.edgeCalls.length, 0);
+  assert.equal(setup.saved.pendingScope, undefined);
+  setup.adapter.confirmBinding = async (binding, current) => {
+    assert.equal(binding.workspaceId, workspaceId);
+    assert.equal(current.id, '123');
+    return true;
+  };
+  await setup.runtime.run(request('BIND', payload), appOrigin);
+  assert.equal(setup.saved.binding.workspaceId, workspaceId);
+});
 
 test('Readiness accepts only a payload-free trusted request', () => {
   const message = { type: 'FLIPBASE_VINTED_LOCAL_READINESS', requestId: 'readiness' };

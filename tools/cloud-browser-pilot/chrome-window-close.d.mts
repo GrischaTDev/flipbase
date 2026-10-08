@@ -1,1 +1,1 @@
-export function closeChromeWindows(): Promise<void>;
+export function closeChromeWindows(run?: undefined, isRunning?: () => boolean): Promise<void>;

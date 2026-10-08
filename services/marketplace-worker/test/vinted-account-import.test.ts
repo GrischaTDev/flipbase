@@ -8,6 +8,140 @@ import {
   VintedImportRequestError,
 } from '../src/vinted-account-import.ts';
 
+test('unverifiable nonempty inbox never establishes an empty baseline', async () => {
+  for (const isEmpty of [false, true]) {
+    const paths: string[] = [];
+    const snapshot = await readVintedAccountImport(
+      importPage((path) => {
+        paths.push(path);
+        if (path.startsWith('/api/v2/inbox'))
+          return {
+            conversations: isEmpty ? [] : [{ id: 700, unread: true, opposite_user: { id: 0 } }],
+            pagination: { total_pages: 1 },
+          };
+        return undefined;
+      }),
+      async () => undefined,
+    );
+    assert.equal(snapshot.inboxEvents?.complete, isEmpty);
+    assert.deepEqual(snapshot.inboxEvents?.coveredConversationIds, []);
+    assert.equal(
+      paths.some((path) => path.startsWith('/api/v2/conversations/')),
+      false,
+    );
+  }
+});
+
+test('background snapshot reads identify incoming events while checking unread status without marking it', async () => {
+  const requests: string[] = [];
+  const page = importPage((path) => {
+    requests.push(path);
+    if (path.startsWith('/api/v2/inbox'))
+      return {
+        conversations: [
+          { id: 700, unread: true, opposite_user: { id: 91 }, updated_at: '2026-10-08T08:01:00Z' },
+        ],
+        pagination: { total_pages: 1 },
+      };
+    if (path === '/api/v2/conversations/700')
+      return {
+        conversation: {
+          id: 700,
+          opposite_user: { id: 91 },
+          read_by_current_user: false,
+          messages: [
+            {
+              entity_type: 'message',
+              created_at_ts: '2026-10-08T10:01:00+02:00',
+              entity: { id: 502, user_id: 91, body: 'Test' },
+            },
+          ],
+        },
+      };
+    return undefined;
+  });
+  const snapshot = await readVintedAccountImport(page, async () => undefined);
+  assert.equal(snapshot.inboxEvents?.events.length, 1);
+  assert.deepEqual(snapshot.inboxEvents?.coveredConversationIds, ['700']);
+  assert.equal(
+    snapshot.entries.find((entry) => entry.kind === 'conversation')?.body['unread'],
+    true,
+  );
+  assert.equal(requests.filter((path) => path.startsWith('/api/v2/inbox')).length, 2);
+  assert.ok(requests.every((path) => !path.includes('mark_as_read')));
+});
+
+test('an unexpected unread change aborts background import and never claims preserved status', async () => {
+  let inboxReads = 0;
+  const page = importPage((path) => {
+    if (path.startsWith('/api/v2/inbox'))
+      return {
+        conversations: [{ id: 700, unread: ++inboxReads === 1, opposite_user: { id: 91 } }],
+        pagination: { total_pages: 1 },
+      };
+    if (path === '/api/v2/conversations/700')
+      return {
+        conversation: {
+          id: 700,
+          opposite_user: { id: 91 },
+          read_by_current_user: false,
+          messages: [],
+        },
+      };
+    return undefined;
+  });
+  await assert.rejects(
+    readVintedAccountImport(page, async () => undefined),
+    VintedImportReadError,
+  );
+});
+
+test('unchanged unread timestamp still checks real message ids; oldest checked conversation gets its turn', async () => {
+  const paths: string[] = [];
+  const ids = [700, 701, 702, 703];
+  const sourceUpdatedAt = '2026-10-08T08:01:00.000Z';
+  const snapshot = await readVintedAccountImport(
+    importPage((path) => {
+      paths.push(path);
+      if (path.startsWith('/api/v2/inbox'))
+        return {
+          conversations: ids.map((id) => ({
+            id,
+            unread: true,
+            opposite_user: { id: 91 },
+            updated_at: sourceUpdatedAt,
+          })),
+          pagination: { total_pages: 1 },
+        };
+      if (path.startsWith('/api/v2/conversations/'))
+        return {
+          conversation: {
+            id: Number(path.split('/').at(-1)),
+            opposite_user: { id: 91 },
+            read_by_current_user: false,
+            messages: [],
+          },
+        };
+      return undefined;
+    }),
+    async () => undefined,
+    undefined,
+    ids.map((id) => ({
+      externalId: String(id),
+      sourceUpdatedAt,
+      detailCheckedAt: new Date(Date.now() - (id === 703 ? 120000 : 60000)).toISOString(),
+      text: null,
+      occurredAt: null,
+    })),
+  );
+  assert.equal(paths.filter((path) => path.startsWith('/api/v2/conversations/')).length, 3);
+  assert.equal(
+    paths.find((path) => path.startsWith('/api/v2/conversations/')),
+    '/api/v2/conversations/703',
+  );
+  assert.deepEqual(snapshot.inboxEvents?.coveredConversationIds, ['703', '700', '701']);
+});
+
 function importPage(overrides: (path: string) => unknown): Page {
   return {
     url: () => 'https://www.vinted.de/',
@@ -18,6 +152,305 @@ function importPage(overrides: (path: string) => unknown): Page {
         : { items: [], conversations: [], user_feedbacks: [], pagination: { total_pages: 1 } }),
   } as unknown as Page;
 }
+
+test('explicitly opening a conversation reads unread details without opening other conversations', async () => {
+  const paths: string[] = [];
+  const page = importPage((path) => {
+    paths.push(path);
+    if (path.startsWith('/api/v2/inbox'))
+      return {
+        conversations: [
+          { id: 456, unread: true, updated_at: '2026-10-07T10:00:00Z' },
+          { id: 789, unread: false },
+        ],
+        pagination: { total_pages: 1 },
+      };
+    if (path === '/api/v2/conversations/456')
+      return {
+        conversation: {
+          id: 456,
+          messages: [
+            { id: 101, entity_type: 'message', entity: { body: 'New message', user_id: 999 } },
+          ],
+        },
+      };
+    return undefined;
+  });
+  const result = await readVintedAccountImport(
+    page,
+    async () => undefined,
+    undefined,
+    [
+      {
+        externalId: '456',
+        sourceUpdatedAt: '2026-10-07T10:00:00Z',
+        detailCheckedAt: new Date().toISOString(),
+        text: 'Old message',
+        occurredAt: null,
+      },
+    ],
+    {
+      externalId: '456',
+      accountId: '123',
+    },
+  );
+  assert.equal(paths.filter((path) => path.startsWith('/api/v2/conversations/')).length, 1);
+  const conversation = result.entries.find(
+    (entry) => entry.kind === 'conversation' && entry.externalId === '456',
+  );
+  assert.equal(conversation?.body['detailCheckedAt'], result.observedAt);
+  assert.equal(result.entries.filter((entry) => entry.kind === 'message').length, 1);
+  assert.equal(
+    result.entries.find((entry) => entry.kind === 'message')?.body['text'],
+    'New message',
+  );
+});
+
+test('an explicit conversation read rejects another logged-in account before inbox access', async () => {
+  const paths: string[] = [];
+  const page = importPage((path) => {
+    paths.push(path);
+    return undefined;
+  });
+  await assert.rejects(
+    readVintedAccountImport(page, async () => undefined, undefined, [], {
+      externalId: '456',
+      accountId: '999',
+    }),
+    VintedImportReadError,
+  );
+  assert.deepEqual(paths, ['/api/v2/users/current']);
+});
+
+test('imports conversation article metadata from the inbox and enriches it from the selected detail', async () => {
+  const result = await readVintedAccountImport(
+    importPage((path) => {
+      if (path.startsWith('/api/v2/inbox'))
+        return {
+          conversations: [{ id: 456, unread: true, item_id: 81, item_title: 'Inbox article' }],
+          pagination: { total_pages: 1 },
+        };
+      if (path === '/api/v2/conversations/456')
+        return {
+          conversation: {
+            id: 456,
+            messages: [],
+            item: {
+              id: 81,
+              title: 'Selected article',
+              photos: [{ url: 'https://images.example.test/article.jpg' }],
+            },
+            transaction: {
+              id: 71,
+              seller_id: 123,
+              offer_price: { amount: '24.00', currency_code: 'EUR' },
+              status_title: 'Offer received',
+            },
+          },
+        };
+      return undefined;
+    }),
+    async () => undefined,
+    undefined,
+    [],
+    { externalId: '456', accountId: '123' },
+  );
+  const conversation = result.entries.find((entry) => entry.kind === 'conversation');
+  assert.equal(conversation?.body['itemId'], '81');
+  assert.equal(conversation?.body['itemTitle'], 'Selected article');
+  assert.equal(conversation?.body['itemImageUrl'], 'https://images.example.test/article.jpg');
+  assert.equal(conversation?.body['itemPrice'], 24);
+  assert.equal(conversation?.body['itemCurrency'], 'EUR');
+  assert.equal(conversation?.body['transactionStatus'], 'Offer received');
+});
+
+test('opening one conversation skips wardrobe, feedback and sales requests without claiming complete lists', async () => {
+  const paths: string[] = [];
+  const result = await readVintedAccountImport(
+    importPage((path) => {
+      paths.push(path);
+      if (path.startsWith('/api/v2/inbox'))
+        return { conversations: [{ id: 456, unread: false }], pagination: { total_pages: 1 } };
+      if (path === '/api/v2/conversations/456')
+        return { conversation: { id: 456, messages: [], transaction: { id: 71, seller_id: 123 } } };
+      return undefined;
+    }),
+    async () => undefined,
+    undefined,
+    [],
+    { externalId: '456', accountId: '123' },
+  );
+  assert.deepEqual(paths, [
+    '/api/v2/users/current',
+    '/api/v2/inbox?page=1&per_page=20',
+    '/api/v2/conversations/456',
+  ]);
+  assert.equal(result.sourceRequestCount, 3);
+  assert.equal(result.areas.publications.status, 'partial');
+  assert.equal(result.areas.feedback.status, 'partial');
+  assert.equal(result.areas.sales.status, 'partial');
+  assert.deepEqual(
+    result.entries.filter((entry) => entry.kind === 'publication' || entry.kind === 'sale'),
+    [],
+  );
+});
+
+test('retains cached article metadata when the unchanged inbox omits it and details are reused', () => {
+  const result = parseVintedAccountImport(
+    { id: '123', username: 'testkonto' },
+    { user: { id: 123 } },
+    [],
+    [{ id: 456, updated_at: '2026-10-08T08:00:00.000Z' }],
+    [],
+    '2026-10-08T09:00:00Z',
+    [
+      {
+        externalId: '456',
+        sourceUpdatedAt: '2026-10-08T08:00:00.000Z',
+        detailCheckedAt: '2026-10-08T08:05:00Z',
+        text: 'Saved message',
+        occurredAt: null,
+        itemId: '81',
+        itemTitle: 'Cached article',
+        itemImageUrl: 'https://images.example.test/article.jpg',
+        itemPrice: 24,
+        itemCurrency: 'EUR',
+        transactionStatus: 'Offer received',
+      },
+    ],
+  );
+  const conversation = result.entries.find((entry) => entry.kind === 'conversation');
+  assert.equal(conversation?.body['itemTitle'], 'Cached article');
+  assert.equal(conversation?.body['itemImageUrl'], 'https://images.example.test/article.jpg');
+  assert.equal(conversation?.body['itemPrice'], 24);
+});
+
+test('a rejected explicit detail read is not accepted as a successful account sync', async () => {
+  const page = importPage((path) => {
+    if (path.startsWith('/api/v2/inbox'))
+      return {
+        conversations: [{ id: 456, unread: true }],
+        pagination: { total_pages: 1 },
+      };
+    if (path === '/api/v2/conversations/456') throw new VintedImportRequestError('forbidden');
+    return undefined;
+  });
+  await assert.rejects(
+    readVintedAccountImport(page, async () => undefined, undefined, [], {
+      externalId: '456',
+      accountId: '123',
+    }),
+    VintedImportReadError,
+  );
+});
+
+test('retries a read once after navigation destroys its execution context', async () => {
+  let interrupted = false;
+  let loadWaits = 0;
+  let authorizations = 0;
+  const page = importPage((path) => {
+    if (path.includes('/users/current') && !interrupted) {
+      interrupted = true;
+      throw new Error(
+        'page.evaluate: Execution context was destroyed, most likely because of a navigation.',
+      );
+    }
+    return undefined;
+  });
+  page.isClosed = () => false;
+  page.waitForFunction = async () => {
+    loadWaits++;
+    return { dispose: async () => undefined } as Awaited<ReturnType<Page['waitForFunction']>>;
+  };
+  const snapshot = await readVintedAccountImport(page, async () => {
+    authorizations++;
+  });
+  assert.equal(snapshot.identity.id, '123');
+  assert.equal(snapshot.sourceRequestCount, 5);
+  assert.equal(loadWaits, 1);
+  assert.ok(authorizations >= 6);
+});
+
+test('a revoked authorization prevents the navigation retry', async () => {
+  let reads = 0;
+  let authorizations = 0;
+  const page = importPage(() => {
+    reads++;
+    throw new Error('Execution context was destroyed, most likely because of a navigation.');
+  });
+  page.isClosed = () => false;
+  await assert.rejects(
+    readVintedAccountImport(page, async () => {
+      if (++authorizations > 1) throw new Error('access revoked');
+    }),
+    VintedImportReadError,
+  );
+  assert.equal(reads, 1);
+  assert.equal(authorizations, 2);
+});
+
+test('a repeated context loss ends after one retry and keeps only a fixed diagnosis', async () => {
+  let reads = 0;
+  const page = importPage(() => {
+    reads++;
+    throw new Error('Execution context was destroyed: private provider details');
+  });
+  page.isClosed = () => false;
+  page.waitForFunction = async () =>
+    ({ dispose: async () => undefined }) as Awaited<ReturnType<Page['waitForFunction']>>;
+  await assert.rejects(
+    readVintedAccountImport(page, async () => undefined),
+    (error: unknown) =>
+      error instanceof VintedImportReadError &&
+      error.cause instanceof VintedImportRequestError &&
+      error.cause.browserReadFailure === 'navigation' &&
+      error.cause.cause === undefined,
+  );
+  assert.equal(reads, 2);
+});
+
+test('navigation to a login challenge prevents another account request', async () => {
+  let reads = 0;
+  let address = 'https://www.vinted.de/';
+  const page = importPage(() => {
+    reads++;
+    address = 'https://www.vinted.de/member/login/2fa';
+    throw new Error('Execution context was destroyed');
+  });
+  page.url = () => address;
+  page.isClosed = () => false;
+  page.waitForFunction = async () =>
+    ({ dispose: async () => undefined }) as Awaited<ReturnType<Page['waitForFunction']>>;
+  await assert.rejects(
+    readVintedAccountImport(page, async () => undefined),
+    VintedImportReadError,
+  );
+  assert.equal(reads, 1);
+});
+
+test('closed pages and script failures are not retried or exposed', async () => {
+  for (const [message, diagnosis] of [
+    ['Target page, context or browser has been closed', 'closed'],
+    ['ReferenceError: private script error', 'script'],
+    ['private script error', 'unknown'],
+  ] as const) {
+    let reads = 0;
+    const page = importPage(() => {
+      reads++;
+      throw new Error(message);
+    });
+    await assert.rejects(
+      readVintedAccountImport(page, async () => undefined),
+      (error: unknown) =>
+        error instanceof VintedImportReadError &&
+        error.cause instanceof VintedImportRequestError &&
+        error.cause.reason === 'browser_context' &&
+        error.cause.browserReadFailure === diagnosis &&
+        !error.message.includes(message),
+    );
+    assert.equal(reads, 1);
+  }
+});
 
 test('erneuert eine vorhandene Sitzung nach initialer 401 ohne erneute Zugangsdaten', async () => {
   let restored = false;
@@ -42,6 +475,41 @@ test('erneuert eine vorhandene Sitzung nach initialer 401 ohne erneute Zugangsda
   assert.equal(snapshot.identity.id, '123');
   assert.equal(profileReads, 2);
   assert.equal(snapshot.sourceRequestCount, 5);
+});
+
+test('failed session reloads preserve only a fixed browser diagnosis without another read', async () => {
+  for (const [message, diagnosis] of [
+    ['Navigation is interrupted by another navigation: private URL', 'navigation_interrupted'],
+    ['page.goto: net::ERR_ABORTED at https://private.example', 'navigation_aborted'],
+    ['page.goto: net::ERR_PROXY_CONNECTION_FAILED at https://private.example', 'network'],
+    ['page.goto: Timeout 20000ms exceeded: private URL', 'timeout'],
+    ['Target page, context or browser has been closed: private details', 'closed'],
+    ['private browser error', 'unknown'],
+  ] as const) {
+    let profileReads = 0;
+    let navigations = 0;
+    const page = importPage(() => {
+      profileReads++;
+      return { flipbaseRequestFailure: 'unauthorized' };
+    });
+    page.goto = async () => {
+      navigations++;
+      throw new Error(message);
+    };
+    await assert.rejects(
+      readVintedAccountImport(page, async () => undefined),
+      (error: unknown) =>
+        error instanceof VintedImportReadError &&
+        error.stage === 'profile' &&
+        error.cause instanceof VintedImportRequestError &&
+        error.cause.reason === 'browser_context' &&
+        error.cause.browserReadFailure === diagnosis &&
+        error.cause.cause === undefined &&
+        !error.cause.message.includes('private'),
+    );
+    assert.equal(profileReads, 1);
+    assert.equal(navigations, 1);
+  }
 });
 
 test('entzogener Zugriff verhindert bereits das Neuladen zur Sitzungswiederherstellung', async () => {

@@ -8,8 +8,10 @@ import {
   VintedImportReadError,
   VintedImportRequestError,
   type VintedImportAreas,
+  type VintedBrowserReadFailure,
 } from '../src/vinted-account-import.ts';
 import type { MarketplaceOperationEvent } from '../src/marketplace-operation-events.ts';
+import type { VintedAccountImport } from '../src/vinted-account-import.ts';
 
 const scope = {
   workspaceId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
@@ -19,6 +21,155 @@ const scope = {
 };
 const operationId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
 const sessionId = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+
+for (const isDispatched of [false, true])
+  for (const reason of ['unauthorized', 'forbidden', 'rate_limited'] as const) {
+    test(`optional favorite failure ${reason} preserves verified normal data and its diagnosis (dispatched=${isDispatched})`, async () => {
+      let saved: VintedAccountImport | undefined;
+      let failed: unknown[] = [];
+      let closed = false;
+      const runner = new MarketplaceSyncRunner(
+        {
+          open: async () => sessionId,
+          run: async (_scope, _id, operation) =>
+            operation({
+              version: () => 'fixture',
+              importAccount: async () => ({
+                identity: { id: '123', username: 'test' },
+                observedAt: '2026-10-08T12:00:00Z',
+                entries: [],
+                areas,
+              }),
+              readFavoriteEvents: async () => {
+                throw new VintedImportRequestError(reason, '900');
+              },
+            }),
+          close: async () => {
+            closed = true;
+          },
+        },
+        {
+          favoriteSettingsActive: async () => true,
+          write: async (_scope, _id, snapshot) => {
+            saved = snapshot;
+            return { profile: 1, publication: 0, conversation: 0, message: 0, sale: 0 };
+          },
+        },
+        {
+          enqueue: async () => ({ id: operationId, requestedBy: scope.userId }),
+          claim: async () => true,
+          stage: async () => undefined,
+          succeed: async () => assert.fail('Optional failure cannot count as complete success'),
+          fail: async (...argumentsList: unknown[]) => {
+            failed = argumentsList;
+          },
+        } as unknown as SupabaseMarketplaceOperationStore,
+        { record: () => undefined },
+      );
+      if (isDispatched)
+        await runner.runDispatched({
+          ...scope,
+          userAccessToken: '',
+          syncRead: {
+            operationId,
+            runnerId: operationId,
+            workerEpoch: 2,
+            sessionId,
+            expiresAt: new Date(Date.now() + 60000).toISOString(),
+            absoluteExpiresAt: new Date(Date.now() + 600000).toISOString(),
+          },
+        });
+      else {
+        await runner.start(scope);
+        await new Promise<void>((resolve) => setTimeout(resolve, 10));
+      }
+      assert.equal(saved?.identity.id, '123');
+      assert.equal(saved?.favoriteEvents, undefined);
+      assert.deepEqual(failed.slice(3), [
+        reason === 'unauthorized' ? 'identity' : 'access',
+        reason,
+        '900',
+      ]);
+      assert.equal(closed, true);
+    });
+  }
+
+for (const enabled of [false, true]) {
+  test(`favorites are read in the same authorized import only when enabled=${enabled}`, async () => {
+    let reads = 0;
+    let checks = 0;
+    let saved: VintedAccountImport | undefined;
+    let closed = false;
+    const dispatched = {
+      ...scope,
+      userAccessToken: '',
+      syncRead: {
+        operationId,
+        runnerId: operationId,
+        workerEpoch: 2,
+        sessionId,
+        expiresAt: new Date(Date.now() + 60000).toISOString(),
+        absoluteExpiresAt: new Date(Date.now() + 600000).toISOString(),
+      },
+    };
+    const favoriteEvents = [
+      { externalId: 'favorite-7', actorId: '456', itemId: '99', eventAt: '2026-10-08T12:00:00Z' },
+    ];
+    const runner = new MarketplaceSyncRunner(
+      {
+        open: async () => sessionId,
+        run: async (_scope, id, operation) => {
+          assert.equal(id, sessionId);
+          checks++;
+          return operation({
+            version: () => 'fixture',
+            importAccount: async () => ({
+              identity: { id: '123', username: 'test' },
+              observedAt: '2026-10-08T12:00:00Z',
+              entries: [],
+              areas,
+            }),
+            readFavoriteEvents: async (account, authorize) => {
+              assert.equal(account, '123');
+              await authorize();
+              reads++;
+              return favoriteEvents;
+            },
+          });
+        },
+        close: async () => {
+          closed = true;
+        },
+      },
+      {
+        favoriteSettingsActive: async (binding, id) => {
+          assert.equal(binding, dispatched);
+          assert.equal(id, sessionId);
+          return enabled;
+        },
+        write: async (_scope, id, snapshot) => {
+          assert.equal(id, sessionId);
+          saved = snapshot;
+          return { profile: 1, publication: 0, conversation: 0, message: 0, sale: 0 };
+        },
+      },
+      {
+        claim: async () => true,
+        stage: async () => undefined,
+        succeed: async () => undefined,
+        fail: async () => {
+          assert.fail('Der Fixtureimport muss gelingen');
+        },
+      } as unknown as SupabaseMarketplaceOperationStore,
+      { record: () => undefined },
+    );
+    await runner.runDispatched(dispatched);
+    assert.equal(reads, enabled ? 1 : 0);
+    assert.deepEqual(saved?.favoriteEvents, enabled ? favoriteEvents : undefined);
+    assert.equal(checks, enabled ? 4 : 2);
+    assert.equal(closed, true);
+  });
+}
 const areas: VintedImportAreas = {
   profile: { status: 'complete' },
   publications: { status: 'complete' },
@@ -156,6 +307,7 @@ test('doppelter Start nutzt einen Auftrag und öffnet nur einen Browser', async 
             entries: [],
             areas,
             sourceRequestCount: 7,
+            browserReadFailures: ['navigation'] as VintedBrowserReadFailure[],
           };
         },
       }),
@@ -185,6 +337,7 @@ test('doppelter Start nutzt einen Auftrag und öffnet nur einen Browser', async 
       ?.sourceRequestCount,
     7,
   );
+  assert.deepEqual(events.at(-1)?.browserReadFailures, ['navigation']);
 });
 
 test('abgelaufener Zugriff beendet den Auftrag ohne Datenübernahme', async () => {
@@ -228,60 +381,70 @@ test('abgelaufener Zugriff beendet den Auftrag ohne Datenübernahme', async () =
   assert.equal(writes, 0);
 });
 
-test('HTTP 401 beim Profilabruf verlangt erneute Anmeldung und schreibt keine Daten', async () => {
-  let failedCode: string | null = null;
-  let writes = 0;
-  let closes = 0;
-  let done!: () => void;
-  const completed = new Promise<void>((resolve) => {
-    done = resolve;
+for (const requestFailure of ['unauthorized', 'browser_context'] as const) {
+  test(`a failed profile read preserves its diagnosis without importing data: ${requestFailure}`, async () => {
+    let failedCode: string | null = null;
+    let writes = 0;
+    let closes = 0;
+    let done!: () => void;
+    const completed = new Promise<void>((resolve) => {
+      done = resolve;
+    });
+    const events: MarketplaceOperationEvent[] = [];
+    const operations = {
+      enqueue: async () => ({ id: operationId, requestedBy: scope.userId }),
+      claim: async () => true,
+      stage: async () => undefined,
+      succeed: async () => assert.fail('Eine ungültige Anmeldung darf nicht bestätigt werden'),
+      fail: async (_scope: typeof scope, _id: string, _runnerId: string, code: string) => {
+        failedCode = code;
+        done();
+      },
+    } as unknown as SupabaseMarketplaceOperationStore;
+    const runner = new MarketplaceSyncRunner(
+      {
+        open: async () => sessionId,
+        run: async <T>(
+          _scope: typeof scope,
+          _id: string,
+          operation: (browser: BrowserInfo) => Promise<T>,
+        ) =>
+          operation({
+            version: () => 'test',
+            importAccount: async (_authorize, onStage) => {
+              await onStage?.('profile');
+              throw new VintedImportReadError(
+                'profile',
+                new VintedImportRequestError(
+                  requestFailure,
+                  undefined,
+                  requestFailure === 'browser_context' ? 'navigation' : undefined,
+                ),
+              );
+            },
+          }),
+        close: async () => {
+          closes += 1;
+        },
+      },
+      {
+        write: async () => {
+          writes += 1;
+          return { profile: 0, publication: 0, conversation: 0, message: 0, sale: 0 };
+        },
+      },
+      operations,
+      { record: (event) => events.push(event) },
+    );
+    await runner.start(scope);
+    await completed;
+    assert.equal(failedCode, requestFailure === 'unauthorized' ? 'identity' : 'profile');
+    assert.equal(writes, 0);
+    assert.equal(closes, 1);
+    assert.equal(events.at(-1)?.requestFailure, requestFailure);
+    assert.deepEqual(
+      events.at(-1)?.browserReadFailures,
+      requestFailure === 'browser_context' ? ['navigation'] : undefined,
+    );
   });
-  const events: MarketplaceOperationEvent[] = [];
-  const operations = {
-    enqueue: async () => ({ id: operationId, requestedBy: scope.userId }),
-    claim: async () => true,
-    stage: async () => undefined,
-    succeed: async () => assert.fail('Eine ungültige Anmeldung darf nicht bestätigt werden'),
-    fail: async (_scope: typeof scope, _id: string, _runnerId: string, code: string) => {
-      failedCode = code;
-      done();
-    },
-  } as unknown as SupabaseMarketplaceOperationStore;
-  const runner = new MarketplaceSyncRunner(
-    {
-      open: async () => sessionId,
-      run: async <T>(
-        _scope: typeof scope,
-        _id: string,
-        operation: (browser: BrowserInfo) => Promise<T>,
-      ) =>
-        operation({
-          version: () => 'test',
-          importAccount: async (_authorize, onStage) => {
-            await onStage?.('profile');
-            throw new VintedImportReadError(
-              'profile',
-              new VintedImportRequestError('unauthorized'),
-            );
-          },
-        }),
-      close: async () => {
-        closes += 1;
-      },
-    },
-    {
-      write: async () => {
-        writes += 1;
-        return { profile: 0, publication: 0, conversation: 0, message: 0, sale: 0 };
-      },
-    },
-    operations,
-    { record: (event) => events.push(event) },
-  );
-  await runner.start(scope);
-  await completed;
-  assert.equal(failedCode, 'identity');
-  assert.equal(writes, 0);
-  assert.equal(closes, 1);
-  assert.equal(events.at(-1)?.requestFailure, 'unauthorized');
-});
+}

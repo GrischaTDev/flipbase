@@ -30,6 +30,7 @@ interface SyncBroker {
 }
 
 interface ImportWriter {
+  favoriteSettingsActive?(scope: BrowserSessionScope, sessionId: string): Promise<boolean>;
   conversationVersions?(
     scope: BrowserSessionScope,
     sessionId: string,
@@ -93,6 +94,9 @@ export class MarketplaceSyncRunner {
     let failedStage: MarketplaceSyncError = 'browser';
     let requestFailure: VintedImportRequestError['reason'] | undefined;
     let retryAfter: string | undefined;
+    let browserReadFailures: VintedAccountImport['browserReadFailures'];
+    let favoriteReadFailure: VintedImportRequestError | undefined;
+    let sessionClosed = false;
     let currentStage: MarketplaceSyncStage = 'browser';
     let stageStartedAt = Date.now();
     const moveTo = async (nextStage: MarketplaceSyncStage): Promise<void> => {
@@ -133,6 +137,9 @@ export class MarketplaceSyncRunner {
             if (error.cause instanceof VintedImportRequestError) {
               requestFailure = error.cause.reason;
               retryAfter = error.cause.retryAfter;
+              browserReadFailures = error.cause.browserReadFailure
+                ? [error.cause.browserReadFailure]
+                : undefined;
               if (requestFailure === 'unauthorized') failedStage = 'identity';
             }
           }
@@ -140,6 +147,28 @@ export class MarketplaceSyncRunner {
         }
       });
       if (!snapshot) throw new Error('Vinted-Datenabruf fehlgeschlagen');
+      if (await this.imports.favoriteSettingsActive?.(scope, currentSessionId)) {
+        const favoriteRead = await this.broker.run(scope, currentSessionId, async (browser) => {
+          try {
+            if (!browser.readFavoriteEvents) throw new VintedImportRequestError('invalid_response');
+            return {
+              events: await browser.readFavoriteEvents(snapshot.identity.id, () =>
+                this.broker.run(scope, currentSessionId, async () => undefined),
+              ),
+            };
+          } catch (error) {
+            if (error instanceof MarketplaceBrowserSessionEndedError) throw error;
+            return {
+              failure:
+                error instanceof VintedImportRequestError
+                  ? error
+                  : new VintedImportRequestError('provider_unavailable'),
+            };
+          }
+        });
+        if (favoriteRead.failure) favoriteReadFailure = favoriteRead.failure;
+        else snapshot.favoriteEvents = favoriteRead.events;
+      }
       failedStage = 'access';
       await this.broker.run(scope, currentSessionId, async () => undefined);
       failedStage = 'persist';
@@ -150,10 +179,21 @@ export class MarketplaceSyncRunner {
       let cleanupPending = false;
       try {
         await this.broker.close(scope, currentSessionId);
+        sessionClosed = true;
       } catch {
         cleanupPending = true;
       }
       sessionId = undefined;
+      if (favoriteReadFailure) {
+        failedStage = cleanupPending
+          ? 'cleanup'
+          : favoriteReadFailure.reason === 'unauthorized'
+            ? 'identity'
+            : 'access';
+        requestFailure = favoriteReadFailure.reason;
+        retryAfter = favoriteReadFailure.retryAfter;
+        throw favoriteReadFailure;
+      }
       await this.operations.succeed(
         scope,
         id,
@@ -169,6 +209,7 @@ export class MarketplaceSyncRunner {
         outcome: 'completed',
         elapsedMs: Date.now() - stageStartedAt,
         sourceRequestCount: snapshot.sourceRequestCount,
+        browserReadFailures: snapshot.browserReadFailures,
       });
     } catch (error) {
       if (error instanceof MarketplaceBrowserSessionEndedError)
@@ -176,6 +217,7 @@ export class MarketplaceSyncRunner {
       if (sessionId) {
         try {
           await this.broker.close(scope, sessionId);
+          sessionClosed = true;
         } catch {
           failedStage = 'cleanup';
         }
@@ -187,6 +229,7 @@ export class MarketplaceSyncRunner {
         elapsedMs: Date.now() - stageStartedAt,
         errorCode: failedStage,
         requestFailure,
+        browserReadFailures,
       });
       try {
         await this.operations.fail(scope, id, runnerId, failedStage, requestFailure, retryAfter);
@@ -197,7 +240,7 @@ export class MarketplaceSyncRunner {
           throw new Error('Reservierter Leseauftrag verlangt Wiederherstellung');
         }
       }
-      if (scope.syncRead && !sessionId) {
+      if (scope.syncRead && !sessionId && !sessionClosed) {
         // eslint-disable-next-line preserve-caught-error
         throw new Error('Reservierte Browsersitzung verlangt Wiederherstellung');
       }

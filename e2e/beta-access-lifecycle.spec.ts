@@ -73,6 +73,8 @@ test('beendet und verlängert eine Beta bei offenem Browser und erhält die Anme
   const registered = await createAnonClient().functions.invoke('beta-register', {
     body: { action: 'complete', token, password, acceptedTerms: true, requestId: randomUUID() },
   });
+  const registrationFailure = registered.error ? await registered.error.context.json() : null;
+  expect(registrationFailure).toBeNull();
   expect(registered.error).toBeNull();
   expect(registered.data.session.access_token).toBeTruthy();
   const membership = await admin

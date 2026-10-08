@@ -19,6 +19,56 @@ const lease: BrowserLease = {
   },
 };
 
+test('a reserved write cannot start a profile assigned to another connection', async () => {
+  const writeLease: BrowserLease = {
+    ...lease,
+    scope: {
+      ...lease.scope,
+      userAccessToken: '',
+      messageWrite: {
+        messageId: 'message',
+        claimToken: 'claim',
+        workerId: 'worker',
+        workerEpoch: 4,
+        runnerId: 'runner',
+        sessionId: 'session',
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        absoluteExpiresAt: new Date(Date.now() + 600_000).toISOString(),
+      },
+    },
+  };
+  let starts = 0;
+  const broker = new MarketplaceBrowserSessionBroker({
+    leases: {
+      acquire: async () => writeLease,
+      assertActive: async () => true,
+      release: async () => undefined,
+    },
+    profiles: new ChromiumBoundProfileStore({
+      profiles: { resolve: async () => profileId },
+      registry: {
+        resolve: async () => ({
+          profileId,
+          workspaceId: 'workspace-b',
+          connectionId: 'connection-b',
+          networkId: 'iproyal-test-a',
+        }),
+      },
+      assertNetwork: async () => ({ profileId, networkId: 'iproyal-test-a' }),
+    }),
+    recovery: { recover: async () => undefined },
+    browsers: {
+      open: async () => {
+        starts++;
+        throw new Error('Must not start');
+      },
+      stop: async () => undefined,
+    },
+  });
+  await assert.rejects(broker.open(writeLease.scope), /Browserstart fehlgeschlagen/);
+  assert.equal(starts, 0);
+});
+
 test('reserved network mismatch fails before a browser can open', async () => {
   const profiles = new ChromiumBoundProfileStore({
     profiles: { resolve: async () => profileId },

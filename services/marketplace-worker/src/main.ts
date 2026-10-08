@@ -5,7 +5,7 @@ import { ChromiumAccountProfileRegistry } from './chromium-account-profile-regis
 import { ChromiumBoundProfileStore } from './chromium-bound-profile-store.ts';
 import { ChromiumBrokerClient } from './chromium-broker-client.ts';
 import { ChromiumNetworkProfiles } from './chromium-network-profiles.ts';
-import { ChromiumPersistentBrowser } from './chromium-persistent-browser.ts';
+import { IsolatedChromiumBrowser } from './isolated-chromium-browser.ts';
 import { ChromiumProfileProvisioner } from './chromium-profile-provisioner.ts';
 import { ChromiumProfileStore } from './chromium-profile-store.ts';
 import { MarketplaceProfileBrowser } from './marketplace-profile-browser.ts';
@@ -33,11 +33,36 @@ import { SupabaseMarketplaceSyncDispatchStore } from './supabase-marketplace-syn
 import { SupabaseMarketplaceCloudSetupStore } from './supabase-marketplace-cloud-setup-store.ts';
 import { MarketplaceCloudSetup } from './marketplace-cloud-setup.ts';
 import { IpRoyalCloudIpSync } from './iproyal-cloud-ip-sync.ts';
+import { SupabaseMarketplaceMessageStore } from './supabase-marketplace-message-store.ts';
+import { MarketplaceMessageRunner } from './marketplace-message-runner.ts';
+import type { CloudMessageClaim } from './marketplace-message-runner.ts';
+import {
+  MarketplaceFavoriteMessageRunner,
+  type CloudFavoriteClaim,
+} from './marketplace-favorite-message-runner.ts';
+import { SupabaseMarketplaceFavoriteMessageStore } from './supabase-marketplace-favorite-message-store.ts';
 
 async function main(): Promise<void> {
   const config = marketplaceBrowserServerConfig(process.env);
+  const isolatedLauncher =
+    config.provider !== 'local'
+      ? await ChromiumBrokerClient.create(
+          join(config.serverProfileRoot ?? '/var/lib/flipbase-marketplace', 'profiles'),
+        )
+      : undefined;
   const goLogin = config.goLoginToken
-    ? new GoLoginCloudBrowser({ token: config.goLoginToken, startUrl: 'https://www.vinted.de/' })
+    ? new GoLoginCloudBrowser({
+        token: config.goLoginToken,
+        startUrl: 'https://www.vinted.de/',
+        ...(isolatedLauncher
+          ? {
+              isolated: {
+                open: (profileId, token) => isolatedLauncher.launchGoLogin(profileId, token),
+                stop: (profileId) => isolatedLauncher.recover(profileId),
+              },
+            }
+          : {}),
+      })
     : undefined;
   const legacyProfiles = config.goLoginToken
     ? new GoLoginProfileProvisioner({
@@ -72,7 +97,8 @@ async function main(): Promise<void> {
     )
       throw new Error('Chromium-Konfiguration fehlt');
     const profileRoot = join(config.serverProfileRoot, 'profiles');
-    const launcher = await ChromiumBrokerClient.create(profileRoot);
+    const launcher = isolatedLauncher;
+    if (!launcher) throw new Error('Isolierter Browserdienst fehlt');
     const chromiumRegistry = new ChromiumAccountProfileRegistry({
       root: config.serverProfileRoot,
       hostId: config.chromiumHostId,
@@ -83,8 +109,8 @@ async function main(): Promise<void> {
     networks = await ChromiumNetworkProfiles.load(config.chromiumNetworkFile);
     networks.resolve(config.chromiumNetworkId);
     const configuredNetworks = networks;
-    const chromium = new ChromiumPersistentBrowser({
-      profileStore: new ChromiumProfileStore({
+    const chromium = new IsolatedChromiumBrowser({
+      profiles: new ChromiumProfileStore({
         root: profileRoot,
         inspectProfileProcesses: (directory) => launcher.inspectProfileProcesses(directory),
       }),
@@ -92,9 +118,7 @@ async function main(): Promise<void> {
         resolve: async (profileId) =>
           configuredNetworks.resolve((await chromiumRegistry.resolve(profileId)).networkId),
       },
-      launch: (directory, settings) => launcher.launch(directory, settings ?? {}),
-      recoverRuntime: (profileId) => launcher.recover(profileId),
-      desktop: (profileId) => launcher.desktop(join(profileRoot, profileId)),
+      launcher,
     });
     browser = new MarketplaceProfileBrowser({ chromium, goLogin, chromiumRegistry });
     chromiumProfileOptions = {
@@ -115,17 +139,57 @@ async function main(): Promise<void> {
       })
     : undefined;
   let syncRunner: MarketplaceSyncRunner | undefined;
+  const messageStore =
+    config.provider === 'chromium'
+      ? new SupabaseMarketplaceMessageStore({
+          url: config.supabaseUrl,
+          serviceRoleKey: config.serviceRoleKey,
+        })
+      : undefined;
+  let messageRunner: MarketplaceMessageRunner | undefined;
+  const favoriteStore = messageStore
+    ? new SupabaseMarketplaceFavoriteMessageStore({
+        url: config.supabaseUrl,
+        serviceRoleKey: config.serviceRoleKey,
+      })
+    : undefined;
+  let favoriteRunner: MarketplaceFavoriteMessageRunner | undefined;
+  const sessionLifecycle: { broker?: MarketplaceBrowserSessionBroker } = {};
   const workerLifecycle: { stop?: () => Promise<void> } = {};
   const dispatcher = dispatchStore
-    ? new MarketplaceSyncDispatcher({
+    ? new MarketplaceSyncDispatcher<CloudMessageClaim | CloudFavoriteClaim>({
         store: dispatchStore,
+        writes: messageStore
+          ? {
+              claim: async (workerId, workerEpoch, runnerId) =>
+                (await messageStore.claim(workerId, workerEpoch, runnerId)) ??
+                (config.scheduledSyncEnabled && favoriteStore
+                  ? favoriteStore.claim(workerId, workerEpoch, runnerId)
+                  : null),
+              run: (claim) => {
+                if (claim.kind !== 'message') {
+                  if (!favoriteRunner)
+                    return Promise.reject(new Error('Favoritendienst ist noch nicht bereit'));
+                  return favoriteRunner.run(claim);
+                }
+                if (!messageRunner)
+                  return Promise.reject(new Error('Versanddienst ist noch nicht bereit'));
+                return messageRunner.run(claim);
+              },
+            }
+          : undefined,
         includeScheduled: config.scheduledSyncEnabled,
         maxJobsPerPoll: 32,
+        prepareDispatch: () => sessionLifecycle.broker?.prepareDispatch() ?? Promise.resolve(),
         run: (scope) => {
           if (!syncRunner) return Promise.reject(new Error('Abrufdienst ist noch nicht bereit'));
           return syncRunner.runDispatched(scope);
         },
-        onRuntimeLost: () => {
+        onRuntimeLost: (reason) => {
+          // Nur feste Fehlerkategorien protokollieren, keine privaten Antworten oder Zugangsdaten.
+          process.stderr.write(
+            `${JSON.stringify({ event: 'marketplace_runtime_lost', reason })}\n`,
+          );
           void Promise.resolve()
             .then(async () => {
               await workerLifecycle.stop?.();
@@ -181,7 +245,10 @@ async function main(): Promise<void> {
     recovery,
     authorizeRuntime: dispatcher ? () => dispatcher.heartbeat() : undefined,
   });
+  sessionLifecycle.broker = broker;
   await broker.ready();
+  if (messageStore) messageRunner = new MarketplaceMessageRunner(broker, messageStore);
+  if (favoriteStore) favoriteRunner = new MarketplaceFavoriteMessageRunner(broker, favoriteStore);
   if (cloudSetupStore && profiles instanceof ChromiumProfileProvisioner) {
     const inventory =
       config.ipRoyalApiToken && config.chromiumNetworkFile && networks
@@ -258,6 +325,12 @@ async function main(): Promise<void> {
             publishableKey: config.publishableKey,
           })
         : undefined,
+    conversationAccess: isCloud
+      ? new VintedEditAccess({
+          url: config.supabaseUrl,
+          publishableKey: config.publishableKey,
+        })
+      : undefined,
     readOnly: config.provider === 'local',
     scheduledSync: dispatcher
       ? () => ({

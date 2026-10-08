@@ -27,6 +27,858 @@ Anwendung und Produktivdaten unverändert. Noch keine Implementierung, kein Push
 Merge oder Deployment. Die im Web erwähnten zusätzlichen lokalen Editor- und
 Medienbausteine sind im abrufbaren Git-Stand nicht enthalten.
 
+## 2026-10-08 - Juna - Gemeinsames Cloud-Postfach umsetzen
+
+**Auftrag:** Gemeinsames Cloud-/Extensionpostfach mit Nachrichtenversand,
+Glockenmeldungen und ausdrücklich aktivierten Favoriten-/Angebotsregeln umsetzen.
+
+**Eingang:** Ein vom Nutzer freigegebener GET am Testkonto belegt echte
+Nachrichten-/Preisvorschlagskennungen, Richtung und ISO-Zeit. Ungelesen bleibt
+vorher/nachher erhalten; die separate Gelesen-Aktion wurde nicht aufgerufen.
+Cloud und Extension verwenden denselben anonymisierten Vertrag. Höchstens drei
+Gesprächskopien pro Lauf, ältere Prüfungen zuerst. Erstbestand und später geladene
+alte Historie bleiben still; fehlende oder widersprüchliche Belege erzeugen keine
+Glockenmeldung. Ereignisse werden atomar importiert, dedupliziert und über private
+Broadcasts angezeigt. Glockenlinks öffnen Konto und Gespräch; Markieren betrifft
+nur Flipbase. Alte Extension-Payloads bleiben gültig.
+
+**Versand:** Gemeinsamer Composer und Warteschlange, eigene Cloudfreigabe gebunden
+an Konto, Profil und Freigabeversion. Zentraler Dispatcher und bestehende
+Browsersperre führen manuelle Nachrichten vor Favoritenphasen aus. Claim/Begin/
+Finish prüfen Worker-Epoche und Konto. Ein Textversand braucht eine neue eigene
+externe Nachricht; Bildbelege, verlorene Antworten und unbestätigter Browserstopp
+bleiben unklar. Keine automatische Wiederholung eines begonnenen Versands.
+
+**Favoriten:** Bestehende Vorlagen, Zeitfenster und Preisregeln gelten für beide
+Ausführer. Cloud-Aktivierung ist bewusst und bleibt standardmäßig aus. Gemeinsame
+Ereignis- und Preisprüfung, getrennte Nachrichten-/Angebotsphasen, Automatikpause
+und Widerruf bleiben verbindlich. Kein Angebot ohne bestätigte Nachricht und
+zentrale Preisfreigabe.
+
+**Integration:** Aktueller Hauptzweig mit isoliertem Browserdienst integriert.
+Nachrichten, Favoriten und Preisbestätigung laufen durch dessen festen
+Aktionstransport; Gesprächsartikel und versionierte Eingangsereignisse bleiben
+beim Transport erhalten. Kein zentraler Playwright-Zugriff hinzugefügt.
+Migrationen offiziell gegen isolierte Vorher/Nachher-Datenbanken erzeugt und
+angewendet; API-Typen aus der migrierten Datenbank erzeugt.
+
+**Abschlussreview:** Vier wichtige Befunde durch Regressionen zuerst reproduziert
+und in einem Korrekturdurchlauf behoben: Kontopausen nach Cloud-Schreibfehlern
+gelten vor Claim, Check und Begin auch für manuelle Nachrichten. Alte Profil-
+abschlüsse verändern keine neue Freigabe. Ein fehlgeschlagener Favoritenabruf
+verwirft keine bestätigten Kontodaten; 401/403/429 und Retry-After bleiben im
+isolierten Transport erhalten. Bereits belegte Versandantworten bleiben trotz
+späterem Widerruf belegbar. Ungeprüfte nichtleere Postfächer setzen keinen
+Benachrichtigungs-Erstbestand. Bestehende Regeln für bewusste Wiederaufnahme und
+Anmeldebestätigung bleiben erhalten. Veraltetes Header-Testfixture und die
+verbindliche PR-Browsertestliste an den Nachrichtenstrom/Cloudfälle angepasst.
+
+**Prüfstand:** 468 Workerprüfungen bestanden, sieben bestehende Skip; Worker-Bau
+und Typen bestehen. 663 Datenbankassertions auf offiziell migriertem Teststand
+einschließlich lokaler Nachrichten, Favoriten/Angebote, Feed, Import und Scheduler
+bestanden. Alle Node-, DOM- und Angular-Anwendungssuiten bestehen; zusätzlich
+239 Workflow- und 211 Deno-Prüfungen bestanden (fünf bestehende Workflow-Skip).
+16 Browserfälle für Cloud/Extension, Desktop/Mobilgerät und AXE bestanden.
+Produktionsbau, App-Typprüfung, beide Worker-/Browserabbilder und ein isolierter
+Runtime-Smoke ohne Netzwerk bestehen. Stark parallel ausgeführte Angular-Tests
+hatten Zeitüberschreitungen; der vollständige Lauf mit vier Workern besteht
+ohne Produkt- oder Timeoutänderung. Unabhängiges Gesamt-Review abgeschlossen,
+keine kleinen offenen Reviewbefunde. Veröffentlichung steht aus.
+Die vorbereitete Extension 1.7.1 wurde noch nicht in der registrierten Installation
+ausgerollt. Kein Live-Versand, keine automatische Favoritenregel und kein Release.
+Echtkonto-Abnahme folgt nach Veröffentlichung; Bildbestätigung bleibt eingeschränkt.
+
+## 2026-10-08 - Juna - Gemeinsamen Cloud-Postfachausbau planen
+
+**Auftrag:** Nach Bestätigung des schriftlichen Entwurfs den Umsetzungsplan
+für das vollständige gemeinsame Postfach erstellen.
+
+**Plan:** Neun aufeinander abgestimmte Aufgaben für belegte Eingangsdaten,
+Cloud-Freigaben und gemeinsame Outbox, Browserversand, Worker-Ausführung,
+Glockenmeldungen, gemeinsame Oberfläche, vorhandene Favoriten-/Angebotsregeln,
+Integration und Echtkonto-Abnahme. Lesefreigaben bleiben von Schreibaufträgen
+getrennt; bestehende Kontosperren und der Worker-Lease werden weiterverwendet.
+
+**Prüfstand:** Datei- und Schnittstellenzuordnung gegen aktuelle Worker-,
+Extension-, SQL- und Frontend-Verträge gelesen. Plan auf Entwurfsabdeckung,
+Abhängigkeiten und Fehlerfälle geprüft. Formatierung und Diffprüfung bestehen.
+Noch keine zusätzlichen Produktfunktionen oder
+Anbieteraktionen ausgeführt; die Planprüfung und Ausführungswahl stehen aus.
+
+## 2026-10-08 - Juna - Gemeinsamen Cloud-Postfachentwurf ausarbeiten
+
+**Auftrag:** Den bestätigten Umfang für Gesprächsabgleich, Glocke, Text-/Bildversand
+und Favoriten-Antworten als prüfbaren Ausbauentwurf festhalten.
+
+**Entwurf:** Gemeinsame Oberfläche und bestehende dauerhafte Aufträge mit
+getrennter Ausführung durch Extension und Cloudworker. Neue Eingangsmeldungen
+benötigen belegte Ereignisse und einen ersten Referenzstand; ungelesene Details
+bleiben bei Hintergrundabgleichen geschlossen. Freigaben, Konto-/Profilsperren,
+unklare Versandzustände und vorhandene Favoriten-Angebotsregeln bleiben verbindlich.
+
+**Prüfstand:** Aktuelle Vertrags- und Ausführungsdateien gelesen; Entwurf auf
+Widersprüche, offene Platzhalter und Abnahmekriterien geprüft. Die zusätzliche
+Cloud-Ausführung bleibt bis zur Prüfung des schriftlichen Entwurfs unimplementiert.
+Keine Anbieteraktion, Nachricht oder Veröffentlichung ausgelöst.
+
+## 2026-10-08 - Juna - Gemeinsame Gesprächsfunktionen für lokale und Cloud-Konten prüfen
+
+**Auftrag:** Den Cloud-Ausbau auf neue Nachrichten, Glocken-Benachrichtigungen
+und den vorhandenen Chatversand der lokalen Lösung erweitern.
+
+**Befund:** Eingabefeld, Versandstatus und Wiederholung sind vorhanden, jedoch
+an lokale Konten und Extension-Freigaben gebunden. Die Warteschlange prüft
+zusätzlich serverseitig die lokale Installation. Der Cloudworker besitzt noch
+keinen Nachrichtenexecutor. Die Glocke übernimmt Favoriten und Bewertungen;
+ein Benachrichtigungspfad für neue Chatnachrichten fehlt für beide Betriebsarten.
+Bildversand hat laut vorhandenem Postfachplan noch keinen im Echtkonto belegten
+Bestätigungsvertrag.
+
+**Vorschlag:** Gemeinsame Gesprächsoberfläche und Auftragszustände erhalten,
+Cloud-Ausführung über das zugeordnete Browserprofil ergänzen und pro Konto
+genau einen Ausführer zulassen. Neue Postfachereignisse nach einem ersten
+Referenzabgleich ohne Duplikate benachrichtigen; ungeklärte Versandversuche
+nicht automatisch wiederholen. Favoritenregeln bleiben separat freizugebende
+Automatisierung. Der genaue Ausbau und die Echtkonto-Abnahme werden vor der
+Implementierung abgestimmt. Die bisherigen beiden Fehlerkorrekturen bleiben
+vorbereitet; es wurde noch kein PR erstellt oder veröffentlicht.
+
+**Prüfstand:** Lesender Abgleich von Oberfläche, Nachrichtenstore, lokalen
+Versandfunktionen, Cloudworker, Datenbankverträgen und Benachrichtigungsleiste.
+In diesem Schritt wurden keine Produktfunktionen geändert und keine Nachrichten
+versendet.
+
+## 2026-10-08 - Juna - Cloud-Gesprächsartikel ergänzen und Einzelabruf verkürzen
+
+**Auftrag:** Den vorbereiteten PR um fehlende Artikeldaten in Cloud-Gesprächen
+ergänzen und die längere Synchronisierung gegenüber der Extension prüfen.
+
+**Befund:** Der Cloud-Parser übernimmt bisher keine Artikelfelder aus Liste
+oder Gesprächsdetail. Ein ausdrücklich geöffnetes Gespräch führt außerdem
+Inserats-, Bewertungs- und Verkaufsabrufe aus.
+
+**Umsetzung:** Titel, Bild, Artikelkennung, Preis, Währung und Transaktionsstatus
+werden nach dem bestehenden Extension-Muster übernommen. Beobachtete Details
+ergänzen die Listenangaben; unveränderte Gespräche erhalten bekannte Artikeldaten
+aus dem vorhandenen Cache. Einzelabrufe überspringen die unabhängigen Datenbereiche
+und melden diese als Teilstand, damit gespeicherte Inserate und Bewertungen
+erhalten bleiben. Kontoidentität, ausgewähltes Gespräch und Sitzungsabschluss
+werden weiterhin geprüft.
+
+**Prüfstand:** Vier neue Regressionen scheitern vor der Korrektur. 350 Worker-Tests
+bestehen, sieben bleiben unverändert ausgelassen. 176 Datenbankprüfungen bestehen
+einschließlich des Erhalts von Inseraten und Bewertungen beim Gesprächsabruf.
+Worker-Typprüfung, Bau und gezieltes ESLint bestehen. Der Einzelabruf benötigt
+im Test drei Anbieteranfragen statt sechs; echte Laufzeiten und Artikeldaten
+sind nach Veröffentlichung zu prüfen.
+
+## 2026-10-08 - Juna - Erledigte Cloud-Anmeldewarnung automatisch entfernen
+
+**Auftrag:** Nach erfolgreich bestätigter Vinted-Anmeldung darf die alte
+Warnung „Vinted verlangt eine neue Anmeldung“ nicht stehen bleiben.
+
+**Befund:** Die Kontobestätigung erneuert die Verbindung, lässt aber
+`marketplace_sync_schedules.paused_reason = needs_login` unverändert.
+Die Oberfläche lädt den Zeitplan zudem bei identischem Verbindungsstatus
+nicht sofort erneut.
+
+**Umsetzung:** Die vorhandene Kontobestätigung bereinigt ausschließlich den
+Anmeldefehler samt zugehöriger Wartezeit und Fehlerzähler. Eine neue
+Sperrversion verhindert, dass alte Auftragsabschlüsse diesen Status
+wiederherstellen. Automatikfreigabe, gewählter Abstand, Importzeit und andere
+Pausengründe bleiben unverändert. Das erneut geladene Konto löst auch bei
+gleichem Verbindungsstatus eine sofortige Zeitplanabfrage aus.
+
+**Prüfstand:** Der Oberflächen- und Datenbanktest reproduzieren den Fehler vor
+der Korrektur. 156 Angular-Tests und 129 Datenbankprüfungen bestehen. Die
+erzeugte Migration wurde auf dem vorherigen Funktionsstand angewendet und
+ebenfalls mit diesen Datenbanktests geprüft. Typprüfung, Produktionsbau,
+gezieltes ESLint, Formatierung und Migrations-/Schemaregistrierungstests
+bestehen; neu erzeugte API-Typen sind unverändert. Die Veröffentlichung
+steht noch aus.
+
+## 2026-10-08 - Juna - Endlose Filterprüfung bei globaler Vinted-Pause beenden
+
+**Befund:** Nach einer erfolgreichen Wiederprüfung sperrt Vinted um 11:00 Uhr
+einen Ralph-Lauren-Abruf mit HTTP 403 und erkanntem Challenge-Signal. Adidas wird
+erst um 11:42 Uhr aktiviert und führt während der globalen Pause keinen neuen
+Abruf aus. Die Filterseite wartet trotzdem unbegrenzt auf einen neuen
+Abrufzeitpunkt. Nach Neuladen zeigt sie stattdessen den alten Adidas-Fehler vom
+Vortag neben dem gespeicherten Aktivstatus.
+
+**Umsetzung:** Die Filterseite liest den vorhandenen Browserstatus mit dem
+Betriebsstand. Bei notwendiger manueller Prüfung endet die Warteanzeige;
+ein Hinweis erklärt die globale Pause und verlinkt den Botbetrieb. Aktive
+Filter zeigen ihren Wartegrund, historische Ergebnisse heißen "Letzter Abruf".
+Eine Aktivierung verspricht keinen sofortigen Anbieterabruf mehr.
+
+**Live-Vergleich:** Nach ausdrücklicher Zustimmung den Adidas-Filter auf die
+Hauptmarke (14) und 60 Sekunden umgestellt. Nike und Ralph Lauren bleiben
+pausiert. Die reguläre Admin-Botsitzung zeigt den Adidas-Katalog ohne CAPTCHA;
+die bestehende Wiederprüfung bestätigt den Zugriff um 12:03 Uhr. Danach
+folgen fünf erfolgreiche automatische Abrufe bis 12:09 Uhr mit insgesamt
+97 neuen Adidas-Artikeln; aktuelle Funde sind im Nutzerfeed sichtbar.
+Eine dauerhafte Anbieterfreigabe oder ein Fehler
+einer bestimmten Adidas-Variante ist damit nicht bewiesen.
+
+**Prüfung:** Der Regressionstest reproduziert zuerst die endlose Warteanzeige.
+Mit der Korrektur bestehen 22 gezielte Tests einschließlich echter Vorlage,
+historischem Fehler nach Neuladen, späterer globaler Pause und Statusfehler.
+Der neue Hinweis besteht die automatisierte AXE-Prüfung. Typprüfung, gezieltes
+ESLint, Formatierung, Suite-Audit, Shared-UI-Prüfung und Produktionsbau bestehen.
+Die bestehende CommonJS-Warnung für `pako` bleibt. PR #344 ist nach erfolgreichen
+Pflichtprüfungen einschließlich Browser-Smoke gemergt und als v0.310.4
+veröffentlicht. Die öffentliche Commitprüfung und die angemeldete Filterseite
+bestätigen den neuen Stand. Bis 13:50 Uhr bestehen 100 automatische Adidas-Abrufe
+mit 1.873 neuen Artikeln ohne Fehler. Der Bot wird beim Webrelease nicht neu gestartet.
+
+## 2026-10-08 - Juna - Ausbleibenden Vinted-Feed live untersuchen und freigeben
+
+**Befund:** Der globale Vinted-Zustand steht seit dem 07.10. um 17:18 Uhr auf
+`blocked / interaction_required`. Der zeitgleiche Adidas-Abruf ist als
+`forbidden` gespeichert. Der später neu gestartete Container ist lebendig,
+aber `/health` meldet mangels erfolgreicher Suchrunde 503. Am 08.10. sind vor
+der Wiederprüfung keine neuen Artikel gespeichert. Nike und Ralph Lauren sind
+aktiv; Adidas ist deaktiviert. Eine erneute Bereitstellung löscht die notwendige
+manuelle Pause nicht. Die private Browserroute und Betreiberanmeldung funktionieren.
+
+**Wiederherstellung:** Über die vorhandene angemeldete Admin-Botsitzung den
+Nike-Katalog geöffnet, den Cookiehinweis auf notwendige Cookies beschränkt und
+nach dem bestehenden Mindestabstand „Zugriff erneut prüfen“ ausgeführt.
+Die Oberfläche bestätigt den erfolgreich gespeicherten Katalogzugriff und die
+Freigabe aktiver Markenfilter. Kein CAPTCHA wird angeboten oder gelöst.
+Keine Änderung an Code, Suchbedingungen, Datenbankschema oder Zugriffsschutz.
+
+**Abnahme:** Elf automatische Durchläufe nach der Freigabe bestehen ohne Fehler.
+369 Artikel sind heute neu gespeichert; Nike und Ralph Lauren haben aktuelle
+Erfolgszeitpunkte. `/health` ist bereit, der globale Zustand ist `ready`.
+Der angemeldete Adminbereich zeigt „Vinted verbunden“ und der Nutzerfeed zeigt
+neue Artikel von heute um 10:38 Uhr. Formatierung und Git-Diff bestehen.
+Eine dauerhafte Anbieterfreigabe ist damit nicht zugesichert.
+
+**Adidas-Nachprüfung:** Der Nutzer berichtet wiederholte Ausfälle nach Aktivierung
+dieses Filters. Der aktuelle Filter enthält sieben Adidas-Varianten und einen
+20-Sekunden-Abstand. Sie werden einzeln im Wechsel abgefragt, nicht gleichzeitig.
+Die gespeicherte Position 9 entspricht bei sieben Varianten dem Index 2,
+also `adidas NEO` (132738); an dieser Position steht der letzte Fehler. Alle
+sieben Varianten sind zuvor erfolgreich initialisiert worden. Auch der ältere,
+inzwischen gelöschte Filter mit ausschließlich `adidas` (14) hat einen früheren
+`forbidden`-Eintrag. Damit ist die letzte globale Pause einem Adidas-Abruf
+zuordenbar, aber kein Fehler einer bestimmten Markenkennung bewiesen. Der Filter
+bleibt bei dieser lesenden Analyse deaktiviert und unverändert. Ein kontrollierter
+Vergleich mit nur der Hauptmarke und längeren Abständen ist noch nicht ausgeführt.
+
+## 2026-10-08 - Juna - Cloud-Browserauswertung mit begrenzter Sitzung isolieren
+
+**Auftrag:** Die offenen Security-Meldungen zur gemeinsamen Browsersteuerung
+mit dem vorhandenen kleinen Server bearbeiten. Bestehende Warteschlange, ein
+Cloudplatz und gespeicherte Kontoprofile bleiben erhalten; kurze Folgeaktionen
+sollen keinen neuen Browserstart benötigen. Die lokale Erweiterung bleibt unverändert.
+
+**Umsetzung:** Browser- und Playwright-Auswertung laufen im Sitzungscontainer
+mit genau einem Profil, ohne globale Anbieterschlüssel oder Docker-Socket.
+Controller und Broker übertragen ausschließlich feste Browseraktionen über
+einen an den Container gebundenen Kanal. Berechtigungsprüfungen während Abrufen
+und Schreibaktionen bleiben im Controller. GoLogin verwendet einen kurzlebigen
+Profilkanal; sein globaler Schlüssel wird nicht an den Auswerter weitergegeben.
+Aktionen desselben Kontos können ihre Sitzung innerhalb von 20 Sekunden Leerlauf
+und höchstens zwei Minuten nach Erstellung erneut verwenden. Kontowechsel und
+Queue-Claim bereinigen zuerst die bisherige Sitzung. Unklarer Stopp hält die
+Reservierung gesperrt. Controller/Broker bleiben bei je 512 MiB und der eine
+Sitzungscontainer bei 2 GiB. Keine Schemaänderung oder Datenbankmigration.
+
+**Prüfung:** 380 Linux-Worker-Tests bestehen; ein bestehender Test bleibt
+ausgelassen. Typprüfung, Worker-Bau, gezieltes ESLint und Formatierung bestehen.
+Der echte lokale Containertest prüft fehlende globale Rechte, feste Aktionen,
+erneute Nutzung, frische Kontowechsel und persistente Anmeldung. Zwei Aktionen
+(Kontoerkennung plus Screenshot) benötigen lokal ungefähr 90–115 ms, ein neuer
+Container etwa 1,2–1,3 Sekunden; die Test-Sitzung belegt rund 376 MiB. Diese Werte
+belegen keine Produktionslast. GoLogin-Profilbindung, Kanalablauf und Widerruf,
+Zugriffswechsel, Leerlaufgrenze, absolute Wiederverwendungsgrenze und unsicherer
+Startabbruch sind automatisiert geprüft. Eine unabhängige Kandidatenprüfung
+erkannte eine versehentliche Abschaltung geplanter GoLogin-Abrufe; der korrigierte
+Compose-Override erhält beide bisherigen Freigabewerte aus der privaten env_file.
+Die CI prüft den echten Broker mit Host-Firewall und isolierter Sitzung.
+Beim PR-Lauf blieb einmal ein sehr schneller Browser-Stopp unbestätigt;
+zwei Wiederholungsläufe und 15 lokale schnelle Start-/Stopp-Versuche bestanden.
+Ein gezielter Regressionstest belegt die Lücke bei verspäteter Fensterregistrierung:
+Der native Schließbefehl wird jetzt innerhalb derselben acht Sekunden erneut
+gesendet. Ein weiterhin laufender Browser bleibt ein Fehler mit gesperrter
+Reservierung. Verspätete Fenster, vorübergehend fehlende Fensterverwaltung und
+die unveränderte Fehlergrenze werden zusätzlich geprüft; die Ursache des
+einzelnen CI-Fehlers ist nicht abschließend belegt.
+
+**Grenzen:** Die lokale Docker-Desktop-Umgebung kann die vollständige Host-Firewall
+nicht prüfen (fehlendes WSL-Kernelmodul `br_netfilter`); diese Prüfung bleibt im
+Linux-PR-Lauf erforderlich. Zwei bestehende Browser-Login-Tests schlagen auch
+im unveränderten Ausgangsstand fehl. Echte GoLogin-/Vinted-Abnahme und die
+koordinierte Serverumstellung stehen aus. Ein vollständig übernommener zentraler
+Controller oder Docker-Broker besitzt weiterhin globale Rechte. Die beiden
+ursprünglichen Security-Meldungen bleiben daher offen; dies ist die vereinbarte
+Abschottung des Browser-Auswerters, keine vollständige Aufhebung dieser Vertrauensgrenze.
+
+## 2026-10-08 - Juna - Falsche Beta-Umleitung beim Tabwechsel verhindern
+
+**Auftrag:** Die gelegentliche Umleitung eines Administrators auf `beta-ended`
+beim Zurückkehren zum Flipbase-Tab untersuchen und korrigieren.
+
+**Befund:** Die Zugangsprüfung beim Sichtbarwerden des Tabs leitet bereits bei
+einem RPC-Fehler auf die Beta-Seite um. Ein Workspace ohne Beta-Lizenz wird
+serverseitig als aktiv geführt; der Fehlerpfad unterscheidet einen
+Prüfungsfehler bisher nicht von einer bestätigten Zugangssperre.
+
+**Umsetzung:** Fehlgeschlagene Hintergrundprüfungen behalten den zuletzt
+bestätigten Zustand und wiederholen die Prüfung nach fünf Sekunden. Auch
+geworfene Ausnahmen werden berücksichtigt. Neue Navigationen bleiben bei
+fehlgeschlagener Prüfung gesperrt; bestätigte Zugangssperren und Nutzerwechsel
+werden weiterhin berücksichtigt. Keine Änderung der Admin-Rechte oder des Backends.
+
+**Prüfung:** Sechs Regressionstests decken Tabwechsel, erneute Prüfung,
+geworfene Ausnahmen, bestätigtes Beta-Ende, Workspace-Wechsel und verspätete
+Fehler nach Abmeldung ab. Zusammen mit den bestehenden Zugangs-, Einrichtungs-
+und Betreiberprüfungen bestehen 25 Tests, zusätzlich 49 bestehende Auth- und
+Workspace-Tests. Typprüfung, gezieltes ESLint, Formatierung, Suite-Audit und
+Produktionsbau bestehen. Der Bau läuft mit dem vorhandenen Node 24.19.0,
+da das systemweite Node 22.16.0 für Angular 22 zu alt ist; die bestehende
+CommonJS-Warnung für `pako` bleibt. Der konkrete Aussetzer in der produktiven
+Sitzung ist nicht live reproduziert.
+
+## 2026-10-08 - Juna - Cloud-Gesprächszugriff ohne Schreibfreigabe bereitstellen
+
+**Auftrag:** Den unterbrochenen Abschluss von PR 340 fortsetzen und den echten
+Cloud-Gesprächsabruf mit Maike Vintage prüfen.
+
+**Befund:** PR-Prüfungen, Merge und Veröffentlichung sind erfolgreich. Anwendung
+und Worker liefern den gemergten Stand aus. Der echte Aufruf liefert jedoch
+HTTP 503 vor dem Browserstart: Die Eintragsprüfung ist bisher an die Freigabe
+von Chromium-Schreibfunktionen gebunden. Unabhängig davon hat der bestehende
+15-Minuten-Abruf um 00:44 UTC wegen `identity` pausiert; diese Pause bleibt erhalten.
+
+**Umsetzung:** Der Gesprächsabruf erhält die vorhandene RLS-geschützte
+Eintragsprüfung als eigene Leseabhängigkeit. Die bisherigen Freigaben für
+Profil- und Inseratänderungen bleiben unverändert. Ein Regressionstest bildet
+den Cloud-Lesebetrieb ohne Schreibfreigabe ab und prüft gleichzeitig, dass
+beide Speicherrouten vor einem Browserstart abgewiesen werden.
+
+**Prüfstand:** Der Regressionstest zeigt vor der Korrektur HTTP 503 statt 200.
+347 Worker-Tests bestehen, sieben bleiben unverändert ausgelassen. Typprüfung, Produktionsbau, gezieltes ESLint, Formatierung und Diff-Prüfung bestehen. Die erneute Live-Prüfung steht bis zur Veröffentlichung der Korrektur aus.
+
+## 2026-10-07 - Juna - Cloud-Gespräche beim Öffnen aktuell abrufen
+
+**Auftrag:** Den bislang nur lokal vorhandenen Gesprächsabruf an den eigenen
+Cloud-Browser anschließen und den Prüfzeitpunkt nachvollziehbar anzeigen.
+
+**Befund:** Die Gesprächsansicht lädt bei Cloud-Konten nur gespeicherte Nachrichten.
+Der direkte Anbieterabruf ist auf `executionMode = local` begrenzt; deshalb fehlt
+die aktuelle Gesprächsbestätigung. Der automatische Cloud-Kontoabruf ist auf dem
+Server um 20:56 und 21:11 UTC erfolgreich, die Nachrichtenquelle bleibt teilweise
+gelesen. Eine Kontosynchronisation bestätigt nicht sämtliche Gesprächsdetails.
+
+**Umsetzung:** Beim Öffnen eines Cloud-Gesprächs liest der vorhandene Browserdienst
+das ausdrücklich ausgewählte Gespräch. Die RLS-geschützte Eintragszuordnung,
+angemeldete Kontoidentität und aktive Browserreservierung werden geprüft.
+Der bestehende Kontoimport übernimmt Nachrichten und Detailprüfzeitpunkt gemeinsam;
+andere ungelesene Gespräche werden nicht geöffnet. Vorhandene Versionen erhalten
+die unveränderten Detailprüfzeitpunkte anderer Gespräche. Die Ansicht übernimmt
+die aktualisierten Daten ohne Konto- oder Gesprächswechsel. Veraltete Auswahlen
+übernehmen keine verspätete Bestätigung; Fehler lassen gespeicherte Nachrichten
+sichtbar. „Synchronisiert“ bleibt an den tatsächlich übernommenen Prüfzeitpunkt
+gebunden. Cloud-Schreibaktionen werden nicht freigeschaltet.
+
+**Prüfstand:** Regressionstests zeigen vor der Umsetzung die fehlende Detailprüfung
+und anschließend neue Nachrichten und bestätigten Prüfzeitpunkt. 187 betroffene
+Angular-Tests bestehen. Die Worker-Suite besteht mit 347 erfolgreichen Tests und
+sieben unveränderten Auslassungen. Typprüfung und Produktionsbau für Anwendung
+und Worker, gezieltes ESLint und Formatierung bestehen. Der Anwendungsbau meldet
+weiterhin die bekannte CommonJS-Warnung für `pako`. Noch kein Deployment und kein
+echter Vinted-Detailabruf mit dieser Änderung.
+
+**CI-Nachprüfung am 08.10.:** Der Browser-Oberflächentest verwendet bislang eine
+ungültige Gesprächs-ID und bildet den neuen Cloud-Abruf nicht ab. Dadurch erscheint
+korrekt der Fehler mit Wiederholknopf. Die künstliche Testantwort erhält eine UUID,
+den bestätigten Abruf und den gemeinsam übernommenen Detailprüfzeitpunkt. Der Test
+prüft jetzt zusätzlich die Kontozuordnung des Abrufs und "Synchronisiert". Die
+bestehende Prüfung gegen Bedienelemente in Nachrichten bleibt unverändert.
+Alle sechs lokalen Browserprüfungen mit künstlichen Antworten bestehen bei
+1440, 390 und 320 Pixeln im hellen und dunklen Design einschließlich AXE-Prüfungen.
+Die vollständige CI-Nachprüfung auf diesem korrigierten Stand steht noch aus.
+Die UUID gilt ausdrücklich für diese Cloud-Testdaten; die unabhängigen lokalen
+Extension-Testantworten behalten ihre bisherigen Gesprächs-IDs. Ein pauschaler
+Austausch würde dort einen bislang nicht simulierten Detailabruf aktivieren.
+Der gemeinsame lokale Nachweis besteht mit acht Browserprüfungen: sechs Cloud-
+Ansichten und beide unveränderten lokalen Postfach-Abläufe.
+
+## 2026-10-07 - Juna - Cloud-Browserdienst wiederherstellen und Wiederanlauf absichern
+
+**Auftrag:** Die Meldungen zum nicht erreichbaren Browserdienst und wartenden
+Cloud-Abruf für Maike Vintage untersuchen und beheben.
+
+**Befund:** Der Worker endet am 07.10.2026 um 19:11:21 UTC mit Exitcode 1,
+ohne OOM-Abbruch. Seine Neustartregel ist `no`; der öffentliche Endpunkt liefert
+HTTP 502. Davor sind automatische Abrufe um 18:40 und 18:56 UTC erfolgreich.
+Der fehlgeschlagene Abruf um 19:11 UTC endet in der Browserphase. Die Protokolle
+benennen den genauen Auslöser des Prozessendes nicht. Maike bleibt verbunden,
+der 15-Minuten-Zeitplan bleibt aktiviert und wartet wegen `network` bis
+19:41:21 UTC. Speicher, Festplatte und Firewallprüfung sind unauffällig.
+
+**Betrieb:** Nach Bestätigung, dass keine offenen Aufträge, Browsersitzungen oder
+Kontobrowsercontainer bestehen, wird ausschließlich der vorhandene Worker
+erneut gestartet. Öffentliche Gesundheitsprüfung und Workerstatus sind danach
+erfolgreich. Profil, Proxy und Zeitplan bleiben erhalten; Schreibaktionen sind
+weiterhin deaktiviert. Dieser Neustart belegt noch keinen anschließenden Abruf.
+
+**Umsetzung:** Die Compose-Vorlage erhält ausschließlich für den Worker
+`restart: unless-stopped`. Die bestehende Berechtigungsprüfung und Recovery
+bleiben Voraussetzung jedes Neustarts. Runtime-Abbrüche melden eine feste,
+typisierte Fehlerkategorie, damit fehlgeschlagene Reservierung, Auftrag und
+Lebenszeichen unterschieden werden können. Private Fehlertexte werden nicht
+weitergegeben. Die Serverkonfiguration wird erst nach PR-Freigabe angepasst.
+
+**Prüfung:** 51 gezielte Worker-Tests für Runtime, Browser-Recovery und
+Sitzungsreservierung sowie Worker-Typprüfung und Bau bestehen. Ergänzte
+Regressionstests prüfen alle sieben Abbruchkategorien und die einmalige
+Sperrung weiterer Aufträge. Formatierung, gezieltes ESLint und Compose-Prüfung
+bestehen. Die Compose-Prüfung bestätigt den Worker-Wiederanlauf, die erhaltene
+Broker-Startregel und deaktivierte Schreibaktionen. Der öffentliche Dienst ist
+bei der abschließenden Prüfung gesund; ein Abruf nach der Wiederherstellung
+ist noch nicht nachgewiesen.
+
+## 2026-10-07 - Juna - Alten Abruffehler aus der Vinted-Anmeldung entfernen
+
+**Auftrag:** Prüfen, warum trotz angemeldetem Cloud-Konto nach dem Verbinden ein
+Profilabruf-Fehler angezeigt wird.
+
+**Befund:** Der Server hat Maikes Kontobestätigung am 07.10.2026 um 17:09:24 UTC
+angenommen. Die beiden manuellen Profilabrufe davor (17:07:56 und 17:08:19 UTC)
+scheiterten mit `forbidden`, entsprechend HTTP 403 beim Lesen von
+`/api/v2/users/current`. Der Anmeldedialog zeigte deren gespeicherten
+`mutationError` weiter an. Eine fehlgeschlagene Anmeldung folgt daraus nicht.
+Die genaue Ursache der HTTP-403-Ablehnung bleibt offen. Der bestehende Zeitplan
+ist weiterhin mit `needs_login` deaktiviert; diese Analyse aktiviert ihn nicht.
+
+**Umsetzung:** Beim tatsächlichen Start eines neuen Browser-Anmeldeversuchs
+wird der alte Kontofehler über die vorhandene Methode `clearMutationError`
+zurückgesetzt. Neue Fehler dieses Anmeldeversuchs bleiben sichtbar. Keine
+Änderung an Worker, Browserprofil, Proxy, Datenbank oder Sitzungsdaten.
+
+**Prüfung:** Die beiden Regressionstests scheitern vorher am gespeicherten
+Abruffehler. Nach der Korrektur bestehen 120 Angular-Tests für Browser-Store,
+Anmeldedialog, Vinted-Arbeitsbereich und Marktplatz-Testseite. Die Service-Ersatzobjekte
+auf der Testseite berücksichtigen ebenfalls das Zurücksetzen alter Meldungen.
+Formatierung, gezieltes ESLint und der
+Angular-Produktionsbau sind erfolgreich. Die Live-Kontobestätigung und vorherigen
+403-Abrufe wurden nur über vorhandene Servermetadaten und Protokolle geprüft.
+Ein erfolgreicher neuer Cloud-Abruf ist damit noch nicht nachgewiesen.
+
+## 2026-10-07 - Juna - Meldungen des Sicherheits-Scans prüfen und korrigieren
+
+**Auftrag:** Alle 19 Meldungen des vorhandenen Scans gegen den aktuellen
+Repositorystand prüfen, bestätigte Fehler beheben und relevante Abläufe testen.
+
+**Umsetzung:** 17 Meldungen erhalten gezielte Korrekturen: getrennte Registry-
+Berechtigungen für PRs und Veröffentlichungen, Sniper-Deployment über den
+gebauten Digest, ausdrückliche Verbindungserlaubnis im Erweiterungsfenster,
+begrenzte Beta-Anfragen und Vinted-Antworten, Merkzettel-Limits, abgesicherte
+Passwortänderungen, Adminrechte für Webhook-Ziele, Fremdschlüssel innerhalb
+desselben Arbeitsbereichs, Bereinigung globaler Finanz-Caches, begrenzte
+Kontoauszugs- und Bildimporte, stabile Kategorieprüfung, frühzeitige Entfernung
+des Beta-Tokens, neutrale Beta-Antworten, begrenztes Retry-After und reservierte
+Discord-Bindung vor der externen Rollenvergabe.
+
+Die unabhängige Prüfung findet zusätzliche Wege in diesen Grenzen. Die
+Korrekturen verhindern dauerhaft privilegierte Recovery-Sitzungen bei neuen
+Beta-Abschlüssen, beenden verwendete Einladungs-/Recovery-Sitzungen nach dem
+Passwortsetzen, entkoppeln SMTP vom öffentlichen Antwortpfad, speichern den
+größten Kategorieumfang über Neustarts und prüfen Fotoarray-Längen vor Zod-
+Kopien. Bildzuschnitte behalten die tatsächliche Browserorientierung. Zwei
+generierte Migrationen begleiten die Schemaänderungen; API-Typen stammen aus
+der isolierten Datenbank. Der bestehende Test für beschädigte Einkaufsdaten
+legt seine absichtlich ungültige Zeile nur im vorhandenen Replikations-Fixture
+an; die produktive Fremdschlüsselprüfung bleibt aktiv.
+
+**Offen:** Zwei Meldungen zur vollständigen Übernahme des zentralen Chromium-
+Workers benötigen eine gemeinsame Trennung von Browserarbeit und Verwaltung.
+Für den vorhandenen kleinen Server ist eine Variante im bereits gestarteten
+Browsercontainer vorbereitet: unveränderte Speichergrenzen, ein gleichzeitiger
+Cloud-Abruf und die bestehende Warteschlange. Keine Worker pro Nutzer. Dieser
+Umbau einschließlich GoLogin und Hostregeln ist noch nicht umgesetzt.
+
+**Prüfung:** Beide Migrationen lassen sich mit der vollständigen Historie und
+synthetischen Daten anwenden. 3.343 SQL-Prüfungen und 25 Sniper-Integrationsprüfungen
+bestehen. Parallele Datenbankverbindungen können weder Merkzettel-Limits noch
+die eindeutige Discord-Bindung umgehen. Direkte GoTrue-API-Prüfungen bestätigen
+den Passwortschutz einschließlich erneuerter Sitzungen; Einladung und Reset
+bleiben möglich. Der zuvor speicherintensive Katalogtrigger mit 1,5 Millionen
+Vorschaubildern wird bei 110 MiB gemessenem Prozessmaximum abgewiesen. Caddy-
+Konfiguration und Actionlint bestehen. Format, Lint, Typen, Workflow-Prüfungen,
+Suite-Audit, 1.760 Node-, 306 DOM-, 210 Edge- und 39 Landing-Prüfungen sowie
+der Produktionsbau bestehen. Der Gesamtbefehl scheitert zunächst an einem
+unveränderten Deal-Monitor-Test mit fünf Sekunden Zeitlimit. Der Einzeltest
+und anschließend alle 1.944 Angular-Prüfungen bestehen mit vier gleichzeitigen
+Testprozessen; das Zeitlimit bleibt unverändert. Sieben Deployskript-Prüfungen
+bestehen zusätzlich unter Linux ohne die Windows-bedingten Auslassungen.
+
+**Einführung:** Noch kein Push, Merge oder produktiver Eingriff. Das aktualisierte
+rootgeschützte Deployskript, die GoTrue-Einstellung und die neue Erweiterung
+müssen gemeinsam mit der Anwendung eingeführt werden. Früher ausgegebene
+Beta-Recovery-Sitzungen müssen vor der Freigabe widerrufen werden.
+
+**Fortsetzung nach Freigabe:** Der Nutzer gibt PR, Pflichtprüfungen und Merge frei.
+Der aktuelle master mit den unabhängig veröffentlichten Browseränderungen wird
+übernommen. Botprofil-Vorbereitung, manuelle Prüfpause und optionale Wiederholungen
+bleiben erhalten; Antwortgrößen und Retry-After bleiben auch in diesen Wegen
+begrenzt. Die neuen Fremdschlüssel treffen produktiv auf keine ungültigen
+arbeitsbereichsübergreifenden Beziehungen. Servervorbereitung und Veröffentlichung
+werden vor dem Merge geprüft.
+
+Das rootgeschützte Deployskript und das Auth-Overlay sind nach Sicherung auf dem
+Server vorbereitet. Direkte API-Kontrollen mit einem anschließend entfernten
+Testkonto liefern 400 ohne bisheriges Passwort, 400 bei falschem Passwort und
+200 bei korrektem Passwort. Zwei alte Beta-OTP-Sitzungen werden über den nativen
+Logout widerrufen; normale Passwortsitzungen bleiben erhalten. Der produktive
+Auth-Dienst kennzeichnet bestätigte Reset-Links als `otp`; die Passwortseite
+berücksichtigt diese verifizierte Sitzungsart, mit eigener Angular-Regression.
+
+Der PR-Browserlauf zeigt eine kurzzeitig noch nicht angepasste Breite im
+Auswahlmenü. Die Layoutprüfung wartet nun auf die geforderte Breite statt nur
+auf Sichtbarkeit; ihre Grenze bleibt unverändert. Der Beta-Lebenszyklustest
+zeigt bei fehlgeschlagenem Funktionsaufruf zusätzlich dessen öffentliche
+Fehlerantwort, damit vor einem Merge die tatsächliche Ursache sichtbar ist.
+
+## 2026-10-07 - Juna - Fehler beim erneuten Cloud-Seitenaufruf sichtbar machen
+
+**Auftrag:** Den freigegebenen Cloud-Abruf-Fix veröffentlichen und mehrere
+reguläre automatische Abrufe mit Maike Vintage prüfen.
+
+**Produktiver Stand:** PR #332 ist mit grünen Pflichtprüfungen als v0.308.1
+veröffentlicht. Ausschließlich das Worker-Image wurde ausgetauscht; Browserdienst,
+Profil, Proxybindung und Berechtigungsversion 22 bleiben erhalten. Drei
+kontrollierte Leseproben und ein vollständiger manueller Flipbase-Abruf laufen
+durch. Automatische Abrufe um 13:02 und 13:17 UTC sind erfolgreich und beenden
+den alten Wartestatus. Um 13:32 UTC scheitert der Profilschritt erneut mit
+`browser_context`; der aktivierte Zeitplan wartet regulär bis 14:02 UTC.
+
+**Eingrenzung:** Das neue Fehlerereignis enthält keine Browserkategorie.
+Der entsprechende Fehlerpfad verwirft die Ausnahme beim erneuten Seitenaufruf
+nach einer initialen 401-Antwort. Welche konkrete Navigationsausnahme im
+Produktivbetrieb auftrat, ist deshalb weiterhin nicht bewiesen. Sechs weitere
+kontrollierte Starts liefern jeweils 200 und reproduzieren diesen Ausfall nicht.
+Die bisherigen erfolgreichen Abrufe belegen daher keine abgeschlossene Korrektur.
+
+**Änderung:** Auch dieser Seitenaufruf erhält jetzt eine feste Fehlerkategorie.
+Unterschieden werden unterbrochene oder abgebrochene Navigation, Zeitüberschreitung,
+Netzwerk, geschlossener Browser, Skriptfehler und unbekannte Fehler. Die bestehende
+Ausgabe bleibt auf acht Kategorien begrenzt und verwirft beliebige Fremdwerte.
+Rohfehler, URLs, Anbieterantworten und Zugangsdaten werden nicht gespeichert.
+Es kommen keine Wiederholungen oder sonstigen Änderungen am Abrufverhalten hinzu.
+
+**Prüfung:** Neue Unit- und echte Chromium-Regressionen scheitern vor der
+Ergänzung und bestehen danach. 41 gezielte Tests sind erfolgreich, einschließlich
+sechs Chromium-Tests. Zusätzlich bestehen 339 Worker-Tests bei sieben bestehenden
+übersprungenen Prüfungen, Typprüfung, Worker-Bau, Formatierung und gezieltes Lint.
+Veröffentlichung dieser Diagnose-Ergänzung und Bestätigung der konkreten
+produktiven Navigationsausnahme stehen noch aus.
+
+**Fortsetzung nach Freigabe:** Der Nutzer gibt den zusätzlichen PR und dessen
+Veröffentlichung frei. Weitere automatische Abrufe um 14:02 und 14:18 UTC sind
+erfolgreich. Um 14:33 UTC scheitert die Identitätsbestätigung mit `unauthorized`;
+der Zeitplan ist jetzt wegen `needs_login` angehalten und hat Berechtigungsversion 23. Die Veröffentlichung aktiviert diesen Zeitplan nicht eigenmächtig.
+Der aktuelle `origin/master` mit den unabhängig veröffentlichten Botänderungen
+wird übernommen; ausschließlich dieses Protokoll kollidiert. Alle Einträge beider
+Sitzungen bleiben erhalten, persönliches Cloudprofil und Botprofil bleiben getrennt.
+
+## 2026-10-07 - Juna - Vinted-Browserrelease produktiv abnehmen
+
+**Abschluss:** PR #333 und die Profilkorrektur #334 sind nach erfolgreichen
+Pflichtprüfungen gemergt. Version v0.309.4 ist einschließlich Produktionsbau,
+Image-Smoke und öffentlicher Versionsprüfung erfolgreich veröffentlicht.
+Bei der Abnahme am 07.10. läuft der neue Bot seit 16:26 Uhr mit seinem eigenen Chrome-Profil und sammelt
+über 35 Minuten regulär Artikel ohne fehlgeschlagene Abrufe.
+
+**Servervorbereitung:** Die private Browser-API war vom Caddy-Container durch
+die bestehende Host-Firewall nicht erreichbar. Nach Prüfung der tatsächlichen
+Container-IP, Bridge und Gateway sowie privater Sicherung der Regeln erlaubt
+UFW ausschließlich diesem Container den internen Port 8081. Der öffentliche
+Statusendpunkt antwortet ohne Anmeldung jetzt mit 401 statt 502. Die
+Releaseanleitung enthält diese Voraussetzung und den Abgleich bei Netzwechseln.
+
+**Live-Abnahme:** Der angemeldete Adminbereich zeigt „Vinted verbunden“, null
+abgewiesene Anfragen in der letzten Minute und keine Fehlermeldung am aktiven
+Markenfilter. Der Container ist gesund; der Webrelease hat ihn nicht neu
+gestartet. Eine manuelle Prüfsitzung war im laufenden Betrieb nicht nötig;
+deren Freigabe- und Abbruchverhalten wurde lokal und in CI geprüft.
+
+## 2026-10-07 - Juna - Botprofil ohne passenden Host-Benutzer anlegen
+
+**Auftrag und Befund:** Den freigegebenen Vinted-Browserrelease nach dem
+erfolgreichen Merge von PR #333 fertigstellen. Der erste Produktionslauf stoppt
+vor dem Austausch der Anwendung: `install (uutils coreutils) 0.8.0` lehnt
+`-o 1000 -g 1000` ab, weil kein entsprechender Host-Benutzer vorhanden ist.
+Die bestehende Anwendung und der bisherige Bot laufen weiter.
+
+**Korrektur:** Das Deployskript legt das private Verzeichnis mit Modus `0700`
+an und setzt anschließend den numerischen Eigentümer per `chown 1000:1000`.
+Die Prüfung bestehender Profile und das Anhalten bei Fehlern bleiben erhalten.
+Es wird kein Host-Benutzer angelegt. Der neue Zweig basiert ausschließlich auf
+dem aktuellen `origin/master`; der bereits gemergte Featurezweig ist gelöscht.
+
+**Prüfung:** Die Linux-Deploymentfixture simuliert fehlende Host-Benutzer und
+scheitert zunächst mit derselben Meldung. Nach der Korrektur bestehen alle acht
+Deploytests ohne Netzwerk, Formatierung, Lint und Git-Diff. Eine isolierte leere
+Teststruktur auf dem echten Server bestätigt `700 1000:1000` mit dessen
+Installationswerkzeug; sie wird danach entfernt. Das leere eigene Botprofil wird
+als freigegebene Servervorbereitung mit denselben Rechten angelegt. Der bereits
+vollständig geprüfte Release kann damit wiederholt werden; die dauerhafte
+Skriptkorrektur wird über einen eigenen PR geprüft und veröffentlicht.
+
+## 2026-10-07 - Juna - Manuellen Browserzugriff für den Artikelbot umsetzen
+
+**Freigabe:** Der Nutzer bestätigt Entwurf, Umsetzungsplan und die Umsetzung in
+dieser Sitzung mit einer unabhängigen Gesamtprüfung. Die ausdrückliche Ausnahme
+für den Node-Bot gilt weiterhin. Nach den erfolgreichen lokalen Prüfungen
+bestätigt der Nutzer die PR-Erstellung, den Merge nach erfolgreichen
+Pflichtprüfungen sowie die anschließende Servervorbereitung und Veröffentlichung.
+
+**Änderung:** Eigener nativer Chrome mit persistentem Botprofil. Automatische
+Dokumentabrufe führen keine Seitenskripte aus. Bestätigte Prüfseiten sperren alle
+gemeinsamen Botabrufe dauerhaft; reguläre Zeitlimits bleiben erhalten. Betreiber
+öffnen im Botbetrieb eine exklusive, zeitlich begrenzte Sitzung mit Browserbild,
+nativer Eingabe und manueller Wiederprüfung. Anmeldung und Betreiberrolle werden
+bei jeder API-Aktion geprüft. Erst der revisionsgesichert angenommene Katalog
+eines weiterhin aktiven Filters gibt den Bot frei. Persönliche Kontoprofile und
+Datenbankschema bleiben unverändert.
+
+**Prüfung:** 299 Botprüfungen, elf gezielte Angular-Prüfungen, Typprüfung und
+Produktionsbau erfolgreich. Der echte Admin-Browsertest bestätigt Tastatur,
+Fokus, Fehlerpause und AXE. Die isolierte lokale Chrome-Prüfung bestätigt aktive
+Namespace-/Seccomp-Sandbox, private CDP-Adresse, native Eingabe, Bildabruf,
+unterdrückte automatische Seitenskripte und Cookies nach regulärem Neustart.
+Sie findet zunächst eine zurückbleibende Profilsperre; reguläres Browserende vor
+Prozessbeendigung behebt sie. Alle acht Deploytests laufen in Linux erfolgreich,
+einschließlich Laufzeitdateien vor Botstart und Abbruch bei fehlendem Auth-Key.
+Shared-UI-Prüfung und Suitezuordnung bestehen.
+
+**Unabhängige Gesamtprüfung:** Vier funktionale Fehler werden lesend reproduziert
+und anschließend jeweils mit fehlschlagendem Regressionstest behoben. Die
+gemeinsame Zugriffssperre gilt jetzt auch bei Origin-, Query- oder Probe-
+Speicherfehlern; fehlgeschlagene dauerhafte Speicherung wird ohne weitere Abrufe
+wiederholt. Eine hängende Navigation wird sofort abgebrochen. Manueller Zugriff
+teilt den tatsächlichen letzten Abrufzeitpunkt mit Kategorien und anderen
+Filtern. Schließen während der Verifikation entwertet die Lease sofort und
+verwirft verspätete Ergebnisse im Dialog. Die letzte Prüfung besteht erneut:
+299 Botprüfungen, elf Angular-Prüfungen, drei Admin-Browsertests, 227 Workflow-
+Prüfungen (fünf Plattformausnahmen; die acht Deploytests laufen separat vollständig
+unter Linux), Typen, Lint, Bau und Sandbox-Image. Caddyvalidierung und
+Formatter bestehen. Die Auswahlprüfung enthält den neuen PR-Browsertest.
+Der Container erhält 90 Sekunden zum regulären Beenden, damit laufende Abrufe
+das saubere Schließen des Chrome-Profils nicht verhindern.
+
+**Integration:** Der aktuelle `origin/master` (`41f3174e`) wird übernommen.
+Der einzige Konflikt betrifft dieses Protokoll; beide Sitzungseinträge bleiben
+erhalten. Anschließend bestehen erneut alle 299 Botprüfungen sowie 337
+Workerprüfungen bei sieben bestehenden Ausnahmen, Worker-Typprüfung und -Bau.
+
+**PR und Servervorbereitung:** PR #333 ist erstellt. Vor der Veröffentlichung
+werden Deployskript und Botkonfiguration auf dem Server unter einem privaten
+Betreiberbackup gesichert. Der Dateivergleich enthält ausschließlich die
+geprüfte Browservorbereitung. Das geprüfte Deployskript und der bestehende
+öffentliche Auth-Key sind installiert; der produktive Bot bleibt bis zum
+erfolgreichen Merge auf der bisherigen Fassung.
+
+**Linux-CI-Korrektur:** Der erste Botlauf wird durch ein Signal beendet. Ein
+isolierter Linux-Test reproduziert den Abbruch im Prozess-Test: künstliche
+`ChildProcess`-Objekte rufen die echte Betriebssystem-Signalmethode auf. Die
+Tests ersetzen diese Methode jetzt durch eine Attrappe und prüfen weiterhin
+`SIGTERM`, anschließend `SIGKILL` und die gesperrte Wiederverwendung bei nicht
+bestätigtem Ende. Alle 299 Botprüfungen bestehen danach auch im Linux-Container
+ohne Netz; der gezielte Windows-Test, Typprüfung, Lint und Formatierung bestehen.
+Die übrigen Prüfungen des ersten PR-Laufs einschließlich Browserprüfung sind
+erfolgreich. Die Pflichtprüfungen werden für den korrigierten Stand erneut ausgeführt.
+
+**Releasevertrag:** Webimage enthält die passende Bot-Compose-/Seccomp-Konfiguration.
+Der Betreiber muss das geprüfte Deployskript und den öffentlichen Auth-Key vor
+der ersten Veröffentlichung bereitstellen. Keine produktive Browserfreigabe und
+keine wiederhergestellte Liveverbindung behauptet. Die unabhängige Gesamtprüfung
+ist mit den geprüften Korrekturen abgeschlossen; die PR-Freigabe liegt vor.
+
+## 2026-10-07 - Juna - Eigene Browsersitzung für den Artikelbot entwerfen
+
+**Freigabe:** Der Nutzer erlaubt ausdrücklich Änderungen am serverseitigen
+Node-Bot als Ausnahme zur allgemeinen Frontend-Grenze. Die vorgeschlagene
+eigene Botsitzung mit manueller Prüfung wird als konkreter Entwurf ausgearbeitet.
+
+**Entwurf:** Persistentes eigenes Chrome-Profil, dauerhafte gemeinsame Pause
+bei bestätigter Prüfseite und exklusiver manueller Zugriff im Adminbereich.
+Wiederaufnahme erst nach erfolgreich geparstem und revisionsgesichert
+angenommenem Katalog. Die heutige Behandlung alter `blocked`-Zustände würde
+sonst neue Proben starten; der neue Grund `interaction_required` muss deshalb
+gezielt dauerhaft respektiert werden. Kategorieabrufe und manuelle Bedienung
+teilen die Abrufsperre. Betreiberrechte werden bei jedem Browser-API-Aufruf
+serverseitig geprüft. Persönliche Kontositzungen bleiben getrennt.
+
+**Stand:** Der Nutzer hat den schriftlichen Entwurf ausdrücklich freigegeben.
+Der konkrete Umsetzungsplan liegt unter
+`docs/superpowers/plans/2026-10-07-vinted-bot-browser.md`: sechs Aufgaben mit
+Schnittstellen, Regressionstests, Authentifizierung, UI und Releasevertrag.
+Die Prüfung konkretisiert im Entwurf, dass ein `Retry-After` den frühesten
+manuellen Abruf bestimmt, die dauerhafte Sperre aber nicht automatisch aufhebt.
+Plan und Schnittstellen sind intern gegen den Entwurf geprüft; Planfreigabe
+und Ausführungswahl stehen aus. Keine Produktcode-, Schema-, Paket- oder
+Releaseänderungen und keine weiteren produktiven Vinted-Anfragen. Formatierung
+und Git-Diff bestehen; Anwendungstests sind noch nicht sinnvoll.
+
+## 2026-10-07 - Juna - Erneute Ablehnungen und regulären Chrome-Vergleich prüfen
+
+**Auftrag:** Nach dem fehlgeschlagenen ersten langsameren Abrufversuch die
+Reparatur weiter untersuchen. Der Nutzer bestätigt den zentralen Artikelbot
+im Adminbereich, nicht die persönlichen Kontoverbindungen.
+
+**Befund:** Auch die automatischen Proben um 12:59:50 und 13:04:51 Uhr scheitern
+mit HTTP 403 und erkannter Cloudflare-Prüfseite. Die aktuellen Suchbedingungen
+erzeugen weiterhin denselben Kategorie-/Markenabruf; die Ablehnung geschieht
+vor Parser und Titelprüfung. Die passive Socketbeobachtung erfasst die kurze
+Vinted-Verbindung nicht und beweist deshalb deren tatsächliche IP-Familie nicht.
+
+**Browservergleich:** „Nike Neu“ wird kurz pausiert, damit keine reguläre Probe
+parallel läuft. Nach Ende der bereits gespeicherten Zugriffspause erhält genau
+ein Abruf derselben Katalogadresse in Google Chrome 155.0.8059.39 um 13:09:56 Uhr
+ebenfalls HTTP 403 mit `cf-mitigated: challenge`. Die Prüfseite wird vor
+Darstellung und Ausführung beendet; keine Challenge-Lösung wird versucht.
+Ein frischer Browser erhält damit ebenfalls eine Prüfseite. Das ist kein Test
+einer legitimen manuellen Freigabe und beweist keine dauerhafte IP-Sperre.
+
+**Betrieb:** Vorhandenes geprüftes Chrome-Abbild, aktivierte Sandbox, isolierter
+Container ohne Produktionsvolumes oder Kontodaten, dieselbe Serveranbindung,
+keine Proxies oder veränderte Browseridentität. Testcontainer anschließend
+automatisch entfernt und seine Abwesenheit geprüft. Nach mindestens 60 Sekunden
+Abstand wird ausschließlich der eigene pausierte Auftrag per Revisionsprüfung
+wieder aktiviert; 60 Sekunden Takt und Suchbedingungen bleiben erhalten. Um
+13:12:31 Uhr ist Nike aktiv, Adidas/Ralph Lauren bleiben deaktiviert. Die
+reguläre Probe um 13:11:24 Uhr ist erneut abgewiesen; der Zugang ist nicht repariert.
+
+**Nächster Schritt und Grenze:** Die offiziellen Cloudflare-Verträge bestätigen
+die Grenze reiner HTTP-Clients und nicht unterstützte automatische Challenge-
+Löser. Die dokumentierte Vinted-Pro-API ist kein geprüfter Ersatz für die
+allgemeine Markensuche. Ein Browserwechsel allein ist ebenfalls keine belegte
+Reparatur. Ein geregelter Zugriffspfad mit expliziter Freigabe muss festgelegt
+werden. Wegen der aktuellen globalen Backend-Grenze ist eine ausdrückliche
+Ausnahme für Änderungen an `services/sniper` angefragt und noch offen. Der
+nummerierte Auftrag mit Befunden, Grenzen und Abnahme liegt unter
+`C:\Users\gt\Desktop\Backend Issues\vinted-access-analysis\01-vinted-article-bot-challenge-recovery.md`.
+Keine Anwendungscode-, Schema-, Paket- oder Releaseänderung ausgeführt.
+
+## 2026-10-07 - Juna - Langsameren Abruf des zentralen Artikelbots produktiv testen
+
+**Freigabe:** Der Nutzer bestätigt mit „los“ den vorgeschlagenen Versuch mit
+längeren Abrufabständen für den zentralen Marken-/Artikelbot im Adminbereich.
+
+**Vorprüfung:** Vor der Änderung ist die automatische Probe um 12:41:21 Uhr
+bereits erfolgreich. Seitdem liefern die regulären Abrufe wieder Artikel.
+Diese Erholung geschieht beim bisherigen Zehn-Sekunden-Solltakt und darf nicht
+der späteren Änderung zugeschrieben werden.
+
+**Änderung:** Am 7. Oktober um 12:53:52 Uhr wird ausschließlich der aktive
+Suchauftrag „Nike Neu“ von zehn auf 60 Sekunden gestellt. Eine kurze Transaktion
+prüft und sperrt den erwarteten Auftrag und bricht bei einer abweichenden
+Einstellung oder weiteren aktiven Aufträgen ab. Ein Vergleich der vollständigen
+Zeile erlaubt nur das Intervall, den Änderungsstempel und die vom vorhandenen
+Trigger erhöhte Formularrevision. Suchbedingungen, Aktivierung, Cursor und
+Fehlerzustand bleiben erhalten. Der Container wird nicht neu gestartet;
+Zugriffspausen werden nicht zurückgesetzt. Kein Schema- oder Produktcodeumbau.
+
+**Prüfung:** Die Transaktion ist bestätigt; der gespeicherte Solltakt beträgt
+60.000 Millisekunden. Der erste nachfolgende automatische Abruf um 12:54:48 Uhr
+scheitert erneut mit HTTP 403 und `challengeDetected=true`, etwa 65 Sekunden
+nach dem letzten erfolgreichen Abruf. Die gemeinsame Pause und die einzelne
+nächste Wiederprüfung ab 12:59:47 Uhr sind korrekt gespeichert. Um 12:55:21 Uhr
+stehen weiterhin 60 Sekunden, ein Folgefehler und keine seit der Änderung neu
+entdeckten Artikel in der Datenbank. Die Intervalländerung verhindert diese
+nächste Ablehnung nicht. Damit ist weder eine Lösung noch ein Ausschluss des
+Abrufrhythmus als Mitursache bewiesen; eine schon bestehende Anbieterbewertung
+kann fortwirken. Für weitere Beobachtung bleibt die freigegebene Einstellung
+bei 60 Sekunden. Keine zusätzlichen Vinted-Anfragen oder produktiven Änderungen.
+Nur Betriebswerte und Logs gelesen; Formatierung und Git-Diff des Protokolls
+geprüft. Keine Anwendungstests oder Builds für diese reine Betriebseinstellung.
+
+## 2026-10-07 - Juna - Wiederkehrende Zugriffssperren des zentralen Vinted-Artikelbots untersuchen
+
+**Auftrag:** Die häufige Meldung „Zugriff abgewiesen“ seit dem letzten Update
+im administrativen Bereich des zentralen Marken-/Artikelbots untersuchen.
+
+**Befund:** Lesende Server- und Datenbankprüfung um 12:31 Uhr deutscher Zeit.
+Der Container `flipbase-sniper` läuft mit `sha-da3069f`, Hostnetzwerk und ohne
+Neustarts seit 11:56 Uhr. Bereits sein erster Durchlauf übernimmt eine
+gespeicherte Zugriffspause. Alle sieben protokollierten Abrufe von 12:00 bis
+12:31 Uhr scheitern mit HTTP 403 und `challengeDetected=true` in der
+Anfragephase. Die Cloudflare-Prüfseite ist damit anhand des vom Sammler
+ausgewerteten Antwortheaders erkannt; ihr Auslöser bleibt unbewiesen.
+
+Nur „Nike Neu“ ist aktiv: Kategorie 2050, Marke 53, Sollintervall zehn Sekunden.
+Adidas und Ralph Lauren sind deaktiviert. Der letzte erfolgreiche Abruf und
+Artikel-Erstfund stammen vom 7. Oktober um 11:30:24 Uhr; im letzten
+Stundenfenster wurden keine neuen Artikel gespeichert. Der Dienst hält die
+gemeinsame Pause ein und führt etwa alle fünf Minuten eine einzelne Probe aus.
+Das konfigurierte Minutenbudget von 30 ist eine Obergrenze, keine gemessene
+Anfragerate. Ein hoher Anfragetakt oder eine konkrete IP-Sperre ist als Ursache
+nicht nachgewiesen.
+
+**Updateabgleich:** Zwischen dem lokal vorgefundenen Stand `b0cdf268` und dem
+produktiven `da3069f1` sowie seit dem Suchfeed-Stand `c40f9f42` gibt es keine
+Änderungen an Botquellcode, Bot-Lockfile oder Bot-Compose. Die vorherige Änderung
+vom 6. Oktober ergänzt die Suchfilterverarbeitung; Anfrageabstand, Fehlerpolitik
+und Netzwerkpräferenz bleiben im geprüften Vergleich unverändert. Der heutige
+Neustart kann deshalb nicht als Beginn dieser Zugriffspause gelten. Eine
+Regression durch die früheren Suchfilteränderungen ist dadurch nicht vollständig
+ausgeschlossen. Der Audit vom 1. Oktober dokumentiert bereits denselben
+Fehlertyp, beweist aber keine identische Ursache für den aktuellen Vorfall.
+
+**Prüfung und Grenze:** Dockerstatus und gefilterte Botlogs gelesen, produktive
+SQL-Abfragen ausschließlich in `begin read only` mit anschließendem Rollback,
+Git-Unterschiede geprüft und den offiziellen Cloudflare-Vertrag zu
+`cf-mitigated: challenge` abgeglichen. Keine zusätzlichen Vinted-Anfragen,
+keine Kontoaktionen, keine produktiven Änderungen und kein Anbieterzugriff
+umgangen. Kein bestätigter Codefehler und keine Korrektur behauptet. Nur dieser
+Sitzungseintrag wird im eigenen Analysezweig ergänzt; keine Anwendungstests
+oder Builds für die reine Diagnose ausgeführt.
+
+## 2026-10-07 - Juna - Unterbrochene Cloud-Leseanfragen begrenzt wiederholen
+
+**Auftrag:** Sporadische Browserfehler beim automatischen Abruf von Maike
+Vintage untersuchen, die Ursache eingrenzen und die regelmäßige Aktualisierung
+gezielt absichern.
+
+**Produktive Diagnose:** Nach dem Bewertungsupdate folgen erfolgreiche
+automatische Abrufe um 11:00 und 11:15 UTC; um 11:31 scheitert der Profilschritt
+mit `browser_context`. Der reguläre Folgeversuch um 12:01 UTC läuft erfolgreich
+und beendet den Wartestatus. Beim kontrollierten Starttest sind zusätzliche
+Navigationen innerhalb derselben Vinted-Seite sichtbar. Die produktive
+Fehlerkategorie verliert bisher die konkrete Ausnahme; eine abschließende
+Zuordnung dieses sporadischen Fehlers bleibt deshalb offen.
+
+**Reproduktion und Korrektur:** Zwei echte Chromium-Tests zeigen den Ausfall
+beim Dokumentwechsel während Profil- und Postfachanfragen. Ein zerstörter
+Ausführungskontext wartet jetzt auf ein auswertbares, geladenes Dokument und
+wiederholt ausschließlich die betroffene GET-Anfrage genau einmal. Profil,
+IP und Sitzung bleiben gleich; Zugriff wird vor dem Warten und vor der
+Wiederholung neu geprüft. Anmelde-/Zweitfaktorseiten, geschlossene Browser,
+Skriptfehler und HTTP-Ablehnungen starten keine zusätzliche Wiederholung.
+Auch ein zweiter Dokumentverlust bleibt ein sichtbarer Quellenfehler.
+
+**Diagnoseausgabe:** Feste Kategorien für Navigation, geschlossene Browser,
+Skriptfehler und unbekannte Fehler bleiben sowohl bei fehlgeschlagenen als
+auch bei übernommenen Teilabrufen erkennbar. Die Ausgabe enthält höchstens
+acht Kategorien, keine Rohfehler, Anbieterantworten oder Zugangsdaten.
+
+**Prüfung:** Die neuen Unit- und Chromium-Regressionen scheitern vor der
+Korrektur. Nach der Änderung bestehen 337 Worker-Tests bei sieben bestehenden
+übersprungenen Prüfungen und die fünf echten
+Browsertests zur Sitzungswiederherstellung, Typprüfung, Worker-Bau, Format
+und gezieltes Lint. Drei kontrollierte Leseproben mit dem geänderten Import
+im bestehenden Cloudprofil laufen durch, ohne Produktionsdaten zu schreiben.
+Der produktive Worker bleibt unverändert; temporäre Prüfmodule wurden
+entfernt. Mehrere automatische Durchläufe mit der neuen Version und die
+Bestätigung der genauen produktiven Fehlerursache stehen noch aus.
+
 ## 2026-10-07 - Juna - Neue Vinted-Bewertungen in der Glocke melden
 
 **Auftrag:** Neue Bewertungen nach einem Kontoabruf dauerhaft in der
@@ -703,3 +1555,15 @@ eigene Abnahmen. Keine Funktion oder Anmeldeerkennung geändert.
 **Umfang:** Persönliche Account-Favoriten je Benutzer und Workspace, ausdrücklich bestätigter Altimport ohne Wiederherstellung manuell entfernter Einträge, keine zeitliche Löschung und keine 500er-Verdrängung. Normale Funde und Referenzpreise verwenden sieben Tage. Feed mit Titelsuche vor der Seitengrenze, fünf Desktopspalten, kleineren Bildaktionen, Heute/Gestern und gemeinsamem Kategorie-Wähler mit Vinted-Datenquelle.
 
 **Grenzen:** Die Browserprüfungen verwenden getrennte Desktop-/Tablet-Kontexte mit Testantworten. Kein echter Vinted-Abruf, kein unabhängiger zweiter Reviewer und keine Spiegelung externer Produktbilder. Ältere Hinweise auf damals offene Prüfungen bleiben in den historischen Archiven unverändert.
+
+**Cloud-Favoritenregeln:** Eigene Cloud-Aktivierung mit erneuter Kontofreigabe,
+Versionsbindung und getrennten Nachrichten-/Angebotsclaims umgesetzt. Die bestehende
+Ereignisvalidierung, Berliner Zeitregeln und serverseitige Preisformel werden geteilt.
+Cloud- und Extensionclaims bleiben getrennt. Hintergrundversand respektiert die
+Automatikpause; unklare Texte erzeugen kein Angebot und keine automatische Wiederholung.
+Favoritenabruf liest höchstens zwei Benachrichtigungsseiten ohne Gelesen-Markierung,
+nur bei aktivierter Regel. Ein Widerruf schaltet die Cloud-Regel aus.
+Offiziell erzeugte Migration auf isoliertem Stand geprüft: 356 DBassertions;
+419 Workerprüfungen bestanden, sieben bestehende Skip; 13 Favoriten-UI-Prüfungen,
+Worker-/App-Typprüfung und Bau sowie ESLint/Formatierung bestehen.
+Browserintegration und unabhängiges Abschlussreview folgen. Kein Live-Versand.

@@ -97,6 +97,7 @@ export class SetPasswordComponent implements OnInit {
   readonly successMessage = signal<string | null>(null);
   readonly isTokenInvalid = signal<boolean>(false);
   readonly isReview = signal(false);
+  readonly isPasswordChange = signal(false);
 
   readonly greetingName = computed<string>(() => {
     const user = this.authService.currentUser();
@@ -107,6 +108,7 @@ export class SetPasswordComponent implements OnInit {
 
   readonly form = new FormGroup(
     {
+      currentPassword: new FormControl('', { nonNullable: true }),
       password: new FormControl('', {
         nonNullable: true,
         validators: [Validators.required, Validators.minLength(8)],
@@ -175,7 +177,16 @@ export class SetPasswordComponent implements OnInit {
     const token = new URLSearchParams(window.location.hash.slice(1)).get('beta_token');
     if (token) {
       this.managedToken = token;
-      // Der Link bleibt bis zum Abschluss im Fragment; er wird nicht an den Webserver gesendet.
+      const parameters = new URLSearchParams(window.location.hash.slice(1));
+      parameters.delete('beta_token');
+      const remainingHash = parameters.toString();
+      history.replaceState(
+        history.state,
+        '',
+        window.location.pathname +
+          window.location.search +
+          (remainingHash ? `#${remainingHash}` : ''),
+      );
       try {
         await this.registration.inspect(token);
       } catch {
@@ -184,6 +195,30 @@ export class SetPasswordComponent implements OnInit {
       return;
     }
     await this.authService.sessionReady;
+    let isVerifiedPasswordSetup = false;
+    if (this.authService.canAccessApp()) {
+      const { data, error } = await this.supabase.client.auth.getClaims();
+      const methods: unknown = data?.claims.amr;
+      // GoTrue kennzeichnet auch bestätigte Einladungs- und Recovery-Links als OTP.
+      isVerifiedPasswordSetup =
+        !error &&
+        Array.isArray(methods) &&
+        methods.some(
+          (method: unknown) =>
+            method !== null &&
+            typeof method === 'object' &&
+            'method' in method &&
+            ['invite', 'recovery', 'otp'].includes(String(method.method)),
+        );
+    }
+    // Diese Anzeige ersetzt nicht die serverseitige Prüfung des bisherigen Passworts.
+    if (this.authService.canAccessApp() && !isVerifiedPasswordSetup) {
+      this.isPasswordChange.set(true);
+      this.form.controls.currentPassword.addValidators(Validators.required);
+      this.form.controls.password.addValidators(Validators.minLength(10));
+      this.form.controls.currentPassword.updateValueAndValidity();
+      this.form.controls.password.updateValueAndValidity();
+    }
     const reviewingPassword = this.route.snapshot.queryParamMap.get('review') === '1';
     if (reviewingPassword && this.authService.canAccessApp()) {
       this.isReview.set(true);
@@ -256,15 +291,30 @@ export class SetPasswordComponent implements OnInit {
         await this.router.navigate(['/onboarding/workspace']);
         return;
       }
-      const { error } = await this.supabase.client.auth.updateUser({
-        password,
-        data: { beta_registration_completed: true },
-      });
+      const { error } = this.isPasswordChange()
+        ? await this.authService.changePassword(this.form.controls.currentPassword.value, password)
+        : await this.supabase.client.auth.updateUser({
+            password,
+            data: { beta_registration_completed: true },
+          });
 
       if (error) {
         this.errorMessage.set(error.message);
         this.isLoading.set(false);
         return;
+      }
+
+      if (!this.isPasswordChange()) {
+        const email = this.authService.currentUser()?.email;
+        if (!email) throw new Error('Bitte melde Dich mit Deinem neuen Passwort an.');
+        // Die verwendete Einladung/Recovery-Sitzung endet nach dem ersten Passwortsetzen.
+        const { error: logoutError } = await this.supabase.client.auth.signOut({ scope: 'local' });
+        if (logoutError) throw logoutError;
+        const { error: loginError } = await this.supabase.client.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (loginError) throw loginError;
       }
 
       if (!this.isReview()) await this.authService.activatePendingBetaAccess();

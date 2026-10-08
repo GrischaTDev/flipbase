@@ -20,6 +20,44 @@ function storeStub(state: CategorySyncState) {
 }
 
 describe('refreshCategoriesIfDue', () => {
+  it('persists manual interaction and its provider wait after a category challenge', async () => {
+    const store = storeStub({ refreshedAt: null, requestedAt: null, lastAttemptAt: null });
+    const setBlocked = vi.fn(async () => undefined);
+    const result = await refreshCategoriesIfDue(
+      {
+        store,
+        hasCapacity: () => true,
+        maxAgeMs: DAY_MS,
+        log,
+        fetchHomepage: async () => {
+          throw new ForbiddenError('challenge', {
+            challengeDetected: true,
+            retryAfterSeconds: 1800,
+          });
+        },
+        originState: {
+          getState: async () => ({
+            origin: 'vinted',
+            state: 'ready',
+            blockedUntil: null,
+            reason: null,
+            probeInFlight: false,
+            updatedAt: now.toISOString(),
+          }),
+          setCooldown: async () => undefined,
+          setBlocked,
+        },
+      },
+      now,
+    );
+    expect(result).toBe('failed');
+    expect(setBlocked).toHaveBeenCalledWith(
+      'vinted',
+      'interaction_required',
+      new Date('2026-09-06T12:30:00Z'),
+    );
+  });
+
   it('pauses the shared origin when the category request is refused', async () => {
     const store = storeStub({ refreshedAt: null, requestedAt: null, lastAttemptAt: null });
     const setCooldown = vi.fn(async () => undefined);
@@ -42,6 +80,7 @@ describe('refreshCategoriesIfDue', () => {
             updatedAt: now.toISOString(),
           }),
           setCooldown,
+          setBlocked: async () => undefined,
         },
       },
       now,
@@ -80,6 +119,7 @@ describe('refreshCategoriesIfDue', () => {
               updatedAt: now.toISOString(),
             }),
             setCooldown: async () => undefined,
+            setBlocked: async () => undefined,
           },
         },
         now,

@@ -28,6 +28,26 @@ export class SupabaseVintedImportWriter {
     this.request = options.fetch ?? fetch;
   }
 
+  async favoriteSettingsActive(scope: BrowserSessionScope, sessionId: string): Promise<boolean> {
+    await this.assertActive(scope, sessionId);
+    const result: unknown = await this.json(
+      await this.request(
+        new URL('/rest/v1/rpc/marketplace_cloud_favorite_settings_valid', this.baseUrl),
+        {
+          method: 'POST',
+          headers: { ...this.serverHeaders(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            p_workspace_id: scope.workspaceId,
+            p_connection_id: scope.connectionId,
+          }),
+          signal: AbortSignal.timeout(10000),
+        },
+      ),
+    );
+    if (typeof result !== 'boolean')
+      throw new Error('Favoritenfreigabe konnte nicht geprüft werden');
+    return result;
+  }
   async conversationVersions(
     scope: BrowserSessionScope,
     sessionId: string,
@@ -63,6 +83,13 @@ export class SupabaseVintedImportWriter {
           detailCheckedAt: body['detailCheckedAt'],
           text: typeof body['text'] === 'string' ? body['text'] : null,
           occurredAt: typeof body['occurredAt'] === 'string' ? body['occurredAt'] : null,
+          itemId: typeof body['itemId'] === 'string' ? body['itemId'] : null,
+          itemTitle: typeof body['itemTitle'] === 'string' ? body['itemTitle'] : null,
+          itemImageUrl: typeof body['itemImageUrl'] === 'string' ? body['itemImageUrl'] : null,
+          itemPrice: typeof body['itemPrice'] === 'number' ? body['itemPrice'] : null,
+          itemCurrency: typeof body['itemCurrency'] === 'string' ? body['itemCurrency'] : null,
+          transactionStatus:
+            typeof body['transactionStatus'] === 'string' ? body['transactionStatus'] : null,
         },
       ];
     });

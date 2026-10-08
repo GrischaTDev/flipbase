@@ -62,17 +62,17 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "activity_logs_inventory_item_id_fkey"
-            columns: ["inventory_item_id"]
+            columns: ["workspace_id", "inventory_item_id"]
             isOneToOne: false
             referencedRelation: "inventory_item_sale_states"
-            referencedColumns: ["inventory_item_id"]
+            referencedColumns: ["workspace_id", "inventory_item_id"]
           },
           {
             foreignKeyName: "activity_logs_inventory_item_id_fkey"
-            columns: ["inventory_item_id"]
+            columns: ["workspace_id", "inventory_item_id"]
             isOneToOne: false
             referencedRelation: "inventory_items"
-            referencedColumns: ["id"]
+            referencedColumns: ["workspace_id", "id"]
           },
           {
             foreignKeyName: "activity_logs_workspace_id_fkey"
@@ -365,21 +365,21 @@ export type Database = {
           created_at: string
           discord_user_id: string
           id: number
-          role_assigned_at: string
+          role_assigned_at: string | null
         }
         Insert: {
           auth_user_id: string
           created_at?: string
           discord_user_id: string
           id?: never
-          role_assigned_at?: string
+          role_assigned_at?: string | null
         }
         Update: {
           auth_user_id?: string
           created_at?: string
           discord_user_id?: string
           id?: never
-          role_assigned_at?: string
+          role_assigned_at?: string | null
         }
         Relationships: []
       }
@@ -1582,10 +1582,10 @@ export type Database = {
           },
           {
             foreignKeyName: "inventory_items_purchase_id_fkey"
-            columns: ["purchase_id"]
+            columns: ["workspace_id", "purchase_id"]
             isOneToOne: false
             referencedRelation: "purchases"
-            referencedColumns: ["id"]
+            referencedColumns: ["workspace_id", "id"]
           },
           {
             foreignKeyName: "inventory_items_purchase_line_id_fkey"
@@ -2082,17 +2082,17 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "market_research_inventory_item_id_fkey"
-            columns: ["inventory_item_id"]
+            columns: ["workspace_id", "inventory_item_id"]
             isOneToOne: false
             referencedRelation: "inventory_item_sale_states"
-            referencedColumns: ["inventory_item_id"]
+            referencedColumns: ["workspace_id", "inventory_item_id"]
           },
           {
             foreignKeyName: "market_research_inventory_item_id_fkey"
-            columns: ["inventory_item_id"]
+            columns: ["workspace_id", "inventory_item_id"]
             isOneToOne: false
             referencedRelation: "inventory_items"
-            referencedColumns: ["id"]
+            referencedColumns: ["workspace_id", "id"]
           },
           {
             foreignKeyName: "market_research_workspace_id_fkey"
@@ -2397,6 +2397,63 @@ export type Database = {
         }
         Relationships: []
       }
+      marketplace_cloud_message_permissions: {
+        Row: {
+          approved_by: string
+          authorization_version: number
+          browser_profile_id: number
+          connection_id: string
+          created_at: string
+          external_account_id: string
+          id: number
+          provider_profile_id: string
+          revoked_at: string | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          approved_by: string
+          authorization_version?: number
+          browser_profile_id: number
+          connection_id: string
+          created_at?: string
+          external_account_id: string
+          id?: never
+          provider_profile_id: string
+          revoked_at?: string | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          approved_by?: string
+          authorization_version?: number
+          browser_profile_id?: number
+          connection_id?: string
+          created_at?: string
+          external_account_id?: string
+          id?: never
+          provider_profile_id?: string
+          revoked_at?: string | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_cloud_message_permi_workspace_id_connection_id_fkey"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: true
+            referencedRelation: "marketplace_connections"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "marketplace_cloud_message_permissions_browser_profile_id_fkey"
+            columns: ["browser_profile_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_browser_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       marketplace_cloud_setups: {
         Row: {
           cloud_ip_id: number
@@ -2547,9 +2604,17 @@ export type Database = {
         Row: {
           actor_id: string
           claim_token: string | null
+          cloud_authorization_version: number | null
+          cloud_browser_session_id: string | null
+          cloud_phase: string | null
+          cloud_runner_id: string | null
+          cloud_worker_epoch: number | null
+          cloud_worker_id: string | null
           connection_id: string
           error_code: string | null
           event_at: string
+          execution_mode: string
+          external_account_id: string | null
           external_conversation_id: string | null
           external_id: string
           external_message_id: string | null
@@ -2572,9 +2637,17 @@ export type Database = {
         Insert: {
           actor_id: string
           claim_token?: string | null
+          cloud_authorization_version?: number | null
+          cloud_browser_session_id?: string | null
+          cloud_phase?: string | null
+          cloud_runner_id?: string | null
+          cloud_worker_epoch?: number | null
+          cloud_worker_id?: string | null
           connection_id: string
           error_code?: string | null
           event_at: string
+          execution_mode?: string
+          external_account_id?: string | null
           external_conversation_id?: string | null
           external_id: string
           external_message_id?: string | null
@@ -2597,9 +2670,17 @@ export type Database = {
         Update: {
           actor_id?: string
           claim_token?: string | null
+          cloud_authorization_version?: number | null
+          cloud_browser_session_id?: string | null
+          cloud_phase?: string | null
+          cloud_runner_id?: string | null
+          cloud_worker_epoch?: number | null
+          cloud_worker_id?: string | null
           connection_id?: string
           error_code?: string | null
           event_at?: string
+          execution_mode?: string
+          external_account_id?: string | null
           external_conversation_id?: string | null
           external_id?: string
           external_message_id?: string | null
@@ -2632,9 +2713,12 @@ export type Database = {
       marketplace_favorite_message_settings: {
         Row: {
           activated_at: string | null
+          approved_by: string | null
+          cloud_authorization_version: number | null
           config: Json
           connection_id: string
           enabled: boolean
+          execution_mode: string
           external_account_id: string | null
           grant_generation: number | null
           id: number
@@ -2644,9 +2728,12 @@ export type Database = {
         }
         Insert: {
           activated_at?: string | null
+          approved_by?: string | null
+          cloud_authorization_version?: number | null
           config: Json
           connection_id: string
           enabled?: boolean
+          execution_mode?: string
           external_account_id?: string | null
           grant_generation?: number | null
           id?: never
@@ -2656,9 +2743,12 @@ export type Database = {
         }
         Update: {
           activated_at?: string | null
+          approved_by?: string | null
+          cloud_authorization_version?: number | null
           config?: Json
           connection_id?: string
           enabled?: boolean
+          execution_mode?: string
           external_account_id?: string | null
           grant_generation?: number | null
           id?: never
@@ -2950,14 +3040,20 @@ export type Database = {
           attachment_mime_type: string | null
           attachment_name: string | null
           claim_token: string | null
+          cloud_authorization_version: number | null
+          cloud_browser_session_id: string | null
+          cloud_runner_id: string | null
+          cloud_worker_epoch: number | null
+          cloud_worker_id: string | null
           connection_id: string
           conversation_id: string
           created_at: string
           error_code: string | null
+          execution_mode: string
           external_account_id: string
           external_conversation_id: string
           external_message_id: string | null
-          grant_generation: number
+          grant_generation: number | null
           id: string
           lease_expires_at: string | null
           message_text: string
@@ -2974,14 +3070,20 @@ export type Database = {
           attachment_mime_type?: string | null
           attachment_name?: string | null
           claim_token?: string | null
+          cloud_authorization_version?: number | null
+          cloud_browser_session_id?: string | null
+          cloud_runner_id?: string | null
+          cloud_worker_epoch?: number | null
+          cloud_worker_id?: string | null
           connection_id: string
           conversation_id: string
           created_at?: string
           error_code?: string | null
+          execution_mode?: string
           external_account_id: string
           external_conversation_id: string
           external_message_id?: string | null
-          grant_generation: number
+          grant_generation?: number | null
           id?: string
           lease_expires_at?: string | null
           message_text: string
@@ -2998,14 +3100,20 @@ export type Database = {
           attachment_mime_type?: string | null
           attachment_name?: string | null
           claim_token?: string | null
+          cloud_authorization_version?: number | null
+          cloud_browser_session_id?: string | null
+          cloud_runner_id?: string | null
+          cloud_worker_epoch?: number | null
+          cloud_worker_id?: string | null
           connection_id?: string
           conversation_id?: string
           created_at?: string
           error_code?: string | null
+          execution_mode?: string
           external_account_id?: string
           external_conversation_id?: string
           external_message_id?: string | null
-          grant_generation?: number
+          grant_generation?: number | null
           id?: string
           lease_expires_at?: string | null
           message_text?: string
@@ -3027,6 +3135,108 @@ export type Database = {
           },
           {
             foreignKeyName: "marketplace_local_message_outbo_workspace_id_connection_id_fkey"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_connections"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "marketplace_local_message_outbox_cloud_browser_session_id_fkey"
+            columns: ["cloud_browser_session_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_browser_sessions"
+            referencedColumns: ["public_id"]
+          },
+        ]
+      }
+      marketplace_message_notification_baselines: {
+        Row: {
+          connection_id: string
+          external_account_id: string
+          first_observed_at: string
+          id: number
+          last_observed_at: string
+          workspace_id: string
+        }
+        Insert: {
+          connection_id: string
+          external_account_id: string
+          first_observed_at: string
+          id?: never
+          last_observed_at: string
+          workspace_id: string
+        }
+        Update: {
+          connection_id?: string
+          external_account_id?: string
+          first_observed_at?: string
+          id?: never
+          last_observed_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_message_notificatio_workspace_id_connection_id_fkey"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_connections"
+            referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
+      marketplace_message_notifications: {
+        Row: {
+          cleared_at: string | null
+          connection_id: string
+          conversation_id: string | null
+          external_account_id: string
+          external_conversation_id: string
+          external_event_id: string
+          id: number
+          notified_at: string | null
+          observed_at: string
+          occurred_at: string
+          read: boolean
+          workspace_id: string
+        }
+        Insert: {
+          cleared_at?: string | null
+          connection_id: string
+          conversation_id?: string | null
+          external_account_id: string
+          external_conversation_id: string
+          external_event_id: string
+          id?: never
+          notified_at?: string | null
+          observed_at: string
+          occurred_at: string
+          read?: boolean
+          workspace_id: string
+        }
+        Update: {
+          cleared_at?: string | null
+          connection_id?: string
+          conversation_id?: string | null
+          external_account_id?: string
+          external_conversation_id?: string
+          external_event_id?: string
+          id?: never
+          notified_at?: string | null
+          observed_at?: string
+          occurred_at?: string
+          read?: boolean
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_message_notificat_workspace_id_connection_id_c_fkey"
+            columns: ["workspace_id", "connection_id", "conversation_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_account_entries"
+            referencedColumns: ["workspace_id", "connection_id", "id"]
+          },
+          {
+            foreignKeyName: "marketplace_message_notificati_workspace_id_connection_id_fkey1"
             columns: ["workspace_id", "connection_id"]
             isOneToOne: false
             referencedRelation: "marketplace_connections"
@@ -3528,17 +3738,17 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "price_tracked_items_inventory_item_id_fkey"
-            columns: ["inventory_item_id"]
+            columns: ["workspace_id", "inventory_item_id"]
             isOneToOne: false
             referencedRelation: "inventory_item_sale_states"
-            referencedColumns: ["inventory_item_id"]
+            referencedColumns: ["workspace_id", "inventory_item_id"]
           },
           {
             foreignKeyName: "price_tracked_items_inventory_item_id_fkey"
-            columns: ["inventory_item_id"]
+            columns: ["workspace_id", "inventory_item_id"]
             isOneToOne: false
             referencedRelation: "inventory_items"
-            referencedColumns: ["id"]
+            referencedColumns: ["workspace_id", "id"]
           },
           {
             foreignKeyName: "price_tracked_items_workspace_id_fkey"
@@ -4819,10 +5029,10 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "shipping_orders_sale_id_fkey"
-            columns: ["sale_id"]
+            columns: ["workspace_id", "sale_id"]
             isOneToOne: false
             referencedRelation: "sales"
-            referencedColumns: ["id"]
+            referencedColumns: ["workspace_id", "id"]
           },
           {
             foreignKeyName: "shipping_orders_workspace_id_fkey"
@@ -5894,6 +6104,7 @@ export type Database = {
       vinted_category_syncs: {
         Row: {
           category_count: number
+          category_count_high_water: number
           id: number
           last_attempt_at: string | null
           last_error: string | null
@@ -5902,6 +6113,7 @@ export type Database = {
         }
         Insert: {
           category_count?: number
+          category_count_high_water?: number
           id?: number
           last_attempt_at?: string | null
           last_error?: string | null
@@ -5910,6 +6122,7 @@ export type Database = {
         }
         Update: {
           category_count?: number
+          category_count_high_water?: number
           id?: number
           last_attempt_at?: string | null
           last_error?: string | null
@@ -7096,6 +7309,14 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_approve_cloud_messages: {
+        Args: {
+          p_connection_id: string
+          p_expected_external_account_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       marketplace_approve_local_extension: {
         Args: {
           p_connection_id: string
@@ -7188,6 +7409,114 @@ export type Database = {
         Args: { p_workspace_id: string }
         Returns: boolean
       }
+      marketplace_cloud_favorite_begin: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: string
+          p_event_id: string
+          p_offer_price_cents?: number
+          p_original_price_cents?: number
+          p_phase: string
+          p_worker_epoch: number
+          p_worker_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_cloud_favorite_check: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: string
+          p_event_id: string
+          p_phase: string
+          p_worker_epoch: number
+          p_worker_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_cloud_favorite_claim: {
+        Args: {
+          p_runner_id: string
+          p_worker_epoch: number
+          p_worker_id: string
+        }
+        Returns: Json
+      }
+      marketplace_cloud_favorite_finish: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: string
+          p_conversation_id?: string
+          p_error_code?: string
+          p_event_id: string
+          p_external_id?: string
+          p_outcome: string
+          p_phase: string
+          p_transaction_id?: string
+          p_worker_epoch: number
+          p_worker_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_cloud_favorite_settings_valid: {
+        Args: { p_connection_id: string; p_workspace_id: string }
+        Returns: boolean
+      }
+      marketplace_cloud_message_begin: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: string
+          p_message_id: string
+          p_worker_epoch: number
+          p_worker_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_cloud_message_check: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: string
+          p_message_id: string
+          p_worker_epoch: number
+          p_worker_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_cloud_message_claim: {
+        Args: {
+          p_runner_id: string
+          p_worker_epoch: number
+          p_worker_id: string
+        }
+        Returns: Json
+      }
+      marketplace_cloud_message_finish: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: string
+          p_error_code?: string
+          p_external_message_id?: string
+          p_message_id: string
+          p_outcome: string
+          p_worker_epoch: number
+          p_worker_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_cloud_message_permission_valid: {
+        Args: {
+          p_connection_id: string
+          p_user_id: string
+          p_version?: number
+          p_workspace_id: string
+        }
+        Returns: boolean
+      }
       marketplace_cloud_network_valid: {
         Args: { p_connection_id: string; p_workspace_id: string }
         Returns: boolean
@@ -7241,11 +7570,26 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_cloud_write_available: {
+        Args: { p_connection_id: string; p_workspace_id: string }
+        Returns: boolean
+      }
       marketplace_create_connection: {
         Args: { p_display_name: string; p_workspace_id: string }
         Returns: Json
       }
       marketplace_enqueue_local_message: {
+        Args: {
+          p_attachment?: Json
+          p_connection_id: string
+          p_conversation_id: string
+          p_request_id: string
+          p_text: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_enqueue_message: {
         Args: {
           p_attachment?: Json
           p_connection_id: string
@@ -7511,6 +7855,14 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_mark_message_notifications: {
+        Args: {
+          p_clear?: boolean
+          p_notification_id?: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       marketplace_prepare_favorite_import: {
         Args: {
           p_connection_id: string
@@ -7555,6 +7907,22 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_read_message_notifications: {
+        Args: { p_workspace_id: string }
+        Returns: Json
+      }
+      marketplace_read_message_permission: {
+        Args: { p_connection_id: string; p_workspace_id: string }
+        Returns: Json
+      }
+      marketplace_read_messages: {
+        Args: {
+          p_connection_id: string
+          p_conversation_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       marketplace_read_page: {
         Args: {
           p_connection_id: string
@@ -7572,6 +7940,37 @@ export type Database = {
       marketplace_read_sync_schedule: {
         Args: { p_connection_id: string; p_workspace_id: string }
         Returns: Json
+      }
+      marketplace_record_cloud_write_failure: {
+        Args: {
+          p_authorization_version: number
+          p_connection_id: string
+          p_error_code: string
+          p_external_account_id: string
+          p_session_id: string
+          p_user_id: string
+          p_workspace_id: string
+        }
+        Returns: undefined
+      }
+      marketplace_record_favorite_events: {
+        Args: {
+          p_connection_id: string
+          p_events: Json
+          p_execution_mode: string
+          p_external_account_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_record_message_event_batch: {
+        Args: {
+          p_batch: Json
+          p_connection_id: string
+          p_external_account_id: string
+          p_workspace_id: string
+        }
+        Returns: number
       }
       marketplace_rename_connection: {
         Args: {
@@ -7591,6 +7990,24 @@ export type Database = {
           p_connection_id: string
           p_conversation_id: string
           p_message_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_retry_message: {
+        Args: {
+          p_confirmed_unknown?: boolean
+          p_connection_id: string
+          p_conversation_id: string
+          p_message_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_revoke_cloud_messages: {
+        Args: {
+          p_authorization_version: number
+          p_connection_id: string
           p_workspace_id: string
         }
         Returns: Json
@@ -7720,6 +8137,14 @@ export type Database = {
           p_workspace_id: string
         }
         Returns: Json
+      }
+      marketplace_validate_favorite_offer_price: {
+        Args: {
+          p_offer: Json
+          p_offer_price_cents: number
+          p_original_price_cents: number
+        }
+        Returns: undefined
       }
       marketplace_worker_claim: { Args: { p_worker_id: string }; Returns: Json }
       marketplace_worker_heartbeat: {

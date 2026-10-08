@@ -127,6 +127,22 @@ async function render(openSettings = false) {
   return fixture;
 }
 describe('Automatische Aktualisierung je Vinted-Konto', () => {
+  it('entfernt nach Kontobestätigung die erledigte Anmeldewarnung und erhält die Pause', async () => {
+    api.read.mockResolvedValue({ ...schedule, pausedReason: 'needs_login' });
+    const fixture = await render();
+    expect(fixture.componentInstance.headerNotice()?.text).toContain('neue Anmeldung');
+
+    api.read.mockResolvedValue({ ...schedule, authorizationVersion: 2 });
+    fixture.componentRef.setInput('account', { ...account });
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.headerNotice()).toBeNull();
+    expect(fixture.componentInstance.headerStatus()?.label).toBe('Automatik pausiert');
+    expect(api.set).not.toHaveBeenCalled();
+  });
+
   it('ordnet eine alte Abrufablehnung dem Zeitplan zu, auch nach einer neueren manuellen Aktualisierung', async () => {
     api.read.mockResolvedValue({
       ...schedule,
