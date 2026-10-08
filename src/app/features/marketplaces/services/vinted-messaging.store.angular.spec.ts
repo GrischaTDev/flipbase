@@ -18,6 +18,9 @@ describe('Vinted-Versandzustand', () => {
     enqueue: ReturnType<typeof vi.fn>;
     read: ReturnType<typeof vi.fn>;
     retry: ReturnType<typeof vi.fn>;
+    readPermission: ReturnType<typeof vi.fn>;
+    approveCloud: ReturnType<typeof vi.fn>;
+    revokeCloud: ReturnType<typeof vi.fn>;
   };
   let confirm: ReturnType<typeof vi.fn>;
   let approve: ReturnType<typeof vi.fn>;
@@ -33,6 +36,15 @@ describe('Vinted-Versandzustand', () => {
     account = signal<object | null>({ ...scope, executionMode: 'local', status: 'connected' });
     api = {
       retry: vi.fn(),
+      readPermission: vi
+        .fn()
+        .mockResolvedValue({ executionMode: 'cloud', allowed: false, authorizationVersion: 0 }),
+      approveCloud: vi
+        .fn()
+        .mockResolvedValue({ executionMode: 'cloud', allowed: true, authorizationVersion: 1 }),
+      revokeCloud: vi
+        .fn()
+        .mockResolvedValue({ executionMode: 'cloud', allowed: false, authorizationVersion: 2 }),
       read: vi.fn().mockResolvedValue([]),
       enqueue: vi.fn().mockImplementation(async (_scope, _conversation, id, text) => ({
         id: 'queued',
@@ -88,6 +100,83 @@ describe('Vinted-Versandzustand', () => {
     expect(confirm).toHaveBeenCalledOnce();
     expect(approve).toHaveBeenCalledOnce();
     expect(store.messages()[0].state).toBe('queued');
+  });
+  it('fragt für Cloud nach eigener Freigabe und weckt keine Erweiterung', async () => {
+    account.set({
+      ...scope,
+      executionMode: 'cloud',
+      status: 'connected',
+      externalAccountId: '123',
+    });
+    canUseBrowserProfile.mockReturnValue(false);
+    await store.load(scope, conversationId);
+    expect(await store.send(scope, conversationId, 'Cloudnachricht', null)).toBe(true);
+    expect(confirm).toHaveBeenCalledOnce();
+    expect(api.approveCloud).toHaveBeenCalledWith(scope, '123');
+    expect(approve).not.toHaveBeenCalled();
+    expect(TestBed.inject(VintedLocalExtensionBridge).request).not.toHaveBeenCalled();
+    expect(store.messages()[0].state).toBe('queued');
+  });
+  it('verwirft eine verspätete Cloudfreigabe nach Betriebswechsel', async () => {
+    account.set({
+      ...scope,
+      executionMode: 'cloud',
+      status: 'connected',
+      externalAccountId: '123',
+    });
+    let finish: ((permission: object) => void) | undefined;
+    api.approveCloud.mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    await store.load(scope, conversationId);
+    const sending = store.send(scope, conversationId, 'Hallo', null);
+    await vi.waitFor(() => expect(api.approveCloud).toHaveBeenCalledOnce());
+    account.set({
+      ...scope,
+      executionMode: 'local',
+      status: 'connected',
+      externalAccountId: '123',
+    });
+    finish?.({ executionMode: 'cloud', allowed: true, authorizationVersion: 1 });
+    expect(await sending).toBe(false);
+    expect(api.enqueue).not.toHaveBeenCalled();
+  });
+  it('widerruft die angezeigte Cloudfreigabe mit genau ihrer Version', async () => {
+    account.set({
+      ...scope,
+      executionMode: 'cloud',
+      status: 'connected',
+      externalAccountId: '123',
+    });
+    api.readPermission.mockResolvedValue({
+      executionMode: 'cloud',
+      allowed: true,
+      authorizationVersion: 7,
+    });
+    await store.load(scope, conversationId);
+    expect(store.cloudSendAllowed()).toBe(true);
+    await store.revokeCloudSend();
+    expect(api.revokeCloud).toHaveBeenCalledWith(expect.objectContaining(scope), 7);
+    expect(store.cloudSendAllowed()).toBe(false);
+  });
+  it('sendet bei einer ungültigen Cloudberechtigung nichts', async () => {
+    account.set({
+      ...scope,
+      executionMode: 'cloud',
+      status: 'connected',
+      externalAccountId: '123',
+    });
+    api.readPermission.mockResolvedValue({
+      executionMode: 'local',
+      allowed: true,
+      authorizationVersion: 1,
+    });
+    await store.load(scope, conversationId);
+    expect(await store.send(scope, conversationId, 'Hallo', null)).toBe(false);
+    expect(api.approveCloud).not.toHaveBeenCalled();
+    expect(api.enqueue).not.toHaveBeenCalled();
   });
   it('legt nach abgelehnter Freigabe keinen Auftrag an', async () => {
     confirm.mockResolvedValue(false);

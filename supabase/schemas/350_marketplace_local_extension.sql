@@ -226,8 +226,8 @@ begin
     or not public.marketplace_sync_authorization_valid(p_workspace_id,v_grant.approved_by)
     or not public.marketplace_local_extension_user_valid(v_grant.approved_by)
     or v_connection.external_account_id is distinct from v_grant.external_account_id then raise exception 'Lokale Freigabe ungültig' using errcode='42501'; end if;
-  if jsonb_typeof(p_batch) is distinct from 'object' or (select count(*) from jsonb_object_keys(p_batch)) not between 6 and 8
-    or exists(select 1 from jsonb_object_keys(p_batch) field where field<>all(array['identity','observedAt','page','nextPage','conversationsComplete','entries','mode','detailConversationId']))
+  if jsonb_typeof(p_batch) is distinct from 'object' or (select count(*) from jsonb_object_keys(p_batch)) not between 6 and 9
+    or exists(select 1 from jsonb_object_keys(p_batch) field where field<>all(array['identity','observedAt','page','nextPage','conversationsComplete','entries','mode','detailConversationId','inboxEvents']))
     or octet_length(p_batch::text)>524288 or jsonb_typeof(p_batch->'identity') is distinct from 'object'
     or (select count(*) from jsonb_object_keys(p_batch->'identity'))<>1 or p_batch->'identity'->>'id' is distinct from v_grant.external_account_id
     or jsonb_typeof(p_batch->'entries') is distinct from 'array' or jsonb_array_length(p_batch->'entries')>220
@@ -333,6 +333,10 @@ begin
   update public.marketplace_connections set capabilities=capabilities || '{"conversations.read":"verified"}'::jsonb,last_synced_at=greatest(last_synced_at,v_observed),updated_at=clock_timestamp() where id=p_connection_id;
   update public.marketplace_local_extension_grants set inbox_next_page=case when v_mode='backfill' or (v_mode='latest' and inbox_next_page=1) then v_next_page else inbox_next_page end,last_seen_at=clock_timestamp() where id=v_grant.id;
   if v_grant.expires_at<=clock_timestamp() then raise exception 'Lokale Freigabe abgelaufen' using errcode='42501'; end if;
+  if p_batch ? 'inboxEvents' then
+    if p_batch->'inboxEvents'->>'observedAt' is distinct from p_batch->>'observedAt' then raise exception 'Ungültiger Eingangsstand' using errcode='22023'; end if;
+    perform public.marketplace_record_message_event_batch(p_workspace_id,p_connection_id,v_grant.external_account_id,p_batch->'inboxEvents');
+  end if;
   return jsonb_build_object('ok',true,'workspaceId',p_workspace_id,'connectionId',p_connection_id,'externalAccountId',v_grant.external_account_id,'expiresAt',v_grant.expires_at,'observedAt',v_observed,'counts',jsonb_build_object('conversation',v_conversations,'message',v_messages),'conversationsComplete',v_complete,'nextPage',case when v_mode='detail' then v_grant.inbox_next_page else v_next_page end);
 end;
 $$;

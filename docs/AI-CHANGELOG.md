@@ -1,5 +1,175 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-08 - Juna - Gemeinsames Cloud-Postfach umsetzen
+
+**Auftrag:** Gemeinsames Cloud-/Extensionpostfach mit Nachrichtenversand,
+Glockenmeldungen und ausdrücklich aktivierten Favoriten-/Angebotsregeln umsetzen.
+
+**Eingang:** Ein vom Nutzer freigegebener GET am Testkonto belegt echte
+Nachrichten-/Preisvorschlagskennungen, Richtung und ISO-Zeit. Ungelesen bleibt
+vorher/nachher erhalten; die separate Gelesen-Aktion wurde nicht aufgerufen.
+Cloud und Extension verwenden denselben anonymisierten Vertrag. Höchstens drei
+Gesprächskopien pro Lauf, ältere Prüfungen zuerst. Erstbestand und später geladene
+alte Historie bleiben still; fehlende oder widersprüchliche Belege erzeugen keine
+Glockenmeldung. Ereignisse werden atomar importiert, dedupliziert und über private
+Broadcasts angezeigt. Glockenlinks öffnen Konto und Gespräch; Markieren betrifft
+nur Flipbase. Alte Extension-Payloads bleiben gültig.
+
+**Versand:** Gemeinsamer Composer und Warteschlange, eigene Cloudfreigabe gebunden
+an Konto, Profil und Freigabeversion. Zentraler Dispatcher und bestehende
+Browsersperre führen manuelle Nachrichten vor Favoritenphasen aus. Claim/Begin/
+Finish prüfen Worker-Epoche und Konto. Ein Textversand braucht eine neue eigene
+externe Nachricht; Bildbelege, verlorene Antworten und unbestätigter Browserstopp
+bleiben unklar. Keine automatische Wiederholung eines begonnenen Versands.
+
+**Favoriten:** Bestehende Vorlagen, Zeitfenster und Preisregeln gelten für beide
+Ausführer. Cloud-Aktivierung ist bewusst und bleibt standardmäßig aus. Gemeinsame
+Ereignis- und Preisprüfung, getrennte Nachrichten-/Angebotsphasen, Automatikpause
+und Widerruf bleiben verbindlich. Kein Angebot ohne bestätigte Nachricht und
+zentrale Preisfreigabe.
+
+**Integration:** Aktueller Hauptzweig mit isoliertem Browserdienst integriert.
+Nachrichten, Favoriten und Preisbestätigung laufen durch dessen festen
+Aktionstransport; Gesprächsartikel und versionierte Eingangsereignisse bleiben
+beim Transport erhalten. Kein zentraler Playwright-Zugriff hinzugefügt.
+Migrationen offiziell gegen isolierte Vorher/Nachher-Datenbanken erzeugt und
+angewendet; API-Typen aus der migrierten Datenbank erzeugt.
+
+**Abschlussreview:** Vier wichtige Befunde durch Regressionen zuerst reproduziert
+und in einem Korrekturdurchlauf behoben: Kontopausen nach Cloud-Schreibfehlern
+gelten vor Claim, Check und Begin auch für manuelle Nachrichten. Alte Profil-
+abschlüsse verändern keine neue Freigabe. Ein fehlgeschlagener Favoritenabruf
+verwirft keine bestätigten Kontodaten; 401/403/429 und Retry-After bleiben im
+isolierten Transport erhalten. Bereits belegte Versandantworten bleiben trotz
+späterem Widerruf belegbar. Ungeprüfte nichtleere Postfächer setzen keinen
+Benachrichtigungs-Erstbestand. Bestehende Regeln für bewusste Wiederaufnahme und
+Anmeldebestätigung bleiben erhalten. Veraltetes Header-Testfixture und die
+verbindliche PR-Browsertestliste an den Nachrichtenstrom/Cloudfälle angepasst.
+
+**Prüfstand:** 468 Workerprüfungen bestanden, sieben bestehende Skip; Worker-Bau
+und Typen bestehen. 663 Datenbankassertions auf offiziell migriertem Teststand
+einschließlich lokaler Nachrichten, Favoriten/Angebote, Feed, Import und Scheduler
+bestanden. Alle Node-, DOM- und Angular-Anwendungssuiten bestehen; zusätzlich
+239 Workflow- und 211 Deno-Prüfungen bestanden (fünf bestehende Workflow-Skip).
+16 Browserfälle für Cloud/Extension, Desktop/Mobilgerät und AXE bestanden.
+Produktionsbau, App-Typprüfung, beide Worker-/Browserabbilder und ein isolierter
+Runtime-Smoke ohne Netzwerk bestehen. Stark parallel ausgeführte Angular-Tests
+hatten Zeitüberschreitungen; der vollständige Lauf mit vier Workern besteht
+ohne Produkt- oder Timeoutänderung. Unabhängiges Gesamt-Review abgeschlossen,
+keine kleinen offenen Reviewbefunde. Veröffentlichung steht aus.
+Die vorbereitete Extension 1.7.1 wurde noch nicht in der registrierten Installation
+ausgerollt. Kein Live-Versand, keine automatische Favoritenregel und kein Release.
+Echtkonto-Abnahme folgt nach Veröffentlichung; Bildbestätigung bleibt eingeschränkt.
+
+## 2026-10-08 - Juna - Gemeinsamen Cloud-Postfachausbau planen
+
+**Auftrag:** Nach Bestätigung des schriftlichen Entwurfs den Umsetzungsplan
+für das vollständige gemeinsame Postfach erstellen.
+
+**Plan:** Neun aufeinander abgestimmte Aufgaben für belegte Eingangsdaten,
+Cloud-Freigaben und gemeinsame Outbox, Browserversand, Worker-Ausführung,
+Glockenmeldungen, gemeinsame Oberfläche, vorhandene Favoriten-/Angebotsregeln,
+Integration und Echtkonto-Abnahme. Lesefreigaben bleiben von Schreibaufträgen
+getrennt; bestehende Kontosperren und der Worker-Lease werden weiterverwendet.
+
+**Prüfstand:** Datei- und Schnittstellenzuordnung gegen aktuelle Worker-,
+Extension-, SQL- und Frontend-Verträge gelesen. Plan auf Entwurfsabdeckung,
+Abhängigkeiten und Fehlerfälle geprüft. Formatierung und Diffprüfung bestehen.
+Noch keine zusätzlichen Produktfunktionen oder
+Anbieteraktionen ausgeführt; die Planprüfung und Ausführungswahl stehen aus.
+
+## 2026-10-08 - Juna - Gemeinsamen Cloud-Postfachentwurf ausarbeiten
+
+**Auftrag:** Den bestätigten Umfang für Gesprächsabgleich, Glocke, Text-/Bildversand
+und Favoriten-Antworten als prüfbaren Ausbauentwurf festhalten.
+
+**Entwurf:** Gemeinsame Oberfläche und bestehende dauerhafte Aufträge mit
+getrennter Ausführung durch Extension und Cloudworker. Neue Eingangsmeldungen
+benötigen belegte Ereignisse und einen ersten Referenzstand; ungelesene Details
+bleiben bei Hintergrundabgleichen geschlossen. Freigaben, Konto-/Profilsperren,
+unklare Versandzustände und vorhandene Favoriten-Angebotsregeln bleiben verbindlich.
+
+**Prüfstand:** Aktuelle Vertrags- und Ausführungsdateien gelesen; Entwurf auf
+Widersprüche, offene Platzhalter und Abnahmekriterien geprüft. Die zusätzliche
+Cloud-Ausführung bleibt bis zur Prüfung des schriftlichen Entwurfs unimplementiert.
+Keine Anbieteraktion, Nachricht oder Veröffentlichung ausgelöst.
+
+## 2026-10-08 - Juna - Gemeinsame Gesprächsfunktionen für lokale und Cloud-Konten prüfen
+
+**Auftrag:** Den Cloud-Ausbau auf neue Nachrichten, Glocken-Benachrichtigungen
+und den vorhandenen Chatversand der lokalen Lösung erweitern.
+
+**Befund:** Eingabefeld, Versandstatus und Wiederholung sind vorhanden, jedoch
+an lokale Konten und Extension-Freigaben gebunden. Die Warteschlange prüft
+zusätzlich serverseitig die lokale Installation. Der Cloudworker besitzt noch
+keinen Nachrichtenexecutor. Die Glocke übernimmt Favoriten und Bewertungen;
+ein Benachrichtigungspfad für neue Chatnachrichten fehlt für beide Betriebsarten.
+Bildversand hat laut vorhandenem Postfachplan noch keinen im Echtkonto belegten
+Bestätigungsvertrag.
+
+**Vorschlag:** Gemeinsame Gesprächsoberfläche und Auftragszustände erhalten,
+Cloud-Ausführung über das zugeordnete Browserprofil ergänzen und pro Konto
+genau einen Ausführer zulassen. Neue Postfachereignisse nach einem ersten
+Referenzabgleich ohne Duplikate benachrichtigen; ungeklärte Versandversuche
+nicht automatisch wiederholen. Favoritenregeln bleiben separat freizugebende
+Automatisierung. Der genaue Ausbau und die Echtkonto-Abnahme werden vor der
+Implementierung abgestimmt. Die bisherigen beiden Fehlerkorrekturen bleiben
+vorbereitet; es wurde noch kein PR erstellt oder veröffentlicht.
+
+**Prüfstand:** Lesender Abgleich von Oberfläche, Nachrichtenstore, lokalen
+Versandfunktionen, Cloudworker, Datenbankverträgen und Benachrichtigungsleiste.
+In diesem Schritt wurden keine Produktfunktionen geändert und keine Nachrichten
+versendet.
+
+## 2026-10-08 - Juna - Cloud-Gesprächsartikel ergänzen und Einzelabruf verkürzen
+
+**Auftrag:** Den vorbereiteten PR um fehlende Artikeldaten in Cloud-Gesprächen
+ergänzen und die längere Synchronisierung gegenüber der Extension prüfen.
+
+**Befund:** Der Cloud-Parser übernimmt bisher keine Artikelfelder aus Liste
+oder Gesprächsdetail. Ein ausdrücklich geöffnetes Gespräch führt außerdem
+Inserats-, Bewertungs- und Verkaufsabrufe aus.
+
+**Umsetzung:** Titel, Bild, Artikelkennung, Preis, Währung und Transaktionsstatus
+werden nach dem bestehenden Extension-Muster übernommen. Beobachtete Details
+ergänzen die Listenangaben; unveränderte Gespräche erhalten bekannte Artikeldaten
+aus dem vorhandenen Cache. Einzelabrufe überspringen die unabhängigen Datenbereiche
+und melden diese als Teilstand, damit gespeicherte Inserate und Bewertungen
+erhalten bleiben. Kontoidentität, ausgewähltes Gespräch und Sitzungsabschluss
+werden weiterhin geprüft.
+
+**Prüfstand:** Vier neue Regressionen scheitern vor der Korrektur. 350 Worker-Tests
+bestehen, sieben bleiben unverändert ausgelassen. 176 Datenbankprüfungen bestehen
+einschließlich des Erhalts von Inseraten und Bewertungen beim Gesprächsabruf.
+Worker-Typprüfung, Bau und gezieltes ESLint bestehen. Der Einzelabruf benötigt
+im Test drei Anbieteranfragen statt sechs; echte Laufzeiten und Artikeldaten
+sind nach Veröffentlichung zu prüfen.
+
+## 2026-10-08 - Juna - Erledigte Cloud-Anmeldewarnung automatisch entfernen
+
+**Auftrag:** Nach erfolgreich bestätigter Vinted-Anmeldung darf die alte
+Warnung „Vinted verlangt eine neue Anmeldung“ nicht stehen bleiben.
+
+**Befund:** Die Kontobestätigung erneuert die Verbindung, lässt aber
+`marketplace_sync_schedules.paused_reason = needs_login` unverändert.
+Die Oberfläche lädt den Zeitplan zudem bei identischem Verbindungsstatus
+nicht sofort erneut.
+
+**Umsetzung:** Die vorhandene Kontobestätigung bereinigt ausschließlich den
+Anmeldefehler samt zugehöriger Wartezeit und Fehlerzähler. Eine neue
+Sperrversion verhindert, dass alte Auftragsabschlüsse diesen Status
+wiederherstellen. Automatikfreigabe, gewählter Abstand, Importzeit und andere
+Pausengründe bleiben unverändert. Das erneut geladene Konto löst auch bei
+gleichem Verbindungsstatus eine sofortige Zeitplanabfrage aus.
+
+**Prüfstand:** Der Oberflächen- und Datenbanktest reproduzieren den Fehler vor
+der Korrektur. 156 Angular-Tests und 129 Datenbankprüfungen bestehen. Die
+erzeugte Migration wurde auf dem vorherigen Funktionsstand angewendet und
+ebenfalls mit diesen Datenbanktests geprüft. Typprüfung, Produktionsbau,
+gezieltes ESLint, Formatierung und Migrations-/Schemaregistrierungstests
+bestehen; neu erzeugte API-Typen sind unverändert. Die Veröffentlichung
+steht noch aus.
+
 ## 2026-10-08 - Juna - Endlose Filterprüfung bei globaler Vinted-Pause beenden
 
 **Befund:** Nach einer erfolgreichen Wiederprüfung sperrt Vinted um 11:00 Uhr
@@ -1358,3 +1528,15 @@ eigene Abnahmen. Keine Funktion oder Anmeldeerkennung geändert.
 **Umfang:** Persönliche Account-Favoriten je Benutzer und Workspace, ausdrücklich bestätigter Altimport ohne Wiederherstellung manuell entfernter Einträge, keine zeitliche Löschung und keine 500er-Verdrängung. Normale Funde und Referenzpreise verwenden sieben Tage. Feed mit Titelsuche vor der Seitengrenze, fünf Desktopspalten, kleineren Bildaktionen, Heute/Gestern und gemeinsamem Kategorie-Wähler mit Vinted-Datenquelle.
 
 **Grenzen:** Die Browserprüfungen verwenden getrennte Desktop-/Tablet-Kontexte mit Testantworten. Kein echter Vinted-Abruf, kein unabhängiger zweiter Reviewer und keine Spiegelung externer Produktbilder. Ältere Hinweise auf damals offene Prüfungen bleiben in den historischen Archiven unverändert.
+
+**Cloud-Favoritenregeln:** Eigene Cloud-Aktivierung mit erneuter Kontofreigabe,
+Versionsbindung und getrennten Nachrichten-/Angebotsclaims umgesetzt. Die bestehende
+Ereignisvalidierung, Berliner Zeitregeln und serverseitige Preisformel werden geteilt.
+Cloud- und Extensionclaims bleiben getrennt. Hintergrundversand respektiert die
+Automatikpause; unklare Texte erzeugen kein Angebot und keine automatische Wiederholung.
+Favoritenabruf liest höchstens zwei Benachrichtigungsseiten ohne Gelesen-Markierung,
+nur bei aktivierter Regel. Ein Widerruf schaltet die Cloud-Regel aus.
+Offiziell erzeugte Migration auf isoliertem Stand geprüft: 356 DBassertions;
+419 Workerprüfungen bestanden, sieben bestehende Skip; 13 Favoriten-UI-Prüfungen,
+Worker-/App-Typprüfung und Bau sowie ESLint/Formatierung bestehen.
+Browserintegration und unabhängiges Abschlussreview folgen. Kein Live-Versand.

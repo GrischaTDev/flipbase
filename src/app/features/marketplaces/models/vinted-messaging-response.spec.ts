@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { parseLocalMessageList, parseLocalMessageEnqueue } from './vinted-messaging-response';
+import {
+  parseLocalMessageList,
+  parseLocalMessageEnqueue,
+  parseMarketplaceMessagePermission,
+} from './vinted-messaging-response';
 
 const scope = { workspaceId: 'workspace-a', connectionId: 'account-a' };
 const message = {
@@ -15,6 +19,23 @@ const message = {
   attachment: null,
 };
 describe('Lokale Versandantworten', () => {
+  it('weist unbekannte oder unbestätigte Versandfreigaben zurück', () => {
+    for (const permission of [
+      { executionMode: 'cloud', allowed: true, authorizationVersion: 0 },
+      { executionMode: 'proxy', allowed: true, authorizationVersion: 1 },
+      { executionMode: 'cloud', allowed: true, authorizationVersion: 1.5 },
+      { executionMode: 'cloud', allowed: 'yes', authorizationVersion: 1 },
+      { executionMode: 'cloud', allowed: true, authorizationVersion: 1, secret: 'x' },
+    ])
+      expect(() => parseMarketplaceMessagePermission(permission)).toThrow();
+    expect(
+      parseMarketplaceMessagePermission({
+        executionMode: 'cloud',
+        allowed: true,
+        authorizationVersion: 1,
+      }).allowed,
+    ).toBe(true);
+  });
   it('erhält wartende Nachrichten ohne einen Versand zu behaupten', () => {
     expect(
       parseLocalMessageEnqueue(

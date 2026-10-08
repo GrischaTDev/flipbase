@@ -6,6 +6,8 @@ on:
     branches: [master]
     paths:
       - 'services/marketplace-worker/**'
+      - 'supabase/functions/_shared/marketplace-message-contracts.d.ts'
+      - 'supabase/functions/_shared/marketplace-inbox-event-contracts.d.ts'
       - 'deploy/*chromium*'
       - 'deploy/docker-compose.marketplace*'
       - '.github/workflows/marketplace-worker-image.yml'
@@ -41,7 +43,7 @@ jobs:
       - name: Build reviewed worker
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
-          context: services/marketplace-worker
+          context: .
           file: services/marketplace-worker/Dockerfile
           push: false
           load: true
@@ -50,7 +52,7 @@ jobs:
       - name: Build private Chromium broker
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
-          context: services/marketplace-worker
+          context: .
           file: services/marketplace-worker/Dockerfile
           target: chromium-broker
           push: false

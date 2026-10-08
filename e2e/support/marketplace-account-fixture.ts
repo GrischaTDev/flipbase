@@ -342,7 +342,13 @@ export async function mockMarketplace(
         periodMinutes: body['p_period_minutes'],
         items: [],
       };
-    if (name === 'marketplace_read_favorite_notifications')
+    if (
+      [
+        'marketplace_read_favorite_notifications',
+        'marketplace_read_feedback_notifications',
+        'marketplace_read_message_notifications',
+      ].includes(name)
+    )
       json = { workspaceId, items: [], unreadCount: 0 };
     if (name === 'marketplace_read_favorite_notification_settings')
       json = { workspaceId, connectionId: body['p_connection_id'], enabled: true, version: 0 };
@@ -353,7 +359,14 @@ export async function mockMarketplace(
         enabled: body['p_enabled'],
         version: 1,
       };
-    if (name === 'marketplace_mark_favorite_notifications') json = { ok: true };
+    if (
+      [
+        'marketplace_mark_favorite_notifications',
+        'marketplace_mark_feedback_notifications',
+        'marketplace_mark_message_notifications',
+      ].includes(name)
+    )
+      json = { ok: true };
     if (name === 'marketplace_list_connections') json = { canManage: true, connections: accounts };
     if (name === 'marketplace_reorder_connections') {
       const identifiers = body['p_connection_ids'];

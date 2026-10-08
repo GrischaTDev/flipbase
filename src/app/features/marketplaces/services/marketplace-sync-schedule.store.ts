@@ -92,6 +92,9 @@ export class MarketplaceSyncScheduleStore {
 
   constructor() {
     effect(() => {
+      // Eine bestätigte Neuanmeldung kann denselben Verbindungsstatus behalten.
+      // Auch dann muss der vom Server bereinigte Pausengrund neu geladen werden.
+      this.account();
       const key = this.contextKey();
       untracked(() => {
         this.revision++;

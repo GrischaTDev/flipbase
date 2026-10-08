@@ -492,11 +492,7 @@ export class VintedMessagesComponent {
   canRetryMessage(message: LocalQueuedMessage): boolean {
     return (
       (message.state === 'failed' || message.state === 'outcome_unknown') &&
-      this.store.canManage() &&
-      this.store.selectedConnection()?.executionMode === 'local' &&
-      this.store.selectedConnection()?.status === 'connected' &&
-      this.local.hasValidBinding() &&
-      this.local.messagesAllowed()
+      this.messaging.canSend()
     );
   }
 
@@ -511,8 +507,7 @@ export class VintedMessagesComponent {
       message.conversationId !== conversation.id ||
       !this.canRetryMessage(message) ||
       this.retryingMessageId() ||
-      this.messaging.busy() ||
-      this.local.busy()
+      this.messaging.busy()
     )
       return;
     this.retryingMessageId.set(message.id);
@@ -615,7 +610,7 @@ export class VintedMessagesComponent {
     const attachment = this.attachment();
     if (
       !account ||
-      account.executionMode !== 'local' ||
+      !this.messaging.canSend() ||
       account.status !== 'connected' ||
       !conversationId ||
       !key ||

@@ -442,7 +442,20 @@
     const versions = new Map(state.versions.map((version) => [version.externalId, version]));
     let detailReads = 0;
     let messageCount = 0;
-    for (const conversation of response.conversations) {
+    const eventParser = root.FlipbaseVintedInboxEvents;
+    const eventBatches = [];
+    const candidates = [...response.conversations].sort((left, right) => {
+      const previousLeft = versions.get(identifier(left.id));
+      const previousRight = versions.get(identifier(right.id));
+      const leftUnchanged = previousLeft?.sourceUpdatedAt === inboxDate(left.updated_at);
+      const rightUnchanged = previousRight?.sourceUpdatedAt === inboxDate(right.updated_at);
+      return (
+        Number(leftUnchanged) - Number(rightUnchanged) ||
+        (Date.parse(previousLeft?.detailCheckedAt ?? '') || 0) -
+          (Date.parse(previousRight?.detailCheckedAt ?? '') || 0)
+      );
+    });
+    for (const conversation of candidates) {
       const externalId = record(conversation) ? identifier(conversation.id) : null;
       if (!externalId || conversationIds.has(externalId))
         throw new Error('Vinted lieferte mehrdeutige Gespräche.');
@@ -470,11 +483,15 @@
       };
       entries.push(entry);
       const checkedAt = reusable ? Date.parse(previous.detailCheckedAt) : NaN;
+      const canReadUnread = Boolean(
+        eventParser && conversation.unread === true && identifier(other.id),
+      );
       if (
-        conversation.unread !== false ||
+        (conversation.unread !== false && !canReadUnread) ||
         detailReads >= 3 ||
         messageCount >= 200 ||
         (Number.isFinite(checkedAt) &&
+          !canReadUnread &&
           checkedAt <= Date.parse(observedAt) &&
           Date.parse(observedAt) - checkedAt < 86_400_000)
       )
@@ -490,6 +507,24 @@
         !Array.isArray(detail.conversation.messages)
       )
         throw new Error('Vinted lieferte einen anderen oder unvollständigen Gesprächsverlauf.');
+      if (canReadUnread) {
+        const check = await readJson(`/api/v2/inbox?page=${page}&per_page=20`);
+        const same = check?.conversations?.find(
+          (candidate) => identifier(candidate.id) === externalId,
+        );
+        if (
+          same?.unread !== true ||
+          detail.conversation.read_by_current_user !== false ||
+          identifier(detail.conversation.opposite_user?.id) !== identifier(other.id)
+        )
+          throw new Error(
+            'Vinted hat den Lesestatus beim Abruf verändert. Der Postfachabruf wurde beendet.',
+          );
+      }
+      if (eventParser) {
+        const events = eventParser.parse(detail, expectedId, observedAt);
+        eventBatches.push(events);
+      }
       const remaining = 200 - messageCount;
       const messages = detail.conversation.messages;
       for (const [field, value] of Object.entries(inboxMetadata(detail.conversation))) {
@@ -532,6 +567,22 @@
             : 1,
       conversationsComplete: (totalPages === 0 || page === totalPages) && totalPages <= 20,
       entries,
+      ...(eventParser
+        ? {
+            inboxEvents: {
+              version: 1,
+              observedAt,
+              events: eventBatches.flatMap((events) => events.events),
+              complete:
+                (totalPages === 0 || page === totalPages) &&
+                (eventBatches.length > 0 || (page === 1 && response.conversations.length === 0)) &&
+                eventBatches.every((events) => events.complete),
+              coveredConversationIds: eventBatches.flatMap(
+                (events) => events.coveredConversationIds,
+              ),
+            },
+          }
+        : {}),
     };
     // Reserve für RPC-Hülle und die größere JSONB-Darstellung auf dem Server.
     const encoder = new TextEncoder();

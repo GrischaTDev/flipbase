@@ -20,6 +20,29 @@ export interface BrowserSessionScope {
     expiresAt: string;
     absoluteExpiresAt: string;
   };
+  /** Interner, dauerhaft gebundener Versandversuch; niemals aus HTTP-Nutzdaten übernehmen. */
+  messageWrite?: {
+    messageId: string;
+    claimToken: string;
+    workerId: string;
+    workerEpoch: number;
+    runnerId: string;
+    sessionId: string;
+    expiresAt: string;
+    absoluteExpiresAt: string;
+  };
+  /** Eigene Favoritenphase; keine Freigabe für manuelle Aufträge oder Kontoabrufe. */
+  favoriteWrite?: {
+    eventId: string;
+    phase: 'message' | 'offer';
+    claimToken: string;
+    workerId: string;
+    workerEpoch: number;
+    runnerId: string;
+    sessionId: string;
+    expiresAt: string;
+    absoluteExpiresAt: string;
+  };
 }
 
 export class MarketplaceBrowserSessionBusyError extends Error {
@@ -90,6 +113,23 @@ function sameScope(left: BrowserSessionScope, right: BrowserSessionScope): boole
     left.userId === right.userId &&
     left.cloudSetup?.setupId === right.cloudSetup?.setupId &&
     Boolean(left.syncRead) === Boolean(right.syncRead) &&
+    Boolean(left.messageWrite) === Boolean(right.messageWrite) &&
+    Boolean(left.favoriteWrite) === Boolean(right.favoriteWrite) &&
+    (!left.favoriteWrite ||
+      (left.favoriteWrite.eventId === right.favoriteWrite?.eventId &&
+        left.favoriteWrite.phase === right.favoriteWrite?.phase &&
+        left.favoriteWrite.claimToken === right.favoriteWrite?.claimToken &&
+        left.favoriteWrite.workerId === right.favoriteWrite?.workerId &&
+        left.favoriteWrite.workerEpoch === right.favoriteWrite?.workerEpoch &&
+        left.favoriteWrite.runnerId === right.favoriteWrite?.runnerId &&
+        left.favoriteWrite.sessionId === right.favoriteWrite?.sessionId)) &&
+    (!left.messageWrite ||
+      (left.messageWrite.messageId === right.messageWrite?.messageId &&
+        left.messageWrite.claimToken === right.messageWrite?.claimToken &&
+        left.messageWrite.workerId === right.messageWrite?.workerId &&
+        left.messageWrite.workerEpoch === right.messageWrite?.workerEpoch &&
+        left.messageWrite.runnerId === right.messageWrite?.runnerId &&
+        left.messageWrite.sessionId === right.messageWrite?.sessionId)) &&
     (!left.syncRead ||
       (left.syncRead.operationId === right.syncRead?.operationId &&
         left.syncRead.runnerId === right.syncRead?.runnerId &&
@@ -178,6 +218,11 @@ export class MarketplaceBrowserSessionBroker {
   }
 
   async open(scope: BrowserSessionScope): Promise<string> {
+    if (
+      [scope.cloudSetup, scope.syncRead, scope.messageWrite, scope.favoriteWrite].filter(Boolean)
+        .length > 1
+    )
+      throw new Error('Sitzungszugriff verweigert');
     if (!(await this.runtimeAuthorized())) throw new Error('Worker-Zugriff unterbrochen');
     await this.ensureRecovered();
     const lease = await this.options.leases.acquire({ ...scope });

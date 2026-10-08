@@ -27,6 +27,65 @@ const scopeA: BrowserSessionScope = {
 };
 const scopeB = { ...scopeA, connectionId: 'account-b' };
 
+test('message claims cannot be borrowed by another claim or an interactive login', async () => {
+  const { broker } = setup();
+  const writeScope = {
+    ...scopeA,
+    userAccessToken: '',
+    messageWrite: {
+      messageId: 'message-a',
+      claimToken: 'claim-a',
+      workerId: 'worker-a',
+      workerEpoch: 1,
+      runnerId: 'runner-a',
+      sessionId: 'lease-1',
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      absoluteExpiresAt: new Date(Date.now() + 600_000).toISOString(),
+    },
+  };
+  const id = await broker.open(writeScope);
+  await assert.rejects(
+    broker.run(scopeA, id, async () => undefined),
+    /Sitzungszugriff/,
+  );
+  await assert.rejects(
+    broker.run(
+      { ...writeScope, messageWrite: { ...writeScope.messageWrite, claimToken: 'other-claim' } },
+      id,
+      async () => undefined,
+    ),
+    /Sitzungszugriff/,
+  );
+  await assert.rejects(
+    broker.run(
+      { ...writeScope, messageWrite: { ...writeScope.messageWrite, workerEpoch: 2 } },
+      id,
+      async () => undefined,
+    ),
+    /Sitzungszugriff/,
+  );
+  await broker.close(writeScope, id);
+});
+
+test('a write claim cannot coexist with a read or setup authorization', async () => {
+  const { broker } = setup();
+  const mixedScope = {
+    ...scopeA,
+    cloudSetup: { setupId: 'setup-a' },
+    messageWrite: {
+      messageId: 'message-a',
+      claimToken: 'claim-a',
+      workerId: 'worker-a',
+      workerEpoch: 1,
+      runnerId: 'runner-a',
+      sessionId: 'lease-1',
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      absoluteExpiresAt: new Date(Date.now() + 600_000).toISOString(),
+    },
+  };
+  await assert.rejects(broker.open(mixedScope), /Sitzungszugriff/);
+});
+
 test('setup session cannot be reused through normal or another setup scope', async () => {
   const { broker } = setup();
   const setupScope = { ...scopeA, cloudSetup: { setupId: 'setup-a' } };

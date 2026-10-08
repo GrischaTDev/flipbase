@@ -3,6 +3,7 @@ import {
   type BrowserLease,
   type BrowserSessionScope,
 } from './marketplace-browser-session-broker.ts';
+import { validateMarketplaceMessageLease } from './supabase-marketplace-message-store.ts';
 
 interface SupabaseBrowserSessionStoreOptions {
   url: string;
@@ -34,6 +35,29 @@ export class SupabaseBrowserSessionStore {
   }
 
   async acquire(scope: BrowserSessionScope): Promise<BrowserLease> {
+    if (
+      [scope.syncRead, scope.cloudSetup, scope.messageWrite, scope.favoriteWrite].filter(Boolean)
+        .length > 1
+    )
+      throw new Error('Sitzungszugriff verweigert');
+    if (scope.favoriteWrite) {
+      const expiresAt = validateMarketplaceMessageLease(
+        await this.callFavoriteRpc(scope),
+        scope.favoriteWrite,
+        Date.now(),
+      );
+      if (expiresAt === null) throw new Error('Sitzungszugriff verweigert');
+      return { id: scope.favoriteWrite.sessionId, scope: { ...scope }, expiresAt, active: true };
+    }
+    if (scope.messageWrite) {
+      const expiresAt = validateMarketplaceMessageLease(
+        await this.callMessageRpc(scope),
+        scope.messageWrite,
+        Date.now(),
+      );
+      if (expiresAt === null) throw new Error('Sitzungszugriff verweigert');
+      return { id: scope.messageWrite.sessionId, scope: { ...scope }, expiresAt, active: true };
+    }
     if (scope.syncRead) {
       const value = await this.callReadRpc(scope, 'marketplace_sync_check');
       if (
@@ -145,6 +169,42 @@ export class SupabaseBrowserSessionStore {
   }
 
   async assertActive(lease: BrowserLease): Promise<boolean> {
+    if (
+      [
+        lease.scope.syncRead,
+        lease.scope.cloudSetup,
+        lease.scope.messageWrite,
+        lease.scope.favoriteWrite,
+      ].filter(Boolean).length > 1
+    )
+      return false;
+    if (lease.scope.favoriteWrite) {
+      if (lease.id !== lease.scope.favoriteWrite.sessionId) return false;
+      const expiresAt = validateMarketplaceMessageLease(
+        await this.callFavoriteRpc(lease.scope),
+        lease.scope.favoriteWrite,
+        Date.now(),
+      );
+      if (expiresAt === null) return false;
+      lease.expiresAt = expiresAt;
+      return true;
+    }
+    if (lease.scope.messageWrite) {
+      if (
+        lease.scope.syncRead ||
+        lease.scope.cloudSetup ||
+        lease.id !== lease.scope.messageWrite.sessionId
+      )
+        return false;
+      const expiresAt = validateMarketplaceMessageLease(
+        await this.callMessageRpc(lease.scope),
+        lease.scope.messageWrite,
+        Date.now(),
+      );
+      if (expiresAt === null) return false;
+      lease.expiresAt = expiresAt;
+      return true;
+    }
     if (lease.scope.syncRead) {
       const value = await this.callReadRpc(lease.scope, 'marketplace_sync_heartbeat');
       if (
@@ -259,6 +319,61 @@ export class SupabaseBrowserSessionStore {
           p_operation_id: authorization.operationId,
           p_runner_id: authorization.runnerId,
           p_worker_epoch: authorization.workerEpoch,
+        }),
+        signal: AbortSignal.timeout(10_000),
+      }),
+    );
+  }
+
+  private async callFavoriteRpc(scope: BrowserSessionScope): Promise<unknown> {
+    const binding = scope.favoriteWrite;
+    if (
+      !binding ||
+      scope.userAccessToken ||
+      !this.runtime ||
+      binding.workerId !== this.runtime.workerId ||
+      binding.workerEpoch !== this.runtime.workerEpoch
+    )
+      throw new Error('Sitzungszugriff verweigert');
+    return this.read(
+      await this.request(new URL('/rest/v1/rpc/marketplace_cloud_favorite_check', this.baseUrl), {
+        method: 'POST',
+        headers: { ...this.serverHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          p_workspace_id: scope.workspaceId,
+          p_connection_id: scope.connectionId,
+          p_event_id: binding.eventId,
+          p_claim_token: binding.claimToken,
+          p_worker_id: binding.workerId,
+          p_worker_epoch: binding.workerEpoch,
+          p_phase: binding.phase,
+        }),
+        signal: AbortSignal.timeout(10000),
+      }),
+    );
+  }
+
+  private async callMessageRpc(scope: BrowserSessionScope): Promise<unknown> {
+    const binding = scope.messageWrite;
+    if (
+      !binding ||
+      scope.userAccessToken ||
+      !this.runtime ||
+      binding.workerId !== this.runtime.workerId ||
+      binding.workerEpoch !== this.runtime.workerEpoch
+    )
+      throw new Error('Sitzungszugriff verweigert');
+    return this.read(
+      await this.request(new URL('/rest/v1/rpc/marketplace_cloud_message_check', this.baseUrl), {
+        method: 'POST',
+        headers: { ...this.serverHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          p_workspace_id: scope.workspaceId,
+          p_connection_id: scope.connectionId,
+          p_message_id: binding.messageId,
+          p_claim_token: binding.claimToken,
+          p_worker_id: binding.workerId,
+          p_worker_epoch: binding.workerEpoch,
         }),
         signal: AbortSignal.timeout(10_000),
       }),

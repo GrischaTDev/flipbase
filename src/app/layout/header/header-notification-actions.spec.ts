@@ -38,20 +38,74 @@ function erstelleKomponente() {
     markAllAsRead: vi.fn(async () => undefined),
     clearNotifications: vi.fn(async () => undefined),
   };
+  const messageNotifications = {
+    markAsRead: vi.fn(async (_id: string) => undefined),
+    markAllAsRead: vi.fn(async () => undefined),
+    clearNotifications: vi.fn(async () => undefined),
+  };
   Object.assign(component, {
     webhookService,
     favoriteNotifications,
     feedbackNotifications,
+    messageNotifications,
     toast,
     syncStatus: new SyncStatusService(),
     dialog: { zeigeHinweis: vi.fn(async () => undefined) },
     isNotificationDropdownOpen: signal(true),
     isUpdatingNotifications: signal(false),
   });
-  return { component, toast, webhookService, favoriteNotifications, feedbackNotifications };
+  return {
+    component,
+    toast,
+    webhookService,
+    favoriteNotifications,
+    feedbackNotifications,
+    messageNotifications,
+  };
 }
 
 describe('HeaderComponent – Inbox-Aktionen', () => {
+  it('markiert neue Nachrichteneingänge nur im Nachrichtenstrom', async () => {
+    const {
+      component,
+      messageNotifications,
+      feedbackNotifications,
+      favoriteNotifications,
+      webhookService,
+    } = erstelleKomponente();
+    await component.oeffneBenachrichtigung({ ...notification, id: 'marketplace-message:7' });
+    expect(messageNotifications.markAsRead).toHaveBeenCalledExactlyOnceWith(
+      'marketplace-message:7',
+    );
+    expect(feedbackNotifications.markAsRead).not.toHaveBeenCalled();
+    expect(favoriteNotifications.markAsRead).not.toHaveBeenCalled();
+    expect(webhookService.markAsRead).not.toHaveBeenCalled();
+  });
+  it.each(['onMarkAllNotificationsRead', 'onClearNotifications'] as const)(
+    'meldet Nachrichtenfehler bei %s ohne gemeinsamen Erfolg',
+    async (action) => {
+      const {
+        component,
+        messageNotifications,
+        feedbackNotifications,
+        favoriteNotifications,
+        webhookService,
+        toast,
+      } = erstelleKomponente();
+      const operation =
+        action === 'onMarkAllNotificationsRead' ? 'markAllAsRead' : 'clearNotifications';
+      messageNotifications[operation].mockRejectedValue(new Error('Nachrichten nicht erreichbar'));
+      await component[action]();
+      expect(feedbackNotifications[operation]).toHaveBeenCalledOnce();
+      expect(favoriteNotifications[operation]).toHaveBeenCalledOnce();
+      expect(webhookService[operation]).toHaveBeenCalledOnce();
+      expect(toast.toasts()).toHaveLength(1);
+      expect(toast.toasts()[0]).toMatchObject({
+        type: 'error',
+        description: 'Nachrichten nicht erreichbar',
+      });
+    },
+  );
   it('markiert Bewertungen ausschließlich im Bewertungsstrom', async () => {
     const { component, feedbackNotifications, favoriteNotifications, webhookService } =
       erstelleKomponente();

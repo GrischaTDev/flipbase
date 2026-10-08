@@ -15,6 +15,131 @@ const scope = {
   userAccessToken: 'user-test-token',
 };
 
+for (const phase of ['message', 'offer'] as const) {
+  test(`favorite ${phase} uses only the reserved claim and rejects another runtime or scope`, async () => {
+    const favoriteScope = {
+      ...scope,
+      userAccessToken: '',
+      favoriteWrite: {
+        eventId: '7',
+        phase,
+        claimToken: 'claim-a',
+        workerId: 'worker-a',
+        workerEpoch: 3,
+        runnerId: 'runner-a',
+        sessionId: 'lease-a',
+        expiresAt: new Date(Date.now() + 60000).toISOString(),
+        absoluteExpiresAt: new Date(Date.now() + 600000).toISOString(),
+      },
+    };
+    const requests: Record<string, unknown>[] = [];
+    const store = new SupabaseBrowserSessionStore({
+      url: 'https://example.test',
+      publishableKey: 'public-test-key',
+      serviceRoleKey: 'server-test-key',
+      runtime: { workerId: 'worker-a', workerEpoch: 3 },
+      fetch: async (input, init) => {
+        assert.equal(
+          new URL(String(input)).pathname,
+          '/rest/v1/rpc/marketplace_cloud_favorite_check',
+        );
+        requests.push(JSON.parse(String(init?.body)));
+        return Response.json({
+          active: true,
+          sessionId: 'lease-a',
+          expiresAt: favoriteScope.favoriteWrite.expiresAt,
+          absoluteExpiresAt: favoriteScope.favoriteWrite.absoluteExpiresAt,
+        });
+      },
+    });
+    const lease = await store.acquire(favoriteScope);
+    assert.equal(await store.assertActive(lease), true);
+    assert.equal(requests.length, 2);
+    assert.deepEqual(requests[0], {
+      p_workspace_id: scope.workspaceId,
+      p_connection_id: scope.connectionId,
+      p_event_id: '7',
+      p_claim_token: 'claim-a',
+      p_worker_id: 'worker-a',
+      p_worker_epoch: 3,
+      p_phase: phase,
+    });
+    await assert.rejects(
+      store.acquire({ ...favoriteScope, userAccessToken: 'foreign-token' }),
+      /Sitzungszugriff verweigert/,
+    );
+    await assert.rejects(
+      store.acquire({
+        ...favoriteScope,
+        favoriteWrite: { ...favoriteScope.favoriteWrite, workerEpoch: 2 },
+      }),
+      /Sitzungszugriff verweigert/,
+    );
+    await assert.rejects(
+      store.acquire({
+        ...favoriteScope,
+        messageWrite: { ...favoriteScope.favoriteWrite, messageId: 'message-a' },
+      }),
+      /Sitzungszugriff verweigert/,
+    );
+    assert.equal(requests.length, 2);
+    assert.equal(await store.assertActive({ ...lease, id: 'lease-other' }), false);
+  });
+}
+
+test('a message lease reuses only its reserved write session, without a user JWT', async () => {
+  const calls: string[] = [];
+  const writeScope = {
+    ...scope,
+    userAccessToken: '',
+    messageWrite: {
+      messageId: '20000000-0000-4000-8000-000000000004',
+      claimToken: '20000000-0000-4000-8000-000000000005',
+      workerId: '20000000-0000-4000-8000-000000000006',
+      workerEpoch: 4,
+      runnerId: '20000000-0000-4000-8000-000000000007',
+      sessionId: '20000000-0000-4000-8000-000000000008',
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      absoluteExpiresAt: new Date(Date.now() + 600_000).toISOString(),
+    },
+  };
+  const store = new SupabaseBrowserSessionStore({
+    url: 'https://example.test',
+    publishableKey: 'public',
+    serviceRoleKey: 'server',
+    runtime: { workerId: writeScope.messageWrite.workerId, workerEpoch: 4 },
+    fetch: async (input, init) => {
+      const path = new URL(String(input)).pathname;
+      calls.push(path);
+      assert.equal(path, '/rest/v1/rpc/marketplace_cloud_message_check');
+      assert.equal(new Headers(init?.headers).get('Authorization'), 'Bearer server');
+      assert.deepEqual(JSON.parse(String(init?.body)), {
+        p_workspace_id: 'workspace-a',
+        p_connection_id: 'account-a',
+        p_message_id: '20000000-0000-4000-8000-000000000004',
+        p_claim_token: '20000000-0000-4000-8000-000000000005',
+        p_worker_id: '20000000-0000-4000-8000-000000000006',
+        p_worker_epoch: 4,
+      });
+      return Response.json({
+        active: true,
+        sessionId: writeScope.messageWrite.sessionId,
+        expiresAt: writeScope.messageWrite.expiresAt,
+        absoluteExpiresAt: writeScope.messageWrite.absoluteExpiresAt,
+      });
+    },
+  });
+  const lease = await store.acquire(writeScope);
+  assert.equal(lease.id, '20000000-0000-4000-8000-000000000008');
+  assert.equal(await store.assertActive(lease), true);
+  assert.equal(calls.length, 2);
+  await assert.rejects(
+    store.acquire({ ...writeScope, messageWrite: { ...writeScope.messageWrite, workerEpoch: 3 } }),
+    /Sitzungszugriff/,
+  );
+  assert.equal(calls.length, 2);
+});
+
 for (const outcome of [
   'allowed',
   'foreign-user',

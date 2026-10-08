@@ -1651,7 +1651,7 @@ test('Manifest narrows application and provider access without changing Kleinanz
     script.matches.includes('https://www.vinted.de/*'),
   );
   assert.equal(vintedContent.js.at(-1), 'vinted-local-account.js');
-  assert.equal(manifest.version, '1.7.0');
+  assert.equal(manifest.version, '1.7.1');
   assert.ok(
     manifest.content_scripts.some(
       (script) =>

@@ -33,6 +33,14 @@ import { SupabaseMarketplaceSyncDispatchStore } from './supabase-marketplace-syn
 import { SupabaseMarketplaceCloudSetupStore } from './supabase-marketplace-cloud-setup-store.ts';
 import { MarketplaceCloudSetup } from './marketplace-cloud-setup.ts';
 import { IpRoyalCloudIpSync } from './iproyal-cloud-ip-sync.ts';
+import { SupabaseMarketplaceMessageStore } from './supabase-marketplace-message-store.ts';
+import { MarketplaceMessageRunner } from './marketplace-message-runner.ts';
+import type { CloudMessageClaim } from './marketplace-message-runner.ts';
+import {
+  MarketplaceFavoriteMessageRunner,
+  type CloudFavoriteClaim,
+} from './marketplace-favorite-message-runner.ts';
+import { SupabaseMarketplaceFavoriteMessageStore } from './supabase-marketplace-favorite-message-store.ts';
 
 async function main(): Promise<void> {
   const config = marketplaceBrowserServerConfig(process.env);
@@ -131,11 +139,45 @@ async function main(): Promise<void> {
       })
     : undefined;
   let syncRunner: MarketplaceSyncRunner | undefined;
+  const messageStore =
+    config.provider === 'chromium'
+      ? new SupabaseMarketplaceMessageStore({
+          url: config.supabaseUrl,
+          serviceRoleKey: config.serviceRoleKey,
+        })
+      : undefined;
+  let messageRunner: MarketplaceMessageRunner | undefined;
+  const favoriteStore = messageStore
+    ? new SupabaseMarketplaceFavoriteMessageStore({
+        url: config.supabaseUrl,
+        serviceRoleKey: config.serviceRoleKey,
+      })
+    : undefined;
+  let favoriteRunner: MarketplaceFavoriteMessageRunner | undefined;
   const sessionLifecycle: { broker?: MarketplaceBrowserSessionBroker } = {};
   const workerLifecycle: { stop?: () => Promise<void> } = {};
   const dispatcher = dispatchStore
-    ? new MarketplaceSyncDispatcher({
+    ? new MarketplaceSyncDispatcher<CloudMessageClaim | CloudFavoriteClaim>({
         store: dispatchStore,
+        writes: messageStore
+          ? {
+              claim: async (workerId, workerEpoch, runnerId) =>
+                (await messageStore.claim(workerId, workerEpoch, runnerId)) ??
+                (config.scheduledSyncEnabled && favoriteStore
+                  ? favoriteStore.claim(workerId, workerEpoch, runnerId)
+                  : null),
+              run: (claim) => {
+                if (claim.kind !== 'message') {
+                  if (!favoriteRunner)
+                    return Promise.reject(new Error('Favoritendienst ist noch nicht bereit'));
+                  return favoriteRunner.run(claim);
+                }
+                if (!messageRunner)
+                  return Promise.reject(new Error('Versanddienst ist noch nicht bereit'));
+                return messageRunner.run(claim);
+              },
+            }
+          : undefined,
         includeScheduled: config.scheduledSyncEnabled,
         maxJobsPerPoll: 32,
         prepareDispatch: () => sessionLifecycle.broker?.prepareDispatch() ?? Promise.resolve(),
@@ -205,6 +247,8 @@ async function main(): Promise<void> {
   });
   sessionLifecycle.broker = broker;
   await broker.ready();
+  if (messageStore) messageRunner = new MarketplaceMessageRunner(broker, messageStore);
+  if (favoriteStore) favoriteRunner = new MarketplaceFavoriteMessageRunner(broker, favoriteStore);
   if (cloudSetupStore && profiles instanceof ChromiumProfileProvisioner) {
     const inventory =
       config.ipRoyalApiToken && config.chromiumNetworkFile && networks

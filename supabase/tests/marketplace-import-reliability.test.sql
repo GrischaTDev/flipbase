@@ -66,6 +66,14 @@ select lives_ok($$select pg_temp.apply(pg_temp.snapshot(10,'[{"kind":"publicatio
 select is((select body->>'text' from public.marketplace_account_entries where external_id='edited'),'bestätigt','Spätere bestätigte Änderung überlebt verzögerten Abruf');
 select lives_ok($$select pg_temp.apply(pg_temp.snapshot(11))$$,'Verspätete vollständige Liste akzeptiert');
 select is((select count(*)::int from public.marketplace_account_entries where external_id='edited'),1,'Neuere Einträge werden auch bei vollständiger leerer Liste nicht gelöscht');
+select lives_ok($$select pg_temp.apply(jsonb_set(pg_temp.snapshot(12,
+ '[{"kind":"conversation","externalId":"456","sortAt":"2026-09-30T12:12:00Z","body":{"itemId":"81","itemTitle":"Gesprächsartikel","itemImageUrl":"https://images.example.test/article.jpg","itemPrice":24,"itemCurrency":"EUR"}}]',
+ '{"publications":{"status":"partial"},"messages":{"status":"partial"},"sales":{"status":"partial"},"feedback":{"status":"partial"}}'),
+ '{entries,0,body,feedbacks}','[]'))$$,'Gezielter Gesprächsabruf speichert Artikeldaten ohne andere Bereiche vollständig zu melden');
+select is((select body->>'itemTitle' from public.marketplace_account_entries where kind='conversation' and external_id='456'),'Gesprächsartikel','Gesprächsartikel ist im gespeicherten Stand verfügbar');
+select is((select count(*)::int from public.marketplace_account_entries where external_id='edited'),1,'Gesprächsabruf erhält gespeicherte Inserate');
+select is((select body->'feedbacks' from public.marketplace_account_entries where kind='profile'),'[{"id":"good"}]'::jsonb,'Nicht abgerufene Bewertungen bleiben erhalten');
+select is((select last_complete_at from public.marketplace_account_sync_sources where area='feedback'),'2026-09-30T12:11:00Z'::timestamptz,'Gesprächsabruf behauptet keine neue vollständige Bewertungsliste');
 select set_config('request.jwt.claims','{"sub":"30000000-0000-4000-8000-000000000002","role":"authenticated"}',true);
 select throws_ok($$select pg_temp.apply(pg_temp.snapshot(4))$$,'42501',null,'Auch anderer Admin darf fremde Sitzung nicht verwenden');
 reset role;

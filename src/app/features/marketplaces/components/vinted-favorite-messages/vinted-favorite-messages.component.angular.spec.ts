@@ -21,6 +21,7 @@ import { ConfirmDialogService } from '../../../../shared/components/confirm-dial
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { VintedLocalExtensionStore } from '../../services/vinted-local-extension.store';
 import { VintedFavoriteMessageApiService } from '../../services/vinted-favorite-message-api.service';
+import { VintedMessagingApiService } from '../../services/vinted-messaging-api.service';
 import type { MarketplaceConnection } from '../../models/marketplace.models';
 import type { FavoriteMessageSettings } from '../../models/vinted-favorite-messages';
 import { VintedFavoriteMessagesComponent } from './vinted-favorite-messages.component';
@@ -97,6 +98,21 @@ beforeEach(() => {
       { provide: WorkspaceService, useValue: { currentWorkspace: workspace } },
       { provide: MarketplaceAccountStore, useValue: { selectedConnection: account } },
       { provide: VintedFavoriteMessageApiService, useValue: api },
+      {
+        provide: VintedMessagingApiService,
+        useValue: {
+          readPermission: vi.fn(async () => ({
+            executionMode: 'cloud',
+            allowed: false,
+            authorizationVersion: 0,
+          })),
+          approveCloud: vi.fn(async () => ({
+            executionMode: 'cloud',
+            allowed: true,
+            authorizationVersion: 1,
+          })),
+        },
+      },
       { provide: ConfirmDialogService, useValue: dialog },
       {
         provide: VintedLocalExtensionStore,
@@ -260,6 +276,20 @@ async function settle(
   fixture.detectChanges();
 }
 describe('Favorite message account and activation lifecycle', () => {
+  it('activates cloud rules with explicit account approval without loading the extension', async () => {
+    account.set({ ...connection, executionMode: 'cloud' });
+    const fixture = await render();
+    fixture.componentInstance.form.controls.enabled.setValue(true);
+    dialog.frage.mockResolvedValueOnce(true);
+    await fixture.componentInstance.save();
+    expect(TestBed.inject(VintedLocalExtensionStore).loadConnection).not.toHaveBeenCalled();
+    expect(TestBed.inject(VintedMessagingApiService).approveCloud).toHaveBeenCalledWith(
+      expect.objectContaining(scope),
+      '123',
+    );
+    expect(api.save).toHaveBeenCalledWith(settings, true, expect.anything());
+    expect(dialog.frage.mock.calls[0][0].text).toContain('Cloud');
+  });
   it('keeps old configurations without offers off and saves an optional fixed discount explicitly', async () => {
     const fixture = await render();
     const component = fixture.componentInstance;

@@ -9,13 +9,210 @@ import {
 import type { VintedAccountImport } from '../src/vinted-account-import.ts';
 import { VintedInteractionRequiredError } from '../src/vinted-browser-reader.ts';
 
-test('isolated import preserves central authorizations and progress without a nested RPC', async () => {
+test('isolated terminal write proof survives a subsequent revocation without granting another action', async () => {
+  for (const name of ['sendMessage', 'sendFavoriteMessage', 'sendFavoriteOffer'] as const) {
+    let authorizations = 0;
+    let starts = 0;
+    const proof =
+      name === 'sendFavoriteOffer'
+        ? { outcome: 'sent', externalOfferId: '22' }
+        : {
+            outcome: 'sent',
+            externalMessageId: '11',
+            ...(name === 'sendFavoriteMessage' ? { conversationId: '777' } : {}),
+          };
+    const browser = isolatedBrowserActions({
+      request: async (input) => {
+        if (input.action === 'start') {
+          starts++;
+          return { id: '00000000-0000-0000-0000-000000000001' };
+        }
+        if (input.action === 'poll') return { kind: 'result', value: proof };
+        return null;
+      },
+    });
+    const authorize = async () => {
+      if (++authorizations > 1) throw new Error('revoked');
+    };
+    if (name === 'sendMessage')
+      assert.deepEqual(
+        await browser.sendMessage?.(
+          '123',
+          { externalConversationId: '777', text: 'Hallo', attachment: null },
+          authorize,
+        ),
+        proof,
+      );
+    else if (name === 'sendFavoriteMessage')
+      assert.deepEqual(
+        await browser.sendFavoriteMessage?.(
+          '123',
+          { recipientId: '456', itemId: '99', text: 'Danke' },
+          authorize,
+        ),
+        proof,
+      );
+    else
+      assert.deepEqual(
+        await browser.sendFavoriteOffer?.(
+          '123',
+          {
+            recipientId: '456',
+            itemId: '99',
+            text: 'Danke',
+            conversationId: '777',
+            transactionId: '888',
+            externalMessageId: '11',
+            offer: { type: 'amount', value: 5 },
+          },
+          authorize,
+          async () => true,
+        ),
+        proof,
+      );
+    await assert.rejects(
+      browser.sendMessage?.(
+        '123',
+        { externalConversationId: '777', text: 'Noch einmal', attachment: null },
+        authorize,
+      ) ?? Promise.reject(),
+      /revoked/,
+    );
+    assert.equal(starts, 1);
+  }
+});
+
+test('isolated terminal reads still require current authorization', async () => {
+  let authorizations = 0;
+  const browser = isolatedBrowserActions({
+    request: async (input) =>
+      input.action === 'start'
+        ? { id: '00000000-0000-0000-0000-000000000001' }
+        : { kind: 'result', value: [] },
+  });
+  await assert.rejects(
+    browser.readFavoriteEvents?.('123', async () => {
+      if (++authorizations > 1) throw new Error('revoked');
+    }) ?? Promise.reject(),
+    /revoked/,
+  );
+});
+
+test('isolated inbox supports a manual reply and both favorite phases with central price approval', async () => {
+  const message = { externalConversationId: '777', text: 'Hallo', attachment: null };
+  const favorite = { recipientId: '456', itemId: '99', text: 'Danke!' };
+  const offer = {
+    ...favorite,
+    conversationId: '777',
+    transactionId: '888',
+    externalMessageId: '11',
+    offer: { type: 'amount' as const, value: 5 },
+  };
+  let priceChecks = 0;
+  let offerWrites = 0;
+  let authorizations = 0;
+  const runtime = new BrowserSessionCommands({
+    version: () => 'fixture',
+    sendMessage: async (account, command, authorize) => {
+      assert.equal(account, '123');
+      assert.deepEqual(command, message);
+      await authorize();
+      return { outcome: 'sent', externalMessageId: '11' };
+    },
+    readFavoriteEvents: async (_account, authorize) => {
+      await authorize();
+      return [];
+    },
+    sendFavoriteMessage: async (account, command, authorize) => {
+      assert.equal(account, '123');
+      assert.deepEqual(command, favorite);
+      await authorize();
+      return {
+        outcome: 'sent',
+        externalMessageId: '11',
+        conversationId: '777',
+        transactionId: '888',
+      };
+    },
+    sendFavoriteOffer: async (_account, command, authorize, confirmPrice) => {
+      assert.deepEqual(command, offer);
+      await authorize();
+      if (!(await confirmPrice(4000, 3500)))
+        return { outcome: 'skipped', errorCode: 'price_unconfirmed' };
+      offerWrites++;
+      return { outcome: 'sent', externalOfferId: '22' };
+    },
+  });
+  const browser = isolatedBrowserActions({ request: (input) => runtime.request(input) });
+  const authorize = async () => {
+    authorizations++;
+  };
+  assert.deepEqual(await browser.sendMessage?.('123', message, authorize), {
+    outcome: 'sent',
+    externalMessageId: '11',
+  });
+  assert.deepEqual(await browser.readFavoriteEvents?.('123', authorize), []);
+  assert.deepEqual(await browser.sendFavoriteMessage?.('123', favorite, authorize), {
+    outcome: 'sent',
+    externalMessageId: '11',
+    conversationId: '777',
+    transactionId: '888',
+  });
+  assert.deepEqual(
+    await browser.sendFavoriteOffer?.('123', offer, authorize, async (original, offered) => {
+      assert.equal(original, 4000);
+      assert.equal(offered, 3500);
+      priceChecks++;
+      return true;
+    }),
+    { outcome: 'sent', externalOfferId: '22' },
+  );
+  assert.equal(priceChecks, 1);
+  assert.equal(offerWrites, 1);
+  assert.ok(authorizations >= 12);
+  await assert.rejects(
+    browser.sendFavoriteOffer?.('123', offer, authorize, async () => false) ?? Promise.reject(),
+  );
+  assert.equal(offerWrites, 1);
+});
+
+test('isolated results reject success without message/offer evidence and retain a versioned inbox batch', () => {
+  for (const name of ['sendMessage', 'sendFavoriteMessage', 'sendFavoriteOffer'] as const) {
+    assert.throws(() => validateBrowserResult(name, { outcome: 'sent' }));
+    assert.throws(() =>
+      validateBrowserResult(name, {
+        outcome: 'sent',
+        externalMessageId: '11',
+        externalOfferId: '22',
+        script: 'unexpected',
+      }),
+    );
+  }
+  assert.deepEqual(validateBrowserResult('readFavoriteEvents', []), []);
+});
+
+test('isolated import preserves central authorizations, article cache and inbox events without a nested RPC', async () => {
   let authorizations = 0;
   const stages: string[] = [];
   const snapshot: VintedAccountImport = {
     identity: { id: '12', username: 'fixture' },
     observedAt: '2026-10-08T00:00:00Z',
     entries: [],
+    inboxEvents: {
+      version: 1,
+      observedAt: '2026-10-08T00:00:00.000Z',
+      complete: true,
+      coveredConversationIds: ['777'],
+      events: [
+        {
+          externalId: 'message:10',
+          externalConversationId: '777',
+          occurredAt: '2026-10-07T23:59:00.000Z',
+          direction: 'inbound',
+          source: 'conversation_snapshot',
+        },
+      ],
+    },
     areas: {
       profile: { status: 'complete' },
       publications: { status: 'complete' },
@@ -27,7 +224,8 @@ test('isolated import preserves central authorizations and progress without a ne
   };
   const runtime = new BrowserSessionCommands({
     version: () => '',
-    importAccount: async (authorize, onStage) => {
+    importAccount: async (authorize, onStage, previous) => {
+      if (previous?.length) assert.equal(previous[0]?.itemTitle, 'Vintage Jacke');
       await authorize();
       await onStage?.('profile');
       await authorize();
@@ -43,6 +241,21 @@ test('isolated import preserves central authorizations and progress without a ne
       async (stage) => {
         stages.push(stage);
       },
+      [
+        {
+          externalId: '777',
+          sourceUpdatedAt: snapshot.observedAt,
+          detailCheckedAt: snapshot.observedAt,
+          text: null,
+          occurredAt: null,
+          itemId: '99',
+          itemTitle: 'Vintage Jacke',
+          itemImageUrl: null,
+          itemPrice: 40,
+          itemCurrency: 'EUR',
+          transactionStatus: 'Offen',
+        },
+      ],
     ),
     snapshot,
   );

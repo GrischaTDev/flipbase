@@ -6,6 +6,7 @@ import type { LocalMessageAttachment } from '../models/marketplace-read.models';
 import {
   parseLocalMessageEnqueue,
   parseLocalMessageList,
+  parseMarketplaceMessagePermission,
 } from '../models/vinted-messaging-response';
 import { MarketplaceApiError } from './marketplace-api.service';
 
@@ -26,7 +27,7 @@ export class VintedMessagingApiService {
   async read(scope: AccountScope, conversationId: string) {
     return parseLocalMessageList(
       resultOf(
-        await this.client.rpc('marketplace_read_local_messages', {
+        await this.client.rpc('marketplace_read_messages', {
           p_workspace_id: scope.workspaceId,
           p_connection_id: scope.connectionId,
           p_conversation_id: conversationId,
@@ -45,7 +46,7 @@ export class VintedMessagingApiService {
   ) {
     return parseLocalMessageEnqueue(
       resultOf(
-        await this.client.rpc('marketplace_enqueue_local_message', {
+        await this.client.rpc('marketplace_enqueue_message', {
           p_workspace_id: scope.workspaceId,
           p_connection_id: scope.connectionId,
           p_conversation_id: conversationId,
@@ -67,7 +68,7 @@ export class VintedMessagingApiService {
   ) {
     return parseLocalMessageEnqueue(
       resultOf(
-        await this.client.rpc('marketplace_retry_local_message', {
+        await this.client.rpc('marketplace_retry_message', {
           p_workspace_id: scope.workspaceId,
           p_connection_id: scope.connectionId,
           p_conversation_id: conversationId,
@@ -78,6 +79,38 @@ export class VintedMessagingApiService {
       scope,
       conversationId,
       messageId,
+    );
+  }
+  async readPermission(scope: AccountScope) {
+    return parseMarketplaceMessagePermission(
+      resultOf(
+        await this.client.rpc('marketplace_read_message_permission', {
+          p_workspace_id: scope.workspaceId,
+          p_connection_id: scope.connectionId,
+        }),
+      ),
+    );
+  }
+  async approveCloud(scope: AccountScope, externalAccountId: string) {
+    return parseMarketplaceMessagePermission(
+      resultOf(
+        await this.client.rpc('marketplace_approve_cloud_messages', {
+          p_workspace_id: scope.workspaceId,
+          p_connection_id: scope.connectionId,
+          p_expected_external_account_id: externalAccountId,
+        }),
+      ),
+    );
+  }
+  async revokeCloud(scope: AccountScope, authorizationVersion: number) {
+    return parseMarketplaceMessagePermission(
+      resultOf(
+        await this.client.rpc('marketplace_revoke_cloud_messages', {
+          p_workspace_id: scope.workspaceId,
+          p_connection_id: scope.connectionId,
+          p_authorization_version: authorizationVersion,
+        }),
+      ),
     );
   }
 }

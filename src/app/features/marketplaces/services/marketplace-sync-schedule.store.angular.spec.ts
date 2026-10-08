@@ -88,6 +88,20 @@ describe('Kontogebundene automatische Aktualisierung', () => {
     expect(api.set).not.toHaveBeenCalled();
     expect(store.schedule()?.enabled).toBe(false);
   });
+  it('liest nach erneuter Kontobestätigung den bereinigten Anmeldestatus sofort neu', async () => {
+    api.read.mockResolvedValue({ ...initial, pausedReason: 'needs_login' });
+    await settle();
+    expect(store.schedule()?.pausedReason).toBe('needs_login');
+
+    api.read.mockResolvedValue({ ...initial, authorizationVersion: 2 });
+    store.account.set({ ...accountA });
+    await settle();
+
+    expect(store.schedule()?.pausedReason).toBeNull();
+    expect(store.schedule()?.authorizationVersion).toBe(2);
+    expect(store.schedule()?.enabled).toBe(false);
+    expect(api.set).not.toHaveBeenCalled();
+  });
   it('speichert einen bestätigten kürzeren Abstand und erhält die Kontobindung', async () => {
     api.read.mockResolvedValue({ ...initial, enabled: true });
     api.availability.mockResolvedValue({ enabled: true, allowedIntervals: [3, 5, 10, 15, 30, 60] });
