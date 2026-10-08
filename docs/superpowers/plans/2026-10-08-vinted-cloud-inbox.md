@@ -16,7 +16,7 @@
 - Pro Konto genau ein Ausführer und höchstens eine Browseraktion; Profil und Proxy bleiben kontogebunden.
 - Maximal 5.000 Zeichen und ein JPEG-/PNG-Bild nach Komprimierung mit maximal 256 KiB.
 - Zustände bleiben `queued`, `claimed`, `sending`, `sent`, `failed`, `outcome_unknown` und `cancelled`.
-- Automatische Abgleiche öffnen keine ungelesenen Gesprächsdetails; Zeitstempeländerung allein ist kein Eingangsereignis.
+- Automatische Abgleiche öffnen keine Gesprächsseite und markieren nichts bei Vinted als gelesen. Der ausdrücklich geprüfte GET der Gesprächskopie erhält das Ungelesen-Flag; Zeitstempeländerung allein ist kein Eingangsereignis.
 - Erstabgleich setzt einen Referenzstand; alte Historie erzeugt keine neuen Glockenmeldungen.
 - Cloud-Versandfreigabe bleibt von Extension-Grants und von `syncRead` getrennt.
 - Keine automatische Wiederholung nach unklarem Versand; Freigabe- und Betriebswechsel starten keine alten Versuche erneut.
@@ -59,7 +59,7 @@ Der Plan beschreibt zusammenhängende Teile eines Postfachablaufs. Der Ereignisn
 **Dateien:**
 
 - Lesen: `docs/implementation/vinted-local-inbox.md`, `tools/flipbase-extension/vinted-local-core.js`, `tools/flipbase-extension/vinted-local-favorites.js`, `services/marketplace-worker/src/vinted-account-import.ts`.
-- Neu: `supabase/functions/_shared/marketplace-inbox-events.ts`, `tools/flipbase-extension/vinted-local-inbox-events.js`, `services/marketplace-worker/src/vinted-inbox-events.ts`.
+- Neu: `supabase/functions/_shared/marketplace-inbox-event-contracts.d.ts`, `tools/flipbase-extension/vinted-local-inbox-events.js`, `services/marketplace-worker/src/vinted-inbox-events.ts`.
 - Tests neu: `services/marketplace-worker/test/vinted-inbox-events.test.ts`, `scripts/local-extension-inbox-events.test.mjs`.
 - Nach Beleg: anonymisierte Fixtures unter `services/marketplace-worker/test/fixtures/vinted-inbox-events/`.
 
@@ -71,12 +71,13 @@ export interface MarketplaceInboxEvent {
   readonly externalConversationId: string;
   readonly occurredAt: string;
   readonly direction: 'inbound';
-  readonly source: 'conversation_list' | 'vinted_notifications';
+  readonly source: 'conversation_snapshot';
 }
 export interface MarketplaceInboxEventBatch {
   readonly observedAt: string;
   readonly events: readonly MarketplaceInboxEvent[];
   readonly complete: boolean;
+  readonly coveredConversationIds: readonly string[];
 }
 export function parseVintedInboxEvents(
   input: unknown,
@@ -85,9 +86,9 @@ export function parseVintedInboxEvents(
 ): MarketplaceInboxEventBatch;
 ```
 
-- [ ] Den bereits angemeldeten Testaccount ausschließlich lesend prüfen: tatsächliche Listen-/Benachrichtigungsform mit `mark_as_read=false`, stabile Ereignis- und Gesprächskennung sowie Beleg für eingehende Richtung ermitteln. Keine rohen Antworten oder Cookies protokollieren. Struktur mit ersetzten Kennungen festhalten; Inhalt privater Nachrichten entfernen.
-- [ ] Beleg vor dem Parser festhalten: Welche beobachteten Felder identifizieren Eingang, Gespräch, Zeitpunkt und ein weiteres Ereignis bei bereits ungelesenem Gespräch? Keine erfundene `entry_type`-Zahl verwenden. Ist kein Beleg verfügbar, diesen Nachweis als offenen externen Prüfpunkt melden und keinen Parser auf Vermutungen freischalten.
-- [ ] Zuerst Negativtests schreiben und ausführen:
+- [x] Der Nutzer hat den kontrollierten Detail-GET mit Vorher/Nachher-Prüfung ausdrücklich bestätigt. Maike Vintage blieb ungelesen. Nachricht und Preisvorschlag liefern echte Kennungen, Absender und ISO-Zeitpunkte; keine privaten Inhalte oder Kennungen wurden protokolliert.
+- [x] Quelle im Entwurf festgehalten: `conversation_snapshot`; `message.entity.id`, `offer_request_message.id`, `entity.user_id`, `created_at_ts`. Liste/Notifications/Legacyplatzhalter liefern keinen belastbaren Eingang.
+- [x] Zuerst Negativtests schreiben und ausführen:
 
 ```ts
 import assert from 'node:assert/strict';
@@ -103,10 +104,10 @@ test('list timestamps do not invent inbound events', () => {
 });
 ```
 
-- [ ] Positive Tests aus der belegten Form hinzufügen: zwei eindeutige neue Eingänge im selben ungelesenen Gespräch, Wiederholung derselben Quelle, eigenes Ereignis, unbekannter Typ, ungültige Kennung, fehlende Zeit und abgeschnittene Seite. Ungültige Quelle ergibt keinen vollständigen Referenzabgleich.
-- [ ] Reinen Parser mit strikten Kennungen/ISO-Zeiten implementieren; Cloud- und Extension-Version anhand derselben anonymisierten Fälle vergleichen. Maximal zwei Ereignisseiten mit je 100 Einträgen pro Lauf; weitere Seiten explizit als Teilstand behandeln. Kein Detail-Fallback für ungelesene Gespräche.
-- [ ] Prüfen: `node --experimental-strip-types --test services/marketplace-worker/test/vinted-inbox-events.test.ts` und `node --test scripts/local-extension-inbox-events.test.mjs`. Beide müssen bestehen; ohne Quellenbeleg endet dieser Schritt nicht als erledigt.
-- [ ] Fokussiert committen: `test(auth): establish inbound Vinted event contract` beziehungsweise `feat(auth): parse verified Vinted inbox events`.
+- [x] Positive Tests aus der belegten Form hinzufügen: zwei eindeutige neue Eingänge im selben ungelesenen Gespräch, Wiederholung derselben Quelle, eigenes Ereignis, unbekannter Typ, ungültige Kennung, fehlende Zeit und abgeschnittene Seite. Ungültige Quelle ergibt keinen vollständigen Referenzabgleich.
+- [x] Reinen Parser mit strikten Kennungen/ISO-Zeiten implementieren; Cloud- und Extension-Version anhand derselben anonymisierten Fälle vergleichen. Maximal drei geänderte GET-Kopien mit je 200 Nachrichten, ohne Navigation oder `mark_as_read`. Referenzstand je vollständig belegtem Gespräch; weitere oder fehlerhafte Kopien bleiben Teilstand.
+- [x] Prüfen: `node --experimental-strip-types --test services/marketplace-worker/test/vinted-inbox-events.test.ts` und `node --test scripts/local-extension-inbox-events.test.mjs`. Beide müssen bestehen; ohne Quellenbeleg endet dieser Schritt nicht als erledigt.
+- [x] Fokussiert committen: `test(auth): establish inbound Vinted event contract` beziehungsweise `feat(auth): parse verified Vinted inbox events`.
 
 ## Aufgabe 2: Gemeinsame Outbox und Cloud-Versandfreigabe
 

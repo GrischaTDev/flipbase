@@ -8,9 +8,16 @@ Benachrichtigungen und vorhandener Favoritenregeln.
 **Zwischenstand:** Hauptzweig integriert. Lesende Prüfung am gebundenen Testprofil:
 Preisvorschlag und Textnachricht erscheinen in der Gesprächsliste, aber nicht als
 Nachrichtenereignisse in Vinteds Benachrichtigungsliste. Die Liste selbst liefert
-keine stabile Nachrichtenkennung oder Absenderrichtung. Ungelesene Details bleiben
-geschlossen; die Quellenprüfung ist offen und ein Parser wird nicht auf Vermutung
-freigeschaltet.
+keine stabile Nachrichtenkennung oder Absenderrichtung. Der anschließend ausdrücklich
+freigegebene GET einer Gesprächskopie erhält das Ungelesen-Flag im Testprofil.
+Preisvorschlag und Textnachricht liefern echte Kennungen, Absender und ISO-Zeiten.
+Der Webclient verwendet eine getrennte Gelesen-Markierung; diese wurde nicht aufgerufen.
+
+**Eingangsvertrag:** Cloud und Extension parsen dieselbe anonymisierte Kopie ohne
+private Texte oder Nutzerkennungen. Eigene Nachrichten, Listenänderungen, fehlende
+Kennungen, unbekannte Absender und widersprüchliche Ereignisse erzeugen keine
+erfundenen Eingänge. Teilkopien setzen keinen vollständigen Referenzstand. Die
+Glockenübernahme und der begrenzte Hintergrundleser folgen noch; nicht veröffentlicht.
 
 **Umsetzung:** Gemeinsamer Nachrichtenvertrag und Browseradapter für einen
 autorisierungsgebundenen Replyversuch. Eindeutiger Textnachweis ist erforderlich;

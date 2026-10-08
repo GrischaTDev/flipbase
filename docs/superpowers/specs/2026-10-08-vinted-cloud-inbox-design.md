@@ -90,21 +90,29 @@ Ausführer. Ein abgelaufener Claim allein erlaubt keinen zweiten Versand.
 
 ## Neue Nachrichten und Glocke
 
-Automatische Abgleiche lesen die Gesprächsliste und belastbare Ereignisdaten,
-ohne ungelesene Gesprächsdetails zu öffnen oder Vinted-Benachrichtigungen als
-gelesen zu markieren. Beide Betriebsarten liefern denselben bereinigten
+Automatische Abgleiche lesen die Gesprächsliste und begrenzte, geänderte
+Gesprächskopien per GET. Sie öffnen keine Gesprächsseite im Browser und rufen
+keine Gelesen-Markierung auf. Beide Betriebsarten liefern denselben bereinigten
 Ereignisvertrag mit Konto, Gespräch, Quelle und stabiler Ereigniskennung.
 
 Eine Änderung von `updated_at` allein beweist keine eingehende Nachricht.
 Benachrichtigt wird nur bei einem belegten eingehenden Nachrichtenereignis.
-Fehlt in der Liste ein eindeutiger Nachweis, darf der Ereignisleser ausschließlich
-belegte Daten des vorhandenen Vinted-Benachrichtigungspfads verwenden; dessen
-Nachrichtenform wird vor Umsetzung anhand gespeicherter oder ausdrücklich
-freigegebener lesender Antworten geprüft. Ungelesene Details werden hierfür
-nicht ersatzweise geöffnet. Ohne belastbaren Nachweis wird keine Nachricht
-erfunden und die Funktion nicht als vollständig abgenommen bezeichnet.
+Die ausdrücklich freigegebene Prüfung am 08.10.2026 bestätigt für Maike Vintage:
+GET `/api/v2/conversations/{id}` erhält das Ungelesen-Flag vor und nach dem Abruf.
+Der tatsächliche Webclient verwendet einen getrennten PUT für `mark_as_read`.
+Die Kopie enthält `message.entity.id` bzw. bei `offer_request_message` die äußere
+`id`, `entity.user_id` und einen ISO-Zeitpunkt mit Zeitzone in `created_at_ts`.
+Listenrevisionen, Vinteds Benachrichtigungsliste und `legacy_last_message` mit
+`sender_id=0` belegen dagegen keinen Nachrichteneingang.
 
-Der erste erfolgreiche Ereignisabgleich setzt einen dauerhaften Referenzstand.
+Damit ist `conversation_snapshot` die belegte Eingangsquelle. Pro Lauf werden
+höchstens drei geänderte Gespräche mit je höchstens 200 Nachrichten verarbeitet.
+Nur Nachrichten vom bestätigten Gesprächspartner zählen als Eingang. Fehlende
+Kennungen, unbekannte Absender oder abgeschnittene Kopien bestätigen keinen
+Referenzstand. Die Prüfung belegt das aktuelle Testprofil, keine unveränderliche
+Garantie des Anbieters; eine beobachtete Lesestatusänderung stoppt diesen Pfad.
+
+Der erste vollständige Abgleich je Gespräch setzt einen dauerhaften Referenzstand.
 Alte Historie wird nicht nachträglich als neue Nachricht gemeldet. Wiederholte
 Imports erzeugen über die eindeutige Konto- und Ereigniskennung keine weiteren
 Glockeneinträge. Eigene gesendete Nachrichten und unbekannte Ereignistypen
