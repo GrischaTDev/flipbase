@@ -45,10 +45,6 @@ function fixture(
     verifyFirewall: async () => {
       if (settings.firewallUnavailable) throw new Error('Firewall nicht geprüft');
     },
-    connect: async () => {
-      if (settings.startupFailure) throw new Error('Chromium startup failed');
-      return browser;
-    },
     executeDesktop: async (args, input) => {
       calls.push({ args, input });
       return Buffer.alloc(0);
@@ -60,7 +56,7 @@ function fixture(
           {
             Config: {
               Labels: !settings.legacyRuntime
-                ? { 'de.flipbase.chromium.runtime': 'chrome-desktop-v1' }
+                ? { 'de.flipbase.chromium.runtime': 'isolated-actions-v1' }
                 : {},
             },
           },
@@ -103,7 +99,7 @@ function fixture(
             Config: {
               Labels: {
                 ...(!settings.legacyRuntime
-                  ? { 'de.flipbase.chromium.runtime': 'chrome-desktop-v1' }
+                  ? { 'de.flipbase.chromium.runtime': 'isolated-actions-v1' }
                   : {}),
                 'de.flipbase.chromium.role': 'session',
                 'de.flipbase.chromium.host': 'pilot-01',
@@ -144,6 +140,10 @@ function fixture(
         return containerId;
       }
       if (args[0] === 'exec' && settings.startupFailure) running = false;
+      if (args[0] === 'exec' && args.includes('/app/runtime/session-command.ts')) {
+        if (settings.startupFailure) throw new Error('Startup failed');
+        return JSON.stringify({ ready: true });
+      }
       if (args[0] === 'rm') {
         removed = !settings.removalUnconfirmed;
         return containerId;
@@ -163,7 +163,7 @@ function fixture(
 
 test('creates only a private constrained session and sends secrets through stdin', async () => {
   const { launcher, calls } = fixture();
-  const context = await launcher.launch('/controller/profiles/account-1', {
+  await launcher.launch('/controller/profiles/account-1', {
     chromiumSandbox: true,
     proxy: {
       server: 'http://example.invalid:8080',
@@ -186,13 +186,13 @@ test('creates only a private constrained session and sends secrets through stdin
     false,
   );
   assert.ok(calls.some((call) => call.input?.includes('private-password')));
-  await context.close();
+  await launcher.recover('account-1');
   assert.deepEqual(await launcher.inspectProfileProcesses('/controller/profiles/account-1'), []);
 });
 
 test('native desktop input stays in the verified profile container and stops after closure', async () => {
   const { launcher, calls } = fixture();
-  const context = await launcher.launch('/controller/profiles/account-1');
+  await launcher.launch('/controller/profiles/account-1');
   const desktop = launcher.desktop('/controller/profiles/account-1');
   await desktop.type('fixture-private-password');
   const input = calls.find((call) => call.args.includes('xdotool'));
@@ -202,7 +202,7 @@ test('native desktop input stays in the verified profile container and stops aft
     input?.args.some((argument) => argument.includes('fixture-private-password')),
     false,
   );
-  await context.close();
+  await launcher.recover('account-1');
   await assert.rejects(desktop.type('fixture-private-password'));
 });
 
@@ -231,10 +231,10 @@ test('browser allocation must leave the controller address outside its dynamic p
 
 test('retains containers after forced or unresolved shutdown', async () => {
   const { launcher, calls } = fixture(137);
-  const context = await launcher.launch('/controller/profiles/account-1', {
+  await launcher.launch('/controller/profiles/account-1', {
     chromiumSandbox: true,
   });
-  await assert.rejects(() => context.close(), /Stop|stop|beendet/);
+  await assert.rejects(() => launcher.recover('account-1'), /Stop|stop|beendet/);
   assert.equal(
     calls.some((call) => call.args[0] === 'rm'),
     false,
@@ -292,16 +292,16 @@ test('a successful removal command alone does not release the profile', async ()
 
 test('a failed close can be retried after Docker becomes inspectable', async () => {
   const { launcher, failInspection } = fixture();
-  const context = await launcher.launch('/controller/profiles/account-1', {});
+  await launcher.launch('/controller/profiles/account-1', {});
   failInspection();
-  await assert.rejects(() => context.close());
-  await context.close();
+  await assert.rejects(() => launcher.recover('account-1'));
+  await launcher.recover('account-1');
   assert.deepEqual(await launcher.inspectProfileProcesses('/controller/profiles/account-1'), []);
 });
 
 test('accepts production launch options but keeps the container environment fixed', async () => {
   const { launcher, calls } = fixture();
-  const context = await launcher.launch('/controller/profiles/account-1', {
+  await launcher.launch('/controller/profiles/account-1', {
     headless: false,
     chromiumSandbox: true,
     acceptDownloads: false,
@@ -318,7 +318,7 @@ test('accepts production launch options but keeps the container environment fixe
       SYSTEMROOT: 'C:\\Windows',
     },
   });
-  assert.ok(context.browser());
+
   const creation = calls.find((call) => call.args[0] === 'create');
   assert.ok(creation);
   assert.equal(
@@ -329,7 +329,7 @@ test('accepts production launch options but keeps the container environment fixe
     calls.some((call) => call.input?.includes('/private-controller')),
     false,
   );
-  await context.close();
+  await launcher.recover('account-1');
 });
 
 test('recovers a confirmed clean startup failure and allows the same profile to reopen', async () => {
@@ -340,7 +340,7 @@ test('recovers a confirmed clean startup failure and allows the same profile to 
     false,
   );
   assert.deepEqual(await launcher.inspectProfileProcesses('/controller/profiles/account-1'), []);
-  assert.ok(await launcher.launch('/controller/profiles/account-1'));
+  await launcher.launch('/controller/profiles/account-1');
 });
 
 test('recovers a stopped runtime failure without restarting its container', async () => {
@@ -356,8 +356,8 @@ test('recovers a stopped runtime failure without restarting its container', asyn
 
 test('confirms a runtime failure during close before releasing its profile', async () => {
   const { launcher } = fixture(1);
-  const context = await launcher.launch('/controller/profiles/account-1');
-  await context.close();
+  await launcher.launch('/controller/profiles/account-1');
+  await launcher.recover('account-1');
   assert.deepEqual(await launcher.inspectProfileProcesses('/controller/profiles/account-1'), []);
 });
 

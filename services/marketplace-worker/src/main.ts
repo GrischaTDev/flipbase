@@ -5,7 +5,7 @@ import { ChromiumAccountProfileRegistry } from './chromium-account-profile-regis
 import { ChromiumBoundProfileStore } from './chromium-bound-profile-store.ts';
 import { ChromiumBrokerClient } from './chromium-broker-client.ts';
 import { ChromiumNetworkProfiles } from './chromium-network-profiles.ts';
-import { ChromiumPersistentBrowser } from './chromium-persistent-browser.ts';
+import { IsolatedChromiumBrowser } from './isolated-chromium-browser.ts';
 import { ChromiumProfileProvisioner } from './chromium-profile-provisioner.ts';
 import { ChromiumProfileStore } from './chromium-profile-store.ts';
 import { MarketplaceProfileBrowser } from './marketplace-profile-browser.ts';
@@ -36,8 +36,25 @@ import { IpRoyalCloudIpSync } from './iproyal-cloud-ip-sync.ts';
 
 async function main(): Promise<void> {
   const config = marketplaceBrowserServerConfig(process.env);
+  const isolatedLauncher =
+    config.provider !== 'local'
+      ? await ChromiumBrokerClient.create(
+          join(config.serverProfileRoot ?? '/var/lib/flipbase-marketplace', 'profiles'),
+        )
+      : undefined;
   const goLogin = config.goLoginToken
-    ? new GoLoginCloudBrowser({ token: config.goLoginToken, startUrl: 'https://www.vinted.de/' })
+    ? new GoLoginCloudBrowser({
+        token: config.goLoginToken,
+        startUrl: 'https://www.vinted.de/',
+        ...(isolatedLauncher
+          ? {
+              isolated: {
+                open: (profileId, token) => isolatedLauncher.launchGoLogin(profileId, token),
+                stop: (profileId) => isolatedLauncher.recover(profileId),
+              },
+            }
+          : {}),
+      })
     : undefined;
   const legacyProfiles = config.goLoginToken
     ? new GoLoginProfileProvisioner({
@@ -72,7 +89,8 @@ async function main(): Promise<void> {
     )
       throw new Error('Chromium-Konfiguration fehlt');
     const profileRoot = join(config.serverProfileRoot, 'profiles');
-    const launcher = await ChromiumBrokerClient.create(profileRoot);
+    const launcher = isolatedLauncher;
+    if (!launcher) throw new Error('Isolierter Browserdienst fehlt');
     const chromiumRegistry = new ChromiumAccountProfileRegistry({
       root: config.serverProfileRoot,
       hostId: config.chromiumHostId,
@@ -83,8 +101,8 @@ async function main(): Promise<void> {
     networks = await ChromiumNetworkProfiles.load(config.chromiumNetworkFile);
     networks.resolve(config.chromiumNetworkId);
     const configuredNetworks = networks;
-    const chromium = new ChromiumPersistentBrowser({
-      profileStore: new ChromiumProfileStore({
+    const chromium = new IsolatedChromiumBrowser({
+      profiles: new ChromiumProfileStore({
         root: profileRoot,
         inspectProfileProcesses: (directory) => launcher.inspectProfileProcesses(directory),
       }),
@@ -92,9 +110,7 @@ async function main(): Promise<void> {
         resolve: async (profileId) =>
           configuredNetworks.resolve((await chromiumRegistry.resolve(profileId)).networkId),
       },
-      launch: (directory, settings) => launcher.launch(directory, settings ?? {}),
-      recoverRuntime: (profileId) => launcher.recover(profileId),
-      desktop: (profileId) => launcher.desktop(join(profileRoot, profileId)),
+      launcher,
     });
     browser = new MarketplaceProfileBrowser({ chromium, goLogin, chromiumRegistry });
     chromiumProfileOptions = {
@@ -115,12 +131,14 @@ async function main(): Promise<void> {
       })
     : undefined;
   let syncRunner: MarketplaceSyncRunner | undefined;
+  const sessionLifecycle: { broker?: MarketplaceBrowserSessionBroker } = {};
   const workerLifecycle: { stop?: () => Promise<void> } = {};
   const dispatcher = dispatchStore
     ? new MarketplaceSyncDispatcher({
         store: dispatchStore,
         includeScheduled: config.scheduledSyncEnabled,
         maxJobsPerPoll: 32,
+        prepareDispatch: () => sessionLifecycle.broker?.prepareDispatch() ?? Promise.resolve(),
         run: (scope) => {
           if (!syncRunner) return Promise.reject(new Error('Abrufdienst ist noch nicht bereit'));
           return syncRunner.runDispatched(scope);
@@ -185,6 +203,7 @@ async function main(): Promise<void> {
     recovery,
     authorizeRuntime: dispatcher ? () => dispatcher.heartbeat() : undefined,
   });
+  sessionLifecycle.broker = broker;
   await broker.ready();
   if (cloudSetupStore && profiles instanceof ChromiumProfileProvisioner) {
     const inventory =

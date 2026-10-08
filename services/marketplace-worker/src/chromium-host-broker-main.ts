@@ -1,5 +1,6 @@
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
+import { GoLoginSessionProxy } from './gologin-session-proxy.ts';
 import { ChromiumContainerLauncher } from './chromium-container-launcher.ts';
 import { chromiumHostHandler, chromiumHostOperations } from './chromium-host-broker.ts';
 
@@ -13,7 +14,12 @@ async function main(): Promise<void> {
     hostProfileRoot: '/opt/flipbase-marketplace/chromium/profiles',
   });
   const token = (await readFile('/run/secrets/chromium-broker-token', 'utf8')).trim();
-  const handler = chromiumHostHandler(token, chromiumHostOperations(launcher, profileRoot));
+  const goLoginProxy = new GoLoginSessionProxy();
+  goLoginProxy.server.listen(4181, '172.30.88.3');
+  const handler = chromiumHostHandler(
+    token,
+    chromiumHostOperations(launcher, profileRoot, goLoginProxy),
+  );
   const server = createServer((request, response) => {
     void handler(request, response);
   });

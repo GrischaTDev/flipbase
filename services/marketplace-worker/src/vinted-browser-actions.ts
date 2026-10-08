@@ -53,6 +53,12 @@ export function vintedBrowserActions(
   const currentPage = () => currentVintedPage(connection);
   return {
     version: () => connection.version(),
+    initialize: async () => {
+      await currentPage().goto('https://www.vinted.de/', {
+        waitUntil: 'domcontentloaded',
+        timeout: 20000,
+      });
+    },
     capture: () =>
       desktop?.capture() ??
       currentPage().screenshot({

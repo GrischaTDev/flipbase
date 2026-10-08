@@ -2,8 +2,10 @@ import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { posix } from 'node:path';
-import { chromium, type Browser, type BrowserContext } from 'playwright';
+import type { chromium } from 'playwright';
+import { browserCommandLimit, commandRecord } from './isolated-browser-actions.ts';
 import { CloudBrowserStopUncertainError } from './gologin-cloud-browser.ts';
+import { DockerSessionChannel } from './docker-session-channel.ts';
 import { ChromiumDesktopControls } from './chromium-desktop-controls.ts';
 
 type LaunchOptions = NonNullable<Parameters<typeof chromium.launchPersistentContext>[1]>;
@@ -17,7 +19,6 @@ export interface ChromiumContainerLauncherOptions {
   seccompProfile?: string;
   firewallStatusFile?: string;
   execute?: DockerExecute;
-  connect?: (endpoint: string) => Promise<Browser>;
   verifyFirewall?: () => Promise<void>;
   executeDesktop?: (argumentsList: string[], input?: string) => Promise<Buffer>;
 }
@@ -29,7 +30,7 @@ async function executeDocker(argumentsList: string[], input?: string): Promise<s
       ['--host=unix:///var/run/docker.sock', ...argumentsList],
       {
         timeout: 150_000,
-        maxBuffer: 1024 * 1024,
+        maxBuffer: browserCommandLimit,
         // Kein Docker-Kontext oder Zugangsschlüssel aus dem Browserprofil übernehmen.
         env: { PATH: process.env.PATH, HOME: process.env.HOME },
       },
@@ -89,9 +90,10 @@ function isCleanStartupFailure(state: Record<string, unknown>): boolean {
 export class ChromiumContainerLauncher {
   private readonly options: ChromiumContainerLauncherOptions;
   private readonly execute: DockerExecute;
+  private readonly channels = new Map<string, DockerSessionChannel>();
   private readonly desktops = new Map<
     string,
-    { containerId: string; width: number; height: number; endpoint: string }
+    { containerId: string; width: number; height: number }
   >();
 
   constructor(options: ChromiumContainerLauncherOptions) {
@@ -146,7 +148,7 @@ export class ChromiumContainerLauncher {
       if (
         attestation.bootId !== bootId ||
         attestation.network !== this.options.network ||
-        attestation.policy !== 'v2' ||
+        attestation.policy !== 'v3' ||
         typeof attestation.checkedAt !== 'number' ||
         Date.now() - attestation.checkedAt > 90_000 ||
         attestation.checkedAt > Date.now()
@@ -269,6 +271,8 @@ export class ChromiumContainerLauncher {
   }
 
   private async stopAndRemove(containerId: string, profileId: string): Promise<void> {
+    this.channels.get(containerId)?.close();
+    this.channels.delete(containerId);
     let container = await this.inspect(containerId, profileId);
     if (record(container.State).Running === true) {
       await this.execute(['stop', '--time', '120', containerId]);
@@ -295,14 +299,25 @@ export class ChromiumContainerLauncher {
     if ((await this.containers(profileId)).length) throw new CloudBrowserStopUncertainError();
   }
 
-  async launch(directory: string, options: LaunchOptions = {}): Promise<BrowserContext> {
+  async launch(
+    directory: string,
+    options: LaunchOptions = {},
+    remoteEndpoint?: string,
+  ): Promise<void> {
     const profileId = this.profileId(directory);
     const launchOptions = this.safeLaunchOptions(options);
+    if (remoteEndpoint !== undefined) {
+      if (!/^ws:\/\/172\.30\.88\.3:4181\/session\/[0-9a-f-]{36}$/.test(remoteEndpoint))
+        throw new Error('Ungültiger GoLogin-Sitzungskanal');
+      launchOptions.remoteEndpoint = remoteEndpoint;
+    }
     await this.verifyNetwork();
     const image = record(
       array(JSON.parse(await this.execute(['image', 'inspect', this.options.image])))[0],
     );
-    if (record(record(image.Config).Labels)['de.flipbase.chromium.runtime'] !== 'chrome-desktop-v1')
+    if (
+      record(record(image.Config).Labels)['de.flipbase.chromium.runtime'] !== 'isolated-actions-v1'
+    )
       throw new Error('Das Cloud-Browserimage benötigt den normalen Chrome-Desktop');
     if ((await this.inspectProfileProcesses(directory)).length)
       throw new CloudBrowserStopUncertainError();
@@ -362,49 +377,27 @@ export class ChromiumContainerLauncher {
         !/^172\.30\.88\.(?:12[89]|1[3-9]\d|2[0-4]\d|25[0-4])$/.test(address)
       )
         throw new Error('Ungültiger privater Chromium-Endpunkt');
-      const connect =
-        this.options.connect ??
-        ((endpoint) => chromium.connectOverCDP(endpoint, { timeout: 2000, noDefaults: true }));
-      let browser: Browser | undefined;
-      const deadline = Date.now() + 60_000;
-      while (!browser && Date.now() < deadline) {
-        try {
-          browser = await connect(`http://${address}:9222`);
-        } catch {
-          const state = record((await this.inspect(containerId, profileId)).State);
-          if (isCleanStartupFailure(state)) throw new Error('Chromium-Start wurde beendet');
-          await new Promise((resolve) => setTimeout(resolve, 250));
-        }
-      }
-      if (!browser) throw new Error('Chromium-Sitzung nicht bereit');
-      const context = browser.contexts()[0];
-      if (!context || browser.contexts().length !== 1)
-        throw new Error('Chromium-Profilkontext fehlt');
       const dimensions = record(launchOptions.viewport);
       if (typeof dimensions.width !== 'number' || typeof dimensions.height !== 'number')
         throw new Error('Browseranzeige fehlt');
       this.desktops.set(profileId, {
         containerId,
-        endpoint: `http://${address}:9222`,
         width: dimensions.width,
         height: dimensions.height,
       });
-      let closing: Promise<void> | undefined;
-      context.close = () => {
-        closing ??= (async () => {
-          try {
-            await (await browser.newBrowserCDPSession()).send('Browser.close');
-          } catch {
-            /* Docker bestätigt anschließend den tatsächlichen Stopp. */
-          }
-          await this.stopAndRemove(containerId, profileId);
-        })().catch((error: unknown) => {
-          closing = undefined;
-          throw error;
-        });
-        return closing;
-      };
-      return context;
+      const deadline = Date.now() + 60000;
+      while (Date.now() < deadline) {
+        try {
+          const ready = commandRecord(await this.command(profileId, { action: 'ready' }));
+          if (ready.ready === true) return;
+        } catch {
+          // Fehlermeldungen aus dem Container bleiben privat.
+        }
+        const state = record((await this.inspect(containerId, profileId)).State);
+        if (isCleanStartupFailure(state)) throw new Error('Chromium-Start wurde beendet');
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      }
+      throw new Error('Chromium-Sitzung nicht bereit');
     } catch {
       try {
         await this.stopAndRemove(containerId, profileId);
@@ -436,9 +429,46 @@ export class ChromiumContainerLauncher {
     });
   }
 
-  endpoint(directory: string): string {
-    const session = this.desktops.get(this.profileId(directory));
+  async command(profileId: string, input: unknown): Promise<unknown> {
+    const session = this.desktops.get(profileId);
     if (!session) throw new Error('Browsersitzung fehlt');
-    return session.endpoint;
+    // Der offene Kanal ist an eine unveränderliche Container-ID gebunden. Stopp schließt ihn;
+    // ein beendeter oder pausierter Container liefert keine erfolgreiche Befehlsantwort.
+    if (this.options.execute || !this.channels.has(session.containerId)) {
+      const state = record((await this.inspect(session.containerId, profileId)).State);
+      if (state.Running !== true || state.Paused !== false || state.Restarting !== false)
+        throw new Error('Browsersitzung nicht verfügbar');
+    }
+    const serialized = JSON.stringify(input);
+    if (Buffer.byteLength(serialized) > browserCommandLimit)
+      throw new Error('Browserauftrag zu groß');
+    if (!this.options.execute) {
+      let channel = this.channels.get(session.containerId);
+      if (!channel) {
+        channel = new DockerSessionChannel(session.containerId);
+        this.channels.set(session.containerId, channel);
+      }
+      try {
+        return await channel.request(input);
+      } catch (error) {
+        channel.close();
+        if (this.channels.get(session.containerId) === channel)
+          this.channels.delete(session.containerId);
+        throw error;
+      }
+    }
+    const output = await this.execute(
+      [
+        'exec',
+        '-i',
+        session.containerId,
+        'node',
+        '--experimental-strip-types',
+        '/app/runtime/session-command.ts',
+      ],
+      serialized,
+    );
+    if (Buffer.byteLength(output) > browserCommandLimit) throw new Error('Browserantwort zu groß');
+    return JSON.parse(output);
   }
 }

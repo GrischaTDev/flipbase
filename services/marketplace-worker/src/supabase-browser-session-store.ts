@@ -113,6 +113,37 @@ export class SupabaseBrowserSessionStore {
     return { id: value['id'], scope: { ...scope }, expiresAt, active: true };
   }
 
+  /** Ein fremdes Konto darf eine freie Sitzung erst nach eigener Zugangsprüfung ablösen. */
+  async authorizeScope(scope: BrowserSessionScope): Promise<void> {
+    if (
+      (await this.authenticatedUserId(scope.userAccessToken)) !== scope.userId ||
+      (await this.callUserRpc('marketplace_can_manage', scope.userAccessToken, {
+        p_workspace_id: scope.workspaceId,
+      })) !== true
+    )
+      throw new Error('Sitzungszugriff verweigert');
+    const url = new URL('/rest/v1/marketplace_connections', this.baseUrl);
+    url.searchParams.set('select', 'id,status');
+    url.searchParams.set('id', `eq.${scope.connectionId}`);
+    url.searchParams.set('workspace_id', `eq.${scope.workspaceId}`);
+    url.searchParams.set('execution_mode', 'eq.cloud');
+    url.searchParams.set('marketplace', 'eq.vinted');
+    const rows = await this.read(
+      await this.request(url, {
+        headers: { apikey: this.publishableKey, Authorization: `Bearer ${scope.userAccessToken}` },
+        signal: AbortSignal.timeout(10000),
+      }),
+    );
+    if (
+      !Array.isArray(rows) ||
+      rows.length !== 1 ||
+      !isRecord(rows[0]) ||
+      rows[0]['id'] !== scope.connectionId ||
+      ['paused', 'blocked'].includes(String(rows[0]['status']))
+    )
+      throw new Error('Sitzungszugriff verweigert');
+  }
+
   async assertActive(lease: BrowserLease): Promise<boolean> {
     if (lease.scope.syncRead) {
       const value = await this.callReadRpc(lease.scope, 'marketplace_sync_heartbeat');
