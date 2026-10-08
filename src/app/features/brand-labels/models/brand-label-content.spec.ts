@@ -53,8 +53,7 @@ describe('Labelinhalt – Struktur und unveränderte Originalangaben', () => {
   });
   for (const value of [null, undefined, [], 'Nike', 123, true]) {
     it(`weist einen falschen Wurzeltyp zurück: ${String(value)}`, () =>
-      rejects(value, 'invalid-object'),
-    );
+      rejects(value, 'invalid-object'));
   }
   it('weist unbekannte globale Schreib-/Rollenfelder zurück', () => {
     rejects({ ...content(), isOperator: true }, 'unknown-field');
@@ -95,7 +94,10 @@ describe('Labelinhalt – Struktur und unveränderte Originalangaben', () => {
     rejects(Object.assign(Object.create({ role: 'admin' }), content()), 'invalid-object');
   });
   it('akzeptiert reine Objekte ohne Prototyp', () => {
-    assert.deepEqual(validateLabelContent(Object.assign(Object.create(null), content())), content());
+    assert.deepEqual(
+      validateLabelContent(Object.assign(Object.create(null), content())),
+      content(),
+    );
   });
   it('verweigert künstliche Löcher in Listen', () => {
     rejects({ ...content(), aliases: new Array(1) }, 'invalid-array');
@@ -122,20 +124,24 @@ describe('Labelinhalt – Text- und Mengengrenzen', () => {
     ['timeSummary', 4000],
   ] as const) {
     it(`${name} akzeptiert die genaue Grenze`, () => {
-      assert.equal(validateLabelContent({ ...content(), [name]: 'ä'.repeat(cap) })[name].length, cap);
+      assert.equal(
+        validateLabelContent({ ...content(), [name]: 'ä'.repeat(cap) })[name].length,
+        cap,
+      );
     });
     it(`${name} weist Grenze plus eins zurück`, () =>
-      rejects({ ...content(), [name]: 'x'.repeat(cap + 1) }, 'text-too-long'),
-    );
+      rejects({ ...content(), [name]: 'x'.repeat(cap + 1) }, 'text-too-long'));
   }
   it('zählt Unicode-Codepoints statt UTF-16-Einheiten', () => {
-    assert.equal(validateLabelContent({ ...content(), title: '🧵'.repeat(160) }).title, '🧵'.repeat(160));
+    assert.equal(
+      validateLabelContent({ ...content(), title: '🧵'.repeat(160) }).title,
+      '🧵'.repeat(160),
+    );
     rejects({ ...content(), title: '🧵'.repeat(161) }, 'text-too-long');
   });
   for (const title of ['abc\u0000def', '\ud800', '\udfff']) {
     it('verweigert nicht in PostgreSQL-JSON übertragbare Textzeichen', () =>
-      rejects({ ...content(), title }, 'invalid-text'),
-    );
+      rejects({ ...content(), title }, 'invalid-text'));
   }
   it('erlaubt 20 Aliase und verweigert den 21.', () => {
     const aliases = Array.from({ length: 20 }, (_, i) => `Alias ${i}`);
@@ -143,7 +149,10 @@ describe('Labelinhalt – Text- und Mengengrenzen', () => {
     rejects({ ...content(), aliases: [...aliases, 'zu viel'] }, 'too-many-items');
   });
   it('begrenzt jeden Alias auf 80 Zeichen', () => {
-    assert.equal(validateLabelContent({ ...content(), aliases: ['x'.repeat(80)] }).aliases[0]?.length, 80);
+    assert.equal(
+      validateLabelContent({ ...content(), aliases: ['x'.repeat(80)] }).aliases[0]?.length,
+      80,
+    );
     rejects({ ...content(), aliases: ['x'.repeat(81)] }, 'text-too-long');
   });
   for (const field of ['features', 'limitations'] as const) {
@@ -169,8 +178,7 @@ describe('Labelinhalt – Text- und Mengengrenzen', () => {
 describe('Labelinhalt – Quellen und Zeiträume', () => {
   for (const kind of ['neck-label', 'care-size-label'] as const) {
     it(`akzeptiert die Labelart ${kind}`, () =>
-      assert.deepEqual(validateLabelContent({ ...content(), kinds: [kind] }).kinds, [kind]),
-    );
+      assert.deepEqual(validateLabelContent({ ...content(), kinds: [kind] }).kinds, [kind]));
   }
   it('verweigert unbekannte und doppelte Labelarten', () => {
     rejects({ ...content(), kinds: ['sneaker'] }, 'invalid-value');
@@ -178,18 +186,18 @@ describe('Labelinhalt – Quellen und Zeiträume', () => {
   });
   for (const evidenceLevel of ['well-supported', 'partially-supported', 'undated'] as const) {
     it(`akzeptiert den Belegzustand ${evidenceLevel}`, () =>
-      assert.equal(validateLabelContent({ ...content(), evidenceLevel }).evidenceLevel, evidenceLevel),
-    );
+      assert.equal(
+        validateLabelContent({ ...content(), evidenceLevel }).evidenceLevel,
+        evidenceLevel,
+      ));
   }
   it('verweigert einen erfundenen Echtheitszustand', () =>
-    rejects({ ...content(), evidenceLevel: 'authentic' }, 'invalid-value'),
-  );
+    rejects({ ...content(), evidenceLevel: 'authentic' }, 'invalid-value'));
   it('verweigert umgekehrte Intervalle', () =>
     rejects(
       { ...content(), intervals: [{ startYear: 1999, endYear: 1990, sourceIds: ['s1'] }] },
       'invalid-interval',
-    ),
-  );
+    ));
   for (const bounds of [
     [1990, 1990],
     [null, 1990],
@@ -198,7 +206,10 @@ describe('Labelinhalt – Quellen und Zeiträume', () => {
   ] as const) {
     it(`bewahrt gültige Intervallgrenzen ${bounds.join('/')}`, () => {
       const interval = { startYear: bounds[0], endYear: bounds[1], sourceIds: ['s1'] };
-      assert.deepEqual(validateLabelContent({ ...content(), intervals: [interval] }).intervals[0], interval);
+      assert.deepEqual(
+        validateLabelContent({ ...content(), intervals: [interval] }).intervals[0],
+        interval,
+      );
     });
   }
   for (const startYear of [0, -1, 1990.5, '1990', NaN, Infinity, 10000]) {
@@ -206,8 +217,7 @@ describe('Labelinhalt – Quellen und Zeiträume', () => {
       rejects(
         { ...content(), intervals: [{ startYear, endYear: null, sourceIds: [] }] },
         'invalid-year',
-      ),
-    );
+      ));
   }
   it('erlaubt unvollständige Quellenangaben nur als strukturellen Entwurf', () => {
     const source = { id: 's1', title: '', publisher: '', url: '', accessedAt: null, locator: '' };
@@ -223,54 +233,51 @@ describe('Labelinhalt – Quellen und Zeiträume', () => {
     'https://exa\nmple.com',
   ]) {
     it(`verweigert unsichere Quellenadresse ${JSON.stringify(url)}`, () =>
-      rejects({ ...content(), sources: [{ ...content().sources[0], url }] }, 'invalid-url'),
-    );
+      rejects({ ...content(), sources: [{ ...content().sources[0], url }] }, 'invalid-url'));
   }
   it('begrenzt Quellenadressen auf 2048 Zeichen', () => {
     const prefix = 'https://example.com/';
     const url = prefix + 'x'.repeat(2048 - prefix.length);
     assert.equal(
-      validateLabelContent({ ...content(), sources: [{ ...content().sources[0], url }] }).sources[0]?.url,
+      validateLabelContent({ ...content(), sources: [{ ...content().sources[0], url }] }).sources[0]
+        ?.url,
       url,
     );
-    rejects({ ...content(), sources: [{ ...content().sources[0], url: url + 'x' }] }, 'text-too-long');
+    rejects(
+      { ...content(), sources: [{ ...content().sources[0], url: url + 'x' }] },
+      'text-too-long',
+    );
   });
   it('verweigert doppelte Quellenkennungen', () =>
     rejects(
       { ...content(), sources: [content().sources[0], content().sources[0]] },
       'duplicate-source',
-    ),
-  );
+    ));
   it('verweigert eine fehlende Intervallquelle', () =>
     rejects(
       { ...content(), intervals: [{ startYear: 1990, endYear: null, sourceIds: ['missing'] }] },
       'unknown-source',
-    ),
-  );
+    ));
   it('verweigert eine fehlende Quelle einer Prüfaussage', () =>
     rejects(
       { ...content(), checkHints: [{ text: 'Vergleichen', sourceIds: ['missing'] }] },
       'unknown-source',
-    ),
-  );
+    ));
   it('weist zusätzliche Felder in Quellen zurück', () =>
     rejects(
       { ...content(), sources: [{ ...content().sources[0], privatePath: 'secret' }] },
       'unknown-field',
-    ),
-  );
+    ));
   it('weist zusätzliche Felder in Prüfhilfen zurück', () =>
     rejects(
       { ...content(), checkHints: [{ text: 'Vergleich', sourceIds: [], authentic: true }] },
       'unknown-field',
-    ),
-  );
+    ));
   it('verweigert doppelte Quellenzuordnungen', () =>
     rejects(
       { ...content(), checkHints: [{ text: 'Vergleich', sourceIds: ['s1', 's1'] }] },
       'duplicate-value',
-    ),
-  );
+    ));
   it('erlaubt 30 Intervalle, aber keine 31', () => {
     const intervals = Array.from({ length: 30 }, (_, i) => ({
       startYear: 1900 + i,
@@ -281,9 +288,15 @@ describe('Labelinhalt – Quellen und Zeiträume', () => {
     rejects({ ...content(), intervals: [...intervals, intervals[0]] }, 'too-many-items');
   });
   it('erlaubt 100 Quellen, aber keine 101', () => {
-    const sources = Array.from({ length: 100 }, (_, i) => ({ ...content().sources[0], id: `s${i}` }));
+    const sources = Array.from({ length: 100 }, (_, i) => ({
+      ...content().sources[0],
+      id: `s${i}`,
+    }));
     assert.equal(validateLabelContent({ ...content(), sources }).sources.length, 100);
-    rejects({ ...content(), sources: [...sources, { ...sources[0], id: 's100' }] }, 'too-many-items');
+    rejects(
+      { ...content(), sources: [...sources, { ...sources[0], id: 's100' }] },
+      'too-many-items',
+    );
   });
   it('erlaubt 50 Prüfhilfen, aber keine 51', () => {
     const checkHints = Array.from({ length: 50 }, () => ({ text: 'Vergleich', sourceIds: ['s1'] }));
@@ -300,20 +313,17 @@ describe('Labelinhalt – Quellen und Zeiträume', () => {
     '2024-01-01T00:00:00Z',
   ]) {
     it(`verweigert ungültiges Kalenderdatum ${reviewedAt}`, () =>
-      rejects({ ...content(), reviewedAt }, 'invalid-date'),
-    );
+      rejects({ ...content(), reviewedAt }, 'invalid-date'));
   }
   for (const reviewedAt of ['2000-02-29', '2024-02-29', '2026-10-05', null]) {
     it(`bewahrt gültiges Prüfdatum ${String(reviewedAt)}`, () =>
-      assert.equal(validateLabelContent({ ...content(), reviewedAt }).reviewedAt, reviewedAt),
-    );
+      assert.equal(validateLabelContent({ ...content(), reviewedAt }).reviewedAt, reviewedAt));
   }
   it('verweigert falsche Zugriffsdaten einer Quelle', () =>
     rejects(
       { ...content(), sources: [{ ...content().sources[0], accessedAt: '1900-02-29' }] },
       'invalid-date',
-    ),
-  );
+    ));
   it('akzeptiert positive Linien-/Referenzkennungen und null für keine Linie', () => {
     assert.equal(validateLabelContent({ ...content(), brandLineId: 1 }).brandLineId, 1);
     assert.deepEqual(
@@ -323,12 +333,10 @@ describe('Labelinhalt – Quellen und Zeiträume', () => {
   });
   for (const brandLineId of [0, -1, 1.1, '1', 2147483648]) {
     it(`verweigert ungültige Linienkennung ${String(brandLineId)}`, () =>
-      rejects({ ...content(), brandLineId }, 'invalid-id'),
-    );
+      rejects({ ...content(), brandLineId }, 'invalid-id'));
   }
   it('verweigert doppelte Verweise auf dieselbe Referenz', () =>
-    rejects({ ...content(), relatedReferenceIds: [1, 1] }, 'duplicate-value'),
-  );
+    rejects({ ...content(), relatedReferenceIds: [1, 1] }, 'duplicate-value'));
 });
 
 describe('Labelinhalt – exakte Nutzlastgrenze', () => {
@@ -350,7 +358,7 @@ describe('Labelinhalt – exakte Nutzlastgrenze', () => {
     return value;
   }
   it('akzeptiert genau 262144 UTF-8-Bytes', () =>
-    assert.deepEqual(validateLabelContent(sizedContent(262144)), sizedContent(262144)),
-  );
-  it('verweigert genau 262145 UTF-8-Bytes', () => rejects(sizedContent(262145), 'payload-too-large'));
+    assert.deepEqual(validateLabelContent(sizedContent(262144)), sizedContent(262144)));
+  it('verweigert genau 262145 UTF-8-Bytes', () =>
+    rejects(sizedContent(262145), 'payload-too-large'));
 });

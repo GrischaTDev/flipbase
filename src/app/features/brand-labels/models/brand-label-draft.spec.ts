@@ -23,31 +23,24 @@ describe('Labelentwurf – Bilder ohne Schreibrechte auf Veröffentlichungen', (
     assert.deepEqual(validateLabelDraftInput(value), value);
   });
   it('übernimmt ausschließlich die geplanten Bildzuordnungsfelder', () =>
-    assert.deepEqual(validateLabelDraftInput(input()), input()),
-  );
+    assert.deepEqual(validateLabelDraftInput(input()), input()));
   for (const field of ['storagePath', 'processed', 'approved', 'permissionStatus', 'expiresIn']) {
     it(`weist vom Client gesetztes ${field} zurück`, () =>
-      rejects({ ...input(), images: [{ ...image(), [field]: true }] }, 'unknown-field'),
-    );
+      rejects({ ...input(), images: [{ ...image(), [field]: true }] }, 'unknown-field'));
   }
   it('weist Nutzerkopien und Workspace-Overrides zurück', () =>
-    rejects({ ...input(), workspaceId: '123' }, 'unknown-field'),
-  );
+    rejects({ ...input(), workspaceId: '123' }, 'unknown-field'));
   it('validiert auch eingebettete Labelinhalte', () =>
     rejects(
       { ...input(), content: { ...createEmptyLabelContent(), title: 'x'.repeat(161) } },
       'text-too-long',
-    ),
-  );
+    ));
   it('verweigert doppelte Bildressourcen', () =>
-    rejects({ ...input(), images: [image(1, 0), image(1, 1)] }, 'duplicate-image'),
-  );
+    rejects({ ...input(), images: [image(1, 0), image(1, 1)] }, 'duplicate-image'));
   it('verlangt fortlaufende Bildpositionen entsprechend der Liste', () =>
-    rejects({ ...input(), images: [image(1, 0), image(2, 3)] }, 'invalid-image-order'),
-  );
+    rejects({ ...input(), images: [image(1, 0), image(2, 3)] }, 'invalid-image-order'));
   it('verweigert eine falsche Assetkennung', () =>
-    rejects({ ...input(), images: [image(-1)] }, 'invalid-id'),
-  );
+    rejects({ ...input(), images: [image(-1)] }, 'invalid-id'));
   it('kopiert Zuordnungen und verschachtelte Labelinhalte', () => {
     const value = input();
     const output = validateLabelDraftInput(value);
@@ -78,7 +71,10 @@ describe('Labelentwurf – Bilder ohne Schreibrechte auf Veröffentlichungen', (
       }).images[0]?.referenceItem.length,
       160,
     );
-    rejects({ ...input(), images: [{ ...image(), referenceItem: 'x'.repeat(161) }] }, 'text-too-long');
+    rejects(
+      { ...input(), images: [{ ...image(), referenceItem: 'x'.repeat(161) }] },
+      'text-too-long',
+    );
   });
   it('prüft die Gesamtgröße von Inhalt und Bildern gemeinsam', () => {
     const images = Array.from({ length: 24 }, (_, i) => ({
@@ -94,8 +90,14 @@ describe('Labelbilder – Sortieren ohne Veränderung des Ausgangsstands', () =>
     const images = [image(10, 0), image(20, 1), image(30, 2)];
     const before = structuredClone(images);
     const result = reorderLabelImages(images, [30, 10, 20]);
-    assert.deepEqual(result.map((entry) => entry.assetId), [30, 10, 20]);
-    assert.deepEqual(result.map((entry) => entry.position), [0, 1, 2]);
+    assert.deepEqual(
+      result.map((entry) => entry.assetId),
+      [30, 10, 20],
+    );
+    assert.deepEqual(
+      result.map((entry) => entry.position),
+      [0, 1, 2],
+    );
     assert.deepEqual(images, before);
     assert.notEqual(result[0], images[2]);
   });
@@ -108,7 +110,10 @@ describe('Labelbilder – Sortieren ohne Veränderung des Ausgangsstands', () =>
   });
   for (const order of [[1], [1, 1], [1, 3], [2, 1, 3], [2, 0]]) {
     it(`verweigert eine unvollständige oder fremde Reihenfolge ${order.join(',')}`, () => {
-      assert.throws(() => reorderLabelImages([image(1, 0), image(2, 1)], order), LabelValidationError);
+      assert.throws(
+        () => reorderLabelImages([image(1, 0), image(2, 1)], order),
+        LabelValidationError,
+      );
     });
   }
   it('erlaubt eine leere Bildliste', () => assert.deepEqual(reorderLabelImages([], []), []));
@@ -144,9 +149,7 @@ describe('Labelentwurf – exakte gemeinsame Nutzlastgrenze', () => {
     return value;
   }
   it('akzeptiert genau 262144 gemeinsame UTF-8-Bytes', () =>
-    assert.deepEqual(validateLabelDraftInput(sizedInput(262144)), sizedInput(262144)),
-  );
+    assert.deepEqual(validateLabelDraftInput(sizedInput(262144)), sizedInput(262144)));
   it('verweigert genau 262145 gemeinsame UTF-8-Bytes', () =>
-    rejects(sizedInput(262145), 'payload-too-large'),
-  );
+    rejects(sizedInput(262145), 'payload-too-large'));
 });

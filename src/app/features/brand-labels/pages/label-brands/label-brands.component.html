@@ -21,6 +21,17 @@
     @if (message(); as text) {
       <p role="status" class="text-sm text-fb-success">{{ text }}</p>
     }
+    @if (!editor() && view().actionError; as error) {
+      <p role="alert" class="text-sm text-fb-critical">{{ error }}</p>
+    }
+    @if (!editor() && unresolved()) {
+      <app-button (clicked)="retry()" [disabled]="saving()"
+        >Ursprünglichen Auftrag wiederholen</app-button
+      ><app-button (clicked)="reload()" [disabled]="saving()">Serverstand laden</app-button>
+    }
+    @if (!editor() && view().conflict) {
+      <app-button (clicked)="reload()">Aktuellen Stand laden</app-button>
+    }
     <app-data-table
       ariaLabel="Referenzmarken und Markenlinien"
       [searchValue]="search()"
@@ -70,6 +81,22 @@
                         <app-button
                           variant="table-action"
                           [iconOnly]="true"
+                          [icon]="line.archived ? restoreIcon : archiveIcon"
+                          [ariaLabel]="
+                            line.name + (line.archived ? ' wiederherstellen' : ' archivieren')
+                          "
+                          [disabled]="
+                            brand.archived ||
+                            !!editor() ||
+                            saving() ||
+                            unresolved() ||
+                            view().conflict
+                          "
+                          (clicked)="archiveBrand(brand, line)"
+                        />
+                        <app-button
+                          variant="table-action"
+                          [iconOnly]="true"
                           [icon]="editIcon"
                           [ariaLabel]="line.name + ' bearbeiten'"
                           [disabled]="brand.archived || line.archived || !!editor()"
@@ -83,6 +110,16 @@
                 </td>
                 <td class="px-4 py-3 text-right align-top">
                   <div class="flex justify-end gap-1">
+                    <app-button
+                      variant="table-action"
+                      [iconOnly]="true"
+                      [icon]="brand.archived ? restoreIcon : archiveIcon"
+                      [ariaLabel]="
+                        brand.name + (brand.archived ? ' wiederherstellen' : ' archivieren')
+                      "
+                      [disabled]="!!editor() || saving() || unresolved() || view().conflict"
+                      (clicked)="archiveBrand(brand)"
+                    />
                     <app-button
                       variant="table-action"
                       [iconOnly]="true"

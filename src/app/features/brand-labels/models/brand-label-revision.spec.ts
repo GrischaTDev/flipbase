@@ -16,7 +16,8 @@ describe('Revisionszustände', () => {
       const target = transitions[action];
       it(`${state} + ${action} ${target ? `führt zu ${target}` : 'ist gesperrt'}`, () => {
         if (target) assert.equal(nextLabelRevisionState(state, action), target);
-        else assert.throws(() => nextLabelRevisionState(state, action), /invalid-revision-transition/);
+        else
+          assert.throws(() => nextLabelRevisionState(state, action), /invalid-revision-transition/);
       });
     }
   }

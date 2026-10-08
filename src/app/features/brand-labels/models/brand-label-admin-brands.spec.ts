@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  executeLabelBrandArchive,
+  prepareLabelBrandArchive,
   executeLabelBrandEdit,
   LabelBrandAdminError,
   loadLabelAdminBrands,
@@ -163,6 +165,54 @@ describe('Referenzmarken – Antwort- und Schreibvertrag', () => {
     expect(transport).toHaveBeenCalledTimes(1);
     transport.mockResolvedValueOnce({ data: brand, error: null });
     await executeLabelBrandEdit(transport, command);
+    expect(transport.mock.calls[1]).toEqual(transport.mock.calls[0]);
+  });
+});
+
+describe('Referenzmarken: Archivauftrag', () => {
+  const command = () =>
+    prepareLabelBrandArchive({
+      kind: 'brand',
+      id: 1,
+      expectedVersion: 3,
+      archived: true,
+      requestId,
+    });
+  it('friert den Versionsstand und Archivwunsch ein', () => {
+    const input = { kind: 'line' as const, id: 2, expectedVersion: 1, archived: false, requestId };
+    const checked = prepareLabelBrandArchive(input);
+    input.archived = true;
+    expect(checked.archived).toBe(false);
+    expect(Object.isFrozen(checked)).toBe(true);
+  });
+  it('sendet nur den tatsächlichen Archiv-RPC und bestätigt die Folgeversion', async () => {
+    const transport = vi.fn().mockResolvedValue({ data: { version: 4 }, error: null });
+    expect(await executeLabelBrandArchive(transport, command())).toBe(4);
+    expect(transport).toHaveBeenCalledExactlyOnceWith('set_label_brand_archive', {
+      p_id: 1,
+      p_expected_version: 3,
+      p_archived: true,
+      p_line: false,
+      p_request_id: requestId,
+    });
+  });
+  it('weist falsche Version zurück und wiederholt nicht automatisch', async () => {
+    const transport = vi.fn().mockResolvedValue({ data: { version: 3 }, error: null });
+    await expect(executeLabelBrandArchive(transport, command())).rejects.toMatchObject({
+      code: 'network',
+    });
+    expect(transport).toHaveBeenCalledTimes(1);
+  });
+  it('bewahrt dieselben Argumente bei bewusster Wiederholung', async () => {
+    const transport = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('Offline'))
+      .mockResolvedValueOnce({ data: { version: 4 }, error: null });
+    const checked = command();
+    await expect(executeLabelBrandArchive(transport, checked)).rejects.toMatchObject({
+      code: 'network',
+    });
+    await executeLabelBrandArchive(transport, checked);
     expect(transport.mock.calls[1]).toEqual(transport.mock.calls[0]);
   });
 });

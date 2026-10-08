@@ -1,10 +1,14 @@
-name: Label database candidate
+name: Reference library
 
 on:
   pull_request:
     branches: [master]
     paths:
       - 'supabase/test-support/brand-label-candidate/**'
+      - 'supabase/schemas/43*_label*.sql'
+      - 'supabase/schemas/440_size_references.sql'
+      - 'supabase/migrations/*_reference_library.sql'
+      - 'supabase/functions/brand-label-media/**'
       - 'src/app/features/brand-labels/**'
       - 'scripts/run-brand-label-database-tests*.mjs'
       - '.github/workflows/brand-label-candidate.yml'

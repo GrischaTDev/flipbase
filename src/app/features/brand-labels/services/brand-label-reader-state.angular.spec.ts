@@ -27,6 +27,7 @@ function setup() {
   const access = signal([{ workspace_id: 'workspace-a', access_status: 'active' }]);
   const operator = signal(false);
   const service = {
+    brands: vi.fn().mockResolvedValue([{ slug: 'testmarke', name: 'Testmarke' }]),
     availability: vi.fn().mockResolvedValue({ visible: true, operator: false }),
     list: vi.fn().mockResolvedValue(readerPage()),
     detail: vi.fn().mockResolvedValue(null),
@@ -59,6 +60,7 @@ describe('Label-Leserzustand', () => {
     await settle();
     expect(state.view().phase).toBe('ready');
     expect(state.view().page?.items).toEqual([]);
+    expect(state.view().brands).toEqual([{ slug: 'testmarke', name: 'Testmarke' }]);
   });
   it('ruft bei geschlossenem Zugang keine Labeldaten ab', async () => {
     const { state, service } = setup();
@@ -108,6 +110,7 @@ describe('Label-Leserzustand', () => {
     await settle();
     expect(state.view().page?.items).toHaveLength(1);
     user.set(null);
+    expect(state.view().brands).toEqual([]);
     expect(state.view().page).toBeNull();
     await settle();
     expect(state.view().phase).toBe('unavailable');

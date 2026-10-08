@@ -1,0 +1,316 @@
+<div class="space-y-4">
+  <app-page-header
+    title="Label bearbeiten"
+    subtitle="Veröffentlichte Inhalte bleiben bis zur nächsten Veröffentlichung unverändert."
+    backLink="/tools/brand-labels/admin"
+    ><div header-actions>
+      <app-button variant="primary" (clicked)="revise('save')" [disabled]="!canChange()"
+        >Entwurf speichern</app-button
+      >
+    </div></app-page-header
+  >
+  @if (!scope()) {
+    <p role="status">Die Redaktion ist nur für Plattformbetreiber verfügbar.</p>
+  } @else {
+    @if (view().error; as error) {
+      <p role="alert">{{ error }}</p>
+    }
+    @if (view().message; as message) {
+      <p role="status">{{ message }}</p>
+    }
+    @if (view().busy) {
+      <p role="status">Auftrag wird verarbeitet …</p>
+    }
+    @if (view().pending) {
+      <p>Die Antwort ist unbestätigt. Wiederhole ausschließlich denselben Auftrag.</p>
+      <app-button (clicked)="retry()" [disabled]="view().busy"
+        >Ursprünglichen Auftrag wiederholen</app-button
+      >
+    }
+    <app-button (clicked)="reload()" [disabled]="view().busy">Serverstand laden</app-button>
+    @if (view().reference; as reference) {
+      <p>
+        {{ reference.brandName }} · Referenz {{ reference.referenceId }} ·
+        {{ reference.archived ? 'Archiviert' : 'Aktiv' }} ·
+        {{ reference.publication ? 'Veröffentlichung vorhanden' : 'Keine Veröffentlichung' }}
+      </p>
+      <div class="flex flex-wrap gap-3">
+        @if (!reference.draft && !reference.archived) {
+          <app-button
+            (clicked)="beginEdit()"
+            [disabled]="view().busy || !!view().pending || reference.brandArchived"
+            >Bearbeitung beginnen</app-button
+          >
+        }
+        <app-button
+          (clicked)="archive()"
+          [disabled]="
+            view().busy ||
+            !!view().pending ||
+            (!reference.archived && view().conflict) ||
+            (reference.archived && reference.brandArchived)
+          "
+          >{{ reference.archived ? 'Wiederherstellen' : 'Archivieren' }}</app-button
+        >
+        @if (reference.draft) {
+          <span
+            >Entwurfversion {{ reference.draft.version }} ·
+            {{ reference.draft.state === 'review' ? 'In Prüfung' : 'Entwurf' }}</span
+          ><app-button
+            (clicked)="revise('submit')"
+            [disabled]="!canChange() || reference.draft.state !== 'draft'"
+            >Zur Prüfung geben</app-button
+          ><app-button
+            (clicked)="revise('publish')"
+            [disabled]="!canChange() || reference.draft.state !== 'review'"
+            >Veröffentlichen</app-button
+          ><app-button
+            variant="destructive"
+            [icon]="deleteIcon"
+            (clicked)="revise('discard')"
+            [disabled]="!canChange()"
+            >Entwurf verwerfen</app-button
+          >
+        }
+      </div>
+      @if (reference.draft) {
+        <section
+          aria-label="Voraussetzungen zur Veröffentlichung"
+          class="rounded-lg border border-fb-line bg-fb-surface p-4 text-sm"
+        >
+          <h2 class="font-semibold">Vor der Veröffentlichung</h2>
+          <p>
+            Speichere Deine Änderungen und gib den Entwurf zur Prüfung. Erforderlich sind Titel,
+            Labelart, Datierungszusammenfassung, mindestens ein Merkmal, ein Prüfdatum und ein
+            freigegebenes Bild mit Bildunterschrift, Alternativtext und Referenzstück.
+          </p>
+          <p>
+            Datierungen und Prüfhilfen benötigen passende Quellenkennungen. Quellen brauchen Titel,
+            URL, Fundstelle und Abrufdatum. Bei unbekannter Datierung dokumentierst Du die
+            Unsicherheit unter Grenzen. Verweise müssen auf veröffentlichte Referenzen zeigen. Der
+            Server prüft diese Voraussetzungen und die aktuellen Bildfreigaben erneut.
+          </p>
+        </section>
+        <form [formGroup]="form" class="space-y-5" (submit)="$event.preventDefault()">
+          <fieldset class="space-y-3 rounded-lg border border-fb-line bg-fb-surface p-4">
+            <legend>Inhalt</legend>
+            <app-text-field label="Titel" formControlName="title" [maxLength]="160" />
+            <app-text-field
+              label="Alternative Namen (ein Name pro Zeile)"
+              formControlName="aliases"
+              [multiline]="3"
+            />
+            <app-custom-select
+              ariaLabel="Markenlinie"
+              formControlName="brandLineId"
+              [options]="lineOptions()"
+            />
+            <app-custom-select
+              ariaLabel="Labelart"
+              formControlName="kinds"
+              [options]="kindOptions"
+            />
+            <app-text-field
+              label="Zusammenfassung der Datierung"
+              formControlName="timeSummary"
+              [multiline]="3"
+            />
+            <app-custom-select
+              ariaLabel="Beleglage"
+              formControlName="evidenceLevel"
+              [options]="evidenceOptions"
+            />
+            <app-text-field
+              label="Merkmale (ein Merkmal pro Zeile)"
+              formControlName="features"
+              [multiline]="4"
+            />
+            <app-text-field
+              label="Grenzen und Unsicherheiten (eine Angabe pro Zeile)"
+              formControlName="limitations"
+              [multiline]="4"
+            />
+            <app-text-field
+              label="Verwandte Referenznummern (eine Nummer pro Zeile)"
+              formControlName="relatedReferenceIds"
+              [multiline]="3"
+            />
+            <app-text-field label="Prüfdatum (JJJJ-MM-TT)" formControlName="reviewedAt" />
+          </fieldset>
+          <fieldset class="space-y-3 rounded-lg border border-fb-line bg-fb-surface p-4">
+            <legend>Quellen</legend>
+            <p class="text-sm text-fb-text-muted">
+              Verwende die Quellenkennung bei Datierungen und Prüfhilfen. URLs beginnen mit https://
+              oder http://.
+            </p>
+            @for (source of form.controls.sources.controls; track source; let index = $index) {
+              <div
+                [formGroup]="source"
+                class="grid gap-3 border-b border-fb-line pb-4 sm:grid-cols-2"
+              >
+                <app-text-field label="Quellenkennung" formControlName="id" /><app-text-field
+                  label="Titel der Quelle"
+                  formControlName="title"
+                /><app-text-field label="Herausgeber" formControlName="publisher" /><app-text-field
+                  label="Quellen-URL"
+                  type="url"
+                  formControlName="url"
+                /><app-text-field
+                  label="Abrufdatum (JJJJ-MM-TT)"
+                  formControlName="accessedAt"
+                /><app-text-field label="Fundstelle / Seite" formControlName="locator" />
+                <app-button
+                  variant="destructive"
+                  [icon]="deleteIcon"
+                  [iconOnly]="true"
+                  [ariaLabel]="'Quelle ' + (index + 1) + ' entfernen'"
+                  (clicked)="removeSource(index)"
+                  [disabled]="!canChange()"
+                />
+              </div>
+            } @empty {
+              <p>Keine Quellen hinterlegt.</p>
+            }
+            <app-button
+              (clicked)="addSource()"
+              [disabled]="!canChange() || form.controls.sources.length >= 100"
+              >Quelle hinzufügen</app-button
+            >
+          </fieldset>
+          <fieldset class="space-y-3 rounded-lg border border-fb-line bg-fb-surface p-4">
+            <legend>Datierungen</legend>
+            @for (
+              interval of form.controls.intervals.controls;
+              track interval;
+              let index = $index
+            ) {
+              <div
+                [formGroup]="interval"
+                class="grid gap-3 border-b border-fb-line pb-4 sm:grid-cols-3"
+              >
+                <app-text-field
+                  label="Von Jahr (leer = offen)"
+                  formControlName="startYear"
+                /><app-text-field
+                  label="Bis Jahr (leer = offen)"
+                  formControlName="endYear"
+                /><app-text-field
+                  label="Quellenkennungen (eine pro Zeile)"
+                  [multiline]="3"
+                  formControlName="sourceIds"
+                /><app-button
+                  variant="destructive"
+                  [icon]="deleteIcon"
+                  [iconOnly]="true"
+                  [ariaLabel]="'Datierung ' + (index + 1) + ' entfernen'"
+                  (clicked)="removeInterval(index)"
+                  [disabled]="!canChange()"
+                />
+              </div>
+            } @empty {
+              <p>Keine Datierungsintervalle hinterlegt.</p>
+            }
+            <app-button
+              (clicked)="addInterval()"
+              [disabled]="!canChange() || form.controls.intervals.length >= 30"
+              >Datierung hinzufügen</app-button
+            >
+          </fieldset>
+          <fieldset class="space-y-3 rounded-lg border border-fb-line bg-fb-surface p-4">
+            <legend>Prüfhilfen</legend>
+            @for (hint of form.controls.checkHints.controls; track hint; let index = $index) {
+              <div
+                [formGroup]="hint"
+                class="grid gap-3 border-b border-fb-line pb-4 sm:grid-cols-2"
+              >
+                <app-text-field
+                  label="Prüfhinweis"
+                  formControlName="text"
+                  [multiline]="3"
+                /><app-text-field
+                  label="Quellenkennungen (eine pro Zeile)"
+                  [multiline]="3"
+                  formControlName="sourceIds"
+                /><app-button
+                  variant="destructive"
+                  [icon]="deleteIcon"
+                  [iconOnly]="true"
+                  [ariaLabel]="'Prüfhilfe ' + (index + 1) + ' entfernen'"
+                  (clicked)="removeHint(index)"
+                  [disabled]="!canChange()"
+                />
+              </div>
+            } @empty {
+              <p>Keine Prüfhilfen hinterlegt.</p>
+            }
+            <app-button
+              (clicked)="addHint()"
+              [disabled]="!canChange() || form.controls.checkHints.length >= 50"
+              >Prüfhilfe hinzufügen</app-button
+            >
+          </fieldset>
+          <fieldset class="space-y-3 rounded-lg border border-fb-line bg-fb-surface p-4">
+            <legend>Bildzuordnung und Reihenfolge</legend>
+            <p class="text-sm">
+              Das erste Bild ist das Titelbild.
+              <a routerLink="/tools/brand-labels/admin/images" class="underline"
+                >Bilder und Freigaben verwalten</a
+              >
+            </p>
+            @for (image of form.controls.images.controls; track image; let index = $index) {
+              <div [formGroup]="image" class="space-y-3 border-b border-fb-line pb-4">
+                <app-label-image
+                  [assetId]="image.controls.assetId.value"
+                  [alt]="image.controls.alt.value"
+                />
+                <p>Bild {{ image.controls.assetId.value }} · Position {{ index + 1 }}</p>
+                <app-text-field label="Bildunterschrift" formControlName="caption" /><app-text-field
+                  label="Alternativtext"
+                  formControlName="alt"
+                /><app-text-field label="Referenzstück" formControlName="referenceItem" />
+                <div class="flex gap-2">
+                  <app-button
+                    [icon]="upIcon"
+                    [iconOnly]="true"
+                    [ariaLabel]="'Bild ' + (index + 1) + ' nach oben'"
+                    (clicked)="moveImage(index, -1)"
+                    [disabled]="!canChange() || index === 0"
+                  /><app-button
+                    [icon]="downIcon"
+                    [iconOnly]="true"
+                    [ariaLabel]="'Bild ' + (index + 1) + ' nach unten'"
+                    (clicked)="moveImage(index, 1)"
+                    [disabled]="!canChange() || index === form.controls.images.length - 1"
+                  /><app-button
+                    variant="destructive"
+                    [icon]="deleteIcon"
+                    [iconOnly]="true"
+                    [ariaLabel]="'Bild ' + (index + 1) + ' entfernen'"
+                    (clicked)="removeImage(index)"
+                    [disabled]="!canChange()"
+                  />
+                </div>
+              </div>
+            } @empty {
+              <p>Keine Bilder zugeordnet.</p>
+            }
+            <app-custom-select
+              ariaLabel="Freigegebenes Bild zuordnen"
+              [options]="imageOptions()"
+              [value]="selectedImage()"
+              (valueChange)="selectedImage.set($event)"
+              [disabled]="!canChange()"
+            />
+            <app-button
+              (clicked)="addImage()"
+              [disabled]="!canChange() || !selectedImage() || form.controls.images.length >= 24"
+              >Bild zuordnen</app-button
+            >
+          </fieldset>
+        </form>
+      }
+    } @else if (!view().busy && !view().error) {
+      <p role="status">Diese Labelreferenz ist nicht verfügbar.</p>
+    }
+  }
+</div>

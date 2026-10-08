@@ -43,7 +43,11 @@ export function normalizeLabelFilters(
   params: Record<string, string | undefined>,
   currentYear: number,
 ): LabelReadFilter {
-  if (!Number.isInteger(currentYear) || currentYear < 1 || currentYear > LABEL_LIMITS.maxCalendarYear) {
+  if (
+    !Number.isInteger(currentYear) ||
+    currentYear < 1 ||
+    currentYear > LABEL_LIMITS.maxCalendarYear
+  ) {
     throw new RangeError('invalid-current-year');
   }
   const brand = ownString(params, 'brand');

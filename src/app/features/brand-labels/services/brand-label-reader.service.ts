@@ -7,15 +7,10 @@ import {
   readLabelPage,
   type LabelDetail,
 } from '../models/brand-label-reader';
-
-type ReaderRpcName =
-  'get_label_library_availability' | 'list_label_references' | 'get_label_reference';
-/** Eng begrenzter SQL-Kandidatenvertrag, bis die Migration API-Typen erzeugt. */
-interface ReaderRpcClient {
-  rpc(
-    name: ReaderRpcName,
-    args: Record<string, unknown>,
-  ): PromiseLike<{ data: unknown; error: unknown }>;
+import { readLabelArray, readLabelObject, readLabelText } from '../models/brand-label-validation';
+export interface LabelReaderBrand {
+  readonly slug: string;
+  readonly name: string;
 }
 export class LabelReadError extends Error {
   constructor(readonly reason: 'unavailable' | 'network' | 'invalid-response') {
@@ -27,38 +22,45 @@ export class LabelReadError extends Error {
     this.name = 'LabelReadError';
   }
 }
-
 @Injectable({ providedIn: 'root' })
 export class BrandLabelReaderService {
-  // Kein zweiter Client und keine eigene Anmeldung. Antworten werden vollständig validiert.
-  private readonly client = inject(SupabaseService).client as unknown as ReaderRpcClient;
-
+  private readonly client = inject(SupabaseService).client;
   availability(): Promise<LabelAvailability> {
-    return this.read('get_label_library_availability', {}, readLabelAvailability);
+    return this.read(this.client.rpc('get_label_library_availability'), readLabelAvailability);
+  }
+  brands(): Promise<readonly LabelReaderBrand[]> {
+    return this.read(this.client.rpc('list_label_reader_brands'), (value) => {
+      const slugs = new Set<string>();
+      return readLabelArray(value, 10000, 'brands').map((value) => {
+        const row = readLabelObject(value, ['slug', 'name'], 'brand');
+        const slug = readLabelText(row['slug'], 80, 'slug');
+        const name = readLabelText(row['name'], 160, 'name');
+        if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug) || !name.trim() || slugs.has(slug))
+          throw new Error('Invalid brand');
+        slugs.add(slug);
+        return { slug, name };
+      });
+    });
   }
   list(filter: LabelReadFilter, offset: number): Promise<LabelPage> {
     return this.read(
-      'list_label_references',
-      { p_filter: filter, p_offset: offset },
+      this.client.rpc('list_label_references', { p_filter: { ...filter }, p_offset: offset }),
       readLabelPage,
     );
   }
   detail(brandSlug: string, labelSlug: string): Promise<LabelDetail | null> {
     return this.read(
-      'get_label_reference',
-      { p_brand_slug: brandSlug, p_label_slug: labelSlug },
+      this.client.rpc('get_label_reference', { p_brand_slug: brandSlug, p_label_slug: labelSlug }),
       readLabelDetail,
     );
   }
-
   private async read<T>(
-    name: ReaderRpcName,
-    args: Record<string, unknown>,
+    request: PromiseLike<{ data: unknown; error: unknown }>,
     decode: (value: unknown) => T,
   ): Promise<T> {
-    let response: { data: unknown; error: unknown };
+    let response;
     try {
-      response = await this.client.rpc(name, args);
+      response = await request;
     } catch {
       throw new LabelReadError('network');
     }

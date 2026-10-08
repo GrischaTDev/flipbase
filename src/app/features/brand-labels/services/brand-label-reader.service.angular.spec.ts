@@ -19,6 +19,13 @@ describe('BrandLabelReaderService', () => {
     expect(await service.list(filter, 24)).toEqual(readerPage());
     expect(rpc).toHaveBeenCalledWith('list_label_references', { p_filter: filter, p_offset: 24 });
   });
+  it('lädt tatsächliche Referenzmarken ohne festen Markenpiloten', async () => {
+    const { service, rpc } = setup([{ slug: 'testmarke', name: 'Testmarke' }]);
+    expect(await service.brands()).toEqual([{ slug: 'testmarke', name: 'Testmarke' }]);
+    expect(rpc).toHaveBeenCalledWith('list_label_reader_brands');
+    rpc.mockResolvedValueOnce({ data: [{ slug: 'testmarke', name: '' }], error: null });
+    await expect(service.brands()).rejects.toMatchObject({ reason: 'invalid-response' });
+  });
   it('holt Details getrennt vom Entwurf und behält Nichtverfügbarkeit als null', async () => {
     const { service, rpc } = setup(readerDetail());
     expect(await service.detail('testmarke', 'testetikett-1')).toEqual(readerDetail());

@@ -1,25 +1,19 @@
 import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { LucideArrowLeft, LucideTag } from '@lucide/angular';
 import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
-import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
+import { LabelImageComponent } from '../../components/label-image/label-image.component';
 import { labelFiltersToQueryParams, normalizeLabelFilters } from '../../models/brand-label-filters';
 import type { LabelInterval, LabelEvidenceLevel } from '../../models/brand-label.models';
 import { BrandLabelReaderState } from '../../services/brand-label-reader-state';
 
 @Component({
   selector: 'app-label-detail',
-  imports: [
-    DatePipe,
-    PageHeaderComponent,
-    CardComponent,
-    ButtonComponent,
-    ProductThumbnailComponent,
-  ],
+  imports: [DatePipe, PageHeaderComponent, CardComponent, ButtonComponent, LabelImageComponent],
   providers: [BrandLabelReaderState],
   templateUrl: './label-detail.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -27,6 +21,7 @@ import { BrandLabelReaderState } from '../../services/brand-label-reader-state';
 export class LabelDetailComponent {
   readonly state = inject(BrandLabelReaderState);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   readonly tagIcon = LucideTag;
   readonly backIcon = LucideArrowLeft;
   readonly backQueryParams = signal<Record<string, string>>({});
@@ -63,5 +58,8 @@ export class LabelDetailComponent {
     return interval.startYear === interval.endYear
       ? String(interval.startYear)
       : `${interval.startYear}–${interval.endYear}`;
+  }
+  sourceAnchor(sourceId: string): string {
+    return `${this.router.url.split('#', 1)[0]}#label-source-${encodeURIComponent(sourceId)}`;
   }
 }

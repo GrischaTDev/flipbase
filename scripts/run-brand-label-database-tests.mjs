@@ -15,7 +15,20 @@ const files = [
   'reader-access.sql',
   '374_brand_label_admin.sql',
   'admin-access.sql',
+  'storage-fixture.sql',
+  '435_label_media.sql',
+  '440_size_references.sql',
+  'media-and-sizes.sql',
 ];
+const schemas = {
+  '370_brand_labels.sql': '430_label_library.sql',
+  '371_brand_label_content.sql': '431_label_content.sql',
+  '371_brand_label_operations.sql': '432_label_operations.sql',
+  '373_brand_label_read.sql': '433_label_reader.sql',
+  '374_brand_label_admin.sql': '434_label_admin.sql',
+  '435_label_media.sql': '435_label_media.sql',
+  '440_size_references.sql': '440_size_references.sql',
+};
 const name = `flipbase-label-test-${randomUUID()}`;
 let started = false;
 let assertions = 0;
@@ -72,7 +85,12 @@ try {
   console.log(docker(['exec', name, 'postgres', '--version']).stdout.trim());
   for (const file of files) {
     const input = await readFile(
-      new URL(`../supabase/test-support/brand-label-candidate/${file}`, import.meta.url),
+      new URL(
+        schemas[file]
+          ? `../supabase/schemas/${schemas[file]}`
+          : `../supabase/test-support/brand-label-candidate/${file}`,
+        import.meta.url,
+      ),
       'utf8',
     );
     console.log(`RUN: ${file}`);

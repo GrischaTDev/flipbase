@@ -120,7 +120,7 @@ function setup(isOperator = true) {
   const user = signal<{ id: string } | null>({ id: 'operator-a' });
   const workspace = signal<{ id: string } | null>({ id: 'workspace-a' });
   const operator = signal(isOperator);
-  const service = { list: vi.fn().mockResolvedValue([brand]), execute: vi.fn() };
+  const service = { list: vi.fn().mockResolvedValue([brand]), execute: vi.fn(), archive: vi.fn() };
   TestBed.configureTestingModule({
     imports: [LabelBrandsComponent],
     providers: [
@@ -442,5 +442,69 @@ describe('Referenzmarken – Adminseite', () => {
     const event = new Event('beforeunload', { cancelable: true });
     component.warnUnsaved(event as BeforeUnloadEvent);
     expect(event.defaultPrevented).toBe(true);
+  });
+});
+
+describe('Referenzmarken: Archivinteraktionen', () => {
+  afterEach(() => {
+    TestBed.resetTestingModule();
+    vi.restoreAllMocks();
+  });
+  it('archiviert Marke und Linie erst nach bestätigtem Auftrag', async () => {
+    const { fixture, component, service } = setup();
+    fixture.detectChanges();
+    await settle();
+    vi.spyOn(globalThis, 'confirm').mockReturnValue(true);
+    const response = deferred<number>();
+    service.archive.mockReturnValueOnce(response.promise);
+    const saving = component.archiveBrand(brand);
+    expect(component.view().brands[0].archived).toBe(false);
+    response.resolve(2);
+    await saving;
+    expect(component.view().brands[0].archived).toBe(true);
+    expect(component.view().brands[0].version).toBe(2);
+    expect(component.view().brands[0].lines[0].archived).toBe(false);
+  });
+  it('erhält unbekannten Archivauftrag für denselben Retry und schützt Navigation', async () => {
+    const { fixture, component, service } = setup();
+    fixture.detectChanges();
+    await settle();
+    vi.spyOn(globalThis, 'confirm').mockReturnValue(true);
+    service.archive.mockRejectedValueOnce(new LabelBrandAdminError('network'));
+    await component.archiveBrand(brand, brand.lines[0]);
+    const command = service.archive.mock.calls[0][0];
+    expect(component.hasUnsavedChanges()).toBe(true);
+    expect(component.view().brands[0].lines[0].archived).toBe(false);
+    service.archive.mockResolvedValueOnce(2);
+    await component.retry();
+    expect(service.archive.mock.calls[1][0]).toBe(command);
+    expect(component.view().brands[0].lines[0].archived).toBe(true);
+    expect(component.view().brands[0].archived).toBe(false);
+  });
+  it('behält bei Archiv-Versionskonflikt den bekannten Serverstand', async () => {
+    const { fixture, component, service } = setup();
+    fixture.detectChanges();
+    await settle();
+    vi.spyOn(globalThis, 'confirm').mockReturnValue(true);
+    service.archive.mockRejectedValueOnce(new LabelBrandAdminError('conflict'));
+    await component.archiveBrand(brand);
+    expect(component.view().brands[0].archived).toBe(false);
+    expect(component.view().conflict).toBe(true);
+    expect(component.view().pending).toBeNull();
+  });
+  it('verwirft die späte Archivantwort nach Workspacewechsel', async () => {
+    const { fixture, component, service, workspace } = setup();
+    fixture.detectChanges();
+    await settle();
+    vi.spyOn(globalThis, 'confirm').mockReturnValue(true);
+    const response = deferred<number>();
+    service.archive.mockReturnValueOnce(response.promise);
+    const saving = component.archiveBrand(brand);
+    workspace.set({ id: 'workspace-b' });
+    expect(component.view().brands).toEqual([]);
+    await settle();
+    response.resolve(2);
+    await saving;
+    expect(component.view().brands[0].archived).toBe(false);
   });
 });

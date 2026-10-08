@@ -14,10 +14,7 @@ export interface LabelRevisionCommand {
   readonly input: LabelDraftInput | null;
 }
 export type LabelRpcName =
-  | 'save_label_draft'
-  | 'submit_label_draft'
-  | 'publish_label_draft'
-  | 'discard_label_draft';
+  'save_label_draft' | 'submit_label_draft' | 'publish_label_draft' | 'discard_label_draft';
 export type LabelRpcTransport = (
   name: LabelRpcName,
   args: Readonly<Record<string, unknown>>,
@@ -46,7 +43,8 @@ const MESSAGES: Readonly<Record<LabelErrorCode, string>> = Object.freeze({
   validation: 'Bitte prüfe die Angaben. Der Auftrag wurde nicht bestätigt.',
   'upload-failed': 'Das Bild konnte nicht hochgeladen werden.',
   'processing-failed': 'Das Bild konnte nicht verarbeitet werden.',
-  network: 'Die Antwort konnte nicht bestätigt werden. Der Auftrag wurde nicht automatisch wiederholt.',
+  network:
+    'Die Antwort konnte nicht bestätigt werden. Der Auftrag wurde nicht automatisch wiederholt.',
 });
 
 /** Keine SQL-Texte, Tokens oder fremden Pfade in nutzerseitige Fehler übernehmen. */
@@ -120,7 +118,8 @@ export function prepareLabelRevisionCommand(
 
 function ownData(value: object, key: string): unknown {
   const property = Object.getOwnPropertyDescriptor(value, key);
-  if (!property || !('value' in property) || !property.enumerable) throw new LabelRpcError('network');
+  if (!property || !('value' in property) || !property.enumerable)
+    throw new LabelRpcError('network');
   return property.value;
 }
 
@@ -128,7 +127,8 @@ function mapRpcError(value: unknown): LabelRpcError {
   if (!value || typeof value !== 'object') return new LabelRpcError('network');
   let error: { code?: unknown; details?: unknown; status?: unknown };
   try {
-    const field = (key: string): unknown => (Object.hasOwn(value, key) ? ownData(value, key) : undefined);
+    const field = (key: string): unknown =>
+      Object.hasOwn(value, key) ? ownData(value, key) : undefined;
     error = { code: field('code'), details: field('details'), status: field('status') };
   } catch {
     return new LabelRpcError('network');

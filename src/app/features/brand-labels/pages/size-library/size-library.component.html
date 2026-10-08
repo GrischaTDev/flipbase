@@ -1,0 +1,226 @@
+<section class="space-y-4">
+  <app-page-header title="Größenreferenzen" subtitle="Größentabellen mit Quellen und klarer Maßart">
+    <div header-actions class="flex gap-2">
+      <app-button link="/tools/brand-labels">Labels</app-button>
+      @if (admin) {
+        <app-button
+          variant="primary"
+          [icon]="plusIcon"
+          [disabled]="loading() || saving() || !!pending()"
+          (clicked)="begin()"
+          >Tabelle anlegen</app-button
+        >
+      }
+    </div>
+  </app-page-header>
+  <p class="text-sm text-fb-text-secondary">
+    Vergleiche die Zielgruppe, Marke und Maßart. Größen unterscheiden sich je nach Modell und
+    Hersteller. Bei Hosen sind Bundweite und Innenbeinlänge getrennte Maße.
+  </p>
+  @if (message(); as message) {
+    <p role="status" class="text-sm text-fb-success">{{ message }}</p>
+  }
+  <app-data-table
+    ariaLabel="Größenreferenzen"
+    [searchValue]="search()"
+    (searchValueChange)="search.set($event)"
+    [loading]="loading()"
+    [errorMessage]="error()"
+    [hasRows]="visibleItems().length > 0"
+    emptyTitle="Noch keine Größenreferenzen"
+    emptyText="Hier erscheinen redaktionell freigegebene Größentabellen."
+  >
+    <div table-filters class="flex flex-wrap gap-2">
+      <app-custom-select
+        ariaLabel="Kategorie"
+        [options]="categoryFilters"
+        [value]="categoryFilter()"
+        (valueChange)="categoryFilter.set($event ?? '')"
+      />
+      <app-custom-select
+        ariaLabel="Zielgruppe"
+        [options]="audienceFilters"
+        [value]="audienceFilter()"
+        (valueChange)="audienceFilter.set($event ?? '')"
+      />
+      <app-custom-select
+        ariaLabel="Marke"
+        [options]="readerBrands()"
+        [value]="brandFilter()"
+        (valueChange)="brandFilter.set($event ?? '')"
+      />
+    </div>
+    <div table-error-action><app-button (clicked)="reload()">Erneut laden</app-button></div>
+    <div table-content class="space-y-4 p-4">
+      @for (reference of visibleItems(); track reference.id) {
+        <app-card [title]="reference.content.title">
+          <div class="mb-3 flex flex-wrap items-center gap-2 text-sm text-fb-text-secondary">
+            <span
+              >{{ reference.brandName || 'Ohne Markenbindung' }} ·
+              {{ label(categoryOptions, reference.content.category) }} ·
+              {{ label(audienceOptions, reference.content.audience) }}</span
+            >
+            <app-badge tone="neutral">{{
+              label(measurementOptions, reference.content.measurement)
+            }}</app-badge>
+            @if (admin) {
+              <app-badge tone="neutral">{{
+                reference.archived
+                  ? 'Archiviert'
+                  : reference.published
+                    ? reference.hasDraftChanges
+                      ? 'Veröffentlicht · Änderungen im Entwurf'
+                      : 'Veröffentlicht'
+                    : 'Entwurf'
+              }}</app-badge>
+              <app-button
+                [icon]="editIcon"
+                [iconOnly]="true"
+                ariaLabel="Größentabelle bearbeiten"
+                [disabled]="reference.archived || saving() || !!pending()"
+                (clicked)="begin(reference)"
+              />
+              <app-button
+                [icon]="reference.archived ? restoreIcon : archiveIcon"
+                [iconOnly]="true"
+                [ariaLabel]="
+                  reference.archived
+                    ? 'Größentabelle wiederherstellen'
+                    : 'Größentabelle archivieren'
+                "
+                [disabled]="saving() || !!pending()"
+                (clicked)="archive(reference)"
+              />
+            }
+          </div>
+          <app-data-table
+            [toolbarVisible]="false"
+            [searchEnabled]="false"
+            [ariaLabel]="reference.content.title"
+            [hasRows]="reference.content.rows.length > 0"
+            emptyTitle="Noch keine Tabellenwerte"
+          >
+            <div
+              table-content
+              class="overflow-x-auto"
+              tabindex="0"
+              role="region"
+              [attr.aria-label]="reference.content.title + ' Tabellenwerte'"
+            >
+              <table class="w-full text-left text-[13px]">
+                <thead class="border-b border-fb-line bg-fb-well">
+                  <tr>
+                    @for (column of reference.content.columns; track $index) {
+                      <th scope="col" class="px-3 py-2">{{ column }}</th>
+                    }
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-fb-line">
+                  @for (row of reference.content.rows; track $index) {
+                    <tr>
+                      @for (cell of row; track $index) {
+                        <td class="px-3 py-2">{{ cell || '–' }}</td>
+                      }
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </app-data-table>
+          <p class="mt-3 whitespace-pre-line text-sm text-fb-text-secondary">
+            {{ reference.content.notes }}
+          </p>
+          @if (reference.content.sourceUrl) {
+            <p class="mt-3 text-sm">
+              <a
+                [href]="reference.content.sourceUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="underline"
+                >{{ reference.content.sourceTitle }}</a
+              >
+              · Geprüft: {{ reference.content.reviewedAt }}
+            </p>
+          }
+        </app-card>
+      }
+    </div>
+  </app-data-table>
+  @if (pending()) {
+    <div class="flex gap-2">
+      <app-button [disabled]="saving()" (clicked)="retry()"
+        >Ursprünglichen Auftrag wiederholen</app-button
+      ><app-button [disabled]="saving()" (clicked)="reload()">Antwortstatus neu laden</app-button>
+    </div>
+  }
+  @if (editing()) {
+    <app-modal-shell title="Größentabelle bearbeiten" size="xl" (closed)="close()">
+      <form [formGroup]="form" class="space-y-4" (ngSubmit)="save(false)">
+        <app-text-field label="Titel" formControlName="title" [maxLength]="160" />
+        <div class="grid gap-3 sm:grid-cols-2">
+          <app-custom-select
+            ariaLabel="Referenzmarke"
+            [options]="brandOptions()"
+            formControlName="brand"
+          />
+          <app-custom-select
+            ariaLabel="Kategorie"
+            [options]="categoryOptions"
+            formControlName="category"
+          />
+          <app-custom-select
+            ariaLabel="Zielgruppe"
+            [options]="audienceOptions"
+            formControlName="audience"
+          />
+          <app-custom-select
+            ariaLabel="Maßart"
+            [options]="measurementOptions"
+            formControlName="measurement"
+          />
+        </div>
+        <app-text-field
+          label="Spaltenüberschriften"
+          formControlName="columns"
+          helpText="Trenne die Spalten mit Semikolon oder füge eine Tabellenzeile ein. Gib Einheiten an, zum Beispiel Bundumfang (cm). Höchstens zwölf Spalten."
+        />
+        <app-text-field
+          label="Tabellenwerte"
+          formControlName="rows"
+          [multiline]="8"
+          helpText="Eine Größe je Zeile. Trenne Werte mit Semikolon oder füge Zellen aus einer Tabelle ein. Beispiel: 34; 72–76; 81. Höchstens hundert Zeilen."
+        />
+        <app-text-field
+          label="Hinweise und Grenzen"
+          formControlName="notes"
+          [multiline]="3"
+          [maxLength]="4000"
+        />
+        <app-text-field label="Quelle" formControlName="sourceTitle" [maxLength]="160" />
+        <app-text-field label="Quellenlink" type="url" formControlName="sourceUrl" />
+        <app-text-field
+          label="Redaktionell geprüft am"
+          formControlName="reviewedAt"
+          helpText="Datum im Format JJJJ-MM-TT"
+        />
+        @if (error(); as error) {
+          <p role="alert" class="text-sm text-fb-critical">{{ error }}</p>
+        }
+      </form>
+      <div modal-footer class="flex flex-wrap justify-end gap-2">
+        <app-button [disabled]="saving() || !!pending()" (clicked)="close()">Schließen</app-button>
+        <app-button [disabled]="saving() || !!pending()" (clicked)="save(false)"
+          >Entwurf speichern</app-button
+        >
+        <app-button variant="primary" [disabled]="saving() || !!pending()" (clicked)="save(true)"
+          >Veröffentlichen</app-button
+        >
+        @if (pending()) {
+          <app-button [disabled]="saving()" (clicked)="retry()"
+            >Ursprünglichen Auftrag wiederholen</app-button
+          ><app-button [disabled]="saving()" (clicked)="reload()">Neu laden</app-button>
+        }
+      </div>
+    </app-modal-shell>
+  }
+</section>

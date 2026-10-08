@@ -97,7 +97,12 @@ export function readLabelText(value: unknown, maximum: number, path: string): st
 }
 
 export function readLabelId(value: unknown, path: string): number {
-  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1 || value > LABEL_LIMITS.maxId) {
+  if (
+    typeof value !== 'number' ||
+    !Number.isInteger(value) ||
+    value < 1 ||
+    value > LABEL_LIMITS.maxId
+  ) {
     throw new LabelValidationError('invalid-id', path);
   }
   return value;
@@ -170,7 +175,10 @@ export function assertUniqueLabelValues<T extends string | number>(
 /** Nur mit bereits rekonstruierten JSON-Daten aufrufen, niemals mit beliebigen Objektinstanzen. */
 export function assertLabelJsonSize(value: unknown, path: string): void {
   const encoded = JSON.stringify(value);
-  if (encoded === undefined || new TextEncoder().encode(encoded).byteLength > LABEL_LIMITS.jsonBytes) {
+  if (
+    encoded === undefined ||
+    new TextEncoder().encode(encoded).byteLength > LABEL_LIMITS.jsonBytes
+  ) {
     throw new LabelValidationError('payload-too-large', path);
   }
 }

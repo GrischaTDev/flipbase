@@ -14,14 +14,22 @@ import {
 function imageAssignments(value: unknown): LabelImageAssignment[] {
   const images = readLabelArray(value, LABEL_LIMITS.images, 'images').map((entry, index) => {
     const path = `images[${index}]`;
-    const image = readLabelObject(entry, ['assetId', 'position', 'caption', 'alt', 'referenceItem'], path);
+    const image = readLabelObject(
+      entry,
+      ['assetId', 'position', 'caption', 'alt', 'referenceItem'],
+      path,
+    );
     if (image['position'] !== index) {
       throw new LabelValidationError('invalid-image-order', `${path}.position`);
     }
     return {
       assetId: readLabelId(image['assetId'], `${path}.assetId`),
       position: index,
-      caption: readLabelText(image['caption'], LABEL_LIMITS.descriptionCharacters, `${path}.caption`),
+      caption: readLabelText(
+        image['caption'],
+        LABEL_LIMITS.descriptionCharacters,
+        `${path}.caption`,
+      ),
       alt: readLabelText(image['alt'], LABEL_LIMITS.descriptionCharacters, `${path}.alt`),
       referenceItem: readLabelText(
         image['referenceItem'],
@@ -58,8 +66,8 @@ export function reorderLabelImages(
   orderedAssetIds: readonly LabelId[],
 ): readonly LabelImageAssignment[] {
   const validated = imageAssignments(images);
-  const order = readLabelArray(orderedAssetIds, LABEL_LIMITS.images, 'imageOrder').map((entry, index) =>
-    readLabelId(entry, `imageOrder[${index}]`),
+  const order = readLabelArray(orderedAssetIds, LABEL_LIMITS.images, 'imageOrder').map(
+    (entry, index) => readLabelId(entry, `imageOrder[${index}]`),
   );
   assertUniqueLabelValues(order, 'imageOrder', 'invalid-image-order');
   if (order.length !== validated.length) {

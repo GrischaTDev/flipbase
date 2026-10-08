@@ -12,15 +12,24 @@ import {
 
 const requestId = 'fd01e4fc-9d2b-4b3b-98e0-fbc3a4448001';
 const draft = (state: LabelDraft['state'] = 'draft'): LabelDraft => ({
-  referenceId: 10, revisionId: 20, version: 3, state,
+  referenceId: 10,
+  revisionId: 20,
+  version: 3,
+  state,
   input: { content: createEmptyLabelContent(), images: [] },
 });
-const response = (state: LabelDraft['state'] = 'draft'): LabelDraft => ({ ...draft(state), version: 4 });
+const response = (state: LabelDraft['state'] = 'draft'): LabelDraft => ({
+  ...draft(state),
+  version: 4,
+});
 function rpc(data: unknown, error: unknown = null): LabelRpcTransport {
   return async () => ({ data, error });
 }
 async function rejectsWith(action: () => Promise<unknown>, code: string): Promise<void> {
-  await assert.rejects(action, (error: unknown) => error instanceof LabelRpcError && error.code === code);
+  await assert.rejects(
+    action,
+    (error: unknown) => error instanceof LabelRpcError && error.code === code,
+  );
 }
 
 describe('Revisionsaufträge vorbereiten', () => {
@@ -63,11 +72,16 @@ describe('Revisionsaufträge vorbereiten', () => {
     });
   }
   it('normalisiert eine gültige UUID auf Kleinschreibung', () => {
-    assert.equal(prepareLabelRevisionCommand('save', draft(), requestId.toUpperCase()).requestId, requestId);
+    assert.equal(
+      prepareLabelRevisionCommand('save', draft(), requestId.toUpperCase()).requestId,
+      requestId,
+    );
   });
   for (const value of [0, -1, 1.1, NaN, 2147483647]) {
     it(`verweigert die nicht fortschreibbare Version ${value}`, () => {
-      assert.throws(() => prepareLabelRevisionCommand('save', { ...draft(), version: value }, requestId));
+      assert.throws(() =>
+        prepareLabelRevisionCommand('save', { ...draft(), version: value }, requestId),
+      );
     });
   }
 });
@@ -77,16 +91,28 @@ describe('RPC-Aufträge ausführen', () => {
     const calls: unknown[] = [];
     const command = prepareLabelRevisionCommand('save', draft(), requestId);
     const transport: LabelRpcTransport = async (name, args) => {
-      calls.push({ name, args }); return { data: response(), error: null };
+      calls.push({ name, args });
+      return { data: response(), error: null };
     };
     assert.deepEqual(await executeLabelRevisionCommand(command, transport), response());
-    assert.deepEqual(calls, [{ name: 'save_label_draft', args: {
-      p_revision_id: 20, p_expected_version: 3, p_input: draft().input, p_request_id: requestId,
-    } }]);
+    assert.deepEqual(calls, [
+      {
+        name: 'save_label_draft',
+        args: {
+          p_revision_id: 20,
+          p_expected_version: 3,
+          p_input: draft().input,
+          p_request_id: requestId,
+        },
+      },
+    ]);
   });
   it('wiederholt einen unklar fehlgeschlagenen Auftrag nicht automatisch', async () => {
     let calls = 0;
-    const transport: LabelRpcTransport = async () => { calls += 1; throw new Error('private SQL details'); };
+    const transport: LabelRpcTransport = async () => {
+      calls += 1;
+      throw new Error('private SQL details');
+    };
     const command = prepareLabelRevisionCommand('save', draft(), requestId);
     await rejectsWith(() => executeLabelRevisionCommand(command, transport), 'network');
     assert.equal(calls, 1);
@@ -107,8 +133,14 @@ describe('RPC-Aufträge ausführen', () => {
   });
   it('Prüfung verlangt den passenden neuen Prüfstand', async () => {
     const command = prepareLabelRevisionCommand('submit', draft(), requestId);
-    assert.deepEqual(await executeLabelRevisionCommand(command, rpc(response('review'))), response('review'));
-    await rejectsWith(() => executeLabelRevisionCommand(command, rpc(response('draft'))), 'network');
+    assert.deepEqual(
+      await executeLabelRevisionCommand(command, rpc(response('review'))),
+      response('review'),
+    );
+    await rejectsWith(
+      () => executeLabelRevisionCommand(command, rpc(response('draft'))),
+      'network',
+    );
   });
   it('Veröffentlichen erwartet einen passenden serverseitigen Beleg', async () => {
     const command = prepareLabelRevisionCommand('publish', draft('review'), requestId);
@@ -121,7 +153,8 @@ describe('RPC-Aufträge ausführen', () => {
     assert.deepEqual(await executeLabelRevisionCommand(command, rpc(receipt)), receipt);
   });
   for (const [name, data] of [
-    ['null', null], ['leeres Objekt', {}],
+    ['null', null],
+    ['leeres Objekt', {}],
     ['fremde Referenz', { ...response(), referenceId: 11 }],
     ['fremde Revision', { ...response(), revisionId: 21 }],
     ['alte Version', { ...response(), version: 3 }],
@@ -137,30 +170,66 @@ describe('RPC-Aufträge ausführen', () => {
   }
   it('bestätigt beim Speichern keinen abweichenden Inhalt', async () => {
     const changed = response();
-    const data = { ...changed, input: { ...changed.input,
-      content: { ...changed.input.content, title: 'Nicht mein Auftrag' } } };
-    await rejectsWith(() => executeLabelRevisionCommand(prepareLabelRevisionCommand('save', draft(), requestId),
-      rpc(data)), 'network');
+    const data = {
+      ...changed,
+      input: {
+        ...changed.input,
+        content: { ...changed.input.content, title: 'Nicht mein Auftrag' },
+      },
+    };
+    await rejectsWith(
+      () =>
+        executeLabelRevisionCommand(
+          prepareLabelRevisionCommand('save', draft(), requestId),
+          rpc(data),
+        ),
+      'network',
+    );
   });
   it('akzeptiert keinen Transport ohne explizites Fehlerfeld', async () => {
     const broken = async () => ({ data: response() });
-    await rejectsWith(() => executeLabelRevisionCommand(prepareLabelRevisionCommand('save', draft(), requestId),
-      broken as unknown as LabelRpcTransport), 'network');
+    await rejectsWith(
+      () =>
+        executeLabelRevisionCommand(
+          prepareLabelRevisionCommand('save', draft(), requestId),
+          broken as unknown as LabelRpcTransport,
+        ),
+      'network',
+    );
   });
   it('führt keinen Getter in einer Transportantwort aus', async () => {
     let getterCalled = false;
     const transport: LabelRpcTransport = async () => ({
-      get data() { getterCalled = true; return response(); }, error: null,
+      get data() {
+        getterCalled = true;
+        return response();
+      },
+      error: null,
     });
-    await rejectsWith(() => executeLabelRevisionCommand(prepareLabelRevisionCommand('save', draft(), requestId),
-      transport), 'network');
+    await rejectsWith(
+      () =>
+        executeLabelRevisionCommand(
+          prepareLabelRevisionCommand('save', draft(), requestId),
+          transport,
+        ),
+      'network',
+    );
     assert.equal(getterCalled, false);
   });
   it('verweigert frei erfundene RPC-Namen vor dem Transport', async () => {
     let called = false;
-    const command = { ...prepareLabelRevisionCommand('save', draft(), requestId), action: 'delete_everything' };
-    await rejectsWith(() => executeLabelRevisionCommand(command as unknown as LabelRevisionCommand,
-      async () => { called = true; return { data: null, error: null }; }), 'validation');
+    const command = {
+      ...prepareLabelRevisionCommand('save', draft(), requestId),
+      action: 'delete_everything',
+    };
+    await rejectsWith(
+      () =>
+        executeLabelRevisionCommand(command as unknown as LabelRevisionCommand, async () => {
+          called = true;
+          return { data: null, error: null };
+        }),
+      'validation',
+    );
     assert.equal(called, false);
   });
 });
@@ -171,7 +240,8 @@ describe('RPC-Fehler ohne interne Details', () => {
     [{ code: '22023', message: 'private SQL' }, 'validation'],
     [{ code: 'P0001', details: 'label_version_conflict' }, 'conflict'],
     [{ code: 'P0001', details: 'different-error' }, 'network'],
-    [{ status: 401 }, 'unauthorized'], [{ status: 403 }, 'forbidden'],
+    [{ status: 401 }, 'unauthorized'],
+    [{ status: 403 }, 'forbidden'],
     [{ code: 'P0002' }, 'unavailable'],
     [{ code: '99999', hint: 'secret' }, 'network'],
   ] as const;
@@ -183,8 +253,10 @@ describe('RPC-Fehler ohne interne Details', () => {
   }
   it('zeigt keine SQL-Texte, Pfade oder Tokens aus dem Serverfehler', async () => {
     try {
-      await executeLabelRevisionCommand(prepareLabelRevisionCommand('save', draft(), requestId),
-        rpc(null, { code: '42501', message: 'secret-path', details: 'secret-token' }));
+      await executeLabelRevisionCommand(
+        prepareLabelRevisionCommand('save', draft(), requestId),
+        rpc(null, { code: '42501', message: 'secret-path', details: 'secret-token' }),
+      );
       assert.fail('Fehler erwartet');
     } catch (error: unknown) {
       assert.ok(error instanceof LabelRpcError);
@@ -193,7 +265,13 @@ describe('RPC-Fehler ohne interne Details', () => {
     }
   });
   it('gibt Fehlern Vorrang vor gleichzeitig gelieferten Erfolgsdaten', async () => {
-    await rejectsWith(() => executeLabelRevisionCommand(prepareLabelRevisionCommand('save', draft(), requestId),
-      rpc(response(), { code: '42501' })), 'forbidden');
+    await rejectsWith(
+      () =>
+        executeLabelRevisionCommand(
+          prepareLabelRevisionCommand('save', draft(), requestId),
+          rpc(response(), { code: '42501' }),
+        ),
+      'forbidden',
+    );
   });
 });

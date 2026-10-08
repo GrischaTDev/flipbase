@@ -28,7 +28,7 @@
         <app-custom-select
           triggerId="label-brand-filter"
           ariaLabel="Marke"
-          [options]="brandOptions"
+          [options]="brandOptions()"
           formControlName="brand"
         />
       </div>
@@ -90,9 +90,6 @@
         <app-button class="mt-3" (clicked)="resetFilters()">Filter zurücksetzen</app-button>
       </app-card>
     } @else {
-      <p class="text-sm text-fb-text-secondary">
-        Die Referenztexte sind angebunden. Die geschützte Bildanzeige wird noch fertiggestellt.
-      </p>
       <div
         class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
         aria-label="Veröffentlichte Labels"
@@ -105,12 +102,7 @@
             [linkLabel]="card.title + ' ansehen'"
           >
             <div class="flex aspect-[4/3] items-center justify-center bg-fb-subtle">
-              <app-product-thumbnail
-                [src]="null"
-                alt="Referenzbild noch nicht verfügbar"
-                size="reference"
-                fit="contain"
-              />
+              <app-label-image [assetId]="card.coverAssetId" [alt]="card.title" />
             </div>
             <div class="space-y-2 p-4">
               <h2 class="text-sm font-semibold text-fb-text-primary">{{ card.title }}</h2>

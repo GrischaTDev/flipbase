@@ -5,9 +5,14 @@ import { WorkspaceAccessService } from '../../../core/services/workspace-access.
 import { PlatformOperatorService } from '../../../core/services/platform-operator.service';
 import type { LabelPage, LabelReadFilter } from '../models/brand-label.models';
 import type { LabelDetail } from '../models/brand-label-reader';
-import { BrandLabelReaderService, LabelReadError } from './brand-label-reader.service';
+import {
+  BrandLabelReaderService,
+  LabelReadError,
+  type LabelReaderBrand,
+} from './brand-label-reader.service';
 
 export interface LabelReaderView {
+  readonly brands: readonly LabelReaderBrand[];
   readonly phase: 'loading' | 'ready' | 'unavailable' | 'error';
   readonly page: LabelPage | null;
   readonly detail: LabelDetail | null;
@@ -21,6 +26,7 @@ type ReadIntent =
   | { readonly type: 'detail'; readonly brand: string; readonly slug: string };
 const empty = (phase: LabelReaderView['phase']): LabelReaderView => ({
   phase,
+  brands: [],
   page: null,
   detail: null,
   loadingMore: false,
@@ -160,6 +166,8 @@ export class BrandLabelReaderState {
       const availability = await this.service.availability();
       if (!this.current(generation, scope, intent)) return;
       if (!availability.visible) throw new LabelReadError('unavailable');
+      const brands = intent.type === 'list' ? await this.service.brands() : [];
+      if (!this.current(generation, scope, intent)) return;
       const data =
         intent.type === 'list'
           ? { page: await this.service.list(intent.filter, 0), detail: null }
@@ -168,7 +176,7 @@ export class BrandLabelReaderState {
       this.result.set({
         scope,
         intent,
-        value: { ...empty('ready'), ...data, operator: availability.operator },
+        value: { ...empty('ready'), ...data, brands, operator: availability.operator },
       });
     } catch (error) {
       if (this.current(generation, scope, intent)) this.failed(scope, intent, error);

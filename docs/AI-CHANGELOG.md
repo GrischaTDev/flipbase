@@ -1,5 +1,39 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-08 - Juna - Marken-, Label- und Größenreferenzen abschließen
+
+**Auftrag:** Die im Web begonnene Referenzbibliothek vollständig fortführen;
+Backendarbeiten in diesem eigenständigen Projekt ausdrücklich freigegeben.
+
+**Umsetzung:** Bestehenden Integrationsstand in eigener Arbeitskopie mit dem
+aktuellen Hauptzweig zusammengeführt. Marken und Linien archivieren und
+wiederherstellen, Labelentwürfe bearbeiten, prüfen und veröffentlichen, Bilder
+mit Nutzungsrechten verwalten und quellengebundene Größentabellen pflegen.
+Leser sehen nur freigegebene Veröffentlichungen; die Bibliothek bleibt anfangs
+geschlossen. Bildoriginale und bereinigte Vorschaubilder bleiben privat;
+geprüfte Bildlinks gelten 60 Sekunden. Versionskonflikte, Rollenwechsel,
+ungespeicherte Eingaben und bewusste Wiederholung unklarer Aufträge berücksichtigt.
+Navigation, Filter, Bildvergrößerung und Quellenverweise integriert.
+
+**Datenbank:** Kanonische Schemata registriert, Migration mit dem lokalen CLI
+erzeugt, unabhängigen bestehenden Schema-Drift ausgeschlossen und ausgelassene
+Initialdaten sowie explizite Rechte aus den Schemata übernommen. Migration
+frisch lokal angewendet und API-Typen aus dieser Datenbank erzeugt.
+
+**Prüfung:** 247 SQL-Verhaltensprüfungen, 14 Prüfungen am echten Migrationspfad,
+403 Modell-/Navigations-/Übersetzungstests, 92 Angular-Tests und 11
+Medienprüfungen erfolgreich. Typen, Formatierung, Lint, Shared-UI und
+Produktionsbau geprüft. Vollständiger Browserablauf gegen echtes lokales
+Supabase und den Medien-Endpunkt: Redaktion, Upload, Veröffentlichung,
+Leserfreigabe, Quellenklick, Größenfilter und Bildwiderruf. Mobile AXE- und
+Überlaufprüfungen erfolgreich, keine unbehandelten Browserfehler. Sechs Befunde
+des unabhängigen Reviews korrigiert und nachgeprüft.
+
+**Grenzen:** Nur synthetische Referenzinhalte für Tests; keine Markenfakten oder
+allgemeinen Größenumrechnungen erfunden. Kein Push, Merge oder Produktionszugriff.
+Der neue Medien-Endpunkt muss vor produktiver Leserfreigabe bereitgestellt werden;
+das Vorgehen steht in der Deployment-Dokumentation. PR-Abschluss nach Freigabe.
+
 ## 2026-10-08 - Juna - Web-Arbeit am Marken- und Labellexikon lokal einordnen
 
 **Auftrag:** Vorhandene Web-Branches für Markenlabels, Echtheitsvergleich und

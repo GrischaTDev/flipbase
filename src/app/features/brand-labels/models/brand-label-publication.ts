@@ -126,13 +126,21 @@ function readContext(value: LabelPublicationContext): LabelPublicationContext {
         : {
             id: readLabelId(line['id'], 'publication.brandLine.id'),
             brandId: readLabelId(line['brandId'], 'publication.brandLine.brandId'),
-            name: readLabelText(line['name'], LABEL_LIMITS.nameCharacters, 'publication.brandLine.name'),
+            name: readLabelText(
+              line['name'],
+              LABEL_LIMITS.nameCharacters,
+              'publication.brandLine.name',
+            ),
             archived: readBoolean(line['archived'], 'publication.brandLine.archived'),
           },
     images: readLabelArray(ctx['images'], LABEL_LIMITS.images, 'publication.images').map(
       (entry, index) => {
         const path = `publication.images[${index}]`;
-        const image = readLabelObject(entry, ['assetId', 'processingStatus', 'permissionStatus'], path);
+        const image = readLabelObject(
+          entry,
+          ['assetId', 'processingStatus', 'permissionStatus'],
+          path,
+        );
         const processingStatus = image['processingStatus'];
         const permissionStatus = image['permissionStatus'];
         if (
@@ -202,8 +210,10 @@ function inspect(draft: LabelDraftInput, ctx: LabelPublicationContext): LabelPub
     for (const key of ['title', 'url', 'locator'] as const) {
       if (!source[key].trim()) add('source-incomplete', `content.sources[${index}].${key}`);
     }
-    if (source.accessedAt === null) add('source-incomplete', `content.sources[${index}].accessedAt`);
-    else if (source.accessedAt > ctx.today) add('future-date', `content.sources[${index}].accessedAt`);
+    if (source.accessedAt === null)
+      add('source-incomplete', `content.sources[${index}].accessedAt`);
+    else if (source.accessedAt > ctx.today)
+      add('future-date', `content.sources[${index}].accessedAt`);
   });
   const dated = content.intervals.some(
     (interval) => interval.startYear !== null || interval.endYear !== null,
@@ -211,7 +221,10 @@ function inspect(draft: LabelDraftInput, ctx: LabelPublicationContext): LabelPub
   if ((content.evidenceLevel === 'undated') === dated) {
     add('dating-evidence-mismatch', 'content.evidenceLevel');
   }
-  if (content.evidenceLevel === 'undated' && !content.limitations.some((text) => Boolean(text.trim()))) {
+  if (
+    content.evidenceLevel === 'undated' &&
+    !content.limitations.some((text) => Boolean(text.trim()))
+  ) {
     add('dating-explanation-required', 'content.limitations');
   }
   content.intervals.forEach((interval, index) => {
@@ -221,7 +234,8 @@ function inspect(draft: LabelDraftInput, ctx: LabelPublicationContext): LabelPub
   });
   content.checkHints.forEach((hint, index) => {
     requiredText(hint.text, `content.checkHints[${index}].text`);
-    if (!hint.sourceIds.length) add('hint-source-required', `content.checkHints[${index}].sourceIds`);
+    if (!hint.sourceIds.length)
+      add('hint-source-required', `content.checkHints[${index}].sourceIds`);
   });
 
   if (!draft.images.length) add('image-required', 'images');
@@ -279,7 +293,8 @@ function evaluate(
       content: {
         ...draft.content,
         brandName: checked.brand.name,
-        brandLineName: draft.content.brandLineId === null ? null : checked.brandLine?.name ?? null,
+        brandLineName:
+          draft.content.brandLineId === null ? null : (checked.brandLine?.name ?? null),
       },
     });
   } catch (error: unknown) {

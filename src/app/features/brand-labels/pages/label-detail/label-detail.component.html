@@ -37,19 +37,14 @@
     <div class="grid items-start gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
       <div class="space-y-4">
         <app-card title="Referenzbilder">
-          <p class="mb-4 text-sm text-fb-text-secondary">
-            Die geschützte Bildanzeige wird noch fertiggestellt. Die freigegebenen
-            Bildbeschreibungen stehen bereits zur Verfügung.
-          </p>
           <div class="grid gap-4 sm:grid-cols-2">
             @for (image of detail.images; track image.assetId) {
               <figure class="space-y-2">
                 <div class="flex aspect-[4/3] items-center justify-center rounded-lg bg-fb-subtle">
-                  <app-product-thumbnail
-                    [src]="null"
+                  <app-label-image
+                    [assetId]="image.assetId"
                     [alt]="image.alt"
-                    size="reference"
-                    fit="contain"
+                    [canEnlarge]="true"
                   />
                 </div>
                 <figcaption class="space-y-1 text-[13px] text-fb-text-secondary">
@@ -76,7 +71,14 @@
           <app-card title="Darauf solltest Du achten">
             <ul class="list-disc space-y-2 pl-5 text-sm text-fb-text-primary">
               @for (hint of detail.content.checkHints; track $index) {
-                <li>{{ hint.text }}</li>
+                <li>
+                  {{ hint.text }}
+                  @for (sourceId of hint.sourceIds; track sourceId) {
+                    <a class="ml-2 text-[13px] underline" [href]="sourceAnchor(sourceId)"
+                      >Quelle {{ sourceId }}</a
+                    >
+                  }
+                </li>
               }
             </ul>
           </app-card>
@@ -91,7 +93,14 @@
               <p>Markenlinie: {{ detail.content.brandLineName }}</p>
             }
             @for (interval of detail.content.intervals; track $index) {
-              <p>{{ intervalLabel(interval) }}</p>
+              <p>
+                {{ intervalLabel(interval) }}
+                @for (sourceId of interval.sourceIds; track sourceId) {
+                  <a class="ml-2 text-[13px] underline" [href]="sourceAnchor(sourceId)"
+                    >Quelle {{ sourceId }}</a
+                  >
+                }
+              </p>
             }
             <p class="text-fb-text-secondary">
               Zeitangaben sind eine Einordnung, kein Herstellungsnachweis für Deinen Artikel.
@@ -115,7 +124,7 @@
         <app-card title="Quellen">
           <ol class="list-decimal space-y-4 pl-5 text-[13px] text-fb-text-primary">
             @for (source of detail.content.sources; track source.id) {
-              <li>
+              <li [id]="'label-source-' + source.id">
                 @if (source.url) {
                   <a
                     [href]="source.url"

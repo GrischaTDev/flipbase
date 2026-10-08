@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { ActivatedRoute, convertToParamMap } from '@angular/router';
+import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
 import { BehaviorSubject } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BrandLabelReaderState } from '../../services/brand-label-reader-state';
@@ -15,12 +15,19 @@ function setup() {
     providers: [
       { provide: ActivatedRoute, useValue: { paramMap: params, queryParamMap: query } },
       { provide: BrandLabelReaderState, useValue: state },
+      { provide: Router, useValue: { url: '/tools/brand-labels/nike/test-label?q=white#old' } },
     ],
   });
   const component = TestBed.runInInjectionContext(() => new LabelDetailComponent());
   return { component, params, query, state };
 }
 describe('LabelDetailComponent', () => {
+  it('verweist trotz globalem base-Element auf die Quelle derselben Detailseite', () => {
+    const { component } = setup();
+    expect(component.sourceAnchor('test-source')).toBe(
+      '/tools/brand-labels/nike/test-label?q=white#label-source-test-source',
+    );
+  });
   afterEach(() => TestBed.resetTestingModule());
   it('lädt den Eintrag aus der Route und erhält die Suche für den Rückweg', () => {
     const { component, state } = setup();

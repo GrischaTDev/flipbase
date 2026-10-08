@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -11,7 +11,7 @@ import {
   CustomSelectComponent,
   type SelectOption,
 } from '../../../../shared/components/custom-select/custom-select.component';
-import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
+import { LabelImageComponent } from '../../components/label-image/label-image.component';
 import { normalizeLabelFilters, labelFiltersToQueryParams } from '../../models/brand-label-filters';
 import type { LabelCard } from '../../models/brand-label.models';
 import { BrandLabelReaderState } from '../../services/brand-label-reader-state';
@@ -25,7 +25,7 @@ import { BrandLabelReaderState } from '../../services/brand-label-reader-state';
     ButtonComponent,
     TextFieldComponent,
     CustomSelectComponent,
-    ProductThumbnailComponent,
+    LabelImageComponent,
   ],
   providers: [BrandLabelReaderState],
   templateUrl: './label-library.component.html',
@@ -46,11 +46,10 @@ export class LabelLibraryComponent {
     decade: new FormControl('', { nonNullable: true }),
     kind: new FormControl('', { nonNullable: true }),
   });
-  // Inhaltsumfang des Piloten, keine behauptete Verfügbarkeit bestimmter Nike-Labels.
-  readonly brandOptions: readonly SelectOption<string>[] = [
+  readonly brandOptions = computed<readonly SelectOption<string>[]>(() => [
     { value: '', label: 'Alle Marken' },
-    { value: 'nike', label: 'Nike' },
-  ];
+    ...this.state.view().brands.map((brand) => ({ value: brand.slug, label: brand.name })),
+  ]);
   readonly kindOptions: readonly SelectOption<string>[] = [
     { value: '', label: 'Alle Labelarten' },
     { value: 'neck-label', label: 'Nackenlabel' },

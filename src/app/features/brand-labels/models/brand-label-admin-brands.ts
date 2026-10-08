@@ -45,7 +45,10 @@ export type LabelBrandEditResult =
   | { readonly kind: 'brand'; readonly value: LabelAdminBrandRecord }
   | { readonly kind: 'line'; readonly value: LabelAdminLine };
 export type LabelBrandAdminRpc =
-  'list_label_admin_brands' | 'save_label_brand' | 'save_label_brand_line';
+  | 'list_label_admin_brands'
+  | 'save_label_brand'
+  | 'save_label_brand_line'
+  | 'set_label_brand_archive';
 export type LabelBrandAdminTransport = (
   name: LabelBrandAdminRpc,
   args: Readonly<Record<string, unknown>>,
@@ -269,6 +272,58 @@ export async function executeLabelBrandEdit(
       return { kind: 'line', value: result };
     }
     throw new LabelBrandAdminError('network');
+  } catch {
+    throw new LabelBrandAdminError('network');
+  }
+}
+export interface LabelBrandArchiveCommand {
+  readonly kind: 'brand' | 'line';
+  readonly id: number;
+  readonly expectedVersion: number;
+  readonly archived: boolean;
+  readonly requestId: string;
+}
+export function prepareLabelBrandArchive(
+  value: LabelBrandArchiveCommand,
+): LabelBrandArchiveCommand {
+  const row = readLabelObject(
+    value,
+    ['kind', 'id', 'expectedVersion', 'archived', 'requestId'],
+    'archive',
+  );
+  if (row['kind'] !== 'brand' && row['kind'] !== 'line')
+    throw new LabelBrandAdminError('validation');
+  if (
+    typeof row['archived'] !== 'boolean' ||
+    typeof row['requestId'] !== 'string' ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(row['requestId'])
+  )
+    throw new LabelBrandAdminError('validation');
+  return Object.freeze({
+    kind: row['kind'],
+    id: readLabelId(row['id'], 'archive.id'),
+    expectedVersion: readLabelId(row['expectedVersion'], 'archive.version'),
+    archived: row['archived'],
+    requestId: row['requestId'],
+  });
+}
+export async function executeLabelBrandArchive(
+  transport: LabelBrandAdminTransport,
+  value: LabelBrandArchiveCommand,
+): Promise<number> {
+  const command = prepareLabelBrandArchive(value);
+  const result = await call(transport, 'set_label_brand_archive', {
+    p_id: command.id,
+    p_expected_version: command.expectedVersion,
+    p_archived: command.archived,
+    p_line: command.kind === 'line',
+    p_request_id: command.requestId,
+  });
+  try {
+    const row = readLabelObject(result, ['version'], 'archiveReceipt');
+    const version = readLabelId(row['version'], 'archiveReceipt.version');
+    if (version !== command.expectedVersion + 1) throw new Error('Invalid version');
+    return version;
   } catch {
     throw new LabelBrandAdminError('network');
   }

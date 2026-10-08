@@ -1,50 +1,32 @@
-# Marken & Labels – Integrationsstand
+# Marken-, Label- und Größenreferenzen
 
-Stand: 07.10.2026. Assistent: Juna.
+Stand: 08.10.2026. Assistent: Juna. Lokale Fortsetzung von PR 331.
 
-## Auftrag
+Unter `/tools/brand-labels` vergleichen Nutzer veröffentlichte Bekleidungslabels.
+`/tools/brand-labels/sizes` zeigt quellengebundene Größenreferenzen für Hosen,
+Oberteile, Schuhe und weitere Kleidung. Die Sammlung enthält keine erfundenen
+Markenbelege oder pauschalen Größenumrechnungen. Sie liefert Vergleichsmaterial,
+kein automatisches Echtheitsurteil.
 
-Zentrales Referenzlexikon für Bekleidungslabels, zunächst Nike. Nur
-Flipbase-Plattformbetreiber pflegen Marken, Linien, Labels, Bilder, Quellen
-und Veröffentlichungen. Normale Nutzer und Workspace-Admins lesen ausschließlich
-freigegebene Inhalte. Kein automatisches Echtheitsurteil, keine persönlichen
-Lexikonkopien und kein Größenfinder in diesem Ausbau.
+Plattformbetreiber pflegen globale Referenzmarken und Linien, Bilder mit
+Bildrechten, Labels und Größentabellen unter `/tools/brand-labels/admin`.
+Workspace-Stammdaten bleiben getrennt. Die Redaktion öffnet den Leserzugang
+nach einer gültigen Label- oder Größenveröffentlichung ausdrücklich.
+Leser benötigen einen gültigen Workspacezugang.
 
-## Dieser Entwurfs-PR
+Die Schemata `430` bis `440` sind registriert; die erzeugte Migration enthält
+Startzeilen und eingeschränkte Rollenrechte. Die API-Typen stammen aus der
+frisch migrierten lokalen Supabase. Der CLI-Abgleich allein erfasst weder
+Startzeilen noch sämtliche geerbten Supabase-Rechte. Der tatsächliche
+Migrationspfad wird zusätzlich über
+`supabase/tests/reference-library-permissions.test.sql` geprüft.
 
-Die Umsetzung wird vom Hauptzweig `9612647709f5bf15ba6ae3936656a6c8c0d120c5`
-aus übernommen. Der ältere leere Zweig `juna/brand-labels-foundation` wird nicht
-umgeschrieben. Der erste Commit enthält die Referenzverträge, Eingabegrenzen
-und die mit Tests abgesicherten Revisionsübergänge. Weitere bereits lokal
-vorhandene Bausteine werden im selben Entwurfs-PR ergänzt.
+Die Edge Function `brand-label-media` muss vor der Leserfreigabe mit den
+übrigen Funktionsordnern bereitgestellt werden, siehe
+[Deployment](../../deploy/README.md). Bilder bleiben privat. Der Endpunkt prüft
+die aktuelle Anmeldung und Freigabe und erstellt Links mit 60 Sekunden Laufzeit.
+Browser erhalten keine direkte Storage-Lesepolicy.
 
-Dies ist kein fertig nutzbares Feature. Datenbankintegration, Medienverarbeitung,
-Admin- und Leseroberfläche sowie vollständige Projektprüfungen fehlen noch.
-Insbesondere dürfen die SQL-Kandidaten nicht ohne Datenbanktests als
-Release-Migrationen eingetragen werden. Keine Änderung der laufenden Anwendung
-und keine Freigabe für Nutzer durch diesen Entwurfsstand.
-
-## Prüfungen
-
-Am 07.10.2026 wurden im bereitgestellten Quellpaket 398 Verhaltenstests erneut
-mit dem dokumentierten Node-/TypeScript-Offline-Testläufer ausgeführt: kein
-Fehler. Darin sind die 16 Revisionsübergänge dieses ersten Commits enthalten.
-Das ist weder ein vollständiger Projekt-Vitest-Lauf noch ein Angular-Build.
-Der GitHub-PR muss die echten Projektprüfungen durchlaufen. Bis zur vollständigen
-Integration bleibt er ausdrücklich Entwurf; kein Merge mit offenen Prüfungen.
-
-## Fortsetzung
-
-1. Vorhandene Validierung, Veröffentlichungsprüfung, API-Aufträge und
-   Editorsteuerung samt zugehörigen Tests in den Projekt-Testlauf übernehmen.
-2. SQL-Kandidaten in einer neuen isolierten PostgreSQL-17-Testinstanz prüfen;
-   dabei keine produktive Datenbank oder bestehende Nutzerkonten verwenden.
-3. Erst nach dieser Prüfung registrierte Schemata, erzeugte Migrationen,
-   Supabase-Anbindung und geschützte Bildverarbeitung ergänzen.
-4. Admineditor, Galerie und Navigation mit vorhandenen Shared-Komponenten bauen.
-5. Rechte-, Browser-, Build- und redaktionelle Abnahme vor Freigabe.
-
-Der Sitzungseintrag steht vorerst hier, damit beim Übertragen nicht das große,
-parallel fortgeschriebene `docs/AI-CHANGELOG.md` durch einen unvollständig
-abgerufenen Stand ersetzt wird. Vor dem Merge ist der Eintrag im vollständigen
-Checkout in das zentrale Änderungsprotokoll zu übernehmen.
+Redaktionelle Referenzinhalte und Bilder werden über die Oberfläche eingepflegt.
+Die lokale Umsetzung und Abnahme verändern keine Produktionsdaten. Push, PR,
+Merge und Produktionsfreigabe folgen erst nach dem vereinbarten PR-Abschluss.

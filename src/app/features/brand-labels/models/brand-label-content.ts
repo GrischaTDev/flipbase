@@ -66,24 +66,34 @@ function textList(value: unknown, count: number, width: number, path: string): s
 }
 
 function sources(value: unknown): LabelSource[] {
-  const result = readLabelArray(value, LABEL_LIMITS.sources, 'content.sources').map((entry, index) => {
-    const path = `content.sources[${index}]`;
-    const source = readLabelObject(
-      entry,
-      ['id', 'title', 'publisher', 'url', 'accessedAt', 'locator'],
-      path,
-    );
-    const id = readLabelText(source['id'], LABEL_LIMITS.sourceIdCharacters, `${path}.id`);
-    if (!id.trim()) throw new LabelValidationError('invalid-source-id', `${path}.id`);
-    return {
-      id,
-      title: readLabelText(source['title'], LABEL_LIMITS.nameCharacters, `${path}.title`),
-      publisher: readLabelText(source['publisher'], LABEL_LIMITS.nameCharacters, `${path}.publisher`),
-      url: readLabelSourceUrl(source['url'], `${path}.url`),
-      accessedAt: readLabelDate(source['accessedAt'], `${path}.accessedAt`),
-      locator: readLabelText(source['locator'], LABEL_LIMITS.descriptionCharacters, `${path}.locator`),
-    };
-  });
+  const result = readLabelArray(value, LABEL_LIMITS.sources, 'content.sources').map(
+    (entry, index) => {
+      const path = `content.sources[${index}]`;
+      const source = readLabelObject(
+        entry,
+        ['id', 'title', 'publisher', 'url', 'accessedAt', 'locator'],
+        path,
+      );
+      const id = readLabelText(source['id'], LABEL_LIMITS.sourceIdCharacters, `${path}.id`);
+      if (!id.trim()) throw new LabelValidationError('invalid-source-id', `${path}.id`);
+      return {
+        id,
+        title: readLabelText(source['title'], LABEL_LIMITS.nameCharacters, `${path}.title`),
+        publisher: readLabelText(
+          source['publisher'],
+          LABEL_LIMITS.nameCharacters,
+          `${path}.publisher`,
+        ),
+        url: readLabelSourceUrl(source['url'], `${path}.url`),
+        accessedAt: readLabelDate(source['accessedAt'], `${path}.accessedAt`),
+        locator: readLabelText(
+          source['locator'],
+          LABEL_LIMITS.descriptionCharacters,
+          `${path}.locator`,
+        ),
+      };
+    },
+  );
   assertUniqueLabelValues(
     result.map((source) => source.id),
     'content.sources',
@@ -113,19 +123,25 @@ function intervals(value: unknown, known: ReadonlySet<string>): LabelInterval[] 
     if (startYear !== null && endYear !== null && startYear > endYear) {
       throw new LabelValidationError('invalid-interval', path);
     }
-    return { startYear, endYear, sourceIds: sourceIds(item['sourceIds'], known, `${path}.sourceIds`) };
+    return {
+      startYear,
+      endYear,
+      sourceIds: sourceIds(item['sourceIds'], known, `${path}.sourceIds`),
+    };
   });
 }
 
 function checkHints(value: unknown, known: ReadonlySet<string>): LabelCheckHint[] {
-  return readLabelArray(value, LABEL_LIMITS.checkHints, 'content.checkHints').map((entry, index) => {
-    const path = `content.checkHints[${index}]`;
-    const hint = readLabelObject(entry, ['text', 'sourceIds'], path);
-    return {
-      text: readLabelText(hint['text'], LABEL_LIMITS.descriptionCharacters, `${path}.text`),
-      sourceIds: sourceIds(hint['sourceIds'], known, `${path}.sourceIds`),
-    };
-  });
+  return readLabelArray(value, LABEL_LIMITS.checkHints, 'content.checkHints').map(
+    (entry, index) => {
+      const path = `content.checkHints[${index}]`;
+      const hint = readLabelObject(entry, ['text', 'sourceIds'], path);
+      return {
+        text: readLabelText(hint['text'], LABEL_LIMITS.descriptionCharacters, `${path}.text`),
+        sourceIds: sourceIds(hint['sourceIds'], known, `${path}.sourceIds`),
+      };
+    },
+  );
 }
 
 function labelKinds(value: unknown): LabelKind[] {
@@ -177,7 +193,11 @@ export function validateLabelContent(value: unknown): LabelContentV1 {
     brandLineName:
       record['brandLineName'] === null
         ? null
-        : readLabelText(record['brandLineName'], LABEL_LIMITS.nameCharacters, 'content.brandLineName'),
+        : readLabelText(
+            record['brandLineName'],
+            LABEL_LIMITS.nameCharacters,
+            'content.brandLineName',
+          ),
     kinds: labelKinds(record['kinds']),
     timeSummary: readLabelText(
       record['timeSummary'],

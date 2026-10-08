@@ -9,7 +9,7 @@ import {
   untracked,
 } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { LucidePencil, LucidePlus } from '@lucide/angular';
+import { LucidePencil, LucidePlus, LucideArchive, LucideRotateCcw } from '@lucide/angular';
 import { AuthService } from '../../../../core/services/auth.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { PlatformOperatorService } from '../../../../core/services/platform-operator.service';
@@ -22,6 +22,8 @@ import { ModalShellComponent } from '../../../../shared/components/modal-shell/m
 import { BrandLabelAdminBrandsService } from '../../services/brand-label-admin-brands.service';
 import {
   LabelBrandAdminError,
+  prepareLabelBrandArchive,
+  type LabelBrandArchiveCommand,
   prepareLabelBrandEdit,
   type LabelAdminBrand,
   type LabelAdminLine,
@@ -48,7 +50,7 @@ interface BrandAdminView {
   brands: readonly LabelAdminBrand[];
   editor: BrandEditor | null;
   busy: boolean;
-  pending: LabelBrandEdit | null;
+  pending: LabelBrandEdit | LabelBrandArchiveCommand | null;
   conflict: boolean;
   error: string | null;
   actionError: string | null;
@@ -123,6 +125,8 @@ export class LabelBrandsComponent {
       ),
     );
   });
+  readonly archiveIcon = LucideArchive;
+  readonly restoreIcon = LucideRotateCcw;
   readonly plusIcon = LucidePlus;
   readonly editIcon = LucidePencil;
 
@@ -219,13 +223,39 @@ export class LabelBrandsComponent {
     }
     await this.execute(command);
   }
+  async archiveBrand(brand: LabelAdminBrand, line?: LabelAdminLine): Promise<void> {
+    if (!this.canOpen() || this.view().conflict) return;
+    const current = this.view().brands.find((entry) => entry.id === brand.id);
+    const target = line ? current?.lines.find((entry) => entry.id === line.id) : current;
+    if (!target || (line && current?.archived)) return;
+    const archived = !target.archived;
+    if (
+      !globalThis.confirm(
+        archived
+          ? target.name +
+              ' archivieren? Zugehörige Referenzen können dadurch aus der Leseransicht verschwinden.'
+          : target.name +
+              ' wiederherstellen? Bestehende Veröffentlichungen können wieder sichtbar werden.',
+      )
+    )
+      return;
+    await this.execute(
+      prepareLabelBrandArchive({
+        kind: line ? 'line' : 'brand',
+        id: target.id,
+        expectedVersion: target.version,
+        archived,
+        requestId: crypto.randomUUID(),
+      }),
+    );
+  }
   async retry(): Promise<void> {
     const command = this.view().pending;
     if (command && !this.saving()) await this.execute(command);
   }
-  private async execute(command: LabelBrandEdit): Promise<void> {
+  private async execute(command: LabelBrandEdit | LabelBrandArchiveCommand): Promise<void> {
     const scope = this.scope();
-    if (!scope || !this.editor()) return;
+    if (!scope || ('input' in command && !this.editor())) return;
     const generation = this.generation;
     this.form.disable();
     this.state.update((state) => ({
@@ -236,6 +266,31 @@ export class LabelBrandsComponent {
       message: null,
     }));
     try {
+      if (!('input' in command)) {
+        const version = await this.service.archive(command);
+        if (!this.current(scope, generation)) return;
+        this.state.update((state) => ({
+          ...state,
+          busy: false,
+          pending: null,
+          conflict: false,
+          actionError: null,
+          message: command.archived ? 'Eintrag archiviert.' : 'Eintrag wiederhergestellt.',
+          brands: state.brands.map((brand) =>
+            command.kind === 'brand' && brand.id === command.id
+              ? { ...brand, archived: command.archived, version }
+              : {
+                  ...brand,
+                  lines: brand.lines.map((line) =>
+                    command.kind === 'line' && line.id === command.id
+                      ? { ...line, archived: command.archived, version }
+                      : line,
+                  ),
+                },
+          ),
+        }));
+        return;
+      }
       const result = await this.service.execute(command);
       if (!this.current(scope, generation)) return;
       this.applyResult(result);
@@ -316,8 +371,8 @@ export class LabelBrandsComponent {
   hasUnsavedChanges(): boolean {
     const editor = this.editor();
     return (
-      editor !== null &&
-      (this.unresolved() ||
+      this.unresolved() ||
+      (editor !== null &&
         JSON.stringify(editor.original) !== JSON.stringify(this.form.getRawValue()))
     );
   }

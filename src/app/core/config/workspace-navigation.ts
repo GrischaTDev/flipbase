@@ -133,6 +133,16 @@ export const WORKSPACE_NAVIGATION_GROUPS: readonly WorkspaceNavigationGroup[] = 
     label: 'Tools',
     items: [
       {
+        path: '/tools/brand-labels',
+        labelKey: 'NAV.REFERENCE_LIBRARY',
+        label: 'Marken & Größen',
+        icon: 'bookOpen',
+        children: [
+          { label: 'Labels vergleichen', path: '/tools/brand-labels' },
+          { label: 'Größen nachschlagen', path: '/tools/brand-labels/sizes' },
+        ],
+      },
+      {
         path: '/vinted-bot',
         labelKey: 'NAV.DEAL_MONITOR',
         label: 'Vinted Bot',
@@ -208,6 +218,8 @@ export function isNavigationChildActive(child: SubNavigationItem, url: string): 
   if (path === child.path) return true;
   // Die Bot-Startseite ist ein eigener Unterpunkt, kein Sammelpunkt für seine Geschwister.
   if (child.path === '/vinted-bot') return false;
+  if (child.path === '/tools/brand-labels')
+    return !path.startsWith(child.path + '/sizes') && !path.startsWith(child.path + '/admin');
   return path.startsWith(child.path + '/');
 }
 
