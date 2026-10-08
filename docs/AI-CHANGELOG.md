@@ -195,6 +195,126 @@ gezieltes ESLint, Formatierung und Migrations-/Schemaregistrierungstests
 bestehen; neu erzeugte API-Typen sind unverändert. Die Veröffentlichung
 steht noch aus.
 
+## 2026-10-08 - Juna - Endlose Filterprüfung bei globaler Vinted-Pause beenden
+
+**Befund:** Nach einer erfolgreichen Wiederprüfung sperrt Vinted um 11:00 Uhr
+einen Ralph-Lauren-Abruf mit HTTP 403 und erkanntem Challenge-Signal. Adidas wird
+erst um 11:42 Uhr aktiviert und führt während der globalen Pause keinen neuen
+Abruf aus. Die Filterseite wartet trotzdem unbegrenzt auf einen neuen
+Abrufzeitpunkt. Nach Neuladen zeigt sie stattdessen den alten Adidas-Fehler vom
+Vortag neben dem gespeicherten Aktivstatus.
+
+**Umsetzung:** Die Filterseite liest den vorhandenen Browserstatus mit dem
+Betriebsstand. Bei notwendiger manueller Prüfung endet die Warteanzeige;
+ein Hinweis erklärt die globale Pause und verlinkt den Botbetrieb. Aktive
+Filter zeigen ihren Wartegrund, historische Ergebnisse heißen "Letzter Abruf".
+Eine Aktivierung verspricht keinen sofortigen Anbieterabruf mehr.
+
+**Live-Vergleich:** Nach ausdrücklicher Zustimmung den Adidas-Filter auf die
+Hauptmarke (14) und 60 Sekunden umgestellt. Nike und Ralph Lauren bleiben
+pausiert. Die reguläre Admin-Botsitzung zeigt den Adidas-Katalog ohne CAPTCHA;
+die bestehende Wiederprüfung bestätigt den Zugriff um 12:03 Uhr. Danach
+folgen fünf erfolgreiche automatische Abrufe bis 12:09 Uhr mit insgesamt
+97 neuen Adidas-Artikeln; aktuelle Funde sind im Nutzerfeed sichtbar.
+Eine dauerhafte Anbieterfreigabe oder ein Fehler
+einer bestimmten Adidas-Variante ist damit nicht bewiesen.
+
+**Prüfung:** Der Regressionstest reproduziert zuerst die endlose Warteanzeige.
+Mit der Korrektur bestehen 22 gezielte Tests einschließlich echter Vorlage,
+historischem Fehler nach Neuladen, späterer globaler Pause und Statusfehler.
+Der neue Hinweis besteht die automatisierte AXE-Prüfung. Typprüfung, gezieltes
+ESLint, Formatierung, Suite-Audit, Shared-UI-Prüfung und Produktionsbau bestehen.
+Die bestehende CommonJS-Warnung für `pako` bleibt. PR #344 ist nach erfolgreichen
+Pflichtprüfungen einschließlich Browser-Smoke gemergt und als v0.310.4
+veröffentlicht. Die öffentliche Commitprüfung und die angemeldete Filterseite
+bestätigen den neuen Stand. Bis 13:50 Uhr bestehen 100 automatische Adidas-Abrufe
+mit 1.873 neuen Artikeln ohne Fehler. Der Bot wird beim Webrelease nicht neu gestartet.
+
+## 2026-10-08 - Juna - Ausbleibenden Vinted-Feed live untersuchen und freigeben
+
+**Befund:** Der globale Vinted-Zustand steht seit dem 07.10. um 17:18 Uhr auf
+`blocked / interaction_required`. Der zeitgleiche Adidas-Abruf ist als
+`forbidden` gespeichert. Der später neu gestartete Container ist lebendig,
+aber `/health` meldet mangels erfolgreicher Suchrunde 503. Am 08.10. sind vor
+der Wiederprüfung keine neuen Artikel gespeichert. Nike und Ralph Lauren sind
+aktiv; Adidas ist deaktiviert. Eine erneute Bereitstellung löscht die notwendige
+manuelle Pause nicht. Die private Browserroute und Betreiberanmeldung funktionieren.
+
+**Wiederherstellung:** Über die vorhandene angemeldete Admin-Botsitzung den
+Nike-Katalog geöffnet, den Cookiehinweis auf notwendige Cookies beschränkt und
+nach dem bestehenden Mindestabstand „Zugriff erneut prüfen“ ausgeführt.
+Die Oberfläche bestätigt den erfolgreich gespeicherten Katalogzugriff und die
+Freigabe aktiver Markenfilter. Kein CAPTCHA wird angeboten oder gelöst.
+Keine Änderung an Code, Suchbedingungen, Datenbankschema oder Zugriffsschutz.
+
+**Abnahme:** Elf automatische Durchläufe nach der Freigabe bestehen ohne Fehler.
+369 Artikel sind heute neu gespeichert; Nike und Ralph Lauren haben aktuelle
+Erfolgszeitpunkte. `/health` ist bereit, der globale Zustand ist `ready`.
+Der angemeldete Adminbereich zeigt „Vinted verbunden“ und der Nutzerfeed zeigt
+neue Artikel von heute um 10:38 Uhr. Formatierung und Git-Diff bestehen.
+Eine dauerhafte Anbieterfreigabe ist damit nicht zugesichert.
+
+**Adidas-Nachprüfung:** Der Nutzer berichtet wiederholte Ausfälle nach Aktivierung
+dieses Filters. Der aktuelle Filter enthält sieben Adidas-Varianten und einen
+20-Sekunden-Abstand. Sie werden einzeln im Wechsel abgefragt, nicht gleichzeitig.
+Die gespeicherte Position 9 entspricht bei sieben Varianten dem Index 2,
+also `adidas NEO` (132738); an dieser Position steht der letzte Fehler. Alle
+sieben Varianten sind zuvor erfolgreich initialisiert worden. Auch der ältere,
+inzwischen gelöschte Filter mit ausschließlich `adidas` (14) hat einen früheren
+`forbidden`-Eintrag. Damit ist die letzte globale Pause einem Adidas-Abruf
+zuordenbar, aber kein Fehler einer bestimmten Markenkennung bewiesen. Der Filter
+bleibt bei dieser lesenden Analyse deaktiviert und unverändert. Ein kontrollierter
+Vergleich mit nur der Hauptmarke und längeren Abständen ist noch nicht ausgeführt.
+
+## 2026-10-08 - Juna - Cloud-Browserauswertung mit begrenzter Sitzung isolieren
+
+**Auftrag:** Die offenen Security-Meldungen zur gemeinsamen Browsersteuerung
+mit dem vorhandenen kleinen Server bearbeiten. Bestehende Warteschlange, ein
+Cloudplatz und gespeicherte Kontoprofile bleiben erhalten; kurze Folgeaktionen
+sollen keinen neuen Browserstart benötigen. Die lokale Erweiterung bleibt unverändert.
+
+**Umsetzung:** Browser- und Playwright-Auswertung laufen im Sitzungscontainer
+mit genau einem Profil, ohne globale Anbieterschlüssel oder Docker-Socket.
+Controller und Broker übertragen ausschließlich feste Browseraktionen über
+einen an den Container gebundenen Kanal. Berechtigungsprüfungen während Abrufen
+und Schreibaktionen bleiben im Controller. GoLogin verwendet einen kurzlebigen
+Profilkanal; sein globaler Schlüssel wird nicht an den Auswerter weitergegeben.
+Aktionen desselben Kontos können ihre Sitzung innerhalb von 20 Sekunden Leerlauf
+und höchstens zwei Minuten nach Erstellung erneut verwenden. Kontowechsel und
+Queue-Claim bereinigen zuerst die bisherige Sitzung. Unklarer Stopp hält die
+Reservierung gesperrt. Controller/Broker bleiben bei je 512 MiB und der eine
+Sitzungscontainer bei 2 GiB. Keine Schemaänderung oder Datenbankmigration.
+
+**Prüfung:** 380 Linux-Worker-Tests bestehen; ein bestehender Test bleibt
+ausgelassen. Typprüfung, Worker-Bau, gezieltes ESLint und Formatierung bestehen.
+Der echte lokale Containertest prüft fehlende globale Rechte, feste Aktionen,
+erneute Nutzung, frische Kontowechsel und persistente Anmeldung. Zwei Aktionen
+(Kontoerkennung plus Screenshot) benötigen lokal ungefähr 90–115 ms, ein neuer
+Container etwa 1,2–1,3 Sekunden; die Test-Sitzung belegt rund 376 MiB. Diese Werte
+belegen keine Produktionslast. GoLogin-Profilbindung, Kanalablauf und Widerruf,
+Zugriffswechsel, Leerlaufgrenze, absolute Wiederverwendungsgrenze und unsicherer
+Startabbruch sind automatisiert geprüft. Eine unabhängige Kandidatenprüfung
+erkannte eine versehentliche Abschaltung geplanter GoLogin-Abrufe; der korrigierte
+Compose-Override erhält beide bisherigen Freigabewerte aus der privaten env_file.
+Die CI prüft den echten Broker mit Host-Firewall und isolierter Sitzung.
+Beim PR-Lauf blieb einmal ein sehr schneller Browser-Stopp unbestätigt;
+zwei Wiederholungsläufe und 15 lokale schnelle Start-/Stopp-Versuche bestanden.
+Ein gezielter Regressionstest belegt die Lücke bei verspäteter Fensterregistrierung:
+Der native Schließbefehl wird jetzt innerhalb derselben acht Sekunden erneut
+gesendet. Ein weiterhin laufender Browser bleibt ein Fehler mit gesperrter
+Reservierung. Verspätete Fenster, vorübergehend fehlende Fensterverwaltung und
+die unveränderte Fehlergrenze werden zusätzlich geprüft; die Ursache des
+einzelnen CI-Fehlers ist nicht abschließend belegt.
+
+**Grenzen:** Die lokale Docker-Desktop-Umgebung kann die vollständige Host-Firewall
+nicht prüfen (fehlendes WSL-Kernelmodul `br_netfilter`); diese Prüfung bleibt im
+Linux-PR-Lauf erforderlich. Zwei bestehende Browser-Login-Tests schlagen auch
+im unveränderten Ausgangsstand fehl. Echte GoLogin-/Vinted-Abnahme und die
+koordinierte Serverumstellung stehen aus. Ein vollständig übernommener zentraler
+Controller oder Docker-Broker besitzt weiterhin globale Rechte. Die beiden
+ursprünglichen Security-Meldungen bleiben daher offen; dies ist die vereinbarte
+Abschottung des Browser-Auswerters, keine vollständige Aufhebung dieser Vertrauensgrenze.
+
 ## 2026-10-08 - Juna - Falsche Beta-Umleitung beim Tabwechsel verhindern
 
 **Auftrag:** Die gelegentliche Umleitung eines Administrators auf `beta-ended`
@@ -464,6 +584,27 @@ der Zeitplan ist jetzt wegen `needs_login` angehalten und hat Berechtigungsversi
 Der aktuelle `origin/master` mit den unabhängig veröffentlichten Botänderungen
 wird übernommen; ausschließlich dieses Protokoll kollidiert. Alle Einträge beider
 Sitzungen bleiben erhalten, persönliches Cloudprofil und Botprofil bleiben getrennt.
+
+## 2026-10-07 - Juna - Vinted-Browserrelease produktiv abnehmen
+
+**Abschluss:** PR #333 und die Profilkorrektur #334 sind nach erfolgreichen
+Pflichtprüfungen gemergt. Version v0.309.4 ist einschließlich Produktionsbau,
+Image-Smoke und öffentlicher Versionsprüfung erfolgreich veröffentlicht.
+Bei der Abnahme am 07.10. läuft der neue Bot seit 16:26 Uhr mit seinem eigenen Chrome-Profil und sammelt
+über 35 Minuten regulär Artikel ohne fehlgeschlagene Abrufe.
+
+**Servervorbereitung:** Die private Browser-API war vom Caddy-Container durch
+die bestehende Host-Firewall nicht erreichbar. Nach Prüfung der tatsächlichen
+Container-IP, Bridge und Gateway sowie privater Sicherung der Regeln erlaubt
+UFW ausschließlich diesem Container den internen Port 8081. Der öffentliche
+Statusendpunkt antwortet ohne Anmeldung jetzt mit 401 statt 502. Die
+Releaseanleitung enthält diese Voraussetzung und den Abgleich bei Netzwechseln.
+
+**Live-Abnahme:** Der angemeldete Adminbereich zeigt „Vinted verbunden“, null
+abgewiesene Anfragen in der letzten Minute und keine Fehlermeldung am aktiven
+Markenfilter. Der Container ist gesund; der Webrelease hat ihn nicht neu
+gestartet. Eine manuelle Prüfsitzung war im laufenden Betrieb nicht nötig;
+deren Freigabe- und Abbruchverhalten wurde lokal und in CI geprüft.
 
 ## 2026-10-07 - Juna - Botprofil ohne passenden Host-Benutzer anlegen
 

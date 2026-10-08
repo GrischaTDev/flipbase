@@ -30,6 +30,7 @@ interface DispatcherOptions<Job> {
   writes?: MarketplaceCloudWriteDispatch<Job>;
   store: MarketplaceSyncDispatchStore;
   run(scope: BrowserSessionScope): Promise<void>;
+  prepareDispatch?(): Promise<void>;
   onRuntimeLost(reason: MarketplaceRuntimeLossReason): void | Promise<void>;
   includeScheduled?: boolean;
   maxJobsPerPoll?: number;
@@ -129,6 +130,7 @@ export class MarketplaceSyncDispatcher<Job = CloudMessageClaim> {
     if (!lease) return false;
     let scope: BrowserSessionScope | null;
     try {
+      await this.options.prepareDispatch?.();
       const runnerId = this.createRunnerId();
       if (this.options.writes) {
         const job = await this.options.writes.claim(lease.workerId, lease.workerEpoch, runnerId);

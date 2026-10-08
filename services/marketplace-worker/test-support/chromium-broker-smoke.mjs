@@ -18,33 +18,30 @@ for (let attempt = 0; ; attempt++) {
     await setTimeout(250);
   }
 }
-const context = await client.launch(`${root}/${profileId}`, {
+const handle = await client.launch(`${root}/${profileId}`, {
   headless: false,
   chromiumSandbox: true,
   locale: 'de-DE',
   viewport: { width: 1280, height: 900 },
   args: ['--disable-dev-shm-usage'],
   acceptDownloads: false,
-  timeout: 60_000,
+  timeout: 60000,
 });
-const page = context.pages()[0];
-assert.ok(page);
-await page.setContent(
-  '<html><body style="margin:0"><textarea id="native-input" aria-label="Broker test" style="width:100vw;height:100vh;box-sizing:border-box"></textarea></body></html>',
-);
-const desktop = client.desktop(`${root}/${profileId}`);
-await desktop.click(0.5, 0.75);
-await desktop.type('broker-fixture');
-assert.equal(await page.locator('#native-input').inputValue(), 'broker-fixture');
-const image = await desktop.capture();
-assert.deepEqual([...image.subarray(0, 3)], [255, 216, 255]);
-await desktop.press('Tab');
-await context.close();
+await handle.run(async (browser) => {
+  const image = await browser.capture();
+  assert.deepEqual([...image.subarray(0, 3)], [255, 216, 255]);
+  assert.equal(await browser.identify(), null);
+  await browser.click(0.5, 0.75);
+  await browser.type('broker-fixture');
+  await browser.press('Escape');
+});
+// Die feste API gibt weder BrowserContext noch CDP-Endpunkt an den Controller zurück.
+assert.equal(Object.hasOwn(handle, 'contexts'), false);
+await handle.close();
 assert.deepEqual(await client.inspectProfileProcesses(`${root}/${profileId}`), []);
-// Stopp und Archivierung sind wiederholbar, ohne unklare Zustände freizugeben.
 await client.recover(profileId);
 await client.archive(profileId);
 await client.archive(profileId);
 process.stdout.write(
-  'Privater Broker: Start, native Bedienung, Stopp und Archivierung bestätigt.\n',
+  'Privater Broker: isolierte Aktionen, native Bedienung, Stopp und Archivierung bestätigt.\n',
 );

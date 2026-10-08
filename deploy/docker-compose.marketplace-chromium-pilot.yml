@@ -41,8 +41,6 @@ services:
         max-size: '10m'
         max-file: '3'
     networks:
-      flipbase-browser:
-        ipv4_address: 172.30.88.2
       supabase_default: {}
       chromium-control: {}
   chromium-host-broker:

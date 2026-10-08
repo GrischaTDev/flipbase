@@ -67,6 +67,12 @@ export function vintedBrowserActions(
     sendMessage: (accountId, command, authorize) =>
       sendVintedMessage(currentPage(), accountId, command, authorize),
     version: () => connection.version(),
+    initialize: async () => {
+      await currentPage().goto('https://www.vinted.de/', {
+        waitUntil: 'domcontentloaded',
+        timeout: 20000,
+      });
+    },
     capture: () =>
       desktop?.capture() ??
       currentPage().screenshot({

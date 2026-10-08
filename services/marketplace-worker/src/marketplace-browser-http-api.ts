@@ -37,6 +37,8 @@ interface BrowserBroker {
   ): Promise<T>;
   close(scope: BrowserSessionScope, sessionId: string): Promise<void>;
   reconcile?(): Promise<void>;
+  openAction?(scope: BrowserSessionScope): Promise<string>;
+  finishAction?(scope: BrowserSessionScope, sessionId: string): Promise<void>;
 }
 
 interface BrowserUserVerifier {
@@ -410,7 +412,7 @@ export class MarketplaceBrowserHttpApi {
         let sessionId: string | undefined;
         try {
           const entry = await this.edits.entry(scope, 'profile');
-          sessionId = await this.broker.open(scope);
+          sessionId = await (this.broker.openAction?.(scope) ?? this.broker.open(scope));
           const currentSessionId = sessionId;
           const result = await this.broker.run(scope, currentSessionId, async (browser) => {
             if (saving && typeof about === 'string') {
@@ -452,7 +454,8 @@ export class MarketplaceBrowserHttpApi {
             }
             let cleanup: 'complete' | 'pending' = 'complete';
             try {
-              await this.broker.close(scope, currentSessionId);
+              await (this.broker.finishAction?.(scope, currentSessionId) ??
+                this.broker.close(scope, currentSessionId));
             } catch {
               cleanup = 'pending';
             }
@@ -463,7 +466,8 @@ export class MarketplaceBrowserHttpApi {
               ...(cachePending ? { cache: 'pending' } : {}),
             });
           } else {
-            await this.broker.close(scope, currentSessionId);
+            await (this.broker.finishAction?.(scope, currentSessionId) ??
+              this.broker.close(scope, currentSessionId));
             sessionId = undefined;
             json(response, 200, result);
           }
@@ -512,7 +516,7 @@ export class MarketplaceBrowserHttpApi {
         let sessionId: string | undefined;
         try {
           const entry = await this.edits.entry(scope, 'publication', entryId);
-          sessionId = await this.broker.open(scope);
+          sessionId = await (this.broker.openAction?.(scope) ?? this.broker.open(scope));
           const currentSessionId = sessionId;
           const result = await this.broker.run(scope, currentSessionId, async (browser) => {
             if (fields) {
@@ -560,7 +564,8 @@ export class MarketplaceBrowserHttpApi {
           if (fields) {
             let cleanup: 'complete' | 'pending' = 'complete';
             try {
-              await this.broker.close(scope, currentSessionId);
+              await (this.broker.finishAction?.(scope, currentSessionId) ??
+                this.broker.close(scope, currentSessionId));
             } catch {
               cleanup = 'pending';
             }
@@ -571,7 +576,8 @@ export class MarketplaceBrowserHttpApi {
               ...(cachePending ? { cache: 'pending' } : {}),
             });
           } else {
-            await this.broker.close(scope, currentSessionId);
+            await (this.broker.finishAction?.(scope, currentSessionId) ??
+              this.broker.close(scope, currentSessionId));
             sessionId = undefined;
             json(response, 200, cachePending ? { ...result, cache: 'pending' } : result);
           }
@@ -615,7 +621,7 @@ export class MarketplaceBrowserHttpApi {
         this.inFlight.add(key);
         let sessionId: string | undefined;
         try {
-          sessionId = await this.broker.open(scope);
+          sessionId = await (this.broker.openAction?.(scope) ?? this.broker.open(scope));
           const currentSessionId = sessionId;
           const previousConversations = requestedConversation
             ? ((await this.imports.conversationVersions?.(scope, currentSessionId)) ?? [])
@@ -649,7 +655,8 @@ export class MarketplaceBrowserHttpApi {
             throw new ImportError('messages');
           await this.broker.run(scope, currentSessionId, async () => undefined);
           const counts = await this.imports.write(scope, currentSessionId, result);
-          await this.broker.close(scope, currentSessionId);
+          await (this.broker.finishAction?.(scope, currentSessionId) ??
+            this.broker.close(scope, currentSessionId));
           sessionId = undefined;
           json(
             response,

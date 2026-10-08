@@ -1,0 +1,550 @@
+import type { BrowserInfo, BrowserDragPoint } from './gologin-cloud-browser.ts';
+import {
+  VintedImportReadError,
+  VintedImportRequestError,
+  type VintedAccountImport,
+} from './vinted-account-import.ts';
+import {
+  VintedInteractionRequiredError,
+  VintedLoginPendingError,
+  VintedLoginRejectedError,
+  VintedVerificationRequiredError,
+} from './vinted-browser-reader.ts';
+
+export const browserCommandLimit = 8 * 1024 * 1024;
+export type BrowserActionName = Exclude<keyof BrowserInfo, 'version'>;
+export interface BrowserAction {
+  name: BrowserActionName;
+  arguments: unknown[];
+}
+export type BrowserActionEvent =
+  | { kind: 'wait' }
+  | { kind: 'authorize'; sequence: number }
+  | {
+      kind: 'stage';
+      sequence: number;
+      stage: 'profile' | 'publications' | 'conversations' | 'sales';
+    }
+  | { kind: 'result'; value: unknown }
+  | {
+      kind: 'error';
+      code: string;
+      stage?: string;
+      reason?: string;
+      retryAfter?: string;
+      browserReadFailure?: string;
+    };
+
+export function commandRecord(input: unknown): Record<string, unknown> {
+  if (!input || typeof input !== 'object' || Array.isArray(input))
+    throw new Error('Ungültiger Browserauftrag');
+  return input as Record<string, unknown>;
+}
+function required<T>(operation: T | undefined): T {
+  if (operation === undefined) throw new Error('Browseraktion fehlt');
+  return operation;
+}
+function text(input: unknown, limit = 65536): string {
+  if (typeof input !== 'string' || input.length > limit) throw new Error('Ungültiger Browsertext');
+  return input;
+}
+function identifier(input: unknown): string {
+  const result = text(input, 32);
+  if (!/^[1-9][0-9]*$/.test(result)) throw new Error('Ungültige Vinted-Kennung');
+  return result;
+}
+function fields(input: unknown) {
+  const result = commandRecord(input);
+  if (Object.keys(result).some((key) => !['title', 'description', 'price'].includes(key)))
+    throw new Error('Ungültige Inseratfelder');
+  return {
+    title: text(result.title, 120),
+    description: text(result.description, 10000),
+    price: text(result.price, 32),
+  };
+}
+
+/** Feste Aktionen statt übertragener Skripte oder zentral ausgewerteter Browserobjekte. */
+export async function executeBrowserAction(
+  browser: BrowserInfo,
+  input: unknown,
+  authorize: () => Promise<void>,
+  onStage: (stage: 'profile' | 'publications' | 'conversations' | 'sales') => Promise<void>,
+): Promise<unknown> {
+  const action = commandRecord(input);
+  if (
+    Object.keys(action).some((key) => !['name', 'arguments'].includes(key)) ||
+    !Array.isArray(action.arguments)
+  )
+    throw new Error('Ungültiger Browserauftrag');
+  const argumentsList = action.arguments;
+  const counts: Record<string, number[]> = {
+    initialize: [0],
+    capture: [0],
+    click: [2],
+    drag: [1],
+    type: [1],
+    press: [1],
+    identify: [0],
+    importAccount: [2],
+    login: [1],
+    verify: [1],
+    readListingEdit: [2],
+    updateListing: [3],
+    readProfileAbout: [1],
+    updateProfileAbout: [3],
+  };
+  if (
+    typeof action.name !== 'string' ||
+    !Object.hasOwn(counts, action.name) ||
+    !counts[action.name]?.includes(argumentsList.length)
+  )
+    throw new Error('Nicht erlaubte Browseraktion');
+  await authorize();
+  switch (action.name) {
+    case 'initialize':
+      await required(browser.initialize)();
+      return null;
+    case 'capture':
+      return Buffer.from(await required(browser.capture)()).toString('base64');
+    case 'click': {
+      if (
+        argumentsList.some(
+          (value) => typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 1,
+        )
+      )
+        throw new Error('Ungültige Browserposition');
+      await required(browser.click)(argumentsList[0] as number, argumentsList[1] as number);
+      return null;
+    }
+    case 'drag': {
+      const points = argumentsList[0];
+      if (!Array.isArray(points) || points.length < 1 || points.length > 256)
+        throw new Error('Ungültige Browserbewegung');
+      const checked: BrowserDragPoint[] = points.map((inputPoint) => {
+        const point = commandRecord(inputPoint);
+        if (
+          Object.keys(point).some((key) => !['x', 'y', 'elapsedMs'].includes(key)) ||
+          typeof point.x !== 'number' ||
+          typeof point.y !== 'number' ||
+          typeof point.elapsedMs !== 'number' ||
+          !Number.isFinite(point.x) ||
+          !Number.isFinite(point.y) ||
+          point.x < 0 ||
+          point.x > 1 ||
+          point.y < 0 ||
+          point.y > 1 ||
+          !Number.isSafeInteger(point.elapsedMs) ||
+          point.elapsedMs < 0 ||
+          point.elapsedMs > 15000
+        )
+          throw new Error('Ungültige Browserbewegung');
+        return { x: point.x, y: point.y, elapsedMs: point.elapsedMs };
+      });
+      await required(browser.drag)(checked);
+      return null;
+    }
+    case 'type':
+      await required(browser.type)(text(argumentsList[0], 4096));
+      return null;
+    case 'press': {
+      const key = text(argumentsList[0], 16);
+      if (!['Enter', 'Tab', 'Escape', 'Backspace'].includes(key))
+        throw new Error('Ungültige Browsertaste');
+      await required(browser.press)(key as 'Enter' | 'Tab' | 'Escape' | 'Backspace');
+      return null;
+    }
+    case 'identify':
+      return required(browser.identify)();
+    case 'login': {
+      const credentials = commandRecord(argumentsList[0]);
+      if (Object.keys(credentials).some((key) => !['username', 'password'].includes(key)))
+        throw new Error('Ungültige Anmeldung');
+      return required(browser.login)(
+        { username: text(credentials.username, 1024), password: text(credentials.password, 1024) },
+        authorize,
+      );
+    }
+    case 'verify':
+      return required(browser.verify)(text(argumentsList[0], 8), authorize);
+    case 'readListingEdit':
+      return required(browser.readListingEdit)(
+        identifier(argumentsList[0]),
+        identifier(argumentsList[1]),
+      );
+    case 'updateListing':
+      return required(browser.updateListing)(
+        identifier(argumentsList[0]),
+        identifier(argumentsList[1]),
+        fields(argumentsList[2]),
+        authorize,
+      );
+    case 'readProfileAbout':
+      return required(browser.readProfileAbout)(identifier(argumentsList[0]));
+    case 'updateProfileAbout':
+      return required(browser.updateProfileAbout)(
+        identifier(argumentsList[0]),
+        text(argumentsList[1], 10000),
+        authorize,
+        argumentsList[2] === null ? undefined : text(argumentsList[2], 10000),
+      );
+    case 'importAccount': {
+      const previous = argumentsList[0];
+      if (!Array.isArray(previous) || previous.length > 500)
+        throw new Error('Ungültiger Gesprächscache');
+      const versions = previous.map((inputVersion) => {
+        const version = commandRecord(inputVersion);
+        if (
+          Object.keys(version).some(
+            (key) =>
+              !['externalId', 'sourceUpdatedAt', 'detailCheckedAt', 'text', 'occurredAt'].includes(
+                key,
+              ),
+          )
+        )
+          throw new Error('Ungültiger Gesprächscache');
+        return {
+          externalId: identifier(version.externalId),
+          sourceUpdatedAt: text(version.sourceUpdatedAt, 64),
+          detailCheckedAt: text(version.detailCheckedAt, 64),
+          text: version.text === null ? null : text(version.text),
+          occurredAt: version.occurredAt === null ? null : text(version.occurredAt, 64),
+        };
+      });
+      const target = argumentsList[1] === null ? undefined : commandRecord(argumentsList[1]);
+      if (target && Object.keys(target).some((key) => !['accountId', 'externalId'].includes(key)))
+        throw new Error('Ungültiger Gesprächsauftrag');
+      return required(browser.importAccount)(
+        authorize,
+        onStage,
+        versions,
+        target
+          ? { externalId: identifier(target.externalId), accountId: identifier(target.accountId) }
+          : undefined,
+      );
+    }
+  }
+  throw new Error('Nicht erlaubte Browseraktion');
+}
+
+export function browserActionError(error: unknown): BrowserActionEvent {
+  for (const [constructor, code] of [
+    [VintedInteractionRequiredError, 'interaction_required'],
+    [VintedLoginPendingError, 'login_pending'],
+    [VintedLoginRejectedError, 'login_rejected'],
+    [VintedVerificationRequiredError, 'verification_required'],
+  ] as const)
+    if (error instanceof constructor) return { kind: 'error', code };
+  if (error instanceof VintedImportReadError)
+    return {
+      kind: 'error',
+      code: 'import',
+      stage: error.stage,
+      ...(error.cause instanceof VintedImportRequestError
+        ? {
+            reason: error.cause.reason,
+            retryAfter: error.cause.retryAfter,
+            browserReadFailure: error.cause.browserReadFailure,
+          }
+        : {}),
+    };
+  return { kind: 'error', code: 'failed' };
+}
+function throwBrowserError(event: Record<string, unknown>): never {
+  if (event.code === 'interaction_required') throw new VintedInteractionRequiredError();
+  if (event.code === 'login_pending') throw new VintedLoginPendingError();
+  if (event.code === 'login_rejected') throw new VintedLoginRejectedError();
+  if (event.code === 'verification_required') throw new VintedVerificationRequiredError();
+  if (event.code === 'import') {
+    const stages = [
+      'navigation',
+      'identity',
+      'profile',
+      'publications',
+      'conversations',
+      'messages',
+      'transaction',
+      'parse',
+    ] as const;
+    const stage = stages.find((stage) => stage === event.stage);
+    const reasons = [
+      'unauthorized',
+      'forbidden',
+      'rate_limited',
+      'provider_unavailable',
+      'invalid_response',
+      'timeout',
+      'network',
+      'browser_context',
+    ] as const;
+    const reason = reasons.find((reason) => reason === event.reason);
+    const failures = [
+      'navigation',
+      'navigation_interrupted',
+      'navigation_aborted',
+      'timeout',
+      'network',
+      'closed',
+      'script',
+      'unknown',
+    ] as const;
+    const failure = failures.find((failure) => failure === event.browserReadFailure);
+    if (!stage || (event.reason !== undefined && !reason))
+      throw new Error('Ungültiger Browserfehler');
+    throw new VintedImportReadError(
+      stage,
+      reason
+        ? new VintedImportRequestError(
+            reason,
+            event.retryAfter === undefined ? undefined : text(event.retryAfter, 64),
+            failure,
+          )
+        : undefined,
+    );
+  }
+  throw new Error('Browseraktion fehlgeschlagen');
+}
+
+export interface BrowserCommandTransport {
+  request(input: Record<string, unknown>): Promise<unknown>;
+}
+
+export function isolatedBrowserActions(transport: BrowserCommandTransport): BrowserInfo {
+  async function run(
+    name: BrowserActionName,
+    argumentsList: unknown[],
+    authorize: () => Promise<void> = async () => undefined,
+    onStage?: (stage: 'profile' | 'publications' | 'conversations' | 'sales') => Promise<void>,
+  ): Promise<unknown> {
+    await authorize();
+    const started = commandRecord(
+      await transport.request({ action: 'start', operation: { name, arguments: argumentsList } }),
+    );
+    const id = text(started.id, 36);
+    if (!/^[0-9a-f-]{36}$/.test(id)) throw new Error('Ungültiger Browserauftrag');
+    let sequence = 0;
+    const deadline = Date.now() + 12 * 60_000;
+    try {
+      while (Date.now() < deadline) {
+        const event = commandRecord(await transport.request({ action: 'poll', id, sequence }));
+        if (event.kind === 'wait') {
+          await authorize();
+          continue;
+        }
+        if (event.kind === 'authorize' || event.kind === 'stage') {
+          if (event.sequence !== sequence + 1 || sequence >= 10000)
+            throw new Error('Ungültige Browserfreigabe');
+          await authorize();
+          if (event.kind === 'stage') {
+            const stage = ['profile', 'publications', 'conversations', 'sales'].find(
+              (stage) => stage === event.stage,
+            );
+            if (!stage) throw new Error('Ungültiger Abrufschritt');
+            await onStage?.(stage as 'profile' | 'publications' | 'conversations' | 'sales');
+          }
+          sequence += 1;
+          continue;
+        }
+        await authorize();
+        if (event.kind === 'error') throwBrowserError(event);
+        if (event.kind !== 'result') throw new Error('Ungültige Browserantwort');
+        return validateBrowserResult(name, event.value);
+      }
+      throw new Error('Browseraktion abgelaufen');
+    } finally {
+      await transport.request({ action: 'cancel', id }).catch(() => undefined);
+    }
+  }
+  return {
+    version: () => 'isolated-session-v1',
+    initialize: async () => {
+      await run('initialize', []);
+    },
+    capture: async () => Buffer.from((await run('capture', [])) as string, 'base64'),
+    click: async (x, y) => {
+      await run('click', [x, y]);
+    },
+    drag: async (points) => {
+      await run('drag', [points]);
+    },
+    type: async (value) => {
+      await run('type', [value]);
+    },
+    press: async (key) => {
+      await run('press', [key]);
+    },
+    identify: async () =>
+      (await run('identify', [])) as Awaited<ReturnType<NonNullable<BrowserInfo['identify']>>>,
+    importAccount: async (authorize, onStage, previous = [], requested) =>
+      (await run(
+        'importAccount',
+        [previous, requested ?? null],
+        authorize,
+        onStage,
+      )) as VintedAccountImport,
+    login: async (credentials, authorize) =>
+      (await run('login', [credentials], authorize)) as Awaited<
+        ReturnType<NonNullable<BrowserInfo['login']>>
+      >,
+    verify: async (code, authorize) =>
+      (await run('verify', [code], authorize)) as Awaited<
+        ReturnType<NonNullable<BrowserInfo['verify']>>
+      >,
+    readListingEdit: async (itemId, accountId) =>
+      (await run('readListingEdit', [itemId, accountId])) as Awaited<
+        ReturnType<NonNullable<BrowserInfo['readListingEdit']>>
+      >,
+    updateListing: async (itemId, accountId, fields, authorize) =>
+      (await run('updateListing', [itemId, accountId, fields], authorize)) as Awaited<
+        ReturnType<NonNullable<BrowserInfo['updateListing']>>
+      >,
+    readProfileAbout: async (accountId) => (await run('readProfileAbout', [accountId])) as string,
+    updateProfileAbout: async (accountId, about, authorize, expected) =>
+      (await run('updateProfileAbout', [accountId, about, expected ?? null], authorize)) as Awaited<
+        ReturnType<NonNullable<BrowserInfo['updateProfileAbout']>>
+      >,
+  };
+}
+
+/** Auch ein vollständig übernommener Auswerter darf keine Schreibziele bestimmen. */
+export function validateBrowserResult(name: BrowserActionName, input: unknown): unknown {
+  if (Buffer.byteLength(JSON.stringify(input) ?? '') > browserCommandLimit)
+    throw new Error('Browserantwort zu groß');
+  if (['initialize', 'click', 'drag', 'type', 'press'].includes(name)) {
+    if (input !== null) throw new Error('Ungültige Browserantwort');
+    return null;
+  }
+  if (name === 'capture') {
+    const image = text(input, 1024 * 1024);
+    if (!/^[A-Za-z0-9+/]*={0,2}$/.test(image)) throw new Error('Ungültiges Browserbild');
+    return image;
+  }
+  if (name === 'readProfileAbout') return text(input, 10000);
+  if (name === 'readListingEdit') return fields(input);
+  if (name === 'login' || name === 'verify') {
+    const result = text(input, 32);
+    if (
+      ![
+        'submitted',
+        'interaction_required',
+        'form_unavailable',
+        'submission_unconfirmed',
+        ...(name === 'login' ? ['verification_required'] : []),
+      ].includes(result)
+    )
+      throw new Error('Ungültiges Anmeldeergebnis');
+    return result;
+  }
+  if (name === 'updateListing' || name === 'updateProfileAbout') {
+    if (typeof input !== 'string' || !['confirmed', 'unconfirmed', 'conflict'].includes(input))
+      throw new Error('Ungültiges Speicherergebnis');
+    return input;
+  }
+  function identity(input: unknown) {
+    const result = commandRecord(input);
+    if (Object.keys(result).some((key) => !['id', 'username'].includes(key)))
+      throw new Error('Ungültige Kontoidentität');
+    return { id: identifier(result.id), username: text(result.username, 120) };
+  }
+  if (name === 'identify') return input === null ? null : identity(input);
+  const snapshot = commandRecord(input);
+  if (
+    Object.keys(snapshot).some(
+      (key) =>
+        ![
+          'identity',
+          'observedAt',
+          'entries',
+          'areas',
+          'rejectedSaleIds',
+          'sourceRequestCount',
+          'browserReadFailures',
+        ].includes(key),
+    ) ||
+    !Array.isArray(snapshot.entries) ||
+    snapshot.entries.length > 20000
+  )
+    throw new Error('Ungültiger Kontoabruf');
+  identity(snapshot.identity);
+  if (!Number.isFinite(Date.parse(text(snapshot.observedAt, 64))))
+    throw new Error('Ungültiger Abrufzeitpunkt');
+  for (const inputEntry of snapshot.entries) {
+    const entry = commandRecord(inputEntry);
+    if (
+      Object.keys(entry).some(
+        (key) => !['kind', 'externalId', 'parentExternalId', 'sortAt', 'body'].includes(key),
+      ) ||
+      typeof entry.kind !== 'string' ||
+      !['profile', 'publication', 'conversation', 'message', 'sale'].includes(entry.kind)
+    )
+      throw new Error('Ungültiger Abrufeintrag');
+    if (typeof entry.externalId !== 'string' || !/^[A-Za-z0-9:_-]{1,128}$/.test(entry.externalId))
+      throw new Error('Ungültige Eintragskennung');
+    if (entry.parentExternalId !== undefined) identifier(entry.parentExternalId);
+    if (!Number.isFinite(Date.parse(text(entry.sortAt, 64))))
+      throw new Error('Ungültiger Eintragszeitpunkt');
+    commandRecord(entry.body);
+  }
+  const areas = commandRecord(snapshot.areas);
+  const names = ['profile', 'publications', 'conversations', 'messages', 'sales', 'feedback'];
+  if (Object.keys(areas).some((key) => !names.includes(key)))
+    throw new Error('Ungültiger Abrufbereich');
+  for (const name of names) {
+    const area = commandRecord(areas[name]);
+    if (
+      Object.keys(area).some((key) => !['status', 'failure', 'retryAfter'].includes(key)) ||
+      typeof area.status !== 'string' ||
+      !['complete', 'partial', 'failed'].includes(area.status)
+    )
+      throw new Error('Ungültiger Abrufstand');
+    if (
+      area.failure !== undefined &&
+      (typeof area.failure !== 'string' ||
+        ![
+          'unauthorized',
+          'forbidden',
+          'rate_limited',
+          'provider_unavailable',
+          'invalid_response',
+          'timeout',
+          'network',
+          'browser_context',
+        ].includes(area.failure))
+    )
+      throw new Error('Ungültiger Abruffehler');
+    if (area.retryAfter !== undefined) text(area.retryAfter, 64);
+  }
+  if (
+    snapshot.sourceRequestCount !== undefined &&
+    (typeof snapshot.sourceRequestCount !== 'number' ||
+      !Number.isSafeInteger(snapshot.sourceRequestCount) ||
+      snapshot.sourceRequestCount < 0)
+  )
+    throw new Error('Ungültige Abrufanzahl');
+  if (snapshot.rejectedSaleIds !== undefined) {
+    if (!Array.isArray(snapshot.rejectedSaleIds) || snapshot.rejectedSaleIds.length > 20000)
+      throw new Error('Ungültige Verkaufskennungen');
+    snapshot.rejectedSaleIds.forEach(identifier);
+  }
+  if (
+    snapshot.browserReadFailures !== undefined &&
+    (!Array.isArray(snapshot.browserReadFailures) ||
+      snapshot.browserReadFailures.length > 8 ||
+      snapshot.browserReadFailures.some(
+        (failure) =>
+          typeof failure !== 'string' ||
+          ![
+            'navigation',
+            'navigation_interrupted',
+            'navigation_aborted',
+            'timeout',
+            'network',
+            'closed',
+            'script',
+            'unknown',
+          ].includes(failure),
+      ))
+  )
+    throw new Error('Ungültige Browserdiagnose');
+  return snapshot;
+}
