@@ -11,6 +11,7 @@ import {
   type VintedBrowserReadFailure,
 } from '../src/vinted-account-import.ts';
 import type { MarketplaceOperationEvent } from '../src/marketplace-operation-events.ts';
+import type { VintedAccountImport } from '../src/vinted-account-import.ts';
 
 const scope = {
   workspaceId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
@@ -20,6 +21,83 @@ const scope = {
 };
 const operationId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
 const sessionId = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+
+for (const enabled of [false, true]) {
+  test(`favorites are read in the same authorized import only when enabled=${enabled}`, async () => {
+    let reads = 0;
+    let checks = 0;
+    let saved: VintedAccountImport | undefined;
+    let closed = false;
+    const dispatched = {
+      ...scope,
+      userAccessToken: '',
+      syncRead: {
+        operationId,
+        runnerId: operationId,
+        workerEpoch: 2,
+        sessionId,
+        expiresAt: new Date(Date.now() + 60000).toISOString(),
+        absoluteExpiresAt: new Date(Date.now() + 600000).toISOString(),
+      },
+    };
+    const favoriteEvents = [
+      { externalId: 'favorite-7', actorId: '456', itemId: '99', eventAt: '2026-10-08T12:00:00Z' },
+    ];
+    const runner = new MarketplaceSyncRunner(
+      {
+        open: async () => sessionId,
+        run: async (_scope, id, operation) => {
+          assert.equal(id, sessionId);
+          checks++;
+          return operation({
+            version: () => 'fixture',
+            importAccount: async () => ({
+              identity: { id: '123', username: 'test' },
+              observedAt: '2026-10-08T12:00:00Z',
+              entries: [],
+              areas,
+            }),
+            readFavoriteEvents: async (account, authorize) => {
+              assert.equal(account, '123');
+              await authorize();
+              reads++;
+              return favoriteEvents;
+            },
+          });
+        },
+        close: async () => {
+          closed = true;
+        },
+      },
+      {
+        favoriteSettingsActive: async (binding, id) => {
+          assert.equal(binding, dispatched);
+          assert.equal(id, sessionId);
+          return enabled;
+        },
+        write: async (_scope, id, snapshot) => {
+          assert.equal(id, sessionId);
+          saved = snapshot;
+          return { profile: 1, publication: 0, conversation: 0, message: 0, sale: 0 };
+        },
+      },
+      {
+        claim: async () => true,
+        stage: async () => undefined,
+        succeed: async () => undefined,
+        fail: async () => {
+          assert.fail('Der Fixtureimport muss gelingen');
+        },
+      } as unknown as SupabaseMarketplaceOperationStore,
+      { record: () => undefined },
+    );
+    await runner.runDispatched(dispatched);
+    assert.equal(reads, enabled ? 1 : 0);
+    assert.deepEqual(saved?.favoriteEvents, enabled ? favoriteEvents : undefined);
+    assert.equal(checks, enabled ? 4 : 2);
+    assert.equal(closed, true);
+  });
+}
 const areas: VintedImportAreas = {
   profile: { status: 'complete' },
   publications: { status: 'complete' },
