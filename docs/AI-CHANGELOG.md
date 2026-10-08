@@ -1,5 +1,37 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-09 - Juna - Cloud-Testbild prüfen und Gesprächsbilder übernehmen
+
+**Auftrag:** Die noch offenen Bild-/Favoriten-/Dauerbetriebstests fortsetzen;
+zuerst einen ausdrücklich freigegebenen Bildversand von Maike Vintage an wiehenvintage prüfen.
+
+**Befund:** Der automatische Abruf um 23:44 Uhr ist erfolgreich, die Automatik
+bleibt aktiv und Worker/Broker sind gesund. Der veröffentlichte Bildadapter
+sendet einen einzelnen Anhang, besitzt aber noch keinen im Echtkonto belegten
+Bestätigungsvertrag und lässt das Ergebnis deshalb gegebenenfalls unklar.
+
+**Echtkonto:** Nach der vom Nutzer geänderten Dateizugriffsoption wurde das
+öffentliche Flipbase-Logo als PNG (21.625 Bytes) mit dem Text
+„Cloud-Bildtest: Flipbase-Logo.“ am 08.10. um 23:52 Uhr genau einmal versendet.
+Text und Logo sind im vorhandenen Vinted-Testgespräch beim Empfänger sichtbar.
+Der Cloudauftrag bleibt `outcome_unknown` mit `reply_unconfirmed`; er wurde
+nicht wiederholt. Keine neuen Anbieterzugänge oder Versandfreigaben angelegt.
+
+**Änderung:** Die beim normalen Laden beobachtete Vinted-Antwort enthält die
+Bilddaten der Testnachricht in `data.entity.photos` einer `legacy_reply`.
+Der Cloudparser für dieselbe Entity-Struktur ließ die Fotos bisher weg.
+Er übernimmt jetzt begrenzte, eindeutige HTTPS-Bildadressen in das vorhandene
+`imageUrls`-Feld; ausgeblendete Bilder und Adressen mit Zugangsdaten werden verworfen.
+Keine privaten Originalantworten, Anbieterkennungen oder Bildadressen eingecheckt.
+
+**Prüfung:** Der Regressionstest für Bilder mit Text und reine Bildnachrichten
+scheiterte zuerst am fehlenden Feld und besteht nach der Korrektur. Der sichtbare
+Bildempfang ist belegt; die automatische Zuordnung zum ursprünglichen Upload ist
+weiter offen, da die beobachtete Nachricht keine temporäre Uploadkennung enthält.
+Die Worker-Suite besteht mit 478 erfolgreichen und sieben bestehenden ausgelassenen
+Tests; Typprüfung, Worker-Bau, ESLint, Formatprüfung und Diffcheck sind grün.
+Die Korrektur ist noch nicht veröffentlicht. Favoriten-/Angebotstests stehen aus.
+
 ## 2026-10-09 - Juna - Referenzbibliothek über PR veröffentlichen
 
 **Auftrag:** Geprüften Feature-Branch nach ausdrücklicher Freigabe pushen,
