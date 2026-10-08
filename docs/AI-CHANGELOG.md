@@ -1,5 +1,48 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-08 - Juna - Gemeinsamen Cloud-Postfachentwurf ausarbeiten
+
+**Auftrag:** Den bestätigten Umfang für Gesprächsabgleich, Glocke, Text-/Bildversand
+und Favoriten-Antworten als prüfbaren Ausbauentwurf festhalten.
+
+**Entwurf:** Gemeinsame Oberfläche und bestehende dauerhafte Aufträge mit
+getrennter Ausführung durch Extension und Cloudworker. Neue Eingangsmeldungen
+benötigen belegte Ereignisse und einen ersten Referenzstand; ungelesene Details
+bleiben bei Hintergrundabgleichen geschlossen. Freigaben, Konto-/Profilsperren,
+unklare Versandzustände und vorhandene Favoriten-Angebotsregeln bleiben verbindlich.
+
+**Prüfstand:** Aktuelle Vertrags- und Ausführungsdateien gelesen; Entwurf auf
+Widersprüche, offene Platzhalter und Abnahmekriterien geprüft. Die zusätzliche
+Cloud-Ausführung bleibt bis zur Prüfung des schriftlichen Entwurfs unimplementiert.
+Keine Anbieteraktion, Nachricht oder Veröffentlichung ausgelöst.
+
+## 2026-10-08 - Juna - Gemeinsame Gesprächsfunktionen für lokale und Cloud-Konten prüfen
+
+**Auftrag:** Den Cloud-Ausbau auf neue Nachrichten, Glocken-Benachrichtigungen
+und den vorhandenen Chatversand der lokalen Lösung erweitern.
+
+**Befund:** Eingabefeld, Versandstatus und Wiederholung sind vorhanden, jedoch
+an lokale Konten und Extension-Freigaben gebunden. Die Warteschlange prüft
+zusätzlich serverseitig die lokale Installation. Der Cloudworker besitzt noch
+keinen Nachrichtenexecutor. Die Glocke übernimmt Favoriten und Bewertungen;
+ein Benachrichtigungspfad für neue Chatnachrichten fehlt für beide Betriebsarten.
+Bildversand hat laut vorhandenem Postfachplan noch keinen im Echtkonto belegten
+Bestätigungsvertrag.
+
+**Vorschlag:** Gemeinsame Gesprächsoberfläche und Auftragszustände erhalten,
+Cloud-Ausführung über das zugeordnete Browserprofil ergänzen und pro Konto
+genau einen Ausführer zulassen. Neue Postfachereignisse nach einem ersten
+Referenzabgleich ohne Duplikate benachrichtigen; ungeklärte Versandversuche
+nicht automatisch wiederholen. Favoritenregeln bleiben separat freizugebende
+Automatisierung. Der genaue Ausbau und die Echtkonto-Abnahme werden vor der
+Implementierung abgestimmt. Die bisherigen beiden Fehlerkorrekturen bleiben
+vorbereitet; es wurde noch kein PR erstellt oder veröffentlicht.
+
+**Prüfstand:** Lesender Abgleich von Oberfläche, Nachrichtenstore, lokalen
+Versandfunktionen, Cloudworker, Datenbankverträgen und Benachrichtigungsleiste.
+In diesem Schritt wurden keine Produktfunktionen geändert und keine Nachrichten
+versendet.
+
 ## 2026-10-08 - Juna - Cloud-Gesprächsartikel ergänzen und Einzelabruf verkürzen
 
 **Auftrag:** Den vorbereiteten PR um fehlende Artikeldaten in Cloud-Gesprächen
