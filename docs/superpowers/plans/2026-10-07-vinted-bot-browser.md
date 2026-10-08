@@ -235,6 +235,12 @@ handle @sniper_browser {
 
 ## Ausführungswahl
 
+Ergänzende Live-Abnahme am 08.10.: Die bestehende manuelle Botsitzung bestätigt
+einen gültigen Katalogzugriff und gibt den zentralen Feed frei. Nach erneuter
+Anbietersperre ist der ausdrücklich freigegebene Vergleich mit nur `adidas` und
+60 Sekunden Abstand bis 13:50 Uhr über 100 automatische Abrufe ohne Fehler belegt.
+Eine dauerhaft gesicherte Freigabe durch Vinted bleibt damit nicht zugesichert.
+
 Empfohlen: Umsetzung durch Juna in dieser Sitzung, Aufgabe für Aufgabe, danach eine unabhängige Prüfung des gesamten Branches. Die Browser-, Sitzungs- und Schedulerteile teilen enge Schnittstellen; eine gemeinsame Umsetzung vermeidet zusätzliche Übergaben. Alternativ kann jede Aufgabe von einem eigenen Unteragenten umgesetzt und geprüft werden. Der Nutzer hat Plan und Umsetzung in dieser Sitzung mit unabhängiger Gesamtprüfung freigegeben. Alle sechs Aufgaben sind implementiert. Die vier funktionalen Befunde der Gesamtprüfung wurden mit zunächst fehlschlagenden Regressionstests in einem gemeinsamen Korrekturdurchlauf behoben.
 
 ## Getroffene Entscheidungen und verbleibende Abnahme
