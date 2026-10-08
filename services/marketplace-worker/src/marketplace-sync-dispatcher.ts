@@ -1,5 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import type { BrowserSessionScope } from './marketplace-browser-session-broker.ts';
+import type {
+  CloudMessageClaim,
+  MarketplaceCloudWriteDispatch,
+} from './marketplace-message-runner.ts';
 
 export interface RuntimeLease {
   workerId: string;
@@ -22,7 +26,8 @@ export interface MarketplaceSyncTimers {
   setInterval(callback: () => void, milliseconds: number): unknown;
   clearInterval(handle: unknown): void;
 }
-interface DispatcherOptions {
+interface DispatcherOptions<Job> {
+  writes?: MarketplaceCloudWriteDispatch<Job>;
   store: MarketplaceSyncDispatchStore;
   run(scope: BrowserSessionScope): Promise<void>;
   onRuntimeLost(reason: MarketplaceRuntimeLossReason): void | Promise<void>;
@@ -41,8 +46,8 @@ export type MarketplaceRuntimeLossReason =
   | 'heartbeat_failed'
   | 'runtime_expired'
   | 'reservation_uncertain';
-export class MarketplaceSyncDispatcher {
-  private readonly options: DispatcherOptions;
+export class MarketplaceSyncDispatcher<Job = CloudMessageClaim> {
+  private readonly options: DispatcherOptions<Job>;
   private readonly workerId: string;
   private readonly createRunnerId: () => string;
   private readonly now: () => number;
@@ -58,7 +63,7 @@ export class MarketplaceSyncDispatcher {
   private stopped = false;
   private lost = false;
 
-  constructor(options: DispatcherOptions) {
+  constructor(options: DispatcherOptions<Job>) {
     if (
       options.maxJobsPerPoll !== undefined &&
       (!Number.isInteger(options.maxJobsPerPoll) ||
@@ -124,10 +129,25 @@ export class MarketplaceSyncDispatcher {
     if (!lease) return false;
     let scope: BrowserSessionScope | null;
     try {
+      const runnerId = this.createRunnerId();
+      if (this.options.writes) {
+        const job = await this.options.writes.claim(lease.workerId, lease.workerEpoch, runnerId);
+        if (job) {
+          if (!this.checkRuntime()) return false;
+          try {
+            await this.options.writes.run(job);
+          } catch {
+            this.loseRuntime('run_failed');
+            return false;
+          }
+          return true;
+        }
+        if (!this.checkRuntime()) return false;
+      }
       scope = await this.options.store.claim(
         lease.workerId,
         lease.workerEpoch,
-        this.createRunnerId(),
+        runnerId,
         this.options.includeScheduled === true,
       );
     } catch {

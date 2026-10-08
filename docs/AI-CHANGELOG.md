@@ -30,6 +30,15 @@ Schemadateien übernommen und auf isolierter Datenbank geprüft: 324 Assertions
 einschließlich 47 neuer Cloudprüfungen. Generierte Typen, Typprüfung und
 Schema-/Migrationsregistrierung geprüft. Noch nicht veröffentlicht.
 
+**Worker-Anbindung:** Cloud-Nachrichten laufen jetzt über denselben Dispatcher und
+über eine eigene reservierte Browsersitzung. Claim, Start, Versandprüfung und
+Abschluss prüfen Konto, Freigabe und Worker-Epoche. Nach verlorenem Startnachweis
+oder unbestätigtem Browserstopp wird die Laufzeit gesperrt. Begonnene Aufträge
+bleiben bei unklarem Ergebnis unklar; nur unbegonnene, physisch beendete Claims
+können erneut warten. 391 Workerprüfungen bestehen, sieben bestehende Prüfungen
+bleiben ausgelassen; Bau, Typprüfung, ESLint und 328 DBassertions bestehen.
+Keine Veröffentlichung und kein Echtkonto-Versand durchgeführt.
+
 ## 2026-10-08 - Juna - Gemeinsamen Cloud-Postfachausbau planen
 
 **Auftrag:** Nach Bestätigung des schriftlichen Entwurfs den Umsetzungsplan

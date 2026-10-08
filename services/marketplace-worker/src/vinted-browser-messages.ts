@@ -15,7 +15,7 @@ function identifier(input: unknown): string | null {
   return typeof text === 'string' && /^[1-9][0-9]{0,31}$/.test(text) ? text : null;
 }
 
-function validCommand(command: MarketplaceMessageCommand): boolean {
+export function isValidVintedMessageCommand(command: MarketplaceMessageCommand): boolean {
   if (
     !identifier(command.externalConversationId) ||
     typeof command.text !== 'string' ||
@@ -69,7 +69,7 @@ export async function sendVintedMessage(
   command: MarketplaceMessageCommand,
   authorize: () => Promise<void>,
 ): Promise<MarketplaceMessageResult> {
-  if (!identifier(accountId) || !validCommand(command))
+  if (!identifier(accountId) || !isValidVintedMessageCommand(command))
     return { outcome: 'failed', errorCode: 'invalid_command' };
   let replyAttempted = false;
   let replyAccepted = false;

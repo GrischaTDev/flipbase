@@ -121,5 +121,16 @@ delete from public.platform_operators where user_id='36500000-0000-4000-8000-000
 set local role service_role;
 select is(public.marketplace_cloud_message_check('36500000-0000-4000-8000-000000000011','36500000-0000-4000-8000-000000000021',(body->>'messageId')::uuid,(body->>'claimToken')::uuid,'36500000-0000-4000-8000-000000000051',1)->>'active','false','Operator removal fences the current write before any further provider action') from message_context where name='reclaimed';
 reset role;
+insert into public.platform_operators(user_id) values('36500000-0000-4000-8000-000000000001');
+set local role service_role;
+select lives_ok($$select public.marketplace_cloud_message_begin('36500000-0000-4000-8000-000000000011','36500000-0000-4000-8000-000000000021',(body->>'messageId')::uuid,(body->>'claimToken')::uuid,'36500000-0000-4000-8000-000000000051',1) from message_context where name='reclaimed'$$,'Attempt begins before a simulated worker restart');
+reset role;
+update public.marketplace_browser_sessions set state='closed',provider_stopped_at=clock_timestamp() where state='active';
+update public.marketplace_worker_runtime set expires_at=clock_timestamp()-interval '1 second';
+set local role service_role;
+select is(public.marketplace_worker_claim('36500000-0000-4000-8000-000000000052')->>'workerEpoch','2','Restart gets a fresh worker epoch');
+select is(public.marketplace_cloud_message_claim('36500000-0000-4000-8000-000000000052',2,'36500000-0000-4000-8000-000000000066'),null::jsonb,'A begun original is never automatically resent after restart');
+reset role;
+select is((select state from public.marketplace_local_message_outbox where request_id='36500000-0000-4000-8000-000000000044'),'outcome_unknown','Confirmed browser recovery resolves stale sending immediately even before the old lease expires');
 select * from finish();
 rollback;

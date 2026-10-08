@@ -11,6 +11,10 @@ import { MarketplaceSyncRunner } from '../src/marketplace-sync-runner.ts';
 import type { BrowserInfo } from '../src/gologin-cloud-browser.ts';
 import type { SupabaseMarketplaceOperationStore } from '../src/supabase-marketplace-operation-store.ts';
 import { VintedImportReadError, VintedImportRequestError } from '../src/vinted-account-import.ts';
+import type {
+  CloudMessageClaim,
+  MarketplaceCloudWriteDispatch,
+} from '../src/marketplace-message-runner.ts';
 
 const workerId = '20000000-0000-4000-8000-000000000001';
 const runnerIds = ['20000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000003'];
@@ -80,6 +84,7 @@ function fixture(
   run: (scope: BrowserSessionScope) => Promise<void> = async () => undefined,
   includeScheduled = false,
   maxJobsPerPoll = 1,
+  writes?: MarketplaceCloudWriteDispatch<CloudMessageClaim>,
 ) {
   let current = Date.parse('2026-10-01T12:00:00Z');
   let lost = 0;
@@ -129,6 +134,7 @@ function fixture(
   };
   const dispatcher = new MarketplaceSyncDispatcher({
     store,
+    writes,
     run,
     onRuntimeLost: (reason) => {
       lost++;
@@ -152,6 +158,82 @@ function fixture(
     },
   };
 }
+
+test('manual writes run ahead of reads even with scheduled automation disabled', async () => {
+  const events: string[] = [];
+  const writeJob: CloudMessageClaim = {
+    kind: 'message',
+    messageId: 'message',
+    claimToken: 'claim',
+    scope: scope(),
+    accountId: '123',
+    command: { externalConversationId: '777', text: 'Hallo', attachment: null },
+  };
+  const { dispatcher, calls } = fixture(
+    {},
+    async () => {
+      events.push('read');
+    },
+    false,
+    1,
+    {
+      claim: async (id, epoch, runner) => {
+        assert.equal(id, workerId);
+        assert.equal(epoch, 4);
+        assert.ok(runnerIds.includes(runner));
+        events.push('write_claim');
+        return writeJob;
+      },
+      run: async (job) => {
+        assert.equal(job, writeJob);
+        events.push('write');
+      },
+    },
+  );
+  await dispatcher.initialize();
+  await dispatcher.poll();
+  assert.deepEqual(events, ['write_claim', 'write']);
+  assert.equal(calls.includes('claim'), false);
+});
+
+test('an empty write queue still dispatches the existing read path', async () => {
+  const events: string[] = [];
+  const { dispatcher, calls } = fixture(
+    {},
+    async () => {
+      events.push('read');
+    },
+    true,
+    1,
+    {
+      claim: async () => {
+        events.push('write_claim');
+        return null;
+      },
+      run: async () => {
+        throw new Error('No write exists');
+      },
+    },
+  );
+  await dispatcher.initialize();
+  await dispatcher.poll();
+  assert.deepEqual(events, ['write_claim', 'read']);
+  assert.equal(calls.filter((call) => call === 'claim').length, 1);
+});
+
+test('lost write claim fences the shared runtime without claiming a read', async () => {
+  const { dispatcher, calls, lossReasons } = fixture({}, undefined, true, 1, {
+    claim: async () => {
+      throw new Error('lost write reservation');
+    },
+    run: async () => undefined,
+  });
+  await dispatcher.initialize();
+  await dispatcher.poll();
+  await dispatcher.poll();
+  assert.deepEqual(lossReasons, ['claim_failed']);
+  assert.equal(calls.includes('claim'), false);
+});
 
 test('server queue serves 30 accounts sequentially without timer gaps or duplicate claims', async () => {
   let remaining = 30;

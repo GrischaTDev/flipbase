@@ -182,10 +182,11 @@ begin
   perform 1 from public.marketplace_worker_runtime where id=1 and worker_id=p_worker_id and worker_epoch=p_worker_epoch and expires_at>clock_timestamp() for update;
   if not found then return null; end if;
   update public.marketplace_local_message_outbox set state='outcome_unknown',error_code='timeout',updated_at=clock_timestamp()
-    where execution_mode='cloud' and state='sending' and lease_expires_at<=clock_timestamp();
+    where execution_mode='cloud' and state='sending' and (lease_expires_at<=clock_timestamp()
+      or exists(select 1 from public.marketplace_browser_sessions session where session.public_id=cloud_browser_session_id and session.state='closed'));
   -- Ein Ablauf ist keine Freigabe des physischen Profils; erst nach bestätigtem Stopp neu claimen.
   update public.marketplace_local_message_outbox message set state='queued',claim_token=null,lease_expires_at=null,cloud_browser_session_id=null,cloud_worker_id=null,cloud_worker_epoch=null,cloud_runner_id=null,updated_at=clock_timestamp()
-    where message.execution_mode='cloud' and message.state='claimed' and message.lease_expires_at<=clock_timestamp()
+    where message.execution_mode='cloud' and message.state='claimed'
       and exists(select 1 from public.marketplace_browser_sessions session where session.public_id=message.cloud_browser_session_id and session.state='closed');
   update public.marketplace_local_message_outbox message set state='cancelled',error_code='authorization_expired',updated_at=clock_timestamp()
     where message.execution_mode='cloud' and message.state in ('queued','claimed')

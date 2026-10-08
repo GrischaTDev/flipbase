@@ -33,6 +33,8 @@ import { SupabaseMarketplaceSyncDispatchStore } from './supabase-marketplace-syn
 import { SupabaseMarketplaceCloudSetupStore } from './supabase-marketplace-cloud-setup-store.ts';
 import { MarketplaceCloudSetup } from './marketplace-cloud-setup.ts';
 import { IpRoyalCloudIpSync } from './iproyal-cloud-ip-sync.ts';
+import { SupabaseMarketplaceMessageStore } from './supabase-marketplace-message-store.ts';
+import { MarketplaceMessageRunner } from './marketplace-message-runner.ts';
 
 async function main(): Promise<void> {
   const config = marketplaceBrowserServerConfig(process.env);
@@ -115,10 +117,29 @@ async function main(): Promise<void> {
       })
     : undefined;
   let syncRunner: MarketplaceSyncRunner | undefined;
+  const messageStore =
+    config.provider === 'chromium'
+      ? new SupabaseMarketplaceMessageStore({
+          url: config.supabaseUrl,
+          serviceRoleKey: config.serviceRoleKey,
+        })
+      : undefined;
+  let messageRunner: MarketplaceMessageRunner | undefined;
   const workerLifecycle: { stop?: () => Promise<void> } = {};
   const dispatcher = dispatchStore
     ? new MarketplaceSyncDispatcher({
         store: dispatchStore,
+        writes: messageStore
+          ? {
+              claim: (workerId, workerEpoch, runnerId) =>
+                messageStore.claim(workerId, workerEpoch, runnerId),
+              run: (claim) => {
+                if (!messageRunner)
+                  return Promise.reject(new Error('Versanddienst ist noch nicht bereit'));
+                return messageRunner.run(claim);
+              },
+            }
+          : undefined,
         includeScheduled: config.scheduledSyncEnabled,
         maxJobsPerPoll: 32,
         run: (scope) => {
@@ -186,6 +207,7 @@ async function main(): Promise<void> {
     authorizeRuntime: dispatcher ? () => dispatcher.heartbeat() : undefined,
   });
   await broker.ready();
+  if (messageStore) messageRunner = new MarketplaceMessageRunner(broker, messageStore);
   if (cloudSetupStore && profiles instanceof ChromiumProfileProvisioner) {
     const inventory =
       config.ipRoyalApiToken && config.chromiumNetworkFile && networks
