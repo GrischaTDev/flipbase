@@ -21,6 +21,15 @@ mit Cloud-Aufträgen oder der Oberfläche verbunden und nicht veröffentlicht.
 (365 bestanden, sieben unverändert ausgelassen). Worker-Bau und Typprüfung bestehen;
 weitere Integrationsschritte und Echtkonto-Abnahme stehen aus.
 
+**Datenbank:** Eigene Cloud-Schreibfreigabe, gemeinsame Nachrichten-RPCs und
+disjunkte Berechtigungen in der bestehenden Outbox ergänzt. Cloudclaims reservieren
+die vorhandene Browsersperre atomar. Profilwechsel und Widerruf stoppen wartende
+Aufträge; verspäteter Originalerfolg verhindert unbegonnene Wiederholungen.
+Migration mit dem offiziellen Supabase-Abgleich erzeugt, Rechte aus den
+Schemadateien übernommen und auf isolierter Datenbank geprüft: 324 Assertions
+einschließlich 47 neuer Cloudprüfungen. Generierte Typen, Typprüfung und
+Schema-/Migrationsregistrierung geprüft. Noch nicht veröffentlicht.
+
 ## 2026-10-08 - Juna - Gemeinsamen Cloud-Postfachausbau planen
 
 **Auftrag:** Nach Bestätigung des schriftlichen Entwurfs den Umsetzungsplan

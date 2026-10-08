@@ -2397,6 +2397,63 @@ export type Database = {
         }
         Relationships: []
       }
+      marketplace_cloud_message_permissions: {
+        Row: {
+          approved_by: string
+          authorization_version: number
+          browser_profile_id: number
+          connection_id: string
+          created_at: string
+          external_account_id: string
+          id: number
+          provider_profile_id: string
+          revoked_at: string | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          approved_by: string
+          authorization_version?: number
+          browser_profile_id: number
+          connection_id: string
+          created_at?: string
+          external_account_id: string
+          id?: never
+          provider_profile_id: string
+          revoked_at?: string | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          approved_by?: string
+          authorization_version?: number
+          browser_profile_id?: number
+          connection_id?: string
+          created_at?: string
+          external_account_id?: string
+          id?: never
+          provider_profile_id?: string
+          revoked_at?: string | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_cloud_message_permi_workspace_id_connection_id_fkey"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: true
+            referencedRelation: "marketplace_connections"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "marketplace_cloud_message_permissions_browser_profile_id_fkey"
+            columns: ["browser_profile_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_browser_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       marketplace_cloud_setups: {
         Row: {
           cloud_ip_id: number
@@ -2950,14 +3007,20 @@ export type Database = {
           attachment_mime_type: string | null
           attachment_name: string | null
           claim_token: string | null
+          cloud_authorization_version: number | null
+          cloud_browser_session_id: string | null
+          cloud_runner_id: string | null
+          cloud_worker_epoch: number | null
+          cloud_worker_id: string | null
           connection_id: string
           conversation_id: string
           created_at: string
           error_code: string | null
+          execution_mode: string
           external_account_id: string
           external_conversation_id: string
           external_message_id: string | null
-          grant_generation: number
+          grant_generation: number | null
           id: string
           lease_expires_at: string | null
           message_text: string
@@ -2974,14 +3037,20 @@ export type Database = {
           attachment_mime_type?: string | null
           attachment_name?: string | null
           claim_token?: string | null
+          cloud_authorization_version?: number | null
+          cloud_browser_session_id?: string | null
+          cloud_runner_id?: string | null
+          cloud_worker_epoch?: number | null
+          cloud_worker_id?: string | null
           connection_id: string
           conversation_id: string
           created_at?: string
           error_code?: string | null
+          execution_mode?: string
           external_account_id: string
           external_conversation_id: string
           external_message_id?: string | null
-          grant_generation: number
+          grant_generation?: number | null
           id?: string
           lease_expires_at?: string | null
           message_text: string
@@ -2998,14 +3067,20 @@ export type Database = {
           attachment_mime_type?: string | null
           attachment_name?: string | null
           claim_token?: string | null
+          cloud_authorization_version?: number | null
+          cloud_browser_session_id?: string | null
+          cloud_runner_id?: string | null
+          cloud_worker_epoch?: number | null
+          cloud_worker_id?: string | null
           connection_id?: string
           conversation_id?: string
           created_at?: string
           error_code?: string | null
+          execution_mode?: string
           external_account_id?: string
           external_conversation_id?: string
           external_message_id?: string | null
-          grant_generation?: number
+          grant_generation?: number | null
           id?: string
           lease_expires_at?: string | null
           message_text?: string
@@ -3031,6 +3106,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "marketplace_connections"
             referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "marketplace_local_message_outbox_cloud_browser_session_id_fkey"
+            columns: ["cloud_browser_session_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_browser_sessions"
+            referencedColumns: ["public_id"]
           },
         ]
       }
@@ -7099,6 +7181,14 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_approve_cloud_messages: {
+        Args: {
+          p_connection_id: string
+          p_expected_external_account_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       marketplace_approve_local_extension: {
         Args: {
           p_connection_id: string
@@ -7191,6 +7281,59 @@ export type Database = {
         Args: { p_workspace_id: string }
         Returns: boolean
       }
+      marketplace_cloud_message_begin: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: string
+          p_message_id: string
+          p_worker_epoch: number
+          p_worker_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_cloud_message_check: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: string
+          p_message_id: string
+          p_worker_epoch: number
+          p_worker_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_cloud_message_claim: {
+        Args: {
+          p_runner_id: string
+          p_worker_epoch: number
+          p_worker_id: string
+        }
+        Returns: Json
+      }
+      marketplace_cloud_message_finish: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: string
+          p_error_code?: string
+          p_external_message_id?: string
+          p_message_id: string
+          p_outcome: string
+          p_worker_epoch: number
+          p_worker_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_cloud_message_permission_valid: {
+        Args: {
+          p_connection_id: string
+          p_user_id: string
+          p_version?: number
+          p_workspace_id: string
+        }
+        Returns: boolean
+      }
       marketplace_cloud_network_valid: {
         Args: { p_connection_id: string; p_workspace_id: string }
         Returns: boolean
@@ -7249,6 +7392,17 @@ export type Database = {
         Returns: Json
       }
       marketplace_enqueue_local_message: {
+        Args: {
+          p_attachment?: Json
+          p_connection_id: string
+          p_conversation_id: string
+          p_request_id: string
+          p_text: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_enqueue_message: {
         Args: {
           p_attachment?: Json
           p_connection_id: string
@@ -7558,6 +7712,18 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_read_message_permission: {
+        Args: { p_connection_id: string; p_workspace_id: string }
+        Returns: Json
+      }
+      marketplace_read_messages: {
+        Args: {
+          p_connection_id: string
+          p_conversation_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       marketplace_read_page: {
         Args: {
           p_connection_id: string
@@ -7594,6 +7760,24 @@ export type Database = {
           p_connection_id: string
           p_conversation_id: string
           p_message_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_retry_message: {
+        Args: {
+          p_confirmed_unknown?: boolean
+          p_connection_id: string
+          p_conversation_id: string
+          p_message_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_revoke_cloud_messages: {
+        Args: {
+          p_authorization_version: number
+          p_connection_id: string
           p_workspace_id: string
         }
         Returns: Json

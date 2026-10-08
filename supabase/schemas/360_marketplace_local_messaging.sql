@@ -6,7 +6,13 @@ create table public.marketplace_local_message_outbox (
   conversation_id uuid not null,
   external_conversation_id text not null check (external_conversation_id ~ '^[1-9][0-9]{0,31}$'),
   external_account_id text not null check (external_account_id ~ '^[1-9][0-9]{0,31}$'),
-  grant_generation bigint not null,
+  execution_mode text not null default 'local' check (execution_mode in ('local','cloud')),
+  grant_generation bigint,
+  cloud_authorization_version bigint,
+  cloud_browser_session_id uuid references public.marketplace_browser_sessions(public_id),
+  cloud_worker_id uuid,
+  cloud_worker_epoch bigint,
+  cloud_runner_id uuid,
   requested_by uuid not null references auth.users(id) on delete cascade,
   request_id uuid not null,
   payload_hash text not null check (payload_hash ~ '^[0-9a-f]{64}$'),
@@ -27,11 +33,16 @@ create table public.marketplace_local_message_outbox (
   foreign key (workspace_id, connection_id, conversation_id) references public.marketplace_account_entries(workspace_id,connection_id,id) on delete cascade,
   check ((attachment_name is null) = (attachment_mime_type is null) and (attachment_name is null) = (attachment_base64 is null)),
   check (char_length(btrim(message_text)) > 0 or attachment_base64 is not null),
-  check (state='cancelled' or ((state in ('claimed','sending','sent','failed','outcome_unknown')) = (claim_token is not null)))
+  check (state='cancelled' or ((state in ('claimed','sending','sent','failed','outcome_unknown')) = (claim_token is not null))),
+  constraint marketplace_message_authorization_scope check ((execution_mode='local' and grant_generation is not null and cloud_authorization_version is null and cloud_browser_session_id is null and cloud_worker_id is null and cloud_worker_epoch is null and cloud_runner_id is null)
+    or (execution_mode='cloud' and grant_generation is null and cloud_authorization_version is not null and cloud_authorization_version>0)),
+  constraint marketplace_cloud_message_attempt_scope check ((cloud_browser_session_id is null and cloud_worker_id is null and cloud_worker_epoch is null and cloud_runner_id is null)
+    or (cloud_browser_session_id is not null and cloud_worker_id is not null and cloud_worker_epoch is not null and cloud_worker_epoch>0 and cloud_runner_id is not null and claim_token is not null))
 );
-comment on table public.marketplace_local_message_outbox is 'Kontogebundene lokale Versandaufträge mit einem dauerhaften Versuch; Anhangsdaten sind ausschließlich für den Worker lesbar.';
+comment on table public.marketplace_local_message_outbox is 'Kontogebundene lokale und Cloud-Versandaufträge mit einem dauerhaften Versuch; Anhangsdaten sind ausschließlich für den Worker lesbar.';
 create index marketplace_local_message_outbox_claim on public.marketplace_local_message_outbox(workspace_id,connection_id,state,created_at,id);
 create index marketplace_local_message_outbox_conversation on public.marketplace_local_message_outbox(workspace_id,connection_id,conversation_id,created_at desc,id desc);
+create index marketplace_cloud_message_outbox_pending on public.marketplace_local_message_outbox(state,created_at,id) where execution_mode='cloud' and state in ('queued','claimed','sending');
 alter table public.marketplace_local_message_outbox enable row level security;
 revoke all on public.marketplace_local_message_outbox from public,anon,authenticated;
 grant all on public.marketplace_local_message_outbox to service_role;
@@ -104,7 +115,7 @@ begin
     on conflict(workspace_id,connection_id,request_id) do nothing returning * into v_message;
   if not found then
     select * into v_message from public.marketplace_local_message_outbox where workspace_id=p_workspace_id and connection_id=p_connection_id and request_id=p_request_id;
-    if v_message.payload_hash<>v_hash or v_message.requested_by<>(select auth.uid()) or v_message.grant_generation<>v_grant.grant_generation then raise exception 'Nachrichtenkennung bereits verwendet' using errcode='23505'; end if;
+    if v_message.execution_mode<>'local' or v_message.payload_hash<>v_hash or v_message.requested_by<>(select auth.uid()) or v_message.grant_generation is distinct from v_grant.grant_generation then raise exception 'Nachrichtenkennung bereits verwendet' using errcode='23505'; end if;
   end if;
   return jsonb_build_object('ok',true,'workspaceId',p_workspace_id,'connectionId',p_connection_id,'message',public.marketplace_local_message_public(v_message));
 end;
@@ -120,7 +131,7 @@ begin
   if not public.marketplace_can_manage(p_workspace_id) or not exists(select 1 from auth.users where id=(select auth.uid()) and not is_anonymous)
     or not public.marketplace_sync_authorization_valid(p_workspace_id,(select auth.uid())) then raise exception 'Kontozugriff verweigert' using errcode='42501'; end if;
   select * into v_message from public.marketplace_local_message_outbox
-    where workspace_id=p_workspace_id and connection_id=p_connection_id and conversation_id=p_conversation_id and id=p_message_id for update;
+    where workspace_id=p_workspace_id and connection_id=p_connection_id and execution_mode='local' and conversation_id=p_conversation_id and id=p_message_id for update;
   if not found or v_message.requested_by<>(select auth.uid()) then raise exception 'Kontozugriff verweigert' using errcode='42501'; end if;
   if not exists(select 1 from public.marketplace_local_extension_grants g join public.marketplace_connections c on c.workspace_id=g.workspace_id and c.id=g.connection_id
     where g.workspace_id=p_workspace_id and g.connection_id=p_connection_id and g.approved_by=(select auth.uid()) and g.messages_send
@@ -155,14 +166,14 @@ begin
     or not exists(select 1 from public.marketplace_account_entries where workspace_id=p_workspace_id and connection_id=p_connection_id and kind='conversation' and id=p_conversation_id) then raise exception 'Kontozugriff verweigert' using errcode='42501'; end if;
   -- Nicht begonnene Aufträge überleben keine abgelaufene oder erneuerte Kontofreigabe.
   update public.marketplace_local_message_outbox m set state='cancelled',error_code='authorization_expired',updated_at=clock_timestamp()
-    where m.workspace_id=p_workspace_id and m.connection_id=p_connection_id and m.state in ('queued','claimed')
+    where m.workspace_id=p_workspace_id and m.connection_id=p_connection_id and m.execution_mode='local' and m.state in ('queued','claimed')
       and not exists(select 1 from public.marketplace_local_extension_grants g join public.marketplace_connections c on c.workspace_id=g.workspace_id and c.id=g.connection_id
         where g.workspace_id=m.workspace_id and g.connection_id=m.connection_id and g.revoked_at is null and g.expires_at>clock_timestamp()
           and g.messages_send and g.grant_generation=m.grant_generation and g.external_account_id=m.external_account_id and c.external_account_id=m.external_account_id);
   update public.marketplace_local_message_outbox set state='outcome_unknown',error_code='timeout',updated_at=clock_timestamp()
-    where workspace_id=p_workspace_id and connection_id=p_connection_id and state='sending' and lease_expires_at<=clock_timestamp();
+    where workspace_id=p_workspace_id and connection_id=p_connection_id and execution_mode='local' and state='sending' and lease_expires_at<=clock_timestamp();
   select coalesce(jsonb_agg(public.marketplace_local_message_public(m) order by m.created_at desc,m.id desc),'[]'::jsonb) into v_messages
-    from (select * from public.marketplace_local_message_outbox where workspace_id=p_workspace_id and connection_id=p_connection_id and conversation_id=p_conversation_id order by created_at desc,id desc limit 50) m;
+    from (select * from public.marketplace_local_message_outbox where workspace_id=p_workspace_id and connection_id=p_connection_id and execution_mode='local' and conversation_id=p_conversation_id order by created_at desc,id desc limit 50) m;
   return jsonb_build_object('ok',true,'workspaceId',p_workspace_id,'connectionId',p_connection_id,'messages',v_messages);
 end;
 $$;
@@ -193,10 +204,10 @@ declare v_grant public.marketplace_local_extension_grants; v_message public.mark
 begin
   v_grant:=public.marketplace_local_message_authorized(p_workspace_id,p_connection_id,p_token_hash);
   update public.marketplace_local_message_outbox set state='outcome_unknown',error_code='timeout',updated_at=clock_timestamp()
-    where workspace_id=p_workspace_id and connection_id=p_connection_id and state='sending' and lease_expires_at<=clock_timestamp();
+    where workspace_id=p_workspace_id and connection_id=p_connection_id and execution_mode='local' and state='sending' and lease_expires_at<=clock_timestamp();
   update public.marketplace_local_message_outbox set state='queued',claim_token=null,lease_expires_at=null,updated_at=clock_timestamp()
-    where workspace_id=p_workspace_id and connection_id=p_connection_id and state='claimed' and lease_expires_at<=clock_timestamp();
-  select * into v_message from public.marketplace_local_message_outbox where workspace_id=p_workspace_id and connection_id=p_connection_id and state='queued'
+    where workspace_id=p_workspace_id and connection_id=p_connection_id and execution_mode='local' and state='claimed' and lease_expires_at<=clock_timestamp();
+  select * into v_message from public.marketplace_local_message_outbox where workspace_id=p_workspace_id and connection_id=p_connection_id and execution_mode='local' and state='queued'
     and grant_generation=v_grant.grant_generation and requested_by=v_grant.approved_by and external_account_id=v_grant.external_account_id order by created_at,id limit 1 for update skip locked;
   if not found then return jsonb_build_object('ok',true,'command',null); end if;
   update public.marketplace_local_message_outbox set state='claimed',claim_token=gen_random_uuid(),lease_expires_at=least(v_grant.expires_at,clock_timestamp()+interval '90 seconds'),updated_at=clock_timestamp() where id=v_message.id returning * into v_message;
@@ -212,7 +223,7 @@ returns jsonb language plpgsql volatile security invoker set search_path='' as $
 declare v_grant public.marketplace_local_extension_grants; v_message public.marketplace_local_message_outbox;
 begin
   v_grant:=public.marketplace_local_message_authorized(p_workspace_id,p_connection_id,p_token_hash);
-  select * into v_message from public.marketplace_local_message_outbox where workspace_id=p_workspace_id and connection_id=p_connection_id and id=p_message_id and claim_token=p_claim_token for update;
+  select * into v_message from public.marketplace_local_message_outbox where workspace_id=p_workspace_id and connection_id=p_connection_id and execution_mode='local' and id=p_message_id and claim_token=p_claim_token for update;
   if not found or v_message.grant_generation<>v_grant.grant_generation or v_message.requested_by<>v_grant.approved_by or v_message.state<>'claimed' or v_message.lease_expires_at<=clock_timestamp() then raise exception 'Versandclaim ungültig' using errcode='42501'; end if;
   update public.marketplace_local_message_outbox set state='sending',started_at=clock_timestamp(),lease_expires_at=least(v_grant.expires_at,clock_timestamp()+interval '90 seconds'),updated_at=clock_timestamp() where id=v_message.id;
   return jsonb_build_object('ok',true);
@@ -226,7 +237,7 @@ returns jsonb language plpgsql volatile security invoker set search_path='' as $
 declare v_message public.marketplace_local_message_outbox;
 begin
   perform pg_advisory_xact_lock(91731,1);
-  select * into v_message from public.marketplace_local_message_outbox where workspace_id=p_workspace_id and connection_id=p_connection_id and id=p_message_id and claim_token=p_claim_token for update;
+  select * into v_message from public.marketplace_local_message_outbox where workspace_id=p_workspace_id and connection_id=p_connection_id and execution_mode='local' and id=p_message_id and claim_token=p_claim_token for update;
   if not found or p_token_hash is distinct from (select token_hash from public.marketplace_local_extension_grants where workspace_id=p_workspace_id and connection_id=p_connection_id) then raise exception 'Versandclaim ungültig' using errcode='42501'; end if;
   if p_outcome not in ('sent','failed','outcome_unknown') or (p_outcome='sent' and (p_external_message_id is null or p_external_message_id !~ '^[1-9][0-9]{0,31}$'))
     or (p_outcome<>'sent' and p_external_message_id is not null) or (p_error_code is not null and p_error_code !~ '^[a-z_]{1,80}$') then raise exception 'Ungültiges Versandergebnis' using errcode='22023'; end if;
@@ -235,7 +246,7 @@ begin
     if p_outcome<>'sent' then return jsonb_build_object('ok',true); end if;
     -- Ein verspäteter Erfolgsnachweis verhindert eine noch nicht begonnene Wiederholung.
     update public.marketplace_local_message_outbox set state='cancelled',error_code='original_sent',lease_expires_at=null,updated_at=clock_timestamp()
-      where workspace_id=p_workspace_id and connection_id=p_connection_id and request_id=v_message.id and state in ('queued','claimed');
+      where workspace_id=p_workspace_id and connection_id=p_connection_id and execution_mode='local' and request_id=v_message.id and state in ('queued','claimed');
   elsif v_message.state in ('sent','failed','outcome_unknown') then
     if v_message.state='outcome_unknown' and p_outcome='outcome_unknown' and p_external_message_id is null then return jsonb_build_object('ok',true); end if;
     if v_message.state=p_outcome and v_message.external_message_id is not distinct from p_external_message_id and v_message.error_code is not distinct from p_error_code then return jsonb_build_object('ok',true); end if;
