@@ -73,8 +73,9 @@ jobs:
           MARKETPLACE_CHROMIUM_IMAGE: ghcr.io/grischatdev/flipbase-chromium-session:sha-${{ github.sha }}
         run: |
           set -euo pipefail
-          export MARKETPLACE_DOCKER_GROUP_ID="$(stat -c %g /var/run/docker.sock)"
-          export MARKETPLACE_ENV_FILE="$(mktemp)"
+          MARKETPLACE_DOCKER_GROUP_ID="$(stat -c %g /var/run/docker.sock)"
+          MARKETPLACE_ENV_FILE="$(mktemp)"
+          export MARKETPLACE_DOCKER_GROUP_ID MARKETPLACE_ENV_FILE
           trap 'rm -f "$MARKETPLACE_ENV_FILE"' EXIT
           for flag in 1 0; do
             printf 'MARKETPLACE_SCHEDULED_SYNC_ENABLED=%s\n' "$flag" > "$MARKETPLACE_ENV_FILE"
@@ -86,8 +87,8 @@ jobs:
           assert worker["environment"]["MARKETPLACE_BROWSER_PROVIDER"]=="gologin"
           assert worker["environment"]["MARKETPLACE_SCHEDULED_SYNC_ENABLED"]==sys.argv[1]
           assert "flipbase-browser" not in worker["networks"]
-          assert worker["mem_limit"]==512*1024*1024
-          assert config["services"]["chromium-host-broker"]["mem_limit"]==512*1024*1024
+          assert int(worker["mem_limit"])==512*1024*1024
+          assert int(config["services"]["chromium-host-broker"]["mem_limit"])==512*1024*1024
           ' "$flag"
           done
 
