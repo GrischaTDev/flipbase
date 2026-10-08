@@ -24,6 +24,18 @@ Der angemeldete Adminbereich zeigt „Vinted verbunden“ und der Nutzerfeed zei
 neue Artikel von heute um 10:38 Uhr. Formatierung und Git-Diff bestehen.
 Eine dauerhafte Anbieterfreigabe ist damit nicht zugesichert.
 
+**Adidas-Nachprüfung:** Der Nutzer berichtet wiederholte Ausfälle nach Aktivierung
+dieses Filters. Der aktuelle Filter enthält sieben Adidas-Varianten und einen
+20-Sekunden-Abstand. Sie werden einzeln im Wechsel abgefragt, nicht gleichzeitig.
+Die gespeicherte Position 9 entspricht bei sieben Varianten dem Index 2,
+also `adidas NEO` (132738); an dieser Position steht der letzte Fehler. Alle
+sieben Varianten sind zuvor erfolgreich initialisiert worden. Auch der ältere,
+inzwischen gelöschte Filter mit ausschließlich `adidas` (14) hat einen früheren
+`forbidden`-Eintrag. Damit ist die letzte globale Pause einem Adidas-Abruf
+zuordenbar, aber kein Fehler einer bestimmten Markenkennung bewiesen. Der Filter
+bleibt bei dieser lesenden Analyse deaktiviert und unverändert. Ein kontrollierter
+Vergleich mit nur der Hauptmarke und längeren Abständen ist noch nicht ausgeführt.
+
 ## 2026-10-08 - Juna - Falsche Beta-Umleitung beim Tabwechsel verhindern
 
 **Auftrag:** Die gelegentliche Umleitung eines Administrators auf `beta-ended`
