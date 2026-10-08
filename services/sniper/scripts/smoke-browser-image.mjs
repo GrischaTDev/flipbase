@@ -19,12 +19,21 @@ await mkdir(process.env.HOME, { recursive: true });
 let scripts = 0;
 let input = '';
 let cookie = '';
+let renewalExpires = 0;
+let catalogRequests = 0;
 const server = createServer((request, response) => {
-  if (request.url.startsWith('/executed')) { scripts++; response.end('ok'); return; }
+  if (request.url.startsWith('/executed')) { scripts++; renewalExpires = Date.now() + 1800; response.end('ok'); return; }
+  if (request.url === '/renew.js') { response.setHeader('Content-Type', 'application/javascript'); response.end('setTimeout(() => fetch("/executed"), 75)'); return; }
   if (request.url.startsWith('/input')) { input = new URL(request.url, 'http://localhost').searchParams.get('text'); response.end('ok'); return; }
+  if (request.url.includes('challenge')) { response.writeHead(403, { 'cf-mitigated': 'challenge' }); response.end('<title>Just a moment...</title>challenge-running'); return; }
+  if (request.url.includes('slow')) { return; }
+  if (request.url.startsWith('/catalog')) {
+    if (++catalogRequests === 1) renewalExpires = Date.now() + 1800;
+    if (Date.now() > renewalExpires) { response.statusCode = 403; response.end('Script renewal expired'); return; }
+  }
   cookie = request.headers.cookie ?? '';
   response.setHeader('Set-Cookie', 'sniper_smoke=persisted; Max-Age=3600; Path=/');
-  response.end('<html><body><h1>Local catalog</h1><input id="text" autofocus oninput="fetch(\'/input?text=\'+encodeURIComponent(this.value))"><script>fetch(\'/executed\')</script></body></html>');
+  response.end('<html><body><h1>Local catalog</h1><input id="text" autofocus oninput="fetch(\'/input?text=\'+encodeURIComponent(this.value))"><script src="/renew.js"></script></body></html>');
 });
 await new Promise(resolve => server.listen(8765, '127.0.0.1', resolve));
 const baseUrl = 'http://127.0.0.1:8765';
@@ -36,8 +45,23 @@ try {
   assert.equal(first.status, 200);
   assert.match(await first.text(), /Local catalog/);
   await new Promise(resolve => setTimeout(resolve, 250));
-  assert.equal(scripts, 0, 'Automatic document interception must prevent JavaScript');
+  assert.equal(scripts, 1, 'Automatic catalog navigation must allow external and delayed session scripts');
   assert.equal(first.headers.get('set-cookie'), null, 'Chrome owns cookies');
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await new Promise(resolve => setTimeout(resolve, 900));
+    const next = await browser.fetch(baseUrl + '/catalog', { signal: AbortSignal.timeout(20000) });
+    assert.equal(next.status, 200, 'Automatic catalogs must renew the session past its initial expiry');
+    await new Promise(resolve => setTimeout(resolve, 250));
+  }
+  assert.equal(scripts, 4);
+  const challenge = await browser.fetch(baseUrl + '/catalog?challenge');
+  assert.equal(challenge.status, 403, 'Native rendering must not turn a challenge into success');
+  assert.equal(challenge.headers.get('cf-mitigated'), 'challenge');
+  assert.match(await challenge.text(), /challenge-running/);
+  await assert.rejects(browser.fetch(baseUrl + '/catalog?slow', { signal: AbortSignal.timeout(250) }), error => error.name === 'TimeoutError');
+  renewalExpires = Date.now() + 10000;
+  assert.equal((await browser.fetch(baseUrl + '/catalog')).status, 200, 'Aborted navigation must not strand the next catalog');
+  await new Promise(resolve => setTimeout(resolve, 250));
   const listeners = await readFile('/proc/net/tcp', 'utf8');
   assert.match(listeners, /0100007F:240C/, 'CDP must listen on loopback');
   assert.doesNotMatch(listeners, /00000000:240C/, 'CDP must not listen publicly');
@@ -51,9 +75,12 @@ try {
     assert.match(status, /PID namespaces\s+Yes/, 'Chrome PID isolation must be active');
     await page.goto('about:blank');
   } finally { await inspection.close(); }
+  const beforeManual = scripts;
+  renewalExpires = Date.now() + 10000;
   await browser.openManual(new URL(baseUrl + '/catalog'));
-  for (let attempt = 0; attempt < 50 && !scripts; attempt++) await new Promise(resolve => setTimeout(resolve, 100));
-  assert.equal(scripts, 1, 'Native manual navigation must execute the ordinary page');
+  await assert.rejects(browser.fetch(baseUrl + '/catalog'), /manuell bedient/);
+  for (let attempt = 0; attempt < 50 && scripts === beforeManual; attempt++) await new Promise(resolve => setTimeout(resolve, 100));
+  assert.equal(scripts, beforeManual + 1, 'Native manual navigation must execute the ordinary page');
   const frame = await browser.captureFrame();
   assert.ok(frame.length > 100);
   assert.equal(frame[0], 255); assert.equal(frame[1], 216);
@@ -63,11 +90,14 @@ try {
   await browser.stopManual();
   await browser.close();
   browser = new ChromeVintedBrowser(baseUrl, options);
+  renewalExpires = Date.now() + 10000;
+  const beforeRestart = scripts;
   const afterRestart = await browser.fetch(baseUrl + '/catalog', { signal: AbortSignal.timeout(20000) });
   assert.equal(afterRestart.status, 200);
   assert.match(cookie, /sniper_smoke=persisted/, 'Cookies must survive native Chrome restart');
-  assert.equal(scripts, 1, 'Restarted automatic navigation must still prevent JavaScript');
-  console.log('Chrome sandbox, private CDP, manual image/input, intercepted document and profile persistence verified.');
+  await new Promise(resolve => setTimeout(resolve, 250));
+  assert.equal(scripts, beforeRestart + 1, 'Restarted automatic navigation must allow session renewal');
+  console.log('Chrome sandbox, private CDP, manual image/input, automatic script renewal, original challenge status, abort recovery and profile persistence verified.');
 } finally { await browser.close(); await new Promise(resolve => server.close(resolve)); }
 `;
 let created = false;

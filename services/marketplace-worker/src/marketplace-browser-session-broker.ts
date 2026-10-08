@@ -83,6 +83,15 @@ interface CloudBrowserProvider {
   stop(profileId: string): Promise<void>;
 }
 
+type BrowserStartStage =
+  | 'authorization'
+  | 'recovery'
+  | 'lease_acquire'
+  | 'profile_resolve'
+  | 'lease_check'
+  | 'browser_start'
+  | 'lease_confirm';
+
 interface BrowserSessionBrokerOptions {
   leases: BrowserLeaseStore;
   profiles: BrowserProfileStore;
@@ -90,6 +99,7 @@ interface BrowserSessionBrokerOptions {
   recovery: { recover(): Promise<void> };
   authorizeRuntime?: () => Promise<boolean>;
   now?: () => number;
+  onStartFailure?: (stage: BrowserStartStage) => void;
 }
 
 interface ActiveBrowserSession {
@@ -218,63 +228,79 @@ export class MarketplaceBrowserSessionBroker {
   }
 
   async open(scope: BrowserSessionScope): Promise<string> {
-    if (
-      [scope.cloudSetup, scope.syncRead, scope.messageWrite, scope.favoriteWrite].filter(Boolean)
-        .length > 1
-    )
-      throw new Error('Sitzungszugriff verweigert');
-    if (!(await this.runtimeAuthorized())) throw new Error('Worker-Zugriff unterbrochen');
-    await this.ensureRecovered();
-    const lease = await this.options.leases.acquire({ ...scope });
-    if (!sameScope(scope, lease.scope)) throw new Error('Sitzungszugriff verweigert');
-    let profileId: string | undefined;
-    let browser: CloudBrowserHandle | undefined;
+    let stage: BrowserStartStage = 'authorization';
     try {
-      profileId = await this.options.profiles.resolve(lease);
       if (
-        lease.expiresAt <= Date.now() ||
-        !(await this.options.leases.assertActive(lease)) ||
-        lease.expiresAt <= Date.now()
+        [scope.cloudSetup, scope.syncRead, scope.messageWrite, scope.favoriteWrite].filter(Boolean)
+          .length > 1
       )
-        throw new Error('Sitzung abgelaufen');
+        throw new Error('Sitzungszugriff verweigert');
       if (!(await this.runtimeAuthorized())) throw new Error('Worker-Zugriff unterbrochen');
-      browser = await this.options.browsers.open(profileId);
-      if (
-        lease.expiresAt <= Date.now() ||
-        !(await this.options.leases.assertActive(lease)) ||
-        lease.expiresAt <= Date.now()
-      ) {
-        throw new Error('Sitzung abgelaufen');
-      }
-      this.sessions.set(lease.id, { lease, profileId, browser, stopPending: false });
-      return lease.id;
-    } catch (error) {
-      if (!(await this.runtimeAuthorized())) {
-        if (profileId)
-          this.sessions.set(lease.id, { lease, profileId, browser, stopPending: true });
-        // Anbieterfehler können Zugangsdaten enthalten; nur einen festen Zustand weitergeben.
-        // eslint-disable-next-line preserve-caught-error
-        throw new Error('Browserstart fehlgeschlagen');
-      }
-      if (error instanceof CloudBrowserStopUncertainError) {
-        if (profileId) this.sessions.set(lease.id, { lease, profileId, stopPending: true });
+      stage = 'recovery';
+      await this.ensureRecovered();
+      stage = 'lease_acquire';
+      const lease = await this.options.leases.acquire({ ...scope });
+      if (!sameScope(scope, lease.scope)) throw new Error('Sitzungszugriff verweigert');
+      let profileId: string | undefined;
+      let browser: CloudBrowserHandle | undefined;
+      try {
+        stage = 'profile_resolve';
+        profileId = await this.options.profiles.resolve(lease);
+        stage = 'lease_check';
+        if (
+          lease.expiresAt <= Date.now() ||
+          !(await this.options.leases.assertActive(lease)) ||
+          lease.expiresAt <= Date.now()
+        )
+          throw new Error('Sitzung abgelaufen');
+        if (!(await this.runtimeAuthorized())) throw new Error('Worker-Zugriff unterbrochen');
+        stage = 'browser_start';
+        browser = await this.options.browsers.open(profileId);
+        stage = 'lease_confirm';
+        if (
+          lease.expiresAt <= Date.now() ||
+          !(await this.options.leases.assertActive(lease)) ||
+          lease.expiresAt <= Date.now()
+        ) {
+          throw new Error('Sitzung abgelaufen');
+        }
+        this.sessions.set(lease.id, { lease, profileId, browser, stopPending: false });
+        return lease.id;
+      } catch (error) {
+        if (!(await this.runtimeAuthorized())) {
+          if (profileId)
+            this.sessions.set(lease.id, { lease, profileId, browser, stopPending: true });
+          // Anbieterfehler können Zugangsdaten enthalten; nur einen festen Zustand weitergeben.
+          // eslint-disable-next-line preserve-caught-error
+          throw new Error('Browserstart fehlgeschlagen');
+        }
+        if (error instanceof CloudBrowserStopUncertainError) {
+          if (profileId) this.sessions.set(lease.id, { lease, profileId, stopPending: true });
+          // Anbieterfehler können Token enthalten; die öffentliche Fehlermeldung bleibt neutral.
+          // eslint-disable-next-line preserve-caught-error
+          throw new Error('Browserstart fehlgeschlagen');
+        }
+        if (browser) {
+          try {
+            await browser.close();
+          } catch {
+            if (profileId)
+              this.sessions.set(lease.id, { lease, profileId, browser, stopPending: true });
+            throw new Error('Browserstart fehlgeschlagen');
+          }
+        }
+        await this.options.leases.release(lease);
         // Anbieterfehler können Token enthalten; die öffentliche Fehlermeldung bleibt neutral.
         // eslint-disable-next-line preserve-caught-error
         throw new Error('Browserstart fehlgeschlagen');
       }
-      if (browser) {
-        try {
-          await browser.close();
-        } catch {
-          if (profileId)
-            this.sessions.set(lease.id, { lease, profileId, browser, stopPending: true });
-          throw new Error('Browserstart fehlgeschlagen');
-        }
+    } catch (error) {
+      try {
+        this.options.onStartFailure?.(stage);
+      } catch {
+        // Diagnosefehler dürfen weder die Bereinigung noch den ursprünglichen Fehler ersetzen.
       }
-      await this.options.leases.release(lease);
-      // Anbieterfehler können Token enthalten; die öffentliche Fehlermeldung bleibt neutral.
-      // eslint-disable-next-line preserve-caught-error
-      throw new Error('Browserstart fehlgeschlagen');
+      throw error;
     }
   }
 
