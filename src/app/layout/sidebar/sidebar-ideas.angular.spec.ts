@@ -98,7 +98,7 @@ describe('Arbeitsnavigation und Ideen in der Sidebar', () => {
       ['/catalog', '/image-optimizer'],
       ['/marketplaces/ebay'],
       ['/expenses', '/accounting', '/analytics'],
-      ['/vinted-bot', '/deal-calculator', '/deal-calculator/ebay'],
+      ['/tools/brand-labels', '/vinted-bot', '/deal-calculator', '/deal-calculator/ebay'],
     ]);
     expect(element.textContent).not.toContain('Warenwirtschaft & Store');
     expect(element.textContent).not.toContain('Werkzeuge & Ertrag');

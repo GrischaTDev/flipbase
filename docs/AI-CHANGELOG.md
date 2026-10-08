@@ -18,6 +18,15 @@ FormControls; die Feldinitialisierung im neuen Labeleditor verwendet deshalb
 das bestehende direkte Muster. Den neuen Referenz-Browserablauf außerdem in
 die verbindliche PR-Testauswahl aufgenommen. Beide Regressionen lokal geprüft.
 
+**Migrationsnachtrag:** Die vollständige Datenbank-CI erkannte zusätzliche,
+unabhängige Rechteabweichungen im CLI-Abgleich. Die Migration wurde automatisiert
+auf ihre tatsächlich neu angelegten Featureobjekte begrenzt; Rechte und Kommentare
+anderer Themenbereiche bleiben unverändert. Insbesondere bleibt der bestehende
+Service-Zugriff auf Produktbilder samt Archivschutz erhalten. Frischen
+Migrationspfad und bestehende Produktbildprüfung erneut ausgeführt.
+Bestehende Sidebar-Regressionen um den neuen Werkzeug- und Administrationslink
+ergänzt; Reihenfolge und genau ein aktiver Unterpunkt bleiben geprüft.
+
 ## 2026-10-08 - Juna - Marken-, Label- und Größenreferenzen abschließen
 
 **Auftrag:** Die im Web begonnene Referenzbibliothek vollständig fortführen;

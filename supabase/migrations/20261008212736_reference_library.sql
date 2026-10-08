@@ -100,8 +100,6 @@ revoke all on function public.can_read_label_library() from public;
 
 grant all on function public.can_read_label_library() to authenticated;
 
-revoke all on function public.capture_purchase_package_contents(uuid, uuid, jsonb, uuid) from service_role;
-
 create function public.complete_label_image (
   p_asset_id       integer,
   p_actor_id       uuid,
@@ -152,8 +150,6 @@ revoke all on function public.complete_label_image(integer, uuid, integer, text,
 
 grant all on function public.complete_label_image(integer, uuid, integer, text, integer, integer, text, text) to service_role;
 
-revoke all on function public.complete_sniper_search_filter_run(uuid, integer, integer, jsonb) from authenticated;
-
 create function public.create_label_draft (
   p_brand_id   integer,
   p_request_id uuid
@@ -176,8 +172,6 @@ $function$;
 revoke all on function public.create_label_draft(integer, uuid) from public;
 
 grant all on function public.create_label_draft(integer, uuid) to authenticated;
-
-comment on function public.delete_unused_article(uuid,text,uuid) is 'Löscht ausschließlich unbenutzte Artikel und merkt private Bilder transaktional vor.';
 
 create function public.discard_label_draft (
   p_revision_id      integer,
@@ -219,16 +213,6 @@ $function$;
 revoke all on function public.edit_label_reference(integer, uuid) from public;
 
 grant all on function public.edit_label_reference(integer, uuid) to authenticated;
-
-revoke all on function public.enforce_sniper_watchlist_limit() from authenticated;
-
-revoke all on function public.expense_audit_values(public.expenses) from authenticated;
-
-revoke all on function public.expense_audit_values(public.expenses) from service_role;
-
-revoke all on function public.expense_recurring_rule_audit_values(public.expense_recurring_rules) from authenticated;
-
-revoke all on function public.expense_recurring_rule_audit_values(public.expense_recurring_rules) from service_role;
 
 create function public.get_label_admin_reference (
   p_reference_id integer
@@ -325,24 +309,6 @@ $function$;
 revoke all on function public.get_label_reference(text, text) from public;
 
 grant all on function public.get_label_reference(text, text) to authenticated;
-
-revoke all on function public.guard_package_sale_cost() from authenticated;
-
-revoke all on function public.guard_package_sale_cost() from service_role;
-
-revoke all on function public.guard_purchase_package_inventory() from authenticated;
-
-revoke all on function public.guard_purchase_package_inventory() from service_role;
-
-revoke all on function public.guard_purchase_package_line() from authenticated;
-
-revoke all on function public.guard_purchase_package_line() from service_role;
-
-revoke all on function public.guard_purchase_package_lot() from authenticated;
-
-revoke all on function public.guard_purchase_package_lot() from service_role;
-
-revoke all on function public.guard_sniper_search_filter_ingestion() from authenticated;
 
 create function public.label_assert_array (
   p_value  jsonb,
@@ -1314,24 +1280,6 @@ revoke all on function public.list_size_references(boolean) from public;
 
 grant all on function public.list_size_references(boolean) to authenticated;
 
-revoke all on function public.log_expense_document_event() from authenticated;
-
-revoke all on function public.log_expense_document_event() from service_role;
-
-revoke all on function public.log_expense_event() from authenticated;
-
-revoke all on function public.log_expense_event() from service_role;
-
-revoke all on function public.log_expense_recurring_rule_event() from authenticated;
-
-revoke all on function public.log_expense_recurring_rule_event() from service_role;
-
-revoke all on function public.normalize_sniper_keyword(text) from authenticated;
-
-revoke all on function public.prevent_open_price_purchase_stock_transfer() from authenticated;
-
-revoke all on function public.prevent_open_price_purchase_stock_transfer() from service_role;
-
 create function public.protect_label_change_events()
   returns trigger
   language plpgsql
@@ -1421,8 +1369,6 @@ $function$;
 revoke all on function public.publish_label_draft(integer, integer, uuid) from public;
 
 grant all on function public.publish_label_draft(integer, integer, uuid) to authenticated;
-
-revoke all on function public.record_sniper_search_filter_failure(uuid, integer, integer, text, timestamp with time zone, text, text, integer, text) from authenticated;
 
 create function public.reserve_label_image (
   p_request_id uuid,
@@ -1632,10 +1578,6 @@ revoke all on function public.save_size_reference(integer, integer, integer, jso
 
 grant all on function public.save_size_reference(integer, integer, integer, jsonb, boolean, uuid) to authenticated;
 
-comment on function public.set_catalog_product_archived(uuid,uuid,boolean) is 'Reversible Archivmetadaten ohne Änderung von Lagerbestand und Buchungen.';
-
-comment on function public.set_inventory_item_archived(uuid,uuid,boolean) is 'Reversible Archivmetadaten für eindeutig geklärte Einzelartikel ohne Änderung von Bestand, Verkauf oder Buchungen.';
-
 create function public.set_label_brand_archive (
   p_id               integer,
   p_expected_version integer,
@@ -1734,8 +1676,6 @@ revoke all on function public.set_label_library_enabled(boolean, uuid) from publ
 
 grant all on function public.set_label_library_enabled(boolean, uuid) to authenticated;
 
-revoke all on function public.stamp_sniper_filter_revision() from authenticated;
-
 create function public.submit_label_draft (
   p_revision_id      integer,
   p_expected_version integer,
@@ -1752,10 +1692,6 @@ $function$;
 revoke all on function public.submit_label_draft(integer, integer, uuid) from public;
 
 grant all on function public.submit_label_draft(integer, integer, uuid) to authenticated;
-
-revoke all on function public.touch_listing_updated_at() from authenticated;
-
-revoke all on function public.touch_listing_updated_at() from service_role;
 
 create function public.validate_size_reference (
   p_content jsonb,
@@ -1806,14 +1742,6 @@ end;
 $function$;
 
 revoke all on function public.validate_size_reference(jsonb, boolean) from public;
-
-comment on table public.article_media_cleanup_jobs is 'Nach einem erlaubten Artikellöschen ausstehende private Bilddateien.';
-
-revoke delete, insert, maintain, references, trigger, truncate, update on public.beta_discord_links from authenticated;
-
-revoke maintain, references, trigger, truncate on public.catalog_product_groups from authenticated;
-
-revoke all on public.catalog_product_media from service_role;
 
 create table public.label_brand_lines (
   id             integer generated always as identity not null,
@@ -2309,10 +2237,6 @@ create policy "Betreiber lesen label_revisions" on public.label_revisions
   for select
   to authenticated
   using (( select public.is_platform_operator() as is_platform_operator));
-
-revoke maintain, references, trigger, truncate on public.listing_images from authenticated;
-
-revoke all on public.listing_images from service_role;
 
 create table public.size_references (
   id                integer                  generated always as identity not null,

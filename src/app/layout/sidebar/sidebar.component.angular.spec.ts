@@ -96,12 +96,14 @@ describe('SidebarComponent', () => {
       'Nutzer',
       'Vinted Bot',
       'Server-Speicher',
+      'Referenzbibliothek',
     ]);
     expect(subLinks.map((link) => link.getAttribute('href'))).toEqual([
       '/admin/applications',
       '/admin/users',
       '/admin/vinted-bot',
       '/admin/server-storage',
+      '/tools/brand-labels/admin',
     ]);
   });
 
@@ -111,6 +113,7 @@ describe('SidebarComponent', () => {
     const applications = await renderAt('/admin/applications');
     expect(applications.subLinks.map((link) => link.getAttribute('aria-current'))).toEqual([
       'page',
+      null,
       null,
       null,
       null,
@@ -126,6 +129,7 @@ describe('SidebarComponent', () => {
       null,
       null,
       'page',
+      null,
       null,
     ]);
     expect(operation.element.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
