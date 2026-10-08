@@ -67,6 +67,7 @@ export class VintedCollector {
         if (error instanceof VintedCollectorError) throw error;
         throw new VintedParserError(error instanceof Error ? error.message : String(error), {
           phase: 'parse',
+          status: response.status,
           queryId: query.id,
           responseSample: body.slice(0, 300),
         });
