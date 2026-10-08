@@ -2604,9 +2604,17 @@ export type Database = {
         Row: {
           actor_id: string
           claim_token: string | null
+          cloud_authorization_version: number | null
+          cloud_browser_session_id: string | null
+          cloud_phase: string | null
+          cloud_runner_id: string | null
+          cloud_worker_epoch: number | null
+          cloud_worker_id: string | null
           connection_id: string
           error_code: string | null
           event_at: string
+          execution_mode: string
+          external_account_id: string | null
           external_conversation_id: string | null
           external_id: string
           external_message_id: string | null
@@ -2629,9 +2637,17 @@ export type Database = {
         Insert: {
           actor_id: string
           claim_token?: string | null
+          cloud_authorization_version?: number | null
+          cloud_browser_session_id?: string | null
+          cloud_phase?: string | null
+          cloud_runner_id?: string | null
+          cloud_worker_epoch?: number | null
+          cloud_worker_id?: string | null
           connection_id: string
           error_code?: string | null
           event_at: string
+          execution_mode?: string
+          external_account_id?: string | null
           external_conversation_id?: string | null
           external_id: string
           external_message_id?: string | null
@@ -2654,9 +2670,17 @@ export type Database = {
         Update: {
           actor_id?: string
           claim_token?: string | null
+          cloud_authorization_version?: number | null
+          cloud_browser_session_id?: string | null
+          cloud_phase?: string | null
+          cloud_runner_id?: string | null
+          cloud_worker_epoch?: number | null
+          cloud_worker_id?: string | null
           connection_id?: string
           error_code?: string | null
           event_at?: string
+          execution_mode?: string
+          external_account_id?: string | null
           external_conversation_id?: string | null
           external_id?: string
           external_message_id?: string | null
@@ -2689,9 +2713,12 @@ export type Database = {
       marketplace_favorite_message_settings: {
         Row: {
           activated_at: string | null
+          approved_by: string | null
+          cloud_authorization_version: number | null
           config: Json
           connection_id: string
           enabled: boolean
+          execution_mode: string
           external_account_id: string | null
           grant_generation: number | null
           id: number
@@ -2701,9 +2728,12 @@ export type Database = {
         }
         Insert: {
           activated_at?: string | null
+          approved_by?: string | null
+          cloud_authorization_version?: number | null
           config: Json
           connection_id: string
           enabled?: boolean
+          execution_mode?: string
           external_account_id?: string | null
           grant_generation?: number | null
           id?: never
@@ -2713,9 +2743,12 @@ export type Database = {
         }
         Update: {
           activated_at?: string | null
+          approved_by?: string | null
+          cloud_authorization_version?: number | null
           config?: Json
           connection_id?: string
           enabled?: boolean
+          execution_mode?: string
           external_account_id?: string | null
           grant_generation?: number | null
           id?: never
@@ -7376,6 +7409,61 @@ export type Database = {
         Args: { p_workspace_id: string }
         Returns: boolean
       }
+      marketplace_cloud_favorite_begin: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: string
+          p_event_id: string
+          p_offer_price_cents?: number
+          p_original_price_cents?: number
+          p_phase: string
+          p_worker_epoch: number
+          p_worker_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_cloud_favorite_check: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: string
+          p_event_id: string
+          p_phase: string
+          p_worker_epoch: number
+          p_worker_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_cloud_favorite_claim: {
+        Args: {
+          p_runner_id: string
+          p_worker_epoch: number
+          p_worker_id: string
+        }
+        Returns: Json
+      }
+      marketplace_cloud_favorite_finish: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: string
+          p_conversation_id?: string
+          p_error_code?: string
+          p_event_id: string
+          p_external_id?: string
+          p_outcome: string
+          p_phase: string
+          p_transaction_id?: string
+          p_worker_epoch: number
+          p_worker_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_cloud_favorite_settings_valid: {
+        Args: { p_connection_id: string; p_workspace_id: string }
+        Returns: boolean
+      }
       marketplace_cloud_message_begin: {
         Args: {
           p_claim_token: string
@@ -7849,6 +7937,16 @@ export type Database = {
         Args: { p_connection_id: string; p_workspace_id: string }
         Returns: Json
       }
+      marketplace_record_favorite_events: {
+        Args: {
+          p_connection_id: string
+          p_events: Json
+          p_execution_mode: string
+          p_external_account_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       marketplace_record_message_event_batch: {
         Args: {
           p_batch: Json
@@ -8023,6 +8121,14 @@ export type Database = {
           p_workspace_id: string
         }
         Returns: Json
+      }
+      marketplace_validate_favorite_offer_price: {
+        Args: {
+          p_offer: Json
+          p_offer_price_cents: number
+          p_original_price_cents: number
+        }
+        Returns: undefined
       }
       marketplace_worker_claim: { Args: { p_worker_id: string }; Returns: Json }
       marketplace_worker_heartbeat: {

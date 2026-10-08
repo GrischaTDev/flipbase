@@ -15,7 +15,12 @@ import {
 import type {
   MarketplaceMessageCommand,
   MarketplaceMessageResult,
+  MarketplaceFavoriteMessageCommand,
+  MarketplaceFavoriteMessageResult,
+  MarketplaceFavoriteOfferCommand,
+  MarketplaceFavoriteOfferResult,
 } from '../../../supabase/functions/_shared/marketplace-message-contracts.d.ts';
+import type { VintedFavoriteEvent } from './vinted-browser-favorites.ts';
 
 export type BrowserConnection = Pick<Browser, 'close' | 'version'> &
   Partial<Pick<Browser, 'contexts' | 'newBrowserCDPSession'>>;
@@ -26,6 +31,21 @@ export interface BrowserDragPoint {
 }
 
 export interface BrowserInfo extends Pick<Browser, 'version'> {
+  readFavoriteEvents?(
+    accountId: string,
+    authorize: () => Promise<void>,
+  ): Promise<VintedFavoriteEvent[]>;
+  sendFavoriteMessage?(
+    accountId: string,
+    command: MarketplaceFavoriteMessageCommand,
+    authorize: () => Promise<void>,
+  ): Promise<MarketplaceFavoriteMessageResult>;
+  sendFavoriteOffer?(
+    accountId: string,
+    command: MarketplaceFavoriteOfferCommand,
+    authorize: () => Promise<void>,
+    confirmPrice: (original: number, offered: number) => Promise<boolean>,
+  ): Promise<MarketplaceFavoriteOfferResult>;
   sendMessage?(
     accountId: string,
     command: MarketplaceMessageCommand,

@@ -6,6 +6,64 @@ import type {
   MarketplaceFavoriteOfferResult,
 } from '../../../supabase/functions/_shared/marketplace-message-contracts.d.ts';
 import { sendVintedMessage, readVintedCsrfToken } from './vinted-browser-messages.ts';
+export interface VintedFavoriteEvent {
+  readonly externalId: string;
+  readonly actorId: string;
+  readonly itemId: string;
+  readonly eventAt: string;
+}
+export async function readVintedFavoriteEvents(
+  page: Page,
+  accountId: string,
+  authorize: () => Promise<void>,
+): Promise<VintedFavoriteEvent[]> {
+  const source = requestsFor(page, accountId, authorize);
+  await source.identify();
+  const events = new Map<string, VintedFavoriteEvent>();
+  for (let pageNumber = 1; pageNumber <= 2; pageNumber++) {
+    const response = await source.request(
+      `/web/api/notifications/notifications?page=${pageNumber}&per_page=100&mark_as_read=false`,
+    );
+    const notifications = response['notifications'];
+    if (!Array.isArray(notifications) || notifications.length > 100)
+      throw new FavoriteRequestError('invalid_response');
+    for (const input of notifications) {
+      const notification = record(input);
+      if (notification['entry_type'] !== 20) continue;
+      const link = typeof notification['link'] === 'string' ? notification['link'] : '';
+      const actorId = identifier(
+          link.match(/(?:[?&])(?:offering_id|user_id)=([1-9][0-9]{0,31})(?:&|$)/)?.[1],
+        ),
+        itemId = identifier(notification['subject_id']);
+      if (!actorId || !itemId || !/\/(?:want_it|messaging)(?:\/|\?|$)/.test(link)) continue;
+      const externalId = notification['id'],
+        updatedAt = notification['updated_at'];
+      if (
+        typeof externalId !== 'string' ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(externalId) ||
+        typeof updatedAt !== 'string' ||
+        !/^\d{4}-\d{2}-\d{2}T/.test(updatedAt) ||
+        !Number.isFinite(Date.parse(updatedAt)) ||
+        Date.parse(updatedAt) > Date.now() + 60000
+      )
+        throw new FavoriteRequestError('invalid_response');
+      if (actorId !== accountId) {
+        const event = { externalId, actorId, itemId, eventAt: new Date(updatedAt).toISOString() };
+        const previous = events.get(externalId);
+        if (previous && JSON.stringify(previous) !== JSON.stringify(event))
+          throw new FavoriteRequestError('invalid_response');
+        events.set(externalId, event);
+      }
+    }
+    if (
+      notifications.length < 100 ||
+      Number(record(response['pagination'])['total_pages']) <= pageNumber
+    )
+      break;
+  }
+  await source.identify();
+  return [...events.values()].sort((left, right) => left.eventAt.localeCompare(right.eventAt));
+}
 
 function record(input: unknown): Record<string, unknown> {
   return input !== null && typeof input === 'object' && !Array.isArray(input)

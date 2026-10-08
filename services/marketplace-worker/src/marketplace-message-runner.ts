@@ -52,6 +52,7 @@ export class MarketplaceMessageRunner {
       binding.claimToken !== claim.claimToken ||
       scope.syncRead ||
       scope.cloudSetup ||
+      scope.favoriteWrite ||
       scope.userAccessToken
     )
       throw new Error('Versandclaim ungültig');

@@ -30,6 +30,7 @@ interface SyncBroker {
 }
 
 interface ImportWriter {
+  favoriteSettingsActive?(scope: BrowserSessionScope, sessionId: string): Promise<boolean>;
   conversationVersions?(
     scope: BrowserSessionScope,
     sessionId: string,
@@ -144,6 +145,18 @@ export class MarketplaceSyncRunner {
         }
       });
       if (!snapshot) throw new Error('Vinted-Datenabruf fehlgeschlagen');
+      if (await this.imports.favoriteSettingsActive?.(scope, currentSessionId)) {
+        snapshot.favoriteEvents = await this.broker.run(
+          scope,
+          currentSessionId,
+          async (browser) => {
+            if (!browser.readFavoriteEvents) throw new Error('Favoritenabruf fehlt');
+            return browser.readFavoriteEvents(snapshot.identity.id, () =>
+              this.broker.run(scope, currentSessionId, async () => undefined),
+            );
+          },
+        );
+      }
       failedStage = 'access';
       await this.broker.run(scope, currentSessionId, async () => undefined);
       failedStage = 'persist';

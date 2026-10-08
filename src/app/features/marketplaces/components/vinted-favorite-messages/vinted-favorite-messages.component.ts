@@ -26,6 +26,7 @@ import { ConfirmDialogService } from '../../../../shared/components/confirm-dial
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { VintedLocalExtensionStore } from '../../services/vinted-local-extension.store';
 import { VintedFavoriteMessageApiService } from '../../services/vinted-favorite-message-api.service';
+import { VintedMessagingApiService } from '../../services/vinted-messaging-api.service';
 import {
   favoriteMessageStateLabels,
   favoriteOfferStateLabels,
@@ -114,6 +115,7 @@ function ruleForm(rule?: FavoriteMessageRule) {
 export class VintedFavoriteMessagesComponent {
   readonly store = inject(MarketplaceAccountStore);
   readonly local = inject(VintedLocalExtensionStore);
+  private readonly messagingApi = inject(VintedMessagingApiService);
   private readonly api = inject(VintedFavoriteMessageApiService);
   private readonly auth = inject(AuthService);
   private readonly workspace = inject(WorkspaceService);
@@ -315,7 +317,31 @@ export class VintedFavoriteMessagesComponent {
     try {
       const currentSettings = values.enabled ? await this.api.read(settings) : settings;
       if (!this.isCurrent(context, revision)) return;
-      if (values.enabled && (!currentSettings.active || !this.local.binding()?.messagesSend)) {
+      if (values.enabled && account.executionMode === 'cloud') {
+        const permission = await this.messagingApi.readPermission(account);
+        if (!this.isCurrent(context, revision)) return;
+        if (!currentSettings.active || !permission.allowed) {
+          const confirmed = await this.dialog.frage({
+            titel: 'Favoritennachrichten aktivieren?',
+            text: 'Flipbase sendet Deine Vorlagen automatisch über die Cloud an neue Interessenten dieses Kontos. Frühere Favorisierungen und bestehende Gespräche werden ausgelassen. Die Kontoverbindung und Automatik müssen aktiv sein.',
+            bestaetigenText: 'Aktivieren',
+          });
+          if (!confirmed || !this.isCurrent(context, revision)) return;
+          if (!permission.allowed) {
+            if (!account.externalAccountId)
+              throw new Error('Bestätige zuerst die Kontoverbindung.');
+            const approved = await this.messagingApi.approveCloud(
+              account,
+              account.externalAccountId,
+            );
+            if (!approved.allowed || approved.executionMode !== 'cloud')
+              throw new Error('Die Cloud-Nachrichtenfreigabe konnte nicht bestätigt werden.');
+          }
+        }
+      } else if (
+        values.enabled &&
+        (!currentSettings.active || !this.local.binding()?.messagesSend)
+      ) {
         const confirmed = await this.dialog.frage({
           titel: 'Favoritennachrichten aktivieren?',
           text: 'Flipbase sendet Deine Vorlagen automatisch an neue Interessenten dieses Kontos. Frühere Favorisierungen werden ausgelassen. Dein Browser muss laufen.',

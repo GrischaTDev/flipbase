@@ -1412,3 +1412,15 @@ eigene Abnahmen. Keine Funktion oder Anmeldeerkennung geändert.
 **Umfang:** Persönliche Account-Favoriten je Benutzer und Workspace, ausdrücklich bestätigter Altimport ohne Wiederherstellung manuell entfernter Einträge, keine zeitliche Löschung und keine 500er-Verdrängung. Normale Funde und Referenzpreise verwenden sieben Tage. Feed mit Titelsuche vor der Seitengrenze, fünf Desktopspalten, kleineren Bildaktionen, Heute/Gestern und gemeinsamem Kategorie-Wähler mit Vinted-Datenquelle.
 
 **Grenzen:** Die Browserprüfungen verwenden getrennte Desktop-/Tablet-Kontexte mit Testantworten. Kein echter Vinted-Abruf, kein unabhängiger zweiter Reviewer und keine Spiegelung externer Produktbilder. Ältere Hinweise auf damals offene Prüfungen bleiben in den historischen Archiven unverändert.
+
+**Cloud-Favoritenregeln:** Eigene Cloud-Aktivierung mit erneuter Kontofreigabe,
+Versionsbindung und getrennten Nachrichten-/Angebotsclaims umgesetzt. Die bestehende
+Ereignisvalidierung, Berliner Zeitregeln und serverseitige Preisformel werden geteilt.
+Cloud- und Extensionclaims bleiben getrennt. Hintergrundversand respektiert die
+Automatikpause; unklare Texte erzeugen kein Angebot und keine automatische Wiederholung.
+Favoritenabruf liest höchstens zwei Benachrichtigungsseiten ohne Gelesen-Markierung,
+nur bei aktivierter Regel. Ein Widerruf schaltet die Cloud-Regel aus.
+Offiziell erzeugte Migration auf isoliertem Stand geprüft: 356 DBassertions;
+419 Workerprüfungen bestanden, sieben bestehende Skip; 13 Favoriten-UI-Prüfungen,
+Worker-/App-Typprüfung und Bau sowie ESLint/Formatierung bestehen.
+Browserintegration und unabhängiges Abschlussreview folgen. Kein Live-Versand.

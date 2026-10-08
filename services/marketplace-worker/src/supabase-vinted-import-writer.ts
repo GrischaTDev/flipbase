@@ -28,6 +28,26 @@ export class SupabaseVintedImportWriter {
     this.request = options.fetch ?? fetch;
   }
 
+  async favoriteSettingsActive(scope: BrowserSessionScope, sessionId: string): Promise<boolean> {
+    await this.assertActive(scope, sessionId);
+    const result: unknown = await this.json(
+      await this.request(
+        new URL('/rest/v1/rpc/marketplace_cloud_favorite_settings_valid', this.baseUrl),
+        {
+          method: 'POST',
+          headers: { ...this.serverHeaders(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            p_workspace_id: scope.workspaceId,
+            p_connection_id: scope.connectionId,
+          }),
+          signal: AbortSignal.timeout(10000),
+        },
+      ),
+    );
+    if (typeof result !== 'boolean')
+      throw new Error('Favoritenfreigabe konnte nicht geprüft werden');
+    return result;
+  }
   async conversationVersions(
     scope: BrowserSessionScope,
     sessionId: string,

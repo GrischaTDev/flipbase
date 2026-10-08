@@ -83,7 +83,10 @@ function command(input: unknown): MarketplaceMessageCommand {
 
 export function validateMarketplaceMessageLease(
   input: unknown,
-  binding: NonNullable<BrowserSessionScope['messageWrite']>,
+  binding: Pick<
+    NonNullable<BrowserSessionScope['messageWrite']>,
+    'sessionId' | 'expiresAt' | 'absoluteExpiresAt'
+  >,
   now: number,
 ): number | null {
   const response = fields(input, ['active', 'sessionId', 'expiresAt', 'absoluteExpiresAt']);
@@ -229,6 +232,7 @@ export class SupabaseMarketplaceMessageStore {
       binding.claimToken !== claim.claimToken ||
       scope.syncRead ||
       scope.cloudSetup ||
+      scope.favoriteWrite ||
       scope.userAccessToken
     )
       throw invalid();

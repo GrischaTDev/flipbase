@@ -6,9 +6,53 @@ import {
   sendVintedFavoriteMessage,
   sendVintedFavoriteOffer,
   favoriteOfferPriceCents,
+  readVintedFavoriteEvents,
 } from '../src/vinted-browser-favorites.ts';
 
 const command = { recipientId: '456', itemId: '789', text: 'Danke fürs Merken!' };
+test('reads concrete favorites without marking notifications read', async () => {
+  const { page, requests } = browser({
+    notifications: [
+      {
+        entry_type: 20,
+        id: '38500000-0000-4000-8000-000000000041',
+        subject_id: 789,
+        link: '/want_it?offering_id=456',
+        updated_at: '2026-10-08T10:00:00Z',
+      },
+    ],
+  });
+  assert.deepEqual(await readVintedFavoriteEvents(page, '123', async () => undefined), [
+    {
+      externalId: '38500000-0000-4000-8000-000000000041',
+      actorId: '456',
+      itemId: '789',
+      eventAt: '2026-10-08T10:00:00.000Z',
+    },
+  ]);
+  assert.ok(requests.every((request) => request.method === 'GET'));
+  assert.ok(requests.some((request) => request.path.includes('mark_as_read=false')));
+  assert.equal(requests.filter((request) => request.path === '/api/v2/users/current').length, 2);
+});
+test('rejects malformed favorite events and revoked read access', async () => {
+  const { page } = browser({
+    notifications: [
+      {
+        entry_type: 20,
+        id: 'bad',
+        subject_id: 789,
+        link: '/want_it?offering_id=456',
+        updated_at: '2026-10-08T10:00:00Z',
+      },
+    ],
+  });
+  await assert.rejects(readVintedFavoriteEvents(page, '123', async () => undefined));
+  await assert.rejects(
+    readVintedFavoriteEvents(page, '123', async () => {
+      throw new Error('revoked');
+    }),
+  );
+});
 function browser(
   options: {
     existing?: boolean;
@@ -21,6 +65,7 @@ function browser(
     sentMessage?: boolean;
     inboxPages?: number;
     existingOnSecondPage?: boolean;
+    notifications?: unknown[];
   } = {},
 ) {
   const requests: { path: string; method: string; body: unknown }[] = [];
@@ -43,6 +88,11 @@ function browser(
           });
           let payload: unknown;
           if (path === '/api/v2/users/current') payload = { user: { id: 123 } };
+          else if (path.includes('/notifications/'))
+            payload = {
+              notifications: options.notifications ?? [],
+              pagination: { total_pages: 1 },
+            };
           else if (path.includes('/wardrobe/'))
             payload = {
               items: [

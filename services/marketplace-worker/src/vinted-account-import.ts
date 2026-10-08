@@ -4,6 +4,7 @@ import { setTimeout as wait } from 'node:timers/promises';
 import { parseVintedAccountIdentity, type VintedAccountIdentity } from './vinted-browser-reader.ts';
 import { parseVintedInboxEvents } from './vinted-inbox-events.ts';
 import type { MarketplaceInboxEventBatch } from '../../../supabase/functions/_shared/marketplace-inbox-event-contracts.d.ts';
+import type { VintedFavoriteEvent } from './vinted-browser-favorites.ts';
 
 export type VintedImportKind = 'profile' | 'publication' | 'conversation' | 'message' | 'sale';
 
@@ -33,6 +34,7 @@ export interface VintedAccountImport {
   sourceRequestCount?: number;
   browserReadFailures?: VintedBrowserReadFailure[];
   inboxEvents?: MarketplaceInboxEventBatch & { readonly version: 1 };
+  favoriteEvents?: VintedFavoriteEvent[];
 }
 
 export interface VintedConversationVersion {
