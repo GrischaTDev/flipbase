@@ -14,6 +14,41 @@ const fixture = JSON.parse(
     'utf8',
   ),
 );
+test('nonempty inbox without verifiable partners cannot establish a baseline', async () => {
+  for (const isEmpty of [false, true]) {
+    const paths = [];
+    const batch = await core.readInbox(
+      async (path) => {
+        paths.push(path);
+        if (path === '/api/v2/users/current') return { user: { id: 90, login: 'testkonto' } };
+        if (path.startsWith('/api/v2/inbox'))
+          return {
+            conversations: isEmpty
+              ? []
+              : [
+                  {
+                    id: 700,
+                    unread: true,
+                    opposite_user: { id: 0 },
+                    updated_at: '2026-10-08T08:01:00Z',
+                  },
+                ],
+            pagination: { total_pages: 1 },
+          };
+        assert.fail('Unexpected detail request');
+      },
+      '90',
+      { nextPage: 1, versions: [], mode: 'latest' },
+      () => '2026-10-08T09:00:00.000Z',
+    );
+    assert.equal(batch.inboxEvents.complete, isEmpty);
+    assert.deepEqual(batch.inboxEvents.coveredConversationIds, []);
+    assert.equal(
+      paths.some((path) => path.startsWith('/api/v2/conversations/')),
+      false,
+    );
+  }
+});
 test('incoming snapshot contract needs no browser, text or unread transition', () => {
   const result = inbox.parse(fixture, '90', '2026-10-08T09:00:00.000Z');
   assert.equal(result.events.length, 2);

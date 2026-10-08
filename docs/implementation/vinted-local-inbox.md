@@ -242,7 +242,25 @@ Schreibfreigabe. Vorhandene Favoriten-/Angebotsregeln bleiben ausgeschaltet, bis
 Du sie bewusst aktivierst. Der isolierte Cloud-Browserdienst unterstützt diese
 Aktionen einschließlich zentraler Preisbestätigung.
 
-Lokale DB-, Worker-, Extension-, Angular- und Browserprüfungen bestehen. Die
+Anmeldeprüfung, geänderte Identität und Abrufbegrenzung nach einem Cloudversand
+pausieren auch weitere Nachrichten desselben Kontos. Manuelle Nachrichten
+benötigen keine eingeschaltete Hintergrundautomatik, beachten aber deren
+Anmelde-/Prüfungspause und Wartezeit. Alte Profilabschlüsse ändern keine neue
+Kontofreigabe. Eine bestätigte Neuanmeldung entfernt den alten Anmeldefehler;
+eine andere Prüfungspause bleibt bis zur bewussten Wiederaufnahme erhalten.
+Ein bestätigtes Versandresultat bleibt nach späterem Widerruf gespeichert,
+ohne dadurch eine weitere Browseraktion zu erlauben.
+
+Scheitert der zusätzliche Favoritenabruf, werden bestätigte normale Kontodaten
+und Nachrichteneingänge trotzdem übernommen. Die Fehlermeldung und Wartezeit
+bleiben erhalten; ein fehlgeschlagener Favoritenabruf gilt nicht als leere Liste
+oder vollständiger Erfolg. Ein Postfach ohne prüfbare Gesprächskopien setzt
+keinen Erstbestand, solange seine tatsächliche Leere nicht bestätigt ist.
+
+Unabhängiges Review und dessen Regressionen, 663 Datenbankprüfungen, 468
+Workerprüfungen, die vollständigen Anwendungssuiten und 16 Browser-/AXEfälle
+bestehen. Sieben bestehende Workerprüfungen sind ausgelassen. Beide Container-
+bauten und der Runtime-Smoke mit ausgeschaltetem Netzwerk bestehen. Die
 veröffentlichte Anwendung und registrierte Extension wurden noch nicht aktualisiert.
 Glockeneingang und Versand im Echtkonto müssen nach Veröffentlichung abgenommen
 werden. Ohne eindeutigen Bildnachweis bleibt ein Bildversand als unklar markiert.

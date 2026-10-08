@@ -9,6 +9,95 @@ import {
 import type { VintedAccountImport } from '../src/vinted-account-import.ts';
 import { VintedInteractionRequiredError } from '../src/vinted-browser-reader.ts';
 
+test('isolated terminal write proof survives a subsequent revocation without granting another action', async () => {
+  for (const name of ['sendMessage', 'sendFavoriteMessage', 'sendFavoriteOffer'] as const) {
+    let authorizations = 0;
+    let starts = 0;
+    const proof =
+      name === 'sendFavoriteOffer'
+        ? { outcome: 'sent', externalOfferId: '22' }
+        : {
+            outcome: 'sent',
+            externalMessageId: '11',
+            ...(name === 'sendFavoriteMessage' ? { conversationId: '777' } : {}),
+          };
+    const browser = isolatedBrowserActions({
+      request: async (input) => {
+        if (input.action === 'start') {
+          starts++;
+          return { id: '00000000-0000-0000-0000-000000000001' };
+        }
+        if (input.action === 'poll') return { kind: 'result', value: proof };
+        return null;
+      },
+    });
+    const authorize = async () => {
+      if (++authorizations > 1) throw new Error('revoked');
+    };
+    if (name === 'sendMessage')
+      assert.deepEqual(
+        await browser.sendMessage?.(
+          '123',
+          { externalConversationId: '777', text: 'Hallo', attachment: null },
+          authorize,
+        ),
+        proof,
+      );
+    else if (name === 'sendFavoriteMessage')
+      assert.deepEqual(
+        await browser.sendFavoriteMessage?.(
+          '123',
+          { recipientId: '456', itemId: '99', text: 'Danke' },
+          authorize,
+        ),
+        proof,
+      );
+    else
+      assert.deepEqual(
+        await browser.sendFavoriteOffer?.(
+          '123',
+          {
+            recipientId: '456',
+            itemId: '99',
+            text: 'Danke',
+            conversationId: '777',
+            transactionId: '888',
+            externalMessageId: '11',
+            offer: { type: 'amount', value: 5 },
+          },
+          authorize,
+          async () => true,
+        ),
+        proof,
+      );
+    await assert.rejects(
+      browser.sendMessage?.(
+        '123',
+        { externalConversationId: '777', text: 'Noch einmal', attachment: null },
+        authorize,
+      ) ?? Promise.reject(),
+      /revoked/,
+    );
+    assert.equal(starts, 1);
+  }
+});
+
+test('isolated terminal reads still require current authorization', async () => {
+  let authorizations = 0;
+  const browser = isolatedBrowserActions({
+    request: async (input) =>
+      input.action === 'start'
+        ? { id: '00000000-0000-0000-0000-000000000001' }
+        : { kind: 'result', value: [] },
+  });
+  await assert.rejects(
+    browser.readFavoriteEvents?.('123', async () => {
+      if (++authorizations > 1) throw new Error('revoked');
+    }) ?? Promise.reject(),
+    /revoked/,
+  );
+});
+
 test('isolated inbox supports a manual reply and both favorite phases with central price approval', async () => {
   const message = { externalConversationId: '777', text: 'Hallo', attachment: null };
   const favorite = { recipientId: '456', itemId: '99', text: 'Danke!' };

@@ -1,4 +1,42 @@
 -- Gemeinsame Nachrichtenaufträge mit getrennten lokalen und Cloud-Ausführungsrechten.
+create or replace function public.marketplace_cloud_write_available(p_workspace_id uuid,p_connection_id uuid)
+returns boolean language sql volatile security invoker set search_path='' as $$
+  select not exists(select 1 from public.marketplace_sync_schedules
+    where workspace_id=p_workspace_id and connection_id=p_connection_id
+      and (paused_reason in ('needs_login','forbidden','challenge','access_revoked','cleanup','retry_limit')
+        or retry_after>clock_timestamp()));
+$$;
+revoke all on function public.marketplace_cloud_write_available(uuid,uuid) from public,anon,authenticated;
+grant execute on function public.marketplace_cloud_write_available(uuid,uuid) to service_role;
+
+create or replace function public.marketplace_record_cloud_write_failure(p_workspace_id uuid,p_connection_id uuid,p_user_id uuid,p_authorization_version bigint,p_external_account_id text,p_session_id uuid,p_error_code text)
+returns void language plpgsql volatile security invoker set search_path='' as $$
+declare v_reason text; v_retry timestamptz;
+begin
+  perform pg_advisory_xact_lock(91731,1);
+  v_reason:=case p_error_code when 'login_required' then 'needs_login' when 'identity_changed' then 'needs_login' when 'challenge_required' then 'challenge' when 'rate_limited' then 'rate_limited' end;
+  if v_reason is null or not public.marketplace_cloud_message_permission_valid(p_workspace_id,p_connection_id,p_user_id,p_authorization_version)
+    or not exists(select 1 from public.marketplace_cloud_message_permissions permission
+      join public.marketplace_browser_sessions session on session.public_id=p_session_id and session.workspace_id=permission.workspace_id and session.connection_id=permission.connection_id
+        and session.started_by=permission.approved_by and session.provider_profile_id=permission.provider_profile_id
+      where permission.workspace_id=p_workspace_id and permission.connection_id=p_connection_id and permission.external_account_id=p_external_account_id)
+    then return; end if;
+  if v_reason='rate_limited' then v_retry:=clock_timestamp()+interval '15 minutes'; end if;
+  -- Ein manueller Versand aktiviert keinen Lesezeitplan. Alte Abschlüsse dürfen
+  -- die Pause weder einem neuen Profil zuordnen noch durch einen Import löschen.
+  insert into public.marketplace_sync_schedules(workspace_id,connection_id,enabled,activated_by,paused_reason,retry_after,consecutive_failures)
+    values(p_workspace_id,p_connection_id,false,p_user_id,v_reason,v_retry,1)
+    on conflict(workspace_id,connection_id) do update set
+      enabled=case when v_reason='rate_limited' then public.marketplace_sync_schedules.enabled else false end,
+      authorization_version=public.marketplace_sync_schedules.authorization_version+1,
+      paused_reason=v_reason,retry_after=v_retry,
+      next_due_at=case when v_reason='rate_limited' then greatest(public.marketplace_sync_schedules.next_due_at,v_retry) else null end,
+      consecutive_failures=public.marketplace_sync_schedules.consecutive_failures+1,updated_at=clock_timestamp();
+end;
+$$;
+revoke all on function public.marketplace_record_cloud_write_failure(uuid,uuid,uuid,bigint,text,uuid,text) from public,anon,authenticated;
+grant execute on function public.marketplace_record_cloud_write_failure(uuid,uuid,uuid,bigint,text,uuid,text) to service_role;
+
 create or replace function public.marketplace_enqueue_message(p_workspace_id uuid,p_connection_id uuid,p_conversation_id uuid,p_request_id uuid,p_text text,p_attachment jsonb default null)
 returns jsonb language plpgsql volatile security definer set search_path='' as $$
 declare v_connection public.marketplace_connections; v_permission public.marketplace_cloud_message_permissions; v_conversation public.marketplace_account_entries; v_message public.marketplace_local_message_outbox; v_bytes bytea; v_hash text; v_name text; v_mime text; v_base64 text;
@@ -119,6 +157,7 @@ begin
       and not public.marketplace_cloud_message_permission_valid(message.workspace_id,message.connection_id,message.requested_by,message.cloud_authorization_version);
   if exists(select 1 from public.marketplace_browser_sessions where state in ('active','stopping')) then return null; end if;
   select * into v_message from public.marketplace_local_message_outbox where execution_mode='cloud' and state='queued'
+    and public.marketplace_cloud_write_available(workspace_id,connection_id)
     order by created_at,id limit 1 for update skip locked;
   if not found then return null; end if;
   select * into v_permission from public.marketplace_cloud_message_permissions where workspace_id=v_message.workspace_id and connection_id=v_message.connection_id for update;
@@ -146,7 +185,8 @@ begin
   if not found then return v_inactive; end if;
   select * into v_message from public.marketplace_local_message_outbox where workspace_id=p_workspace_id and connection_id=p_connection_id and id=p_message_id
     and execution_mode='cloud' and claim_token=p_claim_token and cloud_worker_id=p_worker_id and cloud_worker_epoch=p_worker_epoch and state in ('claimed','sending') and lease_expires_at>clock_timestamp() for update;
-  if not found or not public.marketplace_cloud_message_permission_valid(p_workspace_id,p_connection_id,v_message.requested_by,v_message.cloud_authorization_version) then return v_inactive; end if;
+  if not found or not public.marketplace_cloud_message_permission_valid(p_workspace_id,p_connection_id,v_message.requested_by,v_message.cloud_authorization_version)
+    or not public.marketplace_cloud_write_available(p_workspace_id,p_connection_id) then return v_inactive; end if;
   select * into v_session from public.marketplace_browser_sessions where public_id=v_message.cloud_browser_session_id and workspace_id=p_workspace_id and connection_id=p_connection_id
     and started_by=v_message.requested_by and worker_id=p_worker_id and worker_epoch=p_worker_epoch and state='active' and expires_at>clock_timestamp() and absolute_expires_at>clock_timestamp()
     and provider_profile_id=(select provider_profile_id from public.marketplace_cloud_message_permissions where workspace_id=p_workspace_id and connection_id=p_connection_id) for update;
@@ -227,6 +267,9 @@ begin
     raise exception 'Versand nicht gestartet' using errcode='42501';
   end if;
   update public.marketplace_local_message_outbox set state=p_outcome,external_message_id=p_external_message_id,error_code=p_error_code,lease_expires_at=null,updated_at=clock_timestamp() where id=v_message.id;
+  if p_outcome<>'sent' then
+    perform public.marketplace_record_cloud_write_failure(p_workspace_id,p_connection_id,v_message.requested_by,v_message.cloud_authorization_version,v_message.external_account_id,v_message.cloud_browser_session_id,p_error_code);
+  end if;
   if p_outcome='sent' and exists(select 1 from public.marketplace_connections where workspace_id=p_workspace_id and id=p_connection_id and external_account_id=v_message.external_account_id) then
     insert into public.marketplace_account_entries(workspace_id,connection_id,kind,external_id,parent_id,body,sort_at,observed_at)
       values(p_workspace_id,p_connection_id,'message',p_external_message_id,v_message.conversation_id,

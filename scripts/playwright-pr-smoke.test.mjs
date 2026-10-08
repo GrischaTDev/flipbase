@@ -21,9 +21,15 @@ const coreTests = [
     'sniper-administration.spec.ts',
     `verwaltet zentrale Kategorie-, Marken- und Titel-Suchfilter ${theme} @core-smoke`,
   ]),
-  ...[1440, 1024, 390, 320].map((width) => [
-    'vinted-favorite-messages.spec.ts',
-    `Favoritennachrichten bleiben vor Freigabe aus und speichern Regeln bei ${width}px @marketplace-preview @core-smoke`,
+  ...['Extension', 'Cloud'].flatMap((mode) =>
+    [1440, 1024, 390, 320].map((width) => [
+      'vinted-favorite-messages.spec.ts',
+      `Favoritennachrichten (${mode}) bleiben vor Freigabe aus und speichern Regeln bei ${width}px @marketplace-preview @core-smoke`,
+    ]),
+  ),
+  ...[1440, 390].map((width) => [
+    'vinted-inbox-experience.spec.ts',
+    `Cloud-Glocke öffnet das richtige Gespräch und sendet ohne Extension bei ${width}px @core-smoke`,
   ]),
   [
     'beta-access-lifecycle.spec.ts',

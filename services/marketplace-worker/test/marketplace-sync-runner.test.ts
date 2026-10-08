@@ -22,6 +22,78 @@ const scope = {
 const operationId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
 const sessionId = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
 
+for (const isDispatched of [false, true])
+  for (const reason of ['unauthorized', 'forbidden', 'rate_limited'] as const) {
+    test(`optional favorite failure ${reason} preserves verified normal data and its diagnosis (dispatched=${isDispatched})`, async () => {
+      let saved: VintedAccountImport | undefined;
+      let failed: unknown[] = [];
+      let closed = false;
+      const runner = new MarketplaceSyncRunner(
+        {
+          open: async () => sessionId,
+          run: async (_scope, _id, operation) =>
+            operation({
+              version: () => 'fixture',
+              importAccount: async () => ({
+                identity: { id: '123', username: 'test' },
+                observedAt: '2026-10-08T12:00:00Z',
+                entries: [],
+                areas,
+              }),
+              readFavoriteEvents: async () => {
+                throw new VintedImportRequestError(reason, '900');
+              },
+            }),
+          close: async () => {
+            closed = true;
+          },
+        },
+        {
+          favoriteSettingsActive: async () => true,
+          write: async (_scope, _id, snapshot) => {
+            saved = snapshot;
+            return { profile: 1, publication: 0, conversation: 0, message: 0, sale: 0 };
+          },
+        },
+        {
+          enqueue: async () => ({ id: operationId, requestedBy: scope.userId }),
+          claim: async () => true,
+          stage: async () => undefined,
+          succeed: async () => assert.fail('Optional failure cannot count as complete success'),
+          fail: async (...argumentsList: unknown[]) => {
+            failed = argumentsList;
+          },
+        } as unknown as SupabaseMarketplaceOperationStore,
+        { record: () => undefined },
+      );
+      if (isDispatched)
+        await runner.runDispatched({
+          ...scope,
+          userAccessToken: '',
+          syncRead: {
+            operationId,
+            runnerId: operationId,
+            workerEpoch: 2,
+            sessionId,
+            expiresAt: new Date(Date.now() + 60000).toISOString(),
+            absoluteExpiresAt: new Date(Date.now() + 600000).toISOString(),
+          },
+        });
+      else {
+        await runner.start(scope);
+        await new Promise<void>((resolve) => setTimeout(resolve, 10));
+      }
+      assert.equal(saved?.identity.id, '123');
+      assert.equal(saved?.favoriteEvents, undefined);
+      assert.deepEqual(failed.slice(3), [
+        reason === 'unauthorized' ? 'identity' : 'access',
+        reason,
+        '900',
+      ]);
+      assert.equal(closed, true);
+    });
+  }
+
 for (const enabled of [false, true]) {
   test(`favorites are read in the same authorized import only when enabled=${enabled}`, async () => {
     let reads = 0;

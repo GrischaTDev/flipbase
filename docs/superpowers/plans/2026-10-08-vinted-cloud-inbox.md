@@ -1,6 +1,6 @@
 # Gemeinsames Vinted-Cloud-Postfach: Umsetzungsplan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Lokale und Cloud-Konten erhalten dasselbe nutzbare Postfach mit Eingangsmeldungen in der Glocke, bestätigtem Chatversand und vorhandenen Favoriten-Antworten samt Angeboten.
 
@@ -372,8 +372,8 @@ export interface CloudFavoriteClaim {
 
 **Dateien:** `docs/AI-CHANGELOG.md`, `docs/implementation/vinted-local-inbox.md`, dieser Plan; nur tatsächlich geänderte Releasekonfiguration bei notwendiger Workerverdrahtung.
 
-- [ ] Gesamtänderung gegen aktuellen `origin/master` prüfen; alle neuen APIs, RLS/Grants, SQL-Migrationen, Teilstände und Brokerzustände prüfen. Kein Merge fremder erledigter Zweige als Integrationsbasis. Ein unabhängiges Review folgt der vom Nutzer gewählten Ausführungsweise.
-- [ ] Changelog und bestehenden Postfachplan mit tatsächlich bestandenen Tests und noch nicht live belegten Punkten aktualisieren. Formatierung, Diffcheck und Commitstand verifizieren; keine privaten Fixtures/Geheimnisse committen.
+- [x] Gesamtänderung gegen aktuellen `origin/master` prüfen; alle neuen APIs, RLS/Grants, SQL-Migrationen, Teilstände und Brokerzustände prüfen. Kein Merge fremder erledigter Zweige als Integrationsbasis. Unabhängiges Review abgeschlossen; vier wichtige Befunde in einem Durchlauf mit RED→GREEN-Regressionsnachweis behoben, keine kleinen offenen Befunde.
+- [x] Changelog und bestehenden Postfachplan mit tatsächlich bestandenen Tests und noch nicht live belegten Punkten aktualisieren. Formatierung, Diffcheck und Commitstand verifizieren; keine privaten Fixtures/Geheimnisse committen.
 - [ ] Nach fertiger Umsetzung genau fragen: „Soll ich jetzt den PR erstellen und nach erfolgreichen Tests mergen?“ Nur mit dieser Abschlussfreigabe pushen, PR erstellen/anhängen, alle erforderlichen erfolgreichen Prüfungen abwarten und Merge-Commit verwenden.
 - [ ] Release und passende Worker-Version anhand des gemergten Gitstands prüfen. Kontoprofil-/Proxyzuordnung erhalten; keine zweite Produktivinstanz öffnen. Notwendige Extensionaktualisierung überschreibt die bereits registrierte ausgepackte Installation.
 - [ ] Mit Maike Vintage lesend prüfen: aktuelles Konto, gleiches Profil/Proxy, Abgleich, Glockenmeldung eines echten belegten Eingangs und Direktlink. Ungelesene Details bleiben bis zum bewussten Öffnen geschlossen.

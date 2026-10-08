@@ -7570,6 +7570,10 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_cloud_write_available: {
+        Args: { p_connection_id: string; p_workspace_id: string }
+        Returns: boolean
+      }
       marketplace_create_connection: {
         Args: { p_display_name: string; p_workspace_id: string }
         Returns: Json
@@ -7936,6 +7940,18 @@ export type Database = {
       marketplace_read_sync_schedule: {
         Args: { p_connection_id: string; p_workspace_id: string }
         Returns: Json
+      }
+      marketplace_record_cloud_write_failure: {
+        Args: {
+          p_authorization_version: number
+          p_connection_id: string
+          p_error_code: string
+          p_external_account_id: string
+          p_session_id: string
+          p_user_id: string
+          p_workspace_id: string
+        }
+        Returns: undefined
       }
       marketplace_record_favorite_events: {
         Args: {

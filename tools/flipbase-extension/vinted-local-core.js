@@ -575,6 +575,7 @@
               events: eventBatches.flatMap((events) => events.events),
               complete:
                 (totalPages === 0 || page === totalPages) &&
+                (eventBatches.length > 0 || (page === 1 && response.conversations.length === 0)) &&
                 eventBatches.every((events) => events.complete),
               coveredConversationIds: eventBatches.flatMap(
                 (events) => events.coveredConversationIds,

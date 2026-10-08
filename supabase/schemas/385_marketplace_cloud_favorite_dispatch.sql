@@ -23,6 +23,7 @@ begin
     where event.execution_mode='cloud' and settings.execution_mode='cloud' and settings.enabled
       and event.setting_version=settings.version and event.external_account_id=settings.external_account_id and event.cloud_authorization_version=settings.cloud_authorization_version
       and schedule.enabled and schedule.paused_reason is null and (schedule.retry_after is null or schedule.retry_after<=clock_timestamp())
+      and public.marketplace_cloud_write_available(event.workspace_id,event.connection_id)
       and public.marketplace_cloud_favorite_settings_valid(event.workspace_id,event.connection_id)
       and ((event.state='sent' and event.offer_state='pending') or (event.state='queued' and event.event_at+make_interval(mins=>(settings.config->>'delayMinutes')::integer)<=clock_timestamp()))
     order by case when event.offer_state='pending' then 0 else 1 end,event.event_at,event.id limit 1 for update of event skip locked;
@@ -69,7 +70,8 @@ begin
   select * into v_event from public.marketplace_favorite_message_events where workspace_id=p_workspace_id and connection_id=p_connection_id and id=p_event_id and execution_mode='cloud'
     and claim_token=p_claim_token and cloud_worker_id=p_worker_id and cloud_worker_epoch=p_worker_epoch and cloud_phase=p_phase and lease_expires_at>clock_timestamp()
     and ((p_phase='message' and state in ('claimed','sending')) or (p_phase='offer' and state='sent' and offer_state in ('claimed','sending'))) for update;
-  if not found or not public.marketplace_cloud_favorite_settings_valid(p_workspace_id,p_connection_id) then return v_inactive; end if;
+  if not found or not public.marketplace_cloud_favorite_settings_valid(p_workspace_id,p_connection_id)
+    or not public.marketplace_cloud_write_available(p_workspace_id,p_connection_id) then return v_inactive; end if;
   select * into v_settings from public.marketplace_favorite_message_settings where workspace_id=p_workspace_id and connection_id=p_connection_id;
   if v_event.setting_version<>v_settings.version or v_event.external_account_id is distinct from v_settings.external_account_id or v_event.cloud_authorization_version is distinct from v_settings.cloud_authorization_version
     or not exists(select 1 from public.marketplace_sync_schedules where workspace_id=p_workspace_id and connection_id=p_connection_id and enabled and paused_reason is null and (retry_after is null or retry_after<=clock_timestamp())) then return v_inactive; end if;
@@ -133,6 +135,11 @@ begin
   else
     if v_event.state<>'sent' then raise exception 'Nachricht nicht bestätigt' using errcode='42501'; end if;
     update public.marketplace_favorite_message_events set offer_state=p_outcome,external_offer_id=p_external_id,offer_error_code=p_error_code,lease_expires_at=null,updated_at=clock_timestamp() where id=p_event_id;
+  end if;
+  if p_outcome<>'sent' then
+    perform public.marketplace_record_cloud_write_failure(p_workspace_id,p_connection_id,
+      (select started_by from public.marketplace_browser_sessions where public_id=v_event.cloud_browser_session_id),
+      v_event.cloud_authorization_version,v_event.external_account_id,v_event.cloud_browser_session_id,p_error_code);
   end if;
   return jsonb_build_object('ok',true);
 end;

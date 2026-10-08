@@ -6,6 +6,7 @@ import type {
   MarketplaceFavoriteOfferResult,
 } from '../../../supabase/functions/_shared/marketplace-message-contracts.d.ts';
 import { sendVintedMessage, readVintedCsrfToken } from './vinted-browser-messages.ts';
+import { VintedImportRequestError } from './vinted-account-import.ts';
 export interface VintedFavoriteEvent {
   readonly externalId: string;
   readonly actorId: string;
@@ -13,6 +14,33 @@ export interface VintedFavoriteEvent {
   readonly eventAt: string;
 }
 export async function readVintedFavoriteEvents(
+  page: Page,
+  accountId: string,
+  authorize: () => Promise<void>,
+): Promise<VintedFavoriteEvent[]> {
+  try {
+    return await readFavoriteEvents(page, accountId, authorize);
+  } catch (error) {
+    if (!(error instanceof FavoriteRequestError)) throw error;
+    const reason =
+      error.code === 'login_required' || error.code === 'identity_changed'
+        ? 'unauthorized'
+        : error.code === 'rate_limited'
+          ? 'rate_limited'
+          : error.code === 'challenge_required' || error.code === 'provider_rejected'
+            ? 'forbidden'
+            : error.code === 'authorization_expired'
+              ? 'browser_context'
+              : error.code === 'timeout'
+                ? 'timeout'
+                : error.code === 'provider_unavailable'
+                  ? 'provider_unavailable'
+                  : 'invalid_response';
+    throw new VintedImportRequestError(reason, error.retryAfter);
+  }
+}
+
+async function readFavoriteEvents(
   page: Page,
   accountId: string,
   authorize: () => Promise<void>,
@@ -78,10 +106,12 @@ function identifier(input: unknown): string | null {
 class FavoriteRequestError extends Error {
   readonly code: string;
   readonly rejected: boolean;
-  constructor(code: string, rejected = false) {
+  readonly retryAfter?: string;
+  constructor(code: string, rejected = false, retryAfter?: string) {
     super(code);
     this.code = code;
     this.rejected = rejected;
+    this.retryAfter = retryAfter;
   }
 }
 function validCommand(accountId: string, command: MarketplaceFavoriteMessageCommand): boolean {
@@ -141,7 +171,12 @@ function requestsFor(page: Page, accountId: string, authorize: () => Promise<voi
             signal: AbortSignal.timeout(12000),
           });
           const json = result.headers.get('content-type')?.includes('application/json') ?? false;
-          return { status: result.status, json, payload: json ? await result.json() : null };
+          return {
+            status: result.status,
+            json,
+            payload: json ? await result.json() : null,
+            retryAfter: result.headers.get('retry-after') ?? undefined,
+          };
         },
         { path, body, token },
       );
@@ -150,8 +185,19 @@ function requestsFor(page: Page, accountId: string, authorize: () => Promise<voi
     }
     if (response.status < 200 || response.status >= 300)
       throw new FavoriteRequestError(
-        response.status === 401 ? 'login_required' : 'provider_rejected',
+        response.status === 401
+          ? 'login_required'
+          : response.status === 429
+            ? 'rate_limited'
+            : response.status === 403
+              ? 'challenge_required'
+              : response.status === 408
+                ? 'timeout'
+                : response.status >= 500
+                  ? 'provider_unavailable'
+                  : 'provider_rejected',
         response.status >= 400 && response.status < 500 && response.status !== 408,
+        response.retryAfter,
       );
     if (!response.json) throw new FavoriteRequestError('invalid_response');
     return record(response.payload);

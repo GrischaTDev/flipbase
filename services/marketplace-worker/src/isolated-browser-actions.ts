@@ -371,6 +371,8 @@ export async function executeBrowserAction(
 }
 
 export function browserActionError(error: unknown): BrowserActionEvent {
+  if (error instanceof VintedImportRequestError)
+    return { kind: 'error', code: 'request', reason: error.reason, retryAfter: error.retryAfter };
   for (const [constructor, code] of [
     [VintedInteractionRequiredError, 'interaction_required'],
     [VintedLoginPendingError, 'login_pending'],
@@ -398,7 +400,7 @@ function throwBrowserError(event: Record<string, unknown>): never {
   if (event.code === 'login_pending') throw new VintedLoginPendingError();
   if (event.code === 'login_rejected') throw new VintedLoginRejectedError();
   if (event.code === 'verification_required') throw new VintedVerificationRequiredError();
-  if (event.code === 'import') {
+  if (event.code === 'import' || event.code === 'request') {
     const stages = [
       'navigation',
       'identity',
@@ -432,6 +434,13 @@ function throwBrowserError(event: Record<string, unknown>): never {
       'unknown',
     ] as const;
     const failure = failures.find((failure) => failure === event.browserReadFailure);
+    if (event.code === 'request') {
+      if (!reason) throw new Error('Ungültiger Browserfehler');
+      throw new VintedImportRequestError(
+        reason,
+        event.retryAfter === undefined ? undefined : text(event.retryAfter, 64),
+      );
+    }
     if (!stage || (event.reason !== undefined && !reason))
       throw new Error('Ungültiger Browserfehler');
     throw new VintedImportReadError(
@@ -503,6 +512,12 @@ export function isolatedBrowserActions(transport: BrowserCommandTransport): Brow
           sequence += 1;
           continue;
         }
+        // Ein bereits belegtes Ergebnis erteilt keine neue Browserfreigabe.
+        if (
+          event.kind === 'result' &&
+          ['sendMessage', 'sendFavoriteMessage', 'sendFavoriteOffer'].includes(name)
+        )
+          return validateBrowserResult(name, event.value);
         await authorize();
         if (event.kind === 'error') throwBrowserError(event);
         if (event.kind !== 'result') throw new Error('Ungültige Browserantwort');

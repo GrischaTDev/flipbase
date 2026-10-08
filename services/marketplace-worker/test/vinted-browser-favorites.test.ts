@@ -8,6 +8,38 @@ import {
   favoriteOfferPriceCents,
   readVintedFavoriteEvents,
 } from '../src/vinted-browser-favorites.ts';
+import { VintedImportRequestError } from '../src/vinted-account-import.ts';
+import { BrowserSessionCommands } from '../src/browser-session-commands.ts';
+import { isolatedBrowserActions } from '../src/isolated-browser-actions.ts';
+
+for (const [status, reason] of [
+  [401, 'unauthorized'],
+  [403, 'forbidden'],
+  [429, 'rate_limited'],
+  [500, 'provider_unavailable'],
+  [408, 'timeout'],
+] as const) {
+  test(`favorite GET retains ${status} and Retry-After directly and across isolation`, async () => {
+    const { page } = browser({ notificationStatus: status });
+    const isolated = isolatedBrowserActions({ request: (input) => newRuntime.request(input) });
+    const newRuntime = new BrowserSessionCommands({
+      version: () => 'fixture',
+      readFavoriteEvents: (account, authorize) =>
+        readVintedFavoriteEvents(page, account, authorize),
+    });
+    for (const read of [
+      () => readVintedFavoriteEvents(page, '123', async () => undefined),
+      () => isolated.readFavoriteEvents?.('123', async () => undefined) ?? Promise.reject(),
+    ])
+      await assert.rejects(
+        read(),
+        (error: unknown) =>
+          error instanceof VintedImportRequestError &&
+          error.reason === reason &&
+          error.retryAfter === '900',
+      );
+  });
+}
 
 const command = { recipientId: '456', itemId: '789', text: 'Danke fürs Merken!' };
 test('reads concrete favorites without marking notifications read', async () => {
@@ -66,6 +98,7 @@ function browser(
     inboxPages?: number;
     existingOnSecondPage?: boolean;
     notifications?: unknown[];
+    notificationStatus?: number;
   } = {},
 ) {
   const requests: { path: string; method: string; body: unknown }[] = [];
@@ -136,8 +169,10 @@ function browser(
             payload = { code: 0, ...(options.offerId ? { offer: { id: options.offerId } } : {}) };
           } else throw new Error('Unexpected test path');
           return {
-            status: 200,
-            headers: { get: () => 'application/json' },
+            status: path.includes('/notifications/') ? (options.notificationStatus ?? 200) : 200,
+            headers: {
+              get: (name: string) => (name === 'retry-after' ? '900' : 'application/json'),
+            },
             json: async () => payload,
           };
         },

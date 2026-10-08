@@ -8,6 +8,30 @@ import {
   VintedImportRequestError,
 } from '../src/vinted-account-import.ts';
 
+test('unverifiable nonempty inbox never establishes an empty baseline', async () => {
+  for (const isEmpty of [false, true]) {
+    const paths: string[] = [];
+    const snapshot = await readVintedAccountImport(
+      importPage((path) => {
+        paths.push(path);
+        if (path.startsWith('/api/v2/inbox'))
+          return {
+            conversations: isEmpty ? [] : [{ id: 700, unread: true, opposite_user: { id: 0 } }],
+            pagination: { total_pages: 1 },
+          };
+        return undefined;
+      }),
+      async () => undefined,
+    );
+    assert.equal(snapshot.inboxEvents?.complete, isEmpty);
+    assert.deepEqual(snapshot.inboxEvents?.coveredConversationIds, []);
+    assert.equal(
+      paths.some((path) => path.startsWith('/api/v2/conversations/')),
+      false,
+    );
+  }
+});
+
 test('background snapshot reads identify incoming events while checking unread status without marking it', async () => {
   const requests: string[] = [];
   const page = importPage((path) => {

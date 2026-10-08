@@ -35,12 +35,28 @@ beim Transport erhalten. Kein zentraler Playwright-Zugriff hinzugefügt.
 Migrationen offiziell gegen isolierte Vorher/Nachher-Datenbanken erzeugt und
 angewendet; API-Typen aus der migrierten Datenbank erzeugt.
 
-**Prüfstand:** 454 Workerprüfungen bestanden, sieben bestehende Skip; Worker-Bau
-und Typen bestehen. 591 Datenbankassertions einschließlich lokaler Nachrichten,
-Favoriten/Angebote, Feed, Import und Scheduler bestanden. 126 Extension- und
-24 Deno-Prüfungen bestanden. 100 gezielte Angularprüfungen und 16 Browserfälle
-für Cloud/Extension, Desktop/Mobilgerät und AXE bestanden. Produktionsbau und
-App-Typprüfung bestanden. Gesamt-Review und Veröffentlichung stehen aus.
+**Abschlussreview:** Vier wichtige Befunde durch Regressionen zuerst reproduziert
+und in einem Korrekturdurchlauf behoben: Kontopausen nach Cloud-Schreibfehlern
+gelten vor Claim, Check und Begin auch für manuelle Nachrichten. Alte Profil-
+abschlüsse verändern keine neue Freigabe. Ein fehlgeschlagener Favoritenabruf
+verwirft keine bestätigten Kontodaten; 401/403/429 und Retry-After bleiben im
+isolierten Transport erhalten. Bereits belegte Versandantworten bleiben trotz
+späterem Widerruf belegbar. Ungeprüfte nichtleere Postfächer setzen keinen
+Benachrichtigungs-Erstbestand. Bestehende Regeln für bewusste Wiederaufnahme und
+Anmeldebestätigung bleiben erhalten. Veraltetes Header-Testfixture und die
+verbindliche PR-Browsertestliste an den Nachrichtenstrom/Cloudfälle angepasst.
+
+**Prüfstand:** 468 Workerprüfungen bestanden, sieben bestehende Skip; Worker-Bau
+und Typen bestehen. 663 Datenbankassertions auf offiziell migriertem Teststand
+einschließlich lokaler Nachrichten, Favoriten/Angebote, Feed, Import und Scheduler
+bestanden. Alle Node-, DOM- und Angular-Anwendungssuiten bestehen; zusätzlich
+239 Workflow- und 211 Deno-Prüfungen bestanden (fünf bestehende Workflow-Skip).
+16 Browserfälle für Cloud/Extension, Desktop/Mobilgerät und AXE bestanden.
+Produktionsbau, App-Typprüfung, beide Worker-/Browserabbilder und ein isolierter
+Runtime-Smoke ohne Netzwerk bestehen. Stark parallel ausgeführte Angular-Tests
+hatten Zeitüberschreitungen; der vollständige Lauf mit vier Workern besteht
+ohne Produkt- oder Timeoutänderung. Unabhängiges Gesamt-Review abgeschlossen,
+keine kleinen offenen Reviewbefunde. Veröffentlichung steht aus.
 Die vorbereitete Extension 1.7.1 wurde noch nicht in der registrierten Installation
 ausgerollt. Kein Live-Versand, keine automatische Favoritenregel und kein Release.
 Echtkonto-Abnahme folgt nach Veröffentlichung; Bildbestätigung bleibt eingeschränkt.

@@ -938,6 +938,7 @@ export async function readVintedAccountImport(
         events: eventBatches.flatMap((batch) => batch.events),
         complete:
           conversations.result.status === 'complete' &&
+          (eventBatches.length > 0 || conversations.values.length === 0) &&
           eventBatches.every((batch) => batch.complete),
         coveredConversationIds: eventBatches.flatMap((batch) => batch.coveredConversationIds),
       },
