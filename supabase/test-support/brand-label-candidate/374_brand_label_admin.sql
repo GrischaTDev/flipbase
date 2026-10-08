@@ -1,0 +1,3 @@
+-- Isolierter Schemakandidat, keine registrierte Migration.
+-- Die Adminverträge werden zuerst in admin-access.sql nachgewiesen.
+-- Implementierung folgt nach dem erwarteten fehlgeschlagenen Testlauf.
