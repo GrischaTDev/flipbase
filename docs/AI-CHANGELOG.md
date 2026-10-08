@@ -1,5 +1,27 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-08 - Juna - Cloud-Browserstart ohne private Daten eingrenzen
+
+**Auftrag:** Nach der Cloud-Postfach-Abnahme den einmaligen ersten Versandstartfehler
+weiter untersuchen und die automatische Aktualisierung prüfen.
+
+**Befund:** Die bestätigte Testantwort wurde beim gezielten Folgeversuch genau einmal
+versendet. Der erste Versuch begann keinen Anbieter-Versand; seine Ursache ist aus
+den bisherigen neutralen Logs nicht rückwirkend belegbar. Der Hintergrundabruf
+um 22:58 Uhr und der folgende geplante Abruf um 23:14 Uhr waren erfolgreich;
+die Automatik bleibt mit 15 Minuten aktiv, ohne Pause oder Folgefehler. Beide
+Browsersitzungen wurden vollständig beendet.
+
+**Änderung:** Worker und privater Browser-Broker melden bei einem fehlgeschlagenen
+Start ausschließlich die feste Fehlerstufe. Freigaben, Ablauf, Fehlerbehandlung und
+Bereinigung bleiben erhalten. Keine Zugangsdaten, Profilkennungen, Anfragen oder
+privaten Fehlermeldungen werden in die neue Diagnose übernommen.
+
+**Prüfung:** Neue Fehlertests wurden zuerst rot und anschließend grün ausgeführt.
+Die Worker-Suite besteht mit 476 erfolgreichen und sieben bestehenden ausgelassenen
+Tests; Typprüfung, Worker-Bau, ESLint und Formatprüfung sind erfolgreich.
+Die Diagnose ist noch nicht veröffentlicht und belegt keine rückwirkende Fehlerursache.
+
 ## 2026-10-08 - Juna - Gemeinsames Cloud-Postfach umsetzen
 
 **Auftrag:** Gemeinsames Cloud-/Extensionpostfach mit Nachrichtenversand,

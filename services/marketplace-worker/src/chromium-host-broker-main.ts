@@ -7,6 +7,11 @@ import { chromiumHostHandler, chromiumHostOperations } from './chromium-host-bro
 async function main(): Promise<void> {
   const profileRoot = '/var/lib/flipbase-chromium/profiles';
   const launcher = new ChromiumContainerLauncher({
+    onStartFailure: (stage) => {
+      process.stderr.write(
+        `${JSON.stringify({ event: 'chromium_container_start_failed', stage })}\n`,
+      );
+    },
     image: process.env['MARKETPLACE_CHROMIUM_IMAGE'] ?? '',
     hostId: process.env['MARKETPLACE_CHROMIUM_HOST_ID'] ?? '',
     network: 'flipbase-browser',
