@@ -4,6 +4,8 @@ import {
   VintedImportReadError,
   type VintedAccountImport,
   type VintedImportStage,
+  type VintedConversationVersion,
+  type VintedConversationReadTarget,
 } from './vinted-account-import.ts';
 import {
   MarketplaceBrowserSessionBusyError,
@@ -56,6 +58,10 @@ interface BrowserApiOptions {
     ): Promise<void>;
   };
   imports?: {
+    conversationVersions?(
+      scope: BrowserSessionScope,
+      sessionId: string,
+    ): Promise<VintedConversationVersion[]>;
     write(
       scope: BrowserSessionScope,
       sessionId: string,
@@ -575,9 +581,28 @@ export class MarketplaceBrowserHttpApi {
         }
         return;
       }
-      if (path === '/marketplace-browser/connections/sync') {
+      if (
+        path === '/marketplace-browser/connections/sync' ||
+        path === '/marketplace-browser/conversations/read'
+      ) {
         if (this.readOnly) throw new RequestError(403);
         if (!this.imports) throw new RequestError(503);
+        let requestedConversation: VintedConversationReadTarget | undefined;
+        let conversationId: string | undefined;
+        if (path === '/marketplace-browser/conversations/read') {
+          if (
+            typeof body['conversationId'] !== 'string' ||
+            !uuidPattern.test(body['conversationId'])
+          )
+            throw new RequestError(400);
+          if (!this.edits) throw new RequestError(503);
+          conversationId = body['conversationId'];
+          try {
+            requestedConversation = await this.edits.entry(scope, 'conversation', conversationId);
+          } catch {
+            throw new RequestError(403);
+          }
+        }
         const key = `${scope.workspaceId}:${scope.connectionId}:sync`;
         if (this.inFlight.has(key)) throw new RequestError(429);
         this.inFlight.add(key);
@@ -585,12 +610,18 @@ export class MarketplaceBrowserHttpApi {
         try {
           sessionId = await this.broker.open(scope);
           const currentSessionId = sessionId;
+          const previousConversations = requestedConversation
+            ? ((await this.imports.conversationVersions?.(scope, currentSessionId)) ?? [])
+            : [];
           let failedStage: VintedImportStage | 'unknown' = 'unknown';
           const result = await this.broker.run(scope, currentSessionId, async (browser) => {
             if (!browser.importAccount) return null;
             try {
-              return await browser.importAccount(() =>
-                this.broker.run(scope, currentSessionId, async () => undefined),
+              return await browser.importAccount(
+                () => this.broker.run(scope, currentSessionId, async () => undefined),
+                undefined,
+                previousConversations,
+                requestedConversation,
               );
             } catch (error) {
               if (error instanceof VintedImportReadError) failedStage = error.stage;
@@ -598,15 +629,32 @@ export class MarketplaceBrowserHttpApi {
             }
           });
           if (!result) throw new ImportError(failedStage);
+          if (
+            requestedConversation &&
+            (result.identity.id !== requestedConversation.accountId ||
+              !result.entries.some(
+                (entry) =>
+                  entry.kind === 'conversation' &&
+                  entry.externalId === requestedConversation.externalId &&
+                  entry.body['detailCheckedAt'] === result.observedAt,
+              ))
+          )
+            throw new ImportError('messages');
           await this.broker.run(scope, currentSessionId, async () => undefined);
           const counts = await this.imports.write(scope, currentSessionId, result);
           await this.broker.close(scope, currentSessionId);
           sessionId = undefined;
-          json(response, 200, {
-            observedAt: result.observedAt,
-            counts,
-            sourceResults: result.areas,
-          });
+          json(
+            response,
+            200,
+            conversationId
+              ? { conversationId, observedAt: result.observedAt }
+              : {
+                  observedAt: result.observedAt,
+                  counts,
+                  sourceResults: result.areas,
+                },
+          );
         } finally {
           try {
             if (sessionId) await this.broker.close(scope, sessionId);

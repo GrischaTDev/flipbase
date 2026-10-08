@@ -557,6 +557,54 @@ export class MarketplaceBrowserTestApiService {
     throw new MarketplaceImportError('interrupted');
   }
 
+  async readConversation(
+    scope: AccountScope,
+    conversationId: string,
+    accessToken: string,
+  ): Promise<string> {
+    if (!uuidPattern.test(conversationId)) throw new MarketplaceImportError('messages');
+    let response: Response;
+    try {
+      response = await this.post(
+        '/marketplace-browser/conversations/read',
+        { ...scope, conversationId },
+        accessToken,
+      );
+    } catch {
+      throw new MarketplaceImportError('messages');
+    }
+    if (response.status === 404) throw new MarketplaceWorkerOutdatedError();
+    let result: unknown;
+    try {
+      result = await response.json();
+    } catch {
+      throw new MarketplaceImportError('messages');
+    }
+    if (
+      response.status === 429 ||
+      (response.status === 409 &&
+        result &&
+        typeof result === 'object' &&
+        'code' in result &&
+        result.code === 'browser_session_busy')
+    )
+      throw new Error(
+        'Das Cloud-Konto wird gerade verwendet. Versuche die Aktualisierung gleich erneut.',
+      );
+    if (!response.ok) throw new MarketplaceImportError('messages');
+    if (
+      !result ||
+      typeof result !== 'object' ||
+      !('conversationId' in result) ||
+      result.conversationId !== conversationId ||
+      !('observedAt' in result) ||
+      typeof result.observedAt !== 'string' ||
+      !Number.isFinite(Date.parse(result.observedAt))
+    )
+      throw new MarketplaceImportError('messages');
+    return result.observedAt;
+  }
+
   async readListingEdit(
     scope: BrowserTestScope,
     entryId: string,

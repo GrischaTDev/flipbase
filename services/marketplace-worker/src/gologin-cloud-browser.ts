@@ -3,6 +3,7 @@ import { currentVintedPage, vintedBrowserActions } from './vinted-browser-action
 import {
   type VintedAccountImport,
   type VintedConversationVersion,
+  type VintedConversationReadTarget,
 } from './vinted-account-import.ts';
 import { type VintedAccountIdentity } from './vinted-browser-reader.ts';
 import { type VintedLoginCredentials, type VintedLoginResult } from './vinted-browser-login.ts';
@@ -31,6 +32,7 @@ export interface BrowserInfo extends Pick<Browser, 'version'> {
     authorize: () => Promise<void>,
     onStage?: (stage: 'profile' | 'publications' | 'conversations' | 'sales') => Promise<void>,
     previousConversations?: VintedConversationVersion[],
+    requestedConversation?: VintedConversationReadTarget,
   ): Promise<VintedAccountImport>;
   login?(
     credentials: VintedLoginCredentials,

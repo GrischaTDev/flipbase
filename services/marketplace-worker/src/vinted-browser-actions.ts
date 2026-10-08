@@ -75,8 +75,14 @@ export function vintedBrowserActions(
     type: (value) => desktop?.type(value) ?? currentPage().keyboard.insertText(value),
     press: (key) => desktop?.press(key) ?? currentPage().keyboard.press(key),
     identify: () => readVintedAccountIdentity(currentPage()),
-    importAccount: (authorize, onStage, previousConversations) =>
-      readVintedAccountImport(currentPage(), authorize, onStage, previousConversations),
+    importAccount: (authorize, onStage, previousConversations, requestedConversation) =>
+      readVintedAccountImport(
+        currentPage(),
+        authorize,
+        onStage,
+        previousConversations,
+        requestedConversation,
+      ),
     login: (credentials, authorize) => submitVintedLogin(currentPage(), credentials, authorize),
     verify: (code, authorize) => submitVintedVerificationCode(currentPage(), code, authorize),
     readListingEdit: (itemId, accountId) => readVintedListingEdit(currentPage(), itemId, accountId),

@@ -19,6 +19,94 @@ function importPage(overrides: (path: string) => unknown): Page {
   } as unknown as Page;
 }
 
+test('explicitly opening a conversation reads unread details without opening other conversations', async () => {
+  const paths: string[] = [];
+  const page = importPage((path) => {
+    paths.push(path);
+    if (path.startsWith('/api/v2/inbox'))
+      return {
+        conversations: [
+          { id: 456, unread: true, updated_at: '2026-10-07T10:00:00Z' },
+          { id: 789, unread: false },
+        ],
+        pagination: { total_pages: 1 },
+      };
+    if (path === '/api/v2/conversations/456')
+      return {
+        conversation: {
+          id: 456,
+          messages: [
+            { id: 101, entity_type: 'message', entity: { body: 'New message', user_id: 999 } },
+          ],
+        },
+      };
+    return undefined;
+  });
+  const result = await readVintedAccountImport(
+    page,
+    async () => undefined,
+    undefined,
+    [
+      {
+        externalId: '456',
+        sourceUpdatedAt: '2026-10-07T10:00:00Z',
+        detailCheckedAt: new Date().toISOString(),
+        text: 'Old message',
+        occurredAt: null,
+      },
+    ],
+    {
+      externalId: '456',
+      accountId: '123',
+    },
+  );
+  assert.equal(paths.filter((path) => path.startsWith('/api/v2/conversations/')).length, 1);
+  const conversation = result.entries.find(
+    (entry) => entry.kind === 'conversation' && entry.externalId === '456',
+  );
+  assert.equal(conversation?.body['detailCheckedAt'], result.observedAt);
+  assert.equal(result.entries.filter((entry) => entry.kind === 'message').length, 1);
+  assert.equal(
+    result.entries.find((entry) => entry.kind === 'message')?.body['text'],
+    'New message',
+  );
+});
+
+test('an explicit conversation read rejects another logged-in account before inbox access', async () => {
+  const paths: string[] = [];
+  const page = importPage((path) => {
+    paths.push(path);
+    return undefined;
+  });
+  await assert.rejects(
+    readVintedAccountImport(page, async () => undefined, undefined, [], {
+      externalId: '456',
+      accountId: '999',
+    }),
+    VintedImportReadError,
+  );
+  assert.deepEqual(paths, ['/api/v2/users/current']);
+});
+
+test('a rejected explicit detail read is not accepted as a successful account sync', async () => {
+  const page = importPage((path) => {
+    if (path.startsWith('/api/v2/inbox'))
+      return {
+        conversations: [{ id: 456, unread: true }],
+        pagination: { total_pages: 1 },
+      };
+    if (path === '/api/v2/conversations/456') throw new VintedImportRequestError('forbidden');
+    return undefined;
+  });
+  await assert.rejects(
+    readVintedAccountImport(page, async () => undefined, undefined, [], {
+      externalId: '456',
+      accountId: '123',
+    }),
+    VintedImportReadError,
+  );
+});
+
 test('retries a read once after navigation destroys its execution context', async () => {
   let interrupted = false;
   let loadWaits = 0;

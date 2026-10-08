@@ -12,6 +12,40 @@ const scope = {
 };
 const id = '25600000-0000-4000-8000-000000000031';
 const api = new MarketplaceBrowserTestApiService();
+it('bestätigt einen Gesprächsabruf nur mit passender ID und gültigem Prüfzeitpunkt', async () => {
+  const fetchMock = vi
+    .fn()
+    .mockResolvedValue(Response.json({ conversationId: id, observedAt: '2026-10-07T21:00:00Z' }));
+  vi.stubGlobal('fetch', fetchMock);
+  expect(await api.readConversation(scope, id, 'token')).toBe('2026-10-07T21:00:00Z');
+  expect(fetchMock.mock.calls[0][0]).toBe('/marketplace-browser/conversations/read');
+  expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ ...scope, conversationId: id });
+});
+it.each([
+  { conversationId: 'another-conversation', observedAt: '2026-10-07T21:00:00Z' },
+  { conversationId: id, observedAt: 'invalid' },
+  { conversationId: id },
+])('verwirft eine unbestätigte Cloud-Gesprächsantwort (%j)', async (body) => {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(body)));
+  await expect(api.readConversation(scope, id, 'token')).rejects.toThrow();
+});
+it('meldet nur eine bestätigte Browserbelegung als beschäftigtes Cloud-Konto', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockResolvedValue(Response.json({ code: 'browser_session_busy' }, { status: 409 })),
+  );
+  await expect(api.readConversation(scope, id, 'token')).rejects.toThrow('gerade verwendet');
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockResolvedValue(Response.json({ error: 'private server error' }, { status: 409 })),
+  );
+  await expect(api.readConversation(scope, id, 'token')).rejects.toThrow('Gesprächsverlaufs');
+});
+it('zeigt keine privaten Transportfehler beim Gesprächsabruf an', async () => {
+  vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('private connection details')));
+  await expect(api.readConversation(scope, id, 'token')).rejects.toThrow('Gesprächsverlaufs');
+});
+
 it('liest nach verlorener Abschlussantwort den bestätigten Zustand, ohne erneut zu schreiben', async () => {
   const fetchMock = vi
     .fn()

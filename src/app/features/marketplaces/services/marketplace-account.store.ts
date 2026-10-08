@@ -536,6 +536,56 @@ export class MarketplaceAccountStore {
     }
   }
 
+  async refreshCloudConversation(
+    id: string,
+    isCurrent: () => boolean,
+  ): Promise<
+    | { status: 'success'; observedAt: string }
+    | { status: 'failed'; error: string }
+    | { status: 'cancelled' }
+  > {
+    const connection = this.selectedConnection();
+    const key = this.contextKey();
+    const selection = this.selectionRevision;
+    const token = this.auth.session()?.access_token;
+    const valid = () =>
+      !!key &&
+      this.isCurrent(key) &&
+      selection === this.selectionRevision &&
+      this.canManage() &&
+      this.selectedConnection()?.executionMode === 'cloud' &&
+      this.selectedConnection()?.status === 'connected' &&
+      this.selectedConnection()?.externalAccountId === connection?.externalAccountId &&
+      this.selectedConversationId() === id &&
+      isCurrent();
+    if (
+      !connection ||
+      connection.executionMode !== 'cloud' ||
+      connection.status !== 'connected' ||
+      !token ||
+      !valid() ||
+      !this.snapshot()?.conversations.items.some((entry) => entry.id === id)
+    )
+      return { status: 'cancelled' };
+    try {
+      const observedAt = await this.browserApi.readConversation(this.scope(connection), id, token);
+      if (!valid()) return { status: 'cancelled' };
+      await this.checkLatestImport(true);
+      if (!valid()) return { status: 'cancelled' };
+      return { status: 'success', observedAt };
+    } catch (error) {
+      return valid()
+        ? {
+            status: 'failed',
+            error:
+              error instanceof Error
+                ? error.message
+                : 'Das Gespräch konnte nicht aktualisiert werden.',
+          }
+        : { status: 'cancelled' };
+    }
+  }
+
   async openConversation(id: string): Promise<void> {
     const connection = this.selectedConnection();
     const key = this.contextKey();

@@ -40,6 +40,11 @@ export interface VintedConversationVersion {
   occurredAt: string | null;
 }
 
+export interface VintedConversationReadTarget {
+  externalId: string;
+  accountId: string;
+}
+
 export type VintedImportStage =
   | 'navigation'
   | 'identity'
@@ -630,6 +635,7 @@ export async function readVintedAccountImport(
   authorize: () => Promise<void>,
   onStage?: (stage: 'profile' | 'publications' | 'conversations' | 'sales') => Promise<void>,
   previousConversations: VintedConversationVersion[] = [],
+  requestedConversation?: VintedConversationReadTarget,
 ): Promise<VintedAccountImport> {
   const reads: SourceReadContext = { count: 0, authorize, browserFailures: [] };
   await atImportStage('navigation', async () => {
@@ -691,6 +697,8 @@ export async function readVintedAccountImport(
   const identity = await atImportStage('identity', async () => {
     const account = parseVintedAccountIdentity(profile);
     if (!account) throw new Error('Vinted-Anmeldung nicht bestätigt');
+    if (requestedConversation && account.id !== requestedConversation.accountId)
+      throw new Error('Vinted-Konto stimmt nicht überein');
     return account;
   });
   const observedAt = new Date().toISOString();
@@ -731,15 +739,26 @@ export async function readVintedAccountImport(
   };
   const previousById = new Map(previousConversations.map((entry) => [entry.externalId, entry]));
   const details: unknown[] = [];
+  if (
+    requestedConversation &&
+    !conversations.values.some(
+      (conversation) =>
+        identifier(record(conversation)?.['id']) === requestedConversation.externalId,
+    )
+  )
+    throw new VintedImportReadError('messages', new VintedImportRequestError('invalid_response'));
   for (const raw of conversations.values) {
-    // Das Öffnen ungelesener Gespräche könnte bei Vinted den Lesestatus verändern.
-    if (record(raw)?.['unread'] !== false) continue;
     const id = identifier(record(raw)?.['id']);
+    if (requestedConversation && id !== requestedConversation.externalId) continue;
+    // Das Öffnen ungelesener Gespräche könnte bei Vinted den Lesestatus verändern.
+    // Nur die ausdrückliche Auswahl darf ein ungelesenes Gespräch öffnen.
+    if (!requestedConversation && record(raw)?.['unread'] !== false) continue;
     if (!id) continue;
     const previous = previousById.get(id);
     const sourceUpdatedAt = date(record(raw)?.['updated_at'], '');
     const checkedAt = previous ? Date.parse(previous.detailCheckedAt) : NaN;
     if (
+      !requestedConversation &&
       previous &&
       sourceUpdatedAt &&
       previous.sourceUpdatedAt === sourceUpdatedAt &&
@@ -756,6 +775,7 @@ export async function readVintedAccountImport(
       if (identifier(relation?.['id']) !== id || !Array.isArray(relation?.['messages']))
         throw new VintedImportRequestError('invalid_response');
     } catch (error) {
+      if (requestedConversation) throw new VintedImportReadError('messages', error);
       areas.messages = sourceFailure('messages', error, true);
       areas.sales = sourceFailure('transaction', error, true);
       continue;
