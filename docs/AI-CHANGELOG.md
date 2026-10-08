@@ -1,5 +1,22 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-08 - Juna - Gemeinsamen Cloud-Postfachausbau planen
+
+**Auftrag:** Nach Bestätigung des schriftlichen Entwurfs den Umsetzungsplan
+für das vollständige gemeinsame Postfach erstellen.
+
+**Plan:** Neun aufeinander abgestimmte Aufgaben für belegte Eingangsdaten,
+Cloud-Freigaben und gemeinsame Outbox, Browserversand, Worker-Ausführung,
+Glockenmeldungen, gemeinsame Oberfläche, vorhandene Favoriten-/Angebotsregeln,
+Integration und Echtkonto-Abnahme. Lesefreigaben bleiben von Schreibaufträgen
+getrennt; bestehende Kontosperren und der Worker-Lease werden weiterverwendet.
+
+**Prüfstand:** Datei- und Schnittstellenzuordnung gegen aktuelle Worker-,
+Extension-, SQL- und Frontend-Verträge gelesen. Plan auf Entwurfsabdeckung,
+Abhängigkeiten und Fehlerfälle geprüft. Formatierung und Diffprüfung bestehen.
+Noch keine zusätzlichen Produktfunktionen oder
+Anbieteraktionen ausgeführt; die Planprüfung und Ausführungswahl stehen aus.
+
 ## 2026-10-08 - Juna - Gemeinsamen Cloud-Postfachentwurf ausarbeiten
 
 **Auftrag:** Den bestätigten Umfang für Gesprächsabgleich, Glocke, Text-/Bildversand
