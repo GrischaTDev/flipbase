@@ -1,4 +1,16 @@
 <section class="flex flex-col gap-4">
+  @if (manualRequired()) {
+    <p role="status" class="text-sm text-fb-text-secondary">
+      Alle Botabrufe sind bis zur manuellen Vinted-Prüfung pausiert. Aktive Filter bleiben
+      gespeichert.
+      <a routerLink="/admin/vinted-bot/operation" class="underline"
+        >Botsitzung im Botbetrieb öffnen</a
+      >
+    </p>
+  }
+  @if (browserError(); as browserMessage) {
+    <p role="alert">{{ browserMessage }}</p>
+  }
   @if (state.error(); as stateMessage) {
     <p role="alert" class="flex flex-wrap items-center gap-2">
       <span>{{ stateMessage }}</span>
@@ -127,7 +139,13 @@
                   <app-badge [tone]="query.is_active ? 'success' : 'neutral'">
                     {{ query.is_active ? 'Aktiv' : 'Pausiert' }}
                   </app-badge>
-                  <p class="mt-1 text-xs text-fb-text-muted">{{ statusLabel(query) }}</p>
+                  <p class="mt-1 text-xs text-fb-text-muted">
+                    @if (query.is_active && manualRequired()) {
+                      Wartet auf manuelle Vinted-Prüfung
+                    } @else {
+                      Letzter Abruf: {{ statusLabel(query) }}
+                    }
+                  </p>
                 }
                 @if (query.last_polled_at) {
                   <p class="mt-0.5 text-[11px] text-fb-text-muted">
