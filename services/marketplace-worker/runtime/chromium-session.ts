@@ -34,7 +34,10 @@ async function finish(exitCode: 0 | 1 | 78): Promise<void> {
       });
     });
     try {
-      await closeChromeWindows();
+      await closeChromeWindows(
+        undefined,
+        () => browser?.exitCode === null && browser.signalCode === null,
+      );
     } catch {
       process.exitCode = 75;
     }
