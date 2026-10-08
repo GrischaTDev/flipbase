@@ -214,3 +214,37 @@ test('captures and controls only the active browser page with bounded commands',
   assert.deepEqual(calls, ['capture', 'click:200:450', 'type:synthetic input', 'press:Tab']);
   await browser.close();
 });
+
+test('isolated GoLogin uses only the trusted provider bridge and confirms both stops', async () => {
+  const stopped: string[] = [];
+  const browser = new GoLoginCloudBrowser({
+    token: 'global-fixture-token',
+    connect: async () => {
+      throw new Error('Central Playwright must never run');
+    },
+    isolated: {
+      open: async (profileId, token) => {
+        assert.equal(profileId, 'fixture-profile');
+        assert.equal(token, 'global-fixture-token');
+        return {
+          run: async (operation) => operation({ version: () => 'isolated' }),
+          close: async () => {
+            stopped.push('container');
+          },
+        };
+      },
+      stop: async (profileId) => {
+        assert.equal(profileId, 'fixture-profile');
+        stopped.push('bridge');
+      },
+    },
+    fetch: async () => {
+      stopped.push('provider');
+      return new Response('{}');
+    },
+  });
+  const handle = await browser.open('fixture-profile');
+  assert.equal(await handle.run((info) => Promise.resolve(info.version())), 'isolated');
+  await handle.close();
+  assert.deepEqual(stopped, ['container', 'bridge', 'provider']);
+});

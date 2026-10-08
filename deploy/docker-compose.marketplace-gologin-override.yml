@@ -1,0 +1,7 @@
+# Wird beim Include mit der geprüften Chromium-Grundkonfiguration zusammengeführt.
+services:
+  marketplace-worker:
+    environment:
+      MARKETPLACE_BROWSER_PROVIDER: gologin
+      # Die bisherige GoLogin-Freigabe kommt weiterhin aus der privaten env_file.
+      MARKETPLACE_SCHEDULED_SYNC_ENABLED: !reset null

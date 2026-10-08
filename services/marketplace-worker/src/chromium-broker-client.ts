@@ -1,7 +1,12 @@
 import { posix } from 'node:path';
 import { readFile } from 'node:fs/promises';
-import { chromium, type BrowserContext } from 'playwright';
-import { CloudBrowserStopUncertainError, type BrowserDesktop } from './gologin-cloud-browser.ts';
+import type { chromium } from 'playwright';
+import { browserCommandLimit, isolatedBrowserActions } from './isolated-browser-actions.ts';
+import {
+  CloudBrowserStopUncertainError,
+  type BrowserDesktop,
+  type CloudBrowserHandle,
+} from './gologin-cloud-browser.ts';
 
 export class ChromiumBrokerClient {
   private readonly profileRoot: string;
@@ -38,7 +43,24 @@ export class ChromiumBrokerClient {
         body: JSON.stringify({ profileId, action, ...parameters }),
       });
       if (!response.ok) throw new Error('Brokerauftrag fehlgeschlagen');
-      const result: unknown = await response.json();
+      if (!response.body) throw new Error('Brokerantwort fehlt');
+      const reader = response.body.getReader();
+      const chunks: Uint8Array[] = [];
+      let length = 0;
+      while (true) {
+        const chunk = await reader.read();
+        if (chunk.done) break;
+        length += chunk.value.byteLength;
+        if (length > browserCommandLimit) {
+          await reader.cancel();
+          throw new Error('Brokerantwort zu groß');
+        }
+        chunks.push(chunk.value);
+      }
+      const serialized = Buffer.concat(chunks).toString('utf8');
+      if (Buffer.byteLength(serialized) > browserCommandLimit)
+        throw new Error('Brokerantwort zu groß');
+      const result: unknown = JSON.parse(serialized);
       if (!result || typeof result !== 'object' || Array.isArray(result))
         throw new Error('Brokerantwort fehlt');
       return result as Record<string, unknown>;
@@ -66,34 +88,47 @@ export class ChromiumBrokerClient {
   async launch(
     directory: string,
     settings: NonNullable<Parameters<typeof chromium.launchPersistentContext>[1]>,
-  ): Promise<BrowserContext> {
+  ): Promise<CloudBrowserHandle> {
     const profileId = this.profileId(directory);
     try {
-      const { endpoint } = await this.command(profileId, 'launch', { settings });
-      if (
-        typeof endpoint !== 'string' ||
-        !/^http:\/\/172\.30\.88\.(?:12[89]|1[3-9]\d|2[0-4]\d|25[0-4]):9222$/.test(endpoint)
-      )
-        throw new Error('Ungültiger Browserendpunkt');
-      const browser = await chromium.connectOverCDP(endpoint, {
-        timeout: 10_000,
-        noDefaults: true,
+      const { session } = await this.command(profileId, 'launch', { settings });
+      if (typeof session !== 'string' || !/^[0-9a-f-]{36}$/.test(session))
+        throw new Error('Ungültige Sitzungsberechtigung');
+      const browser = isolatedBrowserActions({
+        request: (command) => this.command(profileId, 'invoke', { session, command }),
       });
-      const context = browser.contexts()[0];
-      if (!context || browser.contexts().length !== 1) throw new Error('Browserkontext fehlt');
+      let closed = false;
       let closing: Promise<void> | undefined;
-      context.close = () => {
-        closing ??= this.recover(profileId).catch((error: unknown) => {
-          closing = undefined;
-          throw error;
-        });
-        return closing;
+      return {
+        run: async (operation) => {
+          if (closed || closing) throw new Error('Browsersitzung beendet');
+          return operation(browser);
+        },
+        close: () => {
+          closing ??= this.recover(profileId)
+            .then(() => {
+              closed = true;
+            })
+            .catch((error: unknown) => {
+              closing = undefined;
+              throw error;
+            });
+          return closing;
+        },
       };
-      return context;
     } catch {
       await this.recover(profileId);
       throw new Error('Chromium-Start fehlgeschlagen');
     }
+  }
+  async launchGoLogin(profileId: string, token: string): Promise<CloudBrowserHandle> {
+    const { session } = await this.command(profileId, 'launchGoLogin', { token });
+    if (typeof session !== 'string' || !/^[0-9a-f-]{36}$/.test(session))
+      throw new Error('Ungültige Sitzungsberechtigung');
+    const browser = isolatedBrowserActions({
+      request: (command) => this.command(profileId, 'invoke', { session, command }),
+    });
+    return { run: (operation) => operation(browser), close: () => this.recover(profileId) };
   }
   desktop(directory: string): BrowserDesktop {
     const profileId = this.profileId(directory);

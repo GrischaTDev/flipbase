@@ -25,6 +25,7 @@ export interface MarketplaceSyncTimers {
 interface DispatcherOptions {
   store: MarketplaceSyncDispatchStore;
   run(scope: BrowserSessionScope): Promise<void>;
+  prepareDispatch?(): Promise<void>;
   onRuntimeLost(reason: MarketplaceRuntimeLossReason): void | Promise<void>;
   includeScheduled?: boolean;
   maxJobsPerPoll?: number;
@@ -124,6 +125,7 @@ export class MarketplaceSyncDispatcher {
     if (!lease) return false;
     let scope: BrowserSessionScope | null;
     try {
+      await this.options.prepareDispatch?.();
       scope = await this.options.store.claim(
         lease.workerId,
         lease.workerEpoch,

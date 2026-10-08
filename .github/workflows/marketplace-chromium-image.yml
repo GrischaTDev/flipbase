@@ -80,13 +80,13 @@ jobs:
               continue
             fi
             container_ip=$(docker inspect --format '{{(index .NetworkSettings.Networks "flipbase-browser").IPAddress}}' "$container_id")
-            docker run --rm --network flipbase-browser --ip 172.30.88.2 --user=1000:1000 --read-only --cap-drop=ALL --security-opt=no-new-privileges:true --tmpfs=/tmp:rw,nosuid,nodev,size=64m,uid=1000,gid=1000,mode=700 --entrypoint node "$SESSION_IMAGE" --input-type=module -e '
+            docker exec "$container_id" node --input-type=module -e '
               import assert from "node:assert/strict";
               import { chromium } from "playwright";
               let browser;
               let lastFailure;
               for(let attempt=0;attempt<60&&!browser;attempt++) {
-                try { browser=await chromium.connectOverCDP(`http://${process.argv[1]}:9222`,{timeout:1000,noDefaults:true}); }
+                try { browser=await chromium.connectOverCDP(`http://127.0.0.1:9223`,{timeout:1000,noDefaults:true}); }
                 catch (failure) { lastFailure=failure; await new Promise(resolve=>setTimeout(resolve,500)); }
               }
               assert.ok(browser,`Sandboxed Chromium must start: ${lastFailure}`);
@@ -103,7 +103,7 @@ jobs:
             ' "$container_ip" "$phase"
             docker exec "$container_id" node --experimental-strip-types --input-type=module -e '
               import { execFile } from "node:child_process";
-              import { ChromiumDesktopControls } from "/app/runtime/chromium-desktop-controls.ts";
+              import { ChromiumDesktopControls } from "/app/src/chromium-desktop-controls.ts";
               const desktop=new ChromiumDesktopControls({width:1280,height:900,authorize:async()=>{},execute:(args,input)=>new Promise((resolve,reject)=>{
                 const child=execFile(args[0],args.slice(1),{encoding:"buffer",timeout:15000,maxBuffer:8*1024*1024},(error,stdout)=>error?reject(error):resolve(stdout));
                 child.stdin.end(input??"");
@@ -114,10 +114,10 @@ jobs:
               await desktop.press("Backspace");
               await desktop.drag([{x:0.2,y:0.5,elapsedMs:0},{x:0.7,y:0.5,elapsedMs:150}]);
             '
-            docker run --rm --network flipbase-browser --ip 172.30.88.2 --user=1000:1000 --read-only --cap-drop=ALL --security-opt=no-new-privileges:true --tmpfs=/tmp:rw,nosuid,nodev,size=64m,uid=1000,gid=1000,mode=700 --entrypoint node "$SESSION_IMAGE" --input-type=module -e '
+            docker exec "$container_id" node --input-type=module -e '
               import assert from "node:assert/strict";
               import { chromium } from "playwright";
-              const browser=await chromium.connectOverCDP(`http://${process.argv[1]}:9222`,{noDefaults:true});
+              const browser=await chromium.connectOverCDP(`http://127.0.0.1:9223`,{noDefaults:true});
               assert.equal(await browser.contexts()[0].pages()[0].locator("textarea").inputValue(),"native-desktop-fixture-");
               if(process.argv[2]==="read") process.exit(0);
               await (await browser.newBrowserCDPSession()).send("Browser.close").catch(()=>{});

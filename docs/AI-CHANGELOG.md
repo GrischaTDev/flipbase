@@ -68,6 +68,55 @@ zuordenbar, aber kein Fehler einer bestimmten Markenkennung bewiesen. Der Filter
 bleibt bei dieser lesenden Analyse deaktiviert und unverändert. Ein kontrollierter
 Vergleich mit nur der Hauptmarke und längeren Abständen ist noch nicht ausgeführt.
 
+## 2026-10-08 - Juna - Cloud-Browserauswertung mit begrenzter Sitzung isolieren
+
+**Auftrag:** Die offenen Security-Meldungen zur gemeinsamen Browsersteuerung
+mit dem vorhandenen kleinen Server bearbeiten. Bestehende Warteschlange, ein
+Cloudplatz und gespeicherte Kontoprofile bleiben erhalten; kurze Folgeaktionen
+sollen keinen neuen Browserstart benötigen. Die lokale Erweiterung bleibt unverändert.
+
+**Umsetzung:** Browser- und Playwright-Auswertung laufen im Sitzungscontainer
+mit genau einem Profil, ohne globale Anbieterschlüssel oder Docker-Socket.
+Controller und Broker übertragen ausschließlich feste Browseraktionen über
+einen an den Container gebundenen Kanal. Berechtigungsprüfungen während Abrufen
+und Schreibaktionen bleiben im Controller. GoLogin verwendet einen kurzlebigen
+Profilkanal; sein globaler Schlüssel wird nicht an den Auswerter weitergegeben.
+Aktionen desselben Kontos können ihre Sitzung innerhalb von 20 Sekunden Leerlauf
+und höchstens zwei Minuten nach Erstellung erneut verwenden. Kontowechsel und
+Queue-Claim bereinigen zuerst die bisherige Sitzung. Unklarer Stopp hält die
+Reservierung gesperrt. Controller/Broker bleiben bei je 512 MiB und der eine
+Sitzungscontainer bei 2 GiB. Keine Schemaänderung oder Datenbankmigration.
+
+**Prüfung:** 380 Linux-Worker-Tests bestehen; ein bestehender Test bleibt
+ausgelassen. Typprüfung, Worker-Bau, gezieltes ESLint und Formatierung bestehen.
+Der echte lokale Containertest prüft fehlende globale Rechte, feste Aktionen,
+erneute Nutzung, frische Kontowechsel und persistente Anmeldung. Zwei Aktionen
+(Kontoerkennung plus Screenshot) benötigen lokal ungefähr 90–115 ms, ein neuer
+Container etwa 1,2–1,3 Sekunden; die Test-Sitzung belegt rund 376 MiB. Diese Werte
+belegen keine Produktionslast. GoLogin-Profilbindung, Kanalablauf und Widerruf,
+Zugriffswechsel, Leerlaufgrenze, absolute Wiederverwendungsgrenze und unsicherer
+Startabbruch sind automatisiert geprüft. Eine unabhängige Kandidatenprüfung
+erkannte eine versehentliche Abschaltung geplanter GoLogin-Abrufe; der korrigierte
+Compose-Override erhält beide bisherigen Freigabewerte aus der privaten env_file.
+Die CI prüft den echten Broker mit Host-Firewall und isolierter Sitzung.
+Beim PR-Lauf blieb einmal ein sehr schneller Browser-Stopp unbestätigt;
+zwei Wiederholungsläufe und 15 lokale schnelle Start-/Stopp-Versuche bestanden.
+Ein gezielter Regressionstest belegt die Lücke bei verspäteter Fensterregistrierung:
+Der native Schließbefehl wird jetzt innerhalb derselben acht Sekunden erneut
+gesendet. Ein weiterhin laufender Browser bleibt ein Fehler mit gesperrter
+Reservierung. Verspätete Fenster, vorübergehend fehlende Fensterverwaltung und
+die unveränderte Fehlergrenze werden zusätzlich geprüft; die Ursache des
+einzelnen CI-Fehlers ist nicht abschließend belegt.
+
+**Grenzen:** Die lokale Docker-Desktop-Umgebung kann die vollständige Host-Firewall
+nicht prüfen (fehlendes WSL-Kernelmodul `br_netfilter`); diese Prüfung bleibt im
+Linux-PR-Lauf erforderlich. Zwei bestehende Browser-Login-Tests schlagen auch
+im unveränderten Ausgangsstand fehl. Echte GoLogin-/Vinted-Abnahme und die
+koordinierte Serverumstellung stehen aus. Ein vollständig übernommener zentraler
+Controller oder Docker-Broker besitzt weiterhin globale Rechte. Die beiden
+ursprünglichen Security-Meldungen bleiben daher offen; dies ist die vereinbarte
+Abschottung des Browser-Auswerters, keine vollständige Aufhebung dieser Vertrauensgrenze.
+
 ## 2026-10-08 - Juna - Falsche Beta-Umleitung beim Tabwechsel verhindern
 
 **Auftrag:** Die gelegentliche Umleitung eines Administrators auf `beta-ended`
