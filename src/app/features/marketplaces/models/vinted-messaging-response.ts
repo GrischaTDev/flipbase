@@ -12,6 +12,29 @@ const states: readonly LocalQueuedMessage['state'][] = [
   'outcome_unknown',
   'cancelled',
 ];
+export interface MarketplaceMessagePermission {
+  readonly executionMode: 'local' | 'cloud';
+  readonly allowed: boolean;
+  readonly authorizationVersion: number;
+}
+export function parseMarketplaceMessagePermission(input: unknown): MarketplaceMessagePermission {
+  const permission = record(input);
+  if (
+    Object.keys(permission).length !== 3 ||
+    (permission['executionMode'] !== 'local' && permission['executionMode'] !== 'cloud') ||
+    typeof permission['allowed'] !== 'boolean' ||
+    typeof permission['authorizationVersion'] !== 'number' ||
+    !Number.isSafeInteger(permission['authorizationVersion']) ||
+    permission['authorizationVersion'] < 0 ||
+    (permission['allowed'] && permission['authorizationVersion'] === 0)
+  )
+    throw new MarketplaceResponseError();
+  return {
+    executionMode: permission['executionMode'],
+    allowed: permission['allowed'],
+    authorizationVersion: permission['authorizationVersion'],
+  };
+}
 function record(input: unknown): Record<string, unknown> {
   if (!input || typeof input !== 'object' || Array.isArray(input))
     throw new MarketplaceResponseError();

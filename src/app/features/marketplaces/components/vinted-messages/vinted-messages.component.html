@@ -453,8 +453,10 @@
         <ng-container card-footer>
           @if (
             !isOpeningConversation() &&
+            store.canManage() &&
             conversation() &&
-            store.selectedConnection()?.executionMode === 'local'
+            (store.selectedConnection()?.executionMode === 'local' ||
+              store.selectedConnection()?.executionMode === 'cloud')
           ) {
             <form
               data-message-composer
@@ -467,8 +469,12 @@
               }
               @if (hasPendingMessages()) {
                 <p role="status" class="text-xs text-fb-text-secondary">
-                  Deine Nachricht wartet auf den Versand. Die Erweiterung sendet sie beim nächsten
-                  Durchlauf.
+                  Deine Nachricht wartet auf den Versand.
+                  @if (store.selectedConnection()?.executionMode === 'cloud') {
+                    Die Cloud sendet sie beim nächsten Durchlauf.
+                  } @else {
+                    Die Erweiterung sendet sie beim nächsten Durchlauf.
+                  }
                 </p>
               }
               @if (attachmentPreview(); as preview) {
@@ -544,11 +550,19 @@
                     composer.invalid ||
                     preparingAttachment() ||
                     (!composer.controls.text.value.trim() && !attachment()) ||
-                    !store.canManage() ||
-                    store.selectedConnection()?.status !== 'connected'
+                    !messaging.canSend()
                   "
                 />
               </div>
+              @if (messaging.cloudSendAllowed()) {
+                <app-button
+                  variant="secondary"
+                  [disabled]="messaging.busy()"
+                  (clicked)="messaging.revokeCloudSend()"
+                >
+                  Cloud-Versandfreigabe widerrufen
+                </app-button>
+              }
             </form>
           }
         </ng-container>

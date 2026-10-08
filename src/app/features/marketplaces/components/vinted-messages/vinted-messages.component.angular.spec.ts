@@ -114,12 +114,15 @@ let local: {
   busy: ReturnType<typeof signal<boolean>>;
   messagesAllowed: ReturnType<typeof signal<boolean>>;
   inboxImported: ReturnType<typeof signal<null>>;
-  hasValidBinding: ReturnType<typeof vi.fn>;
+  hasValidBinding: ReturnType<typeof vi.fn<() => boolean>>;
   approveInbox: ReturnType<typeof vi.fn>;
   syncInbox: ReturnType<typeof vi.fn>;
   openInboxConversation: ReturnType<typeof vi.fn>;
 };
 let messaging: {
+  canSend: ReturnType<typeof vi.fn<() => boolean>>;
+  cloudSendAllowed: ReturnType<typeof signal<boolean>>;
+  revokeCloudSend: ReturnType<typeof vi.fn>;
   messages: ReturnType<typeof signal<LocalQueuedMessage[]>>;
   busy: ReturnType<typeof signal<boolean>>;
   error: ReturnType<typeof signal<string | null>>;
@@ -173,6 +176,17 @@ beforeEach(() => {
     openInboxConversation: vi.fn().mockResolvedValue(detailResult),
   };
   messaging = {
+    canSend: vi.fn().mockImplementation(() => {
+      const store = TestBed.inject(MarketplaceAccountStore);
+      return (
+        store.canManage() &&
+        store.selectedConnection()?.status === 'connected' &&
+        (store.selectedConnection()?.executionMode === 'cloud' ||
+          (local.hasValidBinding() && local.messagesAllowed()))
+      );
+    }),
+    cloudSendAllowed: signal(false),
+    revokeCloudSend: vi.fn(),
     messages: signal([]),
     busy: signal(false),
     error: signal(null),
@@ -1119,8 +1133,28 @@ describe('Kompakter gespeicherter Vinted-Gesprächsbereich', () => {
     expect(host.querySelector('[data-message-kind="system"]')?.textContent).toContain(
       'Bestellung abgeschlossen',
     );
-    expect(host.querySelector('textarea')).toBeNull();
+    expect(host.querySelector('textarea')).not.toBeNull();
+    expect(messaging.send).not.toHaveBeenCalled();
     expect(host.querySelector('button')?.textContent).not.toContain('Annehmen');
+  });
+  it('zeigt für Cloud das gemeinsame Schreibfeld und den Widerruf der Versandfreigabe', async () => {
+    const fixture = await render();
+    button(fixture, 'Anfrage zum Schal').click();
+    await settle(fixture);
+    expect(fixture.nativeElement.querySelector('[data-message-composer]')).not.toBeNull();
+    fixture.componentInstance.composer.controls.text.setValue('Cloudtest');
+    await fixture.componentInstance.sendMessage();
+    expect(messaging.send).toHaveBeenLastCalledWith(
+      { workspaceId: accounts[0].workspaceId, connectionId: accounts[0].connectionId },
+      'conversation-1',
+      'Cloudtest',
+      null,
+    );
+    expect(local.openInboxConversation).not.toHaveBeenCalled();
+    messaging.cloudSendAllowed.set(true);
+    await settle(fixture);
+    button(fixture, 'Cloud-Versandfreigabe widerrufen').click();
+    expect(messaging.revokeCloudSend).toHaveBeenCalledOnce();
   });
   it('verschiebt bei einem Mausklick den Fokus nicht auf den Gesprächstitel', async () => {
     const fixture = await render();

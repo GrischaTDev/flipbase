@@ -39,6 +39,20 @@ können erneut warten. 391 Workerprüfungen bestehen, sieben bestehende Prüfung
 bleiben ausgelassen; Bau, Typprüfung, ESLint und 328 DBassertions bestehen.
 Keine Veröffentlichung und kein Echtkonto-Versand durchgeführt.
 
+**Versandoberfläche:** Bestehendes Schreibfeld, Versandwarteschlange und bewusste
+Wiederholung unterstützen nun beide Betriebsarten. Cloud nutzt neutrale RPCs,
+eine eigene Freigabe und einen sichtbaren Widerruf; es weckt keine Extension.
+Betriebs-/Kontowechsel verwerfen verspätete Freigaben und erhalten Entwürfe.
+62 Angularprüfungen und fünf Modellprüfungen bestehen; Angular-Bau,
+Typprüfung, ESLint und Formatierung bestehen. Die Glockenanbindung fehlt noch.
+
+**Weitere Quellenprüfung:** Tatsächlich geladene Vinted-Webclientdateien belegen
+den Gateway-Nachrichtenabruf und getrennte Aufrufe zum Gelesenmarkieren.
+Gateway-Notifications enthalten ebenfalls nur 20/720. Die neue Gateway-
+Gesprächsliste liefert zwar UUIDs und Zeitpunkte, für dieses Legacy-Konto aber
+nur `legacy_last_message` mit Absender `0`; daraus werden keine Eingänge erfunden.
+Eine Änderung der bisherigen Vorgabe zum Detailabruf steht zur Entscheidung.
+
 ## 2026-10-08 - Juna - Gemeinsamen Cloud-Postfachausbau planen
 
 **Auftrag:** Nach Bestätigung des schriftlichen Entwurfs den Umsetzungsplan
