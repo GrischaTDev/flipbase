@@ -44,6 +44,7 @@ import { PlatformOperatorService } from '../../core/services/platform-operator.s
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
 import { MarketplaceFeedbackNotificationStore } from '../../features/marketplaces/services/marketplace-feedback-notification.store';
 import { MarketplaceFavoriteNotificationStore } from '../../features/marketplaces/services/marketplace-favorite-notification.store';
+import { MarketplaceMessageNotificationStore } from '../../features/marketplaces/services/marketplace-message-notification.store';
 
 export function visibleHeaderRole(isPlatformOperator: boolean): 'admin' | null {
   return isPlatformOperator ? 'admin' : null;
@@ -75,6 +76,7 @@ export class HeaderComponent {
   readonly webhookService = inject(WebhookService);
   readonly favoriteNotifications = inject(MarketplaceFavoriteNotificationStore);
   readonly feedbackNotifications = inject(MarketplaceFeedbackNotificationStore);
+  readonly messageNotifications = inject(MarketplaceMessageNotificationStore);
   private readonly dialog = inject(ConfirmDialogService);
   readonly themeService = inject(ThemeService);
   readonly pwaService = inject(PwaService);
@@ -96,6 +98,7 @@ export class HeaderComponent {
       ...this.webhookService.notifications(),
       ...this.favoriteNotifications.notifications(),
       ...this.feedbackNotifications.notifications(),
+      ...this.messageNotifications.notifications(),
     ]
       .sort((left, right) => Date.parse(right.timestamp) - Date.parse(left.timestamp))
       .slice(0, 50),
@@ -114,7 +117,8 @@ export class HeaderComponent {
     () =>
       this.webhookService.unreadCount() +
       this.favoriteNotifications.unreadCount() +
-      this.feedbackNotifications.unreadCount(),
+      this.feedbackNotifications.unreadCount() +
+      this.messageNotifications.unreadCount(),
   );
 
   readonly workspaceContainer = viewChild<ElementRef<HTMLElement>>('workspaceContainer');
@@ -166,6 +170,7 @@ export class HeaderComponent {
     if (this.isNotificationDropdownOpen()) {
       void this.favoriteNotifications.reload();
       void this.feedbackNotifications.reload();
+      void this.messageNotifications.reload();
     }
     this.isWorkspaceDropdownOpen.set(false);
     this.isUserDropdownOpen.set(false);
@@ -198,7 +203,9 @@ export class HeaderComponent {
   async oeffneBenachrichtigung(notif: AppNotification): Promise<void> {
     this.isUpdatingNotifications.set(true);
     try {
-      if (notif.id.startsWith('marketplace-feedback:')) {
+      if (notif.id.startsWith('marketplace-message:')) {
+        await this.messageNotifications.markAsRead(notif.id);
+      } else if (notif.id.startsWith('marketplace-feedback:')) {
         await this.feedbackNotifications.markAsRead(notif.id);
       } else if (notif.id.startsWith('marketplace:')) {
         await this.favoriteNotifications.markAsRead(notif.id);
@@ -276,11 +283,13 @@ export class HeaderComponent {
 
   private async updateNotificationStreams(operation: 'markAllAsRead' | 'clearNotifications') {
     // Alle Speicherungen abschließen; ein Teilerfolg ist keine gemeinsame Bestätigung.
-    const [general, favorites, feedback] = await Promise.allSettled([
+    const [general, favorites, feedback, messages] = await Promise.allSettled([
       this.webhookService[operation](),
       this.favoriteNotifications[operation](),
       this.feedbackNotifications[operation](),
+      this.messageNotifications[operation](),
     ]);
+    if (messages.status === 'rejected') throw messages.reason;
     if (feedback.status === 'rejected') throw feedback.reason;
     if (favorites.status === 'rejected') throw favorites.reason;
     if (general.status === 'rejected') throw general.reason;

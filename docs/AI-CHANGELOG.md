@@ -17,7 +17,7 @@ Der Webclient verwendet eine getrennte Gelesen-Markierung; diese wurde nicht auf
 private Texte oder Nutzerkennungen. Eigene Nachrichten, Listenänderungen, fehlende
 Kennungen, unbekannte Absender und widersprüchliche Ereignisse erzeugen keine
 erfundenen Eingänge. Teilkopien setzen keinen vollständigen Referenzstand. Die
-Glockenanzeige folgt noch; Leser und dauerhafte Speicherung sind jetzt vorbereitet.
+Glockenanzeige für Nachricht und Preisvorschlag ist jetzt angebunden: Kontogespräch, vollständiger Zähler und eigene Lese-/Löschaktionen. Leser und dauerhafte Speicherung sind vorbereitet.
 Nicht veröffentlicht.
 
 **Umsetzung:** Gemeinsamer Nachrichtenvertrag und Browseradapter für einen
