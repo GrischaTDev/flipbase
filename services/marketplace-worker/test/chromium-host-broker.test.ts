@@ -73,7 +73,7 @@ test('Broker erhält normale Starts, Recovery, Archivierung und native Bedienung
       },
       operations,
     ),
-    { endpoint: 'http://172.30.88.128:9222' },
+    { session: 'http://172.30.88.128:9222' },
   );
   await dispatchChromiumHostCommand({ profileId, action: 'click', x: 0.5, y: 0.5 }, operations);
   await dispatchChromiumHostCommand(

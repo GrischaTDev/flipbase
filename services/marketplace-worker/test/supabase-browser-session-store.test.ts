@@ -15,6 +15,45 @@ const scope = {
   userAccessToken: 'user-test-token',
 };
 
+for (const outcome of [
+  'allowed',
+  'foreign-user',
+  'no-permission',
+  'wrong-account',
+  'paused',
+] as const) {
+  test(`pooled session replacement requires user-scoped access: ${outcome}`, async () => {
+    const store = new SupabaseBrowserSessionStore({
+      url: 'https://example.test',
+      publishableKey: 'public',
+      serviceRoleKey: 'server',
+      fetch: async (input, init) => {
+        const url = new URL(String(input));
+        assert.equal(
+          new Headers(init?.headers).get('Authorization'),
+          `Bearer ${scope.userAccessToken}`,
+        );
+        assert.equal(new Headers(init?.headers).get('apikey'), 'public');
+        if (url.pathname === '/auth/v1/user')
+          return Response.json({ id: outcome === 'foreign-user' ? 'other-user' : scope.userId });
+        if (url.pathname.endsWith('marketplace_can_manage'))
+          return Response.json(outcome !== 'no-permission');
+        assert.equal(url.searchParams.get('workspace_id'), `eq.${scope.workspaceId}`);
+        assert.equal(url.searchParams.get('execution_mode'), 'eq.cloud');
+        assert.equal(url.searchParams.get('marketplace'), 'eq.vinted');
+        return Response.json([
+          {
+            id: outcome === 'wrong-account' ? 'other-account' : scope.connectionId,
+            status: outcome === 'paused' ? 'paused' : 'connected',
+          },
+        ]);
+      },
+    });
+    if (outcome === 'allowed') await store.authorizeScope(scope);
+    else await assert.rejects(store.authorizeScope(scope), /verweigert/);
+  });
+}
+
 for (const failure of ['lost', 'malformed', 'busy'] as const) {
   test(`setup reservation uses the existing uncertainty fence: ${failure}`, async () => {
     let recoveries = 0;

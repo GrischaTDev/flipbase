@@ -75,14 +75,23 @@ for own_chain in "$chain" "$host_chain"; do
     iptables -w -N "$own_chain"
   fi
 done
-ensure_rule "$chain" -s "$controller/32" -d "$subnet" -p tcp --dport 9222 -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
-ensure_rule "$chain" -s "$subnet" -d "$controller/32" -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-# Vor die vorhandenen DROP-Regeln setzen, auch beim Upgrade eines v1-Hosts.
+# Alte CDP-Freigaben vollständig entfernen; keine privilegierte Browserverbindung.
+if [[ "$mode" == setup ]]; then
+  for source in "$controller" "$broker"; do
+    while iptables -w -C "$chain" -s "$source/32" -d "$subnet" -p tcp --dport 9222 -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT 2>/dev/null; do
+      iptables -w -D "$chain" -s "$source/32" -d "$subnet" -p tcp --dport 9222 -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
+    done
+    while iptables -w -C "$chain" -s "$subnet" -d "$source/32" -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT 2>/dev/null; do
+      iptables -w -D "$chain" -s "$subnet" -d "$source/32" -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+    done
+  done
+fi
+# Nur der kurzlebige, profilspezifische GoLogin-Tunnel ist aus Sitzungen erreichbar.
 for direction in forward reverse; do
   if [[ "$direction" == forward ]]; then
-    rule=(-s "$broker/32" -d "$subnet" -p tcp --dport 9222 -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT)
+    rule=(-s 172.30.88.128/25 -d "$broker/32" -p tcp --dport 4181 -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT)
   else
-    rule=(-s "$subnet" -d "$broker/32" -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT)
+    rule=(-s "$broker/32" -d 172.30.88.128/25 -p tcp --sport 4181 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT)
   fi
   if ! iptables -w -C "$chain" "${rule[@]}" 2>/dev/null; then
     [[ "$mode" == setup ]] || exit 1
@@ -111,7 +120,7 @@ for parent in FORWARD INPUT; do
   [[ "$(ip6tables -w -S "$parent" | sed -n '2p')" == "-A $parent -i $bridge -j DROP" ]] || exit 1
 done
 # Alle geprüften Regeln sind geordnet; zusätzliche frühere Regeln verhindern Freigabe.
-[[ "$(iptables -w -S "$chain" | wc -l)" == 16 ]] || exit 1
+[[ "$(iptables -w -S "$chain" | wc -l)" == 14 ]] || exit 1
 [[ "$(iptables -w -S "$host_chain" | wc -l)" == 3 ]] || exit 1
 [[ "$(iptables -w -S "$chain" | tail -n 1)" == "-A $chain -j RETURN" ]] || exit 1
 [[ "$(iptables -w -S "$host_chain" | tail -n 1)" == "-A $host_chain -j DROP" ]] || exit 1
@@ -140,7 +149,7 @@ fi
 install -d -m 0755 /run/flipbase
 proof="$(mktemp /run/flipbase/chromium-firewall-status.XXXXXX)"
 trap 'status=$?; rm -f "$proof"; if (( status != 0 )); then rm -f /run/flipbase/chromium-firewall-status.json; fi' EXIT
-python3 -c 'import json,time;print(json.dumps({"bootId":open("/proc/sys/kernel/random/boot_id").read().strip(),"network":"flipbase-browser","policy":"v2","checkedAt":int(time.time()*1000)}))' > "$proof"
+python3 -c 'import json,time;print(json.dumps({"bootId":open("/proc/sys/kernel/random/boot_id").read().strip(),"network":"flipbase-browser","policy":"v3","checkedAt":int(time.time()*1000)}))' > "$proof"
 chmod 0644 "$proof"
 mv "$proof" /run/flipbase/chromium-firewall-status.json
 echo 'Chromium-Pilotnetz und Host-Firewall geprüft.'

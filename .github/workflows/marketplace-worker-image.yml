@@ -7,6 +7,7 @@ on:
     paths:
       - 'services/marketplace-worker/**'
       - 'deploy/*chromium*'
+      - 'deploy/docker-compose.marketplace*'
       - '.github/workflows/marketplace-worker-image.yml'
 
 permissions:
@@ -65,6 +66,31 @@ jobs:
           docker run --rm --entrypoint docker "$BROKER_IMAGE" --version
           docker run --rm --entrypoint node "$WORKER_IMAGE" --input-type=module -e "await import('./dist/chromium-broker-client.js'); await import('./dist/chromium-profile-provisioner.js'); await import('./dist/migrate-chromium-profiles.js')"
 
+      - name: Check GoLogin queue flags and existing memory budgets
+        env:
+          FLIPBASE_MARKETPLACE_IMAGE: ghcr.io/grischatdev/flipbase-marketplace-worker:sha-${{ github.sha }}
+          FLIPBASE_CHROMIUM_BROKER_IMAGE: ghcr.io/grischatdev/flipbase-chromium-broker:sha-${{ github.sha }}
+          MARKETPLACE_CHROMIUM_IMAGE: ghcr.io/grischatdev/flipbase-chromium-session:sha-${{ github.sha }}
+        run: |
+          set -euo pipefail
+          export MARKETPLACE_DOCKER_GROUP_ID="$(stat -c %g /var/run/docker.sock)"
+          export MARKETPLACE_ENV_FILE="$(mktemp)"
+          trap 'rm -f "$MARKETPLACE_ENV_FILE"' EXIT
+          for flag in 1 0; do
+            printf 'MARKETPLACE_SCHEDULED_SYNC_ENABLED=%s\n' "$flag" > "$MARKETPLACE_ENV_FILE"
+            docker compose -f deploy/docker-compose.marketplace-worker.yml config --format json | python3 -c '
+          import json,sys
+          config=json.load(sys.stdin)
+          worker=config["services"]["marketplace-worker"]
+          assert config["name"]=="flipbase-marketplace"
+          assert worker["environment"]["MARKETPLACE_BROWSER_PROVIDER"]=="gologin"
+          assert worker["environment"]["MARKETPLACE_SCHEDULED_SYNC_ENABLED"]==sys.argv[1]
+          assert "flipbase-browser" not in worker["networks"]
+          assert worker["mem_limit"]==512*1024*1024
+          assert config["services"]["chromium-host-broker"]["mem_limit"]==512*1024*1024
+          ' "$flag"
+          done
+
       - name: Check non-root broker sandbox configuration
         env:
           BROKER_IMAGE: ghcr.io/grischatdev/flipbase-chromium-broker:sha-${{ github.sha }}
@@ -107,7 +133,7 @@ jobs:
           sudo chown 1000:1000 "$token_file"
           sudo chmod 0400 "$token_file"
           cleanup() {
-            docker rm -f chromium-worker-fixture chromium-host-broker >/dev/null 2>&1 || true
+            docker rm -f chromium-worker-fixture chromium-isolation-proof chromium-host-broker >/dev/null 2>&1 || true
             docker ps -aq --filter label=de.flipbase.chromium.role=session | xargs -r docker rm -f >/dev/null 2>&1 || true
             docker network rm chromium-control >/dev/null 2>&1 || true
           }
@@ -115,11 +141,14 @@ jobs:
           docker create --name chromium-host-broker --network flipbase-browser --ip 172.30.88.3 --user=1000:1000 --group-add="$(stat -c %g /var/run/docker.sock)" --read-only --cap-drop=ALL --security-opt=no-new-privileges:true --tmpfs=/tmp:rw,nosuid,nodev,size=64m,uid=1000,gid=1000,mode=700 --mount=type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock --mount=type=bind,src=/opt/flipbase-marketplace/chromium,dst=/var/lib/flipbase-chromium --mount="type=bind,src=$token_file,dst=/run/secrets/chromium-broker-token,readonly" --mount=type=bind,src=/run/flipbase,dst=/run/flipbase,readonly --mount=type=bind,src=/opt/flipbase-marketplace/chromium-seccomp.json,dst=/opt/flipbase-marketplace/chromium-seccomp.json,readonly -e MARKETPLACE_CHROMIUM_IMAGE="$SESSION_IMAGE" -e MARKETPLACE_CHROMIUM_HOST_ID=pilot-01 "$BROKER_IMAGE"
           docker network connect --alias chromium-host-control chromium-control chromium-host-broker
           docker start chromium-host-broker
-          docker create --name chromium-worker-fixture --network flipbase-browser --ip 172.30.88.2 --user=1000:1000 --read-only --cap-drop=ALL --security-opt=no-new-privileges:true --tmpfs=/tmp:rw,nosuid,nodev,size=64m,uid=1000,gid=1000,mode=700 --mount="type=bind,src=$metadata,dst=/var/lib/flipbase-marketplace" --mount="type=bind,src=$token_file,dst=/run/secrets/chromium-broker-token,readonly" --mount="type=bind,src=$PWD/services/marketplace-worker/test-support,dst=/app/test-support,readonly" --entrypoint node "$WORKER_IMAGE" test-support/chromium-broker-smoke.mjs
-          docker network connect chromium-control chromium-worker-fixture
+          docker create --name chromium-worker-fixture --network chromium-control --user=1000:1000 --read-only --cap-drop=ALL --security-opt=no-new-privileges:true --tmpfs=/tmp:rw,nosuid,nodev,size=64m,uid=1000,gid=1000,mode=700 --mount="type=bind,src=$metadata,dst=/var/lib/flipbase-marketplace" --mount="type=bind,src=$token_file,dst=/run/secrets/chromium-broker-token,readonly" --mount="type=bind,src=$PWD/services/marketplace-worker/test-support,dst=/app/test-support,readonly" --entrypoint node "$WORKER_IMAGE" test-support/chromium-broker-smoke.mjs
           docker start --attach chromium-worker-fixture
           [[ "$(docker inspect --format '{{.State.ExitCode}}' chromium-worker-fixture)" == 0 ]]
           sudo test -f /opt/flipbase-marketplace/chromium/archive/chromium_41000000-0000-4000-8000-000000000001/Default/Preferences
+          [[ "$(docker ps -aq --filter label=de.flipbase.chromium.role=session)" == '' ]]
+          # Der privilegierte Testtreiber simuliert Codeausführung im Sitzungscontainer.
+          # Der oben geprüfte Produktionscontroller bleibt ohne Docker-Zugang.
+          docker run --rm --name chromium-isolation-proof --network chromium-control --user=1000:1000 --group-add="$(stat -c %g /var/run/docker.sock)" --read-only --cap-drop=ALL --security-opt=no-new-privileges:true --memory=512m --tmpfs=/tmp:rw,nosuid,nodev,size=64m,uid=1000,gid=1000,mode=700 --mount=type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock --mount="type=bind,src=$token_file,dst=/run/secrets/chromium-broker-token,readonly" --mount="type=bind,src=$PWD/services/marketplace-worker/test-support,dst=/app/test-support,readonly" --entrypoint node "$BROKER_IMAGE" test-support/isolated-browser-proof.mjs
           [[ "$(docker ps -aq --filter label=de.flipbase.chromium.role=session)" == '' ]]
 
       - name: Publish verified worker
