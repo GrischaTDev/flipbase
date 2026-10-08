@@ -88,6 +88,109 @@ test('an explicit conversation read rejects another logged-in account before inb
   assert.deepEqual(paths, ['/api/v2/users/current']);
 });
 
+test('imports conversation article metadata from the inbox and enriches it from the selected detail', async () => {
+  const result = await readVintedAccountImport(
+    importPage((path) => {
+      if (path.startsWith('/api/v2/inbox'))
+        return {
+          conversations: [{ id: 456, unread: true, item_id: 81, item_title: 'Inbox article' }],
+          pagination: { total_pages: 1 },
+        };
+      if (path === '/api/v2/conversations/456')
+        return {
+          conversation: {
+            id: 456,
+            messages: [],
+            item: {
+              id: 81,
+              title: 'Selected article',
+              photos: [{ url: 'https://images.example.test/article.jpg' }],
+            },
+            transaction: {
+              id: 71,
+              seller_id: 123,
+              offer_price: { amount: '24.00', currency_code: 'EUR' },
+              status_title: 'Offer received',
+            },
+          },
+        };
+      return undefined;
+    }),
+    async () => undefined,
+    undefined,
+    [],
+    { externalId: '456', accountId: '123' },
+  );
+  const conversation = result.entries.find((entry) => entry.kind === 'conversation');
+  assert.equal(conversation?.body['itemId'], '81');
+  assert.equal(conversation?.body['itemTitle'], 'Selected article');
+  assert.equal(conversation?.body['itemImageUrl'], 'https://images.example.test/article.jpg');
+  assert.equal(conversation?.body['itemPrice'], 24);
+  assert.equal(conversation?.body['itemCurrency'], 'EUR');
+  assert.equal(conversation?.body['transactionStatus'], 'Offer received');
+});
+
+test('opening one conversation skips wardrobe, feedback and sales requests without claiming complete lists', async () => {
+  const paths: string[] = [];
+  const result = await readVintedAccountImport(
+    importPage((path) => {
+      paths.push(path);
+      if (path.startsWith('/api/v2/inbox'))
+        return { conversations: [{ id: 456, unread: false }], pagination: { total_pages: 1 } };
+      if (path === '/api/v2/conversations/456')
+        return { conversation: { id: 456, messages: [], transaction: { id: 71, seller_id: 123 } } };
+      return undefined;
+    }),
+    async () => undefined,
+    undefined,
+    [],
+    { externalId: '456', accountId: '123' },
+  );
+  assert.deepEqual(paths, [
+    '/api/v2/users/current',
+    '/api/v2/inbox?page=1&per_page=20',
+    '/api/v2/conversations/456',
+  ]);
+  assert.equal(result.sourceRequestCount, 3);
+  assert.equal(result.areas.publications.status, 'partial');
+  assert.equal(result.areas.feedback.status, 'partial');
+  assert.equal(result.areas.sales.status, 'partial');
+  assert.deepEqual(
+    result.entries.filter((entry) => entry.kind === 'publication' || entry.kind === 'sale'),
+    [],
+  );
+});
+
+test('retains cached article metadata when the unchanged inbox omits it and details are reused', () => {
+  const result = parseVintedAccountImport(
+    { id: '123', username: 'testkonto' },
+    { user: { id: 123 } },
+    [],
+    [{ id: 456, updated_at: '2026-10-08T08:00:00.000Z' }],
+    [],
+    '2026-10-08T09:00:00Z',
+    [
+      {
+        externalId: '456',
+        sourceUpdatedAt: '2026-10-08T08:00:00.000Z',
+        detailCheckedAt: '2026-10-08T08:05:00Z',
+        text: 'Saved message',
+        occurredAt: null,
+        itemId: '81',
+        itemTitle: 'Cached article',
+        itemImageUrl: 'https://images.example.test/article.jpg',
+        itemPrice: 24,
+        itemCurrency: 'EUR',
+        transactionStatus: 'Offer received',
+      },
+    ],
+  );
+  const conversation = result.entries.find((entry) => entry.kind === 'conversation');
+  assert.equal(conversation?.body['itemTitle'], 'Cached article');
+  assert.equal(conversation?.body['itemImageUrl'], 'https://images.example.test/article.jpg');
+  assert.equal(conversation?.body['itemPrice'], 24);
+});
+
 test('a rejected explicit detail read is not accepted as a successful account sync', async () => {
   const page = importPage((path) => {
     if (path.startsWith('/api/v2/inbox'))

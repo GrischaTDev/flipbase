@@ -38,6 +38,12 @@ export interface VintedConversationVersion {
   detailCheckedAt: string;
   text: string | null;
   occurredAt: string | null;
+  itemId?: string | null;
+  itemTitle?: string | null;
+  itemImageUrl?: string | null;
+  itemPrice?: number | null;
+  itemCurrency?: string | null;
+  transactionStatus?: string | null;
 }
 
 export interface VintedConversationReadTarget {
@@ -193,6 +199,36 @@ function messageText(entity: Record<string, unknown> | null): string | null {
   );
 }
 
+function parseConversationItem(conversation: Record<string, unknown> | null) {
+  const item = record(conversation?.['item']);
+  const transaction = record(conversation?.['transaction']);
+  const rawPrice = transaction?.['offer_price'] ?? item?.['price'];
+  const money = record(rawPrice);
+  const photos = item?.['photos'] ?? conversation?.['item_photos'];
+  const photo = record(Array.isArray(photos) ? photos[0] : null);
+  const thumbnails = photo?.['thumbnails'];
+  const thumbnail = Array.isArray(thumbnails)
+    ? record(thumbnails.find((candidate) => record(candidate)?.['type'] === 'thumb310x430'))
+    : null;
+  const currency = string(money?.['currency_code']);
+  return {
+    itemId: identifier(conversation?.['item_id'] ?? item?.['id'] ?? transaction?.['item_id']),
+    itemTitle: string(
+      conversation?.['item_title'] ?? item?.['title'] ?? transaction?.['item_title'],
+    ),
+    itemImageUrl: image(
+      thumbnail?.['url'] ??
+        photo?.['url'] ??
+        record(conversation?.['item_photo'])?.['url'] ??
+        record(item?.['photo'])?.['url'] ??
+        record(transaction?.['item_photo'])?.['url'],
+    ),
+    itemPrice: decimal(money?.['amount'] ?? rawPrice),
+    itemCurrency: currency && /^[A-Z]{3}$/.test(currency) ? currency : null,
+    transactionStatus: string(transaction?.['status_title']),
+  };
+}
+
 function parseFeedbacks(rawFeedbacks: unknown[], fallbackDate: string): Record<string, unknown>[] {
   const list: Record<string, unknown>[] = [];
   const ids = new Set<string>();
@@ -338,6 +374,7 @@ export function parseVintedAccountImport(
     const reusable =
       previous?.sourceUpdatedAt === sourceUpdatedAt &&
       Number.isFinite(Date.parse(previous.detailCheckedAt));
+    const item = parseConversationItem(conversation);
     entries.push({
       kind: 'conversation',
       externalId: id,
@@ -350,6 +387,17 @@ export function parseVintedAccountImport(
         detailCheckedAt: reusable ? previous.detailCheckedAt : null,
         unread: typeof conversation?.['unread'] === 'boolean' ? conversation['unread'] : null,
         imageUrl: image(record(other?.['photo'])?.['url']),
+        itemId: item.itemId ?? (reusable ? identifier(previous.itemId) : null),
+        itemTitle: item.itemTitle ?? (reusable ? string(previous.itemTitle) : null),
+        itemImageUrl: item.itemImageUrl ?? (reusable ? image(previous.itemImageUrl) : null),
+        itemPrice: item.itemPrice ?? (reusable ? decimal(previous.itemPrice) : null),
+        itemCurrency:
+          item.itemCurrency ??
+          (reusable && /^[A-Z]{3}$/.test(previous.itemCurrency ?? '')
+            ? previous.itemCurrency
+            : null),
+        transactionStatus:
+          item.transactionStatus ?? (reusable ? string(previous.transactionStatus) : null),
       },
     });
   }
@@ -364,7 +412,12 @@ export function parseVintedAccountImport(
     const conversationEntry = entries.find(
       (entry) => entry.kind === 'conversation' && entry.externalId === conversationId,
     );
-    if (conversationEntry) conversationEntry.body['detailCheckedAt'] = observedAt;
+    if (conversationEntry) {
+      conversationEntry.body['detailCheckedAt'] = observedAt;
+      for (const [field, value] of Object.entries(parseConversationItem(conversation))) {
+        if (value !== null) conversationEntry.body[field] = value;
+      }
+    }
     let latestMessageAt: string | null = null;
     const messages = Array.isArray(conversation?.['messages']) ? conversation['messages'] : [];
     for (const rawMessage of messages) {
@@ -702,15 +755,19 @@ export async function readVintedAccountImport(
     return account;
   });
   const observedAt = new Date().toISOString();
-  await onStage?.('publications');
-  const items = await pages(
-    page,
-    (number) => `/api/v2/wardrobe/${identity.id}/items?page=${number}&per_page=20`,
-    'items',
-    authorize,
-    'publications',
-    reads,
-  );
+  if (!requestedConversation) await onStage?.('publications');
+  // Beim Öffnen eines Gesprächs sind Inserate und Bewertungen unabhängige
+  // Datenbereiche. Teilstände erhalten ihre gespeicherten Einträge beim Import.
+  const items = requestedConversation
+    ? { values: [], result: { status: 'partial' as const } }
+    : await pages(
+        page,
+        (number) => `/api/v2/wardrobe/${identity.id}/items?page=${number}&per_page=20`,
+        'items',
+        authorize,
+        'publications',
+        reads,
+      );
   if (items.values.some((item) => identifier(record(item)?.['user_id']) !== identity.id))
     items.result = { status: 'partial', failure: 'invalid_response' };
   await onStage?.('conversations');
@@ -784,6 +841,7 @@ export async function readVintedAccountImport(
     const transactionId = identifier(record(relation?.['transaction'])?.['id']);
     let transaction: unknown = null;
     if (
+      !requestedConversation &&
       transactionId &&
       identifier(record(relation?.['transaction'])?.['seller_id']) === identity.id
     ) {
@@ -798,14 +856,16 @@ export async function readVintedAccountImport(
     }
     details.push({ ...record(conversation), transaction });
   }
-  const feedbacks = await pages(
-    page,
-    (number) => `/api/v2/feedbacks?user_id=${identity.id}&page=${number}&per_page=20`,
-    'user_feedbacks',
-    authorize,
-    'profile',
-    reads,
-  );
+  const feedbacks = requestedConversation
+    ? { values: [], result: { status: 'partial' as const } }
+    : await pages(
+        page,
+        (number) => `/api/v2/feedbacks?user_id=${identity.id}&page=${number}&per_page=20`,
+        'user_feedbacks',
+        authorize,
+        'profile',
+        reads,
+      );
   areas.feedback = feedbacks.result;
   return atImportStage('parse', async () => {
     await onStage?.('sales');

@@ -63,6 +63,13 @@ export class SupabaseVintedImportWriter {
           detailCheckedAt: body['detailCheckedAt'],
           text: typeof body['text'] === 'string' ? body['text'] : null,
           occurredAt: typeof body['occurredAt'] === 'string' ? body['occurredAt'] : null,
+          itemId: typeof body['itemId'] === 'string' ? body['itemId'] : null,
+          itemTitle: typeof body['itemTitle'] === 'string' ? body['itemTitle'] : null,
+          itemImageUrl: typeof body['itemImageUrl'] === 'string' ? body['itemImageUrl'] : null,
+          itemPrice: typeof body['itemPrice'] === 'number' ? body['itemPrice'] : null,
+          itemCurrency: typeof body['itemCurrency'] === 'string' ? body['itemCurrency'] : null,
+          transactionStatus:
+            typeof body['transactionStatus'] === 'string' ? body['transactionStatus'] : null,
         },
       ];
     });

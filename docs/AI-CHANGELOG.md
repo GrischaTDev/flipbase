@@ -1,5 +1,29 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-08 - Juna - Cloud-Gesprächsartikel ergänzen und Einzelabruf verkürzen
+
+**Auftrag:** Den vorbereiteten PR um fehlende Artikeldaten in Cloud-Gesprächen
+ergänzen und die längere Synchronisierung gegenüber der Extension prüfen.
+
+**Befund:** Der Cloud-Parser übernimmt bisher keine Artikelfelder aus Liste
+oder Gesprächsdetail. Ein ausdrücklich geöffnetes Gespräch führt außerdem
+Inserats-, Bewertungs- und Verkaufsabrufe aus.
+
+**Umsetzung:** Titel, Bild, Artikelkennung, Preis, Währung und Transaktionsstatus
+werden nach dem bestehenden Extension-Muster übernommen. Beobachtete Details
+ergänzen die Listenangaben; unveränderte Gespräche erhalten bekannte Artikeldaten
+aus dem vorhandenen Cache. Einzelabrufe überspringen die unabhängigen Datenbereiche
+und melden diese als Teilstand, damit gespeicherte Inserate und Bewertungen
+erhalten bleiben. Kontoidentität, ausgewähltes Gespräch und Sitzungsabschluss
+werden weiterhin geprüft.
+
+**Prüfstand:** Vier neue Regressionen scheitern vor der Korrektur. 350 Worker-Tests
+bestehen, sieben bleiben unverändert ausgelassen. 176 Datenbankprüfungen bestehen
+einschließlich des Erhalts von Inseraten und Bewertungen beim Gesprächsabruf.
+Worker-Typprüfung, Bau und gezieltes ESLint bestehen. Der Einzelabruf benötigt
+im Test drei Anbieteranfragen statt sechs; echte Laufzeiten und Artikeldaten
+sind nach Veröffentlichung zu prüfen.
+
 ## 2026-10-08 - Juna - Erledigte Cloud-Anmeldewarnung automatisch entfernen
 
 **Auftrag:** Nach erfolgreich bestätigter Vinted-Anmeldung darf die alte
