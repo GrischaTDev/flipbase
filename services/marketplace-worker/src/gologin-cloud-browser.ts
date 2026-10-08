@@ -12,6 +12,10 @@ import {
   type VintedListingEditFields,
   type VintedEditResult,
 } from './vinted-browser-listing-edit.ts';
+import type {
+  MarketplaceMessageCommand,
+  MarketplaceMessageResult,
+} from '../../../supabase/functions/_shared/marketplace-message-contracts.d.ts';
 
 export type BrowserConnection = Pick<Browser, 'close' | 'version'> &
   Partial<Pick<Browser, 'contexts' | 'newBrowserCDPSession'>>;
@@ -22,6 +26,11 @@ export interface BrowserDragPoint {
 }
 
 export interface BrowserInfo extends Pick<Browser, 'version'> {
+  sendMessage?(
+    accountId: string,
+    command: MarketplaceMessageCommand,
+    authorize: () => Promise<void>,
+  ): Promise<MarketplaceMessageResult>;
   capture?(): Promise<Uint8Array>;
   click?(xRatio: number, yRatio: number): Promise<void>;
   drag?(points: BrowserDragPoint[]): Promise<void>;

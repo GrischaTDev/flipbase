@@ -1,5 +1,26 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-08 - Juna - Gemeinsames Cloud-Postfach umsetzen
+
+**Auftrag:** Den bestätigten Postfachplan ausführen, einschließlich Cloud-Versand,
+Benachrichtigungen und vorhandener Favoritenregeln.
+
+**Zwischenstand:** Hauptzweig integriert. Lesende Prüfung am gebundenen Testprofil:
+Preisvorschlag und Textnachricht erscheinen in der Gesprächsliste, aber nicht als
+Nachrichtenereignisse in Vinteds Benachrichtigungsliste. Die Liste selbst liefert
+keine stabile Nachrichtenkennung oder Absenderrichtung. Ungelesene Details bleiben
+geschlossen; die Quellenprüfung ist offen und ein Parser wird nicht auf Vermutung
+freigeschaltet.
+
+**Umsetzung:** Gemeinsamer Nachrichtenvertrag und Browseradapter für einen
+autorisierungsgebundenen Replyversuch. Eindeutiger Textnachweis ist erforderlich;
+Bildbelege und verlorene Antworten bleiben unklar. Dieser Adapter ist noch nicht
+mit Cloud-Aufträgen oder der Oberfläche verbunden und nicht veröffentlicht.
+
+**Prüfstand:** 15 neue Versandregressionen und die bisherigen Worker-Tests bestehen
+(365 bestanden, sieben unverändert ausgelassen). Worker-Bau und Typprüfung bestehen;
+weitere Integrationsschritte und Echtkonto-Abnahme stehen aus.
+
 ## 2026-10-08 - Juna - Gemeinsamen Cloud-Postfachausbau planen
 
 **Auftrag:** Nach Bestätigung des schriftlichen Entwurfs den Umsetzungsplan
@@ -108,6 +129,7 @@ ebenfalls mit diesen Datenbanktests geprüft. Typprüfung, Produktionsbau,
 gezieltes ESLint, Formatierung und Migrations-/Schemaregistrierungstests
 bestehen; neu erzeugte API-Typen sind unverändert. Die Veröffentlichung
 steht noch aus.
+
 ## 2026-10-08 - Juna - Falsche Beta-Umleitung beim Tabwechsel verhindern
 
 **Auftrag:** Die gelegentliche Umleitung eines Administrators auf `beta-ended`

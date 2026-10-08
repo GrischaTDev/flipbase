@@ -12,6 +12,7 @@ import { submitVintedLogin } from './vinted-browser-login.ts';
 import { submitVintedVerificationCode } from './vinted-browser-verification.ts';
 import { readVintedListingEdit, updateVintedListing } from './vinted-browser-listing-edit.ts';
 import { readVintedProfileAbout, updateVintedProfileAbout } from './vinted-browser-profile-edit.ts';
+import { sendVintedMessage } from './vinted-browser-messages.ts';
 
 export function currentVintedPage(connection: BrowserConnection): Page {
   const page = connection
@@ -52,6 +53,8 @@ export function vintedBrowserActions(
 ): BrowserInfo {
   const currentPage = () => currentVintedPage(connection);
   return {
+    sendMessage: (accountId, command, authorize) =>
+      sendVintedMessage(currentPage(), accountId, command, authorize),
     version: () => connection.version(),
     capture: () =>
       desktop?.capture() ??
