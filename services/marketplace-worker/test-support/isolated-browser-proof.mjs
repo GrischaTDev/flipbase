@@ -49,6 +49,28 @@ async function start(profileId) {
   );
   return handle;
 }
+async function stop(handle, profileId) {
+  try {
+    await handle.close();
+  } catch (error) {
+    const { stdout } = await execute('docker', [
+      'ps',
+      '--all',
+      '--quiet',
+      '--no-trunc',
+      '--filter',
+      `label=de.flipbase.chromium.profile=${profileId}`,
+    ]);
+    if (stdout.trim()) {
+      const { stdout: metadata } = await execute('docker', ['inspect', stdout.trim()]);
+      const state = JSON.parse(metadata)[0].State;
+      process.stdout.write(
+        `${JSON.stringify({ event: 'unconfirmed_stop', profileId, status: state.Status, exitCode: state.ExitCode, running: state.Running, oomKilled: state.OOMKilled })}\n`,
+      );
+    }
+    throw error;
+  }
+}
 const handle = await start(first);
 const id = await container(first);
 // Auch ein vollständig übernommener Sitzungsprozess erhält keinen externen CDP-Zugang.
@@ -96,7 +118,7 @@ const { stdout: stats } = await execute('docker', [
   id,
 ]);
 process.stdout.write(`${stats.trim()}\n`);
-await handle.close();
+await stop(handle, first);
 await assert.rejects(handle.run((browser) => browser.identify()));
 assert.deepEqual(await client.inspectProfileProcesses(`${profileRoot}/${first}`), []);
 const other = await start(second);
@@ -106,7 +128,7 @@ await inside(
   otherId,
   `import assert from'node:assert/strict';const{chromium}=await import('playwright');const browser=await chromium.connectOverCDP('http://127.0.0.1:9223',{noDefaults:true});assert.equal((await browser.contexts()[0].cookies()).some(cookie=>cookie.name==='fixture_marker'),false);process.exit(0);`,
 );
-await other.close();
+await stop(other, second);
 const resumed = await start(first);
 const resumedId = await container(first);
 assert.notEqual(resumedId, id);
@@ -114,7 +136,7 @@ await inside(
   resumedId,
   `import assert from'node:assert/strict';const{chromium}=await import('playwright');const browser=await chromium.connectOverCDP('http://127.0.0.1:9223',{noDefaults:true});assert.equal((await browser.contexts()[0].cookies()).find(cookie=>cookie.name==='fixture_marker')?.value,'persistent');process.exit(0);`,
 );
-await resumed.close();
+await stop(resumed, first);
 process.stdout.write(
   'Isolierte Aktionen, Profilpersistenz, frische Kontowechsel und fehlende globale Rechte bestätigt.\n',
 );
