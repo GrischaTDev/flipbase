@@ -1,0 +1,181 @@
+<div class="space-y-4">
+  <app-page-header
+    title="Referenzmarken"
+    subtitle="Zentrale Marken und Markenlinien für das Label-Lexikon. Deine Workspace-Stammdaten bleiben unverändert."
+  >
+    <div header-actions>
+      <app-button
+        variant="primary"
+        [icon]="plusIcon"
+        [disabled]="view().phase !== 'ready' || !!editor()"
+        (clicked)="beginBrand()"
+        >Marke hinzufügen</app-button
+      >
+    </div>
+  </app-page-header>
+  @if (view().phase === 'unavailable') {
+    <p role="status" class="text-sm text-fb-text-muted">
+      Die Markenpflege ist nur für Flipbase-Plattformbetreiber verfügbar.
+    </p>
+  } @else {
+    @if (message(); as text) {
+      <p role="status" class="text-sm text-fb-success">{{ text }}</p>
+    }
+    <app-data-table
+      ariaLabel="Referenzmarken und Markenlinien"
+      [searchValue]="search()"
+      (searchValueChange)="search.set($event)"
+      searchPlaceholder="Marke oder Markenlinie suchen …"
+      searchAriaLabel="Referenzmarken durchsuchen"
+      [loading]="view().phase === 'loading'"
+      [errorMessage]="view().error"
+      [hasRows]="visibleBrands().length > 0"
+      emptyTitle="Keine Referenzmarken gefunden"
+      emptyText="Lege eine Referenzmarke an oder ändere Deine Suche."
+    >
+      <div table-error-action class="mt-3">
+        <app-button (clicked)="reload()">Erneut laden</app-button>
+      </div>
+      <div table-content class="overflow-x-auto">
+        <table class="w-full text-left text-[13px]">
+          <thead class="border-b border-fb-line bg-fb-well text-fb-text-muted">
+            <tr>
+              <th scope="col" class="px-4 py-3">Marke</th>
+              <th scope="col" class="px-4 py-3">Markenlinien</th>
+              <th scope="col" class="px-4 py-3 text-right">Aktionen</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-fb-line">
+            @for (brand of visibleBrands(); track brand.id) {
+              <tr>
+                <td class="px-4 py-3 align-top">
+                  <span class="font-medium text-fb-text-primary">{{ brand.name }}</span>
+                  @if (brand.archived) {
+                    <app-badge tone="neutral">Archiviert</app-badge>
+                  }
+                  @if (brand.aliases.length) {
+                    <p class="mt-1 text-fb-text-muted">{{ brand.aliases.join(', ') }}</p>
+                  }
+                </td>
+                <td class="px-4 py-3 align-top">
+                  <ul class="space-y-2">
+                    @for (line of brand.lines; track line.id) {
+                      <li class="flex items-center justify-between gap-2">
+                        <span
+                          >{{ line.name }}
+                          @if (line.archived) {
+                            <app-badge tone="neutral">Archiviert</app-badge>
+                          }
+                        </span>
+                        <app-button
+                          variant="table-action"
+                          [iconOnly]="true"
+                          [icon]="editIcon"
+                          [ariaLabel]="line.name + ' bearbeiten'"
+                          [disabled]="brand.archived || line.archived || !!editor()"
+                          (clicked)="beginLine(brand, line)"
+                        />
+                      </li>
+                    } @empty {
+                      <li class="text-fb-text-muted">Noch keine Markenlinien</li>
+                    }
+                  </ul>
+                </td>
+                <td class="px-4 py-3 text-right align-top">
+                  <div class="flex justify-end gap-1">
+                    <app-button
+                      variant="table-action"
+                      [iconOnly]="true"
+                      [icon]="plusIcon"
+                      [ariaLabel]="'Markenlinie für ' + brand.name + ' hinzufügen'"
+                      [disabled]="brand.archived || !!editor()"
+                      (clicked)="beginLine(brand)"
+                    />
+                    <app-button
+                      variant="table-action"
+                      [iconOnly]="true"
+                      [icon]="editIcon"
+                      [ariaLabel]="brand.name + ' bearbeiten'"
+                      [disabled]="brand.archived || !!editor()"
+                      (clicked)="beginBrand(brand)"
+                    />
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </app-data-table>
+  }
+</div>
+@if (editor(); as current) {
+  <app-modal-shell
+    [title]="
+      current.kind === 'brand'
+        ? current.id
+          ? 'Marke bearbeiten'
+          : 'Marke hinzufügen'
+        : current.id
+          ? 'Markenlinie bearbeiten'
+          : 'Markenlinie hinzufügen'
+    "
+    [subtitle]="current.brandName"
+    size="md"
+    (closed)="close()"
+  >
+    <form id="label-brand-form" [formGroup]="form" (ngSubmit)="save()" class="space-y-4">
+      <app-text-field
+        label="Name"
+        [formControl]="form.controls.name"
+        [required]="true"
+        [maxLength]="160"
+      />
+      @if (current.kind === 'brand') {
+        <app-text-field
+          label="Kurzbezeichnung für Links"
+          [formControl]="form.controls.slug"
+          [required]="true"
+          [maxLength]="80"
+          helpText="Kleinbuchstaben, Zahlen und Bindestriche, zum Beispiel ralph-lauren. Bei verwendeten Marken bleibt diese Adresse fest."
+        />
+        <app-text-field
+          label="Alternative Namen"
+          [formControl]="form.controls.aliases"
+          [multiline]="4"
+          helpText="Ein Name pro Zeile. Höchstens 20 Namen mit jeweils 80 Zeichen."
+        />
+      }
+      <p class="text-sm text-fb-text-muted">
+        Diese Änderung passt keine bereits veröffentlichten Labeltexte an.
+      </p>
+      @if (view().actionError; as error) {
+        <p role="alert" class="text-sm text-fb-critical">{{ error }}</p>
+      }
+      @if (unresolved() && !saving()) {
+        <div class="space-y-2">
+          <p class="text-sm text-fb-text-muted">
+            Die Antwort fehlt. Deine ursprünglichen Angaben bleiben für eine sichere Wiederholung
+            erhalten.
+          </p>
+          <app-button (clicked)="retry()">Ursprünglichen Auftrag wiederholen</app-button>
+          <app-button (clicked)="reload()">Serverstand neu laden</app-button>
+        </div>
+      }
+      @if (view().conflict) {
+        <app-button (clicked)="reload()">Aktuellen Stand neu laden</app-button>
+      }
+    </form>
+    <div modal-footer class="flex gap-2">
+      <app-button [disabled]="saving() || unresolved()" (clicked)="close()">Abbrechen</app-button>
+      <app-button
+        type="submit"
+        formId="label-brand-form"
+        variant="primary"
+        [loading]="saving()"
+        [disabled]="unresolved() || view().conflict"
+        >Speichern</app-button
+      >
+    </div>
+  </app-modal-shell>
+}

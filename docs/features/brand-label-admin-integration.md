@@ -1,98 +1,98 @@
-# Marken & Labels: Admin-Schnittstellen
+# Marken & Labels: Admin-Schnittstellen und Markenpflege
 
 Stand: 08.10.2026. Assistent: Juna. Fortsetzung von PR #331.
 
-## Übertragener Umfang
+## Aktueller Umfang
 
-Globale Referenzmarken und ihre Linien für Plattformbetreiber laden,
-Referenzen nach Bearbeitungsstand durchsuchen, gespeicherte Entwürfe und
-Veröffentlichungen ohne Schreibnebenwirkung öffnen sowie Markenlinien
-anlegen und umbenennen. Nutzer und Workspace-Admins erhalten keinen Zugang.
+Die sechs Dateien der Markenverwaltung enthalten jetzt eine implementierte
+Angularseite mit Shared-Tabelle, Suche und Bearbeitungsdialogen, einen
+validierenden Datenadapter und Tests. Plattformbetreiber können Referenzmarken
+mit Alternativnamen sowie zugehörige Markenlinien anlegen und umbenennen.
+Workspace-Stammdaten bleiben getrennt. Archivierte Marken und Linien werden
+angezeigt, aber noch nicht über diese Oberfläche archiviert oder wiederhergestellt.
 
-Die SQL-Implementierung ist in Commit `9b411ec` enthalten. Sie bleibt unter
-`supabase/test-support/brand-label-candidate` und ist keine registrierte
-Release-Migration. Es gibt weiterhin keine nutzbare Adminoberfläche.
+Die Seite ist bewusst noch nicht in App-Routing und Hauptnavigation eingebunden.
+Sie ersetzt nicht den ausstehenden Labeleditor und bietet keine Bildverwaltung.
+Die zugrunde liegenden SQL-Funktionen bleiben Schemakandidaten, nicht produktiv
+bereitgestellte Endpunkte. Das Gesamtfeature bleibt Entwurf.
 
-## Entscheidungen und Schnittstellen
+## Bearbeitungs- und Rechteverhalten
 
-- `list_label_admin_brands()` liefert Marken samt Linien, Kennungen,
-  Versionsnummern und Archivstatus. Auch archivierte Stammdaten bleiben
-  für den Betreiber sichtbar.
-- `list_label_admin_references(p_filter, p_offset)` erwartet exakt
-  `brandId`, `state` und `search`. Zustände: `all`, `draft`, `review`,
-  `published`, `unpublished`, `archived`. Seiten enthalten 24 Referenzen
-  in absteigender Kennungsreihenfolge. Der Archivstatus hat Vorrang vor
-  einem noch vorhandenen Entwurf; die Veröffentlichung bleibt separat
-  erkennbar.
-- `get_label_admin_reference(p_reference_id)` lädt Entwurf und aktuelle
-  Veröffentlichung getrennt. Lesen erzeugt keine neue Revision und
-  keinen Änderungsauftrag. Unbekannte Kennungen liefern JSON-null.
-- `save_label_brand_line(p_id, p_expected_version, p_input, p_request_id)`
-  erwartet `brandId` und `name`. Es verwendet dieselbe Rechteprüfung,
-  Versionskontrolle und Wiederholungskennung wie die vorhandene Redaktion.
-  Die Referenzmarke einer bestehenden Linie bleibt unveränderlich.
+Nur der bestehende Supabase-Client wird verwendet. Der Adapter übergibt keine
+Nutzerrolle oder Workspace-Schreibfreigabe. Die SQL-Funktionen prüfen weiterhin
+die aktuelle Plattformbetreiberrolle.
 
-Entscheidung: Eine Linienumbenennung verändert keine historische
-Veröffentlichung. Die dort gespeicherte Bezeichnung bleibt erhalten.
-Archivierung und Wiederherstellung von Markenlinien sind nicht Teil
-dieses Schritts; archivierte Linien werden nicht beim Speichern reaktiviert.
+Speicheraufträge halten Eingaben, Versionsnummer und Vorgangskennung unveränderlich
+fest. Doppelklicks erzeugen keinen zweiten Auftrag. Eine unklare Antwort wird nicht
+automatisch wiederholt; eine ausdrückliche Wiederholung nutzt denselben Auftrag.
+Widersprüchliche Serverantworten gelten nicht als bestätigte Speicherung.
+Versionskonflikte erhalten lokale Eingaben und verlangen Nachladen.
 
-## Nachgewiesener SQL-Testlauf
+Bei Nutzer-, Workspace- oder Rollenwechsel verschwinden alte Daten und Dialoge.
+Verspätete Antworten dürfen den neuen Kontext nicht überschreiben. Auch ein
+serverseitiger Rechteentzug leert den Editor. Schließen und Nachladen schützen
+ungespeicherte Werte; bei unbestätigter Speicherung bleibt der Dialog offen.
+Vor dem Schließen des Browserfensters wird bei offenen Änderungen gewarnt.
+Der vorhandene Unsaved-Guard muss bei der späteren Routeneinbindung gesetzt werden.
 
-Der erste Testcommit `1f7b111` enthielt bewusst noch keine Implementierung.
-Im [ersten Prüflauf](https://github.com/GrischaTDev/flipbase/actions/runs/37761777261)
-schlug die neue Zusicherung zur fehlenden Admin-Markenabfrage erwartungsgemäß
-fehl. Nach der Implementierung besteht der
-[SQL-Prüflauf](https://github.com/GrischaTDev/flipbase/actions/runs/37762122304)
-auf PostgreSQL 17.11 mit **227 Zusicherungen, davon 62 neu**, zusätzlich zu
-beiden Regressionstests des Testläufers.
+Veröffentlichte Labeltexte werden durch Marken- oder Linienumbenennung nicht
+rückwirkend verändert. Die Oberfläche zeigt diese Abgrenzung ausdrücklich.
 
-Nachgewiesen sind unter anderem Rollenentzug, keine Rechte durch editierbare
-Nutzermetadaten, Versionskonflikte, unveränderliche Markenlinienzuordnung,
-keine Dubletten durch wiederholte Aufträge und keine neue Revision beim
-reinen Öffnen eines Eintrags. Die Adminliste unterscheidet Bearbeitungsstände
-und liefert eine zweite Seite bei mehr als 24 Treffern.
+## Tests dieser Fortsetzung
 
-Der Testläufer behält seine Isolierung: neuer zufälliger Container,
-keine veröffentlichten Ports, keine Host-Volumes, keine Produktivdaten.
-Vereinfachte Auth-/Workspace-Fixtures und synthetische Revisionsdaten
-beweisen keine vollständige Supabase-, PostgREST- oder Storage-Integration.
-Keine Workflowänderung und keine Lockerung bestehender Tabellenrechte.
+Die zuvor begonnenen Tests wurden zunächst gegen die fehlende Implementierung
+ausgeführt: 27 von 29 Modelltests und nach Auflösung externer Vorlagen zehn von
+elf Seitentests schlugen fehl. Die frühere Angabe von 35 Modelltests war falsch.
+Danach wurden Adapter und Oberfläche implementiert und acht Interaktionstests ergänzt.
 
-## Abgebrochene Oberflächenintegration
+Auf einer eigenen Kopie von PR-Head `ce038670` mit ausschließlich diesen sechs
+neuen Dateien bestehen **358 Modelltests und 53 Angulartests**. Darin enthalten
+sind **29 neue Modelltests und 19 Adminseitentests**. Die Seitentests rendern
+die echte externe Vorlage und Shared-Komponenten, betätigen Buttons, ändern
+Formularfelder, senden das Formular ab und prüfen Suche, Dialog und Rechteentzug.
+Die bestehende JIT-Testumgebung erhält dafür explizite Signal-Metadaten nur im
+Test und stellt sie danach wieder her.
 
-Commit `f6c8de4` enthielt zuerst neue Vertragsprüfungen und ausdrückliche
-Implementierungsplatzhalter für die Markenverwaltung. Im
-[ersten Frontend-Prüflauf](https://github.com/GrischaTDev/flipbase/actions/runs/37763486990)
-schlugen alle 35 neuen Modellprüfungen an diesen Platzhaltern fehl, während
-die bestehenden 329 Modellprüfungen bestanden. Das war kein erfolgreicher
-Frontend-Testlauf. Ein erfolgreicher Lauf der neuen Angularseite liegt
-nicht vor.
+Projekt-Typprüfung, Angular-Vorlagenkompilierung (`ngc --noEmit`), gezieltes Lint,
+Formatierung der neuen Dateien und Shared-UI-Architekturprüfung bestehen lokal.
+Dies ist keine Browser-, AXE- oder vollständige Supabase-Abnahme.
+Ein unabhängiges Review wurde nicht ausgeführt.
 
-Die anschließende Übertragung des Markenadapters wurde durch die
-Werkzeug-Sicherheitsprüfung blockiert. Die Blockierung wurde nicht über
-einen anderen Schreibweg umgangen. Statt unimplementierten Produktcode
-zurückzulassen, stellt Commit `a9f99f4` den vollständigen, zuvor geprüften
-SQL-Stand wieder her. Die sechs Dateien der begonnenen Oberflächenintegration
-sind daher nicht im aktuellen Branchbaum enthalten; sie bleiben lediglich
-in der nachvollziehbaren Commit-Historie.
+Der lokale CLI-Produktionsbau endet vor dem Bau mit Exit 3: Node 22.16.0 erfüllt
+die von der Projekt-CLI verlangte Mindestversion nicht. Diese Prüfung wurde
+nicht umgangen. Ein erfolgreicher Produktionsbau muss aus der Projekt-CI kommen.
 
-## Ausführungsumgebung und offene Arbeit
+## Formatierung und Übertragung
 
-Die lokale Ausführungsumgebung antwortete vor dem Programmstart mit
-`ClientError`. In dieser Sitzung wurden deshalb keine lokalen Typ-,
-Format-, Build- oder Browsertests ausgeführt. Die vorhandenen CI-Prüfungen
-sind davon getrennt zu betrachten. Die ältere Formatblockade im PR ist
-nicht behoben; ein vollständiger grüner Qualitäts- oder Produktionsbau
-ist nicht nachgewiesen.
+Die zwölf älteren Formatfehler sind lokal mit dem festgelegten Projektformatter
+korrigiert. Der vollständige lokale Formatlauf besteht; ein Syntaxbaumvergleich
+bestätigt unveränderte Logik einschließlich Tests. Der ursprüngliche Vergleich
+der gedruckten JavaScript-Ausgabe war wegen verbleibender Layoutunterschiede
+nicht aussagekräftig.
 
-Die vorher blockierten Änderungen an Editorsteuerung, Formatierung und
-Workflow wurden nicht über einen anderen Schreibweg übertragen. Ein
-zentraler Changelog-Eintrag muss im vollständigen Checkout ergänzt werden;
-dessen vorhandene Historie wird nicht durch einen Teilabruf ersetzt.
+Die Übertragung dieser Formatkorrekturen wurde von der Werkzeug-Sicherheitsprüfung
+blockiert. Sie sind nicht Bestandteil des neuen Markenverwaltungsbaums und
+werden nicht über einen anderen Schreibweg übertragen. Deshalb ist die
+vollständige Formatprüfung im PR weiterhin offen. Der zentrale Sitzungseintrag
+liegt im lokalen, vollständig erhaltenen AI-Changelog und im Ergänzungspatch.
 
-Offen bleiben die sichtbare Adminoberfläche samt geprüfter Formularanbindung,
-Markenlinienarchivierung, vollständige Supabase- und Bildintegration,
-generierte Migrationen, API-Typen, Navigation sowie technische und visuelle
-Abnahme. Die Codeprüfung war ein Selbstreview, kein unabhängiges Review.
-Keine Leserfreigabe, kein Merge, kein Deployment.
+## Bereits geprüfte SQL-Kandidaten
+
+Commit `9b411ec` enthält `list_label_admin_brands`,
+`list_label_admin_references`, `get_label_admin_reference` und
+`save_label_brand_line`. Der frühere isolierte PostgreSQL-17.11-Lauf besteht
+mit 227 Zusicherungen und zwei Runner-Tests. Die SQL-Dateien wurden in dieser
+Fortsetzung nicht verändert und nicht lokal erneut ausgeführt.
+
+Listen und Details lesen ohne Schreibnebenwirkung; Markenlinien werden
+versionsgesichert angelegt und umbenannt. Alte Veröffentlichungen behalten
+ihre gespeicherten Namen. Die vereinfachten Testkonten und Bildmetadaten
+ersetzen keine vollständige Auth-, PostgREST-, Storage- oder Decoderprüfung.
+
+## Vor einer Freigabe offen
+
+Vollständiger Labeleditor und Redaktionsübersicht, Marken-/Linienarchivierung,
+geschützte Bildverarbeitung und Bildrechtepflege, registrierte Schemata und
+erzeugte Migrationen samt API-Typen, Routing mit Unsaved-Guard, Navigation,
+visuelle und unabhängige Abnahme sowie redaktionell freigegebene Nike-Referenzen.
+Keine Produktivdaten geändert, kein Merge und kein Deployment.
