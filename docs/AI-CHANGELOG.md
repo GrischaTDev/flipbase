@@ -29,8 +29,11 @@ Mit der Korrektur bestehen 22 gezielte Tests einschließlich echter Vorlage,
 historischem Fehler nach Neuladen, späterer globaler Pause und Statusfehler.
 Der neue Hinweis besteht die automatisierte AXE-Prüfung. Typprüfung, gezieltes
 ESLint, Formatierung, Suite-Audit, Shared-UI-Prüfung und Produktionsbau bestehen.
-Die bestehende CommonJS-Warnung für `pako` bleibt. Die Anzeigekorrektur ist
-bis zur Veröffentlichung nur lokal geprüft.
+Die bestehende CommonJS-Warnung für `pako` bleibt. PR #344 ist nach erfolgreichen
+Pflichtprüfungen einschließlich Browser-Smoke gemergt und als v0.310.4
+veröffentlicht. Die öffentliche Commitprüfung und die angemeldete Filterseite
+bestätigen den neuen Stand. Bis 13:50 Uhr bestehen 100 automatische Adidas-Abrufe
+mit 1.873 neuen Artikeln ohne Fehler. Der Bot wird beim Webrelease nicht neu gestartet.
 
 ## 2026-10-08 - Juna - Ausbleibenden Vinted-Feed live untersuchen und freigeben
 
@@ -386,6 +389,27 @@ der Zeitplan ist jetzt wegen `needs_login` angehalten und hat Berechtigungsversi
 Der aktuelle `origin/master` mit den unabhängig veröffentlichten Botänderungen
 wird übernommen; ausschließlich dieses Protokoll kollidiert. Alle Einträge beider
 Sitzungen bleiben erhalten, persönliches Cloudprofil und Botprofil bleiben getrennt.
+
+## 2026-10-07 - Juna - Vinted-Browserrelease produktiv abnehmen
+
+**Abschluss:** PR #333 und die Profilkorrektur #334 sind nach erfolgreichen
+Pflichtprüfungen gemergt. Version v0.309.4 ist einschließlich Produktionsbau,
+Image-Smoke und öffentlicher Versionsprüfung erfolgreich veröffentlicht.
+Bei der Abnahme am 07.10. läuft der neue Bot seit 16:26 Uhr mit seinem eigenen Chrome-Profil und sammelt
+über 35 Minuten regulär Artikel ohne fehlgeschlagene Abrufe.
+
+**Servervorbereitung:** Die private Browser-API war vom Caddy-Container durch
+die bestehende Host-Firewall nicht erreichbar. Nach Prüfung der tatsächlichen
+Container-IP, Bridge und Gateway sowie privater Sicherung der Regeln erlaubt
+UFW ausschließlich diesem Container den internen Port 8081. Der öffentliche
+Statusendpunkt antwortet ohne Anmeldung jetzt mit 401 statt 502. Die
+Releaseanleitung enthält diese Voraussetzung und den Abgleich bei Netzwechseln.
+
+**Live-Abnahme:** Der angemeldete Adminbereich zeigt „Vinted verbunden“, null
+abgewiesene Anfragen in der letzten Minute und keine Fehlermeldung am aktiven
+Markenfilter. Der Container ist gesund; der Webrelease hat ihn nicht neu
+gestartet. Eine manuelle Prüfsitzung war im laufenden Betrieb nicht nötig;
+deren Freigabe- und Abbruchverhalten wurde lokal und in CI geprüft.
 
 ## 2026-10-07 - Juna - Botprofil ohne passenden Host-Benutzer anlegen
 
