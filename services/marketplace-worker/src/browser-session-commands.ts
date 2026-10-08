@@ -42,6 +42,10 @@ export class BrowserSessionCommands {
         request.operation,
         () => this.pause(pending, 'authorize'),
         (stage) => this.pause(pending, 'stage', stage),
+        async (original, offered) => {
+          await this.pause(pending, 'offer_price', undefined, { original, offered });
+          return true;
+        },
       )
         .then((value) => {
           if (Buffer.byteLength(JSON.stringify(value) ?? '') > browserCommandLimit)
@@ -99,8 +103,9 @@ export class BrowserSessionCommands {
   }
   private pause(
     pending: PendingAction,
-    kind: 'authorize' | 'stage',
+    kind: 'authorize' | 'stage' | 'offer_price',
     stage?: 'profile' | 'publications' | 'conversations' | 'sales',
+    price?: { original: number; offered: number },
   ): Promise<void> {
     if (pending.cancelled || this.pending !== pending)
       return Promise.reject(new Error('Browseraktion abgebrochen'));
@@ -120,9 +125,11 @@ export class BrowserSessionCommands {
       pending.sequence += 1;
       this.publish(
         pending,
-        kind === 'stage' && stage
-          ? { kind, sequence: pending.sequence, stage }
-          : { kind: 'authorize', sequence: pending.sequence },
+        kind === 'offer_price' && price
+          ? { kind, sequence: pending.sequence, ...price }
+          : kind === 'stage' && stage
+            ? { kind, sequence: pending.sequence, stage }
+            : { kind: 'authorize', sequence: pending.sequence },
       );
     });
   }

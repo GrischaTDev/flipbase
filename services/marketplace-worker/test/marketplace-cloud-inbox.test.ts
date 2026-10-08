@@ -6,6 +6,8 @@ import { MarketplaceMessageRunner } from '../src/marketplace-message-runner.ts';
 import { SupabaseMarketplaceMessageStore } from '../src/supabase-marketplace-message-store.ts';
 import { sendVintedMessage } from '../src/vinted-browser-messages.ts';
 import { parseVintedInboxEvents } from '../src/vinted-inbox-events.ts';
+import { BrowserSessionCommands } from '../src/browser-session-commands.ts';
+import { isolatedBrowserActions } from '../src/isolated-browser-actions.ts';
 
 const identifier = (suffix: number) =>
   `20000000-0000-4000-8000-${String(suffix).padStart(12, '0')}`;
@@ -105,16 +107,18 @@ function fixture(lostReply = false) {
       return Response.json({ ok: true });
     },
   });
+  const runtime = new BrowserSessionCommands({
+    version: () => 'fixture',
+    sendMessage: (account, command, authorize) =>
+      sendVintedMessage(page, account, command, authorize),
+  });
+  const isolated = isolatedBrowserActions({ request: (input) => runtime.request(input) });
   const runner = new MarketplaceMessageRunner(
     {
       open: async () => sessionId,
       run: async (_scope, id, operation) => {
         assert.equal(id, sessionId);
-        return operation({
-          version: () => 'fixture',
-          sendMessage: (account, command, authorize) =>
-            sendVintedMessage(page, account, command, authorize),
-        });
+        return operation(isolated);
       },
       close: async () => {
         lifecycle.push('closed');

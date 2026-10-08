@@ -2,89 +2,48 @@
 
 ## 2026-10-08 - Juna - Gemeinsames Cloud-Postfach umsetzen
 
-**Auftrag:** Den bestätigten Postfachplan ausführen, einschließlich Cloud-Versand,
-Benachrichtigungen und vorhandener Favoritenregeln.
+**Auftrag:** Gemeinsames Cloud-/Extensionpostfach mit Nachrichtenversand,
+Glockenmeldungen und ausdrücklich aktivierten Favoriten-/Angebotsregeln umsetzen.
 
-**Zwischenstand:** Hauptzweig integriert. Lesende Prüfung am gebundenen Testprofil:
-Preisvorschlag und Textnachricht erscheinen in der Gesprächsliste, aber nicht als
-Nachrichtenereignisse in Vinteds Benachrichtigungsliste. Die Liste selbst liefert
-keine stabile Nachrichtenkennung oder Absenderrichtung. Der anschließend ausdrücklich
-freigegebene GET einer Gesprächskopie erhält das Ungelesen-Flag im Testprofil.
-Preisvorschlag und Textnachricht liefern echte Kennungen, Absender und ISO-Zeiten.
-Der Webclient verwendet eine getrennte Gelesen-Markierung; diese wurde nicht aufgerufen.
+**Eingang:** Ein vom Nutzer freigegebener GET am Testkonto belegt echte
+Nachrichten-/Preisvorschlagskennungen, Richtung und ISO-Zeit. Ungelesen bleibt
+vorher/nachher erhalten; die separate Gelesen-Aktion wurde nicht aufgerufen.
+Cloud und Extension verwenden denselben anonymisierten Vertrag. Höchstens drei
+Gesprächskopien pro Lauf, ältere Prüfungen zuerst. Erstbestand und später geladene
+alte Historie bleiben still; fehlende oder widersprüchliche Belege erzeugen keine
+Glockenmeldung. Ereignisse werden atomar importiert, dedupliziert und über private
+Broadcasts angezeigt. Glockenlinks öffnen Konto und Gespräch; Markieren betrifft
+nur Flipbase. Alte Extension-Payloads bleiben gültig.
 
-**Eingangsvertrag:** Cloud und Extension parsen dieselbe anonymisierte Kopie ohne
-private Texte oder Nutzerkennungen. Eigene Nachrichten, Listenänderungen, fehlende
-Kennungen, unbekannte Absender und widersprüchliche Ereignisse erzeugen keine
-erfundenen Eingänge. Teilkopien setzen keinen vollständigen Referenzstand. Die
-Glockenanzeige für Nachricht und Preisvorschlag ist jetzt angebunden: Kontogespräch, vollständiger Zähler und eigene Lese-/Löschaktionen. Leser und dauerhafte Speicherung sind vorbereitet.
-Nicht veröffentlicht.
+**Versand:** Gemeinsamer Composer und Warteschlange, eigene Cloudfreigabe gebunden
+an Konto, Profil und Freigabeversion. Zentraler Dispatcher und bestehende
+Browsersperre führen manuelle Nachrichten vor Favoritenphasen aus. Claim/Begin/
+Finish prüfen Worker-Epoche und Konto. Ein Textversand braucht eine neue eigene
+externe Nachricht; Bildbelege, verlorene Antworten und unbestätigter Browserstopp
+bleiben unklar. Keine automatische Wiederholung eines begonnenen Versands.
 
-**Umsetzung:** Gemeinsamer Nachrichtenvertrag und Browseradapter für einen
-autorisierungsgebundenen Replyversuch. Eindeutiger Textnachweis ist erforderlich;
-Bildbelege und verlorene Antworten bleiben unklar. Dieser Adapter ist noch nicht
-mit Cloud-Aufträgen oder der Oberfläche verbunden und nicht veröffentlicht.
+**Favoriten:** Bestehende Vorlagen, Zeitfenster und Preisregeln gelten für beide
+Ausführer. Cloud-Aktivierung ist bewusst und bleibt standardmäßig aus. Gemeinsame
+Ereignis- und Preisprüfung, getrennte Nachrichten-/Angebotsphasen, Automatikpause
+und Widerruf bleiben verbindlich. Kein Angebot ohne bestätigte Nachricht und
+zentrale Preisfreigabe.
 
-**Prüfstand:** 15 neue Versandregressionen und die bisherigen Worker-Tests bestehen
-(365 bestanden, sieben unverändert ausgelassen). Worker-Bau und Typprüfung bestehen;
-weitere Integrationsschritte und Echtkonto-Abnahme stehen aus.
+**Integration:** Aktueller Hauptzweig mit isoliertem Browserdienst integriert.
+Nachrichten, Favoriten und Preisbestätigung laufen durch dessen festen
+Aktionstransport; Gesprächsartikel und versionierte Eingangsereignisse bleiben
+beim Transport erhalten. Kein zentraler Playwright-Zugriff hinzugefügt.
+Migrationen offiziell gegen isolierte Vorher/Nachher-Datenbanken erzeugt und
+angewendet; API-Typen aus der migrierten Datenbank erzeugt.
 
-**Datenbank:** Eigene Cloud-Schreibfreigabe, gemeinsame Nachrichten-RPCs und
-disjunkte Berechtigungen in der bestehenden Outbox ergänzt. Cloudclaims reservieren
-die vorhandene Browsersperre atomar. Profilwechsel und Widerruf stoppen wartende
-Aufträge; verspäteter Originalerfolg verhindert unbegonnene Wiederholungen.
-Migration mit dem offiziellen Supabase-Abgleich erzeugt, Rechte aus den
-Schemadateien übernommen und auf isolierter Datenbank geprüft: 324 Assertions
-einschließlich 47 neuer Cloudprüfungen. Generierte Typen, Typprüfung und
-Schema-/Migrationsregistrierung geprüft. Noch nicht veröffentlicht.
-
-**Worker-Anbindung:** Cloud-Nachrichten laufen jetzt über denselben Dispatcher und
-über eine eigene reservierte Browsersitzung. Claim, Start, Versandprüfung und
-Abschluss prüfen Konto, Freigabe und Worker-Epoche. Nach verlorenem Startnachweis
-oder unbestätigtem Browserstopp wird die Laufzeit gesperrt. Begonnene Aufträge
-bleiben bei unklarem Ergebnis unklar; nur unbegonnene, physisch beendete Claims
-können erneut warten. 391 Workerprüfungen bestehen, sieben bestehende Prüfungen
-bleiben ausgelassen; Bau, Typprüfung, ESLint und 328 DBassertions bestehen.
-Keine Veröffentlichung und kein Echtkonto-Versand durchgeführt.
-
-**Versandoberfläche:** Bestehendes Schreibfeld, Versandwarteschlange und bewusste
-Wiederholung unterstützen nun beide Betriebsarten. Cloud nutzt neutrale RPCs,
-eine eigene Freigabe und einen sichtbaren Widerruf; es weckt keine Extension.
-Betriebs-/Kontowechsel verwerfen verspätete Freigaben und erhalten Entwürfe.
-62 Angularprüfungen und fünf Modellprüfungen bestehen; Angular-Bau,
-Typprüfung, ESLint und Formatierung bestehen. Die Glockenanbindung fehlt noch.
-
-**Weitere Quellenprüfung:** Tatsächlich geladene Vinted-Webclientdateien belegen
-den Gateway-Nachrichtenabruf und getrennte Aufrufe zum Gelesenmarkieren.
-Gateway-Notifications enthalten ebenfalls nur 20/720. Die neue Gateway-
-Gesprächsliste liefert zwar UUIDs und Zeitpunkte, für dieses Legacy-Konto aber
-nur `legacy_last_message` mit Absender `0`; daraus werden keine Eingänge erfunden.
-Der Nutzer hat den kontrollierten GET bestätigt; das Ungelesen-Flag blieb erhalten.
-
-**Favoriten-Browseradapter vorbereitet:** Belegte Extension-Endpunkte für
-Favoritenantworten und Angebote übernommen. Der Adapter prüft aktiven Artikel,
-Empfänger, bestehende Gespräche über begrenzte Seiten und die bestätigte eigene
-Vorlagennachricht vor einem Angebot. Angebotspreise benötigen zusätzlich eine
-Serverbestätigung. Verlorene Create-/Offerantworten werden nicht wiederholt.
-Zehn neue Adapterprüfungen; 401 Workerprüfungen bestehen, sieben unverändert
-ausgelassen; Worker-Bau, Typprüfung, Formatierung und ESLint bestehen. Noch keine
-Favoriten-Cloud-RPCs, Worker-Verdrahtung oder Live-Sends; Aufgabe 7 bleibt offen.
-
-**Eingangsleser und Glockenspeicherung:** Cloud und Extension übernehmen belegte
-Eingänge im bestehenden atomaren Import. Drei begrenzte Gesprächskopien pro Lauf;
-ungelesene Gespräche werden auch bei unverändertem Zeitstempel geprüft. Die älteste
-geprüfte Kopie kommt zuerst, damit die Begrenzung andere Gespräche nicht verdrängt.
-Vorher/nachher bleibt ungelesen; eine unerwartete Änderung bricht den Abruf ab.
-Erstbestand und später geladene ältere Historie bleiben still. Neue Ereignisse
-werden dedupliziert, unbekannte Gesprächszuordnungen später aufgelöst und über
-private Broadcasts invalidiert. Alte Extension-Payloads bleiben gültig.
-Migration offiziell erzeugt und auf isolierter DB angewendet, Typen daraus erzeugt.
-249 DBassertions einschließlich 26 neuer Feed-/Scope-/Rollbackprüfungen, 410
-Workerprüfungen (sieben bisherige Skip), 126 Extensionprüfungen und 24 Deno-Prüfungen
-bestehen. Angular-Bau, Typen, ESLint und Worker-Dockerbau bestehen. Gemeinsame
-Vertragsdateien sind im Dockerbau enthalten. Extension 1.7.1 vorbereitet, keine
-registrierte Installation überschrieben. Glockenoberfläche und übrige
-Favoritenausführung bleiben offen; kein Release und kein Echtkonto-Versand.
+**Prüfstand:** 454 Workerprüfungen bestanden, sieben bestehende Skip; Worker-Bau
+und Typen bestehen. 591 Datenbankassertions einschließlich lokaler Nachrichten,
+Favoriten/Angebote, Feed, Import und Scheduler bestanden. 126 Extension- und
+24 Deno-Prüfungen bestanden. 100 gezielte Angularprüfungen und 16 Browserfälle
+für Cloud/Extension, Desktop/Mobilgerät und AXE bestanden. Produktionsbau und
+App-Typprüfung bestanden. Gesamt-Review und Veröffentlichung stehen aus.
+Die vorbereitete Extension 1.7.1 wurde noch nicht in der registrierten Installation
+ausgerollt. Kein Live-Versand, keine automatische Favoritenregel und kein Release.
+Echtkonto-Abnahme folgt nach Veröffentlichung; Bildbestätigung bleibt eingeschränkt.
 
 ## 2026-10-08 - Juna - Gemeinsamen Cloud-Postfachausbau planen
 

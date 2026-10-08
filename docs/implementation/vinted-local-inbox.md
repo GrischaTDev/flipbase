@@ -226,3 +226,23 @@ token_hash, expected_external_account_id)` ergänzt genau diese Installation;
 Regelmäßige Abgleiche werden nach dem echten lesenden Kontotest aktiviert.
 Bleams nomineller Fünf-Minuten-Takt ist die Ausgangshypothese für dieses spätere
 Betriebspaket; tatsächliche Abrufe, Laufzeit und Verbrauch werden dann gemessen.
+
+## Gemeinsamer Ausbau vom 08.10.2026
+
+Der bestätigte [Cloud-Postfachplan](../superpowers/plans/2026-10-08-vinted-cloud-inbox.md)
+ergänzt diesen ursprünglichen lokalen Vertrag. Cloud und Extension übernehmen
+jetzt belegte Eingangsdaten über denselben atomaren Import. Der ausdrücklich
+freigegebene Echtkonto-GET einer ungelesenen Gesprächskopie hat deren Ungelesen-Flag
+vorher/nachher erhalten. Drei begrenzte Kopien pro Lauf liefern echte Nachrichten-
+und Preisvorschlagskennungen; der Gelesen-Aufruf bleibt vom Eingangsabruf getrennt.
+
+Die Glocke führt zum richtigen Konto und Gespräch. Gemeinsamer Composer und
+Warteschlange bedienen beide Ausführer; Cloud benötigt eine eigene aktuelle
+Schreibfreigabe. Vorhandene Favoriten-/Angebotsregeln bleiben ausgeschaltet, bis
+Du sie bewusst aktivierst. Der isolierte Cloud-Browserdienst unterstützt diese
+Aktionen einschließlich zentraler Preisbestätigung.
+
+Lokale DB-, Worker-, Extension-, Angular- und Browserprüfungen bestehen. Die
+veröffentlichte Anwendung und registrierte Extension wurden noch nicht aktualisiert.
+Glockeneingang und Versand im Echtkonto müssen nach Veröffentlichung abgenommen
+werden. Ohne eindeutigen Bildnachweis bleibt ein Bildversand als unklar markiert.

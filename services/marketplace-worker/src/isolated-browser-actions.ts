@@ -1,4 +1,10 @@
 import type { BrowserInfo, BrowserDragPoint } from './gologin-cloud-browser.ts';
+import { isValidVintedMessageCommand } from './vinted-browser-messages.ts';
+import type {
+  MarketplaceMessageCommand,
+  MarketplaceFavoriteMessageCommand,
+  MarketplaceFavoriteOfferCommand,
+} from '../../../supabase/functions/_shared/marketplace-message-contracts.d.ts';
 import {
   VintedImportReadError,
   VintedImportRequestError,
@@ -20,6 +26,7 @@ export interface BrowserAction {
 export type BrowserActionEvent =
   | { kind: 'wait' }
   | { kind: 'authorize'; sequence: number }
+  | { kind: 'offer_price'; sequence: number; original: number; offered: number }
   | {
       kind: 'stage';
       sequence: number;
@@ -64,12 +71,91 @@ function fields(input: unknown) {
   };
 }
 
+function messageCommand(input: unknown): MarketplaceMessageCommand {
+  const command = commandRecord(input);
+  if (Object.keys(command).length !== 3 || !Object.hasOwn(command, 'attachment'))
+    throw new Error('Ungültiger Nachrichtenauftrag');
+  let attachment: MarketplaceMessageCommand['attachment'] = null;
+  if (command.attachment !== null) {
+    const photo = commandRecord(command.attachment);
+    if (
+      Object.keys(photo).length !== 3 ||
+      !['image/png', 'image/jpeg'].includes(String(photo.mimeType))
+    )
+      throw new Error('Ungültiges Nachrichtenbild');
+    attachment = {
+      name: text(photo.name, 120),
+      mimeType: photo.mimeType as 'image/png' | 'image/jpeg',
+      base64: text(photo.base64, 349528),
+    };
+  }
+  const parsed = {
+    externalConversationId: identifier(command.externalConversationId),
+    text: text(command.text, 5000),
+    attachment,
+  };
+  if (!isValidVintedMessageCommand(parsed)) throw new Error('Ungültiger Nachrichtenauftrag');
+  return parsed;
+}
+function favoriteCommand(input: unknown, offerPhase: false): MarketplaceFavoriteMessageCommand;
+function favoriteCommand(input: unknown, offerPhase: true): MarketplaceFavoriteOfferCommand;
+function favoriteCommand(
+  input: unknown,
+  offerPhase: boolean,
+): MarketplaceFavoriteMessageCommand | MarketplaceFavoriteOfferCommand {
+  const command = commandRecord(input);
+  const keys = [
+    'recipientId',
+    'itemId',
+    'text',
+    ...(offerPhase ? ['conversationId', 'transactionId', 'externalMessageId', 'offer'] : []),
+  ];
+  if (
+    Object.keys(command).length !== keys.length ||
+    keys.some((key) => !Object.hasOwn(command, key))
+  )
+    throw new Error('Ungültiger Favoritenauftrag');
+  const parsed = {
+    recipientId: identifier(command.recipientId),
+    itemId: identifier(command.itemId),
+    text: text(command.text, 2000),
+  };
+  if (
+    !parsed.text.trim() ||
+    [...parsed.text].some((character) => {
+      const code = character.charCodeAt(0);
+      return code < 32 && code !== 9 && code !== 10 && code !== 13;
+    })
+  )
+    throw new Error('Ungültiger Favoritentext');
+  if (!offerPhase) return parsed;
+  const offer = commandRecord(command.offer);
+  if (
+    Object.keys(offer).length !== 2 ||
+    (offer.type !== 'amount' && offer.type !== 'percentage') ||
+    typeof offer.value !== 'number' ||
+    !Number.isFinite(offer.value) ||
+    offer.value <= 0 ||
+    (offer.type === 'percentage' && offer.value > 50) ||
+    Math.abs(Math.round(offer.value * 100) - offer.value * 100) > 0.000001
+  )
+    throw new Error('Ungültiges Preisangebot');
+  return {
+    ...parsed,
+    conversationId: identifier(command.conversationId),
+    transactionId: identifier(command.transactionId),
+    externalMessageId: identifier(command.externalMessageId),
+    offer: { type: offer.type, value: offer.value },
+  };
+}
+
 /** Feste Aktionen statt übertragener Skripte oder zentral ausgewerteter Browserobjekte. */
 export async function executeBrowserAction(
   browser: BrowserInfo,
   input: unknown,
   authorize: () => Promise<void>,
   onStage: (stage: 'profile' | 'publications' | 'conversations' | 'sales') => Promise<void>,
+  confirmPrice: (original: number, offered: number) => Promise<boolean> = async () => false,
 ): Promise<unknown> {
   const action = commandRecord(input);
   if (
@@ -93,6 +179,10 @@ export async function executeBrowserAction(
     updateListing: [3],
     readProfileAbout: [1],
     updateProfileAbout: [3],
+    sendMessage: [2],
+    readFavoriteEvents: [1],
+    sendFavoriteMessage: [2],
+    sendFavoriteOffer: [2],
   };
   if (
     typeof action.name !== 'string' ||
@@ -102,6 +192,27 @@ export async function executeBrowserAction(
     throw new Error('Nicht erlaubte Browseraktion');
   await authorize();
   switch (action.name) {
+    case 'sendMessage':
+      return required(browser.sendMessage)(
+        identifier(argumentsList[0]),
+        messageCommand(argumentsList[1]),
+        authorize,
+      );
+    case 'readFavoriteEvents':
+      return required(browser.readFavoriteEvents)(identifier(argumentsList[0]), authorize);
+    case 'sendFavoriteMessage':
+      return required(browser.sendFavoriteMessage)(
+        identifier(argumentsList[0]),
+        favoriteCommand(argumentsList[1], false),
+        authorize,
+      );
+    case 'sendFavoriteOffer':
+      return required(browser.sendFavoriteOffer)(
+        identifier(argumentsList[0]),
+        favoriteCommand(argumentsList[1], true),
+        authorize,
+        confirmPrice,
+      );
     case 'initialize':
       await required(browser.initialize)();
       return null;
@@ -197,9 +308,19 @@ export async function executeBrowserAction(
         if (
           Object.keys(version).some(
             (key) =>
-              !['externalId', 'sourceUpdatedAt', 'detailCheckedAt', 'text', 'occurredAt'].includes(
-                key,
-              ),
+              ![
+                'externalId',
+                'sourceUpdatedAt',
+                'detailCheckedAt',
+                'text',
+                'occurredAt',
+                'itemId',
+                'itemTitle',
+                'itemImageUrl',
+                'itemPrice',
+                'itemCurrency',
+                'transactionStatus',
+              ].includes(key),
           )
         )
           throw new Error('Ungültiger Gesprächscache');
@@ -209,6 +330,28 @@ export async function executeBrowserAction(
           detailCheckedAt: text(version.detailCheckedAt, 64),
           text: version.text === null ? null : text(version.text),
           occurredAt: version.occurredAt === null ? null : text(version.occurredAt, 64),
+          ...Object.fromEntries(
+            [
+              'itemId',
+              'itemTitle',
+              'itemImageUrl',
+              'itemPrice',
+              'itemCurrency',
+              'transactionStatus',
+            ]
+              .filter((key) => version[key] !== undefined)
+              .map((key) => {
+                const value = version[key];
+                if (
+                  value !== null &&
+                  (key === 'itemPrice'
+                    ? typeof value !== 'number' || !Number.isFinite(value) || value < 0
+                    : typeof value !== 'string' || value.length > 2048)
+                )
+                  throw new Error('Ungültiger Artikelcache');
+                return [key, value];
+              }),
+          ),
         };
       });
       const target = argumentsList[1] === null ? undefined : commandRecord(argumentsList[1]);
@@ -315,6 +458,7 @@ export function isolatedBrowserActions(transport: BrowserCommandTransport): Brow
     argumentsList: unknown[],
     authorize: () => Promise<void> = async () => undefined,
     onStage?: (stage: 'profile' | 'publications' | 'conversations' | 'sales') => Promise<void>,
+    confirmPrice?: (original: number, offered: number) => Promise<boolean>,
   ): Promise<unknown> {
     await authorize();
     const started = commandRecord(
@@ -331,10 +475,24 @@ export function isolatedBrowserActions(transport: BrowserCommandTransport): Brow
           await authorize();
           continue;
         }
-        if (event.kind === 'authorize' || event.kind === 'stage') {
+        if (event.kind === 'authorize' || event.kind === 'stage' || event.kind === 'offer_price') {
           if (event.sequence !== sequence + 1 || sequence >= 10000)
             throw new Error('Ungültige Browserfreigabe');
           await authorize();
+          if (event.kind === 'offer_price') {
+            if (
+              name !== 'sendFavoriteOffer' ||
+              typeof event.original !== 'number' ||
+              typeof event.offered !== 'number' ||
+              !Number.isSafeInteger(event.original) ||
+              !Number.isSafeInteger(event.offered) ||
+              event.original <= 0 ||
+              event.offered <= 0 ||
+              event.offered >= event.original ||
+              !(await confirmPrice?.(event.original, event.offered))
+            )
+              throw new Error('Preisangebot nicht bestätigt');
+          }
           if (event.kind === 'stage') {
             const stage = ['profile', 'publications', 'conversations', 'sales'].find(
               (stage) => stage === event.stage,
@@ -357,6 +515,26 @@ export function isolatedBrowserActions(transport: BrowserCommandTransport): Brow
   }
   return {
     version: () => 'isolated-session-v1',
+    sendMessage: async (account, command, authorize) =>
+      (await run('sendMessage', [account, command], authorize)) as Awaited<
+        ReturnType<NonNullable<BrowserInfo['sendMessage']>>
+      >,
+    readFavoriteEvents: async (account, authorize) =>
+      (await run('readFavoriteEvents', [account], authorize)) as Awaited<
+        ReturnType<NonNullable<BrowserInfo['readFavoriteEvents']>>
+      >,
+    sendFavoriteMessage: async (account, command, authorize) =>
+      (await run('sendFavoriteMessage', [account, command], authorize)) as Awaited<
+        ReturnType<NonNullable<BrowserInfo['sendFavoriteMessage']>>
+      >,
+    sendFavoriteOffer: async (account, command, authorize, confirmPrice) =>
+      (await run(
+        'sendFavoriteOffer',
+        [account, command],
+        authorize,
+        undefined,
+        confirmPrice,
+      )) as Awaited<ReturnType<NonNullable<BrowserInfo['sendFavoriteOffer']>>>,
     initialize: async () => {
       await run('initialize', []);
     },
@@ -410,6 +588,55 @@ export function isolatedBrowserActions(transport: BrowserCommandTransport): Brow
 export function validateBrowserResult(name: BrowserActionName, input: unknown): unknown {
   if (Buffer.byteLength(JSON.stringify(input) ?? '') > browserCommandLimit)
     throw new Error('Browserantwort zu groß');
+  if (name === 'readFavoriteEvents') {
+    if (!Array.isArray(input) || input.length > 200)
+      throw new Error('Ungültige Favoritenereignisse');
+    for (const entry of input) {
+      const event = commandRecord(entry);
+      if (
+        Object.keys(event).length !== 4 ||
+        typeof event.externalId !== 'string' ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(event.externalId) ||
+        !Number.isFinite(Date.parse(text(event.eventAt, 64)))
+      )
+        throw new Error('Ungültiges Favoritenereignis');
+      identifier(event.actorId);
+      identifier(event.itemId);
+    }
+    return input;
+  }
+  if (name === 'sendMessage' || name === 'sendFavoriteMessage' || name === 'sendFavoriteOffer') {
+    const result = commandRecord(input);
+    const keys = [
+      'outcome',
+      'errorCode',
+      ...(name === 'sendFavoriteOffer'
+        ? ['externalOfferId']
+        : [
+            'externalMessageId',
+            ...(name === 'sendFavoriteMessage' ? ['conversationId', 'transactionId'] : []),
+          ]),
+    ];
+    if (
+      Object.keys(result).some((key) => !keys.includes(key)) ||
+      ![
+        'sent',
+        'failed',
+        'outcome_unknown',
+        ...(name === 'sendMessage' ? [] : ['skipped']),
+      ].includes(String(result.outcome))
+    )
+      throw new Error('Ungültiges Versandergebnis');
+    if (result.errorCode !== undefined && !/^[a-z_]{1,64}$/.test(text(result.errorCode, 64)))
+      throw new Error('Ungültiger Versandfehler');
+    for (const key of keys.filter((key) => key !== 'outcome' && key !== 'errorCode'))
+      if (result[key] !== undefined) identifier(result[key]);
+    if (result.outcome === 'sent') {
+      identifier(result[name === 'sendFavoriteOffer' ? 'externalOfferId' : 'externalMessageId']);
+      if (name === 'sendFavoriteMessage') identifier(result.conversationId);
+    }
+    return result;
+  }
   if (['initialize', 'click', 'drag', 'type', 'press'].includes(name)) {
     if (input !== null) throw new Error('Ungültige Browserantwort');
     return null;
@@ -459,6 +686,7 @@ export function validateBrowserResult(name: BrowserActionName, input: unknown): 
           'rejectedSaleIds',
           'sourceRequestCount',
           'browserReadFailures',
+          'inboxEvents',
         ].includes(key),
     ) ||
     !Array.isArray(snapshot.entries) ||
@@ -466,6 +694,35 @@ export function validateBrowserResult(name: BrowserActionName, input: unknown): 
   )
     throw new Error('Ungültiger Kontoabruf');
   identity(snapshot.identity);
+  if (snapshot.inboxEvents !== undefined) {
+    const batch = commandRecord(snapshot.inboxEvents);
+    if (
+      Object.keys(batch).length !== 5 ||
+      batch.version !== 1 ||
+      typeof batch.complete !== 'boolean' ||
+      !Number.isFinite(Date.parse(text(batch.observedAt, 64))) ||
+      !Array.isArray(batch.events) ||
+      batch.events.length > 600 ||
+      !Array.isArray(batch.coveredConversationIds) ||
+      batch.coveredConversationIds.length > 3 ||
+      Buffer.byteLength(JSON.stringify(batch)) > 200 * 1024
+    )
+      throw new Error('Ungültige Postfachereignisse');
+    batch.coveredConversationIds.forEach(identifier);
+    for (const entry of batch.events) {
+      const event = commandRecord(entry);
+      if (
+        Object.keys(event).length !== 5 ||
+        typeof event.externalId !== 'string' ||
+        !/^(?:message|offer_request_message):[1-9][0-9]{0,31}$/.test(event.externalId) ||
+        event.direction !== 'inbound' ||
+        event.source !== 'conversation_snapshot' ||
+        !Number.isFinite(Date.parse(text(event.occurredAt, 64)))
+      )
+        throw new Error('Ungültiges Postfachereignis');
+      identifier(event.externalConversationId);
+    }
+  }
   if (!Number.isFinite(Date.parse(text(snapshot.observedAt, 64))))
     throw new Error('Ungültiger Abrufzeitpunkt');
   for (const inputEntry of snapshot.entries) {
