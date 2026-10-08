@@ -1,19 +1,13 @@
--- Bestätigt nur die Identität einer aktiven, kontogebundenen Browsersitzung.
--- Betroffen: marketplace_connections, marketplace_account_entries, marketplace_browser_sessions und marketplace_sync_schedules.
-create or replace function public.marketplace_browser_confirm_account(
-  p_workspace_id uuid,
-  p_connection_id uuid,
-  p_session_id uuid,
-  p_user_id uuid,
-  p_external_account_id text,
-  p_username text
-)
-returns jsonb
-language plpgsql
-volatile
-security definer
-set search_path = ''
-as $$
+-- Entfernt erledigte Anmeldefehler nach bestätigter Vinted-Identität.
+-- Betroffen: marketplace_browser_confirm_account und marketplace_sync_schedules.
+set check_function_bodies = off;
+
+create or replace function public.marketplace_browser_confirm_account(p_workspace_id uuid, p_connection_id uuid, p_session_id uuid, p_user_id uuid, p_external_account_id text, p_username text)
+ returns jsonb
+ language plpgsql
+ security definer
+ set search_path to ''
+as $function$
 declare
   v_connection public.marketplace_connections;
   v_session public.marketplace_browser_sessions;
@@ -100,6 +94,8 @@ begin
     'connectionId', p_connection_id, 'externalAccountId', p_external_account_id,
     'username', btrim(p_username));
 end;
-$$;
-revoke all on function public.marketplace_browser_confirm_account(uuid, uuid, uuid, uuid, text, text) from public, anon, authenticated;
-grant execute on function public.marketplace_browser_confirm_account(uuid, uuid, uuid, uuid, text, text) to service_role;
+$function$
+;
+
+
+

@@ -1,5 +1,30 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-08 - Juna - Erledigte Cloud-Anmeldewarnung automatisch entfernen
+
+**Auftrag:** Nach erfolgreich bestätigter Vinted-Anmeldung darf die alte
+Warnung „Vinted verlangt eine neue Anmeldung“ nicht stehen bleiben.
+
+**Befund:** Die Kontobestätigung erneuert die Verbindung, lässt aber
+`marketplace_sync_schedules.paused_reason = needs_login` unverändert.
+Die Oberfläche lädt den Zeitplan zudem bei identischem Verbindungsstatus
+nicht sofort erneut.
+
+**Umsetzung:** Die vorhandene Kontobestätigung bereinigt ausschließlich den
+Anmeldefehler samt zugehöriger Wartezeit und Fehlerzähler. Eine neue
+Sperrversion verhindert, dass alte Auftragsabschlüsse diesen Status
+wiederherstellen. Automatikfreigabe, gewählter Abstand, Importzeit und andere
+Pausengründe bleiben unverändert. Das erneut geladene Konto löst auch bei
+gleichem Verbindungsstatus eine sofortige Zeitplanabfrage aus.
+
+**Prüfstand:** Der Oberflächen- und Datenbanktest reproduzieren den Fehler vor
+der Korrektur. 156 Angular-Tests und 129 Datenbankprüfungen bestehen. Die
+erzeugte Migration wurde auf dem vorherigen Funktionsstand angewendet und
+ebenfalls mit diesen Datenbanktests geprüft. Typprüfung, Produktionsbau,
+gezieltes ESLint, Formatierung und Migrations-/Schemaregistrierungstests
+bestehen; neu erzeugte API-Typen sind unverändert. Die Veröffentlichung
+steht noch aus.
+
 ## 2026-10-08 - Juna - Cloud-Gesprächszugriff ohne Schreibfreigabe bereitstellen
 
 **Auftrag:** Den unterbrochenen Abschluss von PR 340 fortsetzen und den echten
