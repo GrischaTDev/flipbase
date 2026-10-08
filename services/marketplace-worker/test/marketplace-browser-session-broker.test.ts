@@ -27,6 +27,43 @@ const scopeA: BrowserSessionScope = {
 };
 const scopeB = { ...scopeA, connectionId: 'account-b' };
 
+for (const failureStage of ['lease_acquire', 'profile_resolve', 'browser_start'] as const) {
+  test(`reports ${failureStage} without private startup details`, async () => {
+    const failures: unknown[][] = [];
+    let released = false;
+    const privateFailure = new Error('private-password-and-account-data');
+    const broker = createTestBroker({
+      onStartFailure: (...fields) => failures.push(fields),
+      leases: {
+        acquire: async (scope) => {
+          if (failureStage === 'lease_acquire') throw privateFailure;
+          return { id: 'lease', scope, expiresAt: Date.now() + 60_000, active: true };
+        },
+        assertActive: async () => true,
+        release: async () => {
+          released = true;
+        },
+      },
+      profiles: {
+        resolve: async () => {
+          if (failureStage === 'profile_resolve') throw privateFailure;
+          return 'profile';
+        },
+      },
+      browsers: {
+        open: async () => {
+          throw privateFailure;
+        },
+        stop: async () => undefined,
+      },
+    });
+    await assert.rejects(broker.open(scopeA));
+    assert.deepEqual(failures, [[failureStage]]);
+    assert.equal(released, failureStage !== 'lease_acquire');
+    assert.equal(JSON.stringify(failures).includes('private-password'), false);
+  });
+}
+
 test('message claims cannot be borrowed by another claim or an interactive login', async () => {
   const { broker } = setup();
   const writeScope = {

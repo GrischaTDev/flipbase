@@ -10,6 +10,16 @@ import { ChromiumDesktopControls } from './chromium-desktop-controls.ts';
 
 type LaunchOptions = NonNullable<Parameters<typeof chromium.launchPersistentContext>[1]>;
 type DockerExecute = (argumentsList: string[], input?: string) => Promise<string>;
+type ChromiumStartStage =
+  | 'launch_options'
+  | 'network_verification'
+  | 'image_verification'
+  | 'profile_processes'
+  | 'container_create'
+  | 'container_start'
+  | 'startup_configuration'
+  | 'network_endpoint'
+  | 'browser_readiness';
 export interface ChromiumContainerLauncherOptions {
   image: string;
   profileRoot: string;
@@ -21,6 +31,7 @@ export interface ChromiumContainerLauncherOptions {
   execute?: DockerExecute;
   verifyFirewall?: () => Promise<void>;
   executeDesktop?: (argumentsList: string[], input?: string) => Promise<Buffer>;
+  onStartFailure?: (stage: ChromiumStartStage) => void;
 }
 
 async function executeDocker(argumentsList: string[], input?: string): Promise<string> {
@@ -304,107 +315,126 @@ export class ChromiumContainerLauncher {
     options: LaunchOptions = {},
     remoteEndpoint?: string,
   ): Promise<void> {
-    const profileId = this.profileId(directory);
-    const launchOptions = this.safeLaunchOptions(options);
-    if (remoteEndpoint !== undefined) {
-      if (!/^ws:\/\/172\.30\.88\.3:4181\/session\/[0-9a-f-]{36}$/.test(remoteEndpoint))
-        throw new Error('Ungültiger GoLogin-Sitzungskanal');
-      launchOptions.remoteEndpoint = remoteEndpoint;
-    }
-    await this.verifyNetwork();
-    const image = record(
-      array(JSON.parse(await this.execute(['image', 'inspect', this.options.image])))[0],
-    );
-    if (
-      record(record(image.Config).Labels)['de.flipbase.chromium.runtime'] !== 'isolated-actions-v1'
-    )
-      throw new Error('Das Cloud-Browserimage benötigt den normalen Chrome-Desktop');
-    if ((await this.inspectProfileProcesses(directory)).length)
-      throw new CloudBrowserStopUncertainError();
-    const containerId = (
-      await this.execute([
-        'create',
-        '--name',
-        `flipbase-chromium-${this.options.hostId}-${randomUUID()}`,
-        '--label',
-        'de.flipbase.chromium.role=session',
-        '--label',
-        `de.flipbase.chromium.host=${this.options.hostId}`,
-        '--label',
-        `de.flipbase.chromium.profile=${profileId}`,
-        '--network',
-        this.options.network,
-        '--init',
-        '--user=1000:1000',
-        '--read-only',
-        '--cap-drop=ALL',
-        '--security-opt=no-new-privileges:true',
-        `--security-opt=seccomp=${this.options.seccompProfile ?? '/opt/flipbase-marketplace/chromium-seccomp.json'}`,
-        '--memory=2g',
-        '--memory-swap=2g',
-        '--pids-limit=512',
-        '--shm-size=256m',
-        '--tmpfs=/tmp:rw,nosuid,nodev,size=512m,uid=1000,gid=1000,mode=700',
-        '--tmpfs=/home/node:rw,nosuid,nodev,size=64m,uid=1000,gid=1000,mode=700',
-        '--mount',
-        `type=bind,src=${posix.join(this.options.hostProfileRoot, profileId)},dst=/profile`,
-        '--log-driver=none',
-        this.options.image,
-      ])
-    ).trim();
-    if (!/^[a-f0-9]{64}$/.test(containerId)) throw new CloudBrowserStopUncertainError();
+    let stage: ChromiumStartStage = 'launch_options';
     try {
-      await this.inspect(containerId, profileId);
-      await this.execute(['start', containerId]);
-      await this.execute(
-        [
-          'exec',
-          '-i',
-          containerId,
-          'node',
-          '--input-type=module',
-          '-e',
-          "import{writeFile,rename}from'node:fs/promises';let input='';for await(const chunk of process.stdin){input+=chunk;if(input.length>16384)process.exit(1)}await writeFile('/tmp/startup.pending',input,{mode:0o600,flag:'wx'});await rename('/tmp/startup.pending','/tmp/startup.json');",
-        ],
-        JSON.stringify(launchOptions),
+      const profileId = this.profileId(directory);
+      const launchOptions = this.safeLaunchOptions(options);
+      if (remoteEndpoint !== undefined) {
+        if (!/^ws:\/\/172\.30\.88\.3:4181\/session\/[0-9a-f-]{36}$/.test(remoteEndpoint))
+          throw new Error('Ungültiger GoLogin-Sitzungskanal');
+        launchOptions.remoteEndpoint = remoteEndpoint;
+      }
+      stage = 'network_verification';
+      await this.verifyNetwork();
+      stage = 'image_verification';
+      const image = record(
+        array(JSON.parse(await this.execute(['image', 'inspect', this.options.image])))[0],
       );
-      const container = await this.inspect(containerId, profileId);
-      const networks = record(record(container.NetworkSettings).Networks);
-      const address = record(networks[this.options.network]).IPAddress;
       if (
-        Object.keys(networks).length !== 1 ||
-        typeof address !== 'string' ||
-        !/^172\.30\.88\.(?:12[89]|1[3-9]\d|2[0-4]\d|25[0-4])$/.test(address)
+        record(record(image.Config).Labels)['de.flipbase.chromium.runtime'] !==
+        'isolated-actions-v1'
       )
-        throw new Error('Ungültiger privater Chromium-Endpunkt');
-      const dimensions = record(launchOptions.viewport);
-      if (typeof dimensions.width !== 'number' || typeof dimensions.height !== 'number')
-        throw new Error('Browseranzeige fehlt');
-      this.desktops.set(profileId, {
-        containerId,
-        width: dimensions.width,
-        height: dimensions.height,
-      });
-      const deadline = Date.now() + 60000;
-      while (Date.now() < deadline) {
-        try {
-          const ready = commandRecord(await this.command(profileId, { action: 'ready' }));
-          if (ready.ready === true) return;
-        } catch {
-          // Fehlermeldungen aus dem Container bleiben privat.
-        }
-        const state = record((await this.inspect(containerId, profileId)).State);
-        if (isCleanStartupFailure(state)) throw new Error('Chromium-Start wurde beendet');
-        await new Promise((resolve) => setTimeout(resolve, 250));
-      }
-      throw new Error('Chromium-Sitzung nicht bereit');
-    } catch {
-      try {
-        await this.stopAndRemove(containerId, profileId);
-      } catch {
+        throw new Error('Das Cloud-Browserimage benötigt den normalen Chrome-Desktop');
+      stage = 'profile_processes';
+      if ((await this.inspectProfileProcesses(directory)).length)
         throw new CloudBrowserStopUncertainError();
+      stage = 'container_create';
+      const containerId = (
+        await this.execute([
+          'create',
+          '--name',
+          `flipbase-chromium-${this.options.hostId}-${randomUUID()}`,
+          '--label',
+          'de.flipbase.chromium.role=session',
+          '--label',
+          `de.flipbase.chromium.host=${this.options.hostId}`,
+          '--label',
+          `de.flipbase.chromium.profile=${profileId}`,
+          '--network',
+          this.options.network,
+          '--init',
+          '--user=1000:1000',
+          '--read-only',
+          '--cap-drop=ALL',
+          '--security-opt=no-new-privileges:true',
+          `--security-opt=seccomp=${this.options.seccompProfile ?? '/opt/flipbase-marketplace/chromium-seccomp.json'}`,
+          '--memory=2g',
+          '--memory-swap=2g',
+          '--pids-limit=512',
+          '--shm-size=256m',
+          '--tmpfs=/tmp:rw,nosuid,nodev,size=512m,uid=1000,gid=1000,mode=700',
+          '--tmpfs=/home/node:rw,nosuid,nodev,size=64m,uid=1000,gid=1000,mode=700',
+          '--mount',
+          `type=bind,src=${posix.join(this.options.hostProfileRoot, profileId)},dst=/profile`,
+          '--log-driver=none',
+          this.options.image,
+        ])
+      ).trim();
+      if (!/^[a-f0-9]{64}$/.test(containerId)) throw new CloudBrowserStopUncertainError();
+      try {
+        stage = 'container_start';
+        await this.inspect(containerId, profileId);
+        await this.execute(['start', containerId]);
+        stage = 'startup_configuration';
+        await this.execute(
+          [
+            'exec',
+            '-i',
+            containerId,
+            'node',
+            '--input-type=module',
+            '-e',
+            "import{writeFile,rename}from'node:fs/promises';let input='';for await(const chunk of process.stdin){input+=chunk;if(input.length>16384)process.exit(1)}await writeFile('/tmp/startup.pending',input,{mode:0o600,flag:'wx'});await rename('/tmp/startup.pending','/tmp/startup.json');",
+          ],
+          JSON.stringify(launchOptions),
+        );
+        stage = 'network_endpoint';
+        const container = await this.inspect(containerId, profileId);
+        const networks = record(record(container.NetworkSettings).Networks);
+        const address = record(networks[this.options.network]).IPAddress;
+        if (
+          Object.keys(networks).length !== 1 ||
+          typeof address !== 'string' ||
+          !/^172\.30\.88\.(?:12[89]|1[3-9]\d|2[0-4]\d|25[0-4])$/.test(address)
+        )
+          throw new Error('Ungültiger privater Chromium-Endpunkt');
+        const dimensions = record(launchOptions.viewport);
+        if (typeof dimensions.width !== 'number' || typeof dimensions.height !== 'number')
+          throw new Error('Browseranzeige fehlt');
+        this.desktops.set(profileId, {
+          containerId,
+          width: dimensions.width,
+          height: dimensions.height,
+        });
+        stage = 'browser_readiness';
+        const deadline = Date.now() + 60000;
+        while (Date.now() < deadline) {
+          try {
+            const ready = commandRecord(await this.command(profileId, { action: 'ready' }));
+            if (ready.ready === true) return;
+          } catch {
+            // Fehlermeldungen aus dem Container bleiben privat.
+          }
+          const state = record((await this.inspect(containerId, profileId)).State);
+          if (isCleanStartupFailure(state)) throw new Error('Chromium-Start wurde beendet');
+          await new Promise((resolve) => setTimeout(resolve, 250));
+        }
+        throw new Error('Chromium-Sitzung nicht bereit');
+      } catch {
+        try {
+          await this.stopAndRemove(containerId, profileId);
+        } catch {
+          throw new CloudBrowserStopUncertainError();
+        }
+        throw new Error('Chromium-Containerstart fehlgeschlagen');
       }
-      throw new Error('Chromium-Containerstart fehlgeschlagen');
+    } catch (error) {
+      try {
+        this.options.onStartFailure?.(stage);
+      } catch {
+        // Diagnosefehler dürfen die bestätigte Containerbereinigung nicht verändern.
+      }
+      throw error;
     }
   }
 

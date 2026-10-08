@@ -231,6 +231,11 @@ async function main(): Promise<void> {
     browser,
   );
   const broker = new MarketplaceBrowserSessionBroker({
+    onStartFailure: (stage) => {
+      process.stderr.write(
+        `${JSON.stringify({ event: 'marketplace_browser_start_failed', stage })}\n`,
+      );
+    },
     leases,
     profiles: registry
       ? new ChromiumBoundProfileStore({

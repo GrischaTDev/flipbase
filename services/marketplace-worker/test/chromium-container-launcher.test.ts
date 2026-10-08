@@ -18,6 +18,7 @@ function fixture(
     state?: Record<string, unknown>;
     startupFailure?: boolean;
     legacyRuntime?: boolean;
+    onStartFailure?: (stage: string) => void;
   } = {},
 ) {
   const calls: { args: string[]; input?: string }[] = [];
@@ -42,6 +43,7 @@ function fixture(
     hostProfileRoot: '/host/profiles',
     hostId: 'pilot-01',
     network: 'flipbase-browser',
+    onStartFailure: settings.onStartFailure,
     verifyFirewall: async () => {
       if (settings.firewallUnavailable) throw new Error('Firewall nicht geprüft');
     },
@@ -160,6 +162,68 @@ function fixture(
     },
   };
 }
+
+test('reports rejected firewall verification without creating a browser container', async () => {
+  const failures: string[] = [];
+  const { launcher, calls } = fixture(0, false, {
+    firewallUnavailable: true,
+    onStartFailure: (stage) => failures.push(stage),
+  });
+  await assert.rejects(launcher.launch('/controller/profiles/account-1'), /Firewall/);
+  assert.deepEqual(failures, ['network_verification']);
+  assert.equal(
+    calls.some((call) => call.args[0] === 'create'),
+    false,
+  );
+});
+
+test('reports failed browser readiness while preserving confirmed container cleanup', async () => {
+  const failures: string[] = [];
+  const { launcher, calls } = fixture(78, false, {
+    startupFailure: true,
+    onStartFailure: (stage) => failures.push(stage),
+  });
+  await assert.rejects(launcher.launch('/controller/profiles/account-1'), /Containerstart/);
+  assert.deepEqual(failures, ['browser_readiness']);
+  assert.ok(calls.some((call) => call.args[0] === 'rm'));
+  assert.deepEqual(await launcher.inspectProfileProcesses('/controller/profiles/account-1'), []);
+});
+
+test('reports incompatible runtime images before creating a browser container', async () => {
+  const failures: string[] = [];
+  const { launcher, calls } = fixture(0, false, {
+    legacyRuntime: true,
+    onStartFailure: (stage) => failures.push(stage),
+  });
+  await assert.rejects(launcher.launch('/controller/profiles/account-1'), /Browserimage/);
+  assert.deepEqual(failures, ['image_verification']);
+  assert.equal(
+    calls.some((call) => call.args[0] === 'create'),
+    false,
+  );
+});
+
+test('a failed diagnostic observer cannot replace cleanup or the original startup error', async () => {
+  const { launcher, calls } = fixture(78, false, {
+    startupFailure: true,
+    onStartFailure: () => {
+      throw new Error('private diagnostic failure');
+    },
+  });
+  await assert.rejects(launcher.launch('/controller/profiles/account-1'), /Containerstart/);
+  assert.ok(calls.some((call) => call.args[0] === 'rm'));
+  assert.deepEqual(await launcher.inspectProfileProcesses('/controller/profiles/account-1'), []);
+});
+
+test('successful browser startup does not report a failure', async () => {
+  const failures: string[] = [];
+  const { launcher } = fixture(0, false, {
+    onStartFailure: (stage) => failures.push(stage),
+  });
+  await launcher.launch('/controller/profiles/account-1');
+  await launcher.recover('account-1');
+  assert.deepEqual(failures, []);
+});
 
 test('creates only a private constrained session and sends secrets through stdin', async () => {
   const { launcher, calls } = fixture();
