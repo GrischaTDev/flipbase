@@ -28,7 +28,7 @@ describe('Arbeitsnavigation', () => {
         ['/catalog', '/image-optimizer'],
         ['/marketplaces/vinted', '/marketplaces/ebay'],
         ['/expenses', '/accounting', '/analytics'],
-        ['/vinted-bot', '/deal-calculator', '/deal-calculator/ebay'],
+        ['/tools/brand-labels', '/vinted-bot', '/deal-calculator', '/deal-calculator/ebay'],
       ],
     );
   });
@@ -96,6 +96,7 @@ describe('Arbeitsnavigation', () => {
       '/sales',
       '/settings',
       '/shop',
+      '/tools/brand-labels',
       '/vinted-bot',
     ]);
   });

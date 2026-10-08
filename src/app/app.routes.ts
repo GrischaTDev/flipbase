@@ -343,6 +343,13 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'tools/brand-labels',
+        loadChildren: () =>
+          import('./features/brand-labels/brand-labels.routes').then(
+            (module) => module.brandLabelRoutes,
+          ),
+      },
+      {
         path: '',
         redirectTo: 'dashboard',
         pathMatch: 'full',

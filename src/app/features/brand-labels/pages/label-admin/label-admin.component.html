@@ -1,0 +1,137 @@
+<div class="space-y-4">
+  <app-page-header
+    title="Labelredaktion"
+    subtitle="Entwürfe, Prüfungen und Veröffentlichungen zentral pflegen."
+    backLink="/tools/brand-labels"
+    ><div header-actions class="flex gap-3">
+      <a routerLink="/tools/brand-labels/admin/brands">Marken</a
+      ><a routerLink="/tools/brand-labels/admin/images">Bilder</a
+      ><a routerLink="/tools/brand-labels/admin/sizes">Größentabellen</a>
+    </div></app-page-header
+  >
+  @if (!scope()) {
+    <p role="status">Die Labelredaktion ist nur für Plattformbetreiber verfügbar.</p>
+  } @else {
+    @if (view().message; as message) {
+      <p role="status">{{ message }}</p>
+    }
+    @if (view().error; as error) {
+      <p role="alert">{{ error }}</p>
+      <app-button (clicked)="reload()" [disabled]="view().busy">Serverstand laden</app-button>
+    }
+    @if (view().pending) {
+      <p>Die Antwort ist unbestätigt. Wiederhole ausschließlich denselben Auftrag.</p>
+      <app-button (clicked)="retry()" [disabled]="view().busy"
+        >Ursprünglichen Auftrag wiederholen</app-button
+      >
+    }
+    <section
+      class="space-y-3 rounded-lg border border-fb-line bg-fb-surface p-4"
+      aria-label="Leserfreigabe"
+    >
+      <h2 class="text-sm font-semibold">Bibliothek für Leser</h2>
+      <p class="text-sm">
+        @if (view().readerEnabled === true) {
+          Die Bibliothek ist für Leser mit gültigem Workspacezugang geöffnet.
+        } @else if (view().readerEnabled === false) {
+          Die Bibliothek ist für Leser geschlossen. Veröffentliche zuerst ein Label oder eine
+          Größentabelle und öffne sie anschließend ausdrücklich.
+        } @else {
+          Die aktuelle Leserfreigabe wird geladen.
+        }
+      </p>
+      <app-button
+        (clicked)="setReader(view().readerEnabled !== true)"
+        [disabled]="view().readerEnabled === null || view().busy || !!view().pending"
+        >{{ view().readerEnabled ? 'Für Leser schließen' : 'Für Leser öffnen' }}</app-button
+      >
+    </section>
+    <div class="flex flex-wrap gap-3">
+      <app-custom-select
+        ariaLabel="Marke für neues Label"
+        [options]="createOptions()"
+        [value]="createBrand()"
+        (valueChange)="createBrand.set($event)"
+        [disabled]="view().busy || !!view().pending"
+      /><app-button
+        variant="primary"
+        [icon]="plusIcon"
+        (clicked)="create()"
+        [disabled]="!createBrand() || view().busy || !!view().pending"
+        >Label anlegen</app-button
+      >
+    </div>
+    <app-data-table
+      ariaLabel="Labelreferenzen verwalten"
+      [searchValue]="search()"
+      (searchValueChange)="search.set($event)"
+      searchPlaceholder="Label oder Marke suchen …"
+      searchAriaLabel="Labelreferenzen durchsuchen"
+      [loading]="view().busy"
+      [errorMessage]="view().error"
+      [hasRows]="(view().page?.rows?.length ?? 0) > 0"
+      emptyTitle="Keine Labelreferenzen gefunden"
+      emptyText="Lege ein Label an oder ändere Deine Suche."
+    >
+      <div table-filters class="flex flex-wrap gap-2">
+        <app-custom-select
+          ariaLabel="Marke filtern"
+          variant="filter"
+          [options]="brandOptions()"
+          [value]="selectedBrand()"
+          (valueChange)="selectedBrand.set($event)"
+          [disabled]="view().busy || !!view().pending"
+        /><app-custom-select
+          ariaLabel="Status filtern"
+          variant="filter"
+          [options]="stateOptions"
+          [value]="selectedState()"
+          (valueChange)="changeState($event)"
+          [disabled]="view().busy || !!view().pending"
+        /><app-button (clicked)="searchLabels()" [disabled]="view().busy || !!view().pending"
+          >Suchen</app-button
+        >
+      </div>
+      <div table-content class="overflow-x-auto">
+        <table class="w-full text-left text-[13px]">
+          <thead class="border-b border-fb-line bg-fb-well text-fb-text-muted">
+            <tr>
+              <th class="px-4 py-3" scope="col">Label</th>
+              <th class="px-4 py-3" scope="col">Marke</th>
+              <th class="px-4 py-3" scope="col">Status</th>
+              <th class="px-4 py-3" scope="col">Veröffentlichung</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-fb-line">
+            @for (row of view().page?.rows ?? []; track row.referenceId) {
+              <tr>
+                <td class="px-4 py-3">
+                  <a [routerLink]="['/tools/brand-labels/admin/labels', row.referenceId]"
+                    >{{ row.title || 'Unbenanntes Label' }} · {{ row.referenceId }}</a
+                  >
+                </td>
+                <td class="px-4 py-3">{{ row.brandName }}</td>
+                <td class="px-4 py-3">{{ statusLabels[row.state] }}</td>
+                <td class="px-4 py-3">{{ row.publishedRevisionId ? 'Vorhanden' : 'Keine' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </app-data-table>
+    @if (view().page; as page) {
+      <div class="flex gap-3">
+        <app-button
+          (clicked)="previous()"
+          [disabled]="view().offset === 0 || view().busy || !!view().pending"
+          >Zurück</app-button
+        ><span>Seite {{ view().offset / 24 + 1 }}</span
+        ><app-button
+          (clicked)="next()"
+          [disabled]="!page.hasMore || view().busy || !!view().pending"
+          >Weiter</app-button
+        >
+      </div>
+    }
+  }
+</div>

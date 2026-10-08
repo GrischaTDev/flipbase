@@ -10,6 +10,10 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 // Nur die tatsächliche Testauswahl prüfen, nicht Playwrights Parser nachtesten.
 const coreTests = [
   [
+    'brand-label-library.spec.ts',
+    'pflegt und veröffentlicht echte Label- und Größenreferenzen mit freigegebenen Bildern @core-smoke',
+  ],
+  [
     'sniper-administration.spec.ts',
     'prüft den Vinted-Bot manuell und behält bei Ablehnung die Pause @core-smoke',
   ],

@@ -1,0 +1,80 @@
+name: Reference library
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'supabase/test-support/brand-label-candidate/**'
+      - 'supabase/schemas/43*_label*.sql'
+      - 'supabase/schemas/440_size_references.sql'
+      - 'supabase/migrations/*_reference_library.sql'
+      - 'supabase/functions/brand-label-media/**'
+      - 'src/app/features/brand-labels/**'
+      - 'scripts/run-brand-label-database-tests*.mjs'
+      - '.github/workflows/brand-label-candidate.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: label-candidate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  database-candidate:
+    name: Label SQL candidate (isolated PostgreSQL 17)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out test sources
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Test runner safeguards
+        run: node --test scripts/run-brand-label-database-tests.test.mjs
+      - name: Test isolated database candidate
+        run: node scripts/run-brand-label-database-tests.mjs
+
+  label-modules:
+    name: Label module integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out test sources
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Prepare reproducible development inputs
+        run: |
+          mkdir -p "$RUNNER_TEMP/label-development"
+          git bundle create "$RUNNER_TEMP/label-development/repository.bundle" HEAD
+          tar -czf "$RUNNER_TEMP/label-development/dependencies.tar.gz" node_modules
+          git rev-parse HEAD > "$RUNNER_TEMP/label-development/commit.txt"
+          sha256sum package-lock.json > "$RUNNER_TEMP/label-development/package-lock.sha256"
+      - name: Preserve source and locked dependencies
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: label-development-inputs
+          path: ${{ runner.temp }}/label-development/
+          retention-days: 1
+          compression-level: 0
+      - name: Test label modules with the project runner
+        run: npx vitest run --project=node src/app/features/brand-labels
+      - name: Check project types
+        run: npm run typecheck
+      - name: Check label lint
+        run: npx eslint src/app/features/brand-labels
+      - name: Show required formatting changes
+        if: ${{ always() }}
+        run: |
+          npx --no-install prettier --write src/app/features/brand-labels
+          git diff --exit-code -- src/app/features/brand-labels

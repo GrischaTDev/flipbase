@@ -1,0 +1,18 @@
+<div class="relative w-full">
+  <app-product-thumbnail [src]="src()" [alt]="alt()" size="reference" fit="contain" />
+  @if (canEnlarge() && src()) {
+    <app-button
+      class="absolute bottom-2 right-2"
+      (clicked)="enlarge()"
+      [ariaLabel]="'Referenzbild vergrößern: ' + alt()"
+      >Vergrößern</app-button
+    >
+  }
+</div>
+@if (expanded()) {
+  <app-modal-shell title="Referenzbild" size="xl" (closed)="close()">
+    <app-product-thumbnail [src]="src()" [alt]="alt()" size="reference" fit="contain" />
+    <p class="mt-3 text-sm text-fb-text-secondary">{{ alt() }}</p>
+    <app-button modal-footer (clicked)="close()">Schließen</app-button>
+  </app-modal-shell>
+}

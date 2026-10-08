@@ -1,0 +1,121 @@
+<section class="space-y-4">
+  <app-page-header
+    title="Referenzbilder"
+    subtitle="Bildnachweise und erlaubte Verwendung zentral pflegen"
+  >
+    <div header-actions>
+      <app-button link="/tools/brand-labels/admin">Zur Labelredaktion</app-button>
+    </div>
+  </app-page-header>
+  <app-card [title]="selected() ? 'Bildrechte bearbeiten' : 'Referenzbild hinzufügen'">
+    <form [formGroup]="form" class="space-y-3" (ngSubmit)="upload()">
+      @if (!selected()) {
+        <input
+          #fileInput
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          class="hidden"
+          aria-hidden="true"
+          tabindex="-1"
+          (change)="choose($event)"
+        />
+        <app-button
+          [icon]="uploadIcon"
+          [disabled]="busy() || !!pending() || loading()"
+          (clicked)="fileInput.click()"
+          >Bild auswählen</app-button
+        >
+        <p class="text-sm text-fb-text-secondary">
+          {{ file()?.name || 'JPEG, PNG oder WebP bis 10 MB und 24 Millionen Pixel.' }}
+        </p>
+      }
+      <app-text-field
+        label="Bildnachweis"
+        formControlName="attribution"
+        [maxLength]="4000"
+        helpText="Urheber oder Rechteinhaber, zum Beispiel Dein eigenes Referenzfoto."
+      />
+      <app-text-field
+        label="Erlaubte Verwendung"
+        formControlName="allowedUse"
+        [multiline]="3"
+        [maxLength]="4000"
+        helpText="Beschreibe die Freigabe und ihren Nachweis, zum Beispiel eigene Aufnahme zur Veröffentlichung im Flipbase-Lexikon."
+      />
+      <p class="text-sm text-fb-text-secondary">
+        Mit der Freigabe bestätigst Du die erforderlichen Bildrechte. Originaldateien bleiben
+        privat; Leser sehen ausschließlich geprüfte Anzeigen.
+      </p>
+      @if (selected(); as image) {
+        <app-button
+          variant="primary"
+          [disabled]="busy() || !!pending()"
+          (clicked)="permission(image, 'approved', true)"
+          >Bildrechte bestätigen</app-button
+        >
+      } @else {
+        <app-button
+          type="submit"
+          variant="primary"
+          [disabled]="!file() || busy() || !!pending()"
+          [icon]="uploadIcon"
+          >Bild mit Freigabe hinzufügen</app-button
+        >
+      }
+    </form>
+  </app-card>
+  @if (error(); as error) {
+    <p role="alert" class="text-sm text-fb-critical">{{ error }}</p>
+  }
+  @if (message(); as message) {
+    <p role="status" class="text-sm text-fb-success">{{ message }}</p>
+  }
+  @if (pending()) {
+    <div class="flex gap-2">
+      <app-button [disabled]="busy()" (clicked)="retry()"
+        >Ursprünglichen Auftrag wiederholen</app-button
+      ><app-button [disabled]="busy()" (clicked)="reload()">Antwortstatus neu laden</app-button>
+    </div>
+  }
+  <app-data-table
+    ariaLabel="Referenzbilder"
+    [searchValue]="search()"
+    (searchValueChange)="search.set($event)"
+    [loading]="loading()"
+    [hasRows]="visibleImages().length > 0"
+    emptyTitle="Noch keine Referenzbilder"
+    emptyText="Füge eigene oder ausdrücklich freigegebene Bilder hinzu."
+  >
+    <div table-content class="grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3">
+      @for (image of visibleImages(); track image.assetId) {
+        <app-card [title]="image.attribution">
+          <app-label-image [assetId]="image.assetId" [alt]="image.attribution" />
+          <p class="mt-2 text-sm text-fb-text-secondary">{{ image.allowedUse }}</p>
+          <div class="mt-3 flex items-center gap-2">
+            <app-badge tone="neutral">{{
+              image.status === 'approved' ? 'Freigegeben' : 'Widerrufen'
+            }}</app-badge>
+            <app-button
+              [icon]="editIcon"
+              [iconOnly]="true"
+              ariaLabel="Bildrechte bearbeiten"
+              [disabled]="busy() || !!pending()"
+              (clicked)="begin(image)"
+            />
+            <app-button
+              [icon]="image.status === 'approved' ? revokeIcon : approveIcon"
+              [iconOnly]="true"
+              [ariaLabel]="
+                image.status === 'approved'
+                  ? 'Bildfreigabe widerrufen'
+                  : 'Bildfreigabe wiederherstellen'
+              "
+              [disabled]="busy() || !!pending()"
+              (clicked)="permission(image, image.status === 'approved' ? 'revoked' : 'approved')"
+            />
+          </div>
+        </app-card>
+      }
+    </div>
+  </app-data-table>
+</section>

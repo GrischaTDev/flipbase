@@ -127,4 +127,12 @@ describe('ProductThumbnailComponent', () => {
     expect(host().firstElementChild).toBe(frame);
     expect(host().querySelector('[data-product-placeholder]')).not.toBeNull();
   });
+  it('zeigt Labelreferenzen im breiten Rahmen, ohne sie zu beschneiden', () => {
+    fixture.componentRef.setInput('size', 'reference');
+    fixture.componentRef.setInput('src', '/images/reference.webp');
+    fixture.detectChanges();
+    expect(host().firstElementChild?.classList.contains('aspect-[4/3]')).toBe(true);
+    expect(host().firstElementChild?.classList.contains('h-[260px]')).toBe(false);
+    expect(host().querySelector('img')?.classList.contains('object-contain')).toBe(true);
+  });
 });

@@ -398,6 +398,12 @@ zusammengehören:
    Funktion prüft die Anmeldung und das Plattformbetreiberrecht selbst; für
    die Abfrage bei Vinted ist kein zusätzlicher Schlüssel nötig.
 
+   Die Referenzbibliothek benötigt `brand-label-media` vor ihrer Leserfreigabe.
+   Der Endpunkt prüft Anmeldung und Bildzugang selbst, erstellt private Bildlinks
+   mit 60 Sekunden Laufzeit und lässt Uploads nur für Plattformbetreiber zu.
+   Er wird mit den übrigen Funktionsordnern übertragen; zusätzliche Schlüssel
+   oder öffentliche Storage-Buckets sind nicht erforderlich.
+
    Für `barcode-ai-search` muss `OPENAI_API_KEY` in `/opt/supabase/.env`
    stehen. `deploy/docker-compose.barcode-ai.yml` reicht den Schlüssel nur an
    den Funktionsdienst durch. Die Datei gehört nach `/opt/supabase/` und als

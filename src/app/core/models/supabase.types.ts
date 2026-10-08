@@ -1897,6 +1897,403 @@ export type Database = {
           },
         ]
       }
+      label_brand_lines: {
+        Row: {
+          archived: boolean
+          id: number
+          label_brand_id: number
+          name: string
+          version: number
+        }
+        Insert: {
+          archived?: boolean
+          id?: never
+          label_brand_id: number
+          name: string
+          version?: number
+        }
+        Update: {
+          archived?: boolean
+          id?: never
+          label_brand_id?: number
+          name?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "label_brand_lines_label_brand_id_fkey"
+            columns: ["label_brand_id"]
+            isOneToOne: false
+            referencedRelation: "label_brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      label_brands: {
+        Row: {
+          aliases: string[]
+          archived: boolean
+          created_at: string
+          id: number
+          name: string
+          slug: string
+          version: number
+        }
+        Insert: {
+          aliases?: string[]
+          archived?: boolean
+          created_at?: string
+          id?: never
+          name: string
+          slug: string
+          version?: number
+        }
+        Update: {
+          aliases?: string[]
+          archived?: boolean
+          created_at?: string
+          id?: never
+          name?: string
+          slug?: string
+          version?: number
+        }
+        Relationships: []
+      }
+      label_change_events: {
+        Row: {
+          action: string
+          actor_id: string
+          details: Json
+          id: number
+          label_reference_id: number | null
+          label_revision_id: number | null
+          occurred_at: string
+        }
+        Insert: {
+          action: string
+          actor_id: string
+          details?: Json
+          id?: never
+          label_reference_id?: number | null
+          label_revision_id?: number | null
+          occurred_at?: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string
+          details?: Json
+          id?: never
+          label_reference_id?: number | null
+          label_revision_id?: number | null
+          occurred_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "label_change_events_label_reference_id_fkey"
+            columns: ["label_reference_id"]
+            isOneToOne: false
+            referencedRelation: "label_references"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "label_change_events_label_revision_id_fkey"
+            columns: ["label_revision_id"]
+            isOneToOne: false
+            referencedRelation: "label_revisions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      label_edit_requests: {
+        Row: {
+          action: string
+          actor_id: string
+          created_at: string
+          id: number
+          input_hash: string
+          request_id: string
+          result: Json
+        }
+        Insert: {
+          action: string
+          actor_id: string
+          created_at?: string
+          id?: never
+          input_hash: string
+          request_id: string
+          result: Json
+        }
+        Update: {
+          action?: string
+          actor_id?: string
+          created_at?: string
+          id?: never
+          input_hash?: string
+          request_id?: string
+          result?: Json
+        }
+        Relationships: []
+      }
+      label_image_assets: {
+        Row: {
+          asset_kind: string
+          created_at: string
+          created_by: string | null
+          detail_path: string | null
+          gallery_path: string | null
+          height: number | null
+          id: number
+          mime_type: string | null
+          original_bytes: number | null
+          original_path: string
+          processing_status: string
+          width: number | null
+        }
+        Insert: {
+          asset_kind: string
+          created_at?: string
+          created_by?: string | null
+          detail_path?: string | null
+          gallery_path?: string | null
+          height?: number | null
+          id?: never
+          mime_type?: string | null
+          original_bytes?: number | null
+          original_path: string
+          processing_status?: string
+          width?: number | null
+        }
+        Update: {
+          asset_kind?: string
+          created_at?: string
+          created_by?: string | null
+          detail_path?: string | null
+          gallery_path?: string | null
+          height?: number | null
+          id?: never
+          mime_type?: string | null
+          original_bytes?: number | null
+          original_path?: string
+          processing_status?: string
+          width?: number | null
+        }
+        Relationships: []
+      }
+      label_image_permissions: {
+        Row: {
+          allowed_use: string
+          attribution: string
+          evidence_asset_id: number | null
+          evidence_kind: string | null
+          id: number
+          image_kind: string | null
+          label_image_asset_id: number
+          reviewed_at: string | null
+          reviewed_by: string | null
+          revoked_at: string | null
+          status: string
+          version: number
+        }
+        Insert: {
+          allowed_use?: string
+          attribution?: string
+          evidence_asset_id?: number | null
+          evidence_kind?: string | null
+          id?: never
+          image_kind?: string | null
+          label_image_asset_id: number
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          revoked_at?: string | null
+          status?: string
+          version?: number
+        }
+        Update: {
+          allowed_use?: string
+          attribution?: string
+          evidence_asset_id?: number | null
+          evidence_kind?: string | null
+          id?: never
+          image_kind?: string | null
+          label_image_asset_id?: number
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          revoked_at?: string | null
+          status?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "label_image_permissions_evidence_asset_id_evidence_kind_fkey"
+            columns: ["evidence_asset_id", "evidence_kind"]
+            isOneToOne: false
+            referencedRelation: "label_image_assets"
+            referencedColumns: ["id", "asset_kind"]
+          },
+          {
+            foreignKeyName: "label_image_permissions_label_image_asset_id_image_kind_fkey"
+            columns: ["label_image_asset_id", "image_kind"]
+            isOneToOne: false
+            referencedRelation: "label_image_assets"
+            referencedColumns: ["id", "asset_kind"]
+          },
+        ]
+      }
+      label_library_settings: {
+        Row: {
+          catalog_version: number
+          id: number
+          reader_enabled: boolean
+        }
+        Insert: {
+          catalog_version?: number
+          id?: never
+          reader_enabled?: boolean
+        }
+        Update: {
+          catalog_version?: number
+          id?: never
+          reader_enabled?: boolean
+        }
+        Relationships: []
+      }
+      label_references: {
+        Row: {
+          archived: boolean
+          created_at: string
+          id: number
+          label_brand_id: number
+          published_revision_id: number | null
+          published_state: string | null
+          slug: string | null
+          version: number
+        }
+        Insert: {
+          archived?: boolean
+          created_at?: string
+          id?: never
+          label_brand_id: number
+          published_revision_id?: number | null
+          published_state?: string | null
+          slug?: string | null
+          version?: number
+        }
+        Update: {
+          archived?: boolean
+          created_at?: string
+          id?: never
+          label_brand_id?: number
+          published_revision_id?: number | null
+          published_state?: string | null
+          slug?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "label_references_label_brand_id_fkey"
+            columns: ["label_brand_id"]
+            isOneToOne: false
+            referencedRelation: "label_brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "label_references_publication_fk"
+            columns: ["published_revision_id", "id", "published_state"]
+            isOneToOne: false
+            referencedRelation: "label_revisions"
+            referencedColumns: ["id", "label_reference_id", "state"]
+          },
+        ]
+      }
+      label_revision_images: {
+        Row: {
+          alt: string
+          caption: string
+          id: number
+          image_kind: string | null
+          label_image_asset_id: number
+          label_revision_id: number
+          position: number
+          reference_item: string
+        }
+        Insert: {
+          alt?: string
+          caption?: string
+          id?: never
+          image_kind?: string | null
+          label_image_asset_id: number
+          label_revision_id: number
+          position: number
+          reference_item?: string
+        }
+        Update: {
+          alt?: string
+          caption?: string
+          id?: never
+          image_kind?: string | null
+          label_image_asset_id?: number
+          label_revision_id?: number
+          position?: number
+          reference_item?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "label_revision_images_label_image_asset_id_image_kind_fkey"
+            columns: ["label_image_asset_id", "image_kind"]
+            isOneToOne: false
+            referencedRelation: "label_image_assets"
+            referencedColumns: ["id", "asset_kind"]
+          },
+          {
+            foreignKeyName: "label_revision_images_label_revision_id_fkey"
+            columns: ["label_revision_id"]
+            isOneToOne: false
+            referencedRelation: "label_revisions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      label_revisions: {
+        Row: {
+          content: Json
+          created_at: string
+          created_by: string | null
+          id: number
+          label_reference_id: number
+          published_at: string | null
+          state: string
+          version: number
+        }
+        Insert: {
+          content: Json
+          created_at?: string
+          created_by?: string | null
+          id?: never
+          label_reference_id: number
+          published_at?: string | null
+          state?: string
+          version?: number
+        }
+        Update: {
+          content?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: never
+          label_reference_id?: number
+          published_at?: string | null
+          state?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "label_revisions_label_reference_id_fkey"
+            columns: ["label_reference_id"]
+            isOneToOne: false
+            referencedRelation: "label_references"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       listing_images: {
         Row: {
           created_at: string
@@ -5043,6 +5440,44 @@ export type Database = {
           },
         ]
       }
+      size_references: {
+        Row: {
+          archived: boolean
+          content: Json
+          created_at: string
+          id: number
+          label_brand_id: number | null
+          published_content: Json | null
+          version: number
+        }
+        Insert: {
+          archived?: boolean
+          content: Json
+          created_at?: string
+          id?: never
+          label_brand_id?: number | null
+          published_content?: Json | null
+          version?: number
+        }
+        Update: {
+          archived?: boolean
+          content?: Json
+          created_at?: string
+          id?: never
+          label_brand_id?: number | null
+          published_content?: Json | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "size_references_label_brand_id_fkey"
+            columns: ["label_brand_id"]
+            isOneToOne: false
+            referencedRelation: "label_brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sniper_favorites: {
         Row: {
           external_id: string
@@ -6561,6 +6996,23 @@ export type Database = {
         Args: { p_total_cents: number; p_weights: number[] }
         Returns: number[]
       }
+      archive_label_reference: {
+        Args: {
+          p_expected_version: number
+          p_reference_id: number
+          p_request_id: string
+        }
+        Returns: Json
+      }
+      archive_size_reference: {
+        Args: {
+          p_archived: boolean
+          p_expected_version: number
+          p_id: number
+          p_request_id: string
+        }
+        Returns: Json
+      }
       archive_workspace: {
         Args: { p_workspace_id: string }
         Returns: {
@@ -6687,6 +7139,8 @@ export type Database = {
         Args: { p_path: string }
         Returns: boolean
       }
+      can_read_label_image: { Args: { p_path: string }; Returns: boolean }
+      can_read_label_library: { Args: never; Returns: boolean }
       capture_purchase_package_contents: {
         Args: {
           p_items: Json
@@ -6775,6 +7229,19 @@ export type Database = {
         Args: { p_lease_id: string; p_request_id: string }
         Returns: undefined
       }
+      complete_label_image: {
+        Args: {
+          p_actor_id: string
+          p_allowed_use: string
+          p_asset_id: number
+          p_attribution: string
+          p_height: number
+          p_mime_type: string
+          p_original_bytes: number
+          p_width: number
+        }
+        Returns: Json
+      }
       complete_sniper_search_filter_run: {
         Args: {
           p_cursor: number
@@ -6841,6 +7308,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      create_label_draft: {
+        Args: { p_brand_id: number; p_request_id: string }
+        Returns: Json
+      }
       create_or_get_invoice: {
         Args: {
           p_invoice: Json
@@ -6890,6 +7361,14 @@ export type Database = {
           p_article_id: string
           p_article_kind: string
           p_workspace_id: string
+        }
+        Returns: Json
+      }
+      discard_label_draft: {
+        Args: {
+          p_expected_version: number
+          p_request_id: string
+          p_revision_id: number
         }
         Returns: Json
       }
@@ -7045,6 +7524,10 @@ export type Database = {
         Returns: Json
       }
       ebay_valid_cents: { Args: { p_value: Json }; Returns: boolean }
+      edit_label_reference: {
+        Args: { p_reference_id: number; p_request_id: string }
+        Returns: Json
+      }
       end_listing: {
         Args: { p_listing_id: string; p_workspace_id: string }
         Returns: {
@@ -7110,6 +7593,15 @@ export type Database = {
         }
         Returns: string
       }
+      get_label_admin_reference: {
+        Args: { p_reference_id: number }
+        Returns: Json
+      }
+      get_label_library_availability: { Args: never; Returns: Json }
+      get_label_reference: {
+        Args: { p_brand_slug: string; p_label_slug: string }
+        Returns: Json
+      }
       get_number_settings: { Args: { p_workspace_id: string }; Returns: Json }
       get_purchase_sale_history: {
         Args: { p_purchase_id: string; p_workspace_id: string }
@@ -7159,6 +7651,102 @@ export type Database = {
       is_valid_gtin: { Args: { p_value: string }; Returns: boolean }
       is_workspace_admin: { Args: { ws_id: string }; Returns: boolean }
       is_workspace_member: { Args: { ws_id: string }; Returns: boolean }
+      label_assert: {
+        Args: { p_code: string; p_ok: boolean; p_path: string }
+        Returns: undefined
+      }
+      label_assert_array: {
+        Args: {
+          p_max: number
+          p_path: string
+          p_unique?: boolean
+          p_value: Json
+        }
+        Returns: undefined
+      }
+      label_assert_date: {
+        Args: { p_path: string; p_value: Json }
+        Returns: undefined
+      }
+      label_assert_integer: {
+        Args: {
+          p_max: number
+          p_min: number
+          p_nullable?: boolean
+          p_path: string
+          p_value: Json
+        }
+        Returns: undefined
+      }
+      label_assert_object: {
+        Args: { p_keys: string[]; p_path: string; p_value: Json }
+        Returns: undefined
+      }
+      label_assert_source_url: {
+        Args: { p_path: string; p_value: Json }
+        Returns: undefined
+      }
+      label_assert_text: {
+        Args: { p_max: number; p_path: string; p_value: Json }
+        Returns: undefined
+      }
+      label_begin_edit: {
+        Args: { p_action: string; p_input: Json; p_request_id: string }
+        Returns: Json
+      }
+      label_change_reference_archive: {
+        Args: {
+          p_archived: boolean
+          p_expected_version: number
+          p_reference_id: number
+          p_request_id: string
+        }
+        Returns: Json
+      }
+      label_change_revision: {
+        Args: {
+          p_action: string
+          p_expected_version: number
+          p_input: Json
+          p_request_id: string
+          p_revision_id: number
+        }
+        Returns: Json
+      }
+      label_check_version: {
+        Args: { p_actual: number; p_expected: number }
+        Returns: undefined
+      }
+      label_draft_result: { Args: { p_revision_id: number }; Returns: Json }
+      label_empty_content: { Args: never; Returns: Json }
+      label_finish_edit: {
+        Args: {
+          p_action: string
+          p_input: Json
+          p_reference_id?: number
+          p_request_id: string
+          p_result: Json
+          p_revision_id?: number
+        }
+        Returns: Json
+      }
+      label_has_text: { Args: { p_text: string }; Returns: boolean }
+      label_json_byte_size: { Args: { p_value: Json }; Returns: number }
+      label_library_has_publication: { Args: never; Returns: boolean }
+      label_make_editable: { Args: { p_reference_id: number }; Returns: number }
+      label_publication_content: {
+        Args: { p_revision_id: number }
+        Returns: Json
+      }
+      label_reader_card: { Args: { p_reference_id: number }; Returns: Json }
+      label_reference_is_published: {
+        Args: { p_reference_id: number }
+        Returns: boolean
+      }
+      label_strip_whitespace: { Args: { p_text: string }; Returns: string }
+      label_validate_content: { Args: { p_content: Json }; Returns: Json }
+      label_validate_draft: { Args: { p_input: Json }; Returns: Json }
+      label_validate_read_filter: { Args: { p_filter: Json }; Returns: Json }
       list_business_events: {
         Args: {
           p_cursor_created_at: string
@@ -7201,6 +7789,17 @@ export type Database = {
           reason: string
           workspace_id: string
         }[]
+      }
+      list_label_admin_brands: { Args: never; Returns: Json }
+      list_label_admin_images: { Args: never; Returns: Json }
+      list_label_admin_references: {
+        Args: { p_filter: Json; p_offset?: number }
+        Returns: Json
+      }
+      list_label_reader_brands: { Args: never; Returns: Json }
+      list_label_references: {
+        Args: { p_filter: Json; p_offset: number }
+        Returns: Json
       }
       list_my_workspace_access: {
         Args: never
@@ -7289,6 +7888,7 @@ export type Database = {
           reason: string
         }[]
       }
+      list_size_references: { Args: { p_admin?: boolean }; Returns: Json }
       marketplace_apply_vinted_import: {
         Args: {
           p_connection_id: string
@@ -8272,6 +8872,14 @@ export type Database = {
           reason: string
         }[]
       }
+      publish_label_draft: {
+        Args: {
+          p_expected_version: number
+          p_request_id: string
+          p_revision_id: number
+        }
+        Returns: Json
+      }
       purchase_draft_audit_snapshot: {
         Args: { p_purchase_id: string; p_workspace_id: string }
         Returns: Json
@@ -8477,12 +9085,24 @@ export type Database = {
         }
         Returns: undefined
       }
+      reserve_label_image: {
+        Args: { p_input: Json; p_request_id: string }
+        Returns: Json
+      }
       resolve_legacy_sold_item: {
         Args: {
           p_action: string
           p_inventory_item_id: string
           p_reason: string
           p_workspace_id: string
+        }
+        Returns: Json
+      }
+      restore_label_reference: {
+        Args: {
+          p_expected_version: number
+          p_reference_id: number
+          p_request_id: string
         }
         Returns: Json
       }
@@ -8507,6 +9127,33 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      save_label_brand: {
+        Args: {
+          p_expected_version: number
+          p_id: number
+          p_input: Json
+          p_request_id: string
+        }
+        Returns: Json
+      }
+      save_label_brand_line: {
+        Args: {
+          p_expected_version: number
+          p_id: number
+          p_input: Json
+          p_request_id: string
+        }
+        Returns: Json
+      }
+      save_label_draft: {
+        Args: {
+          p_expected_version: number
+          p_input: Json
+          p_request_id: string
+          p_revision_id: number
+        }
+        Returns: Json
       }
       save_number_series: {
         Args: {
@@ -8539,6 +9186,17 @@ export type Database = {
       }
       save_server_webhook_config: {
         Args: { p_patch: Json; p_workspace_id: string }
+        Returns: Json
+      }
+      save_size_reference: {
+        Args: {
+          p_brand_id: number
+          p_content: Json
+          p_expected_version: number
+          p_id: number
+          p_publish: boolean
+          p_request_id: string
+        }
         Returns: Json
       }
       save_sniper_favorite: {
@@ -8668,6 +9326,31 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      set_label_brand_archive: {
+        Args: {
+          p_archived: boolean
+          p_expected_version: number
+          p_id: number
+          p_line: boolean
+          p_request_id: string
+        }
+        Returns: Json
+      }
+      set_label_image_permission: {
+        Args: {
+          p_allowed_use: string
+          p_asset_id: number
+          p_attribution: string
+          p_expected_version: number
+          p_request_id: string
+          p_status: string
+        }
+        Returns: Json
+      }
+      set_label_library_enabled: {
+        Args: { p_enabled: boolean; p_request_id: string }
+        Returns: Json
       }
       set_listing_online: {
         Args: { p_listing_id: string; p_workspace_id: string }
@@ -8860,6 +9543,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      submit_label_draft: {
+        Args: {
+          p_expected_version: number
+          p_request_id: string
+          p_revision_id: number
+        }
+        Returns: Json
+      }
       tax_cost_allocations: { Args: { p_unit_costs: number[] }; Returns: Json }
       unbundle_shipping_order: {
         Args: { p_bundled_order_id: string; p_workspace_id: string }
@@ -9000,6 +9691,10 @@ export type Database = {
       validate_listing_content: { Args: { p_content: Json }; Returns: Json }
       validate_listing_item_details: {
         Args: { p_details: Json }
+        Returns: Json
+      }
+      validate_size_reference: {
+        Args: { p_content: Json; p_publish: boolean }
         Returns: Json
       }
       workspace_access_is_valid: {

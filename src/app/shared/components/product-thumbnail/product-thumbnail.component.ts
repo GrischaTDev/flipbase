@@ -13,13 +13,13 @@ import { LucideImage } from '@lucide/angular';
   imports: [LucideImage],
   templateUrl: './product-thumbnail.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'inline-flex shrink-0 align-middle' },
+  host: { class: 'inline-flex shrink-0 align-middle', '[class.w-full]': "size() === 'reference'" },
 })
 export class ProductThumbnailComponent {
   readonly src = input<string | null>(null);
   readonly alt = input('');
   readonly size = input<
-    'sm' | 'md' | 'listing' | 'listing-detail' | 'avatar' | 'profile' | 'badge'
+    'sm' | 'md' | 'listing' | 'listing-detail' | 'avatar' | 'profile' | 'badge' | 'reference'
   >('sm');
   readonly priority = input(false);
   readonly flush = input(false);

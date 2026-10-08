@@ -1,5 +1,93 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-09 - Juna - Referenzbibliothek über PR veröffentlichen
+
+**Auftrag:** Geprüften Feature-Branch nach ausdrücklicher Freigabe pushen,
+PR erstellen, erfolgreiche Pflichtprüfungen abwarten, mit Merge-Commit integrieren
+und den eigenen Branch samt Arbeitskopie aufräumen.
+
+**Integration:** Aktuellen `origin/master` übernommen. Ausschließlich das gemeinsame
+AI-Changelog hatte einen Konflikt; beide Sitzungsberichte bleiben vollständig
+erhalten. Die übrigen Änderungen am Browserdienst und Sniper stammen unverändert
+aus dem Hauptzweig. Featureprüfung und Produktionsbau vor dem Push erneut geprüft.
+Releasezustand und Bereitstellung des neuen Medien-Endpunkts werden getrennt
+anhand aktueller Pipeline- und Serverbelege kontrolliert.
+
+**CI-Nachtrag:** Der Formularbindungstest erkennt nur ausdrücklich angelegte
+FormControls; die Feldinitialisierung im neuen Labeleditor verwendet deshalb
+das bestehende direkte Muster. Den neuen Referenz-Browserablauf außerdem in
+die verbindliche PR-Testauswahl aufgenommen. Beide Regressionen lokal geprüft.
+
+**Migrationsnachtrag:** Die vollständige Datenbank-CI erkannte zusätzliche,
+unabhängige Rechteabweichungen im CLI-Abgleich. Die Migration wurde automatisiert
+auf ihre tatsächlich neu angelegten Featureobjekte begrenzt; Rechte und Kommentare
+anderer Themenbereiche bleiben unverändert. Insbesondere bleibt der bestehende
+Service-Zugriff auf Produktbilder samt Archivschutz erhalten. Frischen
+Migrationspfad und bestehende Produktbildprüfung erneut ausgeführt.
+Bestehende Sidebar-Regressionen um den neuen Werkzeug- und Administrationslink
+ergänzt; Reihenfolge und genau ein aktiver Unterpunkt bleiben geprüft.
+
+## 2026-10-08 - Juna - Marken-, Label- und Größenreferenzen abschließen
+
+**Auftrag:** Die im Web begonnene Referenzbibliothek vollständig fortführen;
+Backendarbeiten in diesem eigenständigen Projekt ausdrücklich freigegeben.
+
+**Umsetzung:** Bestehenden Integrationsstand in eigener Arbeitskopie mit dem
+aktuellen Hauptzweig zusammengeführt. Marken und Linien archivieren und
+wiederherstellen, Labelentwürfe bearbeiten, prüfen und veröffentlichen, Bilder
+mit Nutzungsrechten verwalten und quellengebundene Größentabellen pflegen.
+Leser sehen nur freigegebene Veröffentlichungen; die Bibliothek bleibt anfangs
+geschlossen. Bildoriginale und bereinigte Vorschaubilder bleiben privat;
+geprüfte Bildlinks gelten 60 Sekunden. Versionskonflikte, Rollenwechsel,
+ungespeicherte Eingaben und bewusste Wiederholung unklarer Aufträge berücksichtigt.
+Navigation, Filter, Bildvergrößerung und Quellenverweise integriert.
+
+**Datenbank:** Kanonische Schemata registriert, Migration mit dem lokalen CLI
+erzeugt, unabhängigen bestehenden Schema-Drift ausgeschlossen und ausgelassene
+Initialdaten sowie explizite Rechte aus den Schemata übernommen. Migration
+frisch lokal angewendet und API-Typen aus dieser Datenbank erzeugt.
+
+**Prüfung:** 247 SQL-Verhaltensprüfungen, 14 Prüfungen am echten Migrationspfad,
+403 Modell-/Navigations-/Übersetzungstests, 92 Angular-Tests und 11
+Medienprüfungen erfolgreich. Typen, Formatierung, Lint, Shared-UI und
+Produktionsbau geprüft. Vollständiger Browserablauf gegen echtes lokales
+Supabase und den Medien-Endpunkt: Redaktion, Upload, Veröffentlichung,
+Leserfreigabe, Quellenklick, Größenfilter und Bildwiderruf. Mobile AXE- und
+Überlaufprüfungen erfolgreich, keine unbehandelten Browserfehler. Sechs Befunde
+des unabhängigen Reviews korrigiert und nachgeprüft.
+
+**Grenzen:** Nur synthetische Referenzinhalte für Tests; keine Markenfakten oder
+allgemeinen Größenumrechnungen erfunden. Kein Push, Merge oder Produktionszugriff.
+Der neue Medien-Endpunkt muss vor produktiver Leserfreigabe bereitgestellt werden;
+das Vorgehen steht in der Deployment-Dokumentation. PR-Abschluss nach Freigabe.
+
+## 2026-10-08 - Juna - Web-Arbeit am Marken- und Labellexikon lokal einordnen
+
+**Auftrag:** Vorhandene Web-Branches für Markenlabels, Echtheitsvergleich und
+Größenreferenzen finden und den Stand für eine lokale Fortsetzung prüfen.
+
+**Befund:** Entwurfs-PR 331 auf `juna/brand-labels-integration-20261007`
+enthält Galerie, Detailansicht, Referenzmarken-/Linienverwaltung und geprüfte
+SQL-Kandidaten. App-Navigation, produktive Datenbankintegration, Labeleditor,
+Bildverwaltung und echte Referenzinhalte fehlen. Größenfinder sind laut
+Integrationsdokumentation ausdrücklich nicht Teil dieses Ausbaus. Die älteren
+Branches `juna/brand-labels` und `juna/brand-labels-foundation` enthalten gegenüber
+ihrem gemeinsamen Hauptzweig nur Test-/Übertragungsworkflows beziehungsweise
+keine eigenen Änderungen.
+
+**Prüfung:** Remote-Branches aktualisiert, Commitstände und Quellumfang verglichen,
+PR-Dokumentation, Routen, Bildplatzhalter und aktuelle CI-Ergebnisse gelesen.
+SQL-Kandidaten, Datenbank-, Anwendungs-, Sniper- und allgemeine Browserprüfungen
+sind im letzten PR-Lauf erfolgreich. Quality und Label-Modulprüfung scheitern
+an Formatierung; der Produktionsbau wurde nicht ausgeführt. Keine eigene
+Build-, Browser- oder vollständige Supabase-Abnahme durchgeführt.
+
+**Fortsetzung:** PR-Head `1c786863` in einer eigenen lokalen Arbeitskopie auf
+`juna/brand-labels-local-continuation` bereitgestellt. Bestehende Remote-Branches,
+Anwendung und Produktivdaten unverändert. Noch keine Implementierung, kein Push,
+Merge oder Deployment. Die im Web erwähnten zusätzlichen lokalen Editor- und
+Medienbausteine sind im abrufbaren Git-Stand nicht enthalten.
+
 ## 2026-10-08 - Juna - Sitzungs-Skripte im automatischen Vinted-Katalog erhalten
 
 **Auftrag:** Den belegten Unterschied zwischen manueller Seitenladung und

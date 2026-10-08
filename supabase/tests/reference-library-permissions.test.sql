@@ -1,0 +1,20 @@
+\set ON_ERROR_STOP on
+begin;
+set local search_path = public, extensions;
+select no_plan();
+select ok(not has_function_privilege('authenticated','public.complete_label_image(integer,uuid,integer,text,integer,integer,text,text)','execute'),'Browser dürfen die interne Medienfreigabe nicht ausführen');
+select ok(not has_function_privilege('anon','public.complete_label_image(integer,uuid,integer,text,integer,integer,text,text)','execute'),'Anonyme dürfen Medien nicht freigeben');
+select ok(has_function_privilege('service_role','public.complete_label_image(integer,uuid,integer,text,integer,integer,text,text)','execute'),'Medien-Endpunkt darf den Abschluss bestätigen');
+select ok(not has_function_privilege('authenticated','public.label_finish_edit(text,uuid,jsonb,jsonb,integer,integer)','execute'),'Browser umgehen keine Auftragsprüfung');
+select ok(not has_function_privilege('service_role','public.label_finish_edit(text,uuid,jsonb,jsonb,integer,integer)','execute'),'Interne Auftragshilfe bleibt nur beim Funktionsbesitzer');
+select ok(not has_function_privilege('anon','public.save_size_reference(integer,integer,integer,jsonb,boolean,uuid)','execute'),'Keine anonyme Größenbearbeitung');
+select ok(has_function_privilege('authenticated','public.save_size_reference(integer,integer,integer,jsonb,boolean,uuid)','execute'),'Geprüfte Größenaktion ist für angemeldete Konten erreichbar');
+select ok(not has_table_privilege('authenticated','public.label_image_assets','insert,update,delete,truncate'),'Bildtabelle hat keine geerbten Browser-Schreibrechte');
+select ok(not has_table_privilege('authenticated','public.size_references','insert,update,delete,truncate'),'Größentabelle hat keine geerbten Browser-Schreibrechte');
+select ok(not has_table_privilege('service_role','public.label_image_permissions','insert,update,delete,truncate'),'Medienfreigabe erfolgt ausschließlich über geprüfte Aktion');
+select ok(not has_sequence_privilege('authenticated','public.label_image_assets_id_seq','usage'),'Browser verwenden keine internen Mediensequenzen');
+select ok((select reader_enabled=false from public.label_library_settings where id=1),'Leserfreigabe ist anfänglich geschlossen');
+select is((select count(*)::integer from storage.buckets where id in ('label-originals','label-images') and public=false),2,'Beide privaten Bildspeicher sind im Migrationspfad angelegt');
+select ok(not exists(select 1 from pg_policies where schemaname='storage' and tablename='objects' and qual like '%label-%'),'Browser können die feste Linklaufzeit nicht über Storage umgehen');
+select * from finish();
+rollback;
