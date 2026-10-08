@@ -13,6 +13,11 @@ aus dem Hauptzweig. Featureprüfung und Produktionsbau vor dem Push erneut gepr�
 Releasezustand und Bereitstellung des neuen Medien-Endpunkts werden getrennt
 anhand aktueller Pipeline- und Serverbelege kontrolliert.
 
+**CI-Nachtrag:** Der Formularbindungstest erkennt nur ausdrücklich angelegte
+FormControls; die Feldinitialisierung im neuen Labeleditor verwendet deshalb
+das bestehende direkte Muster. Den neuen Referenz-Browserablauf außerdem in
+die verbindliche PR-Testauswahl aufgenommen. Beide Regressionen lokal geprüft.
+
 ## 2026-10-08 - Juna - Marken-, Label- und Größenreferenzen abschließen
 
 **Auftrag:** Die im Web begonnene Referenzbibliothek vollständig fortführen;

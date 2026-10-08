@@ -46,7 +46,6 @@ import type {
 } from '../../models/brand-label.models';
 import { createEmptyLabelContent } from '../../models/brand-label-content';
 import type { LabelAdminBrand } from '../../models/brand-label-admin-brands';
-const text = (value = '') => new FormControl(value, { nonNullable: true });
 const sourceForm = (
   source: LabelSource = {
     id: crypto.randomUUID(),
@@ -58,29 +57,32 @@ const sourceForm = (
   },
 ) =>
   new FormGroup({
-    id: text(source.id),
-    title: text(source.title),
-    publisher: text(source.publisher),
-    url: text(source.url),
-    accessedAt: text(source.accessedAt ?? ''),
-    locator: text(source.locator),
+    id: new FormControl(source.id, { nonNullable: true }),
+    title: new FormControl(source.title, { nonNullable: true }),
+    publisher: new FormControl(source.publisher, { nonNullable: true }),
+    url: new FormControl(source.url, { nonNullable: true }),
+    accessedAt: new FormControl(source.accessedAt ?? '', { nonNullable: true }),
+    locator: new FormControl(source.locator, { nonNullable: true }),
   });
 const intervalForm = (
   interval: LabelInterval = { startYear: null, endYear: null, sourceIds: [] },
 ) =>
   new FormGroup({
-    startYear: text(interval.startYear?.toString() ?? ''),
-    endYear: text(interval.endYear?.toString() ?? ''),
-    sourceIds: text(interval.sourceIds.join('\n')),
+    startYear: new FormControl(interval.startYear?.toString() ?? '', { nonNullable: true }),
+    endYear: new FormControl(interval.endYear?.toString() ?? '', { nonNullable: true }),
+    sourceIds: new FormControl(interval.sourceIds.join('\n'), { nonNullable: true }),
   });
 const hintForm = (hint: LabelCheckHint = { text: '', sourceIds: [] }) =>
-  new FormGroup({ text: text(hint.text), sourceIds: text(hint.sourceIds.join('\n')) });
+  new FormGroup({
+    text: new FormControl(hint.text, { nonNullable: true }),
+    sourceIds: new FormControl(hint.sourceIds.join('\n'), { nonNullable: true }),
+  });
 const imageForm = (image: LabelImageAssignment) =>
   new FormGroup({
     assetId: new FormControl(image.assetId, { nonNullable: true }),
-    caption: text(image.caption),
-    alt: text(image.alt),
-    referenceItem: text(image.referenceItem),
+    caption: new FormControl(image.caption, { nonNullable: true }),
+    alt: new FormControl(image.alt, { nonNullable: true }),
+    referenceItem: new FormControl(image.referenceItem, { nonNullable: true }),
   });
 const lines = (value: string) =>
   value
@@ -173,16 +175,16 @@ export class LabelEditorComponent {
       .map((line) => ({ value: line.id, label: line.name })) ?? []),
   ]);
   readonly form = new FormGroup({
-    title: text(),
-    aliases: text(),
+    title: new FormControl('', { nonNullable: true }),
+    aliases: new FormControl('', { nonNullable: true }),
     brandLineId: new FormControl<number | null>(null),
-    kinds: text(),
-    timeSummary: text(),
+    kinds: new FormControl('', { nonNullable: true }),
+    timeSummary: new FormControl('', { nonNullable: true }),
     evidenceLevel: new FormControl<LabelEvidenceLevel>('undated', { nonNullable: true }),
-    features: text(),
-    limitations: text(),
-    relatedReferenceIds: text(),
-    reviewedAt: text(),
+    features: new FormControl('', { nonNullable: true }),
+    limitations: new FormControl('', { nonNullable: true }),
+    relatedReferenceIds: new FormControl('', { nonNullable: true }),
+    reviewedAt: new FormControl('', { nonNullable: true }),
     sources: new FormArray<ReturnType<typeof sourceForm>>([]),
     intervals: new FormArray<ReturnType<typeof intervalForm>>([]),
     checkHints: new FormArray<ReturnType<typeof hintForm>>([]),
