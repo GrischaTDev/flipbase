@@ -1,5 +1,29 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-08 - Juna - Ausbleibenden Vinted-Feed live untersuchen und freigeben
+
+**Befund:** Der globale Vinted-Zustand steht seit dem 07.10. um 17:18 Uhr auf
+`blocked / interaction_required`. Der zeitgleiche Adidas-Abruf ist als
+`forbidden` gespeichert. Der später neu gestartete Container ist lebendig,
+aber `/health` meldet mangels erfolgreicher Suchrunde 503. Am 08.10. sind vor
+der Wiederprüfung keine neuen Artikel gespeichert. Nike und Ralph Lauren sind
+aktiv; Adidas ist deaktiviert. Eine erneute Bereitstellung löscht die notwendige
+manuelle Pause nicht. Die private Browserroute und Betreiberanmeldung funktionieren.
+
+**Wiederherstellung:** Über die vorhandene angemeldete Admin-Botsitzung den
+Nike-Katalog geöffnet, den Cookiehinweis auf notwendige Cookies beschränkt und
+nach dem bestehenden Mindestabstand „Zugriff erneut prüfen“ ausgeführt.
+Die Oberfläche bestätigt den erfolgreich gespeicherten Katalogzugriff und die
+Freigabe aktiver Markenfilter. Kein CAPTCHA wird angeboten oder gelöst.
+Keine Änderung an Code, Suchbedingungen, Datenbankschema oder Zugriffsschutz.
+
+**Abnahme:** Elf automatische Durchläufe nach der Freigabe bestehen ohne Fehler.
+369 Artikel sind heute neu gespeichert; Nike und Ralph Lauren haben aktuelle
+Erfolgszeitpunkte. `/health` ist bereit, der globale Zustand ist `ready`.
+Der angemeldete Adminbereich zeigt „Vinted verbunden“ und der Nutzerfeed zeigt
+neue Artikel von heute um 10:38 Uhr. Formatierung und Git-Diff bestehen.
+Eine dauerhafte Anbieterfreigabe ist damit nicht zugesichert.
+
 ## 2026-10-08 - Juna - Falsche Beta-Umleitung beim Tabwechsel verhindern
 
 **Auftrag:** Die gelegentliche Umleitung eines Administrators auf `beta-ended`
