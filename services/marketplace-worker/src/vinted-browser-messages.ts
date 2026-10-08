@@ -53,6 +53,33 @@ export function isValidVintedMessageCommand(command: MarketplaceMessageCommand):
         bytes.at(-1) === 217;
 }
 
+export async function readVintedCsrfToken(page: Page): Promise<string | null> {
+  return page.evaluate(() => {
+    const valid = (token: unknown): token is string =>
+      typeof token === 'string' && !!token.trim() && token.length <= 512;
+    const metadata = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content;
+    if (valid(metadata)) return metadata;
+    for (const script of document.scripts) {
+      if (script.src) continue;
+      const frame = script.textContent?.trim().match(/^self\.__next_f\.push\(([\s\S]*)\);?$/);
+      if (!frame) continue;
+      try {
+        // Nur JSON-Frames lesen, niemals ausgelieferte Skripte ausführen.
+        const payload: unknown = JSON.parse(frame[1] ?? '');
+        const match =
+          Array.isArray(payload) && typeof payload[1] === 'string'
+            ? payload[1].match(/"CSRF_TOKEN"\s*:\s*("(?:[^"\\]|\\.)*")/)
+            : null;
+        const token: unknown = match ? JSON.parse(match[1] ?? 'null') : null;
+        if (valid(token)) return token;
+      } catch {
+        /* Andere oder unvollständige Frames bestätigen keine Freigabe. */
+      }
+    }
+    return null;
+  });
+}
+
 class MessageRequestError extends Error {
   readonly code: string;
   readonly status?: number;
@@ -169,30 +196,7 @@ export async function sendVintedMessage(
   let temporaryPhotos: string[] | null = null;
   try {
     await assertAuthorized();
-    const csrf = await page.evaluate(() => {
-      const valid = (token: unknown): token is string =>
-        typeof token === 'string' && !!token.trim() && token.length <= 512;
-      const metadata = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content;
-      if (valid(metadata)) return metadata;
-      for (const script of document.scripts) {
-        if (script.src) continue;
-        const frame = script.textContent?.trim().match(/^self\.__next_f\.push\(([\s\S]*)\);?$/);
-        if (!frame) continue;
-        try {
-          // Nur JSON-Frames lesen, niemals ausgelieferte Skripte ausführen.
-          const payload: unknown = JSON.parse(frame[1] ?? '');
-          const match =
-            Array.isArray(payload) && typeof payload[1] === 'string'
-              ? payload[1].match(/"CSRF_TOKEN"\s*:\s*("(?:[^"\\]|\\.)*")/)
-              : null;
-          const token: unknown = match ? JSON.parse(match[1] ?? 'null') : null;
-          if (valid(token)) return token;
-        } catch {
-          /* Andere oder unvollständige Frames bestätigen keine Freigabe. */
-        }
-      }
-      return null;
-    });
+    const csrf = await readVintedCsrfToken(page);
     if (!csrf) throw new MessageRequestError('login_required');
     await identity();
     const baseline = new Set(

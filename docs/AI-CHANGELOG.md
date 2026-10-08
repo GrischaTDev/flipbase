@@ -53,6 +53,15 @@ Gesprächsliste liefert zwar UUIDs und Zeitpunkte, für dieses Legacy-Konto aber
 nur `legacy_last_message` mit Absender `0`; daraus werden keine Eingänge erfunden.
 Eine Änderung der bisherigen Vorgabe zum Detailabruf steht zur Entscheidung.
 
+**Favoriten-Browseradapter vorbereitet:** Belegte Extension-Endpunkte für
+Favoritenantworten und Angebote übernommen. Der Adapter prüft aktiven Artikel,
+Empfänger, bestehende Gespräche über begrenzte Seiten und die bestätigte eigene
+Vorlagennachricht vor einem Angebot. Angebotspreise benötigen zusätzlich eine
+Serverbestätigung. Verlorene Create-/Offerantworten werden nicht wiederholt.
+Zehn neue Adapterprüfungen; 401 Workerprüfungen bestehen, sieben unverändert
+ausgelassen; Worker-Bau, Typprüfung, Formatierung und ESLint bestehen. Noch keine
+Favoriten-Cloud-RPCs, Worker-Verdrahtung oder Live-Sends; Aufgabe 7 bleibt offen.
+
 ## 2026-10-08 - Juna - Gemeinsamen Cloud-Postfachausbau planen
 
 **Auftrag:** Nach Bestätigung des schriftlichen Entwurfs den Umsetzungsplan
