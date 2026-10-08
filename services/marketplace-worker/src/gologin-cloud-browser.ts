@@ -3,6 +3,7 @@ import { currentVintedPage, vintedBrowserActions } from './vinted-browser-action
 import {
   type VintedAccountImport,
   type VintedConversationVersion,
+  type VintedConversationReadTarget,
 } from './vinted-account-import.ts';
 import { type VintedAccountIdentity } from './vinted-browser-reader.ts';
 import { type VintedLoginCredentials, type VintedLoginResult } from './vinted-browser-login.ts';
@@ -21,6 +22,7 @@ export interface BrowserDragPoint {
 }
 
 export interface BrowserInfo extends Pick<Browser, 'version'> {
+  initialize?(): Promise<void>;
   capture?(): Promise<Uint8Array>;
   click?(xRatio: number, yRatio: number): Promise<void>;
   drag?(points: BrowserDragPoint[]): Promise<void>;
@@ -31,6 +33,7 @@ export interface BrowserInfo extends Pick<Browser, 'version'> {
     authorize: () => Promise<void>,
     onStage?: (stage: 'profile' | 'publications' | 'conversations' | 'sales') => Promise<void>,
     previousConversations?: VintedConversationVersion[],
+    requestedConversation?: VintedConversationReadTarget,
   ): Promise<VintedAccountImport>;
   login?(
     credentials: VintedLoginCredentials,
@@ -66,6 +69,10 @@ interface GoLoginCloudBrowserOptions {
   token: string;
   startUrl?: 'https://www.vinted.de/';
   fetch?: typeof fetch;
+  isolated?: {
+    open(profileId: string, token: string): Promise<CloudBrowserHandle>;
+    stop(profileId: string): Promise<void>;
+  };
   connect?: (url: string) => Promise<BrowserConnection>;
 }
 
@@ -83,6 +90,7 @@ export class GoLoginCloudBrowser {
   private readonly token: string;
   private readonly request: typeof fetch;
   private readonly connect: (url: string) => Promise<BrowserConnection>;
+  private readonly isolated?: GoLoginCloudBrowserOptions['isolated'];
   private readonly startUrl?: 'https://www.vinted.de/';
 
   constructor(options: GoLoginCloudBrowserOptions) {
@@ -91,10 +99,45 @@ export class GoLoginCloudBrowser {
     this.request = options.fetch ?? fetch;
     this.connect = options.connect ?? ((url) => chromium.connectOverCDP(url, { timeout: 30_000 }));
     this.startUrl = options.startUrl;
+    this.isolated = options.isolated;
   }
 
   async open(profileId: string): Promise<CloudBrowserHandle> {
     if (!profileIdPattern.test(profileId)) throw new Error('Ungültige Browserprofil-ID');
+    if (this.isolated) {
+      let handle: CloudBrowserHandle;
+      try {
+        handle = await this.isolated.open(profileId, this.token);
+        await handle.run(async (browser) => browser.initialize?.());
+      } catch {
+        try {
+          await this.stop(profileId);
+        } catch {
+          throw new CloudBrowserStopUncertainError();
+        }
+        throw new Error('Browser-Verbindung fehlgeschlagen');
+      }
+      let stopped = false;
+      let closing: Promise<void> | undefined;
+      return {
+        run: (operation) => {
+          if (stopped || closing) return Promise.reject(new Error('Browsersitzung beendet'));
+          return handle.run(operation);
+        },
+        close: () => {
+          if (stopped) return Promise.resolve();
+          closing ??= (async () => {
+            await handle.close();
+            await this.stop(profileId);
+            stopped = true;
+          })().catch((error: unknown) => {
+            closing = undefined;
+            throw error;
+          });
+          return closing;
+        },
+      };
+    }
     let connection: BrowserConnection;
     try {
       const endpoint = new URL(cloudBrowserUrl);
@@ -158,6 +201,7 @@ export class GoLoginCloudBrowser {
 
   async stop(profileId: string): Promise<void> {
     if (!profileIdPattern.test(profileId)) throw new Error('Ungültige Browserprofil-ID');
+    await this.isolated?.stop(profileId);
     let response: Response;
     try {
       response = await this.request(`${apiBaseUrl}/browser/${profileId}/web`, {

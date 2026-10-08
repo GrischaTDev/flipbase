@@ -1,5 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.112.3';
 import { hashBetaRegistrationToken } from '../_shared/beta-registration-link.ts';
+import { readLimitedJsonBody, RequestBodyTooLargeError } from '../_shared/limited-request-body.ts';
 
 interface PendingRegistration {
   auth_user_id: string;
@@ -12,7 +13,11 @@ export interface BetaRegistrationDependencies {
   begin(hash: string, requestId: string): Promise<PendingRegistration>;
   setPassword(userId: string, password: string): Promise<void>;
   complete(requestId: string, leaseId: string): Promise<void>;
-  session(userId: string, email: string): Promise<{ access_token: string; refresh_token: string }>;
+  session(
+    userId: string,
+    email: string,
+    password: string,
+  ): Promise<{ access_token: string; refresh_token: string }>;
   fail(requestId: string, leaseId: string): Promise<void>;
 }
 
@@ -43,16 +48,26 @@ export function createBetaRegistrationHandler(deps: BetaRegistrationDependencies
     if (origin && !origins.has(origin)) return respond({ error: 'forbidden_origin' }, 403);
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers });
     if (request.method !== 'POST') return respond({ error: 'method_not_allowed' }, 405);
+    try {
+      if (!(await deps.allowAttempt(request))) {
+        await request.body?.cancel();
+        return respond({ error: 'rate_limited', message: 'Bitte versuche es später erneut.' }, 429);
+      }
+    } catch {
+      await request.body?.cancel();
+      return respond({ error: 'unavailable' }, 503);
+    }
     let body: Record<string, unknown>;
     try {
-      const text = await request.text();
-      if (text.length > 4096) return respond({ error: 'invalid_body' }, 413);
-      const parsed: unknown = JSON.parse(text);
+      const parsed = await readLimitedJsonBody(request, 4096);
       if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed))
         return respond({ error: 'invalid_body' }, 400);
       body = parsed as Record<string, unknown>;
-    } catch {
-      return respond({ error: 'invalid_body' }, 400);
+    } catch (error) {
+      return respond(
+        { error: 'invalid_body' },
+        error instanceof RequestBodyTooLargeError ? 413 : 400,
+      );
     }
     if (typeof body.token !== 'string' || !/^[A-Za-z0-9_-]{43}$/u.test(body.token))
       return respond({ error: 'invalid_link' }, 400);
@@ -78,8 +93,6 @@ export function createBetaRegistrationHandler(deps: BetaRegistrationDependencies
     }
     let pending: PendingRegistration | null = null;
     try {
-      if (!(await deps.allowAttempt(request)))
-        return respond({ error: 'rate_limited', message: 'Bitte versuche es später erneut.' }, 429);
       const hash = await hashBetaRegistrationToken(body.token);
       if (body.action === 'inspect') {
         const result = await deps.inspect(hash);
@@ -90,7 +103,11 @@ export function createBetaRegistrationHandler(deps: BetaRegistrationDependencies
       await deps.setPassword(pending.auth_user_id, body.password as string);
       await deps.complete(requestId, pending.lease_id);
       // Ein verbrauchter Beta-Link darf selbst bei verlorener Antwort keinen weiteren Login erzeugen.
-      const session = await deps.session(pending.auth_user_id, pending.email);
+      const session = await deps.session(
+        pending.auth_user_id,
+        pending.email,
+        body.password as string,
+      );
       return respond({ session });
     } catch {
       if (pending && typeof body.requestId === 'string') {
@@ -166,14 +183,13 @@ function productionDependencies(): BetaRegistrationDependencies {
     complete: async (requestId, leaseId) => {
       await rpc('complete_beta_registration', { p_request_id: requestId, p_lease_id: leaseId });
     },
-    async session(userId, email) {
-      const { data, error } = await admin.auth.admin.generateLink({ type: 'recovery', email });
-      if (error || data.user.id !== userId || !data.properties.hashed_token)
-        throw new Error('Bestätigung fehlgeschlagen');
+    async session(userId, email, password) {
+      // Der verbrauchte Beta-Link liefert eine normale Passwortsitzung,
+      // keine dauerhaft zum erneuten Passwortsetzen berechtigte Recovery-Sitzung.
       const client = createClient(url, anonKey, options);
-      const { data: verified, error: verifyError } = await client.auth.verifyOtp({
-        type: 'recovery',
-        token_hash: data.properties.hashed_token,
+      const { data: verified, error: verifyError } = await client.auth.signInWithPassword({
+        email,
+        password,
       });
       if (verifyError || !verified.session || verified.user?.id !== userId)
         throw new Error('Anmeldung fehlgeschlagen');

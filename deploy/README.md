@@ -91,6 +91,19 @@ Erst danach die neue Compose-Konfiguration starten und Start, native Bedienung,
 Stopp, Wiederanlauf und Archivierung mit einem freigegebenen Konto abnehmen.
 Ein bloßer Web-Release schaltet den neuen Broker nicht produktiv frei.
 
+Der Chromium-Worker startet mit `restart: unless-stopped` nach einem unerwarteten
+Prozessende erneut. Ein ausdrücklich gestoppter Dienst bleibt gestoppt. Vor neuen
+Aufträgen muss der Worker seine alleinige Datenbankberechtigung beanspruchen und
+ungeklärte Browserreservierungen bereinigen; eine fehlgeschlagene Recovery gibt
+keinen Kontozugriff frei. Hostbroker und Kontobrowser behalten ihre bisherigen
+Startregeln. Die Neustartregel muss auch in der aktiven Compose-Datei auf dem
+Server übernommen werden.
+
+Das Ereignis `marketplace_runtime_lost` enthält ausschließlich eine feste
+Fehlerkategorie in `reason`: `claim_failed`, `run_failed`, `heartbeat_rejected`,
+`heartbeat_expired`, `heartbeat_failed`, `runtime_expired` oder
+`reservation_uncertain`. Es enthält weder Anbieterantworten noch Zugangsdaten.
+
 Bei jedem Push auf `master` läuft [`.github/workflows/ci.yml`](../.github/workflows/ci.yml):
 
 1. **Required checks** – Format, Lint, Typen und alle ausgewählten Prüfungen.

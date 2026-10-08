@@ -5,6 +5,7 @@ export const accountIds = [
   '25000000-0000-4000-8000-000000000021',
   '25000000-0000-4000-8000-000000000022',
 ];
+export const conversationId = '25000000-0000-4000-8000-000000000031';
 export const emptyPage = () => ({ items: [], total: 0, nextCursor: null });
 
 /** Nur lokale HTTP-Antworten. Weder echte Anmeldung noch Vinted-Zugriff. */
@@ -24,6 +25,7 @@ export async function mockMarketplace(
     textState?: 'loaded' | 'not_loaded';
     imageUrl?: string | null;
     imageUrls?: readonly string[];
+    conversationId?: string;
   },
   localAccounts = false,
   accountCount = accountIds.length,
@@ -79,6 +81,26 @@ export async function mockMarketplace(
     lastSyncedAt: null,
   }));
   const calls: { name: string; body: Record<string, unknown> }[] = [];
+  const snapshotConversationId = importedOverview?.conversationId ?? 'conversation-1';
+  const conversationCheckedAt = new Map<string, string>();
+  await page.route('**/marketplace-browser/conversations/read', (route) => {
+    const body = route.request().postDataJSON() as Record<string, unknown>;
+    calls.push({ name: 'browser_read_conversation', body });
+    if (
+      body['workspaceId'] !== workspaceId ||
+      body['conversationId'] !== snapshotConversationId ||
+      !accounts.some(
+        (account) =>
+          account.connectionId === body['connectionId'] &&
+          account.executionMode === 'cloud' &&
+          account.status === 'connected',
+      )
+    )
+      return route.fulfill({ status: 403 });
+    const observedAt = new Date().toISOString();
+    conversationCheckedAt.set(String(body['connectionId']), observedAt);
+    return route.fulfill({ json: { conversationId: snapshotConversationId, observedAt } });
+  });
   const cloudSetups = new Map<
     string,
     {
@@ -410,9 +432,10 @@ export async function mockMarketplace(
           items: [
             {
               ...scope,
-              id: 'conversation-1',
+              id: snapshotConversationId,
               title: 'Frage zum Schal',
               lastMessage: 'Welche Maße hat der Schal?',
+              detailCheckedAt: conversationCheckedAt.get(String(scope.connectionId)) ?? null,
             },
           ],
           total: 1,

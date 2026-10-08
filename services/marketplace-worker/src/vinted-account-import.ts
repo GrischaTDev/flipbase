@@ -40,6 +40,11 @@ export interface VintedConversationVersion {
   occurredAt: string | null;
 }
 
+export interface VintedConversationReadTarget {
+  externalId: string;
+  accountId: string;
+}
+
 export type VintedImportStage =
   | 'navigation'
   | 'identity'
@@ -69,7 +74,15 @@ export type VintedRequestFailure =
   | 'network'
   | 'browser_context';
 
-export type VintedBrowserReadFailure = 'navigation' | 'closed' | 'script' | 'unknown';
+export type VintedBrowserReadFailure =
+  | 'navigation'
+  | 'navigation_interrupted'
+  | 'navigation_aborted'
+  | 'timeout'
+  | 'network'
+  | 'closed'
+  | 'script'
+  | 'unknown';
 
 function classifyBrowserReadFailure(error: unknown): VintedBrowserReadFailure {
   const message = error instanceof Error ? error.message : '';
@@ -79,6 +92,10 @@ function classifyBrowserReadFailure(error: unknown): VintedBrowserReadFailure {
   )
     return 'navigation';
   if (message.includes('Target page, context or browser has been closed')) return 'closed';
+  if (message.includes('interrupted by another navigation')) return 'navigation_interrupted';
+  if (message.includes('net::ERR_ABORTED')) return 'navigation_aborted';
+  if (message.includes('net::ERR_')) return 'network';
+  if (/Timeout(?:Error| \d+ms exceeded)/.test(message)) return 'timeout';
   if (message.includes('ReferenceError') || message.includes('TypeError')) return 'script';
   return 'unknown';
 }
@@ -618,6 +635,7 @@ export async function readVintedAccountImport(
   authorize: () => Promise<void>,
   onStage?: (stage: 'profile' | 'publications' | 'conversations' | 'sales') => Promise<void>,
   previousConversations: VintedConversationVersion[] = [],
+  requestedConversation?: VintedConversationReadTarget,
 ): Promise<VintedAccountImport> {
   const reads: SourceReadContext = { count: 0, authorize, browserFailures: [] };
   await atImportStage('navigation', async () => {
@@ -647,8 +665,12 @@ export async function readVintedAccountImport(
       await authorize();
       try {
         await page.goto('https://www.vinted.de/', { waitUntil: 'load', timeout: 20_000 });
-      } catch {
-        throw new VintedImportRequestError('browser_context');
+      } catch (reloadError) {
+        throw new VintedImportRequestError(
+          'browser_context',
+          undefined,
+          classifyBrowserReadFailure(reloadError),
+        );
       }
       for (let attempt = 0; attempt < 3; attempt++) {
         if (attempt > 0) await wait(750 * attempt);
@@ -675,6 +697,8 @@ export async function readVintedAccountImport(
   const identity = await atImportStage('identity', async () => {
     const account = parseVintedAccountIdentity(profile);
     if (!account) throw new Error('Vinted-Anmeldung nicht bestätigt');
+    if (requestedConversation && account.id !== requestedConversation.accountId)
+      throw new Error('Vinted-Konto stimmt nicht überein');
     return account;
   });
   const observedAt = new Date().toISOString();
@@ -715,15 +739,26 @@ export async function readVintedAccountImport(
   };
   const previousById = new Map(previousConversations.map((entry) => [entry.externalId, entry]));
   const details: unknown[] = [];
+  if (
+    requestedConversation &&
+    !conversations.values.some(
+      (conversation) =>
+        identifier(record(conversation)?.['id']) === requestedConversation.externalId,
+    )
+  )
+    throw new VintedImportReadError('messages', new VintedImportRequestError('invalid_response'));
   for (const raw of conversations.values) {
-    // Das Öffnen ungelesener Gespräche könnte bei Vinted den Lesestatus verändern.
-    if (record(raw)?.['unread'] !== false) continue;
     const id = identifier(record(raw)?.['id']);
+    if (requestedConversation && id !== requestedConversation.externalId) continue;
+    // Das Öffnen ungelesener Gespräche könnte bei Vinted den Lesestatus verändern.
+    // Nur die ausdrückliche Auswahl darf ein ungelesenes Gespräch öffnen.
+    if (!requestedConversation && record(raw)?.['unread'] !== false) continue;
     if (!id) continue;
     const previous = previousById.get(id);
     const sourceUpdatedAt = date(record(raw)?.['updated_at'], '');
     const checkedAt = previous ? Date.parse(previous.detailCheckedAt) : NaN;
     if (
+      !requestedConversation &&
       previous &&
       sourceUpdatedAt &&
       previous.sourceUpdatedAt === sourceUpdatedAt &&
@@ -740,6 +775,7 @@ export async function readVintedAccountImport(
       if (identifier(relation?.['id']) !== id || !Array.isArray(relation?.['messages']))
         throw new VintedImportRequestError('invalid_response');
     } catch (error) {
+      if (requestedConversation) throw new VintedImportReadError('messages', error);
       areas.messages = sourceFailure('messages', error, true);
       areas.sales = sourceFailure('transaction', error, true);
       continue;

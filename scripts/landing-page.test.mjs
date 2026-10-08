@@ -554,8 +554,6 @@ test('confirms a stored beta application in a focused dialog', async () => {
     /Schließen/u,
   );
   assert.ok(pageRegions.every((region) => region.inert === true));
-  assert.equal(dom.window.document.getElementById('beta-success-receipt-sent').hidden, false);
-  assert.equal(dom.window.document.getElementById('beta-success-receipt-failed').hidden, true);
   assert.equal(submitButton.disabled, false);
   assert.equal(requests.length, 1);
 
@@ -579,43 +577,16 @@ test('zieht den Hinweis zur Bestätigungs-E-Mail über die gesamte Dialogbreite'
   dom.window.close();
 });
 
-test('explains a failed receipt email without losing the application', async () => {
-  const { dom } = await submitBetaApplication({ ok: true, receiptEmailSent: false });
+test('bestätigt Bewerbungen neutral ohne Existenz- oder Versandstatus', async () => {
+  const { dom } = await submitBetaApplication({ ok: true });
   const dialog = dom.window.document.getElementById('beta-success-dialog');
-
   assert.equal(dialog.hidden, false);
-  assert.match(dialog.textContent, /Deine Bewerbung ist bei uns eingegangen/u);
-  assert.match(dialog.textContent, /Bestätigungs-E-Mail konnte nicht\s+versendet\s+werden/u);
-  assert.equal(dom.window.document.getElementById('beta-success-receipt-sent').hidden, true);
-  assert.equal(dom.window.document.getElementById('beta-success-receipt-failed').hidden, false);
-  dom.window.close();
-});
-
-test('behandelt den produktiven Duplikatcode als vorhandene Bewerbung', async () => {
-  const { dom } = await submitBetaApplication({ error: 'application_existing' }, 409);
-  const existingContent = dom.window.document.getElementById('beta-existing-content');
-
-  assert.equal(existingContent.hidden, false);
-  assert.match(existingContent.textContent, /Bewerbung bereits vorhanden/u);
-  assert.match(existingContent.textContent, /Application already received/u);
-  assert.doesNotMatch(existingContent.textContent, /abgelehnt|angenommen/iu);
-  dom.window.close();
-});
-
-test('meldet jede bereits vorhandene Bewerbung ohne ihren Status preiszugeben', async () => {
-  const { dom, form } = await submitBetaApplication({ error: 'application_exists' }, 409);
-  const dialog = dom.window.document.getElementById('beta-success-dialog');
-  const warning = dom.window.document.querySelector('#beta-existing-content .beta-dialog-symbol');
-
-  assert.equal(dialog.hidden, false);
-  assert.equal(dom.window.document.getElementById('beta-success-content').hidden, true);
-  assert.equal(dom.window.document.getElementById('beta-existing-content').hidden, false);
-  assert.match(dialog.textContent, /Für diese E-Mail liegt bereits eine Bewerbung vor/u);
-  assert.doesNotMatch(dialog.textContent, /abgelehnt|angenommen/iu);
-  assert.ok(warning.classList.contains('beta-dialog-symbol-warnung'));
-  assert.ok(warning.querySelector('svg'));
-  assert.equal(form.querySelector('[name="email"]').value, 'anna@example.test');
-  assert.equal(form.querySelector('button[type="submit"]').disabled, false);
+  assert.match(dialog.textContent, /Wenn deine Adresse neu aufgenommen wurde/u);
+  assert.doesNotMatch(
+    dialog.textContent,
+    /Bewerbung bereits vorhanden|E-Mail wurde an diese Adresse gesendet/u,
+  );
+  assert.equal(dom.window.document.getElementById('beta-existing-content'), null);
   dom.window.close();
 });
 

@@ -34,6 +34,26 @@ grant all on public.sniper_watchlists to service_role;
 create policy "Mitglieder lesen Merkzettel" on public.sniper_watchlists
     for select to authenticated using (public.is_workspace_member(workspace_id));
 
+-- Feste technische Kontingente begrenzen die gemeinsame Bewertung; keine Lizenzstufen.
+create function public.enforce_sniper_watchlist_limit()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+    perform 1 from public.workspaces where id = new.workspace_id for update;
+    if tg_op = 'INSERT' and (select count(*) from public.sniper_watchlists where workspace_id = new.workspace_id) >= 100 then
+        raise exception 'Maximal 100 Merkzettel pro Arbeitsbereich.' using errcode = '54000';
+    end if;
+    if new.is_active and (tg_op = 'INSERT' or not old.is_active or old.workspace_id is distinct from new.workspace_id) then
+        if (select count(*) from public.sniper_watchlists where workspace_id = new.workspace_id and is_active and id <> new.id) >= 25 then
+            raise exception 'Maximal 25 aktive Merkzettel pro Arbeitsbereich.' using errcode = '54000';
+        end if;
+    end if;
+    return new;
+end;
+$$;
+revoke all on function public.enforce_sniper_watchlist_limit() from public, anon, authenticated;
+create trigger enforce_sniper_watchlist_limit before insert or update on public.sniper_watchlists
+    for each row execute function public.enforce_sniper_watchlist_limit();
+
 create table public.sniper_watchlist_hits (
     id uuid primary key default gen_random_uuid(),
     watchlist_id uuid not null references public.sniper_watchlists(id) on delete cascade,

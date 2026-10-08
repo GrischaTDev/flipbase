@@ -192,7 +192,7 @@ describe('BankReconciliationService – bestätigte Persistenz', () => {
       status: 'failed',
       problem: { reportedBySyncStatus: true },
     });
-    expect(service.transactions()[0].status).toBe('matched');
+    expect(service.transactions()).toEqual([]);
     expect(rpc).not.toHaveBeenCalled();
     expect(syncStatus.fehler()).toHaveLength(1);
   });

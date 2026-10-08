@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.112.3';
+import { completeDiscordLink, DiscordLinkConflictError } from './complete-discord-link.ts';
 import { createDiscordState, verifyDiscordState } from './discord-oauth.ts';
 
 interface DiscordConfig {
@@ -194,7 +195,7 @@ Deno.serve(async (request: Request) => {
 
   const linked = await client
     .from('beta_discord_links')
-    .select('discord_user_id')
+    .select('discord_user_id, role_assigned_at')
     .eq('auth_user_id', userId)
     .maybeSingle();
   if (linked.error) return respond({ error: 'unavailable' }, 503, cors);
@@ -203,7 +204,7 @@ Deno.serve(async (request: Request) => {
     return respond(
       {
         eligible,
-        linked: Boolean(linked.data),
+        linked: Boolean(linked.data?.role_assigned_at),
         configured: Boolean(config),
         guildId: config?.guildId ?? null,
       },
@@ -212,7 +213,7 @@ Deno.serve(async (request: Request) => {
     );
   }
   if (!eligible) return respond({ error: 'beta_access_required' }, 403, cors);
-  if (linked.data) return respond({ linked: true }, 200, cors);
+  if (linked.data?.role_assigned_at) return respond({ linked: true }, 200, cors);
   if (!config) return respond({ error: 'not_configured' }, 503, cors);
 
   if (input.action === 'authorize') {
@@ -251,13 +252,38 @@ Deno.serve(async (request: Request) => {
     if (existing.data && existing.data.auth_user_id !== userId) {
       return respond({ error: 'discord_account_in_use' }, 409, cors);
     }
-    await assignDiscordRole(config, discord.userId, discord.accessToken);
-    const saved = await client
-      .from('beta_discord_links')
-      .insert({ auth_user_id: userId, discord_user_id: discord.userId });
-    if (saved.error) throw saved.error;
+    await completeDiscordLink(userId, discord.userId, {
+      reserve: async (reservedUserId, reservedDiscordId) => {
+        const saved = await client.from('beta_discord_links').insert({
+          auth_user_id: reservedUserId,
+          discord_user_id: reservedDiscordId,
+          role_assigned_at: null,
+        });
+        if (!saved.error) return;
+        if (saved.error.code !== '23505') throw saved.error;
+        const current = await client
+          .from('beta_discord_links')
+          .select('discord_user_id')
+          .eq('auth_user_id', reservedUserId)
+          .maybeSingle();
+        if (current.error) throw current.error;
+        if (current.data?.discord_user_id !== reservedDiscordId)
+          throw new DiscordLinkConflictError('discord_link_conflict');
+      },
+      assignRole: () => assignDiscordRole(config, discord.userId, discord.accessToken),
+      confirm: async (reservedUserId, reservedDiscordId) => {
+        const confirmed = await client
+          .from('beta_discord_links')
+          .update({ role_assigned_at: new Date().toISOString() })
+          .eq('auth_user_id', reservedUserId)
+          .eq('discord_user_id', reservedDiscordId);
+        if (confirmed.error) throw confirmed.error;
+      },
+    });
     return respond({ linked: true }, 200, cors);
   } catch (error) {
+    if (error instanceof DiscordLinkConflictError)
+      return respond({ error: 'discord_link_conflict' }, 409, cors);
     console.error(
       'beta-discord: Verknuepfung fehlgeschlagen:',
       error instanceof Error ? error.message : 'Unbekannter Fehler',

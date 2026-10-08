@@ -1,10 +1,11 @@
-import { timingSafeEqual } from 'node:crypto';
+import { randomUUID, timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { chmod, lstat, mkdir, readdir, rename } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import type { BrowserContext } from 'playwright';
+import { browserCommandLimit } from './isolated-browser-actions.ts';
 import type { BrowserDesktop, BrowserDragPoint } from './gologin-cloud-browser.ts';
 import { ChromiumContainerLauncher } from './chromium-container-launcher.ts';
+import { GoLoginSessionProxy } from './gologin-session-proxy.ts';
 import { ChromiumProfileStore } from './chromium-profile-store.ts';
 
 type LaunchOptions = Parameters<ChromiumContainerLauncher['launch']>[1];
@@ -14,20 +15,23 @@ export interface ChromiumHostOperations {
   inspect(profileId: string): Promise<number[]>;
   archive(profileId: string): Promise<void>;
   desktop(profileId: string): BrowserDesktop;
+  launchGoLogin?(profileId: string, token: string): Promise<string>;
+  invoke?(profileId: string, session: string, command: unknown): Promise<unknown>;
 }
 
 export function chromiumHostOperations(
   launcher: ChromiumContainerLauncher,
   profileRoot: string,
+  goLoginProxy?: GoLoginSessionProxy,
 ): ChromiumHostOperations {
   const profiles = new ChromiumProfileStore({
     root: profileRoot,
     inspectProfileProcesses: (directory) => launcher.inspectProfileProcesses(directory),
   });
-  const contexts = new Map<string, BrowserContext>();
+  const contexts = new Map<string, { id: string; expiresAt: number; closeProxy?: () => void }>();
   return {
     launch: async (profileId, settings) => {
-      if (contexts.size >= 8 || contexts.has(profileId)) throw new Error('Browserlimit erreicht');
+      if (contexts.size >= 1 || contexts.has(profileId)) throw new Error('Browserlimit erreicht');
       if (
         (
           await readdir(profileRoot).catch((error: unknown) => {
@@ -38,14 +42,37 @@ export function chromiumHostOperations(
       )
         throw new Error('Profillimit erreicht');
       const directory = await profiles.prepareStopped(profileId);
-      const context = await launcher.launch(directory, settings);
-      contexts.set(profileId, context);
-      return launcher.endpoint(directory);
+      await launcher.launch(directory, settings);
+      const session = { id: randomUUID(), expiresAt: Date.now() + 12 * 60_000 };
+      contexts.set(profileId, session);
+      return session.id;
+    },
+    launchGoLogin: async (profileId, token) => {
+      if (!goLoginProxy || contexts.size >= 1 || profileId.startsWith('chromium_'))
+        throw new Error('GoLogin-Sitzung nicht verfügbar');
+      const channel = goLoginProxy.open(profileId, token);
+      try {
+        const directory = await profiles.prepareStopped(profileId);
+        await launcher.launch(
+          directory,
+          { headless: false, locale: 'de-DE', viewport: { width: 1280, height: 900 } },
+          channel.endpoint,
+        );
+        const session = {
+          id: randomUUID(),
+          expiresAt: Date.now() + 12 * 60_000,
+          closeProxy: channel.close,
+        };
+        contexts.set(profileId, session);
+        return session.id;
+      } catch (error) {
+        channel.close();
+        throw error;
+      }
     },
     recover: async (profileId) => {
-      const context = contexts.get(profileId);
-      if (context) await context.close();
       await launcher.recover(profileId);
+      contexts.get(profileId)?.closeProxy?.();
       contexts.delete(profileId);
     },
     inspect: (profileId) => launcher.inspectProfileProcesses(profiles.directory(profileId)),
@@ -83,6 +110,12 @@ export function chromiumHostOperations(
       await rename(directory, target);
     },
     desktop: (profileId) => launcher.desktop(profiles.directory(profileId)),
+    invoke: async (profileId, sessionId, command) => {
+      const session = contexts.get(profileId);
+      if (!session || session.id !== sessionId || session.expiresAt <= Date.now())
+        throw new Error('Browsersitzung abgelaufen');
+      return launcher.command(profileId, command);
+    },
   };
 }
 
@@ -173,11 +206,15 @@ export async function dispatchChromiumHostCommand(
   const profileId = request.profileId;
   if (
     typeof profileId !== 'string' ||
-    !/^chromium_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(profileId)
+    !/^[a-zA-Z0-9_-]{1,128}$/.test(profileId) ||
+    (profileId.startsWith('chromium_') &&
+      !/^chromium_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(profileId))
   )
     throw new Error('Ungültige Profilkennung');
   const keys: Record<string, string[]> = {
     launch: ['settings'],
+    invoke: ['session', 'command'],
+    launchGoLogin: ['token'],
     recover: [],
     inspect: [],
     archive: [],
@@ -196,8 +233,26 @@ export async function dispatchChromiumHostCommand(
     )
   )
     throw new Error('Nicht erlaubter Brokerauftrag');
+  if (action === 'launchGoLogin') {
+    if (
+      !operations.launchGoLogin ||
+      typeof request.token !== 'string' ||
+      request.token.length > 4096
+    )
+      throw new Error('GoLogin-Zugang fehlt');
+    return { session: await operations.launchGoLogin(profileId, request.token) };
+  }
   if (action === 'launch')
-    return { endpoint: await operations.launch(profileId, launchSettings(request.settings)) };
+    return { session: await operations.launch(profileId, launchSettings(request.settings)) };
+  if (action === 'invoke') {
+    if (
+      !operations.invoke ||
+      typeof request.session !== 'string' ||
+      !/^[0-9a-f-]{36}$/.test(request.session)
+    )
+      throw new Error('Ungültige Sitzungsberechtigung');
+    return operations.invoke(profileId, request.session, request.command);
+  }
   if (action === 'recover') {
     await operations.recover(profileId);
     return {};
@@ -261,7 +316,7 @@ export function chromiumHostHandler(token: string, operations: ChromiumHostOpera
       for await (const chunk of request) {
         const bytes = Buffer.from(chunk);
         length += bytes.length;
-        if (length > 32_768) throw new Error('Brokerauftrag zu groß');
+        if (length > browserCommandLimit) throw new Error('Brokerauftrag zu groß');
         chunks.push(bytes);
       }
       const input: unknown = JSON.parse(Buffer.concat(chunks).toString('utf8'));

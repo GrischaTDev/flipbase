@@ -88,6 +88,17 @@ alten Migrationsrückstand ungeprüft einzuspielen.
 
 Diese Schritte sind Voraussetzungen, **kein Bestandteil dieser Umsetzung auf dem Server**:
 
+Für die Sicherheitskorrekturen vom 07.10.2026 muss das Auth-Overlay
+`docker-compose.beta-application.yml` gemeinsam mit der Anwendung eingeführt
+werden. Der Auth-Dienst muss `GOTRUE_SECURITY_UPDATE_PASSWORD_REQUIRE_CURRENT_PASSWORD=true`
+übernehmen; ein direkter Passwortwechsel ohne bisheriges Passwort muss danach
+abgewiesen werden. Einladungen und bestätigte Passwort-Resets bleiben möglich.
+Früher für bereits abgeschlossene Beta-Anmeldungen erzeugte Recovery-Sitzungen
+müssen vor Freigabe des neuen Stands widerrufen werden; neue Beta-Abschlüsse
+liefern normale Passwortsitzungen. Die neue Erweiterung muss installiert beziehungsweise
+neu geladen sein, damit ihre verbindliche Verbindungserlaubnis wirksam ist.
+Diese Voraussetzungen sind produktiv noch nicht bestätigt.
+
 1. Betreiberzugang getrennt vom eingeschränkten CI-Schlüssel verwenden. Aktuelle
    Serverdateien sichern und Unterschiede prüfen. `/opt/flipbase/deploy.sh`,
    `/opt/flipbase/apply-release-migrations.sh` und `/opt/flipbase/migration-backup.sh`
@@ -102,6 +113,12 @@ Diese Schritte sind Voraussetzungen, **kein Bestandteil dieser Umsetzung auf dem
    `FLIPBASE_IMAGE=ghcr.io/grischatdev/flipbase@sha256:<64-hex> docker compose config --images web`
    aus `/opt/flipbase` prüfen. Die Ausgabe muss genau dieser Digest sein.
    Das Deployskript prüft dies ebenfalls vor jeder Migration.
+   Auch `/opt/flipbase/docker-compose.sniper.yml` muss `FLIPBASE_SNIPER_IMAGE`
+   übernehmen. Vor der ersten Pipeline mit Sniper-Digest das aktualisierte,
+   rootgeschützte Deployskript installieren und mit
+   `FLIPBASE_SNIPER_IMAGE=ghcr.io/grischatdev/flipbase-sniper@sha256:<64-hex> docker compose -f docker-compose.sniper.yml config --images sniper`
+   den exakt ausgewählten Digest prüfen. Die Pipeline übermittelt anschließend
+   den gebauten Digest statt einer veränderbaren Kurzkennzeichnung.
 3. Docker Compose, Bash, `flock`, `sha256sum`, `age`, `gzip`, `rsync` und SSH müssen
    verfügbar sein. Der PostgreSQL-Container heißt `supabase-db`, Datenbank `postgres`,
    Rolle `postgres`. Bestehende Historie verlangt `version` als eindeutigen Schlüssel
@@ -132,7 +149,9 @@ Diese Schritte sind Voraussetzungen, **kein Bestandteil dieser Umsetzung auf dem
    CI-Schlüssel. Erst nach Bootstrap, Backlogprüfung und Backup-/Restoretest die
    Repository-Variable `RELEASE_MIGRATIONS_V1=true` setzen. Nicht nur den CI-Check entfernen.
 
-Der neue erlaubte SSH-Befehl lautet ausschließlich `release-v1 sha256:<64-hex>`.
+Der erlaubte SSH-Befehl lautet `release-v1 sha256:<64-hex>` und kann um
+`sniper sha256:<64-hex>` ergänzt werden. Ein reines Sniper-Deployment verwendet
+`sniper sha256:<64-hex>`. Alte Kurzkennzeichnungen bleiben nur für manuelle Rückfälle erhalten.
 Registry-Anmeldung erfolgt über stdin in einem privaten temporären Docker-Verzeichnis.
 Dieses wird auch beim Abbruch entfernt. Image und SQL kommen aus demselben Digest;
 beim Start wird ebenfalls dieser Digest verwendet. Beliebige Uploadpfade oder

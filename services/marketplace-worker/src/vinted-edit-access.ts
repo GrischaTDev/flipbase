@@ -27,7 +27,7 @@ export class VintedEditAccess {
 
   async entry(
     scope: BrowserSessionScope,
-    kind: 'profile' | 'publication',
+    kind: 'profile' | 'publication' | 'conversation',
     entryId?: string,
   ): Promise<ScopedEntry> {
     const connectionUrl = new URL('/rest/v1/marketplace_connections', this.baseUrl);

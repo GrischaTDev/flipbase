@@ -6,11 +6,13 @@ import {
   Injector,
   afterNextRender,
   computed,
+  effect,
   inject,
   signal,
   viewChild,
 } from '@angular/core';
 import { DatePipe } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { LucidePause, LucidePencil, LucidePlay, LucideTrash2 } from '@lucide/angular';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
@@ -23,12 +25,15 @@ import { SniperQueryEditorComponent } from '../../components/sniper-query-editor
 import { SniperAdminService } from '../../services/sniper-admin.service';
 import { SniperAdminState } from '../../services/sniper-admin-state';
 import { VintedCategoryService } from '../../services/vinted-category.service';
+import { SniperBrowserService } from '../../services/sniper-browser.service';
+import type { SniperBrowserStatus } from '../../models/sniper-browser.model';
 import { QueryDraft, SniperQuery, queryStatusLabel } from '../../models/sniper-query.model';
 
 @Component({
   selector: 'app-sniper-queries',
   imports: [
     DatePipe,
+    RouterLink,
     ButtonComponent,
     TableActionButtonComponent,
     BadgeComponent,
@@ -58,6 +63,13 @@ export class SniperQueriesComponent {
   readonly pendingCheckBaselines = signal<Record<string, string | null>>({});
   readonly message = signal<string | null>(null);
   readonly error = signal<string | null>(null);
+  readonly browserStatus = signal<SniperBrowserStatus | null>(null);
+  readonly browserError = signal<string | null>(null);
+  readonly manualRequired = computed(() =>
+    ['interaction_required', 'manual'].includes(this.browserStatus()?.state ?? ''),
+  );
+  private readonly browserApi = inject(SniperBrowserService);
+  private browserStatusPending = false;
   readonly search = signal('');
   readonly filtered = computed(() => {
     const term = this.search().toLocaleLowerCase('de');
@@ -81,6 +93,31 @@ export class SniperQueriesComponent {
 
   constructor() {
     void this.loadCategoryPaths();
+    effect(() => {
+      void this.state.runtime()?.reported_at;
+      void this.loadBrowserStatus();
+    });
+  }
+
+  private async loadBrowserStatus(): Promise<void> {
+    if (this.browserStatusPending || this.destroyRef.destroyed) return;
+    this.browserStatusPending = true;
+    try {
+      const status = await this.browserApi.status();
+      if (!this.destroyRef.destroyed) {
+        this.browserStatus.set(status);
+        this.browserError.set(null);
+      }
+    } catch (error) {
+      if (!this.destroyRef.destroyed) {
+        this.browserStatus.set(null);
+        this.browserError.set(
+          error instanceof Error ? error.message : 'Browserstatus nicht verfügbar.',
+        );
+      }
+    } finally {
+      this.browserStatusPending = false;
+    }
   }
 
   private async loadCategoryPaths(): Promise<void> {
@@ -248,7 +285,9 @@ export class SniperQueriesComponent {
       this.message.set(
         query.is_active
           ? 'Suchfilter pausiert. Eine bereits laufende Abfrage kann noch abgeschlossen werden.'
-          : 'Suchfilter aktiviert. Die erste Vinted-Abfrage läuft jetzt an.',
+          : this.manualRequired()
+            ? 'Suchfilter aktiviert. Der Bot wartet auf die manuelle Vinted-Prüfung im Botbetrieb.'
+            : 'Suchfilter aktiviert. Der Bot fragt ihn ab, sobald Abrufe möglich sind.',
       );
       await this.state.refreshAfterMutation();
     } catch (error) {
@@ -261,6 +300,14 @@ export class SniperQueriesComponent {
   }
 
   isCheckPending(query: SniperQuery): boolean {
+    if (
+      !query.is_active ||
+      this.manualRequired() ||
+      this.browserStatus()?.state === 'unavailable' ||
+      this.browserError() ||
+      this.state.error()
+    )
+      return false;
     const baselines = this.pendingCheckBaselines();
     if (!Object.prototype.hasOwnProperty.call(baselines, query.id)) return false;
     return query.last_polled_at === baselines[query.id];

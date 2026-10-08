@@ -1,0 +1,39 @@
+body {
+  margin: 0;
+  color: #202020;
+  background: #fff;
+  font:
+    16px/1.5 system-ui,
+    sans-serif;
+}
+main {
+  padding: 24px;
+}
+h1 {
+  font-size: 24px;
+}
+dt {
+  font-weight: 600;
+}
+dd {
+  margin: 0 0 12px;
+  overflow-wrap: anywhere;
+}
+button {
+  padding: 12px;
+  margin: 4px;
+  font: inherit;
+  border: 1px solid #555;
+  border-radius: 6px;
+}
+#approve {
+  background: #fcc601;
+  color: #202020;
+}
+button:disabled {
+  opacity: 0.5;
+}
+button:focus-visible {
+  outline: 3px solid #111;
+  outline-offset: 3px;
+}

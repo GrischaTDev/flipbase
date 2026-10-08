@@ -310,7 +310,6 @@ insert into public.inventory_items (
   ('93000000-0000-4000-8000-000000000504', '93000000-0000-4000-8000-000000000011', '93000000-0000-4000-8000-000000000116', null, 'Item ohne Positionslink', 'used', 'received', 0),
   ('93000000-0000-4000-8000-000000000505', '93000000-0000-4000-8000-000000000011', '93000000-0000-4000-8000-000000000117', '93000000-0000-4000-8000-000000000324', 'Artfremdes Item an Mengenposition', 'used', 'received', 0),
   ('93000000-0000-4000-8000-000000000506', '93000000-0000-4000-8000-000000000011', '93000000-0000-4000-8000-000000000119', '93000000-0000-4000-8000-000000000327', 'Item mit falscher Einkaufsposition', 'used', 'received', 0),
-  ('93000000-0000-4000-8000-000000000507', '93000000-0000-4000-8000-000000000012', '93000000-0000-4000-8000-000000000120', null, 'Item im falschen Workspace', 'used', 'received', 0),
   ('93000000-0000-4000-8000-000000000508', '93000000-0000-4000-8000-000000000011', '93000000-0000-4000-8000-000000000124', '93000000-0000-4000-8000-000000000332', 'Gelistetes Item', 'used', 'listed', 0),
   ('93000000-0000-4000-8000-000000000509', '93000000-0000-4000-8000-000000000011', '93000000-0000-4000-8000-000000000125', '93000000-0000-4000-8000-000000000333', 'Defektes Item', 'defective', 'defective', 0);
 
@@ -326,6 +325,17 @@ insert into public.stock_lots (
   ('93000000-0000-4000-8000-000000000514', '93000000-0000-4000-8000-000000000011', '93000000-0000-4000-8000-000000000128', '93000000-0000-4000-8000-000000000337', '93000000-0000-4000-8000-000000000215', 1, 1, 1, '2026-08-31 10:05:00+00');
 
 set local session_replication_role = replica;
+
+-- Absichtlich beschädigter Altbestand: normale Inserts verhindert inzwischen
+-- der Workspace-Fremdschlüssel. Die RPC muss solche Altdaten weiter ablehnen.
+insert into public.inventory_items (
+  id, workspace_id, purchase_id, purchase_line_id, title, condition,
+  status, allocated_purchase_cost
+) values (
+  '93000000-0000-4000-8000-000000000507', '93000000-0000-4000-8000-000000000012',
+  '93000000-0000-4000-8000-000000000120', null, 'Item im falschen Workspace',
+  'used', 'received', 0
+);
 
 insert into public.stock_movements (
   id, workspace_id, stock_lot_id, direction, quantity, reason, created_at

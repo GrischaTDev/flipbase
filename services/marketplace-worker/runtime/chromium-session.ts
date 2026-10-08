@@ -1,6 +1,13 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { lstat, readFile, unlink } from 'node:fs/promises';
-import { createServer, request, type Server } from 'node:http';
+import { type Server } from 'node:http';
+import { execFile } from 'node:child_process';
+import { chromium, type Browser } from 'playwright';
+let remoteConnection: Browser | undefined;
+import { vintedBrowserActions } from '../src/vinted-browser-actions.ts';
+import { ChromiumDesktopControls } from '../src/chromium-desktop-controls.ts';
+import { commandRecord } from '../src/isolated-browser-actions.ts';
+import { startSessionCommands } from './session-command-server.ts';
 import { connect } from 'node:net';
 import { createProxyForwarder } from '../../../tools/cloud-browser-pilot/proxy-forwarder.mjs';
 import { closeChromeWindows } from '../../../tools/cloud-browser-pilot/chrome-window-close.mjs';
@@ -12,75 +19,7 @@ let windowManager: ChildProcess | undefined;
 let proxy: Server | undefined;
 let finishing = false;
 let isReady = false;
-const sockets = new Set<import('node:net').Socket>();
-const server = createServer((incoming, outgoing) => {
-  if (!['172.30.88.2', '172.30.88.3'].includes(incoming.socket.remoteAddress ?? '')) {
-    outgoing.writeHead(403).end();
-    return;
-  }
-  // Playwright fragt /json/version/ ab; Chromium akzeptiert auch die Form ohne Schluss-Slash.
-  const path = incoming.url?.replace(/\/$/, '');
-  if (!['/json/version', '/json/list', '/json'].includes(path ?? '') || incoming.method !== 'GET') {
-    outgoing.writeHead(404).end();
-    return;
-  }
-  const upstream = request({ host: '127.0.0.1', port: 9223, path, method: 'GET' }, (response) => {
-    let payload = '';
-    response.setEncoding('utf8');
-    response.on('data', (chunk: string) => {
-      payload += chunk;
-    });
-    response.on('end', () => {
-      if (payload.length > 1024 * 1024) {
-        outgoing.writeHead(502).end();
-        return;
-      }
-      const authority = incoming.headers.host;
-      if (!authority || !/^172\.30\.88\.\d{1,3}:9222$/.test(authority)) {
-        outgoing.writeHead(400).end();
-        return;
-      }
-      outgoing.writeHead(response.statusCode ?? 502, { 'Content-Type': 'application/json' });
-      outgoing.end(
-        payload
-          .replaceAll('ws://localhost:9223', `ws://${authority}`)
-          .replaceAll('ws://127.0.0.1:9223', `ws://${authority}`),
-      );
-    });
-  });
-  upstream.on('error', () => outgoing.writeHead(502).end());
-  upstream.end();
-});
-server.on('connection', (socket) => {
-  sockets.add(socket);
-  socket.on('close', () => sockets.delete(socket));
-});
-server.on('upgrade', (incoming, socket, head) => {
-  if (
-    !['172.30.88.2', '172.30.88.3'].includes(incoming.socket.remoteAddress ?? '') ||
-    !/^\/devtools\/browser\/[a-zA-Z0-9-]+$/.test(incoming.url ?? '')
-  ) {
-    socket.destroy();
-    return;
-  }
-  const upstream = connect(9223, '127.0.0.1', () => {
-    const headers = Object.entries(incoming.headers)
-      .filter(([name]) => name !== 'host')
-      .map(
-        ([name, contents]) =>
-          `${name}: ${Array.isArray(contents) ? contents.join(', ') : (contents ?? '')}`,
-      );
-    upstream.write(
-      `GET ${incoming.url} HTTP/1.1\r\nHost: localhost:9223\r\n${headers.join('\r\n')}\r\n\r\n`,
-    );
-    if (head.length) upstream.write(head);
-    socket.pipe(upstream).pipe(socket);
-  });
-  upstream.on('error', () => socket.destroy());
-  socket.on('error', () => upstream.destroy());
-  socket.on('close', () => upstream.destroy());
-});
-
+let commandServer: Awaited<ReturnType<typeof startSessionCommands>> | undefined;
 // 78 kennzeichnet ausschließlich einen Startfehler mit erfolgreich geschlossenem Profil.
 async function finish(exitCode: 0 | 1 | 78): Promise<void> {
   if (finishing) return;
@@ -95,7 +34,10 @@ async function finish(exitCode: 0 | 1 | 78): Promise<void> {
       });
     });
     try {
-      await closeChromeWindows();
+      await closeChromeWindows(
+        undefined,
+        () => browser?.exitCode === null && browser.signalCode === null,
+      );
     } catch {
       process.exitCode = 75;
     }
@@ -106,8 +48,11 @@ async function finish(exitCode: 0 | 1 | 78): Promise<void> {
       browser.kill('SIGKILL');
     }
   }
-  for (const socket of sockets) socket.destroy();
-  server.close();
+  commandServer?.close();
+  if (remoteConnection)
+    await remoteConnection.close().catch(() => {
+      process.exitCode = 75;
+    });
   proxy?.closeAllConnections();
   proxy?.close();
   windowManager?.kill('SIGTERM');
@@ -119,10 +64,6 @@ process.on('SIGTERM', () => {
 process.on('SIGINT', () => {
   void finish(0);
 });
-server.on('error', () => {
-  void finish(isReady ? 1 : 78);
-});
-
 async function waitForSocket(address: string | number): Promise<void> {
   for (let attempt = 0; attempt < 100 && !finishing; attempt++) {
     const ready = await new Promise<boolean>((resolve) => {
@@ -163,7 +104,24 @@ async function startup(): Promise<void> {
   if (!metadata.isFile() || metadata.isSymbolicLink() || (metadata.mode & 0o077) !== 0)
     throw new Error('Private Sitzungskonfiguration erforderlich');
   await unlink('/tmp/startup.json');
-  const settings = parseChromeSessionConfiguration(JSON.parse(serialized));
+  const configuration = commandRecord(JSON.parse(serialized));
+  if (configuration.remoteEndpoint !== undefined) {
+    if (
+      typeof configuration.remoteEndpoint !== 'string' ||
+      !/^ws:\/\/172\.30\.88\.3:4181\/session\/[0-9a-f-]{36}$/.test(configuration.remoteEndpoint)
+    )
+      throw new Error('Ungültiger GoLogin-Sitzungskanal');
+    const connection = await chromium.connectOverCDP(configuration.remoteEndpoint, {
+      timeout: 30000,
+    });
+    remoteConnection = connection;
+    const page = connection.contexts()[0]?.pages()[0];
+    if (!page) throw new Error('Browserseite fehlt');
+    commandServer = await startSessionCommands(vintedBrowserActions(connection));
+    isReady = true;
+    return;
+  }
+  const settings = parseChromeSessionConfiguration(configuration);
   try {
     await lstat('/profile/SingletonLock');
     throw new Error('Chromeprofil ist noch gesperrt');
@@ -210,9 +168,34 @@ async function startup(): Promise<void> {
   });
   await waitForSocket(9223);
   if (finishing) return;
-  server.listen(9222, '0.0.0.0', () => {
-    isReady = true;
+  const connection = await chromium.connectOverCDP('http://127.0.0.1:9223', {
+    timeout: 10000,
+    noDefaults: true,
   });
+  const page = connection.contexts()[0]?.pages()[0];
+  if (!page) throw new Error('Browserseite fehlt');
+  const desktop = new ChromiumDesktopControls({
+    width: settings.width,
+    height: settings.height,
+    authorize: async () => {
+      if (finishing) throw new Error('Sitzung beendet');
+    },
+    execute: (argumentsList, input) =>
+      new Promise((resolve, reject) => {
+        const program = argumentsList[0];
+        if (!program) return reject(new Error('Browserbedienung fehlt'));
+        const child = execFile(
+          program,
+          argumentsList.slice(1),
+          { encoding: 'buffer', timeout: 15000, maxBuffer: 8 * 1024 * 1024 },
+          (error, stdout) =>
+            error ? reject(new Error('Browserbedienung fehlgeschlagen')) : resolve(stdout),
+        );
+        child.stdin?.end(input ?? '');
+      }),
+  });
+  commandServer = await startSessionCommands(vintedBrowserActions(connection, desktop));
+  isReady = true;
 }
 // Fehlermeldungen können Browser-URLs oder Zugangsdaten enthalten und werden nicht ausgegeben.
 startup().catch(() => {

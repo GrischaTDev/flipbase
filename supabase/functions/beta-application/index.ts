@@ -11,7 +11,7 @@ import {
   renderApplicationReceipt,
   renderOperatorApplicationNotice,
 } from '../_shared/beta-email-template.ts';
-import { classifyDuplicateApplication } from './duplicate-application.ts';
+import { readLimitedJsonBody, RequestBodyTooLargeError } from '../_shared/limited-request-body.ts';
 
 /**
  * Herkuenfte, die diese Funktion aufrufen duerfen.
@@ -120,224 +120,229 @@ function boundedErrorMessage(error: unknown): string {
   return message.slice(0, 500);
 }
 
-Deno.serve(async (request: Request) => {
-  const origin = request.headers.get('origin');
+export function createBetaApplicationHandler(
+  createServiceClient: typeof createClient = createClient,
+  sendEmail: typeof sendBetaEmail = sendBetaEmail,
+  background: (task: Promise<void>) => void = (task) => {
+    const runtime = globalThis as typeof globalThis & {
+      EdgeRuntime?: { waitUntil(task: Promise<void>): void };
+    };
+    if (runtime.EdgeRuntime) runtime.EdgeRuntime.waitUntil(task);
+    else
+      void task.catch(() => console.error('beta-application: Hintergrundversand fehlgeschlagen.'));
+  },
+) {
+  return async (request: Request): Promise<Response> => {
+    const origin = request.headers.get('origin');
 
-  if (request.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: corsHeaders(origin) });
-  }
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { status: 204, headers: corsHeaders(origin) });
+    }
 
-  if (request.method !== 'POST') {
-    return respond({ error: 'method_not_allowed' }, 405, origin);
-  }
+    if (request.method !== 'POST') {
+      return respond({ error: 'method_not_allowed' }, 405, origin);
+    }
 
-  if (!origin || !BETA_ALLOWED_ORIGINS.has(origin)) {
-    return respond({ error: 'origin_not_allowed' }, 403, origin);
-  }
+    if (!origin || !BETA_ALLOWED_ORIGINS.has(origin)) {
+      return respond({ error: 'origin_not_allowed' }, 403, origin);
+    }
 
-  if (!PEPPER) {
-    console.error(
-      'beta-application: BETA_APPLICATION_PEPPER fehlt oder ist leer - Bewerbungen werden abgelehnt.',
-    );
-    return respond({ error: 'internal' }, 500, origin);
-  }
-
-  let rawBody: unknown;
-  try {
-    rawBody = await request.json();
-  } catch {
-    return respond({ error: 'invalid_body' }, 400, origin);
-  }
-
-  // request.json() liefert fuer den gueltigen Rumpf "null" den Wert null,
-  // ohne zu werfen. Ohne diese Pruefung wuerde die Destrukturierung darunter
-  // ausserhalb des try/catch werfen, und Deno wuerde mit einer generischen
-  // 500 ohne CORS-Kopfzeilen antworten - im Browser nicht von einem
-  // CORS-Fehler zu unterscheiden.
-  if (typeof rawBody !== 'object' || rawBody === null) {
-    return respond({ error: 'invalid_body' }, 400, origin);
-  }
-  const body = rawBody as Record<string, unknown>;
-
-  const { firstName, lastName, email, consent } = body;
-
-  if (consent !== true) {
-    return respond({ error: 'consent_required' }, 400, origin);
-  }
-  if (!isText(firstName, 100) || !isText(lastName, 100)) {
-    return respond({ error: 'name_invalid' }, 400, origin);
-  }
-  if (!isText(email, 320) || !EMAIL_PATTERN.test(email.trim())) {
-    return respond({ error: 'email_invalid' }, 400, origin);
-  }
-
-  const supabaseUrl = Deno.env.get('SUPABASE_URL');
-  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-
-  // createClient('', '') wirft "supabaseUrl is required" ausserhalb jedes
-  // try/catch - Deno antwortet dann mit einer generischen 500 ohne
-  // CORS-Kopfzeilen, im Browser nicht von einem CORS-Fehler zu unterscheiden.
-  // Genau das wird oben beim Pfeffer schon vermieden; dieselbe Fehlerklasse
-  // wird hier ebenso abgefangen.
-  if (!supabaseUrl || !serviceRoleKey) {
-    console.error(
-      'beta-application: SUPABASE_URL oder SUPABASE_SERVICE_ROLE_KEY fehlt oder ist leer.',
-    );
-    return respond({ error: 'internal' }, 500, origin);
-  }
-
-  const serviceClient = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false },
-  });
-
-  // Der letzte Eintrag der Kette stammt vom naechstgelegenen Proxy und laesst
-  // sich vom Aufrufer nicht faelschen. Der erste Eintrag dagegen wird vom
-  // Aufrufer selbst gesetzt - ein Bot koennte ihn bei jeder Anfrage neu waehlen
-  // und so bei der Drosselung je Herkunft immer ein frisches Kontingent
-  // bekommen.
-  const address =
-    request.headers
-      .get('x-forwarded-for')
-      ?.split(',')
-      .map((part) => part.trim())
-      .filter(Boolean)
-      .pop() ?? 'unbekannt';
-  const originHash = await hashOrigin(address, PEPPER);
-  // Zaehlen und Eintragen laufen in einem einzigen, in der Datenbank
-  // serialisierten Schritt. Getrennt gefragt sahen zwei gleichzeitige Anfragen
-  // denselben Stand und kamen beide durch; die Grenze liess sich so um einige
-  // Anfragen ueberschreiten. Die Funktion raeumt zugleich die Zaehlversuche
-  // auf, die aelter als 24 Stunden sind - deshalb braucht es hier weder eine
-  // eigene Zaehlung noch ein eigenes Aufraeumen mehr.
-  const { data: allowed, error: throttleError } = await serviceClient.rpc(
-    'beta_application_attempt',
-    {
-      p_origin_hash: originHash,
-      p_max_per_origin: MAX_PER_ORIGIN_PER_HOUR,
-      p_max_total: MAX_TOTAL_PER_HOUR,
-    },
-  );
-
-  if (throttleError) {
-    console.error('beta-application: Drosselung fehlgeschlagen:', throttleError.message);
-    return respond({ error: 'internal' }, 500, origin);
-  }
-
-  if (allowed !== true) {
-    return respond({ error: 'too_many_requests' }, 429, origin);
-  }
-
-  const normalizedEmail = email.trim().toLowerCase();
-  const inserted = await serviceClient
-    .from('beta_applications')
-    .insert({
-      first_name: firstName.trim(),
-      last_name: lastName.trim(),
-      email: normalizedEmail,
-      consent_at: new Date().toISOString(),
-    })
-    .select('id, first_name, last_name, email, status, receipt_email_status')
-    .single();
-
-  // Eine bereits vorhandene Adresse wird wie ein Erfolg beantwortet. Sonst
-  // liesse sich ueber das Formular herausfinden, wer sich beworben hat.
-  if (inserted.error && inserted.error.code !== '23505') {
-    console.error('beta-application: Schreiben fehlgeschlagen:', inserted.error.message);
-    return respond({ error: 'internal' }, 500, origin);
-  }
-
-  let application = inserted.data;
-  const applicationAlreadyExists = !application;
-  if (!application) {
-    const existing = await serviceClient
-      .from('beta_applications')
-      .select('id, first_name, last_name, email, status, receipt_email_status')
-      .ilike('email', normalizedEmail)
-      .maybeSingle();
-
-    if (existing.error || !existing.data) {
+    if (!PEPPER) {
       console.error(
-        'beta-application: Vorhandene Bewerbung konnte nicht fuer die Bestaetigung geladen werden.',
+        'beta-application: BETA_APPLICATION_PEPPER fehlt oder ist leer - Bewerbungen werden abgelehnt.',
       );
       return respond({ error: 'internal' }, 500, origin);
     }
-    application = existing.data;
-  }
 
-  if (applicationAlreadyExists) {
-    const disposition = classifyDuplicateApplication({
-      status: application.status,
-      receiptEmailStatus: application.receipt_email_status,
-    });
-    return respond({ error: `application_${disposition}` }, 409, origin);
-  }
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-  // Nur neue Bewerbungen melden. Ein erneuter Versuch mit derselben Adresse
-  // darf weder eine zweite Betreiber-Mail noch eine Statusauskunft ausloesen.
-  try {
-    await sendBetaEmail({
-      to: Deno.env.get('BETA_OPERATOR_EMAIL')?.trim() || 'beta@flipbase.de',
-      ...renderOperatorApplicationNotice({
-        firstName: application.first_name,
-        lastName: application.last_name,
-        email: application.email,
-      }),
-    });
-    const { error: noticeUpdateError } = await serviceClient
-      .from('beta_applications')
-      .update({
-        operator_email_status: 'sent',
-        operator_email_sent_at: new Date().toISOString(),
-        operator_email_last_error: null,
-      })
-      .eq('id', application.id);
-    if (noticeUpdateError) {
-      console.error('beta-application: Betreiber-Versandstatus konnte nicht gespeichert werden.');
-    }
-  } catch (error) {
-    console.error('beta-application: Betreiber-Benachrichtigung konnte nicht versendet werden.');
-    await serviceClient
-      .from('beta_applications')
-      .update({
-        operator_email_status: 'failed',
-        operator_email_last_error: boundedErrorMessage(error),
-      })
-      .eq('id', application.id);
-  }
-
-  try {
-    const receipt = renderApplicationReceipt({
-      firstName: application.first_name,
-    });
-    await sendBetaEmail({ to: application.email, ...receipt });
-
-    const { error: updateError } = await serviceClient
-      .from('beta_applications')
-      .update({
-        receipt_email_status: 'sent',
-        receipt_email_sent_at: new Date().toISOString(),
-        receipt_email_last_error: null,
-      })
-      .eq('id', application.id);
-
-    if (updateError) {
-      console.error('beta-application: Versandstatus konnte nicht gespeichert werden.');
-      return respond({ ok: true, receiptEmailSent: false }, 200, origin);
+    // createClient('', '') wirft "supabaseUrl is required" ausserhalb jedes
+    // try/catch - Deno antwortet dann mit einer generischen 500 ohne
+    // CORS-Kopfzeilen, im Browser nicht von einem CORS-Fehler zu unterscheiden.
+    // Genau das wird oben beim Pfeffer schon vermieden; dieselbe Fehlerklasse
+    // wird hier ebenso abgefangen.
+    if (!supabaseUrl || !serviceRoleKey) {
+      console.error(
+        'beta-application: SUPABASE_URL oder SUPABASE_SERVICE_ROLE_KEY fehlt oder ist leer.',
+      );
+      return respond({ error: 'internal' }, 500, origin);
     }
 
-    return respond({ ok: true, receiptEmailSent: true }, 200, origin);
-  } catch (error) {
-    const errorMessage = boundedErrorMessage(error);
-    console.error('beta-application: Eingangsbestaetigung konnte nicht versendet werden.');
-    await serviceClient
-      .from('beta_applications')
-      .update({
-        receipt_email_status: 'failed',
-        receipt_email_sent_at: null,
-        receipt_email_last_error: errorMessage,
-      })
-      .eq('id', application.id);
+    const serviceClient = createServiceClient(supabaseUrl, serviceRoleKey, {
+      auth: { persistSession: false },
+    });
 
-    return respond({ ok: true, receiptEmailSent: false }, 200, origin);
-  }
-});
+    // Der letzte Eintrag der Kette stammt vom naechstgelegenen Proxy und laesst
+    // sich vom Aufrufer nicht faelschen. Der erste Eintrag dagegen wird vom
+    // Aufrufer selbst gesetzt - ein Bot koennte ihn bei jeder Anfrage neu waehlen
+    // und so bei der Drosselung je Herkunft immer ein frisches Kontingent
+    // bekommen.
+    const address =
+      request.headers
+        .get('x-forwarded-for')
+        ?.split(',')
+        .map((part) => part.trim())
+        .filter(Boolean)
+        .pop() ?? 'unbekannt';
+    const originHash = await hashOrigin(address, PEPPER);
+    // Zaehlen und Eintragen laufen in einem einzigen, in der Datenbank
+    // serialisierten Schritt. Getrennt gefragt sahen zwei gleichzeitige Anfragen
+    // denselben Stand und kamen beide durch; die Grenze liess sich so um einige
+    // Anfragen ueberschreiten. Die Funktion raeumt zugleich die Zaehlversuche
+    // auf, die aelter als 24 Stunden sind - deshalb braucht es hier weder eine
+    // eigene Zaehlung noch ein eigenes Aufraeumen mehr.
+    const { data: allowed, error: throttleError } = await serviceClient.rpc(
+      'beta_application_attempt',
+      {
+        p_origin_hash: originHash,
+        p_max_per_origin: MAX_PER_ORIGIN_PER_HOUR,
+        p_max_total: MAX_TOTAL_PER_HOUR,
+      },
+    );
+
+    if (throttleError) {
+      console.error('beta-application: Drosselung fehlgeschlagen:', throttleError.message);
+      return respond({ error: 'internal' }, 500, origin);
+    }
+
+    if (allowed !== true) {
+      return respond({ error: 'too_many_requests' }, 429, origin);
+    }
+
+    let rawBody: unknown;
+    try {
+      rawBody = await readLimitedJsonBody(request, 4096);
+    } catch (error) {
+      return respond(
+        { error: 'invalid_body' },
+        error instanceof RequestBodyTooLargeError ? 413 : 400,
+        origin,
+      );
+    }
+
+    // request.json() liefert fuer den gueltigen Rumpf "null" den Wert null,
+    // ohne zu werfen. Ohne diese Pruefung wuerde die Destrukturierung darunter
+    // ausserhalb des try/catch werfen, und Deno wuerde mit einer generischen
+    // 500 ohne CORS-Kopfzeilen antworten - im Browser nicht von einem
+    // CORS-Fehler zu unterscheiden.
+    if (typeof rawBody !== 'object' || rawBody === null || Array.isArray(rawBody)) {
+      return respond({ error: 'invalid_body' }, 400, origin);
+    }
+    const body = rawBody as Record<string, unknown>;
+
+    const { firstName, lastName, email, consent } = body;
+
+    if (consent !== true) {
+      return respond({ error: 'consent_required' }, 400, origin);
+    }
+    if (!isText(firstName, 100) || !isText(lastName, 100)) {
+      return respond({ error: 'name_invalid' }, 400, origin);
+    }
+    if (!isText(email, 320) || !EMAIL_PATTERN.test(email.trim())) {
+      return respond({ error: 'email_invalid' }, 400, origin);
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const inserted = await serviceClient
+      .from('beta_applications')
+      .insert({
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        email: normalizedEmail,
+        consent_at: new Date().toISOString(),
+      })
+      .select('id, first_name, last_name, email, status, receipt_email_status')
+      .single();
+
+    // Eine bereits vorhandene Adresse wird wie ein Erfolg beantwortet. Sonst
+    // liesse sich ueber das Formular herausfinden, wer sich beworben hat.
+    if (inserted.error && inserted.error.code !== '23505') {
+      console.error('beta-application: Schreiben fehlgeschlagen:', inserted.error.message);
+      return respond({ error: 'internal' }, 500, origin);
+    }
+
+    const application = inserted.data;
+    if (!application) return respond({ ok: true }, 200, origin);
+
+    // SMTP darf über die Antwortzeit keine vorhandenen Adressen verraten.
+    const delivery = async (): Promise<void> => {
+      // Nur neue Bewerbungen melden. Ein erneuter Versuch mit derselben Adresse
+      // darf weder eine zweite Betreiber-Mail noch eine Statusauskunft ausloesen.
+      try {
+        await sendEmail({
+          to: Deno.env.get('BETA_OPERATOR_EMAIL')?.trim() || 'beta@flipbase.de',
+          ...renderOperatorApplicationNotice({
+            firstName: application.first_name,
+            lastName: application.last_name,
+            email: application.email,
+          }),
+        });
+        const { error: noticeUpdateError } = await serviceClient
+          .from('beta_applications')
+          .update({
+            operator_email_status: 'sent',
+            operator_email_sent_at: new Date().toISOString(),
+            operator_email_last_error: null,
+          })
+          .eq('id', application.id);
+        if (noticeUpdateError) {
+          console.error(
+            'beta-application: Betreiber-Versandstatus konnte nicht gespeichert werden.',
+          );
+        }
+      } catch (error) {
+        console.error(
+          'beta-application: Betreiber-Benachrichtigung konnte nicht versendet werden.',
+        );
+        await serviceClient
+          .from('beta_applications')
+          .update({
+            operator_email_status: 'failed',
+            operator_email_last_error: boundedErrorMessage(error),
+          })
+          .eq('id', application.id);
+      }
+
+      try {
+        const receipt = renderApplicationReceipt({
+          firstName: application.first_name,
+        });
+        await sendEmail({ to: application.email, ...receipt });
+
+        const { error: updateError } = await serviceClient
+          .from('beta_applications')
+          .update({
+            receipt_email_status: 'sent',
+            receipt_email_sent_at: new Date().toISOString(),
+            receipt_email_last_error: null,
+          })
+          .eq('id', application.id);
+
+        if (updateError) {
+          console.error('beta-application: Versandstatus konnte nicht gespeichert werden.');
+          return;
+        }
+      } catch (error) {
+        const errorMessage = boundedErrorMessage(error);
+        console.error('beta-application: Eingangsbestaetigung konnte nicht versendet werden.');
+        await serviceClient
+          .from('beta_applications')
+          .update({
+            receipt_email_status: 'failed',
+            receipt_email_sent_at: null,
+            receipt_email_last_error: errorMessage,
+          })
+          .eq('id', application.id);
+      }
+    };
+    background(
+      delivery().catch(() =>
+        console.error('beta-application: Versandstatus konnte nicht gespeichert werden.'),
+      ),
+    );
+    return respond({ ok: true }, 200, origin);
+  };
+}
+
+if (import.meta.main) Deno.serve(createBetaApplicationHandler());

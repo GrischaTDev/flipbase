@@ -17,6 +17,9 @@ services:
       # GoTrue sperrt dadurch den oeffentlichen /signup-Endpunkt. Admin-Einladungen
       # ueber inviteUserByEmail bleiben weiterhin moeglich.
       GOTRUE_DISABLE_SIGNUP: "true"
+      # Bestehende Passwörter auch bei direkten Auth-API-Aufrufen erneut prüfen.
+      # Erstanlage und serverseitig bestätigte Recovery bleiben möglich.
+      GOTRUE_SECURITY_UPDATE_PASSWORD_REQUIRE_CURRENT_PASSWORD: "true"
       # Fest im Release statt als frei quotierter .env-Wert: Fuehrende oder
       # abschliessende Backslashes duerfen nicht im sichtbaren Betreff landen.
       GOTRUE_MAILER_SUBJECTS_INVITE: "Deine Bewerbung zur Flipbase Beta wurde angenommen"

@@ -60,19 +60,23 @@ export class WorkspaceAccessService {
       this.clear();
     }
     const generation = this.generation;
-    const { data, error } = await this.supabase.client.rpc('list_my_workspace_access');
-    if (generation !== this.generation) return [];
-    if (error) {
-      this.access.set([]);
-      this.error.set('Der Zugang konnte nicht geprüft werden. Bitte versuche es erneut.');
+    let rows: readonly WorkspaceAccess[];
+    try {
+      const { data, error } = await this.supabase.client.rpc('list_my_workspace_access');
+      if (error) throw error;
+      rows = data ?? [];
+    } catch {
+      if (generation !== this.generation) return [];
+      const message = 'Der Zugang konnte nicht geprüft werden. Bitte versuche es erneut.';
+      this.error.set(message);
       if (this.timeout) clearTimeout(this.timeout);
       if (this.userId)
         this.timeout = setTimeout(() => void this.refresh().catch(() => undefined), 5000);
-      if (this.selectedId) void this.router.navigate(['/beta-ended']);
-      throw new Error(this.error()!);
+      // Ein Prüfungsfehler bestätigt kein Beta-Ende. Guards bleiben über die Ausnahme gesperrt.
+      throw new Error(message);
     }
+    if (generation !== this.generation) return [];
     this.error.set(null);
-    const rows = data ?? [];
     if (rows[0]) this.serverOffset.set(Date.parse(rows[0].server_time) - Date.now());
     this.access.set(rows);
     if (this.timeout) clearTimeout(this.timeout);
