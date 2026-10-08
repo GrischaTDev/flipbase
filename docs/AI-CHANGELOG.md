@@ -1,5 +1,25 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-08 - Juna - Cloud-Gesprächszugriff ohne Schreibfreigabe bereitstellen
+
+**Auftrag:** Den unterbrochenen Abschluss von PR 340 fortsetzen und den echten
+Cloud-Gesprächsabruf mit Maike Vintage prüfen.
+
+**Befund:** PR-Prüfungen, Merge und Veröffentlichung sind erfolgreich. Anwendung
+und Worker liefern den gemergten Stand aus. Der echte Aufruf liefert jedoch
+HTTP 503 vor dem Browserstart: Die Eintragsprüfung ist bisher an die Freigabe
+von Chromium-Schreibfunktionen gebunden. Unabhängig davon hat der bestehende
+15-Minuten-Abruf um 00:44 UTC wegen `identity` pausiert; diese Pause bleibt erhalten.
+
+**Umsetzung:** Der Gesprächsabruf erhält die vorhandene RLS-geschützte
+Eintragsprüfung als eigene Leseabhängigkeit. Die bisherigen Freigaben für
+Profil- und Inseratänderungen bleiben unverändert. Ein Regressionstest bildet
+den Cloud-Lesebetrieb ohne Schreibfreigabe ab und prüft gleichzeitig, dass
+beide Speicherrouten vor einem Browserstart abgewiesen werden.
+
+**Prüfstand:** Der Regressionstest zeigt vor der Korrektur HTTP 503 statt 200.
+347 Worker-Tests bestehen, sieben bleiben unverändert ausgelassen. Typprüfung, Produktionsbau, gezieltes ESLint, Formatierung und Diff-Prüfung bestehen. Die erneute Live-Prüfung steht bis zur Veröffentlichung der Korrektur aus.
+
 ## 2026-10-07 - Juna - Cloud-Gespräche beim Öffnen aktuell abrufen
 
 **Auftrag:** Den bislang nur lokal vorhandenen Gesprächsabruf an den eigenen

@@ -262,6 +262,12 @@ async function main(): Promise<void> {
             publishableKey: config.publishableKey,
           })
         : undefined,
+    conversationAccess: isCloud
+      ? new VintedEditAccess({
+          url: config.supabaseUrl,
+          publishableKey: config.publishableKey,
+        })
+      : undefined,
     readOnly: config.provider === 'local',
     scheduledSync: dispatcher
       ? () => ({
