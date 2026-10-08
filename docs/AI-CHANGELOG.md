@@ -1,5 +1,31 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-08 - Juna - Falsche Beta-Umleitung beim Tabwechsel verhindern
+
+**Auftrag:** Die gelegentliche Umleitung eines Administrators auf `beta-ended`
+beim Zurückkehren zum Flipbase-Tab untersuchen und korrigieren.
+
+**Befund:** Die Zugangsprüfung beim Sichtbarwerden des Tabs leitet bereits bei
+einem RPC-Fehler auf die Beta-Seite um. Ein Workspace ohne Beta-Lizenz wird
+serverseitig als aktiv geführt; der Fehlerpfad unterscheidet einen
+Prüfungsfehler bisher nicht von einer bestätigten Zugangssperre.
+
+**Umsetzung:** Fehlgeschlagene Hintergrundprüfungen behalten den zuletzt
+bestätigten Zustand und wiederholen die Prüfung nach fünf Sekunden. Auch
+geworfene Ausnahmen werden berücksichtigt. Neue Navigationen bleiben bei
+fehlgeschlagener Prüfung gesperrt; bestätigte Zugangssperren und Nutzerwechsel
+werden weiterhin berücksichtigt. Keine Änderung der Admin-Rechte oder des Backends.
+
+**Prüfung:** Sechs Regressionstests decken Tabwechsel, erneute Prüfung,
+geworfene Ausnahmen, bestätigtes Beta-Ende, Workspace-Wechsel und verspätete
+Fehler nach Abmeldung ab. Zusammen mit den bestehenden Zugangs-, Einrichtungs-
+und Betreiberprüfungen bestehen 25 Tests, zusätzlich 49 bestehende Auth- und
+Workspace-Tests. Typprüfung, gezieltes ESLint, Formatierung, Suite-Audit und
+Produktionsbau bestehen. Der Bau läuft mit dem vorhandenen Node 24.19.0,
+da das systemweite Node 22.16.0 für Angular 22 zu alt ist; die bestehende
+CommonJS-Warnung für `pako` bleibt. Der konkrete Aussetzer in der produktiven
+Sitzung ist nicht live reproduziert.
+
 ## 2026-10-08 - Juna - Cloud-Gesprächszugriff ohne Schreibfreigabe bereitstellen
 
 **Auftrag:** Den unterbrochenen Abschluss von PR 340 fortsetzen und den echten
