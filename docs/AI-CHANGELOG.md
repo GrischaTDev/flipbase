@@ -1,5 +1,32 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-08 - Juna - Web-Arbeit am Marken- und Labellexikon lokal einordnen
+
+**Auftrag:** Vorhandene Web-Branches für Markenlabels, Echtheitsvergleich und
+Größenreferenzen finden und den Stand für eine lokale Fortsetzung prüfen.
+
+**Befund:** Entwurfs-PR 331 auf `juna/brand-labels-integration-20261007`
+enthält Galerie, Detailansicht, Referenzmarken-/Linienverwaltung und geprüfte
+SQL-Kandidaten. App-Navigation, produktive Datenbankintegration, Labeleditor,
+Bildverwaltung und echte Referenzinhalte fehlen. Größenfinder sind laut
+Integrationsdokumentation ausdrücklich nicht Teil dieses Ausbaus. Die älteren
+Branches `juna/brand-labels` und `juna/brand-labels-foundation` enthalten gegenüber
+ihrem gemeinsamen Hauptzweig nur Test-/Übertragungsworkflows beziehungsweise
+keine eigenen Änderungen.
+
+**Prüfung:** Remote-Branches aktualisiert, Commitstände und Quellumfang verglichen,
+PR-Dokumentation, Routen, Bildplatzhalter und aktuelle CI-Ergebnisse gelesen.
+SQL-Kandidaten, Datenbank-, Anwendungs-, Sniper- und allgemeine Browserprüfungen
+sind im letzten PR-Lauf erfolgreich. Quality und Label-Modulprüfung scheitern
+an Formatierung; der Produktionsbau wurde nicht ausgeführt. Keine eigene
+Build-, Browser- oder vollständige Supabase-Abnahme durchgeführt.
+
+**Fortsetzung:** PR-Head `1c786863` in einer eigenen lokalen Arbeitskopie auf
+`juna/brand-labels-local-continuation` bereitgestellt. Bestehende Remote-Branches,
+Anwendung und Produktivdaten unverändert. Noch keine Implementierung, kein Push,
+Merge oder Deployment. Die im Web erwähnten zusätzlichen lokalen Editor- und
+Medienbausteine sind im abrufbaren Git-Stand nicht enthalten.
+
 ## 2026-10-07 - Juna - Neue Vinted-Bewertungen in der Glocke melden
 
 **Auftrag:** Neue Bewertungen nach einem Kontoabruf dauerhaft in der
