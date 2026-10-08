@@ -3116,6 +3116,101 @@ export type Database = {
           },
         ]
       }
+      marketplace_message_notification_baselines: {
+        Row: {
+          connection_id: string
+          external_account_id: string
+          first_observed_at: string
+          id: number
+          last_observed_at: string
+          workspace_id: string
+        }
+        Insert: {
+          connection_id: string
+          external_account_id: string
+          first_observed_at: string
+          id?: never
+          last_observed_at: string
+          workspace_id: string
+        }
+        Update: {
+          connection_id?: string
+          external_account_id?: string
+          first_observed_at?: string
+          id?: never
+          last_observed_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_message_notificatio_workspace_id_connection_id_fkey"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_connections"
+            referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
+      marketplace_message_notifications: {
+        Row: {
+          cleared_at: string | null
+          connection_id: string
+          conversation_id: string | null
+          external_account_id: string
+          external_conversation_id: string
+          external_event_id: string
+          id: number
+          notified_at: string | null
+          observed_at: string
+          occurred_at: string
+          read: boolean
+          workspace_id: string
+        }
+        Insert: {
+          cleared_at?: string | null
+          connection_id: string
+          conversation_id?: string | null
+          external_account_id: string
+          external_conversation_id: string
+          external_event_id: string
+          id?: never
+          notified_at?: string | null
+          observed_at: string
+          occurred_at: string
+          read?: boolean
+          workspace_id: string
+        }
+        Update: {
+          cleared_at?: string | null
+          connection_id?: string
+          conversation_id?: string | null
+          external_account_id?: string
+          external_conversation_id?: string
+          external_event_id?: string
+          id?: never
+          notified_at?: string | null
+          observed_at?: string
+          occurred_at?: string
+          read?: boolean
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_message_notificat_workspace_id_connection_id_c_fkey"
+            columns: ["workspace_id", "connection_id", "conversation_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_account_entries"
+            referencedColumns: ["workspace_id", "connection_id", "id"]
+          },
+          {
+            foreignKeyName: "marketplace_message_notificati_workspace_id_connection_id_fkey1"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_connections"
+            referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
       marketplace_operations: {
         Row: {
           authorization_kind: string | null
@@ -7668,6 +7763,14 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_mark_message_notifications: {
+        Args: {
+          p_clear?: boolean
+          p_notification_id?: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       marketplace_prepare_favorite_import: {
         Args: {
           p_connection_id: string
@@ -7712,6 +7815,10 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_read_message_notifications: {
+        Args: { p_workspace_id: string }
+        Returns: Json
+      }
       marketplace_read_message_permission: {
         Args: { p_connection_id: string; p_workspace_id: string }
         Returns: Json
@@ -7741,6 +7848,15 @@ export type Database = {
       marketplace_read_sync_schedule: {
         Args: { p_connection_id: string; p_workspace_id: string }
         Returns: Json
+      }
+      marketplace_record_message_event_batch: {
+        Args: {
+          p_batch: Json
+          p_connection_id: string
+          p_external_account_id: string
+          p_workspace_id: string
+        }
+        Returns: number
       }
       marketplace_rename_connection: {
         Args: {

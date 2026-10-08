@@ -17,7 +17,8 @@ Der Webclient verwendet eine getrennte Gelesen-Markierung; diese wurde nicht auf
 private Texte oder Nutzerkennungen. Eigene Nachrichten, Listenänderungen, fehlende
 Kennungen, unbekannte Absender und widersprüchliche Ereignisse erzeugen keine
 erfundenen Eingänge. Teilkopien setzen keinen vollständigen Referenzstand. Die
-Glockenübernahme und der begrenzte Hintergrundleser folgen noch; nicht veröffentlicht.
+Glockenanzeige folgt noch; Leser und dauerhafte Speicherung sind jetzt vorbereitet.
+Nicht veröffentlicht.
 
 **Umsetzung:** Gemeinsamer Nachrichtenvertrag und Browseradapter für einen
 autorisierungsgebundenen Replyversuch. Eindeutiger Textnachweis ist erforderlich;
@@ -58,7 +59,7 @@ den Gateway-Nachrichtenabruf und getrennte Aufrufe zum Gelesenmarkieren.
 Gateway-Notifications enthalten ebenfalls nur 20/720. Die neue Gateway-
 Gesprächsliste liefert zwar UUIDs und Zeitpunkte, für dieses Legacy-Konto aber
 nur `legacy_last_message` mit Absender `0`; daraus werden keine Eingänge erfunden.
-Eine Änderung der bisherigen Vorgabe zum Detailabruf steht zur Entscheidung.
+Der Nutzer hat den kontrollierten GET bestätigt; das Ungelesen-Flag blieb erhalten.
 
 **Favoriten-Browseradapter vorbereitet:** Belegte Extension-Endpunkte für
 Favoritenantworten und Angebote übernommen. Der Adapter prüft aktiven Artikel,
@@ -68,6 +69,22 @@ Serverbestätigung. Verlorene Create-/Offerantworten werden nicht wiederholt.
 Zehn neue Adapterprüfungen; 401 Workerprüfungen bestehen, sieben unverändert
 ausgelassen; Worker-Bau, Typprüfung, Formatierung und ESLint bestehen. Noch keine
 Favoriten-Cloud-RPCs, Worker-Verdrahtung oder Live-Sends; Aufgabe 7 bleibt offen.
+
+**Eingangsleser und Glockenspeicherung:** Cloud und Extension übernehmen belegte
+Eingänge im bestehenden atomaren Import. Drei begrenzte Gesprächskopien pro Lauf;
+ungelesene Gespräche werden auch bei unverändertem Zeitstempel geprüft. Die älteste
+geprüfte Kopie kommt zuerst, damit die Begrenzung andere Gespräche nicht verdrängt.
+Vorher/nachher bleibt ungelesen; eine unerwartete Änderung bricht den Abruf ab.
+Erstbestand und später geladene ältere Historie bleiben still. Neue Ereignisse
+werden dedupliziert, unbekannte Gesprächszuordnungen später aufgelöst und über
+private Broadcasts invalidiert. Alte Extension-Payloads bleiben gültig.
+Migration offiziell erzeugt und auf isolierter DB angewendet, Typen daraus erzeugt.
+249 DBassertions einschließlich 26 neuer Feed-/Scope-/Rollbackprüfungen, 410
+Workerprüfungen (sieben bisherige Skip), 126 Extensionprüfungen und 24 Deno-Prüfungen
+bestehen. Angular-Bau, Typen, ESLint und Worker-Dockerbau bestehen. Gemeinsame
+Vertragsdateien sind im Dockerbau enthalten. Extension 1.7.1 vorbereitet, keine
+registrierte Installation überschrieben. Glockenoberfläche und übrige
+Favoritenausführung bleiben offen; kein Release und kein Echtkonto-Versand.
 
 ## 2026-10-08 - Juna - Gemeinsamen Cloud-Postfachausbau planen
 

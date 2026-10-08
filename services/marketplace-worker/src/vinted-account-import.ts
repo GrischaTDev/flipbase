@@ -2,6 +2,8 @@ import type { Page } from 'playwright';
 import { createHash } from 'node:crypto';
 import { setTimeout as wait } from 'node:timers/promises';
 import { parseVintedAccountIdentity, type VintedAccountIdentity } from './vinted-browser-reader.ts';
+import { parseVintedInboxEvents } from './vinted-inbox-events.ts';
+import type { MarketplaceInboxEventBatch } from '../../../supabase/functions/_shared/marketplace-inbox-event-contracts.d.ts';
 
 export type VintedImportKind = 'profile' | 'publication' | 'conversation' | 'message' | 'sale';
 
@@ -30,6 +32,7 @@ export interface VintedAccountImport {
   rejectedSaleIds?: string[];
   sourceRequestCount?: number;
   browserReadFailures?: VintedBrowserReadFailure[];
+  inboxEvents?: MarketplaceInboxEventBatch & { readonly version: 1 };
 }
 
 export interface VintedConversationVersion {
@@ -796,6 +799,8 @@ export async function readVintedAccountImport(
   };
   const previousById = new Map(previousConversations.map((entry) => [entry.externalId, entry]));
   const details: unknown[] = [];
+  const eventBatches: MarketplaceInboxEventBatch[] = [];
+  let detailReads = 0;
   if (
     requestedConversation &&
     !conversations.values.some(
@@ -804,18 +809,35 @@ export async function readVintedAccountImport(
     )
   )
     throw new VintedImportReadError('messages', new VintedImportRequestError('invalid_response'));
-  for (const raw of conversations.values) {
+  const candidates = conversations.values
+    .map((raw, index) => {
+      const previous = previousById.get(identifier(record(raw)?.['id']) ?? '');
+      const unchanged = previous?.sourceUpdatedAt === date(record(raw)?.['updated_at'], '');
+      return {
+        raw,
+        index,
+        priority: unchanged ? 1 : 0,
+        checkedAt: Date.parse(previous?.detailCheckedAt ?? '') || 0,
+      };
+    })
+    .sort((left, right) => left.priority - right.priority || left.checkedAt - right.checkedAt);
+  for (const { index, raw } of candidates) {
     const id = identifier(record(raw)?.['id']);
     if (requestedConversation && id !== requestedConversation.externalId) continue;
-    // Das Öffnen ungelesener Gespräche könnte bei Vinted den Lesestatus verändern.
-    // Nur die ausdrückliche Auswahl darf ein ungelesenes Gespräch öffnen.
-    if (!requestedConversation && record(raw)?.['unread'] !== false) continue;
+    const wasUnread = record(raw)?.['unread'] === true;
+    const partnerId = identifier(record(record(raw)?.['opposite_user'])?.['id']);
+    if (
+      !requestedConversation &&
+      (detailReads >= 3 || (record(raw)?.['unread'] !== false && (!wasUnread || !partnerId)))
+    )
+      continue;
     if (!id) continue;
     const previous = previousById.get(id);
     const sourceUpdatedAt = date(record(raw)?.['updated_at'], '');
     const checkedAt = previous ? Date.parse(previous.detailCheckedAt) : NaN;
     if (
       !requestedConversation &&
+      !wasUnread &&
       previous &&
       sourceUpdatedAt &&
       previous.sourceUpdatedAt === sourceUpdatedAt &&
@@ -825,6 +847,7 @@ export async function readVintedAccountImport(
     )
       continue;
     await atImportStage('messages', authorize);
+    detailReads++;
     let conversation: unknown;
     try {
       conversation = await vintedJson(page, `/api/v2/conversations/${id}`, reads);
@@ -838,6 +861,31 @@ export async function readVintedAccountImport(
       continue;
     }
     const relation = record(record(conversation)?.['conversation']);
+    if (!requestedConversation && wasUnread) {
+      await atImportStage('messages', authorize);
+      const check = record(
+        await vintedJson(
+          page,
+          `/api/v2/inbox?page=${Math.floor(index / 20) + 1}&per_page=20`,
+          reads,
+        ),
+      );
+      const rows = check?.['conversations'];
+      const same = Array.isArray(rows)
+        ? rows.find((candidate) => identifier(record(candidate)?.['id']) === id)
+        : null;
+      if (
+        record(same)?.['unread'] !== true ||
+        relation?.['read_by_current_user'] !== false ||
+        identifier(record(relation?.['opposite_user'])?.['id']) !== partnerId
+      ) {
+        throw new VintedImportReadError(
+          'messages',
+          new VintedImportRequestError('invalid_response'),
+        );
+      }
+    }
+    eventBatches.push(parseVintedInboxEvents(conversation, identity.id, observedAt));
     const transactionId = identifier(record(relation?.['transaction'])?.['id']);
     let transaction: unknown = null;
     if (
@@ -882,6 +930,15 @@ export async function readVintedAccountImport(
     );
     return {
       ...snapshot,
+      inboxEvents: {
+        version: 1,
+        observedAt,
+        events: eventBatches.flatMap((batch) => batch.events),
+        complete:
+          conversations.result.status === 'complete' &&
+          eventBatches.every((batch) => batch.complete),
+        coveredConversationIds: eventBatches.flatMap((batch) => batch.coveredConversationIds),
+      },
       sourceRequestCount: reads.count,
       ...(reads.browserFailures.length ? { browserReadFailures: reads.browserFailures } : {}),
     };

@@ -112,7 +112,7 @@ Kennungen, unbekannte Absender oder abgeschnittene Kopien bestätigen keinen
 Referenzstand. Die Prüfung belegt das aktuelle Testprofil, keine unveränderliche
 Garantie des Anbieters; eine beobachtete Lesestatusänderung stoppt diesen Pfad.
 
-Der erste vollständige Abgleich je Gespräch setzt einen dauerhaften Referenzstand.
+Die erste vollständig belegte Gesprächskopie oder bestätigte leere Liste setzt einen dauerhaften Zeitbezug je Kontoidentität. Später geladene ältere Gespräche bleiben still; neue belegte Eingänge nach diesem Zeitbezug werden auch in neu angelegten Gesprächen gemeldet.
 Alte Historie wird nicht nachträglich als neue Nachricht gemeldet. Wiederholte
 Imports erzeugen über die eindeutige Konto- und Ereigniskennung keine weiteren
 Glockeneinträge. Eigene gesendete Nachrichten und unbekannte Ereignistypen

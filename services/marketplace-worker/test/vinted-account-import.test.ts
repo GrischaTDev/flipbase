@@ -8,6 +8,116 @@ import {
   VintedImportRequestError,
 } from '../src/vinted-account-import.ts';
 
+test('background snapshot reads identify incoming events while checking unread status without marking it', async () => {
+  const requests: string[] = [];
+  const page = importPage((path) => {
+    requests.push(path);
+    if (path.startsWith('/api/v2/inbox'))
+      return {
+        conversations: [
+          { id: 700, unread: true, opposite_user: { id: 91 }, updated_at: '2026-10-08T08:01:00Z' },
+        ],
+        pagination: { total_pages: 1 },
+      };
+    if (path === '/api/v2/conversations/700')
+      return {
+        conversation: {
+          id: 700,
+          opposite_user: { id: 91 },
+          read_by_current_user: false,
+          messages: [
+            {
+              entity_type: 'message',
+              created_at_ts: '2026-10-08T10:01:00+02:00',
+              entity: { id: 502, user_id: 91, body: 'Test' },
+            },
+          ],
+        },
+      };
+    return undefined;
+  });
+  const snapshot = await readVintedAccountImport(page, async () => undefined);
+  assert.equal(snapshot.inboxEvents?.events.length, 1);
+  assert.deepEqual(snapshot.inboxEvents?.coveredConversationIds, ['700']);
+  assert.equal(
+    snapshot.entries.find((entry) => entry.kind === 'conversation')?.body['unread'],
+    true,
+  );
+  assert.equal(requests.filter((path) => path.startsWith('/api/v2/inbox')).length, 2);
+  assert.ok(requests.every((path) => !path.includes('mark_as_read')));
+});
+
+test('an unexpected unread change aborts background import and never claims preserved status', async () => {
+  let inboxReads = 0;
+  const page = importPage((path) => {
+    if (path.startsWith('/api/v2/inbox'))
+      return {
+        conversations: [{ id: 700, unread: ++inboxReads === 1, opposite_user: { id: 91 } }],
+        pagination: { total_pages: 1 },
+      };
+    if (path === '/api/v2/conversations/700')
+      return {
+        conversation: {
+          id: 700,
+          opposite_user: { id: 91 },
+          read_by_current_user: false,
+          messages: [],
+        },
+      };
+    return undefined;
+  });
+  await assert.rejects(
+    readVintedAccountImport(page, async () => undefined),
+    VintedImportReadError,
+  );
+});
+
+test('unchanged unread timestamp still checks real message ids; oldest checked conversation gets its turn', async () => {
+  const paths: string[] = [];
+  const ids = [700, 701, 702, 703];
+  const sourceUpdatedAt = '2026-10-08T08:01:00.000Z';
+  const snapshot = await readVintedAccountImport(
+    importPage((path) => {
+      paths.push(path);
+      if (path.startsWith('/api/v2/inbox'))
+        return {
+          conversations: ids.map((id) => ({
+            id,
+            unread: true,
+            opposite_user: { id: 91 },
+            updated_at: sourceUpdatedAt,
+          })),
+          pagination: { total_pages: 1 },
+        };
+      if (path.startsWith('/api/v2/conversations/'))
+        return {
+          conversation: {
+            id: Number(path.split('/').at(-1)),
+            opposite_user: { id: 91 },
+            read_by_current_user: false,
+            messages: [],
+          },
+        };
+      return undefined;
+    }),
+    async () => undefined,
+    undefined,
+    ids.map((id) => ({
+      externalId: String(id),
+      sourceUpdatedAt,
+      detailCheckedAt: new Date(Date.now() - (id === 703 ? 120000 : 60000)).toISOString(),
+      text: null,
+      occurredAt: null,
+    })),
+  );
+  assert.equal(paths.filter((path) => path.startsWith('/api/v2/conversations/')).length, 3);
+  assert.equal(
+    paths.find((path) => path.startsWith('/api/v2/conversations/')),
+    '/api/v2/conversations/703',
+  );
+  assert.deepEqual(snapshot.inboxEvents?.coveredConversationIds, ['703', '700', '701']);
+});
+
 function importPage(overrides: (path: string) => unknown): Page {
   return {
     url: () => 'https://www.vinted.de/',

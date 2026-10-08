@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 const require = createRequire(import.meta.url);
 const inbox = require('../tools/flipbase-extension/vinted-local-inbox-events.js');
+const core = require('../tools/flipbase-extension/vinted-local-core.js');
 const fixture = JSON.parse(
   readFileSync(
     new URL(
@@ -19,4 +20,35 @@ test('incoming snapshot contract needs no browser, text or unread transition', (
   assert.equal(result.complete, true);
   assert.deepEqual(result.coveredConversationIds, ['700']);
   assert.ok(result.events.every((event) => event.direction === 'inbound' && !('body' in event)));
+});
+
+test('extension imports changed unread snapshots with the same events and checks status after GET', async () => {
+  const paths = [];
+  const batch = await core.readInbox(
+    async (path) => {
+      paths.push(path);
+      if (path === '/api/v2/users/current') return { user: { id: 90, login: 'testkonto' } };
+      if (path.startsWith('/api/v2/inbox'))
+        return {
+          conversations: [
+            {
+              id: 700,
+              unread: true,
+              opposite_user: { id: 91 },
+              updated_at: '2026-10-08T08:01:00Z',
+            },
+          ],
+          pagination: { total_pages: 1 },
+        };
+      if (path === '/api/v2/conversations/700') return fixture;
+      assert.fail('Unexpected provider request');
+    },
+    '90',
+    { nextPage: 1, versions: [], mode: 'latest' },
+    () => '2026-10-08T09:00:00.000Z',
+  );
+  assert.equal(batch.inboxEvents.events.length, 2);
+  assert.deepEqual(batch.inboxEvents.coveredConversationIds, ['700']);
+  assert.equal(paths.filter((path) => path.startsWith('/api/v2/inbox')).length, 2);
+  assert.equal(batch.entries.find((entry) => entry.kind === 'conversation').body.unread, true);
 });
