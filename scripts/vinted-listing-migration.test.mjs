@@ -77,3 +77,20 @@ test('completes a planning supplement without modifying the original migration',
     ),
   );
 });
+
+test('completes execution grants and rejects incomplete or unrelated execution supplements', () => {
+  const generated =
+    'ALTER TABLE public.marketplace_listing_jobs ADD COLUMN claim_token uuid;\nCREATE FUNCTION public.marketplace_local_listing_claim() RETURNS jsonb LANGUAGE SQL AS $$select null::jsonb$$;';
+  assert.match(
+    completeListingJobsMigration(generated, jobsSchema, 'execution'),
+    /revoke all on public.marketplace_listing_jobs/,
+  );
+  assert.throws(() => completeListingJobsMigration('select 1;', jobsSchema, 'execution'));
+  assert.throws(() =>
+    completeListingJobsMigration(
+      generated + '\nALTER TABLE public.workspaces ADD COLUMN x text;',
+      jobsSchema,
+      'execution',
+    ),
+  );
+});

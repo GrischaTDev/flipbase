@@ -174,7 +174,7 @@ und Termin werden unveränderlich aufgenommen. Wiederholte Anfragen liefern
 denselben Auftrag. Aufträge können vor Beginn abgebrochen werden; ein Widerruf
 während eines begonnenen Versuchs bleibt „Ergebnis unklar“. Konto- und
 Installationswechsel entziehen alten Aufträgen die Freigabe. `queued` bestätigt
-ausschließlich die Speicherung in Flipbase. Claim/Begin/Finish, Ausführer,
+ausschließlich die Speicherung in Flipbase. Cloud-Übernahme, Ausführer,
 Planungsdialog und serverseitige Terminsteuerung sowie
 vollständige Live-Bearbeitung mit Drawer und manuelles Relist fehlen weiterhin.
 
@@ -184,6 +184,15 @@ geplanten Auftrag. Bei einem Fehler bleibt der alte Auftrag erhalten. Eine
 wiederholte Anfragenkennung liefert denselben Ersatz. Frontend-Modell und
 Feature-Service prüfen den Auftragskontext und unterscheiden Anbieterprüfung
 von Veröffentlichung. Die Oberfläche und Ausführer sind noch anzuschließen.
+
+Für lokale Versuche sind Übernahme, erneute Prüfung, einmaliger Schreibbeginn
+und Ergebnisannahme inzwischen in Schema 464 vorbereitet. Abgelaufene
+Vorbereitung kann erneut übernommen werden; ein möglicherweise begonnenes
+Schreiben bleibt unklar. Verlaufabfragen erkennen diesen Zustand auch bei
+ausgeschalteter Erweiterung. Späte Antworten sind an den ursprünglichen
+Versuch und das Zielkonto gebunden. Änderungen von Konto oder Ausführer
+entziehen die alte Freigabe dauerhaft. Die 27 Ablaufprüfungen verwenden
+synthetische Ergebnisse und bestätigen keinen echten Vinted-Schreiberfolg.
 
 ## Prüfungen dieser Grundlage
 

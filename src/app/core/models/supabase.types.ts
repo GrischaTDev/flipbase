@@ -3541,8 +3541,12 @@ export type Database = {
       }
       marketplace_listing_jobs: {
         Row: {
+          absolute_expires_at: string | null
           action: string
           authorization_version: number
+          claim_local_grant_generation: number | null
+          claim_local_token_hash: string | null
+          claim_token: string | null
           connection_id: string | null
           created_at: string
           draft_id: number
@@ -3551,9 +3555,12 @@ export type Database = {
           execution_mode: string
           external_account_id: string
           external_id: string | null
+          finished_at: string | null
           id: number
           late_policy: string
+          lease_expires_at: string | null
           permission_id: number | null
+          provider_result: Json | null
           provider_state: string | null
           replaces_job_id: number | null
           request_hash: string
@@ -3561,6 +3568,7 @@ export type Database = {
           requested_by: string
           scheduled_at: string | null
           snapshot: Json
+          started_at: string | null
           state: string
           time_zone: string | null
           updated_at: string
@@ -3569,8 +3577,12 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          absolute_expires_at?: string | null
           action: string
           authorization_version: number
+          claim_local_grant_generation?: number | null
+          claim_local_token_hash?: string | null
+          claim_token?: string | null
           connection_id?: string | null
           created_at?: string
           draft_id: number
@@ -3579,9 +3591,12 @@ export type Database = {
           execution_mode: string
           external_account_id: string
           external_id?: string | null
+          finished_at?: string | null
           id?: never
           late_policy?: string
+          lease_expires_at?: string | null
           permission_id?: number | null
+          provider_result?: Json | null
           provider_state?: string | null
           replaces_job_id?: number | null
           request_hash: string
@@ -3589,6 +3604,7 @@ export type Database = {
           requested_by: string
           scheduled_at?: string | null
           snapshot: Json
+          started_at?: string | null
           state?: string
           time_zone?: string | null
           updated_at?: string
@@ -3597,8 +3613,12 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          absolute_expires_at?: string | null
           action?: string
           authorization_version?: number
+          claim_local_grant_generation?: number | null
+          claim_local_token_hash?: string | null
+          claim_token?: string | null
           connection_id?: string | null
           created_at?: string
           draft_id?: number
@@ -3607,9 +3627,12 @@ export type Database = {
           execution_mode?: string
           external_account_id?: string
           external_id?: string | null
+          finished_at?: string | null
           id?: never
           late_policy?: string
+          lease_expires_at?: string | null
           permission_id?: number | null
+          provider_result?: Json | null
           provider_state?: string | null
           replaces_job_id?: number | null
           request_hash?: string
@@ -3617,6 +3640,7 @@ export type Database = {
           requested_by?: string
           scheduled_at?: string | null
           snapshot?: Json
+          started_at?: string | null
           state?: string
           time_zone?: string | null
           updated_at?: string
@@ -9034,6 +9058,10 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_expire_local_listing_attempts: {
+        Args: { p_connection_id?: string; p_workspace_id?: string }
+        Returns: undefined
+      }
       marketplace_favorite_message_config_valid: {
         Args: { p_config: Json }
         Returns: boolean
@@ -9113,6 +9141,13 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_listing_finish_job: {
+        Args: {
+          p_job: Database["public"]["Tables"]["marketplace_listing_jobs"]["Row"]
+          p_result: Json
+        }
+        Returns: Json
+      }
       marketplace_listing_job_document: {
         Args: {
           p_job: Database["public"]["Tables"]["marketplace_listing_jobs"]["Row"]
@@ -9122,6 +9157,12 @@ export type Database = {
       marketplace_listing_job_timing: {
         Args: { p_late_policy: string; p_now: string; p_scheduled_at: string }
         Returns: string
+      }
+      marketplace_listing_job_valid: {
+        Args: {
+          p_job: Database["public"]["Tables"]["marketplace_listing_jobs"]["Row"]
+        }
+        Returns: boolean
       }
       marketplace_listing_permission_valid: {
         Args: { p_permission_id: number; p_user_id: string; p_version?: number }
@@ -9246,6 +9287,73 @@ export type Database = {
       marketplace_local_inbox_state: {
         Args: {
           p_connection_id: string
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_local_listing_authorized: {
+        Args: {
+          p_connection_id: string
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: {
+          approved_by: string
+          connection_id: string
+          expires_at: string
+          external_account_id: string
+          grant_generation: number
+          id: number
+          inbox_next_page: number
+          last_seen_at: string | null
+          messages_read: boolean
+          messages_send: boolean
+          revoked_at: string | null
+          token_hash: string
+          workspace_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "marketplace_local_extension_grants"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      marketplace_local_listing_begin: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: string
+          p_job_id: string
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_local_listing_check: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: string
+          p_job_id: string
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_local_listing_claim: {
+        Args: {
+          p_connection_id: string
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_local_listing_finish: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: string
+          p_job_id: string
+          p_result: Json
           p_token_hash: string
           p_workspace_id: string
         }

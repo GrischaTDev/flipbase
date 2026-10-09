@@ -1,5 +1,26 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-09 – Juna – Lokale Inseratversuche und Ergebnisannahme absichern
+
+**Auftrag:** Die freigegebene Inseratumsetzung nach „dann weiter“ fortsetzen.
+
+**Arbeit:** Übernahme, erneute Rechte-/Foto-/Artikelprüfung, einmaliger
+Schreibbeginn und gebundene Ergebnisannahme ergänzt. Vorbereitung darf nach
+abgelaufener Übernahme neu beginnen; nach möglichem Anbieter-Schreiben bleibt
+der Ausgang unklar. Der Verlauf erkennt solche Ausfälle auch ohne laufende
+Erweiterung. Späte Antworten bleiben mit Konto, ursprünglichem Geheimnis und
+Versuchkennung verbunden, auch nach Widerruf oder Entfernen der Verbindung.
+Wechsel von Kontoidentität oder Ausführer sowie Pause, Sperre und Trennung
+entziehen alte Inseratfreigaben dauerhaft. Browseradapter, Erweiterungsanschluss
+und Cloud-Ausführung fehlen weiterhin; keine Anbieteraktion wurde ausgelöst.
+
+**Prüfungen:** Schema 464 registriert, separate Migration erzeugt und frisch
+eingespielt; Typen erneut generiert. 130 Datenbankprüfungen, davon 27 zum lokalen
+Ablauf mit synthetischen Ergebnissen, sowie 8 Skriptprüfungen erfolgreich.
+Format, betroffene ESLint-Dateien und Angular-Typen erfolgreich. Keine
+Produktionsmigration, installierte Erweiterungsänderung, reale Anbieteraktion,
+Push, PR oder Merge.
+
 ## 2026-10-09 – Juna – Anbieterangaben und Inserataufträge weiter vorbereiten
 
 **Auftrag:** Nach „dann weiter“ die freigegebene Inseratumsetzung fortsetzen.
