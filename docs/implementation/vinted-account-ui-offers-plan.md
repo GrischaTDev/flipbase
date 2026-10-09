@@ -294,3 +294,11 @@ Die separate Käuferannahme unseres Gegenangebots besitzt dagegen noch keinen
 eindeutigen Anbieterbeleg; die UI erklärt die derzeitige Nichtverfügbarkeit und
 erhält gespeicherte Texte. Sie löst keine ersatzweise Kaufnachricht aus.
 Keine reale Anbieterabnahme, produktive Aktivierung oder Veröffentlichung erfolgt.
+
+Alle Aufgabenreviews sowie das Zweigreview mit abschließender Nachprüfung sind
+abgeschlossen. Unklare Ausführung wird im Verlauf ausdrücklich von bestätigtem
+Scheitern unterschieden; beide Zustände sind durch neue Renderingtests geprüft.
+Die betroffene Komponente besteht mit elf Tests, der erneute Produktionsbau,
+Format/Lint und der branchweite Diffcheck bestehen. Der fertige lokale Stand
+wartet auf die vorgeschriebene PR-Freigabe; die vollständige CI und kontrollierte
+Echtkonto-Abnahme bleiben weitere Schritte.

@@ -98,13 +98,13 @@ Agent benennt die konkreten Funktionen vor Providerintegration im Bericht.
 
 - [x] Neue Migration per `supabase db diff` erzeugen und transaktional prüfen;
       Typen neu aus eigener Datenbank erzeugen. Keine Handänderung generierter Typen.
-- [ ] Aufgaben- und vollständiges Zweigreview, gezielte Regressionen, Format/Lint,
+- [x] Aufgaben- und vollständiges Zweigreview, gezielte Regressionen, Format/Lint,
       Typprüfung, Worker-Bau, UI-Bau, Datenbank- und Browserabläufe.
-- [ ] Changelog, Entwurf und Plan mit tatsächlichen Ergebnissen aktualisieren.
+- [x] Changelog, Entwurf und Plan mit tatsächlichen Ergebnissen aktualisieren.
 - [ ] Erst nach fertigem geprüftem Stand die vorgeschriebene PR-Freigabe fragen.
       Keine Veröffentlichung oder Echtkonto-Schreibaktion ohne entsprechende Freigabe.
 
-## Geprüfter Zwischenstand
+## Geprüfter Umsetzungsstand
 
 Task1 und Task2 sind nach Aufgabenreview und gezielten Nachprüfungen abgeschlossen.
 117 neue Datenbankprüfungen und 676 bestehende Regressionen auf der frischen
@@ -113,7 +113,7 @@ Funktionsdefinitionen und Rechte stimmen mit dem geprüften Schema überein.
 Cloud und Extension verwenden eine gemeinsame Providerlaufzeit. Tatsächlicher
 Worker-Image-Bau sowie Import der kompilierten Module im Image bestehen.
 Start ohne CommonJS-Globals, widersprüchliche Währungs-/Artikel-/Rollenbelege,
-Pausen und verlorene Bestätigungen sind gezielt geprüft. Task3 ist implementiert und lokal geprüft; die Aufgabenreviews sind abgeschlossen und das Zweigreview folgt.
+Pausen und verlorene Bestätigungen sind gezielt geprüft. Task3 ist implementiert und lokal geprüft; Aufgabenreviews, Zweigreview und abschließende Nachprüfung sind abgeschlossen.
 
 Ein separates `buyer_accepted` für eine eigene Verkäuferofferte besitzt bislang
 keinen eindeutigen Anbieterbeleg und wird nicht erfunden oder aus dem Kauf abgeleitet.
@@ -138,3 +138,27 @@ Mock-Browserabläufe bestehen auf dem integrierten Hauptzweig mit neuer Glocke.
 Der Produktionsbau besteht; die integrierte Header-DatePipe- und bestehende
 pako-Warnung bleiben als Warnungen dokumentiert. Task1/2/3-Reviewgates sind sauber.
 Keine produktive Aktivierung, Anbieter-Schreibaktion oder Veröffentlichung.
+
+Abschlussreview: Der einzige fachliche Befund betraf den Hinweis bei unklarem
+Schreibausgang. Der Verlauf behauptet jetzt keine sichere Nichtausführung und
+fordert zur Prüfung auf Vinted vor einer Wiederholung auf. Zwei Renderingtests
+decken unklaren Ausgang und bestätigtes Scheitern ab; die betroffene Komponente
+besteht mit 11 Tests. Format/Lint, erneuter Produktionsbau und branchweiter
+Diffcheck bestehen. Die zusätzliche SQL-EOF-Leerzeile ist entfernt, ohne
+Schemaänderung. Die abschließende Nachprüfung bestätigt beide Korrekturen ohne
+neue Befunde. Die zuvor geprüften 86 Angularprüfungen wurden um diese beiden
+Renderingregressionen ergänzt; keine breite Suite erneut ausgeführt.
+
+Der geprüfte Zweig bleibt bis zur vorgeschriebenen PR-Freigabe lokal. Die
+vollständigen Pflichtprüfungen folgen im PR. Keine echte Vinted-Abnahme oder
+automatische Aktivierung wird aus den lokalen Nachweisen abgeleitet.
+
+Entscheidungen während der Umsetzung:
+
+- Die ausdrückliche Umsetzungsfreigabe gilt für den abgestimmten Entwurf; keine
+  wiederholte Planfreigabe. Bei falscher Auslegung wäre eine Anpassung nötig.
+- POSIX-Testfixtures laufen auf diesem Windows-Rechner in eigenen Dockerkopien.
+  Das ersetzt keinen Echtkonto-Test; abweichendes Liveverhalten erfordert Nacharbeit.
+- Die Projektregeln verlangen gezielte lokale Prüfungen und anschließend genau
+  die PR-Frage, statt Skill-Abschlussmenü oder wiederholter Gesamtsuite. Eine
+  falsche Auslegung würde zusätzliche Prüfungen oder Freigabe erfordern.

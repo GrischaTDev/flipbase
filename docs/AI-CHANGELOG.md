@@ -20,7 +20,11 @@ Cloud-/Extensionregressionen, tatsächlicher Worker-Image-Bau samt Modulimport,
 Browserabläufe mit AXE auf Desktop/Mobil in hell/dunkel erfolgreich.
 Produktionsbau, Format/Lint und Shared-UI bestehen. Die bestehende vollständige
 Deno-Lintbaseline bleibt offen; ein gefilterter Lauf ist kein vollständiger
-Lintnachweis. Alle Aufgaben- und Nachprüfungen sind abgeschlossen; das Zweigreview folgt.
+Lintnachweis. Aufgabenreviews, Zweigreview und abschließende Nachprüfung sind
+abgeschlossen. Der einzige fachliche Abschlussbefund ist behoben: Unklarer
+Schreibausgang bleibt ausdrücklich unbestätigt, sicherer Fehler wird getrennt
+angezeigt. Zwei neue Renderingregressionen, die betroffene Komponente mit elf
+Tests, erneuter Produktionsbau, Format/Lint und branchweiter Diffcheck bestehen.
 
 **Grenze:** Bestätigte Zahlungen sind belegte Kaufauslöser. Für die separate
 Käuferannahme unseres Gegenangebots fehlt bislang ein eindeutiger Anbieterbeleg;
