@@ -1,5 +1,41 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-09 - Juna - Hosenmaße direkt in der Größenübersicht zeigen
+
+**Auftrag:** Die allgemeine Hosenübersicht soll neben der flachen Bundweite
+auch belegte Innenbein- und Außenbeinbereiche anzeigen. Der Tabellenplatzhalter
+„Am Stück messen“ erklärt keine Vergleichswerte und wird entfernt.
+
+**Umsetzung:** Die bestehenden Damen- und Herrentabellen enthalten Innenbein,
+Außenbein einschließlich Bund und vordere Leibhöhe. Aus Herstellermaßtabellen
+werden pro Buchstabengröße die kleinsten und größten veröffentlichten Werte
+zusammengefasst: drei Damenschnitte von zwei Marken und vier Herrengrößenreihen
+von drei Marken. Ein Rechercheagent prüft Werte, Messdefinitionen, Quellen und
+Randgrößen. Fehlende Werte werden weder interpoliert noch aus anderen Längen
+berechnet. Quellen bleiben in der gemeinsamen aufklappbaren Liste.
+
+**Einordnung:** Diese begrenzten Hersteller-Beispiele sind keine universellen
+Größenbereiche oder Vintage-Norm. Allgemeine W-/Länder-Gegenstellungen und
+Längenbeispiele müssen nicht gemeinsam an einer Hose vorkommen. Die Länge
+ändert keine XS–XL-Weitenschätzung; Innenbein bleibt separat mit nominellen
+L-Angaben vergleichbar. Umgebrochene Spaltenköpfe halten alle Maße auf dem
+Desktop sichtbar; breite Tabellen bleiben mobil seitlich erreichbar.
+
+**Prüfung:** 72 Modelltests und 19 Angular-Tests erfolgreich; gezieltes ESLint,
+Formatierung, Typprüfung, Shared-UI-Prüfung und Produktionsbau bestanden.
+Isolierter Chromium-Test mit synthetischer Sitzung und RPC-Antworten auf
+Desktop und Mobilgerät prüft Tabellenwerte, Filter, unabhängige Weite/Länge,
+Kinderlabels, Quellenliste, Ausfall und Wiederholung sowie seitliche
+Erreichbarkeit der Maßspalten. AXE WCAG AA ohne Befunde und keine Seitenfehler;
+einziger Konsolenfehler ist der absichtlich simulierte HTTP-503.
+Browser-Plugin nicht verfügbar; vorhandenes Playwright verwendet. Keine
+produktive Anmeldung, Datenbankänderung oder neue Abhängigkeit. Kein Push.
+
+**Freigabe:** Nutzer bestätigt PR-Erstellung, erfolgreiche Pflichtprüfungen,
+Merge und anschließendes Aufräumen. `origin/master` vor dem Push aktualisiert;
+der geprüfte Zweig basiert bereits auf dessen aktuellem Stand `cb463edf`.
+Nach dem Merge wird die öffentliche Version samt Commit kontrolliert.
+
 ## 2026-10-09 - Juna - Kinderlabels und Hosenlängen ergänzen
 
 **Auftrag:** Quellen nicht unter jeder Karte zeigen, Nike-/adidas-Kindergrößen

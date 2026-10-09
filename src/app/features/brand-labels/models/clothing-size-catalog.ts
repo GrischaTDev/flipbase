@@ -84,11 +84,11 @@ export const CLOTHING_SIZE_TABLES: readonly GuideTable[] = [
     audience: 'women',
     kind: 'length-reference',
     title: 'Damenhosen: Kurz, Normal und Lang',
-    columns: ['Längenreihe', 'Innenbein-Richtwert (cm)', 'Außenbeinlänge'],
+    columns: ['Längenreihe', 'Innenbein-Richtwert (cm)'],
     rows: labelRows('bonprix-women-length', [
-      ['Kurz / Petite', '≈ 75', 'Am Stück messen'],
-      ['Regulär', '≈ 81', 'Am Stück messen'],
-      ['Lang', '≈ 88', 'Am Stück messen'],
+      ['Kurz / Petite', '≈ 75'],
+      ['Regulär', '≈ 81'],
+      ['Lang', '≈ 88'],
     ]),
     notes:
       'Längenorientierung laut bonprix, keine markenübergreifende Norm und keine feste Länge pro XS/S/M. Die Außenbeinlänge hängt zusätzlich von Bundhöhe und Schnitt ab; sie lässt sich nicht mit einer festen Zugabe aus dem Innenbein berechnen.',
@@ -113,8 +113,8 @@ export const CLOTHING_SIZE_TABLES: readonly GuideTable[] = [
     audience: 'men',
     kind: 'length-reference',
     title: 'Herrenhosen: Innenbein bei Normalgrößen',
-    columns: ['Größenreihe', 'Innenbein-Richtwert (cm)', 'Außenbeinlänge'],
-    rows: labelRows('bonprix-men-length', [['EU 44–78 / S–6XL', '80–82', 'Am Stück messen']]),
+    columns: ['Größenreihe', 'Innenbein-Richtwert (cm)'],
+    rows: labelRows('bonprix-men-length', [['EU 44–78 / S–6XL', '80–82']]),
     notes:
       'bonprix nennt für seine Normalgrößen eine Hosen-Innenbeinlänge von 80–82 cm. Das ist eine Herstellerreferenz, keine allgemeine Längengarantie. Die Weitengröße bestimmt nicht automatisch die Beinlänge.',
     sourceTitle: 'bonprix – Herren-Normalgrößen',
