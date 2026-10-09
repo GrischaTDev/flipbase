@@ -37,6 +37,7 @@ supabase/functions/_shared/*
 !supabase/functions/_shared/marketplace-local-extension-contracts.ts
 !supabase/functions/_shared/marketplace-message-contracts.d.ts
 !supabase/functions/_shared/marketplace-negotiation-contracts.d.ts
+!supabase/functions/_shared/negotiation-config.ts
 !supabase/functions/_shared/marketplace-inbox-event-contracts.d.ts
 !supabase/functions/_shared/marketplace-local-extension-bridge-contracts.ts
 !supabase/functions/_shared/ebay-contracts.ts

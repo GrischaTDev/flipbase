@@ -56,32 +56,32 @@ Agent benennt die konkreten Funktionen vor Providerintegration im Bericht.
 
 ## Task 1: gespeicherte Regeln und abgesicherte Aufträge
 
-- [ ] Neue deklarative Schemas `426_marketplace_negotiation.sql` und passende DB-Tests:
+- [x] Neue deklarative Schemas `426_marketplace_negotiation.sql` und passende DB-Tests:
       private Settings, Threads, Jobs, RLS/Grants/Workspace-/Konto-/Versionsschutz.
-- [ ] Neuer freigegebener gemeinsamer Konfigurations-/Preisvertrag und Tests.
-- [ ] UI-RPCs sowie lokale/Cloud-Ausführungsfunktionen; automatische Planung auf
+- [x] Neuer freigegebener gemeinsamer Konfigurations-/Preisvertrag und Tests.
+- [x] UI-RPCs sowie lokale/Cloud-Ausführungsfunktionen; automatische Planung auf
       neuen bestätigten Importereignissen, kein Altbestand und keine Poll-Duplikate.
-- [ ] Erst gültiger neuer Eingang führt zur nächsten Stufe. Kauf stoppt Verhandlung.
+- [x] Erst gültiger neuer Eingang führt zur nächsten Stufe. Kauf stoppt Verhandlung.
       Neue Konfiguration und manuelle Übernahme stornieren unbegonnene veraltete Jobs.
-- [ ] Fälligkeit, Abhängigkeit und gespeicherte Vorlagenauswahl; unklarer Ausgang
+- [x] Fälligkeit, Abhängigkeit und gespeicherte Vorlagenauswahl; unklarer Ausgang
       blockiert Folge. Existierende Freigaben, Profilbindung und Pausen bleiben nötig.
-- [ ] Bestätigte automatische Verhandlungsnachrichten im bestehenden Chatabruf
+- [x] Bestätigte automatische Verhandlungsnachrichten im bestehenden Chatabruf
       ebenfalls mit dem Bot-Icon verknüpfen; nur genaue Konto-/Gesprächs-/Versandbelege,
       keine Textvergleiche und keine manuelle Herkunft.
-- [ ] Schema auf eigener Wegwerfkopie testen; Migration erzeugt der Controller.
+- [x] Schema auf eigener Wegwerfkopie testen; Migration erzeugt der Controller.
 
 ## Task 2: Provider und Ausführung
 
-- [ ] Angebotsdaten aus strukturierten Anbieterfeldern in beiden Importpfaden;
+- [x] Angebotsdaten aus strukturierten Anbieterfeldern in beiden Importpfaden;
       keine Preisentscheidungen aus Anzeigetext.
-- [ ] Browseradapter bestätigt Kontoinhaber, Einzelartikel, Käufer, Preis und
+- [x] Browseradapter bestätigt Kontoinhaber, Einzelartikel, Käufer, Preis und
       offenen Angebotsstatus; Accept-PUT und Counter-POST aus Recherche abgleichen.
       Ablehnen über den aktuell bestätigten Reject-PUT; kein erfundener Endpunkt.
-- [ ] Eigener Cloud-Runner/Store und `negotiationWrite`-Scope einschließlich
+- [x] Eigener Cloud-Runner/Store und `negotiationWrite`-Scope einschließlich
       isoliertem Browserkanal, Brokerprüfung, Begin-ACK und Stoppschutz.
-- [ ] Eigene lokale Claim/Begin/Finish-Aktionen und Extension-Executor. Ältere
+- [x] Eigene lokale Claim/Begin/Finish-Aktionen und Extension-Executor. Ältere
       Extension übernimmt neue Jobs nie über die normale Text-Outbox.
-- [ ] Adapter/Dispatch-/Wiederherstellungstests und bestehende Text-/Favoritentests.
+- [x] Adapter/Dispatch-/Wiederherstellungstests und bestehende Text-/Favoritentests.
 
 ## Task 3: Einstellungen und Chat
 
@@ -96,10 +96,27 @@ Agent benennt die konkreten Funktionen vor Providerintegration im Bericht.
 
 ## Task 4: Integration und Abschluss
 
-- [ ] Neue Migration per `supabase db diff` erzeugen und transaktional prüfen;
+- [x] Neue Migration per `supabase db diff` erzeugen und transaktional prüfen;
       Typen neu aus eigener Datenbank erzeugen. Keine Handänderung generierter Typen.
 - [ ] Aufgaben- und vollständiges Zweigreview, gezielte Regressionen, Format/Lint,
       Typprüfung, Worker-Bau, UI-Bau, Datenbank- und Browserabläufe.
 - [ ] Changelog, Entwurf und Plan mit tatsächlichen Ergebnissen aktualisieren.
 - [ ] Erst nach fertigem geprüftem Stand die vorgeschriebene PR-Freigabe fragen.
       Keine Veröffentlichung oder Echtkonto-Schreibaktion ohne entsprechende Freigabe.
+
+## Geprüfter Zwischenstand
+
+Task1 und Task2 sind nach Aufgabenreview und gezielten Nachprüfungen abgeschlossen.
+117 neue Datenbankprüfungen und 676 bestehende Regressionen auf der frischen
+transaktionalen Migrationskopie bestehen. Migration und Typen wurden erzeugt;
+Funktionsdefinitionen und Rechte stimmen mit dem geprüften Schema überein.
+Cloud und Extension verwenden eine gemeinsame Providerlaufzeit. Tatsächlicher
+Worker-Image-Bau sowie Import der kompilierten Module im Image bestehen.
+Start ohne CommonJS-Globals, widersprüchliche Währungs-/Artikel-/Rollenbelege,
+Pausen und verlorene Bestätigungen sind gezielt geprüft. Task3 folgt jetzt.
+
+Ein separates `buyer_accepted` für eine eigene Verkäuferofferte besitzt bislang
+keinen eindeutigen Anbieterbeleg und wird nicht erfunden oder aus dem Kauf abgeleitet.
+Die Oberfläche kennzeichnet die Grenze. Bestätigte Zahlungen über
+`debit_processed_at` ermöglichen dagegen unabhängige Kaufnachrichten.
+Keine produktive Aktivierung, Veröffentlichung oder Vinted-Schreibaktion erfolgt.
