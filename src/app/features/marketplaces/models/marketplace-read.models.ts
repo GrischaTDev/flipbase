@@ -21,6 +21,7 @@ export interface MarketplaceEntry extends AccountScope {
   readonly metrics: MarketplaceMetrics;
   readonly conversationId: string | null;
   readonly direction: 'inbound' | 'outbound' | 'unknown';
+  readonly isAutomated?: boolean;
   readonly promoted: boolean | null;
   readonly unread: boolean | null;
   readonly brand: string | null;

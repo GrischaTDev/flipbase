@@ -121,6 +121,7 @@ create table public.marketplace_favorite_message_events (
 );
 comment on table public.marketplace_favorite_message_events is 'Favoritenereignis und genau ein dauerhafter Versandversuch pro Interessent/Artikel; unklare Ergebnisse werden nicht automatisch wiederholt.';
 create index marketplace_favorite_message_events_queue on public.marketplace_favorite_message_events(workspace_id,connection_id,state,event_at);
+create index marketplace_favorite_message_events_sent_message on public.marketplace_favorite_message_events(workspace_id,connection_id,external_message_id) where state='sent' and external_message_id is not null;
 create index marketplace_favorite_message_events_offer_queue on public.marketplace_favorite_message_events(workspace_id,connection_id,offer_state,event_at) where state='sent';
 alter table public.marketplace_favorite_message_events enable row level security;
 revoke all on public.marketplace_favorite_message_events from public,anon,authenticated,service_role;

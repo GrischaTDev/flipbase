@@ -199,6 +199,7 @@ export function parseMarketplacePage(
         observedAt: timestamp(metrics['observedAt']),
       },
       conversationId: text(item['conversationId']),
+      isAutomated: item['direction'] === 'outbound' && item['isAutomated'] === true,
       direction:
         item['direction'] === 'inbound' || item['direction'] === 'outbound'
           ? item['direction']

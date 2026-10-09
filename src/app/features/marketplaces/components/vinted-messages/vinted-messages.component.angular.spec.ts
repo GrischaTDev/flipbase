@@ -1138,6 +1138,60 @@ describe('Kompakter gespeicherter Vinted-Gesprächsbereich', () => {
     expect(host.querySelector('button')?.textContent).not.toContain('Annehmen');
   });
   it.each(['cloud', 'local'] as const)(
+    'zeigt in %s nur für bestätigte eigene automatische Nachrichten ein Bot-Icon',
+    async (executionMode) => {
+      api.listConnections.mockResolvedValue({
+        canManage: true,
+        connections: [{ ...accounts[0], executionMode }],
+      });
+      api.readPage.mockImplementation(async (scope: AccountScope) =>
+        messages(scope, [
+          {
+            id: 'auto',
+            text: 'Hallo!',
+            direction: 'outbound',
+            messageType: 'text',
+            isAutomated: true,
+          },
+          { id: 'manual', text: 'Hallo!', direction: 'outbound', messageType: 'text' },
+          {
+            id: 'incoming',
+            text: 'Hallo!',
+            direction: 'inbound',
+            messageType: 'text',
+            isAutomated: true,
+          },
+          {
+            id: 'system',
+            text: 'Status',
+            direction: 'outbound',
+            messageType: 'status_message',
+            isAutomated: true,
+          },
+        ]),
+      );
+      const fixture = await render();
+      button(fixture, 'Anfrage zum Schal').click();
+      await settle(fixture);
+      const host = fixture.nativeElement as HTMLElement;
+      const bot = host.querySelector('[data-message-row="auto"] [data-automated-message-avatar]');
+      expect(bot?.getAttribute('aria-label')).toBe('Automatisch von Flipbase gesendet');
+      expect(bot?.getAttribute('title')).toBe('Automatisch von Flipbase gesendet');
+      expect(bot?.querySelector('svg')).not.toBeNull();
+      expect(bot?.querySelector('app-product-thumbnail')).toBeNull();
+      expect(host.querySelectorAll('[data-automated-message-avatar]')).toHaveLength(1);
+      expect(
+        host.querySelector('[data-message-row="manual"] app-product-thumbnail'),
+      ).not.toBeNull();
+      expect(
+        host.querySelector('[data-message-row="incoming"] app-product-thumbnail'),
+      ).not.toBeNull();
+      expect(host.querySelector('[data-message-row="system"] [data-message-avatar]')).toBeNull();
+      expect((await axe.run(host)).violations).toEqual([]);
+      expect(messaging.send).not.toHaveBeenCalled();
+    },
+  );
+  it.each(['cloud', 'local'] as const)(
     'zeigt in %s die Profilbilder des richtigen Absenders und neutrale Platzhalter',
     async (executionMode) => {
       api.listConnections.mockResolvedValue({

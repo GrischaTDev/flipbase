@@ -1,5 +1,34 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-09 - Juna - Automatische Chatantworten mit Bot-Icon kennzeichnen
+
+**Auftrag:** Automatisch von Flipbase gesendete Antworten erhalten ausschließlich
+in Flipbase ein Bot-Icon anstelle des eigenen Profilbilds. Für Flipbase hat der
+Nutzer Backend-Änderungen ausdrücklich freigegeben; die globale Frontend-Grenze
+seiner anderen Arbeitsprojekte gilt hier nicht.
+
+**Änderung:** Der bestehende Chatabruf ordnet bestätigte Automatik-Versandbelege
+über Nachrichten-ID, Workspace, Konto und vorhandene Gesprächs-ID zu. Einträge
+aus Cloud und Extension werden identisch dargestellt. Gleiche Texte, fremde
+Konten, unbestätigte Ergebnisse und importierte Herkunftsbehauptungen reichen
+nicht aus. Manuelle Nachrichten behalten ihr Profilbild. Das runde Bot-Icon
+trägt den zugänglichen Hinweis „Automatisch von Flipbase gesendet“.
+
+**Datenbank:** Der bereits abgesicherte Chatabruf liest private Versandbelege
+mit ausdrücklich geprüfter Benutzeridentität und Kontozuordnung. Die Belegtabelle
+bleibt für Clients gesperrt; ein begrenzter Index beschleunigt die Zuordnung.
+Die Migration wurde mit `supabase db diff` auf einer isolierten Testkopie erzeugt,
+auf die betroffenen Funktions-/Indexanweisungen begrenzt und transaktional auf
+einer frischen Kopie geprüft. Die neu erzeugten Datenbanktypen bestätigen die
+unveränderte RPC-Signatur; keine manuelle Änderung generierter Typen.
+
+**Prüfung:** 72 Komponenten-/Modelltests, vier Browserprüfungen mit AXE für
+Cloud/Extension bei 1440/390 px und 154 Datenbankprüfungen bestehen. Die älteren
+Kontotests verwenden in der Wegwerfkopie ihr bisheriges Archivierungs-Fixture;
+der neue Herkunftstest prüft die reguläre Archivierungsaktion. Produktionsbau,
+Typprüfung, ESLint, Formatierung, Shared-UI-Prüfung und Diffcheck bestehen.
+Keine Vinted-Nachricht gesendet und keine produktive Migration ausgeführt.
+
 ## 2026-10-09 - Juna - Cloud-Gesprächsbilder und Profilbilder veröffentlichen
 
 **Auftrag:** Nach ausdrücklicher Freigabe PR erstellen, erfolgreiche Pflichtprüfungen

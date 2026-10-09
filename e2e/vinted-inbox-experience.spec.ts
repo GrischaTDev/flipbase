@@ -19,7 +19,12 @@ const partnerAvatarUrl = 'https://images.example.test/partner.svg';
 const accountAvatarUrl = 'https://images.example.test/account.svg';
 const expiresAt = '2099-10-05T12:00:00Z';
 
-async function inboxFixture(page: Page, longHistory = false, cloud = false) {
+async function inboxFixture(
+  page: Page,
+  longHistory = false,
+  cloud = false,
+  automatedReply = false,
+) {
   await mockMarketplace(page, false, false, false, false, []);
   const now = new Date().toISOString();
   const account = {
@@ -218,6 +223,20 @@ async function inboxFixture(page: Page, longHistory = false, cloud = false) {
     return route.fulfill({
       json: {
         items: [
+          ...(automatedReply
+            ? [
+                {
+                  ...scope,
+                  id: '25000000-0000-4000-8000-000000000065',
+                  conversationId: body['p_parent_id'],
+                  text: 'Ja, sie ist verfügbar.',
+                  direction: 'outbound',
+                  occurredAt: now,
+                  messageType: 'text_message',
+                  isAutomated: true,
+                },
+              ]
+            : []),
           ...(longHistory
             ? Array.from({ length: 24 }, (_, index) => ({
                 ...scope,
@@ -274,7 +293,7 @@ async function inboxFixture(page: Page, longHistory = false, cloud = false) {
             messageType: 'status_message',
           },
         ].reverse(),
-        total: longHistory ? 28 : 4,
+        total: (longHistory ? 28 : 4) + (automatedReply ? 1 : 0),
         nextCursor: null,
       },
     });
@@ -380,6 +399,59 @@ async function inboxFixture(page: Page, longHistory = false, cloud = false) {
       return providerRequests;
     },
   };
+}
+
+for (const cloud of [true, false]) {
+  for (const width of [1440, 390]) {
+    test(`Bot-Icon für automatische Antwort ${cloud ? 'Cloud' : 'Extension'} ${width}px @core-smoke`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 960 });
+      await page.emulateMedia({ colorScheme: width === 390 ? 'dark' : 'light' });
+      const fixture = await inboxFixture(page, false, cloud, true);
+      await page.goto(
+        `/marketplaces/vinted/messages?connectionId=${connectionId}&conversationId=${conversationId}`,
+      );
+      if (width === 390)
+        await page.getByRole('button', { name: 'Zu dunklem Design wechseln', exact: true }).click();
+      const conversation = page.getByRole('region', { name: 'Gespräch', exact: true });
+      const bot = conversation.locator('[data-automated-message-avatar]');
+      await expect(bot).toBeVisible();
+      await expect(bot).toHaveAttribute('title', 'Automatisch von Flipbase gesendet');
+      await expect(
+        conversation.getByRole('img', { name: 'Automatisch von Flipbase gesendet', exact: true }),
+      ).toBeVisible();
+      await expect(
+        conversation.locator('[data-message-row="25000000-0000-4000-8000-000000000062"]'),
+      ).toContainText('Ja, sie ist verfügbar.');
+      await expect(
+        conversation.getByRole('img', { name: 'Profilbild von synthetic-test', exact: true }),
+      ).toBeVisible();
+      await expect(bot.locator('svg')).toBeVisible();
+      const avatarBounds = await bot.boundingBox();
+      expect(avatarBounds?.width).toBe(44);
+      expect(avatarBounds?.height).toBe(44);
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+      ).toBe(true);
+      await checkAxe(page);
+      expect(fixture.enqueues).toHaveLength(0);
+      expect(fixture.providerRequests).toBe(0);
+      const screenshotDirectory = process.env['MARKETPLACE_SCREENSHOT_DIR'];
+      if (screenshotDirectory) {
+        await mkdir(screenshotDirectory, { recursive: true });
+        await conversation.getByRole('log').evaluate((element) => {
+          element.scrollTop = 0;
+        });
+        await conversation.screenshot({
+          path: join(
+            screenshotDirectory,
+            `vinted-bot-avatar-${cloud ? 'cloud' : 'extension'}-${width}.png`,
+          ),
+        });
+      }
+    });
+  }
 }
 
 test('prüft unklaren Versand vor der Wiederholung und versetzt den Mausfokus nicht @core-smoke', async ({

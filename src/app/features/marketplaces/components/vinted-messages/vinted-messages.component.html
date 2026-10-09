@@ -364,17 +364,30 @@
                   </div>
                 </article>
                 @if (kind !== 'system' && entry.direction === 'outbound') {
-                  <app-product-thumbnail
-                    data-message-avatar
-                    [src]="store.snapshot()?.profile?.imageUrl ?? null"
-                    [alt]="
-                      'Profilbild von ' +
-                      (store.snapshot()?.profile?.username ??
-                        store.selectedConnection()?.displayName ??
-                        'Deinem Konto')
-                    "
-                    size="avatar"
-                  />
+                  @if (entry.isAutomated) {
+                    <span
+                      data-message-avatar
+                      data-automated-message-avatar
+                      class="inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-fb-border bg-fb-well text-fb-text-secondary"
+                      role="img"
+                      aria-label="Automatisch von Flipbase gesendet"
+                      title="Automatisch von Flipbase gesendet"
+                    >
+                      <svg lucideBot class="size-5" aria-hidden="true"></svg>
+                    </span>
+                  } @else {
+                    <app-product-thumbnail
+                      data-message-avatar
+                      [src]="store.snapshot()?.profile?.imageUrl ?? null"
+                      [alt]="
+                        'Profilbild von ' +
+                        (store.snapshot()?.profile?.username ??
+                          store.selectedConnection()?.displayName ??
+                          'Deinem Konto')
+                      "
+                      size="avatar"
+                    />
+                  }
                 }
               </div>
             } @empty {

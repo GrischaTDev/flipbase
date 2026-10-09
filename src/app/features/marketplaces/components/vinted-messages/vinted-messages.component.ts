@@ -22,6 +22,7 @@ import {
   LucideTrash2,
   LucideTag,
   LucideInfo,
+  LucideBot,
   LucideRefreshCw,
 } from '@lucide/angular';
 import imageCompression from 'browser-image-compression';
@@ -99,6 +100,7 @@ interface ReadingPosition {
     LoadingIndicatorComponent,
     LucideTag,
     LucideInfo,
+    LucideBot,
   ],
   templateUrl: './vinted-messages.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
