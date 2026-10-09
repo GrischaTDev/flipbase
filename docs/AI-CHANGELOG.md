@@ -43,9 +43,10 @@ Browserprüfungen decken zusätzlich Anmeldekorrektur und SMS-Bestätigung ab.
 Die neue Zeitplanregression scheitert am bisherigen Servercode. 107 Datenbanktests
 bestehen nach dem Fix, 110 inklusive separatem Migrationsabgleich. 13 zusätzliche
 Angularprüfungen bestätigen die sofortige Warnungsbereinigung mit erhaltener Pause.
-Die Ergänzungen bestehen alle 667 Angularprüfungen im Marktplatzbereich und
-drei zusätzliche AXE-Prüfungen für laufende, erfolgreiche und fehlgeschlagene
-Fortschrittsicons. Elf Browserfälle decken Anmeldebuttons, Korrektur von
+Die Ergänzungen bestehen nach Integration des aktuellen Hauptstands alle 673
+Angularprüfungen im Marktplatzbereich einschließlich drei zusätzlicher
+AXE-Prüfungen für laufende, erfolgreiche und fehlgeschlagene Fortschrittsicons.
+Elf Browserfälle decken Anmeldebuttons, Korrektur von
 Zugangsdaten, SMS, Cloud-Einrichtung, lokalen Cloud-Wechsel und Versandsteuerung ab.
 Produktionsbau, ESLint, Format und Diffprüfung bestehen. Die bestehenden
 Renderingtests laden die hinzugekommenen Vorlagen; Kontrastprüfungen warten nach
@@ -56,6 +57,7 @@ dem verschachtelten Dialog auf das Ende der Einblendanimation.
 vollständig. Nachrichten und Verkäufe bleiben Teilantworten. Die frühere
 Synchronisierungspause bleibt erhalten; keine automatische Wiederaufnahme oder
 Aktivierung der neuen Verhandlungsregeln durch diese Prüfung.
+
 ## 2026-10-09 - Juna - IPRoyal-IPs bei fehlendem Bestand nachbuchen
 
 **Auftrag:** Bei berechtigter Cloud-Einrichtung vorhandene IPs verwenden und bei
