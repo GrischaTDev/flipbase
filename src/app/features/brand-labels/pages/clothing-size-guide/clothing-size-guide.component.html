@@ -1,0 +1,346 @@
+<section class="mx-auto flex w-full max-w-[1800px] flex-col gap-5 p-4 sm:p-6">
+  <app-page-header
+    title="Größen nachschlagen"
+    subtitle="Typische Größen und Richtbereiche nachschlagen oder Deine gemessene Kleidung einordnen."
+    [icon]="pageIcon"
+  />
+
+  <nav aria-label="Bereiche der Größenhilfe" class="flex flex-wrap gap-x-5 gap-y-2 text-sm">
+    @for (link of sectionLinks(); track link.id) {
+      <a
+        [href]="'#' + link.id"
+        (click)="scrollToSection($event, link.id)"
+        class="underline underline-offset-2"
+        >{{ link.label }}</a
+      >
+    }
+  </nav>
+
+  <app-card data-size-guide-filters padding="sm" [overflowVisible]="true" rounded="xl">
+    <div class="flex flex-wrap items-end gap-3">
+      <div class="w-full min-w-0 sm:min-w-52 sm:flex-1">
+        <label for="size-guide-query" class="mb-1 block text-sm">Label oder Stichwort</label>
+        <app-custom-search-input
+          id="size-guide-query"
+          ariaLabel="Labelgröße oder Stichwort suchen"
+          placeholder="Zum Beispiel W29/L35, 3R, EU 36, YM oder M/147 …"
+          [maxLength]="120"
+          [value]="query()"
+          (searched)="query.set($event)"
+        />
+      </div>
+      <div class="w-full min-w-0 sm:w-48">
+        <label for="size-guide-category" class="mb-1 block text-sm">Kleidungsart</label>
+        <app-custom-select
+          triggerId="size-guide-category"
+          variant="toolbar"
+          ariaLabel="Nach Kleidungsart filtern"
+          [options]="categoryOptions"
+          [value]="category()"
+          (valueChange)="setCategory($event)"
+        />
+      </div>
+      <div class="w-full min-w-0 sm:w-44">
+        <label for="size-guide-audience" class="mb-1 block text-sm">Zielgruppe</label>
+        <app-custom-select
+          triggerId="size-guide-audience"
+          variant="toolbar"
+          ariaLabel="Nach Zielgruppe filtern"
+          [options]="audienceOptions"
+          [value]="audience()"
+          (valueChange)="setAudience($event)"
+        />
+      </div>
+      <div class="w-full min-w-0 sm:w-48">
+        <label for="size-guide-brand" class="mb-1 block text-sm">Marke / System</label>
+        <app-custom-select
+          triggerId="size-guide-brand"
+          variant="toolbar"
+          ariaLabel="Nach Marke oder Größensystem filtern"
+          [searchable]="true"
+          [options]="brandOptions()"
+          [value]="brand()"
+          (valueChange)="brand.set($event ?? '')"
+        />
+      </div>
+      @if (filtersActive()) {
+        <div class="ml-auto flex shrink-0 self-end border-l border-fb-line pl-2">
+          <app-button
+            data-size-guide-reset
+            variant="ghost"
+            size="lg"
+            [icon]="resetIcon"
+            [iconOnly]="true"
+            ariaLabel="Alle Größenfilter zurücksetzen"
+            title="Filter zurücksetzen"
+            (clicked)="resetFilters()"
+          />
+        </div>
+      }
+    </div>
+    <div class="mt-4 border-t border-fb-line pt-3">
+      <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h2 class="text-sm font-semibold">Deine Kleidungsmaße in cm</h2>
+      </div>
+      <div id="size-guide-measurements" class="flex flex-wrap items-end gap-3">
+        @for (field of visibleMeasurementFields(); track field.key) {
+          <div class="w-full min-w-0 sm:w-40">
+            <label [for]="'size-guide-' + field.key" class="mb-1 block text-sm">{{
+              field.label
+            }}</label>
+            <app-number-input
+              [id]="'size-guide-' + field.key"
+              [ariaLabel]="field.label + ' in Zentimetern'"
+              [ariaDescribedby]="
+                measurementError() ? 'size-guide-measurement-error' : 'size-guide-measurement-help'
+              "
+              [ariaInvalid]="!!measurementError()"
+              [min]="0.1"
+              [step]="0.1"
+              unit="cm"
+              [value]="measurements()[field.key] ?? null"
+              (valueChange)="setMeasurement(field.key, $event)"
+            />
+          </div>
+        }
+        <div class="w-full min-w-0 sm:w-40">
+          <label for="size-guide-tolerance" class="mb-1 block text-sm">Suchspielraum ±</label>
+          <app-number-input
+            id="size-guide-tolerance"
+            ariaLabel="Suchspielraum in Zentimetern"
+            [ariaDescribedby]="
+              measurementError() ? 'size-guide-measurement-error' : 'size-guide-measurement-help'
+            "
+            [ariaInvalid]="!!measurementError()"
+            [min]="0"
+            [max]="5"
+            [step]="0.1"
+            unit="cm"
+            [(value)]="tolerance"
+          />
+        </div>
+      </div>
+      <p id="size-guide-measurement-help" class="mt-3 text-xs text-fb-text-secondary">
+        Miss die Kleidung flach liegend, ohne Zug. Bund- und Brustweite sind einfache Breiten.
+        @if (audience() === 'children') {
+          Die Kindertabellen erklären Etiketten anhand der Körpergröße. Für flache Bund- und
+          Brustweiten liefern sie keine verlässliche Größenschätzung. Eine eingegebene
+          Innenbeinlänge wird separat mit nominellen L-Angaben verglichen.
+        } @else {
+          Die Breite grenzt geschätzte Größen ein; die Innenbeinlänge wird separat mit L-Größen
+          verglichen. Der Suchspielraum erweitert die Richtbereiche um Deinen gewählten Wert.
+        }
+      </p>
+      @if (measurements().outseam !== null && measurements().outseam !== undefined) {
+        <p class="mt-2 text-xs text-fb-text-secondary">
+          Die Außenbeinlänge ist eine zusätzliche Verkaufsangabe. Sie bestimmt keine allgemeine
+          XS–XL-Größe.
+        </p>
+      }
+    </div>
+  </app-card>
+
+  @if (measurementError(); as message) {
+    <p id="size-guide-measurement-error" role="alert" class="text-sm text-fb-critical">
+      {{ message }}
+    </p>
+  }
+  @if (decodedLabel(); as decoded) {
+    <app-card variant="subtle">
+      <h2 class="text-base font-semibold">{{ decoded.title }}</h2>
+      <p class="mt-1 text-sm text-fb-text-secondary">{{ decoded.description }}</p>
+      <dl class="mt-3 flex flex-wrap gap-x-8 gap-y-2 text-sm">
+        @if (decoded.waistCm; as waist) {
+          <div>
+            <dt class="text-fb-text-secondary">W-Angabe, nomineller Umfang</dt>
+            <dd class="font-semibold">{{ formatCentimeters(waist) }} cm · kein gemessener Bund</dd>
+          </div>
+        }
+        @if (decoded.inseamCm; as inseam) {
+          <div>
+            <dt class="text-fb-text-secondary">Innenbeinlänge aus dem Label</dt>
+            <dd class="font-semibold">{{ formatCentimeters(inseam) }} cm</dd>
+          </div>
+        }
+      </dl>
+    </app-card>
+  }
+
+  <div class="flex flex-wrap items-center justify-between gap-2">
+    <p role="status" aria-live="polite" class="text-sm text-fb-text-secondary">
+      {{ visibleTables().length }} Tabellen · {{ rowCount() }} Größenzeilen
+      @if (hasSizeMeasurements() && !measurementError()) {
+        · {{ sizeEstimateCount() }}
+        {{ sizeEstimateCount() === 1 ? 'geschätzte Größe' : 'geschätzte Größen' }}
+      }
+      @if (hasLengthMeasurement() && !measurementError()) {
+        · {{ lengthMatchCount() }}
+        {{ lengthMatchCount() === 1 ? 'passende L-Angabe' : 'passende L-Angaben' }}
+      }
+    </p>
+    @if (hasSizeMeasurements() || hasLengthMeasurement()) {
+      <app-badge tone="info">Orientierung aus Kleidungsmaßen</app-badge>
+    }
+  </div>
+
+  @if (hasSizeMeasurements() && sizeEstimateCount() === 0 && !measurementError()) {
+    <app-card variant="subtle">
+      <h2 class="text-base font-semibold">Kein passender Richtbereich gefunden</h2>
+      <p class="mt-1 text-sm text-fb-text-secondary">
+        Prüfe Deine Maße und Filter oder passe den Suchspielraum an. Die ergänzenden Labeltabellen
+        bleiben zum Nachschlagen sichtbar.
+      </p>
+    </app-card>
+  }
+  @if (hasLengthMeasurement() && lengthMatchCount() === 0 && !measurementError()) {
+    <app-card variant="subtle">
+      <h2 class="text-base font-semibold">Keine passende L-Angabe gefunden</h2>
+      <p class="mt-1 text-sm text-fb-text-secondary">
+        Prüfe die Innenbeinlänge oder passe den Suchspielraum an. Die Größenorientierung aus der
+        Bundweite bleibt davon unabhängig.
+      </p>
+    </app-card>
+  }
+  @if (visibleTables().length === 0 && !measurementError()) {
+    <app-card>
+      <h2 class="text-base font-semibold">Keine recherchierte Tabelle für diese Filter</h2>
+      <p class="mt-1 text-sm text-fb-text-secondary">
+        Passe Marke, Label oder Kleidungsart an oder setze die Filter zurück.
+      </p>
+    </app-card>
+  }
+
+  @for (group of groups(); track group.title) {
+    <section
+      class="scroll-mt-20 space-y-3"
+      [id]="group.id"
+      [attr.aria-label]="group.title"
+      tabindex="-1"
+    >
+      <div>
+        <h2 class="text-lg font-semibold">{{ group.title }}</h2>
+        <p class="mt-1 max-w-4xl text-sm text-fb-text-secondary">{{ group.description }}</p>
+        @if (group.kinds.includes('orientation')) {
+          <p class="mt-2 max-w-5xl text-sm text-fb-text-secondary">
+            Die Richtbereiche sind eine ungefähre Orientierung für typische Verkaufsgrößen. Schnitt,
+            Leibhöhe, Stretch und Vintage können abweichen. Gib die Etikettgröße und Deine
+            gemessenen Maße beim Verkauf getrennt an.
+          </p>
+        }
+        <p class="mt-1 text-xs text-fb-text-secondary sm:hidden">
+          Breite Tabellen kannst Du seitlich scrollen.
+        </p>
+      </div>
+      <div class="grid min-w-0 grid-cols-1 items-start gap-4">
+        @for (entry of group.tables; track entry.table.id) {
+          <app-card padding="none" [attr.data-size-table]="entry.table.id">
+            <div class="space-y-2 p-4">
+              <h3 [id]="'size-title-' + entry.table.id" class="text-base font-semibold">
+                {{ entry.table.title }}
+              </h3>
+              <div class="flex flex-wrap gap-2">
+                <app-badge>{{ audienceNames[entry.table.audience] }}</app-badge>
+                <app-badge [tone]="entry.table.kind === 'orientation' ? 'info' : 'neutral'">{{
+                  kindNames[entry.table.kind]
+                }}</app-badge>
+              </div>
+              <p class="text-xs text-fb-text-secondary">{{ entry.table.notes }}</p>
+            </div>
+            <app-data-table [toolbarVisible]="false" [ariaLabel]="entry.table.title">
+              <div
+                table-content
+                class="overflow-x-auto"
+                role="region"
+                [attr.aria-labelledby]="'size-title-' + entry.table.id"
+                tabindex="0"
+              >
+                <table class="w-full text-left text-sm">
+                  <caption class="sr-only">
+                    {{
+                      entry.table.title
+                    }}
+                    ·
+                    {{
+                      kindNames[entry.table.kind]
+                    }}
+                  </caption>
+                  <thead class="border-y border-fb-line bg-fb-subtle text-fb-text-secondary">
+                    <tr>
+                      @for (column of entry.table.columns; track $index) {
+                        <th scope="col" class="whitespace-nowrap px-4 py-2 font-medium">
+                          {{ column }}
+                        </th>
+                      }
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-fb-line">
+                    @for (row of entry.rows; track row.id) {
+                      @let matched = entry.matchedRowIds.includes(row.id);
+                      <tr
+                        [class.bg-fb-badge-brand]="matched"
+                        [class.text-fb-badge-on-brand]="matched"
+                        [attr.data-size-match]="matched ? row.id : null"
+                      >
+                        @for (cell of row.cells; track $index) {
+                          @if ($first) {
+                            <th scope="row" class="whitespace-nowrap px-4 py-2 font-medium">
+                              {{ cell }}
+                              @if (matched) {
+                                <app-badge class="ml-2" tone="brand">{{
+                                  entry.table.kind === 'orientation'
+                                    ? 'Geschätzt'
+                                    : 'Passende Länge'
+                                }}</app-badge>
+                              }
+                            </th>
+                          } @else {
+                            <td class="whitespace-nowrap px-4 py-2">{{ cell }}</td>
+                          }
+                        }
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </app-data-table>
+          </app-card>
+        }
+      </div>
+    </section>
+  }
+
+  <app-published-size-references
+    [filters]="filters()"
+    (brandsLoaded)="publishedBrands.set($event)"
+    (sourcesLoaded)="publishedSources.set($event)"
+  />
+
+  <section class="border-t border-fb-line pt-4" aria-label="Recherche und Quellen">
+    <app-button
+      variant="ghost"
+      [ariaExpanded]="showSources()"
+      ariaControls="size-guide-sources"
+      (clicked)="showSources.set(!showSources())"
+    >
+      {{ showSources() ? 'Recherchequellen ausblenden' : 'Recherchequellen anzeigen' }}
+    </app-button>
+    @if (showSources()) {
+      <ul id="size-guide-sources" class="mt-3 space-y-2 text-xs text-fb-text-secondary">
+        @for (source of sources(); track source.url) {
+          <li>
+            <a
+              [href]="source.url"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="underline underline-offset-2"
+              >{{ source.title }}</a
+            >
+            @if (source.reviewedAt) {
+              · Geprüft am <time [attr.datetime]="source.reviewedAt">{{ source.reviewedAt }}</time>
+            }
+          </li>
+        }
+      </ul>
+    }
+  </section>
+</section>
