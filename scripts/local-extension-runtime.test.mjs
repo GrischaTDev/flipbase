@@ -399,9 +399,9 @@ test('Scheduler persists distinct deadlines and never catches up missed periods 
   let stored = { binding: { expiresAt: '2099-01-01T00:00:00Z' } };
   const calls = [];
   const run = scheduler.createScheduler({
-    load: async () => stored,
+    load: async () => structuredClone(stored),
     save: async (next) => {
-      stored = next;
+      stored = structuredClone(next);
     },
     now: () => 1_000_000,
     run: async (action) => {
@@ -425,6 +425,40 @@ test('Scheduler persists distinct deadlines and never catches up missed periods 
   assert.equal(stored.schedule.favoriteCommandsAt, 1_090_000);
   assert.equal(stored.schedule.backfillAt, 1_060_000);
 });
+test('Scheduler preserves computed backfill deadlines across cloned storage reloads', async () => {
+  for (const [previousBackfillAt, nextPage, expectedBackfillAt] of [
+    [null, 2, 1_060_000],
+    [123, 1, null],
+  ]) {
+    let stored = {
+      binding: { expiresAt: '2099-01-01T00:00:00Z' },
+      schedule: {
+        backfillAt: previousBackfillAt,
+        commandsAt: 2_000_000,
+        negotiationCommandsAt: 2_000_000,
+        favoritesAt: 2_000_000,
+        favoriteCommandsAt: 2_000_000,
+      },
+    };
+    const calls = [];
+    await scheduler
+      .createScheduler({
+        load: async () => structuredClone(stored),
+        save: async (next) => {
+          stored = structuredClone(next);
+        },
+        now: () => 1_000_000,
+        run: async (action) => {
+          calls.push(action);
+          return { nextPage };
+        },
+      })
+      .tick();
+    assert.deepEqual(calls, ['INBOX_SYNC']);
+    assert.equal(stored.schedule.backfillAt, expectedBackfillAt);
+  }
+});
+
 test('Scheduler preserves a persisted challenge pause across recreation', async () => {
   const stored = {
     binding: { expiresAt: '2099-01-01T00:00:00Z' },

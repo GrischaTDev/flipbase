@@ -52,10 +52,9 @@
           installation = await adapter.load();
           if (!installation?.binding) return;
           await adapter.save({ ...installation, schedule });
+          let result;
           try {
-            const result = await adapter.run(action, installation.binding);
-            if (action === 'INBOX_SYNC' || action === 'INBOX_BACKFILL')
-              schedule.backfillAt = result.nextPage > 1 ? adapter.now() + 60_000 : null;
+            result = await adapter.run(action, installation.binding);
           } catch (error) {
             installation = await adapter.load();
             Object.assign(schedule, installation?.schedule);
@@ -79,7 +78,12 @@
           }
           installation = await adapter.load();
           Object.assign(schedule, installation?.schedule);
-          if (schedule.pauseReason || schedule.retryAfter > adapter.now()) break;
+          if (action === 'INBOX_SYNC' || action === 'INBOX_BACKFILL')
+            schedule.backfillAt = result.nextPage > 1 ? adapter.now() + 60_000 : null;
+          if (schedule.pauseReason || schedule.retryAfter > adapter.now()) {
+            if (installation) await adapter.save({ ...installation, schedule });
+            break;
+          }
           schedule.lastSuccessAt = adapter.now();
           if (installation) await adapter.save({ ...installation, schedule });
         }

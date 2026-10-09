@@ -810,3 +810,20 @@ test('Worker wrappers use the single source and Docker runtime copy resolves fro
     rmSync(fixtureRoot, { recursive: true, force: true });
   }
 });
+
+test('Worker Docker context explicitly includes each shared contract copied into the build', () => {
+  const docker = readFileSync(
+    new URL('../services/marketplace-worker/Dockerfile', import.meta.url),
+    'utf8',
+  );
+  const ignored = readFileSync(new URL('../.dockerignore', import.meta.url), 'utf8').split(/\r?\n/);
+  const deniedAt = ignored.indexOf('supabase/functions/_shared/*');
+  assert.ok(deniedAt >= 0);
+  const contracts = docker.match(/supabase\/functions\/_shared\/[a-z-]+\.d\.ts/g);
+  assert.ok(contracts?.length);
+  for (const contract of contracts)
+    assert.ok(
+      ignored.indexOf('!' + contract) > deniedAt,
+      `${contract} must survive the shared-directory exclusion`,
+    );
+});
