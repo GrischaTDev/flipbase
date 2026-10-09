@@ -137,7 +137,7 @@ export class ClothingSizeGuideComponent {
         id: 'size-guide-general',
         title: 'Allgemeine Größenübersicht',
         description:
-          'XS, S, M und weitere Größen neben EU/DE, UK, US und ungefähren Kleidungsmaßen.',
+          'Größenvergleich mit flacher Bundweite, Innenbein, Außenbein einschließlich Bund und vorderer Leibhöhe. Die Längenspalten zeigen belegte Spannen ausgewählter langer Hosen, keine feste Länge je XS–XL.',
         kinds: ['orientation'],
         category: 'trousers',
       },
