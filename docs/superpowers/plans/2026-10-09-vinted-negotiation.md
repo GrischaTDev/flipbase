@@ -38,6 +38,13 @@ Ergebnis: `{outcome:'sent'|'failed'|'outcome_unknown'|'skipped',externalId?:stri
 errorCode?:string}`. Kein Erfolg allein aus HTTP200. Fehlende Angebotskennung,
 unklare Rolle, ungültiger Preis, Bundle oder veraltetes Angebot sperren eine Aktion.
 
+Importereignisse `negotiationEvent` enthalten `id`, `type: 'buyer_accepted'|'purchased'`,
+`transactionId`, `confirmed:true`. Ein vollständiges optionales Preis-Tripel
+`originalPriceCents`, `priceCents`, `currency:'EUR'` muss aus belegten Artikel- und
+Transaktionsangebotspreisen stammen. Fehlen diese und passende Threadpreise,
+bleiben allgemeine Texte möglich; Preisplatzhalter-Schritte werden mit
+`missing_event_price` als übersprungen dokumentiert, niemals mit Nullpreisen gesendet.
+
 UI-RPCs: `marketplace_read_negotiation(p_workspace_id,p_connection_id)`,
 `marketplace_save_negotiation(p_workspace_id,p_connection_id,p_expected_version,
 p_enabled,p_config)`, `marketplace_enqueue_negotiation(p_workspace_id,p_connection_id,
@@ -58,6 +65,9 @@ Agent benennt die konkreten Funktionen vor Providerintegration im Bericht.
       Neue Konfiguration und manuelle Übernahme stornieren unbegonnene veraltete Jobs.
 - [ ] Fälligkeit, Abhängigkeit und gespeicherte Vorlagenauswahl; unklarer Ausgang
       blockiert Folge. Existierende Freigaben, Profilbindung und Pausen bleiben nötig.
+- [ ] Bestätigte automatische Verhandlungsnachrichten im bestehenden Chatabruf
+      ebenfalls mit dem Bot-Icon verknüpfen; nur genaue Konto-/Gesprächs-/Versandbelege,
+      keine Textvergleiche und keine manuelle Herkunft.
 - [ ] Schema auf eigener Wegwerfkopie testen; Migration erzeugt der Controller.
 
 ## Task 2: Provider und Ausführung
