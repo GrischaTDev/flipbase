@@ -34,6 +34,11 @@ Befunde und keine Seitenfehler; einziger Konsolenfehler ist der absichtlich
 simulierte HTTP-503. Browser-Plugin nicht verfügbar; vorhandenes Playwright
 verwendet. Keine produktive Anmeldung oder Datenbank geprüft. Kein Push.
 
+**Abschluss:** Nutzer hat PR, Pflichtprüfungen, Merge und anschließendes Aufräumen
+ausdrücklich freigegeben. Aktuellen `origin/master` vor dem Push geprüft;
+veröffentlichte Version und Commit werden nach erfolgreichem Deployment
+anhand der öffentlichen Metadaten kontrolliert.
+
 ## 2026-10-09 - Juna - Allgemeine Größenhilfe über PR veröffentlichen
 
 **Auftrag:** Nach ausdrücklicher Freigabe den geprüften Zweig pushen, PR erstellen,
