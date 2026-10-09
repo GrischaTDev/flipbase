@@ -29,6 +29,7 @@ function fixture(
     photoThrows?: boolean;
     photoAfterBegin?: boolean;
     revokeAfterPhoto?: boolean;
+    concurrentBegin?: boolean;
     result?: MarketplaceListingResult;
   } = {},
 ) {
@@ -56,7 +57,11 @@ function fixture(
               await latePhoto();
               calls.push('photo-received');
             }
-            await beforeWrite();
+            if (options.concurrentBegin) {
+              const starts = await Promise.allSettled([beforeWrite(), beforeWrite()]);
+              assert.equal(starts.filter((start) => start.status === 'fulfilled').length, 1);
+              assert.equal(starts.filter((start) => start.status === 'rejected').length, 1);
+            } else await beforeWrite();
             if (options.readPhoto && options.photoAfterBegin) await latePhoto();
             calls.push('provider');
             if (options.providerThrows) throw new Error('secret-provider-detail');
@@ -150,6 +155,14 @@ test('preflight happens before the single durable write start and receipt', asyn
   assert.equal(f.calls.filter((x) => x === 'begin').length, 1);
   assert.deepEqual(f.results, [confirmed]);
   assert.equal(f.calls.at(-1), 'close');
+});
+
+test('concurrent write callbacks cannot request a second Begin while authorization is pending', async () => {
+  const f = fixture({ concurrentBegin: true });
+  await f.runner.run(claim);
+  assert.equal(f.calls.filter((call) => call === 'begin').length, 1);
+  assert.equal(f.calls.filter((call) => call === 'provider').length, 1);
+  assert.deepEqual(f.results, [confirmed]);
 });
 test('a missing Begin acknowledgment prevents every provider write', async () => {
   const f = fixture({ beginLost: true });

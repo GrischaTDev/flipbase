@@ -71,7 +71,8 @@ export class MarketplaceListingRunner {
           result = await this.broker.run(scope, currentSessionId, async (browser) => {
             if (!browser.submitListing) return { outcome: 'failed', errorCode: 'unsupported' };
             let adapterActive = true,
-              loadingPhoto = false;
+              loadingPhoto = false,
+              beginReserved = false;
             const authorize = async () => {
               if (!adapterActive) throw new Error('Inseratadapter bereits geschlossen');
               if (!(await this.store.check(claim))) throw new Error('Inseratfreigabe ungültig');
@@ -95,7 +96,9 @@ export class MarketplaceListingRunner {
               }
             };
             const beforeWrite = async () => {
-              if (beginAttempted) throw new Error('Inseratversuch bereits begonnen');
+              if (beginReserved) throw new Error('Inseratversuch bereits begonnen');
+              // Noch vor dem ersten await reservieren: parallele Aufrufe dürfen kein zweites Begin senden.
+              beginReserved = true;
               await authorize();
               beginAttempted = true;
               await this.store.begin(claim);

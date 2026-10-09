@@ -12,7 +12,8 @@ Anbietergrenzen und Schreib-/Ergebnisbelege noch offen. Offizielle Fotoanzahl
 und gemeinsame Formularleser ergänzt. Pakete 2/3 teilweise umgesetzt; Paket 4
 enthält eigene Freigaben, unveränderliche Auftragsannahme, Abbruch und sichtbaren
 Verlauf, lokale/Cloud-Ausführungsprotokolle und einen geprüften Worker-Ablauf
-mit privatem Fotobezug. Anbieteradapter und automatische Abholung fehlen noch.
+mit privatem Fotobezug, nativer Fotoeingabe und geprüfter Feldvorbereitung.
+Speicher-/Ergebnisadapter und automatische Abholung fehlen noch.
 Pakete 6/7 offen; Paket 5 enthält Terminmodell und
 atomaren Ersatz geplanter Aufträge, noch keinen Dialog oder Ausführer.
 Einzelheiten und Prüfgrenzen stehen im

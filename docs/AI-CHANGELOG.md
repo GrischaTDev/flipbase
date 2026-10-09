@@ -1,5 +1,28 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-10 – Juna – Native Inseratfelder vorbereiten
+
+**Arbeit:** Leere Vinted-Neuanlagemasken lassen sich anhand ihrer tatsächlichen
+Kategorieauswahl vorbereiten. Marke, Größenfamilie, Zustand, Farben, Materialien
+und Sendungsgröße werden mit Kennung und Beschriftung abgeglichen. Unbekannte
+Merkmale, deaktivierte Werte und vorhandene Eingaben verhindern die Übernahme.
+Preisübernahme verwendet ganze Centbeträge. Kategorie, Konto und Freigabe bleiben
+während der Vorbereitung gebunden; abschließend werden die Eingaben erneut gelesen.
+Versteckte Versandgrößen-Radios werden über ihre sichtbaren Labels erkannt.
+Parallele Schreibbeginn-Callbacks im Worker reservieren den Beginn vor der
+asynchronen Rechteprüfung und können keine zweite Begin-Anfrage senden.
+
+Der Baustein speichert oder veröffentlicht nichts bei Vinted. Marken außerhalb
+der sichtbaren Auswahl und bisher unbekannte Kategorien bleiben eingeschränkt.
+Anbieterergebnis, automatische Abholung und Erweiterungsanschluss sind offen.
+
+**Prüfungen:** Neue Browserregressionen für versteckte Radios und Kategorieänderung
+sowie Workerregression für parallelen Beginn zuerst fehlgeschlagen und nach der
+Korrektur erfolgreich. Sechs Feldprüfungen und 13 Worker-Ablaufprüfungen erfolgreich.
+Insgesamt 14 Browserfälle und 558 Workerprüfungen erfolgreich, sieben bestehende
+Fälle ausgelassen. Typen, Worker-Bau, Format/ESLint und Containerbau mit Importtest
+ohne Netzwerk erfolgreich. Alle Browseranfragen abgefangen; keine reale Anbieteraktion.
+
 ## 2026-10-10 – Juna – Nativen Foto-Upload für Inserate vorbereiten
 
 **Arbeit:** Einen getrennten Browserbaustein für die bestätigte Vinted-

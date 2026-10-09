@@ -191,7 +191,12 @@
       const element = root.querySelector(`#${name}`);
       return element && visible(element);
     });
-    if ([...root.querySelectorAll('input[id^="package_type_selector_"]')].some(visible))
+    // Die sichtbare Sendungsgrößen-Kachel bleibt maßgeblich, auch bei ausgeblendetem Radio.
+    if (
+      [...root.querySelectorAll('input[id^="package_type_selector_"]')].some(
+        (element) => element.labels?.[0] && visible(element.labels[0]),
+      )
+    )
       presentFields.push('package');
     const unknownFields = new Set();
     const allowed = new Set([

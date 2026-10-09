@@ -218,6 +218,16 @@ geprüft: einzelne Dateiauswahl in ursprünglicher Reihenfolge, Begin-ACK vor
 erstem Upload, Kontoprüfung und keine Bestätigung aus Blob-Vorschauen.
 Zusätzliche oder veränderte vorherige Fotos brechen den Ablauf ab.
 Der Baustein ist noch nicht mit einer Veröffentlichungsaktion verbunden.
+Ein weiterer getrennter Baustein bereitet eine leere Neuanlagemaske vor:
+Kategoriepfad und Endkategorie aus tatsächlich sichtbaren Kennungen, abhängige
+Auswahlwerte einschließlich Beschriftung und Größenfamilie sowie Preis in Cent.
+Vorhandene Benutzereingaben werden erhalten. Konto, Kategorie und Freigabe bleiben
+gebunden; die abschließende Leseprüfung vergleicht Texte, Preis und Auswahlen.
+Die Versandgrößen-Metadaten prüfen dieselben sichtbaren Labels wie der
+Auswahlleser, auch bei versteckten nativen Radios. Unbekannte Merkmale und Werte
+außerhalb der sichtbaren Auswahl werden abgelehnt. Marken-Suche und Abruf weiterer
+Werte sind noch nicht angeschlossen. Auch dieser Baustein ruft keinen Speicherbutton
+auf und bestätigt keinen Anbietererfolg.
 Auch die 20 Cloud-Datenbankprüfungen verwenden ausschließlich synthetische
 Belege. Keine echte Veröffentlichung oder Anlage eines Vinted-Entwurfs geprüft.
 
