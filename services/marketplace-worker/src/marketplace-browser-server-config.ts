@@ -16,6 +16,7 @@ export interface MarketplaceBrowserServerConfig {
   chromiumNetworkId?: string;
   chromiumNetworkFile?: string;
   ipRoyalApiToken?: string;
+  ipRoyalAutoPurchaseEnabled?: boolean;
   chromiumSeccompProfile?: string;
   chromiumWritesEnabled?: boolean;
 }
@@ -68,6 +69,13 @@ export function marketplaceBrowserServerConfig(
   const chromiumNetworkId = environment['MARKETPLACE_CHROMIUM_NETWORK_ID'] ?? 'direct';
   const chromiumNetworkFile = environment['MARKETPLACE_CHROMIUM_NETWORK_FILE'];
   const ipRoyalApiToken = environment['IPROYAL_API_TOKEN'];
+  const ipRoyalAutoPurchaseFlag = environment['IPROYAL_AUTO_PURCHASE_ENABLED'] ?? '0';
+  if (
+    !['0', '1'].includes(ipRoyalAutoPurchaseFlag) ||
+    (ipRoyalAutoPurchaseFlag === '1' &&
+      (provider !== 'chromium' || !ipRoyalApiToken?.trim() || !chromiumNetworkFile))
+  )
+    throw new Error('Automatische IP-Nachbuchung ist unvollständig konfiguriert');
   const chromiumWritesFlag = environment['MARKETPLACE_CHROMIUM_WRITES_ENABLED'] ?? '0';
   const chromiumSeccompProfile =
     environment['MARKETPLACE_CHROMIUM_SECCOMP_PROFILE'] ??
@@ -136,6 +144,7 @@ export function marketplaceBrowserServerConfig(
           chromiumNetworkId,
           chromiumNetworkFile,
           ipRoyalApiToken,
+          ipRoyalAutoPurchaseEnabled: ipRoyalAutoPurchaseFlag === '1',
           chromiumSeccompProfile,
           chromiumWritesEnabled: chromiumWritesFlag === '1',
         }

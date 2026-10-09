@@ -6,6 +6,9 @@ import { MarketplaceAccountStore } from './marketplace-account.store';
 import {
   CLOUD_CAPACITY_MESSAGE,
   CLOUD_CHECK_MESSAGE,
+  CLOUD_PURCHASE_PENDING_MESSAGE,
+  CLOUD_PURCHASE_FAILED_MESSAGE,
+  CLOUD_IP_LIMIT_MESSAGE,
   MarketplaceCloudSetupApiService,
 } from './marketplace-cloud-setup-api.service';
 
@@ -101,9 +104,18 @@ export class MarketplaceCloudSetupStore {
           void this.api.action(result.setup, 'cancel', token).catch(() => undefined);
         return null;
       }
-      if (result.status === 'no_capacity') {
-        this.pendingRequest = null;
-        this.errorState.set({ context, message: CLOUD_CAPACITY_MESSAGE });
+      if (result.status !== 'ready') {
+        // Die Anfrage bleibt bei laufender Bestellung gleich: kein zweiter Kauf beim erneuten Klick.
+        if (result.status !== 'purchase_pending') this.pendingRequest = null;
+        const message =
+          result.status === 'purchase_pending'
+            ? CLOUD_PURCHASE_PENDING_MESSAGE
+            : result.status === 'purchase_failed'
+              ? CLOUD_PURCHASE_FAILED_MESSAGE
+              : result.status === 'limit_reached'
+                ? CLOUD_IP_LIMIT_MESSAGE
+                : CLOUD_CAPACITY_MESSAGE;
+        this.errorState.set({ context, message });
         return null;
       }
       this.active.set(

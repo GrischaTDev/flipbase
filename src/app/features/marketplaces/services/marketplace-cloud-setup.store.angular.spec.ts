@@ -112,6 +112,22 @@ it('verwendet nach verlorener Antwort dieselbe Request-ID', async () => {
   await store.begin({ displayName: 'Cloudtest' });
   expect(api.begin.mock.calls[0][0]).toEqual(api.begin.mock.calls[1][0]);
 });
+it('behält während einer Nachbuchung dieselbe Anfrage und zeigt einen verständlichen Hinweis', async () => {
+  api.begin.mockResolvedValue({ status: 'purchase_pending' });
+  await store.begin({ displayName: 'Cloudtest' });
+  expect(store.error()).toContain('Cloud-IP wird noch bereitgestellt');
+  await store.begin({ displayName: 'Cloudtest' });
+  expect(api.begin.mock.calls[0][0]).toEqual(api.begin.mock.calls[1][0]);
+  expect(reloadConnections).not.toHaveBeenCalled();
+});
+it('zeigt Paketgrenze und fehlgeschlagene Nachbuchung getrennt vom freien Bestand', async () => {
+  api.begin.mockResolvedValueOnce({ status: 'limit_reached' });
+  await store.begin({ displayName: 'Cloudtest' });
+  expect(store.error()).toContain('ausgeschöpft');
+  api.begin.mockResolvedValueOnce({ status: 'purchase_failed' });
+  await store.begin({ displayName: 'Cloudtest' });
+  expect(store.error()).toContain('nicht nachgebucht');
+});
 it('beginnt bei Doppelklick nur eine Einrichtung', async () => {
   let resolve: (result: unknown) => void = () => undefined;
   api.begin.mockReturnValue(

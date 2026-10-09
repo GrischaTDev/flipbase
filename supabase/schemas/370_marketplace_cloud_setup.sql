@@ -119,9 +119,12 @@ begin
       raise exception 'Laufende oder ungeklärte Aktion verhindert den Wechsel' using errcode='55P03'; end if;
     select grant_generation,revoked_at into v_generation,v_revoked_at from public.marketplace_local_extension_grants where workspace_id=p_workspace_id and connection_id=p_connection_id;
   end if;
+  if public.marketplace_cloud_ip_limit_reached(p_workspace_id) then return jsonb_build_object('status','limit_reached'); end if;
   select ip.id into v_ip_id from public.marketplace_cloud_ips ip
     where ip.enabled and ip.country_code='DE' and ip.is_dedicated_isp and ip.verified_at is not null and ip.expires_at>clock_timestamp()
       and not exists(select 1 from public.marketplace_cloud_setups setup where setup.cloud_ip_id=ip.id and setup.state<>'cancelled')
+      and not exists(select 1 from public.marketplace_cloud_ip_purchases purchase where purchase.provider_order_id=ip.order_reference and purchase.state='ordered'
+        and (purchase.workspace_id<>p_workspace_id or purchase.requested_by<>(select auth.uid()) or purchase.request_id<>p_request_id))
     order by ip.created_at,ip.id limit 1 for update of ip skip locked;
   if not found then return jsonb_build_object('status','no_capacity'); end if;
   if p_connection_id is null then

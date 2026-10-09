@@ -56,6 +56,27 @@ dem verschachtelten Dialog auf das Ende der Einblendanimation.
 vollständig. Nachrichten und Verkäufe bleiben Teilantworten. Die frühere
 Synchronisierungspause bleibt erhalten; keine automatische Wiederaufnahme oder
 Aktivierung der neuen Verhandlungsregeln durch diese Prüfung.
+## 2026-10-09 - Juna - IPRoyal-IPs bei fehlendem Bestand nachbuchen
+
+**Auftrag:** Bei berechtigter Cloud-Einrichtung vorhandene IPs verwenden und bei
+fehlender Kapazität automatisch eine deutsche Dedicated-ISP-IP nachbuchen.
+Vorgabe: immer 30 Tage, aktueller Anbieterpreis ohne Preisobergrenze;
+Kundenabonnements erst später anbinden.
+
+**Änderung:** Optional aktivierbare Nachbuchung im Chromiumworker, dauerhafte
+Kaufabsichten und globale Kaufsperre gegen Doppelzahlungen, geprüfter
+Bestandsimport vor Reservierung, Wiederaufnahme bekannter Bestellungen und
+Freigabe bestätigter IPs verlassener Einrichtungen. Ungeklärte Zahlungen bleiben
+gesperrt. Wartestatus und gleiche Anfragekennung in der Oberfläche; separate
+optionale IP-Grenzen als Anschluss für spätere Pakete. Deklaratives Schema,
+erzeugte Migration und lokal neu erzeugte Datenbanktypen gehören zusammen.
+
+**Prüfung:** 121 betroffene Datenbankprüfungen nach vollständiger
+Migrationswiederholung und ein Konkurrenztest mit zwei Datenbanksitzungen.
+Gezielte Worker-, Modell-, Angular- und Schema-/Migrationsprüfungen sowie
+Typprüfung, Format/Lint, Angular-Produktionsbau und echter Worker-Containerbau
+mit Modulimport. Lesende Anbieterprobe bestätigt den deutschen 30-Tage-Tarif
+und aktuell 4 USD. Keine Bestellung ausgelöst, keine produktive Aktivierung.
 
 ## 2026-10-09 - Juna - Benachrichtigungs-Dropdown-Layout an Mockup anpassen
 

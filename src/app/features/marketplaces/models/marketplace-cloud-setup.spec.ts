@@ -9,6 +9,12 @@ const setup = {
   sessionId: null,
 };
 describe('Cloud-Einrichtungsantwort', () => {
+  it('unterscheidet Bereitstellung, abgewiesene Zahlung und Paketgrenze ohne Anbietertexte', () => {
+    for (const status of ['purchase_pending', 'purchase_failed', 'limit_reached']) {
+      expect(parseCloudSetupResult({ status }, setup)).toEqual({ status });
+      expect(() => parseCloudSetupResult({ status, token: 'private' }, setup)).toThrow();
+    }
+  });
   it('unterscheidet fehlenden Bestand vom reservierten Konto', () => {
     expect(parseCloudSetupResult({ status: 'no_capacity' }, setup)).toEqual({
       status: 'no_capacity',

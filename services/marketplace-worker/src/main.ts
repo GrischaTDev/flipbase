@@ -38,6 +38,8 @@ import { SupabaseMarketplaceSyncDispatchStore } from './supabase-marketplace-syn
 import { SupabaseMarketplaceCloudSetupStore } from './supabase-marketplace-cloud-setup-store.ts';
 import { MarketplaceCloudSetup } from './marketplace-cloud-setup.ts';
 import { IpRoyalCloudIpSync } from './iproyal-cloud-ip-sync.ts';
+import { IpRoyalCloudIpPurchase } from './iproyal-cloud-ip-purchase.ts';
+import { SupabaseCloudIpPurchaseStore } from './supabase-cloud-ip-purchase-store.ts';
 import { SupabaseMarketplaceMessageStore } from './supabase-marketplace-message-store.ts';
 import { MarketplaceMessageRunner } from './marketplace-message-runner.ts';
 import type { CloudMessageClaim } from './marketplace-message-runner.ts';
@@ -287,10 +289,32 @@ async function main(): Promise<void> {
             serviceRoleKey: config.serviceRoleKey,
           })
         : undefined;
+    const purchaseStore =
+      config.ipRoyalAutoPurchaseEnabled && inventory
+        ? new SupabaseCloudIpPurchaseStore({
+            url: config.supabaseUrl,
+            serviceRoleKey: config.serviceRoleKey,
+          })
+        : undefined;
+    const purchase =
+      purchaseStore && config.ipRoyalApiToken
+        ? new IpRoyalCloudIpPurchase({ token: config.ipRoyalApiToken, store: purchaseStore })
+        : undefined;
     cloudSetups = new MarketplaceCloudSetup({
       store: cloudSetupStore,
       profiles,
       broker,
+      purchaseIp: purchase ? (request, userId) => purchase.ensure(request, userId) : undefined,
+      reconcilePurchases: purchaseStore
+        ? async (request, userId) => {
+            await purchaseStore.operation('reconcile', request, userId);
+          }
+        : undefined,
+      purchaseCompleted: purchaseStore
+        ? async (request, userId) => {
+            await purchaseStore.operation('complete', request, userId);
+          }
+        : undefined,
       refreshInventory: inventory
         ? async () => {
             await dispatcher?.heartbeat();
