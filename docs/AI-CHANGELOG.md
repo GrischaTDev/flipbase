@@ -14,14 +14,23 @@ damit noch nicht geklärt.
 **Änderung:** „Vinted-Zugriff prüfen“ nutzt denselben kontogebundenen Prüfmodus
 wie der bestehende Wiederanmeldeeinstieg. Der Dialog bezeichnet die gespeicherte
 Verbindung als „Verknüpft“ und erklärt einen unbestätigten Zugriff ausdrücklich.
+Die beiden Anmeldebuttons verwenden für Pfeil und externen Link die vorhandene
+Icon-Funktion des gemeinsamen Buttons. Projizierte SVGs standen im Textbereich
+und rutschten dort unter die Beschriftung.
 Keine automatische Wiederaufnahme, Änderung des Browserprofils oder neue
 Anbieteranfrage durch die Korrektur.
 
 **Prüfung:** Der fehlerhafte Einstieg und die Statusmeldung sind in gezielten
 Renderingtests reproduziert. 81 betroffene Angularprüfungen einschließlich DOM-AXE,
-Produktionsbau, ESLint, Format und Diffprüfung bestehen. Drei Browserprüfungen
-für Anmeldekorrektur auf Desktop/Mobil und SMS-Bestätigung bestehen. Die echte
-Wiederanmeldung und der folgende Kontoabruf bleiben gesondert zu bestätigen.
+Produktionsbau, ESLint, Format und Diffprüfung bestehen. Die Icon-Regression ist
+auf Desktop/Mobil durch tatsächliche Positionen reproduziert. Fünf erfolgreiche
+Browserprüfungen decken zusätzlich Anmeldekorrektur und SMS-Bestätigung ab.
+
+**Echtkonto:** Nach der erneuten Anmeldung bestätigt der manuelle Abruf vom
+09.10.2026 um 14:55 Uhr Profil, Inserate, Bewertungen und Gesprächsliste als
+vollständig. Nachrichten und Verkäufe bleiben Teilantworten. Die frühere
+Synchronisierungspause bleibt erhalten; keine automatische Wiederaufnahme oder
+Aktivierung der neuen Verhandlungsregeln durch diese Prüfung.
 
 ## 2026-10-09 - Juna - Benachrichtigungs-Dropdown-Layout an Mockup anpassen
 

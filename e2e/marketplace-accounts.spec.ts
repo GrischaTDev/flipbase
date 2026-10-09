@@ -1475,6 +1475,31 @@ for (const width of [1440, 390]) {
 }
 
 for (const width of [1440, 390]) {
+  test(`Anmeldebuttons zeigen Text und Icon in einer Zeile bei ${width}px @marketplace-preview`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await mockMarketplace(page, true);
+    await page.goto(`/marketplaces/vinted/connect/${accountIds[0]}`);
+
+    for (const buttonName of ['Anmelden und Konto verbinden', 'Browser-Sitzung starten']) {
+      if (buttonName === 'Browser-Sitzung starten')
+        await page.getByRole('button', { name: 'Direkt im Browser', exact: true }).click();
+      const button = page.getByRole('button', { name: buttonName, exact: true });
+      await expect(button).toBeVisible();
+      const centerDifference = await button.evaluate((element) => {
+        const label = element.querySelector(':scope > span')?.getBoundingClientRect();
+        const icon = element.querySelector('svg')?.getBoundingClientRect();
+        if (!label || !icon) throw new Error('Button label or icon is missing');
+        return Math.abs(label.y + label.height / 2 - (icon.y + icon.height / 2));
+      });
+      expect(centerDifference).toBeLessThanOrEqual(2);
+    }
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    ).toBe(true);
+  });
+
   test(`Abgelehnte Zugangsdaten direkt korrigieren bei ${width}px @marketplace-preview`, async ({
     page,
   }) => {
