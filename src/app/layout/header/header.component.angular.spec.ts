@@ -358,6 +358,6 @@ describe('HeaderComponent', () => {
     );
     expect(unreadLink).not.toBeNull();
     expect(unreadLink?.classList.contains('bg-fb-brand-surface')).toBe(false);
-    expect(unreadLink?.querySelector('.bg-fb-primary.animate-pulse')).not.toBeNull();
+    expect(unreadLink?.querySelector('[title="Ungelesen"]')).not.toBeNull();
   });
 });

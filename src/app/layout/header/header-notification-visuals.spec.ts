@@ -7,8 +7,8 @@ describe('header-notification-visuals', () => {
       const visual = resolveNotificationVisual({
         id: 'marketplace:123',
         type: 'alert',
-        title: 'Mehr Favoriten · Maike Vintage',
-        message: '1 Inserat hat mehr Favoriten.',
+        title: 'Artikel wurde favorisiert · Maike Vintage',
+        message: 'Burberrys Schal',
         link: '/marketplaces/vinted/listings',
       });
       expect(visual.platform).toBe('vinted');

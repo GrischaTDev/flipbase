@@ -139,7 +139,7 @@
               <strong class="text-sm font-semibold text-fb-text-primary">Benachrichtigungen</strong>
               @if (unreadCount() > 0) {
                 <span
-                  class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-fb-primary-subtle text-fb-primary"
+                  class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#fcc601] text-[#1a1a1a] shadow-xs"
                 >
                   {{ unreadCount() }} neu
                 </span>
@@ -185,7 +185,7 @@
                   [routerLink]="notificationLinks().get(notif.id)"
                   (click)="oeffneBenachrichtigung(notif)"
                   class="group block p-2.5 text-xs rounded-lg transition hover:bg-fb-surface-hover cursor-pointer relative"
-                  [class.bg-fb-primary-subtle/35]="!notif.read"
+                  [class.bg-fb-subtle]="!notif.read"
                   [class.bg-fb-surface]="notif.read"
                 >
                   <ng-container
@@ -197,7 +197,7 @@
                   type="button"
                   (click)="oeffneBenachrichtigung(notif)"
                   class="group block w-full text-left p-2.5 text-xs rounded-lg transition hover:bg-fb-surface-hover cursor-pointer relative"
-                  [class.bg-fb-primary-subtle/35]="!notif.read"
+                  [class.bg-fb-subtle]="!notif.read"
                   [class.bg-fb-surface]="notif.read"
                 >
                   <ng-container
@@ -286,7 +286,7 @@
                       <app-badge tone="brand" size="sm">System</app-badge>
                     }
                     <strong
-                      class="text-[13px] text-fb-text-primary group-hover:text-fb-primary transition-colors truncate"
+                      class="text-[13px] text-fb-text-primary transition-colors truncate"
                       [class.font-semibold]="!notif.read"
                       [class.font-normal]="notif.read"
                     >
@@ -300,7 +300,7 @@
                     </span>
                     @if (!notif.read) {
                       <span
-                        class="size-2 rounded-full bg-fb-primary shrink-0 animate-pulse"
+                        class="size-2 rounded-full bg-[#fcc601] ring-1 ring-amber-500/40 shrink-0"
                         title="Ungelesen"
                         aria-label="Ungelesen"
                       ></span>

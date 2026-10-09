@@ -48,16 +48,17 @@ describe('Gespeicherte Favoritenmeldungen', () => {
   it('erstellt einen kontogebundenen Inseratlink und keinen externen Link', () => {
     expect(favoriteNotificationToInbox(item)).toMatchObject({
       id: 'marketplace:7',
-      title: 'Mehr Favoriten · Mein Konto',
+      title: 'Artikel wurde favorisiert · Mein Konto',
+      message: 'Schal',
       link: '/marketplaces/vinted/listings/account-a/listing-a',
     });
-    expect(favoriteNotificationToInbox(item).message).toContain('+2');
   });
   it('fasst mehrere Inserate in einer Kontoansicht zusammen', () => {
     const inbox = favoriteNotificationToInbox({
       ...item,
       listings: [item.listings[0], { ...item.listings[0], entryId: 'listing-b', title: 'Hose' }],
     });
+    expect(inbox.title).toBe('2 Artikel wurden favorisiert · Mein Konto');
     expect(inbox.message).toContain('2 Inserate');
     expect(inbox.link).toBe('/marketplaces/vinted/listings?connectionId=account-a');
   });
