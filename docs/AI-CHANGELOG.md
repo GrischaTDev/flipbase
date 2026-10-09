@@ -1,5 +1,21 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-09 - Juna - Cloud-Gesprächsbilder und Profilbilder veröffentlichen
+
+**Auftrag:** Nach ausdrücklicher Freigabe PR erstellen, erfolgreiche Pflichtprüfungen
+abwarten, mit Merge-Commit integrieren und den eigenen Zweig samt Arbeitskopie aufräumen.
+
+**Integration:** Den aktuellen `origin/master` übernommen; der additive Konflikt
+im gemeinsamen Changelog ist mit beiden vollständigen Sitzungsberichten aufgelöst.
+Die runden Absenderbilder nutzen den inzwischen erweiterten Shared-Bildbaustein.
+Bildimport und Darstellung bleiben die einzigen Produktänderungen dieses Zweigs.
+
+**Abnahme:** 55 gezielte Komponententests und der Produktionsbau bestehen auf dem
+aktuellen Integrationsstand; Formatierung, ESLint und Diffcheck sind ebenfalls grün. Veröffentlichung, passende Cloud-Worker-Version und
+echter Bildabruf werden nach dem Merge anhand laufender Belege kontrolliert.
+Der bereits ausgeführte Bildversand wird nicht wiederholt; die automatische
+Uploadbestätigung und Favoriten-/Angebotsabnahme bleiben getrennte offene Punkte.
+
 ## 2026-10-09 - Juna - Profilbilder neben Vinted-Chatnachrichten ergänzen
 
 **Auftrag:** Runde Profilbilder neben den Nachrichten wie in Vinted ergänzen.
