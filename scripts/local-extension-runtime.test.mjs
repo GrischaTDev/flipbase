@@ -411,9 +411,16 @@ test('Scheduler persists distinct deadlines and never catches up missed periods 
   });
   await run.tick();
   await run.tick();
-  assert.deepEqual(calls, ['INBOX_SYNC', 'MESSAGES_SEND', 'FAVORITES_SYNC', 'FAVORITES_SEND']);
+  assert.deepEqual(calls, [
+    'INBOX_SYNC',
+    'MESSAGES_SEND',
+    'NEGOTIATIONS_SEND',
+    'FAVORITES_SYNC',
+    'FAVORITES_SEND',
+  ]);
   assert.equal(stored.schedule.latestAt, 1_300_000);
   assert.equal(stored.schedule.commandsAt, 1_090_000);
+  assert.equal(stored.schedule.negotiationCommandsAt, 1_090_000);
   assert.equal(stored.schedule.favoritesAt, 1_300_000);
   assert.equal(stored.schedule.favoriteCommandsAt, 1_090_000);
   assert.equal(stored.schedule.backfillAt, 1_060_000);
@@ -1651,7 +1658,11 @@ test('Manifest narrows application and provider access without changing Kleinanz
     script.matches.includes('https://www.vinted.de/*'),
   );
   assert.equal(vintedContent.js.at(-1), 'vinted-local-account.js');
-  assert.equal(manifest.version, '1.7.1');
+  assert.equal(manifest.version, '1.8.0');
+  assert.ok(
+    vintedContent.js.indexOf('vinted-local-negotiation.js') <
+      vintedContent.js.indexOf('vinted-local-core.js'),
+  );
   assert.ok(
     manifest.content_scripts.some(
       (script) =>

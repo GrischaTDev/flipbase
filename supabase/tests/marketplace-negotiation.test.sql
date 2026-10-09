@@ -78,6 +78,7 @@ set local role service_role;
 select pg_temp.offer('301');
 insert into negotiation_context values(pg_temp.claim());
 select is((select body->'sourceOffer'->>'offerId' from negotiation_context),'301','Message-first claim carries the saved source offer');
+select is((select body->'confirmedOffer' from negotiation_context),'null'::jsonb,'Message-first has no confirmed offer');
 select pg_temp.offer('301',8000,false,clock_timestamp(),'{"status":"cancelled"}');
 select is(pg_temp.claim(),null::jsonb,'Cancelled source offer cannot send message-first price text');
 select is((select count(*) from public.marketplace_negotiation_jobs where source_key='offer:301' and state='cancelled'),3::bigint,'Cancelled source discards action and complete message chain');
@@ -105,6 +106,8 @@ select is((select count(*) from public.marketplace_negotiation_jobs where source
 update negotiation_context set body=pg_temp.claim();
 select is((select body->'command'->>'text' from negotiation_context),'Angenommen','Confirmed own acceptance still permits its follow-up text');
 select is((select body->'sourceOffer' from negotiation_context),'null'::jsonb,'Confirmed own action removes pending-source requirement');
+select is((select body->'confirmedOffer'->>'externalId' from negotiation_context),'930','Acceptance follow-up includes concrete provider receipt');
+select is((select body->'confirmedOffer'->'command'->>'action' from negotiation_context),'accept','Acceptance follow-up includes original command');
 reset role;
 rollback to savepoint message_first_cancelled_case;
 
@@ -169,6 +172,8 @@ select is((select completed_stages from public.marketplace_negotiation_threads w
 select throws_ok($$select pg_temp.finish_run('sent','902')$$,'23505',null,'Different receipt rejected');
 update negotiation_context set body=pg_temp.claim();
 select is((select body->'command'->>'kind' from negotiation_context),'message','Message only after offer proof');
+select is((select body->'confirmedOffer'->>'externalId' from negotiation_context),'901','Counter follow-up includes concrete provider receipt');
+select is((select body->'confirmedOffer'->'command'->>'offerId' from negotiation_context),'102','Counter receipt belongs to exact source offer');
 select ok((select body->'command'->>'text' in ('Jacke: 95,00 €','Preis 95,00 €') from negotiation_context),'Chosen template and price persisted');
 select pg_temp.begin_run();
 select pg_temp.finish_run('sent','903');
@@ -296,6 +301,8 @@ select is(public.marketplace_cloud_negotiation_claim('42600000-0000-4000-8000-00
 update public.marketplace_browser_sessions set state='closed',provider_stopped_at=clock_timestamp() where state='stopping';
 update negotiation_context set body=public.marketplace_cloud_negotiation_claim('42600000-0000-4000-8000-000000000051',1,'42600000-0000-4000-8000-000000000061');
 select is((select body->'command'->>'kind' from negotiation_context),'message','Physical stop releases next step');
+select is((select body->'confirmedOffer'->>'externalId' from negotiation_context),'910','Cloud claim includes concrete sent provider offer');
+select is((select body->'confirmedOffer'->'command'->>'externalConversationId' from negotiation_context),'778','Cloud receipt stays bound to source conversation');
 reset role;
 update public.marketplace_browser_profiles set provider_profile_id='different-profile' where connection_id='42600000-0000-4000-8000-000000000022';
 select is((select count(*) from public.marketplace_negotiation_jobs where connection_id='42600000-0000-4000-8000-000000000022' and state in ('queued','claimed')),0::bigint,'Profile change cancels unbegun jobs');

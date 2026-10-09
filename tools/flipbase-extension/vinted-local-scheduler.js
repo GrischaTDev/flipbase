@@ -41,6 +41,8 @@
           due.push(['INBOX_BACKFILL', 'backfillAt', 60_000]);
         if (!(schedule.commandsAt > adapter.now()))
           due.push(['MESSAGES_SEND', 'commandsAt', 90_000]);
+        if (!installation.pendingFinish && !(schedule.negotiationCommandsAt > adapter.now()))
+          due.push(['NEGOTIATIONS_SEND', 'negotiationCommandsAt', 90_000]);
         if (!installation.pendingFinish && !(schedule.favoritesAt > adapter.now()))
           due.push(['FAVORITES_SYNC', 'favoritesAt', 300_000]);
         if (!installation.pendingFinish && !(schedule.favoriteCommandsAt > adapter.now()))

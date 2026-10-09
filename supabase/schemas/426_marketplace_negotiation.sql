@@ -500,7 +500,8 @@ begin
   if not found then return null; end if;
   update public.marketplace_negotiation_jobs set state='claimed',claim_token=gen_random_uuid(),lease_expires_at=least(v_grant.expires_at,clock_timestamp()+interval '90 seconds'),updated_at=clock_timestamp() where id=v_job.id returning * into v_job;
   return jsonb_build_object('jobId',v_job.id,'claimToken',v_job.claim_token,'workspaceId',p_workspace_id,'connectionId',p_connection_id,'externalAccountId',v_job.external_account_id,'expiresAt',v_job.lease_expires_at,'command',v_job.command,
-    'sourceOffer',case when v_job.action='message' and v_job.source_key like 'offer:%' and not exists(select 1 from public.marketplace_negotiation_jobs confirmed where confirmed.thread_id=v_job.thread_id and confirmed.source_key=v_job.source_key and confirmed.action in ('accept','counter') and confirmed.state='sent') then v_job.source_offer end);
+    'sourceOffer',case when v_job.action='message' and v_job.source_key like 'offer:%' and not exists(select 1 from public.marketplace_negotiation_jobs confirmed where confirmed.thread_id=v_job.thread_id and confirmed.source_key=v_job.source_key and confirmed.action in ('accept','counter') and confirmed.state='sent') then v_job.source_offer end,
+    'confirmedOffer',case when v_job.action='message' and v_job.source_key like 'offer:%' then (select jsonb_build_object('command',confirmed.command,'externalId',confirmed.external_id) from public.marketplace_negotiation_jobs confirmed where confirmed.thread_id=v_job.thread_id and confirmed.source_key=v_job.source_key and confirmed.action in ('accept','counter') and confirmed.state='sent' and confirmed.external_id ~ '^[1-9][0-9]{0,31}$' order by confirmed.finished_at desc limit 1) end);
 end;
 $$;
 
@@ -559,7 +560,8 @@ begin
   update public.marketplace_negotiation_jobs set state='claimed',claim_token=gen_random_uuid(),lease_expires_at=v_session.expires_at,cloud_browser_session_id=v_session.public_id,cloud_worker_id=p_worker_id,cloud_worker_epoch=p_worker_epoch,cloud_runner_id=p_runner_id,updated_at=clock_timestamp() where id=v_job.id returning * into v_job;
   return jsonb_build_object('jobId',v_job.id,'claimToken',v_job.claim_token,'workspaceId',v_job.workspace_id,'connectionId',v_job.connection_id,'userId',v_job.requested_by,'workerId',p_worker_id,'workerEpoch',p_worker_epoch,'runnerId',p_runner_id,'authorizationVersion',v_job.cloud_authorization_version,'externalAccountId',v_job.external_account_id,
     'sessionId',v_session.public_id,'expiresAt',v_session.expires_at,'absoluteExpiresAt',v_session.absolute_expires_at,'command',v_job.command,
-    'sourceOffer',case when v_job.action='message' and v_job.source_key like 'offer:%' and not exists(select 1 from public.marketplace_negotiation_jobs confirmed where confirmed.thread_id=v_job.thread_id and confirmed.source_key=v_job.source_key and confirmed.action in ('accept','counter') and confirmed.state='sent') then v_job.source_offer end);
+    'sourceOffer',case when v_job.action='message' and v_job.source_key like 'offer:%' and not exists(select 1 from public.marketplace_negotiation_jobs confirmed where confirmed.thread_id=v_job.thread_id and confirmed.source_key=v_job.source_key and confirmed.action in ('accept','counter') and confirmed.state='sent') then v_job.source_offer end,
+    'confirmedOffer',case when v_job.action='message' and v_job.source_key like 'offer:%' then (select jsonb_build_object('command',confirmed.command,'externalId',confirmed.external_id) from public.marketplace_negotiation_jobs confirmed where confirmed.thread_id=v_job.thread_id and confirmed.source_key=v_job.source_key and confirmed.action in ('accept','counter') and confirmed.state='sent' and confirmed.external_id ~ '^[1-9][0-9]{0,31}$' order by confirmed.finished_at desc limit 1) end);
 end;
 $$;
 

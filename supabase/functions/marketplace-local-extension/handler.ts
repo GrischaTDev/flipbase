@@ -10,6 +10,7 @@ export class LocalExtensionStoreError extends Error {
   }
 }
 export interface LocalExtensionStore {
+  negotiation?(tokenHash: string, input: LocalExtensionRequest): Promise<unknown>;
   favorites?(tokenHash: string, input: LocalExtensionRequest): Promise<unknown>;
   ingest(tokenHash: string, input: LocalExtensionRequest): Promise<unknown>;
   inboxState?(tokenHash: string, input: LocalExtensionRequest): Promise<unknown>;
@@ -105,6 +106,10 @@ export function createLocalExtensionHandler(store: LocalExtensionStore) {
       if (input.action === 'inbox_detail_import') {
         if (!store.inboxDetailImport) return respond({ error: 'unavailable' }, 503);
         return respond(await store.inboxDetailImport(tokenHash, input));
+      }
+      if (input.action.startsWith('negotiation_')) {
+        if (!store.negotiation) return respond({ error: 'unavailable' }, 503);
+        return respond(await store.negotiation(tokenHash, input));
       }
       if (input.action === 'message_claim') {
         if (!store.messageClaim) return respond({ error: 'unavailable' }, 503);

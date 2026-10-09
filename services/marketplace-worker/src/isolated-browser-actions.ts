@@ -1,3 +1,10 @@
+import {
+  isVintedNegotiationCommand,
+  isVintedNegotiationOffer,
+  isConfirmedNegotiationOffer,
+  isVintedNegotiationResult,
+  isVintedNegotiationEvent,
+} from './vinted-negotiation-contracts.ts';
 import type { BrowserInfo, BrowserDragPoint } from './gologin-cloud-browser.ts';
 import { isValidVintedMessageCommand } from './vinted-browser-messages.ts';
 import type {
@@ -179,6 +186,7 @@ export async function executeBrowserAction(
     updateListing: [3],
     readProfileAbout: [1],
     updateProfileAbout: [3],
+    sendNegotiation: [4],
     sendMessage: [2],
     readFavoriteEvents: [1],
     sendFavoriteMessage: [2],
@@ -192,6 +200,28 @@ export async function executeBrowserAction(
     throw new Error('Nicht erlaubte Browseraktion');
   await authorize();
   switch (action.name) {
+    case 'sendNegotiation': {
+      const command = argumentsList[1],
+        sourceOffer = argumentsList[2],
+        confirmedOffer = argumentsList[3];
+      if (
+        !isVintedNegotiationCommand(command) ||
+        (sourceOffer !== null && !isVintedNegotiationOffer(sourceOffer)) ||
+        (confirmedOffer !== null && !isConfirmedNegotiationOffer(confirmedOffer)) ||
+        (sourceOffer && confirmedOffer) ||
+        (command.kind === 'offer' && (sourceOffer || confirmedOffer)) ||
+        (confirmedOffer &&
+          command.externalConversationId !== confirmedOffer.command.externalConversationId)
+      )
+        throw new Error('Ungültiger Verhandlungsauftrag');
+      return required(browser.sendNegotiation)(
+        identifier(argumentsList[0]),
+        command,
+        sourceOffer,
+        confirmedOffer,
+        authorize,
+      );
+    }
     case 'sendMessage':
       return required(browser.sendMessage)(
         identifier(argumentsList[0]),
@@ -515,7 +545,9 @@ export function isolatedBrowserActions(transport: BrowserCommandTransport): Brow
         // Ein bereits belegtes Ergebnis erteilt keine neue Browserfreigabe.
         if (
           event.kind === 'result' &&
-          ['sendMessage', 'sendFavoriteMessage', 'sendFavoriteOffer'].includes(name)
+          ['sendMessage', 'sendFavoriteMessage', 'sendFavoriteOffer', 'sendNegotiation'].includes(
+            name,
+          )
         )
           return validateBrowserResult(name, event.value);
         await authorize();
@@ -530,6 +562,12 @@ export function isolatedBrowserActions(transport: BrowserCommandTransport): Brow
   }
   return {
     version: () => 'isolated-session-v1',
+    sendNegotiation: async (account, command, sourceOffer, confirmedOffer, authorize) =>
+      (await run(
+        'sendNegotiation',
+        [account, command, sourceOffer, confirmedOffer],
+        authorize,
+      )) as Awaited<ReturnType<NonNullable<BrowserInfo['sendNegotiation']>>>,
     sendMessage: async (account, command, authorize) =>
       (await run('sendMessage', [account, command], authorize)) as Awaited<
         ReturnType<NonNullable<BrowserInfo['sendMessage']>>
@@ -603,6 +641,10 @@ export function isolatedBrowserActions(transport: BrowserCommandTransport): Brow
 export function validateBrowserResult(name: BrowserActionName, input: unknown): unknown {
   if (Buffer.byteLength(JSON.stringify(input) ?? '') > browserCommandLimit)
     throw new Error('Browserantwort zu groß');
+  if (name === 'sendNegotiation') {
+    if (!isVintedNegotiationResult(input)) throw new Error('Ungültiges Verhandlungsergebnis');
+    return input;
+  }
   if (name === 'readFavoriteEvents') {
     if (!Array.isArray(input) || input.length > 200)
       throw new Error('Ungültige Favoritenereignisse');
@@ -755,7 +797,20 @@ export function validateBrowserResult(name: BrowserActionName, input: unknown): 
     if (entry.parentExternalId !== undefined) identifier(entry.parentExternalId);
     if (!Number.isFinite(Date.parse(text(entry.sortAt, 64))))
       throw new Error('Ungültiger Eintragszeitpunkt');
-    commandRecord(entry.body);
+    const body = commandRecord(entry.body);
+    if (
+      body.negotiationOffer !== undefined &&
+      (entry.kind !== 'message' ||
+        body.direction !== 'inbound' ||
+        !isVintedNegotiationOffer(body.negotiationOffer) ||
+        body.negotiationOffer.sellerId !== commandRecord(snapshot.identity).id)
+    )
+      throw new Error('Ungültiges Verhandlungsangebot');
+    if (
+      body.negotiationEvent !== undefined &&
+      (entry.kind !== 'message' || !isVintedNegotiationEvent(body.negotiationEvent))
+    )
+      throw new Error('Ungültiges Verhandlungsereignis');
   }
   const areas = commandRecord(snapshot.areas);
   const names = ['profile', 'publications', 'conversations', 'messages', 'sales', 'feedback'];

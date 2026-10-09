@@ -1,3 +1,8 @@
+import {
+  readVintedNegotiationOffer,
+  readVintedNegotiationPurchase,
+  negotiationProviderTime,
+} from './vinted-negotiation-contracts.ts';
 import type { Page } from 'playwright';
 import { createHash } from 'node:crypto';
 import { setTimeout as wait } from 'node:timers/promises';
@@ -217,7 +222,14 @@ function parseConversationItem(conversation: Record<string, unknown> | null) {
     : null;
   const currency = string(money?.['currency_code']);
   return {
-    itemId: identifier(conversation?.['item_id'] ?? item?.['id'] ?? transaction?.['item_id']),
+    itemId: identifier(
+      conversation?.['item_id'] ??
+        item?.['id'] ??
+        transaction?.['item_id'] ??
+        (Array.isArray(transaction?.['item_ids']) && transaction['item_ids'].length === 1
+          ? transaction['item_ids'][0]
+          : null),
+    ),
     itemTitle: string(
       conversation?.['item_title'] ?? item?.['title'] ?? transaction?.['item_title'],
     ),
@@ -392,6 +404,7 @@ export function parseVintedAccountImport(
         detailCheckedAt: reusable ? previous.detailCheckedAt : null,
         unread: typeof conversation?.['unread'] === 'boolean' ? conversation['unread'] : null,
         imageUrl: image(record(other?.['photo'])?.['url']),
+        partnerId: identifier(other?.['id']),
         itemId: item.itemId ?? (reusable ? identifier(previous.itemId) : null),
         itemTitle: item.itemTitle ?? (reusable ? string(previous.itemTitle) : null),
         itemImageUrl: item.itemImageUrl ?? (reusable ? image(previous.itemImageUrl) : null),
@@ -418,6 +431,9 @@ export function parseVintedAccountImport(
       (entry) => entry.kind === 'conversation' && entry.externalId === conversationId,
     );
     if (conversationEntry) {
+      conversationEntry.body['partnerId'] =
+        identifier(record(conversation?.['opposite_user'])?.['id']) ??
+        conversationEntry.body['partnerId'];
       conversationEntry.body['detailCheckedAt'] = observedAt;
       for (const [field, value] of Object.entries(parseConversationItem(conversation))) {
         if (value !== null) conversationEntry.body[field] = value;
@@ -447,7 +463,8 @@ export function parseVintedAccountImport(
           : null);
       if (!id || messageIds.has(id)) continue;
       messageIds.add(id);
-      const sentAt = date(message?.['created_at_ts'], observedAt);
+      const providerTime = negotiationProviderTime(message?.['created_at_ts'], observedAt);
+      const sentAt = providerTime ?? date(message?.['created_at_ts'], observedAt);
       const senderId = identifier(entity?.['user_id']) ?? identifier(entity?.['sender_id']);
       const photos = entity?.['photos'];
       const imageUrls = [
@@ -475,6 +492,12 @@ export function parseVintedAccountImport(
           direction: senderId ? (senderId === identity.id ? 'outbound' : 'inbound') : 'unknown',
           messageType: string(message?.['entity_type']),
           priceLabel: string(entity?.['price_label']),
+          ...(providerTime !== null
+            ? (() => {
+                const offer = readVintedNegotiationOffer(message, conversation, identity.id);
+                return offer ? { negotiationOffer: offer } : {};
+              })()
+            : {}),
           ...(imageUrls.length ? { imageUrls } : {}),
         },
       };
@@ -493,6 +516,30 @@ export function parseVintedAccountImport(
     const relation = record(conversation?.['transaction']);
     const transaction = record(record(detail?.['transaction'])?.['transaction']);
     const saleId = identifier(transaction?.['id']);
+    const purchase = readVintedNegotiationPurchase(
+      transaction,
+      conversation,
+      identity.id,
+      observedAt,
+    );
+    if (purchase)
+      entries.push({
+        kind: 'message',
+        externalId: `event:${createHash('sha256')
+          .update('purchase:' + purchase.event.transactionId)
+          .digest('hex')}`,
+        parentExternalId: conversationId,
+        sortAt: purchase.occurredAt,
+        body: {
+          title: 'Kauf',
+          text: null,
+          occurredAt: purchase.occurredAt,
+          direction: 'unknown',
+          messageType: 'purchase',
+          priceLabel: null,
+          negotiationEvent: purchase.event,
+        },
+      });
     if (
       saleId &&
       identifier(relation?.['id']) === saleId &&
@@ -907,7 +954,8 @@ export async function readVintedAccountImport(
     if (
       !requestedConversation &&
       transactionId &&
-      identifier(record(relation?.['transaction'])?.['seller_id']) === identity.id
+      (identifier(record(relation?.['transaction'])?.['seller_id']) === identity.id ||
+        record(relation?.['transaction'])?.['current_user_side'] === 'seller')
     ) {
       await atImportStage('transaction', authorize);
       try {

@@ -24,6 +24,8 @@ export class SupabaseVintedAccountWriter {
     sessionId: string,
     identity: VintedAccountIdentity,
   ): Promise<void> {
+    if (scope.messageWrite || scope.favoriteWrite || scope.negotiationWrite || scope.syncRead)
+      throw new Error('Kontobestätigung verweigert');
     const response = await this.request(
       new URL('/rest/v1/rpc/marketplace_browser_confirm_account', this.baseUrl),
       {

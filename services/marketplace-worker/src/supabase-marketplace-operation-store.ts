@@ -289,6 +289,14 @@ export class SupabaseMarketplaceOperationStore {
     name: string,
     extra: Record<string, unknown> = {},
   ): Promise<unknown> {
+    if (
+      scope.messageWrite ||
+      scope.favoriteWrite ||
+      scope.negotiationWrite ||
+      scope.cloudSetup ||
+      scope.userAccessToken
+    )
+      throw new Error('Auftragszugriff verweigert');
     const authorization = scope.syncRead;
     if (!authorization || authorization.operationId !== id || authorization.runnerId !== runnerId)
       throw new Error('Auftragszugriff verweigert');
@@ -331,6 +339,8 @@ export class SupabaseMarketplaceOperationStore {
   }
 
   private userHeaders(scope: BrowserSessionScope): Record<string, string> {
+    if (scope.messageWrite || scope.favoriteWrite || scope.negotiationWrite)
+      throw new Error('Auftragszugriff verweigert');
     return {
       apikey: this.publishableKey,
       Authorization: `Bearer ${scope.userAccessToken}`,

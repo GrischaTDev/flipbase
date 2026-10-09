@@ -4,7 +4,7 @@ COPY services/marketplace-worker/package.json services/marketplace-worker/packag
 RUN npm ci --ignore-scripts
 COPY services/marketplace-worker/tsconfig.json services/marketplace-worker/tsconfig.build.json ./
 COPY services/marketplace-worker/src ./src
-COPY supabase/functions/_shared/marketplace-message-contracts.d.ts supabase/functions/_shared/marketplace-inbox-event-contracts.d.ts /app/supabase/functions/_shared/
+COPY supabase/functions/_shared/marketplace-message-contracts.d.ts supabase/functions/_shared/marketplace-inbox-event-contracts.d.ts supabase/functions/_shared/marketplace-negotiation-contracts.d.ts /app/supabase/functions/_shared/
 RUN npm run build
 
 FROM node:22.23.2-alpine3.24 AS dependencies

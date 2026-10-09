@@ -188,7 +188,7 @@
     return { ...response.result, tabId: reservedTabId };
   }
 
-  const runtime = core.createRuntime({
+  const adapter = {
     load,
     save,
     now,
@@ -212,6 +212,8 @@
       readFromTab(tabId, { type: 'VINTED_LOCAL_SNAPSHOT', externalAccountId }),
     readInbox: (tabId, externalAccountId, state) =>
       readFromTab(tabId, { type: 'VINTED_LOCAL_INBOX', externalAccountId, state }),
+    sendNegotiation: (tabId, externalAccountId, claim) =>
+      readFromTab(tabId, { type: 'VINTED_LOCAL_NEGOTIATION_SEND', externalAccountId, claim }),
     sendMessage: (tabId, externalAccountId, command) =>
       readFromTab(tabId, { type: 'VINTED_LOCAL_SEND', externalAccountId, command }),
     readFavorites: (tabId, externalAccountId) =>
@@ -255,7 +257,8 @@
         );
       return response.json();
     },
-  });
+  };
+  const runtime = core.createRuntime(adapter);
 
   const scheduler = globalThis.FlipbaseVintedScheduler?.createScheduler({
     load,
@@ -329,6 +332,44 @@
   }
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message?.type === 'VINTED_LOCAL_NEGOTIATION_CHECK') {
+      if (
+        Object.keys(message).length !== 3 ||
+        !['jobId', 'claimToken'].every(
+          (key) =>
+            typeof message[key] === 'string' &&
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(message[key]),
+        )
+      )
+        return false;
+      (async () => {
+        const installation = await load(),
+          binding = installation?.binding,
+          receipt = installation?.pendingFinish;
+        if (
+          sender.id !== chrome.runtime.id ||
+          sender.frameId !== 0 ||
+          sender.tab?.incognito ||
+          sender.tab?.id !== installation?.tabId ||
+          new URL(sender.url ?? '').origin !== 'https://www.vinted.de' ||
+          !binding ||
+          !receipt?.negotiation ||
+          receipt.id !== message.jobId ||
+          receipt.claimToken !== message.claimToken ||
+          !(installation.leaseUntil > now())
+        )
+          return sendResponse({ active: false });
+        const result = await adapter.edge(binding, installation.secret, {
+          action: 'negotiation_check',
+          workspaceId: binding.workspaceId,
+          connectionId: binding.connectionId,
+          id: message.jobId,
+          claimToken: message.claimToken,
+        });
+        sendResponse({ active: result?.active === true && Date.parse(result.expiresAt) > now() });
+      })().catch(() => sendResponse({ active: false }));
+      return true;
+    }
     if (['VINTED_PAIRING_READ', 'VINTED_PAIRING_CONFIRM'].includes(message?.type)) {
       if (
         !pendingConsent ||
@@ -488,6 +529,8 @@
             !result.skipped
           )
             delete schedule.pauseReason;
+          if (request.action === 'NEGOTIATIONS_SEND')
+            schedule.negotiationCommandsAt = now() + 90_000;
           if (request.action === 'MESSAGES_SEND') schedule.commandsAt = now() + 90_000;
           if (request.action === 'INBOX_SYNC') {
             schedule.latestAt = now() + 300_000;

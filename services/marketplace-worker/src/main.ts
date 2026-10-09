@@ -1,3 +1,8 @@
+import {
+  MarketplaceNegotiationRunner,
+  type CloudNegotiationClaim,
+} from './marketplace-negotiation-runner.ts';
+import { SupabaseMarketplaceNegotiationStore } from './supabase-marketplace-negotiation-store.ts';
 import { GoLoginCloudBrowser } from './gologin-cloud-browser.ts';
 import { GoLoginProfileProvisioner } from './gologin-profile-provisioner.ts';
 import { join } from 'node:path';
@@ -147,6 +152,13 @@ async function main(): Promise<void> {
         })
       : undefined;
   let messageRunner: MarketplaceMessageRunner | undefined;
+  const negotiationStore = messageStore
+    ? new SupabaseMarketplaceNegotiationStore({
+        url: config.supabaseUrl,
+        serviceRoleKey: config.serviceRoleKey,
+      })
+    : undefined;
+  let negotiationRunner: MarketplaceNegotiationRunner | undefined;
   const favoriteStore = messageStore
     ? new SupabaseMarketplaceFavoriteMessageStore({
         url: config.supabaseUrl,
@@ -157,46 +169,54 @@ async function main(): Promise<void> {
   const sessionLifecycle: { broker?: MarketplaceBrowserSessionBroker } = {};
   const workerLifecycle: { stop?: () => Promise<void> } = {};
   const dispatcher = dispatchStore
-    ? new MarketplaceSyncDispatcher<CloudMessageClaim | CloudFavoriteClaim>({
-        store: dispatchStore,
-        writes: messageStore
-          ? {
-              claim: async (workerId, workerEpoch, runnerId) =>
-                (await messageStore.claim(workerId, workerEpoch, runnerId)) ??
-                (config.scheduledSyncEnabled && favoriteStore
-                  ? favoriteStore.claim(workerId, workerEpoch, runnerId)
-                  : null),
-              run: (claim) => {
-                if (claim.kind !== 'message') {
-                  if (!favoriteRunner)
-                    return Promise.reject(new Error('Favoritendienst ist noch nicht bereit'));
-                  return favoriteRunner.run(claim);
-                }
-                if (!messageRunner)
-                  return Promise.reject(new Error('Versanddienst ist noch nicht bereit'));
-                return messageRunner.run(claim);
-              },
-            }
-          : undefined,
-        includeScheduled: config.scheduledSyncEnabled,
-        maxJobsPerPoll: 32,
-        prepareDispatch: () => sessionLifecycle.broker?.prepareDispatch() ?? Promise.resolve(),
-        run: (scope) => {
-          if (!syncRunner) return Promise.reject(new Error('Abrufdienst ist noch nicht bereit'));
-          return syncRunner.runDispatched(scope);
+    ? new MarketplaceSyncDispatcher<CloudMessageClaim | CloudFavoriteClaim | CloudNegotiationClaim>(
+        {
+          store: dispatchStore,
+          writes: messageStore
+            ? {
+                claim: async (workerId, workerEpoch, runnerId) =>
+                  (await messageStore.claim(workerId, workerEpoch, runnerId)) ??
+                  (await negotiationStore?.claim(workerId, workerEpoch, runnerId)) ??
+                  (config.scheduledSyncEnabled && favoriteStore
+                    ? favoriteStore.claim(workerId, workerEpoch, runnerId)
+                    : null),
+                run: (claim) => {
+                  if (claim.kind === 'negotiation') {
+                    if (!negotiationRunner)
+                      return Promise.reject(new Error('Verhandlungsdienst ist noch nicht bereit'));
+                    return negotiationRunner.run(claim);
+                  }
+                  if (claim.kind !== 'message') {
+                    if (!favoriteRunner)
+                      return Promise.reject(new Error('Favoritendienst ist noch nicht bereit'));
+                    return favoriteRunner.run(claim);
+                  }
+                  if (!messageRunner)
+                    return Promise.reject(new Error('Versanddienst ist noch nicht bereit'));
+                  return messageRunner.run(claim);
+                },
+              }
+            : undefined,
+          includeScheduled: config.scheduledSyncEnabled,
+          maxJobsPerPoll: 32,
+          prepareDispatch: () => sessionLifecycle.broker?.prepareDispatch() ?? Promise.resolve(),
+          run: (scope) => {
+            if (!syncRunner) return Promise.reject(new Error('Abrufdienst ist noch nicht bereit'));
+            return syncRunner.runDispatched(scope);
+          },
+          onRuntimeLost: (reason) => {
+            // Nur feste Fehlerkategorien protokollieren, keine privaten Antworten oder Zugangsdaten.
+            process.stderr.write(
+              `${JSON.stringify({ event: 'marketplace_runtime_lost', reason })}\n`,
+            );
+            void Promise.resolve()
+              .then(async () => {
+                await workerLifecycle.stop?.();
+              })
+              .finally(() => process.exit(1));
+          },
         },
-        onRuntimeLost: (reason) => {
-          // Nur feste Fehlerkategorien protokollieren, keine privaten Antworten oder Zugangsdaten.
-          process.stderr.write(
-            `${JSON.stringify({ event: 'marketplace_runtime_lost', reason })}\n`,
-          );
-          void Promise.resolve()
-            .then(async () => {
-              await workerLifecycle.stop?.();
-            })
-            .finally(() => process.exit(1));
-        },
-      })
+      )
     : undefined;
   // Erst die alleinige Runtime beanspruchen; ein zweiter Prozess darf keine Recovery ausführen.
   const runtime = await dispatcher?.initialize();
@@ -252,6 +272,8 @@ async function main(): Promise<void> {
   });
   sessionLifecycle.broker = broker;
   await broker.ready();
+  if (negotiationStore)
+    negotiationRunner = new MarketplaceNegotiationRunner(broker, negotiationStore);
   if (messageStore) messageRunner = new MarketplaceMessageRunner(broker, messageStore);
   if (favoriteStore) favoriteRunner = new MarketplaceFavoriteMessageRunner(broker, favoriteStore);
   if (cloudSetupStore && profiles instanceof ChromiumProfileProvisioner) {

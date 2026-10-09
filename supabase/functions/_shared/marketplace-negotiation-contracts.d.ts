@@ -70,6 +70,11 @@ export interface MarketplaceNegotiationResult {
   readonly errorCode?: string;
 }
 
+export interface MarketplaceConfirmedNegotiationOffer {
+  readonly command: Extract<MarketplaceNegotiationCommand, { kind: 'offer' }>;
+  readonly externalId: string;
+}
+
 export interface MarketplaceNegotiationClaim {
   readonly jobId: string;
   readonly claimToken: string;
@@ -79,6 +84,7 @@ export interface MarketplaceNegotiationClaim {
   readonly expiresAt: string;
   readonly command: MarketplaceNegotiationCommand;
   readonly sourceOffer: MarketplaceNegotiationOffer | null;
+  readonly confirmedOffer: MarketplaceConfirmedNegotiationOffer | null;
 }
 
 export interface MarketplaceCloudNegotiationClaim extends MarketplaceNegotiationClaim {
