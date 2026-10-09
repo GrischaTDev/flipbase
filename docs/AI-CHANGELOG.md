@@ -1,5 +1,40 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-09 - Juna - Vinted-Feed nach Chrome-Speicherausfall wiederherstellen
+
+**Auftrag:** Speicherverbrauch des zentralen Vinted-Bots untersuchen, den Bot
+nach dem bestätigten Ausfall wieder starten und gezielte Anpassungen vorbereiten.
+
+**Befund:** Der Kernel beendete am 09.10. um 00:59:14 Uhr deutscher Zeit einen
+Chrome-Prozess innerhalb der 1-GiB-Containergrenze. Abrufe und Betriebsmeldungen
+standen seit 00:59:07 Uhr still, während `/live` weiterhin erfolgreich antwortete.
+Der Host hatte freien RAM. Nach vollständigen Katalogseiten mit Sitzungsskripten
+benötigt der Browser mehr Speicher; eine passive Messung zeigte einen offenen
+Tab mit mehreren eingebetteten Dokumenten und rund 210 MiB JavaScript-Heap.
+Ein dauerhaft wachsender Speicherverlust ist damit nicht bewiesen.
+
+**Wiederherstellung:** Auf Nutzerauftrag den Container gestoppt, ausschließlich
+die verwaiste Chrome-Profilsperre nach Prüfung auf beendete Browserprozesse und
+freien Steuerungsport entfernt und mit 2 GiB RAM sowie insgesamt 3 GiB RAM/Swap
+gestartet. Profil, Cookies, Filter und Vinted-Sperrzustand bleiben erhalten.
+Alle drei Filter lieferten wieder Daten: 29 erfolgreiche Abrufe und 483 neue
+Artikel ohne Fehler nach erfolgreichem Start; rund 1,08 GiB RAM, kein neuer OOM.
+Die ursprüngliche 48-Stunden-Abnahme bleibt gescheitert.
+
+**Änderung:** Die Compose-Datei erhält dieselben Speichergrenzen dauerhaft.
+`/live` und `/health` melden fehlenden Fortschritt im Sammeln nach fünf Minuten
+als ungesund. Abgeschlossene Einzelabrufe und laufende leere oder bewusst
+pausierte Durchläufe bleiben lebendig; lange konfigurierte Taktintervalle werden
+berücksichtigt. Das ist eine Zustandsprüfung, kein automatischer Containerneustart.
+Keine Änderung an Vinted-Schutzregeln, Sitzungsskripten oder Ressourcenabrufen.
+
+**Prüfung:** Regression des weiterhin antwortenden HTTP-Servers zuerst rot,
+nach Änderung grün; zusätzlich Pausen, leere Durchläufe, lange Filterrunden und
+Taktintervalle geprüft. Alle 322 Bot-Tests, Typprüfung, Bau, Formatierung und
+gezieltes Lint bestehen. Die Deployment-Prüfung besteht mit fünf Tests;
+drei POSIX-Shell-Fixtures bleiben unter Windows ausgelassen und benötigen
+Linux-CI. Docker Compose validiert die neue Speicher-/Swap-Konfiguration.
+
 ## 2026-10-09 - Juna - Cloud-Gesprächsbilder und Profilbilder veröffentlichen
 
 **Auftrag:** Nach ausdrücklicher Freigabe PR erstellen, erfolgreiche Pflichtprüfungen

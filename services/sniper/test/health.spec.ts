@@ -11,6 +11,80 @@ const report = {
 };
 
 describe('createHealthState', () => {
+  it('allows configured long tick intervals and still detects a missed following tick', () => {
+    let elapsed = 0;
+    const state = createHealthState(
+      () => 0,
+      () => elapsed,
+      20 * 60_000,
+    );
+    elapsed = 10 * 60_000;
+    expect(state.isLive()).toBe(true);
+    elapsed = 20 * 60_000 + 1;
+    expect(state.isLive()).toBe(false);
+  });
+
+  it('keeps long cycles live through completed individual requests', () => {
+    let elapsed = 0;
+    const state = createHealthState(
+      () => 0,
+      () => elapsed,
+    );
+    for (let request = 0; request < 10; request++) {
+      elapsed += 60_000;
+      state.recordProgress();
+      expect(state.isLive()).toBe(true);
+      expect(state.snapshot().lastSuccessfulCycleAt).toBeNull();
+    }
+  });
+
+  it('reports a stalled collector as unhealthy even while the HTTP server still responds', async () => {
+    let elapsed = 0;
+    const state = createHealthState(
+      () => 0,
+      () => elapsed,
+    );
+    state.recordCycle(report, new Date('2026-10-09T00:59:07.000Z'));
+    const server = startHealthServer(state, 0, (error) => {
+      throw error;
+    });
+    const port = await new Promise<number>((resolve) => {
+      server.on('listening', () => resolve((server.address() as { port: number }).port));
+    });
+    try {
+      elapsed = 5 * 60_000 + 1;
+      const live = await fetch(`http://127.0.0.1:${port}/live`);
+      expect(live.status).toBe(503);
+      expect(await live.json()).toEqual({ live: false });
+      const health = await fetch(`http://127.0.0.1:${port}/health`);
+      expect(health.status).toBe(503);
+      expect((await health.json()).lastSuccessfulCycleAt).toBe('2026-10-09T00:59:07.000Z');
+      state.recordProgress();
+      expect((await fetch(`http://127.0.0.1:${port}/live`)).status).toBe(200);
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it('keeps empty or deliberately paused cycles live without inventing a successful Vinted poll', () => {
+    let elapsed = 0;
+    const state = createHealthState(
+      () => 0,
+      () => elapsed,
+    );
+    for (let cycle = 0; cycle < 10; cycle++) {
+      elapsed += 60_000;
+      state.recordCycle(
+        { ...report, polled: 0, originPause: { reason: 'interaction_required', until: null } },
+        new Date(),
+      );
+      expect(state.isLive()).toBe(true);
+      expect(state.snapshot().ready).toBe(false);
+      expect(state.snapshot().lastSuccessfulCycleAt).toBeNull();
+    }
+  });
+
   it('reports a running process separately from search readiness before any queries exist', async () => {
     const state = createHealthState(() => 0);
     const server = startHealthServer(state, 0, (error) => {
