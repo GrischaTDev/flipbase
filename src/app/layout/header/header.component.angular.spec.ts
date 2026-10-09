@@ -360,4 +360,30 @@ describe('HeaderComponent', () => {
     expect(unreadLink?.classList.contains('bg-fb-brand-surface')).toBe(false);
     expect(unreadLink?.querySelector('[title="Ungelesen"]')).not.toBeNull();
   });
+
+  it('zeigt den Benutzer-Avatar mit Flipbase-Gelb und Dropdown-Chevron', async () => {
+    const fixture = await renderHeader();
+    const element = fixture.nativeElement as HTMLElement;
+    const userBtn = element.querySelector<HTMLButtonElement>(
+      'button[aria-controls="header-user-menu"]',
+    );
+    expect(userBtn).not.toBeNull();
+    expect(userBtn?.textContent).toContain('D');
+    expect(userBtn?.textContent).toContain('▾');
+
+    const avatar = userBtn?.querySelector('.bg-\\[\\#fcc601\\]');
+    expect(avatar).not.toBeNull();
+  });
+
+  it('bietet im Benutzer-Dropdown Sprach- und Erscheinungsbild-Umschalter', async () => {
+    const fixture = await renderHeader();
+    fixture.componentInstance.toggleUserDropdown();
+    fixture.detectChanges();
+
+    const element = fixture.nativeElement as HTMLElement;
+    const userMenu = element.querySelector('#header-user-menu');
+    expect(userMenu).not.toBeNull();
+    expect(userMenu?.textContent).toContain('Sprache');
+    expect(userMenu?.textContent).toContain('Erscheinungsbild');
+  });
 });

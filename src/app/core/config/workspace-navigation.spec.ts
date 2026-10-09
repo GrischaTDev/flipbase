@@ -43,6 +43,20 @@ describe('Arbeitsnavigation', () => {
     );
   });
 
+  it('ordnet den Marktplatz-Einträgen ihre Plattform-Schlüssel zu', () => {
+    const marketplaceGroup = WORKSPACE_NAVIGATION_GROUPS.find(
+      (group) => group.id === 'marketplaces',
+    );
+    assert.deepEqual(
+      marketplaceGroup?.items.map((item) => [item.path, item.platform]),
+      [
+        ['/marketplaces/vinted', 'vinted'],
+        ['/marketplaces/ebay', 'ebay'],
+        ['/marketplaces/kleinanzeigen', 'kleinanzeigen'],
+      ],
+    );
+  });
+
   it('benennt die arbeitsbezogenen Eintraege verstaendlich', () => {
     const items = WORKSPACE_NAVIGATION_GROUPS.flatMap((group) => group.items);
     assert.equal(items.find((item) => item.path === '/catalog')?.label, 'Artikel & Bestand');

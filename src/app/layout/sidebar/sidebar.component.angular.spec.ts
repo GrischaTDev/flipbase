@@ -238,6 +238,23 @@ describe('SidebarComponent', () => {
     const vintedLink = element.querySelector('a[href="/marketplaces/vinted"]');
     expect(vintedLink?.querySelector('app-badge')?.textContent?.trim()).toBe('Admin');
   });
+
+  it('rendert eigene Plattform-Logos für die Marktplätze in der Sidebar', async () => {
+    const { element } = await renderAt('/dashboard');
+    const vintedImg = element.querySelector('a[href="/marketplaces/vinted"] img');
+    const ebayImg = element.querySelector('a[href="/marketplaces/ebay"] img');
+    const kleinanzeigenImg = element.querySelector('a[href="/marketplaces/kleinanzeigen"] img');
+
+    expect(vintedImg?.getAttribute('src')).toContain('vinted.svg');
+    expect(ebayImg?.getAttribute('src')).toContain('ebay.svg');
+    expect(kleinanzeigenImg?.getAttribute('src')).toContain('kleinanzeigen.svg');
+  });
+
+  it('versieht die Administration mit einer Admin-Badge', async () => {
+    const { element } = await renderAt('/dashboard');
+    const adminLink = element.querySelector('a[href="/admin"]');
+    expect(adminLink?.querySelector('app-badge')?.textContent?.trim()).toBe('Admin');
+  });
   it('ersetzt im Vinted-Bereich die Hauptnavigation und stellt sie beim Zurückwechseln wieder her', async () => {
     const { element, fixture } = await renderAt(
       '/marketplaces/vinted/messages?connectionId=account-b',
