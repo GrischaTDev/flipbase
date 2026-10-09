@@ -443,7 +443,7 @@ test('pflegt und veröffentlicht echte Label- und Größenreferenzen mit freigeg
           () => document.documentElement.scrollWidth <= window.innerWidth + 1,
         ),
       ).toBe(true);
-      await readerPage.goto('/tools/brand-labels/sizes');
+      await readerPage.goto('/tools/brand-labels/sizes/references');
       await expect(readerPage.getByRole('heading', { name: sizeTitle, exact: true })).toBeVisible();
       await chooseOption(
         readerPage,

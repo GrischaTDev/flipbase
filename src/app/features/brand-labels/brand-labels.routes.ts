@@ -14,6 +14,14 @@ export const brandLabelRoutes: Routes = [
     path: 'sizes',
     pathMatch: 'full',
     loadComponent: () =>
+      import('./pages/clothing-size-guide/clothing-size-guide.component').then(
+        (module) => module.ClothingSizeGuideComponent,
+      ),
+  },
+  {
+    path: 'sizes/references',
+    pathMatch: 'full',
+    loadComponent: () =>
       import('./pages/size-library/size-library.component').then(
         (module) => module.SizeLibraryComponent,
       ),
