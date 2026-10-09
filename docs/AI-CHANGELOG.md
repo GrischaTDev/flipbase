@@ -1,5 +1,23 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-09 - Juna - Benachrichtigungs-Dropdown-Layout an Mockup anpassen
+
+**Auftrag:** Das Layout des Benachrichtigungs-Dropdowns im Header exakt an das Mockup-Design anpassen: Bisher war die Kopfzeile durch äußeres Padding eingerückt und die Einträge wirkten wie kleine isolierte Karten mit Randabstand. Das Dropdown soll einen durchgehenden Kopfbereich mit Kante-zu-Kante-Trennlinie (`border-b border-fb-line`) und eine nahtlose, durchgehende Eintragsliste (`divide-y divide-fb-line`, `px-4 py-3.5`) ohne äußeres Padding und ohne abgerundete Einzelkarten erhalten.
+
+**Umsetzung:**
+
+1. Header-Dropdown (`header.component.html`):
+   - Äußeres Padding `p-3` und `space-y-2` auf dem Menü-Container entfernt, `overflow-hidden` ergänzt.
+   - Kopfbereich erhält `px-4 py-3 border-b border-fb-line bg-fb-surface` für eine klare, durchgehende Trennung von Rand zu Rand.
+   - Fehlerbox spannt ebenfalls über die volle Breite (`px-4 py-2 border-b border-fb-line`).
+   - Eintragsliste nutzt `divide-y divide-fb-line` und jede Zeile füllt die volle Breite (`px-4 py-3.5`) ohne eigene Rundung (`rounded-lg`), sodass der Hover-Effekt und die Trennlinien bündig von Kante zu Kante verlaufen.
+
+**Prüfung:**
+
+- Angular-Komponententests in `header.component.angular.spec.ts` (8 Tests, alle bestanden).
+- Unit-Tests in `header-notification-visuals.spec.ts` (14 Tests, alle bestanden).
+- Typprüfung (`npm run typecheck`), ESLint und Prettier ohne Beanstandung.
+
 ## 2026-10-09 - Juna - Angebotsaktionen und Verhandlungsautomatik umsetzen
 
 **Auftrag:** Den abgestimmten Verhandlungsentwurf für Cloud und Extension
