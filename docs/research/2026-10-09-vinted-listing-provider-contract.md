@@ -1,6 +1,6 @@
 # Vinted-Inserate: Anbieterprüfung und Umsetzungsstand
 
-Stand: 09.10.2026. Der Nutzer hat die Umsetzung mit „dann los“ freigegeben.
+Stand: 10.10.2026. Der Nutzer hat die Umsetzung mit „dann los“ freigegeben.
 Arbeitsbasis ist `origin/master` bei `638b2ace`, einschließlich PR #356 und #357.
 
 ## Nachgewiesen und offen
@@ -14,17 +14,17 @@ Die Bleam-Recherche ist im
 [Produktentwurf](../superpowers/specs/2026-10-09-vinted-listing-publishing-design.md)
 festgehalten. Die folgenden Vinted-Nachweise ergänzen diese Recherche.
 
-| Bereich                                    | Aktueller Nachweis                                                                                  | Nächster Nachweis                                                                       |
-| ------------------------------------------ | --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| Kategorie                                  | Gespeicherter Baum; Neuanlage/Bearbeitung mit Kleidung und Kinderschuhen geprüft                    | Weitere Kategoriearten und deren Pflichtmerkmale prüfen                                 |
-| Titel, Beschreibung, Verkaufspreis         | Frei speicherbare Flipbase-Arbeitskopie; Betrag in Cent, kein Übernehmen von Einkaufskosten         | Vinted-Längen, Preisgrenzen und Währung bestätigen                                      |
-| Marke, Größe, Zustand, Farben, Materialien | Auswahlstruktur und Beispiele am Anbieter bestätigt; Entwurfeditor verwendet noch freie Angaben     | Dynamische Auswahl mit bestätigten IDs integrieren; weitere Kategorien prüfen           |
-| Paketgröße und weitere Merkmale            | Sendungsgrößen 1/2/3 am Anbieter bestätigt; KI-Fotokennzeichnung im Inhaltstyp noch nicht enthalten | Sendungsgröße und Kennzeichnung in den vollständigen Editorvertrag aufnehmen            |
-| Fotos                                      | Private Originaldateien und Auswahlreihenfolge; Zuschneiden/Drehen erzeugt neue Datei               | Anbietergrenzen, Uploadvertrag und Fotozuordnung bestätigen                             |
-| Flipbase-Entwurf                           | Anlegen, automatisch speichern, suchen und wieder bearbeiten implementiert                          | Echte Umgebung erst nach abgeschlossener Integration migrieren                          |
-| Vinted-Entwurf                             | Eigene Schaltfläche im Vinted-Formular nachgewiesen; noch kein Schreibadapter                       | Speicherung und bestätigte Entwurfs-ID an später freigegebenem Fall prüfen              |
-| Veröffentlichen und Bearbeiten             | Beide vollständigen Formulare gelesen; neue Schreibwege und Ergebnisbelege fehlen                   | Ergebnis-ID, Antwortverlust und Wiedererkennung am geprüften Schreibweg bestätigen      |
-| Termin und Relist                          | Terminmodell einschließlich Zeitzone/Zeitumstellung getestet; keine Aufträge oder Relist            | Aufträge erst auf geprüftem Anbieterweg aufbauen; Relist-Reihenfolge separat bestätigen |
+| Bereich                                    | Aktueller Nachweis                                                                                                    | Nächster Nachweis                                                                  |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Kategorie                                  | Gespeicherter Baum; Neuanlage/Bearbeitung mit Kleidung und Kinderschuhen geprüft                                      | Weitere Kategoriearten und deren Pflichtmerkmale prüfen                            |
+| Titel, Beschreibung, Verkaufspreis         | Frei speicherbare Flipbase-Arbeitskopie; Betrag in Cent, kein Übernehmen von Einkaufskosten                           | Vinted-Längen, Preisgrenzen und Währung bestätigen                                 |
+| Marke, Größe, Zustand, Farben, Materialien | Auswahlstruktur und Beispiele am Anbieter bestätigt; Entwurfeditor verwendet noch freie Angaben                       | Dynamische Auswahl mit bestätigten IDs integrieren; weitere Kategorien prüfen      |
+| Paketgröße und weitere Merkmale            | Sendungsgrößen 1/2/3 am Anbieter bestätigt; KI-Fotokennzeichnung im Inhaltstyp noch nicht enthalten                   | Sendungsgröße und Kennzeichnung in den vollständigen Editorvertrag aufnehmen       |
+| Fotos                                      | Private Originaldateien, nativer Uploadbaustein und Reihenfolge synthetisch geprüft; bis 20 Fotos offiziell bestätigt | Echten Upload und Zuordnung zu einem bestätigten Inserat prüfen                    |
+| Flipbase-Entwurf                           | Anlegen, automatisch speichern, suchen und wieder bearbeiten implementiert                                            | Echte Umgebung erst nach abgeschlossener Integration migrieren                     |
+| Vinted-Entwurf                             | Eigene Schaltfläche im Vinted-Formular nachgewiesen; noch kein Schreibadapter                                         | Speicherung und bestätigte Entwurfs-ID an später freigegebenem Fall prüfen         |
+| Veröffentlichen und Bearbeiten             | Beide vollständigen Formulare gelesen; neue Schreibwege und Ergebnisbelege fehlen                                     | Ergebnis-ID, Antwortverlust und Wiedererkennung am geprüften Schreibweg bestätigen |
+| Termin und Relist                          | Dauerhafte Aufträge, Terminmodell, Dialog und atomarer Terminwechsel geprüft; Relist offen                            | Tatsächlichen Ausführer anschließen; Relist-Reihenfolge separat bestätigen         |
 
 Es wurden keine neuen Vinted-Schreibendpunkte oder Anbieter-IDs geraten.
 Ein echter Schreibtest braucht einen vom Nutzer ausgewählten Artikel und die
@@ -183,7 +183,7 @@ denselben Auftrag. Aufträge können vor Beginn abgebrochen werden; ein Widerruf
 während eines begonnenen Versuchs bleibt „Ergebnis unklar“. Konto- und
 Installationswechsel entziehen alten Aufträgen die Freigabe. `queued` bestätigt
 ausschließlich die Speicherung in Flipbase. Anbieteradapter, Ausführeranschluss,
-Planungsdialog und serverseitige Terminsteuerung sowie
+Anschluss der neuen Veröffentlichungsaktionen und der dauerhaften Fälligkeit sowie
 vollständige Live-Bearbeitung mit Drawer und manuelles Relist fehlen weiterhin.
 
 Der Terminersatz ist inzwischen als eigene atomare Datenbankfunktion ergänzt:
@@ -194,7 +194,14 @@ Feature-Service prüfen den Auftragskontext und unterscheiden Anbieterprüfung
 von Veröffentlichung. Der Editor zeigt inzwischen den Verlauf, erlaubt den
 versionsgebundenen Abbruch wartender Aufträge und weist auf neuere Änderungen
 gegenüber dem eingefrorenen Inhalt hin. MEZ/MESZ und die IANA-Zone machen doppelte
-Uhrzeiten eindeutig. Annahme-/Planungsaktionen und Ausführer sind noch anzuschließen.
+Uhrzeiten eindeutig. Ein Planungsdialog für bestehende wartende Aufträge ist jetzt
+angeschlossen. Er übernimmt den aktuellen gespeicherten Entwurf und speichert
+Termin und Ausfallregel atomar. Die ursprüngliche Aktion, Fotoeinstellung,
+Kontoidentität und der Ausführungsort bleiben erhalten. Ungespeicherte Änderungen
+sperren den Dialog; Kontext-/Revisionswechsel schließen ihn. Nach Antwortverlust
+behält eine Wiederholung derselben Angaben ihre Anfragenkennung. Dialog, Escape,
+Fokusrückkehr und AXE wurden auf Desktop/Mobil in hell/dunkel geprüft.
+Die Neuanlageaktionen und Ausführer sind weiterhin anzuschließen.
 
 Für lokale Versuche sind Übernahme, erneute Prüfung, einmaliger Schreibbeginn
 und Ergebnisannahme inzwischen in Schema 464 vorbereitet. Abgelaufene

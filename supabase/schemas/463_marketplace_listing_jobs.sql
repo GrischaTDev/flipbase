@@ -300,6 +300,24 @@ $$;
 revoke all on function public.marketplace_replace_planned_listing(text,bigint,bigint,text,uuid,boolean,timestamptz,text,text) from public,anon;
 grant execute on function public.marketplace_replace_planned_listing(text,bigint,bigint,text,uuid,boolean,timestamptz,text,text) to authenticated;
 
+-- Umplanen erhält Aktion und Fotoeinstellung aus der unveränderlichen Aufnahme.
+-- Definer ist nötig, weil Clients weder Aufnahmen verändern noch die interne Annahme aufrufen dürfen.
+create or replace function public.marketplace_reschedule_listing(p_job_id text,p_expected_version bigint,p_expected_revision bigint,p_request_id uuid,
+  p_scheduled_at timestamptz,p_time_zone text,p_late_policy text default 'pause_after_30_minutes')
+returns jsonb language plpgsql volatile security definer set search_path='' as $$
+declare v_job public.marketplace_listing_jobs;
+begin
+  perform pg_advisory_xact_lock(91731,1);
+  select * into v_job from public.marketplace_listing_jobs where id=p_job_id::bigint;
+  if not found then raise exception 'Kein Zugriff auf diesen Inseratauftrag.' using errcode='42501'; end if;
+  perform public.marketplace_lock_listing_workspace(v_job.workspace_id);
+  return public.marketplace_enqueue_listing_internal(v_job.draft_id::text,p_expected_revision,v_job.action,p_request_id,
+    (v_job.snapshot->>'aiPhoto')::boolean,p_scheduled_at,p_time_zone,p_late_policy,v_job.id,p_expected_version);
+end;
+$$;
+revoke all on function public.marketplace_reschedule_listing(text,bigint,bigint,uuid,timestamptz,text,text) from public,anon;
+grant execute on function public.marketplace_reschedule_listing(text,bigint,bigint,uuid,timestamptz,text,text) to authenticated;
+
 create or replace function public.marketplace_cancel_listing_job(p_job_id text,p_expected_version bigint)
 returns jsonb language plpgsql volatile security definer set search_path='' as $$
 declare v_job public.marketplace_listing_jobs;

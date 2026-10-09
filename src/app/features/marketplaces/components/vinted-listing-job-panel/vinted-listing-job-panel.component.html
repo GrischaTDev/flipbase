@@ -7,7 +7,7 @@
       <app-button
         variant="secondary"
         size="slim"
-        [disabled]="loading() || !!cancelling()"
+        [disabled]="loading() || !!cancelling() || !!planning() || planningBusy()"
         [loading]="loading()"
         (clicked)="refresh()"
         >Verlauf aktualisieren</app-button
@@ -53,11 +53,25 @@
                 </p>
               }
               <div class="flex flex-wrap items-center gap-3">
+                @if (entry.reschedulable) {
+                  <app-button
+                    variant="secondary"
+                    size="slim"
+                    [disabled]="!draftReady() || loading() || !!cancelling() || planningBusy()"
+                    (clicked)="openPlan(entry.job)"
+                    >Planung aktualisieren</app-button
+                  >
+                  @if (!draftReady()) {
+                    <p class="text-xs text-fb-text-secondary">
+                      Speichere Deine Änderungen, bevor Du die Planung aktualisierst.
+                    </p>
+                  }
+                }
                 @if (entry.cancellable) {
                   <app-button
                     variant="secondary"
                     size="slim"
-                    [disabled]="loading() || !!cancelling()"
+                    [disabled]="loading() || !!cancelling() || !!planning() || planningBusy()"
                     [loading]="cancelling() === entry.job.id"
                     (clicked)="cancelJob(entry.job)"
                     >Auftrag abbrechen</app-button
@@ -83,4 +97,18 @@
       }
     </div>
   </app-card>
+  @if (planning(); as plan) {
+    <app-vinted-listing-schedule-dialog
+      [initial]="plan.initial"
+      [busy]="planningBusy()"
+      [serverError]="planningError()"
+      (closed)="closePlan()"
+      (selected)="reschedule($event)"
+    >
+      <p class="text-sm text-fb-text-secondary">
+        Der neue Auftrag verwendet Deinen aktuell gespeicherten Entwurf. Der bisherige Termin wird
+        aufgehoben. Konto, Ausführung und Fotoeinstellung bleiben erhalten.
+      </p>
+    </app-vinted-listing-schedule-dialog>
+  }
 }

@@ -10,11 +10,37 @@ import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { VintedListingJobService } from '../../services/vinted-listing-job.service';
 import type { VintedListingJob } from '../../models/vinted-listing-job';
+import { emptyVintedListingContent } from '../../models/vinted-listing-content';
 import { VintedListingJobPanelComponent } from './vinted-listing-job-panel.component';
 
+import { VintedListingScheduleDialogComponent } from '../vinted-listing-schedule-dialog/vinted-listing-schedule-dialog.component';
+import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
+import { DatePickerComponent } from '../../../../shared/components/date-picker/date-picker.component';
+import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
+import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 let restore: (() => void) | undefined;
 beforeAll(async () => {
   restore = await prepareMarketplaceRendering([
+    {
+      type: VintedListingScheduleDialogComponent,
+      path: 'src/app/features/marketplaces/components/vinted-listing-schedule-dialog/vinted-listing-schedule-dialog.component.ts',
+    },
+    {
+      type: ModalShellComponent,
+      path: 'src/app/shared/components/modal-shell/modal-shell.component.ts',
+    },
+    {
+      type: DatePickerComponent,
+      path: 'src/app/shared/components/date-picker/date-picker.component.ts',
+    },
+    {
+      type: TextFieldComponent,
+      path: 'src/app/shared/components/text-field/text-field.component.ts',
+    },
+    {
+      type: CustomSelectComponent,
+      path: 'src/app/shared/components/custom-select/custom-select.component.ts',
+    },
     {
       type: VintedListingJobPanelComponent,
       path: 'src/app/features/marketplaces/components/vinted-listing-job-panel/vinted-listing-job-panel.component.ts',
@@ -60,13 +86,16 @@ function setup(jobs: readonly VintedListingJob[] = [job]) {
     user = signal({ id: 'user-a' }),
     canManage = signal(true);
   const list = vi.fn().mockResolvedValue(jobs),
-    cancel = vi.fn().mockResolvedValue({ ...job, state: 'cancelled', version: 2 });
+    cancel = vi.fn().mockResolvedValue({ ...job, state: 'cancelled', version: 2 }),
+    reschedule = vi
+      .fn()
+      .mockResolvedValue({ ...job, id: '20', draftRevision: 3, replacesJobId: job.id });
   TestBed.configureTestingModule({
     providers: [
       { provide: AuthService, useValue: { currentUser: user } },
       { provide: WorkspaceService, useValue: { currentWorkspace: workspace } },
       { provide: MarketplaceAccountStore, useValue: { canManage } },
-      { provide: VintedListingJobService, useValue: { list, cancel } },
+      { provide: VintedListingJobService, useValue: { list, cancel, reschedule } },
     ],
   });
   const fixture = TestBed.createComponent(VintedListingJobPanelComponent);
@@ -79,6 +108,7 @@ function setup(jobs: readonly VintedListingJob[] = [job]) {
     component: fixture.componentInstance,
     list,
     cancel,
+    reschedule,
     workspace,
     user,
     canManage,
@@ -86,6 +116,105 @@ function setup(jobs: readonly VintedListingJob[] = [job]) {
 }
 afterEach(() => TestBed.resetTestingModule());
 describe('Inserataufträge im Editor', () => {
+  it('changes a saved plan once and retains the request identity after response loss', async () => {
+    const f = setup();
+    await settle();
+    const draft = {
+      id: '12',
+      workspaceId: 'workspace-a',
+      connectionId: 'account-a',
+      revision: 3,
+      content: emptyVintedListingContent(),
+      images: [],
+      inventoryItemId: null,
+      createdAt: job.createdAt,
+      updatedAt: job.updatedAt,
+    };
+    f.fixture.componentRef.setInput('draft', draft);
+    f.fixture.componentRef.setInput('draftReady', true);
+    f.fixture.detectChanges();
+    f.component.openPlan(job);
+    f.reschedule.mockRejectedValueOnce(new Error('private-details'));
+    const schedule = {
+      scheduledAt: job.scheduledAt!,
+      timeZone: job.timeZone!,
+      latePolicy: job.latePolicy,
+    };
+    await f.component.reschedule(schedule);
+    expect(f.component.planningError()).not.toContain('private-details');
+    const requestId = f.reschedule.mock.calls[0][2];
+    await f.component.reschedule(schedule);
+    expect(f.reschedule.mock.calls[1]).toEqual([job, draft, requestId, schedule]);
+    expect(f.component.jobs().map((job) => job.state)).toEqual(['queued', 'cancelled']);
+    expect(f.component.planning()).toBeNull();
+  });
+  it('blocks rescheduling unsaved changes and discards acknowledgments after account access changes', async () => {
+    const f = setup();
+    await settle();
+    const draft = {
+      id: '12',
+      workspaceId: 'workspace-a',
+      connectionId: 'account-a',
+      revision: 3,
+      content: emptyVintedListingContent(),
+      images: [],
+      inventoryItemId: null,
+      createdAt: job.createdAt,
+      updatedAt: job.updatedAt,
+    };
+    f.fixture.componentRef.setInput('draft', draft);
+    f.fixture.detectChanges();
+    f.component.openPlan(job);
+    expect(f.component.planning()).toBeNull();
+    f.fixture.componentRef.setInput('draftReady', true);
+    f.fixture.detectChanges();
+    f.component.openPlan(job);
+    let resolve!: (job: VintedListingJob) => void;
+    f.reschedule.mockImplementation(
+      () =>
+        new Promise<VintedListingJob>((done) => {
+          resolve = done;
+        }),
+    );
+    const schedule = {
+      scheduledAt: job.scheduledAt!,
+      timeZone: job.timeZone!,
+      latePolicy: job.latePolicy,
+    };
+    const pending = f.component.reschedule(schedule);
+    await f.component.reschedule(schedule);
+    f.component.closePlan();
+    expect(f.reschedule).toHaveBeenCalledTimes(1);
+    expect(f.component.planning()).not.toBeNull();
+    f.canManage.set(false);
+    await settle();
+    resolve({ ...job, id: '20', replacesJobId: job.id });
+    await pending;
+    expect(f.component.jobs()).toEqual([]);
+    expect(f.component.planning()).toBeNull();
+  });
+  it('closes the planning dialog when a newer saved revision arrives', async () => {
+    const f = setup();
+    await settle();
+    const draft = {
+      id: '12',
+      workspaceId: 'workspace-a',
+      connectionId: 'account-a',
+      revision: 3,
+      content: emptyVintedListingContent(),
+      images: [],
+      inventoryItemId: null,
+      createdAt: job.createdAt,
+      updatedAt: job.updatedAt,
+    };
+    f.fixture.componentRef.setInput('draft', draft);
+    f.fixture.componentRef.setInput('draftReady', true);
+    f.fixture.detectChanges();
+    f.component.openPlan(job);
+    f.fixture.componentRef.setInput('draft', { ...draft, revision: 4 });
+    f.fixture.detectChanges();
+    expect(f.component.planning()).toBeNull();
+  });
   it('distinguishes both occurrences of an autumn clock-change time in the history', async () => {
     const f = setup([job, { ...job, id: '2', scheduledAt: '2026-10-25T00:30:00Z' }]);
     await settle();

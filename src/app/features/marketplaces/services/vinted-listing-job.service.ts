@@ -31,15 +31,11 @@ function invalid(): never {
   );
 }
 function intentArguments(intent: VintedListingJobIntent) {
-  if (
-    !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(intent.requestId) ||
-    !['publish', 'vinted_draft'].includes(intent.action) ||
-    typeof intent.aiPhoto !== 'boolean'
-  )
+  if (!['publish', 'vinted_draft'].includes(intent.action) || typeof intent.aiPhoto !== 'boolean')
     return invalid();
   return {
     p_action: intent.action,
-    p_request_id: intent.requestId,
+    p_request_id: requestIdentifier(intent.requestId),
     p_ai_photo: intent.aiPhoto,
     ...(intent.schedule
       ? {
@@ -50,10 +46,14 @@ function intentArguments(intent: VintedListingJobIntent) {
       : {}),
   };
 }
+function requestIdentifier(value: string): string {
+  if (!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(value)) return invalid();
+  return value;
+}
 function accepted(
   value: unknown,
   draft: VintedListingDraft,
-  intent: VintedListingJobIntent,
+  intent: Pick<VintedListingJobIntent, 'action' | 'schedule'>,
   replacesJobId: string | null,
 ): VintedListingJob {
   const result = parseVintedListingJob(value, draft.workspaceId, draft.id);
@@ -191,5 +191,43 @@ export class VintedListingJobService {
     );
     if (result.state !== 'cancelled') return invalid();
     return result;
+  }
+  async reschedule(
+    job: VintedListingJob,
+    draft: VintedListingDraft,
+    requestId: string,
+    schedule: NonNullable<VintedListingJobIntent['schedule']>,
+  ): Promise<VintedListingJob> {
+    if (
+      !draft.connectionId ||
+      job.connectionId !== draft.connectionId ||
+      job.workspaceId !== draft.workspaceId ||
+      job.draftId !== draft.id ||
+      !job.scheduledAt ||
+      !['queued', 'paused'].includes(job.state)
+    )
+      return invalid();
+    const expectation = {
+      action: job.action,
+      schedule,
+    };
+    const result = listingResponse(
+      await this.client.rpc('marketplace_reschedule_listing', {
+        p_job_id: listingIdentifier(job.id),
+        p_expected_version: job.version,
+        p_expected_revision: draft.revision,
+        p_request_id: requestIdentifier(requestId),
+        p_scheduled_at: schedule.scheduledAt,
+        p_time_zone: schedule.timeZone,
+        p_late_policy: schedule.latePolicy,
+      }),
+    );
+    const acceptedJob = accepted(result, draft, expectation, job.id);
+    if (
+      acceptedJob.externalAccountId !== job.externalAccountId ||
+      acceptedJob.executionMode !== job.executionMode
+    )
+      return invalid();
+    return acceptedJob;
   }
 }

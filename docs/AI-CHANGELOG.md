@@ -1,5 +1,30 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-10 – Juna – Planungsdialog und Terminwechsel anschließen
+
+**Arbeit:** Datum, Uhrzeit, Zeitzone, Schnelltermine und Ausfallregel in einem
+eigenen Dialog ergänzt. Doppelte Uhrzeiten verlangen eine bewusste Auswahl;
+gespeicherte Termine behalten das richtige Vorkommen. Bestehende wartende
+Aufträge lassen sich mit dem aktuellen gespeicherten Entwurf umplanen. Die
+Datenbank übernimmt Aktion und Fotoeinstellung aus der bisherigen Aufnahme;
+Abbruch und Ersatz sind atomar. Die gleiche Anfrage bleibt nach Antwortverlust
+wiederholbar. Ungespeicherte Änderungen, Rechte-/Konto-/Revisionswechsel und
+begonnene Schreibversuche werden abgefangen. Die Formularhülle des Editors
+vermeidet verschachtelte Formulare. Fokusrückkehr nach Escape korrigiert.
+
+**Prüfungen:** Fehlende Funktionen und die Zeitzone mit Leerzeichen zuerst durch
+fehlgeschlagene Tests belegt. 33 Angular- und 68 Modellprüfungen erfolgreich.
+159 Datenbankprüfungen nach frischem Aufbau erfolgreich; Typen neu erzeugt.
+Neue Migration aus dem CLI-Abgleich erzeugt und um die deklarativen Rechte
+ergänzt: ausschließlich neue Termin-RPC, keine fremden Tabellenänderungen.
+Zehn Skript-/Schemaregistrierungsprüfungen, TypeScript, Produktionsbau,
+Format/ESLint, Shared-UI und Suite-Audit erfolgreich. Acht Browserfälle auf
+Desktop/Mobil, hell/dunkel einschließlich AXE erfolgreich. Keine reale
+Anbieter-Schreibaktion, kein Push, PR, Merge oder Deployment.
+
+**Offen:** Neue Veröffentlichungsaufträge, tatsächliche Ausführer und der
+bestätigte Anbietererfolg. Der Gesamtplan bleibt in Arbeit.
+
 ## 2026-10-10 – Juna – Kategoriepfad an den Inseratversuch anbinden
 
 **Arbeit:** Der Worker liest den benötigten Elternpfad aus der bestehenden

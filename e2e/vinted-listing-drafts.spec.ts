@@ -1,10 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
 import axe from 'axe-core';
-import { mockMarketplace, workspaceId } from './support/marketplace-account-fixture';
+import { accountIds, mockMarketplace, workspaceId } from './support/marketplace-account-fixture';
 import { emptyVintedListingContent } from '../src/app/features/marketplaces/models/vinted-listing-content';
 
 test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: 'block' });
-async function mockDrafts(page: Page) {
+async function mockDrafts(page: Page, planned = false) {
   const pixel = Buffer.from(
     await page.evaluate(() => {
       const canvas = document.createElement('canvas');
@@ -19,11 +19,21 @@ async function mockDrafts(page: Page) {
     }),
     'base64',
   );
-  await mockMarketplace(page, false, false, false, false, undefined, undefined, false, 0);
+  await mockMarketplace(
+    page,
+    false,
+    false,
+    false,
+    false,
+    undefined,
+    undefined,
+    false,
+    planned ? 1 : 0,
+  );
   let draft = {
     id: '9007199254740999',
     workspaceId,
-    connectionId: null,
+    connectionId: planned ? accountIds[0] : null,
     revision: 1,
     content: emptyVintedListingContent(),
     images: [] as {
@@ -37,14 +47,14 @@ async function mockDrafts(page: Page) {
     createdAt: '2026-10-09T12:00:00Z',
     updatedAt: '2026-10-09T12:00:00Z',
   };
-  let created = false,
+  let created = planned,
     imageId = 0,
     uploads = 0;
   const jobs = [
     {
       id: '1',
       workspaceId,
-      connectionId: null,
+      connectionId: planned ? accountIds[0] : null,
       draftId: draft.id,
       draftRevision: 1,
       executionMode: 'local',
@@ -61,7 +71,7 @@ async function mockDrafts(page: Page) {
       verifiedAt: null as string | null,
       createdAt: draft.createdAt,
       updatedAt: draft.updatedAt,
-      replacesJobId: null,
+      replacesJobId: null as string | null,
     },
   ];
   jobs.push({
@@ -74,6 +84,7 @@ async function mockDrafts(page: Page) {
   });
   jobs.push({ ...jobs[0], id: '3', state: 'outcome_unknown' });
   const jobCancels: Record<string, unknown>[] = [];
+  const reschedules: Record<string, unknown>[] = [];
   const reserved = new Map<string, (typeof draft.images)[number]>();
   const creates: Record<string, unknown>[] = [],
     templateSaves: Record<string, unknown>[] = [];
@@ -115,6 +126,28 @@ async function mockDrafts(page: Page) {
     const body = route.request().postDataJSON() as Record<string, unknown>;
     if (name === 'marketplace_read_listing_jobs')
       return route.fulfill({ json: { items: created ? jobs : [] } });
+    if (name === 'marketplace_reschedule_listing') {
+      reschedules.push(body);
+      const previous = jobs.find((job) => job.id === body['p_job_id']);
+      if (
+        !previous ||
+        previous.version !== body['p_expected_version'] ||
+        !['queued', 'paused'].includes(previous.state)
+      )
+        return route.fulfill({ status: 409, json: { code: '40001' } });
+      const next = {
+        ...previous,
+        id: '4',
+        replacesJobId: previous.id,
+        draftRevision: draft.revision,
+        scheduledAt: String(body['p_scheduled_at']),
+        timeZone: String(body['p_time_zone']),
+        latePolicy: String(body['p_late_policy']),
+      };
+      Object.assign(previous, { state: 'cancelled', version: previous.version + 1 });
+      jobs.unshift(next);
+      return route.fulfill({ json: next });
+    }
     if (name === 'marketplace_cancel_listing_job') {
       jobCancels.push(body);
       const job = jobs.find((job) => job.id === body['p_job_id']);
@@ -193,8 +226,91 @@ async function mockDrafts(page: Page) {
     }
     return route.fulfill({ contentType: 'image/png', body: pixel });
   });
-  return { creates, templateSaves, jobCancels, draft: () => draft, uploads: () => uploads, pixel };
+  return {
+    creates,
+    templateSaves,
+    jobCancels,
+    reschedules,
+    draft: () => draft,
+    uploads: () => uploads,
+    pixel,
+  };
 }
+
+for (const width of [1440, 390])
+  for (const dark of [false, true]) {
+    test(`Planung ändern bei ${width}px ${dark ? 'dunkel' : 'hell'} @marketplace-preview`, async ({
+      page,
+    }, testInfo) => {
+      await page.setViewportSize({ width, height: 1000 });
+      const state = await mockDrafts(page, true);
+      await page.clock.setFixedTime(new Date('2026-10-09T12:00:00Z'));
+      if (dark) await page.addInitScript(() => localStorage.setItem('flipbase_theme', 'dark'));
+      await page.goto('/marketplaces/vinted/listing-drafts/9007199254740999');
+      const history = page.locator('app-vinted-listing-job-panel');
+      const opener = history.getByRole('button', { name: 'Planung aktualisieren', exact: true });
+      await expect(opener).toBeEnabled();
+      await opener.click();
+      const dialog = page.getByRole('dialog', { name: 'Veröffentlichung planen', exact: true });
+      await expect(dialog).toBeVisible();
+      await expect(dialog.getByRole('textbox', { name: 'Uhrzeit', exact: true })).toHaveValue(
+        '02:30',
+      );
+      await expect(
+        dialog.getByRole('combobox', { name: 'Vorkommen bei der Zeitumstellung' }),
+      ).toContainText('Späteres');
+      await page.keyboard.press('Escape');
+      await expect(dialog).not.toBeVisible();
+      await expect(opener).toBeFocused();
+      expect(state.reschedules).toEqual([]);
+      await opener.click();
+      await dialog.getByRole('combobox', { name: 'Vorkommen bei der Zeitumstellung' }).click();
+      await page.getByRole('option', { name: /Früheres/ }).click();
+      await dialog.getByRole('combobox', { name: 'Regel für einen verpassten Termin' }).click();
+      await page
+        .getByRole('option', {
+          name: 'Veröffentlichen, sobald die Ausführung verfügbar ist',
+          exact: true,
+        })
+        .click();
+      await page.addScriptTag({ content: axe.source });
+      expect(
+        await page.evaluate(
+          async () =>
+            (
+              await (window as unknown as { axe: typeof axe }).axe.run(
+                document.querySelector('app-vinted-listing-schedule-dialog') as HTMLElement,
+              )
+            ).violations,
+        ),
+      ).toEqual([]);
+      expect(await page.locator('form form').count()).toBe(0);
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1),
+      ).toBe(true);
+      await page.screenshot({
+        path: testInfo.outputPath(`schedule-${width}-${dark ? 'dark' : 'light'}.png`),
+        fullPage: false,
+      });
+      await dialog.getByRole('button', { name: 'Termin übernehmen', exact: true }).focus();
+      await page.keyboard.press('Enter');
+      await expect(dialog).not.toBeVisible();
+      expect(state.reschedules).toHaveLength(1);
+      expect(state.reschedules[0]).toMatchObject({
+        p_job_id: '1',
+        p_expected_version: 1,
+        p_expected_revision: 1,
+        p_scheduled_at: '2026-10-25T00:30:00.000Z',
+        p_time_zone: 'Europe/Berlin',
+        p_late_policy: 'publish_when_available',
+      });
+      expect(Object.keys(state.reschedules[0])).not.toContain('p_ai_photo');
+      await expect(history.getByText('Abgebrochen', { exact: true })).toBeVisible();
+      await expect(history.getByText('Veröffentlichung beauftragt', { exact: true })).toBeVisible();
+      await page.reload();
+      await expect(history.getByText(/02:30 MESZ/)).toBeVisible();
+    });
+  }
 
 for (const width of [1440, 390])
   for (const dark of [false, true]) {

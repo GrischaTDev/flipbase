@@ -17,17 +17,29 @@ import { NoticeBannerComponent } from '../../../../shared/components/notice-bann
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { VintedListingJobService } from '../../services/vinted-listing-job.service';
 import { vintedListingJobLabel, type VintedListingJob } from '../../models/vinted-listing-job';
+import type { VintedListingDraft } from '../../models/vinted-listing-draft';
+import {
+  VintedListingScheduleDialogComponent,
+  type VintedListingScheduleSelection,
+} from '../vinted-listing-schedule-dialog/vinted-listing-schedule-dialog.component';
 
 @Component({
   selector: 'app-vinted-listing-job-panel',
   templateUrl: './vinted-listing-job-panel.component.html',
-  imports: [ButtonComponent, CardComponent, NoticeBannerComponent],
+  imports: [
+    ButtonComponent,
+    CardComponent,
+    NoticeBannerComponent,
+    VintedListingScheduleDialogComponent,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class VintedListingJobPanelComponent {
   readonly workspaceId = input.required<string>();
   readonly draftId = input.required<string>();
   readonly draftRevision = input.required<number>();
+  readonly draft = input<VintedListingDraft | null>(null);
+  readonly draftReady = input(false);
   private readonly auth = inject(AuthService);
   private readonly workspace = inject(WorkspaceService);
   private readonly store = inject(MarketplaceAccountStore);
@@ -37,6 +49,14 @@ export class VintedListingJobPanelComponent {
   readonly cancelling = signal<string | null>(null);
   readonly error = signal<string | null>(null);
   readonly announcement = signal('');
+  readonly planning = signal<{
+    readonly job: VintedListingJob;
+    readonly draft: VintedListingDraft;
+    readonly initial: VintedListingScheduleSelection;
+  } | null>(null);
+  readonly planningBusy = signal(false);
+  readonly planningError = signal<string | null>(null);
+  private lastPlanningRequest: { readonly key: string; readonly requestId: string } | null = null;
   private generation = 0;
   private readonly context = computed(() => {
     const user = this.auth.currentUser(),
@@ -58,6 +78,7 @@ export class VintedListingJobPanelComponent {
         job.draftRevision !== this.draftRevision() &&
         ['queued', 'paused', 'claimed', 'writing', 'outcome_unknown'].includes(job.state),
       cancellable: ['queued', 'paused'].includes(job.state),
+      reschedulable: this.planCompatible(job),
       time: this.formatTime(job),
       reason: this.reason(job),
       url:
@@ -76,8 +97,28 @@ export class VintedListingJobPanelComponent {
         this.cancelling.set(null);
         this.error.set(null);
         this.announcement.set('');
+        this.planning.set(null);
+        this.planningBusy.set(false);
+        this.planningError.set(null);
+        this.lastPlanningRequest = null;
         if (key) void this.refresh();
       });
+    });
+    effect(() => {
+      const plan = this.planning(),
+        draft = this.draft(),
+        ready = this.draftReady();
+      if (
+        plan &&
+        (!ready ||
+          !draft ||
+          draft.revision !== plan.draft.revision ||
+          draft.connectionId !== plan.draft.connectionId ||
+          draft.id !== plan.draft.id ||
+          draft.workspaceId !== plan.draft.workspaceId)
+      ) {
+        this.planning.set(null);
+      }
     });
     inject(DestroyRef).onDestroy(() => {
       this.generation++;
@@ -86,7 +127,8 @@ export class VintedListingJobPanelComponent {
   async refresh(): Promise<void> {
     const key = this.context(),
       generation = this.generation;
-    if (!key || this.loading() || this.cancelling()) return;
+    if (!key || this.loading() || this.cancelling() || this.planning() || this.planningBusy())
+      return;
     this.loading.set(true);
     this.error.set(null);
     try {
@@ -109,6 +151,8 @@ export class VintedListingJobPanelComponent {
       !key ||
       this.loading() ||
       this.cancelling() ||
+      this.planning() ||
+      this.planningBusy() ||
       !current ||
       !['queued', 'paused'].includes(current.state)
     )
@@ -131,6 +175,105 @@ export class VintedListingJobPanelComponent {
     } finally {
       if (this.current(key, generation)) this.cancelling.set(null);
     }
+  }
+  openPlan(job: VintedListingJob): void {
+    const current = this.jobs().find(
+      (entry) => entry.id === job.id && entry.version === job.version,
+    );
+    const draft = this.draft();
+    if (
+      !this.context() ||
+      !current ||
+      !draft ||
+      !this.draftReady() ||
+      this.loading() ||
+      this.cancelling() ||
+      this.planningBusy() ||
+      this.planning() ||
+      !this.planCompatible(current)
+    )
+      return;
+    this.planningError.set(null);
+    this.planning.set({
+      job: current,
+      draft,
+      initial: {
+        scheduledAt: current.scheduledAt!,
+        timeZone: current.timeZone!,
+        latePolicy: current.latePolicy,
+      },
+    });
+  }
+  closePlan(): void {
+    if (!this.planningBusy()) this.planning.set(null);
+  }
+  async reschedule(schedule: VintedListingScheduleSelection): Promise<void> {
+    const plan = this.planning(),
+      key = this.context(),
+      generation = this.generation;
+    if (
+      !plan ||
+      !key ||
+      !this.draftReady() ||
+      this.planningBusy() ||
+      this.draft()?.revision !== plan.draft.revision ||
+      !this.planCompatible(plan.job) ||
+      !this.jobs().some((job) => job.id === plan.job.id && job.version === plan.job.version)
+    )
+      return;
+    const requestKey = JSON.stringify([
+      key,
+      plan.job.id,
+      plan.job.version,
+      plan.draft.revision,
+      schedule.scheduledAt,
+      schedule.timeZone,
+      schedule.latePolicy,
+    ]);
+    if (this.lastPlanningRequest?.key !== requestKey)
+      this.lastPlanningRequest = { key: requestKey, requestId: crypto.randomUUID() };
+    const requestId = this.lastPlanningRequest.requestId;
+    this.planningBusy.set(true);
+    this.planningError.set(null);
+    try {
+      const next = await this.api.reschedule(plan.job, plan.draft, requestId, schedule);
+      if (this.current(key, generation)) {
+        this.jobs.update((jobs) => [
+          next,
+          ...jobs
+            .filter((job) => job.id !== next.id)
+            .map((job) =>
+              job.id === plan.job.id
+                ? { ...job, state: 'cancelled' as const, version: job.version + 1 }
+                : job,
+            ),
+        ]);
+        this.planning.set(null);
+        this.announcement.set(
+          'Der neue Termin wurde gespeichert. Der bisherige Auftrag wurde aufgehoben.',
+        );
+      }
+    } catch {
+      if (this.current(key, generation))
+        this.planningError.set(
+          'Die Planung konnte nicht bestätigt werden. Wiederhole dieselben Angaben oder schließe den Dialog und aktualisiere den Verlauf.',
+        );
+    } finally {
+      if (this.current(key, generation)) this.planningBusy.set(false);
+    }
+  }
+  private planCompatible(job: VintedListingJob): boolean {
+    const draft = this.draft();
+    return (
+      !!draft &&
+      !!draft.connectionId &&
+      draft.id === job.draftId &&
+      draft.workspaceId === job.workspaceId &&
+      draft.connectionId === job.connectionId &&
+      !!job.scheduledAt &&
+      !!job.timeZone &&
+      ['queued', 'paused'].includes(job.state)
+    );
   }
   private current(key: string, generation: number): boolean {
     return generation === this.generation && key === this.context();

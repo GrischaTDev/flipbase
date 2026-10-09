@@ -57,6 +57,37 @@ function api(rpc: ReturnType<typeof vi.fn>) {
   return TestBed.inject(VintedListingJobService);
 }
 describe('Vinted-Inseratauftragservice', () => {
+  it('ändert den Termin ohne Foto- oder Aktionseinstellungen im Client neu zu setzen', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: { ...body, id: '9007199254741000', replacesJobId: body.id },
+      error: null,
+    });
+    const service = api(rpc),
+      job = parseVintedListingJob(body, draft.workspaceId);
+    await service.reschedule(job, draft, intent.requestId, intent.schedule);
+    expect(rpc.mock.calls[0]).toEqual([
+      'marketplace_reschedule_listing',
+      {
+        p_job_id: job.id,
+        p_expected_version: job.version,
+        p_expected_revision: draft.revision,
+        p_request_id: intent.requestId,
+        p_scheduled_at: body.scheduledAt,
+        p_time_zone: body.timeZone,
+        p_late_policy: body.latePolicy,
+      },
+    ]);
+    rpc.mockClear();
+    for (const change of [
+      { state: 'writing' as const },
+      { connectionId: null },
+      { scheduledAt: null },
+    ])
+      await expect(
+        service.reschedule({ ...job, ...change }, draft, intent.requestId, intent.schedule),
+      ).rejects.toThrow();
+    expect(rpc).not.toHaveBeenCalled();
+  });
   it('sendet die unveränderte Anfragenkennung und Textkennungen auch beim Wiederholen', async () => {
     const rpc = vi.fn().mockResolvedValue({ data: body, error: null });
     const service = api(rpc);

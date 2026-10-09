@@ -9778,6 +9778,18 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_reschedule_listing: {
+        Args: {
+          p_expected_revision: number
+          p_expected_version: number
+          p_job_id: string
+          p_late_policy?: string
+          p_request_id: string
+          p_scheduled_at: string
+          p_time_zone: string
+        }
+        Returns: Json
+      }
       marketplace_reserve_listing_image: {
         Args: {
           p_byte_size: number

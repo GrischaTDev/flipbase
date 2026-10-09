@@ -27,7 +27,7 @@
   } @else if (loading()) {
     <p role="status" class="text-sm text-fb-text-secondary">Entwurf wird geladen …</p>
   } @else if (!loadError()) {
-    <form [formGroup]="form" (ngSubmit)="save()">
+    <div [formGroup]="form">
       <app-two-column-layout ratio="2-1">
         <div main class="space-y-4">
           <app-card>
@@ -141,10 +141,19 @@
               [workspaceId]="savedDraft.workspaceId"
               [draftId]="savedDraft.id"
               [draftRevision]="savedDraft.revision"
+              [draft]="savedDraft"
+              [draftReady]="
+                !dirty() &&
+                !saving() &&
+                !imageEditing() &&
+                !conflict() &&
+                !loading() &&
+                !loadError()
+              "
             />
           }
         </div>
       </app-two-column-layout>
-    </form>
+    </div>
   }
 </app-entry-page-layout>

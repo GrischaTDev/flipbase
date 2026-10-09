@@ -38,6 +38,16 @@ const jobsGenerated =
 const jobsSchema =
   'revoke all on public.marketplace_listing_jobs from public,anon,authenticated;\nrevoke all on public.marketplace_listing_permissions from public,anon,authenticated;\ngrant execute on function public.marketplace_enqueue_listing(text,bigint,text,uuid,boolean,timestamptz,text,text) to authenticated;';
 
+test('completes the rescheduling function with explicit permissions', () => {
+  const generated =
+    'CREATE FUNCTION public.marketplace_reschedule_listing() RETURNS jsonb LANGUAGE SQL AS $$select null::jsonb$$;';
+  assert.match(
+    completeListingJobsMigration(generated, jobsSchema, 'reschedule'),
+    /revoke all on public.marketplace_listing_jobs/,
+  );
+  assert.throws(() => completeListingJobsMigration('select 1;', jobsSchema, 'reschedule'));
+});
+
 test('completes job permissions without recreating existing media storage', () => {
   const result = completeListingJobsMigration(jobsGenerated, jobsSchema);
   assert.match(result, /revoke all on public.marketplace_listing_jobs/);

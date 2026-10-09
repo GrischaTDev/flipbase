@@ -15,7 +15,8 @@ Verlauf, lokale/Cloud-Ausführungsprotokolle und einen geprüften Worker-Ablauf
 mit privatem Fotobezug, nativer Fotoeingabe und geprüfter Feldvorbereitung.
 Speicher-/Ergebnisadapter und automatische Abholung fehlen noch.
 Pakete 6/7 offen; Paket 5 enthält Terminmodell und
-atomaren Ersatz geplanter Aufträge, noch keinen Dialog oder Ausführer.
+atomaren Ersatz geplanter Aufträge und einen angeschlossenen Planungsdialog für
+vorhandene wartende Aufträge. Neuanlageaktionen und Ausführer fehlen weiterhin.
 Einzelheiten und Prüfgrenzen stehen im
 [Anbieter- und Umsetzungsbericht](../../research/2026-10-09-vinted-listing-provider-contract.md).
 
@@ -195,8 +196,12 @@ Livefall belegen den Anbietererfolg. Kein Erfolg nur aus Auftragsannahme.
 Sommerzeitlücke/-doppelzeit und bewusster Auswahl sowie Prüfung auf zukünftige
 Termine umgesetzt. Fälligkeit und beide Ausfallregeln sind modellseitig
 geprüft. Dauerhafte Aufträge, serverseitige Fälligkeit und atomarer Terminersatz
-sind ergänzt; der Verlauf zeigt Zeitzone und MEZ/MESZ. Dialog und tatsächlicher
-Ausführeranschluss bleiben offen; es erfolgt noch keine Veröffentlichung.
+sind ergänzt; der Verlauf zeigt Zeitzone und MEZ/MESZ. Der Dialog enthält Datum,
+Uhrzeit, IANA-Zone, Schnelltermine, die Auswahl der doppelten Stunde und beide
+Ausfallregeln. Vorhandene wartende Aufträge lassen sich mit dem gespeicherten
+Entwurf aktualisieren; die bisherige Aktion und Fotoeinstellung übernimmt die
+Datenbank. Noch keine Neuanlageaktionen oder tatsächliche Veröffentlichung:
+Ausführeranschluss und Anbieterergebnis bleiben offen.
 
 **Dateien:** Jobschema aus Paket 4 deklarativ ergänzen; neu
 `models/vinted-listing-schedule.ts` samt Modelltest und
@@ -210,11 +215,11 @@ Zeitzone und Ausfallregel entsprechen dem abgestimmten Produktentwurf.
 
 - [ ] Tests zuerst: Sommerzeitlücke/-doppelzeit, Vergangenheit, fehlender Executor,
       Neustart und gleichzeitig erfolgender Abbruch/Claim.
-- [ ] Planungsdialog mit Datum, Uhrzeit, Zeitzone, Schnellterminen und erklärter
+- [x] Planungsdialog mit Datum, Uhrzeit, Zeitzone, Schnellterminen und erklärter
       Ausfallregel bauen. Zeitpunkt auch serverseitig validieren.
 - [ ] Dauerhafte Fälligkeit im bestehenden Dispatch prüfen; Browser-Timer sind
       nicht die Auftragsablage. Wartende Jobs lassen sich vorher abbrechen/ersetzen.
-- [ ] Geplante Inhalte bleiben an eine Revision gebunden; „Planung aktualisieren“
+- [x] Geplante Inhalte bleiben an eine Revision gebunden; „Planung aktualisieren“
       ersetzt alte unbegonnene Aufträge atomar. Keine heimliche Inhaltsänderung.
 - [ ] Fälligkeit, Wartegrund und überfällige Pause sichtbar machen; beide
       Ausfallregeln mit Fake-Uhr testen, nicht durch langes echtes Warten.
