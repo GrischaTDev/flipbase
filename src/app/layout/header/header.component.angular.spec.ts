@@ -320,4 +320,44 @@ describe('HeaderComponent', () => {
     );
     expect(link).not.toBeNull();
   });
+
+  it('zeigt Vinted-Logo vor Vinted-Meldungen und verwendet dezenten Ungelesen-Indikator ohne Brand-Surface', async () => {
+    const unreadVinted: AppNotification = {
+      id: 'marketplace-message:42',
+      type: 'alert',
+      title: 'Neuer Preisvorschlag · Maike Vintage',
+      message: 'Neuer Preisvorschlag von ebruj.',
+      timestamp: '2026-10-09T08:37:00Z',
+      read: false,
+      link: '/marketplaces/vinted/messages?connectionId=acc-1&conversationId=conv-1',
+    };
+    const purchaseNotif: AppNotification = {
+      id: 'general-purchase',
+      type: 'purchase',
+      title: 'Neuer Einkauf #B 2026 19',
+      message: 'Einkaufskosten: 120,00 €.',
+      timestamp: '2026-10-09T07:00:00Z',
+      read: true,
+      link: '/purchases/123',
+    };
+    const fixture = await renderHeader([], 0, [purchaseNotif], [], 0, [unreadVinted], 1);
+    fixture.componentInstance.toggleNotificationDropdown();
+    fixture.detectChanges();
+
+    const element = fixture.nativeElement as HTMLElement;
+    const menu = element.querySelector('#header-notification-menu');
+    expect(menu).not.toBeNull();
+
+    const vintedImg = menu?.querySelector<HTMLImageElement>(
+      'img[src="/images/platforms/vinted.svg"]',
+    );
+    expect(vintedImg).not.toBeNull();
+
+    const unreadLink = menu?.querySelector<HTMLAnchorElement>(
+      'a[href*="/marketplaces/vinted/messages"]',
+    );
+    expect(unreadLink).not.toBeNull();
+    expect(unreadLink?.classList.contains('bg-fb-brand-surface')).toBe(false);
+    expect(unreadLink?.querySelector('.bg-fb-primary.animate-pulse')).not.toBeNull();
+  });
 });
