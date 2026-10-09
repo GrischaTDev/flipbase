@@ -3644,6 +3644,251 @@ export type Database = {
           },
         ]
       }
+      marketplace_negotiation_jobs: {
+        Row: {
+          action: string
+          automated: boolean
+          claim_token: string | null
+          cloud_authorization_version: number | null
+          cloud_browser_session_id: string | null
+          cloud_runner_id: string | null
+          cloud_worker_epoch: number | null
+          cloud_worker_id: string | null
+          command: Json
+          connection_id: string
+          conversation_id: string
+          created_at: string
+          delay_seconds: number
+          due_at: string | null
+          error_code: string | null
+          event_name: string
+          execution_mode: string
+          external_account_id: string
+          external_id: string | null
+          finished_at: string | null
+          grant_generation: number | null
+          id: string
+          lease_expires_at: string | null
+          message_id: string | null
+          predecessor_id: string | null
+          request_id: string | null
+          requested_by: string
+          setting_version: number | null
+          source_key: string
+          source_offer: Json | null
+          started_at: string | null
+          state: string
+          step_index: number
+          thread_id: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          action: string
+          automated: boolean
+          claim_token?: string | null
+          cloud_authorization_version?: number | null
+          cloud_browser_session_id?: string | null
+          cloud_runner_id?: string | null
+          cloud_worker_epoch?: number | null
+          cloud_worker_id?: string | null
+          command: Json
+          connection_id: string
+          conversation_id: string
+          created_at?: string
+          delay_seconds?: number
+          due_at?: string | null
+          error_code?: string | null
+          event_name: string
+          execution_mode: string
+          external_account_id: string
+          external_id?: string | null
+          finished_at?: string | null
+          grant_generation?: number | null
+          id?: string
+          lease_expires_at?: string | null
+          message_id?: string | null
+          predecessor_id?: string | null
+          request_id?: string | null
+          requested_by: string
+          setting_version?: number | null
+          source_key: string
+          source_offer?: Json | null
+          started_at?: string | null
+          state?: string
+          step_index: number
+          thread_id: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          action?: string
+          automated?: boolean
+          claim_token?: string | null
+          cloud_authorization_version?: number | null
+          cloud_browser_session_id?: string | null
+          cloud_runner_id?: string | null
+          cloud_worker_epoch?: number | null
+          cloud_worker_id?: string | null
+          command?: Json
+          connection_id?: string
+          conversation_id?: string
+          created_at?: string
+          delay_seconds?: number
+          due_at?: string | null
+          error_code?: string | null
+          event_name?: string
+          execution_mode?: string
+          external_account_id?: string
+          external_id?: string | null
+          finished_at?: string | null
+          grant_generation?: number | null
+          id?: string
+          lease_expires_at?: string | null
+          message_id?: string | null
+          predecessor_id?: string | null
+          request_id?: string | null
+          requested_by?: string
+          setting_version?: number | null
+          source_key?: string
+          source_offer?: Json | null
+          started_at?: string | null
+          state?: string
+          step_index?: number
+          thread_id?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_negotiation_jobs_predecessor_id_fkey"
+            columns: ["predecessor_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_negotiation_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketplace_negotiation_jobs_workspace_id_connection_id_co_fkey"
+            columns: ["workspace_id", "connection_id", "conversation_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_account_entries"
+            referencedColumns: ["workspace_id", "connection_id", "id"]
+          },
+          {
+            foreignKeyName: "marketplace_negotiation_jobs_workspace_id_connection_id_th_fkey"
+            columns: ["workspace_id", "connection_id", "thread_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_negotiation_threads"
+            referencedColumns: ["workspace_id", "connection_id", "id"]
+          },
+        ]
+      }
+      marketplace_negotiation_settings: {
+        Row: {
+          activated_at: string
+          approved_by: string
+          cloud_authorization_version: number | null
+          config: Json
+          connection_id: string
+          enabled: boolean
+          execution_mode: string
+          external_account_id: string | null
+          grant_generation: number | null
+          updated_at: string
+          version: number
+          workspace_id: string
+        }
+        Insert: {
+          activated_at?: string
+          approved_by: string
+          cloud_authorization_version?: number | null
+          config?: Json
+          connection_id: string
+          enabled?: boolean
+          execution_mode: string
+          external_account_id?: string | null
+          grant_generation?: number | null
+          updated_at?: string
+          version?: number
+          workspace_id: string
+        }
+        Update: {
+          activated_at?: string
+          approved_by?: string
+          cloud_authorization_version?: number | null
+          config?: Json
+          connection_id?: string
+          enabled?: boolean
+          execution_mode?: string
+          external_account_id?: string | null
+          grant_generation?: number | null
+          updated_at?: string
+          version?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_negotiation_setting_workspace_id_connection_id_fkey"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: true
+            referencedRelation: "marketplace_connections"
+            referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
+      marketplace_negotiation_threads: {
+        Row: {
+          accepted: boolean
+          completed_stages: number
+          connection_id: string
+          conversation_id: string
+          created_at: string
+          id: string
+          item_id: string
+          last_offer_at: string | null
+          last_offer_id: string | null
+          purchased: boolean
+          transaction_id: string
+          workspace_id: string
+        }
+        Insert: {
+          accepted?: boolean
+          completed_stages?: number
+          connection_id: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          item_id: string
+          last_offer_at?: string | null
+          last_offer_id?: string | null
+          purchased?: boolean
+          transaction_id: string
+          workspace_id: string
+        }
+        Update: {
+          accepted?: boolean
+          completed_stages?: number
+          connection_id?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          item_id?: string
+          last_offer_at?: string | null
+          last_offer_id?: string | null
+          purchased?: boolean
+          transaction_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_negotiation_threa_workspace_id_connection_id_c_fkey"
+            columns: ["workspace_id", "connection_id", "conversation_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_account_entries"
+            referencedColumns: ["workspace_id", "connection_id", "id"]
+          },
+        ]
+      }
       marketplace_operations: {
         Row: {
           authorization_kind: string | null
@@ -8120,6 +8365,50 @@ export type Database = {
         }
         Returns: boolean
       }
+      marketplace_cloud_negotiation_begin: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: string
+          p_job_id: string
+          p_worker_epoch: number
+          p_worker_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_cloud_negotiation_check: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: string
+          p_job_id: string
+          p_worker_epoch: number
+          p_worker_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_cloud_negotiation_claim: {
+        Args: {
+          p_runner_id: string
+          p_worker_epoch: number
+          p_worker_id: string
+        }
+        Returns: Json
+      }
+      marketplace_cloud_negotiation_finish: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: string
+          p_error_code?: string
+          p_external_id?: string
+          p_job_id: string
+          p_outcome: string
+          p_worker_epoch: number
+          p_worker_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       marketplace_cloud_network_valid: {
         Args: { p_connection_id: string; p_workspace_id: string }
         Returns: boolean
@@ -8207,6 +8496,18 @@ export type Database = {
           p_conversation_id: string
           p_request_id: string
           p_text: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_enqueue_negotiation: {
+        Args: {
+          p_action: string
+          p_connection_id: string
+          p_conversation_id: string
+          p_message_id: string
+          p_price_cents?: number
+          p_request_id: string
           p_workspace_id: string
         }
         Returns: Json
@@ -8450,6 +8751,47 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_local_negotiation_begin: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: string
+          p_job_id: string
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_local_negotiation_check: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: string
+          p_job_id: string
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_local_negotiation_claim: {
+        Args: {
+          p_connection_id: string
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_local_negotiation_finish: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: string
+          p_error_code?: string
+          p_external_id?: string
+          p_job_id: string
+          p_outcome: string
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       marketplace_mark_conversation_read: {
         Args: {
           p_connection_id: string
@@ -8483,6 +8825,68 @@ export type Database = {
           p_workspace_id: string
         }
         Returns: Json
+      }
+      marketplace_negotiation_authorized: {
+        Args: {
+          p_account_id: string
+          p_authorization_version: number
+          p_connection_id: string
+          p_grant_generation: number
+          p_mode: string
+          p_user_id: string
+          p_workspace_id: string
+        }
+        Returns: boolean
+      }
+      marketplace_negotiation_config_valid: {
+        Args: { p_config: Json }
+        Returns: boolean
+      }
+      marketplace_negotiation_default_config: { Args: never; Returns: Json }
+      marketplace_negotiation_discount_valid: {
+        Args: { p_discount: Json }
+        Returns: boolean
+      }
+      marketplace_negotiation_finish_job: {
+        Args: {
+          p_error_code: string
+          p_external_id: string
+          p_job: Database["public"]["Tables"]["marketplace_negotiation_jobs"]["Row"]
+          p_outcome: string
+        }
+        Returns: Json
+      }
+      marketplace_negotiation_job_valid: {
+        Args: {
+          p_job: Database["public"]["Tables"]["marketplace_negotiation_jobs"]["Row"]
+        }
+        Returns: boolean
+      }
+      marketplace_negotiation_minimum_price: {
+        Args: { p_config: Json; p_original: number }
+        Returns: number
+      }
+      marketplace_negotiation_offer_valid: {
+        Args: {
+          p_connection_id: string
+          p_conversation_id: string
+          p_offer: Json
+          p_workspace_id: string
+        }
+        Returns: boolean
+      }
+      marketplace_negotiation_plan: {
+        Args: {
+          p_action: string
+          p_event: string
+          p_message_id: string
+          p_offer: Json
+          p_price: number
+          p_settings: Database["public"]["Tables"]["marketplace_negotiation_settings"]["Row"]
+          p_source_key: string
+          p_thread: Database["public"]["Tables"]["marketplace_negotiation_threads"]["Row"]
+        }
+        Returns: undefined
       }
       marketplace_prepare_favorite_import: {
         Args: {
@@ -8542,6 +8946,10 @@ export type Database = {
           p_conversation_id: string
           p_workspace_id: string
         }
+        Returns: Json
+      }
+      marketplace_read_negotiation: {
+        Args: { p_connection_id: string; p_workspace_id: string }
         Returns: Json
       }
       marketplace_read_page: {
@@ -8638,6 +9046,16 @@ export type Database = {
         Returns: Json
       }
       marketplace_save_favorite_messages: {
+        Args: {
+          p_config: Json
+          p_connection_id: string
+          p_enabled: boolean
+          p_expected_version: number
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_save_negotiation: {
         Args: {
           p_config: Json
           p_connection_id: string
@@ -9861,4 +10279,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-
