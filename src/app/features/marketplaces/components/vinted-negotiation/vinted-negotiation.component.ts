@@ -45,11 +45,11 @@ function stepForm(step?: NegotiationMessageStep) {
 }
 function bandForm(band?: VintedNegotiationConfig['priceBands'][number]) {
   return new FormGroup({
-    upTo: numberControl(band?.upToCents ? band.upToCents / 100 : null),
+    upTo: new FormControl<number | null>(band?.upToCents ? band.upToCents / 100 : null),
     discountType: new FormControl<'amount' | 'percentage'>(band?.discountType ?? 'amount', {
       nonNullable: true,
     }),
-    discountValue: numberControl(band?.discountValue ?? 10),
+    discountValue: new FormControl<number | null>(band?.discountValue ?? 10),
   });
 }
 @Component({
@@ -175,7 +175,7 @@ export class VintedNegotiationComponent {
   readonly form = new FormGroup({
     enabled: new FormControl(false, { nonNullable: true }),
     discountType: new FormControl<'amount' | 'percentage'>('amount', { nonNullable: true }),
-    discountValue: numberControl(10),
+    discountValue: new FormControl<number | null>(10),
     priceBands: new FormArray<ReturnType<typeof bandForm>>([]),
     stages: new FormArray([50, 80, 100].map(numberControl)),
     delaySeconds: numberControl(0),

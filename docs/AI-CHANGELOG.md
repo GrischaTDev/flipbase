@@ -26,6 +26,13 @@ Schreibausgang bleibt ausdrücklich unbestätigt, sicherer Fehler wird getrennt
 angezeigt. Zwei neue Renderingregressionen, die betroffene Komponente mit elf
 Tests, erneuter Produktionsbau, Format/Lint und branchweiter Diffcheck bestehen.
 
+**CI-Korrektur (PR356):** Nachlass und Preisbereichsgrenze verwenden explizite
+FormControl-Konstruktionen für die bestehende Formularbindungsprüfung. Die
+Smoke-Erwartungsliste enthält die sechs vorhandenen Bot-Icon-/Lesestatusfälle.
+54 Formularbindungs- und elf Komponententests, beide Smoke-Auswahlprüfungen,
+Produktionsbau sowie gezieltes Format/Lint bestehen; Assertions und
+Testauswahl bleiben unverändert.
+
 **Grenze:** Bestätigte Zahlungen sind belegte Kaufauslöser. Für die separate
 Käuferannahme unseres Gegenangebots fehlt bislang ein eindeutiger Anbieterbeleg;
 die Oberfläche erklärt die Nichtverfügbarkeit und bewahrt gespeicherte Texte.
