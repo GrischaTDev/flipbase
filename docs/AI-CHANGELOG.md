@@ -20,7 +20,8 @@
 
 - Unit-Tests in `header-notification-visuals.spec.ts` (14 Tests, alle bestanden).
 - Angular-Komponententests in `header.component.angular.spec.ts` (8 Tests, alle bestanden) inklusive Prüfung auf Vinted-Logo und Ungelesen-Indikator.
-- Model-Tests in `marketplace-favorite-notifications.spec.ts` (9 Tests, alle bestanden).
+- Model- und Store-Tests in `marketplace-favorite-notifications.spec.ts` und `marketplace-favorite-notification.store.angular.spec.ts` (alle bestanden).
+- E2E-Erwartungstext in `vinted-workspace-ui.spec.ts` an den neuen Favoritentext angepasst.
 - Alle 135 Node-Tests für Header und Marktplatz-Modelle bestanden.
 - Typprüfung (`npm run typecheck`), ESLint und Prettier ohne Beanstandung.
 
