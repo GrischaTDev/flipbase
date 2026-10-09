@@ -61,3 +61,19 @@ test('rejects unrelated, incomplete or already completed job migrations', () => 
     ),
   );
 });
+
+test('completes a planning supplement without modifying the original migration', () => {
+  const generated =
+    'ALTER TABLE public.marketplace_listing_jobs ADD COLUMN replaces_job_id bigint;\nCREATE FUNCTION public.marketplace_replace_planned_listing() RETURNS jsonb LANGUAGE SQL AS $$select null::jsonb$$;';
+  const result = completeListingJobsMigration(generated, jobsSchema, 'planning');
+  assert.match(result, /add column replaces_job_id/);
+  assert.match(result, /revoke all on public.marketplace_listing_jobs/);
+  assert.throws(() => completeListingJobsMigration('select 1;', jobsSchema, 'planning'));
+  assert.throws(() =>
+    completeListingJobsMigration(
+      generated + '\nALTER TABLE public.workspaces ADD COLUMN x text;',
+      jobsSchema,
+      'planning',
+    ),
+  );
+});

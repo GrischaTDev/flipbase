@@ -3555,6 +3555,7 @@ export type Database = {
           late_policy: string
           permission_id: number | null
           provider_state: string | null
+          replaces_job_id: number | null
           request_hash: string
           request_id: string
           requested_by: string
@@ -3582,6 +3583,7 @@ export type Database = {
           late_policy?: string
           permission_id?: number | null
           provider_state?: string | null
+          replaces_job_id?: number | null
           request_hash: string
           request_id: string
           requested_by: string
@@ -3609,6 +3611,7 @@ export type Database = {
           late_policy?: string
           permission_id?: number | null
           provider_state?: string | null
+          replaces_job_id?: number | null
           request_hash?: string
           request_id?: string
           requested_by?: string
@@ -3627,6 +3630,13 @@ export type Database = {
             columns: ["permission_id"]
             isOneToOne: false
             referencedRelation: "marketplace_listing_permissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketplace_listing_jobs_replaces_job_id_fkey"
+            columns: ["replaces_job_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_listing_jobs"
             referencedColumns: ["id"]
           },
           {
@@ -8975,6 +8985,21 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_enqueue_listing_internal: {
+        Args: {
+          p_action: string
+          p_ai_photo: boolean
+          p_draft_id: string
+          p_expected_revision: number
+          p_late_policy?: string
+          p_replaces_job_id?: number
+          p_replaces_version?: number
+          p_request_id: string
+          p_scheduled_at?: string
+          p_time_zone?: string
+        }
+        Returns: Json
+      }
       marketplace_enqueue_local_message: {
         Args: {
           p_attachment?: Json
@@ -9564,6 +9589,20 @@ export type Database = {
       }
       marketplace_reorder_connections: {
         Args: { p_connection_ids: string[]; p_workspace_id: string }
+        Returns: Json
+      }
+      marketplace_replace_planned_listing: {
+        Args: {
+          p_action: string
+          p_ai_photo: boolean
+          p_expected_revision: number
+          p_expected_version: number
+          p_job_id: string
+          p_late_policy?: string
+          p_request_id: string
+          p_scheduled_at: string
+          p_time_zone: string
+        }
         Returns: Json
       }
       marketplace_reserve_listing_image: {

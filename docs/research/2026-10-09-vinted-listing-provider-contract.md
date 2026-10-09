@@ -175,8 +175,15 @@ denselben Auftrag. Aufträge können vor Beginn abgebrochen werden; ein Widerruf
 während eines begonnenen Versuchs bleibt „Ergebnis unklar“. Konto- und
 Installationswechsel entziehen alten Aufträgen die Freigabe. `queued` bestätigt
 ausschließlich die Speicherung in Flipbase. Claim/Begin/Finish, Ausführer,
-atomarer Terminersatz, Planungsdialog und serverseitige Terminsteuerung sowie
+Planungsdialog und serverseitige Terminsteuerung sowie
 vollständige Live-Bearbeitung mit Drawer und manuelles Relist fehlen weiterhin.
+
+Der Terminersatz ist inzwischen als eigene atomare Datenbankfunktion ergänzt:
+neuer gespeicherter Inhalt und Termin ersetzen einen noch nicht begonnenen
+geplanten Auftrag. Bei einem Fehler bleibt der alte Auftrag erhalten. Eine
+wiederholte Anfragenkennung liefert denselben Ersatz. Frontend-Modell und
+Feature-Service prüfen den Auftragskontext und unterscheiden Anbieterprüfung
+von Veröffentlichung. Die Oberfläche und Ausführer sind noch anzuschließen.
 
 ## Prüfungen dieser Grundlage
 

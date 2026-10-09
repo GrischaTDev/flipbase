@@ -21,6 +21,7 @@ create temporary table listing_job_context(draft jsonb,job jsonb,permission json
 grant all on listing_job_context to authenticated;
 set local role authenticated;
 select set_config('request.jwt.claim.sub','46300000-0000-4000-8000-000000000001',true);
+select throws_ok($$select public.marketplace_enqueue_listing_internal('1',1,'publish','46300000-0000-4000-8000-000000000039',false)$$,'42501',null,'Clients dürfen die interne Annahmefunktion nicht direkt aufrufen');
 insert into listing_job_context(draft) select public.marketplace_create_listing_draft(
  '46300000-0000-4000-8000-000000000011','46300000-0000-4000-8000-000000000021',
  '{"title":"Testjacke","description":"Gebraucht","priceCents":1200,"currency":"EUR","categoryId":1223,"brandId":53,"brandLabel":"Nike","sizeId":208,"conditionId":2,"colorIds":[1],"materialIds":[44],"packageSizeId":2}');
@@ -67,6 +68,16 @@ update listing_job_context set draft=public.marketplace_save_listing_draft(draft
 update listing_job_context set job=public.marketplace_enqueue_listing(draft->>'id',3,'publish','46300000-0000-4000-8000-000000000035',false,clock_timestamp()+interval '1 hour','Europe/Berlin','pause_after_30_minutes');
 select is((select job->>'timeZone' from listing_job_context),'Europe/Berlin','Der dauerhafte Termin behält seine ausdrückliche Zeitzone');
 select is(jsonb_array_length(public.marketplace_read_listing_jobs('46300000-0000-4000-8000-000000000011',(select draft->>'id' from listing_job_context))->'items'),2,'Verlauf enthält abgebrochenen und geplanten Auftrag');
+select throws_ok($$select public.marketplace_replace_planned_listing((select job->>'id' from listing_job_context),2,3,'publish','46300000-0000-4000-8000-000000000037',false,clock_timestamp()+interval '2 hours','Europe/Berlin')$$,'40001',null,'Planungsersatz prüft die bisherige Auftragsversion');
+update listing_job_context set draft=public.marketplace_save_listing_draft(draft->>'id',3,'{"title":"Unvollständig"}','46300000-0000-4000-8000-000000000021');
+select throws_ok($$select public.marketplace_replace_planned_listing((select job->>'id' from listing_job_context),1,4,'publish','46300000-0000-4000-8000-000000000037',false,clock_timestamp()+interval '2 hours','Europe/Berlin')$$,'22023',null,'Ungültiger neuer Inhalt verhindert den gesamten Planungsersatz');
+select is((select state from public.marketplace_listing_jobs where id=(select (job->>'id')::bigint from listing_job_context)),'queued','Nach fehlgeschlagenem Ersatz bleibt der bisherige Termin erhalten');
+update listing_job_context set draft=public.marketplace_save_listing_draft(draft->>'id',4,jsonb_set((select snapshot->'content' from public.marketplace_listing_jobs where id=(select (job->>'id')::bigint from listing_job_context)),'{title}','"Neue Planung"'),'46300000-0000-4000-8000-000000000021');
+update listing_job_context set job=public.marketplace_replace_planned_listing(job->>'id',1,5,'publish','46300000-0000-4000-8000-000000000037',false,clock_timestamp()+interval '2 hours','Europe/Berlin');
+select is((select job->>'state' from listing_job_context),'queued','Planungsersatz nimmt genau einen neuen Auftrag an');
+select is((select state from public.marketplace_listing_jobs where id=(select (job->>'replacesJobId')::bigint from listing_job_context)),'cancelled','Der vorherige Termin wird in derselben Transaktion aufgehoben');
+select is((select count(*) from public.marketplace_listing_jobs where state='queued'),1::bigint,'Nach Planungsersatz bleibt genau ein Termin offen');
+select is((public.marketplace_replace_planned_listing((select job->>'replacesJobId' from listing_job_context),1,5,'publish','46300000-0000-4000-8000-000000000037',false,(select (job->>'scheduledAt')::timestamptz from listing_job_context),'Europe/Berlin')->>'id'),(select job->>'id' from listing_job_context),'Wiederholter Planungsersatz legt keinen zweiten Auftrag an');
 reset role;
 update public.marketplace_local_extension_grants set grant_generation=grant_generation+1 where connection_id='46300000-0000-4000-8000-000000000021';
 set local role authenticated;
@@ -74,17 +85,18 @@ select public.marketplace_read_listing_jobs('46300000-0000-4000-8000-00000000001
 select is((select state from public.marketplace_listing_jobs where id=(select (job->>'id')::bigint from listing_job_context)),'cancelled','Eine neu gekoppelte Installation übernimmt keine alten Aufträge');
 select is((select version from public.marketplace_listing_jobs where id=(select (job->>'id')::bigint from listing_job_context)),2::bigint,'Ein automatischer Abbruch erhöht die Auftragsversion');
 update listing_job_context set permission=public.marketplace_approve_listings('46300000-0000-4000-8000-000000000011','46300000-0000-4000-8000-000000000021','46301');
-update listing_job_context set job=public.marketplace_enqueue_listing(draft->>'id',3,'publish','46300000-0000-4000-8000-000000000036',false,clock_timestamp()+interval '1 hour','Europe/Berlin','pause_after_30_minutes');
+update listing_job_context set job=public.marketplace_enqueue_listing(draft->>'id',5,'publish','46300000-0000-4000-8000-000000000036',false,clock_timestamp()+interval '1 hour','Europe/Berlin','pause_after_30_minutes');
 reset role;
 update public.marketplace_listing_jobs set state='writing',version=version+1 where id=(select (job->>'id')::bigint from listing_job_context);
 set local role authenticated;
 select throws_ok($$select public.marketplace_cancel_listing_job((select job->>'id' from listing_job_context),(select version from public.marketplace_listing_jobs where state='writing'))$$,'22023',null,'Begonnene Anbieteraktionen lassen sich nicht als sicher abgebrochen markieren');
+select throws_ok($$select public.marketplace_replace_planned_listing((select job->>'id' from listing_job_context),(select version from public.marketplace_listing_jobs where state='writing'),5,'publish','46300000-0000-4000-8000-000000000038',false,clock_timestamp()+interval '2 hours','Europe/Berlin')$$,'22023',null,'Ein begonnener Schreibversuch darf nicht durch einen neuen Termin ersetzt werden');
 select public.marketplace_revoke_listings('46300000-0000-4000-8000-000000000011','46300000-0000-4000-8000-000000000021',(select (permission->>'authorizationVersion')::bigint from listing_job_context));
 select is((select state from public.marketplace_listing_jobs where id=(select (job->>'id')::bigint from listing_job_context)),'outcome_unknown','Widerruf während eines Schreibversuchs bewahrt das unklare Ergebnis');
 select throws_ok($$select public.marketplace_enqueue_listing((select draft->>'id' from listing_job_context),2,'publish','46300000-0000-4000-8000-000000000034',false)$$,'42501',null,'Nach Widerruf darf kein neuer Auftrag angenommen werden');
 reset role;
 select lives_ok($$delete from public.marketplace_connections where id='46300000-0000-4000-8000-000000000021'$$,'Kontolöschung darf erlaubte Fremdschlüssel leeren');
 select lives_ok($$set constraints all immediate$$,'Nach beiden Löschaktualisierungen sind alle Fremdschlüssel gültig');
-select ok((select bool_and(connection_id is null and permission_id is null and external_account_id='46301' and snapshot->'content'->>'title'='Testjacke') from public.marketplace_listing_jobs),'Kontolöschung erhält Inhalt und ursprüngliche Kontoidentität im Verlauf');
+select ok((select bool_and(connection_id is null and permission_id is null and external_account_id='46301' and snapshot->'content'->>'title' in ('Testjacke','Neue Planung')) from public.marketplace_listing_jobs),'Kontolöschung erhält Inhalt und ursprüngliche Kontoidentität im Verlauf');
 select * from finish();
 rollback;

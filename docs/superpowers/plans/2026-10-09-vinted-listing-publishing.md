@@ -11,7 +11,8 @@ Bearbeitungsmaske am angemeldeten Vinted geprüft; weitere Kategoriearten,
 Anbietergrenzen und Schreib-/Ergebnisbelege noch offen. Offizielle Fotoanzahl
 und gemeinsame Formularleser ergänzt. Pakete 2/3 teilweise umgesetzt; Paket 4
 enthält eigene Freigaben, unveränderliche Auftragsannahme, Abbruch und Verlauf,
-noch keine Ausführung. Pakete 6/7 offen; Paket 5 enthält bisher das Terminmodell.
+noch keine Ausführung. Pakete 6/7 offen; Paket 5 enthält Terminmodell und
+atomaren Ersatz geplanter Aufträge, noch keinen Dialog oder Ausführer.
 Einzelheiten und Prüfgrenzen stehen im
 [Anbieter- und Umsetzungsbericht](../../research/2026-10-09-vinted-listing-provider-contract.md).
 

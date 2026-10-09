@@ -96,11 +96,20 @@ export function completeListingMigration(migration, schemas) {
   );
   return `-- Zweck: Vinted-Arbeitskopien, Originalfotos und ausgewählte Vorlagenfelder speichern.\n-- Betroffen: public.marketplace_listing_drafts, marketplace_listing_images, marketplace_listing_templates und private Storage-Policies.\n${lowercaseSql(migration.trimEnd())}\n\n${marker}\n${permissions.join('\n')}\n${bucket[0]}\n${missingPolicies.join('\n')}\n`;
 }
-export function completeListingJobsMigration(migration, schema) {
+export function completeListingJobsMigration(migration, schema, phase = 'jobs') {
   if (migration.includes(jobsMarker)) throw new Error('Inseratauftrags-Migration bereits ergänzt.');
-  for (const table of jobsTables)
+  if (!['jobs', 'planning'].includes(phase)) throw new Error('Unbekannte Inserat-Migrationsphase.');
+  for (const table of phase === 'jobs' ? jobsTables : [])
     if (!new RegExp(`create table public\\.${table}\\b`, 'iu').test(migration))
       throw new Error(`Generierte Tabelle fehlt: ${table}`);
+  if (
+    phase === 'planning' &&
+    (!/create(?: or replace)? function public\.marketplace_replace_planned_listing\b/iu.test(
+      migration,
+    ) ||
+      !/add(?: column)?\s+replaces_job_id\b/iu.test(migration))
+  )
+    throw new Error('Generierter Planungsersatz fehlt.');
   for (const match of migration.matchAll(
     /^(?:alter table|drop table|create table)\s+(?:"?public"?\.)?"?([a-z_]+)"?/gimu,
   )) {
@@ -116,20 +125,35 @@ export function completeListingJobsMigration(migration, schema) {
       )
     )
       throw new Error(`Rechte fehlen: ${table}`);
-  return `-- Zweck: eigene Inseratfreigaben und unveränderliche, revisionsgebundene Aufträge speichern.\n-- Betroffen: public.marketplace_listing_permissions und marketplace_listing_jobs sowie deren kontrollierte RPCs.\n${lowercaseSql(migration.trimEnd())}\n\n${jobsMarker}\n${permissions.join('\n')}\n`;
+  const purpose =
+    phase === 'planning'
+      ? 'geplante Inserataufträge atomar durch eine neue Inhaltsrevision ersetzen.'
+      : 'eigene Inseratfreigaben und unveränderliche, revisionsgebundene Aufträge speichern.';
+  return `-- Zweck: ${purpose}\n-- Betroffen: public.marketplace_listing_permissions und marketplace_listing_jobs sowie deren kontrollierte RPCs.\n${lowercaseSql(migration.trimEnd())}\n\n${jobsMarker}\n${permissions.join('\n')}\n`;
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   const path = process.argv[2];
-  if (!/^supabase[/\\]migrations[/\\]\d{14}_vinted_listing_(?:drafts|jobs)\.sql$/.test(path ?? ''))
+  if (
+    !/^supabase[/\\]migrations[/\\]\d{14}_vinted_listing_(?:drafts|jobs|planning)\.sql$/.test(
+      path ?? '',
+    )
+  )
     throw new Error('Pfad der frisch generierten Inserat-Migration erforderlich.');
   const tracked = spawnSync('git', ['ls-files', '--error-unmatch', '--', path], {
     encoding: 'utf8',
   });
   if (tracked.error || tracked.status !== 1)
     throw new Error('Versionierte Migration oder Git-Status nicht prüfbar.');
-  if (/_vinted_listing_jobs\.sql$/.test(path)) {
+  if (/_vinted_listing_(?:jobs|planning)\.sql$/.test(path)) {
     const schema = await readFile('supabase/schemas/463_marketplace_listing_jobs.sql', 'utf8');
-    await writeFile(path, completeListingJobsMigration(await readFile(path, 'utf8'), schema));
+    await writeFile(
+      path,
+      completeListingJobsMigration(
+        await readFile(path, 'utf8'),
+        schema,
+        /_planning\.sql$/.test(path) ? 'planning' : 'jobs',
+      ),
+    );
   } else {
     const schemas = await Promise.all(
       [

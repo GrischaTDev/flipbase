@@ -26,6 +26,22 @@ Angular-Typen, Produktionsbau, Format, betroffene ESLint-Dateien und Suite-Audit
 erfolgreich. Keine Produktionsmigration, installierte
 Erweiterungsänderung, reale Anbieter-Schreibaktion, Push, PR oder Merge.
 
+**Weitere Umsetzung:** Geplante Aufträge lassen sich jetzt atomar durch einen
+neuen gespeicherten Entwurfsstand und Termin ersetzen. Scheitert die Annahme,
+bleibt der bisherige Termin bestehen. Auftrag, Version, Freigabe und Zielkonto
+werden geprüft; begonnene Schreibversuche sind vom Ersatz ausgeschlossen.
+Die Anfragenkennung macht auch diesen Ersatz wiederholbar. Neue Migration
+separat erzeugt; die bereits versionierte erste Migration bleibt unverändert.
+Frontend-Modell und Feature-Service prüfen große Textkennungen, Arbeitsbereich,
+Entwurf, Revision, Aktion, Termin und Zeitzone. Der Status unterscheidet
+Auftragsannahme, Anbieterprüfung, Vinted-Entwurf und unklares Ergebnis.
+
+**Zusätzliche Prüfungen:** Frischer Reset einschließlich Ergänzungsmigration,
+Typen erneut erzeugt; insgesamt 103 Datenbankprüfungen, 48 betroffene
+Modellprüfungen und 6 neue Angular-Serviceprüfungen erfolgreich. Sieben
+gezielte Migrations-/Registrierungsprüfungen und Suite-Audit erfolgreich.
+Ausführung, Terminmaske und tatsächliche Anbieterbestätigung bleiben offen.
+
 ## 2026-10-09 – Juna – Vinted-Formulare nach Wiederverbindung geprüft
 
 **Auftrag:** Mit „probier nochmal“ die Browserprüfung erneut versuchen.
