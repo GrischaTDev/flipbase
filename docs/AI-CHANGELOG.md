@@ -1,5 +1,18 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-09 - Juna - Angebotsaktionen und Verhandlungsautomatik umsetzen
+
+**Auftrag:** Den abgestimmten Verhandlungsentwurf für Cloud und Extension
+umsetzen: manuelle Angebotsaktionen, Preisgrenzen und Stufen, alternative
+Ereignistexte und Nachrichtenfolgen, Verzögerungen sowie Kaufnachrichten.
+
+**Stand:** Umsetzung im bestehenden eigenen Zweig mit getrennter
+Verhandlungswarteschlange. Aktuelle öffentliche Vinted-Browserquellen bestätigen
+Accept-/Reject-PUT und Verkäufer-Gegenangebote sowie die strukturierten
+Angebotsfelder. Neue Einstellungen bleiben ausgeschaltet. Keine produktiven
+Schreibaktionen oder Freigaben. Umsetzungs- und Prüfstände stehen im
+[Plan](superpowers/plans/2026-10-09-vinted-negotiation.md); Abschlussprüfungen folgen.
+
 ## 2026-10-09 - Juna - Verhandlungsseite im Browser analysieren
 
 **Auftrag:** Die geöffnete Bleam-Seite „Automatische Verhandlung“ lesen und

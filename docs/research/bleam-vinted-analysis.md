@@ -13,6 +13,27 @@ Anwendungspakete werden nicht mit veröffentlicht.
 
 ## Automatische Verhandlung: Browserbeobachtung vom 09.10.2026
 
+### Vinted-Angebotsvertrag vom 09.10.2026
+
+Die öffentlichen JavaScript-Dateien des geöffneten Vinted-Gesprächs wurden
+lesend geprüft; keine Angebotsaktion wurde ausgeführt. Die
+[aktuelle Angebotsoberfläche](https://marketplace-web-assets.vinted.com/_next/static/chunks/1q6m-857qs8nu.js)
+verwendet `PUT /transactions/{id}/offer_requests/{offerRequestId}/accept` und
+`PUT /transactions/{id}/offer_requests/{offerRequestId}/reject`. Verkäufer senden
+Gegenangebote mit `POST /transactions/{id}/offers` und `{offer:{price,currency}}`;
+die Antwort enthält `offer.id`. Diese Pfade gehören zur vorhandenen Vinted-API,
+nicht zu Flipbase. Der Browseradapter prüft zusätzlich Rolle, Artikel und Ergebnis.
+
+Der [Nachrichtenmapper](https://marketplace-web-assets.vinted.com/_next/static/chunks/0hn8x2q4tyutq.js)
+liest bei `offer_request_message` unter anderem `offer_request_id`,
+`transaction_id`, `user_id`, `price`, `original_price`, `currency`, `current` und
+`status`. Preise sind Zeichenketten oder Objekte mit `amount`. Der Statusvertrag
+in der Angebotsoberfläche lautet 10 offen, 20 angenommen, 30 abgelehnt, 40 storniert.
+Nachrichtenkennung und Angebotskennung sind unterschiedliche Felder.
+
+Eine Angebotsannahme belegt keinen Kauf. Kaufnachrichten benötigen einen eigenen
+bestätigten Anbieterbeleg; Anzeigenamen und übersetzte Statustexte reichen nicht.
+
 Die bereits geöffnete [Bleam-Verhandlungsseite](https://bleam.app/en/dashboard/negociation)
 wurde im angemeldeten Browser ausschließlich gelesen. Ein Auswahlmenü für die
 Versandreihenfolge wurde geöffnet und ohne Auswahl wieder geschlossen. Keine
