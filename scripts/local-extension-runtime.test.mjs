@@ -399,9 +399,9 @@ test('Scheduler persists distinct deadlines and never catches up missed periods 
   let stored = { binding: { expiresAt: '2099-01-01T00:00:00Z' } };
   const calls = [];
   const run = scheduler.createScheduler({
-    load: async () => stored,
+    load: async () => structuredClone(stored),
     save: async (next) => {
-      stored = next;
+      stored = structuredClone(next);
     },
     now: () => 1_000_000,
     run: async (action) => {
@@ -411,13 +411,54 @@ test('Scheduler persists distinct deadlines and never catches up missed periods 
   });
   await run.tick();
   await run.tick();
-  assert.deepEqual(calls, ['INBOX_SYNC', 'MESSAGES_SEND', 'FAVORITES_SYNC', 'FAVORITES_SEND']);
+  assert.deepEqual(calls, [
+    'INBOX_SYNC',
+    'MESSAGES_SEND',
+    'NEGOTIATIONS_SEND',
+    'FAVORITES_SYNC',
+    'FAVORITES_SEND',
+  ]);
   assert.equal(stored.schedule.latestAt, 1_300_000);
   assert.equal(stored.schedule.commandsAt, 1_090_000);
+  assert.equal(stored.schedule.negotiationCommandsAt, 1_090_000);
   assert.equal(stored.schedule.favoritesAt, 1_300_000);
   assert.equal(stored.schedule.favoriteCommandsAt, 1_090_000);
   assert.equal(stored.schedule.backfillAt, 1_060_000);
 });
+test('Scheduler preserves computed backfill deadlines across cloned storage reloads', async () => {
+  for (const [previousBackfillAt, nextPage, expectedBackfillAt] of [
+    [null, 2, 1_060_000],
+    [123, 1, null],
+  ]) {
+    let stored = {
+      binding: { expiresAt: '2099-01-01T00:00:00Z' },
+      schedule: {
+        backfillAt: previousBackfillAt,
+        commandsAt: 2_000_000,
+        negotiationCommandsAt: 2_000_000,
+        favoritesAt: 2_000_000,
+        favoriteCommandsAt: 2_000_000,
+      },
+    };
+    const calls = [];
+    await scheduler
+      .createScheduler({
+        load: async () => structuredClone(stored),
+        save: async (next) => {
+          stored = structuredClone(next);
+        },
+        now: () => 1_000_000,
+        run: async (action) => {
+          calls.push(action);
+          return { nextPage };
+        },
+      })
+      .tick();
+    assert.deepEqual(calls, ['INBOX_SYNC']);
+    assert.equal(stored.schedule.backfillAt, expectedBackfillAt);
+  }
+});
+
 test('Scheduler preserves a persisted challenge pause across recreation', async () => {
   const stored = {
     binding: { expiresAt: '2099-01-01T00:00:00Z' },
@@ -1651,7 +1692,11 @@ test('Manifest narrows application and provider access without changing Kleinanz
     script.matches.includes('https://www.vinted.de/*'),
   );
   assert.equal(vintedContent.js.at(-1), 'vinted-local-account.js');
-  assert.equal(manifest.version, '1.7.1');
+  assert.equal(manifest.version, '1.8.0');
+  assert.ok(
+    vintedContent.js.indexOf('vinted-local-negotiation.js') <
+      vintedContent.js.indexOf('vinted-local-core.js'),
+  );
   assert.ok(
     manifest.content_scripts.some(
       (script) =>

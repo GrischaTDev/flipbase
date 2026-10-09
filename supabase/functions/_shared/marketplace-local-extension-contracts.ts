@@ -1,4 +1,8 @@
 import type { AccountScope } from './marketplace-contracts.ts';
+import type {
+  MarketplaceNegotiationOffer,
+  MarketplaceNegotiationEvent,
+} from './marketplace-negotiation-contracts.d.ts';
 import type { MarketplaceInboxEventBatch } from './marketplace-inbox-event-contracts.d.ts';
 
 export interface LocalExtensionEntry {
@@ -48,6 +52,20 @@ export type LocalExtensionRequest = AccountScope &
         readonly claimToken: string;
         readonly outcome: 'sent' | 'failed' | 'outcome_unknown' | 'skipped';
         readonly externalOfferId?: string;
+        readonly errorCode?: string;
+      }
+    | { readonly action: 'negotiation_claim' }
+    | {
+        readonly action: 'negotiation_check' | 'negotiation_start';
+        readonly id: string;
+        readonly claimToken: string;
+      }
+    | {
+        readonly action: 'negotiation_finish';
+        readonly id: string;
+        readonly claimToken: string;
+        readonly outcome: 'sent' | 'failed' | 'outcome_unknown' | 'skipped';
+        readonly externalId?: string;
         readonly errorCode?: string;
       }
     | { readonly action: 'heartbeat' }
@@ -129,6 +147,61 @@ function record(input: unknown): input is Record<string, unknown> {
 }
 function keys(input: Record<string, unknown>, allowed: readonly string[]) {
   return Object.keys(input).every((key) => allowed.includes(key));
+}
+// This contract also runs in the application; keep runtime validation self-contained.
+function negotiationPrice(input: unknown): input is number {
+  return (
+    typeof input === 'number' && Number.isSafeInteger(input) && input > 0 && input <= 100_000_000
+  );
+}
+function isNegotiationOffer(input: unknown): input is MarketplaceNegotiationOffer {
+  const fields = [
+    'offerId',
+    'transactionId',
+    'itemId',
+    'buyerId',
+    'sellerId',
+    'originalPriceCents',
+    'offeredPriceCents',
+    'currency',
+    'status',
+  ];
+  return (
+    record(input) &&
+    Object.keys(input).length === fields.length &&
+    keys(input, fields) &&
+    ['offerId', 'transactionId', 'itemId', 'buyerId', 'sellerId'].every(
+      (key) => typeof input[key] === 'string' && accountId.test(input[key]),
+    ) &&
+    input['buyerId'] !== input['sellerId'] &&
+    input['status'] === 'pending' &&
+    input['currency'] === 'EUR' &&
+    negotiationPrice(input['originalPriceCents']) &&
+    negotiationPrice(input['offeredPriceCents']) &&
+    input['offeredPriceCents'] <= input['originalPriceCents']
+  );
+}
+function isNegotiationEvent(input: unknown): input is MarketplaceNegotiationEvent {
+  if (
+    !record(input) ||
+    input['confirmed'] !== true ||
+    !['buyer_accepted', 'purchased'].includes(String(input['type'])) ||
+    typeof input['id'] !== 'string' ||
+    !accountId.test(input['id']) ||
+    typeof input['transactionId'] !== 'string' ||
+    !accountId.test(input['transactionId'])
+  )
+    return false;
+  const fields = ['id', 'type', 'transactionId', 'confirmed'];
+  return (
+    (Object.keys(input).length === fields.length && keys(input, fields)) ||
+    (Object.keys(input).length === 7 &&
+      keys(input, [...fields, 'originalPriceCents', 'priceCents', 'currency']) &&
+      input['currency'] === 'EUR' &&
+      negotiationPrice(input['originalPriceCents']) &&
+      negotiationPrice(input['priceCents']) &&
+      input['priceCents'] <= input['originalPriceCents'])
+  );
 }
 function text(input: unknown, max: number) {
   return (
@@ -215,6 +288,8 @@ const messageFields = [
   'eventType',
   'eventGroup',
   'offerStatus',
+  'negotiationOffer',
+  'negotiationEvent',
 ];
 const numericFields = [
   'feedbackCount',
@@ -381,6 +456,36 @@ export function parseLocalExtensionRequest(input: unknown): LocalExtensionReques
     uuid.test(input['conversationId'])
   )
     return parseInboxBatch(input['batch']) ? (input as unknown as LocalExtensionRequest) : null;
+  if (
+    input['action'] === 'negotiation_claim' &&
+    keys(input, ['action', 'workspaceId', 'connectionId'])
+  )
+    return input as unknown as LocalExtensionRequest;
+  if (
+    ['negotiation_check', 'negotiation_start', 'negotiation_finish'].includes(
+      String(input['action']),
+    )
+  ) {
+    if (
+      typeof input['id'] !== 'string' ||
+      !uuid.test(input['id']) ||
+      typeof input['claimToken'] !== 'string' ||
+      !uuid.test(input['claimToken'])
+    )
+      return null;
+    const scopeKeys = ['action', 'workspaceId', 'connectionId', 'id', 'claimToken'];
+    if (input['action'] !== 'negotiation_finish')
+      return keys(input, scopeKeys) ? (input as unknown as LocalExtensionRequest) : null;
+    return keys(input, [...scopeKeys, 'outcome', 'externalId', 'errorCode']) &&
+      ['sent', 'failed', 'outcome_unknown', 'skipped'].includes(String(input['outcome'])) &&
+      (input['outcome'] === 'sent'
+        ? typeof input['externalId'] === 'string' && accountId.test(input['externalId'])
+        : input['externalId'] === undefined) &&
+      (input['errorCode'] === undefined ||
+        (typeof input['errorCode'] === 'string' && /^[a-z_]{1,80}$/.test(input['errorCode'])))
+      ? (input as unknown as LocalExtensionRequest)
+      : null;
+  }
   if (input['action'] === 'message_claim' && keys(input, ['action', 'workspaceId', 'connectionId']))
     return input as unknown as LocalExtensionRequest;
   if (
@@ -576,6 +681,11 @@ function parseInboxBatch(input: unknown): input is LocalExtensionInboxBatch {
         typeof entry['parentExternalId'] !== 'string' ||
         !accountId.test(entry['parentExternalId']) ||
         !keys(body, messageFields) ||
+        (body['negotiationOffer'] !== undefined &&
+          (!isNegotiationOffer(body['negotiationOffer']) ||
+            body['direction'] !== 'inbound' ||
+            body['negotiationOffer'].sellerId !== input['identity']['id'])) ||
+        (body['negotiationEvent'] !== undefined && !isNegotiationEvent(body['negotiationEvent'])) ||
         !text(body['title'], 500) ||
         !body['title'] ||
         (body['text'] !== null && !text(body['text'], 10000)) ||

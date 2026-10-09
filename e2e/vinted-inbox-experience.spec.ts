@@ -19,7 +19,12 @@ const partnerAvatarUrl = 'https://images.example.test/partner.svg';
 const accountAvatarUrl = 'https://images.example.test/account.svg';
 const expiresAt = '2099-10-05T12:00:00Z';
 
-async function inboxFixture(page: Page, longHistory = false, cloud = false) {
+async function inboxFixture(
+  page: Page,
+  longHistory = false,
+  cloud = false,
+  automatedReply = false,
+) {
   await mockMarketplace(page, false, false, false, false, []);
   const now = new Date().toISOString();
   const account = {
@@ -42,6 +47,7 @@ async function inboxFixture(page: Page, longHistory = false, cloud = false) {
       text: 'Ist die Jacke noch da?',
       occurredAt: now,
       unread: true,
+      readVersion: 'a'.repeat(32),
       imageUrl: partnerAvatarUrl,
       itemId: '456',
       itemTitle: 'Vintage Lederjacke',
@@ -61,6 +67,7 @@ async function inboxFixture(page: Page, longHistory = false, cloud = false) {
       text: 'Danke für die Maße.',
       occurredAt: '2026-10-01T10:00:00Z',
       unread: false,
+      readVersion: 'a'.repeat(32),
       itemTitle: 'Blauer Schal',
       itemImageUrl: imageUrl,
       itemPrice: 12,
@@ -218,6 +225,20 @@ async function inboxFixture(page: Page, longHistory = false, cloud = false) {
     return route.fulfill({
       json: {
         items: [
+          ...(automatedReply
+            ? [
+                {
+                  ...scope,
+                  id: '25000000-0000-4000-8000-000000000065',
+                  conversationId: body['p_parent_id'],
+                  text: 'Ja, sie ist verfügbar.',
+                  direction: 'outbound',
+                  occurredAt: now,
+                  messageType: 'text_message',
+                  isAutomated: true,
+                },
+              ]
+            : []),
           ...(longHistory
             ? Array.from({ length: 24 }, (_, index) => ({
                 ...scope,
@@ -274,17 +295,25 @@ async function inboxFixture(page: Page, longHistory = false, cloud = false) {
             messageType: 'status_message',
           },
         ].reverse(),
-        total: longHistory ? 28 : 4,
+        total: (longHistory ? 28 : 4) + (automatedReply ? 1 : 0),
         nextCursor: null,
       },
     });
+  });
+  await page.route('**/rest/v1/rpc/marketplace_mark_conversation_read', (route) => {
+    const request = route.request().postDataJSON();
+    const conversation = conversations.find((entry) => entry.id === request['p_conversation_id']);
+    const marked = !!conversation && conversation.readVersion === request['p_read_version'];
+    if (conversation && marked) conversation.unread = false;
+    return route.fulfill({ json: { ok: true, marked } });
   });
   await page.route('**/rest/v1/rpc/marketplace_read_message_permission', (route) =>
     route.fulfill({
       json: { executionMode: account.executionMode, allowed: true, authorizationVersion: 1 },
     }),
   );
-  await page.route('**/marketplace-browser/conversations/read', (route) => {
+  await page.route('**/marketplace-browser/conversations/read', async (route) => {
+    if (pendingDetail) await pendingDetail;
     const body = route.request().postDataJSON();
     expect(body).toEqual({ ...scope, conversationId: body['conversationId'] });
     const conversation = conversations.find((entry) => entry.id === body['conversationId']);
@@ -380,6 +409,77 @@ async function inboxFixture(page: Page, longHistory = false, cloud = false) {
       return providerRequests;
     },
   };
+}
+
+for (const cloud of [true, false]) {
+  test(`Geöffnetes ${cloud ? 'Cloud' : 'Extension'}-Gespräch wird nach erfolgreichem Laden gelesen @core-smoke`, async ({
+    page,
+  }) => {
+    const fixture = await inboxFixture(page, false, cloud);
+    fixture.pauseDetails();
+    await page.goto(
+      `/marketplaces/vinted/messages?connectionId=${connectionId}&conversationId=${conversationId}`,
+    );
+    const conversation = page.getByRole('region', { name: 'Gespräch', exact: true });
+    await expect(conversation.getByText('Ungelesen', { exact: true })).toBeVisible();
+    fixture.resumeDetails();
+    await expect(conversation.getByText('Synchronisiert', { exact: true })).toBeVisible();
+    await expect(conversation.getByText('Ungelesen', { exact: true })).toHaveCount(0);
+    await page.reload();
+    await expect(conversation.getByText('Synchronisiert', { exact: true })).toBeVisible();
+    await expect(conversation.getByText('Ungelesen', { exact: true })).toHaveCount(0);
+    expect(fixture.providerRequests).toBe(0);
+  });
+  for (const width of [1440, 390]) {
+    test(`Bot-Icon für automatische Antwort ${cloud ? 'Cloud' : 'Extension'} ${width}px @core-smoke`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 960 });
+      await page.emulateMedia({ colorScheme: width === 390 ? 'dark' : 'light' });
+      const fixture = await inboxFixture(page, false, cloud, true);
+      await page.goto(
+        `/marketplaces/vinted/messages?connectionId=${connectionId}&conversationId=${conversationId}`,
+      );
+      if (width === 390)
+        await page.getByRole('button', { name: 'Zu dunklem Design wechseln', exact: true }).click();
+      const conversation = page.getByRole('region', { name: 'Gespräch', exact: true });
+      const bot = conversation.locator('[data-automated-message-avatar]');
+      await expect(bot).toBeVisible();
+      await expect(bot).toHaveAttribute('title', 'Automatisch von Flipbase gesendet');
+      await expect(
+        conversation.getByRole('img', { name: 'Automatisch von Flipbase gesendet', exact: true }),
+      ).toBeVisible();
+      await expect(
+        conversation.locator('[data-message-row="25000000-0000-4000-8000-000000000062"]'),
+      ).toContainText('Ja, sie ist verfügbar.');
+      await expect(
+        conversation.getByRole('img', { name: 'Profilbild von synthetic-test', exact: true }),
+      ).toBeVisible();
+      await expect(bot.locator('svg')).toBeVisible();
+      const avatarBounds = await bot.boundingBox();
+      expect(avatarBounds?.width).toBe(44);
+      expect(avatarBounds?.height).toBe(44);
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+      ).toBe(true);
+      await checkAxe(page);
+      expect(fixture.enqueues).toHaveLength(0);
+      expect(fixture.providerRequests).toBe(0);
+      const screenshotDirectory = process.env['MARKETPLACE_SCREENSHOT_DIR'];
+      if (screenshotDirectory) {
+        await mkdir(screenshotDirectory, { recursive: true });
+        await conversation.getByRole('log').evaluate((element) => {
+          element.scrollTop = 0;
+        });
+        await conversation.screenshot({
+          path: join(
+            screenshotDirectory,
+            `vinted-bot-avatar-${cloud ? 'cloud' : 'extension'}-${width}.png`,
+          ),
+        });
+      }
+    });
+  }
 }
 
 test('prüft unklaren Versand vor der Wiederholung und versetzt den Mausfokus nicht @core-smoke', async ({
@@ -678,6 +778,8 @@ for (const { width, theme } of [
     ).toBe(true);
     await page.getByRole('option', { name: 'Ungelesen (1)', exact: true }).click();
     await expect(rows).toHaveCount(1);
+    const productImage = rows.first().locator('img');
+    if (width >= 1024) await expect(productImage).toHaveCSS('object-fit', 'cover');
     fixture.pauseDetails();
     fixture.pauseStoredMessages();
     await rows.first().getByRole('button').click();
@@ -732,8 +834,7 @@ for (const { width, theme } of [
     await expect(page.locator('[data-message-kind="system"]')).toHaveCSS('text-align', 'center');
     await expect(page.locator('[data-message-day]')).toHaveCount(1);
     await expect(page.locator('[data-message-day]')).toHaveText('Heute');
-    const productImage = rows.first().locator('img');
-    if (width >= 1024) await expect(productImage).toHaveCSS('object-fit', 'cover');
+    await expect(rows).toHaveCount(0);
     const composer = conversation.locator('form');
     const composerBounds = await composer.boundingBox();
     const cardBounds = await conversation.locator('app-card').boundingBox();

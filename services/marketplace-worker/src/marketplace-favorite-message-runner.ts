@@ -50,6 +50,7 @@ export class MarketplaceFavoriteMessageRunner {
       scope.syncRead ||
       scope.messageWrite ||
       scope.cloudSetup ||
+      scope.negotiationWrite ||
       scope.userAccessToken
     )
       throw new Error('Favoritenclaim ungültig');

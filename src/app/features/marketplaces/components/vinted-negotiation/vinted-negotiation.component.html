@@ -1,0 +1,418 @@
+<div class="min-w-0 space-y-4" data-negotiation-settings>
+  <div class="flex flex-wrap items-start justify-between gap-3">
+    <div>
+      <h1 class="text-lg font-semibold">Automatische Verhandlung</h1>
+      <p class="mt-1 text-[13px] text-fb-text-secondary">
+        Lege Preise und Nachrichten für dieses Konto fest.
+      </p>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <app-badge [tone]="settings()?.active ? 'success' : 'neutral'">{{
+        settings()?.active ? 'Aktiv' : 'Ausgeschaltet oder ohne Freigabe'
+      }}</app-badge>
+      <app-button [disabled]="busy() || loading()" (clicked)="reload()"
+        >Verlauf aktualisieren</app-button
+      >
+      <app-button
+        type="submit"
+        variant="primary"
+        formId="negotiation-settings"
+        [loading]="busy()"
+        [disabled]="!settings() || loading()"
+        >Einstellungen speichern</app-button
+      >
+    </div>
+  </div>
+  @if (loading()) {
+    <p role="status">Einstellungen werden geladen …</p>
+  }
+  @if (error(); as error) {
+    <app-notice-banner announcement="alert">{{ error }}</app-notice-banner>
+  }
+  @if (saved()) {
+    <p role="status">Deine Einstellungen sind gespeichert.</p>
+  }
+  <form id="negotiation-settings" [formGroup]="form" (ngSubmit)="save()">
+    <fieldset class="min-w-0 space-y-4" [disabled]="busy() || loading() || !settings()">
+      <app-card title="Automatik">
+        <div class="space-y-3">
+          <div class="flex flex-wrap gap-x-6 gap-y-3">
+            <app-custom-checkbox
+              formControlName="enabled"
+              label="Automatische Verhandlung aktivieren"
+            /><app-custom-checkbox
+              formControlName="purchaseEnabled"
+              label="Kaufnachrichten unabhängig aktivieren"
+            />
+          </div>
+          <p class="text-[13px] text-fb-text-secondary">
+            Beide Schalter sind anfangs aus. Speichern schaltet die andere Automatik nicht ein. Zum
+            Aktivieren brauchst Du eine bestehende Versandfreigabe in der Kontoverwaltung.
+            Änderungen verwerfen wartende automatische Aktionen. Frühere Angebote werden nicht
+            automatisch verarbeitet.
+          </p>
+          @if (store.selectedConnection()?.executionMode === 'local') {
+            <p class="text-[13px] text-fb-text-secondary">
+              Für die lokale Ausführung brauchst Du Erweiterung 1.8.0 und das geöffnete, verknüpfte
+              Browserprofil.
+            </p>
+          }
+        </div>
+      </app-card>
+      <app-card title="Erlaubter Nachlass">
+        <div class="grid gap-3 sm:grid-cols-2">
+          <div>
+            <label class="mb-1 block text-[13px]" for="negotiation-discount-type"
+              >Art des Nachlasses</label
+            ><app-custom-select
+              triggerId="negotiation-discount-type"
+              ariaLabel="Art des Nachlasses"
+              [options]="discountOptions"
+              formControlName="discountType"
+            />
+          </div>
+          <div>
+            <label class="mb-1 block text-[13px]" for="negotiation-discount"
+              >Maximaler Nachlass</label
+            ><app-number-input
+              id="negotiation-discount"
+              formControlName="discountValue"
+              [min]="0.01"
+              [step]="0.01"
+              [unit]="form.controls.discountType.value === 'amount' ? '€' : '%'"
+            />
+          </div>
+        </div>
+        <p class="mt-3 text-[13px] text-fb-text-secondary">
+          Angebote ab Deinem Mindestpreis werden angenommen. Darunter gelten Deine Stufen. Der
+          Mindestpreis muss mindestens die Hälfte des Artikelpreises betragen.
+        </p>
+      </app-card>
+      <app-card
+        title="Preisbereiche"
+        subtitle="Die erste passende Obergrenze gilt. Ohne passenden Bereich gilt der allgemeine Nachlass."
+      >
+        <div class="space-y-3">
+          @for (band of form.controls.priceBands.controls; track band; let index = $index) {
+            <div class="grid items-end gap-3 sm:grid-cols-4" [formGroup]="band">
+              <div>
+                <label class="mb-1 block text-[13px]" [for]="'negotiation-band-' + index"
+                  >Artikelpreis bis {{ index + 1 }}</label
+                ><app-number-input
+                  [id]="'negotiation-band-' + index"
+                  formControlName="upTo"
+                  [min]="0.01"
+                  [step]="0.01"
+                  unit="€"
+                  placeholder="Ohne Obergrenze"
+                />
+              </div>
+              <div>
+                <label class="mb-1 block text-[13px]" [for]="'negotiation-band-type-' + index"
+                  >Nachlassart {{ index + 1 }}</label
+                ><app-custom-select
+                  [triggerId]="'negotiation-band-type-' + index"
+                  [ariaLabel]="'Nachlassart ' + (index + 1)"
+                  [options]="discountOptions"
+                  formControlName="discountType"
+                />
+              </div>
+              <div>
+                <label class="mb-1 block text-[13px]" [for]="'negotiation-band-discount-' + index"
+                  >Nachlass {{ index + 1 }}</label
+                ><app-number-input
+                  [id]="'negotiation-band-discount-' + index"
+                  formControlName="discountValue"
+                  [min]="0.01"
+                  [step]="0.01"
+                />
+              </div>
+              <app-button
+                variant="destructive"
+                [icon]="deleteIcon"
+                [iconOnly]="true"
+                [ariaLabel]="'Preisbereich ' + (index + 1) + ' entfernen'"
+                (clicked)="removeBand(index)"
+              />
+            </div>
+          }
+          <app-button [disabled]="form.controls.priceBands.length >= 20" (clicked)="addBand()"
+            >Preisbereich hinzufügen</app-button
+          >
+          <p class="text-[13px] text-fb-text-secondary">
+            Obergrenzen müssen aufsteigend sein. Nur der letzte Bereich darf ohne Obergrenze
+            bleiben.
+          </p>
+        </div>
+      </app-card>
+      <app-card
+        title="Verhandlungsstufen"
+        subtitle="Jede Stufe ist ein Anteil am erlaubten Nachlass, nicht am Artikelpreis. Die letzte Stufe muss 100 sein."
+      >
+        <div class="space-y-3">
+          @for (stage of form.controls.stages.controls; track stage; let index = $index) {
+            <div class="flex items-end gap-2">
+              <div class="min-w-0 flex-1">
+                <label class="mb-1 block text-[13px]" [for]="'negotiation-stage-' + index"
+                  >Stufe {{ index + 1 }}</label
+                ><app-number-input
+                  [id]="'negotiation-stage-' + index"
+                  [formControl]="stage"
+                  [min]="1"
+                  [max]="100"
+                  unit="%"
+                />
+              </div>
+              <app-button
+                variant="destructive"
+                [icon]="deleteIcon"
+                [iconOnly]="true"
+                [ariaLabel]="'Stufe ' + (index + 1) + ' entfernen'"
+                [disabled]="form.controls.stages.length === 1"
+                (clicked)="removeStage(index)"
+              />
+            </div>
+          }
+          <app-button [disabled]="form.controls.stages.length >= 10" (clicked)="addStage()"
+            >Stufe hinzufügen</app-button
+          >
+        </div>
+      </app-card>
+      <app-card
+        title="Vorschau"
+        subtitle="Nur eine lokale Berechnung. Es wird kein Angebot und keine Nachricht gesendet."
+      >
+        <label class="mb-1 block text-[13px]" for="negotiation-preview-price">Beispielpreis</label
+        ><app-number-input
+          id="negotiation-preview-price"
+          [formControl]="previewPrice"
+          [min]="0.01"
+          [step]="0.01"
+          unit="€"
+        />
+        <div class="mt-3 text-[13px]" aria-live="polite">
+          @if (preview(); as preview) {
+            <p>Mindestpreis: {{ formatPrice(preview.minimumPriceCents) }}</p>
+            <p>
+              Gegenangebote:
+              @for (price of preview.stagePriceCents; track $index; let last = $last) {
+                {{ formatPrice(price) }}{{ last ? '' : ' → ' }}
+              }
+            </p>
+          } @else {
+            <p>
+              Prüfe die Preise, Bereiche und Stufen. Der Nachlass ist für dieses Beispiel nicht
+              zulässig.
+            </p>
+          }
+        </div>
+      </app-card>
+      <app-card title="Verzögerung und Sendereihenfolge">
+        <div class="mb-3">
+          <label class="mb-1 block text-[13px]" for="negotiation-delay-preset"
+            >Zeitpunkt auswählen</label
+          ><app-custom-select
+            triggerId="negotiation-delay-preset"
+            ariaLabel="Zeitpunkt auswählen"
+            [options]="delayOptions"
+            [value]="selectedDelay()"
+            [disabled]="busy() || loading() || !settings()"
+            (valueChange)="chooseDelay($event)"
+          />
+        </div>
+        <div class="grid gap-3 sm:grid-cols-2">
+          <div>
+            <label class="mb-1 block text-[13px]" for="negotiation-delay"
+              >Wartezeit nach dem Ereignis</label
+            ><app-number-input
+              id="negotiation-delay"
+              [value]="delayAmount(form.controls.delaySeconds)"
+              (valueChange)="changeDelay(form.controls.delaySeconds, $event)"
+              [min]="0"
+              [max]="delayUnit(form.controls.delaySeconds) === 'minutes' ? 10080 : 604800"
+              [step]="delayUnit(form.controls.delaySeconds) === 'minutes' ? 1 / 60 : 1"
+              [unit]="delayUnit(form.controls.delaySeconds) === 'minutes' ? 'Minuten' : 'Sekunden'"
+            />
+            <label class="mb-1 mt-2 block text-[13px]" for="negotiation-delay-unit"
+              >Zeiteinheit</label
+            >
+            <app-custom-select
+              triggerId="negotiation-delay-unit"
+              ariaLabel="Zeiteinheit"
+              [options]="delayUnitOptions"
+              [value]="delayUnit(form.controls.delaySeconds)"
+              (valueChange)="chooseDelayUnit(form.controls.delaySeconds, $event)"
+            />
+          </div>
+          <div>
+            <label class="mb-1 block text-[13px]" for="negotiation-order">Sendereihenfolge</label
+            ><app-custom-select
+              triggerId="negotiation-order"
+              ariaLabel="Sendereihenfolge"
+              formControlName="sendOrder"
+              [options]="orderOptions"
+            />
+          </div>
+        </div>
+        <p class="mt-3 text-[13px] text-fb-text-secondary">
+          Eigene Annahmetexte folgen immer erst nach der bestätigten Annahme. Folgen starten nach
+          bestätigter Ausführung des vorherigen Schritts.
+        </p>
+      </app-card>
+      @for (section of messageSections; track section.event) {
+        <app-card [title]="section.title" [subtitle]="section.description">
+          <div class="space-y-4">
+            @for (
+              step of messageForms[section.event].controls;
+              track step;
+              let stepIndex = $index
+            ) {
+              <section
+                class="space-y-3"
+                [attr.aria-label]="section.title + ': Nachricht ' + (stepIndex + 1)"
+              >
+                <div class="flex items-center justify-between gap-2">
+                  <h2 class="text-[13px] font-semibold">
+                    {{ stepIndex === 0 ? 'Erste Nachricht' : 'Folgenachricht ' + stepIndex }}
+                  </h2>
+                  <app-button
+                    variant="destructive"
+                    [icon]="deleteIcon"
+                    [iconOnly]="true"
+                    [ariaLabel]="section.title + ': Nachricht ' + (stepIndex + 1) + ' entfernen'"
+                    (clicked)="removeStep(section.event, stepIndex)"
+                  />
+                </div>
+                @for (
+                  template of step.controls.templates.controls;
+                  track template;
+                  let textIndex = $index
+                ) {
+                  <div class="flex items-end gap-2">
+                    <app-text-field
+                      class="min-w-0 flex-1"
+                      [label]="
+                        section.title +
+                        ': Alternative ' +
+                        (textIndex + 1) +
+                        ' für Nachricht ' +
+                        (stepIndex + 1)
+                      "
+                      [multiline]="3"
+                      [maxLength]="2000"
+                      [formControl]="template"
+                    /><app-button
+                      variant="destructive"
+                      [icon]="deleteIcon"
+                      [iconOnly]="true"
+                      ariaLabel="Textalternative entfernen"
+                      [disabled]="step.controls.templates.length === 1"
+                      (clicked)="removeAlternative(step, textIndex)"
+                    />
+                  </div>
+                }
+                <app-button
+                  [disabled]="step.controls.templates.length >= 10"
+                  (clicked)="addAlternative(step)"
+                  >Textalternative hinzufügen</app-button
+                >
+                <p class="text-[13px] text-fb-text-secondary">
+                  Aus den Alternativen wird genau ein Text ausgewählt.
+                </p>
+                <label
+                  class="mb-1 block text-[13px]"
+                  [for]="'negotiation-step-delay-' + section.event + '-' + stepIndex"
+                  >{{
+                    stepIndex === 0
+                      ? 'Wartezeit für die erste Nachricht'
+                      : 'Wartezeit für diese Folgenachricht'
+                  }}</label
+                ><app-number-input
+                  [id]="'negotiation-step-delay-' + section.event + '-' + stepIndex"
+                  [value]="delayAmount(step.controls.delaySeconds)"
+                  (valueChange)="changeDelay(step.controls.delaySeconds, $event)"
+                  [min]="0"
+                  [max]="delayUnit(step.controls.delaySeconds) === 'minutes' ? 10080 : 604800"
+                  [step]="delayUnit(step.controls.delaySeconds) === 'minutes' ? 1 / 60 : 1"
+                  [unit]="
+                    delayUnit(step.controls.delaySeconds) === 'minutes' ? 'Minuten' : 'Sekunden'
+                  "
+                />
+                <label
+                  class="mb-1 block text-[13px]"
+                  [for]="'negotiation-step-unit-' + section.event + '-' + stepIndex"
+                  >Zeiteinheit für diese Nachricht</label
+                >
+                <app-custom-select
+                  [triggerId]="'negotiation-step-unit-' + section.event + '-' + stepIndex"
+                  [ariaLabel]="section.title + ': Zeiteinheit für Nachricht ' + (stepIndex + 1)"
+                  [options]="delayUnitOptions"
+                  [value]="delayUnit(step.controls.delaySeconds)"
+                  (valueChange)="chooseDelayUnit(step.controls.delaySeconds, $event)"
+                />
+              </section>
+            } @empty {
+              <p class="text-[13px] text-fb-text-secondary">
+                Für dieses Ereignis wird keine Nachricht gesendet.
+              </p>
+            }
+            <app-button
+              [disabled]="messageForms[section.event].length >= 5"
+              (clicked)="addStep(section.event)"
+              >{{
+                messageForms[section.event].length
+                  ? 'Folgenachricht hinzufügen'
+                  : 'Erste Nachricht hinzufügen'
+              }}</app-button
+            >
+          </div>
+        </app-card>
+      }
+      <app-card title="Käufer nimmt Dein Gegenangebot an" subtitle="Derzeit nicht verfügbar">
+        <p class="text-[13px] text-fb-text-secondary">
+          Vinted liefert derzeit keinen eindeutig belegten Annahmestatus für Dein eigenes
+          Gegenangebot. Bestehende Texte bleiben gespeichert und unverändert. Sie werden nicht als
+          Kaufnachricht ersatzweise ausgelöst.
+        </p>
+      </app-card>
+      <p class="text-[13px] text-fb-text-secondary">
+        Platzhalter: &#123;article&#125;, &#123;price&#125;, &#123;original_price&#125;. Kauftexte
+        mit Preisplatzhaltern werden bei fehlendem belegtem Preis ausgelassen.
+      </p>
+    </fieldset>
+  </form>
+  <app-card title="Letzte Ergebnisse">
+    @for (event of settings()?.events ?? []; track event.id) {
+      <div
+        class="flex flex-wrap items-center justify-between gap-2 border-t border-fb-border-subtle py-3 text-[13px]"
+      >
+        <span>{{ actions[event.action] }} · {{ event.createdAt | date: 'dd.MM.yyyy, HH:mm' }}</span
+        ><app-badge
+          [tone]="
+            event.state === 'sent'
+              ? 'success'
+              : event.state === 'failed' || event.state === 'outcome_unknown'
+                ? 'caution'
+                : 'neutral'
+          "
+          >{{ states[event.state] }}</app-badge
+        >
+        @if (event.state === 'outcome_unknown') {
+          <p class="w-full text-fb-text-secondary">
+            Die Ausführung konnte nicht bestätigt werden. Prüfe zuerst das Gespräch auf Vinted und
+            wiederhole die Aktion nicht ungeprüft.
+          </p>
+        } @else if (event.state === 'failed' && event.errorCode) {
+          <p class="w-full text-fb-text-secondary">
+            Diese Aktion konnte nicht ausgeführt werden. Prüfe das Gespräch auf Vinted und die
+            Kontofreigabe.
+          </p>
+        }
+      </div>
+    } @empty {
+      <p class="text-[13px] text-fb-text-secondary">
+        Für dieses Konto liegen noch keine Ergebnisse vor.
+      </p>
+    }
+  </app-card>
+</div>

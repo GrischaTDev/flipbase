@@ -25,6 +25,7 @@ import { VintedAccountGridComponent } from './components/vinted-account-grid/vin
 import { VintedOverviewComponent } from './components/vinted-overview/vinted-overview.component';
 import { VintedProfileComponent } from './components/vinted-profile/vinted-profile.component';
 import { VintedMessagesComponent } from './components/vinted-messages/vinted-messages.component';
+import { VintedOfferActionsComponent } from './components/vinted-offer-actions/vinted-offer-actions.component';
 import { VintedListingsComponent } from './components/vinted-listings/vinted-listings.component';
 import { VintedListingMetricsComponent } from './components/vinted-listings/vinted-listing-metrics.component';
 import { VintedAccountContentComponent } from './components/vinted-account-content/vinted-account-content.component';
@@ -55,6 +56,7 @@ import { VintedAccountControlsComponent } from './components/vinted-account-cont
 import { ModalShellComponent } from '../../shared/components/modal-shell/modal-shell.component';
 import { ModalDialogDirective } from '../../shared/directives/modal-dialog.directive';
 import { TextFieldComponent } from '../../shared/components/text-field/text-field.component';
+import { NumberInputComponent } from '../../shared/components/number-input/number-input.component';
 import { DataTableComponent } from '../../shared/components/data-table/data-table.component';
 import { TableActionButtonComponent } from '../../shared/components/table-action-button/table-action-button.component';
 import { ProductThumbnailComponent } from '../../shared/components/product-thumbnail/product-thumbnail.component';
@@ -140,6 +142,7 @@ beforeAll(async () => {
     [RouteTabsComponent, 'route-tabs/route-tabs.component'],
     [ModalShellComponent, 'modal-shell/modal-shell.component'],
     [TextFieldComponent, 'text-field/text-field.component'],
+    [NumberInputComponent, 'number-input/number-input.component'],
     [DataTableComponent, 'data-table/data-table.component'],
     [TableActionButtonComponent, 'table-action-button/table-action-button.component'],
     [ProductThumbnailComponent, 'product-thumbnail/product-thumbnail.component'],
@@ -180,6 +183,10 @@ beforeAll(async () => {
     {
       type: VintedMessagesComponent,
       path: 'src/app/features/marketplaces/components/vinted-messages/vinted-messages.component.ts',
+    },
+    {
+      type: VintedOfferActionsComponent,
+      path: 'src/app/features/marketplaces/components/vinted-offer-actions/vinted-offer-actions.component.ts',
     },
     {
       type: VintedListingsComponent,

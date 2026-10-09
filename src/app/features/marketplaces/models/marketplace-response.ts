@@ -14,6 +14,11 @@ import type {
   MarketplaceFeedback,
 } from './marketplace-read.models';
 
+import {
+  isNegotiationOffer,
+  isNegotiationEvent,
+} from '../../../../../supabase/functions/_shared/negotiation-config';
+
 const capabilities: readonly Capability[] = [
   'profile.read',
   'listings.read',
@@ -199,12 +204,17 @@ export function parseMarketplacePage(
         observedAt: timestamp(metrics['observedAt']),
       },
       conversationId: text(item['conversationId']),
+      isAutomated: item['direction'] === 'outbound' && item['isAutomated'] === true,
       direction:
         item['direction'] === 'inbound' || item['direction'] === 'outbound'
           ? item['direction']
           : 'unknown',
       promoted: typeof item['promoted'] === 'boolean' ? item['promoted'] : null,
       unread: typeof item['unread'] === 'boolean' ? item['unread'] : null,
+      readVersion:
+        typeof item['readVersion'] === 'string' && /^[a-f0-9]{32}$/.test(item['readVersion'])
+          ? item['readVersion']
+          : null,
       brand: text(item['brand']),
       size: text(item['size']),
       shipmentStatus: text(item['shipmentStatus']),
@@ -225,6 +235,12 @@ export function parseMarketplacePage(
       eventType: text(item['eventType']),
       eventGroup: text(item['eventGroup']),
       offerStatus: text(item['offerStatus']),
+      negotiationOffer: isNegotiationOffer(item['negotiationOffer'])
+        ? item['negotiationOffer']
+        : null,
+      negotiationEvent: isNegotiationEvent(item['negotiationEvent'])
+        ? item['negotiationEvent']
+        : null,
     };
   });
   return { items, total, nextCursor };

@@ -13,6 +13,40 @@ const service = createClient(
 );
 Deno.serve(
   createLocalExtensionHandler({
+    async negotiation(tokenHash, input) {
+      const scope = {
+        p_workspace_id: input.workspaceId,
+        p_connection_id: input.connectionId,
+        p_token_hash: tokenHash,
+      };
+      const rpc =
+        input.action === 'negotiation_claim'
+          ? 'marketplace_local_negotiation_claim'
+          : input.action === 'negotiation_check'
+            ? 'marketplace_local_negotiation_check'
+            : input.action === 'negotiation_start'
+              ? 'marketplace_local_negotiation_begin'
+              : input.action === 'negotiation_finish'
+                ? 'marketplace_local_negotiation_finish'
+                : null;
+      if (!rpc) throw new LocalExtensionStoreError('invalid');
+      const { data, error } = await service.rpc(rpc, {
+        ...scope,
+        ...('id' in input ? { p_job_id: input.id, p_claim_token: input.claimToken } : {}),
+        ...(input.action === 'negotiation_finish'
+          ? {
+              p_outcome: input.outcome,
+              p_external_id: input.externalId ?? null,
+              p_error_code: input.errorCode ?? null,
+            }
+          : {}),
+      });
+      if (error)
+        throw new LocalExtensionStoreError(
+          error.code === '42501' ? 'access' : error.code === '40001' ? 'conflict' : 'invalid',
+        );
+      return data;
+    },
     async favorites(tokenHash, input) {
       const scope = {
         p_workspace_id: input.workspaceId,

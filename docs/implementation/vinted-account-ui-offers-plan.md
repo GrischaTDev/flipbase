@@ -153,3 +153,152 @@ Wiederaufnahme nach begonnenem Versand wiederholt ausschließlich den Beleg.
 Ältere Erweiterungen übernehmen Angebotsaufträge nicht. Das Formular nennt die
 erforderliche Version 1.7.0. Kein echtes Angebot, keine echte Nachricht und kein
 Update der Nutzerinstallation wurden in dieser Umsetzung ausgeführt.
+
+## Ergänzungsauftrag vom 09.10.2026: erhaltene Angebote bearbeiten
+
+**Stand:** Im eigenen Zweig implementiert und lokal geprüft; Zweigreview und Veröffentlichung
+stehen noch aus. Favoritennachrichten einschließlich Verzögerung und optionalem
+Angebot haben bereits lokale und Cloud-Ausführungswege. Ein bestätigter echter
+Cloud-Favoriten-/Angebotstest bleibt separat offen. Diese bestehenden Funktionen
+ersetzen keine Reaktion auf ein erhaltenes Käuferangebot.
+
+**Gewünschte Bedienung:** Unter einem aktuellen erhaltenen Angebot „Angebot
+annehmen“ über die volle Breite anzeigen; darunter links „Ablehnen“, rechts
+„Gegenangebot“. „Gegenangebot“ öffnet eine Preiseingabe mit Vorschau und bewusstem
+Absenden. Erledigte oder nicht sicher zugeordnete Angebote erlauben keine Aktion.
+Cloud und Extension verwenden dieselbe Darstellung und dieselben Fachregeln.
+
+**Gewünschte Automatik:** Pro Konto getrennt aktivierbar, zunächst ausgeschaltet.
+Der Nutzer legt den maximalen Nachlass gegenüber dem aktuellen Artikelpreis fest.
+Beispiel: 100 € Artikelpreis, 10 % Nachlass → ab 90 € automatisch annehmen.
+Der anschließende Browserrundgang erweitert den Auftrag um konfigurierbare
+Gegenangebotsstufen und Ereignisnachrichten; siehe den folgenden Ergänzungsabschnitt.
+Favoritennachrichten behalten ihre unabhängigen Regeln und Aktivierung.
+
+**Nachgewiesener Aktionsvertrag:** Beide Importpfade liefern strukturierte
+Angebotskennung, Transaktion, Verkäufer-/Käuferrolle, aktuellen Status,
+Artikel-/Angebotspreis und Währung. Accept-/Reject-PUT und Counter-POST sind
+mit den aktuellen öffentlichen Vinted-Browserquellen abgeglichen. Eine eigene
+Verhandlungswarteschlange bindet die Aktionen an Konto und Freigabe; die
+Favoritenaktivierung autorisiert keine neuen Verhandlungen. Widersprüchliche
+Währungs-, Artikel-, Mengen- oder Rollenbelege sperren einen Schreibversuch.
+Kein Preis wird aus einem übersetzten Anzeigetext übernommen.
+
+**Prüfpunkte:** Manuelle und automatische Entscheidungen teilen denselben
+kontogebundenen Auftrag. Identische Angebotskennungen nicht mehrfach bearbeiten;
+verspätete oder unklare Ergebnisse nicht blind wiederholen. Aktuellen Preis und
+Angebotsstatus vor Ausführung erneut bestätigen. Manuelle Bearbeitung während
+eines wartenden Automatikauftrags muss den veralteten Auftrag verhindern. Neue
+Regeln dürfen keine alten Angebote ungefragt bearbeiten. Für den ersten Umfang
+nur eindeutig zugeordnete einzelne eigene Artikel; Bundles oder fehlende Preise
+manuell melden. Cloud/Extension, deaktivierte Regeln, genaue Prozentgrenzen,
+Centrundung, Preisänderung, Doppelausführung und unbekannter Ausgang testen.
+
+**Konkurrenz:** [Bleam: automatische Verhandlung](https://bleam.app/en/help/assistant-negociation)
+dokumentiert Annahme oberhalb einer selbst gesetzten Preisgrenze sowie
+Gegenangebote darunter, auch in mehreren Schritten. Das belegt das angebotene
+Produktverhalten, nicht Bleams interne technische Implementierung.
+
+## Erweiterter Auftrag nach Browserrundgang: automatische Verhandlung
+
+**Stand:** Am 09.10.2026 im geöffneten Bleam-Dashboard beobachtet, für Flipbase abgeleitet und im eigenen Zweig umgesetzt. Die frühere Einmal-Gegenangebotsauswahl ist
+mit dem neuen Auftrag überholt. [Beobachtungsprotokoll](../research/bleam-vinted-analysis.md).
+
+**Seite:** Unter „Automatisierungen“ neben „Favoritennachrichten“ den Menüpunkt
+„Automatische Verhandlung“ vorsehen. Kontobezogene Regeln, aktivierbare
+Verhandlung, Vorschau und bestehender Speichern-Button. Keine aktive UI ohne
+vollständige Ausführung. Cloud und Extension verwenden die gleichen Regeln.
+Die manuelle Angebotsbedienung bleibt unabhängig von der Automatik verfügbar.
+
+**Verhandlungsregeln:** Maximalen Nachlass in Euro oder Prozent festlegen,
+optional nach Artikelpreisbereichen. Der bestätigte aktuelle Artikelpreis ist
+die Grundlage; mit ganzen Centbeträgen rechnen. Unter dieser Annahmegrenze
+konfigurierbare Gegenangebotsstufen anbieten. Beispiel: 50 € Artikelpreis,
+10 € maximaler Nachlass, Stufen 50/80/100 % des Nachlasses → 45/42/40 €.
+Die letzte Stufe erreicht die Preisgrenze. Fortschritt pro Konto, Gespräch und
+Artikel speichern; die nächste Stufe reagiert auf einen neuen belegten Eingang,
+nicht auf einen weiteren Poll oder allein auf den Ablauf eines Zeitintervalls.
+Keine stillschweigende Unterschreitung, Zurücksetzung oder zusätzlichen Rabatte.
+
+**Ereignisse und Nachrichten:**
+
+- Eigenes automatisches Annehmen eines Käuferangebots.
+- Zwischengegenangebot und endgültiges Angebot.
+- Erneuter Verhandlungsversuch nach letztem Angebot oder nach Annahme.
+- Käufer nimmt ein von uns gesendetes Angebot an: eigenes Ereignis, dessen
+  verlässlicher Nachweis vor Aktivierung zu prüfen ist.
+- Bestätigter Kauf/Bestellung, auch ohne vorherige Verhandlung: eigener
+  unabhängig aktivierbarer Bereich „Nachrichten nach einem Kauf“. Keine
+  Kaufbestätigung allein aus angenommener Preisvereinbarung oder Vorschau.
+
+Pro Ereignis optionale eigene Texte, beginnend mit einem Textfeld. Zwei klar
+getrennte Ergänzungen planen: „Alternative Vorlage“ fügt einen auswählbaren Text
+hinzu; „Weitere Nachricht“ fügt tatsächlich einen Folgeschritt hinzu. Eine
+Vorlagenauswahl einmal speichern, damit Wiederaufnahme dieselbe Nachricht nicht
+neu auswählt oder erneut sendet. Eigene Folgevorlagen und Preisplatzhalter
+verwenden; keine fremden Beispieltexte übernehmen. Nach gekauftem Artikel keine
+weiteren Preisverhandlungen ausführen. Fehlende oder nicht belegte Auslöser
+zeigen einen offenen Nachweis und aktivieren keine Senderegel.
+
+**Zeitpunkt und Reihenfolge:** Einstellbare Verzögerung mit Sofort/30 Sekunden/
+1/2/5 Minuten und Minuten-/Sekundeneingabe; Folgeschritte mit eigener Wartezeit
+nach bestätigtem Vorgänger. Fälligkeit dauerhaft im vorhandenen Auftragsprinzip
+speichern, keinen Worker durch Wartepausen blockieren. Für Gegenangebote
+„Angebot zuerst“ als vorgeschlagener Standard, Nachricht erst nach bestätigtem
+Angebotserfolg. Gewünschte „Nachricht zuerst“-Option ausdrücklich als getrennte
+Schritte mit möglichem Teilerfolg behandeln. Annahme- und Kauftexte erst nach
+bestätigtem zugehörigem Ereignis. Ausschalten, neue Regeln, Profilwechsel und
+manuelle Bearbeitung stornieren unbegonnene veraltete Schritte; ein unbekannter
+Schreibausgang wird geprüft und nicht blind wiederholt.
+
+**Umsetzung in überprüfbaren Teilen:**
+
+1. Die strukturierten Angebotsdaten und Annahme-/Ablehnungsaktionen belegen;
+   manuelle Chatbuttons samt Gegenangeboteingabe für beide Ausführungswege.
+2. Die kontobezogene Einstellungsseite und gemeinsame Preis-/Stufenregeln mit
+   Vorschau, Verlauf, pausierter Automatik und gespeichertem Fortschritt.
+3. Optionale Ereignisnachrichten mit Alternativen, echten Folgen und Verzögerung;
+   bestätigte Kaufnachricht als unabhängiger Auslöser. Vor Aktivierung die
+   Eingangs-/Ergebnisbelege je Auslöser prüfen.
+
+**Abnahme:** Gemeinsame Regeltests mit Euro/Prozent, Preisbereichsgrenzen,
+Centrundung, Stufenfortschritt und Preisänderung; SQL-Kontobindung und
+Doppelausführung; Extension-/Cloud-Adapter mit bestätigtem/abgelehntem/unklarem
+Ergebnis; keine Folgemeldung bei ungeklärtem Vorgänger; Neustart und manuelle
+Übernahme; mobile/helle/dunkle Oberfläche mit AXE und Produktionsbau. Anschließend
+kontrollierte Echtkonto-Abnahme mit ausdrücklich festgelegten Testaktionen.
+Die davor geprüften Bot-Icon-/Lesestatusänderungen bleiben ein gesonderter
+fertiger Stand; ihre Veröffentlichung ist noch nicht freigegeben.
+
+## Lokaler Umsetzungsstand der Verhandlung
+
+Cloud und Extension verwenden dieselben gespeicherten Regeln und eine gemeinsame
+Providerlaufzeit. Aktuelle Einzelangebote lassen sich im Chat annehmen, ablehnen
+oder mit Gegenpreis vormerken. Die Einstellungsseite enthält Preisbereiche,
+Stufen, Vorschau, Wartezeit, Sendereihenfolge, Alternativen und Folgen sowie
+unabhängige Kaufnachrichten und einen Ergebnisverlauf. Neue Regeln bleiben aus.
+Vormerkung wird von bestätigtem Versand unterschieden; unklare Ergebnisse werden
+nicht blind wiederholt. Bot-Icon und Lesestatus bleiben integriert.
+
+117 neue Datenbankchecks und 676 bestehende Checks auf der transaktionalen
+Migrationskopie bestehen. Der echte Worker-Image-Bau und Modulimport, gezielte
+Cloud-/Extensionregressionen, 40 Modell-/Navigationstests, 86 relevante
+Angularprüfungen und zehn Mock-Browserabläufe mit AXE in hell/dunkel auf Desktop
+und Mobilgerät sind erfolgreich. Angular-Produktionsbau, Format/Lint und Shared-UI
+bestehen. Die unveränderte Deno-Lintbaseline ist weiter dokumentiert; der gefilterte
+Lauf ist kein vollständiger grüner Lintnachweis. Ausführlicher Prüfstand:
+[Umsetzungsplan](../superpowers/plans/2026-10-09-vinted-negotiation.md).
+
+Bestätigte Zahlung über `debit_processed_at` ist ein belegter Kaufauslöser.
+Die separate Käuferannahme unseres Gegenangebots besitzt dagegen noch keinen
+eindeutigen Anbieterbeleg; die UI erklärt die derzeitige Nichtverfügbarkeit und
+erhält gespeicherte Texte. Sie löst keine ersatzweise Kaufnachricht aus.
+Keine reale Anbieterabnahme, produktive Aktivierung oder Veröffentlichung erfolgt.
+
+Alle Aufgabenreviews sowie das Zweigreview mit abschließender Nachprüfung sind
+abgeschlossen. Unklare Ausführung wird im Verlauf ausdrücklich von bestätigtem
+Scheitern unterschieden; beide Zustände sind durch neue Renderingtests geprüft.
+Die betroffene Komponente besteht mit elf Tests, der erneute Produktionsbau,
+Format/Lint und der branchweite Diffcheck bestehen. Der fertige lokale Stand
+wartet auf die vorgeschriebene PR-Freigabe; die vollständige CI und kontrollierte
+Echtkonto-Abnahme bleiben weitere Schritte.

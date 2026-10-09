@@ -11,8 +11,40 @@
     'MESSAGES_SEND',
     'FAVORITES_SYNC',
     'FAVORITES_SEND',
+    'NEGOTIATIONS_SEND',
     'DISCONNECT',
   ]);
+  const negotiationPauseCodes = [
+    'identity_changed',
+    'login_required',
+    'interaction_required',
+    'verification_required',
+    'session_blocked',
+    'local_binding_invalid',
+  ];
+  function persistNegotiationPause(installation, outcome, now) {
+    if (outcome.errorCode === 'rate_limited')
+      installation.schedule = {
+        ...installation.schedule,
+        retryAfter: outcome.retryAfter ?? now + 300_000,
+      };
+    else if (negotiationPauseCodes.includes(outcome.errorCode))
+      installation.schedule = {
+        ...installation.schedule,
+        pauseReason: outcome.errorCode,
+      };
+  }
+  function throwNegotiationError(outcome, installation) {
+    if (outcome.errorCode) {
+      const error = new Error(
+        'Die Vinted-Sitzung wurde pausiert. Pr�fe sie vor weiteren Vorg�ngen.',
+      );
+      error.code = outcome.errorCode;
+      if (outcome.errorCode === 'rate_limited')
+        error.retryAfter = installation.schedule?.retryAfter;
+      throw error;
+    }
+  }
   const storageKey = 'vinted_local_installation';
   const requestPrefix = 'FLIPBASE_VINTED_LOCAL_';
   class LocalBindingInvalidError extends Error {
@@ -339,7 +371,7 @@
     );
   }
 
-  async function inboxMessageEntry(message, conversationId, accountId) {
+  async function inboxMessageEntry(message, conversationId, accountId, conversation, observedAt) {
     if (!record(message) || !record(message.entity))
       throw new Error('Vinted lieferte eine unvollständige Nachricht.');
     const entity = message.entity;
@@ -399,6 +431,16 @@
         ].slice(0, 10),
         eventType: text(message.event_type),
         eventGroup: text(message.event_group),
+        ...(root.FlipbaseVintedNegotiation?.providerTime(message.created_at_ts, observedAt)
+          ? (() => {
+              const offer = root.FlipbaseVintedNegotiation?.readOffer(
+                message,
+                conversation,
+                accountId,
+              );
+              return offer ? { negotiationOffer: offer } : {};
+            })()
+          : {}),
         offerStatus:
           typeof entity.status === 'number' && Number.isSafeInteger(entity.status)
             ? ({ 10: 'pending', 20: 'accepted', 30: 'rejected', 40: 'cancelled' }[entity.status] ??
@@ -525,6 +567,46 @@
         const events = eventParser.parse(detail, expectedId, observedAt);
         eventBatches.push(events);
       }
+      const relation = detail.conversation.transaction;
+      if (
+        root.FlipbaseVintedNegotiation &&
+        identifier(relation?.id) &&
+        (identifier(relation?.seller_id) === expectedId ||
+          relation?.current_user_side === 'seller') &&
+        messageCount < 200
+      ) {
+        const transaction = await readJson(`/api/v2/transactions/${relation.id}`);
+        const purchase = root.FlipbaseVintedNegotiation.readPurchase(
+          transaction?.transaction,
+          detail.conversation,
+          expectedId,
+          observedAt,
+        );
+        if (purchase) {
+          const digest = await root.crypto.subtle.digest(
+            'SHA-256',
+            new TextEncoder().encode('purchase:' + purchase.event.transactionId),
+          );
+          const externalId = `event:${[...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('')}`;
+          entries.push({
+            kind: 'message',
+            externalId,
+            parentExternalId: entry.externalId,
+            sortAt: purchase.occurredAt,
+            body: {
+              title: 'Kauf',
+              text: null,
+              occurredAt: purchase.occurredAt,
+              direction: 'unknown',
+              messageType: 'purchase',
+              priceLabel: null,
+              negotiationEvent: purchase.event,
+            },
+          });
+          messageIds.add(externalId);
+          messageCount++;
+        }
+      }
       const remaining = 200 - messageCount;
       const messages = detail.conversation.messages;
       for (const [field, value] of Object.entries(inboxMetadata(detail.conversation))) {
@@ -536,7 +618,13 @@
       for (const message of [...messages]
         .sort((left, right) => inboxMessageDate(right).localeCompare(inboxMessageDate(left)))
         .slice(0, remaining)) {
-        const messageEntry = await inboxMessageEntry(message, externalId, expectedId);
+        const messageEntry = await inboxMessageEntry(
+          message,
+          externalId,
+          expectedId,
+          detail.conversation,
+          observedAt,
+        );
         if (messageIds.has(messageEntry.externalId))
           throw new Error('Vinted lieferte mehrdeutige Nachrichten.');
         messageIds.add(messageEntry.externalId);
@@ -619,7 +707,14 @@
       /* Unbekannte Aktivitätsangaben bleiben leer. */
     }
     return {
-      itemId: identifier(conversation.item_id ?? item.id ?? transaction.item_id),
+      itemId: identifier(
+        conversation.item_id ??
+          item.id ??
+          transaction.item_id ??
+          (Array.isArray(transaction.item_ids) && transaction.item_ids.length === 1
+            ? transaction.item_ids[0]
+            : null),
+      ),
       itemTitle: text(conversation.item_title ?? item.title ?? transaction.item_title),
       itemImageUrl: image(
         photo?.thumbnails?.find((thumbnail) => thumbnail.type === 'thumb310x430')?.url ??
@@ -795,7 +890,7 @@
           installation?.schedule?.retryAfter > adapter.now() &&
           request.action !== 'DISCONNECT' &&
           !(
-            ['MESSAGES_SEND', 'FAVORITES_SEND'].includes(request.action) &&
+            ['MESSAGES_SEND', 'FAVORITES_SEND', 'NEGOTIATIONS_SEND'].includes(request.action) &&
             installation.pendingFinish
           )
         ) {
@@ -918,15 +1013,21 @@
           throw new Error(
             'Diese Verbindung gehört nicht zu diesem Browserprofil oder Arbeitsplatz.',
           );
-        if (['MESSAGES_SEND', 'FAVORITES_SEND'].includes(action) && installation.pendingFinish) {
-          const { favorite, favoriteAction, ...receipt } = installation.pendingFinish;
+        if (
+          ['MESSAGES_SEND', 'FAVORITES_SEND', 'NEGOTIATIONS_SEND'].includes(action) &&
+          installation.pendingFinish
+        ) {
+          const { favorite, favoriteAction, negotiation, retryAfter, ...receipt } =
+            installation.pendingFinish;
           if (
             favoriteAction &&
             !['favorite_message_sent', 'favorite_offer_finish'].includes(favoriteAction)
           )
             throw new Error('Das gespeicherte Favoritenergebnis ist ungültig.');
           const finished = await adapter.edge(binding, installation.secret, {
-            action: favoriteAction ?? (favorite ? 'favorite_finish' : 'message_finish'),
+            action: negotiation
+              ? 'negotiation_finish'
+              : (favoriteAction ?? (favorite ? 'favorite_finish' : 'message_finish')),
             workspaceId: binding.workspaceId,
             connectionId: binding.connectionId,
             ...receipt,
@@ -934,11 +1035,87 @@
           if (finished?.ok !== true) throw new Error('Das Auftragsergebnis wurde nicht bestätigt.');
           delete installation.pendingFinish;
           await adapter.save(installation);
+          if (negotiation) throwNegotiationError({ ...receipt, retryAfter }, installation);
           return { reported: true };
         }
         if (Date.parse(binding.expiresAt) <= adapter.now())
           throw new Error('Die lokale Verbindung ist abgelaufen. Verbinde das Konto erneut.');
         const currentGrant = await heartbeat(binding, installation.secret);
+        if (action === 'NEGOTIATIONS_SEND') {
+          if (currentGrant.messagesSend !== true || currentGrant.messagesRead !== true)
+            return { skipped: true };
+          const scope = { workspaceId: binding.workspaceId, connectionId: binding.connectionId };
+          const claim = await adapter.edge(binding, installation.secret, {
+            action: 'negotiation_claim',
+            ...scope,
+          });
+          if (claim === null) return { empty: true };
+          if (!root.FlipbaseVintedNegotiation?.validClaim(claim, binding, adapter.now()))
+            throw new Error('Ungültiger Verhandlungsauftrag.');
+          const current = await adapter.readIdentity(installation.tabId);
+          if (current.identity.id !== binding.externalAccountId) throw identityChangedError();
+          installation.tabId = current.tabId;
+          const receipt = {
+            negotiation: true,
+            id: claim.jobId,
+            claimToken: claim.claimToken,
+            outcome: 'outcome_unknown',
+            errorCode: 'begin_unconfirmed',
+          };
+          // Persist before Begin: restart reports uncertainty, never starts a second provider attempt.
+          installation.pendingFinish = receipt;
+          await adapter.save(installation);
+          const begun = await adapter.edge(binding, installation.secret, {
+            action: 'negotiation_start',
+            ...scope,
+            id: claim.jobId,
+            claimToken: claim.claimToken,
+          });
+          if (begun?.ok !== true) throw new Error('Verhandlungsstart wurde nicht bestätigt.');
+          installation.pendingFinish = { ...receipt, errorCode: 'provider_unavailable' };
+          await adapter.save(installation);
+          let outcome;
+          try {
+            outcome = (
+              await adapter.sendNegotiation(installation.tabId, binding.externalAccountId, claim)
+            ).outcome;
+          } catch (error) {
+            outcome = {
+              outcome: 'outcome_unknown',
+              errorCode: error.code ?? 'provider_unavailable',
+              ...(Number.isFinite(error.retryAfter) && error.retryAfter > 0
+                ? { retryAfter: error.retryAfter }
+                : {}),
+            };
+          }
+          const { retryAfter, ...providerReceipt } = outcome ?? {};
+          if (
+            (retryAfter !== undefined && (!Number.isFinite(retryAfter) || retryAfter <= 0)) ||
+            !root.FlipbaseVintedNegotiation.isResult(providerReceipt)
+          )
+            throw new Error('Ungültiges Verhandlungsergebnis.');
+          installation.pendingFinish = {
+            negotiation: true,
+            id: claim.jobId,
+            claimToken: claim.claimToken,
+            ...providerReceipt,
+            ...(retryAfter !== undefined ? { retryAfter } : {}),
+          };
+          persistNegotiationPause(installation, outcome, adapter.now());
+          await adapter.save(installation);
+          const finished = await adapter.edge(binding, installation.secret, {
+            action: 'negotiation_finish',
+            ...scope,
+            id: claim.jobId,
+            claimToken: claim.claimToken,
+            ...providerReceipt,
+          });
+          if (finished?.ok !== true) throw new Error('Verhandlungsergebnis wurde nicht bestätigt.');
+          delete installation.pendingFinish;
+          await adapter.save(installation);
+          throwNegotiationError(outcome, installation);
+          return { outcome: outcome.outcome };
+        }
         if (action === 'FAVORITES_SYNC') {
           if (currentGrant.messagesRead !== true || currentGrant.messagesSend !== true)
             return { skipped: true };

@@ -233,6 +233,7 @@ export class SupabaseMarketplaceMessageStore {
       scope.syncRead ||
       scope.cloudSetup ||
       scope.favoriteWrite ||
+      scope.negotiationWrite ||
       scope.userAccessToken
     )
       throw invalid();

@@ -6,6 +6,7 @@ import {
   LocalExtensionStoreError,
 } from './handler.ts';
 import {
+  parseLocalExtensionRequest,
   parseLocalExtensionApproval,
   parseLocalExtensionInboxState,
   parseLocalExtensionStatus,
@@ -16,6 +17,141 @@ import type { LocalExtensionRequest } from '../_shared/marketplace-local-extensi
 const workspaceId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const connectionId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const secret = 'ab'.repeat(32);
+test('negotiation requests reach only their separate service and reject client commands or missing evidence', async () => {
+  const received: LocalExtensionRequest[] = [];
+  const handler = createLocalExtensionHandler({
+    ingest: async () => assert.fail('wrong importer'),
+    messageClaim: async () => assert.fail('wrong outbox'),
+    negotiation: async (tokenHash, input) => {
+      assert.equal(tokenHash, await hashLocalExtensionSecret(secret));
+      received.push(input);
+      return { ok: true };
+    },
+  });
+  const scope = {
+    workspaceId,
+    connectionId,
+    id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+    claimToken: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+  };
+  const payloads = [
+    { action: 'negotiation_claim', workspaceId, connectionId },
+    { action: 'negotiation_check', ...scope },
+    { action: 'negotiation_start', ...scope },
+    { action: 'negotiation_finish', ...scope, outcome: 'sent', externalId: '901' },
+    {
+      action: 'negotiation_finish',
+      ...scope,
+      outcome: 'outcome_unknown',
+      errorCode: 'offer_unconfirmed',
+    },
+  ];
+  for (const payload of payloads) assert.equal((await handler(request(payload))).status, 200);
+  assert.deepEqual(received, payloads);
+  for (const payload of [
+    { action: 'negotiation_claim', workspaceId, connectionId, command: {} },
+    { action: 'negotiation_start', ...scope, outcome: 'sent' },
+    { action: 'negotiation_finish', ...scope, outcome: 'sent' },
+    { action: 'negotiation_finish', ...scope, outcome: 'failed', externalId: '901' },
+    { action: 'negotiation_check', ...scope, id: '901' },
+  ])
+    assert.equal((await handler(request(payload))).status, 400);
+});
+test('negotiation import fields strictly validate source account, event prices and unknown fields', () => {
+  const offer = {
+    offerId: '44',
+    transactionId: '66',
+    itemId: '42',
+    buyerId: '73',
+    sellerId: '9',
+    originalPriceCents: 10000,
+    offeredPriceCents: 8000,
+    currency: 'EUR',
+    status: 'pending',
+  };
+  const conversation = {
+    kind: 'conversation',
+    externalId: '77',
+    sortAt: '2026-10-09T10:00:00Z',
+    body: {
+      title: 'Chat',
+      text: null,
+      occurredAt: '2026-10-09T10:00:00Z',
+      sourceUpdatedAt: '2026-10-09T10:00:00Z',
+      detailCheckedAt: null,
+      unread: false,
+      imageUrl: null,
+    },
+  };
+  const message = {
+    kind: 'message',
+    externalId: '11',
+    parentExternalId: '77',
+    sortAt: '2026-10-09T10:00:00Z',
+    body: {
+      title: 'Angebot',
+      text: null,
+      occurredAt: '2026-10-09T10:00:00Z',
+      direction: 'inbound',
+      messageType: 'offer_request_message',
+      priceLabel: null,
+      negotiationOffer: offer,
+    },
+  };
+  const batch = {
+    identity: { id: '9' },
+    observedAt: '2026-10-09T11:00:00Z',
+    page: 1,
+    nextPage: 1,
+    conversationsComplete: true,
+    entries: [conversation, message],
+  };
+  const payload = { action: 'inbox_import', workspaceId, connectionId, batch };
+  assert.ok(parseLocalExtensionRequest(payload));
+  for (const changes of [
+    { sellerId: '8' },
+    { offeredPriceCents: 10001 },
+    { currency: 'USD' },
+    { status: 'accepted' },
+    { unexpected: true },
+  ])
+    assert.equal(
+      parseLocalExtensionRequest({
+        ...payload,
+        batch: {
+          ...batch,
+          entries: [
+            conversation,
+            { ...message, body: { ...message.body, negotiationOffer: { ...offer, ...changes } } },
+          ],
+        },
+      }),
+      null,
+    );
+  const { negotiationOffer: _offer, ...body } = message.body;
+  const event = { id: '99', type: 'purchased', transactionId: '66', confirmed: true };
+  const eventPayload = (negotiationEvent: unknown) => ({
+    ...payload,
+    batch: {
+      ...batch,
+      entries: [conversation, { ...message, body: { ...body, negotiationEvent } }],
+    },
+  });
+  assert.ok(parseLocalExtensionRequest(eventPayload(event)));
+  assert.equal(parseLocalExtensionRequest(eventPayload({ ...event, priceCents: 9500 })), null);
+  assert.equal(
+    parseLocalExtensionRequest(
+      eventPayload({
+        ...event,
+        originalPriceCents: 10000,
+        priceCents: 9500,
+        currency: 'EUR',
+        unexpected: true,
+      }),
+    ),
+    null,
+  );
+});
 test('favorite actions reach only favorite persistence with the scoped secret hash', async () => {
   const received: LocalExtensionRequest[] = [];
   const handler = createLocalExtensionHandler({
@@ -859,6 +995,53 @@ test(
         parameters: { ...scopeParameters, p_batch: { ...inboxBatch(), mode: 'backfill' } },
       });
       for (const [body, name, parameters] of [
+        [
+          { action: 'negotiation_claim', workspaceId, connectionId },
+          'marketplace_local_negotiation_claim',
+          scopeParameters,
+        ],
+        [
+          {
+            action: 'negotiation_check',
+            workspaceId,
+            connectionId,
+            id: conversationId,
+            claimToken,
+          },
+          'marketplace_local_negotiation_check',
+          { ...scopeParameters, p_job_id: conversationId, p_claim_token: claimToken },
+        ],
+        [
+          {
+            action: 'negotiation_start',
+            workspaceId,
+            connectionId,
+            id: conversationId,
+            claimToken,
+          },
+          'marketplace_local_negotiation_begin',
+          { ...scopeParameters, p_job_id: conversationId, p_claim_token: claimToken },
+        ],
+        [
+          {
+            action: 'negotiation_finish',
+            workspaceId,
+            connectionId,
+            id: conversationId,
+            claimToken,
+            outcome: 'sent',
+            externalId: '901',
+          },
+          'marketplace_local_negotiation_finish',
+          {
+            ...scopeParameters,
+            p_job_id: conversationId,
+            p_claim_token: claimToken,
+            p_outcome: 'sent',
+            p_external_id: '901',
+            p_error_code: null,
+          },
+        ],
         [
           { action: 'favorites_state', workspaceId, connectionId },
           'marketplace_local_favorites_state',

@@ -228,7 +228,7 @@
       interruptedPageState ?? (sessionBlocked ? 'session_blocked' : pageState()),
     );
     if (
-      !/^\/api\/v2\/(?:users\/current|wardrobe\/[1-9][0-9]{0,31}\/items\?page=(?:[1-9]|1[0-9]|2[0-5])&per_page=20|inbox\?page=(?:[1-9]|1[0-9]|20)&per_page=20|conversations\/[1-9][0-9]{0,31})$/.test(
+      !/^\/api\/v2\/(?:users\/current|wardrobe\/[1-9][0-9]{0,31}\/items\?page=(?:[1-9]|1[0-9]|2[0-5])&per_page=20|inbox\?page=(?:[1-9]|1[0-9]|20)&per_page=20|conversations\/[1-9][0-9]{0,31}|transactions\/[1-9][0-9]{0,31})$/.test(
         path,
       ) &&
       !/^\/web\/api\/notifications\/notifications\?page=[12]&per_page=100&mark_as_read=false$/.test(
@@ -283,6 +283,7 @@
         'VINTED_LOCAL_SNAPSHOT',
         'VINTED_LOCAL_INBOX',
         'VINTED_LOCAL_SEND',
+        'VINTED_LOCAL_NEGOTIATION_SEND',
         'VINTED_LOCAL_FAVORITES',
         'VINTED_LOCAL_FAVORITE_SEND',
         'VINTED_LOCAL_FAVORITE_OFFER_PREPARE',
@@ -311,35 +312,46 @@
         const result =
           request.type === 'VINTED_LOCAL_IDENTITY'
             ? { identity: core.parseIdentity(await readJson('/api/v2/users/current')) }
-            : request.type === 'VINTED_LOCAL_FAVORITES'
+            : request.type === 'VINTED_LOCAL_NEGOTIATION_SEND'
               ? {
-                  events: await globalThis.FlipbaseVintedFavorites.read(
-                    readJson,
+                  outcome: await globalThis.FlipbaseVintedNegotiation.send(
+                    {
+                      read: readJson,
+                      write: writeProvider,
+                      csrf: globalThis.FlipbaseVintedMessages.readCsrfToken(document),
+                      authorize: async () => {
+                        core.assertPageReady(interruptedPageState ?? pageState());
+                        const result = await chrome.runtime.sendMessage({
+                          type: 'VINTED_LOCAL_NEGOTIATION_CHECK',
+                          jobId: request.claim.jobId,
+                          claimToken: request.claim.claimToken,
+                        });
+                        if (result?.active !== true)
+                          throw new Error('Verhandlungsfreigabe abgelaufen.');
+                      },
+                    },
                     request.externalAccountId,
+                    request.claim,
+                    globalThis.FlipbaseVintedMessages,
                   ),
                 }
-              : [
-                    'VINTED_LOCAL_FAVORITE_OFFER_PREPARE',
-                    'VINTED_LOCAL_FAVORITE_OFFER_SEND',
-                  ].includes(request.type)
+              : request.type === 'VINTED_LOCAL_FAVORITES'
                 ? {
-                    outcome: await globalThis.FlipbaseVintedFavorites[
-                      request.type === 'VINTED_LOCAL_FAVORITE_OFFER_PREPARE'
-                        ? 'prepareOffer'
-                        : 'sendOffer'
-                    ](
-                      {
-                        read: readJson,
-                        write: writeProvider,
-                        csrf: globalThis.FlipbaseVintedMessages.readCsrfToken(document),
-                      },
+                    events: await globalThis.FlipbaseVintedFavorites.read(
+                      readJson,
                       request.externalAccountId,
-                      request.command,
                     ),
                   }
-                : request.type === 'VINTED_LOCAL_FAVORITE_SEND'
+                : [
+                      'VINTED_LOCAL_FAVORITE_OFFER_PREPARE',
+                      'VINTED_LOCAL_FAVORITE_OFFER_SEND',
+                    ].includes(request.type)
                   ? {
-                      outcome: await globalThis.FlipbaseVintedFavorites.send(
+                      outcome: await globalThis.FlipbaseVintedFavorites[
+                        request.type === 'VINTED_LOCAL_FAVORITE_OFFER_PREPARE'
+                          ? 'prepareOffer'
+                          : 'sendOffer'
+                      ](
                         {
                           read: readJson,
                           write: writeProvider,
@@ -347,12 +359,11 @@
                         },
                         request.externalAccountId,
                         request.command,
-                        globalThis.FlipbaseVintedMessages,
                       ),
                     }
-                  : request.type === 'VINTED_LOCAL_SEND'
+                  : request.type === 'VINTED_LOCAL_FAVORITE_SEND'
                     ? {
-                        outcome: await globalThis.FlipbaseVintedMessages.send(
+                        outcome: await globalThis.FlipbaseVintedFavorites.send(
                           {
                             read: readJson,
                             write: writeProvider,
@@ -360,15 +371,30 @@
                           },
                           request.externalAccountId,
                           request.command,
+                          globalThis.FlipbaseVintedMessages,
                         ),
                       }
-                    : request.type === 'VINTED_LOCAL_INBOX'
+                    : request.type === 'VINTED_LOCAL_SEND'
                       ? {
-                          batch: await (
-                            request.state.detail ? core.readInboxDetail : core.readInbox
-                          )(readJson, request.externalAccountId, request.state),
+                          outcome: await globalThis.FlipbaseVintedMessages.send(
+                            {
+                              read: readJson,
+                              write: writeProvider,
+                              csrf: globalThis.FlipbaseVintedMessages.readCsrfToken(document),
+                            },
+                            request.externalAccountId,
+                            request.command,
+                          ),
                         }
-                      : { snapshot: await core.readSnapshot(readJson, request.externalAccountId) };
+                      : request.type === 'VINTED_LOCAL_INBOX'
+                        ? {
+                            batch: await (
+                              request.state.detail ? core.readInboxDetail : core.readInbox
+                            )(readJson, request.externalAccountId, request.state),
+                          }
+                        : {
+                            snapshot: await core.readSnapshot(readJson, request.externalAccountId),
+                          };
         setBusy(false);
         sendResponse({ success: true, result });
       } catch (error) {
@@ -416,17 +442,25 @@
   }
 
   async function writeProvider(path, request) {
-    if (
-      !/^\/api\/v2\/(?:photos|conversations|conversations\/[1-9][0-9]{0,31}\/replies|transactions\/[1-9][0-9]{0,31}\/offers)$/.test(
+    const method = request.method ?? 'POST';
+    const offerDecision =
+      /^\/api\/v2\/transactions\/[1-9][0-9]{0,31}\/offer_requests\/[1-9][0-9]{0,31}\/(?:accept|reject)$/.test(
         path,
-      )
-    )
+      );
+    const post =
+      /^\/api\/v2\/(?:photos|conversations|conversations\/[1-9][0-9]{0,31}\/replies|transactions\/[1-9][0-9]{0,31}\/offers)$/.test(
+        path,
+      );
+    if (!(
+      (method === 'POST' && post) ||
+      (method === 'PUT' && offerDecision && request.body === undefined)
+    ))
       throw new Error('Dieser Vinted-Aufruf ist nicht erlaubt.');
     core.assertPageReady(interruptedPageState ?? pageState());
     const remaining = deadline - Date.now();
     if (remaining <= 0) throw new Error('Der Vorgang dauerte zu lange.');
     const response = await fetch(path, {
-      method: 'POST',
+      method,
       credentials: 'include',
       redirect: 'error',
       headers: {

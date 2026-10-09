@@ -18,6 +18,154 @@
 - Unit-Tests in `header-notification-visuals.spec.ts` (14 Tests, alle bestanden).
 - Typprüfung (`npm run typecheck`), ESLint und Prettier ohne Beanstandung.
 
+## 2026-10-09 - Juna - Angebotsaktionen und Verhandlungsautomatik umsetzen
+
+**Auftrag:** Den abgestimmten Verhandlungsentwurf für Cloud und Extension
+umsetzen: manuelle Angebotsaktionen, Preisgrenzen und Stufen, alternative
+Ereignistexte und Nachrichtenfolgen, Verzögerungen sowie Kaufnachrichten.
+
+**Änderung:** Manuelle Annahme, Ablehnung und Gegenangebot im Chat sowie
+kontobezogene Verhandlungsregeln für Cloud und Extension. Preise, Bereiche,
+Stufen, Vorschau, Alternativen und echte Nachrichtenfolgen mit Wartezeiten sind
+konfigurierbar. Kaufnachrichten wirken unabhängig. Eigene dauerhafte Jobs und
+Freigabe-/Kontoprüfungen verhindern veraltete und doppelte Schreibversuche;
+unklarer Ausgang wird nicht erneut versendet. Neue Einstellungen bleiben aus.
+
+**Prüfung:** 117 neue und 676 bestehende Datenbankchecks auf der transaktionalen
+Migrationskopie; erzeugte Migration/Typen und identische Funktionsrechte.
+Cloud-/Extensionregressionen, tatsächlicher Worker-Image-Bau samt Modulimport,
+40 Modell-/Navigationstests, 86 relevante Angularprüfungen und zehn Mock-
+Browserabläufe mit AXE auf Desktop/Mobil in hell/dunkel erfolgreich.
+Produktionsbau, Format/Lint und Shared-UI bestehen. Die bestehende vollständige
+Deno-Lintbaseline bleibt offen; ein gefilterter Lauf ist kein vollständiger
+Lintnachweis. Aufgabenreviews, Zweigreview und abschließende Nachprüfung sind
+abgeschlossen. Der einzige fachliche Abschlussbefund ist behoben: Unklarer
+Schreibausgang bleibt ausdrücklich unbestätigt, sicherer Fehler wird getrennt
+angezeigt. Zwei neue Renderingregressionen, die betroffene Komponente mit elf
+Tests, erneuter Produktionsbau, Format/Lint und branchweiter Diffcheck bestehen.
+
+**CI-Korrektur (PR356):** Nachlass und Preisbereichsgrenze verwenden explizite
+FormControl-Konstruktionen für die bestehende Formularbindungsprüfung. Die
+Smoke-Erwartungsliste enthält die sechs vorhandenen Bot-Icon-/Lesestatusfälle.
+54 Formularbindungs- und elf Komponententests, beide Smoke-Auswahlprüfungen,
+Produktionsbau sowie gezieltes Format/Lint bestehen; Assertions und
+Testauswahl bleiben unverändert.
+
+Das isolierte Chromium-Sitzungsimage erhält jetzt ebenfalls die gemeinsame
+Verhandlungslaufzeit. Der fehlende Modulimport ist im tatsächlichen Image vor
+dem Fix reproduziert; danach bestehen die Aktionsimporte ohne Netzwerk und mit
+schreibgeschütztem Dateisystem. Beide Image-Workflows prüfen diesen Import vor
+ihren Browser-Smokes. 54 gezielte Kanal-/Isolations-/Angebotsprüfungen bestehen.
+Der Workspace-Test registriert die neuen Angebotsaktionen und das Zahlenfeld;
+alle 55 Workspace-/Angebotsaktionstests bestehen.
+
+**Grenze:** Bestätigte Zahlungen sind belegte Kaufauslöser. Für die separate
+Käuferannahme unseres Gegenangebots fehlt bislang ein eindeutiger Anbieterbeleg;
+die Oberfläche erklärt die Nichtverfügbarkeit und bewahrt gespeicherte Texte.
+Keine echte Anbieteraktion oder produktive Aktivierung. PR356 ist nach
+Nutzerfreigabe erstellt; die vollständige CI und Veröffentlichung stehen aus.
+Umsetzungs- und Prüfstände: [Plan](superpowers/plans/2026-10-09-vinted-negotiation.md).
+
+## 2026-10-09 - Juna - Verhandlungsseite im Browser analysieren
+
+**Auftrag:** Die geöffnete Bleam-Seite „Automatische Verhandlung“ lesen und
+Preisregeln, Stufen, Ereignisnachrichten sowie Versandverzögerungen für Flipbase
+ableiten; zusätzlich Nachrichten nach Annahme und allgemeinem Kauf aufnehmen.
+
+**Beobachtung:** Preisbereiche mit Euro-Nachlass, Stufen als Anteil dieses
+Nachlasses, zufällig gewählte alternative Texte je Verhandlungsmoment,
+Minuten-/Sekundenverzögerung und Reihenfolge Nachricht/Angebot. „Nachrichten nach
+der Annahme“ betrifft dort erneutes Verhandeln, keine belegte Kaufnachricht.
+Auswahlmenü nur geöffnet und geschlossen; keine fremden Einstellungen geändert.
+
+**Ergebnis:** Bestehendes Rechercheprotokoll und Angebotsplan ergänzt. Eigener
+Menüpunkt, gemeinsame Regeln für Cloud/Extension, separate Ereignisse für
+Annahme/Kauf, optionale echte Nachrichtenfolgen zusätzlich zu Textalternativen
+und dauerhaft geplante Folgeschritte. Die frühere Einmal-Gegenangebotsauswahl
+ist durch den neuen Stufenauftrag ersetzt. Aktions-/Ereignisnachweise bleiben
+Voraussetzung vor Umsetzung und Aktivierung; keine erfundenen Provider-APIs.
+
+**Prüfung:** Sichtbare Oberfläche samt Hilfetexten gelesen, aktuelle Navigation
+und bestehende Angebotsplanung abgeglichen; Formatprüfung und Diffcheck für die
+Dokumentation. Keine Produktänderung, kein Versand und keine Änderung am Flipbase-Betrieb.
+Die bereits geprüften Bot-Icon-/Lesestatusänderungen bleiben unverändert.
+
+## 2026-10-09 - Juna - Angebotsaktionen und automatische Verhandlung aufnehmen
+
+**Auftrag:** Manuelles Annehmen/Ablehnen/Gegenangebot im Chat und eine pro Konto
+konfigurierbare Annahmegrenze mit Reaktion auf zu niedrige Angebote prüfen.
+
+**Befund:** Die Favoritenregeln samt Verzögerung und optionalem Preisvorschlag
+sind für Extension und Cloud im aktuellen Code verdrahtet. Ihr kontrollierter
+Echtkonto-Abnahmetest bleibt offen. Erhaltene Angebote werden bislang angezeigt;
+Annahme/Ablehnung und eine darauf bezogene Verhandlungsautomatik fehlen.
+Bleams eigene Hilfe dokumentiert Preisgrenzen und automatische Gegenangebote.
+
+**Ergebnis:** Den Ergänzungsauftrag im bestehenden Angebotsplan aufgenommen,
+mit konkreter Chatbedienung, Daten-/Aktionsnachweisen und getrennten Regeln.
+Die Gegenangebotsstrategie ist noch mit dem Nutzer abzustimmen. Keine neuen
+Anbieterendpunkte angenommen, keine Produktänderung und keine Vinted-Schreibaktion.
+Formatprüfung und Diffcheck sind die Prüfungen dieser reinen Analyseergänzung;
+die vorher geprüften Bot-Icon-/Lesestatusänderungen bleiben unverändert.
+
+## 2026-10-09 - Juna - Geöffnete Vinted-Gespräche als gelesen speichern
+
+**Auftrag:** Ein geöffnetes und erfolgreich synchronisiertes Gespräch soll in
+Flipbase den Status von ungelesen auf gelesen wechseln.
+
+**Änderung:** Cloud und Extension bestätigen den Lesestatus erst nach dem
+vollständigen Gesprächsabruf. Die gespeicherte Version hängt von Kontoidentität
+und eingegangenen Nachrichtenkennungen ab. Wiederholte Importe und eigene
+Antworten lassen das Gespräch gelesen; ein neuer Eingang wird wieder ungelesen,
+auch bei identischem Text und Datum. Fehlgeschlagene oder abgebrochene Abrufe
+und verspätete Bestätigungen können neuere Eingänge nicht als gelesen markieren.
+Die passenden Glockenmeldungen werden ebenfalls gelesen. Vinteds eigener
+Lesestatus wird durch diesen Flipbase-Lesebeleg nicht geändert.
+
+**Datenbank:** Gesonderte Lesespalte mit geprüftem Konto-/Workspace-Zugriff;
+Bestätigung über den vorhandenen Importlock. Die Migration wurde per
+`supabase db diff` erzeugt, auf die betroffenen Anweisungen begrenzt und auf einer
+frischen Wegwerfkopie transaktional geprüft. Datenbanktypen wurden neu erzeugt.
+
+**Prüfung:** Die gezielten Komponenten-/Modelltests, 267 Datenbankprüfungen und
+14 Browserabläufe mit AXE bestehen, einschließlich Cloud/Extension, Neuladen,
+Ungelesenfilter und gleichzeitigem Eingang. Produktionsbau, Typprüfung, ESLint,
+Formatierung und Diffcheck bestehen. Die älteren Kontotests benötigen in der
+isolierten Kopie ihren bisherigen Archivierungs-Fixture; der Schutztrigger
+wurde dort nach dem Test wieder aktiviert. Keine produktive Datenbankänderung
+und keine Vinted-Schreibaktion. Die Ergänzung bleibt mit dem Bot-Icon auf dem
+eigenen, noch nicht veröffentlichten Zweig. Der aktuelle Hauptzweig ist integriert;
+beide Einträge im additiven Changelog-Konflikt bleiben vollständig erhalten.
+
+## 2026-10-09 - Juna - Automatische Chatantworten mit Bot-Icon kennzeichnen
+
+**Auftrag:** Automatisch von Flipbase gesendete Antworten erhalten ausschließlich
+in Flipbase ein Bot-Icon anstelle des eigenen Profilbilds. Für Flipbase hat der
+Nutzer Backend-Änderungen ausdrücklich freigegeben; die globale Frontend-Grenze
+seiner anderen Arbeitsprojekte gilt hier nicht.
+
+**Änderung:** Der bestehende Chatabruf ordnet bestätigte Automatik-Versandbelege
+über Nachrichten-ID, Workspace, Konto und vorhandene Gesprächs-ID zu. Einträge
+aus Cloud und Extension werden identisch dargestellt. Gleiche Texte, fremde
+Konten, unbestätigte Ergebnisse und importierte Herkunftsbehauptungen reichen
+nicht aus. Manuelle Nachrichten behalten ihr Profilbild. Das runde Bot-Icon
+trägt den zugänglichen Hinweis „Automatisch von Flipbase gesendet“.
+
+**Datenbank:** Der bereits abgesicherte Chatabruf liest private Versandbelege
+mit ausdrücklich geprüfter Benutzeridentität und Kontozuordnung. Die Belegtabelle
+bleibt für Clients gesperrt; ein begrenzter Index beschleunigt die Zuordnung.
+Die Migration wurde mit `supabase db diff` auf einer isolierten Testkopie erzeugt,
+auf die betroffenen Funktions-/Indexanweisungen begrenzt und transaktional auf
+einer frischen Kopie geprüft. Die neu erzeugten Datenbanktypen bestätigen die
+unveränderte RPC-Signatur; keine manuelle Änderung generierter Typen.
+
+**Prüfung:** 72 Komponenten-/Modelltests, vier Browserprüfungen mit AXE für
+Cloud/Extension bei 1440/390 px und 154 Datenbankprüfungen bestehen. Die älteren
+Kontotests verwenden in der Wegwerfkopie ihr bisheriges Archivierungs-Fixture;
+der neue Herkunftstest prüft die reguläre Archivierungsaktion. Produktionsbau,
+Typprüfung, ESLint, Formatierung, Shared-UI-Prüfung und Diffcheck bestehen.
+Keine Vinted-Nachricht gesendet und keine produktive Migration ausgeführt.
+
 ## 2026-10-09 - Juna - Benachrichtigungs-Dropdown modernisieren und Plattform-Logos einführen
 
 **Auftrag:** Benachrichtigungs-Dropdown im Header refaktorisieren: Die aufdringliche gelb-beige Ganzzeilen-Tönung (`bg-fb-brand-surface`) für ungelesene Einträge durch ein modernes, dezentes Ungelesen-Muster mit klarem Indikatorpunkt ersetzen, und vor Marktplatz-Benachrichtigungen (Vinted, eBay, Kleinanzeigen) das jeweilige Plattform-Logo sowie für Einkäufe, Verkäufe und Systemankündigungen passende Typ-Icons anzeigen.

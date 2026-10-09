@@ -586,6 +586,60 @@ export class MarketplaceAccountStore {
     }
   }
 
+  async markConversationRead(
+    id: string,
+    observedAt: string,
+    isCurrent: () => boolean,
+  ): Promise<void> {
+    const connection = this.selectedConnection();
+    const key = this.contextKey();
+    const selection = this.selectionRevision;
+    const entry = this.snapshot()?.conversations.items.find((item) => item.id === id);
+    const version = entry?.readVersion;
+    const valid = () =>
+      !!key &&
+      this.isCurrent(key) &&
+      selection === this.selectionRevision &&
+      this.selectedConversationId() === id &&
+      isCurrent();
+    if (
+      !connection ||
+      !version ||
+      !entry?.detailCheckedAt ||
+      Date.parse(entry.detailCheckedAt) < Date.parse(observedAt) ||
+      !this.messages() ||
+      this.error() ||
+      !valid()
+    )
+      return;
+    try {
+      const marked = await this.api.markConversationRead(
+        this.scope(connection),
+        id,
+        version,
+        observedAt,
+      );
+      if (!marked || !valid()) return;
+      this.accountSnapshot.update((snapshot) =>
+        snapshot
+          ? {
+              ...snapshot,
+              conversations: {
+                ...snapshot.conversations,
+                items: snapshot.conversations.items.map((item) =>
+                  item.id === id && item.readVersion === version
+                    ? { ...item, unread: false }
+                    : item,
+                ),
+              },
+            }
+          : snapshot,
+      );
+    } catch (error) {
+      if (valid()) this.handleError(error);
+    }
+  }
+
   async openConversation(id: string): Promise<void> {
     const connection = this.selectedConnection();
     const key = this.contextKey();

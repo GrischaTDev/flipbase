@@ -43,6 +43,16 @@ const coreTests = [
     'vinted-inbox-experience.spec.ts',
     `Cloud-Glocke öffnet das richtige Gespräch und sendet ohne Extension bei ${width}px @core-smoke`,
   ]),
+  ...['Extension', 'Cloud'].map((mode) => [
+    'vinted-inbox-experience.spec.ts',
+    `Geöffnetes ${mode}-Gespräch wird nach erfolgreichem Laden gelesen @core-smoke`,
+  ]),
+  ...['Extension', 'Cloud'].flatMap((mode) =>
+    [1440, 390].map((width) => [
+      'vinted-inbox-experience.spec.ts',
+      `Bot-Icon für automatische Antwort ${mode} ${width}px @core-smoke`,
+    ]),
+  ),
   [
     'beta-access-lifecycle.spec.ts',
     'beendet und verlängert eine Beta bei offenem Browser und erhält die Anmeldung @core-smoke',

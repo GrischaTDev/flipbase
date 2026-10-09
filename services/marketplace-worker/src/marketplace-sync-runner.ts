@@ -64,6 +64,8 @@ export class MarketplaceSyncRunner {
   }
 
   async start(scope: BrowserSessionScope): Promise<string> {
+    if (scope.messageWrite || scope.favoriteWrite || scope.negotiationWrite)
+      throw new Error('Leseauftrag ungültig');
     const operation = await this.operations.enqueue(scope);
     if (this.dispatch) {
       this.dispatch();
@@ -80,7 +82,8 @@ export class MarketplaceSyncRunner {
   }
 
   runDispatched(scope: BrowserSessionScope): Promise<void> {
-    if (!scope.syncRead) return Promise.reject(new Error('Leseauftrag fehlt'));
+    if (scope.messageWrite || scope.favoriteWrite || scope.negotiationWrite || !scope.syncRead)
+      return Promise.reject(new Error('Leseauftrag fehlt'));
     return this.execute(scope, scope.syncRead.operationId);
   }
 

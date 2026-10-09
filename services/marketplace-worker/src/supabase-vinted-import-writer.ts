@@ -144,6 +144,8 @@ export class SupabaseVintedImportWriter {
     return counts;
   }
   private async assertActive(scope: BrowserSessionScope, sessionId: string): Promise<void> {
+    if (scope.messageWrite || scope.favoriteWrite || scope.negotiationWrite)
+      throw new Error('Kontozugriff abgelaufen');
     if (scope.syncRead) {
       if (sessionId !== scope.syncRead.sessionId) throw new Error('Kontozugriff abgelaufen');
       const value = record(

@@ -9,6 +9,7 @@ export default defineConfig({
     'vinted-account-grid.spec.ts',
     'vinted-inbox-experience.spec.ts',
     'vinted-favorite-messages.spec.ts',
+    'vinted-negotiation.spec.ts',
   ],
   outputDir: process.env['MARKETPLACE_TEST_OUTPUT'] ?? '../../test-results/marketplace',
   workers: 1,

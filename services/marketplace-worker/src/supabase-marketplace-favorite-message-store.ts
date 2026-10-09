@@ -251,6 +251,7 @@ export class SupabaseMarketplaceFavoriteMessageStore {
       scope.messageWrite ||
       scope.syncRead ||
       scope.cloudSetup ||
+      scope.negotiationWrite ||
       scope.userAccessToken ||
       binding.eventId !== claim.eventId ||
       binding.claimToken !== claim.claimToken ||

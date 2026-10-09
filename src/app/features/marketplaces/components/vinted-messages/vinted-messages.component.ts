@@ -22,6 +22,7 @@ import {
   LucideTrash2,
   LucideTag,
   LucideInfo,
+  LucideBot,
   LucideRefreshCw,
 } from '@lucide/angular';
 import imageCompression from 'browser-image-compression';
@@ -46,6 +47,7 @@ import { TextFieldComponent } from '../../../../shared/components/text-field/tex
 import { LoadingIndicatorComponent } from '../../../../shared/components/loading-indicator/loading-indicator.component';
 import { formatConversationTime, formatMessageDay } from './vinted-message-time';
 import { VintedMessagingStore } from '../../services/vinted-messaging.store';
+import { VintedOfferActionsComponent } from '../vinted-offer-actions/vinted-offer-actions.component';
 
 function preserveConversationMetadata(
   entry: MarketplaceEntry,
@@ -99,6 +101,8 @@ interface ReadingPosition {
     LoadingIndicatorComponent,
     LucideTag,
     LucideInfo,
+    LucideBot,
+    VintedOfferActionsComponent,
   ],
   templateUrl: './vinted-messages.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -430,6 +434,8 @@ export class VintedMessagesComponent {
           } else if (result.status === 'success') {
             const refreshError = this.store.error();
             await this.store.openConversation(entry.id);
+            if (isCurrent() && !this.store.error())
+              await this.store.markConversationRead(entry.id, result.observedAt, isCurrent);
             if (isCurrent())
               this.conversationRead.set({
                 key,
@@ -753,6 +759,64 @@ export class VintedMessagesComponent {
 
   offerLabel(entry: MarketplaceEntry): string {
     return entry.direction === 'outbound' ? 'Angebot gesendet' : 'Angebot erhalten';
+  }
+
+  canActOnOffer(entry: MarketplaceEntry): boolean {
+    const offer = entry.negotiationOffer;
+    if (
+      !offer ||
+      entry.direction !== 'inbound' ||
+      entry.messageType !== 'offer_request_message' ||
+      (entry.offerStatus != null && !['pending', '10'].includes(entry.offerStatus)) ||
+      !entry.occurredAt ||
+      !Number.isFinite(Date.parse(entry.occurredAt))
+    )
+      return false;
+    const account = this.store.selectedConnection();
+    const conversation = this.conversation();
+    if (
+      !account ||
+      !conversation ||
+      !this.context() ||
+      !this.store.canManage() ||
+      this.store.loadingMessages() ||
+      this.isRefreshingConversation() ||
+      this.conversationReadError() ||
+      account.status !== 'connected' ||
+      entry.workspaceId !== account.workspaceId ||
+      entry.connectionId !== account.connectionId ||
+      entry.conversationId !== conversation.id ||
+      offer.sellerId !== account.externalAccountId ||
+      offer.buyerId !== conversation.partnerId ||
+      offer.itemId !== conversation.itemId ||
+      ['sold', 'completed', 'transaction_completed', 'cancelled'].includes(
+        conversation.transactionStatus ?? '',
+      ) ||
+      this.transcript().some((message) => message.negotiationEvent?.confirmed)
+    )
+      return false;
+    const offers = this.transcript().filter((message) => this.messageKind(message) === 'offer');
+    if (
+      offers.some(
+        (message) => !message.occurredAt || !Number.isFinite(Date.parse(message.occurredAt)),
+      )
+    )
+      return false;
+    if (
+      offers.at(-1)?.id !== entry.id ||
+      offers.some(
+        (message) =>
+          message.id !== entry.id &&
+          Date.parse(message.occurredAt ?? '') >= Date.parse(entry.occurredAt ?? ''),
+      )
+    )
+      return false;
+    return (
+      this.messaging.canSend() &&
+      (account.executionMode === 'cloud'
+        ? this.messaging.cloudSendAllowed()
+        : this.local.hasValidBinding() && this.local.binding()?.messagesSend === true)
+    );
   }
 
   offerPrices(entry: MarketplaceEntry): { offered: string | null; original: string | null } {

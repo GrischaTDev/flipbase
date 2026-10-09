@@ -11,6 +11,77 @@ und der [lokale Pilotplan](../implementation/vinted-local-extension-pilot.md).
 Das Protokoll enthält eigene Notizen; Zugangsdaten, Kontodumps und kopierte
 Anwendungspakete werden nicht mit veröffentlicht.
 
+## Automatische Verhandlung: Browserbeobachtung vom 09.10.2026
+
+### Vinted-Angebotsvertrag vom 09.10.2026
+
+Die öffentlichen JavaScript-Dateien des geöffneten Vinted-Gesprächs wurden
+lesend geprüft; keine Angebotsaktion wurde ausgeführt. Die
+[aktuelle Angebotsoberfläche](https://marketplace-web-assets.vinted.com/_next/static/chunks/1q6m-857qs8nu.js)
+verwendet `PUT /transactions/{id}/offer_requests/{offerRequestId}/accept` und
+`PUT /transactions/{id}/offer_requests/{offerRequestId}/reject`. Verkäufer senden
+Gegenangebote mit `POST /transactions/{id}/offers` und `{offer:{price,currency}}`;
+die Antwort enthält `offer.id`. Diese Pfade gehören zur vorhandenen Vinted-API,
+nicht zu Flipbase. Der Browseradapter prüft zusätzlich Rolle, Artikel und Ergebnis.
+
+Der [Nachrichtenmapper](https://marketplace-web-assets.vinted.com/_next/static/chunks/0hn8x2q4tyutq.js)
+liest bei `offer_request_message` unter anderem `offer_request_id`,
+`transaction_id`, `user_id`, `price`, `original_price`, `currency`, `current` und
+`status`. Preise sind Zeichenketten oder Objekte mit `amount`. Der Statusvertrag
+in der Angebotsoberfläche lautet 10 offen, 20 angenommen, 30 abgelehnt, 40 storniert.
+Nachrichtenkennung und Angebotskennung sind unterschiedliche Felder.
+
+Eine Angebotsannahme belegt keinen Kauf. Kaufnachrichten benötigen einen eigenen
+bestätigten Anbieterbeleg; Anzeigenamen und übersetzte Statustexte reichen nicht.
+
+### Bestätigter Kaufvertrag für Verhandlungsnachrichten
+
+Die am 9. Oktober 2026 gelesene öffentliche
+[Vinted-Transaktionsquelle](https://marketplace-web-assets.vinted.com/_next/static/chunks/0hn8x2q4tyutq.js)
+liest die Transaktion über `/transactions/{id}`. Ihr Mapper verwendet
+`debit_processed_at` als Zahlungsnachweis und enthält Verkäufer-ID, Nutzerrolle,
+Artikelkennungen sowie den Artikelangebotspreis. Ein Kaufereignis kann daher auf
+einen echten Zahlungszeitpunkt und die genaue Verkäufer-/Einzelartikelbindung
+gestützt werden. Ein beliebiger numerischer Transaktionsstatus oder ein als
+verkauft markierter Artikel reicht dafür nicht.
+
+Die aktuelle
+[Angebotsoberfläche](https://marketplace-web-assets.vinted.com/_next/static/chunks/1q6m-857qs8nu.js)
+zeigt beim Verkäuferangebot für den Käufer einen Kaufen-Button. Der zugehörige
+`offer_message`-Mapper enthält keinen Annahmestatus. Status 20 ist ausschließlich
+für `offer_request_message` als Annahme des Käuferangebots belegt. Daraus darf
+keine separate Käuferannahme einer Verkäuferofferte erzeugt werden. Dafür fehlt
+der eindeutige Bezug einer bestätigten Zahlung zur eigenen Verkäuferangebots-ID;
+gleiche Preise allein sind kein Beleg. Kaufnachrichten und eigene Annahmetexte
+können unabhängig davon umgesetzt werden.
+
+Die bereits geöffnete [Bleam-Verhandlungsseite](https://bleam.app/en/dashboard/negociation)
+wurde im angemeldeten Browser ausschließlich gelesen. Ein Auswahlmenü für die
+Versandreihenfolge wurde geöffnet und ohne Auswahl wieder geschlossen. Keine
+Einstellungen, Texte oder Aktivierungen verändert; nichts gesendet. Die Aussagen
+beschreiben sichtbare Bedienung und Hilfetexte, keine interne Serverarchitektur.
+
+| Sichtbarer Bereich         | Beobachtung                                                                                                                                                                                                                                     |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Navigation und Aktivierung | Eigener Menüpunkt „Automatische Verhandlung“ unter Automatisierung; Schalter für das konfigurierte Konto.                                                                                                                                       |
+| Verhandlungsspielraum      | Preisbereiche mit oberer Preisschwelle und maximalem Rabattbetrag in Euro; Bereiche hinzufügen/entfernen, Zurücksetzen. Eine Prozent-Rabattoption wurde in der geöffneten Ansicht nicht nachgewiesen.                                           |
+| Preissenkungsstufen        | Anpassbare Anteile am maximalen Nachlass, zuletzt fest 100 %. Das sichtbare Beispiel 50 € Preis / 10 € Nachlass ergibt bei 50/80/100 % die Gegenpreise 45/42/40 €. Die Prozentwerte beziehen sich auf den Nachlass, nicht auf den Artikelpreis. |
+| Nachrichten                | Je Ereignistyp mehrere alternative Texte, laut Hinweis zufällige Auswahl eines Textes. Hinzufügen bedeutet keine zweite Nachricht im Anschluss. `{price}` ist als Preisplatzhalter beschrieben.                                                 |
+| Ereignistypen              | Annahme durch den Assistenten, Zwischengegenangebot, letztes Angebot, erneute Verhandlung nach letztem Angebot, erneute Verhandlung nach Annahme; zusätzlich Ausweichantwort bei nicht verstandener Anfrage.                                    |
+| Nach der Annahme           | Laut Hilfetext eine Antwort, wenn der Käufer danach neu verhandelt. Dieser Bereich belegt keine Nachricht nach einem bestätigten Kauf oder nach der Annahme eines Verkäuferangebots durch den Käufer.                                           |
+| Verzögerung                | Sofort, 30 Sekunden, 1/2/5 Minuten sowie eigene Minuten/Sekunden. Der Hinweis nennt zusätzlich ungefähr zehn Sekunden Bearbeitungszeit; dies ist Anbietertext, keine gemessene Ausführungszeit.                                                 |
+| Reihenfolge                | Auswahl „Nachricht zuerst“ oder „Angebot zuerst“. Nur die verfügbaren Optionen wurden gelesen.                                                                                                                                                  |
+| Vorschau                   | Beispielgespräch neben den Einstellungen zeigt die Stufen und einen Verkaufszustand. Die Vorschau ist kein Nachweis eines tatsächlichen Verkaufs oder einer versendeten Nachricht.                                                              |
+| Bundles                    | Separater Nexus-Bereich; keine Bundle-Einstellungen verändert oder freigeschaltet.                                                                                                                                                              |
+
+**Ableitung aus dem Nutzerauftrag:** Flipbase benötigt neben alternativen Vorlagen
+auf Wunsch ausdrücklich echte Nachrichtenfolgen mit eigener Reihenfolge und
+Verzögerung. Nachrichten nach einer Angebotsannahme und nach einem bestätigten
+Kauf werden als eigene Ereignisse geplant. Eine Angebotsannahme allein ist noch
+kein Kauf, wie die [Vinted-Hilfe](https://www.vinted.com/help/4/258-i-want-to-make-an-offer-or-suggest-a-different-price?access_channel=hc_topics)
+erläutert. Der bestehende Angebotsplan enthält die Ergänzung und die offenen
+Nachweise für Anbieteraktionen und Ereignisse.
+
 ## CSRF und Nachrichtenversand: Codeabgleich vom 05.10.2026
 
 Nach dem fehlgeschlagenen Flipbase-Versand wurden die erhaltenen statischen

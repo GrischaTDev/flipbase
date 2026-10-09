@@ -19,6 +19,34 @@ const snapshot = () => ({
 const entry = (body: object = {}) => ({ ...scope, id: 'entry-a', title: 'Schal', ...body });
 
 describe('Marktplatz-Antworten', () => {
+  it.each([
+    ['a'.repeat(32), 'a'.repeat(32)],
+    ['invalid', null],
+    [undefined, null],
+  ])('validiert die Gesprächsversion (%s)', (readVersion, expected) => {
+    const result = parseMarketplacePage(
+      { items: [entry({ readVersion })], total: 1, nextCursor: null },
+      scope,
+    );
+    expect(result.items[0].readVersion).toBe(expected);
+  });
+  it.each([
+    ['outbound', true, true],
+    ['outbound', false, false],
+    ['outbound', undefined, false],
+    ['outbound', 'true', false],
+    ['inbound', true, false],
+    ['unknown', true, false],
+  ])(
+    'übernimmt die Automatikherkunft nur als bestätigtes Boolean für eigene Nachrichten (%s, %s)',
+    (direction, isAutomated, expected) => {
+      const result = parseMarketplacePage(
+        { items: [entry({ direction, isAutomated })], total: 1, nextCursor: null },
+        scope,
+      );
+      expect(result.items[0].isAutomated).toBe(expected);
+    },
+  );
   it('trennt Artikelbilder und Partnerbild und normalisiert optionale Gesprächsdaten', () => {
     const conversation = parseMarketplacePage(
       {

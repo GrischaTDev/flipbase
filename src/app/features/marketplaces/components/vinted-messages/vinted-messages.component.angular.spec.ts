@@ -24,6 +24,10 @@ import type {
 } from '../../models/marketplace-read.models';
 import { LoadingIndicatorComponent } from '../../../../shared/components/loading-indicator/loading-indicator.component';
 import { VintedMessagesComponent } from './vinted-messages.component';
+import { VintedOfferActionsComponent } from '../vinted-offer-actions/vinted-offer-actions.component';
+import { VintedNegotiationApiService } from '../../services/vinted-negotiation-api.service';
+import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
+import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 import { VintedLocalExtensionStore } from '../../services/vinted-local-extension.store';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
 import { VintedMessagingStore } from '../../services/vinted-messaging.store';
@@ -106,6 +110,7 @@ let api: {
   listConnections: ReturnType<typeof vi.fn>;
   readSnapshot: ReturnType<typeof vi.fn>;
   readPage: ReturnType<typeof vi.fn>;
+  markConversationRead: ReturnType<typeof vi.fn>;
 };
 let store: MarketplaceAccountStore;
 let browserApi: { readConversation: ReturnType<typeof vi.fn> };
@@ -135,6 +140,10 @@ beforeAll(async () => {
   registerLocaleData(localeDe, 'de');
   restore = await prepareMarketplaceRendering([
     {
+      type: VintedOfferActionsComponent,
+      path: 'src/app/features/marketplaces/components/vinted-offer-actions/vinted-offer-actions.component.ts',
+    },
+    {
       type: VintedMessagesComponent,
       path: 'src/app/features/marketplaces/components/vinted-messages/vinted-messages.component.ts',
     },
@@ -147,6 +156,8 @@ beforeAll(async () => {
       [CustomSelectComponent, 'custom-select'],
       [TextFieldComponent, 'text-field'],
       [LoadingIndicatorComponent, 'loading-indicator'],
+      [ModalShellComponent, 'modal-shell'],
+      [NumberInputComponent, 'number-input'],
     ].map(([type, name]) => ({
       type,
       path: `src/app/shared/components/${name}/${name}.component.ts`,
@@ -164,6 +175,7 @@ beforeEach(() => {
     listConnections: vi.fn().mockResolvedValue({ canManage: true, connections: accounts }),
     readSnapshot: vi.fn().mockImplementation(async (scope: AccountScope) => snapshot(scope)),
     readPage: vi.fn().mockImplementation(async (scope: AccountScope) => messages(scope)),
+    markConversationRead: vi.fn().mockResolvedValue(true),
   };
   local = {
     error: signal<string | null>(null),
@@ -205,6 +217,7 @@ beforeEach(() => {
       MarketplaceAccountStore,
       { provide: VintedLocalExtensionStore, useValue: local },
       { provide: VintedMessagingStore, useValue: messaging },
+      { provide: VintedNegotiationApiService, useValue: { enqueue: vi.fn(), read: vi.fn() } },
       { provide: ConfirmDialogService, useValue: dialog },
       {
         provide: ActivatedRoute,
@@ -258,6 +271,88 @@ function button(fixture: ComponentFixture<VintedMessagesComponent>, text: string
   if (!result) throw new Error(`Button fehlt: ${text}`);
   return result;
 }
+describe('Freigabe aktueller Käuferangebote', () => {
+  function offerComponent() {
+    const scope = { workspaceId: accounts[0].workspaceId, connectionId: accounts[0].connectionId };
+    const account = {
+      ...accounts[0],
+      externalAccountId: '22',
+      executionMode: 'cloud' as const,
+      status: 'connected' as const,
+    };
+    vi.spyOn(store, 'selectedConnection').mockReturnValue(account);
+    vi.spyOn(store, 'canManage').mockReturnValue(true);
+    vi.spyOn(store, 'loadingMessages').mockReturnValue(false);
+    messaging.canSend.mockReturnValue(true);
+    messaging.cloudSendAllowed.set(true);
+    const component = TestBed.createComponent(VintedMessagesComponent).componentInstance;
+    const offer = {
+      offerId: '123',
+      transactionId: '456',
+      itemId: '789',
+      buyerId: '11',
+      sellerId: '22',
+      originalPriceCents: 5000,
+      offeredPriceCents: 2000,
+      currency: 'EUR',
+      status: 'pending',
+    };
+    const entry = messages(scope, [
+      {
+        id: 'offer',
+        occurredAt: '2026-09-01T12:00:00Z',
+        direction: 'inbound',
+        messageType: 'offer_request_message',
+        negotiationOffer: offer,
+      },
+    ]).items[0];
+    const conversation = signal({
+      ...entry,
+      id: 'conversation-1',
+      partnerId: '11',
+      itemId: '789',
+      transactionStatus: 'negotiating',
+    });
+    const transcript = signal<readonly MarketplaceEntry[]>([entry]);
+    Object.defineProperty(component, 'conversation', { value: conversation });
+    Object.defineProperty(component, 'transcript', { value: transcript });
+    Object.defineProperty(component, 'context', { value: () => 'context' });
+    Object.defineProperty(component, 'isRefreshingConversation', { value: () => false });
+    Object.defineProperty(component, 'conversationReadError', { value: () => null });
+    return { component, entry, transcript, conversation };
+  }
+  it('erlaubt ein zeitlich altes, aber weiterhin aktuelles belegtes Angebot', () => {
+    const { component, entry } = offerComponent();
+    expect(component.canActOnOffer(entry)).toBe(true);
+    messaging.cloudSendAllowed.set(false);
+    expect(component.canActOnOffer(entry)).toBe(false);
+  });
+  it('sperrt überholte, unvollständige und fremde Angebote', () => {
+    const { component, entry, transcript } = offerComponent();
+    expect(component.canActOnOffer({ ...entry, negotiationOffer: null })).toBe(false);
+    expect(component.canActOnOffer({ ...entry, connectionId: 'foreign' })).toBe(false);
+    expect(component.canActOnOffer({ ...entry, offerStatus: 'accepted' })).toBe(false);
+    transcript.set([
+      entry,
+      {
+        ...entry,
+        id: 'newer',
+        occurredAt: '2026-10-09T12:00:00Z',
+        direction: 'outbound',
+        messageType: 'offer_message',
+        negotiationOffer: null,
+      },
+    ]);
+    expect(component.canActOnOffer(entry)).toBe(false);
+  });
+  it('sperrt falsche Artikel und abgeschlossene Gespräche', () => {
+    const { component, entry, conversation } = offerComponent();
+    conversation.update((current) => ({ ...current, itemId: 'foreign' }));
+    expect(component.canActOnOffer(entry)).toBe(false);
+    conversation.update((current) => ({ ...current, itemId: '789', transactionStatus: 'sold' }));
+    expect(component.canActOnOffer(entry)).toBe(false);
+  });
+});
 describe('Vollständiges Laden eines Gesprächs', () => {
   function useLocalAccount() {
     api.listConnections.mockResolvedValue({
@@ -408,6 +503,41 @@ describe('Vollständiges Laden eines Gesprächs', () => {
       'Aktuelle Cloud-Nachricht',
     );
   });
+  it.each(['cloud', 'local'] as const)(
+    'markiert ein erfolgreich geöffnetes %s-Gespräch als gelesen',
+    async (executionMode) => {
+      vi.mocked(store.refreshCloudConversation).mockResolvedValue(detailResult);
+      api.listConnections.mockResolvedValue({
+        canManage: true,
+        connections: [{ ...accounts[0], executionMode }],
+      });
+      api.readSnapshot.mockImplementation(async (scope: AccountScope) => {
+        const current = snapshot(scope);
+        return {
+          ...current,
+          conversations: {
+            ...current.conversations,
+            items: current.conversations.items.map((entry) => ({
+              ...entry,
+              readVersion: 'a'.repeat(32),
+              detailCheckedAt: detailResult.observedAt,
+            })),
+          },
+        };
+      });
+      const fixture = await render();
+      button(fixture, 'Anfrage zum Schal').click();
+      await settle(fixture);
+      expect(api.markConversationRead).toHaveBeenCalledOnce();
+      expect(store.snapshot()?.conversations.items[0].unread).toBe(false);
+      expect(
+        fixture.nativeElement.querySelector('[data-conversation-sync]')?.textContent,
+      ).toContain('Synchronisiert');
+      expect(
+        fixture.nativeElement.querySelector('[aria-label="Gespräch"]')?.textContent,
+      ).not.toContain('Ungelesen');
+    },
+  );
   it('behält nach abgelehntem Cloud-Abruf den gespeicherten Verlauf mit Fehlerhinweis', async () => {
     vi.mocked(store.refreshCloudConversation).mockRestore();
     browserApi.readConversation.mockRejectedValue(new Error('Gespräch nicht erreichbar'));
@@ -1137,6 +1267,60 @@ describe('Kompakter gespeicherter Vinted-Gesprächsbereich', () => {
     expect(messaging.send).not.toHaveBeenCalled();
     expect(host.querySelector('button')?.textContent).not.toContain('Annehmen');
   });
+  it.each(['cloud', 'local'] as const)(
+    'zeigt in %s nur für bestätigte eigene automatische Nachrichten ein Bot-Icon',
+    async (executionMode) => {
+      api.listConnections.mockResolvedValue({
+        canManage: true,
+        connections: [{ ...accounts[0], executionMode }],
+      });
+      api.readPage.mockImplementation(async (scope: AccountScope) =>
+        messages(scope, [
+          {
+            id: 'auto',
+            text: 'Hallo!',
+            direction: 'outbound',
+            messageType: 'text',
+            isAutomated: true,
+          },
+          { id: 'manual', text: 'Hallo!', direction: 'outbound', messageType: 'text' },
+          {
+            id: 'incoming',
+            text: 'Hallo!',
+            direction: 'inbound',
+            messageType: 'text',
+            isAutomated: true,
+          },
+          {
+            id: 'system',
+            text: 'Status',
+            direction: 'outbound',
+            messageType: 'status_message',
+            isAutomated: true,
+          },
+        ]),
+      );
+      const fixture = await render();
+      button(fixture, 'Anfrage zum Schal').click();
+      await settle(fixture);
+      const host = fixture.nativeElement as HTMLElement;
+      const bot = host.querySelector('[data-message-row="auto"] [data-automated-message-avatar]');
+      expect(bot?.getAttribute('aria-label')).toBe('Automatisch von Flipbase gesendet');
+      expect(bot?.getAttribute('title')).toBe('Automatisch von Flipbase gesendet');
+      expect(bot?.querySelector('svg')).not.toBeNull();
+      expect(bot?.querySelector('app-product-thumbnail')).toBeNull();
+      expect(host.querySelectorAll('[data-automated-message-avatar]')).toHaveLength(1);
+      expect(
+        host.querySelector('[data-message-row="manual"] app-product-thumbnail'),
+      ).not.toBeNull();
+      expect(
+        host.querySelector('[data-message-row="incoming"] app-product-thumbnail'),
+      ).not.toBeNull();
+      expect(host.querySelector('[data-message-row="system"] [data-message-avatar]')).toBeNull();
+      expect((await axe.run(host)).violations).toEqual([]);
+      expect(messaging.send).not.toHaveBeenCalled();
+    },
+  );
   it.each(['cloud', 'local'] as const)(
     'zeigt in %s die Profilbilder des richtigen Absenders und neutrale Platzhalter',
     async (executionMode) => {

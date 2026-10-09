@@ -31,6 +31,17 @@ export interface BrowserSessionScope {
     expiresAt: string;
     absoluteExpiresAt: string;
   };
+  negotiationWrite?: {
+    jobId: string;
+    claimToken: string;
+    workerId: string;
+    workerEpoch: number;
+    runnerId: string;
+    sessionId: string;
+    expiresAt: string;
+    absoluteExpiresAt: string;
+  };
+
   /** Eigene Favoritenphase; keine Freigabe für manuelle Aufträge oder Kontoabrufe. */
   favoriteWrite?: {
     eventId: string;
@@ -125,6 +136,7 @@ function sameScope(left: BrowserSessionScope, right: BrowserSessionScope): boole
     Boolean(left.syncRead) === Boolean(right.syncRead) &&
     Boolean(left.messageWrite) === Boolean(right.messageWrite) &&
     Boolean(left.favoriteWrite) === Boolean(right.favoriteWrite) &&
+    Boolean(left.negotiationWrite) === Boolean(right.negotiationWrite) &&
     (!left.favoriteWrite ||
       (left.favoriteWrite.eventId === right.favoriteWrite?.eventId &&
         left.favoriteWrite.phase === right.favoriteWrite?.phase &&
@@ -140,6 +152,13 @@ function sameScope(left: BrowserSessionScope, right: BrowserSessionScope): boole
         left.messageWrite.workerEpoch === right.messageWrite?.workerEpoch &&
         left.messageWrite.runnerId === right.messageWrite?.runnerId &&
         left.messageWrite.sessionId === right.messageWrite?.sessionId)) &&
+    (!left.negotiationWrite ||
+      (left.negotiationWrite.jobId === right.negotiationWrite?.jobId &&
+        left.negotiationWrite.claimToken === right.negotiationWrite?.claimToken &&
+        left.negotiationWrite.workerId === right.negotiationWrite?.workerId &&
+        left.negotiationWrite.workerEpoch === right.negotiationWrite?.workerEpoch &&
+        left.negotiationWrite.runnerId === right.negotiationWrite?.runnerId &&
+        left.negotiationWrite.sessionId === right.negotiationWrite?.sessionId)) &&
     (!left.syncRead ||
       (left.syncRead.operationId === right.syncRead?.operationId &&
         left.syncRead.runnerId === right.syncRead?.runnerId &&
@@ -231,8 +250,13 @@ export class MarketplaceBrowserSessionBroker {
     let stage: BrowserStartStage = 'authorization';
     try {
       if (
-        [scope.cloudSetup, scope.syncRead, scope.messageWrite, scope.favoriteWrite].filter(Boolean)
-          .length > 1
+        [
+          scope.cloudSetup,
+          scope.syncRead,
+          scope.messageWrite,
+          scope.favoriteWrite,
+          scope.negotiationWrite,
+        ].filter(Boolean).length > 1
       )
         throw new Error('Sitzungszugriff verweigert');
       if (!(await this.runtimeAuthorized())) throw new Error('Worker-Zugriff unterbrochen');

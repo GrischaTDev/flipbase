@@ -3,6 +3,8 @@
 importScripts('autofill-core.js');
 importScripts(
   'vinted-local-inbox-events.js',
+  'vinted-negotiation-runtime.js',
+  'vinted-local-negotiation.js',
   'vinted-local-core.js',
   'vinted-local-scheduler.js',
   'vinted-local-background.js',

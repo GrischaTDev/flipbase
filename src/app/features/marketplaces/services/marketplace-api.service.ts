@@ -163,6 +163,32 @@ export class MarketplaceApiService {
       }),
     );
   }
+  async markConversationRead(
+    scope: AccountScope,
+    conversationId: string,
+    readVersion: string,
+    observedAt: string,
+  ): Promise<boolean> {
+    const result = dataOf(
+      await this.client.rpc('marketplace_mark_conversation_read', {
+        p_workspace_id: scope.workspaceId,
+        p_connection_id: scope.connectionId,
+        p_conversation_id: conversationId,
+        p_read_version: readVersion,
+        p_observed_at: observedAt,
+      }),
+    );
+    if (
+      !result ||
+      typeof result !== 'object' ||
+      !('ok' in result) ||
+      result.ok !== true ||
+      !('marked' in result) ||
+      typeof result.marked !== 'boolean'
+    )
+      throw new MarketplaceResponseError();
+    return result.marked;
+  }
   async readAccountPreview(scope: AccountScope): Promise<MarketplaceAccountPreview> {
     // Nur Profil und Anzahlen lesen, keine Nachrichten oder vollständigen Inseratlisten.
     const query = () =>

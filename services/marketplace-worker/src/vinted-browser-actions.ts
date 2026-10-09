@@ -12,6 +12,7 @@ import { submitVintedLogin } from './vinted-browser-login.ts';
 import { submitVintedVerificationCode } from './vinted-browser-verification.ts';
 import { readVintedListingEdit, updateVintedListing } from './vinted-browser-listing-edit.ts';
 import { readVintedProfileAbout, updateVintedProfileAbout } from './vinted-browser-profile-edit.ts';
+import { sendVintedNegotiation } from './vinted-browser-negotiation.ts';
 import { sendVintedMessage } from './vinted-browser-messages.ts';
 import {
   sendVintedFavoriteMessage,
@@ -58,6 +59,15 @@ export function vintedBrowserActions(
 ): BrowserInfo {
   const currentPage = () => currentVintedPage(connection);
   return {
+    sendNegotiation: (accountId, command, sourceOffer, confirmedOffer, authorize) =>
+      sendVintedNegotiation(
+        currentPage(),
+        accountId,
+        command,
+        sourceOffer,
+        confirmedOffer,
+        authorize,
+      ),
     readFavoriteEvents: (accountId, authorize) =>
       readVintedFavoriteEvents(currentPage(), accountId, authorize),
     sendFavoriteMessage: (accountId, command, authorize) =>

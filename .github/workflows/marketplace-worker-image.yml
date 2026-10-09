@@ -6,6 +6,7 @@ on:
     branches: [master]
     paths:
       - 'services/marketplace-worker/**'
+      - 'tools/flipbase-extension/vinted-negotiation-runtime.js'
       - 'supabase/functions/_shared/marketplace-message-contracts.d.ts'
       - 'supabase/functions/_shared/marketplace-inbox-event-contracts.d.ts'
       - 'deploy/*chromium*'
@@ -114,10 +115,25 @@ jobs:
         with:
           context: services/marketplace-worker
           file: services/marketplace-worker/Dockerfile.chromium-session
-          build-contexts: pilot=tools/cloud-browser-pilot
+          build-contexts: |
+            pilot=tools/cloud-browser-pilot
+            extension=tools/flipbase-extension
           push: false
           load: true
           tags: ghcr.io/grischatdev/flipbase-chromium-session:sha-${{ github.sha }}
+
+      - name: Check packaged session action imports without network access
+        env:
+          SESSION_IMAGE: ghcr.io/grischatdev/flipbase-chromium-session:sha-${{ github.sha }}
+        run: |
+          set -euo pipefail
+          docker run --rm --network none --user=1000:1000 --read-only --cap-drop=ALL --security-opt=no-new-privileges:true --entrypoint node "$SESSION_IMAGE" --experimental-strip-types --input-type=module -e '
+            import assert from "node:assert/strict";
+            const vinted = await import("/app/src/vinted-browser-actions.ts");
+            const isolated = await import("/app/src/isolated-browser-actions.ts");
+            assert.equal(typeof vinted.vintedBrowserActions, "function");
+            assert.equal(typeof isolated.executeBrowserAction, "function");
+          '
 
       - name: Check broker boundary with an actual browser and separate worker filesystem
         env:

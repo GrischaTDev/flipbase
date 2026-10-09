@@ -36,6 +36,11 @@ export const VINTED_WORKSPACE_NAVIGATION_GROUPS: readonly VintedNavigationGroup[
     label: 'Automatisierungen',
     items: [
       {
+        path: '/marketplaces/vinted/automatic-negotiation',
+        label: 'Automatische Verhandlung',
+        icon: 'bot',
+      },
+      {
         path: '/marketplaces/vinted/favorite-messages',
         label: 'Favoritennachrichten',
         icon: 'bot',

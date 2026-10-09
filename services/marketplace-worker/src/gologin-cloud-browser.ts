@@ -20,6 +20,12 @@ import type {
   MarketplaceFavoriteOfferCommand,
   MarketplaceFavoriteOfferResult,
 } from '../../../supabase/functions/_shared/marketplace-message-contracts.d.ts';
+import type {
+  MarketplaceNegotiationCommand,
+  MarketplaceNegotiationOffer,
+  MarketplaceNegotiationResult,
+} from '../../../supabase/functions/_shared/marketplace-negotiation-contracts.d.ts';
+import type { ConfirmedNegotiationOffer } from './vinted-negotiation-contracts.ts';
 import type { VintedFavoriteEvent } from './vinted-browser-favorites.ts';
 
 export type BrowserConnection = Pick<Browser, 'close' | 'version'> &
@@ -31,6 +37,13 @@ export interface BrowserDragPoint {
 }
 
 export interface BrowserInfo extends Pick<Browser, 'version'> {
+  sendNegotiation?(
+    accountId: string,
+    command: MarketplaceNegotiationCommand,
+    sourceOffer: MarketplaceNegotiationOffer | null,
+    confirmedOffer: ConfirmedNegotiationOffer | null,
+    authorize: () => Promise<void>,
+  ): Promise<MarketplaceNegotiationResult>;
   readFavoriteEvents?(
     accountId: string,
     authorize: () => Promise<void>,

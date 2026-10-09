@@ -41,6 +41,8 @@
           due.push(['INBOX_BACKFILL', 'backfillAt', 60_000]);
         if (!(schedule.commandsAt > adapter.now()))
           due.push(['MESSAGES_SEND', 'commandsAt', 90_000]);
+        if (!installation.pendingFinish && !(schedule.negotiationCommandsAt > adapter.now()))
+          due.push(['NEGOTIATIONS_SEND', 'negotiationCommandsAt', 90_000]);
         if (!installation.pendingFinish && !(schedule.favoritesAt > adapter.now()))
           due.push(['FAVORITES_SYNC', 'favoritesAt', 300_000]);
         if (!installation.pendingFinish && !(schedule.favoriteCommandsAt > adapter.now()))
@@ -50,11 +52,12 @@
           installation = await adapter.load();
           if (!installation?.binding) return;
           await adapter.save({ ...installation, schedule });
+          let result;
           try {
-            const result = await adapter.run(action, installation.binding);
-            if (action === 'INBOX_SYNC' || action === 'INBOX_BACKFILL')
-              schedule.backfillAt = result.nextPage > 1 ? adapter.now() + 60_000 : null;
+            result = await adapter.run(action, installation.binding);
           } catch (error) {
+            installation = await adapter.load();
+            Object.assign(schedule, installation?.schedule);
             if (
               [
                 'login_required',
@@ -73,8 +76,15 @@
             if (installation) await adapter.save({ ...installation, schedule });
             break;
           }
-          schedule.lastSuccessAt = adapter.now();
           installation = await adapter.load();
+          Object.assign(schedule, installation?.schedule);
+          if (action === 'INBOX_SYNC' || action === 'INBOX_BACKFILL')
+            schedule.backfillAt = result.nextPage > 1 ? adapter.now() + 60_000 : null;
+          if (schedule.pauseReason || schedule.retryAfter > adapter.now()) {
+            if (installation) await adapter.save({ ...installation, schedule });
+            break;
+          }
+          schedule.lastSuccessAt = adapter.now();
           if (installation) await adapter.save({ ...installation, schedule });
         }
       } finally {

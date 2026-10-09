@@ -148,3 +148,29 @@ $$;
 revoke all on function public.marketplace_read_message_notifications(uuid),public.marketplace_mark_message_notifications(uuid,text,boolean) from public,anon;
 grant execute on function public.marketplace_read_message_notifications(uuid),public.marketplace_mark_message_notifications(uuid,text,boolean) to authenticated;
 create policy "Administrators receive message notifications" on realtime.messages for select to authenticated using (extension='broadcast' and topic=(select realtime.topic()) and exists(select 1 from public.workspaces w where realtime.messages.topic='workspace:' || w.id::text || ':marketplace_message_notifications' and public.marketplace_can_manage(w.id)));
+
+create or replace function public.marketplace_mark_conversation_read(p_workspace_id uuid,p_connection_id uuid,p_conversation_id uuid,p_read_version text,p_observed_at timestamptz)
+returns jsonb language plpgsql volatile security definer set search_path = '' as $$
+declare v_entry public.marketplace_account_entries; v_version text; v_account text;
+begin
+  perform pg_advisory_xact_lock(91731,1);
+  if not public.marketplace_can_manage(p_workspace_id) or not public.marketplace_sync_authorization_valid(p_workspace_id,(select auth.uid())) then raise exception 'Kontozugriff verweigert' using errcode='42501'; end if;
+  if p_read_version is null or p_read_version !~ '^[a-f0-9]{32}$' or p_observed_at is null or not isfinite(p_observed_at) or p_observed_at>clock_timestamp() then raise exception 'Ungültiger Lesebeleg' using errcode='22023'; end if;
+  select e.* into v_entry from public.marketplace_account_entries e join public.marketplace_connections c on c.workspace_id=e.workspace_id and c.id=e.connection_id and c.marketplace='vinted' and c.status='connected'
+    where e.workspace_id=p_workspace_id and e.connection_id=p_connection_id and e.id=p_conversation_id and e.kind='conversation' for update of e;
+  if not found then raise exception 'Gespräch nicht verfügbar' using errcode='42501'; end if;
+  v_version:=public.marketplace_conversation_read_version(p_workspace_id,p_connection_id,p_conversation_id);
+  -- Ein neuer Eingang während des Ladens wird nicht durch einen verspäteten Abschluss als gelesen markiert.
+  if p_read_version is distinct from v_version or v_entry.body->>'detailCheckedAt' is null or (v_entry.body->>'detailCheckedAt')::timestamptz<p_observed_at then
+    return jsonb_build_object('ok',true,'marked',false);
+  end if;
+  update public.marketplace_account_entries set conversation_read_version=v_version where id=v_entry.id;
+  select external_account_id into v_account from public.marketplace_connections where workspace_id=p_workspace_id and id=p_connection_id;
+  update public.marketplace_message_notifications n set read=true where n.workspace_id=p_workspace_id and n.connection_id=p_connection_id and n.conversation_id=p_conversation_id
+    and n.external_account_id=v_account and not n.read and n.observed_at<=p_observed_at and n.notified_at is not null and n.cleared_at is null;
+  if found then perform realtime.send('{}'::jsonb,'message_notifications_changed','workspace:' || p_workspace_id::text || ':marketplace_message_notifications',true); end if;
+  return jsonb_build_object('ok',true,'marked',true);
+end;
+$$;
+revoke all on function public.marketplace_mark_conversation_read(uuid,uuid,uuid,text,timestamptz) from public,anon;
+grant execute on function public.marketplace_mark_conversation_read(uuid,uuid,uuid,text,timestamptz) to authenticated;

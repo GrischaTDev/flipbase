@@ -36,8 +36,13 @@ export class SupabaseBrowserSessionStore {
 
   async acquire(scope: BrowserSessionScope): Promise<BrowserLease> {
     if (
-      [scope.syncRead, scope.cloudSetup, scope.messageWrite, scope.favoriteWrite].filter(Boolean)
-        .length > 1
+      [
+        scope.syncRead,
+        scope.cloudSetup,
+        scope.messageWrite,
+        scope.favoriteWrite,
+        scope.negotiationWrite,
+      ].filter(Boolean).length > 1
     )
       throw new Error('Sitzungszugriff verweigert');
     if (scope.favoriteWrite) {
@@ -57,6 +62,15 @@ export class SupabaseBrowserSessionStore {
       );
       if (expiresAt === null) throw new Error('Sitzungszugriff verweigert');
       return { id: scope.messageWrite.sessionId, scope: { ...scope }, expiresAt, active: true };
+    }
+    if (scope.negotiationWrite) {
+      const expiresAt = validateMarketplaceMessageLease(
+        await this.callNegotiationRpc(scope),
+        scope.negotiationWrite,
+        Date.now(),
+      );
+      if (expiresAt === null) throw new Error('Sitzungszugriff verweigert');
+      return { id: scope.negotiationWrite.sessionId, scope: { ...scope }, expiresAt, active: true };
     }
     if (scope.syncRead) {
       const value = await this.callReadRpc(scope, 'marketplace_sync_check');
@@ -175,6 +189,7 @@ export class SupabaseBrowserSessionStore {
         lease.scope.cloudSetup,
         lease.scope.messageWrite,
         lease.scope.favoriteWrite,
+        lease.scope.negotiationWrite,
       ].filter(Boolean).length > 1
     )
       return false;
@@ -199,6 +214,22 @@ export class SupabaseBrowserSessionStore {
       const expiresAt = validateMarketplaceMessageLease(
         await this.callMessageRpc(lease.scope),
         lease.scope.messageWrite,
+        Date.now(),
+      );
+      if (expiresAt === null) return false;
+      lease.expiresAt = expiresAt;
+      return true;
+    }
+    if (lease.scope.negotiationWrite) {
+      if (
+        lease.scope.syncRead ||
+        lease.scope.cloudSetup ||
+        lease.id !== lease.scope.negotiationWrite.sessionId
+      )
+        return false;
+      const expiresAt = validateMarketplaceMessageLease(
+        await this.callNegotiationRpc(lease.scope),
+        lease.scope.negotiationWrite,
         Date.now(),
       );
       if (expiresAt === null) return false;
@@ -377,6 +408,36 @@ export class SupabaseBrowserSessionStore {
         }),
         signal: AbortSignal.timeout(10_000),
       }),
+    );
+  }
+
+  private async callNegotiationRpc(scope: BrowserSessionScope): Promise<unknown> {
+    const binding = scope.negotiationWrite;
+    if (
+      !binding ||
+      scope.userAccessToken ||
+      !this.runtime ||
+      binding.workerId !== this.runtime.workerId ||
+      binding.workerEpoch !== this.runtime.workerEpoch
+    )
+      throw new Error('Sitzungszugriff verweigert');
+    return this.read(
+      await this.request(
+        new URL('/rest/v1/rpc/marketplace_cloud_negotiation_check', this.baseUrl),
+        {
+          method: 'POST',
+          headers: { ...this.serverHeaders(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            p_workspace_id: scope.workspaceId,
+            p_connection_id: scope.connectionId,
+            p_job_id: binding.jobId,
+            p_claim_token: binding.claimToken,
+            p_worker_id: binding.workerId,
+            p_worker_epoch: binding.workerEpoch,
+          }),
+          signal: AbortSignal.timeout(10_000),
+        },
+      ),
     );
   }
 
