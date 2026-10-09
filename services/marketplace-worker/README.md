@@ -49,7 +49,13 @@ ergänzt. Die Netzwerkdatei braucht dafür einen persistenten beschreibbaren Mou
 Modus 0600 und den Worker als Eigentümer. Belegte und administrativ gesperrte IPs
 bleiben gebunden beziehungsweise gesperrt. API-Fehler brechen die Einrichtung ab;
 ohne freie IP erscheint die Kapazitätsmeldung. Ohne API-Token bleibt der manuell
-registrierte Bestand verwendbar. Es gibt keine automatischen Käufe.
+registrierte Bestand verwendbar. Mit `IPROYAL_AUTO_PURCHASE_ENABLED=1` kann der
+Chromiumworker bei fehlender Kapazität genau eine deutsche Dedicated-ISP-IP für
+30 Tage aus dem Anbieter-Guthaben nachbuchen. Es gilt der aktuelle Anbieterpreis
+ohne Preisobergrenze; automatische Verlängerung bleibt aus. Dauerhafte
+Kaufabsichten verhindern wiederholte Zahlungen nach Verbindungsabbrüchen.
+Migration, Aktivierung, Test und Klärung offener Bestellungen stehen in der
+[Anleitung zur Nachbuchung](../../docs/implementation/iproyal-cloud-ip-purchase.md).
 Umstellung, Wartungsbefehl und Rückweg sind im
 [Rolloutplan](../../docs/implementation/vinted-worker-rollout.md) beschrieben.
 Linux-Sandbox, tatsächlicher Vinted-Zugang, mobile Anmeldung und ausreichende

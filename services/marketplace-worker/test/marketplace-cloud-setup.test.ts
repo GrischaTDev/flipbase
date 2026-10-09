@@ -4,6 +4,87 @@ import { MarketplaceCloudSetup } from '../src/marketplace-cloud-setup.ts';
 import type { CloudSetupView } from '../src/marketplace-cloud-setup-contracts.d.ts';
 import type { PrivateCloudSetup } from '../src/supabase-marketplace-cloud-setup-store.ts';
 
+test('exhausted inventory purchases one IP and reserves it for the same authorized request', async () => {
+  const events: string[] = [];
+  const request = {
+    workspaceId: '37100000-0000-4000-8000-000000000011',
+    displayName: 'Cloud',
+    requestId: '37100000-0000-4000-8000-000000000031',
+  };
+  let purchased = false;
+  const item = fixture();
+  const service = new MarketplaceCloudSetup({
+    refreshInventory: async () => {
+      events.push('refresh');
+    },
+    reconcilePurchases: async (received, userId) => {
+      assert.deepEqual(received, request);
+      assert.equal(userId, scope.userId);
+      events.push('reconcile');
+    },
+    purchaseCompleted: async () => {
+      events.push('purchase-complete');
+    },
+    purchaseIp: async (received, userId, token) => {
+      assert.deepEqual(received, request);
+      assert.equal(userId, scope.userId);
+      assert.equal(token, scope.userAccessToken);
+      events.push('purchase');
+      purchased = true;
+      return 'available';
+    },
+    store: {
+      availability: async () => {
+        events.push('authorize');
+        return true;
+      },
+      begin: async () => {
+        events.push('reserve');
+        return purchased ? { status: 'ready', setup: item.view() } : { status: 'no_capacity' };
+      },
+      read: async () => item.view(),
+      readAuthorized: async () => {
+        throw new Error('unused');
+      },
+      cancel: async () => item.view(),
+      step: async () => {
+        throw new Error('unused');
+      },
+      rows: async () => [],
+    },
+    profiles: {
+      prepareCloudSetup: async () => {
+        throw new Error('unused');
+      },
+      cleanupCloudSetup: async () => {
+        throw new Error('unused');
+      },
+    },
+    broker: {
+      open: async () => {
+        throw new Error('no browser during purchase');
+      },
+      run: async () => {
+        throw new Error('unused');
+      },
+      close: async () => {
+        throw new Error('unused');
+      },
+    },
+  });
+  assert.equal((await service.begin(request, scope.userId, scope.userAccessToken)).status, 'ready');
+  assert.deepEqual(events, [
+    'authorize',
+    'refresh',
+    'reconcile',
+    'reserve',
+    'purchase',
+    'refresh',
+    'reserve',
+    'purchase-complete',
+  ]);
+});
+
 const scope = {
   workspaceId: '37100000-0000-4000-8000-000000000011',
   connectionId: '37100000-0000-4000-8000-000000000021',
