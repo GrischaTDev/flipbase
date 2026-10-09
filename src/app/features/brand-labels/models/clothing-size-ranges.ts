@@ -1,4 +1,8 @@
-import type { GuideAudience, GuideRow, GuideTable, MeasureRange } from './clothing-size-guide';
+import type { GuideRow, GuideTable, MeasureRange } from './clothing-size-guide';
+import {
+  collectTrouserMeasurementRanges,
+  TROUSER_MEASUREMENT_SOURCES,
+} from './clothing-trouser-measurements';
 
 const reviewedAt = '2026-10-09';
 const formatRange = ({ min, max }: MeasureRange): string =>
@@ -19,9 +23,19 @@ function calculateWaistRange(group: JeansSizeGroup, divisor = 1): MeasureRange {
     max: Math.round((((group.maximumWaist + 0.5) * 2.54) / divisor) * 10) / 10,
   };
 }
-function createJeansGuide(audience: GuideAudience, groups: readonly JeansSizeGroup[]): GuideTable {
+function formatOptionalRange(range: MeasureRange | undefined): string {
+  if (!range) return '—';
+  return range.min === range.max
+    ? `≈ ${range.min.toLocaleString('de-DE', { maximumFractionDigits: 1 })}`
+    : `≈ ${formatRange(range)}`;
+}
+function createJeansGuide(
+  audience: 'women' | 'men',
+  groups: readonly JeansSizeGroup[],
+): GuideTable {
   const rows: GuideRow[] = groups.map((group) => {
     const waistFlat = calculateWaistRange(group, 2);
+    const garmentRanges = collectTrouserMeasurementRanges(audience, group.size);
     const inches = Array.from(
       { length: group.maximumWaist - group.minimumWaist + 1 },
       (_, index) => group.minimumWaist + index,
@@ -38,6 +52,9 @@ function createJeansGuide(audience: GuideAudience, groups: readonly JeansSizeGro
         audience === 'men' ? jeansRange : countryRange(group.american ?? []),
         jeansRange,
         `≈ ${formatRange(waistFlat)}`,
+        formatOptionalRange(garmentRanges.inseam),
+        formatOptionalRange(garmentRanges.outseam),
+        formatOptionalRange(garmentRanges.frontRise),
       ],
       labels: [
         group.size,
@@ -58,8 +75,8 @@ function createJeansGuide(audience: GuideAudience, groups: readonly JeansSizeGro
     kind: 'orientation',
     title:
       audience === 'women'
-        ? 'Damenhosen: Größen und Bund-Richtbereiche'
-        : 'Herrenhosen: Größen und Bund-Richtbereiche',
+        ? 'Damenhosen: Größenvergleich und Kleidungsmaße'
+        : 'Herrenhosen: Größenvergleich und Kleidungsmaße',
     columns: [
       'Größe',
       'EU/DE ≈',
@@ -67,13 +84,19 @@ function createJeansGuide(audience: GuideAudience, groups: readonly JeansSizeGro
       audience === 'men' ? 'US Jeans (Inch)' : 'US ≈',
       'Jeans W',
       'Bundweite flach ≈ (cm)',
+      'Innenbein, Beispiele (cm)',
+      'Außenbein inkl. Bund, Beispiele (cm)',
+      'Leibhöhe vorne, Beispiele (cm)',
     ],
     rows,
     notes:
-      'Bundbereiche aus nominellen W-Gruppen umgerechnet: redaktionelle Orientierung für die Verkaufsgröße, keine vom Hersteller bestätigten Kleidungsmaße. Schnitt, Bundhöhe und Stretch können abweichen. EU/UK/US sind ungefähre Gegenstellungen; ein Strich bedeutet fehlende Zuordnung. Beinlängen separat nachschlagen.',
+      'Bundweite und Ländergrößen sind ungefähre Gegenstellungen. Die Längen zeigen Hersteller-Beispiele für lange Hosen nach deren Buchstabengröße: ' +
+      (audience === 'women' ? '3 Schnitte von 2 Marken. ' : '4 Größenreihen von 3 Marken. ') +
+      'Keine allgemeine Norm; Vintage, Kurz/Lang und Bundhöhe können abweichen. Bundbereich und Längen gehören nicht zwingend zur selben Hose. Längen bestimmen keine XS–XL-Größe. Ein Strich bedeutet: kein belegter Wert.',
     sourceTitle: 'Grundlage: Levi’s Alpha-/Jeansgrößen; Ländervergleiche Next und bonprix',
     sourceUrl: 'https://www.levi.com/GB/en_GB/info/sizechart',
     sources: [
+      ...TROUSER_MEASUREMENT_SOURCES[audience],
       { title: 'Next – internationale Größen', url: 'https://www.next.co.uk/sizeguide' },
       {
         title: 'bonprix – Konfektionsgrößen',

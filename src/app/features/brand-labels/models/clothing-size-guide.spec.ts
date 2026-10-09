@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CLOTHING_SIZE_TABLES } from './clothing-size-catalog';
+import { collectTrouserMeasurementRanges } from './clothing-trouser-measurements';
 import {
   decodeSizeLabel,
   filterGuideTables,
@@ -330,6 +331,67 @@ describe('Maßvergleich der vorhandenen Kleidung', () => {
 });
 
 describe('Nachvollziehbare recherchierte Datengrundlage', () => {
+  it('zeigt Innenbein, Außenbein und Leibhöhe direkt neben der flachen Bundweite', () => {
+    for (const audience of ['women', 'men']) {
+      const table = CLOTHING_SIZE_TABLES.find(
+        (table) => table.id === `general-${audience}-trousers`,
+      );
+      expect(table?.columns.slice(-3)).toEqual([
+        'Innenbein, Beispiele (cm)',
+        'Außenbein inkl. Bund, Beispiele (cm)',
+        'Leibhöhe vorne, Beispiele (cm)',
+      ]);
+      expect(table?.rows.find((row) => row.cells[0] === 'M')?.cells.slice(-3)).toEqual(
+        audience === 'women'
+          ? ['≈ 76,4–78,2', '≈ 107–111,2', '≈ 27,5–33,1']
+          : ['≈ 76,3–79,9', '≈ 105–111,5', '≈ 25,8–36,5'],
+      );
+    }
+  });
+  it('interpoliert keine fehlenden Kleidungsmaße oder Innenbeine aus Außenbein und Leibhöhe', () => {
+    expect(collectTrouserMeasurementRanges('women', 'XXXL')).toEqual({});
+    expect(collectTrouserMeasurementRanges('men', 'XXS')).toEqual({});
+    expect(collectTrouserMeasurementRanges('men', 'XS')).toEqual({
+      outseam: { min: 101, max: 103 },
+      frontRise: { min: 27.5, max: 27.5 },
+    });
+    expect(collectTrouserMeasurementRanges('women', 'S').outseam).toEqual({
+      min: 106.2,
+      max: 110.6,
+    });
+  });
+  it('übernimmt belegte Randgrößen ohne fehlende Innenbeinwerte zu erfinden', () => {
+    expect(collectTrouserMeasurementRanges('women', 'XXS')).toEqual({
+      inseam: { min: 76.1, max: 76.1 },
+      outseam: { min: 109.4, max: 109.4 },
+      frontRise: { min: 31.3, max: 31.3 },
+    });
+    expect(collectTrouserMeasurementRanges('women', 'XXL')).toEqual({
+      inseam: { min: 76.3, max: 76.3 },
+      outseam: { min: 113, max: 113 },
+      frontRise: { min: 35.5, max: 35.5 },
+    });
+    expect(collectTrouserMeasurementRanges('men', 'XXL')).toEqual({
+      inseam: { min: 79.9, max: 79.9 },
+      outseam: { min: 110.5, max: 113 },
+      frontRise: { min: 29.3, max: 32.5 },
+    });
+  });
+  it.each([90, 105, 125])(
+    'verändert die Weitenschätzung nicht durch %s cm Außenbein',
+    (outseam) => {
+      const result = filterGuideTables(CLOTHING_SIZE_TABLES, {
+        ...filters,
+        category: 'trousers',
+        audience: 'men',
+        tolerance: 0,
+        measurements: { waistFlat: 42, outseam },
+      });
+      const general = result.find(({ table }) => table.id === 'general-men-trousers');
+      expect(general?.rows.map((row) => row.cells[0])).toEqual(['M']);
+      expect(general?.matchedRowIds).toEqual(['men-M']);
+    },
+  );
   it('enthält flache Bundweiten ohne eine zusätzliche Umfangsspalte', () => {
     const tables = CLOTHING_SIZE_TABLES.filter(
       (table) => table.id.startsWith('general-') && table.category === 'trousers',

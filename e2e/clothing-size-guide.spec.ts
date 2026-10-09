@@ -108,7 +108,7 @@ test('zeigt allgemeine Richtbereiche und grenzt Größen und Längen getrennt ei
     '1 geschätzte Größe · 1 passende L-Angabe',
   );
   await expect(
-    page.getByText('Die Außenbeinlänge ist eine zusätzliche Verkaufsangabe.', { exact: false }),
+    page.getByText('Vergleiche die Außenbeinlänge mit den Beispielschnitten', { exact: false }),
   ).toBeVisible();
   await choose(page, 'Nach Zielgruppe filtern', 'Alle Zielgruppen');
   await expect(page.locator('[data-size-table="next-women-trousers"]')).toBeVisible();
@@ -157,9 +157,22 @@ test('zeigt allgemeine Richtbereiche und grenzt Größen und Längen getrennt ei
   await page.getByRole('link', { name: 'Innen- & Außenbeinlängen', exact: true }).click();
   await expect(page.locator('#size-guide-lengths')).toBeInViewport();
   await expect(page.locator('[data-size-table="bonprix-women-lengths"] tbody')).toContainText('75');
-  await expect(page.locator('[data-size-table="bonprix-women-lengths"] tbody')).toContainText(
+  await expect(page.locator('[data-size-table="bonprix-women-lengths"] tbody')).not.toContainText(
     'Am Stück messen',
   );
+  await expect(page.locator('[data-size-table="general-women-trousers"] thead')).toContainText(
+    'Außenbein inkl. Bund',
+  );
+  await expect(
+    page.locator('[data-size-table="general-women-trousers"] tbody tr').filter({
+      has: page.getByRole('rowheader', { name: 'M', exact: true }),
+    }),
+  ).toContainText('107–111,2');
+  expect(
+    await page
+      .locator('[data-size-table="general-women-trousers"] [table-content]')
+      .evaluate((region) => region.scrollWidth <= region.clientWidth + 1),
+  ).toBe(true);
   await page.getByRole('button', { name: 'Recherchequellen anzeigen', exact: true }).click();
   await expect(page.locator('#size-guide-sources a').first()).toBeVisible();
   await page.getByRole('button', { name: 'Recherchequellen ausblenden', exact: true }).click();
@@ -189,6 +202,20 @@ test('zeigt allgemeine Richtbereiche und grenzt Größen und Längen getrennt ei
   );
   await checkAccessibility(page);
   await capture(page, 'size-guide-mobile.png');
+  const mobileMeasurements = page.locator(
+    '[data-size-table="general-women-trousers"] [table-content]',
+  );
+  await mobileMeasurements.scrollIntoViewIfNeeded();
+  await mobileMeasurements.evaluate((region) => {
+    region.scrollLeft = region.scrollWidth;
+  });
+  expect(await mobileMeasurements.evaluate((region) => region.scrollLeft)).toBeGreaterThan(0);
+  await expect(
+    mobileMeasurements.getByRole('columnheader', {
+      name: 'Leibhöhe vorne, Beispiele (cm)',
+      exact: true,
+    }),
+  ).toBeInViewport();
   expect(pageErrors).toEqual([]);
 });
 

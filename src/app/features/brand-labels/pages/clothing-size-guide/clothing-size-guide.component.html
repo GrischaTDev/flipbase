@@ -133,8 +133,9 @@
       </p>
       @if (measurements().outseam !== null && measurements().outseam !== undefined) {
         <p class="mt-2 text-xs text-fb-text-secondary">
-          Die Außenbeinlänge ist eine zusätzliche Verkaufsangabe. Sie bestimmt keine allgemeine
-          XS–XL-Größe.
+          Vergleiche die Außenbeinlänge mit den Beispielschnitten in der Hosenübersicht und gib sie
+          beim Verkauf an. Sie verändert die XS–XL-Schätzung aus der Bundweite nicht. Die Beispiele
+          passen nicht zu jeder Bundhöhe, Beinlänge oder Vintage-Hose.
         </p>
       }
     </div>
@@ -267,7 +268,7 @@
                   <thead class="border-y border-fb-line bg-fb-subtle text-fb-text-secondary">
                     <tr>
                       @for (column of entry.table.columns; track $index) {
-                        <th scope="col" class="whitespace-nowrap px-4 py-2 font-medium">
+                        <th scope="col" class="whitespace-normal! px-4 py-2 align-top font-medium">
                           {{ column }}
                         </th>
                       }
