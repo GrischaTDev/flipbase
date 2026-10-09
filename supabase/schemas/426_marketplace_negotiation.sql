@@ -629,4 +629,3 @@ grant execute on function public.marketplace_cancel_invalid_negotiation() to ser
 create trigger marketplace_cancel_invalid_negotiation_local after update or delete on public.marketplace_local_extension_grants for each row execute function public.marketplace_cancel_invalid_negotiation();
 create trigger marketplace_cancel_invalid_negotiation_cloud after update or delete on public.marketplace_cloud_message_permissions for each row execute function public.marketplace_cancel_invalid_negotiation();
 create trigger marketplace_cancel_invalid_negotiation_identity after update of execution_mode,external_account_id,status on public.marketplace_connections for each row execute function public.marketplace_cancel_invalid_negotiation();
-

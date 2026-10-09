@@ -1,6 +1,15 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { prepareMarketplaceRendering } from '../../../../../../e2e/support/marketplace-rendering';
+import { CardComponent } from '../../../../shared/components/card/card.component';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
+import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
+import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
+import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
+import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
+import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import { AuthService } from '../../../../core/services/auth.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
@@ -23,6 +32,29 @@ const settings = {
   events: [],
 };
 let api: { read: ReturnType<typeof vi.fn>; save: ReturnType<typeof vi.fn> };
+let restoreRendering: () => void = () => undefined;
+beforeAll(async () => {
+  restoreRendering = await prepareMarketplaceRendering([
+    {
+      type: VintedNegotiationComponent,
+      path: 'src/app/features/marketplaces/components/vinted-negotiation/vinted-negotiation.component.ts',
+    },
+    ...[
+      { type: CardComponent, name: 'card' },
+      { type: ButtonComponent, name: 'button' },
+      { type: BadgeComponent, name: 'badge' },
+      { type: TextFieldComponent, name: 'text-field' },
+      { type: NumberInputComponent, name: 'number-input' },
+      { type: CustomCheckboxComponent, name: 'custom-checkbox' },
+      { type: CustomSelectComponent, name: 'custom-select' },
+      { type: NoticeBannerComponent, name: 'notice-banner' },
+    ].map(({ type, name }) => ({
+      type,
+      path: `src/app/shared/components/${name}/${name}.component.ts`,
+    })),
+  ]);
+});
+afterAll(() => restoreRendering());
 async function settle() {
   TestBed.tick();
   for (let index = 0; index < 10; index++) await Promise.resolve();
@@ -56,12 +88,14 @@ beforeEach(() => {
       { provide: VintedNegotiationApiService, useValue: api },
     ],
   });
-  TestBed.overrideComponent(VintedNegotiationComponent, {
-    set: { template: '', templateUrl: undefined, imports: [] },
-  });
 });
 afterEach(() => TestBed.resetTestingModule());
 describe('Verhandlungseinstellungen', () => {
+  beforeEach(() => {
+    TestBed.overrideComponent(VintedNegotiationComponent, {
+      set: { template: '', templateUrl: undefined, imports: [] },
+    });
+  });
   it('bewahrt beim manuellen Verlaufabruf dirty Felder, Struktur, Konflikt und Einstellungsrevision', async () => {
     const component = TestBed.createComponent(VintedNegotiationComponent).componentInstance;
     await settle();
@@ -234,5 +268,43 @@ describe('Verhandlungseinstellungen', () => {
     await component.save();
     expect(api.save.mock.calls[0][1]).toBe(false);
     expect(api.save.mock.calls[0][2].purchaseEnabled).toBe(true);
+  });
+});
+
+describe('Gerenderter Verhandlungsverlauf', () => {
+  async function renderResult(state: 'outcome_unknown' | 'failed') {
+    api.read.mockResolvedValue({
+      ...settings,
+      events: [
+        {
+          id: 'job',
+          action: 'counter',
+          state,
+          errorCode: 'timeout',
+          createdAt: '2026-10-09T10:00:00Z',
+        },
+      ],
+    });
+    const fixture = TestBed.createComponent(VintedNegotiationComponent);
+    fixture.detectChanges();
+    await settle();
+    fixture.detectChanges();
+    const element: HTMLElement = fixture.nativeElement;
+    return element.textContent?.replace(/\s+/g, ' ');
+  }
+  it('bewahrt bei unbekanntem Ausgang mit Fehlercode die Unsicherheit statt Nichtausführung zu behaupten', async () => {
+    const text = await renderResult('outcome_unknown');
+    expect(text).toContain('Ausgang unklar');
+    expect(text).toContain('Die Ausführung konnte nicht bestätigt werden.');
+    expect(text).toContain('wiederhole die Aktion nicht ungeprüft');
+    expect(text).not.toContain('Diese Aktion konnte nicht ausgeführt werden.');
+    expect(api.save).not.toHaveBeenCalled();
+  });
+  it('zeigt beim endgültigen Scheitern mit Fehlercode den sicheren Fehlerhinweis', async () => {
+    const text = await renderResult('failed');
+    expect(text).toContain('Fehlgeschlagen');
+    expect(text).toContain('Diese Aktion konnte nicht ausgeführt werden.');
+    expect(text).not.toContain('Die Ausführung konnte nicht bestätigt werden.');
+    expect(api.save).not.toHaveBeenCalled();
   });
 });

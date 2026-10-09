@@ -397,7 +397,12 @@
           "
           >{{ states[event.state] }}</app-badge
         >
-        @if (event.errorCode) {
+        @if (event.state === 'outcome_unknown') {
+          <p class="w-full text-fb-text-secondary">
+            Die Ausführung konnte nicht bestätigt werden. Prüfe zuerst das Gespräch auf Vinted und
+            wiederhole die Aktion nicht ungeprüft.
+          </p>
+        } @else if (event.state === 'failed' && event.errorCode) {
           <p class="w-full text-fb-text-secondary">
             Diese Aktion konnte nicht ausgeführt werden. Prüfe das Gespräch auf Vinted und die
             Kontofreigabe.
