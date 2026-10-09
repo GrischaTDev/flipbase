@@ -228,6 +228,25 @@ Auswahlleser, auch bei versteckten nativen Radios. Unbekannte Merkmale und Werte
 außerhalb der sichtbaren Auswahl werden abgelehnt. Marken-Suche und Abruf weiterer
 Werte sind noch nicht angeschlossen. Auch dieser Baustein ruft keinen Speicherbutton
 auf und bestätigt keinen Anbietererfolg.
+Die Navigation wird inzwischen aus `public.vinted_categories.parent_id` geladen,
+mit Blatt-, Schleifen-, Tiefen- und Aktualisierungsprüfung. Im übernommenen
+Versuch werden Rechte vor/nach jedem Abruf geprüft; Serverzugänge bleiben im
+Worker. Diese Quelle bestätigt nur Navigationskennungen, keine Anbieterfelder.
+
+Zusätzliche Leseprüfung am 10.10.2026: Die native Detailseite enthält im `#sidebar`
+`item-price`, `itemprop="description"` und einen Profil-Link `/member/<id>` mit
+`profile-username`. Fotokacheln heißen `item-photo-N` mit `item-photo-N--img`;
+das Raster zeigt höchstens fünf Bilder und eine zusätzliche Anzahl, daher ist es
+allein kein Nachweis der vollständigen Fotoreihenfolge. Eigene Aktionen heißen
+`item-edit-button`, `item-hide-button`, `mark-as-sold-button` und
+`mark-as-reserved-button`. Die letzten beiden Links enthalten die Artikelkennung.
+Diese Bedienelemente wurden ausschließlich gelesen. Sie allein beweisen keinen
+Speichererfolg einer neuen Anlage oder einen endgültigen Moderationsstatus.
+Im eigenen Profil waren `closet-seller-filters-active` und
+`closet-seller-filters-sold` sichtbar. Der Nutzer bestätigt, dass aktuell kein
+gespeicherter Vinted-Entwurf vorhanden ist. Entwurfs-Ergebnisroute und Kennung
+bleiben ungeprüft. Eine fokussierte Hilfesuche lieferte keinen belastbaren
+offiziellen Beleg; fremde Erfahrungsberichte werden nicht zum Formularvertrag.
 Auch die 20 Cloud-Datenbankprüfungen verwenden ausschließlich synthetische
 Belege. Keine echte Veröffentlichung oder Anlage eines Vinted-Entwurfs geprüft.
 

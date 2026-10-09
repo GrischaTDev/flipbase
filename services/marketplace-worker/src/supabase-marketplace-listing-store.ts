@@ -5,6 +5,7 @@ import type {
   VintedListingContent,
 } from '../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts';
 import { isVintedListingResult } from './vinted-listing-contracts.ts';
+import { loadMarketplaceListingCategoryPath } from './marketplace-listing-category.ts';
 import { validateMarketplaceMessageLease } from './supabase-marketplace-message-store.ts';
 import {
   loadMarketplaceListingPhoto,
@@ -308,6 +309,22 @@ export class SupabaseMarketplaceListingStore {
       ] !== true
     )
       throw invalid();
+  }
+  async loadCategoryPath(claim: CloudListingClaim): Promise<readonly number[]> {
+    try {
+      this.binding(claim);
+      return await loadMarketplaceListingCategoryPath(
+        {
+          url: this.options.url,
+          serviceRoleKey: this.options.serviceRoleKey,
+          request: this.request,
+        },
+        claim.snapshot.content.categoryId!,
+        () => this.check(claim),
+      );
+    } catch {
+      throw new Error('Der Vinted-Kategoriepfad konnte nicht geladen werden.');
+    }
   }
   async loadPhoto(claim: CloudListingClaim, imageId: string): Promise<MarketplaceListingPhoto> {
     try {

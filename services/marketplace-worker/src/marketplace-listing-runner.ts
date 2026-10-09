@@ -26,6 +26,7 @@ interface ListingBroker {
   close(scope: BrowserSessionScope, id: string): Promise<void>;
 }
 interface ListingStore {
+  loadCategoryPath(claim: CloudListingClaim): Promise<readonly number[]>;
   check(claim: CloudListingClaim): Promise<boolean>;
   begin(claim: CloudListingClaim): Promise<void>;
   finish(claim: CloudListingClaim, result: MarketplaceListingResult): Promise<void>;
@@ -107,6 +108,9 @@ export class MarketplaceListingRunner {
             // Der Adapter muss beforeWrite vor dem ersten Upload aufrufen, nicht erst vor Veröffentlichen.
             let provided: MarketplaceListingResult;
             try {
+              await authorize();
+              const categoryPath = await this.store.loadCategoryPath(claim);
+              await authorize();
               provided = await browser.submitListing(
                 claim.accountId,
                 claim.action,
@@ -114,6 +118,7 @@ export class MarketplaceListingRunner {
                 beforeWrite,
                 authorize,
                 loadPhoto,
+                categoryPath,
               );
             } finally {
               adapterActive = false;

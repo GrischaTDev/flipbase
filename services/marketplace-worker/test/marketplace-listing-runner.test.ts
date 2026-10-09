@@ -30,6 +30,8 @@ function fixture(
     photoAfterBegin?: boolean;
     revokeAfterPhoto?: boolean;
     concurrentBegin?: boolean;
+    categoryThrows?: boolean;
+    requireCategory?: boolean;
     result?: MarketplaceListingResult;
   } = {},
 ) {
@@ -49,7 +51,9 @@ function fixture(
             beforeWrite,
             authorize,
             loadPhoto,
+            categoryPath,
           ) => {
+            if (options.requireCategory) assert.deepEqual(categoryPath, [5, 6]);
             calls.push('preflight');
             await authorize();
             latePhoto = () => loadPhoto(claim.snapshot.images[0]!.id);
@@ -70,6 +74,12 @@ function fixture(
         } satisfies Pick<BrowserInfo, 'submitListing'>)),
   };
   const store = {
+    loadCategoryPath: async (_claim: CloudListingClaim) => {
+      assert.equal(_claim, claim);
+      calls.push('category');
+      if (options.categoryThrows) throw new Error('private-category-path');
+      return Object.freeze([5, 6]);
+    },
     check: async () => {
       calls.push('check');
       return options.authorized !== false && !revoked;
@@ -163,6 +173,21 @@ test('concurrent write callbacks cannot request a second Begin while authorizati
   assert.equal(f.calls.filter((call) => call === 'begin').length, 1);
   assert.equal(f.calls.filter((call) => call === 'provider').length, 1);
   assert.deepEqual(f.results, [confirmed]);
+});
+
+test('passes the verified category navigation path to preparation before Begin', async () => {
+  const f = fixture({ requireCategory: true });
+  await f.runner.run(claim);
+  assert.ok(f.calls.indexOf('category') < f.calls.indexOf('preflight'));
+  assert.deepEqual(f.results, [confirmed]);
+});
+
+test('a missing category path fails before provider preparation or Begin', async () => {
+  const f = fixture({ categoryThrows: true });
+  await f.runner.run(claim);
+  assert.ok(!f.calls.includes('preflight'));
+  assert.ok(!f.calls.includes('begin'));
+  assert.equal(f.results[0]?.outcome, 'failed');
 });
 test('a missing Begin acknowledgment prevents every provider write', async () => {
   const f = fixture({ beginLost: true });

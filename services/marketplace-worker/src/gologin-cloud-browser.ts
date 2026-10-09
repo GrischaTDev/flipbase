@@ -45,6 +45,7 @@ export interface BrowserInfo extends Pick<Browser, 'version'> {
     beforeWrite: () => Promise<void>,
     authorize: () => Promise<void>,
     loadPhoto: (imageId: string) => Promise<MarketplaceListingPhoto>,
+    categoryPath: readonly number[],
   ): Promise<
     import('../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts').MarketplaceListingResult
   >;

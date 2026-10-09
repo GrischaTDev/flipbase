@@ -1,5 +1,26 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-10 – Juna – Kategoriepfad an den Inseratversuch anbinden
+
+**Arbeit:** Der Worker liest den benötigten Elternpfad aus der bestehenden
+Vinted-Kategorietabelle. Er prüft echte Ganzzahlkennungen, Blattkategorie,
+fehlende Eltern, Schleifen, maximale Tiefe und einheitliche Aktualisierungsmarken.
+Der Auffrischungsstand und die Inseratfreigabe werden vor/nach dem Abruf geprüft.
+Der Browser erhält ausschließlich die geordneten Elternkennungen. Der Cache ist
+eine Navigationshilfe; die angebotenen Werte prüft weiterhin das native Formular.
+Ein fehlender Pfad verhindert Vorbereitung und Schreibbeginn.
+
+Eigenes vorhandenes Inserat und Profil erneut nur gelesen. Sichtbare
+Detailmerkmale für Preis, Beschreibung, Eigentümer, Fotoelemente und Aktionen
+dokumentiert. Im Profil waren nur aktive/verkaufte Angebote sichtbar. Der Nutzer
+bestätigt, dass derzeit kein Vinted-Entwurf vorhanden ist. Das Ergebnis der
+nativen Entwurfsanlage bleibt daher offen; keine Ersatzannahme aus einem Button.
+
+**Prüfungen:** Sechs neue Pfad-/Storeprüfungen und zwei neue Ablaufregressionen
+zuerst fehlgeschlagen, danach erfolgreich. 566 Workerprüfungen erfolgreich,
+sieben bestehende Fälle ausgelassen. Worker-Typen, Bau, Format/ESLint erfolgreich.
+Zusätzlicher Recherchetab geschlossen. Keine reale Anbieter-Schreibaktion.
+
 ## 2026-10-10 – Juna – Native Inseratfelder vorbereiten
 
 **Arbeit:** Leere Vinted-Neuanlagemasken lassen sich anhand ihrer tatsächlichen
