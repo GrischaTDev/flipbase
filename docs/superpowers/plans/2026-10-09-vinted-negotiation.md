@@ -85,13 +85,13 @@ Agent benennt die konkreten Funktionen vor Providerintegration im Bericht.
 
 ## Task 3: Einstellungen und Chat
 
-- [ ] Neuer Menüpunkt und Lazy-Route `automatic-negotiation` mit vorhandenen
+- [x] Neuer Menüpunkt und Lazy-Route `automatic-negotiation` mit vorhandenen
       Konten-/Shared-Formmustern, Preview, Speichern und Ergebnisverlauf.
-- [ ] Preise, Preisbereiche, Stufen, Ereignistexte, Alternative/Folge, Verzögerung,
+- [x] Preise, Preisbereiche, Stufen, Ereignistexte, Alternative/Folge, Verzögerung,
       Sendereihenfolge und unabhängige Kaufnachricht konfigurieren.
-- [ ] Aktuelle erhaltene Angebote: Annahme volle Breite, darunter Ablehnen und
+- [x] Aktuelle erhaltene Angebote: Annahme volle Breite, darunter Ablehnen und
       Gegenangebotdialog. Aktion nur bei vollständigen aktuellen Daten/Freigabe.
-- [ ] Konto-/Workspacewechsel, Deaktivierung, fehlende Daten, Preisgrenzen,
+- [x] Konto-/Workspacewechsel, Deaktivierung, fehlende Daten, Preisgrenzen,
       duplizierte Klicks, mobil/hell/dunkel und AXE testen; Angular-Produktionsbau.
 
 ## Task 4: Integration und Abschluss
@@ -113,10 +113,19 @@ Funktionsdefinitionen und Rechte stimmen mit dem geprüften Schema überein.
 Cloud und Extension verwenden eine gemeinsame Providerlaufzeit. Tatsächlicher
 Worker-Image-Bau sowie Import der kompilierten Module im Image bestehen.
 Start ohne CommonJS-Globals, widersprüchliche Währungs-/Artikel-/Rollenbelege,
-Pausen und verlorene Bestätigungen sind gezielt geprüft. Task3 folgt jetzt.
+Pausen und verlorene Bestätigungen sind gezielt geprüft. Task3 ist implementiert und lokal geprüft; Aufgaben- und Abschlussreview folgen.
 
 Ein separates `buyer_accepted` für eine eigene Verkäuferofferte besitzt bislang
 keinen eindeutigen Anbieterbeleg und wird nicht erfunden oder aus dem Kauf abgeleitet.
 Die Oberfläche kennzeichnet die Grenze. Bestätigte Zahlungen über
 `debit_processed_at` ermöglichen dagegen unabhängige Kaufnachrichten.
 Keine produktive Aktivierung, Veröffentlichung oder Vinted-Schreibaktion erfolgt.
+
+Task3: 40 Modell-/Navigationstests, 82 relevante Angularprüfungen und zehn
+Mock-Browserabläufe mit AXE auf Desktop/Mobil und in hell/dunkel erfolgreich.
+Angular-Produktionsbau, Typprüfung der Specs, Format/Lint und Shared-UI bestehen.
+Schnellauswahl für Verzögerungen und konkrete bestätigte Aktionsmeldungen sind
+enthalten. Root hat die Desktop-/Mobilansichten geprüft; die alten Mockfehler
+wurden vor dem abschließenden Browserlauf korrigiert. Keine echte Provideraktion.
+Die unveränderte Deno-Lintbaseline bleibt ausdrücklich dokumentiert; kein Anspruch
+auf vollständigen ungefilterten Linterfolg. Die volle verbindliche CI folgt im PR.

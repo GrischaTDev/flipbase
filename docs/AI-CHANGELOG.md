@@ -6,12 +6,27 @@
 umsetzen: manuelle Angebotsaktionen, Preisgrenzen und Stufen, alternative
 Ereignistexte und Nachrichtenfolgen, Verzögerungen sowie Kaufnachrichten.
 
-**Stand:** Umsetzung im bestehenden eigenen Zweig mit getrennter
-Verhandlungswarteschlange. Aktuelle öffentliche Vinted-Browserquellen bestätigen
-Accept-/Reject-PUT und Verkäufer-Gegenangebote sowie die strukturierten
-Angebotsfelder. Neue Einstellungen bleiben ausgeschaltet. Keine produktiven
-Schreibaktionen oder Freigaben. Umsetzungs- und Prüfstände stehen im
-[Plan](superpowers/plans/2026-10-09-vinted-negotiation.md); Abschlussprüfungen folgen.
+**Änderung:** Manuelle Annahme, Ablehnung und Gegenangebot im Chat sowie
+kontobezogene Verhandlungsregeln für Cloud und Extension. Preise, Bereiche,
+Stufen, Vorschau, Alternativen und echte Nachrichtenfolgen mit Wartezeiten sind
+konfigurierbar. Kaufnachrichten wirken unabhängig. Eigene dauerhafte Jobs und
+Freigabe-/Kontoprüfungen verhindern veraltete und doppelte Schreibversuche;
+unklarer Ausgang wird nicht erneut versendet. Neue Einstellungen bleiben aus.
+
+**Prüfung:** 117 neue und 676 bestehende Datenbankchecks auf der transaktionalen
+Migrationskopie; erzeugte Migration/Typen und identische Funktionsrechte.
+Cloud-/Extensionregressionen, tatsächlicher Worker-Image-Bau samt Modulimport,
+40 Modell-/Navigationstests, 82 relevante Angularprüfungen und zehn Mock-
+Browserabläufe mit AXE auf Desktop/Mobil in hell/dunkel erfolgreich.
+Produktionsbau, Format/Lint und Shared-UI bestehen. Die bestehende vollständige
+Deno-Lintbaseline bleibt offen; ein gefilterter Lauf ist kein vollständiger
+Lintnachweis. Aufgaben- und Abschlussreview laufen noch.
+
+**Grenze:** Bestätigte Zahlungen sind belegte Kaufauslöser. Für die separate
+Käuferannahme unseres Gegenangebots fehlt bislang ein eindeutiger Anbieterbeleg;
+die Oberfläche erklärt die Nichtverfügbarkeit und bewahrt gespeicherte Texte.
+Keine echte Anbieteraktion, produktive Aktivierung, Veröffentlichung oder PR.
+Umsetzungs- und Prüfstände: [Plan](superpowers/plans/2026-10-09-vinted-negotiation.md).
 
 ## 2026-10-09 - Juna - Verhandlungsseite im Browser analysieren
 
@@ -112,6 +127,7 @@ Kontotests verwenden in der Wegwerfkopie ihr bisheriges Archivierungs-Fixture;
 der neue Herkunftstest prüft die reguläre Archivierungsaktion. Produktionsbau,
 Typprüfung, ESLint, Formatierung, Shared-UI-Prüfung und Diffcheck bestehen.
 Keine Vinted-Nachricht gesendet und keine produktive Migration ausgeführt.
+
 ## 2026-10-09 - Juna - Hosenmaße direkt in der Größenübersicht zeigen
 
 **Auftrag:** Die allgemeine Hosenübersicht soll neben der flachen Bundweite

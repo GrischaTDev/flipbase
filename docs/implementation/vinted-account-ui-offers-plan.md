@@ -156,8 +156,8 @@ Update der Nutzerinstallation wurden in dieser Umsetzung ausgeführt.
 
 ## Ergänzungsauftrag vom 09.10.2026: erhaltene Angebote bearbeiten
 
-**Stand:** Nutzerauftrag aufgenommen und bestehenden Code geprüft; noch nicht
-implementiert. Favoritennachrichten einschließlich Verzögerung und optionalem
+**Stand:** Im eigenen Zweig implementiert und lokal geprüft; Review und Veröffentlichung
+stehen noch aus. Favoritennachrichten einschließlich Verzögerung und optionalem
 Angebot haben bereits lokale und Cloud-Ausführungswege. Ein bestätigter echter
 Cloud-Favoriten-/Angebotstest bleibt separat offen. Diese bestehenden Funktionen
 ersetzen keine Reaktion auf ein erhaltenes Käuferangebot.
@@ -175,15 +175,14 @@ Der anschließende Browserrundgang erweitert den Auftrag um konfigurierbare
 Gegenangebotsstufen und Ereignisnachrichten; siehe den folgenden Ergänzungsabschnitt.
 Favoritennachrichten behalten ihre unabhängigen Regeln und Aktivierung.
 
-**Vor Umsetzung zu belegen:** Die aktuelle Nachrichtendarstellung liefert
-Angebotstext/-preislabel, aber keinen vollständigen bestätigten Aktionsvertrag.
-Für Annahme und Ablehnung fehlen eigene Ausführungswege. Zuerst echte strukturierte
-Angebotskennung, Transaktion, Verkäufer-/Käuferrolle, Status, Artikelpreis,
-Angebotspreis und Währung sowie die jeweiligen Anbieteraktionen und Erfolgsbelege
-abgleichen. Keine Endpunkte aus Namensähnlichkeit ableiten und keinen Preis aus
-übersetztem Anzeigetext als Grundlage einer automatischen Entscheidung verwenden.
-Der vorhandene Angebotsversand und seine Kontobindung/Ergebniszustände werden
-gezielt erweitert; die Favoritenaktivierung autorisiert keine neuen Verhandlungen.
+**Nachgewiesener Aktionsvertrag:** Beide Importpfade liefern strukturierte
+Angebotskennung, Transaktion, Verkäufer-/Käuferrolle, aktuellen Status,
+Artikel-/Angebotspreis und Währung. Accept-/Reject-PUT und Counter-POST sind
+mit den aktuellen öffentlichen Vinted-Browserquellen abgeglichen. Eine eigene
+Verhandlungswarteschlange bindet die Aktionen an Konto und Freigabe; die
+Favoritenaktivierung autorisiert keine neuen Verhandlungen. Widersprüchliche
+Währungs-, Artikel-, Mengen- oder Rollenbelege sperren einen Schreibversuch.
+Kein Preis wird aus einem übersetzten Anzeigetext übernommen.
 
 **Prüfpunkte:** Manuelle und automatische Entscheidungen teilen denselben
 kontogebundenen Auftrag. Identische Angebotskennungen nicht mehrfach bearbeiten;
@@ -202,8 +201,7 @@ Produktverhalten, nicht Bleams interne technische Implementierung.
 
 ## Erweiterter Auftrag nach Browserrundgang: automatische Verhandlung
 
-**Stand:** Am 09.10.2026 im geöffneten Bleam-Dashboard beobachtet und für Flipbase
-abgeleitet; keine Produktumsetzung. Die frühere Einmal-Gegenangebotsauswahl ist
+**Stand:** Am 09.10.2026 im geöffneten Bleam-Dashboard beobachtet, für Flipbase abgeleitet und im eigenen Zweig umgesetzt. Die frühere Einmal-Gegenangebotsauswahl ist
 mit dem neuen Auftrag überholt. [Beobachtungsprotokoll](../research/bleam-vinted-analysis.md).
 
 **Seite:** Unter „Automatisierungen“ neben „Favoritennachrichten“ den Menüpunkt
@@ -271,3 +269,28 @@ Ergebnis; keine Folgemeldung bei ungeklärtem Vorgänger; Neustart und manuelle
 kontrollierte Echtkonto-Abnahme mit ausdrücklich festgelegten Testaktionen.
 Die davor geprüften Bot-Icon-/Lesestatusänderungen bleiben ein gesonderter
 fertiger Stand; ihre Veröffentlichung ist noch nicht freigegeben.
+
+## Lokaler Umsetzungsstand der Verhandlung
+
+Cloud und Extension verwenden dieselben gespeicherten Regeln und eine gemeinsame
+Providerlaufzeit. Aktuelle Einzelangebote lassen sich im Chat annehmen, ablehnen
+oder mit Gegenpreis vormerken. Die Einstellungsseite enthält Preisbereiche,
+Stufen, Vorschau, Wartezeit, Sendereihenfolge, Alternativen und Folgen sowie
+unabhängige Kaufnachrichten und einen Ergebnisverlauf. Neue Regeln bleiben aus.
+Vormerkung wird von bestätigtem Versand unterschieden; unklare Ergebnisse werden
+nicht blind wiederholt. Bot-Icon und Lesestatus bleiben integriert.
+
+117 neue Datenbankchecks und 676 bestehende Checks auf der transaktionalen
+Migrationskopie bestehen. Der echte Worker-Image-Bau und Modulimport, gezielte
+Cloud-/Extensionregressionen, 40 Modell-/Navigationstests, 82 relevante
+Angularprüfungen und zehn Mock-Browserabläufe mit AXE in hell/dunkel auf Desktop
+und Mobilgerät sind erfolgreich. Angular-Produktionsbau, Format/Lint und Shared-UI
+bestehen. Die unveränderte Deno-Lintbaseline ist weiter dokumentiert; der gefilterte
+Lauf ist kein vollständiger grüner Lintnachweis. Ausführlicher Prüfstand:
+[Umsetzungsplan](../superpowers/plans/2026-10-09-vinted-negotiation.md).
+
+Bestätigte Zahlung über `debit_processed_at` ist ein belegter Kaufauslöser.
+Die separate Käuferannahme unseres Gegenangebots besitzt dagegen noch keinen
+eindeutigen Anbieterbeleg; die UI erklärt die derzeitige Nichtverfügbarkeit und
+erhält gespeicherte Texte. Sie löst keine ersatzweise Kaufnachricht aus.
+Keine reale Anbieterabnahme, produktive Aktivierung oder Veröffentlichung erfolgt.
