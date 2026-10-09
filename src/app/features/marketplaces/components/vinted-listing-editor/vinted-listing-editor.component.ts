@@ -491,6 +491,7 @@ export class VintedListingEditorComponent {
       materialIds:
         categorySame && same(materialLabels, previous.materialLabels) ? previous.materialIds : [],
       packageSizeId: categorySame ? previous.packageSizeId : null,
+      attributes: categorySame ? previous.attributes : {},
     });
   }
   private patch(content: VintedListingContent, connectionId: string | null): void {

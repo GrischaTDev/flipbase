@@ -90,6 +90,43 @@ offen; die sichtbaren Schaltflächen allein liefern diesen Nachweis nicht.
 
 ## Fertige Grundlage im Arbeitszweig
 
+### Ergänzende Formularprüfung und offizielle Grenzen
+
+Am 09.10.2026 wurde das angemeldete Neuanlageformular erneut ausschließlich
+gelesen. Es enthielt bereits ausgewählte Werte; diese wurden erhalten. Nur
+Auswahllisten und Kategoriegruppen wurden geöffnet und anschließend mit Escape
+geschlossen. Die frühere Rücksetzung beschreibt den vorherigen Recherchelauf.
+
+Die Auswahlwerte stehen auf äußeren `div`-Elementen mit `role="radio"` bzw.
+`role="checkbox"` und `aria-checked`. Die darin enthaltenen nativen Eingaben
+sind teilweise absichtlich verborgen und eignen sich nicht als sichtbare
+Auswahlquelle. Der Leser berücksichtigt doppelte Vorschläge, Sperren,
+Größengruppen und versteckte alte Listen. Paketgrößen können ihre Beschriftung
+über `aria-labelledby` erhalten. Die Kategorieauswahl öffnet auf der obersten
+Ebene; für Bomberjacken führt die reine Gruppennavigation über
+`5 → 2050 → 1206 → 2052` zur bereits gewählten Endkategorie `1223`.
+
+Vinted nennt offiziell **bis zu 20 Fotos** und höchstens drei Materialien.
+Die Erstellungsanleitung nennt Kategorie, Marke oder ausdrücklich „Keine
+Marke“, Zustand, Preis und Paketgröße. Sie beschreibt auch eine mögliche
+Prüfung nach dem Hochladen; eine angenommene Aktion bedeutet deshalb nicht
+automatisch ein bereits sichtbares Inserat.
+[Quelle: Vinted, Artikel hochladen](https://www.vinted.de/help/4/375-vaiheittaiset-ohjeet-tuotteen-lataamista-varten).
+
+Der offizielle Button „Erneut hochladen“ wird für vom Käufer vor Versand
+stornierte Bestellungen beschrieben. Das belegt keinen allgemeinen Ablauf
+zum Löschen und Neuerstellen aktiver Inserate. Manuelles Relist bleibt
+gesondert zu klären.
+[Quelle: Vinted, erneutes Hochladen](https://www.vinted.de/help/102?access_channel=hc_topics).
+
+Der gemeinsame lokale/Cloud-Leser und seine synthetischen Browserprüfungen
+verwenden diese DOM-Struktur. Kategorie und Konto werden vor und nach dem
+Lesen verglichen. Vor einer späteren Anbieteraktion werden tatsächliche IDs,
+Beschriftungen, gesperrte Optionen, unbekannte Merkmale, Fotoformate und
+beobachtete Textgrenzen geprüft. Fehlende Pflichtfelder und eine aktivierte
+kostenpflichtige Push-Option führen zum Anhalten. Das ist bisher Vorbereitung;
+ein Upload-, Schreib- oder Bestätigungsadapter ist noch nicht angeschlossen.
+
 - Eigene Entwürfe mit optionalem Zielkonto, unveränderlichen privaten Fotos und
   ausgewählten Vorlagenfeldern in deklarativen Schemas 460–462.
 - Kontrollierte Datenbankfunktionen prüfen Arbeitsbereich, Konto und Revision.
@@ -103,6 +140,8 @@ offen; die sichtbaren Schaltflächen allein liefern diesen Nachweis nicht.
   eines anderen Arbeitsbereichs werden verworfen.
 - Vorlagen zeigen Änderungen vor dem Übernehmen. Konto und Fotos gehören
   nicht zur Vorlage; Preisübernahme ist ausdrücklich auswählbar.
+- Kategorieänderungen leeren alte Merkmalskennungen und zusätzliche Attribute.
+  Geänderte Vorlagenbeschriftungen behalten keine widersprüchlichen alten IDs.
 - Entwürfe können ohne verbundenes Vinted-Konto vorbereitet werden. Die Seite
   bezeichnet die Speicherung ausdrücklich als Speicherung in Flipbase.
 
@@ -129,7 +168,14 @@ sofortige/geplante Veröffentlichung fehlen. Paket 5 enthält inzwischen das
 Terminmodell: UTC und Zeitzone, explizite Auswahl bei doppelten Uhrzeiten,
 Ablehnung übersprungener bzw. vergangener Termine und beide Ausfallregeln.
 23 Modellprüfungen bestehen auch mit Gerätezeitzonen New York und Tokio.
-Gemeinsame lokale/Cloud-Aufträge, Planungsdialog und serverseitige Terminsteuerung,
+Paket 4 enthält jetzt die dauerhafte Auftragsannahme und eigene Inseratfreigaben
+in Schema 463. Inhalt und Fotoreihenfolge, Konto, Entwurfsrevision, Ausführungsort
+und Termin werden unveränderlich aufgenommen. Wiederholte Anfragen liefern
+denselben Auftrag. Aufträge können vor Beginn abgebrochen werden; ein Widerruf
+während eines begonnenen Versuchs bleibt „Ergebnis unklar“. Konto- und
+Installationswechsel entziehen alten Aufträgen die Freigabe. `queued` bestätigt
+ausschließlich die Speicherung in Flipbase. Claim/Begin/Finish, Ausführer,
+atomarer Terminersatz, Planungsdialog und serverseitige Terminsteuerung sowie
 vollständige Live-Bearbeitung mit Drawer und manuelles Relist fehlen weiterhin.
 
 ## Prüfungen dieser Grundlage

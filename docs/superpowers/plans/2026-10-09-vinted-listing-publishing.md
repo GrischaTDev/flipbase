@@ -8,8 +8,10 @@
 **Aktueller Stand:** Auf `638b2ace` begonnen; eigene Entwürfe, private Fotos,
 Vorlagen und Editor als geprüfte Grundlage umgesetzt. Neuanlage und vollständige
 Bearbeitungsmaske am angemeldeten Vinted geprüft; weitere Kategoriearten,
-Anbietergrenzen und Schreib-/Ergebnisbelege noch offen. Pakete 2/3 teilweise umgesetzt,
-Pakete 4/6/7 noch offen; Paket 5 enthält bisher das geprüfte Terminmodell.
+Anbietergrenzen und Schreib-/Ergebnisbelege noch offen. Offizielle Fotoanzahl
+und gemeinsame Formularleser ergänzt. Pakete 2/3 teilweise umgesetzt; Paket 4
+enthält eigene Freigaben, unveränderliche Auftragsannahme, Abbruch und Verlauf,
+noch keine Ausführung. Pakete 6/7 offen; Paket 5 enthält bisher das Terminmodell.
 Einzelheiten und Prüfgrenzen stehen im
 [Anbieter- und Umsetzungsbericht](../../research/2026-10-09-vinted-listing-provider-contract.md).
 
@@ -57,7 +59,9 @@ Bearbeitungsmaske gelesen. Bomberjacken und Kinderfußballschuhe belegen
 kategorieabhängige Größen; Farbe erlaubt zwei, Material drei Werte.
 Sendungsgrößen, Dateiformate, Markenbeschränkungen, KI-Fotohinweis und
 kostenpflichtige Push-Option sind dokumentiert. Weitere Kategorien,
-Pflichtvalidierung, Fotogrenzen und belastbare Ergebnisse bleiben offen.
+Pflichtvalidierung und belastbare Ergebnisse bleiben offen. Bis zu 20 Fotos
+sind durch die offizielle Vinted-Hilfe bestätigt; die beobachteten äußeren
+ARIA-Auswahlelemente sind Grundlage gemeinsamer lokaler/Cloud-Leser.
 
 **Dateien:** Neu `docs/research/2026-10-09-vinted-listing-provider-contract.md`;
 prüfen `services/marketplace-worker/src/vinted-browser-listing-edit.ts`,

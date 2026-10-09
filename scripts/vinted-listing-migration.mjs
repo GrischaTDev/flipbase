@@ -10,6 +10,8 @@ const tables = [
   'marketplace_listing_images',
   'marketplace_listing_templates',
 ];
+const jobsTables = ['marketplace_listing_jobs', 'marketplace_listing_permissions'];
+const jobsMarker = '-- Explizite Inseratauftragsrechte aus dem deklarativen Schema.';
 function lowercaseSql(sql) {
   let result = '',
     quote = null,
@@ -94,21 +96,48 @@ export function completeListingMigration(migration, schemas) {
   );
   return `-- Zweck: Vinted-Arbeitskopien, Originalfotos und ausgewählte Vorlagenfelder speichern.\n-- Betroffen: public.marketplace_listing_drafts, marketplace_listing_images, marketplace_listing_templates und private Storage-Policies.\n${lowercaseSql(migration.trimEnd())}\n\n${marker}\n${permissions.join('\n')}\n${bucket[0]}\n${missingPolicies.join('\n')}\n`;
 }
+export function completeListingJobsMigration(migration, schema) {
+  if (migration.includes(jobsMarker)) throw new Error('Inseratauftrags-Migration bereits ergänzt.');
+  for (const table of jobsTables)
+    if (!new RegExp(`create table public\\.${table}\\b`, 'iu').test(migration))
+      throw new Error(`Generierte Tabelle fehlt: ${table}`);
+  for (const match of migration.matchAll(
+    /^(?:alter table|drop table|create table)\s+(?:"?public"?\.)?"?([a-z_]+)"?/gimu,
+  )) {
+    if (!jobsTables.includes(match[1])) throw new Error(`Fremde Tabellenänderung: ${match[1]}`);
+  }
+  const permissions = [...schema.matchAll(/^(?:revoke|grant)\s+[^;]+;/gimu)].map(
+    (match) => match[0],
+  );
+  for (const table of jobsTables)
+    if (
+      !permissions.some((statement) =>
+        new RegExp(`revoke all on public\\.${table} from`, 'iu').test(statement),
+      )
+    )
+      throw new Error(`Rechte fehlen: ${table}`);
+  return `-- Zweck: eigene Inseratfreigaben und unveränderliche, revisionsgebundene Aufträge speichern.\n-- Betroffen: public.marketplace_listing_permissions und marketplace_listing_jobs sowie deren kontrollierte RPCs.\n${lowercaseSql(migration.trimEnd())}\n\n${jobsMarker}\n${permissions.join('\n')}\n`;
+}
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   const path = process.argv[2];
-  if (!/^supabase[/\\]migrations[/\\]\d{14}_vinted_listing_drafts\.sql$/.test(path ?? ''))
+  if (!/^supabase[/\\]migrations[/\\]\d{14}_vinted_listing_(?:drafts|jobs)\.sql$/.test(path ?? ''))
     throw new Error('Pfad der frisch generierten Inserat-Migration erforderlich.');
   const tracked = spawnSync('git', ['ls-files', '--error-unmatch', '--', path], {
     encoding: 'utf8',
   });
   if (tracked.error || tracked.status !== 1)
     throw new Error('Versionierte Migration oder Git-Status nicht prüfbar.');
-  const schemas = await Promise.all(
-    [
-      '460_marketplace_listing_drafts',
-      '461_marketplace_listing_images',
-      '462_marketplace_listing_templates',
-    ].map((name) => readFile(`supabase/schemas/${name}.sql`, 'utf8')),
-  );
-  await writeFile(path, completeListingMigration(await readFile(path, 'utf8'), schemas));
+  if (/_vinted_listing_jobs\.sql$/.test(path)) {
+    const schema = await readFile('supabase/schemas/463_marketplace_listing_jobs.sql', 'utf8');
+    await writeFile(path, completeListingJobsMigration(await readFile(path, 'utf8'), schema));
+  } else {
+    const schemas = await Promise.all(
+      [
+        '460_marketplace_listing_drafts',
+        '461_marketplace_listing_images',
+        '462_marketplace_listing_templates',
+      ].map((name) => readFile(`supabase/schemas/${name}.sql`, 'utf8')),
+    );
+    await writeFile(path, completeListingMigration(await readFile(path, 'utf8'), schemas));
+  }
 }

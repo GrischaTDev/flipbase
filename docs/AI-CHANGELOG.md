@@ -1,5 +1,31 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-09 – Juna – Anbieterangaben und Inserataufträge weiter vorbereiten
+
+**Auftrag:** Nach „dann weiter“ die freigegebene Inseratumsetzung fortsetzen.
+Eigener Zweig sauber bei `8ec7aee5` übernommen; fremder Checkout bleibt unberührt.
+
+**Arbeit:** Gemeinsame Formularverträge und Leser aus der beobachteten
+Vinted-Struktur ergänzt. Tatsächliche ARIA-Auswahl statt versteckter Eingaben,
+Kategoriepfad, Sperren und Kontoidentität geprüft. Offizielle Grenze von 20
+Fotos dokumentiert. Kategorie- und Vorlagenwechsel erhalten keine alten,
+widersprüchlichen Kennungen oder Zusatzattribute.
+
+Eigene Inseratfreigaben und dauerhafte Aufträge speichern Inhalt, Originalfotos,
+Konto, Ausführer und Termin unveränderlich. Doppelte Anfragen bleiben idempotent;
+Verlauf und Abbruch prüfen Rechte und Version. Neue lokale Kopplung entzieht
+alten Aufträgen die Freigabe. Widerruf während eines Schreibversuchs bewahrt
+ein unklares Ergebnis. Noch keine Ausführung oder sichtbare Anbieteraktion.
+
+**Prüfungen:** Neue Migration erzeugt und in der eigenen Testdatenbank frisch
+eingespielt; Typen neu generiert. 94 Datenbankprüfungen, 42 Inhalts-/Terminmodelle,
+8 Editorprüfungen, 5 Migrationsskriptprüfungen, 529 Workerprüfungen (7 weitere
+ausgelassen) und 3 synthetische Formular-Browserprüfungen erfolgreich.
+Worker-Typen, Worker-Bau und Container mit gemeinsamem Laufzeitmodul geprüft.
+Angular-Typen, Produktionsbau, Format, betroffene ESLint-Dateien und Suite-Audit
+erfolgreich. Keine Produktionsmigration, installierte
+Erweiterungsänderung, reale Anbieter-Schreibaktion, Push, PR oder Merge.
+
 ## 2026-10-09 – Juna – Vinted-Formulare nach Wiederverbindung geprüft
 
 **Auftrag:** Mit „probier nochmal“ die Browserprüfung erneut versuchen.

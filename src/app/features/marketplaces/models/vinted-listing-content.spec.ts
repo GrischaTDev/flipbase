@@ -8,6 +8,76 @@ import {
 } from './vinted-listing-content';
 
 describe('Vinted-Inseratentwürfe', () => {
+  it('verwirft alte Kategoriekennungen beim Kategorienwechsel durch eine Vorlage', () => {
+    const content = {
+      ...emptyVintedListingContent(),
+      categoryId: 1223,
+      categoryLabel: 'Bomberjacken',
+      brandId: 53,
+      brandLabel: 'Nike',
+      sizeId: 208,
+      sizeLabel: 'M',
+      conditionId: 2,
+      conditionLabel: 'Sehr gut',
+      colorIds: [1],
+      colorLabels: ['Schwarz'],
+      materialIds: [44],
+      materialLabels: ['Baumwolle'],
+      packageSizeId: 2,
+      attributes: { width: '42' },
+    };
+    const result = applyVintedListingTemplate(content, {
+      categoryId: 2738,
+      categoryLabel: 'Fußballschuhe',
+    });
+    expect(result.content).toMatchObject({
+      categoryId: 2738,
+      brandId: null,
+      sizeId: null,
+      conditionId: null,
+      colorIds: [],
+      materialIds: [],
+      packageSizeId: null,
+      attributes: {},
+    });
+    expect(result.content.sizeLabel).toBe('M');
+    expect(result.changedFields).toContain('sizeId');
+    expect(content.sizeId).toBe(208);
+  });
+
+  it('behält ausdrücklich mitgelieferte Kategorieangaben einer Vorlage', () => {
+    const content = { ...emptyVintedListingContent(), categoryId: 1223, sizeId: 208 };
+    expect(
+      applyVintedListingTemplate(content, {
+        categoryId: 2738,
+        sizeId: 607,
+        sizeLabel: '38',
+        attributes: { width: '20' },
+      }).content,
+    ).toMatchObject({ categoryId: 2738, sizeId: 607, attributes: { width: '20' } });
+  });
+  it('bezeichnet geänderte Vorlagenangaben nicht mit alten Anbieterkennungen', () => {
+    const content = {
+      ...emptyVintedListingContent(),
+      brandId: 53,
+      brandLabel: 'Nike',
+      sizeId: 208,
+      sizeLabel: 'M',
+      colorIds: [1],
+      colorLabels: ['Schwarz'],
+    };
+    expect(
+      applyVintedListingTemplate(content, {
+        brandLabel: 'adidas',
+        sizeLabel: '38',
+        colorLabels: ['Grau'],
+      }).content,
+    ).toMatchObject({ brandId: null, sizeId: null, colorIds: [] });
+    expect(applyVintedListingTemplate(content, { brandId: 14 }).content.brandLabel).toBe('');
+    expect(
+      applyVintedListingTemplate(content, { brandId: 14, brandLabel: 'adidas' }).content,
+    ).toMatchObject({ brandId: 14, brandLabel: 'adidas' });
+  });
   it('speichert einen unvollständigen Entwurf ohne Verkaufspreis', () => {
     expect(parseVintedListingContent({ title: 'Meine Jacke' })).toMatchObject({
       title: 'Meine Jacke',

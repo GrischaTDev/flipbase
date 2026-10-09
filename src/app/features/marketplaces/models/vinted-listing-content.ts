@@ -1,24 +1,5 @@
-/** Frei speicherbare Arbeitskopie; Anbieterpflichtfelder werden erst vor einer Aktion geprüft. */
-export interface VintedListingContent {
-  readonly title: string;
-  readonly description: string;
-  readonly priceCents: number | null;
-  readonly currency: 'EUR';
-  readonly categoryId: number | null;
-  readonly categoryLabel: string;
-  readonly brandId: number | null;
-  readonly brandLabel: string;
-  readonly sizeId: number | null;
-  readonly sizeLabel: string;
-  readonly conditionId: number | null;
-  readonly conditionLabel: string;
-  readonly colorIds: readonly number[];
-  readonly colorLabels: readonly string[];
-  readonly materialIds: readonly number[];
-  readonly materialLabels: readonly string[];
-  readonly packageSizeId: number | null;
-  readonly attributes: Readonly<Record<string, string>>;
-}
+import type { VintedListingContent } from '../../../../../supabase/functions/_shared/marketplace-listing-contracts';
+export type { VintedListingContent } from '../../../../../supabase/functions/_shared/marketplace-listing-contracts';
 
 export type VintedListingTemplateFields = Partial<VintedListingContent>;
 export type VintedListingContentField = keyof VintedListingContent;
@@ -173,7 +154,48 @@ export function applyVintedListingTemplate(
   readonly content: VintedListingContent;
   readonly changedFields: readonly VintedListingContentField[];
 } {
-  const merged = parseVintedListingContent({ ...content, ...fields });
+  // Merkmale aus einer anderen Kategorie sind keine gültigen Anbieterkennungen.
+  // Lesbare Angaben bleiben als Eingabehilfe erhalten; explizite Vorlagenwerte gewinnen.
+  const categoryChanged =
+    Object.hasOwn(fields, 'categoryId') && fields.categoryId !== content.categoryId;
+  const staleReferences: Record<string, unknown> = {};
+  const defaults = emptyVintedListingContent();
+  for (const [identifier, label] of [
+    ['brandId', 'brandLabel'],
+    ['sizeId', 'sizeLabel'],
+    ['conditionId', 'conditionLabel'],
+    ['colorIds', 'colorLabels'],
+    ['materialIds', 'materialLabels'],
+  ] as const) {
+    if (
+      Object.hasOwn(fields, label) &&
+      !Object.hasOwn(fields, identifier) &&
+      JSON.stringify(fields[label]) !== JSON.stringify(content[label])
+    )
+      staleReferences[identifier] = defaults[identifier];
+    if (
+      Object.hasOwn(fields, identifier) &&
+      !Object.hasOwn(fields, label) &&
+      JSON.stringify(fields[identifier]) !== JSON.stringify(content[identifier])
+    )
+      staleReferences[label] = defaults[label];
+  }
+  const merged = parseVintedListingContent({
+    ...content,
+    ...(categoryChanged
+      ? {
+          brandId: null,
+          sizeId: null,
+          conditionId: null,
+          colorIds: [],
+          materialIds: [],
+          packageSizeId: null,
+          attributes: {},
+        }
+      : {}),
+    ...staleReferences,
+    ...fields,
+  });
   const values = variables(merged);
   const resolve = (value: string) =>
     value.replace(/\{\s*([^{}]+?)\s*\}/g, (match, key: string) => {

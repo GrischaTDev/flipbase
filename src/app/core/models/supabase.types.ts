@@ -3539,6 +3539,119 @@ export type Database = {
           },
         ]
       }
+      marketplace_listing_jobs: {
+        Row: {
+          action: string
+          authorization_version: number
+          connection_id: string | null
+          created_at: string
+          draft_id: number
+          draft_revision: number
+          error_code: string | null
+          execution_mode: string
+          external_account_id: string
+          external_id: string | null
+          id: number
+          late_policy: string
+          permission_id: number | null
+          provider_state: string | null
+          request_hash: string
+          request_id: string
+          requested_by: string
+          scheduled_at: string | null
+          snapshot: Json
+          state: string
+          time_zone: string | null
+          updated_at: string
+          verified_at: string | null
+          version: number
+          workspace_id: string
+        }
+        Insert: {
+          action: string
+          authorization_version: number
+          connection_id?: string | null
+          created_at?: string
+          draft_id: number
+          draft_revision: number
+          error_code?: string | null
+          execution_mode: string
+          external_account_id: string
+          external_id?: string | null
+          id?: never
+          late_policy?: string
+          permission_id?: number | null
+          provider_state?: string | null
+          request_hash: string
+          request_id: string
+          requested_by: string
+          scheduled_at?: string | null
+          snapshot: Json
+          state?: string
+          time_zone?: string | null
+          updated_at?: string
+          verified_at?: string | null
+          version?: number
+          workspace_id: string
+        }
+        Update: {
+          action?: string
+          authorization_version?: number
+          connection_id?: string | null
+          created_at?: string
+          draft_id?: number
+          draft_revision?: number
+          error_code?: string | null
+          execution_mode?: string
+          external_account_id?: string
+          external_id?: string | null
+          id?: never
+          late_policy?: string
+          permission_id?: number | null
+          provider_state?: string | null
+          request_hash?: string
+          request_id?: string
+          requested_by?: string
+          scheduled_at?: string | null
+          snapshot?: Json
+          state?: string
+          time_zone?: string | null
+          updated_at?: string
+          verified_at?: string | null
+          version?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_listing_jobs_permission_id_fkey"
+            columns: ["permission_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_listing_permissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketplace_listing_jobs_workspace_id_connection_id_fkey"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_connections"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "marketplace_listing_jobs_workspace_id_draft_id_fkey"
+            columns: ["workspace_id", "draft_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_listing_drafts"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "marketplace_listing_jobs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       marketplace_listing_metric_observations: {
         Row: {
           connection_id: string
@@ -3581,6 +3694,69 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "marketplace_account_entries"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      marketplace_listing_permissions: {
+        Row: {
+          approved_by: string
+          authorization_version: number
+          browser_profile_id: number | null
+          connection_id: string
+          created_at: string
+          execution_mode: string
+          external_account_id: string
+          id: number
+          local_grant_generation: number | null
+          provider_profile_id: string | null
+          revoked_at: string | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          approved_by: string
+          authorization_version?: number
+          browser_profile_id?: number | null
+          connection_id: string
+          created_at?: string
+          execution_mode: string
+          external_account_id: string
+          id?: never
+          local_grant_generation?: number | null
+          provider_profile_id?: string | null
+          revoked_at?: string | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          approved_by?: string
+          authorization_version?: number
+          browser_profile_id?: number | null
+          connection_id?: string
+          created_at?: string
+          execution_mode?: string
+          external_account_id?: string
+          id?: never
+          local_grant_generation?: number | null
+          provider_profile_id?: string | null
+          revoked_at?: string | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_listing_permissions_browser_profile_id_fkey"
+            columns: ["browser_profile_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_browser_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketplace_listing_permissions_workspace_id_connection_id_fkey"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: true
+            referencedRelation: "marketplace_connections"
+            referencedColumns: ["workspace_id", "id"]
           },
         ]
       }
@@ -8412,6 +8588,14 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_approve_listings: {
+        Args: {
+          p_connection_id: string
+          p_expected_external_account_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       marketplace_approve_local_extension: {
         Args: {
           p_connection_id: string
@@ -8503,6 +8687,10 @@ export type Database = {
       marketplace_can_manage: {
         Args: { p_workspace_id: string }
         Returns: boolean
+      }
+      marketplace_cancel_listing_job: {
+        Args: { p_expected_version: number; p_job_id: string }
+        Returns: Json
       }
       marketplace_cloud_favorite_begin: {
         Args: {
@@ -8774,6 +8962,19 @@ export type Database = {
         Args: { p_image_id: string }
         Returns: string
       }
+      marketplace_enqueue_listing: {
+        Args: {
+          p_action: string
+          p_ai_photo: boolean
+          p_draft_id: string
+          p_expected_revision: number
+          p_late_policy?: string
+          p_request_id: string
+          p_scheduled_at?: string
+          p_time_zone?: string
+        }
+        Returns: Json
+      }
       marketplace_enqueue_local_message: {
         Args: {
           p_attachment?: Json
@@ -8886,6 +9087,20 @@ export type Database = {
           p_draft: Database["public"]["Tables"]["marketplace_listing_drafts"]["Row"]
         }
         Returns: Json
+      }
+      marketplace_listing_job_document: {
+        Args: {
+          p_job: Database["public"]["Tables"]["marketplace_listing_jobs"]["Row"]
+        }
+        Returns: Json
+      }
+      marketplace_listing_job_timing: {
+        Args: { p_late_policy: string; p_now: string; p_scheduled_at: string }
+        Returns: string
+      }
+      marketplace_listing_permission_valid: {
+        Args: { p_permission_id: number; p_user_id: string; p_version?: number }
+        Returns: boolean
       }
       marketplace_listing_template_document: {
         Args: {
@@ -9242,12 +9457,20 @@ export type Database = {
         Returns: Json
       }
       marketplace_read_listing_draft: { Args: { p_id: string }; Returns: Json }
+      marketplace_read_listing_jobs: {
+        Args: { p_draft_id?: string; p_workspace_id: string }
+        Returns: Json
+      }
       marketplace_read_listing_metric_changes: {
         Args: {
           p_connection_id: string
           p_period_minutes?: number
           p_workspace_id: string
         }
+        Returns: Json
+      }
+      marketplace_read_listing_permission: {
+        Args: { p_connection_id: string; p_workspace_id: string }
         Returns: Json
       }
       marketplace_read_local_extension: {
@@ -9373,6 +9596,14 @@ export type Database = {
         Returns: Json
       }
       marketplace_revoke_cloud_messages: {
+        Args: {
+          p_authorization_version: number
+          p_connection_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_revoke_listings: {
         Args: {
           p_authorization_version: number
           p_connection_id: string

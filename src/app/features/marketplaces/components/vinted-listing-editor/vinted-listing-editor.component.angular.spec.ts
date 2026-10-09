@@ -89,6 +89,18 @@ afterEach(() => {
   vi.useRealTimers();
 });
 describe('Vinted-Inserateditor', () => {
+  it('clears category-specific attributes when choosing another category', async () => {
+    const { component, create } = setup();
+    await settle();
+    component.applyTemplate({
+      ...emptyVintedListingContent(),
+      categoryId: 1223,
+      attributes: { width: '42' },
+    });
+    component.form.controls.categoryId.setValue('2738');
+    await component.save();
+    expect(create.mock.calls[0][1].attributes).toEqual({});
+  });
   it('does not create an empty draft on opening', async () => {
     const { component, create } = setup();
     await settle();
