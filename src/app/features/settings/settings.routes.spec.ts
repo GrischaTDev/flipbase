@@ -35,7 +35,7 @@ describe('SETTINGS_ROUTES', () => {
     const children = SETTINGS_ROUTES[0].children ?? [];
     const contentRoutes = children.filter((route) => route.loadComponent);
 
-    expect(contentRoutes).toHaveLength(11);
+    expect(contentRoutes).toHaveLength(12);
     expect(contentRoutes.every((route) => typeof route.loadComponent === 'function')).toBe(true);
     const companyRoute = contentRoutes.find((route) => route.path === 'company');
     expect(companyRoute?.canDeactivate).toHaveLength(1);
@@ -43,13 +43,13 @@ describe('SETTINGS_ROUTES', () => {
     expect(contentRoutes.find((route) => route.path === 'data/print')).toBeDefined();
   });
 
-  it('leitet die bisherige Kontoverwaltung in den geschützten Vinted-Bereich um', () => {
-    const legacyRoute = SETTINGS_ROUTES[0].children?.find((route) => route.path === 'marketplaces');
-    expect(legacyRoute).toMatchObject({
-      redirectTo: '/marketplaces/vinted/accounts',
-      pathMatch: 'full',
-    });
-    expect(legacyRoute?.loadComponent).toBeUndefined();
+  it('lädt die Marktplatz-Einstellungen verzögert unter marketplaces', () => {
+    const marketplacesRoute = SETTINGS_ROUTES[0].children?.find(
+      (route) => route.path === 'marketplaces',
+    );
+    expect(marketplacesRoute?.loadComponent).toBeTypeOf('function');
+    expect(marketplacesRoute?.redirectTo).toBeUndefined();
+
     const vintedRoute = MARKETPLACES_ROUTES.find((route) => route.path === 'vinted');
     expect(vintedRoute?.canActivate).toContain(marketplaceAccessGuard);
     expect(vintedRoute?.children?.find((route) => route.path === 'manage')).toMatchObject({

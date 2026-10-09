@@ -7,6 +7,7 @@ import axe from 'axe-core';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { MarketplaceSettingsService } from '../../core/services/marketplace-settings.service';
 import { PlatformOperatorService } from '../../core/services/platform-operator.service';
 import { prepareMarketplaceRendering } from '../../../../e2e/support/marketplace-rendering';
 import { PwaService } from '../../core/services/pwa.service';
@@ -19,11 +20,15 @@ Component({ selector: 'app-test-page', template: '' })(TestPageComponent);
 // weil hier nur die Navigation geprueft wird.
 const routes: Routes = [
   { path: 'dashboard', component: TestPageComponent },
+  { path: 'catalog', component: TestPageComponent },
   { path: 'marketplaces/vinted', component: TestPageComponent },
   { path: 'marketplaces/vinted/:section', component: TestPageComponent },
-  { path: 'vinted-bot', component: TestPageComponent },
-  { path: 'vinted-bot/filters', component: TestPageComponent },
-  { path: 'vinted-bot/favorites', component: TestPageComponent },
+  { path: 'marketplaces/ebay', component: TestPageComponent },
+  { path: 'marketplaces/kleinanzeigen', component: TestPageComponent },
+  { path: 'tools/brand-labels', component: TestPageComponent },
+  { path: 'tools/brand-labels/sizes', component: TestPageComponent },
+  { path: 'deal-calculator', component: TestPageComponent },
+  { path: 'deal-calculator/ebay', component: TestPageComponent },
   {
     path: 'admin',
     children: [
@@ -135,17 +140,16 @@ describe('SidebarComponent', () => {
     expect(operation.element.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
   });
 
-  // Den sichtbaren Namen liefert die Uebersetzung NAV.DEAL_MONITOR; hier ist
-  // keine geladen, deshalb wird nur das Ziel geprueft.
-  it('fuehrt den frueheren Deal-Monitor unter der neuen Adresse', async () => {
+  it('fuehrt den Deal-Rechner und eBay-Gebührenrechner unter Tools', async () => {
     const { element } = await renderAt('/dashboard');
 
-    expect(element.querySelector('a[href="/vinted-bot"]')).not.toBeNull();
+    expect(element.querySelector('a[href="/deal-calculator"]')).not.toBeNull();
+    expect(element.querySelector('a[href="/deal-calculator/ebay"]')).not.toBeNull();
     expect(element.querySelector('a[href="/deal-monitor"]')).toBeNull();
   });
 
   it('verlinkt das Flipbase-Logo mit dem Dashboard', async () => {
-    const { element } = await renderAt('/vinted-bot');
+    const { element } = await renderAt('/catalog');
     const brandLink = element.querySelector<HTMLAnchorElement>('a[aria-label="Zum Dashboard"]');
 
     expect(brandLink?.getAttribute('href')).toBe('/dashboard');
@@ -187,21 +191,37 @@ describe('SidebarComponent', () => {
     expect(subLinks).toEqual([]);
   });
 
-  it('klappt die Unterpunkte fuer Vinted-Bot auf und hebt die aktive Seite hervor', async () => {
-    const { element, subLinks } = await renderAt('/vinted-bot/filters', false);
+  it('klappt die Unterpunkte für Marken & Größen auf und hebt die aktive Seite hervor', async () => {
+    const { element, subLinks } = await renderAt('/tools/brand-labels/sizes', false);
 
     expect(subLinks.map((link) => link.textContent?.trim())).toEqual([
-      'Vinted Feed',
-      'Suchfilter',
-      'Favoriten',
+      'Labels vergleichen',
+      'Größen nachschlagen',
     ]);
     expect(subLinks.map((link) => link.getAttribute('href'))).toEqual([
-      '/vinted-bot',
-      '/vinted-bot/filters',
-      '/vinted-bot/favorites',
+      '/tools/brand-labels',
+      '/tools/brand-labels/sizes',
     ]);
-    expect(subLinks.map((link) => link.getAttribute('aria-current'))).toEqual([null, 'page', null]);
+    expect(subLinks.map((link) => link.getAttribute('aria-current'))).toEqual([null, 'page']);
     expect(element.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
+  });
+
+  it('blendet deaktivierte Marktplätze dynamisch aus der Navigation aus', async () => {
+    const { element, fixture } = await renderAt('/dashboard');
+    const settings = TestBed.inject(MarketplaceSettingsService);
+    settings.setMarketplaceEnabled('ebay', false);
+    settings.setMarketplaceEnabled('kleinanzeigen', false);
+    fixture.detectChanges();
+
+    expect(element.querySelector('a[href="/marketplaces/ebay"]')).toBeNull();
+    expect(element.querySelector('a[href="/marketplaces/kleinanzeigen"]')).toBeNull();
+    expect(element.querySelector('a[href="/marketplaces/vinted"]')).not.toBeNull();
+  });
+
+  it('besitzt eine Pufferzone im Sidebar-Footer gegen den Browser-Link-Tooltip', async () => {
+    const { element } = await renderAt('/dashboard');
+    const divider = element.querySelector('[data-sidebar-divider]');
+    expect(divider?.classList.contains('pb-8')).toBe(true);
   });
 
   it('zeigt Nicht-Betreibern weder Administration noch Unterpunkte', async () => {

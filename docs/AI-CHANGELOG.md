@@ -1,5 +1,30 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-09 - Juna - Sidebar-Navigation & Modulare Marktplatz-Steuerung refaktorisieren
+
+**Auftrag:** Die Sidebar-Navigation und Informationsarchitektur intuitiver und modularer gestalten:
+
+1. Warenwirtschaft schärfen: Konsolidierung auf Kern-Wawi (`Einkäufe`, `Artikel & Bestand`, `Verkäufe`). Entfernung des isolierten 1-Item-Headers „Einkauf“ und Ausgliederung von „Inserate“, da Inserate plattformspezifisch gepflegt werden.
+2. Modulare Marktplätze: Neue Navigationsgruppe „Marktplätze“ (Vinted, eBay, Kleinanzeigen). Marktplätze sollen einzeln unter `/settings/marketplaces` aktivierbar/deaktivierbar sein; inaktive Marktplätze verschwinden samt Unterbereichen aus der Sidebar.
+3. Neuer Marktplatz Kleinanzeigen: Einrichtung der Route `/marketplaces/kleinanzeigen` und des zugehörigen Workspace-Hubs.
+4. Browser-Link-Puffer: Hinzufügen einer Pufferzone (`pb-8`) im Footer der Sidebar, damit der temporäre Ziel-URL-Tooltip moderner Browser beim Hovern über Links die Punkte „Einstellungen“ und „Administration“ nicht überdeckt.
+5. Cross-Listing-Konzept: Architektur- und Transferplan für das Übertragen von Inseraten (Vinted ➔ Kleinanzeigen) ausarbeiten.
+
+**Umsetzung:**
+
+1. Reaktivität & Settings: `MarketplaceSettingsService` mit Signals und LocalStorage-Persistenz (`flipbase_marketplace_settings`) für schnelles Umschalten ohne Neuladen.
+2. Navigationsmodell: `WORKSPACE_NAVIGATION_GROUPS` in `workspace-navigation.ts` angepasst (`merchandise`, `marketplaces`, `finances`, `tools`). Unbenutzter Import entfernt.
+3. Sidebar-Filterung: `SidebarComponent` filtert Menügruppen reaktiv per `computed()` unter Einbezug von `MarketplaceSettingsService` und Betreiberstatus. `pb-8` Pufferzone im Sidebar-Footer ergänzt.
+4. Einstellungsseite: `MarketplacesSettingsComponent` unter `/settings/marketplaces` erstellt und in `settings.routes.ts` sowie `SettingsShellComponent` integriert.
+5. Kleinanzeigen-Workspace: `KleinanzeigenWorkspaceComponent` unter `src/app/features/marketplaces/components/kleinanzeigen-workspace/` angelegt und in `marketplaces.routes.ts` geroutet.
+6. Dokumentation & Mockup: Konzeptdokument `docs/superpowers/plans/2026-10-09-cross-marketplace-listing-transfer.md` und interaktives HTML-Mockup im Brain-Ordner erstellt.
+
+**Prüfung:**
+
+- 41 automatisierte Tests bestanden (15x `sidebar.component.angular.spec.ts`, 14x `workspace-navigation.spec.ts`, 4x `settings-shell.component.angular.spec.ts`, 3x `marketplace-settings.service.spec.ts`, 3x `settings.routes.spec.ts`, 2x `marketplaces-settings.component.angular.spec.ts`).
+- Vollständige Typprüfung (`npm run typecheck`) ohne Fehler abgeschlossen.
+- ESLint und Prettier auf allen geänderten und neuen Dateien erfolgreich und fehlerfrei ausgeführt.
+
 ## 2026-10-09 - Juna - PayPal-Zahlungsart und 8-USD-Grenze für IPRoyal vorbereiten
 
 **Auftrag:** Neue IPs direkt über eine hinterlegte Zahlungsart statt Guthaben

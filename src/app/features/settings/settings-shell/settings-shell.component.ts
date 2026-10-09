@@ -64,8 +64,8 @@ export const SETTINGS_NAVIGATION: readonly SettingsNavigationItem[] = [
   { path: 'team', label: 'Team & Rollen', description: 'Zugriffe verwalten', icon: LucideUsers },
   {
     path: 'marketplaces',
-    label: 'Account-Verwaltung',
-    description: 'Vinted-Verbindungen verwalten',
+    label: 'Marktplätze',
+    description: 'Verkaufskanäle ein- und ausschalten',
     icon: LucideStore,
   },
   {
@@ -107,11 +107,7 @@ export class SettingsShellComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly operator = inject(PlatformOperatorService);
 
-  readonly navigation = computed(() =>
-    this.operator.operator()
-      ? SETTINGS_NAVIGATION
-      : SETTINGS_NAVIGATION.filter((item) => item.path !== 'marketplaces'),
-  );
+  readonly navigation = computed(() => SETTINGS_NAVIGATION);
   readonly version = VERSION;
   readonly mobileOptions = computed<readonly SelectOption<string>[]>(() =>
     this.navigation().map((item) => ({
