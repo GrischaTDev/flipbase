@@ -33,6 +33,11 @@ const log = createLogger();
 const client = createSupabaseClient(config);
 const sessionOptions = { baseUrl: config.vintedBaseUrl, userAgent: config.userAgent };
 const budget = new RequestBudget(config.requestsPerMinute);
+const health = createHealthState(
+  () => budget.usageRatio(),
+  undefined,
+  Math.max(5 * 60_000, config.tickIntervalMs * 2),
+);
 
 // Jede ausgehende Anfrage meldet sich selbst beim Budget - Katalogabfrage,
 // Wiederholungen nach 5xx und der getrennte Kategorieabruf gleichermassen.
@@ -43,7 +48,14 @@ const browser = new ChromeVintedBrowser(config.vintedBaseUrl, {
 });
 const counted = pacedVintedFetch(
   countingFetch(
-    metrics.wrap((input, init) => browser.fetch(input, init)),
+    metrics.wrap(async (input, init) => {
+      try {
+        return await browser.fetch(input, init);
+      } finally {
+        // Einzelne Abrufe halten auch einen langen Durchlauf mit vielen Filtern lebendig.
+        health.recordProgress();
+      }
+    }),
     () => budget.record(),
   ),
   {
@@ -53,7 +65,6 @@ const counted = pacedVintedFetch(
 );
 const vintedConnection = new VintedConnectionState();
 
-const health = createHealthState(() => budget.usageRatio());
 const queries = new QueryStore(client);
 const originState = new OriginStateStore(client, log);
 const categories = new CategoryStore(client);
@@ -249,6 +260,8 @@ while (!controller.signal.aborted) {
     });
   }
 
+  // Keine fälligen Aufträge und eine bewusste Vinted-Pause sind ebenfalls Fortschritt.
+  health.recordProgress();
   await sleep(config.tickIntervalMs);
 }
 
