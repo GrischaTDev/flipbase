@@ -219,8 +219,14 @@ Ergebnisbelege, keine vom Client gelieferten Inhaltsaufträge. Das gekoppelte
 Secret wird vor Übergabe an die Datenbank gehasht. Bestätigungen verlangen
 Artikel-/Konto-ID, Aktion, passenden Anbieterstatus und eine gültige UTC-Zeit;
 die Datenbank prüft zusätzlich die tatsächliche Bindung. Die Erweiterung ruft
-diesen Ablauf noch nicht automatisch auf; native Ausführung und der Client
-bleiben anzuschließen.
+diesen Ablauf noch nicht automatisch auf; native Ausführung und der
+Hintergrundablauf bleiben anzuschließen. Ein eigener, noch nicht im Manifest
+aktivierter Client prüft Konto, Fristen und Versuchbindung, übernimmt die
+Originalbytes und meldet Ergebnisse. Nur vom Client registrierte Versuche sind
+verwendbar. Schreibbeginn wird vor dem ersten Warten reserviert und nach einer
+verlorenen Antwort nicht erneut gesendet. Späte Freigabeantworten können keinen
+bereits widerrufenen oder beendeten Versuch wieder öffnen. Der Inhaltsparser
+ist mit dem Cloud-Worker geteilt und liefert tief eingefrorene Auftragskopien.
 
 `listing_photo` liefert die privaten Originalbytes für eine Bildkennung aus
 dem übernommenen Auftrag. Die Erweiterung darf keinen Storage-Pfad oder eine

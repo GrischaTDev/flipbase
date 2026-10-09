@@ -1,5 +1,33 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-10 – Juna – Inseratclient und gemeinsamer Auftragsinhalt
+
+**Arbeit:** Cloud und lokale Erweiterung prüfen den unveränderlichen
+Inseratinhalt mit demselben Parser. Der eigene Erweiterungsclient verbindet
+Übernahme, Freigabeprüfung, einmaligen Schreibbeginn, Originalfotoabruf und
+Ergebnisrückmeldung über gebundene Adapter. Er übernimmt nur das gekoppelte
+Konto und registrierte Versuche; große Kennungen bleiben Text. Parallele
+Schreibbeginn-Aufrufe lösen höchstens eine Anfrage aus. Antwortverlust erzeugt
+keinen erneuten Schreibbeginn. Späte Prüfantworten dürfen einen inzwischen
+widerrufenen oder beendeten Versuch nicht wieder öffnen. Nach Fristablauf kann
+weiterhin das Ergebnis des ursprünglichen Versuchs gemeldet werden. Die
+Rückmeldung wird anhand von Konto, Auftrag, Aktion und Anbieterbeleg geprüft.
+Die neuen Prüfungen sind in der bestehenden Workflow-Suite registriert.
+
+**Prüfungen:** Fehlende gemeinsame Schnittstelle und Client zuerst durch
+fehlgeschlagene Tests belegt; zusätzlich Kennungsumwandlung und verspätete
+Prüfantworten durch fehlgeschlagene Tests nachgewiesen und korrigiert.
+13 neue und 144 bestehende Erweiterungsprüfungen erfolgreich. Alle 566
+Workerprüfungen erfolgreich, sieben bestehende Fälle ausgelassen. Alle 14
+Inserat-Browserprüfungen mit abgefangenen Anbieteranfragen erfolgreich.
+Worker-Typprüfung, Bau, Format und ESLint erfolgreich. Testcontainer neu gebaut;
+fünf Inseratmodule einschließlich gemeinsamem Parser ohne Netzwerk geladen.
+Suite-Audit erfolgreich. Keine Schemaänderung oder echte Anbieteraktion.
+
+**Offen:** Der Client ist noch nicht im Hintergrundablauf oder Manifest
+aktiviert. Native Speicherung, belastbarer Anbietererfolg und automatischer
+Start bleiben anzuschließen; die installierte Erweiterung wurde nicht geändert.
+
 ## 2026-10-10 – Juna – Private Originalfotos für lokale Inserataufträge
 
 **Arbeit:** Eigene Fotoaktion liefert Originalbytes ausschließlich anhand einer

@@ -2,6 +2,7 @@ import '../../../tools/flipbase-extension/vinted-listing-runtime.js';
 import type {
   MarketplaceListingAction,
   MarketplaceListingResult,
+  MarketplaceListingSnapshot,
   VintedListingChoiceField,
   VintedListingChoiceSnapshot,
   VintedListingContent,
@@ -11,6 +12,11 @@ import type {
 } from '../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts';
 
 interface ListingRuntime {
+  parseSnapshot(
+    input: unknown,
+    workspaceId: string,
+    connectionId: string,
+  ): MarketplaceListingSnapshot;
   parseChoices(field: VintedListingChoiceField, input: unknown): VintedListingChoiceSnapshot;
   collectChoices(field: VintedListingChoiceField): unknown;
   collectFormMetadata(): Omit<VintedListingCategoryFields, 'categoryId' | 'fields'> & {
@@ -30,6 +36,7 @@ interface ListingRuntime {
 const runtime = (globalThis as unknown as { FlipbaseVintedListingRuntime: ListingRuntime })
   .FlipbaseVintedListingRuntime;
 export const parseVintedListingChoices = runtime.parseChoices;
+export const parseVintedListingSnapshot = runtime.parseSnapshot;
 export const collectVintedListingChoices = runtime.collectChoices;
 export const collectVintedListingFormMetadata = runtime.collectFormMetadata;
 export const isVintedListingResult = runtime.isResult;
