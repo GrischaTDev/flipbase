@@ -17,14 +17,21 @@ Verbindung als „Verknüpft“ und erklärt einen unbestätigten Zugriff ausdr�
 Die beiden Anmeldebuttons verwenden für Pfeil und externen Link die vorhandene
 Icon-Funktion des gemeinsamen Buttons. Projizierte SVGs standen im Textbereich
 und rutschten dort unter die Beschriftung.
-Keine automatische Wiederaufnahme, Änderung des Browserprofils oder neue
-Anbieteranfrage durch die Korrektur.
+Nach einem erfolgreich abgeschlossenen manuellen Abruf ohne Quellenfehler
+entfernt der Server ältere Anmelde-, Ablehnungs- und Prüfungswarnungen des
+Zeitplans. Pause, Abstand und Freigabeversion bleiben erhalten. Neuere Änderungen,
+Quellenfehler und unbestätigter Browserstopp verhindern die Bereinigung. Die
+Migration bereinigt vorhandene Warnungen, wenn der neueste Auftrag diesen Erfolg
+bereits nachweist. Keine automatische Wiederaufnahme oder Änderung des Browserprofils.
 
 **Prüfung:** Der fehlerhafte Einstieg und die Statusmeldung sind in gezielten
 Renderingtests reproduziert. 81 betroffene Angularprüfungen einschließlich DOM-AXE,
 Produktionsbau, ESLint, Format und Diffprüfung bestehen. Die Icon-Regression ist
 auf Desktop/Mobil durch tatsächliche Positionen reproduziert. Fünf erfolgreiche
 Browserprüfungen decken zusätzlich Anmeldekorrektur und SMS-Bestätigung ab.
+Die neue Zeitplanregression scheitert am bisherigen Servercode. 107 Datenbanktests
+bestehen nach dem Fix, 110 inklusive separatem Migrationsabgleich. 13 zusätzliche
+Angularprüfungen bestätigen die sofortige Warnungsbereinigung mit erhaltener Pause.
 
 **Echtkonto:** Nach der erneuten Anmeldung bestätigt der manuelle Abruf vom
 09.10.2026 um 14:55 Uhr Profil, Inserate, Bewertungen und Gesprächsliste als

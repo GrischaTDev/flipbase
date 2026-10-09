@@ -294,7 +294,12 @@ begin
   select * into v_operation from public.marketplace_operations where id=p_operation_id;
   if not found then return false; end if;
   perform 1 from public.marketplace_connections where workspace_id=v_operation.workspace_id and id=v_operation.connection_id for update;
-  if v_operation.schedule_id is not null then select * into v_schedule from public.marketplace_sync_schedules where id=v_operation.schedule_id for update; end if;
+  if v_operation.schedule_id is not null then
+    select * into v_schedule from public.marketplace_sync_schedules where id=v_operation.schedule_id for update;
+  elsif v_operation.authorization_kind='manual_read' then
+    select * into v_schedule from public.marketplace_sync_schedules
+      where workspace_id=v_operation.workspace_id and connection_id=v_operation.connection_id for update;
+  end if;
   select * into v_operation from public.marketplace_operations where id=p_operation_id and state='running' and runner_id=p_runner_id and worker_epoch=p_worker_epoch for update;
   if not found then return false; end if;
   if jsonb_typeof(p_outcome) is distinct from 'object' or p_outcome->>'state' is null or p_outcome->>'state' not in ('succeeded','failed') then raise exception 'Ungültiger Auftragsabschluss' using errcode='22023'; end if;
@@ -316,7 +321,7 @@ begin
   if exists(select 1 from public.marketplace_browser_sessions where public_id=v_operation.browser_session_id and state in ('active','stopping')) then v_reason:='cleanup'; end if;
   update public.marketplace_operations set state=p_outcome->>'state',stage='cleanup',error_code=case when v_reason='cleanup' then 'cleanup' else p_outcome->>'errorCode' end,finished_at=clock_timestamp() where id=p_operation_id;
   -- Kein alter Abschluss darf eine inzwischen neu erteilte Freigabe umschreiben.
-  if v_schedule.id is not null and v_schedule.authorization_version=v_operation.schedule_authorization_version then
+  if v_operation.authorization_kind='scheduled_read' and v_schedule.id is not null and v_schedule.authorization_version=v_operation.schedule_authorization_version then
     v_failures:=case when v_reason is null then 0 else v_schedule.consecutive_failures+1 end;
     if v_reason in ('network','server','interrupted') then
       if v_failures>=3 then v_reason:='retry_limit'; else v_retry:=clock_timestamp()+make_interval(mins=>15*(2^v_failures)::integer); end if;
@@ -328,6 +333,17 @@ begin
       last_success_at=case when p_outcome->>'state'='succeeded' and v_reason is null then v_operation.observed_at else last_success_at end,
       next_due_at=case when v_reason in ('needs_login','forbidden','challenge','access_revoked','cleanup','retry_limit') then null else greatest(clock_timestamp()+make_interval(mins=>v_schedule.interval_minutes),v_retry) end,
       updated_at=clock_timestamp() where id=v_schedule.id;
+  elsif v_operation.authorization_kind='manual_read' and p_outcome->>'state'='succeeded'
+    and p_outcome->>'errorCode' is null and v_reason is null
+    and v_operation.source_results->'profile'->>'status'='complete'
+    and not exists(select 1 from jsonb_each(v_operation.source_results) a where a.value->>'failure' is not null)
+    and public.marketplace_sync_authorization_valid(v_operation.workspace_id,v_operation.requested_by) then
+    -- Ein neuer bestätigter Abruf löst die alte Anbieterwarnung. Eine Pause,
+    -- Freigabeänderung nach Abrufbeginn oder ungeklärte Bereinigung bleibt erhalten.
+    update public.marketplace_sync_schedules set paused_reason=null,retry_after=null,
+      consecutive_failures=0,updated_at=clock_timestamp()
+      where id=v_schedule.id and paused_reason in ('needs_login','forbidden','challenge')
+        and updated_at<=v_operation.started_at;
   end if;
   return true;
 end;

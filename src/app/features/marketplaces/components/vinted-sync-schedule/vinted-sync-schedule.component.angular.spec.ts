@@ -143,24 +143,23 @@ describe('Automatische Aktualisierung je Vinted-Konto', () => {
     expect(api.set).not.toHaveBeenCalled();
   });
 
-  it('ordnet eine alte Abrufablehnung dem Zeitplan zu, auch nach einer neueren manuellen Aktualisierung', async () => {
+  it('entfernt die serverseitig erledigte Abrufwarnung nach manuellem Erfolg und erhält die Pause', async () => {
     api.read.mockResolvedValue({
       ...schedule,
       pausedReason: 'forbidden',
       lastAttemptAt: '2026-10-02T15:13:28Z',
     });
-    api.availability.mockResolvedValue({ enabled: false, allowedIntervals: [] });
     const fixture = await render();
+    expect(fixture.componentInstance.headerNotice()?.text).toContain('von Vinted abgelehnt');
+    api.read.mockResolvedValue({ ...schedule, lastAttemptAt: '2026-10-02T15:13:28Z' });
     fixture.componentRef.setInput('account', {
       ...account,
       lastSyncedAt: '2026-10-06T21:26:40Z',
     });
     fixture.detectChanges();
     await fixture.whenStable();
-    expect(fixture.componentInstance.headerNotice()?.text).toContain(
-      'Der letzte automatische Abruf wurde von Vinted abgelehnt',
-    );
-    expect(fixture.componentInstance.headerNotice()?.text).toContain('manuell aktualisieren');
+    expect(fixture.componentInstance.headerNotice()).toBeNull();
+    expect(fixture.componentInstance.store.canEnable()).toBe(true);
     expect(fixture.componentInstance.headerStatus()?.label).toBe('Automatik pausiert');
     expect(api.set).not.toHaveBeenCalled();
   });
