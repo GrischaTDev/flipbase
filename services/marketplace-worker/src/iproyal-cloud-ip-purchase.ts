@@ -11,11 +11,18 @@ export interface CloudIpPurchaseStore {
 }
 interface PurchaseOptions {
   token: string;
+  paymentMethodId?: number;
+  maxPriceCents?: number;
   store: CloudIpPurchaseStore;
   fetch?: typeof fetch;
 }
 type PurchaseResult =
-  'available' | 'purchase_pending' | 'purchase_failed' | 'limit_reached' | 'no_capacity';
+  | 'available'
+  | 'purchase_pending'
+  | 'purchase_failed'
+  | 'limit_reached'
+  | 'no_capacity'
+  | 'price_limit_exceeded';
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -42,6 +49,10 @@ export class IpRoyalCloudIpPurchase {
       )
         return current.status as PurchaseResult;
       if (current.status !== 'missing') throw unavailable();
+      const maxPriceCents = this.options.maxPriceCents ?? 800;
+      if (!Number.isSafeInteger(maxPriceCents) || maxPriceCents < 1 || maxPriceCents > 800)
+        throw unavailable();
+      if (!positiveId(this.options.paymentMethodId)) return 'purchase_failed';
       const selection = await this.selection();
       if (!selection) return 'no_capacity';
       const quote = await this.get('orders/calculate-pricing', {
@@ -60,6 +71,19 @@ export class IpRoyalCloudIpPurchase {
         Math.abs(amount * 100 - priceCents) > 0.000001
       )
         throw unavailable();
+      if (priceCents > maxPriceCents) return 'price_limit_exceeded';
+      const methods = await this.get('cards');
+      if (!record(methods) || !Array.isArray(methods['data'])) throw unavailable();
+      const selected = methods['data'].filter(
+        (method: unknown) => record(method) && method['id'] === this.options.paymentMethodId,
+      );
+      if (
+        selected.length !== 1 ||
+        !record(selected[0]) ||
+        selected[0]['currency'] !== 'USD' ||
+        !['card', 'paypal'].includes(String(selected[0]['payment_method']))
+      )
+        return 'purchase_failed';
       const attemptId = randomUUID();
       const claimed = await this.options.store.operation('claim', request, userId, {
         attemptId,
@@ -87,6 +111,7 @@ export class IpRoyalCloudIpPurchase {
               product_plan_id: selection.planId,
               product_location_id: selection.locationId,
               quantity: 1,
+              card_id: this.options.paymentMethodId,
               auto_extend: false,
               product_question_answers: {},
             }),

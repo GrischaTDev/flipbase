@@ -9,6 +9,7 @@ import {
   CLOUD_PURCHASE_PENDING_MESSAGE,
   CLOUD_PURCHASE_FAILED_MESSAGE,
   CLOUD_IP_LIMIT_MESSAGE,
+  CLOUD_PRICE_LIMIT_MESSAGE,
   MarketplaceCloudSetupApiService,
 } from './marketplace-cloud-setup-api.service';
 
@@ -114,7 +115,9 @@ export class MarketplaceCloudSetupStore {
               ? CLOUD_PURCHASE_FAILED_MESSAGE
               : result.status === 'limit_reached'
                 ? CLOUD_IP_LIMIT_MESSAGE
-                : CLOUD_CAPACITY_MESSAGE;
+                : result.status === 'price_limit_exceeded'
+                  ? CLOUD_PRICE_LIMIT_MESSAGE
+                  : CLOUD_CAPACITY_MESSAGE;
         this.errorState.set({ context, message });
         return null;
       }

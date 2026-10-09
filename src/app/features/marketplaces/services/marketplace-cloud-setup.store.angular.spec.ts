@@ -141,6 +141,13 @@ it('beginnt bei Doppelklick nur eine Einrichtung', async () => {
   resolve({ status: 'no_capacity' });
   await pending;
 });
+
+it('zeigt eine Preisüberschreitung ohne Zahlungsversuch verständlich an', async () => {
+  api.begin.mockResolvedValueOnce({ status: 'price_limit_exceeded' });
+  await store.begin({ displayName: 'Cloudtest' });
+  expect(store.error()).toContain('Preisgrenze');
+  expect(reloadConnections).not.toHaveBeenCalled();
+});
 it('lädt nach abgebrochenem Upgrade den bestehenden lokalen Zustand', async () => {
   await store.begin({ connectionId: setup.connectionId });
   reloadConnections.mockClear();
