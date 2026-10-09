@@ -16,6 +16,11 @@ echter Bildabruf werden nach dem Merge anhand laufender Belege kontrolliert.
 Der bereits ausgeführte Bildversand wird nicht wiederholt; die automatische
 Uploadbestätigung und Favoriten-/Angebotsabnahme bleiben getrennte offene Punkte.
 
+**CI-Nachtrag:** Die ältere Vinted-Layoutprüfung maß weiterhin den rechten Rand
+der Sprechblase. Mit dem Profilbild daneben muss sie die gesamte Nachrichtenzeile
+messen. Der bestehende Grenzwert bleibt erhalten; alle sechs gezielten
+Browserprüfungen bei 1440/390/320 px im hellen und dunklen Design bestehen.
+
 ## 2026-10-09 - Juna - Profilbilder neben Vinted-Chatnachrichten ergänzen
 
 **Auftrag:** Runde Profilbilder neben den Nachrichten wie in Vinted ergänzen.
