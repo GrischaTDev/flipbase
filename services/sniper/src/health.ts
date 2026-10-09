@@ -10,6 +10,8 @@ export interface HealthSnapshot {
 }
 
 export interface HealthState {
+  recordProgress(): void;
+  isLive(): boolean;
   recordCycle(report: CycleReport, now: Date): void;
   recordDeactivation(): void;
   snapshot(): HealthSnapshot;
@@ -27,12 +29,25 @@ export interface HealthState {
  * Sie bezieht sich auf ein gleitendes Minutenfenster und waere als Momentwert
  * schon beim Ablegen veraltet.
  */
-export function createHealthState(budgetUsageRatio: () => number): HealthState {
+export function createHealthState(
+  budgetUsageRatio: () => number,
+  clock: () => number = () => performance.now(),
+  maxProgressAgeMs = 5 * 60_000,
+): HealthState {
   let lastSuccessfulCycleAt: string | null = null;
   let deactivatedQueries = 0;
+  let lastProgressAt = clock();
+  // Auch nach einem Renderer-Ausfall kann Nodes HTTP-Server weiter antworten.
+  // Fünf Minuten lassen Raum für den begrenzten Abruf, Wiederholungen und Pausen.
+  const isLive = () => clock() - lastProgressAt <= maxProgressAgeMs;
 
   return {
+    recordProgress(): void {
+      lastProgressAt = clock();
+    },
+    isLive,
     recordCycle(report: CycleReport, now: Date): void {
+      lastProgressAt = clock();
       if (report.polled > 0 && report.polled > report.failed) {
         lastSuccessfulCycleAt = now.toISOString();
       }
@@ -44,7 +59,7 @@ export function createHealthState(budgetUsageRatio: () => number): HealthState {
 
     snapshot(): HealthSnapshot {
       return {
-        ready: lastSuccessfulCycleAt !== null,
+        ready: isLive() && lastSuccessfulCycleAt !== null,
         lastSuccessfulCycleAt,
         budgetUsageRatio: budgetUsageRatio(),
         deactivatedQueries,
@@ -54,7 +69,7 @@ export function createHealthState(budgetUsageRatio: () => number): HealthState {
 }
 
 /**
- * `/live` prueft den laufenden Prozess, `/health` die erste erfolgreiche Suche.
+ * `/live` prüft Fortschritt im Sammeltakt, `/health` zusätzlich die erste erfolgreiche Suche.
  * Ohne Suchauftraege kann der Dienst bereits Kategorien einlesen, obwohl
  * `/health` noch 503 meldet. Docker prueft deshalb ausschliesslich `/live`.
  *
@@ -69,8 +84,9 @@ export function startHealthServer(
 ): Server {
   const server = createServer((request, response) => {
     if (request.url === '/live') {
-      response.writeHead(200, { 'content-type': 'application/json' });
-      response.end(JSON.stringify({ live: true }));
+      const live = state.isLive();
+      response.writeHead(live ? 200 : 503, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ live }));
       return;
     }
     if (request.url !== '/health') {

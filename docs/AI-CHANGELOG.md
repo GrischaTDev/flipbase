@@ -1,5 +1,34 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-09 - Juna - Geöffnete Vinted-Gespräche als gelesen speichern
+
+**Auftrag:** Ein geöffnetes und erfolgreich synchronisiertes Gespräch soll in
+Flipbase den Status von ungelesen auf gelesen wechseln.
+
+**Änderung:** Cloud und Extension bestätigen den Lesestatus erst nach dem
+vollständigen Gesprächsabruf. Die gespeicherte Version hängt von Kontoidentität
+und eingegangenen Nachrichtenkennungen ab. Wiederholte Importe und eigene
+Antworten lassen das Gespräch gelesen; ein neuer Eingang wird wieder ungelesen,
+auch bei identischem Text und Datum. Fehlgeschlagene oder abgebrochene Abrufe
+und verspätete Bestätigungen können neuere Eingänge nicht als gelesen markieren.
+Die passenden Glockenmeldungen werden ebenfalls gelesen. Vinteds eigener
+Lesestatus wird durch diesen Flipbase-Lesebeleg nicht geändert.
+
+**Datenbank:** Gesonderte Lesespalte mit geprüftem Konto-/Workspace-Zugriff;
+Bestätigung über den vorhandenen Importlock. Die Migration wurde per
+`supabase db diff` erzeugt, auf die betroffenen Anweisungen begrenzt und auf einer
+frischen Wegwerfkopie transaktional geprüft. Datenbanktypen wurden neu erzeugt.
+
+**Prüfung:** Die gezielten Komponenten-/Modelltests, 267 Datenbankprüfungen und
+14 Browserabläufe mit AXE bestehen, einschließlich Cloud/Extension, Neuladen,
+Ungelesenfilter und gleichzeitigem Eingang. Produktionsbau, Typprüfung, ESLint,
+Formatierung und Diffcheck bestehen. Die älteren Kontotests benötigen in der
+isolierten Kopie ihren bisherigen Archivierungs-Fixture; der Schutztrigger
+wurde dort nach dem Test wieder aktiviert. Keine produktive Datenbankänderung
+und keine Vinted-Schreibaktion. Die Ergänzung bleibt mit dem Bot-Icon auf dem
+eigenen, noch nicht veröffentlichten Zweig. Der aktuelle Hauptzweig ist integriert;
+beide Einträge im additiven Changelog-Konflikt bleiben vollständig erhalten.
+
 ## 2026-10-09 - Juna - Automatische Chatantworten mit Bot-Icon kennzeichnen
 
 **Auftrag:** Automatisch von Flipbase gesendete Antworten erhalten ausschließlich
@@ -28,6 +57,41 @@ Kontotests verwenden in der Wegwerfkopie ihr bisheriges Archivierungs-Fixture;
 der neue Herkunftstest prüft die reguläre Archivierungsaktion. Produktionsbau,
 Typprüfung, ESLint, Formatierung, Shared-UI-Prüfung und Diffcheck bestehen.
 Keine Vinted-Nachricht gesendet und keine produktive Migration ausgeführt.
+
+## 2026-10-09 - Juna - Vinted-Feed nach Chrome-Speicherausfall wiederherstellen
+
+**Auftrag:** Speicherverbrauch des zentralen Vinted-Bots untersuchen, den Bot
+nach dem bestätigten Ausfall wieder starten und gezielte Anpassungen vorbereiten.
+
+**Befund:** Der Kernel beendete am 09.10. um 00:59:14 Uhr deutscher Zeit einen
+Chrome-Prozess innerhalb der 1-GiB-Containergrenze. Abrufe und Betriebsmeldungen
+standen seit 00:59:07 Uhr still, während `/live` weiterhin erfolgreich antwortete.
+Der Host hatte freien RAM. Nach vollständigen Katalogseiten mit Sitzungsskripten
+benötigt der Browser mehr Speicher; eine passive Messung zeigte einen offenen
+Tab mit mehreren eingebetteten Dokumenten und rund 210 MiB JavaScript-Heap.
+Ein dauerhaft wachsender Speicherverlust ist damit nicht bewiesen.
+
+**Wiederherstellung:** Auf Nutzerauftrag den Container gestoppt, ausschließlich
+die verwaiste Chrome-Profilsperre nach Prüfung auf beendete Browserprozesse und
+freien Steuerungsport entfernt und mit 2 GiB RAM sowie insgesamt 3 GiB RAM/Swap
+gestartet. Profil, Cookies, Filter und Vinted-Sperrzustand bleiben erhalten.
+Alle drei Filter lieferten wieder Daten: 29 erfolgreiche Abrufe und 483 neue
+Artikel ohne Fehler nach erfolgreichem Start; rund 1,08 GiB RAM, kein neuer OOM.
+Die ursprüngliche 48-Stunden-Abnahme bleibt gescheitert.
+
+**Änderung:** Die Compose-Datei erhält dieselben Speichergrenzen dauerhaft.
+`/live` und `/health` melden fehlenden Fortschritt im Sammeln nach fünf Minuten
+als ungesund. Abgeschlossene Einzelabrufe und laufende leere oder bewusst
+pausierte Durchläufe bleiben lebendig; lange konfigurierte Taktintervalle werden
+berücksichtigt. Das ist eine Zustandsprüfung, kein automatischer Containerneustart.
+Keine Änderung an Vinted-Schutzregeln, Sitzungsskripten oder Ressourcenabrufen.
+
+**Prüfung:** Regression des weiterhin antwortenden HTTP-Servers zuerst rot,
+nach Änderung grün; zusätzlich Pausen, leere Durchläufe, lange Filterrunden und
+Taktintervalle geprüft. Alle 322 Bot-Tests, Typprüfung, Bau, Formatierung und
+gezieltes Lint bestehen. Die Deployment-Prüfung besteht mit fünf Tests;
+drei POSIX-Shell-Fixtures bleiben unter Windows ausgelassen und benötigen
+Linux-CI. Docker Compose validiert die neue Speicher-/Swap-Konfiguration.
 
 ## 2026-10-09 - Juna - Cloud-Gesprächsbilder und Profilbilder veröffentlichen
 

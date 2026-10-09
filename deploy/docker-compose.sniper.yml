@@ -32,7 +32,9 @@ services:
       - no-new-privileges:true
       - seccomp:${SNIPER_SECCOMP_FILE:-/opt/flipbase-sniper/chromium-seccomp.json}
     pids_limit: 256
-    mem_limit: 1g
+    # Vollständige Katalogseiten samt Sitzungsskripten benötigen mehr als 1 GiB.
+    mem_limit: 2g
+    memswap_limit: 3g
     logging:
       driver: json-file
       options:
