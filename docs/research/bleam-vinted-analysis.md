@@ -34,6 +34,27 @@ Nachrichtenkennung und Angebotskennung sind unterschiedliche Felder.
 Eine Angebotsannahme belegt keinen Kauf. Kaufnachrichten benötigen einen eigenen
 bestätigten Anbieterbeleg; Anzeigenamen und übersetzte Statustexte reichen nicht.
 
+### Bestätigter Kaufvertrag für Verhandlungsnachrichten
+
+Die am 9. Oktober 2026 gelesene öffentliche
+[Vinted-Transaktionsquelle](https://marketplace-web-assets.vinted.com/_next/static/chunks/0hn8x2q4tyutq.js)
+liest die Transaktion über `/transactions/{id}`. Ihr Mapper verwendet
+`debit_processed_at` als Zahlungsnachweis und enthält Verkäufer-ID, Nutzerrolle,
+Artikelkennungen sowie den Artikelangebotspreis. Ein Kaufereignis kann daher auf
+einen echten Zahlungszeitpunkt und die genaue Verkäufer-/Einzelartikelbindung
+gestützt werden. Ein beliebiger numerischer Transaktionsstatus oder ein als
+verkauft markierter Artikel reicht dafür nicht.
+
+Die aktuelle
+[Angebotsoberfläche](https://marketplace-web-assets.vinted.com/_next/static/chunks/1q6m-857qs8nu.js)
+zeigt beim Verkäuferangebot für den Käufer einen Kaufen-Button. Der zugehörige
+`offer_message`-Mapper enthält keinen Annahmestatus. Status 20 ist ausschließlich
+für `offer_request_message` als Annahme des Käuferangebots belegt. Daraus darf
+keine separate Käuferannahme einer Verkäuferofferte erzeugt werden. Dafür fehlt
+der eindeutige Bezug einer bestätigten Zahlung zur eigenen Verkäuferangebots-ID;
+gleiche Preise allein sind kein Beleg. Kaufnachrichten und eigene Annahmetexte
+können unabhängig davon umgesetzt werden.
+
 Die bereits geöffnete [Bleam-Verhandlungsseite](https://bleam.app/en/dashboard/negociation)
 wurde im angemeldeten Browser ausschließlich gelesen. Ein Auswahlmenü für die
 Versandreihenfolge wurde geöffnet und ohne Auswahl wieder geschlossen. Keine
@@ -1997,27 +2018,6 @@ die Kontoidentität wird danach erneut bestätigt. Die bisherige Registry-Datei
 bleibt privat unter `network-history` erhalten. Derselbe Befehl kann mit erwarteter
 aktueller Netzwerk-ID zurück auf `direct` führen, auch ohne lesbare Proxydatei.
 Die automatische Weiterarbeit wird nicht aktiviert.
-
-### Bestätigter Kaufvertrag für Verhandlungsnachrichten
-
-Die am 9. Oktober 2026 gelesene öffentliche
-[Vinted-Transaktionsquelle](https://marketplace-web-assets.vinted.com/_next/static/chunks/0hn8x2q4tyutq.js)
-liest die Transaktion über `/transactions/{id}`. Ihr Mapper verwendet
-`debit_processed_at` als Zahlungsnachweis und enthält Verkäufer-ID, Nutzerrolle,
-Artikelkennungen sowie den Artikelangebotspreis. Ein Kaufereignis kann daher auf
-einen echten Zahlungszeitpunkt und die genaue Verkäufer-/Einzelartikelbindung
-gestützt werden. Ein beliebiger numerischer Transaktionsstatus oder ein als
-verkauft markierter Artikel reicht dafür nicht.
-
-Die aktuelle
-[Angebotsoberfläche](https://marketplace-web-assets.vinted.com/_next/static/chunks/1q6m-857qs8nu.js)
-zeigt beim Verkäuferangebot für den Käufer einen Kaufen-Button. Der zugehörige
-`offer_message`-Mapper enthält keinen Annahmestatus. Status 20 ist ausschließlich
-für `offer_request_message` als Annahme des Käuferangebots belegt. Daraus darf
-keine separate Käuferannahme einer Verkäuferofferte erzeugt werden. Dafür fehlt
-der eindeutige Bezug einer bestätigten Zahlung zur eigenen Verkäuferangebots-ID;
-gleiche Preise allein sind kein Beleg. Kaufnachrichten und eigene Annahmetexte
-können unabhängig davon umgesetzt werden.
 
 Falls ein anderer Netzwerkweg begründet wird, kommt seine Definition ausschließlich
 in die private Serverdatei (`networkProfiles`, `id`, `kind: proxy`, `server`,
