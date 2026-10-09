@@ -15,6 +15,7 @@ RUN npm ci --omit=dev --ignore-scripts \
 COPY runtime ./runtime
 COPY src ./src
 COPY --from=pilot proxy-forwarder.mjs chrome-window-close.mjs /tools/cloud-browser-pilot/
+COPY --from=extension vinted-negotiation-runtime.js /tools/flipbase-extension/
 ENV DISPLAY=:99 HOME=/home/node TZ=Europe/Berlin
 USER node
 CMD ["node", "--experimental-strip-types", "runtime/chromium-session.ts"]
