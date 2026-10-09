@@ -8,7 +8,8 @@
 **Aktueller Stand:** Auf `638b2ace` begonnen; eigene Entwürfe, private Fotos,
 Vorlagen und Editor als geprüfte Grundlage umgesetzt. Anbieterformular wegen
 ausgeloggtem Vinted-Tab noch nicht bestätigt. Pakete 2/3 teilweise umgesetzt,
-Pakete 4–7 noch offen. Einzelheiten und Prüfgrenzen stehen im
+Pakete 4/6/7 noch offen; Paket 5 enthält bisher das geprüfte Terminmodell.
+Einzelheiten und Prüfgrenzen stehen im
 [Anbieter- und Umsetzungsbericht](../../research/2026-10-09-vinted-listing-provider-contract.md).
 
 **Ziel:** Ein vollständiger Vinted-Editor mit Fotos, gespeicherten Entwürfen,
@@ -23,10 +24,10 @@ als gemeinsame darstellende Komponente wiederverwenden.
 Marketplace Worker. Keine ungefragten Major-Updates oder neue Bibliotheken.
 
 **Produktentwurf:** [Bedienung, Verträge und Abnahme](../specs/2026-10-09-vinted-listing-publishing-design.md).
-**Planstatus:** Vorschlag vom 09.10.2026; die beiden dort genannten
-Produktentscheidungen bleiben als Vorschläge markiert. Anwendungsimplementierung
-ist noch nicht begonnen. PR #356 dient nur als gelesenes Anschlussmuster und
-wird nicht in einen fremden Zweig integriert.
+**Planstatus:** Umsetzung seit „dann los“ freigegeben und begonnen. Eigene und
+Vinted-Entwürfe sowie die Pause nach 30 Minuten Verspätung sind die gewählte
+Grundlage. PR #356/#357 sind bereits in der verwendeten Masterbasis enthalten;
+fremde Arbeitszweige werden nicht verändert.
 
 ## Gemeinsame Vorgaben und Reihenfolge
 
@@ -173,6 +174,12 @@ wie vorhandene Nachrichtenjobs. Kein Versand aus einem UI-Klickhandler.
 Livefall belegen den Anbietererfolg. Kein Erfolg nur aus Auftragsannahme.
 
 ## Paket 5: Zeitplanung und verpasste Termine
+
+**Teilstand:** Terminmodell mit expliziter Zeitzone, UTC-Berechnung,
+Sommerzeitlücke/-doppelzeit und bewusster Auswahl sowie Prüfung auf zukünftige
+Termine umgesetzt. Fälligkeit und beide Ausfallregeln sind modellseitig
+geprüft. Dialog, dauerhafte Aufträge und serverseitige Fälligkeitsprüfung
+bleiben offen; das Modell löst keine Veröffentlichung aus.
 
 **Dateien:** Jobschema aus Paket 4 deklarativ ergänzen; neu
 `models/vinted-listing-schedule.ts` samt Modelltest und

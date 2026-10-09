@@ -5,9 +5,10 @@ Arbeitsbasis ist `origin/master` bei `638b2ace`, einschließlich PR #356 und #35
 
 ## Nachgewiesen und offen
 
-Der vorhandene Vinted-Tab zeigt die Anmeldeseite. Der Nutzer wurde um Anmeldung
-gebeten. Ohne Anmeldung wurden weder Erstellungs- noch Bearbeitungsformular
-eines echten Inserats geprüft. Die Bleam-Recherche ist im
+Der Nutzer hat die Anmeldung bestätigt; die angemeldete Vinted-Seite wurde
+am 09.10.2026 gelesen. Die Browserverbindung brach danach wiederholt ab.
+Erstellungs- und Bearbeitungsformular eines echten Inserats sind deshalb
+weiterhin nicht geprüft. Die Bleam-Recherche ist im
 [Produktentwurf](../superpowers/specs/2026-10-09-vinted-listing-publishing-design.md)
 festgehalten; sie ersetzt keine Bestätigung des Vinted-Formulars.
 
@@ -21,7 +22,7 @@ festgehalten; sie ersetzt keine Bestätigung des Vinted-Formulars.
 | Flipbase-Entwurf                           | Anlegen, automatisch speichern, suchen und wieder bearbeiten implementiert                          | Echte Umgebung erst nach abgeschlossener Integration migrieren                          |
 | Vinted-Entwurf                             | Noch nicht implementiert                                                                            | Eigenen Anbieterweg und bestätigte Entwurfs-ID prüfen                                   |
 | Veröffentlichen und Bearbeiten             | Bestehende begrenzte Bearbeitung bleibt erhalten; neuer vollständiger Schreibweg fehlt              | Form-/Antwortvertrag, Ergebnis-ID, Antwortverlust und Wiedererkennung prüfen            |
-| Termin und Relist                          | Noch nicht implementiert                                                                            | Aufträge erst auf geprüftem Anbieterweg aufbauen; Relist-Reihenfolge separat bestätigen |
+| Termin und Relist                          | Terminmodell einschließlich Zeitzone/Zeitumstellung getestet; keine Aufträge oder Relist            | Aufträge erst auf geprüftem Anbieterweg aufbauen; Relist-Reihenfolge separat bestätigen |
 
 Es wurden keine neuen Vinted-Schreibendpunkte oder Anbieter-IDs geraten.
 Ein echter Schreibtest braucht einen vom Nutzer ausgewählten Artikel und die
@@ -54,7 +55,7 @@ Formate sind derzeit nicht unterstützt.
 
 ## Noch erforderliche Arbeit
 
-Paket 1 bleibt wegen der fehlenden Anmeldung offen. Paket 2 ist teilweise
+Paket 1 bleibt bis zur tatsächlichen Formularprüfung offen. Paket 2 ist teilweise
 umgesetzt: fehlschlagende Uploads werden nach Serverfreigabe bereinigt;
 bestätigte Originale bleiben für spätere Sicherungen erhalten. Eine dauerhafte
 serverseitige Bereinigung verwaister Uploads, vollständige Sicherungen und
@@ -63,9 +64,12 @@ noch nicht angeboten und hat keine öffentliche Schreibfunktion.
 
 Paket 3 enthält die funktionsfähige eigene Entwurfsmaske. Die bestätigten
 kategorieabhängigen Anbieterfelder sowie Aktionen für Vinted-Entwurf,
-sofortige/geplante Veröffentlichung fehlen. Pakete 4–7 wurden noch nicht begonnen:
-gemeinsame lokale/Cloud-Aufträge, Terminsteuerung, vollständige Live-Bearbeitung
-mit Drawer und manuelles Relist.
+sofortige/geplante Veröffentlichung fehlen. Paket 5 enthält inzwischen das
+Terminmodell: UTC und Zeitzone, explizite Auswahl bei doppelten Uhrzeiten,
+Ablehnung übersprungener bzw. vergangener Termine und beide Ausfallregeln.
+23 Modellprüfungen bestehen auch mit Gerätezeitzonen New York und Tokio.
+Gemeinsame lokale/Cloud-Aufträge, Planungsdialog und serverseitige Terminsteuerung,
+vollständige Live-Bearbeitung mit Drawer und manuelles Relist fehlen weiterhin.
 
 ## Prüfungen dieser Grundlage
 

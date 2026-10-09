@@ -1,5 +1,31 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-09 – Juna – Inseratumsetzung fortgesetzt
+
+**Auftrag:** Mit „weiter“ die begonnene Inseratumsetzung fortsetzen.
+
+**Stand:** Eigener Arbeitszweig bei `6ed63be8` sauber übernommen. Der Nutzer
+hat die Vinted-Anmeldung bestätigt; die angemeldete Seite ist nachgewiesen.
+Die Browserverbindung brach anschließend wiederholt ab, bevor das
+Neuanlageformular gelesen werden konnte. Der Anbieterbericht unterscheidet
+daher Anmeldung und tatsächlich bestätigte Formularfelder. Veralteten
+Planabsatz zum noch nicht begonnenen Implementierungsstand korrigiert.
+
+**Änderung:** Terminmodell berechnet UTC-Zeitpunkt und IANA-Zeitzone unabhängig
+von der Gerätezeitzone. Übersprungene Uhrzeiten werden abgewiesen; doppelte
+Uhrzeiten verlangen eine ausdrückliche Wahl. Neue Termine müssen zukünftig
+sein. Die Fälligkeit berücksichtigt beide Ausfallregeln und die genaue
+30-Minuten-Grenze. Das Modell ist eine vorbereitete Grundlage; ein
+Planungsdialog und dauerhafte Veröffentlichungsaufträge sind noch offen.
+
+**Prüfung:** 23 neue Terminprüfungen nach zunächst fehlender Funktion bzw.
+fehlender Auswahlregel erfolgreich. Zusammen mit Inhalt und Entwurfsmodell
+43 Modellprüfungen erfolgreich. Die Terminprüfungen bestehen zusätzlich mit
+Gerätezeitzonen New York und Tokio. TypeScript, gezieltes ESLint, Format und
+Testzuordnung erfolgreich. Keine Angular-Vorlagen oder Datenbankschemas
+geändert; deshalb keine neuen Browser-/Datenbanktests oder Builds in dieser
+Fortsetzung. Keine Anbieter-Schreibaktionen, Produktionsänderungen oder Pushes.
+
 ## 2026-10-09 – Juna – Grundlage für Vinted-Entwürfe, Fotos und Vorlagen
 
 **Auftrag:** Mit „dann los“ den besprochenen Inseratplan umsetzen. Die Umsetzung
