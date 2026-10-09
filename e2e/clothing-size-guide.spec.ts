@@ -110,7 +110,7 @@ test('zeigt allgemeine Richtbereiche und grenzt Größen und Längen getrennt ei
   await expect(
     page.getByText('Die Außenbeinlänge ist eine zusätzliche Verkaufsangabe.', { exact: false }),
   ).toBeVisible();
-  await choose(page, 'Nach Zielgruppe filtern', 'Damen & Herren');
+  await choose(page, 'Nach Zielgruppe filtern', 'Alle Zielgruppen');
   await expect(page.locator('[data-size-table="next-women-trousers"]')).toBeVisible();
   await expect(page.locator('[data-size-table="silver-women"]')).toBeVisible();
   await expect(page.locator('[data-size-table="silver-women"] [data-size-match]')).toHaveCount(0);
@@ -148,6 +148,38 @@ test('zeigt allgemeine Richtbereiche und grenzt Größen und Längen getrennt ei
   await expect(page.locator('[data-size-table="nominal-waist"] tbody th')).toHaveText('W22');
   await labelSearch.fill('L24');
   await expect(page.locator('[data-size-table="nominal-length"] tbody th')).toHaveText('L24');
+  await page.getByRole('button', { name: 'Alle Größenfilter zurücksetzen', exact: true }).click();
+
+  await expect(page.locator('[data-size-table] a[target="_blank"]')).toHaveCount(0);
+  await expect(page.locator('[data-size-table="general-women-trousers"] thead')).not.toContainText(
+    'Bundumfang',
+  );
+  await page.getByRole('link', { name: 'Innen- & Außenbeinlängen', exact: true }).click();
+  await expect(page.locator('#size-guide-lengths')).toBeInViewport();
+  await expect(page.locator('[data-size-table="bonprix-women-lengths"] tbody')).toContainText('75');
+  await expect(page.locator('[data-size-table="bonprix-women-lengths"] tbody')).toContainText(
+    'Am Stück messen',
+  );
+  await page.getByRole('button', { name: 'Recherchequellen anzeigen', exact: true }).click();
+  await expect(page.locator('#size-guide-sources a').first()).toBeVisible();
+  await page.getByRole('button', { name: 'Recherchequellen ausblenden', exact: true }).click();
+
+  await choose(page, 'Nach Zielgruppe filtern', 'Kinder & Jugendliche');
+  await choose(page, 'Nach Kleidungsart filtern', 'Oberteile & Jacken');
+  await choose(page, 'Nach Marke oder Größensystem filtern', 'Nike');
+  await labelSearch.fill('M/147');
+  await expect(page.locator('[data-size-table="nike-boys"] tbody th')).toHaveText(['M']);
+  await expect(page.locator('[data-size-table="nike-girls"]')).toHaveCount(0);
+  await expect(page.locator('[data-size-table="general-unisex-tops"]')).toHaveCount(0);
+  await labelSearch.fill('160/80');
+  await expect(page.locator('[data-size-table="nike-children-cn-tops"] tbody th')).toHaveText([
+    'XL',
+  ]);
+  await choose(page, 'Nach Marke oder Größensystem filtern', 'adidas');
+  await labelSearch.fill('M/150');
+  await expect(page.locator('[data-size-table="adidas-children-us"] tbody th')).toHaveText(['M']);
+  await checkAccessibility(page);
+  await capture(page, 'size-guide-children.png');
   await page.getByRole('button', { name: 'Alle Größenfilter zurücksetzen', exact: true }).click();
 
   await page.setViewportSize({ width: 390, height: 844 });

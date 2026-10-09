@@ -5,6 +5,17 @@
     [icon]="pageIcon"
   />
 
+  <nav aria-label="Bereiche der Größenhilfe" class="flex flex-wrap gap-x-5 gap-y-2 text-sm">
+    @for (link of sectionLinks(); track link.id) {
+      <a
+        [href]="'#' + link.id"
+        (click)="scrollToSection($event, link.id)"
+        class="underline underline-offset-2"
+        >{{ link.label }}</a
+      >
+    }
+  </nav>
+
   <app-card data-size-guide-filters padding="sm" [overflowVisible]="true" rounded="xl">
     <div class="flex flex-wrap items-end gap-3">
       <div class="w-full min-w-0 sm:min-w-52 sm:flex-1">
@@ -12,7 +23,7 @@
         <app-custom-search-input
           id="size-guide-query"
           ariaLabel="Labelgröße oder Stichwort suchen"
-          placeholder="Zum Beispiel W29/L35, 3R, EU 36 …"
+          placeholder="Zum Beispiel W29/L35, 3R, EU 36, YM oder M/147 …"
           [maxLength]="120"
           [value]="query()"
           (searched)="query.set($event)"
@@ -110,9 +121,15 @@
         </div>
       </div>
       <p id="size-guide-measurement-help" class="mt-3 text-xs text-fb-text-secondary">
-        Miss die Kleidung flach liegend, ohne Zug. Bund- und Brustweite sind einfache Breiten. Die
-        Breite grenzt geschätzte Größen ein; die Innenbeinlänge wird separat mit L-Größen
-        verglichen. Der Suchspielraum erweitert die Richtbereiche um Deinen gewählten Wert.
+        Miss die Kleidung flach liegend, ohne Zug. Bund- und Brustweite sind einfache Breiten.
+        @if (audience() === 'children') {
+          Die Kindertabellen erklären Etiketten anhand der Körpergröße. Für flache Bund- und
+          Brustweiten liefern sie keine verlässliche Größenschätzung. Eine eingegebene
+          Innenbeinlänge wird separat mit nominellen L-Angaben verglichen.
+        } @else {
+          Die Breite grenzt geschätzte Größen ein; die Innenbeinlänge wird separat mit L-Größen
+          verglichen. Der Suchspielraum erweitert die Richtbereiche um Deinen gewählten Wert.
+        }
       </p>
       @if (measurements().outseam !== null && measurements().outseam !== undefined) {
         <p class="mt-2 text-xs text-fb-text-secondary">
@@ -194,7 +211,12 @@
   }
 
   @for (group of groups(); track group.title) {
-    <section class="space-y-3" [attr.aria-label]="group.title">
+    <section
+      class="scroll-mt-20 space-y-3"
+      [id]="group.id"
+      [attr.aria-label]="group.title"
+      tabindex="-1"
+    >
       <div>
         <h2 class="text-lg font-semibold">{{ group.title }}</h2>
         <p class="mt-1 max-w-4xl text-sm text-fb-text-secondary">{{ group.description }}</p>
@@ -281,28 +303,6 @@
                 </table>
               </div>
             </app-data-table>
-            <p class="border-t border-fb-line px-4 py-3 text-xs text-fb-text-secondary">
-              {{ entry.table.kind === 'orientation' ? 'Herleitung / Quelle:' : 'Quelle:' }}
-              <a
-                class="underline underline-offset-2"
-                [href]="entry.table.sourceUrl"
-                target="_blank"
-                rel="noopener noreferrer"
-                >{{ entry.table.sourceTitle }}</a
-              >
-              @for (source of entry.table.sources ?? []; track source.url) {
-                ·
-                <a
-                  class="underline underline-offset-2"
-                  [href]="source.url"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  >{{ source.title }}</a
-                >
-              }
-              · Abgerufen am
-              <time [attr.datetime]="entry.table.reviewedAt">{{ entry.table.reviewedAt }}</time>
-            </p>
           </app-card>
         }
       </div>
@@ -312,5 +312,35 @@
   <app-published-size-references
     [filters]="filters()"
     (brandsLoaded)="publishedBrands.set($event)"
+    (sourcesLoaded)="publishedSources.set($event)"
   />
+
+  <section class="border-t border-fb-line pt-4" aria-label="Recherche und Quellen">
+    <app-button
+      variant="ghost"
+      [ariaExpanded]="showSources()"
+      ariaControls="size-guide-sources"
+      (clicked)="showSources.set(!showSources())"
+    >
+      {{ showSources() ? 'Recherchequellen ausblenden' : 'Recherchequellen anzeigen' }}
+    </app-button>
+    @if (showSources()) {
+      <ul id="size-guide-sources" class="mt-3 space-y-2 text-xs text-fb-text-secondary">
+        @for (source of sources(); track source.url) {
+          <li>
+            <a
+              [href]="source.url"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="underline underline-offset-2"
+              >{{ source.title }}</a
+            >
+            @if (source.reviewedAt) {
+              · Geprüft am <time [attr.datetime]="source.reviewedAt">{{ source.reviewedAt }}</time>
+            }
+          </li>
+        }
+      </ul>
+    }
+  </section>
 </section>

@@ -9,13 +9,16 @@ describe('Allgemeine Größenübersicht', () => {
     expect(component.rowCount()).toBeGreaterThan(50);
     expect(component.groups().map((group) => group.title)).toEqual([
       'Allgemeine Größenübersicht',
+      'Hosenlängen: Innenbein und Außenbein',
+      'Kinder & Jugendliche: Labels erkennen',
+      'Oberteile: Brustweiten zur Orientierung',
       'Labelgrößen vergleichen',
-      'Jeanslängen und besondere Größen',
+      'Besondere Größen',
     ]);
     expect(new Set(component.visibleTables().map((entry) => entry.table.category))).toEqual(
-      new Set(['trousers', 'tops']),
+      new Set(['trousers', 'tops', 'clothing']),
     );
-    expect(component.groups()[0]?.tables).toHaveLength(3);
+    expect(component.groups()[0]?.tables).toHaveLength(2);
     expect(component.groups()[0]?.tables.every((entry) => entry.table.kind === 'orientation')).toBe(
       true,
     );
@@ -30,7 +33,11 @@ describe('Allgemeine Größenübersicht', () => {
     component.setCategory('tops');
     expect(component.measurements()).toEqual({ chestFlat: 50 });
     expect(component.visibleMeasurementFields().map((field) => field.key)).toEqual(['chestFlat']);
-    expect(component.visibleTables().every((entry) => entry.table.category === 'tops')).toBe(true);
+    expect(
+      component
+        .visibleTables()
+        .every((entry) => ['tops', 'clothing'].includes(entry.table.category)),
+    ).toBe(true);
   });
 
   it('grenzt Zielgruppen ein und lässt nach Rücksetzung die gesamte Übersicht stehen', () => {
@@ -144,5 +151,35 @@ describe('Allgemeine Größenübersicht', () => {
     expect(
       component.brandOptions().filter((option) => option.value === 'Eigene Referenzmarke'),
     ).toEqual([{ value: 'Eigene Referenzmarke', label: 'Eigene Referenzmarke' }]);
+  });
+  it('trennt Kinderlabels von Erwachsenen-Richtbereichen und hält nur vorhandene Sprungziele', () => {
+    const component = new ClothingSizeGuideComponent();
+    component.setAudience('children');
+    component.setCategory('tops');
+    component.query.set('YM');
+    component.setMeasurement('chestFlat', 40);
+    expect(component.visibleTables().every(({ table }) => table.audience === 'children')).toBe(
+      true,
+    );
+    expect(component.sizeEstimateCount()).toBe(0);
+    expect(component.hasSizeMeasurements()).toBe(false);
+    expect(component.sectionLinks().map((link) => link.id)).toEqual(['size-guide-children']);
+  });
+  it('fasst Quellen zentral zusammen und übernimmt Zusatzquellen ohne Dopplung', () => {
+    const component = new ClothingSizeGuideComponent();
+    expect(component.showSources()).toBe(false);
+    expect(new Set(component.sources().map((source) => source.url)).size).toBe(
+      component.sources().length,
+    );
+    component.publishedSources.set([
+      { title: 'Zusatzquelle', url: 'https://example.com/new', reviewedAt: null },
+    ]);
+    expect(component.sources().some((source) => source.url === 'https://example.com/new')).toBe(
+      true,
+    );
+    component.publishedSources.set([]);
+    expect(component.sources().some((source) => source.url === 'https://example.com/new')).toBe(
+      false,
+    );
   });
 });

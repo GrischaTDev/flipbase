@@ -16,6 +16,7 @@ import {
   type GuideCategory,
   type GuideFilters,
   type GuideKind,
+  type GuideSource,
   type MeasureKey,
 } from '../../models/clothing-size-guide';
 import { CLOTHING_SIZE_TABLES } from '../../models/clothing-size-catalog';
@@ -47,16 +48,30 @@ export class ClothingSizeGuideComponent {
   readonly measurements = signal<GuideFilters['measurements']>({});
   readonly tolerance = signal<number | null>(1);
   readonly publishedBrands = signal<readonly string[]>([]);
+  readonly publishedSources = signal<readonly GuideSource[]>([]);
+  readonly showSources = signal(false);
+  readonly sources = computed(() => {
+    const sources = CLOTHING_SIZE_TABLES.flatMap((table) => [
+      { title: table.sourceTitle, url: table.sourceUrl, reviewedAt: table.reviewedAt },
+      ...(table.sources ?? []).map((source) => ({ ...source, reviewedAt: table.reviewedAt })),
+    ]);
+    const uniqueSources = new Map<string, GuideSource>();
+    for (const source of [...sources, ...this.publishedSources()]) {
+      if (!uniqueSources.has(source.url)) uniqueSources.set(source.url, source);
+    }
+    return [...uniqueSources.values()];
+  });
   readonly categoryOptions = [
     { value: '', label: 'Alle Kleidungsarten' },
     { value: 'trousers', label: 'Hosen & Jeans' },
     { value: 'tops', label: 'Oberteile & Jacken' },
   ];
   readonly audienceOptions = [
-    { value: '', label: 'Damen & Herren' },
+    { value: '', label: 'Alle Zielgruppen' },
     { value: 'women', label: 'Damen' },
     { value: 'men', label: 'Herren' },
     { value: 'unisex', label: 'Unisex' },
+    { value: 'children', label: 'Kinder & Jugendliche' },
   ];
   readonly brandOptions = computed(() => [
     { value: '', label: 'Alle Marken / Systeme' },
@@ -94,7 +109,9 @@ export class ClothingSizeGuideComponent {
     Object.values(this.measurements()).some((measurement) => measurement != null),
   );
   readonly hasSizeMeasurements = computed(
-    () => this.measurements().waistFlat != null || this.measurements().chestFlat != null,
+    () =>
+      this.audience() !== 'children' &&
+      (this.measurements().waistFlat != null || this.measurements().chestFlat != null),
   );
   readonly hasLengthMeasurement = computed(() => this.measurements().inseam != null);
   readonly filtersActive = computed(
@@ -109,32 +126,67 @@ export class ClothingSizeGuideComponent {
   readonly decodedLabel = computed(() => decodeSizeLabel(this.query()));
   readonly visibleTables = computed(() => filterGuideTables(CLOTHING_SIZE_TABLES, this.filters()));
   readonly groups = computed(() => {
-    const sections: readonly { title: string; description: string; kinds: readonly GuideKind[] }[] =
-      [
-        {
-          title: 'Allgemeine Größenübersicht',
-          description:
-            'XS, S, M und weitere Größen neben EU/DE, UK, US und ungefähren Kleidungsmaßen.',
-          kinds: ['orientation'],
-        },
-        {
-          title: 'Labelgrößen vergleichen',
-          description:
-            'EU/DE, UK, US und Buchstabengrößen nach Hersteller. Körpermaße dienen hier nur dem Nachschlagen eines Labels und werden nicht mit Deiner gemessenen Ware verglichen.',
-          kinds: ['conversion', 'body'],
-        },
-        {
-          title: 'Jeanslängen und besondere Größen',
-          description:
-            'Inch-Angaben, Kurz- und Langgrößen sowie weitere Größenreihen. Die Bedeutung bleibt an das jeweilige System gebunden.',
-          kinds: ['length', 'special'],
-        },
-      ];
+    const sections: readonly {
+      id: string;
+      title: string;
+      description: string;
+      kinds: readonly GuideKind[];
+      category?: GuideCategory;
+    }[] = [
+      {
+        id: 'size-guide-general',
+        title: 'Allgemeine Größenübersicht',
+        description:
+          'XS, S, M und weitere Größen neben EU/DE, UK, US und ungefähren Kleidungsmaßen.',
+        kinds: ['orientation'],
+        category: 'trousers',
+      },
+      {
+        id: 'size-guide-lengths',
+        title: 'Hosenlängen: Innenbein und Außenbein',
+        description:
+          'Weite und Länge getrennt einordnen. L-Angaben sind nominelle Innenbeinlängen; Kurz, Normal und Lang bleiben markenabhängig. Außenbein vom oberen Bundrand entlang der Seitennaht bis zum Saum messen – einschließlich Bund.',
+        kinds: ['length', 'length-reference'],
+      },
+      {
+        id: 'size-guide-children',
+        title: 'Kinder & Jugendliche: Labels erkennen',
+        description:
+          'Kinder-M ist kein Erwachsenen-M. Zahlen wie 147 oder 160 beziehen sich häufig auf Körpergröße in cm, nicht auf eine Hosenlänge. Marke, Region und vollständige Etikettangabe zusammen prüfen; die Körpergrößen werden nicht mit Deiner gemessenen Ware verglichen.',
+        kinds: ['children'],
+      },
+      {
+        id: 'size-guide-tops',
+        title: 'Oberteile: Brustweiten zur Orientierung',
+        description:
+          'Flach gemessene Brustweite für normale Unisex-T-Shirts; Passform und Schnitt können abweichen.',
+        kinds: ['orientation'],
+        category: 'tops',
+      },
+      {
+        id: 'size-guide-labels',
+        title: 'Labelgrößen vergleichen',
+        description:
+          'EU/DE, UK, US und Buchstabengrößen nach Hersteller. Körpermaße dienen hier nur dem Nachschlagen eines Labels und werden nicht mit Deiner gemessenen Ware verglichen.',
+        kinds: ['conversion', 'body'],
+      },
+      {
+        id: 'size-guide-special',
+        title: 'Besondere Größen',
+        description:
+          'Inch-Angaben, Kurz- und Langgrößen sowie weitere Größenreihen. Die Bedeutung bleibt an das jeweilige System gebunden.',
+        kinds: ['special'],
+      },
+    ];
     return sections
       .map((section) => ({
         ...section,
         tables: this.visibleTables()
-          .filter((entry) => section.kinds.includes(entry.table.kind))
+          .filter(
+            (entry) =>
+              section.kinds.includes(entry.table.kind) &&
+              (!section.category || entry.table.category === section.category),
+          )
           .sort(
             (first, second) =>
               Number(first.table.category === 'tops') - Number(second.table.category === 'tops'),
@@ -144,6 +196,14 @@ export class ClothingSizeGuideComponent {
   });
   readonly rowCount = computed(() =>
     this.visibleTables().reduce((total, entry) => total + entry.rows.length, 0),
+  );
+  readonly sectionLinks = computed(() =>
+    [
+      { id: 'size-guide-general', label: 'Hosengrößen' },
+      { id: 'size-guide-lengths', label: 'Innen- & Außenbeinlängen' },
+      { id: 'size-guide-children', label: 'Kindergrößen' },
+      { id: 'size-guide-tops', label: 'Oberteile' },
+    ].filter((link) => this.groups().some((group) => group.id === link.id)),
   );
   readonly sizeEstimateCount = computed(() =>
     this.visibleTables()
@@ -159,12 +219,15 @@ export class ClothingSizeGuideComponent {
     women: 'Damen',
     men: 'Herren',
     unisex: 'Unisex',
+    children: 'Kinder & Jugendliche',
   };
   readonly kindNames: Record<GuideKind, string> = {
     orientation: 'Richtbereiche',
     body: 'Körpermaße · nur Label-Nachschlagen',
     conversion: 'Größenvergleich',
     length: 'Längen / Inch',
+    'length-reference': 'Längenorientierung',
+    children: 'Kinderlabel · Körpergröße',
     special: 'Besondere Größen',
   };
 
@@ -183,12 +246,26 @@ export class ClothingSizeGuideComponent {
   }
 
   setAudience(selected: string | null): void {
-    if (selected === '' || selected === 'women' || selected === 'men' || selected === 'unisex')
+    if (
+      selected === '' ||
+      selected === 'women' ||
+      selected === 'men' ||
+      selected === 'unisex' ||
+      selected === 'children'
+    )
       this.audience.set(selected);
   }
 
   setMeasurement(key: MeasureKey, measurement: number | null): void {
     this.measurements.update((measurements) => ({ ...measurements, [key]: measurement }));
+  }
+
+  scrollToSection(event: Event, sectionId: string): void {
+    event.preventDefault();
+    const link = event.currentTarget as HTMLElement | null;
+    const section = link?.ownerDocument.getElementById(sectionId);
+    section?.focus({ preventScroll: true });
+    section?.scrollIntoView({ block: 'start' });
   }
 
   formatCentimeters(centimeters: number): string {

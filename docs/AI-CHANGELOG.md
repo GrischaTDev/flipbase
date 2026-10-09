@@ -1,5 +1,39 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-09 - Juna - Kinderlabels und Hosenlängen ergänzen
+
+**Auftrag:** Quellen nicht unter jeder Karte zeigen, Nike-/adidas-Kindergrößen
+ergänzen, Bundumfang aus der allgemeinen Hosenübersicht entfernen und Innen-
+sowie Außenbeinlängen sichtbar erklären. Zwei Rechercheagenten prüfen die
+Herstellerquellen für Kinderlabels und Hosenlängen und anschließend die Tabellen.
+
+**Umsetzung:** Gemeinsame aufklappbare Quellenliste für recherchierte und
+veröffentlichte Tabellen. Sechs Kinderreferenzen unterscheiden Nike Jungen,
+Mädchen und CN-Labels sowie adidas EU- und US-Jugendgrößen. Suchangaben wie YM,
+M/147, 160 oder 160/80 werden im jeweiligen Kindersystem nachgeschlagen.
+Körpergröße bleibt von gemessenen Kleidungsmaßen getrennt; Kinder-M ist kein
+Erwachsenen-M. Regionale und heutige Passformen belegen keine identischen
+historischen Labels. Veröffentlichte Erwachsenen-Unisex-Referenzen erscheinen
+nicht im Kinderfilter, und Quellen werden beim Sitzungswechsel zurückgesetzt.
+
+**Längen:** Die Hosenübersicht zeigt nur die flache Bundweite. Eine eigene,
+direkt erreichbare Längensektion enthält bonprix-Richtwerte für Damen Kurz,
+Normal und Lang sowie Herren Normal-, untersetzte und schlanke Größen.
+Diese Herstellerreferenzen sind keine allgemeine Norm oder feste Länge je
+XS–XL. Außenbein einschließlich Bund am Kleidungsstück messen; keine erfundenen
+Außenbeinbereiche oder feste Zugabe zur Innenbeinlänge. Allgemeine Bundbereiche
+bleiben ausdrücklich redaktionelle Schätzwerte aus nominellen W-Gruppen.
+Insgesamt 21 Tabellen; keine Datenbankänderung oder neue Abhängigkeit.
+
+**Prüfung:** 66 Modelltests, 19 Angular-Tests, gezieltes ESLint, Formatierung,
+Typprüfung, Shared-UI-Prüfung und Produktionsbau erfolgreich. Isolierter
+Chromium-Test mit synthetischer Sitzung und RPC-Antworten auf Desktop und
+Mobilgerät: Kinderlabels, Quellenliste, Sprunglinks, unabhängige Weite/Länge,
+Zusatzreferenzen und simulierter Ausfall samt Wiederholung. AXE WCAG AA ohne
+Befunde und keine Seitenfehler; einziger Konsolenfehler ist der absichtlich
+simulierte HTTP-503. Browser-Plugin nicht verfügbar; vorhandenes Playwright
+verwendet. Keine produktive Anmeldung oder Datenbank geprüft. Kein Push.
+
 ## 2026-10-09 - Juna - Allgemeine Größenhilfe über PR veröffentlichen
 
 **Auftrag:** Nach ausdrücklicher Freigabe den geprüften Zweig pushen, PR erstellen,

@@ -22,7 +22,6 @@ function calculateWaistRange(group: JeansSizeGroup, divisor = 1): MeasureRange {
 function createJeansGuide(audience: GuideAudience, groups: readonly JeansSizeGroup[]): GuideTable {
   const rows: GuideRow[] = groups.map((group) => {
     const waistFlat = calculateWaistRange(group, 2);
-    const waist = { min: waistFlat.min * 2, max: waistFlat.max * 2 };
     const inches = Array.from(
       { length: group.maximumWaist - group.minimumWaist + 1 },
       (_, index) => group.minimumWaist + index,
@@ -39,7 +38,6 @@ function createJeansGuide(audience: GuideAudience, groups: readonly JeansSizeGro
         audience === 'men' ? jeansRange : countryRange(group.american ?? []),
         jeansRange,
         `≈ ${formatRange(waistFlat)}`,
-        `≈ ${formatRange(waist)}`,
       ],
       labels: [
         group.size,
@@ -68,12 +66,11 @@ function createJeansGuide(audience: GuideAudience, groups: readonly JeansSizeGro
       audience === 'men' ? 'UK Jeans (Inch)' : 'UK ≈',
       audience === 'men' ? 'US Jeans (Inch)' : 'US ≈',
       'Jeans W',
-      'Bund flach (cm) ≈',
-      'Bundumfang (cm) ≈',
+      'Bundweite flach ≈ (cm)',
     ],
     rows,
     notes:
-      'W-Gruppen in cm übertragen, an den Grenzen um eine halbe Inch-Stufe erweitert. EU/UK/US sind ungefähre Gegenstellungen; ein Strich bedeutet fehlende Zuordnung. Die Bundbereiche sind redaktionelle Schätzwerte für die Verkaufsgröße.',
+      'Bundbereiche aus nominellen W-Gruppen umgerechnet: redaktionelle Orientierung für die Verkaufsgröße, keine vom Hersteller bestätigten Kleidungsmaße. Schnitt, Bundhöhe und Stretch können abweichen. EU/UK/US sind ungefähre Gegenstellungen; ein Strich bedeutet fehlende Zuordnung. Beinlängen separat nachschlagen.',
     sourceTitle: 'Grundlage: Levi’s Alpha-/Jeansgrößen; Ländervergleiche Next und bonprix',
     sourceUrl: 'https://www.levi.com/GB/en_GB/info/sizechart',
     sources: [
