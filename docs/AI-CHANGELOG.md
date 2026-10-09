@@ -1,5 +1,31 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-09 – Juna – Vinted-Inserateditor und Veröffentlichung geplant
+
+**Auftrag:** Bleam-Publish und Inseratverwaltung recherchieren; einen Plan für
+Erstellen, Bilder, Entwürfe, Vorlagen, Veröffentlichung zum Termin, vollständige
+Bearbeitung und späteres manuelles Relist entwickeln. Kontotransfer folgt später.
+
+**Recherche und Entwurf:** Aktuelles `origin/master` und offenen PR #356 lesend
+abgeglichen. Bleam-Publish, Zusatzaktionen, Termin-/Entwurfs-/Vorlagendialoge,
+Inserat-Drawer, Relist und Archiv im vorhandenen Browser geprüft sowie offizielle
+Hilfeseiten gelesen. Flipbase-/Vinted-Entwürfe, Vorlagen und Sicherungen getrennt
+erklärt. Gemeinsame vollständige Erfassungsseite mit schneller Detailansicht rechts,
+vorhandenem Bildeditor, bestätigten Anbieterfeldern, revisionsgebundenen Aufträgen
+und nachvollziehbarer lokaler/Cloud-Ausführung vorgeschlagen. Echte Vinted-Entwürfe
+in Version eins und die vorgeschlagene Ausfallregel sind noch abzustimmen.
+
+**Dokumentation:** Produktentwurf und paketweiser Umsetzungsplan unter
+`docs/superpowers/specs/2026-10-09-vinted-listing-publishing-design.md` und
+`docs/superpowers/plans/2026-10-09-vinted-listing-publishing.md` im eigenen Zweig
+`juna/vinted-listing-plan` auf aktuellem Masterstand angelegt. Vorhandene lokale
+Arbeit im ursprünglichen Checkout und fremden PR-Zweig erhalten.
+
+**Prüfung:** Quellen-/Dateipfadabgleich und Dokumentationsprüfung; keine
+Anwendungsimplementierung, kein Anbieter-Schreibtest, keine Aktivierung,
+Migration, Veröffentlichung oder Änderung der installierten Erweiterung.
+Keine Anwendungstests oder Builds für diese reine Planung ausgeführt.
+
 ## 2026-10-09 - Juna - Vinted-Zugriff nach gescheitertem Profilabruf prüfen
 
 **Auftrag:** Widersprüchliche Cloud-Anzeige bei Maike Vintage untersuchen und
