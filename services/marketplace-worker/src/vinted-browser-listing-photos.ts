@@ -3,62 +3,23 @@ import type { Page } from 'playwright';
 import type { MarketplaceListingSnapshot } from '../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts';
 import type { MarketplaceListingPhoto } from './marketplace-listing-photo.ts';
 import { readVintedAccountIdentity } from './vinted-browser-reader.ts';
+import {
+  collectVintedListingPhotoState as collectPhotoState,
+  type VintedListingPhotoState as PhotoState,
+} from './vinted-listing-contracts.ts';
 
 export interface VintedUploadedListingPhoto {
   readonly sourceImageId: string;
   /** Bestätigte Fotokachel, kein Beleg für ein gespeichertes Inserat. */
   readonly previewUrl: string;
 }
-interface PhotoState {
-  valid: boolean;
-  items: { index: number; url: string | null; ready: boolean }[];
-}
+
 function invalid(): Error {
   return new Error('Die Vinted-Fotoübertragung konnte nicht bestätigt werden.');
 }
 function assertNewForm(page: Page): void {
   const url = new URL(page.url());
   if (url.origin !== 'https://www.vinted.de' || url.pathname !== '/items/new') throw invalid();
-}
-// Serialisierbar und auf den tatsächlich beobachteten Fotobereich begrenzt.
-function collectPhotoState(): PhotoState {
-  const grids = document.querySelectorAll('[data-testid="media-upload-grid"]');
-  if (grids.length !== 1) return { valid: false, items: [] };
-  const wrappers = Array.from(grids[0]!.querySelectorAll('[data-testid^="image-wrapper-"]'));
-  const items = wrappers.map((node) => {
-    const identifier = /^image-wrapper-(0|[1-9][0-9]*)$/.exec(
-      node.getAttribute('data-testid') ?? '',
-    );
-    const images = node.querySelectorAll('img'),
-      image = images[0];
-    let url: string | null = null;
-    try {
-      const source = new URL(image?.getAttribute('src') ?? '');
-      if (
-        source.protocol === 'https:' &&
-        /^images[1-9][0-9]*\.vinted\.net$/.test(source.hostname) &&
-        !source.username &&
-        !source.password
-      )
-        url = source.origin + source.pathname;
-    } catch {
-      /* Blob- und Datenvorschauen sind kein bestätigter Anbieterupload. */
-    }
-    return {
-      index: identifier ? Number(identifier[1]) : -1,
-      url,
-      ready:
-        images.length === 1 &&
-        image instanceof HTMLImageElement &&
-        image.complete &&
-        image.naturalWidth > 0 &&
-        image.naturalHeight > 0 &&
-        node.getClientRects().length > 0 &&
-        getComputedStyle(node).display !== 'none' &&
-        getComputedStyle(node).visibility !== 'hidden',
-    };
-  });
-  return { valid: items.length <= 20 && items.every((item, index) => item.index === index), items };
 }
 function matchesPrefix(
   state: PhotoState,

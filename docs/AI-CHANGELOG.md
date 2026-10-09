@@ -1,5 +1,30 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-10 – Juna – Gespeicherte Inseratinhalte und Fotos erneut prüfen
+
+**Arbeit:** Ein lesender Worker-Baustein öffnet die Bearbeitungsmaske einer
+bekannten Vinted-Kennung frisch und vergleicht Titel, Beschreibung, Centpreis,
+Kategorie, ausgewählte Merkmale und Zusatzoptionen mit dem Auftragsinhalt.
+Ein gemeinsamer Fotoleser und Vergleich prüfen die vollständige Reihenfolge
+anhand der beobachteten Vinted-Bildkennungen. Unterschiedliche Bildgrößen,
+CDN-Server und Vorschau-Signaturen ändern diese Kennung nicht. Fehlende,
+vertauschte, doppelte, versteckte oder noch ungeladene Bilder bestätigen nichts.
+Konto und Freigabe werden vor und nach dem Lesen geprüft. Der Nutzer bestätigt,
+dass kein bestehender Vinted-Entwurf für eine Leseprüfung vorhanden ist.
+
+**Prüfungen:** Fehlende Vergleicher und Inhaltsprüfung zuerst durch
+fehlgeschlagene Tests belegt. Ein verstecktes Preisfeld deckte eine falsche
+Bestätigung auf; Sichtbarkeitsprüfung über die Eltern und eindeutige
+Zusatzoptionen korrigieren sie. Alle 20 Inserat-Browserprüfungen mit abgefangenen
+Anfragen, 159 Erweiterungsprüfungen und 566 Workerprüfungen erfolgreich;
+sieben bestehende Workerfälle ausgelassen. Worker-Typprüfung, Bau, Format
+und ESLint erfolgreich. Keine echten Anbieteraktionen oder Schemaänderungen.
+
+**Offen:** Der Baustein bestätigt Inhalt einer bekannten Kennung, noch keinen
+neuen Speichervorgang. Die tatsächlich zurückgegebene neue Kennung muss erst
+mit Inhalts- und Aktivstatusprüfung verbunden werden. Native Entwürfe,
+Veröffentlichungsweg und Anschluss der Ausführer bleiben in Arbeit.
+
 ## 2026-10-10 – Juna – Aktiven Vinted-Status anhand der eigenen Profilansicht lesen
 
 **Arbeit:** Den tatsächlich ausgewählten Aktiv-Filter und konkrete ID-/Titel-

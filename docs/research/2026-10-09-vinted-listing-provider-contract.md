@@ -302,6 +302,15 @@ Signaturen im Query unterscheiden sich. Das ist ein konkreter Vergleichspunkt
 für einen späteren gespeicherten Fotobeleg, noch kein geprüfter neuer Upload.
 Der eigene Recherchetab wurde anschließend geschlossen, ohne Inhalte zu ändern.
 
+Ein lesender Inhaltsprüfer öffnet inzwischen die bekannte
+`/items/<id>/edit`-Maske frisch. Er vergleicht die gespeicherten Texte,
+Centpreis, tatsächliche Merkmalsauswahl samt IDs/Labels, Zusatzoptionen und
+das vollständige Fotogitter. Der gemeinsame Fotobeleg vergleicht Bildordner
+und Dateiname zwischen `/t/` und `/tc/`; andere Reihenfolge, Anzahl, Kennung,
+unsichere URL oder ungeladene/versteckte Kachel werden abgelehnt. Die Umsetzung
+ist anhand abgefangener Browseranfragen geprüft. Ein echter neuer Upload ist
+damit weiterhin nicht geprüft; eine bekannte ID allein beweist keine Neuanlage.
+
 Der Nutzer bestätigt, dass aktuell kein
 gespeicherter Vinted-Entwurf vorhanden ist. Entwurfs-Ergebnisroute und Kennung
 bleiben ungeprüft. Eine fokussierte Hilfesuche lieferte keinen belastbaren

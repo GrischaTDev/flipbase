@@ -641,7 +641,204 @@
 
     return snapshot;
   })();
+  // Serialisierbar: ausschließlich das native Fotogitter innerhalb der Inseratmaske.
+  function collectPhotoState() {
+    const roots = document.querySelectorAll('#content');
+    const grids =
+      roots.length === 1 ? roots[0].querySelectorAll('[data-testid="media-upload-grid"]') : [];
+    if (grids.length !== 1) return { valid: false, items: [] };
+    const visible = (node) => {
+      if (!node.getClientRects().length || node.closest('[hidden],[aria-hidden="true"]'))
+        return false;
+      for (let parent = node; parent; parent = parent.parentElement) {
+        const style = getComputedStyle(parent);
+        if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0')
+          return false;
+      }
+      return true;
+    };
+    const items = Array.from(grids[0].querySelectorAll('[data-testid^="image-wrapper-"]')).map(
+      (node) => {
+        const identifier = /^image-wrapper-(0|[1-9][0-9]*)$/.exec(
+          node.getAttribute('data-testid') ?? '',
+        );
+        const images = node.querySelectorAll('img'),
+          image = images[0];
+        let url = null;
+        try {
+          const source = new URL(image?.getAttribute('src') ?? '');
+          if (
+            source.protocol === 'https:' &&
+            /^images[1-9][0-9]*\.vinted\.net$/.test(source.hostname) &&
+            !source.username &&
+            !source.password &&
+            !source.port &&
+            !source.hash &&
+            (!source.search || /^\?s=[0-9a-f]{40,128}$/i.test(source.search))
+          )
+            url = source.href;
+        } catch {
+          /* Lokale Vorschauen sind kein bestätigter Anbieterupload. */
+        }
+        return {
+          index: identifier ? Number(identifier[1]) : -1,
+          url,
+          ready:
+            images.length === 1 &&
+            image instanceof HTMLImageElement &&
+            image.complete &&
+            image.naturalWidth > 0 &&
+            image.naturalHeight > 0 &&
+            visible(node) &&
+            visible(image),
+        };
+      },
+    );
+    return {
+      valid: items.length <= 20 && items.every((item, index) => item.index === index),
+      items,
+    };
+  }
+  function collectFormValues() {
+    const roots = document.querySelectorAll('#content');
+    if (roots.length !== 1) return null;
+    const root = roots[0],
+      values = {};
+    for (const [name, tag] of [
+      ['title', 'input'],
+      ['description', 'textarea'],
+      ['price', 'input'],
+    ]) {
+      const nodes = root.querySelectorAll(tag + '[name="' + name + '"]'),
+        node = nodes[0];
+      if (
+        nodes.length !== 1 ||
+        !node.getClientRects().length ||
+        node.closest('[hidden],[aria-hidden="true"]')
+      )
+        return null;
+      for (let ancestor = node; ancestor; ancestor = ancestor.parentElement) {
+        const style = getComputedStyle(ancestor);
+        if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0')
+          return null;
+      }
+      values[name] = node.value;
+    }
+    for (const name of ['ai_photo', 'bump']) {
+      const nodes = root.querySelectorAll('input#' + name + '[type="checkbox"]');
+      if (nodes.length !== 1) return null;
+      values[name] = nodes[0].checked;
+    }
+    return values;
+  }
+  function formMatches(content, photos, schema, values, aiPhoto) {
+    if (
+      !values ||
+      !Number.isSafeInteger(content?.priceCents) ||
+      validateSubmission(content, photos, schema).length > 0 ||
+      values.title !== content.title ||
+      values.description !== content.description ||
+      typeof values.price !== 'string' ||
+      schema.aiPhoto !== aiPhoto ||
+      schema.bump !== false ||
+      values.ai_photo !== aiPhoto ||
+      values.bump !== false
+    )
+      return false;
+    let price = values.price.replace(/[€\s]/gu, '');
+    if (price.includes('.') && price.includes(',')) {
+      if (!/^[0-9]{1,3}(?:\.[0-9]{3})+,[0-9]{1,2}$/.test(price)) return false;
+      price = price.replaceAll('.', '');
+    }
+    const match = /^([0-9]+)(?:[,.]([0-9]{1,2}))?$/.exec(price);
+    if (
+      !match ||
+      BigInt(match[1]) * 100n + BigInt((match[2] ?? '').padEnd(2, '0') || '0') !==
+        BigInt(content.priceCents)
+    )
+      return false;
+    return schema.fields.every((field) => {
+      const expected = {
+        brand: [content.brandId],
+        size: [content.sizeId],
+        condition: [content.conditionId],
+        package: [content.packageSizeId],
+        color: content.colorIds,
+        material: content.materialIds,
+      }[field.field];
+      const selected = field.choices.filter((choice) => choice.selected).map((choice) => choice.id);
+      return (
+        expected &&
+        selected.length === expected.length &&
+        selected.every((id) => expected.includes(id))
+      );
+    });
+  }
+  function photosMatch(uploaded, saved, originalIds) {
+    function assetKey(input) {
+      if (typeof input !== 'string') return null;
+      try {
+        const url = new URL(input);
+        if (
+          url.protocol !== 'https:' ||
+          !/^images[1-9][0-9]*\.vinted\.net$/.test(url.hostname) ||
+          url.port ||
+          url.username ||
+          url.password ||
+          url.hash ||
+          (url.search && !/^\?s=[0-9a-f]{40,128}$/i.test(url.search))
+        )
+          return null;
+        const path =
+          /^\/tc?\/([a-zA-Z0-9_-]{1,128})\/(?:f[1-9][0-9]{0,4}|[1-9][0-9]{0,4}x[1-9][0-9]{0,4})\/([0-9]{1,20}\.(?:webp|jpg|png))$/.exec(
+            url.pathname,
+          );
+        return path ? path[1] + '/' + path[2] : null;
+      } catch {
+        return null;
+      }
+    }
+    if (
+      !Array.isArray(uploaded) ||
+      !Array.isArray(originalIds) ||
+      uploaded.length < 1 ||
+      uploaded.length > 20 ||
+      uploaded.length !== originalIds.length ||
+      !saved ||
+      saved.valid !== true ||
+      !Array.isArray(saved.items) ||
+      saved.items.length !== uploaded.length
+    )
+      return false;
+    const ids = new Set(),
+      assets = new Set();
+    return uploaded.every((photo, index) => {
+      const id = originalIds[index],
+        item = saved.items[index];
+      if (
+        typeof id !== 'string' ||
+        !/^[1-9][0-9]{0,18}$/.test(id) ||
+        BigInt(id) > 9223372036854775807n ||
+        ids.has(id) ||
+        !photo ||
+        photo.sourceImageId !== id ||
+        !item ||
+        item.index !== index ||
+        item.ready !== true
+      )
+        return false;
+      const asset = assetKey(photo.previewUrl);
+      if (!asset || assets.has(asset) || asset !== assetKey(item.url)) return false;
+      ids.add(id);
+      assets.add(asset);
+      return true;
+    });
+  }
   root.FlipbaseVintedListingRuntime = Object.freeze({
+    photosMatch,
+    collectPhotoState,
+    collectFormValues,
+    formMatches,
     parseSnapshot,
     hasActiveListingEvidence,
     parseChoices,

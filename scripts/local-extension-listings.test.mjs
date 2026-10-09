@@ -361,3 +361,68 @@ test('late check replies cannot reactivate a finished or already revoked attempt
     assert.equal(await earlier, false);
   }
 });
+
+test('saved photo proof matches original order across native and public CDN variants', () => {
+  const first = '06_00efb_aT3zEV4gS3asXadrwvWbPVtr';
+  const second = '06_0174e_Hwk26KHg8FtTcfxMybzUiV2P';
+  const uploaded = [first, second].map((asset, index) => ({
+    sourceImageId: String(index + 1),
+    previewUrl: `https://images1.vinted.net/tc/${asset}/f800/1788288106.webp`,
+  }));
+  const saved = {
+    valid: true,
+    items: [first, second].map((asset, index) => ({
+      index,
+      ready: true,
+      url: `https://images2.vinted.net/t/${asset}/310x430/1788288106.webp?s=${'a'.repeat(40)}`,
+    })),
+  };
+  assert.equal(runtime.photosMatch(uploaded, saved, ['1', '2']), true);
+  for (const bad of [
+    { ...saved, items: saved.items.toReversed() },
+    { ...saved, items: saved.items.slice(0, 1) },
+    { ...saved, valid: false },
+    { ...saved, items: [{ ...saved.items[0], ready: false }, saved.items[1]] },
+    { ...saved, items: [{ ...saved.items[0], index: 1 }, saved.items[1]] },
+    { ...saved, items: [saved.items[0], { ...saved.items[1], url: saved.items[0].url }] },
+    {
+      ...saved,
+      items: [
+        { ...saved.items[0], url: saved.items[0].url.replace('1788288106', '1788288107') },
+        saved.items[1],
+      ],
+    },
+    {
+      ...saved,
+      items: [
+        { ...saved.items[0], url: 'https://evil.test/t/' + first + '/f800/1788288106.webp' },
+        saved.items[1],
+      ],
+    },
+  ])
+    assert.equal(runtime.photosMatch(uploaded, bad, ['1', '2']), false);
+  assert.equal(runtime.photosMatch(uploaded, saved, ['2', '1']), false);
+  assert.equal(runtime.photosMatch(uploaded, saved, ['1', '1']), false);
+  assert.equal(runtime.photosMatch([], { valid: true, items: [] }, []), false);
+});
+
+test('photo proof rejects unsafe CDN URLs even when preview and saved URL look equal', () => {
+  for (const url of [
+    'data:image/png;base64,AA',
+    'blob:https://www.vinted.de/42',
+    'http://images1.vinted.net/t/asset/f800/1788288106.webp',
+    'https://images1.vinted.net.evil.test/t/asset/f800/1788288106.webp',
+    'https://user:password@images1.vinted.net/t/asset/f800/1788288106.webp',
+    'https://images1.vinted.net/t/asset/f800/1788288106.webp#hash',
+    'https://images1.vinted.net/t/asset/f800/1788288106.webp?secret=private',
+    'https://images1.vinted.net/t/asset/not-a-size/1788288106.webp',
+  ])
+    assert.equal(
+      runtime.photosMatch(
+        [{ sourceImageId: '1', previewUrl: url }],
+        { valid: true, items: [{ index: 0, ready: true, url }] },
+        ['1'],
+      ),
+      false,
+    );
+});

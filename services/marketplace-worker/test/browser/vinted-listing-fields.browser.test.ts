@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { chromium, type Page } from 'playwright';
 import { prepareVintedListingFields } from '../../src/vinted-browser-listing-fields.ts';
+import { verifyVintedListingSavedContent } from '../../src/vinted-browser-listing-result.ts';
 import { listingClaimFixture } from '../fixtures/marketplace-listing-claim.ts';
 const snapshot = listingClaimFixture.snapshot;
 const content = {
@@ -21,11 +22,22 @@ async function fixture(
   } = {},
 ) {
   let writes = 0,
-    account = '123';
+    account = '123',
+    savedBody: string | null = null;
   await page.route('**/*', (route) => {
     const path = new URL(route.request().url()).pathname;
     if (path === '/api/v2/users/current')
       return route.fulfill({ json: { user: { id: account, login: 'fixture' } } });
+    if (new URL(route.request().url()).hostname === 'images1.vinted.net')
+      return route.fulfill({
+        contentType: 'image/png',
+        body: Buffer.from(
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=',
+          'base64',
+        ),
+      });
+    if (savedBody && path === '/items/456/edit')
+      return route.fulfill({ contentType: 'text/html', body: savedBody });
     if (route.request().method() !== 'GET') writes++;
     return route.fulfill({
       contentType: 'text/html',
@@ -65,6 +77,9 @@ async function fixture(
   await page.goto('https://www.vinted.de/items/new');
   return {
     writes: () => writes,
+    setSavedBody: (body: string) => {
+      savedBody = body;
+    },
     changeAccount: () => {
       account = '124';
     },
@@ -209,6 +224,160 @@ test('stops filling when the category changes between authorization and the next
     );
     assert.equal(await page.locator('#description').inputValue(), '');
     assert.equal(await page.locator('#price').inputValue(), '');
+    assert.equal(f.writes(), 0);
+  } finally {
+    await browser.close();
+  }
+});
+
+test('rereads saved content and ordered native photos without any provider write', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage(),
+      f = await fixture(page);
+    await prepareVintedListingFields(page, '123', content, snapshot.images, [5], f.authorize);
+    const photoUrl =
+      'https://images1.vinted.net/tc/06_00efb_aT3zEV4gS3asXadrwvWbPVtr/f800/1788288106.webp';
+    await page.locator('#content').evaluate((element, url) => {
+      const grid = document.createElement('div');
+      grid.dataset.testid = 'media-upload-grid';
+      const wrapper = document.createElement('div');
+      wrapper.dataset.testid = 'image-wrapper-0';
+      const image = document.createElement('img');
+      image.src = url;
+      wrapper.append(image);
+      grid.append(wrapper);
+      element.append(grid);
+      for (const name of ['ai_photo', 'bump']) {
+        const flag = document.createElement('input');
+        flag.type = 'checkbox';
+        flag.id = name;
+        element.append(flag);
+      }
+    }, photoUrl);
+    const body = await page.evaluate(() => {
+      const clone = document.documentElement.cloneNode(true) as HTMLElement;
+      document.querySelectorAll('input,textarea').forEach((source, index) => {
+        const target = clone.querySelectorAll('input,textarea')[index]!;
+        if (source instanceof HTMLInputElement) {
+          target.setAttribute('value', source.value);
+          if (source.checked) target.setAttribute('checked', '');
+          else target.removeAttribute('checked');
+        } else target.textContent = (source as HTMLTextAreaElement).value;
+      });
+      return clone.outerHTML;
+    });
+    f.setSavedBody(body);
+    const expected = { ...snapshot, content },
+      uploaded = [
+        { sourceImageId: snapshot.images[0]!.id, previewUrl: photoUrl.replace('/tc/', '/t/') },
+      ];
+    assert.equal(
+      await verifyVintedListingSavedContent(
+        page,
+        '123',
+        '456',
+        expected,
+        uploaded,
+        [5],
+        f.authorize,
+      ),
+      true,
+    );
+    for (const bad of [
+      { ...expected, content: { ...content, title: 'Andere Jacke' } },
+      { ...expected, content: { ...content, description: 'Andere Beschreibung' } },
+      { ...expected, content: { ...content, priceCents: 1201 } },
+      { ...expected, content: { ...content, sizeId: 209, sizeLabel: 'L' } },
+      { ...expected, aiPhoto: true },
+    ])
+      assert.equal(
+        await verifyVintedListingSavedContent(page, '123', '456', bad, uploaded, [5], f.authorize),
+        false,
+      );
+    assert.equal(
+      await verifyVintedListingSavedContent(
+        page,
+        '123',
+        '456',
+        expected,
+        [{ ...uploaded[0]!, previewUrl: photoUrl.replace('1788288106', '1788288107') }],
+        [5],
+        f.authorize,
+      ),
+      false,
+    );
+    f.setSavedBody(body.replace('id="bump"', 'id="bump" checked'));
+    assert.equal(
+      await verifyVintedListingSavedContent(
+        page,
+        '123',
+        '456',
+        expected,
+        uploaded,
+        [5],
+        f.authorize,
+      ),
+      false,
+    );
+    f.setSavedBody(
+      body.replace('data-testid="image-wrapper-0"', 'hidden data-testid="image-wrapper-0"'),
+    );
+    assert.equal(
+      await verifyVintedListingSavedContent(
+        page,
+        '123',
+        '456',
+        expected,
+        uploaded,
+        [5],
+        f.authorize,
+      ),
+      false,
+    );
+    f.setSavedBody(body.replace('id="price"', 'id="price" style="opacity:0"'));
+    assert.equal(
+      await verifyVintedListingSavedContent(
+        page,
+        '123',
+        '456',
+        expected,
+        uploaded,
+        [5],
+        f.authorize,
+      ),
+      false,
+    );
+    f.setSavedBody(
+      body.replace(
+        '<div data-testid="media-upload-grid">',
+        '<input type="checkbox" id="bump" checked><div data-testid="media-upload-grid">',
+      ),
+    );
+    assert.equal(
+      await verifyVintedListingSavedContent(
+        page,
+        '123',
+        '456',
+        expected,
+        uploaded,
+        [5],
+        f.authorize,
+      ),
+      false,
+    );
+    f.setSavedBody(body);
+    await assert.rejects(
+      verifyVintedListingSavedContent(page, '123', '456', expected, uploaded, [5], () =>
+        Promise.reject(new Error('Freigabe entzogen')),
+      ),
+      /Freigabe entzogen/,
+    );
+    f.setSavedBody(body);
+    f.changeAccount();
+    await assert.rejects(
+      verifyVintedListingSavedContent(page, '123', '456', expected, uploaded, [5], f.authorize),
+    );
     assert.equal(f.writes(), 0);
   } finally {
     await browser.close();
