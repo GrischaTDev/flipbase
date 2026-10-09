@@ -31,6 +31,11 @@ einziger Konsolenfehler ist der absichtlich simulierte HTTP-503.
 Browser-Plugin nicht verfügbar; vorhandenes Playwright verwendet. Keine
 produktive Anmeldung, Datenbankänderung oder neue Abhängigkeit. Kein Push.
 
+**Freigabe:** Nutzer bestätigt PR-Erstellung, erfolgreiche Pflichtprüfungen,
+Merge und anschließendes Aufräumen. `origin/master` vor dem Push aktualisiert;
+der geprüfte Zweig basiert bereits auf dessen aktuellem Stand `cb463edf`.
+Nach dem Merge wird die öffentliche Version samt Commit kontrolliert.
+
 ## 2026-10-09 - Juna - Kinderlabels und Hosenlängen ergänzen
 
 **Auftrag:** Quellen nicht unter jeder Karte zeigen, Nike-/adidas-Kindergrößen
