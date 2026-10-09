@@ -3,6 +3,14 @@
 Stand: 05.10.2026. Freigegebener Pilot; lesenden Anbieterabgleich ergänzen.
 Ergänzt den [gemeinsamen Entwurf für Erweiterung und Cloud](vinted-local-and-cloud-design.md).
 
+## Ergänzung vom 09.10.2026: automatische Nachbuchung
+
+Der folgende Pilotentwurf beschreibt den ursprünglichen rein lesenden Bestand.
+Die neue [Nachbuchung](iproyal-cloud-ip-purchase.md) ergänzt ihn bei ausdrücklich
+aktiviertem Worker-Schalter: eine deutsche Dedicated-ISP-IP für 30 Tage zum
+aktuellen Anbieterpreis. Verlängerungen und die Anbindung an Kundenabonnements
+bleiben weitere Aufgaben.
+
 ## Ergänzung vom 07.10.2026: Gesprächsabruf
 
 Beim ausdrücklichen Öffnen eines Cloud-Gesprächs liest der Browserdienst dessen

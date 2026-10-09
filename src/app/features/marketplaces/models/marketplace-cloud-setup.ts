@@ -47,8 +47,13 @@ export function parseCloudSetupResult(
   if (!response || typeof response !== 'object' || Array.isArray(response))
     throw new Error('Ungültige Cloud-Einrichtungsantwort');
   const fields = response as Record<string, unknown>;
-  if (fields['status'] === 'no_capacity' && Object.keys(fields).length === 1)
-    return { status: 'no_capacity' };
+  if (
+    ['no_capacity', 'purchase_pending', 'purchase_failed', 'limit_reached'].includes(
+      String(fields['status']),
+    ) &&
+    Object.keys(fields).length === 1
+  )
+    return fields as unknown as CloudSetupResult;
   if (
     fields['status'] === 'ready' &&
     Object.keys(fields).length === 2 &&

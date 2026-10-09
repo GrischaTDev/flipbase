@@ -2755,6 +2755,94 @@ export type Database = {
           },
         ]
       }
+      marketplace_cloud_ip_allowances: {
+        Row: {
+          id: number
+          ip_limit: number
+          workspace_id: string
+        }
+        Insert: {
+          id?: never
+          ip_limit: number
+          workspace_id: string
+        }
+        Update: {
+          id?: never
+          ip_limit?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_cloud_ip_allowances_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: true
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      marketplace_cloud_ip_purchases: {
+        Row: {
+          attempt_id: string
+          connection_id: string | null
+          created_at: string
+          currency: string
+          display_name: string | null
+          duration_days: number
+          id: number
+          price_cents: number
+          provider_order_id: string | null
+          quantity: number
+          request_id: string
+          requested_by: string
+          state: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          attempt_id: string
+          connection_id?: string | null
+          created_at?: string
+          currency?: string
+          display_name?: string | null
+          duration_days?: number
+          id?: never
+          price_cents: number
+          provider_order_id?: string | null
+          quantity?: number
+          request_id: string
+          requested_by: string
+          state?: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          attempt_id?: string
+          connection_id?: string | null
+          created_at?: string
+          currency?: string
+          display_name?: string | null
+          duration_days?: number
+          id?: never
+          price_cents?: number
+          provider_order_id?: string | null
+          quantity?: number
+          request_id?: string
+          requested_by?: string
+          state?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_cloud_ip_purchases_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       marketplace_cloud_ips: {
         Row: {
           country_code: string
@@ -8311,6 +8399,24 @@ export type Database = {
       marketplace_cloud_favorite_settings_valid: {
         Args: { p_connection_id: string; p_workspace_id: string }
         Returns: boolean
+      }
+      marketplace_cloud_ip_limit_reached: {
+        Args: { p_workspace_id: string }
+        Returns: boolean
+      }
+      marketplace_cloud_ip_purchase: {
+        Args: {
+          p_action: string
+          p_attempt_id: string
+          p_connection_id: string
+          p_display_name: string
+          p_order_id: string
+          p_price_cents: number
+          p_request_id: string
+          p_user_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
       }
       marketplace_cloud_message_begin: {
         Args: {

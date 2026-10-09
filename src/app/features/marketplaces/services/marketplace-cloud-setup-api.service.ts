@@ -10,6 +10,12 @@ import {
 export const CLOUD_CAPACITY_MESSAGE = 'Aktuell sind keine freien Cloud-IPs vorhanden.';
 export const CLOUD_CHECK_MESSAGE =
   'Die Cloud-IP-Verfügbarkeit konnte nicht geprüft werden. Bitte versuche es erneut.';
+export const CLOUD_PURCHASE_PENDING_MESSAGE =
+  'Deine Cloud-IP wird noch bereitgestellt oder die Bestellung muss geprüft werden. Bitte versuche es in Kürze erneut.';
+export const CLOUD_PURCHASE_FAILED_MESSAGE =
+  'Die Cloud-IP konnte nicht nachgebucht werden. Bitte wende Dich an den Support.';
+export const CLOUD_IP_LIMIT_MESSAGE =
+  'Die Anzahl der Cloud-IPs für Deinen Arbeitsplatz ist ausgeschöpft.';
 
 @Injectable({ providedIn: 'root' })
 export class MarketplaceCloudSetupApiService {
@@ -30,9 +36,14 @@ export class MarketplaceCloudSetupApiService {
 
   async begin(request: CloudSetupRequest, token: string): Promise<CloudSetupResult> {
     try {
-      const response = await this.post('begin', request, token);
-      if (!response.ok) throw new Error(CLOUD_CHECK_MESSAGE);
-      return parseCloudSetupResult(await response.json(), request);
+      for (let attempt = 0; attempt < 8; attempt++) {
+        const response = await this.post('begin', request, token);
+        if (!response.ok) throw new Error(CLOUD_CHECK_MESSAGE);
+        const result = parseCloudSetupResult(await response.json(), request);
+        if (result.status !== 'purchase_pending' || attempt === 7) return result;
+        await new Promise<void>((resolve) => setTimeout(resolve, 2000));
+      }
+      throw new Error(CLOUD_CHECK_MESSAGE);
     } catch {
       throw new Error(CLOUD_CHECK_MESSAGE);
     }

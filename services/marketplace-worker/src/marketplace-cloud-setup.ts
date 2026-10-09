@@ -13,6 +13,15 @@ import type { VintedAccountIdentity } from './vinted-browser-reader.ts';
 
 interface SetupOptions {
   refreshInventory?: () => Promise<void>;
+  purchaseIp?: (
+    request: CloudSetupRequest,
+    userId: string,
+    token: string,
+  ) => Promise<
+    'available' | 'purchase_pending' | 'purchase_failed' | 'limit_reached' | 'no_capacity'
+  >;
+  purchaseCompleted?: (request: CloudSetupRequest, userId: string) => Promise<void>;
+  reconcilePurchases?: (request: CloudSetupRequest, userId: string) => Promise<void>;
   store: Pick<
     SupabaseMarketplaceCloudSetupStore,
     'availability' | 'begin' | 'read' | 'cancel' | 'readAuthorized' | 'step' | 'rows'
@@ -47,15 +56,24 @@ export class MarketplaceCloudSetup {
   }
   async begin(
     request: CloudSetupRequest,
-    _userId: string,
+    userId: string,
     accessToken: string,
   ): Promise<CloudSetupResult> {
     if (this.options.refreshInventory) {
       if (!(await this.options.store.availability(request.workspaceId, accessToken)))
         throw new Error('Cloud-Einrichtung ist nicht freigegeben');
       await this.options.refreshInventory();
+      await this.options.reconcilePurchases?.(request, userId);
     }
-    return this.options.store.begin(request, accessToken);
+    let result = await this.options.store.begin(request, accessToken);
+    if (result.status === 'no_capacity' && this.options.purchaseIp) {
+      const purchase = await this.options.purchaseIp(request, userId, accessToken);
+      if (purchase !== 'available') return { status: purchase };
+      await this.options.refreshInventory?.();
+      result = await this.options.store.begin(request, accessToken);
+    }
+    if (result.status === 'ready') await this.options.purchaseCompleted?.(request, userId);
+    return result;
   }
   read(scope: BrowserSessionScope, setupId: string): Promise<CloudSetupView> {
     return this.options.store.read(scope, setupId);

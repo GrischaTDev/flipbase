@@ -94,6 +94,26 @@ const chromiumPilot = {
   MARKETPLACE_CHROMIUM_NETWORK: 'flipbase-browser',
 };
 
+test('automatic purchases require an explicit flag and the existing Chromium inventory integration', () => {
+  const inventory = {
+    ...chromiumPilot,
+    IPROYAL_API_TOKEN: 'fixture-token',
+    MARKETPLACE_CHROMIUM_NETWORK_FILE: '/run/flipbase/networks.json',
+  };
+  assert.equal(marketplaceBrowserServerConfig(inventory).ipRoyalAutoPurchaseEnabled, false);
+  assert.equal(
+    marketplaceBrowserServerConfig({ ...inventory, IPROYAL_AUTO_PURCHASE_ENABLED: '1' })
+      .ipRoyalAutoPurchaseEnabled,
+    true,
+  );
+  for (const environment of [
+    { ...configured, IPROYAL_AUTO_PURCHASE_ENABLED: '1' },
+    { ...chromiumPilot, IPROYAL_AUTO_PURCHASE_ENABLED: '1' },
+    { ...inventory, IPROYAL_AUTO_PURCHASE_ENABLED: 'true' },
+  ])
+    assert.throws(() => marketplaceBrowserServerConfig(environment), /IP-Nachbuchung/);
+});
+
 test('provider inventory credentials stay server-only and require a private network file', () => {
   assert.throws(() =>
     marketplaceBrowserServerConfig({ ...chromiumPilot, IPROYAL_API_TOKEN: 'fixture-token' }),
