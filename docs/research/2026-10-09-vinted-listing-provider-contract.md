@@ -219,8 +219,20 @@ Ergebnisbelege, keine vom Client gelieferten Inhaltsaufträge. Das gekoppelte
 Secret wird vor Übergabe an die Datenbank gehasht. Bestätigungen verlangen
 Artikel-/Konto-ID, Aktion, passenden Anbieterstatus und eine gültige UTC-Zeit;
 die Datenbank prüft zusätzlich die tatsächliche Bindung. Die Erweiterung ruft
-diesen Ablauf noch nicht automatisch auf; Originalfotoabruf und native
-Ausführung bleiben anzuschließen.
+diesen Ablauf noch nicht automatisch auf; native Ausführung und der Client
+bleiben anzuschließen.
+
+`listing_photo` liefert die privaten Originalbytes für eine Bildkennung aus
+dem übernommenen Auftrag. Die Erweiterung darf keinen Storage-Pfad oder eine
+URL vorgeben. Der Server prüft den aktuellen Versuch vor dem Lesen des festen
+Auftragsstands, vor dem Download und vor der Rückgabe. Konto, Workspace,
+Versuchkennung und gehashtes Secret begrenzen die Abfrage. JPEG, PNG und WebP
+werden anhand der Metadaten, Größe und Dateisignatur geprüft; höchstens 50 MiB
+werden gepuffert. Teilantworten, Weiterleitungen und falsche Dateien werden
+abgewiesen. Die Antwort enthält Bytes und Bildkennung, keine Storage-URL oder
+Serverzugänge. Dateisignaturen ersetzen keine vollständige Bilddekodierung.
+Diese Prüfungen liefen mit abgefangenen Datenbank-/Storage-Anfragen; ein realer
+Download in die installierte Erweiterung wurde nicht ausgeführt.
 
 Schema 465 ergänzt den Cloud-Versuch mit Worker-Epoche und reserviertem Profil.
 Eine abgelaufene Vorbereitung wird erst nach bestätigtem physischem Stopp

@@ -1311,6 +1311,95 @@ test(
         assert.equal((await handler(request(body))).status, 200);
         assert.deepEqual(calls.at(-1), { name, parameters });
       }
+      const photoRequest = {
+        action: 'listing_photo',
+        workspaceId,
+        connectionId,
+        jobId: '9007199254740999',
+        claimToken,
+        imageId: '9007199254740998',
+      };
+      const photoBytes = new Uint8Array([255, 216, 255, 1, 255, 217]);
+      const photoPath = workspaceId + '/42/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee.jpg';
+      for (const deniedAt of [0, 1, 2, 3]) {
+        let checks = 0,
+          metadataReads = 0,
+          downloads = 0;
+        globalThis.fetch = (input, init) => {
+          const url = new URL(input instanceof Request ? input.url : String(input));
+          assert.equal(url.origin, 'https://database.example.test');
+          if (url.pathname === '/rest/v1/rpc/marketplace_local_listing_check') {
+            assert.deepEqual(JSON.parse(String(init?.body)), {
+              ...scopeParameters,
+              p_job_id: photoRequest.jobId,
+              p_claim_token: claimToken,
+            });
+            checks++;
+            return Promise.resolve(
+              Response.json(
+                checks === deniedAt
+                  ? { active: false }
+                  : {
+                      active: true,
+                      expiresAt: new Date(Date.now() + 90_000).toISOString(),
+                      absoluteExpiresAt: new Date(Date.now() + 600_000).toISOString(),
+                    },
+              ),
+            );
+          }
+          if (url.pathname === '/rest/v1/marketplace_listing_jobs') {
+            metadataReads++;
+            assert.equal(init?.method, 'GET');
+            assert.deepEqual(Object.fromEntries(url.searchParams), {
+              select: 'snapshot',
+              workspace_id: 'eq.' + workspaceId,
+              connection_id: 'eq.' + connectionId,
+              id: 'eq.' + photoRequest.jobId,
+              claim_token: 'eq.' + claimToken,
+              claim_local_token_hash: 'eq.' + tokenHash,
+              execution_mode: 'eq.local',
+              state: 'in.(claimed,writing)',
+            });
+            return Promise.resolve(
+              Response.json({
+                snapshot: {
+                  connectionId,
+                  images: [
+                    {
+                      id: photoRequest.imageId,
+                      storagePath: photoPath,
+                      fileName: 'Original.jpg',
+                      mimeType: 'image/jpeg',
+                      byteSize: photoBytes.length,
+                    },
+                  ],
+                },
+              }),
+            );
+          }
+          assert.equal(url.pathname, '/storage/v1/object/marketplace-listing-media/' + photoPath);
+          assert.equal(url.search, '');
+          assert.equal(init?.redirect, 'error');
+          assert.equal(new Headers(init?.headers).get('authorization'), 'Bearer local-test-key');
+          assert.ok(init?.signal);
+          downloads++;
+          return Promise.resolve(
+            new Response(photoBytes, {
+              headers: {
+                'content-type': 'image/jpeg',
+                'content-length': String(photoBytes.length),
+              },
+            }),
+          );
+        };
+        const response = await handler(request(photoRequest));
+        assert.equal(response.status, deniedAt === 0 ? 200 : 401);
+        if (deniedAt === 0)
+          assert.deepEqual(new Uint8Array(await response.arrayBuffer()), photoBytes);
+        else assert.deepEqual(await response.json(), { error: 'unauthorized' });
+        assert.equal(metadataReads, deniedAt === 1 ? 0 : 1);
+        assert.equal(downloads, deniedAt === 1 || deniedAt === 2 ? 0 : 1);
+      }
       for (const [code, status, error] of [
         ['40001', 409, 'conflict'],
         ['23505', 409, 'conflict'],

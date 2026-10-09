@@ -1,5 +1,8 @@
 import type { AccountScope } from './marketplace-contracts.ts';
-import type { LocalListingRequest } from './marketplace-local-listing-contracts.d.ts';
+import type {
+  LocalListingPhotoRequest,
+  LocalListingRequest,
+} from './marketplace-local-listing-contracts.d.ts';
 import type { MarketplaceListingResult } from './marketplace-listing-contracts.d.ts';
 import type {
   MarketplaceNegotiationOffer,
@@ -22,6 +25,7 @@ export interface LocalExtensionSnapshot {
 export type LocalExtensionRequest = AccountScope &
   (
     | LocalListingRequest
+    | LocalListingPhotoRequest
     | { readonly action: 'favorites_state' }
     | { readonly action: 'favorite_claim'; readonly offerSupported?: boolean }
     | { readonly action: 'favorites_import'; readonly events: readonly LocalFavoriteEvent[] }
@@ -374,7 +378,9 @@ function isLocalListingResult(value: unknown): value is MarketplaceListingResult
   return Number.isFinite(instant) && new Date(instant).toISOString() === value['verifiedAt'];
 }
 /** Reiner Drahtvertrag: Freigabe, tatsächliche Anbieteridentität und Versuchzustand prüft die Datenbank. */
-function parseLocalListingRequest(value: unknown): LocalListingRequest | null {
+function parseLocalListingRequest(
+  value: unknown,
+): LocalListingRequest | LocalListingPhotoRequest | null {
   if (
     !record(value) ||
     typeof value['workspaceId'] !== 'string' ||
@@ -388,7 +394,9 @@ function parseLocalListingRequest(value: unknown): LocalListingRequest | null {
     return keys(value, scopeKeys) ? (value as unknown as LocalListingRequest) : null;
   if (
     typeof value['action'] !== 'string' ||
-    !['listing_check', 'listing_begin', 'listing_finish'].includes(value['action']) ||
+    !['listing_check', 'listing_begin', 'listing_finish', 'listing_photo'].includes(
+      value['action'],
+    ) ||
     typeof value['jobId'] !== 'string' ||
     !/^[1-9][0-9]{0,18}$/.test(value['jobId']) ||
     BigInt(value['jobId']) > 9223372036854775807n ||
@@ -397,6 +405,13 @@ function parseLocalListingRequest(value: unknown): LocalListingRequest | null {
   )
     return null;
   const attemptKeys = [...scopeKeys, 'jobId', 'claimToken'];
+  if (value['action'] === 'listing_photo')
+    return keys(value, [...attemptKeys, 'imageId']) &&
+      typeof value['imageId'] === 'string' &&
+      /^[1-9][0-9]{0,18}$/.test(value['imageId']) &&
+      BigInt(value['imageId']) <= 9223372036854775807n
+      ? (value as unknown as LocalListingPhotoRequest)
+      : null;
   if (value['action'] === 'listing_finish')
     return keys(value, [...attemptKeys, 'result']) && isLocalListingResult(value['result'])
       ? (value as unknown as LocalListingRequest)

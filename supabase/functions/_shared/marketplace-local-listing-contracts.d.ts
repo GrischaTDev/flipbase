@@ -16,3 +16,17 @@ export type LocalListingRequest = AccountScope &
         readonly result: MarketplaceListingResult;
       }
   );
+
+/** Die Erweiterung nennt nur die Originalkennung, niemals einen Storage-Pfad. */
+export type LocalListingPhotoRequest = AccountScope & {
+  readonly action: 'listing_photo';
+  readonly jobId: string;
+  readonly claimToken: string;
+  readonly imageId: string;
+};
+
+export interface LocalListingPhoto {
+  readonly imageId: string;
+  readonly mimeType: 'image/jpeg' | 'image/png' | 'image/webp';
+  readonly bytes: ArrayBuffer;
+}

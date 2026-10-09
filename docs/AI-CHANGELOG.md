@@ -1,5 +1,31 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-10 – Juna – Private Originalfotos für lokale Inserataufträge
+
+**Arbeit:** Eigene Fotoaktion liefert Originalbytes ausschließlich anhand einer
+Bildkennung im übernommenen Inseratauftrag. Workspace, Konto, Auftragskennung,
+Versuch und Secret begrenzen die Datenbankabfrage. Die bestehende Inseratfreigabe
+wird vor dem Lesen, vor dem Storage-Abruf und vor der Rückgabe geprüft. Ein
+Widerruf während des Downloads verhindert die Ausgabe. JPEG, PNG und WebP,
+exakte Dateigröße, begrenzte Pfade und Dateisignaturen werden geprüft;
+Weiterleitungen und Teilantworten abgewiesen. Die Erweiterung erhält keine
+Storage-URLs oder Serverzugänge. Der Abruf speichert oder veröffentlicht nichts.
+
+**Prüfungen:** Fehlenden Fotohandler und fehlende Indexverbindung zuerst durch
+fehlgeschlagene Tests belegt. Alle 38 lokalen Edgeprüfungen einschließlich
+Widerruf an jeder Grenze und realer Indexzuordnung mit abgefangenen Anfragen
+erfolgreich. Alle 144 bestehenden Erweiterungsprüfungen erfolgreich.
+TypeScript, Angular-Produktionsbau und Format erfolgreich. Deno-Lint für sechs
+Vertrags-/Handler-/Fotodateien erfolgreich mit den bereits dokumentierten
+Ausnahmen für explizite Importpräfixe und bestehende Steuerzeichenprüfung.
+Keine Schemaänderung, Anbieteraktion, installierte Erweiterungsänderung oder
+Veröffentlichung des Arbeitszweigs.
+
+**Offen:** Erweiterungsclient, native Ausführung, bestätigtes Anbieterergebnis
+und automatische Abholung. Dateisignaturen ersetzen keine Bilddekodierung.
+Die Vinted-Browserverbindung war bei der anschließenden Leseprüfung nicht mehr
+verfügbar; der ursprüngliche Formular-Tab wurde nicht geändert.
+
 ## 2026-10-10 – Juna – Lokalen Inseratablauf mit Edge verbinden
 
 **Arbeit:** Die lokale Erweiterungsschnittstelle hat eigene Aktionen für
