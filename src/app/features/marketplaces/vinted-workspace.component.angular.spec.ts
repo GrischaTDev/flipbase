@@ -38,6 +38,7 @@ import { MarketplaceConnectComponent } from './components/marketplace-connect/ma
 import { MarketplaceBrowserTestComponent } from './components/marketplace-browser-test/marketplace-browser-test.component';
 import { MarketplaceSyncProgressComponent } from './components/marketplace-sync-progress/marketplace-sync-progress.component';
 import { VintedSyncScheduleComponent } from './components/vinted-sync-schedule/vinted-sync-schedule.component';
+import { VintedCloudMessageSettingsComponent } from './components/vinted-cloud-message-settings/vinted-cloud-message-settings.component';
 import { MarketplaceSyncScheduleApiService } from './services/marketplace-sync-schedule-api.service';
 import {
   MarketplaceBrowserTestApiService,
@@ -241,6 +242,10 @@ beforeAll(async () => {
     {
       type: VintedSyncScheduleComponent,
       path: 'src/app/features/marketplaces/components/vinted-sync-schedule/vinted-sync-schedule.component.ts',
+    },
+    {
+      type: VintedCloudMessageSettingsComponent,
+      path: 'src/app/features/marketplaces/components/vinted-cloud-message-settings/vinted-cloud-message-settings.component.ts',
     },
   ]);
 });

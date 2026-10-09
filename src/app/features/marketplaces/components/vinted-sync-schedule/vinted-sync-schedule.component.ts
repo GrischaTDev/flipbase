@@ -11,6 +11,7 @@ import {
   untracked,
 } from '@angular/core';
 import { LucideSettings, LucideLogIn } from '@lucide/angular';
+import { VintedCloudMessageSettingsComponent } from '../vinted-cloud-message-settings/vinted-cloud-message-settings.component';
 import { VintedFavoriteSettingsComponent } from '../vinted-favorite-settings/vinted-favorite-settings.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import type { BadgeTone } from '../../../../shared/components/badge/badge.component';
@@ -34,6 +35,7 @@ export interface VintedSyncHeaderState extends AccountScope {
   imports: [
     DatePipe,
     VintedFavoriteSettingsComponent,
+    VintedCloudMessageSettingsComponent,
     ButtonComponent,
     NoticeBannerComponent,
     CustomSelectComponent,

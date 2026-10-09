@@ -41,6 +41,10 @@ export class MarketplaceBrowserTestStore {
   );
   readonly cloudCompleted = this.cloudCompletedState.asReadonly();
   readonly cloudSetup = this.cloudSetupId.asReadonly();
+  private readonly syncContext = signal<string | null>(null);
+  readonly synchronizationOpen = computed(
+    () => this.syncContext() !== null && this.syncContext() === this.contextKey(),
+  );
   private readonly state = signal<BrowserTestSession | null>(null);
   private readonly busyState = signal<string | null>(null);
   private readonly errorState = signal<{ key: string; message: string } | null>(null);
@@ -194,6 +198,7 @@ export class MarketplaceBrowserTestStore {
       this.releaseFrame(active.frameUrl);
       this.state.set(null);
       await this.accounts.reloadConnections(active.scope.connectionId);
+      await this.synchronizeConfirmedAccount(active);
     } catch {
       if (this.isCurrent(active.key, revision))
         this.errorState.set({
@@ -642,6 +647,7 @@ export class MarketplaceBrowserTestStore {
     this.progressState.set(null);
     try {
       await this.accounts.reloadConnections(active.scope.connectionId);
+      await this.synchronizeConfirmedAccount(active);
     } catch {
       this.errorState.set({
         key: active.key,
@@ -649,6 +655,31 @@ export class MarketplaceBrowserTestStore {
           'Dein Vinted-Konto wurde bestätigt. Lade die Kontoliste erneut, um den Status zu sehen.',
       });
     }
+  }
+
+  closeSynchronization(): void {
+    this.syncContext.set(null);
+  }
+
+  private async synchronizeConfirmedAccount(active: BrowserTestSession): Promise<void> {
+    const account = this.accounts.selectedConnection();
+    const key = this.contextKey();
+    if (
+      !key ||
+      this.destroyed ||
+      this.readOnly() ||
+      this.accounts.busy() ||
+      this.auth.currentUser()?.id !== active.userId ||
+      this.workspace.currentWorkspace()?.id !== active.scope.workspaceId ||
+      account?.workspaceId !== active.scope.workspaceId ||
+      account.connectionId !== active.scope.connectionId ||
+      account.executionMode !== 'cloud' ||
+      account.status !== 'connected'
+    )
+      return;
+    // Erst nach bestätigtem Browserstopp; der vorhandene Abruf prüft erneut Konto und Rechte.
+    this.syncContext.set(key);
+    await this.accounts.syncSelectedConnection();
   }
 
   private currentToken(): string {

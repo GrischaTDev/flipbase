@@ -74,6 +74,8 @@ beforeEach(async () => {
           selectionVersion,
           canManage: signal(true),
           reloadConnections,
+          busy: signal(false),
+          syncSelectedConnection: vi.fn().mockResolvedValue(true),
           clearMutationError: () => mutationError.set(null),
         },
       },
@@ -91,6 +93,40 @@ beforeEach(async () => {
 });
 
 describe('Kontogebundener Browser-Testbereich', () => {
+  it('startet nach bestätigter Anmeldung genau einen Erstabruf nach dem Browserstopp', async () => {
+    const accounts = TestBed.inject(MarketplaceAccountStore);
+    await store.startManualLogin();
+    expect(accounts.syncSelectedConnection).not.toHaveBeenCalled();
+    await store.confirmAccount();
+    expect(accounts.syncSelectedConnection).toHaveBeenCalledOnce();
+    expect(api.close.mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(accounts.syncSelectedConnection).mock.invocationCallOrder[0],
+    );
+    expect(store.synchronizationOpen()).toBe(true);
+    await store.confirmAccount();
+    expect(accounts.syncSelectedConnection).toHaveBeenCalledOnce();
+    store.closeSynchronization();
+    expect(store.synchronizationOpen()).toBe(false);
+  });
+
+  it('startet bei unbestätigtem Browserstopp keinen Erstabruf', async () => {
+    api.close.mockRejectedValueOnce(new Error('stop unconfirmed'));
+    await store.startManualLogin();
+    await store.confirmAccount();
+    expect(TestBed.inject(MarketplaceAccountStore).syncSelectedConnection).not.toHaveBeenCalled();
+    expect(store.synchronizationOpen()).toBe(false);
+  });
+
+  it('aktualisiert nach einem Kontowechsel während des Abschlusses nicht das andere Konto', async () => {
+    reloadConnections.mockImplementationOnce(async () => {
+      selectedId.set(accountB.connectionId);
+    });
+    await store.startManualLogin();
+    await store.confirmAccount();
+    expect(TestBed.inject(MarketplaceAccountStore).syncSelectedConnection).not.toHaveBeenCalled();
+    expect(store.synchronizationOpen()).toBe(false);
+  });
+
   it('zeigt nach bestätigter Anmeldung keinen Fehler eines vorherigen Datenabrufs', async () => {
     mutationError.set('Die Aktualisierung ist beim Lesen des Profils fehlgeschlagen.');
 
@@ -122,6 +158,7 @@ describe('Kontogebundener Browser-Testbereich', () => {
     expect(store.canAct()).toBe(false);
     expect(api.completeCloud).not.toHaveBeenCalled();
     expect(api.close).not.toHaveBeenCalled();
+    expect(TestBed.inject(MarketplaceAccountStore).syncSelectedConnection).not.toHaveBeenCalled();
     await store.completeCloud();
     expect(api.completeCloud).toHaveBeenCalledWith(
       { workspaceId: accountA.workspaceId, connectionId: accountA.connectionId, cloudSetupId: id },
@@ -129,6 +166,7 @@ describe('Kontogebundener Browser-Testbereich', () => {
     );
     expect(reloadConnections).toHaveBeenCalledWith(accountA.connectionId);
     expect(store.cloudCompleted()).toBe(true);
+    expect(TestBed.inject(MarketplaceAccountStore).syncSelectedConnection).toHaveBeenCalledOnce();
   });
   it('hält einen unbestätigten Cloud-Abschluss reserviert und wiederholbar', async () => {
     store.configureCloudSetup(id);

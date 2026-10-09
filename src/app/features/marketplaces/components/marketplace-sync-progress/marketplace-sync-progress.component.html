@@ -63,14 +63,15 @@
             [class.bg-fb-surface-secondary]="!completed(index) && !active(index) && !failed(index)"
           >
             @if (completed(index)) {
-              <span aria-label="Abgeschlossen">✓</span>
+              <span role="img" aria-label="Abgeschlossen">✓</span>
             } @else if (active(index)) {
               <span
                 class="size-4 animate-spin rounded-full border-2 border-fb-primary border-t-transparent motion-reduce:animate-none"
                 aria-label="Läuft"
+                role="img"
               ></span>
             } @else if (failed(index)) {
-              <span aria-label="Fehlgeschlagen">!</span>
+              <span role="img" aria-label="Fehlgeschlagen">!</span>
             } @else {
               <span class="size-2 rounded-full bg-fb-text-muted" aria-hidden="true"></span>
             }
@@ -90,8 +91,13 @@
       >
     }
   } @else if (diagnosticInfo().hasError && reconnectLink(); as link) {
-    <app-button class="mt-3" variant="secondary" [link]="link" (clicked)="closed.emit()"
-      >Browser-Ansicht zur Prüfung öffnen</app-button
+    <app-button
+      class="mt-3"
+      variant="secondary"
+      [link]="link"
+      [queryParams]="{ reauth: 1 }"
+      (clicked)="closed.emit()"
+      >Vinted-Zugriff prüfen</app-button
     >
   }
   @if (diagnosticInfo().hasError) {

@@ -1452,6 +1452,23 @@ for (const width of [1440, 390]) {
       timeout: 15_000,
     });
     await page.getByRole('button', { name: 'Cloud aktivieren', exact: true }).click();
+    const progress = page.getByRole('dialog', { name: 'Kontodaten aktualisieren', exact: true });
+    await expect(progress).toBeVisible();
+    await expect(progress).toContainText('Die Kontodaten wurden aktualisiert.');
+    expect(calls.filter((call) => call.name === 'browser_sync_start')).toEqual([
+      {
+        name: 'browser_sync_start',
+        body: { workspaceId, connectionId: '25000000-0000-4000-8000-000000000024' },
+      },
+    ]);
+    await progress.getByRole('button', { name: 'Dialog schließen', exact: true }).click();
+    await expect(progress).not.toBeVisible();
+    // Nach dem verschachtelten Dialog die Einblendung vor der Kontrastprüfung beenden.
+    await page.getByRole('dialog').evaluate(async (element) => {
+      await Promise.allSettled(
+        element.getAnimations({ subtree: true }).map((animation) => animation.finished),
+      );
+    });
     await expect(
       page.getByText('Cloud aktiv. Dein Konto ist verbunden.', { exact: true }),
     ).toBeVisible();
@@ -1475,6 +1492,31 @@ for (const width of [1440, 390]) {
 }
 
 for (const width of [1440, 390]) {
+  test(`Anmeldebuttons zeigen Text und Icon in einer Zeile bei ${width}px @marketplace-preview`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await mockMarketplace(page, true);
+    await page.goto(`/marketplaces/vinted/connect/${accountIds[0]}`);
+
+    for (const buttonName of ['Anmelden und Konto verbinden', 'Browser-Sitzung starten']) {
+      if (buttonName === 'Browser-Sitzung starten')
+        await page.getByRole('button', { name: 'Direkt im Browser', exact: true }).click();
+      const button = page.getByRole('button', { name: buttonName, exact: true });
+      await expect(button).toBeVisible();
+      const centerDifference = await button.evaluate((element) => {
+        const label = element.querySelector(':scope > span')?.getBoundingClientRect();
+        const icon = element.querySelector('svg')?.getBoundingClientRect();
+        if (!label || !icon) throw new Error('Button label or icon is missing');
+        return Math.abs(label.y + label.height / 2 - (icon.y + icon.height / 2));
+      });
+      expect(centerDifference).toBeLessThanOrEqual(2);
+    }
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    ).toBe(true);
+  });
+
   test(`Abgelehnte Zugangsdaten direkt korrigieren bei ${width}px @marketplace-preview`, async ({
     page,
   }) => {
@@ -1511,9 +1553,21 @@ for (const width of [1440, 390]) {
       .fill('synthetic-user');
     await page.getByLabel('Vinted-Passwort').fill('synthetic-corrected');
     await page.getByRole('button', { name: 'Anmelden und Konto verbinden', exact: true }).click();
-    await expect(page.getByText('Dein Vinted-Konto ist verbunden.', { exact: true })).toBeVisible({
-      timeout: 15_000,
+    const progress = page.getByRole('dialog', { name: 'Kontodaten aktualisieren', exact: true });
+    await expect(progress).toBeVisible({ timeout: 15_000 });
+    await expect(progress).toContainText('Die Kontodaten wurden aktualisiert.');
+    expect(calls.filter((call) => call.name === 'browser_sync_start')).toEqual([
+      { name: 'browser_sync_start', body: { workspaceId, connectionId: accountIds[0] } },
+    ]);
+    await progress.getByRole('button', { name: 'Dialog schließen', exact: true }).click();
+    await expect(progress).not.toBeVisible();
+    // Nach dem verschachtelten Dialog die Einblendung vor der Kontrastprüfung beenden.
+    await page.getByRole('dialog').evaluate(async (element) => {
+      await Promise.allSettled(
+        element.getAnimations({ subtree: true }).map((animation) => animation.finished),
+      );
     });
+    await expect(page.getByText('Dein Vinted-Konto ist verknüpft.', { exact: true })).toBeVisible();
     expect(calls.filter((call) => call.name === 'browser_login')).toHaveLength(2);
   });
 }
@@ -1541,9 +1595,19 @@ test('zeigt den SMS-Code im Kontodialog und bindet ihn an das gewählte Konto @m
   await evidence(page, 'vinted-code-390');
   await dialog.getByLabel('Vinted-Bestätigungscode').fill('123456');
   await dialog.getByRole('button', { name: 'Code bestätigen' }).click();
-  await expect(dialog.getByText('Dein Vinted-Konto ist verbunden.')).toBeVisible({
-    timeout: 15_000,
+  const progress = page.getByRole('dialog', { name: 'Kontodaten aktualisieren', exact: true });
+  await expect(progress).toBeVisible({ timeout: 15_000 });
+  await expect(progress).toContainText('Die Kontodaten wurden aktualisiert.');
+  expect(calls.filter((call) => call.name === 'browser_sync_start')).toHaveLength(1);
+  await progress.getByRole('button', { name: 'Dialog schließen', exact: true }).click();
+  await expect(progress).not.toBeVisible();
+  // Nach dem verschachtelten Dialog die Einblendung vor der Kontrastprüfung beenden.
+  await page.getByRole('dialog').evaluate(async (element) => {
+    await Promise.allSettled(
+      element.getAnimations({ subtree: true }).map((animation) => animation.finished),
+    );
   });
+  await expect(dialog.getByText('Dein Vinted-Konto ist verknüpft.')).toBeVisible();
   expect(calls.filter((call) => call.name === 'browser_verify')).toEqual([
     {
       name: 'browser_verify',
@@ -1561,4 +1625,43 @@ test('zeigt den SMS-Code im Kontodialog und bindet ihn an das gewählte Konto @m
       ).violations,
   );
   expect(violations).toEqual([]);
+});
+
+test('verwaltet Cloud-Nachrichtenversand in den Kontoeinstellungen statt unter dem Chat @marketplace-preview', async ({
+  page,
+}) => {
+  await mockMarketplace(page);
+  let allowed = true;
+  const revocations: unknown[] = [];
+  await page.route('**/rest/v1/rpc/marketplace_read_message_permission', (route) =>
+    route.fulfill({
+      json: { executionMode: 'cloud', allowed, authorizationVersion: allowed ? 7 : 8 },
+    }),
+  );
+  await page.route('**/rest/v1/rpc/marketplace_revoke_cloud_messages', (route) => {
+    revocations.push(route.request().postDataJSON());
+    allowed = false;
+    return route.fulfill({ json: { executionMode: 'cloud', allowed, authorizationVersion: 8 } });
+  });
+  await page.goto('/marketplaces/vinted/messages');
+  await expect(
+    page.getByRole('button', { name: 'Cloud-Versandfreigabe widerrufen', exact: true }),
+  ).toHaveCount(0);
+  await page.getByRole('button', { name: 'Vinted-Kontoeinstellungen', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Vinted-Kontoeinstellungen', exact: true });
+  await expect(dialog).toContainText('Nachrichtenversand erlaubt');
+  await dialog
+    .getByRole('button', { name: 'Nachrichtenversand deaktivieren', exact: true })
+    .click();
+  await expect(dialog).toContainText('Nachrichtenversand nicht freigegeben');
+  expect(revocations).toEqual([
+    { p_workspace_id: workspaceId, p_connection_id: accountIds[0], p_authorization_version: 7 },
+  ]);
+  await page.addScriptTag({ content: axe.source });
+  expect(
+    await dialog.evaluate(
+      async (element) =>
+        (await (window as unknown as { axe: typeof axe }).axe.run(element)).violations,
+    ),
+  ).toEqual([]);
 });

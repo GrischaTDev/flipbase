@@ -1374,7 +1374,7 @@ describe('Kompakter gespeicherter Vinted-Gesprächsbereich', () => {
     },
   );
 
-  it('zeigt für Cloud das gemeinsame Schreibfeld und den Widerruf der Versandfreigabe', async () => {
+  it('zeigt für Cloud das Schreibfeld ohne Versandverwaltung unter dem Chat', async () => {
     const fixture = await render();
     button(fixture, 'Anfrage zum Schal').click();
     await settle(fixture);
@@ -1390,8 +1390,8 @@ describe('Kompakter gespeicherter Vinted-Gesprächsbereich', () => {
     expect(local.openInboxConversation).not.toHaveBeenCalled();
     messaging.cloudSendAllowed.set(true);
     await settle(fixture);
-    button(fixture, 'Cloud-Versandfreigabe widerrufen').click();
-    expect(messaging.revokeCloudSend).toHaveBeenCalledOnce();
+    expect(fixture.nativeElement.textContent).not.toContain('Cloud-Versandfreigabe widerrufen');
+    expect(messaging.revokeCloudSend).not.toHaveBeenCalled();
   });
   it('verschiebt bei einem Mausklick den Fokus nicht auf den Gesprächstitel', async () => {
     const fixture = await render();

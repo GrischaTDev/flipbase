@@ -1,5 +1,63 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-09 - Juna - Vinted-Zugriff nach gescheitertem Profilabruf prüfen
+
+**Auftrag:** Widersprüchliche Cloud-Anzeige bei Maike Vintage untersuchen und
+den Einstieg in die Browserprüfung korrigieren.
+
+**Befund:** Der manuelle Profilabruf scheitert mit HTTP 403; der Nutzer bestätigt,
+dass der Cloud-Browser nicht mehr angemeldet ist. Die gespeicherte Verbindung
+bleibt `connected`. Der Diagnose-Link öffnete die Verbindungsübersicht ohne
+den vorhandenen Wiederanmeldemodus. Der Grund für das Ende der Anmeldung ist
+damit noch nicht geklärt.
+
+**Änderung:** „Vinted-Zugriff prüfen“ nutzt denselben kontogebundenen Prüfmodus
+wie der bestehende Wiederanmeldeeinstieg. Der Dialog bezeichnet die gespeicherte
+Verbindung als „Verknüpft“ und erklärt einen unbestätigten Zugriff ausdrücklich.
+Die beiden Anmeldebuttons verwenden für Pfeil und externen Link die vorhandene
+Icon-Funktion des gemeinsamen Buttons. Projizierte SVGs standen im Textbereich
+und rutschten dort unter die Beschriftung.
+Nach einem erfolgreich abgeschlossenen manuellen Abruf ohne Quellenfehler
+entfernt der Server ältere Anmelde-, Ablehnungs- und Prüfungswarnungen des
+Zeitplans. Pause, Abstand und Freigabeversion bleiben erhalten. Neuere Änderungen,
+Quellenfehler und unbestätigter Browserstopp verhindern die Bereinigung. Die
+Migration bereinigt vorhandene Warnungen, wenn der neueste Auftrag diesen Erfolg
+bereits nachweist. Keine automatische Wiederaufnahme oder Änderung des Browserprofils.
+
+**Ergänzung:** Nach erfolgreicher Cloud-Anmeldung startet der bestehende
+manuelle Kontoabruf automatisch und zeigt sein Fortschrittsmodal. Beim Wechsel
+von lokal auf Cloud erfolgt dies erst nach bestätigtem Cloud-Abschluss; ein
+Kontowechsel oder ungeklärter Browserstopp verhindert einen falschen Erstabruf.
+Die Cloud-Versandsteuerung steht mit Erklärung in den Kontoeinstellungen unter
+„Nachrichtenversand“, nicht mehr unter dem Chat. Widerruf und Versionsprüfung
+bleiben beim vorhandenen Serververtrag. Keine neue Versandfreigabe oder
+Aktivierung von Verhandlungsregeln durch Anmeldung oder Erstabruf.
+Der Anmeldedialog bleibt beim Neuladen der Kontoliste erhalten, damit der
+Erstabruf auch im routenbasierten Anmeldeweg ohne SMS startet.
+
+**Prüfung:** Der fehlerhafte Einstieg und die Statusmeldung sind in gezielten
+Renderingtests reproduziert. 81 betroffene Angularprüfungen einschließlich DOM-AXE,
+Produktionsbau, ESLint, Format und Diffprüfung bestehen. Die Icon-Regression ist
+auf Desktop/Mobil durch tatsächliche Positionen reproduziert. Fünf erfolgreiche
+Browserprüfungen decken zusätzlich Anmeldekorrektur und SMS-Bestätigung ab.
+Die neue Zeitplanregression scheitert am bisherigen Servercode. 107 Datenbanktests
+bestehen nach dem Fix, 110 inklusive separatem Migrationsabgleich. 13 zusätzliche
+Angularprüfungen bestätigen die sofortige Warnungsbereinigung mit erhaltener Pause.
+Die Ergänzungen bestehen nach Integration des aktuellen Hauptstands alle 673
+Angularprüfungen im Marktplatzbereich einschließlich drei zusätzlicher
+AXE-Prüfungen für laufende, erfolgreiche und fehlgeschlagene Fortschrittsicons.
+Elf Browserfälle decken Anmeldebuttons, Korrektur von
+Zugangsdaten, SMS, Cloud-Einrichtung, lokalen Cloud-Wechsel und Versandsteuerung ab.
+Produktionsbau, ESLint, Format und Diffprüfung bestehen. Die bestehenden
+Renderingtests laden die hinzugekommenen Vorlagen; Kontrastprüfungen warten nach
+dem verschachtelten Dialog auf das Ende der Einblendanimation.
+
+**Echtkonto:** Nach der erneuten Anmeldung bestätigt der manuelle Abruf vom
+09.10.2026 um 14:55 Uhr Profil, Inserate, Bewertungen und Gesprächsliste als
+vollständig. Nachrichten und Verkäufe bleiben Teilantworten. Die frühere
+Synchronisierungspause bleibt erhalten; keine automatische Wiederaufnahme oder
+Aktivierung der neuen Verhandlungsregeln durch diese Prüfung.
+
 ## 2026-10-09 - Juna - IPRoyal-IPs bei fehlendem Bestand nachbuchen
 
 **Auftrag:** Bei berechtigter Cloud-Einrichtung vorhandene IPs verwenden und bei

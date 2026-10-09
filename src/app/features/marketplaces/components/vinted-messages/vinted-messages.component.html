@@ -605,15 +605,6 @@
                   "
                 />
               </div>
-              @if (messaging.cloudSendAllowed()) {
-                <app-button
-                  variant="secondary"
-                  [disabled]="messaging.busy()"
-                  (clicked)="messaging.revokeCloudSend()"
-                >
-                  Cloud-Versandfreigabe widerrufen
-                </app-button>
-              }
             </form>
           }
         </ng-container>

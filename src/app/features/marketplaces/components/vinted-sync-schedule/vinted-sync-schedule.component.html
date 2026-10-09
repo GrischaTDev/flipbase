@@ -78,6 +78,9 @@
           </app-button>
         }
       </div>
+      @if (account().executionMode === 'cloud') {
+        <app-vinted-cloud-message-settings [account]="account()" />
+      }
       <app-vinted-favorite-settings [account]="account()" />
       <div class="flex flex-wrap gap-2 border-t border-fb-line pt-4">
         <app-button
