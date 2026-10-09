@@ -107,19 +107,18 @@ export function parseFavoriteNotificationSettings(
 }
 export function favoriteNotificationToInbox(item: FavoriteNotification): AppNotification {
   const listing = item.listings[0];
+  const isSingle = item.listings.length === 1;
   return {
     id: `marketplace:${item.id}`,
     type: 'alert',
-    title: `Mehr Favoriten · ${item.accountName}`,
-    message:
-      item.listings.length === 1
-        ? `${listing.title}: Favoritenzahl +${listing.favorites - listing.previousFavorites}`
-        : `${item.listings.length} Inserate haben mehr Favoriten.`,
+    title: isSingle
+      ? `Artikel wurde favorisiert · ${item.accountName}`
+      : `${item.listings.length} Artikel wurden favorisiert · ${item.accountName}`,
+    message: isSingle ? listing.title : `${item.listings.length} Inserate wurden favorisiert.`,
     timestamp: item.observedAt,
     read: item.read,
-    link:
-      item.listings.length === 1
-        ? `/marketplaces/vinted/listings/${encodeURIComponent(item.connectionId)}/${encodeURIComponent(listing.entryId)}`
-        : `/marketplaces/vinted/listings?connectionId=${encodeURIComponent(item.connectionId)}`,
+    link: isSingle
+      ? `/marketplaces/vinted/listings/${encodeURIComponent(item.connectionId)}/${encodeURIComponent(listing.entryId)}`
+      : `/marketplaces/vinted/listings?connectionId=${encodeURIComponent(item.connectionId)}`,
   };
 }

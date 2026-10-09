@@ -75,7 +75,8 @@ describe('Kontogebundene Favoritenmeldungen außerhalb der Vinted-Ansicht', () =
   it('lädt gespeicherte Meldungen und den vollständigen Ungelesenzähler ohne geöffnete Vinted-Seite', async () => {
     const store = TestBed.inject(MarketplaceFavoriteNotificationStore);
     await settle();
-    expect(store.notifications()[0].message).toContain('+2');
+    expect(store.notifications()[0].title).toBe('Artikel wurde favorisiert · Mein Konto');
+    expect(store.notifications()[0].message).toBe('Schal');
     expect(store.unreadCount()).toBe(67);
   });
   it('übernimmt Broadcast und Wiederverbinden ohne doppelte Meldungen', async () => {

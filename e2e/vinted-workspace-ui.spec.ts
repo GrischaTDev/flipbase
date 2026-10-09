@@ -294,13 +294,13 @@ for (const width of [1440, 390, 320]) {
       await expect(bell).toContainText('2');
       await bell.click();
       const inbox = page.locator('#header-notification-menu');
-      await expect(inbox).toContainText('Mehr Favoriten · Testkonto B');
+      await expect(inbox).toContainText('2 Artikel wurden favorisiert · Testkonto B');
       const bounds = await inbox.boundingBox();
       expect(bounds!.x).toBeGreaterThanOrEqual(0);
       expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
       await checkSurface(page, '#header-notification-menu');
       await screenshot(page, `vinted-inbox-${width}-${theme}`);
-      await inbox.getByRole('link', { name: /Mehr Favoriten · Testkonto B/ }).click();
+      await inbox.getByRole('link', { name: /2 Artikel wurden favorisiert · Testkonto B/ }).click();
       const account = page.getByRole('combobox', { name: 'Vinted-Konto auswählen' });
       await expect(account).toContainText('Testkonto B');
       await expect(page).toHaveURL(/\/marketplaces\/vinted\/listings$/);

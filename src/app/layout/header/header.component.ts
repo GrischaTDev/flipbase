@@ -28,7 +28,10 @@ import {
   LucideSparkles as Sparkles,
   LucideWifiOff as WifiOff,
   LucideSettings as Settings,
+  LucidePackage as Package,
+  LucideTrendingUp as TrendingUp,
 } from '@lucide/angular';
+import { resolveNotificationVisual, formatNotificationTime } from './header-notification-visuals';
 import { AuthService } from '../../core/services/auth.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { WebhookService } from '../../core/services/webhook.service';
@@ -142,6 +145,10 @@ export class HeaderComponent {
   readonly TrashIcon = Trash2;
   readonly SparklesIcon = Sparkles;
   readonly WifiOffIcon = WifiOff;
+  readonly PackageIcon = Package;
+  readonly TrendingUpIcon = TrendingUp;
+  readonly resolveNotificationVisual = resolveNotificationVisual;
+  readonly formatNotificationTime = formatNotificationTime;
 
   currentLanguage = signal<string>('de');
 
