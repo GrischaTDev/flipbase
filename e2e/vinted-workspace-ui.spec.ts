@@ -459,9 +459,11 @@ for (const width of [1440, 390, 320]) {
       expect(await messageLog.evaluate((log) => log.scrollWidth <= log.clientWidth)).toBe(true);
       const positions = await messageLog.evaluate((log) => {
         const bounds = log.getBoundingClientRect();
-        const outbound = log
-          .querySelector('[data-message-direction="outbound"]')!
-          .getBoundingClientRect();
+        const outboundRow = log
+          .querySelector('[data-message-direction="outbound"]')
+          ?.closest('[data-message-row]');
+        if (!outboundRow) throw new Error('The outbound message row is missing.');
+        const outbound = outboundRow.getBoundingClientRect();
         const centered = [
           ...log.querySelectorAll(
             '[data-message-kind="system"], [data-message-direction="unknown"]',

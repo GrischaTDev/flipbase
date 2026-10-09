@@ -15,6 +15,8 @@ const conversationId = '25000000-0000-4000-8000-000000000051';
 const secondConversationId = '25000000-0000-4000-8000-000000000052';
 const scope = { workspaceId, connectionId };
 const imageUrl = 'https://images.example.test/jacket.svg';
+const partnerAvatarUrl = 'https://images.example.test/partner.svg';
+const accountAvatarUrl = 'https://images.example.test/account.svg';
 const expiresAt = '2099-10-05T12:00:00Z';
 
 async function inboxFixture(page: Page, longHistory = false, cloud = false) {
@@ -40,7 +42,7 @@ async function inboxFixture(page: Page, longHistory = false, cloud = false) {
       text: 'Ist die Jacke noch da?',
       occurredAt: now,
       unread: true,
-      imageUrl,
+      imageUrl: partnerAvatarUrl,
       itemId: '456',
       itemTitle: 'Vintage Lederjacke',
       itemImageUrl: imageUrl,
@@ -165,7 +167,10 @@ async function inboxFixture(page: Page, longHistory = false, cloud = false) {
   await page.route('https://images.example.test/**', (route) =>
     route.fulfill({
       contentType: 'image/svg+xml',
-      body: '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="140"><rect width="120" height="140" fill="#ccd7d2"/><path d="M40 20l-20 25 15 20 8-8v65h34V57l8 8 15-20-20-25-20 8z" fill="#435c51"/></svg>',
+      body:
+        route.request().url() === imageUrl
+          ? '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="140"><rect width="120" height="140" fill="#ccd7d2"/><path d="M40 20l-20 25 15 20 8-8v65h34V57l8 8 15-20-20-25-20 8z" fill="#435c51"/></svg>'
+          : `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><rect width="120" height="120" fill="#e4e4e7"/><text x="60" y="78" text-anchor="middle" font-family="sans-serif" font-size="52" fill="#3f3f46">${route.request().url() === partnerAvatarUrl ? 'A' : 'T'}</text></svg>`,
     }),
   );
   await page.route('**/rest/v1/rpc/marketplace_list_connections', (route) =>
@@ -196,7 +201,7 @@ async function inboxFixture(page: Page, longHistory = false, cloud = false) {
           username: 'synthetic-test',
           location: 'Deutschland',
           bio: null,
-          imageUrl,
+          imageUrl: accountAvatarUrl,
         },
         publications: emptyPage(),
         conversations: { items: conversations, total: 2, nextCursor: null },
@@ -464,6 +469,47 @@ for (const width of [1440, 390]) {
     const conversation = page.getByRole('region', { name: 'Gespräch', exact: true });
     await expect(conversation.getByRole('heading', { name: 'Anna', exact: true })).toBeVisible();
     await expect(conversation.getByText('Vintage Lederjacke', { exact: true })).toBeVisible();
+    const inbound = conversation.locator(
+      '[data-message-row="25000000-0000-4000-8000-000000000061"]',
+    );
+    const outbound = conversation.locator(
+      '[data-message-row="25000000-0000-4000-8000-000000000062"]',
+    );
+    await expect(
+      inbound.getByRole('img', { name: 'Profilbild von Anna', exact: true }),
+    ).toBeVisible();
+    await expect(
+      outbound.getByRole('img', { name: 'Profilbild von synthetic-test', exact: true }),
+    ).toBeVisible();
+    expect(
+      await inbound.locator('[data-message-avatar] > span').evaluate((element) => {
+        const styles = getComputedStyle(element);
+        return parseFloat(styles.borderRadius) >= element.clientWidth / 2;
+      }),
+    ).toBe(true);
+    const inboundAvatar = await inbound.locator('[data-message-avatar]').boundingBox();
+    const inboundBubble = await inbound.locator('article').boundingBox();
+    const outboundAvatar = await outbound.locator('[data-message-avatar]').boundingBox();
+    const outboundBubble = await outbound.locator('article').boundingBox();
+    expect(
+      inboundAvatar && inboundBubble && inboundAvatar.x + inboundAvatar.width <= inboundBubble.x,
+    ).toBe(true);
+    expect(
+      outboundAvatar &&
+        outboundBubble &&
+        outboundBubble.x + outboundBubble.width <= outboundAvatar.x,
+    ).toBe(true);
+    const screenshotDirectory = process.env['MARKETPLACE_SCREENSHOT_DIR'];
+    if (screenshotDirectory) {
+      await mkdir(screenshotDirectory, { recursive: true });
+      await page.screenshot({
+        path: join(screenshotDirectory, `vinted-message-avatars-${width}.png`),
+        fullPage: true,
+      });
+      await conversation.screenshot({
+        path: join(screenshotDirectory, `vinted-message-avatar-conversation-${width}.png`),
+      });
+    }
     await conversation
       .getByRole('textbox', { name: 'Deine Nachricht', exact: true })
       .fill('Danke für Dein Interesse.');

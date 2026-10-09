@@ -1117,6 +1117,99 @@ test('unbekannter Transaktionsstatus löscht keinen historischen Verkauf', () =>
   assert.deepEqual(result.rejectedSaleIds, []);
 });
 
+test('imports observed message photos with captions and image-only replies', () => {
+  const snapshot = parseVintedAccountImport(
+    { id: '123', username: 'testkonto' },
+    { user: { id: 123 } },
+    [],
+    [{ id: 51, unread: false }],
+    [
+      {
+        conversation: {
+          id: 51,
+          messages: ['Cloud-Bildtest: Flipbase-Logo.', ''].map((body, index) => ({
+            entity_type: 'message',
+            created_at_ts: '2026-10-08T21:52:51Z',
+            entity: {
+              id: 62 + index,
+              user_id: index === 0 ? 123 : 456,
+              body,
+              is_hidden: false,
+              photos: [
+                {
+                  id: 81 + index,
+                  url: `https://images.vinted.net/test-${index}.jpeg`,
+                  is_hidden: false,
+                  hidden_at: null,
+                  temp_uuid: null,
+                },
+              ],
+            },
+          })),
+        },
+      },
+    ],
+    '2026-10-08T21:53:43Z',
+  );
+  const messages = snapshot.entries.filter((entry) => entry.kind === 'message');
+  assert.deepEqual(
+    messages.map((entry) => entry.body['imageUrls']),
+    [['https://images.vinted.net/test-0.jpeg'], ['https://images.vinted.net/test-1.jpeg']],
+  );
+  assert.deepEqual(
+    messages.map((entry) => entry.body['text']),
+    ['Cloud-Bildtest: Flipbase-Logo.', null],
+  );
+  assert.deepEqual(
+    messages.map((entry) => entry.body['direction']),
+    ['outbound', 'inbound'],
+  );
+  assert.ok(messages.every((entry) => entry.parentExternalId === '51'));
+});
+
+test('message photos exclude hidden and unsafe URLs and do not duplicate attachments', () => {
+  const url = 'https://images.vinted.net/visible.jpeg';
+  const snapshot = parseVintedAccountImport(
+    { id: '123', username: 'testkonto' },
+    { user: { id: 123 } },
+    [],
+    [{ id: 51 }],
+    [
+      {
+        conversation: {
+          id: 51,
+          messages: [false, true].map((isHidden, index) => ({
+            entity_type: 'message',
+            entity: {
+              id: 62 + index,
+              user_id: 123,
+              body: 'Test',
+              is_hidden: isHidden,
+              photos: [
+                { url, is_hidden: false, hidden_at: null },
+                { url, is_hidden: false, hidden_at: null },
+                { url: 'https://images.vinted.net/hidden.jpeg', is_hidden: true },
+                {
+                  url: 'https://images.vinted.net/removed.jpeg',
+                  hidden_at: '2026-10-08T21:00:00Z',
+                },
+                { url: 'http://images.vinted.net/plain.jpeg' },
+                { url: 'https://user:password@images.vinted.net/private.jpeg' },
+                { url: 'javascript:alert(1)' },
+                null,
+              ],
+            },
+          })),
+        },
+      },
+    ],
+    '2026-10-08T21:53:43Z',
+  );
+  const messages = snapshot.entries.filter((entry) => entry.kind === 'message');
+  assert.deepEqual(messages[0]?.body['imageUrls'], [url]);
+  assert.equal(messages[1]?.body['imageUrls'], undefined);
+});
+
 test('übernimmt echte Chatnachrichten mit Entity-ID und Systemereignisse ohne ID', () => {
   const result = parseVintedAccountImport(
     { id: '123', username: 'testkonto' },

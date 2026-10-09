@@ -1,5 +1,18 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-09 - Juna - Allgemeine Größenhilfe über PR veröffentlichen
+
+**Auftrag:** Nach ausdrücklicher Freigabe den geprüften Zweig pushen, PR erstellen,
+Pflichtprüfungen abwarten, mit Merge-Commit integrieren und den eigenen Zweig
+samt Arbeitskopie aufräumen.
+
+**Integration:** Aktuellen `origin/master` übernommen. Der additive Konflikt im
+gemeinsamen Änderungsprotokoll erhält beide vollständigen Sitzungsberichte.
+Die Größenhilfe enthält allgemeine Richtbereiche und eine getrennte Suche nach
+Weite und Beinlänge. Keine Datenbankänderungen. Produktionsversion und
+ausgelieferter Commit werden nach erfolgreicher CI anhand öffentlicher
+Deployment-Metadaten geprüft.
+
 ## 2026-10-09 - Juna - Allgemeine Größenbereiche statt einzelner Modelle zeigen
 
 **Auftrag:** Nutzer möchte allgemeine Größenreihen und typische Maßbereiche
@@ -117,6 +130,112 @@ separat; ihre US-Inch-Messkonvention ist als Ableitung im Tabellenhinweis sichtb
 Aktuelle Modellmaße sind Vergleichsbelege, keine historischen Vintage-Maßgrenzen.
 
 **Stand:** Eigener geprüfter Zweig; Veröffentlichung erst nach Freigabe des PR.
+
+## 2026-10-09 - Juna - Vinted-Feed nach Chrome-Speicherausfall wiederherstellen
+
+**Auftrag:** Speicherverbrauch des zentralen Vinted-Bots untersuchen, den Bot
+nach dem bestätigten Ausfall wieder starten und gezielte Anpassungen vorbereiten.
+
+**Befund:** Der Kernel beendete am 09.10. um 00:59:14 Uhr deutscher Zeit einen
+Chrome-Prozess innerhalb der 1-GiB-Containergrenze. Abrufe und Betriebsmeldungen
+standen seit 00:59:07 Uhr still, während `/live` weiterhin erfolgreich antwortete.
+Der Host hatte freien RAM. Nach vollständigen Katalogseiten mit Sitzungsskripten
+benötigt der Browser mehr Speicher; eine passive Messung zeigte einen offenen
+Tab mit mehreren eingebetteten Dokumenten und rund 210 MiB JavaScript-Heap.
+Ein dauerhaft wachsender Speicherverlust ist damit nicht bewiesen.
+
+**Wiederherstellung:** Auf Nutzerauftrag den Container gestoppt, ausschließlich
+die verwaiste Chrome-Profilsperre nach Prüfung auf beendete Browserprozesse und
+freien Steuerungsport entfernt und mit 2 GiB RAM sowie insgesamt 3 GiB RAM/Swap
+gestartet. Profil, Cookies, Filter und Vinted-Sperrzustand bleiben erhalten.
+Alle drei Filter lieferten wieder Daten: 29 erfolgreiche Abrufe und 483 neue
+Artikel ohne Fehler nach erfolgreichem Start; rund 1,08 GiB RAM, kein neuer OOM.
+Die ursprüngliche 48-Stunden-Abnahme bleibt gescheitert.
+
+**Änderung:** Die Compose-Datei erhält dieselben Speichergrenzen dauerhaft.
+`/live` und `/health` melden fehlenden Fortschritt im Sammeln nach fünf Minuten
+als ungesund. Abgeschlossene Einzelabrufe und laufende leere oder bewusst
+pausierte Durchläufe bleiben lebendig; lange konfigurierte Taktintervalle werden
+berücksichtigt. Das ist eine Zustandsprüfung, kein automatischer Containerneustart.
+Keine Änderung an Vinted-Schutzregeln, Sitzungsskripten oder Ressourcenabrufen.
+
+**Prüfung:** Regression des weiterhin antwortenden HTTP-Servers zuerst rot,
+nach Änderung grün; zusätzlich Pausen, leere Durchläufe, lange Filterrunden und
+Taktintervalle geprüft. Alle 322 Bot-Tests, Typprüfung, Bau, Formatierung und
+gezieltes Lint bestehen. Die Deployment-Prüfung besteht mit fünf Tests;
+drei POSIX-Shell-Fixtures bleiben unter Windows ausgelassen und benötigen
+Linux-CI. Docker Compose validiert die neue Speicher-/Swap-Konfiguration.
+
+## 2026-10-09 - Juna - Cloud-Gesprächsbilder und Profilbilder veröffentlichen
+
+**Auftrag:** Nach ausdrücklicher Freigabe PR erstellen, erfolgreiche Pflichtprüfungen
+abwarten, mit Merge-Commit integrieren und den eigenen Zweig samt Arbeitskopie aufräumen.
+
+**Integration:** Den aktuellen `origin/master` übernommen; der additive Konflikt
+im gemeinsamen Changelog ist mit beiden vollständigen Sitzungsberichten aufgelöst.
+Die runden Absenderbilder nutzen den inzwischen erweiterten Shared-Bildbaustein.
+Bildimport und Darstellung bleiben die einzigen Produktänderungen dieses Zweigs.
+
+**Abnahme:** 55 gezielte Komponententests und der Produktionsbau bestehen auf dem
+aktuellen Integrationsstand; Formatierung, ESLint und Diffcheck sind ebenfalls grün. Veröffentlichung, passende Cloud-Worker-Version und
+echter Bildabruf werden nach dem Merge anhand laufender Belege kontrolliert.
+Der bereits ausgeführte Bildversand wird nicht wiederholt; die automatische
+Uploadbestätigung und Favoriten-/Angebotsabnahme bleiben getrennte offene Punkte.
+
+**CI-Nachtrag:** Die ältere Vinted-Layoutprüfung maß weiterhin den rechten Rand
+der Sprechblase. Mit dem Profilbild daneben muss sie die gesamte Nachrichtenzeile
+messen. Der bestehende Grenzwert bleibt erhalten; alle sechs gezielten
+Browserprüfungen bei 1440/390/320 px im hellen und dunklen Design bestehen.
+
+## 2026-10-09 - Juna - Profilbilder neben Vinted-Chatnachrichten ergänzen
+
+**Auftrag:** Runde Profilbilder neben den Nachrichten wie in Vinted ergänzen.
+
+**Änderung:** Eingehende Nachrichten und Angebote zeigen links das vorhandene
+Kontaktbild; eigene Nachrichten zeigen rechts das Bild des ausgewählten Vinted-Kontos.
+Systemmeldungen und unbekannte Absender erhalten kein zugeordnetes Profilbild.
+Der bestehende Shared-Bildbaustein übernimmt Kreisform, Zuschnitt und Platzhalter
+bei fehlenden oder fehlerhaften Bildern. Cloud und Extension verwenden dieselbe
+Darstellung; zusätzliche Anbieterabrufe oder Versandaktionen sind nicht erforderlich.
+
+**Prüfung:** 47 Komponententests und sechs Browserprüfungen bestehen, einschließlich
+Cloud bei 1440/390 px sowie lokal im hellen/dunklen Design, jeweils mit AXE.
+Absenderzuordnung und Platzhalter bei fehlerhaften Bildern sind geprüft.
+Produktionsbau, Typprüfung, ESLint, Formatierung und Shared-UI-Prüfung bestehen.
+Die Vorschau verwendet ausschließlich künstliche Daten; keine Vinted-Schreibaktion.
+Die Ergänzung gehört zum noch nicht veröffentlichten Bildimport-Zweig.
+
+## 2026-10-09 - Juna - Cloud-Testbild prüfen und Gesprächsbilder übernehmen
+
+**Auftrag:** Die noch offenen Bild-/Favoriten-/Dauerbetriebstests fortsetzen;
+zuerst einen ausdrücklich freigegebenen Bildversand von Maike Vintage an wiehenvintage prüfen.
+
+**Befund:** Der automatische Abruf um 23:44 Uhr ist erfolgreich, die Automatik
+bleibt aktiv und Worker/Broker sind gesund. Der veröffentlichte Bildadapter
+sendet einen einzelnen Anhang, besitzt aber noch keinen im Echtkonto belegten
+Bestätigungsvertrag und lässt das Ergebnis deshalb gegebenenfalls unklar.
+
+**Echtkonto:** Nach der vom Nutzer geänderten Dateizugriffsoption wurde das
+öffentliche Flipbase-Logo als PNG (21.625 Bytes) mit dem Text
+„Cloud-Bildtest: Flipbase-Logo.“ am 08.10. um 23:52 Uhr genau einmal versendet.
+Text und Logo sind im vorhandenen Vinted-Testgespräch beim Empfänger sichtbar.
+Der Cloudauftrag bleibt `outcome_unknown` mit `reply_unconfirmed`; er wurde
+nicht wiederholt. Keine neuen Anbieterzugänge oder Versandfreigaben angelegt.
+
+**Änderung:** Die beim normalen Laden beobachtete Vinted-Antwort enthält die
+Bilddaten der Testnachricht in `data.entity.photos` einer `legacy_reply`.
+Der Cloudparser für dieselbe Entity-Struktur ließ die Fotos bisher weg.
+Er übernimmt jetzt begrenzte, eindeutige HTTPS-Bildadressen in das vorhandene
+`imageUrls`-Feld; ausgeblendete Bilder und Adressen mit Zugangsdaten werden verworfen.
+Keine privaten Originalantworten, Anbieterkennungen oder Bildadressen eingecheckt.
+
+**Prüfung:** Der Regressionstest für Bilder mit Text und reine Bildnachrichten
+scheiterte zuerst am fehlenden Feld und besteht nach der Korrektur. Der sichtbare
+Bildempfang ist belegt; die automatische Zuordnung zum ursprünglichen Upload ist
+weiter offen, da die beobachtete Nachricht keine temporäre Uploadkennung enthält.
+Die Worker-Suite besteht mit 478 erfolgreichen und sieben bestehenden ausgelassenen
+Tests; Typprüfung, Worker-Bau, ESLint, Formatprüfung und Diffcheck sind grün.
+Die Korrektur ist noch nicht veröffentlicht. Favoriten-/Angebotstests stehen aus.
 
 ## 2026-10-09 - Juna - Referenzbibliothek über PR veröffentlichen
 

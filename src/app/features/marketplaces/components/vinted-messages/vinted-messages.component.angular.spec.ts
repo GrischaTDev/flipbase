@@ -1137,6 +1137,59 @@ describe('Kompakter gespeicherter Vinted-Gesprächsbereich', () => {
     expect(messaging.send).not.toHaveBeenCalled();
     expect(host.querySelector('button')?.textContent).not.toContain('Annehmen');
   });
+  it.each(['cloud', 'local'] as const)(
+    'zeigt in %s die Profilbilder des richtigen Absenders und neutrale Platzhalter',
+    async (executionMode) => {
+      api.listConnections.mockResolvedValue({
+        canManage: true,
+        connections: [{ ...accounts[0], executionMode }],
+      });
+      api.readSnapshot.mockImplementation(async (scope: AccountScope) => {
+        const current = snapshot(scope);
+        return {
+          ...current,
+          profile: {
+            ...scope,
+            username: 'testkonto',
+            imageUrl: 'https://images.example.test/self.jpg',
+          },
+          conversations: {
+            ...current.conversations,
+            items: current.conversations.items.map((entry) => ({
+              ...entry,
+              imageUrl: 'https://images.example.test/partner.jpg',
+            })),
+          },
+        };
+      });
+      const fixture = await render();
+      button(fixture, 'Anfrage zum Schal').click();
+      await settle(fixture);
+      const host = fixture.nativeElement as HTMLElement;
+      const inbound = host.querySelector('[data-message-row="message-1"] [data-message-avatar]');
+      const outbound = host.querySelector('[data-message-row="message-2"] [data-message-avatar]');
+      expect(inbound?.querySelector('img')?.getAttribute('src')).toBe(
+        'https://images.example.test/partner.jpg',
+      );
+      expect(outbound?.querySelector('img')?.getAttribute('src')).toBe(
+        'https://images.example.test/self.jpg',
+      );
+      expect(inbound?.querySelector('.rounded-full')).not.toBeNull();
+      expect(outbound?.querySelector('.rounded-full')).not.toBeNull();
+      expect(host.querySelector('[data-message-row="message-3"] [data-message-avatar]')).toBeNull();
+      inbound?.querySelector('img')?.dispatchEvent(new Event('error'));
+      outbound?.querySelector('img')?.dispatchEvent(new Event('error'));
+      await settle(fixture);
+      expect(inbound?.querySelector('[data-product-placeholder]')?.getAttribute('aria-label')).toBe(
+        'Profilbild von Anfrage zum Schal',
+      );
+      expect(
+        outbound?.querySelector('[data-product-placeholder]')?.getAttribute('aria-label'),
+      ).toBe('Profilbild von testkonto');
+      expect(messaging.send).not.toHaveBeenCalled();
+    },
+  );
+
   it('zeigt für Cloud das gemeinsame Schreibfeld und den Widerruf der Versandfreigabe', async () => {
     const fixture = await render();
     button(fixture, 'Anfrage zum Schal').click();
