@@ -383,6 +383,15 @@ export interface CloudFavoriteClaim {
 
 ## Planprüfung und Übergabe
 
+**Ergänzung vom 09.10.2026:** Der freigegebene Einzelbildtest wurde am 08.10.
+um 23:52 Uhr von Maike Vintage an wiehenvintage ausgeführt. Text und Flipbase-Logo
+sind auf Vinted beim Empfänger sichtbar. Der Auftrag bleibt unklar und wurde nicht
+wiederholt. Ein fehlendes `imageUrls`-Feld im Cloudimport ist anhand der beobachteten
+Foto-Entity belegt und mit Regressionstests korrigiert; die Korrektur wartet auf
+Veröffentlichung. Automatische Bildbestätigung, Neustartabnahme dieses Bildauftrags
+und Favoriten-/Angebotstest bleiben offen. Die früheren Checkboxen zur
+Veröffentlichung ersetzen keine Abnahme dieser Ergänzung.
+
 Der Plan deckt alle Bereiche des bestätigten Entwurfs ab. Ereignisnachweis,
 API-Verträge und Ausführungsautorität sind Voraussetzungen der jeweiligen
 Nachbaraufgaben; die fünf besonderen Prüfpunkte sind ihren Testaufgaben zugeordnet.
