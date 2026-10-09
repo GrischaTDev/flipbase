@@ -48,8 +48,10 @@ export const SETTINGS_ROUTES: Routes = [
       },
       {
         path: 'marketplaces',
-        redirectTo: '/marketplaces/vinted/accounts',
-        pathMatch: 'full',
+        loadComponent: () =>
+          import('./pages/marketplaces-settings/marketplaces-settings.component').then(
+            (m) => m.MarketplacesSettingsComponent,
+          ),
       },
       {
         path: 'notifications',

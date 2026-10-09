@@ -55,6 +55,7 @@ import type {
   WorkspaceNavigationIcon,
   WorkspaceNavigationItem,
 } from '../../core/config/workspace-navigation';
+import { MarketplaceSettingsService } from '../../core/services/marketplace-settings.service';
 import { PlatformOperatorService } from '../../core/services/platform-operator.service';
 import { PwaService } from '../../core/services/pwa.service';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
@@ -109,6 +110,7 @@ export class SidebarComponent {
     { initialValue: this.router.url },
   );
   private readonly operatorService = inject(PlatformOperatorService);
+  private readonly marketplaceSettingsService = inject(MarketplaceSettingsService);
 
   readonly isOpen = input<boolean>(false);
   readonly closed = output<void>();
@@ -125,7 +127,34 @@ export class SidebarComponent {
   // Der Punkt bleibt verborgen, solange die bestehende Operator-Prüfung kein Ja liefert.
   readonly isOperator = this.operatorService.operator;
   readonly dashboardItem = DASHBOARD_NAVIGATION;
-  readonly navigationGroups = WORKSPACE_NAVIGATION_GROUPS;
+  readonly navigationGroups = computed(() => {
+    const isOperator = this.isOperator();
+    const settings = this.marketplaceSettingsService.settings();
+
+    return WORKSPACE_NAVIGATION_GROUPS.map((group) => {
+      if (group.id !== 'marketplaces') {
+        return group;
+      }
+
+      const activeItems = group.items.filter((item) => {
+        if (item.path === '/marketplaces/vinted') {
+          return settings.vinted && isOperator;
+        }
+        if (item.path === '/marketplaces/ebay') {
+          return settings.ebay;
+        }
+        if (item.path === '/marketplaces/kleinanzeigen') {
+          return settings.kleinanzeigen;
+        }
+        return true;
+      });
+
+      return {
+        ...group,
+        items: activeItems,
+      };
+    }).filter((group) => group.items.length > 0);
+  });
   readonly ideasGroup = IDEAS_NAVIGATION;
   readonly masterDataItem = MASTER_DATA_NAVIGATION;
   readonly settingsItem = SETTINGS_NAVIGATION;

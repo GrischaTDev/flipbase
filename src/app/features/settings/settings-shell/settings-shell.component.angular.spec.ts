@@ -64,13 +64,10 @@ describe('SettingsShellComponent', () => {
     }).compileComponents();
   });
 
-  it('zeigt Account-Verwaltung nur Plattformbetreibern', () => {
+  it('zeigt den Bereich Marktplätze in der Navigation an', () => {
     const fixture = TestBed.createComponent(SettingsShellComponent);
     fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).not.toContain('Account-Verwaltung');
-    operator.set(true);
-    fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain('Account-Verwaltung');
+    expect(fixture.nativeElement.textContent).toContain('Marktplätze');
   });
 
   afterEach(() => TestBed.resetTestingModule());

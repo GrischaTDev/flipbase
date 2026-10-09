@@ -1,0 +1,174 @@
+<div class="space-y-4">
+  <app-card padding="lg">
+    <div class="space-y-4" aria-labelledby="marketplaces-heading">
+      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-fb-border pb-3">
+        <div class="flex items-center gap-2">
+          <svg [lucideIcon]="storeIcon" class="h-4 w-4 text-fb-primary" aria-hidden="true"></svg>
+          <h2
+            id="marketplaces-heading"
+            class="text-xs font-bold uppercase tracking-wider text-fb-text-primary"
+          >
+            Marktplätze & Verkaufskanäle
+          </h2>
+        </div>
+        <app-badge tone="info">{{ activeCount() }} von 3 aktiv</app-badge>
+      </div>
+
+      <p class="text-xs text-fb-text-muted leading-relaxed">
+        Aktiviere nur die Marktplätze, die du aktiv bespielst. Deaktivierte Kanäle werden
+        vollständig aus dem Menü und automatischen Hintergrund-Prozessen ausgeblendet.
+      </p>
+
+      <div class="grid gap-3 pt-2">
+        <!-- Vinted Hub -->
+        <div
+          class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-fb-border bg-fb-subtle p-3.5 transition"
+        >
+          <div class="flex items-start gap-3">
+            <div
+              class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#008e99] font-black text-white text-sm shadow-xs"
+            >
+              V
+            </div>
+            <div class="space-y-0.5">
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-semibold text-fb-text-primary">Vinted Hub</span>
+                <span
+                  class="rounded bg-[#008e99]/15 px-1.5 py-0.2 text-[10px] font-bold text-[#008e99]"
+                >
+                  Multi-Account & Bot
+                </span>
+              </div>
+              <p class="text-xs text-fb-text-muted">
+                Multi-Account-Verwaltung, Live-Feed, Verhandlungs-Bot, Chat-Postfach und Inserate.
+              </p>
+              @if (isVintedEnabled()) {
+                <div class="pt-1">
+                  <a
+                    routerLink="/marketplaces/vinted/accounts"
+                    class="inline-flex items-center gap-1 text-[11px] font-medium text-fb-primary hover:underline"
+                  >
+                    <span>Vinted-Konten verwalten</span>
+                    <svg [lucideIcon]="externalLinkIcon" class="size-3" aria-hidden="true"></svg>
+                  </a>
+                </div>
+              }
+            </div>
+          </div>
+          <div class="flex items-center justify-end">
+            <app-custom-checkbox
+              [checked]="isVintedEnabled()"
+              (checkedChange)="onToggle('vinted', $event)"
+              ariaLabel="Vinted Marktplatz aktivieren"
+            />
+          </div>
+        </div>
+
+        <!-- eBay -->
+        <div
+          class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-fb-border bg-fb-subtle p-3.5 transition"
+        >
+          <div class="flex items-start gap-3">
+            <div
+              class="flex size-9 shrink-0 items-center justify-center rounded-lg border border-fb-border bg-fb-surface font-black text-xs shadow-xs"
+            >
+              <span class="text-red-500">e</span><span class="text-blue-500">b</span
+              ><span class="text-amber-500">a</span><span class="text-green-500">y</span>
+            </div>
+            <div class="space-y-0.5">
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-semibold text-fb-text-primary">eBay</span>
+                <span
+                  class="rounded bg-blue-500/15 px-1.5 py-0.2 text-[10px] font-bold text-blue-600 dark:text-blue-400"
+                >
+                  Marktplatz
+                </span>
+              </div>
+              <p class="text-xs text-fb-text-muted">
+                Bestell-Synchronisation, Gebührenberechnung und Verwalten deiner eBay-Angebote.
+              </p>
+              @if (isEbayEnabled()) {
+                <div class="pt-1">
+                  <a
+                    routerLink="/marketplaces/ebay"
+                    class="inline-flex items-center gap-1 text-[11px] font-medium text-fb-primary hover:underline"
+                  >
+                    <span>eBay-Verbindung ansehen</span>
+                    <svg [lucideIcon]="externalLinkIcon" class="size-3" aria-hidden="true"></svg>
+                  </a>
+                </div>
+              }
+            </div>
+          </div>
+          <div class="flex items-center justify-end">
+            <app-custom-checkbox
+              [checked]="isEbayEnabled()"
+              (checkedChange)="onToggle('ebay', $event)"
+              ariaLabel="eBay Marktplatz aktivieren"
+            />
+          </div>
+        </div>
+
+        <!-- Kleinanzeigen -->
+        <div
+          class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-fb-border bg-fb-subtle p-3.5 transition"
+        >
+          <div class="flex items-start gap-3">
+            <div
+              class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#86b817] font-black text-white text-sm shadow-xs"
+            >
+              K
+            </div>
+            <div class="space-y-0.5">
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-semibold text-fb-text-primary">Kleinanzeigen</span>
+                <span
+                  class="rounded bg-[#86b817]/15 px-1.5 py-0.2 text-[10px] font-bold text-[#86b817]"
+                >
+                  Autofill & Entwürfe
+                </span>
+              </div>
+              <p class="text-xs text-fb-text-muted">
+                Inserats-Entwürfe verwalten, schnelles Cross-Listing aus Vinted und 1-Klick Autofill
+                per Browser-Extension.
+              </p>
+              @if (isKleinanzeigenEnabled()) {
+                <div class="pt-1">
+                  <a
+                    routerLink="/marketplaces/kleinanzeigen"
+                    class="inline-flex items-center gap-1 text-[11px] font-medium text-fb-primary hover:underline"
+                  >
+                    <span>Kleinanzeigen-Übersicht öffnen</span>
+                    <svg [lucideIcon]="externalLinkIcon" class="size-3" aria-hidden="true"></svg>
+                  </a>
+                </div>
+              }
+            </div>
+          </div>
+          <div class="flex items-center justify-end">
+            <app-custom-checkbox
+              [checked]="isKleinanzeigenEnabled()"
+              (checkedChange)="onToggle('kleinanzeigen', $event)"
+              ariaLabel="Kleinanzeigen Marktplatz aktivieren"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div
+        class="flex items-start gap-2.5 rounded-lg border border-fb-border bg-fb-surface p-3 text-xs text-fb-text-muted mt-2"
+      >
+        <svg
+          [lucideIcon]="infoIcon"
+          class="size-4 shrink-0 text-fb-text-muted mt-0.5"
+          aria-hidden="true"
+        ></svg>
+        <p class="leading-relaxed">
+          <strong>Hinweis:</strong> Das Deaktivieren eines Marktplatzes löscht keine gespeicherten
+          Daten oder Verkäufe. Es verbirgt lediglich die Navigationspunkte und stoppt
+          Hintergrund-Sync-Jobs für diesen Kanal.
+        </p>
+      </div>
+    </div>
+  </app-card>
+</div>
