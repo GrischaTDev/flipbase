@@ -1,4 +1,6 @@
 import type { AccountScope } from './marketplace-contracts.ts';
+import type { LocalListingRequest } from './marketplace-local-listing-contracts.d.ts';
+import type { MarketplaceListingResult } from './marketplace-listing-contracts.d.ts';
 import type {
   MarketplaceNegotiationOffer,
   MarketplaceNegotiationEvent,
@@ -19,6 +21,7 @@ export interface LocalExtensionSnapshot {
 }
 export type LocalExtensionRequest = AccountScope &
   (
+    | LocalListingRequest
     | { readonly action: 'favorites_state' }
     | { readonly action: 'favorite_claim'; readonly offerSupported?: boolean }
     | { readonly action: 'favorites_import'; readonly events: readonly LocalFavoriteEvent[] }
@@ -334,6 +337,73 @@ function validBody(body: Record<string, unknown>, kind: LocalExtensionEntry['kin
     ? text(body['username'], 120) && (body['username'] as string).length > 0
     : text(body['title'], 500) && (body['title'] as string).length > 0;
 }
+function isLocalListingResult(value: unknown): value is MarketplaceListingResult {
+  if (!record(value)) return false;
+  if (value['outcome'] === 'failed' || value['outcome'] === 'outcome_unknown')
+    return (
+      Object.keys(value).length === 2 &&
+      keys(value, ['outcome', 'errorCode']) &&
+      typeof value['errorCode'] === 'string' &&
+      /^[a-z_]{1,80}$/.test(value['errorCode'])
+    );
+  if (
+    value['outcome'] !== 'confirmed' ||
+    Object.keys(value).length !== 6 ||
+    !keys(value, [
+      'outcome',
+      'action',
+      'externalId',
+      'externalAccountId',
+      'providerState',
+      'verifiedAt',
+    ]) ||
+    typeof value['externalId'] !== 'string' ||
+    !accountId.test(value['externalId']) ||
+    typeof value['externalAccountId'] !== 'string' ||
+    !accountId.test(value['externalAccountId']) ||
+    typeof value['providerState'] !== 'string' ||
+    !(value['action'] === 'vinted_draft'
+      ? value['providerState'] === 'draft'
+      : value['action'] === 'publish' &&
+        ['active', 'processing'].includes(value['providerState'])) ||
+    typeof value['verifiedAt'] !== 'string' ||
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value['verifiedAt'])
+  )
+    return false;
+  const instant = Date.parse(value['verifiedAt']);
+  return Number.isFinite(instant) && new Date(instant).toISOString() === value['verifiedAt'];
+}
+/** Reiner Drahtvertrag: Freigabe, tatsächliche Anbieteridentität und Versuchzustand prüft die Datenbank. */
+function parseLocalListingRequest(value: unknown): LocalListingRequest | null {
+  if (
+    !record(value) ||
+    typeof value['workspaceId'] !== 'string' ||
+    !uuid.test(value['workspaceId']) ||
+    typeof value['connectionId'] !== 'string' ||
+    !uuid.test(value['connectionId'])
+  )
+    return null;
+  const scopeKeys = ['action', 'workspaceId', 'connectionId'];
+  if (value['action'] === 'listing_claim')
+    return keys(value, scopeKeys) ? (value as unknown as LocalListingRequest) : null;
+  if (
+    typeof value['action'] !== 'string' ||
+    !['listing_check', 'listing_begin', 'listing_finish'].includes(value['action']) ||
+    typeof value['jobId'] !== 'string' ||
+    !/^[1-9][0-9]{0,18}$/.test(value['jobId']) ||
+    BigInt(value['jobId']) > 9223372036854775807n ||
+    typeof value['claimToken'] !== 'string' ||
+    !uuid.test(value['claimToken'])
+  )
+    return null;
+  const attemptKeys = [...scopeKeys, 'jobId', 'claimToken'];
+  if (value['action'] === 'listing_finish')
+    return keys(value, [...attemptKeys, 'result']) && isLocalListingResult(value['result'])
+      ? (value as unknown as LocalListingRequest)
+      : null;
+  return keys(value, attemptKeys) ? (value as unknown as LocalListingRequest) : null;
+}
+
 export function parseLocalExtensionRequest(input: unknown): LocalExtensionRequest | null {
   if (
     !record(input) ||
@@ -343,6 +413,8 @@ export function parseLocalExtensionRequest(input: unknown): LocalExtensionReques
     !uuid.test(input['connectionId'])
   )
     return null;
+  if (typeof input['action'] === 'string' && input['action'].startsWith('listing_'))
+    return parseLocalListingRequest(input);
   if (input['action'] === 'heartbeat' && keys(input, ['action', 'workspaceId', 'connectionId']))
     return input as unknown as LocalExtensionRequest;
   if (

@@ -1,5 +1,33 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-10 – Juna – Lokalen Inseratablauf mit Edge verbinden
+
+**Arbeit:** Die lokale Erweiterungsschnittstelle hat eigene Aktionen für
+Auftragsübernahme, Freigabeprüfung, Schreibbeginn und Ergebnisrückmeldung.
+Workspace, Konto, Auftragskennung und Versuchkennung werden streng geprüft;
+große Auftragskennungen bleiben Text. Unvollständige oder widersprüchliche
+Bestätigungen und zusätzliche Befehle werden vor dem Datenbankaufruf abgelehnt.
+Eigene Inserat-RPCs prüfen weiterhin die tatsächliche Freigabe und Bindung.
+Konflikte und Fehler werden ohne interne Details zurückgegeben. Gemeinsamer
+Parser bleibt auch im Angular-Bau verwendbar; separate Typdatei hat keine
+Laufzeitabhängigkeit.
+
+**Prüfungen:** Fehlende Handler/RPC-Verbindung, falsche Konfliktantwort und ein
+als Liste gelieferter Anbieterstatus zuerst durch fehlgeschlagene Tests belegt.
+30 lokale Edgeprüfungen einschließlich echter Indexzuordnung mit abgefangenen
+Anfragen erfolgreich. 144 bestehende Erweiterungsprüfungen und 48 Angularprüfungen
+für lokale Verbindung/Übertragung erfolgreich. TypeScript und Produktionsbau
+erfolgreich. Format und Suite-Audit erfolgreich. Die geänderten Edge-Dateien
+sind in der bestehenden ESLint-Konfiguration ausgenommen; sie wurden mit der
+Deno-Typprüfung geprüft. Deno-Lint für die fünf neuen/geänderten Vertrags- und
+Handlerdateien erfolgreich; die Regeln für explizite Importpräfixe und die
+bestehende Prüfung verbotener Steuerzeichen sind dabei ausgenommen.
+Keine Schemaänderung, keine Anbieteraktion, keine installierte Erweiterung
+geändert und kein Push, PR, Merge oder Deployment.
+
+**Offen:** Originalfotoabruf für die Erweiterung, native Ausführung und deren
+bestätigtes Ergebnis sowie automatisches Abholen. Das Feature bleibt in Arbeit.
+
 ## 2026-10-10 – Juna – Planungsdialog und Terminwechsel anschließen
 
 **Arbeit:** Datum, Uhrzeit, Zeitzone, Schnelltermine und Ausfallregel in einem

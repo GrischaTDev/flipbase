@@ -212,6 +212,16 @@ Versuch und das Zielkonto gebunden. Änderungen von Konto oder Ausführer
 entziehen die alte Freigabe dauerhaft. Die 27 Ablaufprüfungen verwenden
 synthetische Ergebnisse und bestätigen keinen echten Vinted-Schreiberfolg.
 
+Die lokale Edge-Schnittstelle verbindet jetzt `listing_claim`,
+`listing_check`, `listing_begin` und `listing_finish` mit diesen eigenen RPCs.
+Sie übernimmt nur freigegebene Konto-/Versuchkennungen und strukturierte
+Ergebnisbelege, keine vom Client gelieferten Inhaltsaufträge. Das gekoppelte
+Secret wird vor Übergabe an die Datenbank gehasht. Bestätigungen verlangen
+Artikel-/Konto-ID, Aktion, passenden Anbieterstatus und eine gültige UTC-Zeit;
+die Datenbank prüft zusätzlich die tatsächliche Bindung. Die Erweiterung ruft
+diesen Ablauf noch nicht automatisch auf; Originalfotoabruf und native
+Ausführung bleiben anzuschließen.
+
 Schema 465 ergänzt den Cloud-Versuch mit Worker-Epoche und reserviertem Profil.
 Eine abgelaufene Vorbereitung wird erst nach bestätigtem physischem Stopp
 freigegeben. Worker-Ablauf, private Datenbankanbindung und exklusive

@@ -13,6 +13,28 @@ const service = createClient(
 );
 Deno.serve(
   createLocalExtensionHandler({
+    async listings(tokenHash, input) {
+      const name =
+        input.action === 'listing_claim'
+          ? 'marketplace_local_listing_claim'
+          : input.action === 'listing_check'
+            ? 'marketplace_local_listing_check'
+            : input.action === 'listing_begin'
+              ? 'marketplace_local_listing_begin'
+              : 'marketplace_local_listing_finish';
+      const { data, error } = await service.rpc(name, {
+        p_workspace_id: input.workspaceId,
+        p_connection_id: input.connectionId,
+        p_token_hash: tokenHash,
+        ...('jobId' in input ? { p_job_id: input.jobId, p_claim_token: input.claimToken } : {}),
+        ...(input.action === 'listing_finish' ? { p_result: input.result } : {}),
+      });
+      if (error)
+        throw error.code === '40001'
+          ? new LocalExtensionStoreError('conflict')
+          : mapStoreError(error.code);
+      return data;
+    },
     async negotiation(tokenHash, input) {
       const scope = {
         p_workspace_id: input.workspaceId,

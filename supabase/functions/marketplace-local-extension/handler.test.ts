@@ -1209,6 +1209,50 @@ test(
           scopeParameters,
         ],
         [
+          { action: 'listing_claim', workspaceId, connectionId },
+          'marketplace_local_listing_claim',
+          scopeParameters,
+        ],
+        [
+          {
+            action: 'listing_check',
+            workspaceId,
+            connectionId,
+            jobId: '9007199254740999',
+            claimToken,
+          },
+          'marketplace_local_listing_check',
+          { ...scopeParameters, p_job_id: '9007199254740999', p_claim_token: claimToken },
+        ],
+        [
+          {
+            action: 'listing_begin',
+            workspaceId,
+            connectionId,
+            jobId: '9007199254740999',
+            claimToken,
+          },
+          'marketplace_local_listing_begin',
+          { ...scopeParameters, p_job_id: '9007199254740999', p_claim_token: claimToken },
+        ],
+        [
+          {
+            action: 'listing_finish',
+            workspaceId,
+            connectionId,
+            jobId: '9007199254740999',
+            claimToken,
+            result: { outcome: 'outcome_unknown', errorCode: 'provider_unconfirmed' },
+          },
+          'marketplace_local_listing_finish',
+          {
+            ...scopeParameters,
+            p_job_id: '9007199254740999',
+            p_claim_token: claimToken,
+            p_result: { outcome: 'outcome_unknown', errorCode: 'provider_unconfirmed' },
+          },
+        ],
+        [
           { action: 'message_start', workspaceId, connectionId, id: conversationId, claimToken },
           'marketplace_local_message_start',
           { ...scopeParameters, p_message_id: conversationId, p_claim_token: claimToken },
@@ -1266,6 +1310,27 @@ test(
       ] as const) {
         assert.equal((await handler(request(body))).status, 200);
         assert.deepEqual(calls.at(-1), { name, parameters });
+      }
+      for (const [code, status, error] of [
+        ['40001', 409, 'conflict'],
+        ['23505', 409, 'conflict'],
+        ['42501', 401, 'unauthorized'],
+        ['22023', 400, 'invalid_request'],
+        ['XX000', 503, 'unavailable'],
+      ] as const) {
+        globalThis.fetch = async () =>
+          Response.json({ code, message: 'private provider or database details' }, { status: 400 });
+        const response = await handler(
+          request({
+            action: 'listing_check',
+            workspaceId,
+            connectionId,
+            jobId: '9007199254740999',
+            claimToken,
+          }),
+        );
+        assert.equal(response.status, status);
+        assert.deepEqual(await response.json(), { error });
       }
     } finally {
       Deno.serve = originalServe;
