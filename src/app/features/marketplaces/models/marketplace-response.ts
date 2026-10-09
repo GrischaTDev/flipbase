@@ -14,6 +14,11 @@ import type {
   MarketplaceFeedback,
 } from './marketplace-read.models';
 
+import {
+  isNegotiationOffer,
+  isNegotiationEvent,
+} from '../../../../../supabase/functions/_shared/negotiation-config';
+
 const capabilities: readonly Capability[] = [
   'profile.read',
   'listings.read',
@@ -230,6 +235,12 @@ export function parseMarketplacePage(
       eventType: text(item['eventType']),
       eventGroup: text(item['eventGroup']),
       offerStatus: text(item['offerStatus']),
+      negotiationOffer: isNegotiationOffer(item['negotiationOffer'])
+        ? item['negotiationOffer']
+        : null,
+      negotiationEvent: isNegotiationEvent(item['negotiationEvent'])
+        ? item['negotiationEvent']
+        : null,
     };
   });
   return { items, total, nextCursor };

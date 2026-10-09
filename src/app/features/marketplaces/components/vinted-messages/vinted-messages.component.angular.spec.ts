@@ -24,6 +24,10 @@ import type {
 } from '../../models/marketplace-read.models';
 import { LoadingIndicatorComponent } from '../../../../shared/components/loading-indicator/loading-indicator.component';
 import { VintedMessagesComponent } from './vinted-messages.component';
+import { VintedOfferActionsComponent } from '../vinted-offer-actions/vinted-offer-actions.component';
+import { VintedNegotiationApiService } from '../../services/vinted-negotiation-api.service';
+import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
+import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 import { VintedLocalExtensionStore } from '../../services/vinted-local-extension.store';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
 import { VintedMessagingStore } from '../../services/vinted-messaging.store';
@@ -136,6 +140,10 @@ beforeAll(async () => {
   registerLocaleData(localeDe, 'de');
   restore = await prepareMarketplaceRendering([
     {
+      type: VintedOfferActionsComponent,
+      path: 'src/app/features/marketplaces/components/vinted-offer-actions/vinted-offer-actions.component.ts',
+    },
+    {
       type: VintedMessagesComponent,
       path: 'src/app/features/marketplaces/components/vinted-messages/vinted-messages.component.ts',
     },
@@ -148,6 +156,8 @@ beforeAll(async () => {
       [CustomSelectComponent, 'custom-select'],
       [TextFieldComponent, 'text-field'],
       [LoadingIndicatorComponent, 'loading-indicator'],
+      [ModalShellComponent, 'modal-shell'],
+      [NumberInputComponent, 'number-input'],
     ].map(([type, name]) => ({
       type,
       path: `src/app/shared/components/${name}/${name}.component.ts`,
@@ -207,6 +217,7 @@ beforeEach(() => {
       MarketplaceAccountStore,
       { provide: VintedLocalExtensionStore, useValue: local },
       { provide: VintedMessagingStore, useValue: messaging },
+      { provide: VintedNegotiationApiService, useValue: { enqueue: vi.fn(), read: vi.fn() } },
       { provide: ConfirmDialogService, useValue: dialog },
       {
         provide: ActivatedRoute,
@@ -260,6 +271,88 @@ function button(fixture: ComponentFixture<VintedMessagesComponent>, text: string
   if (!result) throw new Error(`Button fehlt: ${text}`);
   return result;
 }
+describe('Freigabe aktueller Käuferangebote', () => {
+  function offerComponent() {
+    const scope = { workspaceId: accounts[0].workspaceId, connectionId: accounts[0].connectionId };
+    const account = {
+      ...accounts[0],
+      externalAccountId: '22',
+      executionMode: 'cloud' as const,
+      status: 'connected' as const,
+    };
+    vi.spyOn(store, 'selectedConnection').mockReturnValue(account);
+    vi.spyOn(store, 'canManage').mockReturnValue(true);
+    vi.spyOn(store, 'loadingMessages').mockReturnValue(false);
+    messaging.canSend.mockReturnValue(true);
+    messaging.cloudSendAllowed.set(true);
+    const component = TestBed.createComponent(VintedMessagesComponent).componentInstance;
+    const offer = {
+      offerId: '123',
+      transactionId: '456',
+      itemId: '789',
+      buyerId: '11',
+      sellerId: '22',
+      originalPriceCents: 5000,
+      offeredPriceCents: 2000,
+      currency: 'EUR',
+      status: 'pending',
+    };
+    const entry = messages(scope, [
+      {
+        id: 'offer',
+        occurredAt: '2026-09-01T12:00:00Z',
+        direction: 'inbound',
+        messageType: 'offer_request_message',
+        negotiationOffer: offer,
+      },
+    ]).items[0];
+    const conversation = signal({
+      ...entry,
+      id: 'conversation-1',
+      partnerId: '11',
+      itemId: '789',
+      transactionStatus: 'negotiating',
+    });
+    const transcript = signal<readonly MarketplaceEntry[]>([entry]);
+    Object.defineProperty(component, 'conversation', { value: conversation });
+    Object.defineProperty(component, 'transcript', { value: transcript });
+    Object.defineProperty(component, 'context', { value: () => 'context' });
+    Object.defineProperty(component, 'isRefreshingConversation', { value: () => false });
+    Object.defineProperty(component, 'conversationReadError', { value: () => null });
+    return { component, entry, transcript, conversation };
+  }
+  it('erlaubt ein zeitlich altes, aber weiterhin aktuelles belegtes Angebot', () => {
+    const { component, entry } = offerComponent();
+    expect(component.canActOnOffer(entry)).toBe(true);
+    messaging.cloudSendAllowed.set(false);
+    expect(component.canActOnOffer(entry)).toBe(false);
+  });
+  it('sperrt überholte, unvollständige und fremde Angebote', () => {
+    const { component, entry, transcript } = offerComponent();
+    expect(component.canActOnOffer({ ...entry, negotiationOffer: null })).toBe(false);
+    expect(component.canActOnOffer({ ...entry, connectionId: 'foreign' })).toBe(false);
+    expect(component.canActOnOffer({ ...entry, offerStatus: 'accepted' })).toBe(false);
+    transcript.set([
+      entry,
+      {
+        ...entry,
+        id: 'newer',
+        occurredAt: '2026-10-09T12:00:00Z',
+        direction: 'outbound',
+        messageType: 'offer_message',
+        negotiationOffer: null,
+      },
+    ]);
+    expect(component.canActOnOffer(entry)).toBe(false);
+  });
+  it('sperrt falsche Artikel und abgeschlossene Gespräche', () => {
+    const { component, entry, conversation } = offerComponent();
+    conversation.update((current) => ({ ...current, itemId: 'foreign' }));
+    expect(component.canActOnOffer(entry)).toBe(false);
+    conversation.update((current) => ({ ...current, itemId: '789', transactionStatus: 'sold' }));
+    expect(component.canActOnOffer(entry)).toBe(false);
+  });
+});
 describe('Vollständiges Laden eines Gesprächs', () => {
   function useLocalAccount() {
     api.listConnections.mockResolvedValue({

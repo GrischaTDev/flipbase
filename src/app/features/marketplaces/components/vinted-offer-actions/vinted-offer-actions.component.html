@@ -1,0 +1,56 @@
+<div class="mt-3 space-y-2" data-offer-actions>
+  @if (receipt(); as receipt) {
+    <p role="status">
+      {{ receipt.state === 'sent' ? confirmedLabels[receipt.action] : labels[receipt.state] }}
+    </p>
+    <app-button [disabled]="busy()" (clicked)="refresh()">Aktionsstatus aktualisieren</app-button>
+  } @else {
+    <app-button
+      class="block w-full"
+      variant="primary"
+      [fullWidth]="true"
+      [disabled]="busy() || !available()"
+      (clicked)="queue('accept')"
+      >Annehmen</app-button
+    >
+    <div class="grid grid-cols-[2fr_3fr] gap-2">
+      <app-button
+        [fullWidth]="true"
+        [disabled]="busy() || !available()"
+        (clicked)="queue('decline')"
+        >Ablehnen</app-button
+      ><app-button [fullWidth]="true" [disabled]="busy() || !available()" (clicked)="openCounter()"
+        >Gegenangebot</app-button
+      >
+    </div>
+  }
+  @if (error() && !dialogOpen()) {
+    <p role="alert">{{ error() }}</p>
+  }
+</div>
+@if (dialogOpen()) {
+  <app-modal-shell title="Gegenangebot" size="sm" (closed)="closeCounter()">
+    <div class="space-y-3">
+      <p class="text-[13px]">
+        Der Gegenpreis muss über dem Käuferangebot liegen und zwischen der Hälfte und dem vollen
+        Artikelpreis bleiben.
+      </p>
+      <label for="counter-price" class="block text-[13px]">Dein Gegenpreis</label
+      ><app-number-input
+        id="counter-price"
+        [formControl]="counterPrice"
+        [step]="0.01"
+        unit="€"
+        ariaDescribedby="counter-price-error"
+        [ariaInvalid]="!!error()"
+      />
+      <p id="counter-price-error" role="alert" class="text-[13px]">{{ error() }}</p>
+    </div>
+    <div modal-footer class="flex gap-2">
+      <app-button [disabled]="busy()" (clicked)="closeCounter()">Abbrechen</app-button
+      ><app-button variant="primary" [loading]="busy()" (clicked)="queue('counter')"
+        >Gegenangebot vormerken</app-button
+      >
+    </div>
+  </app-modal-shell>
+}

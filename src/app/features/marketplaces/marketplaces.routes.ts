@@ -18,6 +18,13 @@ export const MARKETPLACES_ROUTES: Routes = [
       import('./vinted-workspace.component').then((m) => m.VintedWorkspaceComponent),
     children: [
       {
+        path: 'automatic-negotiation',
+        loadComponent: () =>
+          import('./components/vinted-negotiation/vinted-negotiation.component').then(
+            (module) => module.VintedNegotiationComponent,
+          ),
+      },
+      {
         path: 'favorite-messages',
         loadComponent: () =>
           import('./components/vinted-favorite-messages/vinted-favorite-messages.component').then(

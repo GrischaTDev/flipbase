@@ -258,6 +258,7 @@
             @for (row of datedTranscript(); track row.entry.id) {
               @let entry = row.entry;
               @let kind = messageKind(entry);
+              @let hasOfferActions = canActOnOffer(entry);
               @if (row.startsDay) {
                 <div data-message-day class="py-2 text-center text-xs text-fb-text-secondary">
                   @if (entry.occurredAt) {
@@ -270,7 +271,11 @@
                 </div>
               }
               <div
-                class="flex w-fit max-w-[90%] items-end gap-2 sm:max-w-[78%]"
+                [class]="
+                  hasOfferActions
+                    ? 'flex w-full max-w-sm items-end gap-2'
+                    : 'flex w-fit max-w-[90%] items-end gap-2 sm:max-w-[78%]'
+                "
                 [attr.data-message-row]="entry.id"
                 [class.ml-auto]="kind !== 'system' && entry.direction === 'outbound'"
                 [class.mx-auto]="kind === 'system' || entry.direction === 'unknown'"
@@ -285,6 +290,7 @@
                 }
                 <article
                   class="min-w-0 max-w-full text-[13px]"
+                  [class.flex-1]="hasOfferActions"
                   [attr.data-message-kind]="kind"
                   [attr.data-message-direction]="entry.direction"
                   [class.text-center]="kind === 'system'"
@@ -316,6 +322,12 @@
                     </div>
                     @if (offerTitle(entry); as title) {
                       <span class="block break-words [overflow-wrap:anywhere]">{{ title }}</span>
+                    }
+                    @if (hasOfferActions) {
+                      <app-vinted-offer-actions
+                        [entry]="entry"
+                        [available]="canActOnOffer(entry)"
+                      />
                     }
                   }
                   @if (kind === 'system') {

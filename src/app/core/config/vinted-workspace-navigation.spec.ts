@@ -22,6 +22,7 @@ describe('Vinted-Bereichsgrenzen', () => {
       'Profil',
     ]);
     expect(VINTED_WORKSPACE_NAVIGATION_GROUPS[1].items.map((item) => item.label)).toEqual([
+      'Automatische Verhandlung',
       'Favoritennachrichten',
     ]);
     expect(VINTED_WORKSPACE_NAVIGATION.slice(1)).toEqual(

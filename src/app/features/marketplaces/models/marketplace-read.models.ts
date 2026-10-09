@@ -1,4 +1,8 @@
 import type { AccountScope, MarketplaceConnection, MarketplaceMetrics } from './marketplace.models';
+import type {
+  MarketplaceNegotiationOffer,
+  MarketplaceNegotiationEvent,
+} from '../../../../../supabase/functions/_shared/marketplace-negotiation-contracts';
 
 export type MarketplaceEntryKind = 'publication' | 'conversation' | 'message' | 'sale' | 'activity';
 export interface MarketplacePage<T> {
@@ -42,6 +46,8 @@ export interface MarketplaceEntry extends AccountScope {
   readonly eventType?: string | null;
   readonly eventGroup?: string | null;
   readonly offerStatus?: string | null;
+  readonly negotiationOffer?: MarketplaceNegotiationOffer | null;
+  readonly negotiationEvent?: MarketplaceNegotiationEvent | null;
 }
 
 export interface LocalMessageAttachment {

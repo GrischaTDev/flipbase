@@ -264,7 +264,12 @@ describe('SidebarComponent', () => {
       'Automatisierungen',
     ]);
     expect(groups[0]?.querySelectorAll('a')).toHaveLength(6);
-    expect(groups[1]?.querySelectorAll('a')).toHaveLength(1);
+    expect(groups[1]?.querySelectorAll('a')).toHaveLength(2);
+    expect(
+      groups[1]
+        ?.querySelector('a[href="/marketplaces/vinted/automatic-negotiation"]')
+        ?.textContent?.trim(),
+    ).toBe('Automatische Verhandlung');
     for (const group of groups) {
       const label = group.querySelector('[id]');
       expect(label?.tagName).toBe('DIV');
