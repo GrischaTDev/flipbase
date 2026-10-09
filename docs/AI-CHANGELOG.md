@@ -1,5 +1,29 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-09 - Juna - PayPal-Zahlungsart und 8-USD-Grenze für IPRoyal vorbereiten
+
+**Auftrag:** Neue IPs direkt über eine hinterlegte Zahlungsart statt Guthaben
+bezahlen und das Preisangebot auf höchstens 8 USD je 30-Tage-IP begrenzen.
+
+**Änderung:** Private Zahlungsarten-ID im Worker, lesende Prüfung über
+`GET /cards` und Übergabe als `card_id`. Das echte Anbieter-Konto liefert eine
+hinterlegte PayPal-Zahlungsart über Paddle. Kein Guthaben-Rückfall und keine
+automatische Verlängerung. Preisprüfung einschließlich Steuern vor Kaufabsicht
+und Zahlungsaufruf, mit gesondertem Hinweis bei Überschreitung; die Grenze ist
+weiter senkbar. Die bisher unbegrenzte produktive Nachbuchung wurde während
+der Umstellung ausgeschaltet, ohne offene Cloudarbeit. Neue PayPal-Abbuchung
+und Preisbindung durch den Anbieter bleiben echte Live-Nachweise.
+
+**Prüfung:** Neue Zahlungs-/Preisgrenzentests zunächst am bisherigen Worker
+fehlgeschlagen, danach erfolgreich. Grenze von 8 USD und Überschreitung von
+8,01 USD, fehlende oder ungeeignete Zahlungsart, kein Guthaben-Rückfall sowie
+bestehender Schutz vor doppelten Zahlungen geprüft, auch bei unbezahlter
+PayPal-Bestellung und Neustart. 36 gezielte Workerprüfungen, 45 Angularprüfungen
+und drei Modellprüfungen bestehen. Typprüfung, Format/Lint, Angular-Produktionsbau
+sowie Worker-Containerbau und Modulimport erfolgreich. Der öffentliche Worker
+bleibt erreichbar; anonyme Einrichtung wird abgewiesen. Keine echte Bestellung
+ausgelöst.
+
 ## 2026-10-09 - Juna - IPRoyal-IPs bei fehlendem Bestand nachbuchen
 
 **Auftrag:** Bei berechtigter Cloud-Einrichtung vorhandene IPs verwenden und bei

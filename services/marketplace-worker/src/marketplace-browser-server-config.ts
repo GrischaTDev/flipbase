@@ -17,6 +17,8 @@ export interface MarketplaceBrowserServerConfig {
   chromiumNetworkFile?: string;
   ipRoyalApiToken?: string;
   ipRoyalAutoPurchaseEnabled?: boolean;
+  ipRoyalPaymentMethodId?: number;
+  ipRoyalMaxPriceCents?: number;
   chromiumSeccompProfile?: string;
   chromiumWritesEnabled?: boolean;
 }
@@ -70,10 +72,25 @@ export function marketplaceBrowserServerConfig(
   const chromiumNetworkFile = environment['MARKETPLACE_CHROMIUM_NETWORK_FILE'];
   const ipRoyalApiToken = environment['IPROYAL_API_TOKEN'];
   const ipRoyalAutoPurchaseFlag = environment['IPROYAL_AUTO_PURCHASE_ENABLED'] ?? '0';
+  const paymentMethodValue = environment['IPROYAL_PAYMENT_METHOD_ID'];
+  const ipRoyalPaymentMethodId = paymentMethodValue ? Number(paymentMethodValue) : undefined;
+  const maxPriceValue = environment['IPROYAL_MAX_PRICE_USD'] ?? '8';
+  const ipRoyalMaxPriceCents = Math.round(Number(maxPriceValue) * 100);
   if (
     !['0', '1'].includes(ipRoyalAutoPurchaseFlag) ||
+    (paymentMethodValue !== undefined &&
+      paymentMethodValue !== '' &&
+      (!/^[1-9][0-9]*$/.test(paymentMethodValue) ||
+        !Number.isSafeInteger(ipRoyalPaymentMethodId))) ||
+    !/^(?:0|[1-9][0-9]*)(?:\.[0-9]{1,2})?$/.test(maxPriceValue) ||
+    !Number.isSafeInteger(ipRoyalMaxPriceCents) ||
+    ipRoyalMaxPriceCents < 1 ||
+    ipRoyalMaxPriceCents > 800 ||
     (ipRoyalAutoPurchaseFlag === '1' &&
-      (provider !== 'chromium' || !ipRoyalApiToken?.trim() || !chromiumNetworkFile))
+      (provider !== 'chromium' ||
+        !ipRoyalApiToken?.trim() ||
+        !chromiumNetworkFile ||
+        !ipRoyalPaymentMethodId))
   )
     throw new Error('Automatische IP-Nachbuchung ist unvollständig konfiguriert');
   const chromiumWritesFlag = environment['MARKETPLACE_CHROMIUM_WRITES_ENABLED'] ?? '0';
@@ -145,6 +162,8 @@ export function marketplaceBrowserServerConfig(
           chromiumNetworkFile,
           ipRoyalApiToken,
           ipRoyalAutoPurchaseEnabled: ipRoyalAutoPurchaseFlag === '1',
+          ipRoyalPaymentMethodId,
+          ipRoyalMaxPriceCents,
           chromiumSeccompProfile,
           chromiumWritesEnabled: chromiumWritesFlag === '1',
         }

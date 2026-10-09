@@ -10,7 +10,12 @@ const setup = {
 };
 describe('Cloud-Einrichtungsantwort', () => {
   it('unterscheidet Bereitstellung, abgewiesene Zahlung und Paketgrenze ohne Anbietertexte', () => {
-    for (const status of ['purchase_pending', 'purchase_failed', 'limit_reached']) {
+    for (const status of [
+      'purchase_pending',
+      'purchase_failed',
+      'limit_reached',
+      'price_limit_exceeded',
+    ]) {
       expect(parseCloudSetupResult({ status }, setup)).toEqual({ status });
       expect(() => parseCloudSetupResult({ status, token: 'private' }, setup)).toThrow();
     }
