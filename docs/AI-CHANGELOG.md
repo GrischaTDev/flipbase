@@ -35,6 +35,77 @@ gezieltes Lint bestehen. Die Deployment-Prüfung besteht mit fünf Tests;
 drei POSIX-Shell-Fixtures bleiben unter Windows ausgelassen und benötigen
 Linux-CI. Docker Compose validiert die neue Speicher-/Swap-Konfiguration.
 
+## 2026-10-09 - Juna - Cloud-Gesprächsbilder und Profilbilder veröffentlichen
+
+**Auftrag:** Nach ausdrücklicher Freigabe PR erstellen, erfolgreiche Pflichtprüfungen
+abwarten, mit Merge-Commit integrieren und den eigenen Zweig samt Arbeitskopie aufräumen.
+
+**Integration:** Den aktuellen `origin/master` übernommen; der additive Konflikt
+im gemeinsamen Changelog ist mit beiden vollständigen Sitzungsberichten aufgelöst.
+Die runden Absenderbilder nutzen den inzwischen erweiterten Shared-Bildbaustein.
+Bildimport und Darstellung bleiben die einzigen Produktänderungen dieses Zweigs.
+
+**Abnahme:** 55 gezielte Komponententests und der Produktionsbau bestehen auf dem
+aktuellen Integrationsstand; Formatierung, ESLint und Diffcheck sind ebenfalls grün. Veröffentlichung, passende Cloud-Worker-Version und
+echter Bildabruf werden nach dem Merge anhand laufender Belege kontrolliert.
+Der bereits ausgeführte Bildversand wird nicht wiederholt; die automatische
+Uploadbestätigung und Favoriten-/Angebotsabnahme bleiben getrennte offene Punkte.
+
+**CI-Nachtrag:** Die ältere Vinted-Layoutprüfung maß weiterhin den rechten Rand
+der Sprechblase. Mit dem Profilbild daneben muss sie die gesamte Nachrichtenzeile
+messen. Der bestehende Grenzwert bleibt erhalten; alle sechs gezielten
+Browserprüfungen bei 1440/390/320 px im hellen und dunklen Design bestehen.
+
+## 2026-10-09 - Juna - Profilbilder neben Vinted-Chatnachrichten ergänzen
+
+**Auftrag:** Runde Profilbilder neben den Nachrichten wie in Vinted ergänzen.
+
+**Änderung:** Eingehende Nachrichten und Angebote zeigen links das vorhandene
+Kontaktbild; eigene Nachrichten zeigen rechts das Bild des ausgewählten Vinted-Kontos.
+Systemmeldungen und unbekannte Absender erhalten kein zugeordnetes Profilbild.
+Der bestehende Shared-Bildbaustein übernimmt Kreisform, Zuschnitt und Platzhalter
+bei fehlenden oder fehlerhaften Bildern. Cloud und Extension verwenden dieselbe
+Darstellung; zusätzliche Anbieterabrufe oder Versandaktionen sind nicht erforderlich.
+
+**Prüfung:** 47 Komponententests und sechs Browserprüfungen bestehen, einschließlich
+Cloud bei 1440/390 px sowie lokal im hellen/dunklen Design, jeweils mit AXE.
+Absenderzuordnung und Platzhalter bei fehlerhaften Bildern sind geprüft.
+Produktionsbau, Typprüfung, ESLint, Formatierung und Shared-UI-Prüfung bestehen.
+Die Vorschau verwendet ausschließlich künstliche Daten; keine Vinted-Schreibaktion.
+Die Ergänzung gehört zum noch nicht veröffentlichten Bildimport-Zweig.
+
+## 2026-10-09 - Juna - Cloud-Testbild prüfen und Gesprächsbilder übernehmen
+
+**Auftrag:** Die noch offenen Bild-/Favoriten-/Dauerbetriebstests fortsetzen;
+zuerst einen ausdrücklich freigegebenen Bildversand von Maike Vintage an wiehenvintage prüfen.
+
+**Befund:** Der automatische Abruf um 23:44 Uhr ist erfolgreich, die Automatik
+bleibt aktiv und Worker/Broker sind gesund. Der veröffentlichte Bildadapter
+sendet einen einzelnen Anhang, besitzt aber noch keinen im Echtkonto belegten
+Bestätigungsvertrag und lässt das Ergebnis deshalb gegebenenfalls unklar.
+
+**Echtkonto:** Nach der vom Nutzer geänderten Dateizugriffsoption wurde das
+öffentliche Flipbase-Logo als PNG (21.625 Bytes) mit dem Text
+„Cloud-Bildtest: Flipbase-Logo.“ am 08.10. um 23:52 Uhr genau einmal versendet.
+Text und Logo sind im vorhandenen Vinted-Testgespräch beim Empfänger sichtbar.
+Der Cloudauftrag bleibt `outcome_unknown` mit `reply_unconfirmed`; er wurde
+nicht wiederholt. Keine neuen Anbieterzugänge oder Versandfreigaben angelegt.
+
+**Änderung:** Die beim normalen Laden beobachtete Vinted-Antwort enthält die
+Bilddaten der Testnachricht in `data.entity.photos` einer `legacy_reply`.
+Der Cloudparser für dieselbe Entity-Struktur ließ die Fotos bisher weg.
+Er übernimmt jetzt begrenzte, eindeutige HTTPS-Bildadressen in das vorhandene
+`imageUrls`-Feld; ausgeblendete Bilder und Adressen mit Zugangsdaten werden verworfen.
+Keine privaten Originalantworten, Anbieterkennungen oder Bildadressen eingecheckt.
+
+**Prüfung:** Der Regressionstest für Bilder mit Text und reine Bildnachrichten
+scheiterte zuerst am fehlenden Feld und besteht nach der Korrektur. Der sichtbare
+Bildempfang ist belegt; die automatische Zuordnung zum ursprünglichen Upload ist
+weiter offen, da die beobachtete Nachricht keine temporäre Uploadkennung enthält.
+Die Worker-Suite besteht mit 478 erfolgreichen und sieben bestehenden ausgelassenen
+Tests; Typprüfung, Worker-Bau, ESLint, Formatprüfung und Diffcheck sind grün.
+Die Korrektur ist noch nicht veröffentlicht. Favoriten-/Angebotstests stehen aus.
+
 ## 2026-10-09 - Juna - Referenzbibliothek über PR veröffentlichen
 
 **Auftrag:** Geprüften Feature-Branch nach ausdrücklicher Freigabe pushen,

@@ -449,6 +449,19 @@ export function parseVintedAccountImport(
       messageIds.add(id);
       const sentAt = date(message?.['created_at_ts'], observedAt);
       const senderId = identifier(entity?.['user_id']) ?? identifier(entity?.['sender_id']);
+      const photos = entity?.['photos'];
+      const imageUrls = [
+        ...new Set(
+          entity?.['is_hidden'] !== true && Array.isArray(photos)
+            ? photos.slice(0, 20).flatMap((rawPhoto) => {
+                const photo = record(rawPhoto);
+                if (!photo || photo['is_hidden'] === true || photo['hidden_at'] != null) return [];
+                const url = image(photo['url']);
+                return url ? [url] : [];
+              })
+            : [],
+        ),
+      ];
       const entry: VintedImportEntry = {
         kind: 'message',
         externalId: id,
@@ -462,6 +475,7 @@ export function parseVintedAccountImport(
           direction: senderId ? (senderId === identity.id ? 'outbound' : 'inbound') : 'unknown',
           messageType: string(message?.['entity_type']),
           priceLabel: string(entity?.['price_label']),
+          ...(imageUrls.length ? { imageUrls } : {}),
         },
       };
       entries.push(entry);

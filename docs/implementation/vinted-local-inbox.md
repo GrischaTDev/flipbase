@@ -165,6 +165,16 @@ Nach einem einzelnen Versandversuch bleibt das Ergebnis deshalb gegebenenfalls
 Rollout prüfen wir eine bewusst freigegebene Text-/Bildnachricht und den
 Lesestatus beim bewussten Öffnen eines ungelesenen Gesprächs.
 
+Am 08.10.2026 um 23:52 Uhr wurde ein ausdrücklich freigegebenes Flipbase-Testlogo
+von Maike Vintage an wiehenvintage genau einmal über Cloud versendet. Text und
+Bild sind beim Empfänger auf Vinted sichtbar. Der Cloudauftrag bleibt dennoch
+`outcome_unknown` / `reply_unconfirmed`; er wurde nicht wiederholt. Die beobachtete
+`legacy_reply` enthält Bildadressen in `data.entity.photos`, aber keine temporäre
+Uploadkennung. Der Cloudimport übernimmt diese Foto-Entity jetzt in das bestehende
+`imageUrls`-Feld, auch bei reinen Bildnachrichten. Diese Importkorrektur ist noch
+nicht veröffentlicht. Der sichtbare Empfang ersetzt weiterhin keinen automatischen
+Nachweis der Zuordnung zum konkreten Upload.
+
 Die folgenden Abschnitte dokumentieren den vorherigen lesenden Pilot 1.2.0.
 
 ## Ziel und Grenzen
