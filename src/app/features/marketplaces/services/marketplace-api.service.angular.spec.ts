@@ -26,6 +26,37 @@ beforeEach(() => {
   api = TestBed.inject(MarketplaceApiService);
 });
 describe('Marktplatz-API', () => {
+  it('bestätigt nur die geladene Gesprächsversion als gelesen', async () => {
+    rpc.mockResolvedValueOnce({ data: { ok: true, marked: true }, error: null });
+    expect(
+      await api.markConversationRead(
+        scope,
+        'conversation-a',
+        'a'.repeat(32),
+        '2026-10-09T07:00:00Z',
+      ),
+    ).toBe(true);
+    expect(rpc).toHaveBeenCalledWith('marketplace_mark_conversation_read', {
+      p_workspace_id: scope.workspaceId,
+      p_connection_id: scope.connectionId,
+      p_conversation_id: 'conversation-a',
+      p_read_version: 'a'.repeat(32),
+      p_observed_at: '2026-10-09T07:00:00Z',
+    });
+    rpc.mockResolvedValueOnce({ data: { ok: true, marked: false }, error: null });
+    expect(
+      await api.markConversationRead(
+        scope,
+        'conversation-a',
+        'a'.repeat(32),
+        '2026-10-09T07:00:00Z',
+      ),
+    ).toBe(false);
+    rpc.mockResolvedValueOnce({ data: { ok: true }, error: null });
+    await expect(
+      api.markConversationRead(scope, 'conversation-a', 'a'.repeat(32), '2026-10-09T07:00:00Z'),
+    ).rejects.toThrow();
+  });
   it('sendet ausschließlich die Workspace-Reihenfolge und verlangt eine Schreibbestätigung', async () => {
     rpc.mockResolvedValueOnce({ data: { ok: true }, error: null });
     await api.reorderConnections(scope.workspaceId, ['account-b', 'account-a']);

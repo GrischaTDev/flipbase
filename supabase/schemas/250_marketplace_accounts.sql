@@ -34,6 +34,7 @@ create table public.marketplace_account_entries (
   body jsonb not null check (jsonb_typeof(body) = 'object'),
   sort_at timestamptz not null default now(),
   observed_at timestamptz not null default now(),
+  conversation_read_version text constraint marketplace_account_entries_conversation_read_version_check check (conversation_read_version is null or (kind = 'conversation' and conversation_read_version ~ '^[a-f0-9]{32}$')),
   unique (workspace_id, connection_id, id),
   unique (workspace_id, connection_id, kind, external_id),
   foreign key (workspace_id, connection_id) references public.marketplace_connections(workspace_id, id) on delete cascade,
@@ -135,6 +136,21 @@ revoke all on function public.marketplace_set_paused(uuid, uuid, boolean) from p
 grant execute on function public.marketplace_set_paused(uuid, uuid, boolean) to authenticated;
 
 -- Der kontrollierte Lesezugriff benötigt private Versandbelege; Workspace, Konto und Gespräch werden vor jeder Abfrage geprüft.
+create or replace function public.marketplace_conversation_read_version(p_workspace_id uuid, p_connection_id uuid, p_conversation_id uuid)
+returns text language sql stable security invoker set search_path = '' as $$
+  -- Nachrichtenkennungen statt Abrufzeit verwenden: wiederholte Importe bleiben gelesen, neue Eingänge ändern die Version.
+  select md5(jsonb_build_array(c.external_account_id,e.external_id,
+    coalesce(jsonb_agg(m.external_id order by m.external_id) filter (where m.id is not null),'[]'::jsonb),
+    case when count(m.id)=0 then e.body->>'sourceUpdatedAt' else null end)::text)
+  from public.marketplace_account_entries e
+  join public.marketplace_connections c on c.workspace_id=e.workspace_id and c.id=e.connection_id and c.marketplace='vinted'
+  left join public.marketplace_account_entries m on m.workspace_id=e.workspace_id and m.connection_id=e.connection_id and m.parent_id=e.id and m.kind='message' and m.body->>'direction'='inbound'
+  where e.workspace_id=p_workspace_id and e.connection_id=p_connection_id and e.id=p_conversation_id and e.kind='conversation' and public.marketplace_can_manage(p_workspace_id)
+  group by c.external_account_id,e.id;
+$$;
+revoke all on function public.marketplace_conversation_read_version(uuid,uuid,uuid) from public,anon;
+grant execute on function public.marketplace_conversation_read_version(uuid,uuid,uuid) to authenticated;
+
 create or replace function public.marketplace_read_page(p_workspace_id uuid, p_connection_id uuid, p_kind text, p_cursor text default null, p_parent_id uuid default null)
 returns jsonb language plpgsql stable security definer set search_path = '' as $$
 declare v_cursor public.marketplace_account_entries; v_items jsonb; v_total bigint; v_next text;
@@ -148,13 +164,16 @@ begin
   end if;
   select count(*) into v_total from public.marketplace_account_entries e where e.workspace_id = p_workspace_id and e.connection_id = p_connection_id and e.kind = p_kind and e.parent_id is not distinct from p_parent_id;
   with candidates as (
-    select e.*, row_number() over (order by e.sort_at desc, e.id desc) as position
+    select e.*, row_number() over (order by e.sort_at desc, e.id desc) as position,
+      case when p_kind='conversation' then public.marketplace_conversation_read_version(e.workspace_id,e.connection_id,e.id) end as current_read_version
     from public.marketplace_account_entries e
     where e.workspace_id = p_workspace_id and e.connection_id = p_connection_id and e.kind = p_kind and e.parent_id is not distinct from p_parent_id
       and (p_cursor is null or (e.sort_at, e.id) < (v_cursor.sort_at, v_cursor.id))
     order by e.sort_at desc, e.id desc limit 51
   )
   select coalesce(jsonb_agg((e.body || jsonb_build_object('id', e.id, 'workspaceId', e.workspace_id, 'connectionId', e.connection_id)
+    || case when p_kind='conversation' then jsonb_build_object('readVersion',e.current_read_version,
+      'unread',case when e.body->>'unread'='true' and e.conversation_read_version=e.current_read_version then 'false'::jsonb else e.body->'unread' end) else '{}'::jsonb end
     || case when p_kind = 'message' then jsonb_build_object('conversationId', e.parent_id, 'externalId', e.external_id,
       -- Nur bestätigte Versandbelege zu diesem Konto und Gespräch kennzeichnen; Anbietertexte sind keine Herkunftsbelege.
       'isAutomated', coalesce(e.body->>'direction' = 'outbound', false) and exists (

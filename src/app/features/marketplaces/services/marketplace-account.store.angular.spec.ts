@@ -66,6 +66,7 @@ let api: {
   listConnections: ReturnType<typeof vi.fn>;
   readSnapshot: ReturnType<typeof vi.fn>;
   readPage: ReturnType<typeof vi.fn>;
+  markConversationRead: ReturnType<typeof vi.fn>;
   createConnection: ReturnType<typeof vi.fn>;
   renameConnection: ReturnType<typeof vi.fn>;
   reorderConnections: ReturnType<typeof vi.fn>;
@@ -96,6 +97,7 @@ beforeEach(() => {
       .mockResolvedValue({ canManage: true, connections: fixtures.connections }),
     readSnapshot: vi.fn().mockImplementation(async (scope: AccountScope) => snapshot(scope)),
     readPage: vi.fn().mockResolvedValue(emptyPage()),
+    markConversationRead: vi.fn().mockResolvedValue(true),
     createConnection: vi.fn(),
     renameConnection: vi.fn().mockResolvedValue(undefined),
     reorderConnections: vi.fn().mockResolvedValue(undefined),
@@ -116,6 +118,78 @@ beforeEach(() => {
 });
 
 describe('Cloud-Gesprächsabruf', () => {
+  it('überschreibt nach einem neuen Eingang keinen aktuelleren ungelesenen Stand', async () => {
+    await settle();
+    let version = 'a'.repeat(32);
+    api.readSnapshot.mockImplementation(async (scope: AccountScope) => {
+      const current = snapshot(scope);
+      return {
+        ...current,
+        conversations: {
+          ...current.conversations,
+          items: current.conversations.items.map((entry) => ({
+            ...entry,
+            unread: true,
+            readVersion: version,
+            detailCheckedAt: '2026-10-07T21:00:00Z',
+          })),
+        },
+      };
+    });
+    await store.refreshLocalConnection(accountA, true);
+    await store.openConversation('conversation-a');
+    const result = deferred<boolean>();
+    api.markConversationRead.mockReturnValue(result.promise);
+    const marking = store.markConversationRead(
+      'conversation-a',
+      '2026-10-07T21:00:00Z',
+      () => true,
+    );
+    version = 'b'.repeat(32);
+    await store.refreshLocalConnection(accountA, true);
+    result.resolve(true);
+    await marking;
+    expect(store.snapshot()?.conversations.items[0].unread).toBe(true);
+  });
+  it.each([true, false])(
+    'übernimmt einen gespeicherten Lesestatus nur nach Bestätigung (%s)',
+    async (marked) => {
+      await settle();
+      api.readSnapshot.mockImplementation(async (scope: AccountScope) => {
+        const current = snapshot(scope);
+        return {
+          ...current,
+          conversations: {
+            ...current.conversations,
+            items: current.conversations.items.map((entry) => ({
+              ...entry,
+              unread: true,
+              readVersion: 'a'.repeat(32),
+              detailCheckedAt: '2026-10-07T21:00:00Z',
+            })),
+          },
+        };
+      });
+      await store.refreshLocalConnection(accountA, true);
+      await store.openConversation('conversation-a');
+      api.markConversationRead.mockResolvedValue(marked);
+      await store.markConversationRead('conversation-a', '2026-10-07T21:00:00Z', () => true);
+      expect(api.markConversationRead).toHaveBeenCalledWith(
+        { workspaceId: accountA.workspaceId, connectionId: accountA.connectionId },
+        'conversation-a',
+        'a'.repeat(32),
+        '2026-10-07T21:00:00Z',
+      );
+      expect(store.snapshot()?.conversations.items[0].unread).toBe(!marked);
+    },
+  );
+  it('markiert einen veralteten oder fehlgeschlagenen Abruf nicht als gelesen', async () => {
+    await settle();
+    await store.openConversation('conversation-a');
+    await store.markConversationRead('conversation-a', '2026-10-07T21:00:00Z', () => false);
+    await store.markConversationRead('conversation-a', '2026-10-07T21:00:00Z', () => true);
+    expect(api.markConversationRead).not.toHaveBeenCalled();
+  });
   it('übernimmt bestätigte Details ohne Konto oder Gesprächsauswahl zu verlieren', async () => {
     await settle();
     await store.openConversation('conversation-a');

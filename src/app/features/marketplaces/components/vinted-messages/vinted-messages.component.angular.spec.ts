@@ -106,6 +106,7 @@ let api: {
   listConnections: ReturnType<typeof vi.fn>;
   readSnapshot: ReturnType<typeof vi.fn>;
   readPage: ReturnType<typeof vi.fn>;
+  markConversationRead: ReturnType<typeof vi.fn>;
 };
 let store: MarketplaceAccountStore;
 let browserApi: { readConversation: ReturnType<typeof vi.fn> };
@@ -164,6 +165,7 @@ beforeEach(() => {
     listConnections: vi.fn().mockResolvedValue({ canManage: true, connections: accounts }),
     readSnapshot: vi.fn().mockImplementation(async (scope: AccountScope) => snapshot(scope)),
     readPage: vi.fn().mockImplementation(async (scope: AccountScope) => messages(scope)),
+    markConversationRead: vi.fn().mockResolvedValue(true),
   };
   local = {
     error: signal<string | null>(null),
@@ -408,6 +410,41 @@ describe('Vollständiges Laden eines Gesprächs', () => {
       'Aktuelle Cloud-Nachricht',
     );
   });
+  it.each(['cloud', 'local'] as const)(
+    'markiert ein erfolgreich geöffnetes %s-Gespräch als gelesen',
+    async (executionMode) => {
+      vi.mocked(store.refreshCloudConversation).mockResolvedValue(detailResult);
+      api.listConnections.mockResolvedValue({
+        canManage: true,
+        connections: [{ ...accounts[0], executionMode }],
+      });
+      api.readSnapshot.mockImplementation(async (scope: AccountScope) => {
+        const current = snapshot(scope);
+        return {
+          ...current,
+          conversations: {
+            ...current.conversations,
+            items: current.conversations.items.map((entry) => ({
+              ...entry,
+              readVersion: 'a'.repeat(32),
+              detailCheckedAt: detailResult.observedAt,
+            })),
+          },
+        };
+      });
+      const fixture = await render();
+      button(fixture, 'Anfrage zum Schal').click();
+      await settle(fixture);
+      expect(api.markConversationRead).toHaveBeenCalledOnce();
+      expect(store.snapshot()?.conversations.items[0].unread).toBe(false);
+      expect(
+        fixture.nativeElement.querySelector('[data-conversation-sync]')?.textContent,
+      ).toContain('Synchronisiert');
+      expect(
+        fixture.nativeElement.querySelector('[aria-label="Gespräch"]')?.textContent,
+      ).not.toContain('Ungelesen');
+    },
+  );
   it('behält nach abgelehntem Cloud-Abruf den gespeicherten Verlauf mit Fehlerhinweis', async () => {
     vi.mocked(store.refreshCloudConversation).mockRestore();
     browserApi.readConversation.mockRejectedValue(new Error('Gespräch nicht erreichbar'));

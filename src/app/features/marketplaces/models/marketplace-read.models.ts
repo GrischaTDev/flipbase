@@ -24,6 +24,7 @@ export interface MarketplaceEntry extends AccountScope {
   readonly isAutomated?: boolean;
   readonly promoted: boolean | null;
   readonly unread: boolean | null;
+  readonly readVersion?: string | null;
   readonly brand: string | null;
   readonly size: string | null;
   readonly shipmentStatus: string | null;

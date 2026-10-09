@@ -47,6 +47,7 @@ async function inboxFixture(
       text: 'Ist die Jacke noch da?',
       occurredAt: now,
       unread: true,
+      readVersion: 'a'.repeat(32),
       imageUrl: partnerAvatarUrl,
       itemId: '456',
       itemTitle: 'Vintage Lederjacke',
@@ -66,6 +67,7 @@ async function inboxFixture(
       text: 'Danke für die Maße.',
       occurredAt: '2026-10-01T10:00:00Z',
       unread: false,
+      readVersion: 'a'.repeat(32),
       itemTitle: 'Blauer Schal',
       itemImageUrl: imageUrl,
       itemPrice: 12,
@@ -298,12 +300,20 @@ async function inboxFixture(
       },
     });
   });
+  await page.route('**/rest/v1/rpc/marketplace_mark_conversation_read', (route) => {
+    const request = route.request().postDataJSON();
+    const conversation = conversations.find((entry) => entry.id === request['p_conversation_id']);
+    const marked = !!conversation && conversation.readVersion === request['p_read_version'];
+    if (conversation && marked) conversation.unread = false;
+    return route.fulfill({ json: { ok: true, marked } });
+  });
   await page.route('**/rest/v1/rpc/marketplace_read_message_permission', (route) =>
     route.fulfill({
       json: { executionMode: account.executionMode, allowed: true, authorizationVersion: 1 },
     }),
   );
-  await page.route('**/marketplace-browser/conversations/read', (route) => {
+  await page.route('**/marketplace-browser/conversations/read', async (route) => {
+    if (pendingDetail) await pendingDetail;
     const body = route.request().postDataJSON();
     expect(body).toEqual({ ...scope, conversationId: body['conversationId'] });
     const conversation = conversations.find((entry) => entry.id === body['conversationId']);
@@ -402,6 +412,24 @@ async function inboxFixture(
 }
 
 for (const cloud of [true, false]) {
+  test(`Geöffnetes ${cloud ? 'Cloud' : 'Extension'}-Gespräch wird nach erfolgreichem Laden gelesen @core-smoke`, async ({
+    page,
+  }) => {
+    const fixture = await inboxFixture(page, false, cloud);
+    fixture.pauseDetails();
+    await page.goto(
+      `/marketplaces/vinted/messages?connectionId=${connectionId}&conversationId=${conversationId}`,
+    );
+    const conversation = page.getByRole('region', { name: 'Gespräch', exact: true });
+    await expect(conversation.getByText('Ungelesen', { exact: true })).toBeVisible();
+    fixture.resumeDetails();
+    await expect(conversation.getByText('Synchronisiert', { exact: true })).toBeVisible();
+    await expect(conversation.getByText('Ungelesen', { exact: true })).toHaveCount(0);
+    await page.reload();
+    await expect(conversation.getByText('Synchronisiert', { exact: true })).toBeVisible();
+    await expect(conversation.getByText('Ungelesen', { exact: true })).toHaveCount(0);
+    expect(fixture.providerRequests).toBe(0);
+  });
   for (const width of [1440, 390]) {
     test(`Bot-Icon für automatische Antwort ${cloud ? 'Cloud' : 'Extension'} ${width}px @core-smoke`, async ({
       page,
@@ -750,6 +778,8 @@ for (const { width, theme } of [
     ).toBe(true);
     await page.getByRole('option', { name: 'Ungelesen (1)', exact: true }).click();
     await expect(rows).toHaveCount(1);
+    const productImage = rows.first().locator('img');
+    if (width >= 1024) await expect(productImage).toHaveCSS('object-fit', 'cover');
     fixture.pauseDetails();
     fixture.pauseStoredMessages();
     await rows.first().getByRole('button').click();
@@ -804,8 +834,7 @@ for (const { width, theme } of [
     await expect(page.locator('[data-message-kind="system"]')).toHaveCSS('text-align', 'center');
     await expect(page.locator('[data-message-day]')).toHaveCount(1);
     await expect(page.locator('[data-message-day]')).toHaveText('Heute');
-    const productImage = rows.first().locator('img');
-    if (width >= 1024) await expect(productImage).toHaveCSS('object-fit', 'cover');
+    await expect(rows).toHaveCount(0);
     const composer = conversation.locator('form');
     const composerBounds = await composer.boundingBox();
     const cardBounds = await conversation.locator('app-card').boundingBox();

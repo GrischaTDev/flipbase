@@ -432,6 +432,8 @@ export class VintedMessagesComponent {
           } else if (result.status === 'success') {
             const refreshError = this.store.error();
             await this.store.openConversation(entry.id);
+            if (isCurrent() && !this.store.error())
+              await this.store.markConversationRead(entry.id, result.observedAt, isCurrent);
             if (isCurrent())
               this.conversationRead.set({
                 key,

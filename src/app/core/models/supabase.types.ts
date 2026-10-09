@@ -2504,6 +2504,7 @@ export type Database = {
         Row: {
           body: Json
           connection_id: string
+          conversation_read_version: string | null
           external_id: string
           favorite_notification_version: number | null
           id: string
@@ -2516,6 +2517,7 @@ export type Database = {
         Insert: {
           body: Json
           connection_id: string
+          conversation_read_version?: string | null
           external_id: string
           favorite_notification_version?: number | null
           id?: string
@@ -2528,6 +2530,7 @@ export type Database = {
         Update: {
           body?: Json
           connection_id?: string
+          conversation_read_version?: string | null
           external_id?: string
           favorite_notification_version?: number | null
           id?: string
@@ -8174,6 +8177,14 @@ export type Database = {
         Args: { p_connection_id: string; p_workspace_id: string }
         Returns: boolean
       }
+      marketplace_conversation_read_version: {
+        Args: {
+          p_connection_id: string
+          p_conversation_id: string
+          p_workspace_id: string
+        }
+        Returns: string
+      }
       marketplace_create_connection: {
         Args: { p_display_name: string; p_workspace_id: string }
         Returns: Json
@@ -8435,6 +8446,16 @@ export type Database = {
           p_connection_id: string
           p_message_id: string
           p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_mark_conversation_read: {
+        Args: {
+          p_connection_id: string
+          p_conversation_id: string
+          p_observed_at: string
+          p_read_version: string
           p_workspace_id: string
         }
         Returns: Json

@@ -206,6 +206,10 @@ export function parseMarketplacePage(
           : 'unknown',
       promoted: typeof item['promoted'] === 'boolean' ? item['promoted'] : null,
       unread: typeof item['unread'] === 'boolean' ? item['unread'] : null,
+      readVersion:
+        typeof item['readVersion'] === 'string' && /^[a-f0-9]{32}$/.test(item['readVersion'])
+          ? item['readVersion']
+          : null,
       brand: text(item['brand']),
       size: text(item['size']),
       shipmentStatus: text(item['shipmentStatus']),
