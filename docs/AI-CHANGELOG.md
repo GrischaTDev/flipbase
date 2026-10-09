@@ -13,6 +13,11 @@ Weite und Beinlänge. Keine Datenbankänderungen. Produktionsversion und
 ausgelieferter Commit werden nach erfolgreicher CI anhand öffentlicher
 Deployment-Metadaten geprüft.
 
+**CI-Nachtrag:** Die beiden neuen Browser-Kernfälle waren bereits über
+`@core-smoke` ausgewählt, fehlten aber in der ausdrücklich gepflegten
+Erwartungsliste des Workflow-Vertrags. Beide Fälle dort aufgenommen; keine
+Prüfung entfernt oder abgeschwächt.
+
 ## 2026-10-09 - Juna - Allgemeine Größenbereiche statt einzelner Modelle zeigen
 
 **Auftrag:** Nutzer möchte allgemeine Größenreihen und typische Maßbereiche
