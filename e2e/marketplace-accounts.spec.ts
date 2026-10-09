@@ -1511,7 +1511,7 @@ for (const width of [1440, 390]) {
       .fill('synthetic-user');
     await page.getByLabel('Vinted-Passwort').fill('synthetic-corrected');
     await page.getByRole('button', { name: 'Anmelden und Konto verbinden', exact: true }).click();
-    await expect(page.getByText('Dein Vinted-Konto ist verbunden.', { exact: true })).toBeVisible({
+    await expect(page.getByText('Dein Vinted-Konto ist verknüpft.', { exact: true })).toBeVisible({
       timeout: 15_000,
     });
     expect(calls.filter((call) => call.name === 'browser_login')).toHaveLength(2);
@@ -1541,7 +1541,7 @@ test('zeigt den SMS-Code im Kontodialog und bindet ihn an das gewählte Konto @m
   await evidence(page, 'vinted-code-390');
   await dialog.getByLabel('Vinted-Bestätigungscode').fill('123456');
   await dialog.getByRole('button', { name: 'Code bestätigen' }).click();
-  await expect(dialog.getByText('Dein Vinted-Konto ist verbunden.')).toBeVisible({
+  await expect(dialog.getByText('Dein Vinted-Konto ist verknüpft.')).toBeVisible({
     timeout: 15_000,
   });
   expect(calls.filter((call) => call.name === 'browser_verify')).toEqual([

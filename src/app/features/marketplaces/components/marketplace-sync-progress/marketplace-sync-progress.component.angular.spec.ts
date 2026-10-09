@@ -191,8 +191,8 @@ describe('MarketplaceSyncProgressComponent', () => {
     const element = fixture.nativeElement as HTMLElement;
     const actionButton = element.querySelector<HTMLAnchorElement>('a');
     expect(actionButton).toBeTruthy();
-    expect(actionButton?.textContent).toContain('Browser-Ansicht zur Prüfung öffnen');
-    expect(actionButton?.getAttribute('href')).toBe('/marketplaces/vinted/connect/conn-1');
+    expect(actionButton?.textContent).toContain('Vinted-Zugriff prüfen');
+    expect(actionButton?.getAttribute('href')).toBe('/marketplaces/vinted/connect/conn-1?reauth=1');
   });
 
   it('kopiert den Server-Logbefehl über den Button in die Zwischenablage', async () => {

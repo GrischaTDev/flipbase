@@ -1,5 +1,28 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-09 - Juna - Vinted-Zugriff nach gescheitertem Profilabruf prüfen
+
+**Auftrag:** Widersprüchliche Cloud-Anzeige bei Maike Vintage untersuchen und
+den Einstieg in die Browserprüfung korrigieren.
+
+**Befund:** Der manuelle Profilabruf scheitert mit HTTP 403; der Nutzer bestätigt,
+dass der Cloud-Browser nicht mehr angemeldet ist. Die gespeicherte Verbindung
+bleibt `connected`. Der Diagnose-Link öffnete die Verbindungsübersicht ohne
+den vorhandenen Wiederanmeldemodus. Der Grund für das Ende der Anmeldung ist
+damit noch nicht geklärt.
+
+**Änderung:** „Vinted-Zugriff prüfen“ nutzt denselben kontogebundenen Prüfmodus
+wie der bestehende Wiederanmeldeeinstieg. Der Dialog bezeichnet die gespeicherte
+Verbindung als „Verknüpft“ und erklärt einen unbestätigten Zugriff ausdrücklich.
+Keine automatische Wiederaufnahme, Änderung des Browserprofils oder neue
+Anbieteranfrage durch die Korrektur.
+
+**Prüfung:** Der fehlerhafte Einstieg und die Statusmeldung sind in gezielten
+Renderingtests reproduziert. 81 betroffene Angularprüfungen einschließlich DOM-AXE,
+Produktionsbau, ESLint, Format und Diffprüfung bestehen. Drei Browserprüfungen
+für Anmeldekorrektur auf Desktop/Mobil und SMS-Bestätigung bestehen. Die echte
+Wiederanmeldung und der folgende Kontoabruf bleiben gesondert zu bestätigen.
+
 ## 2026-10-09 - Juna - Benachrichtigungs-Dropdown-Layout an Mockup anpassen
 
 **Auftrag:** Das Layout des Benachrichtigungs-Dropdowns im Header exakt an das Mockup-Design anpassen: Bisher war die Kopfzeile durch äußeres Padding eingerückt und die Einträge wirkten wie kleine isolierte Karten mit Randabstand. Das Dropdown soll einen durchgehenden Kopfbereich mit Kante-zu-Kante-Trennlinie (`border-b border-fb-line`) und eine nahtlose, durchgehende Eintragsliste (`divide-y divide-fb-line`, `px-4 py-3.5`) ohne äußeres Padding und ohne abgerundete Einzelkarten erhalten.

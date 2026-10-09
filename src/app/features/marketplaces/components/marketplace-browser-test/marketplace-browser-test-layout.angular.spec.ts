@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import axe from 'axe-core';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { prepareMarketplaceRendering } from '../../../../../../e2e/support/marketplace-rendering';
@@ -16,6 +17,7 @@ import { MarketplaceBrowserTestComponent } from './marketplace-browser-test.comp
 
 const session = signal<{ id: string; frameUrl: string | null } | null>(null);
 const error = signal<string | null>(null);
+const mutationError = signal<string | null>(null);
 const cloudVerified = signal(false);
 let restoreRendering: (() => void) | undefined;
 
@@ -25,6 +27,7 @@ afterEach(() => {
 });
 
 beforeEach(async () => {
+  mutationError.set(null);
   cloudVerified.set(false);
   session.set({
     id: 'fixture-session',
@@ -59,9 +62,10 @@ beforeEach(async () => {
   };
   TestBed.configureTestingModule({
     providers: [
+      provideRouter([]),
       {
         provide: MarketplaceAccountStore,
-        useValue: { canManage: signal(true), mutationError: signal(null) },
+        useValue: { canManage: signal(true), mutationError },
       },
       {
         provide: MarketplaceBrowserTestStore,
@@ -118,6 +122,19 @@ it('keeps an error visible when a browser image has not loaded', () => {
   expect(root.querySelector('[aria-label="Vinted-Browseransicht"]')).toBeNull();
   expect(root.querySelectorAll('[role="alert"]')).toHaveLength(1);
   expect(root.querySelector('[role="alert"]')?.textContent).toContain(error());
+});
+
+it('distinguishes a stored account link from an unconfirmed provider session after a failed refresh', () => {
+  session.set(null);
+  error.set(null);
+  mutationError.set('Die Aktualisierung ist beim Lesen des Profils fehlgeschlagen.');
+  const fixture = TestBed.createComponent(MarketplaceBrowserTestComponent);
+  fixture.detectChanges();
+  const root = fixture.nativeElement as HTMLElement;
+  expect(root.textContent).toContain('Die Kontoverknüpfung ist gespeichert.');
+  expect(root.textContent).toContain('Der aktuelle Vinted-Zugriff konnte nicht bestätigt werden.');
+  expect(root.textContent).not.toContain('Dein Vinted-Konto ist verbunden.');
+  expect(root.textContent).toContain('Anmeldung erneuern');
 });
 
 it('keeps Cloud activation errors visible after a confirmed login', () => {

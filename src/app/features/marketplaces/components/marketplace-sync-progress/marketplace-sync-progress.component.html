@@ -90,8 +90,13 @@
       >
     }
   } @else if (diagnosticInfo().hasError && reconnectLink(); as link) {
-    <app-button class="mt-3" variant="secondary" [link]="link" (clicked)="closed.emit()"
-      >Browser-Ansicht zur Prüfung öffnen</app-button
+    <app-button
+      class="mt-3"
+      variant="secondary"
+      [link]="link"
+      [queryParams]="{ reauth: 1 }"
+      (clicked)="closed.emit()"
+      >Vinted-Zugriff prüfen</app-button
     >
   }
   @if (diagnosticInfo().hasError) {
