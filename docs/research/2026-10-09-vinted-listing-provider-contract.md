@@ -278,7 +278,31 @@ allein kein Nachweis der vollständigen Fotoreihenfolge. Eigene Aktionen heißen
 Diese Bedienelemente wurden ausschließlich gelesen. Sie allein beweisen keinen
 Speichererfolg einer neuen Anlage oder einen endgültigen Moderationsstatus.
 Im eigenen Profil waren `closet-seller-filters-active` und
-`closet-seller-filters-sold` sichtbar. Der Nutzer bestätigt, dass aktuell kein
+`closet-seller-filters-sold` sichtbar. Die spätere Leseprüfung hat die Auswahl
+des Aktiv-Filters konkret bestätigt: `aria-pressed="true"`, anschließend neun
+aktive statt zwölf gemischter Artikel. Die Kacheln enthalten
+`product-item-id-<id>--overlay-link`, den konkreten `/items/<id>`-Link und den
+Artikeltitel im `title`-Attribut. Ein gemeinsamer Leser verlangt den ausgewählten
+Aktiv-Filter, keinen zusätzlich ausgewählten Verkauft-Filter, das eigene Profil
+und genau eine sichtbare passende ID/Titel-Kachel. Der Worker prüft Konto und
+Freigabe davor/danach und wartet auf den Ersatz oder das Verbergen der alten
+ungefilterten Kachel sowie das Ende des Ladens. Eine kurze Ladeanzeige allein
+ist kein verlässlicher Übergangsbeleg. Dieser Leser bestätigt ausschließlich
+den aktiven Status einer bereits bekannten ID; er beweist noch keine Neuanlage
+oder deren vollständigen Inhalt.
+
+Die geöffnete Galerie `image-carousel` zeigt alle sechs Fotos in ihrer
+ursprünglichen DOM-Reihenfolge, auch nach Wechsel zum zweiten Bild.
+`image-carousel-image-shown` kennzeichnet das ausgewählte Bild, die übrigen
+heißen `image-carousel-image`. Navigation und Schließen haben eigene
+`image-carousel-button-left/right/close`-Kennungen. Die gespeicherten
+Bearbeitungsvorschauen verwenden `/tc/<bildkennung>/...`, die öffentliche
+Galerie `/t/<bildkennung>/...`. Bildkennung und Dateiname bleiben gleich;
+Signaturen im Query unterscheiden sich. Das ist ein konkreter Vergleichspunkt
+für einen späteren gespeicherten Fotobeleg, noch kein geprüfter neuer Upload.
+Der eigene Recherchetab wurde anschließend geschlossen, ohne Inhalte zu ändern.
+
+Der Nutzer bestätigt, dass aktuell kein
 gespeicherter Vinted-Entwurf vorhanden ist. Entwurfs-Ergebnisroute und Kennung
 bleiben ungeprüft. Eine fokussierte Hilfesuche lieferte keinen belastbaren
 offiziellen Beleg; fremde Erfahrungsberichte werden nicht zum Formularvertrag.

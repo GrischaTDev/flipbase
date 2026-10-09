@@ -168,6 +168,68 @@
     return Number.isFinite(time) && new Date(time).toISOString() === input.verifiedAt;
   }
 
+  // Selbstständig serialisierbarer Leser des beobachteten eigenen Aktiv-Filters.
+  // Bestätigt ausschließlich den Anbieterstatus einer bereits bekannten ID.
+  function hasActiveListingEvidence(expected) {
+    if (
+      !expected ||
+      typeof expected.accountId !== 'string' ||
+      typeof expected.externalId !== 'string' ||
+      !/^[1-9][0-9]{0,31}$/.test(expected.accountId) ||
+      !/^[1-9][0-9]{0,31}$/.test(expected.externalId) ||
+      typeof expected.title !== 'string' ||
+      !expected.title.trim() ||
+      location.origin !== 'https://www.vinted.de' ||
+      location.pathname !== '/member/' + expected.accountId ||
+      location.search ||
+      location.hash
+    )
+      return false;
+    const roots = document.querySelectorAll('#content');
+    if (roots.length !== 1) return false;
+    const content = roots[0];
+    function visible(element) {
+      if (
+        !element ||
+        element.getClientRects().length === 0 ||
+        element.closest('[hidden],[aria-hidden="true"]')
+      )
+        return false;
+      for (let node = element; node; node = node.parentElement) {
+        const style = getComputedStyle(node);
+        if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0')
+          return false;
+      }
+      return true;
+    }
+    const active = content.querySelectorAll('[data-testid="closet-seller-filters-active"]');
+    const sold = content.querySelectorAll('[data-testid="closet-seller-filters-sold"]');
+    const editing = content.querySelectorAll('a[href="/settings/profile"]');
+    if (
+      active.length !== 1 ||
+      sold.length !== 1 ||
+      editing.length !== 1 ||
+      !visible(active[0]) ||
+      !visible(sold[0]) ||
+      !visible(editing[0]) ||
+      active[0].getAttribute('aria-pressed') !== 'true' ||
+      active[0].textContent.trim() !== 'Aktiv' ||
+      ![null, 'false'].includes(sold[0].getAttribute('aria-pressed')) ||
+      Array.from(content.querySelectorAll('[role="progressbar"]')).some(visible)
+    )
+      return false;
+    const items = content.querySelectorAll(
+      '[data-testid="product-item-id-' + expected.externalId + '--overlay-link"]',
+    );
+    return (
+      items.length === 1 &&
+      items[0].tagName === 'A' &&
+      visible(items[0]) &&
+      items[0].getAttribute('href') === '/items/' + expected.externalId &&
+      items[0].getAttribute('title') === expected.title
+    );
+  }
+
   function collectFormMetadata() {
     const root = document.querySelector('#content');
     if (
@@ -581,6 +643,7 @@
   })();
   root.FlipbaseVintedListingRuntime = Object.freeze({
     parseSnapshot,
+    hasActiveListingEvidence,
     parseChoices,
     collectChoices,
     collectFormMetadata,

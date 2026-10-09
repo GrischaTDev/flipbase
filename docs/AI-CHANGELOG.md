@@ -1,5 +1,33 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-10 – Juna – Aktiven Vinted-Status anhand der eigenen Profilansicht lesen
+
+**Arbeit:** Den tatsächlich ausgewählten Aktiv-Filter und konkrete ID-/Titel-
+Kacheln am eigenen Vinted-Profil gelesen. Ein gemeinsamer DOM-Leser und ein
+Worker-Baustein prüfen sichtbare eindeutige Kontrollen, eigenes Profil, exakte
+Inseratkennung und Titel. Konto und Auftragsfreigabe werden davor/danach geprüft.
+Alte ungefilterte Kacheln und laufende Ladeanzeigen gelten nicht als Beleg.
+Der Baustein liest ausschließlich den aktiven Status einer bekannten ID;
+ein neues Inserat oder vollständig gespeicherte Inhalte bestätigt er noch nicht.
+Zusätzlich die gesamte sechs Bilder umfassende Galerie und gleiche
+Bildkennungen in gespeicherten Bearbeitungsvorschauen gelesen. Keine Inhalte
+des bestehenden Inserats oder des ursprünglichen Neuanlage-Tabs geändert.
+
+**Prüfungen:** Fehlenden Statusbaustein zuerst durch fehlgeschlagenen Test
+belegt. Ein kurzer Ladevorgang und ein leeres Profil deckten zwei Fehler auf;
+konkreter alter DOM-Verweis und Prüfung auf vorhandene Kacheln beheben sie.
+Fünf neue und alle 14 bisherigen Inserat-Browserprüfungen erfolgreich,
+einschließlich falschem Konto, Widerruf, versteckten/doppelten Kontrollen,
+falscher ID/Titel, laufendem Laden und fehlender Kachel nach dem Filtern.
+Alle 566 Workerprüfungen erfolgreich, sieben bestehende Fälle ausgelassen.
+Alle 157 Erweiterungsprüfungen, Worker-Typprüfung, Bau, Format und ESLint
+erfolgreich. Testcontainer neu gebaut. Kein Anbieter-Schreibtest, keine
+Schemaänderung, keine installierte Erweiterungsänderung oder Veröffentlichung
+des Arbeitszweigs. Der eigene Recherchetab wurde geschlossen.
+
+**Offen:** Verknüpfung mit einem neuen Speicherergebnis, vollständiger Inhalts-
+und Fotobeleg, native Vinted-Entwürfe und tatsächlicher Veröffentlichungsweg.
+
 ## 2026-10-10 – Juna – Inseratclient und gemeinsamer Auftragsinhalt
 
 **Arbeit:** Cloud und lokale Erweiterung prüfen den unveränderlichen

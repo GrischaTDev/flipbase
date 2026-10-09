@@ -12,6 +12,11 @@ import type {
 } from '../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts';
 
 interface ListingRuntime {
+  hasActiveListingEvidence(expected: {
+    accountId: string;
+    externalId: string;
+    title: string;
+  }): boolean;
   parseSnapshot(
     input: unknown,
     workspaceId: string,
@@ -37,6 +42,7 @@ const runtime = (globalThis as unknown as { FlipbaseVintedListingRuntime: Listin
   .FlipbaseVintedListingRuntime;
 export const parseVintedListingChoices = runtime.parseChoices;
 export const parseVintedListingSnapshot = runtime.parseSnapshot;
+export const hasVintedActiveListingEvidence = runtime.hasActiveListingEvidence;
 export const collectVintedListingChoices = runtime.collectChoices;
 export const collectVintedListingFormMetadata = runtime.collectFormMetadata;
 export const isVintedListingResult = runtime.isResult;
