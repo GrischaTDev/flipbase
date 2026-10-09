@@ -57,7 +57,7 @@
   </div>
 
   <!-- Arbeitsnavigation: feste fachliche Gruppen statt Arraypositionen. -->
-  <nav aria-label="Bereiche" class="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pt-2 pb-8">
+  <nav aria-label="Bereiche" class="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pt-2 pb-2">
     @if (vintedContext()) {
       <p class="px-2 pb-3 text-lg font-semibold text-fb-text-primary">Vinted</p>
       <ul class="space-y-0.5">
@@ -223,7 +223,15 @@
       (click)="closed.emit()"
       class="flex items-center gap-2 pr-2 py-1 leading-5 rounded-md text-[13px] font-medium text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover transition group border border-transparent"
     >
-      @if (!indented) {
+      @if (item.platform) {
+        <img
+          [ngSrc]="platformLogoFor(item)"
+          width="16"
+          height="16"
+          alt=""
+          class="size-4 shrink-0 object-contain rounded-xs"
+        />
+      } @else if (!indented) {
         <svg
           [lucideIcon]="iconFor(item)"
           class="w-4 h-4 text-fb-text-muted group-hover:text-fb-text-primary shrink-0"
@@ -233,7 +241,7 @@
       <span class="min-w-0 break-words">{{
         itemLabel === item.labelKey ? item.label : itemLabel
       }}</span>
-      @if (item.path === '/marketplaces/vinted') {
+      @if (item.path === '/marketplaces/vinted' || item.path === '/admin') {
         <app-badge class="ml-auto shrink-0" tone="admin">Admin</app-badge>
       }
       @if (item.demo) {

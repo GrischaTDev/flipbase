@@ -59,6 +59,7 @@ import { MarketplaceSettingsService } from '../../core/services/marketplace-sett
 import { PlatformOperatorService } from '../../core/services/platform-operator.service';
 import { PwaService } from '../../core/services/pwa.service';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
+import { marketplacePlatformAppearance } from '../../shared/models/marketplace-platform';
 import {
   isVintedWorkspaceRoute,
   isVintedNavigationActive,
@@ -189,5 +190,9 @@ export class SidebarComponent {
 
   iconFor(item: Pick<WorkspaceNavigationItem, 'icon'>): LucideIconInput {
     return NAVIGATION_ICONS[item.icon];
+  }
+
+  platformLogoFor(item: WorkspaceNavigationItem): string {
+    return item.platform ? (marketplacePlatformAppearance(item.platform).logo ?? '') : '';
   }
 }

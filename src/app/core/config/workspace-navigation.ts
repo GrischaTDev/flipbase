@@ -26,6 +26,7 @@ export interface WorkspaceNavigationItem {
   readonly labelKey: string;
   readonly label: string;
   readonly icon: WorkspaceNavigationIcon;
+  readonly platform?: 'vinted' | 'ebay' | 'kleinanzeigen';
   readonly demo?: boolean;
   readonly children?: readonly SubNavigationItem[];
 }
@@ -71,18 +72,21 @@ export const WORKSPACE_NAVIGATION_GROUPS: readonly WorkspaceNavigationGroup[] = 
         labelKey: 'PLATFORMS.VINTED',
         label: 'Vinted',
         icon: 'store',
+        platform: 'vinted',
       },
       {
         path: '/marketplaces/ebay',
         labelKey: 'PLATFORMS.EBAY',
         label: 'eBay',
         icon: 'store',
+        platform: 'ebay',
       },
       {
         path: '/marketplaces/kleinanzeigen',
         labelKey: 'PLATFORMS.KLEINANZEIGEN',
         label: 'Kleinanzeigen',
         icon: 'store',
+        platform: 'kleinanzeigen',
       },
     ],
   },

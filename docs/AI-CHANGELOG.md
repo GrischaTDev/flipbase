@@ -1,5 +1,25 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-10 - Juna - Header- und Sidebar-Designverfeinerung 1:1 umsetzen
+
+**Auftrag:** Präzise 1:1-Nachbearbeitung von Header und Sidebar entsprechend den Design- und Layoutvorgaben:
+
+1. Header-Polish: Benutzer-Avatar im satten Marken-Gelb `#fcc601` mit fettem schwarzem Initial und Dropdown-Chevron `▾`. DE/EN-Sprachumschalter mit aktiver Marken-Hervorhebung und dezentem Hover. Schnelle Umschalter für Sprache und Theme (Hell/Dunkel) zusätzlich direkt im Benutzer-Dropdown integrieren.
+2. Sidebar-Footer & Administration-Positionierung: Beseitigung des doppelten `pb-8`-Abstands (im `<nav>` entfernt, im Footer als 32px-Puffer gegen den Browser-Link-Tooltip beibehalten). Dadurch sitzt der Punkt „Administration“ nicht mehr zu weit oben. Hinzufügen der Admin-Badge (`app-badge tone="admin"`) am Administration-Eintrag.
+3. Marktplatz-Icons in der Sidebar: Die Einträge Vinted, eBay und Kleinanzeigen unter „Marktplätze“ erhalten ihre jeweiligen Original-Plattform-Logos (`vinted.svg`, `ebay.svg`, `kleinanzeigen.svg`), identisch zu ihrer Darstellung in den Verkäufen.
+
+**Umsetzung:**
+
+1. Navigationsmodell: `WorkspaceNavigationItem` um die optionale Eigenschaft `platform` erweitert und in `WORKSPACE_NAVIGATION_GROUPS` für Vinted, eBay und Kleinanzeigen hinterlegt.
+2. Sidebar: `SidebarComponent` bindet `marketplacePlatformAppearance` ein und rendert für Marktplatz-Einträge mit Plattform-Schlüssel das entsprechende SVG (`size-4 shrink-0 object-contain`). Das Padding des `<nav>` wurde auf `pb-2` angepasst, während der Puffer am Footer (`pb-8`) beibehalten wird. Am Eintrag `Administration` wurde die Admin-Badge ergänzt.
+3. Header: Benutzer-Avatar auf `bg-[#fcc601] text-black font-black` mit Dropdown-Pfeil `▾` aktualisiert. Der DE/EN-Switcher hebt die aktive Sprache mit `bg-[#fcc601] text-black font-bold` hervor. Im Benutzer-Dropdown wurden Direktsteuerungen für Sprache und Design (Hell/Dunkel) integriert.
+
+**Prüfung:**
+
+- 82 Tests der betroffenen Bereiche fehlerfrei bestanden (17x `sidebar.component.angular.spec.ts`, 15x `workspace-navigation.spec.ts`, 10x `sidebar-ideas.angular.spec.ts`, 10x `header.component.angular.spec.ts`, 14x `header-notification-visuals.spec.ts`, 13x `header-notification-actions.spec.ts`, 3x `header-role-and-timer.spec.ts`).
+- Vollständige Vitest-Suite mit 456 Testdateien und 4.735 Tests ohne Fehler bestanden.
+- Typprüfung (`npm run typecheck`), Linter (`npm run lint`) und Prettier-Formatierungsprüfung (`npm run format:check`) erfolgreich.
+
 ## 2026-10-09 - Juna - Sidebar-Navigation & Modulare Marktplatz-Steuerung refaktorisieren
 
 **Auftrag:** Die Sidebar-Navigation und Informationsarchitektur intuitiver und modularer gestalten:
