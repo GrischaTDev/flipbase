@@ -62,6 +62,76 @@ beforeEach(() => {
 });
 afterEach(() => TestBed.resetTestingModule());
 describe('Verhandlungseinstellungen', () => {
+  it('bewahrt beim manuellen Verlaufabruf dirty Felder, Struktur, Konflikt und Einstellungsrevision', async () => {
+    const component = TestBed.createComponent(VintedNegotiationComponent).componentInstance;
+    await settle();
+    component.form.controls.discountValue.setValue(15);
+    component.addStep('accepted');
+    component.messageForms.accepted.at(0).controls.templates.at(0).setValue('Mein Entwurf');
+    api.save.mockRejectedValue(new Error('Versionskonflikt'));
+    await component.save();
+    const events = [{ id: 'job', action: 'counter', state: 'sent' }];
+    api.read.mockResolvedValue({ ...settings, version: 8, active: true, events });
+    await component.reload();
+    expect(component.form.controls.discountValue.value).toBe(15);
+    expect(component.messageForms.accepted.at(0).controls.templates.at(0).value).toBe(
+      'Mein Entwurf',
+    );
+    expect(component.form.dirty).toBe(true);
+    expect(component.settings()).toMatchObject({ version: 2, active: true, events });
+    expect(component.error()).toBe('Versionskonflikt');
+    await component.save();
+    expect(api.save.mock.calls[1][0].version).toBe(2);
+  });
+  it('rechnet individuelle Minuten für allgemeine und Nachrichtenwartezeit um und zeigt gespeicherte Werte wieder an', async () => {
+    const component = TestBed.createComponent(VintedNegotiationComponent).componentInstance;
+    await settle();
+    component.chooseDelay('custom');
+    component.chooseDelayUnit(component.form.controls.delaySeconds, 'minutes');
+    component.changeDelay(component.form.controls.delaySeconds, 7);
+    component.addStep('accepted');
+    const step = component.messageForms.accepted.at(0);
+    step.controls.templates.at(0).setValue('Danke');
+    component.chooseDelayUnit(step.controls.delaySeconds, 'minutes');
+    component.changeDelay(step.controls.delaySeconds, 3);
+    await component.save();
+    expect(api.save.mock.calls[0][2]).toMatchObject({
+      delaySeconds: 420,
+      messages: { accepted: [{ delaySeconds: 180 }] },
+    });
+    expect(component.delayUnit(component.form.controls.delaySeconds)).toBe('minutes');
+    expect(component.delayAmount(component.form.controls.delaySeconds)).toBe(7);
+    const savedStep = component.messageForms.accepted.at(0);
+    expect(component.delayAmount(savedStep.controls.delaySeconds)).toBe(3);
+    component.chooseDelayUnit(savedStep.controls.delaySeconds, 'seconds');
+    expect(component.delayAmount(savedStep.controls.delaySeconds)).toBe(180);
+  });
+  it('hält die Ganzsekunden- und Siebentagegrenze in beiden individuellen Zeiteinheiten ein', async () => {
+    const component = TestBed.createComponent(VintedNegotiationComponent).componentInstance;
+    await settle();
+    const control = component.form.controls.delaySeconds;
+    component.chooseDelayUnit(control, 'minutes');
+    for (const invalid of [-1, 10081, 0.001]) {
+      component.changeDelay(control, invalid);
+      await component.save();
+    }
+    expect(api.save).not.toHaveBeenCalled();
+    component.changeDelay(control, 10080);
+    await component.save();
+    expect(api.save.mock.calls[0][2].delaySeconds).toBe(604800);
+    component.chooseDelayUnit(control, 'seconds');
+    component.changeDelay(control, 604801);
+    await component.save();
+    expect(api.save).toHaveBeenCalledOnce();
+    component.addStep('accepted');
+    const step = component.messageForms.accepted.at(0);
+    step.controls.templates.at(0).setValue('Danke');
+    component.changeDelay(control, 1);
+    component.chooseDelayUnit(step.controls.delaySeconds, 'minutes');
+    component.changeDelay(step.controls.delaySeconds, 10081);
+    await component.save();
+    expect(api.save).toHaveBeenCalledOnce();
+  });
   it('übernimmt schnelle Wartezeiten und lässt eine individuelle Eingabe zu', async () => {
     const component = TestBed.createComponent(VintedNegotiationComponent).componentInstance;
     await settle();

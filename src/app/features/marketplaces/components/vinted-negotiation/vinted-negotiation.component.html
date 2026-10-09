@@ -226,10 +226,22 @@
               >Wartezeit nach dem Ereignis</label
             ><app-number-input
               id="negotiation-delay"
-              formControlName="delaySeconds"
+              [value]="delayAmount(form.controls.delaySeconds)"
+              (valueChange)="changeDelay(form.controls.delaySeconds, $event)"
               [min]="0"
-              [max]="604800"
-              unit="Sekunden"
+              [max]="delayUnit(form.controls.delaySeconds) === 'minutes' ? 10080 : 604800"
+              [step]="delayUnit(form.controls.delaySeconds) === 'minutes' ? 1 / 60 : 1"
+              [unit]="delayUnit(form.controls.delaySeconds) === 'minutes' ? 'Minuten' : 'Sekunden'"
+            />
+            <label class="mb-1 mt-2 block text-[13px]" for="negotiation-delay-unit"
+              >Zeiteinheit</label
+            >
+            <app-custom-select
+              triggerId="negotiation-delay-unit"
+              ariaLabel="Zeiteinheit"
+              [options]="delayUnitOptions"
+              [value]="delayUnit(form.controls.delaySeconds)"
+              (valueChange)="chooseDelayUnit(form.controls.delaySeconds, $event)"
             />
           </div>
           <div>
@@ -317,10 +329,26 @@
                   }}</label
                 ><app-number-input
                   [id]="'negotiation-step-delay-' + section.event + '-' + stepIndex"
-                  [formControl]="step.controls.delaySeconds"
+                  [value]="delayAmount(step.controls.delaySeconds)"
+                  (valueChange)="changeDelay(step.controls.delaySeconds, $event)"
                   [min]="0"
-                  [max]="604800"
-                  unit="Sekunden"
+                  [max]="delayUnit(step.controls.delaySeconds) === 'minutes' ? 10080 : 604800"
+                  [step]="delayUnit(step.controls.delaySeconds) === 'minutes' ? 1 / 60 : 1"
+                  [unit]="
+                    delayUnit(step.controls.delaySeconds) === 'minutes' ? 'Minuten' : 'Sekunden'
+                  "
+                />
+                <label
+                  class="mb-1 block text-[13px]"
+                  [for]="'negotiation-step-unit-' + section.event + '-' + stepIndex"
+                  >Zeiteinheit für diese Nachricht</label
+                >
+                <app-custom-select
+                  [triggerId]="'negotiation-step-unit-' + section.event + '-' + stepIndex"
+                  [ariaLabel]="section.title + ': Zeiteinheit für Nachricht ' + (stepIndex + 1)"
+                  [options]="delayUnitOptions"
+                  [value]="delayUnit(step.controls.delaySeconds)"
+                  (valueChange)="chooseDelayUnit(step.controls.delaySeconds, $event)"
                 />
               </section>
             } @empty {

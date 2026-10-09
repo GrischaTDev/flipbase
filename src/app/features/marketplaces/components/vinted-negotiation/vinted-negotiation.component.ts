@@ -104,6 +104,32 @@ export class VintedNegotiationComponent {
     { value: 'custom', label: 'Individuelle Wartezeit' },
   ];
   private readonly customDelay = signal(false);
+  readonly delayUnitOptions = [
+    { value: 'seconds', label: 'Sekunden' },
+    { value: 'minutes', label: 'Minuten' },
+  ];
+  private readonly delayUnits = signal(new Map<FormControl<number | null>, string>());
+  delayUnit(control: FormControl<number | null>) {
+    return this.delayUnits().get(control) ?? 'seconds';
+  }
+  delayAmount(control: FormControl<number | null>) {
+    const seconds = control.value;
+    return seconds === null ? null : seconds / (this.delayUnit(control) === 'minutes' ? 60 : 1);
+  }
+  chooseDelayUnit(control: FormControl<number | null>, unit: string | null) {
+    if (unit !== 'seconds' && unit !== 'minutes') return;
+    this.delayUnits.update((units) => new Map(units).set(control, unit));
+  }
+  changeDelay(control: FormControl<number | null>, amount: number | null) {
+    const seconds =
+      amount === null ? null : amount * (this.delayUnit(control) === 'minutes' ? 60 : 1);
+    control.setValue(
+      seconds !== null && Math.abs(seconds - Math.round(seconds)) < 1e-7
+        ? Math.round(seconds)
+        : seconds,
+    );
+    this.form.markAsDirty();
+  }
   readonly messageSections: readonly {
     event: NegotiationMessageEvent;
     title: string;
@@ -326,11 +352,11 @@ export class VintedNegotiationComponent {
       if (!this.current(context, revision)) return;
       const previous = this.settings();
       this.settings.set(
-        background && this.form.dirty && previous
+        this.form.dirty && previous
           ? { ...previous, active: settings.active, events: settings.events }
           : settings,
       );
-      if (!background || !this.form.dirty) this.apply(settings.config, settings.enabled);
+      if (!this.form.dirty) this.apply(settings.config, settings.enabled);
     } catch (error) {
       if (this.current(context, revision))
         this.error.set(
@@ -396,6 +422,19 @@ export class VintedNegotiationComponent {
       steps.clear();
       config.messages[section.event].forEach((step) => steps.push(stepForm(step)));
     }
+    this.delayUnits.set(
+      new Map(
+        [
+          this.form.controls.delaySeconds,
+          ...this.messageSections.flatMap((section) =>
+            this.messageForms[section.event].controls.map((step) => step.controls.delaySeconds),
+          ),
+        ].map((control) => [
+          control,
+          control.value && control.value % 60 === 0 ? 'minutes' : 'seconds',
+        ]),
+      ),
+    );
     this.form.markAsPristine();
   }
   formatPrice(cents: number) {

@@ -161,6 +161,9 @@ async function fixture(page: Page) {
     saves,
     enqueues,
     writes: () => writes,
+    changeSettings: () => {
+      settings = { ...settings, version: 8, config: { ...settings.config, discountValue: 5 } };
+    },
     unknown: () => {
       unknown = true;
     },
@@ -218,7 +221,9 @@ for (const width of [1440, 390]) {
       await expect(view.getByLabel('Wartezeit nach dem Ereignis')).toHaveValue('60');
       await view.getByRole('combobox', { name: 'Zeitpunkt auswählen' }).click();
       await page.getByRole('option', { name: 'Individuelle Wartezeit', exact: true }).click();
-      await view.getByLabel('Wartezeit nach dem Ereignis').fill('90');
+      await view.getByRole('combobox', { name: 'Zeiteinheit', exact: true }).click();
+      await page.getByRole('option', { name: 'Minuten', exact: true }).click();
+      await view.getByLabel('Wartezeit nach dem Ereignis').fill('7');
       await expect(view).toContainText('45,00');
       await expect(view).toContainText('42,00');
       await expect(view).toContainText('40,00');
@@ -235,20 +240,37 @@ for (const width of [1440, 390]) {
         .getByRole('button', { name: 'Folgenachricht hinzufügen', exact: true })
         .click();
       await purchase.getByRole('textbox').nth(2).fill('Dein Paket folgt.');
-      await purchase.getByLabel('Wartezeit für diese Folgenachricht').fill('60');
+      await purchase
+        .getByRole('combobox', {
+          name: 'Bestätigter Kauf: Zeiteinheit für Nachricht 2',
+          exact: true,
+        })
+        .click();
+      await page.getByRole('option', { name: 'Minuten', exact: true }).click();
+      await purchase.getByLabel('Wartezeit für diese Folgenachricht').fill('3');
+      mocked.changeSettings();
+      await view.getByRole('button', { name: 'Verlauf aktualisieren' }).click();
+      await expect(view.getByRole('button', { name: 'Einstellungen speichern' })).toBeEnabled();
+      await expect(view.getByLabel('Maximaler Nachlass')).toHaveValue('10');
+      await expect(purchase.getByRole('textbox').nth(2)).toHaveValue('Dein Paket folgt.');
+      await expect(view.getByLabel('Wartezeit nach dem Ereignis')).toHaveValue('7');
       await view.getByRole('button', { name: 'Einstellungen speichern' }).click();
       await expect(view.getByRole('status')).toContainText('gespeichert');
       expect(mocked.saves).toHaveLength(1);
       expect(mocked.saves[0].p_enabled).toBe(false);
+      expect(mocked.saves[0].p_expected_version).toBe(0);
       expect(mocked.saves[0].p_config).toMatchObject({
         purchaseEnabled: false,
+        delaySeconds: 420,
         messages: {
           purchased: [
             { templates: ['Danke für Deinen Kauf.', 'Vielen Dank!'], delaySeconds: 0 },
-            { templates: ['Dein Paket folgt.'], delaySeconds: 60 },
+            { templates: ['Dein Paket folgt.'], delaySeconds: 180 },
           ],
         },
       });
+      await expect(view.getByLabel('Wartezeit nach dem Ereignis')).toHaveValue('7');
+      await expect(purchase.getByLabel('Wartezeit für diese Folgenachricht')).toHaveValue('3');
       await expect(
         purchase.getByRole('textbox', {
           name: 'Bestätigter Kauf: Alternative 2 für Nachricht 1',
@@ -302,11 +324,26 @@ for (const width of [1440, 390]) {
       await actions.getByRole('button', { name: 'Gegenangebot', exact: true }).click();
       const dialog = page.getByRole('dialog');
       await dialog.getByLabel('Dein Gegenpreis').fill('20');
+      await expect(dialog.locator('[data-counter-preview]')).toContainText('gültigen Gegenpreis');
       await dialog.getByRole('button', { name: 'Gegenangebot vormerken' }).click();
       await expect(dialog.getByRole('alert')).toContainText('centgenauen');
       expect(mocked.enqueues).toHaveLength(0);
       await dialog.getByLabel('Dein Gegenpreis').fill('35');
+      await expect(dialog).toContainText('Artikelpreis: 50,00');
+      await expect(dialog).toContainText('Käuferangebot: 20,00');
+      await expect(dialog).toContainText('mindestens 25,00');
+      await expect(dialog.locator('[data-counter-preview]')).toContainText(
+        'Dein Gegenangebot: 35,00',
+      );
+      await expect(dialog.locator('[data-counter-preview]')).toContainText(
+        'Nachlass zum Artikelpreis: 15,00',
+      );
+      expect(mocked.enqueues).toHaveLength(0);
       await accessibility(page, '[role="dialog"]');
+      await page.screenshot({
+        path: `.superpowers/sdd/2026-10-09-vinted-negotiation/task-3-counter-preview-${width}-${theme}.png`,
+        fullPage: true,
+      });
       await dialog.getByRole('button', { name: 'Gegenangebot vormerken' }).click();
       await expect(actions).toContainText('Vorgemerkt');
       expect(mocked.enqueues).toHaveLength(1);

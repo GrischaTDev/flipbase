@@ -76,7 +76,7 @@ afterEach(() => TestBed.resetTestingModule());
 function create() {
   const fixture = TestBed.createComponent(VintedOfferActionsComponent);
   const component = fixture.componentInstance;
-  Object.defineProperty(component, 'entry', { value: signal(entry) });
+  Object.defineProperty(component, 'entry', { value: signal(entry), configurable: true });
   Object.defineProperty(component, 'available', { value: signal(true) });
   TestBed.tick();
   return { fixture, component };
@@ -107,13 +107,33 @@ describe('Manuelle Angebotsaktionen', () => {
     component.openCounter();
     expect(component.dialogOpen()).toBe(true);
     component.counterPrice.setValue(20);
+    expect(component.counterPreview()).toBeNull();
     await component.queue('counter');
     expect(api.enqueue).not.toHaveBeenCalled();
     expect(component.error()).toContain('centgenauen');
     component.counterPrice.setValue(35);
+    expect(component.counterPreview()).toEqual({ priceCents: 3500, discountCents: 1500 });
+    expect(api.enqueue).not.toHaveBeenCalled();
     await component.queue('counter');
     expect(api.enqueue.mock.calls[0].slice(4)).toEqual(['counter', 3500]);
     expect(component.dialogOpen()).toBe(false);
+  });
+  it('berechnet die Vorschau aus aktuellen strukturierten Preisen und blendet ungültige Centpreise aus', () => {
+    const { component } = create();
+    component.counterPrice.setValue(35.001);
+    expect(component.counterPreview()).toBeNull();
+    component.counterPrice.setValue(35);
+    expect(component.counterPreview()?.discountCents).toBe(1500);
+    const changed = signal({
+      ...entry,
+      negotiationOffer: { ...entry.negotiationOffer, ...offer, originalPriceCents: 6000 },
+    });
+    Object.defineProperty(component, 'entry', { value: changed, configurable: true });
+    component.counterPrice.setValue(36);
+    expect(component.counterPreview()).toEqual({ priceCents: 3600, discountCents: 2400 });
+    component.counterPrice.setValue(29);
+    expect(component.counterPreview()).toBeNull();
+    expect(api.enqueue).not.toHaveBeenCalled();
   });
   it('sperrt bei fehlender Freigabe und übernimmt keine verspätete Antwort eines anderen Kontos', async () => {
     const { component } = create();

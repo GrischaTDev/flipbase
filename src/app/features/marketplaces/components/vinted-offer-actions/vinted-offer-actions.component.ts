@@ -10,6 +10,7 @@ import {
   untracked,
 } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
@@ -49,6 +50,30 @@ export class VintedOfferActionsComponent {
     () => this.actions.receipts().get(this.actions.key(this.entry())) ?? null,
   );
   readonly counterPrice = new FormControl<number | null>(null);
+  private readonly enteredPrice = toSignal(this.counterPrice.valueChanges, { initialValue: null });
+  readonly minimumCounterPrice = computed(() =>
+    Math.ceil((this.entry().negotiationOffer?.originalPriceCents ?? 0) / 2),
+  );
+  readonly counterPreview = computed(() => {
+    const offer = this.entry().negotiationOffer;
+    if (!offer) return null;
+    const cents = validateCounterPrice(
+      this.enteredPrice(),
+      offer.originalPriceCents,
+      offer.offeredPriceCents,
+    );
+    return cents === null
+      ? null
+      : {
+          priceCents: cents,
+          discountCents: offer.originalPriceCents - cents,
+        };
+  });
+  formatPrice(cents: number) {
+    return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(
+      cents / 100,
+    );
+  }
   readonly labels = negotiationStateLabels;
   readonly confirmedLabels = {
     accept: 'Angebot angenommen',

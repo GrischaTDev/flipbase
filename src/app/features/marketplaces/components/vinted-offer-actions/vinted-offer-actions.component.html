@@ -31,6 +31,17 @@
 @if (dialogOpen()) {
   <app-modal-shell title="Gegenangebot" size="sm" (closed)="closeCounter()">
     <div class="space-y-3">
+      @if (entry().negotiationOffer; as offer) {
+        <p class="text-[13px]">
+          Artikelpreis: {{ formatPrice(offer.originalPriceCents) }} · Käuferangebot:
+          {{ formatPrice(offer.offeredPriceCents) }}
+        </p>
+        <p class="text-[13px] text-fb-text-secondary">
+          Zulässig: mindestens {{ formatPrice(minimumCounterPrice()) }}, höchstens
+          {{ formatPrice(offer.originalPriceCents) }} und über
+          {{ formatPrice(offer.offeredPriceCents) }}.
+        </p>
+      }
       <p class="text-[13px]">
         Der Gegenpreis muss über dem Käuferangebot liegen und zwischen der Hälfte und dem vollen
         Artikelpreis bleiben.
@@ -39,12 +50,24 @@
       ><app-number-input
         id="counter-price"
         [formControl]="counterPrice"
+        (valueChange)="error.set(null)"
         [step]="0.01"
         unit="€"
         ariaDescribedby="counter-price-error"
         [ariaInvalid]="!!error()"
       />
       <p id="counter-price-error" role="alert" class="text-[13px]">{{ error() }}</p>
+      <div class="text-[13px]" aria-live="polite" data-counter-preview>
+        @if (counterPreview(); as preview) {
+          <p>Dein Gegenangebot: {{ formatPrice(preview.priceCents) }}</p>
+          <p>Nachlass zum Artikelpreis: {{ formatPrice(preview.discountCents) }}</p>
+        } @else {
+          <p>Gib einen gültigen Gegenpreis für die Vorschau ein.</p>
+        }
+        <p class="mt-1 text-fb-text-secondary">
+          Nur eine lokale Vorschau. Erst mit „Gegenangebot vormerken“ wird die Aktion angefragt.
+        </p>
+      </div>
     </div>
     <div modal-footer class="flex gap-2">
       <app-button [disabled]="busy()" (clicked)="closeCounter()">Abbrechen</app-button
