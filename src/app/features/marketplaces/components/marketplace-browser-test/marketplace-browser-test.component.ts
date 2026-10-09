@@ -15,6 +15,7 @@ import {
 } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { LucideArrowRight, LucideExternalLink } from '@lucide/angular';
+import { MarketplaceSyncProgressComponent } from '../marketplace-sync-progress/marketplace-sync-progress.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
@@ -40,6 +41,7 @@ interface BrowserPointerGesture {
   selector: 'app-marketplace-browser-test',
   imports: [
     NgTemplateOutlet,
+    MarketplaceSyncProgressComponent,
     ButtonComponent,
     CardComponent,
     NoticeBannerComponent,

@@ -24,17 +24,17 @@ begin
   end if;
   select * into v_operation from public.marketplace_operations where id=p_operation_id and state='running' and runner_id=p_runner_id and worker_epoch=p_worker_epoch for update;
   if not found then return false; end if;
-  if jsonb_typeof(p_outcome) is distinct from 'object' or p_outcome->>'state' is null or p_outcome->>'state' not in ('succeeded','failed') then raise exception 'UngÃ¼ltiger Auftragsabschluss' using errcode='22023'; end if;
-  if p_outcome->>'state'='succeeded' and (v_operation.observed_at is null or v_operation.counts is null or v_operation.source_results is null) then raise exception 'BestÃ¤tigter Import fehlt' using errcode='22023'; end if;
+  if jsonb_typeof(p_outcome) is distinct from 'object' or p_outcome->>'state' is null or p_outcome->>'state' not in ('succeeded','failed') then raise exception 'Ungültiger Auftragsabschluss' using errcode='22023'; end if;
+  if p_outcome->>'state'='succeeded' and (v_operation.observed_at is null or v_operation.counts is null or v_operation.source_results is null) then raise exception 'Bestätigter Import fehlt' using errcode='22023'; end if;
   v_reason := p_outcome->>'pausedReason';
-  if v_reason is not null and v_reason not in ('needs_login','forbidden','challenge','rate_limited','network','server','retry_limit','access_revoked','cleanup','interrupted') then raise exception 'UngÃ¼ltiger Pausengrund' using errcode='22023'; end if;
+  if v_reason is not null and v_reason not in ('needs_login','forbidden','challenge','rate_limited','network','server','retry_limit','access_revoked','cleanup','interrupted') then raise exception 'Ungültiger Pausengrund' using errcode='22023'; end if;
   if p_outcome->>'retryAfter' is not null then
     begin v_retry := (p_outcome->>'retryAfter')::timestamptz;
-    exception when invalid_datetime_format or datetime_field_overflow then raise exception 'UngÃ¼ltige Wartezeit' using errcode='22023'; end;
-    if not isfinite(v_retry) then raise exception 'UngÃ¼ltige Wartezeit' using errcode='22023'; end if;
+    exception when invalid_datetime_format or datetime_field_overflow then raise exception 'Ungültige Wartezeit' using errcode='22023'; end;
+    if not isfinite(v_retry) then raise exception 'Ungültige Wartezeit' using errcode='22023'; end if;
     v_retry := least(greatest(v_retry,clock_timestamp()+interval '15 minutes'),clock_timestamp()+interval '1 day');
   end if;
-  -- Quellenfehler wirken auch bei einer insgesamt erfolgreich Ã¼bernommenen Teilantwort.
+  -- Quellenfehler wirken auch bei einer insgesamt erfolgreich übernommenen Teilantwort.
   if v_reason is null and exists(select 1 from jsonb_each(coalesce(v_operation.source_results,'{}')) a where a.value->>'failure'='unauthorized') then v_reason:='needs_login'; end if;
   if v_reason is null and exists(select 1 from jsonb_each(coalesce(v_operation.source_results,'{}')) a where a.value->>'failure'='forbidden') then v_reason:='forbidden'; end if;
   if v_reason is null and exists(select 1 from jsonb_each(coalesce(v_operation.source_results,'{}')) a where a.value->>'failure'='rate_limited') then v_reason:='rate_limited'; end if;
@@ -60,8 +60,8 @@ begin
     and v_operation.source_results->'profile'->>'status'='complete'
     and not exists(select 1 from jsonb_each(v_operation.source_results) a where a.value->>'failure' is not null)
     and public.marketplace_sync_authorization_valid(v_operation.workspace_id,v_operation.requested_by) then
-    -- Ein neuer bestÃ¤tigter Abruf lÃ¶st die alte Anbieterwarnung. Eine Pause,
-    -- FreigabeÃ¤nderung nach Abrufbeginn oder ungeklÃ¤rte Bereinigung bleibt erhalten.
+    -- Ein neuer bestätigter Abruf löst die alte Anbieterwarnung. Eine Pause,
+    -- Freigabeänderung nach Abrufbeginn oder ungeklärte Bereinigung bleibt erhalten.
     update public.marketplace_sync_schedules set paused_reason=null,retry_after=null,
       consecutive_failures=0,updated_at=clock_timestamp()
       where id=v_schedule.id and paused_reason in ('needs_login','forbidden','challenge')

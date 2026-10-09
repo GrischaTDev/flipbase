@@ -635,3 +635,12 @@
     <p class="text-sm text-fb-text-secondary">Wähle oben ein Konto aus.</p>
   }
 </ng-template>
+
+@if (store.synchronizationOpen()) {
+  <app-marketplace-sync-progress
+    [progress]="accounts.syncProgress()"
+    [error]="accounts.mutationError()"
+    [reconnectLink]="'/marketplaces/vinted/connect/' + store.connection()?.connectionId"
+    (closed)="store.closeSynchronization()"
+  />
+}

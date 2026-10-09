@@ -1,3 +1,6 @@
+import { MarketplaceSyncProgressComponent } from '../marketplace-sync-progress/marketplace-sync-progress.component';
+import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
+import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
 import { readFile } from 'node:fs/promises';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
@@ -19,6 +22,7 @@ const session = signal<{ id: string; frameUrl: string | null } | null>(null);
 const error = signal<string | null>(null);
 const mutationError = signal<string | null>(null);
 const cloudVerified = signal(false);
+const synchronizationOpen = signal(false);
 let restoreRendering: (() => void) | undefined;
 
 afterEach(() => {
@@ -28,6 +32,7 @@ afterEach(() => {
 
 beforeEach(async () => {
   mutationError.set(null);
+  synchronizationOpen.set(false);
   cloudVerified.set(false);
   session.set({
     id: 'fixture-session',
@@ -52,6 +57,7 @@ beforeEach(async () => {
     awaitingVerification: signal(false),
     interactionRequired: signal(false),
     progress: signal(null),
+    synchronizationOpen,
     cloudCancelled: signal(false),
     cloudCompleted: signal(false),
     cloudVerified,
@@ -65,7 +71,16 @@ beforeEach(async () => {
       provideRouter([]),
       {
         provide: MarketplaceAccountStore,
-        useValue: { canManage: signal(true), mutationError },
+        useValue: {
+          canManage: signal(true),
+          mutationError,
+          syncProgress: signal({
+            id: 'fixture-sync',
+            state: 'succeeded',
+            stage: 'cleanup',
+            errorCode: null,
+          }),
+        },
       },
       {
         provide: MarketplaceBrowserTestStore,
@@ -85,6 +100,15 @@ beforeEach(async () => {
   });
   const shared = 'src/app/shared/components';
   restoreRendering = await prepareMarketplaceRendering([
+    { type: ModalDialogDirective, path: 'src/app/shared/directives/modal-dialog.directive.ts' },
+    {
+      type: ModalShellComponent,
+      path: 'src/app/shared/components/modal-shell/modal-shell.component.ts',
+    },
+    {
+      type: MarketplaceSyncProgressComponent,
+      path: 'src/app/features/marketplaces/components/marketplace-sync-progress/marketplace-sync-progress.component.ts',
+    },
     {
       type: MarketplaceBrowserTestComponent,
       path: 'src/app/features/marketplaces/components/marketplace-browser-test/marketplace-browser-test.component.ts',
@@ -156,4 +180,15 @@ it('passes the DOM accessibility checks for the login and browser cards', async 
     rules: { 'color-contrast': { enabled: false } },
   });
   expect(result.violations).toEqual([]);
+});
+
+it('zeigt nach Anmeldung den bestehenden Fortschrittsdialog mit dem tatsächlichen Abrufstand', () => {
+  synchronizationOpen.set(true);
+  error.set(null);
+  const fixture = TestBed.createComponent(MarketplaceBrowserTestComponent);
+  fixture.detectChanges();
+  const root = fixture.nativeElement as HTMLElement;
+  const progress = root.querySelector('app-marketplace-sync-progress');
+  expect(progress?.textContent).toContain('Kontodaten aktualisieren');
+  expect(progress?.textContent).toContain('Die Kontodaten wurden aktualisiert.');
 });

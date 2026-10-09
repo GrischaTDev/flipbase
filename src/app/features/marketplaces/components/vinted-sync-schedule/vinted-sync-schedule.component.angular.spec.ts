@@ -1,3 +1,5 @@
+import { VintedCloudMessageSettingsComponent } from '../vinted-cloud-message-settings/vinted-cloud-message-settings.component';
+import { VintedMessagingApiService } from '../../services/vinted-messaging-api.service';
 import type { AccountScope } from '../../models/marketplace.models';
 import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
 import { VintedFavoriteSettingsComponent } from '../vinted-favorite-settings/vinted-favorite-settings.component';
@@ -37,6 +39,10 @@ const schedule = {
   authorizationVersion: 1,
 };
 let restore: (() => void) | undefined;
+const messageApi = {
+  readPermission: vi.fn(),
+  revokeCloud: vi.fn(),
+};
 let api: {
   read: ReturnType<typeof vi.fn>;
   set: ReturnType<typeof vi.fn>;
@@ -44,6 +50,10 @@ let api: {
 };
 beforeAll(async () => {
   restore = await prepareMarketplaceRendering([
+    {
+      type: VintedCloudMessageSettingsComponent,
+      path: 'src/app/features/marketplaces/components/vinted-cloud-message-settings/vinted-cloud-message-settings.component.ts',
+    },
     {
       type: CustomCheckboxComponent,
       path: 'src/app/shared/components/custom-checkbox/custom-checkbox.component.ts',
@@ -76,6 +86,12 @@ beforeAll(async () => {
 afterAll(() => restore?.());
 afterEach(() => TestBed.resetTestingModule());
 beforeEach(() => {
+  messageApi.readPermission
+    .mockReset()
+    .mockResolvedValue({ executionMode: 'cloud', allowed: true, authorizationVersion: 7 });
+  messageApi.revokeCloud
+    .mockReset()
+    .mockResolvedValue({ executionMode: 'cloud', allowed: false, authorizationVersion: 8 });
   api = {
     read: vi.fn().mockResolvedValue(schedule),
     set: vi.fn().mockResolvedValue({
@@ -88,6 +104,7 @@ beforeEach(() => {
   };
   TestBed.configureTestingModule({
     providers: [
+      { provide: VintedMessagingApiService, useValue: messageApi },
       {
         provide: MarketplaceFavoriteNotificationApiService,
         useValue: {
@@ -127,6 +144,87 @@ async function render(openSettings = false) {
   return fixture;
 }
 describe('Automatische Aktualisierung je Vinted-Konto', () => {
+  it('verwaltet den Cloud-Nachrichtenversand in den Kontoeinstellungen mit bestätigter Freigabeversion', async () => {
+    const fixture = await render(true);
+    const element = fixture.nativeElement as HTMLElement;
+    const section = element.querySelector<HTMLElement>(
+      '[role="dialog"] [aria-label="Cloud-Nachrichtenversand"]',
+    );
+    expect(section?.textContent).toContain('Nachrichtenversand erlaubt');
+    [...(section?.querySelectorAll('button') ?? [])]
+      .find((button) => button.textContent?.includes('deaktivieren'))
+      ?.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(messageApi.revokeCloud).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        workspaceId: account.workspaceId,
+        connectionId: account.connectionId,
+      }),
+      7,
+    );
+    expect(section?.textContent).toContain('Nachrichtenversand nicht freigegeben');
+    expect(section?.textContent).not.toContain('deaktivieren');
+  });
+
+  it('zeigt eine fehlgeschlagene Deaktivierung ohne vorgetäuschten Widerruf und lässt erneut laden', async () => {
+    messageApi.revokeCloud.mockRejectedValueOnce(new Error('network'));
+    const fixture = await render(true);
+    const element = fixture.nativeElement as HTMLElement;
+    const section = element.querySelector<HTMLElement>('[aria-label="Cloud-Nachrichtenversand"]');
+    [...(section?.querySelectorAll('button') ?? [])]
+      .find((button) => button.textContent?.includes('deaktivieren'))
+      ?.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(section?.textContent).toContain('Nachrichtenversand erlaubt');
+    expect(section?.querySelector('[role="alert"]')?.textContent).toContain(
+      'konnte nicht deaktiviert',
+    );
+    [...(section?.querySelectorAll('button') ?? [])]
+      .find((button) => button.textContent?.includes('Erneut versuchen'))
+      ?.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(section?.querySelector('[role="alert"]')).toBeNull();
+  });
+
+  it('übernimmt eine verspätete Versandfreigabe nach Kontowechsel nicht in das neue Konto', async () => {
+    let finishRead:
+      | ((permission: {
+          executionMode: 'cloud';
+          allowed: boolean;
+          authorizationVersion: number;
+        }) => void)
+      | undefined;
+    messageApi.readPermission.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishRead = resolve;
+      }),
+    );
+    messageApi.readPermission.mockResolvedValue({
+      executionMode: 'cloud',
+      allowed: false,
+      authorizationVersion: 0,
+    });
+    const fixture = TestBed.createComponent(VintedCloudMessageSettingsComponent);
+    fixture.componentRef.setInput('account', account);
+    fixture.detectChanges();
+    TestBed.tick();
+    fixture.componentRef.setInput('account', {
+      ...account,
+      connectionId: '25000000-0000-4000-8000-000000000022',
+    });
+    fixture.detectChanges();
+    await fixture.whenStable();
+    finishRead?.({ executionMode: 'cloud', allowed: true, authorizationVersion: 7 });
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.permission()?.allowed).toBe(false);
+    expect(fixture.nativeElement.textContent).not.toContain('Nachrichtenversand deaktivieren');
+    expect(messageApi.revokeCloud).not.toHaveBeenCalled();
+  });
+
   it('entfernt nach Kontobestätigung die erledigte Anmeldewarnung und erhält die Pause', async () => {
     api.read.mockResolvedValue({ ...schedule, pausedReason: 'needs_login' });
     const fixture = await render();

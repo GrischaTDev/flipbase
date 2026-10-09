@@ -69,10 +69,23 @@
     @if (accounts.error(); as error) {
       <app-notice-banner class="mb-4" announcement="alert">{{ error }}</app-notice-banner>
     }
-    <app-marketplace-browser-test
-      [compact]="true"
-      [reconnectOnOpen]="reconnectRequested()"
-      (previewActive)="previewActive.set($event)"
-    />
+  }
+  @if (!activeCloudSetup()) {
+    <!-- Beim Neuladen der Kontoliste bleibt der bestätigte Anmeldeablauf erhalten. -->
+    <div
+      [hidden]="
+        accounts.loading() ||
+        !selected() ||
+        requestedConnection()?.executionMode !== 'cloud' ||
+        requestedConnection()?.status === 'paused' ||
+        requestedConnection()?.status === 'blocked'
+      "
+    >
+      <app-marketplace-browser-test
+        [compact]="true"
+        [reconnectOnOpen]="reconnectRequested()"
+        (previewActive)="previewActive.set($event)"
+      />
+    </div>
   }
 </app-modal-shell>

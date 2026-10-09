@@ -24,6 +24,17 @@ Quellenfehler und unbestätigter Browserstopp verhindern die Bereinigung. Die
 Migration bereinigt vorhandene Warnungen, wenn der neueste Auftrag diesen Erfolg
 bereits nachweist. Keine automatische Wiederaufnahme oder Änderung des Browserprofils.
 
+**Ergänzung:** Nach erfolgreicher Cloud-Anmeldung startet der bestehende
+manuelle Kontoabruf automatisch und zeigt sein Fortschrittsmodal. Beim Wechsel
+von lokal auf Cloud erfolgt dies erst nach bestätigtem Cloud-Abschluss; ein
+Kontowechsel oder ungeklärter Browserstopp verhindert einen falschen Erstabruf.
+Die Cloud-Versandsteuerung steht mit Erklärung in den Kontoeinstellungen unter
+„Nachrichtenversand“, nicht mehr unter dem Chat. Widerruf und Versionsprüfung
+bleiben beim vorhandenen Serververtrag. Keine neue Versandfreigabe oder
+Aktivierung von Verhandlungsregeln durch Anmeldung oder Erstabruf.
+Der Anmeldedialog bleibt beim Neuladen der Kontoliste erhalten, damit der
+Erstabruf auch im routenbasierten Anmeldeweg ohne SMS startet.
+
 **Prüfung:** Der fehlerhafte Einstieg und die Statusmeldung sind in gezielten
 Renderingtests reproduziert. 81 betroffene Angularprüfungen einschließlich DOM-AXE,
 Produktionsbau, ESLint, Format und Diffprüfung bestehen. Die Icon-Regression ist
@@ -32,6 +43,9 @@ Browserprüfungen decken zusätzlich Anmeldekorrektur und SMS-Bestätigung ab.
 Die neue Zeitplanregression scheitert am bisherigen Servercode. 107 Datenbanktests
 bestehen nach dem Fix, 110 inklusive separatem Migrationsabgleich. 13 zusätzliche
 Angularprüfungen bestätigen die sofortige Warnungsbereinigung mit erhaltener Pause.
+Die Ergänzungen bestehen 162 betroffene Angularprüfungen und acht Browserfälle
+für Anmeldebuttons, Korrektur von Zugangsdaten, SMS, Cloud-Einrichtung und
+Versandsteuerung. Produktionsbau, ESLint, Format und Diffprüfung bestehen.
 
 **Echtkonto:** Nach der erneuten Anmeldung bestätigt der manuelle Abruf vom
 09.10.2026 um 14:55 Uhr Profil, Inserate, Bewertungen und Gesprächsliste als
