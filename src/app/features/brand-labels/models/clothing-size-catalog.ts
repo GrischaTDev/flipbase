@@ -1,9 +1,9 @@
+import { CLOTHING_SIZE_RANGES } from './clothing-size-ranges';
 import {
   decodeSizeLabel,
   type GuideCategory,
   type GuideRow,
   type GuideTable,
-  type MeasureKey,
   type MeasureRange,
 } from './clothing-size-guide';
 
@@ -37,27 +37,6 @@ function labelRows(prefix: string, entries: readonly (readonly string[])[]): Gui
       ];
     }),
   }));
-}
-function garmentRows(
-  prefix: string,
-  sizes: readonly string[],
-  keys: readonly MeasureKey[],
-  ranges: readonly (readonly MeasureRange[])[],
-): GuideRow[] {
-  return sizes.map((size, index) => {
-    const dimensions = ranges[index] ?? [];
-    return {
-      id: `${prefix}-${size}`,
-      cells: [size, ...dimensions.map(formatRange)],
-      labels: [size, size.split(' ')[0] ?? size, ...(prefix === 'iron-heart' ? [`W${size}`] : [])],
-      measurements: Object.fromEntries(
-        keys.flatMap((key, dimensionIndex) => {
-          const range = dimensions[dimensionIndex];
-          return range ? [[key, range]] : [];
-        }),
-      ),
-    };
-  });
 }
 const nextWomenSizes = [
   ['34', '6', '2', 'XS'],
@@ -93,143 +72,11 @@ function nextWomenTable(category: GuideCategory): GuideTable {
     reviewedAt,
   };
 }
-const ironHeartSizes = [
-  '28',
-  '29',
-  '30',
-  '31',
-  '32',
-  '33',
-  '34',
-  '35',
-  '36',
-  '38',
-  '40',
-  '42',
-  '44',
-];
-const ironHeartWaists = [28.4, 29.2, 30.4, 31.1, 32.5, 33.4, 33.9, 35, 36.1, 38, 40, 41.8, 43.7];
-const ironHeartRises = [9.5, 9.8, 10.4, 10.5, 10.6, 10.8, 11.1, 11.3, 11.4, 11.7, 12, 12.2, 12.4];
-const cottonMillDimensions = [
-  [inchRange(26, 26, 2), inchRange(30.5), inchRange(41), inchRange(12)],
-  [inchRange(27, 27, 2), inchRange(31.5), inchRange(42.5), inchRange(12)],
-  [inchRange(29, 29, 2), inchRange(32), inchRange(43.5), inchRange(12)],
-  [inchRange(32, 32, 2), inchRange(32.5), inchRange(44), inchRange(13)],
-  [inchRange(34, 34, 2), inchRange(33), inchRange(45), inchRange(14)],
-  [inchRange(36, 36, 2), inchRange(33.5), inchRange(46.5), inchRange(15)],
-  [inchRange(41, 43, 2), inchRange(32, 33.5), inchRange(45, 47), inchRange(16)],
-];
 
 export const CLOTHING_SIZE_TABLES: readonly GuideTable[] = [
+  ...CLOTHING_SIZE_RANGES,
   nextWomenTable('trousers'),
   nextWomenTable('tops'),
-  {
-    id: 'port-co-tshirt',
-    brand: 'Port & Co',
-    category: 'tops',
-    audience: 'men',
-    kind: 'garment',
-    title: 'PC54C T-Shirt: flache Brustweite und Rückenlänge',
-    columns: ['Größe', 'Brustweite flach (cm)', 'Rückenlänge (cm)'],
-    rows: garmentRows(
-      'port-co',
-      ['S', 'M', 'L', 'XL', '2XL', '3XL', '4XL'],
-      ['chestFlat', 'backLength'],
-      [18, 20, 22, 24, 26, 28, 30].map((chest, index) => [inchRange(chest), inchRange(28 + index)]),
-    ),
-    notes:
-      'Tatsächliche Maße des klassischen PC54C, keine allgemeinen Buchstabengrenzen. Die Einheit wird aus der US-Inch-Messkonvention der Quelle abgeleitet und mit 2,54 in cm umgerechnet; die Tabelle benennt sie nicht separat. Brust flach 2,54 cm unter dem Armloch messen; Rücken vom höchsten Schulterpunkt zum hinteren Saum. Körpermaße derselben Quelle werden nicht verglichen.',
-    sourceTitle: 'SanMar / Port & Co – PC54C Product Measurements',
-    sourceUrl: 'https://www.sanmar.com/p/7061/specSheetMeasurements',
-    reviewedAt,
-  },
-  {
-    id: 'iron-heart-jeans',
-    brand: 'Iron Heart',
-    category: 'trousers',
-    audience: 'men',
-    kind: 'garment',
-    title: 'Jeans IH-666S-142: gemessener Bund und Innenbein',
-    columns: ['Jeanslabel', 'Bund flach (cm)', 'Innenbein (cm)', 'Leibhöhe vorne (cm)'],
-    rows: garmentRows(
-      'iron-heart',
-      ironHeartSizes,
-      ['waistFlat', 'inseam', 'frontRise'],
-      ironHeartSizes.map((size, index) => [
-        inchRange(ironHeartWaists[index] ?? 0, ironHeartWaists[index] ?? 0, 2),
-        inchRange(Number(size) >= 40 ? 36 : 35),
-        inchRange(ironHeartRises[index] ?? 0),
-      ]),
-    ),
-    notes:
-      'Tatsächliche Maße dieses Slim-Straight-Modells, Inch in cm umgerechnet; Bundumfang halbiert. Kein allgemeiner XS–XL-Schlüssel. Getragene Jeans können sich weiten, gekürzte Beine abweichen. Außenbein- und Hüftmaße sind nicht belegt und erzeugen keinen vollständigen Treffer.',
-    sourceTitle: 'Iron Heart – IH-666S-142, Size Guide',
-    sourceUrl: 'https://ironheart.co.uk/collections/slim-straight-cut/products/ih-666s-142',
-    reviewedAt,
-  },
-  {
-    id: 'lands-end-yoga',
-    brand: 'Lands’ End',
-    category: 'trousers',
-    audience: 'women',
-    kind: 'garment',
-    title: 'Active Crop Yoga Pants: Größen XS bis XL am Kleidungsstück',
-    columns: [
-      'Größe / US',
-      'Bund entspannt, flach (cm)',
-      'Hüfte flach (cm)',
-      'Innenbein (cm)',
-      'Leibhöhe vorne (cm)',
-    ],
-    rows: garmentRows(
-      'lands-end',
-      ['XS (2–4)', 'S (6–8)', 'M (10–12)', 'L (14–16)', 'XL (18)'],
-      ['waistFlat', 'hipFlat', 'inseam', 'frontRise'],
-      [
-        [26, 35.5, 9.125],
-        [28, 37.5, 9.625],
-        [30.5, 40, 10.25],
-        [34, 43, 11],
-        [36, 45, 11.375],
-      ].map(([waist, hip, rise]) => [
-        inchRange(waist ?? 0, waist ?? 0, 2),
-        inchRange(hip ?? 0, hip ?? 0, 2),
-        inchRange(24),
-        inchRange(rise ?? 0),
-      ]),
-    ),
-    notes:
-      'Belegte Kleidungsmaße der Regular-Ausführung dieses elastischen, verkürzten Yoga-Modells. Bund entspannt messen; keine Jeans- oder Universalgrenzen. Die Körpermaßzeile der Quelle wird bewusst nicht zur Maßsuche verwendet. Leibhöhe ohne Zwickel.',
-    sourceTitle: 'Lands’ End – Item Dimensions 509417',
-    sourceUrl: 'https://www.landsend.com/garment_measurements/509417_core_pdp_spec.pdf',
-    reviewedAt,
-  },
-  {
-    id: 'cottonmill-sweatpants',
-    brand: 'CottonMill',
-    category: 'trousers',
-    audience: 'unisex',
-    kind: 'garment',
-    title: 'B090 Sweatpants: Bund, Innen- und Außenbeinlänge',
-    columns: [
-      'Größe',
-      'Bund entspannt, flach (cm)',
-      'Innenbein (cm)',
-      'Außenbein (cm)',
-      'Leibhöhe vorne (cm)',
-    ],
-    rows: garmentRows(
-      'cottonmill',
-      ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'],
-      ['waistFlat', 'inseam', 'outseam', 'frontRise'],
-      cottonMillDimensions,
-    ),
-    notes:
-      'Großzügig geschnittene Unisex-Jogginghose mit Gummibund. Gemessene Originalmaße, keine Richtwerte für Jeans. Bundumfang entspannt halbiert. Nur XXXL hat in der Quelle ausdrücklich Maßbereiche; bei Einzelmaßen kommt der gewählte Suchspielraum hinzu.',
-    sourceTitle: 'CottonMill – B090 Actual Garment Measurements',
-    sourceUrl: 'https://www.cottonmill.com/thick-100-all-cotton-cuffed-sweatpants-for-men/',
-    reviewedAt,
-  },
   {
     id: 'asos-men-jackets',
     brand: 'ASOS',
@@ -445,6 +292,7 @@ export const CLOTHING_SIZE_TABLES: readonly GuideTable[] = [
         id: `length-${length}`,
         cells: [`L${String(length).replace('.5', '½')}`, formatCentimeters(length * 2.54)],
         labels: [`L${length}`, String(length)],
+        measurements: { inseam: { min: length * 2.54, max: length * 2.54 } },
       };
     }),
     notes:

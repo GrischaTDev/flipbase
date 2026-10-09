@@ -46,7 +46,6 @@ export class ClothingSizeGuideComponent {
   readonly query = signal('');
   readonly measurements = signal<GuideFilters['measurements']>({});
   readonly tolerance = signal<number | null>(1);
-  readonly extraMeasurements = signal(false);
   readonly publishedBrands = signal<readonly string[]>([]);
   readonly categoryOptions = [
     { value: '', label: 'Alle Kleidungsarten' },
@@ -71,21 +70,15 @@ export class ClothingSizeGuideComponent {
     key: MeasureKey;
     label: string;
     category: GuideCategory;
-    optional: boolean;
   }[] = [
-    { key: 'waistFlat', label: 'Bundweite, flach', category: 'trousers', optional: false },
-    { key: 'inseam', label: 'Innenbeinlänge', category: 'trousers', optional: false },
-    { key: 'outseam', label: 'Außenbeinlänge', category: 'trousers', optional: false },
-    { key: 'chestFlat', label: 'Brustweite, flach', category: 'tops', optional: false },
-    { key: 'backLength', label: 'Rückenlänge', category: 'tops', optional: false },
-    { key: 'hipFlat', label: 'Hüftweite, flach', category: 'trousers', optional: true },
-    { key: 'frontRise', label: 'Vordere Leibhöhe', category: 'trousers', optional: true },
+    { key: 'waistFlat', label: 'Bundweite, flach', category: 'trousers' },
+    { key: 'inseam', label: 'Innenbeinlänge', category: 'trousers' },
+    { key: 'outseam', label: 'Außenbeinlänge', category: 'trousers' },
+    { key: 'chestFlat', label: 'Brustweite, flach', category: 'tops' },
   ];
   readonly visibleMeasurementFields = computed(() =>
     this.measurementFields.filter(
-      (field) =>
-        (!this.category() || field.category === this.category()) &&
-        (!field.optional || this.extraMeasurements()),
+      (field) => !this.category() || field.category === this.category(),
     ),
   );
   readonly filters = computed<GuideFilters>(() => ({
@@ -100,6 +93,10 @@ export class ClothingSizeGuideComponent {
   readonly hasMeasurements = computed(() =>
     Object.values(this.measurements()).some((measurement) => measurement != null),
   );
+  readonly hasSizeMeasurements = computed(
+    () => this.measurements().waistFlat != null || this.measurements().chestFlat != null,
+  );
+  readonly hasLengthMeasurement = computed(() => this.measurements().inseam != null);
   readonly filtersActive = computed(
     () =>
       !!this.category() ||
@@ -115,10 +112,10 @@ export class ClothingSizeGuideComponent {
     const sections: readonly { title: string; description: string; kinds: readonly GuideKind[] }[] =
       [
         {
-          title: 'Maße der fertigen Kleidung',
+          title: 'Allgemeine Größenübersicht',
           description:
-            'Belegte Maße einzelner Modelle. Treffer helfen Dir beim Einordnen; sie sind keine allgemeingültigen Maßbereiche für jede S oder M.',
-          kinds: ['garment'],
+            'XS, S, M und weitere Größen neben EU/DE, UK, US und ungefähren Kleidungsmaßen.',
+          kinds: ['orientation'],
         },
         {
           title: 'Labelgrößen vergleichen',
@@ -148,8 +145,15 @@ export class ClothingSizeGuideComponent {
   readonly rowCount = computed(() =>
     this.visibleTables().reduce((total, entry) => total + entry.rows.length, 0),
   );
-  readonly matchCount = computed(() =>
-    this.visibleTables().reduce((total, entry) => total + entry.matchedRowIds.length, 0),
+  readonly sizeEstimateCount = computed(() =>
+    this.visibleTables()
+      .filter((entry) => entry.table.kind === 'orientation')
+      .reduce((total, entry) => total + entry.matchedRowIds.length, 0),
+  );
+  readonly lengthMatchCount = computed(() =>
+    this.visibleTables()
+      .filter((entry) => entry.table.kind === 'length')
+      .reduce((total, entry) => total + entry.matchedRowIds.length, 0),
   );
   readonly audienceNames: Record<GuideAudience, string> = {
     women: 'Damen',
@@ -157,7 +161,7 @@ export class ClothingSizeGuideComponent {
     unisex: 'Unisex',
   };
   readonly kindNames: Record<GuideKind, string> = {
-    garment: 'Kleidungsmaße',
+    orientation: 'Richtbereiche',
     body: 'Körpermaße · nur Label-Nachschlagen',
     conversion: 'Größenvergleich',
     length: 'Längen / Inch',
@@ -191,19 +195,6 @@ export class ClothingSizeGuideComponent {
     return centimeters.toLocaleString('de-DE', { maximumFractionDigits: 2 });
   }
 
-  toggleExtraMeasurements(): void {
-    this.extraMeasurements.update((expanded) => !expanded);
-    if (!this.extraMeasurements()) {
-      this.measurements.update((measurements) =>
-        Object.fromEntries(
-          Object.entries(measurements).filter(([key]) =>
-            this.measurementFields.some((field) => field.key === key && !field.optional),
-          ),
-        ),
-      );
-    }
-  }
-
   resetFilters(): void {
     this.category.set('');
     this.audience.set('');
@@ -211,6 +202,5 @@ export class ClothingSizeGuideComponent {
     this.query.set('');
     this.measurements.set({});
     this.tolerance.set(1);
-    this.extraMeasurements.set(false);
   }
 }

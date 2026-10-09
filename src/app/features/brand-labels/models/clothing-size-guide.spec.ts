@@ -18,11 +18,11 @@ const filters: GuideFilters = {
 };
 const reference: GuideTable = {
   id: 'example',
-  title: 'Belegtes Modell',
+  title: 'Richtgrößen',
   brand: 'Test',
   category: 'trousers',
   audience: 'women',
-  kind: 'garment',
+  kind: 'orientation',
   columns: ['Größe'],
   notes: '',
   sourceTitle: 'Quelle',
@@ -70,6 +70,128 @@ describe('Labelangaben ohne universelle Konfektionsgröße', () => {
 });
 
 describe('Maßvergleich der vorhandenen Kleidung', () => {
+  it.each(['UK 32', 'US 34'])('ordnet %s innerhalb der Herren-Jeansreihe ein', (query) => {
+    const result = filterGuideTables(CLOTHING_SIZE_TABLES, {
+      ...filters,
+      category: 'trousers',
+      audience: 'men',
+      query,
+    });
+    expect(
+      result
+        .find(({ table }) => table.id === 'general-men-trousers')
+        ?.rows.map((row) => row.cells[0]),
+    ).toEqual(['M']);
+  });
+  it('ordnet 42 cm Herrenbund als M ein und vergleicht die Beinlänge separat', () => {
+    const result = filterGuideTables(CLOTHING_SIZE_TABLES, {
+      ...filters,
+      category: 'trousers',
+      audience: 'men',
+      tolerance: 0,
+      measurements: { waistFlat: 42, inseam: 81.28, outseam: 104 },
+    });
+    expect(result.find(({ table }) => table.id === 'general-men-trousers')?.matchedRowIds).toEqual([
+      'men-M',
+    ]);
+    expect(result.find(({ table }) => table.id === 'nominal-length')?.matchedRowIds).toEqual([
+      'length-32',
+    ]);
+  });
+  it('ordnet 35 cm Damenbund als S ein, ohne ein einzelnes Hosenmodell', () => {
+    const result = filterGuideTables(CLOTHING_SIZE_TABLES, {
+      ...filters,
+      category: 'trousers',
+      audience: 'women',
+      tolerance: 0,
+      measurements: { waistFlat: 35 },
+    });
+    expect(
+      result.find(({ table }) => table.id === 'general-women-trousers')?.matchedRowIds,
+    ).toEqual(['women-S']);
+  });
+  it('behauptet mit einer Innenbeinlänge allein keine XS/M-Schätzung', () => {
+    const result = filterGuideTables(CLOTHING_SIZE_TABLES, {
+      ...filters,
+      measurements: { inseam: 81.28 },
+    });
+    expect(
+      result
+        .filter(({ table }) => table.kind === 'orientation')
+        .every((entry) => entry.matchedRowIds.length === 0),
+    ).toBe(true);
+    expect(
+      result.find(({ table }) => table.id === 'nominal-length')?.matchedRowIds.length,
+    ).toBeGreaterThan(0);
+  });
+  it.each(['M', 'W29', 'EU 36'])(
+    'ermittelt die Beinlänge unabhängig vom Weitenlabel %s',
+    (query) => {
+      const result = filterGuideTables(CLOTHING_SIZE_TABLES, {
+        ...filters,
+        query,
+        tolerance: 0,
+        measurements: { inseam: 88.9 },
+      });
+      expect(
+        result.find(({ table }) => table.id === 'nominal-length')?.rows.map((row) => row.cells[0]),
+      ).toEqual(['L35']);
+    },
+  );
+  it('behält ein ausdrücklich gesuchtes L-Label beim Maßvergleich bei', () => {
+    const result = filterGuideTables(CLOTHING_SIZE_TABLES, {
+      ...filters,
+      query: 'L32',
+      tolerance: 0,
+      measurements: { inseam: 88.9 },
+    });
+    expect(result.find(({ table }) => table.id === 'nominal-length')).toBeUndefined();
+  });
+  it.each([
+    ['XXL', '2XL'],
+    ['XXXL', '3XL'],
+  ])('erkennt %s und %s als dieselbe Größenangabe', (first, second) => {
+    const search = (query: string) =>
+      filterGuideTables(CLOTHING_SIZE_TABLES, { ...filters, query }).flatMap(({ table, rows }) =>
+        rows.map((row) => `${table.id}:${row.id}`),
+      );
+    expect(search(first).length).toBeGreaterThan(0);
+    expect(search(first)).toEqual(search(second));
+  });
+  it('vergleicht Brustweiten mit einer Größen-Spanne', () => {
+    const result = filterGuideTables(CLOTHING_SIZE_TABLES, {
+      ...filters,
+      category: 'tops',
+      tolerance: 0,
+      measurements: { chestFlat: 52 },
+    });
+    expect(result.find(({ table }) => table.id === 'general-unisex-tops')?.matchedRowIds).toEqual([
+      'tops-M',
+    ]);
+  });
+  it('verwendet sichtbare gerundete Bundgrenzen auch beim Vergleich', () => {
+    const result = filterGuideTables(CLOTHING_SIZE_TABLES, {
+      ...filters,
+      category: 'trousers',
+      audience: 'men',
+      tolerance: 0,
+      measurements: { waistFlat: 43.8 },
+    });
+    expect(
+      result.find(({ table }) => table.id === 'general-men-trousers')?.matchedRowIds,
+    ).toContain('men-M');
+  });
+  it('verwendet sichtbare gerundete Brustgrenzen auch beim Vergleich', () => {
+    const result = filterGuideTables(CLOTHING_SIZE_TABLES, {
+      ...filters,
+      category: 'tops',
+      tolerance: 0,
+      measurements: { chestFlat: 40.6 },
+    });
+    expect(result.find(({ table }) => table.id === 'general-unisex-tops')?.matchedRowIds).toEqual([
+      'tops-XS',
+    ]);
+  });
   it.each([
     ['W22', 'nominal-waist'],
     ['L24', 'nominal-length'],
@@ -130,10 +252,13 @@ describe('Maßvergleich der vorhandenen Kleidung', () => {
     });
     expect(result[0]?.matchedRowIds).toEqual(['xs']);
   });
-  it('behauptet keinen vollständigen Treffer bei fehlendem Außenbein-Beleg', () => {
+  it('behandelt Außenbeinlänge als Zusatzangabe statt als Weitengröße', () => {
     expect(
-      filterGuideTables([reference], { ...filters, measurements: { waistFlat: 34, outseam: 102 } }),
-    ).toEqual([]);
+      filterGuideTables([reference], {
+        ...filters,
+        measurements: { waistFlat: 34, outseam: 102 },
+      })[0]?.matchedRowIds,
+    ).toEqual(['xs', 's']);
   });
   it('wendet den gewählten Spielraum inklusiv auf die Maßgrenze an', () => {
     expect(
@@ -145,13 +270,13 @@ describe('Maßvergleich der vorhandenen Kleidung', () => {
     ).toEqual([]);
   });
   it('nutzt Körpermaße und nominelle Inch nicht als Kleidungsmaßtreffer', () => {
-    const lookup: GuideTable[] = ['body', 'conversion', 'length', 'special'].map((kind) => ({
+    const lookup: GuideTable[] = ['body', 'conversion', 'special'].map((kind) => ({
       ...reference,
       id: kind,
       kind: kind as GuideTable['kind'],
     }));
     const result = filterGuideTables(lookup, { ...filters, measurements: { waistFlat: 34 } });
-    expect(result).toHaveLength(4);
+    expect(result).toHaveLength(3);
     expect(result.every((entry) => entry.matchedRowIds.length === 0)).toBe(true);
   });
   it('trennt Zielgruppe und Kleidungsart, nimmt passende Unisex-Belege mit', () => {
@@ -214,7 +339,7 @@ describe('Nachvollziehbare recherchierte Datengrundlage', () => {
       expect(new Set(table.rows.map((row) => row.id)).size).toBe(table.rows.length);
       for (const row of table.rows) {
         expect(row.cells).toHaveLength(table.columns.length);
-        if (row.measurements) expect(table.kind).toBe('garment');
+        if (row.measurements) expect(['orientation', 'length']).toContain(table.kind);
         for (const range of Object.values(row.measurements ?? {})) {
           expect(range.min).toBeGreaterThan(0);
           expect(range.max).toBeGreaterThanOrEqual(range.min);
@@ -222,12 +347,22 @@ describe('Nachvollziehbare recherchierte Datengrundlage', () => {
       }
     }
   });
-  it('hält Hersteller-Körperreferenz W29 getrennt vom realen Jeansbund', () => {
+  it('hält Körperreferenzen getrennt von redaktionellen Richtbereichen', () => {
     const silver = CLOTHING_SIZE_TABLES.find((table) => table.id === 'silver-women');
     expect(silver?.kind).toBe('body');
     expect(silver?.rows.find((row) => row.cells[0] === 'W29')?.cells[1]).toBe('6/8');
-    const iron = CLOTHING_SIZE_TABLES.find((table) => table.id === 'iron-heart-jeans');
-    const jeans29 = iron?.rows.find((row) => row.cells[0] === '29');
-    expect(jeans29?.measurements?.waistFlat?.min).toBe(37.08);
+    const general = CLOTHING_SIZE_TABLES.find((table) => table.id === 'general-men-trousers');
+    expect(general?.kind).toBe('orientation');
+    expect(general?.rows.find((row) => row.cells[0] === 'M')?.measurements?.waistFlat).toEqual({
+      min: 40,
+      max: 43.8,
+    });
+    expect(
+      CLOTHING_SIZE_TABLES.some((table) =>
+        ['iron-heart-jeans', 'lands-end-yoga', 'cottonmill-sweatpants', 'port-co-tshirt'].includes(
+          table.id,
+        ),
+      ),
+    ).toBe(false);
   });
 });

@@ -2,19 +2,24 @@ import { describe, expect, it } from 'vitest';
 import { CLOTHING_SIZE_TABLES } from '../../models/clothing-size-catalog';
 import { ClothingSizeGuideComponent } from './clothing-size-guide.component';
 
-describe('Recherchierte Größenübersicht', () => {
+describe('Allgemeine Größenübersicht', () => {
   it('zeigt ohne Suche alle gefüllten Tabellen und beide Kleidungsarten', () => {
     const component = new ClothingSizeGuideComponent();
     expect(component.visibleTables()).toHaveLength(CLOTHING_SIZE_TABLES.length);
     expect(component.rowCount()).toBeGreaterThan(50);
     expect(component.groups().map((group) => group.title)).toEqual([
-      'Maße der fertigen Kleidung',
+      'Allgemeine Größenübersicht',
       'Labelgrößen vergleichen',
       'Jeanslängen und besondere Größen',
     ]);
     expect(new Set(component.visibleTables().map((entry) => entry.table.category))).toEqual(
       new Set(['trousers', 'tops']),
     );
+    expect(component.groups()[0]?.tables).toHaveLength(3);
+    expect(component.groups()[0]?.tables.every((entry) => entry.table.kind === 'orientation')).toBe(
+      true,
+    );
+    expect(component.visibleTables().map((entry) => entry.table.kind)).not.toContain('garment');
   });
 
   it('entfernt beim Wechsel auf Oberteile die unsichtbaren Hosenmaße', () => {
@@ -24,10 +29,7 @@ describe('Recherchierte Größenübersicht', () => {
     component.setMeasurement('chestFlat', 50);
     component.setCategory('tops');
     expect(component.measurements()).toEqual({ chestFlat: 50 });
-    expect(component.visibleMeasurementFields().map((field) => field.key)).toEqual([
-      'chestFlat',
-      'backLength',
-    ]);
+    expect(component.visibleMeasurementFields().map((field) => field.key)).toEqual(['chestFlat']);
     expect(component.visibleTables().every((entry) => entry.table.category === 'tops')).toBe(true);
   });
 
@@ -37,24 +39,84 @@ describe('Recherchierte Größenübersicht', () => {
     component.setCategory('trousers');
     component.query.set('29');
     component.tolerance.set(2);
-    component.extraMeasurements.set(true);
     expect(component.filtersActive()).toBe(true);
     component.resetFilters();
     expect(component.filtersActive()).toBe(false);
-    expect(component.extraMeasurements()).toBe(false);
     expect(component.measurements()).toEqual({});
     expect(component.tolerance()).toBe(1);
     expect(component.visibleTables()).toHaveLength(CLOTHING_SIZE_TABLES.length);
   });
 
-  it('entfernt ausgeblendete Zusatzmaße als Suchbedingungen', () => {
+  it('bietet nur unterstützte Größenmaße und die zusätzliche Außenbeinlänge an', () => {
     const component = new ClothingSizeGuideComponent();
-    component.toggleExtraMeasurements();
-    component.setMeasurement('hipFlat', 46);
-    component.setMeasurement('waistFlat', 35);
-    component.toggleExtraMeasurements();
-    expect(component.extraMeasurements()).toBe(false);
-    expect(component.measurements()).toEqual({ waistFlat: 35 });
+    expect(component.visibleMeasurementFields().map((field) => field.key)).toEqual([
+      'waistFlat',
+      'inseam',
+      'outseam',
+      'chestFlat',
+    ]);
+    component.setMeasurement('outseam', 104);
+    expect(component.hasMeasurements()).toBe(true);
+    expect(component.hasSizeMeasurements()).toBe(false);
+    expect(component.hasLengthMeasurement()).toBe(false);
+    expect(component.visibleTables()).toHaveLength(CLOTHING_SIZE_TABLES.length);
+    expect(component.sizeEstimateCount()).toBe(0);
+    expect(component.lengthMatchCount()).toBe(0);
+  });
+
+  it('ordnet 42 cm Bundweite als Herren-M ein und prüft die Innenbeinlänge getrennt', () => {
+    const component = new ClothingSizeGuideComponent();
+    component.setCategory('trousers');
+    component.setAudience('men');
+    component.tolerance.set(0);
+    component.setMeasurement('waistFlat', 42);
+    component.setMeasurement('inseam', 81.28);
+    component.setMeasurement('outseam', 104);
+    const sizeTable = component
+      .visibleTables()
+      .find((entry) => entry.table.id === 'general-men-trousers');
+    expect(sizeTable?.rows.map((row) => row.cells[0])).toEqual(['M']);
+    expect(sizeTable?.matchedRowIds).toHaveLength(1);
+    const lengths = component.visibleTables().find((entry) => entry.table.id === 'nominal-length');
+    expect(lengths?.rows.map((row) => row.cells[0])).toEqual(['L32']);
+    expect(lengths?.matchedRowIds).toHaveLength(1);
+    expect(component.sizeEstimateCount()).toBe(1);
+    expect(component.lengthMatchCount()).toBe(1);
+  });
+
+  it('zählt bei alleiniger Innenbeinlänge keine geschätzte Weitengröße', () => {
+    const component = new ClothingSizeGuideComponent();
+    component.tolerance.set(0);
+    component.setMeasurement('inseam', 81.28);
+    expect(component.hasSizeMeasurements()).toBe(false);
+    expect(component.hasLengthMeasurement()).toBe(true);
+    expect(component.sizeEstimateCount()).toBe(0);
+    expect(component.lengthMatchCount()).toBe(1);
+  });
+
+  it.each(['M', 'W29', 'EU40'])('behält die eingegebene Länge bei der Suche nach %s', (query) => {
+    const component = new ClothingSizeGuideComponent();
+    component.tolerance.set(0);
+    component.setMeasurement('inseam', 88.9);
+    component.query.set(query);
+    const lengths = component.visibleTables().find((entry) => entry.table.id === 'nominal-length');
+    expect(lengths?.rows.map((row) => row.cells[0])).toEqual(['L35']);
+    expect(component.lengthMatchCount()).toBe(1);
+    component.query.set('W29/L32');
+    expect(component.visibleTables().some((entry) => entry.table.id === 'nominal-length')).toBe(
+      false,
+    );
+    expect(component.lengthMatchCount()).toBe(0);
+  });
+
+  it('findet allgemeine XXL-Zeilen über das Label 2XL', () => {
+    const component = new ClothingSizeGuideComponent();
+    component.query.set('2XL');
+    const tables = component.visibleTables().filter((entry) => entry.table.kind === 'orientation');
+    expect(tables).toHaveLength(3);
+    expect(
+      tables.every((entry) => entry.rows.length === 1 && entry.rows[0]?.cells[0] === 'XXL'),
+    ).toBe(true);
   });
 
   it('meldet ungültige Messwerte und den fehlenden Suchspielraum', () => {

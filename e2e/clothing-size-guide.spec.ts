@@ -33,50 +33,90 @@ async function checkAccessibility(page: Page): Promise<void> {
   expect(violations).toEqual([]);
 }
 
-test('zeigt gefüllte Größentabellen und grenzt Kleidungsmaße ohne Körpermaßtreffer ein @core-smoke', async ({
+test('zeigt allgemeine Richtbereiche und grenzt Größen und Längen getrennt ein @core-smoke', async ({
   page,
 }) => {
   const pageErrors: string[] = [];
   page.on('pageerror', (error) => pageErrors.push(error.message));
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto('/tools/brand-labels/sizes');
+  await expect(page).toHaveURL(/\/tools\/brand-labels\/sizes$/);
+  await expect(page).toHaveTitle(/Flipbase/i);
   await expect(
     page.getByRole('heading', { name: 'Größen nachschlagen', exact: true }),
   ).toBeVisible();
   await expect(page.locator('[data-size-table]')).toHaveCount(CLOTHING_SIZE_TABLES.length);
   await expect(
-    page.getByRole('heading', { name: 'Maße der fertigen Kleidung', exact: true }),
+    page.getByRole('heading', { name: 'Allgemeine Größenübersicht', exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole('heading', { name: 'Labelgrößen vergleichen', exact: true }),
   ).toBeVisible();
   await expect(page.locator('[data-size-match]')).toHaveCount(0);
+  await expect(page.locator('[data-size-table]').first()).toHaveAttribute(
+    'data-size-table',
+    /^general-/,
+  );
+  for (const id of [
+    'iron-heart-jeans',
+    'lands-end-yoga',
+    'cottonmill-sweatpants',
+    'port-co-tshirt',
+  ]) {
+    await expect(page.locator(`[data-size-table="${id}"]`)).toHaveCount(0);
+  }
   await checkAccessibility(page);
   await capture(page, 'size-guide-desktop.png');
 
-  const garmentTable = CLOTHING_SIZE_TABLES.find(
-    (table) => table.kind === 'garment' && table.category === 'trousers',
-  );
-  const garmentRow = garmentTable?.rows.find((row) => row.measurements?.waistFlat);
-  const waist = garmentRow?.measurements?.waistFlat;
-  if (!garmentTable || !garmentRow || !waist)
-    throw new Error('Belegte Hosenmaße fehlen im Größenkatalog.');
-  await choose(page, 'Nach Kleidungsart filtern', 'Hosen & Jeans');
-  await choose(page, 'Nach Marke oder Größensystem filtern', garmentTable.brand);
   await page
-    .getByRole('spinbutton', { name: 'Bundweite, flach in Zentimetern', exact: true })
-    .fill(String((waist.min + waist.max) / 2));
+    .getByRole('spinbutton', { name: 'Innenbeinlänge in Zentimetern', exact: true })
+    .fill('81.28');
   await page
     .getByRole('spinbutton', { name: 'Suchspielraum in Zentimetern', exact: true })
     .fill('0');
-  const target = page.locator(`[data-size-table="${garmentTable.id}"]`);
-  await expect(target.locator(`[data-size-match="${garmentRow.id}"]`)).toBeVisible();
-  await expect(target.getByText('Treffer', { exact: true }).first()).toBeVisible();
-  await choose(page, 'Nach Marke oder Größensystem filtern', 'Alle Marken / Systeme');
+  await expect(page.getByRole('status').filter({ hasText: 'L-Angabe' })).toContainText(
+    '1 passende L-Angabe',
+  );
+  await expect(page.getByRole('status').filter({ hasText: 'geschätzte Größe' })).toHaveCount(0);
+  await expect(
+    page.getByRole('heading', { name: 'Kein passender Richtbereich gefunden' }),
+  ).toHaveCount(0);
+  await page.getByRole('button', { name: 'Alle Größenfilter zurücksetzen', exact: true }).click();
+
+  await choose(page, 'Nach Kleidungsart filtern', 'Hosen & Jeans');
+  await choose(page, 'Nach Zielgruppe filtern', 'Herren');
+  await page
+    .getByRole('spinbutton', { name: 'Bundweite, flach in Zentimetern', exact: true })
+    .fill('42');
+  await page
+    .getByRole('spinbutton', { name: 'Suchspielraum in Zentimetern', exact: true })
+    .fill('0');
+  const target = page.locator('[data-size-table="general-men-trousers"]');
+  await expect(target.locator('[data-size-match]')).toHaveCount(1);
+  await expect(target.locator('tbody th')).toHaveText('M Geschätzt');
+  await page
+    .getByRole('spinbutton', { name: 'Innenbeinlänge in Zentimetern', exact: true })
+    .fill('81.28');
+  await page
+    .getByRole('spinbutton', { name: 'Außenbeinlänge in Zentimetern', exact: true })
+    .fill('104');
+  await expect(target.locator('[data-size-match]')).toHaveCount(1);
+  await expect(page.locator('[data-size-table="nominal-length"] tbody th')).toHaveText(
+    'L32 Passende Länge',
+  );
+  await expect(page.getByRole('status').filter({ hasText: 'geschätzte Größe' })).toContainText(
+    '1 geschätzte Größe · 1 passende L-Angabe',
+  );
+  await expect(
+    page.getByText('Die Außenbeinlänge ist eine zusätzliche Verkaufsangabe.', { exact: false }),
+  ).toBeVisible();
+  await choose(page, 'Nach Zielgruppe filtern', 'Damen & Herren');
   await expect(page.locator('[data-size-table="next-women-trousers"]')).toBeVisible();
   await expect(page.locator('[data-size-table="silver-women"]')).toBeVisible();
   await expect(page.locator('[data-size-table="silver-women"] [data-size-match]')).toHaveCount(0);
-  for (const table of CLOTHING_SIZE_TABLES.filter((table) => table.kind !== 'garment')) {
+  for (const table of CLOTHING_SIZE_TABLES.filter(
+    (table) => !['orientation', 'length'].includes(table.kind),
+  )) {
     await expect(page.locator(`[data-size-table="${table.id}"] [data-size-match]`)).toHaveCount(0);
   }
   await checkAccessibility(page);

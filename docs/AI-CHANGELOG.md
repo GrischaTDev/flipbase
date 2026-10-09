@@ -1,5 +1,37 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-09 - Juna - Allgemeine Größenbereiche statt einzelner Modelle zeigen
+
+**Auftrag:** Nutzer möchte allgemeine Größenreihen und typische Maßbereiche
+zur Einordnung seiner Ware. Die zuvor eingefügten Karten einzelner Hosenmodelle
+entsprechen diesem Bedarf nicht und sind aus der Übersicht entfernt.
+
+**Umsetzung:** Drei allgemeine Tabellen für Damenhosen, Herrenhosen und normal
+geschnittene Unisex-T-Shirts stehen vor den Labelvergleichen. XS/S/M bis XXL
+stehen neben Ländergrößen, Jeans-W und ungefähren Bund- beziehungsweise
+Brustweiten. Die Hosenbereiche sind ausdrücklich redaktionelle Schätzwerte:
+Levi's Alpha-/W-Gruppen werden einschließlich einer halben Inch-Stufe an den
+Grenzen in cm übertragen. Das belegt keine tatsächlichen Kleidungsmaße;
+Ländergrößen aus Next, ASOS und bonprix sind ungefähre Gegenstellungen.
+Die T-Shirt-Spannen fassen zwei Hersteller-Größenreihen zusammen und gelten
+nicht für jeden Schnitt oder Jacken. Jede Grundlage ist direkt verlinkt.
+
+**Suche:** Flach gemessene Breite grenzt die Größenbereiche ein. Innenbeinlänge
+ermittelt unabhängig davon eine nominelle L-Angabe; Außenbeinlänge bleibt ein
+zusätzlicher Hinweis und liefert keine allgemeine XS/M-Grenze. Maßfelder werden
+nur mit vergleichbaren Spalten geprüft. Gerundete sichtbare Bereichsgrenzen
+gelten auch in der Suche. XXL/2XL und XXXL/3XL werden gleich behandelt.
+Labelsuche und vorhandene veröffentlichte Zusatzreferenzen bleiben erhalten.
+Insgesamt 13 Tabellen mit 184 Größenzeilen, keine Backend-Änderung.
+
+**Prüfung:** 55 Modelltests und 17 Angular-Tests, gezieltes ESLint, Formatprüfung,
+Typprüfung, Shared-UI-Prüfung und Produktionsbau erfolgreich. Isolierte
+Chromium-Prüfung mit synthetischer Sitzung und RPC-Antworten auf Desktop und
+Mobilgerät: allgemeine Tabellen, unabhängige Weite/Länge, Labelsuche,
+Zusatzreferenzen samt simuliertem Ausfall und Wiederholen; AXE WCAG AA ohne
+Befunde. Browser-Plugin nicht verfügbar; vorhandenes Playwright verwendet.
+Kein Test gegen die produktive Anmeldung oder Datenbank. Kein Push/Deployment.
+
 ## 2026-10-09 - Juna - Bedarf für die Größen-Nachschlagehilfe korrigieren
 
 **Auftrag:** Die vorhandene leere Referenzverwaltung trifft den beschriebenen
