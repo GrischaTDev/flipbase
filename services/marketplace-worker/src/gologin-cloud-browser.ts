@@ -27,6 +27,7 @@ import type {
 } from '../../../supabase/functions/_shared/marketplace-negotiation-contracts.d.ts';
 import type { ConfirmedNegotiationOffer } from './vinted-negotiation-contracts.ts';
 import type { VintedFavoriteEvent } from './vinted-browser-favorites.ts';
+import type { MarketplaceListingPhoto } from './marketplace-listing-photo.ts';
 
 export type BrowserConnection = Pick<Browser, 'close' | 'version'> &
   Partial<Pick<Browser, 'contexts' | 'newBrowserCDPSession'>>;
@@ -43,6 +44,7 @@ export interface BrowserInfo extends Pick<Browser, 'version'> {
     snapshot: import('../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts').MarketplaceListingSnapshot,
     beforeWrite: () => Promise<void>,
     authorize: () => Promise<void>,
+    loadPhoto: (imageId: string) => Promise<MarketplaceListingPhoto>,
   ): Promise<
     import('../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts').MarketplaceListingResult
   >;

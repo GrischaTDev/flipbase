@@ -10,8 +10,10 @@ Vorlagen und Editor als geprüfte Grundlage umgesetzt. Neuanlage und vollständi
 Bearbeitungsmaske am angemeldeten Vinted geprüft; weitere Kategoriearten,
 Anbietergrenzen und Schreib-/Ergebnisbelege noch offen. Offizielle Fotoanzahl
 und gemeinsame Formularleser ergänzt. Pakete 2/3 teilweise umgesetzt; Paket 4
-enthält eigene Freigaben, unveränderliche Auftragsannahme, Abbruch und Verlauf,
-noch keine Ausführung. Pakete 6/7 offen; Paket 5 enthält Terminmodell und
+enthält eigene Freigaben, unveränderliche Auftragsannahme, Abbruch und sichtbaren
+Verlauf, lokale/Cloud-Ausführungsprotokolle und einen geprüften Worker-Ablauf
+mit privatem Fotobezug. Anbieteradapter und automatische Abholung fehlen noch.
+Pakete 6/7 offen; Paket 5 enthält Terminmodell und
 atomaren Ersatz geplanter Aufträge, noch keinen Dialog oder Ausführer.
 Einzelheiten und Prüfgrenzen stehen im
 [Anbieter- und Umsetzungsbericht](../../research/2026-10-09-vinted-listing-provider-contract.md).
@@ -191,8 +193,9 @@ Livefall belegen den Anbietererfolg. Kein Erfolg nur aus Auftragsannahme.
 **Teilstand:** Terminmodell mit expliziter Zeitzone, UTC-Berechnung,
 Sommerzeitlücke/-doppelzeit und bewusster Auswahl sowie Prüfung auf zukünftige
 Termine umgesetzt. Fälligkeit und beide Ausfallregeln sind modellseitig
-geprüft. Dialog, dauerhafte Aufträge und serverseitige Fälligkeitsprüfung
-bleiben offen; das Modell löst keine Veröffentlichung aus.
+geprüft. Dauerhafte Aufträge, serverseitige Fälligkeit und atomarer Terminersatz
+sind ergänzt; der Verlauf zeigt Zeitzone und MEZ/MESZ. Dialog und tatsächlicher
+Ausführeranschluss bleiben offen; es erfolgt noch keine Veröffentlichung.
 
 **Dateien:** Jobschema aus Paket 4 deklarativ ergänzen; neu
 `models/vinted-listing-schedule.ts` samt Modelltest und

@@ -25,20 +25,39 @@ function fixture(
     providerThrows?: boolean;
     authorized?: boolean;
     unsupported?: boolean;
+    readPhoto?: boolean;
+    photoThrows?: boolean;
+    photoAfterBegin?: boolean;
+    revokeAfterPhoto?: boolean;
     result?: MarketplaceListingResult;
   } = {},
 ) {
   const calls: string[] = [],
     results: MarketplaceListingResult[] = [];
+  let revoked = false;
+  let latePhoto: (() => Promise<unknown>) | undefined;
   const browser: BrowserInfo = {
     version: () => 'fixture',
     ...(options.unsupported
       ? {}
       : ({
-          submitListing: async (_account, _action, _snapshot, beforeWrite, authorize) => {
+          submitListing: async (
+            _account,
+            _action,
+            _snapshot,
+            beforeWrite,
+            authorize,
+            loadPhoto,
+          ) => {
             calls.push('preflight');
             await authorize();
+            latePhoto = () => loadPhoto(claim.snapshot.images[0]!.id);
+            if (options.readPhoto && !options.photoAfterBegin) {
+              await latePhoto();
+              calls.push('photo-received');
+            }
             await beforeWrite();
+            if (options.readPhoto && options.photoAfterBegin) await latePhoto();
             calls.push('provider');
             if (options.providerThrows) throw new Error('secret-provider-detail');
             return options.result ?? confirmed;
@@ -48,7 +67,7 @@ function fixture(
   const store = {
     check: async () => {
       calls.push('check');
-      return options.authorized !== false;
+      return options.authorized !== false && !revoked;
     },
     begin: async () => {
       calls.push('begin');
@@ -58,6 +77,19 @@ function fixture(
       calls.push('finish');
       results.push(result);
       if (options.finishLost) throw new Error('lost');
+    },
+    loadPhoto: async (_job: CloudListingClaim, imageId: string) => {
+      assert.equal(_job, claim);
+      assert.equal(imageId, claim.snapshot.images[0]!.id);
+      calls.push('photo');
+      if (options.photoThrows) throw new Error('private-photo-path');
+      revoked = options.revokeAfterPhoto === true;
+      return {
+        id: imageId,
+        fileName: 'jacke.jpg',
+        mimeType: 'image/jpeg' as const,
+        bytes: new Uint8Array([1]),
+      };
     },
   };
   const broker = {
@@ -72,8 +104,44 @@ function fixture(
       if (options.stopLost) throw new Error('lost');
     },
   };
-  return { calls, results, runner: new MarketplaceListingRunner(broker, store) };
+  return {
+    calls,
+    results,
+    runner: new MarketplaceListingRunner(broker, store),
+    latePhoto: () => latePhoto!(),
+  };
 }
+
+test('private photo preparation precedes Begin and closed adapters cannot load more photos', async () => {
+  const f = fixture({ readPhoto: true });
+  await f.runner.run(claim);
+  assert.ok(f.calls.indexOf('photo') < f.calls.indexOf('begin'));
+  assert.ok(f.calls.includes('photo-received'));
+  const count = f.calls.length;
+  await assert.rejects(f.latePhoto());
+  assert.equal(f.calls.length, count);
+});
+test('photo failure before Begin cannot create an uncertain write or trigger the provider', async () => {
+  const f = fixture({ readPhoto: true, photoThrows: true });
+  await f.runner.run(claim);
+  assert.ok(f.calls.includes('photo'));
+  assert.ok(!f.calls.includes('begin'));
+  assert.ok(!f.calls.includes('provider'));
+  assert.equal(f.results[0]?.outcome, 'failed');
+});
+test('photo failure after an upload may have begun stays unknown', async () => {
+  const f = fixture({ readPhoto: true, photoThrows: true, photoAfterBegin: true });
+  await f.runner.run(claim);
+  assert.ok(f.calls.includes('begin'));
+  assert.equal(f.results[0]?.outcome, 'outcome_unknown');
+});
+test('revocation between photo download and transfer blocks the adapter and Begin', async () => {
+  const f = fixture({ readPhoto: true, revokeAfterPhoto: true });
+  await f.runner.run(claim);
+  assert.ok(f.calls.includes('photo'));
+  assert.ok(!f.calls.includes('photo-received'));
+  assert.ok(!f.calls.includes('begin'));
+});
 test('preflight happens before the single durable write start and receipt', async () => {
   const f = fixture();
   await f.runner.run(claim);

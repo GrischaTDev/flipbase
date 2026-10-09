@@ -6,6 +6,10 @@ import type {
 } from '../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts';
 import { isVintedListingResult } from './vinted-listing-contracts.ts';
 import { validateMarketplaceMessageLease } from './supabase-marketplace-message-store.ts';
+import {
+  loadMarketplaceListingPhoto,
+  type MarketplaceListingPhoto,
+} from './marketplace-listing-photo.ts';
 
 interface ListingStoreOptions {
   url: string;
@@ -304,6 +308,29 @@ export class SupabaseMarketplaceListingStore {
       ] !== true
     )
       throw invalid();
+  }
+  async loadPhoto(claim: CloudListingClaim, imageId: string): Promise<MarketplaceListingPhoto> {
+    try {
+      this.binding(claim);
+      const original = snapshot(
+        claim.snapshot,
+        claim.scope.workspaceId,
+        claim.scope.connectionId,
+      ).images.find((image) => image.id === imageId);
+      if (!original) throw invalid();
+      return await loadMarketplaceListingPhoto(
+        {
+          url: this.options.url,
+          serviceRoleKey: this.options.serviceRoleKey,
+          request: this.request,
+        },
+        claim.scope.workspaceId,
+        original,
+        () => this.check(claim),
+      );
+    } catch {
+      throw new Error('Das Foto konnte nicht geladen werden.');
+    }
   }
   async finish(claim: CloudListingClaim, result: MarketplaceListingResult): Promise<void> {
     if (!isVintedListingResult(result, claim.action, claim.accountId)) throw invalid();

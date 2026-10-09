@@ -1,5 +1,29 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-10 – Juna – Private Originalfotos an Cloud-Inseratversuche binden
+
+**Arbeit:** Der Worker lädt ausschließlich ein Foto aus der übernommenen,
+unveränderlichen Aufnahme. Auftrag und Browserfreigabe werden vor und nach dem
+Download geprüft. Die private Storage-Anfrage bleibt im Worker; der Adapter
+erhält nur Bildbytes, Kennung, Dateiname und Bildtyp. Dateigröße, MIME-Typ und
+Bildsignatur werden geprüft, unvollständige oder übergroße Streams abgebrochen
+und Weiterleitungen abgelehnt. Einzelne Downloads bleiben auf die vorhandene
+eigene Grenze von 50 MiB begrenzt. Geschlossene Adapter können keine weiteren
+Fotos laden. Ein Fehler nach Schreibbeginn bleibt ein unklarer Versuch.
+
+Fotoeingabe, Speicherbuttons und vorhandene Fotokacheln am angemeldeten Vinted
+erneut nur gelesen. Das vorbereitete Neuanlageformular blieb erhalten. Chrome
+registrierte sich nach Navigation erneut; die dokumentierte Verbindung wurde
+jeweils neu aufgenommen. Der zusätzliche Recherchetab ist geschlossen.
+Anbieterupload, Veröffentlichung und automatische Abholung bleiben offen.
+
+**Prüfungen:** 557 Workerprüfungen erfolgreich, 7 bestehende Fälle ausgelassen.
+25 gezielte Prüfungen zum Fotozugriff, Ablauf und Datenbank-Service sowie
+Worker-Typen und Bau erfolgreich. Storage-Route mit dem installierten
+Supabase-SDK abgeglichen. Format/ESLint erfolgreich. Container gebaut und neue
+Module ohne Netzwerk geladen. Es wurde weder ein Foto zu Vinted hochgeladen
+noch ein reales Inserat gespeichert, geändert oder veröffentlicht.
+
 ## 2026-10-10 – Juna – Inserataufträge im Entwurf anzeigen
 
 **Arbeit:** Gespeicherte Entwürfe zeigen ihren Auftragsverlauf mit Termin,

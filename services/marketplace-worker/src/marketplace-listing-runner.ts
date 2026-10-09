@@ -5,6 +5,7 @@ import type {
 import type { BrowserInfo } from './gologin-cloud-browser.ts';
 import type { BrowserSessionScope } from './marketplace-browser-session-broker.ts';
 import { isVintedListingResult } from './vinted-listing-contracts.ts';
+import type { MarketplaceListingPhoto } from './marketplace-listing-photo.ts';
 
 export interface CloudListingClaim {
   readonly kind: 'listing';
@@ -28,6 +29,7 @@ interface ListingStore {
   check(claim: CloudListingClaim): Promise<boolean>;
   begin(claim: CloudListingClaim): Promise<void>;
   finish(claim: CloudListingClaim, result: MarketplaceListingResult): Promise<void>;
+  loadPhoto(claim: CloudListingClaim, imageId: string): Promise<MarketplaceListingPhoto>;
 }
 export class MarketplaceListingRunner {
   private readonly broker: ListingBroker;
@@ -68,9 +70,29 @@ export class MarketplaceListingRunner {
           const currentSessionId = sessionId;
           result = await this.broker.run(scope, currentSessionId, async (browser) => {
             if (!browser.submitListing) return { outcome: 'failed', errorCode: 'unsupported' };
+            let adapterActive = true,
+              loadingPhoto = false;
             const authorize = async () => {
+              if (!adapterActive) throw new Error('Inseratadapter bereits geschlossen');
               if (!(await this.store.check(claim))) throw new Error('Inseratfreigabe ungültig');
               await this.broker.run(scope, currentSessionId, async () => undefined);
+            };
+            const loadPhoto = async (imageId: string) => {
+              if (
+                !adapterActive ||
+                loadingPhoto ||
+                !claim.snapshot.images.some((image) => image.id === imageId)
+              )
+                throw new Error('Fotoübergabe ungültig');
+              loadingPhoto = true;
+              try {
+                await authorize();
+                const photo = await this.store.loadPhoto(claim, imageId);
+                await authorize();
+                return photo;
+              } finally {
+                loadingPhoto = false;
+              }
             };
             const beforeWrite = async () => {
               if (beginAttempted) throw new Error('Inseratversuch bereits begonnen');
@@ -80,13 +102,19 @@ export class MarketplaceListingRunner {
               beginConfirmed = true;
             };
             // Der Adapter muss beforeWrite vor dem ersten Upload aufrufen, nicht erst vor Veröffentlichen.
-            const provided = await browser.submitListing(
-              claim.accountId,
-              claim.action,
-              claim.snapshot,
-              beforeWrite,
-              authorize,
-            );
+            let provided: MarketplaceListingResult;
+            try {
+              provided = await browser.submitListing(
+                claim.accountId,
+                claim.action,
+                claim.snapshot,
+                beforeWrite,
+                authorize,
+                loadPhoto,
+              );
+            } finally {
+              adapterActive = false;
+            }
             if (
               !isVintedListingResult(provided, claim.action, claim.accountId) ||
               (provided.outcome === 'confirmed' && !beginConfirmed)

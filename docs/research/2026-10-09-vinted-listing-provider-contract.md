@@ -56,6 +56,14 @@ ausschließlich künstliche Konten, Inserate und Fotos mit abgefangenen Anfragen
   `accept="image/jpeg,image/gif,image/png,image/webp"`. Eine zahlenmäßige
   Fotogrenze oder maximale Dateigröße ist damit **nicht** bestätigt. GIF ist
   am Anbieter auswählbar, im bisherigen Flipbase-Fotoweg jedoch nicht unterstützt.
+  Erneute Prüfung am 10.10.: `data-testid="add-photos-input"`, Fotobereich
+  `media-upload` und `media-upload-grid`; die Aktionen heißen
+  `upload-form-save-draft-button` und `upload-form-save-button`.
+  Vorhandene Fotokacheln enthalten geordnete `image-wrapper-0` bis `-5`,
+  Bildbeschriftung „Hochgeladenes Foto …“, Titelbildmarkierung und
+  eigene Bearbeiten-/Entfernen-Buttons. Die fertigen Bilder sind geladene
+  HTTPS-Bilder von `images1.vinted.net`. Ein echter Uploadzustand wurde
+  weiterhin nicht ausgelöst; Kachel oder Vorschau bestätigt kein neues Inserat.
 - DOM-Felder: `input[name="title"]`, `textarea[name="description"]`,
   `input[name="price"]` sowie `#category`, `#brand`, `#size`, `#condition`,
   `#color` und `#material`. Die Auswahlfelder sind schreibgeschützte Eingaben
@@ -200,8 +208,11 @@ synthetische Ergebnisse und bestätigen keinen echten Vinted-Schreiberfolg.
 Schema 465 ergänzt den Cloud-Versuch mit Worker-Epoche und reserviertem Profil.
 Eine abgelaufene Vorbereitung wird erst nach bestätigtem physischem Stopp
 freigegeben. Worker-Ablauf, private Datenbankanbindung und exklusive
-Browserberechtigung sind geprüft; der eigentliche Anbieteradapter, Zugriff
-auf Originalfotos und die automatische Auftragsabholung fehlen noch.
+Browserberechtigung sind geprüft. Der Zugriff auf private Originalfotos ist
+inzwischen an den übernommenen Auftrag gebunden: Rechteprüfung vor/nach dem
+Download, begrenzter Stream und Prüfung von Typ/Größe/Signatur. Der Adapter
+erhält keine Storage-URLs oder Serverzugänge. Der eigentliche Anbieteradapter
+und die automatische Auftragsabholung fehlen noch.
 Auch die 20 Cloud-Datenbankprüfungen verwenden ausschließlich synthetische
 Belege. Keine echte Veröffentlichung oder Anlage eines Vinted-Entwurfs geprüft.
 
