@@ -171,9 +171,8 @@ Cloud und Extension verwenden dieselbe Darstellung und dieselben Fachregeln.
 **Gewünschte Automatik:** Pro Konto getrennt aktivierbar, zunächst ausgeschaltet.
 Der Nutzer legt den maximalen Nachlass gegenüber dem aktuellen Artikelpreis fest.
 Beispiel: 100 € Artikelpreis, 10 % Nachlass → ab 90 € automatisch annehmen.
-Darunter ist die Reaktion noch mit dem Nutzer festzulegen: einmal den Mindestpreis
-als Gegenangebot senden, einen getrennten Gegenangebotsnachlass konfigurieren
-oder ausschließlich melden. Kein mehrstufiges Verhandeln ohne eigenen Auftrag.
+Der anschließende Browserrundgang erweitert den Auftrag um konfigurierbare
+Gegenangebotsstufen und Ereignisnachrichten; siehe den folgenden Ergänzungsabschnitt.
 Favoritennachrichten behalten ihre unabhängigen Regeln und Aktivierung.
 
 **Vor Umsetzung zu belegen:** Die aktuelle Nachrichtendarstellung liefert
@@ -200,3 +199,75 @@ Centrundung, Preisänderung, Doppelausführung und unbekannter Ausgang testen.
 dokumentiert Annahme oberhalb einer selbst gesetzten Preisgrenze sowie
 Gegenangebote darunter, auch in mehreren Schritten. Das belegt das angebotene
 Produktverhalten, nicht Bleams interne technische Implementierung.
+
+## Erweiterter Auftrag nach Browserrundgang: automatische Verhandlung
+
+**Stand:** Am 09.10.2026 im geöffneten Bleam-Dashboard beobachtet und für Flipbase
+abgeleitet; keine Produktumsetzung. Die frühere Einmal-Gegenangebotsauswahl ist
+mit dem neuen Auftrag überholt. [Beobachtungsprotokoll](../research/bleam-vinted-analysis.md).
+
+**Seite:** Unter „Automatisierungen“ neben „Favoritennachrichten“ den Menüpunkt
+„Automatische Verhandlung“ vorsehen. Kontobezogene Regeln, aktivierbare
+Verhandlung, Vorschau und bestehender Speichern-Button. Keine aktive UI ohne
+vollständige Ausführung. Cloud und Extension verwenden die gleichen Regeln.
+Die manuelle Angebotsbedienung bleibt unabhängig von der Automatik verfügbar.
+
+**Verhandlungsregeln:** Maximalen Nachlass in Euro oder Prozent festlegen,
+optional nach Artikelpreisbereichen. Der bestätigte aktuelle Artikelpreis ist
+die Grundlage; mit ganzen Centbeträgen rechnen. Unter dieser Annahmegrenze
+konfigurierbare Gegenangebotsstufen anbieten. Beispiel: 50 € Artikelpreis,
+10 € maximaler Nachlass, Stufen 50/80/100 % des Nachlasses → 45/42/40 €.
+Die letzte Stufe erreicht die Preisgrenze. Fortschritt pro Konto, Gespräch und
+Artikel speichern; die nächste Stufe reagiert auf einen neuen belegten Eingang,
+nicht auf einen weiteren Poll oder allein auf den Ablauf eines Zeitintervalls.
+Keine stillschweigende Unterschreitung, Zurücksetzung oder zusätzlichen Rabatte.
+
+**Ereignisse und Nachrichten:**
+
+- Eigenes automatisches Annehmen eines Käuferangebots.
+- Zwischengegenangebot und endgültiges Angebot.
+- Erneuter Verhandlungsversuch nach letztem Angebot oder nach Annahme.
+- Käufer nimmt ein von uns gesendetes Angebot an: eigenes Ereignis, dessen
+  verlässlicher Nachweis vor Aktivierung zu prüfen ist.
+- Bestätigter Kauf/Bestellung, auch ohne vorherige Verhandlung: eigener
+  unabhängig aktivierbarer Bereich „Nachrichten nach einem Kauf“. Keine
+  Kaufbestätigung allein aus angenommener Preisvereinbarung oder Vorschau.
+
+Pro Ereignis optionale eigene Texte, beginnend mit einem Textfeld. Zwei klar
+getrennte Ergänzungen planen: „Alternative Vorlage“ fügt einen auswählbaren Text
+hinzu; „Weitere Nachricht“ fügt tatsächlich einen Folgeschritt hinzu. Eine
+Vorlagenauswahl einmal speichern, damit Wiederaufnahme dieselbe Nachricht nicht
+neu auswählt oder erneut sendet. Eigene Folgevorlagen und Preisplatzhalter
+verwenden; keine fremden Beispieltexte übernehmen. Nach gekauftem Artikel keine
+weiteren Preisverhandlungen ausführen. Fehlende oder nicht belegte Auslöser
+zeigen einen offenen Nachweis und aktivieren keine Senderegel.
+
+**Zeitpunkt und Reihenfolge:** Einstellbare Verzögerung mit Sofort/30 Sekunden/
+1/2/5 Minuten und Minuten-/Sekundeneingabe; Folgeschritte mit eigener Wartezeit
+nach bestätigtem Vorgänger. Fälligkeit dauerhaft im vorhandenen Auftragsprinzip
+speichern, keinen Worker durch Wartepausen blockieren. Für Gegenangebote
+„Angebot zuerst“ als vorgeschlagener Standard, Nachricht erst nach bestätigtem
+Angebotserfolg. Gewünschte „Nachricht zuerst“-Option ausdrücklich als getrennte
+Schritte mit möglichem Teilerfolg behandeln. Annahme- und Kauftexte erst nach
+bestätigtem zugehörigem Ereignis. Ausschalten, neue Regeln, Profilwechsel und
+manuelle Bearbeitung stornieren unbegonnene veraltete Schritte; ein unbekannter
+Schreibausgang wird geprüft und nicht blind wiederholt.
+
+**Umsetzung in überprüfbaren Teilen:**
+
+1. Die strukturierten Angebotsdaten und Annahme-/Ablehnungsaktionen belegen;
+   manuelle Chatbuttons samt Gegenangeboteingabe für beide Ausführungswege.
+2. Die kontobezogene Einstellungsseite und gemeinsame Preis-/Stufenregeln mit
+   Vorschau, Verlauf, pausierter Automatik und gespeichertem Fortschritt.
+3. Optionale Ereignisnachrichten mit Alternativen, echten Folgen und Verzögerung;
+   bestätigte Kaufnachricht als unabhängiger Auslöser. Vor Aktivierung die
+   Eingangs-/Ergebnisbelege je Auslöser prüfen.
+
+**Abnahme:** Gemeinsame Regeltests mit Euro/Prozent, Preisbereichsgrenzen,
+Centrundung, Stufenfortschritt und Preisänderung; SQL-Kontobindung und
+Doppelausführung; Extension-/Cloud-Adapter mit bestätigtem/abgelehntem/unklarem
+Ergebnis; keine Folgemeldung bei ungeklärtem Vorgänger; Neustart und manuelle
+Übernahme; mobile/helle/dunkle Oberfläche mit AXE und Produktionsbau. Anschließend
+kontrollierte Echtkonto-Abnahme mit ausdrücklich festgelegten Testaktionen.
+Die davor geprüften Bot-Icon-/Lesestatusänderungen bleiben ein gesonderter
+fertiger Stand; ihre Veröffentlichung ist noch nicht freigegeben.

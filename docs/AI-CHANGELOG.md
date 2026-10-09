@@ -1,5 +1,29 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-09 - Juna - Verhandlungsseite im Browser analysieren
+
+**Auftrag:** Die geöffnete Bleam-Seite „Automatische Verhandlung“ lesen und
+Preisregeln, Stufen, Ereignisnachrichten sowie Versandverzögerungen für Flipbase
+ableiten; zusätzlich Nachrichten nach Annahme und allgemeinem Kauf aufnehmen.
+
+**Beobachtung:** Preisbereiche mit Euro-Nachlass, Stufen als Anteil dieses
+Nachlasses, zufällig gewählte alternative Texte je Verhandlungsmoment,
+Minuten-/Sekundenverzögerung und Reihenfolge Nachricht/Angebot. „Nachrichten nach
+der Annahme“ betrifft dort erneutes Verhandeln, keine belegte Kaufnachricht.
+Auswahlmenü nur geöffnet und geschlossen; keine fremden Einstellungen geändert.
+
+**Ergebnis:** Bestehendes Rechercheprotokoll und Angebotsplan ergänzt. Eigener
+Menüpunkt, gemeinsame Regeln für Cloud/Extension, separate Ereignisse für
+Annahme/Kauf, optionale echte Nachrichtenfolgen zusätzlich zu Textalternativen
+und dauerhaft geplante Folgeschritte. Die frühere Einmal-Gegenangebotsauswahl
+ist durch den neuen Stufenauftrag ersetzt. Aktions-/Ereignisnachweise bleiben
+Voraussetzung vor Umsetzung und Aktivierung; keine erfundenen Provider-APIs.
+
+**Prüfung:** Sichtbare Oberfläche samt Hilfetexten gelesen, aktuelle Navigation
+und bestehende Angebotsplanung abgeglichen; Formatprüfung und Diffcheck für die
+Dokumentation. Keine Produktänderung, kein Versand und keine Änderung am Flipbase-Betrieb.
+Die bereits geprüften Bot-Icon-/Lesestatusänderungen bleiben unverändert.
+
 ## 2026-10-09 - Juna - Angebotsaktionen und automatische Verhandlung aufnehmen
 
 **Auftrag:** Manuelles Annehmen/Ablehnen/Gegenangebot im Chat und eine pro Konto
