@@ -27,7 +27,7 @@
       multiple
       class="hidden"
       aria-label="Inseratbilder auswählen"
-      [accept]="accept"
+      [accept]="acceptedFormats()"
       [disabled]="disabled()"
       (change)="onFileSelected($event)"
     />
@@ -134,6 +134,15 @@
               [ariaLabel]="image.fileName + ' entfernen'"
               (clicked)="remove(image.key)"
             />
+            <app-button
+              variant="ghost"
+              size="slim"
+              [icon]="editIcon"
+              [iconOnly]="true"
+              [disabled]="disabled() || (!image.file && !image.previewUrl)"
+              [ariaLabel]="image.fileName + ' zuschneiden oder drehen'"
+              (clicked)="edit(image.key)"
+            />
           </div>
         </li>
       }
@@ -141,3 +150,12 @@
   }
   <p aria-live="polite" class="sr-only">{{ announcement() }}</p>
 </section>
+@if (editing(); as image) {
+  <app-image-cropper-modal
+    [initialImageFile]="image.file"
+    [initialImageUrl]="image.file ? null : image.previewUrl"
+    [maintainAspectRatio]="false"
+    (imageReady)="applyEditedImage($event)"
+    (closed)="closeEditing()"
+  />
+}

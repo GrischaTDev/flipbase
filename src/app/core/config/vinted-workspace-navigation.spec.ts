@@ -17,6 +17,8 @@ describe('Vinted-Bereichsgrenzen', () => {
       'Übersicht',
       'Postfach',
       'Inserate',
+      'Inserat erstellen',
+      'Entwürfe',
       'Verkäufe',
       'Verlauf',
       'Profil',
@@ -46,6 +48,18 @@ describe('Vinted-Bereichsgrenzen', () => {
     expect(isVintedWorkspaceRoute(url)).toBe(expected);
   });
   it('ordnet Details den Inseraten zu, ohne ähnlich benannte Routen einzuschließen', () => {
+    expect(
+      isVintedNavigationActive(
+        '/marketplaces/vinted/listings',
+        '/marketplaces/vinted/listings/new',
+      ),
+    ).toBe(false);
+    expect(
+      isVintedNavigationActive(
+        '/marketplaces/vinted/listings/new',
+        '/marketplaces/vinted/listings/new',
+      ),
+    ).toBe(true);
     expect(
       isVintedNavigationActive(
         '/marketplaces/vinted/listings',

@@ -1,5 +1,43 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-09 – Juna – Grundlage für Vinted-Entwürfe, Fotos und Vorlagen
+
+**Auftrag:** Mit „dann los“ den besprochenen Inseratplan umsetzen. Die Umsetzung
+beginnt im eigenen Arbeitszweig auf `origin/master` bei `638b2ace`, einschließlich
+der abgeschlossenen Nachrichten-/Verhandlungs- und Cloud-Korrekturen aus PR #356/#357.
+
+**Änderung:** Eigene Entwürfe können ohne verbundenes Konto angelegt, automatisch
+gespeichert, gesucht und weiterbearbeitet werden. Verkaufspreise werden bewusst
+eingegeben. Private Fotos unterstützen Dateiauswahl, Drag-and-drop, Titelbild,
+Reihenfolge und den vorhandenen Zuschneide-/Drehdialog. Die Bildkomponente wird
+auch vom bisherigen Kleinanzeigeneditor genutzt. Vorlagen speichern ausgewählte
+Angaben und zeigen Änderungen vor dem Übernehmen. Konto und Fotos bleiben außen vor.
+Die neuen Schemas 460–462 prüfen Arbeitsbereich, Zielkonto, Anlegekennung und
+Revision. Direkte Schreibrechte bleiben gesperrt; große interne IDs sind im
+Client Zeichenketten. Uploadfehler dürfen bestätigte Originalfotos nicht löschen.
+Die CLI-Migration wird um die deklarativen Rechte, Bucket-Daten und Storage-Policies
+ergänzt; fremde Tabellenänderungen werden dabei abgewiesen.
+
+**Grenze:** Der Vinted-Tab ist ausgeloggt; Anmeldung wurde angefragt. Anbieterfelder
+und vollständige Schreibwege sind noch nicht bestätigt. Vinted-Entwurf,
+Veröffentlichen, Termine, vollständige Live-Bearbeitung/Drawer und Relist bleiben
+offen. Ebenso fehlen dauerhafte Bereinigung verwaister Uploads und Sicherungsregeln.
+Die Oberfläche bezeichnet Entwürfe eindeutig als Speicherung nur in Flipbase.
+Details stehen in `docs/research/2026-10-09-vinted-listing-provider-contract.md`.
+
+**Prüfung:** 96 betroffene Angularprüfungen einschließlich Kleinanzeigeneditor,
+30 Modell-/Navigationsprüfungen und 11 gezielte Skriptprüfungen bestehen.
+56 neue Datenbankprüfungen bestehen nach vollständigem lokalem Reset einschließlich
+der erzeugten Migration und privater Storage-Policies. Produktionsbau und
+TypeScript-Prüfung bestehen. Vier Browserfälle mit künstlichen Daten prüfen
+Desktop/Mobil, hell/dunkel, Kategorie, Entwurf, Fotos und Vorlagen; AXE findet
+auf der Editorfläche keine Verstöße. Unabhängige Review-Funde zu Vorlagenfeldern,
+Fotoersatz am Limit und Autosave während des Zuschnitts sowie eine Dialogsperre
+nach Kontextwechsel sind durch Regressionstests reproduziert und behoben.
+Kein Anbieter-Schreibtest, keine Produktionsmigration, kein Push/PR/Merge,
+kein Deployment und keine Änderung
+der installierten Erweiterung.
+
 ## 2026-10-09 – Juna – Vinted-Inserateditor und Veröffentlichung geplant
 
 **Auftrag:** Bleam-Publish und Inseratverwaltung recherchieren; einen Plan für

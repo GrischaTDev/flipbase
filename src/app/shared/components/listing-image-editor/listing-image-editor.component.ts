@@ -21,17 +21,26 @@ import {
   LucideGripVertical,
   LucideStar,
   LucideTrash2,
+  LucideCrop,
 } from '@lucide/angular';
-import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { ButtonComponent } from '../button/button.component';
+import { IMAGE_FILE_ACCEPT, imageFileError } from '../image-cropper-modal/image-file';
+import type { ListingImageDraft } from './listing-image-draft';
 import {
-  IMAGE_FILE_ACCEPT,
-  imageFileError,
-} from '../../../../shared/components/image-cropper-modal/image-file';
-import type { ListingImageDraft } from '../../models/listing.models';
+  ImageCropperModalComponent,
+  type CroppedImageResult,
+} from '../image-cropper-modal/image-cropper-modal.component';
 
 @Component({
   selector: 'app-listing-image-editor',
-  imports: [ButtonComponent, CdkDrag, CdkDragHandle, CdkDragPlaceholder, CdkDropList],
+  imports: [
+    ButtonComponent,
+    CdkDrag,
+    CdkDragHandle,
+    CdkDragPlaceholder,
+    CdkDropList,
+    ImageCropperModalComponent,
+  ],
   templateUrl: './listing-image-editor.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -40,16 +49,21 @@ export class ListingImageEditorComponent {
   readonly drafts = linkedSignal(() => this.images());
   readonly disabled = input(false);
   readonly imagesChange = output<readonly ListingImageDraft[]>();
+  readonly editingChange = output<boolean>();
   readonly errors = signal<readonly string[]>([]);
   readonly announcement = signal('');
   readonly dragActive = signal(false);
+  readonly editing = signal<ListingImageDraft | null>(null);
+  readonly editIcon = LucideCrop;
+  readonly acceptedFormats = input(IMAGE_FILE_ACCEPT);
+  readonly validateFile = input<(file: File) => string | null>(imageFileError);
+  readonly maximumImages = input<number | null>(null);
   readonly dragStartDelay = { touch: 200, mouse: 0 } as const;
   readonly dragIcon = LucideGripVertical;
   readonly primaryIcon = LucideStar;
   readonly previousIcon = LucideArrowLeft;
   readonly nextIcon = LucideArrowRight;
   readonly removeIcon = LucideTrash2;
-  readonly accept = IMAGE_FILE_ACCEPT;
   private readonly readers = new Set<FileReader>();
   private readonly destroyRef = inject(DestroyRef);
 
@@ -89,7 +103,11 @@ export class ListingImageEditorComponent {
     const rejected: string[] = [];
     const accepted: ListingImageDraft[] = [];
     for (const file of files) {
-      const error = imageFileError(file);
+      const maximum = this.maximumImages();
+      const error =
+        maximum !== null && this.drafts().length + accepted.length >= maximum
+          ? `Du kannst höchstens ${maximum} Bilder auswählen.`
+          : this.validateFile()(file);
       if (error) rejected.push(`${file.name}: ${error}`);
       else {
         const draft: ListingImageDraft = {
@@ -132,6 +150,38 @@ export class ListingImageEditorComponent {
     [images[index], images[next]] = [images[next], images[index]];
     this.change(images);
     this.announcement.set(`Bild auf Position ${next + 1} verschoben.`);
+  }
+
+  edit(key: string): void {
+    const image = this.drafts().find((entry) => entry.key === key);
+    if (!this.disabled() && image && (image.file || image.previewUrl)) {
+      this.editing.set(image);
+      this.editingChange.emit(true);
+    }
+  }
+  closeEditing(): void {
+    this.editing.set(null);
+    this.editingChange.emit(false);
+  }
+
+  applyEditedImage(result: CroppedImageResult): void {
+    const image = this.editing();
+    if (!image || this.disabled()) return;
+    this.change(
+      this.drafts().map((entry) =>
+        entry.key === image.key
+          ? {
+              ...entry,
+              file: result.file,
+              fileName: result.file.name,
+              storagePath: null,
+              previewUrl: result.dataUrl,
+            }
+          : entry,
+      ),
+    );
+    this.closeEditing();
+    this.announcement.set('Bild bearbeitet. Das Original bleibt bis zum Speichern erhalten.');
   }
 
   setPrimary(key: string): void {

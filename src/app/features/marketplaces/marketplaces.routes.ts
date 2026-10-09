@@ -1,5 +1,6 @@
 import type { Routes } from '@angular/router';
 import { marketplaceAccessGuard } from './guards/marketplace-access.guard';
+import { vintedListingEditorGuard } from './guards/vinted-listing-editor.guard';
 
 export const MARKETPLACES_ROUTES: Routes = [
   { path: '', redirectTo: 'vinted', pathMatch: 'full' },
@@ -17,6 +18,29 @@ export const MARKETPLACES_ROUTES: Routes = [
     loadComponent: () =>
       import('./vinted-workspace.component').then((m) => m.VintedWorkspaceComponent),
     children: [
+      {
+        path: 'listings/new',
+        canDeactivate: [vintedListingEditorGuard],
+        loadComponent: () =>
+          import('./components/vinted-listing-editor/vinted-listing-editor.component').then(
+            (module) => module.VintedListingEditorComponent,
+          ),
+      },
+      {
+        path: 'listing-drafts/:draftId',
+        canDeactivate: [vintedListingEditorGuard],
+        loadComponent: () =>
+          import('./components/vinted-listing-editor/vinted-listing-editor.component').then(
+            (module) => module.VintedListingEditorComponent,
+          ),
+      },
+      {
+        path: 'listing-drafts',
+        loadComponent: () =>
+          import('./components/vinted-listing-drafts/vinted-listing-drafts.component').then(
+            (module) => module.VintedListingDraftsComponent,
+          ),
+      },
       {
         path: 'automatic-negotiation',
         loadComponent: () =>

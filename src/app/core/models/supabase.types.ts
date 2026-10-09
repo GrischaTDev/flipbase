@@ -3421,6 +3421,124 @@ export type Database = {
           },
         ]
       }
+      marketplace_listing_drafts: {
+        Row: {
+          connection_id: string | null
+          content: Json
+          created_at: string
+          created_by: string
+          id: number
+          image_ids: number[]
+          inventory_item_id: string | null
+          request_id: string
+          revision: number
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          connection_id?: string | null
+          content?: Json
+          created_at?: string
+          created_by: string
+          id?: never
+          image_ids?: number[]
+          inventory_item_id?: string | null
+          request_id?: string
+          revision?: number
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          connection_id?: string | null
+          content?: Json
+          created_at?: string
+          created_by?: string
+          id?: never
+          image_ids?: number[]
+          inventory_item_id?: string | null
+          request_id?: string
+          revision?: number
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_listing_drafts_workspace_id_connection_id_fkey"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_connections"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "marketplace_listing_drafts_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketplace_listing_drafts_workspace_id_inventory_item_id_fkey"
+            columns: ["workspace_id", "inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_item_sale_states"
+            referencedColumns: ["workspace_id", "inventory_item_id"]
+          },
+          {
+            foreignKeyName: "marketplace_listing_drafts_workspace_id_inventory_item_id_fkey"
+            columns: ["workspace_id", "inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
+      marketplace_listing_images: {
+        Row: {
+          byte_size: number
+          created_at: string
+          created_by: string
+          draft_id: number
+          file_name: string
+          id: number
+          mime_type: string
+          state: string
+          storage_path: string
+          workspace_id: string
+        }
+        Insert: {
+          byte_size: number
+          created_at?: string
+          created_by: string
+          draft_id: number
+          file_name: string
+          id?: never
+          mime_type: string
+          state?: string
+          storage_path: string
+          workspace_id: string
+        }
+        Update: {
+          byte_size?: number
+          created_at?: string
+          created_by?: string
+          draft_id?: number
+          file_name?: string
+          id?: never
+          mime_type?: string
+          state?: string
+          storage_path?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_listing_images_workspace_id_draft_id_fkey"
+            columns: ["workspace_id", "draft_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_listing_drafts"
+            referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
       marketplace_listing_metric_observations: {
         Row: {
           connection_id: string
@@ -3462,6 +3580,47 @@ export type Database = {
             columns: ["entry_id"]
             isOneToOne: false
             referencedRelation: "marketplace_account_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      marketplace_listing_templates: {
+        Row: {
+          created_at: string
+          created_by: string
+          fields: Json
+          id: number
+          name: string
+          revision: number
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          fields: Json
+          id?: never
+          name: string
+          revision?: number
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          fields?: Json
+          id?: never
+          name?: string
+          revision?: number
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_listing_templates_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
         ]
@@ -8572,6 +8731,15 @@ export type Database = {
         Args: { p_connection_id: string; p_workspace_id: string }
         Returns: boolean
       }
+      marketplace_commit_listing_image: {
+        Args: {
+          p_draft_id: string
+          p_expected_revision: number
+          p_image_id: string
+          p_replace_image_id?: string
+        }
+        Returns: Json
+      }
       marketplace_conversation_read_version: {
         Args: {
           p_connection_id: string
@@ -8583,6 +8751,28 @@ export type Database = {
       marketplace_create_connection: {
         Args: { p_display_name: string; p_workspace_id: string }
         Returns: Json
+      }
+      marketplace_create_listing_draft: {
+        Args: {
+          p_connection_id: string
+          p_content: Json
+          p_inventory_item_id?: string
+          p_request_id?: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_delete_listing_template: {
+        Args: {
+          p_expected_revision: number
+          p_id: string
+          p_workspace_id: string
+        }
+        Returns: undefined
+      }
+      marketplace_discard_listing_image: {
+        Args: { p_image_id: string }
+        Returns: string
       }
       marketplace_enqueue_local_message: {
         Args: {
@@ -8672,6 +8862,35 @@ export type Database = {
       }
       marketplace_list_connections: {
         Args: { p_workspace_id: string }
+        Returns: Json
+      }
+      marketplace_list_listing_drafts: {
+        Args: {
+          p_cursor?: Json
+          p_limit?: number
+          p_query?: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_list_listing_templates: {
+        Args: { p_workspace_id: string }
+        Returns: Json
+      }
+      marketplace_listing_content_valid: {
+        Args: { p_content: Json }
+        Returns: boolean
+      }
+      marketplace_listing_draft_document: {
+        Args: {
+          p_draft: Database["public"]["Tables"]["marketplace_listing_drafts"]["Row"]
+        }
+        Returns: Json
+      }
+      marketplace_listing_template_document: {
+        Args: {
+          p_template: Database["public"]["Tables"]["marketplace_listing_templates"]["Row"]
+        }
         Returns: Json
       }
       marketplace_local_extension_user_valid: {
@@ -8898,6 +9117,10 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_lock_listing_workspace: {
+        Args: { p_workspace_id: string }
+        Returns: undefined
+      }
       marketplace_mark_conversation_read: {
         Args: {
           p_connection_id: string
@@ -9018,6 +9241,7 @@ export type Database = {
         Args: { p_workspace_id: string }
         Returns: Json
       }
+      marketplace_read_listing_draft: { Args: { p_id: string }; Returns: Json }
       marketplace_read_listing_metric_changes: {
         Args: {
           p_connection_id: string
@@ -9119,6 +9343,15 @@ export type Database = {
         Args: { p_connection_ids: string[]; p_workspace_id: string }
         Returns: Json
       }
+      marketplace_reserve_listing_image: {
+        Args: {
+          p_byte_size: number
+          p_draft_id: string
+          p_file_name: string
+          p_mime_type: string
+        }
+        Returns: Json
+      }
       marketplace_retry_local_message: {
         Args: {
           p_confirmed_unknown?: boolean
@@ -9161,6 +9394,25 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_save_listing_draft: {
+        Args: {
+          p_connection_id: string
+          p_content: Json
+          p_expected_revision: number
+          p_id: string
+        }
+        Returns: Json
+      }
+      marketplace_save_listing_template: {
+        Args: {
+          p_expected_revision: number
+          p_fields: Json
+          p_id: string
+          p_name: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       marketplace_save_negotiation: {
         Args: {
           p_config: Json
@@ -9177,6 +9429,14 @@ export type Database = {
           p_enabled: boolean
           p_expected_version: number
           p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_set_listing_image_order: {
+        Args: {
+          p_draft_id: string
+          p_expected_revision: number
+          p_image_ids: string[]
         }
         Returns: Json
       }

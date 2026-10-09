@@ -263,7 +263,7 @@ describe('SidebarComponent', () => {
       'Konto',
       'Automatisierungen',
     ]);
-    expect(groups[0]?.querySelectorAll('a')).toHaveLength(6);
+    expect(groups[0]?.querySelectorAll('a')).toHaveLength(8);
     expect(groups[1]?.querySelectorAll('a')).toHaveLength(2);
     expect(
       groups[1]

@@ -1,9 +1,11 @@
 # Vinted-Inserate erstellen, planen und bearbeiten
 
-**Stand:** 09.10.2026. Produktentwurf zur gemeinsamen Abstimmung, noch keine
-Umsetzungsfreigabe. Grundlage ist `origin/master` bei `8d66d3d3` sowie der lesend
-geprüfte offene [PR #356](https://github.com/GrischaTDev/flipbase/pull/356).
-Der fremde PR-Zweig und der ältere lokale Arbeitsplatz bleiben unverändert.
+**Stand:** 09.10.2026. Umsetzung durch „dann los“ freigegeben. Die Planung
+beruhte auf `8d66d3d3`; die Umsetzung beginnt auf `origin/master` bei `638b2ace`,
+einschließlich PR #356 und #357. Der fremde PR-Zweig und der ältere lokale
+Arbeitsplatz bleiben unverändert. Der
+[Anbieter- und Umsetzungsbericht](../../research/2026-10-09-vinted-listing-provider-contract.md)
+unterscheidet die fertige Entwurfsgrundlage von noch offenen Anbieteraktionen.
 
 **Ziel:** Du kannst in Flipbase ein Vinted-Inserat mit Fotos vorbereiten, als
 Entwurf behalten, sofort oder zu einem Termin veröffentlichen und später mit
@@ -229,7 +231,8 @@ Paketen. Ihre Datenbasis wird vorbereitet, ihre Bedienung jetzt nicht gebaut.
 7. Desktop/Mobil, hell/dunkel, Tastatur, Fokus und AXE; Angular-Bau, gezielte
    Anwendungstests, SQL-/Storage-Rechte, Extension-/Workerregressionen.
 
-**Noch abzustimmen:** Echte Vinted-Entwürfe schon in der ersten Version oder
-zunächst Flipbase-Entwürfe; Ausfallregel und Anordnung des Editors. Aktuelle
-Providerfelder, Grenzen und bestätigte Veröffentlichung sind technische
-Nachweise des ersten Umsetzungspakets, keine behaupteten Rechercheergebnisse.
+**Umsetzungsentscheidung:** Die Freigabe „dann los“ wird als Zustimmung zum
+vorgeschlagenen Umfang verstanden: beide Entwurfsarten und die beschriebene
+Ausfallregel. Aktuelle Anbieterfelder, Grenzen und bestätigte Veröffentlichung
+bleiben erforderliche Nachweise des ersten Pakets. Die derzeit fertige
+Teilgrundlage speichert ausschließlich Flipbase-Entwürfe.

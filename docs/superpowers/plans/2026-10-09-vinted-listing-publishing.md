@@ -1,8 +1,15 @@
 # Vinted-Inserate: Umsetzungsplan
 
-> **Ausführung:** Nach Abstimmung des Produktentwurfs auf aktuellem
-> `origin/master` paketweise umsetzen. Dafür `superpowers:executing-plans`
-> verwenden. Dieser Plan erteilt keine Umsetzungs-, Push- oder Livefreigabe.
+> **Ausführung:** Der Nutzer hat die Umsetzung am 09.10.2026 mit „dann los“
+> freigegeben. Auf aktuellem `origin/master` paketweise mit
+> `superpowers:executing-plans` umsetzen. Push und reale Anbieter-Schreibaktionen
+> benötigen ihre eigene Freigabe.
+
+**Aktueller Stand:** Auf `638b2ace` begonnen; eigene Entwürfe, private Fotos,
+Vorlagen und Editor als geprüfte Grundlage umgesetzt. Anbieterformular wegen
+ausgeloggtem Vinted-Tab noch nicht bestätigt. Pakete 2/3 teilweise umgesetzt,
+Pakete 4–7 noch offen. Einzelheiten und Prüfgrenzen stehen im
+[Anbieter- und Umsetzungsbericht](../../research/2026-10-09-vinted-listing-provider-contract.md).
 
 **Ziel:** Ein vollständiger Vinted-Editor mit Fotos, gespeicherten Entwürfen,
 Vorlagen, sofortiger/geplanter Veröffentlichung und späterer Bearbeitung.
@@ -68,8 +75,8 @@ und vollständiger Bearbeitung konkret belegt oder präzise eingeschränkt.
 
 ## Paket 2: Entwürfe, Bilder und Vorlagen dauerhaft speichern
 
-**Dateien neu:** `supabase/schemas/430_marketplace_listing_drafts.sql`,
-`431_marketplace_listing_images.sql`, `432_marketplace_listing_templates.sql`;
+**Dateien neu:** `supabase/schemas/460_marketplace_listing_drafts.sql`,
+`461_marketplace_listing_images.sql`, `462_marketplace_listing_templates.sql`;
 passende Dateien unter `supabase/tests/`; unter
 `src/app/features/marketplaces/models/` die Dateien `vinted-listing-draft.ts`,
 `vinted-listing-content.ts`, `vinted-listing-template.ts`; unter `services/`
@@ -133,7 +140,7 @@ bedienbar. Die Oberfläche verspricht noch keine nicht implementierte Veröffent
 
 ## Paket 4: Sofortige Veröffentlichung lokal und in der Cloud
 
-**Dateien neu:** `supabase/schemas/433_marketplace_listing_jobs.sql`,
+**Dateien neu:** `supabase/schemas/463_marketplace_listing_jobs.sql`,
 passende SQL-Tests, `_shared/marketplace-listing-contracts.d.ts`,
 Worker `src/vinted-browser-listing-publish.ts`,
 `src/marketplace-listing-runner.ts`, `src/supabase-marketplace-listing-store.ts`,
@@ -236,10 +243,11 @@ Reihenfolge beim Anbieter ist vorab zu prüfen. Eigene Dateien
 
 ## Prüf- und Veröffentlichungsgrenze
 
-Der aktuelle Auftrag erstellt ausschließlich Recherche und Planungsdokumente.
-Keine Anwendung, Datenbank oder installierte Erweiterung wird jetzt geändert.
-Vor Umsetzung den Stand von `origin/master`, PR #356, Schema-Nummern und
-Dateipfade erneut abgleichen. Keine alten/fremden Zweige zusammenführen.
+Die Umsetzung ist freigegeben. Die eigene Speichergrundlage wird ausschließlich
+im Arbeitszweig und in einer isolierten lokalen Testdatenbank geprüft. Vor
+Integration den Stand von `origin/master`, Schema-Nummern und Dateipfade erneut
+abgleichen. Keine alten/fremden Zweige zusammenführen. Die produktive Datenbank
+und installierte Erweiterung werden durch diese Arbeit nicht geändert.
 
 Jedes Implementierungspaket ergänzt relevante Tests und endet mit Format/Lint,
 Diffcheck, passenden Builds sowie seinem fachlichen Abnahmenachweis. Alle
