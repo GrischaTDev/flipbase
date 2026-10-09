@@ -1,5 +1,30 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-09 - Juna - Benachrichtigungs-Dropdown modernisieren und Plattform-Logos einführen
+
+**Auftrag:** Benachrichtigungs-Dropdown im Header refaktorisieren: Die aufdringliche gelb-beige Ganzzeilen-Tönung (`bg-fb-brand-surface`) für ungelesene Einträge durch ein modernes, dezentes Ungelesen-Muster mit klarem Indikatorpunkt ersetzen, und vor Marktplatz-Benachrichtigungen (Vinted, eBay, Kleinanzeigen) das jeweilige Plattform-Logo sowie für Einkäufe, Verkäufe und Systemankündigungen passende Typ-Icons anzeigen.
+
+**Umsetzung:**
+
+1. Hilfsmodul `header-notification-visuals.ts`: Automatische Erkennung des visuellen Erscheinungsbilds (Vinted anhand von Marktplatz-Favoriten-, Feedback- und Gesprächs-IDs, Links sowie Verkaufstexten; eBay und Kleinanzeigen anhand von Links/Verkäufen; passende Fallback-Icons für Einkäufe, Verkäufe, System und Alerts) sowie kompakte Datumsformatierung (heutige Uhrzeit, "Gestern", oder Datum).
+2. Header-Komponente und Template (`header.component.html`, `header.component.ts`):
+   - Ungelesene Meldungen erhalten eine ruhige, neutrale Hintergrundschattierung (`bg-fb-subtle`), einen Indikatorpunkt im Flipbase-Markengelb (`#fcc601`) und halbfetten Titel ohne blauen Texthover.
+   - Jede Meldung zeigt links ein einheitliches 32x32-Badge mit dem offiziellen Vinted-, eBay- oder Kleinanzeigen-Vektorlogo bzw. dem entsprechenden Typ-Icon (Einkaufspaket, Trendlinie, Systemsternchen).
+   - Kopfbereich mit neutralem Glocken-Icon und markenkonformem Gelb-Badge für die Anzahl neuer Meldungen.
+   - Freundlicher leerer Zustand bei keinen neuen Meldungen.
+3. Favoriten-Meldungstext (`marketplace-favorite-notifications.ts`):
+   - Titel auf 'Artikel wurde favorisiert · [Konto]' umgestellt.
+   - Nachricht zeigt direkt den Artikeltitel ohne unlogische 'Favoritenzahl +1'-Angabe.
+
+**Prüfung:**
+
+- Unit-Tests in `header-notification-visuals.spec.ts` (14 Tests, alle bestanden).
+- Angular-Komponententests in `header.component.angular.spec.ts` (8 Tests, alle bestanden) inklusive Prüfung auf Vinted-Logo und Ungelesen-Indikator.
+- Model- und Store-Tests in `marketplace-favorite-notifications.spec.ts` und `marketplace-favorite-notification.store.angular.spec.ts` (alle bestanden).
+- E2E-Erwartungstext in `vinted-workspace-ui.spec.ts` an den neuen Favoritentext angepasst.
+- Alle 135 Node-Tests für Header und Marktplatz-Modelle bestanden.
+- Typprüfung (`npm run typecheck`), ESLint und Prettier ohne Beanstandung.
+
 ## 2026-10-09 - Juna - Hosenmaße direkt in der Größenübersicht zeigen
 
 **Auftrag:** Die allgemeine Hosenübersicht soll neben der flachen Bundweite
@@ -210,6 +235,8 @@ separat; ihre US-Inch-Messkonvention ist als Ableitung im Tabellenhinweis sichtb
 Aktuelle Modellmaße sind Vergleichsbelege, keine historischen Vintage-Maßgrenzen.
 
 **Stand:** Eigener geprüfter Zweig; Veröffentlichung erst nach Freigabe des PR.
+
+> > > > > > > origin/master
 
 ## 2026-10-09 - Juna - Vinted-Feed nach Chrome-Speicherausfall wiederherstellen
 
