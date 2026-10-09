@@ -324,6 +324,7 @@ for (const width of [1440, 390, 320]) {
         'Verkäufe',
         'Verlauf',
         'Profil',
+        'Automatische Verhandlung',
         'Favoritennachrichten',
       ]);
       await expect(nav.getByText('Konto', { exact: true })).toBeVisible();
