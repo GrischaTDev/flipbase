@@ -156,7 +156,7 @@ Update der Nutzerinstallation wurden in dieser Umsetzung ausgeführt.
 
 ## Ergänzungsauftrag vom 09.10.2026: erhaltene Angebote bearbeiten
 
-**Stand:** Im eigenen Zweig implementiert und lokal geprüft; Review und Veröffentlichung
+**Stand:** Im eigenen Zweig implementiert und lokal geprüft; Zweigreview und Veröffentlichung
 stehen noch aus. Favoritennachrichten einschließlich Verzögerung und optionalem
 Angebot haben bereits lokale und Cloud-Ausführungswege. Ein bestätigter echter
 Cloud-Favoriten-/Angebotstest bleibt separat offen. Diese bestehenden Funktionen
@@ -282,7 +282,7 @@ nicht blind wiederholt. Bot-Icon und Lesestatus bleiben integriert.
 
 117 neue Datenbankchecks und 676 bestehende Checks auf der transaktionalen
 Migrationskopie bestehen. Der echte Worker-Image-Bau und Modulimport, gezielte
-Cloud-/Extensionregressionen, 40 Modell-/Navigationstests, 82 relevante
+Cloud-/Extensionregressionen, 40 Modell-/Navigationstests, 86 relevante
 Angularprüfungen und zehn Mock-Browserabläufe mit AXE in hell/dunkel auf Desktop
 und Mobilgerät sind erfolgreich. Angular-Produktionsbau, Format/Lint und Shared-UI
 bestehen. Die unveränderte Deno-Lintbaseline ist weiter dokumentiert; der gefilterte

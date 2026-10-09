@@ -113,7 +113,7 @@ Funktionsdefinitionen und Rechte stimmen mit dem geprüften Schema überein.
 Cloud und Extension verwenden eine gemeinsame Providerlaufzeit. Tatsächlicher
 Worker-Image-Bau sowie Import der kompilierten Module im Image bestehen.
 Start ohne CommonJS-Globals, widersprüchliche Währungs-/Artikel-/Rollenbelege,
-Pausen und verlorene Bestätigungen sind gezielt geprüft. Task3 ist implementiert und lokal geprüft; Aufgaben- und Abschlussreview folgen.
+Pausen und verlorene Bestätigungen sind gezielt geprüft. Task3 ist implementiert und lokal geprüft; die Aufgabenreviews sind abgeschlossen und das Zweigreview folgt.
 
 Ein separates `buyer_accepted` für eine eigene Verkäuferofferte besitzt bislang
 keinen eindeutigen Anbieterbeleg und wird nicht erfunden oder aus dem Kauf abgeleitet.
@@ -121,7 +121,7 @@ Die Oberfläche kennzeichnet die Grenze. Bestätigte Zahlungen über
 `debit_processed_at` ermöglichen dagegen unabhängige Kaufnachrichten.
 Keine produktive Aktivierung, Veröffentlichung oder Vinted-Schreibaktion erfolgt.
 
-Task3: 40 Modell-/Navigationstests, 82 relevante Angularprüfungen und zehn
+Task3: 40 Modell-/Navigationstests, 86 relevante Angularprüfungen und zehn
 Mock-Browserabläufe mit AXE auf Desktop/Mobil und in hell/dunkel erfolgreich.
 Angular-Produktionsbau, Typprüfung der Specs, Format/Lint und Shared-UI bestehen.
 Schnellauswahl für Verzögerungen und konkrete bestätigte Aktionsmeldungen sind
@@ -129,3 +129,12 @@ enthalten. Root hat die Desktop-/Mobilansichten geprüft; die alten Mockfehler
 wurden vor dem abschließenden Browserlauf korrigiert. Keine echte Provideraktion.
 Die unveränderte Deno-Lintbaseline bleibt ausdrücklich dokumentiert; kein Anspruch
 auf vollständigen ungefilterten Linterfolg. Die volle verbindliche CI folgt im PR.
+
+Task3-Nachprüfung: Alle drei Befunde sind behoben. Verlaufabruf erhält den
+ungespeicherten Entwurf samt Revision/Konflikt; Gegenpreise besitzen eine belegte
+lokale Vorschau. Individuelle Sekunden/Minuten funktionieren global und pro
+Nachrichtenschritt. 86 Angular-, 40 Modell-/Navigationtests und zehn erweiterte
+Mock-Browserabläufe bestehen auf dem integrierten Hauptzweig mit neuer Glocke.
+Der Produktionsbau besteht; die integrierte Header-DatePipe- und bestehende
+pako-Warnung bleiben als Warnungen dokumentiert. Task1/2/3-Reviewgates sind sauber.
+Keine produktive Aktivierung, Anbieter-Schreibaktion oder Veröffentlichung.

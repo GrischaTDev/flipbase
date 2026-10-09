@@ -16,11 +16,11 @@ unklarer Ausgang wird nicht erneut versendet. Neue Einstellungen bleiben aus.
 **Prüfung:** 117 neue und 676 bestehende Datenbankchecks auf der transaktionalen
 Migrationskopie; erzeugte Migration/Typen und identische Funktionsrechte.
 Cloud-/Extensionregressionen, tatsächlicher Worker-Image-Bau samt Modulimport,
-40 Modell-/Navigationstests, 82 relevante Angularprüfungen und zehn Mock-
+40 Modell-/Navigationstests, 86 relevante Angularprüfungen und zehn Mock-
 Browserabläufe mit AXE auf Desktop/Mobil in hell/dunkel erfolgreich.
 Produktionsbau, Format/Lint und Shared-UI bestehen. Die bestehende vollständige
 Deno-Lintbaseline bleibt offen; ein gefilterter Lauf ist kein vollständiger
-Lintnachweis. Aufgaben- und Abschlussreview laufen noch.
+Lintnachweis. Alle Aufgaben- und Nachprüfungen sind abgeschlossen; das Zweigreview folgt.
 
 **Grenze:** Bestätigte Zahlungen sind belegte Kaufauslöser. Für die separate
 Käuferannahme unseres Gegenangebots fehlt bislang ein eindeutiger Anbieterbeleg;
