@@ -70,7 +70,7 @@
       <app-notice-banner class="mb-4" announcement="alert">{{ error }}</app-notice-banner>
     }
   }
-  @if (!activeCloudSetup()) {
+  @if (!activeCloudSetup() && browserConnectionId()) {
     <!-- Beim Neuladen der Kontoliste bleibt der bestätigte Anmeldeablauf erhalten. -->
     <div
       [hidden]="

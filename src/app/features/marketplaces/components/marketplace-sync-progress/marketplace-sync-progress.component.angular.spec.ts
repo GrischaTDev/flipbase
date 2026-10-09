@@ -225,6 +225,24 @@ describe('MarketplaceSyncProgressComponent', () => {
     expect(component.copiedCommand()).toBe(true);
   });
 
+  it.each(['running', 'succeeded', 'failed'] as const)(
+    'erfüllt die AXE-Prüfung für die Fortschrittsicons im Zustand %s',
+    async (state) => {
+      fixture.componentRef.setInput('progress', {
+        id: 'op-icons',
+        state,
+        stage: 'profile',
+        errorCode: state === 'failed' ? 'identity' : null,
+      });
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('[role="img"]')).not.toBeNull();
+      const results = await axe.run(fixture.nativeElement, {
+        rules: { region: { enabled: false } },
+      });
+      expect(results.violations).toEqual([]);
+    },
+  );
+
   it('erfüllt Barrierefreiheitsanforderungen (axe)', async () => {
     fixture.componentRef.setInput('progress', {
       id: 'op-axe',

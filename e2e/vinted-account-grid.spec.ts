@@ -70,6 +70,20 @@ for (const width of [1440, 390, 320]) {
       timeout: 15_000,
     });
     await page.getByRole('button', { name: 'Cloud aktivieren', exact: true }).click();
+    const progress = page.getByRole('dialog', { name: 'Kontodaten aktualisieren', exact: true });
+    await expect(progress).toBeVisible();
+    await expect(progress).toContainText('Die Kontodaten wurden aktualisiert.');
+    expect(calls.filter((call) => call.name === 'browser_sync_start')).toEqual([
+      { name: 'browser_sync_start', body: { workspaceId, connectionId: accountIds[0] } },
+    ]);
+    await progress.getByRole('button', { name: 'Dialog schließen', exact: true }).click();
+    await expect(progress).not.toBeVisible();
+    // Nach dem verschachtelten Dialog die Einblendung vor der Kontrastprüfung beenden.
+    await page.getByRole('dialog').evaluate(async (element) => {
+      await Promise.allSettled(
+        element.getAnimations({ subtree: true }).map((animation) => animation.finished),
+      );
+    });
     await expect(
       page.getByText('Cloud aktiv. Dein Konto ist verbunden.', { exact: true }),
     ).toBeVisible();

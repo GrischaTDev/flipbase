@@ -37,6 +37,7 @@ export class MarketplaceConnectComponent {
   readonly accounts = inject(MarketplaceAccountStore);
   readonly cloud = inject(MarketplaceCloudSetupStore);
   readonly previewActive = signal(false);
+  readonly browserConnectionId = signal<string | null>(null);
   readonly modalSize = computed<ModalSize>(() => (this.previewActive() ? 'xl' : 'lg'));
   protected readonly loginIcon = LucideLink2;
   private readonly route = inject(ActivatedRoute);
@@ -64,6 +65,20 @@ export class MarketplaceConnectComponent {
   );
 
   constructor() {
+    effect(() => {
+      const connectionId = this.requestedId();
+      const connection = this.requestedConnection();
+      const canOpen =
+        connection?.executionMode === 'cloud' &&
+        connection.status !== 'paused' &&
+        connection.status !== 'blocked';
+      if (canOpen && this.selected()) this.browserConnectionId.set(connectionId);
+      else if (
+        this.browserConnectionId() !== connectionId ||
+        (!this.accounts.loading() && !canOpen)
+      )
+        this.browserConnectionId.set(null);
+    });
     effect(() => {
       const connection = this.requestedConnection();
       if (connection && this.accounts.canManage() && !this.selected()) {

@@ -20,6 +20,7 @@ import { MarketplaceSyncScheduleApiService } from '../../services/marketplace-sy
 import { createMarketplaceFixtures } from '../../testing/marketplace-fixtures';
 import { VintedFavoriteSettingsComponent } from '../vinted-favorite-settings/vinted-favorite-settings.component';
 import { VintedSyncScheduleComponent } from '../vinted-sync-schedule/vinted-sync-schedule.component';
+import { VintedCloudMessageSettingsComponent } from '../vinted-cloud-message-settings/vinted-cloud-message-settings.component';
 import { VintedAccountControlsComponent } from './vinted-account-controls.component';
 
 const account = { ...createMarketplaceFixtures().connections[0], executionMode: 'local' as const };
@@ -35,6 +36,10 @@ const scheduleApi = {
 
 beforeAll(async () => {
   restore = await prepareMarketplaceRendering([
+    {
+      type: VintedCloudMessageSettingsComponent,
+      path: 'src/app/features/marketplaces/components/vinted-cloud-message-settings/vinted-cloud-message-settings.component.ts',
+    },
     {
       type: VintedAccountControlsComponent,
       path: 'src/app/features/marketplaces/components/vinted-account-controls/vinted-account-controls.component.ts',

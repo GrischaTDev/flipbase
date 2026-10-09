@@ -43,9 +43,13 @@ Browserprüfungen decken zusätzlich Anmeldekorrektur und SMS-Bestätigung ab.
 Die neue Zeitplanregression scheitert am bisherigen Servercode. 107 Datenbanktests
 bestehen nach dem Fix, 110 inklusive separatem Migrationsabgleich. 13 zusätzliche
 Angularprüfungen bestätigen die sofortige Warnungsbereinigung mit erhaltener Pause.
-Die Ergänzungen bestehen 162 betroffene Angularprüfungen und acht Browserfälle
-für Anmeldebuttons, Korrektur von Zugangsdaten, SMS, Cloud-Einrichtung und
-Versandsteuerung. Produktionsbau, ESLint, Format und Diffprüfung bestehen.
+Die Ergänzungen bestehen alle 667 Angularprüfungen im Marktplatzbereich und
+drei zusätzliche AXE-Prüfungen für laufende, erfolgreiche und fehlgeschlagene
+Fortschrittsicons. Elf Browserfälle decken Anmeldebuttons, Korrektur von
+Zugangsdaten, SMS, Cloud-Einrichtung, lokalen Cloud-Wechsel und Versandsteuerung ab.
+Produktionsbau, ESLint, Format und Diffprüfung bestehen. Die bestehenden
+Renderingtests laden die hinzugekommenen Vorlagen; Kontrastprüfungen warten nach
+dem verschachtelten Dialog auf das Ende der Einblendanimation.
 
 **Echtkonto:** Nach der erneuten Anmeldung bestätigt der manuelle Abruf vom
 09.10.2026 um 14:55 Uhr Profil, Inserate, Bewertungen und Gesprächsliste als

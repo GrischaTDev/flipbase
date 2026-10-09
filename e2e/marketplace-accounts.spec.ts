@@ -1462,6 +1462,13 @@ for (const width of [1440, 390]) {
       },
     ]);
     await progress.getByRole('button', { name: 'Dialog schließen', exact: true }).click();
+    await expect(progress).not.toBeVisible();
+    // Nach dem verschachtelten Dialog die Einblendung vor der Kontrastprüfung beenden.
+    await page.getByRole('dialog').evaluate(async (element) => {
+      await Promise.allSettled(
+        element.getAnimations({ subtree: true }).map((animation) => animation.finished),
+      );
+    });
     await expect(
       page.getByText('Cloud aktiv. Dein Konto ist verbunden.', { exact: true }),
     ).toBeVisible();
@@ -1553,6 +1560,13 @@ for (const width of [1440, 390]) {
       { name: 'browser_sync_start', body: { workspaceId, connectionId: accountIds[0] } },
     ]);
     await progress.getByRole('button', { name: 'Dialog schließen', exact: true }).click();
+    await expect(progress).not.toBeVisible();
+    // Nach dem verschachtelten Dialog die Einblendung vor der Kontrastprüfung beenden.
+    await page.getByRole('dialog').evaluate(async (element) => {
+      await Promise.allSettled(
+        element.getAnimations({ subtree: true }).map((animation) => animation.finished),
+      );
+    });
     await expect(page.getByText('Dein Vinted-Konto ist verknüpft.', { exact: true })).toBeVisible();
     expect(calls.filter((call) => call.name === 'browser_login')).toHaveLength(2);
   });
@@ -1586,6 +1600,13 @@ test('zeigt den SMS-Code im Kontodialog und bindet ihn an das gewählte Konto @m
   await expect(progress).toContainText('Die Kontodaten wurden aktualisiert.');
   expect(calls.filter((call) => call.name === 'browser_sync_start')).toHaveLength(1);
   await progress.getByRole('button', { name: 'Dialog schließen', exact: true }).click();
+  await expect(progress).not.toBeVisible();
+  // Nach dem verschachtelten Dialog die Einblendung vor der Kontrastprüfung beenden.
+  await page.getByRole('dialog').evaluate(async (element) => {
+    await Promise.allSettled(
+      element.getAnimations({ subtree: true }).map((animation) => animation.finished),
+    );
+  });
   await expect(dialog.getByText('Dein Vinted-Konto ist verknüpft.')).toBeVisible();
   expect(calls.filter((call) => call.name === 'browser_verify')).toEqual([
     {
