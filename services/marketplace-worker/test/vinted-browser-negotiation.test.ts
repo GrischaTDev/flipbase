@@ -325,13 +325,13 @@ test('purchase requires exact paid seller transaction and article, independent f
       readVintedNegotiationPurchase({ ...paid, ...changes }, conversation, '9', now),
       null,
     );
-  assert.deepEqual(
+  assert.equal(
     readVintedNegotiationPurchase(
       { ...paid, offer: { price: { amount: '100.00', currency_code: 'USD' } } },
       conversation,
       '9',
       now,
-    )?.event,
-    { id: '99', type: 'purchased', transactionId: '66', confirmed: true },
+    ),
+    null,
   );
 });

@@ -44,6 +44,7 @@
       "matches": ["https://www.vinted.de/*"],
       "js": [
         "vinted-local-inbox-events.js",
+        "vinted-negotiation-runtime.js",
         "vinted-local-negotiation.js",
         "vinted-local-core.js",
         "vinted-local-messages.js",

@@ -14,6 +14,37 @@
     'NEGOTIATIONS_SEND',
     'DISCONNECT',
   ]);
+  const negotiationPauseCodes = [
+    'identity_changed',
+    'login_required',
+    'interaction_required',
+    'verification_required',
+    'session_blocked',
+    'local_binding_invalid',
+  ];
+  function persistNegotiationPause(installation, outcome, now) {
+    if (outcome.errorCode === 'rate_limited')
+      installation.schedule = {
+        ...installation.schedule,
+        retryAfter: outcome.retryAfter ?? now + 300_000,
+      };
+    else if (negotiationPauseCodes.includes(outcome.errorCode))
+      installation.schedule = {
+        ...installation.schedule,
+        pauseReason: outcome.errorCode,
+      };
+  }
+  function throwNegotiationError(outcome, installation) {
+    if (outcome.errorCode) {
+      const error = new Error(
+        'Die Vinted-Sitzung wurde pausiert. Pr�fe sie vor weiteren Vorg�ngen.',
+      );
+      error.code = outcome.errorCode;
+      if (outcome.errorCode === 'rate_limited')
+        error.retryAfter = installation.schedule?.retryAfter;
+      throw error;
+    }
+  }
   const storageKey = 'vinted_local_installation';
   const requestPrefix = 'FLIPBASE_VINTED_LOCAL_';
   class LocalBindingInvalidError extends Error {
@@ -986,7 +1017,8 @@
           ['MESSAGES_SEND', 'FAVORITES_SEND', 'NEGOTIATIONS_SEND'].includes(action) &&
           installation.pendingFinish
         ) {
-          const { favorite, favoriteAction, negotiation, ...receipt } = installation.pendingFinish;
+          const { favorite, favoriteAction, negotiation, retryAfter, ...receipt } =
+            installation.pendingFinish;
           if (
             favoriteAction &&
             !['favorite_message_sent', 'favorite_offer_finish'].includes(favoriteAction)
@@ -1003,6 +1035,7 @@
           if (finished?.ok !== true) throw new Error('Das Auftragsergebnis wurde nicht bestätigt.');
           delete installation.pendingFinish;
           await adapter.save(installation);
+          if (negotiation) throwNegotiationError({ ...receipt, retryAfter }, installation);
           return { reported: true };
         }
         if (Date.parse(binding.expiresAt) <= adapter.now())
@@ -1046,28 +1079,41 @@
             outcome = (
               await adapter.sendNegotiation(installation.tabId, binding.externalAccountId, claim)
             ).outcome;
-          } catch {
-            outcome = { outcome: 'outcome_unknown', errorCode: 'provider_unavailable' };
+          } catch (error) {
+            outcome = {
+              outcome: 'outcome_unknown',
+              errorCode: error.code ?? 'provider_unavailable',
+              ...(Number.isFinite(error.retryAfter) && error.retryAfter > 0
+                ? { retryAfter: error.retryAfter }
+                : {}),
+            };
           }
-          if (!root.FlipbaseVintedNegotiation.isResult(outcome))
+          const { retryAfter, ...providerReceipt } = outcome ?? {};
+          if (
+            (retryAfter !== undefined && (!Number.isFinite(retryAfter) || retryAfter <= 0)) ||
+            !root.FlipbaseVintedNegotiation.isResult(providerReceipt)
+          )
             throw new Error('Ungültiges Verhandlungsergebnis.');
           installation.pendingFinish = {
             negotiation: true,
             id: claim.jobId,
             claimToken: claim.claimToken,
-            ...outcome,
+            ...providerReceipt,
+            ...(retryAfter !== undefined ? { retryAfter } : {}),
           };
+          persistNegotiationPause(installation, outcome, adapter.now());
           await adapter.save(installation);
           const finished = await adapter.edge(binding, installation.secret, {
             action: 'negotiation_finish',
             ...scope,
             id: claim.jobId,
             claimToken: claim.claimToken,
-            ...outcome,
+            ...providerReceipt,
           });
           if (finished?.ok !== true) throw new Error('Verhandlungsergebnis wurde nicht bestätigt.');
           delete installation.pendingFinish;
           await adapter.save(installation);
+          throwNegotiationError(outcome, installation);
           return { outcome: outcome.outcome };
         }
         if (action === 'FAVORITES_SYNC') {

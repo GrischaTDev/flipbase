@@ -57,6 +57,8 @@
             if (action === 'INBOX_SYNC' || action === 'INBOX_BACKFILL')
               schedule.backfillAt = result.nextPage > 1 ? adapter.now() + 60_000 : null;
           } catch (error) {
+            installation = await adapter.load();
+            Object.assign(schedule, installation?.schedule);
             if (
               [
                 'login_required',
@@ -75,8 +77,10 @@
             if (installation) await adapter.save({ ...installation, schedule });
             break;
           }
-          schedule.lastSuccessAt = adapter.now();
           installation = await adapter.load();
+          Object.assign(schedule, installation?.schedule);
+          if (schedule.pauseReason || schedule.retryAfter > adapter.now()) break;
+          schedule.lastSuccessAt = adapter.now();
           if (installation) await adapter.save({ ...installation, schedule });
         }
       } finally {
