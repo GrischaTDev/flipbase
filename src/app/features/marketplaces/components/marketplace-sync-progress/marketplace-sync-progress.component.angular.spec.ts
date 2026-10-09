@@ -191,8 +191,8 @@ describe('MarketplaceSyncProgressComponent', () => {
     const element = fixture.nativeElement as HTMLElement;
     const actionButton = element.querySelector<HTMLAnchorElement>('a');
     expect(actionButton).toBeTruthy();
-    expect(actionButton?.textContent).toContain('Browser-Ansicht zur Prüfung öffnen');
-    expect(actionButton?.getAttribute('href')).toBe('/marketplaces/vinted/connect/conn-1');
+    expect(actionButton?.textContent).toContain('Vinted-Zugriff prüfen');
+    expect(actionButton?.getAttribute('href')).toBe('/marketplaces/vinted/connect/conn-1?reauth=1');
   });
 
   it('kopiert den Server-Logbefehl über den Button in die Zwischenablage', async () => {
@@ -224,6 +224,24 @@ describe('MarketplaceSyncProgressComponent', () => {
     expect(writeTextSpy).toHaveBeenCalledWith('docker logs --tail 100 flipbase-marketplace-worker');
     expect(component.copiedCommand()).toBe(true);
   });
+
+  it.each(['running', 'succeeded', 'failed'] as const)(
+    'erfüllt die AXE-Prüfung für die Fortschrittsicons im Zustand %s',
+    async (state) => {
+      fixture.componentRef.setInput('progress', {
+        id: 'op-icons',
+        state,
+        stage: 'profile',
+        errorCode: state === 'failed' ? 'identity' : null,
+      });
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('[role="img"]')).not.toBeNull();
+      const results = await axe.run(fixture.nativeElement, {
+        rules: { region: { enabled: false } },
+      });
+      expect(results.violations).toEqual([]);
+    },
+  );
 
   it('erfüllt Barrierefreiheitsanforderungen (axe)', async () => {
     fixture.componentRef.setInput('progress', {

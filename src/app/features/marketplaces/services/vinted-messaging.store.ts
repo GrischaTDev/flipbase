@@ -303,7 +303,7 @@ export class VintedMessagingStore {
       if (permission.allowed) return true;
       const confirmed = await this.dialog.frage({
         titel: 'Cloud-Nachrichtenversand erlauben?',
-        text: 'Flipbase darf Deine bewusst gesendeten Nachrichten und Bilder über das Cloud-Profil dieses Vinted-Kontos versenden. Du kannst die Freigabe hier widerrufen.',
+        text: 'Flipbase darf Deine bewusst gesendeten Nachrichten und Bilder über das Cloud-Profil dieses Vinted-Kontos versenden. Du kannst den Nachrichtenversand in den Kontoeinstellungen deaktivieren.',
         bestaetigenText: 'Versand erlauben',
       });
       if (!confirmed || !isCurrent()) return false;

@@ -220,5 +220,49 @@ set local role authenticated;
 select is(public.marketplace_set_sync_schedule('31000000-0000-4000-8000-000000000011','31000000-0000-4000-8000-000000000021',true,60,(select authorization_version from public.marketplace_sync_schedules))->>'intervalMinutes','60','Längerer Abstand lässt sich ebenfalls einstellen');
 select is(public.marketplace_set_sync_schedule('31000000-0000-4000-8000-000000000011','31000000-0000-4000-8000-000000000021',false,60,(select authorization_version from public.marketplace_sync_schedules))->>'intervalMinutes','60','Pausieren bewahrt den eingestellten Abstand');
 reset role;
+-- Bestätigte manuelle Abrufe bereinigen ausschließlich ältere Anbieterwarnungen.
+create function pg_temp.manual_recovery(p_reason text, p_failure text default null, p_newer_pause boolean default false, p_stopped boolean default true)
+returns jsonb language plpgsql as $$
+declare v_run jsonb; v_runtime public.marketplace_worker_runtime; v_before public.marketplace_sync_schedules;
+begin
+  update public.marketplace_sync_schedules set enabled=false,paused_reason=p_reason,
+    retry_after=null,consecutive_failures=2,updated_at=clock_timestamp();
+  select * into v_before from public.marketplace_sync_schedules;
+  perform set_config('request.jwt.claims','{"sub":"31000000-0000-4000-8000-000000000001","role":"authenticated"}',true);
+  perform public.marketplace_sync_enqueue(v_before.workspace_id,v_before.connection_id);
+  select * into v_runtime from public.marketplace_worker_runtime where id=1;
+  v_run:=public.marketplace_sync_dispatch_claim(v_runtime.worker_id,v_runtime.worker_epoch,gen_random_uuid(),false);
+  if v_run is null then raise exception 'Manueller Testauftrag fehlt'; end if;
+  perform public.marketplace_apply_vinted_sync_import((v_run->>'operationId')::uuid,(v_run->>'runnerId')::uuid,v_runtime.worker_epoch,(v_run->>'sessionId')::uuid,
+    case when p_failure is null then pg_temp.snapshot() else jsonb_set(pg_temp.snapshot(),'{areas,feedback}',jsonb_build_object('status','partial','failure',p_failure)) end);
+  if p_newer_pause then
+    update public.marketplace_sync_schedules set updated_at=clock_timestamp(),authorization_version=authorization_version+1;
+  end if;
+  if p_stopped then
+    update public.marketplace_browser_sessions set state='closed',provider_stopped_at=clock_timestamp() where public_id=(v_run->>'sessionId')::uuid;
+  end if;
+  perform public.marketplace_sync_finish((v_run->>'operationId')::uuid,(v_run->>'runnerId')::uuid,v_runtime.worker_epoch,'{"state":"succeeded","errorCode":null}');
+  update public.marketplace_browser_sessions set state='closed',provider_stopped_at=clock_timestamp() where public_id=(v_run->>'sessionId')::uuid;
+  return (select jsonb_build_object('reason',paused_reason,'enabled',enabled,'failures',consecutive_failures,
+    'versionChange',authorization_version-v_before.authorization_version,'interval',interval_minutes,'automaticSuccessChanged',last_success_at is distinct from v_before.last_success_at)
+    from public.marketplace_sync_schedules);
+end;
+$$;
+insert into schedule_context values('manualRecovery',pg_temp.manual_recovery('forbidden'));
+select is((select value->>'reason' from schedule_context where name='manualRecovery'),null,'Manueller Erfolg entfernt alte Ablehnungswarnung');
+select is((select value->>'enabled' from schedule_context where name='manualRecovery'),'false','Manueller Erfolg reaktiviert keine pausierte Automatik');
+select is((select value->>'versionChange' from schedule_context where name='manualRecovery'),'0','Bereinigung erteilt keine neue Freigabe');
+select is((select value->>'interval' from schedule_context where name='manualRecovery'),'60','Gewählter Abrufabstand bleibt erhalten');
+select is((select value->>'failures' from schedule_context where name='manualRecovery'),'0','Alte Fehlerzählung wird bereinigt');
+select is((select value->>'automaticSuccessChanged' from schedule_context where name='manualRecovery'),'false','Manueller Abruf wird nicht als automatischer Erfolg ausgegeben');
+select is(pg_temp.manual_recovery('needs_login')->>'reason',null,'Bestätigter manueller Zugriff entfernt alte Anmeldewarnung');
+select is(pg_temp.manual_recovery('challenge')->>'reason',null,'Bestätigter manueller Zugriff entfernt alte Prüfungswarnung');
+select is(pg_temp.manual_recovery('forbidden','forbidden')->>'reason','forbidden','Quellenfehler im Teilimport verhindert Bereinigung');
+select is(pg_temp.manual_recovery('forbidden',null,true)->>'reason','forbidden','Neue Freigabeänderung während Abruf wird nicht überschrieben');
+select is(pg_temp.manual_recovery('forbidden',null,false,false)->>'reason','forbidden','Unbestätigter Browserstopp verhindert Bereinigung');
+select is(pg_temp.manual_recovery('access_revoked')->>'reason','access_revoked','Rechtewiderruf bleibt erhalten');
+select is(pg_temp.manual_recovery('cleanup')->>'reason','cleanup','Ungeklärte Bereinigung bleibt erhalten');
+select is(pg_temp.manual_recovery(null)->>'enabled','false','Bewusst gesetzte Pause ohne Fehler bleibt erhalten');
+
 select * from finish();
 rollback;

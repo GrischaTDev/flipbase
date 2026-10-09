@@ -81,6 +81,40 @@ export async function mockMarketplace(
     lastSyncedAt: null,
   }));
   const calls: { name: string; body: Record<string, unknown> }[] = [];
+  const syncOperationId = '25000000-0000-4000-8000-000000000091';
+  await page.route('**/marketplace-browser/connections/sync/start', (route) => {
+    const body = route.request().postDataJSON() as Record<string, unknown>;
+    calls.push({ name: 'browser_sync_start', body });
+    if (
+      body['workspaceId'] !== workspaceId ||
+      !accounts.some(
+        (account) =>
+          account.connectionId === body['connectionId'] &&
+          account.executionMode === 'cloud' &&
+          account.status === 'connected',
+      )
+    )
+      return route.fulfill({ status: 403 });
+    return route.fulfill({ status: 202, json: { id: syncOperationId } });
+  });
+  await page.route('**/marketplace-browser/connections/sync/status', (route) =>
+    route.fulfill({
+      json: {
+        id: syncOperationId,
+        state: 'succeeded',
+        stage: 'cleanup',
+        errorCode: null,
+        sourceResults: {
+          profile: { status: 'complete' },
+          publications: { status: 'complete' },
+          conversations: { status: 'complete' },
+          messages: { status: 'partial' },
+          sales: { status: 'partial' },
+          feedback: { status: 'complete' },
+        },
+      },
+    }),
+  );
   const snapshotConversationId = importedOverview?.conversationId ?? 'conversation-1';
   const conversationCheckedAt = new Map<string, string>();
   await page.route('**/marketplace-browser/conversations/read', (route) => {
@@ -305,6 +339,8 @@ export async function mockMarketplace(
         ? (route.request().postDataJSON() as Record<string, unknown>)
         : {};
     let json: unknown = [];
+    if (name === 'marketplace_read_message_permission')
+      json = { executionMode: 'cloud', allowed: false, authorizationVersion: 0 };
     if (name === 'marketplace_read_local_extension') json = { binding: null };
     if (name === 'user') json = user;
     if (name === 'profiles') json = { id: user.id, full_name: 'Marktplatz-Test' };

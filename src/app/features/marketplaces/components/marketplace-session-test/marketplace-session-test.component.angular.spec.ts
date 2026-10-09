@@ -9,6 +9,8 @@ import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
+import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
+import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { createMarketplaceFixtures } from '../../testing/marketplace-fixtures';
@@ -16,6 +18,7 @@ import { MarketplaceAccountStore } from '../../services/marketplace-account.stor
 import { MarketplaceTestSessionApiService } from '../../services/marketplace-test-session-api.service';
 import { MarketplaceBrowserTestApiService } from '../../services/marketplace-browser-test-api.service';
 import { MarketplaceBrowserTestComponent } from '../marketplace-browser-test/marketplace-browser-test.component';
+import { MarketplaceSyncProgressComponent } from '../marketplace-sync-progress/marketplace-sync-progress.component';
 import { MarketplaceSessionTestComponent } from './marketplace-session-test.component';
 
 const account = createMarketplaceFixtures().connections[0];
@@ -31,6 +34,11 @@ let liveApi: {
 
 beforeAll(async () => {
   resetBindings = await prepareMarketplaceRendering([
+    {
+      type: ModalShellComponent,
+      path: 'src/app/shared/components/modal-shell/modal-shell.component.ts',
+    },
+    { type: ModalDialogDirective, path: 'src/app/shared/directives/modal-dialog.directive.ts' },
     { type: BadgeComponent, path: 'src/app/shared/components/badge/badge.component.ts' },
     { type: ButtonComponent, path: 'src/app/shared/components/button/button.component.ts' },
     { type: CardComponent, path: 'src/app/shared/components/card/card.component.ts' },
@@ -45,6 +53,10 @@ beforeAll(async () => {
     {
       type: MarketplaceBrowserTestComponent,
       path: 'src/app/features/marketplaces/components/marketplace-browser-test/marketplace-browser-test.component.ts',
+    },
+    {
+      type: MarketplaceSyncProgressComponent,
+      path: 'src/app/features/marketplaces/components/marketplace-sync-progress/marketplace-sync-progress.component.ts',
     },
     {
       type: MarketplaceSessionTestComponent,

@@ -32,7 +32,7 @@
           class="shrink-0 rounded border border-fb-line bg-fb-subtle px-2 py-0.5 text-[11px] text-fb-text-secondary"
         >
           @if (selectedConnection?.status === 'connected') {
-            Verbunden
+            Verknüpft
           } @else {
             Cloud-Profil bereit
           }
@@ -144,7 +144,14 @@
         !store.session() &&
         !reconnectRequested()
       ) {
-        <p role="status" class="mt-4 text-sm font-medium">Dein Vinted-Konto ist verbunden.</p>
+        <p role="status" class="mt-4 text-sm font-medium">
+          @if (accounts.mutationError()) {
+            Die Kontoverknüpfung ist gespeichert. Der aktuelle Vinted-Zugriff konnte nicht bestätigt
+            werden.
+          } @else {
+            Dein Vinted-Konto ist verknüpft.
+          }
+        </p>
         <div class="mt-3 flex flex-wrap gap-2">
           <app-button link="/marketplaces/vinted/profile">Verbundenes Profil ansehen</app-button>
           <app-button variant="secondary" (clicked)="reconnectRequested.set(true)">
@@ -273,19 +280,11 @@
                       size="comfortable"
                       type="submit"
                       variant="primary"
+                      [icon]="loginIcon"
+                      iconPosition="end"
                       [disabled]="submitting() || !canSubmitLogin() || loginForm.invalid"
                     >
-                      <span>Anmelden und Konto verbinden</span>
-                      <svg
-                        class="size-4 shrink-0"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2.5"
-                        aria-hidden="true"
-                      >
-                        <path d="M5 12h14M12 5l7 7-7 7"></path>
-                      </svg>
+                      Anmelden und Konto verbinden
                     </app-button>
                   </div>
 
@@ -333,23 +332,13 @@
                       type="button"
                       variant="primary"
                       size="comfortable"
+                      [icon]="browserIcon"
+                      iconPosition="end"
                       [disabled]="!store.canStart()"
                       [loading]="store.busy()"
                       (clicked)="openManualBrowser()"
                     >
-                      <span>Browser-Sitzung starten</span>
-                      <svg
-                        class="size-3.5 shrink-0"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2.5"
-                        aria-hidden="true"
-                      >
-                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                        <polyline points="15 3 21 3 21 9"></polyline>
-                        <line x1="10" y1="14" x2="21" y2="3"></line>
-                      </svg>
+                      Browser-Sitzung starten
                     </app-button>
                   </div>
                 </div>
@@ -646,3 +635,12 @@
     <p class="text-sm text-fb-text-secondary">Wähle oben ein Konto aus.</p>
   }
 </ng-template>
+
+@if (store.synchronizationOpen()) {
+  <app-marketplace-sync-progress
+    [progress]="accounts.syncProgress()"
+    [error]="accounts.mutationError()"
+    [reconnectLink]="'/marketplaces/vinted/connect/' + store.connection()?.connectionId"
+    (closed)="store.closeSynchronization()"
+  />
+}

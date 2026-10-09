@@ -1,6 +1,10 @@
+import { MarketplaceSyncProgressComponent } from '../marketplace-sync-progress/marketplace-sync-progress.component';
+import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
+import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
 import { readFile } from 'node:fs/promises';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import axe from 'axe-core';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { prepareMarketplaceRendering } from '../../../../../../e2e/support/marketplace-rendering';
@@ -16,7 +20,9 @@ import { MarketplaceBrowserTestComponent } from './marketplace-browser-test.comp
 
 const session = signal<{ id: string; frameUrl: string | null } | null>(null);
 const error = signal<string | null>(null);
+const mutationError = signal<string | null>(null);
 const cloudVerified = signal(false);
+const synchronizationOpen = signal(false);
 let restoreRendering: (() => void) | undefined;
 
 afterEach(() => {
@@ -25,6 +31,8 @@ afterEach(() => {
 });
 
 beforeEach(async () => {
+  mutationError.set(null);
+  synchronizationOpen.set(false);
   cloudVerified.set(false);
   session.set({
     id: 'fixture-session',
@@ -49,6 +57,7 @@ beforeEach(async () => {
     awaitingVerification: signal(false),
     interactionRequired: signal(false),
     progress: signal(null),
+    synchronizationOpen,
     cloudCancelled: signal(false),
     cloudCompleted: signal(false),
     cloudVerified,
@@ -59,9 +68,19 @@ beforeEach(async () => {
   };
   TestBed.configureTestingModule({
     providers: [
+      provideRouter([]),
       {
         provide: MarketplaceAccountStore,
-        useValue: { canManage: signal(true), mutationError: signal(null) },
+        useValue: {
+          canManage: signal(true),
+          mutationError,
+          syncProgress: signal({
+            id: 'fixture-sync',
+            state: 'succeeded',
+            stage: 'cleanup',
+            errorCode: null,
+          }),
+        },
       },
       {
         provide: MarketplaceBrowserTestStore,
@@ -81,6 +100,15 @@ beforeEach(async () => {
   });
   const shared = 'src/app/shared/components';
   restoreRendering = await prepareMarketplaceRendering([
+    { type: ModalDialogDirective, path: 'src/app/shared/directives/modal-dialog.directive.ts' },
+    {
+      type: ModalShellComponent,
+      path: 'src/app/shared/components/modal-shell/modal-shell.component.ts',
+    },
+    {
+      type: MarketplaceSyncProgressComponent,
+      path: 'src/app/features/marketplaces/components/marketplace-sync-progress/marketplace-sync-progress.component.ts',
+    },
     {
       type: MarketplaceBrowserTestComponent,
       path: 'src/app/features/marketplaces/components/marketplace-browser-test/marketplace-browser-test.component.ts',
@@ -120,6 +148,19 @@ it('keeps an error visible when a browser image has not loaded', () => {
   expect(root.querySelector('[role="alert"]')?.textContent).toContain(error());
 });
 
+it('distinguishes a stored account link from an unconfirmed provider session after a failed refresh', () => {
+  session.set(null);
+  error.set(null);
+  mutationError.set('Die Aktualisierung ist beim Lesen des Profils fehlgeschlagen.');
+  const fixture = TestBed.createComponent(MarketplaceBrowserTestComponent);
+  fixture.detectChanges();
+  const root = fixture.nativeElement as HTMLElement;
+  expect(root.textContent).toContain('Die Kontoverknüpfung ist gespeichert.');
+  expect(root.textContent).toContain('Der aktuelle Vinted-Zugriff konnte nicht bestätigt werden.');
+  expect(root.textContent).not.toContain('Dein Vinted-Konto ist verbunden.');
+  expect(root.textContent).toContain('Anmeldung erneuern');
+});
+
 it('keeps Cloud activation errors visible after a confirmed login', () => {
   cloudVerified.set(true);
   const fixture = TestBed.createComponent(MarketplaceBrowserTestComponent);
@@ -139,4 +180,15 @@ it('passes the DOM accessibility checks for the login and browser cards', async 
     rules: { 'color-contrast': { enabled: false } },
   });
   expect(result.violations).toEqual([]);
+});
+
+it('zeigt nach Anmeldung den bestehenden Fortschrittsdialog mit dem tatsächlichen Abrufstand', () => {
+  synchronizationOpen.set(true);
+  error.set(null);
+  const fixture = TestBed.createComponent(MarketplaceBrowserTestComponent);
+  fixture.detectChanges();
+  const root = fixture.nativeElement as HTMLElement;
+  const progress = root.querySelector('app-marketplace-sync-progress');
+  expect(progress?.textContent).toContain('Kontodaten aktualisieren');
+  expect(progress?.textContent).toContain('Die Kontodaten wurden aktualisiert.');
 });

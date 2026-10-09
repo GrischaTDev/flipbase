@@ -1,0 +1,36 @@
+<section class="border-t border-fb-line pt-4" aria-label="Cloud-Nachrichtenversand">
+  <h3 class="mb-2 text-[13px] font-semibold text-fb-text-primary">Nachrichtenversand</h3>
+  <p class="text-xs text-fb-text-secondary">
+    Flipbase darf Nachrichten über dieses Cloud-Konto versenden, die Du abschickst oder durch
+    aktivierte Regeln freigibst.
+  </p>
+  @if (loading()) {
+    <p role="status" class="mt-2 text-xs text-fb-text-secondary">Einstellung wird geladen …</p>
+  } @else if (permission(); as current) {
+    <p role="status" class="mt-2 text-xs text-fb-text-secondary">
+      {{
+        current.allowed
+          ? 'Nachrichtenversand erlaubt.'
+          : 'Nachrichtenversand nicht freigegeben. Beim nächsten Senden kannst Du ihn erlauben.'
+      }}
+    </p>
+    @if (current.executionMode === 'cloud' && current.allowed) {
+      <app-button
+        class="mt-2"
+        [disabled]="busy() || !!error()"
+        [loading]="busy()"
+        (clicked)="revoke()"
+      >
+        Nachrichtenversand deaktivieren
+      </app-button>
+    }
+  }
+  @if (error(); as message) {
+    <app-notice-banner class="mt-2" announcement="alert">
+      {{ message }}
+      <app-button class="mt-2" [disabled]="loading() || busy()" (clicked)="reload()"
+        >Erneut versuchen</app-button
+      >
+    </app-notice-banner>
+  }
+</section>
