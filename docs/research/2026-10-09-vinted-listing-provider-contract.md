@@ -213,6 +213,11 @@ inzwischen an den übernommenen Auftrag gebunden: Rechteprüfung vor/nach dem
 Download, begrenzter Stream und Prüfung von Typ/Größe/Signatur. Der Adapter
 erhält keine Storage-URLs oder Serverzugänge. Der eigentliche Anbieteradapter
 und die automatische Auftragsabholung fehlen noch.
+Der getrennte native Foto-Uploadbaustein ist inzwischen mit Browserfixtures
+geprüft: einzelne Dateiauswahl in ursprünglicher Reihenfolge, Begin-ACK vor
+erstem Upload, Kontoprüfung und keine Bestätigung aus Blob-Vorschauen.
+Zusätzliche oder veränderte vorherige Fotos brechen den Ablauf ab.
+Der Baustein ist noch nicht mit einer Veröffentlichungsaktion verbunden.
 Auch die 20 Cloud-Datenbankprüfungen verwenden ausschließlich synthetische
 Belege. Keine echte Veröffentlichung oder Anlage eines Vinted-Entwurfs geprüft.
 

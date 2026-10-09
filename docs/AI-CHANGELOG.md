@@ -1,5 +1,26 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-10 – Juna – Nativen Foto-Upload für Inserate vorbereiten
+
+**Arbeit:** Einen getrennten Browserbaustein für die bestätigte Vinted-
+Fotoeingabe ergänzt. Er verarbeitet die Originale einzeln in ihrer Reihenfolge
+und verlangt die bestätigte Schreibfreigabe vor der ersten Dateiauswahl.
+Vorhandene oder während der Vorbereitung hinzugekommene Fotos werden nicht
+überschrieben. Konto und Freigabe werden vor und nach der Übertragung geprüft.
+Lokale Blob-Vorschauen bestätigen keinen Upload; erwartete, geladene
+Anbieterbilder und unveränderte vorherige Fotokacheln sind erforderlich.
+Nach einem unklaren Upload wird keine Datei erneut ausgewählt.
+
+Der Baustein ist noch nicht an eine Veröffentlichungsaktion angeschlossen und
+bestätigt ausschließlich Fotokacheln, kein gespeichertes Inserat. Vollständige
+Feldübernahme, Anbieterergebnis und automatische Ausführung bleiben offen.
+
+**Prüfungen:** Fünf neue Browserprüfungen und drei bestehende Formularprüfungen
+mit abgefangenen Anfragen erfolgreich; Kontowechsel, fehlendes Begin-ACK,
+Vorschau ohne Uploadbestätigung, veränderte Reihenfolge und Vorbereitungskonflikt
+abgedeckt. Worker-Typen, Bau, Format und ESLint erfolgreich. Browserdateien
+nur im eigenen Testverzeichnis installiert. Keine reale Anbieteraktion.
+
 ## 2026-10-10 – Juna – Private Originalfotos an Cloud-Inseratversuche binden
 
 **Arbeit:** Der Worker lädt ausschließlich ein Foto aus der übernommenen,
