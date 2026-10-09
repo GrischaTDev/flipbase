@@ -183,7 +183,10 @@ neuer gespeicherter Inhalt und Termin ersetzen einen noch nicht begonnenen
 geplanten Auftrag. Bei einem Fehler bleibt der alte Auftrag erhalten. Eine
 wiederholte Anfragenkennung liefert denselben Ersatz. Frontend-Modell und
 Feature-Service prüfen den Auftragskontext und unterscheiden Anbieterprüfung
-von Veröffentlichung. Die Oberfläche und Ausführer sind noch anzuschließen.
+von Veröffentlichung. Der Editor zeigt inzwischen den Verlauf, erlaubt den
+versionsgebundenen Abbruch wartender Aufträge und weist auf neuere Änderungen
+gegenüber dem eingefrorenen Inhalt hin. MEZ/MESZ und die IANA-Zone machen doppelte
+Uhrzeiten eindeutig. Annahme-/Planungsaktionen und Ausführer sind noch anzuschließen.
 
 Für lokale Versuche sind Übernahme, erneute Prüfung, einmaliger Schreibbeginn
 und Ergebnisannahme inzwischen in Schema 464 vorbereitet. Abgelaufene

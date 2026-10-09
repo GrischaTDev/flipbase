@@ -1,5 +1,25 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-10 – Juna – Inserataufträge im Entwurf anzeigen
+
+**Arbeit:** Gespeicherte Entwürfe zeigen ihren Auftragsverlauf mit Termin,
+Ausführer und Anbieterstatus. Auftragsannahme, Anbieterprüfung und unklarer
+Ausgang bleiben unterscheidbar. Wartende Aufträge lassen sich versionsgebunden
+abbrechen; nach Beginn wird diese Aktion nicht angeboten. Neuere Änderungen am
+Entwurf werden kenntlich gemacht. Antworten aus einem vorherigen Benutzer- oder
+Workspace-Kontext können den aktuellen Verlauf nicht überschreiben.
+
+Termine zeigen Zeitzone und MEZ/MESZ, damit die beiden Vorkommen einer Uhrzeit
+bei der Herbstumstellung unterscheidbar sind. Die Speicherhinweise beziehen
+sich auf die Arbeitskopie; die Oberfläche behauptet keinen Anbietererfolg.
+Veröffentlichungsaktionen und Anbieteradapter bleiben in Arbeit.
+
+**Prüfungen:** 15 gezielte Angularprüfungen, TypeScript, Produktionsbau,
+Format und betroffene ESLint-Dateien erfolgreich. Vier Browserdurchläufe mit
+Speichern, Wiederladen, Verlauf und Abbruch auf Desktop/Mobil in hell/dunkel
+einschließlich AXE erfolgreich. Shared-UI-Prüfung und Suite-Audit erfolgreich.
+Keine reale Anbieteraktion, Produktionsänderung, Push, PR oder Merge.
+
 ## 2026-10-09 – Juna – Cloud-Inseratversuche und Worker vorbereiten
 
 **Arbeit:** Cloud-Aufträge an Worker, Konto, freigegebenes Profil und

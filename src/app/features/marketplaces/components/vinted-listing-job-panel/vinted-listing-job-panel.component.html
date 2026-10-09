@@ -1,0 +1,86 @@
+@if (available()) {
+  <app-card title="Auftragsverlauf">
+    <div class="space-y-4">
+      <p class="text-xs text-fb-text-secondary">
+        Ein angenommener Auftrag ist erst nach der Bestätigung von Vinted erfolgreich.
+      </p>
+      <app-button
+        variant="secondary"
+        size="slim"
+        [disabled]="loading() || !!cancelling()"
+        [loading]="loading()"
+        (clicked)="refresh()"
+        >Verlauf aktualisieren</app-button
+      >
+      @if (error()) {
+        <app-notice-banner announcement="alert">{{ error() }}</app-notice-banner>
+      }
+      <p aria-live="polite" class="sr-only">{{ announcement() }}</p>
+      @if (loading() && !jobs().length) {
+        <p role="status" class="text-sm text-fb-text-secondary">Aufträge werden geladen …</p>
+      } @else if (entries().length) {
+        <ul class="divide-y divide-fb-line">
+          @for (entry of entries(); track entry.job.id) {
+            <li class="space-y-2 py-3 first:pt-0 last:pb-0">
+              <p class="text-sm font-semibold text-fb-text-primary">{{ entry.label }}</p>
+              <p class="text-xs text-fb-text-secondary">
+                {{ entry.job.scheduledAt ? 'Geplant für' : 'Beauftragt am' }} {{ entry.time }}
+              </p>
+              <p class="text-xs text-fb-text-secondary">
+                {{
+                  entry.job.executionMode === 'local' ? 'Lokale Erweiterung' : 'Cloud-Ausführung'
+                }}
+              </p>
+              @if (entry.reason) {
+                <p class="text-xs text-fb-text-secondary">{{ entry.reason }}</p>
+              }
+              @if (entry.changed) {
+                <app-notice-banner
+                  >Dein gespeicherter Entwurf enthält neuere Änderungen. Dieser Auftrag verwendet
+                  weiterhin den Inhalt vom Zeitpunkt der Planung.</app-notice-banner
+                >
+              }
+              @if (
+                entry.job.scheduledAt &&
+                (entry.job.state === 'queued' || entry.job.state === 'paused')
+              ) {
+                <p class="text-xs text-fb-text-secondary">
+                  {{
+                    entry.job.latePolicy === 'pause_after_30_minutes'
+                      ? 'Bei mehr als 30 Minuten Verspätung anhalten.'
+                      : 'Bei Ausfall veröffentlichen, sobald die Ausführung wieder verfügbar ist.'
+                  }}
+                </p>
+              }
+              <div class="flex flex-wrap items-center gap-3">
+                @if (entry.cancellable) {
+                  <app-button
+                    variant="secondary"
+                    size="slim"
+                    [disabled]="loading() || !!cancelling()"
+                    [loading]="cancelling() === entry.job.id"
+                    (clicked)="cancelJob(entry.job)"
+                    >Auftrag abbrechen</app-button
+                  >
+                }
+                @if (entry.url) {
+                  <a
+                    [href]="entry.url"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="text-xs font-medium text-fb-text-primary underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-fb-primary"
+                    >Bei Vinted ansehen<span class="sr-only"> (öffnet einen neuen Tab)</span></a
+                  >
+                }
+              </div>
+            </li>
+          }
+        </ul>
+      } @else if (!error()) {
+        <p class="text-sm text-fb-text-secondary">
+          Für diesen Entwurf sind noch keine Anbieteraufträge gespeichert.
+        </p>
+      }
+    </div>
+  </app-card>
+}

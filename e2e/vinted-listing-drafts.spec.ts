@@ -40,6 +40,40 @@ async function mockDrafts(page: Page) {
   let created = false,
     imageId = 0,
     uploads = 0;
+  const jobs = [
+    {
+      id: '1',
+      workspaceId,
+      connectionId: null,
+      draftId: draft.id,
+      draftRevision: 1,
+      executionMode: 'local',
+      externalAccountId: '123',
+      action: 'publish',
+      state: 'queued',
+      version: 1,
+      scheduledAt: '2026-10-25T01:30:00Z',
+      timeZone: 'Europe/Berlin',
+      latePolicy: 'pause_after_30_minutes',
+      errorCode: null,
+      externalId: null as string | null,
+      providerState: null as string | null,
+      verifiedAt: null as string | null,
+      createdAt: draft.createdAt,
+      updatedAt: draft.updatedAt,
+      replacesJobId: null,
+    },
+  ];
+  jobs.push({
+    ...jobs[0],
+    id: '2',
+    state: 'confirmed',
+    externalId: '999',
+    providerState: 'processing',
+    verifiedAt: draft.updatedAt,
+  });
+  jobs.push({ ...jobs[0], id: '3', state: 'outcome_unknown' });
+  const jobCancels: Record<string, unknown>[] = [];
   const reserved = new Map<string, (typeof draft.images)[number]>();
   const creates: Record<string, unknown>[] = [],
     templateSaves: Record<string, unknown>[] = [];
@@ -79,6 +113,16 @@ async function mockDrafts(page: Page) {
   await page.route('**/rest/v1/rpc/marketplace_*listing*', async (route) => {
     const name = new URL(route.request().url()).pathname.split('/').at(-1);
     const body = route.request().postDataJSON() as Record<string, unknown>;
+    if (name === 'marketplace_read_listing_jobs')
+      return route.fulfill({ json: { items: created ? jobs : [] } });
+    if (name === 'marketplace_cancel_listing_job') {
+      jobCancels.push(body);
+      const job = jobs.find((job) => job.id === body['p_job_id']);
+      if (!job || body['p_expected_version'] !== job.version || job.state !== 'queued')
+        return route.fulfill({ status: 409, json: { code: '40001' } });
+      Object.assign(job, { state: 'cancelled', version: job.version + 1 });
+      return route.fulfill({ json: job });
+    }
     if (name === 'marketplace_create_listing_draft') {
       creates.push(body);
       if (!created) {
@@ -149,7 +193,7 @@ async function mockDrafts(page: Page) {
     }
     return route.fulfill({ contentType: 'image/png', body: pixel });
   });
-  return { creates, templateSaves, draft: () => draft, uploads: () => uploads, pixel };
+  return { creates, templateSaves, jobCancels, draft: () => draft, uploads: () => uploads, pixel };
 }
 
 for (const width of [1440, 390])
@@ -243,6 +287,17 @@ for (const width of [1440, 390])
       await expect(
         editor.getByRole('button', { name: 'second.png nach hinten', exact: true }),
       ).toBeVisible();
+      const history = editor.locator('app-vinted-listing-job-panel');
+      await expect(history.getByText('Veröffentlichung beauftragt', { exact: true })).toBeVisible();
+      await expect(history.getByText('Vinted prüft Dein Inserat', { exact: true })).toBeVisible();
+      await expect(history.getByText('Ergebnis unklar', { exact: true })).toBeVisible();
+      await expect(history.getByText(/neuere Änderungen/).first()).toBeVisible();
+      await history.getByRole('button', { name: 'Auftrag abbrechen', exact: true }).click();
+      await expect(history.getByText('Abgebrochen', { exact: true })).toBeVisible();
+      expect(state.jobCancels).toEqual([{ p_job_id: '1', p_expected_version: 1 }]);
+      await expect(
+        history.getByRole('button', { name: 'Auftrag abbrechen', exact: true }),
+      ).toHaveCount(0);
       await page.addScriptTag({ content: axe.source });
       expect(
         await page.evaluate(

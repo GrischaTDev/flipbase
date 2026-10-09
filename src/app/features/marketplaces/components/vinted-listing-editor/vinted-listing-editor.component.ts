@@ -45,6 +45,7 @@ import {
   type VintedListingDraft,
 } from '../../models/vinted-listing-draft';
 import { VintedListingTemplatePanelComponent } from '../vinted-listing-template-panel/vinted-listing-template-panel.component';
+import { VintedListingJobPanelComponent } from '../vinted-listing-job-panel/vinted-listing-job-panel.component';
 
 const textControl = () =>
   new FormControl('', { nonNullable: true, validators: [Validators.maxLength(20000)] });
@@ -69,6 +70,7 @@ const same = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.st
     CategoryPickerComponent,
     ListingImageEditorComponent,
     VintedListingTemplatePanelComponent,
+    VintedListingJobPanelComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block min-w-0', '(window:beforeunload)': 'beforeUnload($event)' },

@@ -120,8 +120,8 @@
                 formControlName="price"
               />
               <app-notice-banner
-                >Dein Entwurf ist nur in Flipbase gespeichert. Bei Vinted ist er noch nicht
-                veröffentlicht.</app-notice-banner
+                >Speichern ändert nur Deinen Entwurf in Flipbase. Den Stand eines Anbieterauftrags
+                siehst Du im Auftragsverlauf.</app-notice-banner
               >
             </div>
           </app-card>
@@ -134,6 +134,13 @@
               [content]="content()"
               [disabled]="saving() || !!contentError()"
               (applied)="applyTemplate($event)"
+            />
+          }
+          @if (draft(); as savedDraft) {
+            <app-vinted-listing-job-panel
+              [workspaceId]="savedDraft.workspaceId"
+              [draftId]="savedDraft.id"
+              [draftRevision]="savedDraft.revision"
             />
           }
         </div>
