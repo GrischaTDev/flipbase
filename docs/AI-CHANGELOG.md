@@ -33,10 +33,19 @@ Smoke-Erwartungsliste enthält die sechs vorhandenen Bot-Icon-/Lesestatusfälle.
 Produktionsbau sowie gezieltes Format/Lint bestehen; Assertions und
 Testauswahl bleiben unverändert.
 
+Das isolierte Chromium-Sitzungsimage erhält jetzt ebenfalls die gemeinsame
+Verhandlungslaufzeit. Der fehlende Modulimport ist im tatsächlichen Image vor
+dem Fix reproduziert; danach bestehen die Aktionsimporte ohne Netzwerk und mit
+schreibgeschütztem Dateisystem. Beide Image-Workflows prüfen diesen Import vor
+ihren Browser-Smokes. 54 gezielte Kanal-/Isolations-/Angebotsprüfungen bestehen.
+Der Workspace-Test registriert die neuen Angebotsaktionen und das Zahlenfeld;
+alle 55 Workspace-/Angebotsaktionstests bestehen.
+
 **Grenze:** Bestätigte Zahlungen sind belegte Kaufauslöser. Für die separate
 Käuferannahme unseres Gegenangebots fehlt bislang ein eindeutiger Anbieterbeleg;
 die Oberfläche erklärt die Nichtverfügbarkeit und bewahrt gespeicherte Texte.
-Keine echte Anbieteraktion, produktive Aktivierung, Veröffentlichung oder PR.
+Keine echte Anbieteraktion oder produktive Aktivierung. PR356 ist nach
+Nutzerfreigabe erstellt; die vollständige CI und Veröffentlichung stehen aus.
 Umsetzungs- und Prüfstände: [Plan](superpowers/plans/2026-10-09-vinted-negotiation.md).
 
 ## 2026-10-09 - Juna - Verhandlungsseite im Browser analysieren

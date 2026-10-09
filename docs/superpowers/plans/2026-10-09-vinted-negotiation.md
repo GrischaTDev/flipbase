@@ -101,7 +101,7 @@ Agent benennt die konkreten Funktionen vor Providerintegration im Bericht.
 - [x] Aufgaben- und vollständiges Zweigreview, gezielte Regressionen, Format/Lint,
       Typprüfung, Worker-Bau, UI-Bau, Datenbank- und Browserabläufe.
 - [x] Changelog, Entwurf und Plan mit tatsächlichen Ergebnissen aktualisieren.
-- [ ] Erst nach fertigem geprüftem Stand die vorgeschriebene PR-Freigabe fragen.
+- [x] Erst nach fertigem geprüftem Stand die vorgeschriebene PR-Freigabe fragen.
       Keine Veröffentlichung oder Echtkonto-Schreibaktion ohne entsprechende Freigabe.
 
 ## Geprüfter Umsetzungsstand
@@ -149,8 +149,8 @@ Schemaänderung. Die abschließende Nachprüfung bestätigt beide Korrekturen oh
 neue Befunde. Die zuvor geprüften 86 Angularprüfungen wurden um diese beiden
 Renderingregressionen ergänzt; keine breite Suite erneut ausgeführt.
 
-Der geprüfte Zweig bleibt bis zur vorgeschriebenen PR-Freigabe lokal. Die
-vollständigen Pflichtprüfungen folgen im PR. Keine echte Vinted-Abnahme oder
+Die vorgeschriebene PR-Freigabe wurde erteilt; PR356 ist erstellt. Die
+vollständigen Pflichtprüfungen laufen im PR. Keine echte Vinted-Abnahme oder
 automatische Aktivierung wird aus den lokalen Nachweisen abgeleitet.
 
 Entscheidungen während der Umsetzung:
