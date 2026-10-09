@@ -1,0 +1,106 @@
+@if (loading()) {
+  <p role="status" class="text-sm text-fb-text-secondary">
+    Zusätzliche veröffentlichte Tabellen werden geladen …
+  </p>
+}
+@if (error(); as message) {
+  <app-card variant="subtle">
+    <p role="status" class="text-sm text-fb-text-secondary">{{ message }}</p>
+    <app-button class="mt-2" (clicked)="load()">Zusätzliche Tabellen erneut laden</app-button>
+  </app-card>
+}
+@if (visibleItems().length > 0) {
+  <section class="space-y-3" aria-labelledby="published-sizes-title">
+    <div>
+      <h2 id="published-sizes-title" class="text-lg font-semibold">
+        Zusätzliche veröffentlichte Tabellen
+      </h2>
+      <p class="mt-1 text-sm text-fb-text-secondary">
+        Redaktionell gepflegte Referenzen. Freie Tabellenspalten werden nicht automatisch Deinen
+        Kleidungsmaßen zugeordnet und liefern keine Maßtreffer.
+      </p>
+    </div>
+    <div class="grid min-w-0 grid-cols-1 items-start gap-4 xl:grid-cols-2">
+      @for (item of visibleItems(); track item.id) {
+        <app-card padding="none">
+          <div class="space-y-2 p-4">
+            <h3 [id]="'published-size-title-' + item.id" class="text-base font-semibold">
+              {{ item.content.title }}
+            </h3>
+            <div class="flex flex-wrap gap-2">
+              @if (item.brandName) {
+                <app-badge>{{ item.brandName }}</app-badge>
+              }
+              <app-badge>{{
+                item.content.measurement === 'garment'
+                  ? 'Kleidungsmaße'
+                  : 'Körpermaße · nur Label-Nachschlagen'
+              }}</app-badge>
+            </div>
+            <p class="text-xs text-fb-text-secondary">{{ item.content.notes }}</p>
+          </div>
+          <app-data-table
+            [toolbarVisible]="false"
+            [ariaLabel]="item.content.title"
+            [hasRows]="item.content.rows.length > 0"
+          >
+            <div
+              table-content
+              class="overflow-x-auto"
+              role="region"
+              [attr.aria-labelledby]="'published-size-title-' + item.id"
+              tabindex="0"
+            >
+              <table class="w-full text-left text-sm">
+                <caption class="sr-only">
+                  {{
+                    item.content.title
+                  }}
+                  · Zusätzliche veröffentlichte Referenz
+                </caption>
+                <thead class="border-y border-fb-line bg-fb-subtle text-fb-text-secondary">
+                  <tr>
+                    @for (column of item.content.columns; track $index) {
+                      <th scope="col" class="whitespace-nowrap px-4 py-2 font-medium">
+                        {{ column }}
+                      </th>
+                    }
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-fb-line">
+                  @for (row of item.content.rows; track $index) {
+                    <tr>
+                      @for (cell of row; track $index) {
+                        @if ($first) {
+                          <th scope="row" class="whitespace-nowrap px-4 py-2 font-medium">
+                            {{ cell }}
+                          </th>
+                        } @else {
+                          <td class="whitespace-nowrap px-4 py-2">{{ cell }}</td>
+                        }
+                      }
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </app-data-table>
+          <p class="border-t border-fb-line px-4 py-3 text-xs text-fb-text-secondary">
+            Quelle:
+            <a
+              class="underline underline-offset-2"
+              [href]="item.content.sourceUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              >{{ item.content.sourceTitle }}</a
+            >
+            @if (item.content.reviewedAt) {
+              · Abgerufen am
+              <time [attr.datetime]="item.content.reviewedAt">{{ item.content.reviewedAt }}</time>
+            }
+          </p>
+        </app-card>
+      }
+    </div>
+  </section>
+}

@@ -1,5 +1,91 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-09 - Juna - Bedarf für die Größen-Nachschlagehilfe korrigieren
+
+**Auftrag:** Die vorhandene leere Referenzverwaltung trifft den beschriebenen
+Bedarf nicht. Gewünscht sind recherchierte, bereits gefüllte Größenvergleiche
+und verständliche Erklärungen der Angaben auf Vintage-Kleidungslabels.
+
+**Recherche:** Offizielle Größenhilfen von Silver, Levi's, Next, ASOS, H&M und
+bonprix geprüft. Länder-Konfektionsgrößen, Jeansweite/Innenbeinlänge in Inch,
+Buchstabengrößen und Kurz-/Lang-/Plusreihen müssen erkennbar getrennt bleiben.
+Die aktuelle Silver-Damentabelle nennt für Jeansgröße 29 die Konfektionsgröße
+6/8 und einen natürlichen Taillenumfang von 30–31 Inch. W29 darf deshalb nicht
+als gemessener Bundumfang oder als universelle EU-Größe ausgegeben werden.
+Einzelne Zahlen und unbekannte Codes wie 3R bleiben ohne Marken-/Etikettbeleg
+mehrdeutig. Aktuelle Herstellerhilfen belegen keine historischen Vintage-Maße.
+
+**Nachtrag Refuge:** Nutzer nennt eine Damenhose von Refuge. Die auf der offiziellen
+Charlotte-Russe-Seite verlinkte Refuge-Denim-Tabelle führt 0, 1, 3, 5 bis 15.
+Größe 3 hat dort 26 Inch Taille und 36½ Inch Hüfte (66,04 / 92,71 cm).
+Die Bedeutung des R und die Gültigkeit für das konkrete ältere Modell bleiben
+unbelegt. Keine direkte universelle EU-Entsprechung daraus abgeleitet.
+[Offizielle Refuge-Tabelle](https://charlotterusse.com/pages/size-guide).
+
+**Vorgeschlagener Aufbau:** Direkt gefüllte Leseransicht für Hosen/Jeans und
+Oberteile/Jacken, jeweils Damen/Herren, mit Quellenangabe an jedem Vergleich.
+Labelsuche einschließlich W/L, Zahlpaaren und halben Inch; zusätzliche
+Kurz-/Lang-/Plusübersicht. Markenreferenzen ergänzen die Grundübersicht.
+Die Administration bleibt eine Pflegefunktion; Leser müssen keine Tabelle anlegen.
+
+**Maßsuche als Hauptbedarf:** Nutzer misst vorhandene Hosen an Bund,
+Innenbein und Außenbein und möchte auch ohne Label eine Größenrange ableiten.
+Der geplante Ablauf enthält deshalb eine Suche mit tatsächlichen Kleidungsmaßen
+in cm, zusätzlich zur Labelsuche. Bundweite flach und Bundumfang bleiben
+ausdrücklich verschiedene Eingaben. Hüftweite und vordere Leibhöhe ergänzen
+die Einordnung bei unterschiedlichen Bundpositionen; Stretch bleibt relevant.
+Weitengröße und Beinlänge werden getrennt ausgegeben, mehrere passende Größen
+bleiben sichtbar. Keine universellen XS/S-Grenzen oder Kleidungsmaßbereiche aus
+Hersteller-Körpermaßtabellen erfinden. Nur belegte, gleichartig gemessene
+Kleidungsreferenzen können als direkte Maßtreffer zählen; übrige Hinweise sind
+als Näherung oder nicht ausreichend belegt zu kennzeichnen.
+[Kleidungs-Messvertrag](https://nakedandfamousdenim.com/pages/measuring-guide-1).
+
+**Darstellung präzisiert:** Nutzer verkauft die vorhandene Ware; es gibt keine
+Endkunden-Körpermaße. Labelgröße, Kleidungsmaße und ungefähre Verkaufsgröße
+stehen deshalb nebeneinander. Die Seite zeigt ihre vorhandenen Tabellen bereits
+ohne Suche. Oben liegt eine Filterkarte nach dem bestehenden Vinted-Feed-Muster
+(`deal-monitor.component.html`): Kategorie, Damen/Herren, Marke, Labelangabe und
+Maßfelder mit gemeinsamem Zurücksetzen. Darunter bleiben getrennte Tabellenkarten
+für Größenvergleiche, Kleidungsmaßbereiche und Sondergrößen sichtbar. Eingaben
+grenzen die Übersicht ein und markieren passende Zeilen; Ergebnisse und
+Vergleichsgrundlage sind gemeinsam nachvollziehbar. Shared-Karten, Suchfelder,
+Selects und Zahlenfelder aus dem bestehenden Feed übernehmen, keine neue UI-Lib.
+
+**Quellen:** [Silver](https://www.silverjeans.com/size-charts.html),
+[Levi's](https://www.levi.com/US/en_US/info/sizeguide),
+[Next](https://www.next.co.uk/sizeguide),
+[ASOS](https://www.asos.com/discover/size-charts/women/jeans-trousers-leggings/),
+[H&M](https://www.hm.com/ge/customer-service/sizeguide/ladies/),
+[bonprix](https://www.bonprix.de/service/beratung/groessentabellen/).
+
+**Umsetzung nach Freigabe:** Die Leserroute zeigt unmittelbar 14 recherchierte
+Tabellen mit Größenvergleich, Sonderreihen und tatsächlichen Kleidungsmaßen
+einzelner Modelle. Gemeinsame Filter für Marke, Kleidungsart, Zielgruppe, Label
+und flach gemessene Kleidung; einstellbarer Suchspielraum statt erfundener
+allgemeiner XS/S-Grenzen. Alle eingegebenen Maße müssen in derselben belegten
+Zeile vorhanden sein und passen. Körpermaßtabellen und nominelle W-Werte bleiben
+Nachschlagekontext und liefern keine Kleidungsmaßtreffer. Die Labelsuche versteht
+EU/UK/US-Präfixe, W/L-Paare, halbe Inch und Refuge 3R. Zusatzreferenzen aus der
+vorhandenen Veröffentlichung erscheinen direkt darunter; deren Ausfall blockiert
+die Grundübersicht nicht. Die bisherige Leseransicht bleibt unter
+`sizes/references`, die Administration unverändert erreichbar.
+
+**Prüfung:** 41 Modelltests und 11 Angular-Verhaltenstests erfolgreich, Typprüfung
+und Produktionsbau erfolgreich. Isolierte Chromium-Prüfung mit synthetischer
+Sitzung und RPC-Antworten: sofort sichtbare Tabellen, Maßtreffer, W/L-Erklärung,
+Zusatzreferenzen samt simuliertem Ausfall und Wiederholen, mobile Breite 390 px
+ohne Dokumentüberlauf. AXE WCAG AA in Desktop-, Treffer- und Mobilansicht ohne
+Befund. Browser-Plugin nicht verfügbar; reguläres Playwright verwendet. Kein
+Test gegen die produktive Anmeldung oder Datenbank. Keine Datenbankänderung.
+
+**Quellen für Kleidungsmaße:** Iron Heart IH-666S-142, Lands’ End 509417,
+CottonMill B090 und Port & Co PC54C. Die PC54C-Tabelle benennt die Einheit nicht
+separat; ihre US-Inch-Messkonvention ist als Ableitung im Tabellenhinweis sichtbar.
+Aktuelle Modellmaße sind Vergleichsbelege, keine historischen Vintage-Maßgrenzen.
+
+**Stand:** Eigener geprüfter Zweig; Veröffentlichung erst nach Freigabe des PR.
+
 ## 2026-10-09 - Juna - Referenzbibliothek über PR veröffentlichen
 
 **Auftrag:** Geprüften Feature-Branch nach ausdrücklicher Freigabe pushen,
