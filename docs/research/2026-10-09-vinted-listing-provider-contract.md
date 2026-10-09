@@ -5,29 +5,88 @@ Arbeitsbasis ist `origin/master` bei `638b2ace`, einschließlich PR #356 und #35
 
 ## Nachgewiesen und offen
 
-Der Nutzer hat die Anmeldung bestätigt; die angemeldete Vinted-Seite wurde
-am 09.10.2026 gelesen. Die Browserverbindung brach danach wiederholt ab.
-Erstellungs- und Bearbeitungsformular eines echten Inserats sind deshalb
-weiterhin nicht geprüft. Die Bleam-Recherche ist im
+Nach „probier nochmal“ wurden am 09.10.2026 das angemeldete Neuanlageformular
+und die vollständige Bearbeitungsmaske eines eigenen aktiven Inserats gelesen.
+Unterbrechungen beim Seitenwechsel wurden durch erneutes Verbinden überwunden.
+Die Prüfung benutzt sichtbare Bedienelemente und deren DOM-Attribute; es wurden
+keine versteckten Anwendungszustände oder Zugangsdaten ausgelesen.
+Die Bleam-Recherche ist im
 [Produktentwurf](../superpowers/specs/2026-10-09-vinted-listing-publishing-design.md)
-festgehalten; sie ersetzt keine Bestätigung des Vinted-Formulars.
+festgehalten. Die folgenden Vinted-Nachweise ergänzen diese Recherche.
 
 | Bereich                                    | Aktueller Nachweis                                                                                  | Nächster Nachweis                                                                       |
 | ------------------------------------------ | --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| Kategorie                                  | Vorhandener gespeicherter Vinted-Baum; vollständiges Lesen und Auswahl getestet                     | Aktuelle Pflichtmerkmale je Kategorie im Anbieterformular prüfen                        |
+| Kategorie                                  | Gespeicherter Baum; Neuanlage/Bearbeitung mit Kleidung und Kinderschuhen geprüft                    | Weitere Kategoriearten und deren Pflichtmerkmale prüfen                                 |
 | Titel, Beschreibung, Verkaufspreis         | Frei speicherbare Flipbase-Arbeitskopie; Betrag in Cent, kein Übernehmen von Einkaufskosten         | Vinted-Längen, Preisgrenzen und Währung bestätigen                                      |
-| Marke, Größe, Zustand, Farben, Materialien | Freie Beschriftungen im Entwurf; bekannte IDs bleiben nur bei unverändertem Feld/Kategorie erhalten | Tatsächliche Auswahlwerte, IDs und Abhängigkeiten bestätigen                            |
-| Paketgröße und weitere Merkmale            | Platz im gespeicherten Inhaltstyp, noch keine bestätigten Eingabefelder                             | Aktuelle Versand-/Kategorieauswahl bestätigen                                           |
+| Marke, Größe, Zustand, Farben, Materialien | Auswahlstruktur und Beispiele am Anbieter bestätigt; Entwurfeditor verwendet noch freie Angaben     | Dynamische Auswahl mit bestätigten IDs integrieren; weitere Kategorien prüfen           |
+| Paketgröße und weitere Merkmale            | Sendungsgrößen 1/2/3 am Anbieter bestätigt; KI-Fotokennzeichnung im Inhaltstyp noch nicht enthalten | Sendungsgröße und Kennzeichnung in den vollständigen Editorvertrag aufnehmen            |
 | Fotos                                      | Private Originaldateien und Auswahlreihenfolge; Zuschneiden/Drehen erzeugt neue Datei               | Anbietergrenzen, Uploadvertrag und Fotozuordnung bestätigen                             |
 | Flipbase-Entwurf                           | Anlegen, automatisch speichern, suchen und wieder bearbeiten implementiert                          | Echte Umgebung erst nach abgeschlossener Integration migrieren                          |
-| Vinted-Entwurf                             | Noch nicht implementiert                                                                            | Eigenen Anbieterweg und bestätigte Entwurfs-ID prüfen                                   |
-| Veröffentlichen und Bearbeiten             | Bestehende begrenzte Bearbeitung bleibt erhalten; neuer vollständiger Schreibweg fehlt              | Form-/Antwortvertrag, Ergebnis-ID, Antwortverlust und Wiedererkennung prüfen            |
+| Vinted-Entwurf                             | Eigene Schaltfläche im Vinted-Formular nachgewiesen; noch kein Schreibadapter                       | Speicherung und bestätigte Entwurfs-ID an später freigegebenem Fall prüfen              |
+| Veröffentlichen und Bearbeiten             | Beide vollständigen Formulare gelesen; neue Schreibwege und Ergebnisbelege fehlen                   | Ergebnis-ID, Antwortverlust und Wiedererkennung am geprüften Schreibweg bestätigen      |
 | Termin und Relist                          | Terminmodell einschließlich Zeitzone/Zeitumstellung getestet; keine Aufträge oder Relist            | Aufträge erst auf geprüftem Anbieterweg aufbauen; Relist-Reihenfolge separat bestätigen |
 
 Es wurden keine neuen Vinted-Schreibendpunkte oder Anbieter-IDs geraten.
 Ein echter Schreibtest braucht einen vom Nutzer ausgewählten Artikel und die
 Freigabe der konkreten Aktion. Die automatischen Browserprüfungen verwenden
 ausschließlich künstliche Konten, Inserate und Fotos mit abgefangenen Anfragen.
+
+## Direkt am Vinted-Formular bestätigt
+
+- Neuanlage: `/items/new`, getrennte Schaltflächen **Entwurf speichern** und
+  **Hochladen**. Vor der Kategorieauswahl sind Fotos, Titel, Beschreibung und
+  Kategorie sichtbar. Nach Wahl der Kategorie erscheinen deren weitere Felder.
+- Beispiel Herren → Kleidung → Jacken & Mäntel → Jacken → Bomberjacken:
+  Kategorie `1223`; Marke, Größe, Zustand, Farbe und Material sowie Preis und
+  Sendungsgröße. Material wird ausdrücklich als empfohlen bezeichnet.
+- Größen sind kategorieabhängig: Männergrößen gehören im Beispiel zur Gruppe
+  `14`, etwa M mit Kennung `208`. Beim eigenen Inserat in Kinder → Jungs →
+  Schuhe → Sportschuhe → Fußballschuhe (`2738`) erscheint stattdessen die
+  Kinderschuhgrößengruppe `31`, etwa 38 mit Kennung `607`.
+- Zustandskennungen im geprüften Kleidungsformular: `6` für neu mit Etikett,
+  `1` für neu, `2` sehr gut, `3` gut und `4` zufriedenstellend.
+- Farbe erlaubt zwei Werte. Bei Wahl eines dritten Werts ersetzt Vinted einen
+  bisherigen Wert. Material erlaubt entsprechend drei Werte. Flipbase soll
+  diese Grenzen erklären und vorhandene Auswahlen bewusst ändern lassen.
+- Sendungsgröße: klein `1`, mittel `2`, groß `3`. Nach dem Laden der
+  Bomberjacken-Kategorie wurde mittel automatisch als Empfehlung ausgewählt.
+  Die Empfehlung kann verspätet erscheinen; ein Ausführer muss auf den fertigen
+  Formularstand warten und die tatsächlich gewünschte Größe prüfen.
+- Foto-Dateiauswahl: `name="photos"`, Mehrfachauswahl und
+  `accept="image/jpeg,image/gif,image/png,image/webp"`. Eine zahlenmäßige
+  Fotogrenze oder maximale Dateigröße ist damit **nicht** bestätigt. GIF ist
+  am Anbieter auswählbar, im bisherigen Flipbase-Fotoweg jedoch nicht unterstützt.
+- DOM-Felder: `input[name="title"]`, `textarea[name="description"]`,
+  `input[name="price"]` sowie `#category`, `#brand`, `#size`, `#condition`,
+  `#color` und `#material`. Die Auswahlfelder sind schreibgeschützte Eingaben
+  mit aufklappbarer Auswahl, keine freien Textfelder.
+- Auswahlkennungen stehen unter anderem in `catalog-<id>`,
+  `catalog-suggestion-<id>`, `brand-<id>`, `suggested-brand-<id>`,
+  `condition-<id>`, `color-<id>`, `material-<id>` und
+  `data-testid="size-group-<group>-grid-option-<id>"`. Vorgeschlagene und
+  reguläre Einträge können dieselbe Kennung enthalten; sie müssen beim Lesen
+  zusammengeführt werden. Nicht aus bloßen Beschriftungen eine ID erfinden.
+- Bearbeitung: Die Aktion **Angebot bearbeiten** führt zu `/items/<id>/edit`.
+  Die Maske enthält die vorhandenen Fotos mit Reihenfolge und Titelbild,
+  Entfernen-/Bearbeiten-Aktionen, alle genannten Angaben und **Speichern**.
+- Einige Markenwechsel sind gesperrt. Im geprüften Schuh-Inserat sind etwa
+  bestimmte Zielmarken deaktiviert, andere auswählbar. Flipbase muss eine
+  konkrete Sperre anzeigen; sie darf keine ungefragte Neuanlage auslösen.
+- Bei vorhandenen Fotos erscheint `ai_photo`, eine Kennzeichnung für KI-Fotos.
+  Der aktuelle Entwurfsvertrag enthält sie noch nicht. Vor vollständiger
+  Live-Bearbeitung muss sie ausdrücklich erfasst und erhalten werden.
+- Die Bearbeitungsmaske enthält außerdem die kostenpflichtige Zusatzoption
+  `bump`. Ein normaler Bearbeitungsauftrag darf sie nicht einschalten.
+- Titel, Beschreibung und Preis haben in der beobachteten DOM-Struktur keine
+  `maxlength`-/`min`-/`max`-Grenzen. Daraus folgt **keine** unbegrenzte Eingabe:
+  tatsächliche Anbietergrenzen und Pflichtvalidierung bleiben zu bestätigen.
+
+Es wurden nur Auswahllisten im ungespeicherten Neuanlageformular ausprobiert.
+Anschließend wurde das leere Ausgangsformular wiederhergestellt und gelesen.
+Das bestehende Inserat wurde ausschließlich gelesen. Keine Fotos hochgeladen,
+kein Vinted-Entwurf angelegt und kein Inserat gespeichert oder veröffentlicht.
+Ein erfolgreicher Schreib-/Ergebnisvertrag und weitere Kategorien sind noch
+offen; die sichtbaren Schaltflächen allein liefern diesen Nachweis nicht.
 
 ## Fertige Grundlage im Arbeitszweig
 
@@ -55,7 +114,9 @@ Formate sind derzeit nicht unterstützt.
 
 ## Noch erforderliche Arbeit
 
-Paket 1 bleibt bis zur tatsächlichen Formularprüfung offen. Paket 2 ist teilweise
+Paket 1 ist durch die beschriebenen Formularbeobachtungen teilweise geklärt.
+Anbietergrenzen, weitere Kategoriearten und Schreib-/Ergebnisbelege bleiben
+offen. Paket 2 ist teilweise
 umgesetzt: fehlschlagende Uploads werden nach Serverfreigabe bereinigt;
 bestätigte Originale bleiben für spätere Sicherungen erhalten. Eine dauerhafte
 serverseitige Bereinigung verwaister Uploads, vollständige Sicherungen und

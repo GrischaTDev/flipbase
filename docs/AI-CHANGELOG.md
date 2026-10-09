@@ -1,5 +1,23 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-09 – Juna – Vinted-Formulare nach Wiederverbindung geprüft
+
+**Auftrag:** Mit „probier nochmal“ die Browserprüfung erneut versuchen.
+
+**Recherche:** Angemeldetes Neuanlageformular und vollständige Bearbeitungsmaske
+eines eigenen aktiven Inserats gelesen. Zwei Kategorien zeigen unterschiedliche
+Größengruppen. Auswahlkennungen, zwei Farben/drei Materialien, Sendungsgrößen,
+Dateiformate und Entwurf-/Veröffentlichungsaktionen dokumentiert. In der
+Bearbeitung wurden Fotoaktionen, gesperrte Markenwechsel, KI-Fotohinweis und
+kostenpflichtige Push-Option erkannt. Unterbrechungen nach Seitenwechseln durch
+erneutes Verbinden überwunden. Keine Zugangsdaten oder versteckten Zustände gelesen.
+
+**Grenze und Prüfung:** Auswahl nur im ungespeicherten Neuanlageformular erprobt;
+bestehendes Inserat ausschließlich gelesen. Keine Fotos hochgeladen, keine
+Anbieter-Speicherung, Veröffentlichung oder Löschung. Anbietergrenzen und
+Schreib-/Ergebnisbelege bleiben offen. Nur Recherche und Dokumentation geändert;
+keine neuen Anwendungstests, Builds, Migrationen, Pushes oder Produktionsänderungen.
+
 ## 2026-10-09 – Juna – Inseratumsetzung fortgesetzt
 
 **Auftrag:** Mit „weiter“ die begonnene Inseratumsetzung fortsetzen.

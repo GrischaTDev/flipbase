@@ -6,8 +6,9 @@
 > benötigen ihre eigene Freigabe.
 
 **Aktueller Stand:** Auf `638b2ace` begonnen; eigene Entwürfe, private Fotos,
-Vorlagen und Editor als geprüfte Grundlage umgesetzt. Anbieterformular wegen
-ausgeloggtem Vinted-Tab noch nicht bestätigt. Pakete 2/3 teilweise umgesetzt,
+Vorlagen und Editor als geprüfte Grundlage umgesetzt. Neuanlage und vollständige
+Bearbeitungsmaske am angemeldeten Vinted geprüft; weitere Kategoriearten,
+Anbietergrenzen und Schreib-/Ergebnisbelege noch offen. Pakete 2/3 teilweise umgesetzt,
 Pakete 4/6/7 noch offen; Paket 5 enthält bisher das geprüfte Terminmodell.
 Einzelheiten und Prüfgrenzen stehen im
 [Anbieter- und Umsetzungsbericht](../../research/2026-10-09-vinted-listing-provider-contract.md).
@@ -50,6 +51,13 @@ fremde Arbeitszweige werden nicht verändert.
 - Vinted speichert, aber die Antwort geht verloren: kein doppeltes Inserat (Paket 4).
 
 ## Paket 1: Anbieterformular und Anschlussstellen bestätigen
+
+**Teilstand:** Neuanlage, Entwurf-/Hochladen-Aktionen und vollständige
+Bearbeitungsmaske gelesen. Bomberjacken und Kinderfußballschuhe belegen
+kategorieabhängige Größen; Farbe erlaubt zwei, Material drei Werte.
+Sendungsgrößen, Dateiformate, Markenbeschränkungen, KI-Fotohinweis und
+kostenpflichtige Push-Option sind dokumentiert. Weitere Kategorien,
+Pflichtvalidierung, Fotogrenzen und belastbare Ergebnisse bleiben offen.
 
 **Dateien:** Neu `docs/research/2026-10-09-vinted-listing-provider-contract.md`;
 prüfen `services/marketplace-worker/src/vinted-browser-listing-edit.ts`,
