@@ -2,6 +2,7 @@ import type {
   NegotiationDiscount,
   NegotiationMessageEvent,
   MarketplaceNegotiationEvent,
+  MarketplaceNegotiationOffer,
   VintedNegotiationConfig,
 } from './marketplace-negotiation-contracts.d.ts';
 
@@ -197,6 +198,43 @@ export function isNegotiationEvent(candidate: unknown): candidate is Marketplace
     Number.isSafeInteger(priceCents) &&
     priceCents >= 1 &&
     priceCents <= originalPriceCents
+  );
+}
+
+export function isNegotiationOffer(candidate: unknown): candidate is MarketplaceNegotiationOffer {
+  if (
+    !isRecord(candidate) ||
+    !hasExactKeys(candidate, [
+      'offerId',
+      'transactionId',
+      'itemId',
+      'buyerId',
+      'sellerId',
+      'originalPriceCents',
+      'offeredPriceCents',
+      'currency',
+      'status',
+    ]) ||
+    candidate['currency'] !== 'EUR' ||
+    candidate['status'] !== 'pending'
+  )
+    return false;
+  for (const field of ['offerId', 'transactionId', 'itemId', 'buyerId', 'sellerId']) {
+    const identifier = candidate[field];
+    if (typeof identifier !== 'string' || !/^[1-9][0-9]{0,31}$/.test(identifier)) return false;
+  }
+  const originalPriceCents = candidate['originalPriceCents'];
+  const offeredPriceCents = candidate['offeredPriceCents'];
+  return (
+    candidate['buyerId'] !== candidate['sellerId'] &&
+    typeof originalPriceCents === 'number' &&
+    Number.isSafeInteger(originalPriceCents) &&
+    originalPriceCents >= 1 &&
+    originalPriceCents <= MAX_NEGOTIATION_PRICE_CENTS &&
+    typeof offeredPriceCents === 'number' &&
+    Number.isSafeInteger(offeredPriceCents) &&
+    offeredPriceCents >= 1 &&
+    offeredPriceCents <= originalPriceCents
   );
 }
 

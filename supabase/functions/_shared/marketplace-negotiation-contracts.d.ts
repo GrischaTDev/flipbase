@@ -69,3 +69,24 @@ export interface MarketplaceNegotiationResult {
   readonly externalId?: string;
   readonly errorCode?: string;
 }
+
+export interface MarketplaceNegotiationClaim {
+  readonly jobId: string;
+  readonly claimToken: string;
+  readonly workspaceId: string;
+  readonly connectionId: string;
+  readonly externalAccountId: string;
+  readonly expiresAt: string;
+  readonly command: MarketplaceNegotiationCommand;
+  readonly sourceOffer: MarketplaceNegotiationOffer | null;
+}
+
+export interface MarketplaceCloudNegotiationClaim extends MarketplaceNegotiationClaim {
+  readonly userId: string;
+  readonly workerId: string;
+  readonly workerEpoch: number;
+  readonly runnerId: string;
+  readonly authorizationVersion: number;
+  readonly sessionId: string;
+  readonly absoluteExpiresAt: string;
+}

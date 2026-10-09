@@ -124,6 +124,7 @@ create table public.marketplace_negotiation_jobs (
   cloud_authorization_version bigint,
   action text not null check(action in ('accept','decline','counter','message')),
   command jsonb not null check(jsonb_typeof(command)='object'),
+  source_offer jsonb check(source_offer is null or jsonb_typeof(source_offer)='object'),
   predecessor_id uuid references public.marketplace_negotiation_jobs(id),
   delay_seconds integer not null default 0 check(delay_seconds between 0 and 604800),
   due_at timestamptz,
@@ -285,9 +286,9 @@ begin
     else v_commands:=v_commands||jsonb_build_array(v_command); end if;
   end if;
   for v_step in select * from jsonb_array_elements(v_commands) loop
-    insert into public.marketplace_negotiation_jobs(workspace_id,connection_id,thread_id,conversation_id,source_key,step_index,message_id,automated,event_name,setting_version,requested_by,execution_mode,external_account_id,grant_generation,cloud_authorization_version,action,command,predecessor_id,delay_seconds,due_at,state,error_code)
+    insert into public.marketplace_negotiation_jobs(workspace_id,connection_id,thread_id,conversation_id,source_key,step_index,message_id,automated,event_name,setting_version,requested_by,execution_mode,external_account_id,grant_generation,cloud_authorization_version,action,command,source_offer,predecessor_id,delay_seconds,due_at,state,error_code)
       values(p_settings.workspace_id,p_settings.connection_id,p_thread.id,p_thread.conversation_id,p_source_key,v_index,p_message_id,true,p_event,p_settings.version,p_settings.approved_by,p_settings.execution_mode,p_settings.external_account_id,p_settings.grant_generation,p_settings.cloud_authorization_version,
-        case when v_step->'command'->>'kind'='message' then 'message' else v_step->'command'->>'action' end,v_step->'command',v_previous,(v_step->>'delaySeconds')::integer,
+        case when v_step->'command'->>'kind'='message' then 'message' else v_step->'command'->>'action' end,v_step->'command',case when p_source_key like 'offer:%' then p_offer end,v_previous,(v_step->>'delaySeconds')::integer,
         case when v_previous is null then clock_timestamp()+make_interval(secs=>(p_settings.config->>'delaySeconds')::integer+(v_step->>'delaySeconds')::integer) end,
         case when v_step->'missingPrice'='true'::jsonb then 'skipped' else 'queued' end,case when v_step->'missingPrice'='true'::jsonb then 'missing_event_price' end)
       on conflict(workspace_id,connection_id,source_key,step_index) do nothing returning id into v_id;
@@ -323,13 +324,13 @@ begin
   insert into public.marketplace_negotiation_threads(workspace_id,connection_id,conversation_id,item_id,transaction_id)
     values(p_workspace_id,p_connection_id,p_conversation_id,v_message.body->'negotiationOffer'->>'itemId',v_message.body->'negotiationOffer'->>'transactionId') on conflict(workspace_id,connection_id,conversation_id,item_id) do nothing;
   select * into v_thread from public.marketplace_negotiation_threads where workspace_id=p_workspace_id and connection_id=p_connection_id and conversation_id=p_conversation_id and item_id=v_message.body->'negotiationOffer'->>'itemId' for update;
-  if v_thread.purchased or v_thread.transaction_id<>v_message.body->'negotiationOffer'->>'transactionId' then raise exception 'Verhandlung abgeschlossen' using errcode='22023'; end if;
+  if v_thread.purchased or v_thread.accepted or v_thread.transaction_id<>v_message.body->'negotiationOffer'->>'transactionId' then raise exception 'Verhandlung abgeschlossen' using errcode='22023'; end if;
   if exists(select 1 from public.marketplace_negotiation_jobs where workspace_id=p_workspace_id and connection_id=p_connection_id and conversation_id=p_conversation_id and state in ('sending','outcome_unknown'))
     or exists(select 1 from public.marketplace_negotiation_jobs where thread_id=v_thread.id and command->>'offerId'=v_message.body->'negotiationOffer'->>'offerId' and action<>'message' and state='sent') then raise exception 'Angebotsausgang zuerst prüfen' using errcode='40001'; end if;
   update public.marketplace_negotiation_jobs set state='cancelled',error_code='manual_takeover',updated_at=clock_timestamp() where workspace_id=p_workspace_id and connection_id=p_connection_id and conversation_id=p_conversation_id and state in ('queued','claimed');
   v_command:=jsonb_build_object('kind','offer','action',p_action,'externalConversationId',(select external_id from public.marketplace_account_entries where id=p_conversation_id and workspace_id=p_workspace_id and connection_id=p_connection_id),'transactionId',v_message.body->'negotiationOffer'->>'transactionId','itemId',v_thread.item_id,'buyerId',v_message.body->'negotiationOffer'->>'buyerId','offerId',v_message.body->'negotiationOffer'->>'offerId','originalPriceCents',v_message.body->'negotiationOffer'->'originalPriceCents','offeredPriceCents',v_message.body->'negotiationOffer'->'offeredPriceCents','priceCents',p_price_cents,'currency','EUR');
-  insert into public.marketplace_negotiation_jobs(workspace_id,connection_id,thread_id,conversation_id,source_key,step_index,message_id,request_id,automated,event_name,requested_by,execution_mode,external_account_id,grant_generation,cloud_authorization_version,action,command,due_at)
-    values(p_workspace_id,p_connection_id,v_thread.id,p_conversation_id,'manual:'||p_request_id,0,p_message_id,p_request_id,false,'manual',(select auth.uid()),v_connection.execution_mode,v_connection.external_account_id,case when v_connection.execution_mode='local' then v_grant.grant_generation end,case when v_connection.execution_mode='cloud' then v_permission.authorization_version end,p_action,v_command,clock_timestamp()) returning * into v_job;
+  insert into public.marketplace_negotiation_jobs(workspace_id,connection_id,thread_id,conversation_id,source_key,step_index,message_id,request_id,automated,event_name,requested_by,execution_mode,external_account_id,grant_generation,cloud_authorization_version,action,command,source_offer,due_at)
+    values(p_workspace_id,p_connection_id,v_thread.id,p_conversation_id,'manual:'||p_request_id,0,p_message_id,p_request_id,false,'manual',(select auth.uid()),v_connection.execution_mode,v_connection.external_account_id,case when v_connection.execution_mode='local' then v_grant.grant_generation end,case when v_connection.execution_mode='cloud' then v_permission.authorization_version end,p_action,v_command,v_message.body->'negotiationOffer',clock_timestamp()) returning * into v_job;
   return jsonb_build_object('ok',true,'id',v_job.id,'state',v_job.state);
 end;
 $$;
@@ -338,9 +339,13 @@ create or replace function public.marketplace_record_negotiation_entry()
 returns trigger language plpgsql volatile security invoker set search_path='' as $$
 declare v_settings public.marketplace_negotiation_settings; v_thread public.marketplace_negotiation_threads; v_offer jsonb:=new.body->'negotiationOffer'; v_event jsonb:=new.body->'negotiationEvent'; v_conversation uuid:=new.parent_id; v_item text; v_event_name text; v_action text; v_price bigint; v_original bigint; v_minimum bigint; v_event_offer jsonb;
 begin
-  if v_offer is null and v_event is null then return null; end if;
-  if tg_op='UPDATE' and new.body->'negotiationOffer' is not distinct from old.body->'negotiationOffer' and new.body->'negotiationEvent' is not distinct from old.body->'negotiationEvent' then return null; end if;
   perform pg_advisory_xact_lock(91731,1);
+  if tg_op='UPDATE' and old.body->'negotiationOffer' is not null and new.body->'negotiationOffer' is distinct from old.body->'negotiationOffer' then
+    update public.marketplace_negotiation_jobs job set state='cancelled',error_code='source_offer_changed',updated_at=clock_timestamp()
+      where workspace_id=new.workspace_id and connection_id=new.connection_id and message_id=new.id and state in ('queued','claimed')
+        and not (job.action='message' and exists(select 1 from public.marketplace_negotiation_jobs confirmed where confirmed.thread_id=job.thread_id and confirmed.source_key=job.source_key and confirmed.action in ('accept','counter') and confirmed.state='sent'));
+  end if;
+  if v_offer is null and v_event is null then return null; end if;
   if v_conversation is null then select id into v_conversation from public.marketplace_account_entries where workspace_id=new.workspace_id and connection_id=new.connection_id and kind='conversation' and external_id=new.body->>'externalConversationId'; end if;
   if v_conversation is null then return null; end if;
   -- Ein bestätigter Kauf beendet auch eine pausierte oder ausgeschaltete Verhandlung.
@@ -357,7 +362,13 @@ begin
     if v_event->>'type'='purchased' then
       update public.marketplace_negotiation_threads set purchased=true where id=v_thread.id;
       update public.marketplace_negotiation_jobs set state='cancelled',error_code='purchased',updated_at=clock_timestamp() where thread_id=v_thread.id and event_name<>'purchased' and state in ('queued','claimed');
-    else update public.marketplace_negotiation_threads set accepted=true where id=v_thread.id; end if;
+    else
+      update public.marketplace_negotiation_threads set accepted=true where id=v_thread.id;
+      update public.marketplace_negotiation_jobs job set state='cancelled',error_code='buyer_accepted',updated_at=clock_timestamp()
+        where thread_id=v_thread.id and state in ('queued','claimed')
+          and (action<>'message' or (automated and source_key like 'offer:%' and (event_name in ('counter','final')
+            or (event_name='accepted' and not exists(select 1 from public.marketplace_negotiation_jobs confirmed where confirmed.thread_id=job.thread_id and confirmed.source_key=job.source_key and confirmed.action='accept' and confirmed.state='sent')))));
+    end if;
   end if;
   select * into v_settings from public.marketplace_negotiation_settings where workspace_id=new.workspace_id and connection_id=new.connection_id for update;
   if not found or new.sort_at<v_settings.activated_at or not public.marketplace_negotiation_authorized(new.workspace_id,new.connection_id,v_settings.approved_by,v_settings.execution_mode,v_settings.external_account_id,v_settings.grant_generation,v_settings.cloud_authorization_version) then return null; end if;
@@ -400,12 +411,32 @@ end;
 $$;
 create trigger marketplace_record_negotiation_entry after insert or update of body on public.marketplace_account_entries for each row execute function public.marketplace_record_negotiation_entry();
 
+create or replace function public.marketplace_cancel_unknown_negotiation_followups()
+returns trigger language plpgsql volatile security invoker set search_path='' as $$
+begin
+  if new.state='outcome_unknown' and old.state is distinct from new.state then
+    -- Auch ein Timeout ohne Runner-Ergebnis verwirft Folgen dauerhaft vor einem späteren Erfolgsbeleg.
+    with recursive following as (
+      select id from public.marketplace_negotiation_jobs where predecessor_id=new.id
+      union all select job.id from public.marketplace_negotiation_jobs job join following on job.predecessor_id=following.id
+    ) update public.marketplace_negotiation_jobs set state='cancelled',error_code='predecessor_not_sent',updated_at=clock_timestamp()
+      where id in(select id from following) and state in ('queued','claimed');
+  end if;
+  return null;
+end;
+$$;
+revoke all on function public.marketplace_cancel_unknown_negotiation_followups() from public,anon,authenticated;
+grant execute on function public.marketplace_cancel_unknown_negotiation_followups() to service_role;
+create trigger marketplace_cancel_unknown_negotiation_followups after update of state on public.marketplace_negotiation_jobs for each row execute function public.marketplace_cancel_unknown_negotiation_followups();
+
 create or replace function public.marketplace_negotiation_job_valid(p_job public.marketplace_negotiation_jobs)
 returns boolean language plpgsql volatile security invoker set search_path='' as $$
 declare v_settings public.marketplace_negotiation_settings; v_message public.marketplace_account_entries;
 begin
   if not public.marketplace_negotiation_authorized(p_job.workspace_id,p_job.connection_id,p_job.requested_by,p_job.execution_mode,p_job.external_account_id,p_job.grant_generation,p_job.cloud_authorization_version) then return false; end if;
   if exists(select 1 from public.marketplace_negotiation_threads where id=p_job.thread_id and purchased) and p_job.event_name<>'purchased' then return false; end if;
+  if exists(select 1 from public.marketplace_negotiation_threads where id=p_job.thread_id and accepted)
+    and (p_job.action<>'message' or (p_job.automated and p_job.source_key like 'offer:%' and p_job.event_name in ('counter','final'))) then return false; end if;
   if p_job.automated then
     select * into v_settings from public.marketplace_negotiation_settings where workspace_id=p_job.workspace_id and connection_id=p_job.connection_id;
     if not found or v_settings.version<>p_job.setting_version or v_settings.approved_by<>p_job.requested_by
@@ -415,15 +446,11 @@ begin
       or (p_job.event_name<>'purchased' and not v_settings.enabled) then return false; end if;
   end if;
   if p_job.predecessor_id is not null and not exists(select 1 from public.marketplace_negotiation_jobs where id=p_job.predecessor_id and workspace_id=p_job.workspace_id and connection_id=p_job.connection_id and state='sent') then return false; end if;
-  if p_job.action<>'message' then
+  if p_job.action<>'message' or (p_job.automated and p_job.source_key like 'offer:%'
+    and not exists(select 1 from public.marketplace_negotiation_jobs confirmed where confirmed.thread_id=p_job.thread_id and confirmed.source_key=p_job.source_key and confirmed.action in ('accept','counter') and confirmed.state='sent')) then
     select * into v_message from public.marketplace_account_entries where workspace_id=p_job.workspace_id and connection_id=p_job.connection_id and id=p_job.message_id and kind='message' and parent_id=p_job.conversation_id and body->>'direction'='inbound';
     if not found or not public.marketplace_negotiation_offer_valid(p_job.workspace_id,p_job.connection_id,p_job.conversation_id,v_message.body->'negotiationOffer')
-      or v_message.body->'negotiationOffer'->>'offerId'<>p_job.command->>'offerId'
-      or v_message.body->'negotiationOffer'->>'transactionId'<>p_job.command->>'transactionId'
-      or v_message.body->'negotiationOffer'->>'itemId'<>p_job.command->>'itemId'
-      or v_message.body->'negotiationOffer'->>'buyerId'<>p_job.command->>'buyerId'
-      or v_message.body->'negotiationOffer'->'originalPriceCents' is distinct from p_job.command->'originalPriceCents'
-      or v_message.body->'negotiationOffer'->'offeredPriceCents' is distinct from p_job.command->'offeredPriceCents'
+      or v_message.body->'negotiationOffer' is distinct from p_job.source_offer
       or exists(select 1 from public.marketplace_account_entries where workspace_id=p_job.workspace_id and connection_id=p_job.connection_id and kind='message' and parent_id=p_job.conversation_id and body->'negotiationOffer' is not null and sort_at>v_message.sort_at) then return false; end if;
   end if;
   return true;
@@ -472,7 +499,8 @@ begin
     and requested_by=v_grant.approved_by and grant_generation=v_grant.grant_generation and public.marketplace_negotiation_job_valid(job) order by due_at,created_at,id limit 1 for update skip locked;
   if not found then return null; end if;
   update public.marketplace_negotiation_jobs set state='claimed',claim_token=gen_random_uuid(),lease_expires_at=least(v_grant.expires_at,clock_timestamp()+interval '90 seconds'),updated_at=clock_timestamp() where id=v_job.id returning * into v_job;
-  return jsonb_build_object('jobId',v_job.id,'claimToken',v_job.claim_token,'workspaceId',p_workspace_id,'connectionId',p_connection_id,'externalAccountId',v_job.external_account_id,'expiresAt',v_job.lease_expires_at,'command',v_job.command);
+  return jsonb_build_object('jobId',v_job.id,'claimToken',v_job.claim_token,'workspaceId',p_workspace_id,'connectionId',p_connection_id,'externalAccountId',v_job.external_account_id,'expiresAt',v_job.lease_expires_at,'command',v_job.command,
+    'sourceOffer',case when v_job.action='message' and v_job.source_key like 'offer:%' and not exists(select 1 from public.marketplace_negotiation_jobs confirmed where confirmed.thread_id=v_job.thread_id and confirmed.source_key=v_job.source_key and confirmed.action in ('accept','counter') and confirmed.state='sent') then v_job.source_offer end);
 end;
 $$;
 
@@ -530,7 +558,8 @@ begin
     values(v_job.workspace_id,v_job.connection_id,v_job.requested_by,v_permission.provider_profile_id,clock_timestamp()+interval '90 seconds',p_worker_id,p_worker_epoch,clock_timestamp(),clock_timestamp()+interval '10 minutes') returning * into v_session;
   update public.marketplace_negotiation_jobs set state='claimed',claim_token=gen_random_uuid(),lease_expires_at=v_session.expires_at,cloud_browser_session_id=v_session.public_id,cloud_worker_id=p_worker_id,cloud_worker_epoch=p_worker_epoch,cloud_runner_id=p_runner_id,updated_at=clock_timestamp() where id=v_job.id returning * into v_job;
   return jsonb_build_object('jobId',v_job.id,'claimToken',v_job.claim_token,'workspaceId',v_job.workspace_id,'connectionId',v_job.connection_id,'userId',v_job.requested_by,'workerId',p_worker_id,'workerEpoch',p_worker_epoch,'runnerId',p_runner_id,'authorizationVersion',v_job.cloud_authorization_version,'externalAccountId',v_job.external_account_id,
-    'sessionId',v_session.public_id,'expiresAt',v_session.expires_at,'absoluteExpiresAt',v_session.absolute_expires_at,'command',v_job.command);
+    'sessionId',v_session.public_id,'expiresAt',v_session.expires_at,'absoluteExpiresAt',v_session.absolute_expires_at,'command',v_job.command,
+    'sourceOffer',case when v_job.action='message' and v_job.source_key like 'offer:%' and not exists(select 1 from public.marketplace_negotiation_jobs confirmed where confirmed.thread_id=v_job.thread_id and confirmed.source_key=v_job.source_key and confirmed.action in ('accept','counter') and confirmed.state='sent') then v_job.source_offer end);
 end;
 $$;
 

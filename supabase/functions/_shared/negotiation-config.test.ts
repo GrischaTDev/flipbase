@@ -6,6 +6,7 @@ import {
   decideNegotiation,
   isNegotiationConfig,
   isNegotiationEvent,
+  isNegotiationOffer,
   parseNegotiationConfig,
   renderNegotiationTemplate,
 } from './negotiation-config.ts';
@@ -45,6 +46,31 @@ test('Verhandlung: Euro, Prozente, Preisbereiche und Centrundung', () => {
   );
   assertThrows(() => calculateNegotiationPrices(1, config));
   assertThrows(() => calculateNegotiationPrices(10.5, config));
+});
+
+test('Verhandlung: Nachrichtenclaims tragen einen streng validierten Angebots-Snapshot', () => {
+  const offer = {
+    offerId: '11',
+    transactionId: '22',
+    itemId: '33',
+    buyerId: '44',
+    sellerId: '55',
+    originalPriceCents: 10000,
+    offeredPriceCents: 8000,
+    currency: 'EUR',
+    status: 'pending',
+  };
+  assertEquals(isNegotiationOffer(offer), true);
+  for (const invalid of [
+    { ...offer, status: 'cancelled' },
+    { ...offer, currency: null },
+    { ...offer, buyerId: offer.sellerId },
+    { ...offer, offeredPriceCents: 10001 },
+    { ...offer, offeredPriceCents: 1.1 },
+    { ...offer, offerId: null },
+    { ...offer, unknown: true },
+  ])
+    assertEquals(isNegotiationOffer(invalid), false);
 });
 
 test('Verhandlung: Kaufpreise benötigen ein vollständiges bestätigtes Preistripel', () => {
