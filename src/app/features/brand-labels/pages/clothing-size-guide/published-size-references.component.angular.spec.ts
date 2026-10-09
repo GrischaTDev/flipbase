@@ -62,6 +62,8 @@ afterEach(() => {
 describe('Zusätzliche veröffentlichte Größenreferenzen', () => {
   it('lädt nur die Leseransicht und entfernt Entwürfe sowie archivierte Tabellen', async () => {
     const { component, service } = setup();
+    const sourcesLoaded = vi.fn();
+    component.sourcesLoaded.subscribe(sourcesLoaded);
     service.list.mockResolvedValue([
       reference,
       { ...reference, id: 2, published: false },
@@ -70,6 +72,13 @@ describe('Zusätzliche veröffentlichte Größenreferenzen', () => {
     await settle();
     expect(service.list).toHaveBeenCalledWith(false);
     expect(component.items()).toEqual([reference]);
+    expect(sourcesLoaded).toHaveBeenLastCalledWith([
+      {
+        title: reference.content.sourceTitle,
+        url: reference.content.sourceUrl,
+        reviewedAt: reference.content.reviewedAt,
+      },
+    ]);
   });
 
   it('begrenzt einen Ladefehler auf die zusätzlichen Tabellen', async () => {
@@ -83,6 +92,8 @@ describe('Zusätzliche veröffentlichte Größenreferenzen', () => {
 
   it('entfernt veröffentlichte Daten unmittelbar beim Abmelden', async () => {
     const { component, service, user } = setup();
+    const sourcesLoaded = vi.fn();
+    component.sourcesLoaded.subscribe(sourcesLoaded);
     service.list.mockResolvedValue([reference]);
     await settle();
     expect(component.items()).toHaveLength(1);
@@ -90,6 +101,7 @@ describe('Zusätzliche veröffentlichte Größenreferenzen', () => {
     expect(component.items()).toEqual([]);
     await settle();
     expect(component.items()).toEqual([]);
+    expect(sourcesLoaded).toHaveBeenLastCalledWith([]);
   });
 
   it('ignoriert eine verspätete Antwort nach dem Workspacewechsel', async () => {

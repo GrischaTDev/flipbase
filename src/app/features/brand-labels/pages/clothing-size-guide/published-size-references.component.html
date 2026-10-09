@@ -85,20 +85,6 @@
               </table>
             </div>
           </app-data-table>
-          <p class="border-t border-fb-line px-4 py-3 text-xs text-fb-text-secondary">
-            Quelle:
-            <a
-              class="underline underline-offset-2"
-              [href]="item.content.sourceUrl"
-              target="_blank"
-              rel="noopener noreferrer"
-              >{{ item.content.sourceTitle }}</a
-            >
-            @if (item.content.reviewedAt) {
-              · Abgerufen am
-              <time [attr.datetime]="item.content.reviewedAt">{{ item.content.reviewedAt }}</time>
-            }
-          </p>
         </app-card>
       }
     </div>

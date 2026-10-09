@@ -205,9 +205,11 @@ describe('Maßvergleich der vorhandenen Kleidung', () => {
     for (const query of ['S', 'XL']) {
       const entries = filterGuideTables(CLOTHING_SIZE_TABLES, { ...filters, query });
       expect(entries.length).toBeGreaterThan(0);
-      expect(entries.every(({ rows }) => rows.every((row) => row.labels.includes(query)))).toBe(
-        true,
-      );
+      expect(
+        entries
+          .filter(({ table }) => table.kind !== 'length-reference')
+          .every(({ rows }) => rows.every((row) => row.labels.includes(query))),
+      ).toBe(true);
     }
   });
   it('grenzt ein W/L-Paar innerhalb einer kombinierten Tabelle gemeinsam ein', () => {
@@ -328,6 +330,32 @@ describe('Maßvergleich der vorhandenen Kleidung', () => {
 });
 
 describe('Nachvollziehbare recherchierte Datengrundlage', () => {
+  it('enthält flache Bundweiten ohne eine zusätzliche Umfangsspalte', () => {
+    const tables = CLOTHING_SIZE_TABLES.filter(
+      (table) => table.id.startsWith('general-') && table.category === 'trousers',
+    );
+    expect(
+      tables.every((table) => table.columns.some((column) => column.includes('Bundweite flach'))),
+    ).toBe(true);
+    expect(
+      tables.every((table) => table.columns.every((column) => !column.includes('Bundumfang'))),
+    ).toBe(true);
+  });
+  it.each(['M', 'S', 'EU 50'])(
+    'hält Längenreferenzen bei einer Weitensuche nach %s sichtbar',
+    (query) => {
+      const result = filterGuideTables(CLOTHING_SIZE_TABLES, {
+        ...filters,
+        query,
+        category: 'trousers',
+        audience: 'men',
+      });
+      expect(result.some(({ table }) => table.id === 'bonprix-men-lengths')).toBe(true);
+      expect(result.find(({ table }) => table.id === 'bonprix-men-lengths')?.matchedRowIds).toEqual(
+        [],
+      );
+    },
+  );
   it('hat eindeutige Zeilen, Quellen und konsistente Tabellen', () => {
     expect(new Set(CLOTHING_SIZE_TABLES.map((table) => table.id)).size).toBe(
       CLOTHING_SIZE_TABLES.length,
@@ -364,5 +392,84 @@ describe('Nachvollziehbare recherchierte Datengrundlage', () => {
         ),
       ),
     ).toBe(false);
+  });
+});
+
+describe('Kinderlabels und Körpergrößen', () => {
+  it.each(['tops', 'trousers'] as const)(
+    'findet Nike YM für %s und schließt Erwachsenengrößen aus',
+    (category) => {
+      const result = filterGuideTables(CLOTHING_SIZE_TABLES, {
+        ...filters,
+        category,
+        audience: 'children',
+        query: 'YM',
+      });
+      expect(result.length).toBeGreaterThan(0);
+      expect(
+        result.every(
+          ({ table, rows }) =>
+            table.audience === 'children' && rows.every((row) => row.cells[0] === 'M'),
+        ),
+      ).toBe(true);
+    },
+  );
+  it('unterscheidet Nike Jungen-M von Mädchen-M am Bereich 147 cm', () => {
+    const result = filterGuideTables(CLOTHING_SIZE_TABLES, {
+      ...filters,
+      audience: 'children',
+      brand: 'Nike',
+      query: 'M/147',
+    });
+    expect(result.map(({ table }) => table.id)).toEqual(['nike-boys']);
+  });
+  it('unterscheidet adidas US-M und Nike-M bei 150 cm', () => {
+    const result = filterGuideTables(CLOTHING_SIZE_TABLES, {
+      ...filters,
+      audience: 'children',
+      query: 'M/150',
+    });
+    expect(result.some(({ table }) => table.id === 'adidas-children-us')).toBe(true);
+    expect(result.some(({ table }) => table.id === 'nike-boys')).toBe(false);
+  });
+  it('lässt ein regionales Nike-Label 160 zwischen L und XL mehrdeutig', () => {
+    const result = filterGuideTables(CLOTHING_SIZE_TABLES, {
+      ...filters,
+      audience: 'children',
+      category: 'tops',
+      brand: 'Nike',
+      query: '160',
+    });
+    expect(
+      result
+        .find(({ table }) => table.id === 'nike-children-cn-tops')
+        ?.rows.map((row) => row.cells[0]),
+    ).toEqual(['L', 'XL']);
+  });
+  it('erkennt das vollständige CN-Hosenlabel 160/69 ohne eine W/L-Umrechnung', () => {
+    const result = filterGuideTables(CLOTHING_SIZE_TABLES, {
+      ...filters,
+      audience: 'children',
+      category: 'trousers',
+      brand: 'Nike',
+      query: '160/69',
+    });
+    expect(
+      result
+        .find(({ table }) => table.id === 'nike-children-cn-trousers')
+        ?.rows.map((row) => row.cells[0]),
+    ).toEqual(['XL']);
+    expect(decodeSizeLabel('160/69')).toBeNull();
+  });
+  it('verwendet Kinder-Körpergrößen niemals als Kleidungsmaßtreffer', () => {
+    const result = filterGuideTables(CLOTHING_SIZE_TABLES, {
+      ...filters,
+      audience: 'children',
+      measurements: { waistFlat: 36, inseam: 81.28 },
+    });
+    const children = result.filter(({ table }) => table.audience === 'children');
+    expect(children.length).toBeGreaterThan(0);
+    expect(children.every(({ matchedRowIds }) => matchedRowIds.length === 0)).toBe(true);
+    expect(result.every(({ table }) => table.kind !== 'orientation')).toBe(true);
   });
 });

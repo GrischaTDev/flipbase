@@ -1,4 +1,5 @@
 import { CLOTHING_SIZE_RANGES } from './clothing-size-ranges';
+import { CLOTHING_CHILDREN_SIZES } from './clothing-children-sizes';
 import {
   decodeSizeLabel,
   type GuideCategory,
@@ -75,6 +76,51 @@ function nextWomenTable(category: GuideCategory): GuideTable {
 
 export const CLOTHING_SIZE_TABLES: readonly GuideTable[] = [
   ...CLOTHING_SIZE_RANGES,
+  ...CLOTHING_CHILDREN_SIZES,
+  {
+    id: 'bonprix-women-lengths',
+    brand: 'bonprix',
+    category: 'trousers',
+    audience: 'women',
+    kind: 'length-reference',
+    title: 'Damenhosen: Kurz, Normal und Lang',
+    columns: ['Längenreihe', 'Innenbein-Richtwert (cm)', 'Außenbeinlänge'],
+    rows: labelRows('bonprix-women-length', [
+      ['Kurz / Petite', '≈ 75', 'Am Stück messen'],
+      ['Regulär', '≈ 81', 'Am Stück messen'],
+      ['Lang', '≈ 88', 'Am Stück messen'],
+    ]),
+    notes:
+      'Längenorientierung laut bonprix, keine markenübergreifende Norm und keine feste Länge pro XS/S/M. Die Außenbeinlänge hängt zusätzlich von Bundhöhe und Schnitt ab; sie lässt sich nicht mit einer festen Zugabe aus dem Innenbein berechnen.',
+    sourceTitle: 'bonprix – Damen-Spezialgrößen',
+    sourceUrl: 'https://www.bonprix.de/service/beratung/groessentabellen/',
+    sources: [
+      {
+        title: 'UNIQLO – Innenbeinlänge messen',
+        url: 'https://faq-us.uniqlo.com/articles/en_US/Knowledge/How-to-Measure-Inseam/',
+      },
+      {
+        title: 'Marks Commercial – Außenbeinlänge einschließlich Bund messen',
+        url: 'https://www.markscommercial.com/content/files/Purchase%20Guides/2024.25%20MC%20SIZING%20GUIDE.pdf',
+      },
+    ],
+    reviewedAt,
+  },
+  {
+    id: 'bonprix-men-lengths',
+    brand: 'bonprix',
+    category: 'trousers',
+    audience: 'men',
+    kind: 'length-reference',
+    title: 'Herrenhosen: Innenbein bei Normalgrößen',
+    columns: ['Größenreihe', 'Innenbein-Richtwert (cm)', 'Außenbeinlänge'],
+    rows: labelRows('bonprix-men-length', [['EU 44–78 / S–6XL', '80–82', 'Am Stück messen']]),
+    notes:
+      'bonprix nennt für seine Normalgrößen eine Hosen-Innenbeinlänge von 80–82 cm. Das ist eine Herstellerreferenz, keine allgemeine Längengarantie. Die Weitengröße bestimmt nicht automatisch die Beinlänge.',
+    sourceTitle: 'bonprix – Herren-Normalgrößen',
+    sourceUrl: 'https://www.bonprix.de/service/beratung/groessentabellen/',
+    reviewedAt,
+  },
   nextWomenTable('trousers'),
   nextWomenTable('tops'),
   {
@@ -139,9 +185,9 @@ export const CLOTHING_SIZE_TABLES: readonly GuideTable[] = [
     brand: 'bonprix',
     category: 'trousers',
     audience: 'men',
-    kind: 'special',
+    kind: 'length-reference',
     title: 'Herren: untersetzte und schlanke Größen',
-    columns: ['Reihe', 'Größe', 'Jeanslabel'],
+    columns: ['Reihe', 'Größe', 'Jeanslabel', 'Innenbein-Richtwert (cm)'],
     rows: labelRows('bonprix-special', [
       ['Untersetzt', '24', '34/30'],
       ['Untersetzt', '25', '36/30'],
@@ -150,6 +196,10 @@ export const CLOTHING_SIZE_TABLES: readonly GuideTable[] = [
       ['Untersetzt', '28', '42/32'],
       ['Untersetzt', '29', '44/32'],
       ['Untersetzt', '30', '46/32'],
+      ['Untersetzt', '31', '—'],
+      ['Untersetzt', '32', '—'],
+      ['Untersetzt', '33', '—'],
+      ['Untersetzt', '34', '—'],
       ['Schlank', '90', '30/34'],
       ['Schlank', '94', '32/34'],
       ['Schlank', '98', '33/34'],
@@ -157,9 +207,13 @@ export const CLOTHING_SIZE_TABLES: readonly GuideTable[] = [
       ['Schlank', '106', '36/36'],
       ['Schlank', '110', '38/36'],
       ['Schlank', '114', '40/36'],
-    ]),
+    ]).map((row) => {
+      const size = Number(row.cells[1]);
+      const minimum = row.cells[0] === 'Untersetzt' ? 75 + size - 24 : 85 + (size - 90) / 4;
+      return { ...row, cells: [...row.cells, `${minimum}–${minimum + 2}`] };
+    }),
     notes:
-      'Separates Größensystem: 24 ist hier weder EU-Damen 24 noch automatisch W24. Gegenüberstellung nach bonprix; keine universelle Verdopplungsregel für andere Marken oder Jahrzehnte.',
+      'Separates Größensystem: 24 ist hier weder EU-Damen 24 noch automatisch W24. Innenbein-Richtwerte aus der bonprix-Größenberatung, keine zugesicherten Fertigmaße aller Hosen. Keine universelle Verdopplungsregel für andere Marken oder Jahrzehnte.',
     sourceTitle: 'bonprix – Untersetzte und schlanke Herrengrößen',
     sourceUrl: 'https://www.bonprix.de/service/beratung/groessentabellen/',
     reviewedAt,
@@ -261,7 +315,7 @@ export const CLOTHING_SIZE_TABLES: readonly GuideTable[] = [
     brand: 'Inch / W-L',
     category: 'trousers',
     audience: 'unisex',
-    kind: 'length',
+    kind: 'conversion',
     title: 'W22 bis W60: nominelle Inch-Zahl in Zentimeter',
     columns: ['W-Label', 'Nomineller Umfang (cm)'],
     rows: Array.from({ length: 39 }, (_, index) => {

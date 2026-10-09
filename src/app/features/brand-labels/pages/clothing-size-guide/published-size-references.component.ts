@@ -20,7 +20,7 @@ import { ButtonComponent } from '../../../../shared/components/button/button.com
 import { DataTableComponent } from '../../../../shared/components/data-table/data-table.component';
 import { SizeReferenceService } from '../../services/size-reference.service';
 import type { SizeReference } from '../../models/size-reference';
-import type { GuideFilters } from '../../models/clothing-size-guide';
+import type { GuideFilters, GuideSource } from '../../models/clothing-size-guide';
 
 @Component({
   selector: 'app-published-size-references',
@@ -37,6 +37,7 @@ export class PublishedSizeReferencesComponent {
   private readonly destroyRef = inject(DestroyRef);
   readonly filters = input.required<GuideFilters>();
   readonly brandsLoaded = output<readonly string[]>();
+  readonly sourcesLoaded = output<readonly GuideSource[]>();
   private readonly scope = computed(() => {
     const user = this.auth.currentUser()?.id;
     const workspace = this.workspace.currentWorkspace()?.id ?? '';
@@ -60,7 +61,7 @@ export class PublishedSizeReferencesComponent {
         (!filters.category || item.content.category === filters.category) &&
         (!filters.audience ||
           item.content.audience === filters.audience ||
-          item.content.audience === 'unisex') &&
+          (item.content.audience === 'unisex' && filters.audience !== 'children')) &&
         (!filters.brand || item.brandName === filters.brand) &&
         (!query ||
           [
@@ -85,6 +86,7 @@ export class PublishedSizeReferencesComponent {
         this.response.set(null);
         this.error.set(null);
         this.brandsLoaded.emit([]);
+        this.sourcesLoaded.emit([]);
         void this.load(scope);
       });
     });
@@ -105,10 +107,18 @@ export class PublishedSizeReferencesComponent {
       this.brandsLoaded.emit(
         items.flatMap((reference) => (reference.brandName ? [reference.brandName] : [])),
       );
+      this.sourcesLoaded.emit(
+        items.map((item) => ({
+          title: item.content.sourceTitle,
+          url: item.content.sourceUrl,
+          reviewedAt: item.content.reviewedAt,
+        })),
+      );
     } catch {
       if (this.current(generation, scope)) {
         this.response.set(null);
         this.brandsLoaded.emit([]);
+        this.sourcesLoaded.emit([]);
         this.error.set(
           'Zusätzliche veröffentlichte Tabellen konnten nicht geladen werden. Die recherchierte Größenübersicht bleibt verfügbar.',
         );

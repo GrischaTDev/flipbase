@@ -1,6 +1,7 @@
-export type GuideAudience = 'women' | 'men' | 'unisex';
+export type GuideAudience = 'women' | 'men' | 'unisex' | 'children';
 export type GuideCategory = 'trousers' | 'tops';
-export type GuideKind = 'conversion' | 'orientation' | 'body' | 'length' | 'special';
+export type GuideKind =
+  'conversion' | 'orientation' | 'body' | 'length' | 'length-reference' | 'children' | 'special';
 export type MeasureKey =
   'waistFlat' | 'hipFlat' | 'inseam' | 'outseam' | 'frontRise' | 'chestFlat' | 'backLength';
 export interface MeasureRange {
@@ -12,12 +13,18 @@ export interface GuideRow {
   cells: readonly string[];
   labels: readonly string[];
   measurements?: Partial<Record<MeasureKey, MeasureRange>>;
+  heightRange?: MeasureRange;
+}
+export interface GuideSource {
+  title: string;
+  url: string;
+  reviewedAt: string | null;
 }
 export interface GuideTable {
   id: string;
   title: string;
   brand: string;
-  category: GuideCategory;
+  category: GuideCategory | 'clothing';
   audience: GuideAudience;
   kind: GuideKind;
   columns: readonly string[];
@@ -75,6 +82,19 @@ function normalizeLabel(label: string): string {
 function matchesQuery(table: GuideTable, row: GuideRow, query: string): boolean {
   if (!query) return true;
   const labels = row.labels.map(normalizeLabel);
+  if (table.audience === 'children') {
+    const youthLabel = query.replace(/^y(xxs|xs|s|m|l|xl|2xl)$/, '$1');
+    if (labels.includes(youthLabel)) return true;
+    const heightLabel = youthLabel.match(/^(?:(xxs|xs|s|m|l|xl|2xl)\s*[/ ]\s*)?(\d{3})(?:\s*cm)?$/);
+    if (heightLabel && row.heightRange) {
+      const height = Number(heightLabel[2]);
+      return (
+        (!heightLabel[1] || labels.includes(heightLabel[1])) &&
+        height >= row.heightRange.min &&
+        height <= row.heightRange.max
+      );
+    }
+  }
   const countrySize = query.match(/^(eu|de|uk|us)\s*(\d+[a-z]*)$/);
   if (countrySize) {
     if (labels.includes(`${countrySize[1]}${countrySize[2]}`)) return true;
@@ -120,9 +140,18 @@ export function filterGuideTables(
   const isWidthOrSizeQuery =
     (decoded?.waistCm != null && decoded.inseamCm == null) ||
     /^(?:(?:eu|de|uk|us)\s*)?\d+[a-z]*$|^(xxs|xs|s|m|l|xl|[2-6]xl)$/.test(query);
+  const isLengthReferenceQuery =
+    (decoded?.waistCm != null && decoded.inseamCm == null) ||
+    /^(?:eu|de|uk|us)\s*\d+$|^(xxs|xs|s|m|l|xl|[2-6]xl)$/.test(query);
   return tables.flatMap((table) => {
-    if (filters.category && table.category !== filters.category) return [];
-    if (filters.audience && table.audience !== filters.audience && table.audience !== 'unisex')
+    if (filters.category && table.category !== filters.category && table.category !== 'clothing')
+      return [];
+    const canIncludeUnisex = filters.audience !== 'children' || table.kind === 'length';
+    if (
+      filters.audience &&
+      table.audience !== filters.audience &&
+      !(table.audience === 'unisex' && canIncludeUnisex)
+    )
       return [];
     if (filters.brand && table.brand !== filters.brand) return [];
     const isIndependentLengthComparison =
@@ -131,7 +160,10 @@ export function filterGuideTables(
       table.kind === 'length' &&
       table.rows.some((row) => row.measurements?.inseam);
     let rows = table.rows.filter(
-      (row) => isIndependentLengthComparison || matchesQuery(table, row, query),
+      (row) =>
+        isIndependentLengthComparison ||
+        (table.kind === 'length-reference' && isLengthReferenceQuery) ||
+        matchesQuery(table, row, query),
     );
     const matchedRowIds: string[] = [];
     if (measures.length && (table.kind === 'orientation' || table.kind === 'length')) {
