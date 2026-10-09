@@ -176,14 +176,23 @@ begin
       'unread',case when e.body->>'unread'='true' and e.conversation_read_version=e.current_read_version then 'false'::jsonb else e.body->'unread' end) else '{}'::jsonb end
     || case when p_kind = 'message' then jsonb_build_object('conversationId', e.parent_id, 'externalId', e.external_id,
       -- Nur bestätigte Versandbelege zu diesem Konto und Gespräch kennzeichnen; Anbietertexte sind keine Herkunftsbelege.
-      'isAutomated', coalesce(e.body->>'direction' = 'outbound', false) and exists (
+      'isAutomated', coalesce(e.body->>'direction' = 'outbound', false) and (exists (
         select 1 from public.marketplace_favorite_message_events f
         join public.marketplace_account_entries conversation on conversation.id = e.parent_id
           and conversation.workspace_id = e.workspace_id and conversation.connection_id = e.connection_id and conversation.kind = 'conversation'
         where f.workspace_id = e.workspace_id and f.connection_id = e.connection_id and f.state = 'sent'
           and f.external_message_id = e.external_id
           and (f.external_conversation_id is null or f.external_conversation_id = conversation.external_id)
-      )) else '{}'::jsonb end) order by e.position) filter (where e.position <= 50), '[]'::jsonb),
+      ) or exists (
+        select 1 from public.marketplace_negotiation_jobs job
+        join public.marketplace_connections connection on connection.workspace_id=job.workspace_id and connection.id=job.connection_id
+          and connection.external_account_id=job.external_account_id
+        join public.marketplace_account_entries conversation on conversation.id=e.parent_id
+          and conversation.workspace_id=e.workspace_id and conversation.connection_id=e.connection_id and conversation.kind='conversation'
+        where job.workspace_id=e.workspace_id and job.connection_id=e.connection_id and job.conversation_id=e.parent_id
+          and job.automated and job.state='sent' and job.action='message' and job.command->>'kind'='message'
+          and job.external_id=e.external_id and job.command->>'externalConversationId'=conversation.external_id
+      ))) else '{}'::jsonb end) order by e.position) filter (where e.position <= 50), '[]'::jsonb),
     case when count(*) > 50 then max(e.id::text) filter (where e.position = 50) else null end
     into v_items, v_next from candidates e;
   return jsonb_build_object('items', v_items, 'total', v_total, 'nextCursor', v_next);
