@@ -153,3 +153,50 @@ Wiederaufnahme nach begonnenem Versand wiederholt ausschließlich den Beleg.
 Ältere Erweiterungen übernehmen Angebotsaufträge nicht. Das Formular nennt die
 erforderliche Version 1.7.0. Kein echtes Angebot, keine echte Nachricht und kein
 Update der Nutzerinstallation wurden in dieser Umsetzung ausgeführt.
+
+## Ergänzungsauftrag vom 09.10.2026: erhaltene Angebote bearbeiten
+
+**Stand:** Nutzerauftrag aufgenommen und bestehenden Code geprüft; noch nicht
+implementiert. Favoritennachrichten einschließlich Verzögerung und optionalem
+Angebot haben bereits lokale und Cloud-Ausführungswege. Ein bestätigter echter
+Cloud-Favoriten-/Angebotstest bleibt separat offen. Diese bestehenden Funktionen
+ersetzen keine Reaktion auf ein erhaltenes Käuferangebot.
+
+**Gewünschte Bedienung:** Unter einem aktuellen erhaltenen Angebot „Angebot
+annehmen“ über die volle Breite anzeigen; darunter links „Ablehnen“, rechts
+„Gegenangebot“. „Gegenangebot“ öffnet eine Preiseingabe mit Vorschau und bewusstem
+Absenden. Erledigte oder nicht sicher zugeordnete Angebote erlauben keine Aktion.
+Cloud und Extension verwenden dieselbe Darstellung und dieselben Fachregeln.
+
+**Gewünschte Automatik:** Pro Konto getrennt aktivierbar, zunächst ausgeschaltet.
+Der Nutzer legt den maximalen Nachlass gegenüber dem aktuellen Artikelpreis fest.
+Beispiel: 100 € Artikelpreis, 10 % Nachlass → ab 90 € automatisch annehmen.
+Darunter ist die Reaktion noch mit dem Nutzer festzulegen: einmal den Mindestpreis
+als Gegenangebot senden, einen getrennten Gegenangebotsnachlass konfigurieren
+oder ausschließlich melden. Kein mehrstufiges Verhandeln ohne eigenen Auftrag.
+Favoritennachrichten behalten ihre unabhängigen Regeln und Aktivierung.
+
+**Vor Umsetzung zu belegen:** Die aktuelle Nachrichtendarstellung liefert
+Angebotstext/-preislabel, aber keinen vollständigen bestätigten Aktionsvertrag.
+Für Annahme und Ablehnung fehlen eigene Ausführungswege. Zuerst echte strukturierte
+Angebotskennung, Transaktion, Verkäufer-/Käuferrolle, Status, Artikelpreis,
+Angebotspreis und Währung sowie die jeweiligen Anbieteraktionen und Erfolgsbelege
+abgleichen. Keine Endpunkte aus Namensähnlichkeit ableiten und keinen Preis aus
+übersetztem Anzeigetext als Grundlage einer automatischen Entscheidung verwenden.
+Der vorhandene Angebotsversand und seine Kontobindung/Ergebniszustände werden
+gezielt erweitert; die Favoritenaktivierung autorisiert keine neuen Verhandlungen.
+
+**Prüfpunkte:** Manuelle und automatische Entscheidungen teilen denselben
+kontogebundenen Auftrag. Identische Angebotskennungen nicht mehrfach bearbeiten;
+verspätete oder unklare Ergebnisse nicht blind wiederholen. Aktuellen Preis und
+Angebotsstatus vor Ausführung erneut bestätigen. Manuelle Bearbeitung während
+eines wartenden Automatikauftrags muss den veralteten Auftrag verhindern. Neue
+Regeln dürfen keine alten Angebote ungefragt bearbeiten. Für den ersten Umfang
+nur eindeutig zugeordnete einzelne eigene Artikel; Bundles oder fehlende Preise
+manuell melden. Cloud/Extension, deaktivierte Regeln, genaue Prozentgrenzen,
+Centrundung, Preisänderung, Doppelausführung und unbekannter Ausgang testen.
+
+**Konkurrenz:** [Bleam: automatische Verhandlung](https://bleam.app/en/help/assistant-negociation)
+dokumentiert Annahme oberhalb einer selbst gesetzten Preisgrenze sowie
+Gegenangebote darunter, auch in mehreren Schritten. Das belegt das angebotene
+Produktverhalten, nicht Bleams interne technische Implementierung.

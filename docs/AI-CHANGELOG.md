@@ -1,5 +1,23 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-09 - Juna - Angebotsaktionen und automatische Verhandlung aufnehmen
+
+**Auftrag:** Manuelles Annehmen/Ablehnen/Gegenangebot im Chat und eine pro Konto
+konfigurierbare Annahmegrenze mit Reaktion auf zu niedrige Angebote prüfen.
+
+**Befund:** Die Favoritenregeln samt Verzögerung und optionalem Preisvorschlag
+sind für Extension und Cloud im aktuellen Code verdrahtet. Ihr kontrollierter
+Echtkonto-Abnahmetest bleibt offen. Erhaltene Angebote werden bislang angezeigt;
+Annahme/Ablehnung und eine darauf bezogene Verhandlungsautomatik fehlen.
+Bleams eigene Hilfe dokumentiert Preisgrenzen und automatische Gegenangebote.
+
+**Ergebnis:** Den Ergänzungsauftrag im bestehenden Angebotsplan aufgenommen,
+mit konkreter Chatbedienung, Daten-/Aktionsnachweisen und getrennten Regeln.
+Die Gegenangebotsstrategie ist noch mit dem Nutzer abzustimmen. Keine neuen
+Anbieterendpunkte angenommen, keine Produktänderung und keine Vinted-Schreibaktion.
+Formatprüfung und Diffcheck sind die Prüfungen dieser reinen Analyseergänzung;
+die vorher geprüften Bot-Icon-/Lesestatusänderungen bleiben unverändert.
+
 ## 2026-10-09 - Juna - Geöffnete Vinted-Gespräche als gelesen speichern
 
 **Auftrag:** Ein geöffnetes und erfolgreich synchronisiertes Gespräch soll in
