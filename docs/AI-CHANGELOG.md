@@ -24,6 +24,219 @@
 - Alle 135 Node-Tests für Header und Marktplatz-Modelle bestanden.
 - Typprüfung (`npm run typecheck`), ESLint und Prettier ohne Beanstandung.
 
+## 2026-10-09 - Juna - Hosenmaße direkt in der Größenübersicht zeigen
+
+**Auftrag:** Die allgemeine Hosenübersicht soll neben der flachen Bundweite
+auch belegte Innenbein- und Außenbeinbereiche anzeigen. Der Tabellenplatzhalter
+„Am Stück messen“ erklärt keine Vergleichswerte und wird entfernt.
+
+**Umsetzung:** Die bestehenden Damen- und Herrentabellen enthalten Innenbein,
+Außenbein einschließlich Bund und vordere Leibhöhe. Aus Herstellermaßtabellen
+werden pro Buchstabengröße die kleinsten und größten veröffentlichten Werte
+zusammengefasst: drei Damenschnitte von zwei Marken und vier Herrengrößenreihen
+von drei Marken. Ein Rechercheagent prüft Werte, Messdefinitionen, Quellen und
+Randgrößen. Fehlende Werte werden weder interpoliert noch aus anderen Längen
+berechnet. Quellen bleiben in der gemeinsamen aufklappbaren Liste.
+
+**Einordnung:** Diese begrenzten Hersteller-Beispiele sind keine universellen
+Größenbereiche oder Vintage-Norm. Allgemeine W-/Länder-Gegenstellungen und
+Längenbeispiele müssen nicht gemeinsam an einer Hose vorkommen. Die Länge
+ändert keine XS–XL-Weitenschätzung; Innenbein bleibt separat mit nominellen
+L-Angaben vergleichbar. Umgebrochene Spaltenköpfe halten alle Maße auf dem
+Desktop sichtbar; breite Tabellen bleiben mobil seitlich erreichbar.
+
+**Prüfung:** 72 Modelltests und 19 Angular-Tests erfolgreich; gezieltes ESLint,
+Formatierung, Typprüfung, Shared-UI-Prüfung und Produktionsbau bestanden.
+Isolierter Chromium-Test mit synthetischer Sitzung und RPC-Antworten auf
+Desktop und Mobilgerät prüft Tabellenwerte, Filter, unabhängige Weite/Länge,
+Kinderlabels, Quellenliste, Ausfall und Wiederholung sowie seitliche
+Erreichbarkeit der Maßspalten. AXE WCAG AA ohne Befunde und keine Seitenfehler;
+einziger Konsolenfehler ist der absichtlich simulierte HTTP-503.
+Browser-Plugin nicht verfügbar; vorhandenes Playwright verwendet. Keine
+produktive Anmeldung, Datenbankänderung oder neue Abhängigkeit. Kein Push.
+
+**Freigabe:** Nutzer bestätigt PR-Erstellung, erfolgreiche Pflichtprüfungen,
+Merge und anschließendes Aufräumen. `origin/master` vor dem Push aktualisiert;
+der geprüfte Zweig basiert bereits auf dessen aktuellem Stand `cb463edf`.
+Nach dem Merge wird die öffentliche Version samt Commit kontrolliert.
+
+## 2026-10-09 - Juna - Kinderlabels und Hosenlängen ergänzen
+
+**Auftrag:** Quellen nicht unter jeder Karte zeigen, Nike-/adidas-Kindergrößen
+ergänzen, Bundumfang aus der allgemeinen Hosenübersicht entfernen und Innen-
+sowie Außenbeinlängen sichtbar erklären. Zwei Rechercheagenten prüfen die
+Herstellerquellen für Kinderlabels und Hosenlängen und anschließend die Tabellen.
+
+**Umsetzung:** Gemeinsame aufklappbare Quellenliste für recherchierte und
+veröffentlichte Tabellen. Sechs Kinderreferenzen unterscheiden Nike Jungen,
+Mädchen und CN-Labels sowie adidas EU- und US-Jugendgrößen. Suchangaben wie YM,
+M/147, 160 oder 160/80 werden im jeweiligen Kindersystem nachgeschlagen.
+Körpergröße bleibt von gemessenen Kleidungsmaßen getrennt; Kinder-M ist kein
+Erwachsenen-M. Regionale und heutige Passformen belegen keine identischen
+historischen Labels. Veröffentlichte Erwachsenen-Unisex-Referenzen erscheinen
+nicht im Kinderfilter, und Quellen werden beim Sitzungswechsel zurückgesetzt.
+
+**Längen:** Die Hosenübersicht zeigt nur die flache Bundweite. Eine eigene,
+direkt erreichbare Längensektion enthält bonprix-Richtwerte für Damen Kurz,
+Normal und Lang sowie Herren Normal-, untersetzte und schlanke Größen.
+Diese Herstellerreferenzen sind keine allgemeine Norm oder feste Länge je
+XS–XL. Außenbein einschließlich Bund am Kleidungsstück messen; keine erfundenen
+Außenbeinbereiche oder feste Zugabe zur Innenbeinlänge. Allgemeine Bundbereiche
+bleiben ausdrücklich redaktionelle Schätzwerte aus nominellen W-Gruppen.
+Insgesamt 21 Tabellen; keine Datenbankänderung oder neue Abhängigkeit.
+
+**Prüfung:** 66 Modelltests, 19 Angular-Tests, gezieltes ESLint, Formatierung,
+Typprüfung, Shared-UI-Prüfung und Produktionsbau erfolgreich. Isolierter
+Chromium-Test mit synthetischer Sitzung und RPC-Antworten auf Desktop und
+Mobilgerät: Kinderlabels, Quellenliste, Sprunglinks, unabhängige Weite/Länge,
+Zusatzreferenzen und simulierter Ausfall samt Wiederholung. AXE WCAG AA ohne
+Befunde und keine Seitenfehler; einziger Konsolenfehler ist der absichtlich
+simulierte HTTP-503. Browser-Plugin nicht verfügbar; vorhandenes Playwright
+verwendet. Keine produktive Anmeldung oder Datenbank geprüft. Kein Push.
+
+**Abschluss:** Nutzer hat PR, Pflichtprüfungen, Merge und anschließendes Aufräumen
+ausdrücklich freigegeben. Aktuellen `origin/master` vor dem Push geprüft;
+veröffentlichte Version und Commit werden nach erfolgreichem Deployment
+anhand der öffentlichen Metadaten kontrolliert.
+
+## 2026-10-09 - Juna - Allgemeine Größenhilfe über PR veröffentlichen
+
+**Auftrag:** Nach ausdrücklicher Freigabe den geprüften Zweig pushen, PR erstellen,
+Pflichtprüfungen abwarten, mit Merge-Commit integrieren und den eigenen Zweig
+samt Arbeitskopie aufräumen.
+
+**Integration:** Aktuellen `origin/master` übernommen. Der additive Konflikt im
+gemeinsamen Änderungsprotokoll erhält beide vollständigen Sitzungsberichte.
+Die Größenhilfe enthält allgemeine Richtbereiche und eine getrennte Suche nach
+Weite und Beinlänge. Keine Datenbankänderungen. Produktionsversion und
+ausgelieferter Commit werden nach erfolgreicher CI anhand öffentlicher
+Deployment-Metadaten geprüft.
+
+**CI-Nachtrag:** Die beiden neuen Browser-Kernfälle waren bereits über
+`@core-smoke` ausgewählt, fehlten aber in der ausdrücklich gepflegten
+Erwartungsliste des Workflow-Vertrags. Beide Fälle dort aufgenommen; keine
+Prüfung entfernt oder abgeschwächt.
+
+## 2026-10-09 - Juna - Allgemeine Größenbereiche statt einzelner Modelle zeigen
+
+**Auftrag:** Nutzer möchte allgemeine Größenreihen und typische Maßbereiche
+zur Einordnung seiner Ware. Die zuvor eingefügten Karten einzelner Hosenmodelle
+entsprechen diesem Bedarf nicht und sind aus der Übersicht entfernt.
+
+**Umsetzung:** Drei allgemeine Tabellen für Damenhosen, Herrenhosen und normal
+geschnittene Unisex-T-Shirts stehen vor den Labelvergleichen. XS/S/M bis XXL
+stehen neben Ländergrößen, Jeans-W und ungefähren Bund- beziehungsweise
+Brustweiten. Die Hosenbereiche sind ausdrücklich redaktionelle Schätzwerte:
+Levi's Alpha-/W-Gruppen werden einschließlich einer halben Inch-Stufe an den
+Grenzen in cm übertragen. Das belegt keine tatsächlichen Kleidungsmaße;
+Ländergrößen aus Next, ASOS und bonprix sind ungefähre Gegenstellungen.
+Die T-Shirt-Spannen fassen zwei Hersteller-Größenreihen zusammen und gelten
+nicht für jeden Schnitt oder Jacken. Jede Grundlage ist direkt verlinkt.
+
+**Suche:** Flach gemessene Breite grenzt die Größenbereiche ein. Innenbeinlänge
+ermittelt unabhängig davon eine nominelle L-Angabe; Außenbeinlänge bleibt ein
+zusätzlicher Hinweis und liefert keine allgemeine XS/M-Grenze. Maßfelder werden
+nur mit vergleichbaren Spalten geprüft. Gerundete sichtbare Bereichsgrenzen
+gelten auch in der Suche. XXL/2XL und XXXL/3XL werden gleich behandelt.
+Labelsuche und vorhandene veröffentlichte Zusatzreferenzen bleiben erhalten.
+Insgesamt 13 Tabellen mit 184 Größenzeilen, keine Backend-Änderung.
+
+**Prüfung:** 55 Modelltests und 17 Angular-Tests, gezieltes ESLint, Formatprüfung,
+Typprüfung, Shared-UI-Prüfung und Produktionsbau erfolgreich. Isolierte
+Chromium-Prüfung mit synthetischer Sitzung und RPC-Antworten auf Desktop und
+Mobilgerät: allgemeine Tabellen, unabhängige Weite/Länge, Labelsuche,
+Zusatzreferenzen samt simuliertem Ausfall und Wiederholen; AXE WCAG AA ohne
+Befunde. Browser-Plugin nicht verfügbar; vorhandenes Playwright verwendet.
+Kein Test gegen die produktive Anmeldung oder Datenbank. Kein Push/Deployment.
+
+## 2026-10-09 - Juna - Bedarf für die Größen-Nachschlagehilfe korrigieren
+
+**Auftrag:** Die vorhandene leere Referenzverwaltung trifft den beschriebenen
+Bedarf nicht. Gewünscht sind recherchierte, bereits gefüllte Größenvergleiche
+und verständliche Erklärungen der Angaben auf Vintage-Kleidungslabels.
+
+**Recherche:** Offizielle Größenhilfen von Silver, Levi's, Next, ASOS, H&M und
+bonprix geprüft. Länder-Konfektionsgrößen, Jeansweite/Innenbeinlänge in Inch,
+Buchstabengrößen und Kurz-/Lang-/Plusreihen müssen erkennbar getrennt bleiben.
+Die aktuelle Silver-Damentabelle nennt für Jeansgröße 29 die Konfektionsgröße
+6/8 und einen natürlichen Taillenumfang von 30–31 Inch. W29 darf deshalb nicht
+als gemessener Bundumfang oder als universelle EU-Größe ausgegeben werden.
+Einzelne Zahlen und unbekannte Codes wie 3R bleiben ohne Marken-/Etikettbeleg
+mehrdeutig. Aktuelle Herstellerhilfen belegen keine historischen Vintage-Maße.
+
+**Nachtrag Refuge:** Nutzer nennt eine Damenhose von Refuge. Die auf der offiziellen
+Charlotte-Russe-Seite verlinkte Refuge-Denim-Tabelle führt 0, 1, 3, 5 bis 15.
+Größe 3 hat dort 26 Inch Taille und 36½ Inch Hüfte (66,04 / 92,71 cm).
+Die Bedeutung des R und die Gültigkeit für das konkrete ältere Modell bleiben
+unbelegt. Keine direkte universelle EU-Entsprechung daraus abgeleitet.
+[Offizielle Refuge-Tabelle](https://charlotterusse.com/pages/size-guide).
+
+**Vorgeschlagener Aufbau:** Direkt gefüllte Leseransicht für Hosen/Jeans und
+Oberteile/Jacken, jeweils Damen/Herren, mit Quellenangabe an jedem Vergleich.
+Labelsuche einschließlich W/L, Zahlpaaren und halben Inch; zusätzliche
+Kurz-/Lang-/Plusübersicht. Markenreferenzen ergänzen die Grundübersicht.
+Die Administration bleibt eine Pflegefunktion; Leser müssen keine Tabelle anlegen.
+
+**Maßsuche als Hauptbedarf:** Nutzer misst vorhandene Hosen an Bund,
+Innenbein und Außenbein und möchte auch ohne Label eine Größenrange ableiten.
+Der geplante Ablauf enthält deshalb eine Suche mit tatsächlichen Kleidungsmaßen
+in cm, zusätzlich zur Labelsuche. Bundweite flach und Bundumfang bleiben
+ausdrücklich verschiedene Eingaben. Hüftweite und vordere Leibhöhe ergänzen
+die Einordnung bei unterschiedlichen Bundpositionen; Stretch bleibt relevant.
+Weitengröße und Beinlänge werden getrennt ausgegeben, mehrere passende Größen
+bleiben sichtbar. Keine universellen XS/S-Grenzen oder Kleidungsmaßbereiche aus
+Hersteller-Körpermaßtabellen erfinden. Nur belegte, gleichartig gemessene
+Kleidungsreferenzen können als direkte Maßtreffer zählen; übrige Hinweise sind
+als Näherung oder nicht ausreichend belegt zu kennzeichnen.
+[Kleidungs-Messvertrag](https://nakedandfamousdenim.com/pages/measuring-guide-1).
+
+**Darstellung präzisiert:** Nutzer verkauft die vorhandene Ware; es gibt keine
+Endkunden-Körpermaße. Labelgröße, Kleidungsmaße und ungefähre Verkaufsgröße
+stehen deshalb nebeneinander. Die Seite zeigt ihre vorhandenen Tabellen bereits
+ohne Suche. Oben liegt eine Filterkarte nach dem bestehenden Vinted-Feed-Muster
+(`deal-monitor.component.html`): Kategorie, Damen/Herren, Marke, Labelangabe und
+Maßfelder mit gemeinsamem Zurücksetzen. Darunter bleiben getrennte Tabellenkarten
+für Größenvergleiche, Kleidungsmaßbereiche und Sondergrößen sichtbar. Eingaben
+grenzen die Übersicht ein und markieren passende Zeilen; Ergebnisse und
+Vergleichsgrundlage sind gemeinsam nachvollziehbar. Shared-Karten, Suchfelder,
+Selects und Zahlenfelder aus dem bestehenden Feed übernehmen, keine neue UI-Lib.
+
+**Quellen:** [Silver](https://www.silverjeans.com/size-charts.html),
+[Levi's](https://www.levi.com/US/en_US/info/sizeguide),
+[Next](https://www.next.co.uk/sizeguide),
+[ASOS](https://www.asos.com/discover/size-charts/women/jeans-trousers-leggings/),
+[H&M](https://www.hm.com/ge/customer-service/sizeguide/ladies/),
+[bonprix](https://www.bonprix.de/service/beratung/groessentabellen/).
+
+**Umsetzung nach Freigabe:** Die Leserroute zeigt unmittelbar 14 recherchierte
+Tabellen mit Größenvergleich, Sonderreihen und tatsächlichen Kleidungsmaßen
+einzelner Modelle. Gemeinsame Filter für Marke, Kleidungsart, Zielgruppe, Label
+und flach gemessene Kleidung; einstellbarer Suchspielraum statt erfundener
+allgemeiner XS/S-Grenzen. Alle eingegebenen Maße müssen in derselben belegten
+Zeile vorhanden sein und passen. Körpermaßtabellen und nominelle W-Werte bleiben
+Nachschlagekontext und liefern keine Kleidungsmaßtreffer. Die Labelsuche versteht
+EU/UK/US-Präfixe, W/L-Paare, halbe Inch und Refuge 3R. Zusatzreferenzen aus der
+vorhandenen Veröffentlichung erscheinen direkt darunter; deren Ausfall blockiert
+die Grundübersicht nicht. Die bisherige Leseransicht bleibt unter
+`sizes/references`, die Administration unverändert erreichbar.
+
+**Prüfung:** 41 Modelltests und 11 Angular-Verhaltenstests erfolgreich, Typprüfung
+und Produktionsbau erfolgreich. Isolierte Chromium-Prüfung mit synthetischer
+Sitzung und RPC-Antworten: sofort sichtbare Tabellen, Maßtreffer, W/L-Erklärung,
+Zusatzreferenzen samt simuliertem Ausfall und Wiederholen, mobile Breite 390 px
+ohne Dokumentüberlauf. AXE WCAG AA in Desktop-, Treffer- und Mobilansicht ohne
+Befund. Browser-Plugin nicht verfügbar; reguläres Playwright verwendet. Kein
+Test gegen die produktive Anmeldung oder Datenbank. Keine Datenbankänderung.
+
+**Quellen für Kleidungsmaße:** Iron Heart IH-666S-142, Lands’ End 509417,
+CottonMill B090 und Port & Co PC54C. Die PC54C-Tabelle benennt die Einheit nicht
+separat; ihre US-Inch-Messkonvention ist als Ableitung im Tabellenhinweis sichtbar.
+Aktuelle Modellmaße sind Vergleichsbelege, keine historischen Vintage-Maßgrenzen.
+
+**Stand:** Eigener geprüfter Zweig; Veröffentlichung erst nach Freigabe des PR.
+
+> > > > > > > origin/master
+
 ## 2026-10-09 - Juna - Vinted-Feed nach Chrome-Speicherausfall wiederherstellen
 
 **Auftrag:** Speicherverbrauch des zentralen Vinted-Bots untersuchen, den Bot

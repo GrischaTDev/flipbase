@@ -14,6 +14,14 @@ const coreTests = [
     'pflegt und veröffentlicht echte Label- und Größenreferenzen mit freigegebenen Bildern @core-smoke',
   ],
   [
+    'clothing-size-guide.spec.ts',
+    'zeigt allgemeine Richtbereiche und grenzt Größen und Längen getrennt ein @core-smoke',
+  ],
+  [
+    'clothing-size-guide.spec.ts',
+    'erhält die Größenübersicht bei einem Ausfall der zusätzlichen Referenzen @core-smoke',
+  ],
+  [
     'sniper-administration.spec.ts',
     'prüft den Vinted-Bot manuell und behält bei Ablehnung die Pause @core-smoke',
   ],
