@@ -21,7 +21,8 @@
 
 **Prüfung:**
 
-- 41 automatisierte Tests bestanden (15x `sidebar.component.angular.spec.ts`, 14x `workspace-navigation.spec.ts`, 4x `settings-shell.component.angular.spec.ts`, 3x `marketplace-settings.service.spec.ts`, 3x `settings.routes.spec.ts`, 2x `marketplaces-settings.component.angular.spec.ts`).
+- 51 automatisierte Tests bestanden (15x `sidebar.component.angular.spec.ts`, 14x `workspace-navigation.spec.ts`, 10x `sidebar-ideas.angular.spec.ts`, 4x `settings-shell.component.angular.spec.ts`, 3x `marketplace-settings.service.spec.ts`, 3x `settings.routes.spec.ts`, 2x `marketplaces-settings.component.angular.spec.ts`).
+- E2E-Tests in `e2e/marketplace-accounts.spec.ts` und `e2e/vinted-workspace-ui.spec.ts` aktualisiert, sodass Kontoverwaltungstests direkt die vorgesehene Route `/marketplaces/vinted/accounts` ansteuern.
 - Vollständige Typprüfung (`npm run typecheck`) ohne Fehler abgeschlossen.
 - ESLint und Prettier auf allen geänderten und neuen Dateien erfolgreich und fehlerfrei ausgeführt.
 

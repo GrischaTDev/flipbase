@@ -676,7 +676,7 @@ for (const challengeStage of ['login', 'identify', 'verify'] as const) {
     });
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
-    await page.goto('/settings/marketplaces');
+    await page.goto('/marketplaces/vinted/accounts');
     await page
       .locator('app-vinted-account-grid [cdkDrag]')
       .first()
@@ -776,7 +776,7 @@ test('überträgt manuelles Ziehen im Browserbild mit Maus und Touch genau einma
     if (path.endsWith('/close')) return route.fulfill({ status: 204 });
     throw new Error(`Unerwarteter Browseraufruf: ${path}`);
   });
-  await page.goto('/settings/marketplaces');
+  await page.goto('/marketplaces/vinted/accounts');
   await page
     .locator('app-vinted-account-grid [cdkDrag]')
     .first()
@@ -1185,7 +1185,7 @@ test('erklärt eine volle GoLogin-Profilliste ohne Vinted-Anmeldeversuch @market
   page,
 }) => {
   const calls = await mockMarketplace(page, true, false, false, true);
-  await page.goto('/settings/marketplaces');
+  await page.goto('/marketplaces/vinted/accounts');
   await page.getByRole('button', { name: 'Konto hinzufügen', exact: true }).click();
   await page.getByRole('textbox', { name: 'Interner Name in Flipbase' }).fill('Neuer Zugang');
   await chooseCloudConnection(page);
@@ -1203,7 +1203,7 @@ test('sperrt die Anmeldung bei einem veralteten Browserdienst @marketplace-previ
   await page.route('**/marketplace-browser/healthz', (route) =>
     route.fulfill({ json: { ok: true, readOnly: false } }),
   );
-  await page.goto('/settings/marketplaces');
+  await page.goto('/marketplaces/vinted/accounts');
   await page
     .locator('app-vinted-account-grid [cdkDrag]')
     .first()
@@ -1258,7 +1258,7 @@ test('zeigt unbestätigte Konten getrennt von verbundenen Konten @marketplace-pr
   page,
 }) => {
   await mockMarketplace(page);
-  await page.goto('/settings/marketplaces');
+  await page.goto('/marketplaces/vinted/accounts');
   await expect(
     page.locator('app-vinted-account-grid').getByText('Anmeldung ausstehend', { exact: true }),
   ).toHaveCount(2);
@@ -1407,7 +1407,7 @@ for (const width of [1440, 390]) {
   }) => {
     await page.setViewportSize({ width, height: 1000 });
     const calls = await mockMarketplace(page, true);
-    await page.goto('/settings/marketplaces');
+    await page.goto('/marketplaces/vinted/accounts');
     await page.getByRole('button', { name: 'Konto hinzufügen', exact: true }).click();
     await page
       .getByRole('textbox', { name: 'Interner Name in Flipbase', exact: true })
@@ -1577,7 +1577,7 @@ test('zeigt den SMS-Code im Kontodialog und bindet ihn an das gewählte Konto @m
 }) => {
   await page.setViewportSize({ width: 390, height: 1000 });
   const calls = await mockMarketplace(page, true, false, true);
-  await page.goto('/settings/marketplaces');
+  await page.goto('/marketplaces/vinted/accounts');
   await page
     .locator('app-vinted-account-grid [cdkDrag]')
     .first()

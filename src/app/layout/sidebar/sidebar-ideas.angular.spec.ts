@@ -84,21 +84,12 @@ describe('Arbeitsnavigation und Ideen in der Sidebar', () => {
       return Array.from(group.querySelectorAll('a')).map((link) => link.getAttribute('href'));
     });
 
-    expect(names).toEqual([
-      'Einkauf',
-      'Verkauf',
-      'Artikel',
-      'Account-Verwaltung',
-      'Finanzen',
-      'Tools',
-    ]);
+    expect(names).toEqual(['Warenwirtschaft', 'Marktplätze', 'Finanzen', 'Tools']);
     expect(links).toEqual([
-      ['/purchases'],
-      ['/sales', '/listings'],
-      ['/catalog', '/image-optimizer'],
-      ['/marketplaces/ebay'],
+      ['/purchases', '/catalog', '/sales'],
+      ['/marketplaces/ebay', '/marketplaces/kleinanzeigen'],
       ['/expenses', '/accounting', '/analytics'],
-      ['/tools/brand-labels', '/vinted-bot', '/deal-calculator', '/deal-calculator/ebay'],
+      ['/tools/brand-labels', '/image-optimizer', '/deal-calculator', '/deal-calculator/ebay'],
     ]);
     expect(element.textContent).not.toContain('Warenwirtschaft & Store');
     expect(element.textContent).not.toContain('Werkzeuge & Ertrag');
@@ -216,21 +207,14 @@ describe('Arbeitsnavigation und Ideen in der Sidebar', () => {
     const headings = Array.from(element.querySelectorAll('[data-navigation-group] [id]'));
     const names = headings.map((heading) => heading.textContent?.trim());
     const article = element.querySelector('a[href="/catalog"]');
-    const listings = element.querySelector('a[href="/listings"]');
+    const sales = element.querySelector('a[href="/sales"]');
     const research = element.querySelector('a[href="/research"]');
     const ebayFees = element.querySelector('a[href="/deal-calculator/ebay"]');
 
-    expect(names).toEqual([
-      'Purchasing',
-      'Selling',
-      'Products',
-      'Account management',
-      'Finances',
-      'Tools',
-    ]);
+    expect(names).toEqual(['Merchandise Management', 'Marketplaces', 'Finances', 'Tools']);
     expect(toggle.textContent?.trim()).toBe('Ideas');
     expect(article?.textContent?.trim()).toBe('Articles');
-    expect(listings?.textContent?.trim()).toBe('Listings');
+    expect(sales?.textContent?.trim()).toBe('Sales');
     expect(research?.textContent?.trim()).toBe('Price research');
     expect(ebayFees?.textContent?.trim()).toBe('eBay Fee Calculator');
     expect(element.textContent).not.toContain('NAV.');
