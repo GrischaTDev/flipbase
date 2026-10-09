@@ -129,10 +129,11 @@
       @if (isNotificationDropdownOpen()) {
         <div
           id="header-notification-menu"
-          class="fb-popover-enter absolute inset-x-3 top-full z-50 mt-2 space-y-2 rounded-xl border border-fb-border bg-fb-surface p-3 shadow-lg sm:left-auto sm:right-0 sm:top-auto sm:w-[410px]"
+          class="fb-popover-enter absolute inset-x-3 top-full z-50 mt-2 rounded-xl border border-fb-border bg-fb-surface shadow-xl overflow-hidden sm:left-auto sm:right-0 sm:top-auto sm:w-[420px]"
         >
+          <!-- Durchgehende Kopfzeile -->
           <div
-            class="flex flex-wrap items-center justify-between gap-2 border-b border-fb-border pb-2.5"
+            class="flex items-center justify-between px-4 py-3 border-b border-fb-line bg-fb-surface"
           >
             <div class="flex items-center gap-2">
               <svg [lucideIcon]="BellIcon" class="w-4 h-4 text-fb-text-primary"></svg>
@@ -146,12 +147,12 @@
               }
             </div>
 
-            <div class="flex items-center gap-1">
+            <div class="flex items-center gap-1.5">
               <button
                 type="button"
                 (click)="onMarkAllNotificationsRead()"
                 [disabled]="isUpdatingNotifications()"
-                class="text-xs text-fb-text-muted hover:text-fb-text-primary cursor-pointer flex items-center gap-1 px-2 py-1 rounded-md hover:bg-fb-surface-hover font-medium transition pointer-coarse:min-h-11 pointer-coarse:min-w-11"
+                class="inline-flex items-center gap-1 text-xs text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-hover px-2 py-1 rounded-md transition font-medium cursor-pointer disabled:opacity-50 pointer-coarse:min-h-11 pointer-coarse:min-w-11"
                 title="Alle als gelesen markieren"
               >
                 <svg [lucideIcon]="CheckCheckIcon" class="w-3.5 h-3.5"></svg>
@@ -161,7 +162,7 @@
                 type="button"
                 (click)="onClearNotifications()"
                 [disabled]="isUpdatingNotifications()"
-                class="text-xs text-fb-text-muted hover:text-fb-critical cursor-pointer p-1.5 rounded-md hover:bg-fb-critical-surface transition pointer-coarse:min-h-11 pointer-coarse:min-w-11"
+                class="text-xs text-fb-text-muted hover:text-fb-critical hover:bg-fb-critical-surface p-1.5 rounded-md transition cursor-pointer disabled:opacity-50 pointer-coarse:min-h-11 pointer-coarse:min-w-11"
                 title="Verlauf leeren"
                 aria-label="Benachrichtigungsverlauf leeren"
               >
@@ -171,10 +172,16 @@
           </div>
 
           @if (favoriteNotifications.error(); as error) {
-            <p role="status" class="text-xs text-fb-text-secondary">{{ error }}</p>
+            <div
+              class="px-4 py-2 border-b border-fb-line bg-fb-warning-surface text-xs text-fb-warning"
+              role="status"
+            >
+              {{ error }}
+            </div>
           }
 
-          <div class="max-h-96 overflow-y-auto divide-y divide-fb-line/70">
+          <!-- Durchgehende Eintragsliste -->
+          <div class="max-h-[420px] overflow-y-auto divide-y divide-fb-line">
             @for (notif of notifications(); track notif.id) {
               <!-- Jeder Eintrag ist als Ganzes anklickbar. Mit Ziel fuehrt er
                    dorthin, ohne Ziel oeffnet er seinen Text in einem Dialog -
@@ -184,7 +191,7 @@
                 <a
                   [routerLink]="notificationLinks().get(notif.id)"
                   (click)="oeffneBenachrichtigung(notif)"
-                  class="group block p-2.5 text-xs rounded-lg transition hover:bg-fb-surface-hover cursor-pointer relative"
+                  class="group block px-4 py-3.5 text-xs transition hover:bg-fb-surface-hover cursor-pointer relative"
                   [class.bg-fb-subtle]="!notif.read"
                   [class.bg-fb-surface]="notif.read"
                 >
@@ -196,7 +203,7 @@
                 <button
                   type="button"
                   (click)="oeffneBenachrichtigung(notif)"
-                  class="group block w-full text-left p-2.5 text-xs rounded-lg transition hover:bg-fb-surface-hover cursor-pointer relative"
+                  class="group block w-full text-left px-4 py-3.5 text-xs transition hover:bg-fb-surface-hover cursor-pointer relative"
                   [class.bg-fb-subtle]="!notif.read"
                   [class.bg-fb-surface]="notif.read"
                 >
