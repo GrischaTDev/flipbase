@@ -54,6 +54,7 @@ export class MarketplaceMessageRunner {
       scope.cloudSetup ||
       scope.favoriteWrite ||
       scope.negotiationWrite ||
+      scope.listingWrite ||
       scope.userAccessToken
     )
       throw new Error('Versandclaim ungültig');

@@ -1,5 +1,28 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-09 – Juna – Cloud-Inseratversuche und Worker vorbereiten
+
+**Arbeit:** Cloud-Aufträge an Worker, Konto, freigegebenes Profil und
+Browser-Sitzung gebunden. Eine abgelaufene Vorbereitung wird erst nach
+bestätigtem physischem Browserstopp erneut übernommen. Begonnenes Schreiben
+bleibt bei Antwortverlust unklar. Späte Belege werden auch nach Ablauf des
+Workers oder Kontolöschung dem ursprünglichen Versuch zugeordnet.
+
+Worker-Ablauf und privater Datenbank-Service ergänzt. Die Vorabprüfung darf
+vor dem einmaligen Schreibbeginn erfolgen. Vor dem ersten Foto-Upload muss
+der Adapter den bestätigten Beginn abwarten. Fehlende Bestätigung löst keine
+Anbieteraktion aus. Konto, Artikelkennung, Anbieterstatus und Bestätigungszeit
+werden auch in der gespeicherten Antwort geprüft. Inseratberechtigungen
+erlauben keine anderen Browseraktionen. Anbieteradapter, Fotobezug, Dispatch
+und Erweiterungsanschluss bleiben offen; keine automatische Ausführung aktiv.
+
+**Prüfungen:** Neue Migration separat erzeugt, frisch eingespielt und Typen
+regeneriert. 150 Datenbankprüfungen, 545 Workerprüfungen (7 ausgelassen),
+9 Skript-/Schemaregistrierungsprüfungen, Worker-Typen und Bau erfolgreich.
+Container gebaut und beide neuen Module ohne Netzwerk geladen. Format,
+betroffene ESLint-Dateien und Angular-Typen erfolgreich. Keine Produktion,
+reale Anbieteraktion, installierte Erweiterungsänderung, Push, PR oder Merge.
+
 ## 2026-10-09 – Juna – Lokale Inseratversuche und Ergebnisannahme absichern
 
 **Auftrag:** Die freigegebene Inseratumsetzung nach „dann weiter“ fortsetzen.

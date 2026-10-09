@@ -174,7 +174,7 @@ und Termin werden unveränderlich aufgenommen. Wiederholte Anfragen liefern
 denselben Auftrag. Aufträge können vor Beginn abgebrochen werden; ein Widerruf
 während eines begonnenen Versuchs bleibt „Ergebnis unklar“. Konto- und
 Installationswechsel entziehen alten Aufträgen die Freigabe. `queued` bestätigt
-ausschließlich die Speicherung in Flipbase. Cloud-Übernahme, Ausführer,
+ausschließlich die Speicherung in Flipbase. Anbieteradapter, Ausführeranschluss,
 Planungsdialog und serverseitige Terminsteuerung sowie
 vollständige Live-Bearbeitung mit Drawer und manuelles Relist fehlen weiterhin.
 
@@ -193,6 +193,14 @@ ausgeschalteter Erweiterung. Späte Antworten sind an den ursprünglichen
 Versuch und das Zielkonto gebunden. Änderungen von Konto oder Ausführer
 entziehen die alte Freigabe dauerhaft. Die 27 Ablaufprüfungen verwenden
 synthetische Ergebnisse und bestätigen keinen echten Vinted-Schreiberfolg.
+
+Schema 465 ergänzt den Cloud-Versuch mit Worker-Epoche und reserviertem Profil.
+Eine abgelaufene Vorbereitung wird erst nach bestätigtem physischem Stopp
+freigegeben. Worker-Ablauf, private Datenbankanbindung und exklusive
+Browserberechtigung sind geprüft; der eigentliche Anbieteradapter, Zugriff
+auf Originalfotos und die automatische Auftragsabholung fehlen noch.
+Auch die 20 Cloud-Datenbankprüfungen verwenden ausschließlich synthetische
+Belege. Keine echte Veröffentlichung oder Anlage eines Vinted-Entwurfs geprüft.
 
 ## Prüfungen dieser Grundlage
 

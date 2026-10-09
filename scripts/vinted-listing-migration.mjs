@@ -98,7 +98,7 @@ export function completeListingMigration(migration, schemas) {
 }
 export function completeListingJobsMigration(migration, schema, phase = 'jobs') {
   if (migration.includes(jobsMarker)) throw new Error('Inseratauftrags-Migration bereits ergänzt.');
-  if (!['jobs', 'planning', 'execution'].includes(phase))
+  if (!['jobs', 'planning', 'execution', 'cloud'].includes(phase))
     throw new Error('Unbekannte Inserat-Migrationsphase.');
   for (const table of phase === 'jobs' ? jobsTables : [])
     if (!new RegExp(`create table public\\.${table}\\b`, 'iu').test(migration))
@@ -119,6 +119,14 @@ export function completeListingJobsMigration(migration, schema, phase = 'jobs') 
       !/add(?: column)?\s+claim_token\b/iu.test(migration))
   )
     throw new Error('Generierte lokale Inseratausführung fehlt.');
+  if (
+    phase === 'cloud' &&
+    (!/create(?: or replace)? function public\.marketplace_cloud_listing_claim\b/iu.test(
+      migration,
+    ) ||
+      !/add(?: column)?\s+cloud_worker_id\b/iu.test(migration))
+  )
+    throw new Error('Generierte Cloud-Inseratausführung fehlt.');
   for (const match of migration.matchAll(
     /^(?:alter table|drop table|create table)\s+(?:"?public"?\.)?"?([a-z_]+)"?/gimu,
   )) {
@@ -139,13 +147,14 @@ export function completeListingJobsMigration(migration, schema, phase = 'jobs') 
     planning: 'geplante Inserataufträge atomar durch eine neue Inhaltsrevision ersetzen.',
     execution:
       'lokale Inseratversuche übernehmen und Schreibbeginn sowie Ergebnisse dauerhaft binden.',
+    cloud: 'Cloud-Inseratversuche an Worker und bestätigten physischen Browserstopp binden.',
   }[phase];
   return `-- Zweck: ${purpose}\n-- Betroffen: public.marketplace_listing_permissions und marketplace_listing_jobs sowie deren kontrollierte RPCs.\n${lowercaseSql(migration.trimEnd())}\n\n${jobsMarker}\n${permissions.join('\n')}\n`;
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   const path = process.argv[2];
   if (
-    !/^supabase[/\\]migrations[/\\]\d{14}_vinted_listing_(?:drafts|jobs|planning|execution)\.sql$/.test(
+    !/^supabase[/\\]migrations[/\\]\d{14}_vinted_listing_(?:drafts|jobs|planning|execution|cloud)\.sql$/.test(
       path ?? '',
     )
   )
@@ -155,12 +164,16 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   });
   if (tracked.error || tracked.status !== 1)
     throw new Error('Versionierte Migration oder Git-Status nicht prüfbar.');
-  if (/_vinted_listing_(?:jobs|planning|execution)\.sql$/.test(path)) {
-    const phase = path.match(/_vinted_listing_(jobs|planning|execution)\.sql$/)[1];
+  if (/_vinted_listing_(?:jobs|planning|execution|cloud)\.sql$/.test(path)) {
+    const phase = path.match(/_vinted_listing_(jobs|planning|execution|cloud)\.sql$/)[1];
     const schema = (
       await Promise.all(
-        (phase === 'execution'
-          ? ['463_marketplace_listing_jobs', '464_marketplace_listing_execution']
+        (phase === 'execution' || phase === 'cloud'
+          ? [
+              '463_marketplace_listing_jobs',
+              '464_marketplace_listing_execution',
+              ...(phase === 'cloud' ? ['465_marketplace_listing_cloud_execution'] : []),
+            ]
           : ['463_marketplace_listing_jobs']
         ).map((name) => readFile(`supabase/schemas/${name}.sql`, 'utf8')),
       )

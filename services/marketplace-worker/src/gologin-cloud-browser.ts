@@ -37,6 +37,15 @@ export interface BrowserDragPoint {
 }
 
 export interface BrowserInfo extends Pick<Browser, 'version'> {
+  submitListing?(
+    accountId: string,
+    action: 'publish' | 'vinted_draft',
+    snapshot: import('../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts').MarketplaceListingSnapshot,
+    beforeWrite: () => Promise<void>,
+    authorize: () => Promise<void>,
+  ): Promise<
+    import('../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts').MarketplaceListingResult
+  >;
   sendNegotiation?(
     accountId: string,
     command: MarketplaceNegotiationCommand,

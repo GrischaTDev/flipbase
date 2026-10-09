@@ -1,0 +1,61 @@
+import type { CloudListingClaim } from '../../src/marketplace-listing-runner.ts';
+
+export const listingClaimFixture: CloudListingClaim = {
+  kind: 'listing',
+  jobId: '9007199254740993',
+  claimToken: '20000000-0000-4000-8000-000000000005',
+  accountId: '123',
+  action: 'publish',
+  scope: {
+    workspaceId: '20000000-0000-4000-8000-000000000001',
+    connectionId: '20000000-0000-4000-8000-000000000002',
+    userId: '20000000-0000-4000-8000-000000000003',
+    userAccessToken: '',
+    listingWrite: {
+      jobId: '9007199254740993',
+      claimToken: '20000000-0000-4000-8000-000000000005',
+      workerId: '20000000-0000-4000-8000-000000000006',
+      workerEpoch: 4,
+      runnerId: '20000000-0000-4000-8000-000000000007',
+      sessionId: '20000000-0000-4000-8000-000000000008',
+      expiresAt: '2026-10-09T12:01:30Z',
+      absoluteExpiresAt: '2026-10-09T12:10:00Z',
+    },
+  },
+  snapshot: {
+    content: {
+      title: 'Jacke',
+      description: 'Gebraucht',
+      priceCents: 1200,
+      currency: 'EUR',
+      categoryId: 1223,
+      categoryLabel: 'Bomberjacken',
+      brandId: null,
+      brandLabel: 'Keine Marke',
+      sizeId: 208,
+      sizeLabel: 'M',
+      conditionId: 2,
+      conditionLabel: 'Sehr gut',
+      colorIds: [],
+      colorLabels: [],
+      materialIds: [],
+      materialLabels: [],
+      packageSizeId: 2,
+      attributes: {},
+    },
+    images: [
+      {
+        id: '9007199254740994',
+        storagePath:
+          '20000000-0000-4000-8000-000000000001/12/20000000-0000-4000-8000-000000000009.jpg',
+        fileName: 'jacke.jpg',
+        mimeType: 'image/jpeg',
+        byteSize: 123,
+      },
+    ],
+    aiPhoto: false,
+    bump: false,
+    connectionId: '20000000-0000-4000-8000-000000000002',
+    inventoryItemId: null,
+  },
+};

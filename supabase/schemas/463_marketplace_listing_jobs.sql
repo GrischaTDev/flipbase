@@ -326,6 +326,7 @@ begin
   perform pg_advisory_xact_lock(91731,1);
   perform public.marketplace_lock_listing_workspace(p_workspace_id);
   perform public.marketplace_expire_local_listing_attempts(p_workspace_id);
+  perform public.marketplace_expire_cloud_listing_attempts(p_workspace_id);
   if p_draft_id is not null and (p_draft_id !~ '^[1-9][0-9]{0,18}$' or not exists(
     select 1 from public.marketplace_listing_drafts where workspace_id=p_workspace_id and id=p_draft_id::bigint)) then
     raise exception 'Kein Zugriff auf diesen Entwurf.' using errcode='42501';

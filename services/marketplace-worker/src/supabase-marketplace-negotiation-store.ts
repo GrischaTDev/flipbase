@@ -235,6 +235,7 @@ export class SupabaseMarketplaceNegotiationStore {
       scope.cloudSetup ||
       scope.favoriteWrite ||
       scope.messageWrite ||
+      scope.listingWrite ||
       scope.userAccessToken
     )
       throw invalid();

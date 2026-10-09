@@ -293,6 +293,7 @@ export class SupabaseMarketplaceOperationStore {
       scope.messageWrite ||
       scope.favoriteWrite ||
       scope.negotiationWrite ||
+      scope.listingWrite ||
       scope.cloudSetup ||
       scope.userAccessToken
     )
@@ -339,7 +340,7 @@ export class SupabaseMarketplaceOperationStore {
   }
 
   private userHeaders(scope: BrowserSessionScope): Record<string, string> {
-    if (scope.messageWrite || scope.favoriteWrite || scope.negotiationWrite)
+    if (scope.messageWrite || scope.favoriteWrite || scope.negotiationWrite || scope.listingWrite)
       throw new Error('Auftragszugriff verweigert');
     return {
       apikey: this.publishableKey,

@@ -94,3 +94,20 @@ test('completes execution grants and rejects incomplete or unrelated execution s
     ),
   );
 });
+
+test('completes cloud execution grants and rejects incomplete or unrelated supplements', () => {
+  const generated =
+    'ALTER TABLE public.marketplace_listing_jobs ADD COLUMN cloud_worker_id uuid;\nCREATE FUNCTION public.marketplace_cloud_listing_claim() RETURNS jsonb LANGUAGE SQL AS $$select null::jsonb$$;';
+  assert.match(
+    completeListingJobsMigration(generated, jobsSchema, 'cloud'),
+    /revoke all on public.marketplace_listing_jobs/,
+  );
+  assert.throws(() => completeListingJobsMigration('select 1;', jobsSchema, 'cloud'));
+  assert.throws(() =>
+    completeListingJobsMigration(
+      generated + '\nALTER TABLE public.workspaces ADD COLUMN x text;',
+      jobsSchema,
+      'cloud',
+    ),
+  );
+});

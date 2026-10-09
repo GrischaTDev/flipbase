@@ -42,9 +42,19 @@ export class SupabaseBrowserSessionStore {
         scope.messageWrite,
         scope.favoriteWrite,
         scope.negotiationWrite,
+        scope.listingWrite,
       ].filter(Boolean).length > 1
     )
       throw new Error('Sitzungszugriff verweigert');
+    if (scope.listingWrite) {
+      const expiresAt = validateMarketplaceMessageLease(
+        await this.callListingRpc(scope),
+        scope.listingWrite,
+        Date.now(),
+      );
+      if (expiresAt === null) throw new Error('Sitzungszugriff verweigert');
+      return { id: scope.listingWrite.sessionId, scope: { ...scope }, expiresAt, active: true };
+    }
     if (scope.favoriteWrite) {
       const expiresAt = validateMarketplaceMessageLease(
         await this.callFavoriteRpc(scope),
@@ -190,9 +200,21 @@ export class SupabaseBrowserSessionStore {
         lease.scope.messageWrite,
         lease.scope.favoriteWrite,
         lease.scope.negotiationWrite,
+        lease.scope.listingWrite,
       ].filter(Boolean).length > 1
     )
       return false;
+    if (lease.scope.listingWrite) {
+      if (lease.id !== lease.scope.listingWrite.sessionId) return false;
+      const expiresAt = validateMarketplaceMessageLease(
+        await this.callListingRpc(lease.scope),
+        lease.scope.listingWrite,
+        Date.now(),
+      );
+      if (expiresAt === null) return false;
+      lease.expiresAt = expiresAt;
+      return true;
+    }
     if (lease.scope.favoriteWrite) {
       if (lease.id !== lease.scope.favoriteWrite.sessionId) return false;
       const expiresAt = validateMarketplaceMessageLease(
@@ -438,6 +460,33 @@ export class SupabaseBrowserSessionStore {
           signal: AbortSignal.timeout(10_000),
         },
       ),
+    );
+  }
+
+  private async callListingRpc(scope: BrowserSessionScope): Promise<unknown> {
+    const binding = scope.listingWrite;
+    if (
+      !binding ||
+      scope.userAccessToken ||
+      !this.runtime ||
+      binding.workerId !== this.runtime.workerId ||
+      binding.workerEpoch !== this.runtime.workerEpoch
+    )
+      throw new Error('Sitzungszugriff verweigert');
+    return this.read(
+      await this.request(new URL('/rest/v1/rpc/marketplace_cloud_listing_check', this.baseUrl), {
+        method: 'POST',
+        headers: { ...this.serverHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          p_workspace_id: scope.workspaceId,
+          p_connection_id: scope.connectionId,
+          p_job_id: binding.jobId,
+          p_claim_token: binding.claimToken,
+          p_worker_id: binding.workerId,
+          p_worker_epoch: binding.workerEpoch,
+        }),
+        signal: AbortSignal.timeout(10_000),
+      }),
     );
   }
 

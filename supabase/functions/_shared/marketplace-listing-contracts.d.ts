@@ -61,6 +61,22 @@ export interface VintedListingValidationIssue {
 
 export type MarketplaceListingAction = 'publish' | 'vinted_draft' | 'update';
 
+/** Unveränderliche private Originale; URLs entstehen erst im autorisierten Ausführungsweg. */
+export interface MarketplaceListingSnapshot {
+  readonly content: VintedListingContent;
+  readonly images: readonly {
+    readonly id: string;
+    readonly storagePath: string;
+    readonly fileName: string;
+    readonly mimeType: 'image/jpeg' | 'image/png' | 'image/webp';
+    readonly byteSize: number;
+  }[];
+  readonly aiPhoto: boolean;
+  readonly bump: false;
+  readonly connectionId: string;
+  readonly inventoryItemId: string | null;
+}
+
 /** Ein Ergebnis gilt nur nach einem erneuten Anbieterabruf als bestätigt. */
 export type MarketplaceListingResult =
   | {
