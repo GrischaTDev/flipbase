@@ -1,6 +1,6 @@
 <app-entry-page-layout
-  [title]="draft() ? 'Entwurf bearbeiten' : 'Inserat erstellen'"
-  subtitle="Bereite Dein Vinted-Inserat vor. Dein Entwurf wird automatisch in Flipbase gespeichert."
+  [title]="openedSavedDraft() ? 'Entwurf bearbeiten' : 'Inserat erstellen'"
+  subtitle="Bereite Dein Vinted-Inserat vor. Mit „Entwurf speichern“ sicherst Du den Stand in Flipbase."
   backLabel="Zur Entwurfsübersicht"
   (cancelled)="cancel()"
 >
@@ -12,7 +12,7 @@
     <app-button
       variant="secondary"
       ariaHaspopup="dialog"
-      [disabled]="!canPreparePublication()"
+      [disabled]="!canStartPublication()"
       (clicked)="openPublication()"
       >Veröffentlichung vorbereiten</app-button
     >

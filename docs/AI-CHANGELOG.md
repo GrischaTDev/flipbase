@@ -24,6 +24,37 @@ aktualisiert; die Neuanmeldung des Kontos hat danach funktioniert.
 nicht, erscheint der neue Status erst beim Öffnen des Gesprächs. Wirkt erst
 nach erneuter Aktualisierung des Workers.
 
+## 2026-10-10 – Juna – Inserat-Entwürfe nur auf Wunsch speichern
+
+**Anlass:** Der Editor speicherte jede Eingabe nach kurzer Pause automatisch und
+wechselte dabei von „Inserat erstellen“ zu „Entwurf bearbeiten“. Beim erneuten
+Öffnen von „Inserat erstellen“ entstand so jedes Mal ein weiterer Entwurf.
+
+**Änderung (Nutzerentscheidung vom 10.10.2026):** Das automatische Speichern
+entfällt. Gespeichert wird nur über „Entwurf speichern“. Die Seite „Inserat
+erstellen“ bleibt danach geöffnet und behält ihren Titel; weiteres Speichern
+aktualisiert denselben Entwurf. „Veröffentlichung vorbereiten“ sichert offene
+Eingaben zuerst und zeigt dann wie bisher nur den gespeicherten Stand. Der
+Hinweis beim Verlassen mit ungespeicherten Eingaben bleibt.
+
+**Prüfungen:** 23 Komponentenfälle des Editors, Typen, Angular-Bau, gemeinsame
+UI-Prüfung, Format und ESLint grün. Alle 23 Browserfälle der Entwürfe laufen
+lokal mit abgefangenen Serverantworten durch; sie klicken jetzt ausdrücklich
+auf Speichern und prüfen, dass ohne Klick kein Entwurf entsteht.
+
+## 2026-10-10 - Juna - Vinted-Kartenlayout entzerren und Badges auf volle Breite setzen
+
+**Auftrag:** Kritik des Nutzers am Live-Design umsetzen: Badges und Sync-Status waren fälschlicherweise in der rechten Spalte neben dem Avatar verschachtelt, wodurch Badges wie „Erweiterung nicht erreichbar“ in eine neue Zeile umbrachen und unter dem Avatar ein großes schwarzes Loch entstand. Zudem wurden Grammatikfehler („Vor 1 Tagen“) behoben.
+
+**Umsetzung:**
+
+1. **Entkopplung der Kopfzeile:** Die Kopfzeile enthält nun sauber nur noch Avatar, Anzeigename, Handle und das Einstellungs-Zahnrad.
+2. **Volle Kartenbreite für Badges & Sync:** Badges und Synchronisationszeile sitzen nun darunter auf voller Kartenbreite. Dadurch passen Modus- und Status-Badge ohne Zeilenumbruch nebeneinander.
+3. **Proportioniertes Padding:** Das Innen-Padding wurde von `p-5 md:p-6` auf `p-4 sm:p-5` angepasst, um horizontalen Platz für 3-Spalten-Grids zu schaffen.
+4. **Grammatikkorrektur:** `formatSyncTime` unterscheidet nun exakt zwischen Singular („Vor 1 Tag“, „Vor 1 Std.“, „Vor 1 Min.“) und Plural.
+
+**Prüfung:** Unit-Tests (22/22), Lint und Angular-Entwicklungsbuild erfolgreich.
+
 ## 2026-10-10 - Juna - Vinted-Kontokarten freizügiger gestalten und bereinigen
 
 **Auftrag:** Kritik des Nutzers umsetzen: Punkte auf Profilbildern und in Badges entfernen, Modus-Badges mit passenden Icons (Cloud / Laptop) statt Klammern versehen, den verwirrenden „Cloud-IP“-Button bei aktiven Cloud-Konten entfernen und den Cards deutlich mehr Freiraum und eine ruhigere Ein-Button-Struktur geben.
