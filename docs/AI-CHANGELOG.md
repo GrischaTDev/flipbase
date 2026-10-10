@@ -1,5 +1,34 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-10 - Juna - Alte ungeklärte Nachrichten sperren den Cloud-Wechsel nicht mehr
+
+**Auftrag:** Stand der IPRoyal-Nachbuchung prüfen und klären, warum „Auf Cloud wechseln“
+sofort mit „Die Cloud-IP-Verfügbarkeit konnte nicht geprüft werden“ abbricht.
+
+**Befund:** Nachbuchung, Preisgrenze 8 USD und PayPal-Zahlungsart sind im laufenden Worker
+aktiv; Bestandsabgleich, Preisangebot (4 USD) und Zahlungsart wurden ausschließlich lesend
+bestätigt. Keine Bestellung und keine Kaufabsicht entstanden. Die Datenbank lehnte den Wechsel
+von „Wiehen Store“ mit „Laufende oder ungeklärte Aktion verhindert den Wechsel“ ab: zwei lokale
+Nachrichten vom 05.10.2026 stehen auf `outcome_unknown` mit `login_required`. Die Erweiterung
+ist nicht mehr verknüpft, die Nachrichten ließen sich also nicht mehr klären. Der Worker meldet
+jede Ablehnung pauschal als IP-Prüffehler.
+
+**Änderung:** Nach Entscheidung des Nutzers sperrt nur noch ein gerade laufender Versand
+(`claimed`, `sending`) den Wechsel. Abgelaufene Versandversuche werden vor der Prüfung wie beim
+normalen Nachrichtenabruf als unklar beziehungsweise wartend eingeordnet. Alte unklare
+Nachrichten bleiben unverändert im Verlauf und werden nicht in der Cloud wiederholt. Ungeklärte
+Abrufe und Aufträge (`marketplace_operations`) blockieren weiterhin. Der automatische Abgleich
+lieferte fremde Altabweichungen; die Migration enthält nur die drei betroffenen Funktionen.
+
+**Prüfung:** Der angepasste Test scheitert an der bisherigen Regel mit genau dieser Meldung.
+Nach vollständiger Migrationswiederholung bestehen 282 Prüfungen in sechs Datenbanktestdateien
+(Cloud-Einrichtung, IP-Nachbuchung, lokaler und Cloud-Nachrichtenversand, Wiederholung,
+Schreibpausen). Datenbanktypen lokal neu erzeugt. Kein echter Kauf, kein Schreibzugriff auf
+Produktionsdaten.
+
+**Offen:** Erster echter Kauf über PayPal. Genauere Fehlermeldung des Workers statt des
+pauschalen IP-Hinweises und Darstellung solcher Hinweise als Toast sind noch nicht umgesetzt.
+
 ## 2026-10-10 - Juna - Vinted-Kartenlayout entzerren und Badges auf volle Breite setzen
 
 **Auftrag:** Kritik des Nutzers am Live-Design umsetzen: Badges und Sync-Status waren fälschlicherweise in der rechten Spalte neben dem Avatar verschachtelt, wodurch Badges wie „Erweiterung nicht erreichbar“ in eine neue Zeile umbrachen und unter dem Avatar ein großes schwarzes Loch entstand. Zudem wurden Grammatikfehler („Vor 1 Tagen“) behoben.

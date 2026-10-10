@@ -122,8 +122,11 @@ Ein erneuter Aufruf darf weder eine zweite IP reservieren noch ein zweites Profi
 3. Der Server prüft, ob die angemeldete Vinted-Konto-ID zur bisherigen Verbindung
    gehört. Ein anderes Konto verhindert den Abschluss; die vorhandene Zuordnung
    wird nicht überschrieben.
-4. Vor dem Abschluss werden lokale Aufträge angehalten und noch laufende Aktionen
-   abgeklärt. Bei ungeklärtem Ergebnis wird der Wechsel blockiert. Bis zu diesem
+4. Vor dem Abschluss werden lokale Aufträge angehalten. Nur eine Nachricht, die
+   gerade verschickt wird, sperrt den Wechsel für höchstens 90 Sekunden. Alte
+   Nachrichten mit unklarem Versandstatus bleiben unverändert im Verlauf, werden
+   nicht erneut gesendet und sperren den Wechsel nicht. Ungeklärte Abrufe und
+   Aufträge des Kontos blockieren weiterhin. Bis zu diesem
    Punkt ist die Erweiterung der einzige normale Auftragsexecutor; der Cloudbrowser
    erlaubt ausschließlich Anmeldung und lesende Identitätsprüfung.
 5. Ein atomarer Abschluss prüft Einrichtung, Berechtigung und Kontozustand erneut,
