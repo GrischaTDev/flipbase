@@ -40,7 +40,6 @@ import { AppNotification } from '../../core/models/webhook.models';
 import { ThemeService } from '../../core/services/theme.service';
 import { PwaService } from '../../core/services/pwa.service';
 import { Workspace } from '../../core/models/flipbase.models';
-import { DatePipe } from '@angular/common';
 import { ToastService } from '../../shared/components/toast/toast.service';
 import { SyncStatusService } from '../../core/services/sync-status.service';
 import { PlatformOperatorService } from '../../core/services/platform-operator.service';
@@ -55,14 +54,7 @@ export function visibleHeaderRole(isPlatformOperator: boolean): 'admin' | null {
 
 @Component({
   selector: 'app-header',
-  imports: [
-    RouterLink,
-    TranslatePipe,
-    LucideDynamicIcon,
-    DatePipe,
-    NgTemplateOutlet,
-    BadgeComponent,
-  ],
+  imports: [RouterLink, TranslatePipe, LucideDynamicIcon, NgTemplateOutlet, BadgeComponent],
   templateUrl: './header.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
@@ -191,6 +183,10 @@ export class HeaderComponent {
   switchLanguage(lang: string): void {
     this.currentLanguage.set(lang);
     this.translate.use(lang);
+  }
+
+  setTheme(dark: boolean): void {
+    this.themeService.setTheme(dark ? 'dark' : 'light');
   }
 
   async onSignOut(): Promise<void> {

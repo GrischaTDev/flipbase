@@ -38,8 +38,11 @@ for (const theme of ['light', 'dark'] as const) {
     });
     await page.setViewportSize({ width: 1440, height: 1100 });
     await startDashboard(page);
-    if (theme === 'dark')
-      await page.getByRole('button', { name: 'Zu dunklem Design wechseln' }).click();
+    if (theme === 'dark') {
+      await page.getByRole('button', { name: 'Benutzermenü öffnen', exact: true }).click();
+      await page.getByRole('button', { name: 'Dunkel', exact: true }).click();
+      await page.getByRole('button', { name: 'Benutzermenü öffnen', exact: true }).click();
+    }
     const cards = page.locator('[aria-label="Kennzahlen"] [data-kpi]');
     await expect(cards).toHaveCount(5);
     const cardTops = await cards.evaluateAll((elements) =>

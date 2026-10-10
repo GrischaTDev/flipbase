@@ -141,6 +141,9 @@ export class SidebarComponent {
         if (item.path === '/marketplaces/vinted') {
           return settings.vinted && isOperator;
         }
+        if (item.path === '/vinted-bot') {
+          return settings.vinted;
+        }
         if (item.path === '/marketplaces/ebay') {
           return settings.ebay;
         }
