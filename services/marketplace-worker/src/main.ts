@@ -318,7 +318,12 @@ async function main(): Promise<void> {
         : undefined;
     const purchase =
       purchaseStore && config.ipRoyalApiToken
-        ? new IpRoyalCloudIpPurchase({ token: config.ipRoyalApiToken, store: purchaseStore })
+        ? new IpRoyalCloudIpPurchase({
+            token: config.ipRoyalApiToken,
+            store: purchaseStore,
+            paymentMethodId: config.ipRoyalPaymentMethodId,
+            maxPriceCents: config.ipRoyalMaxPriceCents,
+          })
         : undefined;
     cloudSetups = new MarketplaceCloudSetup({
       store: cloudSetupStore,

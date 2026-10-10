@@ -1,6 +1,8 @@
 # IPRoyal-Cloud-IP automatisch nachbuchen
 
-Stand: 09.10.2026. Implementiert und lokal geprüft; produktiv noch nicht aktiviert.
+Stand: 09.10.2026. Nachbuchung veröffentlicht; Umstellung auf hinterlegte
+Zahlungsart und Preisgrenze lokal vorbereitet. Während der Umstellung ist die
+produktive Nachbuchung ausgeschaltet.
 
 ## Verhalten
 
@@ -8,9 +10,28 @@ Beim Einrichten oder Cloudwechsel prüft Flipbase die vorhandene Berechtigung un
 gleicht zunächst bereits gekaufte IPs ab. Eine freie, geprüfte deutsche
 Dedicated-ISP-IP wird zuerst reserviert. Fehlt sie und ist die Nachbuchung
 aktiviert, liest der Worker das aktuelle Produkt, den deutschen Anbieterbestand
-und das Preisangebot. Er kauft genau eine IP im Tarif `30 Days`. Es gibt keine
-Preisobergrenze und keine automatische Verlängerung. Die Zahlung verwendet das
-IPRoyal-Guthaben; Kartendaten werden nicht übermittelt.
+und das Preisangebot. Er kauft genau eine IP im Tarif `30 Days`. Vor dem Kauf
+muss das Gesamtpreisangebot einschließlich Steuern höchstens 8 USD betragen.
+Die private Einstellung `IPROYAL_MAX_PRICE_USD` kann die Grenze weiter senken.
+Bei Überschreitung zeigt die Oberfläche einen Preishinweis; es wird keine
+Kaufabsicht angelegt und keine Bestellung gesendet.
+
+Die Zahlung verwendet ausschließlich die über `IPROYAL_PAYMENT_METHOD_ID`
+ausgewählte hinterlegte IPRoyal-Zahlungsart. Der Worker prüft diese vor der
+Kaufabsicht über `GET /cards` und übergibt deren ID als `card_id` an die
+Bestell-API. Das echte Konto liefert hier bereits eine PayPal-Zahlungsart
+über Paddle. Die Schnittstelle nennt auch diese gespeicherte Zahlungsart
+„card“; eine neue PayPal-Verbindung wird in Flipbase nicht angelegt.
+Es werden keine vollständigen Kartendaten verarbeitet und es gibt keinen
+Rückfall auf eine Guthabenzahlung oder eine andere Zahlungsart.
+Automatische Verlängerung bleibt ausgeschaltet.
+
+Ob die hinterlegte PayPal-Freigabe für eine neue Bestellung ohne zusätzliche
+Interaktion ausreicht, bestätigt erst der echte Kauftest. Ein Anbieterstatus
+`unpaid` bleibt ausstehend und löst keinen zweiten Zahlungsversuch aus.
+Die dokumentierte API akzeptiert keinen verbindlichen Höchstpreis im
+Bestellaufruf; die Grenze bezieht sich auf das unmittelbar vorher gelesene
+Preisangebot, nicht auf eine vom Anbieter garantierte Preisbindung.
 
 Vor dem Kauf speichert die Datenbank eine einmalige Kaufabsicht. Eine globale
 Sperre verhindert parallele Käufe. Wiederholte Klicks, verlorene Antworten und
@@ -35,8 +56,9 @@ Zahlungsantworten werden niemals durch Zeitablauf freigegeben.
 2. Die bestehende private Worker-Umgebung muss `IPROYAL_API_TOKEN`, den privaten
    Datenbankzugang und eine persistente beschreibbare Netzwerkdatei mit Modus
    0600 enthalten. Das Anbieter-Konto muss ausschließlich für Flipbase vorgesehen
-   sein und ausreichendes Guthaben besitzen.
-3. In dieser Umgebung `IPROYAL_AUTO_PURCHASE_ENABLED=1` setzen und den Worker mit
+   sein und eine geeignete hinterlegte Zahlungsart besitzen. Ihre private ID
+   als `IPROYAL_PAYMENT_METHOD_ID` setzen; keine ID in das Repository übernehmen.
+3. `IPROYAL_MAX_PRICE_USD=8` und `IPROYAL_AUTO_PURCHASE_ENABLED=1` setzen und den Worker mit
    seiner bestehenden Chromium-Konfiguration neu erstellen. Der Beispielwert
    bleibt `0`; dann verwendet Flipbase ausschließlich vorhandene IPs.
 4. Mit einem freigeschalteten Pilotkonto eine Cloud-Einrichtung starten. Bei
@@ -92,3 +114,9 @@ Ein lesender Test mit dem echten Anbieter-Konto bestätigte am 09.10.2026 den
 30-Tage-Tarif für Deutschland und ein Preisangebot von 4 USD. Es wurde keine IP
 gekauft. Der erste echte Kauf bleibt eine Prüfung nach Veröffentlichung und
 Aktivierung.
+
+Die ergänzten Zahlungs- und Preisprüfungen testen die gespeicherte PayPal-ID,
+fehlende oder ungeeignete Zahlungsarten, keinen Guthaben-Rückfall, exakt 8 USD,
+8,01 USD sowie eine niedrigere Grenze. Die bestehenden Wiederholungs- und
+Neustartprüfungen bleiben erhalten. Der Zahlungsartenaufruf im echten Konto war
+ausschließlich lesend; es wurde keine Zahlung ausgelöst.

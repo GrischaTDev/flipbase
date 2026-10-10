@@ -18,7 +18,12 @@ interface SetupOptions {
     userId: string,
     token: string,
   ) => Promise<
-    'available' | 'purchase_pending' | 'purchase_failed' | 'limit_reached' | 'no_capacity'
+    | 'available'
+    | 'purchase_pending'
+    | 'purchase_failed'
+    | 'limit_reached'
+    | 'no_capacity'
+    | 'price_limit_exceeded'
   >;
   purchaseCompleted?: (request: CloudSetupRequest, userId: string) => Promise<void>;
   reconcilePurchases?: (request: CloudSetupRequest, userId: string) => Promise<void>;

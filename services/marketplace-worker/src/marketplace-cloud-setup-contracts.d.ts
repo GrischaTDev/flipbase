@@ -15,4 +15,11 @@ export interface CloudSetupView {
 
 export type CloudSetupResult =
   | { status: 'ready'; setup: CloudSetupView }
-  | { status: 'no_capacity' | 'purchase_pending' | 'purchase_failed' | 'limit_reached' };
+  | {
+      status:
+        | 'no_capacity'
+        | 'purchase_pending'
+        | 'purchase_failed'
+        | 'limit_reached'
+        | 'price_limit_exceeded';
+    };

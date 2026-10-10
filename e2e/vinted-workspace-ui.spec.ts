@@ -289,7 +289,7 @@ for (const width of [1440, 390, 320]) {
       });
 
       // Der globale Header lädt Favoritenmeldungen auch in der Kontoverwaltung.
-      await page.goto('/settings/marketplaces');
+      await page.goto('/marketplaces/vinted/accounts');
       const bell = page.getByRole('button', { name: 'Benachrichtigungen', exact: true });
       await expect(bell).toContainText('2');
       await bell.click();
@@ -544,7 +544,7 @@ for (const width of [1440, 390, 320]) {
             },
           }),
         );
-        await secondPage.goto('/settings/marketplaces');
+        await secondPage.goto('/marketplaces/vinted/accounts');
         const secondBell = secondPage.getByRole('button', {
           name: 'Benachrichtigungen',
           exact: true,

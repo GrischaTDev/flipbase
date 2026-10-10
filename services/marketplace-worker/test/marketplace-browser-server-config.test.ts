@@ -99,6 +99,7 @@ test('automatic purchases require an explicit flag and the existing Chromium inv
   const inventory = {
     ...chromiumPilot,
     IPROYAL_API_TOKEN: 'fixture-token',
+    IPROYAL_PAYMENT_METHOD_ID: '42',
     MARKETPLACE_CHROMIUM_NETWORK_FILE: '/run/flipbase/networks.json',
   };
   assert.equal(marketplaceBrowserServerConfig(inventory).ipRoyalAutoPurchaseEnabled, false);
@@ -113,6 +114,34 @@ test('automatic purchases require an explicit flag and the existing Chromium inv
     { ...inventory, IPROYAL_AUTO_PURCHASE_ENABLED: 'true' },
   ])
     assert.throws(() => marketplaceBrowserServerConfig(environment), /IP-Nachbuchung/);
+});
+
+test('automatic purchases need a saved payment method and enforce a maximum 8 USD quote', () => {
+  const inventory = {
+    ...chromiumPilot,
+    IPROYAL_API_TOKEN: 'fixture-token',
+    MARKETPLACE_CHROMIUM_NETWORK_FILE: '/run/flipbase/networks.json',
+    IPROYAL_AUTO_PURCHASE_ENABLED: '1',
+    IPROYAL_PAYMENT_METHOD_ID: '42',
+  };
+  const result = marketplaceBrowserServerConfig(inventory);
+  assert.equal(result.ipRoyalPaymentMethodId, 42);
+  assert.equal(result.ipRoyalMaxPriceCents, 800);
+  assert.equal(
+    marketplaceBrowserServerConfig({ ...inventory, IPROYAL_MAX_PRICE_USD: '3.50' })
+      .ipRoyalMaxPriceCents,
+    350,
+  );
+  for (const paymentId of [undefined, '', '0', '-1', '1.2', 'abc'])
+    assert.throws(
+      () => marketplaceBrowserServerConfig({ ...inventory, IPROYAL_PAYMENT_METHOD_ID: paymentId }),
+      /IP-Nachbuchung/,
+    );
+  for (const price of ['0', '-1', '8.01', '9', 'NaN', '4.001'])
+    assert.throws(
+      () => marketplaceBrowserServerConfig({ ...inventory, IPROYAL_MAX_PRICE_USD: price }),
+      /IP-Nachbuchung/,
+    );
 });
 
 test('provider inventory credentials stay server-only and require a private network file', () => {

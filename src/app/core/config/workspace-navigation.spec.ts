@@ -18,17 +18,20 @@ describe('Arbeitsnavigation', () => {
   it('ordnet die Arbeitsbereiche inklusive Tools in fester Reihenfolge', () => {
     assert.deepEqual(
       WORKSPACE_NAVIGATION_GROUPS.map((group) => group.label),
-      ['Einkauf', 'Verkauf', 'Artikel', 'Account-Verwaltung', 'Finanzen', 'Tools'],
+      ['Warenwirtschaft', 'Marktplätze', 'Finanzen', 'Tools'],
     );
     assert.deepEqual(
       WORKSPACE_NAVIGATION_GROUPS.map((group) => group.items.map((item) => item.path)),
       [
-        ['/purchases'],
-        ['/sales', '/listings'],
-        ['/catalog', '/image-optimizer'],
-        ['/marketplaces/vinted', '/marketplaces/ebay'],
+        ['/purchases', '/catalog', '/sales'],
+        [
+          '/marketplaces/vinted',
+          '/vinted-bot',
+          '/marketplaces/ebay',
+          '/marketplaces/kleinanzeigen',
+        ],
         ['/expenses', '/accounting', '/analytics'],
-        ['/tools/brand-labels', '/vinted-bot', '/deal-calculator', '/deal-calculator/ebay'],
+        ['/tools/brand-labels', '/image-optimizer', '/deal-calculator', '/deal-calculator/ebay'],
       ],
     );
   });
@@ -45,11 +48,27 @@ describe('Arbeitsnavigation', () => {
     );
   });
 
+  it('ordnet den Marktplatz-Einträgen ihre Plattform-Schlüssel zu', () => {
+    const marketplaceGroup = WORKSPACE_NAVIGATION_GROUPS.find(
+      (group) => group.id === 'marketplaces',
+    );
+    assert.deepEqual(
+      marketplaceGroup?.items.map((item) => [item.path, item.platform]),
+      [
+        ['/marketplaces/vinted', 'vinted'],
+        ['/vinted-bot', undefined],
+        ['/marketplaces/ebay', 'ebay'],
+        ['/marketplaces/kleinanzeigen', 'kleinanzeigen'],
+      ],
+    );
+  });
+
   it('benennt die arbeitsbezogenen Eintraege verstaendlich', () => {
     const items = WORKSPACE_NAVIGATION_GROUPS.flatMap((group) => group.items);
-    assert.equal(items.find((item) => item.path === '/catalog')?.label, 'Artikel');
+    assert.equal(items.find((item) => item.path === '/catalog')?.label, 'Artikel & Bestand');
     assert.equal(items.find((item) => item.path === '/catalog')?.children, undefined);
-    assert.equal(items.find((item) => item.path === '/listings')?.label, 'Inserate');
+    assert.equal(items.find((item) => item.path === '/purchases')?.label, 'Einkäufe');
+    assert.equal(items.find((item) => item.path === '/sales')?.label, 'Verkäufe');
     assert.equal(items.find((item) => item.path === '/expenses')?.label, 'Ausgaben');
     assert.equal(items.find((item) => item.path === '/analytics')?.label, 'Auswertungen');
     assert.equal(
@@ -58,15 +77,7 @@ describe('Arbeitsnavigation', () => {
     );
   });
 
-  it('oeffnet das Erstellen eines Inserats nur als Aktion der Uebersicht', () => {
-    const listings = WORKSPACE_NAVIGATION_GROUPS.find(
-      (group) => group.id === 'selling',
-    )?.items.find((item) => item.path === '/listings');
-
-    assert.equal(listings?.children, undefined);
-  });
-
-  it('erhaelt jeden bisherigen Hauptlink genau einmal', () => {
+  it('erhaelt jeden Hauptlink genau einmal', () => {
     const paths = [
       DASHBOARD_NAVIGATION,
       ...WORKSPACE_NAVIGATION_GROUPS.flatMap((group) => group.items),
@@ -87,8 +98,8 @@ describe('Arbeitsnavigation', () => {
       '/expenses',
       '/fulfillment',
       '/image-optimizer',
-      '/listings',
       '/marketplaces/ebay',
+      '/marketplaces/kleinanzeigen',
       '/marketplaces/vinted',
       '/master-data',
       '/purchases',
@@ -101,11 +112,7 @@ describe('Arbeitsnavigation', () => {
     ]);
   });
 
-  it('behaelt die vorhandenen Untermenues unveraendert', () => {
-    const bot = WORKSPACE_NAVIGATION_GROUPS.find((group) => group.id === 'tools')?.items.find(
-      (item) => item.path === '/vinted-bot',
-    );
-    assert.equal(bot?.children, VINTED_BOT_NAVIGATION);
+  it('behaelt das Plattform-Admin Untermenü', () => {
     assert.equal(OPERATOR_NAVIGATION.children, PLATFORM_ADMIN_NAVIGATION);
   });
 
@@ -167,7 +174,9 @@ describe('Aktive Navigationspfade', () => {
   });
 
   it('markiert Katalog und Bestandsdetails als Artikelbereich', () => {
-    const article = WORKSPACE_NAVIGATION_GROUPS.find((group) => group.id === 'articles')?.items[0];
+    const article = WORKSPACE_NAVIGATION_GROUPS.flatMap((group) => group.items).find(
+      (item) => item.path === '/catalog',
+    );
     assert.ok(article);
     for (const path of [
       '/catalog',

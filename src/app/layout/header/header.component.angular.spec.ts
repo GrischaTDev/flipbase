@@ -2,10 +2,12 @@ import '@angular/compiler';
 import { signal, ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { provideTranslateService } from '@ngx-translate/core';
+import { provideTranslateService, TranslateService } from '@ngx-translate/core';
+import { firstValueFrom } from 'rxjs';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { TRANSLATIONS_DE, TRANSLATIONS_EN } from '../../core/i18n/translations';
 import { AuthService } from '../../core/services/auth.service';
 import { PlatformOperatorService } from '../../core/services/platform-operator.service';
 import { PwaService } from '../../core/services/pwa.service';
@@ -143,6 +145,10 @@ describe('HeaderComponent', () => {
     }).compileComponents();
 
     const fixture = TestBed.createComponent(HeaderComponent);
+    const translator = TestBed.inject(TranslateService);
+    translator.setTranslation('de', TRANSLATIONS_DE);
+    translator.setTranslation('en', TRANSLATIONS_EN);
+    await firstValueFrom(translator.use('de'));
     fixture.detectChanges();
     await fixture.whenStable();
     return fixture;
@@ -278,10 +284,6 @@ describe('HeaderComponent', () => {
     const notificationButton = element.querySelector<HTMLButtonElement>(
       'button[aria-controls="header-notification-menu"]',
     );
-    const themeButton = element.querySelector<HTMLButtonElement>(
-      'button[data-header-action="theme"]',
-    );
-    const languageSwitch = element.querySelector('[data-header-action="language"]');
     const userButton = element.querySelector<HTMLButtonElement>(
       'button[aria-controls="header-user-menu"]',
     );
@@ -289,11 +291,8 @@ describe('HeaderComponent', () => {
     expect(header?.classList).toContain('h-14');
     expect(header?.classList).not.toContain('min-h-14');
     expect(workspaceButton?.classList).toContain('h-9');
-    for (const button of [notificationButton, themeButton]) {
-      expect(button?.classList).toContain('h-9');
-      expect(button?.classList).toContain('w-9');
-    }
-    expect(languageSwitch?.classList).toContain('h-9');
+    expect(notificationButton?.classList).toContain('h-9');
+    expect(notificationButton?.classList).toContain('w-9');
     expect(userButton?.classList).toContain('h-9');
   });
   it('zeigt neue Bewertungen und zählt alle drei Meldungsströme in der Glocke', async () => {
@@ -359,5 +358,47 @@ describe('HeaderComponent', () => {
     expect(unreadLink).not.toBeNull();
     expect(unreadLink?.classList.contains('bg-fb-brand-surface')).toBe(false);
     expect(unreadLink?.querySelector('[title="Ungelesen"]')).not.toBeNull();
+  });
+
+  it('zeigt den Benutzer-Avatar mit Flipbase-Gelb und Dropdown-Chevron', async () => {
+    const fixture = await renderHeader();
+    const element = fixture.nativeElement as HTMLElement;
+    const userBtn = element.querySelector<HTMLButtonElement>(
+      'button[aria-controls="header-user-menu"]',
+    );
+    expect(userBtn).not.toBeNull();
+    expect(userBtn?.textContent).toContain('D');
+    expect(userBtn?.textContent).toContain('▾');
+
+    const avatar = userBtn?.querySelector('.bg-\\[\\#fcc601\\]');
+    expect(avatar).not.toBeNull();
+  });
+
+  it('bietet im Benutzer-Dropdown segmentierte Umschalter für Design und Sprache', async () => {
+    const fixture = await renderHeader();
+    fixture.componentInstance.toggleUserDropdown();
+    fixture.detectChanges();
+
+    const element = fixture.nativeElement as HTMLElement;
+    const userMenu = element.querySelector('#header-user-menu');
+    expect(userMenu).not.toBeNull();
+    expect(userMenu?.textContent).toContain('Sprache');
+    expect(userMenu?.textContent).toContain('Design');
+    expect(userMenu?.textContent).not.toContain('Erscheinungsbild');
+
+    const themeGroup = userMenu?.querySelector('[data-header-action="theme"]');
+    const languageGroup = userMenu?.querySelector('[data-header-action="language"]');
+    expect(themeGroup).not.toBeNull();
+    expect(languageGroup).not.toBeNull();
+
+    const themeButtons = themeGroup?.querySelectorAll('button');
+    expect(themeButtons).toHaveLength(2);
+    expect(themeButtons?.[0]?.textContent).toContain('Hell');
+    expect(themeButtons?.[1]?.textContent).toContain('Dunkel');
+
+    const languageButtons = languageGroup?.querySelectorAll('button');
+    expect(languageButtons).toHaveLength(2);
+    expect(languageButtons?.[0]?.textContent?.trim()).toBe('DE');
+    expect(languageButtons?.[1]?.textContent?.trim()).toBe('EN');
   });
 });

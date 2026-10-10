@@ -57,7 +57,7 @@
   </div>
 
   <!-- Arbeitsnavigation: feste fachliche Gruppen statt Arraypositionen. -->
-  <nav aria-label="Bereiche" class="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 py-2">
+  <nav aria-label="Bereiche" class="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pt-2 pb-4">
     @if (vintedContext()) {
       <p class="px-2 pb-3 text-lg font-semibold text-fb-text-primary">Vinted</p>
       <ul class="space-y-0.5">
@@ -99,7 +99,7 @@
           [ngTemplateOutletContext]="{ $implicit: dashboardItem, indented: false }"
         />
 
-        @for (group of navigationGroups; track group.id) {
+        @for (group of navigationGroups(); track group.id) {
           @if (group.items.length > 0) {
             <div
               role="group"
@@ -115,14 +115,12 @@
               </div>
               <ul class="space-y-0.5">
                 @for (item of group.items; track item.path) {
-                  @if (item.path !== '/marketplaces/vinted' || isOperator()) {
-                    <li>
-                      <ng-container
-                        [ngTemplateOutlet]="navigationItem"
-                        [ngTemplateOutletContext]="{ $implicit: item, indented: false }"
-                      />
-                    </li>
-                  }
+                  <li>
+                    <ng-container
+                      [ngTemplateOutlet]="navigationItem"
+                      [ngTemplateOutletContext]="{ $implicit: item, indented: false }"
+                    />
+                  </li>
                 }
               </ul>
             </div>
@@ -130,7 +128,7 @@
         }
       </div>
 
-      <div data-sidebar-lower class="mt-auto shrink-0 pt-4">
+      <div data-sidebar-lower class="mt-auto shrink-0 pt-2">
         @if (pwaService.isInstallable()) {
           <button
             type="button"
@@ -176,7 +174,7 @@
             </li>
           }
         </ul>
-        <div data-sidebar-divider class="mt-3 border-t border-fb-border-subtle pt-2">
+        <div data-sidebar-divider class="mt-1.5 border-t border-fb-border-subtle pt-1.5 pb-2">
           <ng-container
             [ngTemplateOutlet]="navigationItem"
             [ngTemplateOutletContext]="{ $implicit: masterDataItem, indented: false }"
@@ -225,7 +223,15 @@
       (click)="closed.emit()"
       class="flex items-center gap-2 pr-2 py-1 leading-5 rounded-md text-[13px] font-medium text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover transition group border border-transparent"
     >
-      @if (!indented) {
+      @if (item.platform) {
+        <img
+          [ngSrc]="platformLogoFor(item)"
+          width="16"
+          height="16"
+          alt=""
+          class="size-4 shrink-0 object-contain rounded-xs"
+        />
+      } @else if (!indented) {
         <svg
           [lucideIcon]="iconFor(item)"
           class="w-4 h-4 text-fb-text-muted group-hover:text-fb-text-primary shrink-0"
@@ -235,7 +241,7 @@
       <span class="min-w-0 break-words">{{
         itemLabel === item.labelKey ? item.label : itemLabel
       }}</span>
-      @if (item.path === '/marketplaces/vinted') {
+      @if (item.path === '/marketplaces/vinted' || item.path === '/admin') {
         <app-badge class="ml-auto shrink-0" tone="admin">Admin</app-badge>
       }
       @if (item.demo) {

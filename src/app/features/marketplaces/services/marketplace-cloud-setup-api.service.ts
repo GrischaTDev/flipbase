@@ -16,6 +16,8 @@ export const CLOUD_PURCHASE_FAILED_MESSAGE =
   'Die Cloud-IP konnte nicht nachgebucht werden. Bitte wende Dich an den Support.';
 export const CLOUD_IP_LIMIT_MESSAGE =
   'Die Anzahl der Cloud-IPs für Deinen Arbeitsplatz ist ausgeschöpft.';
+export const CLOUD_PRICE_LIMIT_MESSAGE =
+  'Der aktuelle Anbieterpreis liegt über der freigegebenen Preisgrenze. Es wurde keine neue Cloud-IP bestellt.';
 
 @Injectable({ providedIn: 'root' })
 export class MarketplaceCloudSetupApiService {

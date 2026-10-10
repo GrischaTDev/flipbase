@@ -27,6 +27,7 @@ export interface WorkspaceNavigationItem {
   readonly labelKey: string;
   readonly label: string;
   readonly icon: WorkspaceNavigationIcon;
+  readonly platform?: 'vinted' | 'ebay' | 'kleinanzeigen';
   readonly demo?: boolean;
   readonly children?: readonly SubNavigationItem[];
 }
@@ -48,62 +49,52 @@ export const DASHBOARD_NAVIGATION: WorkspaceNavigationItem = {
 /** Die Zuordnung ist explizit und bleibt beim Einfügen neuer Einträge stabil. */
 export const WORKSPACE_NAVIGATION_GROUPS: readonly WorkspaceNavigationGroup[] = [
   {
-    id: 'purchasing',
-    labelKey: 'NAV.GROUP_PURCHASING',
-    label: 'Einkauf',
+    id: 'merchandise',
+    labelKey: 'NAV.GROUP_MERCHANDISE',
+    label: 'Warenwirtschaft',
     items: [
       { path: '/purchases', labelKey: 'NAV.PURCHASES', label: 'Einkäufe', icon: 'shoppingBag' },
-    ],
-  },
-  {
-    id: 'selling',
-    labelKey: 'NAV.GROUP_SELLING',
-    label: 'Verkauf',
-    items: [
-      { path: '/sales', labelKey: 'NAV.SALES', label: 'Verkäufe', icon: 'trendingUp' },
-      {
-        path: '/listings',
-        labelKey: 'NAV.CREATE_LISTING',
-        label: 'Inserate',
-        icon: 'tag',
-      },
-    ],
-  },
-  {
-    id: 'articles',
-    labelKey: 'NAV.GROUP_ARTICLES',
-    label: 'Artikel',
-    items: [
       {
         path: '/catalog',
         labelKey: 'NAV.ARTICLE_OVERVIEW',
-        label: 'Artikel',
+        label: 'Artikel & Bestand',
         icon: 'bookOpen',
       },
-      {
-        path: '/image-optimizer',
-        labelKey: 'NAV.IMAGE_OPTIMIZER',
-        label: 'Bildoptimierer',
-        icon: 'image',
-      },
+      { path: '/sales', labelKey: 'NAV.SALES', label: 'Verkäufe', icon: 'trendingUp' },
     ],
   },
   {
     id: 'marketplaces',
     labelKey: 'NAV.GROUP_MARKETPLACES',
-    label: 'Account-Verwaltung',
+    label: 'Marktplätze',
     items: [
       {
         path: '/marketplaces/vinted',
         labelKey: 'PLATFORMS.VINTED',
         label: 'Vinted',
         icon: 'store',
+        platform: 'vinted',
+      },
+      {
+        path: '/vinted-bot',
+        labelKey: 'NAV.VINTED_FEED',
+        label: 'Vinted Feed',
+        icon: 'bot',
+        children: VINTED_BOT_NAVIGATION,
       },
       {
         path: '/marketplaces/ebay',
         labelKey: 'PLATFORMS.EBAY',
         label: 'eBay',
         icon: 'store',
+        platform: 'ebay',
+      },
+      {
+        path: '/marketplaces/kleinanzeigen',
+        labelKey: 'PLATFORMS.KLEINANZEIGEN',
+        label: 'Kleinanzeigen',
+        icon: 'store',
+        platform: 'kleinanzeigen',
       },
     ],
   },
@@ -143,11 +134,10 @@ export const WORKSPACE_NAVIGATION_GROUPS: readonly WorkspaceNavigationGroup[] = 
         ],
       },
       {
-        path: '/vinted-bot',
-        labelKey: 'NAV.DEAL_MONITOR',
-        label: 'Vinted Bot',
-        icon: 'bot',
-        children: VINTED_BOT_NAVIGATION,
+        path: '/image-optimizer',
+        labelKey: 'NAV.IMAGE_OPTIMIZER',
+        label: 'Bildoptimierer',
+        icon: 'image',
       },
       {
         path: '/deal-calculator',

@@ -59,8 +59,12 @@ bleiben gebunden beziehungsweise gesperrt. API-Fehler brechen die Einrichtung ab
 ohne freie IP erscheint die Kapazitätsmeldung. Ohne API-Token bleibt der manuell
 registrierte Bestand verwendbar. Mit `IPROYAL_AUTO_PURCHASE_ENABLED=1` kann der
 Chromiumworker bei fehlender Kapazität genau eine deutsche Dedicated-ISP-IP für
-30 Tage aus dem Anbieter-Guthaben nachbuchen. Es gilt der aktuelle Anbieterpreis
-ohne Preisobergrenze; automatische Verlängerung bleibt aus. Dauerhafte
+30 Tage über eine hinterlegte IPRoyal-Zahlungsart nachbuchen. Die private
+`IPROYAL_PAYMENT_METHOD_ID` verweist auf einen Eintrag aus `GET /cards`,
+einschließlich dort gelieferter PayPal-Zahlungsarten. Es gibt keinen Rückfall
+auf Guthaben. Das Gesamtpreisangebot einschließlich Steuern darf höchstens
+8 USD betragen; `IPROYAL_MAX_PRICE_USD` kann diese Grenze weiter senken.
+Automatische Verlängerung bleibt aus. Dauerhafte
 Kaufabsichten verhindern wiederholte Zahlungen nach Verbindungsabbrüchen.
 Migration, Aktivierung, Test und Klärung offener Bestellungen stehen in der
 [Anleitung zur Nachbuchung](../../docs/implementation/iproyal-cloud-ip-purchase.md).

@@ -13,6 +13,13 @@ export const MARKETPLACES_ROUTES: Routes = [
       ),
   },
   {
+    path: 'kleinanzeigen',
+    loadComponent: () =>
+      import('./components/kleinanzeigen-workspace/kleinanzeigen-workspace.component').then(
+        (m) => m.KleinanzeigenWorkspaceComponent,
+      ),
+  },
+  {
     path: 'vinted',
     canActivate: [marketplaceAccessGuard],
     loadComponent: () =>

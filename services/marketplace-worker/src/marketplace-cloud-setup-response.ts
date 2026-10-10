@@ -48,9 +48,13 @@ export function parseCloudSetupResult(
     throw new Error('Ungültige Cloud-Einrichtungsantwort');
   const fields = response as Record<string, unknown>;
   if (
-    ['no_capacity', 'purchase_pending', 'purchase_failed', 'limit_reached'].includes(
-      String(fields['status']),
-    ) &&
+    [
+      'no_capacity',
+      'purchase_pending',
+      'purchase_failed',
+      'limit_reached',
+      'price_limit_exceeded',
+    ].includes(String(fields['status'])) &&
     Object.keys(fields).length === 1
   )
     return fields as unknown as CloudSetupResult;

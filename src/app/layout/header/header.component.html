@@ -329,49 +329,6 @@
       }
     </div>
 
-    <!-- Design umschalten (hell / dunkel) -->
-    <button
-      type="button"
-      (click)="themeService.toggleTheme()"
-      data-header-action="theme"
-      class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-fb-border bg-fb-surface text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/60 transition cursor-pointer"
-      [attr.aria-label]="
-        (themeService.isDark() ? 'COMMON.SWITCH_TO_LIGHT' : 'COMMON.SWITCH_TO_DARK') | translate
-      "
-      [title]="(themeService.isDark() ? 'COMMON.THEME_LIGHT' : 'COMMON.THEME_DARK') | translate"
-    >
-      <svg [lucideIcon]="themeService.isDark() ? SunIcon : MoonIcon" class="w-4 h-4"></svg>
-    </button>
-
-    <!-- Language Toggle -->
-    <div
-      data-header-action="language"
-      class="flex h-9 items-center border border-fb-border rounded-lg p-0.5 bg-fb-surface text-xs"
-    >
-      <button
-        type="button"
-        (click)="switchLanguage('de')"
-        class="h-7 px-2 rounded-md font-medium transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/60"
-        [class.bg-fb-border]="currentLanguage() === 'de'"
-        [class.shadow-xs]="currentLanguage() === 'de'"
-        [class.text-fb-text-primary]="currentLanguage() === 'de'"
-        [class.text-fb-text-muted]="currentLanguage() !== 'de'"
-      >
-        DE
-      </button>
-      <button
-        type="button"
-        (click)="switchLanguage('en')"
-        class="h-7 px-2 rounded-md font-medium transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/60"
-        [class.bg-fb-border]="currentLanguage() === 'en'"
-        [class.shadow-xs]="currentLanguage() === 'en'"
-        [class.text-fb-text-primary]="currentLanguage() === 'en'"
-        [class.text-fb-text-muted]="currentLanguage() !== 'en'"
-      >
-        EN
-      </button>
-    </div>
-
     <!-- User Profile Dropdown -->
     <div class="relative" #userContainer>
       <button
@@ -380,14 +337,14 @@
         [attr.aria-expanded]="isUserDropdownOpen()"
         aria-controls="header-user-menu"
         aria-label="Benutzermenü öffnen"
-        class="flex h-9 items-center gap-2 rounded-lg border border-fb-border bg-fb-surface px-1.5 hover:bg-fb-surface-hover hover:border-fb-border-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/60 transition cursor-pointer"
+        class="flex h-9 items-center gap-2 rounded-lg border border-fb-border bg-fb-surface pl-1.5 pr-2.5 hover:bg-fb-surface-hover hover:border-fb-border-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/60 transition cursor-pointer shadow-xs"
       >
         <div
-          class="w-7 h-7 rounded-md bg-fb-brand-surface border border-fb-brand-border text-fb-brand flex items-center justify-center font-bold text-xs shadow-xs"
+          class="size-7 rounded-md bg-[#fcc601] text-black font-black text-xs flex items-center justify-center shadow-xs shrink-0"
         >
           {{ auth.userName().charAt(0).toUpperCase() }}
         </div>
-        <div class="hidden md:flex items-center gap-1.5">
+        <div class="hidden sm:flex items-center gap-1.5">
           <span class="text-xs font-semibold text-fb-text-primary">
             {{ auth.userName() }}
           </span>
@@ -395,16 +352,98 @@
             <app-badge tone="admin" size="sm">Admin</app-badge>
           }
         </div>
+        <span class="text-[10px] text-fb-text-muted">▾</span>
       </button>
 
       @if (isUserDropdownOpen()) {
         <div
           id="header-user-menu"
-          class="fb-popover-enter absolute right-0 z-50 mt-2 w-52 rounded-lg border border-fb-border bg-fb-surface py-1.5 shadow-lg"
+          class="fb-popover-enter absolute right-0 z-50 mt-2 w-60 rounded-xl border border-fb-border bg-fb-surface py-1.5 shadow-xl"
         >
-          <div class="px-3 py-1.5 border-b border-fb-border">
+          <div class="px-3 py-2 border-b border-fb-border">
             <p class="text-xs font-semibold text-fb-text-primary truncate">{{ auth.userName() }}</p>
-            <p class="text-xs text-fb-text-muted truncate">{{ auth.userEmail() }}</p>
+            <p class="text-[11px] text-fb-text-muted truncate">{{ auth.userEmail() }}</p>
+          </div>
+
+          <!-- Sektion Design & Sprache mit echten Segment-Schaltern -->
+          <div class="px-3 py-2 border-b border-fb-border space-y-2.5">
+            <!-- Design -->
+            <div>
+              <span class="text-[11px] font-semibold text-fb-text-muted block mb-1">
+                {{ 'COMMON.THEME' | translate }}
+              </span>
+              <div
+                data-header-action="theme"
+                class="flex h-8 items-center rounded-lg border border-fb-border bg-fb-subtle p-0.5 text-xs"
+                role="group"
+                [attr.aria-label]="'COMMON.THEME' | translate"
+              >
+                <button
+                  type="button"
+                  (click)="setTheme(false)"
+                  class="flex-1 h-7 flex items-center justify-center gap-1.5 rounded-md text-xs font-medium transition cursor-pointer"
+                  [class.bg-fb-surface]="!themeService.isDark()"
+                  [class.text-fb-text-primary]="!themeService.isDark()"
+                  [class.shadow-xs]="!themeService.isDark()"
+                  [class.text-fb-text-muted]="themeService.isDark()"
+                  [attr.aria-pressed]="!themeService.isDark()"
+                >
+                  <svg [lucideIcon]="SunIcon" class="w-3.5 h-3.5"></svg>
+                  <span>{{ 'COMMON.LIGHT' | translate }}</span>
+                </button>
+                <button
+                  type="button"
+                  (click)="setTheme(true)"
+                  class="flex-1 h-7 flex items-center justify-center gap-1.5 rounded-md text-xs font-medium transition cursor-pointer"
+                  [class.bg-fb-surface]="themeService.isDark()"
+                  [class.text-fb-text-primary]="themeService.isDark()"
+                  [class.shadow-xs]="themeService.isDark()"
+                  [class.text-fb-text-muted]="!themeService.isDark()"
+                  [attr.aria-pressed]="themeService.isDark()"
+                >
+                  <svg [lucideIcon]="MoonIcon" class="w-3.5 h-3.5"></svg>
+                  <span>{{ 'COMMON.DARK' | translate }}</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Sprache -->
+            <div>
+              <span class="text-[11px] font-semibold text-fb-text-muted block mb-1">
+                {{ 'COMMON.LANGUAGE' | translate }}
+              </span>
+              <div
+                data-header-action="language"
+                class="flex h-8 items-center rounded-lg border border-fb-border bg-fb-subtle p-0.5 text-xs"
+                role="group"
+                [attr.aria-label]="'COMMON.LANGUAGE' | translate"
+              >
+                <button
+                  type="button"
+                  (click)="switchLanguage('de')"
+                  class="flex-1 h-7 flex items-center justify-center rounded-md text-xs font-medium transition cursor-pointer"
+                  [class.bg-fb-surface]="currentLanguage() === 'de'"
+                  [class.text-fb-text-primary]="currentLanguage() === 'de'"
+                  [class.shadow-xs]="currentLanguage() === 'de'"
+                  [class.text-fb-text-muted]="currentLanguage() !== 'de'"
+                  [attr.aria-pressed]="currentLanguage() === 'de'"
+                >
+                  DE
+                </button>
+                <button
+                  type="button"
+                  (click)="switchLanguage('en')"
+                  class="flex-1 h-7 flex items-center justify-center rounded-md text-xs font-medium transition cursor-pointer"
+                  [class.bg-fb-surface]="currentLanguage() === 'en'"
+                  [class.text-fb-text-primary]="currentLanguage() === 'en'"
+                  [class.shadow-xs]="currentLanguage() === 'en'"
+                  [class.text-fb-text-muted]="currentLanguage() !== 'en'"
+                  [attr.aria-pressed]="currentLanguage() === 'en'"
+                >
+                  EN
+                </button>
+              </div>
+            </div>
           </div>
 
           <a

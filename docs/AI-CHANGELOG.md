@@ -710,6 +710,102 @@ Anwendungsimplementierung, kein Anbieter-Schreibtest, keine Aktivierung,
 Migration, Veröffentlichung oder Änderung der installierten Erweiterung.
 Keine Anwendungstests oder Builds für diese reine Planung ausgeführt.
 
+## 2026-10-10 - Juna - Sidebar- und Header-Feinschliff umsetzen
+
+**Auftrag:**
+
+1. Vinted-Feed in der Sidebar wieder integrieren: `/vinted-bot` (Vinted Feed) unter „Marktplätze“ mit den Unterlinks (`Vinted Feed`, `Suchfilter`, `Favoriten`) einbinden.
+2. Header-Aufräumung & Steuerung: Umschalter für Theme (Hell/Dunkel) und Sprache (DE/EN) aus der oberen Header-Leiste entfernen und ausschließlich im Benutzer-Profil-Dropdown platzieren.
+3. Benutzer-Dropdown Controls & Wording: Kein „Erscheinungsbild“, sondern klare Bezeichnungen „Design“ und „Sprache“. Echte segmentierte Umschalter (Pill-Switches) für `[ ☀️ Hell | 🌙 Dunkel ]` und `[ DE | EN ]`.
+4. Sidebar-Höhenkorrektur unten: Administration und Einstellungen saßen durch den vorherigen 32px-Puffer zu hoch. Abstände gestrafft (`data-sidebar-lower pt-2`, `data-sidebar-divider mt-1.5 pt-1.5 pb-2`, `<nav pb-4>`).
+5. Build- und Startfähigkeit sicherstellen: Unbenutzte Imports entfernen und Build-Fähigkeit (`npm run build`) verifizieren.
+
+**Umsetzung:**
+
+1. Navigationsmodell (`src/app/core/config/workspace-navigation.ts`): `/vinted-bot` mit `icon: 'bot'` und `children: VINTED_BOT_NAVIGATION` unter der Gruppe `marketplaces` integriert. In `SidebarComponent` wird `/vinted-bot` dynamisch an `settings.vinted` gekoppelt.
+2. Übersetzungen (`src/app/core/i18n/translations.ts`): `NAV.VINTED_FEED: 'Vinted Feed'`, `COMMON.THEME: 'Design'`, `COMMON.LANGUAGE: 'Sprache'`, `COMMON.LIGHT: 'Hell'`, `COMMON.DARK: 'Dunkel'` in DE und EN hinterlegt.
+3. Header (`src/app/layout/header/header.component.html`, `header.component.ts`): Standalone-Buttons aus der Kopfzeile entfernt. Im Benutzer-Dropdown segmentierte Umschalter für Design und Sprache mit Signal-Anbindung (`setTheme`, `switchLanguage`) ergänzt. Unbenutzten `DatePipe`-Import bereinigt.
+4. Sidebar-Layout (`src/app/layout/sidebar/sidebar.component.html`): Spacing im unteren Bereich korrigiert (`pt-2`, `mt-1.5 pt-1.5 pb-2`, `nav pb-4`), sodass Administration und Einstellungen bündig und harmonisch am unteren Rand positioniert sind, ohne übermäßig nach oben geschoben zu werden.
+5. Tests & Verifikation: `workspace-navigation.spec.ts`, `sidebar.component.angular.spec.ts`, `sidebar-ideas.angular.spec.ts` und `header.component.angular.spec.ts` sowie die E2E-Browsertests (`marketplace-accounts.spec.ts`, `dashboard-design.spec.ts`, `vinted-inbox-experience.spec.ts`) für die Theme-Umschaltung über das Benutzermenü angepasst.
+
+**Prüfung:**
+
+- Alle Unit- und Angular-Tests fehlerfrei bestanden (38x Angular-Komponententests, 25x Node-Navigationstests).
+- `npm run typecheck` fehlerfrei bestanden.
+- `npm run build` (Angular-Produktionsbau) erfolgreich und ohne Warnungen abgeschlossen.
+- ESLint (`npx eslint`) und Prettier (`npx prettier --check`) auf allen modifizierten Dateien erfolgreich.
+
+## 2026-10-10 - Juna - Header- und Sidebar-Designverfeinerung 1:1 umsetzen
+
+**Auftrag:** Präzise 1:1-Nachbearbeitung von Header und Sidebar entsprechend den Design- und Layoutvorgaben:
+
+1. Header-Polish: Benutzer-Avatar im satten Marken-Gelb `#fcc601` mit fettem schwarzem Initial und Dropdown-Chevron `▾`. DE/EN-Sprachumschalter mit aktiver Marken-Hervorhebung und dezentem Hover. Schnelle Umschalter für Sprache und Theme (Hell/Dunkel) zusätzlich direkt im Benutzer-Dropdown integrieren.
+2. Sidebar-Footer & Administration-Positionierung: Beseitigung des doppelten `pb-8`-Abstands (im `<nav>` entfernt, im Footer als 32px-Puffer gegen den Browser-Link-Tooltip beibehalten). Dadurch sitzt der Punkt „Administration“ nicht mehr zu weit oben. Hinzufügen der Admin-Badge (`app-badge tone="admin"`) am Administration-Eintrag.
+3. Marktplatz-Icons in der Sidebar: Die Einträge Vinted, eBay und Kleinanzeigen unter „Marktplätze“ erhalten ihre jeweiligen Original-Plattform-Logos (`vinted.svg`, `ebay.svg`, `kleinanzeigen.svg`), identisch zu ihrer Darstellung in den Verkäufen.
+
+**Umsetzung:**
+
+1. Navigationsmodell: `WorkspaceNavigationItem` um die optionale Eigenschaft `platform` erweitert und in `WORKSPACE_NAVIGATION_GROUPS` für Vinted, eBay und Kleinanzeigen hinterlegt.
+2. Sidebar: `SidebarComponent` bindet `marketplacePlatformAppearance` ein und rendert für Marktplatz-Einträge mit Plattform-Schlüssel das entsprechende SVG (`size-4 shrink-0 object-contain`). Das Padding des `<nav>` wurde auf `pb-2` angepasst, während der Puffer am Footer (`pb-8`) beibehalten wird. Am Eintrag `Administration` wurde die Admin-Badge ergänzt.
+3. Header: Benutzer-Avatar auf `bg-[#fcc601] text-black font-black` mit Dropdown-Pfeil `▾` aktualisiert. Der DE/EN-Switcher hebt die aktive Sprache mit `bg-[#fcc601] text-black font-bold` hervor. Im Benutzer-Dropdown wurden Direktsteuerungen für Sprache und Design (Hell/Dunkel) integriert.
+
+**Prüfung:**
+
+- 82 Tests der betroffenen Bereiche fehlerfrei bestanden (17x `sidebar.component.angular.spec.ts`, 15x `workspace-navigation.spec.ts`, 10x `sidebar-ideas.angular.spec.ts`, 10x `header.component.angular.spec.ts`, 14x `header-notification-visuals.spec.ts`, 13x `header-notification-actions.spec.ts`, 3x `header-role-and-timer.spec.ts`).
+- Vollständige Vitest-Suite mit 456 Testdateien und 4.735 Tests ohne Fehler bestanden.
+- Typprüfung (`npm run typecheck`), Linter (`npm run lint`) und Prettier-Formatierungsprüfung (`npm run format:check`) erfolgreich.
+
+## 2026-10-09 - Juna - Sidebar-Navigation & Modulare Marktplatz-Steuerung refaktorisieren
+
+**Auftrag:** Die Sidebar-Navigation und Informationsarchitektur intuitiver und modularer gestalten:
+
+1. Warenwirtschaft schärfen: Konsolidierung auf Kern-Wawi (`Einkäufe`, `Artikel & Bestand`, `Verkäufe`). Entfernung des isolierten 1-Item-Headers „Einkauf“ und Ausgliederung von „Inserate“, da Inserate plattformspezifisch gepflegt werden.
+2. Modulare Marktplätze: Neue Navigationsgruppe „Marktplätze“ (Vinted, eBay, Kleinanzeigen). Marktplätze sollen einzeln unter `/settings/marketplaces` aktivierbar/deaktivierbar sein; inaktive Marktplätze verschwinden samt Unterbereichen aus der Sidebar.
+3. Neuer Marktplatz Kleinanzeigen: Einrichtung der Route `/marketplaces/kleinanzeigen` und des zugehörigen Workspace-Hubs.
+4. Browser-Link-Puffer: Hinzufügen einer Pufferzone (`pb-8`) im Footer der Sidebar, damit der temporäre Ziel-URL-Tooltip moderner Browser beim Hovern über Links die Punkte „Einstellungen“ und „Administration“ nicht überdeckt.
+5. Cross-Listing-Konzept: Architektur- und Transferplan für das Übertragen von Inseraten (Vinted ➔ Kleinanzeigen) ausarbeiten.
+
+**Umsetzung:**
+
+1. Reaktivität & Settings: `MarketplaceSettingsService` mit Signals und LocalStorage-Persistenz (`flipbase_marketplace_settings`) für schnelles Umschalten ohne Neuladen.
+2. Navigationsmodell: `WORKSPACE_NAVIGATION_GROUPS` in `workspace-navigation.ts` angepasst (`merchandise`, `marketplaces`, `finances`, `tools`). Unbenutzter Import entfernt.
+3. Sidebar-Filterung: `SidebarComponent` filtert Menügruppen reaktiv per `computed()` unter Einbezug von `MarketplaceSettingsService` und Betreiberstatus. `pb-8` Pufferzone im Sidebar-Footer ergänzt.
+4. Einstellungsseite: `MarketplacesSettingsComponent` unter `/settings/marketplaces` erstellt und in `settings.routes.ts` sowie `SettingsShellComponent` integriert.
+5. Kleinanzeigen-Workspace: `KleinanzeigenWorkspaceComponent` unter `src/app/features/marketplaces/components/kleinanzeigen-workspace/` angelegt und in `marketplaces.routes.ts` geroutet.
+6. Dokumentation & Mockup: Konzeptdokument `docs/superpowers/plans/2026-10-09-cross-marketplace-listing-transfer.md` und interaktives HTML-Mockup im Brain-Ordner erstellt.
+
+**Prüfung:**
+
+- 51 automatisierte Tests bestanden (15x `sidebar.component.angular.spec.ts`, 14x `workspace-navigation.spec.ts`, 10x `sidebar-ideas.angular.spec.ts`, 4x `settings-shell.component.angular.spec.ts`, 3x `marketplace-settings.service.dom.spec.ts`, 3x `settings.routes.spec.ts`, 2x `marketplaces-settings.component.angular.spec.ts`).
+- E2E-Tests in `e2e/marketplace-accounts.spec.ts` und `e2e/vinted-workspace-ui.spec.ts` aktualisiert, sodass Kontoverwaltungstests direkt die vorgesehene Route `/marketplaces/vinted/accounts` ansteuern.
+- Vollständige Typprüfung (`npm run typecheck`) ohne Fehler abgeschlossen.
+- ESLint und Prettier auf allen geänderten und neuen Dateien erfolgreich und fehlerfrei ausgeführt.
+
+## 2026-10-09 - Juna - PayPal-Zahlungsart und 8-USD-Grenze für IPRoyal vorbereiten
+
+**Auftrag:** Neue IPs direkt über eine hinterlegte Zahlungsart statt Guthaben
+bezahlen und das Preisangebot auf höchstens 8 USD je 30-Tage-IP begrenzen.
+
+**Änderung:** Private Zahlungsarten-ID im Worker, lesende Prüfung über
+`GET /cards` und Übergabe als `card_id`. Das echte Anbieter-Konto liefert eine
+hinterlegte PayPal-Zahlungsart über Paddle. Kein Guthaben-Rückfall und keine
+automatische Verlängerung. Preisprüfung einschließlich Steuern vor Kaufabsicht
+und Zahlungsaufruf, mit gesondertem Hinweis bei Überschreitung; die Grenze ist
+weiter senkbar. Die bisher unbegrenzte produktive Nachbuchung wurde während
+der Umstellung ausgeschaltet, ohne offene Cloudarbeit. Neue PayPal-Abbuchung
+und Preisbindung durch den Anbieter bleiben echte Live-Nachweise.
+
+**Prüfung:** Neue Zahlungs-/Preisgrenzentests zunächst am bisherigen Worker
+fehlgeschlagen, danach erfolgreich. Grenze von 8 USD und Überschreitung von
+8,01 USD, fehlende oder ungeeignete Zahlungsart, kein Guthaben-Rückfall sowie
+bestehender Schutz vor doppelten Zahlungen geprüft, auch bei unbezahlter
+PayPal-Bestellung und Neustart. 36 gezielte Workerprüfungen, 45 Angularprüfungen
+und drei Modellprüfungen bestehen. Typprüfung, Format/Lint, Angular-Produktionsbau
+sowie Worker-Containerbau und Modulimport erfolgreich. Der öffentliche Worker
+bleibt erreichbar; anonyme Einrichtung wird abgewiesen. Keine echte Bestellung
+ausgelöst. Der inzwischen veröffentlichte Hauptstand mit der Vinted-Zugriffsprüfung
+wurde integriert; beide Änderungsprotokolle bleiben vollständig erhalten.
+
 ## 2026-10-09 - Juna - Vinted-Zugriff nach gescheitertem Profilabruf prüfen
 
 **Auftrag:** Widersprüchliche Cloud-Anzeige bei Maike Vintage untersuchen und
