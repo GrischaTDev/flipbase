@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import type { AddressInfo } from 'node:net';
 import { MarketplaceBrowserHttpApi } from '../src/marketplace-browser-http-api.ts';
 import type { MarketplaceCloudSetup } from '../src/marketplace-cloud-setup.ts';
+import { CloudSetupBlockedError } from '../src/supabase-marketplace-cloud-setup-store.ts';
 
 const workspaceId = '37100000-0000-4000-8000-000000000011';
 const connectionId = '37100000-0000-4000-8000-000000000021';
@@ -140,6 +141,43 @@ test('setup identity stages verification without invoking normal account writer'
     );
     assert.equal(input.status, 403);
     assert.equal(inputs, 0);
+  } finally {
+    await new Promise<void>((resolve, reject) =>
+      server.close((failure) => (failure ? reject(failure) : resolve())),
+    );
+  }
+});
+
+test('blocked switch is reported as its own reason instead of an IP check failure', async () => {
+  const server = new MarketplaceBrowserHttpApi({
+    users: { userId: async () => userId },
+    broker: {
+      open: async () => sessionId,
+      close: async () => undefined,
+      run: async () => {
+        throw new Error('must not run');
+      },
+    },
+    cloudSetups: setupService({
+      begin: async () => {
+        throw new CloudSetupBlockedError();
+      },
+    }),
+  }).createServer();
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  try {
+    const response = await fetch(
+      `http://127.0.0.1:${(server.address() as AddressInfo).port}/marketplace-browser/cloud-setups/begin`,
+      {
+        method: 'POST',
+        headers: { authorization: 'Bearer fixture', 'content-type': 'application/json' },
+        body: JSON.stringify({ workspaceId, connectionId, requestId: setupId }),
+      },
+    );
+    assert.equal(response.status, 409);
+    const result = await response.json();
+    assert.equal(result.code, 'cloud_switch_blocked');
+    assert.ok(!String(result.error).includes('IP'));
   } finally {
     await new Promise<void>((resolve, reject) =>
       server.close((failure) => (failure ? reject(failure) : resolve())),

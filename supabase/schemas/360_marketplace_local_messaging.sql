@@ -180,6 +180,17 @@ $$;
 revoke all on function public.marketplace_read_local_messages(uuid,uuid,uuid) from public,anon;
 grant execute on function public.marketplace_read_local_messages(uuid,uuid,uuid) to authenticated;
 
+-- Ein abgelaufener Versandversuch klärt sich nicht mehr selbst und darf einen Cloudwechsel nicht dauerhaft sperren.
+create or replace function public.marketplace_local_message_expire_leases(p_workspace_id uuid,p_connection_id uuid)
+returns void language sql volatile security invoker set search_path='' as $$
+  update public.marketplace_local_message_outbox set state='outcome_unknown',error_code='timeout',updated_at=clock_timestamp()
+    where workspace_id=p_workspace_id and connection_id=p_connection_id and execution_mode='local' and state='sending' and lease_expires_at<=clock_timestamp();
+  update public.marketplace_local_message_outbox set state='queued',claim_token=null,lease_expires_at=null,updated_at=clock_timestamp()
+    where workspace_id=p_workspace_id and connection_id=p_connection_id and execution_mode='local' and state='claimed' and lease_expires_at<=clock_timestamp();
+$$;
+revoke all on function public.marketplace_local_message_expire_leases(uuid,uuid) from public,anon,authenticated;
+grant execute on function public.marketplace_local_message_expire_leases(uuid,uuid) to service_role;
+
 create or replace function public.marketplace_local_message_authorized(p_workspace_id uuid,p_connection_id uuid,p_token_hash text)
 returns public.marketplace_local_extension_grants language plpgsql volatile security invoker set search_path='' as $$
 declare v_connection public.marketplace_connections; v_grant public.marketplace_local_extension_grants;

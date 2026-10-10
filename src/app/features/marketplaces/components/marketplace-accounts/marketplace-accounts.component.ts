@@ -18,8 +18,10 @@ import { LoadingIndicatorComponent } from '../../../../shared/components/loading
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
+import { ToastService } from '../../../../shared/components/toast/toast.service';
 import type { MarketplaceConnection } from '../../models/marketplace.models';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
+import { CLOUD_PURCHASE_PENDING_MESSAGE } from '../../services/marketplace-cloud-setup-api.service';
 import { MarketplaceCloudSetupStore } from '../../services/marketplace-cloud-setup.store';
 import { VintedLocalExtensionBridge } from '../../services/vinted-local-extension-bridge';
 import { LucideLink2 } from '@lucide/angular';
@@ -49,6 +51,8 @@ export class MarketplaceAccountsComponent {
   readonly loginPreviewActive = signal(false);
   protected readonly loginIcon = LucideLink2;
   private readonly router = inject(Router);
+  private readonly toast = inject(ToastService);
+  private cloudToastId: number | null = null;
   private readonly workspace = inject(WorkspaceService);
   private readonly auth = inject(AuthService);
   private dialogRevision = 0;
@@ -276,6 +280,18 @@ export class MarketplaceAccountsComponent {
     try {
       const setup = await this.cloud.begin(target);
       if (!this.isCurrent(context, revision)) return;
+      // Ohne offenen Dialog gibt es keinen Bereich für eine Inline-Meldung.
+      const message = this.cloud.error();
+      if (!setup && message && !this.dialog()) {
+        if (this.cloudToastId !== null) this.toast.dismiss(this.cloudToastId);
+        this.cloudToastId = this.toast.error(
+          message === CLOUD_PURCHASE_PENDING_MESSAGE
+            ? 'Cloud-IP wird noch bereitgestellt'
+            : 'Wechsel zur Cloud nicht möglich',
+          message,
+        );
+        this.cloud.clearError();
+      }
       if (setup?.state === 'completed') {
         this.dialogState.set(null);
         await this.router.navigate(['/marketplaces/vinted/overview']);

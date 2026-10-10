@@ -114,8 +114,10 @@ begin
     end if;
     if exists(select 1 from public.marketplace_browser_sessions where workspace_id=p_workspace_id and connection_id=p_connection_id and state in ('active','stopping')) then
       raise exception 'Browsersitzung muss zuerst beendet werden' using errcode='55P03'; end if;
+    -- Nur ein gerade laufender Versand sperrt; alte ungeklärte Nachrichten bleiben unverändert im Verlauf.
+    perform public.marketplace_local_message_expire_leases(p_workspace_id,p_connection_id);
     if exists(select 1 from public.marketplace_operations where workspace_id=p_workspace_id and connection_id=p_connection_id and state in ('queued','running','outcome_unknown'))
-      or exists(select 1 from public.marketplace_local_message_outbox where workspace_id=p_workspace_id and connection_id=p_connection_id and state in ('claimed','sending','outcome_unknown')) then
+      or exists(select 1 from public.marketplace_local_message_outbox where workspace_id=p_workspace_id and connection_id=p_connection_id and state in ('claimed','sending')) then
       raise exception 'Laufende oder ungeklärte Aktion verhindert den Wechsel' using errcode='55P03'; end if;
     select grant_generation,revoked_at into v_generation,v_revoked_at from public.marketplace_local_extension_grants where workspace_id=p_workspace_id and connection_id=p_connection_id;
   end if;
@@ -251,7 +253,8 @@ begin
     elsif p_action='finalize' then
       if v_setup.state not in ('verified','finalizing','completed') then raise exception 'Identitätsprüfung fehlt' using errcode='55000'; end if;
       if v_setup.state<>'completed' then
-        if exists(select 1 from public.marketplace_local_message_outbox where workspace_id=p_workspace_id and connection_id=v_connection.id and state in ('claimed','sending','outcome_unknown'))
+        perform public.marketplace_local_message_expire_leases(p_workspace_id,v_connection.id);
+        if exists(select 1 from public.marketplace_local_message_outbox where workspace_id=p_workspace_id and connection_id=v_connection.id and state in ('claimed','sending'))
           or exists(select 1 from public.marketplace_operations where workspace_id=p_workspace_id and connection_id=v_connection.id and state in ('queued','running','outcome_unknown')) then
           raise exception 'Laufende oder ungeklärte Aktion verhindert den Wechsel' using errcode='55P03'; end if;
         update public.marketplace_cloud_setups set state='finalizing',updated_at=clock_timestamp() where id=v_setup.id returning * into v_setup;
@@ -261,7 +264,7 @@ begin
         if v_setup.state<>'finalizing' or v_setup.verified_external_account_id is null then raise exception 'Abschluss nicht vorbereitet' using errcode='55000'; end if;
         if exists(select 1 from public.marketplace_browser_sessions where workspace_id=p_workspace_id and connection_id=v_connection.id and state in ('active','stopping')) then
           raise exception 'Browserstopp nicht bestätigt' using errcode='55P03'; end if;
-        if exists(select 1 from public.marketplace_local_message_outbox where workspace_id=p_workspace_id and connection_id=v_connection.id and state in ('claimed','sending','outcome_unknown')) then
+        if exists(select 1 from public.marketplace_local_message_outbox where workspace_id=p_workspace_id and connection_id=v_connection.id and state in ('claimed','sending')) then
           raise exception 'Lokale Aktion nicht abgeschlossen' using errcode='55P03'; end if;
         update public.marketplace_local_message_outbox set state='cancelled',error_code='execution_changed',updated_at=clock_timestamp()
           where workspace_id=p_workspace_id and connection_id=v_connection.id and state='queued';
