@@ -1,5 +1,23 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-10 – Juna – Inserat-Entwürfe nur auf Wunsch speichern
+
+**Anlass:** Der Editor speicherte jede Eingabe nach kurzer Pause automatisch und
+wechselte dabei von „Inserat erstellen“ zu „Entwurf bearbeiten“. Beim erneuten
+Öffnen von „Inserat erstellen“ entstand so jedes Mal ein weiterer Entwurf.
+
+**Änderung (Nutzerentscheidung vom 10.10.2026):** Das automatische Speichern
+entfällt. Gespeichert wird nur über „Entwurf speichern“. Die Seite „Inserat
+erstellen“ bleibt danach geöffnet und behält ihren Titel; weiteres Speichern
+aktualisiert denselben Entwurf. „Veröffentlichung vorbereiten“ sichert offene
+Eingaben zuerst und zeigt dann wie bisher nur den gespeicherten Stand. Der
+Hinweis beim Verlassen mit ungespeicherten Eingaben bleibt.
+
+**Prüfungen:** 23 Komponentenfälle des Editors, Typen, Angular-Bau, gemeinsame
+UI-Prüfung, Format und ESLint grün. Alle 23 Browserfälle der Entwürfe laufen
+lokal mit abgefangenen Serverantworten durch; sie klicken jetzt ausdrücklich
+auf Speichern und prüfen, dass ohne Klick kein Entwurf entsteht.
+
 ## 2026-10-10 - Juna - Vinted-Kartenlayout entzerren und Badges auf volle Breite setzen
 
 **Auftrag:** Kritik des Nutzers am Live-Design umsetzen: Badges und Sync-Status waren fälschlicherweise in der rechten Spalte neben dem Avatar verschachtelt, wodurch Badges wie „Erweiterung nicht erreichbar“ in eine neue Zeile umbrachen und unter dem Avatar ein großes schwarzes Loch entstand. Zudem wurden Grammatikfehler („Vor 1 Tagen“) behoben.

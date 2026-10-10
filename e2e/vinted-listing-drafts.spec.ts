@@ -4,6 +4,13 @@ import { accountIds, mockMarketplace, workspaceId } from './support/marketplace-
 import { emptyVintedListingContent } from '../src/app/features/marketplaces/models/vinted-listing-content';
 import { listingCategoryFixture } from './support/vinted-listing-category-fixture';
 
+/** Entwürfe werden nur auf ausdrücklichen Wunsch gespeichert. */
+async function saveDraft(page: Page) {
+  const editor = page.locator('app-vinted-listing-editor');
+  await editor.getByRole('button', { name: 'Entwurf speichern', exact: true }).click();
+  await expect(editor.getByText('In Flipbase gespeichert', { exact: true })).toBeVisible();
+}
+
 test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: 'block' });
 async function mockDrafts(page: Page, planned = false) {
   const pixel = Buffer.from(
@@ -597,6 +604,7 @@ for (const width of [1440, 390])
       await editor.getByRole('button', { name: /^Vinted-Kategorie/ }).click();
       await page.getByRole('combobox', { name: 'Kategorie suchen', exact: true }).fill('Jacken');
       await page.getByRole('option', { name: /Jacken/ }).click();
+      await saveDraft(page);
       await expect.poll(() => state.draft().content.categoryId).toBe(2);
       const opener = editor.getByRole('button', { name: 'Vinted-Angaben auswählen', exact: true });
       await opener.click();
@@ -646,6 +654,7 @@ for (const width of [1440, 390])
       await dialog.getByRole('button', { name: 'Angaben übernehmen', exact: true }).focus();
       await page.keyboard.press('Enter');
       await expect(dialog).not.toBeVisible();
+      await saveDraft(page);
       await expect.poll(() => state.draft().content.sizeId).toBe(208);
       expect(state.draft().content).toMatchObject({
         title: 'Meine Jacke',
@@ -670,6 +679,7 @@ for (const width of [1440, 390])
         editor.getByText('Paketgröße: Bereits festgelegt', { exact: true }),
       ).toBeVisible();
       await editor.getByRole('textbox', { name: 'Größe', exact: true }).fill('XL');
+      await saveDraft(page);
       await expect.poll(() => state.draft().content.sizeId).toBeNull();
       expect(state.draft().content.conditionId).toBe(2);
       await opener.click();
@@ -745,16 +755,19 @@ for (const width of [1440, 390])
       await dialog.getByRole('button', { name: 'Jako', exact: true }).focus();
       await page.keyboard.press('Enter');
       await expect(dialog).not.toBeVisible();
+      await saveDraft(page);
       await expect.poll(() => state.draft().content.brandId).toBe(254956);
       expect(state.draft().content.brandLabel).toBe('Jako');
       await page.reload();
       const brand = editor.getByRole('textbox', { name: 'Marke', exact: true });
       await expect(brand).toHaveValue('Jako');
       await brand.fill('Jako-o');
+      await saveDraft(page);
       await expect.poll(() => state.draft().content.brandLabel).toBe('Jako-o');
       expect(state.draft().content.brandId).toBeNull();
       await opener.click();
       await dialog.getByRole('button', { name: 'Keine Marke', exact: true }).click();
+      await saveDraft(page);
       await expect.poll(() => state.draft().content.brandLabel).toBe('Keine Marke');
       expect(state.draft().content.brandId).toBeNull();
       expect(state.uploads()).toBe(0);
@@ -857,13 +870,20 @@ for (const width of [1440, 390])
         .fill('Guter Zustand.\nOhne Flecken.');
       await editor.getByRole('textbox', { name: 'Verkaufspreis', exact: true }).fill('45,50');
       await editor.getByRole('textbox', { name: 'Marke', exact: true }).fill('Testmarke');
-      await expect(page).toHaveURL(/listing-drafts\/9007199254740999$/);
+      // Ohne ausdrückliches Speichern entsteht kein Entwurf, auch nicht nach einer Pause.
+      await page.waitForTimeout(1200);
+      expect(state.creates).toHaveLength(0);
+      await saveDraft(page);
+      // Nach dem Speichern bleibt „Inserat erstellen“ geöffnet.
+      await expect(page).toHaveURL(/listings\/new$/);
+      await expect(page.getByRole('heading', { name: 'Inserat erstellen' })).toBeVisible();
       await expect.poll(() => state.draft().content.priceCents).toBe(4550);
       expect(state.creates).toHaveLength(1);
       expect(state.creates[0]['p_connection_id']).toBeNull();
       await editor.getByRole('button', { name: /^Vinted-Kategorie/ }).click();
       await page.getByRole('combobox', { name: 'Kategorie suchen', exact: true }).fill('Jacken');
       await page.getByRole('option', { name: /Jacken/ }).click();
+      await saveDraft(page);
       await expect.poll(() => state.draft().content.categoryId).toBe(2);
       expect(state.draft().content.categoryLabel).toBe('Kleidung > Jacken');
       await editor.locator('input[type=file]').setInputFiles([
@@ -883,9 +903,11 @@ for (const width of [1440, 390])
       await page.keyboard.press('Escape');
       await expect(dialog).not.toBeVisible();
       await expect(crop).toBeFocused();
+      await saveDraft(page);
       await expect.poll(() => state.draft().images.length).toBe(2);
       await expect(editor.getByText('In Flipbase gespeichert', { exact: true })).toBeVisible();
       await editor.getByRole('button', { name: 'blue.png nach hinten', exact: true }).click();
+      await saveDraft(page);
       await expect.poll(() => state.draft().images[0]?.fileName).toBe('second.png');
       expect(state.uploads()).toBe(2);
       await editor.getByRole('combobox', { name: 'Inseratvorlage auswählen' }).click();
@@ -917,8 +939,10 @@ for (const width of [1440, 390])
       ]);
       expect(state.templateSaves[0]['p_id']).toBeNull();
       expect(state.templateSaves[0]['p_expected_revision']).toBeNull();
+      await saveDraft(page);
       await expect.poll(() => state.draft().content.title).toBe('Testmarke Lieblingsjacke');
-      await page.reload();
+      expect(state.creates).toHaveLength(1);
+      await page.goto('/marketplaces/vinted/listing-drafts/9007199254740999');
       await expect(editor.getByRole('textbox', { name: 'Titel', exact: true })).toHaveValue(
         'Testmarke Lieblingsjacke',
       );

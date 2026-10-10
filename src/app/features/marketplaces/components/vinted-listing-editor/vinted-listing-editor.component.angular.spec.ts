@@ -139,14 +139,17 @@ afterEach(() => {
   vi.useRealTimers();
 });
 describe('Vinted-Inserateditor', () => {
-  it('opens only the saved revision and rejects a previous preview after an immediate edit', async () => {
-    const { component } = setup();
+  it('saves pending input first, opens only the saved revision and rejects a previous preview after an immediate edit', async () => {
+    const { component, create } = setup();
     await settle();
     component.form.patchValue({ categoryId: '1223', connectionId: 'account-a' });
-    component.openPublication();
+    expect(component.canPreparePublication()).toBe(false);
+    expect(component.canStartPublication()).toBe(true);
+    const opening = component.openPublication();
     expect(component.publication()).toBeNull();
-    await component.save();
-    component.openPublication();
+    await opening;
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(component.dirty()).toBe(false);
     expect(component.publication()?.draft).toEqual(component.draft());
     expect(component.publication()?.account.externalAccountId).toBe('123');
     const accepted = queuedJob(component.draft()!.revision);
@@ -366,19 +369,39 @@ describe('Vinted-Inserateditor', () => {
     expect(component.loading()).toBe(false);
     expect(create).not.toHaveBeenCalled();
   });
-  it('pauses autosaving while the image dialog is open and resumes after closing', async () => {
+  it('saves only on request, never while the image dialog is open', async () => {
     vi.useFakeTimers();
     const { component, create } = setup();
     await settle();
     component.form.controls.title.setValue('Jacke');
-    component.setImageEditing(true);
-    await vi.advanceTimersByTimeAsync(1000);
+    await vi.advanceTimersByTimeAsync(5000);
     expect(create).not.toHaveBeenCalled();
+    expect(component.dirty()).toBe(true);
+    component.setImageEditing(true);
     await component.save();
     expect(create).not.toHaveBeenCalled();
     component.setImageEditing(false);
-    await vi.advanceTimersByTimeAsync(800);
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(create).not.toHaveBeenCalled();
+    await component.save();
     expect(create).toHaveBeenCalledTimes(1);
+  });
+  it('stays on the new listing page after saving and updates the same draft afterwards', async () => {
+    const { component, create } = setup();
+    const router = TestBed.inject(Router);
+    const save = vi.spyOn(TestBed.inject(VintedListingDraftService), 'save');
+    await settle();
+    component.form.controls.title.setValue('Jacke');
+    await component.save();
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(router.navigate).not.toHaveBeenCalled();
+    expect(component.openedSavedDraft()).toBe(false);
+    expect(component.dirty()).toBe(false);
+    component.form.controls.title.setValue('Jacke in Blau');
+    await component.save();
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(save).toHaveBeenCalled();
+    expect(router.navigate).not.toHaveBeenCalled();
   });
   it('keeps entered text after a failed save', async () => {
     const { component, create } = setup();
