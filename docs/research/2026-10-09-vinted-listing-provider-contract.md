@@ -311,6 +311,17 @@ unsichere URL oder ungeladene/versteckte Kachel werden abgelehnt. Die Umsetzung
 ist anhand abgefangener Browseranfragen geprüft. Ein echter neuer Upload ist
 damit weiterhin nicht geprüft; eine bekannte ID allein beweist keine Neuanlage.
 
+Der native Veröffentlichungsbaustein verbindet inzwischen Feldvorbereitung,
+Fotoeingabe, einmaligen Klick auf `upload-form-save-button` und erneute
+Inhalts-/Foto-/Aktivstatusprüfung. Er akzeptiert ausschließlich eine neue
+reservierte `about:blank`-Seite. Eine neue Kennung wird aus einer konkreten
+Artikelroute nach dem Speicherklick gelesen; die Artikelroute ist aus der
+Bestandsprüfung bekannt. Dass Vinted nach einer echten Neuanlage auf diese
+Route wechselt, ist bisher ausschließlich im abgefangenen Browserablauf
+angenommen und noch durch einen freigegebenen Einzelfall zu bestätigen.
+Keine Wiederholung bei fehlender Ergebnisroute. Native Entwürfe bleiben vor
+jeglichem Upload als nicht unterstützt zurückgewiesen.
+
 Der Nutzer bestätigt, dass aktuell kein
 gespeicherter Vinted-Entwurf vorhanden ist. Entwurfs-Ergebnisroute und Kennung
 bleiben ungeprüft. Eine fokussierte Hilfesuche lieferte keinen belastbaren

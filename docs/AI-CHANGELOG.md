@@ -1,5 +1,33 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-10 – Juna – Nativen Veröffentlichungsablauf verbinden
+
+**Arbeit:** Ein Worker-Baustein verwendet ausschließlich eine frisch reservierte
+leere Seite. Er verbindet die echte Feldvorbereitung und Fotoeingabe mit der
+beobachteten Speichern-Schaltfläche. Fotos werden erst nach bestätigtem
+Schreibbeginn hochgeladen; Speichern wird einmal ausgelöst. Eine konkrete
+Kennung aus der anschließenden Vinted-Artikelroute wird erst nach erneutem
+Inhalts-, Foto- und Aktivstatusvergleich bestätigt. Antwortverlust und
+Abweichungen bleiben offen. Bestehende Benutzerseiten werden weder verwendet
+noch geschlossen. Gemerkte Merkmalsauswahlen sind ausschließlich in dieser
+frisch reservierten Maske zulässig; vorhandene Texte/Fotos bleiben geschützt.
+Native Vinted-Entwürfe werden weiterhin vor dem Schreibbeginn abgelehnt,
+solange ihre Ergebnisroute nicht anhand eines konkreten Falls geprüft ist.
+
+**Prüfungen:** Fehlenden Ablauf und Ablehnung gemerkter Auswahlen zuerst durch
+fehlgeschlagene Tests belegt. 24 Inserat-Browserprüfungen mit vollständig
+abgefangenen Anfragen erfolgreich, einschließlich Antwortverlust, falschem
+gespeichertem Preis, fehlendem Aktivstatus, fehlendem Schreibbeginn-ACK,
+falschem Konto und Widerruf zwischen Upload und Speichern. AI-Fotooption
+wird vor und nach dem Speichern verglichen. Alle 566 Workerprüfungen
+erfolgreich, sieben bestehende Fälle ausgelassen. Worker-Typprüfung, Bau,
+Format und ESLint erfolgreich. Keine echten Uploads oder Veröffentlichungen.
+
+**Offen:** Der neue Ablauf ist noch nicht an Browsertransport und Dispatch
+angeschlossen. Die neue Speicherroute und Fotos sind ausschließlich im
+abgefangenen Ablauf geprüft; ein konkret freigegebener Anbieter-Schreibtest
+steht weiterhin aus. Der Gesamtplan bleibt in Arbeit.
+
 ## 2026-10-10 – Juna – Gespeicherte Inseratinhalte und Fotos erneut prüfen
 
 **Arbeit:** Ein lesender Worker-Baustein öffnet die Bearbeitungsmaske einer

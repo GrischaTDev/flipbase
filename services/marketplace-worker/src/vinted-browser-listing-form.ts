@@ -74,6 +74,7 @@ export async function readVintedListingChoices(
   expectedCategoryId: number | null,
   field: VintedListingChoiceField,
   categoryPath: readonly number[] = [],
+  options: { allowRememberedCategory?: boolean } = {},
 ): Promise<VintedListingChoiceSnapshot> {
   assertListingForm(page);
   if (
@@ -90,7 +91,14 @@ export async function readVintedListingChoices(
     throw new Error('Vinted-Konto stimmt nicht überein.');
   const category = await readPopup(page, 'category', categoryPath);
   const categoryId = category.choices.find((choice) => choice.selected)?.id ?? null;
-  if (categoryId !== expectedCategoryId)
+  if (
+    categoryId !== expectedCategoryId &&
+    !(
+      options.allowRememberedCategory === true &&
+      expectedCategoryId === null &&
+      field === 'category'
+    )
+  )
     throw new Error('Die Vinted-Kategorie wurde inzwischen geändert.');
   const result = field === 'category' ? category : await readPopup(page, field);
   assertListingForm(page);

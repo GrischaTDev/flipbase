@@ -146,6 +146,8 @@ export async function prepareVintedListingFields(
   photos: readonly VintedListingPhotoMetadata[],
   categoryPath: readonly number[],
   authorize: () => Promise<void>,
+  /** Nur für eine vom Ausführer frisch geöffnete, exklusiv reservierte Maske. */
+  options: { allowRememberedChoices?: boolean } = {},
 ): Promise<VintedListingCategoryFields> {
   if (
     !/^[1-9][0-9]{0,31}$/.test(accountId) ||
@@ -183,22 +185,31 @@ export async function prepareVintedListingFields(
   ]) {
     const input = page.locator('#content ' + selector);
     if ((await input.count()) > 1) throw invalid();
-    if ((await input.count()) === 1 && (await input.inputValue()).trim()) throw invalid();
+    if (
+      (await input.count()) === 1 &&
+      (await input.inputValue()).trim() &&
+      !(options.allowRememberedChoices === true && selector.startsWith('#'))
+    )
+      throw invalid();
   }
   if ((await page.locator('#content [data-testid^="image-wrapper-"]').count()) > 0) throw invalid();
-  const category = await readVintedListingChoices(page, accountId, null, 'category', categoryPath);
+  const category = await readVintedListingChoices(page, accountId, null, 'category', categoryPath, {
+    allowRememberedCategory: options.allowRememberedChoices === true,
+  });
   const target = category.choices.find((choice) => choice.id === content.categoryId);
   if (!target || target.disabled) throw invalid();
   await check();
   try {
-    await page.locator('#category').click({ timeout: 5000 });
-    for (const parentId of categoryPath)
-      await page
-        .getByRole('button')
-        .and(page.locator('#catalog-' + parentId))
-        .click({ timeout: 5000 });
-    await check();
-    await clickEnabled(choiceLocator(page, 'category', content.categoryId, null));
+    if (!target.selected) {
+      await page.locator('#category').click({ timeout: 5000 });
+      for (const parentId of categoryPath)
+        await page
+          .getByRole('button')
+          .and(page.locator('#catalog-' + parentId))
+          .click({ timeout: 5000 });
+      await check();
+      await clickEnabled(choiceLocator(page, 'category', content.categoryId, null));
+    }
   } finally {
     await page.keyboard.press('Escape');
   }
