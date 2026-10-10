@@ -7,6 +7,10 @@ import type {
   MarketplaceMetrics,
 } from '../models/marketplace.models';
 import type { VintedListingDescription } from '../models/vinted-listing-description';
+import type {
+  VintedListingContent,
+  VintedListingCurrentContent,
+} from '../../../../../supabase/functions/_shared/marketplace-listing-contracts';
 import {
   observeVintedListingMetrics,
   type VintedListingMetricChange,
@@ -997,6 +1001,89 @@ export class MarketplaceAccountStore {
     }
     return result;
   }
+  /** Liest den vollständigen Vinted-Stand eines eigenen Inserats als Grundlage einer Bearbeitung. */
+  async readListingContent(
+    connectionId: string,
+    entryId: string,
+  ): Promise<VintedListingCurrentContent> {
+    const key = this.contextKey();
+    const selection = this.selectionRevision;
+    const connection = this.selectedConnection();
+    const token = this.auth.session()?.access_token;
+    const externalId = this.snapshot()?.publications.items.find(
+      (entry) => entry.id === entryId,
+    )?.externalId;
+    if (
+      !this.canManage() ||
+      connection?.executionMode === 'local' ||
+      connection?.connectionId !== connectionId ||
+      connection.status !== 'connected' ||
+      !connection.externalAccountId ||
+      !token
+    )
+      throw new Error('Wähle zuerst das verbundene Vinted-Konto aus.');
+    if (!externalId)
+      throw new Error('Aktualisiere zuerst die Inserate dieses Kontos, um es zu bearbeiten.');
+    const listing = await this.browserApi.readListingContent(
+      this.scope(connection),
+      entryId,
+      { externalAccountId: connection.externalAccountId, externalId },
+      token,
+    );
+    if (!key || !this.isCurrent(key) || selection !== this.selectionRevision)
+      throw new Error('Die Kontoauswahl hat sich geändert.');
+    return listing;
+  }
+
+  /** Speichert geänderte Angaben bei Vinted; die Lesekopie folgt erst nach der Bestätigung. */
+  async saveListingContent(
+    connectionId: string,
+    entryId: string,
+    base: VintedListingContent,
+    content: VintedListingContent,
+  ): Promise<void> {
+    const key = this.contextKey();
+    const selection = this.selectionRevision;
+    const connection = this.selectedConnection();
+    const token = this.auth.session()?.access_token;
+    if (
+      !this.canManage() ||
+      connection?.executionMode === 'local' ||
+      connection?.connectionId !== connectionId ||
+      connection.status !== 'connected' ||
+      !token
+    )
+      throw new Error('Wähle zuerst das verbundene Vinted-Konto aus.');
+    await this.browserApi.saveListingContent(this.scope(connection), entryId, base, content, token);
+    if (!key || !this.isCurrent(key) || selection !== this.selectionRevision)
+      throw new Error('Die Kontoauswahl hat sich geändert. Prüfe die Änderung bei Vinted.');
+    this.cacheDescription(entryId, { description: content.description, cacheState: 'unconfirmed' });
+    this.accountSnapshot.update((value) =>
+      value && value.connectionId === connectionId
+        ? {
+            ...value,
+            publications: {
+              ...value.publications,
+              items: value.publications.items.map((entry) =>
+                entry.id === entryId
+                  ? {
+                      ...entry,
+                      title: content.title,
+                      text: content.description,
+                      textState: 'loaded',
+                      price: (content.priceCents ?? 0) / 100,
+                      brand: content.brandLabel || null,
+                      size: content.sizeLabel || null,
+                      status: content.conditionLabel || entry.status,
+                    }
+                  : entry,
+              ),
+            },
+          }
+        : value,
+    );
+  }
+
   async readListingEdit(connectionId: string, entryId: string): Promise<VintedListingEditFields> {
     const key = this.contextKey();
     const selection = this.selectionRevision;

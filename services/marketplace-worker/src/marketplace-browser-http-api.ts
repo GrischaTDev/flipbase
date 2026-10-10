@@ -28,7 +28,12 @@ import type { SupabaseVintedProfileCache } from './supabase-vinted-profile-cache
 import type { MarketplaceCloudSetup } from './marketplace-cloud-setup.ts';
 import type { CloudSetupRequest } from './marketplace-cloud-setup-contracts.d.ts';
 import type { VintedListingCategoryAccess } from './vinted-listing-category-access.ts';
-import { parseVintedListingCategoryFields } from './vinted-listing-contracts.ts';
+import {
+  parseVintedListingCategoryFields,
+  parseVintedListingCurrentContent,
+  parseVintedListingEditContent,
+} from './vinted-listing-contracts.ts';
+import type { VintedListingContent } from '../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts';
 
 interface BrowserBroker {
   open(scope: BrowserSessionScope): Promise<string>;
@@ -537,6 +542,145 @@ export class MarketplaceBrowserHttpApi {
           await this.broker.close(scope, currentSessionId);
           sessionId = undefined;
           json(response, 200, { fields });
+        } finally {
+          try {
+            if (sessionId) await this.broker.close(scope, sessionId);
+          } finally {
+            this.inFlight.delete(key);
+          }
+        }
+        return;
+      }
+      if (path === '/marketplace-browser/listings/content/read') {
+        if (this.readOnly) throw new RequestError(403);
+        const edits = this.edits;
+        if (!edits) throw new RequestError(503);
+        const entryId = body['entryId'];
+        // Konto und Inserat bestimmt ausschließlich der eigene Kontoeintrag, nie die Anfrage.
+        if (
+          Object.keys(body).length !== 3 ||
+          Object.keys(body).some(
+            (key) => !['workspaceId', 'connectionId', 'entryId'].includes(key),
+          ) ||
+          typeof entryId !== 'string' ||
+          !uuidPattern.test(entryId)
+        )
+          throw new RequestError(400);
+        const key = `${scope.workspaceId}:${scope.connectionId}:listing_content`;
+        if (this.inFlight.has(key)) throw new RequestError(429);
+        this.inFlight.add(key);
+        let sessionId: string | undefined;
+        try {
+          sessionId = await (this.broker.openAction?.(scope) ?? this.broker.open(scope));
+          const currentSessionId = sessionId;
+          const entry = await edits.entry(scope, 'publication', entryId);
+          const authorize = async () => {
+            const current = await edits.entry(scope, 'publication', entryId);
+            if (current.accountId !== entry.accountId || current.externalId !== entry.externalId)
+              throw new Error('Kontozuordnung geändert');
+            await this.broker.run(scope, currentSessionId, async () => undefined);
+          };
+          const listing = await this.broker.run(scope, currentSessionId, async (browser) => {
+            if (!browser.readListingContent) throw new RequestError(503);
+            return parseVintedListingCurrentContent(
+              await browser.readListingContent(entry.accountId, entry.externalId, authorize),
+              entry.accountId,
+              entry.externalId,
+            );
+          });
+          await authorize();
+          await this.broker.close(scope, currentSessionId);
+          sessionId = undefined;
+          json(response, 200, { listing });
+        } finally {
+          try {
+            if (sessionId) await this.broker.close(scope, sessionId);
+          } finally {
+            this.inFlight.delete(key);
+          }
+        }
+        return;
+      }
+      if (path === '/marketplace-browser/listings/content/save') {
+        if (this.readOnly) throw new RequestError(403);
+        const edits = this.edits;
+        if (!edits) throw new RequestError(503);
+        const entryId = body['entryId'];
+        let base: VintedListingContent, desired: VintedListingContent;
+        try {
+          if (
+            Object.keys(body).length !== 5 ||
+            Object.keys(body).some(
+              (key) => !['workspaceId', 'connectionId', 'entryId', 'base', 'content'].includes(key),
+            ) ||
+            typeof entryId !== 'string' ||
+            !uuidPattern.test(entryId)
+          )
+            throw new Error();
+          base = parseVintedListingEditContent(body['base']);
+          desired = parseVintedListingEditContent(body['content']);
+        } catch {
+          throw new RequestError(400);
+        }
+        const key = `${scope.workspaceId}:${scope.connectionId}:edit`;
+        if (this.inFlight.has(key)) throw new RequestError(429);
+        this.inFlight.add(key);
+        let sessionId: string | undefined;
+        try {
+          sessionId = await (this.broker.openAction?.(scope) ?? this.broker.open(scope));
+          const currentSessionId = sessionId;
+          const entry = await edits.entry(scope, 'publication', entryId);
+          const authorize = async () => {
+            const current = await edits.entry(scope, 'publication', entryId);
+            if (current.accountId !== entry.accountId || current.externalId !== entry.externalId)
+              throw new Error('Kontozuordnung geändert');
+            await this.broker.run(scope, currentSessionId, async () => undefined);
+          };
+          const status = await this.broker.run(scope, currentSessionId, async (browser) => {
+            if (!browser.updateListingContent) throw new RequestError(503);
+            return browser.updateListingContent(
+              entry.accountId,
+              entry.externalId,
+              base,
+              desired,
+              authorize,
+            );
+          });
+          let cachePending = false;
+          if (status === 'confirmed' && this.listingCache) {
+            try {
+              await authorize();
+              cachePending = !(await this.listingCache.save(
+                scope,
+                entryId,
+                entry.externalId,
+                {
+                  title: desired.title,
+                  description: desired.description,
+                  price:
+                    Math.floor(desired.priceCents! / 100) +
+                    ',' +
+                    String(desired.priceCents! % 100).padStart(2, '0'),
+                },
+                true,
+              ));
+            } catch {
+              cachePending = true;
+            }
+          }
+          let cleanup: 'complete' | 'pending' = 'complete';
+          try {
+            await (this.broker.finishAction?.(scope, currentSessionId) ??
+              this.broker.close(scope, currentSessionId));
+          } catch {
+            cleanup = 'pending';
+          }
+          sessionId = undefined;
+          json(response, 200, {
+            status,
+            ...(cleanup === 'pending' ? { cleanup } : {}),
+            ...(cachePending ? { cache: 'pending' } : {}),
+          });
         } finally {
           try {
             if (sessionId) await this.broker.close(scope, sessionId);

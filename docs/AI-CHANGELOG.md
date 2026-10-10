@@ -1,5 +1,47 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-10 – Juna – Bestehendes Vinted-Inserat vollständig lesen
+
+**Arbeit:** Der Zweig `juna/vinted-listing-publishing` wurde gepusht und als
+PR #363 eingereicht. Auf dem neuen Zweig `juna/vinted-listing-edit` beginnt das
+Bearbeiten bestehender Inserate: Ein eigener Leser öffnet die Bearbeitungsmaske
+in einem frisch reservierten Tab, liest Texte, Preis, Kategorie, Marke, Größe,
+Zustand, Farben, Materialien, Paketgröße, Fotos und die KI-Fotokennzeichnung
+samt gesperrter Auswahlwerte und schließt den Tab wieder. Er speichert nichts.
+Konto und Inserat bestimmt der Server aus dem eigenen Kontoeintrag. Die Antwort
+prüft derselbe gemeinsame Prüfer im Worker, im getrennten Browser und in der App;
+Inhalt und ausgewählte Werte müssen zusammenpassen.
+
+**Korrektur:** Die übernommene Testseite lieferte Umlaute und das Eurozeichen
+ohne Zeichensatz aus; der Preis war dadurch nicht lesbar.
+
+**Prüfungen:** 608 Worker-Prüfungen (7 übersprungen), drei neue Browserfälle,
+45 Fälle der App-Schnittstelle, 124 Erweiterungsprüfungen, Typen, Format und
+ESLint grün. Zwei unveränderte Login-Browserfälle schlagen auf diesem
+Windows-Rechner fehl. Keine Anfrage an Vinted, kein Deployment.
+
+**Bearbeiten:** PR #363 ist gemergt und ausgeliefert; ein veralteter
+Seitenleisten-Smoke-Test wurde dafür angepasst. Die Inserat-Detailseite lädt
+jetzt den frischen Vinted-Stand und bietet Marke, Größe, Zustand, Paketgröße,
+Farben und Material aus der aktuellen Auswahl an. Der Worker schreibt nur
+geänderte Felder in einem eigenen Tab, klickt genau einmal auf Speichern und
+bestätigt durch erneutes Lesen. Weicht Vinted vom Ausgangsstand ab, wird nichts
+geschrieben. Nutzerentscheidung vom 10.10.2026: Fotos bleiben in der ersten
+Version unverändert. Die Änderung läuft über den bestehenden direkten
+Bearbeitungsweg statt über die Auftragswarteschlange; dafür ist keine Migration
+nötig.
+
+**Weitere Prüfungen:** 610 Worker-Prüfungen, vier Browserfälle für das Ändern,
+vier Modell-, fünf Komponenten- und 127 Store-/Arbeitsbereichsfälle, Angular-Bau
+und gemeinsame UI-Prüfung grün. Der neue Browserfall der Detailseite besteht bei
+1440 und 390 px einschließlich AXE.
+
+**Offen:** Echter Lese- und Schreibtest an einem ausgewählten Inserat, Fotos
+ändern, Kategorie wechseln, Markensuche im Bearbeitungsformular, lokale
+Ausführung über die Erweiterung und Relist. Die frühere Drei-Felder-Bearbeitung
+bleibt als Rückfall erhalten: Kann die vollständige Maske nicht sicher gelesen
+werden, lassen sich weiterhin Titel, Beschreibung und Preis ändern.
+
 ## 2026-10-10 – Juna – Inserat-Veröffentlichung auf aktuellen Master übernehmen
 
 **Arbeit:** Den lokal geprüften Stand des Inserat-Zweigs auf den neuen Zweig

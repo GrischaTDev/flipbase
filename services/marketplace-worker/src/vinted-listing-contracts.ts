@@ -6,6 +6,7 @@ import type {
   VintedListingChoiceField,
   VintedListingChoiceSnapshot,
   VintedListingContent,
+  VintedListingCurrentContent,
   VintedListingCategoryFields,
   VintedListingPhotoMetadata,
   VintedListingValidationIssue,
@@ -38,6 +39,12 @@ interface ListingRuntime {
   ): MarketplaceListingSnapshot;
   parseChoices(field: VintedListingChoiceField, input: unknown): VintedListingChoiceSnapshot;
   parseCategoryFields(input: unknown, expectedCategoryId: number): VintedListingCategoryFields;
+  parseCurrentContent(
+    input: unknown,
+    accountId: string,
+    externalId: string,
+  ): VintedListingCurrentContent;
+  parseEditContent(input: unknown): VintedListingContent;
   collectChoices(field: VintedListingChoiceField): unknown;
   collectFormMetadata(): Omit<VintedListingCategoryFields, 'categoryId' | 'fields'> & {
     presentFields: readonly VintedListingChoiceField[];
@@ -68,6 +75,8 @@ const runtime = (globalThis as unknown as { FlipbaseVintedListingRuntime: Listin
   .FlipbaseVintedListingRuntime;
 export const parseVintedListingChoices = runtime.parseChoices;
 export const parseVintedListingCategoryFields = runtime.parseCategoryFields;
+export const parseVintedListingCurrentContent = runtime.parseCurrentContent;
+export const parseVintedListingEditContent = runtime.parseEditContent;
 export const collectVintedListingPhotoState = runtime.collectPhotoState;
 export const collectVintedListingFormValues = runtime.collectFormValues;
 export const vintedListingFormMatches = runtime.formMatches;

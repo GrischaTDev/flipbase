@@ -10,6 +10,8 @@ import {
   isVintedListingResult,
   parseVintedListingSnapshot,
   parseVintedListingCategoryFields,
+  parseVintedListingCurrentContent,
+  parseVintedListingEditContent,
 } from './vinted-listing-contracts.ts';
 import {
   createVintedListingPhotoSender,
@@ -199,6 +201,8 @@ export async function executeBrowserAction(
     verify: [1],
     readListingEdit: [2],
     readListingCategory: [3],
+    readListingContent: [2],
+    updateListingContent: [4],
     updateListing: [3],
     readProfileAbout: [1],
     updateProfileAbout: [3],
@@ -243,6 +247,23 @@ export async function executeBrowserAction(
         categoryId,
       );
     }
+    case 'readListingContent': {
+      const accountId = identifier(argumentsList[0]),
+        externalId = identifier(argumentsList[1]);
+      return parseVintedListingCurrentContent(
+        await required(browser.readListingContent)(accountId, externalId, authorize),
+        accountId,
+        externalId,
+      );
+    }
+    case 'updateListingContent':
+      return required(browser.updateListingContent)(
+        identifier(argumentsList[0]),
+        identifier(argumentsList[1]),
+        parseVintedListingEditContent(argumentsList[2]),
+        parseVintedListingEditContent(argumentsList[3]),
+        authorize,
+      );
     case 'submitListing': {
       if (!listing) throw new Error('Inseratübergabe fehlt');
       const snapshotInput = commandRecord(argumentsList[2]);
@@ -790,6 +811,18 @@ export function isolatedBrowserActions(transport: BrowserCommandTransport): Brow
         await run('readListingCategory', [accountId, categoryId, parents], authorize),
         categoryId,
       ),
+    readListingContent: async (accountId, externalId, authorize) =>
+      parseVintedListingCurrentContent(
+        await run('readListingContent', [accountId, externalId], authorize),
+        accountId,
+        externalId,
+      ),
+    updateListingContent: async (accountId, externalId, base, desired, authorize) =>
+      (await run(
+        'updateListingContent',
+        [accountId, externalId, base, desired],
+        authorize,
+      )) as Awaited<ReturnType<NonNullable<BrowserInfo['updateListingContent']>>>,
     updateListing: async (itemId, accountId, fields, authorize) =>
       (await run('updateListing', [itemId, accountId, fields], authorize)) as Awaited<
         ReturnType<NonNullable<BrowserInfo['updateListing']>>
@@ -884,6 +917,14 @@ export function validateBrowserResult(name: BrowserActionName, input: unknown): 
     if (typeof value['categoryId'] !== 'number') throw new Error('Ungültige Vinted-Kategorie');
     return parseVintedListingCategoryFields(input, value['categoryId']);
   }
+  if (name === 'readListingContent') {
+    const value = commandRecord(input);
+    return parseVintedListingCurrentContent(
+      input,
+      identifier(value['externalAccountId']),
+      identifier(value['externalId']),
+    );
+  }
   if (name === 'login' || name === 'verify') {
     const result = text(input, 32);
     if (
@@ -898,7 +939,11 @@ export function validateBrowserResult(name: BrowserActionName, input: unknown): 
       throw new Error('Ungültiges Anmeldeergebnis');
     return result;
   }
-  if (name === 'updateListing' || name === 'updateProfileAbout') {
+  if (
+    name === 'updateListing' ||
+    name === 'updateListingContent' ||
+    name === 'updateProfileAbout'
+  ) {
     if (typeof input !== 'string' || !['confirmed', 'unconfirmed', 'conflict'].includes(input))
       throw new Error('Ungültiges Speicherergebnis');
     return input;

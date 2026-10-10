@@ -8,6 +8,7 @@ import {
 } from '../src/isolated-browser-actions.ts';
 import type { VintedAccountImport } from '../src/vinted-account-import.ts';
 import { VintedInteractionRequiredError } from '../src/vinted-browser-reader.ts';
+import { listingCurrentContentFixture } from './fixtures/vinted-listing-current-content.ts';
 
 const listingCategory = {
   categoryId: 1223,
@@ -83,6 +84,110 @@ test('category read action rejects malformed IDs and category paths before invok
     listingCategory,
   );
   assert.equal(reads, 1);
+});
+
+test('isolated content read uses a fixed action and rejects a response for another item or account', async () => {
+  const calls: unknown[] = [];
+  let listing: unknown = listingCurrentContentFixture();
+  const browser = isolatedBrowserActions({
+    request: async (input) => {
+      calls.push(input);
+      if (input.action === 'start') return { id: '00000000-0000-0000-0000-000000000001' };
+      if (input.action === 'poll') return { kind: 'result', value: listing };
+      return null;
+    },
+  });
+  assert.deepEqual(
+    await browser.readListingContent!('123', '98765', () => Promise.resolve()),
+    listingCurrentContentFixture(),
+  );
+  assert.ok(
+    calls.some((input) =>
+      JSON.stringify(input).includes('"name":"readListingContent","arguments":["123","98765"]'),
+    ),
+  );
+  listing = { ...listingCurrentContentFixture(), externalId: '98766' };
+  await assert.rejects(browser.readListingContent!('123', '98765', () => Promise.resolve()));
+  listing = { ...listingCurrentContentFixture(), externalAccountId: '124' };
+  await assert.rejects(browser.readListingContent!('123', '98765', () => Promise.resolve()));
+});
+test('content read action rejects malformed IDs before invoking the browser', async () => {
+  let reads = 0;
+  const browser = {
+    version: () => 'fixture',
+    readListingContent: () => {
+      reads++;
+      return Promise.resolve(listingCurrentContentFixture());
+    },
+  } as unknown as import('../src/gologin-cloud-browser.ts').BrowserInfo;
+  for (const argumentsList of [
+    ['123', 98765],
+    ['123', '98765/edit'],
+    ['0123', '98765'],
+    ['123', '98765', 'extra'],
+  ])
+    await assert.rejects(
+      executeBrowserAction(
+        browser,
+        { name: 'readListingContent', arguments: argumentsList },
+        () => Promise.resolve(),
+        () => Promise.resolve(),
+      ),
+    );
+  assert.equal(reads, 0);
+  assert.deepEqual(
+    await executeBrowserAction(
+      browser,
+      { name: 'readListingContent', arguments: ['123', '98765'] },
+      () => Promise.resolve(),
+      () => Promise.resolve(),
+    ),
+    listingCurrentContentFixture(),
+  );
+  assert.equal(reads, 1);
+  assert.deepEqual(
+    validateBrowserResult('readListingContent', listingCurrentContentFixture()),
+    listingCurrentContentFixture(),
+  );
+  assert.throws(() =>
+    validateBrowserResult('readListingContent', {
+      ...listingCurrentContentFixture(),
+      cookies: 'private',
+    }),
+  );
+});
+
+test('content update action passes only complete listing content and a fixed result', async () => {
+  const base = listingCurrentContentFixture().content,
+    desired = { ...base, priceCents: 1800 };
+  const calls: unknown[] = [];
+  const browser = {
+    version: () => 'fixture',
+    updateListingContent: (...input: unknown[]) => {
+      calls.push(input.slice(0, 4));
+      return Promise.resolve('confirmed');
+    },
+  } as unknown as import('../src/gologin-cloud-browser.ts').BrowserInfo;
+  const run = (argumentsList: unknown[]) =>
+    executeBrowserAction(
+      browser,
+      { name: 'updateListingContent', arguments: argumentsList },
+      () => Promise.resolve(),
+      () => Promise.resolve(),
+    );
+  for (const argumentsList of [
+    ['123', '98765/edit', base, desired],
+    ['123', '98765', base, { ...desired, script: 'private' }],
+    ['123', '98765', base, { ...desired, priceCents: 0 }],
+    ['123', '98765', base, { ...desired, colorIds: [1, 2, 3], colorLabels: ['a', 'b', 'c'] }],
+    ['123', '98765', null, desired],
+  ])
+    await assert.rejects(run(argumentsList));
+  assert.equal(calls.length, 0);
+  assert.equal(await run(['123', '98765', base, desired]), 'confirmed');
+  assert.deepEqual(calls, [['123', '98765', base, desired]]);
+  assert.equal(validateBrowserResult('updateListingContent', 'conflict'), 'conflict');
+  assert.throws(() => validateBrowserResult('updateListingContent', 'saved'));
 });
 
 test('isolated terminal write proof survives a subsequent revocation without granting another action', async () => {

@@ -49,6 +49,19 @@ export interface VintedListingCategoryFields {
   readonly bump: boolean | null;
 }
 
+/** Vollständiger Iststand eines eigenen Inserats, wie ihn die Bearbeitungsmaske aktuell zeigt. */
+export interface VintedListingCurrentContent {
+  readonly externalId: string;
+  readonly externalAccountId: string;
+  readonly content: VintedListingContent;
+  readonly aiPhoto: boolean;
+  readonly bump: boolean;
+  /** Anbieterbilder in Anzeigereihenfolge; keine privaten Originale. */
+  readonly photoUrls: readonly string[];
+  /** Aktuelle Auswahlwerte samt Sperren, z. B. nicht mehr wechselbare Marken. */
+  readonly schema: VintedListingCategoryFields;
+}
+
 export interface VintedListingPhotoMetadata {
   readonly mimeType: string;
   readonly byteSize: number;

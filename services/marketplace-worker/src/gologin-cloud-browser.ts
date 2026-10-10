@@ -103,6 +103,22 @@ export interface BrowserInfo extends Pick<Browser, 'version'> {
   ): Promise<
     import('../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts').VintedListingCategoryFields
   >;
+  /** Vollständiger Iststand eines eigenen Inserats aus einer eigenen, danach geschlossenen Seite. */
+  readListingContent?(
+    accountId: string,
+    externalId: string,
+    authorize: () => Promise<void>,
+  ): Promise<
+    import('../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts').VintedListingCurrentContent
+  >;
+  /** Ändert ein eigenes Inserat ohne Fotos und Kategorie; bestätigt nur nach erneutem Abruf. */
+  updateListingContent?(
+    accountId: string,
+    externalId: string,
+    base: import('../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts').VintedListingContent,
+    desired: import('../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts').VintedListingContent,
+    authorize: () => Promise<void>,
+  ): Promise<VintedEditResult>;
   updateListing?(
     itemId: string,
     accountId: string,

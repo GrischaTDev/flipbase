@@ -82,7 +82,8 @@ function selectedMatches(
   const selected = field.choices.filter((choice) => choice.selected).map((choice) => choice.id);
   return selected.length === ids.length && selected.every((id) => ids.includes(id));
 }
-async function selectField(
+/** Stellt eine Auswahl in der geöffneten Maske auf genau die gewünschten Werte. */
+export async function selectVintedListingField(
   page: Page,
   expected: VintedListingChoiceSnapshot,
   ids: readonly (number | null)[],
@@ -200,7 +201,7 @@ export async function prepareVintedListingFields(
     .locator('#content input[name="price"]')
     .fill(Math.floor(price / 100) + ',' + String(price % 100).padStart(2, '0'));
   for (const field of schema.fields)
-    await selectField(page, field, wanted(content, field.field), check);
+    await selectVintedListingField(page, field, wanted(content, field.field), check);
   await check();
   const final = await readVintedListingCategoryFields(
     page,

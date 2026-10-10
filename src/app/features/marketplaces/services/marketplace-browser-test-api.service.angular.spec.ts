@@ -4,7 +4,9 @@ import {
   GoLoginApiLimitError,
   MarketplaceBrowserTestApiService,
   VintedInteractionRequiredError,
+  VintedListingChangedError,
 } from './marketplace-browser-test-api.service';
+import { listingCurrentContentFixture } from '../../../../../services/marketplace-worker/test/fixtures/vinted-listing-current-content';
 
 const scope = {
   workspaceId: '25600000-0000-4000-8000-000000000011',
@@ -60,6 +62,61 @@ it('verweigert eine ungültige Kategorie vor dem Abruf und meldet einen veraltet
   await expect(api.readListingCategory(scope, 0, 'token')).rejects.toThrow();
   expect(request).not.toHaveBeenCalled();
   await expect(api.readListingCategory(scope, 1223, 'token')).rejects.toThrow('aktualisiert');
+});
+it('liest den Iststand eines bestehenden Inserats nur für das erwartete Konto und Inserat', async () => {
+  const listing = listingCurrentContentFixture();
+  const expected = { externalAccountId: '123', externalId: '98765' };
+  const request = vi.fn().mockImplementation(() => Promise.resolve(Response.json({ listing })));
+  vi.stubGlobal('fetch', request);
+  expect(await api.readListingContent(scope, id, expected, 'token')).toEqual(listing);
+  expect(request.mock.calls[0][0]).toBe('/marketplace-browser/listings/content/read');
+  expect(JSON.parse(request.mock.calls[0][1].body)).toEqual({ ...scope, entryId: id });
+  await expect(
+    api.readListingContent(scope, id, { ...expected, externalId: '98766' }, 'token'),
+  ).rejects.toThrow('ungültige');
+  await expect(
+    api.readListingContent(scope, id, { ...expected, externalAccountId: '124' }, 'token'),
+  ).rejects.toThrow('ungültige');
+  request.mockResolvedValueOnce(Response.json({ listing, token: 'forbidden' }));
+  await expect(api.readListingContent(scope, id, expected, 'token')).rejects.toThrow('ungültige');
+  request.mockResolvedValueOnce(new Response(null, { status: 404 }));
+  await expect(api.readListingContent(scope, id, expected, 'token')).rejects.toThrow(
+    'aktualisiert',
+  );
+  request.mockResolvedValueOnce(Response.json({ error: 'private detail' }, { status: 409 }));
+  await expect(api.readListingContent(scope, id, expected, 'token')).rejects.toThrow(
+    'konnte nicht gelesen werden',
+  );
+});
+it('meldet geänderte Inseratangaben nur nach Anbieterbestätigung als gespeichert', async () => {
+  const base = listingCurrentContentFixture().content;
+  const content = { ...base, priceCents: 1800 };
+  const request = vi.fn().mockResolvedValue(Response.json({ status: 'confirmed' }));
+  vi.stubGlobal('fetch', request);
+  await expect(api.saveListingContent(scope, id, base, content, 'token')).resolves.toBeUndefined();
+  expect(request.mock.calls[0][0]).toBe('/marketplace-browser/listings/content/save');
+  expect(JSON.parse(request.mock.calls[0][1].body)).toEqual({
+    ...scope,
+    entryId: id,
+    base,
+    content,
+  });
+  request.mockResolvedValueOnce(Response.json({ status: 'conflict' }));
+  await expect(api.saveListingContent(scope, id, base, content, 'token')).rejects.toBeInstanceOf(
+    VintedListingChangedError,
+  );
+  request.mockResolvedValueOnce(Response.json({ status: 'unconfirmed' }));
+  await expect(api.saveListingContent(scope, id, base, content, 'token')).rejects.toThrow(
+    'nicht eindeutig bestätigt',
+  );
+  request.mockRejectedValueOnce(new Error('private connection details'));
+  await expect(api.saveListingContent(scope, id, base, content, 'token')).rejects.toThrow(
+    'nicht eindeutig bestätigt',
+  );
+  request.mockResolvedValueOnce(new Response(null, { status: 400 }));
+  await expect(api.saveListingContent(scope, id, base, content, 'token')).rejects.toThrow(
+    'unvollständig',
+  );
 });
 it('bestätigt einen Gesprächsabruf nur mit passender ID und gültigem Prüfzeitpunkt', async () => {
   const fetchMock = vi

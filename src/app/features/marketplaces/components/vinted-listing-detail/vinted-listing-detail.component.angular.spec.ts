@@ -8,6 +8,7 @@ import { MarketplaceAccountStore } from '../../services/marketplace-account.stor
 import { parseMarketplacePage } from '../../models/marketplace-response';
 import { createMarketplaceFixtures } from '../../testing/marketplace-fixtures';
 import type { MarketplaceEntry } from '../../models/marketplace-read.models';
+import { listingCurrentContentFixture } from '../../../../../../services/marketplace-worker/test/fixtures/vinted-listing-current-content';
 
 const account = createMarketplaceFixtures().connections[0];
 const entry = (id: string, text = '') =>
@@ -67,6 +68,8 @@ function setup(items: MarketplaceEntry[] = []) {
       .fn()
       .mockResolvedValue({ title: 'Fresh', description: 'Fresh', price: '12' }),
     saveListingEdit: vi.fn().mockResolvedValue(undefined),
+    readListingContent: vi.fn().mockImplementation(async () => listingCurrentContentFixture()),
+    saveListingContent: vi.fn().mockResolvedValue(undefined),
   };
   TestBed.configureTestingModule({
     providers: [
@@ -84,6 +87,78 @@ function setup(items: MarketplaceEntry[] = []) {
 afterEach(() => TestBed.resetTestingModule());
 
 describe('Reaktive Inseratdetails', () => {
+  it('belegt die Bearbeitung mit dem frischen Vinted-Stand vor und speichert nur gegen diesen Stand', async () => {
+    const { component, store } = setup([entry('a', 'Alt')]);
+    await settle();
+    await component.edit();
+    const base = listingCurrentContentFixture().content;
+    expect(component.editing()).toBe(true);
+    expect(component.form.getRawValue()).toEqual({
+      title: 'Meine Schuhe',
+      description: 'Sehr gut erhalten.',
+      price: '20,50',
+      brand: '254956',
+      size: '607',
+      condition: '2',
+      package: '2',
+    });
+    expect(component.choiceFields().map((field) => field.label)).toEqual([
+      'Marke',
+      'Größe',
+      'Zustand',
+      'Paketgröße',
+    ]);
+    component.toggle('color', '3', true, 2);
+    expect(component.colors()).toEqual(['1', '2']);
+    component.toggle('color', '2', false, 2);
+    component.toggle('color', '3', true, 2);
+    component.form.patchValue({ title: 'Neue Schuhe', price: '18' });
+    await component.save();
+    expect(store.saveListingContent).toHaveBeenCalledWith(account.connectionId, 'a', base, {
+      ...base,
+      title: 'Neue Schuhe',
+      priceCents: 1800,
+      colorIds: [1, 3],
+      colorLabels: ['Blau', 'Rot'],
+    });
+    expect(component.editing()).toBe(false);
+    expect(component.entry()).toMatchObject({ title: 'Neue Schuhe', price: 18, brand: 'Jako' });
+    expect(component.notice()).toContain('bestätigt');
+  });
+  it('behält bei unlesbarer vollständiger Maske die bisherige Bearbeitung von Titel, Beschreibung und Preis', async () => {
+    const { component, store } = setup([entry('a', 'Alt')]);
+    await settle();
+    store.readListingContent.mockRejectedValueOnce(new Error('private detail'));
+    await component.edit();
+    expect(component.editing()).toBe(true);
+    expect(component.current()).toBeNull();
+    expect(component.choiceFields()).toEqual([]);
+    expect(component.notice()).toContain('nicht alle Angaben');
+    expect(component.error()).toBeNull();
+    component.form.patchValue({ title: 'Neu', price: '15,50' });
+    await component.save();
+    expect(store.saveListingContent).not.toHaveBeenCalled();
+    expect(store.saveListingEdit).toHaveBeenCalledWith(account.connectionId, 'a', {
+      title: 'Neu',
+      description: 'Fresh',
+      price: '15,50',
+    });
+    expect(component.entry()).toMatchObject({ title: 'Neu', price: 15.5 });
+    expect(component.editing()).toBe(false);
+  });
+  it('lässt die Eingabe bei einem Konflikt oder unbestätigtem Speichern offen und meldet keinen Erfolg', async () => {
+    const { component, store } = setup([entry('a', 'Alt')]);
+    await settle();
+    await component.edit();
+    store.saveListingContent.mockRejectedValueOnce(new Error('inzwischen bei Vinted geändert'));
+    component.form.patchValue({ title: 'Neue Schuhe' });
+    await component.save();
+    expect(component.editing()).toBe(true);
+    expect(component.form.controls.title.value).toBe('Neue Schuhe');
+    expect(component.error()).toContain('inzwischen');
+    expect(component.notice()).toBeNull();
+    expect(component.entry()?.title).toBe('a');
+  });
   it('reopenedLoadedEntryUsesConfirmedSessionDescriptionWithoutAnotherProviderRead', async () => {
     const { component, store } = setup([entry('a', 'Alter Datenbanktext')]);
     store.cachedListingDescription.mockReturnValue({
