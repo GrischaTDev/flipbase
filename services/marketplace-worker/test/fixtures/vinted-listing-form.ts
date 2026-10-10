@@ -10,6 +10,7 @@ export async function createVintedListingFormFixture(
     savedPrice?: string;
     active?: boolean;
     noSaveNavigation?: boolean;
+    brandSearch?: 'matching' | 'wrong_label' | 'custom_only';
   } = {},
 ) {
   let writes = 0,
@@ -17,6 +18,7 @@ export async function createVintedListingFormFixture(
     savedBody: string | null = null,
     uploads = 0,
     saves = 0;
+  const brandQueries: string[] = [];
   await page.route('**/*', (route) => {
     const path = new URL(route.request().url()).pathname;
     if (path === '/api/v2/users/current')
@@ -29,6 +31,10 @@ export async function createVintedListingFormFixture(
           'base64',
         ),
       });
+    if (path === '/fixture/brand-search') {
+      brandQueries.push(new URL(route.request().url()).searchParams.get('query') ?? '');
+      return route.fulfill({ json: { ok: true } });
+    }
     if (savedBody && path === '/items/456/edit')
       return route.fulfill({ contentType: 'text/html', body: savedBody });
     if (route.request().method() !== 'GET') writes++;
@@ -61,7 +67,8 @@ export async function createVintedListingFormFixture(
       <input readonly id="category" name="category"><input readonly id="brand" name="brand"><input readonly id="size" name="size"><input readonly id="condition" name="condition"><input readonly id="color" name="color"><input readonly id="material" name="material">
       ${options.unknown ? '<input id="isbn" name="isbn">' : ''}
       <div hidden id="category-options"><button type="button" id="catalog-5">Herren</button><div hidden id="category-leaves"><div role="radio" id="catalog-1223" aria-checked="false"><div class="web_ui__Cell__title">Bomberjacken</div></div></div></div>
-      <div hidden id="brand-options"><div role="radio" id="empty-brand" aria-label="Keine Marke" aria-checked="false">Keine Marke</div></div>
+      <div hidden id="brand-options"><div id="brand-popular"><div role="radio" id="empty-brand" aria-label="Keine Marke" aria-checked="false">Keine Marke</div></div>
+      ${options.brandSearch ? `<input id="brand-search-input" data-testid="brand-search--input" placeholder="Marke suchen"><div id="brand-results" hidden><div role="radio" id="brand-317425" aria-label="Jako-o" aria-checked="false">Jako-o</div>${options.brandSearch === 'custom_only' ? '' : `<div role="radio" id="brand-254956" aria-label="${options.brandSearch === 'wrong_label' ? 'Falsche Marke' : 'Jako'}" aria-checked="false">Jako</div>`}<div role="radio" id="custom-select-brand-radio" aria-checked="false">Jako als Markenname nutzen</div></div>` : ''}</div>
       <div hidden id="size-options"><div role="checkbox" data-testid="size-group-14-grid-option-208" aria-label="M" aria-checked="false" aria-disabled="${options.disabledSize ? 'true' : 'false'}">M</div><div role="checkbox" data-testid="size-group-14-grid-option-209" aria-label="L" aria-checked="false">L</div></div>
       <div hidden id="condition-options"><div role="radio" id="condition-2" aria-checked="false"><div data-testid="condition-2--title">Sehr gut</div></div></div>
       <div hidden id="color-options"><div role="checkbox" id="color-3" aria-checked="false"><div data-testid="color-3--title">Grau</div></div></div>
@@ -73,14 +80,18 @@ export async function createVintedListingFormFixture(
       const fields=['category','brand','size','condition','color','material'];
       const hide=()=>fields.forEach(field=>document.querySelector('#'+field+'-options').hidden=true);
       fields.forEach(field=>{
-        document.querySelector('#'+field).onclick=()=>{hide();document.querySelector('#'+field+'-options').hidden=false;if(field==='category'){document.querySelector('#catalog-5').hidden=false;document.querySelector('#category-leaves').hidden=true;}};
+        document.querySelector('#'+field).onclick=()=>{hide();document.querySelector('#'+field+'-options').hidden=false;if(field==='category'){document.querySelector('#catalog-5').hidden=false;document.querySelector('#category-leaves').hidden=true;}if(field==='brand'&&${!!options.brandSearch}){document.querySelector('#brand-search-input').value='';document.querySelector('#brand-popular').hidden=document.querySelector('#brand').value==='Jako';document.querySelector('#brand-results').hidden=document.querySelector('#brand').value!=='Jako';}};
         document.querySelectorAll('#'+field+'-options [role=radio],#'+field+'-options [role=checkbox]').forEach(node=>node.onclick=()=>{
           if(node.getAttribute('aria-disabled')==='true') return;
-          node.setAttribute('aria-checked',node.getAttribute('aria-checked')!=='true'?'true':'false');
-          document.querySelector('#'+field).value=node.getAttribute('aria-label')||node.textContent;
-          if(!['color','material'].includes(field)) hide();
+          const apply=()=>{node.setAttribute('aria-checked',node.getAttribute('aria-checked')!=='true'?'true':'false');document.querySelector('#'+field).value=node.getAttribute('aria-label')||node.textContent;if(!['color','material'].includes(field)) hide();};
+          if(field==='brand'&&${!!options.brandSearch}) setTimeout(apply,60);else apply();
         });
       });
+      if(${!!options.brandSearch}) document.querySelector('#brand-search-input').oninput=async event=>{
+        document.querySelector('#brand-popular').hidden=true;document.querySelector('#brand-results').hidden=true;
+        await fetch('/fixture/brand-search?query='+encodeURIComponent(event.target.value));
+        setTimeout(()=>document.querySelector('#brand-results').hidden=false,60);
+      };
       document.querySelector('#catalog-5').onclick=()=>{document.querySelector('#catalog-5').hidden=true;document.querySelector('#category-leaves').hidden=false;};
       document.onkeydown=event=>{if(event.key==='Escape') hide();};
       [2,3].forEach(id=>document.querySelector('#package-size-'+id).onclick=()=>{[2,3].forEach(other=>document.querySelector('#package_type_selector_'+other).checked=other===id);});
@@ -108,6 +119,7 @@ export async function createVintedListingFormFixture(
     writes: () => writes,
     uploads: () => uploads,
     saves: () => saves,
+    brandQueries: () => [...brandQueries],
     setSavedBody: (body: string) => {
       savedBody = body;
     },

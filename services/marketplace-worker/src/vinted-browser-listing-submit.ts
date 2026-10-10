@@ -98,6 +98,7 @@ export async function submitVintedListing(
       accountId,
       snapshot.content.categoryId!,
       categoryPath,
+      { brand: snapshot.content },
     );
     await check();
     if (

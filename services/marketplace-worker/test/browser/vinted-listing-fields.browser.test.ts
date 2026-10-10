@@ -13,6 +13,82 @@ const content = {
   materialIds: [149],
   materialLabels: ['Acryl'],
 };
+test('finds an exact native brand outside popular choices and waits for asynchronous selection', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage(),
+      f = await fixture(page, { brandSearch: 'matching' });
+    const result = await prepareVintedListingFields(
+      page,
+      '123',
+      { ...content, brandId: 254956, brandLabel: 'Jako' },
+      snapshot.images,
+      [5],
+      f.authorize,
+    );
+    assert.deepEqual(
+      result.fields
+        .find((field) => field.field === 'brand')
+        ?.choices.filter((choice) => choice.selected)
+        .map((choice) => ({ id: choice.id, label: choice.label })),
+      [{ id: 254956, label: 'Jako' }],
+    );
+    assert.equal(await page.locator('#brand').inputValue(), 'Jako');
+    assert.deepEqual(f.brandQueries(), ['Jako', 'Jako']);
+    assert.equal(f.writes(), 0);
+  } finally {
+    await browser.close();
+  }
+});
+test('does not replace an unknown native brand ID with a similar or free brand label', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    for (const brandSearch of ['wrong_label', 'custom_only'] as const) {
+      const page = await browser.newPage(),
+        f = await fixture(page, { brandSearch });
+      await assert.rejects(
+        prepareVintedListingFields(
+          page,
+          '123',
+          { ...content, brandId: 254956, brandLabel: 'Jako' },
+          snapshot.images,
+          [5],
+          f.authorize,
+        ),
+      );
+      assert.equal(await page.locator('#title').inputValue(), '');
+      assert.equal(await page.locator('#brand').inputValue(), '');
+      assert.equal(f.writes(), 0);
+      await page.close();
+    }
+  } finally {
+    await browser.close();
+  }
+});
+test('lost authority during brand search prevents private content from being filled', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage(),
+      f = await fixture(page, { brandSearch: 'matching' });
+    const authorize = () =>
+      f.brandQueries().length ? Promise.reject(new Error('revoked')) : Promise.resolve();
+    await assert.rejects(
+      prepareVintedListingFields(
+        page,
+        '123',
+        { ...content, brandId: 254956, brandLabel: 'Jako' },
+        snapshot.images,
+        [5],
+        authorize,
+      ),
+      /revoked/,
+    );
+    assert.equal(await page.locator('#title').inputValue(), '');
+    assert.equal(f.writes(), 0);
+  } finally {
+    await browser.close();
+  }
+});
 test('prepares actual category-dependent choices and decimal price without saving or uploading', async () => {
   const browser = await chromium.launch({ headless: true });
   try {

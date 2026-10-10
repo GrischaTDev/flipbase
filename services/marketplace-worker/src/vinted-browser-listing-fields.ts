@@ -10,12 +10,9 @@ import { readVintedAccountIdentity } from './vinted-browser-reader.ts';
 import {
   readVintedListingCategoryFields,
   readVintedListingChoices,
+  openVintedListingChoices,
 } from './vinted-browser-listing-form.ts';
-import {
-  collectVintedListingChoices,
-  parseVintedListingChoices,
-  validateVintedListingSubmission,
-} from './vinted-listing-contracts.ts';
+import { validateVintedListingSubmission } from './vinted-listing-contracts.ts';
 
 function invalid(): Error {
   return new Error('Die Vinted-Inseratangaben konnten nicht übernommen werden.');
@@ -94,12 +91,13 @@ async function selectField(
   for (let step = 0; step < 8; step++) {
     await check();
     try {
-      if (expected.field !== 'package')
-        await page.locator('#' + expected.field).click({ timeout: 5000 });
-      const actual = parseVintedListingChoices(
-        expected.field,
-        await page.evaluate(collectVintedListingChoices, expected.field),
-      );
+      const brand =
+        expected.field === 'brand'
+          ? expected.choices.find((choice) => ids.includes(choice.id))
+          : undefined;
+      const actual = await openVintedListingChoices(page, expected.field, [], {
+        brand: brand ? { brandId: brand.id, brandLabel: brand.label } : undefined,
+      });
       if (
         actual.sizeGroupId !== expected.sizeGroupId ||
         ids.some((id) => {
@@ -119,6 +117,15 @@ async function selectField(
       if (!change || change.disabled) throw invalid();
       await check();
       await clickEnabled(choiceLocator(page, expected.field, change.id, actual.sizeGroupId));
+      if (expected.field === 'brand')
+        await page.waitForFunction(
+          (label) => {
+            const input = document.querySelector('#content #brand');
+            return input instanceof HTMLInputElement && input.value === label;
+          },
+          change.label,
+          { timeout: 5000 },
+        );
     } finally {
       if (expected.field !== 'package') await page.keyboard.press('Escape');
     }
@@ -221,6 +228,7 @@ export async function prepareVintedListingFields(
     accountId,
     content.categoryId,
     categoryPath,
+    { brand: content },
   );
   if (validateVintedListingSubmission(content, photos, schema).length > 0) throw invalid();
   await check();
@@ -240,6 +248,7 @@ export async function prepareVintedListingFields(
     accountId,
     content.categoryId,
     categoryPath,
+    { brand: content },
   );
   if (
     validateVintedListingSubmission(content, photos, final).length > 0 ||

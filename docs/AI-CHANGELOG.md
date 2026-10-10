@@ -1,5 +1,28 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-10 – Juna – Gewählte Vinted-Marke außerhalb der Vorschläge finden
+
+**Arbeit:** Fehlt die gewählte Markenkennung in den sichtbaren Vorschlägen,
+verwendet der native Veröffentlichungsablauf die beobachtete Vinted-Markensuche.
+Er wartet auf genau diese Kennung und prüft die unveränderte Bezeichnung.
+Ähnliche Namen und freie Markentexte ersetzen keinen Treffer. Nach Auswahl
+wird die asynchrone Aktualisierung des Markenfeldes abgewartet. Feldvorbereitung,
+letzte Prüfung vor dem Speichern und frischer gespeicherter Inhaltsbeleg
+verwenden dieselbe Auswahlhilfe.
+
+**Prüfungen:** Fehlende Suche zunächst mit einer Marke außerhalb der Vorschläge
+belegt. Drei neue Browserfälle prüfen den tatsächlichen Treffer, ähnliche/freie
+Marken und verlorene Freigabe während der Suche. Der komplette native
+Veröffentlichungstest prüft zusätzlich die gespeicherte Marke. Alle 28
+Browserprüfungen mit abgefangenen Anfragen und 579 Workerprüfungen erfolgreich;
+sieben bestehende Workerfälle ausgelassen. Typprüfung, Bau, Format und ESLint
+erfolgreich. Beide Testcontainer gebaut und sieben Inseratmodule jeweils ohne
+Netzwerk geladen. Keine echte Vinted-Aktion, Schema- oder Produktionsänderung.
+
+**Offen:** Die Markenauswahl im Flipbase-Editor wird als nächster Schritt
+angeschlossen. Weitere Merkmale, lokale Ausführung, native Vinted-Entwürfe,
+vollständige Bearbeitung und Relist bleiben Bestandteil des offenen Gesamtplans.
+
 ## 2026-10-10 – Juna – Inserataufträge automatisch im Editor aktualisieren
 
 **Arbeit:** Der Auftragsverlauf empfängt private Änderungsmeldungen für seinen

@@ -13,6 +13,7 @@ test('publishing writes once after Begin and confirms only the saved content, ph
   try {
     for (const options of [
       {},
+      { brandSearch: 'matching' as const },
       { savedPrice: '11,00' },
       { active: false },
       { noSaveNavigation: true },
@@ -25,7 +26,16 @@ test('publishing writes once after Begin and confirms only the saved content, ph
         page,
         '123',
         'publish',
-        listingClaimFixture.snapshot,
+        options.brandSearch
+          ? {
+              ...listingClaimFixture.snapshot,
+              content: {
+                ...listingClaimFixture.snapshot.content,
+                brandId: 254956,
+                brandLabel: 'Jako',
+              },
+            }
+          : listingClaimFixture.snapshot,
         () => {
           begin++;
           assert.equal(f.writes(), 0);
@@ -45,7 +55,13 @@ test('publishing writes once after Begin and confirms only the saved content, ph
       assert.equal(begin, 1);
       assert.equal(f.uploads(), 1);
       assert.equal(f.saves(), 1);
-      assert.equal(result.outcome, Object.keys(options).length ? 'outcome_unknown' : 'confirmed');
+      assert.equal(
+        result.outcome,
+        options.savedPrice || options.active === false || options.noSaveNavigation
+          ? 'outcome_unknown'
+          : 'confirmed',
+      );
+      if (options.brandSearch) assert.deepEqual(f.brandQueries(), ['Jako', 'Jako']);
       if (result.outcome === 'confirmed') {
         assert.equal(result.externalId, '456');
         assert.equal(result.externalAccountId, '123');

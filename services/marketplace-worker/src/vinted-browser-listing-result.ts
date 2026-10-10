@@ -49,6 +49,7 @@ export async function verifyVintedListingSavedContent(
     accountId,
     snapshot.content.categoryId,
     categoryPath,
+    { brand: snapshot.content },
   );
   await check(true);
   const values = await page.evaluate(collectVintedListingFormValues);

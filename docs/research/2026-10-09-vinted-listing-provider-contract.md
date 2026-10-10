@@ -350,6 +350,14 @@ keinen bestätigten Markentreffer ersetzen. Nach Auswahl des tatsächlichen
 asynchron. Es wurden keine Texte/Fotos eingegeben oder gespeichert. Der eigene
 Recherchetab wurde anschließend geschlossen; das Benutzerformular blieb offen.
 
+Die native Auswahlhilfe verwendet dieses Suchfeld jetzt, wenn die aufgenommene
+Markenkennung in den Vorschlägen fehlt. Sie wartet auf genau die fehlende
+Kennung, bevor sie aktuelle Optionen liest, und gleicht Kennung und Bezeichnung
+vor der Auswahl ab. Nach dem Klick wartet sie auf die asynchrone Aktualisierung
+von `#brand`. Ähnliche und freie Markenoptionen bleiben ungeeignet. Ein
+abgefangener kompletter Veröffentlichungsablauf bestätigt auch die frisch
+gespeicherte Marke; der echte Anbieter-Schreibfall steht weiterhin aus.
+
 ## Prüfungen dieser Grundlage
 
 - Produktionsbau und TypeScript-Prüfung erfolgreich; bestehende Warnungen
