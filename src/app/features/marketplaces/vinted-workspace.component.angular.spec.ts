@@ -28,6 +28,7 @@ import { VintedMessagesComponent } from './components/vinted-messages/vinted-mes
 import { VintedOfferActionsComponent } from './components/vinted-offer-actions/vinted-offer-actions.component';
 import { VintedListingsComponent } from './components/vinted-listings/vinted-listings.component';
 import { VintedListingMetricsComponent } from './components/vinted-listings/vinted-listing-metrics.component';
+import { VintedWardrobeStatisticsComponent } from './components/vinted-wardrobe-statistics/vinted-wardrobe-statistics.component';
 import { VintedAccountContentComponent } from './components/vinted-account-content/vinted-account-content.component';
 import { VintedProfileEditorComponent } from './components/vinted-profile-editor/vinted-profile-editor.component';
 import { VintedListingDetailComponent } from './components/vinted-listing-detail/vinted-listing-detail.component';
@@ -196,6 +197,10 @@ beforeAll(async () => {
     {
       type: VintedListingMetricsComponent,
       path: 'src/app/features/marketplaces/components/vinted-listings/vinted-listing-metrics.component.ts',
+    },
+    {
+      type: VintedWardrobeStatisticsComponent,
+      path: 'src/app/features/marketplaces/components/vinted-wardrobe-statistics/vinted-wardrobe-statistics.component.ts',
     },
     ...shared.map(([type, path]) => ({ type, path: `src/app/shared/components/${path}.ts` })),
     { type: ModalDialogDirective, path: 'src/app/shared/directives/modal-dialog.directive.ts' },

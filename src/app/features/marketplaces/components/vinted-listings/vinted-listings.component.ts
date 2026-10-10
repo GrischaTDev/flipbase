@@ -19,6 +19,7 @@ import { ProductThumbnailComponent } from '../../../../shared/components/product
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { VintedListingMetricsComponent } from './vinted-listing-metrics.component';
 import { createVintedListingMetricDisplay } from './vinted-listing-metric-display';
+import { VintedWardrobeStatisticsComponent } from '../vinted-wardrobe-statistics/vinted-wardrobe-statistics.component';
 
 @Component({
   selector: 'app-vinted-listings',
@@ -31,6 +32,7 @@ import { createVintedListingMetricDisplay } from './vinted-listing-metric-displa
     CustomSelectComponent,
     ProductThumbnailComponent,
     VintedListingMetricsComponent,
+    VintedWardrobeStatisticsComponent,
   ],
   templateUrl: './vinted-listings.component.html',
   providers: [MarketplaceListingStatisticsStore],

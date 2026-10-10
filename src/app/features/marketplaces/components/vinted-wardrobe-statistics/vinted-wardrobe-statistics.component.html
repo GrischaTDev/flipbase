@@ -1,0 +1,316 @@
+<div role="region" aria-label="Performance-Statistiken des Kleiderschranks" class="space-y-4">
+  <!-- Obere Steuerungs- und KPI-Leiste -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <!-- KPI-Karten für Aufrufe und Favoriten -->
+    <div class="flex items-center gap-3">
+      <!-- KPI 1: Aufrufe (Views) -->
+      <div
+        class="flex items-center gap-3 rounded-2xl border border-fb-line bg-fb-surface px-4 py-3 shadow-xs"
+      >
+        <div
+          class="flex size-10 shrink-0 items-center justify-center rounded-xl border border-teal-500/20 bg-teal-500/15 text-teal-400"
+        >
+          <svg lucideEye class="size-5" aria-hidden="true"></svg>
+        </div>
+        <div>
+          <p class="text-xl font-bold tracking-tight text-fb-text-primary tabular-nums">
+            {{ data().totalViews }}
+          </p>
+          <p class="text-xs text-fb-text-secondary">Aufrufe</p>
+        </div>
+      </div>
+
+      <!-- KPI 2: Favoriten (Likes) -->
+      <div
+        class="flex items-center gap-3 rounded-2xl border border-fb-line bg-fb-surface px-4 py-3 shadow-xs"
+      >
+        <div
+          class="flex size-10 shrink-0 items-center justify-center rounded-xl border border-rose-500/20 bg-rose-500/15 text-rose-400"
+        >
+          <svg lucideHeart class="size-5" aria-hidden="true"></svg>
+        </div>
+        <div>
+          <p class="text-xl font-bold tracking-tight text-fb-text-primary tabular-nums">
+            {{ data().totalFavorites }}
+          </p>
+          <p class="text-xs text-fb-text-secondary">Favoriten</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rechts: Zeitachsen-Auswahl & Diagramm-Umschalter -->
+    <div class="flex items-center gap-3 sm:ml-auto">
+      <!-- Zeitfenster Segment-Buttons -->
+      <div
+        class="inline-flex rounded-xl border border-fb-line bg-fb-bg p-1 text-xs font-medium"
+        role="group"
+        aria-label="Zeitfenster auswählen"
+      >
+        <button
+          type="button"
+          (click)="setTimeframe('24h')"
+          class="rounded-lg px-3 py-1.5 transition-all"
+          [class.bg-white]="timeframe() === '24h'"
+          [class.text-black]="timeframe() === '24h'"
+          [class.font-semibold]="timeframe() === '24h'"
+          [class.shadow-xs]="timeframe() === '24h'"
+          [class.text-fb-text-secondary]="timeframe() !== '24h'"
+          [class.hover:text-fb-text-primary]="timeframe() !== '24h'"
+        >
+          24 Stunden
+        </button>
+        <button
+          type="button"
+          (click)="setTimeframe('7d')"
+          class="rounded-lg px-3 py-1.5 transition-all"
+          [class.bg-white]="timeframe() === '7d'"
+          [class.text-black]="timeframe() === '7d'"
+          [class.font-semibold]="timeframe() === '7d'"
+          [class.shadow-xs]="timeframe() === '7d'"
+          [class.text-fb-text-secondary]="timeframe() !== '7d'"
+          [class.hover:text-fb-text-primary]="timeframe() !== '7d'"
+        >
+          7 Tage
+        </button>
+        <button
+          type="button"
+          (click)="setTimeframe('30d')"
+          class="rounded-lg px-3 py-1.5 transition-all"
+          [class.bg-white]="timeframe() === '30d'"
+          [class.text-black]="timeframe() === '30d'"
+          [class.font-semibold]="timeframe() === '30d'"
+          [class.shadow-xs]="timeframe() === '30d'"
+          [class.text-fb-text-secondary]="timeframe() !== '30d'"
+          [class.hover:text-fb-text-primary]="timeframe() !== '30d'"
+        >
+          30 Tage
+        </button>
+      </div>
+
+      <!-- Diagramm ausblenden / einblenden Toggle -->
+      <button
+        type="button"
+        (click)="toggleCollapse()"
+        role="switch"
+        [attr.aria-checked]="!collapsed()"
+        class="inline-flex items-center gap-2 rounded-xl border border-fb-line bg-fb-surface px-3 py-1.5 text-xs font-medium text-fb-text-primary transition-colors hover:bg-fb-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
+      >
+        <span>{{ collapsed() ? 'Diagramm einblenden' : 'Diagramm ausblenden' }}</span>
+        <span
+          class="relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors"
+          [class.bg-emerald-500]="!collapsed()"
+          [class.bg-zinc-700]="collapsed()"
+          aria-hidden="true"
+        >
+          <span
+            class="inline-block h-3 w-3 transform rounded-full bg-white transition-transform"
+            [class.translate-x-3.5]="!collapsed()"
+            [class.translate-x-0.5]="collapsed()"
+          ></span>
+        </span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Ausklappbarer Diagrammbereich -->
+  @if (!collapsed()) {
+    <div class="space-y-3 rounded-2xl border border-fb-line bg-fb-surface p-4 sm:p-5 shadow-sm">
+      <!-- Obere Leiste im Diagramm: Legende & Spitzenzeit-Badge -->
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <!-- Legende -->
+        <div class="flex items-center gap-4 text-xs">
+          <div class="flex items-center gap-1.5">
+            <span
+              class="size-2.5 rounded-full bg-teal-400 shadow-[0_0_8px_rgba(45,212,191,0.6)]"
+            ></span>
+            <span class="font-medium text-fb-text-secondary">Aufrufe (Views)</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span
+              class="size-2.5 rounded-full bg-rose-400 shadow-[0_0_8px_rgba(251,113,133,0.6)]"
+            ></span>
+            <span class="font-medium text-fb-text-secondary">Favoriten (Herzen)</span>
+          </div>
+        </div>
+
+        <!-- Spitzenzeit-Hinweis -->
+        <div
+          class="inline-flex items-center gap-1.5 rounded-full border border-amber-500/25 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-300"
+        >
+          <svg lucideLightbulb class="size-3.5 shrink-0 text-amber-400" aria-hidden="true"></svg>
+          <span>{{ data().insightText }}</span>
+        </div>
+      </div>
+
+      <!-- SVG-Diagramm Leinwand mit Tooltip -->
+      <div
+        class="relative w-full overflow-hidden rounded-xl border border-fb-line bg-[#0d1217] p-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
+        tabindex="0"
+        role="img"
+        [attr.aria-label]="
+          'Performance-Diagramm: ' +
+          (activePoint()?.fullLabel ?? '') +
+          ', ' +
+          (activePoint()?.views ?? 0) +
+          ' Aufrufe, ' +
+          (activePoint()?.favorites ?? 0) +
+          ' Favoriten'
+        "
+        (keydown)="onKeyDown($event)"
+      >
+        <!-- Schwebender Tooltip -->
+        @if (activePoint(); as pt) {
+          <div
+            class="pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-full rounded-xl border border-[#2d3b4e] bg-[#1a232f] px-3 py-2 text-xs shadow-xl transition-all duration-150"
+            [style.left.%]="tooltipLeftPercent()"
+            [style.top.px]="pt.viewsY - 12"
+          >
+            <p class="mb-0.5 font-bold text-white">{{ pt.label }}:</p>
+            <div class="flex items-center gap-2">
+              <span class="font-semibold text-teal-400 tabular-nums">{{ pt.views }} Aufrufe</span>
+              <span class="font-semibold text-rose-400 tabular-nums"
+                >{{ pt.favorites }} Favoriten</span
+              >
+            </div>
+          </div>
+        }
+
+        <!-- SVG-Grafik -->
+        <svg
+          #svgRef
+          class="block h-56 w-full cursor-crosshair select-none sm:h-64"
+          [attr.viewBox]="'0 0 ' + chartWidth + ' ' + chartHeight"
+          preserveAspectRatio="none"
+          (mousemove)="onMouseMove($event, svgRef)"
+          (mouseleave)="onMouseLeave()"
+        >
+          <defs>
+            <linearGradient id="wardrobeViewsGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#2dd4bf" stop-opacity="0.35" />
+              <stop offset="100%" stop-color="#2dd4bf" stop-opacity="0.0" />
+            </linearGradient>
+            <linearGradient id="wardrobeFavsGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#fb7185" stop-opacity="0.25" />
+              <stop offset="100%" stop-color="#fb7185" stop-opacity="0.0" />
+            </linearGradient>
+          </defs>
+
+          <!-- Y-Achsen-Rasterlinien & Beschriftungen -->
+          @for (step of yAxisSteps(); track step.val) {
+            <line
+              [attr.x1]="chartMargin.left"
+              [attr.y1]="step.y"
+              [attr.x2]="chartWidth - chartMargin.right"
+              [attr.y2]="step.y"
+              stroke="#1e293b"
+              stroke-dasharray="3 3"
+              stroke-width="1"
+            />
+            <text
+              [attr.x]="chartMargin.left - 8"
+              [attr.y]="step.y + 4"
+              text-anchor="end"
+              class="select-none fill-zinc-500 font-mono text-[10px] tabular-nums"
+            >
+              {{ step.val }}
+            </text>
+          }
+
+          <!-- Flächenverläufe -->
+          <path [attr.d]="data().viewsAreaPath" fill="url(#wardrobeViewsGrad)" class="chart-path" />
+          <path [attr.d]="data().favsAreaPath" fill="url(#wardrobeFavsGrad)" class="chart-path" />
+
+          <!-- Spline-Kurven -->
+          <path
+            [attr.d]="data().viewsPath"
+            fill="none"
+            stroke="#2dd4bf"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            class="chart-path"
+          />
+          <path
+            [attr.d]="data().favsPath"
+            fill="none"
+            stroke="#fb7185"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            class="chart-path"
+          />
+
+          <!-- Vertikale Leitlinie & Datenpunkte des aktiven Zeitpunkts -->
+          @if (activePoint(); as pt) {
+            <line
+              [attr.x1]="pt.x"
+              [attr.y1]="chartMargin.top"
+              [attr.x2]="pt.x"
+              [attr.y2]="baselineY"
+              stroke="#475569"
+              stroke-dasharray="3 3"
+              stroke-width="1.5"
+            />
+            <circle
+              [attr.cx]="pt.x"
+              [attr.cy]="pt.viewsY"
+              r="5"
+              fill="#2dd4bf"
+              stroke="#0d1217"
+              stroke-width="2"
+              class="chart-dot"
+            />
+            <circle
+              [attr.cx]="pt.x"
+              [attr.cy]="pt.favsY"
+              r="5"
+              fill="#fb7185"
+              stroke="#0d1217"
+              stroke-width="2"
+              class="chart-dot"
+            />
+          }
+
+          <!-- X-Achsen Beschriftungen -->
+          @for (pt of data().points; track pt.id) {
+            <text
+              [attr.x]="pt.x"
+              [attr.y]="chartHeight - 10"
+              text-anchor="middle"
+              class="select-none font-sans text-[11px]"
+              [class.fill-white]="pt.id === activePoint()?.id"
+              [class.font-semibold]="pt.id === activePoint()?.id"
+              [class.fill-zinc-400]="pt.id !== activePoint()?.id"
+            >
+              {{ pt.label }}
+            </text>
+          }
+        </svg>
+      </div>
+
+      <!-- Zugängliche Datentabelle für Bildschirmleser (WCAG AA konform) -->
+      <table class="sr-only">
+        <caption>
+          Messdaten für
+          {{
+            timeframe() === '24h' ? '24 Stunden' : timeframe() === '7d' ? '7 Tage' : '30 Tage'
+          }}
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">Zeitpunkt</th>
+            <th scope="col">Aufrufe</th>
+            <th scope="col">Favoriten</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (pt of data().points; track pt.id) {
+            <tr>
+              <td>{{ pt.fullLabel }}</td>
+              <td>{{ pt.views }}</td>
+              <td>{{ pt.favorites }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>
