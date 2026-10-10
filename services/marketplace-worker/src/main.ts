@@ -26,6 +26,7 @@ import { SupabaseBrowserSessionStore } from './supabase-browser-session-store.ts
 import { SupabaseVintedAccountWriter } from './supabase-vinted-account-writer.ts';
 import { SupabaseVintedImportWriter } from './supabase-vinted-import-writer.ts';
 import { VintedEditAccess } from './vinted-edit-access.ts';
+import { VintedListingCategoryAccess } from './vinted-listing-category-access.ts';
 import { MarketplaceSyncRunner } from './marketplace-sync-runner.ts';
 import { SupabaseMarketplaceOperationStore } from './supabase-marketplace-operation-store.ts';
 import { SupabaseVintedListingCache } from './supabase-vinted-listing-cache.ts';
@@ -364,6 +365,13 @@ async function main(): Promise<void> {
     });
   const server = new MarketplaceBrowserHttpApi({
     broker,
+    listingCategories: isCloud
+      ? new VintedListingCategoryAccess({
+          url: config.supabaseUrl,
+          publishableKey: config.publishableKey,
+          serviceRoleKey: config.serviceRoleKey,
+        })
+      : undefined,
     users: new SupabaseBrowserUserVerifier(config.supabaseUrl, config.publishableKey),
     profiles,
     cloudSetups,

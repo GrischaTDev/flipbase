@@ -1,5 +1,39 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-10 – Juna – Vinted-Merkmale im Inserat-Editor auswählen
+
+**Arbeit:** Die kontogebundene Schnittstelle verbindet den getrennten Cloud-Leser
+mit Größe, Zustand, Farben, Materialien und Paketgröße im Editor. Das Zielkonto
+wird serverseitig aus der berechtigten Verbindung ermittelt; der Client kann
+weder Kontoidentität noch Kategoriepfad vorgeben. Rechte, Konto und Kategorie
+bleiben während des Abrufs gebunden. Der Dialog übernimmt ausschließlich
+angebotene, freigegebene Kennungen und ihre Namen; freie Texte sind nur eine
+Eingabehilfe. Nicht angezeigte Felder und andere laufende Eingaben bleiben erhalten.
+Manuelle Änderungen lösen die betreffende neue Kennung, ein Kategorienwechsel
+deren gesamte Zuordnung. Konto-/Arbeitsbereichswechsel verwerfen alte Antworten.
+Die Auswahl speichert nur im eigenen Entwurf; sie löst keine Anbieter-Schreibaktion aus.
+
+**Prüfungen:** Fehlendes Auswahlmodell, fehlender Dialog und fehlende Editoranbindung
+zuerst durch fehlgeschlagene Tests belegt. Eine fehlende Arbeitsbereichszuordnung des
+Kontos sowie ein im Browser erkannter falscher Service-Kontext wurden behoben.
+Der kontogebundene Service wird jetzt je Editor bereitgestellt. 77 Angular- und
+23 Modellprüfungen sowie 591 Workerprüfungen erfolgreich; sieben bestehende
+Workerfälle ausgelassen. Parallele Abfragen, Sperren, verspätete Antworten,
+unpassende Kategorien und bewusst unvollständige Entwürfe geprüft. Typprüfung,
+Angular-Bau, Format, ESLint und Shared-UI-Prüfung erfolgreich. Vier Browserfälle
+prüfen Auswahl, Tastatur, Fokusrückkehr, Speichern/Wiederladen und Fehler mit
+erhaltenen Eingaben auf Desktop/Mobil, hell/dunkel, jeweils ohne AXE-Befund.
+Anschließend alle 17 Browserfälle einschließlich Fotos, Vorlagen, Planung,
+Markensuche und privater Statusmeldungen erfolgreich.
+Beide Testcontainer gebaut und zehn Inseratmodule jeweils ohne Netzwerk geladen.
+Alle Anbieteranfragen dieser Tests sind abgefangen.
+
+**Offen:** Die aktuelle Merkmalsauswahl benötigt ein verbundenes Cloud-Konto.
+Zusätzliche Kategoriearten/-felder, lokale Ausführung, native Vinted-Entwürfe,
+Veröffentlichungsaktionen im Editor, vollständige Bearbeitung und Relist bleiben
+im Gesamtplan offen. Keine echte Vinted-Schreibaktion, Produktionsänderung,
+Installation einer Erweiterung oder Veröffentlichung des Arbeitszweigs.
+
 ## 2026-10-10 – Juna – Aktuelle Vinted-Merkmale getrennt lesen
 
 **Arbeit:** Eine feste Cloud-Browseraktion liest kategorieabhängige Größen,

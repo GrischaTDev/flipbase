@@ -27,6 +27,8 @@ import type { SupabaseVintedListingCache } from './supabase-vinted-listing-cache
 import type { SupabaseVintedProfileCache } from './supabase-vinted-profile-cache.ts';
 import type { MarketplaceCloudSetup } from './marketplace-cloud-setup.ts';
 import type { CloudSetupRequest } from './marketplace-cloud-setup-contracts.d.ts';
+import type { VintedListingCategoryAccess } from './vinted-listing-category-access.ts';
+import { parseVintedListingCategoryFields } from './vinted-listing-contracts.ts';
 
 interface BrowserBroker {
   open(scope: BrowserSessionScope): Promise<string>;
@@ -71,6 +73,7 @@ interface BrowserApiOptions {
     ): Promise<Record<'profile' | 'publication' | 'conversation' | 'message' | 'sale', number>>;
   };
   edits?: VintedEditAccess;
+  listingCategories?: Pick<VintedListingCategoryAccess, 'read' | 'authorize'>;
   conversationAccess?: VintedEditAccess;
   operations?: Pick<MarketplaceSyncRunner, 'start' | 'read'>;
   listingCache?: Pick<SupabaseVintedListingCache, 'save'>;
@@ -243,6 +246,7 @@ export class MarketplaceBrowserHttpApi {
   private readonly accounts?: BrowserApiOptions['accounts'];
   private readonly imports?: BrowserApiOptions['imports'];
   private readonly edits?: VintedEditAccess;
+  private readonly listingCategories?: BrowserApiOptions['listingCategories'];
   private readonly conversationAccess?: VintedEditAccess;
   private readonly operations?: BrowserApiOptions['operations'];
   private readonly listingCache?: BrowserApiOptions['listingCache'];
@@ -259,6 +263,7 @@ export class MarketplaceBrowserHttpApi {
     this.accounts = options.accounts;
     this.imports = options.imports;
     this.edits = options.edits;
+    this.listingCategories = options.listingCategories;
     this.conversationAccess = options.conversationAccess;
     this.operations = options.operations;
     this.listingCache = options.listingCache;
@@ -471,6 +476,61 @@ export class MarketplaceBrowserHttpApi {
             sessionId = undefined;
             json(response, 200, result);
           }
+        } finally {
+          try {
+            if (sessionId) await this.broker.close(scope, sessionId);
+          } finally {
+            this.inFlight.delete(key);
+          }
+        }
+        return;
+      }
+      if (path === '/marketplace-browser/listings/category/read') {
+        if (this.readOnly) throw new RequestError(403);
+        const source = this.listingCategories;
+        if (!source) throw new RequestError(503);
+        const categoryId = body['categoryId'];
+        if (
+          Object.keys(body).length !== 3 ||
+          Object.keys(body).some(
+            (key) => !['workspaceId', 'connectionId', 'categoryId'].includes(key),
+          ) ||
+          typeof categoryId !== 'number' ||
+          !Number.isSafeInteger(categoryId) ||
+          categoryId < 1 ||
+          categoryId > 2147483647
+        )
+          throw new RequestError(400);
+        const key = `${scope.workspaceId}:${scope.connectionId}:listing_category`;
+        if (this.inFlight.has(key)) throw new RequestError(429);
+        this.inFlight.add(key);
+        let sessionId: string | undefined;
+        try {
+          sessionId = await (this.broker.openAction?.(scope) ?? this.broker.open(scope));
+          const currentSessionId = sessionId;
+          const checkBrowser = () =>
+            this.broker.run(scope, currentSessionId, async () => undefined);
+          const target = await source.read(scope, categoryId, checkBrowser);
+          const authorize = async () => {
+            await source.authorize(scope, target.accountId);
+            await checkBrowser();
+          };
+          const fields = await this.broker.run(scope, currentSessionId, async (browser) => {
+            if (!browser.readListingCategory) throw new RequestError(503);
+            return parseVintedListingCategoryFields(
+              await browser.readListingCategory(
+                target.accountId,
+                categoryId,
+                target.categoryPath,
+                authorize,
+              ),
+              categoryId,
+            );
+          });
+          await authorize();
+          await this.broker.close(scope, currentSessionId);
+          sessionId = undefined;
+          json(response, 200, { fields });
         } finally {
           try {
             if (sessionId) await this.broker.close(scope, sessionId);

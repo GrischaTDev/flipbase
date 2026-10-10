@@ -29,6 +29,7 @@ import type { VintedCategory } from '../../../platform-admin/models/vinted-categ
 import { vintedCategorySource } from '../../../platform-admin/models/vinted-category-source';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { VintedListingDraftService } from '../../services/vinted-listing-draft.service';
+import { VintedListingCategoryService } from '../../services/vinted-listing-category.service';
 import {
   VintedListingImageService,
   vintedDraftImageError,
@@ -47,6 +48,11 @@ import {
 import { VintedListingTemplatePanelComponent } from '../vinted-listing-template-panel/vinted-listing-template-panel.component';
 import { VintedListingJobPanelComponent } from '../vinted-listing-job-panel/vinted-listing-job-panel.component';
 import { VintedListingBrandDialogComponent } from '../vinted-listing-brand-dialog/vinted-listing-brand-dialog.component';
+import { VintedListingFieldsDialogComponent } from '../vinted-listing-fields-dialog/vinted-listing-fields-dialog.component';
+import {
+  applyVintedListingFieldSelection,
+  type VintedListingFieldSelection,
+} from '../../models/vinted-listing-field-selection';
 import {
   validVintedListingBrand,
   type VintedListingBrandSelection,
@@ -77,8 +83,10 @@ const same = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.st
     VintedListingTemplatePanelComponent,
     VintedListingJobPanelComponent,
     VintedListingBrandDialogComponent,
+    VintedListingFieldsDialogComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [VintedListingCategoryService],
   host: { class: 'block min-w-0', '(window:beforeunload)': 'beforeUnload($event)' },
 })
 export class VintedListingEditorComponent {
@@ -116,6 +124,13 @@ export class VintedListingEditorComponent {
   readonly categories = signal<readonly VintedCategory[]>([]);
   readonly categoryError = signal<string | null>(null);
   readonly brandSelectionContext = signal<string | null>(null);
+  readonly fieldSelection = signal<{
+    readonly scopeKey: string;
+    readonly connectionId: string;
+    readonly categoryId: number;
+    readonly content: VintedListingContent;
+  } | null>(null);
+  private readonly selectedFields = signal<VintedListingFieldSelection | null>(null);
   private readonly selectedBrand = signal<
     (VintedListingBrandSelection & { categoryId: number | null }) | null
   >(null);
@@ -212,11 +227,56 @@ export class VintedListingEditorComponent {
       !this.imageEditing() &&
       !this.conflict(),
   );
+  private readonly fieldSelectionScope = computed(() => {
+    this.changed();
+    const connectionId = this.form.controls.connectionId.value;
+    const account = this.store.connections().find((value) => value.connectionId === connectionId);
+    return JSON.stringify([
+      this.context(),
+      connectionId,
+      account?.externalAccountId,
+      account?.workspaceId,
+      account?.status,
+      account?.executionMode,
+      this.currentCategoryId(),
+    ]);
+  });
+  readonly canSelectFields = computed(() => {
+    this.changed();
+    const account = this.store
+      .connections()
+      .find((value) => value.connectionId === this.form.controls.connectionId.value);
+    return (
+      this.canSelectBrand() &&
+      !this.contentError() &&
+      this.currentCategoryId() !== null &&
+      !!account &&
+      account.workspaceId === this.workspaceId() &&
+      account.status === 'connected' &&
+      account.executionMode === 'cloud' &&
+      /^[1-9][0-9]{0,31}$/.test(account.externalAccountId ?? '')
+    );
+  });
+  readonly packageLabel = computed(() => {
+    const content = this.content();
+    if (content.packageSizeId === null) return 'Noch nicht festgelegt';
+    const selection = this.selectedFields();
+    return selection?.categoryId === content.categoryId &&
+      selection.fields.includes('package') &&
+      selection.values.packageSizeId === content.packageSizeId
+      ? selection.packageLabel
+      : 'Bereits festgelegt';
+  });
 
   constructor() {
     effect(() => {
       const context = this.context();
       untracked(() => void this.load(context));
+    });
+    effect(() => {
+      const scope = this.fieldSelectionScope();
+      const selection = this.fieldSelection();
+      if (selection && selection.scopeKey !== scope) untracked(() => this.closeFieldSelection());
     });
     this.form.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => this.markChanged());
     this.destroyRef.onDestroy(() => {
@@ -226,6 +286,66 @@ export class VintedListingEditorComponent {
   }
   openBrandSelection(): void {
     if (this.canSelectBrand()) this.brandSelectionContext.set(this.context());
+  }
+  openFieldSelection(): void {
+    if (!this.canSelectFields()) return;
+    this.fieldSelection.set({
+      scopeKey: this.fieldSelectionScope(),
+      connectionId: this.form.controls.connectionId.value!,
+      categoryId: this.currentCategoryId()!,
+      content: this.contentSnapshot(),
+    });
+  }
+  closeFieldSelection(): void {
+    this.fieldSelection.set(null);
+  }
+  selectFields(selection: VintedListingFieldSelection): void {
+    const opened = this.fieldSelection();
+    if (!opened || !this.canSelectFields() || opened.scopeKey !== this.fieldSelectionScope())
+      return;
+    try {
+      const content = applyVintedListingFieldSelection(this.contentSnapshot(), selection);
+      if (selection.fields.includes('size'))
+        this.form.controls.size.setValue(content.sizeLabel, { emitEvent: false });
+      if (selection.fields.includes('condition'))
+        this.form.controls.condition.setValue(content.conditionLabel, { emitEvent: false });
+      if (selection.fields.includes('color'))
+        this.form.controls.colors.setValue(content.colorLabels.join(', '), { emitEvent: false });
+      if (selection.fields.includes('material'))
+        this.form.controls.materials.setValue(content.materialLabels.join(', '), {
+          emitEvent: false,
+        });
+      const previous = this.selectedFields();
+      this.selectedFields.set({
+        categoryId: selection.categoryId,
+        fields: [
+          ...new Set([
+            ...(previous?.categoryId === selection.categoryId ? previous.fields : []),
+            ...selection.fields,
+          ]),
+        ],
+        values: {
+          sizeId: content.sizeId,
+          sizeLabel: content.sizeLabel,
+          conditionId: content.conditionId,
+          conditionLabel: content.conditionLabel,
+          colorIds: content.colorIds,
+          colorLabels: content.colorLabels,
+          materialIds: content.materialIds,
+          materialLabels: content.materialLabels,
+          packageSizeId: content.packageSizeId,
+        },
+        packageLabel: selection.fields.includes('package')
+          ? selection.packageLabel
+          : (previous?.packageLabel ?? ''),
+      });
+      this.markChanged();
+      this.closeFieldSelection();
+    } catch (error) {
+      this.error.set(
+        error instanceof Error ? error.message : 'Die Auswahl konnte nicht übernommen werden.',
+      );
+    }
   }
   closeBrandSelection(): void {
     this.brandSelectionContext.set(null);
@@ -352,6 +472,31 @@ export class VintedListingEditorComponent {
           selection.brandLabel !== this.form.controls.brand.value)
       )
         this.selectedBrand.set(null);
+      const fields = this.selectedFields();
+      if (fields) {
+        if (fields.categoryId !== this.currentCategoryId()) this.selectedFields.set(null);
+        else
+          this.selectedFields.set({
+            ...fields,
+            fields: fields.fields.filter((field) => {
+              switch (field) {
+                case 'size':
+                  return fields.values.sizeLabel === this.form.controls.size.value;
+                case 'condition':
+                  return fields.values.conditionLabel === this.form.controls.condition.value;
+                case 'color':
+                  return same(fields.values.colorLabels, labels(this.form.controls.colors.value));
+                case 'material':
+                  return same(
+                    fields.values.materialLabels,
+                    labels(this.form.controls.materials.value),
+                  );
+                case 'package':
+                  return true;
+              }
+            }),
+          });
+      }
       this.changed.update((value) => value + 1);
       this.dirty.set(true);
       if (!this.conflict()) this.scheduleSave();
@@ -381,6 +526,7 @@ export class VintedListingEditorComponent {
     if (!force && context === this.loadedContext) return;
     this.loadedContext = context;
     this.closeBrandSelection();
+    this.closeFieldSelection();
     const generation = ++this.generation;
     if (this.timer) clearTimeout(this.timer);
     this.timer = null;
@@ -520,7 +666,7 @@ export class VintedListingEditorComponent {
     const selectedBrand = this.selectedBrand();
     const colorLabels = labels(values.colors),
       materialLabels = labels(values.materials);
-    return parseVintedListingContent({
+    const content = parseVintedListingContent({
       ...previous,
       title: values.title,
       description: values.description,
@@ -551,9 +697,14 @@ export class VintedListingEditorComponent {
       packageSizeId: categorySame ? previous.packageSizeId : null,
       attributes: categorySame ? previous.attributes : {},
     });
+    const fields = this.selectedFields();
+    return fields?.categoryId === categoryId
+      ? applyVintedListingFieldSelection(content, fields)
+      : content;
   }
   private patch(content: VintedListingContent, connectionId: string | null): void {
     this.selectedBrand.set(null);
+    this.selectedFields.set(null);
     this.form.reset(
       {
         title: content.title,

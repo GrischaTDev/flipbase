@@ -17,7 +17,10 @@ Der native Cloud-Speicher-/Ergebnisadapter und die automatische Abholung sind
 mit abgefangenen Browseranfragen angeschlossen. Die echte Neuanlage bleibt durch
 einen konkret freigegebenen Livefall zu bestätigen; lokale Ausführung und native
 Vinted-Entwürfe fehlen noch. Der Editor ergänzt eine echte Markensuche mit
-Arbeitsbereichsprüfung; weitere kategorieabhängige Merkmale bleiben offen.
+Arbeitsbereichsprüfung sowie Größe, Zustand, Farben, Materialien und Paketgröße
+aus der aktuellen Kategorieauswahl des verbundenen Cloud-Kontos. Die neuen
+Auswahlen bleiben an Kategorie und Namen gebunden; zusätzliche Kategoriearten
+und Pflichtmerkmale benötigen weitere Prüfung.
 Pakete 6/7 offen; Paket 5 enthält Terminmodell und
 atomaren Ersatz geplanter Aufträge und einen angeschlossenen Planungsdialog für
 vorhandene wartende Aufträge. Neuanlageaktionen im Editor und der lokale Ausführer
@@ -133,11 +136,14 @@ auf einem zweiten Gerät korrekt geladen werden; Vorlagen sind gespeichert.
 **Teilstand:** Eigene Entwürfe, Fotos, Kategorien und Vorlagen sind angeschlossen.
 Die freie Markeneingabe kann durch eine tatsächliche Vinted-Suche ergänzt werden;
 Kennung und Bezeichnung bleiben gemeinsam gebunden. Arbeitsbereichsrechte werden
-vor und nach der Suche geprüft. Weitere Merkmale, Artikelübernahme und die
+vor und nach der Suche geprüft. Ein getrennter Cloud-Leser mit kontogebundener
+Schnittstelle liefert aktuelle Größen, Zustände, Farben, Materialien und
+Paketgrößen für die gewählte Kategorie. Der Editor zeigt verfügbare Werte und
+ihre bisherigen Eingaben, übernimmt sie bewusst und erhält andere Felder.
+Unbekannte zusätzliche Felder bleiben als Hinweis sichtbar. Fremde Kategorien,
+gesperrte Werte und veraltete Konto-/Arbeitsbereichsantworten werden abgewiesen.
+Lokale Merkmalsauswahl, zusätzliche Kategoriearten, Artikelübernahme und die
 Veröffentlichungsaktionen sind noch offen.
-Ein getrennt geprüfter Cloud-Leser erfasst inzwischen tatsächliche Merkmale
-für eine gewählte Kategorie; seine kontogebundene Schnittstelle und die
-Editor-Auswahl werden als nächster Schritt angeschlossen.
 
 **Dateien neu:** `components/vinted-listing-editor/` und
 `components/vinted-listing-drafts/` unter `features/marketplaces/`, jeweils
@@ -185,7 +191,7 @@ Private Status-Broadcasts aktualisieren den Verlauf des gespeicherten Entwurfs;
 bei Wiederverbindung wird der aktuelle Stand erneut gelesen. Laufende Abfragen
 und Planungsdialoge merken Meldungen vor. Rechte- und Kontextwechsel verwerfen
 alte Antworten. Datenbank- und WebSocket-Browsertests prüfen den gesamten Weg.
-Noch offen: lokale Browserausführung, vollständige Editor-Merkmalsauswahl,
+Noch offen: lokale Browserausführung, zusätzliche kategorienspezifische Felder,
 native Entwürfe und der konkret freigegebene Livefall.
 
 **Dateien neu:** `supabase/schemas/463_marketplace_listing_jobs.sql`,

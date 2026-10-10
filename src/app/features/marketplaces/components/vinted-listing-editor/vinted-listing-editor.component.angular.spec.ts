@@ -12,6 +12,25 @@ import { VintedListingDraftService } from '../../services/vinted-listing-draft.s
 import { VintedListingImageService } from '../../services/vinted-listing-image.service';
 import { VintedListingEditorComponent } from './vinted-listing-editor.component';
 import { emptyVintedListingContent } from '../../models/vinted-listing-content';
+import { listingCategoryFixture } from '../../../../../../e2e/support/vinted-listing-category-fixture';
+import { buildVintedListingFieldSelection } from '../../models/vinted-listing-field-selection';
+
+const account = {
+  workspaceId: 'workspace-a',
+  connectionId: 'account-a',
+  externalAccountId: '123',
+  displayName: 'Mein Konto',
+  executionMode: 'cloud',
+  status: 'connected',
+};
+const selection = () =>
+  buildVintedListingFieldSelection(listingCategoryFixture(), {
+    sizeId: 208,
+    conditionId: 2,
+    colorIds: [2, 1],
+    materialIds: [44],
+    packageSizeId: 2,
+  });
 
 const draft = {
   id: '1',
@@ -31,6 +50,7 @@ async function settle() {
 }
 function setup() {
   const workspace = signal({ id: 'workspace-a', archived_at: null });
+  const connections = signal([account]);
   const create = vi.fn().mockImplementation(async (_workspace, content) => ({ ...draft, content }));
   const save = vi.fn().mockImplementation(async (current, content) => ({
     ...current,
@@ -46,7 +66,7 @@ function setup() {
         useValue: {
           canManage: signal(true),
           selectedConnection: signal(null),
-          connections: signal([]),
+          connections,
         },
       },
       {
@@ -81,6 +101,7 @@ function setup() {
     create,
     save,
     workspace,
+    connections,
     imageApi: TestBed.inject(VintedListingImageService),
   };
 }
@@ -89,6 +110,130 @@ afterEach(() => {
   vi.useRealTimers();
 });
 describe('Vinted-Inserateditor', () => {
+  it('saves canonical category choices without overwriting pending title, brand or price', async () => {
+    const { component, create } = setup();
+    await settle();
+    component.form.patchValue({
+      title: 'Meine Jacke',
+      description: 'Tragespuren',
+      price: '20,50',
+      brand: 'Jako',
+      categoryId: '1223',
+      connectionId: 'account-a',
+    });
+    component.openFieldSelection();
+    component.selectFields(selection());
+    await component.save();
+    expect(create.mock.calls[0][1]).toMatchObject({
+      title: 'Meine Jacke',
+      description: 'Tragespuren',
+      priceCents: 2050,
+      brandLabel: 'Jako',
+      sizeId: 208,
+      sizeLabel: 'M',
+      conditionId: 2,
+      colorIds: [2, 1],
+      colorLabels: ['Blau', 'Schwarz'],
+      materialIds: [44],
+      packageSizeId: 2,
+    });
+    expect(component.fieldSelection()).toBeNull();
+    expect(component.packageLabel()).toBe('Mittel');
+  });
+  it('drops only edited choice IDs and clears all category choices after changing category', async () => {
+    const { component } = setup();
+    await settle();
+    component.form.patchValue({ categoryId: '1223', connectionId: 'account-a' });
+    component.openFieldSelection();
+    component.selectFields(selection());
+    component.form.controls.size.setValue('XL');
+    expect(component.content()).toMatchObject({
+      sizeId: null,
+      conditionId: 2,
+      colorIds: [2, 1],
+      packageSizeId: 2,
+    });
+    component.form.controls.size.setValue('M');
+    expect(component.content().sizeId).toBeNull();
+    component.form.controls.categoryId.setValue('2738');
+    expect(component.content()).toMatchObject({
+      conditionId: null,
+      colorIds: [],
+      materialIds: [],
+      packageSizeId: null,
+    });
+    expect(component.packageLabel()).toBe('Noch nicht festgelegt');
+  });
+  it.each(['workspace', 'connection', 'external-account', 'category'])(
+    'ignores a previous field selection immediately after changing %s',
+    async (change) => {
+      const { component, workspace, connections } = setup();
+      await settle();
+      component.form.patchValue({ categoryId: '1223', connectionId: 'account-a' });
+      component.openFieldSelection();
+      if (change === 'workspace') workspace.set({ id: 'workspace-b', archived_at: null });
+      if (change === 'connection') component.form.controls.connectionId.setValue('account-b');
+      if (change === 'external-account')
+        connections.set([{ ...account, externalAccountId: '456' }]);
+      if (change === 'category') component.form.controls.categoryId.setValue('2738');
+      component.selectFields(selection());
+      expect(component.form.controls.size.value).toBe('');
+      expect(component.content().sizeId).toBeNull();
+      await settle();
+      expect(component.fieldSelection()).toBeNull();
+    },
+  );
+  it('requires an eligible target and valid current form before opening the field chooser', async () => {
+    const { component, connections } = setup();
+    await settle();
+    component.form.controls.categoryId.setValue('1223');
+    component.openFieldSelection();
+    expect(component.fieldSelection()).toBeNull();
+    component.form.controls.connectionId.setValue('account-a');
+    for (const patch of [
+      { executionMode: 'local' },
+      { status: 'paused' },
+      { workspaceId: 'foreign' },
+    ]) {
+      connections.set([{ ...account, ...patch }]);
+      component.openFieldSelection();
+      expect(component.fieldSelection()).toBeNull();
+    }
+    connections.set([account]);
+    component.form.controls.price.setValue('20,');
+    component.openFieldSelection();
+    expect(component.fieldSelection()).toBeNull();
+  });
+  it('keeps category fields absent from the response and rejects selections while saving', async () => {
+    const { component } = setup();
+    await settle();
+    component.applyTemplate({
+      ...emptyVintedListingContent(),
+      categoryId: 1223,
+      conditionId: 2,
+      conditionLabel: 'Sehr gut',
+      packageSizeId: 2,
+    });
+    component.form.controls.connectionId.setValue('account-a');
+    component.openFieldSelection();
+    component.saving.set(true);
+    component.selectFields(selection());
+    expect(component.form.controls.size.value).toBe('');
+    component.saving.set(false);
+    const schema = listingCategoryFixture();
+    component.selectFields(
+      buildVintedListingFieldSelection(
+        { ...schema, fields: schema.fields.filter((field) => field.field === 'size') },
+        { sizeId: 208, conditionId: null, colorIds: [], materialIds: [], packageSizeId: null },
+      ),
+    );
+    expect(component.content()).toMatchObject({
+      sizeId: 208,
+      conditionId: 2,
+      conditionLabel: 'Sehr gut',
+      packageSizeId: 2,
+    });
+  });
   it('saves the selected brand without replacing other pending fields', async () => {
     const { component, create } = setup();
     await settle();

@@ -18,8 +18,8 @@ festgehalten. Die folgenden Vinted-Nachweise ergänzen diese Recherche.
 | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
 | Kategorie                                  | Gespeicherter Baum; Neuanlage/Bearbeitung mit Kleidung und Kinderschuhen geprüft                                      | Weitere Kategoriearten und deren Pflichtmerkmale prüfen                            |
 | Titel, Beschreibung, Verkaufspreis         | Frei speicherbare Flipbase-Arbeitskopie; Betrag in Cent, kein Übernehmen von Einkaufskosten                           | Vinted-Längen, Preisgrenzen und Währung bestätigen                                 |
-| Marke, Größe, Zustand, Farben, Materialien | Auswahlstruktur und Beispiele am Anbieter bestätigt; Entwurfeditor verwendet noch freie Angaben                       | Dynamische Auswahl mit bestätigten IDs integrieren; weitere Kategorien prüfen      |
-| Paketgröße und weitere Merkmale            | Sendungsgrößen 1/2/3 am Anbieter bestätigt; KI-Fotokennzeichnung im Inhaltstyp noch nicht enthalten                   | Sendungsgröße und Kennzeichnung in den vollständigen Editorvertrag aufnehmen       |
+| Marke, Größe, Zustand, Farben, Materialien | Auswahlstruktur am Anbieter bestätigt; Markensuche und kontogebundene Cloud-Kategorieauswahl im Editor angeschlossen  | Weitere Kategoriearten und Zusatzfelder prüfen; lokale Auswahl ergänzen            |
+| Paketgröße und weitere Merkmale            | Sendungsgrößen am Anbieter bestätigt und im Editor wählbar; KI-Fotokennzeichnung im Auftragsvertrag enthalten         | Kennzeichnung in der Oberfläche ergänzen; weitere Pflichtmerkmale prüfen           |
 | Fotos                                      | Private Originaldateien, nativer Uploadbaustein und Reihenfolge synthetisch geprüft; bis 20 Fotos offiziell bestätigt | Echten Upload und Zuordnung zu einem bestätigten Inserat prüfen                    |
 | Flipbase-Entwurf                           | Anlegen, automatisch speichern, suchen und wieder bearbeiten implementiert                                            | Echte Umgebung erst nach abgeschlossener Integration migrieren                     |
 | Vinted-Entwurf                             | Eigene Schaltfläche im Vinted-Formular nachgewiesen; noch kein Schreibadapter                                         | Speicherung und bestätigte Entwurfs-ID an später freigegebenem Fall prüfen         |
@@ -368,7 +368,22 @@ die Vorbereitung. Während des Abrufs bleiben Konto, Kategorie und Rechte
 gebunden. Ein gemeinsamer Antwortprüfer erhält Größenfamilien, deaktivierte
 Werte und unbekannte Felder und verweigert vermischte Kategorien oder zusätzliche
 Daten. Der gesamte getrennte Leseweg ist mit abgefangenen Anfragen geprüft.
-Der Anschluss über die HTTP-Schnittstelle und die Editor-Auswahl ist noch offen.
+Die kontogebundene HTTP-Schnittstelle und die Editor-Auswahl sind angeschlossen.
+Anfragen enthalten ausschließlich Arbeitsbereich, Verbindung und Kategorie;
+Kontoidentität und Kategoriepfad stammen aus den berechtigten serverseitigen
+Quellen. Ein erneuter Rechte-/Identitätsabgleich schützt auch verspätete Antworten.
+Im Editor lädt ein eigener Dialog Größen, Zustände, Farben, Materialien und
+Paketgrößen für das ausdrücklich ausgewählte verbundene Cloud-Konto. Gesperrte
+Optionen sind nicht wählbar, Farbe bleibt auf zwei und Material auf drei Werte
+begrenzt. Bestehende freie Texte bleiben als Hinweis sichtbar und werden erst
+nach bewusster Übernahme durch tatsächliche Namens-/Kennungspaare ersetzt.
+Nicht angebotene Felder, Titel und Preise werden nicht überschrieben. Manuelle
+Änderungen lösen nur die betreffende neue Zuordnung; Kategorie-/Kontowechsel
+verwerfen alte Auswahlantworten. Die Anzeige einer Paketgröße nach Neuladen
+verwendet ohne frischen Anbieterabruf „Bereits festgelegt“ statt eines geratenen
+Namens. Vier abgefangene Browserfälle bestätigen Speichern/Wiederladen,
+Tastatur/Fokus und AXE auf Desktop/Mobil, hell/dunkel. Der echte
+Anbieter-Schreibnachweis, lokale Merkmalsauswahl und weitere Kategorien bleiben offen.
 
 Der Flipbase-Editor verwendet inzwischen die vorhandene serverseitige Markensuche
 mit der konkreten Arbeitsbereichskennung. Die Edge-Funktion prüft

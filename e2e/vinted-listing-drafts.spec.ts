@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import axe from 'axe-core';
 import { accountIds, mockMarketplace, workspaceId } from './support/marketplace-account-fixture';
 import { emptyVintedListingContent } from '../src/app/features/marketplaces/models/vinted-listing-content';
+import { listingCategoryFixture } from './support/vinted-listing-category-fixture';
 
 test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: 'block' });
 async function mockDrafts(page: Page, planned = false) {
@@ -25,7 +26,7 @@ async function mockDrafts(page: Page, planned = false) {
     false,
     false,
     false,
-    undefined,
+    planned ? [] : undefined,
     undefined,
     false,
     planned ? 1 : 0,
@@ -314,6 +315,119 @@ test('Inseratauftrag aktualisiert sich über einen privaten Kanal @marketplace-p
   await history.scrollIntoViewIfNeeded();
   await page.screenshot({ path: testInfo.outputPath('listing-live-status.png'), fullPage: false });
 });
+
+for (const width of [1440, 390])
+  for (const dark of [false, true]) {
+    test(`Vinted-Artikelangaben auswählen bei ${width}px ${dark ? 'dunkel' : 'hell'} @marketplace-preview`, async ({
+      page,
+    }, testInfo) => {
+      await page.setViewportSize({ width, height: 1000 });
+      const state = await mockDrafts(page, true);
+      const requests: unknown[] = [];
+      await page.route('**/marketplace-browser/listings/category/read', (route) => {
+        requests.push(route.request().postDataJSON());
+        return route.fulfill({
+          json: { fields: listingCategoryFixture(requests.length === 3 ? 1223 : 2) },
+        });
+      });
+      if (dark) await page.addInitScript(() => localStorage.setItem('flipbase_theme', 'dark'));
+      const errors: string[] = [];
+      page.on('pageerror', (error) => errors.push(error.message));
+      await page.goto('/marketplaces/vinted/listing-drafts/9007199254740999');
+      const editor = page.locator('app-vinted-listing-editor');
+      await editor.getByRole('textbox', { name: 'Titel', exact: true }).fill('Meine Jacke');
+      await editor.getByRole('textbox', { name: 'Verkaufspreis', exact: true }).fill('20,50');
+      await editor.getByRole('button', { name: /^Vinted-Kategorie/ }).click();
+      await page.getByRole('combobox', { name: 'Kategorie suchen', exact: true }).fill('Jacken');
+      await page.getByRole('option', { name: /Jacken/ }).click();
+      await expect.poll(() => state.draft().content.categoryId).toBe(2);
+      const opener = editor.getByRole('button', { name: 'Vinted-Angaben auswählen', exact: true });
+      await opener.click();
+      const dialog = page.getByRole('dialog', { name: 'Vinted-Angaben wählen', exact: true });
+      await expect(
+        dialog.getByRole('combobox', { name: 'Größe bei Vinted', exact: true }),
+      ).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(dialog).not.toBeVisible();
+      await expect(opener).toBeFocused();
+      expect(state.draft().content.sizeId).toBeNull();
+      await opener.click();
+      const size = dialog.getByRole('combobox', { name: 'Größe bei Vinted', exact: true });
+      await size.click();
+      await expect(page.getByRole('option', { name: 'L', exact: true })).toHaveCount(0);
+      await page.getByRole('option', { name: 'M', exact: true }).click();
+      await dialog.getByRole('combobox', { name: 'Zustand bei Vinted', exact: true }).click();
+      await page.getByRole('option', { name: 'Sehr gut', exact: true }).click();
+      await dialog.getByRole('combobox', { name: 'Paketgröße bei Vinted', exact: true }).click();
+      await page.getByRole('option', { name: 'Mittel', exact: true }).click();
+      await dialog.getByRole('checkbox', { name: 'Farben: Blau', exact: true }).focus();
+      await page.keyboard.press('Space');
+      await dialog.getByRole('checkbox', { name: 'Farben: Schwarz', exact: true }).click();
+      await expect(
+        dialog.getByRole('checkbox', { name: 'Farben: Weiß', exact: true }),
+      ).toBeDisabled();
+      await dialog.getByRole('checkbox', { name: 'Materialien: Baumwolle', exact: true }).click();
+      await page.addScriptTag({ content: axe.source });
+      expect(
+        await page.evaluate(
+          async () =>
+            (
+              await (window as unknown as { axe: typeof axe }).axe.run(
+                document.querySelector('app-vinted-listing-fields-dialog') as HTMLElement,
+              )
+            ).violations,
+        ),
+      ).toEqual([]);
+      expect(await page.locator('form form').count()).toBe(0);
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1),
+      ).toBe(true);
+      await page.screenshot({
+        path: testInfo.outputPath(`fields-${width}-${dark ? 'dark' : 'light'}.png`),
+        fullPage: false,
+      });
+      await dialog.getByRole('button', { name: 'Angaben übernehmen', exact: true }).focus();
+      await page.keyboard.press('Enter');
+      await expect(dialog).not.toBeVisible();
+      await expect.poll(() => state.draft().content.sizeId).toBe(208);
+      expect(state.draft().content).toMatchObject({
+        title: 'Meine Jacke',
+        priceCents: 2050,
+        conditionId: 2,
+        colorIds: [2, 1],
+        colorLabels: ['Blau', 'Schwarz'],
+        materialIds: [44],
+        packageSizeId: 2,
+      });
+      expect(requests).toEqual(
+        Array.from({ length: 2 }, () => ({
+          workspaceId,
+          connectionId: accountIds[0],
+          categoryId: 2,
+        })),
+      );
+      await expect(editor.getByText('Paketgröße: Mittel', { exact: true })).toBeVisible();
+      await page.reload();
+      await expect(editor.getByRole('textbox', { name: 'Größe', exact: true })).toHaveValue('M');
+      await expect(
+        editor.getByText('Paketgröße: Bereits festgelegt', { exact: true }),
+      ).toBeVisible();
+      await editor.getByRole('textbox', { name: 'Größe', exact: true }).fill('XL');
+      await expect.poll(() => state.draft().content.sizeId).toBeNull();
+      expect(state.draft().content.conditionId).toBe(2);
+      await opener.click();
+      await expect(dialog.getByRole('alert')).toBeVisible();
+      await expect(
+        dialog.getByRole('button', { name: 'Angaben übernehmen', exact: true }),
+      ).toBeDisabled();
+      await page.keyboard.press('Escape');
+      await expect(editor.getByRole('textbox', { name: 'Größe', exact: true })).toHaveValue('XL');
+      expect(state.uploads()).toBe(0);
+      expect(state.reschedules).toEqual([]);
+      expect(state.jobCancels).toEqual([]);
+      expect(errors).toEqual([]);
+    });
+  }
 
 for (const width of [1440, 390])
   for (const dark of [false, true]) {

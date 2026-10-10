@@ -74,6 +74,20 @@
               @if (categoryError()) {
                 <app-notice-banner>{{ categoryError() }}</app-notice-banner>
               }
+              <div class="space-y-2">
+                <app-button
+                  size="slim"
+                  variant="secondary"
+                  ariaHaspopup="dialog"
+                  [disabled]="!canSelectFields()"
+                  (clicked)="openFieldSelection()"
+                  >Vinted-Angaben auswählen</app-button
+                >
+                <p class="text-xs text-fb-text-secondary">
+                  Wähle zuerst eine Kategorie und ein verbundenes Cloud-Konto, um die aktuellen
+                  Vinted-Angaben abzurufen.
+                </p>
+              </div>
               <div class="grid gap-4 sm:grid-cols-2">
                 <div class="space-y-2">
                   <app-text-field label="Marke" formControlName="brand" />
@@ -101,6 +115,9 @@
               </div>
               <p class="text-xs text-fb-text-secondary">
                 Du kannst diese Angaben frei vorbereiten und später weiterbearbeiten.
+              </p>
+              <p class="text-sm text-fb-text-primary">
+                <span class="font-semibold">Paketgröße:</span> {{ packageLabel() }}
               </p>
             </div>
           </app-card>
@@ -167,6 +184,17 @@
     </div>
   }
 </app-entry-page-layout>
+@if (fieldSelection(); as selection) {
+  <app-vinted-listing-fields-dialog
+    [scopeKey]="selection.scopeKey"
+    [connectionId]="selection.connectionId"
+    [categoryId]="selection.categoryId"
+    [content]="selection.content"
+    [disabled]="!canSelectFields()"
+    (selected)="selectFields($event)"
+    (closed)="closeFieldSelection()"
+  />
+}
 @if (brandSelectionContext(); as scopeKey) {
   @if (workspaceId(); as workspaceId) {
     <app-vinted-listing-brand-dialog
