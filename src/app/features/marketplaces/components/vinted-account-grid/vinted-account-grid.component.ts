@@ -40,7 +40,6 @@ import { MarketplaceCloudSetupStore } from '../../services/marketplace-cloud-set
 import { VintedAccountPreviewsStore } from '../../services/vinted-account-previews.store';
 import { MarketplaceAccountsComponent } from '../marketplace-accounts/marketplace-accounts.component';
 import { VintedFavoriteSettingsComponent } from '../vinted-favorite-settings/vinted-favorite-settings.component';
-import { VintedRatingComponent } from '../vinted-rating/vinted-rating.component';
 import { VintedSetupComponent } from '../vinted-setup/vinted-setup.component';
 
 @Component({
@@ -55,7 +54,6 @@ import { VintedSetupComponent } from '../vinted-setup/vinted-setup.component';
     ModalShellComponent,
     NoticeBannerComponent,
     ProductThumbnailComponent,
-    VintedRatingComponent,
     VintedSetupComponent,
     MarketplaceAccountsComponent,
     VintedFavoriteSettingsComponent,
@@ -210,6 +208,22 @@ export class VintedAccountGridComponent {
           action: 'settings' as const,
         };
   }
+
+  formatSyncTime(lastSyncedAt: string | null, statusTone: string): string | null {
+    if (!lastSyncedAt) {
+      return statusTone === 'success' ? 'Noch nicht synchronisiert' : 'Verbindung getrennt';
+    }
+    const timestamp = Date.parse(lastSyncedAt);
+    if (!Number.isFinite(timestamp)) return null;
+    const diffMinutes = Math.floor((Date.now() - timestamp) / 60000);
+    if (diffMinutes < 1) return 'Gerade eben synchronisiert';
+    if (diffMinutes < 60) return `Vor ${diffMinutes} Min. synchronisiert`;
+    const diffHours = Math.floor(diffMinutes / 60);
+    if (diffHours < 24) return `Vor ${diffHours} Std. synchronisiert`;
+    const diffDays = Math.floor(diffHours / 24);
+    return `Vor ${diffDays} Tagen synchronisiert`;
+  }
+
   openCloudLogin(account: MarketplaceConnection): void {
     this.closeSettings();
     void this.management()?.openLogin(account);

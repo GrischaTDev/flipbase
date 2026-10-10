@@ -1,5 +1,19 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-10 - Juna - Vinted-Kontokarten freizügiger gestalten und bereinigen
+
+**Auftrag:** Kritik des Nutzers umsetzen: Punkte auf Profilbildern und in Badges entfernen, Modus-Badges mit passenden Icons (Cloud / Laptop) statt Klammern versehen, den verwirrenden „Cloud-IP“-Button bei aktiven Cloud-Konten entfernen und den Cards deutlich mehr Freiraum und eine ruhigere Ein-Button-Struktur geben.
+
+**Befund & Konzept-Überarbeitung:**
+
+1. **Entfall von „Cloud-IP einrichten“:** Bei verbundenen Cloud-Konten ist ein IP-Setup-Button im Alltag überflüssig und verwirrend. Nur noch der primäre „Synchronisieren“-Button bleibt auf der Karte; IP-Einstellungen gehören ins Einstellungs-Menü (⚙️).
+2. **Keine überflüssigen Punkte:** Reine Avatare ohne Punkte; Status-Badges als saubere Farbflächen (`Verbunden` in Grün, `Erweiterung nicht erreichbar` in Orange) ohne Textpunkte.
+3. **Icons in Modus-Badges:** Echtes Wolken-Icon für `Cloud` und Laptop-Icon für `Lokal` (Chrome Extension).
+4. **Bewertung entfernt & nahtloser Sync-Status:** Die Sterne-Bewertung wurde entfernt. Störende horizontale Trennlinien (`border-y`) um die Sync-Zeile wurden vollständig beseitigt; der Synchronisationsstatus sitzt nun als ruhige Meta-Angabe direkt unter den Badges.
+5. **Freizügiges, nahtloses Layout:** Die Karte bildet eine zusammenhängende, weiße Fläche ohne horizontale Streifenbildung. Aktionen sind klar im Footer verankert; der Synchronisieren-Button nutzt das standardmäßige kreisrunde `LucideRefreshCw`-Icon.
+
+**Prüfung:** Bild-Mockup (`vinted_cards_seamless_1791657612901.jpg`) und interaktiver HTML-Entwurf (`vinted_cards_concept.html`) generiert. Unit-Tests (22/22), E2E-Spec-Anpassung, Lint und Angular-Build erfolgreich.
+
 ## 2026-10-10 – Juna – Vinted-Neuanmeldung bei abgelehnter früherer Sitzung
 
 **Befund:** Das Cloud-Konto ist seit dem 09.10., 20:10 Uhr abgemeldet (drei
@@ -24,6 +38,38 @@ nie doppelt abgeschickt, und ohne gültige Berechtigung wird nichts verworfen.
 dauerhafte Weiterleitung, Widerruf), 610 Worker-Prüfungen und Typen grün. Zwei
 unveränderte Login-Browserfälle schlagen auf diesem Windows-Rechner weiterhin
 fehl. Serverzugriffe ausschließlich lesend; nicht am echten Vinted geprüft.
+
+## 2026-10-10 - Juna - Ursachenanalyse und kritisches Review für den Vinted-Feed
+
+**Auftrag:** Dokumentation, frühere Audits und Codebasis des Vinted-Bots (`services/sniper`)
+untersuchen und den Lösungsplan für den wiederholten Stillstand des Vinted-Feeds
+kritisch mit Subagents auf Nebenwirkungen, Session-Verhalten und Resilienz prüfen.
+
+**Befund & Kritisches Review:**
+
+1. **Tab-Recycling-Strategie:** Ein sofortiges Schließen des Tabs nach dem Parsen
+   würde asynchrone Vinted-/DataDome-Skripte abwürgen und zu 403-Sperren führen.
+   Die optimale Strategie ist das Recycling des Tabs alle 15–20 erfolgreichen
+   Abrufe (entspricht 3–4 Min. Browsing) sowie sofort nach jedem Fehler.
+2. **Stale-Lock-Bereinigung:** Nach einem OOM-Kill verbleiben `SingletonLock`,
+   `SingletonCookie` und `SingletonSocket` auf dem gemounteten Volume.
+   `chrome-process.ts` muss verwaiste Locks (tote Ziel-PID `kill(0) -> ESRCH`
+   und freier CDP-Port) sowie verwaiste `/tmp/.X99-lock` autonom vor dem Start
+   bereinigen, um Crash-Loops zu verhindern.
+3. **2-Stufen-Self-Healing:** Chrome-Ausfälle fängt `ChromeProcess` in Stufe 1 bis
+   zu 3-mal innerhalb von 5 Minuten in-process ab. Scheitert dies, beendet sich
+   Node via Stufe 2 kontrolliert mit `process.exit(1)`, sodass Dockers
+   `restart: unless-stopped` den gesamten Container sauber durchstartet.
+4. **Healthcheck & Liveness-Watchdog:** `health.recordProgress()` in `index.ts`
+   wurde fälschlicherweise im `finally` von `counted` und unweigerlich nach
+   `catch (error)` ausgeführt. Dies wird bereinigt. Ein Liveness-Watchdog
+   erzwingt `process.exit(1)`, wenn `/live` länger als 6 Minuten 503 meldet.
+5. **Ressourcen & Timeouts:** `--disable-dev-shm-usage` darf wegen des 384-MB-`tmpfs`
+   nicht verwendet werden. Stattdessen wird `shm_size: 512m` in Compose gesetzt,
+   und V8 wird auf 512 MB gedeckelt (`--js-flags=--max-old-space-size=512`).
+   Alle CDP-Kommandos in `vinted-browser.ts` erhalten strikte Timeouts (`sendWithTimeout`).
+
+**Prüfung:** Reine Dokumentations-, Code- und Architekturprüfung ohne Codeänderung am Produktivsystem.
 
 ## 2026-10-10 – Juna – Bestehendes Vinted-Inserat vollständig lesen
 

@@ -28,7 +28,6 @@ import { VintedLocalRuntimeStore } from '../../services/vinted-local-runtime.sto
 import { createMarketplaceFixtures } from '../../testing/marketplace-fixtures';
 import { MarketplaceAccountsComponent } from '../marketplace-accounts/marketplace-accounts.component';
 import { VintedFavoriteSettingsComponent } from '../vinted-favorite-settings/vinted-favorite-settings.component';
-import { VintedRatingComponent } from '../vinted-rating/vinted-rating.component';
 import { VintedAccountGridComponent } from './vinted-account-grid.component';
 
 class AccountManagementStub {
@@ -101,10 +100,6 @@ beforeAll(async () => {
     {
       type: VintedAccountGridComponent,
       path: 'src/app/features/marketplaces/components/vinted-account-grid/vinted-account-grid.component.ts',
-    },
-    {
-      type: VintedRatingComponent,
-      path: 'src/app/features/marketplaces/components/vinted-rating/vinted-rating.component.ts',
     },
     ...[
       [BadgeComponent, 'badge'],
@@ -252,7 +247,11 @@ describe('Kompakte Vinted-Konten', () => {
     const cloudAccount = { ...account, executionMode: 'cloud' as const };
     accountList.set([cloudAccount]);
     const { element, fixture } = await render();
-    const setup = [...element.querySelectorAll<HTMLButtonElement>('app-card button')].find(
+    element.querySelector<HTMLButtonElement>('button[aria-label$="einstellen"]')?.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const setup = [...element.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')].find(
       (button) => button.textContent?.includes('Cloud-IP einrichten'),
     );
     expect(setup?.disabled).toBe(false);
@@ -264,8 +263,12 @@ describe('Kompakte Vinted-Konten', () => {
     'sperrt die IP-Einrichtung eines %s Cloudkontos',
     async (status) => {
       accountList.set([{ ...account, executionMode: 'cloud', status }]);
-      const { element } = await render();
-      const setup = [...element.querySelectorAll<HTMLButtonElement>('app-card button')].find(
+      const { element, fixture } = await render();
+      element.querySelector<HTMLButtonElement>('button[aria-label$="einstellen"]')?.click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      const setup = [...element.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')].find(
         (button) => button.textContent?.includes('Cloud-IP einrichten'),
       );
       expect(setup?.disabled).toBe(true);
