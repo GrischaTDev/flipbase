@@ -5,6 +5,7 @@ import {
   type VintedListingCategoryFields,
   type VintedListingCurrentContent,
 } from '../models/vinted-listing-category-fields';
+import type { VintedListingContent } from '../../../../../supabase/functions/_shared/marketplace-listing-contracts';
 import type { AccountScope } from '../models/marketplace.models';
 import { parseCloudSetupView, type CloudSetupView } from '../models/marketplace-cloud-setup';
 
@@ -73,6 +74,15 @@ export class VintedEditUnconfirmedError extends Error {
   constructor(subject: 'Artikel' | 'Profil' = 'Artikel') {
     super(
       `Vinted hat die Änderung nicht eindeutig bestätigt. Prüfe ${subject === 'Profil' ? 'Dein Profil' : 'den Artikel'} bei Vinted, bevor Du erneut speicherst.`,
+    );
+  }
+}
+
+/** Das Inserat wurde bei Vinted geändert, nachdem Flipbase es gelesen hat; nichts wurde gespeichert. */
+export class VintedListingChangedError extends Error {
+  constructor() {
+    super(
+      'Das Inserat wurde inzwischen bei Vinted geändert. Es wurde nichts gespeichert. Lade den aktuellen Stand und trage Deine Änderungen erneut ein.',
     );
   }
 }
@@ -755,6 +765,44 @@ export class MarketplaceBrowserTestApiService {
       body.status !== 'confirmed'
     )
       throw new VintedEditUnconfirmedError();
+  }
+
+  /**
+   * Speichert geänderte Angaben eines bestehenden Inserats bei Vinted. Fotos und Kategorie
+   * bleiben unverändert. Erfolg gilt nur nach erneutem Abruf beim Anbieter.
+   */
+  async saveListingContent(
+    scope: AccountScope,
+    entryId: string,
+    base: VintedListingContent,
+    content: VintedListingContent,
+    accessToken: string,
+  ): Promise<void> {
+    let response: Response;
+    try {
+      response = await this.post(
+        '/marketplace-browser/listings/content/save',
+        {
+          workspaceId: scope.workspaceId,
+          connectionId: scope.connectionId,
+          entryId,
+          base,
+          content,
+        },
+        accessToken,
+      );
+    } catch {
+      throw new VintedEditUnconfirmedError();
+    }
+    if (response.status === 404) throw new MarketplaceWorkerOutdatedError();
+    if (response.status === 400)
+      throw new Error('Die Angaben sind unvollständig. Prüfe Titel, Beschreibung und Preis.');
+    if (!response.ok) throw new VintedEditUnconfirmedError();
+    const body: unknown = await response.json();
+    const status =
+      typeof body === 'object' && body !== null && 'status' in body ? body.status : null;
+    if (status === 'conflict') throw new VintedListingChangedError();
+    if (status !== 'confirmed') throw new VintedEditUnconfirmedError();
   }
 
   async readProfileAbout(scope: BrowserTestScope, accessToken: string): Promise<string> {

@@ -157,6 +157,39 @@ test('content read action rejects malformed IDs before invoking the browser', as
   );
 });
 
+test('content update action passes only complete listing content and a fixed result', async () => {
+  const base = listingCurrentContentFixture().content,
+    desired = { ...base, priceCents: 1800 };
+  const calls: unknown[] = [];
+  const browser = {
+    version: () => 'fixture',
+    updateListingContent: (...input: unknown[]) => {
+      calls.push(input.slice(0, 4));
+      return Promise.resolve('confirmed');
+    },
+  } as unknown as import('../src/gologin-cloud-browser.ts').BrowserInfo;
+  const run = (argumentsList: unknown[]) =>
+    executeBrowserAction(
+      browser,
+      { name: 'updateListingContent', arguments: argumentsList },
+      () => Promise.resolve(),
+      () => Promise.resolve(),
+    );
+  for (const argumentsList of [
+    ['123', '98765/edit', base, desired],
+    ['123', '98765', base, { ...desired, script: 'private' }],
+    ['123', '98765', base, { ...desired, priceCents: 0 }],
+    ['123', '98765', base, { ...desired, colorIds: [1, 2, 3], colorLabels: ['a', 'b', 'c'] }],
+    ['123', '98765', null, desired],
+  ])
+    await assert.rejects(run(argumentsList));
+  assert.equal(calls.length, 0);
+  assert.equal(await run(['123', '98765', base, desired]), 'confirmed');
+  assert.deepEqual(calls, [['123', '98765', base, desired]]);
+  assert.equal(validateBrowserResult('updateListingContent', 'conflict'), 'conflict');
+  assert.throws(() => validateBrowserResult('updateListingContent', 'saved'));
+});
+
 test('isolated terminal write proof survives a subsequent revocation without granting another action', async () => {
   for (const name of ['sendMessage', 'sendFavoriteMessage', 'sendFavoriteOffer'] as const) {
     let authorizations = 0;

@@ -47,6 +47,80 @@ async function loadedPhotos(page: Page): Promise<VintedListingPhotoState> {
 }
 
 /**
+ * Liest die bereits geöffnete Bearbeitungsmaske. Öffnet und schließt nur Auswahllisten;
+ * der Aufrufer bestimmt Seite, Navigation und die Prüfung von Konto und Rechten.
+ */
+export async function readOpenVintedListingContent(
+  page: Page,
+  accountId: string,
+  externalId: string,
+  check: () => Promise<void>,
+): Promise<VintedListingCurrentContent> {
+  const before = await page.evaluate(collectVintedListingFormValues);
+  const photosBefore = await loadedPhotos(page);
+  if (!before || photosBefore.items.some((item) => item.url === null)) throw invalid();
+  await check();
+  const category = (
+    await readVintedListingChoices(page, accountId, null, 'category', [], {
+      allowRememberedCategory: true,
+    })
+  ).choices.filter((choice) => choice.selected);
+  const selectedCategory = category[0];
+  if (category.length !== 1 || !selectedCategory || selectedCategory.id === null) throw invalid();
+  await check();
+  const schema = parseVintedListingCategoryFields(
+    await readVintedListingCategoryFields(page, accountId, selectedCategory.id, [], {
+      authorize: check,
+    }),
+    selectedCategory.id,
+  );
+  await check();
+  // Das Öffnen der Auswahllisten darf nichts verändert haben; sonst keinen gemischten Stand liefern.
+  const after = await page.evaluate(collectVintedListingFormValues);
+  const photosAfter = await page.evaluate(collectVintedListingPhotoState);
+  if (!sameValues(before, after) || !samePhotos(photosBefore, photosAfter)) throw invalid();
+  const selected = (field: VintedListingChoiceField): readonly VintedListingChoice[] =>
+    schema.fields
+      .find((entry) => entry.field === field)
+      ?.choices.filter((choice) => choice.selected) ?? [];
+  const brand = selected('brand')[0];
+  const size = selected('size')[0];
+  const condition = selected('condition')[0];
+  const colors = selected('color');
+  const materials = selected('material');
+  const result: VintedListingCurrentContent = {
+    externalId,
+    externalAccountId: accountId,
+    content: {
+      title: before.title,
+      description: before.description,
+      priceCents: priceCents(before.price),
+      currency: 'EUR',
+      categoryId: selectedCategory.id,
+      categoryLabel: selectedCategory.label,
+      brandId: brand?.id ?? null,
+      brandLabel: brand?.label ?? '',
+      sizeId: size?.id ?? null,
+      sizeLabel: size?.label ?? '',
+      conditionId: condition?.id ?? null,
+      conditionLabel: condition?.label ?? '',
+      colorIds: colors.map((choice) => choice.id as number),
+      colorLabels: colors.map((choice) => choice.label),
+      materialIds: materials.map((choice) => choice.id as number),
+      materialLabels: materials.map((choice) => choice.label),
+      packageSizeId: selected('package')[0]?.id ?? null,
+      attributes: {},
+    },
+    aiPhoto: before.ai_photo,
+    bump: before.bump,
+    photoUrls: photosBefore.items.map((item) => item.url as string),
+    schema,
+  };
+  await check();
+  return parseVintedListingCurrentContent(result, accountId, externalId);
+}
+
+/**
  * Liest ein bestehendes Inserat ausschließlich auf einer neu reservierten Seite und schließt
  * diese danach. Auswahllisten werden nur geöffnet und wieder geschlossen; gespeichert wird nichts.
  */
@@ -79,68 +153,7 @@ export async function readVintedListingCurrentContent(
       await authorize();
     };
     await check();
-    const before = await page.evaluate(collectVintedListingFormValues);
-    const photosBefore = await loadedPhotos(page);
-    if (!before || photosBefore.items.some((item) => item.url === null)) throw invalid();
-    await check();
-    const category = (
-      await readVintedListingChoices(page, accountId, null, 'category', [], {
-        allowRememberedCategory: true,
-      })
-    ).choices.filter((choice) => choice.selected);
-    const selectedCategory = category[0];
-    if (category.length !== 1 || !selectedCategory || selectedCategory.id === null) throw invalid();
-    await check();
-    const schema = parseVintedListingCategoryFields(
-      await readVintedListingCategoryFields(page, accountId, selectedCategory.id, [], {
-        authorize: check,
-      }),
-      selectedCategory.id,
-    );
-    await check();
-    // Das Öffnen der Auswahllisten darf nichts verändert haben; sonst keinen gemischten Stand liefern.
-    const after = await page.evaluate(collectVintedListingFormValues);
-    const photosAfter = await page.evaluate(collectVintedListingPhotoState);
-    if (!sameValues(before, after) || !samePhotos(photosBefore, photosAfter)) throw invalid();
-    const selected = (field: VintedListingChoiceField): readonly VintedListingChoice[] =>
-      schema.fields
-        .find((entry) => entry.field === field)
-        ?.choices.filter((choice) => choice.selected) ?? [];
-    const brand = selected('brand')[0];
-    const size = selected('size')[0];
-    const condition = selected('condition')[0];
-    const colors = selected('color');
-    const materials = selected('material');
-    const result: VintedListingCurrentContent = {
-      externalId,
-      externalAccountId: accountId,
-      content: {
-        title: before.title,
-        description: before.description,
-        priceCents: priceCents(before.price),
-        currency: 'EUR',
-        categoryId: selectedCategory.id,
-        categoryLabel: selectedCategory.label,
-        brandId: brand?.id ?? null,
-        brandLabel: brand?.label ?? '',
-        sizeId: size?.id ?? null,
-        sizeLabel: size?.label ?? '',
-        conditionId: condition?.id ?? null,
-        conditionLabel: condition?.label ?? '',
-        colorIds: colors.map((choice) => choice.id as number),
-        colorLabels: colors.map((choice) => choice.label),
-        materialIds: materials.map((choice) => choice.id as number),
-        materialLabels: materials.map((choice) => choice.label),
-        packageSizeId: selected('package')[0]?.id ?? null,
-        attributes: {},
-      },
-      aiPhoto: before.ai_photo,
-      bump: before.bump,
-      photoUrls: photosBefore.items.map((item) => item.url as string),
-      schema,
-    };
-    await check();
-    return parseVintedListingCurrentContent(result, accountId, externalId);
+    return await readOpenVintedListingContent(page, accountId, externalId, check);
   } finally {
     await page.close();
   }

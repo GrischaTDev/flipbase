@@ -4,6 +4,7 @@ import {
   GoLoginApiLimitError,
   MarketplaceBrowserTestApiService,
   VintedInteractionRequiredError,
+  VintedListingChangedError,
 } from './marketplace-browser-test-api.service';
 import { listingCurrentContentFixture } from '../../../../../services/marketplace-worker/test/fixtures/vinted-listing-current-content';
 
@@ -85,6 +86,36 @@ it('liest den Iststand eines bestehenden Inserats nur für das erwartete Konto u
   request.mockResolvedValueOnce(Response.json({ error: 'private detail' }, { status: 409 }));
   await expect(api.readListingContent(scope, id, expected, 'token')).rejects.toThrow(
     'konnte nicht gelesen werden',
+  );
+});
+it('meldet geänderte Inseratangaben nur nach Anbieterbestätigung als gespeichert', async () => {
+  const base = listingCurrentContentFixture().content;
+  const content = { ...base, priceCents: 1800 };
+  const request = vi.fn().mockResolvedValue(Response.json({ status: 'confirmed' }));
+  vi.stubGlobal('fetch', request);
+  await expect(api.saveListingContent(scope, id, base, content, 'token')).resolves.toBeUndefined();
+  expect(request.mock.calls[0][0]).toBe('/marketplace-browser/listings/content/save');
+  expect(JSON.parse(request.mock.calls[0][1].body)).toEqual({
+    ...scope,
+    entryId: id,
+    base,
+    content,
+  });
+  request.mockResolvedValueOnce(Response.json({ status: 'conflict' }));
+  await expect(api.saveListingContent(scope, id, base, content, 'token')).rejects.toBeInstanceOf(
+    VintedListingChangedError,
+  );
+  request.mockResolvedValueOnce(Response.json({ status: 'unconfirmed' }));
+  await expect(api.saveListingContent(scope, id, base, content, 'token')).rejects.toThrow(
+    'nicht eindeutig bestätigt',
+  );
+  request.mockRejectedValueOnce(new Error('private connection details'));
+  await expect(api.saveListingContent(scope, id, base, content, 'token')).rejects.toThrow(
+    'nicht eindeutig bestätigt',
+  );
+  request.mockResolvedValueOnce(new Response(null, { status: 400 }));
+  await expect(api.saveListingContent(scope, id, base, content, 'token')).rejects.toThrow(
+    'unvollständig',
   );
 });
 it('bestätigt einen Gesprächsabruf nur mit passender ID und gültigem Prüfzeitpunkt', async () => {

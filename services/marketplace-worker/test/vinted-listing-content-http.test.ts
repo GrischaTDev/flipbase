@@ -26,6 +26,13 @@ async function fixture(
   const targets: unknown[] = [];
   const browser: BrowserInfo = {
     version: () => 'fixture',
+    updateListingContent: async (account, item, base, desired, authorize) => {
+      reads++;
+      targets.push([account, item, base.priceCents, desired.priceCents]);
+      if (options.reassign) reassigned = true;
+      await authorize();
+      return options.foreignItem ? 'conflict' : 'confirmed';
+    },
     readListingContent: async (account, item, authorize) => {
       reads++;
       targets.push([account, item]);
@@ -71,6 +78,12 @@ async function fixture(
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   const address = server.address() as AddressInfo;
   return {
+    save: (body: unknown) =>
+      fetch(`http://127.0.0.1:${address.port}/marketplace-browser/listings/content/save`, {
+        method: 'POST',
+        headers: { Authorization: 'Bearer user-token', 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }),
     request: (body: unknown) =>
       fetch(`http://127.0.0.1:${address.port}/marketplace-browser/listings/content/read`, {
         method: 'POST',
@@ -182,5 +195,45 @@ test('content HTTP read rejects a concurrent request and permits another after c
     release();
     await pending;
     await f.close();
+  }
+});
+
+test('content HTTP save writes only for the own entry and passes conflicts through unchanged', async () => {
+  const base = listingCurrentContentFixture().content,
+    content = { ...base, priceCents: 1800 };
+  const f = await fixture();
+  try {
+    const response = await f.save({ workspaceId, connectionId, entryId, base, content });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { status: 'confirmed' });
+    assert.ok(f.targets.some((target) => JSON.stringify(target) === '["123","98765",2050,1800]'));
+    assert.equal(f.closed(), 1);
+    for (const body of [
+      { workspaceId, connectionId, entryId, base },
+      { workspaceId, connectionId, entryId, base, content, externalId: '98765' },
+      { workspaceId, connectionId, entryId, base, content: { ...content, priceCents: 0 } },
+      { workspaceId, connectionId, entryId, base, content: { ...content, token: 'private' } },
+      { workspaceId, connectionId, entryId: '98765', base, content },
+    ])
+      assert.equal((await f.save(body)).status, 400);
+    assert.equal(f.reads(), 1);
+  } finally {
+    await f.close();
+  }
+  const conflict = await fixture({ foreignItem: true });
+  try {
+    const response = await conflict.save({ workspaceId, connectionId, entryId, base, content });
+    assert.deepEqual(await response.json(), { status: 'conflict' });
+  } finally {
+    await conflict.close();
+  }
+  for (const options of [{ reassign: true }, { missing: true }, { readOnly: true }]) {
+    const rejected = await fixture(options);
+    try {
+      const response = await rejected.save({ workspaceId, connectionId, entryId, base, content });
+      assert.equal(response.status, options.missing ? 503 : options.readOnly ? 403 : 409);
+    } finally {
+      await rejected.close();
+    }
   }
 });

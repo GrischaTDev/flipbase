@@ -1100,7 +1100,94 @@
       schema,
     };
   }
+  /** Prüft vollständige Inseratangaben für eine Änderung; ob die Werte wählbar sind, klärt erst die Maske. */
+  function parseEditContent(input) {
+    const text = (value, limit) =>
+      typeof value === 'string' &&
+      value.length <= limit &&
+      ![...value].some((character) => {
+        const code = character.charCodeAt(0);
+        return code === 127 || (code < 32 && ![9, 10, 13].includes(code));
+      });
+    const positive = (value) => Number.isSafeInteger(value) && value > 0;
+    const optional = (value) => value === null || positive(value);
+    const keys = [
+      'title',
+      'description',
+      'priceCents',
+      'currency',
+      'categoryId',
+      'categoryLabel',
+      'brandId',
+      'brandLabel',
+      'sizeId',
+      'sizeLabel',
+      'conditionId',
+      'conditionLabel',
+      'colorIds',
+      'colorLabels',
+      'materialIds',
+      'materialLabels',
+      'packageSizeId',
+      'attributes',
+    ];
+    const choices = (ids, labels, max) =>
+      Array.isArray(ids) &&
+      Array.isArray(labels) &&
+      ids.length <= max &&
+      ids.length === labels.length &&
+      new Set(ids).size === ids.length &&
+      ids.every(positive) &&
+      labels.every((label) => text(label, 2000) && label.trim());
+    if (
+      !input ||
+      typeof input !== 'object' ||
+      Array.isArray(input) ||
+      Object.keys(input).length !== keys.length ||
+      !keys.every((key) => Object.hasOwn(input, key)) ||
+      !text(input.title, 20000) ||
+      !input.title.trim() ||
+      !text(input.description, 20000) ||
+      !input.description.trim() ||
+      !positive(input.priceCents) ||
+      input.priceCents > 100000000 ||
+      input.currency !== 'EUR' ||
+      !positive(input.categoryId) ||
+      ![input.categoryLabel, input.brandLabel, input.sizeLabel, input.conditionLabel].every(
+        (label) => text(label, 2000),
+      ) ||
+      ![input.brandId, input.sizeId, input.conditionId, input.packageSizeId].every(optional) ||
+      !choices(input.colorIds, input.colorLabels, 2) ||
+      !choices(input.materialIds, input.materialLabels, 3) ||
+      !input.attributes ||
+      typeof input.attributes !== 'object' ||
+      Array.isArray(input.attributes) ||
+      Object.keys(input.attributes).length !== 0
+    )
+      invalid();
+    return {
+      title: input.title,
+      description: input.description,
+      priceCents: input.priceCents,
+      currency: 'EUR',
+      categoryId: input.categoryId,
+      categoryLabel: input.categoryLabel,
+      brandId: input.brandId,
+      brandLabel: input.brandLabel,
+      sizeId: input.sizeId,
+      sizeLabel: input.sizeLabel,
+      conditionId: input.conditionId,
+      conditionLabel: input.conditionLabel,
+      colorIds: [...input.colorIds],
+      colorLabels: [...input.colorLabels],
+      materialIds: [...input.materialIds],
+      materialLabels: [...input.materialLabels],
+      packageSizeId: input.packageSizeId,
+      attributes: {},
+    };
+  }
   root.FlipbaseVintedListingRuntime = Object.freeze({
+    parseEditContent,
     parseCurrentContent,
     photosMatch,
     collectPhotoState,
