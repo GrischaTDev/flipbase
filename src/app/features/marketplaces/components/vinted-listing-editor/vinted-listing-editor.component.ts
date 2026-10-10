@@ -115,6 +115,8 @@ export class VintedListingEditorComponent {
   });
   readonly workspaceId = computed(() => this.workspace.currentWorkspace()?.id ?? null);
   readonly draft = signal<VintedListingDraft | null>(null);
+  /** Über die Entwurfsliste geöffnet; „Inserat erstellen“ behält seinen Titel auch nach dem Speichern. */
+  readonly openedSavedDraft = computed(() => this.params().get('draftId') !== null);
   readonly loading = signal(true);
   readonly saving = signal(false);
   readonly imageEditing = signal(false);
@@ -150,7 +152,6 @@ export class VintedListingEditorComponent {
   private readonly changed = signal(0);
   private loadedContext: string | null = null;
   private generation = 0;
-  private timer: ReturnType<typeof setTimeout> | null = null;
   private activeSave: Promise<void> | null = null;
   private requestId = crypto.randomUUID();
   readonly validateImage = vintedDraftImageError;
@@ -283,6 +284,9 @@ export class VintedListingEditorComponent {
       account?.marketplace === 'vinted'
     );
   });
+  readonly canStartPublication = computed(
+    () => this.canPreparePublication() || (this.canSelectFields() && this.canSave()),
+  );
   private readonly publicationScope = computed(() =>
     JSON.stringify([
       this.fieldSelectionScope(),
@@ -320,10 +324,14 @@ export class VintedListingEditorComponent {
     this.form.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => this.markChanged());
     this.destroyRef.onDestroy(() => {
       this.generation++;
-      if (this.timer) clearTimeout(this.timer);
     });
   }
-  openPublication(): void {
+  /** Ungespeicherte Eingaben werden zuerst als Entwurf gesichert; die Vorschau zeigt nur Gespeichertes. */
+  async openPublication(): Promise<void> {
+    if (this.dirty()) {
+      if (!this.canStartPublication()) return;
+      await this.save();
+    }
     if (!this.canPreparePublication()) return;
     const draft = this.draft()!;
     const account = this.store
@@ -459,17 +467,9 @@ export class VintedListingEditorComponent {
   }
   setImageEditing(editing: boolean): void {
     this.imageEditing.set(editing);
-    if (this.timer) {
-      clearTimeout(this.timer);
-      this.timer = null;
-    }
-    if (!editing && this.dirty() && !this.error() && !this.conflict()) this.scheduleSave();
   }
+  /** Speichert ausschließlich auf ausdrücklichen Wunsch; die geöffnete Seite bleibt bestehen. */
   async save(): Promise<void> {
-    if (this.timer) {
-      clearTimeout(this.timer);
-      this.timer = null;
-    }
     if (this.activeSave) return this.activeSave;
     if (
       !this.context() ||
@@ -492,12 +492,6 @@ export class VintedListingEditorComponent {
     if (!this.current(generation, context)) return;
     this.saving.set(false);
     this.progress.set('');
-    if (this.dirty() && !this.error() && !this.conflict()) this.scheduleSave();
-    else if (!this.error() && this.draft() && !this.params().get('draftId')) {
-      await this.router.navigate(['/marketplaces/vinted/listing-drafts', this.draft()!.id], {
-        replaceUrl: true,
-      });
-    }
   }
   async reload(): Promise<void> {
     if (this.saving()) return;
@@ -513,10 +507,6 @@ export class VintedListingEditorComponent {
     const context = this.context();
     const id = this.draft()?.id ?? this.params().get('draftId');
     await this.load(context, true, id);
-    if (context === this.context() && this.draft() && !this.params().get('draftId'))
-      await this.router.navigate(['/marketplaces/vinted/listing-drafts', this.draft()!.id], {
-        replaceUrl: true,
-      });
   }
   async canLeave(): Promise<boolean> {
     if (this.activeSave) await this.activeSave;
@@ -575,16 +565,7 @@ export class VintedListingEditorComponent {
       }
       this.changed.update((value) => value + 1);
       this.dirty.set(true);
-      if (!this.conflict()) this.scheduleSave();
     }
-  }
-  private scheduleSave(): void {
-    if (this.imageEditing()) return;
-    if (this.timer) clearTimeout(this.timer);
-    this.timer = setTimeout(() => {
-      this.timer = null;
-      void this.save();
-    }, 750);
   }
   private current(generation: number, context = this.loadedContext): boolean {
     return (
@@ -606,8 +587,6 @@ export class VintedListingEditorComponent {
     this.closePublication();
     this.publicationAnnouncement.set('');
     const generation = ++this.generation;
-    if (this.timer) clearTimeout(this.timer);
-    this.timer = null;
     this.activeSave = null;
     this.loading.set(true);
     this.imageEditing.set(false);

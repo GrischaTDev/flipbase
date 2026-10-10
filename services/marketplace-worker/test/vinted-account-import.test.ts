@@ -264,6 +264,65 @@ test('imports conversation article metadata from the inbox and enriches it from 
   assert.equal(conversation?.body['transactionStatus'], 'Offer received');
 });
 
+test('imports the current offer state from the offer message and updates it on a later read', async () => {
+  const read = (status: unknown, statusTitle?: string) =>
+    readVintedAccountImport(
+      importPage((path) => {
+        if (path.startsWith('/api/v2/inbox'))
+          return { conversations: [{ id: 456, unread: false }], pagination: { total_pages: 1 } };
+        if (path === '/api/v2/conversations/456')
+          return {
+            conversation: {
+              id: 456,
+              messages: [
+                {
+                  // Angebotsnachrichten tragen bei Vinted eine eigene Kennung.
+                  id: 9001,
+                  entity_type: 'offer_request_message',
+                  created_at_ts: '2026-10-10T19:00:00Z',
+                  entity: {
+                    offer_request_id: 9001,
+                    user_id: 123,
+                    price_label: '27,00 €',
+                    status,
+                    ...(statusTitle ? { status_title: statusTitle } : {}),
+                  },
+                },
+                {
+                  entity_type: 'message',
+                  created_at_ts: '2026-10-10T19:01:00Z',
+                  entity: { id: 9002, user_id: 999, body: 'Hallo', status: 30 },
+                },
+              ],
+              transaction: { id: 71, seller_id: 123 },
+            },
+          };
+        return undefined;
+      }),
+      async () => undefined,
+      undefined,
+      [],
+      { externalId: '456', accountId: '123' },
+    );
+  const offer = async (status: unknown, statusTitle?: string) =>
+    (await read(status, statusTitle)).entries.find(
+      (entry) => entry.kind === 'message' && entry.body['messageType'] === 'offer_request_message',
+    );
+  const pending = await offer(10);
+  const rejected = await offer(30);
+  assert.equal(pending?.body['offerStatus'], 'pending');
+  assert.equal(rejected?.body['offerStatus'], 'rejected');
+  // Dieselbe Nachricht wird beim späteren Abruf überschrieben, nicht doppelt angelegt.
+  assert.equal(rejected?.externalId, pending?.externalId);
+  assert.equal((await offer(20))?.body['offerStatus'], 'accepted');
+  assert.equal((await offer(40))?.body['offerStatus'], 'cancelled');
+  assert.equal((await offer(55, 'Abgelaufen'))?.body['offerStatus'], 'Abgelaufen');
+  assert.equal((await offer(undefined))?.body['offerStatus'], undefined);
+  const plain = (await read(30)).entries.find((entry) => entry.body['messageType'] === 'message');
+  assert.equal(plain?.body['text'], 'Hallo');
+  assert.equal('offerStatus' in (plain?.body ?? {}), false);
+});
+
 test('opening one conversation skips wardrobe, feedback and sales requests without claiming complete lists', async () => {
   const paths: string[] = [];
   const result = await readVintedAccountImport(

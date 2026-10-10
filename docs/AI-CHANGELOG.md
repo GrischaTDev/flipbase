@@ -36,6 +36,61 @@ startete. Kein echter Kauf, kein Schreibzugriff auf Produktionsdaten.
 **Offen:** Erster echter Kauf über PayPal. Die genauere Workermeldung wirkt erst nach
 Auslieferung eines neuen Worker-Images; bis dahin zeigt die App weiter den pauschalen Text.
 
+## 2026-10-10 - Juna - Vinted-Karten exakt an Vorlage angleichen
+
+**Auftrag:** Kritik des Nutzers umsetzen: Einstellungs-Zahnrad oben rechts bündig auf Höhe des Namens positionieren, Kartenfooter mit dezent abgesetztem Hintergrund und gleichmäßig aufgeteilten Buttons ausstatten sowie die maximale Kartenbreite begrenzen, damit die Karten nicht übermäßig breit gezogen werden.
+
+**Umsetzung:**
+
+1. **Einstellungs-Button oben rechts:** Die Kopfzeile richtet sich nun per `items-start` aus; das Zahnrad-Icon ist mit `-mt-0.5 -mr-1` bündig an der Oberkante des Namens und des Avatars platziert statt vertikal zentriert zwischen zwei Textzeilen zu hängen.
+2. **Abgesetzter Footer:** Der Aktionsbereich ist nun als echter Kartenfooter mit `border-t border-fb-line bg-fb-subtle/50 px-3.5 py-2.5 sm:px-4 sm:py-3` abgesetzt.
+3. **Gleichmäßige Button-Aufteilung:** Buttons nutzen `[fullWidth]="true"` und `class="flex-1 min-w-0"`. Ein einzelner Button (wie „Synchronisieren“ bei Cloud) füllt die volle Breite; zwei Buttons (wie bei lokalem Modus) teilen sich die Fläche gleichmäßig 50/50 mit `gap-2`.
+4. **Begrenzte Kartenbreite:** Das Raster begrenzt die Spaltenbreite auf maximal `21.5rem` (`max-w-[21.5rem]`, ~344px), wodurch die Karten kompakt und formschön bleiben.
+
+**Prüfung:** Unit-Tests (22/22), Prettier, Angular-Entwicklungsbuild erfolgreich.
+
+## 2026-10-10 – Juna – Angebotsstatus für Cloud-Konten
+
+**Befund:** Im Postfach eines Cloud-Kontos blieb ein abgelehntes eigenes Angebot
+ohne Status. Den Stand eines Angebots (offen, angenommen, abgelehnt, abgebrochen)
+übernahm bisher nur die lokale Erweiterung; der Server-Abruf ließ das Feld weg.
+PR #356 ist gemergt, ein offener Zweig dazu existiert nicht. Kaufen als Käufer
+war dort ausdrücklich ausgenommen und bleibt es.
+
+**Änderung:** Der Server-Abruf liest den Status mit derselben Zuordnung wie die
+Erweiterung, nur an Angebotsnachrichten. Die Anzeige im Postfach zeigt ihn als
+Status-Baustein: angenommen grün, abgelehnt rot, sonst neutral. In der
+Produktionsdatenbank lesend geprüft: Angebotsnachrichten tragen eine eigene
+Kennung, ein späterer Abruf überschreibt also dieselbe Nachricht.
+
+**Prüfungen:** 611 Worker-Prüfungen, 54 Postfach-Komponentenfälle, Typen, Bau,
+gemeinsame UI-Prüfung, Format und ESLint grün. 14 Postfach-Browserfälle lokal
+grün, Screenshot angesehen. Vier Verhandlungs-Browserfälle schlagen lokal mit
+und ohne diese Änderung fehl. Der Worker auf dem Server wurde auf `3e75483d`
+aktualisiert; die Neuanmeldung des Kontos hat danach funktioniert.
+
+**Offen:** Ändert Vinted beim Ablehnen den Änderungszeitpunkt des Gesprächs
+nicht, erscheint der neue Status erst beim Öffnen des Gesprächs. Wirkt erst
+nach erneuter Aktualisierung des Workers.
+
+## 2026-10-10 – Juna – Inserat-Entwürfe nur auf Wunsch speichern
+
+**Anlass:** Der Editor speicherte jede Eingabe nach kurzer Pause automatisch und
+wechselte dabei von „Inserat erstellen“ zu „Entwurf bearbeiten“. Beim erneuten
+Öffnen von „Inserat erstellen“ entstand so jedes Mal ein weiterer Entwurf.
+
+**Änderung (Nutzerentscheidung vom 10.10.2026):** Das automatische Speichern
+entfällt. Gespeichert wird nur über „Entwurf speichern“. Die Seite „Inserat
+erstellen“ bleibt danach geöffnet und behält ihren Titel; weiteres Speichern
+aktualisiert denselben Entwurf. „Veröffentlichung vorbereiten“ sichert offene
+Eingaben zuerst und zeigt dann wie bisher nur den gespeicherten Stand. Der
+Hinweis beim Verlassen mit ungespeicherten Eingaben bleibt.
+
+**Prüfungen:** 23 Komponentenfälle des Editors, Typen, Angular-Bau, gemeinsame
+UI-Prüfung, Format und ESLint grün. Alle 23 Browserfälle der Entwürfe laufen
+lokal mit abgefangenen Serverantworten durch; sie klicken jetzt ausdrücklich
+auf Speichern und prüfen, dass ohne Klick kein Entwurf entsteht.
+
 ## 2026-10-10 - Juna - Vinted-Kartenlayout entzerren und Badges auf volle Breite setzen
 
 **Auftrag:** Kritik des Nutzers am Live-Design umsetzen: Badges und Sync-Status waren fälschlicherweise in der rechten Spalte neben dem Avatar verschachtelt, wodurch Badges wie „Erweiterung nicht erreichbar“ in eine neue Zeile umbrachen und unter dem Avatar ein großes schwarzes Loch entstand. Zudem wurden Grammatikfehler („Vor 1 Tagen“) behoben.
