@@ -77,9 +77,11 @@
           [queryParams]="{ connectionId: account.connectionId }"
           [linkLabel]="account.displayName + ' öffnen'"
         >
-          <div class="flex h-full min-w-0 flex-col gap-4 p-4">
-            <div class="flex min-w-0 items-start gap-3">
-              <app-product-thumbnail [src]="profile?.imageUrl ?? null" alt="" size="avatar" />
+          <div class="flex h-full min-w-0 flex-col gap-4 p-5 md:p-6">
+            <div class="flex min-w-0 items-start gap-3.5">
+              <div class="shrink-0">
+                <app-product-thumbnail [src]="profile?.imageUrl ?? null" alt="" size="avatar" />
+              </div>
               <div class="min-w-0 flex-1">
                 <h3
                   class="truncate text-sm font-semibold text-fb-text-primary"
@@ -92,10 +94,40 @@
                     {{ profile?.username ? '@' : '' }}{{ name }}
                   </p>
                 }
-                <div class="mt-1.5 flex flex-wrap items-center gap-1.5" aria-live="polite">
-                  <app-badge size="sm">{{
-                    account.executionMode === 'local' ? 'Lokal' : 'Cloud'
-                  }}</app-badge>
+                <div class="mt-2 flex flex-wrap items-center gap-1.5" aria-live="polite">
+                  <app-badge size="sm" class="gap-1">
+                    @if (account.executionMode === 'cloud') {
+                      <svg
+                        class="size-3.5 shrink-0"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
+                      </svg>
+                      Cloud
+                    } @else {
+                      <svg
+                        class="size-3.5 shrink-0"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path
+                          d="M20 16V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9m16 0H4m16 0 1.28 2.55a1 1 0 0 1-.9 1.45H3.62a1 1 0 0 1-.9-1.45L4 16"
+                        />
+                      </svg>
+                      Lokal
+                    }
+                  </app-badge>
                   <app-badge
                     class="max-w-full [&>span]:h-auto [&>span]:min-h-5 [&>span]:py-0.5"
                     size="sm"
@@ -103,6 +135,27 @@
                     >{{ status.label }}</app-badge
                   >
                 </div>
+                @if (formatSyncTime(account.lastSyncedAt, status.tone); as syncText) {
+                  <div
+                    class="mt-2 flex items-center gap-1.5 text-xs text-fb-text-secondary"
+                    [title]="account.lastSyncedAt ? 'Letzter Sync: ' + account.lastSyncedAt : ''"
+                  >
+                    <svg
+                      class="size-3.5 shrink-0 text-fb-text-secondary/70"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <circle cx="12" cy="12" r="10" />
+                      <polyline points="12 6 12 12 16 14" />
+                    </svg>
+                    <span>{{ syncText }}</span>
+                  </div>
+                }
               </div>
               <app-button
                 class="relative z-10 shrink-0"
@@ -118,119 +171,108 @@
                 (clicked)="openSettings(account)"
               />
             </div>
-            <div class="mt-auto space-y-3">
-              @if (profile?.feedbackCount !== null && profile?.feedbackCount !== undefined) {
-                <app-vinted-rating
-                  class="block"
-                  [count]="profile.feedbackCount"
-                  [reputation]="profile.feedbackReputation"
-                />
+            <div
+              class="relative z-10 mt-auto flex items-center gap-2 pt-4"
+              [class.justify-between]="account.executionMode === 'local'"
+              [class.justify-end]="account.executionMode === 'cloud'"
+              (mousedown)="stopActionDrag($event)"
+              (touchstart)="stopActionDrag($event)"
+            >
+              @if (account.executionMode === 'local') {
+                <app-button
+                  size="slim"
+                  [disabled]="
+                    !accounts.canManage() ||
+                    !cloud.canSetup() ||
+                    cloud.busy() ||
+                    accounts.busy() ||
+                    account.status === 'paused' ||
+                    account.status === 'blocked'
+                  "
+                  [title]="
+                    cloud.canSetup()
+                      ? 'Prüft freie Cloud-IPs und startet die Einrichtung'
+                      : 'Cloud-Einrichtung derzeit nicht verfügbar'
+                  "
+                  (clicked)="upgradeToCloud(account)"
+                  >Auf Cloud wechseln</app-button
+                >
               }
-              <div
-                class="relative z-10 flex flex-wrap items-center gap-2"
-                (mousedown)="stopActionDrag($event)"
-                (touchstart)="stopActionDrag($event)"
-              >
-                @if (account.executionMode === 'local' || account.executionMode === 'cloud') {
-                  <app-button
-                    size="slim"
-                    [disabled]="
-                      !accounts.canManage() ||
-                      !cloud.canSetup() ||
-                      cloud.busy() ||
-                      accounts.busy() ||
-                      account.status === 'paused' ||
-                      account.status === 'blocked'
-                    "
-                    [title]="
-                      cloud.canSetup()
-                        ? 'Prüft freie Cloud-IPs und startet die Einrichtung'
-                        : 'Cloud-Einrichtung derzeit nicht verfügbar'
-                    "
-                    (clicked)="upgradeToCloud(account)"
-                    >{{
-                      account.executionMode === 'local'
-                        ? 'Auf Cloud wechseln'
-                        : 'Cloud-IP einrichten'
-                    }}</app-button
-                  >
-                }
-                @if (account.status === 'paused' || account.status === 'blocked') {
-                  <app-button
-                    variant="primary"
-                    size="slim"
-                    [disabled]="!accounts.canManage() || accounts.busy()"
-                    (clicked)="openSettings(account)"
-                    >Einstellungen öffnen</app-button
-                  >
-                } @else if (account.executionMode === 'cloud') {
-                  @if (account.status === 'connected') {
-                    <app-button
-                      variant="primary"
-                      size="slim"
-                      [icon]="refreshIcon"
-                      [disabled]="!accounts.canManage() || accounts.busy()"
-                      (clicked)="syncCloudAccount(account)"
-                      >Synchronisieren</app-button
-                    >
-                  } @else {
-                    <app-button
-                      variant="primary"
-                      size="slim"
-                      [disabled]="!accounts.canManage() || accounts.busy()"
-                      (clicked)="openCloudLogin(account)"
-                      >Cloud verbinden</app-button
-                    >
-                  }
-                } @else if (!account.externalAccountId || status.action === 'renew') {
-                  <app-button
-                    variant="primary"
-                    size="slim"
-                    [link]="'/marketplaces/vinted/local-connect/' + account.connectionId"
-                    [disabled]="!accounts.canManage() || accounts.busy()"
-                    >{{
-                      account.externalAccountId ? 'Freigabe erneuern' : 'Lokal verbinden'
-                    }}</app-button
-                  >
-                } @else if (status.action === 'login') {
-                  <app-button
-                    variant="primary"
-                    size="slim"
-                    href="https://www.vinted.de/"
-                    target="_blank"
-                    >Vinted öffnen</app-button
-                  >
-                } @else if (status.action === 'settings' || status.action === 'profile') {
-                  <app-button
-                    variant="primary"
-                    size="slim"
-                    [disabled]="!accounts.canManage() || accounts.busy()"
-                    (clicked)="openSettings(account)"
-                    >{{
-                      status.action === 'profile' ? 'Browserprofil prüfen' : 'Einstellungen öffnen'
-                    }}</app-button
-                  >
-                } @else if (status.tone === 'success') {
+              @if (account.status === 'paused' || account.status === 'blocked') {
+                <app-button
+                  variant="primary"
+                  size="slim"
+                  [disabled]="!accounts.canManage() || accounts.busy()"
+                  (clicked)="openSettings(account)"
+                  >Einstellungen öffnen</app-button
+                >
+              } @else if (account.executionMode === 'cloud') {
+                @if (account.status === 'connected') {
                   <app-button
                     variant="primary"
                     size="slim"
                     [icon]="refreshIcon"
-                    [disabled]="
-                      !accounts.canManage() || accounts.busy() || local.busy() || runtime.checking()
-                    "
-                    (clicked)="syncLocalAccount(account)"
+                    [disabled]="!accounts.canManage() || accounts.busy()"
+                    (clicked)="syncCloudAccount(account)"
                     >Synchronisieren</app-button
                   >
                 } @else {
                   <app-button
                     variant="primary"
                     size="slim"
-                    [disabled]="!accounts.canManage() || accounts.busy() || runtime.checking()"
-                    (clicked)="checkLocalConnection()"
-                    >Verbindung prüfen</app-button
+                    [disabled]="!accounts.canManage() || accounts.busy()"
+                    (clicked)="openCloudLogin(account)"
+                    >Cloud verbinden</app-button
                   >
                 }
-              </div>
+              } @else if (!account.externalAccountId || status.action === 'renew') {
+                <app-button
+                  variant="primary"
+                  size="slim"
+                  [link]="'/marketplaces/vinted/local-connect/' + account.connectionId"
+                  [disabled]="!accounts.canManage() || accounts.busy()"
+                  >{{
+                    account.externalAccountId ? 'Freigabe erneuern' : 'Lokal verbinden'
+                  }}</app-button
+                >
+              } @else if (status.action === 'login') {
+                <app-button
+                  variant="primary"
+                  size="slim"
+                  href="https://www.vinted.de/"
+                  target="_blank"
+                  >Vinted öffnen</app-button
+                >
+              } @else if (status.action === 'settings' || status.action === 'profile') {
+                <app-button
+                  variant="primary"
+                  size="slim"
+                  [disabled]="!accounts.canManage() || accounts.busy()"
+                  (clicked)="openSettings(account)"
+                  >{{
+                    status.action === 'profile' ? 'Browserprofil prüfen' : 'Einstellungen öffnen'
+                  }}</app-button
+                >
+              } @else if (status.tone === 'success') {
+                <app-button
+                  variant="primary"
+                  size="slim"
+                  [icon]="refreshIcon"
+                  [disabled]="
+                    !accounts.canManage() || accounts.busy() || local.busy() || runtime.checking()
+                  "
+                  (clicked)="syncLocalAccount(account)"
+                  >Synchronisieren</app-button
+                >
+              } @else {
+                <app-button
+                  variant="primary"
+                  size="slim"
+                  [disabled]="!accounts.canManage() || accounts.busy() || runtime.checking()"
+                  (clicked)="checkLocalConnection()"
+                  >Verbindung prüfen</app-button
+                >
+              }
             </div>
             @if (tile.error) {
               <p class="text-xs text-fb-text-secondary">Vorschau gerade nicht verfügbar</p>
@@ -331,6 +373,24 @@
           </div>
         } @else {
           <div class="flex flex-wrap gap-2">
+            <app-button
+              size="slim"
+              [disabled]="
+                !accounts.canManage() ||
+                !cloud.canSetup() ||
+                cloud.busy() ||
+                accounts.busy() ||
+                account.status === 'paused' ||
+                account.status === 'blocked'
+              "
+              [title]="
+                cloud.canSetup()
+                  ? 'Prüft freie Cloud-IPs und startet die Einrichtung'
+                  : 'Cloud-Einrichtung derzeit nicht verfügbar'
+              "
+              (clicked)="upgradeToCloud(account)"
+              >Cloud-IP einrichten</app-button
+            >
             <app-button
               size="slim"
               [disabled]="

@@ -162,17 +162,14 @@ for (const width of [1440, 1024, 768, 390, 320]) {
     await expect(grid.locator('app-card')).toHaveCount(2);
     await expect(grid).toContainText('@maike.vintage');
     await expect(grid).toContainText('@vintage.studio');
-    await expect(grid.getByRole('img', { name: '4,8 von 5 Sternen' })).toBeVisible();
     await expect(grid.locator('app-card dd')).toHaveCount(0);
     await expect(grid.locator('app-card').last()).not.toContainText('Inserate');
     await expect(grid.locator('app-card').last()).not.toContainText('Verkäufe');
     const firstCard = grid.locator('app-card').first();
-    const rating = await firstCard.locator('app-vinted-rating').boundingBox();
     const action = await firstCard
       .getByRole('button', { name: 'Synchronisieren', exact: true })
       .boundingBox();
-    if (!rating || !action) throw new Error('Bewertung oder Kartenaktion fehlt');
-    expect(action.y).toBeGreaterThanOrEqual(rating.y + rating.height + 8);
+    if (!action) throw new Error('Kartenaktion fehlt');
     await expect(page.getByRole('navigation', { name: 'Vinted-Bereiche' })).toHaveCount(0);
     await expect(page.getByRole('combobox', { name: 'Vinted-Konto auswählen' })).toHaveCount(0);
     await page.addScriptTag({ content: axe.source });
