@@ -14,8 +14,36 @@ export type VintedLoginResult =
   | 'submission_unconfirmed'
   | 'verification_required';
 
-/** Eine ausdrückliche Anmeldung, ohne Speicherung oder automatische Wiederholung. */
+/**
+ * Eine ausdrückliche Anmeldung, ohne Speicherung der Zugangsdaten. Hängt Vinted mit einer
+ * abgelehnten früheren Anmeldung auf seiner Erneuerungsseite fest, werden genau einmal nur
+ * deren Anmeldecookies verworfen und die Anmeldeseite neu geöffnet. Zugangsdaten werden dabei
+ * nie ein zweites Mal abgeschickt.
+ */
 export async function submitVintedLogin(
+  page: Page,
+  credentials: VintedLoginCredentials,
+  authorize: () => Promise<void> = async () => undefined,
+): Promise<VintedLoginResult> {
+  const first = await submitVintedLoginOnce(page, credentials, authorize);
+  if (first !== 'form_unavailable') return first;
+  try {
+    // Vinted leitet teils erst nach dem Laden weiter; kurz auf die Erneuerungsseite warten.
+    await page
+      .waitForURL((url) => url.pathname === '/session-refresh', { timeout: 3_000 })
+      .catch(() => undefined);
+    const url = new URL(page.url());
+    if (url.origin !== 'https://www.vinted.de' || url.pathname !== '/session-refresh') return first;
+    await authorize();
+    for (const name of ['access_token_web', 'refresh_token_web'])
+      await page.context().clearCookies({ name, domain: /(^|\.)vinted\.de$/ });
+  } catch {
+    return first;
+  }
+  return submitVintedLoginOnce(page, credentials, authorize);
+}
+
+async function submitVintedLoginOnce(
   page: Page,
   credentials: VintedLoginCredentials,
   authorize: () => Promise<void> = async () => undefined,

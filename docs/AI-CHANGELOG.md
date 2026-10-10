@@ -1,5 +1,30 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-10 – Juna – Vinted-Neuanmeldung bei abgelehnter früherer Sitzung
+
+**Befund:** Das Cloud-Konto ist seit dem 09.10., 20:10 Uhr abgemeldet (drei
+Abrufe mit `unauthorized`). Der Worker lief dabei seit 18:03 Uhr ohne Neustart;
+die Auslieferungen vom 10.10. haben ihn nicht berührt. Zeitlich fällt die
+Ablehnung in das Fenster, in dem sich der Nutzer für die Formularprüfung im
+eigenen Chrome bei Vinted angemeldet hat. Das ist ein Zusammenhang, kein Beweis.
+Nebenbefund: Der Worker wird beim Merge nicht automatisch aktualisiert und
+läuft noch mit dem Stand vom 09.10.; Kategorieauswahl im Editor und das
+vollständige Bearbeiten erreichen ihn erst nach einer Aktualisierung.
+
+**Fehler:** Bei der Neuanmeldung leitet Vinted mit den abgelehnten Anmeldecookies
+auf `/session-refresh` um und bleibt dort im Ladekreis. Der Anmeldeablauf
+erwartete das Formular und meldete es als nicht verfügbar.
+
+**Korrektur:** Landet eine ausdrückliche Anmeldung auf der Erneuerungsseite,
+werden genau einmal nur `access_token_web` und `refresh_token_web` verworfen
+und die Anmeldeseite neu geöffnet. Andere Cookies bleiben, Zugangsdaten werden
+nie doppelt abgeschickt, und ohne gültige Berechtigung wird nichts verworfen.
+
+**Prüfungen:** Vier neue Browserfälle (Weiterleitung durch Server und Seite,
+dauerhafte Weiterleitung, Widerruf), 610 Worker-Prüfungen und Typen grün. Zwei
+unveränderte Login-Browserfälle schlagen auf diesem Windows-Rechner weiterhin
+fehl. Serverzugriffe ausschließlich lesend; nicht am echten Vinted geprüft.
+
 ## 2026-10-10 – Juna – Bestehendes Vinted-Inserat vollständig lesen
 
 **Arbeit:** Der Zweig `juna/vinted-listing-publishing` wurde gepusht und als
