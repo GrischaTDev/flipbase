@@ -61,7 +61,7 @@
         "
         [cdkDragData]="account.connectionId"
         (cdkDragStarted)="startDrag()"
-        class="min-w-0"
+        class="min-w-0 max-w-[23rem]"
       >
         <ng-template cdkDragPlaceholder>
           <div
@@ -77,30 +77,30 @@
           [queryParams]="{ connectionId: account.connectionId }"
           [linkLabel]="account.displayName + ' öffnen'"
         >
-          <div class="flex h-full min-w-0 flex-col justify-between gap-4 p-4 sm:p-5">
-            <div class="min-w-0 space-y-3">
-              <!-- Kopfzeile: Avatar, Name & Handle, Zahnrad -->
-              <div class="flex items-center justify-between gap-3">
-                <div class="flex min-w-0 items-center gap-3">
+          <div class="flex h-full min-w-0 flex-col justify-between">
+            <div class="min-w-0 space-y-3 p-4 sm:p-5">
+              <!-- Kopfzeile: Avatar, Name & Handle, Zahnrad oben rechts -->
+              <div class="flex items-start justify-between gap-3">
+                <div class="flex min-w-0 items-start gap-3">
                   <div class="shrink-0">
                     <app-product-thumbnail [src]="profile?.imageUrl ?? null" alt="" size="avatar" />
                   </div>
-                  <div class="min-w-0">
+                  <div class="min-w-0 pt-0.5">
                     <h3
-                      class="truncate text-sm font-semibold text-fb-text-primary"
+                      class="truncate text-sm font-semibold leading-snug text-fb-text-primary"
                       [title]="account.displayName"
                     >
                       {{ account.displayName }}
                     </h3>
                     @if (profile?.username || profile?.displayName; as name) {
-                      <p class="truncate text-xs text-fb-text-secondary" [title]="name">
+                      <p class="truncate text-xs text-fb-text-secondary mt-0.5" [title]="name">
                         {{ profile?.username ? '@' : '' }}{{ name }}
                       </p>
                     }
                   </div>
                 </div>
                 <app-button
-                  class="relative z-10 shrink-0"
+                  class="relative z-10 shrink-0 -mr-1 -mt-0.5"
                   (mousedown)="$event.stopPropagation()"
                   (touchstart)="$event.stopPropagation()"
                   variant="ghost"
@@ -180,108 +180,128 @@
                 }
               </div>
             </div>
+
+            <!-- Card Footer mit dezent abgesetztem Hintergrund und gleichmäßig aufgeteilten Buttons -->
             <div
-              class="relative z-10 flex items-center gap-2 pt-2"
-              [class.justify-between]="account.executionMode === 'local'"
-              [class.justify-end]="account.executionMode === 'cloud'"
+              class="relative z-10 mt-auto border-t border-fb-line bg-fb-subtle/50 px-3.5 py-2.5 sm:px-4 sm:py-3"
               (mousedown)="stopActionDrag($event)"
               (touchstart)="stopActionDrag($event)"
             >
-              @if (account.executionMode === 'local') {
-                <app-button
-                  size="slim"
-                  [disabled]="
-                    !accounts.canManage() ||
-                    !cloud.canSetup() ||
-                    cloud.busy() ||
-                    accounts.busy() ||
-                    account.status === 'paused' ||
-                    account.status === 'blocked'
-                  "
-                  [title]="
-                    cloud.canSetup()
-                      ? 'Prüft freie Cloud-IPs und startet die Einrichtung'
-                      : 'Cloud-Einrichtung derzeit nicht verfügbar'
-                  "
-                  (clicked)="upgradeToCloud(account)"
-                  >Auf Cloud wechseln</app-button
-                >
-              }
-              @if (account.status === 'paused' || account.status === 'blocked') {
-                <app-button
-                  variant="primary"
-                  size="slim"
-                  [disabled]="!accounts.canManage() || accounts.busy()"
-                  (clicked)="openSettings(account)"
-                  >Einstellungen öffnen</app-button
-                >
-              } @else if (account.executionMode === 'cloud') {
-                @if (account.status === 'connected') {
+              <div class="flex items-center gap-2 w-full">
+                @if (account.executionMode === 'local') {
+                  <app-button
+                    size="slim"
+                    [fullWidth]="true"
+                    class="flex-1 min-w-0"
+                    [disabled]="
+                      !accounts.canManage() ||
+                      !cloud.canSetup() ||
+                      cloud.busy() ||
+                      accounts.busy() ||
+                      account.status === 'paused' ||
+                      account.status === 'blocked'
+                    "
+                    [title]="
+                      cloud.canSetup()
+                        ? 'Prüft freie Cloud-IPs und startet die Einrichtung'
+                        : 'Cloud-Einrichtung derzeit nicht verfügbar'
+                    "
+                    (clicked)="upgradeToCloud(account)"
+                    >Auf Cloud wechseln</app-button
+                  >
+                }
+                @if (account.status === 'paused' || account.status === 'blocked') {
+                  <app-button
+                    variant="primary"
+                    size="slim"
+                    [fullWidth]="true"
+                    class="flex-1 min-w-0"
+                    [disabled]="!accounts.canManage() || accounts.busy()"
+                    (clicked)="openSettings(account)"
+                    >Einstellungen öffnen</app-button
+                  >
+                } @else if (account.executionMode === 'cloud') {
+                  @if (account.status === 'connected') {
+                    <app-button
+                      variant="primary"
+                      size="slim"
+                      [icon]="refreshIcon"
+                      [fullWidth]="true"
+                      class="flex-1 min-w-0"
+                      [disabled]="!accounts.canManage() || accounts.busy()"
+                      (clicked)="syncCloudAccount(account)"
+                      >Synchronisieren</app-button
+                    >
+                  } @else {
+                    <app-button
+                      variant="primary"
+                      size="slim"
+                      [fullWidth]="true"
+                      class="flex-1 min-w-0"
+                      [disabled]="!accounts.canManage() || accounts.busy()"
+                      (clicked)="openCloudLogin(account)"
+                      >Cloud verbinden</app-button
+                    >
+                  }
+                } @else if (!account.externalAccountId || status.action === 'renew') {
+                  <app-button
+                    variant="primary"
+                    size="slim"
+                    [fullWidth]="true"
+                    class="flex-1 min-w-0"
+                    [link]="'/marketplaces/vinted/local-connect/' + account.connectionId"
+                    [disabled]="!accounts.canManage() || accounts.busy()"
+                    >{{
+                      account.externalAccountId ? 'Freigabe erneuern' : 'Lokal verbinden'
+                    }}</app-button
+                  >
+                } @else if (status.action === 'login') {
+                  <app-button
+                    variant="primary"
+                    size="slim"
+                    [fullWidth]="true"
+                    class="flex-1 min-w-0"
+                    href="https://www.vinted.de/"
+                    target="_blank"
+                    >Vinted öffnen</app-button
+                  >
+                } @else if (status.action === 'settings' || status.action === 'profile') {
+                  <app-button
+                    variant="primary"
+                    size="slim"
+                    [fullWidth]="true"
+                    class="flex-1 min-w-0"
+                    [disabled]="!accounts.canManage() || accounts.busy()"
+                    (clicked)="openSettings(account)"
+                    >{{
+                      status.action === 'profile' ? 'Browserprofil prüfen' : 'Einstellungen öffnen'
+                    }}</app-button
+                  >
+                } @else if (status.tone === 'success') {
                   <app-button
                     variant="primary"
                     size="slim"
                     [icon]="refreshIcon"
-                    [disabled]="!accounts.canManage() || accounts.busy()"
-                    (clicked)="syncCloudAccount(account)"
+                    [fullWidth]="true"
+                    class="flex-1 min-w-0"
+                    [disabled]="
+                      !accounts.canManage() || accounts.busy() || local.busy() || runtime.checking()
+                    "
+                    (clicked)="syncLocalAccount(account)"
                     >Synchronisieren</app-button
                   >
                 } @else {
                   <app-button
                     variant="primary"
                     size="slim"
+                    [fullWidth]="true"
+                    class="flex-1 min-w-0"
                     [disabled]="!accounts.canManage() || accounts.busy()"
-                    (clicked)="openCloudLogin(account)"
-                    >Cloud verbinden</app-button
+                    (clicked)="checkLocalConnection()"
+                    >Verbindung prüfen</app-button
                   >
                 }
-              } @else if (!account.externalAccountId || status.action === 'renew') {
-                <app-button
-                  variant="primary"
-                  size="slim"
-                  [link]="'/marketplaces/vinted/local-connect/' + account.connectionId"
-                  [disabled]="!accounts.canManage() || accounts.busy()"
-                  >{{
-                    account.externalAccountId ? 'Freigabe erneuern' : 'Lokal verbinden'
-                  }}</app-button
-                >
-              } @else if (status.action === 'login') {
-                <app-button
-                  variant="primary"
-                  size="slim"
-                  href="https://www.vinted.de/"
-                  target="_blank"
-                  >Vinted öffnen</app-button
-                >
-              } @else if (status.action === 'settings' || status.action === 'profile') {
-                <app-button
-                  variant="primary"
-                  size="slim"
-                  [disabled]="!accounts.canManage() || accounts.busy()"
-                  (clicked)="openSettings(account)"
-                  >{{
-                    status.action === 'profile' ? 'Browserprofil prüfen' : 'Einstellungen öffnen'
-                  }}</app-button
-                >
-              } @else if (status.tone === 'success') {
-                <app-button
-                  variant="primary"
-                  size="slim"
-                  [icon]="refreshIcon"
-                  [disabled]="
-                    !accounts.canManage() || accounts.busy() || local.busy() || runtime.checking()
-                  "
-                  (clicked)="syncLocalAccount(account)"
-                  >Synchronisieren</app-button
-                >
-              } @else {
-                <app-button
-                  variant="primary"
-                  size="slim"
-                  [disabled]="!accounts.canManage() || accounts.busy() || runtime.checking()"
-                  (clicked)="checkLocalConnection()"
-                  >Verbindung prüfen</app-button
-                >
-              }
+              </div>
             </div>
             @if (tile.error) {
               <p class="text-xs text-fb-text-secondary">Vorschau gerade nicht verfügbar</p>
