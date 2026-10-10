@@ -77,24 +77,46 @@
           [queryParams]="{ connectionId: account.connectionId }"
           [linkLabel]="account.displayName + ' öffnen'"
         >
-          <div class="flex h-full min-w-0 flex-col gap-4 p-5 md:p-6">
-            <div class="flex min-w-0 items-start gap-3.5">
-              <div class="shrink-0">
-                <app-product-thumbnail [src]="profile?.imageUrl ?? null" alt="" size="avatar" />
+          <div class="flex h-full min-w-0 flex-col justify-between gap-4 p-4 sm:p-5">
+            <div class="min-w-0 space-y-3">
+              <!-- Kopfzeile: Avatar, Name & Handle, Zahnrad -->
+              <div class="flex items-center justify-between gap-3">
+                <div class="flex min-w-0 items-center gap-3">
+                  <div class="shrink-0">
+                    <app-product-thumbnail [src]="profile?.imageUrl ?? null" alt="" size="avatar" />
+                  </div>
+                  <div class="min-w-0">
+                    <h3
+                      class="truncate text-sm font-semibold text-fb-text-primary"
+                      [title]="account.displayName"
+                    >
+                      {{ account.displayName }}
+                    </h3>
+                    @if (profile?.username || profile?.displayName; as name) {
+                      <p class="truncate text-xs text-fb-text-secondary" [title]="name">
+                        {{ profile?.username ? '@' : '' }}{{ name }}
+                      </p>
+                    }
+                  </div>
+                </div>
+                <app-button
+                  class="relative z-10 shrink-0"
+                  (mousedown)="$event.stopPropagation()"
+                  (touchstart)="$event.stopPropagation()"
+                  variant="ghost"
+                  size="slim"
+                  [iconOnly]="true"
+                  [icon]="settingsIcon"
+                  [disabled]="!accounts.canManage() || accounts.busy()"
+                  [ariaLabel]="account.displayName + ' einstellen'"
+                  [ariaHaspopup]="'dialog'"
+                  (clicked)="openSettings(account)"
+                />
               </div>
-              <div class="min-w-0 flex-1">
-                <h3
-                  class="truncate text-sm font-semibold text-fb-text-primary"
-                  [title]="account.displayName"
-                >
-                  {{ account.displayName }}
-                </h3>
-                @if (profile?.username || profile?.displayName; as name) {
-                  <p class="mt-0.5 truncate text-[13px] text-fb-text-secondary" [title]="name">
-                    {{ profile?.username ? '@' : '' }}{{ name }}
-                  </p>
-                }
-                <div class="mt-2 flex flex-wrap items-center gap-1.5" aria-live="polite">
+
+              <!-- Status & Meta auf voller Kartenbreite -->
+              <div class="space-y-1.5 pt-0.5">
+                <div class="flex flex-wrap items-center gap-1.5" aria-live="polite">
                   <app-badge size="sm" class="gap-1">
                     @if (account.executionMode === 'cloud') {
                       <svg
@@ -137,7 +159,7 @@
                 </div>
                 @if (formatSyncTime(account.lastSyncedAt, status.tone); as syncText) {
                   <div
-                    class="mt-2 flex items-center gap-1.5 text-xs text-fb-text-secondary"
+                    class="flex items-center gap-1.5 text-xs text-fb-text-secondary"
                     [title]="account.lastSyncedAt ? 'Letzter Sync: ' + account.lastSyncedAt : ''"
                   >
                     <svg
@@ -157,22 +179,9 @@
                   </div>
                 }
               </div>
-              <app-button
-                class="relative z-10 shrink-0"
-                (mousedown)="$event.stopPropagation()"
-                (touchstart)="$event.stopPropagation()"
-                variant="ghost"
-                size="slim"
-                [iconOnly]="true"
-                [icon]="settingsIcon"
-                [disabled]="!accounts.canManage() || accounts.busy()"
-                [ariaLabel]="account.displayName + ' einstellen'"
-                [ariaHaspopup]="'dialog'"
-                (clicked)="openSettings(account)"
-              />
             </div>
             <div
-              class="relative z-10 mt-auto flex items-center gap-2 pt-4"
+              class="relative z-10 flex items-center gap-2 pt-2"
               [class.justify-between]="account.executionMode === 'local'"
               [class.justify-end]="account.executionMode === 'cloud'"
               (mousedown)="stopActionDrag($event)"

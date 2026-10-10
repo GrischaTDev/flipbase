@@ -217,10 +217,13 @@ export class VintedAccountGridComponent {
     if (!Number.isFinite(timestamp)) return null;
     const diffMinutes = Math.floor((Date.now() - timestamp) / 60000);
     if (diffMinutes < 1) return 'Gerade eben synchronisiert';
+    if (diffMinutes === 1) return 'Vor 1 Min. synchronisiert';
     if (diffMinutes < 60) return `Vor ${diffMinutes} Min. synchronisiert`;
     const diffHours = Math.floor(diffMinutes / 60);
+    if (diffHours === 1) return 'Vor 1 Std. synchronisiert';
     if (diffHours < 24) return `Vor ${diffHours} Std. synchronisiert`;
     const diffDays = Math.floor(diffHours / 24);
+    if (diffDays === 1) return 'Vor 1 Tag synchronisiert';
     return `Vor ${diffDays} Tagen synchronisiert`;
   }
 
