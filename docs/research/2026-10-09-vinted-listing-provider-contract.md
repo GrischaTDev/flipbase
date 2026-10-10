@@ -322,6 +322,16 @@ angenommen und noch durch einen freigegebenen Einzelfall zu bestätigen.
 Keine Wiederholung bei fehlender Ergebnisroute. Native Entwürfe bleiben vor
 jeglichem Upload als nicht unterstützt zurückgewiesen.
 
+Die feste Cloud-Browseraktion ist jetzt mit diesem Baustein verbunden. Der
+Controller bestätigt den ersten Schreibbeginn und übergibt die Originalbytes
+in Teilen von höchstens einem MiB. Der Sitzungsbrowser prüft beidseitig die
+aufgenommenen Metadaten und setzt nur vollständige Fotos zusammen. Aktuelle
+Rechte werden vor jedem Teil geprüft. Konto, Aktion und bestätigter
+Schreibbeginn binden die abschließende Rückmeldung. Der gesamte getrennte
+Browserablauf mit eigenem Tab ist mit abgefangenen Anbieteranfragen geprüft;
+ein geöffnetes Benutzerformular bleibt dabei unverändert. Dies ersetzt
+weiterhin keinen echten freigegebenen Anbieter-Schreibtest.
+
 Der Nutzer bestätigt, dass aktuell kein
 gespeicherter Vinted-Entwurf vorhanden ist. Entwurfs-Ergebnisroute und Kennung
 bleiben ungeprüft. Eine fokussierte Hilfesuche lieferte keinen belastbaren

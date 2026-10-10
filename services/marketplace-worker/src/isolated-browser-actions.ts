@@ -6,6 +6,11 @@ import {
   isVintedNegotiationEvent,
 } from './vinted-negotiation-contracts.ts';
 import type { BrowserInfo, BrowserDragPoint } from './gologin-cloud-browser.ts';
+import { isVintedListingResult, parseVintedListingSnapshot } from './vinted-listing-contracts.ts';
+import {
+  createVintedListingPhotoSender,
+  receiveVintedListingPhoto,
+} from './vinted-listing-photo-transfer.ts';
 import { isValidVintedMessageCommand } from './vinted-browser-messages.ts';
 import type {
   MarketplaceMessageCommand,
@@ -34,6 +39,8 @@ export type BrowserActionEvent =
   | { kind: 'wait' }
   | { kind: 'authorize'; sequence: number }
   | { kind: 'offer_price'; sequence: number; original: number; offered: number }
+  | { kind: 'listing_begin'; sequence: number }
+  | { kind: 'listing_photo'; sequence: number; imageId: string; offset: number }
   | {
       kind: 'stage';
       sequence: number;
@@ -163,6 +170,10 @@ export async function executeBrowserAction(
   authorize: () => Promise<void>,
   onStage: (stage: 'profile' | 'publications' | 'conversations' | 'sales') => Promise<void>,
   confirmPrice: (original: number, offered: number) => Promise<boolean> = async () => false,
+  listing?: {
+    beforeWrite: () => Promise<void>;
+    readPhotoChunk: (imageId: string, offset: number) => Promise<unknown>;
+  },
 ): Promise<unknown> {
   const action = commandRecord(input);
   if (
@@ -191,6 +202,7 @@ export async function executeBrowserAction(
     readFavoriteEvents: [1],
     sendFavoriteMessage: [2],
     sendFavoriteOffer: [2],
+    submitListing: [4],
   };
   if (
     typeof action.name !== 'string' ||
@@ -200,6 +212,44 @@ export async function executeBrowserAction(
     throw new Error('Nicht erlaubte Browseraktion');
   await authorize();
   switch (action.name) {
+    case 'submitListing': {
+      if (!listing) throw new Error('Inseratübergabe fehlt');
+      const snapshotInput = commandRecord(argumentsList[2]);
+      const images = snapshotInput['images'];
+      if (!Array.isArray(images) || !images[0]) throw new Error('Originalfotos fehlen');
+      const path = commandRecord(images[0])['storagePath'];
+      if (typeof path !== 'string' || typeof snapshotInput['connectionId'] !== 'string')
+        throw new Error('Inseratbindung ungültig');
+      const snapshot = parseVintedListingSnapshot(
+        snapshotInput,
+        path.split('/')[0]!,
+        snapshotInput['connectionId'],
+      );
+      const kind = argumentsList[1],
+        parents = argumentsList[3];
+      if (
+        !['publish', 'vinted_draft'].includes(String(kind)) ||
+        typeof kind !== 'string' ||
+        !Array.isArray(parents) ||
+        parents.length > 30 ||
+        parents.some((id) => !Number.isSafeInteger(id) || id <= 0) ||
+        new Set(parents).size !== parents.length
+      )
+        throw new Error('Inseratauftrag ungültig');
+      return required(browser.submitListing)(
+        identifier(argumentsList[0]),
+        kind as 'publish' | 'vinted_draft',
+        snapshot,
+        listing.beforeWrite,
+        authorize,
+        (id) => {
+          const original = snapshot.images.find((image) => image.id === id);
+          if (!original) return Promise.reject(new Error('Originalfoto nicht aufgenommen'));
+          return receiveVintedListingPhoto(original, listing.readPhotoChunk);
+        },
+        parents as number[],
+      );
+    }
     case 'sendNegotiation': {
       const command = argumentsList[1],
         sourceOffer = argumentsList[2],
@@ -498,6 +548,10 @@ export function isolatedBrowserActions(transport: BrowserCommandTransport): Brow
     authorize: () => Promise<void> = async () => undefined,
     onStage?: (stage: 'profile' | 'publications' | 'conversations' | 'sales') => Promise<void>,
     confirmPrice?: (original: number, offered: number) => Promise<boolean>,
+    listing?: {
+      beforeWrite: () => Promise<void>;
+      photoChunk: (imageId: string, offset: number) => Promise<unknown>;
+    },
   ): Promise<unknown> {
     await authorize();
     const started = commandRecord(
@@ -506,18 +560,50 @@ export function isolatedBrowserActions(transport: BrowserCommandTransport): Brow
     const id = text(started.id, 36);
     if (!/^[0-9a-f-]{36}$/.test(id)) throw new Error('Ungültiger Browserauftrag');
     let sequence = 0;
+    let payload: unknown;
     const deadline = Date.now() + 12 * 60_000;
     try {
       while (Date.now() < deadline) {
-        const event = commandRecord(await transport.request({ action: 'poll', id, sequence }));
+        const event = commandRecord(
+          await transport.request({
+            action: 'poll',
+            id,
+            sequence,
+            ...(payload === undefined ? {} : { payload }),
+          }),
+        );
+        payload = undefined;
         if (event.kind === 'wait') {
           await authorize();
           continue;
         }
-        if (event.kind === 'authorize' || event.kind === 'stage' || event.kind === 'offer_price') {
+        if (
+          event.kind === 'authorize' ||
+          event.kind === 'stage' ||
+          event.kind === 'offer_price' ||
+          event.kind === 'listing_begin' ||
+          event.kind === 'listing_photo'
+        ) {
           if (event.sequence !== sequence + 1 || sequence >= 10000)
             throw new Error('Ungültige Browserfreigabe');
           await authorize();
+          if (event.kind === 'listing_begin') {
+            if (name !== 'submitListing' || !listing || Object.keys(event).length !== 2)
+              throw new Error('Inseratbeginn ungültig');
+            await listing.beforeWrite();
+          }
+          if (event.kind === 'listing_photo') {
+            if (
+              name !== 'submitListing' ||
+              !listing ||
+              Object.keys(event).length !== 4 ||
+              typeof event.imageId !== 'string' ||
+              !Number.isSafeInteger(event.offset) ||
+              Number(event.offset) < 0
+            )
+              throw new Error('Originalfotoanfrage ungültig');
+            payload = await listing.photoChunk(event.imageId, Number(event.offset));
+          }
           if (event.kind === 'offer_price') {
             if (
               name !== 'sendFavoriteOffer' ||
@@ -545,9 +631,13 @@ export function isolatedBrowserActions(transport: BrowserCommandTransport): Brow
         // Ein bereits belegtes Ergebnis erteilt keine neue Browserfreigabe.
         if (
           event.kind === 'result' &&
-          ['sendMessage', 'sendFavoriteMessage', 'sendFavoriteOffer', 'sendNegotiation'].includes(
-            name,
-          )
+          [
+            'sendMessage',
+            'sendFavoriteMessage',
+            'sendFavoriteOffer',
+            'sendNegotiation',
+            'submitListing',
+          ].includes(name)
         )
           return validateBrowserResult(name, event.value);
         await authorize();
@@ -562,6 +652,45 @@ export function isolatedBrowserActions(transport: BrowserCommandTransport): Brow
   }
   return {
     version: () => 'isolated-session-v1',
+    submitListing: async (
+      account,
+      action,
+      snapshot,
+      beforeWrite,
+      authorize,
+      loadPhoto,
+      categoryPath,
+    ) => {
+      let beginReserved = false,
+        beginConfirmed = false;
+      const sender = createVintedListingPhotoSender(snapshot.images, loadPhoto, authorize);
+      try {
+        const result = await run(
+          'submitListing',
+          [account, action, snapshot, categoryPath],
+          authorize,
+          undefined,
+          undefined,
+          {
+            beforeWrite: async () => {
+              if (beginReserved) throw new Error('Inseratversuch bereits begonnen');
+              beginReserved = true;
+              await beforeWrite();
+              beginConfirmed = true;
+            },
+            photoChunk: sender.chunk,
+          },
+        );
+        if (
+          !isVintedListingResult(result, action, account) ||
+          (result.outcome === 'confirmed' && !beginConfirmed)
+        )
+          throw new Error('Inseratergebnis nicht gebunden');
+        return result;
+      } finally {
+        sender.close();
+      }
+    },
     sendNegotiation: async (account, command, sourceOffer, confirmedOffer, authorize) =>
       (await run(
         'sendNegotiation',
@@ -641,6 +770,15 @@ export function isolatedBrowserActions(transport: BrowserCommandTransport): Brow
 export function validateBrowserResult(name: BrowserActionName, input: unknown): unknown {
   if (Buffer.byteLength(JSON.stringify(input) ?? '') > browserCommandLimit)
     throw new Error('Browserantwort zu groß');
+  if (name === 'submitListing') {
+    const value = commandRecord(input);
+    const action = value['action'] === 'vinted_draft' ? 'vinted_draft' : 'publish';
+    const account =
+      typeof value['externalAccountId'] === 'string' ? value['externalAccountId'] : '1';
+    if (!isVintedListingResult(input, action, account))
+      throw new Error('Ungültiges Inseratergebnis');
+    return input;
+  }
   if (name === 'sendNegotiation') {
     if (!isVintedNegotiationResult(input)) throw new Error('Ungültiges Verhandlungsergebnis');
     return input;

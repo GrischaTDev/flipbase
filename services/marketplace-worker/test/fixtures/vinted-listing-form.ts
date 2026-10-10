@@ -1,6 +1,6 @@
 import type { Page } from 'playwright';
 export async function createVintedListingFormFixture(
-  page: Page,
+  page: Pick<Page, 'route' | 'goto'>,
   options: {
     cached?: boolean;
     unknown?: boolean;

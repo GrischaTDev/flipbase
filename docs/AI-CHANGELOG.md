@@ -1,5 +1,34 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-10 – Juna – Inseratablauf an den getrennten Cloud-Browser anschließen
+
+**Arbeit:** Die feste Browseraktion für Inserate verbindet nun die zentrale
+Freigabe mit dem nativen Veröffentlichungsbaustein. Der Controller bestätigt
+den Schreibbeginn genau einmal, bevor der Browser weiterarbeiten darf.
+Originalfotos werden in Teilen von höchstens einem MiB übergeben; Kennung,
+Dateiname, Dateityp, Gesamtgröße, Reihenfolge und Vollständigkeit werden
+beidseitig geprüft. Jeder weitere Teil benötigt aktuelle Rechte. Die Fototeile
+enthalten keine Speicherpfade oder Schlüssel. Eine verspätete Ergebnisrückgabe
+darf einen bereits belegten Versuch abschließen, aber keine neue Aktion starten.
+Der Browser eröffnet einen eigenen Tab innerhalb des reservierten Kontos.
+Die gemeinsamen Inseratregeln werden auch in das Sitzungsabbild kopiert.
+
+**Prüfungen:** Fehlenden Fototransfer, Browseranschluss und getrennte Aktion
+zuerst durch fehlgeschlagene Tests belegt. Ein neun MiB großes Original wird
+über zehn begrenzte Nachrichten übertragen. Widerruf zwischen Teilen,
+falsche Kennungen/Metadaten, unvollständige Teile, falsche Freigabeantworten,
+fehlendes oder wiederholtes Schreibbeginn-ACK und Belege ohne Schreibbeginn
+werden abgelehnt. 25 Inserat-Browserprüfungen mit abgefangenen Anfragen und
+alle 575 Workerprüfungen erfolgreich; sieben bestehende Fälle ausgelassen.
+Worker-Typprüfung, Bau, Format und ESLint erfolgreich. Controller- und
+Sitzungscontainer gebaut und sechs Inseratmodule jeweils ohne Netzwerk geladen.
+Keine echten Anbieteraktionen, produktiven Container oder installierten
+Erweiterungen verändert.
+
+**Offen:** Aufnahme der Inserataufträge in die bestehende Auftragsverteilung,
+Anschluss der lokalen Erweiterung, vollständige Editor-Merkmalsauswahl und
+ein konkret freigegebener echter Veröffentlichungstest bleiben in Arbeit.
+
 ## 2026-10-10 – Juna – Nativen Veröffentlichungsablauf verbinden
 
 **Arbeit:** Ein Worker-Baustein verwendet ausschließlich eine frisch reservierte

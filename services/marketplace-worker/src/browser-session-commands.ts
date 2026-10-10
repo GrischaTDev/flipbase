@@ -12,7 +12,7 @@ interface PendingAction {
   id: string;
   sequence: number;
   event?: BrowserActionEvent;
-  acknowledge?: () => void;
+  acknowledge?: (payload?: unknown) => void;
   reject?: (error: Error) => void;
   changed?: () => void;
   cancelled: boolean;
@@ -46,6 +46,10 @@ export class BrowserSessionCommands {
           await this.pause(pending, 'offer_price', undefined, { original, offered });
           return true;
         },
+        {
+          beforeWrite: () => this.pause(pending, 'listing_begin'),
+          readPhotoChunk: (imageId, offset) => this.pausePhoto(pending, imageId, offset),
+        },
       )
         .then((value) => {
           if (Buffer.byteLength(JSON.stringify(value) ?? '') > browserCommandLimit)
@@ -59,10 +63,11 @@ export class BrowserSessionCommands {
     if (
       !pending ||
       request.id !== pending.id ||
-      Object.keys(request).some((key) => !['action', 'id', 'sequence'].includes(key))
+      Object.keys(request).some((key) => !['action', 'id', 'sequence', 'payload'].includes(key))
     )
       throw new Error('Browseraktion nicht verfügbar');
     if (request.action === 'cancel') {
+      if (Object.hasOwn(request, 'payload')) throw new Error('Ungültiger Browserabbruch');
       pending.cancelled = true;
       pending.reject?.(new Error('Browseraktion abgebrochen'));
       // Laufende Aktionen ohne Freigabepause erst nach ihrem tatsächlichen Ende freigeben.
@@ -72,12 +77,18 @@ export class BrowserSessionCommands {
     }
     if (request.action !== 'poll' || !Number.isSafeInteger(request.sequence))
       throw new Error('Ungültige Browserfreigabe');
+    const photoAcknowledgment =
+      pending.acknowledge &&
+      request.sequence === pending.sequence &&
+      pending.event?.kind === 'listing_photo';
+    if (Object.hasOwn(request, 'payload') !== Boolean(photoAcknowledgment))
+      throw new Error('Ungültige Originalfotoantwort');
     if (pending.acknowledge && request.sequence === pending.sequence) {
       const acknowledge = pending.acknowledge;
       pending.acknowledge = undefined;
       pending.reject = undefined;
       pending.event = undefined;
-      acknowledge();
+      acknowledge(request.payload);
     } else if (request.sequence !== pending.sequence - (pending.acknowledge ? 1 : 0))
       throw new Error('Ungültige Browserfreigabe');
     if (!pending.event)
@@ -103,7 +114,7 @@ export class BrowserSessionCommands {
   }
   private pause(
     pending: PendingAction,
-    kind: 'authorize' | 'stage' | 'offer_price',
+    kind: 'authorize' | 'stage' | 'offer_price' | 'listing_begin',
     stage?: 'profile' | 'publications' | 'conversations' | 'sales',
     price?: { original: number; offered: number },
   ): Promise<void> {
@@ -129,8 +140,32 @@ export class BrowserSessionCommands {
           ? { kind, sequence: pending.sequence, ...price }
           : kind === 'stage' && stage
             ? { kind, sequence: pending.sequence, stage }
-            : { kind: 'authorize', sequence: pending.sequence },
+            : {
+                kind: kind === 'listing_begin' ? 'listing_begin' : 'authorize',
+                sequence: pending.sequence,
+              },
       );
+    });
+  }
+  private pausePhoto(pending: PendingAction, imageId: string, offset: number): Promise<unknown> {
+    if (pending.cancelled || this.pending !== pending || pending.acknowledge)
+      return Promise.reject(new Error('Browseraktion abgebrochen'));
+    return new Promise((resolve, reject) => {
+      // Der private Download besitzt bereits eine 20-Sekunden-Grenze.
+      const timeout = setTimeout(() => {
+        pending.cancelled = true;
+        reject(new Error('Originalfotoübergabe abgelaufen'));
+      }, 30_000);
+      pending.acknowledge = (payload) => {
+        clearTimeout(timeout);
+        resolve(payload);
+      };
+      pending.reject = (error) => {
+        clearTimeout(timeout);
+        reject(error);
+      };
+      pending.sequence++;
+      this.publish(pending, { kind: 'listing_photo', sequence: pending.sequence, imageId, offset });
     });
   }
 }

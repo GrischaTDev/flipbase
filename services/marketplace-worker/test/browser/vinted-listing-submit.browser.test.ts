@@ -4,6 +4,9 @@ import { chromium } from 'playwright';
 import { submitVintedListing } from '../../src/vinted-browser-listing-submit.ts';
 import { createVintedListingFormFixture } from '../fixtures/vinted-listing-form.ts';
 import { listingClaimFixture } from '../fixtures/marketplace-listing-claim.ts';
+import { vintedBrowserActions } from '../../src/vinted-browser-actions.ts';
+import { isolatedBrowserActions } from '../../src/isolated-browser-actions.ts';
+import { BrowserSessionCommands } from '../../src/browser-session-commands.ts';
 
 test('publishing writes once after Begin and confirms only the saved content, photos and active ID', async () => {
   const browser = await chromium.launch({ headless: true });
@@ -127,6 +130,49 @@ test('revoked authority after uploading prevents save and the native AI option i
       assert.equal(f.uploads(), 1);
       assert.equal(page.isClosed(), true);
     }
+  } finally {
+    await browser.close();
+  }
+});
+
+test('the real isolated transport publishes in its own tab and preserves the existing user form', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const context = await browser.newContext(),
+      original = await context.newPage();
+    const f = await createVintedListingFormFixture(
+      { route: context.route.bind(context), goto: original.goto.bind(original) },
+      { publishing: true },
+    );
+    await original.locator('#title').fill('Meine eigene Arbeit');
+    const commands = new BrowserSessionCommands(vintedBrowserActions(browser));
+    const actions = isolatedBrowserActions({ request: (input) => commands.request(input) });
+    let begins = 0;
+    const result = await actions.submitListing!(
+      '123',
+      'publish',
+      listingClaimFixture.snapshot,
+      () => {
+        begins++;
+        assert.equal(f.writes(), 0);
+        return Promise.resolve();
+      },
+      () => Promise.resolve(),
+      (id) =>
+        Promise.resolve({
+          id,
+          fileName: 'jacke.jpg',
+          mimeType: 'image/jpeg',
+          bytes: new Uint8Array(123),
+        }),
+      [5],
+    );
+    assert.equal(result.outcome, 'confirmed');
+    assert.equal(begins, 1);
+    assert.equal(f.uploads(), 1);
+    assert.equal(f.saves(), 1);
+    assert.equal(await original.locator('#title').inputValue(), 'Meine eigene Arbeit');
+    assert.deepEqual(context.pages(), [original]);
   } finally {
     await browser.close();
   }
