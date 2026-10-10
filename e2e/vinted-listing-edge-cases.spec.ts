@@ -1,3 +1,4 @@
+import axe from 'axe-core';
 import { expect, test, type Page } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -7,6 +8,7 @@ import {
   mockMarketplace,
   workspaceId,
 } from './support/marketplace-account-fixture';
+import { listingCurrentContentFixture } from '../services/marketplace-worker/test/fixtures/vinted-listing-current-content';
 
 test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: 'block' });
 
@@ -22,6 +24,7 @@ interface ListingFixture {
   title: string;
   text: string | null;
   textState: 'loaded' | 'not_loaded';
+  externalId?: string;
 }
 
 async function prepareListing(page: Page, listing: ListingFixture) {
@@ -234,3 +237,79 @@ test('Fehlende Beschreibung lädt nur das gewählte Inserat und bleibt beim Wied
   await checkPage(page, errors);
   await screenshot(page, 'vinted-listing-description-cache-mobile');
 });
+
+for (const width of [1440, 390]) {
+  test(`Bestehendes Inserat vollständig bearbeiten und nur nach Vinted-Bestätigung übernehmen bei ${width}px @marketplace-preview`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    const errors = await prepareListing(page, {
+      title: 'Meine Schuhe',
+      text: 'Sehr gut erhalten.',
+      textState: 'loaded',
+      externalId: '98765',
+    });
+    const listing = { ...listingCurrentContentFixture(), externalAccountId: '100' };
+    const reads: unknown[] = [],
+      saves: Record<string, unknown>[] = [];
+    await page.route('**/marketplace-browser/listings/content/read', (route) => {
+      reads.push(route.request().postDataJSON());
+      return route.fulfill({ json: { listing } });
+    });
+    await page.route('**/marketplace-browser/listings/content/save', (route) => {
+      saves.push(route.request().postDataJSON() as Record<string, unknown>);
+      return route.fulfill({ json: { status: saves.length === 1 ? 'conflict' : 'confirmed' } });
+    });
+    await page.goto(detailPath);
+    const detail = page.locator('app-vinted-listing-detail');
+    await detail.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+    await expect(detail.getByRole('heading', { name: 'Inserat bearbeiten' })).toBeVisible();
+    expect(reads).toEqual([{ workspaceId, connectionId: accountIds[0], entryId }]);
+    await expect(detail.getByLabel('Titel')).toHaveValue('Meine Schuhe');
+    await expect(detail.getByLabel('Preis in Euro')).toHaveValue('20,50');
+    const colors = detail.getByRole('group', { name: 'Farben' });
+    await expect(colors.getByRole('checkbox', { name: 'Blau' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    // Zwei Farben sind bereits gewählt; eine dritte lässt Vinted nicht zu.
+    await expect(colors.getByRole('checkbox', { name: 'Rot' })).toBeDisabled();
+    await colors.getByRole('checkbox', { name: 'Gelb' }).click();
+    await colors.getByRole('checkbox', { name: 'Rot' }).click();
+    await detail.getByLabel('Titel').fill('Neue Schuhe');
+    await detail.getByLabel('Preis in Euro').fill('18');
+    await page.addScriptTag({ content: axe.source });
+    const violations = await page.evaluate(async () =>
+      (
+        await (window as Window & { axe: typeof axe }).axe.run(
+          document.querySelector('app-vinted-listing-detail')!,
+        )
+      ).violations.map((violation) => violation.id),
+    );
+    expect(violations).toEqual([]);
+    await screenshot(page, `vinted-listing-edit-${width}`);
+    const save = detail.getByRole('button', { name: 'Bei Vinted speichern', exact: true });
+    await save.click();
+    await expect(detail.getByRole('alert')).toContainText('inzwischen bei Vinted geändert');
+    await expect(detail.getByLabel('Titel')).toHaveValue('Neue Schuhe');
+    await save.click();
+    await expect(detail).toContainText('Die Änderung wurde bei Vinted bestätigt.');
+    await expect(detail.getByRole('heading', { name: 'Neue Schuhe' })).toBeVisible();
+    const base = listingCurrentContentFixture().content;
+    expect(saves).toHaveLength(2);
+    expect(saves[1]).toEqual({
+      workspaceId,
+      connectionId: accountIds[0],
+      entryId,
+      base,
+      content: {
+        ...base,
+        title: 'Neue Schuhe',
+        priceCents: 1800,
+        colorIds: [1, 3],
+        colorLabels: ['Blau', 'Rot'],
+      },
+    });
+    await checkPage(page, errors);
+  });
+}

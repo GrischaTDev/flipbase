@@ -14,11 +14,24 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
+import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
+import {
+  CustomSelectComponent,
+  type SelectOption,
+} from '../../../../shared/components/custom-select/custom-select.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import type { MarketplaceEntry } from '../../models/marketplace-read.models';
+import type { VintedListingCurrentContent } from '../../models/vinted-listing-category-fields';
 import type { VintedListingDescription } from '../../models/vinted-listing-description';
+import {
+  applyVintedListingEdit,
+  vintedListingEditOptions,
+  vintedListingEditSelection,
+  vintedListingPriceText,
+  type VintedListingEditField,
+} from '../../models/vinted-listing-edit-form';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { VintedListingMetricsComponent } from '../vinted-listings/vinted-listing-metrics.component';
 import { createVintedListingMetricDisplay } from '../vinted-listings/vinted-listing-metric-display';
@@ -30,6 +43,8 @@ import { createVintedListingMetricDisplay } from '../vinted-listings/vinted-list
     ReactiveFormsModule,
     ButtonComponent,
     CardComponent,
+    CustomCheckboxComponent,
+    CustomSelectComponent,
     NoticeBannerComponent,
     ProductThumbnailComponent,
     TextFieldComponent,
@@ -79,9 +94,41 @@ export class VintedListingDetailComponent {
   );
   readonly form = this.builder.nonNullable.group({
     title: ['', [Validators.required, Validators.maxLength(120)]],
-    description: ['', [Validators.maxLength(2000)]],
+    description: ['', [Validators.required, Validators.maxLength(2000)]],
     price: ['', [Validators.required, Validators.pattern(/^\d{1,6}(?:[,.]\d{1,2})?$/)]],
+    brand: [''],
+    size: [''],
+    condition: [''],
+    package: [''],
   });
+  /** Frisch gelesener Vinted-Stand, auf dem die laufende Bearbeitung beruht. */
+  readonly current = signal<VintedListingCurrentContent | null>(null);
+  readonly colors = signal<readonly string[]>([]);
+  readonly materials = signal<readonly string[]>([]);
+  readonly choiceFields = computed(() =>
+    (
+      [
+        ['brand', 'Marke'],
+        ['size', 'Größe'],
+        ['condition', 'Zustand'],
+        ['package', 'Paketgröße'],
+      ] as const
+    ).flatMap(([field, label]) => {
+      const options = this.options(field);
+      return options.length ? [{ field, label, options }] : [];
+    }),
+  );
+  readonly multipleFields = computed(() =>
+    (
+      [
+        ['color', 'Farben', 2, this.colors()],
+        ['material', 'Material', 3, this.materials()],
+      ] as const
+    ).flatMap(([field, label, max, selected]) => {
+      const options = this.options(field);
+      return options.length ? [{ field, label, max, options, selected }] : [];
+    }),
+  );
   private requestVersion = 0;
   private requestKey = '';
   private routeKey = '';
@@ -161,6 +208,28 @@ export class VintedListingDetailComponent {
     this.error.set(null);
     this.notice.set(null);
     this.form.reset();
+    this.current.set(null);
+    this.colors.set([]);
+    this.materials.set([]);
+  }
+  private options(field: VintedListingEditField): SelectOption[] {
+    const current = this.current();
+    if (!current) return [];
+    const options = vintedListingEditOptions(current.schema, field);
+    // Ein bei Vinted leeres Merkmal darf leer bleiben; ein gesetztes wird nicht stillschweigend entfernt.
+    return options.length && !vintedListingEditSelection(current)[field].length
+      ? [{ value: '', label: 'Nicht angegeben' }, ...options]
+      : [...options];
+  }
+  toggle(field: 'color' | 'material', value: string, checked: boolean, max: number): void {
+    const selected = field === 'color' ? this.colors : this.materials;
+    selected.update((values) =>
+      checked
+        ? values.includes(value) || values.length >= max
+          ? values
+          : [...values, value]
+        : values.filter((entry) => entry !== value),
+    );
   }
   private isCurrent(version: number): boolean {
     return (
@@ -214,9 +283,21 @@ export class VintedListingDetailComponent {
     this.error.set(null);
     this.notice.set(null);
     try {
-      const fields = await this.store.readListingEdit(this.connectionId(), this.entryId());
+      const current = await this.store.readListingContent(this.connectionId(), this.entryId());
       if (!this.isCurrent(version)) return;
-      this.form.setValue(fields);
+      const selection = vintedListingEditSelection(current);
+      this.current.set(current);
+      this.colors.set(selection.color);
+      this.materials.set(selection.material);
+      this.form.setValue({
+        title: current.content.title,
+        description: current.content.description,
+        price: vintedListingPriceText(current.content.priceCents ?? 0),
+        brand: selection.brand,
+        size: selection.size,
+        condition: selection.condition,
+        package: selection.package,
+      });
       this.editing.set(true);
     } catch (error) {
       if (this.isCurrent(version))
@@ -238,22 +319,41 @@ export class VintedListingDetailComponent {
     this.busy.set(true);
     this.error.set(null);
     try {
+      const current = this.current();
+      if (!current) return;
       const fields = this.form.getRawValue();
-      await this.store.saveListingEdit(this.connectionId(), this.entryId(), fields);
+      const content = applyVintedListingEdit(current, fields, {
+        brand: fields.brand ?? '',
+        size: fields.size ?? '',
+        condition: fields.condition ?? '',
+        package: fields.package ?? '',
+        color: this.colors(),
+        material: this.materials(),
+      });
+      await this.store.saveListingContent(
+        this.connectionId(),
+        this.entryId(),
+        current.content,
+        content,
+      );
       if (!this.isCurrent(version)) return;
       this.editing.set(false);
+      this.current.set(null);
       this.loadedEntry.update((entry) =>
         entry
           ? {
               ...entry,
-              title: fields.title,
-              text: fields.description,
+              title: content.title,
+              text: content.description,
               textState: 'loaded',
-              price: Number(fields.price.replace(',', '.')),
+              price: (content.priceCents ?? 0) / 100,
+              brand: content.brandLabel || null,
+              size: content.sizeLabel || null,
+              status: content.conditionLabel || entry.status,
             }
           : entry,
       );
-      this.description.set({ description: fields.description, cacheState: 'unconfirmed' });
+      this.description.set({ description: content.description, cacheState: 'unconfirmed' });
       this.notice.set('Die Änderung wurde bei Vinted bestätigt.');
     } catch (error) {
       if (this.isCurrent(version))

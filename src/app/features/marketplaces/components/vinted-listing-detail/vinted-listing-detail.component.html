@@ -68,6 +68,7 @@
             formControlName="description"
             [multiline]="6"
             [maxLength]="2000"
+            [required]="true"
           />
           <app-text-field
             label="Preis in Euro"
@@ -75,8 +76,43 @@
             [required]="true"
             helpText="Zum Beispiel 24,50"
           />
+          <div class="grid gap-4 sm:grid-cols-2">
+            @for (choice of choiceFields(); track choice.field) {
+              <div class="space-y-1.5">
+                <p class="text-[13px] font-semibold text-fb-text-primary">{{ choice.label }}</p>
+                <app-custom-select
+                  [ariaLabel]="choice.label"
+                  [options]="choice.options"
+                  [searchable]="choice.options.length > 8"
+                  [formControlName]="choice.field"
+                  size="md"
+                />
+              </div>
+            }
+          </div>
+          @for (group of multipleFields(); track group.field) {
+            <div role="group" [attr.aria-label]="group.label" class="space-y-2">
+              <p class="text-[13px] font-semibold text-fb-text-primary">
+                {{ group.label }}
+                <span class="font-normal text-fb-text-muted">(höchstens {{ group.max }})</span>
+              </p>
+              <div class="flex flex-wrap gap-x-4 gap-y-2">
+                @for (option of group.options; track option.value) {
+                  <app-custom-checkbox
+                    [label]="option.label"
+                    [checked]="group.selected.includes(option.value)"
+                    [disabled]="
+                      !group.selected.includes(option.value) && group.selected.length >= group.max
+                    "
+                    (checkedChange)="toggle(group.field, option.value, $event, group.max)"
+                  />
+                }
+              </div>
+            </div>
+          }
           <p class="text-xs text-fb-text-muted">
-            Bilder, Kategorie, Zustand und Versand bleiben bei Vinted erhalten.
+            Fotos und Kategorie bleiben bei Vinted unverändert. Gespeichert ist erst, was Vinted
+            bestätigt.
           </p>
           <div class="flex flex-wrap gap-2">
             <app-button variant="primary" type="submit" [disabled]="form.invalid" [loading]="busy()"
