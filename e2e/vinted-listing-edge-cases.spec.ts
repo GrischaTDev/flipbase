@@ -24,7 +24,6 @@ interface ListingFixture {
   title: string;
   text: string | null;
   textState: 'loaded' | 'not_loaded';
-  externalId?: string;
 }
 
 async function prepareListing(page: Page, listing: ListingFixture) {
@@ -247,7 +246,6 @@ for (const width of [1440, 390]) {
       title: 'Meine Schuhe',
       text: 'Sehr gut erhalten.',
       textState: 'loaded',
-      externalId: '98765',
     });
     const listing = { ...listingCurrentContentFixture(), externalAccountId: '100' };
     const reads: unknown[] = [],

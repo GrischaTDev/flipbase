@@ -1,5 +1,22 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-11 – Juna – Vollständiges Bearbeiten erreichte den Server nicht
+
+**Befund:** Am echten Konto erschien statt des vollständigen Formulars immer der
+Rückfall auf Titel, Beschreibung und Preis. Im Worker-Protokoll stand dazu trotz
+neuer Diagnose nichts: Die Anfrage wurde nie gesendet. Die App verlangte vorab die
+Vinted-Kennung des Inserats, die Datenbank liefert diese für Inserate aber nicht
+an die App aus (nur für Nachrichten). Die Testdaten enthielten die Kennung,
+deshalb blieb der Fehler in den Prüfungen unbemerkt.
+
+**Änderung:** Die App verlangt die Kennung nicht mehr. Welches Vinted-Inserat zum
+Eintrag gehört, bestimmt allein der Server aus dem eigenen Kontoeintrag; die App
+prüft weiterhin das Konto und die Form der Antwort. Der Browsertest der
+Detailseite arbeitet jetzt wie die Produktion ohne Kennung in den Inseratdaten.
+
+**Prüfungen:** 129 Angular-Fälle (Schnittstelle, Detailseite, Store), Typen, Bau,
+Format und ESLint grün; alle sechs Browserfälle der Detailseite lokal grün.
+
 ## 2026-10-11 – Juna – Diagnose für das Lesen bestehender Inserate
 
 **Anlass:** Nach dem Einschalten von `MARKETPLACE_CHROMIUM_WRITES_ENABLED` und

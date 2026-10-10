@@ -665,11 +665,14 @@ export class MarketplaceBrowserTestApiService {
     return parseVintedListingCategoryFields(body.fields, categoryId);
   }
 
-  /** Vollständiger Iststand eines bestehenden Inserats; Konto und Inserat bestimmt der Server. */
+  /**
+   * Vollständiger Iststand eines bestehenden Inserats. Welches Vinted-Inserat zum Eintrag gehört,
+   * bestimmt allein der Server; die App kennt dessen Vinted-Kennung nicht und prüft das Konto.
+   */
   async readListingContent(
     scope: AccountScope,
     entryId: string,
-    expected: { externalAccountId: string; externalId: string },
+    expectedAccountId: string,
     accessToken: string,
   ): Promise<VintedListingCurrentContent> {
     const response = await this.post(
@@ -689,13 +692,17 @@ export class MarketplaceBrowserTestApiService {
         typeof body !== 'object' ||
         Array.isArray(body) ||
         Object.keys(body).length !== 1 ||
-        !('listing' in body)
+        !('listing' in body) ||
+        !body.listing ||
+        typeof body.listing !== 'object' ||
+        !('externalId' in body.listing) ||
+        typeof body.listing.externalId !== 'string'
       )
         throw new Error();
       return parseVintedListingCurrentContent(
         body.listing,
-        expected.externalAccountId,
-        expected.externalId,
+        expectedAccountId,
+        body.listing.externalId,
       );
     } catch {
       throw new Error('Das Vinted-Inserat lieferte ungültige Daten.');
