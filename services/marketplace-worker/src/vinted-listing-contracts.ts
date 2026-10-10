@@ -37,6 +37,7 @@ interface ListingRuntime {
     connectionId: string,
   ): MarketplaceListingSnapshot;
   parseChoices(field: VintedListingChoiceField, input: unknown): VintedListingChoiceSnapshot;
+  parseCategoryFields(input: unknown, expectedCategoryId: number): VintedListingCategoryFields;
   collectChoices(field: VintedListingChoiceField): unknown;
   collectFormMetadata(): Omit<VintedListingCategoryFields, 'categoryId' | 'fields'> & {
     presentFields: readonly VintedListingChoiceField[];
@@ -66,6 +67,7 @@ export interface VintedListingFormValues {
 const runtime = (globalThis as unknown as { FlipbaseVintedListingRuntime: ListingRuntime })
   .FlipbaseVintedListingRuntime;
 export const parseVintedListingChoices = runtime.parseChoices;
+export const parseVintedListingCategoryFields = runtime.parseCategoryFields;
 export const collectVintedListingPhotoState = runtime.collectPhotoState;
 export const collectVintedListingFormValues = runtime.collectFormValues;
 export const vintedListingFormMatches = runtime.formMatches;

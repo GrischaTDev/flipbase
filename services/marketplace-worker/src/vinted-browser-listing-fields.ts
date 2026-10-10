@@ -9,10 +9,10 @@ import type {
 import { readVintedAccountIdentity } from './vinted-browser-reader.ts';
 import {
   readVintedListingCategoryFields,
-  readVintedListingChoices,
   openVintedListingChoices,
 } from './vinted-browser-listing-form.ts';
 import { validateVintedListingSubmission } from './vinted-listing-contracts.ts';
+import { selectVintedListingNewCategory } from './vinted-browser-listing-category.ts';
 
 function invalid(): Error {
   return new Error('Die Vinted-Inseratangaben konnten nicht übernommen werden.');
@@ -166,62 +166,21 @@ export async function prepareVintedListingFields(
     new Set(categoryPath).size !== categoryPath.length
   )
     throw invalid();
-  const categoryBinding: { text?: string } = {};
+  const categoryText = await selectVintedListingNewCategory(
+    page,
+    accountId,
+    content.categoryId,
+    categoryPath,
+    authorize,
+    options,
+  );
   const check = async () => {
     assertNewForm(page);
     await authorize();
     if ((await readVintedAccountIdentity(page))?.id !== accountId) throw invalid();
     assertNewForm(page);
-    if (
-      categoryBinding.text !== undefined &&
-      (await page.locator('#content #category').inputValue()) !== categoryBinding.text
-    )
-      throw invalid();
+    if ((await page.locator('#content #category').inputValue()) !== categoryText) throw invalid();
   };
-  await check();
-  for (const selector of [
-    'input[name="title"]',
-    'textarea[name="description"]',
-    'input[name="price"]',
-    '#category',
-    '#brand',
-    '#size',
-    '#condition',
-    '#color',
-    '#material',
-  ]) {
-    const input = page.locator('#content ' + selector);
-    if ((await input.count()) > 1) throw invalid();
-    if (
-      (await input.count()) === 1 &&
-      (await input.inputValue()).trim() &&
-      !(options.allowRememberedChoices === true && selector.startsWith('#'))
-    )
-      throw invalid();
-  }
-  if ((await page.locator('#content [data-testid^="image-wrapper-"]').count()) > 0) throw invalid();
-  const category = await readVintedListingChoices(page, accountId, null, 'category', categoryPath, {
-    allowRememberedCategory: options.allowRememberedChoices === true,
-  });
-  const target = category.choices.find((choice) => choice.id === content.categoryId);
-  if (!target || target.disabled) throw invalid();
-  await check();
-  try {
-    if (!target.selected) {
-      await page.locator('#category').click({ timeout: 5000 });
-      for (const parentId of categoryPath)
-        await page
-          .getByRole('button')
-          .and(page.locator('#catalog-' + parentId))
-          .click({ timeout: 5000 });
-      await check();
-      await clickEnabled(choiceLocator(page, 'category', content.categoryId, null));
-    }
-  } finally {
-    await page.keyboard.press('Escape');
-  }
-  categoryBinding.text = await page.locator('#content #category').inputValue();
-  if (!categoryBinding.text.trim()) throw invalid();
   await check();
   const schema = await readVintedListingCategoryFields(
     page,

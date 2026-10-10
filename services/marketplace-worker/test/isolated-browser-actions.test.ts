@@ -9,6 +9,82 @@ import {
 import type { VintedAccountImport } from '../src/vinted-account-import.ts';
 import { VintedInteractionRequiredError } from '../src/vinted-browser-reader.ts';
 
+const listingCategory = {
+  categoryId: 1223,
+  fields: [
+    {
+      field: 'condition',
+      sizeGroupId: null,
+      choices: [{ id: 2, label: 'Sehr gut', selected: false, disabled: false, sizeGroupId: null }],
+    },
+  ],
+  unknownFields: [],
+  acceptedPhotoMimeTypes: ['image/jpeg'],
+  titleMaxLength: 100,
+  descriptionMaxLength: 2000,
+  aiPhoto: false,
+  bump: false,
+};
+test('isolated category read uses a fixed action and rejects a response for another category', async () => {
+  const calls: unknown[] = [];
+  let category = listingCategory;
+  const browser = isolatedBrowserActions({
+    request: async (input) => {
+      calls.push(input);
+      if (input.action === 'start') return { id: '00000000-0000-0000-0000-000000000001' };
+      if (input.action === 'poll') return { kind: 'result', value: category };
+      return null;
+    },
+  });
+  assert.deepEqual(
+    await browser.readListingCategory!('123', 1223, [5], () => Promise.resolve()),
+    category,
+  );
+  assert.ok(
+    calls.some((input) =>
+      JSON.stringify(input).includes('"name":"readListingCategory","arguments":["123",1223,[5]]'),
+    ),
+  );
+  category = { ...listingCategory, categoryId: 2738 };
+  await assert.rejects(browser.readListingCategory!('123', 1223, [5], () => Promise.resolve()));
+});
+test('category read action rejects malformed IDs and category paths before invoking the browser', async () => {
+  let reads = 0;
+  const browser = {
+    version: () => 'fixture',
+    readListingCategory: () => {
+      reads++;
+      return Promise.resolve(listingCategory);
+    },
+  } as unknown as import('../src/gologin-cloud-browser.ts').BrowserInfo;
+  for (const argumentsList of [
+    ['123', '1223', [5]],
+    ['123', 1223, [5, 5]],
+    ['123', 1223, [1223]],
+    ['123', 1223, [0]],
+    ['123', 1223, Array.from({ length: 31 }, (_, index) => index + 1)],
+  ])
+    await assert.rejects(
+      executeBrowserAction(
+        browser,
+        { name: 'readListingCategory', arguments: argumentsList },
+        () => Promise.resolve(),
+        () => Promise.resolve(),
+      ),
+    );
+  assert.equal(reads, 0);
+  assert.deepEqual(
+    await executeBrowserAction(
+      browser,
+      { name: 'readListingCategory', arguments: ['123', 1223, [5]] },
+      () => Promise.resolve(),
+      () => Promise.resolve(),
+    ),
+    listingCategory,
+  );
+  assert.equal(reads, 1);
+});
+
 test('isolated terminal write proof survives a subsequent revocation without granting another action', async () => {
   for (const name of ['sendMessage', 'sendFavoriteMessage', 'sendFavoriteOffer'] as const) {
     let authorizations = 0;

@@ -95,6 +95,14 @@ export interface BrowserInfo extends Pick<Browser, 'version'> {
   ): Promise<VintedLoginResult>;
   verify?(code: string, authorize: () => Promise<void>): Promise<VintedVerificationResult>;
   readListingEdit?(itemId: string, accountId: string): Promise<VintedListingEditFields>;
+  readListingCategory?(
+    accountId: string,
+    categoryId: number,
+    categoryPath: readonly number[],
+    authorize: () => Promise<void>,
+  ): Promise<
+    import('../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts').VintedListingCategoryFields
+  >;
   updateListing?(
     itemId: string,
     accountId: string,

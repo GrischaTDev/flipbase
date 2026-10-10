@@ -4,6 +4,42 @@ import type { Page } from 'playwright';
 import { replayBrowserDrag, vintedBrowserActions } from '../src/vinted-browser-actions.ts';
 import { listingClaimFixture } from './fixtures/marketplace-listing-claim.ts';
 
+test('reading new category choices requires one context and authority before reserving a page', async () => {
+  let pages = 0;
+  const context = {
+    pages: () => [],
+    newPage: () => {
+      pages++;
+      throw new Error('page reserved');
+    },
+  };
+  const actions = vintedBrowserActions({
+    version: () => 'fixture',
+    close: () => Promise.resolve(),
+    contexts: () => [context],
+  } as unknown as import('../src/gologin-cloud-browser.ts').BrowserConnection);
+  await assert.rejects(
+    actions.readListingCategory!('123', 1223, [5], () => Promise.reject(new Error('revoked'))),
+    /revoked/,
+  );
+  assert.equal(pages, 0);
+  const ambiguous = vintedBrowserActions({
+    version: () => 'fixture',
+    close: () => Promise.resolve(),
+    contexts: () => [context, context],
+  } as unknown as import('../src/gologin-cloud-browser.ts').BrowserConnection);
+  await assert.rejects(
+    ambiguous.readListingCategory!('123', 1223, [5], () => Promise.resolve()),
+    /Exklusiv/,
+  );
+  assert.equal(pages, 0);
+  await assert.rejects(
+    actions.readListingCategory!('123', 1223, [5], () => Promise.resolve()),
+    /page reserved/,
+  );
+  assert.equal(pages, 1);
+});
+
 test('manual desktop controls do not use Playwright page input or screenshot', async () => {
   const calls: string[] = [];
   const connection = {

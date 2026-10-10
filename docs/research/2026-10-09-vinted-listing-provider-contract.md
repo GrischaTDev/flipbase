@@ -360,6 +360,16 @@ gespeicherte Marke; der echte Anbieter-Schreibfall steht weiterhin aus.
 
 ## Prüfungen dieser Grundlage
 
+Eine zusätzliche feste Cloud-Browseraktion liest die aktuellen Merkmalsoptionen
+in einem eigenen frischen Neuanlagemaske-Tab. Die gemeinsame Kategorieauswahl
+prüft tatsächliche Kennungen/Bezeichnungen und bedienbare Treffer; gleichwertige
+Vorschläge mit derselben Kennung sind erlaubt. Private Texte/Fotos verhindern
+die Vorbereitung. Während des Abrufs bleiben Konto, Kategorie und Rechte
+gebunden. Ein gemeinsamer Antwortprüfer erhält Größenfamilien, deaktivierte
+Werte und unbekannte Felder und verweigert vermischte Kategorien oder zusätzliche
+Daten. Der gesamte getrennte Leseweg ist mit abgefangenen Anfragen geprüft.
+Der Anschluss über die HTTP-Schnittstelle und die Editor-Auswahl ist noch offen.
+
 Der Flipbase-Editor verwendet inzwischen die vorhandene serverseitige Markensuche
 mit der konkreten Arbeitsbereichskennung. Die Edge-Funktion prüft
 `marketplace_can_manage` vor und nach dem Abruf; eine fehlende, fremde oder

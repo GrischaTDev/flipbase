@@ -107,10 +107,16 @@ async function readPopup(
   page: Page,
   field: VintedListingChoiceField,
   categoryPath: readonly number[] = [],
-  options: { brand?: Pick<VintedListingContent, 'brandId' | 'brandLabel'> } = {},
+  options: {
+    brand?: Pick<VintedListingContent, 'brandId' | 'brandLabel'>;
+    authorize?: () => Promise<void>;
+  } = {},
 ): Promise<VintedListingChoiceSnapshot> {
   try {
-    return await openVintedListingChoices(page, field, categoryPath, options);
+    await options.authorize?.();
+    const result = await openVintedListingChoices(page, field, categoryPath, options);
+    await options.authorize?.();
+    return result;
   } finally {
     await page.keyboard.press('Escape');
   }
@@ -165,9 +171,14 @@ export async function readVintedListingCategoryFields(
   accountId: string,
   expectedCategoryId: number,
   categoryPath: readonly number[],
-  options: { brand?: Pick<VintedListingContent, 'brandId' | 'brandLabel'> } = {},
+  options: {
+    brand?: Pick<VintedListingContent, 'brandId' | 'brandLabel'>;
+    authorize?: () => Promise<void>;
+  } = {},
 ): Promise<VintedListingCategoryFields> {
+  await options.authorize?.();
   await readVintedListingChoices(page, accountId, expectedCategoryId, 'category', categoryPath);
+  await options.authorize?.();
   await page.locator('#condition').waitFor({ state: 'visible', timeout: 5000 });
   const { presentFields, ...metadata } = await page.evaluate(collectVintedListingFormMetadata);
   const fields: VintedListingChoiceSnapshot[] = [];

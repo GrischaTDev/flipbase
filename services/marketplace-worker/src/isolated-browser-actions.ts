@@ -6,7 +6,11 @@ import {
   isVintedNegotiationEvent,
 } from './vinted-negotiation-contracts.ts';
 import type { BrowserInfo, BrowserDragPoint } from './gologin-cloud-browser.ts';
-import { isVintedListingResult, parseVintedListingSnapshot } from './vinted-listing-contracts.ts';
+import {
+  isVintedListingResult,
+  parseVintedListingSnapshot,
+  parseVintedListingCategoryFields,
+} from './vinted-listing-contracts.ts';
 import {
   createVintedListingPhotoSender,
   receiveVintedListingPhoto,
@@ -194,6 +198,7 @@ export async function executeBrowserAction(
     login: [1],
     verify: [1],
     readListingEdit: [2],
+    readListingCategory: [3],
     updateListing: [3],
     readProfileAbout: [1],
     updateProfileAbout: [3],
@@ -212,6 +217,32 @@ export async function executeBrowserAction(
     throw new Error('Nicht erlaubte Browseraktion');
   await authorize();
   switch (action.name) {
+    case 'readListingCategory': {
+      const categoryId = argumentsList[1],
+        parents = argumentsList[2];
+      if (
+        typeof categoryId !== 'number' ||
+        !Number.isSafeInteger(categoryId) ||
+        categoryId <= 0 ||
+        !Array.isArray(parents) ||
+        parents.length > 30 ||
+        parents.some(
+          (id) =>
+            typeof id !== 'number' || !Number.isSafeInteger(id) || id <= 0 || id === categoryId,
+        ) ||
+        new Set(parents).size !== parents.length
+      )
+        throw new Error('Vinted-Kategoriebindung ungültig');
+      return parseVintedListingCategoryFields(
+        await required(browser.readListingCategory)(
+          identifier(argumentsList[0]),
+          categoryId,
+          parents,
+          authorize,
+        ),
+        categoryId,
+      );
+    }
     case 'submitListing': {
       if (!listing) throw new Error('Inseratübergabe fehlt');
       const snapshotInput = commandRecord(argumentsList[2]);
@@ -754,6 +785,11 @@ export function isolatedBrowserActions(transport: BrowserCommandTransport): Brow
       (await run('readListingEdit', [itemId, accountId])) as Awaited<
         ReturnType<NonNullable<BrowserInfo['readListingEdit']>>
       >,
+    readListingCategory: async (accountId, categoryId, parents, authorize) =>
+      parseVintedListingCategoryFields(
+        await run('readListingCategory', [accountId, categoryId, parents], authorize),
+        categoryId,
+      ),
     updateListing: async (itemId, accountId, fields, authorize) =>
       (await run('updateListing', [itemId, accountId, fields], authorize)) as Awaited<
         ReturnType<NonNullable<BrowserInfo['updateListing']>>
@@ -843,6 +879,11 @@ export function validateBrowserResult(name: BrowserActionName, input: unknown): 
   }
   if (name === 'readProfileAbout') return text(input, 10000);
   if (name === 'readListingEdit') return fields(input);
+  if (name === 'readListingCategory') {
+    const value = commandRecord(input);
+    if (typeof value['categoryId'] !== 'number') throw new Error('Ungültige Vinted-Kategorie');
+    return parseVintedListingCategoryFields(input, value['categoryId']);
+  }
   if (name === 'login' || name === 'verify') {
     const result = text(input, 32);
     if (

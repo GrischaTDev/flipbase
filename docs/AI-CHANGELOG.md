@@ -1,5 +1,30 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-10 – Juna – Aktuelle Vinted-Merkmale getrennt lesen
+
+**Arbeit:** Eine feste Cloud-Browseraktion liest kategorieabhängige Größen,
+Zustände, Farben, Materialien und Paketgrößen auf einem eigenen frischen Tab.
+Sie übernimmt keine Artikeltexte/Fotos und speichert nichts. Konto, Kategorie
+und aktuelle Rechte werden während des Abrufs geprüft; der eigene Tab wird
+auch bei Fehlern geschlossen. Bestehende Benutzerseiten bleiben erhalten.
+Die bisherige Feldvorbereitung verwendet dieselbe Kategorieauswahl. Übertragene
+Formularwerte werden begrenzt und gegen ihre Kategorie geprüft; unbekannte
+Felder bleiben sichtbar statt still verworfen zu werden.
+
+**Prüfungen:** Fehlendes Modul, fehlende feste Browseraktion und fehlender
+Antwortprüfer zuerst durch fehlgeschlagene Tests belegt. Ein weiterer Fehlerfall
+mit gleichwertigen Kategorie-Vorschlägen wurde reproduziert und behoben.
+Alle 34 nativen Browserprüfungen einschließlich des vollständigen getrennten
+Lesewegs und der bisherigen Veröffentlichung erfolgreich; Anbieteranfragen
+vollständig abgefangen. 584 Workerprüfungen erfolgreich, sieben bestehende Fälle
+ausgelassen. 15 lokale Protokollprüfungen, Typprüfung, Bau, Format und ESLint
+erfolgreich. Beide Testcontainer gebaut und acht Inseratmodule jeweils ohne
+Netzwerk geladen. Ein dabei erkannter Typfehler wurde vor dem Neubau behoben.
+
+**Offen:** Der Leser wird als nächstes über eine kontogebundene Schnittstelle
+an die Merkmalsauswahl im Editor angeschlossen. Gesamtplan weiterhin offen;
+keine echten Vinted-Schreibaktionen oder Produktionsänderungen.
+
 ## 2026-10-10 – Juna – Vinted-Marken im Inserat-Editor auswählen
 
 **Arbeit:** Der Editor ergänzt die freie Markeneingabe um eine Suche mit echten

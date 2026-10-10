@@ -135,6 +135,9 @@ Die freie Markeneingabe kann durch eine tatsächliche Vinted-Suche ergänzt werd
 Kennung und Bezeichnung bleiben gemeinsam gebunden. Arbeitsbereichsrechte werden
 vor und nach der Suche geprüft. Weitere Merkmale, Artikelübernahme und die
 Veröffentlichungsaktionen sind noch offen.
+Ein getrennt geprüfter Cloud-Leser erfasst inzwischen tatsächliche Merkmale
+für eine gewählte Kategorie; seine kontogebundene Schnittstelle und die
+Editor-Auswahl werden als nächster Schritt angeschlossen.
 
 **Dateien neu:** `components/vinted-listing-editor/` und
 `components/vinted-listing-drafts/` unter `features/marketplaces/`, jeweils

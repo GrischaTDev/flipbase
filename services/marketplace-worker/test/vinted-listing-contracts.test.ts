@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   parseVintedListingChoices,
+  parseVintedListingCategoryFields,
   isVintedListingResult,
   validateVintedListingSubmission,
 } from '../src/vinted-listing-contracts.ts';
@@ -13,6 +14,67 @@ import type {
 function option(id: string, label: string, selected = false, disabled = false) {
   return { id, label, selected, disabled };
 }
+
+const categoryFields: VintedListingCategoryFields = {
+  categoryId: 1223,
+  fields: [
+    parseVintedListingChoices('size', [option('size-group-14-grid-option-208', 'M')]),
+    parseVintedListingChoices('brand', [option('empty-brand', 'Keine Marke')]),
+  ],
+  unknownFields: ['isbn'],
+  acceptedPhotoMimeTypes: ['image/jpeg', 'image/webp'],
+  titleMaxLength: 100,
+  descriptionMaxLength: 2000,
+  aiPhoto: false,
+  bump: null,
+};
+test('parses the bounded category form response while retaining IDs, disabled choices and unsupported fields', () => {
+  const result = parseVintedListingCategoryFields(categoryFields, 1223);
+  assert.deepEqual(result, categoryFields);
+  assert.notEqual(result, categoryFields);
+  assert.notEqual(result.fields, categoryFields.fields);
+  assert.throws(() => parseVintedListingCategoryFields(categoryFields, 2738));
+});
+test('refuses malformed category response metadata, duplicate fields and size group drift', () => {
+  const cases: unknown[] = [
+    { ...categoryFields, categoryId: '1223' },
+    { ...categoryFields, secret: 'forbidden' },
+    { ...categoryFields, aiPhoto: 'false' },
+    { ...categoryFields, titleMaxLength: -1 },
+    { ...categoryFields, unknownFields: ['isbn', 'isbn'] },
+    { ...categoryFields, acceptedPhotoMimeTypes: ['https://private.example'] },
+    { ...categoryFields, fields: [categoryFields.fields[0], categoryFields.fields[0]] },
+    { ...categoryFields, fields: [{ ...categoryFields.fields[0], sizeGroupId: 31 }] },
+    {
+      ...categoryFields,
+      fields: [
+        {
+          ...categoryFields.fields[0],
+          choices: [{ ...categoryFields.fields[0]!.choices[0], sizeGroupId: 31 }],
+        },
+      ],
+    },
+    {
+      ...categoryFields,
+      fields: [
+        {
+          ...categoryFields.fields[0],
+          choices: [{ ...categoryFields.fields[0]!.choices[0], disabled: 'false' }],
+        },
+      ],
+    },
+    {
+      ...categoryFields,
+      fields: [
+        {
+          ...categoryFields.fields[1],
+          choices: [{ ...categoryFields.fields[1]!.choices[0], label: 'Beliebiger Text' }],
+        },
+      ],
+    },
+  ];
+  for (const value of cases) assert.throws(() => parseVintedListingCategoryFields(value, 1223));
+});
 
 test('reads category-dependent sizes with the group and unique numeric ID', () => {
   assert.deepEqual(

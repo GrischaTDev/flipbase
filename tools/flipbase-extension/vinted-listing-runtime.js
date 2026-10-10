@@ -66,6 +66,112 @@
     return { field, sizeGroupId: [...groups][0] ?? null, choices: result };
   }
 
+  /** Prüft übertragene Formularwerte; keine Texte, Fotos, URLs oder Sitzungsdaten im Ergebnis. */
+  function parseCategoryFields(input, expectedCategoryId) {
+    const exact = (value, keys) =>
+      value &&
+      typeof value === 'object' &&
+      !Array.isArray(value) &&
+      Object.keys(value).length === keys.length &&
+      keys.every((key) => Object.hasOwn(value, key));
+    const safeText = (value, limit) =>
+      typeof value === 'string' &&
+      value.length > 0 &&
+      value.length <= limit &&
+      value === value.trim() &&
+      ![...value].some(
+        (character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127,
+      );
+    const stringList = (value, limit, predicate) =>
+      Array.isArray(value) &&
+      value.length <= limit &&
+      new Set(value).size === value.length &&
+      value.every(predicate);
+    if (
+      !Number.isSafeInteger(expectedCategoryId) ||
+      expectedCategoryId <= 0 ||
+      !exact(input, [
+        'categoryId',
+        'fields',
+        'unknownFields',
+        'acceptedPhotoMimeTypes',
+        'titleMaxLength',
+        'descriptionMaxLength',
+        'aiPhoto',
+        'bump',
+      ]) ||
+      input.categoryId !== expectedCategoryId ||
+      !Array.isArray(input.fields) ||
+      input.fields.length > 6 ||
+      !stringList(input.unknownFields, 50, (value) => safeText(value, 2000)) ||
+      !stringList(
+        input.acceptedPhotoMimeTypes,
+        20,
+        (value) =>
+          typeof value === 'string' &&
+          value.length <= 100 &&
+          /^(?:image\/(?:[a-z0-9.+-]+|\*)|\.[a-z0-9]+)$/.test(value),
+      ) ||
+      ![input.titleMaxLength, input.descriptionMaxLength].every(
+        (value) => value === null || (Number.isSafeInteger(value) && value >= 0 && value <= 20000),
+      ) ||
+      ![input.aiPhoto, input.bump].every((value) => value === null || typeof value === 'boolean')
+    )
+      invalid();
+    const fields = [],
+      seen = new Set();
+    for (const field of input.fields) {
+      if (
+        !exact(field, ['field', 'choices', 'sizeGroupId']) ||
+        !['brand', 'size', 'condition', 'color', 'material', 'package'].includes(field.field) ||
+        seen.has(field.field) ||
+        !Array.isArray(field.choices) ||
+        field.choices.length > 10000 ||
+        (field.field === 'size'
+          ? !Number.isSafeInteger(field.sizeGroupId) || field.sizeGroupId <= 0
+          : field.sizeGroupId !== null)
+      )
+        invalid();
+      seen.add(field.field);
+      const ids = new Set();
+      const choices = field.choices.map((choice) => {
+        if (
+          !exact(choice, ['id', 'label', 'selected', 'disabled', 'sizeGroupId']) ||
+          (choice.id === null
+            ? field.field !== 'brand' || choice.label !== 'Keine Marke'
+            : !Number.isSafeInteger(choice.id) || choice.id <= 0) ||
+          ids.has(choice.id) ||
+          choice.sizeGroupId !== field.sizeGroupId ||
+          !safeText(choice.label, 2000) ||
+          typeof choice.selected !== 'boolean' ||
+          typeof choice.disabled !== 'boolean'
+        )
+          invalid();
+        ids.add(choice.id);
+        const id =
+          field.field === 'size'
+            ? `size-group-${field.sizeGroupId}-grid-option-${choice.id}`
+            : field.field === 'package'
+              ? 'package_type_selector_' + choice.id
+              : choice.id === null
+                ? 'empty-brand'
+                : field.field + '-' + choice.id;
+        return { id, label: choice.label, selected: choice.selected, disabled: choice.disabled };
+      });
+      fields.push(parseChoices(field.field, choices));
+    }
+    return {
+      categoryId: expectedCategoryId,
+      fields,
+      unknownFields: [...input.unknownFields],
+      acceptedPhotoMimeTypes: [...input.acceptedPhotoMimeTypes],
+      titleMaxLength: input.titleMaxLength,
+      descriptionMaxLength: input.descriptionMaxLength,
+      aiPhoto: input.aiPhoto,
+      bump: input.bump,
+    };
+  }
+
   // Selbstständig serialisierbar: liest nur sichtbare Formularoptionen, keine Seitendaten.
   function collectChoices(field) {
     const selectors = {
@@ -842,6 +948,7 @@
     parseSnapshot,
     hasActiveListingEvidence,
     parseChoices,
+    parseCategoryFields,
     collectChoices,
     collectFormMetadata,
     isResult,
