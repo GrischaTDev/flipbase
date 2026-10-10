@@ -1,5 +1,31 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-10 – Juna – Inserat-Veröffentlichung auf aktuellen Master übernehmen
+
+**Arbeit:** Den lokal geprüften Stand des Inserat-Zweigs auf den neuen Zweig
+`juna/vinted-listing-publishing` übernommen und mit dem aktuellen `origin/master`
+zusammengeführt. Einziger Konflikt war dieses Protokoll; beide Eintragsreihen
+bleiben erhalten. Schema-Präfixe 460–466 und Migrationszeitpunkte kollidieren
+nicht mit Master.
+
+**Korrekturen:** Der Docker-Kontext schloss den neuen lokalen Inseratvertrag aus,
+der Frontend-Bau hätte ihn nicht gefunden. Die vier als Kernprüfung markierten
+Entwurfsfälle fehlten in der erwarteten PR-Auswahl. Der Editor legte Textfelder
+über eine Hilfsfunktion an, die die Vorlagenprüfung für Formularfelder nicht
+erkennt; die Felder sind jetzt ausdrücklich angelegt.
+
+**Prüfungen:** Typen, ESLint, Format der geänderten Dateien, Angular-Bau,
+2318 Node-, 309 DOM-, 172 betroffene Angular-, 605 Worker- und 144 Edge-Prüfungen
+erfolgreich. Workflow-Skripte bis auf einen PowerShell-abhängigen Fall grün.
+57 von 63 Worker-Browserfällen grün, darunter alle Inseratfälle; die sechs übrigen
+betreffen unveränderte Login-/Profilfälle mit vollem Chromium, der in dieser
+Umgebung nur in abweichender Version vorliegt. Datenbank- und E2E-Prüfungen laufen
+im PR, weil hier kein Docker-Dienst verfügbar ist.
+
+**Offen:** Veröffentlichung bleibt per `MARKETPLACE_LISTING_PUBLISH_ENABLED`
+ausgeschaltet. Bearbeiten bestehender Inserate folgt als eigener Zweig; Livefall,
+lokale Ausführung und Relist stehen weiter aus.
+
 ## 2026-10-10 – Juna – Veröffentlichung aus dem gespeicherten Entwurf vorbereiten
 
 **Arbeit:** Eine eigene Vorschau verbindet den Inserateditor mit sofortigen und
