@@ -39,6 +39,12 @@ function record(candidate: unknown): candidate is Record<string, unknown> {
 function invalid(): Error {
   return new Error('Cloud-Einrichtung konnte nicht bestätigt werden');
 }
+/** Eine laufende Aktion des Kontos sperrt den Wechsel; das ist kein IP-Prüffehler. */
+export class CloudSetupBlockedError extends Error {
+  constructor() {
+    super('Cloudwechsel ist durch eine laufende Aktion gesperrt');
+  }
+}
 
 /** Öffentliche Benutzerprüfung und private Workerübergänge bleiben getrennte Anfragen. */
 export class SupabaseMarketplaceCloudSetupStore {
@@ -71,6 +77,7 @@ export class SupabaseMarketplaceCloudSetupStore {
           p_display_name: 'displayName' in request ? request.displayName : null,
         },
         token,
+        true,
       ),
       request,
     );
@@ -206,7 +213,12 @@ export class SupabaseMarketplaceCloudSetupStore {
       'Content-Type': 'application/json',
     };
   }
-  private async rpc(name: string, body: Record<string, unknown>, token?: string): Promise<unknown> {
+  private async rpc(
+    name: string,
+    body: Record<string, unknown>,
+    token?: string,
+    reportsBlock = false,
+  ): Promise<unknown> {
     return this.response(
       await this.request(new URL(`/rest/v1/rpc/${name}`, this.options.url), {
         method: 'POST',
@@ -214,10 +226,16 @@ export class SupabaseMarketplaceCloudSetupStore {
         body: JSON.stringify(body),
         signal: AbortSignal.timeout(10_000),
       }),
+      reportsBlock,
     );
   }
-  private async response(response: Response): Promise<unknown> {
-    if (!response.ok) throw invalid();
+  private async response(response: Response, reportsBlock = false): Promise<unknown> {
+    if (!response.ok) {
+      // Nur der Sperrcode wird ausgewertet; Datenbanktexte verlassen den Worker nicht.
+      const failure: unknown = reportsBlock ? await response.json().catch(() => null) : null;
+      if (record(failure) && failure['code'] === '55P03') throw new CloudSetupBlockedError();
+      throw invalid();
+    }
     try {
       return await response.json();
     } catch {

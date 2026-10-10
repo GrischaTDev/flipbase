@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { SupabaseMarketplaceCloudSetupStore } from '../src/supabase-marketplace-cloud-setup-store.ts';
+import {
+  CloudSetupBlockedError,
+  SupabaseMarketplaceCloudSetupStore,
+} from '../src/supabase-marketplace-cloud-setup-store.ts';
 
 const scope = {
   workspaceId: '37100000-0000-4000-8000-000000000011',
@@ -79,4 +82,30 @@ test('direct or unknown network references cannot authorize a cloud setup', asyn
       Response.json(String(url).endsWith('_read') ? view : { ...internal, networkId: 'direct' }),
   });
   await assert.rejects(store.readAuthorized(scope, setupId));
+});
+
+test('database lock refusal becomes a blocked switch without exposing the database text', async () => {
+  const request = {
+    workspaceId: scope.workspaceId,
+    connectionId: scope.connectionId,
+    requestId: setupId,
+  };
+  const blocked = new SupabaseMarketplaceCloudSetupStore({
+    ...options,
+    fetch: async () =>
+      Response.json({ code: '55P03', message: 'private database text' }, { status: 500 }),
+  });
+  await assert.rejects(blocked.begin(request, 'user-token'), (failure: unknown) => {
+    assert.ok(failure instanceof CloudSetupBlockedError);
+    assert.ok(!failure.message.includes('private'));
+    return true;
+  });
+  const denied = new SupabaseMarketplaceCloudSetupStore({
+    ...options,
+    fetch: async () => Response.json({ code: '42501', message: 'denied' }, { status: 403 }),
+  });
+  await assert.rejects(
+    denied.begin(request, 'user-token'),
+    (failure: unknown) => !(failure instanceof CloudSetupBlockedError),
+  );
 });

@@ -9460,6 +9460,10 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_local_message_expire_leases: {
+        Args: { p_connection_id: string; p_workspace_id: string }
+        Returns: undefined
+      }
       marketplace_local_message_finish: {
         Args: {
           p_claim_token: string

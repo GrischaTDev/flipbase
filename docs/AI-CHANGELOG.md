@@ -1,5 +1,41 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-10 - Juna - Alte ungeklärte Nachrichten sperren den Cloud-Wechsel nicht mehr
+
+**Auftrag:** Stand der IPRoyal-Nachbuchung prüfen und klären, warum „Auf Cloud wechseln“
+sofort mit „Die Cloud-IP-Verfügbarkeit konnte nicht geprüft werden“ abbricht.
+
+**Befund:** Nachbuchung, Preisgrenze 8 USD und PayPal-Zahlungsart sind im laufenden Worker
+aktiv; Bestandsabgleich, Preisangebot (4 USD) und Zahlungsart wurden ausschließlich lesend
+bestätigt. Keine Bestellung und keine Kaufabsicht entstanden. Die Datenbank lehnte den Wechsel
+von „Wiehen Store“ mit „Laufende oder ungeklärte Aktion verhindert den Wechsel“ ab: zwei lokale
+Nachrichten vom 05.10.2026 stehen auf `outcome_unknown` mit `login_required`. Die Erweiterung
+ist nicht mehr verknüpft, die Nachrichten ließen sich also nicht mehr klären. Der Worker meldet
+jede Ablehnung pauschal als IP-Prüffehler.
+
+**Änderung:** Nach Entscheidung des Nutzers sperrt nur noch ein gerade laufender Versand
+(`claimed`, `sending`) den Wechsel. Abgelaufene Versandversuche werden vor der Prüfung wie beim
+normalen Nachrichtenabruf als unklar beziehungsweise wartend eingeordnet. Alte unklare
+Nachrichten bleiben unverändert im Verlauf und werden nicht in der Cloud wiederholt. Ungeklärte
+Abrufe und Aufträge (`marketplace_operations`) blockieren weiterhin. Der automatische Abgleich
+lieferte fremde Altabweichungen; die Migration enthält nur die drei betroffenen Funktionen.
+Der Worker meldet eine Sperre durch eine laufende Aktion jetzt getrennt vom IP-Prüffehler
+(`cloud_switch_blocked`), ohne Datenbanktexte weiterzugeben; die App zeigt dafür einen eigenen
+Text. Scheitert „Auf Cloud wechseln“ ohne offenen Dialog, erscheint der Hinweis als bleibender
+Fehler-Toast statt als Balken in voller Breite; ein neuer Versuch ersetzt den alten Toast.
+Hinweise in einem offenen Dialog bleiben dort.
+
+**Prüfung:** Der angepasste Test scheitert an der bisherigen Regel mit genau dieser Meldung.
+Nach vollständiger Migrationswiederholung bestehen 282 Prüfungen in sechs Datenbanktestdateien
+(Cloud-Einrichtung, IP-Nachbuchung, lokaler und Cloud-Nachrichtenversand, Wiederholung,
+Schreibpausen). Datenbanktypen lokal neu erzeugt. Neun Workerprüfungen und 48 Angularprüfungen
+der betroffenen Dateien bestehen; Typprüfung, Format/Lint und Angular-Produktionsbau erfolgreich.
+Der Browsertest zum gescheiterten Wechsel lief lokal nicht, weil ein Testserver der Suite nicht
+startete. Kein echter Kauf, kein Schreibzugriff auf Produktionsdaten.
+
+**Offen:** Erster echter Kauf über PayPal. Die genauere Workermeldung wirkt erst nach
+Auslieferung eines neuen Worker-Images; bis dahin zeigt die App weiter den pauschalen Text.
+
 ## 2026-10-10 - Juna - Vinted-Karten exakt an Vorlage angleichen
 
 **Auftrag:** Kritik des Nutzers umsetzen: Einstellungs-Zahnrad oben rechts bündig auf Höhe des Namens positionieren, Kartenfooter mit dezent abgesetztem Hintergrund und gleichmäßig aufgeteilten Buttons ausstatten sowie die maximale Kartenbreite begrenzen, damit die Karten nicht übermäßig breit gezogen werden.

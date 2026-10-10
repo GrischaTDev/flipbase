@@ -27,6 +27,7 @@ import type { SupabaseVintedListingCache } from './supabase-vinted-listing-cache
 import type { SupabaseVintedProfileCache } from './supabase-vinted-profile-cache.ts';
 import type { MarketplaceCloudSetup } from './marketplace-cloud-setup.ts';
 import type { CloudSetupRequest } from './marketplace-cloud-setup-contracts.d.ts';
+import { CloudSetupBlockedError } from './supabase-marketplace-cloud-setup-store.ts';
 import type { VintedListingCategoryAccess } from './vinted-listing-category-access.ts';
 import {
   parseVintedListingCategoryFields,
@@ -352,12 +353,19 @@ export class MarketplaceBrowserHttpApi {
             : { workspaceId, displayName: displayName as string, requestId };
         try {
           json(response, 200, { ...(await this.cloudSetups.begin(setupRequest, userId, token)) });
-        } catch {
-          json(response, 503, {
-            code: 'cloud_ip_check_failed',
-            error:
-              'Die Cloud-IP-Verfügbarkeit konnte nicht geprüft werden. Bitte versuche es erneut.',
-          });
+        } catch (failure) {
+          if (failure instanceof CloudSetupBlockedError)
+            json(response, 409, {
+              code: 'cloud_switch_blocked',
+              error:
+                'Für dieses Konto läuft noch eine Aktion. Warte kurz oder beende sie und versuche den Wechsel erneut.',
+            });
+          else
+            json(response, 503, {
+              code: 'cloud_ip_check_failed',
+              error:
+                'Die Cloud-IP-Verfügbarkeit konnte nicht geprüft werden. Bitte versuche es erneut.',
+            });
         }
         return;
       }

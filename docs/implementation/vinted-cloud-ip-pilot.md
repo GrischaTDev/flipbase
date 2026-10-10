@@ -113,6 +113,12 @@ Ein technischer Fehler beim Prüfen oder Reservieren ist keine leere Kapazität:
 „Die Cloud-IP-Verfügbarkeit konnte nicht geprüft werden. Bitte versuche es erneut.“
 Ein erneuter Aufruf darf weder eine zweite IP reservieren noch ein zweites Profil anlegen.
 
+Sperrt eine laufende Aktion des Kontos den Wechsel, meldet der Worker das getrennt
+(`cloud_switch_blocked`, HTTP 409): „Für dieses Konto läuft noch eine Aktion. Warte kurz
+oder beende sie und versuche den Wechsel erneut.“ Scheitert der Wechsel ohne offenen
+Dialog, erscheint der Hinweis als Toast unten rechts; in einem offenen Dialog bleibt er
+am Anfang des Dialogs stehen.
+
 ## Lokales Konto zur Cloud wechseln
 
 1. „Auf Cloud wechseln“ startet eine separate Einrichtung für die vorhandene
@@ -122,8 +128,11 @@ Ein erneuter Aufruf darf weder eine zweite IP reservieren noch ein zweites Profi
 3. Der Server prüft, ob die angemeldete Vinted-Konto-ID zur bisherigen Verbindung
    gehört. Ein anderes Konto verhindert den Abschluss; die vorhandene Zuordnung
    wird nicht überschrieben.
-4. Vor dem Abschluss werden lokale Aufträge angehalten und noch laufende Aktionen
-   abgeklärt. Bei ungeklärtem Ergebnis wird der Wechsel blockiert. Bis zu diesem
+4. Vor dem Abschluss werden lokale Aufträge angehalten. Nur eine Nachricht, die
+   gerade verschickt wird, sperrt den Wechsel für höchstens 90 Sekunden. Alte
+   Nachrichten mit unklarem Versandstatus bleiben unverändert im Verlauf, werden
+   nicht erneut gesendet und sperren den Wechsel nicht. Ungeklärte Abrufe und
+   Aufträge des Kontos blockieren weiterhin. Bis zu diesem
    Punkt ist die Erweiterung der einzige normale Auftragsexecutor; der Cloudbrowser
    erlaubt ausschließlich Anmeldung und lesende Identitätsprüfung.
 5. Ein atomarer Abschluss prüft Einrichtung, Berechtigung und Kontozustand erneut,

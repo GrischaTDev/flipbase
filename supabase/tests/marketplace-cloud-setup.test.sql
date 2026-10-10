@@ -74,15 +74,22 @@ insert into public.marketplace_account_entries(id,workspace_id,connection_id,kin
  ('37100000-0000-4000-8000-000000000061','37100000-0000-4000-8000-000000000011','37100000-0000-4000-8000-000000000021','conversation','777','{"title":"Buyer"}',clock_timestamp());
 insert into public.marketplace_local_message_outbox(workspace_id,connection_id,conversation_id,external_conversation_id,external_account_id,grant_generation,requested_by,request_id,payload_hash,message_text,state,claim_token) values
  ('37100000-0000-4000-8000-000000000011','37100000-0000-4000-8000-000000000021','37100000-0000-4000-8000-000000000061','777','123',1,'37100000-0000-4000-8000-000000000001','37100000-0000-4000-8000-000000000062',repeat('c',64),'Pending','sending','37100000-0000-4000-8000-000000000063');
+-- Eine alte ungeklärte Nachricht läuft nicht mehr und darf den Wechsel nicht aufhalten.
+insert into public.marketplace_account_entries(id,workspace_id,connection_id,kind,external_id,body,sort_at) values
+ ('37100000-0000-4000-8000-000000000071','37100000-0000-4000-8000-000000000011','37100000-0000-4000-8000-000000000022','conversation','778','{"title":"Buyer"}',clock_timestamp());
+insert into public.marketplace_local_message_outbox(workspace_id,connection_id,conversation_id,external_conversation_id,external_account_id,grant_generation,requested_by,request_id,payload_hash,message_text,state,error_code,claim_token) values
+ ('37100000-0000-4000-8000-000000000011','37100000-0000-4000-8000-000000000022','37100000-0000-4000-8000-000000000071','778','124',1,'37100000-0000-4000-8000-000000000001','37100000-0000-4000-8000-000000000072',repeat('e',64),'Old','outcome_unknown','login_required','37100000-0000-4000-8000-000000000073');
+select is(pg_temp.begin_setup('37100000-0000-4000-8000-000000000022','37100000-0000-4000-8000-000000000034')->>'status','no_capacity','Unresolved old message does not block starting the cloud switch');
 set local role service_role;
 select is(pg_temp.step('verify','123')->'setup'->>'state','verified','Observed identity is staged without switching');
 select throws_ok($$select pg_temp.step('finalize')$$,'55P03',null,'Sending message blocks the cloud transition');
-update public.marketplace_local_message_outbox set state='outcome_unknown';
-select throws_ok($$select pg_temp.step('finalize')$$,'55P03',null,'Ambiguous provider outcome is never retried or bypassed');
-update public.marketplace_local_message_outbox set state='queued',claim_token=null;
-insert into public.marketplace_local_message_outbox(id,workspace_id,connection_id,conversation_id,external_conversation_id,external_account_id,grant_generation,requested_by,request_id,payload_hash,message_text,state,claim_token) values
- ('37100000-0000-4000-8000-000000000064','37100000-0000-4000-8000-000000000011','37100000-0000-4000-8000-000000000021','37100000-0000-4000-8000-000000000061','777','123',1,'37100000-0000-4000-8000-000000000001','37100000-0000-4000-8000-000000000065',repeat('d',64),'Retry test','failed','37100000-0000-4000-8000-000000000066');
-select is(pg_temp.step('finalize')->'setup'->>'state','finalizing','Prepared transition pauses new local actions');
+insert into public.marketplace_local_message_outbox(id,workspace_id,connection_id,conversation_id,external_conversation_id,external_account_id,grant_generation,requested_by,request_id,payload_hash,message_text,state,error_code,claim_token) values
+ ('37100000-0000-4000-8000-000000000064','37100000-0000-4000-8000-000000000011','37100000-0000-4000-8000-000000000021','37100000-0000-4000-8000-000000000061','777','123',1,'37100000-0000-4000-8000-000000000001','37100000-0000-4000-8000-000000000065',repeat('d',64),'Retry test','failed',null,'37100000-0000-4000-8000-000000000066'),
+ ('37100000-0000-4000-8000-000000000067','37100000-0000-4000-8000-000000000011','37100000-0000-4000-8000-000000000021','37100000-0000-4000-8000-000000000061','777','123',1,'37100000-0000-4000-8000-000000000001','37100000-0000-4000-8000-000000000068',repeat('f',64),'Unclear test','outcome_unknown','login_required','37100000-0000-4000-8000-000000000069'),
+ ('37100000-0000-4000-8000-000000000074','37100000-0000-4000-8000-000000000011','37100000-0000-4000-8000-000000000021','37100000-0000-4000-8000-000000000061','777','123',1,'37100000-0000-4000-8000-000000000001','37100000-0000-4000-8000-000000000075',repeat('9',64),'Queued test','queued',null,null);
+update public.marketplace_local_message_outbox set lease_expires_at=clock_timestamp()-interval '1 second' where request_id='37100000-0000-4000-8000-000000000062';
+select is(pg_temp.step('finalize')->'setup'->>'state','finalizing','Old unresolved and expired messages do not block the prepared transition');
+select is((select state||':'||error_code from public.marketplace_local_message_outbox where request_id='37100000-0000-4000-8000-000000000062'),'outcome_unknown:timeout','Expired send attempt stays recorded as unclear');
 select throws_ok($$select pg_temp.step('complete')$$,'55P03',null,'Unconfirmed browser stop blocks completion');
 reset role;
 select ok((select revoked_at is null from public.marketplace_local_extension_grants where connection_id='37100000-0000-4000-8000-000000000021'),'Local grant remains active before completion');
@@ -100,7 +107,8 @@ reset role;
 select is((select execution_mode from public.marketplace_connections where id='37100000-0000-4000-8000-000000000021'),'cloud','Same connection now executes in cloud');
 select is((select external_account_id from public.marketplace_connections where id='37100000-0000-4000-8000-000000000021'),'123','Account identity remains unchanged');
 select ok((select revoked_at is not null from public.marketplace_local_extension_grants where connection_id='37100000-0000-4000-8000-000000000021'),'Successful switch revokes extension grant');
-select is((select state from public.marketplace_local_message_outbox where request_id='37100000-0000-4000-8000-000000000062'),'cancelled','Queued local message is cancelled rather than replayed in the cloud');
+select is((select state from public.marketplace_local_message_outbox where request_id='37100000-0000-4000-8000-000000000075'),'cancelled','Queued local message is cancelled rather than replayed in the cloud');
+select is((select state from public.marketplace_local_message_outbox where id='37100000-0000-4000-8000-000000000067'),'outcome_unknown','Unresolved old message stays in the history and is not replayed');
 select is((select count(*)::integer from public.marketplace_account_entries where id='37100000-0000-4000-8000-000000000061'),1,'Existing conversation keeps its identity');
 select throws_ok($$delete from public.marketplace_connections where id='37100000-0000-4000-8000-000000000021'$$,'23503',null,'Deletion cannot free an uncleared IP');
 set local role authenticated;
