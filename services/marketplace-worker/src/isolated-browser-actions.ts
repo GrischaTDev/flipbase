@@ -18,6 +18,7 @@ import {
   receiveVintedListingPhoto,
 } from './vinted-listing-photo-transfer.ts';
 import { isValidVintedMessageCommand } from './vinted-browser-messages.ts';
+import { VintedListingReadError, vintedListingReadSteps } from './vinted-listing-read-error.ts';
 import type {
   MarketplaceMessageCommand,
   MarketplaceFavoriteMessageCommand,
@@ -525,6 +526,8 @@ export function browserActionError(error: unknown): BrowserActionEvent {
           }
         : {}),
     };
+  if (error instanceof VintedListingReadError)
+    return { kind: 'error', code: 'listing_read', stage: error.step };
   return { kind: 'error', code: 'failed' };
 }
 function throwBrowserError(event: Record<string, unknown>): never {
@@ -532,6 +535,10 @@ function throwBrowserError(event: Record<string, unknown>): never {
   if (event.code === 'login_pending') throw new VintedLoginPendingError();
   if (event.code === 'login_rejected') throw new VintedLoginRejectedError();
   if (event.code === 'verification_required') throw new VintedVerificationRequiredError();
+  if (event.code === 'listing_read') {
+    const step = vintedListingReadSteps.find((step) => step === event.stage);
+    if (step) throw new VintedListingReadError(step);
+  }
   if (event.code === 'import' || event.code === 'request') {
     const stages = [
       'navigation',

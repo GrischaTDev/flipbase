@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { BrowserSessionCommands } from '../src/browser-session-commands.ts';
 import {
+  browserActionError,
   executeBrowserAction,
   isolatedBrowserActions,
   validateBrowserResult,
@@ -9,6 +10,7 @@ import {
 import type { VintedAccountImport } from '../src/vinted-account-import.ts';
 import { VintedInteractionRequiredError } from '../src/vinted-browser-reader.ts';
 import { listingCurrentContentFixture } from './fixtures/vinted-listing-current-content.ts';
+import { VintedListingReadError } from '../src/vinted-listing-read-error.ts';
 
 const listingCategory = {
   categoryId: 1223,
@@ -188,6 +190,31 @@ test('content update action passes only complete listing content and a fixed res
   assert.deepEqual(calls, [['123', '98765', base, desired]]);
   assert.equal(validateBrowserResult('updateListingContent', 'conflict'), 'conflict');
   assert.throws(() => validateBrowserResult('updateListingContent', 'saved'));
+});
+
+test('a failed listing read keeps only its fixed step across the isolated transport', async () => {
+  const event = browserActionError(new VintedListingReadError('photos'));
+  assert.deepEqual(event, { kind: 'error', code: 'listing_read', stage: 'photos' });
+  for (const [stage, expected] of [
+    ['photos', 'photos'],
+    ['private page text', null],
+  ] as const) {
+    const browser = isolatedBrowserActions({
+      request: async (input) => {
+        if (input.action === 'start') return { id: '00000000-0000-0000-0000-000000000001' };
+        if (input.action === 'poll') return { kind: 'error', code: 'listing_read', stage };
+        return null;
+      },
+    });
+    await assert.rejects(
+      browser.readListingContent!('123', '98765', () => Promise.resolve()),
+      (error) =>
+        expected
+          ? error instanceof VintedListingReadError && error.step === expected
+          : !(error instanceof VintedListingReadError) &&
+            !String((error as Error).message).includes('private'),
+    );
+  }
 });
 
 test('isolated terminal write proof survives a subsequent revocation without granting another action', async () => {

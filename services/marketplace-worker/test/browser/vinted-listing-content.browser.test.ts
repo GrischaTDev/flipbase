@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { chromium, type Page } from 'playwright';
 import { readVintedListingCurrentContent } from '../../src/vinted-browser-listing-content.ts';
+import { VintedListingReadError } from '../../src/vinted-listing-read-error.ts';
 
 /** Ausschließlich synthetische Anbieterantworten, einschließlich aller Fotoabrufe. */
 async function fixture(
@@ -107,11 +108,17 @@ test('keeps unknown fields visible and rejects foreign accounts, changed content
     );
     assert.deepEqual(result.schema.unknownFields, ['isbn']);
     assert.equal(writes(), 0);
-    for (const options of [{ foreign: true }, { changed: true }, { unsafePhoto: true }]) {
+    for (const [options, step] of [
+      [{ foreign: true }, 'identity'],
+      [{ changed: true }, 'changed'],
+      [{ unsafePhoto: true }, 'photos'],
+    ] as const) {
       const other = await browser.newPage(),
         count = await fixture(other, options);
+      // Der Abbruch nennt nur den festen Schritt, keine Seiteninhalte.
       await assert.rejects(
         readVintedListingCurrentContent(other, '123', '98765', () => Promise.resolve()),
+        (error) => error instanceof VintedListingReadError && error.step === step,
       );
       assert.equal(other.isClosed(), true);
       assert.equal(count(), 0);

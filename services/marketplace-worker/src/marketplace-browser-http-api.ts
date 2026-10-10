@@ -34,6 +34,7 @@ import {
   parseVintedListingCurrentContent,
   parseVintedListingEditContent,
 } from './vinted-listing-contracts.ts';
+import { VintedListingReadError } from './vinted-listing-read-error.ts';
 import type { VintedListingContent } from '../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts';
 
 interface BrowserBroker {
@@ -1093,8 +1094,44 @@ export class MarketplaceBrowserHttpApi {
         this.inFlight.delete(inFlightKey);
       }
     } catch (error) {
+      const failedPath = new URL(request.url ?? '/', 'http://localhost').pathname;
+      if (failedPath.startsWith('/marketplace-browser/listings/')) {
+        // Nur feste Kategorien protokollieren, keine Kennungen, Inhalte oder Anbieterantworten.
+        const route = [
+          'category/read',
+          'content/read',
+          'content/save',
+          'edit/read',
+          'edit/save',
+        ].find((name) => failedPath === '/marketplace-browser/listings/' + name);
+        try {
+          process.stderr.write(
+            `${JSON.stringify({
+              event: 'marketplace_listing_request_failed',
+              route: route ?? 'unknown',
+              reason:
+                error instanceof VintedListingReadError
+                  ? 'listing_read'
+                  : error instanceof RequestError
+                    ? 'request_' + error.status
+                    : error instanceof MarketplaceBrowserSessionBusyError
+                      ? 'session_busy'
+                      : error instanceof VintedInteractionRequiredError
+                        ? 'interaction_required'
+                        : 'failed',
+              ...(error instanceof VintedListingReadError ? { step: error.step } : {}),
+            })}\n`,
+          );
+        } catch {
+          // Eine defekte Logausgabe verändert keine Antwort.
+        }
+      }
       if (response.headersSent) {
         response.destroy();
+        return;
+      }
+      if (error instanceof VintedListingReadError) {
+        json(response, 409, { code: 'vinted_listing_read_failed', step: error.step });
         return;
       }
       if (error instanceof ImportError) {
