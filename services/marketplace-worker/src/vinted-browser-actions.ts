@@ -13,6 +13,7 @@ import { submitVintedVerificationCode } from './vinted-browser-verification.ts';
 import { readVintedListingEdit, updateVintedListing } from './vinted-browser-listing-edit.ts';
 import { submitVintedListing } from './vinted-browser-listing-submit.ts';
 import { readVintedListingNewCategory } from './vinted-browser-listing-category.ts';
+import { readVintedListingCurrentContent } from './vinted-browser-listing-content.ts';
 import { readVintedProfileAbout, updateVintedProfileAbout } from './vinted-browser-profile-edit.ts';
 import { sendVintedNegotiation } from './vinted-browser-negotiation.ts';
 import { sendVintedMessage } from './vinted-browser-messages.ts';
@@ -67,6 +68,13 @@ export function vintedBrowserActions(
       if (!contexts || contexts.length !== 1) throw new Error('Exklusiver Inseratbrowser fehlt');
       const page = await contexts[0]!.newPage();
       return readVintedListingNewCategory(page, accountId, categoryId, categoryPath, authorize);
+    },
+    readListingContent: async (accountId, externalId, authorize) => {
+      await authorize();
+      const contexts = connection.contexts?.();
+      if (!contexts || contexts.length !== 1) throw new Error('Exklusiver Inseratbrowser fehlt');
+      const page = await contexts[0]!.newPage();
+      return readVintedListingCurrentContent(page, accountId, externalId, authorize);
     },
     submitListing: async (
       accountId,

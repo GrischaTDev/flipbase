@@ -940,7 +940,168 @@
       return true;
     });
   }
+  /** Prüft den übertragenen Iststand eines bestehenden Inserats; Inhalt muss zur Auswahl passen. */
+  function parseCurrentContent(input, accountId, externalId) {
+    const exact = (value, keys) =>
+      value &&
+      typeof value === 'object' &&
+      !Array.isArray(value) &&
+      Object.keys(value).length === keys.length &&
+      keys.every((key) => Object.hasOwn(value, key));
+    const identifier = (value) => typeof value === 'string' && /^[1-9][0-9]{0,31}$/.test(value);
+    const text = (value) =>
+      typeof value === 'string' &&
+      value.length <= 20000 &&
+      ![...value].some((character) => {
+        const code = character.charCodeAt(0);
+        return code === 127 || (code < 32 && ![9, 10, 13].includes(code));
+      });
+    const positive = (value) => Number.isSafeInteger(value) && value > 0;
+    if (
+      !identifier(accountId) ||
+      !identifier(externalId) ||
+      !exact(input, [
+        'externalId',
+        'externalAccountId',
+        'content',
+        'aiPhoto',
+        'bump',
+        'photoUrls',
+        'schema',
+      ]) ||
+      input.externalId !== externalId ||
+      input.externalAccountId !== accountId ||
+      typeof input.aiPhoto !== 'boolean' ||
+      typeof input.bump !== 'boolean' ||
+      !Array.isArray(input.photoUrls) ||
+      input.photoUrls.length < 1 ||
+      input.photoUrls.length > 20 ||
+      new Set(input.photoUrls).size !== input.photoUrls.length
+    )
+      invalid();
+    for (const photoUrl of input.photoUrls) {
+      let source;
+      try {
+        source = new URL(photoUrl);
+      } catch {
+        invalid();
+      }
+      if (
+        typeof photoUrl !== 'string' ||
+        source.href !== photoUrl ||
+        source.protocol !== 'https:' ||
+        !/^images[1-9][0-9]*\.vinted\.net$/.test(source.hostname) ||
+        source.username ||
+        source.password ||
+        source.port ||
+        source.hash ||
+        (source.search && !/^\?s=[0-9a-f]{40,128}$/i.test(source.search))
+      )
+        invalid();
+    }
+    const content = input.content;
+    if (
+      !exact(content, [
+        'title',
+        'description',
+        'priceCents',
+        'currency',
+        'categoryId',
+        'categoryLabel',
+        'brandId',
+        'brandLabel',
+        'sizeId',
+        'sizeLabel',
+        'conditionId',
+        'conditionLabel',
+        'colorIds',
+        'colorLabels',
+        'materialIds',
+        'materialLabels',
+        'packageSizeId',
+        'attributes',
+      ]) ||
+      ![
+        content.title,
+        content.description,
+        content.categoryLabel,
+        content.brandLabel,
+        content.sizeLabel,
+        content.conditionLabel,
+      ].every(text) ||
+      !content.categoryLabel ||
+      !positive(content.priceCents) ||
+      content.currency !== 'EUR' ||
+      !positive(content.categoryId) ||
+      !exact(content.attributes, [])
+    )
+      invalid();
+    const schema = parseCategoryFields(input.schema, content.categoryId);
+    if (schema.aiPhoto !== input.aiPhoto || schema.bump !== input.bump) invalid();
+    // Kennungen und Namen stammen aus derselben aktuellen Auswahl, nie aus getrennten Quellen.
+    const selected = (field) =>
+      schema.fields
+        .find((entry) => entry.field === field)
+        ?.choices.filter((choice) => choice.selected) ?? [];
+    for (const [field, id, label] of [
+      ['brand', content.brandId, content.brandLabel],
+      ['size', content.sizeId, content.sizeLabel],
+      ['condition', content.conditionId, content.conditionLabel],
+      ['package', content.packageSizeId, null],
+    ]) {
+      const choice = selected(field)[0];
+      if (
+        (choice?.id ?? null) !== id ||
+        (label !== null && (choice?.label ?? '') !== label) ||
+        (id !== null && !positive(id))
+      )
+        invalid();
+    }
+    for (const [field, ids, labels] of [
+      ['color', content.colorIds, content.colorLabels],
+      ['material', content.materialIds, content.materialLabels],
+    ]) {
+      const choices = selected(field);
+      if (
+        !Array.isArray(ids) ||
+        !Array.isArray(labels) ||
+        ids.length !== choices.length ||
+        labels.length !== choices.length ||
+        choices.some((choice, index) => choice.id !== ids[index] || choice.label !== labels[index])
+      )
+        invalid();
+    }
+    return {
+      externalId,
+      externalAccountId: accountId,
+      content: {
+        title: content.title,
+        description: content.description,
+        priceCents: content.priceCents,
+        currency: 'EUR',
+        categoryId: content.categoryId,
+        categoryLabel: content.categoryLabel,
+        brandId: content.brandId,
+        brandLabel: content.brandLabel,
+        sizeId: content.sizeId,
+        sizeLabel: content.sizeLabel,
+        conditionId: content.conditionId,
+        conditionLabel: content.conditionLabel,
+        colorIds: [...content.colorIds],
+        colorLabels: [...content.colorLabels],
+        materialIds: [...content.materialIds],
+        materialLabels: [...content.materialLabels],
+        packageSizeId: content.packageSizeId,
+        attributes: {},
+      },
+      aiPhoto: input.aiPhoto,
+      bump: input.bump,
+      photoUrls: [...input.photoUrls],
+      schema,
+    };
+  }
   root.FlipbaseVintedListingRuntime = Object.freeze({
+    parseCurrentContent,
     photosMatch,
     collectPhotoState,
     collectFormValues,

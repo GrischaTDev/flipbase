@@ -40,6 +40,40 @@ test('reading new category choices requires one context and authority before res
   assert.equal(pages, 1);
 });
 
+test('reading an existing listing requires one context and authority before reserving a page', async () => {
+  let pages = 0;
+  const context = {
+    pages: () => [],
+    newPage: () => {
+      pages++;
+      throw new Error('page reserved');
+    },
+  };
+  const connection = (contexts: unknown[]) =>
+    ({
+      version: () => 'fixture',
+      close: () => Promise.resolve(),
+      contexts: () => contexts,
+    }) as unknown as import('../src/gologin-cloud-browser.ts').BrowserConnection;
+  const actions = vintedBrowserActions(connection([context]));
+  await assert.rejects(
+    actions.readListingContent!('123', '98765', () => Promise.reject(new Error('revoked'))),
+    /revoked/,
+  );
+  await assert.rejects(
+    vintedBrowserActions(connection([context, context])).readListingContent!('123', '98765', () =>
+      Promise.resolve(),
+    ),
+    /Exklusiv/,
+  );
+  assert.equal(pages, 0);
+  await assert.rejects(
+    actions.readListingContent!('123', '98765', () => Promise.resolve()),
+    /page reserved/,
+  );
+  assert.equal(pages, 1);
+});
+
 test('manual desktop controls do not use Playwright page input or screenshot', async () => {
   const calls: string[] = [];
   const connection = {
