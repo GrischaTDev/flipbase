@@ -1,5 +1,29 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-10 – Juna – Bestehendes Vinted-Inserat vollständig lesen
+
+**Arbeit:** Der Zweig `juna/vinted-listing-publishing` wurde gepusht und als
+PR #363 eingereicht. Auf dem neuen Zweig `juna/vinted-listing-edit` beginnt das
+Bearbeiten bestehender Inserate: Ein eigener Leser öffnet die Bearbeitungsmaske
+in einem frisch reservierten Tab, liest Texte, Preis, Kategorie, Marke, Größe,
+Zustand, Farben, Materialien, Paketgröße, Fotos und die KI-Fotokennzeichnung
+samt gesperrter Auswahlwerte und schließt den Tab wieder. Er speichert nichts.
+Konto und Inserat bestimmt der Server aus dem eigenen Kontoeintrag. Die Antwort
+prüft derselbe gemeinsame Prüfer im Worker, im getrennten Browser und in der App;
+Inhalt und ausgewählte Werte müssen zusammenpassen.
+
+**Korrektur:** Die übernommene Testseite lieferte Umlaute und das Eurozeichen
+ohne Zeichensatz aus; der Preis war dadurch nicht lesbar.
+
+**Prüfungen:** 608 Worker-Prüfungen (7 übersprungen), drei neue Browserfälle,
+45 Fälle der App-Schnittstelle, 124 Erweiterungsprüfungen, Typen, Format und
+ESLint grün. Zwei unveränderte Login-Browserfälle schlagen auf diesem
+Windows-Rechner fehl. Keine Anfrage an Vinted, kein Deployment.
+
+**Offen:** Editor mit dem gelesenen Stand vorbelegen, Änderungen als
+`update`-Auftrag bei Vinted speichern und bestätigen, Umgang mit geänderten
+Fotos, lokale Ausführung, Livefall und Relist.
+
 ## 2026-10-10 – Juna – Inserat-Veröffentlichung auf aktuellen Master übernehmen
 
 **Arbeit:** Den lokal geprüften Stand des Inserat-Zweigs auf den neuen Zweig
