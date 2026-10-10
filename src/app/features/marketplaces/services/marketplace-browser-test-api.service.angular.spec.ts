@@ -63,20 +63,19 @@ it('verweigert eine ungültige Kategorie vor dem Abruf und meldet einen veraltet
   expect(request).not.toHaveBeenCalled();
   await expect(api.readListingCategory(scope, 1223, 'token')).rejects.toThrow('aktualisiert');
 });
-it('liest den Iststand eines bestehenden Inserats nur für das erwartete Konto und Inserat', async () => {
+it('liest den Iststand eines bestehenden Inserats nur für das erwartete Konto', async () => {
   const listing = listingCurrentContentFixture();
-  const expected = { externalAccountId: '123', externalId: '98765' };
+  const expected = '123';
   const request = vi.fn().mockImplementation(() => Promise.resolve(Response.json({ listing })));
   vi.stubGlobal('fetch', request);
   expect(await api.readListingContent(scope, id, expected, 'token')).toEqual(listing);
   expect(request.mock.calls[0][0]).toBe('/marketplace-browser/listings/content/read');
   expect(JSON.parse(request.mock.calls[0][1].body)).toEqual({ ...scope, entryId: id });
-  await expect(
-    api.readListingContent(scope, id, { ...expected, externalId: '98766' }, 'token'),
-  ).rejects.toThrow('ungültige');
-  await expect(
-    api.readListingContent(scope, id, { ...expected, externalAccountId: '124' }, 'token'),
-  ).rejects.toThrow('ungültige');
+  await expect(api.readListingContent(scope, id, '124', 'token')).rejects.toThrow('ungültige');
+  request.mockResolvedValueOnce(Response.json({ listing: { ...listing, externalId: 'abc' } }));
+  await expect(api.readListingContent(scope, id, expected, 'token')).rejects.toThrow('ungültige');
+  request.mockResolvedValueOnce(Response.json({ listing: { ...listing, externalId: 98765 } }));
+  await expect(api.readListingContent(scope, id, expected, 'token')).rejects.toThrow('ungültige');
   request.mockResolvedValueOnce(Response.json({ listing, token: 'forbidden' }));
   await expect(api.readListingContent(scope, id, expected, 'token')).rejects.toThrow('ungültige');
   request.mockResolvedValueOnce(new Response(null, { status: 404 }));

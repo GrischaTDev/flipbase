@@ -1010,9 +1010,6 @@ export class MarketplaceAccountStore {
     const selection = this.selectionRevision;
     const connection = this.selectedConnection();
     const token = this.auth.session()?.access_token;
-    const externalId = this.snapshot()?.publications.items.find(
-      (entry) => entry.id === entryId,
-    )?.externalId;
     if (
       !this.canManage() ||
       connection?.executionMode === 'local' ||
@@ -1022,12 +1019,10 @@ export class MarketplaceAccountStore {
       !token
     )
       throw new Error('Wähle zuerst das verbundene Vinted-Konto aus.');
-    if (!externalId)
-      throw new Error('Aktualisiere zuerst die Inserate dieses Kontos, um es zu bearbeiten.');
     const listing = await this.browserApi.readListingContent(
       this.scope(connection),
       entryId,
-      { externalAccountId: connection.externalAccountId, externalId },
+      connection.externalAccountId,
       token,
     );
     if (!key || !this.isCurrent(key) || selection !== this.selectionRevision)
