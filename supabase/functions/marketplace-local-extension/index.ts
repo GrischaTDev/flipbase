@@ -1,5 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.112.3';
 import { createLocalExtensionHandler, LocalExtensionStoreError } from './handler.ts';
+import { loadLocalListingPhoto } from './listing-photo.ts';
 
 const service = createClient(
   Deno.env.get('SUPABASE_URL') ?? '',
@@ -13,6 +14,88 @@ const service = createClient(
 );
 Deno.serve(
   createLocalExtensionHandler({
+    async listingPhoto(tokenHash, input) {
+      const scope = {
+        p_workspace_id: input.workspaceId,
+        p_connection_id: input.connectionId,
+        p_token_hash: tokenHash,
+        p_job_id: input.jobId,
+        p_claim_token: input.claimToken,
+      };
+      return await loadLocalListingPhoto(input, {
+        async authorize() {
+          const { data, error } = await service.rpc('marketplace_local_listing_check', scope);
+          if (error) throw mapStoreError(error.code);
+          const lease = data as Record<string, unknown> | null;
+          const expiresAt =
+            typeof lease?.['expiresAt'] === 'string' ? Date.parse(lease['expiresAt']) : NaN;
+          const absoluteExpiresAt =
+            typeof lease?.['absoluteExpiresAt'] === 'string'
+              ? Date.parse(lease['absoluteExpiresAt'])
+              : NaN;
+          return (
+            lease?.['active'] === true &&
+            Number.isFinite(expiresAt) &&
+            Number.isFinite(absoluteExpiresAt) &&
+            expiresAt > Date.now() &&
+            absoluteExpiresAt >= expiresAt
+          );
+        },
+        async loadSnapshot() {
+          const { data, error } = await service
+            .schema('public')
+            .from('marketplace_listing_jobs')
+            .select('snapshot')
+            .eq('workspace_id', input.workspaceId)
+            .eq('connection_id', input.connectionId)
+            .eq('id', input.jobId)
+            .eq('claim_token', input.claimToken)
+            .eq('claim_local_token_hash', tokenHash)
+            .eq('execution_mode', 'local')
+            .in('state', ['claimed', 'writing'])
+            .maybeSingle();
+          if (error) throw mapStoreError(error.code);
+          if (!data) throw new LocalExtensionStoreError('access');
+          return data.snapshot;
+        },
+        download(storagePath) {
+          const url = new URL(
+            '/storage/v1/object/marketplace-listing-media/' +
+              storagePath.split('/').map(encodeURIComponent).join('/'),
+            Deno.env.get('SUPABASE_URL'),
+          );
+          const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+          return fetch(url, {
+            method: 'GET',
+            headers: { apikey: key, Authorization: 'Bearer ' + key },
+            redirect: 'error',
+            signal: AbortSignal.timeout(20_000),
+          });
+        },
+      });
+    },
+    async listings(tokenHash, input) {
+      const name =
+        input.action === 'listing_claim'
+          ? 'marketplace_local_listing_claim'
+          : input.action === 'listing_check'
+            ? 'marketplace_local_listing_check'
+            : input.action === 'listing_begin'
+              ? 'marketplace_local_listing_begin'
+              : 'marketplace_local_listing_finish';
+      const { data, error } = await service.rpc(name, {
+        p_workspace_id: input.workspaceId,
+        p_connection_id: input.connectionId,
+        p_token_hash: tokenHash,
+        ...('jobId' in input ? { p_job_id: input.jobId, p_claim_token: input.claimToken } : {}),
+        ...(input.action === 'listing_finish' ? { p_result: input.result } : {}),
+      });
+      if (error)
+        throw error.code === '40001'
+          ? new LocalExtensionStoreError('conflict')
+          : mapStoreError(error.code);
+      return data;
+    },
     async negotiation(tokenHash, input) {
       const scope = {
         p_workspace_id: input.workspaceId,

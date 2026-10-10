@@ -1,34 +1,38 @@
-<app-page-header [title]="showingMessages() ? 'Nachrichten' : 'Vinted'" [icon]="pageIcon()">
-  @if (showingSetup() || showingLocalConnection() || showingCloudConnection()) {
-    <app-button header-actions link="/marketplaces/vinted/accounts">Alle Konten</app-button>
-  } @else if (!showingAccounts() && store.selectedConnection(); as account) {
-    <app-vinted-account-controls
-      header-actions
-      class="w-full sm:w-auto sm:max-w-[min(36rem,60vw)]"
-      [runtimeStatus]="runtimeStatus()"
-      [connections]="store.connections()"
-      [account]="account"
-      [profile]="store.snapshot()?.profile ?? null"
-      [canManage]="store.canManage()"
-      [refreshing]="store.busy() || local.busy()"
-      [loading]="store.loadingSnapshot()"
-      [inbox]="showingMessages() && account.executionMode === 'local'"
-      [inboxSyncedAt]="local.binding()?.inboxSyncedAt ?? local.inboxImported()?.observedAt ?? null"
-      [refreshLabel]="
-        showingMessages() && account.executionMode === 'local'
-          ? 'Nachrichten aktualisieren'
-          : 'Kontodaten aktualisieren'
-      "
-      (accountSelected)="store.selectConnection($event)"
-      (refreshRequested)="sync()"
-      (synchronized)="store.refreshImportedSnapshot($event, $event.lastSuccessAt)"
-      (scheduleStateChanged)="cloudHeaderState.set($event)"
-    />
-  } @else if (!showingAccounts()) {
-    <app-button header-actions link="/marketplaces/vinted/accounts">Alle Konten</app-button>
-  }
-</app-page-header>
-<div class="mt-4 space-y-4">
+@if (!showingDraftWorkspace()) {
+  <app-page-header [title]="showingMessages() ? 'Nachrichten' : 'Vinted'" [icon]="pageIcon()">
+    @if (showingSetup() || showingLocalConnection() || showingCloudConnection()) {
+      <app-button header-actions link="/marketplaces/vinted/accounts">Alle Konten</app-button>
+    } @else if (!showingAccounts() && store.selectedConnection(); as account) {
+      <app-vinted-account-controls
+        header-actions
+        class="w-full sm:w-auto sm:max-w-[min(36rem,60vw)]"
+        [runtimeStatus]="runtimeStatus()"
+        [connections]="store.connections()"
+        [account]="account"
+        [profile]="store.snapshot()?.profile ?? null"
+        [canManage]="store.canManage()"
+        [refreshing]="store.busy() || local.busy()"
+        [loading]="store.loadingSnapshot()"
+        [inbox]="showingMessages() && account.executionMode === 'local'"
+        [inboxSyncedAt]="
+          local.binding()?.inboxSyncedAt ?? local.inboxImported()?.observedAt ?? null
+        "
+        [refreshLabel]="
+          showingMessages() && account.executionMode === 'local'
+            ? 'Nachrichten aktualisieren'
+            : 'Kontodaten aktualisieren'
+        "
+        (accountSelected)="store.selectConnection($event)"
+        (refreshRequested)="sync()"
+        (synchronized)="store.refreshImportedSnapshot($event, $event.lastSuccessAt)"
+        (scheduleStateChanged)="cloudHeaderState.set($event)"
+      />
+    } @else if (!showingAccounts()) {
+      <app-button header-actions link="/marketplaces/vinted/accounts">Alle Konten</app-button>
+    }
+  </app-page-header>
+}
+<div class="space-y-4" [class.mt-4]="!showingDraftWorkspace()">
   @if (store.loading()) {
     <p role="status" class="text-[13px] text-fb-text-secondary">Vinted-Konten werden geladen …</p>
   }
@@ -41,7 +45,11 @@
     </app-notice-banner>
   }
   @if (
-    showingAccounts() || showingSetup() || showingLocalConnection() || showingCloudConnection()
+    showingAccounts() ||
+    showingSetup() ||
+    showingLocalConnection() ||
+    showingCloudConnection() ||
+    showingDraftWorkspace()
   ) {
     <router-outlet />
   } @else if (store.selectedConnection(); as account) {

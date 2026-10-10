@@ -24,13 +24,7 @@ export interface ListingImageItem {
   readonly name: string;
 }
 
-export interface ListingImageDraft {
-  readonly key: string;
-  readonly storagePath: string | null;
-  readonly file: File | null;
-  readonly fileName: string;
-  readonly previewUrl: string;
-}
+export type { ListingImageDraft } from '../../../shared/components/listing-image-editor/listing-image-draft';
 
 export interface KleinanzeigenListingPayload {
   readonly itemId: string;

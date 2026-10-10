@@ -1,0 +1,79 @@
+<app-modal-shell title="Veröffentlichung planen" size="md" (closed)="close()">
+  <form [formGroup]="form" (ngSubmit)="submit()" class="space-y-4">
+    <ng-content />
+    @if (error() || serverError()) {
+      <app-notice-banner announcement="alert">{{ error() || serverError() }}</app-notice-banner>
+    }
+    <div class="grid gap-4 sm:grid-cols-2">
+      <div class="space-y-1.5">
+        <label
+          for="vinted-listing-schedule-date"
+          class="block text-[13px] font-semibold text-fb-text-primary"
+          >Datum</label
+        >
+        <app-date-picker
+          id="vinted-listing-schedule-date"
+          ariaLabel="Veröffentlichungsdatum"
+          formControlName="date"
+        />
+      </div>
+      <app-text-field
+        label="Uhrzeit"
+        placeholder="18:30"
+        helpText="24-Stunden-Format: HH:MM"
+        formControlName="time"
+      />
+    </div>
+    <app-text-field
+      label="Zeitzone"
+      helpText="Zum Beispiel Europe/Berlin. Der Termin folgt dieser Zeitzone, auch auf einem anderen Gerät."
+      formControlName="timeZone"
+    />
+    <div class="flex flex-wrap gap-2">
+      <app-button variant="secondary" size="slim" [disabled]="busy()" (clicked)="quickTime(60)"
+        >In einer Stunde</app-button
+      >
+      <app-button variant="secondary" size="slim" [disabled]="busy()" (clicked)="quickTime(180)"
+        >In drei Stunden</app-button
+      >
+    </div>
+    @if (resolution().kind === 'nonexistent') {
+      <app-notice-banner
+        >Diese Uhrzeit wird bei der Zeitumstellung übersprungen. Wähle eine andere
+        Uhrzeit.</app-notice-banner
+      >
+    }
+    @if (resolution().kind === 'ambiguous') {
+      <div class="space-y-1.5">
+        <p class="text-[13px] text-fb-text-secondary">
+          Diese Uhrzeit kommt zweimal vor. Wähle das gewünschte Vorkommen.
+        </p>
+        <app-custom-select
+          ariaLabel="Vorkommen bei der Zeitumstellung"
+          [options]="occurrenceOptions()"
+          formControlName="occurrence"
+        />
+      </div>
+    }
+    <div class="space-y-1.5">
+      <p class="text-[13px] font-semibold text-fb-text-primary">
+        Wenn die Ausführung zum Termin ausfällt
+      </p>
+      <app-custom-select
+        ariaLabel="Regel für einen verpassten Termin"
+        [options]="lateOptions"
+        formControlName="latePolicy"
+      />
+    </div>
+    <p class="text-xs text-fb-text-secondary">
+      Bei lokaler Ausführung muss Dein verbundenes Gerät eingeschaltet sein. Die Cloud benötigt eine
+      gültige Kontoverbindung und Freigabe.
+    </p>
+  </form>
+  <div modal-footer class="flex flex-wrap justify-end gap-2">
+    <app-button variant="secondary" [disabled]="busy()" (clicked)="close()">Abbrechen</app-button>
+    <app-button [disabled]="busy()" [loading]="busy()" (clicked)="submit()"
+      >Termin übernehmen</app-button
+    >
+  </div>
+</app-modal-shell>

@@ -9,7 +9,12 @@
     variant="primary"
     type="submit"
     formId="listing-editor-form"
-    [disabled]="selectedItemIssue() !== null || imagesLoading() || imagesLoadError() !== null"
+    [disabled]="
+      selectedItemIssue() !== null ||
+      imagesLoading() ||
+      imagesLoadError() !== null ||
+      imageEditing()
+    "
     [loading]="isSaving()"
     >{{ isEdit() ? 'Änderungen speichern' : 'Inserat vorbereiten' }}</app-button
   >
@@ -89,6 +94,7 @@
           [images]="imageDrafts()"
           [disabled]="isSaving()"
           (imagesChange)="imageDrafts.set($event)"
+          (editingChange)="imageEditing.set($event)"
         />
         @if (imagesLoading()) {
           <p class="text-xs text-fb-text-muted" role="status">Bilder werden geladen…</p>

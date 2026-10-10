@@ -12,6 +12,55 @@ const scope = {
 };
 const id = '25600000-0000-4000-8000-000000000031';
 const api = new MarketplaceBrowserTestApiService();
+it('treats publication as unavailable on old, disabled or read-only runtimes', async () => {
+  const request = vi.fn();
+  vi.stubGlobal('fetch', request);
+  for (const [body, expected] of [
+    [{ ok: true, apiVersion: 2, readOnly: false }, undefined],
+    [{ ok: true, apiVersion: 2, readOnly: false, listingPublishingEnabled: false }, false],
+    [{ ok: true, apiVersion: 2, readOnly: false, listingPublishingEnabled: true }, true],
+    [{ ok: true, apiVersion: 2, readOnly: true, listingPublishingEnabled: true }, false],
+    [{ ok: true, apiVersion: 2, readOnly: false, listingPublishingEnabled: 'true' }, false],
+    [{ ok: true, apiVersion: 1, readOnly: false, listingPublishingEnabled: true }, undefined],
+  ]) {
+    request.mockResolvedValueOnce(Response.json(body));
+    expect((await api.available()).listingPublishingEnabled).toBe(expected);
+  }
+});
+const categoryFields = {
+  categoryId: 1223,
+  fields: [
+    {
+      field: 'size',
+      sizeGroupId: 14,
+      choices: [{ id: 208, label: 'M', selected: false, disabled: false, sizeGroupId: 14 }],
+    },
+  ],
+  unknownFields: [],
+  acceptedPhotoMimeTypes: ['image/jpeg'],
+  titleMaxLength: 100,
+  descriptionMaxLength: 2000,
+  aiPhoto: false,
+  bump: false,
+};
+it('liest ausschließlich Werte für die angeforderte Kategorie und das gebundene Konto', async () => {
+  const request = vi.fn().mockResolvedValue(Response.json({ fields: categoryFields }));
+  vi.stubGlobal('fetch', request);
+  expect(await api.readListingCategory(scope, 1223, 'token')).toEqual(categoryFields);
+  expect(request.mock.calls[0][0]).toBe('/marketplace-browser/listings/category/read');
+  expect(JSON.parse(request.mock.calls[0][1].body)).toEqual({ ...scope, categoryId: 1223 });
+  request.mockResolvedValueOnce(Response.json({ fields: { ...categoryFields, categoryId: 2738 } }));
+  await expect(api.readListingCategory(scope, 1223, 'token')).rejects.toThrow();
+  request.mockResolvedValueOnce(Response.json({ fields: categoryFields, token: 'forbidden' }));
+  await expect(api.readListingCategory(scope, 1223, 'token')).rejects.toThrow();
+});
+it('verweigert eine ungültige Kategorie vor dem Abruf und meldet einen veralteten Leser', async () => {
+  const request = vi.fn().mockResolvedValue(new Response(null, { status: 404 }));
+  vi.stubGlobal('fetch', request);
+  await expect(api.readListingCategory(scope, 0, 'token')).rejects.toThrow();
+  expect(request).not.toHaveBeenCalled();
+  await expect(api.readListingCategory(scope, 1223, 'token')).rejects.toThrow('aktualisiert');
+});
 it('bestätigt einen Gesprächsabruf nur mit passender ID und gültigem Prüfzeitpunkt', async () => {
   const fetchMock = vi
     .fn()

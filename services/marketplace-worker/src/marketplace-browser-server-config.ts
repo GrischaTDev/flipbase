@@ -8,6 +8,7 @@ export interface MarketplaceBrowserServerConfig {
   host: string;
   port: number;
   scheduledSyncEnabled: boolean;
+  listingPublishingEnabled: boolean;
   serverProfileRoot?: string;
   chromiumHostProfileRoot?: string;
   chromiumHostId?: string;
@@ -94,6 +95,12 @@ export function marketplaceBrowserServerConfig(
   )
     throw new Error('Automatische IP-Nachbuchung ist unvollständig konfiguriert');
   const chromiumWritesFlag = environment['MARKETPLACE_CHROMIUM_WRITES_ENABLED'] ?? '0';
+  const listingPublishingFlag = environment['MARKETPLACE_LISTING_PUBLISH_ENABLED'] ?? '0';
+  if (
+    !['0', '1'].includes(listingPublishingFlag) ||
+    (listingPublishingFlag === '1' && (provider !== 'chromium' || chromiumWritesFlag !== '1'))
+  )
+    throw new Error('Inseratveröffentlichung ist nicht vollständig freigegeben.');
   const chromiumSeccompProfile =
     environment['MARKETPLACE_CHROMIUM_SECCOMP_PROFILE'] ??
     '/opt/flipbase-marketplace/chromium-seccomp.json';
@@ -151,6 +158,7 @@ export function marketplaceBrowserServerConfig(
     host: environment['MARKETPLACE_BROWSER_HOST'] ?? '127.0.0.1',
     port,
     scheduledSyncEnabled: scheduledFlag === '1',
+    listingPublishingEnabled: listingPublishingFlag === '1',
     ...(provider === 'chromium'
       ? {
           serverProfileRoot,

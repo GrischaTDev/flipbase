@@ -223,6 +223,12 @@ const coreTests = [
     'vinted-listing-edge-cases.spec.ts',
     'Fehlende Beschreibung lädt nur das gewählte Inserat und bleibt beim Wiederöffnen im Sitzungscache @marketplace-preview @core-smoke',
   ],
+  ...[1440, 390].flatMap((width) =>
+    ['hell', 'dunkel'].map((theme) => [
+      'vinted-listing-drafts.spec.ts',
+      `Entwurf mit Fotos und Vorlagen bei ${width}px ${theme} @marketplace-preview @core-smoke`,
+    ]),
+  ),
 ];
 
 const regressionTests = [

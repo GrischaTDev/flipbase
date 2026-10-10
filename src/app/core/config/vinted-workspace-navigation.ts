@@ -26,6 +26,8 @@ export const VINTED_WORKSPACE_NAVIGATION_GROUPS: readonly VintedNavigationGroup[
       { path: '/marketplaces/vinted/overview', label: 'Übersicht', icon: 'dashboard' },
       { path: '/marketplaces/vinted/messages', label: 'Postfach', icon: 'shoppingBag' },
       { path: '/marketplaces/vinted/listings', label: 'Inserate', icon: 'tag' },
+      { path: '/marketplaces/vinted/listings/new', label: 'Inserat erstellen', icon: 'tag' },
+      { path: '/marketplaces/vinted/listing-drafts', label: 'Entwürfe', icon: 'bookOpen' },
       { path: '/marketplaces/vinted/sales', label: 'Verkäufe', icon: 'trendingUp' },
       { path: '/marketplaces/vinted/activity', label: 'Verlauf', icon: 'bookOpen' },
       { path: '/marketplaces/vinted/profile', label: 'Profil', icon: 'store' },
@@ -61,6 +63,11 @@ export function isVintedWorkspaceRoute(url: string): boolean {
 
 export function isVintedNavigationActive(path: string, url: string): boolean {
   const currentPath = url.split(/[?#]/)[0];
+  if (
+    path === '/marketplaces/vinted/listings' &&
+    currentPath === '/marketplaces/vinted/listings/new'
+  )
+    return false;
   return (
     currentPath === path ||
     currentPath.startsWith(`${path}/`) ||

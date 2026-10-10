@@ -1,0 +1,79 @@
+<app-card title="Vorlagen">
+  <div class="space-y-4">
+    @if (error()) {
+      <app-notice-banner announcement="alert">{{ error() }}</app-notice-banner>
+    }
+    @if (notice()) {
+      <p role="status" class="text-xs text-fb-text-secondary">{{ notice() }}</p>
+    }
+    @if (loading()) {
+      <p role="status" class="text-xs text-fb-text-secondary">Vorlagen werden geladen …</p>
+    } @else if (templates().length) {
+      <div class="space-y-1.5">
+        <label
+          for="vinted-draft-template"
+          class="block text-[13px] font-semibold text-fb-text-primary"
+          >Vorlage auswählen</label
+        >
+        <app-custom-select
+          triggerId="vinted-draft-template"
+          ariaLabel="Inseratvorlage auswählen"
+          [options]="options()"
+          [formControl]="selection"
+        />
+      </div>
+    } @else {
+      <p class="text-xs text-fb-text-secondary">Du hast noch keine Vorlagen gespeichert.</p>
+    }
+    @if (preview()) {
+      <div class="space-y-3" aria-label="Vorschau der Vorlagenänderungen">
+        <p class="text-xs font-semibold text-fb-text-primary">Diese Angaben werden geändert:</p>
+        @for (row of previewRows(); track row.label) {
+          <div class="space-y-1 text-xs">
+            <p class="font-semibold text-fb-text-primary">{{ row.label }}</p>
+            <p class="whitespace-pre-wrap break-words text-fb-text-muted">
+              Bisher: {{ row.before }}
+            </p>
+            <p class="whitespace-pre-wrap break-words text-fb-text-secondary">
+              Neu: {{ row.after }}
+            </p>
+          </div>
+        } @empty {
+          <p class="text-xs text-fb-text-secondary">
+            Deine Angaben stimmen bereits mit der Vorlage überein.
+          </p>
+        }
+        <app-button variant="secondary" [disabled]="disabled() || saving()" (clicked)="apply()"
+          >Vorlage übernehmen</app-button
+        >
+      </div>
+    }
+    <div class="space-y-3 border-t border-fb-border pt-4">
+      <app-text-field
+        label="Neue Vorlage"
+        placeholder="Zum Beispiel: Jeansjacken"
+        [formControl]="name"
+      />
+      <fieldset class="space-y-2">
+        <legend class="mb-2 text-xs text-fb-text-secondary">
+          Welche Angaben möchtest Du speichern?
+        </legend>
+        <div class="grid grid-cols-2 gap-3">
+          @for (field of fields; track field.key) {
+            <app-custom-checkbox [label]="field.label" [formControl]="field.control" />
+          }
+        </div>
+      </fieldset>
+      <p class="text-xs text-fb-text-muted">
+        Platzhalter wie {{ '{brand}' }} und {{ '{size}' }} werden beim Übernehmen ausgefüllt. Fotos
+        und Konto werden nicht in der Vorlage gespeichert.
+      </p>
+      <app-button
+        variant="secondary"
+        [disabled]="disabled() || saving() || name.invalid"
+        (clicked)="save()"
+        >Als Vorlage speichern</app-button
+      >
+    </div>
+  </div>
+</app-card>

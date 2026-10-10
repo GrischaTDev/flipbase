@@ -3,6 +3,7 @@ import type { VintedBrand } from './brand-source.ts';
 export interface BrandSearchDependencies {
   authenticate(token: string): Promise<{ id: string } | null>;
   isOperator(userId: string, token: string): Promise<boolean>;
+  canManageWorkspace(userId: string, token: string, workspaceId: string): Promise<boolean>;
   search(keyword: string): Promise<VintedBrand[]>;
 }
 
@@ -39,11 +40,12 @@ export function createBrandSearchHandler(dependencies: BrandSearchDependencies) 
     const authorization = request.headers.get('authorization') ?? '';
     if (!authorization.startsWith('Bearer '))
       return respond({ error: 'unauthorized' }, 401, origin);
+    const token = authorization.slice(7);
+    let user: { id: string };
     try {
-      const user = await dependencies.authenticate(authorization.slice(7));
-      if (!user) return respond({ error: 'unauthorized' }, 401, origin);
-      if (!(await dependencies.isOperator(user.id, authorization.slice(7))))
-        return respond({ error: 'forbidden' }, 403, origin);
+      const authenticated = await dependencies.authenticate(token);
+      if (!authenticated) return respond({ error: 'unauthorized' }, 401, origin);
+      user = authenticated;
     } catch {
       return respond({ error: 'authorization_unavailable' }, 503, origin);
     }
@@ -62,8 +64,33 @@ export function createBrandSearchHandler(dependencies: BrandSearchDependencies) 
       return respond({ error: 'invalid_keyword' }, 400, origin);
     }
 
+    const listingSearch = typeof body === 'object' && body !== null && 'workspaceId' in body;
+    const workspaceId = listingSearch ? (body as { workspaceId: unknown }).workspaceId : null;
+    if (
+      listingSearch &&
+      (typeof workspaceId !== 'string' ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(workspaceId))
+    )
+      return respond({ error: 'invalid_workspace' }, 400, origin);
+    const allowed = () =>
+      typeof workspaceId === 'string'
+        ? dependencies.canManageWorkspace(user.id, token, workspaceId)
+        : dependencies.isOperator(user.id, token);
+    try {
+      if (!(await allowed())) return respond({ error: 'forbidden' }, 403, origin);
+    } catch {
+      return respond({ error: 'authorization_unavailable' }, 503, origin);
+    }
+
     try {
       const brands = await dependencies.search(keyword.trim());
+      if (listingSearch) {
+        try {
+          if (!(await allowed())) return respond({ error: 'forbidden' }, 403, origin);
+        } catch {
+          return respond({ error: 'authorization_unavailable' }, 503, origin);
+        }
+      }
       return respond({ brands }, 200, origin);
     } catch {
       return respond({ error: 'brand_search_failed' }, 502, origin);

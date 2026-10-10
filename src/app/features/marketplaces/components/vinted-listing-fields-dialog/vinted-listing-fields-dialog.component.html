@@ -1,0 +1,98 @@
+<app-modal-shell
+  title="Vinted-Angaben wählen"
+  [subtitle]="initialContent()?.categoryLabel || ''"
+  size="lg"
+  (closed)="close()"
+>
+  <div class="space-y-4">
+    <p role="status" aria-live="polite" class="text-sm text-fb-text-secondary">
+      @if (loading()) {
+        Vinted-Auswahl wird geladen …
+      } @else if (schema()) {
+        Wähle die passenden Angaben. „Angaben übernehmen“ ersetzt nur die hier angezeigten Felder in
+        Deinem Flipbase-Entwurf. Leere Felder werden dabei geleert.
+      } @else {
+        Die Vinted-Auswahl ist noch nicht verfügbar. Deine bisherigen Angaben bleiben erhalten.
+      }
+    </p>
+    @if (error()) {
+      <app-notice-banner announcement="alert">{{ error() }}</app-notice-banner>
+      @if (!schema() && !loading()) {
+        <app-button variant="secondary" [disabled]="disabled()" (clicked)="load()"
+          >Erneut laden</app-button
+        >
+      }
+    }
+    @if (schema(); as fields) {
+      @if (fields.unknownFields.length) {
+        <app-notice-banner
+          >Diese Kategorie benötigt weitere Angaben, die noch nicht unterstützt werden:
+          {{ fields.unknownFields.join(', ') }}. Du kannst Deinen Entwurf weiter
+          vorbereiten.</app-notice-banner
+        >
+      }
+      <div class="grid gap-4 sm:grid-cols-2">
+        @for (field of singleFields(); track field.name) {
+          <div class="space-y-1.5">
+            <label
+              [for]="'vinted-choice-' + field.name"
+              class="block text-[13px] font-semibold text-fb-text-primary"
+              >{{ field.label }}</label
+            >
+            <app-custom-select
+              [triggerId]="'vinted-choice-' + field.name"
+              [ariaLabel]="field.label + ' bei Vinted'"
+              [options]="singleOptions(field.name)"
+              [formControl]="form.controls[field.control]"
+              [searchable]="true"
+              [disabled]="disabled() || loading()"
+            />
+            @if (previousLabel(field.name); as previous) {
+              <p class="text-xs text-fb-text-secondary">Bisher: {{ previous }}</p>
+            }
+            @if (!choices(field.name).length) {
+              <p class="text-xs text-fb-text-secondary">
+                Für dieses Feld ist aktuell keine Auswahl verfügbar.
+              </p>
+            }
+          </div>
+        }
+      </div>
+      @for (field of multipleFields(); track field.name) {
+        <fieldset class="space-y-2">
+          <legend class="text-[13px] font-semibold text-fb-text-primary">
+            {{ field.label }} (höchstens {{ field.maximum }})
+          </legend>
+          <div class="grid gap-3 sm:grid-cols-2">
+            @for (choice of choices(field.name); track choice.id) {
+              <app-custom-checkbox
+                [label]="choice.label"
+                [ariaLabel]="field.label + ': ' + choice.label"
+                [checked]="choice.id !== null && selectedIds(field.name).includes(choice.id)"
+                [disabled]="
+                  disabled() ||
+                  loading() ||
+                  (selectedIds(field.name).length >= field.maximum &&
+                    (choice.id === null || !selectedIds(field.name).includes(choice.id)))
+                "
+                (checkedChange)="toggle(field.name, choice.id, $event)"
+              />
+            }
+          </div>
+          @if (previousLabel(field.name); as previous) {
+            <p class="text-xs text-fb-text-secondary">Bisher: {{ previous }}</p>
+          }
+          @if (!choices(field.name).length) {
+            <p class="text-xs text-fb-text-secondary">
+              Für dieses Feld ist aktuell keine Auswahl verfügbar.
+            </p>
+          }
+        </fieldset>
+      }
+    }
+  </div>
+  <div modal-footer class="flex flex-wrap justify-end gap-2">
+    <app-button variant="secondary" (clicked)="close()">Abbrechen</app-button>
+    <app-button [disabled]="!canApply()" (clicked)="apply()">Angaben übernehmen</app-button>
+  </div>
+</app-modal-shell>

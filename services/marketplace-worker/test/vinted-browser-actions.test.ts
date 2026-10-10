@@ -2,6 +2,43 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { Page } from 'playwright';
 import { replayBrowserDrag, vintedBrowserActions } from '../src/vinted-browser-actions.ts';
+import { listingClaimFixture } from './fixtures/marketplace-listing-claim.ts';
+
+test('reading new category choices requires one context and authority before reserving a page', async () => {
+  let pages = 0;
+  const context = {
+    pages: () => [],
+    newPage: () => {
+      pages++;
+      throw new Error('page reserved');
+    },
+  };
+  const actions = vintedBrowserActions({
+    version: () => 'fixture',
+    close: () => Promise.resolve(),
+    contexts: () => [context],
+  } as unknown as import('../src/gologin-cloud-browser.ts').BrowserConnection);
+  await assert.rejects(
+    actions.readListingCategory!('123', 1223, [5], () => Promise.reject(new Error('revoked'))),
+    /revoked/,
+  );
+  assert.equal(pages, 0);
+  const ambiguous = vintedBrowserActions({
+    version: () => 'fixture',
+    close: () => Promise.resolve(),
+    contexts: () => [context, context],
+  } as unknown as import('../src/gologin-cloud-browser.ts').BrowserConnection);
+  await assert.rejects(
+    ambiguous.readListingCategory!('123', 1223, [5], () => Promise.resolve()),
+    /Exklusiv/,
+  );
+  assert.equal(pages, 0);
+  await assert.rejects(
+    actions.readListingCategory!('123', 1223, [5], () => Promise.resolve()),
+    /page reserved/,
+  );
+  assert.equal(pages, 1);
+});
 
 test('manual desktop controls do not use Playwright page input or screenshot', async () => {
   const calls: string[] = [];
@@ -94,4 +131,60 @@ test('releases the mouse and preserves a replay failure', async () => {
     assert.equal(events.at(-1)?.name, 'up');
     assert.equal(events.filter((event) => event.name === 'up').length, 1);
   }
+});
+
+test('listing publication requires exactly one reserved browser context and current authority', async () => {
+  const context = {
+    pages: () => [],
+    newPage: () => {
+      throw new Error('must not open');
+    },
+  };
+  for (const contexts of [[], [context, context]]) {
+    const actions = vintedBrowserActions({
+      version: () => 'fixture',
+      close: () => Promise.resolve(),
+      contexts: () => contexts,
+    } as unknown as Parameters<typeof vintedBrowserActions>[0]);
+    await assert.rejects(
+      actions.submitListing!(
+        '123',
+        'publish',
+        listingClaimFixture.snapshot,
+        () => Promise.resolve(),
+        () => Promise.resolve(),
+        () => Promise.reject(),
+        [5],
+      ),
+    );
+  }
+  const actions = vintedBrowserActions({
+    version: () => 'fixture',
+    close: () => Promise.resolve(),
+    contexts: () => [context],
+  } as unknown as Parameters<typeof vintedBrowserActions>[0]);
+  await assert.rejects(
+    actions.submitListing!(
+      '123',
+      'publish',
+      listingClaimFixture.snapshot,
+      () => Promise.resolve(),
+      () => Promise.reject(new Error('revoked')),
+      () => Promise.reject(),
+      [5],
+    ),
+    /revoked/,
+  );
+  assert.deepEqual(
+    await actions.submitListing!(
+      '123',
+      'vinted_draft',
+      listingClaimFixture.snapshot,
+      () => Promise.reject(),
+      () => Promise.reject(),
+      () => Promise.reject(),
+      [5],
+    ),
+    { outcome: 'failed', errorCode: 'unsupported' },
+  );
 });

@@ -1,0 +1,51 @@
+<app-modal-shell title="Vinted-Marke wählen" size="md" (closed)="close()">
+  <div class="space-y-4">
+    <form (submit)="$event.preventDefault(); search()" class="space-y-3">
+      <app-text-field
+        label="Vinted-Marke suchen"
+        [formControl]="query"
+        placeholder="Zum Beispiel Jako"
+      />
+      <app-button type="submit" [disabled]="disabled() || loading()" [loading]="loading()"
+        >Suchen</app-button
+      >
+    </form>
+    @if (error()) {
+      <app-notice-banner announcement="alert">{{ error() }}</app-notice-banner>
+    }
+    <p role="status" aria-live="polite" class="text-sm text-fb-text-secondary">
+      @if (loading()) {
+        Marken werden gesucht …
+      } @else if (searched()) {
+        @if (results().length) {
+          {{ results().length }} Marken gefunden. Wähle den passenden Namen.
+        } @else {
+          Keine passende Marke gefunden. Probiere einen anderen Suchbegriff.
+        }
+      } @else {
+        Suche nach Deiner Marke oder wähle „Keine Marke“.
+      }
+    </p>
+    @if (results().length) {
+      <ul aria-label="Gefundene Vinted-Marken" class="space-y-2">
+        @for (brand of results(); track brand.id) {
+          <li>
+            <app-button
+              [fullWidth]="true"
+              contentAlign="start"
+              [disabled]="disabled() || loading()"
+              (clicked)="choose(brand)"
+              >{{ brand.name }}</app-button
+            >
+          </li>
+        }
+      </ul>
+    }
+    <app-button variant="secondary" [disabled]="disabled() || loading()" (clicked)="chooseNoBrand()"
+      >Keine Marke</app-button
+    >
+  </div>
+  <div modal-footer class="flex justify-end">
+    <app-button variant="secondary" (clicked)="close()">Abbrechen</app-button>
+  </div>
+</app-modal-shell>

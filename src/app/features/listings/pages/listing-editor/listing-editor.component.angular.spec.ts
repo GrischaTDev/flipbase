@@ -21,7 +21,7 @@ import { NumberInputComponent } from '../../../../shared/components/number-input
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { TwoColumnLayoutComponent } from '../../../../shared/components/two-column-layout/two-column-layout.component';
 import { ListingExtensionHelpComponent } from '../../components/listing-extension-help/listing-extension-help.component';
-import { ListingImageEditorComponent } from '../../components/listing-image-editor/listing-image-editor.component';
+import { ListingImageEditorComponent } from '../../../../shared/components/listing-image-editor/listing-image-editor.component';
 import { ListingImagesService } from '../../services/listing-images.service';
 import type {
   ListingActionResult,

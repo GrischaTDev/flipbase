@@ -71,6 +71,14 @@ export class VintedWorkspaceComponent {
   readonly showingMessages = computed(
     () => this.currentUrl().split(/[?#]/)[0] === '/marketplaces/vinted/messages',
   );
+  readonly showingDraftWorkspace = computed(() => {
+    const path = this.currentUrl().split(/[?#]/)[0];
+    return (
+      path === '/marketplaces/vinted/listings/new' ||
+      path === '/marketplaces/vinted/listing-drafts' ||
+      path.startsWith('/marketplaces/vinted/listing-drafts/')
+    );
+  });
   readonly showingLocalConnection = computed(() =>
     this.currentUrl().split(/[?#]/)[0].startsWith('/marketplaces/vinted/local-connect/'),
   );

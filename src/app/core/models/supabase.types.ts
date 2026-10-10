@@ -3421,6 +3421,290 @@ export type Database = {
           },
         ]
       }
+      marketplace_listing_drafts: {
+        Row: {
+          connection_id: string | null
+          content: Json
+          created_at: string
+          created_by: string
+          id: number
+          image_ids: number[]
+          inventory_item_id: string | null
+          request_id: string
+          revision: number
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          connection_id?: string | null
+          content?: Json
+          created_at?: string
+          created_by: string
+          id?: never
+          image_ids?: number[]
+          inventory_item_id?: string | null
+          request_id?: string
+          revision?: number
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          connection_id?: string | null
+          content?: Json
+          created_at?: string
+          created_by?: string
+          id?: never
+          image_ids?: number[]
+          inventory_item_id?: string | null
+          request_id?: string
+          revision?: number
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_listing_drafts_workspace_id_connection_id_fkey"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_connections"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "marketplace_listing_drafts_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketplace_listing_drafts_workspace_id_inventory_item_id_fkey"
+            columns: ["workspace_id", "inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_item_sale_states"
+            referencedColumns: ["workspace_id", "inventory_item_id"]
+          },
+          {
+            foreignKeyName: "marketplace_listing_drafts_workspace_id_inventory_item_id_fkey"
+            columns: ["workspace_id", "inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
+      marketplace_listing_images: {
+        Row: {
+          byte_size: number
+          created_at: string
+          created_by: string
+          draft_id: number
+          file_name: string
+          id: number
+          mime_type: string
+          state: string
+          storage_path: string
+          workspace_id: string
+        }
+        Insert: {
+          byte_size: number
+          created_at?: string
+          created_by: string
+          draft_id: number
+          file_name: string
+          id?: never
+          mime_type: string
+          state?: string
+          storage_path: string
+          workspace_id: string
+        }
+        Update: {
+          byte_size?: number
+          created_at?: string
+          created_by?: string
+          draft_id?: number
+          file_name?: string
+          id?: never
+          mime_type?: string
+          state?: string
+          storage_path?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_listing_images_workspace_id_draft_id_fkey"
+            columns: ["workspace_id", "draft_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_listing_drafts"
+            referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
+      marketplace_listing_jobs: {
+        Row: {
+          absolute_expires_at: string | null
+          action: string
+          authorization_version: number
+          claim_local_grant_generation: number | null
+          claim_local_token_hash: string | null
+          claim_token: string | null
+          cloud_browser_session_id: string | null
+          cloud_runner_id: string | null
+          cloud_worker_epoch: number | null
+          cloud_worker_id: string | null
+          connection_id: string | null
+          created_at: string
+          draft_id: number
+          draft_revision: number
+          error_code: string | null
+          execution_mode: string
+          external_account_id: string
+          external_id: string | null
+          finished_at: string | null
+          id: number
+          late_policy: string
+          lease_expires_at: string | null
+          permission_id: number | null
+          provider_result: Json | null
+          provider_state: string | null
+          replaces_job_id: number | null
+          request_hash: string
+          request_id: string
+          requested_by: string
+          scheduled_at: string | null
+          snapshot: Json
+          started_at: string | null
+          state: string
+          time_zone: string | null
+          updated_at: string
+          verified_at: string | null
+          version: number
+          workspace_id: string
+        }
+        Insert: {
+          absolute_expires_at?: string | null
+          action: string
+          authorization_version: number
+          claim_local_grant_generation?: number | null
+          claim_local_token_hash?: string | null
+          claim_token?: string | null
+          cloud_browser_session_id?: string | null
+          cloud_runner_id?: string | null
+          cloud_worker_epoch?: number | null
+          cloud_worker_id?: string | null
+          connection_id?: string | null
+          created_at?: string
+          draft_id: number
+          draft_revision: number
+          error_code?: string | null
+          execution_mode: string
+          external_account_id: string
+          external_id?: string | null
+          finished_at?: string | null
+          id?: never
+          late_policy?: string
+          lease_expires_at?: string | null
+          permission_id?: number | null
+          provider_result?: Json | null
+          provider_state?: string | null
+          replaces_job_id?: number | null
+          request_hash: string
+          request_id: string
+          requested_by: string
+          scheduled_at?: string | null
+          snapshot: Json
+          started_at?: string | null
+          state?: string
+          time_zone?: string | null
+          updated_at?: string
+          verified_at?: string | null
+          version?: number
+          workspace_id: string
+        }
+        Update: {
+          absolute_expires_at?: string | null
+          action?: string
+          authorization_version?: number
+          claim_local_grant_generation?: number | null
+          claim_local_token_hash?: string | null
+          claim_token?: string | null
+          cloud_browser_session_id?: string | null
+          cloud_runner_id?: string | null
+          cloud_worker_epoch?: number | null
+          cloud_worker_id?: string | null
+          connection_id?: string | null
+          created_at?: string
+          draft_id?: number
+          draft_revision?: number
+          error_code?: string | null
+          execution_mode?: string
+          external_account_id?: string
+          external_id?: string | null
+          finished_at?: string | null
+          id?: never
+          late_policy?: string
+          lease_expires_at?: string | null
+          permission_id?: number | null
+          provider_result?: Json | null
+          provider_state?: string | null
+          replaces_job_id?: number | null
+          request_hash?: string
+          request_id?: string
+          requested_by?: string
+          scheduled_at?: string | null
+          snapshot?: Json
+          started_at?: string | null
+          state?: string
+          time_zone?: string | null
+          updated_at?: string
+          verified_at?: string | null
+          version?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_listing_jobs_cloud_browser_session_id_fkey"
+            columns: ["cloud_browser_session_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_browser_sessions"
+            referencedColumns: ["public_id"]
+          },
+          {
+            foreignKeyName: "marketplace_listing_jobs_permission_id_fkey"
+            columns: ["permission_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_listing_permissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketplace_listing_jobs_replaces_job_id_fkey"
+            columns: ["replaces_job_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_listing_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketplace_listing_jobs_workspace_id_connection_id_fkey"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_connections"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "marketplace_listing_jobs_workspace_id_draft_id_fkey"
+            columns: ["workspace_id", "draft_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_listing_drafts"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "marketplace_listing_jobs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       marketplace_listing_metric_observations: {
         Row: {
           connection_id: string
@@ -3462,6 +3746,110 @@ export type Database = {
             columns: ["entry_id"]
             isOneToOne: false
             referencedRelation: "marketplace_account_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      marketplace_listing_permissions: {
+        Row: {
+          approved_by: string
+          authorization_version: number
+          browser_profile_id: number | null
+          connection_id: string
+          created_at: string
+          execution_mode: string
+          external_account_id: string
+          id: number
+          local_grant_generation: number | null
+          provider_profile_id: string | null
+          revoked_at: string | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          approved_by: string
+          authorization_version?: number
+          browser_profile_id?: number | null
+          connection_id: string
+          created_at?: string
+          execution_mode: string
+          external_account_id: string
+          id?: never
+          local_grant_generation?: number | null
+          provider_profile_id?: string | null
+          revoked_at?: string | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          approved_by?: string
+          authorization_version?: number
+          browser_profile_id?: number | null
+          connection_id?: string
+          created_at?: string
+          execution_mode?: string
+          external_account_id?: string
+          id?: never
+          local_grant_generation?: number | null
+          provider_profile_id?: string | null
+          revoked_at?: string | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_listing_permissions_browser_profile_id_fkey"
+            columns: ["browser_profile_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_browser_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketplace_listing_permissions_workspace_id_connection_id_fkey"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: true
+            referencedRelation: "marketplace_connections"
+            referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
+      marketplace_listing_templates: {
+        Row: {
+          created_at: string
+          created_by: string
+          fields: Json
+          id: number
+          name: string
+          revision: number
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          fields: Json
+          id?: never
+          name: string
+          revision?: number
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          fields?: Json
+          id?: never
+          name?: string
+          revision?: number
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_listing_templates_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
         ]
@@ -8253,6 +8641,14 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_approve_listings: {
+        Args: {
+          p_connection_id: string
+          p_expected_external_account_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       marketplace_approve_local_extension: {
         Args: {
           p_connection_id: string
@@ -8345,6 +8741,10 @@ export type Database = {
         Args: { p_workspace_id: string }
         Returns: boolean
       }
+      marketplace_cancel_listing_job: {
+        Args: { p_expected_version: number; p_job_id: string }
+        Returns: Json
+      }
       marketplace_cloud_favorite_begin: {
         Args: {
           p_claim_token: string
@@ -8414,6 +8814,48 @@ export type Database = {
           p_price_cents: number
           p_request_id: string
           p_user_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_cloud_listing_begin: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: string
+          p_job_id: string
+          p_worker_epoch: number
+          p_worker_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_cloud_listing_check: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: string
+          p_job_id: string
+          p_worker_epoch: number
+          p_worker_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_cloud_listing_claim: {
+        Args: {
+          p_runner_id: string
+          p_worker_epoch: number
+          p_worker_id: string
+        }
+        Returns: Json
+      }
+      marketplace_cloud_listing_finish: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: string
+          p_job_id: string
+          p_result: Json
+          p_worker_epoch: number
+          p_worker_id: string
           p_workspace_id: string
         }
         Returns: Json
@@ -8572,6 +9014,15 @@ export type Database = {
         Args: { p_connection_id: string; p_workspace_id: string }
         Returns: boolean
       }
+      marketplace_commit_listing_image: {
+        Args: {
+          p_draft_id: string
+          p_expected_revision: number
+          p_image_id: string
+          p_replace_image_id?: string
+        }
+        Returns: Json
+      }
       marketplace_conversation_read_version: {
         Args: {
           p_connection_id: string
@@ -8582,6 +9033,56 @@ export type Database = {
       }
       marketplace_create_connection: {
         Args: { p_display_name: string; p_workspace_id: string }
+        Returns: Json
+      }
+      marketplace_create_listing_draft: {
+        Args: {
+          p_connection_id: string
+          p_content: Json
+          p_inventory_item_id?: string
+          p_request_id?: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_delete_listing_template: {
+        Args: {
+          p_expected_revision: number
+          p_id: string
+          p_workspace_id: string
+        }
+        Returns: undefined
+      }
+      marketplace_discard_listing_image: {
+        Args: { p_image_id: string }
+        Returns: string
+      }
+      marketplace_enqueue_listing: {
+        Args: {
+          p_action: string
+          p_ai_photo: boolean
+          p_draft_id: string
+          p_expected_revision: number
+          p_late_policy?: string
+          p_request_id: string
+          p_scheduled_at?: string
+          p_time_zone?: string
+        }
+        Returns: Json
+      }
+      marketplace_enqueue_listing_internal: {
+        Args: {
+          p_action: string
+          p_ai_photo: boolean
+          p_draft_id: string
+          p_expected_revision: number
+          p_late_policy?: string
+          p_replaces_job_id?: number
+          p_replaces_version?: number
+          p_request_id: string
+          p_scheduled_at?: string
+          p_time_zone?: string
+        }
         Returns: Json
       }
       marketplace_enqueue_local_message: {
@@ -8617,6 +9118,14 @@ export type Database = {
           p_workspace_id: string
         }
         Returns: Json
+      }
+      marketplace_expire_cloud_listing_attempts: {
+        Args: { p_workspace_id?: string }
+        Returns: undefined
+      }
+      marketplace_expire_local_listing_attempts: {
+        Args: { p_connection_id?: string; p_workspace_id?: string }
+        Returns: undefined
       }
       marketplace_favorite_message_config_valid: {
         Args: { p_config: Json }
@@ -8672,6 +9181,62 @@ export type Database = {
       }
       marketplace_list_connections: {
         Args: { p_workspace_id: string }
+        Returns: Json
+      }
+      marketplace_list_listing_drafts: {
+        Args: {
+          p_cursor?: Json
+          p_limit?: number
+          p_query?: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_list_listing_templates: {
+        Args: { p_workspace_id: string }
+        Returns: Json
+      }
+      marketplace_listing_content_valid: {
+        Args: { p_content: Json }
+        Returns: boolean
+      }
+      marketplace_listing_draft_document: {
+        Args: {
+          p_draft: Database["public"]["Tables"]["marketplace_listing_drafts"]["Row"]
+        }
+        Returns: Json
+      }
+      marketplace_listing_finish_job: {
+        Args: {
+          p_job: Database["public"]["Tables"]["marketplace_listing_jobs"]["Row"]
+          p_result: Json
+        }
+        Returns: Json
+      }
+      marketplace_listing_job_document: {
+        Args: {
+          p_job: Database["public"]["Tables"]["marketplace_listing_jobs"]["Row"]
+        }
+        Returns: Json
+      }
+      marketplace_listing_job_timing: {
+        Args: { p_late_policy: string; p_now: string; p_scheduled_at: string }
+        Returns: string
+      }
+      marketplace_listing_job_valid: {
+        Args: {
+          p_job: Database["public"]["Tables"]["marketplace_listing_jobs"]["Row"]
+        }
+        Returns: boolean
+      }
+      marketplace_listing_permission_valid: {
+        Args: { p_permission_id: number; p_user_id: string; p_version?: number }
+        Returns: boolean
+      }
+      marketplace_listing_template_document: {
+        Args: {
+          p_template: Database["public"]["Tables"]["marketplace_listing_templates"]["Row"]
+        }
         Returns: Json
       }
       marketplace_local_extension_user_valid: {
@@ -8792,6 +9357,73 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_local_listing_authorized: {
+        Args: {
+          p_connection_id: string
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: {
+          approved_by: string
+          connection_id: string
+          expires_at: string
+          external_account_id: string
+          grant_generation: number
+          id: number
+          inbox_next_page: number
+          last_seen_at: string | null
+          messages_read: boolean
+          messages_send: boolean
+          revoked_at: string | null
+          token_hash: string
+          workspace_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "marketplace_local_extension_grants"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      marketplace_local_listing_begin: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: string
+          p_job_id: string
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_local_listing_check: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: string
+          p_job_id: string
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_local_listing_claim: {
+        Args: {
+          p_connection_id: string
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_local_listing_finish: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: string
+          p_job_id: string
+          p_result: Json
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       marketplace_local_message_authorized: {
         Args: {
           p_connection_id: string
@@ -8897,6 +9529,10 @@ export type Database = {
           p_workspace_id: string
         }
         Returns: Json
+      }
+      marketplace_lock_listing_workspace: {
+        Args: { p_workspace_id: string }
+        Returns: undefined
       }
       marketplace_mark_conversation_read: {
         Args: {
@@ -9018,12 +9654,21 @@ export type Database = {
         Args: { p_workspace_id: string }
         Returns: Json
       }
+      marketplace_read_listing_draft: { Args: { p_id: string }; Returns: Json }
+      marketplace_read_listing_jobs: {
+        Args: { p_draft_id?: string; p_workspace_id: string }
+        Returns: Json
+      }
       marketplace_read_listing_metric_changes: {
         Args: {
           p_connection_id: string
           p_period_minutes?: number
           p_workspace_id: string
         }
+        Returns: Json
+      }
+      marketplace_read_listing_permission: {
+        Args: { p_connection_id: string; p_workspace_id: string }
         Returns: Json
       }
       marketplace_read_local_extension: {
@@ -9119,6 +9764,41 @@ export type Database = {
         Args: { p_connection_ids: string[]; p_workspace_id: string }
         Returns: Json
       }
+      marketplace_replace_planned_listing: {
+        Args: {
+          p_action: string
+          p_ai_photo: boolean
+          p_expected_revision: number
+          p_expected_version: number
+          p_job_id: string
+          p_late_policy?: string
+          p_request_id: string
+          p_scheduled_at: string
+          p_time_zone: string
+        }
+        Returns: Json
+      }
+      marketplace_reschedule_listing: {
+        Args: {
+          p_expected_revision: number
+          p_expected_version: number
+          p_job_id: string
+          p_late_policy?: string
+          p_request_id: string
+          p_scheduled_at: string
+          p_time_zone: string
+        }
+        Returns: Json
+      }
+      marketplace_reserve_listing_image: {
+        Args: {
+          p_byte_size: number
+          p_draft_id: string
+          p_file_name: string
+          p_mime_type: string
+        }
+        Returns: Json
+      }
       marketplace_retry_local_message: {
         Args: {
           p_confirmed_unknown?: boolean
@@ -9147,6 +9827,14 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_revoke_listings: {
+        Args: {
+          p_authorization_version: number
+          p_connection_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       marketplace_revoke_local_extension: {
         Args: { p_connection_id: string; p_workspace_id: string }
         Returns: Json
@@ -9157,6 +9845,25 @@ export type Database = {
           p_connection_id: string
           p_enabled: boolean
           p_expected_version: number
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_save_listing_draft: {
+        Args: {
+          p_connection_id: string
+          p_content: Json
+          p_expected_revision: number
+          p_id: string
+        }
+        Returns: Json
+      }
+      marketplace_save_listing_template: {
+        Args: {
+          p_expected_revision: number
+          p_fields: Json
+          p_id: string
+          p_name: string
           p_workspace_id: string
         }
         Returns: Json
@@ -9177,6 +9884,14 @@ export type Database = {
           p_enabled: boolean
           p_expected_version: number
           p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_set_listing_image_order: {
+        Args: {
+          p_draft_id: string
+          p_expected_revision: number
+          p_image_ids: string[]
         }
         Returns: Json
       }

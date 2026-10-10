@@ -27,6 +27,47 @@ const scopeA: BrowserSessionScope = {
 };
 const scopeB = { ...scopeA, connectionId: 'account-b' };
 
+test('listing browser cannot be borrowed by an interactive scope or another attempt', async () => {
+  const { broker } = setup();
+  const listingWrite = {
+    jobId: '9007199254740993',
+    claimToken: 'claim-a',
+    workerId: 'worker-a',
+    workerEpoch: 1,
+    runnerId: 'runner-a',
+    sessionId: 'lease-1',
+    expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    absoluteExpiresAt: new Date(Date.now() + 600_000).toISOString(),
+  };
+  const writeScope = { ...scopeA, userAccessToken: '', listingWrite },
+    id = await broker.open(writeScope);
+  await assert.rejects(
+    broker.run(scopeA, id, async () => undefined),
+    /Sitzungszugriff/,
+  );
+  for (const replacement of [
+    { claimToken: 'other' },
+    { jobId: '9007199254740994' },
+    { workerEpoch: 2 },
+    { runnerId: 'other' },
+    { sessionId: 'other' },
+  ]) {
+    await assert.rejects(
+      broker.run(
+        { ...writeScope, listingWrite: { ...listingWrite, ...replacement } },
+        id,
+        async () => undefined,
+      ),
+      /Sitzungszugriff/,
+    );
+  }
+  await assert.rejects(
+    broker.open({ ...writeScope, negotiationWrite: { ...listingWrite } }),
+    /Sitzungszugriff/,
+  );
+  await broker.close(writeScope, id);
+});
+
 for (const failureStage of ['lease_acquire', 'profile_resolve', 'browser_start'] as const) {
   test(`reports ${failureStage} without private startup details`, async () => {
     const failures: unknown[][] = [];

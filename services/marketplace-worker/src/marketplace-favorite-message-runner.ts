@@ -51,6 +51,7 @@ export class MarketplaceFavoriteMessageRunner {
       scope.messageWrite ||
       scope.cloudSetup ||
       scope.negotiationWrite ||
+      scope.listingWrite ||
       scope.userAccessToken
     )
       throw new Error('Favoritenclaim ungültig');

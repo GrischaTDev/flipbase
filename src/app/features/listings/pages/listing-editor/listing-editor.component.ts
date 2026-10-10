@@ -36,7 +36,7 @@ import type {
 } from '../../models/listing.models';
 import { canPrepareListing } from '../../models/listing.rules';
 import { ListingExtensionHelpComponent } from '../../components/listing-extension-help/listing-extension-help.component';
-import { ListingImageEditorComponent } from '../../components/listing-image-editor/listing-image-editor.component';
+import { ListingImageEditorComponent } from '../../../../shared/components/listing-image-editor/listing-image-editor.component';
 import { ListingImagesService } from '../../services/listing-images.service';
 import type { ListingImageDraft } from '../../models/listing.models';
 import type { InventoryItem } from '../../../../core/models/flipbase.models';
@@ -78,6 +78,7 @@ export class ListingEditorComponent {
   readonly imagesLoading = signal(false);
   readonly imagesLoadError = signal<string | null>(null);
   readonly isSaving = signal(false);
+  readonly imageEditing = signal(false);
   readonly helpOpen = signal(false);
   readonly connectionAttempted = signal(false);
   readonly preparedListingId = signal<string | null>(null);
@@ -291,6 +292,7 @@ export class ListingEditorComponent {
 
   hasUnsavedChanges(): boolean {
     return (
+      this.imageEditing() ||
       this.baseline !== JSON.stringify(this.form.getRawValue()) ||
       this.imageBaseline !== this.imageSnapshot()
     );
@@ -353,7 +355,13 @@ export class ListingEditorComponent {
       this.toast.error('Dieser Artikel kann nicht vorbereitet werden.', selectedItemIssue);
       return;
     }
-    if (this.form.invalid || this.isSaving() || this.imagesLoading() || this.imagesLoadError()) {
+    if (
+      this.form.invalid ||
+      this.isSaving() ||
+      this.imageEditing() ||
+      this.imagesLoading() ||
+      this.imagesLoadError()
+    ) {
       this.form.markAllAsTouched();
       return;
     }

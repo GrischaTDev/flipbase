@@ -321,6 +321,8 @@ for (const width of [1440, 390, 320]) {
         'Übersicht',
         'Postfach',
         'Inserate',
+        'Inserat erstellen',
+        'Entwürfe',
         'Verkäufe',
         'Verlauf',
         'Profil',

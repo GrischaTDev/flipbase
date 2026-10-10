@@ -1,5 +1,741 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-10 – Juna – Inserat-Veröffentlichung auf aktuellen Master übernehmen
+
+**Arbeit:** Den lokal geprüften Stand des Inserat-Zweigs auf den neuen Zweig
+`juna/vinted-listing-publishing` übernommen und mit dem aktuellen `origin/master`
+zusammengeführt. Einziger Konflikt war dieses Protokoll; beide Eintragsreihen
+bleiben erhalten. Schema-Präfixe 460–466 und Migrationszeitpunkte kollidieren
+nicht mit Master.
+
+**Korrekturen:** Der Docker-Kontext schloss den neuen lokalen Inseratvertrag aus,
+der Frontend-Bau hätte ihn nicht gefunden. Die vier als Kernprüfung markierten
+Entwurfsfälle fehlten in der erwarteten PR-Auswahl. Der Editor legte Textfelder
+über eine Hilfsfunktion an, die die Vorlagenprüfung für Formularfelder nicht
+erkennt; die Felder sind jetzt ausdrücklich angelegt.
+
+**Prüfungen:** Typen, ESLint, Format der geänderten Dateien, Angular-Bau,
+2318 Node-, 309 DOM-, 172 betroffene Angular-, 605 Worker- und 144 Edge-Prüfungen
+erfolgreich. Workflow-Skripte bis auf einen PowerShell-abhängigen Fall grün.
+57 von 63 Worker-Browserfällen grün, darunter alle Inseratfälle; die sechs übrigen
+betreffen unveränderte Login-/Profilfälle mit vollem Chromium, der in dieser
+Umgebung nur in abweichender Version vorliegt. Datenbank- und E2E-Prüfungen laufen
+im PR, weil hier kein Docker-Dienst verfügbar ist.
+
+**Offen:** Veröffentlichung bleibt per `MARKETPLACE_LISTING_PUBLISH_ENABLED`
+ausgeschaltet. Bearbeiten bestehender Inserate folgt als eigener Zweig; Livefall,
+lokale Ausführung und Relist stehen weiter aus.
+
+## 2026-10-10 – Juna – Veröffentlichung aus dem gespeicherten Entwurf vorbereiten
+
+**Arbeit:** Eine eigene Vorschau verbindet den Inserateditor mit sofortigen und
+geplanten Cloud-Aufträgen. Sie prüft frische Kategorie- und Markenwerte,
+Pflichtangaben und Fotos, zeigt Zielkonto, Preis und Artikelinhalt und bietet die
+KI-Fotokennzeichnung. Eine neue Kontofreigabe verlangt eine bewusste Auswahl;
+eine vorhandene lässt sich versionsgebunden widerrufen. Gespeicherte Revision,
+Benutzer, Arbeitsbereich und Konto bleiben während des Ablaufs gebunden.
+Eine verlorene Antwort behält denselben Versuch und dieselben Angaben, auch
+bei erneutem Prüfen. Angenommene Antworten müssen zur Kontoidentität passen.
+Der Verlauf aktualisiert sich nach Annahme auch ohne Liveverbindung und zeigt
+beauftragt statt eines unbelegten Veröffentlichungserfolgs.
+
+**Ausführung:** Das neue `MARKETPLACE_LISTING_PUBLISH_ENABLED` ist standardmäßig
+aus. Es verlangt Chromium und die bisherige Schreibfreigabe, bleibt unabhängig
+von Nachrichten und verhindert die Übernahme neuer Inserataufträge durch den
+Ausführer. Die Health-Antwort zeigt die Verfügbarkeit; alte Antworten ohne Flag
+oder Lesezugänge aktivieren sie nicht. Beispielkonfiguration und Pilot-Compose
+lassen das Flag bis zum freigegebenen Anbieter-Schreibtest ausgeschaltet.
+
+**Prüfungen:** Fehlende Editoranbindung und Verlaufsaktualisierung sowie falsche
+Kontoantwort und fehlende Ausführungssperre zuerst durch fehlgeschlagene Tests
+belegt. Betroffene Angular- und Modellprüfungen sowie 594 Workerprüfungen
+erfolgreich; sieben bestehende Workerfälle ausgelassen. Typen, Angular-/Worker-Bau,
+Format, ESLint und Shared-UI-Prüfung erfolgreich. Alle 23 Browserfälle einschließlich
+sechs neuer Vorschau-/Annahmefälle, Fotos, Vorlagen, Marken-/Merkmalsauswahl,
+Terminänderungen und privater Statusmeldungen erfolgreich. Desktop/Mobil,
+hell/dunkel, Tastatur, Fokusrückkehr und verschachtelte Terminwahl ohne AXE-Befund;
+mobile Vorschau zusätzlich angesehen. Verlorene Antwort, unveränderte Wiederholung,
+gesperrter Server und unvollständige Angaben geprüft. Beide Container neu gebaut
+und zehn Inseratmodule jeweils ohne Netzwerk geladen. Alle Anbieteranfragen
+dieser Tests sind abgefangen.
+
+**Offen:** Gesamtplan bleibt teilweise umgesetzt. Lokale Ausführung, zusätzliche
+Kategoriearten/-felder, native Vinted-Entwürfe, vollständige Bearbeitung, Relist
+und der freigegebene Livefall stehen noch aus. Keine echte Vinted-Schreibaktion,
+Produktionsänderung, Erweiterungsinstallation oder Veröffentlichung des Zweigs.
+
+## 2026-10-10 – Juna – Vinted-Merkmale im Inserat-Editor auswählen
+
+**Arbeit:** Die kontogebundene Schnittstelle verbindet den getrennten Cloud-Leser
+mit Größe, Zustand, Farben, Materialien und Paketgröße im Editor. Das Zielkonto
+wird serverseitig aus der berechtigten Verbindung ermittelt; der Client kann
+weder Kontoidentität noch Kategoriepfad vorgeben. Rechte, Konto und Kategorie
+bleiben während des Abrufs gebunden. Der Dialog übernimmt ausschließlich
+angebotene, freigegebene Kennungen und ihre Namen; freie Texte sind nur eine
+Eingabehilfe. Nicht angezeigte Felder und andere laufende Eingaben bleiben erhalten.
+Manuelle Änderungen lösen die betreffende neue Kennung, ein Kategorienwechsel
+deren gesamte Zuordnung. Konto-/Arbeitsbereichswechsel verwerfen alte Antworten.
+Die Auswahl speichert nur im eigenen Entwurf; sie löst keine Anbieter-Schreibaktion aus.
+
+**Prüfungen:** Fehlendes Auswahlmodell, fehlender Dialog und fehlende Editoranbindung
+zuerst durch fehlgeschlagene Tests belegt. Eine fehlende Arbeitsbereichszuordnung des
+Kontos sowie ein im Browser erkannter falscher Service-Kontext wurden behoben.
+Der kontogebundene Service wird jetzt je Editor bereitgestellt. 77 Angular- und
+23 Modellprüfungen sowie 591 Workerprüfungen erfolgreich; sieben bestehende
+Workerfälle ausgelassen. Parallele Abfragen, Sperren, verspätete Antworten,
+unpassende Kategorien und bewusst unvollständige Entwürfe geprüft. Typprüfung,
+Angular-Bau, Format, ESLint und Shared-UI-Prüfung erfolgreich. Vier Browserfälle
+prüfen Auswahl, Tastatur, Fokusrückkehr, Speichern/Wiederladen und Fehler mit
+erhaltenen Eingaben auf Desktop/Mobil, hell/dunkel, jeweils ohne AXE-Befund.
+Anschließend alle 17 Browserfälle einschließlich Fotos, Vorlagen, Planung,
+Markensuche und privater Statusmeldungen erfolgreich.
+Beide Testcontainer gebaut und zehn Inseratmodule jeweils ohne Netzwerk geladen.
+Alle Anbieteranfragen dieser Tests sind abgefangen.
+
+**Offen:** Die aktuelle Merkmalsauswahl benötigt ein verbundenes Cloud-Konto.
+Zusätzliche Kategoriearten/-felder, lokale Ausführung, native Vinted-Entwürfe,
+Veröffentlichungsaktionen im Editor, vollständige Bearbeitung und Relist bleiben
+im Gesamtplan offen. Keine echte Vinted-Schreibaktion, Produktionsänderung,
+Installation einer Erweiterung oder Veröffentlichung des Arbeitszweigs.
+
+## 2026-10-10 – Juna – Aktuelle Vinted-Merkmale getrennt lesen
+
+**Arbeit:** Eine feste Cloud-Browseraktion liest kategorieabhängige Größen,
+Zustände, Farben, Materialien und Paketgrößen auf einem eigenen frischen Tab.
+Sie übernimmt keine Artikeltexte/Fotos und speichert nichts. Konto, Kategorie
+und aktuelle Rechte werden während des Abrufs geprüft; der eigene Tab wird
+auch bei Fehlern geschlossen. Bestehende Benutzerseiten bleiben erhalten.
+Die bisherige Feldvorbereitung verwendet dieselbe Kategorieauswahl. Übertragene
+Formularwerte werden begrenzt und gegen ihre Kategorie geprüft; unbekannte
+Felder bleiben sichtbar statt still verworfen zu werden.
+
+**Prüfungen:** Fehlendes Modul, fehlende feste Browseraktion und fehlender
+Antwortprüfer zuerst durch fehlgeschlagene Tests belegt. Ein weiterer Fehlerfall
+mit gleichwertigen Kategorie-Vorschlägen wurde reproduziert und behoben.
+Alle 34 nativen Browserprüfungen einschließlich des vollständigen getrennten
+Lesewegs und der bisherigen Veröffentlichung erfolgreich; Anbieteranfragen
+vollständig abgefangen. 584 Workerprüfungen erfolgreich, sieben bestehende Fälle
+ausgelassen. 15 lokale Protokollprüfungen, Typprüfung, Bau, Format und ESLint
+erfolgreich. Beide Testcontainer gebaut und acht Inseratmodule jeweils ohne
+Netzwerk geladen. Ein dabei erkannter Typfehler wurde vor dem Neubau behoben.
+
+**Offen:** Der Leser wird als nächstes über eine kontogebundene Schnittstelle
+an die Merkmalsauswahl im Editor angeschlossen. Gesamtplan weiterhin offen;
+keine echten Vinted-Schreibaktionen oder Produktionsänderungen.
+
+## 2026-10-10 – Juna – Vinted-Marken im Inserat-Editor auswählen
+
+**Arbeit:** Der Editor ergänzt die freie Markeneingabe um eine Suche mit echten
+Vinted-Kennungen und der ausdrücklichen Wahl „Keine Marke“. Name und Kennung
+werden gemeinsam übernommen, ohne andere Eingaben zu ersetzen. Änderungen am
+Markentext oder an der Kategorie lösen die neue Zuordnung. Verspätete Antworten,
+Arbeitsbereichswechsel und geschlossene Dialoge übernehmen keine alte Auswahl.
+Die vorhandene Suchfunktion prüft für Inserate die konkreten Arbeitsbereichsrechte
+vor und nach dem Anbieterabruf; die bisherige Plattformverwaltung bleibt getrennt.
+
+**Prüfungen:** Fehlende Editoranbindung und fehlende Arbeitsbereichsprüfung zuerst
+durch fehlgeschlagene Tests belegt. 37 Angularprüfungen einschließlich der bisherigen
+Markensuche und Plattformeditoren sowie elf Edge-Prüfungen erfolgreich. Typprüfung,
+Angular-Bau, Format, Frontend-ESLint und Shared-UI-Prüfung erfolgreich; Edge-Handler
+mit Deno geprüft. Vier Browserfälle bestätigen Tastaturbedienung, Fokusrückkehr,
+Speichern/Wiederladen und freie Änderungen auf Desktop/Mobil, hell/dunkel, jeweils
+ohne AXE-Befund. Anschließend alle 13 Browserfälle einschließlich bisheriger
+Entwürfe, Fotos, Vorlagen, Terminplanung und privater Statusmeldungen erfolgreich.
+Alle Anbieteranfragen dieser Tests sind abgefangen.
+
+**Offen:** Weitere Merkmalsauswahl, lokale Ausführung, native Vinted-Entwürfe,
+vollständige Bearbeitung und Relist bleiben im Gesamtplan offen. Keine echte
+Vinted-Schreibaktion, installierte Erweiterung oder Produktionsänderung.
+
+## 2026-10-10 – Juna – Gewählte Vinted-Marke außerhalb der Vorschläge finden
+
+**Arbeit:** Fehlt die gewählte Markenkennung in den sichtbaren Vorschlägen,
+verwendet der native Veröffentlichungsablauf die beobachtete Vinted-Markensuche.
+Er wartet auf genau diese Kennung und prüft die unveränderte Bezeichnung.
+Ähnliche Namen und freie Markentexte ersetzen keinen Treffer. Nach Auswahl
+wird die asynchrone Aktualisierung des Markenfeldes abgewartet. Feldvorbereitung,
+letzte Prüfung vor dem Speichern und frischer gespeicherter Inhaltsbeleg
+verwenden dieselbe Auswahlhilfe.
+
+**Prüfungen:** Fehlende Suche zunächst mit einer Marke außerhalb der Vorschläge
+belegt. Drei neue Browserfälle prüfen den tatsächlichen Treffer, ähnliche/freie
+Marken und verlorene Freigabe während der Suche. Der komplette native
+Veröffentlichungstest prüft zusätzlich die gespeicherte Marke. Alle 28
+Browserprüfungen mit abgefangenen Anfragen und 579 Workerprüfungen erfolgreich;
+sieben bestehende Workerfälle ausgelassen. Typprüfung, Bau, Format und ESLint
+erfolgreich. Beide Testcontainer gebaut und sieben Inseratmodule jeweils ohne
+Netzwerk geladen. Keine echte Vinted-Aktion, Schema- oder Produktionsänderung.
+
+**Offen:** Die Markenauswahl im Flipbase-Editor wird als nächster Schritt
+angeschlossen. Weitere Merkmale, lokale Ausführung, native Vinted-Entwürfe,
+vollständige Bearbeitung und Relist bleiben Bestandteil des offenen Gesamtplans.
+
+## 2026-10-10 – Juna – Inserataufträge automatisch im Editor aktualisieren
+
+**Arbeit:** Der Auftragsverlauf empfängt private Änderungsmeldungen für seinen
+gespeicherten Entwurf. Meldungen enthalten ausschließlich Workspace-, Entwurfs-
+und Ereigniskennung; den aktuellen Stand lädt Flipbase mit den vorhandenen
+Zugriffsrechten neu. Während laufender Abfragen oder eines Planungsdialogs
+bleibt eine Aktualisierung vorgemerkt. Konto-, Nutzer- und Rechtewechsel sowie
+das Schließen der Seite entfernen den Kanal und verwerfen verspätete Antworten.
+Lease-Prüfungen ohne sichtbare Änderung erzeugen keine Meldung.
+
+**Prüfungen:** Fehlende Kanal- und Editoranbindung zuerst durch fehlgeschlagene
+Tests belegt. 37 Angularprüfungen, 15 neue und 159 bestehende Datenbankprüfungen
+nach frischem Aufbau der isolierten Testdatenbank erfolgreich. Migration mit
+dem CLI erzeugt; dessen fehlende Realtime-Policy wird automatisch aus der
+deklarativen Datei ergänzt. Datenbanktypen neu erzeugt. Zwölf Skriptprüfungen,
+Typprüfung, Angular-Bau, Format und ESLint erfolgreich. Neun Browserdurchläufe
+einschließlich tatsächlicher WebSocket-Meldung, Statuswechsel, Desktop/Mobil,
+hell/dunkel und AXE erfolgreich. Keine echte Vinted-Aktion oder Produktionsänderung.
+
+**Recherche:** Native Markensuche mit „JAKO“ geprüft: „Jako“ und „Jako-o“
+haben verschiedene Anbieterkennungen. Kein Vinted-Entwurf ist vorhanden;
+für die Leseprüfung wurde keiner angelegt. Lokaler Ausführer, vollständige
+Merkmalsauswahl, native Vinted-Entwürfe und Live-Veröffentlichung bleiben offen.
+
+## 2026-10-10 – Juna – Inserataufträge in die Cloud-Warteschlange aufnehmen
+
+**Arbeit:** Der Chromium-Worker nimmt jetzt Inserataufträge über den bestehenden
+gemeinsamen Browserplatz an. Manuelle Gesprächsantworten und Verhandlungen
+bleiben vorrangig; Inserate werden vor automatischen Favoritenaufträgen
+angenommen. Die Datenbank bestimmt weiterhin Fälligkeit, Revision und
+Ausfallregel. Die Abschaltung geplanter Kontoabrufe deaktiviert keine bewusst
+angelegten Inserataufträge. Ein verlorener Claim oder ungeklärter physischer
+Browserstopp beendet weitere Annahmen. Die Ausführung verwendet den
+bestehenden Inserat-Runner, Originalfotoabruf und getrennten Browsertransport.
+
+**Prüfungen:** Fehlenden gemeinsamen Verteiler zuerst durch fehlgeschlagenen
+Test belegt. Vier neue Ablaufprüfungen sichern Reihenfolge, unveränderte
+Workerbindung, höchstens eine Browserreservierung, leere Warteschlange und
+Abbruch nach unklarer Bereinigung. Alle 579 Workerprüfungen erfolgreich;
+sieben bestehende Fälle ausgelassen. Worker-Typprüfung, Bau, Format und
+ESLint erfolgreich. Kein Anbieter-Schreibtest, keine Schemaänderung oder
+Veröffentlichung des Arbeitszweigs.
+
+**Offen:** Lokale Browserausführung, vollständige Merkmalsauswahl,
+Veröffentlichungsdialog, Live-Status und ein freigegebener echter Einzelfall.
+
+## 2026-10-10 – Juna – Inseratablauf an den getrennten Cloud-Browser anschließen
+
+**Arbeit:** Die feste Browseraktion für Inserate verbindet nun die zentrale
+Freigabe mit dem nativen Veröffentlichungsbaustein. Der Controller bestätigt
+den Schreibbeginn genau einmal, bevor der Browser weiterarbeiten darf.
+Originalfotos werden in Teilen von höchstens einem MiB übergeben; Kennung,
+Dateiname, Dateityp, Gesamtgröße, Reihenfolge und Vollständigkeit werden
+beidseitig geprüft. Jeder weitere Teil benötigt aktuelle Rechte. Die Fototeile
+enthalten keine Speicherpfade oder Schlüssel. Eine verspätete Ergebnisrückgabe
+darf einen bereits belegten Versuch abschließen, aber keine neue Aktion starten.
+Der Browser eröffnet einen eigenen Tab innerhalb des reservierten Kontos.
+Die gemeinsamen Inseratregeln werden auch in das Sitzungsabbild kopiert.
+
+**Prüfungen:** Fehlenden Fototransfer, Browseranschluss und getrennte Aktion
+zuerst durch fehlgeschlagene Tests belegt. Ein neun MiB großes Original wird
+über zehn begrenzte Nachrichten übertragen. Widerruf zwischen Teilen,
+falsche Kennungen/Metadaten, unvollständige Teile, falsche Freigabeantworten,
+fehlendes oder wiederholtes Schreibbeginn-ACK und Belege ohne Schreibbeginn
+werden abgelehnt. 25 Inserat-Browserprüfungen mit abgefangenen Anfragen und
+alle 575 Workerprüfungen erfolgreich; sieben bestehende Fälle ausgelassen.
+Worker-Typprüfung, Bau, Format und ESLint erfolgreich. Controller- und
+Sitzungscontainer gebaut und sechs Inseratmodule jeweils ohne Netzwerk geladen.
+Keine echten Anbieteraktionen, produktiven Container oder installierten
+Erweiterungen verändert.
+
+**Offen:** Aufnahme der Inserataufträge in die bestehende Auftragsverteilung,
+Anschluss der lokalen Erweiterung, vollständige Editor-Merkmalsauswahl und
+ein konkret freigegebener echter Veröffentlichungstest bleiben in Arbeit.
+
+## 2026-10-10 – Juna – Nativen Veröffentlichungsablauf verbinden
+
+**Arbeit:** Ein Worker-Baustein verwendet ausschließlich eine frisch reservierte
+leere Seite. Er verbindet die echte Feldvorbereitung und Fotoeingabe mit der
+beobachteten Speichern-Schaltfläche. Fotos werden erst nach bestätigtem
+Schreibbeginn hochgeladen; Speichern wird einmal ausgelöst. Eine konkrete
+Kennung aus der anschließenden Vinted-Artikelroute wird erst nach erneutem
+Inhalts-, Foto- und Aktivstatusvergleich bestätigt. Antwortverlust und
+Abweichungen bleiben offen. Bestehende Benutzerseiten werden weder verwendet
+noch geschlossen. Gemerkte Merkmalsauswahlen sind ausschließlich in dieser
+frisch reservierten Maske zulässig; vorhandene Texte/Fotos bleiben geschützt.
+Native Vinted-Entwürfe werden weiterhin vor dem Schreibbeginn abgelehnt,
+solange ihre Ergebnisroute nicht anhand eines konkreten Falls geprüft ist.
+
+**Prüfungen:** Fehlenden Ablauf und Ablehnung gemerkter Auswahlen zuerst durch
+fehlgeschlagene Tests belegt. 24 Inserat-Browserprüfungen mit vollständig
+abgefangenen Anfragen erfolgreich, einschließlich Antwortverlust, falschem
+gespeichertem Preis, fehlendem Aktivstatus, fehlendem Schreibbeginn-ACK,
+falschem Konto und Widerruf zwischen Upload und Speichern. AI-Fotooption
+wird vor und nach dem Speichern verglichen. Alle 566 Workerprüfungen
+erfolgreich, sieben bestehende Fälle ausgelassen. Worker-Typprüfung, Bau,
+Format und ESLint erfolgreich. Keine echten Uploads oder Veröffentlichungen.
+
+**Offen:** Der neue Ablauf ist noch nicht an Browsertransport und Dispatch
+angeschlossen. Die neue Speicherroute und Fotos sind ausschließlich im
+abgefangenen Ablauf geprüft; ein konkret freigegebener Anbieter-Schreibtest
+steht weiterhin aus. Der Gesamtplan bleibt in Arbeit.
+
+## 2026-10-10 – Juna – Gespeicherte Inseratinhalte und Fotos erneut prüfen
+
+**Arbeit:** Ein lesender Worker-Baustein öffnet die Bearbeitungsmaske einer
+bekannten Vinted-Kennung frisch und vergleicht Titel, Beschreibung, Centpreis,
+Kategorie, ausgewählte Merkmale und Zusatzoptionen mit dem Auftragsinhalt.
+Ein gemeinsamer Fotoleser und Vergleich prüfen die vollständige Reihenfolge
+anhand der beobachteten Vinted-Bildkennungen. Unterschiedliche Bildgrößen,
+CDN-Server und Vorschau-Signaturen ändern diese Kennung nicht. Fehlende,
+vertauschte, doppelte, versteckte oder noch ungeladene Bilder bestätigen nichts.
+Konto und Freigabe werden vor und nach dem Lesen geprüft. Der Nutzer bestätigt,
+dass kein bestehender Vinted-Entwurf für eine Leseprüfung vorhanden ist.
+
+**Prüfungen:** Fehlende Vergleicher und Inhaltsprüfung zuerst durch
+fehlgeschlagene Tests belegt. Ein verstecktes Preisfeld deckte eine falsche
+Bestätigung auf; Sichtbarkeitsprüfung über die Eltern und eindeutige
+Zusatzoptionen korrigieren sie. Alle 20 Inserat-Browserprüfungen mit abgefangenen
+Anfragen, 159 Erweiterungsprüfungen und 566 Workerprüfungen erfolgreich;
+sieben bestehende Workerfälle ausgelassen. Worker-Typprüfung, Bau, Format
+und ESLint erfolgreich. Keine echten Anbieteraktionen oder Schemaänderungen.
+
+**Offen:** Der Baustein bestätigt Inhalt einer bekannten Kennung, noch keinen
+neuen Speichervorgang. Die tatsächlich zurückgegebene neue Kennung muss erst
+mit Inhalts- und Aktivstatusprüfung verbunden werden. Native Entwürfe,
+Veröffentlichungsweg und Anschluss der Ausführer bleiben in Arbeit.
+
+## 2026-10-10 – Juna – Aktiven Vinted-Status anhand der eigenen Profilansicht lesen
+
+**Arbeit:** Den tatsächlich ausgewählten Aktiv-Filter und konkrete ID-/Titel-
+Kacheln am eigenen Vinted-Profil gelesen. Ein gemeinsamer DOM-Leser und ein
+Worker-Baustein prüfen sichtbare eindeutige Kontrollen, eigenes Profil, exakte
+Inseratkennung und Titel. Konto und Auftragsfreigabe werden davor/danach geprüft.
+Alte ungefilterte Kacheln und laufende Ladeanzeigen gelten nicht als Beleg.
+Der Baustein liest ausschließlich den aktiven Status einer bekannten ID;
+ein neues Inserat oder vollständig gespeicherte Inhalte bestätigt er noch nicht.
+Zusätzlich die gesamte sechs Bilder umfassende Galerie und gleiche
+Bildkennungen in gespeicherten Bearbeitungsvorschauen gelesen. Keine Inhalte
+des bestehenden Inserats oder des ursprünglichen Neuanlage-Tabs geändert.
+
+**Prüfungen:** Fehlenden Statusbaustein zuerst durch fehlgeschlagenen Test
+belegt. Ein kurzer Ladevorgang und ein leeres Profil deckten zwei Fehler auf;
+konkreter alter DOM-Verweis und Prüfung auf vorhandene Kacheln beheben sie.
+Fünf neue und alle 14 bisherigen Inserat-Browserprüfungen erfolgreich,
+einschließlich falschem Konto, Widerruf, versteckten/doppelten Kontrollen,
+falscher ID/Titel, laufendem Laden und fehlender Kachel nach dem Filtern.
+Alle 566 Workerprüfungen erfolgreich, sieben bestehende Fälle ausgelassen.
+Alle 157 Erweiterungsprüfungen, Worker-Typprüfung, Bau, Format und ESLint
+erfolgreich. Testcontainer neu gebaut. Kein Anbieter-Schreibtest, keine
+Schemaänderung, keine installierte Erweiterungsänderung oder Veröffentlichung
+des Arbeitszweigs. Der eigene Recherchetab wurde geschlossen.
+
+**Offen:** Verknüpfung mit einem neuen Speicherergebnis, vollständiger Inhalts-
+und Fotobeleg, native Vinted-Entwürfe und tatsächlicher Veröffentlichungsweg.
+
+## 2026-10-10 – Juna – Inseratclient und gemeinsamer Auftragsinhalt
+
+**Arbeit:** Cloud und lokale Erweiterung prüfen den unveränderlichen
+Inseratinhalt mit demselben Parser. Der eigene Erweiterungsclient verbindet
+Übernahme, Freigabeprüfung, einmaligen Schreibbeginn, Originalfotoabruf und
+Ergebnisrückmeldung über gebundene Adapter. Er übernimmt nur das gekoppelte
+Konto und registrierte Versuche; große Kennungen bleiben Text. Parallele
+Schreibbeginn-Aufrufe lösen höchstens eine Anfrage aus. Antwortverlust erzeugt
+keinen erneuten Schreibbeginn. Späte Prüfantworten dürfen einen inzwischen
+widerrufenen oder beendeten Versuch nicht wieder öffnen. Nach Fristablauf kann
+weiterhin das Ergebnis des ursprünglichen Versuchs gemeldet werden. Die
+Rückmeldung wird anhand von Konto, Auftrag, Aktion und Anbieterbeleg geprüft.
+Die neuen Prüfungen sind in der bestehenden Workflow-Suite registriert.
+
+**Prüfungen:** Fehlende gemeinsame Schnittstelle und Client zuerst durch
+fehlgeschlagene Tests belegt; zusätzlich Kennungsumwandlung und verspätete
+Prüfantworten durch fehlgeschlagene Tests nachgewiesen und korrigiert.
+13 neue und 144 bestehende Erweiterungsprüfungen erfolgreich. Alle 566
+Workerprüfungen erfolgreich, sieben bestehende Fälle ausgelassen. Alle 14
+Inserat-Browserprüfungen mit abgefangenen Anbieteranfragen erfolgreich.
+Worker-Typprüfung, Bau, Format und ESLint erfolgreich. Testcontainer neu gebaut;
+fünf Inseratmodule einschließlich gemeinsamem Parser ohne Netzwerk geladen.
+Suite-Audit erfolgreich. Keine Schemaänderung oder echte Anbieteraktion.
+
+**Offen:** Der Client ist noch nicht im Hintergrundablauf oder Manifest
+aktiviert. Native Speicherung, belastbarer Anbietererfolg und automatischer
+Start bleiben anzuschließen; die installierte Erweiterung wurde nicht geändert.
+
+## 2026-10-10 – Juna – Private Originalfotos für lokale Inserataufträge
+
+**Arbeit:** Eigene Fotoaktion liefert Originalbytes ausschließlich anhand einer
+Bildkennung im übernommenen Inseratauftrag. Workspace, Konto, Auftragskennung,
+Versuch und Secret begrenzen die Datenbankabfrage. Die bestehende Inseratfreigabe
+wird vor dem Lesen, vor dem Storage-Abruf und vor der Rückgabe geprüft. Ein
+Widerruf während des Downloads verhindert die Ausgabe. JPEG, PNG und WebP,
+exakte Dateigröße, begrenzte Pfade und Dateisignaturen werden geprüft;
+Weiterleitungen und Teilantworten abgewiesen. Die Erweiterung erhält keine
+Storage-URLs oder Serverzugänge. Der Abruf speichert oder veröffentlicht nichts.
+
+**Prüfungen:** Fehlenden Fotohandler und fehlende Indexverbindung zuerst durch
+fehlgeschlagene Tests belegt. Alle 38 lokalen Edgeprüfungen einschließlich
+Widerruf an jeder Grenze und realer Indexzuordnung mit abgefangenen Anfragen
+erfolgreich. Alle 144 bestehenden Erweiterungsprüfungen erfolgreich.
+TypeScript, Angular-Produktionsbau und Format erfolgreich. Deno-Lint für sechs
+Vertrags-/Handler-/Fotodateien erfolgreich mit den bereits dokumentierten
+Ausnahmen für explizite Importpräfixe und bestehende Steuerzeichenprüfung.
+Keine Schemaänderung, Anbieteraktion, installierte Erweiterungsänderung oder
+Veröffentlichung des Arbeitszweigs.
+
+**Offen:** Erweiterungsclient, native Ausführung, bestätigtes Anbieterergebnis
+und automatische Abholung. Dateisignaturen ersetzen keine Bilddekodierung.
+Die Vinted-Browserverbindung war bei der anschließenden Leseprüfung nicht mehr
+verfügbar; der ursprüngliche Formular-Tab wurde nicht geändert.
+
+## 2026-10-10 – Juna – Lokalen Inseratablauf mit Edge verbinden
+
+**Arbeit:** Die lokale Erweiterungsschnittstelle hat eigene Aktionen für
+Auftragsübernahme, Freigabeprüfung, Schreibbeginn und Ergebnisrückmeldung.
+Workspace, Konto, Auftragskennung und Versuchkennung werden streng geprüft;
+große Auftragskennungen bleiben Text. Unvollständige oder widersprüchliche
+Bestätigungen und zusätzliche Befehle werden vor dem Datenbankaufruf abgelehnt.
+Eigene Inserat-RPCs prüfen weiterhin die tatsächliche Freigabe und Bindung.
+Konflikte und Fehler werden ohne interne Details zurückgegeben. Gemeinsamer
+Parser bleibt auch im Angular-Bau verwendbar; separate Typdatei hat keine
+Laufzeitabhängigkeit.
+
+**Prüfungen:** Fehlende Handler/RPC-Verbindung, falsche Konfliktantwort und ein
+als Liste gelieferter Anbieterstatus zuerst durch fehlgeschlagene Tests belegt.
+30 lokale Edgeprüfungen einschließlich echter Indexzuordnung mit abgefangenen
+Anfragen erfolgreich. 144 bestehende Erweiterungsprüfungen und 48 Angularprüfungen
+für lokale Verbindung/Übertragung erfolgreich. TypeScript und Produktionsbau
+erfolgreich. Format und Suite-Audit erfolgreich. Die geänderten Edge-Dateien
+sind in der bestehenden ESLint-Konfiguration ausgenommen; sie wurden mit der
+Deno-Typprüfung geprüft. Deno-Lint für die fünf neuen/geänderten Vertrags- und
+Handlerdateien erfolgreich; die Regeln für explizite Importpräfixe und die
+bestehende Prüfung verbotener Steuerzeichen sind dabei ausgenommen.
+Keine Schemaänderung, keine Anbieteraktion, keine installierte Erweiterung
+geändert und kein Push, PR, Merge oder Deployment.
+
+**Offen:** Originalfotoabruf für die Erweiterung, native Ausführung und deren
+bestätigtes Ergebnis sowie automatisches Abholen. Das Feature bleibt in Arbeit.
+
+## 2026-10-10 – Juna – Planungsdialog und Terminwechsel anschließen
+
+**Arbeit:** Datum, Uhrzeit, Zeitzone, Schnelltermine und Ausfallregel in einem
+eigenen Dialog ergänzt. Doppelte Uhrzeiten verlangen eine bewusste Auswahl;
+gespeicherte Termine behalten das richtige Vorkommen. Bestehende wartende
+Aufträge lassen sich mit dem aktuellen gespeicherten Entwurf umplanen. Die
+Datenbank übernimmt Aktion und Fotoeinstellung aus der bisherigen Aufnahme;
+Abbruch und Ersatz sind atomar. Die gleiche Anfrage bleibt nach Antwortverlust
+wiederholbar. Ungespeicherte Änderungen, Rechte-/Konto-/Revisionswechsel und
+begonnene Schreibversuche werden abgefangen. Die Formularhülle des Editors
+vermeidet verschachtelte Formulare. Fokusrückkehr nach Escape korrigiert.
+
+**Prüfungen:** Fehlende Funktionen und die Zeitzone mit Leerzeichen zuerst durch
+fehlgeschlagene Tests belegt. 33 Angular- und 68 Modellprüfungen erfolgreich.
+159 Datenbankprüfungen nach frischem Aufbau erfolgreich; Typen neu erzeugt.
+Neue Migration aus dem CLI-Abgleich erzeugt und um die deklarativen Rechte
+ergänzt: ausschließlich neue Termin-RPC, keine fremden Tabellenänderungen.
+Zehn Skript-/Schemaregistrierungsprüfungen, TypeScript, Produktionsbau,
+Format/ESLint, Shared-UI und Suite-Audit erfolgreich. Acht Browserfälle auf
+Desktop/Mobil, hell/dunkel einschließlich AXE erfolgreich. Keine reale
+Anbieter-Schreibaktion, kein Push, PR, Merge oder Deployment.
+
+**Offen:** Neue Veröffentlichungsaufträge, tatsächliche Ausführer und der
+bestätigte Anbietererfolg. Der Gesamtplan bleibt in Arbeit.
+
+## 2026-10-10 – Juna – Kategoriepfad an den Inseratversuch anbinden
+
+**Arbeit:** Der Worker liest den benötigten Elternpfad aus der bestehenden
+Vinted-Kategorietabelle. Er prüft echte Ganzzahlkennungen, Blattkategorie,
+fehlende Eltern, Schleifen, maximale Tiefe und einheitliche Aktualisierungsmarken.
+Der Auffrischungsstand und die Inseratfreigabe werden vor/nach dem Abruf geprüft.
+Der Browser erhält ausschließlich die geordneten Elternkennungen. Der Cache ist
+eine Navigationshilfe; die angebotenen Werte prüft weiterhin das native Formular.
+Ein fehlender Pfad verhindert Vorbereitung und Schreibbeginn.
+
+Eigenes vorhandenes Inserat und Profil erneut nur gelesen. Sichtbare
+Detailmerkmale für Preis, Beschreibung, Eigentümer, Fotoelemente und Aktionen
+dokumentiert. Im Profil waren nur aktive/verkaufte Angebote sichtbar. Der Nutzer
+bestätigt, dass derzeit kein Vinted-Entwurf vorhanden ist. Das Ergebnis der
+nativen Entwurfsanlage bleibt daher offen; keine Ersatzannahme aus einem Button.
+
+**Prüfungen:** Sechs neue Pfad-/Storeprüfungen und zwei neue Ablaufregressionen
+zuerst fehlgeschlagen, danach erfolgreich. 566 Workerprüfungen erfolgreich,
+sieben bestehende Fälle ausgelassen. Worker-Typen, Bau, Format/ESLint erfolgreich.
+Zusätzlicher Recherchetab geschlossen. Keine reale Anbieter-Schreibaktion.
+
+## 2026-10-10 – Juna – Native Inseratfelder vorbereiten
+
+**Arbeit:** Leere Vinted-Neuanlagemasken lassen sich anhand ihrer tatsächlichen
+Kategorieauswahl vorbereiten. Marke, Größenfamilie, Zustand, Farben, Materialien
+und Sendungsgröße werden mit Kennung und Beschriftung abgeglichen. Unbekannte
+Merkmale, deaktivierte Werte und vorhandene Eingaben verhindern die Übernahme.
+Preisübernahme verwendet ganze Centbeträge. Kategorie, Konto und Freigabe bleiben
+während der Vorbereitung gebunden; abschließend werden die Eingaben erneut gelesen.
+Versteckte Versandgrößen-Radios werden über ihre sichtbaren Labels erkannt.
+Parallele Schreibbeginn-Callbacks im Worker reservieren den Beginn vor der
+asynchronen Rechteprüfung und können keine zweite Begin-Anfrage senden.
+
+Der Baustein speichert oder veröffentlicht nichts bei Vinted. Marken außerhalb
+der sichtbaren Auswahl und bisher unbekannte Kategorien bleiben eingeschränkt.
+Anbieterergebnis, automatische Abholung und Erweiterungsanschluss sind offen.
+
+**Prüfungen:** Neue Browserregressionen für versteckte Radios und Kategorieänderung
+sowie Workerregression für parallelen Beginn zuerst fehlgeschlagen und nach der
+Korrektur erfolgreich. Sechs Feldprüfungen und 13 Worker-Ablaufprüfungen erfolgreich.
+Insgesamt 14 Browserfälle und 558 Workerprüfungen erfolgreich, sieben bestehende
+Fälle ausgelassen. Typen, Worker-Bau, Format/ESLint und Containerbau mit Importtest
+ohne Netzwerk erfolgreich. Alle Browseranfragen abgefangen; keine reale Anbieteraktion.
+
+## 2026-10-10 – Juna – Nativen Foto-Upload für Inserate vorbereiten
+
+**Arbeit:** Einen getrennten Browserbaustein für die bestätigte Vinted-
+Fotoeingabe ergänzt. Er verarbeitet die Originale einzeln in ihrer Reihenfolge
+und verlangt die bestätigte Schreibfreigabe vor der ersten Dateiauswahl.
+Vorhandene oder während der Vorbereitung hinzugekommene Fotos werden nicht
+überschrieben. Konto und Freigabe werden vor und nach der Übertragung geprüft.
+Lokale Blob-Vorschauen bestätigen keinen Upload; erwartete, geladene
+Anbieterbilder und unveränderte vorherige Fotokacheln sind erforderlich.
+Nach einem unklaren Upload wird keine Datei erneut ausgewählt.
+
+Der Baustein ist noch nicht an eine Veröffentlichungsaktion angeschlossen und
+bestätigt ausschließlich Fotokacheln, kein gespeichertes Inserat. Vollständige
+Feldübernahme, Anbieterergebnis und automatische Ausführung bleiben offen.
+
+**Prüfungen:** Fünf neue Browserprüfungen und drei bestehende Formularprüfungen
+mit abgefangenen Anfragen erfolgreich; Kontowechsel, fehlendes Begin-ACK,
+Vorschau ohne Uploadbestätigung, veränderte Reihenfolge und Vorbereitungskonflikt
+abgedeckt. Worker-Typen, Bau, Format und ESLint erfolgreich. Browserdateien
+nur im eigenen Testverzeichnis installiert. Keine reale Anbieteraktion.
+
+## 2026-10-10 – Juna – Private Originalfotos an Cloud-Inseratversuche binden
+
+**Arbeit:** Der Worker lädt ausschließlich ein Foto aus der übernommenen,
+unveränderlichen Aufnahme. Auftrag und Browserfreigabe werden vor und nach dem
+Download geprüft. Die private Storage-Anfrage bleibt im Worker; der Adapter
+erhält nur Bildbytes, Kennung, Dateiname und Bildtyp. Dateigröße, MIME-Typ und
+Bildsignatur werden geprüft, unvollständige oder übergroße Streams abgebrochen
+und Weiterleitungen abgelehnt. Einzelne Downloads bleiben auf die vorhandene
+eigene Grenze von 50 MiB begrenzt. Geschlossene Adapter können keine weiteren
+Fotos laden. Ein Fehler nach Schreibbeginn bleibt ein unklarer Versuch.
+
+Fotoeingabe, Speicherbuttons und vorhandene Fotokacheln am angemeldeten Vinted
+erneut nur gelesen. Das vorbereitete Neuanlageformular blieb erhalten. Chrome
+registrierte sich nach Navigation erneut; die dokumentierte Verbindung wurde
+jeweils neu aufgenommen. Der zusätzliche Recherchetab ist geschlossen.
+Anbieterupload, Veröffentlichung und automatische Abholung bleiben offen.
+
+**Prüfungen:** 557 Workerprüfungen erfolgreich, 7 bestehende Fälle ausgelassen.
+25 gezielte Prüfungen zum Fotozugriff, Ablauf und Datenbank-Service sowie
+Worker-Typen und Bau erfolgreich. Storage-Route mit dem installierten
+Supabase-SDK abgeglichen. Format/ESLint erfolgreich. Container gebaut und neue
+Module ohne Netzwerk geladen. Es wurde weder ein Foto zu Vinted hochgeladen
+noch ein reales Inserat gespeichert, geändert oder veröffentlicht.
+
+## 2026-10-10 – Juna – Inserataufträge im Entwurf anzeigen
+
+**Arbeit:** Gespeicherte Entwürfe zeigen ihren Auftragsverlauf mit Termin,
+Ausführer und Anbieterstatus. Auftragsannahme, Anbieterprüfung und unklarer
+Ausgang bleiben unterscheidbar. Wartende Aufträge lassen sich versionsgebunden
+abbrechen; nach Beginn wird diese Aktion nicht angeboten. Neuere Änderungen am
+Entwurf werden kenntlich gemacht. Antworten aus einem vorherigen Benutzer- oder
+Workspace-Kontext können den aktuellen Verlauf nicht überschreiben.
+
+Termine zeigen Zeitzone und MEZ/MESZ, damit die beiden Vorkommen einer Uhrzeit
+bei der Herbstumstellung unterscheidbar sind. Die Speicherhinweise beziehen
+sich auf die Arbeitskopie; die Oberfläche behauptet keinen Anbietererfolg.
+Veröffentlichungsaktionen und Anbieteradapter bleiben in Arbeit.
+
+**Prüfungen:** 15 gezielte Angularprüfungen, TypeScript, Produktionsbau,
+Format und betroffene ESLint-Dateien erfolgreich. Vier Browserdurchläufe mit
+Speichern, Wiederladen, Verlauf und Abbruch auf Desktop/Mobil in hell/dunkel
+einschließlich AXE erfolgreich. Shared-UI-Prüfung und Suite-Audit erfolgreich.
+Keine reale Anbieteraktion, Produktionsänderung, Push, PR oder Merge.
+
+## 2026-10-09 – Juna – Cloud-Inseratversuche und Worker vorbereiten
+
+**Arbeit:** Cloud-Aufträge an Worker, Konto, freigegebenes Profil und
+Browser-Sitzung gebunden. Eine abgelaufene Vorbereitung wird erst nach
+bestätigtem physischem Browserstopp erneut übernommen. Begonnenes Schreiben
+bleibt bei Antwortverlust unklar. Späte Belege werden auch nach Ablauf des
+Workers oder Kontolöschung dem ursprünglichen Versuch zugeordnet.
+
+Worker-Ablauf und privater Datenbank-Service ergänzt. Die Vorabprüfung darf
+vor dem einmaligen Schreibbeginn erfolgen. Vor dem ersten Foto-Upload muss
+der Adapter den bestätigten Beginn abwarten. Fehlende Bestätigung löst keine
+Anbieteraktion aus. Konto, Artikelkennung, Anbieterstatus und Bestätigungszeit
+werden auch in der gespeicherten Antwort geprüft. Inseratberechtigungen
+erlauben keine anderen Browseraktionen. Anbieteradapter, Fotobezug, Dispatch
+und Erweiterungsanschluss bleiben offen; keine automatische Ausführung aktiv.
+
+**Prüfungen:** Neue Migration separat erzeugt, frisch eingespielt und Typen
+regeneriert. 150 Datenbankprüfungen, 545 Workerprüfungen (7 ausgelassen),
+9 Skript-/Schemaregistrierungsprüfungen, Worker-Typen und Bau erfolgreich.
+Container gebaut und beide neuen Module ohne Netzwerk geladen. Format,
+betroffene ESLint-Dateien und Angular-Typen erfolgreich. Keine Produktion,
+reale Anbieteraktion, installierte Erweiterungsänderung, Push, PR oder Merge.
+
+## 2026-10-09 – Juna – Lokale Inseratversuche und Ergebnisannahme absichern
+
+**Auftrag:** Die freigegebene Inseratumsetzung nach „dann weiter“ fortsetzen.
+
+**Arbeit:** Übernahme, erneute Rechte-/Foto-/Artikelprüfung, einmaliger
+Schreibbeginn und gebundene Ergebnisannahme ergänzt. Vorbereitung darf nach
+abgelaufener Übernahme neu beginnen; nach möglichem Anbieter-Schreiben bleibt
+der Ausgang unklar. Der Verlauf erkennt solche Ausfälle auch ohne laufende
+Erweiterung. Späte Antworten bleiben mit Konto, ursprünglichem Geheimnis und
+Versuchkennung verbunden, auch nach Widerruf oder Entfernen der Verbindung.
+Wechsel von Kontoidentität oder Ausführer sowie Pause, Sperre und Trennung
+entziehen alte Inseratfreigaben dauerhaft. Browseradapter, Erweiterungsanschluss
+und Cloud-Ausführung fehlen weiterhin; keine Anbieteraktion wurde ausgelöst.
+
+**Prüfungen:** Schema 464 registriert, separate Migration erzeugt und frisch
+eingespielt; Typen erneut generiert. 130 Datenbankprüfungen, davon 27 zum lokalen
+Ablauf mit synthetischen Ergebnissen, sowie 8 Skriptprüfungen erfolgreich.
+Format, betroffene ESLint-Dateien und Angular-Typen erfolgreich. Keine
+Produktionsmigration, installierte Erweiterungsänderung, reale Anbieteraktion,
+Push, PR oder Merge.
+
+## 2026-10-09 – Juna – Anbieterangaben und Inserataufträge weiter vorbereiten
+
+**Auftrag:** Nach „dann weiter“ die freigegebene Inseratumsetzung fortsetzen.
+Eigener Zweig sauber bei `8ec7aee5` übernommen; fremder Checkout bleibt unberührt.
+
+**Arbeit:** Gemeinsame Formularverträge und Leser aus der beobachteten
+Vinted-Struktur ergänzt. Tatsächliche ARIA-Auswahl statt versteckter Eingaben,
+Kategoriepfad, Sperren und Kontoidentität geprüft. Offizielle Grenze von 20
+Fotos dokumentiert. Kategorie- und Vorlagenwechsel erhalten keine alten,
+widersprüchlichen Kennungen oder Zusatzattribute.
+
+Eigene Inseratfreigaben und dauerhafte Aufträge speichern Inhalt, Originalfotos,
+Konto, Ausführer und Termin unveränderlich. Doppelte Anfragen bleiben idempotent;
+Verlauf und Abbruch prüfen Rechte und Version. Neue lokale Kopplung entzieht
+alten Aufträgen die Freigabe. Widerruf während eines Schreibversuchs bewahrt
+ein unklares Ergebnis. Noch keine Ausführung oder sichtbare Anbieteraktion.
+
+**Prüfungen:** Neue Migration erzeugt und in der eigenen Testdatenbank frisch
+eingespielt; Typen neu generiert. 94 Datenbankprüfungen, 42 Inhalts-/Terminmodelle,
+8 Editorprüfungen, 5 Migrationsskriptprüfungen, 529 Workerprüfungen (7 weitere
+ausgelassen) und 3 synthetische Formular-Browserprüfungen erfolgreich.
+Worker-Typen, Worker-Bau und Container mit gemeinsamem Laufzeitmodul geprüft.
+Angular-Typen, Produktionsbau, Format, betroffene ESLint-Dateien und Suite-Audit
+erfolgreich. Keine Produktionsmigration, installierte
+Erweiterungsänderung, reale Anbieter-Schreibaktion, Push, PR oder Merge.
+
+**Weitere Umsetzung:** Geplante Aufträge lassen sich jetzt atomar durch einen
+neuen gespeicherten Entwurfsstand und Termin ersetzen. Scheitert die Annahme,
+bleibt der bisherige Termin bestehen. Auftrag, Version, Freigabe und Zielkonto
+werden geprüft; begonnene Schreibversuche sind vom Ersatz ausgeschlossen.
+Die Anfragenkennung macht auch diesen Ersatz wiederholbar. Neue Migration
+separat erzeugt; die bereits versionierte erste Migration bleibt unverändert.
+Frontend-Modell und Feature-Service prüfen große Textkennungen, Arbeitsbereich,
+Entwurf, Revision, Aktion, Termin und Zeitzone. Der Status unterscheidet
+Auftragsannahme, Anbieterprüfung, Vinted-Entwurf und unklares Ergebnis.
+
+**Zusätzliche Prüfungen:** Frischer Reset einschließlich Ergänzungsmigration,
+Typen erneut erzeugt; insgesamt 103 Datenbankprüfungen, 48 betroffene
+Modellprüfungen und 6 neue Angular-Serviceprüfungen erfolgreich. Sieben
+gezielte Migrations-/Registrierungsprüfungen und Suite-Audit erfolgreich.
+Ausführung, Terminmaske und tatsächliche Anbieterbestätigung bleiben offen.
+
+## 2026-10-09 – Juna – Vinted-Formulare nach Wiederverbindung geprüft
+
+**Auftrag:** Mit „probier nochmal“ die Browserprüfung erneut versuchen.
+
+**Recherche:** Angemeldetes Neuanlageformular und vollständige Bearbeitungsmaske
+eines eigenen aktiven Inserats gelesen. Zwei Kategorien zeigen unterschiedliche
+Größengruppen. Auswahlkennungen, zwei Farben/drei Materialien, Sendungsgrößen,
+Dateiformate und Entwurf-/Veröffentlichungsaktionen dokumentiert. In der
+Bearbeitung wurden Fotoaktionen, gesperrte Markenwechsel, KI-Fotohinweis und
+kostenpflichtige Push-Option erkannt. Unterbrechungen nach Seitenwechseln durch
+erneutes Verbinden überwunden. Keine Zugangsdaten oder versteckten Zustände gelesen.
+
+**Grenze und Prüfung:** Auswahl nur im ungespeicherten Neuanlageformular erprobt;
+bestehendes Inserat ausschließlich gelesen. Keine Fotos hochgeladen, keine
+Anbieter-Speicherung, Veröffentlichung oder Löschung. Anbietergrenzen und
+Schreib-/Ergebnisbelege bleiben offen. Nur Recherche und Dokumentation geändert;
+keine neuen Anwendungstests, Builds, Migrationen, Pushes oder Produktionsänderungen.
+
+## 2026-10-09 – Juna – Inseratumsetzung fortgesetzt
+
+**Auftrag:** Mit „weiter“ die begonnene Inseratumsetzung fortsetzen.
+
+**Stand:** Eigener Arbeitszweig bei `6ed63be8` sauber übernommen. Der Nutzer
+hat die Vinted-Anmeldung bestätigt; die angemeldete Seite ist nachgewiesen.
+Die Browserverbindung brach anschließend wiederholt ab, bevor das
+Neuanlageformular gelesen werden konnte. Der Anbieterbericht unterscheidet
+daher Anmeldung und tatsächlich bestätigte Formularfelder. Veralteten
+Planabsatz zum noch nicht begonnenen Implementierungsstand korrigiert.
+
+**Änderung:** Terminmodell berechnet UTC-Zeitpunkt und IANA-Zeitzone unabhängig
+von der Gerätezeitzone. Übersprungene Uhrzeiten werden abgewiesen; doppelte
+Uhrzeiten verlangen eine ausdrückliche Wahl. Neue Termine müssen zukünftig
+sein. Die Fälligkeit berücksichtigt beide Ausfallregeln und die genaue
+30-Minuten-Grenze. Das Modell ist eine vorbereitete Grundlage; ein
+Planungsdialog und dauerhafte Veröffentlichungsaufträge sind noch offen.
+
+**Prüfung:** 23 neue Terminprüfungen nach zunächst fehlender Funktion bzw.
+fehlender Auswahlregel erfolgreich. Zusammen mit Inhalt und Entwurfsmodell
+43 Modellprüfungen erfolgreich. Die Terminprüfungen bestehen zusätzlich mit
+Gerätezeitzonen New York und Tokio. TypeScript, gezieltes ESLint, Format und
+Testzuordnung erfolgreich. Keine Angular-Vorlagen oder Datenbankschemas
+geändert; deshalb keine neuen Browser-/Datenbanktests oder Builds in dieser
+Fortsetzung. Keine Anbieter-Schreibaktionen, Produktionsänderungen oder Pushes.
+
+## 2026-10-09 – Juna – Grundlage für Vinted-Entwürfe, Fotos und Vorlagen
+
+**Auftrag:** Mit „dann los“ den besprochenen Inseratplan umsetzen. Die Umsetzung
+beginnt im eigenen Arbeitszweig auf `origin/master` bei `638b2ace`, einschließlich
+der abgeschlossenen Nachrichten-/Verhandlungs- und Cloud-Korrekturen aus PR #356/#357.
+
+**Änderung:** Eigene Entwürfe können ohne verbundenes Konto angelegt, automatisch
+gespeichert, gesucht und weiterbearbeitet werden. Verkaufspreise werden bewusst
+eingegeben. Private Fotos unterstützen Dateiauswahl, Drag-and-drop, Titelbild,
+Reihenfolge und den vorhandenen Zuschneide-/Drehdialog. Die Bildkomponente wird
+auch vom bisherigen Kleinanzeigeneditor genutzt. Vorlagen speichern ausgewählte
+Angaben und zeigen Änderungen vor dem Übernehmen. Konto und Fotos bleiben außen vor.
+Die neuen Schemas 460–462 prüfen Arbeitsbereich, Zielkonto, Anlegekennung und
+Revision. Direkte Schreibrechte bleiben gesperrt; große interne IDs sind im
+Client Zeichenketten. Uploadfehler dürfen bestätigte Originalfotos nicht löschen.
+Die CLI-Migration wird um die deklarativen Rechte, Bucket-Daten und Storage-Policies
+ergänzt; fremde Tabellenänderungen werden dabei abgewiesen.
+
+**Grenze:** Der Vinted-Tab ist ausgeloggt; Anmeldung wurde angefragt. Anbieterfelder
+und vollständige Schreibwege sind noch nicht bestätigt. Vinted-Entwurf,
+Veröffentlichen, Termine, vollständige Live-Bearbeitung/Drawer und Relist bleiben
+offen. Ebenso fehlen dauerhafte Bereinigung verwaister Uploads und Sicherungsregeln.
+Die Oberfläche bezeichnet Entwürfe eindeutig als Speicherung nur in Flipbase.
+Details stehen in `docs/research/2026-10-09-vinted-listing-provider-contract.md`.
+
+**Prüfung:** 96 betroffene Angularprüfungen einschließlich Kleinanzeigeneditor,
+30 Modell-/Navigationsprüfungen und 11 gezielte Skriptprüfungen bestehen.
+56 neue Datenbankprüfungen bestehen nach vollständigem lokalem Reset einschließlich
+der erzeugten Migration und privater Storage-Policies. Produktionsbau und
+TypeScript-Prüfung bestehen. Vier Browserfälle mit künstlichen Daten prüfen
+Desktop/Mobil, hell/dunkel, Kategorie, Entwurf, Fotos und Vorlagen; AXE findet
+auf der Editorfläche keine Verstöße. Unabhängige Review-Funde zu Vorlagenfeldern,
+Fotoersatz am Limit und Autosave während des Zuschnitts sowie eine Dialogsperre
+nach Kontextwechsel sind durch Regressionstests reproduziert und behoben.
+Kein Anbieter-Schreibtest, keine Produktionsmigration, kein Push/PR/Merge,
+kein Deployment und keine Änderung
+der installierten Erweiterung.
+
+## 2026-10-09 – Juna – Vinted-Inserateditor und Veröffentlichung geplant
+
+**Auftrag:** Bleam-Publish und Inseratverwaltung recherchieren; einen Plan für
+Erstellen, Bilder, Entwürfe, Vorlagen, Veröffentlichung zum Termin, vollständige
+Bearbeitung und späteres manuelles Relist entwickeln. Kontotransfer folgt später.
+
+**Recherche und Entwurf:** Aktuelles `origin/master` und offenen PR #356 lesend
+abgeglichen. Bleam-Publish, Zusatzaktionen, Termin-/Entwurfs-/Vorlagendialoge,
+Inserat-Drawer, Relist und Archiv im vorhandenen Browser geprüft sowie offizielle
+Hilfeseiten gelesen. Flipbase-/Vinted-Entwürfe, Vorlagen und Sicherungen getrennt
+erklärt. Gemeinsame vollständige Erfassungsseite mit schneller Detailansicht rechts,
+vorhandenem Bildeditor, bestätigten Anbieterfeldern, revisionsgebundenen Aufträgen
+und nachvollziehbarer lokaler/Cloud-Ausführung vorgeschlagen. Echte Vinted-Entwürfe
+in Version eins und die vorgeschlagene Ausfallregel sind noch abzustimmen.
+
+**Dokumentation:** Produktentwurf und paketweiser Umsetzungsplan unter
+`docs/superpowers/specs/2026-10-09-vinted-listing-publishing-design.md` und
+`docs/superpowers/plans/2026-10-09-vinted-listing-publishing.md` im eigenen Zweig
+`juna/vinted-listing-plan` auf aktuellem Masterstand angelegt. Vorhandene lokale
+Arbeit im ursprünglichen Checkout und fremden PR-Zweig erhalten.
+
+**Prüfung:** Quellen-/Dateipfadabgleich und Dokumentationsprüfung; keine
+Anwendungsimplementierung, kein Anbieter-Schreibtest, keine Aktivierung,
+Migration, Veröffentlichung oder Änderung der installierten Erweiterung.
+Keine Anwendungstests oder Builds für diese reine Planung ausgeführt.
+
 ## 2026-10-10 - Juna - Sidebar- und Header-Feinschliff umsetzen
 
 **Auftrag:**

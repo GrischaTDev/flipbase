@@ -1,0 +1,109 @@
+<div class="space-y-4">
+  <app-page-header
+    title="Entwürfe"
+    subtitle="Deine vorbereiteten Vinted-Inserate im Arbeitsbereich."
+  >
+    <app-button
+      header-actions
+      link="/marketplaces/vinted/listings/new"
+      [icon]="addIcon"
+      [disabled]="!store.canManage()"
+      >Inserat erstellen</app-button
+    >
+  </app-page-header>
+  @if (!store.canManage()) {
+    <app-notice-banner
+      >Du hast keinen Zugriff auf die Inseratentwürfe dieses Arbeitsbereichs.</app-notice-banner
+    >
+  } @else {
+    <app-data-table
+      ariaLabel="Vinted-Entwürfe"
+      searchAriaLabel="Entwürfe nach Titel durchsuchen"
+      searchPlaceholder="Entwürfe nach Titel suchen …"
+      [searchValue]="search()"
+      (searchValueChange)="setSearch($event)"
+      [loading]="loading()"
+      [errorMessage]="error()"
+      [hasRows]="drafts().length > 0"
+      emptyTitle="Noch keine passenden Entwürfe"
+      emptyText="Erstelle einen Entwurf oder ändere Deine Suche."
+    >
+      <app-button table-error-action class="mt-3" variant="secondary" (clicked)="reload()"
+        >Erneut versuchen</app-button
+      >
+      <app-button
+        table-empty-action
+        class="mt-3"
+        link="/marketplaces/vinted/listings/new"
+        [icon]="addIcon"
+        >Inserat erstellen</app-button
+      >
+      <div table-content class="overflow-x-auto">
+        <table class="w-full text-left text-[13px]">
+          <thead class="text-xs text-fb-text-muted">
+            <tr>
+              <th scope="col" class="px-4 py-3 font-medium">Entwurf</th>
+              <th scope="col" class="px-4 py-3 font-medium">Konto</th>
+              <th scope="col" class="px-4 py-3 font-medium">Preis</th>
+              <th scope="col" class="px-4 py-3 font-medium">Zuletzt geändert</th>
+              <th scope="col" class="px-4 py-3 text-right font-medium">Aktionen</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (draft of drafts(); track draft.id) {
+              <tr class="border-t border-fb-line">
+                <td class="px-4 py-3">
+                  <p class="font-medium text-fb-text-primary">
+                    {{ draft.content.title || 'Unbenannter Entwurf' }}
+                  </p>
+                  <p class="mt-1 text-xs text-fb-text-muted">
+                    {{ draft.images.length }} Fotos · In Flipbase gespeichert
+                  </p>
+                </td>
+                <td class="px-4 py-3 text-fb-text-secondary">
+                  {{ accountName(draft.connectionId) }}
+                </td>
+                <td class="whitespace-nowrap px-4 py-3 text-fb-text-secondary">
+                  {{
+                    draft.content.priceCents === null
+                      ? 'Noch offen'
+                      : (draft.content.priceCents / 100
+                        | currency: 'EUR' : 'symbol' : '1.2-2' : 'de-DE')
+                  }}
+                </td>
+                <td class="whitespace-nowrap px-4 py-3 text-fb-text-secondary">
+                  <time [attr.datetime]="draft.updatedAt">{{
+                    draft.updatedAt | date: 'dd.MM.yyyy, HH:mm'
+                  }}</time>
+                </td>
+                <td class="px-4 py-3 text-right">
+                  <app-button
+                    variant="table-action"
+                    [icon]="editIcon"
+                    [iconOnly]="true"
+                    [ariaLabel]="(draft.content.title || 'Unbenannten Entwurf') + ' bearbeiten'"
+                    [link]="'/marketplaces/vinted/listing-drafts/' + draft.id"
+                  />
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </app-data-table>
+    @if (moreError()) {
+      <app-notice-banner announcement="alert">{{ moreError() }}</app-notice-banner>
+    }
+    @if (nextCursor()) {
+      <div class="flex justify-center">
+        <app-button
+          variant="secondary"
+          [loading]="loadingMore()"
+          [disabled]="loadingMore()"
+          (clicked)="loadMore()"
+          >Weitere Entwürfe laden</app-button
+        >
+      </div>
+    }
+  }
+</div>

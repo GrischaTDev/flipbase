@@ -6,6 +6,8 @@ COPY services/marketplace-worker/tsconfig.json services/marketplace-worker/tscon
 COPY services/marketplace-worker/src ./src
 COPY supabase/functions/_shared/marketplace-message-contracts.d.ts supabase/functions/_shared/marketplace-inbox-event-contracts.d.ts supabase/functions/_shared/marketplace-negotiation-contracts.d.ts /app/supabase/functions/_shared/
 COPY tools/flipbase-extension/vinted-negotiation-runtime.js /app/tools/flipbase-extension/
+COPY supabase/functions/_shared/marketplace-listing-contracts.d.ts /app/supabase/functions/_shared/
+COPY tools/flipbase-extension/vinted-listing-runtime.js /app/tools/flipbase-extension/
 RUN npm run build
 
 FROM node:22.23.2-alpine3.24 AS dependencies
@@ -20,6 +22,7 @@ COPY --from=dependencies /app/package.json ./package.json
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY --from=build /app/services/marketplace-worker/dist ./dist
 COPY tools/flipbase-extension/vinted-negotiation-runtime.js /tools/flipbase-extension/
+COPY tools/flipbase-extension/vinted-listing-runtime.js /tools/flipbase-extension/
 USER node
 EXPOSE 4179
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \

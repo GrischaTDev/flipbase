@@ -25,4 +25,14 @@ describe('VintedBrandSearchService', () => {
     expect(await service.search('Nike')).toEqual([{ id: 53, name: 'Nike' }]);
     expect(invoke).toHaveBeenCalledWith('vinted-brand-search', { body: { keyword: 'Nike' } });
   });
+  it('binds listing searches to the current workspace', async () => {
+    const invoke = vi.fn().mockResolvedValue({ data: { brands: [] }, error: null });
+    TestBed.configureTestingModule({
+      providers: [{ provide: SupabaseService, useValue: { client: { functions: { invoke } } } }],
+    });
+    await TestBed.inject(VintedBrandSearchService).search('Jako', 'workspace-a');
+    expect(invoke).toHaveBeenCalledWith('vinted-brand-search', {
+      body: { keyword: 'Jako', workspaceId: 'workspace-a' },
+    });
+  });
 });

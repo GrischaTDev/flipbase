@@ -6,10 +6,12 @@ import { VintedBrand } from '../models/vinted-brand.model';
 export class VintedBrandSearchService {
   private readonly supabase = inject(SupabaseService);
 
-  async search(keyword: string): Promise<VintedBrand[]> {
+  async search(keyword: string, workspaceId?: string): Promise<VintedBrand[]> {
     const { data, error } = await this.supabase.client.functions.invoke<{
       brands: VintedBrand[];
-    }>('vinted-brand-search', { body: { keyword } });
+    }>('vinted-brand-search', {
+      body: { keyword, ...(workspaceId === undefined ? {} : { workspaceId }) },
+    });
     if (error || !Array.isArray(data?.brands)) {
       throw new Error('Vinted-Marken konnten nicht geladen werden. Bitte erneut versuchen.');
     }

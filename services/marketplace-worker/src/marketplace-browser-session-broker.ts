@@ -42,6 +42,18 @@ export interface BrowserSessionScope {
     absoluteExpiresAt: string;
   };
 
+  /** Interner Inseratversuch; keine Berechtigung für Nachrichten oder interaktive Aktionen. */
+  listingWrite?: {
+    jobId: string;
+    claimToken: string;
+    workerId: string;
+    workerEpoch: number;
+    runnerId: string;
+    sessionId: string;
+    expiresAt: string;
+    absoluteExpiresAt: string;
+  };
+
   /** Eigene Favoritenphase; keine Freigabe für manuelle Aufträge oder Kontoabrufe. */
   favoriteWrite?: {
     eventId: string;
@@ -137,6 +149,14 @@ function sameScope(left: BrowserSessionScope, right: BrowserSessionScope): boole
     Boolean(left.messageWrite) === Boolean(right.messageWrite) &&
     Boolean(left.favoriteWrite) === Boolean(right.favoriteWrite) &&
     Boolean(left.negotiationWrite) === Boolean(right.negotiationWrite) &&
+    Boolean(left.listingWrite) === Boolean(right.listingWrite) &&
+    (!left.listingWrite ||
+      (left.listingWrite.jobId === right.listingWrite?.jobId &&
+        left.listingWrite.claimToken === right.listingWrite?.claimToken &&
+        left.listingWrite.workerId === right.listingWrite?.workerId &&
+        left.listingWrite.workerEpoch === right.listingWrite?.workerEpoch &&
+        left.listingWrite.runnerId === right.listingWrite?.runnerId &&
+        left.listingWrite.sessionId === right.listingWrite?.sessionId)) &&
     (!left.favoriteWrite ||
       (left.favoriteWrite.eventId === right.favoriteWrite?.eventId &&
         left.favoriteWrite.phase === right.favoriteWrite?.phase &&
@@ -256,6 +276,7 @@ export class MarketplaceBrowserSessionBroker {
           scope.messageWrite,
           scope.favoriteWrite,
           scope.negotiationWrite,
+          scope.listingWrite,
         ].filter(Boolean).length > 1
       )
         throw new Error('Sitzungszugriff verweigert');

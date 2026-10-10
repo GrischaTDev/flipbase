@@ -1,0 +1,232 @@
+<app-entry-page-layout
+  [title]="draft() ? 'Entwurf bearbeiten' : 'Inserat erstellen'"
+  subtitle="Bereite Dein Vinted-Inserat vor. Dein Entwurf wird automatisch in Flipbase gespeichert."
+  backLabel="Zur Entwurfsübersicht"
+  (cancelled)="cancel()"
+>
+  <div entry-header-actions class="flex flex-wrap items-center gap-2">
+    <span aria-live="polite" class="text-xs text-fb-text-secondary">{{ status() }}</span>
+    <app-button [disabled]="!canSave()" [loading]="saving()" (clicked)="save()"
+      >Entwurf speichern</app-button
+    >
+    <app-button
+      variant="secondary"
+      ariaHaspopup="dialog"
+      [disabled]="!canPreparePublication()"
+      (clicked)="openPublication()"
+      >Veröffentlichung vorbereiten</app-button
+    >
+  </div>
+  @if (publicationAnnouncement()) {
+    <p role="status" class="text-sm text-fb-text-secondary">{{ publicationAnnouncement() }}</p>
+  }
+  @if (error() || loadError()) {
+    <app-notice-banner announcement="alert">
+      <p>{{ error() || loadError() }}</p>
+      @if (conflict() || loadError()) {
+        <app-button variant="secondary" size="slim" (clicked)="reload()"
+          >Gespeicherten Stand laden</app-button
+        >
+      }
+    </app-notice-banner>
+  }
+  @if (!store.canManage()) {
+    <app-notice-banner
+      >Du hast keinen Zugriff auf die Inseratentwürfe dieses Arbeitsbereichs.</app-notice-banner
+    >
+  } @else if (loading()) {
+    <p role="status" class="text-sm text-fb-text-secondary">Entwurf wird geladen …</p>
+  } @else if (!loadError()) {
+    <div [formGroup]="form">
+      <app-two-column-layout ratio="2-1">
+        <div main class="space-y-4">
+          <app-card>
+            <div class="space-y-4">
+              <app-text-field
+                label="Titel"
+                placeholder="Zum Beispiel: Jeansjacke in Größe M"
+                formControlName="title"
+              />
+              <app-text-field
+                label="Beschreibung"
+                placeholder="Beschreibe Deinen Artikel und seinen Zustand."
+                [multiline]="6"
+                formControlName="description"
+              />
+              @if (missingVariables().length) {
+                <app-notice-banner
+                  >In Deinem Text fehlen noch Angaben für:
+                  {{ missingVariables().join(', ') }}.</app-notice-banner
+                >
+              }
+            </div>
+          </app-card>
+          <app-card>
+            <app-listing-image-editor
+              [images]="images()"
+              [disabled]="saving()"
+              [acceptedFormats]="'image/jpeg,image/png,image/webp'"
+              [validateFile]="validateImage"
+              [maximumImages]="100"
+              (imagesChange)="changeImages($event)"
+              (editingChange)="setImageEditing($event)"
+            />
+          </app-card>
+          <app-card title="Artikelangaben">
+            <div class="space-y-4">
+              @if (categorySource(); as source) {
+                <app-category-picker
+                  label="Vinted-Kategorie"
+                  [source]="source"
+                  formControlName="categoryId"
+                />
+              }
+              @if (categoryError()) {
+                <app-notice-banner>{{ categoryError() }}</app-notice-banner>
+              }
+              <div class="space-y-2">
+                <app-button
+                  size="slim"
+                  variant="secondary"
+                  ariaHaspopup="dialog"
+                  [disabled]="!canSelectFields()"
+                  (clicked)="openFieldSelection()"
+                  >Vinted-Angaben auswählen</app-button
+                >
+                <p class="text-xs text-fb-text-secondary">
+                  Wähle zuerst eine Kategorie und ein verbundenes Cloud-Konto, um die aktuellen
+                  Vinted-Angaben abzurufen.
+                </p>
+              </div>
+              <div class="grid gap-4 sm:grid-cols-2">
+                <div class="space-y-2">
+                  <app-text-field label="Marke" formControlName="brand" />
+                  <app-button
+                    size="slim"
+                    variant="secondary"
+                    ariaHaspopup="dialog"
+                    [disabled]="!canSelectBrand()"
+                    (clicked)="openBrandSelection()"
+                    >Bei Vinted auswählen</app-button
+                  >
+                </div>
+                <app-text-field label="Größe" formControlName="size" />
+                <app-text-field label="Zustand" formControlName="condition" />
+                <app-text-field
+                  label="Farben"
+                  helpText="Mehrere Farben mit Komma trennen."
+                  formControlName="colors"
+                />
+                <app-text-field
+                  label="Materialien"
+                  helpText="Mehrere Materialien mit Komma trennen."
+                  formControlName="materials"
+                />
+              </div>
+              <p class="text-xs text-fb-text-secondary">
+                Du kannst diese Angaben frei vorbereiten und später weiterbearbeiten.
+              </p>
+              <p class="text-sm text-fb-text-primary">
+                <span class="font-semibold">Paketgröße:</span> {{ packageLabel() }}
+              </p>
+            </div>
+          </app-card>
+        </div>
+        <div sidebar class="space-y-4">
+          <app-card title="Konto und Preis">
+            <div class="space-y-4">
+              <div class="space-y-1.5">
+                <label
+                  for="vinted-draft-account"
+                  class="block text-[13px] font-semibold text-fb-text-primary"
+                  >Zielkonto</label
+                >
+                <app-custom-select
+                  triggerId="vinted-draft-account"
+                  ariaLabel="Zielkonto für diesen Entwurf"
+                  [options]="accountOptions()"
+                  formControlName="connectionId"
+                />
+              </div>
+              <app-text-field
+                label="Verkaufspreis"
+                suffix="€"
+                placeholder="Noch nicht festgelegt"
+                [error]="priceError()"
+                helpText="Einkaufskosten werden nicht als Verkaufspreis übernommen."
+                formControlName="price"
+              />
+              <app-notice-banner
+                >Speichern ändert nur Deinen Entwurf in Flipbase. Den Stand eines Anbieterauftrags
+                siehst Du im Auftragsverlauf.</app-notice-banner
+              >
+            </div>
+          </app-card>
+          @if (contentError() && !priceError()) {
+            <app-notice-banner announcement="alert">{{ contentError() }}</app-notice-banner>
+          }
+          @if (workspaceId(); as workspaceId) {
+            <app-vinted-listing-template-panel
+              [workspaceId]="workspaceId"
+              [content]="content()"
+              [disabled]="saving() || !!contentError()"
+              (applied)="applyTemplate($event)"
+            />
+          }
+          @if (draft(); as savedDraft) {
+            <app-vinted-listing-job-panel
+              [workspaceId]="savedDraft.workspaceId"
+              [draftId]="savedDraft.id"
+              [draftRevision]="savedDraft.revision"
+              [draft]="savedDraft"
+              [refreshToken]="jobRefresh()"
+              [draftReady]="
+                !dirty() &&
+                !saving() &&
+                !imageEditing() &&
+                !conflict() &&
+                !loading() &&
+                !loadError()
+              "
+            />
+          }
+        </div>
+      </app-two-column-layout>
+    </div>
+  }
+</app-entry-page-layout>
+@if (publication(); as opened) {
+  <app-vinted-listing-publication-preview
+    [scopeKey]="opened.scopeKey"
+    [userId]="opened.userId"
+    [draft]="opened.draft"
+    [account]="opened.account"
+    [images]="opened.images"
+    [disabled]="!canPreparePublication()"
+    (accepted)="publicationAccepted($event)"
+    (closed)="closePublication()"
+  />
+}
+@if (fieldSelection(); as selection) {
+  <app-vinted-listing-fields-dialog
+    [scopeKey]="selection.scopeKey"
+    [connectionId]="selection.connectionId"
+    [categoryId]="selection.categoryId"
+    [content]="selection.content"
+    [disabled]="!canSelectFields()"
+    (selected)="selectFields($event)"
+    (closed)="closeFieldSelection()"
+  />
+}
+@if (brandSelectionContext(); as scopeKey) {
+  @if (workspaceId(); as workspaceId) {
+    <app-vinted-listing-brand-dialog
+      [scopeKey]="scopeKey"
+      [workspaceId]="workspaceId"
+      [initialLabel]="form.controls.brand.value"
+      [disabled]="!canSelectBrand()"
+      (selected)="selectBrand($event)"
+      (closed)="closeBrandSelection()"
+    />
+  }
+}

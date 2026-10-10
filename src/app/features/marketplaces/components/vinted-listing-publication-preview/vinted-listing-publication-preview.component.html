@@ -1,0 +1,195 @@
+<app-modal-shell
+  title="Veröffentlichung prüfen"
+  [subtitle]="account().displayName"
+  size="lg"
+  (closed)="close()"
+>
+  <div class="space-y-4">
+    @if (images().length) {
+      <div
+        class="flex gap-2 overflow-x-auto pb-1"
+        aria-label="Fotos in Veröffentlichungsreihenfolge"
+      >
+        @for (image of images(); track image.key; let first = $first) {
+          <img
+            [src]="image.previewUrl"
+            [alt]="(first ? 'Titelbild: ' : 'Foto: ') + image.fileName"
+            width="88"
+            height="110"
+            class="h-[110px] w-[88px] shrink-0 rounded-lg border border-fb-border object-cover"
+          />
+        }
+      </div>
+    }
+    <div class="min-w-0 space-y-2 break-words">
+      <h3 class="text-base font-semibold text-fb-text-primary">
+        {{ draft().content.title || 'Titel fehlt noch' }}
+      </h3>
+      <p class="whitespace-pre-wrap text-sm text-fb-text-secondary">
+        {{ draft().content.description || 'Beschreibung fehlt noch' }}
+      </p>
+      <dl class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+        <dt class="text-fb-text-secondary">Zielkonto</dt>
+        <dd class="font-semibold text-fb-text-primary">{{ account().displayName }}</dd>
+        <dt class="text-fb-text-secondary">Verkaufspreis</dt>
+        <dd class="text-fb-text-primary">{{ price() }}</dd>
+        <dt class="text-fb-text-secondary">Kategorie</dt>
+        <dd class="text-fb-text-primary">{{ draft().content.categoryLabel }}</dd>
+        <dt class="text-fb-text-secondary">Marke</dt>
+        <dd class="text-fb-text-primary">
+          {{ draft().content.brandLabel || 'Noch nicht festgelegt' }}
+        </dd>
+        <dt class="text-fb-text-secondary">Größe</dt>
+        <dd class="text-fb-text-primary">
+          {{ draft().content.sizeLabel || 'Noch nicht festgelegt' }}
+        </dd>
+        <dt class="text-fb-text-secondary">Zustand</dt>
+        <dd class="text-fb-text-primary">
+          {{ draft().content.conditionLabel || 'Noch nicht festgelegt' }}
+        </dd>
+        <dt class="text-fb-text-secondary">Farben</dt>
+        <dd class="text-fb-text-primary">
+          {{ draft().content.colorLabels.join(', ') || 'Nicht gewählt' }}
+        </dd>
+        <dt class="text-fb-text-secondary">Materialien</dt>
+        <dd class="text-fb-text-primary">
+          {{ draft().content.materialLabels.join(', ') || 'Nicht gewählt' }}
+        </dd>
+        <dt class="text-fb-text-secondary">Paketgröße</dt>
+        <dd class="text-fb-text-primary">{{ packageLabel() }}</dd>
+        <dt class="text-fb-text-secondary">Fotos</dt>
+        <dd class="text-fb-text-primary">{{ draft().images.length }}</dd>
+      </dl>
+    </div>
+    <p role="status" aria-live="polite" class="text-sm text-fb-text-secondary">
+      @if (loading()) {
+        Vinted-Angaben und Kontofreigabe werden geprüft …
+      } @else if (review()?.ready) {
+        Deine gespeicherten Angaben passen zur aktuellen Vinted-Auswahl.
+      }
+    </p>
+    @if (error()) {
+      <app-notice-banner announcement="alert">{{ error() }}</app-notice-banner>
+      @if (!schema() && !loading()) {
+        <app-button variant="secondary" [disabled]="busy() || disabled()" (clicked)="load()"
+          >Erneut prüfen</app-button
+        >
+      }
+    }
+    @if (review(); as checked) {
+      @if (checked.messages.length) {
+        <app-notice-banner announcement="alert"
+          ><p class="font-semibold">Ergänze diese Angaben im Editor:</p>
+          <ul class="mt-2 list-disc space-y-1 pl-5">
+            @for (message of checked.messages; track $index) {
+              <li>{{ message }}</li>
+            }
+          </ul></app-notice-banner
+        >
+      }
+      @if (!runtimeEnabled()) {
+        <app-notice-banner
+          >Die Veröffentlichung ist auf diesem Server noch nicht verfügbar. Du kannst Deinen Entwurf
+          weiter vorbereiten.</app-notice-banner
+        >
+      }
+      @if (blockedJob()) {
+        <app-notice-banner
+          >Für diesen Entwurf gibt es bereits einen Auftrag: {{ blockedLabel() }}. Prüfe ihn im
+          Auftragsverlauf, bevor Du weiterarbeitest.</app-notice-banner
+        >
+      }
+      <app-custom-checkbox
+        label="Meine Fotos wurden mit KI erstellt oder verändert"
+        [checked]="aiPhoto()"
+        [disabled]="busy() || disabled() || intentLocked()"
+        (checkedChange)="aiPhoto.set($event)"
+      />
+      <div class="space-y-2">
+        <p class="text-sm text-fb-text-primary">
+          <span class="font-semibold">Veröffentlichung:</span> {{ scheduleLabel() }}
+        </p>
+        @if (schedule(); as selected) {
+          <p class="text-xs text-fb-text-secondary">
+            {{
+              selected.latePolicy === 'pause_after_30_minutes'
+                ? 'Bei mehr als 30 Minuten Verspätung anhalten.'
+                : 'Veröffentlichen, sobald die Ausführung verfügbar ist.'
+            }}
+          </p>
+        }
+        <div class="flex flex-wrap gap-2">
+          <app-button
+            size="slim"
+            variant="secondary"
+            ariaHaspopup="dialog"
+            [disabled]="busy() || disabled() || intentLocked()"
+            (clicked)="openSchedule()"
+            >{{ schedule() ? 'Termin ändern' : 'Termin wählen' }}</app-button
+          >
+          @if (schedule()) {
+            <app-button
+              size="slim"
+              variant="secondary"
+              [disabled]="busy() || disabled() || intentLocked()"
+              (clicked)="chooseNow()"
+              >Stattdessen sofort</app-button
+            >
+          }
+        </div>
+      </div>
+      @if (permission()?.allowed) {
+        <div class="space-y-2">
+          <p class="text-xs text-fb-text-secondary">
+            Inserataktionen sind für dieses Zielkonto freigegeben.
+          </p>
+          <app-button
+            size="slim"
+            variant="destructive"
+            [icon]="closeIcon"
+            [disabled]="busy() || disabled() || intentLocked()"
+            (clicked)="revoke()"
+            >Freigabe beenden</app-button
+          >
+        </div>
+      } @else {
+        <app-custom-checkbox
+          [label]="'Ich erlaube Flipbase, Inserate über ' + account().displayName + ' anzulegen.'"
+          [checked]="consent()"
+          [disabled]="busy() || disabled() || !runtimeEnabled()"
+          (checkedChange)="consent.set($event)"
+        />
+        <p class="text-xs text-fb-text-secondary">
+          Die Kontofreigabe bleibt bis zu Deinem Widerruf gültig. Du kannst sie in dieser Vorschau
+          beenden.
+        </p>
+      }
+      <p class="text-xs text-fb-text-secondary">
+        Der Auftrag verwendet Deinen gespeicherten Entwurf. Vinted prüft die Angaben bei der
+        Ausführung erneut. Den bestätigten Erfolg siehst Du im Auftragsverlauf.
+      </p>
+      @if (intentLocked() && !busy()) {
+        <app-notice-banner
+          >Die Auftragsantwort fehlt. Prüfe denselben Auftrag erneut oder öffne den Auftragsverlauf.
+          Die Angaben dieses Versuchs bleiben dafür erhalten.</app-notice-banner
+        >
+      }
+    }
+  </div>
+  <div modal-footer class="flex flex-wrap justify-end gap-2">
+    <app-button variant="secondary" [disabled]="busy()" (clicked)="close()"
+      >Zurück zum Editor</app-button
+    >
+    <app-button [disabled]="!canSubmit()" [loading]="busy()" (clicked)="submit()">{{
+      submitLabel()
+    }}</app-button>
+  </div>
+</app-modal-shell>
+@if (planning()) {
+  <app-vinted-listing-schedule-dialog
+    [initial]="schedule()"
+    [busy]="busy() || disabled()"
+    (selected)="selectSchedule($event)"
+    (closed)="closeSchedule()"
+  />
+}

@@ -4,8 +4,8 @@ import { TestBed } from '@angular/core/testing';
 import type { CdkDragDrop } from '@angular/cdk/drag-drop';
 import { glob, readFile } from 'node:fs/promises';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { ButtonComponent } from '../../../../shared/components/button/button.component';
-import type { ListingImageDraft } from '../../models/listing.models';
+import { ButtonComponent } from '../button/button.component';
+import type { ListingImageDraft } from './listing-image-draft';
 import { ListingImageEditorComponent } from './listing-image-editor.component';
 
 interface AngularInputMetadata {
@@ -61,6 +61,34 @@ afterAll(() => {
 afterEach(() => TestBed.resetTestingModule());
 
 describe('ListingImageEditorComponent', () => {
+  it('keeps the original reference until an edited file is saved', () => {
+    const fixture = TestBed.createComponent(ListingImageEditorComponent);
+    fixture.componentRef.setInput('images', [
+      {
+        key: 'saved',
+        storagePath: 'original.jpg',
+        file: null,
+        fileName: 'original.jpg',
+        previewUrl: 'https://images.example.test/original.jpg',
+      },
+    ]);
+    fixture.detectChanges();
+    fixture.componentInstance.edit('saved');
+    expect(fixture.componentInstance.editing()?.storagePath).toBe('original.jpg');
+    const file = new File(['cropped'], 'cropped.jpg', { type: 'image/jpeg' });
+    fixture.componentInstance.applyEditedImage({
+      file,
+      dataUrl: 'data:image/jpeg;base64,YQ==',
+      blob: file,
+      originalSize: 10,
+      compressedSize: 7,
+    });
+    expect(fixture.componentInstance.drafts()[0]).toMatchObject({
+      key: 'saved',
+      storagePath: null,
+      file,
+    });
+  });
   it('shows a touch-sortable grid with named icon actions and keeps title image order', () => {
     const fixture = TestBed.createComponent(ListingImageEditorComponent);
     const images: ListingImageDraft[] = ['eins', 'zwei', 'drei'].map((name) => ({

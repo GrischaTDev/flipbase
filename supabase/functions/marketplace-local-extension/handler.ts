@@ -3,6 +3,11 @@ import {
   parseLocalExtensionRequest,
 } from '../_shared/marketplace-local-extension-contracts.ts';
 import type { LocalExtensionRequest } from '../_shared/marketplace-local-extension-contracts.ts';
+import type {
+  LocalListingPhoto,
+  LocalListingPhotoRequest,
+  LocalListingRequest,
+} from '../_shared/marketplace-local-listing-contracts.d.ts';
 
 export class LocalExtensionStoreError extends Error {
   constructor(readonly code: 'access' | 'invalid' | 'conflict') {
@@ -10,6 +15,8 @@ export class LocalExtensionStoreError extends Error {
   }
 }
 export interface LocalExtensionStore {
+  listingPhoto?(tokenHash: string, input: LocalListingPhotoRequest): Promise<LocalListingPhoto>;
+  listings?(tokenHash: string, input: LocalListingRequest): Promise<unknown>;
   negotiation?(tokenHash: string, input: LocalExtensionRequest): Promise<unknown>;
   favorites?(tokenHash: string, input: LocalExtensionRequest): Promise<unknown>;
   ingest(tokenHash: string, input: LocalExtensionRequest): Promise<unknown>;
@@ -76,6 +83,37 @@ export function createLocalExtensionHandler(store: LocalExtensionStore) {
     if (!input) return respond({ error: 'invalid_request' }, 400);
     try {
       const tokenHash = await hashLocalExtensionSecret(bearer.slice(7));
+      if (input.action === 'listing_photo') {
+        if (!store.listingPhoto) return respond({ error: 'unavailable' }, 503);
+        const photo = await store.listingPhoto(tokenHash, input);
+        if (
+          photo.imageId !== input.imageId ||
+          !['image/jpeg', 'image/png', 'image/webp'].includes(photo.mimeType) ||
+          !(photo.bytes instanceof ArrayBuffer) ||
+          photo.bytes.byteLength < 1 ||
+          photo.bytes.byteLength > 50 * 1024 * 1024
+        )
+          return respond({ error: 'unavailable' }, 503);
+        return new Response(photo.bytes, {
+          headers: {
+            ...headers,
+            'Content-Type': photo.mimeType,
+            'Content-Length': String(photo.bytes.byteLength),
+            'X-Listing-Image-Id': photo.imageId,
+            'X-Content-Type-Options': 'nosniff',
+            'Access-Control-Expose-Headers': 'Content-Length, X-Listing-Image-Id',
+          },
+        });
+      }
+      if (
+        input.action === 'listing_claim' ||
+        input.action === 'listing_check' ||
+        input.action === 'listing_begin' ||
+        input.action === 'listing_finish'
+      ) {
+        if (!store.listings) return respond({ error: 'unavailable' }, 503);
+        return respond(await store.listings(tokenHash, input));
+      }
       if (
         [
           'favorites_state',
