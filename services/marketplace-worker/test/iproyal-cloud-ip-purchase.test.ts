@@ -107,7 +107,7 @@ function fixture(overrides: { paymentMethodId?: number; maxPriceCents?: number }
           product_location_id: 51,
           quantity: 1,
           card_id: 42,
-          auto_extend: false,
+          auto_extend: true,
           product_question_answers: {},
         });
         if (lostReply) throw new Error('Timeout after payment, token=private-token');

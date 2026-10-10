@@ -116,6 +116,28 @@ test('automatic purchases require an explicit flag and the existing Chromium inv
     assert.throws(() => marketplaceBrowserServerConfig(environment), /IP-Nachbuchung/);
 });
 
+test('renewal control requires an explicit flag, the provider token and a saved payment method', () => {
+  const inventory = {
+    ...chromiumPilot,
+    IPROYAL_API_TOKEN: 'fixture-token',
+    IPROYAL_PAYMENT_METHOD_ID: '42',
+    MARKETPLACE_CHROMIUM_NETWORK_FILE: '/run/flipbase/networks.json',
+  };
+  assert.equal(marketplaceBrowserServerConfig(inventory).ipRoyalRenewalManaged, false);
+  assert.equal(
+    marketplaceBrowserServerConfig({ ...inventory, IPROYAL_RENEWAL_MANAGED: '1' })
+      .ipRoyalRenewalManaged,
+    true,
+  );
+  for (const environment of [
+    { ...configured, IPROYAL_RENEWAL_MANAGED: '1' },
+    { ...chromiumPilot, IPROYAL_RENEWAL_MANAGED: '1' },
+    { ...inventory, IPROYAL_PAYMENT_METHOD_ID: undefined, IPROYAL_RENEWAL_MANAGED: '1' },
+    { ...inventory, IPROYAL_RENEWAL_MANAGED: 'true' },
+  ])
+    assert.throws(() => marketplaceBrowserServerConfig(environment), /IP-Verlängerung/);
+});
+
 test('automatic purchases need a saved payment method and enforce a maximum 8 USD quote', () => {
   const inventory = {
     ...chromiumPilot,
