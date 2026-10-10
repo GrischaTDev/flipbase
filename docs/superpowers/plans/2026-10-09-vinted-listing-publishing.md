@@ -13,10 +13,15 @@ und gemeinsame Formularleser ergänzt. Pakete 2/3 teilweise umgesetzt; Paket 4
 enthält eigene Freigaben, unveränderliche Auftragsannahme, Abbruch und sichtbaren
 Verlauf, lokale/Cloud-Ausführungsprotokolle und einen geprüften Worker-Ablauf
 mit privatem Fotobezug, nativer Fotoeingabe und geprüfter Feldvorbereitung.
-Speicher-/Ergebnisadapter und automatische Abholung fehlen noch.
+Der native Cloud-Speicher-/Ergebnisadapter und die automatische Abholung sind
+mit abgefangenen Browseranfragen angeschlossen. Die echte Neuanlage bleibt durch
+einen konkret freigegebenen Livefall zu bestätigen; lokale Ausführung und native
+Vinted-Entwürfe fehlen noch. Der Editor ergänzt eine echte Markensuche mit
+Arbeitsbereichsprüfung; weitere kategorieabhängige Merkmale bleiben offen.
 Pakete 6/7 offen; Paket 5 enthält Terminmodell und
 atomaren Ersatz geplanter Aufträge und einen angeschlossenen Planungsdialog für
-vorhandene wartende Aufträge. Neuanlageaktionen und Ausführer fehlen weiterhin.
+vorhandene wartende Aufträge. Neuanlageaktionen im Editor und der lokale Ausführer
+fehlen weiterhin.
 Einzelheiten und Prüfgrenzen stehen im
 [Anbieter- und Umsetzungsbericht](../../research/2026-10-09-vinted-listing-provider-contract.md).
 
@@ -124,6 +129,12 @@ Paket 1. Konflikte liefern den aktuellen Stand, keine stille Überschreibung.
 auf einem zweiten Gerät korrekt geladen werden; Vorlagen sind gespeichert.
 
 ## Paket 3: Vollständigen Editor und Entwurfsübersicht bauen
+
+**Teilstand:** Eigene Entwürfe, Fotos, Kategorien und Vorlagen sind angeschlossen.
+Die freie Markeneingabe kann durch eine tatsächliche Vinted-Suche ergänzt werden;
+Kennung und Bezeichnung bleiben gemeinsam gebunden. Arbeitsbereichsrechte werden
+vor und nach der Suche geprüft. Weitere Merkmale, Artikelübernahme und die
+Veröffentlichungsaktionen sind noch offen.
 
 **Dateien neu:** `components/vinted-listing-editor/` und
 `components/vinted-listing-drafts/` unter `features/marketplaces/`, jeweils

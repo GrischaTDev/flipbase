@@ -1,5 +1,29 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-10 – Juna – Vinted-Marken im Inserat-Editor auswählen
+
+**Arbeit:** Der Editor ergänzt die freie Markeneingabe um eine Suche mit echten
+Vinted-Kennungen und der ausdrücklichen Wahl „Keine Marke“. Name und Kennung
+werden gemeinsam übernommen, ohne andere Eingaben zu ersetzen. Änderungen am
+Markentext oder an der Kategorie lösen die neue Zuordnung. Verspätete Antworten,
+Arbeitsbereichswechsel und geschlossene Dialoge übernehmen keine alte Auswahl.
+Die vorhandene Suchfunktion prüft für Inserate die konkreten Arbeitsbereichsrechte
+vor und nach dem Anbieterabruf; die bisherige Plattformverwaltung bleibt getrennt.
+
+**Prüfungen:** Fehlende Editoranbindung und fehlende Arbeitsbereichsprüfung zuerst
+durch fehlgeschlagene Tests belegt. 37 Angularprüfungen einschließlich der bisherigen
+Markensuche und Plattformeditoren sowie elf Edge-Prüfungen erfolgreich. Typprüfung,
+Angular-Bau, Format, Frontend-ESLint und Shared-UI-Prüfung erfolgreich; Edge-Handler
+mit Deno geprüft. Vier Browserfälle bestätigen Tastaturbedienung, Fokusrückkehr,
+Speichern/Wiederladen und freie Änderungen auf Desktop/Mobil, hell/dunkel, jeweils
+ohne AXE-Befund. Anschließend alle 13 Browserfälle einschließlich bisheriger
+Entwürfe, Fotos, Vorlagen, Terminplanung und privater Statusmeldungen erfolgreich.
+Alle Anbieteranfragen dieser Tests sind abgefangen.
+
+**Offen:** Weitere Merkmalsauswahl, lokale Ausführung, native Vinted-Entwürfe,
+vollständige Bearbeitung und Relist bleiben im Gesamtplan offen. Keine echte
+Vinted-Schreibaktion, installierte Erweiterung oder Produktionsänderung.
+
 ## 2026-10-10 – Juna – Gewählte Vinted-Marke außerhalb der Vorschläge finden
 
 **Arbeit:** Fehlt die gewählte Markenkennung in den sichtbaren Vorschlägen,

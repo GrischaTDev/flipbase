@@ -75,7 +75,17 @@
                 <app-notice-banner>{{ categoryError() }}</app-notice-banner>
               }
               <div class="grid gap-4 sm:grid-cols-2">
-                <app-text-field label="Marke" formControlName="brand" />
+                <div class="space-y-2">
+                  <app-text-field label="Marke" formControlName="brand" />
+                  <app-button
+                    size="slim"
+                    variant="secondary"
+                    ariaHaspopup="dialog"
+                    [disabled]="!canSelectBrand()"
+                    (clicked)="openBrandSelection()"
+                    >Bei Vinted auswählen</app-button
+                  >
+                </div>
                 <app-text-field label="Größe" formControlName="size" />
                 <app-text-field label="Zustand" formControlName="condition" />
                 <app-text-field
@@ -157,3 +167,15 @@
     </div>
   }
 </app-entry-page-layout>
+@if (brandSelectionContext(); as scopeKey) {
+  @if (workspaceId(); as workspaceId) {
+    <app-vinted-listing-brand-dialog
+      [scopeKey]="scopeKey"
+      [workspaceId]="workspaceId"
+      [initialLabel]="form.controls.brand.value"
+      [disabled]="!canSelectBrand()"
+      (selected)="selectBrand($event)"
+      (closed)="closeBrandSelection()"
+    />
+  }
+}

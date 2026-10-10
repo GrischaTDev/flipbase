@@ -33,5 +33,12 @@ Deno.serve(
       );
     },
     search: searchVintedBrands,
+    async canManageWorkspace(_userId, token, workspaceId) {
+      const { data, error } = await userClient(token).rpc('marketplace_can_manage', {
+        p_workspace_id: workspaceId,
+      });
+      if (error) throw error;
+      return data === true;
+    },
   }),
 );

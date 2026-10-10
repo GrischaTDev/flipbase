@@ -46,6 +46,11 @@ import {
 } from '../../models/vinted-listing-draft';
 import { VintedListingTemplatePanelComponent } from '../vinted-listing-template-panel/vinted-listing-template-panel.component';
 import { VintedListingJobPanelComponent } from '../vinted-listing-job-panel/vinted-listing-job-panel.component';
+import { VintedListingBrandDialogComponent } from '../vinted-listing-brand-dialog/vinted-listing-brand-dialog.component';
+import {
+  validVintedListingBrand,
+  type VintedListingBrandSelection,
+} from '../../models/vinted-listing-brand-selection';
 
 const textControl = () =>
   new FormControl('', { nonNullable: true, validators: [Validators.maxLength(20000)] });
@@ -71,6 +76,7 @@ const same = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.st
     ListingImageEditorComponent,
     VintedListingTemplatePanelComponent,
     VintedListingJobPanelComponent,
+    VintedListingBrandDialogComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block min-w-0', '(window:beforeunload)': 'beforeUnload($event)' },
@@ -109,6 +115,10 @@ export class VintedListingEditorComponent {
   readonly images = signal<readonly ListingImageDraft[]>([]);
   readonly categories = signal<readonly VintedCategory[]>([]);
   readonly categoryError = signal<string | null>(null);
+  readonly brandSelectionContext = signal<string | null>(null);
+  private readonly selectedBrand = signal<
+    (VintedListingBrandSelection & { categoryId: number | null }) | null
+  >(null);
   private readonly referenceContent = signal(emptyVintedListingContent());
   private readonly changed = signal(0);
   private loadedContext: string | null = null;
@@ -191,6 +201,17 @@ export class VintedListingEditorComponent {
       !this.contentError() &&
       this.dirty(),
   );
+  readonly canSelectBrand = computed(
+    () =>
+      this.store.canManage() &&
+      !!this.context() &&
+      this.context() === this.loadedContext &&
+      !this.loading() &&
+      !this.loadError() &&
+      !this.saving() &&
+      !this.imageEditing() &&
+      !this.conflict(),
+  );
 
   constructor() {
     effect(() => {
@@ -202,6 +223,25 @@ export class VintedListingEditorComponent {
       this.generation++;
       if (this.timer) clearTimeout(this.timer);
     });
+  }
+  openBrandSelection(): void {
+    if (this.canSelectBrand()) this.brandSelectionContext.set(this.context());
+  }
+  closeBrandSelection(): void {
+    this.brandSelectionContext.set(null);
+  }
+  selectBrand(selection: VintedListingBrandSelection): void {
+    if (
+      !this.canSelectBrand() ||
+      !this.brandSelectionContext() ||
+      this.brandSelectionContext() !== this.context() ||
+      !validVintedListingBrand(selection)
+    )
+      return;
+    this.form.controls.brand.setValue(selection.brandLabel, { emitEvent: false });
+    this.selectedBrand.set({ ...selection, categoryId: this.currentCategoryId() });
+    this.markChanged();
+    this.closeBrandSelection();
   }
   changeImages(images: readonly ListingImageDraft[]): void {
     const previous = this.images();
@@ -305,6 +345,13 @@ export class VintedListingEditorComponent {
   }
   private markChanged(): void {
     if (!this.loading() && !this.loadError()) {
+      const selection = this.selectedBrand();
+      if (
+        selection &&
+        (selection.categoryId !== this.currentCategoryId() ||
+          selection.brandLabel !== this.form.controls.brand.value)
+      )
+        this.selectedBrand.set(null);
       this.changed.update((value) => value + 1);
       this.dirty.set(true);
       if (!this.conflict()) this.scheduleSave();
@@ -333,6 +380,7 @@ export class VintedListingEditorComponent {
   ): Promise<void> {
     if (!force && context === this.loadedContext) return;
     this.loadedContext = context;
+    this.closeBrandSelection();
     const generation = ++this.generation;
     if (this.timer) clearTimeout(this.timer);
     this.timer = null;
@@ -469,6 +517,7 @@ export class VintedListingEditorComponent {
     const previous = this.referenceContent();
     const categoryId = values.categoryId === null ? null : Number(values.categoryId);
     const categorySame = categoryId === previous.categoryId;
+    const selectedBrand = this.selectedBrand();
     const colorLabels = labels(values.colors),
       materialLabels = labels(values.materials);
     return parseVintedListingContent({
@@ -481,7 +530,14 @@ export class VintedListingEditorComponent {
         this.categories().find((category) => category.id === categoryId)?.path ??
         (categorySame ? previous.categoryLabel : ''),
       brandLabel: values.brand,
-      brandId: categorySame && values.brand === previous.brandLabel ? previous.brandId : null,
+      brandId:
+        selectedBrand &&
+        selectedBrand.categoryId === categoryId &&
+        selectedBrand.brandLabel === values.brand
+          ? selectedBrand.brandId
+          : categorySame && values.brand === previous.brandLabel
+            ? previous.brandId
+            : null,
       sizeLabel: values.size,
       sizeId: categorySame && values.size === previous.sizeLabel ? previous.sizeId : null,
       conditionLabel: values.condition,
@@ -497,6 +553,7 @@ export class VintedListingEditorComponent {
     });
   }
   private patch(content: VintedListingContent, connectionId: string | null): void {
+    this.selectedBrand.set(null);
     this.form.reset(
       {
         title: content.title,
@@ -516,5 +573,9 @@ export class VintedListingEditorComponent {
       { emitEvent: false },
     );
     this.changed.update((value) => value + 1);
+  }
+  private currentCategoryId(): number | null {
+    const value = this.form.controls.categoryId.value;
+    return value === null ? null : Number(value);
   }
 }

@@ -89,6 +89,56 @@ afterEach(() => {
   vi.useRealTimers();
 });
 describe('Vinted-Inserateditor', () => {
+  it('saves the selected brand without replacing other pending fields', async () => {
+    const { component, create } = setup();
+    await settle();
+    component.form.patchValue({ title: 'Meine Jacke', description: 'Tragespuren', price: '20,50' });
+    component.openBrandSelection();
+    component.selectBrand({ brandId: 254956, brandLabel: 'Jako' });
+    await component.save();
+    expect(create.mock.calls[0][1]).toMatchObject({
+      brandId: 254956,
+      brandLabel: 'Jako',
+      title: 'Meine Jacke',
+      description: 'Tragespuren',
+      priceCents: 2050,
+    });
+    expect(component.brandSelectionContext()).toBeNull();
+  });
+  it('drops a selected brand ID after changing its text or category', async () => {
+    const { component } = setup();
+    await settle();
+    component.openBrandSelection();
+    component.selectBrand({ brandId: 254956, brandLabel: 'Jako' });
+    component.form.controls.brand.setValue('Jako-o');
+    expect(component.content().brandId).toBeNull();
+    component.form.controls.brand.setValue('Jako');
+    expect(component.content().brandId).toBeNull();
+    component.openBrandSelection();
+    component.selectBrand({ brandId: 254956, brandLabel: 'Jako' });
+    component.form.controls.categoryId.setValue('1223');
+    expect(component.content().brandId).toBeNull();
+  });
+  it('rejects an old brand selection immediately after a workspace change', async () => {
+    const { component, workspace } = setup();
+    await settle();
+    component.openBrandSelection();
+    workspace.set({ id: 'workspace-b', archived_at: null });
+    component.selectBrand({ brandId: 254956, brandLabel: 'Jako' });
+    expect(component.form.controls.brand.value).toBe('');
+    await settle();
+    expect(component.brandSelectionContext()).toBeNull();
+  });
+  it('does not apply a choice while saving or without an open brand dialog', async () => {
+    const { component } = setup();
+    await settle();
+    component.selectBrand({ brandId: 254956, brandLabel: 'Jako' });
+    expect(component.form.controls.brand.value).toBe('');
+    component.openBrandSelection();
+    component.saving.set(true);
+    component.selectBrand({ brandId: 254956, brandLabel: 'Jako' });
+    expect(component.form.controls.brand.value).toBe('');
+  });
   it('clears category-specific attributes when choosing another category', async () => {
     const { component, create } = setup();
     await settle();

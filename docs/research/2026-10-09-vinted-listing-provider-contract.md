@@ -360,6 +360,18 @@ gespeicherte Marke; der echte Anbieter-Schreibfall steht weiterhin aus.
 
 ## Prüfungen dieser Grundlage
 
+Der Flipbase-Editor verwendet inzwischen die vorhandene serverseitige Markensuche
+mit der konkreten Arbeitsbereichskennung. Die Edge-Funktion prüft
+`marketplace_can_manage` vor und nach dem Abruf; eine fehlende, fremde oder
+widerrufene Freigabe fällt nicht auf die Plattform-Suchberechtigung zurück.
+Anfragen ohne Arbeitsbereich behalten die bestehende Plattformprüfung.
+Der Dialog bietet tatsächliche Namens-/Kennungspaare und ausdrücklich „Keine
+Marke“. Eine freie Änderung oder ein Kategoriewechsel löst die neu gewählte
+Kennung; Kontextwechsel und verspätete Antworten werden verworfen. Vier
+Browserfälle prüfen Speichern/Wiederladen, Tastatur, Fokusrückkehr und AXE
+auf Desktop/Mobil, hell/dunkel. Diese Anfragen sind abgefangen und ersetzen
+keinen aktuellen Anbieter- oder Veröffentlichungsnachweis.
+
 - Produktionsbau und TypeScript-Prüfung erfolgreich; bestehende Warnungen
   zu `HeaderComponent.DatePipe` und `pdf-lib/pako` bleiben bestehen.
 - 96 betroffene Angularprüfungen einschließlich bisherigem Kleinanzeigeneditor;

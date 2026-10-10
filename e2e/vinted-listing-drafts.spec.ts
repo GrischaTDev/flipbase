@@ -317,6 +317,82 @@ test('Inseratauftrag aktualisiert sich über einen privaten Kanal @marketplace-p
 
 for (const width of [1440, 390])
   for (const dark of [false, true]) {
+    test(`Vinted-Marke auswählen bei ${width}px ${dark ? 'dunkel' : 'hell'} @marketplace-preview`, async ({
+      page,
+    }, testInfo) => {
+      await page.setViewportSize({ width, height: 1000 });
+      const state = await mockDrafts(page, true);
+      const searches: unknown[] = [];
+      await page.route('**/functions/v1/vinted-brand-search', (route) => {
+        searches.push(route.request().postDataJSON());
+        return route.fulfill({
+          json: {
+            brands: [
+              { id: 317425, name: 'Jako-o' },
+              { id: 254956, name: 'Jako' },
+            ],
+          },
+        });
+      });
+      if (dark) await page.addInitScript(() => localStorage.setItem('flipbase_theme', 'dark'));
+      await page.goto('/marketplaces/vinted/listing-drafts/9007199254740999');
+      const editor = page.locator('app-vinted-listing-editor');
+      const opener = editor.getByRole('button', { name: 'Bei Vinted auswählen', exact: true });
+      await opener.click();
+      const dialog = page.getByRole('dialog', { name: 'Vinted-Marke wählen', exact: true });
+      await expect(dialog).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(dialog).not.toBeVisible();
+      await expect(opener).toBeFocused();
+      expect(searches).toEqual([]);
+      await opener.click();
+      await dialog.getByRole('textbox', { name: 'Vinted-Marke suchen', exact: true }).fill('Jako');
+      await dialog
+        .getByRole('textbox', { name: 'Vinted-Marke suchen', exact: true })
+        .press('Enter');
+      await expect(dialog.getByRole('button', { name: 'Jako', exact: true })).toBeVisible();
+      expect(searches).toEqual([{ keyword: 'Jako', workspaceId }]);
+      await page.addScriptTag({ content: axe.source });
+      expect(
+        await page.evaluate(
+          async () =>
+            (
+              await (window as unknown as { axe: typeof axe }).axe.run(
+                document.querySelector('app-vinted-listing-brand-dialog') as HTMLElement,
+              )
+            ).violations,
+        ),
+      ).toEqual([]);
+      expect(await page.locator('form form').count()).toBe(0);
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1),
+      ).toBe(true);
+      await page.screenshot({
+        path: testInfo.outputPath(`brand-${width}-${dark ? 'dark' : 'light'}.png`),
+        fullPage: false,
+      });
+      await dialog.getByRole('button', { name: 'Jako', exact: true }).focus();
+      await page.keyboard.press('Enter');
+      await expect(dialog).not.toBeVisible();
+      await expect.poll(() => state.draft().content.brandId).toBe(254956);
+      expect(state.draft().content.brandLabel).toBe('Jako');
+      await page.reload();
+      const brand = editor.getByRole('textbox', { name: 'Marke', exact: true });
+      await expect(brand).toHaveValue('Jako');
+      await brand.fill('Jako-o');
+      await expect.poll(() => state.draft().content.brandLabel).toBe('Jako-o');
+      expect(state.draft().content.brandId).toBeNull();
+      await opener.click();
+      await dialog.getByRole('button', { name: 'Keine Marke', exact: true }).click();
+      await expect.poll(() => state.draft().content.brandLabel).toBe('Keine Marke');
+      expect(state.draft().content.brandId).toBeNull();
+      expect(state.uploads()).toBe(0);
+      expect(state.reschedules).toEqual([]);
+    });
+  }
+
+for (const width of [1440, 390])
+  for (const dark of [false, true]) {
     test(`Planung ändern bei ${width}px ${dark ? 'dunkel' : 'hell'} @marketplace-preview`, async ({
       page,
     }, testInfo) => {
