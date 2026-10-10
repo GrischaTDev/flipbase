@@ -1,7 +1,9 @@
 import { Injectable } from '@angular/core';
 import {
   parseVintedListingCategoryFields,
+  parseVintedListingCurrentContent,
   type VintedListingCategoryFields,
+  type VintedListingCurrentContent,
 } from '../models/vinted-listing-category-fields';
 import type { AccountScope } from '../models/marketplace.models';
 import { parseCloudSetupView, type CloudSetupView } from '../models/marketplace-cloud-setup';
@@ -651,6 +653,43 @@ export class MarketplaceBrowserTestApiService {
     )
       throw new Error('Die Vinted-Auswahl lieferte ungültige Daten.');
     return parseVintedListingCategoryFields(body.fields, categoryId);
+  }
+
+  /** Vollständiger Iststand eines bestehenden Inserats; Konto und Inserat bestimmt der Server. */
+  async readListingContent(
+    scope: AccountScope,
+    entryId: string,
+    expected: { externalAccountId: string; externalId: string },
+    accessToken: string,
+  ): Promise<VintedListingCurrentContent> {
+    const response = await this.post(
+      '/marketplace-browser/listings/content/read',
+      { workspaceId: scope.workspaceId, connectionId: scope.connectionId, entryId },
+      accessToken,
+    );
+    if (response.status === 404) throw new MarketplaceWorkerOutdatedError();
+    if (!response.ok)
+      throw new Error(
+        'Das Vinted-Inserat konnte nicht gelesen werden. Prüfe die Kontoverbindung und versuche es erneut.',
+      );
+    const body: unknown = await response.json();
+    try {
+      if (
+        !body ||
+        typeof body !== 'object' ||
+        Array.isArray(body) ||
+        Object.keys(body).length !== 1 ||
+        !('listing' in body)
+      )
+        throw new Error();
+      return parseVintedListingCurrentContent(
+        body.listing,
+        expected.externalAccountId,
+        expected.externalId,
+      );
+    } catch {
+      throw new Error('Das Vinted-Inserat lieferte ungültige Daten.');
+    }
   }
 
   async readListingData(
