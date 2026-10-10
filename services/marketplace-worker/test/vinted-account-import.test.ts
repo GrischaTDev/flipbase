@@ -4,6 +4,7 @@ import type { Page } from 'playwright';
 import {
   parseVintedAccountImport,
   readVintedAccountImport,
+  vintedFieldNames,
   VintedImportReadError,
   VintedImportRequestError,
 } from '../src/vinted-account-import.ts';
@@ -321,6 +322,32 @@ test('imports the current offer state from the offer message and updates it on a
   const plain = (await read(30)).entries.find((entry) => entry.body['messageType'] === 'message');
   assert.equal(plain?.body['text'], 'Hallo');
   assert.equal('offerStatus' in (plain?.body ?? {}), false);
+});
+
+test('reports only field names of a provider listing, never its values', () => {
+  const names = vintedFieldNames({
+    id: 81,
+    title: 'Privater Titel',
+    catalog_id: 1223,
+    brand_dto: { id: 254956, title: 'Jako' },
+    photos: [{ url: 'https://images.example.test/private.jpg', is_main: true }],
+    'Unsafe Key': 1,
+    color1_id: 3,
+  });
+  assert.deepEqual(names, [
+    'brand_dto',
+    'brand_dto.id',
+    'brand_dto.title',
+    'catalog_id',
+    'color1_id',
+    'id',
+    'photos',
+    'photos.is_main',
+    'photos.url',
+    'title',
+  ]);
+  assert.doesNotMatch(JSON.stringify(names), /Privater|Jako|private\.jpg|1223/);
+  assert.deepEqual(vintedFieldNames(null), []);
 });
 
 test('opening one conversation skips wardrobe, feedback and sales requests without claiming complete lists', async () => {

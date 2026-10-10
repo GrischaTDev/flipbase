@@ -251,11 +251,12 @@ export async function executeBrowserAction(
     case 'readListingContent': {
       const accountId = identifier(argumentsList[0]),
         externalId = identifier(argumentsList[1]);
-      return parseVintedListingCurrentContent(
-        await required(browser.readListingContent)(accountId, externalId, authorize),
-        accountId,
-        externalId,
-      );
+      const listing = await required(browser.readListingContent)(accountId, externalId, authorize);
+      try {
+        return parseVintedListingCurrentContent(listing, accountId, externalId);
+      } catch {
+        throw new VintedListingReadError('result');
+      }
     }
     case 'updateListingContent':
       return required(browser.updateListingContent)(
@@ -818,12 +819,14 @@ export function isolatedBrowserActions(transport: BrowserCommandTransport): Brow
         await run('readListingCategory', [accountId, categoryId, parents], authorize),
         categoryId,
       ),
-    readListingContent: async (accountId, externalId, authorize) =>
-      parseVintedListingCurrentContent(
-        await run('readListingContent', [accountId, externalId], authorize),
-        accountId,
-        externalId,
-      ),
+    readListingContent: async (accountId, externalId, authorize) => {
+      const listing = await run('readListingContent', [accountId, externalId], authorize);
+      try {
+        return parseVintedListingCurrentContent(listing, accountId, externalId);
+      } catch {
+        throw new VintedListingReadError('result');
+      }
+    },
     updateListingContent: async (accountId, externalId, base, desired, authorize) =>
       (await run(
         'updateListingContent',
@@ -975,6 +978,7 @@ export function validateBrowserResult(name: BrowserActionName, input: unknown): 
           'sourceRequestCount',
           'browserReadFailures',
           'inboxEvents',
+          'publicationFieldNames',
         ].includes(key),
     ) ||
     !Array.isArray(snapshot.entries) ||
@@ -1072,6 +1076,15 @@ export function validateBrowserResult(name: BrowserActionName, input: unknown): 
       throw new Error('Ungültiger Abruffehler');
     if (area.retryAfter !== undefined) text(area.retryAfter, 64);
   }
+  if (
+    snapshot.publicationFieldNames !== undefined &&
+    (!Array.isArray(snapshot.publicationFieldNames) ||
+      snapshot.publicationFieldNames.length > 400 ||
+      snapshot.publicationFieldNames.some(
+        (name) => typeof name !== 'string' || !/^[a-z0-9_.]{1,80}$/.test(name),
+      ))
+  )
+    throw new Error('Ungültige Feldnamen');
   if (
     snapshot.sourceRequestCount !== undefined &&
     (typeof snapshot.sourceRequestCount !== 'number' ||

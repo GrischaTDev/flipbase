@@ -152,7 +152,7 @@ export async function readVintedListingCurrentContent(
   )
     throw invalid();
   // Eine Seite mit Benutzerarbeit wird weder verwendet noch geschlossen.
-  if (page.url() !== 'about:blank') throw new Error('Die Inseratseite ist nicht neu reserviert.');
+  if (page.url() !== 'about:blank') throw new VintedListingReadError('reserve');
   const target = 'https://www.vinted.de/items/' + externalId + '/edit';
   let step: VintedListingReadStep = 'navigate';
   let authorizationFailed = false;
@@ -187,12 +187,12 @@ export async function readVintedListingCurrentContent(
     });
   } catch (error) {
     if (
-      authorizationFailed ||
       error instanceof VintedInteractionRequiredError ||
       error instanceof VintedVerificationRequiredError
     )
       throw error;
-    throw new VintedListingReadError(step);
+    // Ein Rechteverlust wird als eigener Schritt gemeldet, nicht als Fehler der Maske.
+    throw new VintedListingReadError(authorizationFailed ? 'authorize' : step);
   } finally {
     await page.close();
   }
