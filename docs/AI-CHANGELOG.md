@@ -19,13 +19,18 @@ Grund festhält; Container, IP und Seitenauswahl waren im Einzeltest in Ordnung.
 Standard aus). Er liest den Stand beim Anbieter und schaltet die Verlängerung nur für
 Bestellungen aus dem Flipbase-Bestand um; unklare oder fremde Bestellungen bleiben unberührt.
 Neue IPs werden bewusst mit Verlängerung bestellt. Die Dokumentation behauptet nicht mehr,
-die Verlängerung sei aus.
+die Verlängerung sei aus. In den Kontoeinstellungen steht unter „Verbindung“ je Betriebsart ein
+Wechsel: lokale Konten „Auf Cloud wechseln“, Cloudkonten „Auf lokale Verbindung umstellen“ mit
+Rückfrage zur auslaufenden IP sowie „Erneut bei Vinted anmelden“. „Cloud-IP einrichten“ entfällt
+dort; ältere Cloudkonten ohne IP-Zuordnung gibt es im Bestand nicht mehr.
 
-**Prüfung:** 28 Workerprüfungen der drei betroffenen Testdateien, Typprüfung des Workers,
-Format. Kein echter Aufruf zum Umschalten und keine produktive Aktivierung.
+**Prüfung:** Worker-Testlauf ohne Fehlschlag, Typprüfung des Workers. 23 Angularprüfungen der
+Kontokarten einschließlich AXE für die neue Rückfrage, Typprüfung, Lint, Format und
+Produktionsbau. Keine Sichtprüfung im Browser. Kein echter Aufruf zum Umschalten und keine
+produktive Aktivierung.
 
-**Offen:** Erster echter Umschaltaufruf (geplant mit dem dritten Konto), Anbindung der
-Abo-Kündigung, Aufräumen der Verbindungsknöpfe in den Kontoeinstellungen.
+**Offen:** Erster echter Umschaltaufruf (geplant mit dem dritten Konto) und Anbindung der
+Abo-Kündigung.
 
 ## 2026-10-11 – Juna – Vollständiges Bearbeiten erreichte den Server nicht
 
