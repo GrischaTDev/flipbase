@@ -12,6 +12,21 @@ const scope = {
 };
 const id = '25600000-0000-4000-8000-000000000031';
 const api = new MarketplaceBrowserTestApiService();
+it('treats publication as unavailable on old, disabled or read-only runtimes', async () => {
+  const request = vi.fn();
+  vi.stubGlobal('fetch', request);
+  for (const [body, expected] of [
+    [{ ok: true, apiVersion: 2, readOnly: false }, undefined],
+    [{ ok: true, apiVersion: 2, readOnly: false, listingPublishingEnabled: false }, false],
+    [{ ok: true, apiVersion: 2, readOnly: false, listingPublishingEnabled: true }, true],
+    [{ ok: true, apiVersion: 2, readOnly: true, listingPublishingEnabled: true }, false],
+    [{ ok: true, apiVersion: 2, readOnly: false, listingPublishingEnabled: 'true' }, false],
+    [{ ok: true, apiVersion: 1, readOnly: false, listingPublishingEnabled: true }, undefined],
+  ]) {
+    request.mockResolvedValueOnce(Response.json(body));
+    expect((await api.available()).listingPublishingEnabled).toBe(expected);
+  }
+});
 const categoryFields = {
   categoryId: 1223,
   fields: [

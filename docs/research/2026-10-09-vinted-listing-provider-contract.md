@@ -412,5 +412,33 @@ keinen aktuellen Anbieter- oder Veröffentlichungsnachweis.
   bei voller Auswahl und Autospeichern pausiert während der Bildbearbeitung.
   Ein zusätzlicher Test sichert die Freigabe dieser Pause beim Kontextwechsel.
 
+## Veröffentlichungsvorschau und bewusste Serveraktivierung
+
+Der Editor öffnet die Vorschau ausschließlich für eine gespeicherte, unveränderte
+Revision mit verbundenem Cloud-Zielkonto. Sie prüft die aktuellen Kategorie- und
+Markenantworten, Pflichtangaben, gespeicherten Fotos und die eigene Kontofreigabe.
+Unvollständige Entwürfe bleiben speicherbar; die Vorschau erklärt fehlende oder
+noch nicht unterstützte Angaben. KI-Fotos und sofortige/geplante Veröffentlichung
+werden vor dem Beauftragen gewählt. Eine neue Kontofreigabe verlangt eine bewusste
+Auswahl; eine vorhandene lässt sich mit ihrer angezeigten Version widerrufen.
+
+Der angenommene Auftrag erscheint unmittelbar im Verlauf. Erst der bestätigte
+Anbieterbeleg bedeutet Veröffentlichung. Bei verlorener Antwort bleiben Versuch
+und Angaben gebunden; eine bewusste Wiederholung kann kein zweites Inserat
+beauftragen. Die Datenbank verhindert weiterhin parallele oder unklare Aufträge
+für denselben Entwurf, auch nach dem Schließen der Vorschau.
+
+`MARKETPLACE_LISTING_PUBLISH_ENABLED` ist standardmäßig `0` und wird zusätzlich
+zu Chromium und `MARKETPLACE_CHROMIUM_WRITES_ENABLED=1` verlangt. Die Health-Antwort
+zeigt die neue Verfügbarkeit; ein fehlendes Feld, ein alter Dienst oder ein
+Lesezugang aktiviert sie nicht. Bei deaktiviertem Flag übernimmt der Ausführer
+keine neuen Inseratjobs. Nachrichten und bisherige Funktionen sind davon
+unabhängig. Das Flag bleibt bis zu einem konkret freigegebenen Schreibtest aus.
+
+Diese Nachweise stammen weiterhin aus abgefangenen Anbieterantworten und der
+lokalen Testoberfläche. Eine echte Neuanlage und native Vinted-Entwürfe sind damit
+noch nicht bestätigt; lokale Ausführung, vollständige Bearbeitung und Relist
+bleiben im Gesamtplan offen.
+
 Kein Push, kein PR, kein Merge, keine Produktionsmigration, kein Deployment
 und keine Änderung installierter Erweiterungen oder realer Inserate.

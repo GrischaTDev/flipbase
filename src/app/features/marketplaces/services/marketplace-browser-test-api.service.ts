@@ -32,6 +32,7 @@ export interface BrowserTestAvailability {
   readOnly: boolean;
   outdated?: boolean;
   dragSupported?: boolean;
+  listingPublishingEnabled?: boolean;
 }
 
 export interface ConfirmedVintedAccount {
@@ -214,6 +215,12 @@ export class MarketplaceBrowserTestApiService {
           ? {
               available: true,
               readOnly: body.readOnly,
+              ...('listingPublishingEnabled' in body
+                ? {
+                    listingPublishingEnabled:
+                      body.listingPublishingEnabled === true && !body.readOnly,
+                  }
+                : {}),
               ...('dragSupported' in body && body.dragSupported === true && !body.readOnly
                 ? { dragSupported: true }
                 : {}),

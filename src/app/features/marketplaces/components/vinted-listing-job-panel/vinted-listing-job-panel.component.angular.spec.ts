@@ -137,6 +137,14 @@ function setup(jobs: readonly VintedListingJob[] = [job]) {
 }
 afterEach(() => TestBed.resetTestingModule());
 describe('Inserataufträge im Editor', () => {
+  it('refreshes a newly accepted job even without a live connection', async () => {
+    const f = setup([]);
+    await settle();
+    f.list.mockResolvedValue([job]);
+    f.fixture.componentRef.setInput('refreshToken', 1);
+    await settle();
+    expect(f.component.jobs()).toEqual([job]);
+  });
   it('coalesces change hints during an active read and reloads on reconnect', async () => {
     const f = setup();
     await settle();

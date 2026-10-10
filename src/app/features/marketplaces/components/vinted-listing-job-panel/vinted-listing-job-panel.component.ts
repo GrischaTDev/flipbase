@@ -40,6 +40,7 @@ export class VintedListingJobPanelComponent {
   readonly draftRevision = input.required<number>();
   readonly draft = input<VintedListingDraft | null>(null);
   readonly draftReady = input(false);
+  readonly refreshToken = input(0);
   private readonly auth = inject(AuthService);
   private readonly workspace = inject(WorkspaceService);
   private readonly store = inject(MarketplaceAccountStore);
@@ -89,6 +90,10 @@ export class VintedListingJobPanelComponent {
     })),
   );
   constructor() {
+    effect(() => {
+      if (this.refreshToken() > 0 && this.context())
+        untracked(() => this.refreshRequested.set(true));
+    });
     effect(() => {
       const token = this.auth.session()?.access_token;
       if (token) untracked(() => this.api.authenticate(token));

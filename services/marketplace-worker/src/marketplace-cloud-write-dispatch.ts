@@ -9,6 +9,8 @@ import type { CloudListingClaim } from './marketplace-listing-runner.ts';
 export type MarketplaceCloudWriteClaim =
   CloudMessageClaim | CloudNegotiationClaim | CloudFavoriteClaim | CloudListingClaim;
 interface CloudWriteHandlers {
+  /** Zusätzliche ausdrückliche Serverfreigabe für neue Inserate. */
+  listingWritesEnabled?: boolean;
   messages: MarketplaceCloudWriteDispatch<CloudMessageClaim>;
   negotiations?: MarketplaceCloudWriteDispatch<CloudNegotiationClaim>;
   listings?: MarketplaceCloudWriteDispatch<CloudListingClaim>;
@@ -19,7 +21,8 @@ interface CloudWriteHandlers {
 export function createMarketplaceCloudWriteDispatch(
   handlers: CloudWriteHandlers,
 ): MarketplaceCloudWriteDispatch<MarketplaceCloudWriteClaim> {
-  const ordered = [handlers.messages, handlers.negotiations, handlers.listings, handlers.favorites];
+  const listings = handlers.listingWritesEnabled === true ? handlers.listings : undefined;
+  const ordered = [handlers.messages, handlers.negotiations, listings, handlers.favorites];
   return {
     claim: async (workerId, workerEpoch, runnerId) => {
       for (const handler of ordered) {
@@ -37,7 +40,7 @@ export function createMarketplaceCloudWriteDispatch(
           if (handlers.negotiations) return handlers.negotiations.run(claim);
           break;
         case 'listing':
-          if (handlers.listings) return handlers.listings.run(claim);
+          if (listings) return listings.run(claim);
           break;
         case 'favorite_message':
         case 'favorite_offer':

@@ -9,6 +9,7 @@ test('a due listing reserves one browser after manual replies and before automat
   const calls: string[] = [];
   const binding = ['worker', 4, 'runner'] as const;
   const dispatch = createMarketplaceCloudWriteDispatch({
+    listingWritesEnabled: true,
     messages: {
       claim: (...args) => {
         assert.deepEqual(args, binding);
@@ -53,6 +54,7 @@ test('a due listing reserves one browser after manual replies and before automat
 test('a lost listing claim aborts without reserving a second browser or falling through', async () => {
   let favorites = 0;
   const dispatch = createMarketplaceCloudWriteDispatch({
+    listingWritesEnabled: true,
     messages: { claim: () => Promise.resolve(null), run: () => Promise.reject() },
     listings: { claim: () => Promise.reject(new Error('claim lost')), run: () => Promise.reject() },
     favorites: {
@@ -90,6 +92,7 @@ test('listing jobs use the common dispatcher even with sync scheduling off and u
     const losses: string[] = [];
     const binding = listingClaimFixture.scope.listingWrite!;
     const writes = createMarketplaceCloudWriteDispatch({
+      listingWritesEnabled: true,
       messages: { claim: () => Promise.resolve(null), run: () => Promise.reject() },
       listings: {
         claim: (worker, epoch, runner) => {
@@ -145,5 +148,42 @@ test('listing jobs use the common dispatcher even with sync scheduling off and u
     } else assert.deepEqual(losses, []);
     dispatcher.stop();
     await dispatcher.drain();
+  }
+});
+test('listing dispatch requires explicit write activation without disabling other queues', async () => {
+  for (const listingWritesEnabled of [undefined, false, true]) {
+    let claims = 0,
+      runs = 0,
+      favorites = 0;
+    const dispatch = createMarketplaceCloudWriteDispatch({
+      listingWritesEnabled,
+      messages: { claim: () => Promise.resolve(null), run: () => Promise.reject() },
+      listings: {
+        claim: () => {
+          claims++;
+          return Promise.resolve(listingClaimFixture);
+        },
+        run: () => {
+          runs++;
+          return Promise.resolve();
+        },
+      },
+      favorites: {
+        claim: () => {
+          favorites++;
+          return Promise.resolve(null);
+        },
+        run: () => Promise.reject(),
+      },
+    });
+    assert.equal(
+      await dispatch.claim('worker', 4, 'runner'),
+      listingWritesEnabled ? listingClaimFixture : null,
+    );
+    if (listingWritesEnabled) await dispatch.run(listingClaimFixture);
+    else await assert.rejects(dispatch.run(listingClaimFixture));
+    assert.equal(claims, listingWritesEnabled ? 1 : 0);
+    assert.equal(runs, listingWritesEnabled ? 1 : 0);
+    assert.equal(favorites, listingWritesEnabled ? 0 : 1);
   }
 });

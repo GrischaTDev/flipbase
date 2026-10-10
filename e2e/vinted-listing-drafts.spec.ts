@@ -243,6 +243,263 @@ async function mockDrafts(page: Page, planned = false) {
   };
 }
 
+async function mockPublication(page: Page, enabled = true, loseFirstResponse = false) {
+  const state = await mockDrafts(page, true);
+  const job = { ...state.jobs[0] };
+  state.jobs.splice(0);
+  Object.assign(state.draft(), {
+    content: {
+      ...emptyVintedListingContent(),
+      title: 'Meine Jako-Jacke',
+      description: 'Sehr gut erhalten.',
+      priceCents: 2050,
+      categoryId: 2,
+      categoryLabel: 'Kleidung / Jacken',
+      brandId: 254956,
+      brandLabel: 'Jako',
+      sizeId: 208,
+      sizeLabel: 'M',
+      conditionId: 2,
+      conditionLabel: 'Sehr gut',
+      colorIds: [1],
+      colorLabels: ['Schwarz'],
+      materialIds: [44],
+      materialLabels: ['Baumwolle'],
+      packageSizeId: 2,
+    },
+    images: [
+      {
+        id: '1',
+        storagePath: `${workspaceId}/${state.draft().id}/1.png`,
+        fileName: 'Jacke.png',
+        mimeType: 'image/png',
+        byteSize: state.pixel.byteLength,
+      },
+    ],
+  });
+  let allowed = false,
+    authorizationVersion = 0;
+  const approvals: Record<string, unknown>[] = [],
+    enqueues: Record<string, unknown>[] = [],
+    revocations: Record<string, unknown>[] = [];
+  await page.route('**/marketplace-browser/healthz', (route) =>
+    route.fulfill({
+      json: { ok: true, readOnly: false, apiVersion: 2, listingPublishingEnabled: enabled },
+    }),
+  );
+  await page.route('**/marketplace-browser/listings/category/read', (route) => {
+    const fields = listingCategoryFixture(2);
+    return route.fulfill({
+      json: {
+        fields: {
+          ...fields,
+          fields: [
+            ...fields.fields,
+            {
+              field: 'brand',
+              sizeGroupId: null,
+              choices: [
+                { id: 999, label: 'No Brand', disabled: false, selected: false, sizeGroupId: null },
+              ],
+            },
+          ],
+        },
+      },
+    });
+  });
+  await page.route('**/functions/v1/vinted-brand-search', (route) =>
+    route.fulfill({ json: { brands: [{ id: 254956, name: 'Jako' }] } }),
+  );
+  await page.route(
+    /\/rest\/v1\/rpc\/marketplace_(read_listing_permission|approve_listings|revoke_listings|enqueue_listing)$/,
+    (route) => {
+      const name = new URL(route.request().url()).pathname.split('/').at(-1);
+      const body = route.request().postDataJSON() as Record<string, unknown>;
+      if (name === 'marketplace_enqueue_listing') {
+        enqueues.push(body);
+        const queued = {
+          ...job,
+          id: '10',
+          state: 'queued',
+          executionMode: 'cloud',
+          externalAccountId: '100',
+          draftRevision: state.draft().revision,
+          scheduledAt: body['p_scheduled_at'] ? String(body['p_scheduled_at']) : null,
+          timeZone: body['p_time_zone'] ? String(body['p_time_zone']) : null,
+          latePolicy: body['p_late_policy']
+            ? String(body['p_late_policy'])
+            : 'pause_after_30_minutes',
+        };
+        if (!state.jobs.length) state.jobs.unshift(queued as typeof job);
+        if (loseFirstResponse && enqueues.length === 1) return route.abort('failed');
+        return route.fulfill({ json: queued });
+      }
+      if (name === 'marketplace_approve_listings') {
+        approvals.push(body);
+        allowed = true;
+        authorizationVersion++;
+      }
+      if (name === 'marketplace_revoke_listings') {
+        revocations.push(body);
+        allowed = false;
+        authorizationVersion++;
+      }
+      return route.fulfill({ json: { allowed, authorizationVersion, executionMode: 'cloud' } });
+    },
+  );
+  return { ...state, approvals, enqueues, revocations };
+}
+
+for (const width of [1440, 390])
+  for (const dark of [false, true]) {
+    test(`Inserat vor Veröffentlichung prüfen bei ${width}px ${dark ? 'dunkel' : 'hell'} @marketplace-preview`, async ({
+      page,
+    }, testInfo) => {
+      await page.setViewportSize({ width, height: 1000 });
+      const state = await mockPublication(page);
+      if (dark) await page.addInitScript(() => localStorage.setItem('flipbase_theme', 'dark'));
+      const errors: string[] = [];
+      page.on('pageerror', (error) => errors.push(error.message));
+      page.on('console', (message) => {
+        if (message.type() === 'error' && /NG\d{4,5}/.test(message.text()))
+          errors.push(message.text());
+      });
+      await page.goto('/marketplaces/vinted/listing-drafts/9007199254740999');
+      const opener = page.getByRole('button', {
+        name: 'Veröffentlichung vorbereiten',
+        exact: true,
+      });
+      await opener.click();
+      const preview = page.getByRole('dialog', { name: 'Veröffentlichung prüfen', exact: true });
+      await expect(
+        preview.getByText('Deine gespeicherten Angaben passen zur aktuellen Vinted-Auswahl.'),
+      ).toBeVisible();
+      const submit = preview.getByRole('button', {
+        name: 'Freigeben und beauftragen',
+        exact: true,
+      });
+      await expect(submit).toBeDisabled();
+      await page.keyboard.press('Escape');
+      await expect(preview).not.toBeVisible();
+      await expect(opener).toBeFocused();
+      await opener.click();
+      const scheduleOpener = preview.getByRole('button', { name: 'Termin wählen', exact: true });
+      await scheduleOpener.click();
+      const planner = page.getByRole('dialog', { name: 'Veröffentlichung planen', exact: true });
+      await planner.getByRole('button', { name: 'In einer Stunde', exact: true }).click();
+      await page.addScriptTag({ content: axe.source });
+      expect(
+        await page.evaluate(
+          async () => (await (window as unknown as { axe: typeof axe }).axe.run()).violations,
+        ),
+      ).toEqual([]);
+      await planner.getByRole('button', { name: 'Termin übernehmen', exact: true }).click();
+      await expect(planner).not.toBeVisible();
+      await expect(
+        preview.getByRole('button', { name: 'Termin ändern', exact: true }),
+      ).toBeFocused();
+      const aiPhoto = preview.getByRole('checkbox', {
+        name: 'Meine Fotos wurden mit KI erstellt oder verändert',
+      });
+      await aiPhoto.click();
+      await expect(aiPhoto).toHaveAttribute('aria-checked', 'true');
+      const consent = preview.getByRole('checkbox', {
+        name: 'Ich erlaube Flipbase, Inserate über Testkonto A anzulegen.',
+      });
+      await consent.click();
+      await expect(consent).toHaveAttribute('aria-checked', 'true');
+      await expect(submit).toBeEnabled();
+      expect(
+        await page.evaluate(
+          async () => (await (window as unknown as { axe: typeof axe }).axe.run()).violations,
+        ),
+      ).toEqual([]);
+      expect(await page.locator('form form').count()).toBe(0);
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1),
+      ).toBe(true);
+      await page.screenshot({
+        path: testInfo.outputPath(`publication-${width}-${dark ? 'dark' : 'light'}.png`),
+        fullPage: false,
+      });
+      expect(state.approvals).toEqual([]);
+      expect(state.enqueues).toEqual([]);
+      await submit.focus();
+      await page.keyboard.press('Enter');
+      await expect(preview).not.toBeVisible();
+      await expect(
+        page
+          .locator('app-vinted-listing-job-panel')
+          .getByText('Veröffentlichung beauftragt', { exact: true }),
+      ).toBeVisible();
+      expect(state.approvals).toEqual([
+        {
+          p_workspace_id: workspaceId,
+          p_connection_id: accountIds[0],
+          p_expected_external_account_id: '100',
+        },
+      ]);
+      expect(state.enqueues).toHaveLength(1);
+      expect(state.enqueues[0]).toMatchObject({
+        p_draft_id: state.draft().id,
+        p_expected_revision: state.draft().revision,
+        p_action: 'publish',
+        p_ai_photo: true,
+        p_time_zone: 'Europe/Berlin',
+        p_late_policy: 'pause_after_30_minutes',
+      });
+      expect(Date.parse(String(state.enqueues[0]['p_scheduled_at']))).toBeGreaterThan(Date.now());
+      expect(state.uploads()).toBe(0);
+      expect(errors).toEqual([]);
+    });
+  }
+test('Serverfreigabe und unvollständige Angaben verhindern neue Inserataufträge @marketplace-preview', async ({
+  page,
+}) => {
+  const state = await mockPublication(page, false);
+  Object.assign(state.draft(), { content: { ...state.draft().content, description: '' } });
+  await page.goto('/marketplaces/vinted/listing-drafts/9007199254740999');
+  await page.getByRole('button', { name: 'Veröffentlichung vorbereiten', exact: true }).click();
+  const preview = page.getByRole('dialog', { name: 'Veröffentlichung prüfen', exact: true });
+  await expect(preview.getByText(/Beschreibung/).last()).toBeVisible();
+  await expect(preview.getByText(/auf diesem Server noch nicht verfügbar/)).toBeVisible();
+  await expect(
+    preview.getByRole('button', { name: 'Freigeben und beauftragen', exact: true }),
+  ).toBeDisabled();
+  expect(state.approvals).toEqual([]);
+  expect(state.enqueues).toEqual([]);
+});
+test('Sofortauftrag behält bei verlorener Antwort denselben Versuch @marketplace-preview', async ({
+  page,
+}) => {
+  const state = await mockPublication(page, true, true);
+  await page.goto('/marketplaces/vinted/listing-drafts/9007199254740999');
+  await page.getByRole('button', { name: 'Veröffentlichung vorbereiten', exact: true }).click();
+  const preview = page.getByRole('dialog', { name: 'Veröffentlichung prüfen', exact: true });
+  await expect(preview.getByText(/passen zur aktuellen Vinted-Auswahl/)).toBeVisible();
+  await preview
+    .getByRole('checkbox', { name: 'Ich erlaube Flipbase, Inserate über Testkonto A anzulegen.' })
+    .click();
+  await preview.getByRole('button', { name: 'Freigeben und beauftragen', exact: true }).click();
+  const retry = preview.getByRole('button', { name: 'Diesen Auftrag erneut prüfen', exact: true });
+  await expect(retry).toBeEnabled();
+  await expect(preview.getByRole('button', { name: 'Termin wählen', exact: true })).toBeDisabled();
+  expect(state.enqueues).toHaveLength(1);
+  await retry.click();
+  await expect(preview).not.toBeVisible();
+  expect(state.enqueues).toHaveLength(2);
+  expect(state.enqueues[1]).toEqual(state.enqueues[0]);
+  expect(state.enqueues[0]).toMatchObject({ p_action: 'publish', p_ai_photo: false });
+  expect(state.enqueues[0]['p_scheduled_at']).toBeUndefined();
+  expect(state.approvals).toHaveLength(1);
+  expect(state.jobs).toHaveLength(1);
+  await expect(
+    page
+      .locator('app-vinted-listing-job-panel')
+      .getByText('Veröffentlichung beauftragt', { exact: true }),
+  ).toBeVisible();
+});
+
 test('Inseratauftrag aktualisiert sich über einen privaten Kanal @marketplace-preview', async ({
   page,
 }, testInfo) => {

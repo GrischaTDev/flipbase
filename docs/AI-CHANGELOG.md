@@ -1,5 +1,43 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-10 – Juna – Veröffentlichung aus dem gespeicherten Entwurf vorbereiten
+
+**Arbeit:** Eine eigene Vorschau verbindet den Inserateditor mit sofortigen und
+geplanten Cloud-Aufträgen. Sie prüft frische Kategorie- und Markenwerte,
+Pflichtangaben und Fotos, zeigt Zielkonto, Preis und Artikelinhalt und bietet die
+KI-Fotokennzeichnung. Eine neue Kontofreigabe verlangt eine bewusste Auswahl;
+eine vorhandene lässt sich versionsgebunden widerrufen. Gespeicherte Revision,
+Benutzer, Arbeitsbereich und Konto bleiben während des Ablaufs gebunden.
+Eine verlorene Antwort behält denselben Versuch und dieselben Angaben, auch
+bei erneutem Prüfen. Angenommene Antworten müssen zur Kontoidentität passen.
+Der Verlauf aktualisiert sich nach Annahme auch ohne Liveverbindung und zeigt
+beauftragt statt eines unbelegten Veröffentlichungserfolgs.
+
+**Ausführung:** Das neue `MARKETPLACE_LISTING_PUBLISH_ENABLED` ist standardmäßig
+aus. Es verlangt Chromium und die bisherige Schreibfreigabe, bleibt unabhängig
+von Nachrichten und verhindert die Übernahme neuer Inserataufträge durch den
+Ausführer. Die Health-Antwort zeigt die Verfügbarkeit; alte Antworten ohne Flag
+oder Lesezugänge aktivieren sie nicht. Beispielkonfiguration und Pilot-Compose
+lassen das Flag bis zum freigegebenen Anbieter-Schreibtest ausgeschaltet.
+
+**Prüfungen:** Fehlende Editoranbindung und Verlaufsaktualisierung sowie falsche
+Kontoantwort und fehlende Ausführungssperre zuerst durch fehlgeschlagene Tests
+belegt. Betroffene Angular- und Modellprüfungen sowie 594 Workerprüfungen
+erfolgreich; sieben bestehende Workerfälle ausgelassen. Typen, Angular-/Worker-Bau,
+Format, ESLint und Shared-UI-Prüfung erfolgreich. Alle 23 Browserfälle einschließlich
+sechs neuer Vorschau-/Annahmefälle, Fotos, Vorlagen, Marken-/Merkmalsauswahl,
+Terminänderungen und privater Statusmeldungen erfolgreich. Desktop/Mobil,
+hell/dunkel, Tastatur, Fokusrückkehr und verschachtelte Terminwahl ohne AXE-Befund;
+mobile Vorschau zusätzlich angesehen. Verlorene Antwort, unveränderte Wiederholung,
+gesperrter Server und unvollständige Angaben geprüft. Beide Container neu gebaut
+und zehn Inseratmodule jeweils ohne Netzwerk geladen. Alle Anbieteranfragen
+dieser Tests sind abgefangen.
+
+**Offen:** Gesamtplan bleibt teilweise umgesetzt. Lokale Ausführung, zusätzliche
+Kategoriearten/-felder, native Vinted-Entwürfe, vollständige Bearbeitung, Relist
+und der freigegebene Livefall stehen noch aus. Keine echte Vinted-Schreibaktion,
+Produktionsänderung, Erweiterungsinstallation oder Veröffentlichung des Zweigs.
+
 ## 2026-10-10 – Juna – Vinted-Merkmale im Inserat-Editor auswählen
 
 **Arbeit:** Die kontogebundene Schnittstelle verbindet den getrennten Cloud-Leser

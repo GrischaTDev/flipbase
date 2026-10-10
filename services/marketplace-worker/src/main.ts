@@ -182,6 +182,7 @@ async function main(): Promise<void> {
         store: dispatchStore,
         writes: messageStore
           ? createMarketplaceCloudWriteDispatch({
+              listingWritesEnabled: config.listingPublishingEnabled,
               messages: {
                 claim: (workerId, epoch, runnerId) => messageStore.claim(workerId, epoch, runnerId),
                 run: (claim) =>
@@ -409,6 +410,7 @@ async function main(): Promise<void> {
         })
       : undefined,
     readOnly: config.provider === 'local',
+    listingPublishingEnabled: config.listingPublishingEnabled,
     scheduledSync: dispatcher
       ? () => ({
           enabled: dispatcher.scheduledEnabled,

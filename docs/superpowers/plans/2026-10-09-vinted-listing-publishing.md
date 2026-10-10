@@ -23,8 +23,11 @@ Auswahlen bleiben an Kategorie und Namen gebunden; zusätzliche Kategoriearten
 und Pflichtmerkmale benötigen weitere Prüfung.
 Pakete 6/7 offen; Paket 5 enthält Terminmodell und
 atomaren Ersatz geplanter Aufträge und einen angeschlossenen Planungsdialog für
-vorhandene wartende Aufträge. Neuanlageaktionen im Editor und der lokale Ausführer
-fehlen weiterhin.
+vorhandene wartende Aufträge. Die Veröffentlichungsvorschau verbindet inzwischen
+gespeicherte Entwürfe mit sofortiger/geplanter Cloud-Auftragsannahme, eigener
+Kontofreigabe und KI-Fotokennzeichnung. Ein zusätzliches Serverflag hält die neue
+Ausführung bis zum freigegebenen Schreibtest ausgeschaltet. Der lokale Ausführer,
+native Vinted-Entwürfe und die Livebestätigung fehlen weiterhin.
 Einzelheiten und Prüfgrenzen stehen im
 [Anbieter- und Umsetzungsbericht](../../research/2026-10-09-vinted-listing-provider-contract.md).
 
@@ -185,12 +188,21 @@ einmaliges Speichern und frische Inhalts-/Foto-/Aktivstatusprüfung einer
 konkreten Ergebniskennung. Die feste getrennte Browseraktion überträgt große
 Originale in begrenzten Teilen mit aktuellen Freigaben. Cloud-Inserate werden
 in der bestehenden gemeinsamen Auftragsverteilung vor automatischen
-Favoritenaufträgen angenommen. Beide Container und der vollständige
+Favoritenaufträgen übernommen, wenn `MARKETPLACE_LISTING_PUBLISH_ENABLED=1`
+bewusst aktiviert ist. Das Flag ist standardmäßig aus und verlangt Chromium
+mit ebenfalls freigegebenen bisherigen Schreibaktionen. Beide Container und der vollständige
 getrennte Browserablauf sind mit abgefangenen Anbieteranfragen geprüft.
 Private Status-Broadcasts aktualisieren den Verlauf des gespeicherten Entwurfs;
 bei Wiederverbindung wird der aktuelle Stand erneut gelesen. Laufende Abfragen
 und Planungsdialoge merken Meldungen vor. Rechte- und Kontextwechsel verwerfen
 alte Antworten. Datenbank- und WebSocket-Browsertests prüfen den gesamten Weg.
+Die Editorvorschau prüft aktuelle Kategorie- und Markenwerte, gespeicherte Fotos,
+Kontofreigabe und Serververfügbarkeit. Sie erlaubt bewusstes Freigeben und
+Beauftragen mit fester Revision, KI-Fotoauswahl und optionalem Termin. Bei einer
+verlorenen Antwort verwendet eine bewusste Wiederholung denselben Versuch.
+Konto-/Benutzer-/Arbeitsbereichs- und Entwurfswechsel verwerfen die Vorschau.
+Eine Annahme aktualisiert den Verlauf auch ohne Liveverbindung; sie gilt als
+beauftragt und ersetzt keinen bestätigten Anbietererfolg.
 Noch offen: lokale Browserausführung, zusätzliche kategorienspezifische Felder,
 native Entwürfe und der konkret freigegebene Livefall.
 
@@ -236,8 +248,10 @@ sind ergänzt; der Verlauf zeigt Zeitzone und MEZ/MESZ. Der Dialog enthält Datu
 Uhrzeit, IANA-Zone, Schnelltermine, die Auswahl der doppelten Stunde und beide
 Ausfallregeln. Vorhandene wartende Aufträge lassen sich mit dem gespeicherten
 Entwurf aktualisieren; die bisherige Aktion und Fotoeinstellung übernimmt die
-Datenbank. Noch keine Neuanlageaktionen oder tatsächliche Veröffentlichung:
-Ausführeranschluss und Anbieterergebnis bleiben offen.
+Datenbank. Die neue Veröffentlichungsvorschau verwendet denselben Planungsdialog
+auch vor der ersten Auftragsannahme. Sofortige und geplante Annahme sind mit
+abgefangenen Antworten geprüft. Lokaler Ausführer und tatsächliches
+Anbieterergebnis bleiben offen.
 
 **Dateien:** Jobschema aus Paket 4 deklarativ ergänzen; neu
 `models/vinted-listing-schedule.ts` samt Modelltest und

@@ -79,6 +79,7 @@ interface BrowserApiOptions {
   listingCache?: Pick<SupabaseVintedListingCache, 'save'>;
   profileCache?: Pick<SupabaseVintedProfileCache, 'save'>;
   readOnly?: boolean;
+  listingPublishingEnabled?: boolean;
   cloudSetups?: Pick<
     MarketplaceCloudSetup,
     'availability' | 'begin' | 'read' | 'open' | 'authorize' | 'verify' | 'complete' | 'cancel'
@@ -252,6 +253,7 @@ export class MarketplaceBrowserHttpApi {
   private readonly listingCache?: BrowserApiOptions['listingCache'];
   private readonly profileCache?: BrowserApiOptions['profileCache'];
   private readonly readOnly: boolean;
+  private readonly listingPublishingEnabled?: boolean;
   private readonly cloudSetups?: BrowserApiOptions['cloudSetups'];
   private readonly scheduledSync?: BrowserApiOptions['scheduledSync'];
   private readonly inFlight = new Set<string>();
@@ -270,6 +272,7 @@ export class MarketplaceBrowserHttpApi {
     this.profileCache = options.profileCache;
     this.scheduledSync = options.scheduledSync;
     this.readOnly = options.readOnly ?? false;
+    this.listingPublishingEnabled = options.listingPublishingEnabled;
     this.cloudSetups = options.cloudSetups;
   }
 
@@ -291,6 +294,9 @@ export class MarketplaceBrowserHttpApi {
           readOnly: this.readOnly,
           apiVersion: 2,
           dragSupported: !this.readOnly,
+          ...(this.listingPublishingEnabled !== undefined
+            ? { listingPublishingEnabled: !this.readOnly && this.listingPublishingEnabled === true }
+            : {}),
           ...(this.scheduledSync ? { scheduledSync: this.scheduledSync() } : {}),
         });
         return;

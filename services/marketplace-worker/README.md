@@ -21,6 +21,14 @@ aktiviert sie nach der Abnahme. Profil-/Listingänderungen sind ebenfalls zunäc
 gesperrt und benötigen separat `MARKETPLACE_CHROMIUM_WRITES_ENABLED=1`. Anmeldung,
 Sicherheitsabfragen und manuelle Leseabrufe nutzen die vorhandene Browseroberfläche.
 
+Neue Inserataufträge benötigen zusätzlich `MARKETPLACE_LISTING_PUBLISH_ENABLED=1`.
+Dieses Flag bleibt bis zum konkret freigegebenen Anbieter-Schreibtest auf `0`.
+Es setzt Chromium und `MARKETPLACE_CHROMIUM_WRITES_ENABLED=1` voraus; auch das
+Pilot-Compose muss dafür bewusst überschrieben werden. Bei deaktivierter
+Inseratveröffentlichung übernimmt der Ausführer keine Inserataufträge;
+Leseabrufe, Nachrichten und bisherige Funktionen bleiben unabhängig. Die
+Health-Antwort nennt die Verfügbarkeit; sie ersetzt keine kontogebundene Freigabe.
+
 `MARKETPLACE_CHROMIUM_NETWORK_ID=direct` nutzt den Serverausgang. Optional kann
 `MARKETPLACE_CHROMIUM_NETWORK_FILE` eine private Datei mit Modus 0600 bezeichnen:
 

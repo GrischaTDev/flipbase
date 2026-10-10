@@ -14,8 +14,10 @@ import { VintedListingEditorComponent } from './vinted-listing-editor.component'
 import { emptyVintedListingContent } from '../../models/vinted-listing-content';
 import { listingCategoryFixture } from '../../../../../../e2e/support/vinted-listing-category-fixture';
 import { buildVintedListingFieldSelection } from '../../models/vinted-listing-field-selection';
+import type { VintedListingJob } from '../../models/vinted-listing-job';
 
 const account = {
+  marketplace: 'vinted',
   workspaceId: 'workspace-a',
   connectionId: 'account-a',
   externalAccountId: '123',
@@ -43,6 +45,28 @@ const draft = {
   createdAt: '2026-10-09T12:00:00Z',
   updatedAt: '2026-10-09T12:00:00Z',
 };
+const queuedJob = (draftRevision: number): VintedListingJob => ({
+  id: '10',
+  workspaceId: 'workspace-a',
+  draftId: '1',
+  connectionId: 'account-a',
+  draftRevision,
+  action: 'publish',
+  state: 'queued',
+  executionMode: 'cloud',
+  externalAccountId: '123',
+  version: 1,
+  scheduledAt: null,
+  timeZone: null,
+  latePolicy: 'pause_after_30_minutes',
+  errorCode: null,
+  externalId: null,
+  providerState: null,
+  verifiedAt: null,
+  createdAt: draft.createdAt,
+  updatedAt: draft.updatedAt,
+  replacesJobId: null,
+});
 async function settle() {
   TestBed.tick();
   for (let index = 0; index < 12; index++) await Promise.resolve();
@@ -51,10 +75,15 @@ async function settle() {
 function setup() {
   const workspace = signal({ id: 'workspace-a', archived_at: null });
   const connections = signal([account]);
-  const create = vi.fn().mockImplementation(async (_workspace, content) => ({ ...draft, content }));
-  const save = vi.fn().mockImplementation(async (current, content) => ({
+  const create = vi.fn().mockImplementation(async (_workspace, content, connectionId) => ({
+    ...draft,
+    content,
+    connectionId,
+  }));
+  const save = vi.fn().mockImplementation(async (current, content, connectionId) => ({
     ...current,
     content,
+    connectionId,
     revision: current.revision + 1,
   }));
   TestBed.configureTestingModule({
@@ -110,6 +139,41 @@ afterEach(() => {
   vi.useRealTimers();
 });
 describe('Vinted-Inserateditor', () => {
+  it('opens only the saved revision and rejects a previous preview after an immediate edit', async () => {
+    const { component } = setup();
+    await settle();
+    component.form.patchValue({ categoryId: '1223', connectionId: 'account-a' });
+    component.openPublication();
+    expect(component.publication()).toBeNull();
+    await component.save();
+    component.openPublication();
+    expect(component.publication()?.draft).toEqual(component.draft());
+    expect(component.publication()?.account.externalAccountId).toBe('123');
+    const accepted = queuedJob(component.draft()!.revision);
+    component.form.controls.title.setValue('Noch nicht gespeichert');
+    component.publicationAccepted(accepted);
+    expect(component.publicationAnnouncement()).toBe('');
+    await settle();
+    expect(component.publication()).toBeNull();
+  });
+  it('closes an accepted preview and requests a history refresh without claiming Vinted success', async () => {
+    const { component, connections } = setup();
+    await settle();
+    component.form.patchValue({ categoryId: '1223', connectionId: 'account-a' });
+    await component.save();
+    component.openPublication();
+    const accepted = queuedJob(component.draft()!.revision);
+    component.publicationAccepted(accepted);
+    expect(component.publication()).toBeNull();
+    expect(component.publicationAnnouncement()).toContain('beauftragt');
+    expect(component.jobRefresh()).toBe(1);
+    component.openPublication();
+    connections.set([{ ...account, externalAccountId: '456' }]);
+    component.publicationAccepted(accepted);
+    expect(component.jobRefresh()).toBe(1);
+    await settle();
+    expect(component.publication()).toBeNull();
+  });
   it('saves canonical category choices without overwriting pending title, brand or price', async () => {
     const { component, create } = setup();
     await settle();

@@ -9,7 +9,17 @@
     <app-button [disabled]="!canSave()" [loading]="saving()" (clicked)="save()"
       >Entwurf speichern</app-button
     >
+    <app-button
+      variant="secondary"
+      ariaHaspopup="dialog"
+      [disabled]="!canPreparePublication()"
+      (clicked)="openPublication()"
+      >Veröffentlichung vorbereiten</app-button
+    >
   </div>
+  @if (publicationAnnouncement()) {
+    <p role="status" class="text-sm text-fb-text-secondary">{{ publicationAnnouncement() }}</p>
+  }
   @if (error() || loadError()) {
     <app-notice-banner announcement="alert">
       <p>{{ error() || loadError() }}</p>
@@ -169,6 +179,7 @@
               [draftId]="savedDraft.id"
               [draftRevision]="savedDraft.revision"
               [draft]="savedDraft"
+              [refreshToken]="jobRefresh()"
               [draftReady]="
                 !dirty() &&
                 !saving() &&
@@ -184,6 +195,18 @@
     </div>
   }
 </app-entry-page-layout>
+@if (publication(); as opened) {
+  <app-vinted-listing-publication-preview
+    [scopeKey]="opened.scopeKey"
+    [userId]="opened.userId"
+    [draft]="opened.draft"
+    [account]="opened.account"
+    [images]="opened.images"
+    [disabled]="!canPreparePublication()"
+    (accepted)="publicationAccepted($event)"
+    (closed)="closePublication()"
+  />
+}
 @if (fieldSelection(); as selection) {
   <app-vinted-listing-fields-dialog
     [scopeKey]="selection.scopeKey"

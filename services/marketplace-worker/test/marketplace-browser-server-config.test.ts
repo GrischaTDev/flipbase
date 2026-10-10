@@ -52,6 +52,7 @@ test('requires deliberate activation and server-only keys before listening', () 
     host: '127.0.0.1',
     port: 4179,
     scheduledSyncEnabled: false,
+    listingPublishingEnabled: false,
   });
 });
 
@@ -172,6 +173,28 @@ test('chromium marketplace writes require explicit operator activation', () => {
       MARKETPLACE_CHROMIUM_WRITES_ENABLED: 'true',
     }),
   );
+});
+test('listing publication stays disabled until its own activation and Chromium writes are both configured', () => {
+  assert.equal(marketplaceBrowserServerConfig(chromiumPilot).listingPublishingEnabled, false);
+  assert.equal(
+    marketplaceBrowserServerConfig({ ...chromiumPilot, MARKETPLACE_CHROMIUM_WRITES_ENABLED: '1' })
+      .listingPublishingEnabled,
+    false,
+  );
+  assert.equal(
+    marketplaceBrowserServerConfig({
+      ...chromiumPilot,
+      MARKETPLACE_CHROMIUM_WRITES_ENABLED: '1',
+      MARKETPLACE_LISTING_PUBLISH_ENABLED: '1',
+    }).listingPublishingEnabled,
+    true,
+  );
+  for (const overrides of [
+    { MARKETPLACE_LISTING_PUBLISH_ENABLED: 'true' },
+    { MARKETPLACE_LISTING_PUBLISH_ENABLED: '1' },
+    { MARKETPLACE_LISTING_PUBLISH_ENABLED: '1', MARKETPLACE_BROWSER_PROVIDER: 'local' },
+  ])
+    assert.throws(() => marketplaceBrowserServerConfig({ ...chromiumPilot, ...overrides }));
 });
 
 test('chromium scheduling needs deliberate activation and legacy cloud remains configurable', () => {

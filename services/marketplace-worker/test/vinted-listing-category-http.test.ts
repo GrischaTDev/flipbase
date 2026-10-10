@@ -30,6 +30,7 @@ async function fixture(
     wrongCategory?: boolean;
     revoke?: boolean;
     waitForRead?: () => Promise<void>;
+    listingPublishingEnabled?: boolean;
   } = {},
 ) {
   let opened = 0,
@@ -51,6 +52,7 @@ async function fixture(
   const api = new MarketplaceBrowserHttpApi({
     users: { userId: () => Promise.resolve('46600000-0000-4000-8000-000000000003') },
     readOnly: options.readOnly,
+    listingPublishingEnabled: options.listingPublishingEnabled,
     listingCategories: options.missing
       ? undefined
       : {
@@ -94,6 +96,7 @@ async function fixture(
         headers: { Authorization: 'Bearer user-token', 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       }),
+    availability: () => fetch(`http://127.0.0.1:${address.port}/marketplace-browser/healthz`),
     close: () =>
       new Promise<void>((resolve, reject) =>
         server.close((error) => (error ? reject(error) : resolve())),
@@ -191,5 +194,30 @@ test('category HTTP read rejects a concurrent request and permits another after 
     release();
     await pending;
     await f.close();
+  }
+});
+test('health reports listing support only for an explicitly enabled write runtime', async () => {
+  for (const options of [
+    {},
+    { listingPublishingEnabled: false },
+    { listingPublishingEnabled: true },
+    { listingPublishingEnabled: true, readOnly: true },
+  ]) {
+    const f = await fixture(options);
+    try {
+      const response = await f.availability();
+      assert.equal(response.status, 200);
+      const body = (await response.json()) as { listingPublishingEnabled?: boolean };
+      assert.equal(
+        body.listingPublishingEnabled,
+        options.listingPublishingEnabled === undefined
+          ? undefined
+          : options.listingPublishingEnabled && !('readOnly' in options && options.readOnly),
+      );
+      assert.equal(f.opened(), 0);
+      assert.equal(f.reads(), 0);
+    } finally {
+      await f.close();
+    }
   }
 });

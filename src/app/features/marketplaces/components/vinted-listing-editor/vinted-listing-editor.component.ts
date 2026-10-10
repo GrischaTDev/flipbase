@@ -49,6 +49,9 @@ import { VintedListingTemplatePanelComponent } from '../vinted-listing-template-
 import { VintedListingJobPanelComponent } from '../vinted-listing-job-panel/vinted-listing-job-panel.component';
 import { VintedListingBrandDialogComponent } from '../vinted-listing-brand-dialog/vinted-listing-brand-dialog.component';
 import { VintedListingFieldsDialogComponent } from '../vinted-listing-fields-dialog/vinted-listing-fields-dialog.component';
+import { VintedListingPublicationPreviewComponent } from '../vinted-listing-publication-preview/vinted-listing-publication-preview.component';
+import type { MarketplaceConnection } from '../../models/marketplace.models';
+import type { VintedListingJob } from '../../models/vinted-listing-job';
 import {
   applyVintedListingFieldSelection,
   type VintedListingFieldSelection,
@@ -84,6 +87,7 @@ const same = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.st
     VintedListingJobPanelComponent,
     VintedListingBrandDialogComponent,
     VintedListingFieldsDialogComponent,
+    VintedListingPublicationPreviewComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [VintedListingCategoryService],
@@ -124,6 +128,15 @@ export class VintedListingEditorComponent {
   readonly categories = signal<readonly VintedCategory[]>([]);
   readonly categoryError = signal<string | null>(null);
   readonly brandSelectionContext = signal<string | null>(null);
+  readonly publication = signal<{
+    readonly scopeKey: string;
+    readonly userId: string;
+    readonly draft: VintedListingDraft;
+    readonly account: MarketplaceConnection;
+    readonly images: readonly ListingImageDraft[];
+  } | null>(null);
+  readonly publicationAnnouncement = signal('');
+  readonly jobRefresh = signal(0);
   readonly fieldSelection = signal<{
     readonly scopeKey: string;
     readonly connectionId: string;
@@ -257,6 +270,28 @@ export class VintedListingEditorComponent {
       /^[1-9][0-9]{0,31}$/.test(account.externalAccountId ?? '')
     );
   });
+  readonly canPreparePublication = computed(() => {
+    const draft = this.draft();
+    const account = this.store
+      .connections()
+      .find((value) => value.connectionId === draft?.connectionId);
+    return (
+      this.canSelectFields() &&
+      !this.dirty() &&
+      !!draft &&
+      draft.workspaceId === this.workspaceId() &&
+      draft.connectionId === this.form.controls.connectionId.value &&
+      account?.marketplace === 'vinted'
+    );
+  });
+  private readonly publicationScope = computed(() =>
+    JSON.stringify([
+      this.fieldSelectionScope(),
+      this.draft()?.id,
+      this.draft()?.revision,
+      this.changed(),
+    ]),
+  );
   readonly packageLabel = computed(() => {
     const content = this.content();
     if (content.packageSizeId === null) return 'Noch nicht festgelegt';
@@ -278,11 +313,53 @@ export class VintedListingEditorComponent {
       const selection = this.fieldSelection();
       if (selection && selection.scopeKey !== scope) untracked(() => this.closeFieldSelection());
     });
+    effect(() => {
+      const opened = this.publication();
+      if (opened && (!this.canPreparePublication() || opened.scopeKey !== this.publicationScope()))
+        untracked(() => this.closePublication());
+    });
     this.form.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => this.markChanged());
     this.destroyRef.onDestroy(() => {
       this.generation++;
       if (this.timer) clearTimeout(this.timer);
     });
+  }
+  openPublication(): void {
+    if (!this.canPreparePublication()) return;
+    const draft = this.draft()!;
+    const account = this.store
+      .connections()
+      .find((value) => value.connectionId === draft.connectionId)!;
+    this.publicationAnnouncement.set('');
+    this.publication.set({
+      scopeKey: this.publicationScope(),
+      userId: this.auth.currentUser()!.id,
+      draft: structuredClone(draft),
+      account: structuredClone(account),
+      images: [...this.images()],
+    });
+  }
+  closePublication(): void {
+    this.publication.set(null);
+  }
+  publicationAccepted(job: VintedListingJob): void {
+    const opened = this.publication();
+    if (
+      !opened ||
+      !this.canPreparePublication() ||
+      opened.scopeKey !== this.publicationScope() ||
+      job.workspaceId !== opened.draft.workspaceId ||
+      job.draftId !== opened.draft.id ||
+      job.connectionId !== opened.draft.connectionId ||
+      job.draftRevision !== opened.draft.revision ||
+      job.action !== 'publish'
+    )
+      return;
+    this.closePublication();
+    this.publicationAnnouncement.set(
+      'Die Veröffentlichung wurde beauftragt. Den bestätigten Vinted-Stand siehst Du im Auftragsverlauf.',
+    );
+    this.jobRefresh.update((value) => value + 1);
   }
   openBrandSelection(): void {
     if (this.canSelectBrand()) this.brandSelectionContext.set(this.context());
@@ -527,6 +604,8 @@ export class VintedListingEditorComponent {
     this.loadedContext = context;
     this.closeBrandSelection();
     this.closeFieldSelection();
+    this.closePublication();
+    this.publicationAnnouncement.set('');
     const generation = ++this.generation;
     if (this.timer) clearTimeout(this.timer);
     this.timer = null;
