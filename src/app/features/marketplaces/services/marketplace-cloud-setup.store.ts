@@ -10,6 +10,7 @@ import {
   CLOUD_PURCHASE_FAILED_MESSAGE,
   CLOUD_IP_LIMIT_MESSAGE,
   CLOUD_PRICE_LIMIT_MESSAGE,
+  CLOUD_SWITCH_BLOCKED_MESSAGE,
   MarketplaceCloudSetupApiService,
 } from './marketplace-cloud-setup-api.service';
 
@@ -127,9 +128,15 @@ export class MarketplaceCloudSetupStore {
       this.pendingRequest = null;
       await this.accounts.reloadConnections(result.setup.connectionId);
       return this.isCurrent(context, revision) ? result.setup : null;
-    } catch {
+    } catch (failure) {
       if (this.isCurrent(context, revision))
-        this.errorState.set({ context, message: CLOUD_CHECK_MESSAGE });
+        this.errorState.set({
+          context,
+          message:
+            failure instanceof Error && failure.message === CLOUD_SWITCH_BLOCKED_MESSAGE
+              ? CLOUD_SWITCH_BLOCKED_MESSAGE
+              : CLOUD_CHECK_MESSAGE,
+        });
       return null;
     } finally {
       if (this.isCurrent(context, revision)) this.busyContext.set(null);

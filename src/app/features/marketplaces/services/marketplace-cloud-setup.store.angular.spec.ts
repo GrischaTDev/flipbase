@@ -4,7 +4,11 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { AuthService } from '../../../core/services/auth.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import { MarketplaceAccountStore } from './marketplace-account.store';
-import { MarketplaceCloudSetupApiService } from './marketplace-cloud-setup-api.service';
+import {
+  CLOUD_CHECK_MESSAGE,
+  CLOUD_SWITCH_BLOCKED_MESSAGE,
+  MarketplaceCloudSetupApiService,
+} from './marketplace-cloud-setup-api.service';
 import { MarketplaceCloudSetupStore } from './marketplace-cloud-setup.store';
 const setup = {
   workspaceId: '25500000-0000-4000-8000-000000000011',
@@ -171,4 +175,12 @@ it('verwirft verspätete Antworten nach Workspace-Wechsel und beendet die Reserv
   expect(store.setup()).toBeNull();
   expect(reloadConnections).not.toHaveBeenCalled();
   expect(api.action).toHaveBeenCalledWith(setup, 'cancel', 'test-token');
+});
+it('nennt eine laufende Aktion als Grund statt eines IP-Prüffehlers', async () => {
+  api.begin.mockRejectedValueOnce(new Error(CLOUD_SWITCH_BLOCKED_MESSAGE));
+  await store.begin({ connectionId: setup.connectionId });
+  expect(store.error()).toBe(CLOUD_SWITCH_BLOCKED_MESSAGE);
+  api.begin.mockRejectedValueOnce(new Error('internal secret'));
+  await store.begin({ connectionId: setup.connectionId });
+  expect(store.error()).toBe(CLOUD_CHECK_MESSAGE);
 });

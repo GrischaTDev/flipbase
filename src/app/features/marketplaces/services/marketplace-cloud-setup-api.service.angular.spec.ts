@@ -2,6 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import {
   MarketplaceCloudSetupApiService,
   CLOUD_CHECK_MESSAGE,
+  CLOUD_SWITCH_BLOCKED_MESSAGE,
 } from './marketplace-cloud-setup-api.service';
 const api = new MarketplaceCloudSetupApiService();
 const request = {
@@ -64,4 +65,15 @@ it('verwirft eine fremde Einrichtungsantwort', async () => {
   await expect(
     api.action({ ...request, setupId: request.requestId }, 'read', 'test-token'),
   ).rejects.toThrow();
+});
+it('meldet einen gesperrten Wechsel getrennt vom IP-Prüffehler', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ code: 'cloud_switch_blocked' }, { status: 409 }))
+      .mockResolvedValueOnce(Response.json({ code: 'other' }, { status: 409 })),
+  );
+  await expect(api.begin(request, 'test-token')).rejects.toThrow(CLOUD_SWITCH_BLOCKED_MESSAGE);
+  await expect(api.begin(request, 'test-token')).rejects.toThrow(CLOUD_CHECK_MESSAGE);
 });

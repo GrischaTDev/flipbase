@@ -113,6 +113,12 @@ Ein technischer Fehler beim Prüfen oder Reservieren ist keine leere Kapazität:
 „Die Cloud-IP-Verfügbarkeit konnte nicht geprüft werden. Bitte versuche es erneut.“
 Ein erneuter Aufruf darf weder eine zweite IP reservieren noch ein zweites Profil anlegen.
 
+Sperrt eine laufende Aktion des Kontos den Wechsel, meldet der Worker das getrennt
+(`cloud_switch_blocked`, HTTP 409): „Für dieses Konto läuft noch eine Aktion. Warte kurz
+oder beende sie und versuche den Wechsel erneut.“ Scheitert der Wechsel ohne offenen
+Dialog, erscheint der Hinweis als Toast unten rechts; in einem offenen Dialog bleibt er
+am Anfang des Dialogs stehen.
+
 ## Lokales Konto zur Cloud wechseln
 
 1. „Auf Cloud wechseln“ startet eine separate Einrichtung für die vorhandene
