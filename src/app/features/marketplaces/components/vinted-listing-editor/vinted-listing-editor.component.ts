@@ -61,8 +61,7 @@ import {
   type VintedListingBrandSelection,
 } from '../../models/vinted-listing-brand-selection';
 
-const textControl = () =>
-  new FormControl('', { nonNullable: true, validators: [Validators.maxLength(20000)] });
+const textOptions = { nonNullable: true as const, validators: [Validators.maxLength(20000)] };
 const labels = (text: string) =>
   text
     .split(',')
@@ -156,15 +155,15 @@ export class VintedListingEditorComponent {
   private requestId = crypto.randomUUID();
   readonly validateImage = vintedDraftImageError;
   readonly form = new FormGroup({
-    title: textControl(),
-    description: textControl(),
-    price: textControl(),
+    title: new FormControl('', textOptions),
+    description: new FormControl('', textOptions),
+    price: new FormControl('', textOptions),
     categoryId: new FormControl<string | null>(null),
-    brand: textControl(),
-    size: textControl(),
-    condition: textControl(),
-    colors: textControl(),
-    materials: textControl(),
+    brand: new FormControl('', textOptions),
+    size: new FormControl('', textOptions),
+    condition: new FormControl('', textOptions),
+    colors: new FormControl('', textOptions),
+    materials: new FormControl('', textOptions),
     connectionId: new FormControl<string | null>(null),
   });
   readonly accountOptions = computed(() => [
