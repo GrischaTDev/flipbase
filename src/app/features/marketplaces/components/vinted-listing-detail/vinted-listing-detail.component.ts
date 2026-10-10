@@ -94,7 +94,7 @@ export class VintedListingDetailComponent {
   );
   readonly form = this.builder.nonNullable.group({
     title: ['', [Validators.required, Validators.maxLength(120)]],
-    description: ['', [Validators.required, Validators.maxLength(2000)]],
+    description: ['', [Validators.maxLength(2000)]],
     price: ['', [Validators.required, Validators.pattern(/^\d{1,6}(?:[,.]\d{1,2})?$/)]],
     brand: [''],
     size: [''],
@@ -283,7 +283,24 @@ export class VintedListingDetailComponent {
     this.error.set(null);
     this.notice.set(null);
     try {
-      const current = await this.store.readListingContent(this.connectionId(), this.entryId());
+      let current: VintedListingCurrentContent;
+      try {
+        current = await this.store.readListingContent(this.connectionId(), this.entryId());
+      } catch {
+        // Kann die vollständige Maske nicht sicher gelesen werden, bleibt die bisherige
+        // Bearbeitung von Titel, Beschreibung und Preis erhalten.
+        const fields = await this.store.readListingEdit(this.connectionId(), this.entryId());
+        if (!this.isCurrent(version)) return;
+        this.current.set(null);
+        this.colors.set([]);
+        this.materials.set([]);
+        this.form.setValue({ ...fields, brand: '', size: '', condition: '', package: '' });
+        this.notice.set(
+          'Vinted hat nicht alle Angaben dieses Inserats geliefert. Du kannst Titel, Beschreibung und Preis ändern; alles andere bleibt unverändert.',
+        );
+        this.editing.set(true);
+        return;
+      }
       if (!this.isCurrent(version)) return;
       const selection = vintedListingEditSelection(current);
       this.current.set(current);
@@ -320,8 +337,27 @@ export class VintedListingDetailComponent {
     this.error.set(null);
     try {
       const current = this.current();
-      if (!current) return;
       const fields = this.form.getRawValue();
+      if (!current) {
+        const basic = { title: fields.title, description: fields.description, price: fields.price };
+        await this.store.saveListingEdit(this.connectionId(), this.entryId(), basic);
+        if (!this.isCurrent(version)) return;
+        this.editing.set(false);
+        this.loadedEntry.update((entry) =>
+          entry
+            ? {
+                ...entry,
+                title: basic.title,
+                text: basic.description,
+                textState: 'loaded',
+                price: Number(basic.price.replace(',', '.')),
+              }
+            : entry,
+        );
+        this.description.set({ description: basic.description, cacheState: 'unconfirmed' });
+        this.notice.set('Die Änderung wurde bei Vinted bestätigt.');
+        return;
+      }
       const content = applyVintedListingEdit(current, fields, {
         brand: fields.brand ?? '',
         size: fields.size ?? '',

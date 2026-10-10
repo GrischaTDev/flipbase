@@ -39,8 +39,8 @@ und gemeinsame UI-Prüfung grün. Der neue Browserfall der Detailseite besteht b
 **Offen:** Echter Lese- und Schreibtest an einem ausgewählten Inserat, Fotos
 ändern, Kategorie wechseln, Markensuche im Bearbeitungsformular, lokale
 Ausführung über die Erweiterung und Relist. Die frühere Drei-Felder-Bearbeitung
-ist in Store und Worker noch vorhanden, wird von der Oberfläche aber nicht mehr
-verwendet.
+bleibt als Rückfall erhalten: Kann die vollständige Maske nicht sicher gelesen
+werden, lassen sich weiterhin Titel, Beschreibung und Preis ändern.
 
 ## 2026-10-10 – Juna – Inserat-Veröffentlichung auf aktuellen Master übernehmen
 

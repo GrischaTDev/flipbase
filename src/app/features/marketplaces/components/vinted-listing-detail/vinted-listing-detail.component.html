@@ -68,7 +68,7 @@
             formControlName="description"
             [multiline]="6"
             [maxLength]="2000"
-            [required]="true"
+            [required]="current() !== null"
           />
           <app-text-field
             label="Preis in Euro"
@@ -111,8 +111,12 @@
             </div>
           }
           <p class="text-xs text-fb-text-muted">
-            Fotos und Kategorie bleiben bei Vinted unverändert. Gespeichert ist erst, was Vinted
-            bestätigt.
+            @if (current()) {
+              Fotos und Kategorie bleiben bei Vinted unverändert.
+            } @else {
+              Fotos, Kategorie, Zustand und Versand bleiben bei Vinted unverändert.
+            }
+            Gespeichert ist erst, was Vinted bestätigt.
           </p>
           <div class="flex flex-wrap gap-2">
             <app-button variant="primary" type="submit" [disabled]="form.invalid" [loading]="busy()"

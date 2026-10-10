@@ -125,6 +125,27 @@ describe('Reaktive Inseratdetails', () => {
     expect(component.entry()).toMatchObject({ title: 'Neue Schuhe', price: 18, brand: 'Jako' });
     expect(component.notice()).toContain('bestätigt');
   });
+  it('behält bei unlesbarer vollständiger Maske die bisherige Bearbeitung von Titel, Beschreibung und Preis', async () => {
+    const { component, store } = setup([entry('a', 'Alt')]);
+    await settle();
+    store.readListingContent.mockRejectedValueOnce(new Error('private detail'));
+    await component.edit();
+    expect(component.editing()).toBe(true);
+    expect(component.current()).toBeNull();
+    expect(component.choiceFields()).toEqual([]);
+    expect(component.notice()).toContain('nicht alle Angaben');
+    expect(component.error()).toBeNull();
+    component.form.patchValue({ title: 'Neu', price: '15,50' });
+    await component.save();
+    expect(store.saveListingContent).not.toHaveBeenCalled();
+    expect(store.saveListingEdit).toHaveBeenCalledWith(account.connectionId, 'a', {
+      title: 'Neu',
+      description: 'Fresh',
+      price: '15,50',
+    });
+    expect(component.entry()).toMatchObject({ title: 'Neu', price: 15.5 });
+    expect(component.editing()).toBe(false);
+  });
   it('lässt die Eingabe bei einem Konflikt oder unbestätigtem Speichern offen und meldet keinen Erfolg', async () => {
     const { component, store } = setup([entry('a', 'Alt')]);
     await settle();
