@@ -12,9 +12,10 @@ import {
 test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: 'block' });
 
 async function openVintedSection(page: Page, label: string, width: number): Promise<void> {
+  const target = label === 'Inserate' ? 'Kleiderschrank' : label;
   if (width < 768)
     await page.locator('app-bottom-nav').getByRole('button', { name: 'Menü', exact: true }).click();
-  await page.locator('app-sidebar').getByRole('link', { name: label, exact: true }).click();
+  await page.locator('app-sidebar').getByRole('link', { name: target, exact: true }).click();
 }
 
 async function checkSurface(page: Page, selector: string) {
@@ -320,7 +321,7 @@ for (const width of [1440, 390, 320]) {
         'Konten',
         'Übersicht',
         'Postfach',
-        'Inserate',
+        'Kleiderschrank',
         'Inserat erstellen',
         'Entwürfe',
         'Verkäufe',
@@ -373,7 +374,7 @@ for (const width of [1440, 390, 320]) {
       await account.click();
       await page.getByRole('option', { name: /Testkonto A/ }).click();
 
-      await openVintedSection(page, 'Inserate', width);
+      await openVintedSection(page, 'Kleiderschrank', width);
       await expect(page.locator('[data-metric-increase]')).toHaveCount(0);
       imported.views = 7;
       imported.favorites = 4;
@@ -401,7 +402,7 @@ for (const width of [1440, 390, 320]) {
       await expect(detail).toContainText('Gespeicherte Beschreibung des Testschals.');
       await expect(detail).not.toContainText('Beschreibung wird');
       await expect(
-        nav.getByRole('link', { name: 'Inserate', exact: true, includeHidden: true }),
+        nav.getByRole('link', { name: 'Kleiderschrank', exact: true, includeHidden: true }),
       ).toHaveAttribute('aria-current', 'page');
       const image = detail.locator('app-product-thumbnail').first();
       const imageBounds = await image.boundingBox();
