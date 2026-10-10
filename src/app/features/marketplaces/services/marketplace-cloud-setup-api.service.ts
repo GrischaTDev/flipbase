@@ -10,6 +10,8 @@ import {
 export const CLOUD_CAPACITY_MESSAGE = 'Aktuell sind keine freien Cloud-IPs vorhanden.';
 export const CLOUD_CHECK_MESSAGE =
   'Die Cloud-IP-Verfügbarkeit konnte nicht geprüft werden. Bitte versuche es erneut.';
+export const CLOUD_SWITCH_BLOCKED_MESSAGE =
+  'Für dieses Konto läuft noch eine Aktion. Warte kurz oder beende sie und versuche den Wechsel erneut.';
 export const CLOUD_PURCHASE_PENDING_MESSAGE =
   'Deine Cloud-IP wird noch bereitgestellt oder die Bestellung muss geprüft werden. Bitte versuche es in Kürze erneut.';
 export const CLOUD_PURCHASE_FAILED_MESSAGE =
@@ -37,9 +39,19 @@ export class MarketplaceCloudSetupApiService {
   }
 
   async begin(request: CloudSetupRequest, token: string): Promise<CloudSetupResult> {
+    let blocked = false;
     try {
       for (let attempt = 0; attempt < 8; attempt++) {
         const response = await this.post('begin', request, token);
+        if (response.status === 409) {
+          // Eine laufende Aktion des Kontos ist kein IP-Prüffehler.
+          const failure: unknown = await response.json().catch(() => null);
+          blocked =
+            !!failure &&
+            typeof failure === 'object' &&
+            'code' in failure &&
+            failure.code === 'cloud_switch_blocked';
+        }
         if (!response.ok) throw new Error(CLOUD_CHECK_MESSAGE);
         const result = parseCloudSetupResult(await response.json(), request);
         if (result.status !== 'purchase_pending' || attempt === 7) return result;
@@ -47,7 +59,7 @@ export class MarketplaceCloudSetupApiService {
       }
       throw new Error(CLOUD_CHECK_MESSAGE);
     } catch {
-      throw new Error(CLOUD_CHECK_MESSAGE);
+      throw new Error(blocked ? CLOUD_SWITCH_BLOCKED_MESSAGE : CLOUD_CHECK_MESSAGE);
     }
   }
 

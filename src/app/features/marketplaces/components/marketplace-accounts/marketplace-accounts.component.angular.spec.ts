@@ -22,7 +22,11 @@ import axe from 'axe-core';
 import { AuthService } from '../../../../core/services/auth.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
-import { MarketplaceCloudSetupApiService } from '../../services/marketplace-cloud-setup-api.service';
+import {
+  CLOUD_SWITCH_BLOCKED_MESSAGE,
+  MarketplaceCloudSetupApiService,
+} from '../../services/marketplace-cloud-setup-api.service';
+import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { MarketplaceAccountsComponent } from './marketplace-accounts.component';
 import {
   VintedLocalExtensionBridge,
@@ -519,6 +523,32 @@ it('zeigt bei fehlender IP den Hinweis und lässt lokale Einrichtung ohne Browse
   expect(fixture.nativeElement.querySelector('app-marketplace-browser-test')).toBeNull();
   expect(createConnection).not.toHaveBeenCalled();
   expect(fixture.componentInstance.connectionMethod.enabled).toBe(true);
+});
+it('meldet einen gescheiterten Wechsel ohne offenen Dialog als Toast statt als breiten Hinweis', async () => {
+  const fixture = TestBed.createComponent(MarketplaceAccountsComponent);
+  const toasts = TestBed.inject(ToastService);
+  toasts.toasts().forEach((toast) => toasts.dismiss(toast.id));
+  fixture.detectChanges();
+  await fixture.whenStable();
+  cloud.begin.mockRejectedValue(new Error(CLOUD_SWITCH_BLOCKED_MESSAGE));
+  try {
+    await fixture.componentInstance.upgrade(account);
+    await fixture.componentInstance.upgrade(account);
+  } finally {
+    cloud.begin.mockReset();
+    cloud.begin.mockResolvedValue({ status: 'no_capacity' });
+  }
+  fixture.detectChanges();
+  expect(toasts.toasts()).toEqual([
+    expect.objectContaining({
+      type: 'error',
+      title: 'Wechsel zur Cloud nicht möglich',
+      description: CLOUD_SWITCH_BLOCKED_MESSAGE,
+    }),
+  ]);
+  expect(fixture.nativeElement.querySelector('app-notice-banner')).toBeNull();
+  expect(fixture.componentInstance.dialog()).toBeNull();
+  toasts.toasts().forEach((toast) => toasts.dismiss(toast.id));
 });
 
 let restore: (() => void) | undefined;
