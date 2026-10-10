@@ -1,5 +1,28 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-11 – Juna – Diagnose für das Lesen bestehender Inserate
+
+**Anlass:** Nach dem Einschalten von `MARKETPLACE_CHROMIUM_WRITES_ENABLED` und
+`MARKETPLACE_LISTING_PUBLISH_ENABLED` auf dem Server (Nutzerfreigabe vom
+10.10.2026) scheiterte „Bearbeiten“ an einem echten Inserat. Ein Versuch fiel in
+einen Browserstart-Fehler um 23:44–23:59 Uhr, ein weiterer brach nach 21 Sekunden
+im Cloud-Browser ab. Der Server protokollierte dazu nichts; die Browsersitzung
+schreibt kein Protokoll, und der Reverse-Proxy nur Fehler ab 5xx.
+
+**Änderung:** Das Lesen der Bearbeitungsmaske meldet bei einem Abbruch nur den
+festen Schritt (Navigation, Formular, Konto, Werte, Fotos, Kategorie, Merkmale,
+Veränderung, Prüfung). Der Schritt übersteht den getrennten Browser, wird vom
+Worker als `marketplace_listing_request_failed` mit Route und Grund protokolliert
+und in der Antwort genannt. Keine Seiteninhalte, Kennungen oder Anbieterantworten.
+Ein Rechteverlust bleibt als solcher erkennbar.
+
+**Nebenbefund:** Die Server-Sitzung überstand die normale Nutzung der Handy-App
+(sieben fehlerfreie Abrufe von 21:58 bis 23:29 Uhr). Nach einem gescheiterten
+Browserstart startete der Worker zehnmal neu, bevor er stabil lief.
+
+**Prüfungen:** 612 Worker-Prüfungen, die Browserfälle für Lesen und Ändern, Typen,
+Format und ESLint grün. Serverzugriffe zur Ursachensuche ausschließlich lesend.
+
 ## 2026-10-10 - Juna - Vinted-Karten exakt an Vorlage angleichen
 
 **Auftrag:** Kritik des Nutzers umsetzen: Einstellungs-Zahnrad oben rechts bündig auf Höhe des Namens positionieren, Kartenfooter mit dezent abgesetztem Hintergrund und gleichmäßig aufgeteilten Buttons ausstatten sowie die maximale Kartenbreite begrenzen, damit die Karten nicht übermäßig breit gezogen werden.

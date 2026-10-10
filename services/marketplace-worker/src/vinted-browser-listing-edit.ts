@@ -1,6 +1,7 @@
 import type { Page } from 'playwright';
 import { readVintedAccountIdentity } from './vinted-browser-reader.ts';
 import { confirmVintedEdit } from './vinted-edit-confirmation.ts';
+import { VintedListingReadError } from './vinted-listing-read-error.ts';
 
 export interface VintedListingEditFields {
   title: string;
@@ -14,22 +15,30 @@ const vintedOrigin = 'https://www.vinted.de';
 
 async function openEdit(page: Page, itemId: string, accountId: string): Promise<void> {
   const identity = await readVintedAccountIdentity(page);
-  if (!identity || identity.id !== accountId) throw new Error('Vinted-Konto stimmt nicht überein');
-  await page.goto(`${vintedOrigin}/items/${itemId}/edit`, {
-    waitUntil: 'domcontentloaded',
-    timeout: 20_000,
-  });
+  if (!identity || identity.id !== accountId) throw new VintedListingReadError('identity');
+  try {
+    await page.goto(`${vintedOrigin}/items/${itemId}/edit`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20_000,
+    });
+  } catch {
+    throw new VintedListingReadError('navigate');
+  }
   if (
     new URL(page.url()).origin !== vintedOrigin ||
     new URL(page.url()).pathname !== `/items/${itemId}/edit`
   )
-    throw new Error('Bearbeitungsseite nicht verfügbar');
-  await page.locator('input[name="title"]').waitFor({ state: 'visible', timeout: 15_000 });
+    throw new VintedListingReadError('navigate');
+  try {
+    await page.locator('input[name="title"]').waitFor({ state: 'visible', timeout: 15_000 });
+  } catch {
+    throw new VintedListingReadError('form');
+  }
   if (
     !(await page.locator('textarea[name="description"]').isVisible()) ||
     !(await page.locator('input[name="price"]').isVisible())
   )
-    throw new Error('Bearbeitungsformular unvollständig');
+    throw new VintedListingReadError('values');
 }
 
 async function fields(page: Page): Promise<VintedListingEditFields> {

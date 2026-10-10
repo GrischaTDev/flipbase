@@ -4,7 +4,12 @@ import type {
   VintedListingChoiceField,
   VintedListingCurrentContent,
 } from '../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts';
-import { readVintedAccountIdentity } from './vinted-browser-reader.ts';
+import {
+  readVintedAccountIdentity,
+  VintedInteractionRequiredError,
+  VintedVerificationRequiredError,
+} from './vinted-browser-reader.ts';
+import { VintedListingReadError, type VintedListingReadStep } from './vinted-listing-read-error.ts';
 import {
   readVintedListingCategoryFields,
   readVintedListingChoices,
@@ -55,11 +60,17 @@ export async function readOpenVintedListingContent(
   accountId: string,
   externalId: string,
   check: () => Promise<void>,
+  /** Meldet den jeweils begonnenen Schritt, damit ein Abbruch eingeordnet werden kann. */
+  onStep: (step: VintedListingReadStep) => void = () => undefined,
 ): Promise<VintedListingCurrentContent> {
+  onStep('values');
   const before = await page.evaluate(collectVintedListingFormValues);
+  if (!before) throw invalid();
+  onStep('photos');
   const photosBefore = await loadedPhotos(page);
-  if (!before || photosBefore.items.some((item) => item.url === null)) throw invalid();
+  if (photosBefore.items.some((item) => item.url === null)) throw invalid();
   await check();
+  onStep('category');
   const category = (
     await readVintedListingChoices(page, accountId, null, 'category', [], {
       allowRememberedCategory: true,
@@ -68,6 +79,7 @@ export async function readOpenVintedListingContent(
   const selectedCategory = category[0];
   if (category.length !== 1 || !selectedCategory || selectedCategory.id === null) throw invalid();
   await check();
+  onStep('fields');
   const schema = parseVintedListingCategoryFields(
     await readVintedListingCategoryFields(page, accountId, selectedCategory.id, [], {
       authorize: check,
@@ -75,10 +87,12 @@ export async function readOpenVintedListingContent(
     selectedCategory.id,
   );
   await check();
+  onStep('changed');
   // Das Öffnen der Auswahllisten darf nichts verändert haben; sonst keinen gemischten Stand liefern.
   const after = await page.evaluate(collectVintedListingFormValues);
   const photosAfter = await page.evaluate(collectVintedListingPhotoState);
   if (!sameValues(before, after) || !samePhotos(photosBefore, photosAfter)) throw invalid();
+  onStep('parse');
   const selected = (field: VintedListingChoiceField): readonly VintedListingChoice[] =>
     schema.fields
       .find((entry) => entry.field === field)
@@ -140,20 +154,45 @@ export async function readVintedListingCurrentContent(
   // Eine Seite mit Benutzerarbeit wird weder verwendet noch geschlossen.
   if (page.url() !== 'about:blank') throw new Error('Die Inseratseite ist nicht neu reserviert.');
   const target = 'https://www.vinted.de/items/' + externalId + '/edit';
+  let step: VintedListingReadStep = 'navigate';
+  let authorizationFailed = false;
+  // Ein Rechteverlust bleibt als solcher erkennbar und wird nicht als Lesefehler gemeldet.
+  const authorized = async () => {
+    try {
+      await authorize();
+    } catch (error) {
+      authorizationFailed = true;
+      throw error;
+    }
+  };
   try {
-    await authorize();
+    await authorized();
     await page.goto(target, { waitUntil: 'domcontentloaded', timeout: 15_000 });
+    step = 'form';
     await page
       .locator('#content input[name="title"]')
       .waitFor({ state: 'visible', timeout: 15_000 });
     const check = async () => {
-      await authorize();
+      const current = step;
+      await authorized();
+      step = 'identity';
       if (page.url() !== target || (await readVintedAccountIdentity(page))?.id !== accountId)
         throw invalid();
-      await authorize();
+      step = current;
+      await authorized();
     };
     await check();
-    return await readOpenVintedListingContent(page, accountId, externalId, check);
+    return await readOpenVintedListingContent(page, accountId, externalId, check, (next) => {
+      step = next;
+    });
+  } catch (error) {
+    if (
+      authorizationFailed ||
+      error instanceof VintedInteractionRequiredError ||
+      error instanceof VintedVerificationRequiredError
+    )
+      throw error;
+    throw new VintedListingReadError(step);
   } finally {
     await page.close();
   }
