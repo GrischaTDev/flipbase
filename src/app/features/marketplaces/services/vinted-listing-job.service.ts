@@ -79,6 +79,46 @@ function accepted(
 @Injectable({ providedIn: 'root' })
 export class VintedListingJobService {
   private readonly client = inject(SupabaseService).client;
+  listen(
+    workspaceId: string,
+    draftId: string,
+    onChange: () => void,
+    onReconnect: () => void,
+  ): () => void {
+    const workspace = requestIdentifier(workspaceId).toLowerCase();
+    const draft = listingIdentifier(draftId);
+    let active = true;
+    const channel = this.client
+      .channel(`workspace:${workspace}:marketplace_listing:${draft}`, { config: { private: true } })
+      .on('broadcast', { event: 'listing_jobs_changed' }, (message: { payload: unknown }) => {
+        const payload = message.payload;
+        if (!active || !payload || typeof payload !== 'object' || Array.isArray(payload)) return;
+        const hint = payload as Record<string, unknown>;
+        const keys = Object.keys(hint);
+        const eventId = hint['id'];
+        if (
+          keys.every((key) => ['workspaceId', 'draftId', 'id'].includes(key)) &&
+          (keys.length === 2 ||
+            (keys.length === 3 &&
+              typeof eventId === 'string' &&
+              /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(eventId))) &&
+          hint['workspaceId'] === workspace &&
+          hint['draftId'] === draft
+        )
+          onChange();
+      })
+      .subscribe((status) => {
+        if (active && status === 'SUBSCRIBED') onReconnect();
+      });
+    return () => {
+      if (!active) return;
+      active = false;
+      void this.client.removeChannel(channel).catch(() => undefined);
+    };
+  }
+  authenticate(token: string): void {
+    void this.client.realtime.setAuth(token).catch(() => undefined);
+  }
   async readPermission(
     workspaceId: string,
     connectionId: string,

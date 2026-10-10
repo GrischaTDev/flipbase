@@ -339,6 +339,17 @@ offiziellen Beleg; fremde Erfahrungsberichte werden nicht zum Formularvertrag.
 Auch die 20 Cloud-Datenbankprüfungen verwenden ausschließlich synthetische
 Belege. Keine echte Veröffentlichung oder Anlage eines Vinted-Entwurfs geprüft.
 
+Die Markensuche wurde zusätzlich in einer frischen Neuanlagemaske mit der
+Kategorie Herren → Kleidung → Jacken & Mäntel → Jacken → Bomberjacken geprüft.
+Sie öffnet `brand-search--input` mit `id="brand-search-input"` und Platzhalter
+„Marke suchen“. Die Suche nach „JAKO“ liefert unter anderem „Jako-o“ mit
+`brand-radio-317425` und „Jako“ mit `brand-radio-254956` sowie ähnliche Marken.
+Daneben erscheint eine freie Markenoption ohne Anbieterkennung. Diese darf
+keinen bestätigten Markentreffer ersetzen. Nach Auswahl des tatsächlichen
+„Jako“-Treffers zeigt `#brand` den Wert „Jako“; die Aktualisierung erfolgt
+asynchron. Es wurden keine Texte/Fotos eingegeben oder gespeichert. Der eigene
+Recherchetab wurde anschließend geschlossen; das Benutzerformular blieb offen.
+
 ## Prüfungen dieser Grundlage
 
 - Produktionsbau und TypeScript-Prüfung erfolgreich; bestehende Warnungen

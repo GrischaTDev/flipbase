@@ -157,10 +157,53 @@ export function completeListingJobsMigration(migration, schema, phase = 'jobs') 
   }[phase];
   return `-- Zweck: ${purpose}\n-- Betroffen: public.marketplace_listing_permissions und marketplace_listing_jobs sowie deren kontrollierte RPCs.\n${lowercaseSql(migration.trimEnd())}\n\n${jobsMarker}\n${permissions.join('\n')}\n`;
 }
+export function completeListingJobUpdatesMigration(migration, schema) {
+  const updatesMarker = '-- Explizite Rechte für private Inseratauftragsmeldungen.';
+  if (migration.includes(updatesMarker))
+    throw new Error('Inseratmeldungs-Migration bereits ergänzt.');
+  if (
+    !/create(?: or replace)? function public\.marketplace_notify_listing_job_change\b/iu.test(
+      migration,
+    ) ||
+    !/create trigger marketplace_notify_listing_job_change\b[^;]+on public\.marketplace_listing_jobs/iu.test(
+      migration,
+    )
+  )
+    throw new Error('Generierte Inseratmeldungen sind unvollständig.');
+  if (/^(?:alter table|drop\b|create table)\s/imu.test(migration))
+    throw new Error('Unerwartete Tabellen- oder Löschänderung.');
+  for (const match of migration.matchAll(/create(?: or replace)? function public\.([a-z_]+)/gimu))
+    if (match[1] !== 'marketplace_notify_listing_job_change')
+      throw new Error('Fremde Funktionsänderung.');
+  const permissions = [...schema.matchAll(/^(?:revoke|grant)\s+[^;]+;/gimu)].map(
+    (match) => match[0],
+  );
+  if (
+    permissions.length !== 2 ||
+    permissions.some(
+      (statement) => !statement.includes('function public.marketplace_notify_listing_job_change()'),
+    )
+  )
+    throw new Error('Deklarative Meldungsrechte fehlen.');
+  // Der CLI-Abgleich liefert trotz ausgewähltem realtime-Schema dessen Lesepolicy nicht mit.
+  const policies = [
+    ...schema.matchAll(
+      /^create policy "Kontoverwalter empfangen Inserataufträge" on realtime\.messages[^;]+;/gimu,
+    ),
+  ].map((match) => match[0]);
+  if (policies.length !== 1) throw new Error('Deklarative private Lesepolicy fehlt.');
+  const missingPolicy =
+    /create policy "Kontoverwalter empfangen Inserataufträge" on realtime\.messages/iu.test(
+      migration,
+    )
+      ? ''
+      : policies[0] + '\n';
+  return `-- Zweck: private Änderungsmeldungen für den Inseratauftragsverlauf.\n-- Betroffen: Trigger auf public.marketplace_listing_jobs und Lesepolicy auf realtime.messages.\n${lowercaseSql(migration.trimEnd())}\n\n${updatesMarker}\n${permissions.join('\n')}\n${missingPolicy}`;
+}
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   const path = process.argv[2];
   if (
-    !/^supabase[/\\]migrations[/\\]\d{14}_vinted_listing_(?:drafts|jobs|planning|execution|cloud|reschedule)\.sql$/.test(
+    !/^supabase[/\\]migrations[/\\]\d{14}_vinted_listing_(?:drafts|jobs|planning|execution|cloud|reschedule|updates)\.sql$/.test(
       path ?? '',
     )
   )
@@ -170,7 +213,15 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   });
   if (tracked.error || tracked.status !== 1)
     throw new Error('Versionierte Migration oder Git-Status nicht prüfbar.');
-  if (/_vinted_listing_(?:jobs|planning|execution|cloud|reschedule)\.sql$/.test(path)) {
+  if (/_vinted_listing_updates\.sql$/.test(path)) {
+    await writeFile(
+      path,
+      completeListingJobUpdatesMigration(
+        await readFile(path, 'utf8'),
+        await readFile('supabase/schemas/466_marketplace_listing_job_updates.sql', 'utf8'),
+      ),
+    );
+  } else if (/_vinted_listing_(?:jobs|planning|execution|cloud|reschedule)\.sql$/.test(path)) {
     const phase = path.match(/_vinted_listing_(jobs|planning|execution|cloud|reschedule)\.sql$/)[1];
     const schema = (
       await Promise.all(

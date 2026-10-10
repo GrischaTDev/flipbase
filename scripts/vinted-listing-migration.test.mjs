@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import {
   completeListingMigration,
   completeListingJobsMigration,
@@ -120,4 +121,32 @@ test('completes cloud execution grants and rejects incomplete or unrelated suppl
       'cloud',
     ),
   );
+});
+
+test('completes only the generated private job update function, trigger and policy', async () => {
+  const { completeListingJobUpdatesMigration } = await import('./vinted-listing-migration.mjs');
+  const schema = await readFile('supabase/schemas/466_marketplace_listing_job_updates.sql', 'utf8');
+  const generated = schema.replace(/^revoke[^;]+;\n|^grant[^;]+;\n/gim, '');
+  const result = completeListingJobUpdatesMigration(generated, schema);
+  const missingPolicy = generated.replace(/create policy[^;]+;/iu, '');
+  assert.match(
+    completeListingJobUpdatesMigration(missingPolicy, schema),
+    /create policy "Kontoverwalter empfangen Inserataufträge" on realtime\.messages/,
+  );
+  assert.match(
+    result,
+    /revoke all on function public.marketplace_notify_listing_job_change\(\) from public,anon,authenticated/,
+  );
+  assert.match(
+    result,
+    /grant execute on function public.marketplace_notify_listing_job_change\(\) to service_role/,
+  );
+  assert.doesNotMatch(result, /revoke all on public\.marketplace_listing_jobs/);
+  for (const invalid of [
+    'select 1;',
+    generated + '\nALTER TABLE public.workspaces ADD COLUMN x text;',
+    generated + '\nDROP TABLE public.marketplace_listing_jobs;',
+    result,
+  ])
+    assert.throws(() => completeListingJobUpdatesMigration(invalid, schema));
 });

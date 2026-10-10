@@ -1,5 +1,29 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-10 – Juna – Inserataufträge automatisch im Editor aktualisieren
+
+**Arbeit:** Der Auftragsverlauf empfängt private Änderungsmeldungen für seinen
+gespeicherten Entwurf. Meldungen enthalten ausschließlich Workspace-, Entwurfs-
+und Ereigniskennung; den aktuellen Stand lädt Flipbase mit den vorhandenen
+Zugriffsrechten neu. Während laufender Abfragen oder eines Planungsdialogs
+bleibt eine Aktualisierung vorgemerkt. Konto-, Nutzer- und Rechtewechsel sowie
+das Schließen der Seite entfernen den Kanal und verwerfen verspätete Antworten.
+Lease-Prüfungen ohne sichtbare Änderung erzeugen keine Meldung.
+
+**Prüfungen:** Fehlende Kanal- und Editoranbindung zuerst durch fehlgeschlagene
+Tests belegt. 37 Angularprüfungen, 15 neue und 159 bestehende Datenbankprüfungen
+nach frischem Aufbau der isolierten Testdatenbank erfolgreich. Migration mit
+dem CLI erzeugt; dessen fehlende Realtime-Policy wird automatisch aus der
+deklarativen Datei ergänzt. Datenbanktypen neu erzeugt. Zwölf Skriptprüfungen,
+Typprüfung, Angular-Bau, Format und ESLint erfolgreich. Neun Browserdurchläufe
+einschließlich tatsächlicher WebSocket-Meldung, Statuswechsel, Desktop/Mobil,
+hell/dunkel und AXE erfolgreich. Keine echte Vinted-Aktion oder Produktionsänderung.
+
+**Recherche:** Native Markensuche mit „JAKO“ geprüft: „Jako“ und „Jako-o“
+haben verschiedene Anbieterkennungen. Kein Vinted-Entwurf ist vorhanden;
+für die Leseprüfung wurde keiner angelegt. Lokaler Ausführer, vollständige
+Merkmalsauswahl, native Vinted-Entwürfe und Live-Veröffentlichung bleiben offen.
+
 ## 2026-10-10 – Juna – Inserataufträge in die Cloud-Warteschlange aufnehmen
 
 **Arbeit:** Der Chromium-Worker nimmt jetzt Inserataufträge über den bestehenden

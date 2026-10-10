@@ -57,6 +57,70 @@ function api(rpc: ReturnType<typeof vi.fn>) {
   return TestBed.inject(VintedListingJobService);
 }
 describe('Vinted-Inseratauftragservice', () => {
+  it('listens privately to this draft, validates change hints and stops late callbacks', () => {
+    const workspaceId = '46600000-0000-4000-8000-000000000011';
+    const onChange = vi.fn(),
+      onReconnect = vi.fn();
+    let broadcast!: (message: { payload: unknown }) => void;
+    let status!: (value: string) => void;
+    const channel = {
+      on: vi.fn((_type, _filter, callback) => {
+        broadcast = callback;
+        return channel;
+      }),
+      subscribe: vi.fn((callback) => {
+        status = callback;
+        return channel;
+      }),
+    };
+    const client = {
+      channel: vi.fn(() => channel),
+      removeChannel: vi.fn().mockResolvedValue('ok'),
+      realtime: { setAuth: vi.fn().mockResolvedValue(undefined) },
+    };
+    TestBed.configureTestingModule({
+      providers: [{ provide: SupabaseService, useValue: { client } }],
+    });
+    const service = TestBed.inject(VintedListingJobService);
+    const stop = service.listen(workspaceId, draft.id, onChange, onReconnect);
+    expect(client.channel).toHaveBeenCalledWith(
+      `workspace:${workspaceId}:marketplace_listing:${draft.id}`,
+      { config: { private: true } },
+    );
+    expect(channel.on.mock.calls[0].slice(0, 2)).toEqual([
+      'broadcast',
+      { event: 'listing_jobs_changed' },
+    ]);
+    for (const payload of [
+      null,
+      [],
+      {},
+      { workspaceId, draftId: 12 },
+      { workspaceId: 'foreign', draftId: draft.id },
+      { workspaceId, draftId: '42' },
+      { workspaceId, draftId: draft.id, snapshot: { private: true } },
+    ])
+      broadcast({ payload });
+    expect(onChange).not.toHaveBeenCalled();
+    broadcast({ payload: { workspaceId, draftId: draft.id } });
+    broadcast({ payload: { workspaceId, draftId: draft.id, id: 'invalid' } });
+    broadcast({
+      payload: { workspaceId, draftId: draft.id, id: '46600000-0000-4000-8000-000000000099' },
+    });
+    status('CHANNEL_ERROR');
+    status('SUBSCRIBED');
+    expect(onChange).toHaveBeenCalledTimes(2);
+    expect(onReconnect).toHaveBeenCalledTimes(1);
+    service.authenticate('new-token');
+    expect(client.realtime.setAuth).toHaveBeenCalledWith('new-token');
+    stop();
+    stop();
+    broadcast({ payload: { workspaceId, draftId: draft.id } });
+    status('SUBSCRIBED');
+    expect(onChange).toHaveBeenCalledTimes(2);
+    expect(onReconnect).toHaveBeenCalledTimes(1);
+    expect(client.removeChannel).toHaveBeenCalledTimes(1);
+  });
   it('ändert den Termin ohne Foto- oder Aktionseinstellungen im Client neu zu setzen', async () => {
     const rpc = vi.fn().mockResolvedValue({
       data: { ...body, id: '9007199254741000', replacesJobId: body.id },

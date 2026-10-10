@@ -49,7 +49,8 @@ async function mockDrafts(page: Page, planned = false) {
   };
   let created = planned,
     imageId = 0,
-    uploads = 0;
+    uploads = 0,
+    jobReads = 0;
   const jobs = [
     {
       id: '1',
@@ -124,8 +125,10 @@ async function mockDrafts(page: Page, planned = false) {
   await page.route('**/rest/v1/rpc/marketplace_*listing*', async (route) => {
     const name = new URL(route.request().url()).pathname.split('/').at(-1);
     const body = route.request().postDataJSON() as Record<string, unknown>;
-    if (name === 'marketplace_read_listing_jobs')
+    if (name === 'marketplace_read_listing_jobs') {
+      jobReads++;
       return route.fulfill({ json: { items: created ? jobs : [] } });
+    }
     if (name === 'marketplace_reschedule_listing') {
       reschedules.push(body);
       const previous = jobs.find((job) => job.id === body['p_job_id']);
@@ -234,8 +237,83 @@ async function mockDrafts(page: Page, planned = false) {
     draft: () => draft,
     uploads: () => uploads,
     pixel,
+    jobs,
+    jobReads: () => jobReads,
   };
 }
+
+test('Inseratauftrag aktualisiert sich über einen privaten Kanal @marketplace-preview', async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const state = await mockDrafts(page, true);
+  let hint: ((payload: unknown) => void) | undefined;
+  let privateChannel = false;
+  await page.routeWebSocket(/127\.0\.0\.1:54351/, (socket) => {
+    socket.onMessage((message) => {
+      if (typeof message !== 'string') return;
+      const [joinRef, ref, topic, event, payload] = JSON.parse(message) as unknown[];
+      if (['phx_join', 'phx_leave', 'heartbeat'].includes(String(event)))
+        socket.send(
+          JSON.stringify([joinRef, ref, topic, 'phx_reply', { status: 'ok', response: {} }]),
+        );
+      if (
+        event === 'phx_join' &&
+        topic === `realtime:workspace:${workspaceId}:marketplace_listing:9007199254740999`
+      ) {
+        privateChannel = (payload as { config: { private: boolean } }).config.private;
+        hint = (value) =>
+          socket.send(
+            JSON.stringify([
+              joinRef,
+              null,
+              topic,
+              'broadcast',
+              { type: 'broadcast', event: 'listing_jobs_changed', payload: value },
+            ]),
+          );
+      }
+    });
+  });
+  await page.goto('/marketplaces/vinted/listing-drafts/9007199254740999');
+  const history = page.locator('app-vinted-listing-job-panel');
+  await expect(history.getByText('Veröffentlichung beauftragt', { exact: true })).toBeVisible();
+  await expect.poll(() => !!hint).toBe(true);
+  await expect.poll(() => state.jobReads()).toBeGreaterThanOrEqual(2);
+  expect(privateChannel).toBe(true);
+  Object.assign(state.jobs[0], { state: 'claimed', version: 2 });
+  hint!({ workspaceId, draftId: '9007199254740999', id: '46600000-0000-4000-8000-000000000099' });
+  await expect(history.getByText('Wird vorbereitet', { exact: true })).toBeVisible();
+  Object.assign(state.jobs[0], {
+    state: 'confirmed',
+    version: 3,
+    externalId: '46609',
+    providerState: 'active',
+    verifiedAt: '2026-10-10T00:00:00Z',
+  });
+  hint!({ workspaceId, draftId: '9007199254740999' });
+  await expect(history.getByText('Veröffentlicht', { exact: true })).toBeVisible();
+  await expect(history.getByRole('link', { name: /^Bei Vinted ansehen/ }).first()).toHaveAttribute(
+    'href',
+    'https://www.vinted.de/items/46609',
+  );
+  await page.addScriptTag({ content: axe.source });
+  expect(
+    await page.evaluate(
+      async () =>
+        (
+          await (window as unknown as { axe: typeof axe }).axe.run(
+            document.querySelector('app-vinted-listing-job-panel') as HTMLElement,
+          )
+        ).violations,
+    ),
+  ).toEqual([]);
+  expect(state.jobCancels).toEqual([]);
+  expect(state.reschedules).toEqual([]);
+  expect(state.uploads()).toBe(0);
+  await history.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath('listing-live-status.png'), fullPage: false });
+});
 
 for (const width of [1440, 390])
   for (const dark of [false, true]) {

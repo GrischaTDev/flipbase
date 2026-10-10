@@ -84,7 +84,21 @@ async function settle() {
 function setup(jobs: readonly VintedListingJob[] = [job]) {
   const workspace = signal({ id: 'workspace-a', archived_at: null }),
     user = signal({ id: 'user-a' }),
+    session = signal({ access_token: 'token-a' }),
     canManage = signal(true);
+  const subscriptions: {
+    change: () => void;
+    reconnect: () => void;
+    stop: ReturnType<typeof vi.fn>;
+  }[] = [];
+  const listen = vi.fn(
+    (_workspace: string, _draft: string, change: () => void, reconnect: () => void) => {
+      const stop = vi.fn();
+      subscriptions.push({ change, reconnect, stop });
+      return stop;
+    },
+  );
+  const authenticate = vi.fn();
   const list = vi.fn().mockResolvedValue(jobs),
     cancel = vi.fn().mockResolvedValue({ ...job, state: 'cancelled', version: 2 }),
     reschedule = vi
@@ -92,10 +106,13 @@ function setup(jobs: readonly VintedListingJob[] = [job]) {
       .mockResolvedValue({ ...job, id: '20', draftRevision: 3, replacesJobId: job.id });
   TestBed.configureTestingModule({
     providers: [
-      { provide: AuthService, useValue: { currentUser: user } },
+      { provide: AuthService, useValue: { currentUser: user, session } },
       { provide: WorkspaceService, useValue: { currentWorkspace: workspace } },
       { provide: MarketplaceAccountStore, useValue: { canManage } },
-      { provide: VintedListingJobService, useValue: { list, cancel, reschedule } },
+      {
+        provide: VintedListingJobService,
+        useValue: { list, cancel, reschedule, listen, authenticate },
+      },
     ],
   });
   const fixture = TestBed.createComponent(VintedListingJobPanelComponent);
@@ -112,10 +129,96 @@ function setup(jobs: readonly VintedListingJob[] = [job]) {
     workspace,
     user,
     canManage,
+    subscriptions,
+    listen,
+    authenticate,
+    session,
   };
 }
 afterEach(() => TestBed.resetTestingModule());
 describe('Inserataufträge im Editor', () => {
+  it('coalesces change hints during an active read and reloads on reconnect', async () => {
+    const f = setup();
+    await settle();
+    let resolve!: (value: readonly VintedListingJob[]) => void;
+    f.list.mockImplementationOnce(
+      () =>
+        new Promise<readonly VintedListingJob[]>((done) => {
+          resolve = done;
+        }),
+    );
+    f.subscriptions[0].change();
+    await settle();
+    expect(f.list).toHaveBeenCalledTimes(2);
+    f.subscriptions[0].change();
+    f.subscriptions[0].change();
+    f.subscriptions[0].reconnect();
+    await settle();
+    expect(f.list).toHaveBeenCalledTimes(2);
+    f.list.mockResolvedValue([{ ...job, state: 'failed', errorCode: 'provider_unconfirmed' }]);
+    resolve([{ ...job, state: 'writing' }]);
+    await settle();
+    await settle();
+    expect(f.list).toHaveBeenCalledTimes(3);
+    expect(f.component.jobs()[0].state).toBe('failed');
+    expect(f.component.announcement()).toContain('aktualisiert');
+  });
+  it('removes subscriptions on context changes and ignores hints from the old subscription', async () => {
+    const f = setup();
+    await settle();
+    expect(f.authenticate).toHaveBeenCalledWith('token-a');
+    f.session.set({ access_token: 'token-b' });
+    await settle();
+    expect(f.authenticate).toHaveBeenLastCalledWith('token-b');
+    f.user.set({ id: 'user-b' });
+    await settle();
+    expect(f.subscriptions[0].stop).toHaveBeenCalledTimes(1);
+    const reads = f.list.mock.calls.length;
+    f.subscriptions[0].change();
+    f.subscriptions[0].reconnect();
+    await settle();
+    expect(f.list).toHaveBeenCalledTimes(reads);
+    f.canManage.set(false);
+    await settle();
+    expect(f.subscriptions[1].stop).toHaveBeenCalledTimes(1);
+    f.subscriptions[1].change();
+    await settle();
+    expect(f.component.jobs()).toEqual([]);
+    f.canManage.set(true);
+    await settle();
+    f.fixture.destroy();
+    expect(f.subscriptions[2].stop).toHaveBeenCalledTimes(1);
+    const finalReads = f.list.mock.calls.length;
+    f.subscriptions[2].change();
+    f.subscriptions[2].reconnect();
+    await settle();
+    expect(f.list).toHaveBeenCalledTimes(finalReads);
+  });
+  it('keeps a pending change until the planning dialog has closed', async () => {
+    const f = setup();
+    await settle();
+    f.fixture.componentRef.setInput('draft', {
+      id: '12',
+      workspaceId: 'workspace-a',
+      connectionId: 'account-a',
+      revision: 3,
+      content: emptyVintedListingContent(),
+      images: [],
+      inventoryItemId: null,
+      createdAt: job.createdAt,
+      updatedAt: job.updatedAt,
+    });
+    f.fixture.componentRef.setInput('draftReady', true);
+    f.fixture.detectChanges();
+    f.component.openPlan(job);
+    f.subscriptions[0].change();
+    await settle();
+    expect(f.list).toHaveBeenCalledTimes(1);
+    f.component.closePlan();
+    await settle();
+    await settle();
+    expect(f.list).toHaveBeenCalledTimes(2);
+  });
   it('changes a saved plan once and retains the request identity after response loss', async () => {
     const f = setup();
     await settle();

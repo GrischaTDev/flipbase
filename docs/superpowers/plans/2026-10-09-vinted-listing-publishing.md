@@ -167,8 +167,12 @@ Originale in begrenzten Teilen mit aktuellen Freigaben. Cloud-Inserate werden
 in der bestehenden gemeinsamen Auftragsverteilung vor automatischen
 Favoritenaufträgen angenommen. Beide Container und der vollständige
 getrennte Browserablauf sind mit abgefangenen Anbieteranfragen geprüft.
-Noch offen: lokale Browserausführung, private Status-Broadcasts, vollständige
-Editor-Merkmalsauswahl, native Entwürfe und der konkret freigegebene Livefall.
+Private Status-Broadcasts aktualisieren den Verlauf des gespeicherten Entwurfs;
+bei Wiederverbindung wird der aktuelle Stand erneut gelesen. Laufende Abfragen
+und Planungsdialoge merken Meldungen vor. Rechte- und Kontextwechsel verwerfen
+alte Antworten. Datenbank- und WebSocket-Browsertests prüfen den gesamten Weg.
+Noch offen: lokale Browserausführung, vollständige Editor-Merkmalsauswahl,
+native Entwürfe und der konkret freigegebene Livefall.
 
 **Dateien neu:** `supabase/schemas/463_marketplace_listing_jobs.sql`,
 passende SQL-Tests, `_shared/marketplace-listing-contracts.d.ts`,

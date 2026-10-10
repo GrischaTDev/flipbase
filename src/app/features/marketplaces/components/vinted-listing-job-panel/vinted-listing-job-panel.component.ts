@@ -58,6 +58,7 @@ export class VintedListingJobPanelComponent {
   readonly planningError = signal<string | null>(null);
   private lastPlanningRequest: { readonly key: string; readonly requestId: string } | null = null;
   private generation = 0;
+  private readonly refreshRequested = signal(false);
   private readonly context = computed(() => {
     const user = this.auth.currentUser(),
       workspace = this.workspace.currentWorkspace();
@@ -89,9 +90,14 @@ export class VintedListingJobPanelComponent {
   );
   constructor() {
     effect(() => {
+      const token = this.auth.session()?.access_token;
+      if (token) untracked(() => this.api.authenticate(token));
+    });
+    effect((onCleanup) => {
       const key = this.context();
       untracked(() => {
         this.generation++;
+        this.refreshRequested.set(false);
         this.jobs.set([]);
         this.loading.set(false);
         this.cancelling.set(null);
@@ -101,8 +107,35 @@ export class VintedListingJobPanelComponent {
         this.planningBusy.set(false);
         this.planningError.set(null);
         this.lastPlanningRequest = null;
-        if (key) void this.refresh();
+        if (key) {
+          const generation = this.generation;
+          const requestRefresh = () => {
+            if (this.current(key, generation)) this.refreshRequested.set(true);
+          };
+          try {
+            onCleanup(
+              this.api.listen(this.workspaceId(), this.draftId(), requestRefresh, requestRefresh),
+            );
+          } catch {
+            // Der manuelle Abruf bleibt bei einer fehlenden Live-Verbindung verfügbar.
+          }
+          void this.refresh();
+        }
       });
+    });
+    effect(() => {
+      if (
+        this.refreshRequested() &&
+        this.context() &&
+        !this.loading() &&
+        !this.cancelling() &&
+        !this.planning() &&
+        !this.planningBusy()
+      ) {
+        untracked(() => {
+          void this.refresh();
+        });
+      }
     });
     effect(() => {
       const plan = this.planning(),
@@ -130,10 +163,22 @@ export class VintedListingJobPanelComponent {
     if (!key || this.loading() || this.cancelling() || this.planning() || this.planningBusy())
       return;
     this.loading.set(true);
+    this.refreshRequested.set(false);
     this.error.set(null);
     try {
       const jobs = await this.api.list(this.workspaceId(), this.draftId());
-      if (this.current(key, generation)) this.jobs.set(jobs);
+      if (this.current(key, generation)) {
+        const previous = this.jobs();
+        if (
+          previous.length &&
+          jobs.some((job) => {
+            const before = previous.find((entry) => entry.id === job.id);
+            return !before || before.state !== job.state || before.errorCode !== job.errorCode;
+          })
+        )
+          this.announcement.set('Der Auftragsverlauf wurde aktualisiert.');
+        this.jobs.set(jobs);
+      }
     } catch {
       if (this.current(key, generation))
         this.error.set('Der Verlauf konnte nicht geladen werden. Bitte aktualisiere ihn erneut.');
