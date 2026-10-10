@@ -158,6 +158,18 @@ bedienbar. Die Oberfläche verspricht noch keine nicht implementierte Veröffent
 
 ## Paket 4: Sofortige Veröffentlichung lokal und in der Cloud
 
+**Teilstand:** Revisionsgebundene Aufträge, getrennte Schreibfreigaben und
+Cloud-/lokale Claim/check/begin/finish-Verträge sind umgesetzt. Der native
+Cloud-Veröffentlichungsbaustein verbindet Feldvorbereitung, Originalfotos,
+einmaliges Speichern und frische Inhalts-/Foto-/Aktivstatusprüfung einer
+konkreten Ergebniskennung. Die feste getrennte Browseraktion überträgt große
+Originale in begrenzten Teilen mit aktuellen Freigaben. Cloud-Inserate werden
+in der bestehenden gemeinsamen Auftragsverteilung vor automatischen
+Favoritenaufträgen angenommen. Beide Container und der vollständige
+getrennte Browserablauf sind mit abgefangenen Anbieteranfragen geprüft.
+Noch offen: lokale Browserausführung, private Status-Broadcasts, vollständige
+Editor-Merkmalsauswahl, native Entwürfe und der konkret freigegebene Livefall.
+
 **Dateien neu:** `supabase/schemas/463_marketplace_listing_jobs.sql`,
 passende SQL-Tests, `_shared/marketplace-listing-contracts.d.ts`,
 Worker `src/vinted-browser-listing-publish.ts`,

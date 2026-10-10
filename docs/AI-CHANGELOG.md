@@ -1,5 +1,27 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-10 – Juna – Inserataufträge in die Cloud-Warteschlange aufnehmen
+
+**Arbeit:** Der Chromium-Worker nimmt jetzt Inserataufträge über den bestehenden
+gemeinsamen Browserplatz an. Manuelle Gesprächsantworten und Verhandlungen
+bleiben vorrangig; Inserate werden vor automatischen Favoritenaufträgen
+angenommen. Die Datenbank bestimmt weiterhin Fälligkeit, Revision und
+Ausfallregel. Die Abschaltung geplanter Kontoabrufe deaktiviert keine bewusst
+angelegten Inserataufträge. Ein verlorener Claim oder ungeklärter physischer
+Browserstopp beendet weitere Annahmen. Die Ausführung verwendet den
+bestehenden Inserat-Runner, Originalfotoabruf und getrennten Browsertransport.
+
+**Prüfungen:** Fehlenden gemeinsamen Verteiler zuerst durch fehlgeschlagenen
+Test belegt. Vier neue Ablaufprüfungen sichern Reihenfolge, unveränderte
+Workerbindung, höchstens eine Browserreservierung, leere Warteschlange und
+Abbruch nach unklarer Bereinigung. Alle 579 Workerprüfungen erfolgreich;
+sieben bestehende Fälle ausgelassen. Worker-Typprüfung, Bau, Format und
+ESLint erfolgreich. Kein Anbieter-Schreibtest, keine Schemaänderung oder
+Veröffentlichung des Arbeitszweigs.
+
+**Offen:** Lokale Browserausführung, vollständige Merkmalsauswahl,
+Veröffentlichungsdialog, Live-Status und ein freigegebener echter Einzelfall.
+
 ## 2026-10-10 – Juna – Inseratablauf an den getrennten Cloud-Browser anschließen
 
 **Arbeit:** Die feste Browseraktion für Inserate verbindet nun die zentrale
