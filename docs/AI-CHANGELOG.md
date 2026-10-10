@@ -16,7 +16,7 @@
 2. Übersetzungen (`src/app/core/i18n/translations.ts`): `NAV.VINTED_FEED: 'Vinted Feed'`, `COMMON.THEME: 'Design'`, `COMMON.LANGUAGE: 'Sprache'`, `COMMON.LIGHT: 'Hell'`, `COMMON.DARK: 'Dunkel'` in DE und EN hinterlegt.
 3. Header (`src/app/layout/header/header.component.html`, `header.component.ts`): Standalone-Buttons aus der Kopfzeile entfernt. Im Benutzer-Dropdown segmentierte Umschalter für Design und Sprache mit Signal-Anbindung (`setTheme`, `switchLanguage`) ergänzt. Unbenutzten `DatePipe`-Import bereinigt.
 4. Sidebar-Layout (`src/app/layout/sidebar/sidebar.component.html`): Spacing im unteren Bereich korrigiert (`pt-2`, `mt-1.5 pt-1.5 pb-2`, `nav pb-4`), sodass Administration und Einstellungen bündig und harmonisch am unteren Rand positioniert sind, ohne übermäßig nach oben geschoben zu werden.
-5. Tests & Verifikation: `workspace-navigation.spec.ts`, `sidebar.component.angular.spec.ts`, `sidebar-ideas.angular.spec.ts` und `header.component.angular.spec.ts` an die verfeinerte Struktur angepasst.
+5. Tests & Verifikation: `workspace-navigation.spec.ts`, `sidebar.component.angular.spec.ts`, `sidebar-ideas.angular.spec.ts` und `header.component.angular.spec.ts` sowie die E2E-Browsertests (`marketplace-accounts.spec.ts`, `dashboard-design.spec.ts`, `vinted-inbox-experience.spec.ts`) für die Theme-Umschaltung über das Benutzermenü angepasst.
 
 **Prüfung:**
 
