@@ -1,6 +1,7 @@
 import { isArticleRoute } from './article-navigation';
 import { PLATFORM_ADMIN_NAVIGATION } from './platform-admin-navigation';
 import type { SubNavigationItem } from './platform-admin-navigation';
+import { VINTED_BOT_NAVIGATION } from './vinted-bot-navigation';
 
 export type WorkspaceNavigationIcon =
   | 'dashboard'
@@ -73,6 +74,13 @@ export const WORKSPACE_NAVIGATION_GROUPS: readonly WorkspaceNavigationGroup[] = 
         label: 'Vinted',
         icon: 'store',
         platform: 'vinted',
+      },
+      {
+        path: '/vinted-bot',
+        labelKey: 'NAV.VINTED_FEED',
+        label: 'Vinted Feed',
+        icon: 'bot',
+        children: VINTED_BOT_NAVIGATION,
       },
       {
         path: '/marketplaces/ebay',

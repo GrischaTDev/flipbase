@@ -29,6 +29,9 @@ const routes: Routes = [
   { path: 'tools/brand-labels/sizes', component: TestPageComponent },
   { path: 'deal-calculator', component: TestPageComponent },
   { path: 'deal-calculator/ebay', component: TestPageComponent },
+  { path: 'vinted-bot', component: TestPageComponent },
+  { path: 'vinted-bot/filters', component: TestPageComponent },
+  { path: 'vinted-bot/favorites', component: TestPageComponent },
   {
     path: 'admin',
     children: [
@@ -206,6 +209,23 @@ describe('SidebarComponent', () => {
     expect(element.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
   });
 
+  it('klappt die Unterpunkte fuer Vinted-Bot auf und hebt die aktive Seite hervor', async () => {
+    const { element, subLinks } = await renderAt('/vinted-bot/filters', false);
+
+    expect(subLinks.map((link) => link.textContent?.trim())).toEqual([
+      'Vinted Feed',
+      'Suchfilter',
+      'Favoriten',
+    ]);
+    expect(subLinks.map((link) => link.getAttribute('href'))).toEqual([
+      '/vinted-bot',
+      '/vinted-bot/filters',
+      '/vinted-bot/favorites',
+    ]);
+    expect(subLinks.map((link) => link.getAttribute('aria-current'))).toEqual([null, 'page', null]);
+    expect(element.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
+  });
+
   it('blendet deaktivierte Marktplätze dynamisch aus der Navigation aus', async () => {
     const { element, fixture } = await renderAt('/dashboard');
     const settings = TestBed.inject(MarketplaceSettingsService);
@@ -216,12 +236,18 @@ describe('SidebarComponent', () => {
     expect(element.querySelector('a[href="/marketplaces/ebay"]')).toBeNull();
     expect(element.querySelector('a[href="/marketplaces/kleinanzeigen"]')).toBeNull();
     expect(element.querySelector('a[href="/marketplaces/vinted"]')).not.toBeNull();
+    expect(element.querySelector('a[href="/vinted-bot"]')).not.toBeNull();
+
+    settings.setMarketplaceEnabled('vinted', false);
+    fixture.detectChanges();
+    expect(element.querySelector('a[href="/marketplaces/vinted"]')).toBeNull();
+    expect(element.querySelector('a[href="/vinted-bot"]')).toBeNull();
   });
 
   it('besitzt eine Pufferzone im Sidebar-Footer gegen den Browser-Link-Tooltip', async () => {
     const { element } = await renderAt('/dashboard');
     const divider = element.querySelector('[data-sidebar-divider]');
-    expect(divider?.classList.contains('pb-8')).toBe(true);
+    expect(divider?.classList.contains('pb-2')).toBe(true);
   });
 
   it('zeigt Nicht-Betreibern weder Administration noch Unterpunkte', async () => {

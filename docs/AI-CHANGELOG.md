@@ -1,5 +1,30 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-10 - Juna - Sidebar- und Header-Feinschliff umsetzen
+
+**Auftrag:**
+
+1. Vinted-Feed in der Sidebar wieder integrieren: `/vinted-bot` (Vinted Feed) unter „Marktplätze“ mit den Unterlinks (`Vinted Feed`, `Suchfilter`, `Favoriten`) einbinden.
+2. Header-Aufräumung & Steuerung: Umschalter für Theme (Hell/Dunkel) und Sprache (DE/EN) aus der oberen Header-Leiste entfernen und ausschließlich im Benutzer-Profil-Dropdown platzieren.
+3. Benutzer-Dropdown Controls & Wording: Kein „Erscheinungsbild“, sondern klare Bezeichnungen „Design“ und „Sprache“. Echte segmentierte Umschalter (Pill-Switches) für `[ ☀️ Hell | 🌙 Dunkel ]` und `[ DE | EN ]`.
+4. Sidebar-Höhenkorrektur unten: Administration und Einstellungen saßen durch den vorherigen 32px-Puffer zu hoch. Abstände gestrafft (`data-sidebar-lower pt-2`, `data-sidebar-divider mt-1.5 pt-1.5 pb-2`, `<nav pb-4>`).
+5. Build- und Startfähigkeit sicherstellen: Unbenutzte Imports entfernen und Build-Fähigkeit (`npm run build`) verifizieren.
+
+**Umsetzung:**
+
+1. Navigationsmodell (`src/app/core/config/workspace-navigation.ts`): `/vinted-bot` mit `icon: 'bot'` und `children: VINTED_BOT_NAVIGATION` unter der Gruppe `marketplaces` integriert. In `SidebarComponent` wird `/vinted-bot` dynamisch an `settings.vinted` gekoppelt.
+2. Übersetzungen (`src/app/core/i18n/translations.ts`): `NAV.VINTED_FEED: 'Vinted Feed'`, `COMMON.THEME: 'Design'`, `COMMON.LANGUAGE: 'Sprache'`, `COMMON.LIGHT: 'Hell'`, `COMMON.DARK: 'Dunkel'` in DE und EN hinterlegt.
+3. Header (`src/app/layout/header/header.component.html`, `header.component.ts`): Standalone-Buttons aus der Kopfzeile entfernt. Im Benutzer-Dropdown segmentierte Umschalter für Design und Sprache mit Signal-Anbindung (`setTheme`, `switchLanguage`) ergänzt. Unbenutzten `DatePipe`-Import bereinigt.
+4. Sidebar-Layout (`src/app/layout/sidebar/sidebar.component.html`): Spacing im unteren Bereich korrigiert (`pt-2`, `mt-1.5 pt-1.5 pb-2`, `nav pb-4`), sodass Administration und Einstellungen bündig und harmonisch am unteren Rand positioniert sind, ohne übermäßig nach oben geschoben zu werden.
+5. Tests & Verifikation: `workspace-navigation.spec.ts`, `sidebar.component.angular.spec.ts`, `sidebar-ideas.angular.spec.ts` und `header.component.angular.spec.ts` an die verfeinerte Struktur angepasst.
+
+**Prüfung:**
+
+- Alle Unit- und Angular-Tests fehlerfrei bestanden (38x Angular-Komponententests, 25x Node-Navigationstests).
+- `npm run typecheck` fehlerfrei bestanden.
+- `npm run build` (Angular-Produktionsbau) erfolgreich und ohne Warnungen abgeschlossen.
+- ESLint (`npx eslint`) und Prettier (`npx prettier --check`) auf allen modifizierten Dateien erfolgreich.
+
 ## 2026-10-10 - Juna - Header- und Sidebar-Designverfeinerung 1:1 umsetzen
 
 **Auftrag:** Präzise 1:1-Nachbearbeitung von Header und Sidebar entsprechend den Design- und Layoutvorgaben:

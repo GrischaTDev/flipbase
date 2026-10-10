@@ -24,7 +24,12 @@ describe('Arbeitsnavigation', () => {
       WORKSPACE_NAVIGATION_GROUPS.map((group) => group.items.map((item) => item.path)),
       [
         ['/purchases', '/catalog', '/sales'],
-        ['/marketplaces/vinted', '/marketplaces/ebay', '/marketplaces/kleinanzeigen'],
+        [
+          '/marketplaces/vinted',
+          '/vinted-bot',
+          '/marketplaces/ebay',
+          '/marketplaces/kleinanzeigen',
+        ],
         ['/expenses', '/accounting', '/analytics'],
         ['/tools/brand-labels', '/image-optimizer', '/deal-calculator', '/deal-calculator/ebay'],
       ],
@@ -51,6 +56,7 @@ describe('Arbeitsnavigation', () => {
       marketplaceGroup?.items.map((item) => [item.path, item.platform]),
       [
         ['/marketplaces/vinted', 'vinted'],
+        ['/vinted-bot', undefined],
         ['/marketplaces/ebay', 'ebay'],
         ['/marketplaces/kleinanzeigen', 'kleinanzeigen'],
       ],
@@ -102,6 +108,7 @@ describe('Arbeitsnavigation', () => {
       '/settings',
       '/shop',
       '/tools/brand-labels',
+      '/vinted-bot',
     ]);
   });
 
