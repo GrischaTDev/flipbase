@@ -42,6 +42,29 @@ export interface VintedAccountImport {
   favoriteEvents?: VintedFavoriteEvent[];
 }
 
+/**
+ * Aktueller Stand eines Angebots, wie ihn Vinted an der Angebotsnachricht selbst führt.
+ * Gleiche Zuordnung wie in der lokalen Erweiterung, damit beide Abrufwege dasselbe anzeigen.
+ */
+export function vintedOfferStatus(
+  messageType: string | null,
+  entity: Record<string, unknown> | null,
+): { offerStatus?: string } {
+  if (messageType !== 'offer_request_message' && messageType !== 'offer_message') return {};
+  const status = entity?.['status'];
+  const known: Record<number, string> = {
+    10: 'pending',
+    20: 'accepted',
+    30: 'rejected',
+    40: 'cancelled',
+  };
+  const offerStatus =
+    typeof status === 'number' && Number.isSafeInteger(status)
+      ? (known[status] ?? string(entity?.['status_title']) ?? String(status))
+      : (string(status) ?? string(entity?.['status_title']));
+  return offerStatus ? { offerStatus } : {};
+}
+
 export interface VintedConversationVersion {
   externalId: string;
   sourceUpdatedAt: string;
@@ -492,6 +515,7 @@ export function parseVintedAccountImport(
           direction: senderId ? (senderId === identity.id ? 'outbound' : 'inbound') : 'unknown',
           messageType: string(message?.['entity_type']),
           priceLabel: string(entity?.['price_label']),
+          ...vintedOfferStatus(string(message?.['entity_type']), entity),
           ...(providerTime !== null
             ? (() => {
                 const offer = readVintedNegotiationOffer(message, conversation, identity.id);

@@ -317,7 +317,7 @@
                         <del class="font-normal opacity-70">{{ prices.original }}</del>
                       }
                       @if (offerStatusLabel(entry); as status) {
-                        <span>· {{ status }}</span>
+                        <app-badge [tone]="offerStatusTone(entry)">{{ status }}</app-badge>
                       }
                     </div>
                     @if (offerTitle(entry); as title) {

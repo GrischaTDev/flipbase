@@ -1,5 +1,29 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-10 – Juna – Angebotsstatus für Cloud-Konten
+
+**Befund:** Im Postfach eines Cloud-Kontos blieb ein abgelehntes eigenes Angebot
+ohne Status. Den Stand eines Angebots (offen, angenommen, abgelehnt, abgebrochen)
+übernahm bisher nur die lokale Erweiterung; der Server-Abruf ließ das Feld weg.
+PR #356 ist gemergt, ein offener Zweig dazu existiert nicht. Kaufen als Käufer
+war dort ausdrücklich ausgenommen und bleibt es.
+
+**Änderung:** Der Server-Abruf liest den Status mit derselben Zuordnung wie die
+Erweiterung, nur an Angebotsnachrichten. Die Anzeige im Postfach zeigt ihn als
+Status-Baustein: angenommen grün, abgelehnt rot, sonst neutral. In der
+Produktionsdatenbank lesend geprüft: Angebotsnachrichten tragen eine eigene
+Kennung, ein späterer Abruf überschreibt also dieselbe Nachricht.
+
+**Prüfungen:** 611 Worker-Prüfungen, 54 Postfach-Komponentenfälle, Typen, Bau,
+gemeinsame UI-Prüfung, Format und ESLint grün. 14 Postfach-Browserfälle lokal
+grün, Screenshot angesehen. Vier Verhandlungs-Browserfälle schlagen lokal mit
+und ohne diese Änderung fehl. Der Worker auf dem Server wurde auf `3e75483d`
+aktualisiert; die Neuanmeldung des Kontos hat danach funktioniert.
+
+**Offen:** Ändert Vinted beim Ablehnen den Änderungszeitpunkt des Gesprächs
+nicht, erscheint der neue Status erst beim Öffnen des Gesprächs. Wirkt erst
+nach erneuter Aktualisierung des Workers.
+
 ## 2026-10-10 - Juna - Vinted-Kontokarten freizügiger gestalten und bereinigen
 
 **Auftrag:** Kritik des Nutzers umsetzen: Punkte auf Profilbildern und in Badges entfernen, Modus-Badges mit passenden Icons (Cloud / Laptop) statt Klammern versehen, den verwirrenden „Cloud-IP“-Button bei aktiven Cloud-Konten entfernen und den Cards deutlich mehr Freiraum und eine ruhigere Ein-Button-Struktur geben.

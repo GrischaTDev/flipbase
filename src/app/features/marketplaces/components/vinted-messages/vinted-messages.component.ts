@@ -26,7 +26,10 @@ import {
   LucideRefreshCw,
 } from '@lucide/angular';
 import imageCompression from 'browser-image-compression';
-import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
+import {
+  BadgeComponent,
+  type BadgeTone,
+} from '../../../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
@@ -822,6 +825,21 @@ export class VintedMessagesComponent {
   offerPrices(entry: MarketplaceEntry): { offered: string | null; original: string | null } {
     const [offered, original] = (entry.priceLabel ?? '').split(' statt ');
     return { offered: offered || null, original: original || null };
+  }
+
+  /** Angenommen grün, abgelehnt rot; offene und unbekannte Stände bleiben zurückhaltend. */
+  offerStatusTone(entry: MarketplaceEntry): BadgeTone {
+    switch (entry.offerStatus?.toLocaleLowerCase('de')) {
+      case 'accepted':
+      case '20':
+        return 'success';
+      case 'declined':
+      case 'rejected':
+      case '30':
+        return 'critical';
+      default:
+        return 'neutral';
+    }
   }
 
   offerStatusLabel(entry: MarketplaceEntry): string | null {
