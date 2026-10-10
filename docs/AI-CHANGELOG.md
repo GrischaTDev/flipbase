@@ -1,5 +1,18 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-10 - Juna - Vinted-Karten exakt an Vorlage angleichen
+
+**Auftrag:** Kritik des Nutzers umsetzen: Einstellungs-Zahnrad oben rechts bündig auf Höhe des Namens positionieren, Kartenfooter mit dezent abgesetztem Hintergrund und gleichmäßig aufgeteilten Buttons ausstatten sowie die maximale Kartenbreite begrenzen, damit die Karten nicht übermäßig breit gezogen werden.
+
+**Umsetzung:**
+
+1. **Einstellungs-Button oben rechts:** Die Kopfzeile richtet sich nun per `items-start` aus; das Zahnrad-Icon ist mit `-mt-0.5 -mr-1` bündig an der Oberkante des Namens und des Avatars platziert statt vertikal zentriert zwischen zwei Textzeilen zu hängen.
+2. **Abgesetzter Footer:** Der Aktionsbereich ist nun als echter Kartenfooter mit `border-t border-fb-line bg-fb-subtle/50 px-3.5 py-2.5 sm:px-4 sm:py-3` abgesetzt.
+3. **Gleichmäßige Button-Aufteilung:** Buttons nutzen `[fullWidth]="true"` und `class="flex-1 min-w-0"`. Ein einzelner Button (wie „Synchronisieren“ bei Cloud) füllt die volle Breite; zwei Buttons (wie bei lokalem Modus) teilen sich die Fläche gleichmäßig 50/50 mit `gap-2`.
+4. **Begrenzte Kartenbreite:** Das Raster begrenzt die Spaltenbreite auf maximal `21.5rem` (`max-w-[21.5rem]`, ~344px), wodurch die Karten kompakt und formschön bleiben.
+
+**Prüfung:** Unit-Tests (22/22), Prettier, Angular-Entwicklungsbuild erfolgreich.
+
 ## 2026-10-10 – Juna – Angebotsstatus für Cloud-Konten
 
 **Befund:** Im Postfach eines Cloud-Kontos blieb ein abgelehntes eigenes Angebot
