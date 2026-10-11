@@ -26,6 +26,36 @@ auf beiden Seiten der Übertragung. Der Worker protokolliert die Einordnung als
 Selektoren und Schlüssel abweisen; Gesamttest der Übertragung; Typen, Format und
 ESLint grün.
 
+## 2026-10-11 – Juna – Vinteds Anmelde-Erneuerung nicht mehr unterbrechen
+
+**Auftrag:** Die Cloud-Konten werden immer wieder von Vinted abgemeldet. Das soll
+ohne Zutun des Nutzers stabil laufen.
+
+**Befund:** Die Abbrüche der letzten zwölf Tage stehen in der Datenbank auch
+nachts, also ohne fremde Anmeldung. Die Zeitpunkte passen zu Vinteds stündlicher
+Erneuerung der Anmeldung: rund eine Stunde nach der letzten Erneuerung folgt die
+Ablehnung. Mit abgelaufener Anmeldung steht der Browser auf Vinteds eigener
+Erneuerungsseite `/session-refresh`. Der Kontoabruf bekam dort eine Ablehnung,
+lud sofort die Startseite neu und gab nach gut zwei Sekunden auf; danach wurde
+der Browser geschlossen. Die laufende Erneuerung wurde so abgebrochen, die
+gespeicherte Erneuerung war verbraucht und die neue Anmeldung nie gespeichert.
+Das ist die wahrscheinliche Ursache, am echten Vinted aber noch nicht bewiesen.
+
+**Änderung:** Steht der Browser auf der Erneuerungsseite, lädt der Kontoabruf
+nicht mehr neu, sondern wartet bis zu 25 Sekunden auf deren Ende und prüft erst
+dann die Anmeldung. Das gilt auch, wenn erst das bisherige Neuladen dort landet.
+Nur wenn die Seite in dieser Zeit nicht fertig wird, gilt die Anmeldung als
+abgelehnt.
+
+**Prüfungen:** Zwei neue Browserfälle (Erneuerung nach vier Sekunden wird
+abgewartet und nicht unterbrochen; unfertige Erneuerung endet erst nach der
+Wartezeit als abgelehnt), ohne die Änderung rot, mit ihr grün; die sechs
+vorhandenen Fälle zur Sitzungswiederherstellung, die Worker-Prüfungen, Typen,
+Format und ESLint grün.
+
+**Offen:** Worker-Image bauen und ausliefern, danach die Abrufe über mehrere
+Stunden beobachten.
+
 ## 2026-10-11 – Juna – Leser-Schritt ging im Sitzungsbroker verloren
 
 **Befund:** Auch nach PR 375 meldete der Server beim Bearbeiten eines echten
