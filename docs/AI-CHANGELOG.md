@@ -1,5 +1,27 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-11 – Juna – Leser-Schritt ging im Sitzungsbroker verloren
+
+**Befund:** Auch nach PR 375 meldete der Server beim Bearbeiten eines echten
+Inserats nur `reason: failed`. Die gesamte Übertragung zwischen Worker und
+getrenntem Browser läuft lokal fehlerfrei; ein neuer Gesamttest belegt das. Der
+Schritt ging im Sitzungsbroker verloren: `run` ersetzt jeden Fehler der Aktion
+durch „Sitzung unterbrochen“. Der regelmäßige Abruf zeigte außerdem, dass Vinteds
+Inseratliste weder Kategorie, Farben, Material, Paketgröße noch Kennungen oder
+die Beschreibung mitliefert.
+
+**Änderung:** Die Routen zum Lesen eines Inserats halten den festen Schritt fest,
+bevor der Broker den Fehler ersetzt, und melden ihn danach. Das Verhalten des
+Brokers bleibt unverändert.
+
+**Folge für die Planung:** „Bearbeiten“ kann nicht allein aus dem regelmäßigen
+Abruf befüllt werden. Die fehlenden Angaben müssen einmal je Inserat aus der
+Bearbeitungsmaske gelesen und gespeichert werden.
+
+**Prüfungen:** 616 Worker-Prüfungen einschließlich eines Falls mit einem Broker,
+der Fehler wie der echte ersetzt; vier Browserfälle einschließlich der gesamten
+Übertragung; Typen, Format und ESLint grün.
+
 ## 2026-10-11 – Juna – Leser-Diagnose erweitern und Inseratfelder mitlesen
 
 **Befund:** Seit PR 373 erreicht das vollständige Bearbeiten den Server. Der Leser

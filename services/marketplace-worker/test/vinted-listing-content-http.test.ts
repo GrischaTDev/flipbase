@@ -5,6 +5,8 @@ import { MarketplaceBrowserHttpApi } from '../src/marketplace-browser-http-api.t
 import type { BrowserInfo } from '../src/gologin-cloud-browser.ts';
 import type { BrowserSessionScope } from '../src/marketplace-browser-session-broker.ts';
 import { listingCurrentContentFixture } from './fixtures/vinted-listing-current-content.ts';
+import { MarketplaceBrowserSessionEndedError } from '../src/marketplace-browser-session-broker.ts';
+import { VintedListingReadError } from '../src/vinted-listing-read-error.ts';
 
 const workspaceId = '46700000-0000-4000-8000-000000000001',
   connectionId = '46700000-0000-4000-8000-000000000002',
@@ -17,6 +19,7 @@ async function fixture(
     foreignItem?: boolean;
     reassign?: boolean;
     waitForRead?: () => Promise<void>;
+    failAtStep?: 'form' | 'photos';
   } = {},
 ) {
   let opened = 0,
@@ -37,6 +40,7 @@ async function fixture(
       reads++;
       targets.push([account, item]);
       await options.waitForRead?.();
+      if (options.failAtStep) throw new VintedListingReadError(options.failAtStep);
       if (options.reassign) reassigned = true;
       await authorize();
       return {
@@ -63,11 +67,16 @@ async function fixture(
         opened++;
         return Promise.resolve('46700000-0000-4000-8000-000000000004');
       },
+      // Wie der echte Broker: jeder Fehler der Aktion wird durch „Sitzung unterbrochen“ ersetzt.
       run: <T>(
         _scope: BrowserSessionScope,
         _id: string,
         operation: (browser: BrowserInfo) => Promise<T>,
-      ) => operation(browser),
+      ) =>
+        operation(browser).catch((error: unknown) => {
+          if (options.failAtStep) throw new MarketplaceBrowserSessionEndedError('interrupted');
+          throw error;
+        }),
       close: () => {
         closed++;
         return Promise.resolve();
@@ -234,6 +243,20 @@ test('content HTTP save writes only for the own entry and passes conflicts throu
       assert.equal(response.status, options.missing ? 503 : options.readOnly ? 403 : 409);
     } finally {
       await rejected.close();
+    }
+  }
+});
+
+test('content HTTP read names the failing step although the session broker replaces every error', async () => {
+  for (const step of ['form', 'photos'] as const) {
+    const f = await fixture({ failAtStep: step });
+    try {
+      const response = await f.request({ workspaceId, connectionId, entryId });
+      assert.equal(response.status, 409);
+      assert.deepEqual(await response.json(), { code: 'vinted_listing_read_failed', step });
+      assert.equal(f.closed(), 1);
+    } finally {
+      await f.close();
     }
   }
 });
