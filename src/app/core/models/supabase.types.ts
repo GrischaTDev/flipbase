@@ -3708,28 +3708,31 @@ export type Database = {
       marketplace_listing_metric_observations: {
         Row: {
           connection_id: string
-          entry_id: string
+          entry_id: string | null
           favorites: number | null
           id: number
           observed_at: string
+          statistic_item_id: number
           views: number | null
           workspace_id: string
         }
         Insert: {
           connection_id: string
-          entry_id: string
+          entry_id?: string | null
           favorites?: number | null
           id?: never
           observed_at: string
+          statistic_item_id: number
           views?: number | null
           workspace_id: string
         }
         Update: {
           connection_id?: string
-          entry_id?: string
+          entry_id?: string | null
           favorites?: number | null
           id?: never
           observed_at?: string
+          statistic_item_id?: number
           views?: number | null
           workspace_id?: string
         }
@@ -3746,6 +3749,13 @@ export type Database = {
             columns: ["entry_id"]
             isOneToOne: false
             referencedRelation: "marketplace_account_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketplace_listing_metric_observations_statistic_item_id_fkey"
+            columns: ["statistic_item_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_listing_statistic_items"
             referencedColumns: ["id"]
           },
         ]
@@ -3808,6 +3818,56 @@ export type Database = {
             foreignKeyName: "marketplace_listing_permissions_workspace_id_connection_id_fkey"
             columns: ["workspace_id", "connection_id"]
             isOneToOne: true
+            referencedRelation: "marketplace_connections"
+            referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
+      marketplace_listing_statistic_items: {
+        Row: {
+          connection_id: string
+          currency: string | null
+          external_id: string
+          first_seen_at: string
+          id: number
+          image_url: string | null
+          last_seen_at: string
+          price: number | null
+          removed_at: string | null
+          title: string
+          workspace_id: string
+        }
+        Insert: {
+          connection_id: string
+          currency?: string | null
+          external_id: string
+          first_seen_at: string
+          id?: never
+          image_url?: string | null
+          last_seen_at: string
+          price?: number | null
+          removed_at?: string | null
+          title: string
+          workspace_id: string
+        }
+        Update: {
+          connection_id?: string
+          currency?: string | null
+          external_id?: string
+          first_seen_at?: string
+          id?: never
+          image_url?: string | null
+          last_seen_at?: string
+          price?: number | null
+          removed_at?: string | null
+          title?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_listing_statistic_i_workspace_id_connection_id_fkey"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: false
             referencedRelation: "marketplace_connections"
             referencedColumns: ["workspace_id", "id"]
           },
@@ -9675,6 +9735,14 @@ export type Database = {
         Args: { p_connection_id: string; p_workspace_id: string }
         Returns: Json
       }
+      marketplace_read_listing_statistics_overview: {
+        Args: {
+          p_connection_id?: string
+          p_period: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       marketplace_read_local_extension: {
         Args: { p_connection_id: string; p_workspace_id: string }
         Returns: Json
@@ -11104,3 +11172,4 @@ export const Constants = {
     Enums: {},
   },
 } as const
+
