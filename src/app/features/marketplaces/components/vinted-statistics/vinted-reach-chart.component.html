@@ -43,7 +43,7 @@
     [class.sr-only]="!tableVisible() && chartStatus() !== 'error'"
     [class.overflow-x-auto]="tableVisible() || chartStatus() === 'error'"
   >
-    <table class="w-full text-left">
+    <table class="w-full text-left" data-shared-ui-exception="static-table">
       <caption class="sr-only">
         {{
           seriesName()

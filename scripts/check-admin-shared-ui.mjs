@@ -55,6 +55,11 @@ const approvedTableExceptions = new Map([
     'src/app/features/inventory/components/stock-position-list/stock-position-list.component.html',
     new Set(['data-table-content', 'static-table']),
   ],
+  [
+    // Textalternative des Diagramms: feste Wertetabelle ohne Suche, Sortierung oder Spaltenwahl.
+    'src/app/features/marketplaces/components/vinted-statistics/vinted-reach-chart.component.html',
+    new Set(['static-table']),
+  ],
 ]);
 
 function lineAt(source, offset) {
