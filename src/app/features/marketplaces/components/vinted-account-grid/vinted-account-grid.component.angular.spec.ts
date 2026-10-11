@@ -22,6 +22,8 @@ import type { VintedLocalReadiness } from '../../models/vinted-local-readiness';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { MarketplaceCloudSetupStore } from '../../services/marketplace-cloud-setup.store';
 import { VintedAccountPreviewsStore } from '../../services/vinted-account-previews.store';
+import { VintedAccountSyncStatusStore } from '../../services/vinted-account-sync-status.store';
+import type { MarketplaceSyncSchedule } from '../../models/marketplace-sync-schedule';
 import { VintedLocalExtensionBridge } from '../../services/vinted-local-extension-bridge';
 import { VintedLocalExtensionStore } from '../../services/vinted-local-extension.store';
 import { VintedLocalRuntimeStore } from '../../services/vinted-local-runtime.store';
@@ -86,6 +88,10 @@ const local = {
   revoke: vi.fn(),
 };
 const cloud = { canSetup: signal(true), busy: signal(false) };
+const accountSchedule = signal<Pick<MarketplaceSyncSchedule, 'enabled' | 'pausedReason'> | null>(
+  null,
+);
+const syncStatus = { schedule: () => accountSchedule(), refresh: vi.fn() };
 let restore: (() => void) | undefined;
 beforeAll(async () => {
   const resourceFiles = new Map(
@@ -145,6 +151,7 @@ beforeEach(() => {
         useValue: { installed: signal(true), checkInstallation: vi.fn() },
       },
       { provide: VintedLocalExtensionStore, useValue: local },
+      { provide: VintedAccountSyncStatusStore, useValue: syncStatus },
     ],
   });
   TestBed.overrideComponent(VintedAccountGridComponent, {
@@ -232,6 +239,25 @@ describe('Kompakte Vinted-Konten', () => {
     if (state === 'login_required')
       expect(primaryAction(element)?.getAttribute('href')).toBe('https://www.vinted.de/');
   });
+  it('zeigt bei einem Cloudkonto den Abrufzustand statt eines grünen Verbunden-Schilds', async () => {
+    accountList.set([{ ...account, executionMode: 'cloud', status: 'connected' }]);
+    accountSchedule.set(null);
+    const { fixture } = await render();
+    const card = fixture.nativeElement as HTMLElement;
+    expect(card.textContent).toContain('Verbunden');
+    expect(syncStatus.refresh).toHaveBeenCalled();
+
+    accountSchedule.set({ enabled: false, pausedReason: 'needs_login' });
+    fixture.detectChanges();
+    expect(card.textContent).toContain('Anmeldung erforderlich');
+    expect(card.textContent).not.toContain('Verbunden');
+
+    accountSchedule.set({ enabled: true, pausedReason: 'needs_login' });
+    fixture.detectChanges();
+    expect(card.textContent).toContain('Abruf wartet');
+    accountSchedule.set(null);
+  });
+
   it('synchronisiert ein Cloudkonto über den bestehenden Kontostore', async () => {
     accountList.set([{ ...account, executionMode: 'cloud' }]);
     const { element } = await render();
