@@ -74,9 +74,13 @@ export class VintedWorkspaceComponent {
   readonly showingListings = computed(
     () => this.currentUrl().split(/[?#]/)[0] === '/marketplaces/vinted/listings',
   );
+  readonly showingStatistics = computed(
+    () => this.currentUrl().split(/[?#]/)[0] === '/marketplaces/vinted/statistics',
+  );
   readonly pageTitle = computed(() => {
     if (this.showingMessages()) return 'Nachrichten';
     if (this.showingListings()) return 'Kleiderschrank';
+    if (this.showingStatistics()) return 'Statistik';
     return 'Vinted';
   });
   readonly showingDraftWorkspace = computed(() => {

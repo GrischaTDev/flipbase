@@ -106,6 +106,13 @@ export const MARKETPLACES_ROUTES: Routes = [
             (m) => m.VintedListingDetailComponent,
           ),
       },
+      {
+        path: 'statistics',
+        loadComponent: () =>
+          import('./components/vinted-statistics/vinted-statistics.component').then(
+            (m) => m.VintedStatisticsComponent,
+          ),
+      },
       { path: 'feedback', redirectTo: '/marketplaces/vinted/profile#reviews', pathMatch: 'full' },
       ...['overview', 'listings', 'messages', 'sales', 'profile', 'activity'].map((section) => ({
         path: section,
