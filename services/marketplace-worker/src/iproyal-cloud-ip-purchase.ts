@@ -112,7 +112,8 @@ export class IpRoyalCloudIpPurchase {
               product_location_id: selection.locationId,
               quantity: 1,
               card_id: this.options.paymentMethodId,
-              auto_extend: false,
+              // Eine gekaufte IP gehört zu einem Konto und verlängert sich, bis sie freigegeben wird.
+              auto_extend: true,
               product_question_answers: {},
             }),
           },

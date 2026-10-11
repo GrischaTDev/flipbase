@@ -341,6 +341,32 @@
     </div>
   </app-modal-shell>
 }
+@if (localSwitchAccount(); as account) {
+  <app-modal-shell
+    title="Auf lokale Verbindung umstellen"
+    presentation="center"
+    size="md"
+    (closed)="closeLocalSwitch()"
+  >
+    <p class="text-sm text-fb-text-secondary">
+      {{ account.displayName }} wird danach wieder über die Erweiterung in Deinem Browserprofil
+      ausgeführt. Sobald die lokale Verbindung bestätigt ist, wird die Cloud-Verbindung getrennt.
+    </p>
+    <p class="mt-3 text-sm text-fb-text-secondary">
+      Die Cloud-IP dieses Kontos wird dann nicht mehr verlängert und läuft zum Ende der bezahlten
+      Zeit aus. Wechselst Du vorher zurück in die Cloud, wird dieselbe IP weiterverwendet.
+    </p>
+    <div modal-footer class="flex justify-end gap-2">
+      <app-button (clicked)="closeLocalSwitch()">Abbrechen</app-button>
+      <app-button
+        variant="primary"
+        [disabled]="accounts.busy() || !accounts.canManage()"
+        (clicked)="confirmLocalSwitch()"
+        >Weiter zur lokalen Verbindung</app-button
+      >
+    </div>
+  </app-modal-shell>
+}
 @if (settingsAccount(); as account) {
   @let status = accountStatus(account);
   <app-modal-shell
@@ -399,9 +425,6 @@
                 >Freigabe erneuern</app-button
               >
             }
-          </div>
-        } @else {
-          <div class="flex flex-wrap gap-2">
             <app-button
               size="slim"
               [disabled]="
@@ -418,8 +441,11 @@
                   : 'Cloud-Einrichtung derzeit nicht verfügbar'
               "
               (clicked)="upgradeToCloud(account)"
-              >Cloud-IP einrichten</app-button
+              >Auf Cloud wechseln</app-button
             >
+          </div>
+        } @else {
+          <div class="flex flex-wrap gap-2">
             <app-button
               size="slim"
               [disabled]="
@@ -429,18 +455,18 @@
                 account.status === 'blocked'
               "
               (clicked)="openCloudLogin(account)"
-              >Cloud verbinden</app-button
+              >Erneut bei Vinted anmelden</app-button
             >
             <app-button
               size="slim"
-              [link]="'/marketplaces/vinted/local-connect/' + account.connectionId"
               [disabled]="
                 !accounts.canManage() ||
                 accounts.busy() ||
                 account.status === 'paused' ||
                 account.status === 'blocked'
               "
-              >Lokal verbinden</app-button
+              (clicked)="openLocalSwitch(account)"
+              >Auf lokale Verbindung umstellen</app-button
             >
           </div>
         }

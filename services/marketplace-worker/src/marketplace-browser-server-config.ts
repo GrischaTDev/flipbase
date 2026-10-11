@@ -18,6 +18,7 @@ export interface MarketplaceBrowserServerConfig {
   chromiumNetworkFile?: string;
   ipRoyalApiToken?: string;
   ipRoyalAutoPurchaseEnabled?: boolean;
+  ipRoyalRenewalManaged?: boolean;
   ipRoyalPaymentMethodId?: number;
   ipRoyalMaxPriceCents?: number;
   chromiumSeccompProfile?: string;
@@ -73,6 +74,7 @@ export function marketplaceBrowserServerConfig(
   const chromiumNetworkFile = environment['MARKETPLACE_CHROMIUM_NETWORK_FILE'];
   const ipRoyalApiToken = environment['IPROYAL_API_TOKEN'];
   const ipRoyalAutoPurchaseFlag = environment['IPROYAL_AUTO_PURCHASE_ENABLED'] ?? '0';
+  const ipRoyalRenewalFlag = environment['IPROYAL_RENEWAL_MANAGED'] ?? '0';
   const paymentMethodValue = environment['IPROYAL_PAYMENT_METHOD_ID'];
   const ipRoyalPaymentMethodId = paymentMethodValue ? Number(paymentMethodValue) : undefined;
   const maxPriceValue = environment['IPROYAL_MAX_PRICE_USD'] ?? '8';
@@ -94,6 +96,12 @@ export function marketplaceBrowserServerConfig(
         !ipRoyalPaymentMethodId))
   )
     throw new Error('Automatische IP-Nachbuchung ist unvollständig konfiguriert');
+  if (
+    !['0', '1'].includes(ipRoyalRenewalFlag) ||
+    (ipRoyalRenewalFlag === '1' &&
+      (provider !== 'chromium' || !ipRoyalApiToken?.trim() || !ipRoyalPaymentMethodId))
+  )
+    throw new Error('Steuerung der IP-Verlängerung ist unvollständig konfiguriert');
   const chromiumWritesFlag = environment['MARKETPLACE_CHROMIUM_WRITES_ENABLED'] ?? '0';
   const listingPublishingFlag = environment['MARKETPLACE_LISTING_PUBLISH_ENABLED'] ?? '0';
   if (
@@ -170,6 +178,7 @@ export function marketplaceBrowserServerConfig(
           chromiumNetworkFile,
           ipRoyalApiToken,
           ipRoyalAutoPurchaseEnabled: ipRoyalAutoPurchaseFlag === '1',
+          ipRoyalRenewalManaged: ipRoyalRenewalFlag === '1',
           ipRoyalPaymentMethodId,
           ipRoyalMaxPriceCents,
           chromiumSeccompProfile,

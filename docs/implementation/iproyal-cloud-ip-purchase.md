@@ -24,7 +24,32 @@ Bestell-API. Das echte Konto liefert hier bereits eine PayPal-Zahlungsart
 „card“; eine neue PayPal-Verbindung wird in Flipbase nicht angelegt.
 Es werden keine vollständigen Kartendaten verarbeitet und es gibt keinen
 Rückfall auf eine Guthabenzahlung oder eine andere Zahlungsart.
-Automatische Verlängerung bleibt ausgeschaltet.
+
+## Automatische Verlängerung
+
+Entscheidung des Nutzers vom 11.10.2026: Eine genutzte IP verlängert sich
+automatisch. Der erste echte Kauf zeigte, dass der Anbieter die Verlängerung
+auch dann einschaltet, wenn Flipbase sie beim Kauf ausdrücklich ablehnt; die
+frühere Angabe „Verlängerung aus“ war falsch. Flipbase bestellt deshalb bewusst
+mit eingeschalteter Verlängerung.
+
+Mit `IPROYAL_RENEWAL_MANAGED=1` gleicht der Worker alle zehn Minuten ab:
+
+- Eine IP ohne aktive Kontozuordnung (Konto entfernt, zurück auf lokal oder
+  Einrichtung abgebrochen) bekommt beim Anbieter die Verlängerung ausgeschaltet.
+  Sie läuft zum Ende der bezahlten 30 Tage aus; eine sofortige Kündigung bietet
+  die Schnittstelle nicht.
+- Wird dieselbe IP vorher wieder einem Konto zugeordnet, schaltet der Worker die
+  Verlängerung wieder ein. Eine frisch bezahlte IP, die noch auf ihre
+  Einrichtung wartet, gilt als genutzt.
+- Maßgeblich ist der beim Anbieter gelesene Stand. Bestellungen, die nicht im
+  Flipbase-Bestand stehen, keine deutsche ISP-Einzelbestellung sind oder deren
+  Antwort unklar ist, werden nie verändert, sondern als Fehler gezählt.
+
+Der Abgleich verwendet `POST /orders/toggle-auto-extend` mit der hinterlegten
+Zahlungsart. Er ist nur mit nachgebildeten Antworten geprüft; der erste echte
+Aufruf steht aus. Die Kündigung eines Flipbase-Abos ist noch nicht angebunden:
+Sobald dabei die Kontozuordnungen enden, greift derselbe Abgleich.
 
 Ob die hinterlegte PayPal-Freigabe für eine neue Bestellung ohne zusätzliche
 Interaktion ausreicht, bestätigt erst der echte Kauftest. Ein Anbieterstatus

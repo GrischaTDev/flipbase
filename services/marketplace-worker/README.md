@@ -64,7 +64,9 @@ Chromiumworker bei fehlender Kapazität genau eine deutsche Dedicated-ISP-IP fü
 einschließlich dort gelieferter PayPal-Zahlungsarten. Es gibt keinen Rückfall
 auf Guthaben. Das Gesamtpreisangebot einschließlich Steuern darf höchstens
 8 USD betragen; `IPROYAL_MAX_PRICE_USD` kann diese Grenze weiter senken.
-Automatische Verlängerung bleibt aus. Dauerhafte
+Gekaufte IPs verlängern sich automatisch. Mit `IPROYAL_RENEWAL_MANAGED=1` schaltet
+der Worker die Verlängerung freigegebener IPs beim Anbieter aus und bei erneuter
+Nutzung wieder ein. Dauerhafte
 Kaufabsichten verhindern wiederholte Zahlungen nach Verbindungsabbrüchen.
 Migration, Aktivierung, Test und Klärung offener Bestellungen stehen in der
 [Anleitung zur Nachbuchung](../../docs/implementation/iproyal-cloud-ip-purchase.md).
