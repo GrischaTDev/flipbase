@@ -591,11 +591,16 @@ export class MarketplaceBrowserHttpApi {
           };
           const listing = await this.broker.run(scope, currentSessionId, async (browser) => {
             if (!browser.readListingContent) throw new RequestError(503);
-            return parseVintedListingCurrentContent(
-              await browser.readListingContent(entry.accountId, entry.externalId, authorize),
+            const read = await browser.readListingContent(
               entry.accountId,
               entry.externalId,
+              authorize,
             );
+            try {
+              return parseVintedListingCurrentContent(read, entry.accountId, entry.externalId);
+            } catch {
+              throw new VintedListingReadError('result');
+            }
           });
           await authorize();
           await this.broker.close(scope, currentSessionId);

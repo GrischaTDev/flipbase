@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import type { Page } from 'playwright';
 import { replayBrowserDrag, vintedBrowserActions } from '../src/vinted-browser-actions.ts';
 import { listingClaimFixture } from './fixtures/marketplace-listing-claim.ts';
+import { VintedListingReadError } from '../src/vinted-listing-read-error.ts';
 
 test('reading new category choices requires one context and authority before reserving a page', async () => {
   let pages = 0;
@@ -56,20 +57,22 @@ test('reading an existing listing requires one context and authority before rese
       contexts: () => contexts,
     }) as unknown as import('../src/gologin-cloud-browser.ts').BrowserConnection;
   const actions = vintedBrowserActions(connection([context]));
+  const stoppedAt = (step: string) => (error: unknown) =>
+    error instanceof VintedListingReadError && error.step === step;
   await assert.rejects(
     actions.readListingContent!('123', '98765', () => Promise.reject(new Error('revoked'))),
-    /revoked/,
+    stoppedAt('authorize'),
   );
   await assert.rejects(
     vintedBrowserActions(connection([context, context])).readListingContent!('123', '98765', () =>
       Promise.resolve(),
     ),
-    /Exklusiv/,
+    stoppedAt('reserve'),
   );
   assert.equal(pages, 0);
   await assert.rejects(
     actions.readListingContent!('123', '98765', () => Promise.resolve()),
-    /page reserved/,
+    stoppedAt('reserve'),
   );
   assert.equal(pages, 1);
 });

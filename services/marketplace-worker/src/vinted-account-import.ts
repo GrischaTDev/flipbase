@@ -37,6 +37,8 @@ export interface VintedAccountImport {
   areas: VintedImportAreas;
   rejectedSaleIds?: string[];
   sourceRequestCount?: number;
+  /** Nur Feldnamen des ersten Inserats aus Vinteds Liste, keine Werte; dient der Einordnung. */
+  publicationFieldNames?: string[];
   browserReadFailures?: VintedBrowserReadFailure[];
   inboxEvents?: MarketplaceInboxEventBatch & { readonly version: 1 };
   favoriteEvents?: VintedFavoriteEvent[];
@@ -598,7 +600,28 @@ export function parseVintedAccountImport(
     });
   }
   if (areas.feedback.status === 'failed') delete entries[0]?.body['feedbacks'];
-  return { identity, observedAt, entries, areas, rejectedSaleIds: [...rejectedSaleIds] };
+  const publicationFieldNames = vintedFieldNames(itemValues.map(record).find(Boolean) ?? null);
+  return {
+    identity,
+    observedAt,
+    entries,
+    areas,
+    rejectedSaleIds: [...rejectedSaleIds],
+    ...(publicationFieldNames.length ? { publicationFieldNames } : {}),
+  };
+}
+
+/** Feldnamen einer Anbieterantwort bis zur zweiten Ebene; niemals Werte. */
+export function vintedFieldNames(value: Record<string, unknown> | null): string[] {
+  const names = new Set<string>();
+  const valid = (name: string) => /^[a-z0-9_]{1,40}$/.test(name);
+  for (const [key, entry] of Object.entries(value ?? {})) {
+    if (!valid(key)) continue;
+    names.add(key);
+    const nested = record(Array.isArray(entry) ? entry[0] : entry);
+    for (const inner of Object.keys(nested ?? {})) if (valid(inner)) names.add(key + '.' + inner);
+  }
+  return [...names].sort().slice(0, 400);
 }
 
 interface SourceReadContext {

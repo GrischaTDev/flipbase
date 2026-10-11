@@ -15,6 +15,7 @@ import { submitVintedListing } from './vinted-browser-listing-submit.ts';
 import { readVintedListingNewCategory } from './vinted-browser-listing-category.ts';
 import { readVintedListingCurrentContent } from './vinted-browser-listing-content.ts';
 import { updateVintedListingContent } from './vinted-browser-listing-update.ts';
+import { VintedListingReadError } from './vinted-listing-read-error.ts';
 import { readVintedProfileAbout, updateVintedProfileAbout } from './vinted-browser-profile-edit.ts';
 import { sendVintedNegotiation } from './vinted-browser-negotiation.ts';
 import { sendVintedMessage } from './vinted-browser-messages.ts';
@@ -71,10 +72,19 @@ export function vintedBrowserActions(
       return readVintedListingNewCategory(page, accountId, categoryId, categoryPath, authorize);
     },
     readListingContent: async (accountId, externalId, authorize) => {
-      await authorize();
+      try {
+        await authorize();
+      } catch {
+        throw new VintedListingReadError('authorize');
+      }
       const contexts = connection.contexts?.();
-      if (!contexts || contexts.length !== 1) throw new Error('Exklusiver Inseratbrowser fehlt');
-      const page = await contexts[0]!.newPage();
+      if (!contexts || contexts.length !== 1) throw new VintedListingReadError('reserve');
+      let page: Page;
+      try {
+        page = await contexts[0]!.newPage();
+      } catch {
+        throw new VintedListingReadError('reserve');
+      }
       return readVintedListingCurrentContent(page, accountId, externalId, authorize);
     },
     updateListingContent: async (accountId, externalId, base, desired, authorize) => {

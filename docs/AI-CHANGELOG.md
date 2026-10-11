@@ -1,5 +1,28 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-11 – Juna – Leser-Diagnose erweitern und Inseratfelder mitlesen
+
+**Befund:** Seit PR 373 erreicht das vollständige Bearbeiten den Server. Der Leser
+lief am echten Inserat rund elf Sekunden und scheiterte mit `reason: failed` ohne
+Schritt, also außerhalb der bisher erfassten Leseschritte. In der Datenbank
+liegen je Inserat nur Titel, Preis, Fotos sowie Marke, Größe und Zustand als
+Text; Kategorie, Farben, Material, Paketgröße und alle Kennungen fehlen.
+
+**Nutzerentscheidung vom 11.10.2026:** „Bearbeiten“ soll sofort dieselbe Maske wie
+„Inserat erstellen“ öffnen, befüllt aus gespeicherten Daten; geladen wird erst
+beim Speichern. Die Maske soll nur Werte anbieten, die Vinted kennt, und die
+Fotobox nach oben bekommen.
+
+**Änderung:** Die Diagnose meldet zusätzlich die Schritte Reservierung,
+Rechteprüfung und Abschlussprüfung, sodass kein Abbruch des Lesers mehr ohne
+Schritt bleibt. Der Abruf meldet außerdem die Feldnamen des ersten Inserats aus
+Vinteds Liste (bis zur zweiten Ebene, niemals Werte) als
+`marketplace_publication_fields`, um zu klären, welche Angaben der regelmäßige
+Abruf künftig mitspeichern kann.
+
+**Prüfungen:** 615 Worker-Prüfungen, sieben Browserfälle für Lesen und Ändern,
+Typen, Format und ESLint grün.
+
 ## 2026-10-11 - Juna - Vinted Kleiderschrank & Performance-Statistiken
 
 **Auftrag:** Die Vinted-Inserateseite wie gewünscht und am Mockup ausgerichtet in „Kleiderschrank“ umbenennen und eine Performance-Kurve für Aufrufe und Favoriten mit Zeitachsen-Filtern (24 Stunden, 7 Tage, 30 Tage) und Ausblend-Möglichkeit exakt nach Vorlage integrieren.
