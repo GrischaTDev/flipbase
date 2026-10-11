@@ -1,4 +1,5 @@
 import {
+  ChromiumStartError,
   CloudBrowserStopUncertainError,
   type CloudBrowserHandle,
   type BrowserInfo,
@@ -122,7 +123,7 @@ interface BrowserSessionBrokerOptions {
   recovery: { recover(): Promise<void> };
   authorizeRuntime?: () => Promise<boolean>;
   now?: () => number;
-  onStartFailure?: (stage: BrowserStartStage) => void;
+  onStartFailure?: (stage: BrowserStartStage, detail?: string) => void;
 }
 
 interface ActiveBrowserSession {
@@ -268,6 +269,7 @@ export class MarketplaceBrowserSessionBroker {
 
   async open(scope: BrowserSessionScope): Promise<string> {
     let stage: BrowserStartStage = 'authorization';
+    let startDetail: string | undefined;
     try {
       if (
         [
@@ -312,6 +314,7 @@ export class MarketplaceBrowserSessionBroker {
         this.sessions.set(lease.id, { lease, profileId, browser, stopPending: false });
         return lease.id;
       } catch (error) {
+        if (error instanceof ChromiumStartError) startDetail = error.phase + ': ' + error.detail;
         if (!(await this.runtimeAuthorized())) {
           if (profileId)
             this.sessions.set(lease.id, { lease, profileId, browser, stopPending: true });
@@ -341,7 +344,8 @@ export class MarketplaceBrowserSessionBroker {
       }
     } catch (error) {
       try {
-        this.options.onStartFailure?.(stage);
+        if (startDetail) this.options.onStartFailure?.(stage, startDetail);
+        else this.options.onStartFailure?.(stage);
       } catch {
         // Diagnosefehler dürfen weder die Bereinigung noch den ursprünglichen Fehler ersetzen.
       }

@@ -59,6 +59,16 @@ export async function replayBrowserDrag(page: Page, points: BrowserDragPoint[]):
   }
 }
 
+/** Feste Kurzbeschreibung für ein gescheitertes Laden der Startseite, nur aus Wörtern. */
+export function startPageFailure(error: unknown): string {
+  const message = error instanceof Error ? error.message : '';
+  const network = /net::ERR_([A-Z]{2,24}(?:_[A-Z]{2,24}){0,5})\b/.exec(message)?.[1];
+  if (network) return 'Startseite nicht geladen ' + network.toLowerCase().replaceAll('_', ' ');
+  if (error instanceof Error && error.name === 'TimeoutError')
+    return 'Startseite nicht geladen zeitlimit';
+  return 'Startseite nicht geladen';
+}
+
 export function vintedBrowserActions(
   connection: BrowserConnection,
   desktop?: BrowserDesktop,
@@ -154,10 +164,16 @@ export function vintedBrowserActions(
     ),
     version: () => connection.version(),
     initialize: async () => {
-      await currentPage().goto('https://www.vinted.de/', {
-        waitUntil: 'domcontentloaded',
-        timeout: 20000,
-      });
+      try {
+        await currentPage().goto('https://www.vinted.de/', {
+          waitUntil: 'domcontentloaded',
+          timeout: 20000,
+        });
+      } catch (error) {
+        // Nur die feste Fehlerart des Browsers weitergeben, nie Adresse oder Meldungstext.
+        // eslint-disable-next-line preserve-caught-error
+        throw new Error(startPageFailure(error));
+      }
     },
     capture: () =>
       desktop?.capture() ??

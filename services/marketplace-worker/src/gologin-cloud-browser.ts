@@ -158,6 +158,20 @@ const apiBaseUrl = 'https://api.gologin.com';
 const cloudBrowserUrl = 'wss://cloudbrowser.gologin.com/connect';
 const profileIdPattern = /^[a-zA-Z0-9_-]{1,128}$/;
 
+/**
+ * Gescheiterter Start mit bestätigt beendetem Browser. Trägt nur den festen Abschnitt und eine
+ * geprüfte Kurzbeschreibung, nie Anbieterantworten oder Zugangsdaten.
+ */
+export class ChromiumStartError extends Error {
+  readonly phase: 'network' | 'launch' | 'initialize';
+  readonly detail: string;
+  constructor(phase: 'network' | 'launch' | 'initialize', detail: string) {
+    super('Chromium-Start fehlgeschlagen');
+    this.phase = phase;
+    this.detail = detail;
+  }
+}
+
 export class CloudBrowserStopUncertainError extends Error {
   constructor() {
     super('Browser-Stopp muss geprüft werden');
