@@ -1,5 +1,20 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-11 – Juna – Entwurf für eine eigene Vinted-Statistikseite
+
+**Auftrag:** Kacheln und Diagramm aus dem Kleiderschrank herausnehmen und als
+eigene Seite „Statistik“ mit Verlauf und Bestenliste neu aufbauen, je Konto und
+für alle Konten.
+
+**Befund:** Das bisherige Diagramm verteilt die Gesamtsumme nach festen
+Prozentsätzen auf Tage und zeigt ohne Daten Beispielwerte; „Beste Zeit: Sonntag“
+ist fest eingetragen. Echte Messwerte je Abruf liegen bereits in
+`marketplace_listing_metric_observations`, werden aber mitgelöscht, sobald ein
+Inserat aus dem Kleiderschrank verschwindet.
+
+**Änderung:** Nur Entwurf, kein Code. Spezifikation in
+`docs/superpowers/specs/2026-10-11-vinted-statistics-page-design.md`.
+
 ## 2026-10-11 – Juna – Konten galten als abgemeldet, obwohl Vinted nur langsam erneuerte
 
 **Auftrag:** Auch nach PR 378 meldete Flipbase ein Cloud-Konto als abgemeldet, und die
