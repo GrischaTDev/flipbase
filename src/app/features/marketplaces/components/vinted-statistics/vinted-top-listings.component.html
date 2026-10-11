@@ -1,0 +1,88 @@
+<app-data-table
+  ariaLabel="Beliebteste Artikel im gewählten Zeitraum"
+  [searchEnabled]="false"
+  [hasRows]="rows().length > 0"
+  emptyTitle="Noch keine Bestenliste"
+  [emptyText]="emptyText()"
+>
+  <div table-filters class="flex flex-wrap items-center gap-1" role="group" aria-label="Sortierung">
+    <span class="px-2 text-xs text-fb-text-secondary">Sortieren nach</span>
+    @for (option of sortOptions; track option.value) {
+      <app-button
+        [attr.data-sort]="option.value"
+        size="slim"
+        [variant]="sortMetric() === option.value ? 'secondary' : 'ghost'"
+        [ariaPressed]="sortMetric() === option.value"
+        (clicked)="selectSort(option.value)"
+        >{{ option.label }}</app-button
+      >
+    }
+  </div>
+  <div table-content class="overflow-x-auto">
+    <table class="w-full text-left text-[13px]">
+      <thead class="bg-fb-well text-fb-text-secondary">
+        <tr>
+          <th scope="col" class="w-10 px-4 py-3 text-right">Platz</th>
+          <th scope="col" class="px-4 py-3">Artikel</th>
+          @if (showAccount()) {
+            <th scope="col" class="px-4 py-3">Konto</th>
+          }
+          <th scope="col" class="px-4 py-3 text-right">Preis</th>
+          <th scope="col" class="px-4 py-3 text-right">Aufrufe</th>
+          <th scope="col" class="px-4 py-3 text-right">Favoriten</th>
+          <th scope="col" class="px-4 py-3 text-right">Aufrufe gesamt</th>
+          <th scope="col" class="px-4 py-3 text-right">Favoriten gesamt</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-fb-line">
+        @for (row of rows(); track row.id) {
+          <tr>
+            <td class="px-4 py-3 text-right tabular-nums text-fb-text-secondary">{{ row.rank }}</td>
+            <td class="max-w-0 px-4 py-3 sm:min-w-64">
+              <div class="flex min-w-48 items-center gap-3">
+                <app-product-thumbnail class="shrink-0" [src]="row.imageUrl" alt="" size="sm" />
+                <div class="min-w-0">
+                  @if (row.link; as link) {
+                    <a
+                      data-top-listing-title
+                      [routerLink]="link"
+                      class="block truncate rounded-sm font-medium text-fb-text-primary underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
+                      >{{ row.title }}</a
+                    >
+                  } @else {
+                    <p data-top-listing-title class="truncate font-medium text-fb-text-primary">
+                      {{ row.title }}
+                    </p>
+                  }
+                  @if (row.removed) {
+                    <app-badge class="mt-1" tone="neutral">Nicht mehr online</app-badge>
+                  }
+                </div>
+              </div>
+            </td>
+            @if (showAccount()) {
+              <td class="whitespace-nowrap px-4 py-3 text-fb-text-secondary">
+                {{ row.accountName }}
+              </td>
+            }
+            <td class="whitespace-nowrap px-4 py-3 text-right tabular-nums text-fb-text-secondary">
+              {{ row.price }}
+            </td>
+            <td class="px-4 py-3 text-right font-semibold tabular-nums text-fb-text-primary">
+              {{ row.views }}
+            </td>
+            <td class="px-4 py-3 text-right font-semibold tabular-nums text-fb-text-primary">
+              {{ row.favorites }}
+            </td>
+            <td class="px-4 py-3 text-right tabular-nums text-fb-text-secondary">
+              {{ row.totalViews }}
+            </td>
+            <td class="px-4 py-3 text-right tabular-nums text-fb-text-secondary">
+              {{ row.totalFavorites }}
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</app-data-table>
