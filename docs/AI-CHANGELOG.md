@@ -1,5 +1,29 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-11 – Juna – Während Vinteds Erneuerung nichts abfragen
+
+**Auftrag:** Nach PR 380 liefen beide Cloud-Konten wieder, ohne neue Anmeldung. Die Erneuerung
+bei „Maike Vintage“ dauerte aber erneut rund eine Minute. Das soll nicht der Normalfall sein.
+
+**Befund (Aufzeichnung der Sitzung auf dem Server, nur Adressen, Status und Zeiten):** Vinteds
+Erneuerungsseite war nach 1,7 Sekunden geladen. 0,4 Sekunden später fragte Flipbase das Konto ab
+und bekam eine Ablehnung. Erst 61 Sekunden nach dem Laden schickte die Seite ihren
+Erneuerungsaufruf (`/web/api/auth/refresh`), der sofort klappte. Ohne Anmeldung startet dieselbe
+Seite den Aufruf nach gut einer Sekunde. Ob die abgelehnte Abfrage die Wartezeit auslöst, ist
+nicht bewiesen; ohne Anmeldung lässt es sich nicht nachstellen.
+
+**Änderung:** Steht der Browser auf der Erneuerungsseite, wartet der Kontoabruf zuerst auf deren
+Ende und fragt erst danach ab. Die Kontoprüfung der Anmeldesitzung meldet in dieser Zeit „noch
+nicht bestätigt“, ohne Vinted abzufragen. Das ist ein gezielter Versuch: Bleiben die nächsten
+Erneuerungen bei einer Sekunde, war die eigene Abfrage der Auslöser.
+
+**Prüfungen:** Der Browserfall zur Erneuerung prüft jetzt zusätzlich, dass währenddessen keine
+Abfrage abgelehnt wird (ohne die Änderung rot); 626 Worker-Prüfungen, neun Browserfälle, Typen,
+Format und ESLint grün.
+
+**Offen:** Die nächsten Erneuerungen in der Aufzeichnung auswerten; danach Beobachtung und
+Skripte `/root/juna-*` vom Server entfernen.
+
 ## 2026-10-11 – Juna – Konten galten als abgemeldet, obwohl Vinted nur langsam erneuerte
 
 **Auftrag:** Auch nach PR 378 meldete Flipbase ein Cloud-Konto als abgemeldet, und die
