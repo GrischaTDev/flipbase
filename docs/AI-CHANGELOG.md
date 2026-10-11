@@ -1,5 +1,29 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-11 – Juna – Automatik hält nicht mehr nach einer einzelnen Ablehnung an
+
+**Auftrag:** Zweite Absicherung für die Vinted-Cloud-Konten: Ein einzelner Ausrutscher bei der
+Anmeldung soll niemanden mehr zur Neuanmeldung zwingen.
+
+**Befund nach PR 381:** Die erste Erneuerung mit dem neuen Stand dauerte 0,4 Sekunden statt 61
+(Aufzeichnung vom 11.10., 19:25 Uhr); seitdem kein fehlgeschlagener Abruf. Unabhängig davon hielt
+`marketplace_sync_finish` die Automatik bisher schon nach der ersten nicht bestätigten Anmeldung
+an und entzog die Freigabe.
+
+**Änderung:** Die ersten beiden nicht bestätigten Anmeldungen in Folge lassen den Zeitplan aktiv;
+der nächste reguläre Abruf versucht es erneut. Erst die dritte beendet die Freigabe wie bisher.
+Die Warnung bleibt in der Zwischenzeit gesetzt, daher warten Cloud-Nachrichten und Favoriten so
+lange. Die Oberfläche zeigt dann „Abruf wartet“ mit dem Hinweis, dass der nächste Abruf es
+automatisch erneut versucht, statt zur Anmeldung aufzufordern. Andere Gründe (Ablehnung durch
+Vinted, Prüfung, entzogene Rechte) halten weiterhin sofort an.
+
+**Einschränkung:** Lokal lief keine Datenbank. Die Migration ist deshalb von Hand aus der
+Schemadatei übernommen (identischer Funktionstext) statt mit `supabase db diff` erzeugt, und die
+neuen Datenbankfälle laufen erst im PR.
+
+**Prüfungen:** Oberflächentest des Zeitplans mit neuem Fall (17 Fälle), Typen, ESLint, Prettier,
+Migrations- und Paketprüfungen grün; Datenbanktests im PR.
+
 ## 2026-10-11 – Juna – Während Vinteds Erneuerung nichts abfragen
 
 **Auftrag:** Nach PR 380 liefen beide Cloud-Konten wieder, ohne neue Anmeldung. Die Erneuerung
