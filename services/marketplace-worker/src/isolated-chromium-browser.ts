@@ -1,10 +1,14 @@
 import type { CloudBrowserHandle } from './gologin-cloud-browser.ts';
-import { CloudBrowserStopUncertainError } from './gologin-cloud-browser.ts';
+import { setTimeout as wait } from 'node:timers/promises';
+import { ChromiumStartError, CloudBrowserStopUncertainError } from './gologin-cloud-browser.ts';
+import { BrowserActionFailedError, unexpectedFailureDetail } from './vinted-listing-read-error.ts';
 import type { ChromiumProfileStore } from './chromium-profile-store.ts';
 import type { ChromiumBrokerClient } from './chromium-broker-client.ts';
 import type { ChromiumProfileNetwork } from './chromium-persistent-browser.ts';
 
 interface IsolatedChromiumOptions {
+  /** Pause vor dem zweiten Ladeversuch der Startseite; nur Tests verkürzen sie. */
+  initializeRetryDelayMs?: number;
   profiles: Pick<ChromiumProfileStore, 'acquire' | 'prepareStopped'>;
   launcher: Pick<ChromiumBrokerClient, 'launch' | 'recover'>;
   network: { resolve(profileId: string): Promise<ChromiumProfileNetwork> };
@@ -19,8 +23,10 @@ export class IsolatedChromiumBrowser {
   async open(profileId: string): Promise<CloudBrowserHandle> {
     const lease = await this.options.profiles.acquire(profileId);
     let handle: CloudBrowserHandle;
+    let phase: ChromiumStartError['phase'] = 'network';
     try {
       const network = await this.options.network.resolve(profileId);
+      phase = 'launch';
       handle = await this.options.launcher.launch(lease.directory, {
         headless: false,
         chromiumSandbox: true,
@@ -39,7 +45,16 @@ export class IsolatedChromiumBrowser {
             }
           : {}),
       });
-      await handle.run(async (browser) => browser.initialize?.());
+      phase = 'initialize';
+      const initialize = () => handle.run(async (browser) => browser.initialize?.());
+      try {
+        await initialize();
+      } catch (firstError) {
+        if (firstError instanceof CloudBrowserStopUncertainError) throw firstError;
+        // Die Cloud-IP lehnt die erste Verbindung gelegentlich ab; der Browser selbst läuft.
+        await wait(this.options.initializeRetryDelayMs ?? 1_500);
+        await initialize();
+      }
     } catch (error) {
       if (error instanceof CloudBrowserStopUncertainError) throw error;
       try {
@@ -49,8 +64,10 @@ export class IsolatedChromiumBrowser {
         throw new CloudBrowserStopUncertainError();
       }
       // Private Anbieterantworten dürfen die öffentliche Fehlergrenze nicht verlassen.
-      // eslint-disable-next-line preserve-caught-error
-      throw new Error('Chromium-Start fehlgeschlagen');
+      throw new ChromiumStartError(
+        phase,
+        error instanceof BrowserActionFailedError ? error.detail : unexpectedFailureDetail(error),
+      );
     }
     let stopped = false;
     return {

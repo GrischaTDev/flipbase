@@ -33,10 +33,17 @@ Ein Schild „Verkauft“ gibt es nicht, weil Vinted-Verkäufe keine Artikelnumm
 tragen. Bereits früher gelöschte Inserate sind nicht wiederherstellbar. Alte
 Messungen werden noch nicht verdichtet.
 
+**Nach der Gegenprüfung behoben:** Die Lesefunktion prüft das Verwaltungsrecht
+jetzt einmal selbst (`security definer`), weil die Prüfung je Messzeile bei
+1,7 Mio. Zeilen 46 s (7 Tage) bzw. über 3 Minuten (30 Tage) brauchte; danach
+0,7 s und 2,9 s. Der Vorzeitraum zählt nur so weit, wie der aktuelle Zeitraum
+schon gelaufen ist. Index auf `entry_id` ergänzt. Der Store lädt nur noch neu,
+wenn sich die Anfrage selbst ändert.
+
 **Prüfung:**
 
-- Datenbank: neue pgTAP-Datei (41 Prüfungen) und die gesamte Suite
-  (108 Dateien, 3952 Prüfungen) bestanden; Datenübernahme zusätzlich gegen
+- Datenbank: neue pgTAP-Datei (47 Prüfungen) und die gesamte Suite
+  (108 Dateien, 3958 Prüfungen) bestanden; Datenübernahme zusätzlich gegen
   Altbestand geprüft; erneuter Schemaabgleich ohne Treffer auf die neuen Objekte.
 - Unit-Tests `marketplaces` und Navigation: 65 Angular-Dateien / 804 Tests und
   28 Node-Dateien / 247 Tests bestanden.
@@ -44,6 +51,100 @@ Messungen werden noch nicht verdichtet.
   320 px; hell und dunkel) bestanden, einschließlich AXE und Überlaufprüfung der
   neuen Seite.
 - Prettier, ESLint, `typecheck`, `test:audit` und Produktionsbau ohne Beanstandung.
+
+## 2026-10-11 – Juna – Kontenschild zeigt den Abrufzustand statt immer „Verbunden“
+
+**Auftrag (Nutzer, 11.10.):** Auf der Kontenseite steht grün „Verbunden“, während das Postfach
+einen Abruffehler meldet. Das verwirrt.
+
+**Befund:** Es sind zwei getrennte Werte. „Verbunden“ ist der Status der Verbindung und wird nur
+bei der Anmeldung gesetzt. Ein gestörter Abruf steht am Zeitplan des Kontos. Am 11.10. stand der
+Zeitplan beider Konten auf „Anmeldung nötig“, die Verbindung aber weiter auf „verbunden“.
+
+**Änderung:** Das Schild eines Cloud-Kontos zeigt den schlechteren der beiden Zustände: „Abruf
+wartet“ (gelb), „Abruf angehalten“ (gelb), „Anmeldung erforderlich“, „Prüfung erforderlich“
+oder „Abruf abgelehnt“ (rot). Ohne Störung bleibt es bei „Verbunden“. Eine bewusst pausierte
+Automatik gilt nicht als Störung. Der Abrufzustand wird über die vorhandene Lesefunktion je
+verbundenem Cloud-Konto geladen und mit jeder Aktualisierung der Kontenliste erneuert; ohne
+Verwaltungsrecht oder bei einem Lesefehler bleibt das bisherige Schild. Lokale Konten und die
+Auswahlliste im Postfach sind unverändert.
+
+**Einschränkung:** Nicht im Browser angesehen, weil die Seite eine angemeldete lokale Datenbank
+braucht, die hier nicht lief. Abgesichert über Komponententest mit echtem Template.
+
+**Prüfungen:** Kontenkarte mit neuem Fall, neuer Dienst mit drei Fällen (27 Angular-Fälle),
+Darstellung mit drei Fällen, Typen, ESLint, Prettier, Shared-UI-Prüfung, Suite-Audit und Bau grün.
+
+## 2026-10-11 – Juna – Gescheiterten Browserstart einmal wiederholen und einordnen
+
+**Auftrag:** „Browser-Sitzung nicht verfügbar“: Am 11.10. scheiterte der Start des Cloud-Browsers
+zweimal nach rund drei Sekunden (12:43 und 17:41 Uhr), der jeweils nächste Versuch klappte. Der
+Grund wurde nirgends festgehalten.
+
+**Befund:** Der Container-Starter protokolliert eigene Startfehler, hat zu diesen Zeiten aber
+nichts gemeldet. Der Browser lief also; gescheitert ist danach das erste Laden der
+Vinted-Startseite. In einer Aufzeichnung derselben Sitzungen lehnte die Cloud-IP einzelne
+Verbindungen ab (`ERR_TUNNEL_CONNECTION_FAILED`). Dass genau das der Auslöser war, ist eine
+begründete Vermutung, kein Nachweis.
+
+**Änderung:** Schlägt das erste Laden der Startseite fehl, wird es nach 1,5 Sekunden einmal im
+selben Browser wiederholt. Scheitert auch das, steht im Protokoll neben `browser_start` jetzt der
+Abschnitt (Netz, Start oder Startseite) und eine feste Kurzbeschreibung aus reinen Wörtern, etwa
+„Startseite nicht geladen tunnel connection failed“. Adressen, Meldungstexte und Zugangsdaten
+gelangen weiterhin nicht ins Protokoll. Ein gescheiterter Containerstart wird nicht wiederholt.
+
+**Prüfungen:** 631 Worker-Prüfungen mit fünf neuen Fällen (zweiter Versuch gelingt; zweimal
+gescheitert meldet nur Abschnitt und geprüfte Kurzbeschreibung; Containerstart ohne Wiederholung
+und ohne privaten Text; Weitergabe durch den Sitzungsbroker; Kurzbeschreibungen), Typen, Format
+und ESLint grün. Am echten Server zeigt es sich erst beim nächsten Fehlstart.
+
+## 2026-10-11 – Juna – Automatik hält nicht mehr nach einer einzelnen Ablehnung an
+
+**Auftrag:** Zweite Absicherung für die Vinted-Cloud-Konten: Ein einzelner Ausrutscher bei der
+Anmeldung soll niemanden mehr zur Neuanmeldung zwingen.
+
+**Befund nach PR 381:** Die erste Erneuerung mit dem neuen Stand dauerte 0,4 Sekunden statt 61
+(Aufzeichnung vom 11.10., 19:25 Uhr); seitdem kein fehlgeschlagener Abruf. Unabhängig davon hielt
+`marketplace_sync_finish` die Automatik bisher schon nach der ersten nicht bestätigten Anmeldung
+an und entzog die Freigabe.
+
+**Änderung:** Die ersten beiden nicht bestätigten Anmeldungen in Folge lassen den Zeitplan aktiv;
+der nächste reguläre Abruf versucht es erneut. Erst die dritte beendet die Freigabe wie bisher.
+Die Warnung bleibt in der Zwischenzeit gesetzt, daher warten Cloud-Nachrichten und Favoriten so
+lange. Die Oberfläche zeigt dann „Abruf wartet“ mit dem Hinweis, dass der nächste Abruf es
+automatisch erneut versucht, statt zur Anmeldung aufzufordern. Andere Gründe (Ablehnung durch
+Vinted, Prüfung, entzogene Rechte) halten weiterhin sofort an.
+
+**Einschränkung:** Lokal lief keine Datenbank. Die Migration ist deshalb von Hand aus der
+Schemadatei übernommen (identischer Funktionstext) statt mit `supabase db diff` erzeugt, und die
+neuen Datenbankfälle laufen erst im PR.
+
+**Prüfungen:** Oberflächentest des Zeitplans mit neuem Fall (17 Fälle), Typen, ESLint, Prettier,
+Migrations- und Paketprüfungen grün; Datenbanktests im PR.
+
+## 2026-10-11 – Juna – Während Vinteds Erneuerung nichts abfragen
+
+**Auftrag:** Nach PR 380 liefen beide Cloud-Konten wieder, ohne neue Anmeldung. Die Erneuerung
+bei „Maike Vintage“ dauerte aber erneut rund eine Minute. Das soll nicht der Normalfall sein.
+
+**Befund (Aufzeichnung der Sitzung auf dem Server, nur Adressen, Status und Zeiten):** Vinteds
+Erneuerungsseite war nach 1,7 Sekunden geladen. 0,4 Sekunden später fragte Flipbase das Konto ab
+und bekam eine Ablehnung. Erst 61 Sekunden nach dem Laden schickte die Seite ihren
+Erneuerungsaufruf (`/web/api/auth/refresh`), der sofort klappte. Ohne Anmeldung startet dieselbe
+Seite den Aufruf nach gut einer Sekunde. Ob die abgelehnte Abfrage die Wartezeit auslöst, ist
+nicht bewiesen; ohne Anmeldung lässt es sich nicht nachstellen.
+
+**Änderung:** Steht der Browser auf der Erneuerungsseite, wartet der Kontoabruf zuerst auf deren
+Ende und fragt erst danach ab. Die Kontoprüfung der Anmeldesitzung meldet in dieser Zeit „noch
+nicht bestätigt“, ohne Vinted abzufragen. Das ist ein gezielter Versuch: Bleiben die nächsten
+Erneuerungen bei einer Sekunde, war die eigene Abfrage der Auslöser.
+
+**Prüfungen:** Der Browserfall zur Erneuerung prüft jetzt zusätzlich, dass währenddessen keine
+Abfrage abgelehnt wird (ohne die Änderung rot); 626 Worker-Prüfungen, neun Browserfälle, Typen,
+Format und ESLint grün.
+
+**Offen:** Die nächsten Erneuerungen in der Aufzeichnung auswerten; danach Beobachtung und
+Skripte `/root/juna-*` vom Server entfernen.
 
 ## 2026-10-11 – Juna – Konten galten als abgemeldet, obwohl Vinted nur langsam erneuerte
 

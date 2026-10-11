@@ -16,7 +16,8 @@ import { waitForOpenVintedSessionRenewals } from '../../src/vinted-session-renew
  */
 const renewalUrl = 'https://www.vinted.de/session-refresh?ref_url=%2F';
 async function fixture(page: Page, options: { refreshAfterMs: number; never?: boolean }) {
-  let expired = true,
+  let rejectedReads = 0,
+    expired = true,
     refreshStarted = false,
     interrupted = false,
     refreshes = 0,
@@ -43,15 +44,18 @@ async function fixture(page: Page, options: { refreshAfterMs: number; never?: bo
       if (!interrupted) expired = false;
       return route.fulfill({ json: { ok: true } });
     }
-    if (url.pathname === '/api/v2/users/current')
+    if (url.pathname === '/api/v2/users/current') {
+      if (expired) rejectedReads++;
       return route.fulfill(
         expired ? { status: 401, json: {} } : { json: { user: { id: 123, login: 'synthetic' } } },
       );
+    }
     return route.fulfill({
       json: { items: [], conversations: [], user_feedbacks: [], pagination: { total_pages: 1 } },
     });
   });
   return {
+    rejectedReads: () => rejectedReads,
     interrupted: () => interrupted,
     refreshes: () => refreshes,
     homeNavigations: () => homeNavigations,
@@ -68,6 +72,8 @@ test('waits for the provider session renewal instead of reloading into it', asyn
     assert.equal(snapshot.identity.id, '123');
     assert.equal(f.interrupted(), false);
     assert.equal(f.refreshes(), 1);
+    // Während der Erneuerung fragt der Abruf nichts ab.
+    assert.equal(f.rejectedReads(), 0);
     // Nur Vinteds eigene Rückleitung; der Abruf lädt nicht dazwischen neu.
     assert.equal(f.homeNavigations(), 1);
   } finally {

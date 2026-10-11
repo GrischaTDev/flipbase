@@ -19,7 +19,10 @@ import { NoticeBannerComponent } from '../../../../shared/components/notice-bann
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import type { AccountScope, MarketplaceConnection } from '../../models/marketplace.models';
-import { MARKETPLACE_SYNC_PAUSE_LABELS } from '../../models/marketplace-sync-schedule';
+import {
+  MARKETPLACE_SYNC_LOGIN_RETRY_LABEL,
+  MARKETPLACE_SYNC_PAUSE_LABELS,
+} from '../../models/marketplace-sync-schedule';
 import type { MarketplaceSyncSchedule } from '../../models/marketplace-sync-schedule';
 import { MarketplaceSyncScheduleStore } from '../../services/marketplace-sync-schedule.store';
 
@@ -64,7 +67,9 @@ export class VintedSyncScheduleComponent {
     })),
   );
   readonly pausedText = computed(() => {
-    const reason = this.store.schedule()?.pausedReason;
+    const schedule = this.store.schedule();
+    const reason = schedule?.pausedReason;
+    if (reason === 'needs_login' && schedule?.enabled) return MARKETPLACE_SYNC_LOGIN_RETRY_LABEL;
     return reason ? MARKETPLACE_SYNC_PAUSE_LABELS[reason] : null;
   });
   readonly headerStatus = computed<{ label: string; tone: BadgeTone } | null>(() => {

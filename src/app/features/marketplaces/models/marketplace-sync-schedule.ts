@@ -20,6 +20,9 @@ export const MARKETPLACE_SYNC_PAUSE_LABELS = {
   interrupted: 'Der Browserdienst wurde unterbrochen. Der nächste Versuch wartet.',
 } as const;
 export type MarketplaceSyncPauseReason = keyof typeof MARKETPLACE_SYNC_PAUSE_LABELS;
+/** Solange die Automatik aktiv bleibt, versucht der nächste Abruf die Anmeldung von selbst erneut. */
+export const MARKETPLACE_SYNC_LOGIN_RETRY_LABEL =
+  'Vinted hat die Anmeldung beim letzten Abruf nicht bestätigt. Der nächste Abruf versucht es automatisch erneut.';
 
 export interface MarketplaceSyncSchedule extends AccountScope {
   readonly enabled: boolean;

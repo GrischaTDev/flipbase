@@ -822,6 +822,21 @@ export async function readVintedAccountImport(
   const profile = await atImportStage('profile', async () => {
     await onStage?.('profile');
     await authorize();
+    // Solange Vinted erneuert, wird nichts abgefragt: Die Abfrage würde abgelehnt, und die
+    // Erneuerung soll ungestört zu Ende laufen.
+    if (isVintedSessionRenewal(page)) {
+      let isRenewed: boolean;
+      try {
+        isRenewed = await waitForVintedSessionRenewal(page, authorize, sessionRenewalWaitMs);
+      } catch (loadError) {
+        throw new VintedImportRequestError(
+          'browser_context',
+          undefined,
+          classifyBrowserReadFailure(loadError),
+        );
+      }
+      if (!isRenewed) throw new VintedImportRequestError('unauthorized');
+    }
     try {
       return await vintedJson(page, '/api/v2/users/current', reads);
     } catch (error) {
