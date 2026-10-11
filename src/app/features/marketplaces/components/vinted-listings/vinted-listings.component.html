@@ -2,7 +2,6 @@
   {{ metricDisplay.announcement() }}
 </p>
 @if (page(); as publications) {
-  <app-vinted-wardrobe-statistics [items]="publications.items" [totalCount]="publications.total" />
   <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
     <h2 class="text-sm font-semibold text-fb-text-primary">
       Kleiderschrank ({{ publications.total }})

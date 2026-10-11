@@ -1,19 +1,49 @@
 # 🤖 KI-Änderungsprotokoll
 
-## 2026-10-11 – Juna – Entwurf für eine eigene Vinted-Statistikseite
+## 2026-10-11 – Juna – Eigene Vinted-Statistikseite mit echten Messwerten
 
 **Auftrag:** Kacheln und Diagramm aus dem Kleiderschrank herausnehmen und als
 eigene Seite „Statistik“ mit Verlauf und Bestenliste neu aufbauen, je Konto und
-für alle Konten.
+für alle Konten. Verkaufte oder gelöschte Artikel sollen in ihren Zeiträumen
+weiter mitzählen.
 
-**Befund:** Das bisherige Diagramm verteilt die Gesamtsumme nach festen
-Prozentsätzen auf Tage und zeigt ohne Daten Beispielwerte; „Beste Zeit: Sonntag“
-ist fest eingetragen. Echte Messwerte je Abruf liegen bereits in
-`marketplace_listing_metric_observations`, werden aber mitgelöscht, sobald ein
-Inserat aus dem Kleiderschrank verschwindet.
+**Befund:** Das bisherige Diagramm verteilte die Gesamtsumme nach festen
+Prozentsätzen auf Tage und zeigte ohne Daten Beispielwerte; „Beste Zeit: Sonntag“
+war fest eingetragen. Echte Messwerte je Abruf lagen bereits in
+`marketplace_listing_metric_observations`, wurden aber mitgelöscht, sobald ein
+Inserat aus dem Kleiderschrank verschwand.
 
-**Änderung:** Nur Entwurf, kein Code. Spezifikation in
-`docs/superpowers/specs/2026-10-11-vinted-statistics-page-design.md`.
+**Änderung:**
+
+1. **Datenbank:** Neue Tabelle `marketplace_listing_statistic_items` als
+   dauerhafter Datensatz je Vinted-Artikel. Messungen hängen daran statt am
+   Kleiderschrank-Eintrag und bleiben erhalten; verschwundene Inserate bekommen
+   den Vermerk „nicht mehr online“. Vorhandene Messungen werden übernommen. Neue
+   Lesefunktion `marketplace_read_listing_statistics_overview` für Summen,
+   Zeitabschnitte und Bestenliste, je Konto oder für alle Konten.
+2. **Seite:** Menüpunkt „Statistik“ unter „Kleiderschrank“ mit Schaltern für
+   Konto-Umfang und Zeitraum, drei Kacheln mit Vergleich zum Zeitraum davor,
+   Säulendiagramm (ApexCharts) mit einblendbarer Wertetabelle und Bestenliste.
+3. **Kleiderschrank:** Das simulierte Diagramm samt Beispielzahlen ist entfernt;
+   die „+N“-Zahlen an den Karten bleiben.
+
+**Abwägungen:** Die Migration ist von Hand aus der Schema-Datei zusammengestellt,
+weil der erzeugte Abgleich viele fremde, bereits vorhandene Abweichungen enthielt.
+Ein Schild „Verkauft“ gibt es nicht, weil Vinted-Verkäufe keine Artikelnummer
+tragen. Bereits früher gelöschte Inserate sind nicht wiederherstellbar. Alte
+Messungen werden noch nicht verdichtet.
+
+**Prüfung:**
+
+- Datenbank: neue pgTAP-Datei (41 Prüfungen) und die gesamte Suite
+  (108 Dateien, 3952 Prüfungen) bestanden; Datenübernahme zusätzlich gegen
+  Altbestand geprüft; erneuter Schemaabgleich ohne Treffer auf die neuen Objekte.
+- Unit-Tests `marketplaces` und Navigation: 65 Angular-Dateien / 804 Tests und
+  28 Node-Dateien / 247 Tests bestanden.
+- Browsertest `e2e/vinted-workspace-ui.spec.ts` in sechs Varianten (1440, 390,
+  320 px; hell und dunkel) bestanden, einschließlich AXE und Überlaufprüfung der
+  neuen Seite.
+- Prettier, ESLint, `typecheck`, `test:audit` und Produktionsbau ohne Beanstandung.
 
 ## 2026-10-11 – Juna – Konten galten als abgemeldet, obwohl Vinted nur langsam erneuerte
 

@@ -124,6 +124,13 @@ describe('VintedTopListingsComponent', () => {
     expect(rows()[1].textContent).toContain('Konto B');
   });
 
+  it('macht die waagerecht scrollbare Tabelle per Tastatur erreichbar', () => {
+    const region = host().querySelector('[table-content]')!;
+    expect(region.getAttribute('tabindex')).toBe('0');
+    expect(region.getAttribute('role')).toBe('region');
+    expect(region.getAttribute('aria-label')).toBe('Tabelle der beliebtesten Artikel');
+  });
+
   it('erklärt eine leere Liste', () => {
     fixture.componentRef.setInput('items', []);
     fixture.detectChanges();

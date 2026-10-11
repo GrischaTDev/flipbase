@@ -77,13 +77,13 @@ describe('VintedReachChartComponent', () => {
 
   it('nennt den Abschnitt unter dem Zeiger und sonst den stärksten Abschnitt', () => {
     const detail = () => host().querySelector('[data-reach-chart-detail]')?.textContent?.trim();
-    expect(detail()).toBe('Stärkster Abschnitt: Donnerstag, 08.10. mit 50 Aufrufe');
+    expect(detail()).toBe('Stärkster Abschnitt: Donnerstag, 08.10. (50 Aufrufe)');
     fixture.componentInstance.showPoint(0);
     fixture.detectChanges();
     expect(detail()).toBe('Mittwoch, 07.10.: 20 Aufrufe');
     fixture.componentInstance.clearPoint();
     fixture.detectChanges();
-    expect(detail()).toBe('Stärkster Abschnitt: Donnerstag, 08.10. mit 50 Aufrufe');
+    expect(detail()).toBe('Stärkster Abschnitt: Donnerstag, 08.10. (50 Aufrufe)');
   });
 
   it('zeigt bei lauter Nullwerten einen ruhigen Hinweis statt eines stärksten Abschnitts', () => {

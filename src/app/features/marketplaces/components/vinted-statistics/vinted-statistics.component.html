@@ -48,17 +48,17 @@
       <app-notice-banner>{{ notice }}</app-notice-banner>
     }
 
-    <dl class="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-3">
+    <div class="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-3" role="group" aria-label="Kennzahlen">
       @for (tile of tiles(); track tile.id) {
         <app-card class="min-w-0">
-          <dt class="text-xs font-medium text-fb-text-secondary">{{ tile.label }}</dt>
-          <dd class="mt-1 text-2xl font-semibold tabular-nums text-fb-text-primary">
+          <p class="text-xs font-medium text-fb-text-secondary">{{ tile.label }}</p>
+          <p class="mt-1 text-2xl font-semibold tabular-nums text-fb-text-primary">
             {{ tile.value }}
-          </dd>
-          <dd class="mt-1 text-xs text-fb-text-secondary">{{ tile.note }}</dd>
+          </p>
+          <p class="mt-1 text-xs text-fb-text-secondary">{{ tile.note }}</p>
         </app-card>
       }
-    </dl>
+    </div>
 
     <app-card class="min-w-0">
       <div class="mb-3 flex flex-wrap items-center justify-between gap-2">

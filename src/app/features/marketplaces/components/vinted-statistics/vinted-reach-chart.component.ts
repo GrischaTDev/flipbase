@@ -76,7 +76,7 @@ export class VintedReachChartComponent {
       null,
     );
     return peak
-      ? `Stärkster Abschnitt: ${peak.description} mit ${formatCount(peak.value)} ${this.seriesName()}`
+      ? `Stärkster Abschnitt: ${peak.description} (${formatCount(peak.value)} ${this.seriesName()})`
       : `Im gewählten Zeitraum gab es keine neuen ${this.seriesName()}.`;
   });
 
