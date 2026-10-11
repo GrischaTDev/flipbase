@@ -23,6 +23,31 @@ Abruf künftig mitspeichern kann.
 **Prüfungen:** 615 Worker-Prüfungen, sieben Browserfälle für Lesen und Ändern,
 Typen, Format und ESLint grün.
 
+## 2026-10-11 - Juna - Vinted Kleiderschrank & Performance-Statistiken
+
+**Auftrag:** Die Vinted-Inserateseite wie gewünscht und am Mockup ausgerichtet in „Kleiderschrank“ umbenennen und eine Performance-Kurve für Aufrufe und Favoriten mit Zeitachsen-Filtern (24 Stunden, 7 Tage, 30 Tage) und Ausblend-Möglichkeit exakt nach Vorlage integrieren.
+
+**Befund:** Die Seite hieß bisher „Inserate“, was zu Verwechslungen mit „Inserat erstellen“ führte. Zudem fehlte eine visuelle Verlaufsanzeige zur Erkennung von Spitzenzeiten (z. B. Sonntagabend).
+
+**Änderung:**
+
+1. **Umbenennung:** Navigation (`vinted-workspace-navigation.ts`), Seitenkopf (`vinted-workspace.component.ts`), Detailansicht und Übersichts-Kacheln auf „Kleiderschrank“ umgestellt. Die mobile Leiste (`bottom-nav.component.ts`) behält das kompakte Label „Inserate“ mit Textkürzung (`truncate`) und Overflow-Schutz, um Viewport-Überläufe auf extrem schmalen Bildschirmen (320px) sicher zu verhindern.
+2. **Performance-Kurve & KPIs:** Neue Komponente `VintedWardrobeStatisticsComponent` erstellt:
+   - Obere KPI-Karten für Aufrufe (türkis mit Auge) und Favoriten (korallfarben mit Herz).
+   - Zeitfenster-Umschalter für `24 Stunden`, `7 Tage` und `30 Tage`.
+   - Umschalter `Diagramm ausblenden / einblenden` mit Schalter.
+   - Glatte kubische Bézier-Kurven für Aufrufe und Favoriten mit dezentem Farbverlauf nach unten.
+   - Interaktiver Hover- und Tastaturfokus mit Tooltip (`Sonntag: 128 Aufrufe, 24 Favoriten`) und Leitlinie.
+   - Automatische Spitzenzeiten-Erkennung (`Beste Zeit: Sonntag 19–22 Uhr`).
+   - Barrierefreie Datentabelle für Bildschirmleser (WCAG AA).
+3. **Integration & Responsiveness:** Komponente in `VintedListingsComponent` eingebunden. Responsive Absicherung für 320px-Viewports: 2-Spalten-Raster für KPI-Karten, Textkürzung (`truncate`) mit `min-w-0`, `overflow-hidden` und `max-w-full` auf Host- und Kartenebene, Kapselung der barrierefreien Screenreader-Tabelle in einem geschützten `sr-only`-Block-Container zur Verhinderung von Tabellenbreiten-Überläufen sowie detaillierte Elementdiagnose in `checkSurface`.
+
+**Prüfung:**
+
+- Unit-Tests: 86 Dateien / 971 Tests in `marketplaces` (einschließlich 5 neuer Komponententests und 3 Modelltests) sowie mobile Navigationsprüfung bestanden.
+- TypeScript `typecheck`, ESLint und Prettier ohne Beanstandungen.
+- Angular Produktionsbau (`ng build`) erfolgreich abgeschlossen.
+
 ## 2026-10-11 – Juna – Vollständiges Bearbeiten erreichte den Server nicht
 
 **Befund:** Am echten Konto erschien statt des vollständigen Formulars immer der

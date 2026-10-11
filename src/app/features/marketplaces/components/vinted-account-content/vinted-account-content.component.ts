@@ -53,7 +53,7 @@ export class VintedAccountContentComponent {
   });
   readonly pageTitle = computed(() =>
     this.section() === 'listings'
-      ? 'Inserate'
+      ? 'Kleiderschrank'
       : this.section() === 'sales'
         ? 'Verkäufe'
         : 'Aktivitäten',
