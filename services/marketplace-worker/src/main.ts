@@ -273,9 +273,9 @@ async function main(): Promise<void> {
     browser,
   );
   const broker = new MarketplaceBrowserSessionBroker({
-    onStartFailure: (stage) => {
+    onStartFailure: (stage, detail) => {
       process.stderr.write(
-        `${JSON.stringify({ event: 'marketplace_browser_start_failed', stage })}\n`,
+        `${JSON.stringify({ event: 'marketplace_browser_start_failed', stage, ...(detail ? { detail } : {}) })}\n`,
       );
     },
     leases,

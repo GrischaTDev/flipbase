@@ -6,7 +6,10 @@ import {
   type BrowserLease,
   type BrowserSessionScope,
 } from '../src/marketplace-browser-session-broker.ts';
-import { CloudBrowserStopUncertainError } from '../src/gologin-cloud-browser.ts';
+import {
+  ChromiumStartError,
+  CloudBrowserStopUncertainError,
+} from '../src/gologin-cloud-browser.ts';
 
 type BrokerOptions = ConstructorParameters<typeof MarketplaceBrowserSessionBroker>[0];
 
@@ -104,6 +107,32 @@ for (const failureStage of ['lease_acquire', 'profile_resolve', 'browser_start']
     assert.equal(JSON.stringify(failures).includes('private-password'), false);
   });
 }
+
+test('reports the checked phase and detail of a failed browser start', async () => {
+  const failures: unknown[][] = [];
+  const broker = createTestBroker({
+    onStartFailure: (...fields) => failures.push(fields),
+    leases: {
+      acquire: async (scope) => ({
+        id: 'lease',
+        scope,
+        expiresAt: Date.now() + 60_000,
+        active: true,
+      }),
+      assertActive: async () => true,
+      release: async () => undefined,
+    },
+    profiles: { resolve: async () => 'profile' },
+    browsers: {
+      open: async () => {
+        throw new ChromiumStartError('initialize', 'Error: Startseite nicht geladen');
+      },
+      stop: async () => undefined,
+    },
+  });
+  await assert.rejects(broker.open(scopeA), /Browserstart fehlgeschlagen/);
+  assert.deepEqual(failures, [['browser_start', 'initialize: Error: Startseite nicht geladen']]);
+});
 
 test('message claims cannot be borrowed by another claim or an interactive login', async () => {
   const { broker } = setup();

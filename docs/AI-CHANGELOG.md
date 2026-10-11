@@ -1,5 +1,28 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-11 – Juna – Gescheiterten Browserstart einmal wiederholen und einordnen
+
+**Auftrag:** „Browser-Sitzung nicht verfügbar“: Am 11.10. scheiterte der Start des Cloud-Browsers
+zweimal nach rund drei Sekunden (12:43 und 17:41 Uhr), der jeweils nächste Versuch klappte. Der
+Grund wurde nirgends festgehalten.
+
+**Befund:** Der Container-Starter protokolliert eigene Startfehler, hat zu diesen Zeiten aber
+nichts gemeldet. Der Browser lief also; gescheitert ist danach das erste Laden der
+Vinted-Startseite. In einer Aufzeichnung derselben Sitzungen lehnte die Cloud-IP einzelne
+Verbindungen ab (`ERR_TUNNEL_CONNECTION_FAILED`). Dass genau das der Auslöser war, ist eine
+begründete Vermutung, kein Nachweis.
+
+**Änderung:** Schlägt das erste Laden der Startseite fehl, wird es nach 1,5 Sekunden einmal im
+selben Browser wiederholt. Scheitert auch das, steht im Protokoll neben `browser_start` jetzt der
+Abschnitt (Netz, Start oder Startseite) und eine feste Kurzbeschreibung aus reinen Wörtern, etwa
+„Startseite nicht geladen tunnel connection failed“. Adressen, Meldungstexte und Zugangsdaten
+gelangen weiterhin nicht ins Protokoll. Ein gescheiterter Containerstart wird nicht wiederholt.
+
+**Prüfungen:** 631 Worker-Prüfungen mit fünf neuen Fällen (zweiter Versuch gelingt; zweimal
+gescheitert meldet nur Abschnitt und geprüfte Kurzbeschreibung; Containerstart ohne Wiederholung
+und ohne privaten Text; Weitergabe durch den Sitzungsbroker; Kurzbeschreibungen), Typen, Format
+und ESLint grün. Am echten Server zeigt es sich erst beim nächsten Fehlstart.
+
 ## 2026-10-11 – Juna – Automatik hält nicht mehr nach einer einzelnen Ablehnung an
 
 **Auftrag:** Zweite Absicherung für die Vinted-Cloud-Konten: Ein einzelner Ausrutscher bei der
