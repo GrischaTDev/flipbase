@@ -27,10 +27,8 @@ import { ModalShellComponent } from '../../../../shared/components/modal-shell/m
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import type { MarketplaceConnection } from '../../models/marketplace.models';
-import {
-  MARKETPLACE_CONNECTION_LABELS,
-  MARKETPLACE_CONNECTION_TONES,
-} from '../../models/marketplace-presentation';
+import { presentVintedCloudStatus } from '../../models/marketplace-presentation';
+import { VintedAccountSyncStatusStore } from '../../services/vinted-account-sync-status.store';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { VintedLocalExtensionStore } from '../../services/vinted-local-extension.store';
 import { VintedLocalExtensionBridge } from '../../services/vinted-local-extension-bridge';
@@ -81,6 +79,7 @@ export class VintedAccountGridComponent {
       : null;
   });
   readonly cloud = inject(MarketplaceCloudSetupStore);
+  private readonly syncStatus = inject(VintedAccountSyncStatusStore);
   readonly previews = inject(VintedAccountPreviewsStore);
   readonly management = viewChild(MarketplaceAccountsComponent);
   private readonly auth = inject(AuthService);
@@ -136,7 +135,6 @@ export class VintedAccountGridComponent {
   );
   private dragOrder: readonly string[] | null = null;
   private dragContext: string | null = null;
-  readonly statusTones = MARKETPLACE_CONNECTION_TONES;
   readonly refreshIcon = LucideRefreshCw;
   readonly dragStartDelay = { mouse: 0, touch: 250 } as const;
   readonly settingsIcon = LucideSettings;
@@ -144,6 +142,12 @@ export class VintedAccountGridComponent {
   readonly deleteIcon = LucideTrash2;
 
   constructor() {
+    // Jeder Abruf aktualisiert die Kontenliste; der Abrufzustand wird dann mit erneuert.
+    effect(() => {
+      const accounts = this.accounts.connections();
+      if (!this.accounts.canManage()) return;
+      untracked(() => void this.syncStatus.refresh(accounts));
+    });
     effect(() => {
       const parameters = this.queryParams();
       const settingsId = parameters.get('settings');
@@ -221,8 +225,10 @@ export class VintedAccountGridComponent {
     return account.executionMode === 'local'
       ? this.runtimeStatus(account)
       : {
-          label: MARKETPLACE_CONNECTION_LABELS[account.status],
-          tone: this.statusTones[account.status],
+          ...presentVintedCloudStatus(
+            account.status,
+            this.syncStatus.schedule(account.connectionId),
+          ),
           action: 'settings' as const,
         };
   }

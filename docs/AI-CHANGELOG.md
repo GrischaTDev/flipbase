@@ -1,5 +1,28 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-11 – Juna – Kontenschild zeigt den Abrufzustand statt immer „Verbunden“
+
+**Auftrag (Nutzer, 11.10.):** Auf der Kontenseite steht grün „Verbunden“, während das Postfach
+einen Abruffehler meldet. Das verwirrt.
+
+**Befund:** Es sind zwei getrennte Werte. „Verbunden“ ist der Status der Verbindung und wird nur
+bei der Anmeldung gesetzt. Ein gestörter Abruf steht am Zeitplan des Kontos. Am 11.10. stand der
+Zeitplan beider Konten auf „Anmeldung nötig“, die Verbindung aber weiter auf „verbunden“.
+
+**Änderung:** Das Schild eines Cloud-Kontos zeigt den schlechteren der beiden Zustände: „Abruf
+wartet“ (gelb), „Abruf angehalten“ (gelb), „Anmeldung erforderlich“, „Prüfung erforderlich“
+oder „Abruf abgelehnt“ (rot). Ohne Störung bleibt es bei „Verbunden“. Eine bewusst pausierte
+Automatik gilt nicht als Störung. Der Abrufzustand wird über die vorhandene Lesefunktion je
+verbundenem Cloud-Konto geladen und mit jeder Aktualisierung der Kontenliste erneuert; ohne
+Verwaltungsrecht oder bei einem Lesefehler bleibt das bisherige Schild. Lokale Konten und die
+Auswahlliste im Postfach sind unverändert.
+
+**Einschränkung:** Nicht im Browser angesehen, weil die Seite eine angemeldete lokale Datenbank
+braucht, die hier nicht lief. Abgesichert über Komponententest mit echtem Template.
+
+**Prüfungen:** Kontenkarte mit neuem Fall, neuer Dienst mit drei Fällen (27 Angular-Fälle),
+Darstellung mit drei Fällen, Typen, ESLint, Prettier, Shared-UI-Prüfung, Suite-Audit und Bau grün.
+
 ## 2026-10-11 – Juna – Gescheiterten Browserstart einmal wiederholen und einordnen
 
 **Auftrag:** „Browser-Sitzung nicht verfügbar“: Am 11.10. scheiterte der Start des Cloud-Browsers
