@@ -10,7 +10,11 @@ import {
 import type { VintedAccountImport } from '../src/vinted-account-import.ts';
 import { VintedInteractionRequiredError } from '../src/vinted-browser-reader.ts';
 import { listingCurrentContentFixture } from './fixtures/vinted-listing-current-content.ts';
-import { VintedListingReadError } from '../src/vinted-listing-read-error.ts';
+import {
+  BrowserActionFailedError,
+  unexpectedFailureDetail,
+  VintedListingReadError,
+} from '../src/vinted-listing-read-error.ts';
 
 const listingCategory = {
   categoryId: 1223,
@@ -213,6 +217,52 @@ test('a failed listing read keeps only its fixed step across the isolated transp
           ? error instanceof VintedListingReadError && error.step === expected
           : !(error instanceof VintedListingReadError) &&
             !String((error as Error).message).includes('private'),
+    );
+  }
+});
+
+test('an unexpected browser failure crosses the transport only as a short safe description', async () => {
+  class TimeoutError extends Error {
+    override name = 'TimeoutError';
+  }
+  assert.equal(
+    unexpectedFailureDetail(new Error('Browserseite fehlt')),
+    'Error: Browserseite fehlt',
+  );
+  // Meldungen mit Ziffern, Adressen oder Selektoren entfallen; die Fehlerart bleibt.
+  for (const message of [
+    'page.goto: Timeout 15000ms exceeded',
+    'waiting for locator("#content input[name=title]")',
+    'https://www.vinted.de/items/98765/edit',
+    'token eyJhbGciOi',
+  ])
+    assert.equal(unexpectedFailureDetail(new TimeoutError(message)), 'TimeoutError');
+  assert.equal(unexpectedFailureDetail('text'), 'Unknown');
+  assert.deepEqual(browserActionError(new TimeoutError('page.goto: Timeout 15000ms exceeded')), {
+    kind: 'error',
+    code: 'failed',
+    reason: 'TimeoutError',
+  });
+  for (const [reason, expected] of [
+    ['Error: Browserseite fehlt', 'Error: Browserseite fehlt'],
+    ['TimeoutError', 'TimeoutError'],
+    ['Error: https://www.vinted.de/items/98765', null],
+    ['Error: token eyJhbGciOi', null],
+    ['x'.repeat(200), null],
+  ] as const) {
+    const browser = isolatedBrowserActions({
+      request: async (input) => {
+        if (input.action === 'start') return { id: '00000000-0000-0000-0000-000000000001' };
+        if (input.action === 'poll') return { kind: 'error', code: 'failed', reason };
+        return null;
+      },
+    });
+    await assert.rejects(
+      browser.readListingContent!('123', '98765', () => Promise.resolve()),
+      (error) =>
+        expected
+          ? error instanceof BrowserActionFailedError && error.detail === expected
+          : !(error instanceof BrowserActionFailedError),
     );
   }
 });

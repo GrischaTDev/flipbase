@@ -18,7 +18,13 @@ import {
   receiveVintedListingPhoto,
 } from './vinted-listing-photo-transfer.ts';
 import { isValidVintedMessageCommand } from './vinted-browser-messages.ts';
-import { VintedListingReadError, vintedListingReadSteps } from './vinted-listing-read-error.ts';
+import {
+  BrowserActionFailedError,
+  plainFailureMessage,
+  unexpectedFailureDetail,
+  VintedListingReadError,
+  vintedListingReadSteps,
+} from './vinted-listing-read-error.ts';
 import type {
   MarketplaceMessageCommand,
   MarketplaceFavoriteMessageCommand,
@@ -529,7 +535,7 @@ export function browserActionError(error: unknown): BrowserActionEvent {
     };
   if (error instanceof VintedListingReadError)
     return { kind: 'error', code: 'listing_read', stage: error.step };
-  return { kind: 'error', code: 'failed' };
+  return { kind: 'error', code: 'failed', reason: unexpectedFailureDetail(error) };
 }
 function throwBrowserError(event: Record<string, unknown>): never {
   if (event.code === 'interaction_required') throw new VintedInteractionRequiredError();
@@ -593,6 +599,16 @@ function throwBrowserError(event: Record<string, unknown>): never {
           )
         : undefined,
     );
+  }
+  // Die Kurzbeschreibung wird auf dieser Seite erneut geprüft, bevor sie ins Protokoll gelangt.
+  if (event.code === 'failed' && typeof event.reason === 'string') {
+    const [name, message, ...rest] = event.reason.split(': ');
+    if (
+      rest.length === 0 &&
+      /^[A-Za-z]{1,40}$/.test(name ?? '') &&
+      (message === undefined || plainFailureMessage.test(message))
+    )
+      throw new BrowserActionFailedError(event.reason);
   }
   throw new Error('Browseraktion fehlgeschlagen');
 }
