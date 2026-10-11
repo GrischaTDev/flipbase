@@ -165,7 +165,7 @@
         (keydown)="onKeyDown($event)"
       >
         <!-- Schwebender Tooltip -->
-        @if (activePoint(); as pt) {
+        @if (showTooltip() && activePoint(); as pt) {
           <div
             class="pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-full rounded-xl border border-[#2d3b4e] bg-[#1a232f] px-3 py-2 text-xs shadow-xl transition-all duration-150"
             [style.left.%]="tooltipLeftPercent()"

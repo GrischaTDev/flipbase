@@ -20,7 +20,7 @@ import {
   styleUrl: './vinted-wardrobe-statistics.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
-    class: 'block min-w-0 space-y-4 mb-6',
+    class: 'block w-full max-w-full overflow-hidden min-w-0 space-y-4 mb-6',
   },
 })
 export class VintedWardrobeStatisticsComponent {
@@ -42,6 +42,8 @@ export class VintedWardrobeStatisticsComponent {
     buildWardrobeStatistics(this.items(), this.timeframe(), this.totalCount() ?? undefined),
   );
 
+  readonly showTooltip = computed(() => this.hoveredIndex() !== null);
+
   readonly activeIndex = computed(() => {
     const h = this.hoveredIndex();
     if (h !== null && h >= 0 && h < this.data().points.length) return h;
@@ -58,7 +60,8 @@ export class VintedWardrobeStatisticsComponent {
   readonly tooltipLeftPercent = computed(() => {
     const pt = this.activePoint();
     if (!pt) return 50;
-    return (pt.x / CHART_WIDTH) * 100;
+    const raw = (pt.x / CHART_WIDTH) * 100;
+    return Math.min(80, Math.max(20, raw));
   });
 
   readonly yAxisSteps = computed(() => {
