@@ -64,7 +64,10 @@ export async function readVintedAccountIdentity(
   page: Pick<Page, 'url' | 'evaluate'>,
 ): Promise<VintedAccountIdentity | null> {
   try {
-    if (new URL(page.url()).origin !== 'https://www.vinted.de') return null;
+    const address = new URL(page.url());
+    if (address.origin !== 'https://www.vinted.de') return null;
+    // Während Vinted die Anmeldung erneuert, ist sie weder bestätigt noch abgelehnt.
+    if (address.pathname === '/session-refresh') return null;
   } catch {
     return null;
   }
