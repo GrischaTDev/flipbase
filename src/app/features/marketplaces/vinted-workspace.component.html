@@ -1,5 +1,5 @@
 @if (!showingDraftWorkspace()) {
-  <app-page-header [title]="showingMessages() ? 'Nachrichten' : 'Vinted'" [icon]="pageIcon()">
+  <app-page-header [title]="pageTitle()" [icon]="pageIcon()">
     @if (showingSetup() || showingLocalConnection() || showingCloudConnection()) {
       <app-button header-actions link="/marketplaces/vinted/accounts">Alle Konten</app-button>
     } @else if (!showingAccounts() && store.selectedConnection(); as account) {

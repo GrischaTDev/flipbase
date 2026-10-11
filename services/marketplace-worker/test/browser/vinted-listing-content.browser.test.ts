@@ -145,7 +145,7 @@ test('preserves existing user pages and closes its own page after revocation', a
       readVintedListingCurrentContent(own, '123', '98765', async () => {
         if (++checks > 5) throw new Error('revoked');
       }),
-      /revoked/,
+      (error) => error instanceof VintedListingReadError && error.step === 'authorize',
     );
     assert.equal(own.isClosed(), true);
   } finally {

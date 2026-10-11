@@ -25,7 +25,7 @@ export const VINTED_WORKSPACE_NAVIGATION_GROUPS: readonly VintedNavigationGroup[
     items: [
       { path: '/marketplaces/vinted/overview', label: 'Übersicht', icon: 'dashboard' },
       { path: '/marketplaces/vinted/messages', label: 'Postfach', icon: 'shoppingBag' },
-      { path: '/marketplaces/vinted/listings', label: 'Inserate', icon: 'tag' },
+      { path: '/marketplaces/vinted/listings', label: 'Kleiderschrank', icon: 'tag' },
       { path: '/marketplaces/vinted/listings/new', label: 'Inserat erstellen', icon: 'tag' },
       { path: '/marketplaces/vinted/listing-drafts', label: 'Entwürfe', icon: 'bookOpen' },
       { path: '/marketplaces/vinted/sales', label: 'Verkäufe', icon: 'trendingUp' },

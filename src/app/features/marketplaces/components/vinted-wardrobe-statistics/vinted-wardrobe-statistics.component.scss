@@ -1,0 +1,18 @@
+:host {
+  display: block;
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.chart-path {
+  transition: d 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.chart-dot {
+  transition:
+    cx 0.2s ease,
+    cy 0.2s ease;
+}

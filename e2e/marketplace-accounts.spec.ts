@@ -111,9 +111,10 @@ async function chooseCloudConnection(page: Page): Promise<void> {
 }
 
 async function openVintedSection(page: Page, label: string, width: number): Promise<void> {
+  const target = label === 'Inserate' ? 'Kleiderschrank' : label;
   if (width < 768)
     await page.locator('app-bottom-nav').getByRole('button', { name: 'Menü', exact: true }).click();
-  await page.locator('app-sidebar').getByRole('link', { name: label, exact: true }).click();
+  await page.locator('app-sidebar').getByRole('link', { name: target, exact: true }).click();
 }
 
 for (const width of [1440, 390]) {
@@ -1323,7 +1324,7 @@ for (const width of [1440, 390]) {
       ),
     ).toEqual([]);
     await evidence(page, `vinted-sales-${width}`);
-    await openVintedSection(page, 'Inserate', width);
+    await openVintedSection(page, 'Kleiderschrank', width);
     await expect(page.locator('[data-views]')).toHaveText('0');
     await expect(page.locator('[data-favorites]')).toHaveText('—');
     await evidence(page, `vinted-listings-${width}`);

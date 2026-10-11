@@ -212,6 +212,19 @@ export class MarketplaceSyncRunner {
         cleanupPending,
         snapshot.areas,
       );
+      if (snapshot.publicationFieldNames?.length) {
+        try {
+          // Nur Feldnamen, keine Inhalte: zeigt, welche Inseratangaben Vinted in der Liste mitliefert.
+          process.stderr.write(
+            `${JSON.stringify({
+              event: 'marketplace_publication_fields',
+              fields: snapshot.publicationFieldNames,
+            })}\n`,
+          );
+        } catch {
+          // Eine defekte Logausgabe verändert keinen Abruf.
+        }
+      }
       this.events.record({
         operationId: id,
         stage: currentStage,

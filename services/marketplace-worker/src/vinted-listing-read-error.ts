@@ -1,5 +1,7 @@
 /** Feste Schritte beim Lesen der Vinted-Bearbeitungsmaske; keine Seiteninhalte oder Kennungen. */
 export const vintedListingReadSteps = [
+  'reserve',
+  'authorize',
   'navigate',
   'form',
   'identity',
@@ -9,6 +11,7 @@ export const vintedListingReadSteps = [
   'fields',
   'changed',
   'parse',
+  'result',
 ] as const;
 export type VintedListingReadStep = (typeof vintedListingReadSteps)[number];
 
