@@ -1,5 +1,31 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-11 – Juna – Unerwartete Abbrüche beim Lesen eines Inserats einordnen
+
+**Befund:** Nach PR 377 scheiterten am echten Konto sowohl das vollständige Lesen
+(nach rund 10 Sekunden) als auch die einfache Bearbeitung (nach rund 30 Sekunden)
+weiter ohne Schritt. Es ist also kein Fehler der Leseschritte, sondern ein
+unerwarteter Abbruch im getrennten Browser oder im Worker, dessen Art bisher
+nirgends festgehalten wird.
+
+**Abmeldungen, lesend untersucht:** „Maike Vintage“ wurde am 11.10. zwischen 08:50
+und 09:05 Uhr abgemeldet, „Wiehen Store“ zwischen 09:36 und 09:50 Uhr. Zu beiden
+Zeitpunkten gab es keinen Worker-Neustart. Die Anmeldecookies von „Maike Vintage“
+wurden um 08:04 Uhr von Vinted erneuert, sauber gespeichert und funktionierten
+noch dreimal; ein verlorener Cookie-Stand scheidet damit aus. Die Sitzung wurde
+bei Vinted beendet. Ursache offen; Rückfrage an den Nutzer zu Anmeldungen oder
+Kontowechseln in der Vinted-App zu diesen Zeiten.
+
+**Änderung:** Ein unerwarteter Abbruch meldet seine Fehlerart und, nur wenn sie aus
+gewöhnlichen Wörtern besteht, die feste eigene Meldung. Meldungen mit Ziffern,
+Adressen, Sonderzeichen oder schlüsselartigen Wörtern entfallen; die Prüfung läuft
+auf beiden Seiten der Übertragung. Der Worker protokolliert die Einordnung als
+`marketplace_listing_read_detail` mit Herkunft Browser oder Worker.
+
+**Prüfungen:** 623 Worker-Prüfungen einschließlich der Fälle, die Adressen,
+Selektoren und Schlüssel abweisen; Gesamttest der Übertragung; Typen, Format und
+ESLint grün.
+
 ## 2026-10-11 – Juna – Vinteds Anmelde-Erneuerung nicht mehr unterbrechen
 
 **Auftrag:** Die Cloud-Konten werden immer wieder von Vinted abgemeldet. Das soll

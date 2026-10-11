@@ -34,7 +34,11 @@ import {
   parseVintedListingCurrentContent,
   parseVintedListingEditContent,
 } from './vinted-listing-contracts.ts';
-import { VintedListingReadError } from './vinted-listing-read-error.ts';
+import {
+  BrowserActionFailedError,
+  unexpectedFailureDetail,
+  VintedListingReadError,
+} from './vinted-listing-read-error.ts';
 import type { VintedListingContent } from '../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts';
 
 interface BrowserBroker {
@@ -290,6 +294,29 @@ export class MarketplaceBrowserHttpApi {
     server.requestTimeout = 15_000;
     server.headersTimeout = 10_000;
     return server;
+  }
+
+  /**
+   * Der Sitzungsbroker ersetzt jeden Fehler einer Aktion. Die Einordnung des ursprünglichen
+   * Fehlers wird deshalb sofort protokolliert: Herkunft, Fehlerart und höchstens eine feste
+   * eigene Meldung ohne Ziffern oder Sonderzeichen.
+   */
+  private logListingReadDetail(route: 'content/read' | 'edit/read', error: unknown): void {
+    try {
+      process.stderr.write(
+        `${JSON.stringify({
+          event: 'marketplace_listing_read_detail',
+          route,
+          origin: error instanceof BrowserActionFailedError ? 'browser' : 'worker',
+          detail:
+            error instanceof BrowserActionFailedError
+              ? error.detail
+              : unexpectedFailureDetail(error),
+        })}\n`,
+      );
+    } catch {
+      // Eine defekte Logausgabe verändert keine Antwort.
+    }
   }
 
   private async handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
@@ -608,6 +635,7 @@ export class MarketplaceBrowserHttpApi {
                 }
               } catch (error) {
                 if (error instanceof VintedListingReadError) readFailure = error;
+                else this.logListingReadDetail('content/read', error);
                 throw error;
               }
             })
@@ -781,6 +809,7 @@ export class MarketplaceBrowserHttpApi {
                 return { fields: await browser.readListingEdit(entry.externalId, entry.accountId) };
               } catch (error) {
                 if (error instanceof VintedListingReadError) editReadFailure = error;
+                else this.logListingReadDetail('edit/read', error);
                 throw error;
               }
             })
