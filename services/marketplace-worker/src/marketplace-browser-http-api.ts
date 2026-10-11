@@ -589,19 +589,31 @@ export class MarketplaceBrowserHttpApi {
               throw new Error('Kontozuordnung geändert');
             await this.broker.run(scope, currentSessionId, async () => undefined);
           };
-          const listing = await this.broker.run(scope, currentSessionId, async (browser) => {
-            if (!browser.readListingContent) throw new RequestError(503);
-            const read = await browser.readListingContent(
-              entry.accountId,
-              entry.externalId,
-              authorize,
-            );
-            try {
-              return parseVintedListingCurrentContent(read, entry.accountId, entry.externalId);
-            } catch {
-              throw new VintedListingReadError('result');
-            }
-          });
+          // Der Sitzungsbroker ersetzt jeden Fehler durch „Sitzung unterbrochen“. Der feste
+          // Schritt des Lesers wird deshalb vorher festgehalten und danach wieder gemeldet.
+          let readFailure: VintedListingReadError | undefined;
+          const listing = await this.broker
+            .run(scope, currentSessionId, async (browser) => {
+              if (!browser.readListingContent) throw new RequestError(503);
+              try {
+                const read = await browser.readListingContent(
+                  entry.accountId,
+                  entry.externalId,
+                  authorize,
+                );
+                try {
+                  return parseVintedListingCurrentContent(read, entry.accountId, entry.externalId);
+                } catch {
+                  throw new VintedListingReadError('result');
+                }
+              } catch (error) {
+                if (error instanceof VintedListingReadError) readFailure = error;
+                throw error;
+              }
+            })
+            .catch((error: unknown) => {
+              throw readFailure ?? error;
+            });
           await authorize();
           await this.broker.close(scope, currentSessionId);
           sessionId = undefined;
@@ -742,29 +754,39 @@ export class MarketplaceBrowserHttpApi {
           const entry = await this.edits.entry(scope, 'publication', entryId);
           sessionId = await (this.broker.openAction?.(scope) ?? this.broker.open(scope));
           const currentSessionId = sessionId;
-          const result = await this.broker.run(scope, currentSessionId, async (browser) => {
-            if (fields) {
-              if (!browser.updateListing) throw new RequestError(503);
-              return {
-                status: await browser.updateListing(
-                  entry.externalId,
-                  entry.accountId,
-                  fields,
-                  async () => {
-                    const current = await this.edits!.entry(scope, 'publication', entryId);
-                    if (
-                      current.accountId !== entry.accountId ||
-                      current.externalId !== entry.externalId
-                    )
-                      throw new Error('Kontozuordnung geändert');
-                    await this.broker.run(scope, currentSessionId, async () => undefined);
-                  },
-                ),
-              };
-            }
-            if (!browser.readListingEdit) throw new RequestError(503);
-            return { fields: await browser.readListingEdit(entry.externalId, entry.accountId) };
-          });
+          let editReadFailure: VintedListingReadError | undefined;
+          const result = await this.broker
+            .run(scope, currentSessionId, async (browser) => {
+              if (fields) {
+                if (!browser.updateListing) throw new RequestError(503);
+                return {
+                  status: await browser.updateListing(
+                    entry.externalId,
+                    entry.accountId,
+                    fields,
+                    async () => {
+                      const current = await this.edits!.entry(scope, 'publication', entryId);
+                      if (
+                        current.accountId !== entry.accountId ||
+                        current.externalId !== entry.externalId
+                      )
+                        throw new Error('Kontozuordnung geändert');
+                      await this.broker.run(scope, currentSessionId, async () => undefined);
+                    },
+                  ),
+                };
+              }
+              if (!browser.readListingEdit) throw new RequestError(503);
+              try {
+                return { fields: await browser.readListingEdit(entry.externalId, entry.accountId) };
+              } catch (error) {
+                if (error instanceof VintedListingReadError) editReadFailure = error;
+                throw error;
+              }
+            })
+            .catch((error: unknown) => {
+              throw editReadFailure ?? error;
+            });
           let cachePending = false;
           const confirmedEdit = fields && 'status' in result && result.status === 'confirmed';
           const cachedFields = confirmedEdit ? fields : 'fields' in result ? result.fields : null;
