@@ -17,7 +17,7 @@
    - Interaktiver Hover- und Tastaturfokus mit Tooltip (`Sonntag: 128 Aufrufe, 24 Favoriten`) und Leitlinie.
    - Automatische Spitzenzeiten-Erkennung (`Beste Zeit: Sonntag 19–22 Uhr`).
    - Barrierefreie Datentabelle für Bildschirmleser (WCAG AA).
-3. **Integration:** Komponente in `VintedListingsComponent` eingebunden.
+3. **Integration & Responsiveness:** Komponente in `VintedListingsComponent` eingebunden. Responsive Absicherung für 320px-Viewports: 2-Spalten-Raster für KPI-Karten, Textkürzung (`truncate`) mit `min-w-0`, `overflow-hidden` und `max-w-full` auf Host- und Kartenebene.
 
 **Prüfung:**
 

@@ -4,56 +4,64 @@
   class="space-y-4 min-w-0"
 >
   <!-- Obere Steuerungs- und KPI-Leiste -->
-  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 min-w-0">
-    <!-- KPI-Karten für Aufrufe und Favoriten -->
-    <div class="flex flex-wrap items-center gap-2.5 sm:gap-3 min-w-0">
+  <div
+    class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 min-w-0 max-w-full"
+  >
+    <!-- KPI-Karten für Aufrufe und Favoriten: 2-Spalten-Grid auf Mobile für perfekte 50/50-Aufteilung ohne Überlauf -->
+    <div
+      class="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center sm:gap-3 min-w-0 max-w-full"
+    >
       <!-- KPI 1: Aufrufe (Views) -->
       <div
-        class="flex flex-1 min-w-[125px] sm:min-w-0 items-center gap-2.5 sm:gap-3 rounded-2xl border border-fb-line bg-fb-surface px-3 py-2.5 sm:px-4 sm:py-3 shadow-xs"
+        class="flex min-w-0 items-center gap-2 rounded-2xl border border-fb-line bg-fb-surface px-2.5 py-2 sm:px-4 sm:py-3 shadow-xs"
       >
         <div
-          class="flex size-9 sm:size-10 shrink-0 items-center justify-center rounded-xl border border-teal-500/20 bg-teal-500/15 text-teal-400"
+          class="flex size-8 shrink-0 items-center justify-center rounded-xl border border-teal-500/20 bg-teal-500/15 text-teal-400 sm:size-10"
         >
-          <svg lucideEye class="size-4.5 sm:size-5" aria-hidden="true"></svg>
+          <svg lucideEye class="size-4 sm:size-5" aria-hidden="true"></svg>
         </div>
-        <div>
-          <p class="text-xl font-bold tracking-tight text-fb-text-primary tabular-nums">
+        <div class="min-w-0 flex-1">
+          <p
+            class="truncate text-lg font-bold tracking-tight text-fb-text-primary tabular-nums sm:text-xl"
+          >
             {{ data().totalViews }}
           </p>
-          <p class="text-xs text-fb-text-secondary">Aufrufe</p>
+          <p class="truncate text-[11px] text-fb-text-secondary sm:text-xs">Aufrufe</p>
         </div>
       </div>
 
       <!-- KPI 2: Favoriten (Likes) -->
       <div
-        class="flex flex-1 min-w-[125px] sm:min-w-0 items-center gap-2.5 sm:gap-3 rounded-2xl border border-fb-line bg-fb-surface px-3 py-2.5 sm:px-4 sm:py-3 shadow-xs"
+        class="flex min-w-0 items-center gap-2 rounded-2xl border border-fb-line bg-fb-surface px-2.5 py-2 sm:px-4 sm:py-3 shadow-xs"
       >
         <div
-          class="flex size-9 sm:size-10 shrink-0 items-center justify-center rounded-xl border border-rose-500/20 bg-rose-500/15 text-rose-400"
+          class="flex size-8 shrink-0 items-center justify-center rounded-xl border border-rose-500/20 bg-rose-500/15 text-rose-400 sm:size-10"
         >
-          <svg lucideHeart class="size-4.5 sm:size-5" aria-hidden="true"></svg>
+          <svg lucideHeart class="size-4 sm:size-5" aria-hidden="true"></svg>
         </div>
-        <div>
-          <p class="text-xl font-bold tracking-tight text-fb-text-primary tabular-nums">
+        <div class="min-w-0 flex-1">
+          <p
+            class="truncate text-lg font-bold tracking-tight text-fb-text-primary tabular-nums sm:text-xl"
+          >
             {{ data().totalFavorites }}
           </p>
-          <p class="text-xs text-fb-text-secondary">Favoriten</p>
+          <p class="truncate text-[11px] text-fb-text-secondary sm:text-xs">Favoriten</p>
         </div>
       </div>
     </div>
 
     <!-- Rechts: Zeitachsen-Auswahl & Diagramm-Umschalter -->
-    <div class="flex flex-wrap items-center gap-2.5 sm:ml-auto min-w-0">
+    <div class="flex flex-wrap items-center gap-2 sm:gap-2.5 sm:ml-auto min-w-0 max-w-full">
       <!-- Zeitfenster Segment-Buttons -->
       <div
-        class="inline-flex max-w-full rounded-xl border border-fb-line bg-fb-bg p-1 text-xs font-medium"
+        class="inline-flex max-w-full rounded-xl border border-fb-line bg-fb-bg p-1 text-[11px] font-medium sm:text-xs"
         role="group"
         aria-label="Zeitfenster auswählen"
       >
         <button
           type="button"
           (click)="setTimeframe('24h')"
-          class="rounded-lg px-2.5 py-1 sm:px-3 sm:py-1.5 transition-all"
+          class="rounded-lg px-2 py-1 transition-all sm:px-3 sm:py-1.5"
           [class.bg-white]="timeframe() === '24h'"
           [class.text-black]="timeframe() === '24h'"
           [class.font-semibold]="timeframe() === '24h'"
@@ -66,7 +74,7 @@
         <button
           type="button"
           (click)="setTimeframe('7d')"
-          class="rounded-lg px-2.5 py-1 sm:px-3 sm:py-1.5 transition-all"
+          class="rounded-lg px-2 py-1 transition-all sm:px-3 sm:py-1.5"
           [class.bg-white]="timeframe() === '7d'"
           [class.text-black]="timeframe() === '7d'"
           [class.font-semibold]="timeframe() === '7d'"
@@ -79,7 +87,7 @@
         <button
           type="button"
           (click)="setTimeframe('30d')"
-          class="rounded-lg px-2.5 py-1 sm:px-3 sm:py-1.5 transition-all"
+          class="rounded-lg px-2 py-1 transition-all sm:px-3 sm:py-1.5"
           [class.bg-white]="timeframe() === '30d'"
           [class.text-black]="timeframe() === '30d'"
           [class.font-semibold]="timeframe() === '30d'"
@@ -97,9 +105,11 @@
         (click)="toggleCollapse()"
         role="switch"
         [attr.aria-checked]="!collapsed()"
-        class="inline-flex items-center gap-2 rounded-xl border border-fb-line bg-fb-surface px-3 py-1.5 text-xs font-medium text-fb-text-primary transition-colors hover:bg-fb-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
+        class="inline-flex max-w-full items-center gap-2 rounded-xl border border-fb-line bg-fb-surface px-2.5 py-1.5 text-[11px] font-medium text-fb-text-primary transition-colors hover:bg-fb-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary sm:px-3 sm:text-xs"
       >
-        <span>{{ collapsed() ? 'Diagramm einblenden' : 'Diagramm ausblenden' }}</span>
+        <span class="truncate">{{
+          collapsed() ? 'Diagramm einblenden' : 'Diagramm ausblenden'
+        }}</span>
         <span
           class="relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors"
           [class.bg-emerald-500]="!collapsed()"
@@ -119,19 +129,21 @@
   <!-- Ausklappbarer Diagrammbereich -->
   @if (!collapsed()) {
     <div
-      class="space-y-3 rounded-2xl border border-fb-line bg-fb-surface p-3 sm:p-5 shadow-sm min-w-0"
+      class="space-y-3 rounded-2xl border border-fb-line bg-fb-surface p-2.5 sm:p-5 shadow-sm min-w-0 max-w-full overflow-hidden"
     >
       <!-- Obere Leiste im Diagramm: Legende & Spitzenzeit-Badge -->
-      <div class="flex flex-wrap items-center justify-between gap-2.5 sm:gap-3 min-w-0">
+      <div class="flex flex-wrap items-center justify-between gap-2 sm:gap-3 min-w-0 max-w-full">
         <!-- Legende -->
-        <div class="flex flex-wrap items-center gap-3 text-xs min-w-0">
-          <div class="flex items-center gap-1.5">
+        <div
+          class="flex flex-wrap items-center gap-2 sm:gap-3 text-[11px] sm:text-xs min-w-0 max-w-full"
+        >
+          <div class="flex items-center gap-1.5 shrink-0">
             <span
               class="size-2.5 rounded-full bg-teal-400 shadow-[0_0_8px_rgba(45,212,191,0.6)]"
             ></span>
             <span class="font-medium text-fb-text-secondary">Aufrufe (Views)</span>
           </div>
-          <div class="flex items-center gap-1.5">
+          <div class="flex items-center gap-1.5 shrink-0">
             <span
               class="size-2.5 rounded-full bg-rose-400 shadow-[0_0_8px_rgba(251,113,133,0.6)]"
             ></span>
@@ -141,10 +153,10 @@
 
         <!-- Spitzenzeit-Hinweis -->
         <div
-          class="inline-flex items-center gap-1.5 rounded-full border border-amber-500/20 bg-fb-badge-warning px-3 py-1 text-xs font-medium text-fb-badge-on-warning"
+          class="inline-flex max-w-full items-center gap-1.5 rounded-full border border-amber-500/20 bg-fb-badge-warning px-2.5 py-1 text-[11px] sm:text-xs font-medium text-fb-badge-on-warning sm:px-3"
         >
           <svg lucideLightbulb class="size-3.5 shrink-0" aria-hidden="true"></svg>
-          <span>{{ data().insightText }}</span>
+          <span class="truncate">{{ data().insightText }}</span>
         </div>
       </div>
 
