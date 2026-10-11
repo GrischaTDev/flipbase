@@ -2,8 +2,11 @@
   {{ metricDisplay.announcement() }}
 </p>
 @if (page(); as publications) {
+  <app-vinted-wardrobe-statistics [items]="publications.items" [totalCount]="publications.total" />
   <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
-    <p class="text-sm font-medium text-fb-text-primary">Inserate ({{ publications.total }})</p>
+    <h2 class="text-sm font-semibold text-fb-text-primary">
+      Kleiderschrank ({{ publications.total }})
+    </h2>
     <div class="flex items-center gap-2">
       <span class="text-xs text-fb-text-secondary">Änderungen</span>
       <app-custom-select
@@ -79,8 +82,8 @@
       </a>
     } @empty {
       <app-card
-        title="Noch keine Inserate"
-        subtitle="Deine Inserate erscheinen nach einer Datenübernahme."
+        title="Noch keine Artikel im Kleiderschrank"
+        subtitle="Deine Artikel erscheinen nach einer Datenübernahme."
       />
     }
   </div>
@@ -89,7 +92,7 @@
       class="mt-4"
       [loading]="store.loadingPage() === 'publication'"
       (clicked)="store.loadMore('publication')"
-      >Weitere Inserate laden</app-button
+      >Weitere Artikel laden</app-button
     >
   }
 }
