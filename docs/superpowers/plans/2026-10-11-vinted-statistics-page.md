@@ -36,34 +36,36 @@
 
 ## Dateien
 
-| Datei | Aufgabe |
-| --- | --- |
-| `supabase/schemas/340_marketplace_listing_statistics.sql` (ändern) | neue Tabelle, geänderte Messungstabelle, Trigger, Lesefunktion |
-| `supabase/migrations/<zeit>_vinted_statistics_history.sql` (neu, erzeugt) | Schemaänderung plus Datenübernahme |
-| `supabase/tests/marketplace-listing-statistics-overview.test.sql` (neu) | Datenbanktests |
-| `src/app/core/models/supabase.types.ts` (neu erzeugt) | Typen |
-| `src/app/features/marketplaces/models/vinted-statistics-overview.ts` (+ `.spec.ts`) | Typen, Prüfung der Antwort, reine Hilfsfunktionen |
-| `src/app/features/marketplaces/services/marketplace-api.service.ts` (ändern) | Aufruf der Lesefunktion |
-| `src/app/features/marketplaces/services/vinted-statistics.store.ts` (+ `.angular.spec.ts`) | Zustand der Seite |
-| `src/app/features/marketplaces/models/vinted-reach-chart.config.ts` (+ `.spec.ts`) | ApexCharts-Einstellungen |
-| `src/app/features/marketplaces/components/vinted-statistics/vinted-reach-chart.component.{ts,html}` (+ Spec) | Diagramm |
-| `src/app/features/marketplaces/components/vinted-statistics/vinted-top-listings.component.{ts,html}` (+ Spec) | Bestenliste |
-| `src/app/features/marketplaces/components/vinted-statistics/vinted-statistics.component.{ts,html}` (+ Spec) | Seite |
-| `src/app/features/marketplaces/marketplaces.routes.ts`, `src/app/core/config/vinted-workspace-navigation.ts` (+ Spec), `src/app/features/marketplaces/vinted-workspace.component.ts` | Route, Menü, Seitentitel |
-| `components/vinted-wardrobe-statistics/*`, `models/vinted-wardrobe-statistics*.ts` (löschen) | erfundenes Diagramm |
-| `e2e/vinted-workspace-ui.spec.ts` (ändern) | Menüliste, AXE- und Überlaufprüfung der Seite |
+| Datei                                                                                                                                                                                | Aufgabe                                                        |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------- |
+| `supabase/schemas/340_marketplace_listing_statistics.sql` (ändern)                                                                                                                   | neue Tabelle, geänderte Messungstabelle, Trigger, Lesefunktion |
+| `supabase/migrations/<zeit>_vinted_statistics_history.sql` (neu, erzeugt)                                                                                                            | Schemaänderung plus Datenübernahme                             |
+| `supabase/tests/marketplace-listing-statistics-overview.test.sql` (neu)                                                                                                              | Datenbanktests                                                 |
+| `src/app/core/models/supabase.types.ts` (neu erzeugt)                                                                                                                                | Typen                                                          |
+| `src/app/features/marketplaces/models/vinted-statistics-overview.ts` (+ `.spec.ts`)                                                                                                  | Typen, Prüfung der Antwort, reine Hilfsfunktionen              |
+| `src/app/features/marketplaces/services/marketplace-api.service.ts` (ändern)                                                                                                         | Aufruf der Lesefunktion                                        |
+| `src/app/features/marketplaces/services/vinted-statistics.store.ts` (+ `.angular.spec.ts`)                                                                                           | Zustand der Seite                                              |
+| `src/app/features/marketplaces/models/vinted-reach-chart.config.ts` (+ `.spec.ts`)                                                                                                   | ApexCharts-Einstellungen                                       |
+| `src/app/features/marketplaces/components/vinted-statistics/vinted-reach-chart.component.{ts,html}` (+ Spec)                                                                         | Diagramm                                                       |
+| `src/app/features/marketplaces/components/vinted-statistics/vinted-top-listings.component.{ts,html}` (+ Spec)                                                                        | Bestenliste                                                    |
+| `src/app/features/marketplaces/components/vinted-statistics/vinted-statistics.component.{ts,html}` (+ Spec)                                                                          | Seite                                                          |
+| `src/app/features/marketplaces/marketplaces.routes.ts`, `src/app/core/config/vinted-workspace-navigation.ts` (+ Spec), `src/app/features/marketplaces/vinted-workspace.component.ts` | Route, Menü, Seitentitel                                       |
+| `components/vinted-wardrobe-statistics/*`, `models/vinted-wardrobe-statistics*.ts` (löschen)                                                                                         | erfundenes Diagramm                                            |
+| `e2e/vinted-workspace-ui.spec.ts` (ändern)                                                                                                                                           | Menüliste, AXE- und Überlaufprüfung der Seite                  |
 
 ---
 
 ### Task 1: Datenbank – dauerhafte Statistik-Datensätze und Lesefunktion
 
 **Files:**
+
 - Modify: `supabase/schemas/340_marketplace_listing_statistics.sql`
 - Create: `supabase/tests/marketplace-listing-statistics-overview.test.sql`
 - Create (erzeugt): `supabase/migrations/<YYYYMMDDHHmmss>_vinted_statistics_history.sql`
 - Regenerate: `src/app/core/models/supabase.types.ts`
 
 **Interfaces:**
+
 - Produces: RPC `public.marketplace_read_listing_statistics_overview(p_workspace_id uuid, p_period text, p_connection_id uuid default null) returns jsonb` mit der Antwortform:
 
 ```json
@@ -76,12 +78,23 @@
   "totals": { "views": 70, "favorites": 7 },
   "previousTotals": { "views": 10, "favorites": 1 },
   "buckets": [{ "start": "ISO", "views": 0, "favorites": 0 }],
-  "topItems": [{
-    "id": "12", "connectionId": "uuid", "accountName": "Konto A", "entryId": "uuid | null",
-    "title": "Artikel", "imageUrl": "https://… | null", "price": 12.5, "currency": "EUR | null",
-    "removedAt": "ISO | null", "views": 50, "favorites": 7,
-    "totalViews": 155, "totalFavorites": 18
-  }]
+  "topItems": [
+    {
+      "id": "12",
+      "connectionId": "uuid",
+      "accountName": "Konto A",
+      "entryId": "uuid | null",
+      "title": "Artikel",
+      "imageUrl": "https://… | null",
+      "price": 12.5,
+      "currency": "EUR | null",
+      "removedAt": "ISO | null",
+      "views": 50,
+      "favorites": 7,
+      "totalViews": 155,
+      "totalFavorites": 18
+    }
+  ]
 }
 ```
 
@@ -245,20 +258,26 @@ create policy "Worker deletes statistic items" on public.marketplace_listing_sta
 **b)** In `create table public.marketplace_listing_metric_observations` drei Zeilen ersetzen:
 
 Alt:
+
 ```sql
   entry_id uuid not null references public.marketplace_account_entries(id) on delete cascade,
 ```
+
 Neu:
+
 ```sql
   entry_id uuid references public.marketplace_account_entries(id) on delete set null,
 ```
 
 Alt:
+
 ```sql
   unique (entry_id, observed_at),
   foreign key (workspace_id, connection_id) references public.marketplace_connections(workspace_id, id) on delete cascade
 ```
+
 Neu:
+
 ```sql
   foreign key (workspace_id, connection_id) references public.marketplace_connections(workspace_id, id) on delete cascade,
   statistic_item_id bigint not null references public.marketplace_listing_statistic_items(id) on delete cascade,
@@ -445,6 +464,7 @@ $$;
 ```sql
 revoke all on function public.marketplace_known_metric_count(jsonb,text), public.marketplace_record_listing_metrics(), public.marketplace_mark_listing_statistics_removed(), public.marketplace_broadcast_account_import() from public, anon, authenticated;
 ```
+
 ```sql
 revoke all on function public.marketplace_read_listing_statistics_overview(uuid,text,uuid) from public, anon;
 grant execute on function public.marketplace_read_listing_statistics_overview(uuid,text,uuid) to authenticated;
@@ -546,35 +566,72 @@ EOF
 ### Task 2: Modell – Antwort prüfen und Anzeigehilfen
 
 **Files:**
+
 - Create: `src/app/features/marketplaces/models/vinted-statistics-overview.ts`
 - Test: `src/app/features/marketplaces/models/vinted-statistics-overview.spec.ts`
 
 **Interfaces:**
+
 - Produces:
 
 ```ts
 export type VintedStatisticsRange = '24h' | '7d' | '30d';
 export type VintedStatisticsMetric = 'views' | 'favorites';
-export interface VintedStatisticsRequestScope { readonly workspaceId: string; readonly connectionId: string | null }
-export interface VintedStatisticsTotals { readonly views: number; readonly favorites: number }
-export interface VintedStatisticsBucket extends VintedStatisticsTotals { readonly start: string }
+export interface VintedStatisticsRequestScope {
+  readonly workspaceId: string;
+  readonly connectionId: string | null;
+}
+export interface VintedStatisticsTotals {
+  readonly views: number;
+  readonly favorites: number;
+}
+export interface VintedStatisticsBucket extends VintedStatisticsTotals {
+  readonly start: string;
+}
 export interface VintedStatisticsTopItem extends VintedStatisticsTotals {
-  readonly id: string; readonly connectionId: string; readonly accountName: string;
-  readonly entryId: string | null; readonly title: string; readonly imageUrl: string | null;
-  readonly price: number | null; readonly currency: string; readonly removedAt: string | null;
-  readonly totalViews: number | null; readonly totalFavorites: number | null;
+  readonly id: string;
+  readonly connectionId: string;
+  readonly accountName: string;
+  readonly entryId: string | null;
+  readonly title: string;
+  readonly imageUrl: string | null;
+  readonly price: number | null;
+  readonly currency: string;
+  readonly removedAt: string | null;
+  readonly totalViews: number | null;
+  readonly totalFavorites: number | null;
 }
 export interface VintedStatisticsOverview extends VintedStatisticsRequestScope {
-  readonly range: VintedStatisticsRange; readonly historyStartsAt: string | null; readonly activeCount: number;
-  readonly totals: VintedStatisticsTotals; readonly previousTotals: VintedStatisticsTotals | null;
-  readonly buckets: readonly VintedStatisticsBucket[]; readonly topItems: readonly VintedStatisticsTopItem[];
+  readonly range: VintedStatisticsRange;
+  readonly historyStartsAt: string | null;
+  readonly activeCount: number;
+  readonly totals: VintedStatisticsTotals;
+  readonly previousTotals: VintedStatisticsTotals | null;
+  readonly buckets: readonly VintedStatisticsBucket[];
+  readonly topItems: readonly VintedStatisticsTopItem[];
 }
-export const VINTED_STATISTICS_RANGES: readonly { readonly value: VintedStatisticsRange; readonly label: string; readonly previousLabel: string }[];
-export function parseVintedStatisticsOverview(data: unknown, scope: VintedStatisticsRequestScope, range: VintedStatisticsRange): VintedStatisticsOverview;
-export function rankTopItems(items: readonly VintedStatisticsTopItem[], metric: VintedStatisticsMetric, limit?: number): readonly VintedStatisticsTopItem[];
+export const VINTED_STATISTICS_RANGES: readonly {
+  readonly value: VintedStatisticsRange;
+  readonly label: string;
+  readonly previousLabel: string;
+}[];
+export function parseVintedStatisticsOverview(
+  data: unknown,
+  scope: VintedStatisticsRequestScope,
+  range: VintedStatisticsRange,
+): VintedStatisticsOverview;
+export function rankTopItems(
+  items: readonly VintedStatisticsTopItem[],
+  metric: VintedStatisticsMetric,
+  limit?: number,
+): readonly VintedStatisticsTopItem[];
 export function formatBucketLabel(start: string, range: VintedStatisticsRange): string;
 export function formatBucketDescription(start: string, range: VintedStatisticsRange): string;
-export function describeChange(current: number, previous: number | null, range: VintedStatisticsRange): string;
+export function describeChange(
+  current: number,
+  previous: number | null,
+  range: VintedStatisticsRange,
+): string;
 export function formatCount(value: number | null): string;
 export function formatPrice(price: number | null, currency: string): string;
 ```
@@ -983,11 +1040,13 @@ EOF
 ### Task 3: API-Aufruf und Zustand der Seite
 
 **Files:**
+
 - Modify: `src/app/features/marketplaces/services/marketplace-api.service.ts` (nach `readListingStatistics`, Zeile ~114)
 - Create: `src/app/features/marketplaces/services/vinted-statistics.store.ts`
 - Test: `src/app/features/marketplaces/services/vinted-statistics.store.angular.spec.ts`
 
 **Interfaces:**
+
 - Consumes: `parseVintedStatisticsOverview`, `VintedStatisticsRange`, `VintedStatisticsRequestScope`, `VintedStatisticsOverview` aus Task 2; `MarketplaceAccountStore` (`connections()`, `selectedConnection()`, `canManage()`, `snapshot()`, `selectionVersion()`).
 - Produces:
 
@@ -1345,6 +1404,7 @@ EOF
 ### Task 4: Diagramm
 
 **Files:**
+
 - Create: `src/app/features/marketplaces/models/vinted-reach-chart.config.ts`
 - Test: `src/app/features/marketplaces/models/vinted-reach-chart.config.spec.ts`
 - Create: `src/app/features/marketplaces/components/vinted-statistics/vinted-reach-chart.component.ts`
@@ -1352,14 +1412,25 @@ EOF
 - Test: `src/app/features/marketplaces/components/vinted-statistics/vinted-reach-chart.component.angular.spec.ts`
 
 **Interfaces:**
+
 - Consumes: `RevenueChartRenderer`, `RevenueChartStatus` aus `src/app/shared/components/revenue-chart/revenue-chart.renderer`; `REVENUE_CHART_LOADER` aus `…/revenue-chart.component`; `ThemeService`, `LoggerService`; `ButtonComponent`.
 - Produces:
 
 ```ts
 // vinted-reach-chart.config.ts
-export interface VintedReachChartPoint { readonly key: string; readonly label: string; readonly description: string; readonly value: number }
+export interface VintedReachChartPoint {
+  readonly key: string;
+  readonly label: string;
+  readonly description: string;
+  readonly value: number;
+}
 export const VINTED_REACH_CHART_HEIGHT = 320;
-export function createVintedReachChartConfiguration(points: readonly VintedReachChartPoint[], seriesName: string, theme: AppTheme, reducedMotion: boolean): ApexOptions;
+export function createVintedReachChartConfiguration(
+  points: readonly VintedReachChartPoint[],
+  seriesName: string,
+  theme: AppTheme,
+  reducedMotion: boolean,
+): ApexOptions;
 
 // Komponente <app-vinted-reach-chart [points]="…" [seriesName]="'Aufrufe'" />
 ```
@@ -1463,7 +1534,12 @@ export function createVintedReachChartConfiguration(
     colors: [palette.bar],
     stroke: { width: 0 },
     plotOptions: {
-      bar: { horizontal: false, columnWidth: '64%', borderRadius: 4, borderRadiusApplication: 'end' },
+      bar: {
+        horizontal: false,
+        columnWidth: '64%',
+        borderRadius: 4,
+        borderRadiusApplication: 'end',
+      },
     },
     dataLabels: { enabled: false },
     legend: { show: false },
@@ -1536,7 +1612,11 @@ describe('VintedReachChartComponent', () => {
   let resetBindings: (() => void) | undefined;
   const render = vi.fn().mockResolvedValue(undefined);
   const updateOptions = vi.fn().mockResolvedValue(undefined);
-  const loader: RevenueChartLoader = async () => () => ({ render, updateOptions, destroy: vi.fn() });
+  const loader: RevenueChartLoader = async () => () => ({
+    render,
+    updateOptions,
+    destroy: vi.fn(),
+  });
   const host = () => fixture.nativeElement as HTMLElement;
 
   beforeAll(async () => {
@@ -1700,7 +1780,9 @@ export class VintedReachChartComponent {
     });
     afterNextRender(() => {
       if (typeof window.matchMedia === 'function')
-        this.prefersReducedMotion.set(window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+        this.prefersReducedMotion.set(
+          window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+        );
       const element = this.chartElement()?.nativeElement;
       if (!element) return;
       this.renderer = new RevenueChartRenderer(element, this.load, (status, error) => {
@@ -1775,14 +1857,14 @@ Die Testdatei stellt `LoggerService` nicht bereit; ist er `providedIn: 'root'` (
       (pointerleave)="clearPoint()"
     ></div>
     @if (chartStatus() === 'error') {
-      <div
-        class="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-fb-surface px-4 text-center"
-      >
-        <p role="alert" class="text-[13px] text-fb-text-secondary">
-          Das Diagramm konnte nicht geladen werden. Die Werte stehen weiterhin in der Tabelle.
-        </p>
-        <app-button (clicked)="retryChart()">Erneut laden</app-button>
-      </div>
+    <div
+      class="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-fb-surface px-4 text-center"
+    >
+      <p role="alert" class="text-[13px] text-fb-text-secondary">
+        Das Diagramm konnte nicht geladen werden. Die Werte stehen weiterhin in der Tabelle.
+      </p>
+      <app-button (clicked)="retryChart()">Erneut laden</app-button>
+    </div>
     }
   </div>
 
@@ -1795,10 +1877,7 @@ Die Testdatei stellt `LoggerService` nicht bereit; ist er `providedIn: 'root'` (
   >
     <table class="w-full text-left">
       <caption class="sr-only">
-        {{
-          seriesName()
-        }}
-        je Zeitabschnitt
+        {{ seriesName() }} je Zeitabschnitt
       </caption>
       <thead class="text-fb-text-secondary">
         <tr>
@@ -1808,12 +1887,12 @@ Die Testdatei stellt `LoggerService` nicht bereit; ist er `providedIn: 'root'` (
       </thead>
       <tbody class="divide-y divide-fb-line">
         @for (row of rows(); track row.key) {
-          <tr>
-            <th scope="row" class="py-2 pr-4 font-normal text-fb-text-primary">
-              {{ row.description }}
-            </th>
-            <td class="py-2 text-right text-fb-text-primary">{{ row.formatted }}</td>
-          </tr>
+        <tr>
+          <th scope="row" class="py-2 pr-4 font-normal text-fb-text-primary">
+            {{ row.description }}
+          </th>
+          <td class="py-2 text-right text-fb-text-primary">{{ row.formatted }}</td>
+        </tr>
         }
       </tbody>
     </table>
@@ -1846,11 +1925,13 @@ EOF
 ### Task 5: Bestenliste
 
 **Files:**
+
 - Create: `src/app/features/marketplaces/components/vinted-statistics/vinted-top-listings.component.ts`
 - Create: `src/app/features/marketplaces/components/vinted-statistics/vinted-top-listings.component.html`
 - Test: `src/app/features/marketplaces/components/vinted-statistics/vinted-top-listings.component.angular.spec.ts`
 
 **Interfaces:**
+
 - Consumes: `VintedStatisticsTopItem`, `VintedStatisticsMetric`, `rankTopItems`, `formatCount`, `formatPrice` (Task 2); `DataTableComponent`, `ButtonComponent`, `BadgeComponent`, `ProductThumbnailComponent`.
 - Produces: `<app-vinted-top-listings [items]="…" [showAccount]="true|false" />`
 
@@ -1970,18 +2051,18 @@ describe('VintedTopListingsComponent', () => {
   it('zeigt fehlenden Preis und fehlende Gesamtwerte lesbar an und kürzt lange Titel', () => {
     expect(rows()[1].textContent).toContain('Preis unbekannt');
     expect(rows()[1].textContent).toContain('—');
-    expect(rows()[1].querySelector('[data-top-listing-title]')?.classList.contains('truncate')).toBe(
-      true,
-    );
+    expect(
+      rows()[1].querySelector('[data-top-listing-title]')?.classList.contains('truncate'),
+    ).toBe(true);
   });
 
   it('zeigt die Kontospalte nur bei allen Konten', () => {
     expect(host().textContent).not.toContain('Konto B');
     fixture.componentRef.setInput('showAccount', true);
     fixture.detectChanges();
-    expect([...host().querySelectorAll('thead th')].map((cell) => cell.textContent?.trim())).toContain(
-      'Konto',
-    );
+    expect(
+      [...host().querySelectorAll('thead th')].map((cell) => cell.textContent?.trim()),
+    ).toContain('Konto');
     expect(rows()[1].textContent).toContain('Konto B');
   });
 
@@ -2035,11 +2116,13 @@ export class VintedTopListingsComponent {
   readonly items = input.required<readonly VintedStatisticsTopItem[]>();
   readonly showAccount = input(false);
   readonly sortMetric = signal<VintedStatisticsMetric>('views');
-  readonly sortOptions: readonly { readonly value: VintedStatisticsMetric; readonly label: string }[] =
-    [
-      { value: 'views', label: 'Aufrufe' },
-      { value: 'favorites', label: 'Favoriten' },
-    ];
+  readonly sortOptions: readonly {
+    readonly value: VintedStatisticsMetric;
+    readonly label: string;
+  }[] = [
+    { value: 'views', label: 'Aufrufe' },
+    { value: 'favorites', label: 'Favoriten' },
+  ];
   readonly rows = computed(() =>
     rankTopItems(this.items(), this.sortMetric()).map((item, index) => ({
       id: item.id,
@@ -2048,7 +2131,9 @@ export class VintedTopListingsComponent {
       imageUrl: item.imageUrl,
       accountName: item.accountName,
       removed: item.removedAt !== null,
-      link: item.entryId ? ['/marketplaces/vinted/listings', item.connectionId, item.entryId] : null,
+      link: item.entryId
+        ? ['/marketplaces/vinted/listings', item.connectionId, item.entryId]
+        : null,
       price: formatPrice(item.price, item.currency),
       views: formatCount(item.views),
       favorites: formatCount(item.favorites),
@@ -2081,14 +2166,14 @@ export class VintedTopListingsComponent {
   <div table-filters class="flex flex-wrap items-center gap-1" role="group" aria-label="Sortierung">
     <span class="px-2 text-xs text-fb-text-secondary">Sortieren nach</span>
     @for (option of sortOptions; track option.value) {
-      <app-button
-        [attr.data-sort]="option.value"
-        size="slim"
-        [variant]="sortMetric() === option.value ? 'secondary' : 'ghost'"
-        [ariaPressed]="sortMetric() === option.value"
-        (clicked)="selectSort(option.value)"
-        >{{ option.label }}</app-button
-      >
+    <app-button
+      [attr.data-sort]="option.value"
+      size="slim"
+      [variant]="sortMetric() === option.value ? 'secondary' : 'ghost'"
+      [ariaPressed]="sortMetric() === option.value"
+      (clicked)="selectSort(option.value)"
+      >{{ option.label }}</app-button
+    >
     }
   </div>
   <div table-content class="overflow-x-auto">
@@ -2098,7 +2183,7 @@ export class VintedTopListingsComponent {
           <th scope="col" class="w-10 px-4 py-3 text-right">Platz</th>
           <th scope="col" class="px-4 py-3">Artikel</th>
           @if (showAccount()) {
-            <th scope="col" class="px-4 py-3">Konto</th>
+          <th scope="col" class="px-4 py-3">Konto</th>
           }
           <th scope="col" class="px-4 py-3 text-right">Preis</th>
           <th scope="col" class="px-4 py-3 text-right">Aufrufe</th>
@@ -2109,51 +2194,48 @@ export class VintedTopListingsComponent {
       </thead>
       <tbody class="divide-y divide-fb-line">
         @for (row of rows(); track row.id) {
-          <tr>
-            <td class="px-4 py-3 text-right tabular-nums text-fb-text-secondary">{{ row.rank }}</td>
-            <td class="max-w-0 px-4 py-3 sm:min-w-64">
-              <div class="flex min-w-48 items-center gap-3">
-                <app-product-thumbnail class="shrink-0" [src]="row.imageUrl" alt="" size="sm" />
-                <div class="min-w-0">
-                  @if (row.link; as link) {
-                    <a
-                      data-top-listing-title
-                      [routerLink]="link"
-                      class="block truncate rounded-sm font-medium text-fb-text-primary underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
-                      >{{ row.title }}</a
-                    >
-                  } @else {
-                    <p data-top-listing-title class="truncate font-medium text-fb-text-primary">
-                      {{ row.title }}
-                    </p>
-                  }
-                  @if (row.removed) {
-                    <app-badge class="mt-1" tone="neutral">Nicht mehr online</app-badge>
-                  }
-                </div>
+        <tr>
+          <td class="px-4 py-3 text-right tabular-nums text-fb-text-secondary">{{ row.rank }}</td>
+          <td class="max-w-0 px-4 py-3 sm:min-w-64">
+            <div class="flex min-w-48 items-center gap-3">
+              <app-product-thumbnail class="shrink-0" [src]="row.imageUrl" alt="" size="sm" />
+              <div class="min-w-0">
+                @if (row.link; as link) {
+                <a
+                  data-top-listing-title
+                  [routerLink]="link"
+                  class="block truncate rounded-sm font-medium text-fb-text-primary underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
+                  >{{ row.title }}</a
+                >
+                } @else {
+                <p data-top-listing-title class="truncate font-medium text-fb-text-primary">
+                  {{ row.title }}
+                </p>
+                } @if (row.removed) {
+                <app-badge class="mt-1" tone="neutral">Nicht mehr online</app-badge>
+                }
               </div>
-            </td>
-            @if (showAccount()) {
-              <td class="whitespace-nowrap px-4 py-3 text-fb-text-secondary">
-                {{ row.accountName }}
-              </td>
-            }
-            <td class="whitespace-nowrap px-4 py-3 text-right tabular-nums text-fb-text-secondary">
-              {{ row.price }}
-            </td>
-            <td class="px-4 py-3 text-right font-semibold tabular-nums text-fb-text-primary">
-              {{ row.views }}
-            </td>
-            <td class="px-4 py-3 text-right font-semibold tabular-nums text-fb-text-primary">
-              {{ row.favorites }}
-            </td>
-            <td class="px-4 py-3 text-right tabular-nums text-fb-text-secondary">
-              {{ row.totalViews }}
-            </td>
-            <td class="px-4 py-3 text-right tabular-nums text-fb-text-secondary">
-              {{ row.totalFavorites }}
-            </td>
-          </tr>
+            </div>
+          </td>
+          @if (showAccount()) {
+          <td class="whitespace-nowrap px-4 py-3 text-fb-text-secondary">{{ row.accountName }}</td>
+          }
+          <td class="whitespace-nowrap px-4 py-3 text-right tabular-nums text-fb-text-secondary">
+            {{ row.price }}
+          </td>
+          <td class="px-4 py-3 text-right font-semibold tabular-nums text-fb-text-primary">
+            {{ row.views }}
+          </td>
+          <td class="px-4 py-3 text-right font-semibold tabular-nums text-fb-text-primary">
+            {{ row.favorites }}
+          </td>
+          <td class="px-4 py-3 text-right tabular-nums text-fb-text-secondary">
+            {{ row.totalViews }}
+          </td>
+          <td class="px-4 py-3 text-right tabular-nums text-fb-text-secondary">
+            {{ row.totalFavorites }}
+          </td>
+        </tr>
         }
       </tbody>
     </table>
@@ -2188,6 +2270,7 @@ EOF
 ### Task 6: Statistikseite, Route, Menü und Seitentitel
 
 **Files:**
+
 - Create: `src/app/features/marketplaces/components/vinted-statistics/vinted-statistics.component.ts`
 - Create: `src/app/features/marketplaces/components/vinted-statistics/vinted-statistics.component.html`
 - Test: `src/app/features/marketplaces/components/vinted-statistics/vinted-statistics.component.angular.spec.ts`
@@ -2196,6 +2279,7 @@ EOF
 - Modify: `src/app/features/marketplaces/vinted-workspace.component.ts:74-81`
 
 **Interfaces:**
+
 - Consumes: `VintedStatisticsStore` (Task 3), `VintedReachChartComponent` (Task 4), `VintedTopListingsComponent` (Task 5), Hilfsfunktionen aus Task 2.
 - Produces: Route `/marketplaces/vinted/statistics`, Selektor `app-vinted-statistics`.
 
@@ -2204,11 +2288,11 @@ EOF
 In `src/app/core/config/vinted-workspace-navigation.spec.ts` in der erwarteten Liste nach `'Kleiderschrank',` die Zeile `'Statistik',` einfügen und am Ende des ersten `describe` ergänzen:
 
 ```ts
-  it('markiert die Statistik nicht als Kleiderschrank', () => {
-    const url = '/marketplaces/vinted/statistics';
-    expect(isVintedNavigationActive('/marketplaces/vinted/statistics', url)).toBe(true);
-    expect(isVintedNavigationActive('/marketplaces/vinted/listings', url)).toBe(false);
-  });
+it('markiert die Statistik nicht als Kleiderschrank', () => {
+  const url = '/marketplaces/vinted/statistics';
+  expect(isVintedNavigationActive('/marketplaces/vinted/statistics', url)).toBe(true);
+  expect(isVintedNavigationActive('/marketplaces/vinted/listings', url)).toBe(false);
+});
 ```
 
 Run: `npx vitest run --project=node src/app/core/config/vinted-workspace-navigation.spec.ts > .test.log 2>&1; echo $?` → ungleich 0.
@@ -2267,12 +2351,14 @@ import { CustomSearchInputComponent } from '../../../../shared/components/custom
 import { DataTableComponent } from '../../../../shared/components/data-table/data-table.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
-import { REVENUE_CHART_LOADER } from '../../../../shared/components/revenue-chart/revenue-chart.component';
 import { TableColumnMenuComponent } from '../../../../shared/components/table-column-menu/table-column-menu.component';
 import type { VintedStatisticsOverview } from '../../models/vinted-statistics-overview';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { VintedStatisticsStore } from '../../services/vinted-statistics.store';
-import { VintedReachChartComponent } from './vinted-reach-chart.component';
+import {
+  VINTED_REACH_CHART_LOADER,
+  VintedReachChartComponent,
+} from './vinted-reach-chart.component';
 import { VintedStatisticsComponent } from './vinted-statistics.component';
 import { VintedTopListingsComponent } from './vinted-top-listings.component';
 
@@ -2374,7 +2460,7 @@ describe('VintedStatisticsComponent', () => {
         { provide: MarketplaceAccountStore, useValue: account },
         { provide: ThemeService, useValue: { currentTheme: signal('light') } },
         {
-          provide: REVENUE_CHART_LOADER,
+          provide: VINTED_REACH_CHART_LOADER,
           useValue: async () => () => ({
             render: vi.fn().mockResolvedValue(undefined),
             updateOptions: vi.fn().mockResolvedValue(undefined),
@@ -2504,7 +2590,10 @@ import {
   VintedStatisticsStore,
   type VintedStatisticsAccountScope,
 } from '../../services/vinted-statistics.store';
-import { VintedReachChartComponent } from './vinted-reach-chart.component';
+import {
+  VINTED_REACH_CHART_LOADER,
+  VintedReachChartComponent,
+} from './vinted-reach-chart.component';
 import { VintedTopListingsComponent } from './vinted-top-listings.component';
 
 const historyDateFormat = new Intl.DateTimeFormat('de-DE', {
@@ -2540,10 +2629,11 @@ export class VintedStatisticsComponent {
     { value: 'account', label: 'Dieses Konto' },
     { value: 'all', label: 'Alle Konten' },
   ];
-  readonly metrics: readonly { readonly value: VintedStatisticsMetric; readonly label: string }[] = [
-    { value: 'views', label: 'Aufrufe' },
-    { value: 'favorites', label: 'Favoriten' },
-  ];
+  readonly metrics: readonly { readonly value: VintedStatisticsMetric; readonly label: string }[] =
+    [
+      { value: 'views', label: 'Aufrufe' },
+      { value: 'favorites', label: 'Favoriten' },
+    ];
   readonly chartMetric = signal<VintedStatisticsMetric>('views');
   readonly chartMetricLabel = computed(
     () => this.metrics.find((metric) => metric.value === this.chartMetric())!.label,
@@ -2604,99 +2694,95 @@ export class VintedStatisticsComponent {
 
 ```html
 @if (!account.canManage()) {
-  <app-notice-banner
-    >Für die Statistik brauchst Du Verwaltungsrechte für dieses Vinted-Konto.</app-notice-banner
-  >
+<app-notice-banner
+  >Für die Statistik brauchst Du Verwaltungsrechte für dieses Vinted-Konto.</app-notice-banner
+>
 } @else {
-  <div class="flex min-w-0 flex-wrap items-center justify-between gap-2">
-    @if (statistics.canCombineAccounts()) {
-      <div
-        class="inline-flex max-w-full flex-wrap gap-1 rounded-lg border border-fb-line bg-fb-surface p-1"
-        role="group"
-        aria-label="Konten für die Statistik"
-      >
-        @for (option of accountScopes; track option.value) {
-          <app-button
-            size="slim"
-            [variant]="statistics.accountScope() === option.value ? 'secondary' : 'ghost'"
-            [ariaPressed]="statistics.accountScope() === option.value"
-            (clicked)="statistics.selectAccountScope(option.value)"
-            >{{ option.label }}</app-button
-          >
-        }
-      </div>
-    }
-    <div
-      class="ml-auto inline-flex max-w-full flex-wrap gap-1 rounded-lg border border-fb-line bg-fb-surface p-1"
-      role="group"
-      aria-label="Zeitraum der Statistik"
+<div class="flex min-w-0 flex-wrap items-center justify-between gap-2">
+  @if (statistics.canCombineAccounts()) {
+  <div
+    class="inline-flex max-w-full flex-wrap gap-1 rounded-lg border border-fb-line bg-fb-surface p-1"
+    role="group"
+    aria-label="Konten für die Statistik"
+  >
+    @for (option of accountScopes; track option.value) {
+    <app-button
+      size="slim"
+      [variant]="statistics.accountScope() === option.value ? 'secondary' : 'ghost'"
+      [ariaPressed]="statistics.accountScope() === option.value"
+      (clicked)="statistics.selectAccountScope(option.value)"
+      >{{ option.label }}</app-button
     >
-      @for (option of ranges; track option.value) {
-        <app-button
-          size="slim"
-          [variant]="statistics.range() === option.value ? 'secondary' : 'ghost'"
-          [ariaPressed]="statistics.range() === option.value"
-          (clicked)="statistics.selectRange(option.value)"
-          >{{ option.label }}</app-button
-        >
+    }
+  </div>
+  }
+  <div
+    class="ml-auto inline-flex max-w-full flex-wrap gap-1 rounded-lg border border-fb-line bg-fb-surface p-1"
+    role="group"
+    aria-label="Zeitraum der Statistik"
+  >
+    @for (option of ranges; track option.value) {
+    <app-button
+      size="slim"
+      [variant]="statistics.range() === option.value ? 'secondary' : 'ghost'"
+      [ariaPressed]="statistics.range() === option.value"
+      (clicked)="statistics.selectRange(option.value)"
+      >{{ option.label }}</app-button
+    >
+    }
+  </div>
+</div>
+
+@if (statistics.error(); as error) {
+<app-notice-banner announcement="alert"
+  ><p>{{ error }}</p>
+  <app-button class="mt-2" (clicked)="statistics.reload()">Erneut versuchen</app-button>
+</app-notice-banner>
+} @else if (statistics.overview(); as overview) { @if (historyNotice(); as notice) {
+<app-notice-banner>{{ notice }}</app-notice-banner>
+}
+
+<dl class="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-3">
+  @for (tile of tiles(); track tile.id) {
+  <app-card class="min-w-0">
+    <dt class="text-xs font-medium text-fb-text-secondary">{{ tile.label }}</dt>
+    <dd class="mt-1 text-2xl font-semibold tabular-nums text-fb-text-primary">{{ tile.value }}</dd>
+    <dd class="mt-1 text-xs text-fb-text-secondary">{{ tile.note }}</dd>
+  </app-card>
+  }
+</dl>
+
+<app-card class="min-w-0">
+  <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+    <h2 class="text-sm font-semibold text-fb-text-primary">Verlauf</h2>
+    <div class="inline-flex gap-1" role="group" aria-label="Kennzahl im Diagramm">
+      @for (metric of metrics; track metric.value) {
+      <app-button
+        [attr.data-chart-metric]="metric.value"
+        size="slim"
+        [variant]="chartMetric() === metric.value ? 'secondary' : 'ghost'"
+        [ariaPressed]="chartMetric() === metric.value"
+        (clicked)="selectChartMetric(metric.value)"
+        >{{ metric.label }}</app-button
+      >
       }
     </div>
   </div>
+  <app-vinted-reach-chart [points]="chartPoints()" [seriesName]="chartMetricLabel()" />
+</app-card>
 
-  @if (statistics.error(); as error) {
-    <app-notice-banner announcement="alert"
-      ><p>{{ error }}</p>
-      <app-button class="mt-2" (clicked)="statistics.reload()">Erneut versuchen</app-button>
-    </app-notice-banner>
-  } @else if (statistics.overview(); as overview) {
-    @if (historyNotice(); as notice) {
-      <app-notice-banner>{{ notice }}</app-notice-banner>
-    }
-
-    <dl class="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-3">
-      @for (tile of tiles(); track tile.id) {
-        <app-card class="min-w-0">
-          <dt class="text-xs font-medium text-fb-text-secondary">{{ tile.label }}</dt>
-          <dd class="mt-1 text-2xl font-semibold tabular-nums text-fb-text-primary">
-            {{ tile.value }}
-          </dd>
-          <dd class="mt-1 text-xs text-fb-text-secondary">{{ tile.note }}</dd>
-        </app-card>
-      }
-    </dl>
-
-    <app-card class="min-w-0">
-      <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 class="text-sm font-semibold text-fb-text-primary">Verlauf</h2>
-        <div class="inline-flex gap-1" role="group" aria-label="Kennzahl im Diagramm">
-          @for (metric of metrics; track metric.value) {
-            <app-button
-              [attr.data-chart-metric]="metric.value"
-              size="slim"
-              [variant]="chartMetric() === metric.value ? 'secondary' : 'ghost'"
-              [ariaPressed]="chartMetric() === metric.value"
-              (clicked)="selectChartMetric(metric.value)"
-              >{{ metric.label }}</app-button
-            >
-          }
-        </div>
-      </div>
-      <app-vinted-reach-chart [points]="chartPoints()" [seriesName]="chartMetricLabel()" />
-    </app-card>
-
-    <section class="min-w-0 space-y-2" aria-labelledby="vinted-top-listings-heading">
-      <h2 id="vinted-top-listings-heading" class="text-sm font-semibold text-fb-text-primary">
-        Beliebteste Artikel
-      </h2>
-      <app-vinted-top-listings
-        [items]="overview.topItems"
-        [showAccount]="statistics.accountScope() === 'all'"
-      />
-    </section>
-  } @else if (statistics.loading()) {
-    <p role="status" class="text-[13px] text-fb-text-secondary">Statistik wird geladen …</p>
-  }
-}
+<section class="min-w-0 space-y-2" aria-labelledby="vinted-top-listings-heading">
+  <h2 id="vinted-top-listings-heading" class="text-sm font-semibold text-fb-text-primary">
+    Beliebteste Artikel
+  </h2>
+  <app-vinted-top-listings
+    [items]="overview.topItems"
+    [showAccount]="statistics.accountScope() === 'all'"
+  />
+</section>
+} @else if (statistics.loading()) {
+<p role="status" class="text-[13px] text-fb-text-secondary">Statistik wird geladen …</p>
+} }
 ```
 
 Prüfen, dass `app-card` beliebigen Inhalt projiziert (`grep -n "ng-content" src/app/shared/components/card/card.component.html`). Umschließt die Karte den Inhalt mit einem Element, das `dt`/`dd` als direkte Kinder von `dl` verhindert, statt `dl`/`dt`/`dd` einfache `div`/`p` verwenden und der Zeile `role="group"` mit `aria-label="Kennzahlen"` geben – die AXE-Prüfung in Task 7 deckt das auf.
@@ -2728,6 +2814,7 @@ EOF
 ### Task 7: Erfundenes Diagramm aus dem Kleiderschrank entfernen, E2E anpassen
 
 **Files:**
+
 - Delete: `src/app/features/marketplaces/components/vinted-wardrobe-statistics/` (vier Dateien)
 - Delete: `src/app/features/marketplaces/models/vinted-wardrobe-statistics.ts`, `…/vinted-wardrobe-statistics.spec.ts`
 - Modify: `src/app/features/marketplaces/components/vinted-listings/vinted-listings.component.html:5`
@@ -2757,7 +2844,7 @@ Run: `npx vitest run --project=angular src/app/features/marketplaces/components/
 `vinted-listings.component.html`: die Zeile
 
 ```html
-  <app-vinted-wardrobe-statistics [items]="publications.items" [totalCount]="publications.total" />
+<app-vinted-wardrobe-statistics [items]="publications.items" [totalCount]="publications.total" />
 ```
 
 löschen.
@@ -2791,66 +2878,64 @@ In `e2e/vinted-workspace-ui.spec.ts`:
 **b)** Direkt nach dem vorhandenen `page.route('**/rest/v1/rpc/marketplace_read_listing_metric_changes', …)`-Block einfügen:
 
 ```ts
-      await page.route(
-        '**/rest/v1/rpc/marketplace_read_listing_statistics_overview',
-        (route) => {
-          const body = route.request().postDataJSON();
-          expect(body['p_workspace_id']).toBe(workspaceId);
-          const days = body['p_period'] === '24h' ? 24 : body['p_period'] === '7d' ? 7 : 30;
-          const step = body['p_period'] === '24h' ? 3_600_000 : 86_400_000;
-          const end = Date.parse('2026-10-01T22:00:00Z');
-          return route.fulfill({
-            json: {
-              workspaceId,
-              connectionId: body['p_connection_id'] ?? null,
-              period: body['p_period'],
-              historyStartsAt: '2026-08-01T10:00:00Z',
-              activeCount: 2,
-              totals: { views: 1234, favorites: 56 },
-              previousTotals: { views: 1000, favorites: 50 },
-              buckets: Array.from({ length: days }, (_, index) => ({
-                start: new Date(end - (days - 1 - index) * step).toISOString(),
-                views: index * 3,
-                favorites: index % 4,
-              })),
-              topItems: [
-                {
-                  id: '1',
-                  connectionId: body['p_connection_id'] ?? 'removed-account',
-                  accountName: 'Testkonto A',
-                  entryId: null,
-                  title: 'Sehr langer Titel eines nicht mehr vorhandenen Testartikels '.repeat(4),
-                  imageUrl: null,
-                  price: null,
-                  currency: null,
-                  removedAt: '2026-09-30T08:00:00Z',
-                  views: 500,
-                  favorites: 20,
-                  totalViews: 900,
-                  totalFavorites: null,
-                },
-              ],
-            },
-          });
+await page.route('**/rest/v1/rpc/marketplace_read_listing_statistics_overview', (route) => {
+  const body = route.request().postDataJSON();
+  expect(body['p_workspace_id']).toBe(workspaceId);
+  const days = body['p_period'] === '24h' ? 24 : body['p_period'] === '7d' ? 7 : 30;
+  const step = body['p_period'] === '24h' ? 3_600_000 : 86_400_000;
+  const end = Date.parse('2026-10-01T22:00:00Z');
+  return route.fulfill({
+    json: {
+      workspaceId,
+      connectionId: body['p_connection_id'] ?? null,
+      period: body['p_period'],
+      historyStartsAt: '2026-08-01T10:00:00Z',
+      activeCount: 2,
+      totals: { views: 1234, favorites: 56 },
+      previousTotals: { views: 1000, favorites: 50 },
+      buckets: Array.from({ length: days }, (_, index) => ({
+        start: new Date(end - (days - 1 - index) * step).toISOString(),
+        views: index * 3,
+        favorites: index % 4,
+      })),
+      topItems: [
+        {
+          id: '1',
+          connectionId: body['p_connection_id'] ?? 'removed-account',
+          accountName: 'Testkonto A',
+          entryId: null,
+          title: 'Sehr langer Titel eines nicht mehr vorhandenen Testartikels '.repeat(4),
+          imageUrl: null,
+          price: null,
+          currency: null,
+          removedAt: '2026-09-30T08:00:00Z',
+          views: 500,
+          favorites: 20,
+          totalViews: 900,
+          totalFavorites: null,
         },
-      );
+      ],
+    },
+  });
+});
 ```
 
 **c)** Direkt vor der Zeile `await openVintedSection(page, 'Kleiderschrank', width);` (um Zeile 394) einfügen:
 
 ```ts
-      await openVintedSection(page, 'Statistik', width);
-      const statisticsPage = page.locator('app-vinted-statistics');
-      await expect(statisticsPage).toContainText('1.234');
-      await expect(statisticsPage).toContainText('+23 % gegenüber den 7 Tagen davor');
-      await expect(statisticsPage).toContainText('Nicht mehr online');
-      await expect(statisticsPage.locator('.apexcharts-canvas')).toBeVisible();
-      await statisticsPage.getByRole('button', { name: '30 Tage', exact: true }).click();
-      await expect(
-        statisticsPage.getByRole('button', { name: '30 Tage', exact: true }),
-      ).toHaveAttribute('aria-pressed', 'true');
-      await checkSurface(page, 'app-vinted-statistics');
-      await screenshot(page, `vinted-statistics-${width}-${theme}`);
+await openVintedSection(page, 'Statistik', width);
+const statisticsPage = page.locator('app-vinted-statistics');
+await expect(statisticsPage).toContainText('1.234');
+await expect(statisticsPage).toContainText('+23 % gegenüber den 7 Tagen davor');
+await expect(statisticsPage).toContainText('Nicht mehr online');
+await expect(statisticsPage.locator('.apexcharts-canvas')).toBeVisible();
+await statisticsPage.getByRole('button', { name: '30 Tage', exact: true }).click();
+await expect(statisticsPage.getByRole('button', { name: '30 Tage', exact: true })).toHaveAttribute(
+  'aria-pressed',
+  'true',
+);
+await checkSurface(page, 'app-vinted-statistics');
+await screenshot(page, `vinted-statistics-${width}-${theme}`);
 ```
 
 `checkSurface` führt AXE auf der Seite aus und schlägt fehl, wenn etwas waagerecht über den Bildschirm hinausragt (Review Focus 4).
