@@ -134,3 +134,21 @@ it('lädt nichts ohne Verwaltungsrecht', async () => {
   expect(read).not.toHaveBeenCalled();
   expect(store.overview()).toBeNull();
 });
+
+it('lädt nicht erneut, wenn sich im Konto etwas ohne neue Messzeitpunkte ändert', async () => {
+  const publications = (observedAt: string) => ({
+    publications: { items: [{ metrics: { observedAt } }] },
+  });
+  account.snapshot.set(publications('2026-10-02T12:00:00Z'));
+  await settle();
+  read.mockClear();
+  // Etwa eine als gelesen markierte Unterhaltung: neues Objekt, gleiche Messzeitpunkte.
+  account.snapshot.set(publications('2026-10-02T12:00:00Z'));
+  account.connections.set([accountA, accountB]);
+  await settle();
+  expect(read).not.toHaveBeenCalled();
+  account.snapshot.set(publications('2026-10-02T12:15:00Z'));
+  await settle();
+  expect(read).toHaveBeenCalledTimes(1);
+  account.snapshot.set(null);
+});

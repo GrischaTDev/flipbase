@@ -39,32 +39,36 @@ export class VintedStatisticsStore {
   readonly accountScope = computed<VintedStatisticsAccountScope>(() =>
     this.canCombineAccounts() ? this.requestedAccountScope() : 'account',
   );
-  private readonly request = computed<StatisticsRequest | null>(() => {
-    const connection = this.account.selectedConnection();
-    if (!connection || !this.account.canManage()) return null;
-    const scope: VintedStatisticsRequestScope = {
-      workspaceId: connection.workspaceId,
-      connectionId: this.accountScope() === 'all' ? null : connection.connectionId,
-    };
-    const range = this.range();
-    // Ein neuer Abruf des Kontos ändert die Messzeitpunkte und lädt die Statistik neu.
-    const observed = this.account
-      .snapshot()
-      ?.publications.items.map((entry) => entry.metrics.observedAt)
-      .join(',');
-    const selection = JSON.stringify([
-      scope.workspaceId,
-      scope.connectionId,
-      range,
-      this.account.selectionVersion(),
-    ]);
-    return {
-      scope,
-      range,
-      selection,
-      key: JSON.stringify([selection, this.reloads(), observed ?? null]),
-    };
-  });
+  // Gleicher Schlüssel heißt gleiche Anfrage: fremde Kontoänderungen lösen keinen neuen Abruf aus.
+  private readonly request = computed<StatisticsRequest | null>(
+    () => {
+      const connection = this.account.selectedConnection();
+      if (!connection || !this.account.canManage()) return null;
+      const scope: VintedStatisticsRequestScope = {
+        workspaceId: connection.workspaceId,
+        connectionId: this.accountScope() === 'all' ? null : connection.connectionId,
+      };
+      const range = this.range();
+      // Ein neuer Abruf des Kontos ändert die Messzeitpunkte und lädt die Statistik neu.
+      const observed = this.account
+        .snapshot()
+        ?.publications.items.map((entry) => entry.metrics.observedAt)
+        .join(',');
+      const selection = JSON.stringify([
+        scope.workspaceId,
+        scope.connectionId,
+        range,
+        this.account.selectionVersion(),
+      ]);
+      return {
+        scope,
+        range,
+        selection,
+        key: JSON.stringify([selection, this.reloads(), observed ?? null]),
+      };
+    },
+    { equal: (left, right) => left?.key === right?.key },
+  );
   // Neuladen und neue Messzeitpunkte behalten die sichtbaren Zahlen, bis die Antwort da ist.
   readonly overview = computed(() => {
     const result = this.result();

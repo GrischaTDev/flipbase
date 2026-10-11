@@ -8,6 +8,8 @@ select ok((select relrowsecurity from pg_class where oid='public.marketplace_lis
 select ok(not has_table_privilege('authenticated','public.marketplace_listing_statistic_items','insert'),'Browser dürfen keine Statistik-Datensätze anlegen');
 select ok(not has_function_privilege('anon','public.marketplace_read_listing_statistics_overview(uuid,text,uuid)','execute'),'Anonyme Clients dürfen keine Statistik abrufen');
 
+select has_index('public','marketplace_listing_metric_observations','marketplace_listing_metric_observations_entry','Verweis auf das Inserat ist indiziert, damit das Löschen eines Inserats keinen Tabellendurchlauf braucht');
+select ok((select prosecdef from pg_proc where oid='public.marketplace_read_listing_statistics_overview(uuid,text,uuid)'::regprocedure),'Lesefunktion prüft das Recht einmal selbst statt je Messzeile');
 insert into auth.users(id,aud,role,email,raw_app_meta_data,raw_user_meta_data) values
  ('34100000-0000-4000-8000-000000000001','authenticated','authenticated','overview-owner@example.test','{}','{}'),
  ('34100000-0000-4000-8000-000000000002','authenticated','authenticated','overview-member@example.test','{}','{}');
@@ -20,6 +22,13 @@ insert into public.marketplace_connections(id,workspace_id,display_name,status) 
  ('34100000-0000-4000-8000-000000000021','34100000-0000-4000-8000-000000000011','Konto A','connected'),
  ('34100000-0000-4000-8000-000000000022','34100000-0000-4000-8000-000000000011','Konto B','connected');
 
+insert into public.workspaces(id,name) values ('34100000-0000-4000-8000-000000000012','Fremder Workspace');
+insert into public.marketplace_connections(id,workspace_id,display_name,status) values
+ ('34100000-0000-4000-8000-000000000023','34100000-0000-4000-8000-000000000012','Fremdes Konto','connected');
+insert into public.marketplace_account_entries(id,workspace_id,connection_id,kind,external_id,body,sort_at,observed_at) values
+ ('34100000-0000-4000-8000-000000000039','34100000-0000-4000-8000-000000000012','34100000-0000-4000-8000-000000000023','publication','item-foreign',
+  '{"title":"Fremd","metrics":{"views":1,"favorites":0}}',now()-interval '20 days',now()-interval '20 days');
+update public.marketplace_account_entries set observed_at=now()-interval '1 hour',body=jsonb_set(body,'{metrics}','{"views":9000,"favorites":900}') where external_id='item-foreign';
 -- Artikel A auf Konto A: erste Messung vor 20 Tagen, danach vier weitere.
 insert into public.marketplace_account_entries(id,workspace_id,connection_id,kind,external_id,body,sort_at,observed_at) values
  ('34100000-0000-4000-8000-000000000031','34100000-0000-4000-8000-000000000011','34100000-0000-4000-8000-000000000021','publication','item-a',
@@ -76,6 +85,20 @@ select is(jsonb_array_length(pg_temp.overview('30d')->'buckets'),30,'30 Tage lie
 select throws_ok($$select pg_temp.overview('90d')$$,'22023',null,'Nicht angebotene Zeiträume werden abgelehnt');
 select throws_ok($$select pg_temp.overview('7d','34100000-0000-4000-8000-000000000099')$$,'42501',null,'Ein unbekanntes Konto liefert keine Statistik');
 select throws_ok($$select public.marketplace_read_listing_statistics_overview('34100000-0000-4000-8000-000000000012','7d')$$,'42501',null,'Ein fremder Workspace liefert keine Statistik');
+select throws_ok($$select pg_temp.overview('7d','34100000-0000-4000-8000-000000000023')$$,'42501',null,'Ein Konto aus einem fremden Workspace liefert keine Statistik');
+select is(pg_temp.overview('7d')->'totals'->>'views','70','Fremde Messungen fließen nie in die eigene Summe ein');
+-- Vorzeitraum zählt nur so weit, wie der aktuelle Zeitraum schon gelaufen ist.
+reset role;
+insert into public.marketplace_account_entries(id,workspace_id,connection_id,kind,external_id,body,sort_at,observed_at) values
+ ('34100000-0000-4000-8000-000000000034','34100000-0000-4000-8000-000000000011','34100000-0000-4000-8000-000000000021','publication','item-c',
+  '{"title":"Hose","metrics":{"views":0,"favorites":0}}',now()-interval '20 days',now()-interval '20 days');
+update public.marketplace_account_entries set body=jsonb_set(body,'{metrics}','{"views":500,"favorites":0}'),
+  observed_at=((date_trunc('day',now() at time zone 'Europe/Berlin')-interval '6 days') at time zone 'Europe/Berlin')-interval '1 second'
+  where external_id='item-c';
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"34100000-0000-4000-8000-000000000001","role":"authenticated"}',true);
+select is(pg_temp.overview('7d')->'totals'->>'views','70','Zuwachs kurz vor Zeitraumbeginn zählt nicht zum aktuellen Zeitraum');
+select is(pg_temp.overview('7d')->'previousTotals'->>'views','10','Vorzeitraum endet nach derselben Laufzeit wie der aktuelle Zeitraum');
 select set_config('request.jwt.claims','{"sub":"34100000-0000-4000-8000-000000000002","role":"authenticated"}',true);
 select throws_ok($$select pg_temp.overview('7d')$$,'42501',null,'Mitglieder ohne Verwaltungsrecht haben keinen Zugriff');
 select is((select count(*)::int from public.marketplace_listing_statistic_items),0,'RLS verbirgt die Statistik-Datensätze vor Mitgliedern');
