@@ -6,6 +6,7 @@ import {
   VintedImportReadError,
   VintedImportRequestError,
 } from '../../src/vinted-account-import.ts';
+import { waitForOpenVintedSessionRenewals } from '../../src/vinted-session-renewal.ts';
 
 /**
  * Bildet Vinteds eigene Erneuerung nach: Mit abgelaufener Anmeldung steht der Browser auf
@@ -93,6 +94,24 @@ test('reports a rejected login only after the renewal page stayed unfinished', a
     assert.ok(Date.now() - startedAt >= 2500);
     assert.equal(f.interrupted(), false);
     assert.equal(f.homeNavigations(), 0);
+  } finally {
+    await browser.close();
+  }
+});
+
+test('an action on a second page starts only after the renewal on the first page ended', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    const f = await fixture(page, { refreshAfterMs: 1500 });
+    await page.goto(renewalUrl, { waitUntil: 'domcontentloaded' });
+    const startedAt = Date.now();
+    await waitForOpenVintedSessionRenewals(() => context.pages());
+    assert.ok(Date.now() - startedAt >= 1000);
+    assert.equal(new URL(page.url()).pathname, '/');
+    assert.equal(f.interrupted(), false);
+    assert.equal(f.refreshes(), 1);
   } finally {
     await browser.close();
   }
