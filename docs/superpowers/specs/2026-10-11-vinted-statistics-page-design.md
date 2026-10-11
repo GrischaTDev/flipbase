@@ -67,8 +67,8 @@ Reihenfolge von oben nach unten:
    - Bei „Alle Konten“ zusätzliche Spalte „Konto“.
    - Artikel, die noch online sind, verlinken auf die Inserat-Detailseite.
    - Entfernte Artikel tragen ein Schild „Nicht mehr online“ und sind nicht
-     verlinkt. Lässt sich ein Verkauf über die Artikelnummer sicher zuordnen,
-     heißt das Schild „Verkauft“; das wird beim Bau geprüft, sonst entfällt es.
+     verlinkt. Ein Schild „Verkauft“ gibt es nicht: Vinted-Verkäufe enthalten
+     keine Artikelnummer, eine sichere Zuordnung ist deshalb nicht möglich.
    - Fehlt das Bild, erscheint der übliche Platzhalter.
 
 ### Zustände
@@ -132,10 +132,10 @@ Dauerhafter Statistik-Datensatz je Vinted-Artikel und Konto.
 ### Neue Lesefunktion
 
 `public.marketplace_read_listing_statistics_overview(p_workspace_id uuid,
-p_connection_id uuid, p_period text)` → `jsonb`, `stable`, `security invoker`,
-`search_path = ''`.
+p_period text, p_connection_id uuid default null)` → `jsonb`, `stable`,
+`security invoker`, `search_path = ''`.
 
-- `p_connection_id = null` bedeutet alle Vinted-Konten des Workspace.
+- Fehlendes `p_connection_id` bedeutet alle Vinted-Konten des Workspace.
 - `p_period` ∈ `24h`, `7d`, `30d`; alles andere wird abgelehnt.
 - Zugriff nur mit `marketplace_can_manage`; sonst Fehler `42501`.
 - Rechenregel: Zuwachs = Summe der positiven Differenzen aufeinanderfolgender
