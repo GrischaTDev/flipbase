@@ -796,13 +796,53 @@ function sourceFailure(
   };
 }
 
+function isVintedSessionRenewal(page: Page): boolean {
+  try {
+    const address = new URL(page.url());
+    return address.origin === 'https://www.vinted.de' && address.pathname === '/session-refresh';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Vinted erneuert eine abgelaufene Anmeldung auf einer eigenen Zwischenseite und leitet danach
+ * zurück. Wer diese Seite vorher verlässt oder den Browser schließt, verbraucht die gespeicherte
+ * Erneuerung, ohne die neue Anmeldung zu erhalten. Deshalb hier nur warten, nie neu laden.
+ */
+async function waitForVintedSessionRenewal(
+  page: Page,
+  authorize: () => Promise<void>,
+  maxWaitMs: number,
+): Promise<boolean> {
+  if (!isVintedSessionRenewal(page)) return true;
+  const deadline = Date.now() + maxWaitMs;
+  while (isVintedSessionRenewal(page)) {
+    if (Date.now() >= deadline) return false;
+    await wait(500);
+    await authorize();
+  }
+  try {
+    await page.waitForLoadState('load', { timeout: 20_000 });
+  } catch (loadError) {
+    throw new VintedImportRequestError(
+      'browser_context',
+      undefined,
+      classifyBrowserReadFailure(loadError),
+    );
+  }
+  return true;
+}
+
 export async function readVintedAccountImport(
   page: Page,
   authorize: () => Promise<void>,
   onStage?: (stage: 'profile' | 'publications' | 'conversations' | 'sales') => Promise<void>,
   previousConversations: VintedConversationVersion[] = [],
   requestedConversation?: VintedConversationReadTarget,
+  options: { sessionRenewalWaitMs?: number } = {},
 ): Promise<VintedAccountImport> {
+  const sessionRenewalWaitMs = options.sessionRenewalWaitMs ?? 25_000;
   const reads: SourceReadContext = { count: 0, authorize, browserFailures: [] };
   await atImportStage('navigation', async () => {
     try {
@@ -821,7 +861,8 @@ export async function readVintedAccountImport(
       if (!(error instanceof VintedImportRequestError) || error.reason !== 'unauthorized')
         throw error;
       // Die gespeicherte Anmeldung kann erst durch die Seiteninitialisierung
-      // erneuert werden. Einmal neu laden; danach höchstens drei Prüfungen.
+      // erneuert werden. Läuft Vinteds Erneuerung bereits, wird sie abgewartet;
+      // sonst einmal neu laden. Danach höchstens drei Prüfungen.
       const currentUrl = new URL(page.url());
       if (
         currentUrl.origin !== 'https://www.vinted.de' ||
@@ -829,15 +870,19 @@ export async function readVintedAccountImport(
       )
         throw error;
       await authorize();
-      try {
-        await page.goto('https://www.vinted.de/', { waitUntil: 'load', timeout: 20_000 });
-      } catch (reloadError) {
-        throw new VintedImportRequestError(
-          'browser_context',
-          undefined,
-          classifyBrowserReadFailure(reloadError),
-        );
+      if (!isVintedSessionRenewal(page)) {
+        try {
+          await page.goto('https://www.vinted.de/', { waitUntil: 'load', timeout: 20_000 });
+        } catch (reloadError) {
+          throw new VintedImportRequestError(
+            'browser_context',
+            undefined,
+            classifyBrowserReadFailure(reloadError),
+          );
+        }
       }
+      // Auch das Neuladen kann auf der Erneuerungsseite landen.
+      if (!(await waitForVintedSessionRenewal(page, authorize, sessionRenewalWaitMs))) throw error;
       for (let attempt = 0; attempt < 3; attempt++) {
         if (attempt > 0) await wait(750 * attempt);
         await authorize();
