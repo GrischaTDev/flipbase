@@ -135,9 +135,13 @@
 
         <!-- Spitzenzeit-Hinweis -->
         <div
-          class="inline-flex items-center gap-1.5 rounded-full border border-amber-500/25 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-300"
+          class="inline-flex items-center gap-1.5 rounded-full border border-amber-500/25 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-800 dark:text-amber-300"
         >
-          <svg lucideLightbulb class="size-3.5 shrink-0 text-amber-400" aria-hidden="true"></svg>
+          <svg
+            lucideLightbulb
+            class="size-3.5 shrink-0 text-amber-600 dark:text-amber-400"
+            aria-hidden="true"
+          ></svg>
           <span>{{ data().insightText }}</span>
         </div>
       </div>
@@ -167,8 +171,8 @@
           >
             <p class="mb-0.5 font-bold text-white">{{ pt.label }}:</p>
             <div class="flex items-center gap-2">
-              <span class="font-semibold text-teal-400 tabular-nums">{{ pt.views }} Aufrufe</span>
-              <span class="font-semibold text-rose-400 tabular-nums"
+              <span class="font-semibold text-[#2dd4bf] tabular-nums">{{ pt.views }} Aufrufe</span>
+              <span class="font-semibold text-[#fda4af] tabular-nums"
                 >{{ pt.favorites }} Favoriten</span
               >
             </div>
