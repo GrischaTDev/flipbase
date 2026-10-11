@@ -264,5 +264,33 @@ select is(pg_temp.manual_recovery('access_revoked')->>'reason','access_revoked',
 select is(pg_temp.manual_recovery('cleanup')->>'reason','cleanup','Ungeklärte Bereinigung bleibt erhalten');
 select is(pg_temp.manual_recovery(null)->>'enabled','false','Bewusst gesetzte Pause ohne Fehler bleibt erhalten');
 
+-- Eine einzelne nicht bestätigte Anmeldung hält die Automatik nicht an.
+create function pg_temp.login_rejection() returns jsonb language plpgsql as $
+declare v_runtime public.marketplace_worker_runtime; v_run jsonb; v_before public.marketplace_sync_schedules;
+begin
+  update public.marketplace_sync_schedules set next_due_at=clock_timestamp()-interval '1 minute',retry_after=null;
+  select * into v_before from public.marketplace_sync_schedules;
+  select * into v_runtime from public.marketplace_worker_runtime where id=1;
+  v_run:=public.marketplace_sync_dispatch_claim(v_runtime.worker_id,v_runtime.worker_epoch,gen_random_uuid(),true);
+  if v_run is null or v_run->>'authorizationKind'<>'scheduled_read' then raise exception 'Zeitgesteuerter Testauftrag fehlt'; end if;
+  update public.marketplace_browser_sessions set state='closed',provider_stopped_at=clock_timestamp() where public_id=(v_run->>'sessionId')::uuid;
+  perform public.marketplace_sync_finish((v_run->>'operationId')::uuid,(v_run->>'runnerId')::uuid,v_runtime.worker_epoch,'{"state":"failed","errorCode":"identity","pausedReason":"needs_login"}');
+  return (select jsonb_build_object('reason',paused_reason,'enabled',enabled,'failures',consecutive_failures,
+    'versionChange',authorization_version-v_before.authorization_version,'due',next_due_at>clock_timestamp())
+    from public.marketplace_sync_schedules);
+end;
+$;
+update public.marketplace_sync_schedules set enabled=true,paused_reason=null,retry_after=null,consecutive_failures=0;
+insert into schedule_context values('loginRejection',pg_temp.login_rejection());
+select is((select value->>'enabled' from schedule_context where name='loginRejection'),'true','Erste nicht bestätigte Anmeldung lässt die Automatik aktiv');
+select is((select value->>'reason' from schedule_context where name='loginRejection'),'needs_login','Erste nicht bestätigte Anmeldung bleibt als Warnung sichtbar');
+select is((select value->>'versionChange' from schedule_context where name='loginRejection'),'0','Erste nicht bestätigte Anmeldung entzieht keine Freigabe');
+select is((select value->>'due' from schedule_context where name='loginRejection'),'true','Nächster regulärer Abruf bleibt geplant');
+select is(pg_temp.login_rejection()->>'enabled','true','Zweite nicht bestätigte Anmeldung lässt die Automatik aktiv');
+update schedule_context set value=pg_temp.login_rejection() where name='loginRejection';
+select is((select value->>'enabled' from schedule_context where name='loginRejection'),'false','Dritte Ablehnung in Folge beendet die Freigabe');
+select is((select value->>'reason' from schedule_context where name='loginRejection'),'needs_login','Dritte Ablehnung verlangt eine neue Anmeldung');
+select is((select value->>'versionChange' from schedule_context where name='loginRejection'),'1','Dritte Ablehnung entzieht die Freigabe');
+
 select * from finish();
 rollback;

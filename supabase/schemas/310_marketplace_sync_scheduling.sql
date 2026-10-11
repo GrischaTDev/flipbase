@@ -286,7 +286,7 @@ $$;
 
 create or replace function public.marketplace_sync_finish(p_operation_id uuid,p_runner_id uuid,p_worker_epoch bigint,p_outcome jsonb)
 returns boolean language plpgsql volatile security invoker set search_path = '' as $$
-declare v_operation public.marketplace_operations; v_schedule public.marketplace_sync_schedules; v_reason text; v_retry timestamptz; v_failures integer;
+declare v_operation public.marketplace_operations; v_schedule public.marketplace_sync_schedules; v_reason text; v_retry timestamptz; v_failures integer; v_soft_login boolean := false;
 begin
   perform pg_advisory_xact_lock(91731,1);
   perform 1 from public.marketplace_worker_runtime where id=1 and worker_epoch=p_worker_epoch and expires_at>clock_timestamp() for update;
@@ -325,13 +325,17 @@ begin
     v_failures:=case when v_reason is null then 0 else v_schedule.consecutive_failures+1 end;
     if v_reason in ('network','server','interrupted') then
       if v_failures>=3 then v_reason:='retry_limit'; else v_retry:=clock_timestamp()+make_interval(mins=>15*(2^v_failures)::integer); end if;
+    elsif v_reason='needs_login' and v_failures<3 then
+      -- Vinted bestätigt eine gültige Anmeldung gelegentlich nicht sofort. Erst die dritte
+      -- Ablehnung in Folge beendet die Freigabe; bis dahin läuft der nächste reguläre Abruf.
+      v_soft_login:=true;
     elsif v_reason='rate_limited' then v_retry:=coalesce(v_retry,clock_timestamp()+interval '15 minutes'); end if;
     update public.marketplace_sync_schedules set
-      enabled=case when v_reason in ('needs_login','forbidden','challenge','access_revoked','cleanup','retry_limit') then false else enabled end,
-      authorization_version=authorization_version+case when v_reason in ('needs_login','forbidden','challenge','access_revoked','cleanup','retry_limit') then 1 else 0 end,
+      enabled=case when not v_soft_login and v_reason in ('needs_login','forbidden','challenge','access_revoked','cleanup','retry_limit') then false else enabled end,
+      authorization_version=authorization_version+case when not v_soft_login and v_reason in ('needs_login','forbidden','challenge','access_revoked','cleanup','retry_limit') then 1 else 0 end,
       paused_reason=v_reason,retry_after=v_retry,consecutive_failures=v_failures,
       last_success_at=case when p_outcome->>'state'='succeeded' and v_reason is null then v_operation.observed_at else last_success_at end,
-      next_due_at=case when v_reason in ('needs_login','forbidden','challenge','access_revoked','cleanup','retry_limit') then null else greatest(clock_timestamp()+make_interval(mins=>v_schedule.interval_minutes),v_retry) end,
+      next_due_at=case when not v_soft_login and v_reason in ('needs_login','forbidden','challenge','access_revoked','cleanup','retry_limit') then null else greatest(clock_timestamp()+make_interval(mins=>v_schedule.interval_minutes),v_retry) end,
       updated_at=clock_timestamp() where id=v_schedule.id;
   elsif v_operation.authorization_kind='manual_read' and p_outcome->>'state'='succeeded'
     and p_outcome->>'errorCode' is null and v_reason is null

@@ -225,6 +225,17 @@ describe('Automatische Aktualisierung je Vinted-Konto', () => {
     expect(messageApi.revokeCloud).not.toHaveBeenCalled();
   });
 
+  it('kündigt bei aktiver Automatik den nächsten Versuch statt einer neuen Anmeldung an', async () => {
+    api.read.mockResolvedValue({ ...schedule, enabled: true, pausedReason: 'needs_login' });
+    const fixture = await render();
+
+    expect(fixture.componentInstance.headerNotice()?.text).toContain('automatisch erneut');
+    expect(fixture.componentInstance.headerNotice()?.text).not.toContain(
+      'Öffne die Vinted-Anmeldung',
+    );
+    expect(fixture.componentInstance.headerStatus()?.label).toBe('Abruf wartet');
+  });
+
   it('entfernt nach Kontobestätigung die erledigte Anmeldewarnung und erhält die Pause', async () => {
     api.read.mockResolvedValue({ ...schedule, pausedReason: 'needs_login' });
     const fixture = await render();
