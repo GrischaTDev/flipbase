@@ -265,7 +265,7 @@ select is(pg_temp.manual_recovery('cleanup')->>'reason','cleanup','Ungeklärte B
 select is(pg_temp.manual_recovery(null)->>'enabled','false','Bewusst gesetzte Pause ohne Fehler bleibt erhalten');
 
 -- Eine einzelne nicht bestätigte Anmeldung hält die Automatik nicht an.
-create function pg_temp.login_rejection() returns jsonb language plpgsql as $
+create function pg_temp.login_rejection() returns jsonb language plpgsql as $$
 declare v_runtime public.marketplace_worker_runtime; v_run jsonb; v_before public.marketplace_sync_schedules;
 begin
   update public.marketplace_sync_schedules set next_due_at=clock_timestamp()-interval '1 minute',retry_after=null;
@@ -279,7 +279,7 @@ begin
     'versionChange',authorization_version-v_before.authorization_version,'due',next_due_at>clock_timestamp())
     from public.marketplace_sync_schedules);
 end;
-$;
+$$;
 update public.marketplace_sync_schedules set enabled=true,paused_reason=null,retry_after=null,consecutive_failures=0;
 insert into schedule_context values('loginRejection',pg_temp.login_rejection());
 select is((select value->>'enabled' from schedule_context where name='loginRejection'),'true','Erste nicht bestätigte Anmeldung lässt die Automatik aktiv');
