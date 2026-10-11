@@ -37,6 +37,7 @@ import { SupabaseMarketplaceCloudSetupStore } from './supabase-marketplace-cloud
 import { MarketplaceCloudSetup } from './marketplace-cloud-setup.ts';
 import { IpRoyalCloudIpSync } from './iproyal-cloud-ip-sync.ts';
 import { IpRoyalCloudIpPurchase } from './iproyal-cloud-ip-purchase.ts';
+import { IpRoyalCloudIpRenewal } from './iproyal-cloud-ip-renewal.ts';
 import { SupabaseCloudIpPurchaseStore } from './supabase-cloud-ip-purchase-store.ts';
 import { SupabaseMarketplaceMessageStore } from './supabase-marketplace-message-store.ts';
 import { MarketplaceMessageRunner } from './marketplace-message-runner.ts';
@@ -431,6 +432,30 @@ async function main(): Promise<void> {
       resolve();
     });
   });
+  const renewal =
+    config.ipRoyalRenewalManaged && config.ipRoyalApiToken && config.ipRoyalPaymentMethodId
+      ? new IpRoyalCloudIpRenewal({
+          token: config.ipRoyalApiToken,
+          paymentMethodId: config.ipRoyalPaymentMethodId,
+          url: config.supabaseUrl,
+          serviceRoleKey: config.serviceRoleKey,
+        })
+      : undefined;
+  let renewalDueAt = 0;
+  // Die Laufzeit einer IP beträgt 30 Tage; ein Abgleich alle zehn Minuten genügt.
+  const reconcileRenewal = async (): Promise<void> => {
+    if (!renewal || Date.now() < renewalDueAt) return;
+    renewalDueAt = Date.now() + 600_000;
+    try {
+      const result = await renewal.reconcile();
+      if (result.enabled || result.disabled || result.failed)
+        process.stderr.write(
+          `${JSON.stringify({ event: 'cloud_ip_renewal_reconciled', ...result })}\n`,
+        );
+    } catch {
+      process.stderr.write(`${JSON.stringify({ event: 'cloud_ip_renewal_unavailable' })}\n`);
+    }
+  };
   let reconciling = false;
   const interval = setInterval(() => {
     if (reconciling) return;
@@ -439,6 +464,7 @@ async function main(): Promise<void> {
       .reconcile()
       .then(() => cloudSetups?.recover())
       .catch(() => process.stderr.write('Browserbereinigung bleibt ausstehend!\n'))
+      .then(reconcileRenewal)
       .finally(() => {
         reconciling = false;
       });

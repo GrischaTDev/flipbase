@@ -22,6 +22,38 @@ Bearbeitungsmaske gelesen und gespeichert werden.
 der Fehler wie der echte ersetzt; vier Browserfälle einschließlich der gesamten
 Übertragung; Typen, Format und ESLint grün.
 
+## 2026-10-11 - Juna - Verlängerung von Cloud-IPs an die Nutzung koppeln
+
+**Auftrag:** Nach dem ersten echten IP-Kauf klären, ob sich die Verlängerung per Schnittstelle
+steuern lässt, und umsetzen: freigegebene IPs nicht mehr verlängern, wiederverwendete wieder
+verlängern.
+
+**Befund:** Kauf über die hinterlegte PayPal-Zahlungsart und Cloud-Wechsel von „Wiehen Store“
+haben geklappt (Bestellung 84994098, 4 USD). Der Anbieter meldet für beide IPs eine aktive
+Verlängerung, obwohl Flipbase beim Kauf `auto_extend: false` sendet. Die Schnittstelle bietet
+`POST /orders/toggle-auto-extend`, aber keine sofortige Kündigung. Weitere Funde aus dem
+Live-Test, noch nicht behoben: Direkt nach dem Kauf erscheint ein IP-Prüffehler, weil die frische
+IP zu früh geprüft wird; ein zweiter Klick übernimmt sie ohne neuen Kauf. Der erste Start des
+Cloud-Browsers bricht sporadisch im Schritt nach dem Chrome-Start ab, ohne dass der Worker den
+Grund festhält; Container, IP und Seitenauswahl waren im Einzeltest in Ordnung.
+
+**Änderung:** Neuer, getrennt einschaltbarer Abgleich im Worker (`IPROYAL_RENEWAL_MANAGED`,
+Standard aus). Er liest den Stand beim Anbieter und schaltet die Verlängerung nur für
+Bestellungen aus dem Flipbase-Bestand um; unklare oder fremde Bestellungen bleiben unberührt.
+Neue IPs werden bewusst mit Verlängerung bestellt. Die Dokumentation behauptet nicht mehr,
+die Verlängerung sei aus. In den Kontoeinstellungen steht unter „Verbindung“ je Betriebsart ein
+Wechsel: lokale Konten „Auf Cloud wechseln“, Cloudkonten „Auf lokale Verbindung umstellen“ mit
+Rückfrage zur auslaufenden IP sowie „Erneut bei Vinted anmelden“. „Cloud-IP einrichten“ entfällt
+dort; ältere Cloudkonten ohne IP-Zuordnung gibt es im Bestand nicht mehr.
+
+**Prüfung:** Worker-Testlauf ohne Fehlschlag, Typprüfung des Workers. 23 Angularprüfungen der
+Kontokarten einschließlich AXE für die neue Rückfrage, Typprüfung, Lint, Format und
+Produktionsbau. Keine Sichtprüfung im Browser. Kein echter Aufruf zum Umschalten und keine
+produktive Aktivierung.
+
+**Offen:** Erster echter Umschaltaufruf (geplant mit dem dritten Konto) und Anbindung der
+Abo-Kündigung.
+
 ## 2026-10-11 – Juna – Leser-Diagnose erweitern und Inseratfelder mitlesen
 
 **Befund:** Seit PR 373 erreicht das vollständige Bearbeiten den Server. Der Leser

@@ -112,6 +112,24 @@ export class VintedAccountGridComponent {
       (this.accounts.loading() ? selection.account : null)
     );
   });
+  private readonly localSwitchSelection = signal<{
+    context: string;
+    account: MarketplaceConnection;
+  } | null>(null);
+  readonly localSwitchAccount = computed(() => {
+    const selection = this.localSwitchSelection();
+    if (!selection || selection.context !== this.context() || !this.accounts.canManage())
+      return null;
+    return (
+      this.accounts
+        .connections()
+        .find(
+          (account) =>
+            account.connectionId === selection.account.connectionId &&
+            account.executionMode === 'cloud',
+        ) ?? null
+    );
+  });
   readonly orderNotice = signal<string | null>(null);
   readonly connectionIds = computed(() =>
     this.accounts.connections().map((account) => account.connectionId),
@@ -234,6 +252,21 @@ export class VintedAccountGridComponent {
   upgradeToCloud(account: MarketplaceConnection): void {
     this.closeSettings();
     void this.management()?.upgrade(account);
+  }
+  openLocalSwitch(account: MarketplaceConnection): void {
+    if (!this.accounts.canManage() || this.accounts.busy() || account.executionMode !== 'cloud')
+      return;
+    this.closeSettings();
+    this.localSwitchSelection.set({ context: this.context(), account });
+  }
+  closeLocalSwitch(): void {
+    this.localSwitchSelection.set(null);
+  }
+  async confirmLocalSwitch(): Promise<void> {
+    const account = this.localSwitchAccount();
+    if (!account) return;
+    this.localSwitchSelection.set(null);
+    await this.router.navigate(['/marketplaces/vinted/local-connect', account.connectionId]);
   }
   async syncCloudAccount(account: MarketplaceConnection): Promise<void> {
     if (

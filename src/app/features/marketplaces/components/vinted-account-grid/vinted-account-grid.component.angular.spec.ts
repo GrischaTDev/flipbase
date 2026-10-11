@@ -243,24 +243,61 @@ describe('Kompakte Vinted-Konten', () => {
     expect(accounts.syncSelectedConnection).toHaveBeenCalledOnce();
     expect(local.sync).not.toHaveBeenCalled();
   });
-  it('öffnet die IP-Einrichtung für ein bestehendes Cloudkonto', async () => {
+  it('bietet einem Cloudkonto die erneute Anmeldung und den bestätigten Wechsel auf lokal', async () => {
     const cloudAccount = { ...account, executionMode: 'cloud' as const };
     accountList.set([cloudAccount]);
     const { element, fixture } = await render();
-    element.querySelector<HTMLButtonElement>('button[aria-label$="einstellen"]')?.click();
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const dialogButton = (label: string) =>
+      [...element.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')].find((button) =>
+        button.textContent?.includes(label),
+      );
+    const openSettings = async () => {
+      element.querySelector<HTMLButtonElement>('button[aria-label$="einstellen"]')?.click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+    };
+    await openSettings();
+    expect(element.textContent).not.toContain('Cloud-IP einrichten');
+    expect(element.textContent).not.toContain('Auf Cloud wechseln');
+    dialogButton('Erneut bei Vinted anmelden')?.click();
+    expect(fixture.componentInstance.management()?.openLogin).toHaveBeenCalledWith(cloudAccount);
+    fixture.detectChanges();
+    await openSettings();
+    dialogButton('Auf lokale Verbindung umstellen')?.click();
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
-    const setup = [...element.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')].find(
-      (button) => button.textContent?.includes('Cloud-IP einrichten'),
-    );
-    expect(setup?.disabled).toBe(false);
-    setup?.click();
-    expect(fixture.componentInstance.management()?.upgrade).toHaveBeenCalledWith(cloudAccount);
-    expect(element.textContent).not.toContain('Auf Cloud wechseln');
+    expect(navigate).not.toHaveBeenCalled();
+    const confirmation = element.querySelector('[role="dialog"]');
+    expect(confirmation?.textContent).toContain('nicht mehr verlängert');
+    const result = await axe.run(element, { rules: { 'color-contrast': { enabled: false } } });
+    expect(result.violations).toEqual([]);
+    dialogButton('Weiter zur lokalen Verbindung')?.click();
+    await fixture.whenStable();
+    expect(navigate).toHaveBeenCalledWith([
+      '/marketplaces/vinted/local-connect',
+      cloudAccount.connectionId,
+    ]);
+    fixture.detectChanges();
+    expect(element.querySelector('[role="dialog"]')).toBeNull();
+  });
+  it('bricht den Wechsel auf lokal ohne Navigation ab', async () => {
+    accountList.set([{ ...account, executionMode: 'cloud' }]);
+    const { element, fixture } = await render();
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    fixture.componentInstance.openLocalSwitch(accountList()[0]);
+    fixture.detectChanges();
+    [...element.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')]
+      .find((button) => button.textContent?.includes('Abbrechen'))
+      ?.click();
+    fixture.detectChanges();
+    expect(navigate).not.toHaveBeenCalled();
+    expect(element.querySelector('[role="dialog"]')).toBeNull();
   });
   it.each(['paused', 'blocked'] as const)(
-    'sperrt die IP-Einrichtung eines %s Cloudkontos',
+    'sperrt Anmeldung und Wechsel eines %s Cloudkontos',
     async (status) => {
       accountList.set([{ ...account, executionMode: 'cloud', status }]);
       const { element, fixture } = await render();
@@ -268,10 +305,12 @@ describe('Kompakte Vinted-Konten', () => {
       fixture.detectChanges();
       await fixture.whenStable();
       fixture.detectChanges();
-      const setup = [...element.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')].find(
-        (button) => button.textContent?.includes('Cloud-IP einrichten'),
-      );
-      expect(setup?.disabled).toBe(true);
+      for (const label of ['Erneut bei Vinted anmelden', 'Auf lokale Verbindung umstellen']) {
+        const button = [
+          ...element.querySelectorAll<HTMLButtonElement>('[role="dialog"] button'),
+        ].find((candidate) => candidate.textContent?.includes(label));
+        expect(button?.disabled).toBe(true);
+      }
     },
   );
   it('sortiert Karten per Tastatur ohne Griff oder Pfeilbuttons und zeigt den Cloudwechsel direkt', async () => {
@@ -308,7 +347,7 @@ describe('Kompakte Vinted-Konten', () => {
     expect(dialog?.textContent).toContain('Verbindung prüfen');
     expect(dialog?.textContent).toContain('Konto entfernen');
     expect(dialog?.textContent).toContain('gespeicherten Daten bleiben erhalten');
-    expect(dialog?.textContent).not.toContain('Auf Cloud wechseln');
+    expect(dialog?.textContent).toContain('Auf Cloud wechseln');
     const result = await axe.run(element, { rules: { 'color-contrast': { enabled: false } } });
     expect(result.violations).toEqual([]);
   });
