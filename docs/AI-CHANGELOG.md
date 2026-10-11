@@ -1,5 +1,40 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-11 – Juna – Konten galten als abgemeldet, obwohl Vinted nur langsam erneuerte
+
+**Auftrag:** Auch nach PR 378 meldete Flipbase ein Cloud-Konto als abgemeldet, und die
+Anmeldung zeigte erneut Vinteds Erneuerungsseite. Alles andere ist zurückgestellt, bis Anmeldung
+und Sitzung stabil laufen.
+
+**Befund (Browserverlauf der Profile, Abrufe und laufende Sitzung auf dem Server):**
+
+- Vinteds Zugang gilt 60 Minuten. Danach leitet Vinted auf `/session-refresh` um. Meist ist die
+  Erneuerung nach einer Sekunde fertig. In der Anmeldesitzung vom 11.10. um 17:42 Uhr dauerte sie
+  61 Sekunden und endete von selbst mit gültiger Anmeldung – ohne Eingabe von Zugangsdaten.
+- Flipbase gab bis mittags nach gut zwei, seit PR 378 nach 25 Sekunden auf, markierte das Konto
+  als abgemeldet und pausierte die Automatik. Das Konto war bei Vinted aber nicht abgemeldet.
+- Die Automatik wird schon nach einer einzigen Ablehnung angehalten und läuft erst nach einer
+  neuen Anmeldung weiter.
+- Zweimal am Tag scheiterte der Start des Browsers nach drei Sekunden ohne festgehaltenen Grund
+  („Browser-Sitzung nicht verfügbar“).
+- Warum die Erneuerung manchmal eine Minute braucht, ist noch nicht geklärt. Auf dem Server
+  läuft dafür bis zum 12.10. eine reine Beobachtung neuer Browsersitzungen
+  (`/root/juna-renewal-watch.log`, `/root/juna-container-events.log`): nur Adresse ohne
+  Parameter, Methode, Status und Zeit sowie die Endcodes der Container.
+
+**Änderung:** Die Wartefunktion liegt jetzt in `vinted-session-renewal.ts` und wartet bis zu
+120 Sekunden. Neben dem Kontoabruf beginnen auch alle übrigen Aktionen (Inserat lesen, speichern
+und veröffentlichen, Nachrichten, Angebote, Favoriten, Profil) erst, wenn keine Seite des
+Browsers mehr erneuert. So löst eine zweite Seite keine zweite Erneuerung mit derselben
+abgelaufenen Anmeldung aus.
+
+**Prüfungen:** 626 Worker-Prüfungen mit drei neuen Fällen, neun Browserfälle zur Sitzung
+einschließlich eines neuen, Typen, Format und ESLint grün.
+
+**Offen:** Automatik nicht schon nach der ersten Ablehnung anhalten; Grund des gescheiterten
+Browserstarts festhalten und den Start einmal wiederholen; Hinweis in der Anmeldung, solange
+Vinted erneuert; Ursache der langsamen Erneuerung aus der Beobachtung ableiten.
+
 ## 2026-10-11 – Juna – Unerwartete Abbrüche beim Lesen eines Inserats einordnen
 
 **Befund:** Nach PR 377 scheiterten am echten Konto sowohl das vollständige Lesen

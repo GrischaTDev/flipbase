@@ -6,6 +6,11 @@ import {
 import type { Page } from 'playwright';
 import { createHash } from 'node:crypto';
 import { setTimeout as wait } from 'node:timers/promises';
+import {
+  isVintedSessionRenewal,
+  vintedSessionRenewalWaitMs,
+  waitForVintedSessionRenewal,
+} from './vinted-session-renewal.ts';
 import { parseVintedAccountIdentity, type VintedAccountIdentity } from './vinted-browser-reader.ts';
 import { parseVintedInboxEvents } from './vinted-inbox-events.ts';
 import type { MarketplaceInboxEventBatch } from '../../../supabase/functions/_shared/marketplace-inbox-event-contracts.d.ts';
@@ -796,44 +801,6 @@ function sourceFailure(
   };
 }
 
-function isVintedSessionRenewal(page: Page): boolean {
-  try {
-    const address = new URL(page.url());
-    return address.origin === 'https://www.vinted.de' && address.pathname === '/session-refresh';
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Vinted erneuert eine abgelaufene Anmeldung auf einer eigenen Zwischenseite und leitet danach
- * zurück. Wer diese Seite vorher verlässt oder den Browser schließt, verbraucht die gespeicherte
- * Erneuerung, ohne die neue Anmeldung zu erhalten. Deshalb hier nur warten, nie neu laden.
- */
-async function waitForVintedSessionRenewal(
-  page: Page,
-  authorize: () => Promise<void>,
-  maxWaitMs: number,
-): Promise<boolean> {
-  if (!isVintedSessionRenewal(page)) return true;
-  const deadline = Date.now() + maxWaitMs;
-  while (isVintedSessionRenewal(page)) {
-    if (Date.now() >= deadline) return false;
-    await wait(500);
-    await authorize();
-  }
-  try {
-    await page.waitForLoadState('load', { timeout: 20_000 });
-  } catch (loadError) {
-    throw new VintedImportRequestError(
-      'browser_context',
-      undefined,
-      classifyBrowserReadFailure(loadError),
-    );
-  }
-  return true;
-}
-
 export async function readVintedAccountImport(
   page: Page,
   authorize: () => Promise<void>,
@@ -842,7 +809,7 @@ export async function readVintedAccountImport(
   requestedConversation?: VintedConversationReadTarget,
   options: { sessionRenewalWaitMs?: number } = {},
 ): Promise<VintedAccountImport> {
-  const sessionRenewalWaitMs = options.sessionRenewalWaitMs ?? 25_000;
+  const sessionRenewalWaitMs = options.sessionRenewalWaitMs ?? vintedSessionRenewalWaitMs;
   const reads: SourceReadContext = { count: 0, authorize, browserFailures: [] };
   await atImportStage('navigation', async () => {
     try {
@@ -882,7 +849,17 @@ export async function readVintedAccountImport(
         }
       }
       // Auch das Neuladen kann auf der Erneuerungsseite landen.
-      if (!(await waitForVintedSessionRenewal(page, authorize, sessionRenewalWaitMs))) throw error;
+      let isRenewed: boolean;
+      try {
+        isRenewed = await waitForVintedSessionRenewal(page, authorize, sessionRenewalWaitMs);
+      } catch (loadError) {
+        throw new VintedImportRequestError(
+          'browser_context',
+          undefined,
+          classifyBrowserReadFailure(loadError),
+        );
+      }
+      if (!isRenewed) throw error;
       for (let attempt = 0; attempt < 3; attempt++) {
         if (attempt > 0) await wait(750 * attempt);
         await authorize();

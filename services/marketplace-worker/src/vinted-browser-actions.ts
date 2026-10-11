@@ -7,6 +7,7 @@ import type {
   BrowserDesktop,
 } from './gologin-cloud-browser.ts';
 import { readVintedAccountImport } from './vinted-account-import.ts';
+import { waitForOpenVintedSessionRenewals } from './vinted-session-renewal.ts';
 import { readVintedAccountIdentity } from './vinted-browser-reader.ts';
 import { submitVintedLogin } from './vinted-browser-login.ts';
 import { submitVintedVerificationCode } from './vinted-browser-verification.ts';
@@ -63,15 +64,28 @@ export function vintedBrowserActions(
   desktop?: BrowserDesktop,
 ): BrowserInfo {
   const currentPage = () => currentVintedPage(connection);
+  // Jede Aktion beginnt erst, wenn Vinteds eigene Erneuerung der Anmeldung beendet ist.
+  const afterSessionRenewal =
+    <Arguments extends unknown[], Result>(
+      action: (...argumentsList: Arguments) => Result | Promise<Result>,
+    ) =>
+    async (...argumentsList: Arguments): Promise<Result> => {
+      await waitForOpenVintedSessionRenewals(
+        () => connection.contexts?.().flatMap((context) => context.pages()) ?? [],
+      );
+      return action(...argumentsList);
+    };
   return {
-    readListingCategory: async (accountId, categoryId, categoryPath, authorize) => {
-      await authorize();
-      const contexts = connection.contexts?.();
-      if (!contexts || contexts.length !== 1) throw new Error('Exklusiver Inseratbrowser fehlt');
-      const page = await contexts[0]!.newPage();
-      return readVintedListingNewCategory(page, accountId, categoryId, categoryPath, authorize);
-    },
-    readListingContent: async (accountId, externalId, authorize) => {
+    readListingCategory: afterSessionRenewal(
+      async (accountId, categoryId, categoryPath, authorize) => {
+        await authorize();
+        const contexts = connection.contexts?.();
+        if (!contexts || contexts.length !== 1) throw new Error('Exklusiver Inseratbrowser fehlt');
+        const page = await contexts[0]!.newPage();
+        return readVintedListingNewCategory(page, accountId, categoryId, categoryPath, authorize);
+      },
+    ),
+    readListingContent: afterSessionRenewal(async (accountId, externalId, authorize) => {
       try {
         await authorize();
       } catch {
@@ -86,56 +100,58 @@ export function vintedBrowserActions(
         throw new VintedListingReadError('reserve');
       }
       return readVintedListingCurrentContent(page, accountId, externalId, authorize);
-    },
-    updateListingContent: async (accountId, externalId, base, desired, authorize) => {
-      await authorize();
-      const contexts = connection.contexts?.();
-      if (!contexts || contexts.length !== 1) throw new Error('Exklusiver Inseratbrowser fehlt');
-      const page = await contexts[0]!.newPage();
-      return updateVintedListingContent(page, accountId, externalId, base, desired, authorize);
-    },
-    submitListing: async (
-      accountId,
-      action,
-      snapshot,
-      beforeWrite,
-      authorize,
-      loadPhoto,
-      categoryPath,
-    ) => {
-      if (action !== 'publish') return { outcome: 'failed', errorCode: 'unsupported' };
-      await authorize();
-      const contexts = connection.contexts?.();
-      if (!contexts || contexts.length !== 1) throw new Error('Exklusiver Inseratbrowser fehlt');
-      const page = await contexts[0]!.newPage();
-      return submitVintedListing(
-        page,
-        accountId,
-        action,
-        snapshot,
-        beforeWrite,
-        authorize,
-        loadPhoto,
-        categoryPath,
-      );
-    },
-    sendNegotiation: (accountId, command, sourceOffer, confirmedOffer, authorize) =>
-      sendVintedNegotiation(
-        currentPage(),
-        accountId,
-        command,
-        sourceOffer,
-        confirmedOffer,
-        authorize,
-      ),
-    readFavoriteEvents: (accountId, authorize) =>
+    }),
+    updateListingContent: afterSessionRenewal(
+      async (accountId, externalId, base, desired, authorize) => {
+        await authorize();
+        const contexts = connection.contexts?.();
+        if (!contexts || contexts.length !== 1) throw new Error('Exklusiver Inseratbrowser fehlt');
+        const page = await contexts[0]!.newPage();
+        return updateVintedListingContent(page, accountId, externalId, base, desired, authorize);
+      },
+    ),
+    submitListing: afterSessionRenewal(
+      async (accountId, action, snapshot, beforeWrite, authorize, loadPhoto, categoryPath) => {
+        if (action !== 'publish') return { outcome: 'failed', errorCode: 'unsupported' };
+        await authorize();
+        const contexts = connection.contexts?.();
+        if (!contexts || contexts.length !== 1) throw new Error('Exklusiver Inseratbrowser fehlt');
+        const page = await contexts[0]!.newPage();
+        return submitVintedListing(
+          page,
+          accountId,
+          action,
+          snapshot,
+          beforeWrite,
+          authorize,
+          loadPhoto,
+          categoryPath,
+        );
+      },
+    ),
+    sendNegotiation: afterSessionRenewal(
+      (accountId, command, sourceOffer, confirmedOffer, authorize) =>
+        sendVintedNegotiation(
+          currentPage(),
+          accountId,
+          command,
+          sourceOffer,
+          confirmedOffer,
+          authorize,
+        ),
+    ),
+    readFavoriteEvents: afterSessionRenewal((accountId, authorize) =>
       readVintedFavoriteEvents(currentPage(), accountId, authorize),
-    sendFavoriteMessage: (accountId, command, authorize) =>
+    ),
+    sendFavoriteMessage: afterSessionRenewal((accountId, command, authorize) =>
       sendVintedFavoriteMessage(currentPage(), accountId, command, authorize),
-    sendFavoriteOffer: (accountId, command, authorize, confirmPrice) =>
+    ),
+    sendFavoriteOffer: afterSessionRenewal((accountId, command, authorize, confirmPrice) =>
       sendVintedFavoriteOffer(currentPage(), accountId, command, authorize, confirmPrice),
-    sendMessage: (accountId, command, authorize) =>
+    ),
+    sendMessage: afterSessionRenewal((accountId, command, authorize) =>
       sendVintedMessage(currentPage(), accountId, command, authorize),
+    ),
     version: () => connection.version(),
     initialize: async () => {
       await currentPage().goto('https://www.vinted.de/', {
@@ -175,11 +191,17 @@ export function vintedBrowserActions(
       ),
     login: (credentials, authorize) => submitVintedLogin(currentPage(), credentials, authorize),
     verify: (code, authorize) => submitVintedVerificationCode(currentPage(), code, authorize),
-    readListingEdit: (itemId, accountId) => readVintedListingEdit(currentPage(), itemId, accountId),
-    updateListing: (itemId, accountId, fields, authorize) =>
+    readListingEdit: afterSessionRenewal((itemId, accountId) =>
+      readVintedListingEdit(currentPage(), itemId, accountId),
+    ),
+    updateListing: afterSessionRenewal((itemId, accountId, fields, authorize) =>
       updateVintedListing(currentPage(), itemId, accountId, fields, authorize),
-    readProfileAbout: (accountId) => readVintedProfileAbout(currentPage(), accountId),
-    updateProfileAbout: (accountId, about, authorize, expectedAbout) =>
+    ),
+    readProfileAbout: afterSessionRenewal((accountId) =>
+      readVintedProfileAbout(currentPage(), accountId),
+    ),
+    updateProfileAbout: afterSessionRenewal((accountId, about, authorize, expectedAbout) =>
       updateVintedProfileAbout(currentPage(), accountId, about, authorize, expectedAbout),
+    ),
   };
 }
