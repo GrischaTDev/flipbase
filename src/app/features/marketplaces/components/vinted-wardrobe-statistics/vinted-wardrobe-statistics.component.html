@@ -1,7 +1,7 @@
 <div
   role="region"
   aria-label="Performance-Statistiken des Kleiderschranks"
-  class="space-y-4 min-w-0"
+  class="relative space-y-4 min-w-0 max-w-full overflow-hidden"
 >
   <!-- Obere Steuerungs- und KPI-Leiste -->
   <div
@@ -129,7 +129,7 @@
   <!-- Ausklappbarer Diagrammbereich -->
   @if (!collapsed()) {
     <div
-      class="space-y-3 rounded-2xl border border-fb-line bg-fb-surface p-2.5 sm:p-5 shadow-sm min-w-0 max-w-full overflow-hidden"
+      class="relative space-y-3 rounded-2xl border border-fb-line bg-fb-surface p-2.5 sm:p-5 shadow-sm min-w-0 max-w-full overflow-hidden"
     >
       <!-- Obere Leiste im Diagramm: Legende & Spitzenzeit-Badge -->
       <div class="flex flex-wrap items-center justify-between gap-2 sm:gap-3 min-w-0 max-w-full">
@@ -305,30 +305,32 @@
       </div>
 
       <!-- Zugängliche Datentabelle für Bildschirmleser (WCAG AA konform) -->
-      <table class="sr-only">
-        <caption>
-          Messdaten für
-          {{
-            timeframe() === '24h' ? '24 Stunden' : timeframe() === '7d' ? '7 Tage' : '30 Tage'
-          }}
-        </caption>
-        <thead>
-          <tr>
-            <th scope="col">Zeitpunkt</th>
-            <th scope="col">Aufrufe</th>
-            <th scope="col">Favoriten</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (pt of data().points; track pt.id) {
+      <div class="sr-only">
+        <table class="sr-only table-fixed">
+          <caption>
+            Messdaten für
+            {{
+              timeframe() === '24h' ? '24 Stunden' : timeframe() === '7d' ? '7 Tage' : '30 Tage'
+            }}
+          </caption>
+          <thead>
             <tr>
-              <td>{{ pt.fullLabel }}</td>
-              <td>{{ pt.views }}</td>
-              <td>{{ pt.favorites }}</td>
+              <th scope="col">Zeitpunkt</th>
+              <th scope="col">Aufrufe</th>
+              <th scope="col">Favoriten</th>
             </tr>
-          }
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            @for (pt of data().points; track pt.id) {
+              <tr>
+                <td>{{ pt.fullLabel }}</td>
+                <td>{{ pt.views }}</td>
+                <td>{{ pt.favorites }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
     </div>
   }
 </div>

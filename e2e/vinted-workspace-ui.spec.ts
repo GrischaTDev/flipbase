@@ -26,7 +26,24 @@ async function checkSurface(page: Page, selector: string) {
     return (await (window as unknown as { axe: typeof axe }).axe.run(element)).violations;
   }, selector);
   expect(violations).toEqual([]);
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  const overflow = await page.evaluate(() => {
+    if (document.documentElement.scrollWidth <= innerWidth) return null;
+    const offenders: string[] = [];
+    for (const el of document.querySelectorAll('*')) {
+      const rect = el.getBoundingClientRect();
+      if (rect.right > innerWidth + 0.5) {
+        offenders.push(
+          `${el.tagName}.${el.className} [right=${rect.right.toFixed(1)}, width=${rect.width.toFixed(1)}]`,
+        );
+      }
+    }
+    return {
+      scrollWidth: document.documentElement.scrollWidth,
+      innerWidth,
+      offenders: offenders.slice(0, 15),
+    };
+  });
+  expect(overflow).toBeNull();
 }
 
 async function screenshot(page: Page, name: string) {

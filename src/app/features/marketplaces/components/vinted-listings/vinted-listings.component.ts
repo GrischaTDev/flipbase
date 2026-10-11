@@ -37,7 +37,7 @@ import { VintedWardrobeStatisticsComponent } from '../vinted-wardrobe-statistics
   templateUrl: './vinted-listings.component.html',
   providers: [MarketplaceListingStatisticsStore],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'block min-w-0 w-full max-w-full overflow-hidden' },
+  host: { class: 'relative block min-w-0 w-full max-w-full overflow-hidden' },
 })
 export class VintedListingsComponent {
   readonly store = inject(MarketplaceAccountStore);
