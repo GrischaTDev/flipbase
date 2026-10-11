@@ -1,5 +1,5 @@
 <nav
-  class="md:hidden fixed bottom-0 left-0 right-0 h-14 bg-fb-sidebar/95 backdrop-blur-md border-t border-fb-border-subtle flex items-center justify-around px-2 z-30 select-none shadow-lg"
+  class="md:hidden fixed bottom-0 left-0 right-0 h-14 max-w-full overflow-hidden bg-fb-sidebar/95 backdrop-blur-md border-t border-fb-border-subtle flex items-center justify-around px-2 z-30 select-none shadow-lg"
 >
   @if (vintedContext()) {
     @for (item of vintedLinks; track item.path) {
@@ -7,10 +7,10 @@
         [routerLink]="item.path"
         routerLinkActive="font-semibold"
         ariaCurrentWhenActive="page"
-        class="flex flex-col items-center justify-center gap-1 text-fb-text-muted text-xs w-14 py-1 hover:text-fb-text-primary transition"
+        class="flex flex-col items-center justify-center gap-1 text-fb-text-muted text-xs w-14 py-1 hover:text-fb-text-primary transition min-w-0 max-w-full overflow-hidden"
       >
-        <svg [lucideIcon]="item.icon" class="size-4" aria-hidden="true"></svg>
-        <span>{{ item.label }}</span>
+        <svg [lucideIcon]="item.icon" class="size-4 shrink-0" aria-hidden="true"></svg>
+        <span class="max-w-full truncate text-[11px] leading-tight">{{ item.label }}</span>
       </a>
     }
   } @else {

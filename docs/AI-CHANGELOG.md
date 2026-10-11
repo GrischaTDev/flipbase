@@ -8,7 +8,7 @@
 
 **Änderung:**
 
-1. **Umbenennung:** Navigation (`vinted-workspace-navigation.ts`), Seitenkopf (`vinted-workspace.component.ts`), mobile Leiste (`bottom-nav.component.ts`), Detailansicht und Übersichts-Kacheln auf „Kleiderschrank“ umgestellt.
+1. **Umbenennung:** Navigation (`vinted-workspace-navigation.ts`), Seitenkopf (`vinted-workspace.component.ts`), Detailansicht und Übersichts-Kacheln auf „Kleiderschrank“ umgestellt. Die mobile Leiste (`bottom-nav.component.ts`) behält das kompakte Label „Inserate“ mit Textkürzung (`truncate`) und Overflow-Schutz, um Viewport-Überläufe auf extrem schmalen Bildschirmen (320px) sicher zu verhindern.
 2. **Performance-Kurve & KPIs:** Neue Komponente `VintedWardrobeStatisticsComponent` erstellt:
    - Obere KPI-Karten für Aufrufe (türkis mit Auge) und Favoriten (korallfarben mit Herz).
    - Zeitfenster-Umschalter für `24 Stunden`, `7 Tage` und `30 Tage`.

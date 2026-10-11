@@ -37,7 +37,7 @@ export class BottomNavComponent {
     { path: '/dashboard', label: 'Flipbase', icon: LayoutDashboard },
     { path: '/marketplaces/vinted/accounts', label: 'Konten', icon: Boxes },
     { path: '/marketplaces/vinted/messages', label: 'Postfach', icon: ShoppingBag },
-    { path: '/marketplaces/vinted/listings', label: 'Kleiderschrank', icon: TrendingUp },
+    { path: '/marketplaces/vinted/listings', label: 'Inserate', icon: TrendingUp },
   ];
   readonly isMenuOpen = input<boolean>(false);
   readonly toggleMenu = output<void>();
