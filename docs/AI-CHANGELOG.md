@@ -1,5 +1,31 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-13 – Juna – Einfachere Bestandsabgänge, Varianten und Verkaufsübersicht prüfen
+
+**Auftrag:** Gesperrtes Löschen bei vorhandenen Beständen und Varianten erklären,
+einen einfachen Ablauf für beschädigte Lagerware vorschlagen und überladene
+Verkaufs- und Einkaufsabläufe bewerten.
+
+**Befund:** Endgültiges Löschen ist wegen vorhandener Geschäftsbeziehungen gesperrt,
+nicht nur wegen einer positiven Stückzahl. Archivieren lässt Menge und Wert stehen.
+Die Variantenliste enthält keine Entfernen-Aktion. Ein allgemeiner Lagerabgang fehlt
+in der Artikelseite, obwohl das Datenmodell Beschädigung und Verlust kennt.
+Die Haltedauer nutzt nur die Einzelstückbeziehung im Verkaufskopf und fällt bei
+fehlender Einkaufsherkunft auf null zurück. Die Rechnungsfehlermeldung nutzt die
+vorhandene Liste fehlender Unternehmensfelder bislang nicht für eine konkrete Anzeige.
+
+**Ergebnis:** Vorschlag unter
+`docs/design/inventory-and-sales-simplification.md` dokumentiert: kurzer Dialog
+„Aus Bestand entfernen“, gleiche Aktionen je Variante, kompakte Verkaufsliste
+mit Betrag/Gewinn/Marge und Prüf-/Chronikzugriff in Details. Ursprüngliche Buchungen
+bleiben bei Korrekturen nachvollziehbar; die sichtbare Oberfläche muss dafür nicht
+alle Prüfaktionen ständig zeigen.
+
+**Prüfung:** Code und bestehende Schemafunktionen gelesen, amtliche AO-/GoBD-Quellen
+für die Nachvollziehbarkeit recherchiert. Reine Analyse mit Dokumentationsänderungen;
+keine neue Anwendungs- oder Datenbankänderung, keine Kontodatenprüfung, kein Push.
+Die bereits geprüfte Änderung an Artikelliste und Archivfilter bleibt erhalten.
+
 ## 2026-10-13 – Juna – Artikelliste mit einer Bestandszahl und ausdrücklichem Archivfilter
 
 **Auftrag:** Auf der Seite „Artikel“ nur „Auf Lager“ anzeigen und archivierte Artikel
