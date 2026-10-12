@@ -2,10 +2,14 @@ import '@angular/compiler';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { convertToParamMap, ActivatedRoute, Router } from '@angular/router';
-import { of } from 'rxjs';
+import { BehaviorSubject } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CatalogService } from '../../core/services/catalog.service';
-import type { InventoryItem, StockPosition } from '../../core/models/flipbase.models';
+import type {
+  CatalogProduct,
+  InventoryItem,
+  StockPosition,
+} from '../../core/models/flipbase.models';
 import { InventoryService } from '../../core/services/inventory.service';
 import { MediaService } from '../../core/services/media.service';
 import { PurchaseService } from '../../core/services/purchase.service';
@@ -44,15 +48,17 @@ function setup() {
   const cleanup = vi.fn().mockResolvedValue({ completed: 0, pending: 0, failed: 0 });
   const empty = signal([]);
   const items = signal<InventoryItem[]>([]);
+  const products = signal<CatalogProduct[]>([]);
   const positions = signal<StockPosition[]>([]);
   const navigate = vi.fn().mockResolvedValue(true);
   const routeParams = convertToParamMap({});
+  const queryParams = new BehaviorSubject(routeParams);
   TestBed.configureTestingModule({
     providers: [
       { provide: WorkspaceService, useValue: { currentWorkspace: workspace } },
       {
         provide: ActivatedRoute,
-        useValue: { snapshot: { queryParamMap: routeParams }, queryParamMap: of(routeParams) },
+        useValue: { snapshot: { queryParamMap: routeParams }, queryParamMap: queryParams },
       },
       { provide: Router, useValue: { navigate } },
       {
@@ -70,7 +76,7 @@ function setup() {
       {
         provide: CatalogService,
         useValue: {
-          products: empty,
+          products,
           loadProducts: reload,
           isLoading: signal(false),
           loadError: signal(null),
@@ -132,6 +138,8 @@ function setup() {
     reload,
     cleanup,
     items,
+    products,
+    queryParams,
     positions,
     navigate,
   };
@@ -139,6 +147,79 @@ function setup() {
 
 describe('Artikelaktionen', () => {
   afterEach(() => TestBed.resetTestingModule());
+
+  it('zeigt archivierte Stammartikel und Einzelstücke nur im Archiv, auch bei passender Suche', () => {
+    const { component, products, items, queryParams } = setup();
+    products.set([
+      {
+        id: 'active-product',
+        workspace_id: 'own',
+        title: 'Kamera aktiv',
+        tracking_mode: 'quantity',
+        is_public_store: false,
+      },
+      {
+        id: 'archived-product',
+        workspace_id: 'own',
+        title: 'Kamera archiviert',
+        tracking_mode: 'quantity',
+        is_public_store: false,
+        archived_at: '2026-10-13',
+      },
+    ]);
+    const item: InventoryItem = {
+      id: 'active-item',
+      workspace_id: 'own',
+      title: 'Kamera Einzelstück',
+      condition: 'used',
+      status: 'ready',
+      sale_state: 'no_active_sale',
+      allocated_purchase_cost: 20,
+    };
+    items.set([item, { ...item, id: 'archived-item', archived_at: '2026-10-13' }]);
+    component.searchControl.setValue('Kamera');
+
+    expect(
+      component
+        .filteredProducts()
+        .map((entry) => entry.id)
+        .sort(),
+    ).toEqual(['active-item', 'active-product']);
+    queryParams.next(convertToParamMap({ view: 'archive' }));
+    expect(
+      component
+        .filteredProducts()
+        .map((entry) => entry.id)
+        .sort(),
+    ).toEqual(['archived-item', 'archived-product']);
+    queryParams.next(convertToParamMap({ view: 'stock' }));
+    expect(component.filteredProducts().map((entry) => entry.id)).toEqual(['active-item']);
+    items.set([{ ...item, archived_at: '2026-10-13' }]);
+    expect(component.filteredProducts()).toEqual([]);
+    queryParams.next(convertToParamMap({}));
+    expect(component.filteredProducts().map((entry) => entry.id)).toEqual(['active-product']);
+  });
+
+  it('zeigt Auf Lager als Status und hält reservierte Stücke vom Verkauf ausgeschlossen', () => {
+    const { component, items } = setup();
+    const item: InventoryItem = {
+      id: 'reserved',
+      workspace_id: 'own',
+      title: 'Kamera',
+      condition: 'used',
+      status: 'reserved',
+      sale_state: 'no_active_sale',
+      allocated_purchase_cost: 20,
+    };
+    items.set([item]);
+    const reserved = component.overview()[0];
+    expect(reserved.onHand).toBe(1);
+    expect(reserved.available).toBe(0);
+    expect(component.statusLabel(reserved)).toBe('Reserviert');
+    expect(component.canSell(reserved)).toBe(false);
+    expect(component.statusLabel(row)).toBe('Auf Lager');
+  });
+
   it('nennt Bestand und Wert vor der Archivierung und lädt die Tabelle danach neu', async () => {
     const { component, confirm, archive, reload } = setup();
     await component.setArchived(row);

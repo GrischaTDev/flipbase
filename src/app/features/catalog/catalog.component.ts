@@ -170,18 +170,8 @@ export class CatalogComponent {
     const sort = this.tablePrefs().sort;
     return products.sort((left, right) => {
       if (sort.field !== 'title') {
-        const first =
-          sort.field === 'available'
-            ? left.available
-            : sort.field === 'on_hand'
-              ? left.onHand
-              : left.inventoryValue;
-        const second =
-          sort.field === 'available'
-            ? right.available
-            : sort.field === 'on_hand'
-              ? right.onHand
-              : right.inventoryValue;
+        const first = sort.field === 'on_hand' ? left.onHand : left.inventoryValue;
+        const second = sort.field === 'on_hand' ? right.onHand : right.inventoryValue;
         if (first === null || second === null)
           return first === second ? 0 : first === null ? 1 : -1;
         return sort.direction === 'asc' ? first - second : second - first;
@@ -227,7 +217,7 @@ export class CatalogComponent {
     if (row.quantityState === 'review_required') return 'Zu prüfen';
     if (row.reserved && row.reserved > 0) return 'Reserviert';
     if (row.onHand === 0) return 'Ohne Bestand';
-    return row.available && row.available > 0 ? 'Verfügbar' : 'Nicht verfügbar';
+    return row.available && row.available > 0 ? 'Auf Lager' : 'Nicht verfügbar';
   }
 
   formatCurrency(value: number | null): string {
@@ -373,10 +363,6 @@ export class CatalogComponent {
         void this.cleanup.retry(workspaceId).catch(() => undefined);
       });
     });
-  }
-
-  availableStock(product: CatalogOverviewRow): number | null {
-    return product.available;
   }
 
   imageUrl(product: CatalogOverviewRow): string | null {

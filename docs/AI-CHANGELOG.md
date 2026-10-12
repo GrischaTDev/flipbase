@@ -1,5 +1,32 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-13 – Juna – Artikelliste mit einer Bestandszahl und ausdrücklichem Archivfilter
+
+**Auftrag:** Auf der Seite „Artikel“ nur „Auf Lager“ anzeigen und archivierte Artikel
+aus der normalen Liste ausblenden. Das Archiv soll über einen Filter erreichbar bleiben.
+
+**Befund:** „Auf Lager“ und „Verfügbar“ sind bei unreservierten Artikeln gleich,
+unterscheiden sich aber bei Reservierungen. „Alle“, die Bestandsfilter und „Zu prüfen“
+ließen bislang auch archivierte Artikel durch.
+
+**Änderung:** „Verfügbar“ entfällt auf der Artikelseite aus Desktop- und Mobilansicht,
+Spaltenauswahl und Sortierung. Die interne verfügbare Menge bleibt für Verkaufsprüfungen
+erhalten; der normale Status heißt „Auf Lager“. Archivierte Stammartikel und Einzelstücke
+erscheinen ausschließlich bei Auswahl von „Archiv“, auch während einer Suche.
+Aktive Artikel ohne Bestand bleiben unter „Alle“ sichtbar. Gespeicherte Spalten werden
+bereinigt, eine frühere Sortierung nach Verfügbarkeit fällt auf den Standard zurück;
+die bestehende Übernahme alter Standardansichten bleibt erhalten.
+
+**Gestaltung:** Die bestehende Tabelle und der vorhandene Ansichtsfilter bleiben gemäß
+`docs/design/admin-ui-guidelines.md` erhalten. Keine neuen Farben, Abstände oder Bedienelemente.
+
+**Prüfung:** 60 gezielte Filter-, Übersichts-, Komponenten- und Tabellenpräferenztests
+bestanden; Formatierung, ESLint, Typprüfung und Produktionsbau erfolgreich.
+Der erste Bau scheiterte an einer Abhängigkeitsverknüpfung über zwei Windows-Laufwerke;
+nach lokaler Installation aus der unveränderten Lockdatei besteht der Bau.
+Der aktualisierte Verkaufs-Browsertest kann lokal mangels erreichbarer Test-Supabase
+nicht ausgeführt werden. Keine Datenbankänderung, kein Push und kein Deployment.
+
 ## 2026-10-12 – Juna – Bearbeiten: Bild-Baustein der Produktseite, Speicherabbruch einordnen
 
 **Auftrag (Nutzer):** Das Speichern einer geänderten Fotoreihenfolge meldete „Vinted hat die

@@ -333,8 +333,10 @@ export class TablePreferencesService {
       ];
       if (
         tableId === 'catalog' &&
-        orderedIds.length === legacyCatalogOrder.length &&
-        orderedIds.every((id, index) => id === legacyCatalogOrder[index])
+        parsed.columns.length === legacyCatalogOrder.length &&
+        [...parsed.columns]
+          .sort((left, right) => left.order - right.order)
+          .every((column, index) => column.id === legacyCatalogOrder[index])
       ) {
         const legacyVisible = new Set(['title', 'on_hand', 'available', 'status', 'actions']);
         const unchangedVisibility = parsed.columns.every(
