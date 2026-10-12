@@ -10,10 +10,7 @@ import {
   VintedVerificationRequiredError,
 } from './vinted-browser-reader.ts';
 import { VintedListingReadError, type VintedListingReadStep } from './vinted-listing-read-error.ts';
-import {
-  readVintedListingCategoryFields,
-  readVintedListingChoices,
-} from './vinted-browser-listing-form.ts';
+import { readVintedListingCategoryFields } from './vinted-browser-listing-form.ts';
 import {
   collectVintedListingFormValues,
   collectVintedListingPhotoState,
@@ -51,6 +48,85 @@ async function loadedPhotos(page: Page): Promise<VintedListingPhotoState> {
   }
 }
 
+/** Angaben, die Vinteds Bearbeitungsmaske nicht markiert anzeigt. */
+export interface VintedListingItemReference {
+  categoryId: number;
+  brandId: number | null;
+  brandLabel: string;
+}
+
+/**
+ * Kategorie und Marke eines bestehenden Inserats aus der Schnittstelle, die auch Vinteds
+ * Bearbeitungsmaske bedient. Die Maske markiert die gewählte Kategorie nicht und zeigt eine
+ * seltene Marke erst nach einer Suche. Ein fremdes oder unlesbares Inserat ergibt `null`.
+ */
+export async function readVintedListingItemReference(
+  page: Page,
+  externalId: string,
+): Promise<VintedListingItemReference | null> {
+  if (!/^[1-9][0-9]{0,31}$/.test(externalId)) return null;
+  const address = new URL(page.url());
+  if (
+    address.origin !== 'https://www.vinted.de' ||
+    address.pathname !== '/items/' + externalId + '/edit'
+  )
+    return null;
+  let value: unknown;
+  try {
+    value = await page.evaluate(async (itemId) => {
+      const response = await fetch('/api/v2/item_upload/items/' + itemId, {
+        method: 'GET',
+        credentials: 'include',
+        headers: { Accept: 'application/json' },
+        cache: 'no-store',
+        signal: AbortSignal.timeout(8_000),
+      });
+      if (!response.ok || new URL(response.url).origin !== 'https://www.vinted.de') return null;
+      const body: unknown = await response.json();
+      const item =
+        body && typeof body === 'object' && 'item' in body && body.item ? body.item : null;
+      if (!item || typeof item !== 'object' || !('id' in item) || !('catalog_id' in item))
+        return null;
+      const brand =
+        'brand_dto' in item && item.brand_dto && typeof item.brand_dto === 'object'
+          ? item.brand_dto
+          : null;
+      return {
+        id: item.id,
+        categoryId: item.catalog_id,
+        brandId: 'brand_id' in item ? item.brand_id : null,
+        brandLabel: brand && 'title' in brand ? brand.title : null,
+      };
+    }, externalId);
+  } catch {
+    return null;
+  }
+  if (!value || typeof value !== 'object' || !('id' in value) || !('categoryId' in value))
+    return null;
+  const { id, categoryId } = value;
+  if (
+    String(id) !== externalId ||
+    typeof categoryId !== 'number' ||
+    !Number.isSafeInteger(categoryId) ||
+    categoryId <= 0
+  )
+    return null;
+  const brandId = 'brandId' in value ? value.brandId : null;
+  const brandLabel = 'brandLabel' in value ? value.brandLabel : null;
+  const hasBrand =
+    typeof brandId === 'number' &&
+    Number.isSafeInteger(brandId) &&
+    brandId > 0 &&
+    typeof brandLabel === 'string' &&
+    brandLabel.trim().length > 0 &&
+    brandLabel.length <= 2000;
+  return {
+    categoryId,
+    brandId: hasBrand ? brandId : null,
+    brandLabel: hasBrand ? brandLabel.trim() : '',
+  };
+}
+
 /**
  * Liest die bereits geöffnete Bearbeitungsmaske. Öffnet und schließt nur Auswahllisten;
  * der Aufrufer bestimmt Seite, Navigation und die Prüfung von Konto und Rechten.
@@ -71,18 +147,24 @@ export async function readOpenVintedListingContent(
   if (photosBefore.items.some((item) => item.url === null)) throw invalid();
   await check();
   onStep('category');
-  const category = (
-    await readVintedListingChoices(page, accountId, null, 'category', [], {
-      allowRememberedCategory: true,
-    })
-  ).choices.filter((choice) => choice.selected);
-  const selectedCategory = category[0];
-  if (category.length !== 1 || !selectedCategory || selectedCategory.id === null) throw invalid();
+  // Die Kategorieauswahl der Bearbeitungsmaske markiert die gewählte Kategorie nicht. Kennung
+  // aus dem Inserat, Bezeichnung aus dem sichtbaren Feld.
+  const readCategoryId = async () =>
+    (await readVintedListingItemReference(page, externalId))?.categoryId ?? null;
+  const item = await readVintedListingItemReference(page, externalId);
+  const categoryLabel = (await page.locator('#category').inputValue({ timeout: 5_000 })).trim();
+  if (!item || !categoryLabel || categoryLabel.length > 200) throw invalid();
+  const selectedCategory = { id: item.categoryId, label: categoryLabel };
   await check();
   onStep('fields');
   const schema = parseVintedListingCategoryFields(
     await readVintedListingCategoryFields(page, accountId, selectedCategory.id, [], {
       authorize: check,
+      readCategoryId,
+      // Eine Marke außerhalb der Vorschlagsliste erscheint erst nach der Suche.
+      ...(item.brandId === null
+        ? {}
+        : { brand: { brandId: item.brandId, brandLabel: item.brandLabel } }),
     }),
     selectedCategory.id,
   );

@@ -10,7 +10,15 @@ interface EditFormState {
   colors: number[];
   materials: number[];
   packageSize: number | null;
+  photos: string[];
 }
+
+/** Fotoadressen der Testmaske; die erste ist das Titelbild. */
+export const editFormPhotoUrls = [
+  'https://images1.vinted.net/tc/fixtureA/f800/1788288106.webp',
+  'https://images1.vinted.net/tc/fixtureB/f800/1788288107.webp',
+  'https://images1.vinted.net/tc/fixtureC/f800/1788288108.webp',
+] as const;
 
 const choices = {
   brand: [
@@ -54,6 +62,7 @@ export async function createVintedListingEditFormFixture(
     colors: [1, 2],
     materials: [149],
     packageSize: 2,
+    photos: [editFormPhotoUrls[0]],
     ...options.state,
   };
   const option = (
@@ -81,6 +90,9 @@ export async function createVintedListingEditFormFixture(
       return route.fulfill({
         json: { user: { id: options.foreign ? '456' : '123', login: 'fixture' } },
       });
+    // Wie bei Vinted: Die Bearbeitungsmaske erhält das Inserat mit seiner Kategorie hierüber.
+    if (url.pathname === '/api/v2/item_upload/items/98765')
+      return route.fulfill({ json: { item: { id: 98765, catalog_id: 2738 }, code: 0 } });
     if (url.hostname.endsWith('.vinted.net'))
       return route.fulfill({
         contentType: 'image/png',
@@ -104,16 +116,36 @@ export async function createVintedListingEditFormFixture(
       <input name="title" value="${state.title}"><textarea name="description">${state.description}</textarea><input name="price" value="${state.price}">
       <input id="ai_photo" type="checkbox"><input id="bump" type="checkbox">
       <input id="category" readonly value="Fußballschuhe"><input id="brand" readonly value="${label('brand', [state.brand])}"><input id="size" readonly value="${label('size', [state.size])}"><input id="condition" readonly value="${label('condition', [state.condition])}"><input id="color" readonly value="${label('color', state.colors)}"><input id="material" readonly value="${label('material', state.materials)}">
-      <div id="category-options" hidden><div role="radio" id="catalog-2738" aria-checked="true"><span class="web_ui__Cell__title">Fußballschuhe</span></div></div>
+      <div id="category-options" hidden><div role="radio" id="catalog-suggestion-2738" aria-checked="false"><span class="web_ui__Cell__title">Fußballschuhe</span></div><div role="button" id="catalog-1193">Kinder</div></div>
       <div id="brand-options" hidden>${option('brand', 'radio', [state.brand])}</div>
       <div id="size-options" hidden>${option('size', 'checkbox', [state.size])}</div>
       <div id="condition-options" hidden>${option('condition', 'radio', [state.condition])}</div>
       <div id="color-options" hidden>${option('color', 'checkbox', state.colors)}</div>
-      <div id="material-options" hidden>${option('material', 'checkbox', state.materials)}</div>
+      <div id="material-options" hidden><div role="checkbox" id="material-suggestion-298" aria-checked="false">Wildleder</div>${option('material', 'checkbox', state.materials)}</div>
       ${[2, 3].map((id) => `<button type="button" id="package-size-${id}">${id === 2 ? 'Mittel' : 'Groß'}</button><label><input type="radio" id="package_type_selector_${id}" aria-labelledby="package-size-${id}"${state.packageSize === id ? ' checked' : ''}></label>`).join('')}
-      <div data-testid="media-upload-grid"><div data-testid="image-wrapper-0"><img src="https://images1.vinted.net/tc/fixtureA/f800/1788288106.webp"></div></div>
+      <div data-testid="media-upload-grid" style="display:flex;gap:8px;user-select:none"></div>
       <button type="button" id="save">Speichern</button>
       </main><script>
+      let photos=${JSON.stringify(state.photos)};
+      const grid=document.querySelector('[data-testid=media-upload-grid]');
+      let dragged=null,start=null;
+      const renderPhotos=()=>{
+        grid.innerHTML=photos.map((url,index)=>'<div class="photo-box" style="position:relative;width:80px;height:80px"><div role="button" tabindex="0" aria-roledescription="sortable" data-index="'+index+'" style="width:80px;height:80px;cursor:grab"><div data-testid="image-wrapper-'+index+'"><img draggable="false" style="width:80px;height:80px;pointer-events:none" src="'+url+'"></div></div><button type="button" style="position:absolute;top:0;right:0" data-testid="media-select-grid-delete-button-'+index+'" aria-label="Ausgewähltes Foto entfernen">x</button></div>').join('');
+        grid.querySelectorAll('[data-testid^=media-select-grid-delete-button-]').forEach((button,index)=>button.onclick=()=>{photos=photos.filter((_,position)=>position!==index);renderPhotos();});
+        grid.querySelectorAll('[aria-roledescription=sortable]').forEach(node=>node.onpointerdown=event=>{dragged=Number(node.dataset.index);start=[event.clientX,event.clientY];});
+      };
+      // Wie der Ziehrahmen der echten Maske: erst eine erkennbare Bewegung verschiebt ein Foto.
+      document.onpointerup=event=>{
+        if(dragged===null) return;
+        const from=dragged,moved=Math.hypot(event.clientX-start[0],event.clientY-start[1]);
+        dragged=null;
+        const target=document.elementFromPoint(event.clientX,event.clientY)?.closest('.photo-box');
+        if(!target||moved<8) return;
+        const to=[...grid.children].indexOf(target);
+        if(to<0||to===from) return;
+        const [photo]=photos.splice(from,1);photos.splice(to,0,photo);renderPhotos();
+      };
+      renderPhotos();
       const names=['category','brand','size','condition','color','material'];
       const multiple=['color','material'];
       const hide=()=>names.forEach(name=>document.querySelector('#'+name+'-options').hidden=true);
@@ -139,7 +171,7 @@ export async function createVintedListingEditFormFixture(
         await fetch('/fixture/save',{method:'POST',body:JSON.stringify({
           title:document.querySelector('[name=title]').value,description:document.querySelector('[name=description]').value,price:document.querySelector('[name=price]').value,
           brand:one('brand'),size:one('size'),condition:one('condition'),colors:selected('color').map(identifier),materials:selected('material').map(identifier),
-          packageSize:[2,3].find(id=>document.querySelector('#package_type_selector_'+id).checked)??null})});
+          packageSize:[2,3].find(id=>document.querySelector('#package_type_selector_'+id).checked)??null,photos})});
         location.href='/items/98765';
       };
       </script>`,

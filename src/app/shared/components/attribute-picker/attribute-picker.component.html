@@ -86,6 +86,8 @@
               role="option"
               [id]="listboxId() + '-' + index"
               [attr.aria-selected]="selected().includes(option)"
+              [attr.aria-disabled]="limitReached() && !selected().includes(option) ? 'true' : null"
+              [class.opacity-50]="limitReached() && !selected().includes(option)"
               (click)="choose(option)"
               class="flex min-h-8 w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-[13px] text-fb-text-primary hover:bg-fb-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/50"
               [class.bg-fb-surface-hover]="activeIndex() === index"

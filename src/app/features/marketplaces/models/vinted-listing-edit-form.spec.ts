@@ -2,6 +2,7 @@ import { expect, it } from 'vitest';
 import { listingCurrentContentFixture } from '../../../../../services/marketplace-worker/test/fixtures/vinted-listing-current-content';
 import {
   applyVintedListingEdit,
+  packageSizeLabel,
   vintedListingEditOptions,
   vintedListingEditSelection,
   vintedListingPriceCents,
@@ -68,4 +69,16 @@ it('rechnet Preise ohne Rundungsfehler um', () => {
   expect(vintedListingPriceCents('abc')).toBeNull();
   expect(vintedListingPriceText(2050)).toBe('20,50');
   expect(vintedListingPriceText(1800)).toBe('18,00');
+});
+
+it('zeigt bei der Paketgröße nur Klein, Mittel oder Groß statt Vinteds zusammengezogenem Kacheltext', () => {
+  expect(packageSizeLabel('EmpfohlenMittelFür Artikel, die in einen Schuhkarton passen')).toBe(
+    'Mittel',
+  );
+  expect(packageSizeLabel('KleinFür Artikel, die in einen großen Briefumschlag passen')).toBe(
+    'Klein',
+  );
+  expect(packageSizeLabel('GroßFür Artikel, die in einen mittelgroßen Karton passen')).toBe('Groß');
+  expect(packageSizeLabel('Mittel')).toBe('Mittel');
+  expect(packageSizeLabel('Unbekannte Größe')).toBe('Unbekannte Größe');
 });

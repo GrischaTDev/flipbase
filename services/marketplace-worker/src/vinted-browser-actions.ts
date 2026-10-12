@@ -112,12 +112,21 @@ export function vintedBrowserActions(
       return readVintedListingCurrentContent(page, accountId, externalId, authorize);
     }),
     updateListingContent: afterSessionRenewal(
-      async (accountId, externalId, base, desired, authorize) => {
+      async (accountId, externalId, base, desired, authorize, photos) => {
         await authorize();
         const contexts = connection.contexts?.();
         if (!contexts || contexts.length !== 1) throw new Error('Exklusiver Inseratbrowser fehlt');
         const page = await contexts[0]!.newPage();
-        return updateVintedListingContent(page, accountId, externalId, base, desired, authorize);
+        return updateVintedListingContent(
+          page,
+          accountId,
+          externalId,
+          base,
+          desired,
+          authorize,
+          undefined,
+          photos,
+        );
       },
     ),
     submitListing: afterSessionRenewal(

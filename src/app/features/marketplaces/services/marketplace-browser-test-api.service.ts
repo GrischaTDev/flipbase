@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import type { VintedListingPhotoArrangement } from '../models/vinted-listing-edit-form';
 import {
   parseVintedListingCategoryFields,
   parseVintedListingCurrentContent,
@@ -775,8 +776,9 @@ export class MarketplaceBrowserTestApiService {
   }
 
   /**
-   * Speichert geänderte Angaben eines bestehenden Inserats bei Vinted. Fotos und Kategorie
-   * bleiben unverändert. Erfolg gilt nur nach erneutem Abruf beim Anbieter.
+   * Speichert geänderte Angaben eines bestehenden Inserats bei Vinted. Die Kategorie bleibt
+   * unverändert. Mit `photos` werden vorhandene Fotos entfernt oder umsortiert; neue Fotos sind
+   * nicht möglich. Erfolg gilt nur nach erneutem Abruf beim Anbieter.
    */
   async saveListingContent(
     scope: AccountScope,
@@ -784,6 +786,7 @@ export class MarketplaceBrowserTestApiService {
     base: VintedListingContent,
     content: VintedListingContent,
     accessToken: string,
+    photos?: VintedListingPhotoArrangement,
   ): Promise<void> {
     let response: Response;
     try {
@@ -795,6 +798,7 @@ export class MarketplaceBrowserTestApiService {
           entryId,
           base,
           content,
+          ...(photos ? { photos: { base: photos.base, desired: photos.desired } } : {}),
         },
         accessToken,
       );

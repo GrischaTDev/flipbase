@@ -52,6 +52,205 @@ wenn sich die Anfrage selbst ändert.
   neuen Seite.
 - Prettier, ESLint, `typecheck`, `test:audit` und Produktionsbau ohne Beanstandung.
 
+## 2026-10-12 – Juna – Bearbeiten: Titelbild festlegen, Fotos verschieben und entfernen
+
+**Auftrag (Nutzer):** In der Bearbeitung sollen sich die Fotos wie bei Vinted ändern lassen.
+Erste Stufe: Reihenfolge und Entfernen vorhandener Fotos. Neue Fotos folgen getrennt.
+
+**Befund an der echten Maske (12.10., nur Aufbau gelesen, Beobachtung danach entfernt):** Im
+Raster `media-upload-grid` hat jedes Foto einen ziehbaren Rahmen
+(`aria-roledescription="sortable"`) um `image-wrapper-<n>` und einen Löschknopf
+`media-select-grid-delete-button-<n>`; das Datei-Feld `add-photos-input` nimmt mehrere
+Bilder an.
+
+**Änderung Worker:** Das Speichern eines bestehenden Inserats nimmt optional eine Fotoanordnung
+an: den Stand, auf dem die Änderung beruht, und eine Auswahl daraus in neuer Reihenfolge.
+Inzwischen bei Vinted geänderte Fotos ergeben einen Konflikt und werden nicht überschrieben. In
+der Maske werden überzählige Fotos von hinten entfernt und die übrigen an ihre Stelle gezogen;
+nach jedem Schritt wird das Raster geprüft. Gespeichert wird weiterhin genau einmal, bestätigt
+erst nach erneutem Lesen. Fremde Adressen, Doppelte und neue Fotos lehnt schon die Übertragung
+ab.
+
+**Änderung Oberfläche:** Unter dem großen Foto stehen „Als Titelbild“, „Nach vorn“, „Nach
+hinten“ und „Foto entfernen“. Sie wirken erst, wenn der Vinted-Stand gelesen ist, und arbeiten
+auf den Fotos, die Vinted dabei geliefert hat. Mindestens ein Foto bleibt.
+
+**Einschränkung:** Ob das Ziehen an der echten Maske so greift wie an der Testseite, zeigt erst
+ein echter Lauf mit einem unkritischen Inserat. Scheitert ein Schritt, wird nicht gespeichert.
+
+**Prüfungen:** 634 Worker-Prüfungen, 48 Browserfälle der Inserate mit drei neuen, alle 231
+Angular- und 206 Node-Testdateien der Anwendung, sechs Browserfälle der Inseratseite lokal mit
+Barrierefreiheitsprüfung, Bildschirmfoto angesehen, Typen, ESLint, Prettier, Shared-UI-Prüfung
+und Bau grün.
+
+## 2026-10-12 – Juna – Bearbeiten: Auswahlboxen für Farben und Material, großes Titelbild
+
+**Stand nach PR 390:** Das vollständige Lesen eines bestehenden Inserats läuft an der echten
+Vinted-Maske durch (im Browser des Nutzers angesehen): Kategorie, Marke, Größe, Zustand, Farben,
+Material und Paketgröße sind richtig vorbelegt.
+
+**Rückmeldung des Nutzers:** Farben und Material als lange Checkbox-Listen sind unbrauchbar; er
+will die Auswahlboxen der Artikel-Erstellung. Die Fotos sollen wie bei Vinted aussehen (großes
+Titelbild, kleine Bilder darunter) und austauschbar sein.
+
+**Änderung:**
+
+- Farben und Material verwenden die gemeinsame Auswahlbox `app-attribute-picker` mit Suche und
+  Chips. Die Box kann jetzt eigene Eingaben sperren (`allowCustom`) und eine Höchstzahl
+  einhalten (`maxSelected`); beides braucht die Vinted-Auswahl (zwei Farben, drei Materialien,
+  nur vorgegebene Werte). Bestehende Verwendungen bleiben unverändert.
+- Die Paketgröße zeigt nur noch Klein, Mittel oder Groß statt Vinteds zusammengezogenem
+  Kacheltext („EmpfohlenMittelFür Artikel, …“).
+- Fotos: großes Titelbild, kleine Bilder darunter, anklickbar wie in der Ansicht.
+
+**Noch offen:** Fotos austauschen, hinzufügen und umsortieren sowie die Kategorie ändern. Das
+braucht einen eigenen Schreibweg im Worker und ist das nächste Paket.
+
+**Prüfungen:** Alle 231 Angular- und 206 Node-Testdateien der Anwendung, neuer Fall der
+Auswahlbox (Höchstzahl, keine eigene Eingabe), sechs Browserfälle der Inseratseite lokal mit
+Barrierefreiheitsprüfung, Bildschirmfoto der Maske angesehen, Typen, ESLint, Prettier,
+Shared-UI-Prüfung und Bau grün.
+
+## 2026-10-12 – Juna – Materialvorschlag und Marke beim Lesen bestehender Inserate
+
+**Befund nach PR 389 (echter Lauf, Aufbau der Auswahllisten mitgeschrieben):** Die neue
+Bearbeiten-Maske öffnet sofort. Das vollständige Lesen kam über die Kategorie hinaus und
+scheiterte am Schritt `fields`:
+
+- Über der Materialliste steht ein Vorschlag mit der Kennung `material-suggestion-<id>`. Der
+  gemeinsame Formularvertrag kannte nur `material-<id>` und brach ab.
+- Die Vorschlagsliste der Marken (50 Einträge) enthielt die Marke des Inserats nicht; sie
+  erscheint erst nach einer Suche. Das wäre der nächste Abbruch gewesen.
+- Größe, Zustand und Farben sind an der echten Maske so markiert, wie der Leser es erwartet.
+
+**Änderung:** Der Formularvertrag liest Materialvorschläge mit. Der Leser nimmt neben der
+Kategorie auch Marke und Markenname aus `/api/v2/item_upload/items/{id}` und sucht die Marke
+über die vorhandene Markensuche, wenn die Vorschlagsliste sie nicht zeigt. Die Testseiten
+enthalten jetzt Materialvorschlag und Markensuche wie gemessen.
+
+**Prüfungen:** 44 Browserfälle der Inserate mit einem neuen (Marke nur über die Suche); die
+Fälle des Lesers sind ohne die Änderung rot (3 von 5) und mit ihr grün; 633 Worker-Prüfungen,
+282 Workflow-Prüfungen, 206 Node- und 231 Angular-Testdateien der Anwendung, Typen, Format und
+ESLint grün.
+
+**Weitere Wünsche des Nutzers vom 12.10. (noch offen):** Fotos in der Bearbeitung wie bei Vinted
+(großes Titelbild, kleine Bilder darunter, austauschbar); Favoriten-Benachrichtigung zusätzlich
+als Hinweis unten rechts und als Windows-Benachrichtigung über den Browser, einschaltbar.
+
+## 2026-10-12 – Juna – Bearbeiten im Aufbau der Erstellen-Maske und Kategorie aus dem Inserat
+
+**Auftrag (Nutzer):** Bearbeiten soll wie „Inserat erstellen“ aussehen und sofort öffnen; Fotos
+oben, Auswahlfelder nur mit Vinted-Werten. Künftig größere PRs statt vieler kleiner.
+
+**Befund am echten Vinted (12.10., mit Zustimmung des Nutzers beobachtet):**
+
+- Nach PR 388 nennt das Protokoll den Schritt: Das vollständige Lesen scheiterte an `category`.
+- Beim Bearbeiten öffnet Vinted die Kategorieauswahl ganz oben im Katalog: Suchfeld, ein nicht
+  markierter Vorschlag, darunter die Hauptgruppen als Schaltflächen. Die gewählte Kategorie ist
+  dort nicht markiert; sie steht nur als Text im Feld. Der Leser suchte genau einen markierten
+  Eintrag. Die bisherigen Testseiten nahmen fälschlich eine markierte Kategorie an.
+- Die Maske lädt Katalog, Farben, Marken und Merkmale über `/api/v2/item_upload/…`. Das Inserat
+  selbst liefert `GET /api/v2/item_upload/items/{id}` lesend mit Kategorie, Marke, Farben,
+  Paketgröße, Beschreibung, Preis und Merkmalen (geprüft: Status 200 und Feldnamen, keine Werte).
+
+**Änderung Worker:** Der Leser nimmt die Kennung der Kategorie aus dieser Schnittstelle und die
+Bezeichnung aus dem sichtbaren Feld. Die Prüfung „Kategorie unverändert“ beim Lesen der
+Merkmale fragt dieselbe Quelle. Das Erstellen eines Inserats bleibt unverändert beim Popup. Die
+Testseiten bilden die gemessene Maske nach.
+
+**Änderung Oberfläche:** Die Bearbeitung öffnet sofort mit gespeichertem Titel, Preis,
+Beschreibung und Fotos im Aufbau der Erstellen-Maske (Fotos zuerst, Texte, Artikelangaben; rechts
+Preis und Paketgröße). Der Vinted-Stand wird im Hintergrund gelesen; Speichern ist erst danach
+möglich. Eingaben während des Ladens bleiben erhalten. Fotos und Kategorie bleiben bei Vinted
+unverändert.
+
+**Einschränkungen:** Ob die übrigen Auswahllisten (Marke, Größe, Zustand, Farbe, Material) an der
+echten Bearbeitungsmaske markiert sind, zeigt erst der nächste Lauf; dafür läuft die Beobachtung
+auf dem Server bis zum Nachmittag weiter (`/root/juna-edit-*`). Die Oberfläche wurde nicht im
+Browser angesehen (lokal keine angemeldete Datenbank), aber mit echtem Template gerendert und auf
+Barrierefreiheit geprüft.
+
+**Prüfungen:** 633 Worker-Prüfungen, 43 Browserfälle der Inserate mit einem neuen (fremdes oder
+unlesbares Inserat scheitert am Kategorie-Schritt), neun Komponentenfälle mit drei neuen, Typen,
+ESLint, Prettier, Shared-UI-Prüfung und Bau grün.
+
+**Als Nächstes:** Vollständige Angaben über dieselbe Schnittstelle beim Synchronisieren
+mitspeichern, damit die Maske ohne Wartezeit gefüllt ist.
+
+## 2026-10-12 – Juna – Reine Worker-Änderungen ohne Anwendungstests und Web-Release
+
+**Auftrag (Nutzer, 12.10.):** Die Wartezeit je PR ist zu lang; Prüfungen, die nicht jedes Mal
+nötig sind, gezielter auslösen. Außerdem künftig größere statt vieler kleiner PRs.
+
+**Befund:** Bei den reinen Worker-PRs vom 11./12.10. liefen jedes Mal die Angular-Tests (bis 8,5
+Minuten) und der Browser-Smoke (10 bis 13 Minuten), obwohl beide den Worker nicht prüfen. Die
+Änderungserkennung stufte alles außer Doku und Deal-Monitor als Anwendungsänderung ein. Typen,
+633 Tests und Bau des Workers laufen ohnehin in jedem Lauf im Qualitäts-Job, sein Abbild im
+eigenen Workflow. Nach dem Merge wurde zusätzlich jedes Mal die Web-Anwendung neu gebaut und
+ausgeliefert.
+
+**Änderung:** Pfade unter `services/marketplace-worker/` zählen nicht mehr als Anwendungs- und
+Release-Änderung. Ausgenommen sind die Dateien, die Anwendungstests, E2E-Tests oder die
+Erweiterung einbinden (die beiden Vertragsdateien und `test/fixtures/`). Gemischte Änderungen
+bleiben im vollen Umfang.
+
+**Bewusst nicht geändert:** Die Worker-Abbilder werden weiterhin nur von Hand aus `master`
+veröffentlicht. Ein automatischer Bau nach dem Merge war vorbereitet, widerspricht aber dem
+Vertragstest „nur manuelles master darf Registry-Schreibrechte erhalten“ und wurde verworfen.
+Aus demselben Grund gibt es keine Auslieferung aus einem Zweig. Der Browser-Smoke läuft bei
+Oberflächenänderungen unverändert.
+
+**Prüfungen:** Neuer Fall der Änderungserkennung (reine Worker-Pfade, geteilte Dateien, gemischte
+Pfade), Pflichtprüfung für Worker-PR und Worker-Merge durchgespielt, 282 Workflow-Prüfungen,
+Format und ESLint grün. Dieser PR selbst läuft noch im vollen Umfang, weil er die Erkennung
+ändert.
+
+## 2026-10-12 – Juna – Aufräumen überdeckte die Ursache gescheiterter Inseratabrufe
+
+**Befund nach PR 385:** Der nächste Klick auf „Bearbeiten“ protokollierte
+`detail: "Error: Sitzungszugriff verweigert"` – ohne Abschnitt. Der Fehler entsteht also im
+Aufräumen: Scheitert eine Aktion, beendet der Sitzungsbroker die Sitzung selbst. Die Route
+schließt sie danach im `finally` noch einmal, der Broker lehnt das ab, und diese Ablehnung
+ersetzt die eigentliche Ursache. Darum gingen seit PR 375 der Schritt des Lesers und die
+Fehlerart verloren, obwohl beides gemeldet wurde. Die Tests bemerkten es nicht, weil ihr
+Stellvertreter des Brokers ein zweites Schließen immer annahm.
+
+**Änderung:** Alle sechs Aufräumstellen der Browser-Routen verwenden `closeAfterFailure`: Das
+Schließen nach einem Abbruch darf scheitern, ohne die Ursache zu ersetzen. Der Stellvertreter im
+Test verhält sich jetzt wie der echte Broker und lehnt das Schließen einer beendeten Sitzung ab.
+
+**Prüfungen:** Der vorhandene Fall „nennt den gescheiterten Schritt“ ist mit dem ehrlichen
+Stellvertreter ohne die Änderung rot (Antwort „Browsersitzung nicht verfügbar“) und mit ihr grün;
+633 Worker-Prüfungen, Typen, Format und ESLint grün.
+
+**Offen:** Ausliefern und erneut klicken; dann steht der Schritt des Lesers im Protokoll.
+
+## 2026-10-12 – Juna – Abbruch beim vollständigen Lesen eines Inserats eingrenzen
+
+**Ergebnis der Nacht:** 102 Abrufe beider Cloud-Konten ohne Fehler, 25 Erneuerungen der
+Anmeldung in höchstens 1,2 Sekunden, kein Fehlstart. Die Beobachtung ist beendet, ihre Dateien
+sind vom Server gelöscht.
+
+**Auftrag:** Bearbeiten eines Inserats fällt weiter auf die Maske mit Titel, Beschreibung und
+Preis zurück („Vinted hat nicht alle Angaben dieses Inserats geliefert“).
+
+**Befund:** Die Browsersitzung des vollständigen Lesens lief am 12.10. um 09:40 Uhr 10,5
+Sekunden und endete mit `reason: failed`. Der Leser selbst meldete weder einen festen Schritt
+noch eine Fehlerart – beides wird seit PR 377 und 379 protokolliert. Der Abbruch liegt also
+außerhalb des Lesers: beim Öffnen, beim Kontoeintrag, bei der Bestätigung nach dem Lesen oder
+beim Schließen der Sitzung. Welcher Abschnitt es ist, ließ sich aus Code und Daten nicht sicher
+ableiten.
+
+**Änderung:** Die Route `content/read` hält ihren Abschnitt fest (öffnen, Eintrag, lesen,
+bestätigen, schließen). Das Protokoll eines unerwarteten Abbruchs nennt zusätzlich die
+Fehlerklasse, bei beendeter Sitzung deren festen Grund und die geprüfte Kurzbeschreibung aus
+reinen Wörtern. Am Verhalten ändert sich nichts.
+
+**Prüfungen:** 633 Worker-Prüfungen mit zwei neuen Fällen (Abbruch beim Schließen und bei der
+Bestätigung nach dem Lesen, ohne privaten Text), Typen, Format und ESLint grün.
+
+**Offen:** Ausliefern, dann ein weiterer Klick auf „Bearbeiten“.
+
 ## 2026-10-11 – Juna – Kontenschild zeigt den Abrufzustand statt immer „Verbunden“
 
 **Auftrag (Nutzer, 11.10.):** Auf der Kontenseite steht grün „Verbunden“, während das Postfach

@@ -117,6 +117,25 @@ it('meldet geänderte Inseratangaben nur nach Anbieterbestätigung als gespeiche
     'unvollständig',
   );
 });
+it('überträgt eine geänderte Fotoreihenfolge nur, wenn sie angegeben ist', async () => {
+  const base = listingCurrentContentFixture().content;
+  const [first, second] = listingCurrentContentFixture().photoUrls;
+  const request = vi.fn().mockImplementation(async () => Response.json({ status: 'confirmed' }));
+  vi.stubGlobal('fetch', request);
+  await api.saveListingContent(scope, id, base, base, 'token', {
+    base: [first!, second!],
+    desired: [second!],
+  });
+  expect(JSON.parse(request.mock.calls[0][1].body)).toEqual({
+    ...scope,
+    entryId: id,
+    base,
+    content: base,
+    photos: { base: [first, second], desired: [second] },
+  });
+  await api.saveListingContent(scope, id, base, base, 'token');
+  expect(JSON.parse(request.mock.calls[1][1].body)).not.toHaveProperty('photos');
+});
 it('bestätigt einen Gesprächsabruf nur mit passender ID und gültigem Prüfzeitpunkt', async () => {
   const fetchMock = vi
     .fn()

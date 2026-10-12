@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { AddressInfo } from 'node:net';
-import { MarketplaceBrowserHttpApi } from '../src/marketplace-browser-http-api.ts';
+import {
+  listingFailureContext,
+  MarketplaceBrowserHttpApi,
+} from '../src/marketplace-browser-http-api.ts';
 import type { BrowserInfo } from '../src/gologin-cloud-browser.ts';
 import type { BrowserSessionScope } from '../src/marketplace-browser-session-broker.ts';
 import { listingCurrentContentFixture } from './fixtures/vinted-listing-current-content.ts';
@@ -20,18 +23,22 @@ async function fixture(
     reassign?: boolean;
     waitForRead?: () => Promise<void>;
     failAtStep?: 'form' | 'photos';
+    failClose?: boolean;
+    failConfirm?: boolean;
   } = {},
 ) {
-  let opened = 0,
+  let terminated = false,
+    opened = 0,
     closed = 0,
     reads = 0,
     reassigned = false;
   const targets: unknown[] = [];
   const browser: BrowserInfo = {
     version: () => 'fixture',
-    updateListingContent: async (account, item, base, desired, authorize) => {
+    updateListingContent: async (account, item, base, desired, authorize, photos) => {
       reads++;
       targets.push([account, item, base.priceCents, desired.priceCents]);
+      if (photos) targets.push(['photos', photos.base.length, photos.desired]);
       if (options.reassign) reassigned = true;
       await authorize();
       return options.foreignItem ? 'conflict' : 'confirmed';
@@ -57,6 +64,9 @@ async function fixture(
       : ({
           entry: (scope: BrowserSessionScope, kind: string, id?: string) => {
             targets.push([scope.workspaceId, scope.connectionId, scope.userAccessToken, kind, id]);
+            // Der vierte Kontoabgleich ist die Bestätigung nach dem Lesen.
+            if (options.failConfirm && reads === 1 && targets.length >= 4)
+              return Promise.reject(new Error('Kontozugriff nicht bestätigt'));
             return Promise.resolve({ externalId: '98765', accountId: reassigned ? '124' : '123' });
           },
         } as unknown as import('../src/vinted-edit-access.ts').VintedEditAccess),
@@ -74,12 +84,18 @@ async function fixture(
         operation: (browser: BrowserInfo) => Promise<T>,
       ) =>
         operation(browser).catch((error: unknown) => {
-          if (options.failAtStep) throw new MarketplaceBrowserSessionEndedError('interrupted');
+          if (options.failAtStep) {
+            terminated = true;
+            throw new MarketplaceBrowserSessionEndedError('interrupted');
+          }
           throw error;
         }),
       close: () => {
         closed++;
-        return Promise.resolve();
+        if (terminated) return Promise.reject(new Error('Sitzungszugriff verweigert'));
+        return options.failClose && closed === 1
+          ? Promise.reject(new Error('private stop detail 42'))
+          : Promise.resolve();
       },
     },
   });
@@ -258,5 +274,113 @@ test('content HTTP read names the failing step although the session broker repla
     } finally {
       await f.close();
     }
+  }
+});
+
+async function capturedListingFailures(action: () => Promise<void>): Promise<unknown[]> {
+  const original = process.stderr.write.bind(process.stderr);
+  const lines: unknown[] = [];
+  process.stderr.write = ((chunk: unknown) => {
+    try {
+      const value: unknown = JSON.parse(String(chunk));
+      if (
+        value &&
+        typeof value === 'object' &&
+        'event' in value &&
+        value.event === 'marketplace_listing_request_failed'
+      )
+        lines.push(value);
+    } catch {
+      // Fremde Ausgaben bleiben unberührt.
+    }
+    return true;
+  }) as typeof process.stderr.write;
+  try {
+    await action();
+  } finally {
+    process.stderr.write = original;
+  }
+  return lines;
+}
+
+test('content HTTP read logs the fixed phase of a failure outside the reader without private text', async () => {
+  for (const [options, phase, detail] of [
+    [{ failClose: true }, 'close', 'Error'],
+    [{ failConfirm: true }, 'confirm', 'Error: Kontozugriff nicht bestätigt'],
+  ] as const) {
+    const f = await fixture(options);
+    try {
+      const lines = await capturedListingFailures(async () => {
+        const response = await f.request({ workspaceId, connectionId, entryId });
+        assert.equal(response.ok, false);
+        await response.arrayBuffer();
+      });
+      assert.deepEqual(lines, [
+        {
+          event: 'marketplace_listing_request_failed',
+          route: 'content/read',
+          reason: 'failed',
+          phase,
+          kind: 'Error',
+          detail,
+        },
+      ]);
+      assert.equal(JSON.stringify(lines).includes('private'), false);
+    } finally {
+      await f.close();
+    }
+  }
+});
+
+test('listing failure context names an ended session and keeps reader steps untouched', () => {
+  assert.deepEqual(
+    listingFailureContext(new MarketplaceBrowserSessionEndedError('interrupted'), 'read'),
+    {
+      phase: 'read',
+      kind: 'MarketplaceBrowserSessionEndedError',
+      sessionEnd: 'interrupted',
+      detail: 'Error: Browsersitzung unterbrochen',
+    },
+  );
+  assert.deepEqual(listingFailureContext(new VintedListingReadError('form'), 'read'), {
+    phase: 'read',
+  });
+  assert.deepEqual(listingFailureContext('text', undefined), { detail: 'Unknown' });
+});
+
+test('content HTTP save passes a photo arrangement on and rejects anything but known photos', async () => {
+  const base = listingCurrentContentFixture().content;
+  const photoA = 'https://images1.vinted.net/tc/fixtureA/f800/1.webp',
+    photoB = 'https://images1.vinted.net/tc/fixtureB/f800/2.webp';
+  const f = await fixture();
+  try {
+    const response = await f.save({
+      workspaceId,
+      connectionId,
+      entryId,
+      base,
+      content: base,
+      photos: { base: [photoA, photoB], desired: [photoB] },
+    });
+    assert.equal(response.status, 200);
+    assert.ok(
+      f.targets.some(
+        (target) => JSON.stringify(target) === JSON.stringify(['photos', 2, [photoB]]),
+      ),
+    );
+    for (const photos of [
+      { base: [photoA], desired: [photoB] },
+      { base: [photoA], desired: [] },
+      { base: ['https://example.org/a.webp'], desired: ['https://example.org/a.webp'] },
+      'text',
+    ])
+      assert.equal(
+        (await f.save({ workspaceId, connectionId, entryId, base, content: base, photos })).status,
+        400,
+        JSON.stringify(photos),
+      );
+    assert.equal(f.reads(), 1);
+  } finally {
+    await f.close();
   }
 });
