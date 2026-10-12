@@ -9,7 +9,17 @@ import type { BrowserInfo } from '../src/gologin-cloud-browser.ts';
 import type { BrowserSessionScope } from '../src/marketplace-browser-session-broker.ts';
 import { listingCurrentContentFixture } from './fixtures/vinted-listing-current-content.ts';
 import { MarketplaceBrowserSessionEndedError } from '../src/marketplace-browser-session-broker.ts';
-import { VintedListingReadError } from '../src/vinted-listing-read-error.ts';
+import {
+  BrowserActionFailedError,
+  plainFailureMessage,
+  unexpectedFailureDetail,
+  VintedListingReadError,
+} from '../src/vinted-listing-read-error.ts';
+import {
+  vintedListingUpdateFailure,
+  vintedListingUpdateSteps,
+  type VintedListingUpdateStep,
+} from '../src/vinted-browser-listing-update.ts';
 
 const workspaceId = '46700000-0000-4000-8000-000000000001',
   connectionId = '46700000-0000-4000-8000-000000000002',
@@ -25,6 +35,8 @@ async function fixture(
     failAtStep?: 'form' | 'photos';
     failClose?: boolean;
     failConfirm?: boolean;
+    /** Das Speichern bricht im getrennten Browser beim Verschieben der Fotos ab. */
+    failSave?: boolean;
   } = {},
 ) {
   let terminated = false,
@@ -39,6 +51,11 @@ async function fixture(
       reads++;
       targets.push([account, item, base.priceCents, desired.priceCents]);
       if (photos) targets.push(['photos', photos.base.length, photos.desired]);
+      // So kommt der Abbruch aus dem getrennten Browser an: nur die geprüfte Kurzbeschreibung.
+      if (options.failSave)
+        throw new BrowserActionFailedError(
+          unexpectedFailureDetail(vintedListingUpdateFailure('photoMove')),
+        );
       if (options.reassign) reassigned = true;
       await authorize();
       return options.foreignItem ? 'conflict' : 'confirmed';
@@ -84,7 +101,7 @@ async function fixture(
         operation: (browser: BrowserInfo) => Promise<T>,
       ) =>
         operation(browser).catch((error: unknown) => {
-          if (options.failAtStep) {
+          if (options.failAtStep || options.failSave) {
             terminated = true;
             throw new MarketplaceBrowserSessionEndedError('interrupted');
           }
@@ -277,18 +294,16 @@ test('content HTTP read names the failing step although the session broker repla
   }
 });
 
-async function capturedListingFailures(action: () => Promise<void>): Promise<unknown[]> {
+async function capturedListingFailures(
+  action: () => Promise<void>,
+  event = 'marketplace_listing_request_failed',
+): Promise<unknown[]> {
   const original = process.stderr.write.bind(process.stderr);
   const lines: unknown[] = [];
   process.stderr.write = ((chunk: unknown) => {
     try {
       const value: unknown = JSON.parse(String(chunk));
-      if (
-        value &&
-        typeof value === 'object' &&
-        'event' in value &&
-        value.event === 'marketplace_listing_request_failed'
-      )
+      if (value && typeof value === 'object' && 'event' in value && value.event === event)
         lines.push(value);
     } catch {
       // Fremde Ausgaben bleiben unberührt.
@@ -329,6 +344,32 @@ test('content HTTP read logs the fixed phase of a failure outside the reader wit
     } finally {
       await f.close();
     }
+  }
+});
+
+test('content HTTP save logs the step of an aborted save before the broker replaces the error', async () => {
+  const base = listingCurrentContentFixture().content;
+  // Jede Abschnittsmeldung besteht nur aus gewöhnlichen Wörtern, sonst entfiele sie im Protokoll.
+  for (const step of Object.keys(vintedListingUpdateSteps) as VintedListingUpdateStep[])
+    assert.match(vintedListingUpdateFailure(step).message, plainFailureMessage);
+  const f = await fixture({ failSave: true });
+  try {
+    const lines = await capturedListingFailures(async () => {
+      const response = await f.save({ workspaceId, connectionId, entryId, base, content: base });
+      assert.equal(response.ok, false);
+      await response.arrayBuffer();
+    }, 'marketplace_listing_read_detail');
+    assert.deepEqual(lines, [
+      {
+        event: 'marketplace_listing_read_detail',
+        route: 'content/save',
+        origin: 'browser',
+        detail: 'Error: Speichern abgebrochen bei fotos verschieben',
+      },
+    ]);
+    assert.equal(f.closed(), 1);
+  } finally {
+    await f.close();
   }
 });
 

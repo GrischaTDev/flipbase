@@ -16,8 +16,8 @@ import { ButtonComponent } from '../../../../shared/components/button/button.com
 import { AttributePickerComponent } from '../../../../shared/components/attribute-picker/attribute-picker.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { EntryPageLayoutComponent } from '../../../../shared/components/entry-page-layout/entry-page-layout.component';
-import type { ListingImageDraft } from '../../../../shared/components/listing-image-editor/listing-image-draft';
-import { ListingImageEditorComponent } from '../../../../shared/components/listing-image-editor/listing-image-editor.component';
+import type { ProductImageDraft } from '../../../../core/models/product-media.models';
+import { ProductMediaEditorComponent } from '../../../../shared/components/product-media-editor/product-media-editor.component';
 import { TwoColumnLayoutComponent } from '../../../../shared/components/two-column-layout/two-column-layout.component';
 import {
   CustomSelectComponent,
@@ -50,7 +50,7 @@ import { createVintedListingMetricDisplay } from '../vinted-listings/vinted-list
     CardComponent,
     CustomSelectComponent,
     EntryPageLayoutComponent,
-    ListingImageEditorComponent,
+    ProductMediaEditorComponent,
     TwoColumnLayoutComponent,
     NoticeBannerComponent,
     ProductThumbnailComponent,
@@ -97,10 +97,10 @@ export class VintedListingDetailComponent {
     () => this.editing() && this.current() !== null && !this.busy(),
   );
   /** Vorhandene Fotos für den gemeinsamen Bildeditor; der Schlüssel ist die Vinted-Adresse. */
-  readonly photoDrafts = computed<readonly ListingImageDraft[]>(() =>
+  readonly photoDrafts = computed<readonly ProductImageDraft[]>(() =>
     this.photos().map((url, index) => ({
       key: url,
-      storagePath: null,
+      media: null,
       file: null,
       fileName: 'Foto ' + (index + 1),
       previewUrl: url,
@@ -273,7 +273,7 @@ export class VintedListingDetailComponent {
       : [...options];
   }
   /** Übernimmt Reihenfolge und Auswahl aus dem Bildeditor; nur bekannte Vinted-Fotos zählen. */
-  onPhotoDraftsChanged(drafts: readonly ListingImageDraft[]): void {
+  onPhotoDraftsChanged(drafts: readonly ProductImageDraft[]): void {
     const current = this.current();
     if (!current || !this.canArrangePhotos()) return;
     const next = drafts.map((draft) => draft.key).filter((url) => current.photoUrls.includes(url));

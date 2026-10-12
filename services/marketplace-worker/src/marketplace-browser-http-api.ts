@@ -327,7 +327,10 @@ export class MarketplaceBrowserHttpApi {
    * Fehlers wird deshalb sofort protokolliert: Herkunft, Fehlerart und höchstens eine feste
    * eigene Meldung ohne Ziffern oder Sonderzeichen.
    */
-  private logListingReadDetail(route: 'content/read' | 'edit/read', error: unknown): void {
+  private logListingReadDetail(
+    route: 'content/read' | 'edit/read' | 'content/save',
+    error: unknown,
+  ): void {
     try {
       process.stderr.write(
         `${JSON.stringify({
@@ -745,14 +748,19 @@ export class MarketplaceBrowserHttpApi {
           };
           const status = await this.broker.run(scope, currentSessionId, async (browser) => {
             if (!browser.updateListingContent) throw new RequestError(503);
-            return browser.updateListingContent(
-              entry.accountId,
-              entry.externalId,
-              base,
-              desired,
-              authorize,
-              photos,
-            );
+            try {
+              return await browser.updateListingContent(
+                entry.accountId,
+                entry.externalId,
+                base,
+                desired,
+                authorize,
+                photos,
+              );
+            } catch (error) {
+              this.logListingReadDetail('content/save', error);
+              throw error;
+            }
           });
           let cachePending = false;
           if (status === 'confirmed' && this.listingCache) {

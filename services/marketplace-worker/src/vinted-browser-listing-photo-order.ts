@@ -61,13 +61,65 @@ async function gridUrls(page: Page): Promise<readonly string[] | null> {
   return state.items.map((item) => item.url as string);
 }
 
-async function waitForGrid(page: Page, expected: readonly string[]): Promise<void> {
-  const deadline = Date.now() + 6_000;
+async function gridShows(
+  page: Page,
+  expected: readonly string[],
+  timeoutMs: number,
+): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
   for (;;) {
     const urls = await gridUrls(page);
-    if (urls && sameVintedListingPhotos(urls, expected)) return;
-    if (Date.now() >= deadline) throw invalid();
+    if (urls && sameVintedListingPhotos(urls, expected)) return true;
+    if (Date.now() >= deadline) return false;
     await wait(150);
+  }
+}
+
+async function waitForGrid(page: Page, expected: readonly string[]): Promise<void> {
+  if (!(await gridShows(page, expected, 6_000))) throw invalid();
+}
+
+/**
+ * Zieht ein Foto wie von Hand: drücken, kurz halten, langsam zum Ziel bewegen, dort verweilen,
+ * loslassen. Ein Ziehrahmen kann eine Haltezeit oder eine Mindestbewegung verlangen; beides ist
+ * damit erfüllt.
+ */
+async function dragPhoto(
+  page: Page,
+  from: number,
+  target: number,
+  /** Anteil der Zielbreite, an dem abgelegt wird; knapp vor der Mitte rückt das Foto davor. */
+  dropAt: number,
+): Promise<void> {
+  const source = await page
+    .locator(`#content [data-testid="image-wrapper-${from}"]`)
+    .boundingBox({ timeout: 5_000 });
+  const destination = await page
+    .locator(`#content [data-testid="image-wrapper-${target}"]`)
+    .boundingBox({ timeout: 5_000 });
+  if (!source || !destination) throw invalid();
+  const start = { x: source.x + source.width / 2, y: source.y + source.height / 2 };
+  const end = {
+    x: destination.x + destination.width * dropAt,
+    y: destination.y + destination.height / 2,
+  };
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  try {
+    await wait(350);
+    await page.mouse.move(start.x + 6, start.y + 6, { steps: 3 });
+    await wait(120);
+    const steps = 24;
+    for (let step = 1; step <= steps; step++) {
+      await page.mouse.move(
+        start.x + 6 + ((end.x - start.x - 6) * step) / steps,
+        start.y + 6 + ((end.y - start.y - 6) * step) / steps,
+      );
+      await wait(15);
+    }
+    await wait(350);
+  } finally {
+    await page.mouse.up();
   }
 }
 
@@ -82,6 +134,8 @@ export async function arrangeVintedListingPhotos(
   current: readonly string[],
   desired: readonly string[],
   check: () => Promise<void>,
+  /** Meldet den begonnenen Abschnitt, damit ein Abbruch eingeordnet werden kann. */
+  onStep: (step: 'remove' | 'move') => void = () => undefined,
 ): Promise<void> {
   if (
     desired.length < 1 ||
@@ -92,6 +146,7 @@ export async function arrangeVintedListingPhotos(
   let expected = [...current];
   await waitForGrid(page, expected);
   // Von hinten löschen, damit die Positionen der übrigen Fotos bis zum Klick stimmen.
+  onStep('remove');
   for (let index = expected.length - 1; index >= 0; index--) {
     if (desired.includes(expected[index]!)) continue;
     await check();
@@ -103,39 +158,30 @@ export async function arrangeVintedListingPhotos(
     expected = expected.filter((_, position) => position !== index);
     await waitForGrid(page, expected);
   }
+  onStep('move');
   for (let target = 0; target < desired.length; target++) {
     const from = expected.indexOf(desired[target]!);
     if (from === target) continue;
     if (from < target) throw invalid();
     await check();
-    const source = await page
-      .locator(`#content [data-testid="image-wrapper-${from}"]`)
-      .boundingBox({ timeout: 5_000 });
-    const destination = await page
-      .locator(`#content [data-testid="image-wrapper-${target}"]`)
-      .boundingBox({ timeout: 5_000 });
-    if (!source || !destination) throw invalid();
-    const start = { x: source.x + source.width / 2, y: source.y + source.height / 2 };
-    // Knapp vor der Mitte des Ziels ablegen: Das Foto rückt an diese Stelle, die übrigen dahinter.
-    const end = {
-      x: destination.x + destination.width * 0.35,
-      y: destination.y + destination.height / 2,
-    };
-    await page.mouse.move(start.x, start.y);
-    await page.mouse.down();
-    try {
-      // Der Ziehrahmen reagiert erst auf eine erkennbare Bewegung.
-      await page.mouse.move(start.x + 12, start.y + 12, { steps: 4 });
-      await wait(120);
-      await page.mouse.move(end.x, end.y, { steps: 16 });
-      await wait(250);
-    } finally {
-      await page.mouse.up();
-    }
     const moved = expected[from]!;
-    expected = expected.filter((_, position) => position !== from);
-    expected.splice(target, 0, moved);
-    await waitForGrid(page, expected);
+    const next = expected.filter((_, position) => position !== from);
+    next.splice(target, 0, moved);
+    // Greift das Ablegen knapp vor der Mitte nicht, folgt ein zweiter Versuch am vorderen Rand.
+    let arranged = false;
+    for (const dropAt of [0.35, 0.15]) {
+      const before = await gridUrls(page);
+      if (!before || !sameVintedListingPhotos(before, expected)) throw invalid();
+      await dragPhoto(page, from, target, dropAt);
+      if (await gridShows(page, next, 3_000)) {
+        arranged = true;
+        break;
+      }
+      // Ein anderes Ergebnis als „unverändert“ wird nicht weiter verschoben.
+      if (!(await gridShows(page, expected, 1_500))) throw invalid();
+    }
+    if (!arranged) throw invalid();
+    expected = next;
   }
   if (!sameVintedListingPhotos(expected, desired)) throw invalid();
   await check();
