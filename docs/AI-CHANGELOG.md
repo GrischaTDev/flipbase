@@ -1,5 +1,40 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-12 – Juna – Bearbeiten: Bildeditor mit Drag and drop, Zielbild und Schnittstellen-Befund
+
+**Zielbild des Nutzers (12.10., nach PR 392):** „Bearbeiten“ soll ohne Wartezeit vollständig
+gefüllt öffnen; Fotos per Drag and drop mit dem Bildeditor der Inserat-Erstellung, Zuschneiden
+im vorhandenen Fenster; Speichern als Auftrag in einer Warteschlange statt Ladebildschirm;
+Artikelangaben rechts unter „Preis und Versand“.
+
+**Änderung (Schritt 1):** Die Bearbeiten-Maske verwendet für die vorhandenen Fotos den
+gemeinsamen Bildeditor (ziehen, Titelbild setzen, entfernen) statt der vier Knöpfe aus PR 392.
+Der Editor kann dafür neue Bilder ablehnen (`canAdd`), das Zuschneiden ausblenden
+(`canCrop`) und eine Mindestzahl halten (`minimumImages`); bestehende Verwendungen bleiben
+unverändert. Die Artikelangaben stehen in der rechten Spalte. Neue Fotos und Zuschneiden bleiben
+aus, bis das Speichern über die Auftragswarteschlange läuft, die Fotodateien bereits überträgt.
+
+**Befund zu Vinteds Schnittstellen (nur Feldnamen und Typen mitgelesen, Beobachtung entfernt):**
+
+- `GET /api/v2/item_upload/items/{id}`: Titel, Beschreibung, Preis, `catalog_id`, `brand_id`
+  mit `brand_dto`, `color1_id`/`color2_id`, `package_size_id`, Fotos mit Adressen und
+  `item_attributes` mit den Kennungen `size`, `condition` und `material` samt gewählten IDs.
+- `POST /api/v2/item_upload/attributes` mit `{attributes:[{code, value:[…]}]}` liefert je
+  Kategorie die Merkmale `brand`, `size`, `condition`, `color`, `material`; für Größe,
+  Zustand und Material samt Auswahlwerten, Auswahlart und Höchstzahl.
+- `GET /api/v2/item_upload/colors`, `…/brands?category_id` (auch mit `keyword`) und
+  `…/catalogs` liefern Farben, Marken und den Kategorienbaum.
+
+Damit lässt sich ein Inserat in etwa einer Sekunde über Schnittstellen lesen statt in rund 25
+Sekunden durch Aufklappen jeder Liste – auch beim regelmäßigen Synchronisieren.
+
+**Noch zu klären:** Kennung der Kategorie in der Merkmal-Anfrage, Herkunft der Paketgrößen und
+ob die Fotoadressen der Schnittstelle denen im Raster der Maske entsprechen.
+
+**Prüfungen:** Alle 231 Angular-Testdateien mit neuen Fällen, sechs Browserfälle der
+Inseratseite lokal mit Barrierefreiheitsprüfung, Bildschirmfoto angesehen, Typen, ESLint,
+Prettier, Shared-UI-Prüfung und Bau grün.
+
 ## 2026-10-12 – Juna – Bearbeiten: Titelbild festlegen, Fotos verschieben und entfernen
 
 **Auftrag (Nutzer):** In der Bearbeitung sollen sich die Fotos wie bei Vinted ändern lassen.
