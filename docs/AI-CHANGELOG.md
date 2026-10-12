@@ -1,5 +1,33 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-12 – Juna – Reine Worker-Änderungen ohne Anwendungstests und Web-Release
+
+**Auftrag (Nutzer, 12.10.):** Die Wartezeit je PR ist zu lang; Prüfungen, die nicht jedes Mal
+nötig sind, gezielter auslösen. Außerdem künftig größere statt vieler kleiner PRs.
+
+**Befund:** Bei den reinen Worker-PRs vom 11./12.10. liefen jedes Mal die Angular-Tests (bis 8,5
+Minuten) und der Browser-Smoke (10 bis 13 Minuten), obwohl beide den Worker nicht prüfen. Die
+Änderungserkennung stufte alles außer Doku und Deal-Monitor als Anwendungsänderung ein. Typen,
+633 Tests und Bau des Workers laufen ohnehin in jedem Lauf im Qualitäts-Job, sein Abbild im
+eigenen Workflow. Nach dem Merge wurde zusätzlich jedes Mal die Web-Anwendung neu gebaut und
+ausgeliefert.
+
+**Änderung:** Pfade unter `services/marketplace-worker/` zählen nicht mehr als Anwendungs- und
+Release-Änderung. Ausgenommen sind die Dateien, die Anwendungstests, E2E-Tests oder die
+Erweiterung einbinden (die beiden Vertragsdateien und `test/fixtures/`). Gemischte Änderungen
+bleiben im vollen Umfang.
+
+**Bewusst nicht geändert:** Die Worker-Abbilder werden weiterhin nur von Hand aus `master`
+veröffentlicht. Ein automatischer Bau nach dem Merge war vorbereitet, widerspricht aber dem
+Vertragstest „nur manuelles master darf Registry-Schreibrechte erhalten“ und wurde verworfen.
+Aus demselben Grund gibt es keine Auslieferung aus einem Zweig. Der Browser-Smoke läuft bei
+Oberflächenänderungen unverändert.
+
+**Prüfungen:** Neuer Fall der Änderungserkennung (reine Worker-Pfade, geteilte Dateien, gemischte
+Pfade), Pflichtprüfung für Worker-PR und Worker-Merge durchgespielt, 282 Workflow-Prüfungen,
+Format und ESLint grün. Dieser PR selbst läuft noch im vollen Umfang, weil er die Erkennung
+ändert.
+
 ## 2026-10-12 – Juna – Aufräumen überdeckte die Ursache gescheiterter Inseratabrufe
 
 **Befund nach PR 385:** Der nächste Klick auf „Bearbeiten“ protokollierte

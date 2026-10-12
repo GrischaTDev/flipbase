@@ -405,3 +405,45 @@ test('Verschieben einer UI-Datei ins Bot-Paket bleibt anwendungsrelevant', async
     assert.match(result.output, /application_tests=true\n/);
   });
 });
+
+test('reine Worker-Änderungen sparen Anwendungstests und Web-Release, geteilte Dateien nicht', () => {
+  const worker = 'services/marketplace-worker/src/marketplace-browser-http-api.ts';
+  for (const paths of [
+    [worker],
+    [worker, 'docs/AI-CHANGELOG.md'],
+    ['services/marketplace-worker/test/vinted-listing-content-http.test.ts'],
+    ['services/marketplace-worker/runtime/chromium-session.ts'],
+    ['services/marketplace-worker/package-lock.json'],
+    ['services/marketplace-worker/Dockerfile'],
+  ]) {
+    assert.deepEqual(
+      classifyChanges(paths),
+      { application: false, application_tests: false, supabase: false, sniper: false },
+      JSON.stringify(paths),
+    );
+  }
+  // Diese Worker-Dateien binden Anwendungstests, E2E-Tests oder die Erweiterung ein.
+  for (const shared of [
+    'services/marketplace-worker/src/vinted-listing-contracts.ts',
+    'services/marketplace-worker/src/vinted-negotiation-contracts.ts',
+    'services/marketplace-worker/test/fixtures/vinted-listing-current-content.ts',
+    'services/marketplace-worker/test/fixtures/vinted-inbox-events/unread-conversation.json',
+  ]) {
+    const changes = classifyChanges([worker, shared]);
+    assert.equal(changes.application_tests, true, shared);
+    assert.equal(changes.application, true, shared);
+  }
+  // Gemischte oder benachbarte Pfade bleiben im vollen Umfang.
+  for (const other of [
+    'src/app/features/marketplaces/models/marketplace-presentation.ts',
+    'tools/flipbase-extension/vinted-listing-runtime.js',
+    'supabase/functions/_shared/marketplace-listing-contracts.d.ts',
+    'services/marketplace-worker-other/src/config.ts',
+    'deploy/docker-compose.marketplace-chromium-pilot.yml',
+    '.github/workflows/marketplace-worker-image.yml',
+  ]) {
+    const changes = classifyChanges([worker, other]);
+    assert.equal(changes.application_tests, true, other);
+    assert.equal(changes.application, true, other);
+  }
+});
