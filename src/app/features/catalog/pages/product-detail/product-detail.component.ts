@@ -17,7 +17,7 @@ import {
   productSeoDescription,
   normalizeProductHandle,
 } from '../../../../core/utils/product-seo';
-import { ProductMediaEditorComponent } from '../../components/product-media-editor/product-media-editor.component';
+import { ProductMediaEditorComponent } from '../../../../shared/components/product-media-editor/product-media-editor.component';
 import { ProductVariantsComponent } from '../../components/product-variants/product-variants.component';
 import { DatePipe } from '@angular/common';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';

@@ -47,12 +47,13 @@
     <form [formGroup]="form" (ngSubmit)="save()">
       <app-two-column-layout ratio="2-1">
         <div main class="space-y-4">
-          <app-card>
-            <app-listing-image-editor
+          <app-card title="Fotos">
+            <app-product-media-editor
               [images]="photoDrafts()"
               [disabled]="!canArrangePhotos()"
               [canAdd]="false"
               [canCrop]="false"
+              [canDescribe]="false"
               [minimumImages]="1"
               (imagesChange)="onPhotoDraftsChanged($event)"
             />

@@ -1,5 +1,54 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-12 – Juna – Bearbeiten: Bild-Baustein der Produktseite, Speicherabbruch einordnen
+
+**Auftrag (Nutzer):** Das Speichern einer geänderten Fotoreihenfolge meldete „Vinted hat die
+Änderung nicht eindeutig bestätigt“. Außerdem ist der Bildeditor mit Griff, Pfeilen und Stern
+nicht der gewünschte Baustein; gemeint ist die Bildverwaltung der Produktseite.
+
+**Befund:** Der Speicherversuch vom 12.10. (20:44 Uhr) endete nach rund 25 Sekunden mit
+„Browsersitzung unterbrochen“. Der Sitzungsbroker ersetzt jeden Fehler, und die Speicher-Route
+hielt den Abschnitt nicht fest. Die Dauer passt zu einem Abbruch beim Verschieben der Fotos, also
+vor dem Klick auf „Speichern“ – belegt ist das nicht. Welche Bedingung Vinteds Ziehrahmen an
+einen Zug stellt (Haltezeit oder Mindestweg), ist ebenfalls nicht gemessen.
+
+**Änderung Worker:**
+
+- Das Speichern nennt bei einem Abbruch den festen Abschnitt (berechtigung, öffnen, lesen,
+  prüfen, fotos entfernen, fotos verschieben, texte eintragen, merkmale wählen, gegenlesen,
+  speichern, bestätigen). Die Route schreibt ihn als `marketplace_listing_read_detail` mit
+  `route: content/save` ins Protokoll, bevor der Broker den Fehler ersetzt. Inhalte, Kennungen
+  und Anbieterantworten bleiben draußen.
+- Fotos werden wie von Hand gezogen: drücken, kurz halten, langsam zum Ziel, dort verweilen,
+  loslassen. Greift ein Zug nicht, folgt genau ein zweiter am vorderen Rand des Ziels; zeigt das
+  Raster etwas anderes als „unverändert“ oder „verschoben“, wird abgebrochen und nicht gespeichert.
+- Die Testmaske verlangt jetzt Haltezeit und Weg (bewusst strenger als gemessen) und kann Ablagen
+  verwerfen.
+
+**Änderung Oberfläche:**
+
+- `app-product-media-editor` liegt jetzt unter `shared/components`, weil ihn Katalog und
+  Vinted-Bearbeitung verwenden. Neue Schalter: `canAdd`, `canCrop`, `canDescribe`
+  (Bildname und Alternativtext) und `minimumImages`. Die Produktseite verhält sich unverändert.
+- Die Bearbeiten-Maske zeigt die Vinted-Fotos mit diesem Baustein: großes Hauptbild, Ziehen direkt
+  am Bild, Klick öffnet die Bilddetails mit Position und „Bild löschen“.
+- Vorschaufehler eines Bildes verschwinden, sobald das Bild nicht mehr in der Galerie liegt
+  (vorher blieb die Meldung stehen, wenn die Fotos durch den Vinted-Stand ersetzt wurden). Das
+  technische Datei-Feld trägt zusätzlich `hidden`.
+- Die Schalter `canAdd`, `canCrop` und `minimumImages` am `app-listing-image-editor` aus der
+  vorigen Sitzung sind wieder entfernt, weil sie niemand mehr verwendet.
+
+**Offen:** Ob das Ziehen an der echten Vinted-Maske jetzt greift, zeigt erst der nächste Versuch
+an einem unkritischen Inserat; scheitert er, steht der Abschnitt im Protokoll. Die Maske zum
+Erstellen eines Inserats verwendet weiterhin `app-listing-image-editor`.
+
+**Prüfungen:** Worker: 634 Tests, Typen, ESLint, neun Browserfälle des Speicherns (darunter
+wiederholter und endgültig gescheiterter Zug) und zehn Fälle der Inhalts-Routen grün. App: alle
+231 Angular-Testdateien (2295 Tests), 206 Node-Testdateien, Workflow-Tests, Typen, ESLint,
+Prettier, Shared-UI-Prüfung und Bau grün; sechs Browserfälle der Inseratseite lokal mit
+Barrierefreiheitsprüfung auch des Bilddetails-Fensters, Bildschirmfotos bei 1440 und 390 Pixeln
+angesehen. Die Browserfälle der Produktseite brauchen die Datenbank und laufen erst im PR.
+
 ## 2026-10-12 – Juna – Bearbeiten: Bildeditor mit Drag and drop, Zielbild und Schnittstellen-Befund
 
 **Zielbild des Nutzers (12.10., nach PR 392):** „Bearbeiten“ soll ohne Wartezeit vollständig

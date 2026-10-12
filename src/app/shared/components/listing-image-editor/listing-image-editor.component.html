@@ -14,30 +14,28 @@
       }
     </ul>
   }
-  @if (canAdd()) {
-    <div
-      class="rounded-lg border border-dashed border-fb-border bg-fb-subtle p-4 text-center"
-      [class.border-fb-primary]="dragActive()"
-      (drop)="onDrop($event)"
-      (dragover)="onDragOver($event)"
-      (dragleave)="onDragLeave($event)"
+  <div
+    class="rounded-lg border border-dashed border-fb-border bg-fb-subtle p-4 text-center"
+    [class.border-fb-primary]="dragActive()"
+    (drop)="onDrop($event)"
+    (dragover)="onDragOver($event)"
+    (dragleave)="onDragLeave($event)"
+  >
+    <input
+      #files
+      type="file"
+      multiple
+      class="hidden"
+      aria-label="Inseratbilder auswählen"
+      [accept]="acceptedFormats()"
+      [disabled]="disabled()"
+      (change)="onFileSelected($event)"
+    />
+    <app-button variant="secondary" [disabled]="disabled()" (clicked)="files.click()"
+      >Bilder hinzufügen</app-button
     >
-      <input
-        #files
-        type="file"
-        multiple
-        class="hidden"
-        aria-label="Inseratbilder auswählen"
-        [accept]="acceptedFormats()"
-        [disabled]="disabled()"
-        (change)="onFileSelected($event)"
-      />
-      <app-button variant="secondary" [disabled]="disabled()" (clicked)="files.click()"
-        >Bilder hinzufügen</app-button
-      >
-      <p class="mt-2 text-xs text-fb-text-muted">oder Bilder hier ablegen</p>
-    </div>
-  }
+    <p class="mt-2 text-xs text-fb-text-muted">oder Bilder hier ablegen</p>
+  </div>
   @if (drafts().length) {
     <ol
       cdkDropList
@@ -132,21 +130,19 @@
               size="slim"
               [icon]="removeIcon"
               [iconOnly]="true"
-              [disabled]="disabled() || drafts().length <= minimumImages()"
+              [disabled]="disabled()"
               [ariaLabel]="image.fileName + ' entfernen'"
               (clicked)="remove(image.key)"
             />
-            @if (canCrop()) {
-              <app-button
-                variant="ghost"
-                size="slim"
-                [icon]="editIcon"
-                [iconOnly]="true"
-                [disabled]="disabled() || (!image.file && !image.previewUrl)"
-                [ariaLabel]="image.fileName + ' zuschneiden oder drehen'"
-                (clicked)="edit(image.key)"
-              />
-            }
+            <app-button
+              variant="ghost"
+              size="slim"
+              [icon]="editIcon"
+              [iconOnly]="true"
+              [disabled]="disabled() || (!image.file && !image.previewUrl)"
+              [ariaLabel]="image.fileName + ' zuschneiden oder drehen'"
+              (clicked)="edit(image.key)"
+            />
           </div>
         </li>
       }

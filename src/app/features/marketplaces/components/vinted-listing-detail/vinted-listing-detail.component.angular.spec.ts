@@ -12,7 +12,7 @@ import { CustomCheckboxComponent } from '../../../../shared/components/custom-ch
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 import { EntryPageLayoutComponent } from '../../../../shared/components/entry-page-layout/entry-page-layout.component';
 import { ImageCropperModalComponent } from '../../../../shared/components/image-cropper-modal/image-cropper-modal.component';
-import { ListingImageEditorComponent } from '../../../../shared/components/listing-image-editor/listing-image-editor.component';
+import { ProductMediaEditorComponent } from '../../../../shared/components/product-media-editor/product-media-editor.component';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
@@ -128,8 +128,8 @@ beforeAll(async () => {
       path: shared + 'entry-page-layout/entry-page-layout.component.ts',
     },
     {
-      type: ListingImageEditorComponent,
-      path: shared + 'listing-image-editor/listing-image-editor.component.ts',
+      type: ProductMediaEditorComponent,
+      path: shared + 'product-media-editor/product-media-editor.component.ts',
     },
     {
       type: ImageCropperModalComponent,
@@ -214,7 +214,7 @@ describe('Reaktive Inseratdetails', () => {
     // Ohne Foto oder mit einem fremden Bild bleibt der Stand unverändert.
     component.onPhotoDraftsChanged([]);
     component.onPhotoDraftsChanged([
-      { key: 'neu', storagePath: null, file: null, fileName: 'neu.jpg', previewUrl: '' },
+      { key: 'neu', media: null, file: null, fileName: 'neu.jpg', previewUrl: '' },
     ]);
     expect(component.photos()).toEqual([first]);
     await component.save();
@@ -258,21 +258,33 @@ describe('Reaktive Inseratdetails', () => {
     const headings = [...element.querySelectorAll('h2, h3')].map((heading) =>
       heading.textContent?.trim(),
     );
-    // Bilder stehen zuerst; die Artikelangaben folgen in der rechten Spalte auf Preis und Versand.
-    expect(headings.indexOf('Bilder')).toBe(0);
+    // Fotos stehen zuerst; die Artikelangaben folgen in der rechten Spalte auf Preis und Versand.
+    expect(headings.indexOf('Fotos')).toBe(0);
     expect(headings.indexOf('Artikelangaben')).toBeGreaterThan(
       headings.indexOf('Preis und Versand'),
     );
-    const editor = element.querySelector('app-listing-image-editor')!;
+    // Derselbe Bild-Baustein wie auf der Produktseite: großes Hauptbild, Ziehen direkt am Bild.
+    const editor = element.querySelector('app-product-media-editor')!;
+    // Vorhandene Fotos lassen sich verschieben und entfernen; eine Kachel zum Hinzufügen fehlt.
     expect(editor.querySelectorAll('li')).toHaveLength(2);
-    // Vorhandene Fotos lassen sich verschieben und entfernen, aber nicht ergänzen oder zuschneiden.
-    expect(editor.querySelector('input[type="file"]')).toBeNull();
-    const labels = [...editor.querySelectorAll('button')].map((button) =>
-      button.getAttribute('aria-label'),
-    );
-    expect(labels).toContain('Foto 2 als Titelbild setzen');
-    expect(labels).toContain('Foto 1 entfernen');
-    expect(labels.some((label) => label?.includes('zuschneiden'))).toBe(false);
+    expect(editor.querySelector('[data-add-media]')).toBeNull();
+    expect(editor.querySelector<HTMLInputElement>('input[type="file"]')?.disabled).toBe(true);
+    expect(
+      [...editor.querySelectorAll('button')].map((button) => button.getAttribute('aria-label')),
+    ).toEqual(['Hauptbild: Foto 1, Details öffnen', 'Bild 2: Foto 2, Details öffnen']);
+    // Die Bilddetails bieten Position und Löschen, aber weder Bildname noch Zuschneiden.
+    editor.querySelectorAll('button')[1]!.click();
+    fixture.detectChanges();
+    const details = element.querySelector('app-modal-shell')!;
+    expect(details.textContent).toContain('Position in der Galerie');
+    expect(details.textContent).toContain('Bild löschen');
+    expect(details.textContent).not.toContain('Bildname');
+    expect(details.textContent).not.toContain('Zuschneiden');
+    [...details.querySelectorAll('button')]
+      .find((button) => button.textContent?.trim() === 'Abbrechen')!
+      .click();
+    fixture.detectChanges();
+    expect(element.querySelector('app-modal-shell')).toBeNull();
     // Farben und Material sind Auswahlboxen, keine Checkbox-Listen.
     expect(element.querySelectorAll('app-attribute-picker')).toHaveLength(2);
     expect(element.querySelector('[role="checkbox"]')).toBeNull();

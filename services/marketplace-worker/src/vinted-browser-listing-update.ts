@@ -20,6 +20,31 @@ function invalid(): Error {
   return new Error('Die Änderungen konnten nicht sicher in das Vinted-Inserat übernommen werden.');
 }
 
+/**
+ * Abschnitte des Speicherns. Bei einem Abbruch steht nur diese feste Bezeichnung im Protokoll,
+ * nie Inhalte, Kennungen oder Anbieterantworten. Bis einschließlich „gegenlesen“ wurde bei
+ * Vinted nichts gespeichert.
+ */
+export const vintedListingUpdateSteps = {
+  authorize: 'berechtigung',
+  open: 'öffnen',
+  read: 'lesen',
+  check: 'prüfen',
+  photoRemove: 'fotos entfernen',
+  photoMove: 'fotos verschieben',
+  text: 'texte eintragen',
+  fields: 'merkmale wählen',
+  verify: 'gegenlesen',
+  save: 'speichern',
+  confirm: 'bestätigen',
+} as const;
+export type VintedListingUpdateStep = keyof typeof vintedListingUpdateSteps;
+
+/** Feste Meldung eines Abbruchs; besteht nur aus gewöhnlichen Wörtern und übersteht so den Transport. */
+export function vintedListingUpdateFailure(step: VintedListingUpdateStep): Error {
+  return new Error('Speichern abgebrochen bei ' + vintedListingUpdateSteps[step]);
+}
+
 /** Gewünschte Auswahl je Merkmal; ein nie gewähltes Merkmal bleibt leer statt „Keine Marke“. */
 function wanted(
   content: VintedListingContent,
@@ -78,7 +103,7 @@ export async function updateVintedListingContent(
   /** Stand, auf dem die Änderung beruht. Weicht Vinted davon ab, wird nichts geschrieben. */
   base: VintedListingContent,
   desired: VintedListingContent,
-  authorize: () => Promise<void>,
+  authorizeChange: () => Promise<void>,
   confirmationTimeoutMs = 20_000,
   /** Fehlt die Angabe, bleiben die Fotos unverändert. */
   photos?: VintedListingPhotoArrangement,
@@ -92,6 +117,15 @@ export async function updateVintedListingContent(
     throw invalid();
   // Eine Seite mit Benutzerarbeit wird weder verwendet noch geschlossen.
   if (page.url() !== 'about:blank') throw new Error('Die Inseratseite ist nicht neu reserviert.');
+  let authorizationFailed = false;
+  const authorize = async () => {
+    try {
+      await authorizeChange();
+    } catch (error) {
+      authorizationFailed = true;
+      throw error;
+    }
+  };
   const target = 'https://www.vinted.de/items/' + externalId + '/edit';
   const open = async () => {
     await page.goto(target, { waitUntil: 'domcontentloaded', timeout: 15_000 });
@@ -113,11 +147,14 @@ export async function updateVintedListingContent(
     expected: readonly string[],
     aiPhoto: VintedListingCurrentContent['aiPhoto'],
   ) => sameVintedListingPhotos(left.photoUrls, expected) && left.aiPhoto === aiPhoto;
+  let step: VintedListingUpdateStep = 'open';
   try {
     await authorize();
     await open();
     await check();
+    step = 'read';
     const current = await readOpenVintedListingContent(page, accountId, externalId, check);
+    step = 'check';
     if (!sameContent(current.content, base)) return 'conflict';
     // Fotos, die inzwischen bei Vinted geändert wurden, werden nicht überschrieben.
     if (photos && !sameVintedListingPhotos(current.photoUrls, photos.base)) return 'conflict';
@@ -150,7 +187,10 @@ export async function updateVintedListingContent(
       throw invalid();
     if (changed.size === 0 && !photosChanged) return 'confirmed';
     if (photosChanged)
-      await arrangeVintedListingPhotos(page, current.photoUrls, desiredPhotos, check);
+      await arrangeVintedListingPhotos(page, current.photoUrls, desiredPhotos, check, (next) => {
+        step = next === 'remove' ? 'photoRemove' : 'photoMove';
+      });
+    step = 'text';
     for (const [name, selector, value] of [
       ['title', 'input[name="title"]', desired.title],
       ['description', 'textarea[name="description"]', desired.description],
@@ -166,10 +206,12 @@ export async function updateVintedListingContent(
       await check();
       await page.locator('#content ' + selector).fill(value);
     }
+    step = 'fields';
     for (const field of current.schema.fields)
       if (changed.has(field.field))
         await selectVintedListingField(page, field, wanted(desired, field.field), check);
     await check();
+    step = 'verify';
     const prepared = await readOpenVintedListingContent(page, accountId, externalId, check);
     if (
       !sameContent(prepared.content, desired) ||
@@ -180,12 +222,14 @@ export async function updateVintedListingContent(
     if ((await save.count()) !== 1 || !(await save.isVisible()) || !(await save.isEnabled()))
       throw invalid();
     await check();
+    step = 'save';
     try {
       await save.click({ timeout: 10_000 });
     } catch {
       // Der Klick kann bereits gespeichert haben; ein automatischer Wiederholungsversuch wäre unsicher.
       return 'unconfirmed';
     }
+    step = 'confirm';
     // Der Beleg bleibt auch nach einem späteren Widerruf lesbar; er löst keine weitere Aktion aus.
     return await confirmVintedEdit(
       async () => {
@@ -196,6 +240,8 @@ export async function updateVintedListingContent(
         sameContent(saved.content, desired) && samePhotos(saved, desiredPhotos, current.aiPhoto),
       confirmationTimeoutMs,
     );
+  } catch {
+    throw vintedListingUpdateFailure(authorizationFailed ? 'authorize' : step);
   } finally {
     await page.close();
   }

@@ -13,25 +13,19 @@ import {
   output,
   signal,
 } from '@angular/core';
-import { ProductImageDraft } from '../../../../core/models/product-media.models';
+import { ProductImageDraft } from '../../../core/models/product-media.models';
 import { CdkDrag, CdkDragDrop, CdkDragPlaceholder, CdkDropList } from '@angular/cdk/drag-drop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { LucideDynamicIcon, LucideGrip, LucidePlus } from '@lucide/angular';
-import { ButtonComponent } from '../../../../shared/components/button/button.component';
-import {
-  CustomSelectComponent,
-  SelectOption,
-} from '../../../../shared/components/custom-select/custom-select.component';
-import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
-import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
+import { ButtonComponent } from '../button/button.component';
+import { CustomSelectComponent, SelectOption } from '../custom-select/custom-select.component';
+import { ModalShellComponent } from '../modal-shell/modal-shell.component';
+import { TextFieldComponent } from '../text-field/text-field.component';
 import {
   CroppedImageResult,
   ImageCropperModalComponent,
-} from '../../../../shared/components/image-cropper-modal/image-cropper-modal.component';
-import {
-  IMAGE_FILE_ACCEPT,
-  imageFileError,
-} from '../../../../shared/components/image-cropper-modal/image-file';
+} from '../image-cropper-modal/image-cropper-modal.component';
+import { IMAGE_FILE_ACCEPT, imageFileError } from '../image-cropper-modal/image-file';
 
 @Component({
   selector: 'app-product-media-editor',
@@ -56,10 +50,28 @@ export class ProductMediaEditorComponent {
   readonly dragStartDelay = { touch: 200, mouse: 0 } as const;
   readonly images = input<readonly ProductImageDraft[]>([]);
   readonly disabled = input(false);
+  /** `false`: Es lassen sich keine neuen Bilder auswählen oder ablegen. */
+  readonly canAdd = input(true);
+  /** `false`: Das Zuschneiden entfällt, etwa bei Bildern, die ein Marktplatz verwaltet. */
+  readonly canCrop = input(true);
+  /** `false`: Bildname und Alternativtext entfallen; Position und Löschen bleiben. */
+  readonly canDescribe = input(true);
+  /** Unter dieser Anzahl lässt sich kein Bild mehr entfernen. */
+  readonly minimumImages = input(0);
+  readonly canRemove = computed(() => this.drafts().length > this.minimumImages());
   readonly imagesChange = output<readonly ProductImageDraft[]>();
   readonly imageFailed = output<ProductImageDraft>();
   readonly drafts = linkedSignal(() => this.images());
   readonly errors = signal<readonly string[]>([]);
+  private readonly previewErrors = signal<ReadonlyMap<string, string>>(new Map());
+  /** Vorschaufehler gelten nur, solange das betroffene Bild noch in der Galerie liegt. */
+  readonly shownErrors = computed(() => {
+    const keys = new Set(this.drafts().map((image) => image.key));
+    const outdated = new Set(
+      [...this.previewErrors()].filter(([key]) => !keys.has(key)).map(([, message]) => message),
+    );
+    return this.errors().filter((message) => !outdated.has(message));
+  });
   readonly announcement = signal('');
   readonly dragActive = signal(false);
   readonly cropKey = signal<string | null>(null);
@@ -122,14 +134,14 @@ export class ProductMediaEditorComponent {
   }
 
   onDragEnter(event: DragEvent): void {
-    if (this.disabled() || !event.dataTransfer?.types.includes('Files')) return;
+    if (this.disabled() || !this.canAdd() || !event.dataTransfer?.types.includes('Files')) return;
     event.preventDefault();
     this.dragDepth++;
     this.dragActive.set(true);
   }
 
   onDragOver(event: DragEvent): void {
-    if (this.disabled() || !event.dataTransfer?.types.includes('Files')) return;
+    if (this.disabled() || !this.canAdd() || !event.dataTransfer?.types.includes('Files')) return;
     event.preventDefault();
     event.stopPropagation();
     this.dragActive.set(true);
@@ -141,7 +153,7 @@ export class ProductMediaEditorComponent {
   }
 
   addFiles(files: readonly File[]): void {
-    if (this.disabled() || files.length === 0) return;
+    if (this.disabled() || !this.canAdd() || files.length === 0) return;
     const rejected: string[] = [];
     const additions: ProductImageDraft[] = [];
     for (const file of files) {
@@ -214,7 +226,9 @@ export class ProductMediaEditorComponent {
       return;
     }
     const images = this.drafts().map((image) =>
-      image.key === key ? { ...image, fileName: fileName.trim(), altText: altText.trim() } : image,
+      image.key === key && this.canDescribe()
+        ? { ...image, fileName: fileName.trim(), altText: altText.trim() }
+        : image,
     );
     const index = images.findIndex((image) => image.key === key);
     const target = Math.min(Math.max(Number(position) - 1, 0), images.length - 1);
@@ -222,7 +236,11 @@ export class ProductMediaEditorComponent {
     images.splice(target, 0, image);
     this.change(images);
     this.detailsKey.set(null);
-    this.announcement.set(`Bildangaben gespeichert. Bild auf Position ${target + 1}.`);
+    this.announcement.set(
+      (this.canDescribe() ? 'Bildangaben gespeichert. ' : '') +
+        `Bild auf Position ${target + 1}.` +
+        (target === 0 ? ' Es ist jetzt das Hauptbild.' : ''),
+    );
   }
 
   removeFromDetails(): void {
@@ -240,7 +258,7 @@ export class ProductMediaEditorComponent {
   }
 
   remove(key: string, event?: MouseEvent): void {
-    if (this.disabled()) return;
+    if (this.disabled() || !this.canRemove()) return;
     const removedIndex = this.drafts().findIndex((image) => image.key === key);
     if (removedIndex < 0) return;
     const button = event?.target instanceof Element ? event.target.closest('button') : null;
@@ -270,7 +288,8 @@ export class ProductMediaEditorComponent {
   }
 
   startCrop(key: string): void {
-    if (!this.disabled() && this.drafts().some((image) => image.key === key)) this.cropKey.set(key);
+    if (!this.disabled() && this.canCrop() && this.drafts().some((image) => image.key === key))
+      this.cropKey.set(key);
   }
 
   applyCrop(result: CroppedImageResult): void {
@@ -296,6 +315,7 @@ export class ProductMediaEditorComponent {
         (image.file?.name ?? image.media?.file_name ?? 'Bild') +
         ': Die Vorschau konnte nicht geladen werden.';
       this.errors.update((errors) => (errors.includes(message) ? errors : [...errors, message]));
+      this.previewErrors.update((failed) => new Map(failed).set(key, message));
       this.imageFailed.emit(image);
     }
   }
