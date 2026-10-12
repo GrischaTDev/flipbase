@@ -34,6 +34,8 @@ import { VintedProfileEditorComponent } from './components/vinted-profile-editor
 import { VintedListingDetailComponent } from './components/vinted-listing-detail/vinted-listing-detail.component';
 import { EntryPageLayoutComponent } from '../../shared/components/entry-page-layout/entry-page-layout.component';
 import { AttributePickerComponent } from '../../shared/components/attribute-picker/attribute-picker.component';
+import { ImageCropperModalComponent } from '../../shared/components/image-cropper-modal/image-cropper-modal.component';
+import { ListingImageEditorComponent } from '../../shared/components/listing-image-editor/listing-image-editor.component';
 import { TwoColumnLayoutComponent } from '../../shared/components/two-column-layout/two-column-layout.component';
 import { VintedRatingComponent } from './components/vinted-rating/vinted-rating.component';
 import { VintedFeedbackListComponent } from './components/vinted-feedback-list/vinted-feedback-list.component';
@@ -230,6 +232,14 @@ beforeAll(async () => {
     {
       type: AttributePickerComponent,
       path: 'src/app/shared/components/attribute-picker/attribute-picker.component.ts',
+    },
+    {
+      type: ListingImageEditorComponent,
+      path: 'src/app/shared/components/listing-image-editor/listing-image-editor.component.ts',
+    },
+    {
+      type: ImageCropperModalComponent,
+      path: 'src/app/shared/components/image-cropper-modal/image-cropper-modal.component.ts',
     },
     {
       type: TwoColumnLayoutComponent,

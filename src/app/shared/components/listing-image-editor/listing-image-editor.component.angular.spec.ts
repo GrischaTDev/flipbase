@@ -38,7 +38,13 @@ beforeAll(async () => {
     if (matches.length !== 1) throw new Error(`Test-Ressource nicht eindeutig: ${url}`);
     return readFile(matches[0], 'utf8');
   });
-  registerSignalInputs(ListingImageEditorComponent, ['images', 'disabled']);
+  registerSignalInputs(ListingImageEditorComponent, [
+    'images',
+    'disabled',
+    'canAdd',
+    'canCrop',
+    'minimumImages',
+  ]);
   registerSignalInputs(ButtonComponent, [
     'variant',
     'size',
@@ -117,6 +123,46 @@ describe('ListingImageEditorComponent', () => {
 
     expect(reordered.map((image) => image.key)).toEqual(['drei', 'eins', 'zwei']);
     expect(fixture.componentInstance.drafts()[0]?.fileName).toBe('drei.jpg');
+    fixture.destroy();
+  });
+
+  it('sortiert und entfernt vorhandene Bilder, ohne neue anzunehmen oder das letzte zu löschen', () => {
+    const fixture = TestBed.createComponent(ListingImageEditorComponent);
+    const images: ListingImageDraft[] = ['eins', 'zwei'].map((name) => ({
+      key: name,
+      storagePath: null,
+      file: null,
+      fileName: name,
+      previewUrl: 'https://images.example.test/' + name + '.webp',
+    }));
+    fixture.componentRef.setInput('images', images);
+    fixture.componentRef.setInput('canAdd', false);
+    fixture.componentRef.setInput('canCrop', false);
+    fixture.componentRef.setInput('minimumImages', 1);
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelector('input[type="file"]')).toBeNull();
+    expect(element.textContent).not.toContain('Bilder hinzufügen');
+    expect(element.querySelector('button[aria-label$="zuschneiden oder drehen"]')).toBeNull();
+
+    const changes: (readonly ListingImageDraft[])[] = [];
+    fixture.componentInstance.imagesChange.subscribe((value) => changes.push(value));
+    // Abgelegte Dateien werden nicht übernommen.
+    fixture.componentInstance.addFiles([new File(['x'], 'neu.jpg', { type: 'image/jpeg' })]);
+    fixture.componentInstance.edit('eins');
+    expect(changes).toEqual([]);
+    expect(fixture.componentInstance.editing()).toBeNull();
+
+    fixture.componentInstance.setPrimary('zwei');
+    fixture.componentInstance.remove('eins');
+    expect(changes.at(-1)?.map((image) => image.key)).toEqual(['zwei']);
+    // Das letzte Bild bleibt erhalten.
+    fixture.componentInstance.remove('zwei');
+    expect(fixture.componentInstance.drafts().map((image) => image.key)).toEqual(['zwei']);
+    fixture.detectChanges();
+    expect(
+      element.querySelector<HTMLButtonElement>('button[aria-label="zwei entfernen"]')?.disabled,
+    ).toBe(true);
     fixture.destroy();
   });
 });
