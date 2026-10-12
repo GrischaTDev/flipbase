@@ -109,6 +109,25 @@ function isDocumentationOnly(path) {
   );
 }
 
+/**
+ * Der Marketplace-Worker ist ein eigenes Paket mit eigenem Abbild. Seine Typen, Tests und sein
+ * Bau laufen in jedem Lauf im Qualitäts-Job, sein Abbild im eigenen Workflow. Nur diese Dateien
+ * werden auch von Anwendungstests, E2E-Tests oder der Erweiterung eingebunden und bleiben
+ * deshalb anwendungsrelevant.
+ */
+const workerPathsUsedByApplication = [
+  'services/marketplace-worker/src/vinted-listing-contracts.ts',
+  'services/marketplace-worker/src/vinted-negotiation-contracts.ts',
+  'services/marketplace-worker/test/fixtures/',
+];
+
+function isWorkerOnly(path) {
+  return (
+    path.startsWith('services/marketplace-worker/') &&
+    !workerPathsUsedByApplication.some((shared) => path.startsWith(shared))
+  );
+}
+
 function selectsPath(path, prefix) {
   return path.startsWith(prefix) || sharedValidationPaths.has(path);
 }
@@ -119,12 +138,14 @@ export function classifyChanges(paths) {
   }
 
   return {
-    // Release-Auswahl unverändert lassen: darüber laufen auch SQL-Paket und Versionsprüfung.
-    application: paths.some((path) => !isDocumentationOnly(path)),
-    // Nur das eigenständige Dienstpaket ist sicher vom Frontend abgrenzbar.
+    // Über die Release-Auswahl laufen auch SQL-Paket und Versionsprüfung. Reine
+    // Worker-Änderungen verändern weder Web-Abbild noch SQL-Paket und lösen sie nicht aus.
+    application: paths.some((path) => !isDocumentationOnly(path) && !isWorkerOnly(path)),
+    // Nur eigenständige Dienstpakete sind sicher vom Frontend abgrenzbar.
     // Unbekannte oder gemischte Änderungen bleiben im vollständigen Prüfumfang.
     application_tests: paths.some(
-      (path) => !isDocumentationOnly(path) && !path.startsWith('services/sniper/'),
+      (path) =>
+        !isDocumentationOnly(path) && !path.startsWith('services/sniper/') && !isWorkerOnly(path),
     ),
     supabase: paths.some(
       (path) =>

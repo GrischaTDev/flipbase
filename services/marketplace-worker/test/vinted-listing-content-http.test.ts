@@ -27,7 +27,8 @@ async function fixture(
     failConfirm?: boolean;
   } = {},
 ) {
-  let opened = 0,
+  let terminated = false,
+    opened = 0,
     closed = 0,
     reads = 0,
     reassigned = false;
@@ -82,11 +83,15 @@ async function fixture(
         operation: (browser: BrowserInfo) => Promise<T>,
       ) =>
         operation(browser).catch((error: unknown) => {
-          if (options.failAtStep) throw new MarketplaceBrowserSessionEndedError('interrupted');
+          if (options.failAtStep) {
+            terminated = true;
+            throw new MarketplaceBrowserSessionEndedError('interrupted');
+          }
           throw error;
         }),
       close: () => {
         closed++;
+        if (terminated) return Promise.reject(new Error('Sitzungszugriff verweigert'));
         return options.failClose && closed === 1
           ? Promise.reject(new Error('private stop detail 42'))
           : Promise.resolve();
