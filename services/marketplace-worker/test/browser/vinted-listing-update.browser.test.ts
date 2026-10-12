@@ -44,7 +44,7 @@ test('writes only into an own fresh tab, saves once and confirms by reading the 
     assert.deepEqual(f.state(), {
       title: 'Fußballschuhe Jako',
       description: 'Kaum getragen.',
-      price: '18,00',
+      price: '18,00 €',
       brand: 317425,
       size: 608,
       condition: 3,
@@ -53,6 +53,30 @@ test('writes only into an own fresh tab, saves once and confirms by reading the 
       packageSize: 3,
       photos: [editFormPhotoUrls[0]],
     });
+  } finally {
+    await browser.close();
+  }
+});
+
+test('saves a price that is the only change although the form reformats it on leaving the field', async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage(),
+      f = await createVintedListingEditFormFixture(page);
+    assert.equal(
+      await updateVintedListingContent(
+        page,
+        '123',
+        '98765',
+        base,
+        { ...base, priceCents: 1000 },
+        allow,
+      ),
+      'confirmed',
+    );
+    assert.equal(f.saves(), 1);
+    assert.equal(f.state().price, '10,00 €');
+    assert.equal(f.state().title, 'Meine Schuhe');
   } finally {
     await browser.close();
   }

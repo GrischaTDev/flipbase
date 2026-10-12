@@ -1,5 +1,45 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-12 – Juna – Bearbeiten: Preisänderung scheiterte am Gegenlesen; Konkurrenzvergleich
+
+**Befund (echte Versuche des Nutzers nach PR 395):**
+
+- Titelbild getauscht: bei Vinted geändert, Flipbase meldete trotzdem „nicht eindeutig
+  bestätigt“. Das Ziehen der Fotos greift also an der echten Maske. Warum die Bestätigung
+  ausblieb, ist offen; das erneute Lesen der Maske dauert rund 25 Sekunden bei 20 Sekunden Frist,
+  es gibt also nur einen Versuch.
+- Preis von 8 auf 10 Euro: Protokoll „Speichern abgebrochen bei gegenlesen“, bei Vinted nichts
+  geändert. Die Oberfläche meldete auch hier „nicht eindeutig bestätigt“, was in diesem Fall
+  falsch ist (Abbruch vor dem Speichern) – noch nicht korrigiert.
+
+**Vermutete Ursache (nachgestellt, an echtem Vinted nicht gemessen):** Der Preis wird eingetragen,
+das Feld aber nicht verlassen. Formatiert die Maske den Wert erst beim Verlassen, ändert er sich
+während des Gegenlesens, und der Leser wertet das als fremde Änderung der Maske. Bei Änderungen,
+die danach noch eine Auswahlliste öffnen, fiel das nicht auf.
+
+**Änderung:** Nach dem Eintragen von Titel, Beschreibung und Preis wird das Feld verlassen. Ein
+Abbruch beim Gegenlesen nennt zusätzlich, woran es lag: den Schritt des Lesens oder ob Inhalt,
+Fotos oder der Speichern-Knopf abwichen. Die Testmaske formatiert den Preis beim Verlassen; ein
+neuer Fall ändert nur den Preis und scheiterte ohne die Korrektur mit derselben Meldung wie beim
+Nutzer.
+
+**Konkurrenz angesehen (Oberflächentexte der Vintz-Demo, Bleam-Dashboard im Browser des
+Nutzers, nichts gespeichert):** Vintz bietet eine Browser-Erweiterung und Cloud-Konten mit Proxy,
+arbeitet wahlweise mit direkten Anfragen im Hintergrund („Auto“) oder über das sichtbare
+Originalformular („Semi“, wie Flipbase bisher), bearbeitet auf gespeicherten Artikeldaten und
+führt Cloud-Aktionen als Warteschlange aus. Bleam ist eine Erweiterung in der Vinted-Sitzung, zeigt
+den Kleiderschrank aus einer Sicherung und bietet dort Relist, Preis und Löschen.
+
+**Empfohlene Reihenfolge (vom Nutzer noch nicht bestätigt):** Lesen, Kontrolle und Bestätigung
+über Vinteds Schnittstellen; Inseratdaten beim Synchronisieren mitspeichern; Speichern als
+Auftrag im Hintergrund; direktes Speichern zunächst nur für Titel, Beschreibung und Preis.
+
+**Hinweis:** Eine reine Beobachtung auf dem Server zeichnete zwei Läufe nicht auf, weil das
+Skript den Namen der Browsersitzung falsch filterte; korrigiert, Auswertung steht aus.
+
+**Prüfungen:** Worker-Tests, Typen, ESLint und zehn Browserfälle des Speicherns grün; der neue
+Fall war ohne die Korrektur rot.
+
 ## 2026-10-12 – Juna – Bearbeiten: Bild-Baustein der Produktseite, Speicherabbruch einordnen
 
 **Auftrag (Nutzer):** Das Speichern einer geänderten Fotoreihenfolge meldete „Vinted hat die

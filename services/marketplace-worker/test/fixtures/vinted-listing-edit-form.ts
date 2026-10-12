@@ -159,6 +159,14 @@ export async function createVintedListingEditFormFixture(
         const [photo]=photos.splice(from,1);photos.splice(to,0,photo);renderPhotos();
       };
       renderPhotos();
+      // Annahme, an der echten Maske nicht gemessen: Der Preis erhält sein Format erst beim
+      // Verlassen des Feldes. Ein Wert, der sich dadurch während des Lesens ändert, gilt dem Leser
+      // als veränderte Maske.
+      const priceInput=document.querySelector('[name=price]');
+      priceInput.onblur=()=>{
+        const match=/^([0-9]+)(?:[,.]([0-9]{1,2}))?$/.exec(priceInput.value.split('€').join('').trim());
+        if(match) priceInput.value=match[1]+','+(match[2]||'').padEnd(2,'0')+' €';
+      };
       const names=['category','brand','size','condition','color','material'];
       const multiple=['color','material'];
       const hide=()=>names.forEach(name=>document.querySelector('#'+name+'-options').hidden=true);

@@ -352,6 +352,13 @@ test('content HTTP save logs the step of an aborted save before the broker repla
   // Jede Abschnittsmeldung besteht nur aus gewöhnlichen Wörtern, sonst entfiele sie im Protokoll.
   for (const step of Object.keys(vintedListingUpdateSteps) as VintedListingUpdateStep[])
     assert.match(vintedListingUpdateFailure(step).message, plainFailureMessage);
+  // Beim Gegenlesen kommt hinzu, woran es lag: ein Schritt des Lesens oder die Art der Abweichung.
+  for (const detail of ['changed', 'values', 'inhalt', 'fotos', 'knopf'] as const)
+    assert.match(vintedListingUpdateFailure('verify', detail).message, plainFailureMessage);
+  assert.equal(
+    vintedListingUpdateFailure('verify', 'changed').message,
+    'Speichern abgebrochen bei gegenlesen changed',
+  );
   const f = await fixture({ failSave: true });
   try {
     const lines = await capturedListingFailures(async () => {

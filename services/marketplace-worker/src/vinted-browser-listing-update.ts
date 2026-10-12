@@ -1,3 +1,4 @@
+import { setTimeout as wait } from 'node:timers/promises';
 import type { Page } from 'playwright';
 import type {
   VintedListingChoiceField,
@@ -15,6 +16,7 @@ import {
   type VintedListingPhotoArrangement,
 } from './vinted-browser-listing-photo-order.ts';
 import { validateVintedListingSubmission } from './vinted-listing-contracts.ts';
+import type { VintedListingReadStep } from './vinted-listing-read-error.ts';
 
 function invalid(): Error {
   return new Error('Die Änderungen konnten nicht sicher in das Vinted-Inserat übernommen werden.');
@@ -41,8 +43,14 @@ export const vintedListingUpdateSteps = {
 export type VintedListingUpdateStep = keyof typeof vintedListingUpdateSteps;
 
 /** Feste Meldung eines Abbruchs; besteht nur aus gewöhnlichen Wörtern und übersteht so den Transport. */
-export function vintedListingUpdateFailure(step: VintedListingUpdateStep): Error {
-  return new Error('Speichern abgebrochen bei ' + vintedListingUpdateSteps[step]);
+export function vintedListingUpdateFailure(
+  step: VintedListingUpdateStep,
+  /** Feste Zusatzangabe, etwa der Schritt des Lesens oder was beim Gegenlesen abwich. */
+  detail?: VintedListingReadStep | 'inhalt' | 'fotos' | 'knopf',
+): Error {
+  return new Error(
+    'Speichern abgebrochen bei ' + vintedListingUpdateSteps[step] + (detail ? ' ' + detail : ''),
+  );
 }
 
 /** Gewünschte Auswahl je Merkmal; ein nie gewähltes Merkmal bleibt leer statt „Keine Marke“. */
@@ -148,6 +156,7 @@ export async function updateVintedListingContent(
     aiPhoto: VintedListingCurrentContent['aiPhoto'],
   ) => sameVintedListingPhotos(left.photoUrls, expected) && left.aiPhoto === aiPhoto;
   let step: VintedListingUpdateStep = 'open';
+  let detail: Parameters<typeof vintedListingUpdateFailure>[1];
   try {
     await authorize();
     await open();
@@ -204,23 +213,38 @@ export async function updateVintedListingContent(
     ] as const) {
       if (!changed.has(name)) continue;
       await check();
-      await page.locator('#content ' + selector).fill(value);
+      const input = page.locator('#content ' + selector);
+      await input.fill(value);
+      // Das Feld verlassen, damit die Maske ihren Wert sofort in ihr eigenes Format bringt (etwa
+      // den Preis). Sonst ändert er sich erst während des Gegenlesens und gilt dort als fremde
+      // Änderung der Maske.
+      await input.blur();
     }
+    if (changed.has('title') || changed.has('description') || changed.has('price')) await wait(200);
     step = 'fields';
     for (const field of current.schema.fields)
       if (changed.has(field.field))
         await selectVintedListingField(page, field, wanted(desired, field.field), check);
     await check();
     step = 'verify';
-    const prepared = await readOpenVintedListingContent(page, accountId, externalId, check);
-    if (
-      !sameContent(prepared.content, desired) ||
-      !samePhotos(prepared, desiredPhotos, current.aiPhoto)
-    )
-      throw invalid();
+    const prepared = await readOpenVintedListingContent(
+      page,
+      accountId,
+      externalId,
+      check,
+      (next) => {
+        detail = next;
+      },
+    );
+    detail = 'inhalt';
+    if (!sameContent(prepared.content, desired)) throw invalid();
+    detail = 'fotos';
+    if (!samePhotos(prepared, desiredPhotos, current.aiPhoto)) throw invalid();
+    detail = 'knopf';
     const save = page.locator('#content').getByRole('button', { name: 'Speichern', exact: true });
     if ((await save.count()) !== 1 || !(await save.isVisible()) || !(await save.isEnabled()))
       throw invalid();
+    detail = undefined;
     await check();
     step = 'save';
     try {
@@ -241,7 +265,9 @@ export async function updateVintedListingContent(
       confirmationTimeoutMs,
     );
   } catch {
-    throw vintedListingUpdateFailure(authorizationFailed ? 'authorize' : step);
+    throw authorizationFailed
+      ? vintedListingUpdateFailure('authorize')
+      : vintedListingUpdateFailure(step, step === 'verify' ? detail : undefined);
   } finally {
     await page.close();
   }
