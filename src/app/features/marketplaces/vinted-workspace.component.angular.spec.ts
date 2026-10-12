@@ -33,6 +33,7 @@ import { VintedAccountContentComponent } from './components/vinted-account-conte
 import { VintedProfileEditorComponent } from './components/vinted-profile-editor/vinted-profile-editor.component';
 import { VintedListingDetailComponent } from './components/vinted-listing-detail/vinted-listing-detail.component';
 import { EntryPageLayoutComponent } from '../../shared/components/entry-page-layout/entry-page-layout.component';
+import { AttributePickerComponent } from '../../shared/components/attribute-picker/attribute-picker.component';
 import { TwoColumnLayoutComponent } from '../../shared/components/two-column-layout/two-column-layout.component';
 import { VintedRatingComponent } from './components/vinted-rating/vinted-rating.component';
 import { VintedFeedbackListComponent } from './components/vinted-feedback-list/vinted-feedback-list.component';
@@ -225,6 +226,10 @@ beforeAll(async () => {
     {
       type: EntryPageLayoutComponent,
       path: 'src/app/shared/components/entry-page-layout/entry-page-layout.component.ts',
+    },
+    {
+      type: AttributePickerComponent,
+      path: 'src/app/shared/components/attribute-picker/attribute-picker.component.ts',
     },
     {
       type: TwoColumnLayoutComponent,

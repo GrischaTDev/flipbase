@@ -5,6 +5,7 @@ import { BehaviorSubject } from 'rxjs';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import axe from 'axe-core';
 import { prepareMarketplaceRendering } from '../../../../../../e2e/support/marketplace-rendering';
+import { AttributePickerComponent } from '../../../../shared/components/attribute-picker/attribute-picker.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
@@ -108,6 +109,10 @@ beforeAll(async () => {
       type: VintedListingMetricsComponent,
       path: 'src/app/features/marketplaces/components/vinted-listings/vinted-listing-metrics.component.ts',
     },
+    {
+      type: AttributePickerComponent,
+      path: shared + 'attribute-picker/attribute-picker.component.ts',
+    },
     { type: ButtonComponent, path: shared + 'button/button.component.ts' },
     { type: CardComponent, path: shared + 'card/card.component.ts' },
     {
@@ -200,7 +205,12 @@ describe('Reaktive Inseratdetails', () => {
     expect(headings.indexOf('Fotos')).toBe(0);
     expect(headings).toContain('Artikelangaben');
     expect(headings).toContain('Preis und Versand');
-    expect(element.querySelectorAll('[aria-label="Fotos des Inserats"] li')).toHaveLength(2);
+    expect(element.querySelectorAll('[aria-label="Fotos des Inserats"] button')).toHaveLength(2);
+    // Farben und Material sind Auswahlboxen, keine Checkbox-Listen.
+    expect(element.querySelectorAll('app-attribute-picker')).toHaveLength(2);
+    expect(element.querySelector('[role="checkbox"]')).toBeNull();
+    expect(element.textContent).toContain('Blau');
+    expect(element.textContent).toContain('Gelb');
     expect(element.textContent).toContain('Kategorie:');
     expect(element.textContent).not.toContain('Zurück zu Inseraten');
     const result = await axe.run(element, { rules: { 'color-contrast': { enabled: false } } });
@@ -220,18 +230,21 @@ describe('Reaktive Inseratdetails', () => {
       size: '607',
       condition: '2',
       package: '2',
+      color: 'Blau · Gelb',
+      material: 'Acryl',
     });
+    expect(component.multipleFields()).toEqual([
+      { field: 'color', label: 'Farben', max: 2, options: ['Blau', 'Gelb', 'Rot'] },
+      { field: 'material', label: 'Material', max: 3, options: ['Acryl'] },
+    ]);
     expect(component.choiceFields().map((field) => field.label)).toEqual([
       'Marke',
       'Größe',
       'Zustand',
       'Paketgröße',
     ]);
-    component.toggle('color', '3', true, 2);
-    expect(component.colors()).toEqual(['1', '2']);
-    component.toggle('color', '2', false, 2);
-    component.toggle('color', '3', true, 2);
-    component.form.patchValue({ title: 'Neue Schuhe', price: '18' });
+    // Die Auswahlbox liefert Bezeichnungen; gespeichert werden Vinteds Kennungen.
+    component.form.patchValue({ title: 'Neue Schuhe', price: '18', color: 'Blau · Rot' });
     await component.save();
     expect(store.saveListingContent).toHaveBeenCalledWith(account.connectionId, 'a', base, {
       ...base,

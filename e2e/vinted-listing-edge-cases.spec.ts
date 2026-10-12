@@ -265,15 +265,20 @@ for (const width of [1440, 390]) {
     expect(reads).toEqual([{ workspaceId, connectionId: accountIds[0], entryId }]);
     await expect(detail.getByLabel('Titel')).toHaveValue('Meine Schuhe');
     await expect(detail.getByLabel('Verkaufspreis')).toHaveValue('20,50');
-    const colors = detail.getByRole('group', { name: 'Farben' });
-    await expect(colors.getByRole('checkbox', { name: 'Blau' })).toHaveAttribute(
-      'aria-checked',
+    // Farben sind eine Auswahlbox wie bei der Artikel-Erstellung, keine Checkbox-Liste.
+    const colors = detail.getByRole('combobox', { name: 'Farben (höchstens 2)' });
+    await expect(detail.getByRole('button', { name: 'Blau entfernen' })).toBeVisible();
+    await expect(detail.getByRole('checkbox')).toHaveCount(0);
+    await colors.click();
+    // Zwei Farben sind bereits gewählt; eine dritte lässt Vinted nicht zu.
+    await expect(detail.getByRole('option', { name: 'Rot', exact: true })).toHaveAttribute(
+      'aria-disabled',
       'true',
     );
-    // Zwei Farben sind bereits gewählt; eine dritte lässt Vinted nicht zu.
-    await expect(colors.getByRole('checkbox', { name: 'Rot' })).toBeDisabled();
-    await colors.getByRole('checkbox', { name: 'Gelb' }).click();
-    await colors.getByRole('checkbox', { name: 'Rot' }).click();
+    await detail.getByRole('button', { name: 'Gelb entfernen' }).click();
+    await detail.getByRole('option', { name: 'Rot', exact: true }).click();
+    await expect(detail.getByRole('button', { name: 'Rot entfernen' })).toBeVisible();
+    await page.keyboard.press('Escape');
     await detail.getByLabel('Titel').fill('Neue Schuhe');
     await detail.getByLabel('Verkaufspreis').fill('18');
     await page.addScriptTag({ content: axe.source });

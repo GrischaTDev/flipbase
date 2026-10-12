@@ -1,5 +1,33 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-12 – Juna – Bearbeiten: Auswahlboxen für Farben und Material, großes Titelbild
+
+**Stand nach PR 390:** Das vollständige Lesen eines bestehenden Inserats läuft an der echten
+Vinted-Maske durch (im Browser des Nutzers angesehen): Kategorie, Marke, Größe, Zustand, Farben,
+Material und Paketgröße sind richtig vorbelegt.
+
+**Rückmeldung des Nutzers:** Farben und Material als lange Checkbox-Listen sind unbrauchbar; er
+will die Auswahlboxen der Artikel-Erstellung. Die Fotos sollen wie bei Vinted aussehen (großes
+Titelbild, kleine Bilder darunter) und austauschbar sein.
+
+**Änderung:**
+
+- Farben und Material verwenden die gemeinsame Auswahlbox `app-attribute-picker` mit Suche und
+  Chips. Die Box kann jetzt eigene Eingaben sperren (`allowCustom`) und eine Höchstzahl
+  einhalten (`maxSelected`); beides braucht die Vinted-Auswahl (zwei Farben, drei Materialien,
+  nur vorgegebene Werte). Bestehende Verwendungen bleiben unverändert.
+- Die Paketgröße zeigt nur noch Klein, Mittel oder Groß statt Vinteds zusammengezogenem
+  Kacheltext („EmpfohlenMittelFür Artikel, …“).
+- Fotos: großes Titelbild, kleine Bilder darunter, anklickbar wie in der Ansicht.
+
+**Noch offen:** Fotos austauschen, hinzufügen und umsortieren sowie die Kategorie ändern. Das
+braucht einen eigenen Schreibweg im Worker und ist das nächste Paket.
+
+**Prüfungen:** Alle 231 Angular- und 206 Node-Testdateien der Anwendung, neuer Fall der
+Auswahlbox (Höchstzahl, keine eigene Eingabe), sechs Browserfälle der Inseratseite lokal mit
+Barrierefreiheitsprüfung, Bildschirmfoto der Maske angesehen, Typen, ESLint, Prettier,
+Shared-UI-Prüfung und Bau grün.
+
 ## 2026-10-12 – Juna – Materialvorschlag und Marke beim Lesen bestehender Inserate
 
 **Befund nach PR 389 (echter Lauf, Aufbau der Auswahllisten mitgeschrieben):** Die neue

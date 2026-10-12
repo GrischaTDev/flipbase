@@ -56,6 +56,10 @@ export class AttributePickerComponent implements ControlValueAccessor {
   readonly options = input.required<readonly string[]>();
   readonly swatches = input<Readonly<Record<string, string>>>({});
   readonly multiple = input(false);
+  /** `false`: Nur vorgegebene Werte sind wählbar, etwa die Auswahl eines Marktplatzes. */
+  readonly allowCustom = input(true);
+  /** Höchstzahl gleichzeitig gewählter Werte bei Mehrfachauswahl; `null` begrenzt nicht. */
+  readonly maxSelected = input<number | null>(null);
   readonly placeholder = input('Suchen oder eingeben');
   readonly id = input('');
   readonly fieldId = computed(() => this.id() || `attribute-picker-${this.instanceId}`);
@@ -77,8 +81,12 @@ export class AttributePickerComponent implements ControlValueAccessor {
     const query = this.isEditing() ? normalized(this.query()) : '';
     return this.options().filter((option) => (query ? normalized(option).includes(query) : true));
   });
+  readonly limitReached = computed(() => {
+    const max = this.maxSelected();
+    return this.multiple() && max !== null && this.selected().length >= max;
+  });
   readonly customValue = computed(() => {
-    if (!this.isEditing()) return null;
+    if (!this.isEditing() || !this.allowCustom()) return null;
     const query = this.query().trim();
     if (!query || (this.multiple() && query.includes(' · '))) return null;
     return this.options().some((option) => normalized(option) === normalized(query)) ? null : query;
@@ -162,6 +170,9 @@ export class AttributePickerComponent implements ControlValueAccessor {
       const existingIndex = selected.findIndex((item) => normalized(item) === normalized(value));
       if (existingIndex >= 0) {
         this.setValue(selected.filter((_, index) => index !== existingIndex).join(' · '));
+      } else if (this.limitReached()) {
+        // Die Höchstzahl ist erreicht; erst ein gewählter Wert muss entfernt werden.
+        return;
       } else {
         this.setValue([...selected, value].join(' · '));
       }
