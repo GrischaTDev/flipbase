@@ -341,6 +341,19 @@ export class MarketplaceBrowserHttpApi {
     }
   }
 
+  /**
+   * Aufräumen nach einem Abbruch. Scheitert eine Aktion, beendet der Sitzungsbroker die Sitzung
+   * selbst; ein weiteres Schließen wird dann abgelehnt. Diese Ablehnung darf die eigentliche
+   * Ursache nicht ersetzen, sonst gehen Schritt und Fehlerart der Aktion verloren.
+   */
+  private async closeAfterFailure(scope: BrowserSessionScope, sessionId: string): Promise<void> {
+    try {
+      await this.broker.close(scope, sessionId);
+    } catch {
+      // Der Broker hat die Sitzung bereits beendet oder bereinigt sie selbst weiter.
+    }
+  }
+
   private async handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
     try {
       let path = new URL(request.url ?? '/', 'http://localhost').pathname;
@@ -547,7 +560,7 @@ export class MarketplaceBrowserHttpApi {
           }
         } finally {
           try {
-            if (sessionId) await this.broker.close(scope, sessionId);
+            if (sessionId) await this.closeAfterFailure(scope, sessionId);
           } finally {
             this.inFlight.delete(key);
           }
@@ -602,7 +615,7 @@ export class MarketplaceBrowserHttpApi {
           json(response, 200, { fields });
         } finally {
           try {
-            if (sessionId) await this.broker.close(scope, sessionId);
+            if (sessionId) await this.closeAfterFailure(scope, sessionId);
           } finally {
             this.inFlight.delete(key);
           }
@@ -678,7 +691,7 @@ export class MarketplaceBrowserHttpApi {
           throw error;
         } finally {
           try {
-            if (sessionId) await this.broker.close(scope, sessionId);
+            if (sessionId) await this.closeAfterFailure(scope, sessionId);
           } finally {
             this.inFlight.delete(key);
           }
@@ -767,7 +780,7 @@ export class MarketplaceBrowserHttpApi {
           });
         } finally {
           try {
-            if (sessionId) await this.broker.close(scope, sessionId);
+            if (sessionId) await this.closeAfterFailure(scope, sessionId);
           } finally {
             this.inFlight.delete(key);
           }
@@ -888,7 +901,7 @@ export class MarketplaceBrowserHttpApi {
           }
         } finally {
           try {
-            if (sessionId) await this.broker.close(scope, sessionId);
+            if (sessionId) await this.closeAfterFailure(scope, sessionId);
           } finally {
             this.inFlight.delete(key);
           }
@@ -976,7 +989,7 @@ export class MarketplaceBrowserHttpApi {
           );
         } finally {
           try {
-            if (sessionId) await this.broker.close(scope, sessionId);
+            if (sessionId) await this.closeAfterFailure(scope, sessionId);
           } finally {
             this.inFlight.delete(key);
           }

@@ -1,5 +1,25 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-12 – Juna – Aufräumen überdeckte die Ursache gescheiterter Inseratabrufe
+
+**Befund nach PR 385:** Der nächste Klick auf „Bearbeiten“ protokollierte
+`detail: "Error: Sitzungszugriff verweigert"` – ohne Abschnitt. Der Fehler entsteht also im
+Aufräumen: Scheitert eine Aktion, beendet der Sitzungsbroker die Sitzung selbst. Die Route
+schließt sie danach im `finally` noch einmal, der Broker lehnt das ab, und diese Ablehnung
+ersetzt die eigentliche Ursache. Darum gingen seit PR 375 der Schritt des Lesers und die
+Fehlerart verloren, obwohl beides gemeldet wurde. Die Tests bemerkten es nicht, weil ihr
+Stellvertreter des Brokers ein zweites Schließen immer annahm.
+
+**Änderung:** Alle sechs Aufräumstellen der Browser-Routen verwenden `closeAfterFailure`: Das
+Schließen nach einem Abbruch darf scheitern, ohne die Ursache zu ersetzen. Der Stellvertreter im
+Test verhält sich jetzt wie der echte Broker und lehnt das Schließen einer beendeten Sitzung ab.
+
+**Prüfungen:** Der vorhandene Fall „nennt den gescheiterten Schritt“ ist mit dem ehrlichen
+Stellvertreter ohne die Änderung rot (Antwort „Browsersitzung nicht verfügbar“) und mit ihr grün;
+633 Worker-Prüfungen, Typen, Format und ESLint grün.
+
+**Offen:** Ausliefern und erneut klicken; dann steht der Schritt des Lesers im Protokoll.
+
 ## 2026-10-12 – Juna – Abbruch beim vollständigen Lesen eines Inserats eingrenzen
 
 **Ergebnis der Nacht:** 102 Abrufe beider Cloud-Konten ohne Fehler, 25 Erneuerungen der
