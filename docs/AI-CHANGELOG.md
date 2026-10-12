@@ -1,5 +1,31 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-12 – Juna – Materialvorschlag und Marke beim Lesen bestehender Inserate
+
+**Befund nach PR 389 (echter Lauf, Aufbau der Auswahllisten mitgeschrieben):** Die neue
+Bearbeiten-Maske öffnet sofort. Das vollständige Lesen kam über die Kategorie hinaus und
+scheiterte am Schritt `fields`:
+
+- Über der Materialliste steht ein Vorschlag mit der Kennung `material-suggestion-<id>`. Der
+  gemeinsame Formularvertrag kannte nur `material-<id>` und brach ab.
+- Die Vorschlagsliste der Marken (50 Einträge) enthielt die Marke des Inserats nicht; sie
+  erscheint erst nach einer Suche. Das wäre der nächste Abbruch gewesen.
+- Größe, Zustand und Farben sind an der echten Maske so markiert, wie der Leser es erwartet.
+
+**Änderung:** Der Formularvertrag liest Materialvorschläge mit. Der Leser nimmt neben der
+Kategorie auch Marke und Markenname aus `/api/v2/item_upload/items/{id}` und sucht die Marke
+über die vorhandene Markensuche, wenn die Vorschlagsliste sie nicht zeigt. Die Testseiten
+enthalten jetzt Materialvorschlag und Markensuche wie gemessen.
+
+**Prüfungen:** 44 Browserfälle der Inserate mit einem neuen (Marke nur über die Suche); die
+Fälle des Lesers sind ohne die Änderung rot (3 von 5) und mit ihr grün; 633 Worker-Prüfungen,
+282 Workflow-Prüfungen, 206 Node- und 231 Angular-Testdateien der Anwendung, Typen, Format und
+ESLint grün.
+
+**Weitere Wünsche des Nutzers vom 12.10. (noch offen):** Fotos in der Bearbeitung wie bei Vinted
+(großes Titelbild, kleine Bilder darunter, austauschbar); Favoriten-Benachrichtigung zusätzlich
+als Hinweis unten rechts und als Windows-Benachrichtigung über den Browser, einschaltbar.
+
 ## 2026-10-12 – Juna – Bearbeiten im Aufbau der Erstellen-Maske und Kategorie aus dem Inserat
 
 **Auftrag (Nutzer):** Bearbeiten soll wie „Inserat erstellen“ aussehen und sofort öffnen; Fotos

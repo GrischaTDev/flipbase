@@ -14,6 +14,8 @@ async function fixture(
     unsafePhoto?: boolean;
     /** Antwort von Vinteds Inserat-Schnittstelle: anderes Inserat oder nicht lesbar. */
     item?: 'other' | 'unavailable';
+    /** Die Marke steht nicht in der Vorschlagsliste und erscheint erst nach der Suche. */
+    brandSearch?: boolean;
   } = {},
 ) {
   let writes = 0;
@@ -33,6 +35,8 @@ async function fixture(
               item: {
                 id: options.item === 'other' ? 11111 : Number(url.pathname.split('/').at(-1)),
                 catalog_id: 2738,
+                brand_id: 254956,
+                brand_dto: { id: 254956, title: 'Jako' },
                 title: 'Nicht verwendeter Titel',
               },
               code: 0,
@@ -54,11 +58,11 @@ async function fixture(
       <input id="category" readonly value="Fußballschuhe"><input id="brand" readonly value="Jako"><input id="size" readonly value="38"><input id="condition" readonly value="Sehr gut"><input id="color" readonly value="Blau, Gelb"><input id="material" readonly value="Acryl">
       ${options.unknown ? '<input name="isbn" id="isbn" value="Unbekanntes Merkmal">' : ''}
       <div id="category-options" hidden><div role="radio" id="catalog-suggestion-2738" aria-checked="false"><span class="web_ui__Cell__title">Fußballschuhe</span><span>Kinder > Jungs > Schuhe > Sportschuhe</span></div><div role="button" id="catalog-1904">Damen</div><div role="button" id="catalog-1193">Kinder</div></div>
-      <div id="brand-options" hidden><div role="radio" id="suggested-brand-254956" aria-checked="true"><span class="web_ui__Cell__title">Jako</span></div><div role="radio" id="brand-254956" aria-checked="true"><span class="web_ui__Cell__title">Jako</span></div><div role="radio" id="brand-1" aria-checked="false" aria-disabled="true">Gesperrte Marke</div></div>
+      <div id="brand-options" hidden><input id="brand-search-input" data-testid="brand-search--input">${options.brandSearch ? '' : '<div role="radio" id="suggested-brand-254956" aria-checked="true"><span class="web_ui__Cell__title">Jako</span></div><div role="radio" id="brand-254956" aria-checked="true"><span class="web_ui__Cell__title">Jako</span></div>'}<div role="radio" id="brand-1" aria-checked="false" aria-disabled="true">Gesperrte Marke</div></div>
       <div id="size-options" hidden><div role="checkbox" data-testid="size-group-31-grid-option-607" aria-checked="true">38</div></div>
       <div id="condition-options" hidden><div role="radio" id="condition-2" aria-checked="true">Sehr gut</div></div>
       <div id="color-options" hidden><div role="checkbox" id="color-1" aria-checked="true">Blau</div><div role="checkbox" id="color-2" aria-checked="true">Gelb</div></div>
-      <div id="material-options" hidden><div role="checkbox" id="material-149" aria-checked="true">Acryl</div></div>
+      <div id="material-options" hidden><div role="checkbox" id="material-suggestion-298" aria-checked="false">Wildleder</div><div role="checkbox" id="material-149" aria-checked="true">Acryl</div><div role="checkbox" id="material-298" aria-checked="false">Wildleder</div></div>
       <span id="package-label">Mittel</span><label><input type="radio" id="package_type_selector_2" aria-labelledby="package-label" checked></label>
       <div data-testid="media-upload-grid"><div data-testid="image-wrapper-0"><img src="${options.unsafePhoto ? 'https://www.vinted.de/unsafe.png' : 'https://images1.vinted.net/tc/fixtureA/f800/1788288106.webp'}"></div><div data-testid="image-wrapper-1"><img src="https://images2.vinted.net/t/fixtureB/800x600/1788288107.webp"></div></div>
       <button id="save">Speichern</button>
@@ -67,6 +71,7 @@ async function fixture(
       const hide=()=>names.forEach(name=>document.querySelector('#'+name+'-options').hidden=true);
       names.forEach(name=>document.querySelector('#'+name).onclick=()=>{hide();document.querySelector('#'+name+'-options').hidden=false;${options.changed ? "if(name==='material')document.querySelector('[name=price]').value='21,00 €';" : ''}});
       document.onkeydown=event=>{if(event.key==='Escape')hide();};
+      document.querySelector('#brand-search-input').oninput=event=>{if(event.target.value==='Jako'&&!document.querySelector('#brand-254956'))document.querySelector('#brand-options').insertAdjacentHTML('beforeend','<div role="radio" id="brand-254956" aria-checked="true"><span class="web_ui__Cell__title">Jako</span></div>');};
       document.querySelector('#save').onclick=()=>fetch('/fixture/save',{method:'POST'});
       </script>`,
     });
@@ -186,6 +191,27 @@ test('takes the category from the listing itself and fails at the category step 
         item,
       );
     }
+  } finally {
+    await browser.close();
+  }
+});
+
+test('finds the brand of the listing through the search when the suggestions do not show it', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    const writes = await fixture(page, { brandSearch: true });
+    const result = await readVintedListingCurrentContent(
+      page,
+      '123',
+      '98765',
+      async () => undefined,
+    );
+    assert.equal(result.content.brandId, 254956);
+    assert.equal(result.content.brandLabel, 'Jako');
+    // Der Materialvorschlag über der Liste zählt nicht als zweite Auswahl.
+    assert.deepEqual(result.content.materialIds, [149]);
+    assert.equal(writes(), 0);
   } finally {
     await browser.close();
   }
