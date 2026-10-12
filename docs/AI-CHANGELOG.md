@@ -1,5 +1,36 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-12 – Juna – Bearbeiten: Titelbild festlegen, Fotos verschieben und entfernen
+
+**Auftrag (Nutzer):** In der Bearbeitung sollen sich die Fotos wie bei Vinted ändern lassen.
+Erste Stufe: Reihenfolge und Entfernen vorhandener Fotos. Neue Fotos folgen getrennt.
+
+**Befund an der echten Maske (12.10., nur Aufbau gelesen, Beobachtung danach entfernt):** Im
+Raster `media-upload-grid` hat jedes Foto einen ziehbaren Rahmen
+(`aria-roledescription="sortable"`) um `image-wrapper-<n>` und einen Löschknopf
+`media-select-grid-delete-button-<n>`; das Datei-Feld `add-photos-input` nimmt mehrere
+Bilder an.
+
+**Änderung Worker:** Das Speichern eines bestehenden Inserats nimmt optional eine Fotoanordnung
+an: den Stand, auf dem die Änderung beruht, und eine Auswahl daraus in neuer Reihenfolge.
+Inzwischen bei Vinted geänderte Fotos ergeben einen Konflikt und werden nicht überschrieben. In
+der Maske werden überzählige Fotos von hinten entfernt und die übrigen an ihre Stelle gezogen;
+nach jedem Schritt wird das Raster geprüft. Gespeichert wird weiterhin genau einmal, bestätigt
+erst nach erneutem Lesen. Fremde Adressen, Doppelte und neue Fotos lehnt schon die Übertragung
+ab.
+
+**Änderung Oberfläche:** Unter dem großen Foto stehen „Als Titelbild“, „Nach vorn“, „Nach
+hinten“ und „Foto entfernen“. Sie wirken erst, wenn der Vinted-Stand gelesen ist, und arbeiten
+auf den Fotos, die Vinted dabei geliefert hat. Mindestens ein Foto bleibt.
+
+**Einschränkung:** Ob das Ziehen an der echten Maske so greift wie an der Testseite, zeigt erst
+ein echter Lauf mit einem unkritischen Inserat. Scheitert ein Schritt, wird nicht gespeichert.
+
+**Prüfungen:** 634 Worker-Prüfungen, 48 Browserfälle der Inserate mit drei neuen, alle 231
+Angular- und 206 Node-Testdateien der Anwendung, sechs Browserfälle der Inseratseite lokal mit
+Barrierefreiheitsprüfung, Bildschirmfoto angesehen, Typen, ESLint, Prettier, Shared-UI-Prüfung
+und Bau grün.
+
 ## 2026-10-12 – Juna – Bearbeiten: Auswahlboxen für Farben und Material, großes Titelbild
 
 **Stand nach PR 390:** Das vollständige Lesen eines bestehenden Inserats läuft an der echten

@@ -171,6 +171,45 @@ describe('Reaktive Inseratdetails', () => {
       false,
     );
   });
+  it('ändert Titelbild und Fotoauswahl nur auf dem gelesenen Vinted-Stand und speichert die neue Reihenfolge', async () => {
+    const { component, store } = setup([entry('a', 'Alt')]);
+    await settle();
+    const listing = listingCurrentContentFixture();
+    const [first, second] = listing.photoUrls;
+    let finishRead: (value: typeof listing) => void = () => undefined;
+    store.readListingContent.mockReturnValueOnce(new Promise((resolve) => (finishRead = resolve)));
+    const opening = component.edit();
+    // Vor dem Lesen des Vinted-Stands lassen sich Fotos nicht ändern.
+    expect(component.canArrangePhotos()).toBe(false);
+    component.makeCoverPhoto();
+    finishRead(listing);
+    await opening;
+    expect(component.canArrangePhotos()).toBe(true);
+    expect(component.photos()).toEqual([first, second]);
+    // Das zweite Foto wird Titelbild.
+    component.selectedPhoto.set(second!);
+    component.makeCoverPhoto();
+    expect(component.photos()).toEqual([second, first]);
+    expect(component.photoAnnouncement()).toContain('Titelbild');
+    // Zurück in die alte Reihenfolge gilt als unverändert.
+    component.movePhoto(1);
+    expect(component.photos()).toEqual([first, second]);
+    component.selectedPhoto.set(second!);
+    component.removePhoto();
+    expect(component.photos()).toEqual([first]);
+    // Das letzte Foto bleibt erhalten.
+    component.removePhoto();
+    expect(component.photos()).toEqual([first]);
+    await component.save();
+    expect(store.saveListingContent).toHaveBeenCalledWith(
+      account.connectionId,
+      'a',
+      listing.content,
+      listing.content,
+      { base: [first, second], desired: [first] },
+    );
+    expect(component.entry()).toMatchObject({ imageUrl: first, imageUrls: [first] });
+  });
   it('verwirft beim Abbrechen den noch laufenden Vinted-Abruf', async () => {
     const { component, store } = setup([entry('a', 'Alt')]);
     await settle();
@@ -206,6 +245,11 @@ describe('Reaktive Inseratdetails', () => {
     expect(headings).toContain('Artikelangaben');
     expect(headings).toContain('Preis und Versand');
     expect(element.querySelectorAll('[aria-label="Fotos des Inserats"] button')).toHaveLength(2);
+    const actions = [...element.querySelectorAll('button')].map((button) =>
+      button.textContent?.trim(),
+    );
+    for (const label of ['Als Titelbild', 'Nach vorn', 'Nach hinten', 'Foto entfernen'])
+      expect(actions).toContain(label);
     // Farben und Material sind Auswahlboxen, keine Checkbox-Listen.
     expect(element.querySelectorAll('app-attribute-picker')).toHaveLength(2);
     expect(element.querySelector('[role="checkbox"]')).toBeNull();

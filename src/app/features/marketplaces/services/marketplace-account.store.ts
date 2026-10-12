@@ -1,4 +1,5 @@
 import { DestroyRef, Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
+import type { VintedListingPhotoArrangement } from '../models/vinted-listing-edit-form';
 import { AuthService } from '../../../core/services/auth.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import type {
@@ -1036,6 +1037,7 @@ export class MarketplaceAccountStore {
     entryId: string,
     base: VintedListingContent,
     content: VintedListingContent,
+    photos?: VintedListingPhotoArrangement,
   ): Promise<void> {
     const key = this.contextKey();
     const selection = this.selectionRevision;
@@ -1049,7 +1051,14 @@ export class MarketplaceAccountStore {
       !token
     )
       throw new Error('Wähle zuerst das verbundene Vinted-Konto aus.');
-    await this.browserApi.saveListingContent(this.scope(connection), entryId, base, content, token);
+    await this.browserApi.saveListingContent(
+      this.scope(connection),
+      entryId,
+      base,
+      content,
+      token,
+      photos,
+    );
     if (!key || !this.isCurrent(key) || selection !== this.selectionRevision)
       throw new Error('Die Kontoauswahl hat sich geändert. Prüfe die Änderung bei Vinted.');
     this.cacheDescription(entryId, { description: content.description, cacheState: 'unconfirmed' });
@@ -1070,6 +1079,9 @@ export class MarketplaceAccountStore {
                       brand: content.brandLabel || null,
                       size: content.sizeLabel || null,
                       status: content.conditionLabel || entry.status,
+                      ...(photos
+                        ? { imageUrl: photos.desired[0] ?? null, imageUrls: [...photos.desired] }
+                        : {}),
                     }
                   : entry,
               ),
