@@ -81,6 +81,9 @@ export async function createVintedListingEditFormFixture(
       return route.fulfill({
         json: { user: { id: options.foreign ? '456' : '123', login: 'fixture' } },
       });
+    // Wie bei Vinted: Die Bearbeitungsmaske erhält das Inserat mit seiner Kategorie hierüber.
+    if (url.pathname === '/api/v2/item_upload/items/98765')
+      return route.fulfill({ json: { item: { id: 98765, catalog_id: 2738 }, code: 0 } });
     if (url.hostname.endsWith('.vinted.net'))
       return route.fulfill({
         contentType: 'image/png',
@@ -104,7 +107,7 @@ export async function createVintedListingEditFormFixture(
       <input name="title" value="${state.title}"><textarea name="description">${state.description}</textarea><input name="price" value="${state.price}">
       <input id="ai_photo" type="checkbox"><input id="bump" type="checkbox">
       <input id="category" readonly value="Fußballschuhe"><input id="brand" readonly value="${label('brand', [state.brand])}"><input id="size" readonly value="${label('size', [state.size])}"><input id="condition" readonly value="${label('condition', [state.condition])}"><input id="color" readonly value="${label('color', state.colors)}"><input id="material" readonly value="${label('material', state.materials)}">
-      <div id="category-options" hidden><div role="radio" id="catalog-2738" aria-checked="true"><span class="web_ui__Cell__title">Fußballschuhe</span></div></div>
+      <div id="category-options" hidden><div role="radio" id="catalog-suggestion-2738" aria-checked="false"><span class="web_ui__Cell__title">Fußballschuhe</span></div><div role="button" id="catalog-1193">Kinder</div></div>
       <div id="brand-options" hidden>${option('brand', 'radio', [state.brand])}</div>
       <div id="size-options" hidden>${option('size', 'checkbox', [state.size])}</div>
       <div id="condition-options" hidden>${option('condition', 'radio', [state.condition])}</div>

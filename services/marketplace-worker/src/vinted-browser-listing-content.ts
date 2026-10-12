@@ -10,10 +10,7 @@ import {
   VintedVerificationRequiredError,
 } from './vinted-browser-reader.ts';
 import { VintedListingReadError, type VintedListingReadStep } from './vinted-listing-read-error.ts';
-import {
-  readVintedListingCategoryFields,
-  readVintedListingChoices,
-} from './vinted-browser-listing-form.ts';
+import { readVintedListingCategoryFields } from './vinted-browser-listing-form.ts';
 import {
   collectVintedListingFormValues,
   collectVintedListingPhotoState,
@@ -52,6 +49,53 @@ async function loadedPhotos(page: Page): Promise<VintedListingPhotoState> {
 }
 
 /**
+ * Kategorie eines bestehenden Inserats aus der Schnittstelle, die auch Vinteds Bearbeitungsmaske
+ * bedient. Nur die Kennung wird übernommen; ein fremdes oder unlesbares Inserat ergibt `null`.
+ */
+export async function readVintedListingItemCategoryId(
+  page: Page,
+  externalId: string,
+): Promise<number | null> {
+  if (!/^[1-9][0-9]{0,31}$/.test(externalId)) return null;
+  const address = new URL(page.url());
+  if (
+    address.origin !== 'https://www.vinted.de' ||
+    address.pathname !== '/items/' + externalId + '/edit'
+  )
+    return null;
+  let value: unknown;
+  try {
+    value = await page.evaluate(async (itemId) => {
+      const response = await fetch('/api/v2/item_upload/items/' + itemId, {
+        method: 'GET',
+        credentials: 'include',
+        headers: { Accept: 'application/json' },
+        cache: 'no-store',
+        signal: AbortSignal.timeout(8_000),
+      });
+      if (!response.ok || new URL(response.url).origin !== 'https://www.vinted.de') return null;
+      const body: unknown = await response.json();
+      const item =
+        body && typeof body === 'object' && 'item' in body && body.item ? body.item : null;
+      return item && typeof item === 'object' && 'id' in item && 'catalog_id' in item
+        ? { id: item.id, categoryId: item.catalog_id }
+        : null;
+    }, externalId);
+  } catch {
+    return null;
+  }
+  if (!value || typeof value !== 'object' || !('id' in value) || !('categoryId' in value))
+    return null;
+  const { id, categoryId } = value;
+  return String(id) === externalId &&
+    typeof categoryId === 'number' &&
+    Number.isSafeInteger(categoryId) &&
+    categoryId > 0
+    ? categoryId
+    : null;
+}
+
+/**
  * Liest die bereits geöffnete Bearbeitungsmaske. Öffnet und schließt nur Auswahllisten;
  * der Aufrufer bestimmt Seite, Navigation und die Prüfung von Konto und Rechten.
  */
@@ -71,18 +115,19 @@ export async function readOpenVintedListingContent(
   if (photosBefore.items.some((item) => item.url === null)) throw invalid();
   await check();
   onStep('category');
-  const category = (
-    await readVintedListingChoices(page, accountId, null, 'category', [], {
-      allowRememberedCategory: true,
-    })
-  ).choices.filter((choice) => choice.selected);
-  const selectedCategory = category[0];
-  if (category.length !== 1 || !selectedCategory || selectedCategory.id === null) throw invalid();
+  // Die Kategorieauswahl der Bearbeitungsmaske markiert die gewählte Kategorie nicht. Kennung
+  // aus dem Inserat, Bezeichnung aus dem sichtbaren Feld.
+  const readCategoryId = () => readVintedListingItemCategoryId(page, externalId);
+  const categoryId = await readCategoryId();
+  const categoryLabel = (await page.locator('#category').inputValue({ timeout: 5_000 })).trim();
+  if (categoryId === null || !categoryLabel || categoryLabel.length > 200) throw invalid();
+  const selectedCategory = { id: categoryId, label: categoryLabel };
   await check();
   onStep('fields');
   const schema = parseVintedListingCategoryFields(
     await readVintedListingCategoryFields(page, accountId, selectedCategory.id, [], {
       authorize: check,
+      readCategoryId,
     }),
     selectedCategory.id,
   );

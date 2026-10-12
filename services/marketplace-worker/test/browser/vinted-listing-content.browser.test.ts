@@ -7,7 +7,14 @@ import { VintedListingReadError } from '../../src/vinted-listing-read-error.ts';
 /** Ausschließlich synthetische Anbieterantworten, einschließlich aller Fotoabrufe. */
 async function fixture(
   page: Page,
-  options: { foreign?: boolean; unknown?: boolean; changed?: boolean; unsafePhoto?: boolean } = {},
+  options: {
+    foreign?: boolean;
+    unknown?: boolean;
+    changed?: boolean;
+    unsafePhoto?: boolean;
+    /** Antwort von Vinteds Inserat-Schnittstelle: anderes Inserat oder nicht lesbar. */
+    item?: 'other' | 'unavailable';
+  } = {},
 ) {
   let writes = 0;
   await page.route('**/*', (route) => {
@@ -17,6 +24,20 @@ async function fixture(
       return route.fulfill({
         json: { user: { id: options.foreign ? '456' : '123', login: 'fixture' } },
       });
+    // Wie bei Vinted: Die Bearbeitungsmaske erhält das Inserat mit seiner Kategorie hierüber.
+    if (url.pathname.startsWith('/api/v2/item_upload/items/'))
+      return options.item === 'unavailable'
+        ? route.fulfill({ status: 404, json: { code: 104 } })
+        : route.fulfill({
+            json: {
+              item: {
+                id: options.item === 'other' ? 11111 : Number(url.pathname.split('/').at(-1)),
+                catalog_id: 2738,
+                title: 'Nicht verwendeter Titel',
+              },
+              code: 0,
+            },
+          });
     if (url.hostname.endsWith('.vinted.net') || url.pathname === '/unsafe.png')
       return route.fulfill({
         contentType: 'image/png',
@@ -32,7 +53,7 @@ async function fixture(
       <input id="ai_photo" type="checkbox" checked><input id="bump" type="checkbox">
       <input id="category" readonly value="Fußballschuhe"><input id="brand" readonly value="Jako"><input id="size" readonly value="38"><input id="condition" readonly value="Sehr gut"><input id="color" readonly value="Blau, Gelb"><input id="material" readonly value="Acryl">
       ${options.unknown ? '<input name="isbn" id="isbn" value="Unbekanntes Merkmal">' : ''}
-      <div id="category-options" hidden><div role="radio" id="catalog-suggestion-2738" aria-checked="true"><span class="web_ui__Cell__title">Fußballschuhe</span><span>Kinder > Jungs > Schuhe > Sportschuhe</span></div></div>
+      <div id="category-options" hidden><div role="radio" id="catalog-suggestion-2738" aria-checked="false"><span class="web_ui__Cell__title">Fußballschuhe</span><span>Kinder > Jungs > Schuhe > Sportschuhe</span></div><div role="button" id="catalog-1904">Damen</div><div role="button" id="catalog-1193">Kinder</div></div>
       <div id="brand-options" hidden><div role="radio" id="suggested-brand-254956" aria-checked="true"><span class="web_ui__Cell__title">Jako</span></div><div role="radio" id="brand-254956" aria-checked="true"><span class="web_ui__Cell__title">Jako</span></div><div role="radio" id="brand-1" aria-checked="false" aria-disabled="true">Gesperrte Marke</div></div>
       <div id="size-options" hidden><div role="checkbox" data-testid="size-group-31-grid-option-607" aria-checked="true">38</div></div>
       <div id="condition-options" hidden><div role="radio" id="condition-2" aria-checked="true">Sehr gut</div></div>
@@ -148,6 +169,23 @@ test('preserves existing user pages and closes its own page after revocation', a
       (error) => error instanceof VintedListingReadError && error.step === 'authorize',
     );
     assert.equal(own.isClosed(), true);
+  } finally {
+    await browser.close();
+  }
+});
+
+test('takes the category from the listing itself and fails at the category step without it', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    for (const item of ['other', 'unavailable'] as const) {
+      const page = await browser.newPage();
+      await fixture(page, { item });
+      await assert.rejects(
+        readVintedListingCurrentContent(page, '123', '98765', async () => undefined),
+        (error) => error instanceof VintedListingReadError && error.step === 'category',
+        item,
+      );
+    }
   } finally {
     await browser.close();
   }
