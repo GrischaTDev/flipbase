@@ -9,6 +9,11 @@ import type { VintedEditResult } from './vinted-browser-listing-edit.ts';
 import { readOpenVintedListingContent } from './vinted-browser-listing-content.ts';
 import { selectVintedListingField } from './vinted-browser-listing-fields.ts';
 import { confirmVintedEdit } from './vinted-edit-confirmation.ts';
+import {
+  arrangeVintedListingPhotos,
+  sameVintedListingPhotos,
+  type VintedListingPhotoArrangement,
+} from './vinted-browser-listing-photo-order.ts';
 import { validateVintedListingSubmission } from './vinted-listing-contracts.ts';
 
 function invalid(): Error {
@@ -61,9 +66,10 @@ function sameContent(left: VintedListingContent, right: VintedListingContent): b
 }
 
 /**
- * Ändert ein bestehendes Inserat ausschließlich auf einer neu reservierten Seite. Fotos,
- * Kategorie und unbekannte Zusatzfelder bleiben unberührt. Gespeichert wird genau einmal;
- * als bestätigt gilt nur, was ein erneuter Abruf der Maske zeigt.
+ * Ändert ein bestehendes Inserat ausschließlich auf einer neu reservierten Seite. Kategorie
+ * und unbekannte Zusatzfelder bleiben unberührt. Fotos können entfernt und umsortiert, aber
+ * nicht hinzugefügt werden. Gespeichert wird genau einmal; als bestätigt gilt nur, was ein
+ * erneuter Abruf der Maske zeigt.
  */
 export async function updateVintedListingContent(
   page: Page,
@@ -74,6 +80,8 @@ export async function updateVintedListingContent(
   desired: VintedListingContent,
   authorize: () => Promise<void>,
   confirmationTimeoutMs = 20_000,
+  /** Fehlt die Angabe, bleiben die Fotos unverändert. */
+  photos?: VintedListingPhotoArrangement,
 ): Promise<VintedEditResult> {
   if (
     typeof accountId !== 'string' ||
@@ -100,16 +108,21 @@ export async function updateVintedListingContent(
     await identify();
     await authorize();
   };
-  const samePhotos = (left: VintedListingCurrentContent, right: VintedListingCurrentContent) =>
-    left.photoUrls.length === right.photoUrls.length &&
-    left.photoUrls.every((url, index) => url === right.photoUrls[index]) &&
-    left.aiPhoto === right.aiPhoto;
+  const samePhotos = (
+    left: VintedListingCurrentContent,
+    expected: readonly string[],
+    aiPhoto: VintedListingCurrentContent['aiPhoto'],
+  ) => sameVintedListingPhotos(left.photoUrls, expected) && left.aiPhoto === aiPhoto;
   try {
     await authorize();
     await open();
     await check();
     const current = await readOpenVintedListingContent(page, accountId, externalId, check);
     if (!sameContent(current.content, base)) return 'conflict';
+    // Fotos, die inzwischen bei Vinted geändert wurden, werden nicht überschrieben.
+    if (photos && !sameVintedListingPhotos(current.photoUrls, photos.base)) return 'conflict';
+    const desiredPhotos = photos?.desired ?? current.photoUrls;
+    const photosChanged = !sameVintedListingPhotos(current.photoUrls, desiredPhotos);
     if (
       desired.categoryId !== current.content.categoryId ||
       desired.categoryLabel !== current.content.categoryLabel ||
@@ -122,20 +135,22 @@ export async function updateVintedListingContent(
     if (desired.title !== current.content.title) changed.add('title');
     if (desired.description !== current.content.description) changed.add('description');
     if (desired.priceCents !== current.content.priceCents) changed.add('price');
-    // Fotos bleiben unverändert und wurden von Vinted bereits angenommen; die Prüfung braucht nur ihre Anzahl.
-    const photos = current.photoUrls.map(() => ({
+    // Die verbleibenden Fotos hat Vinted bereits angenommen; die Prüfung braucht nur ihre Anzahl.
+    const acceptedPhotos = desiredPhotos.map(() => ({
       mimeType: current.schema.acceptedPhotoMimeTypes[0] ?? '',
       byteSize: 1,
     }));
     const fatal = ['form', 'bump', 'attributes', 'currency', 'category'];
     // Unveränderte Angaben und unbekannte Zusatzfelder hat Vinted schon akzeptiert; geprüft wird die Änderung.
     if (
-      validateVintedListingSubmission(desired, photos, current.schema).some(
+      validateVintedListingSubmission(desired, acceptedPhotos, current.schema).some(
         (issue) => fatal.includes(issue.field) || changed.has(issue.field),
       )
     )
       throw invalid();
-    if (changed.size === 0) return 'confirmed';
+    if (changed.size === 0 && !photosChanged) return 'confirmed';
+    if (photosChanged)
+      await arrangeVintedListingPhotos(page, current.photoUrls, desiredPhotos, check);
     for (const [name, selector, value] of [
       ['title', 'input[name="title"]', desired.title],
       ['description', 'textarea[name="description"]', desired.description],
@@ -156,7 +171,11 @@ export async function updateVintedListingContent(
         await selectVintedListingField(page, field, wanted(desired, field.field), check);
     await check();
     const prepared = await readOpenVintedListingContent(page, accountId, externalId, check);
-    if (!sameContent(prepared.content, desired) || !samePhotos(prepared, current)) throw invalid();
+    if (
+      !sameContent(prepared.content, desired) ||
+      !samePhotos(prepared, desiredPhotos, current.aiPhoto)
+    )
+      throw invalid();
     const save = page.locator('#content').getByRole('button', { name: 'Speichern', exact: true });
     if ((await save.count()) !== 1 || !(await save.isVisible()) || !(await save.isEnabled()))
       throw invalid();
@@ -173,7 +192,8 @@ export async function updateVintedListingContent(
         await open();
         return readOpenVintedListingContent(page, accountId, externalId, identify);
       },
-      (saved) => sameContent(saved.content, desired) && samePhotos(saved, current),
+      (saved) =>
+        sameContent(saved.content, desired) && samePhotos(saved, desiredPhotos, current.aiPhoto),
       confirmationTimeoutMs,
     );
   } finally {

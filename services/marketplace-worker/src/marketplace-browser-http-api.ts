@@ -40,6 +40,10 @@ import {
   VintedListingReadError,
 } from './vinted-listing-read-error.ts';
 import type { VintedListingContent } from '../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts';
+import {
+  parseVintedListingPhotoArrangement,
+  type VintedListingPhotoArrangement,
+} from './vinted-browser-listing-photo-order.ts';
 
 interface BrowserBroker {
   open(scope: BrowserSessionScope): Promise<string>;
@@ -704,11 +708,15 @@ export class MarketplaceBrowserHttpApi {
         if (!edits) throw new RequestError(503);
         const entryId = body['entryId'];
         let base: VintedListingContent, desired: VintedListingContent;
+        let photos: VintedListingPhotoArrangement | undefined;
         try {
           if (
-            Object.keys(body).length !== 5 ||
+            Object.keys(body).length !== (Object.hasOwn(body, 'photos') ? 6 : 5) ||
             Object.keys(body).some(
-              (key) => !['workspaceId', 'connectionId', 'entryId', 'base', 'content'].includes(key),
+              (key) =>
+                !['workspaceId', 'connectionId', 'entryId', 'base', 'content', 'photos'].includes(
+                  key,
+                ),
             ) ||
             typeof entryId !== 'string' ||
             !uuidPattern.test(entryId)
@@ -716,6 +724,8 @@ export class MarketplaceBrowserHttpApi {
             throw new Error();
           base = parseVintedListingEditContent(body['base']);
           desired = parseVintedListingEditContent(body['content']);
+          if (Object.hasOwn(body, 'photos'))
+            photos = parseVintedListingPhotoArrangement(body['photos']);
         } catch {
           throw new RequestError(400);
         }
@@ -741,6 +751,7 @@ export class MarketplaceBrowserHttpApi {
               base,
               desired,
               authorize,
+              photos,
             );
           });
           let cachePending = false;

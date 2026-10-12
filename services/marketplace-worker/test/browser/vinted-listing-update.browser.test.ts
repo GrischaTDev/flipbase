@@ -2,7 +2,11 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { chromium } from 'playwright';
 import { updateVintedListingContent } from '../../src/vinted-browser-listing-update.ts';
-import { createVintedListingEditFormFixture } from '../fixtures/vinted-listing-edit-form.ts';
+import {
+  createVintedListingEditFormFixture,
+  editFormPhotoUrls,
+} from '../fixtures/vinted-listing-edit-form.ts';
+import { parseVintedListingPhotoArrangement } from '../../src/vinted-browser-listing-photo-order.ts';
 import { listingCurrentContentFixture } from '../fixtures/vinted-listing-current-content.ts';
 
 const base = listingCurrentContentFixture().content;
@@ -47,6 +51,7 @@ test('writes only into an own fresh tab, saves once and confirms by reading the 
       colors: [3],
       materials: [149, 150],
       packageSize: 3,
+      photos: [editFormPhotoUrls[0]],
     });
   } finally {
     await browser.close();
@@ -130,4 +135,101 @@ test('rejects locked choices, category changes, foreign accounts and revoked rig
   } finally {
     await browser.close();
   }
+});
+
+test('removes and reorders photos before saving and confirms the new order after reading again', async () => {
+  const [first, second, third] = editFormPhotoUrls;
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage(),
+      f = await createVintedListingEditFormFixture(page, {
+        state: { photos: [first, second, third] },
+      });
+    // Titelbild wird das dritte Foto, das zweite entfällt; die übrigen Angaben bleiben gleich.
+    assert.equal(
+      await updateVintedListingContent(page, '123', '98765', base, base, allow, 20_000, {
+        base: [first, second, third],
+        desired: [third, first],
+      }),
+      'confirmed',
+    );
+    assert.equal(f.saves(), 1);
+    assert.deepEqual(f.state().photos, [third, first]);
+    assert.equal(f.state().title, 'Meine Schuhe');
+  } finally {
+    await browser.close();
+  }
+});
+
+test('moves a photo to the front together with a content change', async () => {
+  const [first, second, third] = editFormPhotoUrls;
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage(),
+      f = await createVintedListingEditFormFixture(page, {
+        state: { photos: [first, second, third] },
+      });
+    assert.equal(
+      await updateVintedListingContent(
+        page,
+        '123',
+        '98765',
+        base,
+        { ...base, title: 'Neuer Titel' },
+        allow,
+        20_000,
+        { base: [first, second, third], desired: [second, third, first] },
+      ),
+      'confirmed',
+    );
+    assert.deepEqual(f.state().photos, [second, third, first]);
+    assert.equal(f.state().title, 'Neuer Titel');
+    assert.equal(f.saves(), 1);
+  } finally {
+    await browser.close();
+  }
+});
+
+test('does not touch photos that changed at Vinted since they were read', async () => {
+  const [first, second, third] = editFormPhotoUrls;
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage(),
+      f = await createVintedListingEditFormFixture(page, { state: { photos: [first, third] } });
+    assert.equal(
+      await updateVintedListingContent(page, '123', '98765', base, base, allow, 20_000, {
+        base: [first, second, third],
+        desired: [third, first],
+      }),
+      'conflict',
+    );
+    assert.equal(f.writes(), 0);
+    assert.deepEqual(f.state().photos, [first, third]);
+  } finally {
+    await browser.close();
+  }
+});
+
+test('accepts only an arrangement of the known photos', () => {
+  const [first, second] = editFormPhotoUrls;
+  assert.deepEqual(
+    parseVintedListingPhotoArrangement({ base: [first, second], desired: [second] }),
+    {
+      base: [first, second],
+      desired: [second],
+    },
+  );
+  for (const input of [
+    { base: [first], desired: [] },
+    { base: [first], desired: [second] },
+    { base: [first, first], desired: [first] },
+    { base: [first], desired: [first, first] },
+    { base: [first], desired: ['https://example.org/photo.webp'] },
+    { base: ['https://example.org/photo.webp'], desired: ['https://example.org/photo.webp'] },
+    { base: [first], desired: [first], extra: true },
+    { base: [first] },
+    null,
+    'text',
+  ])
+    assert.throws(() => parseVintedListingPhotoArrangement(input), JSON.stringify(input));
 });

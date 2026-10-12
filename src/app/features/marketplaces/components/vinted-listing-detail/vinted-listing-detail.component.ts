@@ -80,10 +80,29 @@ export class VintedListingDetailComponent {
       ? entry
       : null;
   });
+  /** In der Bearbeitung geänderte Fotoreihenfolge; `null`, solange nichts geändert wurde. */
+  private readonly arrangedPhotos = signal<readonly string[] | null>(null);
   readonly photos = computed(() => {
     const entry = this.entry();
+    // Maßgeblich für Änderungen sind die Fotos, die Vinted beim Lesen der Maske geliefert hat.
+    const current = this.editing() ? this.current() : null;
+    if (current) return this.arrangedPhotos() ?? current.photoUrls;
     return entry?.imageUrls?.length ? entry.imageUrls : entry?.imageUrl ? [entry.imageUrl] : [];
   });
+  /** Fotos lassen sich erst auf dem gelesenen Vinted-Stand ändern. */
+  readonly canArrangePhotos = computed(
+    () => this.editing() && this.current() !== null && !this.busy(),
+  );
+  readonly shownPhoto = computed(() => {
+    const photos = this.photos();
+    const selected = this.selectedPhoto();
+    return selected && photos.includes(selected) ? selected : (photos[0] ?? null);
+  });
+  readonly shownPhotoIndex = computed(() => {
+    const shown = this.shownPhoto();
+    return shown === null ? -1 : this.photos().indexOf(shown);
+  });
+  readonly photoAnnouncement = signal('');
   readonly selectedPhoto = signal<string | null>(null);
   readonly description = signal<VintedListingDescription | null>(null);
   readonly loading = signal(true);
@@ -239,6 +258,8 @@ export class VintedListingDetailComponent {
     this.notice.set(null);
     this.form.reset();
     this.current.set(null);
+    this.arrangedPhotos.set(null);
+    this.photoAnnouncement.set('');
   }
   private options(field: VintedListingEditField): SelectOption[] {
     const current = this.current();
@@ -248,6 +269,42 @@ export class VintedListingDetailComponent {
     return options.length && !vintedListingEditSelection(current)[field].length
       ? [{ value: '', label: 'Nicht angegeben' }, ...options]
       : [...options];
+  }
+  private arrangePhotos(next: readonly string[], announcement: string): void {
+    const current = this.current();
+    if (!current || !this.canArrangePhotos() || next.length < 1) return;
+    const unchanged =
+      next.length === current.photoUrls.length &&
+      next.every((url, index) => url === current.photoUrls[index]);
+    this.arrangedPhotos.set(unchanged ? null : next);
+    this.photoAnnouncement.set(announcement);
+  }
+  /** Macht das gezeigte Foto zum Titelbild. */
+  makeCoverPhoto(): void {
+    const photo = this.shownPhoto();
+    if (!photo) return;
+    this.arrangePhotos(
+      [photo, ...this.photos().filter((url) => url !== photo)],
+      'Das Foto ist jetzt das Titelbild.',
+    );
+  }
+  /** Verschiebt das gezeigte Foto um eine Stelle nach vorn (-1) oder hinten (1). */
+  movePhoto(step: -1 | 1): void {
+    const photos = [...this.photos()];
+    const from = this.shownPhotoIndex();
+    const to = from + step;
+    if (from < 0 || to < 0 || to >= photos.length) return;
+    [photos[from], photos[to]] = [photos[to]!, photos[from]!];
+    this.arrangePhotos(photos, 'Das Foto steht jetzt an Stelle ' + (to + 1) + '.');
+  }
+  /** Entfernt das gezeigte Foto; ein Inserat behält mindestens eines. */
+  removePhoto(): void {
+    const photos = this.photos();
+    const index = this.shownPhotoIndex();
+    if (index < 0 || photos.length < 2) return;
+    const next = photos.filter((_, position) => position !== index);
+    this.selectedPhoto.set(next[Math.min(index, next.length - 1)] ?? null);
+    this.arrangePhotos(next, 'Das Foto wird beim Speichern entfernt.');
   }
   private multipleOptions(field: 'color' | 'material'): readonly SelectOption[] {
     const current = this.current();
@@ -328,6 +385,8 @@ export class VintedListingDetailComponent {
     this.editing.set(false);
     this.loadingCurrent.set(false);
     this.error.set(null);
+    this.arrangedPhotos.set(null);
+    this.photoAnnouncement.set('');
   }
   /**
    * Öffnet die Maske sofort mit den gespeicherten Angaben. Der aktuelle Vinted-Stand mit allen
@@ -372,6 +431,8 @@ export class VintedListingDetailComponent {
       }
       if (!this.isCurrent(version) || !this.editing()) return;
       const selection = vintedListingEditSelection(current);
+      this.arrangedPhotos.set(null);
+      this.selectedPhoto.set(current.photoUrls[0] ?? null);
       this.current.set(current);
       this.fillUntouched({
         color: this.labelsOf('color', selection.color),
@@ -436,11 +497,14 @@ export class VintedListingDetailComponent {
         color: this.valuesOf('color', fields.color),
         material: this.valuesOf('material', fields.material),
       });
+      const arranged = this.arrangedPhotos();
+      const photos = arranged ? { base: current.photoUrls, desired: arranged } : undefined;
       await this.store.saveListingContent(
         this.connectionId(),
         this.entryId(),
         current.content,
         content,
+        ...(photos ? [photos] : []),
       );
       if (!this.isCurrent(version)) return;
       this.editing.set(false);
@@ -456,9 +520,14 @@ export class VintedListingDetailComponent {
               brand: content.brandLabel || null,
               size: content.sizeLabel || null,
               status: content.conditionLabel || entry.status,
+              ...(photos
+                ? { imageUrl: photos.desired[0] ?? null, imageUrls: [...photos.desired] }
+                : {}),
             }
           : entry,
       );
+      this.arrangedPhotos.set(null);
+      this.selectedPhoto.set(photos?.desired[0] ?? this.selectedPhoto());
       this.description.set({ description: content.description, cacheState: 'unconfirmed' });
       this.notice.set('Die Änderung wurde bei Vinted bestätigt.');
     } catch (error) {

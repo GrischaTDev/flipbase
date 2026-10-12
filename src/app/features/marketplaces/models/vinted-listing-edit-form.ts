@@ -35,6 +35,12 @@ function choices(
 }
 
 /** Wählbare Werte eines Merkmals. Von Vinted gesperrte Werte fehlen, außer sie sind schon gewählt. */
+/** Vorhandene Fotos eines Inserats: Stand beim Lesen und gewünschte Auswahl in neuer Reihenfolge. */
+export interface VintedListingPhotoArrangement {
+  readonly base: readonly string[];
+  readonly desired: readonly string[];
+}
+
 export function vintedListingEditOptions(
   schema: VintedListingCategoryFields,
   field: VintedListingEditField,

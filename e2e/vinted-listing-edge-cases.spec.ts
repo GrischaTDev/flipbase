@@ -88,6 +88,13 @@ async function prepareListing(page: Page, listing: ListingFixture) {
       },
     }),
   );
+  // Die Bearbeitung zeigt die Fotos, die Vinted beim Lesen der Maske geliefert hat.
+  await page.route('https://*.vinted.net/**', (route) =>
+    route.fulfill({
+      contentType: 'image/svg+xml',
+      body: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80"><rect width="80" height="80" fill="#fcc601"/></svg>',
+    }),
+  );
   await page.route('https://images.example.test/**', (route) => {
     const path = new URL(route.request().url()).pathname;
     if (path.endsWith('listing-broken.svg'))
@@ -263,7 +270,7 @@ for (const width of [1440, 390]) {
     await detail.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
     await expect(detail.getByRole('heading', { name: 'Inserat bearbeiten' })).toBeVisible();
     expect(reads).toEqual([{ workspaceId, connectionId: accountIds[0], entryId }]);
-    await expect(detail.getByLabel('Titel')).toHaveValue('Meine Schuhe');
+    await expect(detail.getByRole('textbox', { name: 'Titel' })).toHaveValue('Meine Schuhe');
     await expect(detail.getByLabel('Verkaufspreis')).toHaveValue('20,50');
     // Farben sind eine Auswahlbox wie bei der Artikel-Erstellung, keine Checkbox-Liste.
     const colors = detail.getByRole('combobox', { name: 'Farben (höchstens 2)' });
@@ -279,7 +286,13 @@ for (const width of [1440, 390]) {
     await detail.getByRole('option', { name: 'Rot', exact: true }).click();
     await expect(detail.getByRole('button', { name: 'Rot entfernen' })).toBeVisible();
     await page.keyboard.press('Escape');
-    await detail.getByLabel('Titel').fill('Neue Schuhe');
+    // Das zweite Foto wird Titelbild; gespeichert wird die neue Reihenfolge der vorhandenen Fotos.
+    await detail.getByRole('button', { name: 'Foto 2 von 2 anzeigen', exact: true }).click();
+    await detail.getByRole('button', { name: 'Als Titelbild', exact: true }).click();
+    await expect(
+      detail.getByRole('button', { name: 'Titelbild, Foto 1 von 2 anzeigen', exact: true }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    await detail.getByRole('textbox', { name: 'Titel' }).fill('Neue Schuhe');
     await detail.getByLabel('Verkaufspreis').fill('18');
     await page.addScriptTag({ content: axe.source });
     const violations = await page.evaluate(async () =>
@@ -294,7 +307,7 @@ for (const width of [1440, 390]) {
     const save = detail.getByRole('button', { name: 'Bei Vinted speichern', exact: true });
     await save.click();
     await expect(detail.getByRole('alert')).toContainText('inzwischen bei Vinted geändert');
-    await expect(detail.getByLabel('Titel')).toHaveValue('Neue Schuhe');
+    await expect(detail.getByRole('textbox', { name: 'Titel' })).toHaveValue('Neue Schuhe');
     await save.click();
     await expect(detail).toContainText('Die Änderung wurde bei Vinted bestätigt.');
     await expect(detail.getByRole('heading', { name: 'Neue Schuhe' })).toBeVisible();
@@ -311,6 +324,10 @@ for (const width of [1440, 390]) {
         priceCents: 1800,
         colorIds: [1, 3],
         colorLabels: ['Blau', 'Rot'],
+      },
+      photos: {
+        base: listingCurrentContentFixture().photoUrls,
+        desired: [...listingCurrentContentFixture().photoUrls].reverse(),
       },
     });
     await checkPage(page, errors);

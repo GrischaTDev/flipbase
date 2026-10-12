@@ -35,9 +35,10 @@ async function fixture(
   const targets: unknown[] = [];
   const browser: BrowserInfo = {
     version: () => 'fixture',
-    updateListingContent: async (account, item, base, desired, authorize) => {
+    updateListingContent: async (account, item, base, desired, authorize, photos) => {
       reads++;
       targets.push([account, item, base.priceCents, desired.priceCents]);
+      if (photos) targets.push(['photos', photos.base.length, photos.desired]);
       if (options.reassign) reassigned = true;
       await authorize();
       return options.foreignItem ? 'conflict' : 'confirmed';
@@ -345,4 +346,41 @@ test('listing failure context names an ended session and keeps reader steps unto
     phase: 'read',
   });
   assert.deepEqual(listingFailureContext('text', undefined), { detail: 'Unknown' });
+});
+
+test('content HTTP save passes a photo arrangement on and rejects anything but known photos', async () => {
+  const base = listingCurrentContentFixture().content;
+  const photoA = 'https://images1.vinted.net/tc/fixtureA/f800/1.webp',
+    photoB = 'https://images1.vinted.net/tc/fixtureB/f800/2.webp';
+  const f = await fixture();
+  try {
+    const response = await f.save({
+      workspaceId,
+      connectionId,
+      entryId,
+      base,
+      content: base,
+      photos: { base: [photoA, photoB], desired: [photoB] },
+    });
+    assert.equal(response.status, 200);
+    assert.ok(
+      f.targets.some(
+        (target) => JSON.stringify(target) === JSON.stringify(['photos', 2, [photoB]]),
+      ),
+    );
+    for (const photos of [
+      { base: [photoA], desired: [photoB] },
+      { base: [photoA], desired: [] },
+      { base: ['https://example.org/a.webp'], desired: ['https://example.org/a.webp'] },
+      'text',
+    ])
+      assert.equal(
+        (await f.save({ workspaceId, connectionId, entryId, base, content: base, photos })).status,
+        400,
+        JSON.stringify(photos),
+      );
+    assert.equal(f.reads(), 1);
+  } finally {
+    await f.close();
+  }
 });
