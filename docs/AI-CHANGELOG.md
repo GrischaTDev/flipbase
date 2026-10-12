@@ -1,5 +1,45 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-12 – Juna – Bearbeiten im Aufbau der Erstellen-Maske und Kategorie aus dem Inserat
+
+**Auftrag (Nutzer):** Bearbeiten soll wie „Inserat erstellen“ aussehen und sofort öffnen; Fotos
+oben, Auswahlfelder nur mit Vinted-Werten. Künftig größere PRs statt vieler kleiner.
+
+**Befund am echten Vinted (12.10., mit Zustimmung des Nutzers beobachtet):**
+
+- Nach PR 388 nennt das Protokoll den Schritt: Das vollständige Lesen scheiterte an `category`.
+- Beim Bearbeiten öffnet Vinted die Kategorieauswahl ganz oben im Katalog: Suchfeld, ein nicht
+  markierter Vorschlag, darunter die Hauptgruppen als Schaltflächen. Die gewählte Kategorie ist
+  dort nicht markiert; sie steht nur als Text im Feld. Der Leser suchte genau einen markierten
+  Eintrag. Die bisherigen Testseiten nahmen fälschlich eine markierte Kategorie an.
+- Die Maske lädt Katalog, Farben, Marken und Merkmale über `/api/v2/item_upload/…`. Das Inserat
+  selbst liefert `GET /api/v2/item_upload/items/{id}` lesend mit Kategorie, Marke, Farben,
+  Paketgröße, Beschreibung, Preis und Merkmalen (geprüft: Status 200 und Feldnamen, keine Werte).
+
+**Änderung Worker:** Der Leser nimmt die Kennung der Kategorie aus dieser Schnittstelle und die
+Bezeichnung aus dem sichtbaren Feld. Die Prüfung „Kategorie unverändert“ beim Lesen der
+Merkmale fragt dieselbe Quelle. Das Erstellen eines Inserats bleibt unverändert beim Popup. Die
+Testseiten bilden die gemessene Maske nach.
+
+**Änderung Oberfläche:** Die Bearbeitung öffnet sofort mit gespeichertem Titel, Preis,
+Beschreibung und Fotos im Aufbau der Erstellen-Maske (Fotos zuerst, Texte, Artikelangaben; rechts
+Preis und Paketgröße). Der Vinted-Stand wird im Hintergrund gelesen; Speichern ist erst danach
+möglich. Eingaben während des Ladens bleiben erhalten. Fotos und Kategorie bleiben bei Vinted
+unverändert.
+
+**Einschränkungen:** Ob die übrigen Auswahllisten (Marke, Größe, Zustand, Farbe, Material) an der
+echten Bearbeitungsmaske markiert sind, zeigt erst der nächste Lauf; dafür läuft die Beobachtung
+auf dem Server bis zum Nachmittag weiter (`/root/juna-edit-*`). Die Oberfläche wurde nicht im
+Browser angesehen (lokal keine angemeldete Datenbank), aber mit echtem Template gerendert und auf
+Barrierefreiheit geprüft.
+
+**Prüfungen:** 633 Worker-Prüfungen, 43 Browserfälle der Inserate mit einem neuen (fremdes oder
+unlesbares Inserat scheitert am Kategorie-Schritt), neun Komponentenfälle mit drei neuen, Typen,
+ESLint, Prettier, Shared-UI-Prüfung und Bau grün.
+
+**Als Nächstes:** Vollständige Angaben über dieselbe Schnittstelle beim Synchronisieren
+mitspeichern, damit die Maske ohne Wartezeit gefüllt ist.
+
 ## 2026-10-12 – Juna – Reine Worker-Änderungen ohne Anwendungstests und Web-Release
 
 **Auftrag (Nutzer, 12.10.):** Die Wartezeit je PR ist zu lang; Prüfungen, die nicht jedes Mal

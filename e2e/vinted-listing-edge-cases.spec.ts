@@ -264,7 +264,7 @@ for (const width of [1440, 390]) {
     await expect(detail.getByRole('heading', { name: 'Inserat bearbeiten' })).toBeVisible();
     expect(reads).toEqual([{ workspaceId, connectionId: accountIds[0], entryId }]);
     await expect(detail.getByLabel('Titel')).toHaveValue('Meine Schuhe');
-    await expect(detail.getByLabel('Preis in Euro')).toHaveValue('20,50');
+    await expect(detail.getByLabel('Verkaufspreis')).toHaveValue('20,50');
     const colors = detail.getByRole('group', { name: 'Farben' });
     await expect(colors.getByRole('checkbox', { name: 'Blau' })).toHaveAttribute(
       'aria-checked',
@@ -275,7 +275,7 @@ for (const width of [1440, 390]) {
     await colors.getByRole('checkbox', { name: 'Gelb' }).click();
     await colors.getByRole('checkbox', { name: 'Rot' }).click();
     await detail.getByLabel('Titel').fill('Neue Schuhe');
-    await detail.getByLabel('Preis in Euro').fill('18');
+    await detail.getByLabel('Verkaufspreis').fill('18');
     await page.addScriptTag({ content: axe.source });
     const violations = await page.evaluate(async () =>
       (

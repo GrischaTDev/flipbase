@@ -132,6 +132,11 @@ export async function readVintedListingChoices(
   options: {
     allowRememberedCategory?: boolean;
     brand?: Pick<VintedListingContent, 'brandId' | 'brandLabel'>;
+    /**
+     * Beim Bearbeiten öffnet Vinted die Kategorieauswahl ganz oben im Katalog und markiert die
+     * gewählte Kategorie dort nicht. Die Kennung kommt dann aus dem Inserat selbst.
+     */
+    readCategoryId?: () => Promise<number | null>;
   } = {},
 ): Promise<VintedListingChoiceSnapshot> {
   assertListingForm(page);
@@ -147,8 +152,12 @@ export async function readVintedListingChoices(
     throw new Error('Vinted-Formularangaben ungültig.');
   if ((await readVintedAccountIdentity(page))?.id !== accountId)
     throw new Error('Vinted-Konto stimmt nicht überein.');
-  const category = await readPopup(page, 'category', categoryPath);
-  const categoryId = category.choices.find((choice) => choice.selected)?.id ?? null;
+  const category = options.readCategoryId
+    ? undefined
+    : await readPopup(page, 'category', categoryPath);
+  const categoryId = options.readCategoryId
+    ? await options.readCategoryId()
+    : (category?.choices.find((choice) => choice.selected)?.id ?? null);
   if (
     categoryId !== expectedCategoryId &&
     !(
@@ -158,7 +167,10 @@ export async function readVintedListingChoices(
     )
   )
     throw new Error('Die Vinted-Kategorie wurde inzwischen geändert.');
-  const result = field === 'category' ? category : await readPopup(page, field, [], options);
+  const result =
+    field === 'category'
+      ? (category ?? (await readPopup(page, 'category', categoryPath)))
+      : await readPopup(page, field, [], options);
   assertListingForm(page);
   if ((await readVintedAccountIdentity(page))?.id !== accountId)
     throw new Error('Vinted-Konto wurde inzwischen geändert.');
@@ -174,16 +186,32 @@ export async function readVintedListingCategoryFields(
   options: {
     brand?: Pick<VintedListingContent, 'brandId' | 'brandLabel'>;
     authorize?: () => Promise<void>;
+    readCategoryId?: () => Promise<number | null>;
   } = {},
 ): Promise<VintedListingCategoryFields> {
+  const category = options.readCategoryId ? { readCategoryId: options.readCategoryId } : {};
   await options.authorize?.();
-  await readVintedListingChoices(page, accountId, expectedCategoryId, 'category', categoryPath);
+  await readVintedListingChoices(
+    page,
+    accountId,
+    expectedCategoryId,
+    'category',
+    categoryPath,
+    category,
+  );
   await options.authorize?.();
   await page.locator('#condition').waitFor({ state: 'visible', timeout: 5000 });
   const { presentFields, ...metadata } = await page.evaluate(collectVintedListingFormMetadata);
   const fields: VintedListingChoiceSnapshot[] = [];
   for (const field of presentFields) fields.push(await readPopup(page, field, [], options));
   // Während des Abrufs können Kategorie oder Konto wechseln. Keine gemischte Auswahl zurückgeben.
-  await readVintedListingChoices(page, accountId, expectedCategoryId, 'category', categoryPath);
+  await readVintedListingChoices(
+    page,
+    accountId,
+    expectedCategoryId,
+    'category',
+    categoryPath,
+    category,
+  );
   return { categoryId: expectedCategoryId, fields, ...metadata };
 }
