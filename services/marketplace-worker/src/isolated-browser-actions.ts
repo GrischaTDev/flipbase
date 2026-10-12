@@ -41,6 +41,7 @@ import {
   VintedLoginRejectedError,
   VintedVerificationRequiredError,
 } from './vinted-browser-reader.ts';
+import { parseVintedListingPhotoArrangement } from './vinted-browser-listing-photo-order.ts';
 
 export const browserCommandLimit = 8 * 1024 * 1024;
 export type BrowserActionName = Exclude<keyof BrowserInfo, 'version'>;
@@ -209,7 +210,7 @@ export async function executeBrowserAction(
     readListingEdit: [2],
     readListingCategory: [3],
     readListingContent: [2],
-    updateListingContent: [4],
+    updateListingContent: [4, 5],
     updateListing: [3],
     readProfileAbout: [1],
     updateProfileAbout: [3],
@@ -271,6 +272,9 @@ export async function executeBrowserAction(
         parseVintedListingEditContent(argumentsList[2]),
         parseVintedListingEditContent(argumentsList[3]),
         authorize,
+        argumentsList.length === 5
+          ? parseVintedListingPhotoArrangement(argumentsList[4])
+          : undefined,
       );
     case 'submitListing': {
       if (!listing) throw new Error('Inseratübergabe fehlt');
@@ -843,10 +847,12 @@ export function isolatedBrowserActions(transport: BrowserCommandTransport): Brow
         throw new VintedListingReadError('result');
       }
     },
-    updateListingContent: async (accountId, externalId, base, desired, authorize) =>
+    updateListingContent: async (accountId, externalId, base, desired, authorize, photos) =>
       (await run(
         'updateListingContent',
-        [accountId, externalId, base, desired],
+        photos
+          ? [accountId, externalId, base, desired, photos]
+          : [accountId, externalId, base, desired],
         authorize,
       )) as Awaited<ReturnType<NonNullable<BrowserInfo['updateListingContent']>>>,
     updateListing: async (itemId, accountId, fields, authorize) =>
