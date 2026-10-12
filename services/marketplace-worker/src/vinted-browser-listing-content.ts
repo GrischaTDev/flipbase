@@ -48,14 +48,22 @@ async function loadedPhotos(page: Page): Promise<VintedListingPhotoState> {
   }
 }
 
+/** Angaben, die Vinteds Bearbeitungsmaske nicht markiert anzeigt. */
+export interface VintedListingItemReference {
+  categoryId: number;
+  brandId: number | null;
+  brandLabel: string;
+}
+
 /**
- * Kategorie eines bestehenden Inserats aus der Schnittstelle, die auch Vinteds Bearbeitungsmaske
- * bedient. Nur die Kennung wird übernommen; ein fremdes oder unlesbares Inserat ergibt `null`.
+ * Kategorie und Marke eines bestehenden Inserats aus der Schnittstelle, die auch Vinteds
+ * Bearbeitungsmaske bedient. Die Maske markiert die gewählte Kategorie nicht und zeigt eine
+ * seltene Marke erst nach einer Suche. Ein fremdes oder unlesbares Inserat ergibt `null`.
  */
-export async function readVintedListingItemCategoryId(
+export async function readVintedListingItemReference(
   page: Page,
   externalId: string,
-): Promise<number | null> {
+): Promise<VintedListingItemReference | null> {
   if (!/^[1-9][0-9]{0,31}$/.test(externalId)) return null;
   const address = new URL(page.url());
   if (
@@ -77,9 +85,18 @@ export async function readVintedListingItemCategoryId(
       const body: unknown = await response.json();
       const item =
         body && typeof body === 'object' && 'item' in body && body.item ? body.item : null;
-      return item && typeof item === 'object' && 'id' in item && 'catalog_id' in item
-        ? { id: item.id, categoryId: item.catalog_id }
-        : null;
+      if (!item || typeof item !== 'object' || !('id' in item) || !('catalog_id' in item))
+        return null;
+      const brand =
+        'brand_dto' in item && item.brand_dto && typeof item.brand_dto === 'object'
+          ? item.brand_dto
+          : null;
+      return {
+        id: item.id,
+        categoryId: item.catalog_id,
+        brandId: 'brand_id' in item ? item.brand_id : null,
+        brandLabel: brand && 'title' in brand ? brand.title : null,
+      };
     }, externalId);
   } catch {
     return null;
@@ -87,12 +104,27 @@ export async function readVintedListingItemCategoryId(
   if (!value || typeof value !== 'object' || !('id' in value) || !('categoryId' in value))
     return null;
   const { id, categoryId } = value;
-  return String(id) === externalId &&
-    typeof categoryId === 'number' &&
-    Number.isSafeInteger(categoryId) &&
-    categoryId > 0
-    ? categoryId
-    : null;
+  if (
+    String(id) !== externalId ||
+    typeof categoryId !== 'number' ||
+    !Number.isSafeInteger(categoryId) ||
+    categoryId <= 0
+  )
+    return null;
+  const brandId = 'brandId' in value ? value.brandId : null;
+  const brandLabel = 'brandLabel' in value ? value.brandLabel : null;
+  const hasBrand =
+    typeof brandId === 'number' &&
+    Number.isSafeInteger(brandId) &&
+    brandId > 0 &&
+    typeof brandLabel === 'string' &&
+    brandLabel.trim().length > 0 &&
+    brandLabel.length <= 2000;
+  return {
+    categoryId,
+    brandId: hasBrand ? brandId : null,
+    brandLabel: hasBrand ? brandLabel.trim() : '',
+  };
 }
 
 /**
@@ -117,17 +149,22 @@ export async function readOpenVintedListingContent(
   onStep('category');
   // Die Kategorieauswahl der Bearbeitungsmaske markiert die gewählte Kategorie nicht. Kennung
   // aus dem Inserat, Bezeichnung aus dem sichtbaren Feld.
-  const readCategoryId = () => readVintedListingItemCategoryId(page, externalId);
-  const categoryId = await readCategoryId();
+  const readCategoryId = async () =>
+    (await readVintedListingItemReference(page, externalId))?.categoryId ?? null;
+  const item = await readVintedListingItemReference(page, externalId);
   const categoryLabel = (await page.locator('#category').inputValue({ timeout: 5_000 })).trim();
-  if (categoryId === null || !categoryLabel || categoryLabel.length > 200) throw invalid();
-  const selectedCategory = { id: categoryId, label: categoryLabel };
+  if (!item || !categoryLabel || categoryLabel.length > 200) throw invalid();
+  const selectedCategory = { id: item.categoryId, label: categoryLabel };
   await check();
   onStep('fields');
   const schema = parseVintedListingCategoryFields(
     await readVintedListingCategoryFields(page, accountId, selectedCategory.id, [], {
       authorize: check,
       readCategoryId,
+      // Eine Marke außerhalb der Vorschlagsliste erscheint erst nach der Suche.
+      ...(item.brandId === null
+        ? {}
+        : { brand: { brandId: item.brandId, brandLabel: item.brandLabel } }),
     }),
     selectedCategory.id,
   );

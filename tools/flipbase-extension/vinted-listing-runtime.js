@@ -7,7 +7,8 @@
     size: /^size-group-([1-9][0-9]*)-grid-option-([1-9][0-9]*)$/,
     condition: /^condition-([1-9][0-9]*)$/,
     color: /^color-([1-9][0-9]*)$/,
-    material: /^material-([1-9][0-9]*)$/,
+    // Am 12.10.2026 an der echten Maske gemessen: Vorschläge heißen material-suggestion-<id>.
+    material: /^material-(?:suggestion-)?([1-9][0-9]*)$/,
     package: /^package_type_selector_([1-9][0-9]*)$/,
   };
   function invalid() {

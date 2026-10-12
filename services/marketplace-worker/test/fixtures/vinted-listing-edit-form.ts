@@ -112,7 +112,7 @@ export async function createVintedListingEditFormFixture(
       <div id="size-options" hidden>${option('size', 'checkbox', [state.size])}</div>
       <div id="condition-options" hidden>${option('condition', 'radio', [state.condition])}</div>
       <div id="color-options" hidden>${option('color', 'checkbox', state.colors)}</div>
-      <div id="material-options" hidden>${option('material', 'checkbox', state.materials)}</div>
+      <div id="material-options" hidden><div role="checkbox" id="material-suggestion-298" aria-checked="false">Wildleder</div>${option('material', 'checkbox', state.materials)}</div>
       ${[2, 3].map((id) => `<button type="button" id="package-size-${id}">${id === 2 ? 'Mittel' : 'Groß'}</button><label><input type="radio" id="package_type_selector_${id}" aria-labelledby="package-size-${id}"${state.packageSize === id ? ' checked' : ''}></label>`).join('')}
       <div data-testid="media-upload-grid"><div data-testid="image-wrapper-0"><img src="https://images1.vinted.net/tc/fixtureA/f800/1788288106.webp"></div></div>
       <button type="button" id="save">Speichern</button>
