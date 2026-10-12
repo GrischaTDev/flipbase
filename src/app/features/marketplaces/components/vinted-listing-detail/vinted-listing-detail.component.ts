@@ -13,10 +13,10 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { AttributePickerComponent } from '../../../../shared/components/attribute-picker/attribute-picker.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { EntryPageLayoutComponent } from '../../../../shared/components/entry-page-layout/entry-page-layout.component';
 import { TwoColumnLayoutComponent } from '../../../../shared/components/two-column-layout/two-column-layout.component';
-import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
 import {
   CustomSelectComponent,
   type SelectOption,
@@ -44,8 +44,8 @@ import { createVintedListingMetricDisplay } from '../vinted-listings/vinted-list
     CurrencyPipe,
     ReactiveFormsModule,
     ButtonComponent,
+    AttributePickerComponent,
     CardComponent,
-    CustomCheckboxComponent,
     CustomSelectComponent,
     EntryPageLayoutComponent,
     TwoColumnLayoutComponent,
@@ -108,11 +108,12 @@ export class VintedListingDetailComponent {
     size: [''],
     condition: [''],
     package: [''],
+    // Mehrfachauswahl als Bezeichnungen, getrennt wie in der gemeinsamen Auswahlbox.
+    color: [''],
+    material: [''],
   });
   /** Frisch gelesener Vinted-Stand, auf dem die laufende Bearbeitung beruht. */
   readonly current = signal<VintedListingCurrentContent | null>(null);
-  readonly colors = signal<readonly string[]>([]);
-  readonly materials = signal<readonly string[]>([]);
   readonly choiceFields = computed(() =>
     (
       [
@@ -148,12 +149,12 @@ export class VintedListingDetailComponent {
   readonly multipleFields = computed(() =>
     (
       [
-        ['color', 'Farben', 2, this.colors()],
-        ['material', 'Material', 3, this.materials()],
+        ['color', 'Farben', 2],
+        ['material', 'Material', 3],
       ] as const
-    ).flatMap(([field, label, max, selected]) => {
-      const options = this.options(field);
-      return options.length ? [{ field, label, max, options, selected }] : [];
+    ).flatMap(([field, label, max]) => {
+      const options = this.multipleOptions(field).map((option) => option.label);
+      return options.length ? [{ field, label, max, options }] : [];
     }),
   );
   private requestVersion = 0;
@@ -238,8 +239,6 @@ export class VintedListingDetailComponent {
     this.notice.set(null);
     this.form.reset();
     this.current.set(null);
-    this.colors.set([]);
-    this.materials.set([]);
   }
   private options(field: VintedListingEditField): SelectOption[] {
     const current = this.current();
@@ -250,15 +249,23 @@ export class VintedListingDetailComponent {
       ? [{ value: '', label: 'Nicht angegeben' }, ...options]
       : [...options];
   }
-  toggle(field: 'color' | 'material', value: string, checked: boolean, max: number): void {
-    const selected = field === 'color' ? this.colors : this.materials;
-    selected.update((values) =>
-      checked
-        ? values.includes(value) || values.length >= max
-          ? values
-          : [...values, value]
-        : values.filter((entry) => entry !== value),
-    );
+  private multipleOptions(field: 'color' | 'material'): readonly SelectOption[] {
+    const current = this.current();
+    return current ? vintedListingEditOptions(current.schema, field) : [];
+  }
+  /** Gewählte Kennungen als Bezeichnungen für die Auswahlbox. */
+  private labelsOf(field: 'color' | 'material', values: readonly string[]): string {
+    const options = this.multipleOptions(field);
+    return values
+      .flatMap((value) => options.find((option) => option.value === value)?.label ?? [])
+      .join(' · ');
+  }
+  /** Bezeichnungen der Auswahlbox zurück in Vinteds Kennungen; Unbekanntes entfällt. */
+  private valuesOf(field: 'color' | 'material', labels: string): string[] {
+    const options = this.multipleOptions(field);
+    return labels
+      .split(' · ')
+      .flatMap((label) => options.find((option) => option.label === label)?.value ?? []);
   }
   private isCurrent(version: number): boolean {
     return (
@@ -333,8 +340,6 @@ export class VintedListingDetailComponent {
     this.error.set(null);
     this.notice.set(null);
     this.current.set(null);
-    this.colors.set([]);
-    this.materials.set([]);
     this.basicReady.set(false);
     this.form.reset({
       title: entry.title,
@@ -344,6 +349,8 @@ export class VintedListingDetailComponent {
       size: '',
       condition: '',
       package: '',
+      color: '',
+      material: '',
     });
     this.editing.set(true);
     this.loadingCurrent.set(true);
@@ -366,9 +373,9 @@ export class VintedListingDetailComponent {
       if (!this.isCurrent(version) || !this.editing()) return;
       const selection = vintedListingEditSelection(current);
       this.current.set(current);
-      this.colors.set(selection.color);
-      this.materials.set(selection.material);
       this.fillUntouched({
+        color: this.labelsOf('color', selection.color),
+        material: this.labelsOf('material', selection.material),
         title: current.content.title,
         description: current.content.description,
         price: vintedListingPriceText(current.content.priceCents ?? 0),
@@ -426,8 +433,8 @@ export class VintedListingDetailComponent {
         size: fields.size ?? '',
         condition: fields.condition ?? '',
         package: fields.package ?? '',
-        color: this.colors(),
-        material: this.materials(),
+        color: this.valuesOf('color', fields.color),
+        material: this.valuesOf('material', fields.material),
       });
       await this.store.saveListingContent(
         this.connectionId(),

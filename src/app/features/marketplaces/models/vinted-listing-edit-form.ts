@@ -41,7 +41,22 @@ export function vintedListingEditOptions(
 ): readonly VintedListingEditOption[] {
   return choices(schema, field)
     .filter((choice) => !choice.disabled || choice.selected)
-    .map((choice) => ({ value: optionValue(choice), label: choice.label }));
+    .map((choice) => ({
+      value: optionValue(choice),
+      label: field === 'package' ? packageSizeLabel(choice.label) : choice.label,
+    }));
+}
+
+/**
+ * Vinteds Kachel der Paketgröße liefert Hinweis, Name und Beschreibung ohne Trennung, etwa
+ * „EmpfohlenMittelFür Artikel, die in einen Schuhkarton passen“. Gezeigt wird nur der Name.
+ */
+export function packageSizeLabel(label: string): string {
+  const names = ['Klein', 'Mittel', 'Groß']
+    .map((name) => ({ name, at: label.indexOf(name) }))
+    .filter((entry) => entry.at >= 0)
+    .sort((left, right) => left.at - right.at);
+  return names[0]?.name ?? label;
 }
 
 export function vintedListingEditSelection(

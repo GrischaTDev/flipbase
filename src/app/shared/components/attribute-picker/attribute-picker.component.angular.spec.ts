@@ -21,7 +21,7 @@ beforeEach(() => {
   const declared = metadata.declaredInputs;
   metadata.inputs = { ...inputs };
   metadata.declaredInputs = { ...declared };
-  for (const name of ['label', 'options', 'multiple', 'swatches']) {
+  for (const name of ['label', 'options', 'multiple', 'swatches', 'allowCustom', 'maxSelected']) {
     metadata.inputs[name] = [name, 1, null];
     metadata.declaredInputs[name] = name;
   }
@@ -136,6 +136,40 @@ describe('AttributePickerComponent', () => {
     fixture.componentInstance.choose('Rot');
     fixture.detectChanges();
     expect(values.at(-1)).toBe('Blau');
+  });
+
+  it('lässt bei festen Werten keine eigene Eingabe zu und hält die Höchstzahl ein', () => {
+    const { fixture, values } = create(true);
+    fixture.componentRef.setInput('options', ['Rot', 'Blau', 'Grün']);
+    fixture.componentRef.setInput('allowCustom', false);
+    fixture.componentRef.setInput('maxSelected', 2);
+    fixture.componentInstance.choose('Rot');
+    fixture.componentInstance.choose('Blau');
+    fixture.detectChanges();
+    // Die dritte Farbe wird nicht übernommen, solange zwei gewählt sind.
+    fixture.componentInstance.choose('Grün');
+    fixture.detectChanges();
+    expect(values).toEqual(['Rot', 'Rot · Blau']);
+    expect(fixture.componentInstance.limitReached()).toBe(true);
+    const options = [
+      ...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('[role="option"]'),
+    ];
+    expect(options.map((option) => option.getAttribute('aria-disabled'))).toEqual([
+      null,
+      null,
+      'true',
+    ]);
+    // Abwählen bleibt möglich und gibt den Platz wieder frei.
+    fixture.componentInstance.choose('Rot');
+    fixture.componentInstance.choose('Grün');
+    expect(values.at(-1)).toBe('Blau · Grün');
+    // Ein nicht vorgegebener Suchtext wird nicht als eigener Wert angeboten.
+    const field = (fixture.nativeElement as HTMLElement).querySelector('input')!;
+    field.value = 'Neon';
+    field.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    expect(fixture.componentInstance.customValue()).toBeNull();
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Keine Vorschläge');
   });
 
   it('zeigt bei geöffneter Suche keine AXE-Verstöße', async () => {
