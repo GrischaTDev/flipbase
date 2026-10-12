@@ -58,6 +58,12 @@ export class ListingImageEditorComponent {
   readonly acceptedFormats = input(IMAGE_FILE_ACCEPT);
   readonly validateFile = input<(file: File) => string | null>(imageFileError);
   readonly maximumImages = input<number | null>(null);
+  /** `false`: Es lassen sich keine neuen Bilder auswählen oder ablegen. */
+  readonly canAdd = input(true);
+  /** `false`: Zuschneiden und Drehen entfallen, etwa bei Bildern eines Marktplatzes. */
+  readonly canCrop = input(true);
+  /** Unter dieser Anzahl lässt sich kein Bild mehr entfernen. */
+  readonly minimumImages = input(0);
   readonly dragStartDelay = { touch: 200, mouse: 0 } as const;
   readonly dragIcon = LucideGripVertical;
   readonly primaryIcon = LucideStar;
@@ -88,7 +94,7 @@ export class ListingImageEditorComponent {
 
   onDragOver(event: DragEvent): void {
     event.preventDefault();
-    if (!this.disabled()) this.dragActive.set(true);
+    if (!this.disabled() && this.canAdd()) this.dragActive.set(true);
   }
 
   onDragLeave(event: DragEvent): void {
@@ -99,7 +105,7 @@ export class ListingImageEditorComponent {
   }
 
   addFiles(files: readonly File[]): void {
-    if (this.disabled()) return;
+    if (this.disabled() || !this.canAdd()) return;
     const rejected: string[] = [];
     const accepted: ListingImageDraft[] = [];
     for (const file of files) {
@@ -154,7 +160,7 @@ export class ListingImageEditorComponent {
 
   edit(key: string): void {
     const image = this.drafts().find((entry) => entry.key === key);
-    if (!this.disabled() && image && (image.file || image.previewUrl)) {
+    if (!this.disabled() && this.canCrop() && image && (image.file || image.previewUrl)) {
       this.editing.set(image);
       this.editingChange.emit(true);
     }
@@ -192,7 +198,7 @@ export class ListingImageEditorComponent {
   }
 
   remove(key: string): void {
-    if (this.disabled()) return;
+    if (this.disabled() || this.drafts().length <= this.minimumImages()) return;
     this.change(this.drafts().filter((image) => image.key !== key));
     this.announcement.set('Bild entfernt.');
   }

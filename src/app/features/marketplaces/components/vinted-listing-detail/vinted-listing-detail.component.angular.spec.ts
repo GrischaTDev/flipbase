@@ -11,6 +11,9 @@ import { CardComponent } from '../../../../shared/components/card/card.component
 import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 import { EntryPageLayoutComponent } from '../../../../shared/components/entry-page-layout/entry-page-layout.component';
+import { ImageCropperModalComponent } from '../../../../shared/components/image-cropper-modal/image-cropper-modal.component';
+import { ListingImageEditorComponent } from '../../../../shared/components/listing-image-editor/listing-image-editor.component';
+import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
@@ -124,6 +127,15 @@ beforeAll(async () => {
       type: EntryPageLayoutComponent,
       path: shared + 'entry-page-layout/entry-page-layout.component.ts',
     },
+    {
+      type: ListingImageEditorComponent,
+      path: shared + 'listing-image-editor/listing-image-editor.component.ts',
+    },
+    {
+      type: ImageCropperModalComponent,
+      path: shared + 'image-cropper-modal/image-cropper-modal.component.ts',
+    },
+    { type: ModalShellComponent, path: shared + 'modal-shell/modal-shell.component.ts' },
     { type: NoticeBannerComponent, path: shared + 'notice-banner/notice-banner.component.ts' },
     {
       type: ProductThumbnailComponent,
@@ -179,26 +191,31 @@ describe('Reaktive Inseratdetails', () => {
     let finishRead: (value: typeof listing) => void = () => undefined;
     store.readListingContent.mockReturnValueOnce(new Promise((resolve) => (finishRead = resolve)));
     const opening = component.edit();
+    const drafts = (...urls: (string | undefined)[]) =>
+      component.photoDrafts().filter((draft) => urls.includes(draft.key));
+    const ordered = (...urls: (string | undefined)[]) =>
+      urls.map((url) => component.photoDrafts().find((draft) => draft.key === url)!);
     // Vor dem Lesen des Vinted-Stands lassen sich Fotos nicht ändern.
     expect(component.canArrangePhotos()).toBe(false);
-    component.makeCoverPhoto();
+    component.onPhotoDraftsChanged([...component.photoDrafts()].reverse());
     finishRead(listing);
     await opening;
     expect(component.canArrangePhotos()).toBe(true);
     expect(component.photos()).toEqual([first, second]);
-    // Das zweite Foto wird Titelbild.
-    component.selectedPhoto.set(second!);
-    component.makeCoverPhoto();
+    expect(component.photoDrafts().map((draft) => draft.fileName)).toEqual(['Foto 1', 'Foto 2']);
+    // Der Bildeditor meldet die neue Reihenfolge: Das zweite Foto wird Titelbild.
+    component.onPhotoDraftsChanged(ordered(second, first));
     expect(component.photos()).toEqual([second, first]);
-    expect(component.photoAnnouncement()).toContain('Titelbild');
     // Zurück in die alte Reihenfolge gilt als unverändert.
-    component.movePhoto(1);
+    component.onPhotoDraftsChanged(ordered(first, second));
     expect(component.photos()).toEqual([first, second]);
-    component.selectedPhoto.set(second!);
-    component.removePhoto();
+    component.onPhotoDraftsChanged(drafts(first));
     expect(component.photos()).toEqual([first]);
-    // Das letzte Foto bleibt erhalten.
-    component.removePhoto();
+    // Ohne Foto oder mit einem fremden Bild bleibt der Stand unverändert.
+    component.onPhotoDraftsChanged([]);
+    component.onPhotoDraftsChanged([
+      { key: 'neu', storagePath: null, file: null, fileName: 'neu.jpg', previewUrl: '' },
+    ]);
     expect(component.photos()).toEqual([first]);
     await component.save();
     expect(store.saveListingContent).toHaveBeenCalledWith(
@@ -241,15 +258,21 @@ describe('Reaktive Inseratdetails', () => {
     const headings = [...element.querySelectorAll('h2, h3')].map((heading) =>
       heading.textContent?.trim(),
     );
-    expect(headings.indexOf('Fotos')).toBe(0);
-    expect(headings).toContain('Artikelangaben');
-    expect(headings).toContain('Preis und Versand');
-    expect(element.querySelectorAll('[aria-label="Fotos des Inserats"] button')).toHaveLength(2);
-    const actions = [...element.querySelectorAll('button')].map((button) =>
-      button.textContent?.trim(),
+    // Bilder stehen zuerst; die Artikelangaben folgen in der rechten Spalte auf Preis und Versand.
+    expect(headings.indexOf('Bilder')).toBe(0);
+    expect(headings.indexOf('Artikelangaben')).toBeGreaterThan(
+      headings.indexOf('Preis und Versand'),
     );
-    for (const label of ['Als Titelbild', 'Nach vorn', 'Nach hinten', 'Foto entfernen'])
-      expect(actions).toContain(label);
+    const editor = element.querySelector('app-listing-image-editor')!;
+    expect(editor.querySelectorAll('li')).toHaveLength(2);
+    // Vorhandene Fotos lassen sich verschieben und entfernen, aber nicht ergänzen oder zuschneiden.
+    expect(editor.querySelector('input[type="file"]')).toBeNull();
+    const labels = [...editor.querySelectorAll('button')].map((button) =>
+      button.getAttribute('aria-label'),
+    );
+    expect(labels).toContain('Foto 2 als Titelbild setzen');
+    expect(labels).toContain('Foto 1 entfernen');
+    expect(labels.some((label) => label?.includes('zuschneiden'))).toBe(false);
     // Farben und Material sind Auswahlboxen, keine Checkbox-Listen.
     expect(element.querySelectorAll('app-attribute-picker')).toHaveLength(2);
     expect(element.querySelector('[role="checkbox"]')).toBeNull();

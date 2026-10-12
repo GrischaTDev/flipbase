@@ -287,11 +287,10 @@ for (const width of [1440, 390]) {
     await expect(detail.getByRole('button', { name: 'Rot entfernen' })).toBeVisible();
     await page.keyboard.press('Escape');
     // Das zweite Foto wird Titelbild; gespeichert wird die neue Reihenfolge der vorhandenen Fotos.
-    await detail.getByRole('button', { name: 'Foto 2 von 2 anzeigen', exact: true }).click();
-    await detail.getByRole('button', { name: 'Als Titelbild', exact: true }).click();
-    await expect(
-      detail.getByRole('button', { name: 'Titelbild, Foto 1 von 2 anzeigen', exact: true }),
-    ).toHaveAttribute('aria-pressed', 'true');
+    await detail.getByRole('button', { name: 'Foto 2 als Titelbild setzen', exact: true }).click();
+    // Der Bildeditor zeigt die vorhandenen Fotos; hinzufügen und zuschneiden entfallen noch.
+    await expect(detail.locator('app-listing-image-editor li')).toHaveCount(2);
+    await expect(detail.locator('app-listing-image-editor input[type="file"]')).toHaveCount(0);
     await detail.getByRole('textbox', { name: 'Titel' }).fill('Neue Schuhe');
     await detail.getByLabel('Verkaufspreis').fill('18');
     await page.addScriptTag({ content: axe.source });
