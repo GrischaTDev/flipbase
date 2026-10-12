@@ -18,6 +18,7 @@ import {
 import {
   vintedListingUpdateFailure,
   vintedListingUpdateSteps,
+  vintedListingUpdateStoppedBeforeSaving,
   type VintedListingUpdateStep,
 } from '../src/vinted-browser-listing-update.ts';
 
@@ -359,12 +360,21 @@ test('content HTTP save logs the step of an aborted save before the broker repla
     vintedListingUpdateFailure('verify', 'changed').message,
     'Speichern abgebrochen bei gegenlesen changed',
   );
+  // Nur ein Abschnitt vor dem Speichern belegt, dass bei Vinted nichts geändert wurde.
+  const stopped = (error: Error) =>
+    vintedListingUpdateStoppedBeforeSaving(unexpectedFailureDetail(error));
+  assert.equal(stopped(vintedListingUpdateFailure('verify', 'changed')), true);
+  assert.equal(stopped(vintedListingUpdateFailure('photoMove')), true);
+  assert.equal(stopped(vintedListingUpdateFailure('save')), false);
+  assert.equal(stopped(vintedListingUpdateFailure('confirm')), false);
+  assert.equal(stopped(new Error('Browsersitzung unterbrochen')), false);
   const f = await fixture({ failSave: true });
   try {
     const lines = await capturedListingFailures(async () => {
       const response = await f.save({ workspaceId, connectionId, entryId, base, content: base });
-      assert.equal(response.ok, false);
-      await response.arrayBuffer();
+      // Der Abbruch lag vor dem Speichern: Die Antwort sagt eindeutig, dass nichts geändert wurde.
+      assert.equal(response.status, 409);
+      assert.deepEqual(await response.json(), { code: 'vinted_listing_not_saved' });
     }, 'marketplace_listing_read_detail');
     assert.deepEqual(lines, [
       {

@@ -54,10 +54,17 @@ export async function createVintedListingEditFormFixture(
     state?: Partial<EditFormState>;
     /** So viele Ablagen eines gezogenen Fotos bleiben ohne Wirkung. */
     ignoredPhotoDrops?: number;
+    /**
+     * Was Vinteds Abfrage des Inserats liefert: den vollen gespeicherten Stand (Standard), nur
+     * Kennung und Kategorie, oder Fotos unter Adressen, die nicht zum Raster passen.
+     */
+    itemApi?: 'full' | 'reference' | 'foreign-photo-urls';
   } = {},
 ) {
   let saves = 0,
-    writes = 0;
+    writes = 0,
+    listOpens = 0,
+    itemReads = 0;
   let state: EditFormState = {
     title: 'Meine Schuhe',
     description: 'Sehr gut erhalten.',
@@ -97,8 +104,57 @@ export async function createVintedListingEditFormFixture(
         json: { user: { id: options.foreign ? '456' : '123', login: 'fixture' } },
       });
     // Wie bei Vinted: Die Bearbeitungsmaske erhält das Inserat mit seiner Kategorie hierüber.
-    if (url.pathname === '/api/v2/item_upload/items/98765')
-      return route.fulfill({ json: { item: { id: 98765, catalog_id: 2738 }, code: 0 } });
+    if (url.pathname === '/api/v2/item_upload/items/98765') {
+      itemReads++;
+      if (options.itemApi === 'reference')
+        return route.fulfill({ json: { item: { id: 98765, catalog_id: 2738 }, code: 0 } });
+      // Aufbau wie am 12.10.2026 an Vinteds Schnittstelle gemessen (nur Feldnamen und Typen).
+      const price = /^([0-9]+)(?:[,.]([0-9]{1,2}))?/.exec(state.price.split('€').join('').trim());
+      const brand = choices.brand.find(([id]) => id === state.brand);
+      return route.fulfill({
+        json: {
+          code: 0,
+          item: {
+            id: 98765,
+            catalog_id: 2738,
+            title: state.title,
+            description: state.description,
+            price: {
+              amount: price ? price[1] + '.' + (price[2] ?? '0') : '0',
+              currency_code: 'EUR',
+            },
+            brand_id: state.brand,
+            brand_dto: brand ? { id: brand[0], title: brand[1] } : null,
+            color1_id: state.colors[0] ?? null,
+            color2_id: state.colors[1] ?? null,
+            package_size_id: state.packageSize,
+            item_attributes: [
+              { code: 'size', ids: state.size === null ? [] : [state.size] },
+              { code: 'condition', ids: state.condition === null ? [] : [state.condition] },
+              { code: 'material', ids: state.materials },
+            ],
+            photos: state.photos.map((photoUrl, index) => {
+              const address =
+                options.itemApi === 'foreign-photo-urls'
+                  ? 'https://images1.vinted.net/other/' + index + '.webp'
+                  : photoUrl;
+              return {
+                id:
+                  5000 + editFormPhotoUrls.indexOf(photoUrl as (typeof editFormPhotoUrls)[number]),
+                url: address + '?s=fixture',
+                full_size_url: address,
+                thumbnails: [{ type: 'thumb310', url: address }],
+                is_main: index === 0,
+              };
+            }),
+          },
+        },
+      });
+    }
+    if (url.pathname === '/fixture/list-open') {
+      listOpens++;
+      return route.fulfill({ json: { ok: true } });
+    }
     if (url.hostname.endsWith('.vinted.net'))
       return route.fulfill({
         contentType: 'image/png',
@@ -174,7 +230,7 @@ export async function createVintedListingEditFormFixture(
       const selected=name=>options(name).filter(node=>node.getAttribute('aria-checked')==='true');
       const identifier=node=>Number(/([0-9]+)$/.exec(node.id||node.dataset.testid)[1]);
       names.forEach(name=>{
-        document.querySelector('#'+name).onclick=()=>{hide();document.querySelector('#'+name+'-options').hidden=false;};
+        document.querySelector('#'+name).onclick=()=>{fetch('/fixture/list-open');hide();document.querySelector('#'+name+'-options').hidden=false;};
         if(name==='category') return;
         options(name).forEach(node=>node.onclick=()=>{
           if(node.getAttribute('aria-disabled')==='true') return;
@@ -198,5 +254,13 @@ export async function createVintedListingEditFormFixture(
       </script>`,
     });
   });
-  return { saves: () => saves, writes: () => writes, state: () => state };
+  return {
+    saves: () => saves,
+    writes: () => writes,
+    state: () => state,
+    /** Wie oft eine Auswahlliste der Maske geöffnet wurde. */
+    listOpens: () => listOpens,
+    /** Wie oft Vinteds Abfrage des Inserats aufgerufen wurde. */
+    itemReads: () => itemReads,
+  };
 }

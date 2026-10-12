@@ -77,6 +77,71 @@ test('saves a price that is the only change although the form reformats it on le
     assert.equal(f.saves(), 1);
     assert.equal(f.state().price, '10,00 €');
     assert.equal(f.state().title, 'Meine Schuhe');
+    // Ohne geänderte Auswahl bleibt jede Auswahlliste geschlossen.
+    assert.equal(f.listOpens(), 0);
+  } finally {
+    await browser.close();
+  }
+});
+
+test('reads through the form when the item query is incomplete or its photos cannot be matched', async () => {
+  const [first, second] = editFormPhotoUrls;
+  const browser = await chromium.launch();
+  try {
+    // Ohne vollständige Abfrage bleibt es beim Lesen der Maske – mit demselben Ergebnis.
+    const page = await browser.newPage(),
+      f = await createVintedListingEditFormFixture(page, { itemApi: 'reference' });
+    assert.equal(
+      await updateVintedListingContent(
+        page,
+        '123',
+        '98765',
+        base,
+        { ...base, priceCents: 1000 },
+        allow,
+      ),
+      'confirmed',
+    );
+    assert.equal(f.state().price, '10,00 €');
+    assert.ok(f.listOpens() > 0);
+    // Lassen sich die Fotos der Abfrage dem Raster nicht zuordnen, entscheidet die Maske über sie.
+    const other = await browser.newPage(),
+      photos = await createVintedListingEditFormFixture(other, {
+        state: { photos: [first, second] },
+        itemApi: 'foreign-photo-urls',
+      });
+    assert.equal(
+      await updateVintedListingContent(other, '123', '98765', base, base, allow, 20_000, {
+        base: [first, second],
+        desired: [second, first],
+      }),
+      'confirmed',
+    );
+    assert.deepEqual(photos.state().photos, [second, first]);
+    assert.ok(photos.listOpens() > 0);
+  } finally {
+    await browser.close();
+  }
+});
+
+test('leaves a change at Vinted to the full comparison instead of deciding it from the item query', async () => {
+  const browser = await chromium.launch();
+  try {
+    // Die Maske zeigt einen anderen Preis als der Ausgangsstand: Konflikt, nichts geschrieben.
+    const page = await browser.newPage(),
+      f = await createVintedListingEditFormFixture(page, { state: { price: '25,00 €' } });
+    assert.equal(
+      await updateVintedListingContent(
+        page,
+        '123',
+        '98765',
+        base,
+        { ...base, title: 'Neu' },
+        allow,
+      ),
+      'conflict',
+    );
+    assert.equal(f.writes(), 0);
   } finally {
     await browser.close();
   }
@@ -180,6 +245,8 @@ test('removes and reorders photos before saving and confirms the new order after
     assert.equal(f.saves(), 1);
     assert.deepEqual(f.state().photos, [third, first]);
     assert.equal(f.state().title, 'Meine Schuhe');
+    // Fotos allein brauchen keine Auswahlliste; bestätigt wird über die Kennungen der Fotos.
+    assert.equal(f.listOpens(), 0);
   } finally {
     await browser.close();
   }
