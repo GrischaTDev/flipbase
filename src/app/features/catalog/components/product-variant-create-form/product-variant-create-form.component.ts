@@ -18,7 +18,7 @@ import { ButtonComponent } from '../../../../shared/components/button/button.com
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { normalizeGtin } from '../../../../shared/utils/gtin';
-import { ProductMediaEditorComponent } from '../product-media-editor/product-media-editor.component';
+import { ProductMediaEditorComponent } from '../../../../shared/components/product-media-editor/product-media-editor.component';
 import {
   PRODUCT_COLOR_OPTIONS,
   PRODUCT_COLOR_SWATCHES,

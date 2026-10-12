@@ -5,9 +5,9 @@
   (dragleave)="onDragLeave()"
   (drop)="onDrop($event)"
 >
-  @if (errors().length) {
+  @if (shownErrors().length) {
     <ul role="alert" class="space-y-1 text-[13px] text-rose-400">
-      @for (error of errors(); track $index) {
+      @for (error of shownErrors(); track $index) {
         <li>{{ error }}</li>
       }
     </ul>
@@ -18,11 +18,12 @@
     type="file"
     multiple
     [accept]="accept"
-    [disabled]="disabled()"
+    [disabled]="disabled() || !canAdd()"
+    hidden
     class="hidden"
     (change)="onFileSelected($event)"
   />
-  @if (!drafts().length) {
+  @if (!drafts().length && canAdd()) {
     <div
       class="flex min-h-32 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-fb-border bg-fb-subtle p-5 text-center"
     >
@@ -102,23 +103,25 @@
           </button>
         </li>
       }
-      <li
-        class="aspect-square overflow-hidden rounded-xl border border-dashed border-fb-border bg-fb-subtle text-fb-text-secondary hover:border-fb-primary hover:bg-fb-surface-hover"
-      >
-        <button
-          type="button"
-          data-add-media
-          [disabled]="disabled()"
-          (click)="fileInput.click()"
-          aria-label="Weitere Bilder hinzufügen"
-          class="flex size-full cursor-pointer items-center justify-center focus-visible:outline-2 focus-visible:outline-fb-primary"
+      @if (canAdd()) {
+        <li
+          class="aspect-square overflow-hidden rounded-xl border border-dashed border-fb-border bg-fb-subtle text-fb-text-secondary hover:border-fb-primary hover:bg-fb-surface-hover"
         >
-          <svg [lucideIcon]="addIcon" class="size-6" aria-hidden="true"></svg>
-        </button>
-      </li>
+          <button
+            type="button"
+            data-add-media
+            [disabled]="disabled()"
+            (click)="fileInput.click()"
+            aria-label="Weitere Bilder hinzufügen"
+            class="flex size-full cursor-pointer items-center justify-center focus-visible:outline-2 focus-visible:outline-fb-primary"
+          >
+            <svg [lucideIcon]="addIcon" class="size-6" aria-hidden="true"></svg>
+          </button>
+        </li>
+      }
     </ol>
   }
-  @if (dragActive() && !disabled()) {
+  @if (dragActive() && !disabled() && canAdd()) {
     <div
       class="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-xl border-2 border-dashed border-fb-primary bg-fb-surface/95 p-5 text-center text-sm font-semibold text-fb-text-primary backdrop-blur-sm"
       aria-hidden="true"
@@ -145,25 +148,27 @@
           />
         }
       </div>
-      <div class="space-y-1">
-        <app-text-field
-          label="Bildname"
-          formControlName="fileName"
-          [maxLength]="255"
-          [required]="true"
-        />
-        @if (detailsForm.controls.fileName.touched && detailsForm.controls.fileName.invalid) {
-          <p class="text-xs text-fb-critical">Bitte gib einen Bildnamen ein.</p>
-        }
-      </div>
-      <div class="space-y-1">
-        <app-text-field
-          label="Alternativtext"
-          formControlName="altText"
-          [maxLength]="500"
-          helpText="Beschreibe kurz, was auf dem Bild zu sehen ist."
-        />
-      </div>
+      @if (canDescribe()) {
+        <div class="space-y-1">
+          <app-text-field
+            label="Bildname"
+            formControlName="fileName"
+            [maxLength]="255"
+            [required]="true"
+          />
+          @if (detailsForm.controls.fileName.touched && detailsForm.controls.fileName.invalid) {
+            <p class="text-xs text-fb-critical">Bitte gib einen Bildnamen ein.</p>
+          }
+        </div>
+        <div class="space-y-1">
+          <app-text-field
+            label="Alternativtext"
+            formControlName="altText"
+            [maxLength]="500"
+            helpText="Beschreibe kurz, was auf dem Bild zu sehen ist."
+          />
+        </div>
+      }
       <div class="space-y-1">
         <span class="block text-[13px] font-medium text-fb-text-primary"
           >Position in der Galerie</span
@@ -176,8 +181,12 @@
       </div>
     </form>
     <div modal-footer class="flex w-full flex-wrap items-center gap-2">
-      <app-button variant="destructive" (clicked)="removeFromDetails()">Bild löschen</app-button>
-      <app-button variant="secondary" (clicked)="cropFromDetails()">Zuschneiden</app-button>
+      <app-button variant="destructive" [disabled]="!canRemove()" (clicked)="removeFromDetails()"
+        >Bild löschen</app-button
+      >
+      @if (canCrop()) {
+        <app-button variant="secondary" (clicked)="cropFromDetails()">Zuschneiden</app-button>
+      }
       <span class="flex-1"></span>
       <app-button variant="secondary" (clicked)="detailsKey.set(null)">Abbrechen</app-button>
       <app-button type="submit" formId="product-media-details">Übernehmen</app-button>

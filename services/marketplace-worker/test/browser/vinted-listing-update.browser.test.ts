@@ -123,7 +123,7 @@ test('rejects locked choices, category changes, foreign accounts and revoked rig
       updateVintedListingContent(revoked, '123', '98765', base, desired, async () => {
         if (++checks > 12) throw new Error('revoked');
       }),
-      /revoked/,
+      /^Error: Speichern abgebrochen bei berechtigung$/,
     );
     assert.equal(f.writes(), 0);
     const used = await browser.newPage(),
@@ -185,6 +185,45 @@ test('moves a photo to the front together with a content change', async () => {
     assert.deepEqual(f.state().photos, [second, third, first]);
     assert.equal(f.state().title, 'Neuer Titel');
     assert.equal(f.saves(), 1);
+  } finally {
+    await browser.close();
+  }
+});
+
+test('repeats a photo move that did not take and names the step when it never does', async () => {
+  const [first, second, third] = editFormPhotoUrls;
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage(),
+      f = await createVintedListingEditFormFixture(page, {
+        state: { photos: [first, second, third] },
+        ignoredPhotoDrops: 1,
+      });
+    assert.equal(
+      await updateVintedListingContent(page, '123', '98765', base, base, allow, 20_000, {
+        base: [first, second, third],
+        desired: [third, first, second],
+      }),
+      'confirmed',
+    );
+    assert.deepEqual(f.state().photos, [third, first, second]);
+    assert.equal(f.saves(), 1);
+    const stuck = await browser.newPage(),
+      unchanged = await createVintedListingEditFormFixture(stuck, {
+        state: { photos: [first, second, third] },
+        ignoredPhotoDrops: 99,
+      });
+    // Der Abbruch nennt nur den festen Abschnitt; gespeichert wurde nichts.
+    await assert.rejects(
+      updateVintedListingContent(stuck, '123', '98765', base, base, allow, 20_000, {
+        base: [first, second, third],
+        desired: [third, first, second],
+      }),
+      /^Error: Speichern abgebrochen bei fotos verschieben$/,
+    );
+    assert.equal(stuck.isClosed(), true);
+    assert.equal(unchanged.writes(), 0);
+    assert.deepEqual(unchanged.state().photos, [first, second, third]);
   } finally {
     await browser.close();
   }

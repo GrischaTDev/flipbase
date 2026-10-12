@@ -48,7 +48,13 @@ const choices = {
 /** Synthetische Bearbeitungsmaske mit eigenem Speicherstand; keine Anfrage verlässt den Test. */
 export async function createVintedListingEditFormFixture(
   page: Pick<Page, 'route'>,
-  options: { foreign?: boolean; ignoreSave?: boolean; state?: Partial<EditFormState> } = {},
+  options: {
+    foreign?: boolean;
+    ignoreSave?: boolean;
+    state?: Partial<EditFormState>;
+    /** So viele Ablagen eines gezogenen Fotos bleiben ohne Wirkung. */
+    ignoredPhotoDrops?: number;
+  } = {},
 ) {
   let saves = 0,
     writes = 0;
@@ -128,19 +134,26 @@ export async function createVintedListingEditFormFixture(
       </main><script>
       let photos=${JSON.stringify(state.photos)};
       const grid=document.querySelector('[data-testid=media-upload-grid]');
-      let dragged=null,start=null;
+      let dragged=null,start=null,active=false,hold=null,ignoredDrops=${options.ignoredPhotoDrops ?? 0};
       const renderPhotos=()=>{
         grid.innerHTML=photos.map((url,index)=>'<div class="photo-box" style="position:relative;width:80px;height:80px"><div role="button" tabindex="0" aria-roledescription="sortable" data-index="'+index+'" style="width:80px;height:80px;cursor:grab"><div data-testid="image-wrapper-'+index+'"><img draggable="false" style="width:80px;height:80px;pointer-events:none" src="'+url+'"></div></div><button type="button" style="position:absolute;top:0;right:0" data-testid="media-select-grid-delete-button-'+index+'" aria-label="Ausgewähltes Foto entfernen">x</button></div>').join('');
         grid.querySelectorAll('[data-testid^=media-select-grid-delete-button-]').forEach((button,index)=>button.onclick=()=>{photos=photos.filter((_,position)=>position!==index);renderPhotos();});
-        grid.querySelectorAll('[aria-roledescription=sortable]').forEach(node=>node.onpointerdown=event=>{dragged=Number(node.dataset.index);start=[event.clientX,event.clientY];});
+        grid.querySelectorAll('[aria-roledescription=sortable]').forEach(node=>node.onpointerdown=event=>{dragged=Number(node.dataset.index);start=[event.clientX,event.clientY];active=false;clearTimeout(hold);hold=setTimeout(()=>{active=true;},250);});
       };
-      // Wie der Ziehrahmen der echten Maske: erst eine erkennbare Bewegung verschiebt ein Foto.
+      // Bewusst strenger als gemessen: Welche Bedingung der Ziehrahmen der echten Maske stellt, ist
+      // nicht bekannt. Hier zählt ein Zug nur nach kurzem Halten ohne Bewegung und mit erkennbarem Weg.
+      document.onpointermove=event=>{
+        if(dragged===null||active) return;
+        if(Math.hypot(event.clientX-start[0],event.clientY-start[1])>5){clearTimeout(hold);dragged=null;}
+      };
       document.onpointerup=event=>{
+        clearTimeout(hold);
         if(dragged===null) return;
-        const from=dragged,moved=Math.hypot(event.clientX-start[0],event.clientY-start[1]);
-        dragged=null;
+        const from=dragged,held=active,moved=Math.hypot(event.clientX-start[0],event.clientY-start[1]);
+        dragged=null;active=false;
         const target=document.elementFromPoint(event.clientX,event.clientY)?.closest('.photo-box');
-        if(!target||moved<8) return;
+        if(!held||!target||moved<8) return;
+        if(ignoredDrops-->0) return;
         const to=[...grid.children].indexOf(target);
         if(to<0||to===from) return;
         const [photo]=photos.splice(from,1);photos.splice(to,0,photo);renderPhotos();

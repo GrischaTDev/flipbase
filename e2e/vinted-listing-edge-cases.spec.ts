@@ -287,11 +287,31 @@ for (const width of [1440, 390]) {
     await expect(detail.getByRole('button', { name: 'Rot entfernen' })).toBeVisible();
     await page.keyboard.press('Escape');
     // Das zweite Foto wird Titelbild; gespeichert wird die neue Reihenfolge der vorhandenen Fotos.
-    await detail.getByRole('button', { name: 'Foto 2 von 2 anzeigen', exact: true }).click();
-    await detail.getByRole('button', { name: 'Als Titelbild', exact: true }).click();
-    await expect(
-      detail.getByRole('button', { name: 'Titelbild, Foto 1 von 2 anzeigen', exact: true }),
-    ).toHaveAttribute('aria-pressed', 'true');
+    // Derselbe Bild-Baustein wie auf der Produktseite; hinzufügen und zuschneiden entfallen noch.
+    const photos = detail.locator('app-product-media-editor');
+    await expect(photos.locator('li')).toHaveCount(2);
+    await expect(photos.locator('[data-add-media]')).toHaveCount(0);
+    await photos.getByRole('button', { name: 'Bild 2: Foto 2, Details öffnen' }).click();
+    const photoDetails = page.getByRole('dialog');
+    await expect(photoDetails.getByRole('button', { name: 'Zuschneiden' })).toHaveCount(0);
+    await expect(photoDetails.getByRole('textbox', { name: 'Bildname' })).toHaveCount(0);
+    await page.addScriptTag({ content: axe.source });
+    // Während des Einblendens misst die Prüfung Zwischenfarben; gewertet wird das fertige Fenster.
+    await expect
+      .poll(() =>
+        page.evaluate(async () =>
+          (
+            await (window as Window & { axe: typeof axe }).axe.run(
+              document.querySelector('[role="dialog"]')!,
+            )
+          ).violations.map((violation) => violation.id),
+        ),
+      )
+      .toEqual([]);
+    await photoDetails.getByRole('combobox', { name: 'Position in der Galerie' }).click();
+    await photoDetails.getByRole('option', { name: '1 · Hauptbild' }).click();
+    await photoDetails.getByRole('button', { name: 'Übernehmen' }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
     await detail.getByRole('textbox', { name: 'Titel' }).fill('Neue Schuhe');
     await detail.getByLabel('Verkaufspreis').fill('18');
     await page.addScriptTag({ content: axe.source });

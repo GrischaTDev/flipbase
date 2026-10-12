@@ -2,8 +2,8 @@ import '@angular/compiler';
 import { ElementRef, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ProductImageDraft } from '../../../../core/models/product-media.models';
-import { CroppedImageResult } from '../../../../shared/components/image-cropper-modal/image-cropper-modal.component';
+import { ProductImageDraft } from '../../../core/models/product-media.models';
+import { CroppedImageResult } from '../image-cropper-modal/image-cropper-modal.component';
 import { ProductMediaEditorComponent } from './product-media-editor.component';
 
 class PreviewReader {
@@ -219,6 +219,40 @@ describe('ProductMediaEditorComponent', () => {
     expect(output).not.toHaveBeenCalled();
     component.previewFailed('entfernt');
     expect(failed).toHaveBeenCalledOnce();
+  });
+
+  it('sortiert und entfernt vorhandene Bilder, ohne neue anzunehmen, zuzuschneiden oder das letzte zu löschen', () => {
+    Object.assign(component, {
+      canAdd: signal(false),
+      canCrop: signal(false),
+      canDescribe: signal(false),
+      minimumImages: signal(1),
+    });
+    images.set([saved('first'), saved('second')]);
+    const transfer = { types: ['Files'], files: [file] } as unknown as DataTransfer;
+    component.onDragEnter({ dataTransfer: transfer, preventDefault: vi.fn() } as never);
+    component.addFiles([file]);
+    component.startCrop('first');
+    expect(output).not.toHaveBeenCalled();
+    expect(component.dragActive()).toBe(false);
+    expect(component.cropKey()).toBeNull();
+    // Die Bilddetails ändern nur die Position; Bildname und Alternativtext bleiben unberührt.
+    component.openDetails('second');
+    component.detailsForm.patchValue({ fileName: 'anders', altText: 'Text', position: 1 });
+    component.saveDetails();
+    expect(component.drafts().map((image) => image.key)).toEqual(['second', 'first']);
+    expect(component.drafts()[0].fileName).toBeUndefined();
+    expect(component.drafts()[0].altText).toBeUndefined();
+    // Der Vorschaufehler eines entfernten Bildes wird nicht weiter angezeigt.
+    images.set([saved('first'), saved('second')]);
+    component.previewFailed('first');
+    expect(component.shownErrors()).toHaveLength(1);
+    component.remove('first');
+    expect(component.shownErrors()).toEqual([]);
+    // Das letzte Bild bleibt erhalten.
+    expect(component.canRemove()).toBe(false);
+    component.remove('second');
+    expect(component.drafts().map((image) => image.key)).toEqual(['second']);
   });
 
   it('zeigt Lesefehler und bricht offene Reader beim Abbau ab', () => {
