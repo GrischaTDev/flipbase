@@ -1,5 +1,31 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-12 – Juna – Abbruch beim vollständigen Lesen eines Inserats eingrenzen
+
+**Ergebnis der Nacht:** 102 Abrufe beider Cloud-Konten ohne Fehler, 25 Erneuerungen der
+Anmeldung in höchstens 1,2 Sekunden, kein Fehlstart. Die Beobachtung ist beendet, ihre Dateien
+sind vom Server gelöscht.
+
+**Auftrag:** Bearbeiten eines Inserats fällt weiter auf die Maske mit Titel, Beschreibung und
+Preis zurück („Vinted hat nicht alle Angaben dieses Inserats geliefert“).
+
+**Befund:** Die Browsersitzung des vollständigen Lesens lief am 12.10. um 09:40 Uhr 10,5
+Sekunden und endete mit `reason: failed`. Der Leser selbst meldete weder einen festen Schritt
+noch eine Fehlerart – beides wird seit PR 377 und 379 protokolliert. Der Abbruch liegt also
+außerhalb des Lesers: beim Öffnen, beim Kontoeintrag, bei der Bestätigung nach dem Lesen oder
+beim Schließen der Sitzung. Welcher Abschnitt es ist, ließ sich aus Code und Daten nicht sicher
+ableiten.
+
+**Änderung:** Die Route `content/read` hält ihren Abschnitt fest (öffnen, Eintrag, lesen,
+bestätigen, schließen). Das Protokoll eines unerwarteten Abbruchs nennt zusätzlich die
+Fehlerklasse, bei beendeter Sitzung deren festen Grund und die geprüfte Kurzbeschreibung aus
+reinen Wörtern. Am Verhalten ändert sich nichts.
+
+**Prüfungen:** 633 Worker-Prüfungen mit zwei neuen Fällen (Abbruch beim Schließen und bei der
+Bestätigung nach dem Lesen, ohne privaten Text), Typen, Format und ESLint grün.
+
+**Offen:** Ausliefern, dann ein weiterer Klick auf „Bearbeiten“.
+
 ## 2026-10-11 – Juna – Kontenschild zeigt den Abrufzustand statt immer „Verbunden“
 
 **Auftrag (Nutzer, 11.10.):** Auf der Kontenseite steht grün „Verbunden“, während das Postfach

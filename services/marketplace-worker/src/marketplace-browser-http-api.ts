@@ -251,6 +251,26 @@ function inputOf(
   throw new RequestError(400);
 }
 
+/**
+ * Einordnung eines unerwartet gescheiterten Inseratabrufs für das Protokoll: fester Abschnitt der
+ * Route, Name der Fehlerklasse und höchstens eine eigene Meldung aus gewöhnlichen Wörtern.
+ */
+export function listingFailureContext(
+  error: unknown,
+  phase: string | undefined,
+): { phase?: string; kind?: string; sessionEnd?: string; detail?: string } {
+  if (error instanceof VintedListingReadError || error instanceof RequestError)
+    return phase ? { phase } : {};
+  const kind = error instanceof Error ? error.constructor.name : '';
+  return {
+    ...(phase ? { phase } : {}),
+    ...(/^[A-Za-z]{1,60}$/.test(kind) ? { kind } : {}),
+    ...(error instanceof MarketplaceBrowserSessionEndedError ? { sessionEnd: error.reason } : {}),
+    detail:
+      error instanceof BrowserActionFailedError ? error.detail : unexpectedFailureDetail(error),
+  };
+}
+
 export class MarketplaceBrowserHttpApi {
   private readonly broker: BrowserBroker;
   private readonly users: BrowserUserVerifier;
@@ -268,6 +288,8 @@ export class MarketplaceBrowserHttpApi {
   private readonly cloudSetups?: BrowserApiOptions['cloudSetups'];
   private readonly scheduledSync?: BrowserApiOptions['scheduledSync'];
   private readonly inFlight = new Set<string>();
+  /** Fester Abschnitt, in dem eine Inseratroute scheiterte; nur für das Protokoll. */
+  private readonly listingFailurePhases = new WeakMap<object, string>();
 
   constructor(options: BrowserApiOptions) {
     this.broker = options.broker;
@@ -606,9 +628,11 @@ export class MarketplaceBrowserHttpApi {
         if (this.inFlight.has(key)) throw new RequestError(429);
         this.inFlight.add(key);
         let sessionId: string | undefined;
+        let phase: 'open' | 'entry' | 'read' | 'confirm' | 'close' = 'open';
         try {
           sessionId = await (this.broker.openAction?.(scope) ?? this.broker.open(scope));
           const currentSessionId = sessionId;
+          phase = 'entry';
           const entry = await edits.entry(scope, 'publication', entryId);
           const authorize = async () => {
             const current = await edits.entry(scope, 'publication', entryId);
@@ -619,6 +643,7 @@ export class MarketplaceBrowserHttpApi {
           // Der Sitzungsbroker ersetzt jeden Fehler durch „Sitzung unterbrochen“. Der feste
           // Schritt des Lesers wird deshalb vorher festgehalten und danach wieder gemeldet.
           let readFailure: VintedListingReadError | undefined;
+          phase = 'read';
           const listing = await this.broker
             .run(scope, currentSessionId, async (browser) => {
               if (!browser.readListingContent) throw new RequestError(503);
@@ -642,10 +667,15 @@ export class MarketplaceBrowserHttpApi {
             .catch((error: unknown) => {
               throw readFailure ?? error;
             });
+          phase = 'confirm';
           await authorize();
+          phase = 'close';
           await this.broker.close(scope, currentSessionId);
           sessionId = undefined;
           json(response, 200, { listing });
+        } catch (error) {
+          if (error && typeof error === 'object') this.listingFailurePhases.set(error, phase);
+          throw error;
         } finally {
           try {
             if (sessionId) await this.broker.close(scope, sessionId);
@@ -1176,6 +1206,12 @@ export class MarketplaceBrowserHttpApi {
                         ? 'interaction_required'
                         : 'failed',
               ...(error instanceof VintedListingReadError ? { step: error.step } : {}),
+              ...listingFailureContext(
+                error,
+                error && typeof error === 'object'
+                  ? this.listingFailurePhases.get(error)
+                  : undefined,
+              ),
             })}\n`,
           );
         } catch {
