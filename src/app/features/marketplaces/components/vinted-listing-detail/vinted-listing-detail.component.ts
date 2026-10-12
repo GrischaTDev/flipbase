@@ -328,7 +328,7 @@ export class VintedListingDetailComponent {
    */
   async edit(): Promise<void> {
     const entry = this.entry();
-    if (this.busy() || this.editing() || !entry) return;
+    if (this.busy() || this.editing() || this.loadingDescription() || !entry) return;
     const version = this.requestVersion;
     this.error.set(null);
     this.notice.set(null);
