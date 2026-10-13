@@ -5,6 +5,7 @@ import {
   ElementRef,
   Injector,
   afterNextRender,
+  computed,
   effect,
   inject,
   input,
@@ -20,6 +21,7 @@ import {
   LucideRefreshCw,
   LucideUnlink,
   LucideClipboardCheck,
+  LucidePencil,
 } from '@lucide/angular';
 import { AuthService } from '../../../../core/services/auth.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
@@ -31,18 +33,22 @@ import { PageHeaderComponent } from '../../../../shared/components/page-header/p
 import type { EbayListing } from '../../../../../../supabase/functions/_shared/ebay-contracts';
 import { EbayArticleMappingComponent } from '../ebay-article-mapping/ebay-article-mapping.component';
 import { EbayAccountStore } from '../../services/ebay-account.store';
+import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
+import { EbayTrafficOverviewComponent } from '../ebay-traffic-overview/ebay-traffic-overview.component';
 
 @Component({
   selector: 'app-ebay-account',
   imports: [
     DatePipe,
     DecimalPipe,
+    ProductThumbnailComponent,
     ButtonComponent,
     CardComponent,
     BadgeComponent,
     DataTableComponent,
     PageHeaderComponent,
     EbayArticleMappingComponent,
+    EbayTrafficOverviewComponent,
   ],
   providers: [EbayAccountStore],
   templateUrl: './ebay-account.component.html',
@@ -51,7 +57,22 @@ import { EbayAccountStore } from '../../services/ebay-account.store';
 })
 export class EbayAccountComponent {
   readonly showData = input(false);
+  readonly page = input<'listings' | 'orders' | 'statistics' | 'connection'>('listings');
+  readonly showingStatistics = computed(() => this.page() === 'statistics');
+  readonly pageTitle = computed(() => {
+    switch (this.page()) {
+      case 'orders':
+        return 'eBay-Bestellungen';
+      case 'statistics':
+        return 'eBay-Statistiken';
+      case 'connection':
+        return 'eBay-Kontoverbindung';
+      default:
+        return 'eBay-Inserate';
+    }
+  });
   readonly selectedListing = signal<EbayListing | null>(null);
+  readonly searchText = signal('');
   readonly store = inject(EbayAccountStore);
   readonly workspace = inject(WorkspaceService);
   private readonly auth = inject(AuthService);
@@ -64,16 +85,43 @@ export class EbayAccountComponent {
   readonly refreshIcon = LucideRefreshCw;
   readonly externalLinkIcon = LucideExternalLink;
   readonly reviewIcon = LucideClipboardCheck;
+  readonly editIcon = LucidePencil;
+  readonly filteredListings = computed(() => {
+    const query = this.searchText().trim().toLocaleLowerCase('de');
+    return this.store
+      .listings()
+      .filter((listing) =>
+        `${listing.title} ${listing.id}`.toLocaleLowerCase('de').includes(query),
+      );
+  });
+  readonly filteredOrders = computed(() => {
+    const query = this.searchText().trim().toLocaleLowerCase('de');
+    return this.store
+      .orders()
+      .filter((order) =>
+        `${order.id} ${order.items.map((item) => item.title).join(' ')}`
+          .toLocaleLowerCase('de')
+          .includes(query),
+      );
+  });
+  editListingLink(listingId: string): string {
+    return `/marketplaces/ebay/listings/${encodeURIComponent(listingId)}/edit`;
+  }
 
   constructor() {
     effect(() => {
       const user = this.auth.currentUser();
       const workspace = this.workspace.currentWorkspace();
+      const shouldRead =
+        this.showData() && (this.page() === 'listings' || this.page() === 'orders');
+      const section = this.page() === 'orders' ? 'orders' : 'listings';
+      this.searchText.set('');
       untracked(
         () =>
           void this.store.initialize(
             user && workspace && !workspace.archived_at ? workspace.id : null,
-            this.showData(),
+            shouldRead,
+            section,
           ),
       );
     });
@@ -106,7 +154,11 @@ export class EbayAccountComponent {
     const workspaceId = this.workspace.currentWorkspace()?.id;
     if (!this.auth.currentUser() || !workspaceId || this.workspace.currentWorkspace()?.archived_at)
       return;
-    void this.store.initialize(workspaceId, this.showData());
+    void this.store.initialize(
+      workspaceId,
+      this.showData() && (this.page() === 'listings' || this.page() === 'orders'),
+      this.page() === 'orders' ? 'orders' : 'listings',
+    );
   }
   openMapping(listing: EbayListing, event: MouseEvent): void {
     this.mappingTrigger = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;

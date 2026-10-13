@@ -58,6 +58,9 @@ export class ProductMediaEditorComponent {
   readonly canDescribe = input(true);
   /** Unter dieser Anzahl lässt sich kein Bild mehr entfernen. */
   readonly minimumImages = input(0);
+  readonly maximumImages = input<number | null>(null);
+  readonly validateFile = input<(file: File) => string | null>(imageFileError);
+  readonly fileHelpText = input('JPG, PNG, WebP, GIF oder AVIF · höchstens 50 MB pro Bild');
   readonly canRemove = computed(() => this.drafts().length > this.minimumImages());
   readonly imagesChange = output<readonly ProductImageDraft[]>();
   readonly imageFailed = output<ProductImageDraft>();
@@ -157,7 +160,11 @@ export class ProductMediaEditorComponent {
     const rejected: string[] = [];
     const additions: ProductImageDraft[] = [];
     for (const file of files) {
-      const error = imageFileError(file);
+      const maximum = this.maximumImages();
+      const error =
+        maximum !== null && this.drafts().length + additions.length >= maximum
+          ? `Du kannst höchstens ${maximum} Bilder auswählen.`
+          : this.validateFile()(file);
       if (error) rejected.push(file.name + ': ' + error);
       else additions.push({ key: crypto.randomUUID(), media: null, file, previewUrl: '' });
     }

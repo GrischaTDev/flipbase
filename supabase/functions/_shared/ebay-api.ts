@@ -6,6 +6,9 @@ export const EBAY_SCOPES = [
   'https://api.ebay.com/oauth/api_scope',
   'https://api.ebay.com/oauth/api_scope/commerce.identity.readonly',
   'https://api.ebay.com/oauth/api_scope/sell.fulfillment.readonly',
+  'https://api.ebay.com/oauth/api_scope/sell.inventory',
+  'https://api.ebay.com/oauth/api_scope/sell.analytics.readonly',
+  'https://api.ebay.com/oauth/api_scope/sell.marketing',
 ] as const;
 export interface EbayConfig {
   clientId: string;
@@ -24,7 +27,18 @@ export interface EbayTokens {
 }
 export class EbayError extends Error {
   constructor(
-    readonly code: 'needs_login' | 'provider_unavailable' | 'scope_missing' | 'invalid_response',
+    readonly code:
+      | 'needs_login'
+      | 'provider_unavailable'
+      | 'scope_missing'
+      | 'invalid_response'
+      | 'invalid_request'
+      | 'listing_not_owned'
+      | 'listing_not_editable'
+      | 'listing_changed'
+      | 'revision_rejected'
+      | 'save_unconfirmed'
+      | 'image_rejected',
   ) {
     super(code);
   }
@@ -129,7 +143,7 @@ export async function refreshTokens(
     new URLSearchParams({
       grant_type: 'refresh_token',
       refresh_token: tokens.refreshToken,
-      scope: EBAY_SCOPES.join(' '),
+      // Ohne scope bleiben die ursprünglich freigegebenen Rechte erhalten.
     }),
     fetcher,
   );
@@ -292,6 +306,8 @@ export function parseListings(xml: string): { items: EbayListing[]; total: numbe
         });
       return {
         id,
+        imageUrl: readXmlText(findXmlChild(node, 'PictureDetails'), 'GalleryURL'),
+        watchCount: readNonNegativeNumber(readXmlText(node, 'WatchCount')),
         title: readXmlText(node, 'Title') ?? 'eBay-Artikel',
         price: readNonNegativeNumber(price?.text),
         currency: price?.attributes.currencyID ?? null,

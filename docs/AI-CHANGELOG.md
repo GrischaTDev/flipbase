@@ -52,6 +52,220 @@ wenn sich die Anfrage selbst ändert.
   neuen Seite.
 - Prettier, ESLint, `typecheck`, `test:audit` und Produktionsbau ohne Beanstandung.
 
+## 2026-10-13 - Juna - eBay-Statistiken über PR veröffentlichen
+
+**Auftrag:** Den geprüften eBay-Zweig über einen grünen PR zusammenführen und veröffentlichen.
+
+**Änderung:** Die CI erkennt einen unvollständigen Ressourcenresolver im Settings-Test;
+die beiden neuen eBay-Vorlagen ergänzen, ohne das Anwendungsverhalten zu ändern.
+Der Serverrollout wird auf die zusammengehörigen eBay-Quellen begrenzt und erhält fremde
+installierte Funktionsstände; Sicherung und Zugriffsprüfung gehören zum Rollout.
+
+**Prüfung:** Der CI-Fehler benennt die fehlende Angebotsvorlage ausdrücklich. Nach der
+Korrektur bestehen 77 gezielte Settings- und eBay-Tests sowie Format/Lint; die vollständige
+CI läuft erneut im PR. Produktionsnachweise werden erst nach erfolgreichem Rollout berichtet.
+
+## 2026-10-13 - Juna - eBay-Statistiken kompakter darstellen
+
+**Auftrag:** Infotexte auf das Nötigste beschränken und Platz für eine klare Übersicht sparen.
+
+**Änderung:** Kennzahlerklärungen, Vergleichsdetails und Datenabgrenzungen hinter einem
+zugänglichen Info-Schalter zusammenfassen. Wiederholte Absätze aus Kennzahlen, Diagramm,
+Aufrufquellen, Werbung und Tabelle entfernen. Werbung verwendet eine kompakte Kartenkopfaktion;
+Werte, Datenstand, Ladezustände und Fehler bleiben sichtbar. Keine Änderungen an der Auswertung.
+
+**Prüfung:** Betroffene Angular-Tests, Format/Lint, Typprüfung, Shared-UI-Prüfung und
+Produktionsbau. Lokale Browserprüfung mit Testdaten für kompakte Ansicht, Info-Schalter,
+Werbestatus und mobile Darstellung; AXE einschließlich Farbkontrast. Noch nicht veröffentlicht.
+
+## 2026-10-13 - Juna - eBay-Traffic mit Seller-Hub-Referenz abgleichen
+
+**Auftrag:** Den Screenshot der eBay-Trafficseite als fachliche Referenz für
+Kennzahlen, Diagramm und Artikeltabelle verwenden.
+
+**Änderung:** Aufrufe bei eBay und externe Aufrufe getrennt auswerten; dafür
+`LISTING_VIEWS_SOURCE_OFF_EBAY` im echten Serverbericht ergänzen. Die Klickrate
+verwendet jetzt eBay-Aufrufe geteilt durch Gesamtimpressionen, statt allein die
+Suchergebnisse auszuwerten. Die Artikel zeigen ihren bekannten aktuellen Bestand.
+Neben dem Diagramm steht die Herkunft der Aufrufe. Fünf Kennzahlen vergleichen
+den unmittelbar vorherigen gleich langen Zeitraum; die API-Abfragen bleiben
+einzeln auf höchstens 90 Tage begrenzt. Fehlende Vorwerte und Nullnenner erzeugen
+keine erfundenen Trends. Vergleichsfehler lassen aktuelle Daten bestehen; ein
+Widerruf der Kontorechte wird weiterhin weitergegeben.
+
+eBays Seller Hub zählt verkaufte Stücke, die Analytics-API abgeschlossene
+Transaktionen. Die Beschriftung und Quotenerklärung nennen diese Grenze.
+Die dokumentierte API liefert keine vollständige organische/externe
+Impressionsaufteilung oder Top-20-Veränderungen. Deshalb keine fingierten
+gestapelten Serien. CPS-Werbeklicks können externe Plätze enthalten; eine daraus
+berechnete vermeintliche Seller-Hub-Klickrate wird nicht mehr angezeigt.
+Keine Migrationen, zusätzlichen Rechte oder Abhängigkeiten.
+Quellen: https://www.ebay.de/verkaeuferportal/angebote/verkaeufer-cockpit-pro/performance-kennzahlen
+und https://developer.ebay.com/api-docs/sell/static/marketing/reports-by-platform.html.
+
+**Prüfung:** Lokale Modell-, Angular- und serverseitige Tests einschließlich
+Klickrate, Quellenlücken, Bestandsmetadaten, Vergleichszeiträumen und Widerruf.
+Format/Lint, Typprüfung, Shared-UI-Prüfung und Produktionsbau. Lokale Browserprobe
+mit künstlichem Konto: getrennte Artikelaufrufe, Vorzeitraumvergleich und
+asynchrone Werbeberichte. Statistikbreite bei 2.560 px auf 1.200 px begrenzt;
+bei 390 px kein Seitenüberlauf, Tabelle scrollt intern. AXE einschließlich
+Farbkontrast ohne Befund auf Desktop und mobil. Echte eBay-Daten bleiben vor
+Veröffentlichung ungeprüft; Frontend und Edge-Functions gemeinsam ausrollen.
+
+## 2026-10-13 - Juna - eBay-Artikelauswertung und Werbeberichte anbinden
+
+**Auftrag:** Unter den Trafficdiagrammen die einzelnen Artikel mit Impressionen,
+Aufrufen, Klickrate und Conversion Rate anzeigen und Werbetraffic ergänzen. Die
+zusätzliche OAuth-Freigabe `sell.marketing` wurde ausdrücklich bestätigt; sie wird
+ausschließlich für das Erzeugen und Lesen von Berichten genutzt.
+
+**Änderung:** Artikelauswertung der Sell Analytics API für 7, 30 oder 90 abgeschlossene
+UTC-Tage, bis zu 200 Angebote nach Gesamtimpressionen, Suche und Sortierung.
+Aktive Angebote erhalten Titel, Bild und Beobachterzahl aus der bestehenden
+persönlichen Inseratabfrage; fehlende Metadaten bleiben als Angebotsnummer mit
+neutralem Titel sichtbar. Keine erfundenen Bilder oder vermeintlichen Nullzähler.
+Asynchrone Konto- und Artikelberichte der Marketing API für Allgemein/CPS und
+Priorität/CPC auf eBay: passende laufende Berichte wiederverwenden, Status manuell
+prüfen und fertige TSV/Gzip-Berichte begrenzt herunterladen. Es werden weder
+Kampagnen noch Gebote oder Budgets verändert. Fremde Download-URLs werden nicht
+mit Zugangsdaten aufgerufen. Artikelkennungen stammen aus dem eigenen Analyticsbericht.
+Gesamt- und Werbeimpressionen werden als getrennte Balken verglichen, Werbeklicks
+als eigene Diagrammkennzahl und als Artikel-/Tageswerte angezeigt. Die dokumentierte
+API stellt keine bestätigte getrennte organische Trafficserie bereit; deshalb kein
+ungeprüftes Abziehen unterschiedlicher Zählwerte. Der Hinweis steht in der Oberfläche.
+Konto-/Zeitraumwechsel verwerfen alte Auswertungen, die Serveraufrufe verwenden die
+bestehende persönliche Kontosperre und Versionsprüfung. Bestehende Tokenrechte
+bleiben beim Refresh erhalten; für Werbung muss das Konto erneut verbunden werden.
+Keine Migrationen oder zusätzlichen Abhängigkeiten.
+API-Verträge: https://developer.ebay.com/api-docs/sell/static/marketing/pl-reports.html
+und https://developer.ebay.com/api-docs/sell/static/performance/traffic-report.html.
+
+**Prüfung:** 24 Angular-Tests für Kontoansicht/Store, zwölf Modelltests, 38
+serverseitige Tests unter Deno sowie 27 betroffene Workflowtests bestanden.
+Format/Lint, Typprüfung, Shared-UI-Prüfung und Produktionsbau bestanden.
+Lokale Browserprüfung mit künstlichem Konto: asynchrone Berichte, Artikelwerte,
+Suche/Sortierung, Diagrammwechsel, Werbe-Tageswerte und Zeitraumwechsel.
+Bei 390 px kein Seitenüberlauf, die Tabelle scrollt intern; bei 2.560 px bleibt der
+Statistikinhalt 1.200 px breit. AXE einschließlich Farbkontrast ohne Befund für helle
+Desktop- und helle/dunkle mobile Statistik mit fertigen Werbeberichten. Die zunächst
+interaktive Diagrammlegende wurde durch eine einfache zugängliche Legende ersetzt.
+Echte Kontodaten und eBays Marketing-Berechtigung sind vor Veröffentlichung noch
+nicht live geprüft. Die Edge-Functions müssen gemeinsam mit dem Frontend ausgerollt
+werden; eBay kann zusätzlich eine geeignete Verkäuferberechtigung verlangen.
+
+## 2026-10-13 - Juna - eBay-Trafficübersicht über die Analytics-API ergänzen
+
+**Auftrag:** Die Statistikseite als Trafficübersicht mit Impressionen, Aufrufen,
+Klickrate und Conversion Rate überarbeiten; Beobachter und Aufrufe bei Inseraten
+anzeigen. Die nötigen eBay-Servererweiterungen sind ausdrücklich freigegeben.
+
+**Änderung:** Kontoweiter Tagesbericht der eBay Sell Analytics API für den deutschen
+Marktplatz, einschließlich inzwischen verkaufter Angebote. Auswahl für 7, 30 oder
+90 abgeschlossene UTC-Tage, Datenstand, fünf Kennzahlen, wechselbares Diagramm und
+zugängliche Tageswerttabelle. Gesamtimpressionen verwenden `TOTAL_IMPRESSION_TOTAL`
+entsprechend dem Seller Hub. Klickrate und Conversion Rate werden für Gesamt- und
+Tageswerte aus den jeweiligen API-Zählwerten berechnet, ohne Tagesprozente zu
+mitteln. Nullwerte, fehlende Tage und nicht berechenbare Quoten bleiben unterscheidbar.
+Beobachter und Aufrufe der letzten 30 Tage stehen nebeneinander in den Inseraten;
+die Statistikseite lädt keine aktive Inseratliste mehr. Der neue Serveraufruf nutzt
+die bestehende persönliche Kontosperre, Workspaceberechtigung und Versionsprüfung;
+überholte Antworten werden verworfen. Keine neuen OAuth-Rechte, Abhängigkeiten oder
+Migrationen. Original-Trafficseite bleibt über einen Link erreichbar. API-Vertrag:
+https://developer.ebay.com/api-docs/sell/static/performance/traffic-report.html
+
+**Prüfung:** 23 Angular-Tests für Kontoansicht/Store, neun Modelltests, 16 serverseitige
+Tests unter Deno sowie 27 betroffene Workflowtests bestanden. Format/Lint,
+Typprüfung, Shared-UI-Prüfung und Produktionsbau bestanden. Lokale Browserprüfung
+mit künstlichem Konto und schreibgeschütztem Antwortserver: Zeitraumwechsel,
+Diagrammwechsel, Tageswerte, aktuelle Beobachter/Aufrufe und mobile Tabellenansicht.
+Bei 390 px kein Seitenüberlauf, Diagramm 318 px breit. AXE einschließlich Farbkontrast
+ohne Befund für helle Desktop-Statistiken, helle/dunkle mobile Statistiken und dunkle
+mobile Inserate. Echte eBay-Trafficdaten des neuen Kontoaufrufs sind vor dem Rollout
+noch nicht live geprüft. Die Edge-Function-Erweiterung muss zusammen mit dem
+Frontend veröffentlicht werden; der reine Frontend-Release reicht dafür nicht.
+
+## 2026-10-13 – Juna – eBay-Arbeitsbereich und Navigation neu ordnen
+
+**Auftrag:** Den gesamten eBay-Bereich übersichtlicher aufteilen, bei Bedarf wie
+bei Vinted das Menü wechseln und die Inhaltsbreite auf großen Bildschirmen begrenzen.
+
+**Änderung:** Eigener eBay-Menükontext mit Inseraten, Bestellungen, Statistiken und
+Kontoverbindung sowie Rückweg zu Flipbase. Mobile Schnellnavigation und das
+aufklappbare Menü verwenden dieselben Seitenziele. Die bisherige Einstiegsroute
+leitet unter Erhalt der OAuth-Queryparameter zu den Inseraten weiter; der Editor
+behält seinen Pfad, seine Kontoparameter und den Schutz ungespeicherter Änderungen.
+Alle eBay-Seiten einschließlich Editor stehen in einem zentrierten 1.200-px-Rahmen,
+entsprechend der bestehenden Flipbase-Erfassungsbreite, ohne Anspruch auf einen
+gemessenen Shopify-Breitenwert. Verbindungseinstellungen stehen separat, das
+verbundene Konto bleibt im Seitenkopf sichtbar. Bestellungen laden direkt ihren
+Datenbereich. Die gemeinsame Tabellen-Suche filtert geladene Einträge; eine weitere
+Ergebnisseite wird ausdrücklich berücksichtigt. Konto- und Workspacewechsel
+verwerfen die Suche und alte Daten. Keine Backendänderung oder Migration.
+
+**Prüfung:** 52 Angular-Tests für eBay-Konto/Store/Editor und Sidebar/Mobilnavigation,
+35 Konfigurations- und Routentests, Typprüfung, Format/Lint, Shared-UI-Prüfung und
+Produktionsbau bestanden. Lokale Browserprüfung mit künstlichem Konto und
+schreibgeschütztem Antwortserver: bei 2.560 px genau 1.200 px Inhaltsbreite mit
+gleichen Seitenabständen, bei 390 px 358 px Inhalt und kein Seitenüberlauf. Editor,
+Bestellungen, Statistik- und Verbindungsseiten öffnen korrekt. AXE einschließlich
+Farbkontrast ohne Befund für mobile Bestellungen, mobile/dunkle/helle Statistiken
+und den hellen Editor. Bestehende Produktionsangebote wurden nicht verändert.
+Der vorhandene Bestellimport-Browsertest wurde an den neuen Menülink angepasst
+und prüft zusätzlich die Einstiegsweiterleitung und den Bestellseitenpfad.
+
+## 2026-10-13 - Juna - eBay-Bearbeitungslink und Statistikabruf korrigieren
+
+**Auftrag:** Bearbeiten führte zum Dashboard; Aufrufe und Verkaufsquote fehlten.
+Die Bedeutung der Quote bei überwiegend einzelnen Artikeln erklären.
+
+**Befund:** Im echten Browser enthält der Bearbeitungslink den kodierten Querystring
+im Pfad (`edit%3Fconnection%3D…`). Die Statistikabfrage liefert HTTP 502 mit
+`invalid_response`, bisher irreführend als fehlende Erreichbarkeit dargestellt.
+Der Parser verlangt einen bestimmten Namen für die Berichtsdimension, obwohl
+der aktuelle eBay-Vertrag dafür kein festes Enum vorgibt. Ein direkter Diagnoseweg
+über gespeicherte Zugangsdaten wurde vor Ausführung blockiert; keine Zugangsdaten
+wurden dafür ausgelesen.
+
+**Änderung:** Konto-ID separat über Router-Queryparameter; Navigationstest mit
+Dashboard-Rückfall. Statistiken werden nach dem Inseratabruf automatisch geladen.
+Die einzige Dimension des Angebotsberichts wird positionsbezogen ausgewertet;
+angefragte Angebots-IDs, Metrikschlüssel und Dimensionanzahl bleiben geprüft.
+Ladezustand, fehlende Daten und Abruffehler sind sichtbar unterscheidbar. Die
+Spalte „Käufe / Aufrufe“ und ein Einzelstück-Beispiel erklären die Quote.
+Ungültige Antworten protokollieren nur Berichtsschlüssel, keine Tokens oder
+Angebotsinhalte. Echte Speicheraufrufe gehören nicht zur Fehlerprüfung.
+
+**Prüfung:** 19 Angular-Tests für Kontoansicht und Store sowie 13 serverseitige
+Tests unter Node; Typprüfung, Format/Lint, gemeinsame UI-Regeln und Produktionsbau
+bestanden. Der echte Editor lädt mit korrigierter URL Titel, Preis, Beschreibung
+und acht Bilder. Der neue Statistikparser ist lokal geprüft; die echte Antwort
+muss nach dem freigegebenen Rollout erneut abgenommen werden. Kein Live-Schreiben.
+
+## 2026-10-13 - Juna - eBay-Inserate mit Bildern, Bearbeitung und Statistiken erweitern
+
+**Auftrag:** Fehlende Bilder, direkte Angebotsbearbeitung sowie Aufrufe,
+Beobachter und Verkaufsquote je Inserat ergänzen. Die nötigen Änderungen an
+Supabase-Edge-Functions und API-Verträgen wurden ausdrücklich freigegeben.
+
+**Änderung:** Vorschaubilder und Beobachter aus der vorhandenen Trading-Antwort;
+neue Bearbeitungsseite für Titel, Preis, Beschreibung und Bilder mit der gemeinsamen
+Produkt-Bildverwaltung. Vorhandene HTML-Beschreibungen bleiben erhalten. Die aktuelle
+eBay Media API übernimmt neue Fotos. Statistiken kommen aus der Analytics API für
+30 abgeschlossene UTC-Tage, mit Datenstand und unbekannten statt erfundenen Nullwerten.
+Geänderte Inserate werden vor dem Schreiben erkannt; unklare Speicherantworten sperren
+einen weiteren Versuch bis zum Neuladen. Konto-/Workspace-Grenzen, erneute Freigaben,
+Dateigrößen und XML-Eingaben bleiben serverseitig geprüft. Neue OAuth-Rechte erfordern
+für Uploads und Statistiken eine erneute Kontoverbindung; alte Lesefunktionen behalten
+beim Tokenrefresh ihre bisherigen Rechte. Variantenpreise und von anderen Anwendungen
+verwaltete Angebote unterliegen weiterhin den eBay-Beschränkungen. Keine Migration.
+
+**Prüfung:** Gezielte Angular-, Antwortvertrags- und serverseitige eBay-Tests;
+TypeScript für Anwendung, Tests und betroffene Edge-Module; Format/Lint,
+Shared-UI-Architekturprüfung und Angular-Produktionsbau. AXE für Angebotsliste und
+Editor ohne Farbkontrastmessung. Servertests lokal unter Node, der verbindliche
+Deno-Lauf bleibt im PR und enthält die neuen Tests. Kein echter eBay-Schreibaufruf
+und keine Veröffentlichung; Live-Kontoabnahme bleibt nach Freigabe erforderlich.
+
 ## 2026-10-12 – Juna – Bearbeiten: Bild-Baustein der Produktseite, Speicherabbruch einordnen
 
 **Auftrag (Nutzer):** Das Speichern einer geänderten Fotoreihenfolge meldete „Vinted hat die

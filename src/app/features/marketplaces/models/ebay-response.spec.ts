@@ -5,10 +5,51 @@ import {
   parseEbayOrder,
   parseEbayPage,
   parseEbayStatus,
+  parseEbayTrafficReport,
+  parseEbayListingDetails,
 } from './ebay-response';
 
 describe('eBay-Antwortverträge', () => {
   const scope = { workspaceId: 'workspace-a', connectionId: 'connection-a' };
+  it('bindet Statistiken an den Workspace, das Konto und die angeforderten Inserate', () => {
+    const report = {
+      ...scope,
+      startDate: '2026-09-01',
+      endDate: '2026-09-30',
+      lastUpdatedDate: null,
+      items: [{ listingId: '123', views: 0, transactions: 0, conversionRate: null }],
+    };
+    expect(parseEbayTrafficReport(report, scope, ['123']).items[0]).toEqual(report.items[0]);
+    expect(() =>
+      parseEbayTrafficReport({ ...report, connectionId: 'foreign' }, scope, ['123']),
+    ).toThrow();
+    expect(() => parseEbayTrafficReport(report, scope, ['456'])).toThrow();
+    expect(() =>
+      parseEbayTrafficReport({ ...report, items: [...report.items, ...report.items] }, scope, [
+        '123',
+      ]),
+    ).toThrow();
+  });
+  it('weist unsichere Bildadressen zurück und erhält die Beschreibung als Text', () => {
+    const details = {
+      ...scope,
+      id: '123',
+      title: 'Title',
+      price: 10,
+      currency: 'EUR',
+      quantity: 1,
+      listingType: 'FixedPriceItem',
+      url: 'https://www.ebay.de/itm/123',
+      description: '<p>Original</p>',
+      imageUrls: ['https://i.ebayimg.com/image.jpg'],
+      revision: 'a'.repeat(64),
+    };
+    expect(parseEbayListingDetails(details, scope, '123').description).toBe('<p>Original</p>');
+    expect(() =>
+      parseEbayListingDetails({ ...details, imageUrls: ['javascript:alert(1)'] }, scope, '123'),
+    ).toThrow();
+    expect(() => parseEbayListingDetails(details, scope, '456')).toThrow();
+  });
   it('weist fremde Workspace- und Kontodaten zurück', () => {
     expect(() =>
       parseEbayStatus(
