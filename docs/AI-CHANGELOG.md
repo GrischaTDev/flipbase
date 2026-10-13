@@ -1,5 +1,137 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-13 - Juna - eBay-Statistiken über PR veröffentlichen
+
+**Auftrag:** Den geprüften eBay-Zweig über einen grünen PR zusammenführen und veröffentlichen.
+
+**Änderung:** Die CI erkennt einen unvollständigen Ressourcenresolver im Settings-Test;
+die beiden neuen eBay-Vorlagen ergänzen, ohne das Anwendungsverhalten zu ändern.
+Der Serverrollout wird auf die zusammengehörigen eBay-Quellen begrenzt und erhält fremde
+installierte Funktionsstände; Sicherung und Zugriffsprüfung gehören zum Rollout.
+
+**Prüfung:** Der CI-Fehler benennt die fehlende Angebotsvorlage ausdrücklich. Nach der
+Korrektur bestehen 77 gezielte Settings- und eBay-Tests sowie Format/Lint; die vollständige
+CI läuft erneut im PR. Produktionsnachweise werden erst nach erfolgreichem Rollout berichtet.
+
+## 2026-10-13 - Juna - eBay-Statistiken kompakter darstellen
+
+**Auftrag:** Infotexte auf das Nötigste beschränken und Platz für eine klare Übersicht sparen.
+
+**Änderung:** Kennzahlerklärungen, Vergleichsdetails und Datenabgrenzungen hinter einem
+zugänglichen Info-Schalter zusammenfassen. Wiederholte Absätze aus Kennzahlen, Diagramm,
+Aufrufquellen, Werbung und Tabelle entfernen. Werbung verwendet eine kompakte Kartenkopfaktion;
+Werte, Datenstand, Ladezustände und Fehler bleiben sichtbar. Keine Änderungen an der Auswertung.
+
+**Prüfung:** Betroffene Angular-Tests, Format/Lint, Typprüfung, Shared-UI-Prüfung und
+Produktionsbau. Lokale Browserprüfung mit Testdaten für kompakte Ansicht, Info-Schalter,
+Werbestatus und mobile Darstellung; AXE einschließlich Farbkontrast. Noch nicht veröffentlicht.
+
+## 2026-10-13 - Juna - eBay-Traffic mit Seller-Hub-Referenz abgleichen
+
+**Auftrag:** Den Screenshot der eBay-Trafficseite als fachliche Referenz für
+Kennzahlen, Diagramm und Artikeltabelle verwenden.
+
+**Änderung:** Aufrufe bei eBay und externe Aufrufe getrennt auswerten; dafür
+`LISTING_VIEWS_SOURCE_OFF_EBAY` im echten Serverbericht ergänzen. Die Klickrate
+verwendet jetzt eBay-Aufrufe geteilt durch Gesamtimpressionen, statt allein die
+Suchergebnisse auszuwerten. Die Artikel zeigen ihren bekannten aktuellen Bestand.
+Neben dem Diagramm steht die Herkunft der Aufrufe. Fünf Kennzahlen vergleichen
+den unmittelbar vorherigen gleich langen Zeitraum; die API-Abfragen bleiben
+einzeln auf höchstens 90 Tage begrenzt. Fehlende Vorwerte und Nullnenner erzeugen
+keine erfundenen Trends. Vergleichsfehler lassen aktuelle Daten bestehen; ein
+Widerruf der Kontorechte wird weiterhin weitergegeben.
+
+eBays Seller Hub zählt verkaufte Stücke, die Analytics-API abgeschlossene
+Transaktionen. Die Beschriftung und Quotenerklärung nennen diese Grenze.
+Die dokumentierte API liefert keine vollständige organische/externe
+Impressionsaufteilung oder Top-20-Veränderungen. Deshalb keine fingierten
+gestapelten Serien. CPS-Werbeklicks können externe Plätze enthalten; eine daraus
+berechnete vermeintliche Seller-Hub-Klickrate wird nicht mehr angezeigt.
+Keine Migrationen, zusätzlichen Rechte oder Abhängigkeiten.
+Quellen: https://www.ebay.de/verkaeuferportal/angebote/verkaeufer-cockpit-pro/performance-kennzahlen
+und https://developer.ebay.com/api-docs/sell/static/marketing/reports-by-platform.html.
+
+**Prüfung:** Lokale Modell-, Angular- und serverseitige Tests einschließlich
+Klickrate, Quellenlücken, Bestandsmetadaten, Vergleichszeiträumen und Widerruf.
+Format/Lint, Typprüfung, Shared-UI-Prüfung und Produktionsbau. Lokale Browserprobe
+mit künstlichem Konto: getrennte Artikelaufrufe, Vorzeitraumvergleich und
+asynchrone Werbeberichte. Statistikbreite bei 2.560 px auf 1.200 px begrenzt;
+bei 390 px kein Seitenüberlauf, Tabelle scrollt intern. AXE einschließlich
+Farbkontrast ohne Befund auf Desktop und mobil. Echte eBay-Daten bleiben vor
+Veröffentlichung ungeprüft; Frontend und Edge-Functions gemeinsam ausrollen.
+
+## 2026-10-13 - Juna - eBay-Artikelauswertung und Werbeberichte anbinden
+
+**Auftrag:** Unter den Trafficdiagrammen die einzelnen Artikel mit Impressionen,
+Aufrufen, Klickrate und Conversion Rate anzeigen und Werbetraffic ergänzen. Die
+zusätzliche OAuth-Freigabe `sell.marketing` wurde ausdrücklich bestätigt; sie wird
+ausschließlich für das Erzeugen und Lesen von Berichten genutzt.
+
+**Änderung:** Artikelauswertung der Sell Analytics API für 7, 30 oder 90 abgeschlossene
+UTC-Tage, bis zu 200 Angebote nach Gesamtimpressionen, Suche und Sortierung.
+Aktive Angebote erhalten Titel, Bild und Beobachterzahl aus der bestehenden
+persönlichen Inseratabfrage; fehlende Metadaten bleiben als Angebotsnummer mit
+neutralem Titel sichtbar. Keine erfundenen Bilder oder vermeintlichen Nullzähler.
+Asynchrone Konto- und Artikelberichte der Marketing API für Allgemein/CPS und
+Priorität/CPC auf eBay: passende laufende Berichte wiederverwenden, Status manuell
+prüfen und fertige TSV/Gzip-Berichte begrenzt herunterladen. Es werden weder
+Kampagnen noch Gebote oder Budgets verändert. Fremde Download-URLs werden nicht
+mit Zugangsdaten aufgerufen. Artikelkennungen stammen aus dem eigenen Analyticsbericht.
+Gesamt- und Werbeimpressionen werden als getrennte Balken verglichen, Werbeklicks
+als eigene Diagrammkennzahl und als Artikel-/Tageswerte angezeigt. Die dokumentierte
+API stellt keine bestätigte getrennte organische Trafficserie bereit; deshalb kein
+ungeprüftes Abziehen unterschiedlicher Zählwerte. Der Hinweis steht in der Oberfläche.
+Konto-/Zeitraumwechsel verwerfen alte Auswertungen, die Serveraufrufe verwenden die
+bestehende persönliche Kontosperre und Versionsprüfung. Bestehende Tokenrechte
+bleiben beim Refresh erhalten; für Werbung muss das Konto erneut verbunden werden.
+Keine Migrationen oder zusätzlichen Abhängigkeiten.
+API-Verträge: https://developer.ebay.com/api-docs/sell/static/marketing/pl-reports.html
+und https://developer.ebay.com/api-docs/sell/static/performance/traffic-report.html.
+
+**Prüfung:** 24 Angular-Tests für Kontoansicht/Store, zwölf Modelltests, 38
+serverseitige Tests unter Deno sowie 27 betroffene Workflowtests bestanden.
+Format/Lint, Typprüfung, Shared-UI-Prüfung und Produktionsbau bestanden.
+Lokale Browserprüfung mit künstlichem Konto: asynchrone Berichte, Artikelwerte,
+Suche/Sortierung, Diagrammwechsel, Werbe-Tageswerte und Zeitraumwechsel.
+Bei 390 px kein Seitenüberlauf, die Tabelle scrollt intern; bei 2.560 px bleibt der
+Statistikinhalt 1.200 px breit. AXE einschließlich Farbkontrast ohne Befund für helle
+Desktop- und helle/dunkle mobile Statistik mit fertigen Werbeberichten. Die zunächst
+interaktive Diagrammlegende wurde durch eine einfache zugängliche Legende ersetzt.
+Echte Kontodaten und eBays Marketing-Berechtigung sind vor Veröffentlichung noch
+nicht live geprüft. Die Edge-Functions müssen gemeinsam mit dem Frontend ausgerollt
+werden; eBay kann zusätzlich eine geeignete Verkäuferberechtigung verlangen.
+
+## 2026-10-13 - Juna - eBay-Trafficübersicht über die Analytics-API ergänzen
+
+**Auftrag:** Die Statistikseite als Trafficübersicht mit Impressionen, Aufrufen,
+Klickrate und Conversion Rate überarbeiten; Beobachter und Aufrufe bei Inseraten
+anzeigen. Die nötigen eBay-Servererweiterungen sind ausdrücklich freigegeben.
+
+**Änderung:** Kontoweiter Tagesbericht der eBay Sell Analytics API für den deutschen
+Marktplatz, einschließlich inzwischen verkaufter Angebote. Auswahl für 7, 30 oder
+90 abgeschlossene UTC-Tage, Datenstand, fünf Kennzahlen, wechselbares Diagramm und
+zugängliche Tageswerttabelle. Gesamtimpressionen verwenden `TOTAL_IMPRESSION_TOTAL`
+entsprechend dem Seller Hub. Klickrate und Conversion Rate werden für Gesamt- und
+Tageswerte aus den jeweiligen API-Zählwerten berechnet, ohne Tagesprozente zu
+mitteln. Nullwerte, fehlende Tage und nicht berechenbare Quoten bleiben unterscheidbar.
+Beobachter und Aufrufe der letzten 30 Tage stehen nebeneinander in den Inseraten;
+die Statistikseite lädt keine aktive Inseratliste mehr. Der neue Serveraufruf nutzt
+die bestehende persönliche Kontosperre, Workspaceberechtigung und Versionsprüfung;
+überholte Antworten werden verworfen. Keine neuen OAuth-Rechte, Abhängigkeiten oder
+Migrationen. Original-Trafficseite bleibt über einen Link erreichbar. API-Vertrag:
+https://developer.ebay.com/api-docs/sell/static/performance/traffic-report.html
+
+**Prüfung:** 23 Angular-Tests für Kontoansicht/Store, neun Modelltests, 16 serverseitige
+Tests unter Deno sowie 27 betroffene Workflowtests bestanden. Format/Lint,
+Typprüfung, Shared-UI-Prüfung und Produktionsbau bestanden. Lokale Browserprüfung
+mit künstlichem Konto und schreibgeschütztem Antwortserver: Zeitraumwechsel,
+Diagrammwechsel, Tageswerte, aktuelle Beobachter/Aufrufe und mobile Tabellenansicht.
+Bei 390 px kein Seitenüberlauf, Diagramm 318 px breit. AXE einschließlich Farbkontrast
+ohne Befund für helle Desktop-Statistiken, helle/dunkle mobile Statistiken und dunkle
+mobile Inserate. Echte eBay-Trafficdaten des neuen Kontoaufrufs sind vor dem Rollout
+noch nicht live geprüft. Die Edge-Function-Erweiterung muss zusammen mit dem
+Frontend veröffentlicht werden; der reine Frontend-Release reicht dafür nicht.
+
 ## 2026-10-13 – Juna – eBay-Arbeitsbereich und Navigation neu ordnen
 
 **Auftrag:** Den gesamten eBay-Bereich übersichtlicher aufteilen, bei Bedarf wie

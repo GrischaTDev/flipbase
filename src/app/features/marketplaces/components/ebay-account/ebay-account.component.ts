@@ -13,7 +13,7 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
-import { DatePipe, DecimalPipe, PercentPipe } from '@angular/common';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import {
   LucideExternalLink,
@@ -34,13 +34,13 @@ import type { EbayListing } from '../../../../../../supabase/functions/_shared/e
 import { EbayArticleMappingComponent } from '../ebay-article-mapping/ebay-article-mapping.component';
 import { EbayAccountStore } from '../../services/ebay-account.store';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
+import { EbayTrafficOverviewComponent } from '../ebay-traffic-overview/ebay-traffic-overview.component';
 
 @Component({
   selector: 'app-ebay-account',
   imports: [
     DatePipe,
     DecimalPipe,
-    PercentPipe,
     ProductThumbnailComponent,
     ButtonComponent,
     CardComponent,
@@ -48,6 +48,7 @@ import { ProductThumbnailComponent } from '../../../../shared/components/product
     DataTableComponent,
     PageHeaderComponent,
     EbayArticleMappingComponent,
+    EbayTrafficOverviewComponent,
   ],
   providers: [EbayAccountStore],
   templateUrl: './ebay-account.component.html',
@@ -111,7 +112,8 @@ export class EbayAccountComponent {
     effect(() => {
       const user = this.auth.currentUser();
       const workspace = this.workspace.currentWorkspace();
-      const shouldRead = this.showData() && this.page() !== 'connection';
+      const shouldRead =
+        this.showData() && (this.page() === 'listings' || this.page() === 'orders');
       const section = this.page() === 'orders' ? 'orders' : 'listings';
       this.searchText.set('');
       untracked(
@@ -154,7 +156,7 @@ export class EbayAccountComponent {
       return;
     void this.store.initialize(
       workspaceId,
-      this.showData() && this.page() !== 'connection',
+      this.showData() && (this.page() === 'listings' || this.page() === 'orders'),
       this.page() === 'orders' ? 'orders' : 'listings',
     );
   }

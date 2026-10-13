@@ -4,7 +4,11 @@
       [title]="pageTitle()"
       [subtitle]="store.connection()?.username ? 'Konto: ' + store.connection()?.username : ''"
     >
-      @if (page() !== 'connection' && store.connection()?.status === 'connected') {
+      @if (
+        page() !== 'connection' &&
+        !showingStatistics() &&
+        store.connection()?.status === 'connected'
+      ) {
         <div header-actions class="flex flex-wrap gap-2">
           <app-button
             [icon]="refreshIcon"
@@ -118,6 +122,11 @@
       <p role="alert" class="text-sm text-fb-critical">{{ error }}</p>
     }
     @if (showingStatistics()) {
+      @if (store.listingManagementAvailable()) {
+        @if (store.connection(); as connection) {
+          <app-ebay-traffic-overview [connection]="connection" />
+        }
+      }
       @if (!store.listingManagementAvailable()) {
         <app-card title="Statistiken noch nicht verfügbar">
           <p class="text-sm text-fb-text-secondary">
@@ -129,138 +138,133 @@
           >
         </app-card>
       }
-      <p class="text-xs text-fb-text-muted">
-        Aufrufe zählen Besuche Deiner Angebotsseite in den letzten 30 abgeschlossenen Tagen.
-        Beobachter sind der aktuelle Stand. Die Verkaufsquote zeigt Käufe geteilt durch Aufrufe: ein
-        Kauf bei 100 Aufrufen ergibt 1 %. Bei unverkauften Einzelstücken ist sie meist 0 %.
-      </p>
-      @if (store.trafficPeriod(); as period) {
-        <p class="text-xs text-fb-text-muted">
-          Zeitraum (UTC): {{ period.startDate | date: 'dd.MM.yyyy' }} –
-          {{ period.endDate | date: 'dd.MM.yyyy' }}
-          @if (period.lastUpdatedDate) {
-            · eBay-Datenstand: {{ period.lastUpdatedDate | date: 'dd.MM.yyyy HH:mm' }}
-          }
-        </p>
-      }
-      @if (store.trafficError(); as error) {
-        <p role="alert" class="text-sm text-fb-critical">{{ error }}</p>
-      }
     }
-    <p class="text-sm text-fb-text-muted">
-      @if (store.section() === 'orders') {
-        eBay-Verkäuferbestellungen der letzten 90 Tage. Prüfe Artikel und Kosten, bevor Du einen
-        Verkauf buchst.
-      } @else {
-        @if (showingStatistics()) {
-          Statistiken Deiner aktiven Inserate. Bei Einzelstücken helfen Dir vor allem Aufrufe und
-          Beobachter, das Interesse einzuschätzen.
+    @if (!showingStatistics()) {
+      @if (store.section() === 'listings' && store.listingManagementAvailable()) {
+        <p class="text-xs text-fb-text-muted">
+          Aufrufe zählen Besuche Deiner Angebotsseite in den letzten 30 abgeschlossenen Tagen.
+          Beobachter sind der aktuelle Stand.
+        </p>
+        @if (store.trafficPeriod(); as period) {
+          <p class="text-xs text-fb-text-muted">
+            Zeitraum (UTC): {{ period.startDate | date: 'dd.MM.yyyy' }} –
+            {{ period.endDate | date: 'dd.MM.yyyy' }}
+            @if (period.lastUpdatedDate) {
+              · eBay-Datenstand: {{ period.lastUpdatedDate | date: 'dd.MM.yyyy HH:mm' }}
+            }
+          </p>
+        }
+        @if (store.trafficError(); as error) {
+          <p role="alert" class="text-sm text-fb-critical">{{ error }}</p>
+        }
+      }
+      <p class="text-sm text-fb-text-muted">
+        @if (store.section() === 'orders') {
+          eBay-Verkäuferbestellungen der letzten 90 Tage. Prüfe Artikel und Kosten, bevor Du einen
+          Verkauf buchst.
         } @else {
           Deine aktiven eBay-Inserate. Bearbeite ein Angebot oder ordne es einem Flipbase-Artikel
           zu.
         }
+      </p>
+      @if (store.bookingError(); as error) {
+        <p role="status" class="text-sm text-fb-critical">{{ error }}</p>
       }
-    </p>
-    @if (store.bookingError(); as error) {
-      <p role="status" class="text-sm text-fb-critical">{{ error }}</p>
-    }
-    @if (store.total() !== null) {
-      <p class="text-xs text-fb-text-muted">{{ store.total() }} Einträge bei eBay</p>
-    }
-    @if (store.nextPage() !== null) {
-      <p class="text-xs text-fb-text-muted">Die Suche durchsucht die bisher geladenen Einträge.</p>
-    }
-    <app-data-table
-      [ariaLabel]="
-        store.section() === 'listings' ? 'Deine eBay-Inserate' : 'Deine eBay-Bestellungen'
-      "
-      [searchValue]="searchText()"
-      (searchValueChange)="searchText.set($event)"
-      [searchPlaceholder]="
-        store.section() === 'orders' ? 'Bestellungen suchen …' : 'Inserate suchen …'
-      "
-      [searchAriaLabel]="
-        store.section() === 'orders' ? 'eBay-Bestellungen durchsuchen' : 'eBay-Inserate durchsuchen'
-      "
-      [loading]="store.isReading() && !store.hasRead()"
-      [errorMessage]="store.dataError()"
-      [hasRows]="
-        store.section() === 'listings' ? filteredListings().length > 0 : filteredOrders().length > 0
-      "
-      [emptyTitle]="
-        searchText().trim()
-          ? 'Keine Treffer für Deine Suche'
-          : store.hasRead()
-            ? 'Keine Einträge bei eBay gefunden'
-            : 'Noch keine Daten abgerufen'
-      "
-      emptyText="Du kannst die Ansicht mit „Aktualisieren“ erneut laden."
-    >
-      <div
-        table-content
-        class="overflow-x-auto focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-text-primary"
-        tabindex="0"
-        role="region"
-        [attr.aria-label]="
-          store.section() === 'listings'
-            ? 'Tabelle deiner eBay-Inserate'
-            : 'Tabelle deiner eBay-Bestellungen'
+      @if (store.total() !== null) {
+        <p class="text-xs text-fb-text-muted">{{ store.total() }} Einträge bei eBay</p>
+      }
+      @if (store.nextPage() !== null) {
+        <p class="text-xs text-fb-text-muted">
+          Die Suche durchsucht die bisher geladenen Einträge.
+        </p>
+      }
+      <app-data-table
+        [ariaLabel]="
+          store.section() === 'listings' ? 'Deine eBay-Inserate' : 'Deine eBay-Bestellungen'
         "
+        [searchValue]="searchText()"
+        (searchValueChange)="searchText.set($event)"
+        [searchPlaceholder]="
+          store.section() === 'orders' ? 'Bestellungen suchen …' : 'Inserate suchen …'
+        "
+        [searchAriaLabel]="
+          store.section() === 'orders'
+            ? 'eBay-Bestellungen durchsuchen'
+            : 'eBay-Inserate durchsuchen'
+        "
+        [loading]="store.isReading() && !store.hasRead()"
+        [errorMessage]="store.dataError()"
+        [hasRows]="
+          store.section() === 'listings'
+            ? filteredListings().length > 0
+            : filteredOrders().length > 0
+        "
+        [emptyTitle]="
+          searchText().trim()
+            ? 'Keine Treffer für Deine Suche'
+            : store.hasRead()
+              ? 'Keine Einträge bei eBay gefunden'
+              : 'Noch keine Daten abgerufen'
+        "
+        emptyText="Du kannst die Ansicht mit „Aktualisieren“ erneut laden."
       >
-        @if (store.section() === 'listings') {
-          <table class="w-full min-w-[540px] text-left text-sm">
-            <caption class="sr-only">
-              Aktive Inserate deines verbundenen eBay-Kontos
-            </caption>
-            <thead>
-              <tr class="border-b border-fb-line text-fb-text-muted">
-                <th scope="col" class="px-4 py-3">Inserat</th>
-                @if (!showingStatistics()) {
+        <div
+          table-content
+          class="overflow-x-auto focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-text-primary"
+          tabindex="0"
+          role="region"
+          [attr.aria-label]="
+            store.section() === 'listings'
+              ? 'Tabelle deiner eBay-Inserate'
+              : 'Tabelle deiner eBay-Bestellungen'
+          "
+        >
+          @if (store.section() === 'listings') {
+            <table class="w-full min-w-[540px] text-left text-sm">
+              <caption class="sr-only">
+                Aktive Inserate deines verbundenen eBay-Kontos
+              </caption>
+              <thead>
+                <tr class="border-b border-fb-line text-fb-text-muted">
+                  <th scope="col" class="px-4 py-3">Inserat</th>
                   <th scope="col" class="px-4 py-3">Aktueller Preis</th>
                   <th scope="col" class="px-4 py-3">Verfügbar</th>
-                }
-                @if (store.listingManagementAvailable()) {
-                  <th scope="col" class="px-4 py-3">Beobachter</th>
-                  @if (showingStatistics()) {
+                  @if (store.listingManagementAvailable()) {
+                    <th scope="col" class="px-4 py-3">Beobachter</th>
                     <th scope="col" class="px-4 py-3">Aufrufe (30 Tage)</th>
-                    <th scope="col" class="px-4 py-3">Käufe / Aufrufe</th>
                   }
-                }
-                <th scope="col" class="px-4 py-3 text-right">Aktionen</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (listing of filteredListings(); track listing.id) {
-                <tr class="border-b border-fb-line text-fb-text-primary">
-                  <td class="px-4 py-3">
-                    <div class="flex items-center gap-3">
-                      <app-product-thumbnail
-                        [src]="listing.imageUrl ?? null"
-                        [alt]="listing.title"
-                      />
-                      <div>
-                        <span class="block max-w-sm break-words">{{ listing.title }}</span
-                        ><span class="text-xs text-fb-text-muted">{{
-                          listing.listingType === 'Chinese'
-                            ? 'Auktion'
-                            : listing.listingType === 'FixedPriceItem'
-                              ? 'Festpreis'
-                              : 'eBay-Inserat'
-                        }}</span>
+                  <th scope="col" class="px-4 py-3 text-right">Aktionen</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (listing of filteredListings(); track listing.id) {
+                  <tr class="border-b border-fb-line text-fb-text-primary">
+                    <td class="px-4 py-3">
+                      <div class="flex items-center gap-3">
+                        <app-product-thumbnail
+                          [src]="listing.imageUrl ?? null"
+                          [alt]="listing.title"
+                        />
+                        <div>
+                          <span class="block max-w-sm break-words">{{ listing.title }}</span
+                          ><span class="text-xs text-fb-text-muted">{{
+                            listing.listingType === 'Chinese'
+                              ? 'Auktion'
+                              : listing.listingType === 'FixedPriceItem'
+                                ? 'Festpreis'
+                                : 'eBay-Inserat'
+                          }}</span>
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  @if (!showingStatistics()) {
+                    </td>
                     <td class="px-4 py-3">
                       {{ listing.price === null ? '–' : (listing.price | number: '1.2-2') }}
                       {{ listing.currency ?? '' }}
                     </td>
                     <td class="px-4 py-3">{{ listing.quantity ?? '–' }}</td>
-                  }
-                  @if (store.listingManagementAvailable()) {
-                    @let statistics = store.traffic()[listing.id];
-                    <td class="px-4 py-3">{{ listing.watchCount ?? '–' }}</td>
-                    @if (showingStatistics()) {
+                    @if (store.listingManagementAvailable()) {
+                      @let statistics = store.traffic()[listing.id];
+                      <td class="px-4 py-3">{{ listing.watchCount ?? '–' }}</td>
                       <td class="px-4 py-3">
                         @if (statistics) {
                           {{ statistics.views ?? 'Keine Daten' }}
@@ -274,150 +278,133 @@
                           }}
                         }
                       </td>
-                      <td class="px-4 py-3">
-                        @if (statistics) {
-                          {{
-                            statistics.conversionRate === null
-                              ? 'Keine Daten'
-                              : (statistics.conversionRate | percent: '1.1-2')
-                          }}
-                        } @else {
-                          {{
-                            store.trafficLoading()
-                              ? 'Wird geladen …'
-                              : store.trafficError()
-                                ? 'Abruf fehlgeschlagen'
-                                : 'Nicht geladen'
-                          }}
-                        }
-                      </td>
                     }
-                  }
-                  <td class="px-4 py-3 text-right">
-                    @if (store.listingManagementAvailable()) {
-                      @if (store.connection(); as connection) {
-                        <app-button
-                          variant="table-action"
-                          [icon]="editIcon"
-                          [iconOnly]="true"
-                          [link]="editListingLink(listing.id)"
-                          [queryParams]="{ connection: connection.connectionId }"
-                          [ariaLabel]="'Inserat bearbeiten: ' + listing.title"
-                          title="Inserat bearbeiten"
-                        />
-                      }
-                    }
-                    @if (store.importAvailable()) {
-                      <app-button
-                        variant="table-action"
-                        [icon]="connectIcon"
-                        [iconOnly]="true"
-                        [ariaLabel]="'Artikel zuordnen: ' + listing.title"
-                        title="Artikel zuordnen"
-                        (clicked)="openMapping(listing, $event)"
-                      />
-                    }
-                    @if (listing.url) {
-                      <app-button
-                        variant="table-action"
-                        [icon]="externalLinkIcon"
-                        [iconOnly]="true"
-                        [href]="listing.url"
-                        target="_blank"
-                        [ariaLabel]="'Bei eBay ansehen: ' + listing.title"
-                        title="Bei eBay ansehen"
-                      />
-                    }
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        } @else {
-          <table class="w-full min-w-[600px] text-left text-sm">
-            <caption class="sr-only">
-              Verkäuferbestellungen deines verbundenen eBay-Kontos
-            </caption>
-            <thead>
-              <tr class="border-b border-fb-line text-fb-text-muted">
-                <th scope="col" class="px-4 py-3">Bestellung</th>
-                <th scope="col" class="px-4 py-3">Datum</th>
-                <th scope="col" class="px-4 py-3">Gesamtbetrag</th>
-                <th scope="col" class="px-4 py-3">Status</th>
-                @if (store.importAvailable()) {
-                  <th scope="col" class="px-4 py-3 text-right">Übernahme</th>
-                }
-              </tr>
-            </thead>
-            <tbody>
-              @for (order of filteredOrders(); track order.id) {
-                <tr class="border-b border-fb-line text-fb-text-primary">
-                  <td class="px-4 py-3">
-                    <span class="block text-xs text-fb-text-muted">{{ order.id }}</span>
-                    @for (item of order.items; track $index) {
-                      <span class="block max-w-sm break-words"
-                        >{{ item.quantity ?? '–' }} × {{ item.title }}</span
-                      >
-                    }
-                  </td>
-                  <td class="px-4 py-3">{{ order.createdAt | date: 'dd.MM.yyyy' }}</td>
-                  <td class="px-4 py-3">
-                    {{ order.total === null ? '–' : (order.total | number: '1.2-2') }}
-                    {{ order.currency ?? '' }}
-                  </td>
-                  <td class="px-4 py-3">
-                    <span class="block">{{ paymentLabel(order.paymentStatus) }}</span
-                    ><span class="block text-xs text-fb-text-muted">{{
-                      fulfillmentLabel(order.fulfillmentStatus)
-                    }}</span>
-                    @if (cancellationLabel(order.cancelStatus); as cancellation) {
-                      <app-badge tone="caution">{{ cancellation }}</app-badge>
-                    }
-                  </td>
-                  @if (store.importAvailable()) {
                     <td class="px-4 py-3 text-right">
-                      <span class="block text-xs">{{ bookingLabel(order.id) }}</span>
-                      @if (store.connection(); as connection) {
-                        @if (order.importSource) {
+                      @if (store.listingManagementAvailable()) {
+                        @if (store.connection(); as connection) {
                           <app-button
                             variant="table-action"
-                            [icon]="reviewIcon"
+                            [icon]="editIcon"
                             [iconOnly]="true"
-                            [link]="orderReviewLink(connection.connectionId, order.id)"
-                            [ariaLabel]="'Bestellung prüfen: ' + order.id"
-                            title="Bestellung prüfen"
+                            [link]="editListingLink(listing.id)"
+                            [queryParams]="{ connection: connection.connectionId }"
+                            [ariaLabel]="'Inserat bearbeiten: ' + listing.title"
+                            title="Inserat bearbeiten"
                           />
                         }
                       }
+                      @if (store.importAvailable()) {
+                        <app-button
+                          variant="table-action"
+                          [icon]="connectIcon"
+                          [iconOnly]="true"
+                          [ariaLabel]="'Artikel zuordnen: ' + listing.title"
+                          title="Artikel zuordnen"
+                          (clicked)="openMapping(listing, $event)"
+                        />
+                      }
+                      @if (listing.url) {
+                        <app-button
+                          variant="table-action"
+                          [icon]="externalLinkIcon"
+                          [iconOnly]="true"
+                          [href]="listing.url"
+                          target="_blank"
+                          [ariaLabel]="'Bei eBay ansehen: ' + listing.title"
+                          title="Bei eBay ansehen"
+                        />
+                      }
                     </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          } @else {
+            <table class="w-full min-w-[600px] text-left text-sm">
+              <caption class="sr-only">
+                Verkäuferbestellungen deines verbundenen eBay-Kontos
+              </caption>
+              <thead>
+                <tr class="border-b border-fb-line text-fb-text-muted">
+                  <th scope="col" class="px-4 py-3">Bestellung</th>
+                  <th scope="col" class="px-4 py-3">Datum</th>
+                  <th scope="col" class="px-4 py-3">Gesamtbetrag</th>
+                  <th scope="col" class="px-4 py-3">Status</th>
+                  @if (store.importAvailable()) {
+                    <th scope="col" class="px-4 py-3 text-right">Übernahme</th>
                   }
                 </tr>
-              }
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                @for (order of filteredOrders(); track order.id) {
+                  <tr class="border-b border-fb-line text-fb-text-primary">
+                    <td class="px-4 py-3">
+                      <span class="block text-xs text-fb-text-muted">{{ order.id }}</span>
+                      @for (item of order.items; track $index) {
+                        <span class="block max-w-sm break-words"
+                          >{{ item.quantity ?? '–' }} × {{ item.title }}</span
+                        >
+                      }
+                    </td>
+                    <td class="px-4 py-3">{{ order.createdAt | date: 'dd.MM.yyyy' }}</td>
+                    <td class="px-4 py-3">
+                      {{ order.total === null ? '–' : (order.total | number: '1.2-2') }}
+                      {{ order.currency ?? '' }}
+                    </td>
+                    <td class="px-4 py-3">
+                      <span class="block">{{ paymentLabel(order.paymentStatus) }}</span
+                      ><span class="block text-xs text-fb-text-muted">{{
+                        fulfillmentLabel(order.fulfillmentStatus)
+                      }}</span>
+                      @if (cancellationLabel(order.cancelStatus); as cancellation) {
+                        <app-badge tone="caution">{{ cancellation }}</app-badge>
+                      }
+                    </td>
+                    @if (store.importAvailable()) {
+                      <td class="px-4 py-3 text-right">
+                        <span class="block text-xs">{{ bookingLabel(order.id) }}</span>
+                        @if (store.connection(); as connection) {
+                          @if (order.importSource) {
+                            <app-button
+                              variant="table-action"
+                              [icon]="reviewIcon"
+                              [iconOnly]="true"
+                              [link]="orderReviewLink(connection.connectionId, order.id)"
+                              [ariaLabel]="'Bestellung prüfen: ' + order.id"
+                              title="Bestellung prüfen"
+                            />
+                          }
+                        }
+                      </td>
+                    }
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
+        </div>
+      </app-data-table>
+      @if (selectedListing(); as listing) {
+        @if (store.connection(); as connection) {
+          <section
+            #mappingPanel
+            tabindex="-1"
+            aria-label="Artikelzuordnung"
+            class="focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
+          >
+            <app-ebay-article-mapping
+              [scope]="connection"
+              [listing]="listing"
+              (closed)="closeMapping()"
+            />
+          </section>
         }
-      </div>
-    </app-data-table>
-    @if (selectedListing(); as listing) {
-      @if (store.connection(); as connection) {
-        <section
-          #mappingPanel
-          tabindex="-1"
-          aria-label="Artikelzuordnung"
-          class="focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
-        >
-          <app-ebay-article-mapping
-            [scope]="connection"
-            [listing]="listing"
-            (closed)="closeMapping()"
-          />
-        </section>
       }
-    }
-    @if (store.nextPage() !== null) {
-      <app-button [loading]="store.isReading()" (clicked)="store.read(true)"
-        >Weitere Einträge laden</app-button
-      >
+      @if (store.nextPage() !== null) {
+        <app-button [loading]="store.isReading()" (clicked)="store.read(true)"
+          >Weitere Einträge laden</app-button
+        >
+      }
     }
   }
 </div>

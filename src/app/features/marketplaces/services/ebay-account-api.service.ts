@@ -11,8 +11,16 @@ import {
   parseEbayListingDetails,
   parseEbayTrafficReport,
   parseEbayImageUpload,
+  parseEbayTrafficOverview,
 } from '../models/ebay-response';
-import type { EbayListingUpdate } from '../../../../../supabase/functions/_shared/ebay-contracts';
+import type {
+  EbayListingUpdate,
+  EbayTrafficDays,
+} from '../../../../../supabase/functions/_shared/ebay-contracts';
+import {
+  parseEbayListingPerformance,
+  parseEbayAdvertisingReport,
+} from '../models/ebay-performance-response';
 
 const ERROR_MESSAGES: Record<string, string> = {
   invalid_response:
@@ -146,6 +154,27 @@ export class EbayAccountApiService {
       await this.request({ action: 'listing_traffic', ...scope, listingIds }),
       scope,
       listingIds,
+    );
+  }
+  async loadTrafficOverview(scope: AccountScope, days: EbayTrafficDays) {
+    return parseEbayTrafficOverview(
+      await this.request({ action: 'traffic_overview', ...scope, days }),
+      scope,
+      days,
+    );
+  }
+  async loadListingPerformance(scope: AccountScope, days: EbayTrafficDays) {
+    return parseEbayListingPerformance(
+      await this.request({ action: 'listing_performance', ...scope, days }),
+      scope,
+      days,
+    );
+  }
+  async loadAdvertisingReport(scope: AccountScope, days: EbayTrafficDays) {
+    return parseEbayAdvertisingReport(
+      await this.request({ action: 'advertising_report', ...scope, days }),
+      scope,
+      days,
     );
   }
 }

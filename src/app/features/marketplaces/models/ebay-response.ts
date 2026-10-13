@@ -5,6 +5,9 @@ import type {
   EbayPage,
   EbayListingDetails,
   EbayTrafficReport,
+  EbayTrafficOverview,
+  EbayTrafficDays,
+  EbayTrafficPeriod,
 } from '../../../../../supabase/functions/_shared/ebay-contracts';
 import type { AccountScope } from './marketplace.models';
 import { parseEbayOrderSource, parseEbayVariationAspects } from './ebay-order-import-response';
@@ -197,6 +200,71 @@ export function parseEbayImageUpload(responseValue: unknown, scope: AccountScope
   const url = readEbayImageUrl(row['imageUrl']);
   if (!url) throw new Error('eBay hat keine Bildadresse bestätigt.');
   return url;
+}
+export function parseEbayTrafficOverview(
+  responseValue: unknown,
+  scope: AccountScope,
+  requestedDays: EbayTrafficDays,
+): EbayTrafficOverview {
+  const row = readResponseRecord(responseValue);
+  if (row['workspaceId'] !== scope.workspaceId || row['connectionId'] !== scope.connectionId)
+    throw new Error('Ungültige eBay-Trafficdaten.');
+  const current = parseEbayTrafficPeriod(row, requestedDays);
+  const previousPeriod =
+    row['previousPeriod'] === null
+      ? null
+      : parseEbayTrafficPeriod(readResponseRecord(row['previousPeriod']), requestedDays);
+  if (
+    previousPeriod &&
+    Date.parse(current.startDate) - Date.parse(previousPeriod.endDate) !== 86400000
+  )
+    throw new Error('Ungültiger eBay-Vergleichszeitraum.');
+  return { ...scope, ...current, previousPeriod };
+}
+
+function parseEbayTrafficPeriod(
+  row: Record<string, unknown>,
+  requestedDays: EbayTrafficDays,
+): EbayTrafficPeriod {
+  const startDate = readRequiredText(row['startDate']);
+  const endDate = readRequiredText(row['endDate']);
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/.test(startDate) ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(endDate) ||
+    !Number.isFinite(Date.parse(startDate)) ||
+    !Number.isFinite(Date.parse(endDate)) ||
+    new Date(Date.parse(startDate)).toISOString().slice(0, 10) !== startDate ||
+    new Date(Date.parse(endDate)).toISOString().slice(0, 10) !== endDate ||
+    (Date.parse(endDate) - Date.parse(startDate)) / 86400000 !== requestedDays - 1 ||
+    !Array.isArray(row['days']) ||
+    row['days'].length !== requestedDays
+  )
+    throw new Error('Ungültige eBay-Trafficdaten.');
+  const days = row['days'].map((entry, index) => {
+    const day = readResponseRecord(entry);
+    const date = readRequiredText(day['date']);
+    const expectedDate = new Date(Date.parse(startDate) + index * 86400000)
+      .toISOString()
+      .slice(0, 10);
+    if (date !== expectedDate) throw new Error('Ungültige eBay-Trafficdaten.');
+    return {
+      date,
+      impressions: readOptionalAmount(day['impressions']),
+      views: readOptionalAmount(day['views']),
+      externalViews: readOptionalAmount(day['externalViews']),
+      transactions: readOptionalAmount(day['transactions']),
+      searchImpressions: readOptionalAmount(day['searchImpressions']),
+      searchViews: readOptionalAmount(day['searchViews']),
+      clickThroughRate: readOptionalAmount(day['clickThroughRate']),
+      conversionRate: readOptionalAmount(day['conversionRate']),
+    };
+  });
+  return {
+    startDate,
+    endDate,
+    lastUpdatedDate: readNullableText(row['lastUpdatedDate']),
+    days,
+  };
 }
 function parseListingVariants(value: unknown): NonNullable<EbayListing['variants']> {
   if (!Array.isArray(value) || value.length > 200) throw new Error('Ungültige eBay-Varianten.');
