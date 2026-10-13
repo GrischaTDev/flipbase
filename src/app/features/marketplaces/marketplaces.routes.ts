@@ -6,21 +6,29 @@ import { ebayListingEditorGuard } from './guards/ebay-listing-editor.guard';
 export const MARKETPLACES_ROUTES: Routes = [
   { path: '', redirectTo: 'vinted', pathMatch: 'full' },
   {
-    path: 'ebay/listings/:listingId/edit',
-    runGuardsAndResolvers: 'paramsOrQueryParamsChange',
-    canDeactivate: [ebayListingEditorGuard],
-    loadComponent: () =>
-      import('./components/ebay-listing-editor/ebay-listing-editor.component').then(
-        (module) => module.EbayListingEditorComponent,
-      ),
-  },
-  {
     path: 'ebay',
-    data: { showData: true },
     loadComponent: () =>
-      import('./components/ebay-account/ebay-account.component').then(
-        (m) => m.EbayAccountComponent,
-      ),
+      import('./ebay-workspace.component').then((module) => module.EbayWorkspaceComponent),
+    children: [
+      { path: '', redirectTo: 'listings', pathMatch: 'full' },
+      {
+        path: 'listings/:listingId/edit',
+        runGuardsAndResolvers: 'paramsOrQueryParamsChange',
+        canDeactivate: [ebayListingEditorGuard],
+        loadComponent: () =>
+          import('./components/ebay-listing-editor/ebay-listing-editor.component').then(
+            (module) => module.EbayListingEditorComponent,
+          ),
+      },
+      ...['listings', 'orders', 'statistics', 'connection'].map((page) => ({
+        path: page,
+        data: { showData: true, page },
+        loadComponent: () =>
+          import('./components/ebay-account/ebay-account.component').then(
+            (module) => module.EbayAccountComponent,
+          ),
+      })),
+    ],
   },
   {
     path: 'kleinanzeigen',

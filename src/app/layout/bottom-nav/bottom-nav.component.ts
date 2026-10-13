@@ -4,6 +4,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { filter, map } from 'rxjs';
 import { isArticleRoute } from '../../core/config/article-navigation';
 import { isVintedWorkspaceRoute } from '../../core/config/vinted-workspace-navigation';
+import { isEbayWorkspaceRoute } from '../../core/config/ebay-workspace-navigation';
 import {
   LucideDynamicIcon,
   LucideLayoutDashboard as LayoutDashboard,
@@ -11,6 +12,7 @@ import {
   LucideBoxes as Boxes,
   LucideTrendingUp as TrendingUp,
   LucideMenu as Menu,
+  LucideBarChart3 as BarChart,
 } from '@lucide/angular';
 
 @Component({
@@ -33,6 +35,13 @@ export class BottomNavComponent {
     return isArticleRoute(this.currentUrl());
   }
   readonly vintedContext = computed(() => isVintedWorkspaceRoute(this.currentUrl()));
+  readonly ebayContext = computed(() => isEbayWorkspaceRoute(this.currentUrl()));
+  readonly ebayLinks = [
+    { path: '/dashboard', label: 'Flipbase', icon: LayoutDashboard },
+    { path: '/marketplaces/ebay/listings', label: 'Inserate', icon: Boxes },
+    { path: '/marketplaces/ebay/orders', label: 'Bestellungen', icon: ShoppingBag },
+    { path: '/marketplaces/ebay/statistics', label: 'Statistiken', icon: BarChart },
+  ];
   readonly vintedLinks = [
     { path: '/dashboard', label: 'Flipbase', icon: LayoutDashboard },
     { path: '/marketplaces/vinted/accounts', label: 'Konten', icon: Boxes },

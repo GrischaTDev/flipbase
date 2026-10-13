@@ -6,7 +6,14 @@ import { ProductThumbnailComponent } from '../../../../shared/components/product
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 import { signal, ɵɵqueryAdvance, ɵɵviewQuerySignal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
+import {
+  ActivatedRoute,
+  Router,
+  convertToParamMap,
+  provideRouter,
+  withComponentInputBinding,
+} from '@angular/router';
+import { EbayWorkspaceComponent } from '../../ebay-workspace.component';
 import { MARKETPLACES_ROUTES } from '../../marketplaces.routes';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import axe from 'axe-core';
@@ -55,6 +62,10 @@ describe('Persönliche eBay-Oberfläche', () => {
   };
   beforeAll(async () => {
     const restoreBindings = await prepareMarketplaceRendering([
+      {
+        type: EbayWorkspaceComponent,
+        path: 'src/app/features/marketplaces/ebay-workspace.component.ts',
+      },
       {
         type: EbayArticleMappingComponent,
         path: 'src/app/features/marketplaces/components/ebay-article-mapping/ebay-article-mapping.component.ts',
@@ -215,7 +226,7 @@ describe('Persönliche eBay-Oberfläche', () => {
             loadPositions: vi.fn(async () => undefined),
           },
         },
-        provideRouter([]),
+        provideRouter([], withComponentInputBinding()),
         { provide: AuthService, useValue: { currentUser: user } },
         { provide: WorkspaceService, useValue: { currentWorkspace: workspace } },
         {
@@ -227,9 +238,13 @@ describe('Persönliche eBay-Oberfläche', () => {
     });
   });
   afterEach(() => TestBed.resetTestingModule());
-  async function render(showData = true) {
+  async function render(
+    showData = true,
+    page: 'listings' | 'orders' | 'statistics' | 'connection' = 'listings',
+  ) {
     const fixture = TestBed.createComponent(EbayAccountComponent);
     fixture.componentRef.setInput('showData', showData);
+    fixture.componentRef.setInput('page', page);
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -243,7 +258,10 @@ describe('Persönliche eBay-Oberfläche', () => {
     expect(element.textContent).toContain('seller-a');
     expect(element.textContent).toContain('Eigene Auktion');
     expect(element.textContent).not.toContain('App-ID');
-    await fixture.componentInstance.store.selectSection('orders');
+    fixture.componentRef.setInput('page', 'orders');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await vi.waitFor(() => expect(fixture.componentInstance.store.hasRead()).toBe(true));
     fixture.detectChanges();
     expect(element.textContent).toContain('Stornierter Artikel');
     expect(element.textContent).toContain('Storniert');
@@ -261,13 +279,81 @@ describe('Persönliche eBay-Oberfläche', () => {
     expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Eigene Auktion');
     expect(fixture.componentInstance.store.connection()).toBeNull();
   });
+  it('trennt Inserate, Statistiken, Bestellungen und Verbindung über echte Seitenrouten', async () => {
+    api.loadStatus.mockResolvedValue({
+      configured: true,
+      listingManagementAvailable: true,
+      connection,
+    });
+    const router = TestBed.inject(Router);
+    router.resetConfig([{ path: 'marketplaces', children: MARKETPLACES_ROUTES }]);
+    const fixture = TestBed.createComponent(EbayWorkspaceComponent);
+    fixture.detectChanges();
+    await router.navigateByUrl('/marketplaces/ebay?ebay_result=connected&workspace=workspace-a');
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    expect(router.url).toContain('/marketplaces/ebay/listings?');
+    expect(element.textContent).toContain('eBay-Inserate');
+    expect(element.textContent).toContain('Deine eBay-Anmeldung wurde abgeschlossen');
+    expect(element.textContent).not.toContain('Erneut mit eBay verbinden');
+    expect(element.textContent).not.toContain('Käufe / Aufrufe');
+    await router.navigateByUrl('/marketplaces/ebay/statistics');
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(element.textContent).toContain('eBay-Statistiken');
+    expect(element.textContent).toContain('12.5%');
+    expect(element.textContent).not.toContain('Aktueller Preis');
+    api.loadListings.mockClear();
+    api.loadOrders.mockClear();
+    await router.navigateByUrl('/marketplaces/ebay/orders');
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(element.textContent).toContain('eBay-Bestellungen');
+    expect(element.textContent).toContain('Stornierter Artikel');
+    expect(api.loadOrders).toHaveBeenCalledOnce();
+    expect(api.loadListings).not.toHaveBeenCalled();
+    api.loadOrders.mockClear();
+    await router.navigateByUrl('/marketplaces/ebay/connection');
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(element.textContent).toContain('eBay-Kontoverbindung');
+    expect(element.textContent).toContain('Erneut mit eBay verbinden');
+    expect(element.querySelector('app-data-table')).toBeNull();
+    expect(api.loadOrders).not.toHaveBeenCalled();
+    expect(api.loadListings).not.toHaveBeenCalled();
+  });
+  it('filtert geladene Inserate und Bestellungen und löscht die Suche beim Workspacewechsel', async () => {
+    const fixture = await render();
+    const element = fixture.nativeElement as HTMLElement;
+    const search = element.querySelector<HTMLInputElement>('input');
+    if (!search) throw new Error('Missing table search');
+    search.value = 'Nicht vorhanden';
+    search.dispatchEvent(new Event('input', { bubbles: true }));
+    fixture.detectChanges();
+    expect(element.textContent).toContain('Keine Treffer für Deine Suche');
+    search.value = 'AUKTION';
+    search.dispatchEvent(new Event('input', { bubbles: true }));
+    fixture.detectChanges();
+    expect(element.textContent).toContain('Eigene Auktion');
+    fixture.componentRef.setInput('page', 'orders');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await vi.waitFor(() => expect(fixture.componentInstance.store.hasRead()).toBe(true));
+    fixture.componentInstance.searchText.set('order-a');
+    fixture.detectChanges();
+    expect(element.textContent).toContain('Stornierter Artikel');
+    workspace.set({ id: 'workspace-b', archived_at: null });
+    fixture.detectChanges();
+    expect(fixture.componentInstance.searchText()).toBe('');
+  });
   it('zeigt Bild, Bearbeitungslink und Verkaufsquote mit zugänglichen Aktionen', async () => {
     api.loadStatus.mockResolvedValueOnce({
       configured: true,
       listingManagementAvailable: true,
       connection,
     });
-    const fixture = await render();
+    const fixture = await render(true, 'statistics');
     fixture.componentInstance.store.listings.update((items) =>
       items.map((item) => ({
         ...item,
@@ -297,15 +383,17 @@ describe('Persönliche eBay-Oberfläche', () => {
       connection,
     });
     const fixture = await render();
-    const editorRoute = MARKETPLACES_ROUTES.find((route) =>
-      route.path?.endsWith(':listingId/edit'),
+    const editorRoute = MARKETPLACES_ROUTES.find((route) => route.path === 'ebay')?.children?.find(
+      (route) => route.path?.endsWith(':listingId/edit'),
     );
     if (!editorRoute) throw new Error('Missing eBay editor route');
     const router = TestBed.inject(Router);
     router.resetConfig([
       {
         path: 'marketplaces',
-        children: [{ path: editorRoute.path, component: EbayAccountComponent }],
+        children: [
+          { path: 'ebay', children: [{ path: editorRoute.path, component: EbayAccountComponent }] },
+        ],
       },
       { path: 'dashboard', component: EbayAccountComponent },
       { path: '**', redirectTo: 'dashboard' },
@@ -332,7 +420,7 @@ describe('Persönliche eBay-Oberfläche', () => {
       lastUpdatedDate: null,
       items: [{ listingId: '123', views: null, transactions: null, conversionRate: null }],
     });
-    const fixture = await render();
+    const fixture = await render(true, 'statistics');
     const element = fixture.nativeElement as HTMLElement;
     expect(element.textContent).toContain('Keine Daten');
     expect(element.textContent).toContain('ein Kauf bei 100 Aufrufen ergibt 1 %');
@@ -366,6 +454,12 @@ describe('Persönliche eBay-Oberfläche', () => {
     const fixture = await render(false);
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('wird noch eingerichtet');
     expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Mit eBay verbinden');
+    expect(api.loadListings).not.toHaveBeenCalled();
+  });
+  it('zeigt eine fehlende Anbindung auch bei einer noch gespeicherten Kontoverbindung', async () => {
+    api.loadStatus.mockResolvedValueOnce({ configured: false, connection });
+    const fixture = await render();
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('wird noch eingerichtet');
     expect(api.loadListings).not.toHaveBeenCalled();
   });
   it('führt den Fokus zur Artikelzuordnung und nach dem Schließen zurück zum Inserat', async () => {

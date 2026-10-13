@@ -1,5 +1,32 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-13 – Juna – eBay-Arbeitsbereich und Navigation neu ordnen
+
+**Auftrag:** Den gesamten eBay-Bereich übersichtlicher aufteilen, bei Bedarf wie
+bei Vinted das Menü wechseln und die Inhaltsbreite auf großen Bildschirmen begrenzen.
+
+**Änderung:** Eigener eBay-Menükontext mit Inseraten, Bestellungen, Statistiken und
+Kontoverbindung sowie Rückweg zu Flipbase. Mobile Schnellnavigation und das
+aufklappbare Menü verwenden dieselben Seitenziele. Die bisherige Einstiegsroute
+leitet unter Erhalt der OAuth-Queryparameter zu den Inseraten weiter; der Editor
+behält seinen Pfad, seine Kontoparameter und den Schutz ungespeicherter Änderungen.
+Alle eBay-Seiten einschließlich Editor stehen in einem zentrierten 1.200-px-Rahmen,
+entsprechend der bestehenden Flipbase-Erfassungsbreite, ohne Anspruch auf einen
+gemessenen Shopify-Breitenwert. Verbindungseinstellungen stehen separat, das
+verbundene Konto bleibt im Seitenkopf sichtbar. Bestellungen laden direkt ihren
+Datenbereich. Die gemeinsame Tabellen-Suche filtert geladene Einträge; eine weitere
+Ergebnisseite wird ausdrücklich berücksichtigt. Konto- und Workspacewechsel
+verwerfen die Suche und alte Daten. Keine Backendänderung oder Migration.
+
+**Prüfung:** 52 Angular-Tests für eBay-Konto/Store/Editor und Sidebar/Mobilnavigation,
+35 Konfigurations- und Routentests, Typprüfung, Format/Lint, Shared-UI-Prüfung und
+Produktionsbau bestanden. Lokale Browserprüfung mit künstlichem Konto und
+schreibgeschütztem Antwortserver: bei 2.560 px genau 1.200 px Inhaltsbreite mit
+gleichen Seitenabständen, bei 390 px 358 px Inhalt und kein Seitenüberlauf. Editor,
+Bestellungen, Statistik- und Verbindungsseiten öffnen korrekt. AXE einschließlich
+Farbkontrast ohne Befund für mobile Bestellungen, mobile/dunkle/helle Statistiken
+und den hellen Editor. Bestehende Produktionsangebote wurden nicht verändert.
+
 ## 2026-10-13 - Juna - eBay-Bearbeitungslink und Statistikabruf korrigieren
 
 **Auftrag:** Bearbeiten führte zum Dashboard; Aufrufe und Verkaufsquote fehlten.

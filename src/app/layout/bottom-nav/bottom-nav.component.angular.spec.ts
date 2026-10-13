@@ -14,6 +14,37 @@ describe('Mobile Vinted-Navigation', () => {
     await ɵresolveComponentResources((url) => readFile(new URL(url, import.meta.url), 'utf8'));
   });
   afterEach(() => TestBed.resetTestingModule());
+  it('zeigt eBay-Schnellziele und markiert den Editor unter Inseraten', async () => {
+    TestBed.configureTestingModule({
+      imports: [BottomNavComponent],
+      providers: [provideRouter([{ path: '**', component: TestPageComponent }])],
+    });
+    const fixture = TestBed.createComponent(BottomNavComponent);
+    const router = TestBed.inject(Router);
+    await router.navigateByUrl('/marketplaces/ebay/listings/123/edit?connection=a');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const element = fixture.nativeElement as HTMLElement;
+    expect([...element.querySelectorAll('a')].map((link) => link.textContent?.trim())).toEqual([
+      'Flipbase',
+      'Inserate',
+      'Bestellungen',
+      'Statistiken',
+    ]);
+    expect(element.querySelector('a[aria-current="page"]')?.getAttribute('href')).toBe(
+      '/marketplaces/ebay/listings',
+    );
+    await router.navigateByUrl('/marketplaces/ebay/orders');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(element.querySelector('a[aria-current="page"]')?.getAttribute('href')).toBe(
+      '/marketplaces/ebay/orders',
+    );
+    await router.navigateByUrl('/dashboard');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(element.querySelector('a[href="/purchases"]')).not.toBeNull();
+  });
   it('wechselt zwischen Vinted und Flipbase und markiert auch Inseratdetails', async () => {
     TestBed.configureTestingModule({
       imports: [BottomNavComponent],
