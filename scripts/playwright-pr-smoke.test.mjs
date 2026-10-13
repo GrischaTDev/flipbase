@@ -9,6 +9,19 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 
 // Nur die tatsächliche Testauswahl prüfen, nicht Playwrights Parser nachtesten.
 const coreTests = [
+  ...[
+    'stops unavailable access checks without a redirect loop or protected content @pwa-layout',
+    'legacy offline links lead to normal purchases without local parameters @pwa-layout',
+    'an unauthenticated legacy link keeps normal sign-in without a local entry or access error @pwa-layout',
+  ].map((title) => ['pwa-mobile-layout.spec.ts', title]),
+  ...['Android', 'iPad desktop mode', 'Desktop'].map((device) => [
+    'pwa-mobile-layout.spec.ts',
+    `${device} > installation follows the device, including manual fallback @pwa-layout`,
+  ]),
+  [
+    'pwa-mobile-layout.spec.ts',
+    'iPad desktop mode > keeps the tablet header in place while scrolling and resizing @pwa-layout',
+  ],
   ...['390x844', '844x390', '768x1024', '512x768'].map((viewport) => [
     'pwa-mobile-layout.spec.ts',
     `safe areas and navigation ${viewport} @pwa-layout`,
@@ -286,11 +299,21 @@ const regressionTests = [
   ],
 ];
 
-function collectSpecs(suites) {
-  return suites.flatMap((suite) => [...(suite.specs ?? []), ...collectSpecs(suite.suites ?? [])]);
+function collectSpecs(suites, parentTitles = []) {
+  return suites.flatMap((suite) => {
+    const titles = [...parentTitles, suite.title];
+    return [
+      ...(suite.specs ?? []).map((spec) => ({
+        ...spec,
+        // Der Dateiname bildet einen eigenen Schlüssel; describe-Gruppen unterscheiden Gerätefälle.
+        titlePath: [...titles.slice(1), spec.title],
+      })),
+      ...collectSpecs(suite.suites ?? [], titles),
+    ];
+  });
 }
 
-async function listTests(config) {
+async function listTests(config, selectionArguments = []) {
   const env = { ...process.env, CI: 'true' };
   delete env.PLAYWRIGHT_JSON_OUTPUT_FILE;
   delete env.PLAYWRIGHT_JSON_OUTPUT_NAME;
@@ -304,6 +327,7 @@ async function listTests(config) {
       '--project=chromium',
       '--list',
       '--reporter=json',
+      ...selectionArguments,
     ],
     { cwd: root, env, timeout: 45_000, maxBuffer: 4 * 1024 * 1024 },
   );
@@ -311,7 +335,7 @@ async function listTests(config) {
   assert.deepEqual(report.errors ?? [], []);
   const selected = collectSpecs(report.suites).map((spec) => [
     spec.file.split(/[\\/]/).at(-1),
-    spec.title,
+    spec.titlePath.join(' > '),
   ]);
   return { report, selected };
 }
@@ -336,5 +360,24 @@ test('manuelle Regression enthält alle bisherigen Fälle und die neuen Kernabl�
   assert.equal(actual.size, selected.length, 'Keine doppelten Fälle');
   for (const required of new Set(keys([...regressionTests, ...coreTests]))) {
     assert.ok(actual.has(required), `Fehlende Absicherung: ${required}`);
+  }
+});
+
+test('normale Browserkonfigurationen schließen die gesonderten Produktions-PWA-Fälle aus', async () => {
+  const productionSpecs = new Set([
+    'pwa-production.spec.ts',
+    'pwa-purchase-drafts.spec.ts',
+    'pwa-purchase-buffer-documents.spec.ts',
+    'pwa-push-navigation.spec.ts',
+  ]);
+  for (const config of ['playwright.pr.config.ts', 'playwright.nightly.config.ts']) {
+    // Alle Titel einschließen, damit nur testIgnore den Produktionsausschluss beweisen kann.
+    const { selected } = await listTests(config, ['--grep=.*']);
+    assert.ok(selected.length > 0, `${config} muss normale Browserfälle auswählen`);
+    assert.deepEqual(
+      selected.filter(([file]) => productionSpecs.has(file)),
+      [],
+      `${config} darf keine separat ausgeführten Produktions-PWA-Fälle auswählen`,
+    );
   }
 });

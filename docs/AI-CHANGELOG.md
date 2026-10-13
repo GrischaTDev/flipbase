@@ -12,6 +12,8 @@
 
 **Prüfung:** Zwei echte Produktionsbauten und alle 31 PWA-Browserfälle in Chromium/WebKit grün, einschließlich verlorener Speicherantworten, unverändertem Wiederholen, originalen Belegbytes, neuerer Eingaben und zweier Fenster. Weitere 22 mobile Browserfälle prüfen Installation, Tablet-Scrollen, Safe Areas, Schriftvergrößerung, Barrierefreiheit und Navigation. Ein echter Angular-Konstruktortest reproduziert die wiederholte Verarbeitung derselben Bestätigung; nach idempotenter Übernahme bestehen dieser Test und 87 bestehende Form-/Positionsprüfungen. Zusätzlich 137 Layout-/Update-/Routingtests und gezielte Speicher-/Beleg-/Authprüfungen grün; Formatierung, Lint, Typen und Suite-Audit bestanden. Unabhängige Agents prüfen Rechte, unveränderliche Aufträge, Belege, Konkurrenz und Versionswechsel. Die Geräteabnahme auf echter Android-/iPad-Hardware und die echte Push-Zustellung bleiben offen; Versand bleibt ausgeschaltet. Veröffentlichung erst nach erfolgreichen PR-Prüfungen und öffentlichem Versionsabgleich berichten.
 
+**CI-Auswahl:** Die erste PR-Prüfung meldet sieben noch nicht registrierte mobile Pflichtfälle und zählt drei unterschiedliche Gerätefälle wegen ihres gleichen kurzen Titels als Duplikate. Die vollständigen Titelpfade unterscheiden die Geräte; sämtliche Fälle bleiben Pflicht. Drei gezielte Auswahltests bestehen und weisen auch den getrennten Produktions-PWA-Lauf nach.
+
 ## 2026-10-13 - Juna - PWA-Produktionspaket vollständig ausliefern
 
 **Auftrag:** Freigegebenen PWA-Abschluss nach erfolgreichem PR401 bis zur Veröffentlichung fortsetzen. Eigener Folgefix auf juna/pwa-release-package; fremder Arbeitszweig bleibt unberührt.
