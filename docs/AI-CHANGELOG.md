@@ -26,6 +26,8 @@ gleichen Seitenabständen, bei 390 px 358 px Inhalt und kein Seitenüberlauf. Ed
 Bestellungen, Statistik- und Verbindungsseiten öffnen korrekt. AXE einschließlich
 Farbkontrast ohne Befund für mobile Bestellungen, mobile/dunkle/helle Statistiken
 und den hellen Editor. Bestehende Produktionsangebote wurden nicht verändert.
+Der vorhandene Bestellimport-Browsertest wurde an den neuen Menülink angepasst
+und prüft zusätzlich die Einstiegsweiterleitung und den Bestellseitenpfad.
 
 ## 2026-10-13 - Juna - eBay-Bearbeitungslink und Statistikabruf korrigieren
 
