@@ -8,6 +8,69 @@
 
 **Prüfung:** Beide Fehler vor der Korrektur reproduziert, danach neun Deploy-Prüfungen grün; vier POSIX-Fälle lokal unter Windows ausdrücklich übersprungen. Formatter, Lint, vollständiger Docker-Produktionsbau und tatsächlicher Image-Smoke grün. HTTP bestätigt passende App-/PWA-Metadaten, immutable für Hash-Dateien und 404 für unbekanntes JavaScript. Das aus dem Image extrahierte Functionpaket besteht Integrität, isolierte Edge-Runtime-/Gateway-Prüfung, Auth, Widerruf, Grenzen und Commitgleichheit. Worker-Smoke bestätigt ausgeschalteten Versand. Agent prüft Importkette, Artefakte und Nginx-Regel unabhängig. PR401 bestand zuvor alle Pflichtprüfungen mit 100 Browserfällen, 24 PWA-Skripttests, 23 Produktions-PWA-Fällen und 4.030 Datenbanktests. Der fehlgeschlagene Release änderte die laufende Produktion nicht; Veröffentlichung erst nach dem grünen Folge-PR berichten.
 
+## 2026-10-13 – Juna – Bearbeiten: Speichern ohne Auswahllisten, Preisänderung, klare Meldungen; Konkurrenzvergleich
+
+**Befund (echte Versuche des Nutzers nach PR 395):**
+
+- Titelbild getauscht: bei Vinted geändert, Flipbase meldete trotzdem „nicht eindeutig
+  bestätigt“. Das Ziehen der Fotos greift also an der echten Maske. Warum die Bestätigung
+  ausblieb, ist offen; das erneute Lesen der Maske dauert rund 25 Sekunden bei 20 Sekunden Frist,
+  es gibt also nur einen Versuch.
+- Preis von 8 auf 10 Euro: Protokoll „Speichern abgebrochen bei gegenlesen“, bei Vinted nichts
+  geändert. Die Oberfläche meldete auch hier „nicht eindeutig bestätigt“, was in diesem Fall
+  falsch ist (Abbruch vor dem Speichern).
+
+**Vermutete Ursache (nachgestellt, an echtem Vinted nicht gemessen):** Der Preis wird eingetragen,
+das Feld aber nicht verlassen. Formatiert die Maske den Wert erst beim Verlassen, ändert er sich
+während des Gegenlesens, und der Leser wertet das als fremde Änderung der Maske. Bei Änderungen,
+die danach noch eine Auswahlliste öffnen, fiel das nicht auf.
+
+**Änderung 1 – Preis:** Nach dem Eintragen von Titel, Beschreibung und Preis wird das Feld
+verlassen. Ein Abbruch beim Gegenlesen nennt zusätzlich, woran es lag: den Schritt des Lesens
+oder ob Inhalt, Fotos oder der Speichern-Knopf abwichen. Die Testmaske formatiert den Preis beim
+Verlassen; ein neuer Fall ändert nur den Preis und scheiterte ohne die Korrektur mit derselben
+Meldung wie beim Nutzer.
+
+**Änderung 2 – Speichern ohne Auswahllisten:** Ändern sich nur Titel, Beschreibung, Preis oder
+Fotos, klappt der Worker keine Auswahlliste mehr auf. Ausgangsstand und Bestätigung kommen dann
+aus Vinteds eigener Abfrage des Inserats (`item_upload/items/{id}`, in der angemeldeten Seite,
+nur lesend); Fotos werden über ihre Kennungen bestätigt, sofern sich jedes Foto des Rasters
+eindeutig einem Foto der Abfrage zuordnen lässt. Der Weg ist reine Abkürzung: Stimmt irgendetwas
+nicht eindeutig überein (Abfrage unvollständig, andere Kennungen, andere Texte, Fotos nicht
+zuordenbar), wird die Maske noch nicht angefasst und der bisherige Weg entscheidet – auch über
+einen Konflikt. Zeigt die Abfrage nach dem Speichern den neuen Stand nicht, bestätigt wie bisher
+die Maske. Änderungen an Marke, Größe, Zustand, Farben, Material oder Paketgröße laufen
+unverändert über die Maske.
+
+**Änderung 3 – Meldungen:** Bricht das Speichern vor dem Klick bei Vinted ab, antwortet der Worker
+mit `vinted_listing_not_saved`; die Oberfläche sagt dann, dass nichts gespeichert wurde. Ist das
+Konto gerade durch eine andere Aktion belegt, sagt sie das ebenfalls. „Nicht eindeutig bestätigt“
+bleibt für die Fälle, in denen offen ist, ob Vinted gespeichert hat.
+
+**Nicht gemessen:** Ob Vinteds Abfrage dieselben Kennungen und Texte liefert wie die Maske und ob
+sich ihre Fotoadressen dem Raster zuordnen lassen, zeigt erst ein echter Lauf. Trifft es nicht
+zu, bleibt es beim bisherigen, langsamen Weg – schneller wird es dann nicht, falscher auch nicht.
+
+**Konkurrenz angesehen (Oberflächentexte der Vintz-Demo, Bleam-Dashboard im Browser des
+Nutzers, nichts gespeichert):** Vintz bietet eine Browser-Erweiterung und Cloud-Konten mit Proxy,
+arbeitet wahlweise mit direkten Anfragen im Hintergrund („Auto“) oder über das sichtbare
+Originalformular („Semi“, wie Flipbase bisher), bearbeitet auf gespeicherten Artikeldaten und
+führt Cloud-Aktionen als Warteschlange aus. Bleam ist eine Erweiterung in der Vinted-Sitzung, zeigt
+den Kleiderschrank aus einer Sicherung und bietet dort Relist, Preis und Löschen.
+
+**Reihenfolge (vom Nutzer bestätigt, in zwei PRs; dies ist der erste):** Lesen, Kontrolle und Bestätigung
+über Vinteds Schnittstellen; Inseratdaten beim Synchronisieren mitspeichern; Speichern als
+Auftrag im Hintergrund; direktes Speichern zunächst nur für Titel, Beschreibung und Preis.
+
+**Hinweis:** Eine reine Beobachtung auf dem Server zeichnete zwei Läufe nicht auf, weil das
+Skript den Namen der Browsersitzung falsch filterte; korrigiert, Auswertung steht aus.
+
+**Prüfungen:** Worker: 638 Tests, Typen, ESLint; 17 Browserfälle des Speicherns und Lesens,
+darunter Preis allein (ohne Korrektur rot), Rückfall bei unvollständiger Abfrage und bei nicht
+zuordenbaren Fotos, Konflikt über den vollständigen Vergleich; neue Tests für die Abfrage des
+Inserats und die Antwort „nicht gespeichert“. App: 63 Testdateien des Marktplatz-Bereichs, Typen,
+ESLint und Bau grün.
+
 ## 2026-10-13 - Juna - Geprüften PWA-Plan umsetzen
 
 **Auftrag:** „los“ für den gegengeprüften PWA-Plan; geplantes Supabase-Backend danach ausdrücklich freigegeben. Eigener Zweig juna/pwa-mobile-plan, fremde eBay-Änderungen unberührt.

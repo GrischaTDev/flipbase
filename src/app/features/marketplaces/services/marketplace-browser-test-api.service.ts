@@ -88,6 +88,24 @@ export class VintedListingChangedError extends Error {
   }
 }
 
+/** Die Aktion brach ab, bevor bei Vinted gespeichert wurde; dort ist nichts geändert. */
+export class VintedListingNotSavedError extends Error {
+  constructor() {
+    super(
+      'Die Änderung wurde nicht gespeichert – bei Vinted ist alles unverändert. Versuch es bitte noch einmal.',
+    );
+  }
+}
+
+/** Für das Konto läuft bereits eine Browseraktion; die Änderung wurde gar nicht begonnen. */
+export class VintedAccountBusyError extends Error {
+  constructor() {
+    super(
+      'Für dieses Konto läuft gerade eine andere Aktion, zum Beispiel die Synchronisierung. Es wurde nichts gespeichert. Versuch es gleich noch einmal.',
+    );
+  }
+}
+
 export class VintedProfileConflictError extends Error {
   constructor() {
     super(
@@ -808,7 +826,21 @@ export class MarketplaceBrowserTestApiService {
     if (response.status === 404) throw new MarketplaceWorkerOutdatedError();
     if (response.status === 400)
       throw new Error('Die Angaben sind unvollständig. Prüfe Titel, Beschreibung und Preis.');
-    if (!response.ok) throw new VintedEditUnconfirmedError();
+    if (!response.ok) {
+      // Nur diese Antworten belegen, dass bei Vinted nichts geändert wurde; alles andere bleibt offen.
+      const code = await response
+        .json()
+        .then((failure: unknown) =>
+          typeof failure === 'object' && failure !== null && 'code' in failure
+            ? failure.code
+            : null,
+        )
+        .catch(() => null);
+      if (code === 'vinted_listing_not_saved') throw new VintedListingNotSavedError();
+      if (code === 'browser_session_busy' || response.status === 429)
+        throw new VintedAccountBusyError();
+      throw new VintedEditUnconfirmedError();
+    }
     const body: unknown = await response.json();
     const status =
       typeof body === 'object' && body !== null && 'status' in body ? body.status : null;

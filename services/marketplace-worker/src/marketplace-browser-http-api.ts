@@ -37,8 +37,10 @@ import {
 import {
   BrowserActionFailedError,
   unexpectedFailureDetail,
+  VintedListingNotSavedError,
   VintedListingReadError,
 } from './vinted-listing-read-error.ts';
+import { vintedListingUpdateStoppedBeforeSaving } from './vinted-browser-listing-update.ts';
 import type { VintedListingContent } from '../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts';
 import {
   parseVintedListingPhotoArrangement,
@@ -746,22 +748,33 @@ export class MarketplaceBrowserHttpApi {
               throw new Error('Kontozuordnung geändert');
             await this.broker.run(scope, currentSessionId, async () => undefined);
           };
-          const status = await this.broker.run(scope, currentSessionId, async (browser) => {
-            if (!browser.updateListingContent) throw new RequestError(503);
-            try {
-              return await browser.updateListingContent(
-                entry.accountId,
-                entry.externalId,
-                base,
-                desired,
-                authorize,
-                photos,
-              );
-            } catch (error) {
-              this.logListingReadDetail('content/save', error);
-              throw error;
-            }
-          });
+          // Der Sitzungsbroker ersetzt jeden Fehler der Aktion; die Einordnung wird vorher festgehalten.
+          let stoppedBeforeSaving = false;
+          const status = await this.broker
+            .run(scope, currentSessionId, async (browser) => {
+              if (!browser.updateListingContent) throw new RequestError(503);
+              try {
+                return await browser.updateListingContent(
+                  entry.accountId,
+                  entry.externalId,
+                  base,
+                  desired,
+                  authorize,
+                  photos,
+                );
+              } catch (error) {
+                this.logListingReadDetail('content/save', error);
+                stoppedBeforeSaving = vintedListingUpdateStoppedBeforeSaving(
+                  error instanceof BrowserActionFailedError
+                    ? error.detail
+                    : unexpectedFailureDetail(error),
+                );
+                throw error;
+              }
+            })
+            .catch((error: unknown) => {
+              throw stoppedBeforeSaving ? new VintedListingNotSavedError() : error;
+            });
           let cachePending = false;
           if (status === 'confirmed' && this.listingCache) {
             try {
@@ -1230,13 +1243,15 @@ export class MarketplaceBrowserHttpApi {
               reason:
                 error instanceof VintedListingReadError
                   ? 'listing_read'
-                  : error instanceof RequestError
-                    ? 'request_' + error.status
-                    : error instanceof MarketplaceBrowserSessionBusyError
-                      ? 'session_busy'
-                      : error instanceof VintedInteractionRequiredError
-                        ? 'interaction_required'
-                        : 'failed',
+                  : error instanceof VintedListingNotSavedError
+                    ? 'not_saved'
+                    : error instanceof RequestError
+                      ? 'request_' + error.status
+                      : error instanceof MarketplaceBrowserSessionBusyError
+                        ? 'session_busy'
+                        : error instanceof VintedInteractionRequiredError
+                          ? 'interaction_required'
+                          : 'failed',
               ...(error instanceof VintedListingReadError ? { step: error.step } : {}),
               ...listingFailureContext(
                 error,
@@ -1256,6 +1271,10 @@ export class MarketplaceBrowserHttpApi {
       }
       if (error instanceof VintedListingReadError) {
         json(response, 409, { code: 'vinted_listing_read_failed', step: error.step });
+        return;
+      }
+      if (error instanceof VintedListingNotSavedError) {
+        json(response, 409, { code: 'vinted_listing_not_saved' });
         return;
       }
       if (error instanceof ImportError) {

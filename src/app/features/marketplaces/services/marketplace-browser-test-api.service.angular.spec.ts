@@ -3,8 +3,10 @@ import {
   BrowserTestSessionEndedError,
   GoLoginApiLimitError,
   MarketplaceBrowserTestApiService,
+  VintedAccountBusyError,
   VintedInteractionRequiredError,
   VintedListingChangedError,
+  VintedListingNotSavedError,
 } from './marketplace-browser-test-api.service';
 import { listingCurrentContentFixture } from '../../../../../services/marketplace-worker/test/fixtures/vinted-listing-current-content';
 
@@ -115,6 +117,26 @@ it('meldet geänderte Inseratangaben nur nach Anbieterbestätigung als gespeiche
   request.mockResolvedValueOnce(new Response(null, { status: 400 }));
   await expect(api.saveListingContent(scope, id, base, content, 'token')).rejects.toThrow(
     'unvollständig',
+  );
+  // Ein Abbruch vor dem Speichern und ein besetztes Konto heißen eindeutig: nichts geändert.
+  request.mockResolvedValueOnce(
+    Response.json({ code: 'vinted_listing_not_saved' }, { status: 409 }),
+  );
+  await expect(api.saveListingContent(scope, id, base, content, 'token')).rejects.toBeInstanceOf(
+    VintedListingNotSavedError,
+  );
+  request.mockResolvedValueOnce(Response.json({ code: 'browser_session_busy' }, { status: 409 }));
+  await expect(api.saveListingContent(scope, id, base, content, 'token')).rejects.toBeInstanceOf(
+    VintedAccountBusyError,
+  );
+  request.mockResolvedValueOnce(new Response(null, { status: 429 }));
+  await expect(api.saveListingContent(scope, id, base, content, 'token')).rejects.toThrow(
+    'Es wurde nichts gespeichert',
+  );
+  // Jede andere Ablehnung lässt offen, ob Vinted gespeichert hat.
+  request.mockResolvedValueOnce(Response.json({ error: 'beendet' }, { status: 410 }));
+  await expect(api.saveListingContent(scope, id, base, content, 'token')).rejects.toThrow(
+    'nicht eindeutig bestätigt',
   );
 });
 it('überträgt eine geänderte Fotoreihenfolge nur, wenn sie angegeben ist', async () => {
