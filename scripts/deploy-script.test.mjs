@@ -106,6 +106,18 @@ test(
       await writeFile(join(runtime, 'push.env'), 'SUPABASE_URL=https://api.example.test\n', {
         mode: 0o600,
       });
+      // Der CI-Nutzer ist kein root; nur die serverseitige Metadatenabfrage simulieren.
+      await writeFile(
+        join(bin, 'stat'),
+        `#!/bin/bash
+if [[ "$1" = -c && "$2" = '%u:%g:%a' && "$3" = "$FIXTURE_PUSH_ENV_FILE" ]]; then
+  printf '%s\\n' "\${FIXTURE_PUSH_ENV_METADATA:-0:0:600}"
+else
+  exec /usr/bin/stat "$@"
+fi
+`,
+        { mode: 0o755 },
+      );
       await writeFile(join(root, 'migration-backup.sh'), '#!/bin/bash\nexit 0\n', { mode: 0o755 });
       await writeFile(
         join(root, 'apply-release-migrations.sh'),
@@ -160,9 +172,15 @@ esac
         EXPECTED_APP_IMAGE: `ghcr.io/grischatdev/flipbase@${appDigest}`,
         EXPECTED_PUSH_IMAGE: `ghcr.io/grischatdev/flipbase-push@${pushDigest}`,
         EXPECTED_COMMIT: commit,
+        FIXTURE_PUSH_ENV_FILE: join(runtime, 'push.env'),
       };
       const result = await runDeploy(environment);
       assert.equal(result.code, 0, result.stderr);
+      for (const metadata of ['1001:1001:600', '0:0:644']) {
+        const rejected = await runDeploy({ ...environment, FIXTURE_PUSH_ENV_METADATA: metadata });
+        assert.equal(rejected.code, 1, metadata);
+        assert.match(rejected.stderr, /root-Konfiguration mit Modus0600/u);
+      }
       const calls = await readFile(log, 'utf8');
       assert.match(
         calls,
