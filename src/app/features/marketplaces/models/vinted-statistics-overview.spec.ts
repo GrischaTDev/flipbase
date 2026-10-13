@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MarketplaceResponseError } from './marketplace-response';
 import {
+  describeBuckets,
   describeChange,
   formatBucketDescription,
   formatBucketLabel,
@@ -109,6 +110,13 @@ describe('rankTopItems', () => {
   it('sortiert nach Aufrufen und löst Gleichstand über Favoriten', () => {
     expect(rankTopItems(items, 'views').map((entry) => entry.id)).toEqual(['3', '2', '1']);
   });
+  it('löst vollständigen Gleichstand nach der Nummer und nicht nach dem Text', () => {
+    const tied = [
+      { ...item, id: '10', views: 5, favorites: 1 },
+      { ...item, id: '9', views: 5, favorites: 1 },
+    ];
+    expect(rankTopItems(tied, 'views').map((entry) => entry.id)).toEqual(['9', '10']);
+  });
   it('sortiert nach Favoriten', () => {
     expect(rankTopItems(items, 'favorites').map((entry) => entry.id)).toEqual(['1', '3', '2']);
   });
@@ -124,6 +132,20 @@ describe('Anzeigehilfen', () => {
     expect(formatBucketLabel('2026-10-07T22:00:00Z', '7d')).toBe('08.10.');
     expect(formatBucketDescription('2026-10-08T12:00:00Z', '24h')).toBe('08.10., 14 Uhr');
     expect(formatBucketDescription('2026-10-07T22:00:00Z', '30d')).toBe('Donnerstag, 08.10.');
+  });
+  it('unterscheidet die doppelte Stunde am Tag der Zeitumstellung', () => {
+    const buckets = ['2026-10-24T23:00:00Z', '2026-10-25T00:00:00Z', '2026-10-25T01:00:00Z'].map(
+      (start) => ({ start, views: 1, favorites: 0 }),
+    );
+    const points = describeBuckets(buckets, '24h');
+    expect(points.map((point) => point.label)).toEqual(['01 Uhr', '02A Uhr', '02B Uhr']);
+    expect(points[2].description).toBe('25.10., 02B Uhr');
+    expect(points[0].key).toBe('2026-10-24T23:00:00Z');
+    expect(describeBuckets(buckets, '7d').map((point) => point.label)).toEqual([
+      '25.10.',
+      '25.10.',
+      '25.10.',
+    ]);
   });
   it('beschreibt die Veränderung zum Zeitraum davor', () => {
     expect(describeChange(56, 50, '7d')).toBe('+12 % gegenüber den 7 Tagen davor');

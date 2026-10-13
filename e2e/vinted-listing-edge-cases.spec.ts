@@ -154,21 +154,31 @@ for (const width of [1440, 390]) {
       expect(await image.evaluate((node) => (node as HTMLImageElement).naturalHeight)).toBe(
         expectedHeight,
       );
-      expect(await image.evaluate((node) => getComputedStyle(node).objectFit)).toBe('contain');
       const bounds = await frame.boundingBox();
+      const imageBounds = await image.boundingBox();
       expect(bounds).not.toBeNull();
+      expect(imageBounds).not.toBeNull();
       expect(bounds!.width).toBeLessThanOrEqual(360);
-      expect(bounds!.height).toBe(width < 640 ? 260 : 420);
+      // Zwei Pixel gehören zur Rahmenlinie.
+      expect(bounds!.height).toBeLessThanOrEqual((width < 640 ? 320 : 560) + 2);
+      // Kein Rand: der Rahmen ist bis auf seine Linie genau so groß wie das Foto.
+      expect(Math.abs(bounds!.width - imageBounds!.width)).toBeLessThanOrEqual(2);
+      expect(Math.abs(bounds!.height - imageBounds!.height)).toBeLessThanOrEqual(2);
+      // Kein Beschnitt: das Foto behält sein eigenes Seitenverhältnis.
+      expect(imageBounds!.width / imageBounds!.height).toBeCloseTo(
+        expectedWidth / expectedHeight,
+        1,
+      );
       await checkPage(page, errors);
       await screenshot(page, `vinted-listing-${width}-${number === 1 ? 'portrait' : 'landscape'}`);
     }
-    const previousBounds = await frame.boundingBox();
     await detail.getByRole('button', { name: 'Foto 3 anzeigen', exact: true }).click();
     await expect(photo.locator('[data-product-placeholder]')).toHaveAttribute('aria-label', title);
     await expect(image).toHaveCount(0);
+    // Ohne Foto bleibt ein fester Hochformat-Platzhalter stehen.
     const failedBounds = await frame.boundingBox();
-    expect(failedBounds!.width).toBe(previousBounds!.width);
-    expect(failedBounds!.height).toBe(previousBounds!.height);
+    expect(failedBounds!.width).toBeLessThanOrEqual(360);
+    expect(failedBounds!.width / failedBounds!.height).toBeCloseTo(3 / 4, 1);
     await checkPage(page, errors);
     await screenshot(page, `vinted-listing-${width}-image-fallback`);
     await detail.getByRole('link', { name: 'Zurück zu Inseraten', exact: true }).click();

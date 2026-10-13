@@ -5,9 +5,8 @@ import { NoticeBannerComponent } from '../../../../shared/components/notice-bann
 import type { VintedReachChartPoint } from '../../models/vinted-reach-chart.config';
 import {
   VINTED_STATISTICS_RANGES,
+  describeBuckets,
   describeChange,
-  formatBucketDescription,
-  formatBucketLabel,
   formatCount,
   type VintedStatisticsMetric,
 } from '../../models/vinted-statistics-overview';
@@ -58,6 +57,7 @@ export class VintedStatisticsComponent {
       { value: 'favorites', label: 'Favoriten' },
     ];
   readonly chartMetric = signal<VintedStatisticsMetric>('views');
+  readonly listSortMetric = signal<VintedStatisticsMetric>('views');
   readonly chartMetricLabel = computed(
     () => this.metrics.find((metric) => metric.value === this.chartMetric())!.label,
   );
@@ -90,10 +90,10 @@ export class VintedStatisticsComponent {
   readonly chartPoints = computed<readonly VintedReachChartPoint[]>(() => {
     const overview = this.statistics.overview();
     const metric = this.chartMetric();
-    return (overview?.buckets ?? []).map((bucket) => ({
-      key: bucket.start,
-      label: formatBucketLabel(bucket.start, overview!.range),
-      description: formatBucketDescription(bucket.start, overview!.range),
+    if (!overview) return [];
+    const descriptions = describeBuckets(overview.buckets, overview.range);
+    return overview.buckets.map((bucket, index) => ({
+      ...descriptions[index],
       value: bucket[metric],
     }));
   });

@@ -65,13 +65,16 @@ describe('VintedReachChartComponent', () => {
   });
 
   it('blendet die Tabelle auf Wunsch sichtbar ein', () => {
-    const table = host().querySelector('[data-reach-chart-table]')!;
-    expect(table.classList.contains('sr-only')).toBe(true);
+    const table = host().querySelector<HTMLElement>('[data-reach-chart-table]')!;
+    expect(table.hidden).toBe(true);
+    expect(host().querySelector('[role="img"]')?.getAttribute('aria-describedby')).toBe(
+      'vinted-reach-chart-detail',
+    );
     const toggle = host().querySelector<HTMLButtonElement>('[data-reach-chart-toggle] button')!;
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
     toggle.click();
     fixture.detectChanges();
-    expect(table.classList.contains('sr-only')).toBe(false);
+    expect(table.hidden).toBe(false);
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
   });
 

@@ -114,18 +114,35 @@ describe('ProductThumbnailComponent', () => {
     expect(host().querySelector('[data-product-placeholder]')).not.toBeNull();
   });
 
-  it('zeigt im Detail das ganze Foto in einem begrenzten Rahmen und behält den Rahmen bei Bildausfall', () => {
+  it('passt den Rahmen im Detail dem Foto an, ohne Rand und ohne Beschnitt', () => {
     fixture.componentRef.setInput('size', 'listing-detail');
     fixture.componentRef.setInput('src', '/images/detail.webp');
     fixture.detectChanges();
     const frame = host().firstElementChild;
+    const image = host().querySelector('img');
+    // Der Rahmen umschließt das Foto: keine feste Höhe, keine volle Breite, kein Einpassen.
     expect(frame?.classList.contains('max-w-[360px]')).toBe(true);
-    expect(frame?.classList.contains('h-[260px]')).toBe(true);
-    expect(host().querySelector('img')?.classList.contains('object-contain')).toBe(true);
+    expect(frame?.classList.contains('h-[260px]')).toBe(false);
+    expect(frame?.classList.contains('w-full')).toBe(false);
+    expect(image?.classList.contains('h-auto')).toBe(true);
+    expect(image?.classList.contains('max-h-[320px]')).toBe(true);
+    expect(image?.classList.contains('size-full')).toBe(false);
+    expect(image?.classList.contains('object-contain')).toBe(false);
+    expect(image?.classList.contains('object-cover')).toBe(false);
+  });
+
+  it('zeigt im Detail bei Bildausfall einen festen Hochformat-Platzhalter', () => {
+    fixture.componentRef.setInput('size', 'listing-detail');
+    fixture.componentRef.setInput('src', '/images/detail.webp');
+    fixture.detectChanges();
+    const frame = host().firstElementChild;
     host().querySelector('img')?.dispatchEvent(new Event('error'));
     fixture.detectChanges();
     expect(host().firstElementChild).toBe(frame);
     expect(host().querySelector('[data-product-placeholder]')).not.toBeNull();
+    expect(frame?.classList.contains('aspect-[3/4]')).toBe(true);
+    expect(frame?.classList.contains('w-full')).toBe(true);
+    expect(frame?.classList.contains('max-w-[360px]')).toBe(true);
   });
   it('zeigt Labelreferenzen im breiten Rahmen, ohne sie zu beschneiden', () => {
     fixture.componentRef.setInput('size', 'reference');

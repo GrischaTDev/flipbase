@@ -46,7 +46,13 @@
             <td class="px-4 py-3 text-right tabular-nums text-fb-text-secondary">{{ row.rank }}</td>
             <td class="max-w-0 px-4 py-3 sm:min-w-64">
               <div class="flex min-w-48 items-center gap-3">
-                <app-product-thumbnail class="shrink-0" [src]="row.imageUrl" alt="" size="sm" />
+                <app-product-thumbnail
+                  class="shrink-0"
+                  [src]="row.imageUrl"
+                  alt=""
+                  size="sm"
+                  fit="cover"
+                />
                 <div class="min-w-0">
                   @if (row.link; as link) {
                     <a

@@ -191,7 +191,7 @@
   <div class="grid items-start gap-4 md:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
     <app-card class="min-w-0 overflow-hidden" padding="sm">
       <app-product-thumbnail
-        class="block w-full"
+        class="w-full justify-center"
         [src]="selectedPhoto() ?? item.imageUrl"
         [alt]="item.title"
         size="listing-detail"
@@ -208,7 +208,7 @@
               [attr.aria-pressed]="selectedPhoto() === photo"
               (click)="selectedPhoto.set(photo)"
             >
-              <app-product-thumbnail [src]="photo" [alt]="''" size="md" />
+              <app-product-thumbnail [src]="photo" [alt]="''" size="md" fit="cover" />
             </button>
           }
         </div>
