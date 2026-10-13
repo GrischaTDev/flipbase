@@ -1,5 +1,33 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-13 - Juna - eBay-Bearbeitungslink und Statistikabruf korrigieren
+
+**Auftrag:** Bearbeiten führte zum Dashboard; Aufrufe und Verkaufsquote fehlten.
+Die Bedeutung der Quote bei überwiegend einzelnen Artikeln erklären.
+
+**Befund:** Im echten Browser enthält der Bearbeitungslink den kodierten Querystring
+im Pfad (`edit%3Fconnection%3D…`). Die Statistikabfrage liefert HTTP 502 mit
+`invalid_response`, bisher irreführend als fehlende Erreichbarkeit dargestellt.
+Der Parser verlangt einen bestimmten Namen für die Berichtsdimension, obwohl
+der aktuelle eBay-Vertrag dafür kein festes Enum vorgibt. Ein direkter Diagnoseweg
+über gespeicherte Zugangsdaten wurde vor Ausführung blockiert; keine Zugangsdaten
+wurden dafür ausgelesen.
+
+**Änderung:** Konto-ID separat über Router-Queryparameter; Navigationstest mit
+Dashboard-Rückfall. Statistiken werden nach dem Inseratabruf automatisch geladen.
+Die einzige Dimension des Angebotsberichts wird positionsbezogen ausgewertet;
+angefragte Angebots-IDs, Metrikschlüssel und Dimensionanzahl bleiben geprüft.
+Ladezustand, fehlende Daten und Abruffehler sind sichtbar unterscheidbar. Die
+Spalte „Käufe / Aufrufe“ und ein Einzelstück-Beispiel erklären die Quote.
+Ungültige Antworten protokollieren nur Berichtsschlüssel, keine Tokens oder
+Angebotsinhalte. Echte Speicheraufrufe gehören nicht zur Fehlerprüfung.
+
+**Prüfung:** 19 Angular-Tests für Kontoansicht und Store sowie 13 serverseitige
+Tests unter Node; Typprüfung, Format/Lint, gemeinsame UI-Regeln und Produktionsbau
+bestanden. Der echte Editor lädt mit korrigierter URL Titel, Preis, Beschreibung
+und acht Bilder. Der neue Statistikparser ist lokal geprüft; die echte Antwort
+muss nach dem freigegebenen Rollout erneut abgenommen werden. Kein Live-Schreiben.
+
 ## 2026-10-13 - Juna - eBay-Inserate mit Bildern, Bearbeitung und Statistiken erweitern
 
 **Auftrag:** Fehlende Bilder, direkte Angebotsbearbeitung sowie Aufrufe,

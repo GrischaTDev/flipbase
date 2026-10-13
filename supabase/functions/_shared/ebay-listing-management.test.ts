@@ -192,6 +192,32 @@ test('Statistiken folgen den Header-Schlüsseln und erfinden bei Lücken keine N
   });
   assert.throws(() => parseEbayTraffic(report, ['456']), { code: 'invalid_response' });
 });
+test('Der Angebotsbericht verwendet seine einzige Dimension ohne erfundenes Schlüssel-Enum', () => {
+  const response = {
+    ...report,
+    header: { ...report.header, dimensionKeys: [{ key: 'listingId' }] },
+  };
+  assert.equal(parseEbayTraffic(response, ['123'])[0].views, 8);
+  assert.throws(() => parseEbayTraffic(response, ['456']), { code: 'invalid_response' });
+  assert.throws(
+    () =>
+      parseEbayTraffic({ ...response, header: { ...response.header, dimensionKeys: [] } }, ['123']),
+    { code: 'invalid_response' },
+  );
+  assert.throws(
+    () =>
+      parseEbayTraffic(
+        {
+          ...response,
+          records: [
+            { ...report.records[0], dimensionValues: [{ value: '123' }, { value: '456' }] },
+          ],
+        },
+        ['123'],
+      ),
+    { code: 'invalid_response' },
+  );
+});
 test('Statistikabfrage bindet IDs, deutschen Marktplatz und ausdrücklich UTC', async () => {
   const result = await readEbayTraffic(config, 'token', ['123'], async (input) => {
     const url = new URL(String(input));

@@ -71,8 +71,8 @@ export class EbayAccountComponent {
   readonly reviewIcon = LucideClipboardCheck;
   readonly editIcon = LucidePencil;
   readonly statisticsIcon = LucideChartColumn;
-  editListingLink(connectionId: string, listingId: string): string {
-    return `/marketplaces/ebay/listings/${encodeURIComponent(listingId)}/edit?connection=${encodeURIComponent(connectionId)}`;
+  editListingLink(listingId: string): string {
+    return `/marketplaces/ebay/listings/${encodeURIComponent(listingId)}/edit`;
   }
 
   constructor() {

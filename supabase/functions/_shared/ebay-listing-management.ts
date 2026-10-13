@@ -288,11 +288,10 @@ export function parseEbayTraffic(
   )
     throw new EbayError('invalid_response');
   const keys = header.metrics.map((metric) => readRecord(metric).key);
-  const listingIndex = header.dimensionKeys.findIndex(
-    (dimension) => readRecord(dimension).key === 'LISTING',
-  );
   if (
-    listingIndex < 0 ||
+    header.dimensionKeys.length !== 1 ||
+    typeof readRecord(header.dimensionKeys[0]).key !== 'string' ||
+    !readRecord(header.dimensionKeys[0]).key ||
     !['LISTING_VIEWS_TOTAL', 'TRANSACTION', 'SALES_CONVERSION_RATE'].every((key) =>
       keys.includes(key),
     )
@@ -303,7 +302,10 @@ export function parseEbayTraffic(
     const row = readRecord(record);
     if (!Array.isArray(row.dimensionValues) || !Array.isArray(row.metricValues))
       throw new EbayError('invalid_response');
-    const dimension = readRecord(row.dimensionValues[listingIndex]);
+    // Der LISTING-Bericht hat genau eine Dimension; ihre Bezeichnung ist kein Enum.
+    // Die Angebots-ID wird unabhängig davon gegen die angefragten IDs geprüft.
+    if (row.dimensionValues.length !== 1) throw new EbayError('invalid_response');
+    const dimension = readRecord(row.dimensionValues[0]);
     const listingId = String(dimension.value ?? '');
     if (!listingIds.includes(listingId) || results.has(listingId))
       throw new EbayError('invalid_response');
@@ -356,10 +358,30 @@ export async function readEbayTraffic(
     metric: 'LISTING_VIEWS_TOTAL,TRANSACTION,SALES_CONVERSION_RATE',
   }).toString();
   const body = await ebayJson(url.href, token, fetcher);
+  let items: readonly EbayListingTraffic[];
+  try {
+    items = parseEbayTraffic(body, listingIds);
+  } catch (error) {
+    if (error instanceof EbayError && error.code === 'invalid_response') {
+      const header = readRecord(body.header);
+      const keys = (entries: unknown) =>
+        Array.isArray(entries)
+          ? entries
+              .map((entry) => readRecord(entry).key)
+              .filter((key) => typeof key === 'string' && /^[a-zA-Z_]{1,64}$/.test(key))
+          : [];
+      console.warn('eBay-Statistikantwort kann nicht ausgewertet werden!', {
+        DimensionKeys: keys(header.dimensionKeys),
+        MetricKeys: keys(header.metrics),
+        HasRecords: Array.isArray(body.records),
+      });
+    }
+    throw error;
+  }
   return {
     startDate,
     endDate,
     lastUpdatedDate: typeof body.lastUpdatedDate === 'string' ? body.lastUpdatedDate : null,
-    items: parseEbayTraffic(body, listingIds),
+    items,
   };
 }

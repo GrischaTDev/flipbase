@@ -169,6 +169,7 @@ export class EbayAccountStore {
     this.isReading.set(true);
     this.dataError.set(null);
     if (!append) this.clearData();
+    let shouldReadTraffic = false;
     try {
       if (section === 'listings') {
         const result = await this.api.loadListings(connection, page);
@@ -199,6 +200,7 @@ export class EbayAccountStore {
       }
       if (section === 'orders' && this.importAvailable()) void this.readBookingStatuses(connection);
       this.hasRead.set(true);
+      shouldReadTraffic = section === 'listings' && this.listingManagementAvailable();
     } catch (error) {
       if (revision !== this.revision) return;
       const errorMessage = this.message(error);
@@ -219,6 +221,7 @@ export class EbayAccountStore {
     } finally {
       if (revision === this.revision) this.isReading.set(false);
     }
+    if (shouldReadTraffic && revision === this.revision) await this.readTraffic();
   }
   async readTraffic(): Promise<void> {
     const connection = this.connection();

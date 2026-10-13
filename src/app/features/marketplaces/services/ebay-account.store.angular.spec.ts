@@ -81,7 +81,7 @@ describe('Persönlicher eBay-Zustand', () => {
       connection,
     });
     await store.initialize('workspace-a', true);
-    await store.readTraffic();
+    expect(api.loadTraffic).toHaveBeenCalledTimes(1);
     expect(store.traffic()['123'].views).toBe(0);
     expect(store.traffic()['123'].conversionRate).toBe(0);
   });

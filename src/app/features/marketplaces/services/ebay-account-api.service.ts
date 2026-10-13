@@ -15,6 +15,8 @@ import {
 import type { EbayListingUpdate } from '../../../../../supabase/functions/_shared/ebay-contracts';
 
 const ERROR_MESSAGES: Record<string, string> = {
+  invalid_response:
+    'eBay hat geantwortet, aber Flipbase konnte die Antwort nicht auswerten. Versuche den Abruf erneut.',
   not_configured: 'Die eBay-Anbindung ist auf dem Server noch nicht eingerichtet.',
   unauthorized: 'Melde dich erneut bei Flipbase an.',
   forbidden: 'Du hast keinen Zugriff auf diesen Workspace.',
