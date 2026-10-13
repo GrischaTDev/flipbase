@@ -1,5 +1,18 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-13 - Juna - eBay-Statistiken kompakter darstellen
+
+**Auftrag:** Infotexte auf das Nötigste beschränken und Platz für eine klare Übersicht sparen.
+
+**Änderung:** Kennzahlerklärungen, Vergleichsdetails und Datenabgrenzungen hinter einem
+zugänglichen Info-Schalter zusammenfassen. Wiederholte Absätze aus Kennzahlen, Diagramm,
+Aufrufquellen, Werbung und Tabelle entfernen. Werbung verwendet eine kompakte Kartenkopfaktion;
+Werte, Datenstand, Ladezustände und Fehler bleiben sichtbar. Keine Änderungen an der Auswertung.
+
+**Prüfung:** Betroffene Angular-Tests, Format/Lint, Typprüfung, Shared-UI-Prüfung und
+Produktionsbau. Lokale Browserprüfung mit Testdaten für kompakte Ansicht, Info-Schalter,
+Werbestatus und mobile Darstellung; AXE einschließlich Farbkontrast. Noch nicht veröffentlicht.
+
 ## 2026-10-13 - Juna - eBay-Traffic mit Seller-Hub-Referenz abgleichen
 
 **Auftrag:** Den Screenshot der eBay-Trafficseite als fachliche Referenz für

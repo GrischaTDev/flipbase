@@ -372,7 +372,7 @@ describe('Persönliche eBay-Oberfläche', () => {
     expect(element.textContent).not.toContain('Aktueller Preis');
     expect(element.textContent).toContain('Impressionen');
     expect(element.textContent).toContain('Klickrate');
-    expect(element.textContent).toContain('So werden Deine Angebote aufgerufen');
+    expect(element.textContent).toContain('Aufrufquellen');
     const articleCells = element.querySelectorAll('app-ebay-listing-performance tbody tr td');
     expect(articleCells[0]?.textContent?.trim()).toBe('1');
     expect(articleCells[2]?.textContent?.trim()).toBe('20');

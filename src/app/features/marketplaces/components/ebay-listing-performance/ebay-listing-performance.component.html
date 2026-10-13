@@ -1,32 +1,24 @@
-<app-card title="Beworbene Artikel">
-  <div class="flex flex-wrap items-start justify-between gap-3">
-    <p class="max-w-2xl text-sm text-fb-text-secondary">
-      Werbeimpressionen und Werbeklicks für Allgemein und Priorität auf eBay. Die Klicks von
-      Allgemein können auch externe Werbeplätze enthalten. eBay erstellt die Berichte im
-      Hintergrund.
-    </p>
-    <app-button
-      variant="secondary"
-      [loading]="advertisingLoading()"
-      [disabled]="loading() || !!error()"
-      (clicked)="loadAdvertising()"
-    >
-      {{ advertising()?.status === 'pending' ? 'Berichtstatus prüfen' : 'Werbeberichte laden' }}
-    </app-button>
-  </div>
+<app-card title="Beworbene Artikel" [padding]="advertising() || advertisingError() ? 'sm' : 'none'">
+  <app-button
+    card-header-actions
+    variant="secondary"
+    [loading]="advertisingLoading()"
+    [disabled]="loading() || !!error()"
+    (clicked)="loadAdvertising()"
+  >
+    {{ advertising()?.status === 'pending' ? 'Berichtstatus prüfen' : 'Werbeberichte laden' }}
+  </app-button>
   @if (advertising()?.status === 'pending') {
-    <p role="status" class="mt-3 text-sm text-fb-text-secondary">
-      eBay erstellt Deine Werbeberichte. Prüfe den Status in wenigen Minuten erneut.
-    </p>
+    <p role="status" class="text-sm text-fb-text-secondary">eBay erstellt Deine Werbeberichte.</p>
   }
   @if (advertisingError(); as message) {
-    <p role="alert" class="mt-3 text-sm text-fb-critical">{{ message }}</p>
+    <p role="alert" class="text-sm text-fb-critical">{{ message }}</p>
     <app-button variant="plain" class="mt-2" link="/marketplaces/ebay/connection"
       >Kontoverbindung prüfen</app-button
     >
   }
   @if (advertisingSummary(); as summary) {
-    <dl class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2" aria-label="Werbekennzahlen">
+    <dl class="grid grid-cols-2 gap-4" aria-label="Werbekennzahlen">
       <div>
         <dt class="text-xs text-fb-text-muted">Werbeimpressionen</dt>
         <dd class="mt-1 text-xl font-semibold tabular-nums text-fb-text-primary">
@@ -40,27 +32,17 @@
         </dd>
       </div>
     </dl>
-    <p class="mt-3 text-xs text-fb-text-muted">
-      Werbedaten können innerhalb von 72 Stunden noch korrigiert werden.
-      @if (advertising()?.generatedAt; as generatedAt) {
-        Bericht erstellt: {{ generatedAt | date: 'dd.MM.yyyy HH:mm' : 'UTC' }} UTC.
-      }
-    </p>
+    @if (advertising()?.generatedAt; as generatedAt) {
+      <p class="mt-2 text-xs text-fb-text-muted">
+        Stand: {{ generatedAt | date: 'dd.MM.yyyy HH:mm' : 'UTC' }} UTC
+      </p>
+    }
   }
-  <p class="mt-3 text-xs text-fb-text-muted">
-    Organische Impressionen und Klicks sind über die dokumentierte API nicht getrennt verfügbar.
-    Gesamtwerte und Werbewerte werden getrennt gezeigt. Externe Anzeigen sind in diesen Berichten
-    nicht vollständig abgedeckt. Werbeklicks sind deshalb nicht mit den Aufrufen bei eBay
-    gleichzusetzen.
-  </p>
 </app-card>
 <section aria-label="Traffic je Artikel" class="space-y-3">
   <div>
     <h2 class="text-base font-semibold text-fb-text-primary">Traffic je Artikel</h2>
-    <p class="mt-1 text-sm text-fb-text-secondary">
-      Bis zu 200 von eBay gemeldete Angebote mit den meisten Impressionen im ausgewählten Zeitraum.
-      Die Liste kann auch verkaufte und beendete Angebote enthalten.
-    </p>
+    <p class="mt-1 text-xs text-fb-text-muted">Bis zu 200 Angebote</p>
   </div>
   <app-data-table
     ariaLabel="eBay-Artikelauswertung"
@@ -190,12 +172,4 @@
       </table>
     </div>
   </app-data-table>
-  <p class="text-xs text-fb-text-muted">
-    Klickrate: Aufrufe bei eBay / alle Impressionen. Konversionsrate: abgeschlossene Käufe / alle
-    Aufrufe einschließlich externer Aufrufe. Die API zählt Transaktionen; eBays Trafficseite zählt
-    verkaufte Stücke. Bei Einzelstücken entspricht ein Kauf normalerweise einem Stück, bei
-    Mehrfachmengen können die Quoten abweichen. Verfügbarkeit ist der aktuelle Bestand, keine
-    Verkaufszahl im Zeitraum. Die Artikelwerte müssen nicht den Gesamtwerten aller Angebote
-    entsprechen.
-  </p>
 </section>

@@ -15,6 +15,14 @@
     </div>
     <div class="flex flex-wrap gap-2">
       <app-button
+        variant="ghost"
+        [icon]="infoIcon"
+        [ariaExpanded]="showInfo()"
+        ariaControls="ebay-traffic-info"
+        (clicked)="showInfo.set(!showInfo())"
+        >Info</app-button
+      >
+      <app-button
         variant="secondary"
         [icon]="externalIcon"
         href="https://www.ebay.de/sh/performance/traffic"
@@ -26,10 +34,55 @@
       >
     </div>
   </div>
-  <p class="text-sm text-fb-text-secondary">
-    Wie oft Deine Angebote angezeigt, aufgerufen und gekauft werden. Der Bericht umfasst Dein
-    gesamtes eBay-Konto auf dem deutschen Marktplatz, einschließlich inzwischen verkaufter Angebote.
-  </p>
+  <div id="ebay-traffic-info" [hidden]="!showInfo()">
+    <app-card title="Kennzahlen und Hinweise">
+      <dl class="space-y-3 text-sm text-fb-text-secondary">
+        <div>
+          <dt class="font-medium text-fb-text-primary">Kennzahlen</dt>
+          <dd>
+            Impressionen zählen Anzeigen Deiner Angebote. Aufrufe enthalten Besuche bei eBay und von
+            außerhalb. Klickrate: eBay-Aufrufe / Impressionen. Konversionsrate: Käufe / alle
+            Aufrufe.
+          </dd>
+        </div>
+        <div>
+          <dt class="font-medium text-fb-text-primary">Käufe und Bestand</dt>
+          <dd>
+            Käufe zählen abgeschlossene Transaktionen. eBays Trafficseite zählt verkaufte Stücke;
+            bei Mehrfachmengen können Quoten abweichen. „Verfügbar“ zeigt den aktuellen Bestand.
+          </dd>
+        </div>
+        <div>
+          <dt class="font-medium text-fb-text-primary">Zeitraum und Vergleich</dt>
+          <dd>
+            Abgeschlossene UTC-Tage auf dem deutschen Marktplatz. Prozentwerte zeigen die relative
+            Änderung zum vorherigen gleich langen Zeitraum. Fehlende Vorwerte oder ein Vorwert von
+            null ergeben keinen berechenbaren Vergleich.
+            @if (report()?.previousPeriod; as previous) {
+              Vergleich: {{ previous.startDate | date: 'dd.MM.yyyy' }} –
+              {{ previous.endDate | date: 'dd.MM.yyyy' }}.
+            }
+          </dd>
+        </div>
+        <div>
+          <dt class="font-medium text-fb-text-primary">Werbetraffic</dt>
+          <dd>
+            Werbeimpressionen gehören zum Gesamttraffic. Werbeklicks von Allgemein können externe
+            Werbeplätze enthalten. Organische und externe Werbeimpressionen sowie Top-20-Vergleiche
+            sind hier nicht vollständig verfügbar. Die vollständige Ansicht findest Du bei eBay.
+            Werbedaten können innerhalb von 72 Stunden noch korrigiert werden.
+          </dd>
+        </div>
+        <div>
+          <dt class="font-medium text-fb-text-primary">Artikelauswertung</dt>
+          <dd>
+            Bis zu 200 Angebote mit den meisten Impressionen, auch verkaufte und beendete. Die
+            Artikelwerte müssen nicht den Gesamtwerten aller Angebote entsprechen.
+          </dd>
+        </div>
+      </dl>
+    </app-card>
+  </div>
   @if (loading()) {
     <app-card
       ><p role="status" class="text-sm text-fb-text-muted">
@@ -46,16 +99,14 @@
   }
   @if (report(); as traffic) {
     <p class="text-xs text-fb-text-muted">
-      {{ traffic.startDate | date: 'dd.MM.yyyy' }} – {{ traffic.endDate | date: 'dd.MM.yyyy' }} ·
-      abgeschlossene Tage (UTC)
+      {{ traffic.startDate | date: 'dd.MM.yyyy' }} – {{ traffic.endDate | date: 'dd.MM.yyyy' }}
       @if (traffic.lastUpdatedDate) {
-        · eBay-Datenstand: {{ traffic.lastUpdatedDate | date: 'dd.MM.yyyy HH:mm' : 'UTC' }} UTC
+        · Stand: {{ traffic.lastUpdatedDate | date: 'dd.MM.yyyy HH:mm' : 'UTC' }} UTC
       }
     </p>
     @if (summary().missingDays > 0) {
       <p role="status" class="text-sm text-fb-text-secondary">
-        Für {{ summary().missingDays }} Tage fehlen einzelne Werte. Betroffene Gesamtwerte bleiben
-        unbekannt.
+        Für {{ summary().missingDays }} Tage fehlen Werte.
       </p>
     }
     <div
@@ -70,32 +121,32 @@
               : (summary().impressions | number: '1.0-0')
           }}
         </p>
-        <p class="mt-2 text-xs text-fb-text-secondary">
+        <p
+          class="mt-1 text-xs text-fb-text-secondary"
+          title="Änderung zum Vorzeitraum; — bedeutet kein berechenbarer Vergleich"
+        >
           {{
             changes().impressions === null
-              ? 'Kein berechenbarer Vergleich'
+              ? '—'
               : (changes().impressions | percent: '1.1-1') + ' zum Vorzeitraum'
           }}
         </p>
-        <p class="mt-2 text-xs text-fb-text-muted">
-          Anzeigen Deiner Angebote auf eBay; mehrfach pro Person möglich.
-        </p></app-card
-      >
+      </app-card>
       <app-card variant="kpi" title="Aufrufe"
         ><p class="text-2xl font-semibold tabular-nums text-fb-text-primary">
           {{ summary().views === null ? 'Keine Daten' : (summary().views | number: '1.0-0') }}
         </p>
-        <p class="mt-2 text-xs text-fb-text-secondary">
+        <p
+          class="mt-1 text-xs text-fb-text-secondary"
+          title="Änderung zum Vorzeitraum; — bedeutet kein berechenbarer Vergleich"
+        >
           {{
             changes().views === null
-              ? 'Kein berechenbarer Vergleich'
+              ? '—'
               : (changes().views | percent: '1.1-1') + ' zum Vorzeitraum'
           }}
         </p>
-        <p class="mt-2 text-xs text-fb-text-muted">
-          Besuche Deiner Angebotsseiten, auch von außerhalb eBays.
-        </p></app-card
-      >
+      </app-card>
       <app-card variant="kpi" title="Klickrate"
         ><p class="text-2xl font-semibold tabular-nums text-fb-text-primary">
           {{
@@ -104,17 +155,17 @@
               : (summary().clickThroughRate | percent: '1.1-2')
           }}
         </p>
-        <p class="mt-2 text-xs text-fb-text-secondary">
+        <p
+          class="mt-1 text-xs text-fb-text-secondary"
+          title="Änderung zum Vorzeitraum; — bedeutet kein berechenbarer Vergleich"
+        >
           {{
             changes().clickThroughRate === null
-              ? 'Kein berechenbarer Vergleich'
+              ? '—'
               : (changes().clickThroughRate | percent: '1.1-1') + ' zum Vorzeitraum'
           }}
         </p>
-        <p class="mt-2 text-xs text-fb-text-muted">
-          Aufrufe über eBay geteilt durch alle Impressionen. Externe Aufrufe zählen hier nicht mit.
-        </p></app-card
-      >
+      </app-card>
       <app-card variant="kpi" title="Käufe"
         ><p class="text-2xl font-semibold tabular-nums text-fb-text-primary">
           {{
@@ -123,17 +174,17 @@
               : (summary().transactions | number: '1.0-0')
           }}
         </p>
-        <p class="mt-2 text-xs text-fb-text-secondary">
+        <p
+          class="mt-1 text-xs text-fb-text-secondary"
+          title="Änderung zum Vorzeitraum; — bedeutet kein berechenbarer Vergleich"
+        >
           {{
             changes().transactions === null
-              ? 'Kein berechenbarer Vergleich'
+              ? '—'
               : (changes().transactions | percent: '1.1-1') + ' zum Vorzeitraum'
           }}
         </p>
-        <p class="mt-2 text-xs text-fb-text-muted">
-          Abgeschlossene Transaktionen, keine verkaufte Stückzahl.
-        </p></app-card
-      >
+      </app-card>
       <app-card variant="kpi" title="Konversionsrate (Käufe)"
         ><p class="text-2xl font-semibold tabular-nums text-fb-text-primary">
           {{
@@ -142,28 +193,18 @@
               : (summary().conversionRate | percent: '1.1-2')
           }}
         </p>
-        <p class="mt-2 text-xs text-fb-text-secondary">
+        <p
+          class="mt-1 text-xs text-fb-text-secondary"
+          title="Änderung zum Vorzeitraum; — bedeutet kein berechenbarer Vergleich"
+        >
           {{
             changes().conversionRate === null
-              ? 'Kein berechenbarer Vergleich'
+              ? '—'
               : (changes().conversionRate | percent: '1.1-1') + ' zum Vorzeitraum'
           }}
         </p>
-        <p class="mt-2 text-xs text-fb-text-muted">
-          Käufe geteilt durch Aufrufe. Ein Kauf bei 100 Aufrufen ergibt 1 %.
-        </p></app-card
-      >
+      </app-card>
     </div>
-    @if (traffic.previousPeriod; as previous) {
-      <p class="text-xs text-fb-text-muted">
-        Vergleich mit {{ previous.startDate | date: 'dd.MM.yyyy' }} –
-        {{ previous.endDate | date: 'dd.MM.yyyy' }}. Prozentwerte zeigen die relative Veränderung.
-      </p>
-    } @else {
-      <p class="text-xs text-fb-text-muted">
-        eBay konnte den vorherigen Zeitraum nicht liefern. Die aktuellen Werte bleiben verfügbar.
-      </p>
-    }
     <div class="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
       <app-card title="Traffic im Zeitverlauf" class="min-w-0">
         <div class="mb-3 flex flex-wrap gap-1" role="group" aria-label="Diagramm-Kennzahl">
@@ -178,10 +219,6 @@
           }
         </div>
         @if (selectedMetric() === 'impressions' && advertising()?.status === 'ready') {
-          <p class="mb-3 text-xs text-fb-text-muted">
-            Gesamtimpressionen enthalten bereits Werbeimpressionen. Die Balken werden getrennt
-            verglichen und nicht addiert.
-          </p>
           <div
             class="mb-3 flex flex-wrap gap-4 text-xs text-fb-text-secondary"
             aria-label="Diagramm-Legende"
@@ -308,15 +345,10 @@
           </table>
         </div>
       </app-card>
-      <app-card title="So werden Deine Angebote aufgerufen" class="min-w-0">
+      <app-card title="Aufrufquellen" class="min-w-0 self-start">
         <dl class="divide-y divide-fb-line" aria-label="Herkunft der Angebotsaufrufe">
           <div class="flex items-start justify-between gap-3 pb-4">
-            <dt class="text-sm font-medium text-fb-text-primary">
-              Über eBay
-              <span class="mt-1 block text-xs font-normal text-fb-text-muted">
-                Suche, Shop und weitere Seiten bei eBay
-              </span>
-            </dt>
+            <dt class="text-sm font-medium text-fb-text-primary">Bei eBay</dt>
             <dd class="text-lg font-semibold tabular-nums text-fb-text-primary">
               {{
                 summary().viewsOnEbay === null
@@ -326,12 +358,7 @@
             </dd>
           </div>
           <div class="flex items-start justify-between gap-3 py-4">
-            <dt class="text-sm font-medium text-fb-text-primary">
-              Externe Aufrufe
-              <span class="mt-1 block text-xs font-normal text-fb-text-muted"
-                >Besuche von außerhalb eBays</span
-              >
-            </dt>
+            <dt class="text-sm font-medium text-fb-text-primary">Externe Aufrufe</dt>
             <dd class="text-lg font-semibold tabular-nums text-fb-text-primary">
               {{
                 summary().externalViews === null
@@ -341,20 +368,8 @@
             </dd>
           </div>
         </dl>
-        <p class="mt-2 text-xs text-fb-text-muted">
-          Diese Werte zeigen Aufrufe, keine Impressionen. Die Aufteilung der Impressionen in
-          organisch, Anzeigen und externe Anzeigen sowie Änderungen der Top-20-Suchplatzierungen
-          liefert die dokumentierte API nicht vollständig. Die vollständige Aufteilung findest Du
-          über „Bei eBay ansehen“.
-        </p>
       </app-card>
     </div>
-    <p class="text-xs text-fb-text-muted">
-      Bei Einzelstücken helfen Dir vor allem Aufrufe und Beobachter je Inserat. Ein unverkauftes
-      Angebot hat meist eine Konversionsrate von 0 %. Die API-Quote verwendet Käufe; eBays
-      Trafficseite verwendet verkaufte Stücke. Bei Mehrfachmengen können die Werte abweichen. Tage
-      ohne Aufrufe haben keine berechenbare Quote.
-    </p>
     <app-ebay-listing-performance
       [connection]="connection()"
       [days]="selectedDays()"

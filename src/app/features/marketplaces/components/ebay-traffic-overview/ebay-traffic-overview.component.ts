@@ -13,7 +13,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { DatePipe, DecimalPipe, PercentPipe } from '@angular/common';
-import { LucideExternalLink, LucideRefreshCw } from '@lucide/angular';
+import { LucideExternalLink, LucideInfo, LucideRefreshCw } from '@lucide/angular';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { ThemeService } from '../../../../core/services/theme.service';
@@ -104,6 +104,8 @@ export class EbayTrafficOverviewComponent {
   );
   readonly chartStatus = signal<RevenueChartStatus>('loading');
   readonly showDailyValues = signal(false);
+  readonly showInfo = signal(false);
+  readonly infoIcon = LucideInfo;
   readonly refreshIcon = LucideRefreshCw;
   readonly externalIcon = LucideExternalLink;
   private readonly chartElement = viewChild<ElementRef<HTMLDivElement>>('chart');
