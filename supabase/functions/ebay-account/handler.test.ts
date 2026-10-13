@@ -101,23 +101,18 @@ test('Konto-Traffic lehnt fremde Workspaces, Sitzungen und überlange Zeiträume
     config,
     config.allowedOrigins,
   );
-  assert.equal(
-    (await handler(request('traffic_overview', { connectionId, days: 30 }, 'Bearer forged')))
-      .status,
-    401,
-  );
-  assert.equal(
-    (
-      await handler(
-        request('traffic_overview', { connectionId, workspaceId: connectionId, days: 30 }),
-      )
-    ).status,
-    403,
-  );
-  assert.equal(
-    (await handler(request('traffic_overview', { connectionId, days: 365 }))).status,
-    400,
-  );
+  for (const action of ['traffic_overview', 'listing_performance', 'advertising_report']) {
+    assert.equal(
+      (await handler(request(action, { connectionId, days: 30 }, 'Bearer forged'))).status,
+      401,
+    );
+    assert.equal(
+      (await handler(request(action, { connectionId, workspaceId: connectionId, days: 30 })))
+        .status,
+      403,
+    );
+    assert.equal((await handler(request(action, { connectionId, days: 365 }))).status, 400);
+  }
   assert.equal(claims, 0);
 });
 
@@ -180,6 +175,71 @@ test('Konto-Traffic nutzt die gesperrte persönliche Verbindung und verwirft üb
     fetcher,
   );
   assert.equal((await changed(request('traffic_overview', { connectionId, days: 7 }))).status, 409);
+});
+test('Artikel- und Werbeberichte behalten Kontobindung und verwerfen Antworten nach Verbindungswechsel', async () => {
+  const encryptedTokens = await encryptTokens(
+    {
+      accessToken: 'access',
+      refreshToken: 'refresh',
+      expiresAt: Date.now() + 100000,
+      refreshExpiresAt: Date.now() + 1000000,
+    },
+    config.encryptionKey,
+    connectionId,
+  );
+  const fetcher: typeof fetch = async (input, init) => {
+    const url = new URL(String(input));
+    if (url.pathname.endsWith('api.dll'))
+      return new Response(
+        '<GetMyeBaySellingResponse><Ack>Success</Ack><ActiveList><PaginationResult><TotalNumberOfEntries>0</TotalNumberOfEntries><TotalNumberOfPages>0</TotalNumberOfPages></PaginationResult></ActiveList></GetMyeBaySellingResponse>',
+      );
+    if (url.pathname.endsWith('ad_report_task')) {
+      if (init?.method === 'POST')
+        return new Response(null, { status: 202, headers: { location: `${url.href}/123` } });
+      return Response.json({ reportTasks: [] });
+    }
+    return Response.json({
+      header: {
+        dimensionKeys: [{ key: 'listing' }],
+        metrics: [
+          'TOTAL_IMPRESSION_TOTAL',
+          'LISTING_VIEWS_TOTAL',
+          'TRANSACTION',
+          'LISTING_IMPRESSION_SEARCH_RESULTS_PAGE',
+          'LISTING_VIEWS_SOURCE_SEARCH_RESULTS_PAGE',
+          'CLICK_THROUGH_RATE',
+          'SALES_CONVERSION_RATE',
+        ].map((key) => ({ key })),
+      },
+      records: [],
+    });
+  };
+  for (const action of ['listing_performance', 'advertising_report']) {
+    for (const canFinish of [true, false]) {
+      const handler = createEbayAccountHandler(
+        store({
+          claim: async (user, workspace, id) => {
+            assert.equal(user, userId);
+            assert.equal(workspace, workspaceId);
+            assert.equal(id, connectionId);
+            return { connection, encryptedTokens };
+          },
+          finish: async () => canFinish,
+        }),
+        config,
+        config.allowedOrigins,
+        fetcher,
+      );
+      const response = await handler(request(action, { connectionId, days: 7 }));
+      assert.equal(response.status, canFinish ? 200 : 409);
+      if (canFinish) {
+        const body = await response.json();
+        assert.equal(body.connectionId, connectionId);
+        assert.equal(body.workspaceId, workspaceId);
+        assert.deepEqual(body.items, []);
+      }
+    }
+  }
 });
 test('Eine zwischenzeitlich erneuerte Freigabe stoppt die Änderung vor dem Schreiben', async () => {
   const item =

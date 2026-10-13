@@ -57,8 +57,7 @@ export interface EbayTrafficReport extends AccountScope {
   readonly items: readonly EbayListingTraffic[];
 }
 export type EbayTrafficDays = 7 | 30 | 90;
-export interface EbayTrafficDay {
-  readonly date: string;
+export interface EbayTrafficMetrics {
   readonly impressions: number | null;
   readonly views: number | null;
   readonly transactions: number | null;
@@ -66,6 +65,34 @@ export interface EbayTrafficDay {
   readonly searchViews: number | null;
   readonly clickThroughRate: number | null;
   readonly conversionRate: number | null;
+}
+export interface EbayTrafficDay extends EbayTrafficMetrics {
+  readonly date: string;
+}
+export interface EbayListingPerformance extends EbayTrafficMetrics {
+  readonly listingId: string;
+  readonly title: string;
+  readonly imageUrl: string | null;
+  readonly watchCount: number | null;
+}
+export interface EbayListingPerformanceReport extends AccountScope {
+  readonly startDate: string;
+  readonly endDate: string;
+  readonly lastUpdatedDate: string | null;
+  readonly items: readonly EbayListingPerformance[];
+  readonly limit: 200;
+}
+export interface EbayAdvertisingCounts {
+  readonly impressions: number;
+  readonly clicks: number;
+}
+export interface EbayAdvertisingReport extends AccountScope {
+  readonly startDate: string;
+  readonly endDate: string;
+  readonly status: 'pending' | 'ready';
+  readonly generatedAt: string | null;
+  readonly days: readonly (EbayAdvertisingCounts & { readonly date: string })[];
+  readonly items: readonly (EbayAdvertisingCounts & { readonly listingId: string })[];
 }
 export interface EbayTrafficOverview extends AccountScope {
   readonly startDate: string;

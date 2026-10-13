@@ -37,6 +37,7 @@ import { PurchaseService } from '../../../../core/services/purchase.service';
 import { StockService } from '../../../../core/services/stock.service';
 import { EbayAccountComponent } from './ebay-account.component';
 import { EbayTrafficOverviewComponent } from '../ebay-traffic-overview/ebay-traffic-overview.component';
+import { EbayListingPerformanceComponent } from '../ebay-listing-performance/ebay-listing-performance.component';
 
 describe('Persönliche eBay-Oberfläche', () => {
   let resetBindings: (() => void) | undefined;
@@ -61,9 +62,15 @@ describe('Persönliche eBay-Oberfläche', () => {
     loadOrders: ReturnType<typeof vi.fn>;
     loadTraffic: ReturnType<typeof vi.fn>;
     loadTrafficOverview: ReturnType<typeof vi.fn>;
+    loadListingPerformance: ReturnType<typeof vi.fn>;
+    loadAdvertisingReport: ReturnType<typeof vi.fn>;
   };
   beforeAll(async () => {
     const restoreBindings = await prepareMarketplaceRendering([
+      {
+        type: EbayListingPerformanceComponent,
+        path: 'src/app/features/marketplaces/components/ebay-listing-performance/ebay-listing-performance.component.ts',
+      },
       {
         type: EbayTrafficOverviewComponent,
         path: 'src/app/features/marketplaces/components/ebay-traffic-overview/ebay-traffic-overview.component.ts',
@@ -151,6 +158,37 @@ describe('Persönliche eBay-Oberfläche', () => {
     workspace.set({ id: 'workspace-a', archived_at: null });
     user.set({ id: 'user-a' });
     api = {
+      loadListingPerformance: vi.fn(async () => ({
+        ...connection,
+        startDate: '2026-09-01',
+        endDate: '2026-09-30',
+        lastUpdatedDate: null,
+        limit: 200,
+        items: [
+          {
+            listingId: '123',
+            title: 'Eigene Auktion',
+            imageUrl: null,
+            watchCount: 3,
+            impressions: 1250,
+            views: 25,
+            transactions: 1,
+            searchImpressions: 1000,
+            searchViews: 20,
+            clickThroughRate: 0.02,
+            conversionRate: 0.04,
+          },
+        ],
+      })),
+      loadAdvertisingReport: vi.fn(async () => ({
+        ...connection,
+        startDate: '2026-09-01',
+        endDate: '2026-09-30',
+        status: 'pending',
+        generatedAt: null,
+        days: [],
+        items: [],
+      })),
       loadTrafficOverview: vi.fn(async () => ({
         ...connection,
         startDate: '2026-09-01',
@@ -405,6 +443,61 @@ describe('Persönliche eBay-Oberfläche', () => {
     user.set(null);
     fixture.detectChanges();
     expect(element.querySelector('app-ebay-traffic-overview')).toBeNull();
+  });
+  it('zeigt Artikelwerte und echte Werbedaten erst nach erfolgreicher Berichtserstellung', async () => {
+    api.loadStatus.mockResolvedValue({
+      configured: true,
+      listingManagementAvailable: true,
+      connection,
+    });
+    const fixture = await render(true, 'statistics');
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect(api.loadListingPerformance).toHaveBeenCalled();
+    });
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    const table = element.querySelector('[aria-label="eBay-Artikelauswertung"]');
+    expect(table?.textContent).toContain('Eigene Auktion');
+    expect(table?.textContent).toContain('1,250');
+    expect(table?.textContent).toContain('4.0%');
+    expect(table?.textContent).toContain('Nicht geladen');
+    const button = () =>
+      Array.from(element.querySelectorAll('button')).find((candidate) =>
+        /Werbeberichte laden|Berichtstatus prüfen/.test(candidate.textContent ?? ''),
+      );
+    button()?.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(element.textContent).toContain('eBay erstellt Deine Werbeberichte');
+    expect(table?.textContent).toContain('Nicht geladen');
+    api.loadAdvertisingReport.mockResolvedValueOnce({
+      ...connection,
+      startDate: '2026-09-01',
+      endDate: '2026-09-30',
+      status: 'ready',
+      generatedAt: null,
+      days: Array.from({ length: 30 }, (_, index) => ({
+        date: `2026-09-${String(index + 1).padStart(2, '0')}`,
+        impressions: 20,
+        clicks: 1,
+      })),
+      items: [{ listingId: '123', impressions: 600, clicks: 30 }],
+    });
+    button()?.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(table?.textContent).toContain('600');
+    expect(table?.textContent).not.toContain('Nicht geladen');
+    expect(element.textContent).toContain('Werbeklicks');
+    const results = await axe.run(element, { rules: { 'color-contrast': { enabled: false } } });
+    expect(results.violations).toEqual([]);
+    user.set(null);
+    fixture.detectChanges();
+    expect(element.querySelector('app-ebay-listing-performance')).toBeNull();
   });
   it('zeigt Bild, Bearbeitungslink, Beobachter und Aufrufe direkt bei Inseraten', async () => {
     api.loadStatus.mockResolvedValueOnce({

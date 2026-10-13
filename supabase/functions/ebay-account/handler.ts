@@ -22,6 +22,8 @@ import {
   readEbayTrafficOverview,
   requireEbayTrafficDays,
 } from '../_shared/ebay-traffic-overview.ts';
+import { readEbayListingPerformance } from '../_shared/ebay-listing-performance.ts';
+import { readEbayAdvertisingReport } from '../_shared/ebay-advertising-report.ts';
 
 import { withEbayConnection, EbayConnectionError } from './connection-read.ts';
 import { createEbayOrderImportHandler } from './order-import.ts';
@@ -242,16 +244,27 @@ export function createEbayAccountHandler(
           'listing_image',
           'listing_traffic',
           'traffic_overview',
+          'listing_performance',
+          'advertising_report',
         ].includes(String(body.action))
       ) {
         if (!isUuid(body.connectionId)) return respond({ error: 'invalid_request' }, 400);
         const scope = { workspaceId, connectionId: body.connectionId };
-        const listingId =
-          body.action === 'listing_traffic' || body.action === 'traffic_overview'
-            ? null
-            : requireEbayListingId(body.listingId);
-        const trafficDays =
-          body.action === 'traffic_overview' ? requireEbayTrafficDays(body.days) : null;
+        const listingId = [
+          'listing_traffic',
+          'traffic_overview',
+          'listing_performance',
+          'advertising_report',
+        ].includes(String(body.action))
+          ? null
+          : requireEbayListingId(body.listingId);
+        const trafficDays = [
+          'traffic_overview',
+          'listing_performance',
+          'advertising_report',
+        ].includes(String(body.action))
+          ? requireEbayTrafficDays(body.days)
+          : null;
         const update = body.action === 'listing_update' ? validateEbayUpdate(body.update) : null;
         if (body.action === 'listing_image' && !image)
           return respond({ error: 'invalid_request' }, 400);
@@ -261,8 +274,13 @@ export function createEbayAccountHandler(
           store,
           config,
           async ({ accessToken, connection }) => {
-            if (trafficDays)
+            if (trafficDays) {
+              if (body.action === 'listing_performance')
+                return readEbayListingPerformance(config, accessToken, trafficDays, fetcher);
+              if (body.action === 'advertising_report')
+                return readEbayAdvertisingReport(config, accessToken, trafficDays, fetcher);
               return readEbayTrafficOverview(config, accessToken, trafficDays, fetcher);
+            }
             if (body.action === 'listing_traffic') {
               if (
                 !Array.isArray(body.listingIds) ||

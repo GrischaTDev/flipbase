@@ -121,7 +121,7 @@
     </div>
     <app-card title="Traffic im Zeitverlauf">
       <div class="mb-3 flex flex-wrap gap-1" role="group" aria-label="Diagramm-Kennzahl">
-        @for (metric of chartMetrics; track metric.key) {
+        @for (metric of chartMetrics(); track metric.key) {
           <app-button
             [variant]="selectedMetric() === metric.key ? 'primary' : 'secondary'"
             size="slim"
@@ -131,6 +131,25 @@
           >
         }
       </div>
+      @if (selectedMetric() === 'impressions' && advertising()?.status === 'ready') {
+        <p class="mb-3 text-xs text-fb-text-muted">
+          Gesamtimpressionen enthalten bereits Werbeimpressionen. Die Balken werden getrennt
+          verglichen und nicht addiert.
+        </p>
+        <div
+          class="mb-3 flex flex-wrap gap-4 text-xs text-fb-text-secondary"
+          aria-label="Diagramm-Legende"
+        >
+          <span class="inline-flex items-center gap-2"
+            ><span class="h-3 w-3 rounded-sm bg-[#fcc601]" aria-hidden="true"></span
+            >Gesamtimpressionen</span
+          >
+          <span class="inline-flex items-center gap-2"
+            ><span class="h-3 w-3 rounded-sm bg-[#2563eb]" aria-hidden="true"></span
+            >Werbeimpressionen</span
+          >
+        </div>
+      }
       <div
         #chart
         class="h-[280px] w-full"
@@ -174,6 +193,10 @@
               <th scope="col" class="px-3 py-3">Klickrate</th>
               <th scope="col" class="px-3 py-3">Käufe</th>
               <th scope="col" class="px-3 py-3">Conversion Rate</th>
+              @if (advertising()?.status === 'ready') {
+                <th scope="col" class="px-3 py-3">Werbeimpressionen</th>
+                <th scope="col" class="px-3 py-3">Werbeklicks</th>
+              }
             </tr>
           </thead>
           <tbody>
@@ -209,6 +232,18 @@
                       : (day.conversionRate | percent: '1.1-2')
                   }}
                 </td>
+                @if (advertising()?.status === 'ready') {
+                  <td class="px-3 py-3">
+                    {{
+                      day.advertisingImpressions === null
+                        ? 'Keine Daten'
+                        : (day.advertisingImpressions | number: '1.0-0')
+                    }}
+                  </td>
+                  <td class="px-3 py-3">
+                    {{ day.clicks === null ? 'Keine Daten' : (day.clicks | number: '1.0-0') }}
+                  </td>
+                }
               </tr>
             }
           </tbody>
@@ -220,5 +255,10 @@
       Angebot hat meist eine Conversion Rate von 0 %. Tage ohne Aufrufe haben keine berechenbare
       Quote.
     </p>
+    <app-ebay-listing-performance
+      [connection]="connection()"
+      [days]="selectedDays()"
+      (advertisingChanged)="updateAdvertising($event)"
+    />
   }
 </section>

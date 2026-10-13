@@ -1,0 +1,187 @@
+<app-card title="Beworbene Artikel">
+  <div class="flex flex-wrap items-start justify-between gap-3">
+    <p class="max-w-2xl text-sm text-fb-text-secondary">
+      Impressionen und Klicks Deiner Anzeigen auf eBay, zusammen für die Strategien Allgemein und
+      Priorität. eBay erstellt die Berichte im Hintergrund.
+    </p>
+    <app-button
+      variant="secondary"
+      [loading]="advertisingLoading()"
+      [disabled]="loading() || !!error()"
+      (clicked)="loadAdvertising()"
+    >
+      {{ advertising()?.status === 'pending' ? 'Berichtstatus prüfen' : 'Werbeberichte laden' }}
+    </app-button>
+  </div>
+  @if (advertising()?.status === 'pending') {
+    <p role="status" class="mt-3 text-sm text-fb-text-secondary">
+      eBay erstellt Deine Werbeberichte. Prüfe den Status in wenigen Minuten erneut.
+    </p>
+  }
+  @if (advertisingError(); as message) {
+    <p role="alert" class="mt-3 text-sm text-fb-critical">{{ message }}</p>
+    <app-button variant="plain" class="mt-2" link="/marketplaces/ebay/connection"
+      >Kontoverbindung prüfen</app-button
+    >
+  }
+  @if (advertisingSummary(); as summary) {
+    <dl class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3" aria-label="Werbekennzahlen">
+      <div>
+        <dt class="text-xs text-fb-text-muted">Werbeimpressionen</dt>
+        <dd class="mt-1 text-xl font-semibold tabular-nums text-fb-text-primary">
+          {{ summary.impressions | number: '1.0-0' }}
+        </dd>
+      </div>
+      <div>
+        <dt class="text-xs text-fb-text-muted">Werbeklicks</dt>
+        <dd class="mt-1 text-xl font-semibold tabular-nums text-fb-text-primary">
+          {{ summary.clicks | number: '1.0-0' }}
+        </dd>
+      </div>
+      <div>
+        <dt class="text-xs text-fb-text-muted">Werbe-Klickrate</dt>
+        <dd class="mt-1 text-xl font-semibold tabular-nums text-fb-text-primary">
+          {{
+            summary.clickThroughRate === null
+              ? 'Keine Quote'
+              : (summary.clickThroughRate | percent: '1.1-2')
+          }}
+        </dd>
+      </div>
+    </dl>
+    <p class="mt-3 text-xs text-fb-text-muted">
+      Werbedaten können innerhalb von 72 Stunden noch korrigiert werden.
+      @if (advertising()?.generatedAt; as generatedAt) {
+        Bericht erstellt: {{ generatedAt | date: 'dd.MM.yyyy HH:mm' : 'UTC' }} UTC.
+      }
+    </p>
+  }
+  <p class="mt-3 text-xs text-fb-text-muted">
+    Organische Impressionen und Klicks sind über die dokumentierte API nicht getrennt verfügbar.
+    Gesamtwerte und Werbewerte werden getrennt gezeigt. Werbeklicks entsprechen nicht allen
+    Angebotsaufrufen.
+  </p>
+</app-card>
+<section aria-label="Traffic je Artikel" class="space-y-3">
+  <div>
+    <h2 class="text-base font-semibold text-fb-text-primary">Traffic je Artikel</h2>
+    <p class="mt-1 text-sm text-fb-text-secondary">
+      Bis zu 200 von eBay gemeldete Angebote mit den meisten Impressionen im ausgewählten Zeitraum.
+      Die Liste kann auch verkaufte und beendete Angebote enthalten.
+    </p>
+  </div>
+  <app-data-table
+    ariaLabel="eBay-Artikelauswertung"
+    searchPlaceholder="Artikel oder Angebotsnummer suchen"
+    searchAriaLabel="Artikelauswertung durchsuchen"
+    [searchValue]="search()"
+    (searchValueChange)="search.set($event)"
+    [loading]="loading()"
+    [errorMessage]="error()"
+    [hasRows]="rows().length > 0"
+    loadingText="Deine Artikelauswertung wird geladen ."
+    emptyTitle="Keine Artikel gefunden"
+    emptyText="Für Deine Suche oder diesen Zeitraum sind keine Artikel verfügbar."
+  >
+    <div table-filters>
+      <app-custom-select
+        variant="toolbar"
+        [options]="sortOptions"
+        [value]="sort()"
+        (valueChange)="sort.set($event ?? 'impressions')"
+        ariaLabel="Artikelauswertung sortieren"
+      />
+    </div>
+    <app-button table-error-action variant="secondary" class="mt-3" (clicked)="refresh()"
+      >Erneut versuchen</app-button
+    >
+    <div
+      table-content
+      class="overflow-x-auto"
+      tabindex="0"
+      role="region"
+      aria-label="Traffic-Tabelle horizontal scrollen"
+    >
+      <table class="w-full min-w-[1060px] text-left text-[13px] tabular-nums">
+        <caption class="sr-only">
+          Impressionen, Aufrufe, Klickrate, Käufe, Conversion Rate und Werbewerte je Artikel
+        </caption>
+        <thead>
+          <tr class="border-b border-fb-line text-fb-text-muted">
+            <th scope="col" class="px-3 py-3">Artikel</th>
+            <th scope="col" class="px-3 py-3 text-right">Impressionen</th>
+            <th scope="col" class="px-3 py-3 text-right">Aufrufe</th>
+            <th scope="col" class="px-3 py-3 text-right">Klickrate</th>
+            <th scope="col" class="px-3 py-3 text-right">Käufe</th>
+            <th scope="col" class="px-3 py-3 text-right">Conversion Rate</th>
+            <th scope="col" class="px-3 py-3 text-right">Werbeimpressionen</th>
+            <th scope="col" class="px-3 py-3 text-right">Werbeklicks</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of rows(); track item.listingId) {
+            <tr class="border-b border-fb-line text-fb-text-primary">
+              <th scope="row" class="px-3 py-3 font-normal">
+                <div class="flex items-center gap-3">
+                  <app-product-thumbnail [src]="item.imageUrl" [alt]="item.title" />
+                  <div class="min-w-36 max-w-64">
+                    <a
+                      class="font-medium hover:underline focus-visible:outline-2 focus-visible:outline-fb-text-primary"
+                      [href]="'https://www.ebay.de/itm/' + item.listingId"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      >{{ item.title }}</a
+                    >
+                    <p class="mt-1 text-xs text-fb-text-muted">{{ item.listingId }}</p>
+                  </div>
+                </div>
+              </th>
+              <td class="px-3 py-3 text-right">
+                {{
+                  item.impressions === null ? 'Keine Daten' : (item.impressions | number: '1.0-0')
+                }}
+              </td>
+              <td class="px-3 py-3 text-right">
+                {{ item.views === null ? 'Keine Daten' : (item.views | number: '1.0-0') }}
+              </td>
+              <td class="px-3 py-3 text-right">
+                {{
+                  item.clickThroughRate === null
+                    ? 'Keine Quote'
+                    : (item.clickThroughRate | percent: '1.1-2')
+                }}
+              </td>
+              <td class="px-3 py-3 text-right">
+                {{
+                  item.transactions === null ? 'Keine Daten' : (item.transactions | number: '1.0-0')
+                }}
+              </td>
+              <td class="px-3 py-3 text-right">
+                {{
+                  item.conversionRate === null
+                    ? 'Keine Quote'
+                    : (item.conversionRate | percent: '1.1-2')
+                }}
+              </td>
+              <td class="px-3 py-3 text-right">
+                {{
+                  item.advertisingImpressions === null
+                    ? 'Nicht geladen'
+                    : (item.advertisingImpressions | number: '1.0-0')
+                }}
+              </td>
+              <td class="px-3 py-3 text-right">
+                {{ item.clicks === null ? 'Nicht geladen' : (item.clicks | number: '1.0-0') }}
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </app-data-table>
+  <p class="text-xs text-fb-text-muted">
+    Klickrate: Aufrufe aus Suchergebnissen / Impressionen in Suchergebnissen. Conversion Rate: Käufe
+    / Aufrufe. Bei einem Einzelstück sind ein Kauf und viele Aufrufe normal; die Quote zeigt keinen
+    Lagerbestand. Die Artikelwerte müssen nicht den Gesamtwerten aller Angebote entsprechen.
+  </p>
+</section>

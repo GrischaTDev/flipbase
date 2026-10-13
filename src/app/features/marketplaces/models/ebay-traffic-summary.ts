@@ -1,6 +1,6 @@
-import type { EbayTrafficDay } from '../../../../../supabase/functions/_shared/ebay-contracts';
+import type { EbayTrafficMetrics } from '../../../../../supabase/functions/_shared/ebay-contracts';
 
-export function summarizeEbayTraffic(days: readonly EbayTrafficDay[]) {
+export function summarizeEbayTraffic(days: readonly EbayTrafficMetrics[]) {
   const sum = (
     key: 'impressions' | 'views' | 'transactions' | 'searchImpressions' | 'searchViews',
   ) =>

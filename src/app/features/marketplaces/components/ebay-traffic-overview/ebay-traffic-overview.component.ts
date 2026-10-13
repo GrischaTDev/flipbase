@@ -27,13 +27,22 @@ import type {
   EbayConnection,
   EbayTrafficDays,
   EbayTrafficOverview,
+  EbayAdvertisingReport,
 } from '../../../../../../supabase/functions/_shared/ebay-contracts';
 import { EbayAccountApiService } from '../../services/ebay-account-api.service';
 import { summarizeEbayTraffic } from '../../models/ebay-traffic-summary';
+import { EbayListingPerformanceComponent } from '../ebay-listing-performance/ebay-listing-performance.component';
 
 @Component({
   selector: 'app-ebay-traffic-overview',
-  imports: [ButtonComponent, CardComponent, DatePipe, DecimalPipe, PercentPipe],
+  imports: [
+    ButtonComponent,
+    CardComponent,
+    DatePipe,
+    DecimalPipe,
+    PercentPipe,
+    EbayListingPerformanceComponent,
+  ],
   templateUrl: './ebay-traffic-overview.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block min-w-0' },
@@ -46,18 +55,32 @@ export class EbayTrafficOverviewComponent {
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly summary = computed(() => summarizeEbayTraffic(this.report()?.days ?? []));
-  readonly dailyValues = computed(() =>
-    (this.report()?.days ?? []).map((day) => ({ ...day, ...summarizeEbayTraffic([day]) })),
+  readonly dailyValues = computed(() => {
+    const advertisingDays = new Map(this.advertising()?.days.map((day) => [day.date, day]));
+    return (this.report()?.days ?? []).map((day) => ({
+      ...day,
+      ...summarizeEbayTraffic([day]),
+      advertisingImpressions: advertisingDays.get(day.date)?.impressions ?? null,
+      clicks: advertisingDays.get(day.date)?.clicks ?? null,
+    }));
+  });
+  readonly advertising = signal<EbayAdvertisingReport | null>(null);
+  readonly selectedMetric = signal<'impressions' | 'views' | 'transactions' | 'clicks'>('views');
+  readonly chartMetrics = computed(
+    () =>
+      [
+        { key: 'impressions', label: 'Impressionen' },
+        { key: 'views', label: 'Aufrufe' },
+        { key: 'transactions', label: 'Käufe' },
+        ...(this.advertising()?.status === 'ready'
+          ? [{ key: 'clicks', label: 'Werbeklicks' } as const]
+          : []),
+      ] as const,
   );
-  readonly selectedMetric = signal<'impressions' | 'views' | 'transactions'>('views');
-  readonly chartMetrics = [
-    { key: 'impressions', label: 'Impressionen' },
-    { key: 'views', label: 'Aufrufe' },
-    { key: 'transactions', label: 'Käufe' },
-  ] as const;
   readonly metricLabel = computed(
     () =>
-      this.chartMetrics.find((metric) => metric.key === this.selectedMetric())?.label ?? 'Aufrufe',
+      this.chartMetrics().find((metric) => metric.key === this.selectedMetric())?.label ??
+      'Aufrufe',
   );
   readonly chartStatus = signal<RevenueChartStatus>('loading');
   readonly showDailyValues = signal(false);
@@ -100,9 +123,15 @@ export class EbayTrafficOverviewComponent {
   refresh(): void {
     void this.load(this.connection(), this.selectedDays());
   }
+  updateAdvertising(report: EbayAdvertisingReport | null): void {
+    this.advertising.set(report);
+    if (report?.status !== 'ready' && this.selectedMetric() === 'clicks')
+      this.selectedMetric.set('views');
+  }
   private async load(connection: EbayConnection, days: EbayTrafficDays): Promise<void> {
     const revision = ++this.revision;
     this.report.set(null);
+    this.updateAdvertising(null);
     this.error.set(null);
     this.loading.set(true);
     try {
@@ -126,6 +155,10 @@ export class EbayTrafficOverviewComponent {
   }
   private chartOptions(): ApexOptions {
     const isDark = this.theme.currentTheme() === 'dark';
+    const metric = this.selectedMetric();
+    const advertising = this.advertising();
+    const advertisingDays = new Map(advertising?.days.map((day) => [day.date, day]));
+    const showAdvertising = metric === 'impressions' && advertising?.status === 'ready';
     return {
       chart: {
         type: 'bar',
@@ -139,11 +172,23 @@ export class EbayTrafficOverviewComponent {
       },
       series: [
         {
-          name: this.metricLabel(),
-          data: (this.report()?.days ?? []).map((day) => day[this.selectedMetric()]),
+          name: showAdvertising ? 'Gesamtimpressionen' : this.metricLabel(),
+          data: (this.report()?.days ?? []).map((day) =>
+            metric === 'clicks' ? (advertisingDays.get(day.date)?.clicks ?? null) : day[metric],
+          ),
         },
+        ...(showAdvertising
+          ? [
+              {
+                name: 'Werbeimpressionen',
+                data: (this.report()?.days ?? []).map(
+                  (day) => advertisingDays.get(day.date)?.impressions ?? null,
+                ),
+              },
+            ]
+          : []),
       ],
-      colors: ['#fcc601'],
+      colors: ['#fcc601', '#2563eb'],
       dataLabels: { enabled: false },
       legend: { show: false },
       tooltip: {

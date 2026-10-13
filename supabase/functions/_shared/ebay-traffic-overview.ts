@@ -1,8 +1,8 @@
-import type { EbayTrafficDay, EbayTrafficDays } from './ebay-contracts.ts';
+import type { EbayTrafficDay, EbayTrafficDays, EbayTrafficMetrics } from './ebay-contracts.ts';
 import { EbayError, ebayJson, getEbayHosts, readRecord } from './ebay-api.ts';
 import type { EbayConfig } from './ebay-api.ts';
 
-const metrics = {
+export const ebayTrafficMetrics = {
   impressions: 'TOTAL_IMPRESSION_TOTAL',
   views: 'LISTING_VIEWS_TOTAL',
   transactions: 'TRANSACTION',
@@ -11,6 +11,65 @@ const metrics = {
   clickThroughRate: 'CLICK_THROUGH_RATE',
   conversionRate: 'SALES_CONVERSION_RATE',
 } as const;
+
+export function readTrafficMetricKeys(body: Record<string, unknown>): readonly unknown[] {
+  const header = readRecord(body.header);
+  if (
+    !Array.isArray(header.dimensionKeys) ||
+    header.dimensionKeys.length !== 1 ||
+    typeof readRecord(header.dimensionKeys[0]).key !== 'string' ||
+    !readRecord(header.dimensionKeys[0]).key ||
+    !Array.isArray(header.metrics) ||
+    !Array.isArray(body.records)
+  )
+    throw new EbayError('invalid_response');
+  const keys = header.metrics.map((metric) => readRecord(metric).key);
+  if (
+    new Set(keys).size !== keys.length ||
+    !Object.values(ebayTrafficMetrics).every((key) => keys.includes(key))
+  )
+    throw new EbayError('invalid_response');
+  return keys;
+}
+
+export function readTrafficMetrics(
+  row: Record<string, unknown>,
+  keys: readonly unknown[],
+): EbayTrafficMetrics {
+  const values = row.metricValues;
+  if (!Array.isArray(values) || values.length !== keys.length)
+    throw new EbayError('invalid_response');
+  const metric = (key: string): number | null => {
+    const entry = readRecord(values[keys.indexOf(key)]);
+    if (entry.applicable === false) return null;
+    if (
+      entry.applicable !== true ||
+      typeof entry.value !== 'number' ||
+      !Number.isFinite(entry.value) ||
+      entry.value < 0
+    )
+      throw new EbayError('invalid_response');
+    return entry.value;
+  };
+  return {
+    impressions: metric(ebayTrafficMetrics.impressions),
+    views: metric(ebayTrafficMetrics.views),
+    transactions: metric(ebayTrafficMetrics.transactions),
+    searchImpressions: metric(ebayTrafficMetrics.searchImpressions),
+    searchViews: metric(ebayTrafficMetrics.searchViews),
+    clickThroughRate: metric(ebayTrafficMetrics.clickThroughRate),
+    conversionRate: metric(ebayTrafficMetrics.conversionRate),
+  };
+}
+
+export function getEbayTrafficPeriod(requestedDays: EbayTrafficDays) {
+  const days = requireEbayTrafficDays(requestedDays);
+  const end = new Date();
+  end.setUTCDate(end.getUTCDate() - 1);
+  const start = new Date(end);
+  start.setUTCDate(start.getUTCDate() - days + 1);
+  return { startDate: start.toISOString().slice(0, 10), endDate: end.toISOString().slice(0, 10) };
+}
 
 export function requireEbayTrafficDays(days: unknown): EbayTrafficDays {
   if (days !== 7 && days !== 30 && days !== 90) throw new EbayError('invalid_request');
@@ -22,22 +81,8 @@ export function parseEbayTrafficDays(
   startDate: string,
   endDate: string,
 ): readonly EbayTrafficDay[] {
-  const header = readRecord(body.header);
-  if (
-    !Array.isArray(header.dimensionKeys) ||
-    header.dimensionKeys.length !== 1 ||
-    !Array.isArray(header.metrics) ||
-    !Array.isArray(body.records)
-  )
-    throw new EbayError('invalid_response');
-  const keys = header.metrics.map((metric) => readRecord(metric).key);
-  if (
-    typeof readRecord(header.dimensionKeys[0]).key !== 'string' ||
-    !readRecord(header.dimensionKeys[0]).key ||
-    new Set(keys).size !== keys.length ||
-    !Object.values(metrics).every((key) => keys.includes(key))
-  )
-    throw new EbayError('invalid_response');
+  const keys = readTrafficMetricKeys(body);
+  if (!Array.isArray(body.records)) throw new EbayError('invalid_response');
   const rows = new Map<string, EbayTrafficDay>();
   for (const record of body.records) {
     const row = readRecord(record);
@@ -66,28 +111,9 @@ export function parseEbayTrafficDays(
       rows.has(date)
     )
       throw new EbayError('invalid_response');
-    const values = row.metricValues;
-    const metric = (key: string): number | null => {
-      const entry = readRecord(values[keys.indexOf(key)]);
-      if (entry.applicable === false) return null;
-      if (
-        entry.applicable !== true ||
-        typeof entry.value !== 'number' ||
-        !Number.isFinite(entry.value) ||
-        entry.value < 0
-      )
-        throw new EbayError('invalid_response');
-      return entry.value;
-    };
     rows.set(date, {
       date,
-      impressions: metric(metrics.impressions),
-      views: metric(metrics.views),
-      transactions: metric(metrics.transactions),
-      searchImpressions: metric(metrics.searchImpressions),
-      searchViews: metric(metrics.searchViews),
-      clickThroughRate: metric(metrics.clickThroughRate),
-      conversionRate: metric(metrics.conversionRate),
+      ...readTrafficMetrics(row, keys),
     });
   }
   const days: EbayTrafficDay[] = [];
@@ -120,18 +146,12 @@ export async function readEbayTrafficOverview(
   requestedDays: EbayTrafficDays,
   fetcher = fetch,
 ) {
-  const days = requireEbayTrafficDays(requestedDays);
-  const end = new Date();
-  end.setUTCDate(end.getUTCDate() - 1);
-  const start = new Date(end);
-  start.setUTCDate(start.getUTCDate() - days + 1);
-  const startDate = start.toISOString().slice(0, 10),
-    endDate = end.toISOString().slice(0, 10);
+  const { startDate, endDate } = getEbayTrafficPeriod(requestedDays);
   const url = new URL(`${getEbayHosts(config.environment).api}/sell/analytics/v1/traffic_report`);
   url.search = new URLSearchParams({
     dimension: 'DAY',
     filter: `marketplace_ids:{EBAY_DE},date_range:[${startDate}T00:00:00.000+00:00..${endDate}T23:59:59.000+00:00]`,
-    metric: Object.values(metrics).join(','),
+    metric: Object.values(ebayTrafficMetrics).join(','),
   }).toString();
   const body = await ebayJson(url.href, token, fetcher);
   return {
