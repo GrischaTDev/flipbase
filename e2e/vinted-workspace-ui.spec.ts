@@ -375,7 +375,6 @@ for (const width of [1440, 390, 320]) {
           .click();
       const nav = page.locator('app-sidebar nav');
       await expect(nav.getByRole('link')).toHaveText([
-        'Lokale Einkaufsentwürfe',
         'Konten',
         'Übersicht',
         'Postfach',

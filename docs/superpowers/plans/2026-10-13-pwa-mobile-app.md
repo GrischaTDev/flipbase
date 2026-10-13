@@ -1,10 +1,12 @@
 # Flipbase PWA: genauer Umsetzungsplan
 
+**Nachtrag vom 13.10.2026:** Der ursprüngliche Plan wurde umgesetzt und veröffentlicht. Nach Gerätefeedback gilt die korrigierte Nutzerentscheidung: mobiles Installationsangebot, stabile Tablet-Navigation und korrekte Updatehinweise; keine separate Offline-Einkaufsoberfläche oder Übernahmeaktionen. Stattdessen puffert die normale Einkaufsmaske intern Eingaben und setzt bereits ausdrücklich beauftragte Speicherungen sicher fort. Nachfolgende Aufgaben zum sichtbaren Offlinebereich dokumentieren den ursprünglichen Plan und sind durch diesen Nachtrag ersetzt. Aktuelle Abnahme: [PWA-Geräteabnahme](../../testing/pwa-device-acceptance.md).
+
 > **Für die Umsetzung:** Aufgaben einzeln mit `superpowers:executing-plans` abarbeiten. Parallele Agentenarbeit nur nach ausdrücklicher Auswahl durch den Nutzer. Jeder Schritt hat ein überprüfbares Ergebnis. Dieses Dokument ist ein Planungsentwurf; Produktcode und Veröffentlichung sind noch nicht beauftragt.
 
-**Ziel:** Installierbare mobile Flipbase-App mit sichtbarem Start, sicheren Updates, echten Push-Meldungen und lokalen Einkaufsentwürfen.
+**Ziel:** Installierbare mobile Flipbase-App mit sichtbarem Start, sicheren Updates, echten Push-Meldungen und einem internen Zwischenspeicher der normalen Einkaufsmaske.
 
-**Architektur:** Bestehenden Worker um baugebundene statische Dateien und Push-Empfang ergänzen. Geräteverwaltung und dauerhafter Versand entstehen serverseitig; lokale Einkaufsentwürfe bleiben fachlich und technisch von Serverdaten getrennt und werden ausdrücklich im vorhandenen Onlineformular übernommen.
+**Architektur:** Bestehenden Worker um baugebundene statische Dateien und Push-Empfang ergänzen. Geräteverwaltung und dauerhafter Versand entstehen serverseitig. Die normale Einkaufsmaske sichert Eingaben und Belegbytes intern; nur ausdrücklich beauftragte Speicherungen werden nach erneuter Onlineprüfung mit unverändertem Auftrag fortgesetzt. Keine separate Offlineoberfläche oder manuelle Übernahme.
 
 **Techstack:** Angular 22.2, Tailwind 4, Signals, native Service Worker / Push API / IndexedDB, Supabase/Postgres, Deno für Geräte-API, kleiner Node-Versanddienst; Vitest und Playwright. Versionen stammen aus `package.json`, keine Versionsanhebung geplant.
 
@@ -15,11 +17,11 @@
 - Bestehende Installation mit `id: /` erhalten; `scope: /`, Sprache `de`, Markenakzent `#fcc601`.
 - Deutsch und Du-Ansprache in UI; englische Bezeichner und Dateinamen; neue Branches `juna/…`.
 - Shared-Controls und `docs/design/admin-ui-guidelines.md` verwenden; kein neues UI-Kit.
-- Kein API-/Auth-/Privatmedien-Cache. Offline nur App-Start und Einkaufsentwürfe; keine automatische Buchung.
+- Kein API-/Auth-/Privatmedien-Cache. Offline nur App-Start und Einkaufsmaske; keine automatische Buchung nicht abgesendeter Eingaben oder endgültiger Abschlüsse.
 - Keine manuelle Änderung generierter Supabase-Typen; Backend-Verträge zuerst, danach lokale Typengenerierung.
 - Push zunächst `message`, `order`, `connection`; keine neue Vinted-Fundfunktion.
 - Neue Versandbibliothek und Betriebsdienst sind vorgeschlagene Backend-Abhängigkeiten, vor Umsetzung zusammen mit dem Plan zu bestätigen. Keine handgeschriebene Web-Push-Kryptografie.
-- Entwurfsgrenzen: 100 Entwürfe, 100 Positionen je Entwurf, 10 MiB insgesamt; lokaler Kontext 7 Tage; Autosave ≤ 500 ms.
+- Puffergrenzen: 100 Einträge, 100 Positionen je Eintrag, 10 MiB Metadaten und 100 MiB Belegbytes insgesamt; bestehende 20-MiB-Dateigrenze; lokaler Kontext 7 Tage; Eingabensicherung nach 500 ms.
 - Startwarnung nach 10 s, Fehlerzustand nach 30 s; keine künstliche Mindestladezeit; zusätzlicher Startcode ≤ 10 KiB gzip.
 - Keine riskanten Migrationen oder Paket-Upgrades ohne Auftrag. Schema + generierte Migration + Backendtests in demselben PR.
 - Nur eigene Dateien und Branches verändern. `docs/AI-CHANGELOG.md` je Umsetzungssitzung pflegen.

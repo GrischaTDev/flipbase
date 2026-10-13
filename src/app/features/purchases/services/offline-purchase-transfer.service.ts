@@ -11,7 +11,10 @@ import { OfflinePurchaseDraftStore } from './offline-purchase-draft.store';
 import {
   OfflinePurchaseDraft,
   OfflinePurchaseReview,
+  OfflinePurchaseTransferAttempt,
 } from '../models/offline-purchase-draft.models';
+import { isPermanentPurchaseFailure } from '../utils/purchase-buffer-failure';
+import { PurchaseDocumentService } from '../../../core/services/purchase-document.service';
 
 @Injectable({ providedIn: 'root' })
 export class OfflinePurchaseTransferService {
@@ -20,6 +23,7 @@ export class OfflinePurchaseTransferService {
   private readonly access = inject(WorkspaceAccessService);
   private readonly store = inject(OfflinePurchaseDraftStore);
   private readonly purchases = inject(PurchaseService);
+  private readonly documents = inject(PurchaseDocumentService);
   private readonly leaseOwner = crypto.randomUUID();
   readonly isBusy = signal(false);
   readonly lastCompletion = signal<'transferred' | 'newer_revision' | null>(null);
@@ -54,10 +58,51 @@ export class OfflinePurchaseTransferService {
   getAttempt(draftId: string) {
     return this.store.getAttempt(draftId);
   }
+  async queue(
+    draft: OfflinePurchaseDraft,
+    payload: CreatePurchasePayload,
+    finalizeAfterSave = false,
+  ): Promise<void> {
+    if (
+      this.auth.currentUser()?.id !== draft.userId ||
+      this.workspace.currentWorkspace()?.id !== draft.workspaceId
+    )
+      throw new Error('Die Anmeldung oder der Workspace hat sich geändert.');
+    const attempt = await this.store.beginAttempt(
+      draft.draftId,
+      draft.revision,
+      payload,
+      this.leaseOwner,
+      finalizeAfterSave,
+    );
+    await this.store.markUnknown(attempt);
+  }
   async reconcile(draft: OfflinePurchaseDraft): Promise<CreatePurchaseResult> {
     const attempt = await this.store.getAttempt(draft.draftId);
-    if (!attempt || attempt.state === 'confirmed')
+    if (!attempt || attempt.state === 'rejected')
       throw new Error('Hier gibt es keinen ungeklärten Versuch.');
+    if (attempt.state === 'confirmed' && attempt.purchaseId) {
+      await this.loadForReview(draft.draftId);
+      const purchase = await this.purchases.getPurchaseById(attempt.purchaseId);
+      if (!purchase) throw new Error('Der gespeicherte Einkauf konnte nicht geprüft werden.');
+      if (attempt.documentRetryBlocked)
+        return {
+          status: 'partial',
+          data: purchase,
+          error: null,
+          reportedBySyncStatus: false,
+          problems: [],
+        };
+      await this.uploadDocuments(attempt);
+      this.lastCompletion.set(await this.store.markTransferred(attempt, purchase.id));
+      return {
+        status: 'success',
+        data: purchase,
+        error: null,
+        reportedBySyncStatus: false,
+        problems: [],
+      };
+    }
     return this.transfer(draft, attempt.payload);
   }
   async transfer(
@@ -84,15 +129,46 @@ export class OfflinePurchaseTransferService {
       try {
         result = await this.purchases.createPurchase(structuredClone(attempt.payload));
       } catch (reason) {
-        await this.store.markUnknown(attempt);
+        if (isPermanentPurchaseFailure(reason)) await this.store.markRejected(attempt);
+        else await this.store.markUnknown(attempt);
         throw reason;
       }
-      if (result.data?.id)
+      if (result.data?.id) {
         this.lastCompletion.set(await this.store.markTransferred(attempt, result.data.id));
+        await this.uploadDocuments({ ...attempt, purchaseId: result.data.id });
+        this.lastCompletion.set(await this.store.markTransferred(attempt, result.data.id));
+      } else if (!result.reportedBySyncStatus || isPermanentPurchaseFailure(result.error))
+        await this.store.markRejected(attempt);
       else await this.store.markUnknown(attempt);
       return result;
     } finally {
       this.isBusy.set(false);
+    }
+  }
+  private async uploadDocuments(attempt: OfflinePurchaseTransferAttempt): Promise<void> {
+    if (!attempt.purchaseId) return;
+    for (const document of attempt.documents ?? []) {
+      if (attempt.uploadedDocumentIds?.includes(document.id)) continue;
+      if (
+        this.auth.currentUser()?.id !== attempt.userId ||
+        this.workspace.currentWorkspace()?.id !== attempt.workspaceId
+      )
+        throw new Error('Die Anmeldung oder der Workspace hat sich geändert.');
+      const { error } = await this.documents.upload(
+        attempt.purchaseId,
+        document.file,
+        document.documentType,
+        null,
+        null,
+        attempt.workspaceId,
+        document.id,
+        attempt.userId,
+      );
+      if (error) {
+        if (isPermanentPurchaseFailure(error)) await this.store.blockDocumentRetry(attempt);
+        throw error;
+      }
+      await this.store.markDocumentUploaded(attempt, document.id);
     }
   }
 }

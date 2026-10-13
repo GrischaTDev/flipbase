@@ -1,7 +1,29 @@
 import { describe, expect, it } from 'vitest';
+import { TestBed } from '@angular/core/testing';
+import { provideRouter, Router } from '@angular/router';
 import { routes } from './app.routes';
 
 describe('Alte Bestandslinks', () => {
+  it.each(['offline', 'offline/purchases'])(
+    'führt den alten %s-Link ohne lokale Parameter zu den normalen Einkäufen',
+    async (path) => {
+      TestBed.configureTestingModule({ providers: [provideRouter([])] });
+      try {
+        const route = routes.find((candidate) => candidate.path === path);
+        expect(route?.pathMatch).toBe('full');
+        expect(route?.loadComponent).toBeUndefined();
+        expect(route?.canActivate).toBeUndefined();
+        const redirect = route?.redirectTo;
+        if (typeof redirect !== 'function') throw new Error('Legacy route needs a safe redirect');
+        const target = await TestBed.runInInjectionContext(() =>
+          redirect({ queryParams: { deviceDrafts: '1', localDraft: 'old' } } as never),
+        );
+        expect(TestBed.inject(Router).serializeUrl(target as never)).toBe('/purchases');
+      } finally {
+        TestBed.resetTestingModule();
+      }
+    },
+  );
   const adminRoutes = routes.find((route) => route.path === '' && route.children)?.children ?? [];
 
   it('führt die frühere Bestandsliste zum Bestandsfilter der Artikeltabelle', () => {

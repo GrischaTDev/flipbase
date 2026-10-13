@@ -53,7 +53,14 @@ describe('Arbeitsnavigation und Ideen in der Sidebar', () => {
           provide: PlatformOperatorService,
           useValue: { operator: signal(false), isOperator: vi.fn(async () => false) },
         },
-        { provide: PwaService, useValue: { isInstallable: signal(false), promptInstall: vi.fn() } },
+        {
+          provide: PwaService,
+          useValue: {
+            showInstallationOffer: signal(false),
+            isInstallable: signal(false),
+            promptInstall: vi.fn(),
+          },
+        },
       ],
     }).compileComponents();
 

@@ -5,6 +5,8 @@ import { Workspace } from '../models/flipbase.models';
 import { AuthService } from '../services/auth.service';
 import { WorkspaceService } from '../services/workspace.service';
 import { WorkspaceAccessService } from '../services/workspace-access.service';
+import { AppStartupService } from '../services/app-startup.service';
+import { ToastService } from '../../shared/components/toast/toast.service';
 import { workspaceSetupGuard, workspaceSetupPageGuard } from './workspace-setup.guard';
 
 const incompleteWorkspace: Workspace = {
@@ -30,12 +32,17 @@ function setupGuard(
     url?: string;
     review?: boolean;
     allowedWorkspaceIds?: string[];
+    accessFailure?: boolean;
   } = {},
 ) {
   const ensureLoaded = vi.fn(options.ensureLoaded ?? (() => Promise.resolve()));
   const createUrlTree = vi.fn((commands: string[], extras?: unknown) => ({ commands, extras }));
+  const failStartup = vi.fn();
+  const connectionError = vi.fn();
   const injector = Injector.create({
     providers: [
+      { provide: AppStartupService, useValue: { failStartup } },
+      { provide: ToastService, useValue: { toasts: () => [], error: connectionError } },
       {
         provide: AuthService,
         useValue: {
@@ -43,18 +50,20 @@ function setupGuard(
           canAccessApp: () => options.authenticated ?? true,
         },
       },
-      ...(options.allowedWorkspaceIds
+      ...(options.allowedWorkspaceIds || options.accessFailure
         ? [
             {
               provide: WorkspaceAccessService,
               useValue: {
                 refresh: () =>
-                  Promise.resolve(
-                    options.allowedWorkspaceIds!.map((id) => ({
-                      workspace_id: id,
-                      access_status: 'active',
-                    })),
-                  ),
+                  options.accessFailure
+                    ? Promise.reject(new Error('offline'))
+                    : Promise.resolve(
+                        (options.allowedWorkspaceIds ?? []).map((id) => ({
+                          workspace_id: id,
+                          access_status: 'active',
+                        })),
+                      ),
               },
             },
           ]
@@ -85,7 +94,7 @@ function setupGuard(
       ),
     );
 
-  return { invoke, ensureLoaded, createUrlTree };
+  return { invoke, ensureLoaded, createUrlTree, failStartup, connectionError };
 }
 
 describe('workspace setup guards', () => {
@@ -128,10 +137,21 @@ describe('workspace setup guards', () => {
     ).resolves.toBe(true);
   });
 
-  it('zeigt die Einrichtungsseite bei Ladefehler oder fehlendem Workspace für den Wiederholungsversuch', async () => {
-    await expect(
-      setupGuard([], { loadError: new Error('offline') }).invoke(workspaceSetupGuard),
-    ).resolves.toEqual({ commands: ['/onboarding/workspace'], extras: undefined });
+  it('bricht bei Ladefehler ab und zeigt einen Verbindungsfehler statt einer Umleitung', async () => {
+    const test = setupGuard([], { loadError: new Error('offline') });
+    await expect(test.invoke(workspaceSetupGuard)).resolves.toBe(false);
+    expect(test.failStartup).toHaveBeenCalledWith('navigation');
+    expect(test.connectionError).toHaveBeenCalledOnce();
+    expect(test.createUrlTree).not.toHaveBeenCalled();
+  });
+  it('bricht bei fehlgeschlagener Rechteprüfung ab ohne Offline- oder Login-Umleitung', async () => {
+    const test = setupGuard([completedWorkspace], { accessFailure: true });
+    await expect(test.invoke(workspaceSetupGuard)).resolves.toBe(false);
+    expect(test.failStartup).toHaveBeenCalledWith('navigation');
+    expect(test.connectionError).toHaveBeenCalledOnce();
+    expect(test.createUrlTree).not.toHaveBeenCalled();
+  });
+  it('öffnet die Einrichtung weiterhin für einen noch nicht angelegten Workspace', async () => {
     await expect(setupGuard([]).invoke(workspaceSetupPageGuard)).resolves.toBe(true);
   });
 

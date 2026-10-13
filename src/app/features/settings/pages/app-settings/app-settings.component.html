@@ -19,12 +19,9 @@
       >
     </div>
     <p class="text-xs text-fb-text-muted">
-      Starte Flipbase vom Home-Bildschirm deines Smartphones, Tablets oder Desktops. Für Anmeldung
-      und Geschäftsdaten brauchst du weiterhin eine Internetverbindung.
+      Nutze Flipbase im Browser oder vom Home-Bildschirm deines Smartphones oder Tablets. Für
+      Anmeldung und Geschäftsdaten brauchst du weiterhin eine Internetverbindung.
     </p>
-    <a routerLink="/offline/purchases" class="fb-link inline-flex min-h-11 items-center text-sm"
-      >Lokale Einkaufsentwürfe öffnen</a
-    >
     <p role="status" class="text-sm text-fb-text-secondary">
       {{
         pwaService.offlineAssetsReady()
@@ -48,15 +45,15 @@
         }}</strong>
       </div>
     </div>
-    @if (pwaService.installState() === 'prompt_available') {
+    @if (pwaService.showInstallationOffer() && pwaService.installState() === 'prompt_available') {
       <app-button (clicked)="pwaService.promptInstall()">Flipbase installieren</app-button>
-    } @else if (pwaService.installState() === 'manual') {
+    } @else if (pwaService.showInstallationOffer() && pwaService.installState() === 'manual') {
       <p class="text-sm text-fb-text-secondary">{{ pwaService.installationHelp() }}</p>
-    } @else if (pwaService.installState() === 'unsupported') {
+    } @else if (pwaService.showInstallationOffer() && pwaService.installState() === 'unsupported') {
       <p class="text-sm text-fb-text-secondary">
         Dieser Browser bietet hier keine App-Installation an.
       </p>
-    } @else {
+    } @else if (pwaService.isStandalone()) {
       <p
         class="flex items-center gap-2 rounded-xl border border-emerald-700/30 bg-emerald-500/15 p-3 text-xs font-medium text-fb-text-secondary"
       >

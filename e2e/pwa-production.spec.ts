@@ -110,7 +110,7 @@ test('a real second build waits for an unsaved second window before activation @
     await expect(page.getByRole('button', { name: 'Jetzt aktualisieren' })).toBeVisible();
     await page.getByRole('button', { name: 'Jetzt aktualisieren' }).click();
     await expect(page.getByRole('region', { name: 'App aktualisieren' })).toContainText(
-      /offen|gespeichert|blockiert/,
+      /offen|gespeichert|blockiert|schließe andere Flipbase/,
     );
     expect(await page.evaluate(() => document.documentElement.dataset['flipbaseBuild'])).toBe(
       oldBuild,
@@ -120,7 +120,76 @@ test('a real second build waits for an unsaved second window before activation @
     await page.getByRole('button', { name: 'Jetzt aktualisieren' }).click();
     await expect(page.locator('html')).not.toHaveAttribute('data-flipbase-build', oldBuild ?? '');
     await expect(page.getByRole('heading', { name: 'Progressive Web App (PWA)' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'App aktualisieren' })).toHaveCount(0);
+    await page.reload();
+    await expect(page.getByRole('region', { name: 'App aktualisieren' })).toHaveCount(0);
   } finally {
     await page.request.post('/api/__pwa_test__/build');
   }
+});
+
+test('legacy network-worker handover does not repeatedly offer the already loaded mobile build @worker', async ({
+  page,
+  context,
+}) => {
+  const { mockMarketplace } = await import('./support/marketplace-account-fixture');
+  await mockMarketplace(
+    page,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    { origin: 'https://api.flipbase.de', userId: '25000000-0000-4000-8000-000000000001' },
+  );
+  await page.setViewportSize({ width: 393, height: 852 });
+  await page.addInitScript(() => {
+    navigator.serviceWorker.addEventListener('message', (event) => {
+      if (event.data?.type === 'PWA_UPDATE_RESULT' && event.data.result === 'blocked')
+        document.documentElement.dataset['legacyHandoverBlocked'] = 'true';
+    });
+  });
+  const legacy = await context.newPage();
+  await legacy.goto('/api/__pwa_test__/legacy-page');
+  await legacy.evaluate(async () => {
+    await navigator.serviceWorker.register('/api/__pwa_test__/legacy-worker.js', { scope: '/' });
+    await navigator.serviceWorker.ready;
+  });
+  await expect
+    .poll(() => legacy.evaluate(() => Boolean(navigator.serviceWorker.controller)))
+    .toBe(true);
+  await page.goto('/settings/app');
+  await expect(page.getByRole('heading', { name: 'Progressive Web App (PWA)' })).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        async () => (await navigator.serviceWorker.getRegistration('/'))?.waiting?.state,
+      ),
+    )
+    .toBe('installed');
+  await expect(page.getByRole('region', { name: 'App aktualisieren' })).toHaveCount(0);
+  await expect(page.locator('html')).toHaveAttribute('data-legacy-handover-blocked', 'true');
+  await legacy.close();
+  await Promise.all([
+    page.waitForEvent('load'),
+    page.evaluate(() => window.dispatchEvent(new Event('focus'))),
+  ]);
+  await expect(page.getByRole('heading', { name: 'Progressive Web App (PWA)' })).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate(async () => {
+        const registration = await navigator.serviceWorker.getRegistration('/');
+        return (
+          !registration?.waiting && navigator.serviceWorker.controller?.scriptURL.endsWith('/sw.js')
+        );
+      }),
+    )
+    .toBe(true);
+  await expect(page.getByRole('region', { name: 'App aktualisieren' })).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Progressive Web App (PWA)' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'App aktualisieren' })).toHaveCount(0);
 });

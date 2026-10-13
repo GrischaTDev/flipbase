@@ -9,9 +9,22 @@ function createService() {
   injectors.push(injector);
   return runInInjectionContext(injector, () => new PwaService());
 }
+function useDevice(userAgent: string, maxTouchPoints = 0) {
+  vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(userAgent);
+  Object.defineProperty(navigator, 'maxTouchPoints', { configurable: true, value: maxTouchPoints });
+  Object.defineProperty(navigator, 'serviceWorker', {
+    configurable: true,
+    value: Object.assign(new EventTarget(), {
+      controller: null,
+      register: vi.fn().mockResolvedValue({}),
+    }),
+  });
+}
 afterEach(() => {
   for (const injector of injectors.splice(0)) injector.destroy();
   vi.restoreAllMocks();
+  Reflect.deleteProperty(navigator, 'maxTouchPoints');
+  Reflect.deleteProperty(navigator, 'serviceWorker');
 });
 
 function offer(outcome: 'accepted' | 'dismissed', reject = false) {
@@ -25,7 +38,36 @@ function offer(outcome: 'accepted' | 'dismissed', reject = false) {
 }
 
 describe('PWA installation capabilities', () => {
+  it.each([
+    ['Android phone', 'Mozilla/5.0 (Linux; Android 15) Chrome/140 Mobile', 5],
+    ['Android tablet', 'Mozilla/5.0 (Linux; Android 15) Chrome/140', 5],
+    ['iPad desktop mode', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) Safari/605', 5],
+  ])('keeps manual installation available on %s without a prompt', (_name, userAgent, touch) => {
+    useDevice(userAgent, touch);
+    const service = createService();
+    expect(service.showInstallationOffer()).toBe(true);
+    expect(service.isInstallable()).toBe(false);
+    expect(service.installState()).toBe('manual');
+    expect(service.installationHelp()).not.toContain('Dock');
+  });
+  it.each([
+    ['Windows', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/140', 0],
+    ['touch desktop', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/140', 5],
+    ['Mac', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) Safari/605', 0],
+  ])(
+    'does not offer installation on %s, even when the browser sends a prompt',
+    async (_name, userAgent, touch) => {
+      useDevice(userAgent, touch);
+      const service = createService();
+      const prompt = offer('accepted');
+      expect(service.showInstallationOffer()).toBe(false);
+      expect(service.isInstallable()).toBe(false);
+      expect(await service.promptInstall()).toBe(false);
+      expect(prompt).not.toHaveBeenCalled();
+    },
+  );
   it('consumes the prompt once, without claiming the browser is in standalone mode', async () => {
+    useDevice('Mozilla/5.0 (Linux; Android 15) Chrome/140 Mobile', 5);
     const service = createService();
     const prompt = offer('accepted');
     expect(service.installState()).toBe('prompt_available');
@@ -37,6 +79,7 @@ describe('PWA installation capabilities', () => {
     expect(service.isInstalled()).toBe(false);
   });
   it.each([false, true])('clears dismissed or failed prompt (failure=%s)', async (reject) => {
+    useDevice('Mozilla/5.0 (Linux; Android 15) Chrome/140 Mobile', 5);
     const service = createService();
     const prompt = offer('dismissed', reject);
     expect(await service.promptInstall()).toBe(false);
@@ -53,5 +96,6 @@ describe('PWA installation capabilities', () => {
     media.dispatchEvent(new Event('change'));
     expect(service.installState()).toBe('standalone');
     expect(service.isStandalone()).toBe(true);
+    expect(service.showInstallationOffer()).toBe(false);
   });
 });

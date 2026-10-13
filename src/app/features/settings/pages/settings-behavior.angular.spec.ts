@@ -2344,12 +2344,17 @@ describe('Versandeinstellungen – echte Angular-Fixture', () => {
 });
 
 async function renderApp(
-  options: { readonly installed?: boolean; readonly online?: boolean } = {},
+  options: {
+    readonly installed?: boolean;
+    readonly online?: boolean;
+    readonly mobile?: boolean;
+  } = {},
 ) {
   const pwaService = {
     isOnline: signal(options.online ?? true),
     isInstalled: signal(options.installed ?? false),
     isStandalone: signal(options.installed ?? false),
+    showInstallationOffer: signal((options.mobile ?? true) && !options.installed),
     installState: signal(options.installed ? 'standalone' : 'prompt_available'),
     offlineAssetsReady: signal(false),
     assetsMessage: signal('App-Dateien werden geprüft.'),
@@ -2380,6 +2385,14 @@ async function renderApp(
 }
 
 describe('App-Einstellungen – echte Angular-Fixture', () => {
+  it('zeigt auf Desktop weder Installationsangebot noch Installationsanleitung', async () => {
+    const { fixture } = await renderApp({ mobile: false });
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.textContent).not.toContain('Flipbase installieren');
+    expect(host.textContent).not.toContain('Nutze das Installationsmenü');
+    expect(host.querySelector('a[href="/purchases"]')).toBeNull();
+    expect(host.querySelector('a[href="/offline/purchases"]')).toBeNull();
+  });
   it('zeigt die persönliche eBay-Verbindung und lädt ihren bestätigten Status erneut', async () => {
     const { fixture, ebayApiService, toast } = await renderApp();
     expect(renderedButton(fixture, 'Mit eBay verbinden').disabled).toBe(false);

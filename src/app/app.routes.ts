@@ -1,28 +1,21 @@
-import { Routes } from '@angular/router';
+import { inject } from '@angular/core';
+import { Router, Routes } from '@angular/router';
 import { unsavedEntryGuard } from './shared/guards/unsaved-entry.guard';
 import { authGuard, guestGuard } from './core/guards/auth.guard';
 import { workspaceAccessGuard } from './core/guards/workspace-access.guard';
 import { operatorGuard } from './core/guards/operator.guard';
 import { workspaceSetupGuard, workspaceSetupPageGuard } from './core/guards/workspace-setup.guard';
-import { offlinePurchaseContextGuard } from './features/purchases/guards/offline-purchase-context.guard';
 
 export const routes: Routes = [
   {
     path: 'offline',
-    canDeactivate: [unsavedEntryGuard],
-    loadComponent: () =>
-      import('./features/purchases/pages/offline-purchases/offline-purchases.component').then(
-        (module) => module.OfflinePurchasesComponent,
-      ),
+    pathMatch: 'full',
+    redirectTo: () => inject(Router).createUrlTree(['/purchases']),
   },
   {
     path: 'offline/purchases',
-    canActivate: [offlinePurchaseContextGuard],
-    canDeactivate: [unsavedEntryGuard],
-    loadComponent: () =>
-      import('./features/purchases/pages/offline-purchases/offline-purchases.component').then(
-        (module) => module.OfflinePurchasesComponent,
-      ),
+    pathMatch: 'full',
+    redirectTo: () => inject(Router).createUrlTree(['/purchases']),
   },
   {
     path: 'push/open',

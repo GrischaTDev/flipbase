@@ -66,6 +66,8 @@ import { CatalogService } from '../../../../core/services/catalog.service';
 import { BarcodeProductInfo } from '../../../../core/services/barcode-lookup.service';
 import { PurchaseProductReturnService } from '../../services/purchase-product-return.service';
 import { OfflinePurchaseTransferService } from '../../services/offline-purchase-transfer.service';
+import { PurchaseBufferService } from '../../services/purchase-buffer.service';
+import { OfflinePurchaseDraftStore } from '../../services/offline-purchase-draft.store';
 import {
   OfflinePurchaseDraft,
   OfflinePurchaseReview,
@@ -237,11 +239,15 @@ export class PurchaseEntryFormComponent {
   readonly offlineLoading = signal(false);
   readonly offlineSaving = signal(false);
   readonly offlineConfirmed = signal(false);
-  readonly offlineRetryAvailable = signal(false);
   private loadedOfflineId: string | null = null;
   private applyingOffline = false;
   private reviewTimer: ReturnType<typeof setTimeout> | null = null;
   private reviewQueue: Promise<void> = Promise.resolve();
+  private bufferWorkspaceId: string | null = null;
+  private bufferEnabled = false;
+  private bufferDraftPromise: Promise<OfflinePurchaseDraft> | null = null;
+  private readonly observingBuffer = signal(false);
+  private appliedBufferConfirmation: ReturnType<PurchaseBufferService['confirmed']> = null;
   readonly pricingMode = signal<'individual' | 'total'>('individual');
   readonly discountAmount = signal(0);
 
@@ -403,7 +409,79 @@ export class PurchaseEntryFormComponent {
     effect(() => {
       this.purchaseLines();
       this.costDrafts();
+      this.pendingDocuments();
       untracked(() => this.scheduleOfflineReview());
+    });
+    effect((onCleanup) => {
+      const draft = this.offlineDraft();
+      if (draft && this.observingBuffer())
+        onCleanup(this.injector.get(PurchaseBufferService).observe(draft.draftId));
+    });
+    effect(() => {
+      if (!this.observingBuffer() || this.offlineLoading()) return;
+      const confirmation = this.injector.get(PurchaseBufferService).confirmed();
+      if (
+        !confirmation ||
+        confirmation === this.appliedBufferConfirmation ||
+        confirmation.draftId !== this.offlineDraft()?.draftId ||
+        this.isSubmitting()
+      )
+        return;
+      untracked(() => {
+        this.appliedBufferConfirmation = confirmation;
+        this.persistedDraft.set(confirmation.purchase);
+        this.offlineDraft.update((draft) =>
+          draft ? { ...draft, purchaseId: confirmation.purchase.id } : null,
+        );
+        this.offlineConfirmed.set(false);
+        const hasNewInputs =
+          !confirmation.review ||
+          JSON.stringify(this.form.getRawValue()) !== JSON.stringify(confirmation.review.form) ||
+          JSON.stringify(this.lineEditor()?.getDrafts() ?? this.purchaseLines()) !==
+            JSON.stringify(confirmation.review.lines) ||
+          JSON.stringify(this.costDrafts()) !== JSON.stringify(confirmation.review.costs) ||
+          this.pendingDocuments().some(
+            (document) => !confirmation.uploadedDocumentIds.includes(document.id),
+          ) ||
+          (this.sellerDialog()?.form.dirty ?? false) ||
+          (this.sourceDialog()?.hasUnsavedChanges() ?? false) ||
+          (this.costOverviewDialog()?.hasUnsavedChanges() ?? false) ||
+          (this.lineEditor()?.hasUnsavedChanges() ?? false);
+        this.pendingDocuments.update((documents) =>
+          documents.filter((document) => !confirmation.uploadedDocumentIds.includes(document.id)),
+        );
+        if (confirmation.review)
+          this.adoptPersistedLineIds(
+            confirmation.purchase,
+            confirmation.review.lines as readonly PurchaseLineDraft[],
+          );
+        if (!confirmation.documentsComplete) {
+          this.errorMessage.set(
+            'Der Einkauf wurde gespeichert. Prüfe die fehlgeschlagenen Belege und speichere deine Korrektur erneut.',
+          );
+          return;
+        }
+        if (confirmation.completion === 'newer_revision' || hasNewInputs) {
+          void this.persistOfflineReview().catch((reason: unknown) =>
+            this.errorMessage.set(this.alsError(reason).message),
+          );
+          this.errorMessage.set(null);
+          this.toast.success(
+            'Einkauf wurde gespeichert. Deine weiteren Änderungen bleiben in der Maske erhalten.',
+          );
+        } else {
+          this.isSubmitting.set(true);
+          if (confirmation.finalizeAfterSave) {
+            void this.finalizePersistedDraft(confirmation.purchase);
+            return;
+          }
+          void this.clearConfirmedBuffer().then(() => {
+            this.completed.set(true);
+            this.isSubmitting.set(false);
+            this.created.emit(confirmation.purchase.id);
+          });
+        }
+      });
     });
   }
   private async restoreEntry(
@@ -414,27 +492,40 @@ export class PurchaseEntryFormComponent {
       'localDraft',
     );
     if (this.offlineLoading()) return;
-    if (!draftId || this.purchase() || this.loadedOfflineId === draftId) {
+    if (
+      this.purchase() ||
+      (draftId ? this.loadedOfflineId === draftId : this.bufferWorkspaceId === workspaceId)
+    ) {
       await this.restoreProductReturn(editor, workspaceId);
       return;
     }
     this.loadedOfflineId = draftId;
+    this.bufferWorkspaceId = workspaceId;
+    this.bufferEnabled = true;
     this.offlineLoading.set(true);
     try {
-      if (!isOfflineIdentifier(draftId)) throw new Error('Ungültiger lokaler Entwurf.');
-      const draft = await this.injector.get(OfflinePurchaseTransferService).loadForReview(draftId);
+      if (draftId && !isOfflineIdentifier(draftId)) throw new Error('Ungültiger lokaler Entwurf.');
+      const draft = draftId
+        ? await this.injector.get(OfflinePurchaseTransferService).loadForReview(draftId)
+        : await this.injector.get(PurchaseBufferService).restore();
+      this.observingBuffer.set(true);
+      if (!draft) {
+        this.offlineLoading.set(false);
+        await this.restoreProductReturn(editor, workspaceId);
+        return;
+      }
       if (this.workspace.currentWorkspace()?.id !== workspaceId)
         throw new Error('Der Workspace hat sich geändert.');
       this.applyingOffline = true;
       this.offlineDraft.set(draft);
-      const attempt = await this.injector.get(OfflinePurchaseTransferService).getAttempt(draftId);
-      this.offlineRetryAvailable.set(Boolean(attempt && attempt.state !== 'confirmed'));
       this.requestId = draft.requestId;
       this.offlineConfirmed.set(Boolean(draft.purchaseId));
       if (draft.purchaseId) {
-        this.errorMessage.set(
-          'Dieser Entwurf gehört bereits zu einem Einkauf. Prüfe offene Ergänzungen dort.',
-        );
+        const purchase = await this.purchaseService.getPurchaseById(draft.purchaseId);
+        if (purchase) {
+          this.persistedDraft.set(purchase);
+          this.offlineConfirmed.set(false);
+        }
       }
       if (draft.review) this.form.patchValue(draft.review.form);
       if (!draft.review || draft.content.purchaseDate !== draft.review.content.purchaseDate)
@@ -456,6 +547,7 @@ export class PurchaseEntryFormComponent {
       this.purchaseLines.set(lines);
       editor.resetToLines(lines);
       if (draft.review) {
+        this.pendingDocuments.set(draft.review.documents ?? []);
         this.costDrafts.set(draft.review.costs as readonly PurchaseCostDraft[]);
         this.initialCostDrafts.set(draft.review.costs as readonly PurchaseCostDraft[]);
       }
@@ -468,7 +560,8 @@ export class PurchaseEntryFormComponent {
           ? reason.message
           : 'Der lokale Entwurf konnte nicht geladen werden.',
       );
-      this.offlineConfirmed.set(true);
+      if (draftId) this.offlineConfirmed.set(true);
+      else this.errorMessage.set(null);
     } finally {
       this.applyingOffline = false;
       this.offlineLoading.set(false);
@@ -476,7 +569,13 @@ export class PurchaseEntryFormComponent {
     await this.restoreProductReturn(editor, workspaceId);
   }
   private scheduleOfflineReview(): void {
-    if (!this.offlineDraft() || this.applyingOffline || this.offlineLoading() || this.completed())
+    if (
+      (!this.offlineDraft() && !this.bufferEnabled) ||
+      this.applyingOffline ||
+      this.offlineLoading() ||
+      this.completed() ||
+      (!this.form.dirty && !this.purchaseLines().length && !this.costDrafts().length)
+    )
       return;
     if (this.reviewTimer) clearTimeout(this.reviewTimer);
     this.reviewTimer = setTimeout(
@@ -491,13 +590,26 @@ export class PurchaseEntryFormComponent {
       500,
     );
   }
-  private persistOfflineReview(): Promise<void> {
+  private async persistOfflineReview(): Promise<void> {
     if (this.reviewTimer) {
       clearTimeout(this.reviewTimer);
       this.reviewTimer = null;
     }
-    const initial = this.offlineDraft();
-    if (!initial) return Promise.resolve();
+    let initial = this.offlineDraft();
+    if (!initial && this.bufferEnabled) {
+      this.bufferDraftPromise ??= this.injector
+        .get(PurchaseBufferService)
+        .create(this.form.controls.purchase_date.value);
+      try {
+        initial = await this.bufferDraftPromise;
+        this.offlineDraft.set(initial);
+        this.requestId = initial.requestId;
+      } catch (reason) {
+        this.bufferDraftPromise = null;
+        throw reason;
+      }
+    }
+    if (!initial) return;
     const form = this.form.getRawValue();
     const lines = this.lineEditor()?.getDrafts() ?? this.purchaseLines();
     const costs = this.costDrafts();
@@ -505,6 +617,7 @@ export class PurchaseEntryFormComponent {
       form,
       lines,
       costs,
+      documents: this.pendingDocuments(),
       content: {
         ...initial.content,
         purchaseDate: form.purchase_date,
@@ -534,6 +647,7 @@ export class PurchaseEntryFormComponent {
         throw new Error('Der lokale Entwurf hat sich geändert.');
       this.offlineSaving.set(true);
       try {
+        if (draft.review && JSON.stringify(draft.review) === JSON.stringify(review)) return;
         this.offlineDraft.set(
           await this.injector.get(OfflinePurchaseTransferService).saveReview(draft, review),
         );
@@ -552,37 +666,11 @@ export class PurchaseEntryFormComponent {
     return Math.round(scaled);
   }
 
-  async reconcileOfflineAttempt(): Promise<void> {
-    if (this.isSaving() || this.offlineConfirmed()) return;
-    this.isSubmitting.set(true);
-    try {
-      await this.persistOfflineReview();
-      const draft = this.offlineDraft();
-      if (!draft) return;
-      const result = await this.injector.get(OfflinePurchaseTransferService).reconcile(draft);
-      if (result.error || !result.data)
-        throw result.error ?? new Error('Der Einkauf wurde nicht bestätigt.');
-      this.offlineRetryAvailable.set(false);
-      this.offlineConfirmed.set(true);
-      this.offlineDraft.update((current) =>
-        current ? { ...current, purchaseId: result.data.id } : null,
-      );
-      this.errorMessage.set(
-        'Der ursprüngliche Einkauf ist bestätigt. Deine neueren Onlineergänzungen bleiben lokal erhalten. Prüfe sie im zugeordneten Einkauf.',
-      );
-    } catch (reason) {
-      this.errorMessage.set(
-        reason instanceof Error ? reason.message : 'Der Ausgang ist noch ungeklärt.',
-      );
-    } finally {
-      this.isSubmitting.set(false);
-    }
-  }
   openProductCreation(initialProduct: BarcodeProductInfo | null): void {
     const workspaceId = this.workspace.currentWorkspace()?.id;
     const editor = this.lineEditor();
     if (!workspaceId || !editor) return;
-    if (this.pendingDocuments().length) {
+    if (this.pendingDocuments().length && !this.offlineDraft() && !this.bufferEnabled) {
       this.errorMessage.set(
         'Bitte speichere den Einkauf vor dem Wechsel, damit angehängte Belege erhalten bleiben.',
       );
@@ -596,9 +684,14 @@ export class PurchaseEntryFormComponent {
       costs: this.costDrafts(),
       formDirty: this.form.dirty,
     };
-    if (this.offlineDraft()) {
+    if (this.offlineDraft() || this.bufferEnabled) {
       void this.persistOfflineReview().then(
-        () => this.navigateToCatalog(workspaceId, draft, initialProduct),
+        () =>
+          this.navigateToCatalog(
+            workspaceId,
+            { ...draft, requestId: this.requestId, localDraftId: this.offlineDraft()?.draftId },
+            initialProduct,
+          ),
         (reason: unknown) =>
           this.errorMessage.set(
             reason instanceof Error
@@ -761,6 +854,14 @@ export class PurchaseEntryFormComponent {
       !(this.offlineConfirmed?.() ?? false)
     );
   }
+  async discardUnsubmittedBuffer(): Promise<void> {
+    const draft = this.offlineDraft();
+    if (!draft) return;
+    const transfer = this.injector.get(OfflinePurchaseTransferService);
+    const attempt = await transfer.getAttempt(draft.draftId);
+    if (attempt && attempt.state !== 'rejected') return;
+    await this.injector.get(OfflinePurchaseDraftStore).remove(draft.draftId);
+  }
 
   selectPurchaseType(type: PurchaseType): void {
     if (this.form.controls.type.value === type) return;
@@ -788,6 +889,12 @@ export class PurchaseEntryFormComponent {
   }
 
   private async persistPurchase(finalizeAfterSave: boolean): Promise<void> {
+    if (finalizeAfterSave && navigator.onLine === false) {
+      this.errorMessage.set(
+        'Zum Abschließen der Erfassung brauchst du eine Internetverbindung. Deine Eingaben bleiben erhalten.',
+      );
+      return;
+    }
     if (this.isSaving() || this.offlineLoading() || this.offlineConfirmed()) return;
     const purchaseLines = this.purchaseLines();
     if (finalizeAfterSave && purchaseLines.length === 0) {
@@ -884,19 +991,48 @@ export class PurchaseEntryFormComponent {
         );
         speicherergebnis = { error: aenderungsergebnis.error };
       } else {
-        if (this.offlineDraft()) {
-          await this.persistOfflineReview();
+        let useBuffer = Boolean(this.offlineDraft()) || this.bufferEnabled;
+        if (useBuffer) {
+          try {
+            await this.persistOfflineReview();
+          } catch (reason) {
+            const draft = this.offlineDraft();
+            const attempt = draft
+              ? await this.injector.get(OfflinePurchaseTransferService).getAttempt(draft.draftId)
+              : null;
+            if (navigator.onLine === false || (attempt && attempt.state !== 'rejected'))
+              throw reason;
+            useBuffer = false;
+            this.bufferEnabled = false;
+          }
+          payload.request_id = this.requestId;
+        }
+        if (useBuffer && this.offlineDraft()) {
           const draft = this.offlineDraft();
           if (!draft) throw new Error('Der lokale Entwurf konnte nicht gesichert werden.');
+          await this.injector.get(OfflinePurchaseTransferService).queue(draft, payload);
+          if (navigator.onLine === false)
+            throw new Error(
+              'Die Verbindung ist unterbrochen. Deine Eingaben bleiben erhalten; das Speichern wird bei erreichbarer Verbindung fortgesetzt.',
+            );
           anlegeergebnis = await this.injector
             .get(OfflinePurchaseTransferService)
             .transfer(draft, payload);
-          this.offlineRetryAvailable.set(!anlegeergebnis.data);
+          if (anlegeergebnis.data) {
+            const attempt = await this.injector
+              .get(OfflinePurchaseTransferService)
+              .getAttempt(draft.draftId);
+            this.pendingDocuments.update((documents) =>
+              documents.filter((document) => !attempt?.uploadedDocumentIds?.includes(document.id)),
+            );
+          }
           if (
             anlegeergebnis.data &&
             this.injector.get(OfflinePurchaseTransferService).lastCompletion() === 'newer_revision'
           ) {
-            this.offlineConfirmed.set(true);
+            this.offlineConfirmed.set(false);
+            this.persistedDraft.set(anlegeergebnis.data);
+            this.adoptPersistedLineIds(anlegeergebnis.data, purchaseLines);
             this.offlineDraft.update((current) =>
               current
                 ? {
@@ -907,15 +1043,48 @@ export class PurchaseEntryFormComponent {
                 : null,
             );
             this.errorMessage.set(
-              'Der ursprüngliche Einkauf ist bestätigt. Deine neueren Eingaben bleiben lokal offen. Prüfe sie im zugeordneten Einkauf.',
+              'Einkauf wurde gespeichert. Deine weiteren Änderungen bleiben in der Maske erhalten.',
             );
             this.isSubmitting.set(false);
             return;
           }
-        } else anlegeergebnis = await this.purchaseService.createPurchase(payload);
+        } else {
+          anlegeergebnis = await this.purchaseService.createPurchase(payload);
+          const bufferedDraft = this.offlineDraft();
+          if (anlegeergebnis.data && bufferedDraft) {
+            this.persistedDraft.set(anlegeergebnis.data);
+            try {
+              await this.injector
+                .get(OfflinePurchaseDraftStore)
+                .attachOnlinePurchase(bufferedDraft, anlegeergebnis.data.id);
+            } catch {
+              // Der bestätigte Online-Erfolg bleibt in der Maske erhalten, auch wenn der Gerätespeicher nicht schreiben kann.
+            }
+          }
+        }
         speicherergebnis = { error: anlegeergebnis.error };
       }
     } catch (ursache: unknown) {
+      const draft = this.offlineDraft();
+      if (draft) {
+        try {
+          const attempt = await this.injector
+            .get(OfflinePurchaseTransferService)
+            .getAttempt(draft.draftId);
+          if (attempt?.purchaseId) {
+            const purchase = await this.purchaseService.getPurchaseById(attempt.purchaseId);
+            if (purchase) {
+              this.persistedDraft.set(purchase);
+              this.offlineDraft.update((current) =>
+                current ? { ...current, purchaseId: purchase.id } : null,
+              );
+              this.adoptPersistedLineIds(purchase, purchaseLines);
+            }
+          }
+        } catch {
+          // Ohne bestätigte Serverdaten bleibt der unveränderliche Versuch für die nächste Prüfung erhalten.
+        }
+      }
       speicherergebnis = { error: this.alsError(ursache) };
     }
     const { error } = speicherergebnis;
@@ -965,8 +1134,9 @@ export class PurchaseEntryFormComponent {
         return;
       }
       this.persistedDraft.set(gespeicherterEntwurf);
-      this.adoptPersistedLineIds(gespeicherterEntwurf);
+      this.adoptPersistedLineIds(gespeicherterEntwurf, purchaseLines);
       this.capturePersistedBaseline();
+      const uploadedDocumentIds = this.pendingDocuments().map((document) => document.id);
       if (!(await this.uploadPendingDocuments(gespeicherterEntwurf.id))) {
         this.isSubmitting.set(false);
         return;
@@ -977,6 +1147,7 @@ export class PurchaseEntryFormComponent {
       }
       this.isSubmitting.set(false);
       this.toast.success(vorhandener ? 'Einkauf wurde gespeichert.' : 'Einkauf wurde angelegt.');
+      await this.clearConfirmedBuffer(gespeicherterEntwurf.id, uploadedDocumentIds);
       this.completed?.set(true);
       this.created.emit(gespeicherterEntwurf.id);
       this.closed.emit();
@@ -998,11 +1169,18 @@ export class PurchaseEntryFormComponent {
       );
       let error: Error | null;
       try {
-        ({ error } = await this.documentService.upload(
-          purchaseId,
-          pending.file,
-          pending.documentType,
-        ));
+        ({ error } = this.offlineDraft()
+          ? await this.documentService.upload(
+              purchaseId,
+              pending.file,
+              pending.documentType,
+              null,
+              null,
+              this.offlineDraft()?.workspaceId,
+              this.offlineDraft() ? pending.id : undefined,
+              this.offlineDraft()?.userId,
+            )
+          : await this.documentService.upload(purchaseId, pending.file, pending.documentType));
       } catch (cause: unknown) {
         error = this.alsError(cause);
       }
@@ -1063,6 +1241,10 @@ export class PurchaseEntryFormComponent {
         ? await this.selfReceipts.ensureForFinalizedPurchase(purchase.id)
         : { error: null };
     this.persistedDraft.set(null);
+    await this.clearConfirmedBuffer(
+      purchase.id,
+      this.offlineDraft()?.review?.documents?.map((document) => document.id) ?? [],
+    );
     this.completed?.set(true);
     this.toast.success('Erfassung wurde abgeschlossen.');
     if (selfReceiptResult.error) {
@@ -1145,19 +1327,44 @@ export class PurchaseEntryFormComponent {
     this.purchaseBasePrice.set(purchasePrice.value);
   }
 
-  private adoptPersistedLineIds(purchase: Purchase): void {
+  private adoptPersistedLineIds(
+    purchase: Purchase,
+    submittedLines?: readonly PurchaseLineDraft[],
+  ): void {
     const persistedLines = purchase.purchase_lines ?? [];
     const currentLines = this.purchaseLines();
-    if (persistedLines.length !== currentLines.length) return;
+    if (persistedLines.length !== (submittedLines ?? currentLines).length) return;
 
     const lineIds = this.lineIdMap();
-    const rebasedLines = currentLines.map((line, index) => {
-      const persistedId = persistedLines[index].id;
+    const available = [...persistedLines];
+    for (const line of submittedLines ?? currentLines) {
+      const matchingIndex = submittedLines
+        ? available.findIndex(
+            (persisted) =>
+              persisted.catalog_product_id === line.catalogProductId &&
+              persisted.title_snapshot === line.titleSnapshot.trim() &&
+              (persisted.ean_snapshot ?? null) === (line.ean ?? null) &&
+              persisted.line_kind === line.lineKind &&
+              persisted.ordered_quantity === line.orderedQuantity &&
+              persisted.unit_purchase_price === line.unitPurchasePrice &&
+              persisted.line_total === line.lineTotal &&
+              (persisted.condition_snapshot ?? null) === (line.condition ?? null) &&
+              persisted.price_mode === line.priceMode &&
+              Boolean(persisted.is_package) === Boolean(line.isPackage),
+          )
+        : 0;
+      if (matchingIndex < 0) continue;
+      const persistedId = available.splice(matchingIndex, 1)[0].id;
       if (line.draftId) lineIds.set(line.draftId, persistedId);
       lineIds.set(persistedId, persistedId);
-      return { ...line, draftId: persistedId };
+    }
+    const rebasedLines = currentLines.map((line) => {
+      const persistedId = line.draftId ? lineIds.get(line.draftId) : undefined;
+      return persistedId ? { ...line, draftId: persistedId } : line;
     });
     this.purchaseLines.set(rebasedLines);
+    if (submittedLines && this.lineEditor()?.rebaseDraftIds)
+      this.lineEditor()?.rebaseDraftIds(lineIds);
 
     const rebasedCosts = this.costDrafts().map((cost) => {
       if (cost.allocationMethod !== 'direct' || !cost.targetPurchaseLineId) return cost;
@@ -1173,6 +1380,27 @@ export class PurchaseEntryFormComponent {
   private lineIdMap(): Map<string, string> {
     this.persistedLineIdsByDraftId ??= new Map<string, string>();
     return this.persistedLineIdsByDraftId;
+  }
+
+  private async clearConfirmedBuffer(
+    purchaseId?: string,
+    uploadedDocumentIds?: readonly string[],
+  ): Promise<void> {
+    const draft = this.offlineDraft();
+    if (!draft) return;
+    if (this.reviewTimer) clearTimeout(this.reviewTimer);
+    await this.reviewQueue;
+    try {
+      if (purchaseId)
+        await this.injector
+          .get(OfflinePurchaseDraftStore)
+          .attachOnlinePurchase(draft, purchaseId, uploadedDocumentIds);
+      await this.injector.get(PurchaseBufferService).removeConfirmed(draft);
+      this.offlineDraft.set(null);
+      this.bufferEnabled = false;
+    } catch {
+      // Ein ungeklärter oder inzwischen geänderter Versuch bleibt für die sichere Wiederaufnahme erhalten.
+    }
   }
 
   private meldeFehlerWennNichtSynchronisiert(title: string, error: Error): void {

@@ -1,45 +1,10 @@
 <form
   [formGroup]="form"
   (ngSubmit)="onSubmit()"
-  [attr.inert]="offlineLoading() || (offlineDraft() && isSubmitting()) ? '' : null"
-  [attr.aria-busy]="offlineLoading() || (offlineDraft() && isSubmitting())"
+  [attr.inert]="offlineLoading() || isSubmitting() ? '' : null"
+  [attr.aria-busy]="offlineLoading() || isSubmitting()"
   class="w-full space-y-4 text-fb-text-primary"
 >
-  @if (offlineLoading()) {
-    <p role="status">Lokaler Entwurf wird geprüft …</p>
-  }
-  @if (offlineDraft(); as local) {
-    <section
-      aria-label="Lokaler Einkaufsentwurf"
-      class="space-y-2 rounded-lg border border-fb-border bg-fb-surface p-4 text-sm"
-    >
-      <p>
-        Lokaler Entwurf: {{ local.content.draftName || 'Unbenannter Entwurf' }}. Ergänze Verkäufer,
-        Quelle und Artikelzuordnung und bestätige das Speichern.
-      </p>
-      <p role="status">
-        {{
-          offlineSaving()
-            ? 'Onlineergänzungen werden auf diesem Gerät gesichert …'
-            : 'Der lokale Entwurf bleibt bis zur bestätigten Übertragung erhalten.'
-        }}
-      </p>
-      @if (local.purchaseId) {
-        <a [href]="'/purchases/' + local.purchaseId + '/edit'" class="fb-link"
-          >Ergänzungen im zugeordneten Einkauf prüfen</a
-        >
-      }
-      <p>
-        Nach einer verlorenen Serverantwort wird derselbe gespeicherte Versuch erneut geprüft.
-        Neuere Eingaben bleiben als eigene lokale Revision erhalten.
-      </p>
-      @if (offlineRetryAvailable() && !offlineConfirmed()) {
-        <app-button [loading]="isSaving()" (clicked)="reconcileOfflineAttempt()"
-          >Ursprünglichen Versuch prüfen</app-button
-        >
-      }
-    </section>
-  }
   @if (errorMessage()) {
     <p role="alert" class="rounded-xl border border-fb-line bg-fb-surface p-4 text-sm">
       {{ errorMessage() }}

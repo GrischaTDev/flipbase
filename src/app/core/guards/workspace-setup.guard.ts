@@ -9,6 +9,8 @@ import {
 import { AuthService } from '../services/auth.service';
 import { WorkspaceService } from '../services/workspace.service';
 import { WorkspaceAccessService } from '../services/workspace-access.service';
+import { AppStartupService } from '../services/app-startup.service';
+import { ToastService } from '../../shared/components/toast/toast.service';
 
 async function resolveWorkspaceSetup(
   setupPage: boolean,
@@ -19,6 +21,8 @@ async function resolveWorkspaceSetup(
   const workspaceService = inject(WorkspaceService);
   const router = inject(Router);
   const access = inject(WorkspaceAccessService, { optional: true });
+  const startup = inject(AppStartupService, { optional: true });
+  const toast = inject(ToastService, { optional: true });
 
   await auth.sessionReady;
 
@@ -28,22 +32,32 @@ async function resolveWorkspaceSetup(
     });
   }
 
-  await workspaceService.ensureLoaded();
-
-  let workspaces = workspaceService.workspaces();
-  if (access) {
-    try {
+  let workspaces;
+  try {
+    await workspaceService.ensureLoaded();
+    const loadError = workspaceService.loadError();
+    if (loadError) throw loadError;
+    workspaces = workspaceService.workspaces();
+    if (access) {
       const rows = await access.refresh();
       workspaces = workspaces.filter((workspace) =>
         rows.some((row) => row.workspace_id === workspace.id && row.access_status === 'active'),
       );
-    } catch {
-      return router.createUrlTree(['/offline']);
     }
+  } catch {
+    startup?.failStartup('navigation');
+    if (!toast?.toasts().some((message) => message.title === 'Verbindung fehlgeschlagen'))
+      toast?.error(
+        'Verbindung fehlgeschlagen',
+        'Dein Zugang konnte gerade nicht geprüft werden. Bitte versuche es erneut.',
+      );
+    return false;
+  }
+  if (access) {
     if (workspaces.length === 0) return router.createUrlTree(['/beta-ended']);
   }
   const setupRequired = workspaces.some((workspace) => workspace.setup_completed_at === null);
-  const setupUnavailable = workspaceService.loadError() !== null || workspaces.length === 0;
+  const setupUnavailable = workspaces.length === 0;
 
   if (setupPage) {
     const reviewingCompletedWorkspace =

@@ -26,6 +26,11 @@ import { WorkspaceContextLockService } from '../../../../core/services/workspace
 import { PurchaseCostDraft } from '../purchase-cost-editor/purchase-cost-editor.component';
 import { PurchaseCostOverviewValue } from '../purchase-cost-editor/purchase-cost-adjustments';
 import { PurchaseEntryFormComponent } from './purchase-entry-form.component';
+import { OfflinePurchaseTransferService } from '../../services/offline-purchase-transfer.service';
+import { OfflinePurchaseDraftStore } from '../../services/offline-purchase-draft.store';
+import { PurchaseBufferService } from '../../services/purchase-buffer.service';
+import type { OfflinePurchaseDraft } from '../../models/offline-purchase-draft.models';
+import type { PurchaseLineDraft } from '../purchase-line-editor/purchase-line-editor.component';
 
 class PurchaseEntrySelectStubComponent implements ControlValueAccessor {
   actionLabel = '';
@@ -436,6 +441,184 @@ function pendingDocument(name: string): PendingPurchaseDocument {
     error: null,
   };
 }
+
+describe('normal purchase entry buffer recovery', () => {
+  function bufferedComponent() {
+    const setup = erstelleKomponente();
+    const draft: OfflinePurchaseDraft = {
+      schemaVersion: 1,
+      draftId: 'draft-a',
+      requestId: 'request-buffer',
+      userId: 'user-a',
+      workspaceId: 'workspace-1',
+      revision: 2,
+      updatedAt: '2026-10-13T10:00:00Z',
+      content: { draftName: '', purchaseDate: '2026-10-13', sellerNote: '', notes: '', lines: [] },
+      state: 'local',
+      purchaseId: null,
+      review: null,
+    };
+    const transfer = {
+      getAttempt: vi.fn(async (): Promise<{ state: string; purchaseId?: string } | null> => null),
+      queue: vi.fn(async () => undefined),
+      transfer: vi.fn(async () => ({
+        status: 'success',
+        data: einkauf,
+        error: null,
+        reportedBySyncStatus: false,
+        problems: [],
+      })),
+      lastCompletion: () => 'transferred',
+    };
+    const store = {
+      remove: vi.fn(async (_draftId: string, _revision?: number) => undefined),
+      attachOnlinePurchase: vi.fn(
+        async (
+          _draft: OfflinePurchaseDraft,
+          _purchaseId: string,
+          _documentIds?: readonly string[],
+        ) => undefined,
+      ),
+    };
+    const persistReview = vi.fn(async () => undefined);
+    Object.assign(setup.komponente, {
+      bufferEnabled: true,
+      reviewQueue: Promise.resolve(),
+      persistOfflineReview: persistReview,
+      injector: {
+        get: (token: unknown) =>
+          token === OfflinePurchaseTransferService
+            ? transfer
+            : token === OfflinePurchaseDraftStore
+              ? store
+              : token === PurchaseBufferService
+                ? {
+                    removeConfirmed: async (draft: OfflinePurchaseDraft) =>
+                      store.remove(draft.draftId, draft.revision),
+                  }
+                : undefined,
+      },
+    });
+    setup.komponente.offlineDraft.set(draft);
+    return { ...setup, draft, transfer, store, persistReview };
+  }
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it('does not queue or create when finalizing offline', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    const state = bufferedComponent();
+    await state.komponente.onFinalize();
+    expect(state.transfer.queue).not.toHaveBeenCalled();
+    expect(state.purchaseService.createPurchase).not.toHaveBeenCalled();
+    expect(state.purchaseCostingService.finalizePurchase).not.toHaveBeenCalled();
+    expect(state.komponente.errorMessage()).toContain('Internetverbindung');
+  });
+
+  it('saves online with the same request ID when an unsubmitted buffer exceeds capacity', async () => {
+    const state = bufferedComponent();
+    state.persistReview.mockRejectedValue(new Error('capacity exhausted'));
+    await state.komponente.onSubmit();
+    expect(state.transfer.queue).not.toHaveBeenCalled();
+    expect(state.purchaseService.createPurchase).toHaveBeenCalledOnce();
+    expect(state.purchaseService.createPurchase).toHaveBeenCalledWith(
+      expect.objectContaining({ request_id: 'test-request-id' }),
+    );
+    expect(state.store.remove).toHaveBeenCalledWith(state.draft.draftId, state.draft.revision);
+    expect(state.store.attachOnlinePurchase).toHaveBeenCalledWith(state.draft, einkauf.id, []);
+  });
+
+  it('never bypasses an unknown submitted request after a buffer capacity error', async () => {
+    const state = bufferedComponent();
+    state.transfer.getAttempt.mockResolvedValue({ state: 'outcome_unknown' });
+    state.persistReview.mockRejectedValue(new Error('capacity exhausted'));
+    await state.komponente.onSubmit();
+    expect(state.purchaseService.createPurchase).not.toHaveBeenCalled();
+    expect(state.transfer.queue).not.toHaveBeenCalled();
+    expect(state.komponente.errorMessage()).toContain('capacity exhausted');
+  });
+
+  it.each([null, 'rejected', 'outcome_unknown'])(
+    'discards only unsubmitted or rejected inputs (%s)',
+    async (attemptState) => {
+      const state = bufferedComponent();
+      state.transfer.getAttempt.mockResolvedValue(attemptState ? { state: attemptState } : null);
+      await state.komponente.discardUnsubmittedBuffer();
+      expect(state.store.remove).toHaveBeenCalledTimes(attemptState === 'outcome_unknown' ? 0 : 1);
+    },
+  );
+
+  it('adopts a confirmed purchase after document failure and updates it on the next normal save', async () => {
+    const state = bufferedComponent();
+    state.transfer.getAttempt.mockResolvedValue({ state: 'confirmed', purchaseId: einkauf.id });
+    state.transfer.transfer.mockRejectedValue(new Error('document forbidden'));
+    Object.assign(state.purchaseService, { getPurchaseById: vi.fn(async () => einkauf) });
+    state.komponente.pendingDocuments.set([pendingDocument('invoice.pdf')]);
+    await state.komponente.onSubmit();
+    expect(state.komponente.persistedDraft()?.id).toBe(einkauf.id);
+    expect(state.created.emit).not.toHaveBeenCalled();
+    state.komponente.form.controls.notes.setValue('Corrected document');
+    await state.komponente.onSubmit();
+    expect(state.purchaseService.updatePurchaseDraft).toHaveBeenCalledOnce();
+    expect(state.transfer.queue).toHaveBeenCalledTimes(1);
+    expect(state.documentService.upload).toHaveBeenCalledOnce();
+    expect(state.created.emit).toHaveBeenCalledWith(einkauf.id);
+  });
+
+  it('maps submitted lines once while retaining reordered, changed and newly added rows', () => {
+    const state = bufferedComponent();
+    const original: PurchaseLineDraft = {
+      draftId: 'original',
+      catalogProductId: null,
+      titleSnapshot: 'Original',
+      ean: null,
+      lineKind: 'individual',
+      orderedQuantity: 1,
+      condition: 'used',
+      priceMode: 'priced',
+      unitPurchasePrice: 10,
+      lineTotal: 10,
+      estimatedMarketValue: null,
+    };
+    const second = { ...original, draftId: 'second', titleSnapshot: 'Second' };
+    const newLine = { ...original, draftId: 'new', titleSnapshot: 'New' };
+    state.komponente.purchaseLines.set([
+      second,
+      newLine,
+      { ...original, titleSnapshot: 'Changed after save' },
+    ]);
+    const rebaseDraftIds = vi.fn();
+    Object.assign(state.komponente, { lineEditor: () => ({ rebaseDraftIds }) });
+    const purchase = {
+      ...einkauf,
+      purchase_lines: [second, original].map((line) => ({
+        id: `server-${line.draftId}`,
+        catalog_product_id: null,
+        title_snapshot: line.titleSnapshot,
+        ean_snapshot: null,
+        line_kind: line.lineKind,
+        ordered_quantity: 1,
+        unit_purchase_price: 10,
+        line_total: 10,
+        condition_snapshot: 'used',
+        price_mode: 'priced',
+        is_package: false,
+      })),
+    } as unknown as Purchase;
+    const component = state.komponente as unknown as {
+      adoptPersistedLineIds(purchase: Purchase, submitted: readonly PurchaseLineDraft[]): void;
+    };
+    component.adoptPersistedLineIds(purchase, [original, second]);
+    expect(
+      state.komponente.purchaseLines().map((line) => [line.draftId, line.titleSnapshot]),
+    ).toEqual([
+      ['server-second', 'Second'],
+      ['new', 'New'],
+      ['server-original', 'Changed after save'],
+    ]);
+    expect(rebaseDraftIds).toHaveBeenCalledOnce();
+  });
+});
 
 function renderPurchaseEntryForm() {
   TestBed.configureTestingModule({

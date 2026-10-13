@@ -29,7 +29,10 @@ export async function mockMarketplace(
   },
   localAccounts = false,
   accountCount = accountIds.length,
-  backend = { origin: 'http://127.0.0.1:54351', userId: '25000000-0000-4000-8000-000000000001' },
+  backend: { origin: string; userId: string; preserveExistingSession?: boolean } = {
+    origin: 'http://127.0.0.1:54351',
+    userId: '25000000-0000-4000-8000-000000000001',
+  },
 ) {
   await page.route('**/marketplace-browser/healthz', (route) =>
     browserLogin
@@ -47,21 +50,27 @@ export async function mockMarketplace(
   };
   const token = `${Buffer.from('{}').toString('base64url')}.${Buffer.from(JSON.stringify({ sub: user.id, session_id: '25000000-0000-4000-8000-000000000099', exp: Math.floor(Date.now() / 1000) + 3600 })).toString('base64url')}.test`;
   await page.addInitScript(
-    ({ user, token, storageKey }) => {
-      localStorage.setItem(
-        storageKey,
-        JSON.stringify({
-          access_token: token,
-          refresh_token: 'fixture',
-          expires_at: Math.floor(Date.now() / 1000) + 3600,
-          expires_in: 3600,
-          token_type: 'bearer',
-          user,
-        }),
-      );
+    ({ user, token, storageKey, preserveExistingSession }) => {
+      if (!preserveExistingSession || !localStorage.getItem(storageKey))
+        localStorage.setItem(
+          storageKey,
+          JSON.stringify({
+            access_token: token,
+            refresh_token: 'fixture',
+            expires_at: Math.floor(Date.now() / 1000) + 3600,
+            expires_in: 3600,
+            token_type: 'bearer',
+            user,
+          }),
+        );
       localStorage.setItem('flipbase_theme', 'light');
     },
-    { user, token, storageKey: `sb-${new URL(backend.origin).hostname.split('.')[0]}-auth-token` },
+    {
+      user,
+      token,
+      storageKey: `sb-${new URL(backend.origin).hostname.split('.')[0]}-auth-token`,
+      preserveExistingSession: backend.preserveExistingSession ?? false,
+    },
   );
   await page.routeWebSocket(`**://${new URL(backend.origin).host}/**`, (socket) => socket.close());
   const connectionIds = Array.from(

@@ -20,6 +20,9 @@ export class PwaUpdateService {
   readonly message = signal('');
   private registration: ServiceWorkerRegistration | null = null;
   private targetBuild = '';
+  private targetWorker: ServiceWorker | null = null;
+  private readonly synchronizedWorkers = new WeakSet<ServiceWorker>();
+  private activationAttemptId = '';
   private barrier: UpdateBarrier | null = null;
   private completion: ((result: UpdateResult) => void) | null = null;
   private initiator = false;
@@ -32,14 +35,22 @@ export class PwaUpdateService {
       const changed = () => {
         if (this.initiator && this.barrier) {
           this.complete('applied');
+          this.releaseBarrier();
+          this.inspectWaitingWorker();
           window.location.reload();
-        } else this.releaseBarrier();
+        } else {
+          this.releaseBarrier();
+          this.inspectWaitingWorker();
+        }
       };
       navigator.serviceWorker.addEventListener('message', receive);
       navigator.serviceWorker.addEventListener('controllerchange', changed);
+      const focused = () => void this.checkForUpdate();
+      window.addEventListener('focus', focused);
       this.destroyRef.onDestroy(() => {
         navigator.serviceWorker.removeEventListener('message', receive);
         navigator.serviceWorker.removeEventListener('controllerchange', changed);
+        window.removeEventListener('focus', focused);
       });
     }
     if (typeof document !== 'undefined') {
@@ -73,10 +84,7 @@ export class PwaUpdateService {
   connect(registration: ServiceWorkerRegistration): void {
     if (this.registration === registration) return;
     this.registration = registration;
-    const inspect = () => {
-      this.updateAvailable.set(Boolean(registration.waiting));
-      registration.waiting?.postMessage({ type: 'PWA_UPDATE_QUERY' });
-    };
+    const inspect = () => this.inspectWaitingWorker();
     const found = () => {
       const installing = registration.installing;
       if (!installing) return;
@@ -89,11 +97,23 @@ export class PwaUpdateService {
     inspect();
   }
 
+  private inspectWaitingWorker(): void {
+    const waiting = this.registration?.waiting ?? null;
+    if (waiting !== this.targetWorker) {
+      this.targetWorker = waiting;
+      this.targetBuild = '';
+      this.updateAvailable.set(false);
+      this.message.set('');
+    }
+    waiting?.postMessage({ type: 'PWA_UPDATE_QUERY' });
+  }
+
   private isSafe(): boolean {
     return !this.contextLock.locked() && !hasOpenEntry(this.contexts);
   }
 
   async checkForUpdate(): Promise<void> {
+    this.inspectWaitingWorker();
     const now = Date.now();
     if (!this.registration || now - this.lastUpdateCheck < 60_000) return;
     this.lastUpdateCheck = now;
@@ -110,20 +130,28 @@ export class PwaUpdateService {
       return 'blocked';
     }
     const waiting = this.registration?.waiting;
-    if (!waiting || !/^[a-f0-9]{64}$/.test(this.targetBuild) || this.completion) return 'failed';
+    if (this.completion) return 'blocked';
+    if (!waiting || waiting !== this.targetWorker || !/^[a-f0-9]{64}$/.test(this.targetBuild)) {
+      this.inspectWaitingWorker();
+      this.message.set('Die Aktualisierung wird noch vorbereitet. Bitte versuche es erneut.');
+      return 'failed';
+    }
     this.initiator = true;
+    this.activationAttemptId = crypto.randomUUID();
     this.isApplying.set(true);
     this.message.set('Offene Ansichten werden geprüft …');
     return new Promise((resolve) => {
       this.completion = resolve;
       this.releaseTimer = setTimeout(() => {
+        this.revokeBarrier();
+        this.message.set('Die Aktualisierung hat nicht geantwortet. Bitte versuche es erneut.');
         this.complete('failed');
         this.releaseBarrier();
       }, 8000);
       waiting.postMessage({
         type: 'ACTIVATE_UPDATE',
         buildId: this.targetBuild,
-        attemptId: crypto.randomUUID(),
+        attemptId: this.activationAttemptId,
       });
     });
   }
@@ -135,7 +163,18 @@ export class PwaUpdateService {
     const worker = this.barrier?.worker ?? this.registration?.waiting;
     if (!worker || event.source !== worker || typeof message['buildId'] !== 'string') return;
     if (message['type'] === 'PWA_WAITING_STATUS') {
+      if (!/^[a-f0-9]{64}$/.test(message['buildId'])) return;
       this.targetBuild = message['buildId'];
+      const isCurrentBuild = this.targetBuild === document.documentElement.dataset['flipbaseBuild'];
+      this.updateAvailable.set(!isCurrentBuild);
+      // Der bisherige Netzwerk-Worker kann bereits diese HTML-Version geladen haben.
+      // Nur nach derselben Eingabeprüfung übernehmen; andere Fenster dürfen weiterhin blockieren.
+      if (isCurrentBuild && !this.synchronizedWorkers.has(worker) && this.isSafe()) {
+        this.synchronizedWorkers.add(worker);
+        void this.applyUpdate().then((result) => {
+          if (result !== 'applied') this.synchronizedWorkers.delete(worker);
+        });
+      }
       return;
     }
     if (typeof message['attemptId'] !== 'string') return;
@@ -166,7 +205,7 @@ export class PwaUpdateService {
         });
       if (message['type'] === 'PWA_UPDATE_RESULT' && message['result'] !== 'applied') {
         this.message.set(
-          'Speichere oder schließe zuerst offene Eingaben in allen Flipbase-Ansichten.',
+          'Speichere deine Eingaben und schließe andere Flipbase-Tabs oder App-Fenster. Versuche es dann erneut.',
         );
         this.complete('blocked');
         this.releaseBarrier();
@@ -174,8 +213,13 @@ export class PwaUpdateService {
     } else if (
       message['type'] === 'PWA_UPDATE_RESULT' &&
       this.initiator &&
+      attemptId === this.activationAttemptId &&
+      buildId === this.targetBuild &&
       message['result'] !== 'applied'
     ) {
+      this.message.set(
+        'Speichere deine Eingaben und schließe andere Flipbase-Tabs oder App-Fenster. Versuche es dann erneut.',
+      );
       this.complete('blocked');
       this.releaseBarrier();
     }
@@ -198,6 +242,7 @@ export class PwaUpdateService {
     this.releaseTimer = null;
     this.barrier = null;
     this.initiator = false;
+    this.activationAttemptId = '';
     this.isApplying.set(false);
   }
 }

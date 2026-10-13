@@ -30,7 +30,6 @@ describe('Mobile Vinted-Navigation', () => {
       'Inserate',
       'Bestellungen',
       'Statistiken',
-      'Offline',
     ]);
     expect(element.querySelector('a[aria-current="page"]')?.getAttribute('href')).toBe(
       '/marketplaces/ebay/listings',
