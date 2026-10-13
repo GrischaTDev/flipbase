@@ -4,6 +4,7 @@ import { createEbayAccountHandler } from './handler.ts';
 import type { EbayAccountStore, StoredEbayConnection } from './handler.ts';
 import type { EbayConfig } from '../_shared/ebay-api.ts';
 import { encryptTokens, hashState } from '../_shared/ebay-token-encryption.ts';
+import { readEbayListingDetails } from '../_shared/ebay-listing-management.ts';
 
 const workspaceId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const connectionId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
@@ -49,6 +50,146 @@ function request(action: string, extras: Record<string, unknown> = {}, bearer = 
     body: JSON.stringify({ action, workspaceId, ...extras }),
   });
 }
+test('Neue eBay-Aktionen prüfen Berechtigung und Eingaben vor dem Anbieteraufruf', async () => {
+  let calls = 0;
+  const handler = createEbayAccountHandler(store(), config, config.allowedOrigins, async () => {
+    calls++;
+    return new Response();
+  });
+  assert.equal(
+    (await handler(request('listing_detail', { connectionId, listingId: '123' }, 'Bearer forged')))
+      .status,
+    401,
+  );
+  assert.equal(
+    (
+      await handler(
+        request('listing_update', {
+          workspaceId: connectionId,
+          connectionId,
+          listingId: '123',
+          update: { expectedRevision: 'a'.repeat(64), title: 'New' },
+        }),
+      )
+    ).status,
+    403,
+  );
+  assert.equal(
+    (
+      await handler(
+        request('listing_update', {
+          connectionId,
+          listingId: '123',
+          update: { expectedRevision: 'a'.repeat(64), quantity: 9 },
+        }),
+      )
+    ).status,
+    400,
+  );
+  assert.equal(calls, 0);
+});
+test('Eine zwischenzeitlich erneuerte Freigabe stoppt die Änderung vor dem Schreiben', async () => {
+  const item =
+    '<GetItemResponse><Ack>Success</Ack><Item><ItemID>123</ItemID><Seller><UserID>seller</UserID></Seller><Title>Original</Title><Description>Text</Description><ListingType>FixedPriceItem</ListingType><SellingStatus><ListingStatus>Active</ListingStatus><CurrentPrice currencyID="EUR">10</CurrentPrice></SellingStatus><PictureDetails><PictureURL>https://i.ebayimg.com/photo.jpg</PictureURL></PictureDetails></Item></GetItemResponse>';
+  const listing = await readEbayListingDetails(
+    config,
+    'token',
+    '123',
+    'seller',
+    async () => new Response(item),
+  );
+  const encryptedTokens = await encryptTokens(
+    {
+      accessToken: 'access',
+      refreshToken: 'refresh',
+      expiresAt: Date.now() + 100000,
+      refreshExpiresAt: Date.now() + 1000000,
+    },
+    config.encryptionKey,
+    connectionId,
+  );
+  const calls: string[] = [];
+  const handler = createEbayAccountHandler(
+    store({
+      claim: async () => ({ connection, encryptedTokens }),
+      status: async () => ({ ...connection, authorization_version: 2 }),
+    }),
+    config,
+    config.allowedOrigins,
+    async (_url, init) => {
+      calls.push(new Headers(init?.headers).get('X-EBAY-API-CALL-NAME') ?? '');
+      return new Response(item);
+    },
+  );
+  const result = await handler(
+    request('listing_update', {
+      connectionId,
+      listingId: '123',
+      update: { expectedRevision: listing.revision, title: 'New' },
+    }),
+  );
+  assert.equal(result.status, 409);
+  assert.deepEqual(calls, ['GetItem']);
+});
+test('Überlange Bildanfragen werden vor dem Multipart-Parser abgewiesen', async () => {
+  const handler = createEbayAccountHandler(store(), config, config.allowedOrigins);
+  const oversized = new Request('https://db.example.test/functions/v1/ebay-account', {
+    method: 'POST',
+    headers: {
+      authorization: 'Bearer valid',
+      'content-type': 'multipart/form-data; boundary=x',
+      'content-length': String(14 * 1024 * 1024),
+    },
+    body: '--x--',
+  });
+  assert.equal((await handler(oversized)).status, 400);
+});
+test('Ein Multipart-Bild wird dem bestätigten eigenen Konto zugeordnet und erst dann hochgeladen', async () => {
+  const encryptedTokens = await encryptTokens(
+    {
+      accessToken: 'access',
+      refreshToken: 'refresh',
+      expiresAt: Date.now() + 100000,
+      refreshExpiresAt: Date.now() + 1000000,
+    },
+    config.encryptionKey,
+    connectionId,
+  );
+  const form = new FormData();
+  form.set('workspaceId', workspaceId);
+  form.set('connectionId', connectionId);
+  form.set('listingId', '123');
+  form.set('image', new File(['photo'], 'photo.jpg', { type: 'image/jpeg' }));
+  const calls: string[] = [];
+  const handler = createEbayAccountHandler(
+    store({ claim: async () => ({ connection, encryptedTokens }) }),
+    config,
+    config.allowedOrigins,
+    async (url) => {
+      calls.push(String(url));
+      if (String(url).endsWith('/ws/api.dll'))
+        return new Response(
+          '<GetItemResponse><Ack>Success</Ack><Item><ItemID>123</ItemID><Seller><UserID>seller</UserID></Seller><Title>Original</Title><Description>Text</Description><ListingType>FixedPriceItem</ListingType><SellingStatus><ListingStatus>Active</ListingStatus></SellingStatus></Item></GetItemResponse>',
+        );
+      return Response.json({ imageUrl: 'https://i.ebayimg.com/upload.jpg' }, { status: 201 });
+    },
+  );
+  const response = await handler(
+    new Request('https://db.example.test/functions/v1/ebay-account', {
+      method: 'POST',
+      headers: { authorization: 'Bearer valid' },
+      body: form,
+    }),
+  );
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    imageUrl: 'https://i.ebayimg.com/upload.jpg',
+    workspaceId,
+    connectionId,
+  });
+  assert.equal(calls.length, 2);
+  assert.match(calls[1], /create_image_from_file$/);
+});
 test('Gefälschte Sitzungen und fremde Workspaces erreichen keinen Dienstzugriff', async () => {
   let begins = 0;
   const handler = createEbayAccountHandler(

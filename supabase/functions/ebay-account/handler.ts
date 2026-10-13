@@ -9,6 +9,14 @@ import {
   EbayError,
 } from '../_shared/ebay-api.ts';
 import type { EbayConfig } from '../_shared/ebay-api.ts';
+import {
+  readEbayListingDetails,
+  readEbayTraffic,
+  requireEbayListingId,
+  reviseEbayListing,
+  uploadEbayImage,
+  validateEbayUpdate,
+} from '../_shared/ebay-listing-management.ts';
 import { encryptTokens, hashState } from '../_shared/ebay-token-encryption.ts';
 
 import { withEbayConnection, EbayConnectionError } from './connection-read.ts';
@@ -145,12 +153,41 @@ export function createEbayAccountHandler(
       if (!bearer.startsWith('Bearer ')) return respond({ error: 'unauthorized' }, 401);
       const userId = await store.authenticate(bearer);
       if (!userId) return respond({ error: 'unauthorized' }, 401);
-      const raw = await request.text();
-      if (new TextEncoder().encode(raw).byteLength > 65536)
-        return respond({ error: 'invalid_request' }, 400);
+      let raw = '';
       let body: Record<string, unknown>;
+      let image: File | null = null;
       try {
-        body = readRecord(JSON.parse(raw));
+        if (request.headers.get('content-type')?.startsWith('multipart/form-data')) {
+          if (Number(request.headers.get('content-length')) > 13 * 1024 * 1024)
+            return respond({ error: 'invalid_request' }, 400);
+          let receivedBytes = 0;
+          const limitedBody = request.body?.pipeThrough(
+            new TransformStream<Uint8Array, Uint8Array>({
+              transform(chunk, controller) {
+                receivedBytes += chunk.byteLength;
+                if (receivedBytes > 13 * 1024 * 1024) throw new Error('Image request too large');
+                controller.enqueue(chunk);
+              },
+            }),
+          );
+          if (!limitedBody) return respond({ error: 'invalid_request' }, 400);
+          const form = await new Response(limitedBody, { headers: request.headers }).formData();
+          const file = form.get('image');
+          if (!(file instanceof File) || file.size < 1 || file.size > 12 * 1024 * 1024)
+            return respond({ error: 'invalid_request' }, 400);
+          image = file;
+          body = {
+            action: 'listing_image',
+            workspaceId: form.get('workspaceId'),
+            connectionId: form.get('connectionId'),
+            listingId: form.get('listingId'),
+          };
+        } else {
+          raw = await request.text();
+          if (new TextEncoder().encode(raw).byteLength > 65536)
+            return respond({ error: 'invalid_request' }, 400);
+          body = readRecord(JSON.parse(raw));
+        }
       } catch {
         return respond({ error: 'invalid_request' }, 400);
       }
@@ -175,6 +212,7 @@ export function createEbayAccountHandler(
         );
         const result: EbayConnectionStatus = {
           configured: config !== null,
+          listingManagementAvailable: config !== null,
           importAvailable: config !== null && (await store.importAvailable?.()) === true,
           connection: connection ? mapPublicConnection(connection) : null,
         };
@@ -192,6 +230,63 @@ export function createEbayAccountHandler(
         ).join('');
         await store.begin(userId, workspaceId, config.environment, await hashState(state));
         return respond({ authorizationUrl: authorizationUrl(config, state) });
+      }
+      if (
+        ['listing_detail', 'listing_update', 'listing_image', 'listing_traffic'].includes(
+          String(body.action),
+        )
+      ) {
+        if (!isUuid(body.connectionId)) return respond({ error: 'invalid_request' }, 400);
+        const scope = { workspaceId, connectionId: body.connectionId };
+        const listingId =
+          body.action === 'listing_traffic' ? null : requireEbayListingId(body.listingId);
+        const update = body.action === 'listing_update' ? validateEbayUpdate(body.update) : null;
+        if (body.action === 'listing_image' && !image)
+          return respond({ error: 'invalid_request' }, 400);
+        const result = await withEbayConnection(
+          scope,
+          bearer,
+          store,
+          config,
+          async ({ accessToken, connection }) => {
+            if (body.action === 'listing_traffic') {
+              if (
+                !Array.isArray(body.listingIds) ||
+                !body.listingIds.every((id) => typeof id === 'string')
+              )
+                throw new EbayError('invalid_request');
+              return readEbayTraffic(config, accessToken, body.listingIds, fetcher);
+            }
+            const listing = await readEbayListingDetails(
+              config,
+              accessToken,
+              listingId ?? '',
+              connection.username,
+              fetcher,
+            );
+            if (update || image) {
+              const current = await store.status(
+                connection.user_id,
+                workspaceId,
+                config.environment,
+              );
+              if (
+                !current ||
+                current.id !== connection.id ||
+                current.authorization_version !== connection.authorization_version ||
+                current.status !== 'connected' ||
+                !(await store.canConnect(bearer, workspaceId))
+              )
+                throw new EbayConnectionError('connection_changed');
+            }
+            if (update) return reviseEbayListing(config, accessToken, listing, update, fetcher);
+            if (image)
+              return { imageUrl: await uploadEbayImage(config, accessToken, image, fetcher) };
+            return listing;
+          },
+          fetcher,
+        );
+        return respond({ ...result, ...scope });
       }
       if (body.action !== 'listings' && body.action !== 'orders')
         return respond({ error: 'invalid_request' }, 400);
@@ -224,7 +319,21 @@ export function createEbayAccountHandler(
           error.code === 'unauthorized' ? 401 : error.code === 'forbidden' ? 403 : 409,
         );
       if (error instanceof EbayError)
-        return respond({ error: error.code }, error.code === 'needs_login' ? 409 : 502);
+        return respond(
+          { error: error.code },
+          error.code === 'invalid_request'
+            ? 400
+            : error.code === 'listing_not_owned'
+              ? 403
+              : [
+                    'needs_login',
+                    'listing_changed',
+                    'listing_not_editable',
+                    'revision_rejected',
+                  ].includes(error.code)
+                ? 409
+                : 502,
+        );
       return respond({ error: 'request_failed' }, 503);
     }
   };

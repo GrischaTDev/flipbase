@@ -3,6 +3,7 @@ import type {
   EbayConnection,
   EbayListing,
   EbayOrder,
+  EbayListingTraffic,
 } from '../../../../../supabase/functions/_shared/ebay-contracts';
 import { EbayAccountApiService } from './ebay-account-api.service';
 import type { EbayOrderBooking } from '../../../../../supabase/functions/_shared/ebay-order-import-contracts';
@@ -18,6 +19,16 @@ export class EbayAccountStore {
   private workspaceId: string | null = null;
   readonly isConfigured = signal(false);
   readonly importAvailable = signal(false);
+  readonly listingManagementAvailable = signal(false);
+  readonly traffic = signal<Readonly<Record<string, EbayListingTraffic>>>({});
+  readonly trafficLoading = signal(false);
+  readonly trafficError = signal<string | null>(null);
+  readonly trafficPeriod = signal<{
+    startDate: string;
+    endDate: string;
+    lastUpdatedDate: string | null;
+  } | null>(null);
+  private trafficRevision = 0;
   readonly connection = signal<EbayConnection | null>(null);
   readonly isLoading = signal(false);
   readonly isReading = signal(false);
@@ -35,6 +46,7 @@ export class EbayAccountStore {
     this.revision += 1;
     this.isConfigured.set(false);
     this.importAvailable.set(false);
+    this.listingManagementAvailable.set(false);
     this.connection.set(null);
     this.isLoading.set(false);
     this.isReading.set(false);
@@ -43,6 +55,11 @@ export class EbayAccountStore {
     return this.revision;
   }
   private clearData(): void {
+    this.trafficRevision++;
+    this.traffic.set({});
+    this.trafficLoading.set(false);
+    this.trafficError.set(null);
+    this.trafficPeriod.set(null);
     this.bookingRevision++;
     this.orderBookings.set({});
     this.bookingStatusesLoading.set(false);
@@ -68,6 +85,7 @@ export class EbayAccountStore {
       if (revision !== this.revision) return;
       this.isConfigured.set(status.configured);
       this.importAvailable.set(status.importAvailable === true);
+      this.listingManagementAvailable.set(status.listingManagementAvailable === true);
       this.connection.set(status.connection);
       this.isLoading.set(false);
       if (read && status.configured && status.connection?.status === 'connected')
@@ -80,7 +98,14 @@ export class EbayAccountStore {
   }
   async connect(): Promise<string | null> {
     const workspaceId = this.workspaceId;
-    if (!workspaceId || this.isLoading() || this.isReading() || !this.isConfigured()) return null;
+    if (
+      !workspaceId ||
+      this.isLoading() ||
+      this.isReading() ||
+      this.trafficLoading() ||
+      !this.isConfigured()
+    )
+      return null;
     const revision = this.revision;
     this.isLoading.set(true);
     this.error.set(null);
@@ -120,7 +145,8 @@ export class EbayAccountStore {
     }
   }
   async selectSection(section: 'listings' | 'orders'): Promise<void> {
-    if (this.isLoading() || this.isReading() || this.section() === section) return;
+    if (this.isLoading() || this.isReading() || this.trafficLoading() || this.section() === section)
+      return;
     this.section.set(section);
     this.clearData();
     await this.read(false);
@@ -131,6 +157,7 @@ export class EbayAccountStore {
       !connection ||
       connection.status !== 'connected' ||
       this.isReading() ||
+      this.trafficLoading() ||
       this.isLoading() ||
       !this.isConfigured()
     )
@@ -191,6 +218,45 @@ export class EbayAccountStore {
       }
     } finally {
       if (revision === this.revision) this.isReading.set(false);
+    }
+  }
+  async readTraffic(): Promise<void> {
+    const connection = this.connection();
+    if (
+      !connection ||
+      connection.status !== 'connected' ||
+      !this.listingManagementAvailable() ||
+      this.section() !== 'listings' ||
+      this.isReading() ||
+      this.isLoading() ||
+      this.trafficLoading() ||
+      !this.listings().length
+    )
+      return;
+    const revision = ++this.trafficRevision;
+    const ids = this.listings().map((listing) => listing.id);
+    this.trafficLoading.set(true);
+    this.trafficError.set(null);
+    this.traffic.set({});
+    this.trafficPeriod.set(null);
+    try {
+      for (let offset = 0; offset < ids.length; offset += 50) {
+        const report = await this.api.loadTraffic(connection, ids.slice(offset, offset + 50));
+        if (revision !== this.trafficRevision) return;
+        this.traffic.update((previous) => ({
+          ...previous,
+          ...Object.fromEntries(report.items.map((item) => [item.listingId, item])),
+        }));
+        this.trafficPeriod.set({
+          startDate: report.startDate,
+          endDate: report.endDate,
+          lastUpdatedDate: report.lastUpdatedDate,
+        });
+      }
+    } catch (error) {
+      if (revision === this.trafficRevision) this.trafficError.set(this.message(error));
+    } finally {
+      if (revision === this.trafficRevision) this.trafficLoading.set(false);
     }
   }
   private async readBookingStatuses(connection: EbayConnection): Promise<void> {

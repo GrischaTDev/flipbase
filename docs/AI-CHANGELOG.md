@@ -1,5 +1,30 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-13 - Juna - eBay-Inserate mit Bildern, Bearbeitung und Statistiken erweitern
+
+**Auftrag:** Fehlende Bilder, direkte Angebotsbearbeitung sowie Aufrufe,
+Beobachter und Verkaufsquote je Inserat ergänzen. Die nötigen Änderungen an
+Supabase-Edge-Functions und API-Verträgen wurden ausdrücklich freigegeben.
+
+**Änderung:** Vorschaubilder und Beobachter aus der vorhandenen Trading-Antwort;
+neue Bearbeitungsseite für Titel, Preis, Beschreibung und Bilder mit der gemeinsamen
+Produkt-Bildverwaltung. Vorhandene HTML-Beschreibungen bleiben erhalten. Die aktuelle
+eBay Media API übernimmt neue Fotos. Statistiken kommen aus der Analytics API für
+30 abgeschlossene UTC-Tage, mit Datenstand und unbekannten statt erfundenen Nullwerten.
+Geänderte Inserate werden vor dem Schreiben erkannt; unklare Speicherantworten sperren
+einen weiteren Versuch bis zum Neuladen. Konto-/Workspace-Grenzen, erneute Freigaben,
+Dateigrößen und XML-Eingaben bleiben serverseitig geprüft. Neue OAuth-Rechte erfordern
+für Uploads und Statistiken eine erneute Kontoverbindung; alte Lesefunktionen behalten
+beim Tokenrefresh ihre bisherigen Rechte. Variantenpreise und von anderen Anwendungen
+verwaltete Angebote unterliegen weiterhin den eBay-Beschränkungen. Keine Migration.
+
+**Prüfung:** Gezielte Angular-, Antwortvertrags- und serverseitige eBay-Tests;
+TypeScript für Anwendung, Tests und betroffene Edge-Module; Format/Lint,
+Shared-UI-Architekturprüfung und Angular-Produktionsbau. AXE für Angebotsliste und
+Editor ohne Farbkontrastmessung. Servertests lokal unter Node, der verbindliche
+Deno-Lauf bleibt im PR und enthält die neuen Tests. Kein echter eBay-Schreibaufruf
+und keine Veröffentlichung; Live-Kontoabnahme bleibt nach Freigabe erforderlich.
+
 ## 2026-10-12 – Juna – Bearbeiten: Bild-Baustein der Produktseite, Speicherabbruch einordnen
 
 **Auftrag (Nutzer):** Das Speichern einer geänderten Fotoreihenfolge meldete „Vinted hat die

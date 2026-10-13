@@ -92,6 +92,23 @@ describe('ProductMediaEditorComponent', () => {
     expect(component.errors()[0]).toContain('a.svg');
     expect(PreviewReader.instances).toHaveLength(1);
   });
+  it('beachtet die plattformspezifische Bildanzahl und Dateiprüfung', () => {
+    Object.assign(component, {
+      maximumImages: signal(1),
+      validateFile: signal((candidate: File) => (candidate.name === 'bad.png' ? 'Zu groß.' : null)),
+    });
+    component.addFiles([
+      new File(['bad'], 'bad.png', { type: 'image/png' }),
+      file,
+      new File(['more'], 'more.png', { type: 'image/png' }),
+    ]);
+    expect(component.drafts()).toHaveLength(1);
+    expect(component.drafts()[0].file).toBe(file);
+    expect(component.errors()).toEqual([
+      'bad.png: Zu groß.',
+      'more.png: Du kannst höchstens 1 Bilder auswählen.',
+    ]);
+  });
 
   it('zeigt die Ablagefläche über vorhandenen Bildern und nimmt weitere Bilder an', () => {
     images.set([saved('first')]);
