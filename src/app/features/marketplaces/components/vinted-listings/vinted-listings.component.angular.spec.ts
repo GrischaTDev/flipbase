@@ -108,3 +108,12 @@ it('akzeptiert auch eine bekannte Konto-ID nur aus Deinem aktuellen Workspace', 
   TestBed.tick();
   expect(store.selectedConnection().connectionId).toBe(accountA.connectionId);
 });
+
+it('bindet keine Statistik mehr in den Kleiderschrank ein', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const template = await readFile(
+    'src/app/features/marketplaces/components/vinted-listings/vinted-listings.component.html',
+    'utf8',
+  );
+  expect(template).not.toContain('app-vinted-wardrobe-statistics');
+});

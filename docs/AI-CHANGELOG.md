@@ -111,6 +111,58 @@ ESLint und Bau grün.
 
 **Fortsetzung:** Nutzerfreigabe für PR, erfolgreichen Merge und anschließendes Aufräumen erteilt. Aktuelles origin/master einschließlich PR400 integrieren; beide Changelogverläufe bleiben erhalten. Keine Änderung am fremden Arbeitszweig.
 
+## 2026-10-11 – Juna – Eigene Vinted-Statistikseite mit echten Messwerten
+
+**Auftrag:** Kacheln und Diagramm aus dem Kleiderschrank herausnehmen und als
+eigene Seite „Statistik“ mit Verlauf und Bestenliste neu aufbauen, je Konto und
+für alle Konten. Verkaufte oder gelöschte Artikel sollen in ihren Zeiträumen
+weiter mitzählen.
+
+**Befund:** Das bisherige Diagramm verteilte die Gesamtsumme nach festen
+Prozentsätzen auf Tage und zeigte ohne Daten Beispielwerte; „Beste Zeit: Sonntag“
+war fest eingetragen. Echte Messwerte je Abruf lagen bereits in
+`marketplace_listing_metric_observations`, wurden aber mitgelöscht, sobald ein
+Inserat aus dem Kleiderschrank verschwand.
+
+**Änderung:**
+
+1. **Datenbank:** Neue Tabelle `marketplace_listing_statistic_items` als
+   dauerhafter Datensatz je Vinted-Artikel. Messungen hängen daran statt am
+   Kleiderschrank-Eintrag und bleiben erhalten; verschwundene Inserate bekommen
+   den Vermerk „nicht mehr online“. Vorhandene Messungen werden übernommen. Neue
+   Lesefunktion `marketplace_read_listing_statistics_overview` für Summen,
+   Zeitabschnitte und Bestenliste, je Konto oder für alle Konten.
+2. **Seite:** Menüpunkt „Statistik“ unter „Kleiderschrank“ mit Schaltern für
+   Konto-Umfang und Zeitraum, drei Kacheln mit Vergleich zum Zeitraum davor,
+   Säulendiagramm (ApexCharts) mit einblendbarer Wertetabelle und Bestenliste.
+3. **Kleiderschrank:** Das simulierte Diagramm samt Beispielzahlen ist entfernt;
+   die „+N“-Zahlen an den Karten bleiben.
+
+**Abwägungen:** Die Migration ist von Hand aus der Schema-Datei zusammengestellt,
+weil der erzeugte Abgleich viele fremde, bereits vorhandene Abweichungen enthielt.
+Ein Schild „Verkauft“ gibt es nicht, weil Vinted-Verkäufe keine Artikelnummer
+tragen. Bereits früher gelöschte Inserate sind nicht wiederherstellbar. Alte
+Messungen werden noch nicht verdichtet.
+
+**Nach der Gegenprüfung behoben:** Die Lesefunktion prüft das Verwaltungsrecht
+jetzt einmal selbst (`security definer`), weil die Prüfung je Messzeile bei
+1,7 Mio. Zeilen 46 s (7 Tage) bzw. über 3 Minuten (30 Tage) brauchte; danach
+0,7 s und 2,9 s. Der Vorzeitraum zählt nur so weit, wie der aktuelle Zeitraum
+schon gelaufen ist. Index auf `entry_id` ergänzt. Der Store lädt nur noch neu,
+wenn sich die Anfrage selbst ändert.
+
+**Prüfung:**
+
+- Datenbank: neue pgTAP-Datei (47 Prüfungen) und die gesamte Suite
+  (108 Dateien, 3958 Prüfungen) bestanden; Datenübernahme zusätzlich gegen
+  Altbestand geprüft; erneuter Schemaabgleich ohne Treffer auf die neuen Objekte.
+- Unit-Tests `marketplaces` und Navigation: 65 Angular-Dateien / 804 Tests und
+  28 Node-Dateien / 247 Tests bestanden.
+- Browsertest `e2e/vinted-workspace-ui.spec.ts` in sechs Varianten (1440, 390,
+  320 px; hell und dunkel) bestanden, einschließlich AXE und Überlaufprüfung der
+  neuen Seite.
+- Prettier, ESLint, `typecheck`, `test:audit` und Produktionsbau ohne Beanstandung.
+
 ## 2026-10-13 - Juna - eBay-Statistiken über PR veröffentlichen
 
 **Auftrag:** Den geprüften eBay-Zweig über einen grünen PR zusammenführen und veröffentlichen.

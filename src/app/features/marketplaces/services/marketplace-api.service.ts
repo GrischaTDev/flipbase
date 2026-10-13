@@ -20,6 +20,12 @@ import {
   parseMarketplacePage,
   parseMarketplaceSnapshot,
 } from '../models/marketplace-response';
+import {
+  parseVintedStatisticsOverview,
+  type VintedStatisticsOverview,
+  type VintedStatisticsRange,
+  type VintedStatisticsRequestScope,
+} from '../models/vinted-statistics-overview';
 
 interface RpcResult {
   data: unknown;
@@ -110,6 +116,24 @@ export class MarketplaceApiService {
       ),
       scope,
       period,
+    );
+  }
+
+  async readStatisticsOverview(
+    scope: VintedStatisticsRequestScope,
+    range: VintedStatisticsRange,
+  ): Promise<VintedStatisticsOverview> {
+    return parseVintedStatisticsOverview(
+      dataOf(
+        await this.client.rpc('marketplace_read_listing_statistics_overview', {
+          p_workspace_id: scope.workspaceId,
+          p_period: range,
+          // Ohne Kontokennung fasst die Datenbank alle Vinted-Konten zusammen.
+          ...(scope.connectionId ? { p_connection_id: scope.connectionId } : {}),
+        }),
+      ),
+      scope,
+      range,
     );
   }
 
