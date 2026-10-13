@@ -183,6 +183,7 @@ export class ProductDetailComponent implements UnsavedEntryPage {
   readonly savedMessage = signal<string | null>(null);
   readonly images = signal<CatalogProductMedia[]>([]);
   readonly variants = signal<CatalogProduct[]>([]);
+  readonly variantStockQuantities = signal<Readonly<Record<string, number | null>>>({});
   readonly variantsError = signal<string | null>(null);
   readonly imageDrafts = signal<readonly ProductImageDraft[]>([]);
   readonly pendingImages = computed(() =>
@@ -819,8 +820,8 @@ export class ProductDetailComponent implements UnsavedEntryPage {
       await Promise.all([
         this.loadImages(request, id, workspaceId),
         this.loadStock(request, id, workspaceId),
-        this.loadVariants(product, request),
       ]);
+      if (this.isCurrent(request, id, workspaceId)) await this.loadVariants(product, request);
     } catch (error: unknown) {
       if (this.isCurrent(request, id, workspaceId))
         this.loadError.set(this.message(error, 'Artikel konnte nicht geladen werden.'));
@@ -850,6 +851,38 @@ export class ProductDetailComponent implements UnsavedEntryPage {
     if (!this.isCurrent(request, product.id, product.workspace_id)) return;
     this.variantsError.set(result.error?.message ?? null);
     this.variants.set(result.data ?? []);
+    const quantities = await Promise.all(
+      (result.data ?? []).map(async (variant) => {
+        const entries = await this.catalog.loadProductEntries(variant.id, variant.workspace_id);
+        const lots = this.stock.lots().filter((lot) => lot.catalog_product_id === variant.id);
+        const position = this.stock
+          .positions()
+          .find((position) => position.catalog_product_id === variant.id);
+        const quantity =
+          entries.error ||
+          this.stock.loadError() ||
+          this.stock.loadedWorkspaceId() !== variant.workspace_id
+            ? null
+            : summarizeProductStock(
+                position,
+                lots,
+                (entries.data ?? []).flatMap((entry) => entry.inventory_items),
+                this.stock.movements(),
+              ).onHand;
+        return [variant.id, quantity] as const;
+      }),
+    );
+    if (this.isCurrent(request, product.id, product.workspace_id))
+      this.variantStockQuantities.set(Object.fromEntries(quantities));
+  }
+
+  async onVariantChanged(event: { id: string; deleted: boolean }): Promise<void> {
+    if (event.deleted && event.id === this.id()) {
+      this.allowSavedNavigation = true;
+      await this.router.navigateByUrl('/catalog');
+    } else {
+      await this.reload();
+    }
   }
 
   async onVariantCreated(variant: CatalogProduct): Promise<void> {

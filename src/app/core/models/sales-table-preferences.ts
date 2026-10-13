@@ -33,6 +33,16 @@ export function migrateLegacySalesColumns<T extends string>(
     .map((column, index) => ({ id: column.id, order: column.order ?? index }))
     .sort((left, right) => left.order - right.order)
     .map((column) => column.id);
+  // Nur die unangepassten Standardansichten vereinfachen, persönliche Einstellungen behalten.
+  const isFormerOrder =
+    orderedIds.length === formerDefaultOrder.length &&
+    orderedIds.every((id, index) => id === formerDefaultOrder[index]);
+  const isPreviousOrder =
+    orderedIds.length === defaults.length &&
+    orderedIds.every((id, index) => id === defaults[index].id);
+  if ((isFormerOrder || isPreviousOrder) && stored.every((column) => column.visible)) {
+    return defaults.map((column) => ({ ...column }));
+  }
   if (
     orderedIds.length !== formerDefaultOrder.length ||
     !orderedIds.every((id, index) => id === formerDefaultOrder[index])

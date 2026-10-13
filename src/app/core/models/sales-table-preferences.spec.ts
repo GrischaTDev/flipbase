@@ -36,13 +36,22 @@ describe('Verkaufstabelle und gespeicherte Standardansicht', () => {
   it('zeigt Nummer und Datum vor Artikeln in eindeutiger Standardfolge', () => {
     expect(defaults.map((column) => column.id)).toEqual(expectedIds);
     expect(defaults.map((column) => column.order)).toEqual(expectedIds.map((_, index) => index));
-    expect(defaults[0]).toMatchObject({ label: 'Verkaufsnummer', locked: true, visible: true });
+    expect(defaults[0]).toMatchObject({ label: 'Verkaufsnummer', visible: false });
+    expect(defaults.filter((column) => column.visible).map((column) => column.id)).toEqual([
+      'sale_date',
+      'title',
+      'quantity',
+      'revenue',
+      'profit',
+      'margin',
+      'actions',
+    ]);
     expect(SALES_TABLE_CONFIG.defaultSort).toEqual({ field: 'sale_date', direction: 'desc' });
   });
 
   it('verwendet die einfachen Namen auch im Sortiermenü', () => {
     expect(SALES_LABELS).toEqual({
-      revenue: 'Umsatz',
+      revenue: 'Verkaufsbetrag',
       purchaseCosts: 'Einkaufskosten',
       sellingCosts: 'Gebühren & Versand',
       profit: 'Gewinn',
@@ -66,7 +75,7 @@ describe('Verkaufstabelle und gespeicherte Standardansicht', () => {
     expect(migrated?.map((column) => column.id)).toEqual(expectedIds);
     expect(migrated?.find((column) => column.id === 'margin')?.visible).toBe(false);
     expect(migrated?.find((column) => column.id === 'holding_days')?.visible).toBe(false);
-    expect(migrated?.find((column) => column.id === 'record_number')?.visible).toBe(true);
+    expect(migrated?.find((column) => column.id === 'record_number')?.visible).toBe(false);
   });
 
   it('erkennt gespeicherte Standardfolge auch in anderer Array-Reihenfolge', () => {
@@ -99,6 +108,17 @@ describe('Verkaufstabelle und gespeicherte Standardansicht', () => {
     const duplicate = legacyColumns();
     duplicate[0] = { ...duplicate[1], order: 0 };
     expect(migrateLegacySalesColumns(duplicate, defaults)).toBeNull();
+  });
+
+  it('vereinfacht auch die bisherige unangepasste Ansicht mit Verkaufsnummer', () => {
+    const stored = defaults.map((column) => ({ ...column, visible: true }));
+    expect(
+      migrateLegacySalesColumns(stored, defaults)
+        ?.filter((column) => column.visible)
+        .map((column) => column.id),
+    ).toEqual(['sale_date', 'title', 'quantity', 'revenue', 'profit', 'margin', 'actions']);
+    stored[3].visible = false;
+    expect(migrateLegacySalesColumns(stored, defaults)).toBeNull();
   });
 
   it('mutiert weder gespeicherte noch vorgegebene Spalten', () => {

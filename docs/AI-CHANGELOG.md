@@ -14,6 +14,123 @@
 
 **CI-Auswahl:** Die erste PR-Prüfung meldet sieben noch nicht registrierte mobile Pflichtfälle und zählt drei unterschiedliche Gerätefälle wegen ihres gleichen kurzen Titels als Duplikate. Die vollständigen Titelpfade unterscheiden die Geräte; sämtliche Fälle bleiben Pflicht. Drei gezielte Auswahltests bestehen und weisen auch den getrennten Produktions-PWA-Lauf nach.
 
+**Integration:** Den während der PR-Prüfung veröffentlichten `origin/master` aus PR403 eingebunden. Beide Konflikte erhalten die vollständigen Einträge und sämtliche Pflichtfälle beider Beiträge. Der kombinierte Auswahltest besteht; Typen, Produktionsbauten und PWA-Browserfälle werden auf diesem integrierten Stand erneut geprüft.
+
+## 2026-10-13 – Juna – Freigegebenen Bestands- und Verkaufsumbau veröffentlichen
+
+**Auftrag:** Nach ausdrücklichem Ja den geprüften Zweig pushen, PR erstellen, erfolgreiche Pflichtprüfungen abwarten und mit Merge-Commit integrieren; anschließend Zweig und Worktree aufräumen.
+
+**Integration:** Aktuellen `origin/master` eingebunden. Die beiden Konflikte im Änderungsprotokoll und in der Schemaliste erhalten jeweils beide Beiträge; Push-Schemas und Bestandsjournal bleiben registriert. Die automatisch verbundenen Datenbanktypen enthalten beide Erweiterungen. Der integrierte Stand besteht 4.110 Datenbankprüfungen in 112 Dateien, 98 Modell-/Serviceprüfungen, 63 Komponenten-/Serviceprüfungen und sechs Browserabläufe einschließlich AXE, Variantenverkauf und Rechnungsbestandsschutz. Generatorvergleich der Datenbanktypen identisch, Formatierung, Lint, Typen und Produktionsbau einschließlich PWA erfolgreich. Drei neue Bestandsabläufe sind verpflichtende PR-Browserfälle; bestehende Verkaufs- und Rechnungsprüfungen entsprechen der freigegebenen Oberfläche. Die lokale API-Adresse wurde wiederhergestellt. Vollständige Pflichtprüfungen und Release laufen über den PR beziehungsweise den bestehenden Veröffentlichungsweg.
+
+**CI-Korrektur:** Der erste PR-Lauf zeigte zwei Fehler im alten, über den Prototyp künstlich aufgebauten Rechnungstest: Das neu hinzugekommene Fehlermeldungs-Signal fehlte im Testobjekt. Testaufbau ergänzt und konkrete fehlende Unternehmensfelder sowie deren Zurücksetzen nach erfolgreicher Rechnung geprüft. Alle 319 DOM-Prüfungen in 44 Dateien lokal grün; Format/Lint und Testtypen erfolgreich. Anwendungscode unverändert; vollständige PR-Prüfungen werden auf dem korrigierten Stand erneut ausgeführt.
+
+## 2026-10-13 – Juna – Bestandsabgänge, Variantenaktionen und einfachere Verkäufe umsetzen
+
+**Auftrag:** Den abgestimmten Ablauf „Aus Bestand entfernen“, die Aktionen pro
+Variante, eine kompakte Verkaufsübersicht und verständliche Rechnungsfehler umsetzen.
+
+**Änderung:** Auf der Artikelseite und an jeder Variante kann eine ganze Stückzahl
+mit Grund Beschädigung, Verlust oder Erfassungskorrektur ausgebucht werden. Einkauf,
+ursprüngliche Menge und Kosten bleiben erhalten. Nach dem letzten Stück wird
+Archivieren angeboten. Varianten können einzeln archiviert, wiederhergestellt oder
+bei fehlenden Geschäftsbeziehungen gelöscht werden; Geschwister bleiben erhalten.
+Unbekannte Bestände, Inserate, Reservierungen und offene Shopaufträge werden konkret
+gemeldet statt stillschweigend verändert.
+
+**Datenbank:** Neues unveränderliches Bestandsjournal mit Workspace-Rechten,
+geschützten Bewegungen und einer wiederholbaren Buchungskennung. Gleichzeitige
+Bestandsaktionen nutzen die vorhandene Sperrreihenfolge. Einzelstücke können nach
+dem Abgang nicht erneut verkauft oder heimlich aktiviert werden. Mengenkosten
+werden stückgenau gekürzt; auch nach älteren Teilverkäufen bleibt der belegte
+Restkostenbetrag erhalten. Verkäufe ziehen bereits ausgebuchte Kosten vom
+verbleibenden Kostenpool ab. Es entsteht weder ein Verkauf noch eine zweite Ausgabe.
+Schema, registrierte Datei, erzeugte Migration und lokal neu erzeugte Typen gehören
+zum selben Änderungsstand.
+
+**Oberfläche:** Verkäufe zeigen standardmäßig Datum, Artikel, Menge, Verkaufsbetrag,
+Gewinn und Marge. Verkaufsnummer und Plattform stehen kompakt beim Artikel;
+Kostenfelder bleiben über die Spaltenauswahl erreichbar. Oben bleiben Anzahl und
+Gewinn. Haltedauer ist im Standard ausgeblendet, Prüfbeleg und Chronik stehen unter
+„Weitere Aktionen“. Persönlich angepasste Ansichten bleiben erhalten. Rechnungen
+nennen ihre Aktion als Erstellen oder Anzeigen und zeigen konkret fehlende
+Unternehmensfelder mit einem direkten Einstellungslink.
+
+**Migrationserzeugung:** Den CLI-Abgleich auf isolierten Vorher-/Nachher-Datenbanken
+ausgeführt, weil der vollständige Schemaabgleich ältere, fremde Abweichungen enthielt.
+Geerbte Standardrechte, die der Abgleich ausließ, automatisch aus der deklarativen
+Quelle ergänzt und die endgültige Buchungsfunktion aus derselben Quelle übernommen.
+Die vollständig transaktionale neue Migration wurde auf der frisch aus bestehenden
+Migrationen aufgebauten Testdatenbank erfolgreich angewendet. Keine bestehende
+Migrationsdatei geändert. Ein temporär abweichender CLI-Aufruf und ein Fehler des
+Erzeugungsskripts wurden vor dem abschließenden Datenbanklauf korrigiert.
+
+**Prüfung:** Alle 3.952 Datenbankprüfungen in 108 Dateien bestanden, davon 33 neue
+Abgangsprüfungen. 87 gezielte Modell-/Serviceprüfungen, 17 Chronikprüfungen und
+63 Komponenten-/Serviceprüfungen bestanden. Vier echte Browserabläufe bestanden:
+Bestandsabgang mit AXE-Prüfung des Dialogs, Variantenaktionen ohne Geschwisterverlust,
+Verkaufsübersicht/Rechnungsfehler und der vorhandene Verkauf aus der Artikelliste.
+Formatierung, gezieltes ESLint, Typprüfung, Produktionsbau, Schema-/Migrationsverträge,
+Prüfung gemeinsamer UI-Bausteine und Testsuite-Audit erfolgreich. Der separate
+Release-Shell-Integrationstest blieb wegen seiner nicht gestarteten speziellen
+Testdatenbank übersprungen. Bestehende Vite-/pako-Hinweise bleiben unverändert.
+Browserprüfungen nutzten nur isolierte lokale Daten; nicht gestartete Edge Functions
+meldeten dort erwartete Benachrichtigungsfehler. Die vorübergehende lokale
+API-Adresse wurde zurückgesetzt. Keine Produktionsdaten verändert, kein Push und
+kein Deployment. Der größere Umbau der Einkaufsübersicht ist nicht Teil dieses Auftrags.
+
+## 2026-10-13 – Juna – Einfachere Bestandsabgänge, Varianten und Verkaufsübersicht prüfen
+
+**Auftrag:** Gesperrtes Löschen bei vorhandenen Beständen und Varianten erklären,
+einen einfachen Ablauf für beschädigte Lagerware vorschlagen und überladene
+Verkaufs- und Einkaufsabläufe bewerten.
+
+**Befund:** Endgültiges Löschen ist wegen vorhandener Geschäftsbeziehungen gesperrt,
+nicht nur wegen einer positiven Stückzahl. Archivieren lässt Menge und Wert stehen.
+Die Variantenliste enthält keine Entfernen-Aktion. Ein allgemeiner Lagerabgang fehlt
+in der Artikelseite, obwohl das Datenmodell Beschädigung und Verlust kennt.
+Die Haltedauer nutzt nur die Einzelstückbeziehung im Verkaufskopf und fällt bei
+fehlender Einkaufsherkunft auf null zurück. Die Rechnungsfehlermeldung nutzt die
+vorhandene Liste fehlender Unternehmensfelder bislang nicht für eine konkrete Anzeige.
+
+**Ergebnis:** Vorschlag unter
+`docs/design/inventory-and-sales-simplification.md` dokumentiert: kurzer Dialog
+„Aus Bestand entfernen“, gleiche Aktionen je Variante, kompakte Verkaufsliste
+mit Betrag/Gewinn/Marge und Prüf-/Chronikzugriff in Details. Ursprüngliche Buchungen
+bleiben bei Korrekturen nachvollziehbar; die sichtbare Oberfläche muss dafür nicht
+alle Prüfaktionen ständig zeigen.
+
+**Prüfung:** Code und bestehende Schemafunktionen gelesen, amtliche AO-/GoBD-Quellen
+für die Nachvollziehbarkeit recherchiert. Reine Analyse mit Dokumentationsänderungen;
+keine neue Anwendungs- oder Datenbankänderung, keine Kontodatenprüfung, kein Push.
+Die bereits geprüfte Änderung an Artikelliste und Archivfilter bleibt erhalten.
+
+## 2026-10-13 – Juna – Artikelliste mit einer Bestandszahl und ausdrücklichem Archivfilter
+
+**Auftrag:** Auf der Seite „Artikel“ nur „Auf Lager“ anzeigen und archivierte Artikel
+aus der normalen Liste ausblenden. Das Archiv soll über einen Filter erreichbar bleiben.
+
+**Befund:** „Auf Lager“ und „Verfügbar“ sind bei unreservierten Artikeln gleich,
+unterscheiden sich aber bei Reservierungen. „Alle“, die Bestandsfilter und „Zu prüfen“
+ließen bislang auch archivierte Artikel durch.
+
+**Änderung:** „Verfügbar“ entfällt auf der Artikelseite aus Desktop- und Mobilansicht,
+Spaltenauswahl und Sortierung. Die interne verfügbare Menge bleibt für Verkaufsprüfungen
+erhalten; der normale Status heißt „Auf Lager“. Archivierte Stammartikel und Einzelstücke
+erscheinen ausschließlich bei Auswahl von „Archiv“, auch während einer Suche.
+Aktive Artikel ohne Bestand bleiben unter „Alle“ sichtbar. Gespeicherte Spalten werden
+bereinigt, eine frühere Sortierung nach Verfügbarkeit fällt auf den Standard zurück;
+die bestehende Übernahme alter Standardansichten bleibt erhalten.
+
+**Gestaltung:** Die bestehende Tabelle und der vorhandene Ansichtsfilter bleiben gemäß
+`docs/design/admin-ui-guidelines.md` erhalten. Keine neuen Farben, Abstände oder Bedienelemente.
+
+**Prüfung:** 60 gezielte Filter-, Übersichts-, Komponenten- und Tabellenpräferenztests
+bestanden; Formatierung, ESLint, Typprüfung und Produktionsbau erfolgreich.
+Der erste Bau scheiterte an einer Abhängigkeitsverknüpfung über zwei Windows-Laufwerke;
+nach lokaler Installation aus der unveränderten Lockdatei besteht der Bau.
+Der aktualisierte Verkaufs-Browsertest kann lokal mangels erreichbarer Test-Supabase
+nicht ausgeführt werden. Keine Datenbankänderung, kein Push und kein Deployment.
+
 ## 2026-10-13 - Juna - PWA-Produktionspaket vollständig ausliefern
 
 **Auftrag:** Freigegebenen PWA-Abschluss nach erfolgreichem PR401 bis zur Veröffentlichung fortsetzen. Eigener Folgefix auf juna/pwa-release-package; fremder Arbeitszweig bleibt unberührt.

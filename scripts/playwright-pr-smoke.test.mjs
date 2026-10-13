@@ -22,6 +22,18 @@ const coreTests = [
     'pwa-mobile-layout.spec.ts',
     'iPad desktop mode > keeps the tablet header in place while scrolling and resizing @pwa-layout',
   ],
+  [
+    'article-stock-removal.spec.ts',
+    'entfernt beschädigte Ware und behält den ursprünglichen Einkauf @core-smoke',
+  ],
+  [
+    'article-stock-removal.spec.ts',
+    'archiviert Varianten einzeln und löscht einen unbenutzten Stammartikel ohne seine Geschwister @core-smoke',
+  ],
+  [
+    'article-stock-removal.spec.ts',
+    'zeigt wenige Verkaufsspalten und konkrete fehlende Rechnungsfelder @core-smoke',
+  ],
   ...['390x844', '844x390', '768x1024', '512x768'].map((viewport) => [
     'pwa-mobile-layout.spec.ts',
     `safe areas and navigation ${viewport} @pwa-layout`,
@@ -89,7 +101,7 @@ const coreTests = [
   ],
   [
     'sales-variant-picker.spec.ts',
-    'wählt verkaufbare Varianten im gemeinsamen Modal und zeigt Nummer vor Datum @core-smoke',
+    'wählt verkaufbare Varianten im gemeinsamen Modal und zeigt kompakte Verkaufsspalten @core-smoke',
   ],
   [
     'marketplace-accounts.spec.ts',

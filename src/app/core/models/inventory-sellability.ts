@@ -1,6 +1,9 @@
 import type { InventoryItem } from './flipbase.models';
 
-type InventoryItemSellability = Pick<InventoryItem, 'status' | 'sale_state' | 'archived_at'>;
+type InventoryItemSellability = Pick<
+  InventoryItem,
+  'status' | 'sale_state' | 'archived_at' | 'stock_removed_at'
+>;
 
 const lockedSaleStates = new Set<NonNullable<InventoryItemSellability['sale_state']>>([
   'sold',
@@ -13,6 +16,7 @@ const lockedSaleStates = new Set<NonNullable<InventoryItemSellability['sale_stat
 export function isSellableInventoryItem(item: InventoryItemSellability): boolean {
   return (
     !item.archived_at &&
+    !item.stock_removed_at &&
     (item.status === 'ready' || item.status === 'listed') &&
     item.sale_state === 'no_active_sale'
   );
@@ -21,6 +25,7 @@ export function isSellableInventoryItem(item: InventoryItemSellability): boolean
 export function isInventoryItemMutationLocked(item: InventoryItemSellability): boolean {
   return (
     item.status === 'sold' ||
+    !!item.stock_removed_at ||
     hasInventoryIntegrityConflict(item) ||
     (!!item.sale_state && lockedSaleStates.has(item.sale_state))
   );

@@ -1,0 +1,42 @@
+<div class="flex items-center gap-1">
+  @if (onHand() !== null && (onHand() ?? 0) > 0) {
+    <app-table-action-button
+      [icon]="removeIcon"
+      [label]="'Aus Bestand entfernen: ' + product().title + ' ' + (product().size || '')"
+      tone="critical"
+      [disabled]="disabled() || lifecycle.pendingIds().has('catalog:' + product().id)"
+      (clicked)="openRemoval()"
+    />
+  }
+  <app-table-action-button
+    [icon]="product().archived_at ? restoreIcon : archiveIcon"
+    [label]="
+      (product().archived_at ? 'Wiederherstellen: ' : 'Archivieren: ') +
+      product().title +
+      ' ' +
+      (product().size || '')
+    "
+    tone="warning"
+    [disabled]="disabled() || lifecycle.pendingIds().has('catalog:' + product().id)"
+    (clicked)="archive()"
+  />
+  @if (onHand() === 0) {
+    <app-table-action-button
+      [icon]="deleteIcon"
+      [label]="'Unbenutzte Variante löschen: ' + product().title + ' ' + (product().size || '')"
+      tone="critical"
+      [disabled]="disabled() || lifecycle.pendingIds().has('catalog:' + product().id)"
+      (clicked)="deleteUnused()"
+    />
+  }
+</div>
+@if (error()) {
+  <p role="alert" class="mt-1 text-sm text-fb-critical">{{ error() }}</p>
+}
+@if (removalTarget(); as target) {
+  <app-article-stock-removal
+    [target]="target"
+    (closed)="removalTarget.set(null)"
+    (removed)="changed.emit({ id: product().id, deleted: false })"
+  />
+}

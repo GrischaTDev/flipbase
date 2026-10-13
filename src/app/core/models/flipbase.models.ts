@@ -334,6 +334,7 @@ export interface InventoryItem {
   active_sale_id?: string | null;
   readonly archived_at?: string | null;
   readonly archived_by?: string | null;
+  readonly stock_removed_at?: string | null;
   purchase?: Purchase;
   costs?: ItemCost[];
   media?: ItemMedia[];
