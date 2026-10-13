@@ -10,6 +10,28 @@ import test from 'node:test';
 const deployScript = fileURLToPath(new URL('../deploy/deploy.sh', import.meta.url));
 const dockerfile = fileURLToPath(new URL('../docker/Dockerfile', import.meta.url));
 
+test('Produktions-Nginx akzeptiert die tatsächlichen Auslieferungsregeln', async () => {
+  const root = fileURLToPath(new URL('../', import.meta.url));
+  const source = await readFile(dockerfile, 'utf8');
+  const image = source.match(/^FROM (nginx:[^\s]+) AS production$/mu)?.[1];
+  assert.ok(image, 'Die Prüfung muss das tatsächliche Produktions-Nginx verwenden.');
+  execFileSync(
+    'docker',
+    [
+      'run',
+      '--rm',
+      '--mount',
+      `type=bind,source=${join(root, 'docker/nginx.conf')},target=/etc/nginx/conf.d/default.conf,readonly`,
+      '--mount',
+      `type=bind,source=${join(root, 'docker/security-headers.conf')},target=/etc/nginx/security-headers.conf,readonly`,
+      image,
+      'nginx',
+      '-t',
+    ],
+    { stdio: 'pipe' },
+  );
+});
+
 test('Push-Compose erbt Supabasezugang und trennt Router/JWT ohne neue Hostports', async () => {
   const root = await mkdtemp(join(tmpdir(), 'flipbase-push-compose-'));
   try {
@@ -315,6 +337,51 @@ test('jede öffentliche TLS-Domain erhält HSTS ohne pauschale Subdomainbindung'
   for (const site of sites) {
     assert.match(site, />Strict-Transport-Security "max-age=300"/u);
     assert.doesNotMatch(site, /Strict-Transport-Security "[^"]*(?:includeSubDomains|preload)/u);
+  }
+});
+
+test('Docker-Kontext enthält alle Quellen des tatsächlich erzeugten Pushpakets', async () => {
+  const root = fileURLToPath(new URL('../', import.meta.url));
+  const artifact = await mkdtemp(join(tmpdir(), 'flipbase-push-context-'));
+  try {
+    execFileSync(process.execPath, [
+      join(root, 'scripts/package-push-functions.mjs'),
+      artifact,
+      'a'.repeat(40),
+    ]);
+    const rules = (await readFile(join(root, '.dockerignore'), 'utf8')).split(/\r?\n/u);
+    const manifest = await readFile(join(artifact, 'manifest.sha256'), 'utf8');
+    const files = manifest
+      .trim()
+      .split('\n')
+      .map((entry) => entry.slice(66));
+    assert.ok(files.length > 1, 'Die Prüfung muss das tatsächliche Functionpaket erfassen.');
+    for (const file of files) {
+      if (file === 'deployment.json') continue;
+      if (file.startsWith('push-main/')) {
+        const source = `deploy/${file}`;
+        for (const exclusion of [
+          'deploy',
+          'deploy/',
+          'deploy/*',
+          'deploy/push-main/',
+          'deploy/push-main/*',
+          source,
+        ])
+          assert.ok(
+            !rules.includes(exclusion),
+            `${source} wird aus dem Docker-Kontext ausgeschlossen.`,
+          );
+        continue;
+      }
+      const source = `supabase/functions/${file}`;
+      assert.ok(
+        rules.lastIndexOf(`!${source}`) > rules.lastIndexOf(`${posix.dirname(source)}/*`),
+        `${source} fehlt im Docker-Kontext des Pushpakets.`,
+      );
+    }
+  } finally {
+    await rm(artifact, { recursive: true, force: true });
   }
 });
 
