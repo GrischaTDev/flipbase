@@ -1,5 +1,17 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-13 - Juna - PWA-Plan mit drei unabhängigen Reviews gegenprüfen
+
+**Auftrag:** Zielbild und den gesamten PWA-Umsetzungsplan nochmals mit Agents prüfen.
+
+**Prüfung:** Drei getrennte lesende Reviews für PWA/Start/Updates, Push/Rechte/Betrieb und Offline-Einkaufsverträge. Befunde anschließend gegen Repository und Primärquellen bewertet; gezielte Nachprüfungen der eingearbeiteten Korrekturen. Keine Agent-Dateiänderungen oder Produktimplementierung.
+
+**Änderung:** Updatefreigabe an Build und Aktivierungsversuch binden; Runtime-Cacheintegrität und begrenzte Reparatur definieren. Workerabnahme auf Chromium begrenzen, WebKit-UI und reale Safari-Geräte trennen; Produktionsspecs vom Devserver ausschließen. Einkaufsübertragung erhält unveränderlichen vollständigen Sendeversuch, unbekannten Ausgang, Revisions-/Leasevergleich sowie dauerhaftes Feldmapping und Katalog-Handoff. Vor Freigabe den nachgewiesenen indexabhängigen EAN-Retryfehler im vorhandenen Frontendservice absichern. Neuer Desktopauftrag 02-purchase-retry-contract.md dokumentiert dazu SQL-/Clientbelege.
+
+**Push:** Eigener begrenzter serverseitiger eBay-Bestellbeobachter; konkrete Empfängermatrix und Kontostatusschreiber. Geräte-Settings, VAPID-Wechsel, Retry-After und Claim-Token vollständig im Vertrag. Offline-Revoke über vorab persistierte generationgebundene Capability; terminaler Widerruf blockiert verspätete Registrierung. CI-/Image-/Digest-/Functions-Release samt Rücknahme ausdrücklich verdrahtet. Bestehender Desktopauftrag 01-pwa-web-push.md entsprechend ergänzt.
+
+**Ergebnis:** Die ursprünglichen Reviewbefunde wurden auf Planungsebene geschlossen; ergänzende Grenzfälle und spätere Implementierungs-/Gerätetests stehen im Plan. Markdownformatierung, Aufgabenfolge, Vertragsabgleich und Diffprüfung; keine echte Push-, Offline- oder Gerätefunktion als bereits bestanden behauptet.
+
 ## 2026-10-13 - Juna - PWA für Smartphone und Tablet genau aufarbeiten
 
 **Auftrag:** Vorhandenen PWA-Stand prüfen und einen genauen Umsetzungsplan für ein stärkeres App-Gefühl, Ladebildschirm, echte Push-Meldungen und Offline-Nutzung erstellen.
