@@ -1,5 +1,59 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-13 – Juna – Bestandsabgänge, Variantenaktionen und einfachere Verkäufe umsetzen
+
+**Auftrag:** Den abgestimmten Ablauf „Aus Bestand entfernen“, die Aktionen pro
+Variante, eine kompakte Verkaufsübersicht und verständliche Rechnungsfehler umsetzen.
+
+**Änderung:** Auf der Artikelseite und an jeder Variante kann eine ganze Stückzahl
+mit Grund Beschädigung, Verlust oder Erfassungskorrektur ausgebucht werden. Einkauf,
+ursprüngliche Menge und Kosten bleiben erhalten. Nach dem letzten Stück wird
+Archivieren angeboten. Varianten können einzeln archiviert, wiederhergestellt oder
+bei fehlenden Geschäftsbeziehungen gelöscht werden; Geschwister bleiben erhalten.
+Unbekannte Bestände, Inserate, Reservierungen und offene Shopaufträge werden konkret
+gemeldet statt stillschweigend verändert.
+
+**Datenbank:** Neues unveränderliches Bestandsjournal mit Workspace-Rechten,
+geschützten Bewegungen und einer wiederholbaren Buchungskennung. Gleichzeitige
+Bestandsaktionen nutzen die vorhandene Sperrreihenfolge. Einzelstücke können nach
+dem Abgang nicht erneut verkauft oder heimlich aktiviert werden. Mengenkosten
+werden stückgenau gekürzt; auch nach älteren Teilverkäufen bleibt der belegte
+Restkostenbetrag erhalten. Verkäufe ziehen bereits ausgebuchte Kosten vom
+verbleibenden Kostenpool ab. Es entsteht weder ein Verkauf noch eine zweite Ausgabe.
+Schema, registrierte Datei, erzeugte Migration und lokal neu erzeugte Typen gehören
+zum selben Änderungsstand.
+
+**Oberfläche:** Verkäufe zeigen standardmäßig Datum, Artikel, Menge, Verkaufsbetrag,
+Gewinn und Marge. Verkaufsnummer und Plattform stehen kompakt beim Artikel;
+Kostenfelder bleiben über die Spaltenauswahl erreichbar. Oben bleiben Anzahl und
+Gewinn. Haltedauer ist im Standard ausgeblendet, Prüfbeleg und Chronik stehen unter
+„Weitere Aktionen“. Persönlich angepasste Ansichten bleiben erhalten. Rechnungen
+nennen ihre Aktion als Erstellen oder Anzeigen und zeigen konkret fehlende
+Unternehmensfelder mit einem direkten Einstellungslink.
+
+**Migrationserzeugung:** Den CLI-Abgleich auf isolierten Vorher-/Nachher-Datenbanken
+ausgeführt, weil der vollständige Schemaabgleich ältere, fremde Abweichungen enthielt.
+Geerbte Standardrechte, die der Abgleich ausließ, automatisch aus der deklarativen
+Quelle ergänzt und die endgültige Buchungsfunktion aus derselben Quelle übernommen.
+Die vollständig transaktionale neue Migration wurde auf der frisch aus bestehenden
+Migrationen aufgebauten Testdatenbank erfolgreich angewendet. Keine bestehende
+Migrationsdatei geändert. Ein temporär abweichender CLI-Aufruf und ein Fehler des
+Erzeugungsskripts wurden vor dem abschließenden Datenbanklauf korrigiert.
+
+**Prüfung:** Alle 3.952 Datenbankprüfungen in 108 Dateien bestanden, davon 33 neue
+Abgangsprüfungen. 87 gezielte Modell-/Serviceprüfungen, 17 Chronikprüfungen und
+63 Komponenten-/Serviceprüfungen bestanden. Vier echte Browserabläufe bestanden:
+Bestandsabgang mit AXE-Prüfung des Dialogs, Variantenaktionen ohne Geschwisterverlust,
+Verkaufsübersicht/Rechnungsfehler und der vorhandene Verkauf aus der Artikelliste.
+Formatierung, gezieltes ESLint, Typprüfung, Produktionsbau, Schema-/Migrationsverträge,
+Prüfung gemeinsamer UI-Bausteine und Testsuite-Audit erfolgreich. Der separate
+Release-Shell-Integrationstest blieb wegen seiner nicht gestarteten speziellen
+Testdatenbank übersprungen. Bestehende Vite-/pako-Hinweise bleiben unverändert.
+Browserprüfungen nutzten nur isolierte lokale Daten; nicht gestartete Edge Functions
+meldeten dort erwartete Benachrichtigungsfehler. Die vorübergehende lokale
+API-Adresse wurde zurückgesetzt. Keine Produktionsdaten verändert, kein Push und
+kein Deployment. Der größere Umbau der Einkaufsübersicht ist nicht Teil dieses Auftrags.
+
 ## 2026-10-13 – Juna – Einfachere Bestandsabgänge, Varianten und Verkaufsübersicht prüfen
 
 **Auftrag:** Gesperrtes Löschen bei vorhandenen Beständen und Varianten erklären,

@@ -69,4 +69,22 @@ describe('ArticleLifecycleService', () => {
       p_article_id: 'article',
     });
   });
+
+  it('verwendet bei einem unklaren Ergebnis dieselbe Buchungskennung und nach Erfolg eine neue', async () => {
+    const service = TestBed.inject(ArticleLifecycleService);
+    rpc.mockResolvedValueOnce({ data: null, error: { message: 'Netzwerk unterbrochen' } });
+    await expect(
+      service.removeStock('own', 'catalog', 'article', 1, 'damage', 'Kaputt'),
+    ).rejects.toThrow('Netzwerk');
+    const firstRequest = rpc.mock.calls[0][1].p_request_id;
+    rpc.mockResolvedValue({
+      data: { article_id: 'article', workspace_id: 'own', quantity: 1 },
+      error: null,
+    });
+    await service.removeStock('own', 'catalog', 'article', 1, 'damage', 'Kaputt');
+    expect(rpc.mock.calls[1][1].p_request_id).toBe(firstRequest);
+    await service.removeStock('own', 'catalog', 'article', 1, 'damage', 'Kaputt');
+    expect(rpc.mock.calls[2][1].p_request_id).not.toBe(firstRequest);
+    expect(service.pendingIds().size).toBe(0);
+  });
 });

@@ -118,7 +118,7 @@ describe('summarizeProductStock', () => {
       reserved: 0,
     });
   });
-  it('zählt verkaufte und archivierte Stücke nicht als vorhandenen Bestand', () => {
+  it('behält den physischen Bestand archivierter Stücke, bietet ihn aber nicht zum Verkauf an', () => {
     expect(
       summarizeProductStock(
         undefined,
@@ -128,7 +128,7 @@ describe('summarizeProductStock', () => {
           { ...item, id: 'archived', archived_at: '2026-09-13' },
         ],
       ),
-    ).toEqual({ onHand: 0, available: 0, reserved: 0 });
+    ).toEqual({ onHand: 1, available: 0, reserved: 0 });
   });
   it.each([
     undefined,

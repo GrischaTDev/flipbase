@@ -270,6 +270,15 @@
                   @case ('actions') {
                     <td class="px-3 py-3 text-right">
                       <div class="flex flex-wrap items-center justify-end gap-1">
+                        @if (product.onHand !== null && product.onHand > 0) {
+                          <app-table-action-button
+                            [icon]="removeStockIcon"
+                            tone="critical"
+                            [label]="'Aus Bestand entfernen: ' + product.title"
+                            [disabled]="lifecycle.pendingIds().has(product.key)"
+                            (clicked)="openStockRemoval(product)"
+                          />
+                        }
                         @if (canSell(product)) {
                           <app-table-action-button
                             [label]="product.title + ' verkaufen'"
@@ -371,6 +380,17 @@
             <span>{{ statusLabel(product) }}</span>
           </div>
           <div class="mt-2 flex flex-wrap gap-1">
+            @if (product.onHand !== null && product.onHand > 0) {
+              <app-button
+                size="slim"
+                variant="destructive"
+                [icon]="removeStockIcon"
+                [ariaLabel]="'Aus Bestand entfernen: ' + product.title"
+                [disabled]="lifecycle.pendingIds().has(product.key)"
+                (clicked)="openStockRemoval(product)"
+                >Aus Bestand entfernen</app-button
+              >
+            }
             @if (canSell(product)) {
               <app-button
                 size="slim"
@@ -420,3 +440,10 @@
     </div>
   </app-data-table>
 </div>
+@if (removalTarget(); as target) {
+  <app-article-stock-removal
+    [target]="target"
+    (closed)="removalTarget.set(null)"
+    (removed)="reload()"
+  />
+}

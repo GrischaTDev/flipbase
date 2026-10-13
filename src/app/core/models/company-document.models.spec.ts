@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { CompanyDocumentError, createCompanyDocumentParty } from './company-document.models';
+import {
+  CompanyDocumentError,
+  createCompanyDocumentParty,
+  readMissingCompanyFields,
+} from './company-document.models';
 import { WorkspaceCompanyProfile } from './company-profile.models';
 
 const profile: WorkspaceCompanyProfile = {
@@ -58,12 +62,19 @@ describe('Unternehmensdaten auf Dokumenten', () => {
       expect.fail('Unvollständige Daten müssen die Erstellung verhindern.');
     } catch (error) {
       expect(error).toBeInstanceOf(CompanyDocumentError);
+      expect((error as Error).message).toContain('Name des Unternehmens oder Inhabers');
+      expect((error as Error).message).toContain('Steuernummer oder Umsatzsteuer-ID');
       expect(error).toMatchObject({
         code: 'company_profile_incomplete',
         missingFields: ['legalName', 'taxIdentifier'],
         settingsPath: '/settings/company',
       });
     }
+  });
+
+  it('übernimmt nur bekannte fehlende Felder aus einer Serverantwort', () => {
+    expect(readMissingCompanyFields(['city', 'unknown', 'city', 12])).toEqual(['city']);
+    expect(readMissingCompanyFields({ city: true })).toEqual([]);
   });
 
   it('bewahrt eine erstellte Kopie nach Änderungen am Profil', () => {

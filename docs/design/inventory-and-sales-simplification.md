@@ -110,3 +110,12 @@ keine gesetzliche Pflicht zu sichtbaren Chronik- oder Prüfbuttons in jeder Zeil
 Die lokale Test-Supabase war während dieser Analyse nicht erreichbar.
 Die Funktionsänderungen erfordern vor Abschluss passende lokale beziehungsweise
 isolierte Datenbanktests sowie Browserprüfungen.
+
+## Umgesetzter Stand am 13. Oktober 2026
+
+Bestandsabgang, Variantenaktionen, kompakte Verkaufsübersicht und konkrete
+Rechnungsfehlermeldungen sind lokal umgesetzt und geprüft. Die neue Migration
+bewahrt Bestandsabgänge und ihre Kosten unveränderlich; der ursprüngliche Einkauf
+bleibt erhalten. Die Browserprüfung verwendet eine getrennte lokale Test-Supabase.
+Das Abschlussprotokoll mit Prüfumfang steht in `docs/AI-CHANGELOG.md`.
+Die Einkaufsübersicht bleibt für einen anschließenden eigenen Auftrag offen.

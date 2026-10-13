@@ -32,6 +32,7 @@ import {
   LucideArchive as Archive,
   LucideRotateCcw as RotateCcw,
   LucideShoppingCart as ShoppingCart,
+  LucidePackageMinus as PackageMinus,
 } from '@lucide/angular';
 import { CatalogService } from '../../core/services/catalog.service';
 import { StockService } from '../../core/services/stock.service';
@@ -46,6 +47,10 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
 import { CustomSelectComponent } from '../../shared/components/custom-select/custom-select.component';
 import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
 import { ArticleLifecycleService } from './services/article-lifecycle.service';
+import {
+  ArticleStockRemovalComponent,
+  StockRemovalTarget,
+} from './components/article-stock-removal/article-stock-removal.component';
 import { ArticleMediaCleanupService } from './services/article-media-cleanup.service';
 import {
   articleViews,
@@ -73,6 +78,7 @@ interface CatalogImportRow {
     TableActionButtonComponent,
     PageHeaderComponent,
     CustomSelectComponent,
+    ArticleStockRemovalComponent,
   ],
   templateUrl: './catalog.component.html',
   host: { class: 'block' },
@@ -99,6 +105,25 @@ export class CatalogComponent {
   readonly view = computed(() => parseArticleView(this.queryParams().get('view')));
   readonly actionError = signal<string | null>(null);
   readonly actionMessage = signal<string | null>(null);
+  readonly removalTarget = signal<StockRemovalTarget | null>(null);
+
+  openStockRemoval(row: CatalogOverviewRow): void {
+    const workspaceId = this.workspaceService.currentWorkspace()?.id;
+    if (
+      !workspaceId ||
+      row.onHand === null ||
+      row.onHand < 1 ||
+      this.lifecycle.pendingIds().has(row.key)
+    )
+      return;
+    this.removalTarget.set({
+      workspaceId,
+      kind: row.kind,
+      id: row.id,
+      title: row.title,
+      onHand: row.onHand,
+    });
+  }
   readonly workspaceId = computed(() => this.workspaceService.currentWorkspace()?.id ?? 'default');
   readonly catalogTableConfig = this.tablePreferences.getTableConfig<
     CatalogColumnId,
@@ -122,6 +147,7 @@ export class CatalogComponent {
   readonly plusIcon = Plus;
   readonly bookOpenIcon = BookOpen;
   readonly trashIcon = Trash2;
+  readonly removeStockIcon = PackageMinus;
   readonly editIcon = Pencil;
   readonly archiveIcon = Archive;
   readonly restoreIcon = RotateCcw;
@@ -356,6 +382,7 @@ export class CatalogComponent {
       untracked(() => {
         this.actionError.set(null);
         this.actionMessage.set(null);
+        this.removalTarget.set(null);
         this.cleanup.status.set(null);
         this.cleanup.error.set(null);
         this.searchControl.setValue(this.viewState.searchFor(workspaceId));

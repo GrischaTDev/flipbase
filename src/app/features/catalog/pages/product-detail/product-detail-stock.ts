@@ -29,7 +29,7 @@ export function summarizeProductStock(
   }
   let { onHand, available, reserved } = stock;
   for (const item of new Map(items.map((item) => [item.id, item])).values()) {
-    if (item.archived_at || item.status === 'archived') continue;
+    if (item.stock_removed_at || item.status === 'archived') continue;
     if (
       hasInventoryIntegrityConflict(item) ||
       item.sale_state === 'legacy_sold_unverified' ||
