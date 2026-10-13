@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
   LucideDynamicIcon,
@@ -22,6 +22,7 @@ import { TextFieldComponent } from '../../../shared/components/text-field/text-f
 @Component({
   selector: 'app-login',
   imports: [
+    RouterLink,
     ReactiveFormsModule,
     TranslatePipe,
     LucideDynamicIcon,

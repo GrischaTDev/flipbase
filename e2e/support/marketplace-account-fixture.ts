@@ -29,6 +29,7 @@ export async function mockMarketplace(
   },
   localAccounts = false,
   accountCount = accountIds.length,
+  backend = { origin: 'http://127.0.0.1:54351', userId: '25000000-0000-4000-8000-000000000001' },
 ) {
   await page.route('**/marketplace-browser/healthz', (route) =>
     browserLogin
@@ -36,7 +37,7 @@ export async function mockMarketplace(
       : route.fulfill({ status: 502, body: 'Browserdienst nicht verfügbar' }),
   );
   const user = {
-    id: '25000000-0000-4000-8000-000000000001',
+    id: backend.userId,
     email: 'marketplace@example.test',
     aud: 'authenticated',
     role: 'authenticated',
@@ -44,11 +45,11 @@ export async function mockMarketplace(
     user_metadata: {},
     created_at: '2026-09-26T00:00:00Z',
   };
-  const token = `${Buffer.from('{}').toString('base64url')}.${Buffer.from(JSON.stringify({ sub: user.id, exp: Math.floor(Date.now() / 1000) + 3600 })).toString('base64url')}.test`;
+  const token = `${Buffer.from('{}').toString('base64url')}.${Buffer.from(JSON.stringify({ sub: user.id, session_id: '25000000-0000-4000-8000-000000000099', exp: Math.floor(Date.now() / 1000) + 3600 })).toString('base64url')}.test`;
   await page.addInitScript(
-    ({ user, token }) => {
+    ({ user, token, storageKey }) => {
       localStorage.setItem(
-        'sb-127-auth-token',
+        storageKey,
         JSON.stringify({
           access_token: token,
           refresh_token: 'fixture',
@@ -60,9 +61,9 @@ export async function mockMarketplace(
       );
       localStorage.setItem('flipbase_theme', 'light');
     },
-    { user, token },
+    { user, token, storageKey: `sb-${new URL(backend.origin).hostname.split('.')[0]}-auth-token` },
   );
-  await page.routeWebSocket(/127\.0\.0\.1:54351/, (socket) => socket.close());
+  await page.routeWebSocket(`**://${new URL(backend.origin).host}/**`, (socket) => socket.close());
   const connectionIds = Array.from(
     { length: accountCount },
     (_, index) =>
@@ -332,7 +333,7 @@ export async function mockMarketplace(
       interactionCount: number;
     }
   >();
-  await page.route('http://127.0.0.1:54351/**', async (route) => {
+  await page.route(`${backend.origin}/**`, async (route) => {
     const name = new URL(route.request().url()).pathname.split('/').at(-1) ?? '';
     const body =
       route.request().method() === 'POST'

@@ -1,5 +1,116 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-13 - Juna - PWA-Produktionspaket vollständig ausliefern
+
+**Auftrag:** Freigegebenen PWA-Abschluss nach erfolgreichem PR401 bis zur Veröffentlichung fortsetzen. Eigener Folgefix auf juna/pwa-release-package; fremder Arbeitszweig bleibt unberührt.
+
+**Befund und Änderung:** Der Releasebau stoppt vor Deployment, weil die Docker-Ausschlussliste den eBay-Beobachter und fünf benötigte Shared-Dateien aus dem Pushpaket entfernt. Nur die sieben Runtime-Dateien ausdrücklich aufnehmen. Der anschließende echte Image-Start weist außerdem einen Nginx-Parserfehler an der ungequoteten Hash-Regel nach; Anführungszeichen erhalten deren regulären Ausdruck und Auslieferungsverhalten. Zwei Regressionen prüfen sämtliche tatsächlich paketierten Quellen und die echten Nginx-Konfigdateien mit dem Produktions-Nginx. Die Browserprüfung erhält 20 Minuten Laufzeit, weil der vollständige grüne PR-Lauf 14 Minuten 55 Sekunden des bisherigen 15-Minuten-Limits benötigt; Prüfumfang und Assertions bleiben erhalten.
+
+**Prüfung:** Beide Fehler vor der Korrektur reproduziert, danach neun Deploy-Prüfungen grün; vier POSIX-Fälle lokal unter Windows ausdrücklich übersprungen. Formatter, Lint, vollständiger Docker-Produktionsbau und tatsächlicher Image-Smoke grün. HTTP bestätigt passende App-/PWA-Metadaten, immutable für Hash-Dateien und 404 für unbekanntes JavaScript. Das aus dem Image extrahierte Functionpaket besteht Integrität, isolierte Edge-Runtime-/Gateway-Prüfung, Auth, Widerruf, Grenzen und Commitgleichheit. Worker-Smoke bestätigt ausgeschalteten Versand. Agent prüft Importkette, Artefakte und Nginx-Regel unabhängig. PR401 bestand zuvor alle Pflichtprüfungen mit 100 Browserfällen, 24 PWA-Skripttests, 23 Produktions-PWA-Fällen und 4.030 Datenbanktests. Der fehlgeschlagene Release änderte die laufende Produktion nicht; Veröffentlichung erst nach dem grünen Folge-PR berichten.
+
+## 2026-10-13 – Juna – Bearbeiten: Speichern ohne Auswahllisten, Preisänderung, klare Meldungen; Konkurrenzvergleich
+
+**Befund (echte Versuche des Nutzers nach PR 395):**
+
+- Titelbild getauscht: bei Vinted geändert, Flipbase meldete trotzdem „nicht eindeutig
+  bestätigt“. Das Ziehen der Fotos greift also an der echten Maske. Warum die Bestätigung
+  ausblieb, ist offen; das erneute Lesen der Maske dauert rund 25 Sekunden bei 20 Sekunden Frist,
+  es gibt also nur einen Versuch.
+- Preis von 8 auf 10 Euro: Protokoll „Speichern abgebrochen bei gegenlesen“, bei Vinted nichts
+  geändert. Die Oberfläche meldete auch hier „nicht eindeutig bestätigt“, was in diesem Fall
+  falsch ist (Abbruch vor dem Speichern).
+
+**Vermutete Ursache (nachgestellt, an echtem Vinted nicht gemessen):** Der Preis wird eingetragen,
+das Feld aber nicht verlassen. Formatiert die Maske den Wert erst beim Verlassen, ändert er sich
+während des Gegenlesens, und der Leser wertet das als fremde Änderung der Maske. Bei Änderungen,
+die danach noch eine Auswahlliste öffnen, fiel das nicht auf.
+
+**Änderung 1 – Preis:** Nach dem Eintragen von Titel, Beschreibung und Preis wird das Feld
+verlassen. Ein Abbruch beim Gegenlesen nennt zusätzlich, woran es lag: den Schritt des Lesens
+oder ob Inhalt, Fotos oder der Speichern-Knopf abwichen. Die Testmaske formatiert den Preis beim
+Verlassen; ein neuer Fall ändert nur den Preis und scheiterte ohne die Korrektur mit derselben
+Meldung wie beim Nutzer.
+
+**Änderung 2 – Speichern ohne Auswahllisten:** Ändern sich nur Titel, Beschreibung, Preis oder
+Fotos, klappt der Worker keine Auswahlliste mehr auf. Ausgangsstand und Bestätigung kommen dann
+aus Vinteds eigener Abfrage des Inserats (`item_upload/items/{id}`, in der angemeldeten Seite,
+nur lesend); Fotos werden über ihre Kennungen bestätigt, sofern sich jedes Foto des Rasters
+eindeutig einem Foto der Abfrage zuordnen lässt. Der Weg ist reine Abkürzung: Stimmt irgendetwas
+nicht eindeutig überein (Abfrage unvollständig, andere Kennungen, andere Texte, Fotos nicht
+zuordenbar), wird die Maske noch nicht angefasst und der bisherige Weg entscheidet – auch über
+einen Konflikt. Zeigt die Abfrage nach dem Speichern den neuen Stand nicht, bestätigt wie bisher
+die Maske. Änderungen an Marke, Größe, Zustand, Farben, Material oder Paketgröße laufen
+unverändert über die Maske.
+
+**Änderung 3 – Meldungen:** Bricht das Speichern vor dem Klick bei Vinted ab, antwortet der Worker
+mit `vinted_listing_not_saved`; die Oberfläche sagt dann, dass nichts gespeichert wurde. Ist das
+Konto gerade durch eine andere Aktion belegt, sagt sie das ebenfalls. „Nicht eindeutig bestätigt“
+bleibt für die Fälle, in denen offen ist, ob Vinted gespeichert hat.
+
+**Nicht gemessen:** Ob Vinteds Abfrage dieselben Kennungen und Texte liefert wie die Maske und ob
+sich ihre Fotoadressen dem Raster zuordnen lassen, zeigt erst ein echter Lauf. Trifft es nicht
+zu, bleibt es beim bisherigen, langsamen Weg – schneller wird es dann nicht, falscher auch nicht.
+
+**Konkurrenz angesehen (Oberflächentexte der Vintz-Demo, Bleam-Dashboard im Browser des
+Nutzers, nichts gespeichert):** Vintz bietet eine Browser-Erweiterung und Cloud-Konten mit Proxy,
+arbeitet wahlweise mit direkten Anfragen im Hintergrund („Auto“) oder über das sichtbare
+Originalformular („Semi“, wie Flipbase bisher), bearbeitet auf gespeicherten Artikeldaten und
+führt Cloud-Aktionen als Warteschlange aus. Bleam ist eine Erweiterung in der Vinted-Sitzung, zeigt
+den Kleiderschrank aus einer Sicherung und bietet dort Relist, Preis und Löschen.
+
+**Reihenfolge (vom Nutzer bestätigt, in zwei PRs; dies ist der erste):** Lesen, Kontrolle und Bestätigung
+über Vinteds Schnittstellen; Inseratdaten beim Synchronisieren mitspeichern; Speichern als
+Auftrag im Hintergrund; direktes Speichern zunächst nur für Titel, Beschreibung und Preis.
+
+**Hinweis:** Eine reine Beobachtung auf dem Server zeichnete zwei Läufe nicht auf, weil das
+Skript den Namen der Browsersitzung falsch filterte; korrigiert, Auswertung steht aus.
+
+**Prüfungen:** Worker: 638 Tests, Typen, ESLint; 17 Browserfälle des Speicherns und Lesens,
+darunter Preis allein (ohne Korrektur rot), Rückfall bei unvollständiger Abfrage und bei nicht
+zuordenbaren Fotos, Konflikt über den vollständigen Vergleich; neue Tests für die Abfrage des
+Inserats und die Antwort „nicht gespeichert“. App: 63 Testdateien des Marktplatz-Bereichs, Typen,
+ESLint und Bau grün.
+
+## 2026-10-13 - Juna - Geprüften PWA-Plan umsetzen
+
+**Auftrag:** „los“ für den gegengeprüften PWA-Plan; geplantes Supabase-Backend danach ausdrücklich freigegeben. Eigener Zweig juna/pwa-mobile-plan, fremde eBay-Änderungen unberührt.
+
+**Stand:** PWA-Start mit Theme, 10-/30-Sekunden-Status und Wiederholung; ehrlicher Installationszustand; mobile Safe Areas und wachsender Header bei Schriftvergrößerung. Vollständiges Bauinventar, geprüfter App-Dateicache und koordinierter Versionswechsel über mehrere Fenster. Lokale Einkaufsentwürfe mit gerätegebundener IndexedDB, Konto-/Workspace-Zuordnung, Export, ausdrücklicher Onlineprüfung und unveränderlichen Übertragungsversuchen. Die Übernahme verwendet serverseitig gespeicherte EANs, statt sie anhand einer fremden Positionsreihenfolge zu überschreiben.
+
+**Push:** Sitzungsgebundene Gerätegenerationen, dauerhafter Widerruf, Kategorien und sichere Klickziele. Supabase-Schema/Migrationen und begrenzte Edge Functions; eigener Versanddienst mit Rechteprüfung, vier parallelen Claims, Rückoff und Ablauf. Vinted-Nachrichten, Shopbestellungen, Kontostörungen und eBay-Bestellbeobachtung erzeugen dauerhafte Ereignisse. eBay-Erstbaseline löst keine Altmeldungen aus; der Beobachter respektiert die konfigurierte Umgebung. CI baut und prüft Dienst-/Functionpakete sowie echte PWA-Produktionsbauten. Auslieferung prüft Commit, HTML-Baukennung, Manifest, Worker und Inventar.
+
+**Prüfung:** `npm run verify` vollständig grün: Formatierung, Lint, Typen, Workflowtests, 279 Edge-Tests mit CI-Deno 2.9.7, Suite-Audit, 4.998 Anwendungstests, 39 Landingtests und Produktionsbau. Zusätzlich 111 Push-SQL-Prüfungen nach tatsächlich transaktional angewandten Migrationen, 19 Versandtests einschließlich reproduziertem langsamen Altbatch, 24 Startup-/Worker-/Bauskripttests und 23 Produktionstests grün. Chromium weist echten Worker, Offline-Lazy-Routen und den Wechsel zwischen zwei echten Bauten nach; WebKit prüft UI und echte IndexedDB. Vier mobile Browseransichten einschließlich AXE/Hell-Dunkel/200-%-Schrift grün und ausdrücklich in PR/Nightly aufgenommen. Agentenbefunde zu Rechteentzug, Eingaben während Laden/Übertragung, Bestätigungsfenster, neueren lokalen Ergänzungen, Push-Navigation und eBay-Umgebung korrigiert und gezielt nachgeprüft. Der abschließend gefundene Releasefilter erfasst jetzt auch Observer- und Shared-Änderungen; 20 gezielte Auswahltests und finales Actionlint grün. Neu erzeugte Supabase-Typen behalten die unveränderte Generatorformatierung; abschließende Typprüfung grün.
+
+**Grenzen:** Keine echte Smartphone-/Tabletinstallation oder Push-Zustellung bei geschlossener App behauptet. Versand bleibt mit WEB_PUSH_ENABLED=false bis zur Geräte-/Pilotabnahme ausgeschaltet; Abnahmevertrag in docs/testing/pwa-device-acceptance.md. Gesamte lokale DB-Suite reproduziert außerhalb der neuen Push-Prüfungen einen PostgreSQL-Absturz in inventory_archive.test.sql; keine grüne DB-Gesamtsuite behauptet. Keine Veröffentlichung oder Änderung am fremden Arbeitszweig.
+
+**CI-Nachprüfung:** Im PR besteht die vollständige Datenbanksuite. Die Linux-Deployfixture simuliert die root-Metadaten jetzt ausdrücklich, weil der CI-Nutzer kein root ist; falscher Eigentümer und Modus bleiben abgewiesen. Die frühe PWA-Initialisierung legt einen bestehenden Workspace-Cachefehler beim direkten Kontowechsel offen: `true` bleibt `true`, obwohl die Sitzung zu einem anderen Nutzer gehört. Cache und laufende Anfragen sind jetzt synchron an Nutzer-ID und Ladegeneration gebunden. Vier neue Regressionen schützen den direkten Wechsel, verspätete Erfolgs-/Fehlerantworten sowie A-B-A einschließlich Ladezustand. Gezielte Tests, Typen, Lint, Bau und echter Linuxlauf als normaler Nutzer grün; der Agent bestätigt den Fix. Kein Abschwächen der Produktionsrechte. Der folgende CI-Lauf besteht alle Anwendungstests und 4.030 Datenbanktests; der Browserlauf besteht 94 Fälle einschließlich Kontowechsel. Die veraltete Vinted-Menüerwartung berücksichtigt anschließend auch den neuen Offline-Link; alle sechs hellen/dunklen Desktop-/Mobilansichten lokal grün.
+
+## 2026-10-13 - Juna - PWA-Plan mit drei unabhängigen Reviews gegenprüfen
+
+**Auftrag:** Zielbild und den gesamten PWA-Umsetzungsplan nochmals mit Agents prüfen.
+
+**Prüfung:** Drei getrennte lesende Reviews für PWA/Start/Updates, Push/Rechte/Betrieb und Offline-Einkaufsverträge. Befunde anschließend gegen Repository und Primärquellen bewertet; gezielte Nachprüfungen der eingearbeiteten Korrekturen. Keine Agent-Dateiänderungen oder Produktimplementierung.
+
+**Änderung:** Updatefreigabe an Build und Aktivierungsversuch binden; Runtime-Cacheintegrität und begrenzte Reparatur definieren. Workerabnahme auf Chromium begrenzen, WebKit-UI und reale Safari-Geräte trennen; Produktionsspecs vom Devserver ausschließen. Einkaufsübertragung erhält unveränderlichen vollständigen Sendeversuch, unbekannten Ausgang, Revisions-/Leasevergleich sowie dauerhaftes Feldmapping und Katalog-Handoff. Vor Freigabe den nachgewiesenen indexabhängigen EAN-Retryfehler im vorhandenen Frontendservice absichern. Neuer Desktopauftrag 02-purchase-retry-contract.md dokumentiert dazu SQL-/Clientbelege.
+
+**Push:** Eigener begrenzter serverseitiger eBay-Bestellbeobachter; konkrete Empfängermatrix und Kontostatusschreiber. Geräte-Settings, VAPID-Wechsel, Retry-After und Claim-Token vollständig im Vertrag. Offline-Revoke über vorab persistierte generationgebundene Capability; terminaler Widerruf blockiert verspätete Registrierung. CI-/Image-/Digest-/Functions-Release samt Rücknahme ausdrücklich verdrahtet. Bestehender Desktopauftrag 01-pwa-web-push.md entsprechend ergänzt.
+
+**Ergebnis:** Die ursprünglichen Reviewbefunde wurden auf Planungsebene geschlossen; ergänzende Grenzfälle und spätere Implementierungs-/Gerätetests stehen im Plan. Markdownformatierung, Aufgabenfolge, Vertragsabgleich und Diffprüfung; keine echte Push-, Offline- oder Gerätefunktion als bereits bestanden behauptet.
+
+## 2026-10-13 - Juna - PWA für Smartphone und Tablet genau aufarbeiten
+
+**Auftrag:** Vorhandenen PWA-Stand prüfen und einen genauen Umsetzungsplan für ein stärkeres App-Gefühl, Ladebildschirm, echte Push-Meldungen und Offline-Nutzung erstellen.
+
+**Entscheidungen:** Offline nur App-Start und lokale Einkaufsentwürfe mit ausdrücklicher späterer Übertragung. Erste Push-Kategorien sind Nachrichten, Bestellungen und Kontoprobleme; vom Nutzer bestätigt.
+
+**Befund:** Installationsgrundlage und statischer Worker vorhanden und öffentlich ausgeliefert. Installationsdialog nicht universell; kein vollständiger Lazy-Chunk-Cache, baugebundener Worker oder koordinierter Update-Schutz. Vorhandene Notifications laufen aus der geöffneten Seite. Für Hintergrund-Push fehlen Geräte-/Sitzungsbindung, dauerhafter Serverversand und Empfangs-/Klickhandler. Start und Workspace-Guards benötigen eigene Fehler-/Offlinebehandlung. Vorhandene request_id-Deduplizierung ermöglicht sichere spätere Einkaufsübertragung.
+
+**Ergebnis:** Zielbild und 14 Aufgaben mit konkreten Dateien, neuen Verträgen, Tests, Zuständigkeiten, Geräteabnahme und Rollout unter docs/superpowers/specs/2026-10-13-pwa-mobile-app-design.md und docs/superpowers/plans/2026-10-13-pwa-mobile-app.md. Nummerierter Backendauftrag unter C:/Users/gt/Desktop/Backend Issues/pwa-mobile-plan/01-pwa-web-push.md. Details wie Aufbewahrung und neue serverseitige Bibliothek sind Vorschläge zur Planprüfung, keine vorweggenommene Freigabe. Keine Produktcodeänderung, Migration oder Veröffentlichung.
+
+**Prüfung:** Repository-/Vertragsanalyse gegen origin/master c1d4564a; Primärquellen für Web Push, Installation, Safe Areas und Worker gelesen. Öffentliche PWA-Dateien in der vorausgehenden Analyse jeweils HTTP 200, Worker entspricht Quelle. Plan auf Abdeckung, Verträge und Grenzfälle überprüft; Markdownformatierung und Diffprüfung. Keine tatsächliche Geräteinstallation, Offline-Abnahme oder Push-Zustellung behauptet. Eigener Planungszweig juna/pwa-mobile-plan; vorhandener Arbeitszweig unverändert.
+
+**Fortsetzung:** Nutzerfreigabe für PR, erfolgreichen Merge und anschließendes Aufräumen erteilt. Aktuelles origin/master einschließlich PR400 integrieren; beide Changelogverläufe bleiben erhalten. Keine Änderung am fremden Arbeitszweig.
+
 ## 2026-10-11 – Juna – Eigene Vinted-Statistikseite mit echten Messwerten
 
 **Auftrag:** Kacheln und Diagramm aus dem Kleiderschrank herausnehmen und als

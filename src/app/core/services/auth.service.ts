@@ -1,11 +1,17 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthSession, User } from '@supabase/supabase-js';
 import { SupabaseService } from './supabase.service';
+import { LoggerService } from './logger.service';
 import { UserProfile } from '../models/flipbase.models';
 import { SyncStatusService } from './sync-status.service';
 import { LandingHintService } from './landing-hint.service';
 import { SessionChannelService } from './session-channel.service';
+import { WebPushRevocationStoreService } from './web-push-revocation-store.service';
+import { WebPushApiService } from './web-push-api.service';
+import { OfflinePurchaseDraftStore } from '../../features/purchases/services/offline-purchase-draft.store';
+import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
+import { downloadOfflinePurchases } from '../../features/purchases/utils/offline-purchase-export';
 
 export interface ProfileUpdateResult {
   readonly error: Error | null;
@@ -48,10 +54,15 @@ export function istSitzungWiderrufen(fehler: unknown): boolean {
 })
 export class AuthService {
   private readonly supabase = inject(SupabaseService);
+  private readonly logger = inject(LoggerService, { optional: true });
   private readonly syncStatus = inject(SyncStatusService, { optional: true });
   private readonly router = inject(Router);
   private readonly landingHint = inject(LandingHintService);
   private readonly sessionChannel = inject(SessionChannelService);
+  private readonly pushRevocations = inject(WebPushRevocationStoreService, { optional: true });
+  private readonly pushApi = inject(WebPushApiService, { optional: true });
+  private readonly offlineDrafts = inject(OfflinePurchaseDraftStore, { optional: true });
+  private readonly confirmDialog = inject(ConfirmDialogService, { optional: true });
   private readonly betaActivationAttempts = new Set<string>();
 
   readonly session = signal<AuthSession | null>(null);
@@ -91,6 +102,24 @@ export class AuthService {
     // ohne dass supabase-js es merkt: Es erfaehrt davon erst bei der naechsten
     // Token-Erneuerung. Bis dahin bliebe die App stehen und sammelte Fehler.
     this.syncStatus?.beiSitzungsverdacht(() => void this.pruefeSitzungNach());
+    if (typeof window !== 'undefined') {
+      const flushPush = () => void this.flushPushRevocations();
+      window.addEventListener('online', flushPush);
+      inject(DestroyRef).onDestroy(() => window.removeEventListener('online', flushPush));
+      flushPush();
+    }
+  }
+  private async flushPushRevocations(): Promise<void> {
+    try {
+      if (this.pushRevocations && this.pushApi)
+        await this.pushRevocations.flush((generationId, token) =>
+          this.pushApi
+            ? this.pushApi.revokeBinding(generationId, token)
+            : Promise.reject(new Error('Push-API fehlt.')),
+        );
+    } catch {
+      this.logger?.warn('Der gespeicherte Push-Widerruf ist noch ausstehend!');
+    }
   }
 
   /**
@@ -120,6 +149,22 @@ export class AuthService {
    * abgemeldeter Nutzer noch Reste seiner Sitzung sieht.
    */
   private leereSitzungsdaten(): void {
+    const userId = this.currentUser()?.id;
+    if (userId)
+      void this.offlineDrafts
+        ?.lock()
+        .catch(() =>
+          this.logger?.warn('Der lokale Entwurfskontext konnte nicht dauerhaft gesperrt werden!'),
+        );
+    if (userId) {
+      try {
+        this.pushRevocations?.markForRevoke(userId);
+      } catch {
+        this.logger?.warn(
+          'Der lokale Push-Widerruf konnte nicht gesichert werden! Die serverseitige Sitzungsprüfung bleibt aktiv.',
+        );
+      }
+    }
     this.session.set(null);
     this.currentUser.set(null);
     this.profile.set(null);
@@ -150,6 +195,7 @@ export class AuthService {
       if (data?.session) {
         const { error } = await this.supabase.client.auth.getUser();
         if (istSitzungWiderrufen(error)) {
+          await this.offlineDrafts?.lock();
           // Supabase räumt die Sitzung dabei selbst weg; hier bleibt nur, den
           // Hinweis auf der Landingpage zu entfernen und abgemeldet zu bleiben.
           this.landingHint.abmelden();
@@ -197,6 +243,7 @@ export class AuthService {
   }
 
   private applySession(session: AuthSession): void {
+    this.offlineDrafts?.noteIdentity(session.user.id);
     this.session.set(session);
     this.currentUser.set(session.user);
     // Der Landingpage mitteilen, dass hier jemand angemeldet ist.
@@ -494,13 +541,61 @@ export class AuthService {
   private async beendeSitzung(bereich: 'local' | 'global'): Promise<void> {
     this.isLoading.set(true);
     try {
-      try {
-        await this.supabase.client.auth.signOut({ scope: bereich });
-      } catch {
-        // Auch ohne erreichbares Backend lokal abmelden.
-      }
-      this.leereSitzungsdaten();
-      this.router.navigate(['/auth/login']);
+      const finishLogout = async () => {
+        if (this.offlineDrafts && this.confirmDialog) {
+          let pendingDrafts = 0;
+          try {
+            pendingDrafts = (await this.offlineDrafts.list()).filter(
+              (draft) => draft.state !== 'transferred',
+            ).length;
+          } catch {
+            /* Noch kein nutzbarer lokaler Kontext. */
+          }
+          if (pendingDrafts) {
+            const shouldExport = await this.confirmDialog.frage({
+              titel: 'Lokale Entwürfe vor der Abmeldung sichern?',
+              text: `${pendingDrafts} Entwürfe dieses Workspaces sind noch offen. Exportiere sie vor der Abmeldung. Weitere lokale Workspaces bleiben gesperrt erhalten. Unter „Entwürfe verwalten“ kannst du bewusst verwerfen.`,
+              bestaetigenText: 'Exportieren und abmelden',
+              abbrechenText: 'Entwürfe verwalten',
+            });
+            if (!shouldExport) {
+              await this.router.navigate(['/offline/purchases']);
+              return;
+            }
+            downloadOfflinePurchases(await this.offlineDrafts.exportCurrent());
+          }
+        }
+        await this.offlineDrafts?.lock();
+        const userId = this.currentUser()?.id;
+        // Vor dem Entfernen der Sitzung sichern; die Capability braucht später kein altes JWT.
+        if (userId) this.pushRevocations?.markForRevoke(userId);
+        if (this.pushRevocations && this.pushApi)
+          await this.pushRevocations.flush((generationId, token) =>
+            this.pushApi
+              ? this.pushApi.revokeBinding(generationId, token)
+              : Promise.reject(new Error('Push-API fehlt.')),
+          );
+        if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+          try {
+            await (
+              await (
+                await navigator.serviceWorker.getRegistration('/')
+              )?.pushManager?.getSubscription()
+            )?.unsubscribe();
+          } catch {
+            /* Der gesicherte Serverwiderruf bleibt für die nächste Verbindung erhalten. */
+          }
+        }
+        try {
+          await this.supabase.client.auth.signOut({ scope: bereich });
+        } catch {
+          // Auch ohne erreichbares Backend lokal abmelden.
+        }
+        this.leereSitzungsdaten();
+        this.router.navigate(['/auth/login']);
+      };
+      if (this.pushRevocations) await this.pushRevocations.runExclusive(finishLogout);
+      else await finishLogout();
     } finally {
       this.isLoading.set(false);
     }

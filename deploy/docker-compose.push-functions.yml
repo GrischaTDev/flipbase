@@ -1,0 +1,55 @@
+# Mit der vorhandenen Supabase-Hauptcompose zusammen benutzen. Kein Eingriff in main/JWT.
+services:
+  push-functions:
+    extends:
+      file: ${FLIPBASE_SUPABASE_DIRECTORY:-/opt/supabase}/docker-compose.yml
+      service: functions
+    container_name: flipbase-push-functions
+    restart: unless-stopped
+    command: ['start', '--main-service', '/home/deno/functions/push-main']
+    volumes:
+      - ${PUSH_FUNCTIONS_DIRECTORY:?Versioniertes Functionpaket angeben}:/home/deno/functions:ro
+    environment:
+      VERIFY_JWT: 'false'
+      WEB_PUSH_ENABLED: ${WEB_PUSH_ENABLED:-false}
+      WEB_PUSH_VAPID_PUBLIC_KEY: ${WEB_PUSH_VAPID_PUBLIC_KEY:-}
+      WEB_PUSH_VAPID_KEY_ID: ${WEB_PUSH_VAPID_KEY_ID:-}
+      WEB_PUSH_ALLOWED_ORIGINS: ${WEB_PUSH_ALLOWED_ORIGINS:-https://app.flipbase.de}
+      FLIPBASE_COMMIT: ${FLIPBASE_PUSH_COMMIT:?Releasecommit angeben}
+      WEB_PUSH_ALLOW_ALL: ${WEB_PUSH_ALLOW_ALL:-false}
+      WEB_PUSH_PILOT_USER_IDS: ${WEB_PUSH_PILOT_USER_IDS:-}
+      WEB_PUSH_PILOT_DEVICE_IDS: ${WEB_PUSH_PILOT_DEVICE_IDS:-}
+      EBAY_CLIENT_ID: ${EBAY_CLIENT_ID:-}
+      EBAY_CLIENT_SECRET: ${EBAY_CLIENT_SECRET:-}
+      EBAY_REDIRECT_URI_NAME: ${EBAY_REDIRECT_URI_NAME:-}
+      EBAY_TOKEN_ENCRYPTION_KEY: ${EBAY_TOKEN_ENCRYPTION_KEY:-}
+      EBAY_APP_URL: ${EBAY_APP_URL:-https://app.flipbase.de}
+      EBAY_ENVIRONMENT: ${EBAY_ENVIRONMENT:-production}
+      EBAY_DELETION_VERIFICATION_TOKEN: ${EBAY_DELETION_VERIFICATION_TOKEN:-}
+      EBAY_DELETION_ENDPOINT: ${EBAY_DELETION_ENDPOINT:-}
+    networks: [default, push-observer]
+    mem_limit: 256m
+    cpus: 0.5
+  push-gateway:
+    image: ${FLIPBASE_PUSH_IMAGE:?Geprueften Pushdigest angeben}
+    container_name: flipbase-push-gateway
+    restart: unless-stopped
+    init: true
+    environment:
+      PUSH_PROCESS: gateway
+      WEB_PUSH_ALLOWED_ORIGINS: ${WEB_PUSH_ALLOWED_ORIGINS:-https://app.flipbase.de}
+    depends_on:
+      - push-functions
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 64
+    mem_limit: 128m
+    cpus: 0.5
+    logging:
+      driver: json-file
+      options: {max-size: '5m', max-file: '3'}
+networks:
+  push-observer:
+    name: flipbase-push-observer
+    internal: true

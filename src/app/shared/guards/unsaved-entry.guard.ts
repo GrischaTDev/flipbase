@@ -1,9 +1,24 @@
-import { CanDeactivateFn } from '@angular/router';
+import { CanDeactivateFn, ChildrenOutletContexts } from '@angular/router';
 
 export interface UnsavedEntryPage {
   hasUnsavedChanges(): boolean;
   isSaving(): boolean;
   canNavigateTo?(url: string): boolean;
+}
+export function hasOpenEntry(contexts: ChildrenOutletContexts | null): boolean {
+  let current = contexts;
+  while (current) {
+    const context = current.getContext('primary');
+    if (!context) break;
+    const component = context.outlet?.isActivated
+      ? (context.outlet.component as Partial<UnsavedEntryPage>)
+      : null;
+    if (typeof component?.hasUnsavedChanges === 'function' && component.hasUnsavedChanges())
+      return true;
+    if (typeof component?.isSaving === 'function' && component.isSaving()) return true;
+    current = context.children;
+  }
+  return false;
 }
 
 export function canLeaveUnsavedEntry(

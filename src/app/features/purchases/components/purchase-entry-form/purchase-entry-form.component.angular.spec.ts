@@ -139,6 +139,12 @@ Component({
 })(PurchaseSourceDialogStubComponent);
 
 class RenderedPurchaseEntryFormComponent {
+  readonly isSubmitting = signal(false);
+  readonly offlineLoading = signal(false);
+  readonly offlineDraft = signal(null);
+  readonly offlineConfirmed = signal(false);
+  readonly offlineRetryAvailable = signal(false);
+  readonly offlineSaving = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly form = new FormGroup({
     receipt_mode: new FormControl<'external' | 'self'>('external', { nonNullable: true }),
@@ -348,6 +354,11 @@ function erstelleKomponente(vorhandener: Purchase | null = null) {
     created,
     closed,
     isSubmitting: signal(false),
+    offlineDraft: signal(null),
+    offlineLoading: signal(false),
+    offlineSaving: signal(false),
+    offlineConfirmed: signal(false),
+    offlineRetryAvailable: signal(false),
     errorMessage: signal<string | null>(null),
     persistedDraft: signal<Purchase | null>(null),
     pendingDocuments: signal<readonly PendingPurchaseDocument[]>([]),

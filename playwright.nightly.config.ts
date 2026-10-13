@@ -4,7 +4,7 @@ import baseConfig from './playwright.config';
 // Dateiname und npm-Befehl bleiben kompatibel; es gibt keinen Nachtzeitplan mehr.
 export default defineConfig({
   ...baseConfig,
-  grep: /@pr-smoke\b|@core-smoke\b/,
+  grep: /@pr-smoke\b|@core-smoke\b|@pwa-layout\b/,
   forbidOnly: true,
   retries: 1,
   projects: [

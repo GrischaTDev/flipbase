@@ -2,6 +2,11 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
   testDir: './e2e',
+  testIgnore: [
+    'pwa-production.spec.ts',
+    'pwa-purchase-drafts.spec.ts',
+    'pwa-push-navigation.spec.ts',
+  ],
   globalSetup: './e2e/global-setup.ts',
   fullyParallel: true,
   retries: process.env['CI'] ? 1 : 0,

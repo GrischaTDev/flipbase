@@ -1106,6 +1106,94 @@ export type Database = {
           },
         ]
       }
+      ebay_order_observations: {
+        Row: {
+          created_at: string
+          environment: string
+          external_account_id: string
+          id: number
+          observed_at: string
+          order_id: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at: string
+          environment: string
+          external_account_id: string
+          id?: never
+          observed_at?: string
+          order_id: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          environment?: string
+          external_account_id?: string
+          id?: never
+          observed_at?: string
+          order_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ebay_order_observations_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ebay_order_observer_scans: {
+        Row: {
+          authorization_version: number
+          baseline_to: string | null
+          connection_id: string
+          environment: string
+          external_account_id: string
+          id: number
+          next_due_at: string
+          next_offset: number
+          watermark: string | null
+          window_from: string | null
+          window_to: string | null
+        }
+        Insert: {
+          authorization_version: number
+          baseline_to?: string | null
+          connection_id: string
+          environment: string
+          external_account_id: string
+          id?: never
+          next_due_at?: string
+          next_offset?: number
+          watermark?: string | null
+          window_from?: string | null
+          window_to?: string | null
+        }
+        Update: {
+          authorization_version?: number
+          baseline_to?: string | null
+          connection_id?: string
+          environment?: string
+          external_account_id?: string
+          id?: never
+          next_due_at?: string
+          next_offset?: number
+          watermark?: string | null
+          window_from?: string | null
+          window_to?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ebay_order_observer_scans_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "ebay_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ebay_order_snapshots: {
         Row: {
           authorization_version: number
@@ -7350,6 +7438,257 @@ export type Database = {
         }
         Relationships: []
       }
+      web_push_connection_incidents: {
+        Row: {
+          connection_id: string
+          episode_id: string
+          id: number
+          is_open: boolean
+          provider: string
+        }
+        Insert: {
+          connection_id: string
+          episode_id?: string
+          id?: never
+          is_open?: boolean
+          provider: string
+        }
+        Update: {
+          connection_id?: string
+          episode_id?: string
+          id?: never
+          is_open?: boolean
+          provider?: string
+        }
+        Relationships: []
+      }
+      web_push_deliveries: {
+        Row: {
+          accepted_at: string | null
+          attempts: number
+          binding_generation: string
+          claim_token: string | null
+          created_at: string
+          device_id: string
+          event_id: string
+          finished_at: string | null
+          id: string
+          last_error_class: string | null
+          lease_until: string | null
+          next_attempt_at: string
+          status: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          attempts?: number
+          binding_generation: string
+          claim_token?: string | null
+          created_at?: string
+          device_id: string
+          event_id: string
+          finished_at?: string | null
+          id?: string
+          last_error_class?: string | null
+          lease_until?: string | null
+          next_attempt_at?: string
+          status?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          attempts?: number
+          binding_generation?: string
+          claim_token?: string | null
+          created_at?: string
+          device_id?: string
+          event_id?: string
+          finished_at?: string | null
+          id?: string
+          last_error_class?: string | null
+          lease_until?: string | null
+          next_attempt_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "web_push_deliveries_binding_generation_fkey"
+            columns: ["binding_generation"]
+            isOneToOne: false
+            referencedRelation: "web_push_generations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "web_push_deliveries_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "web_push_devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "web_push_deliveries_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "web_push_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      web_push_devices: {
+        Row: {
+          active: boolean
+          auth: string
+          endpoint: string
+          endpoint_fingerprint: string
+          id: string
+          installation_id: string
+          last_confirmed_at: string
+          p256dh: string
+          session_id: string
+          test_count: number
+          test_window_at: string | null
+          user_id: string
+          vapid_key_id: string
+        }
+        Insert: {
+          active?: boolean
+          auth: string
+          endpoint: string
+          endpoint_fingerprint: string
+          id: string
+          installation_id: string
+          last_confirmed_at?: string
+          p256dh: string
+          session_id: string
+          test_count?: number
+          test_window_at?: string | null
+          user_id: string
+          vapid_key_id: string
+        }
+        Update: {
+          active?: boolean
+          auth?: string
+          endpoint?: string
+          endpoint_fingerprint?: string
+          id?: string
+          installation_id?: string
+          last_confirmed_at?: string
+          p256dh?: string
+          session_id?: string
+          test_count?: number
+          test_window_at?: string | null
+          user_id?: string
+          vapid_key_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "web_push_devices_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "web_push_generations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      web_push_events: {
+        Row: {
+          category: string
+          connection_id: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          payload: Json
+          source_key: string
+          workspace_id: string
+        }
+        Insert: {
+          category: string
+          connection_id?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          payload: Json
+          source_key: string
+          workspace_id: string
+        }
+        Update: {
+          category?: string
+          connection_id?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          payload?: Json
+          source_key?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "web_push_events_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      web_push_generations: {
+        Row: {
+          created_at: string
+          id: string
+          revoked_at: string | null
+          token_hash: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          revoked_at?: string | null
+          token_hash: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          revoked_at?: string | null
+          token_hash?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      web_push_preferences: {
+        Row: {
+          categories: string[]
+          device_id: string
+          id: number
+          workspace_id: string
+        }
+        Insert: {
+          categories?: string[]
+          device_id: string
+          id?: never
+          workspace_id: string
+        }
+        Update: {
+          categories?: string[]
+          device_id?: string
+          id?: never
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "web_push_preferences_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "web_push_devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "web_push_preferences_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       webhook_configs: {
         Row: {
           created_at: string
@@ -8265,6 +8604,37 @@ export type Database = {
           p_user_id: string
         }
         Returns: Json
+      }
+      ebay_order_observer_claim: {
+        Args: {
+          p_allow_all?: boolean
+          p_environment?: string
+          p_pilot_devices?: string[]
+          p_pilot_users?: string[]
+        }
+        Returns: Json
+      }
+      ebay_order_observer_delay: {
+        Args: {
+          p_connection_id: string
+          p_delay_seconds: number
+          p_operation_id: string
+          p_version: number
+        }
+        Returns: undefined
+      }
+      ebay_order_observer_page: {
+        Args: {
+          p_complete: boolean
+          p_connection_id: string
+          p_from: string
+          p_offset: number
+          p_operation_id: string
+          p_orders: Json
+          p_to: string
+          p_version: number
+        }
+        Returns: boolean
       }
       ebay_record_order_sale: {
         Args: {
@@ -11027,6 +11397,80 @@ export type Database = {
       }
       validate_size_reference: {
         Args: { p_content: Json; p_publish: boolean }
+        Returns: Json
+      }
+      web_push_allowed_categories: {
+        Args: { p_user_id: string; p_workspace_id: string }
+        Returns: string[]
+      }
+      web_push_authorize: {
+        Args: {
+          p_claim_token: string
+          p_delivery_id: string
+          p_generation: string
+        }
+        Returns: Json
+      }
+      web_push_can_deliver: {
+        Args: {
+          p_category: string
+          p_connection_id: string
+          p_session_id: string
+          p_user_id: string
+          p_workspace_id: string
+        }
+        Returns: boolean
+      }
+      web_push_claim: {
+        Args: {
+          p_allow_all?: boolean
+          p_key_id: string
+          p_pilot_devices?: string[]
+          p_pilot_users?: string[]
+        }
+        Returns: {
+          binding_generation: string
+          claim_token: string
+          id: string
+        }[]
+      }
+      web_push_cleanup: { Args: never; Returns: undefined }
+      web_push_enqueue_event: {
+        Args: {
+          p_category: string
+          p_connection_id: string
+          p_device_id?: string
+          p_source_key: string
+          p_target: Json
+          p_workspace_id: string
+        }
+        Returns: string
+      }
+      web_push_enqueue_test: {
+        Args: { p_device_id: string; p_workspace_id: string }
+        Returns: string
+      }
+      web_push_finish: {
+        Args: {
+          p_claim_token: string
+          p_delivery_id: string
+          p_generation: string
+          p_result: string
+          p_retry_after_ms?: number
+        }
+        Returns: boolean
+      }
+      web_push_hash_equal: {
+        Args: { p_left: string; p_right: string }
+        Returns: boolean
+      }
+      web_push_health: { Args: never; Returns: Json }
+      web_push_revoke_binding: {
+        Args: { p_generation_id: string; p_token_hash: string }
+        Returns: undefined
+      }
+      web_push_settings: {
+        Args: { p_input: Json; p_session_id: string; p_user_id: string }
         Returns: Json
       }
       workspace_access_is_valid: {

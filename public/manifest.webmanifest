@@ -4,6 +4,8 @@
   "description": "Das professionelle Reselling-Betriebssystem für Flipper, Sourcing & Multichannel",
   "start_url": "/",
   "id": "/",
+  "scope": "/",
+  "lang": "de",
   "display": "standalone",
   "background_color": "#1f1f1f",
   "theme_color": "#1f1f1f",

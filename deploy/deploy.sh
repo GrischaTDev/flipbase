@@ -23,6 +23,11 @@ CADDY_CONFIG_PATH="${FLIPBASE_CADDY_CONFIG_PATH:-/opt/supabase/volumes/proxy/cad
 CADDY_CONTAINER="${FLIPBASE_CADDY_CONTAINER:-supabase-caddy}"
 SNIPER_COMPOSE_FILE="${FLIPBASE_SNIPER_COMPOSE_FILE:-/opt/flipbase-sniper/docker-compose.sniper.yml}"
 SNIPER_IMAGE_REPOSITORY="${FLIPBASE_SNIPER_IMAGE_REPOSITORY:-ghcr.io/grischatdev/flipbase-sniper}"
+PUSH_RUNTIME_DIRECTORY="${FLIPBASE_PUSH_RUNTIME_DIRECTORY:-/opt/flipbase-push}"
+PUSH_COMPOSE_FILE="$PUSH_RUNTIME_DIRECTORY/docker-compose.push.yml"
+PUSH_FUNCTIONS_COMPOSE_FILE="$PUSH_RUNTIME_DIRECTORY/docker-compose.push-functions.yml"
+PUSH_IMAGE_REPOSITORY="${FLIPBASE_PUSH_IMAGE_REPOSITORY:-ghcr.io/grischatdev/flipbase-push}"
+SUPABASE_DIRECTORY="${FLIPBASE_SUPABASE_DIRECTORY:-/opt/supabase}"
 
 BEFEHL="${SSH_ORIGINAL_COMMAND:-latest}"
 
@@ -41,6 +46,7 @@ fi
 
 WEB_TAG=""
 SNIPER_REFERENCE=""
+PUSH_REFERENCE=""
 release_image=""
 
 # Die Kennzeichnung landet in einem Docker-Befehl. Sie wird deshalb streng
@@ -57,7 +63,7 @@ if [[ ${#parts[@]} -eq 1 ]]; then
     exit 2
   fi
 elif [[ "${parts[0]:-}" == "release-v1" ]]; then
-  if [[ ${#parts[@]} -ne 2 && ${#parts[@]} -ne 4 ]] || [[ ! "${parts[1]:-}" =~ ^sha256:[a-f0-9]{64}$ ]]; then
+  if [[ ${#parts[@]} -ne 2 && ${#parts[@]} -ne 4 && ${#parts[@]} -ne 6 ]] || [[ ! "${parts[1]:-}" =~ ^sha256:[a-f0-9]{64}$ ]]; then
     echo 'Ungueltige Release-Kennzeichnung.' >&2
     exit 2
   fi
@@ -66,18 +72,22 @@ elif [[ "${parts[0]:-}" == "release-v1" ]]; then
     echo 'Release-v1 erfordert den Serverbootstrap aus deploy/RELEASE-PIPELINE.md.' >&2
     exit 1
   fi
-  if [[ ${#parts[@]} -eq 4 ]]; then
-    if [[ "${parts[2]}" != "sniper" || ( ! "${parts[3]:-}" =~ ^sha-[0-9a-f]{7}$ && ! "${parts[3]:-}" =~ ^sha256:[a-f0-9]{64}$ ) ]]; then
-      echo 'Ungueltige Sniper-Kennzeichnung.' >&2
-      exit 2
-    fi
-    SNIPER_REFERENCE="${parts[3]}"
-  fi
-elif [[ ${#parts[@]} -eq 2 || ${#parts[@]} -eq 4 ]]; then
+  for ((index = 2; index < ${#parts[@]}; index += 2)); do
+    case "${parts[index]}" in
+      sniper)
+        [[ -z "$SNIPER_REFERENCE" && ( "${parts[index+1]}" =~ ^sha-[0-9a-f]{7}$ || "${parts[index+1]}" =~ ^sha256:[a-f0-9]{64}$ ) ]] || { echo 'Ungueltige Sniper-Kennzeichnung.' >&2; exit 2; }
+        SNIPER_REFERENCE="${parts[index+1]}" ;;
+      push)
+        [[ -z "$PUSH_REFERENCE" && "${parts[index+1]}" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo 'Ungueltige Push-Kennzeichnung.' >&2; exit 2; }
+        PUSH_REFERENCE="${parts[index+1]}" ;;
+      *) echo 'Unbekannter Releasedienst.' >&2; exit 2 ;;
+    esac
+  done
+elif [[ ${#parts[@]} -eq 2 || ${#parts[@]} -eq 4 || ${#parts[@]} -eq 6 ]]; then
   for ((index = 0; index < ${#parts[@]}; index += 2)); do
     service="${parts[index]}"
     tag="${parts[index + 1]}"
-    if [[ ! "$tag" =~ ^sha-[0-9a-f]{7}$ && ( "$service" != "sniper" || ! "$tag" =~ ^sha256:[a-f0-9]{64}$ ) ]]; then
+    if [[ "$service" == "push" && ! "$tag" =~ ^sha256:[a-f0-9]{64}$ ]] || [[ ! "$tag" =~ ^sha-[0-9a-f]{7}$ && ( ( "$service" != "sniper" && "$service" != "push" ) || ! "$tag" =~ ^sha256:[a-f0-9]{64}$ ) ]]; then
       echo 'Ungueltige Image-Kennzeichnung.' >&2
       exit 2
     fi
@@ -90,6 +100,10 @@ elif [[ ${#parts[@]} -eq 2 || ${#parts[@]} -eq 4 ]]; then
         [[ -z "$SNIPER_REFERENCE" ]] || { echo 'Sniper wurde doppelt angegeben.' >&2; exit 2; }
         SNIPER_REFERENCE="$tag"
         ;;
+      push)
+        [[ -z "$PUSH_REFERENCE" ]] || { echo 'Push wurde doppelt angegeben.' >&2; exit 2; }
+        PUSH_REFERENCE="$tag"
+        ;;
       *)
         echo 'Unbekannter Dienst.' >&2
         exit 2
@@ -101,7 +115,11 @@ else
   exit 2
 fi
 
-if [[ -z "$WEB_TAG" && -z "$release_image" && -z "$SNIPER_REFERENCE" ]]; then
+if [[ -n "$PUSH_REFERENCE" && -n "$WEB_TAG" ]]; then
+  echo 'Push mit Anwendung erfordert Release-v1 und den Migrationsbootstrap.' >&2
+  exit 2
+fi
+if [[ -z "$WEB_TAG" && -z "$release_image" && -z "$SNIPER_REFERENCE" && -z "$PUSH_REFERENCE" ]]; then
   echo 'Kein Dienst zum Ausrollen angegeben.' >&2
   exit 2
 fi
@@ -109,8 +127,10 @@ fi
 if [[ -n "$release_image" ]]; then
   TAG="release-v1"
 else
-  TAG="${WEB_TAG:-$SNIPER_REFERENCE}"
+  TAG="${WEB_TAG:-${SNIPER_REFERENCE:-$PUSH_REFERENCE}}"
 fi
+push_image=""
+if [[ -n "$PUSH_REFERENCE" ]]; then push_image="$PUSH_IMAGE_REPOSITORY@$PUSH_REFERENCE"; fi
 
 sniper_image=""
 if [[ -n "$SNIPER_REFERENCE" ]]; then
@@ -174,6 +194,57 @@ prepare_sniper_browser_runtime() {
   FLIPBASE_SNIPER_IMAGE="$sniper_image" docker compose -f "$SNIPER_COMPOSE_FILE" config --quiet
 }
 
+prepare_push_runtime() {
+  local artifact_container="$1"
+  export PUSH_ENV_FILE="${PUSH_ENV_FILE:-$PUSH_RUNTIME_DIRECTORY/push.env}"
+  [[ -f "$PUSH_ENV_FILE" && ! -L "$PUSH_ENV_FILE" && "$(stat -c '%u:%g:%a' "$PUSH_ENV_FILE")" = '0:0:600' ]] || {
+    echo 'Push benoetigt eine vorbereitete root-Konfiguration mit Modus0600.' >&2; return 1;
+  }
+  [[ -f "$SUPABASE_DIRECTORY/docker-compose.yml" && -f "$SUPABASE_DIRECTORY/.env" ]] || {
+    echo 'Supabase-Hauptcompose fehlt; Pushbootstrap erforderlich.' >&2; return 1;
+  }
+  docker cp "$artifact_container":/opt/flipbase/push-functions "$temporary/push-functions"
+  (cd "$temporary/push-functions" && sha256sum --check --strict manifest.sha256 >/dev/null)
+  FLIPBASE_PUSH_COMMIT="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["commit"])' "$temporary/push-functions/deployment.json")"
+  [[ "$FLIPBASE_PUSH_COMMIT" =~ ^[a-f0-9]{40}$ && "$FLIPBASE_PUSH_COMMIT" != 0000000000000000000000000000000000000000 ]] || { echo 'Ungueltiger Pushreleasecommit.' >&2; return 1; }
+  export FLIPBASE_PUSH_COMMIT FLIPBASE_PUSH_IMAGE="$push_image"
+  docker pull "$push_image"
+  local revision
+  revision="$(docker inspect -f '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$push_image")"
+  [[ "$revision" = "$FLIPBASE_PUSH_COMMIT" ]] || { echo 'Pushimage und Functionpaket haben verschiedene Commits.' >&2; return 1; }
+  export PUSH_FUNCTIONS_DIRECTORY="$PUSH_RUNTIME_DIRECTORY/releases/$FLIPBASE_PUSH_COMMIT"
+  install -d -m 700 "$PUSH_RUNTIME_DIRECTORY/releases"
+  if [[ ! -d "$PUSH_FUNCTIONS_DIRECTORY" ]]; then
+    install -d -m 755 "$PUSH_FUNCTIONS_DIRECTORY"
+    cp -a "$temporary/push-functions/." "$PUSH_FUNCTIONS_DIRECTORY/"
+  fi
+  (cd "$PUSH_FUNCTIONS_DIRECTORY" && sha256sum --check --strict manifest.sha256 >/dev/null)
+  docker cp "$artifact_container":/opt/flipbase/docker-compose.push.yml "$temporary/docker-compose.push.yml"
+  docker cp "$artifact_container":/opt/flipbase/docker-compose.push-functions.yml "$temporary/docker-compose.push-functions.yml"
+  install -m 644 "$temporary/docker-compose.push.yml" "$PUSH_COMPOSE_FILE"
+  install -m 644 "$temporary/docker-compose.push-functions.yml" "$PUSH_FUNCTIONS_COMPOSE_FILE"
+  # Jede Releaseaktivierung startet geschlossen; Pilot-/Globalfreigabe bleibt ein eigener Betriebsschritt.
+  export WEB_PUSH_ENABLED=false WEB_PUSH_ALLOW_ALL=false
+  FLIPBASE_PUSH_IMAGE="$push_image" docker compose -f "$PUSH_COMPOSE_FILE" config --quiet
+  local configured
+  configured="$(FLIPBASE_PUSH_IMAGE="$push_image" docker compose -f "$PUSH_COMPOSE_FILE" config --images push-worker)"
+  [[ "$configured" = "$push_image" ]] || { echo 'Compose verwendet nicht den Pushdigest.' >&2; return 1; }
+}
+
+activate_push_runtime() {
+  prepare_push_runtime "$1"
+  # Eigenes Functionpaket: vorhandene main-/hello-Verzeichnisse und JWT-Regeln werden nicht ersetzt.
+  (cd "$SUPABASE_DIRECTORY" && docker compose --env-file .env --env-file "$PUSH_ENV_FILE" -f docker-compose.yml -f "$PUSH_FUNCTIONS_COMPOSE_FILE" config --quiet)
+  (cd "$SUPABASE_DIRECTORY" && docker compose --env-file .env --env-file "$PUSH_ENV_FILE" -f docker-compose.yml -f "$PUSH_FUNCTIONS_COMPOSE_FILE" up -d --no-deps --pull never push-functions push-gateway)
+  FLIPBASE_PUSH_IMAGE="$push_image" docker compose -f "$PUSH_COMPOSE_FILE" up -d --pull never push-worker
+  # Wartet auf Router und echte Functioninitialisierung; keine Testgeneration erzeugen.
+  for _ in $(seq 1 30); do
+    if docker exec flipbase-push-gateway node -e "Promise.all([fetch('http://push-functions:9000/push-settings',{method:'POST',body:'{}'}),fetch('http://push-functions:9000/push-revoke',{method:'POST',body:'{}'})]).then(([a,b])=>{if(a.status!==401||b.status!==200)process.exit(1)}).catch(()=>process.exit(1))"; then break; fi
+    sleep 2
+  done
+  docker exec flipbase-push-gateway node -e "Promise.all([fetch('http://push-functions:9000/push-settings',{method:'POST',body:'{}'}),fetch('http://push-functions:9000/push-revoke',{method:'POST',body:'{}'})]).then(([a,b])=>{if(a.status!==401||b.status!==200)process.exit(1)}).catch(()=>process.exit(1))"
+}
+
 if [[ -n "$release_image" ]]; then
   configured_image="$(FLIPBASE_IMAGE="$release_image" docker compose config --images web)"
   [[ "$configured_image" = "$release_image" ]] || {
@@ -184,6 +255,7 @@ if [[ -n "$release_image" ]]; then
   mkdir "$temporary/migrations"
   docker cp "$release_container":/opt/flipbase/migrations/. "$temporary/migrations/"
   "$VERZEICHNIS/apply-release-migrations.sh" "$temporary/migrations"
+  if [[ -n "$PUSH_REFERENCE" ]]; then activate_push_runtime "$release_container"; fi
   if [[ -n "$SNIPER_REFERENCE" ]]; then prepare_sniper_browser_runtime "$release_container"; fi
   # Auch der Start verwendet den Digest. Eine inzwischen verschobene Markierung
   # kann dadurch kein anderes als das geprüfte Abbild starten.
@@ -192,6 +264,8 @@ elif [[ -n "$WEB_TAG" ]]; then
   IMAGE_TAG="$WEB_TAG" docker compose pull web
   IMAGE_TAG="$WEB_TAG" docker compose up -d web
 fi
+
+if [[ -n "$PUSH_REFERENCE" && -z "$release_image" ]]; then activate_push_runtime flipbase-web; fi
 
 if [[ -n "$SNIPER_REFERENCE" ]]; then
   if [[ -z "$release_image" ]]; then prepare_sniper_browser_runtime flipbase-web; fi
@@ -276,8 +350,10 @@ activate_release_caddy_configuration() {
 
 if [[ -n "$WEB_TAG" || -n "$release_image" ]]; then
   wait_for_healthy flipbase-web
-  if [ -d "$LANDING_DIRECTORY" ]; then
+  if [[ -n "$PUSH_REFERENCE" || -d "$LANDING_DIRECTORY" ]]; then
     activate_release_caddy_configuration
+  fi
+  if [ -d "$LANDING_DIRECTORY" ]; then
     if ! docker cp flipbase-web:/usr/share/nginx/landing/. "$LANDING_DIRECTORY"/; then
       echo 'Landingpage konnte nicht synchronisiert werden; stelle die vorherige Caddy-Konfiguration wieder her.' >&2
       restore_caddy_configuration
@@ -289,4 +365,20 @@ fi
 
 if [[ -n "$SNIPER_REFERENCE" ]]; then
   wait_for_healthy flipbase-sniper
+fi
+
+if [[ -n "$PUSH_REFERENCE" ]]; then
+  if [[ -z "$release_image" ]]; then activate_release_caddy_configuration; fi
+  wait_for_healthy flipbase-push-worker
+  wait_for_healthy flipbase-push-gateway
+  for container in flipbase-push-worker flipbase-push-gateway; do
+    expected_id="$(docker inspect -f '{{.Id}}' "$push_image")"
+    running_id="$(docker inspect -f '{{.Image}}' "$container")"
+    [[ "$running_id" = "$expected_id" ]] || { echo 'Laufende Pushinstanz verwendet falsches Abbild.' >&2; exit 1; }
+    docker exec "$container" node -e "fetch('http://127.0.0.1:4177/healthz').then(async r=>{const h=await r.json();if(!r.ok||h.commit!==process.env.FLIPBASE_COMMIT)process.exit(1)}).catch(()=>process.exit(1))"
+  done
+  # Nur Referenzen; Ruecknahme verwendet bekannte kompatible Digests und laesst SQL/Bindings erhalten.
+  current_app_image="$release_image"
+  if [[ -z "$current_app_image" ]]; then current_app_image="$(docker inspect -f '{{.Config.Image}}' flipbase-web)"; fi
+  printf '%s\n%s\n%s\n' "$current_app_image" "$push_image" "$FLIPBASE_PUSH_COMMIT" > "$PUSH_RUNTIME_DIRECTORY/current-release"
 fi

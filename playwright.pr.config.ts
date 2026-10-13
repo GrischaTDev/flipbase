@@ -7,6 +7,7 @@ export default defineConfig({
   // Das historische @pr-smoke allein macht einen Test nicht mehr zur Pflicht.
   grep: [
     /@core-smoke\b/,
+    /@pwa-layout\b/,
     /keeps a saved draft editable through discard, save and reopening @pr-smoke\b/,
     /keeps purchase details in the right card after completion @pr-smoke\b/,
     /hält die Sidebar kompakt und hebt den aktiven Bereich in Logo-Gelb hervor @pr-smoke\b/,

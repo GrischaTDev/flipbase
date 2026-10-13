@@ -24,6 +24,11 @@ function invalid(): Error {
   return new Error('Das Vinted-Inserat konnte nicht vollständig gelesen werden.');
 }
 
+/** Liest einen Preis, wie ihn das Preisfeld der Maske zeigt, als Cent-Betrag. */
+export function parseVintedListingPriceCents(input: string): number {
+  return priceCents(input);
+}
+
 function priceCents(input: string): number {
   let price = input.replace(/[€\s]/gu, '');
   if (price.includes('.') && price.includes(',')) {
@@ -35,6 +40,11 @@ function priceCents(input: string): number {
   const cents = Number(match[1]) * 100 + Number((match[2] ?? '').padEnd(2, '0') || '0');
   if (cents <= 0) throw invalid();
   return cents;
+}
+
+/** Fotoraster der Maske, sobald alle Bilder geladen sind; ein halb geladenes Raster ist ein Fehler. */
+export async function readLoadedVintedListingPhotos(page: Page): Promise<VintedListingPhotoState> {
+  return loadedPhotos(page);
 }
 
 async function loadedPhotos(page: Page): Promise<VintedListingPhotoState> {

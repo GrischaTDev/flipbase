@@ -77,6 +77,8 @@ export class WorkspaceService {
   readonly loadError = this.workspaceLoadError.asReadonly();
   private workspaceLoadPromise: Promise<void> | null = null;
   private workspacesLoaded = false;
+  private workspaceUserId: string | null = null;
+  private workspaceLoadGeneration = 0;
 
   // Holding consolidation mode toggle (across all tenant workspaces)
   readonly isHoldingConsolidatedMode = signal<boolean>(false);
@@ -104,6 +106,12 @@ export class WorkspaceService {
       });
       effect(() => {
         const isAuth = this.auth?.isAuthenticated();
+        // Auch ein direkter Sitzungswechsel bleibt angemeldet, gehört aber einem anderen Konto.
+        const userId = this.auth?.currentUser?.()?.id ?? null;
+        if (userId !== this.workspaceUserId) {
+          this.resetWorkspaceState();
+          this.workspaceUserId = userId;
+        }
 
         if (!this.supabase) {
           this.workspaces.set(this.defaultWorkspaces);
@@ -130,10 +138,15 @@ export class WorkspaceService {
       return Promise.resolve();
     }
 
+    const userId = this.auth?.currentUser?.()?.id ?? null;
+    if (userId !== this.workspaceUserId) {
+      this.resetWorkspaceState();
+      this.workspaceUserId = userId;
+    }
     if (this.workspacesLoaded) return Promise.resolve();
     if (this.workspaceLoadPromise) return this.workspaceLoadPromise;
 
-    const request = this.fetchWorkspaces().finally(() => {
+    const request = this.fetchWorkspaces(this.workspaceLoadGeneration, userId).finally(() => {
       if (this.workspaceLoadPromise === request) this.workspaceLoadPromise = null;
     });
     this.workspaceLoadPromise = request;
@@ -145,7 +158,7 @@ export class WorkspaceService {
     await this.ensureLoaded();
   }
 
-  private async fetchWorkspaces(): Promise<void> {
+  private async fetchWorkspaces(generation: number, userId: string | null): Promise<void> {
     const supabase = this.supabase;
     if (!supabase) return;
 
@@ -156,6 +169,8 @@ export class WorkspaceService {
         .from('workspaces')
         .select('*')
         .order('created_at', { ascending: true });
+
+      if (!this.isCurrentWorkspaceLoad(generation, userId)) return;
 
       if (error) {
         this.workspaceLoadError.set(this.syncStatus.melde('Laden der Workspaces', error));
@@ -194,16 +209,26 @@ export class WorkspaceService {
         this.workspacesLoaded = false;
       }
     } catch (err) {
+      if (!this.isCurrentWorkspaceLoad(generation, userId)) return;
       this.workspaceLoadError.set(this.syncStatus.melde('Laden der Workspaces', err));
       this.workspaces.set([]);
       this.currentWorkspace.set(null);
       this.workspacesLoaded = false;
     } finally {
-      this.isLoading.set(false);
+      if (this.isCurrentWorkspaceLoad(generation, userId)) this.isLoading.set(false);
     }
   }
 
+  private isCurrentWorkspaceLoad(generation: number, userId: string | null): boolean {
+    return (
+      generation === this.workspaceLoadGeneration &&
+      userId === (this.auth?.currentUser?.()?.id ?? null)
+    );
+  }
+
   private resetWorkspaceState(): void {
+    this.workspaceLoadGeneration += 1;
+    this.workspaceUserId = null;
     this.workspaces.set([]);
     this.currentWorkspace.set(null);
     this.workspaceLoadError.set(null);

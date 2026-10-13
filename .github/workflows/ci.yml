@@ -23,6 +23,7 @@ env:
   # path has to be lowercase and the owner is spelled "GrischaTDev".
   IMAGE: ghcr.io/grischatdev/flipbase
   SNIPER_IMAGE: ghcr.io/grischatdev/flipbase-sniper
+  PUSH_IMAGE: ghcr.io/grischatdev/flipbase-push
   DEPLOY_HOST: 168.119.246.33
   DEPLOY_USER: root
   DEPLOY_DIR: /opt/flipbase
@@ -42,6 +43,7 @@ jobs:
       application_tests: ${{ steps.filter.outputs.application_tests }}
       supabase: ${{ steps.filter.outputs.supabase }}
       sniper: ${{ steps.filter.outputs.sniper }}
+      push: ${{ steps.filter.outputs.push }}
       tests_reused: ${{ steps.reuse.outputs.tests_reused }}
       receipt_name: ${{ steps.reuse.outputs.receipt_name }}
     steps:
@@ -125,6 +127,21 @@ jobs:
 
       - name: Install marketplace worker dependencies
         run: npm ci --prefix services/marketplace-worker --ignore-scripts
+
+      - name: Install push worker dependencies
+        run: npm ci --prefix services/push-worker --ignore-scripts
+
+      - name: Check push worker and isolated function router
+        run: |
+          npm --prefix services/push-worker run typecheck
+          npm --prefix services/push-worker test
+          npm --prefix services/push-worker run build
+          deno check --no-config --node-modules-dir=none deploy/push-main/index.ts supabase/functions/push-settings/index.ts supabase/functions/push-revoke/index.ts supabase/functions/ebay-order-observer/index.ts
+          deno test --no-config --node-modules-dir=none --allow-env supabase/functions/push-settings/contracts.test.ts supabase/functions/push-settings/handler.test.ts supabase/functions/push-revoke/handler.test.ts supabase/functions/ebay-order-observer/handler.test.ts
+          docker build --build-arg FLIPBASE_COMMIT="$GITHUB_SHA" --tag flipbase-push:ci services/push-worker
+          node services/push-worker/scripts/smoke-image.mjs flipbase-push:ci
+          node scripts/package-push-functions.mjs "$RUNNER_TEMP/push-functions" "$GITHUB_SHA"
+          node services/push-worker/scripts/smoke-functions.mjs flipbase-push:ci "$RUNNER_TEMP/push-functions" "$GITHUB_SHA"
 
       - name: Check marketplace worker
         run: |
@@ -288,6 +305,9 @@ jobs:
           node --test supabase/test-support/ebay-order-import-concurrency.test.mjs
           node supabase/test-support/ebay-order-import-concurrency.mjs
 
+      - name: Test parallel push claims
+        run: node supabase/test-support/web-push-concurrency.mjs
+
       - name: Stop local Supabase
         if: ${{ always() }}
         run: npx supabase stop --no-backup
@@ -343,7 +363,7 @@ jobs:
     if: ${{ needs.changes.outputs.application_tests == 'true' && needs.changes.outputs.tests_reused != 'true' }}
     needs: changes
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -361,13 +381,19 @@ jobs:
         run: npm ci
 
       - name: Install Chromium Headless Shell
-        run: npx playwright install --with-deps --only-shell chromium
+        run: npx playwright install --with-deps chromium webkit
 
       - name: Start local Supabase
         run: npx supabase start
 
       - name: Run browser smoke tests
         run: npm run test:e2e:pr
+
+      - name: Test PWA startup, caching and updates
+        run: npm run test:pwa:scripts
+
+      - name: Test production PWA and offline drafts
+        run: npm run test:e2e:pwa
 
       - name: Upload browser failure artifacts
         if: ${{ failure() || cancelled() }}
@@ -386,8 +412,8 @@ jobs:
 
   image:
     name: Publish image
-    needs: changes
-    if: ${{ github.event_name == 'push' && (needs.changes.outputs.application == 'true' || needs.changes.outputs.sniper == 'true') }}
+    needs: [changes, quality, unit, database, sniper, browser-smoke]
+    if: ${{ always() && github.event_name == 'push' && needs.changes.result == 'success' && (needs.changes.outputs.application == 'true' || needs.changes.outputs.sniper == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -398,6 +424,7 @@ jobs:
       app_digest: ${{ steps.publish-app.outputs.digest }}
       sniper_tag: ${{ steps.tag.outputs.value }}
       sniper_digest: ${{ steps.publish-sniper.outputs.digest }}
+      push_digest: ${{ steps.publish-push.outputs.digest }}
       version: ${{ steps.gitversion.outputs.value }}
     steps:
       - name: Check out repository
@@ -408,6 +435,24 @@ jobs:
 
       - name: Install GitVersion
         run: dotnet tool install --global GitVersion.Tool --version 6.*
+
+      # Der veroeffentlichende Job prueft die exakten Erfolg-/Skipvertraege vor Registryanmeldung.
+      - name: Gate publication on successful checks
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          TESTS_REUSED: ${{ needs.changes.outputs.tests_reused }}
+          APPLICATION_CHANGED: ${{ needs.changes.outputs.application }}
+          APPLICATION_TESTS_CHANGED: ${{ needs.changes.outputs.application_tests }}
+          SUPABASE_CHANGED: ${{ needs.changes.outputs.supabase }}
+          SNIPER_CHANGED: ${{ needs.changes.outputs.sniper }}
+          QUALITY_RESULT: ${{ needs.quality.result }}
+          UNIT_RESULT: ${{ needs.unit.result }}
+          DATABASE_RESULT: ${{ needs.database.result }}
+          SNIPER_RESULT: ${{ needs.sniper.result }}
+          BROWSER_RESULT: ${{ needs.browser-smoke.result }}
+          IMAGE_RESULT: success
+        run: node scripts/required-checks.mjs
 
       - name: Determine version
         id: gitversion
@@ -546,6 +591,34 @@ jobs:
           [[ "$reference" == "$SNIPER_IMAGE@$digest" && "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
 
+      - name: Build Push image
+        if: ${{ needs.changes.outputs.push == 'true' }}
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: services/push-worker
+          file: services/push-worker/Dockerfile
+          load: true
+          tags: ${{ env.PUSH_IMAGE }}:${{ steps.tag.outputs.value }}
+          build-args: FLIPBASE_COMMIT=${{ github.sha }}
+          cache-from: type=gha,scope=push
+          cache-to: type=gha,scope=push,mode=max
+
+      - name: Smoke test Push image
+        if: ${{ needs.changes.outputs.push == 'true' }}
+        run: node services/push-worker/scripts/smoke-image.mjs "$PUSH_IMAGE:${{ steps.tag.outputs.value }}"
+
+      - name: Publish checked Push image
+        id: publish-push
+        if: ${{ needs.changes.outputs.push == 'true' }}
+        env:
+          TAG: ${{ steps.tag.outputs.value }}
+        run: |
+          docker push "$PUSH_IMAGE:$TAG"
+          reference=$(docker inspect --format '{{index .RepoDigests 0}}' "$PUSH_IMAGE:$TAG")
+          digest=${reference##*@}
+          [[ "$reference" == "$PUSH_IMAGE@$digest" && "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
   required-checks:
     name: Required checks
     if: ${{ always() }}
@@ -677,8 +750,10 @@ jobs:
           APP_TAG: ${{ needs.image.outputs.app_tag }}
           APP_DIGEST: ${{ needs.image.outputs.app_digest }}
           SNIPER_DIGEST: ${{ needs.image.outputs.sniper_digest }}
+          PUSH_DIGEST: ${{ needs.image.outputs.push_digest }}
           APPLICATION_CHANGED: ${{ needs.changes.outputs.application }}
           SNIPER_CHANGED: ${{ needs.changes.outputs.sniper }}
+          PUSH_CHANGED: ${{ needs.changes.outputs.push }}
           RELEASE_MIGRATIONS_V1: ${{ vars.RELEASE_MIGRATIONS_V1 }}
           REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -695,6 +770,11 @@ jobs:
             [[ "$SNIPER_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
             if [ -n "$command" ]; then command="$command "; fi
             command="${command}sniper $SNIPER_DIGEST"
+          fi
+          if [ "$PUSH_CHANGED" = true ]; then
+            [[ "$RELEASE_MIGRATIONS_V1" = true && "$PUSH_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
+            if [ -n "$command" ]; then command="$command "; fi
+            command="${command}push $PUSH_DIGEST"
           fi
           test -n "$command"
           printf '%s' "$REGISTRY_TOKEN" \
