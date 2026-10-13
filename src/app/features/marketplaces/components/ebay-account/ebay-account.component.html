@@ -121,9 +121,9 @@
         >Statistiken laden</app-button
       >
       <p class="text-xs text-fb-text-muted">
-        Aufrufe und Verkaufsquote beziehen sich auf die letzten 30 abgeschlossenen Tage. Die Quote
-        zeigt Verkäufe pro Angebotsaufruf. Beobachter sind der aktuelle Stand. Fehlende Werte
-        bleiben unbekannt.
+        Aufrufe zählen Besuche Deiner Angebotsseite in den letzten 30 abgeschlossenen Tagen.
+        Beobachter sind der aktuelle Stand. Die Verkaufsquote zeigt Käufe geteilt durch Aufrufe: ein
+        Kauf bei 100 Aufrufen ergibt 1 %. Bei unverkauften Einzelstücken ist sie meist 0 %.
       </p>
       @if (store.trafficPeriod(); as period) {
         <p class="text-xs text-fb-text-muted">
@@ -192,8 +192,8 @@
                 <th scope="col" class="px-4 py-3">Verfügbar</th>
                 @if (store.listingManagementAvailable()) {
                   <th scope="col" class="px-4 py-3">Beobachter</th>
-                  <th scope="col" class="px-4 py-3">Aufrufe</th>
-                  <th scope="col" class="px-4 py-3">Verkaufsquote</th>
+                  <th scope="col" class="px-4 py-3">Aufrufe (30 Tage)</th>
+                  <th scope="col" class="px-4 py-3">Käufe / Aufrufe</th>
                 }
                 <th scope="col" class="px-4 py-3 text-right">Aktionen</th>
               </tr>
@@ -227,14 +227,35 @@
                   @if (store.listingManagementAvailable()) {
                     @let statistics = store.traffic()[listing.id];
                     <td class="px-4 py-3">{{ listing.watchCount ?? '–' }}</td>
-                    <td class="px-4 py-3">{{ statistics?.views ?? '–' }}</td>
                     <td class="px-4 py-3">
-                      {{
-                        statistics?.conversionRate === null ||
-                        statistics?.conversionRate === undefined
-                          ? '–'
-                          : (statistics.conversionRate | percent: '1.1-2')
-                      }}
+                      @if (statistics) {
+                        {{ statistics.views ?? 'Keine Daten' }}
+                      } @else {
+                        {{
+                          store.trafficLoading()
+                            ? 'Wird geladen …'
+                            : store.trafficError()
+                              ? 'Abruf fehlgeschlagen'
+                              : 'Nicht geladen'
+                        }}
+                      }
+                    </td>
+                    <td class="px-4 py-3">
+                      @if (statistics) {
+                        {{
+                          statistics.conversionRate === null
+                            ? 'Keine Daten'
+                            : (statistics.conversionRate | percent: '1.1-2')
+                        }}
+                      } @else {
+                        {{
+                          store.trafficLoading()
+                            ? 'Wird geladen …'
+                            : store.trafficError()
+                              ? 'Abruf fehlgeschlagen'
+                              : 'Nicht geladen'
+                        }}
+                      }
                     </td>
                   }
                   <td class="px-4 py-3 text-right">
@@ -244,7 +265,8 @@
                           variant="table-action"
                           [icon]="editIcon"
                           [iconOnly]="true"
-                          [link]="editListingLink(connection.connectionId, listing.id)"
+                          [link]="editListingLink(listing.id)"
+                          [queryParams]="{ connection: connection.connectionId }"
                           [ariaLabel]="'Inserat bearbeiten: ' + listing.title"
                           title="Inserat bearbeiten"
                         />

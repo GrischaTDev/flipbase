@@ -6,7 +6,8 @@ import { ProductThumbnailComponent } from '../../../../shared/components/product
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 import { signal, ɵɵqueryAdvance, ɵɵviewQuerySignal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
+import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
+import { MARKETPLACES_ROUTES } from '../../marketplaces.routes';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import axe from 'axe-core';
 import { prepareMarketplaceRendering } from '../../../../../../e2e/support/marketplace-rendering';
@@ -274,7 +275,6 @@ describe('Persönliche eBay-Oberfläche', () => {
         watchCount: 0,
       })),
     );
-    await fixture.componentInstance.store.readTraffic();
     fixture.detectChanges();
     const element = fixture.nativeElement as HTMLElement;
     expect(element.querySelector('img')?.getAttribute('src')).toBe(
@@ -284,11 +284,66 @@ describe('Persönliche eBay-Oberfläche', () => {
       element
         .querySelector('[aria-label="Inserat bearbeiten: Eigene Auktion"]')
         ?.getAttribute('href'),
-    ).toContain('/marketplaces/ebay/listings/123/edit');
+    ).toBe('/marketplaces/ebay/listings/123/edit?connection=connection-a');
     expect(element.textContent).toContain('12.5%');
     expect(element.textContent).toContain('Beobachter');
     const results = await axe.run(element, { rules: { 'color-contrast': { enabled: false } } });
     expect(results.violations).toEqual([]);
+  });
+  it('öffnet beim Klick auf Bearbeiten den Angebotspfad mit separater Kontoverbindung', async () => {
+    api.loadStatus.mockResolvedValueOnce({
+      configured: true,
+      listingManagementAvailable: true,
+      connection,
+    });
+    const fixture = await render();
+    const editorRoute = MARKETPLACES_ROUTES.find((route) =>
+      route.path?.endsWith(':listingId/edit'),
+    );
+    if (!editorRoute) throw new Error('Missing eBay editor route');
+    const router = TestBed.inject(Router);
+    router.resetConfig([
+      {
+        path: 'marketplaces',
+        children: [{ path: editorRoute.path, component: EbayAccountComponent }],
+      },
+      { path: 'dashboard', component: EbayAccountComponent },
+      { path: '**', redirectTo: 'dashboard' },
+    ]);
+    const editLink = (fixture.nativeElement as HTMLElement).querySelector<HTMLAnchorElement>(
+      '[aria-label="Inserat bearbeiten: Eigene Auktion"]',
+    );
+    expect(editLink).not.toBeNull();
+    editLink?.click();
+    await fixture.whenStable();
+    expect(router.url).toBe('/marketplaces/ebay/listings/123/edit?connection=connection-a');
+    expect(router.parseUrl(router.url).queryParams['connection']).toBe('connection-a');
+  });
+  it('unterscheidet fehlende Statistikwerte von einem fehlgeschlagenen Abruf', async () => {
+    api.loadStatus.mockResolvedValueOnce({
+      configured: true,
+      listingManagementAvailable: true,
+      connection,
+    });
+    api.loadTraffic.mockResolvedValueOnce({
+      ...connection,
+      startDate: '2026-09-01',
+      endDate: '2026-09-30',
+      lastUpdatedDate: null,
+      items: [{ listingId: '123', views: null, transactions: null, conversionRate: null }],
+    });
+    const fixture = await render();
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.textContent).toContain('Keine Daten');
+    expect(element.textContent).toContain('ein Kauf bei 100 Aufrufen ergibt 1 %');
+    api.loadTraffic.mockRejectedValueOnce(
+      new Error('Die Statistikantwort konnte nicht ausgewertet werden.'),
+    );
+    await fixture.componentInstance.store.readTraffic();
+    fixture.detectChanges();
+    expect(element.textContent).toContain('Abruf fehlgeschlagen');
+    expect(element.textContent).toContain('Die Statistikantwort konnte nicht ausgewertet werden.');
+    expect(element.textContent).toContain('Eigene Auktion');
   });
   it('bietet Zuordnung erst bei bestätigter Serverfähigkeit an', async () => {
     const disabled = await render();
