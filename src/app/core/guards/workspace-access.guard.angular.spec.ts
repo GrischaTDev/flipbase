@@ -5,11 +5,14 @@ import { WorkspaceAccessService } from '../services/workspace-access.service';
 import { WorkspaceService } from '../services/workspace.service';
 import { workspaceAccessGuard } from './workspace-access.guard';
 import { AuthService } from '../services/auth.service';
+import { AppStartupService } from '../services/app-startup.service';
+import { ToastService } from '../../shared/components/toast/toast.service';
 
 describe('Workspace-Zugangsgrenze', () => {
   function setup(
     statuses: readonly { workspace_id: string; access_status: string }[],
     failure = false,
+    authenticated = true,
   ) {
     const current = signal({ id: 'expired', name: 'Alt' });
     const rows = [
@@ -17,14 +20,23 @@ describe('Workspace-Zugangsgrenze', () => {
       { id: 'valid', name: 'Nutzbar' },
     ];
     const select = vi.fn();
+    const failStartup = vi.fn();
+    const connectionError = vi.fn();
+    const refresh = vi.fn(() =>
+      failure ? Promise.reject(new Error('Netzfehler')) : Promise.resolve(statuses),
+    );
     const injector = Injector.create({
       providers: [
-        { provide: AuthService, useValue: { sessionReady: Promise.resolve() } },
+        {
+          provide: AuthService,
+          useValue: { sessionReady: Promise.resolve(), canAccessApp: () => authenticated },
+        },
+        { provide: AppStartupService, useValue: { failStartup } },
+        { provide: ToastService, useValue: { toasts: () => [], error: connectionError } },
         {
           provide: WorkspaceAccessService,
           useValue: {
-            refresh: () =>
-              failure ? Promise.reject(new Error('Netzfehler')) : Promise.resolve(statuses),
+            refresh,
             select,
           },
         },
@@ -32,6 +44,7 @@ describe('Workspace-Zugangsgrenze', () => {
           provide: WorkspaceService,
           useValue: {
             ensureLoaded: () => Promise.resolve(),
+            loadError: () => null,
             currentWorkspace: current,
             workspaces: () => rows,
             setCurrentWorkspace: current.set,
@@ -43,6 +56,9 @@ describe('Workspace-Zugangsgrenze', () => {
     return {
       current,
       select,
+      failStartup,
+      connectionError,
+      refresh,
       run: () =>
         runInInjectionContext(injector, () =>
           workspaceAccessGuard({} as ActivatedRouteSnapshot, {} as RouterStateSnapshot),
@@ -67,6 +83,17 @@ describe('Workspace-Zugangsgrenze', () => {
   });
 
   it('öffnet bei fehlgeschlagener Serverprüfung keine Geschäftsdaten', async () => {
-    expect(await setup([], true).run()).toEqual(['/offline']);
+    const test = setup([], true);
+    expect(await test.run()).toBe(false);
+    expect(test.failStartup).toHaveBeenCalledWith('navigation');
+    expect(test.connectionError).toHaveBeenCalledOnce();
+    expect(test.select).not.toHaveBeenCalled();
+  });
+  it('prüft ohne gültige Anmeldung keine Workspaces und zeigt keinen Verbindungsfehler', async () => {
+    const test = setup([], true, false);
+    expect(await test.run()).toEqual(['/auth/login']);
+    expect(test.refresh).not.toHaveBeenCalled();
+    expect(test.failStartup).not.toHaveBeenCalled();
+    expect(test.connectionError).not.toHaveBeenCalled();
   });
 });

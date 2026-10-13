@@ -5,6 +5,7 @@ export default defineConfig({
   testMatch: [
     'pwa-production.spec.ts',
     'pwa-purchase-drafts.spec.ts',
+    'pwa-purchase-buffer-documents.spec.ts',
     'pwa-push-navigation.spec.ts',
   ],
   fullyParallel: false,

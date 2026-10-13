@@ -13,10 +13,10 @@ Die Produktionstests prüfen lokale Speicherung, Neustart, konkurrierende Revisi
 | Gerät                             | Abnahme                                                                                                           | Status |
 | --------------------------------- | ----------------------------------------------------------------------------------------------------------------- | ------ |
 | Android-Smartphone mit Chrome     | Installation, eigenständiger Start, Tastatur, Safe Areas, Hintergrund-Push                                        | Offen  |
-| Android-Tablet mit Chrome         | Hoch-/Querformat, Installation, Wiederaufnahme, Offline-Entwurf                                                   | Offen  |
+| Android-Tablet mit Chrome         | Hoch-/Querformat, Installation, Wiederaufnahme, gepufferte Einkaufsmaske                                          | Offen  |
 | iPhone mit aktueller iOS-Version  | Zum Home-Bildschirm hinzufügen, eigenständiger Start, Permission per bewusster Aktion, Push bei geschlossener App | Offen  |
 | iPad mit aktueller iPadOS-Version | Home-App, geteilte Ansicht, Tastatur, Querformat, Push bei geschlossener App                                      | Offen  |
-| Windows mit Edge/Chrome           | Installation, zwei Fenster, Updateschutz, Gerätemeldungen                                                         | Offen  |
+| Windows mit Edge/Chrome           | Kein Installationsangebot in Flipbase, zwei Fenster, Updateschutz, Gerätemeldungen                                | Offen  |
 
 Für jeden Lauf Gerät, Betriebssystem, Browser-Version, veröffentlichte Commit-SHA, PWA-Baukennung und Ergebnis festhalten. Nicht verfügbare Funktionen müssen verständlich erklärt werden. Ein Browserfenster oder ein WebKit-Test ersetzt keine Home-App-Abnahme.
 
@@ -29,8 +29,10 @@ Für jeden Lauf Gerät, Betriebssystem, Browser-Version, veröffentlichte Commit
 5. Abmelden, Gerätemeldungen deaktivieren, Workspace-Zugang entziehen und VAPID wechseln. Danach dürfen gesperrte Geräte oder Empfänger keine neuen Meldungen erhalten. Offline-Widerruf bei erneuter Verbindung nachweisen.
 6. Erst nach erfolgreicher Geräteabnahme Push für weitere Nutzer aktivieren. Bei Zustellungs-, Rechte- oder Datenschutzfehlern den Versand sofort mit `WEB_PUSH_ENABLED=false` stoppen; Entwürfe und App-Start bleiben verfügbar.
 
-## Offline-Abnahme
+## Zwischenspeicherung ohne zusätzlichen Ablauf
 
-Online einen berechtigten Workspace vorbereiten. Dann ohne Internet starten, einen Einkaufsentwurf anlegen und die App vollständig schließen. Nach Neustart müssen Name, Verkäufernotiz, allgemeine Notiz, Datum und Positionen erhalten sein. Kein Verkauf, Bestand oder Marktplatzauftrag darf offline als erledigt erscheinen.
+Nutzerentscheidung vom 13.10.2026: Keine gesonderten lokalen Entwürfe, Menüpunkte, Listen oder Übernahmeaktionen. Einkaufsmaske und normale Speicherung bleiben bestehen. Der geräteinterne Puffer schützt Eingaben und setzt nur bereits ausdrücklich beauftragte Speicherungen fort; ungeprüfte oder nicht abgesendete Änderungen werden nicht automatisch gebucht.
 
-Online den Entwurf bewusst prüfen, Artikel und Verkäufer zuordnen und übernehmen. Eine verlorene Antwort muss denselben Auftrag wiederholen. Nach neueren Änderungen und Klärung des ursprünglichen Versuchs bleiben die Ergänzungen lokal sichtbar und dem vorhandenen Einkauf zugeordnet. Abmelden sperrt lokale Daten; Löschen oder Verwerfen erfolgt ausdrücklich. Lokaler Speicher ist gerätegebunden und kein Backup: Export vor Gerätewechsel oder Browserbereinigung nutzen.
+Im berechtigten Workspace einen normalen Einkauf mit Verkäufer, Datum, Notizen, Positionen, Zusatzkosten und Beleg erfassen. Verbindung während „Entwurf speichern“ unterbrechen. Die App darf keine Serverbestätigung vortäuschen. Bei erreichbarer Verbindung wird derselbe Speicherauftrag nach aktueller Anmeldung und Rechteprüfung fortgesetzt, einschließlich Belegen. Eine verlorene Antwort darf keinen zweiten Einkauf erzeugen. Neuere Eingaben bleiben erhalten und werden nicht durch die ältere Serverantwort überschrieben.
+
+Ohne Speichern eingegebene Angaben nach Neuladen mit erneuter Onlineprüfung wiederherstellen, ohne sie automatisch abzuschicken. Explizit verworfene, noch nicht beauftragte Eingaben dürfen nicht wiederkehren. Kontowechsel, Abmelden und Rechteentzug verhindern fremde Anzeige oder Versand. Fachliche Fehler lösen den normalen Fehlerhinweis aus und werden nicht endlos automatisch wiederholt. Verkauf, Bestandsänderung und Marktplatzaktionen benötigen weiterhin eine Verbindung. Geräteinterner Speicher ist kein Backup und überlebt keine Browserbereinigung.

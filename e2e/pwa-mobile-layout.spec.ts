@@ -4,6 +4,144 @@ import { mockMarketplace } from './support/marketplace-account-fixture';
 
 test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: 'block' });
 
+test('stops unavailable access checks without a redirect loop or protected content @pwa-layout', async ({
+  page,
+}) => {
+  await mockMarketplace(page);
+  await page.route('**/rest/v1/rpc/list_my_workspace_access', (route) =>
+    route.fulfill({ status: 503, json: { message: 'Test connection unavailable' } }),
+  );
+  await page.goto('/dashboard');
+  await expect(page.locator('#app-startup-retry')).toBeVisible();
+  await expect(page.locator('#app-startup-status')).toContainText('Bitte versuche es erneut');
+  await expect(page).toHaveURL(/\/$/);
+  await expect(
+    page.getByRole('alert').filter({ hasText: 'Verbindung fehlgeschlagen' }),
+  ).toHaveCount(1);
+  await expect(page.locator('app-shell')).toHaveCount(0);
+  await expect(page.locator('app-offline-purchases')).toHaveCount(0);
+});
+
+test('legacy offline links lead to normal purchases without local parameters @pwa-layout', async ({
+  page,
+}) => {
+  await mockMarketplace(page);
+  await page.goto('/offline/purchases?deviceDrafts=1&localDraft=obsolete');
+  await expect(page).toHaveURL(/\/purchases$/);
+  await expect(page.locator('app-purchases')).toBeVisible();
+  await expect(page.locator('app-offline-purchases')).toHaveCount(0);
+  await expect(page.locator('a[href="/offline/purchases"]')).toHaveCount(0);
+});
+test('an unauthenticated legacy link keeps normal sign-in without a local entry or access error @pwa-layout', async ({
+  page,
+}) => {
+  await page.goto('/offline/purchases?deviceDrafts=1');
+  await expect(page).toHaveURL(/\/auth\/login\?redirectTo=%2Fpurchases$/);
+  await expect(page.locator('app-login')).toBeVisible();
+  await expect(page.locator('a[href="/offline/purchases"]')).toHaveCount(0);
+  await expect(
+    page.getByRole('alert').filter({ hasText: 'Verbindung fehlgeschlagen' }),
+  ).toHaveCount(0);
+});
+
+for (const device of [
+  {
+    name: 'Android',
+    userAgent: 'Mozilla/5.0 (Linux; Android 15) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36',
+    hasTouch: true,
+    viewport: { width: 390, height: 844 },
+    mobile: true,
+  },
+  {
+    name: 'iPad desktop mode',
+    userAgent:
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1',
+    hasTouch: true,
+    viewport: { width: 1024, height: 768 },
+    mobile: true,
+  },
+  {
+    name: 'Desktop',
+    userAgent:
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140 Safari/537.36',
+    hasTouch: false,
+    viewport: { width: 1440, height: 900 },
+    mobile: false,
+  },
+]) {
+  test.describe(device.name, () => {
+    test.use({ userAgent: device.userAgent, hasTouch: device.hasTouch, viewport: device.viewport });
+    test('installation follows the device, including manual fallback @pwa-layout', async ({
+      page,
+    }) => {
+      if (device.name === 'iPad desktop mode')
+        await page.addInitScript(() =>
+          Object.defineProperty(navigator, 'maxTouchPoints', { value: 5 }),
+        );
+      await mockMarketplace(page);
+      await page.goto('/settings/app');
+      await expect(page.getByRole('heading', { name: 'Progressive Web App (PWA)' })).toBeVisible();
+      if (device.viewport.width < 768)
+        await page.getByRole('button', { name: 'Menü', exact: true }).click();
+      const setup = page.locator('app-sidebar').getByRole('link', { name: 'App installieren' });
+      if (device.mobile) {
+        await expect(setup).toBeVisible();
+        await expect(page.getByText(/Wähle im (Browser-Menü|Teilen-Menü)/)).toBeVisible();
+        if (device.viewport.width < 768) {
+          await setup.click();
+          await expect(page.locator('app-sidebar aside')).not.toBeVisible();
+        }
+      } else {
+        await expect(setup).toHaveCount(0);
+        await expect(page.getByText(/Wähle im (Browser-Menü|Teilen-Menü)/)).toHaveCount(0);
+      }
+      await page.evaluate(() => {
+        const event = new Event('beforeinstallprompt', { cancelable: true });
+        Object.assign(event, {
+          prompt: async () => undefined,
+          userChoice: Promise.resolve({ outcome: 'accepted' }),
+        });
+        window.dispatchEvent(event);
+      });
+      await expect(
+        page.getByRole('button', { name: 'Flipbase installieren', exact: true }),
+      ).toHaveCount(device.mobile ? 1 : 0);
+    });
+    if (device.name === 'iPad desktop mode') {
+      test('keeps the tablet header in place while scrolling and resizing @pwa-layout', async ({
+        page,
+      }) => {
+        await mockMarketplace(page);
+        await page.goto('/settings/app');
+        await expect(
+          page.getByRole('heading', { name: 'Progressive Web App (PWA)' }),
+        ).toBeVisible();
+        await page.addStyleTag({ content: '[data-shell-main] { min-height: 2400px; }' });
+        for (const height of [768, 860, 768]) {
+          await page.setViewportSize({ width: 1024, height });
+          for (const scrollTop of [0, 300, 900, 450]) {
+            await page.evaluate((top) => window.scrollTo(0, top), scrollTop);
+            await expect
+              .poll(() =>
+                page
+                  .locator('app-header header')
+                  .evaluate((element) => element.getBoundingClientRect().top),
+              )
+              .toBeGreaterThanOrEqual(-1);
+            await expect
+              .poll(() =>
+                page
+                  .locator('app-header header')
+                  .evaluate((element) => element.getBoundingClientRect().top),
+              )
+              .toBeLessThanOrEqual(1);
+          }
+        }
+      });
+    }
+  });
+}
+
 for (const viewport of [
   { width: 390, height: 844 },
   { width: 844, height: 390 },
@@ -38,10 +176,16 @@ for (const viewport of [
       await expect(page.locator('app-sidebar aside')).toBeVisible();
     }
     for (const theme of ['light', 'dark']) {
-      await page.evaluate(
-        (theme) => document.documentElement.classList.toggle('dark', theme === 'dark'),
-        theme,
-      );
+      await page.evaluate(async (theme) => {
+        document.documentElement.classList.toggle('dark', theme === 'dark');
+        document.body.getBoundingClientRect();
+        await Promise.allSettled(
+          document
+            .getAnimations()
+            .filter((animation) => animation.effect?.getTiming().iterations !== Infinity)
+            .map((animation) => animation.finished),
+        );
+      }, theme);
       await page.addScriptTag({ content: axe.source });
       const violations = await page.evaluate(
         async () =>

@@ -697,6 +697,16 @@ export class PurchaseLineEditorComponent {
     this.importError.set(null);
   }
 
+  rebaseDraftIds(lineIds: ReadonlyMap<string, string>): void {
+    for (const row of this.lineRows.controls) {
+      const persistedId = lineIds.get(row.controls.draftId.value);
+      if (persistedId) row.controls.draftId.setValue(persistedId, { emitEvent: false });
+    }
+    this.loadedInitialIds = this.lineRows.controls
+      .map((row) => row.controls.draftId.value)
+      .join('|');
+  }
+
   private createLine(lineKind: TrackingMode): FormGroup<PurchaseLineControls> {
     const isMysteryPurchase = this.isMysteryPurchase();
     const row = new FormGroup<PurchaseLineControls>({

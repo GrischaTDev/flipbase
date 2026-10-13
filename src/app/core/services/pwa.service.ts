@@ -20,6 +20,12 @@ export class PwaService {
   readonly isStandalone = signal(false);
   readonly isInstalled = this.isStandalone;
   readonly isInstallable = signal(false);
+  readonly isMobileDevice = signal(
+    typeof navigator !== 'undefined' &&
+      (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+        (/Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1)),
+  );
+  readonly showInstallationOffer = computed(() => this.isMobileDevice() && !this.isStandalone());
   readonly isOnline = signal(
     typeof navigator !== 'undefined' && typeof navigator.onLine === 'boolean'
       ? navigator.onLine
@@ -30,6 +36,7 @@ export class PwaService {
   readonly updateAvailable = this.updates?.updateAvailable ?? signal(false);
   readonly installState = computed<PwaInstallState>(() => {
     if (this.isStandalone()) return 'standalone';
+    if (!this.isMobileDevice()) return 'unsupported';
     if (this.isInstallable()) return 'prompt_available';
     return typeof navigator !== 'undefined' && 'serviceWorker' in navigator
       ? 'manual'
@@ -39,8 +46,8 @@ export class PwaService {
     const isApple =
       typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent);
     return isApple
-      ? 'Öffne Flipbase in Safari. Wähle im Teilen-Menü „Zum Home-Bildschirm“ oder auf dem Mac „Zum Dock hinzufügen“.'
-      : 'Öffne das Menü deines Browsers und wähle „App installieren“ oder „Zum Startbildschirm hinzufügen“, falls angeboten.';
+      ? 'Öffne Flipbase in Safari. Wähle im Teilen-Menü "Zum Home-Bildschirm" und bestätige mit "Hinzufügen".'
+      : 'Öffne Flipbase in Chrome oder einem anderen Browser mit App-Installation. Wähle im Browser-Menü "App installieren" oder "Zum Startbildschirm hinzufügen", falls angeboten. Öffne die Seite dafür direkt im Browser statt in einer anderen App.';
   });
   private deferredPrompt: BeforeInstallPromptEvent | null = null;
 
@@ -56,6 +63,7 @@ export class PwaService {
       this.destroyRef.onDestroy(() => media.removeEventListener('change', updateMode));
       this.listen(window, 'beforeinstallprompt', (event) => {
         event.preventDefault();
+        if (!this.showInstallationOffer()) return;
         this.deferredPrompt = event as BeforeInstallPromptEvent;
         this.isInstallable.set(true);
       });
@@ -77,7 +85,7 @@ export class PwaService {
 
   async promptInstall(): Promise<boolean> {
     const prompt = this.deferredPrompt;
-    if (!prompt) return false;
+    if (!prompt || !this.showInstallationOffer()) return false;
     this.clearPrompt();
     try {
       await prompt.prompt();

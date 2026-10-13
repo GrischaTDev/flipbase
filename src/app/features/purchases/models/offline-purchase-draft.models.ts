@@ -1,5 +1,6 @@
 import type { ItemCondition } from '../../../core/models/flipbase.models';
 import type { CreatePurchasePayload } from '../../../core/services/purchase.service';
+import type { PendingPurchaseDocument } from '../../../core/models/purchase-document.models';
 
 export interface OfflinePurchaseContext {
   schemaVersion: 1;
@@ -45,6 +46,7 @@ export interface OfflinePurchaseReview {
   form: Record<string, unknown>;
   lines: readonly unknown[];
   costs: readonly unknown[];
+  documents?: readonly PendingPurchaseDocument[];
 }
 export interface OfflinePurchaseTransferAttempt {
   schemaVersion: 1;
@@ -55,11 +57,16 @@ export interface OfflinePurchaseTransferAttempt {
   workspaceId: string;
   sourceRevision: number;
   payload: CreatePurchasePayload;
-  state: 'prepared' | 'outcome_unknown' | 'confirmed';
+  state: 'prepared' | 'outcome_unknown' | 'confirmed' | 'rejected';
   purchaseId: string | null;
   leaseOwner: string;
   leaseToken: string;
   leaseExpiresAt: number;
+  documents?: readonly PendingPurchaseDocument[];
+  uploadedDocumentIds?: readonly string[];
+  finalizeAfterSave?: boolean;
+  review?: OfflinePurchaseReview | null;
+  documentRetryBlocked?: boolean;
 }
 export const offlineContextLifetime = 7 * 24 * 60 * 60 * 1000;
 export const offlineDraftLimit = 100;

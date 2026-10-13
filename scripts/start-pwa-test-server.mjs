@@ -40,6 +40,48 @@ const server = createServer(async (request, response) => {
   response.setHeader('X-Frame-Options', 'DENY');
   response.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   const path = new URL(request.url ?? '/', 'http://127.0.0.1').pathname;
+  if (path === '/api/__pwa_test__/file-roundtrip' && request.method === 'POST') {
+    const chunks = [];
+    let length = 0;
+    for await (const chunk of request) {
+      length += chunk.length;
+      if (length > 21 * 1024 * 1024) {
+        response.writeHead(413).end();
+        return;
+      }
+      chunks.push(chunk);
+    }
+    response.setHeader(
+      'Content-Type',
+      request.headers['content-type'] ?? 'application/octet-stream',
+    );
+    response.setHeader('X-File-Name', request.headers['x-file-name'] ?? '');
+    response.setHeader('Cache-Control', 'no-store');
+    response.end(Buffer.concat(chunks));
+    return;
+  }
+  if (path === '/api/__pwa_test__/legacy-worker.js') {
+    response.setHeader('Content-Type', 'application/javascript');
+    response.setHeader('Cache-Control', 'no-store');
+    response.setHeader('Service-Worker-Allowed', '/');
+    response.end(`
+      self.addEventListener('install', () => self.skipWaiting());
+      self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));
+      self.addEventListener('fetch', event => {
+        if (new URL(event.request.url).origin === self.location.origin)
+          event.respondWith(fetch(event.request));
+      });
+    `);
+    return;
+  }
+  if (path === '/api/__pwa_test__/legacy-page') {
+    response.setHeader('Content-Type', 'text/html; charset=utf-8');
+    response.setHeader('Cache-Control', 'no-store');
+    response.end(
+      '<!doctype html><html lang="de"><title>Bisherige Ansicht</title><body>Bisherige Ansicht</body></html>',
+    );
+    return;
+  }
   if (path === '/api/__pwa_test__/axe.js') {
     response.setHeader('Content-Type', 'application/javascript');
     response.setHeader('Cache-Control', 'no-store');

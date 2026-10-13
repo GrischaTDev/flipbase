@@ -24,10 +24,7 @@ async function mockBackend(page: Page) {
   );
 }
 async function fixture(page: Page) {
-  await page.goto('/offline');
-  await expect(
-    page.getByRole('heading', { name: 'Lokale Einkaufsentwürfe', exact: true }),
-  ).toBeVisible();
+  await page.goto('/api/__pwa_test__/legacy-page');
   await page.addScriptTag({ url: '/api/__pwa_test__/offline-store.js' });
 }
 test('real IndexedDB isolates users, reloads and locks without deleting drafts', async ({
@@ -284,39 +281,55 @@ test('local write failure, expired access and unknown formats retain the previou
     rawNotes: 'Vorher',
   });
 });
-test('prepared offline UI autosaves and reopens the exact local draft @worker', async ({
+test('normal purchase entry restores buffered inputs without a separate local draft workflow', async ({
   page,
-  context,
 }) => {
   await mockBackend(page);
-  await page.goto('/settings/app');
-  await expect(page.getByRole('heading', { name: 'Progressive Web App (PWA)' })).toBeVisible();
-  await page.evaluate(async () => {
-    await navigator.serviceWorker.ready;
-    if (!navigator.serviceWorker.controller)
-      await new Promise<void>((resolve) =>
-        navigator.serviceWorker.addEventListener('controllerchange', () => resolve(), {
-          once: true,
-        }),
-      );
+  let creates = 0;
+  await page.route('https://api.flipbase.de/rest/v1/rpc/create_purchase', (route) => {
+    creates++;
+    return route.abort('failed');
   });
-  await page.goto('/offline/purchases');
-  await page.getByRole('button', { name: 'Neuer lokaler Entwurf' }).click();
-  await page.getByLabel('Lokaler Entwurfsname').fill('Messe am Dienstag');
-  await page.getByLabel('Verkäufernotiz', { exact: true }).fill('Stand 7');
-  await page.getByLabel('Allgemeine Notiz').fill('Lampe prüfen');
-  await expect(page.getByRole('status')).toHaveText('Auf diesem Gerät gespeichert.');
-  await context.setOffline(true);
+  await page.goto('/purchases/new');
+  await expect(page.getByRole('heading', { name: 'Einkauf erstellen', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Eigenbeleg', exact: true }).click();
+  await page.getByLabel('Verkäuferangabe, falls bekannt').fill('Stand 7');
+  await page
+    .locator('app-purchase-entry-form app-text-field[formcontrolname="notes"] textarea')
+    .fill('Lampe prüfen');
+  const documentBytes = Buffer.from('%PDF-1.7\nGepufferter Einkaufsbeleg\n');
+  await page.getByLabel('Belegdateien auswählen').setInputFiles({
+    name: 'quittung.pdf',
+    mimeType: 'application/pdf',
+    buffer: documentBytes,
+  });
+  await page.addScriptTag({ url: '/api/__pwa_test__/offline-store.js' });
+  await expect
+    .poll(() =>
+      page.evaluate(async () =>
+        (await window.createOfflinePurchaseStore().list()).some(
+          (draft) => draft.review?.form['seller_name'] === 'Stand 7',
+        ),
+      ),
+    )
+    .toBe(true);
+  page.on('dialog', (dialog) => dialog.accept());
   await page.reload();
-  await page.getByRole('button', { name: 'Messe am Dienstag', exact: true }).click();
-  await expect(page.getByLabel('Verkäufernotiz', { exact: true })).toHaveValue('Stand 7');
-  await expect(page.getByLabel('Allgemeine Notiz')).toHaveValue('Lampe prüfen');
-  await context.setOffline(false);
+  await expect(page.getByLabel('Verkäuferangabe, falls bekannt')).toHaveValue('Stand 7');
+  await expect(
+    page.locator('app-purchase-entry-form app-text-field[formcontrolname="notes"] textarea'),
+  ).toHaveValue('Lampe prüfen');
+  await expect(page.locator('[data-pending-documents]')).toContainText('quittung.pdf');
+  await expect(page.getByRole('region', { name: 'Lokaler Einkaufsentwurf' })).toHaveCount(0);
+  await expect(
+    page.getByRole('link', { name: 'Lokale Einkaufsentwürfe', exact: true }),
+  ).toHaveCount(0);
+  expect(creates).toBe(0);
   await page.addScriptTag({ url: '/api/__pwa_test__/axe.js' });
   expect(
     await page.evaluate(
       async () =>
-        (await (window as unknown as { axe: typeof axe }).axe.run('app-offline-purchases'))
+        (await (window as unknown as { axe: typeof axe }).axe.run('app-purchase-entry-form'))
           .violations,
     ),
   ).toEqual([]);
@@ -366,27 +379,23 @@ test('an account switch at IndexedDB completion never returns the old user draft
   );
   expect(denied).toBe(true);
 });
-test('online form freezes the complete first payload and reconciles a lost response after newer seller and note edits', async ({
+test('normal save automatically retries the exact buffered request and retains newer edits', async ({
   page,
 }) => {
   await mockBackend(page);
-  await page.goto('/settings/app');
-  await expect(page.getByRole('heading', { name: 'Progressive Web App (PWA)' })).toBeVisible();
-  await page.goto('/offline/purchases');
-  await page.getByRole('button', { name: 'Neuer lokaler Entwurf' }).click();
-  await page.getByLabel('Lokaler Entwurfsname').fill('Lokaler Name');
-  await page.getByLabel('Verkäufernotiz', { exact: true }).fill('Stand 7');
-  await page.getByLabel('Allgemeine Notiz').fill('Originalnotiz');
-  await expect(page.getByRole('status')).toHaveText('Auf diesem Gerät gespeichert.');
-  await page.getByRole('button', { name: 'Online prüfen und übernehmen' }).click();
-  await expect(page.getByRole('region', { name: 'Lokaler Einkaufsentwurf' })).toBeVisible();
-  await page.getByRole('button', { name: 'Eigenbeleg', exact: true }).click();
   const creates: Record<string, unknown>[] = [];
   let releaseResponse: () => void = () => undefined;
   const delayedResponse = new Promise<void>((resolve) => {
     releaseResponse = resolve;
   });
   const purchaseId = '55000000-0000-4000-8000-000000000001';
+  let savedPurchase: Record<string, unknown> | null = null;
+  await page.route('https://api.flipbase.de/rest/v1/purchases?**', (route) => {
+    const url = new URL(route.request().url());
+    return route.fulfill({
+      json: url.searchParams.get('id') === 'eq.' + purchaseId ? savedPurchase : [],
+    });
+  });
   await page.route('https://api.flipbase.de/rest/v1/rpc/create_purchase', async (route) => {
     const body = route.request().postDataJSON() as { p_purchase: Record<string, unknown> };
     creates.push(body);
@@ -395,57 +404,64 @@ test('online form freezes the complete first payload and reconciles a lost respo
       await route.abort('failed');
       return;
     }
+    savedPurchase = {
+      ...body.p_purchase,
+      id: purchaseId,
+      workspace_id: workspaceId,
+      created_at: new Date().toISOString(),
+      purchase_lines: [],
+      costs: [],
+      items: [],
+    };
     await route.fulfill({
-      json: {
-        purchase: {
-          ...body.p_purchase,
-          id: purchaseId,
-          workspace_id: workspaceId,
-          created_at: new Date().toISOString(),
-        },
-        purchase_lines: [],
-        purchase_costs: [],
-      },
+      json: { purchase: savedPurchase, purchase_lines: [], purchase_costs: [] },
     });
   });
+  await page.goto('/purchases/new');
+  await expect(page.getByRole('heading', { name: 'Einkauf erstellen', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Eigenbeleg', exact: true }).click();
   await page.getByLabel('Verkäuferangabe, falls bekannt').fill('Originalverkäufer');
+  await page
+    .locator('app-purchase-entry-form app-text-field[formcontrolname="notes"] textarea')
+    .fill('Originalnotiz');
   await page.getByRole('button', { name: 'Entwurf speichern', exact: true }).click();
   await expect(page.locator('app-purchase-entry-form form')).toHaveAttribute('inert', '');
-  const sellerInput = page.getByLabel('Verkäuferangabe, falls bekannt');
-  expect(
-    await sellerInput.evaluate((input) => {
-      (input as HTMLElement).focus();
-      return document.activeElement === input;
-    }),
-  ).toBe(false);
-  await expect(sellerInput).toHaveValue('Originalverkäufer');
+  await expect.poll(() => creates.length).toBe(1);
   releaseResponse();
-  await expect(page.getByRole('button', { name: 'Ursprünglichen Versuch prüfen' })).toBeVisible();
+  await expect(page.locator('app-purchase-entry-form form')).not.toHaveAttribute('inert', '');
   await page.getByLabel('Verkäuferangabe, falls bekannt').fill('Neuer Verkäufer');
   await page
     .locator('app-purchase-entry-form app-text-field[formcontrolname="notes"] textarea')
     .fill('Neue Notiz');
-  await page.waitForTimeout(800);
-  await page.reload();
+  await page.addScriptTag({ url: '/api/__pwa_test__/offline-store.js' });
+  await expect
+    .poll(() =>
+      page.evaluate(async () =>
+        (await window.createOfflinePurchaseStore().list()).some(
+          (draft) => draft.review?.form['seller_name'] === 'Neuer Verkäufer',
+        ),
+      ),
+    )
+    .toBe(true);
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
+  await expect.poll(() => creates.length).toBe(2);
   await expect(page.getByLabel('Verkäuferangabe, falls bekannt')).toHaveValue('Neuer Verkäufer');
-  await page.getByRole('button', { name: 'Ursprünglichen Versuch prüfen' }).click();
   await expect(
-    page.getByRole('link', { name: 'Ergänzungen im zugeordneten Einkauf prüfen' }),
-  ).toBeVisible();
-  expect(creates).toHaveLength(2);
+    page.locator('app-purchase-entry-form app-text-field[formcontrolname="notes"] textarea'),
+  ).toHaveValue('Neue Notiz');
   expect(creates[1]).toEqual(creates[0]);
   expect(creates[0]['p_purchase']).toMatchObject({
     title: '',
     seller_name: 'Originalverkäufer',
-    notes: 'Verkäufernotiz:\nStand 7\n\nAllgemeine Notiz:\nOriginalnotiz',
+    notes: 'Originalnotiz',
   });
+  await expect(page.getByRole('button', { name: 'Ursprünglichen Versuch prüfen' })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Lokaler Einkaufsentwurf' })).toHaveCount(0);
+  page.on('dialog', (dialog) => dialog.accept());
   await page.reload();
   await expect(page.getByLabel('Verkäuferangabe, falls bekannt')).toHaveValue('Neuer Verkäufer');
   await expect(
     page.locator('app-purchase-entry-form app-text-field[formcontrolname="notes"] textarea'),
   ).toHaveValue('Neue Notiz');
-  await expect(
-    page.getByRole('link', { name: 'Ergänzungen im zugeordneten Einkauf prüfen' }),
-  ).toBeVisible();
   expect(creates).toHaveLength(2);
 });

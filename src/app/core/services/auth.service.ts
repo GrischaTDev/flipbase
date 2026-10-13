@@ -10,8 +10,6 @@ import { SessionChannelService } from './session-channel.service';
 import { WebPushRevocationStoreService } from './web-push-revocation-store.service';
 import { WebPushApiService } from './web-push-api.service';
 import { OfflinePurchaseDraftStore } from '../../features/purchases/services/offline-purchase-draft.store';
-import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
-import { downloadOfflinePurchases } from '../../features/purchases/utils/offline-purchase-export';
 
 export interface ProfileUpdateResult {
   readonly error: Error | null;
@@ -62,7 +60,6 @@ export class AuthService {
   private readonly pushRevocations = inject(WebPushRevocationStoreService, { optional: true });
   private readonly pushApi = inject(WebPushApiService, { optional: true });
   private readonly offlineDrafts = inject(OfflinePurchaseDraftStore, { optional: true });
-  private readonly confirmDialog = inject(ConfirmDialogService, { optional: true });
   private readonly betaActivationAttempts = new Set<string>();
 
   readonly session = signal<AuthSession | null>(null);
@@ -542,30 +539,12 @@ export class AuthService {
     this.isLoading.set(true);
     try {
       const finishLogout = async () => {
-        if (this.offlineDrafts && this.confirmDialog) {
-          let pendingDrafts = 0;
-          try {
-            pendingDrafts = (await this.offlineDrafts.list()).filter(
-              (draft) => draft.state !== 'transferred',
-            ).length;
-          } catch {
-            /* Noch kein nutzbarer lokaler Kontext. */
-          }
-          if (pendingDrafts) {
-            const shouldExport = await this.confirmDialog.frage({
-              titel: 'Lokale Entwürfe vor der Abmeldung sichern?',
-              text: `${pendingDrafts} Entwürfe dieses Workspaces sind noch offen. Exportiere sie vor der Abmeldung. Weitere lokale Workspaces bleiben gesperrt erhalten. Unter „Entwürfe verwalten“ kannst du bewusst verwerfen.`,
-              bestaetigenText: 'Exportieren und abmelden',
-              abbrechenText: 'Entwürfe verwalten',
-            });
-            if (!shouldExport) {
-              await this.router.navigate(['/offline/purchases']);
-              return;
-            }
-            downloadOfflinePurchases(await this.offlineDrafts.exportCurrent());
-          }
+        try {
+          await this.offlineDrafts?.lock();
+        } catch {
+          // Die Sperre gilt bereits im Speicher; ein IndexedDB-Fehler darf die Online-Abmeldung nicht verhindern.
+          this.logger?.warn('Der lokale Einkaufspuffer konnte nicht dauerhaft gesperrt werden!');
         }
-        await this.offlineDrafts?.lock();
         const userId = this.currentUser()?.id;
         // Vor dem Entfernen der Sitzung sichern; die Capability braucht später kein altes JWT.
         if (userId) this.pushRevocations?.markForRevoke(userId);

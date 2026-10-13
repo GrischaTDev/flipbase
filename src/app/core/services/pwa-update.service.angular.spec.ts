@@ -16,6 +16,7 @@ const registration = Object.assign(new EventTarget(), {
   update: vi.fn().mockResolvedValue(undefined),
 });
 beforeEach(() => {
+  Object.defineProperty(registration, 'waiting', { configurable: true, value: waiting });
   Object.defineProperty(navigator, 'serviceWorker', {
     configurable: true,
     value: new EventTarget(),
@@ -46,15 +47,93 @@ beforeEach(() => {
 afterEach(() => {
   TestBed.resetTestingModule();
   vi.restoreAllMocks();
+  vi.useRealTimers();
 });
-function receive(type: string) {
+it('releases a nonresponding worker and explains how to retry', async () => {
+  vi.useFakeTimers();
+  receive('PWA_WAITING_STATUS');
+  const result = service.applyUpdate();
+  await vi.advanceTimersByTimeAsync(8000);
+  expect(await result).toBe('failed');
+  expect(service.isApplying()).toBe(false);
+  expect(service.message()).toMatch(/nicht geantwortet/);
+});
+it('does not send the previous build ID to a replacement waiting worker', async () => {
+  receive('PWA_WAITING_STATUS');
+  const replacement = { postMessage: vi.fn() };
+  Object.defineProperty(registration, 'waiting', { configurable: true, value: replacement });
+  expect(await service.applyUpdate()).toBe('failed');
+  expect(service.updateAvailable()).toBe(false);
+  expect(replacement.postMessage).toHaveBeenCalledExactlyOnceWith({ type: 'PWA_UPDATE_QUERY' });
+});
+function receive(type: string, details: Record<string, unknown> = {}) {
   navigator.serviceWorker.dispatchEvent(
     Object.assign(new Event('message'), {
       source: waiting,
-      data: { type, buildId: 'a'.repeat(64), attemptId: 'attempt' },
+      data: { type, buildId: 'a'.repeat(64), attemptId: 'attempt', ...details },
     }),
   );
 }
+it('offers an update only after the waiting worker confirms a different build', () => {
+  expect(service.updateAvailable()).toBe(false);
+  receive('PWA_WAITING_STATUS');
+  expect(service.updateAvailable()).toBe(true);
+});
+it('does not describe the already loaded build as a new version during legacy worker handover', () => {
+  receive('PWA_WAITING_STATUS', { buildId: 'b'.repeat(64) });
+  expect(service.updateAvailable()).toBe(false);
+  expect(waiting.postMessage).toHaveBeenCalledWith(
+    expect.objectContaining({ type: 'ACTIVATE_UPDATE' }),
+  );
+});
+it('never silently takes over a same-build worker while the loaded page has unsaved input', () => {
+  dirty.mockReturnValue(true);
+  receive('PWA_WAITING_STATUS', { buildId: 'b'.repeat(64) });
+  expect(service.updateAvailable()).toBe(false);
+  expect(waiting.postMessage).not.toHaveBeenCalled();
+});
+it('retries a blocked legacy handover when the current view resumes, without requiring reload', async () => {
+  receive('PWA_WAITING_STATUS', { buildId: 'b'.repeat(64) });
+  const first = waiting.postMessage.mock.calls.find(
+    ([message]) => message.type === 'ACTIVATE_UPDATE',
+  )?.[0];
+  receive('PWA_PREPARE_UPDATE', { buildId: 'b'.repeat(64), attemptId: first.attemptId });
+  receive('PWA_UPDATE_RESULT', {
+    buildId: 'b'.repeat(64),
+    attemptId: first.attemptId,
+    result: 'blocked',
+  });
+  await Promise.resolve();
+  await service.checkForUpdate();
+  receive('PWA_WAITING_STATUS', { buildId: 'b'.repeat(64) });
+  expect(
+    waiting.postMessage.mock.calls.filter(([message]) => message.type === 'ACTIVATE_UPDATE'),
+  ).toHaveLength(2);
+  expect(service.updateAvailable()).toBe(false);
+});
+it('clears the update offer when the waiting worker has activated elsewhere', () => {
+  receive('PWA_WAITING_STATUS');
+  Object.defineProperty(registration, 'waiting', { configurable: true, value: null });
+  navigator.serviceWorker.dispatchEvent(new Event('controllerchange'));
+  expect(service.updateAvailable()).toBe(false);
+  Object.defineProperty(registration, 'waiting', { configurable: true, value: waiting });
+});
+it('reports a missing worker response instead of making the update click a silent no-op', async () => {
+  expect(await service.applyUpdate()).toBe('failed');
+  expect(service.message()).toMatch(/vorbereitet|erneut/);
+});
+it('explains a blocked suspended view even when that view never sent a preparation ACK', async () => {
+  receive('PWA_WAITING_STATUS');
+  const result = service.applyUpdate();
+  const attempt = waiting.postMessage.mock.calls.find(
+    ([message]) => message.type === 'ACTIVATE_UPDATE',
+  )?.[0];
+  expect(attempt).toBeDefined();
+  receive('PWA_UPDATE_RESULT', { attemptId: attempt.attemptId, result: 'blocked' });
+  expect(await result).toBe('blocked');
+  expect(service.message()).toMatch(/Ansichten|Tabs/);
+  expect(service.isApplying()).toBe(false);
+});
 it('blocks an update while workspace context is locked or an existing page reports dirty state', async () => {
   locked.set(true);
   expect(await service.applyUpdate()).toBe('blocked');

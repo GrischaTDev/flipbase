@@ -46,7 +46,11 @@ export class PurchaseCreateComponent {
   }
 
   returnToPurchases(): void {
-    void this.router.navigate(['/purchases']);
+    const entry = this.entryForm();
+    void this.router.navigate(['/purchases']).then((navigated) => {
+      if (navigated) return entry.discardUnsubmittedBuffer();
+      return undefined;
+    });
   }
 
   openPurchase(purchaseId: string): void {

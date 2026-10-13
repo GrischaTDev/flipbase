@@ -61,6 +61,8 @@ export class PurchaseDocumentService {
     sourceFinalizedAt: string | null = null,
     companySnapshot: InvoiceParty | null = null,
     expectedWorkspaceId?: string,
+    expectedDocumentId?: string,
+    expectedUserId?: string,
   ): Promise<{ data: PurchaseDocument | null; error: Error | null }> {
     if ((documentType === 'self_receipt') !== (sourceFinalizedAt !== null)) {
       return { data: null, error: new Error('Die Abschlussfassung des Eigenbelegs fehlt.') };
@@ -82,15 +84,51 @@ export class PurchaseDocumentService {
     const extension = purchaseDocumentExtension(file);
     if (!extension) return { data: null, error: new Error('Die Dateiendung passt nicht zum Typ.') };
 
-    const id = crypto.randomUUID();
+    if (
+      expectedDocumentId &&
+      !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(expectedDocumentId)
+    )
+      return { data: null, error: new Error('Die Belegkennung ist ungültig.') };
+    const id = expectedDocumentId ?? crypto.randomUUID();
+    const bufferedUserId = expectedDocumentId
+      ? (expectedUserId ?? this.auth?.currentUser()?.id)
+      : undefined;
+    const verifyIdentity = () => {
+      if (
+        expectedDocumentId &&
+        (!bufferedUserId ||
+          this.auth?.currentUser()?.id !== bufferedUserId ||
+          this.workspaceService.currentWorkspace()?.id !== workspace.id)
+      )
+        throw new Error(
+          'Die Anmeldung oder der Workspace hat sich während des Beleguploads geändert.',
+        );
+    };
     const path = purchaseDocumentPath(workspace.id, purchaseId, id, extension);
     let uploadedPath: string | null = null;
     try {
+      verifyIdentity();
+      if (expectedDocumentId) {
+        const existing = await this.findBufferedDocument(
+          workspace.id,
+          purchaseId,
+          id,
+          file,
+          documentType,
+          path,
+        );
+        verifyIdentity();
+        if (existing) return { data: existing, error: null };
+      }
       const { error: uploadError } = await this.supabase.client.storage
         .from(PURCHASE_DOCUMENT_BUCKET)
         .upload(path, file, { contentType: file.type, upsert: false });
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        if (!expectedDocumentId) throw uploadError;
+        await this.verifyBufferedFile(path, file);
+      }
       uploadedPath = path;
+      verifyIdentity();
       if (this.workspaceService.currentWorkspace()?.id !== workspace.id) {
         throw new Error('Der Workspace wurde während des Beleguploads gewechselt.');
       }
@@ -116,6 +154,7 @@ export class PurchaseDocumentService {
 
       uploadedPath = null;
       const document = data as PurchaseDocument;
+      verifyIdentity();
       if (this.workspaceService.currentWorkspace()?.id !== workspace.id) {
         return {
           data: null,
@@ -125,6 +164,24 @@ export class PurchaseDocumentService {
       this.documentsRaw.update((current) => [...current, document]);
       return { data: document, error: null };
     } catch (cause: unknown) {
+      if (expectedDocumentId) {
+        try {
+          verifyIdentity();
+          const existing = await this.findBufferedDocument(
+            workspace.id,
+            purchaseId,
+            id,
+            file,
+            documentType,
+            path,
+          );
+          verifyIdentity();
+          if (existing) return { data: existing, error: null };
+        } catch {
+          // Bei unbekanntem Ausgang dürfen bereits referenzierte Originalbelege nicht gelöscht werden.
+        }
+        return { data: null, error: this.syncStatus.melde('Speichern des Belegs', cause) };
+      }
       const failure = this.syncStatus.melde('Speichern des Belegs', cause);
       // Ohne Metadaten ist die Datei unerreichbar; sie wird deshalb zurückgenommen.
       if (uploadedPath) {
@@ -140,6 +197,56 @@ export class PurchaseDocumentService {
       }
       return { data: null, error: failure };
     }
+  }
+  private async findBufferedDocument(
+    workspaceId: string,
+    purchaseId: string,
+    id: string,
+    file: File,
+    documentType: PurchaseDocumentType,
+    path: string,
+  ): Promise<PurchaseDocument | null> {
+    const { data, error } = await this.supabase.client
+      .from('purchase_documents')
+      .select('*')
+      .eq('workspace_id', workspaceId)
+      .eq('purchase_id', purchaseId)
+      .eq('id', id)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return null;
+    const document = data as PurchaseDocument;
+    if (
+      document.workspace_id !== workspaceId ||
+      document.purchase_id !== purchaseId ||
+      document.id !== id ||
+      document.document_type !== documentType ||
+      document.storage_path !== path ||
+      document.original_file_name !== file.name ||
+      document.mime_type !== file.type ||
+      document.file_size !== file.size
+    )
+      throw new Error('Der bereits gespeicherte Beleg stimmt nicht mit deinen Eingaben überein.');
+    await this.verifyBufferedFile(path, file);
+    if (this.workspaceService.currentWorkspace()?.id !== workspaceId)
+      throw new Error('Der Workspace hat sich geändert.');
+    this.documentsRaw.update((documents) => [
+      ...documents.filter((entry) => entry.id !== document.id),
+      document,
+    ]);
+    return document;
+  }
+  private async verifyBufferedFile(path: string, file: File): Promise<void> {
+    const { data, error } = await this.supabase.client.storage
+      .from(PURCHASE_DOCUMENT_BUCKET)
+      .download(path);
+    if (error || !data) throw error ?? new Error('Der Beleg konnte nicht geprüft werden.');
+    const [storedHash, inputHash] = await Promise.all([
+      data.arrayBuffer().then((bytes) => crypto.subtle.digest('SHA-256', bytes)),
+      file.arrayBuffer().then((bytes) => crypto.subtle.digest('SHA-256', bytes)),
+    ]);
+    if (new Uint8Array(storedHash).some((byte, index) => byte !== new Uint8Array(inputHash)[index]))
+      throw new Error('Der gespeicherte Beleg enthält andere Dateiinhalte.');
   }
 
   async download(document: PurchaseDocument): Promise<{ data: Blob | null; error: Error | null }> {

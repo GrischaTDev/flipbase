@@ -1,6 +1,7 @@
 import '@angular/compiler';
 import { Injector, runInInjectionContext, signal } from '@angular/core';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { webcrypto } from 'node:crypto';
 import {
   PurchaseDocument,
   PURCHASE_DOCUMENT_MAX_BYTES,
@@ -39,6 +40,7 @@ function createService(
     download?: ReturnType<typeof vi.fn>;
     insert?: ReturnType<typeof vi.fn>;
     deleteRow?: ReturnType<typeof vi.fn>;
+    findDocument?: ReturnType<typeof vi.fn>;
   } = {},
 ) {
   const upload = options.upload ?? vi.fn(async () => ({ error: null }));
@@ -70,9 +72,14 @@ function createService(
         from: () => ({
           insert,
           delete: deleteRow,
-          select: () => ({
-            eq: () => ({ order: async () => ({ data: [storedDocument], error: null }) }),
-          }),
+          select: () => {
+            const query = {
+              eq: () => query,
+              order: async () => ({ data: [storedDocument], error: null }),
+              maybeSingle: options.findDocument ?? vi.fn(async () => ({ data: null, error: null })),
+            };
+            return query;
+          },
         }),
       },
     },
@@ -212,6 +219,136 @@ describe('PurchaseDocumentService.remove', () => {
     const result = await service.remove(storedDocument);
 
     expect(result.error?.message).toContain('nicht gefunden oder darf nicht entfernt werden');
+    expect(removeFile).not.toHaveBeenCalled();
+  });
+});
+
+describe('PurchaseDocumentService buffered uploads', () => {
+  beforeEach(() => vi.stubGlobal('crypto', webcrypto));
+  afterEach(() => vi.unstubAllGlobals());
+  const bytes = () => new Uint8Array([37, 80, 68, 70]).buffer;
+  const bufferedFile = () => Object.assign(file(), { arrayBuffer: async () => bytes() });
+  const privateDownload = () =>
+    vi.fn(async () => ({ data: { arrayBuffer: async () => bytes() }, error: null }));
+
+  it('reconciles an existing document and original bytes without another upload', async () => {
+    const findDocument = vi.fn(async () => ({ data: storedDocument, error: null }));
+    const { service, upload, insert, removeFile } = createService({
+      findDocument,
+      download: privateDownload(),
+    });
+    const result = await service.upload(
+      purchaseId,
+      bufferedFile(),
+      'invoice',
+      null,
+      null,
+      workspace.id,
+      storedDocument.id,
+      'user-1',
+    );
+    expect(result.error).toBeNull();
+    expect(result.data?.id).toBe(storedDocument.id);
+    expect(upload).not.toHaveBeenCalled();
+    expect(insert).not.toHaveBeenCalled();
+    expect(removeFile).not.toHaveBeenCalled();
+  });
+
+  it('reconciles a metadata write whose response was lost and never deletes its referenced original', async () => {
+    const findDocument = vi
+      .fn()
+      .mockResolvedValueOnce({ data: null, error: null })
+      .mockResolvedValue({ data: storedDocument, error: null });
+    const insert = vi.fn(() => ({
+      select: () => ({
+        single: async () => ({ data: null, error: new TypeError('network response lost') }),
+      }),
+    }));
+    const { service, upload, removeFile } = createService({
+      findDocument,
+      insert,
+      download: privateDownload(),
+    });
+    const result = await service.upload(
+      purchaseId,
+      bufferedFile(),
+      'invoice',
+      null,
+      null,
+      workspace.id,
+      storedDocument.id,
+      'user-1',
+    );
+    expect(result.error).toBeNull();
+    expect(upload).toHaveBeenCalledTimes(1);
+    expect(removeFile).not.toHaveBeenCalled();
+  });
+
+  it('keeps an uncertain private original when metadata cannot be read', async () => {
+    const findDocument = vi
+      .fn()
+      .mockResolvedValueOnce({ data: null, error: null })
+      .mockResolvedValue({ data: null, error: { status: 503, message: 'metadata unavailable' } });
+    const insert = vi.fn(() => ({
+      select: () => ({
+        single: async () => ({ data: null, error: { status: 503, message: 'response lost' } }),
+      }),
+    }));
+    const { service, removeFile } = createService({
+      findDocument,
+      insert,
+      download: privateDownload(),
+    });
+    const result = await service.upload(
+      purchaseId,
+      bufferedFile(),
+      'invoice',
+      null,
+      null,
+      workspace.id,
+      storedDocument.id,
+      'user-1',
+    );
+    expect(result.error).not.toBeNull();
+    expect(removeFile).not.toHaveBeenCalled();
+  });
+
+  it('rejects a document with different original bytes', async () => {
+    const findDocument = vi.fn(async () => ({ data: storedDocument, error: null }));
+    const download = vi.fn(async () => ({
+      data: { arrayBuffer: async () => new Uint8Array([9]).buffer },
+      error: null,
+    }));
+    const { service, upload, removeFile } = createService({ findDocument, download });
+    const result = await service.upload(
+      purchaseId,
+      bufferedFile(),
+      'invoice',
+      null,
+      null,
+      workspace.id,
+      storedDocument.id,
+      'user-1',
+    );
+    expect(result.error?.message).toContain('andere Dateiinhalte');
+    expect(upload).not.toHaveBeenCalled();
+    expect(removeFile).not.toHaveBeenCalled();
+  });
+
+  it('rejects a different signed-in user before touching private storage', async () => {
+    const { service, upload, removeFile } = createService();
+    const result = await service.upload(
+      purchaseId,
+      bufferedFile(),
+      'invoice',
+      null,
+      null,
+      workspace.id,
+      storedDocument.id,
+      'other-user',
+    );
+    expect(result.error).not.toBeNull();
+    expect(upload).not.toHaveBeenCalled();
     expect(removeFile).not.toHaveBeenCalled();
   });
 });

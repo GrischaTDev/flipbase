@@ -79,7 +79,15 @@ describe('SidebarComponent', () => {
           provide: PlatformOperatorService,
           useValue: { operator: signal(operator), isOperator: vi.fn(async () => operator) },
         },
-        { provide: PwaService, useValue: { isInstallable: signal(false), promptInstall: vi.fn() } },
+        {
+          provide: PwaService,
+          useValue: {
+            showInstallationOffer: signal(false),
+            isInstallable: signal(false),
+            installationHelp: signal('Nutze das Browser-Menü.'),
+            promptInstall: vi.fn(),
+          },
+        },
       ],
     }).compileComponents();
 
@@ -378,9 +386,7 @@ describe('SidebarComponent', () => {
       expect(label?.querySelector('a, button')).toBeNull();
       expect(label?.getAttribute('tabindex')).toBeNull();
     }
-    const links = [
-      ...element.querySelectorAll<HTMLAnchorElement>('nav a:not([href="/offline/purchases"])'),
-    ];
+    const links = [...element.querySelectorAll<HTMLAnchorElement>('nav a')];
     expect(links[0].textContent?.trim()).toBe('Konten');
     expect(links.at(-1)?.textContent?.trim()).toBe('Favoritennachrichten');
     expect(links.filter((link) => link.getAttribute('aria-current') === 'page')).toHaveLength(1);

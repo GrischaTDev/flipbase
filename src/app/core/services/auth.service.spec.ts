@@ -1,6 +1,6 @@
 import '@angular/compiler';
-import { describe, it, expect, beforeEach } from 'vitest';
-import { Injector, runInInjectionContext } from '@angular/core';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { Injector, runInInjectionContext, type Provider } from '@angular/core';
 import { Router } from '@angular/router';
 import type { AuthChangeEvent, AuthSession } from '@supabase/supabase-js';
 import { AuthService } from './auth.service';
@@ -8,6 +8,8 @@ import { SupabaseService } from './supabase.service';
 import { LandingHintService } from './landing-hint.service';
 import { SyncStatusService } from './sync-status.service';
 import { SessionChannelService } from './session-channel.service';
+import { OfflinePurchaseDraftStore } from '../../features/purchases/services/offline-purchase-draft.store';
+import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
 
 /**
  * Verhaltenstest des AuthService mit gefaelschtem Supabase-Client.
@@ -61,6 +63,7 @@ function baueUmgebung(
   betaAktivierungsfehler: readonly unknown[] = [],
   reauthFehler: unknown = null,
   passwordUpdateFehler: unknown = null,
+  additionalProviders: Provider[] = [],
 ): Umgebung {
   const ziele: unknown[][] = [];
   const cookie: string[] = [];
@@ -132,6 +135,7 @@ function baueUmgebung(
           abmelden: () => cookie.push('abmelden'),
         },
       },
+      ...additionalProviders,
     ],
   });
 
@@ -416,6 +420,53 @@ describe('AuthService: Sitzungskanal', () => {
  * tat der Knopf "Abmelden" im Kopfbereich, ohne es anzukuendigen.
  */
 describe('AuthService: Reichweite des Abmeldens', () => {
+  it('meldet online weiter ab, wenn die dauerhafte Puffersperre im lokalen Speicher scheitert', async () => {
+    const offlineStore = {
+      noteIdentity: vi.fn(),
+      lock: vi.fn().mockRejectedValue(new Error('IndexedDB write failed')),
+    };
+    const environment = baueUmgebung(null, [], null, null, [
+      { provide: OfflinePurchaseDraftStore, useValue: offlineStore },
+    ]);
+    await environment.dienst.sessionReady;
+    environment.melde('SIGNED_IN', sitzung());
+
+    await expect(environment.dienst.signOut()).resolves.toBeUndefined();
+
+    expect(offlineStore.lock).toHaveBeenCalled();
+    expect(environment.bereiche).toEqual(['local']);
+    expect(environment.dienst.currentUser()).toBeNull();
+    expect(environment.dienst.isLoading()).toBe(false);
+    expect(environment.ziele).toContainEqual(['/auth/login']);
+  });
+
+  it('sperrt den Einkaufspuffer beim Abmelden ohne Exportdialog und bewahrt gespeicherte Inhalte', async () => {
+    const storedDrafts = [{ id: 'pending-purchase', state: 'queued' }];
+    const offlineStore = {
+      list: vi.fn().mockResolvedValue(storedDrafts),
+      lock: vi.fn().mockResolvedValue(undefined),
+      noteIdentity: vi.fn(),
+      exportCurrent: vi.fn(),
+      delete: vi.fn(),
+    };
+    const question = vi.fn().mockResolvedValue(false);
+    const environment = baueUmgebung(null, [], null, null, [
+      { provide: OfflinePurchaseDraftStore, useValue: offlineStore },
+      { provide: ConfirmDialogService, useValue: { frage: question } },
+    ]);
+    environment.melde('SIGNED_IN', sitzung());
+
+    await environment.dienst.signOut();
+
+    expect(question).not.toHaveBeenCalled();
+    expect(offlineStore.exportCurrent).not.toHaveBeenCalled();
+    expect(offlineStore.delete).not.toHaveBeenCalled();
+    expect(offlineStore.lock).toHaveBeenCalled();
+    expect(storedDrafts).toEqual([{ id: 'pending-purchase', state: 'queued' }]);
+    expect(environment.bereiche).toEqual(['local']);
+    expect(environment.dienst.isAuthenticated()).toBe(false);
+    expect(environment.ziele).toEqual([['/auth/login']]);
+  });
   it('das normale Abmelden betrifft nur diesen Browser', async () => {
     const umgebung = baueUmgebung();
     umgebung.melde('SIGNED_IN', sitzung());

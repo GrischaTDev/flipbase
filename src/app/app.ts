@@ -10,6 +10,7 @@ import { PwaService } from './core/services/pwa.service';
 import { PushNavigationService } from './core/services/push-navigation.service';
 import { PushNavigationNoticeComponent } from './shared/components/push-navigation-notice/push-navigation-notice.component';
 import { OfflinePurchaseContextService } from './features/purchases/services/offline-purchase-context.service';
+import { PurchaseBufferService } from './features/purchases/services/purchase-buffer.service';
 
 @Component({
   selector: 'app-root',
@@ -30,6 +31,7 @@ export class App {
   private readonly translate = inject(TranslateService);
   private readonly toastSyncBridge = inject(ToastSyncBridgeService);
   private readonly offlinePurchaseContext = inject(OfflinePurchaseContextService);
+  private readonly purchaseBuffer = inject(PurchaseBufferService);
   protected readonly title = signal('flipbase');
 
   constructor() {
