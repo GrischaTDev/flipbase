@@ -18,6 +18,10 @@ import {
   validateEbayUpdate,
 } from '../_shared/ebay-listing-management.ts';
 import { encryptTokens, hashState } from '../_shared/ebay-token-encryption.ts';
+import {
+  readEbayTrafficOverview,
+  requireEbayTrafficDays,
+} from '../_shared/ebay-traffic-overview.ts';
 
 import { withEbayConnection, EbayConnectionError } from './connection-read.ts';
 import { createEbayOrderImportHandler } from './order-import.ts';
@@ -232,14 +236,22 @@ export function createEbayAccountHandler(
         return respond({ authorizationUrl: authorizationUrl(config, state) });
       }
       if (
-        ['listing_detail', 'listing_update', 'listing_image', 'listing_traffic'].includes(
-          String(body.action),
-        )
+        [
+          'listing_detail',
+          'listing_update',
+          'listing_image',
+          'listing_traffic',
+          'traffic_overview',
+        ].includes(String(body.action))
       ) {
         if (!isUuid(body.connectionId)) return respond({ error: 'invalid_request' }, 400);
         const scope = { workspaceId, connectionId: body.connectionId };
         const listingId =
-          body.action === 'listing_traffic' ? null : requireEbayListingId(body.listingId);
+          body.action === 'listing_traffic' || body.action === 'traffic_overview'
+            ? null
+            : requireEbayListingId(body.listingId);
+        const trafficDays =
+          body.action === 'traffic_overview' ? requireEbayTrafficDays(body.days) : null;
         const update = body.action === 'listing_update' ? validateEbayUpdate(body.update) : null;
         if (body.action === 'listing_image' && !image)
           return respond({ error: 'invalid_request' }, 400);
@@ -249,6 +261,8 @@ export function createEbayAccountHandler(
           store,
           config,
           async ({ accessToken, connection }) => {
+            if (trafficDays)
+              return readEbayTrafficOverview(config, accessToken, trafficDays, fetcher);
             if (body.action === 'listing_traffic') {
               if (
                 !Array.isArray(body.listingIds) ||

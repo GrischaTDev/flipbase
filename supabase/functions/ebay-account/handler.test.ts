@@ -88,6 +88,99 @@ test('Neue eBay-Aktionen prüfen Berechtigung und Eingaben vor dem Anbieteraufru
   );
   assert.equal(calls, 0);
 });
+
+test('Konto-Traffic lehnt fremde Workspaces, Sitzungen und überlange Zeiträume vor dem Anbieter ab', async () => {
+  let claims = 0;
+  const handler = createEbayAccountHandler(
+    store({
+      claim: async () => {
+        claims++;
+        return null;
+      },
+    }),
+    config,
+    config.allowedOrigins,
+  );
+  assert.equal(
+    (await handler(request('traffic_overview', { connectionId, days: 30 }, 'Bearer forged')))
+      .status,
+    401,
+  );
+  assert.equal(
+    (
+      await handler(
+        request('traffic_overview', { connectionId, workspaceId: connectionId, days: 30 }),
+      )
+    ).status,
+    403,
+  );
+  assert.equal(
+    (await handler(request('traffic_overview', { connectionId, days: 365 }))).status,
+    400,
+  );
+  assert.equal(claims, 0);
+});
+
+test('Konto-Traffic nutzt die gesperrte persönliche Verbindung und verwirft überholte Antworten', async () => {
+  const encryptedTokens = await encryptTokens(
+    {
+      accessToken: 'access',
+      refreshToken: 'refresh',
+      expiresAt: Date.now() + 100000,
+      refreshExpiresAt: Date.now() + 1000000,
+    },
+    config.encryptionKey,
+    connectionId,
+  );
+  let finished = 0;
+  const fetcher: typeof fetch = async () =>
+    Response.json({
+      header: {
+        dimensionKeys: [{ key: 'DAY' }],
+        metrics: [
+          'TOTAL_IMPRESSION_TOTAL',
+          'LISTING_VIEWS_TOTAL',
+          'TRANSACTION',
+          'LISTING_IMPRESSION_SEARCH_RESULTS_PAGE',
+          'LISTING_VIEWS_SOURCE_SEARCH_RESULTS_PAGE',
+          'CLICK_THROUGH_RATE',
+          'SALES_CONVERSION_RATE',
+        ].map((key) => ({ key })),
+      },
+      records: [],
+    });
+  const handler = createEbayAccountHandler(
+    store({
+      claim: async (user, workspace, id) => {
+        assert.equal(user, userId);
+        assert.equal(workspace, workspaceId);
+        assert.equal(id, connectionId);
+        return { connection, encryptedTokens };
+      },
+      finish: async () => {
+        finished++;
+        return true;
+      },
+    }),
+    config,
+    config.allowedOrigins,
+    fetcher,
+  );
+  const response = await handler(request('traffic_overview', { connectionId, days: 7 }));
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.workspaceId, workspaceId);
+  assert.equal(body.connectionId, connectionId);
+  assert.equal(body.days.length, 7);
+  assert.equal(finished, 1);
+  const changed = createEbayAccountHandler(
+    store({ claim: async () => ({ connection, encryptedTokens }), finish: async () => false }),
+    config,
+    config.allowedOrigins,
+    fetcher,
+  );
+  assert.equal((await changed(request('traffic_overview', { connectionId, days: 7 }))).status, 409);
+});
 test('Eine zwischenzeitlich erneuerte Freigabe stoppt die Änderung vor dem Schreiben', async () => {
   const item =
     '<GetItemResponse><Ack>Success</Ack><Item><ItemID>123</ItemID><Seller><UserID>seller</UserID></Seller><Title>Original</Title><Description>Text</Description><ListingType>FixedPriceItem</ListingType><SellingStatus><ListingStatus>Active</ListingStatus><CurrentPrice currencyID="EUR">10</CurrentPrice></SellingStatus><PictureDetails><PictureURL>https://i.ebayimg.com/photo.jpg</PictureURL></PictureDetails></Item></GetItemResponse>';

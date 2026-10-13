@@ -1,0 +1,224 @@
+<section class="space-y-4" aria-label="Traffic Deines eBay-Kontos">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div class="flex flex-wrap gap-1" role="group" aria-label="Traffic-Zeitraum">
+      @for (days of periods; track days) {
+        <app-button
+          [variant]="selectedDays() === days ? 'primary' : 'secondary'"
+          size="slim"
+          [ariaPressed]="selectedDays() === days"
+          [disabled]="loading()"
+          (clicked)="selectedDays.set(days)"
+        >
+          {{ days }} Tage
+        </app-button>
+      }
+    </div>
+    <div class="flex flex-wrap gap-2">
+      <app-button
+        variant="secondary"
+        [icon]="externalIcon"
+        href="https://www.ebay.de/sh/performance/traffic"
+        target="_blank"
+        >Bei eBay ansehen</app-button
+      >
+      <app-button [icon]="refreshIcon" [loading]="loading()" (clicked)="refresh()"
+        >Aktualisieren</app-button
+      >
+    </div>
+  </div>
+  <p class="text-sm text-fb-text-secondary">
+    Wie oft Deine Angebote angezeigt, aufgerufen und gekauft werden. Der Bericht umfasst Dein
+    gesamtes eBay-Konto auf dem deutschen Marktplatz, einschließlich inzwischen verkaufter Angebote.
+  </p>
+  @if (loading()) {
+    <app-card
+      ><p role="status" class="text-sm text-fb-text-muted">
+        Deine Trafficdaten werden geladen …
+      </p></app-card
+    >
+  } @else if (error(); as message) {
+    <app-card title="Trafficdaten nicht verfügbar">
+      <p role="alert" class="text-sm text-fb-critical">{{ message }}</p>
+      <app-button class="mt-3" variant="secondary" link="/marketplaces/ebay/connection"
+        >Zur Kontoverbindung</app-button
+      >
+    </app-card>
+  }
+  @if (report(); as traffic) {
+    <p class="text-xs text-fb-text-muted">
+      {{ traffic.startDate | date: 'dd.MM.yyyy' }} – {{ traffic.endDate | date: 'dd.MM.yyyy' }} ·
+      abgeschlossene Tage (UTC)
+      @if (traffic.lastUpdatedDate) {
+        · eBay-Datenstand: {{ traffic.lastUpdatedDate | date: 'dd.MM.yyyy HH:mm' : 'UTC' }} UTC
+      }
+    </p>
+    @if (summary().missingDays > 0) {
+      <p role="status" class="text-sm text-fb-text-secondary">
+        Für {{ summary().missingDays }} Tage fehlen einzelne Werte. Betroffene Gesamtwerte bleiben
+        unbekannt.
+      </p>
+    }
+    <div
+      class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5"
+      aria-label="Traffic-Kennzahlen"
+    >
+      <app-card variant="kpi" title="Impressionen"
+        ><p class="text-2xl font-semibold tabular-nums text-fb-text-primary">
+          {{
+            summary().impressions === null
+              ? 'Keine Daten'
+              : (summary().impressions | number: '1.0-0')
+          }}
+        </p>
+        <p class="mt-2 text-xs text-fb-text-muted">
+          Anzeigen Deiner Angebote auf eBay; mehrfach pro Person möglich.
+        </p></app-card
+      >
+      <app-card variant="kpi" title="Aufrufe"
+        ><p class="text-2xl font-semibold tabular-nums text-fb-text-primary">
+          {{ summary().views === null ? 'Keine Daten' : (summary().views | number: '1.0-0') }}
+        </p>
+        <p class="mt-2 text-xs text-fb-text-muted">
+          Besuche Deiner Angebotsseiten, auch von außerhalb eBays.
+        </p></app-card
+      >
+      <app-card variant="kpi" title="Klickrate"
+        ><p class="text-2xl font-semibold tabular-nums text-fb-text-primary">
+          {{
+            summary().clickThroughRate === null
+              ? 'Keine Daten'
+              : (summary().clickThroughRate | percent: '1.1-2')
+          }}
+        </p>
+        <p class="mt-2 text-xs text-fb-text-muted">
+          Aufrufe aus Suchergebnissen geteilt durch Anzeigen in Suchergebnissen.
+        </p></app-card
+      >
+      <app-card variant="kpi" title="Käufe"
+        ><p class="text-2xl font-semibold tabular-nums text-fb-text-primary">
+          {{
+            summary().transactions === null
+              ? 'Keine Daten'
+              : (summary().transactions | number: '1.0-0')
+          }}
+        </p>
+        <p class="mt-2 text-xs text-fb-text-muted">
+          Abgeschlossene eBay-Transaktionen im Zeitraum.
+        </p></app-card
+      >
+      <app-card variant="kpi" title="Conversion Rate"
+        ><p class="text-2xl font-semibold tabular-nums text-fb-text-primary">
+          {{
+            summary().conversionRate === null
+              ? 'Keine Daten'
+              : (summary().conversionRate | percent: '1.1-2')
+          }}
+        </p>
+        <p class="mt-2 text-xs text-fb-text-muted">
+          Käufe geteilt durch Aufrufe. Ein Kauf bei 100 Aufrufen ergibt 1 %.
+        </p></app-card
+      >
+    </div>
+    <app-card title="Traffic im Zeitverlauf">
+      <div class="mb-3 flex flex-wrap gap-1" role="group" aria-label="Diagramm-Kennzahl">
+        @for (metric of chartMetrics; track metric.key) {
+          <app-button
+            [variant]="selectedMetric() === metric.key ? 'primary' : 'secondary'"
+            size="slim"
+            [ariaPressed]="selectedMetric() === metric.key"
+            (clicked)="selectedMetric.set(metric.key)"
+            >{{ metric.label }}</app-button
+          >
+        }
+      </div>
+      <div
+        #chart
+        class="h-[280px] w-full"
+        role="img"
+        [attr.aria-label]="metricLabel() + ' je Tag. Genaue Werte stehen in den Tageswerten.'"
+        [attr.aria-busy]="chartStatus() === 'loading'"
+      ></div>
+      @if (chartStatus() === 'error') {
+        <p role="alert" class="text-sm text-fb-critical">
+          Das Diagramm konnte nicht geladen werden. Die Tageswerte stehen weiterhin zur Verfügung.
+        </p>
+        <app-button variant="secondary" class="mt-2" (clicked)="retryChart()"
+          >Diagramm erneut laden</app-button
+        >
+      }
+      <app-button
+        variant="plain"
+        class="mt-3"
+        [ariaExpanded]="showDailyValues() || chartStatus() === 'error'"
+        ariaControls="ebay-traffic-daily-values"
+        (clicked)="showDailyValues.set(!showDailyValues())"
+        >{{ showDailyValues() ? 'Tageswerte ausblenden' : 'Tageswerte anzeigen' }}</app-button
+      >
+      <div
+        id="ebay-traffic-daily-values"
+        [hidden]="!showDailyValues() && chartStatus() !== 'error'"
+        class="mt-3 overflow-x-auto"
+        tabindex="0"
+        role="region"
+        aria-label="Tageswerte des eBay-Traffics"
+      >
+        <table class="w-full min-w-[640px] text-left text-sm tabular-nums">
+          <caption class="sr-only">
+            Traffic je Tag mit Impressionen, Aufrufen, Klickrate, Käufen und Conversion Rate
+          </caption>
+          <thead>
+            <tr class="border-b border-fb-line text-fb-text-muted">
+              <th scope="col" class="px-3 py-3">Datum</th>
+              <th scope="col" class="px-3 py-3">Impressionen</th>
+              <th scope="col" class="px-3 py-3">Aufrufe</th>
+              <th scope="col" class="px-3 py-3">Klickrate</th>
+              <th scope="col" class="px-3 py-3">Käufe</th>
+              <th scope="col" class="px-3 py-3">Conversion Rate</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (day of dailyValues(); track day.date) {
+              <tr class="border-b border-fb-line text-fb-text-primary">
+                <th scope="row" class="px-3 py-3 font-normal">
+                  {{ day.date | date: 'dd.MM.yyyy' }}
+                </th>
+                <td class="px-3 py-3">
+                  {{
+                    day.impressions === null ? 'Keine Daten' : (day.impressions | number: '1.0-0')
+                  }}
+                </td>
+                <td class="px-3 py-3">
+                  {{ day.views === null ? 'Keine Daten' : (day.views | number: '1.0-0') }}
+                </td>
+                <td class="px-3 py-3">
+                  {{
+                    day.clickThroughRate === null
+                      ? 'Keine Daten'
+                      : (day.clickThroughRate | percent: '1.1-2')
+                  }}
+                </td>
+                <td class="px-3 py-3">
+                  {{
+                    day.transactions === null ? 'Keine Daten' : (day.transactions | number: '1.0-0')
+                  }}
+                </td>
+                <td class="px-3 py-3">
+                  {{
+                    day.conversionRate === null
+                      ? 'Keine Daten'
+                      : (day.conversionRate | percent: '1.1-2')
+                  }}
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </app-card>
+    <p class="text-xs text-fb-text-muted">
+      Bei Einzelstücken helfen Dir vor allem Aufrufe und Beobachter je Inserat. Ein unverkauftes
+      Angebot hat meist eine Conversion Rate von 0 %. Tage ohne Aufrufe haben keine berechenbare
+      Quote.
+    </p>
+  }
+</section>

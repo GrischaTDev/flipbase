@@ -1,5 +1,36 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-13 - Juna - eBay-Trafficübersicht über die Analytics-API ergänzen
+
+**Auftrag:** Die Statistikseite als Trafficübersicht mit Impressionen, Aufrufen,
+Klickrate und Conversion Rate überarbeiten; Beobachter und Aufrufe bei Inseraten
+anzeigen. Die nötigen eBay-Servererweiterungen sind ausdrücklich freigegeben.
+
+**Änderung:** Kontoweiter Tagesbericht der eBay Sell Analytics API für den deutschen
+Marktplatz, einschließlich inzwischen verkaufter Angebote. Auswahl für 7, 30 oder
+90 abgeschlossene UTC-Tage, Datenstand, fünf Kennzahlen, wechselbares Diagramm und
+zugängliche Tageswerttabelle. Gesamtimpressionen verwenden `TOTAL_IMPRESSION_TOTAL`
+entsprechend dem Seller Hub. Klickrate und Conversion Rate werden für Gesamt- und
+Tageswerte aus den jeweiligen API-Zählwerten berechnet, ohne Tagesprozente zu
+mitteln. Nullwerte, fehlende Tage und nicht berechenbare Quoten bleiben unterscheidbar.
+Beobachter und Aufrufe der letzten 30 Tage stehen nebeneinander in den Inseraten;
+die Statistikseite lädt keine aktive Inseratliste mehr. Der neue Serveraufruf nutzt
+die bestehende persönliche Kontosperre, Workspaceberechtigung und Versionsprüfung;
+überholte Antworten werden verworfen. Keine neuen OAuth-Rechte, Abhängigkeiten oder
+Migrationen. Original-Trafficseite bleibt über einen Link erreichbar. API-Vertrag:
+https://developer.ebay.com/api-docs/sell/static/performance/traffic-report.html
+
+**Prüfung:** 23 Angular-Tests für Kontoansicht/Store, neun Modelltests, 16 serverseitige
+Tests unter Deno sowie 27 betroffene Workflowtests bestanden. Format/Lint,
+Typprüfung, Shared-UI-Prüfung und Produktionsbau bestanden. Lokale Browserprüfung
+mit künstlichem Konto und schreibgeschütztem Antwortserver: Zeitraumwechsel,
+Diagrammwechsel, Tageswerte, aktuelle Beobachter/Aufrufe und mobile Tabellenansicht.
+Bei 390 px kein Seitenüberlauf, Diagramm 318 px breit. AXE einschließlich Farbkontrast
+ohne Befund für helle Desktop-Statistiken, helle/dunkle mobile Statistiken und dunkle
+mobile Inserate. Echte eBay-Trafficdaten des neuen Kontoaufrufs sind vor dem Rollout
+noch nicht live geprüft. Die Edge-Function-Erweiterung muss zusammen mit dem
+Frontend veröffentlicht werden; der reine Frontend-Release reicht dafür nicht.
+
 ## 2026-10-13 – Juna – eBay-Arbeitsbereich und Navigation neu ordnen
 
 **Auftrag:** Den gesamten eBay-Bereich übersichtlicher aufteilen, bei Bedarf wie
