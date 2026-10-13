@@ -1,5 +1,18 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-13 - Juna - eBay-Statistiken über PR veröffentlichen
+
+**Auftrag:** Den geprüften eBay-Zweig über einen grünen PR zusammenführen und veröffentlichen.
+
+**Änderung:** Die CI erkennt einen unvollständigen Ressourcenresolver im Settings-Test;
+die beiden neuen eBay-Vorlagen ergänzen, ohne das Anwendungsverhalten zu ändern.
+Der Serverrollout wird auf die zusammengehörigen eBay-Quellen begrenzt und erhält fremde
+installierte Funktionsstände; Sicherung und Zugriffsprüfung gehören zum Rollout.
+
+**Prüfung:** Der CI-Fehler benennt die fehlende Angebotsvorlage ausdrücklich. Nach der
+Korrektur bestehen 77 gezielte Settings- und eBay-Tests sowie Format/Lint; die vollständige
+CI läuft erneut im PR. Produktionsnachweise werden erst nach erfolgreichem Rollout berichtet.
+
 ## 2026-10-13 - Juna - eBay-Statistiken kompakter darstellen
 
 **Auftrag:** Infotexte auf das Nötigste beschränken und Platz für eine klare Übersicht sparen.
