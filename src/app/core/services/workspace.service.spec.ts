@@ -1,6 +1,6 @@
 import '@angular/compiler';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { Injector, runInInjectionContext } from '@angular/core';
+import { Injector, runInInjectionContext, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { WorkspaceService } from './workspace.service';
 import { InventoryItem, Purchase, Sale, Workspace } from '../models/flipbase.models';
@@ -22,6 +22,7 @@ describe('Multi-Workspace & Holding Consolidation Service', () => {
     };
 
     function setupWorkspaceLifecycle() {
+      const currentUser = signal<{ id: string } | null>({ id: 'user-a' });
       const order = vi.fn().mockResolvedValue({ data: [incompleteWorkspace], error: null });
       const single = vi.fn().mockResolvedValue({
         data: {
@@ -41,13 +42,101 @@ describe('Multi-Workspace & Holding Consolidation Service', () => {
       const injector = Injector.create({
         providers: [
           { provide: SupabaseService, useValue: { client: { from } } },
-          { provide: AuthService, useValue: { isAuthenticated: () => true } },
+          { provide: AuthService, useValue: { isAuthenticated: () => true, currentUser } },
           { provide: SyncStatusService, useValue: syncStatus },
         ],
       });
       const workspaceService = runInInjectionContext(injector, () => new WorkspaceService());
-      return { workspaceService, order, update, eq, single, syncStatus };
+      return { workspaceService, order, update, eq, single, syncStatus, currentUser };
     }
+
+    it('lädt beim direkten Kontowechsel neue Workspaces statt den bisherigen Cache zu verwenden', async () => {
+      const { workspaceService, order, currentUser } = setupWorkspaceLifecycle();
+      await workspaceService.ensureLoaded();
+      const nextWorkspace = { ...incompleteWorkspace, id: 'workspace-b', name: 'Konto B' };
+      currentUser.set({ id: 'user-b' });
+      order.mockResolvedValueOnce({ data: [nextWorkspace], error: null });
+
+      const pending = workspaceService.ensureLoaded();
+      expect(workspaceService.currentWorkspace()).toBeNull();
+      await pending;
+
+      expect(order).toHaveBeenCalledTimes(2);
+      expect(workspaceService.workspaces()).toEqual([nextWorkspace]);
+    });
+
+    it.each(['success', 'error'])(
+      'verwirft die verspätete %s-Antwort des vorherigen Kontos',
+      async (outcome) => {
+        const { workspaceService, order, currentUser, syncStatus } = setupWorkspaceLifecycle();
+        interface WorkspaceResponse {
+          data: Workspace[] | null;
+          error: { message: string } | null;
+        }
+        let finishPrevious = (_response: WorkspaceResponse): void => {
+          throw new Error('Previous workspace request missing');
+        };
+        const previousResponse = new Promise<WorkspaceResponse>((resolve) => {
+          finishPrevious = resolve;
+        });
+        order.mockReturnValueOnce(previousResponse);
+        const previousLoad = workspaceService.ensureLoaded();
+        const nextWorkspace = { ...incompleteWorkspace, id: 'workspace-b', name: 'Konto B' };
+        currentUser.set({ id: 'user-b' });
+        order.mockResolvedValueOnce({ data: [nextWorkspace], error: null });
+        await workspaceService.ensureLoaded();
+        expect(workspaceService.currentWorkspace()).toEqual(nextWorkspace);
+
+        finishPrevious(
+          outcome === 'success'
+            ? { data: [incompleteWorkspace], error: null }
+            : { data: null, error: { message: 'Old account denied' } },
+        );
+        await previousLoad;
+
+        expect(workspaceService.currentWorkspace()).toEqual(nextWorkspace);
+        expect(workspaceService.loadError()).toBeNull();
+        expect(syncStatus.fehler()).toEqual([]);
+      },
+    );
+
+    it('erhält nach A-B-A-Wechsel die neue A-Anfrage während des alten A-Abschlusses', async () => {
+      const { workspaceService, order, currentUser } = setupWorkspaceLifecycle();
+      interface WorkspaceResponse {
+        data: Workspace[];
+        error: null;
+      }
+      let finishPrevious = (_response: WorkspaceResponse): void => {
+        throw new Error('Previous request missing');
+      };
+      let finishNext = (_response: WorkspaceResponse): void => {
+        throw new Error('Next request missing');
+      };
+      const previousResponse = new Promise<WorkspaceResponse>((resolve) => {
+        finishPrevious = resolve;
+      });
+      const nextResponse = new Promise<WorkspaceResponse>((resolve) => {
+        finishNext = resolve;
+      });
+      order.mockReturnValueOnce(previousResponse);
+      const previousLoad = workspaceService.ensureLoaded();
+      currentUser.set({ id: 'user-b' });
+      await workspaceService.ensureLoaded();
+      currentUser.set({ id: 'user-a' });
+      order.mockReturnValueOnce(nextResponse);
+      const nextLoad = workspaceService.ensureLoaded();
+
+      finishPrevious({ data: [incompleteWorkspace], error: null });
+      await previousLoad;
+      expect(workspaceService.currentWorkspace()).toBeNull();
+      expect(workspaceService.isLoading()).toBe(true);
+
+      const refreshedWorkspace = { ...incompleteWorkspace, name: 'Neu geladenes Konto A' };
+      finishNext({ data: [refreshedWorkspace], error: null });
+      await nextLoad;
+      expect(workspaceService.currentWorkspace()).toEqual(refreshedWorkspace);
+      expect(workspaceService.isLoading()).toBe(false);
+    });
 
     it('führt parallele Ladeanforderungen nur einmal gegen die Datenbank aus', async () => {
       const { workspaceService, order } = setupWorkspaceLifecycle();

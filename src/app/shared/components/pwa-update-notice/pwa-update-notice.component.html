@@ -1,0 +1,22 @@
+@if (
+  !pushNavigation.pending() && updates.updateAvailable() && (!postponed() || updates.isApplying())
+) {
+  <section
+    class="pointer-events-auto fixed right-3 top-[calc(env(safe-area-inset-top)+4.5rem)] z-40 max-w-[min(24rem,calc(100vw-1.5rem))] rounded-lg border border-fb-border bg-fb-surface p-4 text-sm text-fb-text-primary shadow-lg"
+    aria-label="App aktualisieren"
+    aria-live="polite"
+  >
+    <p class="font-semibold">Eine neue Flipbase-Version ist bereit.</p>
+    <p class="mt-1 text-fb-text-secondary">
+      {{ updates.message() || 'Du kannst nach dem Speichern deiner Eingaben aktualisieren.' }}
+    </p>
+    <div class="mt-3 flex flex-wrap gap-2">
+      <app-button (clicked)="updates.applyUpdate()" [loading]="updates.isApplying()"
+        >Jetzt aktualisieren</app-button
+      >
+      <app-button variant="plain" (clicked)="postponed.set(true)" [disabled]="updates.isApplying()"
+        >Später</app-button
+      >
+    </div>
+  </section>
+}

@@ -167,78 +167,80 @@
     </div>
   </form>
   <section
-    class="linear-surface space-y-4 rounded-2xl border border-fb-border p-5 shadow-xl"
+    class="linear-surface space-y-4 rounded-2xl border border-fb-border p-5"
     aria-labelledby="push-heading"
   >
-    <div class="flex items-center gap-2 border-b border-fb-border pb-2">
-      <svg [lucideIcon]="bellIcon" class="h-4 w-4 text-indigo-400" aria-hidden="true"></svg>
-      <h2 id="push-heading" class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
-        Web Push & Browser-Benachrichtigungen
-      </h2>
-    </div>
-    <p class="text-xs text-fb-text-muted">
-      Erhalte System-Benachrichtigungen direkt in deinem Browser oder auf dem Smartphone.
+    <h2 id="push-heading" class="text-base font-semibold text-fb-text-primary">
+      Push auf diesem Gerät
+    </h2>
+    <p class="text-sm text-fb-text-secondary">
+      Neue Nachrichten, Bestellungen und Kontoprobleme können auch bei geschlossener App angezeigt
+      werden. Die Meldungen enthalten keine Kundendaten oder Nachrichtentexte.
     </p>
-    <div
-      class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-fb-border bg-fb-subtle p-3"
-    >
-      <span class="text-xs text-fb-text-secondary">Status: {{ webPushService.permission() }}</span>
-      @if (webPushService.permission() !== 'granted') {
-        <button
-          type="button"
-          (click)="onRequestPushPermission()"
-          class="linear-btn-primary min-h-11 rounded-xl px-4 text-xs font-bold"
+    <p role="status" class="text-sm text-fb-text-secondary">{{ pushStatusText() }}</p>
+    @if (webPushService.deviceMessage()) {
+      <p class="text-sm text-fb-text-muted">{{ webPushService.deviceMessage() }}</p>
+    }
+    @if (webPushService.deviceStatus() === 'home_app_required') {
+      <p class="text-sm text-fb-text-secondary">
+        Öffne Flipbase in Safari, wähle im Teilen-Menü „Zum Home-Bildschirm“ und starte die App über
+        das neue Symbol. Aktiviere Push dort.
+      </p>
+    }
+    @if (webPushService.deviceStatus() === 'denied') {
+      <p class="text-sm text-fb-text-secondary">
+        Erlaube Benachrichtigungen für Flipbase in deinen Browser- oder Geräteeinstellungen. Danach
+        kannst du hier erneut prüfen.
+      </p>
+    }
+    <div class="flex flex-wrap gap-2">
+      @if (!webPushService.isActive()) {
+        <app-button
+          variant="primary"
+          [loading]="webPushService.isBusy()"
+          [disabled]="!webPushService.canActivate()"
+          (clicked)="onRequestPushPermission()"
+          >Dieses Gerät aktivieren</app-button
         >
-          Push aktivieren
-        </button>
+        <app-button [disabled]="webPushService.isBusy()" (clicked)="webPushService.refreshDevice()"
+          >Erneut prüfen</app-button
+        >
       } @else {
-        <button
-          type="button"
-          (click)="onTestWebPush()"
-          [disabled]="isTestingPush()"
-          class="linear-btn-secondary min-h-11 rounded-xl px-4 text-xs font-bold disabled:opacity-40"
+        <app-button
+          [loading]="isTestingPush()"
+          [disabled]="webPushService.isBusy()"
+          (clicked)="onTestWebPush()"
+          >Testbenachrichtigung senden</app-button
         >
-          {{ isTestingPush() ? 'Wird gesendet...' : 'Test-Push senden' }}
-        </button>
+      }
+      @if (webPushService.canDeactivate()) {
+        <app-button [disabled]="webPushService.isBusy()" (clicked)="onDeactivateDevice()"
+          >Dieses Gerät deaktivieren</app-button
+        >
       }
     </div>
-    <div class="space-y-3 rounded-xl border border-fb-border bg-fb-subtle p-3">
-      <div class="flex items-center justify-between gap-3 text-xs text-fb-text-secondary">
-        <span>Neue Webshop-Bestellungen</span
-        ><app-custom-checkbox
-          [checked]="webPushService.settings().notifyOnShopOrder"
-          ariaLabel="Neue Webshop-Bestellungen"
-          (checkedChange)="onTogglePushSetting('notifyOnShopOrder', $event)"
-          size="sm"
-        />
-      </div>
-      <div class="flex items-center justify-between gap-3 text-xs text-fb-text-secondary">
-        <span>Erstellte Versandetiketten</span
-        ><app-custom-checkbox
-          [checked]="webPushService.settings().notifyOnFulfillment"
-          ariaLabel="Erstellte Versandetiketten"
-          (checkedChange)="onTogglePushSetting('notifyOnFulfillment', $event)"
-          size="sm"
-        />
-      </div>
-      <div class="flex items-center justify-between gap-3 text-xs text-fb-text-secondary">
-        <span>Margen- & Profit-Alarme</span
-        ><app-custom-checkbox
-          [checked]="webPushService.settings().notifyOnMarginAlert"
-          ariaLabel="Margen- und Profit-Alarme"
-          (checkedChange)="onTogglePushSetting('notifyOnMarginAlert', $event)"
-          size="sm"
-        />
-      </div>
-      <div class="flex items-center justify-between gap-3 text-xs text-fb-text-secondary">
-        <span>Benachrichtigungston</span
-        ><app-custom-checkbox
-          [checked]="webPushService.settings().soundEnabled"
-          ariaLabel="Benachrichtigungston"
-          (checkedChange)="onTogglePushSetting('soundEnabled', $event)"
-          size="sm"
-        />
-      </div>
-    </div>
+    <fieldset
+      class="space-y-3 border-t border-fb-border pt-4"
+      [disabled]="!webPushService.isActive() || webPushService.isBusy()"
+    >
+      <legend class="text-sm font-semibold text-fb-text-primary">
+        Kategorien für diesen Workspace
+      </legend>
+      @for (category of pushCategories; track category.key) {
+        @if (webPushService.allowedCategories().includes(category.key)) {
+          <app-custom-checkbox
+            [checked]="webPushService.categories().includes(category.key)"
+            [label]="category.label"
+            [ariaLabel]="category.label"
+            [disabled]="!webPushService.isActive() || webPushService.isBusy()"
+            (checkedChange)="onToggleCategory(category.key, $event)"
+          />
+        }
+      }
+      <p class="text-xs text-fb-text-muted">
+        Neue Kategorien bleiben aus, bis du sie ausdrücklich aktivierst. Fokusmodus, Ton und
+        Zustellung werden von deinem Gerät gesteuert.
+      </p>
+    </fieldset>
   </section>
 </div>

@@ -12,4 +12,9 @@ registerLocaleData(localeDe, 'de');
 // Geschäftsdaten entfernt, bevor lazy geladene Dienste entstehen.
 prepareBrowserStorageIfAvailable();
 
-bootstrapApplication(App, appConfig).catch((err) => console.error(err));
+bootstrapApplication(App, appConfig).catch((err) => {
+  window.dispatchEvent(
+    new CustomEvent('flipbase:startup-failed', { detail: { reason: 'bootstrap' } }),
+  );
+  console.error(err);
+});

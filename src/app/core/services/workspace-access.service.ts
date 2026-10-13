@@ -19,6 +19,7 @@ export class WorkspaceAccessService {
   private readonly destroyRef = inject(DestroyRef);
   readonly access = signal<readonly WorkspaceAccess[]>([]);
   readonly error = signal<string | null>(null);
+  readonly verifiedUserId = signal<string | null>(null);
   readonly serverOffset = signal(0);
   private channels: RealtimeChannel[] = [];
   private timeout: ReturnType<typeof setTimeout> | null = null;
@@ -75,8 +76,9 @@ export class WorkspaceAccessService {
       // Ein Prüfungsfehler bestätigt kein Beta-Ende. Guards bleiben über die Ausnahme gesperrt.
       throw new Error(message);
     }
-    if (generation !== this.generation) return [];
+    if (generation !== this.generation || this.auth.currentUser()?.id !== userId) return [];
     this.error.set(null);
+    this.verifiedUserId.set(userId);
     if (rows[0]) this.serverOffset.set(Date.parse(rows[0].server_time) - Date.now());
     this.access.set(rows);
     if (this.timeout) clearTimeout(this.timeout);
@@ -117,6 +119,7 @@ export class WorkspaceAccessService {
   }
 
   private clear(): void {
+    this.verifiedUserId.set(null);
     this.access.set([]);
     this.error.set(null);
     this.selectedId = null;

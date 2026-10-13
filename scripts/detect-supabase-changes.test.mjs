@@ -5,7 +5,51 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { classifyChanges } from './detect-supabase-changes.mjs';
+import { classifyChanges, pathsSelectPush } from './detect-supabase-changes.mjs';
+
+test('Pushauswahl umfasst Sender, SQL, Functionpaket und den gesamten Releaseweg', () => {
+  for (const path of [
+    'services/push-worker/src/push-provider.ts',
+    'supabase/functions/push-revoke/handler.ts',
+    'supabase/schemas/470_web_push_devices.sql',
+    'supabase/schemas/471_web_push_delivery.sql',
+    'supabase/schemas/472_web_push_events.sql',
+    'deploy/push-main/index.ts',
+    'deploy/docker-compose.push.yml',
+    'deploy/docker-compose.push-functions.yml',
+    'deploy/deploy.sh',
+    'deploy/Caddyfile',
+    'docker/Dockerfile',
+    '.dockerignore',
+    'scripts/package-push-functions.mjs',
+    '.github/workflows/ci.yml',
+  ])
+    assert.equal(pathsSelectPush([path]), true, path);
+  assert.equal(pathsSelectPush(['src/app/features/landing/landing.html']), false);
+  assert.equal(pathsSelectPush([]), false);
+});
+
+test('jede einzelne Observer- und paketierte Shared-Datei waehlt den Push-Release aus', () => {
+  for (const path of [
+    'supabase/functions/ebay-order-observer/index.ts',
+    'supabase/functions/ebay-order-observer/handler.ts',
+    ...[
+      'ebay-api',
+      'ebay-config',
+      'ebay-token-encryption',
+      'ebay-contracts',
+      'ebay-xml',
+      'ebay-order-source',
+      'ebay-order-amounts',
+      'ebay-order-import-contracts',
+      'marketplace-contracts',
+    ].map((name) => `supabase/functions/_shared/${name}.ts`),
+  ]) {
+    assert.equal(pathsSelectPush([path]), true, path);
+    assert.equal(classifyChanges([path]).application, true, path);
+    assert.equal(classifyChanges([path]).supabase, true, path);
+  }
+});
 
 test('Migrationsweg waehlt Datenbankpruefungen aus, reine UI-Aenderungen nicht', () => {
   for (const path of [
@@ -97,7 +141,7 @@ test('Pull Requests vergleichen ausschließlich mit der PR-Basis', async () => {
     assert.equal(result.status, 0, result.stderr);
     assert.equal(
       result.output,
-      'application=true\nsupabase=true\nsniper=false\napplication_tests=true\n',
+      'application=true\nsupabase=true\nsniper=false\napplication_tests=true\npush=false\n',
     );
   });
 });
@@ -122,7 +166,7 @@ test('Pushes vergleichen ausschließlich mit github.event.before', async () => {
     assert.equal(result.status, 0, result.stderr);
     assert.equal(
       result.output,
-      'application=true\nsupabase=true\nsniper=false\napplication_tests=true\n',
+      'application=true\nsupabase=true\nsniper=false\napplication_tests=true\npush=false\n',
     );
   });
 });
@@ -147,7 +191,7 @@ test('Null-SHA verwendet bei vorhandenem Vorgänger den direkten Parent', async 
     assert.equal(result.status, 0, result.stderr);
     assert.equal(
       result.output,
-      'application=true\nsupabase=true\nsniper=false\napplication_tests=true\n',
+      'application=true\nsupabase=true\nsniper=false\napplication_tests=true\npush=false\n',
     );
   });
 });
@@ -168,7 +212,7 @@ test('erster Commit entscheidet ohne Vorgänger für beide Bereiche konservativ'
     // laufen lassen als eine Pruefung stillschweigend ueberspringen.
     assert.equal(
       result.output,
-      'application=true\nsupabase=true\nsniper=true\napplication_tests=true\n',
+      'application=true\nsupabase=true\nsniper=true\napplication_tests=true\npush=true\n',
     );
   });
 });
@@ -204,7 +248,7 @@ test('Supabase-Diff setzt die Ausgabe auf true', async () => {
     assert.equal(result.status, 0, result.stderr);
     assert.equal(
       result.output,
-      'application=true\nsupabase=true\nsniper=false\napplication_tests=true\n',
+      'application=true\nsupabase=true\nsniper=false\napplication_tests=true\npush=false\n',
     );
   });
 });
@@ -224,7 +268,7 @@ test('Diff außerhalb von Supabase setzt die Ausgabe auf false', async () => {
     assert.equal(result.status, 0, result.stderr);
     assert.equal(
       result.output,
-      'application=false\nsupabase=false\nsniper=false\napplication_tests=false\n',
+      'application=false\nsupabase=false\nsniper=false\napplication_tests=false\npush=false\n',
     );
   });
 });
@@ -255,7 +299,7 @@ test('Technischer Pfad bleibt bei einem Rename nach docs anwendungsrelevant', as
     assert.equal(result.status, 0, result.stderr);
     assert.equal(
       result.output,
-      'application=true\nsupabase=false\nsniper=false\napplication_tests=true\n',
+      'application=true\nsupabase=false\nsniper=false\napplication_tests=true\npush=false\n',
     );
   });
 });
@@ -281,7 +325,7 @@ test('reine Sniper-Änderung erhält den Release-Weg, überspringt aber Anwendun
     // Der Release-Schalter bleibt bestehen. Nur die fachfremden Anwendungstests entfallen.
     assert.equal(
       result.output,
-      'application=true\nsupabase=false\nsniper=true\napplication_tests=false\n',
+      'application=true\nsupabase=false\nsniper=true\napplication_tests=false\npush=false\n',
     );
   });
 });
@@ -302,7 +346,7 @@ test('bekannte Dokumentation unter docs und Root-Markdown überspringt die Anwen
     assert.equal(result.status, 0, result.stderr);
     assert.equal(
       result.output,
-      'application=false\nsupabase=false\nsniper=false\napplication_tests=false\n',
+      'application=false\nsupabase=false\nsniper=false\napplication_tests=false\npush=false\n',
     );
   });
 });
@@ -323,7 +367,7 @@ test('AGENTS und unbekannte Pfade lösen die Anwendungsprüfung konservativ aus'
       assert.equal(result.status, 0, result.stderr);
       assert.equal(
         result.output,
-        'application=true\nsupabase=false\nsniper=false\napplication_tests=true\n',
+        'application=true\nsupabase=false\nsniper=false\napplication_tests=true\npush=false\n',
       );
     });
   }
@@ -345,7 +389,7 @@ test('gemeinsame Abhängigkeiten und CI-Werkzeuge lösen alle betroffenen Prüfu
       assert.equal(result.status, 0, result.stderr);
       assert.equal(
         result.output,
-        'application=true\nsupabase=true\nsniper=true\napplication_tests=true\n',
+        'application=true\nsupabase=true\nsniper=true\napplication_tests=true\npush=true\n',
       );
     });
   }

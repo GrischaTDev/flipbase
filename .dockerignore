@@ -46,6 +46,17 @@ supabase/functions/_shared/*
 !supabase/functions/_shared/ebay-order-import-contracts.ts
 !supabase/functions/_shared/ebay-order-amounts.ts
 
+# Das private Releasepaket enthaelt nur die expliziten Push-Functions, keine Tests.
+!supabase/functions/push-settings/
+supabase/functions/push-settings/*
+!supabase/functions/push-settings/index.ts
+!supabase/functions/push-settings/handler.ts
+!supabase/functions/push-settings/contracts.ts
+!supabase/functions/push-revoke/
+supabase/functions/push-revoke/*
+!supabase/functions/push-revoke/index.ts
+!supabase/functions/push-revoke/handler.ts
+
 # Gemini / AI
 .gemini
 .superpowers

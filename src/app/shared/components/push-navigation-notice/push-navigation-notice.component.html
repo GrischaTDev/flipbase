@@ -1,0 +1,15 @@
+@if (navigation.pending()) {
+  <section
+    class="fixed right-3 top-[calc(env(safe-area-inset-top)+4.5rem)] z-40 max-w-[min(24rem,calc(100vw-1.5rem))] space-y-3 rounded-lg border border-fb-border bg-fb-surface p-4 text-sm text-fb-text-primary shadow-lg"
+    aria-label="Benachrichtigungsziel"
+    aria-live="polite"
+  >
+    <p>{{ navigation.message() || 'Eine Benachrichtigung wartet darauf, geöffnet zu werden.' }}</p>
+    <div class="flex flex-wrap gap-2">
+      <app-button (clicked)="navigation.openPending()" [loading]="navigation.isOpening()"
+        >Ziel öffnen</app-button
+      >
+      <app-button variant="plain" (clicked)="navigation.dismiss()">Schließen</app-button>
+    </div>
+  </section>
+}

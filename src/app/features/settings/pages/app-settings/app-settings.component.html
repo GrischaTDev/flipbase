@@ -19,37 +19,49 @@
       >
     </div>
     <p class="text-xs text-fb-text-muted">
-      Installiere Flipbase als eigenständige App auf deinem Smartphone oder Desktop für
-      Offline-Zugriff beim Sourcing.
+      Starte Flipbase vom Home-Bildschirm deines Smartphones, Tablets oder Desktops. Für Anmeldung
+      und Geschäftsdaten brauchst du weiterhin eine Internetverbindung.
+    </p>
+    <a routerLink="/offline/purchases" class="fb-link inline-flex min-h-11 items-center text-sm"
+      >Lokale Einkaufsentwürfe öffnen</a
+    >
+    <p role="status" class="text-sm text-fb-text-secondary">
+      {{
+        pwaService.offlineAssetsReady()
+          ? 'Alle App-Dateien sind für diesen Start offline vorbereitet.'
+          : 'Die App-Dateien sind noch nicht vollständig offline vorbereitet.'
+      }}
     </p>
     <div class="grid gap-2 sm:grid-cols-2">
       <div class="rounded-xl border border-fb-border bg-fb-subtle p-3">
         <span class="text-xs text-fb-text-secondary">Netzwerk-Status</span
         ><strong class="block text-xs text-fb-text-secondary">{{
-          pwaService.isOnline() ? 'Online (Live-Sync)' : 'Offline-Cache aktiv'
+          pwaService.isOnline()
+            ? 'Netzwerk verfügbar – kein Nachweis der Serververbindung'
+            : 'Keine Netzwerkverbindung'
         }}</strong>
       </div>
       <div class="rounded-xl border border-fb-border bg-fb-subtle p-3">
         <span class="text-xs text-fb-text-secondary">App-Modus</span
         ><strong class="block text-xs text-fb-text-primary">{{
-          pwaService.isInstalled() ? 'Installiert (Standalone)' : 'Im Web-Browser'
+          pwaService.isStandalone() ? 'Eigenständiges App-Fenster' : 'Im Web-Browser'
         }}</strong>
       </div>
     </div>
-    @if (!pwaService.isInstalled()) {
-      <button
-        type="button"
-        (click)="pwaService.promptInstall()"
-        class="linear-btn-primary min-h-11 w-full rounded-xl px-4 text-xs font-bold"
-      >
-        Flipbase auf Smartphone / Desktop installieren
-      </button>
+    @if (pwaService.installState() === 'prompt_available') {
+      <app-button (clicked)="pwaService.promptInstall()">Flipbase installieren</app-button>
+    } @else if (pwaService.installState() === 'manual') {
+      <p class="text-sm text-fb-text-secondary">{{ pwaService.installationHelp() }}</p>
+    } @else if (pwaService.installState() === 'unsupported') {
+      <p class="text-sm text-fb-text-secondary">
+        Dieser Browser bietet hier keine App-Installation an.
+      </p>
     } @else {
       <p
         class="flex items-center gap-2 rounded-xl border border-emerald-700/30 bg-emerald-500/15 p-3 text-xs font-medium text-fb-text-secondary"
       >
         <svg [lucideIcon]="checkIcon" class="h-4 w-4" aria-hidden="true"></svg>Flipbase ist bereits
-        als native App auf diesem Gerät installiert.
+        im eigenständigen App-Fenster geöffnet.
       </p>
     }
   </section>
