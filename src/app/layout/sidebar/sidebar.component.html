@@ -21,7 +21,7 @@
   <div class="h-16 flex shrink-0 items-center justify-between px-3">
     <a
       routerLink="/dashboard"
-      [attr.aria-label]="vintedContext() ? 'Zurück zu Flipbase' : 'Zum Dashboard'"
+      [attr.aria-label]="marketplaceContext() ? 'Zurück zu Flipbase' : 'Zum Dashboard'"
       (click)="closed.emit()"
       class="flex items-center gap-2.5 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/60"
     >
@@ -30,7 +30,7 @@
         in beiden Designs. Der Schriftzug daneben bleibt Text: So faerbt er
         sich mit dem Design mit und laesst sich vorlesen und durchsuchen.
       -->
-      @if (vintedContext()) {
+      @if (marketplaceContext()) {
         <svg [lucideIcon]="backIcon" class="size-4 shrink-0" aria-hidden="true"></svg>
         <span class="text-sm font-semibold text-fb-text-primary">Zurück zu Flipbase</span>
       } @else {
@@ -58,12 +58,24 @@
 
   <!-- Arbeitsnavigation: feste fachliche Gruppen statt Arraypositionen. -->
   <nav aria-label="Bereiche" class="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pt-2 pb-4">
-    @if (vintedContext()) {
+    @if (ebayContext()) {
+      <p class="px-2 pb-3 text-lg font-semibold text-fb-text-primary">eBay</p>
+      <ul class="space-y-0.5" data-ebay-navigation>
+        @for (item of ebayNavigation; track item.path) {
+          <li>
+            <ng-container
+              [ngTemplateOutlet]="marketplaceNavigationItem"
+              [ngTemplateOutletContext]="{ $implicit: item }"
+            />
+          </li>
+        }
+      </ul>
+    } @else if (vintedContext()) {
       <p class="px-2 pb-3 text-lg font-semibold text-fb-text-primary">Vinted</p>
       <ul class="space-y-0.5">
         <li>
           <ng-container
-            [ngTemplateOutlet]="vintedNavigationItem"
+            [ngTemplateOutlet]="marketplaceNavigationItem"
             [ngTemplateOutletContext]="{ $implicit: vintedAccountsItem }"
           />
         </li>
@@ -84,7 +96,7 @@
             @for (item of group.items; track item.path) {
               <li>
                 <ng-container
-                  [ngTemplateOutlet]="vintedNavigationItem"
+                  [ngTemplateOutlet]="marketplaceNavigationItem"
                   [ngTemplateOutletContext]="{ $implicit: item }"
                 />
               </li>
@@ -194,11 +206,11 @@
     }
   </nav>
 
-  <ng-template #vintedNavigationItem let-item>
+  <ng-template #marketplaceNavigationItem let-item>
     <a
       [routerLink]="item.path"
-      [attr.aria-current]="isVintedItemActive(item.path) ? 'page' : null"
-      [class.font-semibold]="isVintedItemActive(item.path)"
+      [attr.aria-current]="isMarketplaceItemActive(item.path) ? 'page' : null"
+      [class.font-semibold]="isMarketplaceItemActive(item.path)"
       (click)="closed.emit()"
       class="flex items-center gap-2 px-2 py-1 leading-5 rounded-md text-[13px] font-medium text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover transition group border border-transparent"
     >

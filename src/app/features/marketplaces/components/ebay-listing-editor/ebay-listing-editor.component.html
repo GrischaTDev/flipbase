@@ -4,7 +4,9 @@
     subtitle="Ändere dein Angebot und übertrage es anschließend zu eBay."
   >
     <div header-actions class="flex flex-wrap gap-2">
-      <app-button link="/marketplaces/ebay" [disabled]="saving()">Zurück zu eBay</app-button>
+      <app-button link="/marketplaces/ebay/listings" [disabled]="saving()"
+        >Zurück zu Inseraten</app-button
+      >
       <app-button [icon]="refreshIcon" [disabled]="saving() || loading()" (clicked)="reload()"
         >Neu laden</app-button
       >

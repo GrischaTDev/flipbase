@@ -56,6 +56,7 @@ test('imports an eBay order exactly once @core-smoke', async ({ page, workspace 
   const order = await createOrder(workspace);
   await openDashboard(page);
   await page.goto('/marketplaces/ebay');
+  await expect(page).toHaveURL(/\/marketplaces\/ebay\/listings$/);
   await page
     .getByRole('button', { name: 'Artikel zuordnen: eBay-Testartikel', exact: true })
     .click();
@@ -74,7 +75,11 @@ test('imports an eBay order exactly once @core-smoke', async ({ page, workspace 
     mapping.getByRole('button', { name: 'Zuordnung ändern', exact: true }),
   ).toBeVisible();
   await mapping.getByRole('button', { name: 'Schließen', exact: true }).click();
-  await page.getByRole('button', { name: 'Bestellungen', exact: true }).click();
+  await page
+    .locator('[data-ebay-navigation]')
+    .getByRole('link', { name: 'Bestellungen', exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/marketplaces\/ebay\/orders$/);
   await expect(
     page.getByRole('link', { name: `Bestellung prüfen: ${order.orderId}`, exact: true }),
   ).toBeVisible();

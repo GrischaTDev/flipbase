@@ -76,8 +76,13 @@ export class EbayAccountStore {
       ? error.message
       : 'Die eBay-Anfrage konnte nicht bestätigt werden.';
   }
-  async initialize(workspaceId: string | null, read: boolean): Promise<void> {
+  async initialize(
+    workspaceId: string | null,
+    read: boolean,
+    section: 'listings' | 'orders' = this.section(),
+  ): Promise<void> {
     const revision = this.reset(workspaceId);
+    this.section.set(section);
     if (!workspaceId) return;
     this.isLoading.set(true);
     try {
