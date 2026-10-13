@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { LucideBell, LucideDynamicIcon, LucideSend, LucideVolume2 } from '@lucide/angular';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
@@ -8,10 +15,18 @@ import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { WebPushCategory, WebPushDeviceStatus } from '../../../../core/models/web-push.models';
 
 @Component({
   selector: 'app-notification-settings',
-  imports: [ReactiveFormsModule, LucideDynamicIcon, CustomCheckboxComponent, TextFieldComponent],
+  imports: [
+    ReactiveFormsModule,
+    LucideDynamicIcon,
+    CustomCheckboxComponent,
+    TextFieldComponent,
+    ButtonComponent,
+  ],
   templateUrl: './notification-settings.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
@@ -25,6 +40,28 @@ export class NotificationSettingsComponent {
   readonly bellIcon = LucideBell;
   readonly sendIcon = LucideSend;
   readonly volumeIcon = LucideVolume2;
+  readonly pushCategories: { key: WebPushCategory; label: string }[] = [
+    { key: 'message', label: 'Neue Marktplatznachrichten' },
+    { key: 'order', label: 'Neue Bestellungen' },
+    { key: 'connection', label: 'Kontoverbindung braucht deine Anmeldung' },
+  ];
+  readonly pushStatusText = computed(() => {
+    const labels: Record<WebPushDeviceStatus, string> = {
+      unsupported: 'Dieser Browser unterstützt Push nicht.',
+      home_app_required: 'Starte die Home-Bildschirm-App, um Push zu aktivieren.',
+      permission_required: 'Dieses Gerät ist noch nicht aktiviert.',
+      denied: 'Die Browserfreigabe wurde abgelehnt.',
+      checking: 'Gerätebindung wird geprüft …',
+      disabled: 'Push ist derzeit nicht freigegeben.',
+      ready: 'Dieses Gerät kann aktiviert werden.',
+      registering: 'Gerät wird registriert …',
+      pending: 'Die Registrierung ist noch ausstehend.',
+      active: 'Dieses Gerät ist für Push aktiviert.',
+      revoke_pending: 'Der Serverwiderruf ist noch ausstehend.',
+      error: 'Die Gerätebindung konnte nicht geprüft werden.',
+    };
+    return labels[this.webPushService.deviceStatus()];
+  });
   readonly webhookForm = new FormGroup({
     discordEnabled: new FormControl(this.webhookService.config().discordEnabled),
     discordWebhookUrl: new FormControl(this.webhookService.config().discordWebhookUrl || ''),
@@ -86,22 +123,44 @@ export class NotificationSettingsComponent {
   }
   async onRequestPushPermission(): Promise<void> {
     const granted = await this.webPushService.requestPermission();
-    if (granted) this.toast.success('Browser-Benachrichtigungen wurden aktiviert.');
+    if (granted) this.toast.success('Dieses Gerät wurde für Push aktiviert.');
     else
       this.toast.error(
-        'Browser-Benachrichtigungen konnten nicht aktiviert werden.',
-        'Berechtigung wurde im Browser verweigert oder blockiert.',
+        'Dieses Gerät konnte nicht aktiviert werden.',
+        this.webPushService.deviceMessage() || 'Prüfe die Browserfreigabe und versuche es erneut.',
       );
   }
   async onTestWebPush(): Promise<void> {
     this.isTestingPush.set(true);
     const sent = await this.webPushService.sendTestNotification();
     this.isTestingPush.set(false);
-    if (sent) this.toast.success('Test-Benachrichtigung wurde versendet.');
+    if (sent) this.toast.success('Test zur Zustellung übergeben.');
     else
       this.toast.error(
-        'Test-Benachrichtigung konnte nicht versendet werden.',
-        'Push konnte nicht angezeigt werden. Bitte Berechtigung im Browser prüfen.',
+        'Test konnte nicht zur Zustellung übergeben werden.',
+        this.webPushService.deviceMessage() || 'Bitte versuche es erneut.',
+      );
+  }
+  async onDeactivateDevice(): Promise<void> {
+    try {
+      if (await this.webPushService.deactivateDevice())
+        this.toast.success('Dieses Gerät wurde deaktiviert.');
+      else this.toast.info('Deaktivierung noch ausstehend.', this.webPushService.deviceMessage());
+    } catch {
+      this.toast.error('Die Deaktivierung konnte nicht lokal gesichert werden.');
+    }
+  }
+  async onToggleCategory(category: WebPushCategory, enabled: boolean): Promise<void> {
+    const categories = this.webPushService
+      .categories()
+      .filter((candidate) => candidate !== category);
+    if (enabled) categories.push(category);
+    if (await this.webPushService.saveCategories(categories))
+      this.toast.success('Push-Kategorien wurden gespeichert.');
+    else
+      this.toast.error(
+        'Push-Kategorien konnten nicht gespeichert werden.',
+        this.webPushService.deviceMessage(),
       );
   }
   onTogglePushSetting(

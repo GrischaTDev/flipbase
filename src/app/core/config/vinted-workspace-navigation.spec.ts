@@ -17,6 +17,7 @@ describe('Vinted-Bereichsgrenzen', () => {
       'Übersicht',
       'Postfach',
       'Kleiderschrank',
+      'Statistik',
       'Inserat erstellen',
       'Entwürfe',
       'Verkäufe',
@@ -30,6 +31,11 @@ describe('Vinted-Bereichsgrenzen', () => {
     expect(VINTED_WORKSPACE_NAVIGATION.slice(1)).toEqual(
       VINTED_WORKSPACE_NAVIGATION_GROUPS.flatMap((group) => group.items),
     );
+  });
+  it('markiert die Statistik nicht als Kleiderschrank', () => {
+    const url = '/marketplaces/vinted/statistics';
+    expect(isVintedNavigationActive('/marketplaces/vinted/statistics', url)).toBe(true);
+    expect(isVintedNavigationActive('/marketplaces/vinted/listings', url)).toBe(false);
   });
   it('behält Einrichtung außerhalb des täglichen Menüs', () => {
     expect(

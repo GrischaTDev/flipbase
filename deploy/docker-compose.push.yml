@@ -1,0 +1,32 @@
+name: flipbase-push
+services:
+  push-worker:
+    image: ${FLIPBASE_PUSH_IMAGE:?Geprueften Pushdigest angeben}
+    container_name: flipbase-push-worker
+    restart: unless-stopped
+    init: true
+    user: '1000:1000'
+    env_file:
+      - ${PUSH_ENV_FILE:-/opt/flipbase-push/push.env}
+    environment:
+      WEB_PUSH_ENABLED: ${WEB_PUSH_ENABLED:-false}
+      WEB_PUSH_ALLOW_ALL: ${WEB_PUSH_ALLOW_ALL:-false}
+      WEB_PUSH_OBSERVER_URL: http://push-functions:9000/ebay-order-observer
+    networks: [default, push-observer]
+    ports:
+      - '127.0.0.1:4177:4177'
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 64
+    mem_limit: 192m
+    cpus: 0.5
+    stop_grace_period: 60s
+    tmpfs: ['/tmp:size=16m,mode=1777']
+    logging:
+      driver: json-file
+      options: {max-size: '5m', max-file: '3'}
+networks:
+  push-observer:
+    external: true
+    name: flipbase-push-observer

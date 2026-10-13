@@ -1,4 +1,7 @@
+import { createHash } from 'node:crypto';
 const commitPattern = /^[0-9a-f]{40}$/;
+const hashPattern = /^[0-9a-f]{64}$/;
+const digest = (content) => createHash('sha256').update(content).digest('hex');
 
 function argument(name, fallback) {
   const position = process.argv.indexOf(name);
@@ -44,7 +47,8 @@ async function verify() {
   const healthUrl = new URL('/healthz', baseUrl);
   const metadataUrl = new URL('/deployment.json', baseUrl);
 
-  await requireOkResponse(rootUrl, 'Startseite');
+  const rootResponse = await requireOkResponse(rootUrl, 'Startseite');
+  const html = await rootResponse.text();
   const healthResponse = await requireOkResponse(healthUrl, 'Healthcheck');
   const healthStatus = (await healthResponse.text()).trim();
   if (healthStatus !== 'ok') {
@@ -66,6 +70,60 @@ async function verify() {
   if (deliveredCommit !== expectedCommit) {
     throw new Error(`Erwartet ${expectedCommit}, ausgeliefert ${deliveredCommit}.`);
   }
+  const buildId = html.match(/data-flipbase-build="([a-f0-9]{64})"/)?.[1];
+  if (!buildId) throw new Error('Startseite enthält keine PWA-Baukennung.');
+  const manifestResponse = await requireOkResponse(
+    new URL('/manifest.webmanifest', baseUrl),
+    'PWA-Manifest',
+  );
+  if (!manifestResponse.headers.get('content-type')?.includes('application/manifest+json'))
+    throw new Error('PWA-Manifest hat einen falschen MIME-Typ.');
+  const manifest = await manifestResponse.json();
+  if (
+    manifest.scope !== '/' ||
+    manifest.display !== 'standalone' ||
+    !manifest.start_url?.startsWith('/')
+  )
+    throw new Error('PWA-Manifest enthält keinen passenden App-Start.');
+  const inventoryResponse = await requireOkResponse(
+    new URL('/pwa-assets.json', baseUrl),
+    'PWA-Dateiliste',
+  );
+  if (
+    !inventoryResponse.headers.get('content-type')?.includes('application/json') ||
+    inventoryResponse.headers.get('cache-control')?.includes('immutable')
+  )
+    throw new Error('PWA-Dateiliste hat falsche Auslieferungsheader.');
+  const inventoryText = await inventoryResponse.text();
+  const inventory = JSON.parse(inventoryText);
+  if (
+    inventory.version !== 1 ||
+    inventory.buildId !== buildId ||
+    !Array.isArray(inventory.assets) ||
+    !inventory.assets.length ||
+    inventory.assets.some(
+      (asset) =>
+        typeof asset.url !== 'string' ||
+        !asset.url.startsWith('/') ||
+        asset.url.startsWith('//') ||
+        !hashPattern.test(asset.sha256),
+    )
+  )
+    throw new Error('PWA-Dateiliste passt nicht zum ausgelieferten Bau.');
+  if (inventory.assets.find((asset) => asset.url === '/index.html')?.sha256 !== digest(html))
+    throw new Error('PWA-Dateiliste bestätigt die Startseite nicht.');
+  const workerResponse = await requireOkResponse(new URL('/sw.js', baseUrl), 'PWA-Worker');
+  if (
+    !workerResponse.headers.get('content-type')?.match(/(?:application|text)\/javascript/) ||
+    workerResponse.headers.get('cache-control')?.includes('immutable')
+  )
+    throw new Error('PWA-Worker hat falsche Auslieferungsheader.');
+  const worker = await workerResponse.text();
+  if (
+    !worker.includes(`const BUILD_ID = '${buildId}'`) ||
+    !worker.includes(`const INVENTORY_HASH = '${digest(inventoryText)}'`)
+  )
+    throw new Error('PWA-Worker und Dateiliste stammen aus unterschiedlichen Bauten.');
 }
 
 let lastError;

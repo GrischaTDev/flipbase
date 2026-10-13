@@ -136,6 +136,46 @@ for (const width of [1440, 390, 320]) {
           },
         });
       });
+      await page.route('**/rest/v1/rpc/marketplace_read_listing_statistics_overview', (route) => {
+        const body = route.request().postDataJSON();
+        expect(body['p_workspace_id']).toBe(workspaceId);
+        const days = body['p_period'] === '24h' ? 24 : body['p_period'] === '7d' ? 7 : 30;
+        const step = body['p_period'] === '24h' ? 3_600_000 : 86_400_000;
+        const end = Date.parse('2026-10-01T22:00:00Z');
+        return route.fulfill({
+          json: {
+            workspaceId,
+            connectionId: body['p_connection_id'] ?? null,
+            period: body['p_period'],
+            historyStartsAt: '2026-08-01T10:00:00Z',
+            activeCount: 2,
+            totals: { views: 1234, favorites: 56 },
+            previousTotals: { views: 1000, favorites: 50 },
+            buckets: Array.from({ length: days }, (_, index) => ({
+              start: new Date(end - (days - 1 - index) * step).toISOString(),
+              views: index * 3,
+              favorites: index % 4,
+            })),
+            topItems: [
+              {
+                id: '1',
+                connectionId: body['p_connection_id'] ?? 'removed-account',
+                accountName: 'Testkonto A',
+                entryId: null,
+                title: 'Sehr langer Titel eines nicht mehr vorhandenen Testartikels '.repeat(4),
+                imageUrl: null,
+                price: null,
+                currency: null,
+                removedAt: '2026-09-30T08:00:00Z',
+                views: 500,
+                favorites: 20,
+                totalViews: 900,
+                totalFavorites: null,
+              },
+            ],
+          },
+        });
+      });
       const longUrl = `https://example.test/${'measurements'.repeat(70)}`;
       const messages = [
         {
@@ -335,10 +375,12 @@ for (const width of [1440, 390, 320]) {
           .click();
       const nav = page.locator('app-sidebar nav');
       await expect(nav.getByRole('link')).toHaveText([
+        'Lokale Einkaufsentwürfe',
         'Konten',
         'Übersicht',
         'Postfach',
         'Kleiderschrank',
+        'Statistik',
         'Inserat erstellen',
         'Entwürfe',
         'Verkäufe',
@@ -391,6 +433,18 @@ for (const width of [1440, 390, 320]) {
       await account.click();
       await page.getByRole('option', { name: /Testkonto A/ }).click();
 
+      await openVintedSection(page, 'Statistik', width);
+      const statisticsPage = page.locator('app-vinted-statistics');
+      await expect(statisticsPage).toContainText('1.234');
+      await expect(statisticsPage).toContainText('+23 % gegenüber den 7 Tagen davor');
+      await expect(statisticsPage).toContainText('Nicht mehr online');
+      await expect(statisticsPage.locator('.apexcharts-canvas')).toBeVisible();
+      await statisticsPage.getByRole('button', { name: '30 Tage', exact: true }).click();
+      await expect(
+        statisticsPage.getByRole('button', { name: '30 Tage', exact: true }),
+      ).toHaveAttribute('aria-pressed', 'true');
+      await checkSurface(page, 'app-vinted-statistics');
+      await screenshot(page, `vinted-statistics-${width}-${theme}`);
       await openVintedSection(page, 'Kleiderschrank', width);
       await expect(page.locator('[data-metric-increase]')).toHaveCount(0);
       imported.views = 7;

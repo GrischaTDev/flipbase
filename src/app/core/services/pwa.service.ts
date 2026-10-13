@@ -1,120 +1,124 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { computed, DestroyRef, Injectable, inject, signal } from '@angular/core';
 import { LoggerService } from './logger.service';
 import { environment } from '../../../environments/environment';
+import { PwaUpdateService } from './pwa-update.service';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
   readonly userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
 }
-
 interface NavigatorWithStandalone extends Navigator {
   readonly standalone?: boolean;
 }
+export type PwaInstallState = 'standalone' | 'prompt_available' | 'manual' | 'unsupported';
 
-@Injectable({
-  providedIn: 'root',
-})
+@Injectable({ providedIn: 'root' })
 export class PwaService {
-  // Faellt auf eine eigene Instanz zurueck, damit Dienste auch ausserhalb
-  // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
   private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
-  readonly isInstallable = signal<boolean>(false);
-  readonly isInstalled = signal<boolean>(false);
-  readonly isOnline = signal<boolean>(
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly updates = inject(PwaUpdateService, { optional: true });
+  readonly isStandalone = signal(false);
+  readonly isInstalled = this.isStandalone;
+  readonly isInstallable = signal(false);
+  readonly isOnline = signal(
     typeof navigator !== 'undefined' && typeof navigator.onLine === 'boolean'
       ? navigator.onLine
       : true,
   );
-  readonly swRegistered = signal<boolean>(false);
-
+  readonly swRegistered = signal(false);
+  readonly offlineAssetsReady = signal(false);
+  readonly updateAvailable = this.updates?.updateAvailable ?? signal(false);
+  readonly installState = computed<PwaInstallState>(() => {
+    if (this.isStandalone()) return 'standalone';
+    if (this.isInstallable()) return 'prompt_available';
+    return typeof navigator !== 'undefined' && 'serviceWorker' in navigator
+      ? 'manual'
+      : 'unsupported';
+  });
+  readonly installationHelp = computed(() => {
+    const isApple =
+      typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent);
+    return isApple
+      ? 'Öffne Flipbase in Safari. Wähle im Teilen-Menü „Zum Home-Bildschirm“ oder auf dem Mac „Zum Dock hinzufügen“.'
+      : 'Öffne das Menü deines Browsers und wähle „App installieren“ oder „Zum Startbildschirm hinzufügen“, falls angeboten.';
+  });
   private deferredPrompt: BeforeInstallPromptEvent | null = null;
 
   constructor() {
-    this.initPwaListeners();
-    this.registerServiceWorker();
-  }
-
-  private initPwaListeners(): void {
-    if (typeof window === 'undefined') return;
-
-    // Check if already in standalone mode (installed)
-    if (
-      window.matchMedia('(display-mode: standalone)').matches ||
-      (window.navigator as NavigatorWithStandalone).standalone === true
-    ) {
-      this.isInstalled.set(true);
+    if (typeof window !== 'undefined') {
+      const media = window.matchMedia('(display-mode: standalone)');
+      const updateMode = () =>
+        this.isStandalone.set(
+          media.matches || (navigator as NavigatorWithStandalone).standalone === true,
+        );
+      updateMode();
+      media.addEventListener('change', updateMode);
+      this.destroyRef.onDestroy(() => media.removeEventListener('change', updateMode));
+      this.listen(window, 'beforeinstallprompt', (event) => {
+        event.preventDefault();
+        this.deferredPrompt = event as BeforeInstallPromptEvent;
+        this.isInstallable.set(true);
+      });
+      this.listen(window, 'appinstalled', () => this.clearPrompt());
+      this.listen(window, 'online', () => this.isOnline.set(true));
+      this.listen(window, 'offline', () => this.isOnline.set(false));
     }
-
-    // Capture browser install prompt
-    window.addEventListener('beforeinstallprompt', (e: Event) => {
-      e.preventDefault();
-      this.deferredPrompt = e as BeforeInstallPromptEvent;
-      this.isInstallable.set(true);
-    });
-
-    // Capture successful installation
-    window.addEventListener('appinstalled', () => {
-      this.isInstalled.set(true);
-      this.isInstallable.set(false);
-      this.deferredPrompt = null;
-    });
-
-    // Online / Offline monitors
-    window.addEventListener('online', () => {
-      this.isOnline.set(true);
-    });
-
-    window.addEventListener('offline', () => {
-      this.isOnline.set(false);
-    });
+    void this.registerServiceWorker();
   }
 
-  /**
-   * Prompts the user to install Flipbase to their home screen or desktop.
-   */
+  private listen(target: EventTarget, name: string, callback: (event: Event) => void): void {
+    target.addEventListener(name, callback);
+    this.destroyRef.onDestroy(() => target.removeEventListener(name, callback));
+  }
+  private clearPrompt(): void {
+    this.deferredPrompt = null;
+    this.isInstallable.set(false);
+  }
+
   async promptInstall(): Promise<boolean> {
-    if (!this.deferredPrompt) {
+    const prompt = this.deferredPrompt;
+    if (!prompt) return false;
+    this.clearPrompt();
+    try {
+      await prompt.prompt();
+      return (await prompt.userChoice).outcome === 'accepted';
+    } catch (error) {
+      this.logger.warn('PWA-Installation fehlgeschlagen!', error);
       return false;
     }
-
-    try {
-      this.deferredPrompt.prompt();
-      const { outcome } = await this.deferredPrompt.userChoice;
-      if (outcome === 'accepted') {
-        this.isInstalled.set(true);
-        this.isInstallable.set(false);
-        this.deferredPrompt = null;
-        return true;
-      }
-    } catch (err) {
-      this.logger.warn('PWA Install prompt error:', err);
-    }
-    return false;
   }
 
-  /**
-   * Registriert den Service Worker, der die Anwendungsdateien zwischenspeichert.
-   *
-   * **Nur im Produktionsbetrieb.** Der Service Worker liefert Skripte nach dem
-   * Muster "erst Cache, dann im Hintergrund auffrischen" aus (`public/sw.js`).
-   * In der Produktion ist das unproblematisch, weil jede Fassung neue
-   * Dateinamen mit Prüfsumme bekommt – die stehen nicht im Cache und werden
-   * geladen.
-   *
-   * In der Entwicklung haben die Dateien dagegen **feste Namen**. Der Cache
-   * traf also immer, und jede Änderung erschien fruehestens beim übernächsten
-   * Laden. Das kostete einen ganzen Debug-Nachmittag: Getestet wurde ein
-   * Stand, den der Entwicklungsserver längst ersetzt hatte.
-   */
   async registerServiceWorker(): Promise<void> {
-    if (!environment.production) return;
-    if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
-
+    if (
+      !environment.production ||
+      typeof navigator === 'undefined' ||
+      !('serviceWorker' in navigator)
+    )
+      return;
     try {
-      await navigator.serviceWorker.register('/sw.js');
+      const registration = await navigator.serviceWorker.register('/sw.js', {
+        updateViaCache: 'none',
+      });
+      this.updates?.connect(registration);
+      const receive = (event: MessageEvent) => {
+        if (
+          event.source !== navigator.serviceWorker.controller ||
+          event.data?.type !== 'PWA_ASSETS_STATE'
+        )
+          return;
+        this.offlineAssetsReady.set(event.data.ready === true);
+      };
+      const inspect = () => navigator.serviceWorker.controller?.postMessage({ type: 'PWA_STATUS' });
+      navigator.serviceWorker.addEventListener('message', receive);
+      navigator.serviceWorker.addEventListener('controllerchange', inspect);
+      this.destroyRef.onDestroy(() => {
+        navigator.serviceWorker.removeEventListener('message', receive);
+        navigator.serviceWorker.removeEventListener('controllerchange', inspect);
+      });
+      inspect();
       this.swRegistered.set(true);
-    } catch (err) {
-      this.logger.warn('ServiceWorker registration error:', err);
+    } catch (error) {
+      this.logger.warn('Service-Worker-Registrierung fehlgeschlagen!', error);
     }
   }
 }

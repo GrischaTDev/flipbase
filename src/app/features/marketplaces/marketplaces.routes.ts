@@ -1,16 +1,34 @@
 import type { Routes } from '@angular/router';
 import { marketplaceAccessGuard } from './guards/marketplace-access.guard';
 import { vintedListingEditorGuard } from './guards/vinted-listing-editor.guard';
+import { ebayListingEditorGuard } from './guards/ebay-listing-editor.guard';
 
 export const MARKETPLACES_ROUTES: Routes = [
   { path: '', redirectTo: 'vinted', pathMatch: 'full' },
   {
     path: 'ebay',
-    data: { showData: true },
     loadComponent: () =>
-      import('./components/ebay-account/ebay-account.component').then(
-        (m) => m.EbayAccountComponent,
-      ),
+      import('./ebay-workspace.component').then((module) => module.EbayWorkspaceComponent),
+    children: [
+      { path: '', redirectTo: 'listings', pathMatch: 'full' },
+      {
+        path: 'listings/:listingId/edit',
+        runGuardsAndResolvers: 'paramsOrQueryParamsChange',
+        canDeactivate: [ebayListingEditorGuard],
+        loadComponent: () =>
+          import('./components/ebay-listing-editor/ebay-listing-editor.component').then(
+            (module) => module.EbayListingEditorComponent,
+          ),
+      },
+      ...['listings', 'orders', 'statistics', 'connection'].map((page) => ({
+        path: page,
+        data: { showData: true, page },
+        loadComponent: () =>
+          import('./components/ebay-account/ebay-account.component').then(
+            (module) => module.EbayAccountComponent,
+          ),
+      })),
+    ],
   },
   {
     path: 'kleinanzeigen',
@@ -104,6 +122,13 @@ export const MARKETPLACES_ROUTES: Routes = [
         loadComponent: () =>
           import('./components/vinted-listing-detail/vinted-listing-detail.component').then(
             (m) => m.VintedListingDetailComponent,
+          ),
+      },
+      {
+        path: 'statistics',
+        loadComponent: () =>
+          import('./components/vinted-statistics/vinted-statistics.component').then(
+            (m) => m.VintedStatisticsComponent,
           ),
       },
       { path: 'feedback', redirectTo: '/marketplaces/vinted/profile#reviews', pathMatch: 'full' },

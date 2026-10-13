@@ -1,0 +1,94 @@
+@if (!account.canManage()) {
+  <app-notice-banner
+    >Für die Statistik brauchst Du Verwaltungsrechte für dieses Vinted-Konto.</app-notice-banner
+  >
+} @else {
+  <div class="flex min-w-0 flex-wrap items-center justify-between gap-2">
+    @if (statistics.canCombineAccounts()) {
+      <div
+        class="inline-flex max-w-full flex-wrap gap-1 rounded-lg border border-fb-line bg-fb-surface p-1"
+        role="group"
+        aria-label="Konten für die Statistik"
+      >
+        @for (option of accountScopes; track option.value) {
+          <app-button
+            size="slim"
+            [variant]="statistics.accountScope() === option.value ? 'secondary' : 'ghost'"
+            [ariaPressed]="statistics.accountScope() === option.value"
+            (clicked)="statistics.selectAccountScope(option.value)"
+            >{{ option.label }}</app-button
+          >
+        }
+      </div>
+    }
+    <div
+      class="ml-auto inline-flex max-w-full flex-wrap gap-1 rounded-lg border border-fb-line bg-fb-surface p-1"
+      role="group"
+      aria-label="Zeitraum der Statistik"
+    >
+      @for (option of ranges; track option.value) {
+        <app-button
+          size="slim"
+          [variant]="statistics.range() === option.value ? 'secondary' : 'ghost'"
+          [ariaPressed]="statistics.range() === option.value"
+          (clicked)="statistics.selectRange(option.value)"
+          >{{ option.label }}</app-button
+        >
+      }
+    </div>
+  </div>
+
+  @if (statistics.error(); as error) {
+    <app-notice-banner announcement="alert"
+      ><p>{{ error }}</p>
+      <app-button class="mt-2" (clicked)="statistics.reload()">Erneut versuchen</app-button>
+    </app-notice-banner>
+  } @else if (statistics.overview(); as overview) {
+    @if (historyNotice(); as notice) {
+      <app-notice-banner>{{ notice }}</app-notice-banner>
+    }
+
+    <div class="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-3" role="group" aria-label="Kennzahlen">
+      @for (tile of tiles(); track tile.id) {
+        <app-card class="min-w-0">
+          <p class="text-xs font-medium text-fb-text-secondary">{{ tile.label }}</p>
+          <p class="mt-1 text-2xl font-semibold tabular-nums text-fb-text-primary">
+            {{ tile.value }}
+          </p>
+          <p class="mt-1 text-xs text-fb-text-secondary">{{ tile.note }}</p>
+        </app-card>
+      }
+    </div>
+
+    <app-card class="min-w-0">
+      <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h2 class="text-sm font-semibold text-fb-text-primary">Verlauf</h2>
+        <div class="inline-flex gap-1" role="group" aria-label="Kennzahl im Diagramm">
+          @for (metric of metrics; track metric.value) {
+            <app-button
+              [attr.data-chart-metric]="metric.value"
+              size="slim"
+              [variant]="chartMetric() === metric.value ? 'secondary' : 'ghost'"
+              [ariaPressed]="chartMetric() === metric.value"
+              (clicked)="selectChartMetric(metric.value)"
+              >{{ metric.label }}</app-button
+            >
+          }
+        </div>
+      </div>
+      <app-vinted-reach-chart [points]="chartPoints()" [seriesName]="chartMetricLabel()" />
+    </app-card>
+
+    <section class="min-w-0 space-y-2" aria-labelledby="vinted-top-listings-heading">
+      <h2 id="vinted-top-listings-heading" class="text-sm font-semibold text-fb-text-primary">
+        Beliebteste Artikel
+      </h2>
+      <app-vinted-top-listings
+        [items]="overview.topItems"
+        [showAccount]="statistics.accountScope() === 'all'"
+      />
+    </section>
+  } @else if (statistics.loading()) {
+    <p role="status" class="text-[13px] text-fb-text-secondary">Statistik wird geladen …</p>
+  }
+}

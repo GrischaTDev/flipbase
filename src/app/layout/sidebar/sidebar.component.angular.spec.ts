@@ -24,6 +24,8 @@ const routes: Routes = [
   { path: 'marketplaces/vinted', component: TestPageComponent },
   { path: 'marketplaces/vinted/:section', component: TestPageComponent },
   { path: 'marketplaces/ebay', component: TestPageComponent },
+  { path: 'marketplaces/ebay/:section', component: TestPageComponent },
+  { path: 'marketplaces/ebay/listings/:listingId/edit', component: TestPageComponent },
   { path: 'marketplaces/kleinanzeigen', component: TestPageComponent },
   { path: 'tools/brand-labels', component: TestPageComponent },
   { path: 'tools/brand-labels/sizes', component: TestPageComponent },
@@ -315,6 +317,43 @@ describe('SidebarComponent', () => {
       ),
     ).toEqual([]);
   });
+  it('zeigt im eBay-Editor das eBay-Menü und stellt beim Verlassen Flipbase wieder her', async () => {
+    const { element, fixture } = await renderAt(
+      '/marketplaces/ebay/listings/123/edit?connection=a',
+      false,
+    );
+    fixture.componentRef.setInput('isOpen', true);
+    fixture.detectChanges();
+    const links = [...element.querySelectorAll<HTMLAnchorElement>('[data-ebay-navigation] a')];
+    expect(links.map((link) => link.textContent?.trim())).toEqual([
+      'Inserate',
+      'Bestellungen',
+      'Statistiken',
+      'Kontoverbindung',
+    ]);
+    expect(
+      links
+        .filter((link) => link.getAttribute('aria-current') === 'page')
+        .map((link) => link.textContent?.trim()),
+    ).toEqual(['Inserate']);
+    expect(element.querySelector('a[href="/purchases"]')).toBeNull();
+    expect(element.querySelector('a[aria-label="Zurück zu Flipbase"]')).not.toBeNull();
+    const closed = vi.fn();
+    fixture.componentInstance.closed.subscribe(closed);
+    links[2]?.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(closed).toHaveBeenCalledOnce();
+    expect(TestBed.inject(Router).url).toBe('/marketplaces/ebay/statistics');
+    expect(element.querySelector('a[aria-current="page"]')?.textContent).toContain('Statistiken');
+    const result = await axe.run(element, { rules: { 'color-contrast': { enabled: false } } });
+    expect(result.violations).toEqual([]);
+    await TestBed.inject(Router).navigateByUrl('/dashboard');
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(element.querySelector('[data-ebay-navigation]')).toBeNull();
+    expect(element.querySelector('a[href="/purchases"]')).not.toBeNull();
+  });
   it('zeigt nicht anklickbare Vinted-Gruppen und schließt mobile Navigation beim Linkklick', async () => {
     const { element, fixture } = await renderAt('/marketplaces/vinted/favorite-messages');
     fixture.componentRef.setInput('isOpen', true);
@@ -326,7 +365,7 @@ describe('SidebarComponent', () => {
       'Konto',
       'Automatisierungen',
     ]);
-    expect(groups[0]?.querySelectorAll('a')).toHaveLength(8);
+    expect(groups[0]?.querySelectorAll('a')).toHaveLength(9);
     expect(groups[1]?.querySelectorAll('a')).toHaveLength(2);
     expect(
       groups[1]
@@ -339,7 +378,9 @@ describe('SidebarComponent', () => {
       expect(label?.querySelector('a, button')).toBeNull();
       expect(label?.getAttribute('tabindex')).toBeNull();
     }
-    const links = [...element.querySelectorAll<HTMLAnchorElement>('nav a')];
+    const links = [
+      ...element.querySelectorAll<HTMLAnchorElement>('nav a:not([href="/offline/purchases"])'),
+    ];
     expect(links[0].textContent?.trim()).toBe('Konten');
     expect(links.at(-1)?.textContent?.trim()).toBe('Favoritennachrichten');
     expect(links.filter((link) => link.getAttribute('aria-current') === 'page')).toHaveLength(1);

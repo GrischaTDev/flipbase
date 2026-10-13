@@ -23,6 +23,6 @@ export const workspaceAccessGuard: CanActivateFn = async () => {
     access.select(target.id);
     return true;
   } catch {
-    return router.createUrlTree(['/beta-ended']);
+    return router.createUrlTree(['/offline']);
   }
 };

@@ -85,6 +85,10 @@ let selectViewQuerySnapshot: AngularViewQuery | null | undefined;
 const resourceFiles: Readonly<Record<string, string>> = {
   'ebay-account.component.html':
     '../../marketplaces/components/ebay-account/ebay-account.component.html',
+  'ebay-traffic-overview.component.html':
+    '../../marketplaces/components/ebay-traffic-overview/ebay-traffic-overview.component.html',
+  'ebay-listing-performance.component.html':
+    '../../marketplaces/components/ebay-listing-performance/ebay-listing-performance.component.html',
   'ebay-article-mapping.component.html':
     '../../marketplaces/components/ebay-article-mapping/ebay-article-mapping.component.html',
   'article-picker.component.html':
@@ -1290,6 +1294,17 @@ async function renderNotifications(
     requestPermission: vi.fn(async () => options.permissionResult ?? true),
     sendTestNotification: vi.fn(async () => options.pushTestResult ?? true),
     updateSettings: vi.fn(),
+    deviceStatus: signal(options.permission === 'granted' ? 'active' : 'permission_required'),
+    deviceMessage: signal(''),
+    isActive: signal(options.permission === 'granted'),
+    isBusy: signal(false),
+    canActivate: signal(true),
+    canDeactivate: signal(true),
+    categories: signal<string[]>([]),
+    allowedCategories: signal(['message', 'order', 'connection']),
+    saveCategories: vi.fn(async () => true),
+    refreshDevice: vi.fn(),
+    deactivateDevice: vi.fn(async () => true),
   };
   const syncStatus = {
     istZentralGemeldet: vi.fn(() => options.centralThrow ?? false),
@@ -1603,19 +1618,19 @@ describe('Benachrichtigungseinstellungen – echte Angular-Fixture', () => {
   });
 
   it.each([
-    [true, 'success', 'Browser-Benachrichtigungen wurden aktiviert.', undefined],
+    [true, 'success', 'Dieses Gerät wurde für Push aktiviert.', undefined],
     [
       false,
       'error',
-      'Browser-Benachrichtigungen konnten nicht aktiviert werden.',
-      'Berechtigung wurde im Browser verweigert oder blockiert.',
+      'Dieses Gerät konnte nicht aktiviert werden.',
+      'Prüfe die Browserfreigabe und versuche es erneut.',
     ],
   ] as const)(
     'meldet das Ergebnis der gerenderten Push-Berechtigungsaktion (%s)',
     async (permissionResult, type, title, description) => {
       const { fixture, webPushService, toast } = await renderNotifications({ permissionResult });
 
-      renderedButton(fixture, 'Push aktivieren').click();
+      renderedButton(fixture, 'Dieses Gerät aktivieren').click();
       await flushAsyncAction(fixture);
 
       expect(webPushService.requestPermission).toHaveBeenCalledOnce();
@@ -1624,12 +1639,12 @@ describe('Benachrichtigungseinstellungen – echte Angular-Fixture', () => {
   );
 
   it.each([
-    [true, 'success', 'Test-Benachrichtigung wurde versendet.', undefined],
+    [true, 'success', 'Test zur Zustellung übergeben.', undefined],
     [
       false,
       'error',
-      'Test-Benachrichtigung konnte nicht versendet werden.',
-      'Push konnte nicht angezeigt werden. Bitte Berechtigung im Browser prüfen.',
+      'Test konnte nicht zur Zustellung übergeben werden.',
+      'Bitte versuche es erneut.',
     ],
   ] as const)(
     'meldet das Ergebnis der gerenderten Test-Push-Aktion (%s)',
@@ -1639,7 +1654,7 @@ describe('Benachrichtigungseinstellungen – echte Angular-Fixture', () => {
         pushTestResult,
       });
 
-      renderedButton(fixture, 'Test-Push senden').click();
+      renderedButton(fixture, 'Testbenachrichtigung senden').click();
       await flushAsyncAction(fixture);
 
       expect(webPushService.sendTestNotification).toHaveBeenCalledOnce();
@@ -1648,34 +1663,15 @@ describe('Benachrichtigungseinstellungen – echte Angular-Fixture', () => {
     },
   );
 
-  it('rendert alle Push-Schalter mit eindeutigen Namen und bindet ihre Änderung', async () => {
-    const { fixture, webPushService, toast } = await renderNotifications();
-    const toggles = [
-      ['Neue Webshop-Bestellungen', { notifyOnShopOrder: false }],
-      ['Erstellte Versandetiketten', { notifyOnFulfillment: true }],
-      ['Margen- und Profit-Alarme', { notifyOnMarginAlert: false }],
-      ['Benachrichtigungston', { soundEnabled: true }],
-    ] as const;
-    const renderedNames = Array.from(
-      (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('[role="checkbox"]'),
-    ).map((checkbox) => checkbox.getAttribute('aria-label'));
-    for (const [ariaLabel] of toggles) expect(renderedNames).toContain(ariaLabel);
-
-    for (const [ariaLabel] of toggles) {
-      renderedCheckbox(fixture, ariaLabel).click();
-      fixture.detectChanges();
-    }
-
-    expect(webPushService.updateSettings).toHaveBeenCalledTimes(toggles.length);
-    toggles.forEach(([, value], index) => {
-      expect(webPushService.updateSettings).toHaveBeenNthCalledWith(index + 1, value);
-    });
-    expect(toast.toasts().map(({ title }) => title)).toEqual(
-      toggles.map(() => 'Benachrichtigungseinstellung wurde gespeichert.'),
-    );
+  it('speichert nur ausdrücklich ausgewählte Serverkategorien', async () => {
+    const { fixture, webPushService, toast } = await renderNotifications({ permission: 'granted' });
+    renderedCheckbox(fixture, 'Neue Bestellungen').click();
+    await flushAsyncAction(fixture);
+    expect(webPushService.saveCategories).toHaveBeenCalledWith(['order']);
+    expect(webPushService.updateSettings).not.toHaveBeenCalled();
+    expectOnlyToast(toast, 'success', 'Push-Kategorien wurden gespeichert.');
   });
 });
-
 async function renderStore(
   options: {
     readonly updateResult?: MutationResult;
@@ -2353,6 +2349,11 @@ async function renderApp(
   const pwaService = {
     isOnline: signal(options.online ?? true),
     isInstalled: signal(options.installed ?? false),
+    isStandalone: signal(options.installed ?? false),
+    installState: signal(options.installed ? 'standalone' : 'prompt_available'),
+    offlineAssetsReady: signal(false),
+    assetsMessage: signal('App-Dateien werden geprüft.'),
+    installationHelp: signal('Nutze das Installationsmenü deines Browsers.'),
     promptInstall: vi.fn(),
   };
   const ebayApiService = {
@@ -2398,10 +2399,10 @@ describe('App-Einstellungen – echte Angular-Fixture', () => {
     const { fixture, pwaService, toast } = await renderApp();
     const renderedText = (fixture.nativeElement as HTMLElement).textContent;
 
-    expect(renderedText).toContain('Online (Live-Sync)');
+    expect(renderedText).toContain('Netzwerk verfügbar');
     expect(renderedText).toContain('Im Web-Browser');
 
-    renderedButton(fixture, 'Flipbase auf Smartphone / Desktop installieren').click();
+    renderedButton(fixture, 'Flipbase installieren').click();
     await flushAsyncAction(fixture);
 
     expect(pwaService.promptInstall).toHaveBeenCalledOnce();
@@ -2412,16 +2413,12 @@ describe('App-Einstellungen – echte Angular-Fixture', () => {
     const { fixture, pwaService, toast } = await renderApp({ installed: true, online: false });
     const host = fixture.nativeElement as HTMLElement;
 
-    expect(host.textContent).toContain('Offline-Cache aktiv');
-    expect(host.textContent).toContain('Installiert (Standalone)');
-    expect(host.textContent).toContain(
-      'Flipbase ist bereits als native App auf diesem Gerät installiert.',
-    );
+    expect(host.textContent).toContain('Keine Netzwerkverbindung');
+    expect(host.textContent).toContain('Eigenständiges App-Fenster');
+    expect(host.textContent).toContain('im eigenständigen App-Fenster geöffnet.');
     expect(
       Array.from(host.querySelectorAll<HTMLButtonElement>('button')).find(
-        (button) =>
-          button.textContent?.replace(/\s+/g, ' ').trim() ===
-          'Flipbase auf Smartphone / Desktop installieren',
+        (button) => button.textContent?.replace(/\s+/g, ' ').trim() === 'Flipbase installieren',
       ),
     ).toBeUndefined();
     expect(pwaService.promptInstall).not.toHaveBeenCalled();

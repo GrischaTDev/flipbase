@@ -1,5 +1,5 @@
 <header
-  class="h-14 border-b border-fb-border-subtle bg-fb-header/95 backdrop-blur-md px-3 py-2 md:px-6 flex items-center justify-between gap-2 sticky top-0 z-30 select-none shadow-xs"
+  class="fb-safe-header min-h-14 border-b border-fb-border-subtle bg-fb-header/95 backdrop-blur-md px-3 py-2 md:px-6 flex flex-wrap items-center justify-between gap-2 sticky top-0 z-30 select-none shadow-xs"
 >
   <!-- Left: Mobile Toggle & Workspace Switcher -->
   <div class="flex min-w-0 flex-1 items-center gap-2.5">
@@ -87,7 +87,7 @@
   </div>
 
   <!-- Right: Notification Bell, Language Switcher & Profile -->
-  <div class="flex shrink-0 flex-wrap items-center justify-end gap-1 sm:gap-2">
+  <div class="flex min-w-0 max-w-full flex-wrap items-center justify-end gap-1 sm:gap-2">
     <!-- Offline Indicator -->
     @if (!pwaService.isOnline()) {
       <span
@@ -337,15 +337,15 @@
         [attr.aria-expanded]="isUserDropdownOpen()"
         aria-controls="header-user-menu"
         aria-label="Benutzermenü öffnen"
-        class="flex h-9 items-center gap-2 rounded-lg border border-fb-border bg-fb-surface pl-1.5 pr-2.5 hover:bg-fb-surface-hover hover:border-fb-border-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/60 transition cursor-pointer shadow-xs"
+        class="flex h-9 min-w-0 max-w-full items-center gap-2 rounded-lg border border-fb-border bg-fb-surface pl-1.5 pr-2.5 hover:bg-fb-surface-hover hover:border-fb-border-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/60 transition cursor-pointer shadow-xs"
       >
         <div
           class="size-7 rounded-md bg-[#fcc601] text-black font-black text-xs flex items-center justify-center shadow-xs shrink-0"
         >
           {{ auth.userName().charAt(0).toUpperCase() }}
         </div>
-        <div class="hidden sm:flex items-center gap-1.5">
-          <span class="text-xs font-semibold text-fb-text-primary">
+        <div class="hidden sm:flex min-w-0 items-center gap-1.5">
+          <span class="text-xs font-semibold text-fb-text-primary truncate">
             {{ auth.userName() }}
           </span>
           @if (headerAdminRole()) {

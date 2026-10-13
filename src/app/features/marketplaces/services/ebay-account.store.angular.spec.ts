@@ -42,6 +42,7 @@ describe('Persönlicher eBay-Zustand', () => {
     loadListings: ReturnType<typeof vi.fn>;
     loadOrders: ReturnType<typeof vi.fn>;
     loadOrderStatus: ReturnType<typeof vi.fn>;
+    loadTraffic: ReturnType<typeof vi.fn>;
   };
   beforeEach(() => {
     api = {
@@ -56,6 +57,13 @@ describe('Persönlicher eBay-Zustand', () => {
       })),
       loadOrders: vi.fn(async () => ({ ...connection, items: [], total: 0, nextPage: null })),
       loadOrderStatus: vi.fn(async () => ({ status: 'unrecorded', saleId: null })),
+      loadTraffic: vi.fn(async () => ({
+        ...connection,
+        startDate: '2026-09-01',
+        endDate: '2026-09-30',
+        lastUpdatedDate: null,
+        items: [{ listingId: '123', views: 0, transactions: 0, conversionRate: 0 }],
+      })),
     };
     TestBed.configureTestingModule({
       providers: [EbayAccountStore, { provide: EbayAccountApiService, useValue: api }],
@@ -63,6 +71,60 @@ describe('Persönlicher eBay-Zustand', () => {
     store = TestBed.inject(EbayAccountStore);
   });
   afterEach(() => TestBed.resetTestingModule());
+  it('lädt Statistiken nur nach bestätigter Serverfähigkeit und erhält echte Nullwerte', async () => {
+    await store.initialize('workspace-a', true);
+    await store.readTraffic();
+    expect(api.loadTraffic).not.toHaveBeenCalled();
+    api.loadStatus.mockResolvedValueOnce({
+      configured: true,
+      listingManagementAvailable: true,
+      connection,
+    });
+    await store.initialize('workspace-a', true);
+    expect(api.loadTraffic).toHaveBeenCalledTimes(1);
+    expect(store.traffic()['123'].views).toBe(0);
+    expect(store.traffic()['123'].conversionRate).toBe(0);
+  });
+  it('verwirft verspätete Statistiken beim Workspacewechsel', async () => {
+    api.loadStatus.mockResolvedValueOnce({
+      configured: true,
+      listingManagementAvailable: true,
+      connection,
+    });
+    await store.initialize('workspace-a', true);
+    const pending = deferred<{
+      startDate: string;
+      endDate: string;
+      lastUpdatedDate: null;
+      items: [];
+    }>();
+    api.loadTraffic.mockReturnValueOnce(pending.promise);
+    const reading = store.readTraffic();
+    store.reset('workspace-b');
+    pending.resolve({
+      startDate: '2026-09-01',
+      endDate: '2026-09-30',
+      lastUpdatedDate: null,
+      items: [],
+    });
+    await reading;
+    expect(store.traffic()).toEqual({});
+    expect(store.trafficPeriod()).toBeNull();
+    expect(store.trafficLoading()).toBe(false);
+  });
+  it('lässt Inserate bei fehlender Statistikfreigabe lesbar und zeigt den Fehler', async () => {
+    api.loadStatus.mockResolvedValueOnce({
+      configured: true,
+      listingManagementAvailable: true,
+      connection,
+    });
+    await store.initialize('workspace-a', true);
+    api.loadTraffic.mockRejectedValueOnce(new Error('Erneut verbinden.'));
+    await store.readTraffic();
+    expect(store.listings()).toEqual([listing]);
+    expect(store.trafficError()).toBe('Erneut verbinden.');
+    expect(store.trafficPeriod()).toBeNull();
+  });
   it('liest Buchungsbelege und verwirft verspätete Antworten nach Workspacewechsel', async () => {
     api.loadStatus.mockResolvedValueOnce({ configured: true, importAvailable: true, connection });
     await store.initialize('workspace-a', false);

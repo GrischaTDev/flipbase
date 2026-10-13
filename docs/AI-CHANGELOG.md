@@ -1,5 +1,11 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-13 – Juna – Freigegebenen Bestands- und Verkaufsumbau veröffentlichen
+
+**Auftrag:** Nach ausdrücklichem Ja den geprüften Zweig pushen, PR erstellen, erfolgreiche Pflichtprüfungen abwarten und mit Merge-Commit integrieren; anschließend Zweig und Worktree aufräumen.
+
+**Integration:** Aktuellen `origin/master` eingebunden. Die beiden Konflikte im Änderungsprotokoll und in der Schemaliste erhalten jeweils beide Beiträge; Push-Schemas und Bestandsjournal bleiben registriert. Die automatisch verbundenen Datenbanktypen enthalten beide Erweiterungen. Gezielte lokale Prüfungen des gemeinsamen Stands folgen vor dem Push; vollständige Pflichtprüfungen und Release laufen über den PR beziehungsweise den bestehenden Veröffentlichungsweg.
+
 ## 2026-10-13 – Juna – Bestandsabgänge, Variantenaktionen und einfachere Verkäufe umsetzen
 
 **Auftrag:** Den abgestimmten Ablauf „Aus Bestand entfernen“, die Aktionen pro
@@ -106,6 +112,383 @@ Der erste Bau scheiterte an einer Abhängigkeitsverknüpfung über zwei Windows-
 nach lokaler Installation aus der unveränderten Lockdatei besteht der Bau.
 Der aktualisierte Verkaufs-Browsertest kann lokal mangels erreichbarer Test-Supabase
 nicht ausgeführt werden. Keine Datenbankänderung, kein Push und kein Deployment.
+
+## 2026-10-13 - Juna - PWA-Produktionspaket vollständig ausliefern
+
+**Auftrag:** Freigegebenen PWA-Abschluss nach erfolgreichem PR401 bis zur Veröffentlichung fortsetzen. Eigener Folgefix auf juna/pwa-release-package; fremder Arbeitszweig bleibt unberührt.
+
+**Befund und Änderung:** Der Releasebau stoppt vor Deployment, weil die Docker-Ausschlussliste den eBay-Beobachter und fünf benötigte Shared-Dateien aus dem Pushpaket entfernt. Nur die sieben Runtime-Dateien ausdrücklich aufnehmen. Der anschließende echte Image-Start weist außerdem einen Nginx-Parserfehler an der ungequoteten Hash-Regel nach; Anführungszeichen erhalten deren regulären Ausdruck und Auslieferungsverhalten. Zwei Regressionen prüfen sämtliche tatsächlich paketierten Quellen und die echten Nginx-Konfigdateien mit dem Produktions-Nginx. Die Browserprüfung erhält 20 Minuten Laufzeit, weil der vollständige grüne PR-Lauf 14 Minuten 55 Sekunden des bisherigen 15-Minuten-Limits benötigt; Prüfumfang und Assertions bleiben erhalten.
+
+**Prüfung:** Beide Fehler vor der Korrektur reproduziert, danach neun Deploy-Prüfungen grün; vier POSIX-Fälle lokal unter Windows ausdrücklich übersprungen. Formatter, Lint, vollständiger Docker-Produktionsbau und tatsächlicher Image-Smoke grün. HTTP bestätigt passende App-/PWA-Metadaten, immutable für Hash-Dateien und 404 für unbekanntes JavaScript. Das aus dem Image extrahierte Functionpaket besteht Integrität, isolierte Edge-Runtime-/Gateway-Prüfung, Auth, Widerruf, Grenzen und Commitgleichheit. Worker-Smoke bestätigt ausgeschalteten Versand. Agent prüft Importkette, Artefakte und Nginx-Regel unabhängig. PR401 bestand zuvor alle Pflichtprüfungen mit 100 Browserfällen, 24 PWA-Skripttests, 23 Produktions-PWA-Fällen und 4.030 Datenbanktests. Der fehlgeschlagene Release änderte die laufende Produktion nicht; Veröffentlichung erst nach dem grünen Folge-PR berichten.
+
+## 2026-10-13 – Juna – Bearbeiten: Speichern ohne Auswahllisten, Preisänderung, klare Meldungen; Konkurrenzvergleich
+
+**Befund (echte Versuche des Nutzers nach PR 395):**
+
+- Titelbild getauscht: bei Vinted geändert, Flipbase meldete trotzdem „nicht eindeutig
+  bestätigt“. Das Ziehen der Fotos greift also an der echten Maske. Warum die Bestätigung
+  ausblieb, ist offen; das erneute Lesen der Maske dauert rund 25 Sekunden bei 20 Sekunden Frist,
+  es gibt also nur einen Versuch.
+- Preis von 8 auf 10 Euro: Protokoll „Speichern abgebrochen bei gegenlesen“, bei Vinted nichts
+  geändert. Die Oberfläche meldete auch hier „nicht eindeutig bestätigt“, was in diesem Fall
+  falsch ist (Abbruch vor dem Speichern).
+
+**Vermutete Ursache (nachgestellt, an echtem Vinted nicht gemessen):** Der Preis wird eingetragen,
+das Feld aber nicht verlassen. Formatiert die Maske den Wert erst beim Verlassen, ändert er sich
+während des Gegenlesens, und der Leser wertet das als fremde Änderung der Maske. Bei Änderungen,
+die danach noch eine Auswahlliste öffnen, fiel das nicht auf.
+
+**Änderung 1 – Preis:** Nach dem Eintragen von Titel, Beschreibung und Preis wird das Feld
+verlassen. Ein Abbruch beim Gegenlesen nennt zusätzlich, woran es lag: den Schritt des Lesens
+oder ob Inhalt, Fotos oder der Speichern-Knopf abwichen. Die Testmaske formatiert den Preis beim
+Verlassen; ein neuer Fall ändert nur den Preis und scheiterte ohne die Korrektur mit derselben
+Meldung wie beim Nutzer.
+
+**Änderung 2 – Speichern ohne Auswahllisten:** Ändern sich nur Titel, Beschreibung, Preis oder
+Fotos, klappt der Worker keine Auswahlliste mehr auf. Ausgangsstand und Bestätigung kommen dann
+aus Vinteds eigener Abfrage des Inserats (`item_upload/items/{id}`, in der angemeldeten Seite,
+nur lesend); Fotos werden über ihre Kennungen bestätigt, sofern sich jedes Foto des Rasters
+eindeutig einem Foto der Abfrage zuordnen lässt. Der Weg ist reine Abkürzung: Stimmt irgendetwas
+nicht eindeutig überein (Abfrage unvollständig, andere Kennungen, andere Texte, Fotos nicht
+zuordenbar), wird die Maske noch nicht angefasst und der bisherige Weg entscheidet – auch über
+einen Konflikt. Zeigt die Abfrage nach dem Speichern den neuen Stand nicht, bestätigt wie bisher
+die Maske. Änderungen an Marke, Größe, Zustand, Farben, Material oder Paketgröße laufen
+unverändert über die Maske.
+
+**Änderung 3 – Meldungen:** Bricht das Speichern vor dem Klick bei Vinted ab, antwortet der Worker
+mit `vinted_listing_not_saved`; die Oberfläche sagt dann, dass nichts gespeichert wurde. Ist das
+Konto gerade durch eine andere Aktion belegt, sagt sie das ebenfalls. „Nicht eindeutig bestätigt“
+bleibt für die Fälle, in denen offen ist, ob Vinted gespeichert hat.
+
+**Nicht gemessen:** Ob Vinteds Abfrage dieselben Kennungen und Texte liefert wie die Maske und ob
+sich ihre Fotoadressen dem Raster zuordnen lassen, zeigt erst ein echter Lauf. Trifft es nicht
+zu, bleibt es beim bisherigen, langsamen Weg – schneller wird es dann nicht, falscher auch nicht.
+
+**Konkurrenz angesehen (Oberflächentexte der Vintz-Demo, Bleam-Dashboard im Browser des
+Nutzers, nichts gespeichert):** Vintz bietet eine Browser-Erweiterung und Cloud-Konten mit Proxy,
+arbeitet wahlweise mit direkten Anfragen im Hintergrund („Auto“) oder über das sichtbare
+Originalformular („Semi“, wie Flipbase bisher), bearbeitet auf gespeicherten Artikeldaten und
+führt Cloud-Aktionen als Warteschlange aus. Bleam ist eine Erweiterung in der Vinted-Sitzung, zeigt
+den Kleiderschrank aus einer Sicherung und bietet dort Relist, Preis und Löschen.
+
+**Reihenfolge (vom Nutzer bestätigt, in zwei PRs; dies ist der erste):** Lesen, Kontrolle und Bestätigung
+über Vinteds Schnittstellen; Inseratdaten beim Synchronisieren mitspeichern; Speichern als
+Auftrag im Hintergrund; direktes Speichern zunächst nur für Titel, Beschreibung und Preis.
+
+**Hinweis:** Eine reine Beobachtung auf dem Server zeichnete zwei Läufe nicht auf, weil das
+Skript den Namen der Browsersitzung falsch filterte; korrigiert, Auswertung steht aus.
+
+**Prüfungen:** Worker: 638 Tests, Typen, ESLint; 17 Browserfälle des Speicherns und Lesens,
+darunter Preis allein (ohne Korrektur rot), Rückfall bei unvollständiger Abfrage und bei nicht
+zuordenbaren Fotos, Konflikt über den vollständigen Vergleich; neue Tests für die Abfrage des
+Inserats und die Antwort „nicht gespeichert“. App: 63 Testdateien des Marktplatz-Bereichs, Typen,
+ESLint und Bau grün.
+
+## 2026-10-13 - Juna - Geprüften PWA-Plan umsetzen
+
+**Auftrag:** „los“ für den gegengeprüften PWA-Plan; geplantes Supabase-Backend danach ausdrücklich freigegeben. Eigener Zweig juna/pwa-mobile-plan, fremde eBay-Änderungen unberührt.
+
+**Stand:** PWA-Start mit Theme, 10-/30-Sekunden-Status und Wiederholung; ehrlicher Installationszustand; mobile Safe Areas und wachsender Header bei Schriftvergrößerung. Vollständiges Bauinventar, geprüfter App-Dateicache und koordinierter Versionswechsel über mehrere Fenster. Lokale Einkaufsentwürfe mit gerätegebundener IndexedDB, Konto-/Workspace-Zuordnung, Export, ausdrücklicher Onlineprüfung und unveränderlichen Übertragungsversuchen. Die Übernahme verwendet serverseitig gespeicherte EANs, statt sie anhand einer fremden Positionsreihenfolge zu überschreiben.
+
+**Push:** Sitzungsgebundene Gerätegenerationen, dauerhafter Widerruf, Kategorien und sichere Klickziele. Supabase-Schema/Migrationen und begrenzte Edge Functions; eigener Versanddienst mit Rechteprüfung, vier parallelen Claims, Rückoff und Ablauf. Vinted-Nachrichten, Shopbestellungen, Kontostörungen und eBay-Bestellbeobachtung erzeugen dauerhafte Ereignisse. eBay-Erstbaseline löst keine Altmeldungen aus; der Beobachter respektiert die konfigurierte Umgebung. CI baut und prüft Dienst-/Functionpakete sowie echte PWA-Produktionsbauten. Auslieferung prüft Commit, HTML-Baukennung, Manifest, Worker und Inventar.
+
+**Prüfung:** `npm run verify` vollständig grün: Formatierung, Lint, Typen, Workflowtests, 279 Edge-Tests mit CI-Deno 2.9.7, Suite-Audit, 4.998 Anwendungstests, 39 Landingtests und Produktionsbau. Zusätzlich 111 Push-SQL-Prüfungen nach tatsächlich transaktional angewandten Migrationen, 19 Versandtests einschließlich reproduziertem langsamen Altbatch, 24 Startup-/Worker-/Bauskripttests und 23 Produktionstests grün. Chromium weist echten Worker, Offline-Lazy-Routen und den Wechsel zwischen zwei echten Bauten nach; WebKit prüft UI und echte IndexedDB. Vier mobile Browseransichten einschließlich AXE/Hell-Dunkel/200-%-Schrift grün und ausdrücklich in PR/Nightly aufgenommen. Agentenbefunde zu Rechteentzug, Eingaben während Laden/Übertragung, Bestätigungsfenster, neueren lokalen Ergänzungen, Push-Navigation und eBay-Umgebung korrigiert und gezielt nachgeprüft. Der abschließend gefundene Releasefilter erfasst jetzt auch Observer- und Shared-Änderungen; 20 gezielte Auswahltests und finales Actionlint grün. Neu erzeugte Supabase-Typen behalten die unveränderte Generatorformatierung; abschließende Typprüfung grün.
+
+**Grenzen:** Keine echte Smartphone-/Tabletinstallation oder Push-Zustellung bei geschlossener App behauptet. Versand bleibt mit WEB_PUSH_ENABLED=false bis zur Geräte-/Pilotabnahme ausgeschaltet; Abnahmevertrag in docs/testing/pwa-device-acceptance.md. Gesamte lokale DB-Suite reproduziert außerhalb der neuen Push-Prüfungen einen PostgreSQL-Absturz in inventory_archive.test.sql; keine grüne DB-Gesamtsuite behauptet. Keine Veröffentlichung oder Änderung am fremden Arbeitszweig.
+
+**CI-Nachprüfung:** Im PR besteht die vollständige Datenbanksuite. Die Linux-Deployfixture simuliert die root-Metadaten jetzt ausdrücklich, weil der CI-Nutzer kein root ist; falscher Eigentümer und Modus bleiben abgewiesen. Die frühe PWA-Initialisierung legt einen bestehenden Workspace-Cachefehler beim direkten Kontowechsel offen: `true` bleibt `true`, obwohl die Sitzung zu einem anderen Nutzer gehört. Cache und laufende Anfragen sind jetzt synchron an Nutzer-ID und Ladegeneration gebunden. Vier neue Regressionen schützen den direkten Wechsel, verspätete Erfolgs-/Fehlerantworten sowie A-B-A einschließlich Ladezustand. Gezielte Tests, Typen, Lint, Bau und echter Linuxlauf als normaler Nutzer grün; der Agent bestätigt den Fix. Kein Abschwächen der Produktionsrechte. Der folgende CI-Lauf besteht alle Anwendungstests und 4.030 Datenbanktests; der Browserlauf besteht 94 Fälle einschließlich Kontowechsel. Die veraltete Vinted-Menüerwartung berücksichtigt anschließend auch den neuen Offline-Link; alle sechs hellen/dunklen Desktop-/Mobilansichten lokal grün.
+
+## 2026-10-13 - Juna - PWA-Plan mit drei unabhängigen Reviews gegenprüfen
+
+**Auftrag:** Zielbild und den gesamten PWA-Umsetzungsplan nochmals mit Agents prüfen.
+
+**Prüfung:** Drei getrennte lesende Reviews für PWA/Start/Updates, Push/Rechte/Betrieb und Offline-Einkaufsverträge. Befunde anschließend gegen Repository und Primärquellen bewertet; gezielte Nachprüfungen der eingearbeiteten Korrekturen. Keine Agent-Dateiänderungen oder Produktimplementierung.
+
+**Änderung:** Updatefreigabe an Build und Aktivierungsversuch binden; Runtime-Cacheintegrität und begrenzte Reparatur definieren. Workerabnahme auf Chromium begrenzen, WebKit-UI und reale Safari-Geräte trennen; Produktionsspecs vom Devserver ausschließen. Einkaufsübertragung erhält unveränderlichen vollständigen Sendeversuch, unbekannten Ausgang, Revisions-/Leasevergleich sowie dauerhaftes Feldmapping und Katalog-Handoff. Vor Freigabe den nachgewiesenen indexabhängigen EAN-Retryfehler im vorhandenen Frontendservice absichern. Neuer Desktopauftrag 02-purchase-retry-contract.md dokumentiert dazu SQL-/Clientbelege.
+
+**Push:** Eigener begrenzter serverseitiger eBay-Bestellbeobachter; konkrete Empfängermatrix und Kontostatusschreiber. Geräte-Settings, VAPID-Wechsel, Retry-After und Claim-Token vollständig im Vertrag. Offline-Revoke über vorab persistierte generationgebundene Capability; terminaler Widerruf blockiert verspätete Registrierung. CI-/Image-/Digest-/Functions-Release samt Rücknahme ausdrücklich verdrahtet. Bestehender Desktopauftrag 01-pwa-web-push.md entsprechend ergänzt.
+
+**Ergebnis:** Die ursprünglichen Reviewbefunde wurden auf Planungsebene geschlossen; ergänzende Grenzfälle und spätere Implementierungs-/Gerätetests stehen im Plan. Markdownformatierung, Aufgabenfolge, Vertragsabgleich und Diffprüfung; keine echte Push-, Offline- oder Gerätefunktion als bereits bestanden behauptet.
+
+## 2026-10-13 - Juna - PWA für Smartphone und Tablet genau aufarbeiten
+
+**Auftrag:** Vorhandenen PWA-Stand prüfen und einen genauen Umsetzungsplan für ein stärkeres App-Gefühl, Ladebildschirm, echte Push-Meldungen und Offline-Nutzung erstellen.
+
+**Entscheidungen:** Offline nur App-Start und lokale Einkaufsentwürfe mit ausdrücklicher späterer Übertragung. Erste Push-Kategorien sind Nachrichten, Bestellungen und Kontoprobleme; vom Nutzer bestätigt.
+
+**Befund:** Installationsgrundlage und statischer Worker vorhanden und öffentlich ausgeliefert. Installationsdialog nicht universell; kein vollständiger Lazy-Chunk-Cache, baugebundener Worker oder koordinierter Update-Schutz. Vorhandene Notifications laufen aus der geöffneten Seite. Für Hintergrund-Push fehlen Geräte-/Sitzungsbindung, dauerhafter Serverversand und Empfangs-/Klickhandler. Start und Workspace-Guards benötigen eigene Fehler-/Offlinebehandlung. Vorhandene request_id-Deduplizierung ermöglicht sichere spätere Einkaufsübertragung.
+
+**Ergebnis:** Zielbild und 14 Aufgaben mit konkreten Dateien, neuen Verträgen, Tests, Zuständigkeiten, Geräteabnahme und Rollout unter docs/superpowers/specs/2026-10-13-pwa-mobile-app-design.md und docs/superpowers/plans/2026-10-13-pwa-mobile-app.md. Nummerierter Backendauftrag unter C:/Users/gt/Desktop/Backend Issues/pwa-mobile-plan/01-pwa-web-push.md. Details wie Aufbewahrung und neue serverseitige Bibliothek sind Vorschläge zur Planprüfung, keine vorweggenommene Freigabe. Keine Produktcodeänderung, Migration oder Veröffentlichung.
+
+**Prüfung:** Repository-/Vertragsanalyse gegen origin/master c1d4564a; Primärquellen für Web Push, Installation, Safe Areas und Worker gelesen. Öffentliche PWA-Dateien in der vorausgehenden Analyse jeweils HTTP 200, Worker entspricht Quelle. Plan auf Abdeckung, Verträge und Grenzfälle überprüft; Markdownformatierung und Diffprüfung. Keine tatsächliche Geräteinstallation, Offline-Abnahme oder Push-Zustellung behauptet. Eigener Planungszweig juna/pwa-mobile-plan; vorhandener Arbeitszweig unverändert.
+
+**Fortsetzung:** Nutzerfreigabe für PR, erfolgreichen Merge und anschließendes Aufräumen erteilt. Aktuelles origin/master einschließlich PR400 integrieren; beide Changelogverläufe bleiben erhalten. Keine Änderung am fremden Arbeitszweig.
+
+## 2026-10-11 – Juna – Eigene Vinted-Statistikseite mit echten Messwerten
+
+**Auftrag:** Kacheln und Diagramm aus dem Kleiderschrank herausnehmen und als
+eigene Seite „Statistik“ mit Verlauf und Bestenliste neu aufbauen, je Konto und
+für alle Konten. Verkaufte oder gelöschte Artikel sollen in ihren Zeiträumen
+weiter mitzählen.
+
+**Befund:** Das bisherige Diagramm verteilte die Gesamtsumme nach festen
+Prozentsätzen auf Tage und zeigte ohne Daten Beispielwerte; „Beste Zeit: Sonntag“
+war fest eingetragen. Echte Messwerte je Abruf lagen bereits in
+`marketplace_listing_metric_observations`, wurden aber mitgelöscht, sobald ein
+Inserat aus dem Kleiderschrank verschwand.
+
+**Änderung:**
+
+1. **Datenbank:** Neue Tabelle `marketplace_listing_statistic_items` als
+   dauerhafter Datensatz je Vinted-Artikel. Messungen hängen daran statt am
+   Kleiderschrank-Eintrag und bleiben erhalten; verschwundene Inserate bekommen
+   den Vermerk „nicht mehr online“. Vorhandene Messungen werden übernommen. Neue
+   Lesefunktion `marketplace_read_listing_statistics_overview` für Summen,
+   Zeitabschnitte und Bestenliste, je Konto oder für alle Konten.
+2. **Seite:** Menüpunkt „Statistik“ unter „Kleiderschrank“ mit Schaltern für
+   Konto-Umfang und Zeitraum, drei Kacheln mit Vergleich zum Zeitraum davor,
+   Säulendiagramm (ApexCharts) mit einblendbarer Wertetabelle und Bestenliste.
+3. **Kleiderschrank:** Das simulierte Diagramm samt Beispielzahlen ist entfernt;
+   die „+N“-Zahlen an den Karten bleiben.
+
+**Abwägungen:** Die Migration ist von Hand aus der Schema-Datei zusammengestellt,
+weil der erzeugte Abgleich viele fremde, bereits vorhandene Abweichungen enthielt.
+Ein Schild „Verkauft“ gibt es nicht, weil Vinted-Verkäufe keine Artikelnummer
+tragen. Bereits früher gelöschte Inserate sind nicht wiederherstellbar. Alte
+Messungen werden noch nicht verdichtet.
+
+**Nach der Gegenprüfung behoben:** Die Lesefunktion prüft das Verwaltungsrecht
+jetzt einmal selbst (`security definer`), weil die Prüfung je Messzeile bei
+1,7 Mio. Zeilen 46 s (7 Tage) bzw. über 3 Minuten (30 Tage) brauchte; danach
+0,7 s und 2,9 s. Der Vorzeitraum zählt nur so weit, wie der aktuelle Zeitraum
+schon gelaufen ist. Index auf `entry_id` ergänzt. Der Store lädt nur noch neu,
+wenn sich die Anfrage selbst ändert.
+
+**Prüfung:**
+
+- Datenbank: neue pgTAP-Datei (47 Prüfungen) und die gesamte Suite
+  (108 Dateien, 3958 Prüfungen) bestanden; Datenübernahme zusätzlich gegen
+  Altbestand geprüft; erneuter Schemaabgleich ohne Treffer auf die neuen Objekte.
+- Unit-Tests `marketplaces` und Navigation: 65 Angular-Dateien / 804 Tests und
+  28 Node-Dateien / 247 Tests bestanden.
+- Browsertest `e2e/vinted-workspace-ui.spec.ts` in sechs Varianten (1440, 390,
+  320 px; hell und dunkel) bestanden, einschließlich AXE und Überlaufprüfung der
+  neuen Seite.
+- Prettier, ESLint, `typecheck`, `test:audit` und Produktionsbau ohne Beanstandung.
+
+## 2026-10-13 - Juna - eBay-Statistiken über PR veröffentlichen
+
+**Auftrag:** Den geprüften eBay-Zweig über einen grünen PR zusammenführen und veröffentlichen.
+
+**Änderung:** Die CI erkennt einen unvollständigen Ressourcenresolver im Settings-Test;
+die beiden neuen eBay-Vorlagen ergänzen, ohne das Anwendungsverhalten zu ändern.
+Der Serverrollout wird auf die zusammengehörigen eBay-Quellen begrenzt und erhält fremde
+installierte Funktionsstände; Sicherung und Zugriffsprüfung gehören zum Rollout.
+
+**Prüfung:** Der CI-Fehler benennt die fehlende Angebotsvorlage ausdrücklich. Nach der
+Korrektur bestehen 77 gezielte Settings- und eBay-Tests sowie Format/Lint; die vollständige
+CI läuft erneut im PR. Produktionsnachweise werden erst nach erfolgreichem Rollout berichtet.
+
+## 2026-10-13 - Juna - eBay-Statistiken kompakter darstellen
+
+**Auftrag:** Infotexte auf das Nötigste beschränken und Platz für eine klare Übersicht sparen.
+
+**Änderung:** Kennzahlerklärungen, Vergleichsdetails und Datenabgrenzungen hinter einem
+zugänglichen Info-Schalter zusammenfassen. Wiederholte Absätze aus Kennzahlen, Diagramm,
+Aufrufquellen, Werbung und Tabelle entfernen. Werbung verwendet eine kompakte Kartenkopfaktion;
+Werte, Datenstand, Ladezustände und Fehler bleiben sichtbar. Keine Änderungen an der Auswertung.
+
+**Prüfung:** Betroffene Angular-Tests, Format/Lint, Typprüfung, Shared-UI-Prüfung und
+Produktionsbau. Lokale Browserprüfung mit Testdaten für kompakte Ansicht, Info-Schalter,
+Werbestatus und mobile Darstellung; AXE einschließlich Farbkontrast. Noch nicht veröffentlicht.
+
+## 2026-10-13 - Juna - eBay-Traffic mit Seller-Hub-Referenz abgleichen
+
+**Auftrag:** Den Screenshot der eBay-Trafficseite als fachliche Referenz für
+Kennzahlen, Diagramm und Artikeltabelle verwenden.
+
+**Änderung:** Aufrufe bei eBay und externe Aufrufe getrennt auswerten; dafür
+`LISTING_VIEWS_SOURCE_OFF_EBAY` im echten Serverbericht ergänzen. Die Klickrate
+verwendet jetzt eBay-Aufrufe geteilt durch Gesamtimpressionen, statt allein die
+Suchergebnisse auszuwerten. Die Artikel zeigen ihren bekannten aktuellen Bestand.
+Neben dem Diagramm steht die Herkunft der Aufrufe. Fünf Kennzahlen vergleichen
+den unmittelbar vorherigen gleich langen Zeitraum; die API-Abfragen bleiben
+einzeln auf höchstens 90 Tage begrenzt. Fehlende Vorwerte und Nullnenner erzeugen
+keine erfundenen Trends. Vergleichsfehler lassen aktuelle Daten bestehen; ein
+Widerruf der Kontorechte wird weiterhin weitergegeben.
+
+eBays Seller Hub zählt verkaufte Stücke, die Analytics-API abgeschlossene
+Transaktionen. Die Beschriftung und Quotenerklärung nennen diese Grenze.
+Die dokumentierte API liefert keine vollständige organische/externe
+Impressionsaufteilung oder Top-20-Veränderungen. Deshalb keine fingierten
+gestapelten Serien. CPS-Werbeklicks können externe Plätze enthalten; eine daraus
+berechnete vermeintliche Seller-Hub-Klickrate wird nicht mehr angezeigt.
+Keine Migrationen, zusätzlichen Rechte oder Abhängigkeiten.
+Quellen: https://www.ebay.de/verkaeuferportal/angebote/verkaeufer-cockpit-pro/performance-kennzahlen
+und https://developer.ebay.com/api-docs/sell/static/marketing/reports-by-platform.html.
+
+**Prüfung:** Lokale Modell-, Angular- und serverseitige Tests einschließlich
+Klickrate, Quellenlücken, Bestandsmetadaten, Vergleichszeiträumen und Widerruf.
+Format/Lint, Typprüfung, Shared-UI-Prüfung und Produktionsbau. Lokale Browserprobe
+mit künstlichem Konto: getrennte Artikelaufrufe, Vorzeitraumvergleich und
+asynchrone Werbeberichte. Statistikbreite bei 2.560 px auf 1.200 px begrenzt;
+bei 390 px kein Seitenüberlauf, Tabelle scrollt intern. AXE einschließlich
+Farbkontrast ohne Befund auf Desktop und mobil. Echte eBay-Daten bleiben vor
+Veröffentlichung ungeprüft; Frontend und Edge-Functions gemeinsam ausrollen.
+
+## 2026-10-13 - Juna - eBay-Artikelauswertung und Werbeberichte anbinden
+
+**Auftrag:** Unter den Trafficdiagrammen die einzelnen Artikel mit Impressionen,
+Aufrufen, Klickrate und Conversion Rate anzeigen und Werbetraffic ergänzen. Die
+zusätzliche OAuth-Freigabe `sell.marketing` wurde ausdrücklich bestätigt; sie wird
+ausschließlich für das Erzeugen und Lesen von Berichten genutzt.
+
+**Änderung:** Artikelauswertung der Sell Analytics API für 7, 30 oder 90 abgeschlossene
+UTC-Tage, bis zu 200 Angebote nach Gesamtimpressionen, Suche und Sortierung.
+Aktive Angebote erhalten Titel, Bild und Beobachterzahl aus der bestehenden
+persönlichen Inseratabfrage; fehlende Metadaten bleiben als Angebotsnummer mit
+neutralem Titel sichtbar. Keine erfundenen Bilder oder vermeintlichen Nullzähler.
+Asynchrone Konto- und Artikelberichte der Marketing API für Allgemein/CPS und
+Priorität/CPC auf eBay: passende laufende Berichte wiederverwenden, Status manuell
+prüfen und fertige TSV/Gzip-Berichte begrenzt herunterladen. Es werden weder
+Kampagnen noch Gebote oder Budgets verändert. Fremde Download-URLs werden nicht
+mit Zugangsdaten aufgerufen. Artikelkennungen stammen aus dem eigenen Analyticsbericht.
+Gesamt- und Werbeimpressionen werden als getrennte Balken verglichen, Werbeklicks
+als eigene Diagrammkennzahl und als Artikel-/Tageswerte angezeigt. Die dokumentierte
+API stellt keine bestätigte getrennte organische Trafficserie bereit; deshalb kein
+ungeprüftes Abziehen unterschiedlicher Zählwerte. Der Hinweis steht in der Oberfläche.
+Konto-/Zeitraumwechsel verwerfen alte Auswertungen, die Serveraufrufe verwenden die
+bestehende persönliche Kontosperre und Versionsprüfung. Bestehende Tokenrechte
+bleiben beim Refresh erhalten; für Werbung muss das Konto erneut verbunden werden.
+Keine Migrationen oder zusätzlichen Abhängigkeiten.
+API-Verträge: https://developer.ebay.com/api-docs/sell/static/marketing/pl-reports.html
+und https://developer.ebay.com/api-docs/sell/static/performance/traffic-report.html.
+
+**Prüfung:** 24 Angular-Tests für Kontoansicht/Store, zwölf Modelltests, 38
+serverseitige Tests unter Deno sowie 27 betroffene Workflowtests bestanden.
+Format/Lint, Typprüfung, Shared-UI-Prüfung und Produktionsbau bestanden.
+Lokale Browserprüfung mit künstlichem Konto: asynchrone Berichte, Artikelwerte,
+Suche/Sortierung, Diagrammwechsel, Werbe-Tageswerte und Zeitraumwechsel.
+Bei 390 px kein Seitenüberlauf, die Tabelle scrollt intern; bei 2.560 px bleibt der
+Statistikinhalt 1.200 px breit. AXE einschließlich Farbkontrast ohne Befund für helle
+Desktop- und helle/dunkle mobile Statistik mit fertigen Werbeberichten. Die zunächst
+interaktive Diagrammlegende wurde durch eine einfache zugängliche Legende ersetzt.
+Echte Kontodaten und eBays Marketing-Berechtigung sind vor Veröffentlichung noch
+nicht live geprüft. Die Edge-Functions müssen gemeinsam mit dem Frontend ausgerollt
+werden; eBay kann zusätzlich eine geeignete Verkäuferberechtigung verlangen.
+
+## 2026-10-13 - Juna - eBay-Trafficübersicht über die Analytics-API ergänzen
+
+**Auftrag:** Die Statistikseite als Trafficübersicht mit Impressionen, Aufrufen,
+Klickrate und Conversion Rate überarbeiten; Beobachter und Aufrufe bei Inseraten
+anzeigen. Die nötigen eBay-Servererweiterungen sind ausdrücklich freigegeben.
+
+**Änderung:** Kontoweiter Tagesbericht der eBay Sell Analytics API für den deutschen
+Marktplatz, einschließlich inzwischen verkaufter Angebote. Auswahl für 7, 30 oder
+90 abgeschlossene UTC-Tage, Datenstand, fünf Kennzahlen, wechselbares Diagramm und
+zugängliche Tageswerttabelle. Gesamtimpressionen verwenden `TOTAL_IMPRESSION_TOTAL`
+entsprechend dem Seller Hub. Klickrate und Conversion Rate werden für Gesamt- und
+Tageswerte aus den jeweiligen API-Zählwerten berechnet, ohne Tagesprozente zu
+mitteln. Nullwerte, fehlende Tage und nicht berechenbare Quoten bleiben unterscheidbar.
+Beobachter und Aufrufe der letzten 30 Tage stehen nebeneinander in den Inseraten;
+die Statistikseite lädt keine aktive Inseratliste mehr. Der neue Serveraufruf nutzt
+die bestehende persönliche Kontosperre, Workspaceberechtigung und Versionsprüfung;
+überholte Antworten werden verworfen. Keine neuen OAuth-Rechte, Abhängigkeiten oder
+Migrationen. Original-Trafficseite bleibt über einen Link erreichbar. API-Vertrag:
+https://developer.ebay.com/api-docs/sell/static/performance/traffic-report.html
+
+**Prüfung:** 23 Angular-Tests für Kontoansicht/Store, neun Modelltests, 16 serverseitige
+Tests unter Deno sowie 27 betroffene Workflowtests bestanden. Format/Lint,
+Typprüfung, Shared-UI-Prüfung und Produktionsbau bestanden. Lokale Browserprüfung
+mit künstlichem Konto und schreibgeschütztem Antwortserver: Zeitraumwechsel,
+Diagrammwechsel, Tageswerte, aktuelle Beobachter/Aufrufe und mobile Tabellenansicht.
+Bei 390 px kein Seitenüberlauf, Diagramm 318 px breit. AXE einschließlich Farbkontrast
+ohne Befund für helle Desktop-Statistiken, helle/dunkle mobile Statistiken und dunkle
+mobile Inserate. Echte eBay-Trafficdaten des neuen Kontoaufrufs sind vor dem Rollout
+noch nicht live geprüft. Die Edge-Function-Erweiterung muss zusammen mit dem
+Frontend veröffentlicht werden; der reine Frontend-Release reicht dafür nicht.
+
+## 2026-10-13 – Juna – eBay-Arbeitsbereich und Navigation neu ordnen
+
+**Auftrag:** Den gesamten eBay-Bereich übersichtlicher aufteilen, bei Bedarf wie
+bei Vinted das Menü wechseln und die Inhaltsbreite auf großen Bildschirmen begrenzen.
+
+**Änderung:** Eigener eBay-Menükontext mit Inseraten, Bestellungen, Statistiken und
+Kontoverbindung sowie Rückweg zu Flipbase. Mobile Schnellnavigation und das
+aufklappbare Menü verwenden dieselben Seitenziele. Die bisherige Einstiegsroute
+leitet unter Erhalt der OAuth-Queryparameter zu den Inseraten weiter; der Editor
+behält seinen Pfad, seine Kontoparameter und den Schutz ungespeicherter Änderungen.
+Alle eBay-Seiten einschließlich Editor stehen in einem zentrierten 1.200-px-Rahmen,
+entsprechend der bestehenden Flipbase-Erfassungsbreite, ohne Anspruch auf einen
+gemessenen Shopify-Breitenwert. Verbindungseinstellungen stehen separat, das
+verbundene Konto bleibt im Seitenkopf sichtbar. Bestellungen laden direkt ihren
+Datenbereich. Die gemeinsame Tabellen-Suche filtert geladene Einträge; eine weitere
+Ergebnisseite wird ausdrücklich berücksichtigt. Konto- und Workspacewechsel
+verwerfen die Suche und alte Daten. Keine Backendänderung oder Migration.
+
+**Prüfung:** 52 Angular-Tests für eBay-Konto/Store/Editor und Sidebar/Mobilnavigation,
+35 Konfigurations- und Routentests, Typprüfung, Format/Lint, Shared-UI-Prüfung und
+Produktionsbau bestanden. Lokale Browserprüfung mit künstlichem Konto und
+schreibgeschütztem Antwortserver: bei 2.560 px genau 1.200 px Inhaltsbreite mit
+gleichen Seitenabständen, bei 390 px 358 px Inhalt und kein Seitenüberlauf. Editor,
+Bestellungen, Statistik- und Verbindungsseiten öffnen korrekt. AXE einschließlich
+Farbkontrast ohne Befund für mobile Bestellungen, mobile/dunkle/helle Statistiken
+und den hellen Editor. Bestehende Produktionsangebote wurden nicht verändert.
+Der vorhandene Bestellimport-Browsertest wurde an den neuen Menülink angepasst
+und prüft zusätzlich die Einstiegsweiterleitung und den Bestellseitenpfad.
+
+## 2026-10-13 - Juna - eBay-Bearbeitungslink und Statistikabruf korrigieren
+
+**Auftrag:** Bearbeiten führte zum Dashboard; Aufrufe und Verkaufsquote fehlten.
+Die Bedeutung der Quote bei überwiegend einzelnen Artikeln erklären.
+
+**Befund:** Im echten Browser enthält der Bearbeitungslink den kodierten Querystring
+im Pfad (`edit%3Fconnection%3D…`). Die Statistikabfrage liefert HTTP 502 mit
+`invalid_response`, bisher irreführend als fehlende Erreichbarkeit dargestellt.
+Der Parser verlangt einen bestimmten Namen für die Berichtsdimension, obwohl
+der aktuelle eBay-Vertrag dafür kein festes Enum vorgibt. Ein direkter Diagnoseweg
+über gespeicherte Zugangsdaten wurde vor Ausführung blockiert; keine Zugangsdaten
+wurden dafür ausgelesen.
+
+**Änderung:** Konto-ID separat über Router-Queryparameter; Navigationstest mit
+Dashboard-Rückfall. Statistiken werden nach dem Inseratabruf automatisch geladen.
+Die einzige Dimension des Angebotsberichts wird positionsbezogen ausgewertet;
+angefragte Angebots-IDs, Metrikschlüssel und Dimensionanzahl bleiben geprüft.
+Ladezustand, fehlende Daten und Abruffehler sind sichtbar unterscheidbar. Die
+Spalte „Käufe / Aufrufe“ und ein Einzelstück-Beispiel erklären die Quote.
+Ungültige Antworten protokollieren nur Berichtsschlüssel, keine Tokens oder
+Angebotsinhalte. Echte Speicheraufrufe gehören nicht zur Fehlerprüfung.
+
+**Prüfung:** 19 Angular-Tests für Kontoansicht und Store sowie 13 serverseitige
+Tests unter Node; Typprüfung, Format/Lint, gemeinsame UI-Regeln und Produktionsbau
+bestanden. Der echte Editor lädt mit korrigierter URL Titel, Preis, Beschreibung
+und acht Bilder. Der neue Statistikparser ist lokal geprüft; die echte Antwort
+muss nach dem freigegebenen Rollout erneut abgenommen werden. Kein Live-Schreiben.
+
+## 2026-10-13 - Juna - eBay-Inserate mit Bildern, Bearbeitung und Statistiken erweitern
+
+**Auftrag:** Fehlende Bilder, direkte Angebotsbearbeitung sowie Aufrufe,
+Beobachter und Verkaufsquote je Inserat ergänzen. Die nötigen Änderungen an
+Supabase-Edge-Functions und API-Verträgen wurden ausdrücklich freigegeben.
+
+**Änderung:** Vorschaubilder und Beobachter aus der vorhandenen Trading-Antwort;
+neue Bearbeitungsseite für Titel, Preis, Beschreibung und Bilder mit der gemeinsamen
+Produkt-Bildverwaltung. Vorhandene HTML-Beschreibungen bleiben erhalten. Die aktuelle
+eBay Media API übernimmt neue Fotos. Statistiken kommen aus der Analytics API für
+30 abgeschlossene UTC-Tage, mit Datenstand und unbekannten statt erfundenen Nullwerten.
+Geänderte Inserate werden vor dem Schreiben erkannt; unklare Speicherantworten sperren
+einen weiteren Versuch bis zum Neuladen. Konto-/Workspace-Grenzen, erneute Freigaben,
+Dateigrößen und XML-Eingaben bleiben serverseitig geprüft. Neue OAuth-Rechte erfordern
+für Uploads und Statistiken eine erneute Kontoverbindung; alte Lesefunktionen behalten
+beim Tokenrefresh ihre bisherigen Rechte. Variantenpreise und von anderen Anwendungen
+verwaltete Angebote unterliegen weiterhin den eBay-Beschränkungen. Keine Migration.
+
+**Prüfung:** Gezielte Angular-, Antwortvertrags- und serverseitige eBay-Tests;
+TypeScript für Anwendung, Tests und betroffene Edge-Module; Format/Lint,
+Shared-UI-Architekturprüfung und Angular-Produktionsbau. AXE für Angebotsliste und
+Editor ohne Farbkontrastmessung. Servertests lokal unter Node, der verbindliche
+Deno-Lauf bleibt im PR und enthält die neuen Tests. Kein echter eBay-Schreibaufruf
+und keine Veröffentlichung; Live-Kontoabnahme bleibt nach Freigabe erforderlich.
 
 ## 2026-10-12 – Juna – Bearbeiten: Bild-Baustein der Produktseite, Speicherabbruch einordnen
 

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { chmod, mkdtemp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -9,6 +9,275 @@ import test from 'node:test';
 
 const deployScript = fileURLToPath(new URL('../deploy/deploy.sh', import.meta.url));
 const dockerfile = fileURLToPath(new URL('../docker/Dockerfile', import.meta.url));
+
+test('Produktions-Nginx akzeptiert die tatsächlichen Auslieferungsregeln', async () => {
+  const root = fileURLToPath(new URL('../', import.meta.url));
+  const source = await readFile(dockerfile, 'utf8');
+  const image = source.match(/^FROM (nginx:[^\s]+) AS production$/mu)?.[1];
+  assert.ok(image, 'Die Prüfung muss das tatsächliche Produktions-Nginx verwenden.');
+  execFileSync(
+    'docker',
+    [
+      'run',
+      '--rm',
+      '--mount',
+      `type=bind,source=${join(root, 'docker/nginx.conf')},target=/etc/nginx/conf.d/default.conf,readonly`,
+      '--mount',
+      `type=bind,source=${join(root, 'docker/security-headers.conf')},target=/etc/nginx/security-headers.conf,readonly`,
+      image,
+      'nginx',
+      '-t',
+    ],
+    { stdio: 'pipe' },
+  );
+});
+
+test('Push-Compose erbt Supabasezugang und trennt Router/JWT ohne neue Hostports', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'flipbase-push-compose-'));
+  try {
+    const base = join(root, 'docker-compose.yml');
+    await writeFile(
+      base,
+      `services:
+  functions:
+    image: supabase/edge-runtime:v1.73.5
+    command: [start, --main-service, /home/deno/functions/main]
+    environment:
+      VERIFY_JWT: 'true'
+      SUPABASE_URL: http://kong:8000
+      SUPABASE_SERVICE_ROLE_KEY: fixture-server-only
+    volumes:
+      - ./original-functions:/home/deno/functions
+`,
+    );
+    const compose = JSON.parse(
+      execFileSync(
+        'docker',
+        [
+          'compose',
+          '-f',
+          base,
+          '-f',
+          fileURLToPath(new URL('../deploy/docker-compose.push-functions.yml', import.meta.url)),
+          'config',
+          '--format',
+          'json',
+        ],
+        {
+          encoding: 'utf8',
+          env: {
+            ...process.env,
+            PUSH_FUNCTIONS_DIRECTORY: join(root, 'release-functions'),
+            FLIPBASE_SUPABASE_DIRECTORY: root,
+            FLIPBASE_PUSH_IMAGE: `ghcr.io/grischatdev/flipbase-push@sha256:${'b'.repeat(64)}`,
+            FLIPBASE_PUSH_COMMIT: 'a'.repeat(40),
+          },
+        },
+      ),
+    );
+    assert.equal(compose.services.functions.environment.VERIFY_JWT, 'true');
+    const functions = compose.services['push-functions'];
+    assert.equal(functions.environment.VERIFY_JWT, 'false');
+    assert.equal(functions.environment.SUPABASE_SERVICE_ROLE_KEY, 'fixture-server-only');
+    assert.deepEqual(functions.command, [
+      'start',
+      '--main-service',
+      '/home/deno/functions/push-main',
+    ]);
+    assert.equal(
+      functions.volumes.filter((volume) => volume.target === '/home/deno/functions').length,
+      1,
+    );
+    assert.equal(
+      functions.volumes.find((volume) => volume.target === '/home/deno/functions').read_only,
+      true,
+    );
+    assert.equal(functions.ports, undefined);
+    const gateway = compose.services['push-gateway'];
+    assert.equal(gateway.ports, undefined);
+    assert.equal(gateway.environment.SUPABASE_SERVICE_ROLE_KEY, undefined);
+    assert.equal(gateway.read_only, true);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test(
+  'Pushparser erzwingt Digest, gleiche Commits und Migration vor Functions/Worker/App',
+  { skip: process.platform === 'win32' },
+  async () => {
+    const root = await mkdtemp(join(tmpdir(), 'flipbase-push-deploy-'));
+    const bin = join(root, 'bin');
+    const runtime = join(root, 'push');
+    const supabase = join(root, 'supabase');
+    const artifact = join(root, 'artifact');
+    const log = join(root, 'calls.log');
+    const appDigest = `sha256:${'a'.repeat(64)}`;
+    const pushDigest = `sha256:${'b'.repeat(64)}`;
+    const commit = 'a'.repeat(40);
+    try {
+      for (const directory of [bin, runtime, supabase]) await mkdir(directory, { recursive: true });
+      execFileSync(process.execPath, [
+        fileURLToPath(new URL('./package-push-functions.mjs', import.meta.url)),
+        artifact,
+        commit,
+      ]);
+      await writeFile(join(supabase, 'docker-compose.yml'), 'services: {}\n');
+      await writeFile(join(supabase, '.env'), 'TEST=true\n');
+      await writeFile(join(root, 'Caddyfile'), 'old proxy configuration\n');
+      await writeFile(join(runtime, 'push.env'), 'SUPABASE_URL=https://api.example.test\n', {
+        mode: 0o600,
+      });
+      // Der CI-Nutzer ist kein root; nur die serverseitige Metadatenabfrage simulieren.
+      await writeFile(
+        join(bin, 'stat'),
+        `#!/bin/bash
+if [[ "$1" = -c && "$2" = '%u:%g:%a' && "$3" = "$FIXTURE_PUSH_ENV_FILE" ]]; then
+  printf '%s\\n' "\${FIXTURE_PUSH_ENV_METADATA:-0:0:600}"
+else
+  exec /usr/bin/stat "$@"
+fi
+`,
+        { mode: 0o755 },
+      );
+      await writeFile(join(root, 'migration-backup.sh'), '#!/bin/bash\nexit 0\n', { mode: 0o755 });
+      await writeFile(
+        join(root, 'apply-release-migrations.sh'),
+        '#!/bin/bash\necho "apply migrations" >> "$DOCKER_LOG"\n',
+        { mode: 0o755 },
+      );
+      await writeFile(
+        join(bin, 'docker'),
+        `#!/bin/bash
+echo "$*" >> "$DOCKER_LOG"
+case "$1" in
+ login) cat >/dev/null ;;
+ create) echo artifact-container ;;
+ cp)
+  case "$2" in
+   *:*/push-functions) cp -a "$FUNCTION_ARTIFACT" "$3" ;;
+   *:*/docker-compose.push.yml) cp "$REPO_ROOT/deploy/docker-compose.push.yml" "$3" ;;
+   *:*/docker-compose.push-functions.yml) cp "$REPO_ROOT/deploy/docker-compose.push-functions.yml" "$3" ;;
+   *:*/Caddyfile) cp "$REPO_ROOT/deploy/Caddyfile" "$3" ;;
+   *:*/migrations/.) mkdir -p "$3" ;;
+   *) exit 92 ;;
+  esac ;;
+ compose)
+  case "$*" in
+   *"config --images web"*) echo "$EXPECTED_APP_IMAGE" ;;
+   *"config --images push-worker"*) echo "\${CONFIGURED_PUSH_IMAGE:-$EXPECTED_PUSH_IMAGE}" ;;
+  esac ;;
+ inspect)
+  case "$*" in
+   *org.opencontainers.image.revision*) echo "\${PUSH_REVISION:-$EXPECTED_COMMIT}" ;;
+   *State.Health.Status*) echo healthy ;;
+   *) echo sha256:fixture ;;
+  esac ;;
+ pull|up|rm|logout|image|exec) ;;
+ *) exit 91 ;;
+esac
+`,
+        { mode: 0o755 },
+      );
+      const environment = {
+        ...process.env,
+        PATH: `${bin}:${process.env.PATH ?? ''}`,
+        FLIPBASE_DEPLOY_DIR: root,
+        FLIPBASE_LANDING_DIR: join(root, 'absent'),
+        FLIPBASE_CADDY_CONFIG_PATH: join(root, 'Caddyfile'),
+        FLIPBASE_PUSH_RUNTIME_DIRECTORY: runtime,
+        FLIPBASE_SUPABASE_DIRECTORY: supabase,
+        SSH_ORIGINAL_COMMAND: `release-v1 ${appDigest} push ${pushDigest}`,
+        DOCKER_LOG: log,
+        FUNCTION_ARTIFACT: artifact,
+        REPO_ROOT: fileURLToPath(new URL('../', import.meta.url)),
+        EXPECTED_APP_IMAGE: `ghcr.io/grischatdev/flipbase@${appDigest}`,
+        EXPECTED_PUSH_IMAGE: `ghcr.io/grischatdev/flipbase-push@${pushDigest}`,
+        EXPECTED_COMMIT: commit,
+        FIXTURE_PUSH_ENV_FILE: join(runtime, 'push.env'),
+      };
+      const result = await runDeploy(environment);
+      assert.equal(result.code, 0, result.stderr);
+      for (const metadata of ['1001:1001:600', '0:0:644']) {
+        const rejected = await runDeploy({ ...environment, FIXTURE_PUSH_ENV_METADATA: metadata });
+        assert.equal(rejected.code, 1, metadata);
+        assert.match(rejected.stderr, /root-Konfiguration mit Modus0600/u);
+      }
+      const calls = await readFile(log, 'utf8');
+      assert.match(
+        calls,
+        /caddy reload/u,
+        'Push routing must activate without a landing directory',
+      );
+      assert.ok(
+        calls.indexOf('apply migrations') <
+          calls.indexOf('up -d --no-deps --pull never push-functions push-gateway'),
+      );
+      assert.ok(
+        calls.indexOf('up -d --no-deps --pull never push-functions push-gateway') <
+          calls.indexOf('up -d --pull never push-worker'),
+      );
+      assert.ok(
+        calls.indexOf('up -d --pull never push-worker') < calls.indexOf('up -d --pull never web'),
+      );
+      for (const command of [
+        `release-v1 ${appDigest} push latest`,
+        `release-v1 ${appDigest} push sha-1234567`,
+        `release-v1 ${appDigest} push ${pushDigest} push ${pushDigest}`,
+        `web sha-1234567 push ${pushDigest}`,
+        `push ${pushDigest};echo pwn`,
+        `release-v1 ${appDigest} other ${pushDigest}`,
+      ])
+        assert.equal(
+          (await runDeploy({ ...environment, SSH_ORIGINAL_COMMAND: command })).code,
+          2,
+          command,
+        );
+      await writeFile(log, '');
+      assert.notEqual((await runDeploy({ ...environment, PUSH_REVISION: 'b'.repeat(40) })).code, 0);
+      assert.doesNotMatch(await readFile(log, 'utf8'), /up -d/);
+      await writeFile(log, '');
+      assert.notEqual(
+        (
+          await runDeploy({
+            ...environment,
+            CONFIGURED_PUSH_IMAGE: 'ghcr.io/grischatdev/flipbase-push:latest',
+          })
+        ).code,
+        0,
+      );
+      assert.doesNotMatch(await readFile(log, 'utf8'), /up -d/);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);
+
+test('Pushrelease liefert Functions, Ratelimit und Digest vor der kompatiblen App', async () => {
+  const [deploy, image, proxy, workflow] = await Promise.all([
+    readFile(deployScript, 'utf8'),
+    readFile(dockerfile, 'utf8'),
+    readFile(new URL('../deploy/Caddyfile', import.meta.url), 'utf8'),
+    readFile(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8'),
+  ]);
+  assert.match(deploy, /PUSH_REFERENCE/u);
+  assert.match(deploy, /prepare_push_runtime/u);
+  assert.ok(
+    deploy.indexOf('apply-release-migrations.sh" "$temporary/migrations"') <
+      deploy.indexOf('activate_push_runtime "$release_container"'),
+  );
+  assert.ok(
+    deploy.indexOf('activate_push_runtime "$release_container"') <
+      deploy.indexOf('docker compose up -d --pull never web'),
+  );
+  assert.match(image, /release-push-functions \/opt\/flipbase\/push-functions/u);
+  assert.match(proxy, /reverse_proxy flipbase-push-gateway:4177/u);
+  assert.match(proxy, /header_up X-Forwarded-For \{remote_host\}/u);
+  assert.ok(proxy.indexOf('handle @push_requests') < proxy.indexOf('handle @supabase_api'));
+  assert.match(workflow, /npm ci --prefix services\/push-worker --ignore-scripts/u);
+  assert.match(workflow, /push_digest:/u);
+  assert.match(workflow, /Gate publication on successful checks/u);
+});
 
 test('der Botbrowser wird privat geroutet und mit dem geprüften Release vorbereitet', async () => {
   const [caddy, compose, deploy, webImage] = await Promise.all([
@@ -71,6 +340,51 @@ test('jede öffentliche TLS-Domain erhält HSTS ohne pauschale Subdomainbindung'
   }
 });
 
+test('Docker-Kontext enthält alle Quellen des tatsächlich erzeugten Pushpakets', async () => {
+  const root = fileURLToPath(new URL('../', import.meta.url));
+  const artifact = await mkdtemp(join(tmpdir(), 'flipbase-push-context-'));
+  try {
+    execFileSync(process.execPath, [
+      join(root, 'scripts/package-push-functions.mjs'),
+      artifact,
+      'a'.repeat(40),
+    ]);
+    const rules = (await readFile(join(root, '.dockerignore'), 'utf8')).split(/\r?\n/u);
+    const manifest = await readFile(join(artifact, 'manifest.sha256'), 'utf8');
+    const files = manifest
+      .trim()
+      .split('\n')
+      .map((entry) => entry.slice(66));
+    assert.ok(files.length > 1, 'Die Prüfung muss das tatsächliche Functionpaket erfassen.');
+    for (const file of files) {
+      if (file === 'deployment.json') continue;
+      if (file.startsWith('push-main/')) {
+        const source = `deploy/${file}`;
+        for (const exclusion of [
+          'deploy',
+          'deploy/',
+          'deploy/*',
+          'deploy/push-main/',
+          'deploy/push-main/*',
+          source,
+        ])
+          assert.ok(
+            !rules.includes(exclusion),
+            `${source} wird aus dem Docker-Kontext ausgeschlossen.`,
+          );
+        continue;
+      }
+      const source = `supabase/functions/${file}`;
+      assert.ok(
+        rules.lastIndexOf(`!${source}`) > rules.lastIndexOf(`${posix.dirname(source)}/*`),
+        `${source} fehlt im Docker-Kontext des Pushpakets.`,
+      );
+    }
+  } finally {
+    await rm(artifact, { recursive: true, force: true });
+  }
+});
+
 test('Docker-Kontext enthält alle von Angular verwendeten gemeinsamen Verträge', async () => {
   const root = fileURLToPath(new URL('../', import.meta.url));
   const rules = (await readFile(join(root, '.dockerignore'), 'utf8')).split(/\r?\n/u);
@@ -122,9 +436,12 @@ test('liefert die passende Caddy-Regel vor der Landingpage aus', async () => {
   const caddyReloadAfterCopy = deploySource
     .slice(caddyCopy)
     .search(/caddy reload\s+\\\s*\n\s*--config \/etc\/caddy\/Caddyfile/u);
-  const caddyActivation = deploySource.lastIndexOf('activate_release_caddy_configuration');
   const landingCopy = deploySource.indexOf(
     'docker cp flipbase-web:/usr/share/nginx/landing/. "$LANDING_DIRECTORY"/',
+  );
+  const caddyActivation = deploySource.lastIndexOf(
+    'activate_release_caddy_configuration',
+    landingCopy,
   );
   const caddyRestoreAfterLandingCopy = deploySource
     .slice(landingCopy)

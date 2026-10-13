@@ -38,6 +38,13 @@ export class BrowserActionFailedError extends Error {
   }
 }
 
+/** Das Ändern eines Inserats brach ab, bevor bei Vinted gespeichert wurde; dort ist nichts geändert. */
+export class VintedListingNotSavedError extends Error {
+  constructor() {
+    super('Das Vinted-Inserat wurde nicht geändert.');
+  }
+}
+
 /** Nennt nur, an welchem festen Schritt das Lesen der Maske scheiterte. */
 export class VintedListingReadError extends Error {
   readonly step: VintedListingReadStep;

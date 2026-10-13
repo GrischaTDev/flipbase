@@ -67,6 +67,6 @@ describe('Workspace-Zugangsgrenze', () => {
   });
 
   it('öffnet bei fehlgeschlagener Serverprüfung keine Geschäftsdaten', async () => {
-    expect(await setup([], true).run()).toEqual(['/beta-ended']);
+    expect(await setup([], true).run()).toEqual(['/offline']);
   });
 });

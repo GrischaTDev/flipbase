@@ -1,0 +1,175 @@
+<app-card title="Beworbene Artikel" [padding]="advertising() || advertisingError() ? 'sm' : 'none'">
+  <app-button
+    card-header-actions
+    variant="secondary"
+    [loading]="advertisingLoading()"
+    [disabled]="loading() || !!error()"
+    (clicked)="loadAdvertising()"
+  >
+    {{ advertising()?.status === 'pending' ? 'Berichtstatus prüfen' : 'Werbeberichte laden' }}
+  </app-button>
+  @if (advertising()?.status === 'pending') {
+    <p role="status" class="text-sm text-fb-text-secondary">eBay erstellt Deine Werbeberichte.</p>
+  }
+  @if (advertisingError(); as message) {
+    <p role="alert" class="text-sm text-fb-critical">{{ message }}</p>
+    <app-button variant="plain" class="mt-2" link="/marketplaces/ebay/connection"
+      >Kontoverbindung prüfen</app-button
+    >
+  }
+  @if (advertisingSummary(); as summary) {
+    <dl class="grid grid-cols-2 gap-4" aria-label="Werbekennzahlen">
+      <div>
+        <dt class="text-xs text-fb-text-muted">Werbeimpressionen</dt>
+        <dd class="mt-1 text-xl font-semibold tabular-nums text-fb-text-primary">
+          {{ summary.impressions | number: '1.0-0' }}
+        </dd>
+      </div>
+      <div>
+        <dt class="text-xs text-fb-text-muted">Werbeklicks</dt>
+        <dd class="mt-1 text-xl font-semibold tabular-nums text-fb-text-primary">
+          {{ summary.clicks | number: '1.0-0' }}
+        </dd>
+      </div>
+    </dl>
+    @if (advertising()?.generatedAt; as generatedAt) {
+      <p class="mt-2 text-xs text-fb-text-muted">
+        Stand: {{ generatedAt | date: 'dd.MM.yyyy HH:mm' : 'UTC' }} UTC
+      </p>
+    }
+  }
+</app-card>
+<section aria-label="Traffic je Artikel" class="space-y-3">
+  <div>
+    <h2 class="text-base font-semibold text-fb-text-primary">Traffic je Artikel</h2>
+    <p class="mt-1 text-xs text-fb-text-muted">Bis zu 200 Angebote</p>
+  </div>
+  <app-data-table
+    ariaLabel="eBay-Artikelauswertung"
+    searchPlaceholder="Artikel oder Angebotsnummer suchen"
+    searchAriaLabel="Artikelauswertung durchsuchen"
+    [searchValue]="search()"
+    (searchValueChange)="search.set($event)"
+    [loading]="loading()"
+    [errorMessage]="error()"
+    [hasRows]="rows().length > 0"
+    loadingText="Deine Artikelauswertung wird geladen ."
+    emptyTitle="Keine Artikel gefunden"
+    emptyText="Für Deine Suche oder diesen Zeitraum sind keine Artikel verfügbar."
+  >
+    <div table-filters>
+      <app-custom-select
+        variant="toolbar"
+        [options]="sortOptions"
+        [value]="sort()"
+        (valueChange)="sort.set($event ?? 'impressions')"
+        ariaLabel="Artikelauswertung sortieren"
+      />
+    </div>
+    <app-button table-error-action variant="secondary" class="mt-3" (clicked)="refresh()"
+      >Erneut versuchen</app-button
+    >
+    <div
+      table-content
+      class="overflow-x-auto"
+      tabindex="0"
+      role="region"
+      aria-label="Traffic-Tabelle horizontal scrollen"
+    >
+      <table class="w-full min-w-[1280px] text-left text-[13px] tabular-nums">
+        <caption class="sr-only">
+          Verfügbarkeit, Impressionen, Aufrufe bei eBay, externe Aufrufe, Klickrate, Käufe und
+          Werbewerte je Artikel
+        </caption>
+        <thead>
+          <tr class="border-b border-fb-line text-fb-text-muted">
+            <th scope="col" class="px-3 py-3">Artikel</th>
+            <th scope="col" class="px-3 py-3 text-right">Verfügbar</th>
+            <th scope="col" class="px-3 py-3 text-right">Impressionen</th>
+            <th scope="col" class="px-3 py-3 text-right">Aufrufe bei eBay</th>
+            <th scope="col" class="px-3 py-3 text-right">Externe Aufrufe</th>
+            <th scope="col" class="px-3 py-3 text-right">Klickrate</th>
+            <th scope="col" class="px-3 py-3 text-right">Käufe</th>
+            <th scope="col" class="px-3 py-3 text-right">Konversionsrate (Käufe)</th>
+            <th scope="col" class="px-3 py-3 text-right">Werbeimpressionen</th>
+            <th scope="col" class="px-3 py-3 text-right">Werbeklicks</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of rows(); track item.listingId) {
+            <tr class="border-b border-fb-line text-fb-text-primary">
+              <th scope="row" class="px-3 py-3 font-normal">
+                <div class="flex items-center gap-3">
+                  <app-product-thumbnail [src]="item.imageUrl" [alt]="item.title" />
+                  <div class="min-w-36 max-w-64">
+                    <a
+                      class="font-medium hover:underline focus-visible:outline-2 focus-visible:outline-fb-text-primary"
+                      [href]="'https://www.ebay.de/itm/' + item.listingId"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      >{{ item.title }}</a
+                    >
+                    <p class="mt-1 text-xs text-fb-text-muted">{{ item.listingId }}</p>
+                  </div>
+                </div>
+              </th>
+              <td class="px-3 py-3 text-right">
+                {{
+                  item.quantityAvailable === null
+                    ? 'Keine Daten'
+                    : (item.quantityAvailable | number: '1.0-0')
+                }}
+              </td>
+              <td class="px-3 py-3 text-right">
+                {{
+                  item.impressions === null ? 'Keine Daten' : (item.impressions | number: '1.0-0')
+                }}
+              </td>
+              <td class="px-3 py-3 text-right">
+                {{
+                  item.viewsOnEbay === null ? 'Keine Daten' : (item.viewsOnEbay | number: '1.0-0')
+                }}
+              </td>
+              <td class="px-3 py-3 text-right">
+                {{
+                  item.externalViews === null
+                    ? 'Keine Daten'
+                    : (item.externalViews | number: '1.0-0')
+                }}
+              </td>
+              <td class="px-3 py-3 text-right">
+                {{
+                  item.clickThroughRate === null
+                    ? 'Keine Quote'
+                    : (item.clickThroughRate | percent: '1.1-2')
+                }}
+              </td>
+              <td class="px-3 py-3 text-right">
+                {{
+                  item.transactions === null ? 'Keine Daten' : (item.transactions | number: '1.0-0')
+                }}
+              </td>
+              <td class="px-3 py-3 text-right">
+                {{
+                  item.conversionRate === null
+                    ? 'Keine Quote'
+                    : (item.conversionRate | percent: '1.1-2')
+                }}
+              </td>
+              <td class="px-3 py-3 text-right">
+                {{
+                  item.advertisingImpressions === null
+                    ? 'Nicht geladen'
+                    : (item.advertisingImpressions | number: '1.0-0')
+                }}
+              </td>
+              <td class="px-3 py-3 text-right">
+                {{ item.clicks === null ? 'Nicht geladen' : (item.clicks | number: '1.0-0') }}
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </app-data-table>
+</section>

@@ -5,7 +5,7 @@
     <title>Flipbase – Reselling OS</title>
     <base href="/" />
     <!-- Kein user-scalable=no: das Sperren des Zooms verstoesst gegen WCAG 1.4.4 (Resize Text, AA) -->
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <!--
       Mehrere Groessen statt einer: Der Browser nimmt fuer den Reiter eine
       kleine, das Lesezeichen und die Kachel auf dem Startbildschirm groessere.
@@ -51,6 +51,15 @@
     Unterschied zum alten Anthrazit zu klein, um ihn zu bemerken.
   -->
   <body class="font-sans antialiased selection:bg-emerald-500/30 selection:text-emerald-300">
+    <section id="app-startup" class="fb-app-startup" aria-label="Flipbase starten">
+      <img src="images/logo-mark.png" width="80" height="80" alt="Flipbase" />
+      <h1>Flipbase</h1>
+      <span class="fb-app-startup__activity" aria-hidden="true"></span>
+      <p id="app-startup-status" role="status" aria-live="polite">Deine App wird gestartet …</p>
+      <button id="app-startup-retry" type="button" hidden>Erneut versuchen</button>
+      <noscript>Aktiviere JavaScript, damit du Flipbase nutzen kannst.</noscript>
+    </section>
+    <script src="app-startup.js"></script>
     <app-root></app-root>
   </body>
 </html>
