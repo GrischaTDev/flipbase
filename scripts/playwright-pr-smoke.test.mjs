@@ -9,6 +9,10 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 
 // Nur die tatsächliche Testauswahl prüfen, nicht Playwrights Parser nachtesten.
 const coreTests = [
+  ...['390x844', '844x390', '768x1024', '512x768'].map((viewport) => [
+    'pwa-mobile-layout.spec.ts',
+    `safe areas and navigation ${viewport} @pwa-layout`,
+  ]),
   [
     'brand-label-library.spec.ts',
     'pflegt und veröffentlicht echte Label- und Größenreferenzen mit freigegebenen Bildern @core-smoke',

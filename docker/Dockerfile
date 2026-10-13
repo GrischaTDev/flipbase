@@ -27,6 +27,8 @@ ENV FLIPBASE_COMMIT=$FLIPBASE_COMMIT
 ENV FLIPBASE_COMMIT_DATE=$FLIPBASE_COMMIT_DATE
 ENV FLIPBASE_VERSION=$FLIPBASE_VERSION
 
+RUN node scripts/package-push-functions.mjs /app/release-push-functions "$FLIPBASE_COMMIT"
+
 # `npm run build` statt `npx ng build`: Nur so laeuft der prebuild-Haken mit,
 # der src/app/core/version.ts erzeugt. Diese Datei steht in .gitignore und
 # liegt im Abbild deshalb nicht vor - mit `npx` brach der Build genau daran
@@ -55,6 +57,9 @@ COPY --from=build /app/landing /usr/share/nginx/landing
 COPY --from=build /app/deploy/Caddyfile /opt/flipbase/Caddyfile
 COPY --from=build /app/deploy/docker-compose.sniper.yml /opt/flipbase/docker-compose.sniper.yml
 COPY --from=build /app/deploy/chromium-seccomp.json /opt/flipbase/chromium-seccomp.json
+COPY --from=build /app/release-push-functions /opt/flipbase/push-functions
+COPY --from=build /app/deploy/docker-compose.push.yml /opt/flipbase/docker-compose.push.yml
+COPY --from=build /app/deploy/docker-compose.push-functions.yml /opt/flipbase/docker-compose.push-functions.yml
 # Migrationsdateien gehören zum Release, sind aber niemals öffentlich erreichbar.
 COPY --from=build /app/release-migrations /opt/flipbase/migrations/
 

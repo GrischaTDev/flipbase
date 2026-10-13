@@ -274,7 +274,7 @@ describe('HeaderComponent', () => {
     ).toBe('1');
   });
 
-  it('verwendet eine feste Kopfhoehe und gleich grosse Bedienelemente', async () => {
+  it('erlaubt eine wachsende Kopfhoehe und gleich grosse Bedienelemente', async () => {
     const fixture = await renderHeader();
     const element = fixture.nativeElement as HTMLElement;
     const header = element.querySelector('header');
@@ -288,8 +288,9 @@ describe('HeaderComponent', () => {
       'button[aria-controls="header-user-menu"]',
     );
 
-    expect(header?.classList).toContain('h-14');
-    expect(header?.classList).not.toContain('min-h-14');
+    expect(header?.classList).toContain('min-h-14');
+    expect(header?.classList).not.toContain('h-14');
+    expect(header?.classList).toContain('flex-wrap');
     expect(workspaceButton?.classList).toContain('h-9');
     expect(notificationButton?.classList).toContain('h-9');
     expect(notificationButton?.classList).toContain('w-9');

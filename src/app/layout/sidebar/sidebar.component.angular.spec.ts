@@ -378,7 +378,9 @@ describe('SidebarComponent', () => {
       expect(label?.querySelector('a, button')).toBeNull();
       expect(label?.getAttribute('tabindex')).toBeNull();
     }
-    const links = [...element.querySelectorAll<HTMLAnchorElement>('nav a')];
+    const links = [
+      ...element.querySelectorAll<HTMLAnchorElement>('nav a:not([href="/offline/purchases"])'),
+    ];
     expect(links[0].textContent?.trim()).toBe('Konten');
     expect(links.at(-1)?.textContent?.trim()).toBe('Favoritennachrichten');
     expect(links.filter((link) => link.getAttribute('aria-current') === 'page')).toHaveLength(1);

@@ -4,8 +4,33 @@ import { authGuard, guestGuard } from './core/guards/auth.guard';
 import { workspaceAccessGuard } from './core/guards/workspace-access.guard';
 import { operatorGuard } from './core/guards/operator.guard';
 import { workspaceSetupGuard, workspaceSetupPageGuard } from './core/guards/workspace-setup.guard';
+import { offlinePurchaseContextGuard } from './features/purchases/guards/offline-purchase-context.guard';
 
 export const routes: Routes = [
+  {
+    path: 'offline',
+    canDeactivate: [unsavedEntryGuard],
+    loadComponent: () =>
+      import('./features/purchases/pages/offline-purchases/offline-purchases.component').then(
+        (module) => module.OfflinePurchasesComponent,
+      ),
+  },
+  {
+    path: 'offline/purchases',
+    canActivate: [offlinePurchaseContextGuard],
+    canDeactivate: [unsavedEntryGuard],
+    loadComponent: () =>
+      import('./features/purchases/pages/offline-purchases/offline-purchases.component').then(
+        (module) => module.OfflinePurchasesComponent,
+      ),
+  },
+  {
+    path: 'push/open',
+    loadComponent: () =>
+      import('./features/settings/components/push-entry/push-entry.component').then(
+        (module) => module.PushEntryComponent,
+      ),
+  },
   {
     path: 'beta-ended',
     canActivate: [authGuard],
@@ -133,6 +158,13 @@ export const routes: Routes = [
         path: 'dashboard',
         loadComponent: () =>
           import('./features/dashboard/dashboard.component').then((m) => m.DashboardComponent),
+      },
+      {
+        path: 'store/orders',
+        loadComponent: () =>
+          import('./features/store/pages/store-orders/store-orders.component').then(
+            (module) => module.StoreOrdersComponent,
+          ),
       },
       {
         path: 'purchases',

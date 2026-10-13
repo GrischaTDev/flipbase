@@ -11,7 +11,7 @@
 <!-- Helles Anthrazit Sidebar Container -->
 <aside
   aria-label="Hauptnavigation"
-  class="fixed inset-y-0 left-0 z-50 flex h-dvh w-56 flex-col border-r border-fb-border-subtle bg-fb-sidebar font-sans text-fb-text-secondary shadow-xl transition-transform duration-200 ease-out select-none md:z-30 md:translate-x-0 md:visible md:shadow-none"
+  class="fb-safe-sidebar fixed inset-y-0 left-0 z-50 flex h-dvh w-56 flex-col border-r border-fb-border-subtle bg-fb-sidebar font-sans text-fb-text-secondary shadow-xl transition-transform duration-200 ease-out select-none md:z-30 md:translate-x-0 md:visible md:shadow-none"
   [class.translate-x-0]="isOpen()"
   [class.-translate-x-full]="!isOpen()"
   [class.visible]="isOpen()"
@@ -58,6 +58,12 @@
 
   <!-- Arbeitsnavigation: feste fachliche Gruppen statt Arraypositionen. -->
   <nav aria-label="Bereiche" class="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pt-2 pb-4">
+    <a
+      routerLink="/offline/purchases"
+      (click)="closed.emit()"
+      class="mb-2 flex min-h-11 items-center rounded-md px-2 text-sm text-fb-text-secondary hover:bg-fb-surface-hover"
+      >Lokale Einkaufsentwürfe</a
+    >
     @if (ebayContext()) {
       <p class="px-2 pb-3 text-lg font-semibold text-fb-text-primary">eBay</p>
       <ul class="space-y-0.5" data-ebay-navigation>

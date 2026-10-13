@@ -1,0 +1,17 @@
+<main
+  class="fb-admin flex min-h-dvh items-center justify-center bg-fb-well p-6 text-fb-text-primary"
+>
+  <section class="w-full max-w-lg space-y-4 rounded-lg border border-fb-border bg-fb-surface p-5">
+    <h1 class="text-xl font-semibold">Benachrichtigung öffnen</h1>
+    <p role="status">
+      {{ navigation.message() || 'Deine Anmeldung und das Ziel werden geprüft …' }}
+    </p>
+    <app-button
+      (clicked)="navigation.openPending()"
+      [loading]="navigation.isOpening()"
+      [disabled]="!navigation.pending()"
+      >Erneut prüfen</app-button
+    >
+    <app-button link="/dashboard">Zur App</app-button>
+  </section>
+</main>

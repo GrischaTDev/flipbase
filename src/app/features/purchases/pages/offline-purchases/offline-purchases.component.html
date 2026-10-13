@@ -1,0 +1,167 @@
+<main class="fb-safe-main mx-auto max-w-5xl space-y-5 px-4 py-6" aria-labelledby="offline-heading">
+  <header class="flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <h1 id="offline-heading" class="text-xl font-semibold">Lokale Einkaufsentwürfe</h1>
+      <p class="text-sm text-fb-text-secondary">
+        Notizen auf diesem Gerät. Ein Einkauf entsteht erst nach deiner Onlineprüfung und
+        Bestätigung.
+      </p>
+    </div>
+    <a routerLink="/dashboard" class="fb-link inline-flex min-h-11 items-center">Zur Online-App</a>
+  </header>
+  @if (error()) {
+    <p
+      role="alert"
+      class="rounded-lg border border-fb-border bg-fb-surface p-3 text-sm text-fb-text-primary"
+    >
+      {{ error() }}
+    </p>
+  }
+  <p role="status" class="text-sm text-fb-text-secondary">{{ message() }}</p>
+  @if (context(); as context) {
+    <p class="text-sm text-fb-text-secondary">
+      Vorbereiteter Workspace: {{ context.workspaceName }}. Nur lokale Notizen; Bestände, Verkäufe
+      und Marktplätze brauchen eine Verbindung.
+    </p>
+    <div class="flex flex-wrap gap-2">
+      <app-button variant="primary" [disabled]="saving()" (clicked)="create()"
+        >Neuer lokaler Entwurf</app-button
+      ><app-button (clicked)="export()">Diesen Workspace exportieren</app-button>
+    </div>
+    <div class="grid gap-5 md:grid-cols-[16rem_minmax(0,1fr)]">
+      <section aria-label="Gespeicherte Entwürfe" class="space-y-2">
+        @for (draft of drafts(); track draft.draftId) {
+          <div class="rounded-lg border border-fb-border p-3">
+            <app-button [disabled]="saving() || dirty()" (clicked)="open(draft)">{{
+              draft.content.draftName || 'Unbenannter Entwurf'
+            }}</app-button>
+            <p class="mt-1 text-xs text-fb-text-secondary">
+              {{
+                draft.purchaseId
+                  ? 'Einkauf bereits zugeordnet'
+                  : draft.state === 'outcome_unknown'
+                    ? 'Übertragung noch ungeklärt'
+                    : 'Lokal gespeichert'
+              }}
+            </p>
+            <app-button [disabled]="saving() || dirty()" (clicked)="remove(draft)"
+              >Verwerfen</app-button
+            >
+          </div>
+        } @empty {
+          <p class="text-sm text-fb-text-secondary">
+            Hier sind noch keine lokalen Entwürfe gespeichert.
+          </p>
+        }
+      </section>
+      @if (selected(); as draft) {
+        <form
+          [formGroup]="form"
+          class="min-w-0 space-y-4 rounded-lg border border-fb-border bg-fb-surface p-4"
+          (ngSubmit)="save()"
+        >
+          <h2 class="font-semibold">Lokalen Entwurf bearbeiten</h2>
+          @if (draft.purchaseId) {
+            <p class="text-sm text-fb-text-secondary">
+              Dieser Entwurf gehört bereits zu einem Einkauf. Ergänzungen bleiben hier offen; prüfe
+              sie im bestehenden Einkauf.
+            </p>
+            <a [routerLink]="['/purchases', draft.purchaseId]" class="fb-link"
+              >Zugeordneten Einkauf öffnen</a
+            >
+          }
+          <app-text-field
+            label="Lokaler Entwurfsname"
+            formControlName="draftName"
+            [maxLength]="200"
+            helpText="Diese Bezeichnung ist nur lokal und wird kein Einkaufstitel."
+          />
+          <div>
+            <label for="offline-date" class="mb-1 block text-sm">Einkaufsdatum</label
+            ><app-date-picker
+              id="offline-date"
+              ariaLabel="Einkaufsdatum"
+              formControlName="purchaseDate"
+            />
+          </div>
+          <app-text-field label="Verkäufernotiz" formControlName="sellerNote" [maxLength]="2000" />
+          <app-text-field
+            label="Allgemeine Notiz"
+            formControlName="notes"
+            [multiline]="3"
+            [maxLength]="10000"
+          />
+          <fieldset formArrayName="lines" class="space-y-3">
+            <legend class="mb-2 font-medium">Einkaufspositionen</legend>
+            @for (
+              line of form.controls.lines.controls;
+              track line.controls.lineId.value;
+              let index = $index
+            ) {
+              <div
+                [formGroupName]="index"
+                class="grid min-w-0 gap-3 rounded-lg border border-fb-border p-3 sm:grid-cols-2"
+              >
+                <app-text-field
+                  [label]="'Position ' + (index + 1)"
+                  formControlName="title"
+                  [maxLength]="500"
+                />
+                <app-text-field
+                  label="EAN / GTIN (optional)"
+                  formControlName="ean"
+                  [maxLength]="14"
+                />
+                <app-custom-select
+                  ariaLabel="Zustand"
+                  [options]="conditionOptions"
+                  formControlName="condition"
+                />
+                <app-number-input
+                  [ariaLabel]="'Menge für Position ' + (index + 1)"
+                  formControlName="quantity"
+                  [min]="1"
+                  [max]="100000"
+                />
+                <app-number-input
+                  [ariaLabel]="'Stückpreis für Position ' + (index + 1)"
+                  formControlName="unitPrice"
+                  [min]="0"
+                  [step]="0.01"
+                  [asCurrency]="true"
+                  placeholder="Preis noch unbekannt"
+                />
+                <app-button (clicked)="removeLine(index)">Position entfernen</app-button>
+              </div>
+            }
+          </fieldset>
+          <app-button [disabled]="form.controls.lines.length >= 100" (clicked)="addLine()"
+            >Position hinzufügen</app-button
+          >
+          <div class="flex flex-wrap gap-2">
+            <app-button type="submit" [loading]="saving()" [disabled]="!dirty()"
+              >Lokal speichern</app-button
+            ><app-button [disabled]="saving() || !!draft.purchaseId" (clicked)="review()"
+              >Online prüfen und übernehmen</app-button
+            >
+          </div>
+        </form>
+      }
+    </div>
+    <p class="text-xs text-fb-text-muted">
+      Speicherung ohne Internet setzt einen online vorbereiteten Kontext voraus, gültig für sieben
+      Tage. Browserbereinigung oder Geräteverlust können lokale Daten entfernen. Exportiere wichtige
+      Entwürfe. Auf diesem Gerät werden höchstens 100 Entwürfe, 100 Positionen je Entwurf und 10 MiB
+      gespeichert.
+    </p>
+  } @else {
+    <p class="text-sm text-fb-text-secondary">
+      Für den ersten Start brauchst du eine Verbindung. Melde dich online an und öffne deinen fertig
+      eingerichteten Workspace. Ein späterer Offline-Start setzt vollständig geladene App-Dateien
+      und einen gültigen lokalen Kontext voraus.
+    </p>
+    <a routerLink="/auth/login" class="fb-link inline-flex min-h-11 items-center">Online anmelden</a
+    ><app-button (clicked)="load()">Lokalen Kontext erneut prüfen</app-button>
+  }
+</main>
+<app-confirm-dialog />

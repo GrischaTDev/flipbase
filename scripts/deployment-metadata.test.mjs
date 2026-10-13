@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
 
 const execFileAsync = promisify(execFile);
 const writeMetadataScript = fileURLToPath(
@@ -68,11 +69,42 @@ test('verweigert eine unvollständige Build-SHA', async () => {
 });
 
 test('bestätigt öffentliche Startseite und exakt ausgelieferte Build-SHA', async () => {
+  const buildId = 'a'.repeat(64);
+  const html = `<!doctype html><html data-flipbase-build="${buildId}"><title>Flipbase</title></html>`;
+  const digest = (content) => createHash('sha256').update(content).digest('hex');
+  const inventory = JSON.stringify({
+    version: 1,
+    buildId,
+    assets: [{ url: '/index.html', sha256: digest(html) }],
+  });
   await withServer(
     (request, response) => {
+      if (request.url === '/manifest.webmanifest') {
+        response.writeHead(200, { 'content-type': 'application/manifest+json' });
+        response.end(JSON.stringify({ scope: '/', start_url: '/', display: 'standalone' }));
+        return;
+      }
+      if (request.url === '/pwa-assets.json') {
+        response.writeHead(200, {
+          'content-type': 'application/json',
+          'cache-control': 'no-cache',
+        });
+        response.end(inventory);
+        return;
+      }
+      if (request.url === '/sw.js') {
+        response.writeHead(200, {
+          'content-type': 'application/javascript',
+          'cache-control': 'no-cache',
+        });
+        response.end(
+          `const BUILD_ID = '${buildId}'; const INVENTORY_HASH = '${digest(inventory)}';`,
+        );
+        return;
+      }
       if (request.url === '/') {
         response.writeHead(200, { 'content-type': 'text/html' });
-        response.end('<!doctype html><title>Flipbase</title>');
+        response.end(html);
         return;
       }
 

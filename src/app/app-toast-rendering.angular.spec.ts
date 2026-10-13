@@ -1,5 +1,5 @@
 import '@angular/compiler';
-import { ɵresolveComponentResources } from '@angular/core';
+import { signal, ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { registerLocaleData } from '@angular/common';
 import localeDe from '@angular/common/locales/de';
@@ -12,10 +12,21 @@ import { App } from './app';
 import { StoreLayoutComponent } from './features/store/store-layout/store-layout.component';
 import { ToastService } from './shared/components/toast/toast.service';
 import { ToastSyncBridgeService } from './shared/components/toast/toast-sync-bridge.service';
+import { PwaService } from './core/services/pwa.service';
+import { PushNavigationService } from './core/services/push-navigation.service';
+import { OfflinePurchaseContextService } from './features/purchases/services/offline-purchase-context.service';
+import { AppStartupService } from './core/services/app-startup.service';
+import { WebPushService } from './core/services/web-push.service';
 
 beforeAll(async () => {
   registerLocaleData(localeDe);
   const dateien: Record<string, string> = {
+    './button.component.scss': 'src/app/shared/components/button/button.component.scss',
+    './button.component.html': 'src/app/shared/components/button/button.component.html',
+    './pwa-update-notice.component.html':
+      'src/app/shared/components/pwa-update-notice/pwa-update-notice.component.html',
+    './push-navigation-notice.component.html':
+      'src/app/shared/components/push-navigation-notice/push-navigation-notice.component.html',
     './app.html': 'src/app/app.html',
     './app.css': 'src/app/app.css',
     './toast-container.component.html':
@@ -45,6 +56,11 @@ describe('root-globaler Toast-Container', () => {
           useValue: { setTranslation: () => undefined, use: () => undefined },
         },
         { provide: ToastSyncBridgeService, useValue: {} },
+        { provide: WebPushService, useValue: {} },
+        { provide: PwaService, useValue: { updateAvailable: signal(false) } },
+        { provide: PushNavigationService, useValue: { pending: signal(null) } },
+        { provide: OfflinePurchaseContextService, useValue: {} },
+        { provide: AppStartupService, useValue: { markRouteRendered: () => undefined } },
       ],
     }).compileComponents();
     const fixture = TestBed.createComponent(App);

@@ -132,6 +132,30 @@ function selectsPath(path, prefix) {
   return path.startsWith(prefix) || sharedValidationPaths.has(path);
 }
 
+export function pathsSelectPush(paths) {
+  return (
+    paths === null ||
+    paths.some(
+      (path) =>
+        sharedValidationPaths.has(path) ||
+        path.startsWith('services/push-worker/') ||
+        path.startsWith('supabase/functions/push-') ||
+        path.startsWith('supabase/functions/ebay-order-observer/') ||
+        path.startsWith('supabase/functions/_shared/') ||
+        /^supabase\/schemas\/47[012]_web_push_/u.test(path) ||
+        [
+          'deploy/deploy.sh',
+          'deploy/Caddyfile',
+          'docker/Dockerfile',
+          '.dockerignore',
+          'scripts/package-push-functions.mjs',
+        ].includes(path) ||
+        path.startsWith('deploy/docker-compose.push') ||
+        path.startsWith('deploy/push-main/'),
+    )
+  );
+}
+
 export function classifyChanges(paths) {
   if (paths === null) {
     return { application: true, application_tests: true, supabase: true, sniper: true };
@@ -166,13 +190,14 @@ async function main() {
     headSha: process.env.HEAD_SHA,
   };
 
-  const changes = classifyChanges(await detectChangedPaths(event));
+  const paths = await detectChangedPaths(event);
+  const changes = classifyChanges(paths);
 
   const outputPath = process.env.GITHUB_OUTPUT;
   if (!outputPath) throw new Error('GITHUB_OUTPUT fehlt.');
   await appendFile(
     outputPath,
-    `application=${changes.application}\nsupabase=${changes.supabase}\nsniper=${changes.sniper}\napplication_tests=${changes.application_tests}\n`,
+    `application=${changes.application}\nsupabase=${changes.supabase}\nsniper=${changes.sniper}\napplication_tests=${changes.application_tests}\npush=${pathsSelectPush(paths)}\n`,
     'utf8',
   );
 }

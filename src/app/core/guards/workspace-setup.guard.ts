@@ -38,7 +38,7 @@ async function resolveWorkspaceSetup(
         rows.some((row) => row.workspace_id === workspace.id && row.access_status === 'active'),
       );
     } catch {
-      return router.createUrlTree(['/beta-ended']);
+      return router.createUrlTree(['/offline']);
     }
     if (workspaces.length === 0) return router.createUrlTree(['/beta-ended']);
   }

@@ -1,2 +1,8 @@
-<router-outlet></router-outlet>
+<router-outlet (activate)="startup.markRouteRendered()"></router-outlet>
 <app-toast-container></app-toast-container>
+@defer (when pwa.updateAvailable()) {
+  <app-pwa-update-notice />
+}
+@defer (when pushNavigation.pending()) {
+  <app-push-navigation-notice />
+}

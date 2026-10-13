@@ -22,7 +22,9 @@ export class PurchaseProductReturnService {
       if (
         typeof context.token !== 'string' ||
         typeof context.returnUrl !== 'string' ||
-        !/^\/purchases\/(new|[^/]+(?:\/edit)?)$/.test(context.returnUrl) ||
+        !/^\/purchases\/(new|[^/?]+(?:\/edit)?)(?:\?localDraft=[a-f0-9-]{36})?$/.test(
+          context.returnUrl,
+        ) ||
         typeof context.workspaceId !== 'string' ||
         !context.draft
       )
