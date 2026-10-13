@@ -2,7 +2,7 @@ import axe from 'axe-core';
 import { expect, openDashboard, test } from './support/fixtures';
 import { createFinalizedPurchase, recordSale } from './support/sample-data';
 
-test('entfernt beschädigte Ware und behält den ursprünglichen Einkauf', async ({
+test('entfernt beschädigte Ware und behält den ursprünglichen Einkauf @core-smoke', async ({
   page,
   workspace,
 }) => {
@@ -50,7 +50,7 @@ test('entfernt beschädigte Ware und behält den ursprünglichen Einkauf', async
   expect(saved?.stock_removed_at).toBeTruthy();
 });
 
-test('archiviert Varianten einzeln und löscht einen unbenutzten Stammartikel ohne seine Geschwister', async ({
+test('archiviert Varianten einzeln und löscht einen unbenutzten Stammartikel ohne seine Geschwister @core-smoke', async ({
   page,
   workspace,
 }) => {
@@ -105,7 +105,7 @@ test('archiviert Varianten einzeln und löscht einen unbenutzten Stammartikel oh
   expect(remaining?.id).toBe(variant.id);
 });
 
-test('zeigt wenige Verkaufsspalten und konkrete fehlende Rechnungsfelder', async ({
+test('zeigt wenige Verkaufsspalten und konkrete fehlende Rechnungsfelder @core-smoke', async ({
   page,
   workspace,
 }) => {

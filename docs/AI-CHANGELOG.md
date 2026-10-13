@@ -4,7 +4,7 @@
 
 **Auftrag:** Nach ausdrücklichem Ja den geprüften Zweig pushen, PR erstellen, erfolgreiche Pflichtprüfungen abwarten und mit Merge-Commit integrieren; anschließend Zweig und Worktree aufräumen.
 
-**Integration:** Aktuellen `origin/master` eingebunden. Die beiden Konflikte im Änderungsprotokoll und in der Schemaliste erhalten jeweils beide Beiträge; Push-Schemas und Bestandsjournal bleiben registriert. Die automatisch verbundenen Datenbanktypen enthalten beide Erweiterungen. Gezielte lokale Prüfungen des gemeinsamen Stands folgen vor dem Push; vollständige Pflichtprüfungen und Release laufen über den PR beziehungsweise den bestehenden Veröffentlichungsweg.
+**Integration:** Aktuellen `origin/master` eingebunden. Die beiden Konflikte im Änderungsprotokoll und in der Schemaliste erhalten jeweils beide Beiträge; Push-Schemas und Bestandsjournal bleiben registriert. Die automatisch verbundenen Datenbanktypen enthalten beide Erweiterungen. Der integrierte Stand besteht 4.110 Datenbankprüfungen in 112 Dateien, 98 Modell-/Serviceprüfungen, 63 Komponenten-/Serviceprüfungen und sechs Browserabläufe einschließlich AXE, Variantenverkauf und Rechnungsbestandsschutz. Generatorvergleich der Datenbanktypen identisch, Formatierung, Lint, Typen und Produktionsbau einschließlich PWA erfolgreich. Drei neue Bestandsabläufe sind verpflichtende PR-Browserfälle; bestehende Verkaufs- und Rechnungsprüfungen entsprechen der freigegebenen Oberfläche. Die lokale API-Adresse wurde wiederhergestellt. Vollständige Pflichtprüfungen und Release laufen über den PR beziehungsweise den bestehenden Veröffentlichungsweg.
 
 ## 2026-10-13 – Juna – Bestandsabgänge, Variantenaktionen und einfachere Verkäufe umsetzen
 
