@@ -1,5 +1,17 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-13 - Juna - PWA für Smartphone und Tablet genau aufarbeiten
+
+**Auftrag:** Vorhandenen PWA-Stand prüfen und einen genauen Umsetzungsplan für ein stärkeres App-Gefühl, Ladebildschirm, echte Push-Meldungen und Offline-Nutzung erstellen.
+
+**Entscheidungen:** Offline nur App-Start und lokale Einkaufsentwürfe mit ausdrücklicher späterer Übertragung. Erste Push-Kategorien sind Nachrichten, Bestellungen und Kontoprobleme; vom Nutzer bestätigt.
+
+**Befund:** Installationsgrundlage und statischer Worker vorhanden und öffentlich ausgeliefert. Installationsdialog nicht universell; kein vollständiger Lazy-Chunk-Cache, baugebundener Worker oder koordinierter Update-Schutz. Vorhandene Notifications laufen aus der geöffneten Seite. Für Hintergrund-Push fehlen Geräte-/Sitzungsbindung, dauerhafter Serverversand und Empfangs-/Klickhandler. Start und Workspace-Guards benötigen eigene Fehler-/Offlinebehandlung. Vorhandene request_id-Deduplizierung ermöglicht sichere spätere Einkaufsübertragung.
+
+**Ergebnis:** Zielbild und 14 Aufgaben mit konkreten Dateien, neuen Verträgen, Tests, Zuständigkeiten, Geräteabnahme und Rollout unter docs/superpowers/specs/2026-10-13-pwa-mobile-app-design.md und docs/superpowers/plans/2026-10-13-pwa-mobile-app.md. Nummerierter Backendauftrag unter C:/Users/gt/Desktop/Backend Issues/pwa-mobile-plan/01-pwa-web-push.md. Details wie Aufbewahrung und neue serverseitige Bibliothek sind Vorschläge zur Planprüfung, keine vorweggenommene Freigabe. Keine Produktcodeänderung, Migration oder Veröffentlichung.
+
+**Prüfung:** Repository-/Vertragsanalyse gegen origin/master c1d4564a; Primärquellen für Web Push, Installation, Safe Areas und Worker gelesen. Öffentliche PWA-Dateien in der vorausgehenden Analyse jeweils HTTP 200, Worker entspricht Quelle. Plan auf Abdeckung, Verträge und Grenzfälle überprüft; Markdownformatierung und Diffprüfung. Keine tatsächliche Geräteinstallation, Offline-Abnahme oder Push-Zustellung behauptet. Eigener Planungszweig juna/pwa-mobile-plan; vorhandener Arbeitszweig unverändert.
+
 ## 2026-10-13 – Juna – eBay-Arbeitsbereich und Navigation neu ordnen
 
 **Auftrag:** Den gesamten eBay-Bereich übersichtlicher aufteilen, bei Bedarf wie
