@@ -1,5 +1,17 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-13 - Juna - Geprüften PWA-Plan umsetzen
+
+**Auftrag:** „los“ für den gegengeprüften PWA-Plan; geplantes Supabase-Backend danach ausdrücklich freigegeben. Eigener Zweig juna/pwa-mobile-plan, fremde eBay-Änderungen unberührt.
+
+**Stand:** PWA-Start mit Theme, 10-/30-Sekunden-Status und Wiederholung; ehrlicher Installationszustand; mobile Safe Areas und wachsender Header bei Schriftvergrößerung. Vollständiges Bauinventar, geprüfter App-Dateicache und koordinierter Versionswechsel über mehrere Fenster. Lokale Einkaufsentwürfe mit gerätegebundener IndexedDB, Konto-/Workspace-Zuordnung, Export, ausdrücklicher Onlineprüfung und unveränderlichen Übertragungsversuchen. Die Übernahme verwendet serverseitig gespeicherte EANs, statt sie anhand einer fremden Positionsreihenfolge zu überschreiben.
+
+**Push:** Sitzungsgebundene Gerätegenerationen, dauerhafter Widerruf, Kategorien und sichere Klickziele. Supabase-Schema/Migrationen und begrenzte Edge Functions; eigener Versanddienst mit Rechteprüfung, vier parallelen Claims, Rückoff und Ablauf. Vinted-Nachrichten, Shopbestellungen, Kontostörungen und eBay-Bestellbeobachtung erzeugen dauerhafte Ereignisse. eBay-Erstbaseline löst keine Altmeldungen aus; der Beobachter respektiert die konfigurierte Umgebung. CI baut und prüft Dienst-/Functionpakete sowie echte PWA-Produktionsbauten. Auslieferung prüft Commit, HTML-Baukennung, Manifest, Worker und Inventar.
+
+**Prüfung:** `npm run verify` vollständig grün: Formatierung, Lint, Typen, Workflowtests, 279 Edge-Tests mit CI-Deno 2.9.7, Suite-Audit, 4.998 Anwendungstests, 39 Landingtests und Produktionsbau. Zusätzlich 111 Push-SQL-Prüfungen nach tatsächlich transaktional angewandten Migrationen, 19 Versandtests einschließlich reproduziertem langsamen Altbatch, 24 Startup-/Worker-/Bauskripttests und 23 Produktionstests grün. Chromium weist echten Worker, Offline-Lazy-Routen und den Wechsel zwischen zwei echten Bauten nach; WebKit prüft UI und echte IndexedDB. Vier mobile Browseransichten einschließlich AXE/Hell-Dunkel/200-%-Schrift grün und ausdrücklich in PR/Nightly aufgenommen. Agentenbefunde zu Rechteentzug, Eingaben während Laden/Übertragung, Bestätigungsfenster, neueren lokalen Ergänzungen, Push-Navigation und eBay-Umgebung korrigiert und gezielt nachgeprüft. Der abschließend gefundene Releasefilter erfasst jetzt auch Observer- und Shared-Änderungen; 20 gezielte Auswahltests und finales Actionlint grün. Neu erzeugte Supabase-Typen behalten die unveränderte Generatorformatierung; abschließende Typprüfung grün.
+
+**Grenzen:** Keine echte Smartphone-/Tabletinstallation oder Push-Zustellung bei geschlossener App behauptet. Versand bleibt mit WEB_PUSH_ENABLED=false bis zur Geräte-/Pilotabnahme ausgeschaltet; Abnahmevertrag in docs/testing/pwa-device-acceptance.md. Gesamte lokale DB-Suite reproduziert außerhalb der neuen Push-Prüfungen einen PostgreSQL-Absturz in inventory_archive.test.sql; keine grüne DB-Gesamtsuite behauptet. Keine Veröffentlichung oder Änderung am fremden Arbeitszweig.
+
 ## 2026-10-13 - Juna - PWA-Plan mit drei unabhängigen Reviews gegenprüfen
 
 **Auftrag:** Zielbild und den gesamten PWA-Umsetzungsplan nochmals mit Agents prüfen.

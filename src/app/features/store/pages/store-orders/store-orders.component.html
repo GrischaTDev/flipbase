@@ -1,0 +1,57 @@
+<div class="space-y-4">
+  <h1 class="text-xl font-semibold text-fb-text-primary">Shop-Bestellungen</h1>
+  <p class="text-sm text-fb-text-secondary">
+    Die 50 neuesten gespeicherten Bestellungen deines Workspaces. Zahlung und Versandstatus
+    entsprechen dem gespeicherten Stand.
+  </p>
+  <app-data-table
+    ariaLabel="Shop-Bestellungen"
+    [toolbarVisible]="false"
+    [loading]="orders.isLoading()"
+    [errorMessage]="orders.error() || null"
+    [hasRows]="orders.orders().length > 0"
+    emptyTitle="Noch keine Shop-Bestellungen"
+  >
+    <app-button table-error-action (clicked)="reload()">Erneut laden</app-button>
+    <div table-content class="overflow-x-auto">
+      <table class="w-full text-left text-sm text-fb-text-primary">
+        <thead>
+          <tr class="border-b border-fb-line">
+            <th scope="col" class="p-3">Bestellung</th>
+            <th scope="col" class="p-3">Datum</th>
+            <th scope="col" class="p-3">Betrag</th>
+            <th scope="col" class="p-3">Zahlung</th>
+            <th scope="col" class="p-3">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (order of orders.orders(); track order.id) {
+            <tr class="border-b border-fb-line">
+              <th scope="row" class="p-3 font-medium">{{ order.order_number }}</th>
+              <td class="p-3">{{ order.created_at | date: 'dd.MM.yyyy' }}</td>
+              <td class="p-3">{{ order.total | currency: 'EUR' }}</td>
+              <td class="p-3">
+                {{
+                  order.payment_status === 'paid'
+                    ? 'Als bezahlt gespeichert'
+                    : order.payment_status === 'failed'
+                      ? 'Fehlgeschlagen'
+                      : 'Ausstehend'
+                }}
+              </td>
+              <td class="p-3">
+                {{
+                  order.status === 'shipped'
+                    ? 'Versendet'
+                    : order.status === 'confirmed'
+                      ? 'Bestätigt'
+                      : 'Ausstehend'
+                }}
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </app-data-table>
+</div>

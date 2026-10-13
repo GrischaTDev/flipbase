@@ -48,8 +48,8 @@ export class ModalShellComponent {
 
   protected readonly overlayClasses = computed(() =>
     this.presentation() === 'drawer'
-      ? 'fixed inset-0 z-50 flex h-dvh items-stretch justify-end overflow-hidden bg-black/50 animate-fade-in'
-      : 'fixed inset-0 z-50 flex h-dvh items-center justify-center overflow-hidden bg-black/50 p-3 sm:p-6 animate-fade-in',
+      ? 'fb-safe-drawer fixed inset-0 z-50 flex h-dvh items-stretch justify-end overflow-hidden bg-black/50 animate-fade-in'
+      : 'fb-safe-modal fixed inset-0 z-50 flex h-dvh items-center justify-center overflow-hidden bg-black/50 p-3 sm:p-6 animate-fade-in',
   );
 
   protected readonly iconToneClasses = computed(() => {

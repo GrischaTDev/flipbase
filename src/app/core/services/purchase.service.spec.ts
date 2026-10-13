@@ -468,6 +468,68 @@ describe('PurchaseService', () => {
     }
 
     describe('PurchaseService – abhängige Schreibvorgänge beim Anlegen', () => {
+      it('keeps authoritative EANs when a lost response is retried with reversed line order', async () => {
+        const firstLine = {
+          id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+          workspace_id: workspace.id,
+          purchase_id: gespeicherterEinkauf.id,
+          catalog_product_id: '99999999-9999-4999-8999-999999999999',
+          title_snapshot: 'Erste Position',
+          ean_snapshot: '4006381333931',
+          line_kind: 'quantity',
+          ordered_quantity: 1,
+          received_quantity: 0,
+          unit_purchase_price: 1,
+          line_total: 1,
+          allocated_additional_cost: 0,
+        };
+        const secondLine = {
+          ...firstLine,
+          id: '11111111-1111-4111-8111-111111111111',
+          title_snapshot: 'Zweite Position',
+          ean_snapshot: '9780201379624',
+        };
+        let creates = 0;
+        const rpc = vi.fn(async (name: string) => {
+          if (name !== 'create_purchase') return { data: null, error: null };
+          creates++;
+          if (creates === 1) throw new Error('response lost after commit');
+          return {
+            data: {
+              purchase: gespeicherterEinkauf,
+              purchase_costs: [],
+              purchase_lines: [secondLine, firstLine],
+            },
+            error: null,
+          };
+        });
+        const { purchase } = erstelleDienste({ rpc });
+        const payload = {
+          request_id: '77777777-7777-4777-8777-777777777777',
+          type: 'lot' as const,
+          title: '',
+          purchase_date: '2026-10-13',
+          purchase_price: 2,
+          purchase_lines: [firstLine, secondLine].map((line) => ({
+            catalogProductId: line.catalog_product_id,
+            titleSnapshot: line.title_snapshot,
+            ean: line.ean_snapshot,
+            lineKind: 'quantity' as const,
+            orderedQuantity: 1,
+            condition: 'used' as const,
+            unitPurchasePrice: 1,
+            lineTotal: 1,
+          })),
+        };
+        expect((await purchase.createPurchase(payload)).status).toBe('failed');
+        const retry = await purchase.createPurchase(payload);
+        expect(retry.error).toBeNull();
+        expect(retry.data?.purchase_lines?.map((line) => [line.id, line.ean_snapshot])).toEqual([
+          [secondLine.id, secondLine.ean_snapshot],
+          [firstLine.id, firstLine.ean_snapshot],
+        ]);
+        expect(rpc.mock.calls.every(([name]) => name === 'create_purchase')).toBe(true);
+      });
       it('legt Einkauf, Zusatzkosten und Positionen produktiv in genau einer RPC an', async () => {
         const rpc = vi.fn(async () => ({
           data: {

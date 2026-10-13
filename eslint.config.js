@@ -8,7 +8,10 @@ module.exports = tseslint.config(
     // Erzeugte und fremde Verzeichnisse pruefen wir nicht.
     ignores: [
       'dist/**',
+      'test-results/**',
+      'playwright-report/**',
       'services/marketplace-worker/dist/**',
+      'services/push-worker/dist/**',
       'coverage/**',
       'coverage-critical/**',
       '.angular/**',

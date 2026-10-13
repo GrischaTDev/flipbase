@@ -1,13 +1,18 @@
 import '@angular/compiler';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { WebPushService } from './web-push.service';
+import { Injector, runInInjectionContext } from '@angular/core';
+import { afterEach } from 'vitest';
 
 describe('WebPushService & Browser Notifications (Chapter 23)', () => {
   let service: WebPushService;
+  let injector: ReturnType<typeof Injector.create>;
 
   beforeEach(() => {
-    service = new WebPushService();
+    injector = Injector.create({ providers: [] });
+    service = runInInjectionContext(injector, () => new WebPushService());
   });
+  afterEach(() => injector.destroy());
 
   it('should initialize with default settings', () => {
     const settings = service.settings();

@@ -793,28 +793,8 @@ export class PurchaseService {
       const lines = Array.isArray(response['purchase_lines'])
         ? (response['purchase_lines'] as PurchaseLine[])
         : [];
-      const eanUpdates = lines.flatMap((line, index) => {
-        const ean = normalizedLines.data[index]?.ean;
-        return ean === undefined ? [] : [{ id: line.id, ean: ean ?? null }];
-      });
-      const eanError = await this.persistPurchaseLineEans(ws.id, eanUpdates);
-      if (eanError) {
-        const reported = this.syncStatus.melde('Speichern der EAN/GTIN', eanError);
-        return {
-          status: 'failed',
-          data: null,
-          error: reported,
-          reportedBySyncStatus: true,
-          problems: [],
-        };
-      }
-      const persistedLines = lines.map((line, index) => ({
-        ...line,
-        ean_snapshot:
-          normalizedLines.data[index]?.ean === undefined
-            ? (line.ean_snapshot ?? null)
-            : (normalizedLines.data[index]?.ean ?? null),
-      }));
+      // Der RPC speichert EANs bereits; Wiederholungen dürfen die anders sortierte Antwort nicht per Index überschreiben.
+      const persistedLines = lines;
       const costs = Array.isArray(response['purchase_costs'])
         ? (response['purchase_costs'] as PurchaseCost[])
         : [];

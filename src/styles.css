@@ -2,6 +2,120 @@
 @import 'intl-tel-input/styles';
 @import './styles/flipbase-theme.css';
 
+/* Gemeinsame Bildschirmränder für installierte Apps und Displayaussparungen. */
+.fb-safe-header {
+  min-height: calc(3.5rem + var(--fb-safe-top));
+  padding-top: calc(0.5rem + var(--fb-safe-top));
+  padding-left: max(0.75rem, var(--fb-safe-left));
+  padding-right: max(0.75rem, var(--fb-safe-right));
+}
+.fb-safe-sidebar {
+  padding-top: var(--fb-safe-top);
+  padding-bottom: var(--fb-safe-bottom);
+  padding-left: var(--fb-safe-left);
+}
+.fb-safe-bottom-nav {
+  height: var(--fb-bottom-navigation-height);
+  padding-bottom: var(--fb-safe-bottom);
+  padding-left: max(0.5rem, var(--fb-safe-left));
+  padding-right: max(0.5rem, var(--fb-safe-right));
+}
+.fb-safe-bottom-nav :is(a, button) {
+  min-height: 44px;
+}
+.fb-mobile-content {
+  padding-bottom: calc(var(--fb-bottom-navigation-height) + 0.5rem);
+}
+.fb-mobile-content > main {
+  padding-left: max(1rem, var(--fb-safe-left));
+  padding-right: max(1rem, var(--fb-safe-right));
+}
+.fb-safe-toasts {
+  bottom: calc(var(--fb-bottom-navigation-height) + 1rem);
+  right: max(0.75rem, var(--fb-safe-right));
+}
+.fb-safe-modal {
+  padding-top: max(0.75rem, var(--fb-safe-top));
+  padding-bottom: max(0.75rem, var(--fb-safe-bottom));
+  padding-left: max(0.75rem, var(--fb-safe-left));
+  padding-right: max(0.75rem, var(--fb-safe-right));
+}
+.fb-safe-modal > div {
+  max-height: calc(100dvh - max(0.75rem, var(--fb-safe-top)) - max(0.75rem, var(--fb-safe-bottom)));
+}
+.fb-safe-drawer > div {
+  padding-top: var(--fb-safe-top);
+  padding-bottom: var(--fb-safe-bottom);
+}
+@media (min-width: 768px) {
+  .fb-mobile-content {
+    padding-bottom: var(--fb-safe-bottom);
+  }
+  .fb-safe-toasts {
+    bottom: max(1.5rem, var(--fb-safe-bottom));
+  }
+}
+
+/* Startfläche bleibt auch ohne Angular und unter der Produktions-CSP sichtbar. */
+.fb-app-startup {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 2rem;
+  text-align: center;
+  background: var(--fb-bg-app);
+  color: var(--fb-text-primary);
+}
+.fb-app-startup h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+.fb-app-startup p {
+  max-width: 28rem;
+  color: var(--fb-text-secondary);
+}
+.fb-app-startup button {
+  min-height: 44px;
+  padding: 0.5rem 1.25rem;
+  border-radius: 0.5rem;
+  background: #fcc601;
+  color: #111827;
+  font-weight: 600;
+}
+.fb-app-startup button[hidden] {
+  display: none;
+}
+.fb-app-startup button:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 4px;
+}
+.fb-app-startup__activity {
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 3px solid var(--fb-border);
+  border-top-color: #fcc601;
+  border-radius: 50%;
+  animation: fb-startup-spin 1s linear infinite;
+}
+.fb-app-startup--failed .fb-app-startup__activity {
+  animation: none;
+}
+@keyframes fb-startup-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fb-app-startup__activity {
+    animation: none;
+  }
+}
+
 /* ==========================================================================
    FLIPBASE OS – ZENTRALE DESIGN-VARIABLEN (THEME CONFIG)
 
@@ -21,6 +135,11 @@
    ========================================================================== */
 
 :root {
+  --fb-safe-top: env(safe-area-inset-top, 0px);
+  --fb-safe-right: env(safe-area-inset-right, 0px);
+  --fb-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --fb-safe-left: env(safe-area-inset-left, 0px);
+  --fb-bottom-navigation-height: calc(3.5rem + var(--fb-safe-bottom));
   /* 1. Hintergruende */
   --fb-bg-app: #f4f5f7; /* Haupt-Hintergrund der gesamten App */
   --fb-bg-sidebar: #ffffff; /* Hintergrund der Sidebar */

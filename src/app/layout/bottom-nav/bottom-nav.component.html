@@ -1,6 +1,6 @@
 <nav
   [attr.aria-label]="ebayContext() ? 'eBay-Schnellnavigation' : 'Schnellnavigation'"
-  class="md:hidden fixed bottom-0 left-0 right-0 h-14 max-w-full overflow-hidden bg-fb-sidebar/95 backdrop-blur-md border-t border-fb-border-subtle flex items-center justify-around px-2 z-30 select-none shadow-lg"
+  class="fb-safe-bottom-nav md:hidden fixed bottom-0 left-0 right-0 h-14 max-w-full overflow-hidden bg-fb-sidebar/95 backdrop-blur-md border-t border-fb-border-subtle flex items-center justify-around px-2 z-30 select-none shadow-lg"
 >
   @if (vintedContext() || ebayContext()) {
     @for (item of ebayContext() ? ebayLinks : vintedLinks; track item.path) {
@@ -58,6 +58,14 @@
     </a>
   }
 
+  <a
+    routerLink="/offline/purchases"
+    aria-label="Lokale Einkaufsentwürfe"
+    class="flex min-h-11 min-w-11 w-14 flex-col items-center justify-center gap-1 text-xs text-fb-text-muted hover:text-fb-text-primary"
+  >
+    <svg [lucideIcon]="PurchasesIcon" class="size-4" aria-hidden="true"></svg>
+    <span>Offline</span>
+  </a>
   <button
     type="button"
     (click)="toggleMenu.emit()"
