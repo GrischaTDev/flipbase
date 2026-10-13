@@ -27,6 +27,15 @@ rechts einen Rand zu lassen.
 - Am Tag der Zeitumstellung heißen die doppelten Stunden „02A Uhr“ und „02B Uhr“.
 - Bei Gleichstand sortiert der Browser wie die Datenbank nach der Nummer.
 - Die Bilder der Bestenliste füllen ihre Kachel (`fit="cover"`).
+- Inserat-Detailansicht: Der Rahmen des großen Fotos nimmt die Form des Fotos an
+  (höchstens 360 px breit, 320 px hoch am Handy, 560 px am Desktop). Damit gibt es
+  weder einen Rand neben dem Bild noch einen Beschnitt. Die kleinen Vorschaubilder
+  füllen ihre Kachel. Ohne Foto bleibt ein fester Hochformat-Platzhalter.
+
+**Zur Bildfrage:** Auf vinted.de nachgemessen (13.10.2026): Vinted zeigt Listenkacheln
+in 2 : 3 und Fotos der Artikelseite in etwa 5 : 8, jeweils füllend und beschnitten.
+Ein 659 × 800 px großes Foto verliert dort seitlich knapp ein Viertel. Der Nutzer hat
+sich deshalb gegen die Übernahme und für den angepassten Rahmen entschieden.
 
 **Bewusst nicht geändert:** Die wirkungslose Bedingung `gain is not null` in der
 Lesefunktion bleibt, weil das Ergebnis stimmt und eine Migration ohne
@@ -40,7 +49,9 @@ eine Zeitüberschreitung und bestand einzeln sowie im erneuten DOM-Lauf (318/318
 `typecheck`, ESLint, `test:workflow`, `test:audit` und Produktionsbau ohne
 Beanstandung. Der Browsertest lief lokal nicht: Windows hält auf diesem Rechner
 den Portbereich 54344–54443 reserviert, in dem die lokale Supabase-Umgebung
-liegt. Er läuft im PR.
+liegt. Er läuft im PR. Die Geometrie des neuen Fotorahmens ist ersatzweise mit einer
+Nachbildung in Chromium gemessen (Hochformat 1 : 4, Querformat 4 : 1 und 3 : 4: Rahmen
+gleich Foto bis auf die Rahmenlinie, Seitenverhältnis unverändert).
 
 ## 2026-10-13 – Juna – Bearbeiten: Speichern ohne Auswahllisten, Preisänderung, klare Meldungen; Konkurrenzvergleich
 

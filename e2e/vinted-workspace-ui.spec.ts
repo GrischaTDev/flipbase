@@ -477,7 +477,7 @@ for (const width of [1440, 390, 320]) {
       ).toHaveAttribute('aria-current', 'page');
       const image = detail.locator('app-product-thumbnail').first();
       const imageBounds = await image.boundingBox();
-      expect(imageBounds!.height).toBeLessThanOrEqual(width < 768 ? 260 : 420);
+      expect(imageBounds!.height).toBeLessThanOrEqual((width < 640 ? 320 : 560) + 2);
       expect(imageBounds!.width).toBeLessThanOrEqual(360);
       await expect(detail.getByRole('button', { name: 'Foto 2 anzeigen' })).toBeVisible();
       await detail.getByRole('button', { name: 'Foto 2 anzeigen' }).click();

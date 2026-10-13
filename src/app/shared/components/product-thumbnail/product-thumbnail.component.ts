@@ -32,4 +32,10 @@ export class ProductThumbnailComponent {
   readonly imageFailed = output<void>();
   readonly failed = linkedSignal({ source: this.src, computation: () => false });
   readonly imageSource = computed(() => (this.failed() ? null : this.src()?.trim() || null));
+  /** Im Detail umschließt der Rahmen das Foto: kein Rand daneben und nichts abgeschnitten. */
+  readonly adaptive = computed(() => this.size() === 'listing-detail' && !!this.imageSource());
+  /** Ohne Foto braucht die Detailansicht einen festen Platzhalter, sonst fiele der Rahmen zusammen. */
+  readonly detailPlaceholder = computed(
+    () => this.size() === 'listing-detail' && !this.imageSource(),
+  );
 }
