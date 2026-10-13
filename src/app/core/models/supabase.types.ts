@@ -1584,6 +1584,7 @@ export type Database = {
           sku: string | null
           source_package_line_id: string | null
           status: string
+          stock_removed_at: string | null
           tax_mode_override: string | null
           tax_purchase_cost: number | null
           title: string
@@ -1615,6 +1616,7 @@ export type Database = {
           sku?: string | null
           source_package_line_id?: string | null
           status?: string
+          stock_removed_at?: string | null
           tax_mode_override?: string | null
           tax_purchase_cost?: number | null
           title: string
@@ -1646,6 +1648,7 @@ export type Database = {
           sku?: string | null
           source_package_line_id?: string | null
           status?: string
+          stock_removed_at?: string | null
           tax_mode_override?: string | null
           tax_purchase_cost?: number | null
           title?: string
@@ -7010,8 +7013,10 @@ export type Database = {
           id: string
           quantity: number
           reason: string
+          removed_cost: number | null
           sale_line_id: string | null
           stock_lot_id: string
+          stock_removal_id: number | null
           workspace_id: string
         }
         Insert: {
@@ -7020,8 +7025,10 @@ export type Database = {
           id?: string
           quantity: number
           reason: string
+          removed_cost?: number | null
           sale_line_id?: string | null
           stock_lot_id: string
+          stock_removal_id?: number | null
           workspace_id: string
         }
         Update: {
@@ -7030,11 +7037,20 @@ export type Database = {
           id?: string
           quantity?: number
           reason?: string
+          removed_cost?: number | null
           sale_line_id?: string | null
           stock_lot_id?: string
+          stock_removal_id?: number | null
           workspace_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "stock_movements_removal_workspace_fkey"
+            columns: ["workspace_id", "stock_removal_id"]
+            isOneToOne: false
+            referencedRelation: "stock_removals"
+            referencedColumns: ["workspace_id", "id"]
+          },
           {
             foreignKeyName: "stock_movements_sale_line_id_fkey"
             columns: ["sale_line_id"]
@@ -7069,6 +7085,53 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "stock_lots"
             referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
+      stock_removals: {
+        Row: {
+          actor_id: string
+          article_id: string
+          article_kind: string
+          created_at: string
+          id: number
+          notes: string | null
+          quantity: number
+          reason: string
+          request_id: string
+          workspace_id: string
+        }
+        Insert: {
+          actor_id: string
+          article_id: string
+          article_kind: string
+          created_at?: string
+          id?: never
+          notes?: string | null
+          quantity: number
+          reason: string
+          request_id: string
+          workspace_id: string
+        }
+        Update: {
+          actor_id?: string
+          article_id?: string
+          article_kind?: string
+          created_at?: string
+          id?: never
+          notes?: string | null
+          quantity?: number
+          reason?: string
+          request_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_removals_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -10755,6 +10818,35 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      remove_article_stock: {
+        Args: {
+          p_article_id: string
+          p_article_kind: string
+          p_notes: string
+          p_quantity: number
+          p_reason: string
+          p_request_id: string
+          p_workspace_id: string
+        }
+        Returns: {
+          actor_id: string
+          article_id: string
+          article_kind: string
+          created_at: string
+          id: number
+          notes: string | null
+          quantity: number
+          reason: string
+          request_id: string
+          workspace_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "stock_removals"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       remove_sniper_favorite: {
         Args: {
           p_expected_user_id: string
@@ -11015,6 +11107,7 @@ export type Database = {
           sku: string | null
           source_package_line_id: string | null
           status: string
+          stock_removed_at: string | null
           tax_mode_override: string | null
           tax_purchase_cost: number | null
           title: string
@@ -11616,4 +11709,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-

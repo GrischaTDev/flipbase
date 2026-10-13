@@ -10,6 +10,7 @@ import { glob, readFile } from 'node:fs/promises';
 import { afterEach, afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Sale } from '../../core/models/flipbase.models';
 import { InvoiceService } from '../../core/services/invoice.service';
+import { CompanyDocumentError } from '../../core/models/company-document.models';
 import { ReturnService } from '../../core/services/return.service';
 import { SalesService } from '../../core/services/sales.service';
 import { SyncStatusService } from '../../core/services/sync-status.service';
@@ -227,7 +228,10 @@ beforeEach(() => {
         provide: ReturnService,
         useValue: { returns: signal([]), processReturn: vi.fn() },
       },
-      { provide: InvoiceService, useValue: { generateInvoiceForSale: vi.fn() } },
+      {
+        provide: InvoiceService,
+        useValue: { invoices: signal([]), generateInvoiceForSale: vi.fn() },
+      },
       {
         provide: ToastService,
         useValue: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
@@ -244,6 +248,23 @@ beforeEach(() => {
 });
 
 describe('SalesComponent – verlinkter Verkauf', () => {
+  it('zeigt fehlende Rechnungsangaben mit einem direkten Weg zu den Einstellungen', async () => {
+    const invoiceService = TestBed.inject(InvoiceService);
+    vi.mocked(invoiceService.generateInvoiceForSale).mockResolvedValue({
+      data: null,
+      error: new CompanyDocumentError(['city', 'taxIdentifier']),
+      created: false,
+      reportedBySyncStatus: false,
+    });
+    const fixture = TestBed.createComponent(SalesComponent);
+    await fixture.componentInstance.openInvoiceForSale(linkedSale);
+    fixture.detectChanges();
+    const alert = (fixture.nativeElement as HTMLElement).querySelector('[role="alert"]');
+    expect(alert?.textContent).toContain('Ort');
+    expect(alert?.textContent).toContain('Steuernummer oder Umsatzsteuer-ID');
+    expect(alert?.querySelector('a')?.getAttribute('href')).toBe('/settings/company');
+    expect(fixture.componentInstance.invoiceActionLabel(linkedSale)).toBe('Rechnung erstellen');
+  });
   it('zeigt den Verkaufsfilter kompakt ohne Zähler', () => {
     const fixture = TestBed.createComponent(SalesComponent);
     fixture.detectChanges();
@@ -274,28 +295,25 @@ describe('SalesComponent – verlinkter Verkauf', () => {
     );
 
     expect(headers).toEqual([
-      'Verkaufsnummer',
       'Datum',
       'Artikel',
       'Menge',
-      'Plattform',
-      'Umsatz',
-      'Einkaufskosten',
-      'Gebühren & Versand',
+      'Verkaufsbetrag',
       'Gewinn',
       'Marge',
-      'Haltedauer',
       'Aktionen',
     ]);
     expect(host.querySelector('thead abbr')?.getAttribute('title')).toBe(
-      'Umsatz abzüglich Einkaufskosten und sämtlicher Verkaufskosten. Betriebsausgaben und Steuern sind nicht abgezogen.',
+      'Verkaufsbetrag abzüglich Einkaufskosten und sämtlicher Verkaufskosten. Betriebsausgaben und Steuern sind nicht abgezogen.',
     );
     const row = host.querySelector('#sale-desktop-sale-1');
-    expect(row?.querySelectorAll('td')[0]?.textContent).toContain('VK-TEST-001');
-    expect(row?.querySelectorAll('td')[1]?.textContent).toContain('25.08.2026');
-    expect(row?.querySelectorAll('td')[2]?.textContent).toContain('Tasse');
-    expect(row?.querySelectorAll('td')[2]?.textContent).not.toContain('VK-TEST-001');
-    expect(host.textContent).toContain('Durchschnittliche Marge');
+    expect(row?.querySelectorAll('td')[0]?.textContent).toContain('25.08.2026');
+    expect(row?.querySelectorAll('td')[1]?.textContent).toContain('Tasse');
+    expect(row?.querySelectorAll('td')[1]?.textContent).toContain('VK-TEST-001');
+    expect(host.textContent).not.toContain('Durchschnittliche Marge');
+    expect(
+      host.querySelector('[data-testid="sales-result-kpi"]')?.parentElement?.textContent,
+    ).not.toContain('Haltedauer');
     expect(host.textContent).not.toContain('ROI');
     expect(host.textContent).not.toContain('Nettogewinn');
     expect(metricsForSale).toHaveBeenCalledWith(linkedSale);

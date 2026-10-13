@@ -26,11 +26,33 @@ describe('Artikelfilter', () => {
   it('unterscheidet Nullbestand, Bestand und Archiv', () => {
     expect(matchesArticleView(row, 'empty')).toBe(true);
     expect(matchesArticleView(row, 'stock')).toBe(false);
-    expect(matchesArticleView({ ...row, onHand: 3, archivedAt: '2026-09-24' }, 'stock')).toBe(true);
+    expect(matchesArticleView({ ...row, onHand: 3 }, 'stock')).toBe(true);
     expect(matchesArticleView({ ...row, archivedAt: '2026-09-24' }, 'active')).toBe(false);
     expect(matchesArticleView({ ...row, archivedAt: '2026-09-24' }, 'archive')).toBe(true);
     expect(
       matchesArticleView({ ...row, quantityState: 'review_required', onHand: null }, 'review'),
+    ).toBe(true);
+  });
+
+  it.each(['all', 'active', 'stock', 'empty', 'review'] as const)(
+    'blendet archivierte Artikel in der Ansicht %s auch mit Bestand oder Prüfbedarf aus',
+    (view) => {
+      for (const onHand of [0, 3, null]) {
+        expect(
+          matchesArticleView(
+            { ...row, archivedAt: '2026-10-13', onHand, quantityState: 'review_required' },
+            view,
+          ),
+        ).toBe(false);
+      }
+    },
+  );
+
+  it('zeigt im Archiv ausschließlich archivierte Artikel und in Alle auch aktive Nullbestände', () => {
+    expect(matchesArticleView(row, 'archive')).toBe(false);
+    expect(matchesArticleView(row, 'all')).toBe(true);
+    expect(
+      matchesArticleView({ ...row, onHand: null, quantityState: 'review_required' }, 'all'),
     ).toBe(true);
   });
 });

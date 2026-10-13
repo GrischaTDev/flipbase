@@ -49,6 +49,8 @@ const EVENT_LABELS: Readonly<Record<string, string>> = {
   inventory_corrected: 'Bestand korrigiert',
   inventory_item_archived: 'Artikel archiviert',
   inventory_item_restored: 'Artikel aus Archiv geholt',
+  article_stock_removed: 'Stück aus Bestand entfernt',
+  stock_removal_recorded: 'Bestandsabgang gebucht',
   sale_finalized: 'Verkauf abgeschlossen',
   sale_recorded: 'Verkauf erfasst',
   sale_refund_updated: 'Erstattung aktualisiert',

@@ -153,6 +153,15 @@ export class SalesComponent {
   readonly activeInvoice = signal<Invoice | null>(null);
   readonly isCreatingInvoice = signal(false);
   readonly companySettingsRequired = signal(false);
+  readonly companySettingsMessage = signal<string | null>(null);
+
+  invoiceActionLabel(sale: Sale): string {
+    return this.invoiceService
+      .invoices()
+      .some((invoice) => invoice.sourceType === 'sale' && invoice.sourceId === sale.id)
+      ? 'Rechnung anzeigen'
+      : 'Rechnung erstellen';
+  }
 
   readonly workspaceId = computed(() => this.workspaceService.currentWorkspace()?.id ?? 'default');
 
@@ -407,6 +416,9 @@ export class SalesComponent {
       if (result.error || !result.data) {
         const error = result.error ?? new Error('Die Rechnung konnte nicht erstellt werden.');
         this.companySettingsRequired.set(error instanceof CompanyDocumentError);
+        this.companySettingsMessage.set(
+          error instanceof CompanyDocumentError ? error.message : null,
+        );
         if (!result.reportedBySyncStatus && !this.syncStatus.istZentralGemeldet(error)) {
           this.toast.error('Rechnung konnte nicht erstellt werden.', error.message);
         }
@@ -414,6 +426,7 @@ export class SalesComponent {
       }
       this.activeInvoice.set(result.data);
       this.companySettingsRequired.set(false);
+      this.companySettingsMessage.set(null);
       if (result.created) this.toast.success('Rechnung wurde erstellt.');
     } catch (ursache: unknown) {
       const error = ursache instanceof Error ? ursache : new Error('Unbekannter Fehler');

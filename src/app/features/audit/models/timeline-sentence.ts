@@ -30,6 +30,8 @@ const PREDICATES: Readonly<Record<string, string>> = {
   sale_return_recorded: 'eine Retoure erfasst',
   sale_returned: 'eine Retoure erfasst',
   return_created: 'eine Retoure erfasst',
+  article_stock_removed: 'dieses Stück aus dem Bestand entfernt',
+  stock_removal_recorded: 'einen Bestandsabgang gebucht',
 };
 
 /** Ereignisse, deren Nutzlast nur ein Schnappschuss ist und nichts zusätzlich erklärt. */

@@ -3,7 +3,7 @@
   <app-page-header
     [title]="('NAV.SALES' | translate) + ' & Retouren'"
     [icon]="trendingIcon"
-    subtitle="Umsatz, Einkaufskosten, Gebühren, Versand und Gewinn im Überblick."
+    subtitle="Verkaufsbetrag, Gewinn und Marge im Überblick."
   >
     <div header-actions class="flex items-center gap-2">
       <app-button variant="primary" size="md" [icon]="plusIcon" (clicked)="openCreatePage()">
@@ -14,7 +14,7 @@
 
   @if (companySettingsRequired()) {
     <p role="alert" class="text-sm text-fb-text-secondary">
-      Für neue Rechnungen fehlen Unternehmensdaten.
+      {{ companySettingsMessage() || 'Für neue Rechnungen fehlen Unternehmensdaten.' }}
       <a routerLink="/settings/company" class="underline font-medium text-fb-text-primary"
         >Unternehmensdaten vervollständigen</a
       >
@@ -22,7 +22,7 @@
   }
 
   <!-- KPI Cards Grid -->
-  <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+  <div class="grid grid-cols-2 gap-3">
     <div
       class="linear-kpi p-4 rounded-xl"
       data-testid="sales-result-kpi"
@@ -42,45 +42,15 @@
           {{ totalRealizedProfit() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
         }
       </span>
-      <span class="text-xs text-fb-text-muted mt-0.5 block"
-        >Nur vollständig belegte Verkäufe werden summiert</span
-      >
+      <span class="text-xs text-fb-text-muted mt-0.5 block">Nach Einkaufs- und Verkaufskosten</span>
     </div>
 
     <div class="linear-kpi p-4 rounded-xl">
-      <span class="text-[13px] font-semibold text-fb-text-muted block">{{
-        salesLabels.revenue
-      }}</span>
+      <span class="text-[13px] font-semibold text-fb-text-muted block">Verkäufe</span>
       <span class="text-xl font-semibold font-mono tracking-tight text-fb-text-primary mt-2 block">
-        {{ totalRevenue() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+        {{ filteredSales().length }}
       </span>
-      <span class="text-xs text-fb-text-muted mt-0.5 block"
-        >{{ filteredSales().length }} gefilterte Verkäufe</span
-      >
-    </div>
-
-    <div class="linear-kpi p-4 rounded-xl">
-      <span class="text-[13px] font-semibold text-fb-text-muted block"
-        >Durchschnittliche Marge</span
-      >
-      <span class="text-xl font-semibold font-mono tracking-tight text-indigo-400 mt-2 block">
-        @if (averageMargin() === null) {
-          –
-        } @else {
-          {{ averageMargin() | number: '1.0-2' : 'de' }} %
-        }
-      </span>
-      <span class="text-xs text-fb-text-muted mt-0.5 block"
-        >Nur Verkäufe mit bekannten Einkaufskosten</span
-      >
-    </div>
-
-    <div class="linear-kpi p-4 rounded-xl">
-      <span class="text-[13px] font-semibold text-fb-text-muted block">Ø Haltedauer</span>
-      <span class="text-xl font-semibold font-mono tracking-tight text-fb-text-primary mt-2 block">
-        {{ averageHoldingDays() }} Tage
-      </span>
-      <span class="text-xs text-fb-text-muted mt-0.5 block">Vom Einkauf bis Verkauf</span>
+      <span class="text-xs text-fb-text-muted mt-0.5 block">In der aktuellen Ansicht</span>
     </div>
   </div>
 
@@ -113,7 +83,7 @@
       (valueChange)="selectedPlatform.set($event ?? 'all')"
     />
     <div table-content class="relative overflow-x-auto hidden md:block">
-      <table class="linear-table min-w-[1000px] w-full text-left">
+      <table aria-label="Verkäufe" class="linear-table w-full text-left">
         <thead class="bg-fb-surface text-fb-text-secondary font-semibold text-[13px]">
           <tr>
             @for (column of orderedVisibleColumns(); track column.id) {
@@ -247,6 +217,11 @@
                     <td class="px-4 py-3 font-semibold text-fb-text-primary">
                       <div class="flex items-start gap-2">
                         <div class="space-y-0.5">
+                          @if (!isColumnVisible('record_number')) {
+                            <span class="block text-[11px] font-normal text-fb-text-muted">{{
+                              sale.record_number || '–'
+                            }}</span>
+                          }
                           @if (sale.lines?.length) {
                             @for (line of sale.lines; track line.id) {
                               <span class="block text-xs text-fb-text-primary">{{
@@ -259,6 +234,13 @@
                               class="transition hover:text-emerald-400"
                               >{{ sale.inventory_item?.title || 'Artikel' }}</a
                             >
+                          }
+                          @if (!isColumnVisible('platform')) {
+                            <app-marketplace-platform-identity
+                              data-sales-platform-identity
+                              class="block max-w-40 text-xs font-normal text-fb-text-muted"
+                              [platform]="sale.platform"
+                            />
                           }
                         </div>
                         @if (sale.returned_at || ret) {
@@ -348,25 +330,42 @@
                   @case ('actions') {
                     <td class="px-4 py-3 text-right">
                       <div class="flex items-center justify-end gap-1">
-                        <app-table-action-button
-                          data-sale-audit-print-link
-                          link="/settings/data/print"
-                          [queryParams]="{ entityType: 'sale', entityId: sale.id }"
-                          [label]="
-                            'Prüfbeleg für ' + saleTitle(sale) + ' drucken oder als PDF speichern'
-                          "
-                          [icon]="receiptIcon"
-                        />
-                        <app-table-action-button
-                          (clicked)="openRecordHistory(sale)"
-                          label="Chronik ansehen"
-                          [icon]="historyIcon"
-                        />
+                        <details class="text-left text-xs text-fb-text-secondary">
+                          <summary
+                            class="cursor-pointer rounded px-2 py-2 focus-visible:outline-2 focus-visible:outline-fb-primary"
+                            [attr.aria-label]="'Weitere Aktionen für ' + saleTitle(sale)"
+                          >
+                            Weitere Aktionen
+                          </summary>
+                          <div class="mt-1 flex flex-wrap gap-1">
+                            <app-button
+                              size="slim"
+                              variant="ghost"
+                              data-sale-audit-print-link
+                              link="/settings/data/print"
+                              [queryParams]="{ entityType: 'sale', entityId: sale.id }"
+                              [icon]="receiptIcon"
+                              [ariaLabel]="
+                                'Prüfbeleg für ' +
+                                saleTitle(sale) +
+                                ' drucken oder als PDF speichern'
+                              "
+                              >Prüfbeleg</app-button
+                            >
+                            <app-button
+                              size="slim"
+                              variant="ghost"
+                              (clicked)="openRecordHistory(sale)"
+                              [icon]="historyIcon"
+                              >Chronik ansehen</app-button
+                            >
+                          </div>
+                        </details>
                         <app-table-action-button
                           (clicked)="openInvoiceForSale(sale)"
                           [disabled]="isCreatingInvoice()"
                           [loading]="isCreatingInvoice()"
-                          label="Rechnung anzeigen"
+                          [label]="invoiceActionLabel(sale)"
                           [icon]="fileIcon"
                         />
                         @if (ret) {
@@ -480,26 +479,36 @@
           </div>
 
           <div class="pt-2 border-t border-fb-line flex justify-end gap-2">
-            <a
-              data-sale-audit-print-link
-              [routerLink]="['/settings/data/print']"
-              [queryParams]="{ entityType: 'sale', entityId: sale.id }"
-              [attr.aria-label]="
-                'Prüfbeleg für ' + saleTitle(sale) + ' drucken oder als PDF speichern'
-              "
-              class="linear-btn-secondary px-2.5 py-1 rounded text-[11px] font-sans flex items-center gap-1 text-emerald-300"
-            >
-              <svg [lucideIcon]="receiptIcon" aria-hidden="true" class="w-3 h-3"></svg>
-              <span>Prüfbeleg</span>
-            </a>
-            <button
-              type="button"
-              (click)="openRecordHistory(sale)"
-              class="linear-btn-secondary px-2.5 py-1 rounded text-[11px] font-sans flex items-center gap-1 text-fb-text-secondary"
-            >
-              <svg [lucideIcon]="historyIcon" class="w-3 h-3"></svg>
-              <span>Chronik ansehen</span>
-            </button>
+            <details class="text-xs font-sans text-fb-text-secondary">
+              <summary
+                class="cursor-pointer rounded px-2 py-2 focus-visible:outline-2 focus-visible:outline-fb-primary"
+                [attr.aria-label]="'Weitere Aktionen für ' + saleTitle(sale)"
+              >
+                Weitere Aktionen
+              </summary>
+              <div class="mt-1 flex flex-wrap gap-1">
+                <a
+                  data-sale-audit-print-link
+                  [routerLink]="['/settings/data/print']"
+                  [queryParams]="{ entityType: 'sale', entityId: sale.id }"
+                  [attr.aria-label]="
+                    'Prüfbeleg für ' + saleTitle(sale) + ' drucken oder als PDF speichern'
+                  "
+                  class="linear-btn-secondary px-2.5 py-1 rounded text-[11px] font-sans flex items-center gap-1 text-emerald-300"
+                >
+                  <svg [lucideIcon]="receiptIcon" aria-hidden="true" class="w-3 h-3"></svg>
+                  <span>Prüfbeleg</span>
+                </a>
+                <button
+                  type="button"
+                  (click)="openRecordHistory(sale)"
+                  class="linear-btn-secondary px-2.5 py-1 rounded text-[11px] font-sans flex items-center gap-1 text-fb-text-secondary"
+                >
+                  <svg [lucideIcon]="historyIcon" class="w-3 h-3"></svg>
+                  <span>Chronik ansehen</span>
+                </button>
+              </div>
+            </details>
 
             <button
               type="button"
@@ -510,7 +519,7 @@
               class="linear-btn-secondary px-2.5 py-1 rounded text-[11px] font-sans flex items-center gap-1 text-indigo-300 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <svg [lucideIcon]="fileIcon" class="w-3 h-3"></svg>
-              <span>Rechnung</span>
+              <span>{{ invoiceActionLabel(sale) }}</span>
             </button>
 
             @if (ret) {

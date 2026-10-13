@@ -1755,6 +1755,8 @@ begin
 
         if v_invalid_restocked_quantity_count <> 0
           or v_stock_lot.remaining_quantity + v_previously_active_quantity
+            + coalesce((select sum(m.quantity) from public.stock_movements m
+              where m.stock_lot_id = v_stock_lot.id and m.stock_removal_id is not null), 0)
             <> v_stock_lot.received_quantity then
           raise exception using
             errcode = '22023',
@@ -1775,7 +1777,10 @@ begin
           v_stock_lot.unit_cost * v_stock_lot.received_quantity,
           2
         );
-        v_remaining_lot_cost := v_lot_total_cost - v_previously_allocated_cost;
+        -- Gebuchte Abgänge tragen ihre Kosten selbst; sie gehören nicht zum nächsten Verkauf.
+        v_remaining_lot_cost := v_lot_total_cost - v_previously_allocated_cost
+          - coalesce((select sum(m.removed_cost) from public.stock_movements m
+            where m.stock_lot_id = v_stock_lot.id and m.stock_removal_id is not null), 0);
 
         if v_remaining_lot_cost < 0
           or v_remaining_lot_cost <> pg_catalog.round(v_remaining_lot_cost, 2) then

@@ -4,6 +4,7 @@ import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
+import { CompanyDocumentError } from '../../core/models/company-document.models';
 import { InventoryItem, Sale } from '../../core/models/flipbase.models';
 import { ReturnRecord } from '../../core/models/return.models';
 import { ProcessReturnResult } from '../../core/services/return.service';
@@ -87,6 +88,7 @@ function erstelleKomponente() {
     isProcessingReturn: signal(false),
     isCreatingInvoice: signal(false),
     companySettingsRequired: signal(false),
+    companySettingsMessage: signal<string | null>(null),
     activeInvoice: signal(null),
     returnForm: new FormGroup({
       reason: new FormControl('buyer_remorse', {
@@ -178,6 +180,32 @@ describe('SalesComponent – Aktionsmeldungen', () => {
     expect(komponente.activeInvoice()).toBeNull();
     expect(toast.toasts()).toEqual([]);
   });
+  it('zeigt konkrete Unternehmensfelder und bewahrt die Rechnungssperre ohne Belegdialog', async () => {
+    const { komponente, invoiceService, toast } = erstelleKomponente();
+    const error = new CompanyDocumentError(['legalName', 'taxIdentifier']);
+    invoiceService.generateInvoiceForSale.mockResolvedValueOnce({
+      data: null,
+      error,
+      created: false,
+      reportedBySyncStatus: false,
+    } as never);
+
+    await komponente.openInvoiceForSale(verkauf);
+
+    expect(komponente.activeInvoice()).toBeNull();
+    expect(komponente.companySettingsRequired()).toBe(true);
+    expect(komponente.companySettingsMessage()).toBe(error.message);
+    expect(toast.toasts()[0]).toMatchObject({
+      type: 'error',
+      description: error.message,
+    });
+
+    await komponente.openInvoiceForSale(verkauf);
+    expect(komponente.companySettingsRequired()).toBe(false);
+    expect(komponente.companySettingsMessage()).toBeNull();
+    expect(komponente.activeInvoice()).toMatchObject({ id: 'invoice-1' });
+  });
+
   it('bestätigt eine erfolgreich erfasste Retoure und schließt den Dialog erst dann', async () => {
     const { komponente, toast } = erstelleKomponente();
 
