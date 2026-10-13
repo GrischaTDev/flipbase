@@ -18,7 +18,7 @@ test('Unternehmensdaten blockieren neue Rechnungen und bewahren alte Absender @c
   await openDashboard(page);
   await page.goto('/sales');
   const row = page.getByRole('row').filter({ hasText: 'Dokumenttest Jacke' });
-  await row.getByRole('button', { name: 'Rechnung anzeigen', exact: true }).click();
+  await row.getByRole('button', { name: 'Rechnung erstellen', exact: true }).click();
   await expect(
     page.getByRole('link', { name: 'Unternehmensdaten vervollständigen' }),
   ).toHaveAttribute('href', '/settings/company');
@@ -47,7 +47,7 @@ test('Unternehmensdaten blockieren neue Rechnungen und bewahren alte Absender @c
   });
   expect(saved.error).toBeNull();
   await page.reload();
-  await row.getByRole('button', { name: 'Rechnung anzeigen', exact: true }).click();
+  await row.getByRole('button', { name: 'Rechnung erstellen', exact: true }).click();
   const modal = page.locator('app-invoice-modal');
   await expect(modal).toContainText('Alter Inhaber');
   await expect(modal).toContainText('Altweg 7');

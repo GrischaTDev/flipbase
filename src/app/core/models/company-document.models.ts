@@ -7,13 +7,40 @@ import {
   isCompanyTaxMode,
 } from './company-profile.models';
 
+export const COMPANY_REQUIRED_FIELD_LABELS: Record<CompanyRequiredField, string> = {
+  legalName: 'Name des Unternehmens oder Inhabers',
+  street: 'Straße',
+  houseNumber: 'Hausnummer',
+  postalCode: 'Postleitzahl',
+  city: 'Ort',
+  countryCode: 'Land',
+  taxMode: 'Besteuerung',
+  taxIdentifier: 'Steuernummer oder Umsatzsteuer-ID',
+};
+
+export function readMissingCompanyFields(value: unknown): CompanyRequiredField[] {
+  return Array.isArray(value)
+    ? [
+        ...new Set(
+          value.filter(
+            (field): field is CompanyRequiredField =>
+              typeof field === 'string' && Object.hasOwn(COMPANY_REQUIRED_FIELD_LABELS, field),
+          ),
+        ),
+      ]
+    : [];
+}
+
 export class CompanyDocumentError extends Error {
   readonly code = 'company_profile_incomplete';
   readonly settingsPath = '/settings/company';
 
   constructor(readonly missingFields: readonly CompanyRequiredField[]) {
     super(
-      'Vervollständige die Unternehmensdaten unter Einstellungen → Unternehmen, bevor Du einen neuen Beleg erstellst.',
+      (missingFields.length
+        ? `Für den Beleg fehlen: ${missingFields.map((field) => COMPANY_REQUIRED_FIELD_LABELS[field]).join(', ')}. `
+        : 'Für den Beleg fehlen Unternehmensdaten. ') +
+        'Ergänze sie unter Einstellungen → Unternehmen und versuche es erneut.',
     );
     this.name = 'CompanyDocumentError';
   }

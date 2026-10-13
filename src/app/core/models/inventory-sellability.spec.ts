@@ -39,6 +39,14 @@ describe('isSellableInventoryItem', () => {
 });
 
 describe('Inventar-Integritätszustände', () => {
+  it('sperrt ein ausgebuchtes Stück auch nach einer versehentlichen Statusänderung', () => {
+    const removed = {
+      ...item('ready', 'no_active_sale'),
+      stock_removed_at: '2026-10-13T10:00:00Z',
+    };
+    expect(isInventoryItemMutationLocked(removed)).toBe(true);
+    expect(isSellableInventoryItem(removed)).toBe(false);
+  });
   it.each([
     'sold',
     'legacy_sold_unverified',

@@ -103,6 +103,7 @@ export function buildCatalogOverview(
         inventoryValue: itemValue(item),
         archivedAt: item.archived_at ?? null,
         canOfferDelete:
+          !item.stock_removed_at &&
           !item.purchase_id &&
           !item.purchase_line_id &&
           !item.source_package_line_id &&

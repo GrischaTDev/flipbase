@@ -1,0 +1,90 @@
+<app-modal-shell
+  title="Aus Bestand entfernen"
+  [subtitle]="target().title"
+  size="sm"
+  (closed)="close()"
+>
+  <div class="space-y-4">
+    @if (error()) {
+      <p role="alert" class="text-sm text-fb-critical">{{ error() }}</p>
+    }
+    @if (completed()) {
+      <p role="status" class="text-sm text-fb-text-primary">
+        {{ form.controls.quantity.value }} Stück aus dem Bestand entfernt. Einkauf und Kosten
+        bleiben erhalten.
+      </p>
+      @if (!archived() && form.controls.quantity.value === target().onHand) {
+        <p class="text-sm text-fb-text-muted">
+          Wenn Du den Artikel nicht mehr brauchst, kannst Du ihn auch archivieren.
+        </p>
+        <app-button variant="secondary" [disabled]="saving()" (clicked)="archive()"
+          >Artikel archivieren</app-button
+        >
+      }
+      @if (archived()) {
+        <p role="status" class="text-sm text-fb-text-muted">Artikel archiviert.</p>
+      }
+    } @else {
+      <p class="text-sm text-fb-text-muted">
+        Die ausgewählte Menge wird aus dem Lager ausgebucht. Dein Einkauf bleibt nachvollziehbar; es
+        entsteht kein Verkauf.
+      </p>
+      <form [formGroup]="form" (ngSubmit)="submit()" class="space-y-3">
+        <div>
+          <label
+            for="stock-removal-quantity"
+            class="mb-1 block text-sm font-medium text-fb-text-primary"
+            >Stückzahl</label
+          >
+          <app-number-input
+            id="stock-removal-quantity"
+            ariaLabel="Stückzahl entfernen"
+            formControlName="quantity"
+            [min]="1"
+            [max]="target().onHand"
+            [step]="1"
+          />
+          @if (target().onHand !== null) {
+            <p class="mt-1 text-xs text-fb-text-muted">{{ target().onHand }} Stück auf Lager</p>
+          }
+        </div>
+        <label
+          for="stock-removal-reason"
+          class="mb-1 block text-sm font-medium text-fb-text-primary"
+          >Grund</label
+        >
+        <app-custom-select
+          triggerId="stock-removal-reason"
+          ariaLabel="Grund für den Bestandsabgang"
+          [options]="reasons"
+          formControlName="reason"
+        />
+        <div>
+          <label
+            for="stock-removal-notes"
+            class="mb-1 block text-sm font-medium text-fb-text-primary"
+            >Notiz (optional)</label
+          >
+          <textarea
+            id="stock-removal-notes"
+            formControlName="notes"
+            maxlength="1000"
+            rows="2"
+            class="linear-input w-full rounded-md px-2.5 py-2 text-sm"
+          ></textarea>
+        </div>
+        <button type="submit" class="sr-only" tabindex="-1">Bestandsabgang buchen</button>
+      </form>
+    }
+  </div>
+  <div modal-footer class="flex justify-end gap-2">
+    <app-button variant="secondary" [disabled]="saving()" (clicked)="close()">{{
+      completed() ? 'Fertig' : 'Abbrechen'
+    }}</app-button>
+    @if (!completed()) {
+      <app-button variant="destructive" [loading]="saving()" (clicked)="submit()"
+        >Aus Bestand entfernen</app-button
+      >
+    }
+  </div>
+</app-modal-shell>

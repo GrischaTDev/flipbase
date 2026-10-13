@@ -57,7 +57,6 @@ export const INVENTORY_TABLE_CONFIG: TableConfig<InventoryColumnId, InventorySor
 export type CatalogColumnId =
   | 'title'
   | 'on_hand'
-  | 'available'
   | 'reserved'
   | 'status'
   | 'inventory_value'
@@ -66,7 +65,7 @@ export type CatalogColumnId =
   | 'ean'
   | 'actions';
 
-export type CatalogSortField = 'title' | 'on_hand' | 'available' | 'inventory_value';
+export type CatalogSortField = 'title' | 'on_hand' | 'inventory_value';
 
 export const CATALOG_TABLE_CONFIG: TableConfig<CatalogColumnId, CatalogSortField> = {
   defaultColumns: [
@@ -77,15 +76,13 @@ export const CATALOG_TABLE_CONFIG: TableConfig<CatalogColumnId, CatalogSortField
     { id: 'reserved', label: 'Reserviert', visible: false, order: 4 },
     { id: 'inventory_value', label: 'Bestandswert', visible: false, order: 5 },
     { id: 'on_hand', label: 'Auf Lager', visible: true, order: 6 },
-    { id: 'available', label: 'Verfügbar', visible: true, order: 7 },
-    { id: 'status', label: 'Status', visible: true, order: 8 },
-    { id: 'actions', label: 'Aktionen', visible: true, order: 9, locked: true },
+    { id: 'status', label: 'Status', visible: true, order: 7 },
+    { id: 'actions', label: 'Aktionen', visible: true, order: 8, locked: true },
   ],
   defaultSort: { field: 'title', direction: 'asc' },
   sortOptions: [
     { value: 'title', label: 'Titel', kind: 'text' },
     { value: 'on_hand', label: 'Auf Lager', kind: 'number' },
-    { value: 'available', label: 'Verfügbarer Bestand', kind: 'number' },
     { value: 'inventory_value', label: 'Bestandswert', kind: 'number' },
   ],
 };

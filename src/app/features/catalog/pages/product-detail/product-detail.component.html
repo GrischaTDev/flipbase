@@ -395,8 +395,10 @@
                 [product]="currentProduct"
                 [variants]="variants()"
                 [positions]="stock.positions()"
+                [stockQuantities]="variantStockQuantities()"
                 [disabled]="hasUnsavedChanges() || saving() || loading() || workspaceChanged()"
                 (created)="onVariantCreated($event)"
+                (changed)="onVariantChanged($event)"
               />
             }
           </app-card>

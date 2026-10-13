@@ -1,7 +1,7 @@
 import axe from 'axe-core';
 import { expect, openDashboard, test } from './support/fixtures';
 
-test('wählt verkaufbare Varianten im gemeinsamen Modal und zeigt Nummer vor Datum @core-smoke', async ({
+test('wählt verkaufbare Varianten im gemeinsamen Modal und zeigt kompakte Verkaufsspalten @core-smoke', async ({
   page,
   workspace,
 }) => {
@@ -179,14 +179,18 @@ test('wählt verkaufbare Varianten im gemeinsamen Modal und zeigt Nummer vor Dat
   const headers = (await table.getByRole('columnheader').allTextContents()).map((text) =>
     text.trim(),
   );
-  expect(headers.slice(0, 3)).toEqual(['Verkaufsnummer', 'Datum', 'Artikel']);
-  expect(headers).toEqual(
-    expect.arrayContaining(['Umsatz', 'Einkaufskosten', 'Gebühren & Versand', 'Gewinn']),
-  );
+  expect(headers).toEqual([
+    'Datum',
+    'Artikel',
+    'Menge',
+    'Verkaufsbetrag',
+    'Gewinn',
+    'Marge',
+    'Aktionen',
+  ]);
   const row = page.locator(`#sale-desktop-${sold!.id}`);
-  await expect(row.getByRole('cell').nth(0)).toHaveText(sold!.record_number);
-  await expect(row.getByRole('cell').nth(1)).toHaveText(/\d{2}\.\d{2}\.\d{4}/);
-  await expect(row.getByRole('cell').nth(2)).not.toContainText(sold!.record_number);
+  await expect(row.getByRole('cell').nth(0)).toHaveText(/\d{2}\.\d{2}\.\d{4}/);
+  await expect(row.getByRole('cell').nth(1)).toContainText(sold!.record_number);
   await expect(row.getByRole('cell').nth(headers.indexOf('Marge'))).toHaveText(/\d+,\d+\s*%/);
   await page.reload();
   await expect(page.locator(`#sale-desktop-${sold!.id}`)).toBeVisible();

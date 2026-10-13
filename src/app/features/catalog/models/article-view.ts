@@ -16,11 +16,12 @@ export function parseArticleView(value: string | null): ArticleView {
 }
 
 export function matchesArticleView(row: ArticleRow, view: ArticleView): boolean {
+  if (view === 'archive') return row.archivedAt !== null;
+  if (row.archivedAt !== null) return false;
+
   switch (view) {
     case 'active':
       return row.archivedAt === null;
-    case 'archive':
-      return row.archivedAt !== null;
     case 'stock':
       return row.onHand !== null && row.onHand > 0;
     case 'empty':

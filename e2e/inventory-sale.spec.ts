@@ -24,10 +24,9 @@ test('verkauft ein Einzelstück genau einmal aus dem gemeinsamen Inventar @pr-sm
   const onHandColumn = headers.findIndex((header) => header.includes('Auf Lager'));
   const availableColumn = headers.findIndex((header) => header.includes('Verfügbar'));
   expect(onHandColumn).toBeGreaterThanOrEqual(0);
-  expect(availableColumn).toBeGreaterThanOrEqual(0);
+  expect(availableColumn).toBe(-1);
   const inventoryRow = inventory.getByRole('row').filter({ hasText: saleItem });
   await expect(inventoryRow.getByRole('cell').nth(onHandColumn)).toHaveText('1 Stück');
-  await expect(inventoryRow.getByRole('cell').nth(availableColumn)).toHaveText('1 Stück');
 
   await sellButton.click();
   await expect(page.getByRole('heading', { name: 'Verkauf erfassen' })).toBeVisible();

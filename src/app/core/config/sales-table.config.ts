@@ -2,7 +2,7 @@ import type { TableConfig } from '../models/table-preferences.models';
 
 /** Gleiche Begriffe in Tabelle, Spaltenmenü, Kennzahlen und Verkaufserfassung. */
 export const SALES_LABELS = {
-  revenue: 'Umsatz',
+  revenue: 'Verkaufsbetrag',
   purchaseCosts: 'Einkaufskosten',
   sellingCosts: 'Gebühren & Versand',
   profit: 'Gewinn',
@@ -10,11 +10,11 @@ export const SALES_LABELS = {
 } as const;
 
 export const SALES_HELP = {
-  revenue: 'Umsatz einschließlich der vom Käufer erhaltenen Versandkosten.',
+  revenue: 'Verkaufsbetrag einschließlich der vom Käufer erhaltenen Versandkosten.',
   purchaseCosts: 'Kosten der verkauften Artikel einschließlich zugeordneter Einkaufsnebenkosten.',
   sellingCosts: 'Enthält Gebühren, Versand, Verpackung und sonstige erfasste Verkaufskosten.',
   profit:
-    'Umsatz abzüglich Einkaufskosten und sämtlicher Verkaufskosten. Betriebsausgaben und Steuern sind nicht abgezogen.',
+    'Verkaufsbetrag abzüglich Einkaufskosten und sämtlicher Verkaufskosten. Betriebsausgaben und Steuern sind nicht abgezogen.',
 } as const;
 
 export type SalesColumnId =
@@ -36,17 +36,17 @@ export type SalesSortField =
 
 export const SALES_TABLE_CONFIG: TableConfig<SalesColumnId, SalesSortField> = {
   defaultColumns: [
-    { id: 'record_number', label: 'Verkaufsnummer', visible: true, order: 0, locked: true },
+    { id: 'record_number', label: 'Verkaufsnummer', visible: false, order: 0 },
     { id: 'sale_date', label: 'Datum', visible: true, order: 1 },
     { id: 'title', label: 'Artikel', visible: true, order: 2, locked: true },
     { id: 'quantity', label: 'Menge', visible: true, order: 3 },
-    { id: 'platform', label: 'Plattform', visible: true, order: 4 },
+    { id: 'platform', label: 'Plattform', visible: false, order: 4 },
     { id: 'revenue', label: SALES_LABELS.revenue, visible: true, order: 5 },
-    { id: 'cost_of_goods_sold', label: SALES_LABELS.purchaseCosts, visible: true, order: 6 },
-    { id: 'selling_costs', label: SALES_LABELS.sellingCosts, visible: true, order: 7 },
+    { id: 'cost_of_goods_sold', label: SALES_LABELS.purchaseCosts, visible: false, order: 6 },
+    { id: 'selling_costs', label: SALES_LABELS.sellingCosts, visible: false, order: 7 },
     { id: 'profit', label: SALES_LABELS.profit, visible: true, order: 8 },
     { id: 'margin', label: SALES_LABELS.margin, visible: true, order: 9 },
-    { id: 'holding_days', label: 'Haltedauer', visible: true, order: 10 },
+    { id: 'holding_days', label: 'Haltedauer', visible: false, order: 10 },
     { id: 'actions', label: 'Aktionen', visible: true, order: 11, locked: true },
   ],
   defaultSort: { field: 'sale_date', direction: 'desc' },

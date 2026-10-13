@@ -226,7 +226,6 @@ describe('TablePreferencesService – Polaris Table Preferences & Reordering', (
       'reserved',
       'inventory_value',
       'on_hand',
-      'available',
       'status',
       'actions',
     ]);
@@ -254,11 +253,37 @@ describe('TablePreferencesService – Polaris Table Preferences & Reordering', (
       'reserved',
       'inventory_value',
       'on_hand',
-      'available',
       'status',
       'actions',
     ]);
     expect(state.columns.some(({ id }) => id === 'store')).toBe(false);
+    expect(state.columns.some(({ id }) => id === 'available')).toBe(false);
+  });
+
+  it('entfernt Verfügbar aus persönlichen Artikelspalten und verwirft die alte Sortierung', () => {
+    localStorage.setItem(
+      `flipbase:table_prefs:${testWorkspaceId}:catalog`,
+      JSON.stringify({
+        version: 1,
+        columns: [
+          { id: 'title', visible: true, order: 0 },
+          { id: 'on_hand', visible: false, order: 1 },
+          { id: 'available', visible: true, order: 2 },
+          { id: 'brand', visible: false, order: 3 },
+        ],
+        sort: { field: 'available', direction: 'desc' },
+      }),
+    );
+
+    const state = service.getTablePreferences('catalog', testWorkspaceId)();
+
+    expect(state.columns.some(({ id }) => id === 'available')).toBe(false);
+    expect(state.columns.find(({ id }) => id === 'on_hand')?.visible).toBe(false);
+    expect(state.columns.find(({ id }) => id === 'brand')?.visible).toBe(false);
+    expect(state.sort).toEqual(CATALOG_TABLE_CONFIG.defaultSort);
+    expect(
+      CATALOG_TABLE_CONFIG.sortOptions.some(({ value }) => String(value) === 'available'),
+    ).toBe(false);
   });
 
   it('ordnet die bisherige Standardansicht neu und zeigt Marke standardmäßig an', () => {

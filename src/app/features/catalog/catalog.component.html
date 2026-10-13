@@ -175,21 +175,6 @@
                 @case ('brand') {
                   <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-left">Marke</th>
                 }
-                @case ('available') {
-                  <th
-                    scope="col"
-                    [attr.aria-sort]="ariaSort('available')"
-                    class="border-b border-fb-line px-3 py-2.5 text-right"
-                  >
-                    <app-table-sort-header
-                      label="Verfügbar"
-                      sortField="available"
-                      [currentSort]="tablePrefs().sort"
-                      (sortChanged)="onSortChanged($event)"
-                      align="right"
-                    />
-                  </th>
-                }
                 @case ('on_hand') {
                   <th
                     scope="col"
@@ -264,15 +249,6 @@
                       {{ product.ean || '—' }}
                     </td>
                   }
-                  @case ('available') {
-                    <td class="px-3 py-3 text-right font-mono font-bold text-fb-text-primary">
-                      {{
-                        availableStock(product) === null
-                          ? 'Zu prüfen'
-                          : availableStock(product) + ' Stück'
-                      }}
-                    </td>
-                  }
                   @case ('on_hand') {
                     <td class="px-3 py-3 text-right font-mono text-fb-text-primary">
                       {{ product.onHand === null ? 'Zu prüfen' : product.onHand + ' Stück' }}
@@ -294,6 +270,15 @@
                   @case ('actions') {
                     <td class="px-3 py-3 text-right">
                       <div class="flex flex-wrap items-center justify-end gap-1">
+                        @if (product.onHand !== null && product.onHand > 0) {
+                          <app-table-action-button
+                            [icon]="removeStockIcon"
+                            tone="critical"
+                            [label]="'Aus Bestand entfernen: ' + product.title"
+                            [disabled]="lifecycle.pendingIds().has(product.key)"
+                            (clicked)="openStockRemoval(product)"
+                          />
+                        }
                         @if (canSell(product)) {
                           <app-table-action-button
                             [label]="product.title + ' verkaufen'"
@@ -378,24 +363,34 @@
                 </p>
               }
             </div>
-            @if (visibleColumns().includes('available')) {
-              <span class="font-mono text-xs font-bold text-fb-text-primary">{{
-                availableStock(product) === null ? 'Zu prüfen' : availableStock(product) + ' Stück'
-              }}</span>
-            }
           </div>
           <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-fb-text-secondary">
-            <span
-              >Auf Lager:
-              {{ product.onHand === null ? 'Zu prüfen' : product.onHand + ' Stück' }}</span
-            >
-            <span
-              >Verfügbar:
-              {{ product.available === null ? 'Zu prüfen' : product.available + ' Stück' }}</span
-            >
+            @if (visibleColumns().includes('on_hand')) {
+              <span
+                >Auf Lager:
+                {{ product.onHand === null ? 'Zu prüfen' : product.onHand + ' Stück' }}</span
+              >
+            }
+            @if (visibleColumns().includes('reserved')) {
+              <span
+                >Reserviert:
+                {{ product.reserved === null ? 'Zu prüfen' : product.reserved + ' Stück' }}</span
+              >
+            }
             <span>{{ statusLabel(product) }}</span>
           </div>
           <div class="mt-2 flex flex-wrap gap-1">
+            @if (product.onHand !== null && product.onHand > 0) {
+              <app-button
+                size="slim"
+                variant="destructive"
+                [icon]="removeStockIcon"
+                [ariaLabel]="'Aus Bestand entfernen: ' + product.title"
+                [disabled]="lifecycle.pendingIds().has(product.key)"
+                (clicked)="openStockRemoval(product)"
+                >Aus Bestand entfernen</app-button
+              >
+            }
             @if (canSell(product)) {
               <app-button
                 size="slim"
@@ -445,3 +440,10 @@
     </div>
   </app-data-table>
 </div>
+@if (removalTarget(); as target) {
+  <app-article-stock-removal
+    [target]="target"
+    (closed)="removalTarget.set(null)"
+    (removed)="reload()"
+  />
+}

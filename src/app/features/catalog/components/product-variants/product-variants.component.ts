@@ -4,10 +4,17 @@ import { CatalogProduct, StockPosition } from '../../../../core/models/flipbase.
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { ProductVariantCreateFormComponent } from '../product-variant-create-form/product-variant-create-form.component';
+import { VariantActionsComponent } from '../variant-actions/variant-actions.component';
 
 @Component({
   selector: 'app-product-variants',
-  imports: [RouterLink, ButtonComponent, ModalShellComponent, ProductVariantCreateFormComponent],
+  imports: [
+    RouterLink,
+    ButtonComponent,
+    ModalShellComponent,
+    ProductVariantCreateFormComponent,
+    VariantActionsComponent,
+  ],
   templateUrl: './product-variants.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -17,6 +24,8 @@ export class ProductVariantsComponent {
   readonly positions = input<readonly StockPosition[]>([]);
   readonly disabled = input(false);
   readonly created = output<CatalogProduct>();
+  readonly stockQuantities = input<Readonly<Record<string, number | null>>>({});
+  readonly changed = output<{ id: string; deleted: boolean }>();
   readonly dialogOpen = signal(false);
   private readonly pendingVariant = signal<CatalogProduct | null>(null);
   readonly orderedVariants = computed(() =>

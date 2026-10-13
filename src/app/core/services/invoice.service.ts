@@ -12,6 +12,7 @@ import {
   CompanyDocumentError,
   createCompanyDocumentParty,
   emptyDocumentParty,
+  readMissingCompanyFields,
 } from '../models/company-document.models';
 import { CompanyRequiredField } from '../models/company-profile.models';
 
@@ -649,7 +650,7 @@ export class InvoiceService {
         typeof ursache.details === 'string'
       ) {
         try {
-          missingFields = JSON.parse(ursache.details) as CompanyRequiredField[];
+          missingFields = readMissingCompanyFields(JSON.parse(ursache.details));
         } catch {
           /* Ohne Detail bleibt der Weg zu den Einstellungen erhalten. */
         }
