@@ -8,6 +8,40 @@
 
 **Prüfung:** Beide Fehler vor der Korrektur reproduziert, danach neun Deploy-Prüfungen grün; vier POSIX-Fälle lokal unter Windows ausdrücklich übersprungen. Formatter, Lint, vollständiger Docker-Produktionsbau und tatsächlicher Image-Smoke grün. HTTP bestätigt passende App-/PWA-Metadaten, immutable für Hash-Dateien und 404 für unbekanntes JavaScript. Das aus dem Image extrahierte Functionpaket besteht Integrität, isolierte Edge-Runtime-/Gateway-Prüfung, Auth, Widerruf, Grenzen und Commitgleichheit. Worker-Smoke bestätigt ausgeschalteten Versand. Agent prüft Importkette, Artefakte und Nginx-Regel unabhängig. PR401 bestand zuvor alle Pflichtprüfungen mit 100 Browserfällen, 24 PWA-Skripttests, 23 Produktions-PWA-Fällen und 4.030 Datenbanktests. Der fehlgeschlagene Release änderte die laufende Produktion nicht; Veröffentlichung erst nach dem grünen Folge-PR berichten.
 
+## 2026-10-13 – Juna – Vinted-Statistik: offene Kleinigkeiten aus der Gegenprüfung
+
+**Auftrag:** Die nach PR 394 bewusst offen gelassenen Kleinigkeiten der
+Statistikseite aufräumen; Artikelbilder sollen ihre Kachel füllen statt links und
+rechts einen Rand zu lassen.
+
+**Änderung:**
+
+- Beim Öffnen wartet die Seite auf den Kontostand, statt einmal umsonst zu laden.
+- „Alle Konten“ lädt neu, sobald irgendein Konto frisch abgerufen wurde, nicht nur
+  das gewählte.
+- Scheitert eine Aktualisierung im Hintergrund, bleiben die letzten Zahlen stehen
+  und der Fehlerhinweis erscheint darüber.
+- Die Sortierung der Bestenliste übersteht einen Zeitraum- oder Kontowechsel.
+- Die Wertetabelle des Diagramms ist zugeklappt wirklich verborgen; das Diagramm
+  wird für Bildschirmleser durch die Kurzbeschreibung erläutert.
+- Am Tag der Zeitumstellung heißen die doppelten Stunden „02A Uhr“ und „02B Uhr“.
+- Bei Gleichstand sortiert der Browser wie die Datenbank nach der Nummer.
+- Die Bilder der Bestenliste füllen ihre Kachel (`fit="cover"`).
+
+**Bewusst nicht geändert:** Die wirkungslose Bedingung `gain is not null` in der
+Lesefunktion bleibt, weil das Ergebnis stimmt und eine Migration ohne
+Verhaltensänderung nicht lohnt. Der Hinweis „Verwaltungsrechte nötig“ bleibt als
+Absicherung stehen. Die kurze Sperre der Migration ist mit PR 394 bereits gelaufen.
+
+**Prüfung:** Neun neue Tests schlugen zuerst fehl und bestehen jetzt. Gesamte
+Suite: Node 2382 und Angular 2365 Tests bestanden; in der DOM-Suite lief ein
+fachfremder PDF-Test (`purchase-self-receipt.service`) im Gesamtlauf einmal in
+eine Zeitüberschreitung und bestand einzeln sowie im erneuten DOM-Lauf (318/318).
+`typecheck`, ESLint, `test:workflow`, `test:audit` und Produktionsbau ohne
+Beanstandung. Der Browsertest lief lokal nicht: Windows hält auf diesem Rechner
+den Portbereich 54344–54443 reserviert, in dem die lokale Supabase-Umgebung
+liegt. Er läuft im PR.
+
 ## 2026-10-13 – Juna – Bearbeiten: Speichern ohne Auswahllisten, Preisänderung, klare Meldungen; Konkurrenzvergleich
 
 **Befund (echte Versuche des Nutzers nach PR 395):**

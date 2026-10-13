@@ -131,6 +131,12 @@ describe('VintedTopListingsComponent', () => {
     expect(region.getAttribute('aria-label')).toBe('Tabelle der beliebtesten Artikel');
   });
 
+  it('füllt die Bildkachel ganz aus statt Ränder neben dem Hochformatfoto zu lassen', () => {
+    const image = rows()[0].querySelector('img')!;
+    expect(image.classList.contains('object-cover')).toBe(true);
+    expect(image.classList.contains('object-contain')).toBe(false);
+  });
+
   it('erklärt eine leere Liste', () => {
     fixture.componentRef.setInput('items', []);
     fixture.detectChanges();

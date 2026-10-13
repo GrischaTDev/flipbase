@@ -39,21 +39,32 @@ export class VintedStatisticsStore {
   readonly accountScope = computed<VintedStatisticsAccountScope>(() =>
     this.canCombineAccounts() ? this.requestedAccountScope() : 'account',
   );
+  // Solange der Kontostand noch lädt, stünde der Abruf sofort wieder zur Wiederholung an.
+  private readonly waitingForAccount = computed(
+    () => this.account.loadingSnapshot() && !this.account.snapshot(),
+  );
   // Gleicher Schlüssel heißt gleiche Anfrage: fremde Kontoänderungen lösen keinen neuen Abruf aus.
   private readonly request = computed<StatisticsRequest | null>(
     () => {
       const connection = this.account.selectedConnection();
-      if (!connection || !this.account.canManage()) return null;
+      if (!connection || !this.account.canManage() || this.waitingForAccount()) return null;
       const scope: VintedStatisticsRequestScope = {
         workspaceId: connection.workspaceId,
         connectionId: this.accountScope() === 'all' ? null : connection.connectionId,
       };
       const range = this.range();
-      // Ein neuer Abruf des Kontos ändert die Messzeitpunkte und lädt die Statistik neu.
-      const observed = this.account
-        .snapshot()
-        ?.publications.items.map((entry) => entry.metrics.observedAt)
-        .join(',');
+      // Ein neuer Abruf ändert die Messzeitpunkte und lädt die Statistik neu. Für alle Konten
+      // zählt der letzte Abruf jedes Kontos, sonst nur der des gewählten.
+      const observed =
+        scope.connectionId === null
+          ? this.account
+              .connections()
+              .map((item) => item.lastSyncedAt)
+              .join(',')
+          : this.account
+              .snapshot()
+              ?.publications.items.map((entry) => entry.metrics.observedAt)
+              .join(',');
       const selection = JSON.stringify([
         scope.workspaceId,
         scope.connectionId,
@@ -81,7 +92,8 @@ export class VintedStatisticsStore {
   );
   readonly loading = computed(() => {
     const request = this.request();
-    return !!request && this.result()?.key !== request.key && this.failedKey() !== request.key;
+    if (!request) return this.waitingForAccount() && this.account.canManage();
+    return this.result()?.key !== request.key && this.failedKey() !== request.key;
   });
 
   constructor() {
@@ -103,7 +115,8 @@ export class VintedStatisticsStore {
           })
           .catch(() => {
             if (revision !== this.revision) return;
-            this.result.set(null);
+            // Scheitert nur die Aktualisierung, bleiben die Zahlen derselben Auswahl stehen.
+            if (this.result()?.selection !== request.selection) this.result.set(null);
             this.failedKey.set(request.key);
           });
       });

@@ -1,6 +1,12 @@
 <div class="space-y-3">
   <div class="flex flex-wrap items-center justify-between gap-2">
-    <p data-reach-chart-detail class="min-w-0 text-[13px] text-fb-text-secondary">{{ detail() }}</p>
+    <p
+      id="vinted-reach-chart-detail"
+      data-reach-chart-detail
+      class="min-w-0 text-[13px] text-fb-text-secondary"
+    >
+      {{ detail() }}
+    </p>
     <app-button
       data-reach-chart-toggle
       variant="plain"
@@ -18,7 +24,7 @@
       class="h-[320px] w-full"
       role="img"
       [attr.aria-label]="seriesName() + ' je Zeitabschnitt'"
-      aria-describedby="vinted-reach-chart-table"
+      aria-describedby="vinted-reach-chart-detail"
       [attr.aria-busy]="chartStatus() === 'loading'"
       (pointermove)="handlePointer($event)"
       (pointerdown)="handlePointer($event)"
@@ -40,7 +46,7 @@
     id="vinted-reach-chart-table"
     data-reach-chart-table
     class="text-[13px] tabular-nums"
-    [class.sr-only]="!tableVisible() && chartStatus() !== 'error'"
+    [hidden]="!tableVisible() && chartStatus() !== 'error'"
     [class.overflow-x-auto]="tableVisible() || chartStatus() === 'error'"
   >
     <table class="w-full text-left" data-shared-ui-exception="static-table">

@@ -153,6 +153,8 @@ export function rankTopItems(
       (left, right) =>
         right[metric] - left[metric] ||
         right[other] - left[other] ||
+        // Die Kennung ist eine Zahl als Text; so sortiert der Browser wie die Datenbank.
+        Number(left.id) - Number(right.id) ||
         left.id.localeCompare(right.id),
     )
     .slice(0, limit);
@@ -186,6 +188,41 @@ export function formatBucketDescription(start: string, range: VintedStatisticsRa
   return range === '24h'
     ? `${day}, ${hourOf(start)}`
     : `${weekdayFormat.format(new Date(start))}, ${day}`;
+}
+
+export interface VintedStatisticsBucketDescription {
+  readonly key: string;
+  readonly label: string;
+  readonly description: string;
+}
+
+/**
+ * Beschriftet alle Abschnitte eines Zeitraums. Am Tag der Zeitumstellung im Herbst gibt es die
+ * Stunde 2 zweimal; sie heißt dann wie im Fahrplan „02A Uhr“ und „02B Uhr“.
+ */
+export function describeBuckets(
+  buckets: readonly VintedStatisticsBucket[],
+  range: VintedStatisticsRange,
+): readonly VintedStatisticsBucketDescription[] {
+  if (range !== '24h')
+    return buckets.map((bucket) => ({
+      key: bucket.start,
+      label: formatBucketLabel(bucket.start, range),
+      description: formatBucketDescription(bucket.start, range),
+    }));
+  const days = buckets.map((bucket) => dayFormat.format(new Date(bucket.start)));
+  const hours = buckets.map((bucket) => hourOf(bucket.start));
+  const seen = new Map<string, number>();
+  return buckets.map((bucket, index) => {
+    const slot = `${days[index]} ${hours[index]}`;
+    const repeated = hours.filter((hour, other) => `${days[other]} ${hour}` === slot).length > 1;
+    const occurrence = seen.get(slot) ?? 0;
+    seen.set(slot, occurrence + 1);
+    const label = repeated
+      ? hours[index].replace(' Uhr', `${occurrence === 0 ? 'A' : 'B'} Uhr`)
+      : hours[index];
+    return { key: bucket.start, label, description: `${days[index]}, ${label}` };
+  });
 }
 
 export function describeChange(

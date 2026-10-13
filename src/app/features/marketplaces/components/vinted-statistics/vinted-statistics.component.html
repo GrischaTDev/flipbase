@@ -43,7 +43,8 @@
       ><p>{{ error }}</p>
       <app-button class="mt-2" (clicked)="statistics.reload()">Erneut versuchen</app-button>
     </app-notice-banner>
-  } @else if (statistics.overview(); as overview) {
+  }
+  @if (statistics.overview(); as overview) {
     @if (historyNotice(); as notice) {
       <app-notice-banner>{{ notice }}</app-notice-banner>
     }
@@ -86,6 +87,7 @@
       <app-vinted-top-listings
         [items]="overview.topItems"
         [showAccount]="statistics.accountScope() === 'all'"
+        [(sortMetric)]="listSortMetric"
       />
     </section>
   } @else if (statistics.loading()) {

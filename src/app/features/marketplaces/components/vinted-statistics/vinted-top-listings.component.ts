@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, model } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
@@ -29,7 +29,8 @@ import {
 export class VintedTopListingsComponent {
   readonly items = input.required<readonly VintedStatisticsTopItem[]>();
   readonly showAccount = input(false);
-  readonly sortMetric = signal<VintedStatisticsMetric>('views');
+  /** Die Seite hält die Sortierung fest, damit sie einen Zeitraumwechsel übersteht. */
+  readonly sortMetric = model<VintedStatisticsMetric>('views');
   readonly sortOptions: readonly {
     readonly value: VintedStatisticsMetric;
     readonly label: string;

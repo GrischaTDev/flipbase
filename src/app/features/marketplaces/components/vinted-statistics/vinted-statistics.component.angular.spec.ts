@@ -215,6 +215,28 @@ describe('VintedStatisticsComponent', () => {
     expect(statistics.reload).toHaveBeenCalled();
   });
 
+  it('behält die Sortierung der Bestenliste über einen Zeitraumwechsel', () => {
+    const favorites = () =>
+      host().querySelector<HTMLButtonElement>('[data-sort="favorites"] button')!;
+    favorites().click();
+    fixture.detectChanges();
+    statistics.overview.set(null);
+    statistics.loading.set(true);
+    fixture.detectChanges();
+    statistics.overview.set({ ...overview, range: '30d' });
+    statistics.loading.set(false);
+    fixture.detectChanges();
+    expect(favorites().getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('zeigt bei einem Fehler im Hintergrund weiter die letzten Zahlen', () => {
+    statistics.error.set('Die Statistik konnte nicht geladen werden.');
+    fixture.detectChanges();
+    expect(text()).toContain('Die Statistik konnte nicht geladen werden.');
+    expect(text()).toContain('1.234');
+    expect(host().querySelector('app-vinted-reach-chart')).not.toBeNull();
+  });
+
   it('zeigt ohne Verwaltungsrecht nur den Hinweis', () => {
     account.canManage.set(false);
     fixture.detectChanges();
