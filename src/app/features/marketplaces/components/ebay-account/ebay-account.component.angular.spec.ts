@@ -36,6 +36,8 @@ import { InventoryService } from '../../../../core/services/inventory.service';
 import { PurchaseService } from '../../../../core/services/purchase.service';
 import { StockService } from '../../../../core/services/stock.service';
 import { EbayAccountComponent } from './ebay-account.component';
+import { EbayTrafficOverviewComponent } from '../ebay-traffic-overview/ebay-traffic-overview.component';
+import { EbayListingPerformanceComponent } from '../ebay-listing-performance/ebay-listing-performance.component';
 
 describe('Persönliche eBay-Oberfläche', () => {
   let resetBindings: (() => void) | undefined;
@@ -59,9 +61,20 @@ describe('Persönliche eBay-Oberfläche', () => {
     loadListings: ReturnType<typeof vi.fn>;
     loadOrders: ReturnType<typeof vi.fn>;
     loadTraffic: ReturnType<typeof vi.fn>;
+    loadTrafficOverview: ReturnType<typeof vi.fn>;
+    loadListingPerformance: ReturnType<typeof vi.fn>;
+    loadAdvertisingReport: ReturnType<typeof vi.fn>;
   };
   beforeAll(async () => {
     const restoreBindings = await prepareMarketplaceRendering([
+      {
+        type: EbayListingPerformanceComponent,
+        path: 'src/app/features/marketplaces/components/ebay-listing-performance/ebay-listing-performance.component.ts',
+      },
+      {
+        type: EbayTrafficOverviewComponent,
+        path: 'src/app/features/marketplaces/components/ebay-traffic-overview/ebay-traffic-overview.component.ts',
+      },
       {
         type: EbayWorkspaceComponent,
         path: 'src/app/features/marketplaces/ebay-workspace.component.ts',
@@ -145,6 +158,57 @@ describe('Persönliche eBay-Oberfläche', () => {
     workspace.set({ id: 'workspace-a', archived_at: null });
     user.set({ id: 'user-a' });
     api = {
+      loadListingPerformance: vi.fn(async () => ({
+        ...connection,
+        startDate: '2026-09-01',
+        endDate: '2026-09-30',
+        lastUpdatedDate: null,
+        limit: 200,
+        items: [
+          {
+            listingId: '123',
+            title: 'Eigene Auktion',
+            imageUrl: null,
+            watchCount: 3,
+            quantityAvailable: 1,
+            impressions: 1250,
+            views: 25,
+            externalViews: 5,
+            transactions: 1,
+            searchImpressions: 1000,
+            searchViews: 20,
+            clickThroughRate: 0.02,
+            conversionRate: 0.04,
+          },
+        ],
+      })),
+      loadAdvertisingReport: vi.fn(async () => ({
+        ...connection,
+        startDate: '2026-09-01',
+        endDate: '2026-09-30',
+        status: 'pending',
+        generatedAt: null,
+        days: [],
+        items: [],
+      })),
+      loadTrafficOverview: vi.fn(async () => ({
+        ...connection,
+        startDate: '2026-09-01',
+        endDate: '2026-09-30',
+        lastUpdatedDate: null,
+        previousPeriod: null,
+        days: Array.from({ length: 30 }, (_, index) => ({
+          date: `2026-09-${String(index + 1).padStart(2, '0')}`,
+          impressions: 100,
+          views: 8,
+          externalViews: 1,
+          transactions: 1,
+          searchImpressions: 80,
+          searchViews: 4,
+          clickThroughRate: 0.05,
+          conversionRate: 0.125,
+        })),
+      })),
       loadTraffic: vi.fn(async () => ({
         ...connection,
         startDate: '2026-09-01',
@@ -298,12 +362,27 @@ describe('Persönliche eBay-Oberfläche', () => {
     expect(element.textContent).toContain('Deine eBay-Anmeldung wurde abgeschlossen');
     expect(element.textContent).not.toContain('Erneut mit eBay verbinden');
     expect(element.textContent).not.toContain('Käufe / Aufrufe');
+    expect(element.textContent).toContain('Aufrufe (30 Tage)');
+    api.loadListings.mockClear();
     await router.navigateByUrl('/marketplaces/ebay/statistics');
     await fixture.whenStable();
     fixture.detectChanges();
     expect(element.textContent).toContain('eBay-Statistiken');
     expect(element.textContent).toContain('12.5%');
     expect(element.textContent).not.toContain('Aktueller Preis');
+    expect(element.textContent).toContain('Impressionen');
+    expect(element.textContent).toContain('Klickrate');
+    expect(element.textContent).toContain('Aufrufquellen');
+    const articleCells = element.querySelectorAll('app-ebay-listing-performance tbody tr td');
+    expect(articleCells[0]?.textContent?.trim()).toBe('1');
+    expect(articleCells[2]?.textContent?.trim()).toBe('20');
+    expect(articleCells[3]?.textContent?.trim()).toBe('5');
+    expect(articleCells[4]?.textContent?.trim()).toBe('1.6%');
+    expect(api.loadTrafficOverview).toHaveBeenCalledWith(
+      expect.objectContaining({ connectionId: 'connection-a' }),
+      30,
+    );
+    expect(api.loadListings).not.toHaveBeenCalled();
     api.loadListings.mockClear();
     api.loadOrders.mockClear();
     await router.navigateByUrl('/marketplaces/ebay/orders');
@@ -347,13 +426,96 @@ describe('Persönliche eBay-Oberfläche', () => {
     fixture.detectChanges();
     expect(fixture.componentInstance.searchText()).toBe('');
   });
-  it('zeigt Bild, Bearbeitungslink und Verkaufsquote mit zugänglichen Aktionen', async () => {
-    api.loadStatus.mockResolvedValueOnce({
+  it('wechselt den Trafficzeitraum und zeigt einen Abruffehler ohne veraltete Kennzahlen', async () => {
+    api.loadStatus.mockResolvedValue({
       configured: true,
       listingManagementAvailable: true,
       connection,
     });
     const fixture = await render(true, 'statistics');
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.textContent).toContain('Konversionsrate (Käufe)');
+    const sevenDays = Array.from(element.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === '7 Tage',
+    );
+    expect(sevenDays).toBeDefined();
+    api.loadTrafficOverview.mockRejectedValueOnce(new Error('eBay ist gerade nicht erreichbar.'));
+    sevenDays?.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(api.loadTrafficOverview).toHaveBeenLastCalledWith(
+      expect.objectContaining({ connectionId: 'connection-a' }),
+      7,
+    );
+    expect(element.textContent).toContain('eBay ist gerade nicht erreichbar.');
+    expect(element.textContent).not.toContain('Konversionsrate (Käufe)');
+    user.set(null);
+    fixture.detectChanges();
+    expect(element.querySelector('app-ebay-traffic-overview')).toBeNull();
+  });
+  it('zeigt Artikelwerte und echte Werbedaten erst nach erfolgreicher Berichtserstellung', async () => {
+    api.loadStatus.mockResolvedValue({
+      configured: true,
+      listingManagementAvailable: true,
+      connection,
+    });
+    const fixture = await render(true, 'statistics');
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect(api.loadListingPerformance).toHaveBeenCalled();
+    });
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    const table = element.querySelector('[aria-label="eBay-Artikelauswertung"]');
+    expect(table?.textContent).toContain('Eigene Auktion');
+    expect(table?.textContent).toContain('1,250');
+    expect(table?.textContent).toContain('4.0%');
+    expect(table?.textContent).toContain('Nicht geladen');
+    const button = () =>
+      Array.from(element.querySelectorAll('button')).find((candidate) =>
+        /Werbeberichte laden|Berichtstatus prüfen/.test(candidate.textContent ?? ''),
+      );
+    button()?.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(element.textContent).toContain('eBay erstellt Deine Werbeberichte');
+    expect(table?.textContent).toContain('Nicht geladen');
+    api.loadAdvertisingReport.mockResolvedValueOnce({
+      ...connection,
+      startDate: '2026-09-01',
+      endDate: '2026-09-30',
+      status: 'ready',
+      generatedAt: null,
+      days: Array.from({ length: 30 }, (_, index) => ({
+        date: `2026-09-${String(index + 1).padStart(2, '0')}`,
+        impressions: 20,
+        clicks: 1,
+      })),
+      items: [{ listingId: '123', impressions: 600, clicks: 30 }],
+    });
+    button()?.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(table?.textContent).toContain('600');
+    expect(table?.textContent).not.toContain('Nicht geladen');
+    expect(element.textContent).toContain('Werbeklicks');
+    const results = await axe.run(element, { rules: { 'color-contrast': { enabled: false } } });
+    expect(results.violations).toEqual([]);
+    user.set(null);
+    fixture.detectChanges();
+    expect(element.querySelector('app-ebay-listing-performance')).toBeNull();
+  });
+  it('zeigt Bild, Bearbeitungslink, Beobachter und Aufrufe direkt bei Inseraten', async () => {
+    api.loadStatus.mockResolvedValueOnce({
+      configured: true,
+      listingManagementAvailable: true,
+      connection,
+    });
+    const fixture = await render();
     fixture.componentInstance.store.listings.update((items) =>
       items.map((item) => ({
         ...item,
@@ -371,7 +533,8 @@ describe('Persönliche eBay-Oberfläche', () => {
         .querySelector('[aria-label="Inserat bearbeiten: Eigene Auktion"]')
         ?.getAttribute('href'),
     ).toBe('/marketplaces/ebay/listings/123/edit?connection=connection-a');
-    expect(element.textContent).toContain('12.5%');
+    expect(element.textContent).toContain('Aufrufe (30 Tage)');
+    expect(element.querySelector('tbody')?.textContent).toContain('8');
     expect(element.textContent).toContain('Beobachter');
     const results = await axe.run(element, { rules: { 'color-contrast': { enabled: false } } });
     expect(results.violations).toEqual([]);
@@ -420,10 +583,9 @@ describe('Persönliche eBay-Oberfläche', () => {
       lastUpdatedDate: null,
       items: [{ listingId: '123', views: null, transactions: null, conversionRate: null }],
     });
-    const fixture = await render(true, 'statistics');
+    const fixture = await render();
     const element = fixture.nativeElement as HTMLElement;
     expect(element.textContent).toContain('Keine Daten');
-    expect(element.textContent).toContain('ein Kauf bei 100 Aufrufen ergibt 1 %');
     api.loadTraffic.mockRejectedValueOnce(
       new Error('Die Statistikantwort konnte nicht ausgewertet werden.'),
     );

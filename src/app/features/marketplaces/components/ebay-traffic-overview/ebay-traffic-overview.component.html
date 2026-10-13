@@ -1,0 +1,379 @@
+<section class="space-y-4" aria-label="Traffic Deines eBay-Kontos">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div class="flex flex-wrap gap-1" role="group" aria-label="Traffic-Zeitraum">
+      @for (days of periods; track days) {
+        <app-button
+          [variant]="selectedDays() === days ? 'primary' : 'secondary'"
+          size="slim"
+          [ariaPressed]="selectedDays() === days"
+          [disabled]="loading()"
+          (clicked)="selectedDays.set(days)"
+        >
+          {{ days }} Tage
+        </app-button>
+      }
+    </div>
+    <div class="flex flex-wrap gap-2">
+      <app-button
+        variant="ghost"
+        [icon]="infoIcon"
+        [ariaExpanded]="showInfo()"
+        ariaControls="ebay-traffic-info"
+        (clicked)="showInfo.set(!showInfo())"
+        >Info</app-button
+      >
+      <app-button
+        variant="secondary"
+        [icon]="externalIcon"
+        href="https://www.ebay.de/sh/performance/traffic"
+        target="_blank"
+        >Bei eBay ansehen</app-button
+      >
+      <app-button [icon]="refreshIcon" [loading]="loading()" (clicked)="refresh()"
+        >Aktualisieren</app-button
+      >
+    </div>
+  </div>
+  <div id="ebay-traffic-info" [hidden]="!showInfo()">
+    <app-card title="Kennzahlen und Hinweise">
+      <dl class="space-y-3 text-sm text-fb-text-secondary">
+        <div>
+          <dt class="font-medium text-fb-text-primary">Kennzahlen</dt>
+          <dd>
+            Impressionen zählen Anzeigen Deiner Angebote. Aufrufe enthalten Besuche bei eBay und von
+            außerhalb. Klickrate: eBay-Aufrufe / Impressionen. Konversionsrate: Käufe / alle
+            Aufrufe.
+          </dd>
+        </div>
+        <div>
+          <dt class="font-medium text-fb-text-primary">Käufe und Bestand</dt>
+          <dd>
+            Käufe zählen abgeschlossene Transaktionen. eBays Trafficseite zählt verkaufte Stücke;
+            bei Mehrfachmengen können Quoten abweichen. „Verfügbar“ zeigt den aktuellen Bestand.
+          </dd>
+        </div>
+        <div>
+          <dt class="font-medium text-fb-text-primary">Zeitraum und Vergleich</dt>
+          <dd>
+            Abgeschlossene UTC-Tage auf dem deutschen Marktplatz. Prozentwerte zeigen die relative
+            Änderung zum vorherigen gleich langen Zeitraum. Fehlende Vorwerte oder ein Vorwert von
+            null ergeben keinen berechenbaren Vergleich.
+            @if (report()?.previousPeriod; as previous) {
+              Vergleich: {{ previous.startDate | date: 'dd.MM.yyyy' }} –
+              {{ previous.endDate | date: 'dd.MM.yyyy' }}.
+            }
+          </dd>
+        </div>
+        <div>
+          <dt class="font-medium text-fb-text-primary">Werbetraffic</dt>
+          <dd>
+            Werbeimpressionen gehören zum Gesamttraffic. Werbeklicks von Allgemein können externe
+            Werbeplätze enthalten. Organische und externe Werbeimpressionen sowie Top-20-Vergleiche
+            sind hier nicht vollständig verfügbar. Die vollständige Ansicht findest Du bei eBay.
+            Werbedaten können innerhalb von 72 Stunden noch korrigiert werden.
+          </dd>
+        </div>
+        <div>
+          <dt class="font-medium text-fb-text-primary">Artikelauswertung</dt>
+          <dd>
+            Bis zu 200 Angebote mit den meisten Impressionen, auch verkaufte und beendete. Die
+            Artikelwerte müssen nicht den Gesamtwerten aller Angebote entsprechen.
+          </dd>
+        </div>
+      </dl>
+    </app-card>
+  </div>
+  @if (loading()) {
+    <app-card
+      ><p role="status" class="text-sm text-fb-text-muted">
+        Deine Trafficdaten werden geladen …
+      </p></app-card
+    >
+  } @else if (error(); as message) {
+    <app-card title="Trafficdaten nicht verfügbar">
+      <p role="alert" class="text-sm text-fb-critical">{{ message }}</p>
+      <app-button class="mt-3" variant="secondary" link="/marketplaces/ebay/connection"
+        >Zur Kontoverbindung</app-button
+      >
+    </app-card>
+  }
+  @if (report(); as traffic) {
+    <p class="text-xs text-fb-text-muted">
+      {{ traffic.startDate | date: 'dd.MM.yyyy' }} – {{ traffic.endDate | date: 'dd.MM.yyyy' }}
+      @if (traffic.lastUpdatedDate) {
+        · Stand: {{ traffic.lastUpdatedDate | date: 'dd.MM.yyyy HH:mm' : 'UTC' }} UTC
+      }
+    </p>
+    @if (summary().missingDays > 0) {
+      <p role="status" class="text-sm text-fb-text-secondary">
+        Für {{ summary().missingDays }} Tage fehlen Werte.
+      </p>
+    }
+    <div
+      class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5"
+      aria-label="Traffic-Kennzahlen"
+    >
+      <app-card variant="kpi" title="Impressionen"
+        ><p class="text-2xl font-semibold tabular-nums text-fb-text-primary">
+          {{
+            summary().impressions === null
+              ? 'Keine Daten'
+              : (summary().impressions | number: '1.0-0')
+          }}
+        </p>
+        <p
+          class="mt-1 text-xs text-fb-text-secondary"
+          title="Änderung zum Vorzeitraum; — bedeutet kein berechenbarer Vergleich"
+        >
+          {{
+            changes().impressions === null
+              ? '—'
+              : (changes().impressions | percent: '1.1-1') + ' zum Vorzeitraum'
+          }}
+        </p>
+      </app-card>
+      <app-card variant="kpi" title="Aufrufe"
+        ><p class="text-2xl font-semibold tabular-nums text-fb-text-primary">
+          {{ summary().views === null ? 'Keine Daten' : (summary().views | number: '1.0-0') }}
+        </p>
+        <p
+          class="mt-1 text-xs text-fb-text-secondary"
+          title="Änderung zum Vorzeitraum; — bedeutet kein berechenbarer Vergleich"
+        >
+          {{
+            changes().views === null
+              ? '—'
+              : (changes().views | percent: '1.1-1') + ' zum Vorzeitraum'
+          }}
+        </p>
+      </app-card>
+      <app-card variant="kpi" title="Klickrate"
+        ><p class="text-2xl font-semibold tabular-nums text-fb-text-primary">
+          {{
+            summary().clickThroughRate === null
+              ? 'Keine Daten'
+              : (summary().clickThroughRate | percent: '1.1-2')
+          }}
+        </p>
+        <p
+          class="mt-1 text-xs text-fb-text-secondary"
+          title="Änderung zum Vorzeitraum; — bedeutet kein berechenbarer Vergleich"
+        >
+          {{
+            changes().clickThroughRate === null
+              ? '—'
+              : (changes().clickThroughRate | percent: '1.1-1') + ' zum Vorzeitraum'
+          }}
+        </p>
+      </app-card>
+      <app-card variant="kpi" title="Käufe"
+        ><p class="text-2xl font-semibold tabular-nums text-fb-text-primary">
+          {{
+            summary().transactions === null
+              ? 'Keine Daten'
+              : (summary().transactions | number: '1.0-0')
+          }}
+        </p>
+        <p
+          class="mt-1 text-xs text-fb-text-secondary"
+          title="Änderung zum Vorzeitraum; — bedeutet kein berechenbarer Vergleich"
+        >
+          {{
+            changes().transactions === null
+              ? '—'
+              : (changes().transactions | percent: '1.1-1') + ' zum Vorzeitraum'
+          }}
+        </p>
+      </app-card>
+      <app-card variant="kpi" title="Konversionsrate (Käufe)"
+        ><p class="text-2xl font-semibold tabular-nums text-fb-text-primary">
+          {{
+            summary().conversionRate === null
+              ? 'Keine Daten'
+              : (summary().conversionRate | percent: '1.1-2')
+          }}
+        </p>
+        <p
+          class="mt-1 text-xs text-fb-text-secondary"
+          title="Änderung zum Vorzeitraum; — bedeutet kein berechenbarer Vergleich"
+        >
+          {{
+            changes().conversionRate === null
+              ? '—'
+              : (changes().conversionRate | percent: '1.1-1') + ' zum Vorzeitraum'
+          }}
+        </p>
+      </app-card>
+    </div>
+    <div class="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+      <app-card title="Traffic im Zeitverlauf" class="min-w-0">
+        <div class="mb-3 flex flex-wrap gap-1" role="group" aria-label="Diagramm-Kennzahl">
+          @for (metric of chartMetrics(); track metric.key) {
+            <app-button
+              [variant]="selectedMetric() === metric.key ? 'primary' : 'secondary'"
+              size="slim"
+              [ariaPressed]="selectedMetric() === metric.key"
+              (clicked)="selectedMetric.set(metric.key)"
+              >{{ metric.label }}</app-button
+            >
+          }
+        </div>
+        @if (selectedMetric() === 'impressions' && advertising()?.status === 'ready') {
+          <div
+            class="mb-3 flex flex-wrap gap-4 text-xs text-fb-text-secondary"
+            aria-label="Diagramm-Legende"
+          >
+            <span class="inline-flex items-center gap-2"
+              ><span class="h-3 w-3 rounded-sm bg-[#fcc601]" aria-hidden="true"></span
+              >Gesamtimpressionen</span
+            >
+            <span class="inline-flex items-center gap-2"
+              ><span class="h-3 w-3 rounded-sm bg-[#2563eb]" aria-hidden="true"></span
+              >Werbeimpressionen</span
+            >
+          </div>
+        }
+        <div
+          #chart
+          class="h-[280px] w-full"
+          role="img"
+          [attr.aria-label]="metricLabel() + ' je Tag. Genaue Werte stehen in den Tageswerten.'"
+          [attr.aria-busy]="chartStatus() === 'loading'"
+        ></div>
+        @if (chartStatus() === 'error') {
+          <p role="alert" class="text-sm text-fb-critical">
+            Das Diagramm konnte nicht geladen werden. Die Tageswerte stehen weiterhin zur Verfügung.
+          </p>
+          <app-button variant="secondary" class="mt-2" (clicked)="retryChart()"
+            >Diagramm erneut laden</app-button
+          >
+        }
+        <app-button
+          variant="plain"
+          class="mt-3"
+          [ariaExpanded]="showDailyValues() || chartStatus() === 'error'"
+          ariaControls="ebay-traffic-daily-values"
+          (clicked)="showDailyValues.set(!showDailyValues())"
+          >{{ showDailyValues() ? 'Tageswerte ausblenden' : 'Tageswerte anzeigen' }}</app-button
+        >
+        <div
+          id="ebay-traffic-daily-values"
+          [hidden]="!showDailyValues() && chartStatus() !== 'error'"
+          class="mt-3 overflow-x-auto"
+          tabindex="0"
+          role="region"
+          aria-label="Tageswerte des eBay-Traffics"
+        >
+          <table class="w-full min-w-[640px] text-left text-sm tabular-nums">
+            <caption class="sr-only">
+              Traffic je Tag mit Impressionen, Aufrufen, Klickrate, Käufen und Conversion Rate
+            </caption>
+            <thead>
+              <tr class="border-b border-fb-line text-fb-text-muted">
+                <th scope="col" class="px-3 py-3">Datum</th>
+                <th scope="col" class="px-3 py-3">Impressionen</th>
+                <th scope="col" class="px-3 py-3">Aufrufe bei eBay</th>
+                <th scope="col" class="px-3 py-3">Externe Aufrufe</th>
+                <th scope="col" class="px-3 py-3">Klickrate</th>
+                <th scope="col" class="px-3 py-3">Käufe</th>
+                <th scope="col" class="px-3 py-3">Conversion Rate</th>
+                @if (advertising()?.status === 'ready') {
+                  <th scope="col" class="px-3 py-3">Werbeimpressionen</th>
+                  <th scope="col" class="px-3 py-3">Werbeklicks</th>
+                }
+              </tr>
+            </thead>
+            <tbody>
+              @for (day of dailyValues(); track day.date) {
+                <tr class="border-b border-fb-line text-fb-text-primary">
+                  <th scope="row" class="px-3 py-3 font-normal">
+                    {{ day.date | date: 'dd.MM.yyyy' }}
+                  </th>
+                  <td class="px-3 py-3">
+                    {{
+                      day.impressions === null ? 'Keine Daten' : (day.impressions | number: '1.0-0')
+                    }}
+                  </td>
+                  <td class="px-3 py-3">
+                    {{
+                      day.viewsOnEbay === null ? 'Keine Daten' : (day.viewsOnEbay | number: '1.0-0')
+                    }}
+                  </td>
+                  <td class="px-3 py-3">
+                    {{
+                      day.externalViews === null
+                        ? 'Keine Daten'
+                        : (day.externalViews | number: '1.0-0')
+                    }}
+                  </td>
+                  <td class="px-3 py-3">
+                    {{
+                      day.clickThroughRate === null
+                        ? 'Keine Daten'
+                        : (day.clickThroughRate | percent: '1.1-2')
+                    }}
+                  </td>
+                  <td class="px-3 py-3">
+                    {{
+                      day.transactions === null
+                        ? 'Keine Daten'
+                        : (day.transactions | number: '1.0-0')
+                    }}
+                  </td>
+                  <td class="px-3 py-3">
+                    {{
+                      day.conversionRate === null
+                        ? 'Keine Daten'
+                        : (day.conversionRate | percent: '1.1-2')
+                    }}
+                  </td>
+                  @if (advertising()?.status === 'ready') {
+                    <td class="px-3 py-3">
+                      {{
+                        day.advertisingImpressions === null
+                          ? 'Keine Daten'
+                          : (day.advertisingImpressions | number: '1.0-0')
+                      }}
+                    </td>
+                    <td class="px-3 py-3">
+                      {{ day.clicks === null ? 'Keine Daten' : (day.clicks | number: '1.0-0') }}
+                    </td>
+                  }
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </app-card>
+      <app-card title="Aufrufquellen" class="min-w-0 self-start">
+        <dl class="divide-y divide-fb-line" aria-label="Herkunft der Angebotsaufrufe">
+          <div class="flex items-start justify-between gap-3 pb-4">
+            <dt class="text-sm font-medium text-fb-text-primary">Bei eBay</dt>
+            <dd class="text-lg font-semibold tabular-nums text-fb-text-primary">
+              {{
+                summary().viewsOnEbay === null
+                  ? 'Keine Daten'
+                  : (summary().viewsOnEbay | number: '1.0-0')
+              }}
+            </dd>
+          </div>
+          <div class="flex items-start justify-between gap-3 py-4">
+            <dt class="text-sm font-medium text-fb-text-primary">Externe Aufrufe</dt>
+            <dd class="text-lg font-semibold tabular-nums text-fb-text-primary">
+              {{
+                summary().externalViews === null
+                  ? 'Keine Daten'
+                  : (summary().externalViews | number: '1.0-0')
+              }}
+            </dd>
+          </div>
+        </dl>
+      </app-card>
+    </div>
+    <app-ebay-listing-performance
+      [connection]="connection()"
+      [days]="selectedDays()"
+      (advertisingChanged)="updateAdvertising($event)"
+    />
+  }
+</section>

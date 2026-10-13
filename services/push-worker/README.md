@@ -1,6 +1,6 @@
 # Pushversand
 
-Der Dienst verarbeitet dauerhafte SQL-Aufträge alle 5 Sekunden, maximal 20 pro Batch und 4 parallel. Vor jedem Versand prüft SQL erneut Bindung, Sitzung, Workspace und Kategorie. Fachereignisse bleiben bis Schema 472 geschlossen; Eigentests werden bereits wirklich eingereiht. Anbieterannahme bestätigt keine Anzeige am Gerät.
+Der Dienst verarbeitet dauerhafte SQL-Aufträge alle 5 Sekunden, maximal vier pro Batch und vier parallel. Vor jedem Versand prüft SQL erneut Bindung, Sitzung, Workspace und Kategorie. Schema 472 ergänzt die Rechteprüfung für Nachrichten, Bestellungen und Kontoprobleme. Eigentests werden ebenfalls wirklich eingereiht. Anbieterannahme bestätigt keine Anzeige am Gerät.
 
 `web-push` ist exakt auf 3.6.7 gepinnt, einschließlich npm-Integritätslock. Geprüfte Primärquellen: [Versionscode](https://github.com/web-push-libs/web-push/blob/v3.6.7/src/web-push-lib.js) und [Bibliotheksvertrag](https://github.com/web-push-libs/web-push/tree/v3.6.7). Die Bibliothek erzeugt Verschlüsselung und VAPID-Header. Der HTTPS-Transport prüft alle DNS-Adressen, bindet die konkret geprüfte Adresse und folgt keinen Redirects. 404/410 widerrufen diese Generation; 401/403 bleiben Konfigurationsfehler.
 

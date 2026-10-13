@@ -56,6 +56,55 @@ export interface EbayTrafficReport extends AccountScope {
   readonly lastUpdatedDate: string | null;
   readonly items: readonly EbayListingTraffic[];
 }
+export type EbayTrafficDays = 7 | 30 | 90;
+export interface EbayTrafficMetrics {
+  readonly impressions: number | null;
+  readonly views: number | null;
+  readonly externalViews: number | null;
+  readonly transactions: number | null;
+  readonly searchImpressions: number | null;
+  readonly searchViews: number | null;
+  readonly clickThroughRate: number | null;
+  readonly conversionRate: number | null;
+}
+export interface EbayTrafficDay extends EbayTrafficMetrics {
+  readonly date: string;
+}
+export interface EbayListingPerformance extends EbayTrafficMetrics {
+  readonly listingId: string;
+  readonly title: string;
+  readonly imageUrl: string | null;
+  readonly watchCount: number | null;
+  readonly quantityAvailable: number | null;
+}
+export interface EbayListingPerformanceReport extends AccountScope {
+  readonly startDate: string;
+  readonly endDate: string;
+  readonly lastUpdatedDate: string | null;
+  readonly items: readonly EbayListingPerformance[];
+  readonly limit: 200;
+}
+export interface EbayAdvertisingCounts {
+  readonly impressions: number;
+  readonly clicks: number;
+}
+export interface EbayAdvertisingReport extends AccountScope {
+  readonly startDate: string;
+  readonly endDate: string;
+  readonly status: 'pending' | 'ready';
+  readonly generatedAt: string | null;
+  readonly days: readonly (EbayAdvertisingCounts & { readonly date: string })[];
+  readonly items: readonly (EbayAdvertisingCounts & { readonly listingId: string })[];
+}
+export interface EbayTrafficPeriod {
+  readonly startDate: string;
+  readonly endDate: string;
+  readonly lastUpdatedDate: string | null;
+  readonly days: readonly EbayTrafficDay[];
+}
+export interface EbayTrafficOverview extends AccountScope, EbayTrafficPeriod {
+  readonly previousPeriod: EbayTrafficPeriod | null;
+}
 export interface EbayOrder {
   readonly id: string;
   readonly createdAt: string;
