@@ -66,6 +66,11 @@ import {
   VINTED_ACCOUNTS_NAVIGATION,
   VINTED_WORKSPACE_NAVIGATION_GROUPS,
 } from '../../core/config/vinted-workspace-navigation';
+import {
+  EBAY_WORKSPACE_NAVIGATION,
+  isEbayNavigationActive,
+  isEbayWorkspaceRoute,
+} from '../../core/config/ebay-workspace-navigation';
 
 const NAVIGATION_ICONS: Record<WorkspaceNavigationIcon, LucideIconInput> = {
   dashboard: LayoutDashboard,
@@ -121,6 +126,9 @@ export class SidebarComponent {
   readonly chevronIcon = ChevronRight;
   readonly backIcon = ArrowLeft;
   readonly vintedContext = computed(() => isVintedWorkspaceRoute(this.currentUrl()));
+  readonly ebayContext = computed(() => isEbayWorkspaceRoute(this.currentUrl()));
+  readonly marketplaceContext = computed(() => this.vintedContext() || this.ebayContext());
+  readonly ebayNavigation = EBAY_WORKSPACE_NAVIGATION;
   readonly vintedAccountsItem = VINTED_ACCOUNTS_NAVIGATION;
   readonly vintedNavigationGroups = VINTED_WORKSPACE_NAVIGATION_GROUPS;
   readonly pwaService = inject(PwaService);
@@ -187,8 +195,10 @@ export class SidebarComponent {
     return isNavigationChildActive(child, this.currentUrl());
   }
 
-  isVintedItemActive(path: string): boolean {
-    return isVintedNavigationActive(path, this.currentUrl());
+  isMarketplaceItemActive(path: string): boolean {
+    return this.ebayContext()
+      ? isEbayNavigationActive(path, this.currentUrl())
+      : isVintedNavigationActive(path, this.currentUrl());
   }
 
   iconFor(item: Pick<WorkspaceNavigationItem, 'icon'>): LucideIconInput {
