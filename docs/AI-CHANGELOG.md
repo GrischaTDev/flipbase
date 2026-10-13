@@ -1,5 +1,39 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-13 - Juna - eBay-Traffic mit Seller-Hub-Referenz abgleichen
+
+**Auftrag:** Den Screenshot der eBay-Trafficseite als fachliche Referenz für
+Kennzahlen, Diagramm und Artikeltabelle verwenden.
+
+**Änderung:** Aufrufe bei eBay und externe Aufrufe getrennt auswerten; dafür
+`LISTING_VIEWS_SOURCE_OFF_EBAY` im echten Serverbericht ergänzen. Die Klickrate
+verwendet jetzt eBay-Aufrufe geteilt durch Gesamtimpressionen, statt allein die
+Suchergebnisse auszuwerten. Die Artikel zeigen ihren bekannten aktuellen Bestand.
+Neben dem Diagramm steht die Herkunft der Aufrufe. Fünf Kennzahlen vergleichen
+den unmittelbar vorherigen gleich langen Zeitraum; die API-Abfragen bleiben
+einzeln auf höchstens 90 Tage begrenzt. Fehlende Vorwerte und Nullnenner erzeugen
+keine erfundenen Trends. Vergleichsfehler lassen aktuelle Daten bestehen; ein
+Widerruf der Kontorechte wird weiterhin weitergegeben.
+
+eBays Seller Hub zählt verkaufte Stücke, die Analytics-API abgeschlossene
+Transaktionen. Die Beschriftung und Quotenerklärung nennen diese Grenze.
+Die dokumentierte API liefert keine vollständige organische/externe
+Impressionsaufteilung oder Top-20-Veränderungen. Deshalb keine fingierten
+gestapelten Serien. CPS-Werbeklicks können externe Plätze enthalten; eine daraus
+berechnete vermeintliche Seller-Hub-Klickrate wird nicht mehr angezeigt.
+Keine Migrationen, zusätzlichen Rechte oder Abhängigkeiten.
+Quellen: https://www.ebay.de/verkaeuferportal/angebote/verkaeufer-cockpit-pro/performance-kennzahlen
+und https://developer.ebay.com/api-docs/sell/static/marketing/reports-by-platform.html.
+
+**Prüfung:** Lokale Modell-, Angular- und serverseitige Tests einschließlich
+Klickrate, Quellenlücken, Bestandsmetadaten, Vergleichszeiträumen und Widerruf.
+Format/Lint, Typprüfung, Shared-UI-Prüfung und Produktionsbau. Lokale Browserprobe
+mit künstlichem Konto: getrennte Artikelaufrufe, Vorzeitraumvergleich und
+asynchrone Werbeberichte. Statistikbreite bei 2.560 px auf 1.200 px begrenzt;
+bei 390 px kein Seitenüberlauf, Tabelle scrollt intern. AXE einschließlich
+Farbkontrast ohne Befund auf Desktop und mobil. Echte eBay-Daten bleiben vor
+Veröffentlichung ungeprüft; Frontend und Edge-Functions gemeinsam ausrollen.
+
 ## 2026-10-13 - Juna - eBay-Artikelauswertung und Werbeberichte anbinden
 
 **Auftrag:** Unter den Trafficdiagrammen die einzelnen Artikel mit Impressionen,

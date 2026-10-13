@@ -10,8 +10,10 @@ const item = {
   title: 'Jacke',
   imageUrl: null,
   watchCount: 0,
+  quantityAvailable: 1,
   impressions: 100,
   views: 10,
+  externalViews: 2,
   transactions: 1,
   searchImpressions: 80,
   searchViews: 4,
@@ -23,6 +25,8 @@ const pending = { ...period, status: 'pending', generatedAt: null, days: [], ite
 describe('eBay-Auswertungsverträge', () => {
   it('erhält Nullwerte und echte Nullzähler je Artikel', () => {
     expect(parseEbayListingPerformance(listingReport, scope, 7).items[0].watchCount).toBe(0);
+    expect(parseEbayListingPerformance(listingReport, scope, 7).items[0].externalViews).toBe(2);
+    expect(parseEbayListingPerformance(listingReport, scope, 7).items[0].quantityAvailable).toBe(1);
     expect(
       parseEbayListingPerformance({ ...listingReport, items: [{ ...item, views: null }] }, scope, 7)
         .items[0].views,
@@ -35,6 +39,8 @@ describe('eBay-Auswertungsverträge', () => {
       { startDate: '2026-02-30' },
       { items: [item, item] },
       { items: [{ ...item, impressions: -1 }] },
+      { items: [{ ...item, externalViews: -1 }] },
+      { items: [{ ...item, quantityAvailable: -1 }] },
     ])
       expect(() =>
         parseEbayListingPerformance({ ...listingReport, ...changes }, scope, 7),

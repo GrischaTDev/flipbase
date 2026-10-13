@@ -170,8 +170,10 @@ describe('Persönliche eBay-Oberfläche', () => {
             title: 'Eigene Auktion',
             imageUrl: null,
             watchCount: 3,
+            quantityAvailable: 1,
             impressions: 1250,
             views: 25,
+            externalViews: 5,
             transactions: 1,
             searchImpressions: 1000,
             searchViews: 20,
@@ -194,10 +196,12 @@ describe('Persönliche eBay-Oberfläche', () => {
         startDate: '2026-09-01',
         endDate: '2026-09-30',
         lastUpdatedDate: null,
+        previousPeriod: null,
         days: Array.from({ length: 30 }, (_, index) => ({
           date: `2026-09-${String(index + 1).padStart(2, '0')}`,
           impressions: 100,
           views: 8,
+          externalViews: 1,
           transactions: 1,
           searchImpressions: 80,
           searchViews: 4,
@@ -368,6 +372,12 @@ describe('Persönliche eBay-Oberfläche', () => {
     expect(element.textContent).not.toContain('Aktueller Preis');
     expect(element.textContent).toContain('Impressionen');
     expect(element.textContent).toContain('Klickrate');
+    expect(element.textContent).toContain('So werden Deine Angebote aufgerufen');
+    const articleCells = element.querySelectorAll('app-ebay-listing-performance tbody tr td');
+    expect(articleCells[0]?.textContent?.trim()).toBe('1');
+    expect(articleCells[2]?.textContent?.trim()).toBe('20');
+    expect(articleCells[3]?.textContent?.trim()).toBe('5');
+    expect(articleCells[4]?.textContent?.trim()).toBe('1.6%');
     expect(api.loadTrafficOverview).toHaveBeenCalledWith(
       expect.objectContaining({ connectionId: 'connection-a' }),
       30,
@@ -424,7 +434,7 @@ describe('Persönliche eBay-Oberfläche', () => {
     });
     const fixture = await render(true, 'statistics');
     const element = fixture.nativeElement as HTMLElement;
-    expect(element.textContent).toContain('Conversion Rate');
+    expect(element.textContent).toContain('Konversionsrate (Käufe)');
     const sevenDays = Array.from(element.querySelectorAll('button')).find(
       (button) => button.textContent?.trim() === '7 Tage',
     );
@@ -439,7 +449,7 @@ describe('Persönliche eBay-Oberfläche', () => {
       7,
     );
     expect(element.textContent).toContain('eBay ist gerade nicht erreichbar.');
-    expect(element.textContent).not.toContain('Conversion Rate');
+    expect(element.textContent).not.toContain('Konversionsrate (Käufe)');
     user.set(null);
     fixture.detectChanges();
     expect(element.querySelector('app-ebay-traffic-overview')).toBeNull();

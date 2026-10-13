@@ -1,8 +1,9 @@
 <app-card title="Beworbene Artikel">
   <div class="flex flex-wrap items-start justify-between gap-3">
     <p class="max-w-2xl text-sm text-fb-text-secondary">
-      Impressionen und Klicks Deiner Anzeigen auf eBay, zusammen für die Strategien Allgemein und
-      Priorität. eBay erstellt die Berichte im Hintergrund.
+      Werbeimpressionen und Werbeklicks für Allgemein und Priorität auf eBay. Die Klicks von
+      Allgemein können auch externe Werbeplätze enthalten. eBay erstellt die Berichte im
+      Hintergrund.
     </p>
     <app-button
       variant="secondary"
@@ -25,7 +26,7 @@
     >
   }
   @if (advertisingSummary(); as summary) {
-    <dl class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3" aria-label="Werbekennzahlen">
+    <dl class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2" aria-label="Werbekennzahlen">
       <div>
         <dt class="text-xs text-fb-text-muted">Werbeimpressionen</dt>
         <dd class="mt-1 text-xl font-semibold tabular-nums text-fb-text-primary">
@@ -38,16 +39,6 @@
           {{ summary.clicks | number: '1.0-0' }}
         </dd>
       </div>
-      <div>
-        <dt class="text-xs text-fb-text-muted">Werbe-Klickrate</dt>
-        <dd class="mt-1 text-xl font-semibold tabular-nums text-fb-text-primary">
-          {{
-            summary.clickThroughRate === null
-              ? 'Keine Quote'
-              : (summary.clickThroughRate | percent: '1.1-2')
-          }}
-        </dd>
-      </div>
     </dl>
     <p class="mt-3 text-xs text-fb-text-muted">
       Werbedaten können innerhalb von 72 Stunden noch korrigiert werden.
@@ -58,8 +49,9 @@
   }
   <p class="mt-3 text-xs text-fb-text-muted">
     Organische Impressionen und Klicks sind über die dokumentierte API nicht getrennt verfügbar.
-    Gesamtwerte und Werbewerte werden getrennt gezeigt. Werbeklicks entsprechen nicht allen
-    Angebotsaufrufen.
+    Gesamtwerte und Werbewerte werden getrennt gezeigt. Externe Anzeigen sind in diesen Berichten
+    nicht vollständig abgedeckt. Werbeklicks sind deshalb nicht mit den Aufrufen bei eBay
+    gleichzusetzen.
   </p>
 </app-card>
 <section aria-label="Traffic je Artikel" class="space-y-3">
@@ -102,18 +94,21 @@
       role="region"
       aria-label="Traffic-Tabelle horizontal scrollen"
     >
-      <table class="w-full min-w-[1060px] text-left text-[13px] tabular-nums">
+      <table class="w-full min-w-[1280px] text-left text-[13px] tabular-nums">
         <caption class="sr-only">
-          Impressionen, Aufrufe, Klickrate, Käufe, Conversion Rate und Werbewerte je Artikel
+          Verfügbarkeit, Impressionen, Aufrufe bei eBay, externe Aufrufe, Klickrate, Käufe und
+          Werbewerte je Artikel
         </caption>
         <thead>
           <tr class="border-b border-fb-line text-fb-text-muted">
             <th scope="col" class="px-3 py-3">Artikel</th>
+            <th scope="col" class="px-3 py-3 text-right">Verfügbar</th>
             <th scope="col" class="px-3 py-3 text-right">Impressionen</th>
-            <th scope="col" class="px-3 py-3 text-right">Aufrufe</th>
+            <th scope="col" class="px-3 py-3 text-right">Aufrufe bei eBay</th>
+            <th scope="col" class="px-3 py-3 text-right">Externe Aufrufe</th>
             <th scope="col" class="px-3 py-3 text-right">Klickrate</th>
             <th scope="col" class="px-3 py-3 text-right">Käufe</th>
-            <th scope="col" class="px-3 py-3 text-right">Conversion Rate</th>
+            <th scope="col" class="px-3 py-3 text-right">Konversionsrate (Käufe)</th>
             <th scope="col" class="px-3 py-3 text-right">Werbeimpressionen</th>
             <th scope="col" class="px-3 py-3 text-right">Werbeklicks</th>
           </tr>
@@ -138,11 +133,27 @@
               </th>
               <td class="px-3 py-3 text-right">
                 {{
+                  item.quantityAvailable === null
+                    ? 'Keine Daten'
+                    : (item.quantityAvailable | number: '1.0-0')
+                }}
+              </td>
+              <td class="px-3 py-3 text-right">
+                {{
                   item.impressions === null ? 'Keine Daten' : (item.impressions | number: '1.0-0')
                 }}
               </td>
               <td class="px-3 py-3 text-right">
-                {{ item.views === null ? 'Keine Daten' : (item.views | number: '1.0-0') }}
+                {{
+                  item.viewsOnEbay === null ? 'Keine Daten' : (item.viewsOnEbay | number: '1.0-0')
+                }}
+              </td>
+              <td class="px-3 py-3 text-right">
+                {{
+                  item.externalViews === null
+                    ? 'Keine Daten'
+                    : (item.externalViews | number: '1.0-0')
+                }}
               </td>
               <td class="px-3 py-3 text-right">
                 {{
@@ -180,8 +191,11 @@
     </div>
   </app-data-table>
   <p class="text-xs text-fb-text-muted">
-    Klickrate: Aufrufe aus Suchergebnissen / Impressionen in Suchergebnissen. Conversion Rate: Käufe
-    / Aufrufe. Bei einem Einzelstück sind ein Kauf und viele Aufrufe normal; die Quote zeigt keinen
-    Lagerbestand. Die Artikelwerte müssen nicht den Gesamtwerten aller Angebote entsprechen.
+    Klickrate: Aufrufe bei eBay / alle Impressionen. Konversionsrate: abgeschlossene Käufe / alle
+    Aufrufe einschließlich externer Aufrufe. Die API zählt Transaktionen; eBays Trafficseite zählt
+    verkaufte Stücke. Bei Einzelstücken entspricht ein Kauf normalerweise einem Stück, bei
+    Mehrfachmengen können die Quoten abweichen. Verfügbarkeit ist der aktuelle Bestand, keine
+    Verkaufszahl im Zeitraum. Die Artikelwerte müssen nicht den Gesamtwerten aller Angebote
+    entsprechen.
   </p>
 </section>

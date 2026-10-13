@@ -5,6 +5,7 @@ import type { EbayConfig } from './ebay-api.ts';
 export const ebayTrafficMetrics = {
   impressions: 'TOTAL_IMPRESSION_TOTAL',
   views: 'LISTING_VIEWS_TOTAL',
+  externalViews: 'LISTING_VIEWS_SOURCE_OFF_EBAY',
   transactions: 'TRANSACTION',
   searchImpressions: 'LISTING_IMPRESSION_SEARCH_RESULTS_PAGE',
   searchViews: 'LISTING_VIEWS_SOURCE_SEARCH_RESULTS_PAGE',
@@ -54,6 +55,7 @@ export function readTrafficMetrics(
   return {
     impressions: metric(ebayTrafficMetrics.impressions),
     views: metric(ebayTrafficMetrics.views),
+    externalViews: metric(ebayTrafficMetrics.externalViews),
     transactions: metric(ebayTrafficMetrics.transactions),
     searchImpressions: metric(ebayTrafficMetrics.searchImpressions),
     searchViews: metric(ebayTrafficMetrics.searchViews),
@@ -129,6 +131,7 @@ export function parseEbayTrafficDays(
         date,
         impressions: null,
         views: null,
+        externalViews: null,
         transactions: null,
         searchImpressions: null,
         searchViews: null,
@@ -147,6 +150,44 @@ export async function readEbayTrafficOverview(
   fetcher = fetch,
 ) {
   const { startDate, endDate } = getEbayTrafficPeriod(requestedDays);
+  const current = await readEbayTrafficPeriod(config, token, startDate, endDate, fetcher);
+  const previousEnd = new Date(`${startDate}T00:00:00Z`);
+  previousEnd.setUTCDate(previousEnd.getUTCDate() - 1);
+  const previousStart = new Date(previousEnd);
+  previousStart.setUTCDate(previousStart.getUTCDate() - requestedDays + 1);
+  try {
+    const previousPeriod = await readEbayTrafficPeriod(
+      config,
+      token,
+      previousStart.toISOString().slice(0, 10),
+      previousEnd.toISOString().slice(0, 10),
+      fetcher,
+    );
+    return { ...current, previousPeriod };
+  } catch (error) {
+    const isTransportError =
+      error instanceof TypeError || error instanceof SyntaxError || error instanceof DOMException;
+    if (
+      !isTransportError &&
+      (!(error instanceof EbayError) ||
+        (error.code !== 'provider_unavailable' && error.code !== 'invalid_response'))
+    )
+      throw error;
+    // Aktuelle Werte bleiben nutzbar, wenn eBay den Vergleich nicht liefern kann.
+    console.warn(
+      `eBay traffic comparison unavailable! Code=${error instanceof EbayError ? error.code : 'provider_unavailable'}`,
+    );
+    return { ...current, previousPeriod: null };
+  }
+}
+
+async function readEbayTrafficPeriod(
+  config: EbayConfig,
+  token: string,
+  startDate: string,
+  endDate: string,
+  fetcher: typeof fetch,
+) {
   const url = new URL(`${getEbayHosts(config.environment).api}/sell/analytics/v1/traffic_report`);
   url.search = new URLSearchParams({
     dimension: 'DAY',

@@ -30,7 +30,10 @@ import type {
   EbayAdvertisingReport,
 } from '../../../../../../supabase/functions/_shared/ebay-contracts';
 import { EbayAccountApiService } from '../../services/ebay-account-api.service';
-import { summarizeEbayTraffic } from '../../models/ebay-traffic-summary';
+import {
+  calculateEbayTrafficChange,
+  summarizeEbayTraffic,
+} from '../../models/ebay-traffic-summary';
 import { EbayListingPerformanceComponent } from '../ebay-listing-performance/ebay-listing-performance.component';
 
 @Component({
@@ -55,6 +58,23 @@ export class EbayTrafficOverviewComponent {
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly summary = computed(() => summarizeEbayTraffic(this.report()?.days ?? []));
+  readonly previousSummary = computed(() =>
+    summarizeEbayTraffic(this.report()?.previousPeriod?.days ?? []),
+  );
+  readonly changes = computed(() => {
+    const current = this.summary(),
+      previous = this.previousSummary();
+    return {
+      impressions: calculateEbayTrafficChange(current.impressions, previous.impressions),
+      views: calculateEbayTrafficChange(current.views, previous.views),
+      transactions: calculateEbayTrafficChange(current.transactions, previous.transactions),
+      clickThroughRate: calculateEbayTrafficChange(
+        current.clickThroughRate,
+        previous.clickThroughRate,
+      ),
+      conversionRate: calculateEbayTrafficChange(current.conversionRate, previous.conversionRate),
+    };
+  });
   readonly dailyValues = computed(() => {
     const advertisingDays = new Map(this.advertising()?.days.map((day) => [day.date, day]));
     return (this.report()?.days ?? []).map((day) => ({

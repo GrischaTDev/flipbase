@@ -60,6 +60,7 @@ export type EbayTrafficDays = 7 | 30 | 90;
 export interface EbayTrafficMetrics {
   readonly impressions: number | null;
   readonly views: number | null;
+  readonly externalViews: number | null;
   readonly transactions: number | null;
   readonly searchImpressions: number | null;
   readonly searchViews: number | null;
@@ -74,6 +75,7 @@ export interface EbayListingPerformance extends EbayTrafficMetrics {
   readonly title: string;
   readonly imageUrl: string | null;
   readonly watchCount: number | null;
+  readonly quantityAvailable: number | null;
 }
 export interface EbayListingPerformanceReport extends AccountScope {
   readonly startDate: string;
@@ -94,11 +96,14 @@ export interface EbayAdvertisingReport extends AccountScope {
   readonly days: readonly (EbayAdvertisingCounts & { readonly date: string })[];
   readonly items: readonly (EbayAdvertisingCounts & { readonly listingId: string })[];
 }
-export interface EbayTrafficOverview extends AccountScope {
+export interface EbayTrafficPeriod {
   readonly startDate: string;
   readonly endDate: string;
   readonly lastUpdatedDate: string | null;
   readonly days: readonly EbayTrafficDay[];
+}
+export interface EbayTrafficOverview extends AccountScope, EbayTrafficPeriod {
+  readonly previousPeriod: EbayTrafficPeriod | null;
 }
 export interface EbayOrder {
   readonly id: string;

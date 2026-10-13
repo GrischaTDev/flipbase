@@ -10,7 +10,7 @@ import {
 
 const row = {
   dimensionValues: [{ value: '123', applicable: true }],
-  metricValues: [100, 10, 1, 80, 4, 0.05, 0.1].map((value) => ({ value, applicable: true })),
+  metricValues: [100, 10, 2, 1, 80, 4, 0.05, 0.1].map((value) => ({ value, applicable: true })),
 };
 const report = {
   header: {
@@ -20,11 +20,12 @@ const report = {
   records: [row],
 };
 
-test('Artikelauswertung erhält Nullwerte und ordnet die sieben Metriken zu', () => {
+test('Artikelauswertung erhält Nullwerte und ordnet die acht Metriken zu', () => {
   const items = parseEbayListingPerformance(report);
   assert.equal(items[0].listingId, '123');
   assert.equal(items[0].impressions, 100);
   assert.equal(items[0].views, 10);
+  assert.equal(items[0].externalViews, 2);
   assert.equal(items[0].searchViews, 4);
   assert.equal(
     parseEbayListingPerformance({
@@ -79,7 +80,9 @@ test('Artikelauswertung ergänzt eigene aktive Artikeltitel und erfindet keine M
   );
   assert.equal(result.items[0].title, 'Jacke');
   assert.equal(result.items[0].watchCount, 3);
+  assert.equal(result.items[0].quantityAvailable, 1);
   assert.equal(result.items[1].title, 'Angebot bei eBay');
   assert.equal(result.items[1].imageUrl, null);
   assert.equal(result.items[1].watchCount, null);
+  assert.equal(result.items[1].quantityAvailable, null);
 });

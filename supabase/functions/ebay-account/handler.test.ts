@@ -135,6 +135,7 @@ test('Konto-Traffic nutzt die gesperrte persönliche Verbindung und verwirft üb
         metrics: [
           'TOTAL_IMPRESSION_TOTAL',
           'LISTING_VIEWS_TOTAL',
+          'LISTING_VIEWS_SOURCE_OFF_EBAY',
           'TRANSACTION',
           'LISTING_IMPRESSION_SEARCH_RESULTS_PAGE',
           'LISTING_VIEWS_SOURCE_SEARCH_RESULTS_PAGE',
@@ -204,6 +205,7 @@ test('Artikel- und Werbeberichte behalten Kontobindung und verwerfen Antworten n
         metrics: [
           'TOTAL_IMPRESSION_TOTAL',
           'LISTING_VIEWS_TOTAL',
+          'LISTING_VIEWS_SOURCE_OFF_EBAY',
           'TRANSACTION',
           'LISTING_IMPRESSION_SEARCH_RESULTS_PAGE',
           'LISTING_VIEWS_SOURCE_SEARCH_RESULTS_PAGE',

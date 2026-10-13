@@ -64,7 +64,7 @@ export class EbayListingPerformanceComponent {
     if (report?.status !== 'ready') return null;
     const impressions = report.days.reduce((total, day) => total + day.impressions, 0);
     const clicks = report.days.reduce((total, day) => total + day.clicks, 0);
-    return { impressions, clicks, clickThroughRate: impressions > 0 ? clicks / impressions : null };
+    return { impressions, clicks };
   });
   readonly rows = computed(() => {
     const search = this.search().trim().toLocaleLowerCase('de-DE');

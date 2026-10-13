@@ -72,6 +72,7 @@ export async function readEbayListingPerformance(
         title: listing?.title ?? 'Angebot bei eBay',
         imageUrl: listing?.imageUrl ?? null,
         watchCount: listing?.watchCount ?? null,
+        quantityAvailable: listing?.quantity ?? null,
       };
     }),
   };
