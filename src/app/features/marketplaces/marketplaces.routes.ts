@@ -1,9 +1,19 @@
 import type { Routes } from '@angular/router';
 import { marketplaceAccessGuard } from './guards/marketplace-access.guard';
 import { vintedListingEditorGuard } from './guards/vinted-listing-editor.guard';
+import { ebayListingEditorGuard } from './guards/ebay-listing-editor.guard';
 
 export const MARKETPLACES_ROUTES: Routes = [
   { path: '', redirectTo: 'vinted', pathMatch: 'full' },
+  {
+    path: 'ebay/listings/:listingId/edit',
+    runGuardsAndResolvers: 'paramsOrQueryParamsChange',
+    canDeactivate: [ebayListingEditorGuard],
+    loadComponent: () =>
+      import('./components/ebay-listing-editor/ebay-listing-editor.component').then(
+        (module) => module.EbayListingEditorComponent,
+      ),
+  },
   {
     path: 'ebay',
     data: { showData: true },

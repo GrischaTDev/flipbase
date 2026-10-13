@@ -1,0 +1,112 @@
+<div class="space-y-4">
+  <app-page-header
+    title="eBay-Inserat bearbeiten"
+    subtitle="Ändere dein Angebot und übertrage es anschließend zu eBay."
+  >
+    <div header-actions class="flex flex-wrap gap-2">
+      <app-button link="/marketplaces/ebay" [disabled]="saving()">Zurück zu eBay</app-button>
+      <app-button [icon]="refreshIcon" [disabled]="saving() || loading()" (clicked)="reload()"
+        >Neu laden</app-button
+      >
+      <app-button
+        variant="primary"
+        [icon]="saveIcon"
+        [loading]="saving()"
+        [disabled]="loading() || !listing() || !dirty() || mustReload()"
+        (clicked)="save()"
+        >Bei eBay speichern</app-button
+      >
+    </div>
+  </app-page-header>
+  @if (loading()) {
+    <p role="status" class="text-sm text-fb-text-muted">Das eBay-Inserat wird geladen …</p>
+  }
+  @if (confirmation(); as message) {
+    <p role="status" class="text-sm text-fb-text-primary">{{ message }}</p>
+  }
+  @if (error(); as message) {
+    <p role="alert" class="text-sm text-fb-critical">{{ message }}</p>
+  }
+  @if (mustReload()) {
+    <p class="text-sm text-fb-text-secondary">
+      Prüfe das Angebot bei eBay und lade es erneut, bevor Du weitere Änderungen überträgst.
+    </p>
+  }
+  @if (listing(); as listing) {
+    <form [formGroup]="form" class="space-y-4" (ngSubmit)="save()">
+      <app-card title="Angebotsdaten">
+        <div class="space-y-4">
+          <app-text-field
+            label="Titel"
+            formControlName="title"
+            [maxLength]="80"
+            [disabled]="saving() || mustReload()"
+            [error]="
+              form.controls.title.touched && form.controls.title.invalid
+                ? 'Gib einen Titel mit höchstens 80 Zeichen ein.'
+                : null
+            "
+          />
+          <div>
+            <label for="ebay-listing-price" class="mb-1 block text-sm text-fb-text-primary"
+              >Preis</label
+            >
+            <app-number-input
+              id="ebay-listing-price"
+              formControlName="price"
+              [unit]="listing.currency ?? ''"
+              [min]="0.01"
+              [max]="1000000"
+              [step]="0.01"
+              [disabled]="saving() || mustReload() || listing.hasVariations === true"
+            />
+            @if (listing.hasVariations) {
+              <p class="mt-1 text-xs text-fb-text-secondary">
+                Dieses Inserat hat Varianten. Ändere die einzelnen Variantenpreise bei eBay.
+              </p>
+            }
+          </div>
+          <app-text-field
+            label="Beschreibung"
+            formControlName="description"
+            [multiline]="10"
+            [maxLength]="20000"
+            [disabled]="saving() || mustReload()"
+            helpText="Eine vorhandene HTML-Formatierung bleibt erhalten. Ändere nur den gewünschten Text; die Beschreibung wird beim Speichern vollständig ersetzt."
+            [error]="
+              form.controls.description.touched && form.controls.description.invalid
+                ? 'Gib eine Beschreibung mit höchstens 20.000 Zeichen ein.'
+                : null
+            "
+          />
+          <p class="text-xs text-fb-text-secondary">
+            eBay kann Änderungen einschränken, etwa bei Geboten, Verkäufen oder Preisvorschlägen.
+            Von anderen Anwendungen verwaltete Inserate können eine Bearbeitung dort erfordern.
+          </p>
+          @if (listing.url) {
+            <app-button [href]="listing.url" target="_blank" [icon]="externalIcon"
+              >Angebot bei eBay prüfen</app-button
+            >
+          }
+        </div>
+      </app-card>
+    </form>
+    <app-card title="Bilder">
+      <app-product-media-editor
+        [images]="images()"
+        [canDescribe]="false"
+        [canCrop]="false"
+        [minimumImages]="1"
+        [maximumImages]="24"
+        [validateFile]="validateImage"
+        fileHelpText="JPG, PNG, WebP, GIF oder AVIF · höchstens 12 MB pro Bild"
+        [disabled]="saving() || mustReload()"
+        (imagesChange)="images.set($event)"
+      />
+      <p class="mt-3 text-xs text-fb-text-secondary">
+        Das erste Bild ist das Titelbild. Neue Bilder werden beim Speichern hochgeladen; dein
+        Angebot wird erst danach geändert.
+      </p>
+    </app-card>
+  }
+</div>

@@ -12,7 +12,7 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
-import { DatePipe, DecimalPipe } from '@angular/common';
+import { DatePipe, DecimalPipe, PercentPipe } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import {
   LucideExternalLink,
@@ -20,6 +20,8 @@ import {
   LucideRefreshCw,
   LucideUnlink,
   LucideClipboardCheck,
+  LucidePencil,
+  LucideChartColumn,
 } from '@lucide/angular';
 import { AuthService } from '../../../../core/services/auth.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
@@ -31,12 +33,15 @@ import { PageHeaderComponent } from '../../../../shared/components/page-header/p
 import type { EbayListing } from '../../../../../../supabase/functions/_shared/ebay-contracts';
 import { EbayArticleMappingComponent } from '../ebay-article-mapping/ebay-article-mapping.component';
 import { EbayAccountStore } from '../../services/ebay-account.store';
+import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 
 @Component({
   selector: 'app-ebay-account',
   imports: [
     DatePipe,
     DecimalPipe,
+    PercentPipe,
+    ProductThumbnailComponent,
     ButtonComponent,
     CardComponent,
     BadgeComponent,
@@ -64,6 +69,11 @@ export class EbayAccountComponent {
   readonly refreshIcon = LucideRefreshCw;
   readonly externalLinkIcon = LucideExternalLink;
   readonly reviewIcon = LucideClipboardCheck;
+  readonly editIcon = LucidePencil;
+  readonly statisticsIcon = LucideChartColumn;
+  editListingLink(connectionId: string, listingId: string): string {
+    return `/marketplaces/ebay/listings/${encodeURIComponent(listingId)}/edit?connection=${encodeURIComponent(connectionId)}`;
+  }
 
   constructor() {
     effect(() => {

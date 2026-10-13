@@ -3,6 +3,8 @@ import type {
   EbayListing,
   EbayOrder,
   EbayPage,
+  EbayListingDetails,
+  EbayTrafficReport,
 } from '../../../../../supabase/functions/_shared/ebay-contracts';
 import type { AccountScope } from './marketplace.models';
 import { parseEbayOrderSource, parseEbayVariationAspects } from './ebay-order-import-response';
@@ -32,10 +34,21 @@ export function parseEbayStatus(responseValue: unknown, workspaceId: string): Eb
   const response = readResponseRecord(responseValue);
   if (typeof response['configured'] !== 'boolean') throw new Error('Ungültige eBay-Antwort.');
   const importAvailable = response['importAvailable'] === true;
+  const listingManagementAvailable = response['listingManagementAvailable'] === true;
+  if (
+    response['listingManagementAvailable'] !== undefined &&
+    typeof response['listingManagementAvailable'] !== 'boolean'
+  )
+    throw new Error('Ungültige eBay-Antwort.');
   if (response['importAvailable'] !== undefined && typeof response['importAvailable'] !== 'boolean')
     throw new Error('Ungültige eBay-Antwort.');
   if (response['connection'] === null)
-    return { configured: response['configured'], importAvailable, connection: null };
+    return {
+      configured: response['configured'],
+      importAvailable,
+      listingManagementAvailable,
+      connection: null,
+    };
   const connection = readResponseRecord(response['connection']);
   const status = connection['status'];
   const environment = connection['environment'];
@@ -48,6 +61,7 @@ export function parseEbayStatus(responseValue: unknown, workspaceId: string): Eb
   return {
     configured: response['configured'],
     importAvailable,
+    listingManagementAvailable,
     connection: {
       workspaceId,
       connectionId: readRequiredText(connection['connectionId']),
@@ -87,6 +101,8 @@ export function parseEbayListing(responseValue: unknown): EbayListing {
     throw new Error('Ungültige eBay-Antwort.');
   return {
     id: readRequiredText(item['id']),
+    imageUrl: readEbayImageUrl(item['imageUrl'], false),
+    watchCount: item['watchCount'] === undefined ? null : readOptionalAmount(item['watchCount']),
     title: readRequiredText(item['title']),
     price: readOptionalAmount(item['price']),
     currency: readNullableText(item['currency']),
@@ -96,6 +112,91 @@ export function parseEbayListing(responseValue: unknown): EbayListing {
     hasVariations: item['hasVariations'] === true,
     variants: item['variants'] === undefined ? [] : parseListingVariants(item['variants']),
   };
+}
+function readEbayImageUrl(responseValue: unknown, hostedOnly = true): string | null {
+  if (responseValue === undefined || responseValue === null) return null;
+  const text = readRequiredText(responseValue);
+  const url = new URL(text);
+  if (
+    url.protocol !== 'https:' ||
+    (hostedOnly && !url.hostname.endsWith('.ebayimg.com')) ||
+    url.username ||
+    url.password ||
+    url.port
+  )
+    throw new Error('Ungültige eBay-Bildadresse.');
+  return text;
+}
+export function parseEbayListingDetails(
+  responseValue: unknown,
+  scope: AccountScope,
+  listingId: string,
+): EbayListingDetails {
+  const row = readResponseRecord(responseValue);
+  if (
+    row['workspaceId'] !== scope.workspaceId ||
+    row['connectionId'] !== scope.connectionId ||
+    row['id'] !== listingId ||
+    !Array.isArray(row['imageUrls']) ||
+    row['imageUrls'].length > 24 ||
+    typeof row['description'] !== 'string' ||
+    !/^[a-f0-9]{64}$/.test(String(row['revision']))
+  )
+    throw new Error('Ungültige eBay-Inseratdaten.');
+  return {
+    ...parseEbayListing(row),
+    description: row['description'],
+    revision: String(row['revision']),
+    imageUrls: row['imageUrls'].map((url) => readEbayImageUrl(url, false) ?? ''),
+  };
+}
+export function parseEbayTrafficReport(
+  responseValue: unknown,
+  scope: AccountScope,
+  listingIds: readonly string[],
+): EbayTrafficReport {
+  const row = readResponseRecord(responseValue);
+  if (
+    row['workspaceId'] !== scope.workspaceId ||
+    row['connectionId'] !== scope.connectionId ||
+    !Array.isArray(row['items'])
+  )
+    throw new Error('Ungültige eBay-Statistik.');
+  const startDate = readRequiredText(row['startDate']),
+    endDate = readRequiredText(row['endDate']);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(endDate))
+    throw new Error('Ungültiger Statistikzeitraum.');
+  const items = row['items'].map((entry) => {
+    const item = readResponseRecord(entry);
+    const listingId = readRequiredText(item['listingId']);
+    if (!listingIds.includes(listingId)) throw new Error('Ungültige eBay-Statistik.');
+    return {
+      listingId,
+      views: readOptionalAmount(item['views']),
+      transactions: readOptionalAmount(item['transactions']),
+      conversionRate: readOptionalAmount(item['conversionRate']),
+    };
+  });
+  if (
+    items.length !== listingIds.length ||
+    new Set(items.map((item) => item.listingId)).size !== items.length
+  )
+    throw new Error('Unvollständige eBay-Statistik.');
+  return {
+    ...scope,
+    startDate,
+    endDate,
+    lastUpdatedDate: readNullableText(row['lastUpdatedDate']),
+    items,
+  };
+}
+export function parseEbayImageUpload(responseValue: unknown, scope: AccountScope): string {
+  const row = readResponseRecord(responseValue);
+  if (row['workspaceId'] !== scope.workspaceId || row['connectionId'] !== scope.connectionId)
+    throw new Error('Ungültige eBay-Bildantwort.');
+  const url = readEbayImageUrl(row['imageUrl']);
+  if (!url) throw new Error('eBay hat keine Bildadresse bestätigt.');
+  return url;
 }
 function parseListingVariants(value: unknown): NonNullable<EbayListing['variants']> {
   if (!Array.isArray(value) || value.length > 200) throw new Error('Ungültige eBay-Varianten.');

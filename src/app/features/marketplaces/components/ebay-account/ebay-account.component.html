@@ -2,7 +2,7 @@
   @if (showData()) {
     <app-page-header
       title="Dein eBay-Konto"
-      subtitle="Eigene Inserate und Bestellungen aus deinem verbundenen Konto."
+      subtitle="Deine Inserate, Statistiken und Bestellungen an einem Ort."
     />
   }
   @if (callbackMessage(); as message) {
@@ -11,8 +11,8 @@
   <app-card title="eBay-Verbindung">
     <div class="space-y-3">
       <p class="text-sm text-fb-text-secondary">
-        Melde dich mit deinem normalen eBay-Konto an und erlaube Flipbase den Lesezugriff. Du
-        brauchst keinen eigenen API-Schlüssel. Die Verbindung gilt für dich in diesem Workspace.
+        Melde dich mit deinem normalen eBay-Konto an und erlaube Flipbase den Zugriff. Du brauchst
+        keinen eigenen API-Schlüssel. Die Verbindung gilt für dich in diesem Workspace.
       </p>
       @if (store.error(); as error) {
         <p role="alert" class="text-sm text-fb-critical">{{ error }}</p>
@@ -53,7 +53,7 @@
           <app-button
             variant="primary"
             [icon]="connectIcon"
-            [disabled]="store.isLoading() || store.isReading()"
+            [disabled]="store.isLoading() || store.isReading() || store.trafficLoading()"
             (clicked)="connect()"
           >
             {{
@@ -65,7 +65,7 @@
         }
         <app-button
           [icon]="refreshIcon"
-          [disabled]="store.isLoading() || store.isReading()"
+          [disabled]="store.isLoading() || store.isReading() || store.trafficLoading()"
           (clicked)="refresh()"
           >Status aktualisieren</app-button
         >
@@ -94,31 +94,57 @@
       <app-button
         [ariaPressed]="store.section() === 'listings'"
         [variant]="store.section() === 'listings' ? 'primary' : 'secondary'"
-        [disabled]="store.isReading()"
+        [disabled]="store.isReading() || store.trafficLoading()"
         (clicked)="store.selectSection('listings')"
         >Aktive Inserate</app-button
       >
       <app-button
         [ariaPressed]="store.section() === 'orders'"
         [variant]="store.section() === 'orders' ? 'primary' : 'secondary'"
-        [disabled]="store.isReading()"
+        [disabled]="store.isReading() || store.trafficLoading()"
         (clicked)="store.selectSection('orders')"
         >Bestellungen</app-button
       >
       <app-button
         [icon]="refreshIcon"
-        [disabled]="store.isLoading() || store.isReading()"
+        [disabled]="store.isLoading() || store.isReading() || store.trafficLoading()"
         (clicked)="store.read(false)"
         >Daten aktualisieren</app-button
       >
     </div>
+    @if (store.section() === 'listings' && store.listingManagementAvailable()) {
+      <app-button
+        [icon]="statisticsIcon"
+        [loading]="store.trafficLoading()"
+        [disabled]="store.isReading() || store.isLoading() || !store.listings().length"
+        (clicked)="store.readTraffic()"
+        >Statistiken laden</app-button
+      >
+      <p class="text-xs text-fb-text-muted">
+        Aufrufe und Verkaufsquote beziehen sich auf die letzten 30 abgeschlossenen Tage. Die Quote
+        zeigt Verkäufe pro Angebotsaufruf. Beobachter sind der aktuelle Stand. Fehlende Werte
+        bleiben unbekannt.
+      </p>
+      @if (store.trafficPeriod(); as period) {
+        <p class="text-xs text-fb-text-muted">
+          Zeitraum (UTC): {{ period.startDate | date: 'dd.MM.yyyy' }} –
+          {{ period.endDate | date: 'dd.MM.yyyy' }}
+          @if (period.lastUpdatedDate) {
+            · eBay-Datenstand: {{ period.lastUpdatedDate | date: 'dd.MM.yyyy HH:mm' }}
+          }
+        </p>
+      }
+      @if (store.trafficError(); as error) {
+        <p role="alert" class="text-sm text-fb-critical">{{ error }}</p>
+      }
+    }
     <p class="text-sm text-fb-text-muted">
       @if (store.section() === 'orders') {
         eBay-Verkäuferbestellungen der letzten 90 Tage. Prüfe Artikel und Kosten, bevor Du einen
         Verkauf buchst.
       } @else {
         Deine aktiven eBay-Inserate, einschließlich Festpreisangeboten und Auktionen. Die Ansicht
-        verändert deine Angebote nicht.
+        zeigt den aktuellen Stand bei eBay.
       }
     </p>
     @if (store.bookingError(); as error) {
@@ -164,6 +190,11 @@
                 <th scope="col" class="px-4 py-3">Inserat</th>
                 <th scope="col" class="px-4 py-3">Aktueller Preis</th>
                 <th scope="col" class="px-4 py-3">Verfügbar</th>
+                @if (store.listingManagementAvailable()) {
+                  <th scope="col" class="px-4 py-3">Beobachter</th>
+                  <th scope="col" class="px-4 py-3">Aufrufe</th>
+                  <th scope="col" class="px-4 py-3">Verkaufsquote</th>
+                }
                 <th scope="col" class="px-4 py-3 text-right">Aktionen</th>
               </tr>
             </thead>
@@ -171,21 +202,54 @@
               @for (listing of store.listings(); track listing.id) {
                 <tr class="border-b border-fb-line text-fb-text-primary">
                   <td class="px-4 py-3">
-                    <span class="block max-w-sm break-words">{{ listing.title }}</span
-                    ><span class="text-xs text-fb-text-muted">{{
-                      listing.listingType === 'Chinese'
-                        ? 'Auktion'
-                        : listing.listingType === 'FixedPriceItem'
-                          ? 'Festpreis'
-                          : 'eBay-Inserat'
-                    }}</span>
+                    <div class="flex items-center gap-3">
+                      <app-product-thumbnail
+                        [src]="listing.imageUrl ?? null"
+                        [alt]="listing.title"
+                      />
+                      <div>
+                        <span class="block max-w-sm break-words">{{ listing.title }}</span
+                        ><span class="text-xs text-fb-text-muted">{{
+                          listing.listingType === 'Chinese'
+                            ? 'Auktion'
+                            : listing.listingType === 'FixedPriceItem'
+                              ? 'Festpreis'
+                              : 'eBay-Inserat'
+                        }}</span>
+                      </div>
+                    </div>
                   </td>
                   <td class="px-4 py-3">
                     {{ listing.price === null ? '–' : (listing.price | number: '1.2-2') }}
                     {{ listing.currency ?? '' }}
                   </td>
                   <td class="px-4 py-3">{{ listing.quantity ?? '–' }}</td>
+                  @if (store.listingManagementAvailable()) {
+                    @let statistics = store.traffic()[listing.id];
+                    <td class="px-4 py-3">{{ listing.watchCount ?? '–' }}</td>
+                    <td class="px-4 py-3">{{ statistics?.views ?? '–' }}</td>
+                    <td class="px-4 py-3">
+                      {{
+                        statistics?.conversionRate === null ||
+                        statistics?.conversionRate === undefined
+                          ? '–'
+                          : (statistics.conversionRate | percent: '1.1-2')
+                      }}
+                    </td>
+                  }
                   <td class="px-4 py-3 text-right">
+                    @if (store.listingManagementAvailable()) {
+                      @if (store.connection(); as connection) {
+                        <app-button
+                          variant="table-action"
+                          [icon]="editIcon"
+                          [iconOnly]="true"
+                          [link]="editListingLink(connection.connectionId, listing.id)"
+                          [ariaLabel]="'Inserat bearbeiten: ' + listing.title"
+                          title="Inserat bearbeiten"
+                        />
+                      }
+                    }
                     @if (store.importAvailable()) {
                       <app-button
                         variant="table-action"

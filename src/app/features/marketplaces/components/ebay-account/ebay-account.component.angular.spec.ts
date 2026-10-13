@@ -50,6 +50,7 @@ describe('Persönliche eBay-Oberfläche', () => {
     disconnect: ReturnType<typeof vi.fn>;
     loadListings: ReturnType<typeof vi.fn>;
     loadOrders: ReturnType<typeof vi.fn>;
+    loadTraffic: ReturnType<typeof vi.fn>;
   };
   beforeAll(async () => {
     const restoreBindings = await prepareMarketplaceRendering([
@@ -132,6 +133,13 @@ describe('Persönliche eBay-Oberfläche', () => {
     workspace.set({ id: 'workspace-a', archived_at: null });
     user.set({ id: 'user-a' });
     api = {
+      loadTraffic: vi.fn(async () => ({
+        ...connection,
+        startDate: '2026-09-01',
+        endDate: '2026-09-30',
+        lastUpdatedDate: null,
+        items: [{ listingId: '123', views: 8, transactions: 1, conversionRate: 0.125 }],
+      })),
       loadStatus: vi.fn(async () => ({ configured: true, connection })),
       connect: vi.fn(),
       disconnect: vi.fn(async () => undefined),
@@ -251,6 +259,36 @@ describe('Persönliche eBay-Oberfläche', () => {
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Eigene Auktion');
     expect(fixture.componentInstance.store.connection()).toBeNull();
+  });
+  it('zeigt Bild, Bearbeitungslink und Verkaufsquote mit zugänglichen Aktionen', async () => {
+    api.loadStatus.mockResolvedValueOnce({
+      configured: true,
+      listingManagementAvailable: true,
+      connection,
+    });
+    const fixture = await render();
+    fixture.componentInstance.store.listings.update((items) =>
+      items.map((item) => ({
+        ...item,
+        imageUrl: 'https://i.ebayimg.com/photo.jpg',
+        watchCount: 0,
+      })),
+    );
+    await fixture.componentInstance.store.readTraffic();
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelector('img')?.getAttribute('src')).toBe(
+      'https://i.ebayimg.com/photo.jpg',
+    );
+    expect(
+      element
+        .querySelector('[aria-label="Inserat bearbeiten: Eigene Auktion"]')
+        ?.getAttribute('href'),
+    ).toContain('/marketplaces/ebay/listings/123/edit');
+    expect(element.textContent).toContain('12.5%');
+    expect(element.textContent).toContain('Beobachter');
+    const results = await axe.run(element, { rules: { 'color-contrast': { enabled: false } } });
+    expect(results.violations).toEqual([]);
   });
   it('bietet Zuordnung erst bei bestätigter Serverfähigkeit an', async () => {
     const disabled = await render();
