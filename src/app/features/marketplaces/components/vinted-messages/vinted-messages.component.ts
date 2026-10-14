@@ -21,9 +21,9 @@ import {
   LucideSend,
   LucideTrash2,
   LucideTag,
-  LucideInfo,
   LucideBot,
   LucideRefreshCw,
+  LucideUser,
 } from '@lucide/angular';
 import imageCompression from 'browser-image-compression';
 import {
@@ -103,7 +103,6 @@ interface ReadingPosition {
     TextFieldComponent,
     LoadingIndicatorComponent,
     LucideTag,
-    LucideInfo,
     LucideBot,
     VintedOfferActionsComponent,
   ],
@@ -113,6 +112,7 @@ interface ReadingPosition {
 })
 export class VintedMessagesComponent {
   readonly retryIcon = LucideRefreshCw;
+  readonly userIcon = LucideUser;
   readonly retryingMessageId = signal<string | null>(null);
   readonly store = inject(MarketplaceAccountStore);
   readonly local = inject(VintedLocalExtensionStore);
@@ -253,6 +253,14 @@ export class VintedMessagesComponent {
         saved?.key === this.conversationKey() ? saved.entry : null,
       );
     return saved?.key === this.conversationKey() ? saved.entry : null;
+  });
+  readonly partnerProfileUrl = computed(() => {
+    const conversation = this.conversation();
+    const partnerId = conversation?.partnerId?.trim();
+    if (partnerId) {
+      return `https://www.vinted.de/member/${encodeURIComponent(partnerId)}`;
+    }
+    return null;
   });
   readonly transcript = computed(() =>
     [...(this.store.messages()?.items ?? [])].reverse().sort((first, second) => {
@@ -732,6 +740,46 @@ export class VintedMessagesComponent {
       : entry.messageType === 'offer_request_message' || entry.messageType === 'offer_message'
         ? 'offer'
         : 'text';
+  }
+
+  systemMessageIcon(entry: MarketplaceEntry): string | null {
+    const text = (entry.text ?? entry.title ?? '').trim();
+    if (!text) return null;
+    if (/^\p{Extended_Pictographic}/u.test(text)) {
+      return null;
+    }
+    const lower = text.toLowerCase();
+    if (
+      lower.includes('verschickt') ||
+      lower.includes('versendet') ||
+      lower.includes('sendung') ||
+      lower.includes('paket') ||
+      lower.includes('versand')
+    ) {
+      return '📦';
+    }
+    if (
+      lower.includes('verkauft') ||
+      lower.includes('kauf') ||
+      lower.includes('bestellung') ||
+      lower.includes('abgeschlossen') ||
+      lower.includes('transaktion')
+    ) {
+      return '🤝';
+    }
+    if (lower.includes('geliefert') || lower.includes('zugestellt') || lower.includes('erhalt')) {
+      return '📬';
+    }
+    if (lower.includes('storniert') || lower.includes('abgebrochen')) {
+      return '❌';
+    }
+    if (lower.includes('bezahlt') || lower.includes('zahlung')) {
+      return '💳';
+    }
+    if (lower.includes('bewertung') || lower.includes('bewertet')) {
+      return '⭐';
+    }
+    return 'ℹ️';
   }
 
   conversationTime(timestamp: string | null): string {
