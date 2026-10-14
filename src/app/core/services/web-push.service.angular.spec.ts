@@ -111,6 +111,78 @@ afterEach(() => {
 });
 
 describe('Server-confirmed push devices', () => {
+  it('reactivates a visible edited selection after stored categories lose permission', async () => {
+    const { service, api } = setup();
+    api.loadSettings.mockResolvedValue({
+      ...settings,
+      binding: { deviceId: '44444444-4444-4444-8444-444444444444', active: false, keyId: 'key1' },
+      preferences: [{ workspaceId, categories: ['order', 'favorite'] }],
+    } as unknown as typeof settings);
+    await service.refreshDevice();
+    expect(service.categories()).toEqual(['order']);
+    expect(service.deviceMessage()).toContain('geändert');
+    service.selectCategories(['order', 'connection']);
+    expect(service.categories()).toEqual(['order', 'connection']);
+    expect(await service.activateDevice()).toBe(true);
+    expect(api.savePreferences).toHaveBeenLastCalledWith(expect.any(String), workspaceId, [
+      'order',
+      'connection',
+    ]);
+  });
+  it('reconciles a dirty draft on permission downgrade without selecting newly available categories', async () => {
+    const { service, api } = setup();
+    api.loadSettings.mockResolvedValue({
+      ...settings,
+      allowedCategories: ['order', 'favorite'],
+    } as typeof settings);
+    await service.refreshDevice();
+    service.selectCategories(['favorite']);
+    api.loadSettings.mockResolvedValue(settings);
+    await service.refreshDevice();
+    expect(service.allowedCategories()).toEqual(['order', 'connection']);
+    expect(service.categories()).toEqual([]);
+    service.selectCategories(['connection']);
+    expect(await service.activateDevice()).toBe(true);
+    expect(api.savePreferences).toHaveBeenLastCalledWith(expect.any(String), workspaceId, [
+      'connection',
+    ]);
+  });
+  it('shows permission changes during activation and requires renewed explicit confirmation', async () => {
+    const { service, api, requestPermission } = setup();
+    api.loadSettings.mockResolvedValue({
+      ...settings,
+      allowedCategories: ['order', 'favorite'],
+    } as typeof settings);
+    await service.refreshDevice();
+    service.selectCategories(['order', 'favorite']);
+    requestPermission.mockImplementationOnce(async () => {
+      api.loadSettings.mockResolvedValue(settings);
+      return 'granted';
+    });
+    expect(await service.activateDevice()).toBe(false);
+    expect(api.register).not.toHaveBeenCalled();
+    expect(api.savePreferences).not.toHaveBeenCalled();
+    expect(service.allowedCategories()).toEqual(['order', 'connection']);
+    expect(service.categories()).toEqual(['order']);
+    expect(service.canActivate()).toBe(true);
+    expect(await service.activateDevice()).toBe(true);
+    expect(api.savePreferences).toHaveBeenLastCalledWith(expect.any(String), workspaceId, [
+      'order',
+    ]);
+  });
+  it('keeps an explicitly empty draft when permissions gain another category', async () => {
+    const { service, api } = setup();
+    await service.refreshDevice();
+    service.selectCategories([]);
+    api.loadSettings.mockResolvedValue({
+      ...settings,
+      allowedCategories: ['order', 'connection', 'favorite'],
+    } as typeof settings);
+    await service.refreshDevice();
+    expect(service.categories()).toEqual([]);
+    expect(await service.activateDevice()).toBe(true);
+    expect(api.savePreferences).toHaveBeenLastCalledWith(expect.any(String), workspaceId, []);
+  });
   it('preserves a visible draft when the initial worker registration completes', async () => {
     const { service } = setup();
     await service.refreshDevice();

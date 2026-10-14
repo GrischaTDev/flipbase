@@ -174,6 +174,24 @@ export class WebPushService {
       navigator.serviceWorker?.removeEventListener('controllerchange', update);
     };
   }
+  private applyCategorySettings(
+    settings: WebPushServerSettings,
+    selection: WebPushCategory[],
+  ): boolean {
+    const permittedSelection = selection.filter((category) =>
+      settings.allowedCategories.includes(category),
+    );
+    this.serverSettings.set(settings);
+    this.categories.set(permittedSelection);
+    const removedCategories = permittedSelection.length !== selection.length;
+    if (removedCategories) {
+      this.preferencesPending = true;
+      this.deviceMessage.set(
+        'Die verfügbaren Kategorien haben sich geändert. Prüfe deine Auswahl und aktiviere dieses Gerät erneut.',
+      );
+    }
+    return removedCategories;
+  }
   async refreshDevice(): Promise<void> {
     if (this.isBusy()) {
       this.refreshRequested = true;
@@ -212,12 +230,11 @@ export class WebPushService {
       this.watchRegistration(registration);
       const subscription = await this.registration?.pushManager?.getSubscription();
       if (sequence !== this.generation) return;
-      this.serverSettings.set(settings);
-      if (!this.preferencesPending)
-        this.categories.set(
-          settings.preferences.find((preference) => preference.workspaceId === workspaceId)
-            ?.categories ?? (settings.binding ? [] : [...settings.allowedCategories]),
-        );
+      const selection = this.preferencesPending
+        ? this.categories()
+        : (settings.preferences.find((preference) => preference.workspaceId === workspaceId)
+            ?.categories ?? (settings.binding ? [] : [...settings.allowedCategories]));
+      const selectionAdjusted = this.applyCategorySettings(settings, selection);
       if (capability !== 'supported') {
         this.deviceStatus.set(capability);
         return;
@@ -260,11 +277,12 @@ export class WebPushService {
         this.deviceStatus.set(
           Notification.permission === 'granted' ? 'ready' : 'permission_required',
         );
-        this.deviceMessage.set(
-          settings.binding?.keyId && settings.binding.keyId !== settings.keyId
-            ? 'Der Push-Schlüssel wurde erneuert. Aktiviere dieses Gerät erneut.'
-            : 'Aktiviere dieses Gerät und wähle die gewünschten Kategorien.',
-        );
+        if (!selectionAdjusted)
+          this.deviceMessage.set(
+            settings.binding?.keyId && settings.binding.keyId !== settings.keyId
+              ? 'Der Push-Schlüssel wurde erneuert. Aktiviere dieses Gerät erneut.'
+              : 'Aktiviere dieses Gerät und wähle die gewünschten Kategorien.',
+          );
       }
     } catch (reason) {
       if (sequence === this.generation) {
@@ -320,10 +338,27 @@ export class WebPushService {
       return await store.runExclusive(async () => {
         const settings = await api.loadSettings(store.getInstallationId(), workspaceId);
         if (!sameContext() || sequence !== this.generation) return false;
+        const previousAllowedCategories = this.allowedCategories();
+        const permissionsChanged =
+          previousAllowedCategories.some(
+            (category) => !settings.allowedCategories.includes(category),
+          ) ||
+          settings.allowedCategories.some(
+            (category) => !previousAllowedCategories.includes(category),
+          );
+        const selectionAdjusted = this.applyCategorySettings(settings, selectedCategories);
         if (!settings.enabled) {
           this.serverSettings.set(settings);
           this.deviceStatus.set('disabled');
           this.deviceMessage.set('Push ist derzeit nicht freigegeben.');
+          return false;
+        }
+        if (permissionsChanged || selectionAdjusted) {
+          this.preferencesPending = true;
+          this.deviceStatus.set('pending');
+          this.deviceMessage.set(
+            'Die verfügbaren Kategorien haben sich geändert. Prüfe deine Auswahl und aktiviere dieses Gerät erneut.',
+          );
           return false;
         }
         if (store.corruptedGenerationIds().length)
