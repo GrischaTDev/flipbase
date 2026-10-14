@@ -708,8 +708,11 @@ for (const challengeStage of ['login', 'identify', 'verify'] as const) {
     const count = calls.length;
     await page.clock.install();
     await page.clock.fastForward(120_000);
-    expect(calls).toHaveLength(count);
+    await expect.poll(() => calls.slice(count).length).toBeGreaterThan(0);
+    expect(calls.slice(count).every((action) => action === 'identify')).toBe(true);
     expect(calls.filter((action) => action === 'login')).toHaveLength(1);
+    expect(calls.filter((action) => action === 'frame')).toHaveLength(1);
+    expect(calls).not.toContain('input');
     expect(calls).not.toContain('close');
     await page.addScriptTag({ content: axe.source });
     expect(

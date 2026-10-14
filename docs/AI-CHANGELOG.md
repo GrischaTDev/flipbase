@@ -49,6 +49,10 @@ eingebunden; der einzige Konflikt im Änderungsprotokoll erhält beide Beiträge
 vorherigen Titel zur ausdrücklichen Aktivierung neuer Konten und kannte den
 neuen Mensch-Prüfung-/SMS-Ablauf nicht. Die Auswahlverträge werden mit den
 tatsächlich geprüften Fällen abgeglichen; kein Browserfall wird entfernt.
+Die drei bisherigen Mensch-Prüfungsfälle erlauben nun ausschließlich die neue
+Statusabfrage; erneute Anmeldungen, Codeübermittlung, Eingaben und Bildabrufe
+bleiben während der ungelösten Prüfung ausgeschlossen.
+Alle sieben betroffenen Browserfälle und die drei Auswahlverträge bestehen lokal.
 
 ## 2026-10-14 - Juna - Systembenachrichtigungen übersichtlicher darstellen
 
