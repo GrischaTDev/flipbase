@@ -1,5 +1,19 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-15 - Juna - Vinted-Postfachkorrektur über PR veröffentlichen
+
+**Freigabe:** Der Nutzer autorisiert Branch-Push, PR-Erstellung, Merge nach
+erfolgreichen Pflichtprüfungen und anschließend das Aufräumen des eigenen
+Zweigs und Arbeitsverzeichnisses. Die geprüfte Korrektur `40b6324a` basiert
+auf dem aktuellen `origin/master` mit `a48177c1`.
+
+**Abschlussweg:** Der PR enthält die nachgewiesene Korrektur der fortlaufend
+wachsenden Vinted-Seitenangabe und die im folgenden Eintrag dokumentierten
+Prüfungen. Nach grünen Pflichtprüfungen folgen Merge-Commit, reguläre
+Veröffentlichung und lesende Kontrolle des Worker-Stands sowie des nächsten
+Abrufs beim Konto „Flipbase“. Produktive Zeitpläne werden nicht manuell
+zurückgesetzt; ausschließlich der eigene Zweig wird aufgeräumt.
+
 ## 2026-10-15 - Juna - Vinted-Abruf bei vollen Gesprächsseiten korrigieren
 
 **Auftrag:** Beim Vinted-Konto „Flipbase“ steht „Abruf wartet“ mit einer
