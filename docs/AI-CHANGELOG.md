@@ -1,5 +1,51 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-14 - Juna - Mobile Update- und Push-Probleme erneut eingrenzen
+
+**Auftrag:** Android bleibt laut Nutzer auf 0.348.0 und bietet nach dem
+Aktualisieren wieder dasselbe Update an. Das iPad zeigt 0.348.1, startet nun
+korrekt über das Home-Symbol und kann die Geräteaktivierung nicht bestätigen.
+Der Nutzer möchte keine wiederholte Nachfrage zum gleichen Meldungstext.
+
+**Serverdiagnose:** Ausschließlich lesende Prüfungen bestätigen die öffentliche
+Auslieferung `7dc53c55`. Eine Apple-Gerätebindung ist aktiv und ihre Sitzung
+gültig, aber es fehlt die gespeicherte Kategorienauswahl. Zwei interne
+Push-RPC-Antworten sind 403. Der ältere der beiden zugehörigen Arbeitsbereiche
+ist archiviert und erlaubt keine Push-Kategorie. Die einzelnen fehlgeschlagenen
+Anfrageinhalte wurden nicht ausgelesen; die konkrete Arbeitsbereichsauswahl
+auf dem iPad ist damit nicht unmittelbar belegt.
+
+**Korrektur:** Ein neuer Start wählt einen nicht archivierten Arbeitsbereich,
+auch wenn bisher die Archivansicht gespeichert war. Aktive gespeicherte
+Auswahlen und die vollständige Liste zum Lesen bleiben erhalten. Push bietet
+ohne Kategorienberechtigung keine Aktivierung an und prüft diese Berechtigung
+erneut vor der Registrierung. Eine unvollständige erste Geräteaktivierung
+bekommt wieder eine sichtbare Anfangsauswahl; vorhandene Einstellungen und
+bewusst ausgeschaltete Kategorien bleiben erhalten. Im normalen iPad-Tab wird
+der Home-App-Hinweis vor dem möglicherweise fehlschlagenden Abonnementabruf
+geprüft. Serverfehler unterscheiden Anmeldung, Drosselung, Geräteaktivierung
+und Kategorienbestätigung, ohne interne Antworten anzuzeigen.
+
+**Updateprüfung:** Der Quellstand der tatsächlich älteren Version `82e09f67`
+wurde in einer isolierten, ignorierten Testkopie als 0.348.0 gebaut. Der Wechsel
+zum neueren Produktionscode besteht dreimal mit Android-Emulation und echten
+Touch-Ereignissen, inklusive Schutz eines ungespeicherten zweiten Fensters
+und erneutem Start. Die dauerhaften Updatefälle bekommen zusätzlich ein
+Android-Projekt. Neue Testansichten müssen fertig starten und vor dem Tippen
+in den Vordergrund wechseln. Der ältere Dienst bietet anderen offenen Tabs
+nach fremder Aktivierung kein erneutes Update an; ihr eigener Neustart lädt
+den neuen Stand. Die gemeldete Schleife auf dem echten Handy ist nicht
+nachgestellt; der Schutz offener Eingaben wird deshalb nicht abgeschwächt.
+
+**Prüfungen:** Neue Regressionen schlagen jeweils vor der passenden Korrektur
+fehl. Danach bestehen 147 gezielte Dienst- und Settings-Tests sowie Lint und
+Typprüfung und Suite-Audit. Die Speicherfälle laufen in der DOM-Suite. Die
+Produktionsbauten sind erfolgreich mit den bestehenden Budget-/CommonJS-Warnungen.
+31 Worker-Prüfungen und vier endgültige Browserfälle (Desktop/Android) bestehen.
+Der endgültige Stand wird vor dem lokalen Commit nochmals gezielt geprüft.
+Keine Schemaänderung und keine Produktionsdatenmutation.
+Fremde Zweige und die bestehenden unversionierten Auditdateien bleiben erhalten.
+
 ## 2026-10-14 - Juna - Folge-PR für Updates und Favoriten-Push abschließen
 
 **Freigabe:** Der Nutzer bestätigt PR-Erstellung, Merge nach erfolgreichen

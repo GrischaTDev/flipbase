@@ -16,10 +16,24 @@ export class WebPushApiService {
     const { data, error } = await this.supabase.client.functions.invoke('push-settings', {
       body: { ...payload, apiVersion: 2 },
     });
-    if (error)
-      throw new Error(
-        'Die Push-Einstellung konnte nicht bestätigt werden. Bitte versuche es erneut.',
-      );
+    if (error) {
+      const status = error.context instanceof Response ? error.context.status : 0;
+      if (status === 401)
+        throw new Error('Deine Anmeldung konnte nicht bestätigt werden. Melde dich erneut an.');
+      if (status === 429)
+        throw new Error('Zu viele Versuche. Warte eine Minute und versuche es dann erneut.');
+      if (status === 403 && payload['action'] === 'preferences')
+        throw new Error(
+          'Die Push-Auswahl ist für diesen Arbeitsbereich nicht freigegeben. Wähle einen aktiven Arbeitsbereich und prüfe erneut.',
+        );
+      const operation =
+        payload['action'] === 'register'
+          ? 'Die Geräteaktivierung'
+          : payload['action'] === 'preferences'
+            ? 'Die Benachrichtigungsauswahl'
+            : 'Die Push-Einstellung';
+      throw new Error(`${operation} konnte nicht bestätigt werden. Bitte versuche es erneut.`);
+    }
     return data;
   }
   async loadSettings(installationId: string, workspaceId?: string): Promise<WebPushServerSettings> {

@@ -1,4 +1,4 @@
-import { defineConfig } from '@playwright/test';
+import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './e2e',
@@ -28,6 +28,11 @@ export default defineConfig({
   },
   projects: [
     { name: 'chromium-pwa', use: { browserName: 'chromium', serviceWorkers: 'allow' } },
+    {
+      name: 'android-pwa-updates',
+      use: { ...devices['Pixel 7'], serviceWorkers: 'allow' },
+      grep: /a real second build|legacy network-worker/,
+    },
     {
       name: 'webkit-ui',
       use: { browserName: 'webkit', serviceWorkers: 'block' },
