@@ -1,5 +1,21 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-14 - Juna - Vinted-Übersichtsseite modernisieren und Synchronisationsstatus anpassen
+
+**Auftrag:** Das Mockup für die modernisierte Vinted-Übersichtsseite 1:1 übernehmen und die Synchronisationsanzeige mit grünem Statuspunkt und Zeitstempel („Zuletzt aktualisiert: DD.MM.YYYY • HH:mm Uhr“) umsetzen.
+
+**Befund:** Das Profil befand sich bisher am Fuß der Übersichtsseite. Die Kennzahlenkarten nutzten einfache Standardkopfzeilen ohne Symbole und Pfeilaktionen. Die rechte Spalte für die Verkäufe besaß keinen illustrierten Leerzustand und die Datumsangaben der Gespräche waren unauffällig als einfacher Text formatiert. In den Kontrollaktionen wurde die erfolgreiche Synchronisierung bisher über ein neutrales Aktualisiert-Badge ohne Statuspunkt dargestellt.
+
+**Änderung:**
+
+- Profilkarte an den Anfang der Übersicht verlegt: Avatar, Name, Handle, Vinted-Bewertung im Format `5,0 ★★★★★ (X Bewertungen)` und Schnellaktionen „Profil ansehen“ sowie „Bewertungen ansehen“ (mit Fragmentunterstützung in `ButtonComponent`).
+- KPI-Karten modernisiert: Eigene Kopfzeilen mit Kleiderbügel-Icon und `+0%`-Badge für Inserate, Sprechblasen-Icon für Gespräche und Einkaufstaschen-Icon für gespeicherte Verkäufe samt Pfeillinks (`→`).
+- Liste der letzten Gespräche: Zeitstempel als abgerundete Pills (`dd.MM., HH:mm`), klare Gliederung und Erhalt des Neu-Badges.
+- Letzte gespeicherte Verkäufe: Moderner illustrierter Leerzustand mit Einkaufstasche und Paket-Icon bei fehlenden Verkäufen.
+- Synchronisationsanzeige in den Vinted-Kontokontrollen: Bei erfolgreichem Stand auf einen grünen Statuspunkt (`bg-emerald-500`) und den Text `Zuletzt aktualisiert: DD.MM.YYYY • HH:mm Uhr` umgestellt.
+
+**Prüfung:** 7 gezielte Angular-Tests in `vinted-overview.component.angular.spec.ts`, 8 Tests in `vinted-account-controls.component.angular.spec.ts`, 18 Tests in `button.component.angular.spec.ts` und 50 Tests in `vinted-workspace.component.angular.spec.ts` erfolgreich. ESLint, Prettier-Formatierung und TypeScript-Typprüfung (`npm run typecheck`) ohne Fehler bestanden.
+
 ## 2026-10-13 - Juna - Mobile PWA-Rückmeldung korrigieren
 
 **Auftrag:** Wiederkehrenden wirkungslosen Updatehinweis auf Android, fehlende mobile Installation, unerwünschtes Desktopangebot und separaten Einkaufsmenüpunkt sowie springendes Tablet-Menü korrigieren. Eigener Zweig juna/pwa-mobile-fixes ab aktuellem origin/master; drei Agents mit getrennten Zuständigkeiten für Installation/Layout, Einkaufsintegration und unabhängige Updateprüfung.

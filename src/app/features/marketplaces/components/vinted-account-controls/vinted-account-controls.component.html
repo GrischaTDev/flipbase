@@ -72,12 +72,13 @@
       }
     </app-badge>
   } @else if (syncedAt(); as syncedAt) {
-    <app-badge tone="neutral" size="md">
-      Aktualisiert
+    <div class="flex items-center gap-1.5 text-xs text-fb-text-secondary">
+      <span class="size-2 rounded-full bg-emerald-500" aria-hidden="true"></span>
       <time [attr.datetime]="syncedAt" [attr.title]="syncedAt | date: 'dd.MM.yyyy, HH:mm:ss'">
-        {{ syncedAt | date: 'HH:mm' }} Uhr · {{ syncedAt | date: 'dd.MM.yy' }}
+        Zuletzt aktualisiert: {{ syncedAt | date: 'dd.MM.yyyy' }} &bull;
+        {{ syncedAt | date: 'HH:mm' }} Uhr
       </time>
-    </app-badge>
+    </div>
   } @else {
     <span class="text-xs text-fb-text-secondary">{{ 'Noch keine Datenübernahme' }}</span>
   }
