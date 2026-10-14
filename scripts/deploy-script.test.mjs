@@ -6,9 +6,43 @@ import { tmpdir } from 'node:os';
 import { join, posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import vm from 'node:vm';
 
 const deployScript = fileURLToPath(new URL('../deploy/deploy.sh', import.meta.url));
 const dockerfile = fileURLToPath(new URL('../docker/Dockerfile', import.meta.url));
+
+test('Push-Smoke meldet den ursprünglichen Startfehler auch ohne erzeugte Container', async () => {
+  const script = await readFile(
+    new URL('../services/push-worker/scripts/smoke-functions.mjs', import.meta.url),
+    'utf8',
+  );
+  const startupError = new Error('fixture: runtime image could not be fetched');
+  const commands = [];
+  const execution = vm.runInNewContext(
+    `(async () => { ${script.replace(/^import .*;\r?\n/gmu, '')} })()`,
+    {
+      assert,
+      resolve: (path) => path,
+      process: {
+        argv: ['node', 'smoke-functions.mjs', 'fixture-image', '/fixture', 'a'.repeat(40)],
+        pid: 123,
+        stderr: { write() {} },
+      },
+      execFileSync: (_command, args) => {
+        commands.push([...args]);
+        if (args[0] === 'run') throw startupError;
+        if (args[0] === 'logs') throw new Error('fixture: no such container');
+        return '';
+      },
+    },
+  );
+  await assert.rejects(execution, (error) => error === startupError);
+  assert.deepEqual(
+    commands.filter((args) => args[0] === 'logs').map((args) => args[1]),
+    ['push-functions-smoke-123', 'push-gateway-smoke-123'],
+  );
+  assert.ok(commands.some((args) => args.join(' ') === 'network rm push-functions-smoke-123'));
+});
 
 test('Produktions-Nginx akzeptiert die tatsächlichen Auslieferungsregeln', async () => {
   const root = fileURLToPath(new URL('../', import.meta.url));
