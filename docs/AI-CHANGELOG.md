@@ -45,6 +45,11 @@ Veröffentlichung und der historische Auslöser des ersten IP-Fehlers bleiben of
 und anschließende Bereinigung sind freigegeben. Aktuellen `origin/master`
 eingebunden; der einzige Konflikt im Änderungsprotokoll erhält beide Beiträge.
 
+**CI-Korrektur:** Die feste Liste der Browser-Pflichtfälle enthielt noch die
+vorherigen Titel zur ausdrücklichen Aktivierung neuer Konten und kannte den
+neuen Mensch-Prüfung-/SMS-Ablauf nicht. Die Auswahlverträge werden mit den
+tatsächlich geprüften Fällen abgeglichen; kein Browserfall wird entfernt.
+
 ## 2026-10-14 - Juna - Systembenachrichtigungen übersichtlicher darstellen
 
 **Auftrag:** Die abgestimmte Darstellung mit transparentem PC-Logo, kurzen
