@@ -86,7 +86,17 @@ Info-Symbol. Die gemeinsamen Buttons erhalten dafür eine ausdrückliche
 `touch`-Größe mit 44 px Mindesthöhe, die gemeinsamen Checkboxen eine vollständig
 bedienbare `row`-Darstellung mit 64 px Mindesthöhe. Das sind bewusst gewünschte
 Flipbase-Maße; sie werden nicht als gemessene Shopify-Originalwerte ausgegeben.
-Die bisherigen Größen anderer Seiten bleiben erhalten.
+Die bisherigen Button-Größen außerhalb der überarbeiteten Einstellungen bleiben
+erhalten. Die mobile Navigation wird bei vergrößerter Schrift auf die verfügbare
+Bildschirmbreite begrenzt; ihre Ziele bleiben beschriftet und bedienbar.
+
+Ergänzung vom 14.10.2026: Die übrigen Einstellungen übernehmen dieselben größeren
+Aktionen und Auswahlflächen. „App & Geräte“ entfällt; technische App- und
+Netzwerkdiagnosen gehören nicht in die normalen Einstellungen. Installation bleibt
+im Menü verfügbar. Alte `/settings/app`-Links führen zu „Marktplätze“. Die persönliche
+eBay-Verbindung wird ausschließlich unter eBay verwaltet und von „Marktplätze“ aus
+verlinkt. Ohne Verbindung erscheint ein zentrierter Anmeldeeinstieg; verbundenes
+Konto und Trennen bleiben klar getrennt. Daten und Protokolle bleiben ausgenommen.
 
 Wiederkehrende sichtbare Grundelemente der Verwaltungsoberfläche werden zentral unter `src/app/shared/components/` umgesetzt. Feature-Templates setzen diese Bausteine zusammen und liefern Fachwerte, Labels, Form-Controls, Validierung und Ereignisse. Sie definieren keine eigenen Varianten für Geometrie, Radius, Rahmen, Schatten, Typografie, Fokus oder semantische Statusfarben, wenn dafür bereits eine Shared-Komponente existiert.
 

@@ -1,5 +1,51 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-14 - Juna - Einstellungen vereinheitlichen und eBay-Verbindung bündeln
+
+**Auftrag:** Die übrigen Einstellungstabs im selben Zweig wie die PWA-/Push-Fixes
+durchgehen, technische und doppelte Bereiche aufräumen und die eBay-Anmeldung
+verständlich gestalten. Daten und Protokolle ausdrücklich ausgenommen.
+
+**Umsetzung:** Der technische Tab „App & Geräte“ samt ungenutzter Komponente
+entfällt. Installation bleibt über das Menü erreichbar; alte `/settings/app`-Links
+führen zu „Marktplätze“. Dort verlinkt eBay direkt auf die vorhandene
+Kontoverbindung unter eBay. Ohne verbundenes Konto erscheint eine zentrierte Karte
+mit Anmeldung und Statusprüfung; bestätigtes Konto, erneute Verbindung und Trennen
+sind übersichtlich gegliedert. Die bestehende persönliche Einzelverbindung und
+der serverseitige Anmeldeablauf bleiben erhalten. eBay erlaubt grundsätzlich mehrere
+Konten; eine Mehrkontenfunktion war ausdrücklich nicht gewünscht.
+
+**Gestaltung:** Konto, Unternehmen, Workspace, Nummernkreise, Team, Marktplätze,
+Benachrichtigungen, Shop-Zahlungen und Versand wurden durchgesehen. Gemeinsame Karten
+und Touchbuttons ersetzen lokale Buttonnachbauten; große Auswahlzeilen ersetzen
+kleine unbeschriftete Schalter. Normale Überschriften, kürzere Beschriftungen und
+ruhige Icons verbessern die Lesbarkeit. Webhooks heißen nicht mehr irreführend
+System-Push; bestehende Konfigurationen und Aktionen bleiben unverändert.
+Die Nummernformatvorschau erhält eine korrekte Überschriftenebene. Lange Texte
+passen auch bei vergrößerter Schrift in die Karten. Sidebar und Schnellnavigation
+bleiben bei 200 Prozent Schriftgröße innerhalb der Bildschirmbreite.
+
+**Installation:** Der echte WebKit-Klick reproduziert fehlenden Rückkehrfokus,
+weil Safari den nativen Menübutton nicht automatisch fokussiert. Der auslösende
+Button erhält nun vor dem Öffnen der Installationshilfe ausdrücklich den Fokus;
+die bestehende Dialoglogik stellt ihn beim Schließen wieder her.
+
+**Prüfung:** 26 gemeinsame Browserabläufe in Chromium und WebKit erfolgreich.
+Neun Einstellungsbereiche in 390/1024/1280 px und beiden Themes geprüft, einschließlich
+AXE mit Kontrast und ungefangener Seitenfehler. Hinzu kommen Installation,
+Safe Areas, 200 Prozent Schriftgröße, echte Worker-Updates und Offline-Dateien.
+Der simulierte eBay-Ablauf prüft Einstellungslink, Anmeldeaufruf und die bestätigte
+Kontokarte; native eBay-Anmeldung wird damit nicht behauptet. 128 gezielte
+Angularfälle, 32 Einstellungs-/Modellprüfungen sowie separat 21 Navigationsprüfungen
+bestanden. Die beiden neuen Browserfälle sind in der verbindlichen PR-Auswahl
+registriert; alle drei Auswahlverträge bestehen. Produktionsbauten mit 261 geprüften
+App-Dateien, Anwendungstypen, Lint, Format, Shared-UI-Prüfung und Suite-Audit erfolgreich.
+Kontrastprüfungen warten auf das Ende der gesamten Einblendanimation; die
+Produktions-CSP bleibt unverändert. Keine Datenbank- oder Daten-/Protokolländerung.
+Aktuellen Hauptzweig abgerufen; Basis weiterhin `382bf13c`. Frühere Push-/Update-Fixes
+bleiben Teil desselben geplanten PR. Echte Systemzustellung auf gesperrten Geräten
+bleibt nach Veröffentlichung zu prüfen.
+
 ## 2026-10-14 - Juna - Versionswechsel und System-Push prüfen, Einstellungen vereinfachen
 
 **Auftrag:** Wiederkehrenden Update-Hinweis auf dem iPad untersuchen, ausbleibende

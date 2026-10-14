@@ -8,6 +8,7 @@ import { MarketplaceSettingsService } from '../../../../core/services/marketplac
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { MarketplacesSettingsComponent } from './marketplaces-settings.component';
 
 class MockPageComponent {}
@@ -16,6 +17,7 @@ Component({ selector: 'app-mock-page', template: '' })(MockPageComponent);
 interface AngularInputMetadata {
   inputs: Record<string, unknown>;
   declaredInputs: Record<string, string>;
+  outputs: Record<string, string>;
 }
 
 function registerSignalInputs(component: unknown, inputNames: readonly string[]): void {
@@ -42,7 +44,17 @@ describe('MarketplacesSettingsComponent', () => {
 
     registerSignalInputs(CardComponent, ['padding']);
     registerSignalInputs(BadgeComponent, ['tone']);
-    registerSignalInputs(CustomCheckboxComponent, ['checked', 'ariaLabel']);
+    registerSignalInputs(CustomCheckboxComponent, [
+      'checked',
+      'ariaLabel',
+      'label',
+      'presentation',
+      'size',
+    ]);
+    registerSignalInputs(ButtonComponent, ['size', 'icon', 'link']);
+    const checkboxMetadata = (CustomCheckboxComponent as unknown as { ɵcmp: AngularInputMetadata })
+      .ɵcmp;
+    checkboxMetadata.outputs = { ...checkboxMetadata.outputs, checkedChange: 'checked' };
   });
 
   beforeEach(async () => {
@@ -83,5 +95,15 @@ describe('MarketplacesSettingsComponent', () => {
 
     expect(service.isVintedEnabled()).toBe(false);
     expect(fixture.nativeElement.textContent).toContain('2 von 3 aktiv');
+  });
+  it('öffnet die eBay-Kontoverbindung und verbirgt sie nach Abschalten des Kanals', () => {
+    const fixture = TestBed.createComponent(MarketplacesSettingsComponent);
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelector('a[href="/marketplaces/ebay/connection"]')).not.toBeNull();
+    element.querySelector<HTMLButtonElement>('[aria-label="eBay Marktplatz aktivieren"]')?.click();
+    fixture.detectChanges();
+    expect(element.querySelector('a[href="/marketplaces/ebay/connection"]')).toBeNull();
+    expect(element.textContent).toContain('2 von 3 aktiv');
   });
 });

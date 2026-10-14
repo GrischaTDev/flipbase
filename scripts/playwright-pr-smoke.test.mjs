@@ -10,6 +10,14 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 // Nur die tatsächliche Testauswahl prüfen, nicht Playwrights Parser nachtesten.
 const coreTests = [
   [
+    'settings-layout.spec.ts',
+    'settings use clear sections and accessible controls across desktop and tablet @pwa-layout',
+  ],
+  [
+    'settings-layout.spec.ts',
+    'eBay has a centered connection entry and keeps the connected account in its marketplace @pwa-layout',
+  ],
+  [
     'pwa-install-device.spec.ts',
     'preserves the original mark geometry on white install icons and safe masks @pwa-layout',
   ],

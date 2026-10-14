@@ -7,27 +7,27 @@
   >
     <div class="flex flex-wrap items-center justify-between gap-2 border-b border-fb-border pb-2">
       <div class="flex items-center gap-2">
-        <svg [lucideIcon]="cardIcon" class="h-4 w-4 text-emerald-400" aria-hidden="true"></svg>
-        <h2
-          id="store-heading"
-          class="text-xs font-bold uppercase tracking-wider text-fb-text-primary"
-        >
-          Webshop & Zahlungs-Gateways
+        <svg
+          [lucideIcon]="cardIcon"
+          class="h-4 w-4 text-fb-text-secondary"
+          aria-hidden="true"
+        ></svg>
+        <h2 id="store-heading" class="text-base font-semibold text-fb-text-primary">
+          Zahlungsarten für deinen Shop
         </h2>
       </div>
       <app-badge tone="info">Stripe & PayPal</app-badge>
     </div>
-    <p class="text-xs text-fb-text-muted">
-      Verwalte die Zahlungsmethoden für deinen öffentlichen Flipbase Online-Shop (/shop).
-    </p>
+    <p class="text-xs text-fb-text-muted">Wähle die Zahlungsarten für deinen Online-Shop.</p>
     <fieldset class="space-y-3">
       <legend class="sr-only">Zahlungsmethoden</legend>
-      <div
-        class="flex items-center justify-between rounded-xl border border-fb-border bg-fb-subtle p-3 text-xs font-semibold text-fb-text-primary"
-      >
-        <span>Stripe (Kreditkarte / Apple Pay)</span>
-        <app-custom-checkbox formControlName="stripeEnabled" ariaLabel="Stripe aktivieren" />
-      </div>
+      <app-custom-checkbox
+        presentation="row"
+        size="lg"
+        label="Stripe (Kreditkarte / Apple Pay)"
+        formControlName="stripeEnabled"
+        ariaLabel="Stripe aktivieren"
+      />
       @if (paymentForm.controls.stripeEnabled.value) {
         <app-text-field
           formControlName="stripePublishableKey"
@@ -36,12 +36,13 @@
           [monospaced]="true"
         />
       }
-      <div
-        class="flex items-center justify-between rounded-xl border border-fb-border bg-fb-subtle p-3 text-xs font-semibold text-fb-text-primary"
-      >
-        <span>PayPal Express</span>
-        <app-custom-checkbox formControlName="paypalEnabled" ariaLabel="PayPal aktivieren" />
-      </div>
+      <app-custom-checkbox
+        presentation="row"
+        size="lg"
+        label="PayPal Express"
+        formControlName="paypalEnabled"
+        ariaLabel="PayPal aktivieren"
+      />
       @if (paymentForm.controls.paypalEnabled.value) {
         <app-text-field
           type="email"
@@ -50,18 +51,13 @@
           placeholder="PayPal Händler-E-Mail"
         />
       }
-      <div
-        class="flex items-center justify-between rounded-xl border border-fb-border bg-fb-subtle p-3 text-xs font-semibold text-fb-text-primary"
-      >
-        <span class="flex items-center gap-2">
-          <svg [lucideIcon]="bankIcon" class="h-4 w-4" aria-hidden="true"></svg>
-          Banküberweisung (SEPA Vorkasse)
-        </span>
-        <app-custom-checkbox
-          formControlName="bankTransferEnabled"
-          ariaLabel="Banküberweisung aktivieren"
-        />
-      </div>
+      <app-custom-checkbox
+        presentation="row"
+        size="lg"
+        label="Banküberweisung (SEPA Vorkasse)"
+        formControlName="bankTransferEnabled"
+        ariaLabel="Banküberweisung aktivieren"
+      />
       @if (paymentForm.controls.bankTransferEnabled.value) {
         <div class="space-y-2 rounded-xl border border-fb-border bg-fb-subtle p-3 text-sm">
           @if (company.isLoading()) {
@@ -70,7 +66,11 @@
             <p class="text-fb-text-secondary" role="alert">
               Unternehmensbankdaten konnten nicht geladen werden.
             </p>
-            <app-button variant="secondary" (clicked)="retryCompanyLoad()"
+            <app-button
+              [wrapLabel]="true"
+              size="touch"
+              variant="secondary"
+              (clicked)="retryCompanyLoad()"
               >Unternehmensdaten erneut laden</app-button
             >
           } @else if (storeService.companyBankAccount(); as account) {
@@ -84,7 +84,7 @@
               Für Banküberweisung fehlen Kontoinhaber oder eine gültige IBAN im Unternehmensprofil.
             </p>
           }
-          <app-button variant="secondary" link="/settings/company"
+          <app-button [wrapLabel]="true" size="touch" variant="secondary" link="/settings/company"
             >Bankdaten unter Unternehmen pflegen</app-button
           >
         </div>
@@ -92,6 +92,8 @@
     </fieldset>
     <div class="flex justify-end">
       <app-button
+        [wrapLabel]="true"
+        size="touch"
         variant="primary"
         type="submit"
         [loading]="isSavingPaymentConfig()"

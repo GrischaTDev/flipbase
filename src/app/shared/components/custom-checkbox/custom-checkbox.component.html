@@ -91,6 +91,8 @@
       class="font-medium text-fb-text-secondary group-hover:text-fb-text-primary transition-colors select-none"
       [class.text-xs]="presentation() === 'default'"
       [class.text-sm]="presentation() === 'row'"
+      [class.min-w-0]="presentation() === 'row'"
+      [class.wrap-anywhere]="presentation() === 'row'"
     >
       {{ label() }}
     </span>

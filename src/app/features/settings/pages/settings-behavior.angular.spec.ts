@@ -20,9 +20,9 @@ import { CarrierConfig } from '../../../core/models/fulfillment.models';
 import { PaymentGatewayConfig } from '../../../core/models/store.models';
 import { WebhookConfig } from '../../../core/models/webhook.models';
 import { AuthService } from '../../../core/services/auth.service';
-import { EbayAccountApiService } from '../../marketplaces/services/ebay-account-api.service';
+
 import { FulfillmentService } from '../../../core/services/fulfillment.service';
-import { PwaService } from '../../../core/services/pwa.service';
+
 import { StoreService } from '../../../core/services/store.service';
 import { SyncStatusService } from '../../../core/services/sync-status.service';
 import { WebPushService, WebPushSettings } from '../../../core/services/web-push.service';
@@ -44,7 +44,7 @@ import { CardComponent } from '../../../shared/components/card/card.component';
 import { ModalShellComponent } from '../../../shared/components/modal-shell/modal-shell.component';
 import { ModalDialogDirective } from '../../../shared/directives/modal-dialog.directive';
 import { AccountSettingsComponent } from './account-settings/account-settings.component';
-import { AppSettingsComponent } from './app-settings/app-settings.component';
+
 import { NotificationSettingsComponent } from './notification-settings/notification-settings.component';
 import { ShippingSettingsComponent } from './shipping-settings/shipping-settings.component';
 import { StoreSettingsComponent } from './store-settings/store-settings.component';
@@ -109,7 +109,7 @@ const resourceFiles: Readonly<Record<string, string>> = {
   'table-column-picker.component.html':
     '../../../shared/components/table-column-picker/table-column-picker.component.html',
   'account-settings.component.html': './account-settings/account-settings.component.html',
-  'app-settings.component.html': './app-settings/app-settings.component.html',
+
   'notification-settings.component.html':
     './notification-settings/notification-settings.component.html',
   'shipping-settings.component.html': './shipping-settings/shipping-settings.component.html',
@@ -2068,7 +2068,7 @@ describe('Versandeinstellungen – echte Angular-Fixture', () => {
     fixture.componentInstance.carrierForm.controls.senderEmail.markAsTouched();
     fixture.detectChanges();
 
-    expect(renderedButton(fixture, 'Carrier-Einstellungen speichern').disabled).toBe(true);
+    expect(renderedButton(fixture, 'Versandeinstellungen speichern').disabled).toBe(true);
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Name ist erforderlich.');
     expect((fixture.nativeElement as HTMLElement).textContent).toContain(
       'Bitte gib eine gültige E-Mail-Adresse ein.',
@@ -2090,7 +2090,7 @@ describe('Versandeinstellungen – echte Angular-Fixture', () => {
     renderedButton(fixture, 'Erneut laden').click();
 
     expect(fulfillmentService.loadFromSupabase).toHaveBeenCalledWith('workspace-a');
-    expect(renderedButton(fixture, 'Carrier-Einstellungen speichern').disabled).toBe(true);
+    expect(renderedButton(fixture, 'Versandeinstellungen speichern').disabled).toBe(true);
   });
 
   it('leert A-Geheimnisse beim Wechsel, ignoriert verspätetes A und patcht erst geladenes B', async () => {
@@ -2105,7 +2105,7 @@ describe('Versandeinstellungen – echte Angular-Fixture', () => {
     expect(fixture.componentInstance.carrierForm.controls.dhlApiKey.value).toBe('');
     expect(fixture.componentInstance.carrierForm.controls.hermesApiKey.value).toBe('');
     expect(fixture.componentInstance.isLoadingWorkspaceConfig()).toBe(true);
-    expect(renderedButton(fixture, 'Carrier-Einstellungen speichern').disabled).toBe(true);
+    expect(renderedButton(fixture, 'Versandeinstellungen speichern').disabled).toBe(true);
 
     config.set(carrierConfig('dhl-late-a-secret'));
     loadedWorkspaceId.set('workspace-a');
@@ -2145,7 +2145,7 @@ describe('Versandeinstellungen – echte Angular-Fixture', () => {
     });
     fixture.detectChanges();
 
-    renderedButton(fixture, 'Carrier-Einstellungen speichern').click();
+    renderedButton(fixture, 'Versandeinstellungen speichern').click();
     await flushAsyncAction(fixture);
 
     expect(fulfillmentService.updateCarrierConfig).toHaveBeenCalledOnce();
@@ -2174,7 +2174,7 @@ describe('Versandeinstellungen – echte Angular-Fixture', () => {
     const { fixture, loadedWorkspaceId, fulfillmentService, toast } = await renderShipping();
     loadedWorkspaceId.set(null);
     flushEffects(fixture);
-    const saveButton = renderedButton(fixture, 'Carrier-Einstellungen speichern');
+    const saveButton = renderedButton(fixture, 'Versandeinstellungen speichern');
 
     expect(saveButton.disabled).toBe(true);
     saveButton.click();
@@ -2189,7 +2189,7 @@ describe('Versandeinstellungen – echte Angular-Fixture', () => {
       updateResult: { data: null, error: null, reportedBySyncStatus: false },
     });
 
-    renderedButton(fixture, 'Carrier-Einstellungen speichern').click();
+    renderedButton(fixture, 'Versandeinstellungen speichern').click();
     await flushAsyncAction(fixture);
 
     expectOnlyToast(
@@ -2210,7 +2210,7 @@ describe('Versandeinstellungen – echte Angular-Fixture', () => {
       },
     });
 
-    renderedButton(fixture, 'Carrier-Einstellungen speichern').click();
+    renderedButton(fixture, 'Versandeinstellungen speichern').click();
     await flushAsyncAction(fixture);
 
     expectOnlyToast(
@@ -2226,7 +2226,7 @@ describe('Versandeinstellungen – echte Angular-Fixture', () => {
       updateResult: { data: null, error: new Error('Sync-Fehler'), reportedBySyncStatus: true },
     });
 
-    renderedButton(fixture, 'Carrier-Einstellungen speichern').click();
+    renderedButton(fixture, 'Versandeinstellungen speichern').click();
     await flushAsyncAction(fixture);
 
     expect(toast.toasts()).toEqual([]);
@@ -2237,7 +2237,7 @@ describe('Versandeinstellungen – echte Angular-Fixture', () => {
     const { fixture, fulfillmentService, syncStatus, toast } = await renderShipping();
     fulfillmentService.updateCarrierConfig.mockRejectedValueOnce(new Error('Datenbank offline'));
 
-    renderedButton(fixture, 'Carrier-Einstellungen speichern').click();
+    renderedButton(fixture, 'Versandeinstellungen speichern').click();
     await flushAsyncAction(fixture);
 
     expect(syncStatus.istZentralGemeldet).toHaveBeenCalledWith(expect.any(Error));
@@ -2259,7 +2259,7 @@ describe('Versandeinstellungen – echte Angular-Fixture', () => {
       .mockReturnValueOnce(updateA.promise)
       .mockReturnValueOnce(updateB.promise);
 
-    renderedButton(fixture, 'Carrier-Einstellungen speichern').click();
+    renderedButton(fixture, 'Versandeinstellungen speichern').click();
     await Promise.resolve();
     expect(fixture.componentInstance.isSavingCarrierConfig()).toBe(true);
 
@@ -2308,7 +2308,7 @@ describe('Versandeinstellungen – echte Angular-Fixture', () => {
       .mockReturnValueOnce(updateA.promise)
       .mockReturnValueOnce(updateB.promise);
 
-    renderedButton(fixture, 'Carrier-Einstellungen speichern').click();
+    renderedButton(fixture, 'Versandeinstellungen speichern').click();
     await Promise.resolve();
     currentWorkspace.set(workspace('workspace-b', 'Workspace B'));
     loadedWorkspaceId.set(null);
@@ -2342,102 +2342,5 @@ describe('Versandeinstellungen – echte Angular-Fixture', () => {
       currentError.message,
     );
     expect(fixture.componentInstance.isSavingCarrierConfig()).toBe(false);
-  });
-});
-
-async function renderApp(
-  options: {
-    readonly installed?: boolean;
-    readonly online?: boolean;
-    readonly mobile?: boolean;
-  } = {},
-) {
-  const pwaService = {
-    isOnline: signal(options.online ?? true),
-    isInstalled: signal(options.installed ?? false),
-    isStandalone: signal(options.installed ?? false),
-    showInstallationOffer: signal((options.mobile ?? true) && !options.installed),
-    installState: signal(options.installed ? 'standalone' : 'prompt_available'),
-    offlineAssetsReady: signal(false),
-    assetsMessage: signal('App-Dateien werden geprüft.'),
-    installationHelp: signal('Nutze das Installationsmenü deines Browsers.'),
-    startInstallation: vi.fn(),
-    isInstalling: signal(false),
-  };
-  const ebayApiService = {
-    loadStatus: vi.fn(async () => ({ configured: true, connection: null })),
-  };
-  await TestBed.configureTestingModule({
-    imports: [AppSettingsComponent],
-    providers: [
-      ToastService,
-      provideRouter([]),
-      { provide: PwaService, useValue: pwaService },
-      { provide: AuthService, useValue: { currentUser: signal({ id: 'user-1' }) } },
-      {
-        provide: WorkspaceService,
-        useValue: { currentWorkspace: signal(workspace('workspace-a', 'Workspace A')) },
-      },
-      { provide: EbayAccountApiService, useValue: ebayApiService },
-    ],
-  }).compileComponents();
-  const fixture = TestBed.createComponent(AppSettingsComponent);
-  fixture.detectChanges();
-  await flushAsyncAction(fixture);
-  return { fixture, pwaService, ebayApiService, toast: TestBed.inject(ToastService) };
-}
-
-describe('App-Einstellungen – echte Angular-Fixture', () => {
-  it('zeigt auf Desktop weder Installationsangebot noch Installationsanleitung', async () => {
-    const { fixture } = await renderApp({ mobile: false });
-    const host = fixture.nativeElement as HTMLElement;
-    expect(host.textContent).not.toContain('App installieren');
-    expect(host.textContent).not.toContain('Nutze das Installationsmenü');
-    expect(host.querySelector('a[href="/purchases"]')).toBeNull();
-    expect(host.querySelector('a[href="/offline/purchases"]')).toBeNull();
-  });
-  it('zeigt die persönliche eBay-Verbindung und lädt ihren bestätigten Status erneut', async () => {
-    const { fixture, ebayApiService, toast } = await renderApp();
-    expect(renderedButton(fixture, 'Mit eBay verbinden').disabled).toBe(false);
-    expect(
-      (fixture.nativeElement as HTMLElement).querySelector('[formControlName="appId"]'),
-    ).toBeNull();
-    expect(ebayApiService.loadStatus).toHaveBeenCalledWith('workspace-a');
-
-    renderedButton(fixture, 'Status aktualisieren').click();
-    await flushAsyncAction(fixture);
-
-    expect(ebayApiService.loadStatus).toHaveBeenCalledTimes(2);
-    expect(toast.toasts()).toEqual([]);
-  });
-
-  it('bindet den gerenderten PWA-Installationsbutton an den Installationsdialog', async () => {
-    const { fixture, pwaService, toast } = await renderApp();
-    const renderedText = (fixture.nativeElement as HTMLElement).textContent;
-
-    expect(renderedText).toContain('Netzwerk verfügbar');
-    expect(renderedText).toContain('Im Web-Browser');
-
-    renderedButton(fixture, 'App installieren').click();
-    await flushAsyncAction(fixture);
-
-    expect(pwaService.startInstallation).toHaveBeenCalledOnce();
-    expect(toast.toasts()).toEqual([]);
-  });
-
-  it('rendert eine installierte App offline ohne erneute Installationsaktion', async () => {
-    const { fixture, pwaService, toast } = await renderApp({ installed: true, online: false });
-    const host = fixture.nativeElement as HTMLElement;
-
-    expect(host.textContent).toContain('Keine Netzwerkverbindung');
-    expect(host.textContent).toContain('Eigenständiges App-Fenster');
-    expect(host.textContent).toContain('im eigenständigen App-Fenster geöffnet.');
-    expect(
-      Array.from(host.querySelectorAll<HTMLButtonElement>('button')).find(
-        (button) => button.textContent?.replace(/\s+/g, ' ').trim() === 'App installieren',
-      ),
-    ).toBeUndefined();
-    expect(pwaService.startInstallation).not.toHaveBeenCalled();
-    expect(toast.toasts()).toEqual([]);
   });
 });

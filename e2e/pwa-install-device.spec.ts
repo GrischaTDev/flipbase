@@ -169,14 +169,15 @@ test.describe('Android install dialog', () => {
     page,
   }) => {
     await mockBackend(page);
-    await page.goto('/settings/app');
+    await page.goto('/settings/notifications');
+    await page.getByRole('button', { name: 'Menü', exact: true }).click();
     const install = page
-      .locator('app-app-settings')
+      .locator('app-sidebar')
       .getByRole('button', { name: 'App installieren', exact: true });
     await install.click();
     const dialog = page.getByRole('dialog', { name: 'Flipbase installieren' });
     await expect(dialog).toBeVisible();
-    await expect(page).toHaveURL(/\/settings\/app$/);
+    await expect(page).toHaveURL(/\/settings\/notifications$/);
     const geometry = await dialog.evaluate((element) => {
       const card = element.firstElementChild;
       if (!card) throw new Error('Dialog card missing');
@@ -239,7 +240,7 @@ test.describe('Android install dialog', () => {
     await page.evaluate(() => window.dispatchEvent(new Event('appinstalled')));
     await expect(install).toHaveCount(0);
     await page.reload();
-    await expect(page.locator('app-app-settings')).toBeVisible();
+    await expect(page.locator('app-notification-settings')).toBeVisible();
     await expect(install).toHaveCount(0);
   });
 });

@@ -15,7 +15,6 @@ import {
   LucideDynamicIcon,
   LucideIconInput,
   LucidePackage,
-  LucideSmartphone,
   LucideStore,
   LucideUser,
   LucideUsers,
@@ -65,13 +64,13 @@ export const SETTINGS_NAVIGATION: readonly SettingsNavigationItem[] = [
   {
     path: 'marketplaces',
     label: 'Marktplätze',
-    description: 'Verkaufskanäle ein- und ausschalten',
+    description: 'Verkaufskanäle und Kontoverbindungen',
     icon: LucideStore,
   },
   {
     path: 'notifications',
     label: 'Benachrichtigungen',
-    description: 'Webhooks und Browser-Push',
+    description: 'Push und weitere Benachrichtigungen',
     icon: LucideBell,
   },
   {
@@ -86,7 +85,6 @@ export const SETTINGS_NAVIGATION: readonly SettingsNavigationItem[] = [
     description: 'Versanddienste anbinden',
     icon: LucidePackage,
   },
-  { path: 'app', label: 'App & Geräte', description: 'PWA und Geräte', icon: LucideSmartphone },
   {
     path: 'data',
     label: 'Daten & Protokolle',

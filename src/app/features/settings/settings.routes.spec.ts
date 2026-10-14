@@ -3,8 +3,16 @@ import { describe, expect, it } from 'vitest';
 import { SETTINGS_ROUTES } from './settings.routes';
 import { MARKETPLACES_ROUTES } from '../marketplaces/marketplaces.routes';
 import { marketplaceAccessGuard } from '../marketplaces/guards/marketplace-access.guard';
+import { SETTINGS_NAVIGATION } from './settings-shell/settings-shell.component';
 
 describe('SETTINGS_ROUTES', () => {
+  it('führt alte App-Links zu Marktplätzen und bietet keinen technischen App-Tab mehr an', () => {
+    expect(SETTINGS_NAVIGATION.some((item) => item.path === 'app')).toBe(false);
+    expect(SETTINGS_ROUTES[0].children?.find((route) => route.path === 'app')).toMatchObject({
+      redirectTo: 'marketplaces',
+      pathMatch: 'full',
+    });
+  });
   it('hält alle Einstellungsbereiche unter einer gemeinsamen Shell und leitet sicher um', () => {
     expect(SETTINGS_ROUTES).toHaveLength(1);
     const shell = SETTINGS_ROUTES[0];
@@ -35,7 +43,7 @@ describe('SETTINGS_ROUTES', () => {
     const children = SETTINGS_ROUTES[0].children ?? [];
     const contentRoutes = children.filter((route) => route.loadComponent);
 
-    expect(contentRoutes).toHaveLength(12);
+    expect(contentRoutes).toHaveLength(11);
     expect(contentRoutes.every((route) => typeof route.loadComponent === 'function')).toBe(true);
     const companyRoute = contentRoutes.find((route) => route.path === 'company');
     expect(companyRoute?.canDeactivate).toHaveLength(1);
