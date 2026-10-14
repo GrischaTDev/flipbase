@@ -63,10 +63,10 @@ async function verify() {
     throw new Error('Die Landingpage hat keine Canonical-URL.');
   }
   const scriptTags = [...html.matchAll(/<script\b([^>]*)>[\s\S]*?<\/script>/giu)];
-  if (scriptTags.length !== 2) {
-    throw new Error(`Landingpage enthält ${scriptTags.length} statt zwei lokalen Skripten.`);
+  if (scriptTags.length !== 3) {
+    throw new Error(`Landingpage enthält ${scriptTags.length} statt drei lokalen Skripten.`);
   }
-  const expectedScripts = ['landing.js', 'analytics-consent.js'];
+  const expectedScripts = ['landing.js', 'beta-application.js', 'analytics-consent.js'];
   for (const [index, scriptTag] of scriptTags.entries()) {
     const attributes = scriptTag[1];
     const sourceMatch = attributes.match(/\bsrc\s*=\s*["']([^"']+)["']/iu);
@@ -78,7 +78,11 @@ async function verify() {
     }
   }
 
-  const scriptResponse = await requireOkResponse(new URL('landing.js', baseUrl), 'Formularskript');
+  await requireOkResponse(new URL('landing.js', baseUrl), 'Seitenskript');
+  const scriptResponse = await requireOkResponse(
+    new URL('beta-application.js', baseUrl),
+    'Formularskript',
+  );
   const script = await scriptResponse.text();
   if (
     !/ENDPOINT\s*=\s*['"]https:\/\/api\.flipbase\.de\/functions\/v1\/beta-application['"]/u.test(

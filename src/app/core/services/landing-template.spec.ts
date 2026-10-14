@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 const wurzel = process.cwd();
 const seite = readFileSync(join(wurzel, 'landing', 'index.html'), 'utf-8');
-const skript = readFileSync(join(wurzel, 'landing', 'landing.js'), 'utf-8');
+const skript = readFileSync(join(wurzel, 'landing', 'beta-application.js'), 'utf-8');
 const caddyfile = readFileSync(join(wurzel, 'deploy', 'Caddyfile'), 'utf-8');
 
 describe('Auslieferung der Landingpage', () => {
@@ -18,11 +18,11 @@ describe('Auslieferung der Landingpage', () => {
     expect(header).toContain('Sign in');
   });
 
-  it('die Seite bindet nur die beiden lokalen Skripte statt eingebettetem Code ein', () => {
+  it('die Seite bindet nur die drei lokalen Skripte statt eingebettetem Code ein', () => {
     const scriptTags = [...seite.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/giu)];
     expect(
       scriptTags.map(([, attributes]) => attributes.match(/\bsrc=["']([^"']+)["']/iu)?.[1]),
-    ).toEqual(['landing.js', 'analytics-consent.js']);
+    ).toEqual(['landing.js', 'beta-application.js', 'analytics-consent.js']);
     for (const [, attributes, content] of scriptTags) {
       expect(attributes).toMatch(/\bdefer\b/iu);
       expect(content.trim()).toBe('');
@@ -55,7 +55,7 @@ describe('Auslieferung der Landingpage', () => {
     const endpunktMatch = skript.match(/ENDPOINT\s*=\s*['"]([^'"]+)['"]/u);
     expect(
       endpunktMatch,
-      'landing/landing.js sollte die ENDPOINT-Konstante fuer den fetch-Aufruf definieren',
+      'landing/beta-application.js sollte die ENDPOINT-Konstante fuer den fetch-Aufruf definieren',
     ).not.toBeNull();
 
     const endpunktUrsprung = new URL(endpunktMatch![1]).origin;
