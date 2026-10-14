@@ -115,7 +115,7 @@ test('Shop und Versand verwenden Unternehmensdaten und bewahren individuelle Abs
   );
   await useCompany.click();
   await expect(page.getByText('Firmenweg 8', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Carrier-Einstellungen speichern' }).click();
+  await page.getByRole('button', { name: 'Versandeinstellungen speichern', exact: true }).click();
   await expect(
     page.getByText('Versanddienstleister wurden gespeichert.', { exact: true }),
   ).toBeVisible();
@@ -125,7 +125,7 @@ test('Shop und Versand verwenden Unternehmensdaten und bewahren individuelle Abs
   await expect(page.getByRole('textbox', { name: 'Straße *', exact: true })).toHaveValue(
     'Lagerweg',
   );
-  await page.getByRole('button', { name: 'Carrier-Einstellungen speichern' }).click();
+  await page.getByRole('button', { name: 'Versandeinstellungen speichern', exact: true }).click();
   await expect(
     page.getByText('Versanddienstleister wurden gespeichert.', { exact: true }),
   ).toBeVisible();

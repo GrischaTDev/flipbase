@@ -15,6 +15,15 @@ bereits vorhandene unversionierte Auditdateien bleiben unberührt.
 Die tatsächliche Systemzustellung bei geschlossener App auf iPad und Android
 bleibt eine anschließende Geräteabnahme; Browserprüfungen ersetzen sie nicht.
 
+**CI-Nachprüfung:** Der erste PR-Lauf besteht Qualität und sämtliche
+Anwendungstestpakete. Der Versand-Browserfall sucht noch die alte Beschriftung
+„Carrier-Einstellungen speichern“ und stoppt deshalb vor dem Speichern.
+Beide Klicks prüfen jetzt exakt „Versandeinstellungen speichern“; die bestehenden
+Prüfungen für Unternehmensanschrift, individuelle Absender, gespeicherte Daten
+und Wiederladen bleiben vollständig erhalten. Die vollständige Browserprüfung
+wird im neuen PR-Lauf erneut ausgeführt. Der lokale echte Datenbank-Browserfall
+steht mangels laufendem Docker-Dienst nicht zur Verfügung.
+
 ## 2026-10-14 - Juna - Einstellungen vereinheitlichen und eBay-Verbindung bündeln
 
 **Auftrag:** Die übrigen Einstellungstabs im selben Zweig wie die PWA-/Push-Fixes
