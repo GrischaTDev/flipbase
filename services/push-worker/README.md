@@ -12,23 +12,37 @@ Einmalig `/opt/flipbase-push/push.env` nach `deploy/push.env.example` mit Eigent
 
 CI prüft Paket, Deno-Functions, echten Workercontainer und isolierten Edge Runtime/Gateway. Erst nach den Pflichtprüfungen werden Web- und Pushimage veröffentlicht. Der Deploybefehl akzeptiert `release-v1 <app-sha256> push <push-sha256>` und optional den Sniperdigest. Das Functionpaket im Appimage und das Pushimage müssen denselben Commit tragen.
 
-Reihenfolge: Backup/Migrationen, versioniertes Functionpaket, isolierte push-functions und gedrosselter Pushgateway, Worker mit ausgeschaltetem Versand, kompatible App und Caddy, Health/Commit/Abbildvergleich. Vorhandene Functions/main bleiben erhalten. Die Push-URLbereiche gehen ausschließlich an den Gateway; Functions und Gateway erhalten keinen neuen Hostport. Der Workerhealthport ist an 127.0.0.1:4177 gebunden.
+Reihenfolge: Backup/Migrationen, versioniertes Functionpaket, isolierte push-functions und gedrosselter Pushgateway, Worker mit geschützter Betriebsfreigabe, kompatible App und Caddy, Health/Commit/Abbildvergleich. Vorhandene Functions/main bleiben erhalten. Die Push-URLbereiche gehen ausschließlich an den Gateway; Functions und Gateway erhalten keinen neuen Hostport. Der Workerhealthport ist an 127.0.0.1:4177 gebunden.
 
 Der Gateway erlaubt maximal 120 Anfragen/Minute insgesamt und 10/Minute je IP, maximal 512 Byte Widerrufsbody und 4096 Byte Settingsbody. Caddy ersetzt den IP-Header. Das begrenzt auch unbekannte Generationen vor SQL. Generationstombstones werden niemals durch die Bindungsbereinigung nach 30 Tagen entfernt.
 
 ## Pilot, breite Freigabe und Rücknahme
 
-Jeder Release startet mit `WEB_PUSH_ENABLED=false` und `WEB_PUSH_ALLOW_ALL=false`. Zuerst freigegebene UUIDs in `WEB_PUSH_PILOT_DEVICE_IDS` oder `WEB_PUSH_PILOT_USER_IDS` in push.env eintragen. Die Referenzen stehen nach Erfolg in `/opt/flipbase-push/current-release`: Appdigest, Pushdigest, Functioncommit. Diese Referenzen beim Betrieb in Umgebungsvariablen bereitstellen: `FLIPBASE_PUSH_IMAGE`, `FLIPBASE_PUSH_COMMIT`, `PUSH_FUNCTIONS_DIRECTORY=/opt/flipbase-push/releases/<commit>` und `PUSH_ENV_FILE=/opt/flipbase-push/push.env`.
+Releases bewahren die ausdrückliche Freigabe in `push.env`. Fehlende Freigabeflags bedeuten `WEB_PUSH_ENABLED=false` und `WEB_PUSH_ALLOW_ALL=false`; eine fehlende Datei, ein Symlink oder andere Eigentümer/Rechte als root:root/0600 stoppen den Rollout. Beide Dienste lesen dieselbe Datei über Compose, ohne sie als Shellcode auszuführen. VAPID-Schlüssel und Schlüsselkennung bleiben über Releases erhalten; bereits vorhandene Schlüssel nicht neu erzeugen.
 
-Dann beide Composeaufrufe mit `WEB_PUSH_ENABLED=true WEB_PUSH_ALLOW_ALL=false` ausführen:
+Für den Pilotbetrieb mit `sudoedit /opt/flipbase-push/push.env` ausschließlich die verifizierte Konto-UUID in `WEB_PUSH_PILOT_USER_IDS` eintragen, `WEB_PUSH_PILOT_DEVICE_IDS` leer lassen und `WEB_PUSH_ENABLED=true`, `WEB_PUSH_ALLOW_ALL=false` speichern. Der Workerstart allein aktiviert keinen Pilot. Die Referenzen stehen nach Erfolg in `/opt/flipbase-push/current-release`: Appdigest, Pushdigest, Functioncommit. Referenzen laden und beide Dienste neu erzeugen:
+
+```sh
+export PUSH_ENV_FILE=/opt/flipbase-push/push.env
+export FLIPBASE_PUSH_IMAGE="$(sed -n '2p' /opt/flipbase-push/current-release)"
+export FLIPBASE_PUSH_COMMIT="$(sed -n '3p' /opt/flipbase-push/current-release)"
+export PUSH_FUNCTIONS_DIRECTORY="/opt/flipbase-push/releases/$FLIPBASE_PUSH_COMMIT"
+cd /opt/supabase
+docker compose --env-file .env --env-file "$PUSH_ENV_FILE" -f docker-compose.yml -f /opt/flipbase-push/docker-compose.push-functions.yml up -d --no-deps --pull never push-functions push-gateway
+docker compose --env-file "$PUSH_ENV_FILE" -f /opt/flipbase-push/docker-compose.push.yml up -d --pull never push-worker
+```
+
+Andere Konten bleiben bis zur noch offenen echten Geräteabnahme ausgeschlossen: Android und iPad-Home-App offen/geschlossen/gesperrt sowie Windows Chrome und Edge ohne App-Installation mit offenem/minimiertem/geschlossenem Tab prüfen; vollständig beendeten Browser separat prüfen. OS-Banner, Benachrichtigungszentrale und Klickziel nachweisen; OS-Freigabe und „Nicht stören“ prüfst Du selbst, ohne automatische Systemänderung. Erst danach kann `WEB_PUSH_ALLOW_ALL=true` ausdrücklich in der geschützten Datei freigegeben und mit denselben Befehlen übernommen werden. Browserfixtures oder Anbieterannahme belegen keinen Empfang.
+
+Für den dauerhaften Kill-Switch zuerst `WEB_PUSH_ENABLED=false` und `WEB_PUSH_ALLOW_ALL=false` in der geschützten Datei speichern. Mit den oben geladenen Referenzen beide Dienste sofort ausschalten:
 
 ```sh
 cd /opt/supabase
-WEB_PUSH_ENABLED=true WEB_PUSH_ALLOW_ALL=false docker compose --env-file .env --env-file "$PUSH_ENV_FILE" -f docker-compose.yml -f /opt/flipbase-push/docker-compose.push-functions.yml up -d --no-deps push-functions push-gateway
-WEB_PUSH_ENABLED=true WEB_PUSH_ALLOW_ALL=false docker compose -f /opt/flipbase-push/docker-compose.push.yml up -d push-worker
+WEB_PUSH_ENABLED=false WEB_PUSH_ALLOW_ALL=false docker compose --env-file .env --env-file "$PUSH_ENV_FILE" -f docker-compose.yml -f /opt/flipbase-push/docker-compose.push-functions.yml up -d --no-deps --pull never push-functions push-gateway
+WEB_PUSH_ENABLED=false WEB_PUSH_ALLOW_ALL=false docker compose --env-file "$PUSH_ENV_FILE" -f /opt/flipbase-push/docker-compose.push.yml up -d --pull never push-worker
 ```
 
-Erst nach echter Geräteabnahme beide Composeprozesse mit `WEB_PUSH_ALLOW_ALL=true` neu erzeugen. Die API braucht weiter `WEB_PUSH_ENABLED=true`. Für einen Notfall beide Aufrufe mit `WEB_PUSH_ENABLED=false WEB_PUSH_ALLOW_ALL=false` ausführen. Das stoppt neue Claims; bereits laufende Sends können abschließen. Derselbe Releaseaufruf mit bekannten kompatiblen App-/Pushdigests setzt auch das zugehörige Functionpaket zurück. Keine Tabellen, Bindungen oder Tombstones löschen. Ein Rückfall vor dieses Pushpaket erfordert zuerst ausgeschalteten Versand; die neuen Tabellen bleiben bestehen.
+Das stoppt neue Claims; bereits laufende Sends können abschließen. Reine Shellüberschreibungen gelten nur für diesen Aufruf; der gespeicherte Kill-Switch bleibt bei späteren Releases bestehen. Derselbe Releaseaufruf mit bekannten kompatiblen App-/Pushdigests setzt auch das zugehörige Functionpaket zurück. Keine Tabellen, Bindungen oder Tombstones löschen. Ein Rückfall vor dieses Pushpaket erfordert zuerst ausgeschalteten Versand; die neuen Tabellen bleiben bestehen.
 
 `GET /healthz` zeigt Commit, Freigabeumfang und dauerhafte Zähler waiting/accepted/retry/expired/configuration_error. Konfigurationsfehler werden über dieses Feld und kontrollierte interne ID-Logs sichtbar. SQL-Bereinigung läuft stündlich in 1000er-Batches, auch bei ausgeschaltetem Versand, sofern Backendkonfiguration vorhanden ist: Historie 7 Tage, Ereignisse 30 Tage, deaktivierte Bindungen 30 Tage; Tombstones dauerhaft.
 

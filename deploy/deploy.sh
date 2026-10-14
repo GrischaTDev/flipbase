@@ -223,11 +223,10 @@ prepare_push_runtime() {
   docker cp "$artifact_container":/opt/flipbase/docker-compose.push-functions.yml "$temporary/docker-compose.push-functions.yml"
   install -m 644 "$temporary/docker-compose.push.yml" "$PUSH_COMPOSE_FILE"
   install -m 644 "$temporary/docker-compose.push-functions.yml" "$PUSH_FUNCTIONS_COMPOSE_FILE"
-  # Jede Releaseaktivierung startet geschlossen; Pilot-/Globalfreigabe bleibt ein eigener Betriebsschritt.
-  export WEB_PUSH_ENABLED=false WEB_PUSH_ALLOW_ALL=false
-  FLIPBASE_PUSH_IMAGE="$push_image" docker compose -f "$PUSH_COMPOSE_FILE" config --quiet
+  # Geschuetzte Betriebsfreigabe beibehalten; fehlende Flags bleiben per Compose-Standard aus.
+  FLIPBASE_PUSH_IMAGE="$push_image" docker compose --env-file "$PUSH_ENV_FILE" -f "$PUSH_COMPOSE_FILE" config --quiet
   local configured
-  configured="$(FLIPBASE_PUSH_IMAGE="$push_image" docker compose -f "$PUSH_COMPOSE_FILE" config --images push-worker)"
+  configured="$(FLIPBASE_PUSH_IMAGE="$push_image" docker compose --env-file "$PUSH_ENV_FILE" -f "$PUSH_COMPOSE_FILE" config --images push-worker)"
   [[ "$configured" = "$push_image" ]] || { echo 'Compose verwendet nicht den Pushdigest.' >&2; return 1; }
 }
 
@@ -236,7 +235,7 @@ activate_push_runtime() {
   # Eigenes Functionpaket: vorhandene main-/hello-Verzeichnisse und JWT-Regeln werden nicht ersetzt.
   (cd "$SUPABASE_DIRECTORY" && docker compose --env-file .env --env-file "$PUSH_ENV_FILE" -f docker-compose.yml -f "$PUSH_FUNCTIONS_COMPOSE_FILE" config --quiet)
   (cd "$SUPABASE_DIRECTORY" && docker compose --env-file .env --env-file "$PUSH_ENV_FILE" -f docker-compose.yml -f "$PUSH_FUNCTIONS_COMPOSE_FILE" up -d --no-deps --pull never push-functions push-gateway)
-  FLIPBASE_PUSH_IMAGE="$push_image" docker compose -f "$PUSH_COMPOSE_FILE" up -d --pull never push-worker
+  FLIPBASE_PUSH_IMAGE="$push_image" docker compose --env-file "$PUSH_ENV_FILE" -f "$PUSH_COMPOSE_FILE" up -d --pull never push-worker
   # Wartet auf Router und echte Functioninitialisierung; keine Testgeneration erzeugen.
   for _ in $(seq 1 30); do
     if docker exec flipbase-push-gateway node -e "Promise.all([fetch('http://push-functions:9000/push-settings',{method:'POST',body:'{}'}),fetch('http://push-functions:9000/push-revoke',{method:'POST',body:'{}'})]).then(([a,b])=>{if(a.status!==401||b.status!==200)process.exit(1)}).catch(()=>process.exit(1))"; then break; fi
