@@ -12,6 +12,27 @@ Implementierung und unabhängige Prüfung erfolgen mit Agents; bestehende Einkä
 und der interne Zwischenspeicher bleiben unverändert. Reale Systemzustellung wird
 erst nach Geräteabnahme bestätigt; andere Nutzer bleiben bis dahin ausgeschlossen.
 
+**Umsetzung:** Weiße Installations-, Maskable- und Apple-Icons mit unverändertem
+Symbol auf 64 Prozent sichtbarer Ausdehnung sowie transparentes monochromes
+Push-Badge. Mobile Installation startet den verfügbaren Systemdialog oder einen
+kurzen Dialog auf derselben Seite. Geräteaktivierung steht zuerst in den
+Benachrichtigungseinstellungen, mit Glockenlink und vier berechtigten Kategorien.
+Windows benötigt keine App-Installation; iPad verwendet die Home-Bildschirm-App.
+Favoritenversand hängt an einer neu bestätigten Glocken-Sammelmeldung, bleibt bei
+Baseline und Altmeldungen still und prüft Rechte erneut beim Versand und Klick.
+API-Version 2 ergänzt Favoriten, ältere Clients bewahren deren Einstellung atomar.
+
+**Prüfung:** 206 Datenbankprüfungen nach erneutem Einspielen der erzeugten Migration,
+13 Edge- und 20 Workerprüfungen bestanden; frisch erzeugte Typen unverändert.
+189 fokussierte Frontendprüfungen, acht Workflow-/Service-Worker-Verträge und sechs
+Browserfälle bestanden. Die Gegenprüfung reproduzierte verborgene Kategorien nach
+Rechteverlust; 88 gezielte Prüfungen sichern Korrektur und erneute Bestätigung ab.
+Icons werden pixelgenau, mobile Aktivierung bei 360/390 Pixeln mit vergrößerter
+Schrift geprüft. Format, Lint, Typen und Produktionsbau bestanden. Aktuellen
+Hauptzweig eingebunden; beide Shared-Button-Erweiterungen bestehen 18 Prüfungen.
+Browserfähigkeiten sind in diesen Abläufen simuliert; echte Systemzustellung
+bleibt Teil der Geräteabnahme.
+
 ## 2026-10-14 - Juna - Vinted-Übersichtsseite modernisieren und Synchronisationsstatus anpassen
 
 **Auftrag:** Das Mockup für die modernisierte Vinted-Übersichtsseite 1:1 übernehmen und die Synchronisationsanzeige mit grünem Statuspunkt und Zeitstempel („Zuletzt aktualisiert: DD.MM.YYYY • HH:mm Uhr“) umsetzen.
