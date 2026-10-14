@@ -27,6 +27,12 @@ beforeAll(async () => {
       'src/app/shared/components/pwa-update-notice/pwa-update-notice.component.html',
     './push-navigation-notice.component.html':
       'src/app/shared/components/push-navigation-notice/push-navigation-notice.component.html',
+    './pwa-install-dialog.component.html':
+      'src/app/shared/components/pwa-install-dialog/pwa-install-dialog.component.html',
+    './modal-shell.component.html':
+      'src/app/shared/components/modal-shell/modal-shell.component.html',
+    './modal-shell.component.scss':
+      'src/app/shared/components/modal-shell/modal-shell.component.scss',
     './app.html': 'src/app/app.html',
     './app.css': 'src/app/app.css',
     './toast-container.component.html':
@@ -57,7 +63,10 @@ describe('root-globaler Toast-Container', () => {
         },
         { provide: ToastSyncBridgeService, useValue: {} },
         { provide: WebPushService, useValue: {} },
-        { provide: PwaService, useValue: { updateAvailable: signal(false) } },
+        {
+          provide: PwaService,
+          useValue: { updateAvailable: signal(false), installDialogOpen: signal(false) },
+        },
         { provide: PushNavigationService, useValue: { pending: signal(null) } },
         { provide: OfflinePurchaseContextService, useValue: {} },
         { provide: AppStartupService, useValue: { markRouteRendered: () => undefined } },

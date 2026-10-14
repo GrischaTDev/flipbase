@@ -18,6 +18,8 @@ test('push shows only generic content and a stable event tag', async () => {
   assert.equal(worker.messages[0].options.tag, worker.messages[1].options.tag);
   assert.equal(worker.messages[0].title, 'Flipbase');
   assert.equal(worker.messages[0].options.body, 'Eine neue Bestellung ist eingegangen.');
+  assert.equal(worker.messages[0].options.icon, '/icons/install-white-192.png');
+  assert.equal(worker.messages[0].options.badge, '/icons/push-badge-monochrome-96.png');
 });
 test('invalid payloads remain visible but never carry an untrusted target', async () => {
   const worker = createWorker();
@@ -59,4 +61,15 @@ test('closed app receives only same-origin structured entry context', async () =
   assert.equal(opened.origin, 'https://app.flipbase.test');
   assert.equal(opened.pathname, '/push/open');
   assert.deepEqual(JSON.parse(opened.searchParams.get('context')), payload);
+});
+test('favorites show generic text and preserve only the structured authorized target', async () => {
+  const worker = createWorker();
+  const favorite = {
+    ...payload,
+    category: 'favorite',
+    target: { kind: 'vinted_favorites', connectionId: payload.workspaceId },
+  };
+  await worker.dispatch('push', { data: { text: () => JSON.stringify(favorite) } });
+  assert.equal(worker.messages[0].options.body, 'Deine Inserate haben neue Favoriten.');
+  assert.deepEqual(JSON.parse(JSON.stringify(worker.messages[0].options.data)), favorite);
 });

@@ -164,6 +164,14 @@
             </div>
           </div>
 
+          <div class="border-b border-fb-line px-4 py-2">
+            <a
+              routerLink="/settings/notifications"
+              (click)="isNotificationDropdownOpen.set(false)"
+              class="inline-flex min-h-8 items-center text-sm text-fb-text-secondary underline pointer-coarse:min-h-11"
+              >Benachrichtigungen einstellen</a
+            >
+          </div>
           @if (favoriteNotifications.error(); as error) {
             <div
               class="px-4 py-2 border-b border-fb-line bg-fb-warning-surface text-xs text-fb-warning"

@@ -111,6 +111,194 @@ afterEach(() => {
 });
 
 describe('Server-confirmed push devices', () => {
+  it('reactivates a visible edited selection after stored categories lose permission', async () => {
+    const { service, api } = setup();
+    api.loadSettings.mockResolvedValue({
+      ...settings,
+      binding: { deviceId: '44444444-4444-4444-8444-444444444444', active: false, keyId: 'key1' },
+      preferences: [{ workspaceId, categories: ['order', 'favorite'] }],
+    } as unknown as typeof settings);
+    await service.refreshDevice();
+    expect(service.categories()).toEqual(['order']);
+    expect(service.deviceMessage()).toContain('geändert');
+    service.selectCategories(['order', 'connection']);
+    expect(service.categories()).toEqual(['order', 'connection']);
+    expect(await service.activateDevice()).toBe(true);
+    expect(api.savePreferences).toHaveBeenLastCalledWith(expect.any(String), workspaceId, [
+      'order',
+      'connection',
+    ]);
+  });
+  it('reconciles a dirty draft on permission downgrade without selecting newly available categories', async () => {
+    const { service, api } = setup();
+    api.loadSettings.mockResolvedValue({
+      ...settings,
+      allowedCategories: ['order', 'favorite'],
+    } as typeof settings);
+    await service.refreshDevice();
+    service.selectCategories(['favorite']);
+    api.loadSettings.mockResolvedValue(settings);
+    await service.refreshDevice();
+    expect(service.allowedCategories()).toEqual(['order', 'connection']);
+    expect(service.categories()).toEqual([]);
+    service.selectCategories(['connection']);
+    expect(await service.activateDevice()).toBe(true);
+    expect(api.savePreferences).toHaveBeenLastCalledWith(expect.any(String), workspaceId, [
+      'connection',
+    ]);
+  });
+  it('shows permission changes during activation and requires renewed explicit confirmation', async () => {
+    const { service, api, requestPermission } = setup();
+    api.loadSettings.mockResolvedValue({
+      ...settings,
+      allowedCategories: ['order', 'favorite'],
+    } as typeof settings);
+    await service.refreshDevice();
+    service.selectCategories(['order', 'favorite']);
+    requestPermission.mockImplementationOnce(async () => {
+      api.loadSettings.mockResolvedValue(settings);
+      return 'granted';
+    });
+    expect(await service.activateDevice()).toBe(false);
+    expect(api.register).not.toHaveBeenCalled();
+    expect(api.savePreferences).not.toHaveBeenCalled();
+    expect(service.allowedCategories()).toEqual(['order', 'connection']);
+    expect(service.categories()).toEqual(['order']);
+    expect(service.canActivate()).toBe(true);
+    expect(await service.activateDevice()).toBe(true);
+    expect(api.savePreferences).toHaveBeenLastCalledWith(expect.any(String), workspaceId, [
+      'order',
+    ]);
+  });
+  it('keeps an explicitly empty draft when permissions gain another category', async () => {
+    const { service, api } = setup();
+    await service.refreshDevice();
+    service.selectCategories([]);
+    api.loadSettings.mockResolvedValue({
+      ...settings,
+      allowedCategories: ['order', 'connection', 'favorite'],
+    } as typeof settings);
+    await service.refreshDevice();
+    expect(service.categories()).toEqual([]);
+    expect(await service.activateDevice()).toBe(true);
+    expect(api.savePreferences).toHaveBeenLastCalledWith(expect.any(String), workspaceId, []);
+  });
+  it('preserves a visible draft when the initial worker registration completes', async () => {
+    const { service } = setup();
+    await service.refreshDevice();
+    service.selectCategories(['order']);
+    const pwa = TestBed.inject(PwaService);
+    pwa.swRegistered.set(false);
+    TestBed.tick();
+    await service.refreshDevice();
+    pwa.swRegistered.set(true);
+    TestBed.tick();
+    await service.refreshDevice();
+    expect(service.categories()).toEqual(['order']);
+  });
+  it('reacts to first worker activation without installation or a refresh click', async () => {
+    const { service, registration } = setup();
+    const worker = Object.assign(new EventTarget(), { state: 'installing' });
+    Object.assign(registration, { active: null, installing: worker });
+    await service.refreshDevice();
+    expect(service.canActivate()).toBe(false);
+    Object.assign(registration, { active: worker });
+    worker.state = 'activated';
+    worker.dispatchEvent(new Event('statechange'));
+    expect(service.canActivate()).toBe(true);
+  });
+  it('keeps preactivation edits through refresh, a failed preference write and retry', async () => {
+    const { service, api } = setup();
+    await service.refreshDevice();
+    service.selectCategories(['order']);
+    await service.refreshDevice();
+    expect(service.categories()).toEqual(['order']);
+    api.savePreferences.mockRejectedValueOnce(new Error('offline'));
+    expect(await service.activateDevice()).toBe(false);
+    await service.refreshDevice();
+    expect(service.categories()).toEqual(['order']);
+    expect(service.isActive()).toBe(false);
+    expect(await service.activateDevice()).toBe(true);
+    expect(api.savePreferences).toHaveBeenLastCalledWith(expect.any(String), workspaceId, [
+      'order',
+    ]);
+  });
+  it('rejects a changed session before registration even when the user stays the same', async () => {
+    const { service, api, auth, requestPermission } = setup();
+    await service.refreshDevice();
+    requestPermission.mockImplementationOnce(async () => {
+      auth.session.set({
+        user: { id: userId },
+        access_token: `header.${btoa(JSON.stringify({ session_id: workspaceId }))}.signature`,
+      });
+      return 'granted';
+    });
+    expect(await service.activateDevice()).toBe(false);
+    expect(api.register).not.toHaveBeenCalled();
+    expect(api.savePreferences).not.toHaveBeenCalled();
+  });
+  it.each([{ categories: [] }, { categories: ['order'] }])(
+    'preserves an existing saved selection $categories without enabling new categories',
+    async ({ categories }) => {
+      const { service, api } = setup();
+      api.loadSettings.mockResolvedValue({
+        ...settings,
+        preferences: [{ workspaceId, categories }],
+      } as typeof settings);
+      await service.refreshDevice();
+      expect(service.categories()).toEqual(categories);
+      expect(await service.activateDevice()).toBe(true);
+      expect(api.savePreferences).toHaveBeenCalledWith(expect.any(String), workspaceId, categories);
+    },
+  );
+  it('supports secure Windows browser push without installation', async () => {
+    const { service } = setup();
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('Windows Chrome');
+    const pwa = TestBed.inject(PwaService);
+    pwa.isStandalone.set(false);
+    await service.refreshDevice();
+    expect(service.canActivate()).toBe(true);
+  });
+  it('requires the actual iPad home app even when installation was remembered', async () => {
+    const { service } = setup();
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('iPad Safari');
+    TestBed.inject(PwaService).isStandalone.set(false);
+    await service.refreshDevice();
+    expect(service.deviceStatus()).toBe('home_app_required');
+    expect(service.canActivate()).toBe(false);
+  });
+  it('shows initial available categories and confirms them before activation', async () => {
+    const { service, api, store } = setup();
+    await service.refreshDevice();
+    expect(service.categories()).toEqual(['order', 'connection']);
+    expect(await service.activateDevice()).toBe(true);
+    expect(api.savePreferences).toHaveBeenCalledWith(
+      store.listBindings()[0]?.generationId,
+      workspaceId,
+      ['order', 'connection'],
+    );
+  });
+  it('keeps the visible choice on preference failure and retries without claiming active', async () => {
+    const { service, api } = setup();
+    await service.refreshDevice();
+    api.savePreferences.mockRejectedValueOnce(new Error('offline'));
+    expect(await service.activateDevice()).toBe(false);
+    expect(service.isActive()).toBe(false);
+    expect(service.categories()).toEqual(['order', 'connection']);
+    expect(await service.activateDevice()).toBe(true);
+    expect(service.categories()).toEqual(['order', 'connection']);
+  });
+  it('does not register after workspace changes during permission', async () => {
+    const { service, api, workspace, requestPermission } = setup();
+    await service.refreshDevice();
+    requestPermission.mockImplementationOnce(async () => {
+      workspace.currentWorkspace.set({ id: '55555555-5555-4555-8555-555555555555' });
+      return 'granted';
+    });
+    expect(await service.activateDevice()).toBe(false);
+    expect(api.register).not.toHaveBeenCalled();
+    expect(api.savePreferences).not.toHaveBeenCalled();
+  });
   it('requests permission immediately and never registers a denied subscription', async () => {
     const { service, api, requestPermission, pushManager } = setup();
     await service.refreshDevice();
@@ -142,7 +330,7 @@ describe('Server-confirmed push devices', () => {
     expect(await service.activateDevice()).toBe(true);
     expect(api.register.mock.calls[0]).toEqual(api.register.mock.calls[1]);
     expect(service.isActive()).toBe(true);
-    expect(service.categories()).toEqual([]);
+    expect(service.categories()).toEqual(['order', 'connection']);
     expect(await service.sendTestNotification()).toBe(true);
     expect(api.sendTest).toHaveBeenCalledWith(store.listBindings()[0]?.generationId, workspaceId);
   });
@@ -222,7 +410,12 @@ describe('Server-confirmed push devices', () => {
     });
     let serverBinding: { deviceId: string; active: boolean; keyId: string } | null = null;
     api.loadSettings.mockImplementation(
-      async () => ({ ...settings, binding: serverBinding }) as typeof settings,
+      async () =>
+        ({
+          ...settings,
+          binding: serverBinding,
+          preferences: serverBinding ? [{ workspaceId, categories: ['order', 'connection'] }] : [],
+        }) as typeof settings,
     );
     api.register.mockImplementation(async (registration) => {
       serverBinding = { deviceId: registration.generationId, active: true, keyId: 'key1' };

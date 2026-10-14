@@ -308,3 +308,20 @@ test('Konfiguration laesst Versand nur explizit frei und begrenzt Pilot IDs', ()
     payload.eventId,
   ]);
 });
+test('favorites accept only a UUID Vinted connection and matching category', () => {
+  const favorite = {
+    ...payload,
+    category: 'favorite',
+    target: { kind: 'vinted_favorites', connectionId: payload.workspaceId },
+  };
+  assert.equal(validatePayload(favorite), true);
+  assert.equal(validatePayload({ ...favorite, category: 'message' }), false);
+  assert.equal(
+    validatePayload({ ...favorite, target: { ...favorite.target, connectionId: 'external' } }),
+    false,
+  );
+  assert.equal(
+    validatePayload({ ...favorite, target: { ...favorite.target, url: '/evil' } }),
+    false,
+  );
+});

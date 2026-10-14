@@ -1,0 +1,23 @@
+@if (pwa.installDialogOpen() && pwa.showInstallationOffer()) {
+  <app-modal-shell
+    title="Flipbase installieren"
+    size="sm"
+    (closed)="pwa.installDialogOpen.set(false)"
+  >
+    <p class="text-sm text-fb-text-secondary">{{ pwa.installationHelp() }}</p>
+    @if (pwa.installMessage()) {
+      <p role="status" class="text-sm text-fb-text-secondary">{{ pwa.installMessage() }}</p>
+    }
+    <div modal-footer class="flex flex-wrap gap-2">
+      <app-button (clicked)="pwa.installDialogOpen.set(false)">Schließen</app-button>
+      @if (pwa.isInstallable()) {
+        <app-button
+          variant="primary"
+          [loading]="pwa.isInstalling()"
+          (clicked)="pwa.startInstallation()"
+          >Jetzt installieren</app-button
+        >
+      }
+    </div>
+  </app-modal-shell>
+}

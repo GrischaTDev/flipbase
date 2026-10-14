@@ -388,6 +388,10 @@ function validatedPush(candidate) {
       candidate.category === 'order' &&
       uuid(target.connectionId) &&
       count === 2) ||
+    (target.kind === 'vinted_favorites' &&
+      candidate.category === 'favorite' &&
+      uuid(target.connectionId) &&
+      count === 2) ||
     (target.kind === 'connection' &&
       candidate.category === 'connection' &&
       uuid(target.connectionId) &&
@@ -407,6 +411,7 @@ self.addEventListener('push', (event) =>
       const bodies = {
         message: 'Du hast eine neue Nachricht.',
         order: 'Eine neue Bestellung ist eingegangen.',
+        favorite: 'Deine Inserate haben neue Favoriten.',
         connection: 'Eine Kontoverbindung braucht deine Anmeldung.',
         test: 'Deine Testbenachrichtigung ist angekommen.',
       };
@@ -414,8 +419,8 @@ self.addEventListener('push', (event) =>
         body: payload
           ? bodies[payload.category]
           : 'Öffne Flipbase, um deine Benachrichtigungen zu prüfen.',
-        icon: '/icons/icon-192.png',
-        badge: '/icons/icon-192.png',
+        icon: '/icons/install-white-192.png',
+        badge: '/icons/push-badge-monochrome-96.png',
         tag: payload ? `flipbase-event-${payload.eventId}` : 'flipbase-invalid-push',
         data: payload,
         renotify: false,

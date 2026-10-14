@@ -11,6 +11,11 @@ services:
     environment:
       WEB_PUSH_ENABLED: ${WEB_PUSH_ENABLED:-false}
       WEB_PUSH_ALLOW_ALL: ${WEB_PUSH_ALLOW_ALL:-false}
+      WEB_PUSH_PILOT_USER_IDS: ${WEB_PUSH_PILOT_USER_IDS:-}
+      WEB_PUSH_PILOT_DEVICE_IDS: ${WEB_PUSH_PILOT_DEVICE_IDS:-}
+      WEB_PUSH_VAPID_PUBLIC_KEY: ${WEB_PUSH_VAPID_PUBLIC_KEY:-}
+      WEB_PUSH_VAPID_KEY_ID: ${WEB_PUSH_VAPID_KEY_ID:-}
+      WEB_PUSH_ALLOWED_ORIGINS: ${WEB_PUSH_ALLOWED_ORIGINS:-https://app.flipbase.de}
       WEB_PUSH_OBSERVER_URL: http://push-functions:9000/ebay-order-observer
     networks: [default, push-observer]
     ports:

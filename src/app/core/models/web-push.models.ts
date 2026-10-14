@@ -1,4 +1,4 @@
-export type WebPushCategory = 'message' | 'order' | 'connection';
+export type WebPushCategory = 'message' | 'order' | 'favorite' | 'connection';
 export type WebPushDeviceStatus =
   | 'unsupported'
   | 'home_app_required'
@@ -16,6 +16,7 @@ export type WebPushDeviceStatus =
 export type PushTarget =
   | { kind: 'settings' }
   | { kind: 'vinted_message'; connectionId: string; conversationId: string }
+  | { kind: 'vinted_favorites'; connectionId: string }
   | { kind: 'ebay_orders'; connectionId: string }
   | { kind: 'store_orders' }
   | { kind: 'connection'; connectionId: string };
@@ -102,6 +103,7 @@ export function parsePushPayload(candidate: unknown): PushPayloadV1 | null {
     return candidate as PushPayloadV1;
   if (
     ((kind === 'ebay_orders' && category === 'order') ||
+      (kind === 'vinted_favorites' && category === 'favorite') ||
       (kind === 'connection' && category === 'connection')) &&
     fields.length === 2
   )

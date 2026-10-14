@@ -18,14 +18,18 @@ export class PwaService {
   private readonly destroyRef = inject(DestroyRef);
   private readonly updates = inject(PwaUpdateService, { optional: true });
   readonly isStandalone = signal(false);
-  readonly isInstalled = this.isStandalone;
+  readonly installationConfirmed = signal(this.readInstallationConfirmation());
+  readonly isInstalled = computed(() => this.isStandalone() || this.installationConfirmed());
+  readonly installDialogOpen = signal(false);
+  readonly isInstalling = signal(false);
+  readonly installMessage = signal('');
   readonly isInstallable = signal(false);
   readonly isMobileDevice = signal(
     typeof navigator !== 'undefined' &&
       (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
         (/Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1)),
   );
-  readonly showInstallationOffer = computed(() => this.isMobileDevice() && !this.isStandalone());
+  readonly showInstallationOffer = computed(() => this.isMobileDevice() && !this.isInstalled());
   readonly isOnline = signal(
     typeof navigator !== 'undefined' && typeof navigator.onLine === 'boolean'
       ? navigator.onLine
@@ -54,24 +58,52 @@ export class PwaService {
   constructor() {
     if (typeof window !== 'undefined') {
       const media = window.matchMedia('(display-mode: standalone)');
-      const updateMode = () =>
+      const updateMode = () => {
         this.isStandalone.set(
           media.matches || (navigator as NavigatorWithStandalone).standalone === true,
         );
+        if (this.isStandalone()) this.confirmInstallation();
+      };
       updateMode();
       media.addEventListener('change', updateMode);
       this.destroyRef.onDestroy(() => media.removeEventListener('change', updateMode));
       this.listen(window, 'beforeinstallprompt', (event) => {
         event.preventDefault();
-        if (!this.showInstallationOffer()) return;
+        if (!this.isMobileDevice() || this.isStandalone()) return;
+        this.installationConfirmed.set(false);
+        try {
+          localStorage.removeItem('flipbase_installation_confirmed');
+        } catch {
+          /* Bestätigung bleibt nur lokal im Arbeitsspeicher. */
+        }
         this.deferredPrompt = event as BeforeInstallPromptEvent;
         this.isInstallable.set(true);
       });
-      this.listen(window, 'appinstalled', () => this.clearPrompt());
+      this.listen(window, 'appinstalled', () => {
+        this.clearPrompt();
+        this.confirmInstallation();
+        this.installDialogOpen.set(false);
+      });
       this.listen(window, 'online', () => this.isOnline.set(true));
       this.listen(window, 'offline', () => this.isOnline.set(false));
     }
     void this.registerServiceWorker();
+  }
+
+  private readInstallationConfirmation(): boolean {
+    try {
+      return localStorage.getItem('flipbase_installation_confirmed') === 'true';
+    } catch {
+      return false;
+    }
+  }
+  private confirmInstallation(): void {
+    this.installationConfirmed.set(true);
+    try {
+      localStorage.setItem('flipbase_installation_confirmed', 'true');
+    } catch {
+      /* Bestätigung bleibt nur für diesen Besuch erhalten. */
+    }
   }
 
   private listen(target: EventTarget, name: string, callback: (event: Event) => void): void {
@@ -93,6 +125,30 @@ export class PwaService {
     } catch (error) {
       this.logger.warn('PWA-Installation fehlgeschlagen!', error);
       return false;
+    }
+  }
+
+  async startInstallation(): Promise<void> {
+    if (!this.showInstallationOffer() || this.isInstalling()) return;
+    if (!this.isInstallable()) {
+      this.installMessage.set('');
+      this.installDialogOpen.set(true);
+      return;
+    }
+    this.isInstalling.set(true);
+    this.installMessage.set('');
+    try {
+      const accepted = await this.promptInstall();
+      if (!this.isInstalled()) {
+        this.installDialogOpen.set(true);
+        this.installMessage.set(
+          accepted
+            ? 'Die Installation wurde angefordert. Bestätige die weiteren Schritte im Browser.'
+            : 'Die Installation wurde nicht bestätigt. Du kannst sie erneut im Browser-Menü starten.',
+        );
+      }
+    } finally {
+      this.isInstalling.set(false);
     }
   }
 

@@ -97,6 +97,65 @@ try {
     sql(`select attempts from public.web_push_deliveries where id='${deliveryId}'`),
     '2',
   );
+  sql(
+    `update public.workspace_members set role='owner' where workspace_id='${workspaceId}' and user_id='${userId}';insert into public.platform_operators(user_id) values('${userId}');`,
+  );
+  const preferences = (apiVersion, categories) =>
+    `select public.web_push_settings('${userId}','${sessionId}','${JSON.stringify({ action: 'preferences', apiVersion, deviceId, workspaceId, categories })}'::jsonb);`;
+  worker = spawn(
+    'docker',
+    [
+      'exec',
+      '-i',
+      container,
+      'psql',
+      '-U',
+      'postgres',
+      '-d',
+      database,
+      '-tAq',
+      '-v',
+      'ON_ERROR_STOP=1',
+    ],
+    { stdio: ['pipe', 'pipe', 'pipe'] },
+  );
+  const preferenceExited = new Promise((resolve, reject) => {
+    worker.on('error', reject);
+    worker.on('exit', (code) =>
+      code === 0 ? resolve() : reject(new Error('Preference writer failed')),
+    );
+  });
+  const preferenceReady = new Promise((resolve, reject) => {
+    let output = '';
+    const timeout = setTimeout(() => reject(new Error('Preference writer timed out')), 10000);
+    worker.stdout.on('data', (chunk) => {
+      output += chunk.toString();
+      if (output.includes('PREFERENCE_READY')) {
+        clearTimeout(timeout);
+        resolve();
+      }
+    });
+  });
+  worker.stdin.write(`begin;${preferences(2, ['favorite'])}select 'PREFERENCE_READY';\n`);
+  await preferenceReady;
+  const legacyWriter = spawn('docker', [...args, '-c', preferences(1, [])]);
+  const legacyExited = new Promise((resolve, reject) => {
+    legacyWriter.on('error', reject);
+    legacyWriter.on('exit', (code) =>
+      code === 0 ? resolve() : reject(new Error('Legacy preference writer failed')),
+    );
+  });
+  worker.stdin.end('commit;\n');
+  await Promise.all([preferenceExited, legacyExited]);
+  worker = undefined;
+  assert.equal(
+    sql(
+      `select categories::text from public.web_push_preferences where device_id='${deviceId}' and workspace_id='${workspaceId}'`,
+    ),
+    '{favorite}',
+    'Concurrent legacy writer preserves the committed favorite selection atomically',
+  );
+  console.log('Concurrent API2/API1 preference preservation verified.');
   console.log('Two concurrent SQL workers, lease recovery and stale acknowledgement verified.');
 } finally {
   if (worker) {

@@ -170,7 +170,11 @@ describe('HeaderComponent', () => {
     bell?.click();
     fixture.detectChanges();
     expect(
-      element.querySelector<HTMLAnchorElement>('#header-notification-menu a')?.getAttribute('href'),
+      element
+        .querySelector<HTMLAnchorElement>(
+          '#header-notification-menu a:not([href="/settings/notifications"])',
+        )
+        ?.getAttribute('href'),
     ).toBe(incoming.link);
     const messages = TestBed.inject(MarketplaceMessageNotificationStore);
     await fixture.componentInstance.oeffneBenachrichtigung(incoming);
@@ -194,7 +198,11 @@ describe('HeaderComponent', () => {
       .querySelector<HTMLButtonElement>('button[aria-controls="header-notification-menu"]')!
       .click();
     fixture.detectChanges();
-    const links = [...element.querySelectorAll<HTMLAnchorElement>('#header-notification-menu a')];
+    const links = [
+      ...element.querySelectorAll<HTMLAnchorElement>(
+        '#header-notification-menu a:not([href="/settings/notifications"])',
+      ),
+    ];
     expect(links.map((link) => link.getAttribute('href'))).toEqual([
       '/marketplaces/vinted/listings?connectionId=account-b',
       '/sales?status=paid#recent',
@@ -210,7 +218,11 @@ describe('HeaderComponent', () => {
     expect(bell.textContent).toContain('71');
     bell.click();
     fixture.detectChanges();
-    const items = [...element.querySelectorAll('#header-notification-menu a')];
+    const items = [
+      ...element.querySelectorAll(
+        '#header-notification-menu a:not([href="/settings/notifications"])',
+      ),
+    ];
     expect(items).toHaveLength(2);
     expect(items[0].textContent).toContain('Neue Favoriten');
     expect(items[1].textContent).toContain('Allgemeiner Hinweis');
@@ -233,7 +245,11 @@ describe('HeaderComponent', () => {
       .querySelector<HTMLButtonElement>('button[aria-controls="header-notification-menu"]')!
       .click();
     fixture.detectChanges();
-    const items = [...element.querySelectorAll('#header-notification-menu a')];
+    const items = [
+      ...element.querySelectorAll(
+        '#header-notification-menu a:not([href="/settings/notifications"])',
+      ),
+    ];
     expect(items).toHaveLength(50);
     expect(items[0].textContent).toContain('Favoriten 52');
     expect(

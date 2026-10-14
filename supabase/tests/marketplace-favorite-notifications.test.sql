@@ -23,6 +23,17 @@ insert into public.marketplace_connections(id,workspace_id,display_name,status,e
 insert into public.marketplace_browser_sessions(public_id,workspace_id,connection_id,started_by,provider_profile_id,expires_at) values
  ('33000000-0000-4000-8000-000000000031','33000000-0000-4000-8000-000000000011','33000000-0000-4000-8000-000000000021','33000000-0000-4000-8000-000000000001','favorites-profile',now()+interval '1 hour');
 
+insert into auth.sessions(id,user_id,created_at,updated_at) values ('33000000-0000-4000-8000-000000000041','33000000-0000-4000-8000-000000000001',now(),now());
+insert into public.web_push_generations(id,user_id,token_hash) values ('33000000-0000-4000-8000-000000000051','33000000-0000-4000-8000-000000000001',repeat('a',64));
+insert into public.web_push_devices(id,user_id,session_id,installation_id,endpoint_fingerprint,endpoint,p256dh,auth,vapid_key_id) values ('33000000-0000-4000-8000-000000000051','33000000-0000-4000-8000-000000000001','33000000-0000-4000-8000-000000000041','33000000-0000-4000-8000-000000000061','favorite-test','https://fcm.googleapis.com/favorite-test',repeat('x',87),repeat('x',22),'v1');
+insert into public.web_push_preferences(device_id,workspace_id,categories) values ('33000000-0000-4000-8000-000000000051','33000000-0000-4000-8000-000000000011',array['favorite']);
+select ok(public.web_push_can_deliver('33000000-0000-4000-8000-000000000001','33000000-0000-4000-8000-000000000011','favorite','33000000-0000-4000-8000-000000000021','33000000-0000-4000-8000-000000000041'),'Favoriten erfordern belegte Vinted-Verwaltungsrechte');
+select is(public.web_push_settings('33000000-0000-4000-8000-000000000001','33000000-0000-4000-8000-000000000041','{"action":"settings","installationId":"33000000-0000-4000-8000-000000000061","workspaceId":"33000000-0000-4000-8000-000000000011"}')#>'{preferences,0,categories}','[]'::jsonb,'API1 liest keine neue Kategorie');
+select is(public.web_push_settings('33000000-0000-4000-8000-000000000001','33000000-0000-4000-8000-000000000041','{"action":"preferences","deviceId":"33000000-0000-4000-8000-000000000051","workspaceId":"33000000-0000-4000-8000-000000000011","categories":[]}')->'categories','[]'::jsonb,'API1 Antwort enthaelt nur alte Auswahl');
+select is((select categories from public.web_push_preferences where device_id='33000000-0000-4000-8000-000000000051'),array['favorite']::text[],'API1 erhaelt gespeicherte neue Kategorie atomar');
+select public.web_push_settings('33000000-0000-4000-8000-000000000001','33000000-0000-4000-8000-000000000041','{"action":"preferences","apiVersion":2,"deviceId":"33000000-0000-4000-8000-000000000051","workspaceId":"33000000-0000-4000-8000-000000000011","categories":[]}');
+select is((select categories from public.web_push_preferences where device_id='33000000-0000-4000-8000-000000000051'),'{}'::text[],'API2 ersetzt ausdruecklich bestaetigte leere Auswahl');
+select public.web_push_settings('33000000-0000-4000-8000-000000000001','33000000-0000-4000-8000-000000000041','{"action":"preferences","apiVersion":2,"deviceId":"33000000-0000-4000-8000-000000000051","workspaceId":"33000000-0000-4000-8000-000000000011","categories":["favorite"]}');
 create function pg_temp.listing(p_id text,p_favorites jsonb) returns jsonb language sql as $$
  select jsonb_build_object('kind','publication','externalId',p_id,'sortAt','2026-09-30T12:00:00Z',
    'body',jsonb_build_object('title',p_id,'metrics',jsonb_build_object('favorites',p_favorites)));
@@ -54,8 +65,20 @@ select is(pg_temp.settings()->>'version','0','Noch nicht gespeicherte Einstellun
 set local role service_role;
 select lives_ok($$select pg_temp.apply(0,jsonb_build_array(pg_temp.listing('zero','0'),pg_temp.listing('unknown','null'),pg_temp.listing('decrease','5'),pg_temp.listing('skipped','2')))$$,'Erstimport setzt Ausgangswerte');
 select is((select count(*)::int from public.marketplace_favorite_notifications),0,'Erstimport erzeugt keine Meldung');
+select is((select count(*)::int from public.web_push_events where category='favorite'),0,'Keine Push-Erstbaseline');
 select lives_ok($$select pg_temp.apply(1,jsonb_build_array(pg_temp.listing('zero','1'),pg_temp.listing('unknown','5'),pg_temp.listing('decrease','4'),pg_temp.listing('skipped','2')))$$,'Neuere Kennzahlen werden übernommen');
 select is((select count(*)::int from public.marketplace_favorite_notification_events),1,'Nur null nach eins erzeugt eine Meldung');
+select is((select count(*)::int from public.web_push_events where category='favorite'),1,'Abgeschlossene Glocken-Sammelmeldung erzeugt genau ein Pushereignis');
+select is((select count(*)::int from public.web_push_deliveries),1,'Nur bestaetigte Favoritenpraeferenz erzeugt einen Auftrag');
+select is((select payload->'target' from public.web_push_events where category='favorite'),'{"kind":"vinted_favorites","connectionId":"33000000-0000-4000-8000-000000000021"}'::jsonb,'Favoritenziel enthaelt nur interne Verbindungskennung');
+select is((select payload->>'body' from public.web_push_events where category='favorite'),'Deine Inserate haben neue Favoriten.','Sperrbildschirm bleibt allgemein');
+savepoint repeat_finalizer;
+select set_config('flipbase.favorite_notification_import',jsonb_build_object('workspaceId','33000000-0000-4000-8000-000000000011','connectionId','33000000-0000-4000-8000-000000000021','observedAt','2026-09-30T12:01:00Z','version',0,'notificationId',(select id from public.marketplace_favorite_notifications where observed_at='2026-09-30T12:01:00Z'))::text,true);
+select public.marketplace_finalize_favorite_import('33000000-0000-4000-8000-000000000011','33000000-0000-4000-8000-000000000021','2026-09-30T12:01:00Z',true);
+select count(*)=1 as repeat_unique from public.web_push_events where category='favorite' \gset
+rollback to savepoint repeat_finalizer;
+release savepoint repeat_finalizer;
+select ok(:'repeat_unique'::boolean,'Wiederholter Abschluss dupliziert keine Versandquelle');
 select is((select previous_favorites::int from public.marketplace_favorite_notification_events limit 1),0,'Bekannter Nullwert bleibt Ereignisbasis');
 select is((select favorites::int from public.marketplace_favorite_notification_events limit 1),1,'Neuer bekannter Wert wird gespeichert');
 select is((select count(*)::int from realtime.messages where topic='workspace:33000000-0000-4000-8000-000000000011:marketplace_notifications' and event='favorite_notifications_changed' and private),1,'Eine Kontozusammenfassung sendet genau eine private Invalidierung');
@@ -146,5 +169,19 @@ select is(public.marketplace_mark_favorite_notifications('33000000-0000-4000-800
 select is(jsonb_array_length(pg_temp.feed()->'items'),0,'Gelöschte Historie ist leer');
 reset role;
 select is((select count(*)::int from public.marketplace_favorite_notification_events),0,'Gelöschte Zusammenfassungen entfernen zugehörige Ereignisse');
+reset role;
+insert into public.marketplace_favorite_notifications(workspace_id,connection_id,observed_at) values ('33000000-0000-4000-8000-000000000011','33000000-0000-4000-8000-000000000021','2020-01-01T00:00:00Z');
+select public.marketplace_prepare_favorite_import('33000000-0000-4000-8000-000000000011','33000000-0000-4000-8000-000000000021','2020-01-01T00:00:00Z');
+update public.marketplace_account_entries set body=body where connection_id='33000000-0000-4000-8000-000000000021' and kind='publication';
+select public.marketplace_finalize_favorite_import('33000000-0000-4000-8000-000000000011','33000000-0000-4000-8000-000000000021','2020-01-01T00:00:00Z',true);
+select ok(not exists(select 1 from public.web_push_events where source_key='vinted-favorites:'||(select id::text from public.marketplace_favorite_notifications where observed_at='2020-01-01T00:00:00Z')),'Altmeldung mit erneut geoeffnetem passendem Kontext und unveraenderten Zeilen wird nicht rueckuebernommen');
+create temporary table favorite_claim as select * from public.web_push_claim('v1',true);
+select ok(public.web_push_authorize((select id from favorite_claim limit 1),'33000000-0000-4000-8000-000000000051',(select claim_token from favorite_claim limit 1)) is not null,'Favoritenauftrag wird unmittelbar vor Versand autorisiert');
+update public.web_push_preferences set categories='{}' where device_id='33000000-0000-4000-8000-000000000051';
+select is(public.web_push_authorize((select id from favorite_claim limit 1),'33000000-0000-4000-8000-000000000051',(select claim_token from favorite_claim limit 1)),null::jsonb,'Widerrufene Kategorie sperrt bereits beanspruchten Favoritenauftrag');
+update public.web_push_preferences set categories=array['favorite'] where device_id='33000000-0000-4000-8000-000000000051';
+create temporary table favorite_logout_claim as select * from public.web_push_claim('v1',true);
+delete from auth.sessions where id='33000000-0000-4000-8000-000000000041';
+select is(public.web_push_authorize((select id from favorite_logout_claim limit 1),'33000000-0000-4000-8000-000000000051',(select claim_token from favorite_logout_claim limit 1)),null::jsonb,'Logout sperrt beanspruchten Favoritenauftrag');
 select * from finish();
 rollback;

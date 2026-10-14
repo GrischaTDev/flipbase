@@ -368,6 +368,7 @@ beforeAll(async () => {
     iconPosition: ['iconPosition', 1, null],
     iconOnly: ['iconOnly', 1, null],
     fullWidth: ['fullWidth', 1, null],
+    wrapLabel: ['wrapLabel', 1, null],
     contentAlign: ['contentAlign', 1, null],
     type: ['type', 1, null],
     formId: ['formId', 1, null],
@@ -392,6 +393,7 @@ beforeAll(async () => {
     iconPosition: 'iconPosition',
     iconOnly: 'iconOnly',
     fullWidth: 'fullWidth',
+    wrapLabel: 'wrapLabel',
     contentAlign: 'contentAlign',
     type: 'type',
     formId: 'formId',
@@ -1630,7 +1632,7 @@ describe('Benachrichtigungseinstellungen – echte Angular-Fixture', () => {
     async (permissionResult, type, title, description) => {
       const { fixture, webPushService, toast } = await renderNotifications({ permissionResult });
 
-      renderedButton(fixture, 'Dieses Gerät aktivieren').click();
+      renderedButton(fixture, 'Benachrichtigungen auf diesem Gerät aktivieren').click();
       await flushAsyncAction(fixture);
 
       expect(webPushService.requestPermission).toHaveBeenCalledOnce();
@@ -2359,7 +2361,8 @@ async function renderApp(
     offlineAssetsReady: signal(false),
     assetsMessage: signal('App-Dateien werden geprüft.'),
     installationHelp: signal('Nutze das Installationsmenü deines Browsers.'),
-    promptInstall: vi.fn(),
+    startInstallation: vi.fn(),
+    isInstalling: signal(false),
   };
   const ebayApiService = {
     loadStatus: vi.fn(async () => ({ configured: true, connection: null })),
@@ -2388,7 +2391,7 @@ describe('App-Einstellungen – echte Angular-Fixture', () => {
   it('zeigt auf Desktop weder Installationsangebot noch Installationsanleitung', async () => {
     const { fixture } = await renderApp({ mobile: false });
     const host = fixture.nativeElement as HTMLElement;
-    expect(host.textContent).not.toContain('Flipbase installieren');
+    expect(host.textContent).not.toContain('App installieren');
     expect(host.textContent).not.toContain('Nutze das Installationsmenü');
     expect(host.querySelector('a[href="/purchases"]')).toBeNull();
     expect(host.querySelector('a[href="/offline/purchases"]')).toBeNull();
@@ -2415,10 +2418,10 @@ describe('App-Einstellungen – echte Angular-Fixture', () => {
     expect(renderedText).toContain('Netzwerk verfügbar');
     expect(renderedText).toContain('Im Web-Browser');
 
-    renderedButton(fixture, 'Flipbase installieren').click();
+    renderedButton(fixture, 'App installieren').click();
     await flushAsyncAction(fixture);
 
-    expect(pwaService.promptInstall).toHaveBeenCalledOnce();
+    expect(pwaService.startInstallation).toHaveBeenCalledOnce();
     expect(toast.toasts()).toEqual([]);
   });
 
@@ -2431,10 +2434,10 @@ describe('App-Einstellungen – echte Angular-Fixture', () => {
     expect(host.textContent).toContain('im eigenständigen App-Fenster geöffnet.');
     expect(
       Array.from(host.querySelectorAll<HTMLButtonElement>('button')).find(
-        (button) => button.textContent?.replace(/\s+/g, ' ').trim() === 'Flipbase installieren',
+        (button) => button.textContent?.replace(/\s+/g, ' ').trim() === 'App installieren',
       ),
     ).toBeUndefined();
-    expect(pwaService.promptInstall).not.toHaveBeenCalled();
+    expect(pwaService.startInstallation).not.toHaveBeenCalled();
     expect(toast.toasts()).toEqual([]);
   });
 });

@@ -21,7 +21,7 @@ const payload = {
   body: 'Test',
   target: { kind: 'settings' },
 };
-function setup() {
+function setup(connection: { id: string; marketplace: string } | null = null) {
   const currentUser = signal<{ id: string } | null>({ id: userId });
   const locked = signal(false);
   const currentWorkspace = signal({ id: '44444444-4444-4444-8444-444444444444' });
@@ -32,9 +32,12 @@ function setup() {
   const navigateByUrl = vi.fn(async () => true);
   const navigate = vi.fn(async () => true);
   const refresh = vi.fn(async () => [{ workspace_id: workspaceId, access_status: 'active' }]);
-  const from = vi.fn(() => {
-    throw new Error('Unexpected target query');
-  });
+  const query = {
+    select: vi.fn(() => query),
+    eq: vi.fn(() => query),
+    maybeSingle: vi.fn(async () => ({ data: connection, error: null })),
+  };
+  const from = vi.fn(() => query);
   TestBed.configureTestingModule({
     providers: [
       PushNavigationService,
@@ -59,11 +62,38 @@ function setup() {
     navigate,
     refresh,
     from,
+    query,
   };
 }
 beforeEach(() => sessionStorage.clear());
 afterEach(() => TestBed.resetTestingModule());
 describe('Authorized push navigation', () => {
+  it('opens favorites only after rechecking the Vinted connection in the authorized workspace', async () => {
+    const connectionId = '55555555-5555-4555-8555-555555555555';
+    const { service, query, navigateByUrl } = setup({ id: connectionId, marketplace: 'vinted' });
+    service.enqueue({
+      ...payload,
+      category: 'favorite',
+      target: { kind: 'vinted_favorites', connectionId },
+    });
+    expect(await service.openPending()).toBe(true);
+    expect(query.eq).toHaveBeenCalledWith('workspace_id', workspaceId);
+    expect(query.eq).toHaveBeenCalledWith('id', connectionId);
+    expect(navigateByUrl).toHaveBeenCalledWith(
+      `/marketplaces/vinted/listings?connectionId=${connectionId}`,
+    );
+  });
+  it('keeps favorites pending after connection access is revoked', async () => {
+    const { service, navigateByUrl } = setup();
+    service.enqueue({
+      ...payload,
+      category: 'favorite',
+      target: { kind: 'vinted_favorites', connectionId: workspaceId },
+    });
+    expect(await service.openPending()).toBe(false);
+    expect(navigateByUrl).not.toHaveBeenCalled();
+    expect(service.pending()).not.toBeNull();
+  });
   it('retains a newer notification arriving while the router completes the first target', async () => {
     const { service, navigateByUrl } = setup();
     let finish: (result: boolean) => void = () => undefined;

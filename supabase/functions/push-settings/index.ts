@@ -8,11 +8,35 @@ const service = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '
   auth: { persistSession: false, autoRefreshToken: false },
   global: { fetch: (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(10000) }) },
 });
+const readPilotIds = (input: string | undefined): string[] => {
+  const identifiers = (input ?? '')
+    .split(',')
+    .map((identifier) => identifier.trim())
+    .filter(Boolean);
+  if (identifiers.length > 100 || identifiers.some((identifier) => !uuidPattern.test(identifier)))
+    throw new Error('Invalid pilot configuration');
+  return identifiers;
+};
 Deno.serve(
   createPushSettingsHandler({
     publicKey: Deno.env.get('WEB_PUSH_VAPID_PUBLIC_KEY') ?? '',
     keyId: Deno.env.get('WEB_PUSH_VAPID_KEY_ID') ?? '',
     enabled: Deno.env.get('WEB_PUSH_ENABLED') === 'true',
+    allowAll: Deno.env.get('WEB_PUSH_ALLOW_ALL') === 'true',
+    pilotUsers: readPilotIds(Deno.env.get('WEB_PUSH_PILOT_USER_IDS')),
+    pilotDevices: readPilotIds(Deno.env.get('WEB_PUSH_PILOT_DEVICE_IDS')),
+    async ownsDevice(userId, sessionId, deviceId) {
+      const { data, error } = await service
+        .from('web_push_devices')
+        .select('id')
+        .eq('id', deviceId)
+        .eq('user_id', userId)
+        .eq('session_id', sessionId)
+        .eq('active', true)
+        .maybeSingle();
+      if (error) throw new PushSettingsError(503, 'unavailable');
+      return data !== null;
+    },
     origins: (
       Deno.env.get('WEB_PUSH_ALLOWED_ORIGINS') ?? 'https://app.flipbase.de,http://localhost:4200'
     ).split(','),
