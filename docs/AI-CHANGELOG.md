@@ -1,5 +1,25 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-14 - Juna - Systembenachrichtigungen übersichtlicher darstellen
+
+**Auftrag:** Die abgestimmte Darstellung mit transparentem PC-Logo, kurzen
+Kategorietiteln und passender Öffnen-Aktion umsetzen. Auf dem Handy soll das
+zusätzliche große Logo entfallen, das Statussymbol bleibt erhalten.
+
+**Umsetzung:** Der Service Worker verwendet das vorhandene transparente Logo nur
+auf Desktopgeräten. Mobile Browser werden über ihre Geräteangabe oder die
+Android-/iOS-Kennung erkannt. Einfarbiges Statussymbol und weiße Installationsicons
+bleiben unverändert. Feste Meldungstexte schützen Kundendaten auf dem Sperrbildschirm;
+verfügbare Aktionsbuttons führen durch den bisherigen geprüften Klickpfad.
+
+**Prüfung:** Alle 28 PWA-Prüfungen bestanden, davon acht Push-Prüfungen für mobile
+Logoauslassung, Desktoplogo, alle fünf Meldungsarten, fehlende Aktionsunterstützung
+und unveränderte sichere Klickziele. Format, gezieltes Lint, JavaScript-Syntax und
+Produktionsbau bestanden. Die unabhängige Codeprüfung fand keine Fehler.
+Die tatsächliche native Darstellung bleibt browser- und betriebssystemabhängig;
+Desktopmodus mit verschleierter mobiler Kennung lässt sich nicht sicher erkennen.
+Veröffentlichung ist noch nicht erfolgt.
+
 ## 2026-10-14 - Juna - Weiße App-Icons und Gerätebenachrichtigungen umsetzen
 
 **Auftrag:** Den ausdrücklich freigegebenen Plan für weiße App-Icons, direkte mobile

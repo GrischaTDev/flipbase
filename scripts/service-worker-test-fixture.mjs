@@ -5,7 +5,12 @@ import { createHash, webcrypto } from 'node:crypto';
 const origin = 'https://app.flipbase.test';
 const hash = (text) => createHash('sha256').update(text).digest('hex');
 
-export function createWorker({ corrupt = false, clients = [] } = {}) {
+export function createWorker({
+  corrupt = false,
+  clients = [],
+  navigator = { userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+  maxActions = 2,
+} = {}) {
   const resources = new Map([
     ['/index.html', '<html>build-a</html>'],
     ['/chunk-A1.js', 'lazy-a'],
@@ -67,6 +72,8 @@ export function createWorker({ corrupt = false, clients = [] } = {}) {
   const calls = [];
   let skipCount = 0;
   const self = {
+    navigator,
+    Notification: { maxActions },
     location: { origin, href: `${origin}/sw.js` },
     registration: {
       scope: `${origin}/`,

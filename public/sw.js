@@ -408,19 +408,46 @@ self.addEventListener('push', (event) =>
       } catch {
         /* Ein kaputter Payload bekommt nur eine allgemeine sichtbare Meldung. */
       }
-      const bodies = {
-        message: 'Du hast eine neue Nachricht.',
-        order: 'Eine neue Bestellung ist eingegangen.',
-        favorite: 'Deine Inserate haben neue Favoriten.',
-        connection: 'Eine Kontoverbindung braucht deine Anmeldung.',
-        test: 'Deine Testbenachrichtigung ist angekommen.',
+      // Nur feste Texte verwenden: Kontaktdaten bleiben vom Sperrbildschirm fern.
+      const notificationContent = {
+        message: {
+          title: 'Neue Marktplatznachricht',
+          body: 'Du hast eine neue Nachricht.',
+          action: 'Nachricht öffnen',
+        },
+        order: {
+          title: 'Neue Bestellung',
+          body: 'Eine neue Bestellung ist eingegangen.',
+          action: 'Bestellungen öffnen',
+        },
+        favorite: {
+          title: 'Neue Favoriten auf Vinted',
+          body: 'Deine Inserate haben neue Favoriten.',
+          action: 'Inserate öffnen',
+        },
+        connection: {
+          title: 'Kontoverbindung prüfen',
+          body: 'Dein Marktplatzkonto braucht eine Anmeldung.',
+          action: 'Konto prüfen',
+        },
+        test: {
+          title: 'Flipbase: Testbenachrichtigung',
+          body: 'Deine Testmeldung ist angekommen.',
+          action: 'Einstellungen öffnen',
+        },
       };
-      await self.registration.showNotification('Flipbase', {
-        body: payload
-          ? bodies[payload.category]
-          : 'Öffne Flipbase, um deine Benachrichtigungen zu prüfen.',
-        icon: '/icons/install-white-192.png',
+      const content = payload ? notificationContent[payload.category] : null;
+      const isMobile =
+        self.navigator?.userAgentData?.mobile ||
+        /Android|iPhone|iPad|iPod/i.test(self.navigator?.userAgent ?? '');
+      await self.registration.showNotification(content?.title ?? 'Flipbase', {
+        body: content?.body ?? 'Öffne Flipbase, um deine Benachrichtigungen zu prüfen.',
+        ...(isMobile ? {} : { icon: '/images/logo-mark-192.png' }),
         badge: '/icons/push-badge-monochrome-96.png',
+        actions:
+          content && self.Notification?.maxActions > 0
+            ? [{ action: 'open', title: content.action }]
+            : [],
         tag: payload ? `flipbase-event-${payload.eventId}` : 'flipbase-invalid-push',
         data: payload,
         renotify: false,
