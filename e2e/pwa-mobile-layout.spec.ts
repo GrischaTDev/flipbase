@@ -79,8 +79,8 @@ for (const device of [
           Object.defineProperty(navigator, 'maxTouchPoints', { value: 5 }),
         );
       await mockMarketplace(page);
-      await page.goto('/settings/app');
-      await expect(page.getByRole('heading', { name: 'Progressive Web App (PWA)' })).toBeVisible();
+      await page.goto('/settings/notifications');
+      await expect(page.getByRole('heading', { name: 'Push-Benachrichtigungen' })).toBeVisible();
       if (device.viewport.width < 768)
         await page.getByRole('button', { name: 'Menü', exact: true }).click();
       const setup = page.locator('app-sidebar').getByRole('button', { name: 'App installieren' });
@@ -108,9 +108,7 @@ for (const device of [
         window.dispatchEvent(event);
       });
       await expect(
-        page
-          .locator('app-app-settings')
-          .getByRole('button', { name: 'App installieren', exact: true }),
+        page.locator('app-sidebar').getByRole('button', { name: 'App installieren', exact: true }),
       ).toHaveCount(device.mobile ? 1 : 0);
     });
     if (device.name === 'iPad desktop mode') {
@@ -118,10 +116,8 @@ for (const device of [
         page,
       }) => {
         await mockMarketplace(page);
-        await page.goto('/settings/app');
-        await expect(
-          page.getByRole('heading', { name: 'Progressive Web App (PWA)' }),
-        ).toBeVisible();
+        await page.goto('/settings/notifications');
+        await expect(page.getByRole('heading', { name: 'Push-Benachrichtigungen' })).toBeVisible();
         await page.addStyleTag({ content: '[data-shell-main] { min-height: 2400px; }' });
         for (const height of [768, 860, 768]) {
           await page.setViewportSize({ width: 1024, height });
@@ -159,8 +155,8 @@ for (const viewport of [
   }) => {
     await page.setViewportSize(viewport);
     await mockMarketplace(page);
-    await page.goto('/settings/app');
-    await expect(page.getByRole('heading', { name: 'Progressive Web App (PWA)' })).toBeVisible();
+    await page.goto('/settings/notifications');
+    await expect(page.getByRole('heading', { name: 'Push-Benachrichtigungen' })).toBeVisible();
     await page.addStyleTag({
       content:
         ':root { --fb-safe-top: 20px; --fb-safe-bottom: 24px; --fb-safe-left: 12px; --fb-safe-right: 12px; }',
@@ -192,10 +188,11 @@ for (const viewport of [
             .map((animation) => animation.finished),
         );
       }, theme);
-      await page.addScriptTag({ content: axe.source });
+      await page.evaluate(axe.source);
       const violations = await page.evaluate(
         async () =>
-          (await (window as unknown as { axe: typeof axe }).axe.run('app-app-settings')).violations,
+          (await (window as unknown as { axe: typeof axe }).axe.run('app-notification-settings'))
+            .violations,
       );
       expect(violations).toEqual([]);
     }

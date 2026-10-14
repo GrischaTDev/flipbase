@@ -29,12 +29,16 @@ beforeEach(() => {
     checked: ['checked', 1, null],
     disabled: ['disabled', 1, null],
     indeterminate: ['indeterminate', 1, null],
+    presentation: ['presentation', 1, null],
+    label: ['label', 1, null],
   };
   metadata.declaredInputs = {
     ...metadata.declaredInputs,
     checked: 'checked',
     disabled: 'disabled',
     indeterminate: 'indeterminate',
+    presentation: 'presentation',
+    label: 'label',
   };
   TestBed.resetTestingModule();
   TestBed.configureTestingModule({
@@ -63,6 +67,23 @@ function buttonOf(fixture: ReturnType<typeof createCheckbox>): HTMLButtonElement
 }
 
 describe('CustomCheckboxComponent', () => {
+  it('macht die gesamte breite Kategoriezeile bedienbar und behält Checkbox-Semantik', () => {
+    const fixture = createCheckbox();
+    fixture.componentRef.setInput('presentation', 'row');
+    fixture.componentRef.setInput('label', 'Neue Nachrichten');
+    fixture.detectChanges();
+    const button = buttonOf(fixture);
+    expect(button.classList).toContain('w-full');
+    expect(button.classList).toContain('min-h-16');
+    button.click();
+    fixture.detectChanges();
+    expect(button.getAttribute('aria-checked')).toBe('true');
+    expect(button.getAttribute('aria-label')).toBe('Neue Nachrichten');
+    fixture.componentRef.setInput('disabled', true);
+    fixture.detectChanges();
+    button.click();
+    expect(button.getAttribute('aria-checked')).toBe('true');
+  });
   it('verwendet Markengelb als Standardfarbe', () => {
     const fixture = createCheckbox();
 

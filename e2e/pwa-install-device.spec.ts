@@ -169,14 +169,15 @@ test.describe('Android install dialog', () => {
     page,
   }) => {
     await mockBackend(page);
-    await page.goto('/settings/app');
+    await page.goto('/settings/notifications');
+    await page.getByRole('button', { name: 'Menü', exact: true }).click();
     const install = page
-      .locator('app-app-settings')
+      .locator('app-sidebar')
       .getByRole('button', { name: 'App installieren', exact: true });
     await install.click();
     const dialog = page.getByRole('dialog', { name: 'Flipbase installieren' });
     await expect(dialog).toBeVisible();
-    await expect(page).toHaveURL(/\/settings\/app$/);
+    await expect(page).toHaveURL(/\/settings\/notifications$/);
     const geometry = await dialog.evaluate((element) => {
       const card = element.firstElementChild;
       if (!card) throw new Error('Dialog card missing');
@@ -239,14 +240,16 @@ test.describe('Android install dialog', () => {
     await page.evaluate(() => window.dispatchEvent(new Event('appinstalled')));
     await expect(install).toHaveCount(0);
     await page.reload();
-    await expect(page.locator('app-app-settings')).toBeVisible();
+    await expect(page.locator('app-notification-settings')).toBeVisible();
     await expect(install).toHaveCount(0);
   });
 });
 
 test('places device settings before webhooks and exposes the bell settings link on Windows @pwa-layout', async ({
   page,
-}) => {
+}, testInfo) => {
+  const pageErrors: string[] = [];
+  page.on('pageerror', (error) => pageErrors.push(error.message));
   await mockBackend(page);
   await page.addInitScript(() => {
     const state = window as unknown as { pushPermissions: number };
@@ -318,13 +321,19 @@ test('places device settings before webhooks and exposes the bell settings link 
   });
   await page.goto('/settings/notifications');
   const settings = page.locator('app-notification-settings');
-  await expect(settings.getByRole('heading').first()).toHaveText('Push auf diesem Gerät');
-  await expect(settings.getByText('Windows Chrome und Edge', { exact: false })).toBeVisible();
+  await expect(settings.getByRole('heading').first()).toHaveText('Push-Benachrichtigungen');
+  const help = settings.getByRole('button', { name: 'Infos zu Push-Benachrichtigungen' });
+  await expect(settings.locator('#push-help')).toHaveCount(0);
+  await help.click();
+  await expect(help).toHaveAttribute('aria-expanded', 'true');
+  await expect(settings.locator('#push-help')).toContainText('auch bei geschlossener App');
+  await help.click();
+  await expect(settings.locator('#push-help')).toHaveCount(0);
   await expect(
     page.locator('app-sidebar').getByRole('button', { name: 'App installieren' }),
   ).toHaveCount(0);
   const activation = settings.getByRole('button', {
-    name: 'Benachrichtigungen auf diesem Gerät aktivieren',
+    name: 'Push aktivieren',
     exact: true,
   });
   await expect(activation).toBeEnabled();
@@ -353,7 +362,7 @@ test('places device settings before webhooks and exposes the bell settings link 
     }
   }
   await page.screenshot({
-    path: '.superpowers/task2-device-before-activation-390-enlarged.png',
+    path: testInfo.outputPath('push-mobile.png'),
     fullPage: true,
     animations: 'disabled',
   });
@@ -368,19 +377,60 @@ test('places device settings before webhooks and exposes the bell settings link 
     name: 'Neue Favoriten für deine Vinted-Inserate',
     exact: true,
   });
+  expect(
+    await favorites.evaluate((button) => button.getBoundingClientRect().height),
+  ).toBeGreaterThanOrEqual(64);
   await favorites.click();
   await expect(favorites).toHaveAttribute('aria-checked', 'false');
   await activation.click();
   await expect(settings.getByRole('status')).toHaveText('Dieses Gerät ist für Push aktiviert.');
+  await expect(page).toHaveURL(/\/settings\/notifications$/);
   expect(savedCategories).toEqual(['message', 'order', 'connection']);
+  await page.evaluate(axe.source);
+  for (const [theme, width] of [
+    ['light', 1280],
+    ['dark', 390],
+    ['light', 1024],
+  ] as const) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.evaluate(
+      (theme) => document.documentElement.classList.toggle('dark', theme === 'dark'),
+      theme,
+    );
+    await settings.evaluate(async (element) => {
+      await Promise.all(
+        element
+          .getAnimations({ subtree: true })
+          .map((animation) => animation.finished.catch(() => undefined)),
+      );
+    });
+    const violations = await page.evaluate(
+      async () =>
+        (
+          await (window as unknown as { axe: typeof axe }).axe.run(
+            'app-notification-settings app-card',
+          )
+        ).violations,
+    );
+    expect(violations).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+    await page.screenshot({
+      path: testInfo.outputPath(`push-${theme}-${width}.png`),
+      animations: 'disabled',
+    });
+  }
+  await page.setViewportSize({ width: 1280, height: 900 });
   expect(
     await page.evaluate(() => (window as unknown as { pushPermissions: number }).pushPermissions),
   ).toBe(1);
   await page.getByRole('button', { name: 'Benachrichtigungen', exact: true }).click();
   await expect(page.getByRole('link', { name: 'Benachrichtigungen einstellen' })).toBeVisible();
   await page.screenshot({
-    path: '.superpowers/task2-device-windows.png',
+    path: testInfo.outputPath('push-desktop.png'),
     fullPage: true,
     animations: 'disabled',
   });
+  expect(pageErrors).toEqual([]);
 });

@@ -9,6 +9,36 @@ import {
   validateEndpoint,
 } from '../src/push-provider.ts';
 
+test('sichtbare Systemmeldungen fordern sofortige Zustellung auch bei ruhendem Gerät an', async () => {
+  const keys = generateVAPIDKeys();
+  let requestHeaders: Record<string, string | number> | undefined;
+  const provider = createPushProvider(
+    { ...keys, subject: 'mailto:push@example.test' },
+    {
+      resolve: async () => [{ address: '8.8.8.8', family: 4 }],
+      post: async (_endpoint, _address, details) => {
+        requestHeaders = details.headers;
+        return { status: 201 };
+      },
+    },
+  );
+  assert.equal(
+    (
+      await provider.send(
+        {
+          endpoint: 'https://fcm.googleapis.com/test',
+          p256dh: keys.publicKey,
+          auth: Buffer.alloc(16, 1).toString('base64url'),
+        },
+        '{"category":"message"}',
+      )
+    ).status,
+    'accepted',
+  );
+  assert.equal(requestHeaders?.['Urgency'], 'high');
+  assert.equal(requestHeaders?.['TTL'], 86400);
+});
+
 test('nur HTTPS-Anbieter ohne alternative Ports, Credentials oder Redirectziele', () => {
   for (const endpoint of [
     'http://fcm.googleapis.com/a',

@@ -30,9 +30,10 @@
 
           <div class="flex justify-end">
             <app-button
+              [wrapLabel]="true"
               type="submit"
               variant="primary"
-              size="md"
+              size="touch"
               [disabled]="profileForm.invalid || isSavingProfile()"
               [loading]="isSavingProfile()"
             >
@@ -55,7 +56,13 @@
             Ändere dein Passwort nach erneuter Bestätigung deiner Anmeldung.
           </p>
         </div>
-        <app-button variant="secondary" size="md" [icon]="keyIcon" (clicked)="openPasswordModal()">
+        <app-button
+          [wrapLabel]="true"
+          variant="secondary"
+          size="touch"
+          [icon]="keyIcon"
+          (clicked)="openPasswordModal()"
+        >
           Passwort ändern
         </app-button>
       </div>
@@ -98,8 +105,9 @@
         </p>
         <div class="mt-3">
           <app-button
+            [wrapLabel]="true"
             variant="destructive"
-            size="md"
+            size="touch"
             [icon]="logoutIcon"
             [disabled]="isSigningOutEverywhere()"
             [loading]="isSigningOutEverywhere()"
@@ -167,19 +175,21 @@
 
     <div modal-footer class="flex items-center justify-end gap-2">
       <app-button
+        [wrapLabel]="true"
         type="button"
         variant="secondary"
-        size="md"
+        size="touch"
         [disabled]="isChangingPassword()"
         (clicked)="closePasswordModal()"
       >
         Abbrechen
       </app-button>
       <app-button
+        [wrapLabel]="true"
         type="submit"
         formId="password-change-form"
         variant="primary"
-        size="md"
+        size="touch"
         [disabled]="passwordForm.invalid || isChangingPassword()"
         [loading]="isChangingPassword()"
       >

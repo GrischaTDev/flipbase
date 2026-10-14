@@ -94,7 +94,7 @@ test('a real second build waits for an unsaved second window before activation @
       { origin: 'https://api.flipbase.de', userId: '25000000-0000-4000-8000-000000000001' },
     );
   await configure(page);
-  await page.goto('/settings/app');
+  await page.goto('/settings/notifications');
   await expect
     .poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller)))
     .toBe(true);
@@ -117,10 +117,22 @@ test('a real second build waits for an unsaved second window before activation @
     );
     await expect(other.getByLabel('Verkäuferangabe, falls bekannt')).toHaveValue('Ungespeichert');
     await other.close();
+    const unchanged = await context.newPage();
+    await configure(unchanged);
+    await unchanged.goto('/settings/notifications');
     await page.getByRole('button', { name: 'Jetzt aktualisieren' }).click();
     await expect(page.locator('html')).not.toHaveAttribute('data-flipbase-build', oldBuild ?? '');
-    await expect(page.getByRole('heading', { name: 'Progressive Web App (PWA)' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Push-Benachrichtigungen' })).toBeVisible();
     await expect(page.getByRole('region', { name: 'App aktualisieren' })).toHaveCount(0);
+    // Andere sichere Ansichten behalten ihre alten Chunks bis zum eigenen Neustart.
+    await expect(unchanged.locator('html')).toHaveAttribute('data-flipbase-build', oldBuild ?? '');
+    await unchanged.reload();
+    await expect(unchanged.locator('html')).not.toHaveAttribute(
+      'data-flipbase-build',
+      oldBuild ?? '',
+    );
+    await expect(unchanged.getByRole('region', { name: 'App aktualisieren' })).toHaveCount(0);
+    await unchanged.close();
     await page.reload();
     await expect(page.getByRole('region', { name: 'App aktualisieren' })).toHaveCount(0);
   } finally {
@@ -161,8 +173,8 @@ test('legacy network-worker handover does not repeatedly offer the already loade
   await expect
     .poll(() => legacy.evaluate(() => Boolean(navigator.serviceWorker.controller)))
     .toBe(true);
-  await page.goto('/settings/app');
-  await expect(page.getByRole('heading', { name: 'Progressive Web App (PWA)' })).toBeVisible();
+  await page.goto('/settings/notifications');
+  await expect(page.getByRole('heading', { name: 'Push-Benachrichtigungen' })).toBeVisible();
   await expect
     .poll(() =>
       page.evaluate(
@@ -177,7 +189,7 @@ test('legacy network-worker handover does not repeatedly offer the already loade
     page.waitForEvent('load'),
     page.evaluate(() => window.dispatchEvent(new Event('focus'))),
   ]);
-  await expect(page.getByRole('heading', { name: 'Progressive Web App (PWA)' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Push-Benachrichtigungen' })).toBeVisible();
   await expect
     .poll(() =>
       page.evaluate(async () => {
@@ -190,6 +202,6 @@ test('legacy network-worker handover does not repeatedly offer the already loade
     .toBe(true);
   await expect(page.getByRole('region', { name: 'App aktualisieren' })).toHaveCount(0);
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'Progressive Web App (PWA)' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Push-Benachrichtigungen' })).toBeVisible();
   await expect(page.getByRole('region', { name: 'App aktualisieren' })).toHaveCount(0);
 });

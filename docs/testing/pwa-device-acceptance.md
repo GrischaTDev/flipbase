@@ -20,6 +20,26 @@ Die Produktionstests prüfen lokale Speicherung, Neustart, konkurrierende Revisi
 
 Für jeden Lauf Gerät, Betriebssystem, Browser-Version, veröffentlichte Commit-SHA, PWA-Baukennung und Ergebnis festhalten. Nicht verfügbare Funktionen müssen verständlich erklärt werden. Ein Browserfenster oder ein WebKit-Test ersetzt keine Home-App-Abnahme.
 
+### Zeitnahe Systemmeldungen bei geschlossener App
+
+Push fordert für die sichtbaren Meldungen hohe Zustellpriorität (`Urgency: high`) an.
+Normale Priorität darf der Anbieter auf ruhenden Geräten verzögern; die Vorgabe
+folgt dem [Web-Push-Protokoll](https://web.dev/articles/push-notifications-web-push-protocol).
+Die Annahme durch den Anbieter bestätigt noch keine Anzeige auf dem Gerät.
+
+Vor dem Test das Gerät und die gewünschten Kategorien aktivieren, dann Flipbase
+schließen und das Gerät sperren. Erst danach eine neue echte Marktplatznachricht
+beziehungsweise Favoritenmeldung erzeugen. Systemmeldung und Klickziel auf Android
+und in der iPad-Home-App prüfen; anschließend mit länger ruhendem Gerät wiederholen.
+Eine Testmeldung bei geöffneter App oder ältere Einträge unter der Glocke ersetzen
+diese Prüfung nicht. Meldungen vor der Geräteaktivierung werden nicht nachträglich
+verschickt.
+
+Bei einem blockierten iPad-Update zuerst Eingaben speichern und andere Flipbase-Tabs
+oder App-Fenster schließen. Die Aktualisierung erneut auslösen. Danach muss die
+aktuelle Baukennung erscheinen und der Update-Hinweis verschwinden, auch nach
+erneutem Start. Browserdaten wegen lokaler Einkaufsentwürfe nicht pauschal löschen.
+
 ## Kontrollierter Push-Pilot
 
 1. Version mit Push ausgeschaltet veröffentlichen; öffentliche Commit-SHA, Manifest, Worker und Dateiliste müssen zusammenpassen.

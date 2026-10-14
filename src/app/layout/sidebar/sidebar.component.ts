@@ -208,4 +208,10 @@ export class SidebarComponent {
   platformLogoFor(item: WorkspaceNavigationItem): string {
     return item.platform ? (marketplacePlatformAppearance(item.platform).logo ?? '') : '';
   }
+
+  async startAppInstallation(event: MouseEvent): Promise<void> {
+    // Safari fokussiert Buttons bei einem Mausklick nicht automatisch.
+    if (event.currentTarget instanceof HTMLElement) event.currentTarget.focus();
+    await this.pwaService.startInstallation();
+  }
 }

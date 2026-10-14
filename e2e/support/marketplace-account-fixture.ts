@@ -30,7 +30,7 @@ export async function mockMarketplace(
   localAccounts = false,
   accountCount = accountIds.length,
   backend: { origin: string; userId: string; preserveExistingSession?: boolean } = {
-    origin: 'http://127.0.0.1:54351',
+    origin: process.env['PWA_TEST_BACKEND_ORIGIN'] ?? 'http://127.0.0.1:54351',
     userId: '25000000-0000-4000-8000-000000000001',
   },
 ) {

@@ -25,15 +25,15 @@
           <li>
             <a
               [routerLink]="['/settings', item.path]"
-              routerLinkActive="bg-indigo-500/15 text-fb-text-primary border-indigo-500/30"
+              routerLinkActive="bg-fb-brand-surface text-fb-text-primary border-fb-brand-border"
               #activeLink="routerLinkActive"
               [attr.aria-current]="activeLink.isActive ? 'page' : null"
-              class="flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border border-transparent px-3 py-2 text-fb-text-secondary outline-none transition hover:bg-fb-surface-hover hover:text-fb-text-primary focus-visible:ring-2 focus-visible:ring-indigo-400"
+              class="flex min-h-16 cursor-pointer items-center gap-3 rounded-xl border border-transparent px-3 py-3 text-fb-text-secondary outline-none transition hover:bg-fb-surface-hover hover:text-fb-text-primary focus-visible:ring-2 focus-visible:ring-fb-primary"
             >
               <svg [lucideIcon]="item.icon" class="h-4 w-4 shrink-0" aria-hidden="true"></svg>
               <span class="min-w-0">
                 <span class="block text-sm font-semibold">{{ item.label }}</span>
-                <span class="block text-[11px] text-fb-text-muted">{{ item.description }}</span>
+                <span class="block text-xs text-fb-text-muted">{{ item.description }}</span>
               </span>
             </a>
           </li>

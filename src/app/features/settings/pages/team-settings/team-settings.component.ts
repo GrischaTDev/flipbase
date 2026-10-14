@@ -1,3 +1,4 @@
+import { CardComponent } from '../../../../shared/components/card/card.component';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
@@ -23,6 +24,7 @@ import { TextFieldComponent } from '../../../../shared/components/text-field/tex
 @Component({
   selector: 'app-team-settings',
   imports: [
+    CardComponent,
     ReactiveFormsModule,
     LucideDynamicIcon,
     CustomSelectComponent,

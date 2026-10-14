@@ -6,7 +6,9 @@
       Unternehmensdaten konnten nicht geladen werden.
     </p>
     <p class="text-xs text-fb-text-muted">{{ company.loadError()?.message }}</p>
-    <app-button variant="secondary" size="md" (clicked)="retryLoad()">Erneut versuchen</app-button>
+    <app-button [wrapLabel]="true" variant="secondary" size="touch" (clicked)="retryLoad()"
+      >Erneut versuchen</app-button
+    >
   </div>
 } @else if (hasCurrentProfile() && company.taxMode()) {
   <form [formGroup]="form" (ngSubmit)="save()" class="space-y-4">
@@ -100,9 +102,10 @@
             />
             <div class="mt-3 flex flex-wrap gap-2">
               <app-button
+                [wrapLabel]="true"
                 type="button"
                 variant="secondary"
-                size="md"
+                size="touch"
                 [disabled]="isLogoBusy()"
                 [loading]="isLogoBusy()"
                 (clicked)="logoInput.click()"
@@ -111,9 +114,10 @@
               </app-button>
               @if (company.profile()?.logoPath) {
                 <app-button
+                  [wrapLabel]="true"
                   type="button"
                   variant="destructive"
-                  size="md"
+                  size="touch"
                   [disabled]="isLogoBusy()"
                   (clicked)="removeLogo()"
                 >
@@ -226,6 +230,8 @@
             Prüfe diesen Vorschlag. Erst mit „Speichern“ wird er zum Unternehmenskonto.
           </p>
           <app-button
+            [wrapLabel]="true"
+            size="touch"
             variant="secondary"
             [disabled]="isSaving()"
             (clicked)="applyLegacyBankSuggestion()"
@@ -258,18 +264,20 @@
     @if (company.canEdit()) {
       <div class="flex flex-wrap justify-end gap-2 pt-1">
         <app-button
+          [wrapLabel]="true"
           type="button"
           variant="secondary"
-          size="md"
+          size="touch"
           [disabled]="isSaving() || !hasUnsavedChanges()"
           (clicked)="discard()"
         >
           Verwerfen
         </app-button>
         <app-button
+          [wrapLabel]="true"
           type="submit"
           variant="primary"
-          size="md"
+          size="touch"
           [disabled]="isSaving() || !hasUnsavedChanges() || form.invalid"
           [loading]="isSavingState()"
         >

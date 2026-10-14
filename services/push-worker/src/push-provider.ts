@@ -151,7 +151,8 @@ export function createPushProvider(
             keys: { p256dh: subscription.p256dh, auth: subscription.auth },
           },
           payload,
-          { TTL: 86400, urgency: 'normal', contentEncoding: 'aes128gcm', vapidDetails: vapid },
+          // Jede Sendung erzeugt eine sichtbare Meldung; ruhende Geräte sollen nicht warten.
+          { TTL: 86400, urgency: 'high', contentEncoding: 'aes128gcm', vapidDetails: vapid },
         );
       } catch {
         return { status: 'configuration_error' };

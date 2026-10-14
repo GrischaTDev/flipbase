@@ -30,87 +30,123 @@
     store.connection()?.status !== 'connected' ||
     !store.isConfigured()
   ) {
-    <app-card title="eBay-Verbindung">
-      <div class="space-y-3">
-        <p class="text-sm text-fb-text-secondary">
-          Melde dich mit deinem normalen eBay-Konto an und erlaube Flipbase den Zugriff. Du brauchst
-          keinen eigenen API-Schlüssel. Die Verbindung gilt für dich in diesem Workspace.
-        </p>
-        @if (store.error(); as error) {
-          <p role="alert" class="text-sm text-fb-critical">{{ error }}</p>
-        }
-        @if (store.isLoading()) {
-          <p role="status" class="text-sm text-fb-text-muted">Verbindungsstatus wird geprüft …</p>
-        } @else if (!workspace.currentWorkspace() || workspace.currentWorkspace()?.archived_at) {
-          <p class="text-sm text-fb-text-muted">
-            Wähle einen aktiven Workspace, um dein eBay-Konto zu verbinden.
-          </p>
-        } @else if (!store.isConfigured() && !store.error()) {
-          <p role="status" class="text-sm text-fb-text-muted">
-            Die eBay-Anbindung wird noch eingerichtet. Sobald sie verfügbar ist, kannst du dein
-            Konto hier verbinden.
-          </p>
-        }
-        @if (store.connection(); as connection) {
-          <div class="flex flex-wrap items-center gap-2">
-            <app-badge [tone]="connection.status === 'connected' ? 'success' : 'neutral'">
-              {{
-                connection.status === 'connected'
-                  ? 'Verbunden'
-                  : connection.status === 'needs_login'
-                    ? 'Anmeldung erforderlich'
-                    : 'Getrennt'
-              }}
-            </app-badge>
-            @if (connection.environment === 'sandbox') {
-              <app-badge tone="caution">eBay-Testumgebung</app-badge>
+    <div class="mx-auto w-full max-w-2xl">
+      <app-card padding="lg">
+        <section
+          class="space-y-6 py-6"
+          aria-labelledby="ebay-connection-heading"
+          [class.text-center]="store.connection()?.status !== 'connected'"
+        >
+          <div class="space-y-3">
+            @if (store.connection()?.status !== 'connected') {
+              <div class="mx-auto flex size-16 items-center justify-center rounded-xl bg-fb-subtle">
+                <svg
+                  [lucideIcon]="connectIcon"
+                  class="size-8 text-fb-text-primary"
+                  aria-hidden="true"
+                ></svg>
+              </div>
             }
-            @if (connection.username) {
-              <span class="text-sm text-fb-text-primary">{{ connection.username }}</span>
-            }
-          </div>
-        }
-        <div class="flex flex-wrap gap-2">
-          @if (store.isConfigured()) {
-            <app-button
-              variant="primary"
-              [icon]="connectIcon"
-              [disabled]="store.isLoading() || store.isReading() || store.trafficLoading()"
-              (clicked)="connect()"
-            >
+            <h2 id="ebay-connection-heading" class="text-xl font-semibold text-fb-text-primary">
               {{
                 store.connection()?.status === 'connected'
-                  ? 'Erneut mit eBay verbinden'
-                  : 'Mit eBay verbinden'
+                  ? 'Dein eBay-Konto'
+                  : 'Verbinde dein eBay-Konto'
               }}
-            </app-button>
+            </h2>
+            @if (store.connection()?.status !== 'connected') {
+              <p class="mx-auto max-w-md text-sm text-fb-text-secondary">
+                Melde dich bei eBay an und erlaube Flipbase den Zugriff auf deine Inserate und
+                Bestellungen.
+              </p>
+            }
+          </div>
+          @if (store.error(); as error) {
+            <p role="alert" class="text-sm text-fb-critical">{{ error }}</p>
           }
-          <app-button
-            [icon]="refreshIcon"
-            [disabled]="store.isLoading() || store.isReading() || store.trafficLoading()"
-            (clicked)="refresh()"
-            >Status aktualisieren</app-button
+          @if (store.isLoading()) {
+            <p role="status" class="text-sm text-fb-text-secondary">
+              Verbindungsstatus wird geprüft …
+            </p>
+          } @else if (!workspace.currentWorkspace() || workspace.currentWorkspace()?.archived_at) {
+            <p class="text-sm text-fb-text-secondary">
+              Wähle einen aktiven Workspace, um dein eBay-Konto zu verbinden.
+            </p>
+          } @else if (!store.isConfigured() && !store.error()) {
+            <p role="status" class="text-sm text-fb-text-secondary">
+              Die eBay-Anbindung wird noch eingerichtet. Sobald sie verfügbar ist, kannst du dein
+              Konto hier verbinden.
+            </p>
+          }
+          @if (store.connection(); as connection) {
+            <div
+              class="flex flex-wrap items-center gap-3"
+              [class.justify-center]="connection.status !== 'connected'"
+            >
+              @if (connection.username) {
+                <span class="text-lg font-semibold text-fb-text-primary">{{
+                  connection.username
+                }}</span>
+              }
+              <app-badge [tone]="connection.status === 'connected' ? 'success' : 'neutral'">
+                {{
+                  connection.status === 'connected'
+                    ? 'Verbunden'
+                    : connection.status === 'needs_login'
+                      ? 'Anmeldung erforderlich'
+                      : 'Getrennt'
+                }}
+              </app-badge>
+              @if (connection.environment === 'sandbox') {
+                <app-badge tone="caution">eBay-Testumgebung</app-badge>
+              }
+            </div>
+          }
+          <div
+            class="flex flex-col gap-3 sm:flex-row sm:flex-wrap"
+            [class.justify-center]="store.connection()?.status !== 'connected'"
           >
+            @if (store.isConfigured()) {
+              <app-button
+                size="touch"
+                [wrapLabel]="true"
+                [variant]="store.connection()?.status === 'connected' ? 'secondary' : 'primary'"
+                [icon]="connectIcon"
+                [disabled]="store.isLoading() || store.isReading() || store.trafficLoading()"
+                (clicked)="connect()"
+              >
+                {{
+                  store.connection()?.status === 'connected'
+                    ? 'Erneut mit eBay verbinden'
+                    : 'Mit eBay verbinden'
+                }}
+              </app-button>
+            }
+            <app-button
+              size="touch"
+              [icon]="refreshIcon"
+              [disabled]="store.isLoading() || store.isReading() || store.trafficLoading()"
+              (clicked)="refresh()"
+              >Status aktualisieren</app-button
+            >
+          </div>
           @if (store.connection(); as connection) {
             @if (connection.status !== 'disconnected') {
-              <app-button
-                variant="destructive"
-                [icon]="disconnectIcon"
-                [disabled]="store.isLoading()"
-                (clicked)="store.disconnect()"
-                >Verbindung trennen</app-button
-              >
+              <div class="border-t border-fb-border pt-5">
+                <app-button
+                  size="touch"
+                  variant="destructive"
+                  [icon]="disconnectIcon"
+                  [disabled]="store.isLoading()"
+                  (clicked)="store.disconnect()"
+                  >Verbindung trennen</app-button
+                >
+              </div>
             }
           }
-          @if (!showData() && store.connection()?.status === 'connected') {
-            <app-button link="/marketplaces/ebay">Inserate und Bestellungen ansehen</app-button>
-          }
-        </div>
-        <p class="text-xs text-fb-text-muted">
-          Die Freigabe kannst du hier oder in deinem eBay-Konto jederzeit beenden.
-        </p>
-      </div>
-    </app-card>
+        </section>
+      </app-card>
+    </div>
   }
   @if (
     showData() &&

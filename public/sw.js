@@ -223,19 +223,26 @@ async function readAsset(path, clientId = '', repairClientId = clientId) {
     { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } },
   );
 }
+async function readNavigation(event) {
+  const clientId = event.resultingClientId || event.clientId;
+  // Ein Neustart lädt immer den aktivierten Bau, auch ohne neue Browser-Client-ID.
+  // Nur dieses Dokument wechselt; andere offene Ansichten behalten ihre Zuordnung.
+  const response = await readAsset('/index.html', '', clientId);
+  if (response.ok && clientId) {
+    await (
+      await caches.open(CLIENT_CACHE)
+    ).put(`/__pwa_clients/${encodeURIComponent(clientId)}`, new Response(BUILD_ID));
+  }
+  return response;
+}
 self.addEventListener('fetch', (event) => {
   if (!shouldHandle(event.request)) return;
   const path =
     event.request.mode === 'navigate' ? '/index.html' : new URL(event.request.url).pathname;
   event.respondWith(
-    readAsset(
-      path,
-      event.request.mode === 'navigate'
-        ? event.resultingClientId || event.clientId
-        : event.clientId,
-      event.request.mode === 'navigate'
-        ? event.resultingClientId || event.clientId
-        : event.clientId,
+    (event.request.mode === 'navigate'
+      ? readNavigation(event)
+      : readAsset(path, event.clientId)
     ).catch(async () => {
       const client = event.clientId ? await self.clients.get(event.clientId) : null;
       client?.postMessage({ type: 'PWA_ASSETS_STATE', ready: false });

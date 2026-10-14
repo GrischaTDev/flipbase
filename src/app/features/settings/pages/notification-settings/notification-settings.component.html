@@ -1,254 +1,305 @@
 <div class="space-y-5">
-  <section
-    class="linear-surface space-y-4 rounded-2xl border border-fb-border p-5"
-    aria-labelledby="push-heading"
-  >
-    <h2 id="push-heading" class="text-base font-semibold text-fb-text-primary">
-      Push auf diesem Gerät
-    </h2>
-    <p class="text-sm text-fb-text-secondary">
-      Neue Nachrichten, Bestellungen, Favoriten und Kontoprobleme können auch bei geschlossener App
-      angezeigt werden. Die Meldungen enthalten keine Kundendaten oder Nachrichtentexte.
-    </p>
-    <p class="text-sm text-fb-text-secondary">
-      Jeder Browser hat seine eigene Registrierung. Windows Chrome und Edge brauchen keine
-      App-Installation. Auf dem iPad aktivierst du Benachrichtigungen in der Home-Bildschirm-App.
-    </p>
-    <p class="text-sm text-fb-text-secondary">
-      Wähle deine Kategorien und aktiviere dieses Gerät. Mit „Dieses Gerät deaktivieren“ schaltest
-      du seine Benachrichtigungen aus.
-    </p>
-    <p role="status" class="text-sm text-fb-text-secondary">{{ pushStatusText() }}</p>
-    @if (webPushService.deviceMessage()) {
-      <p class="text-sm text-fb-text-muted">{{ webPushService.deviceMessage() }}</p>
-    }
-    @if (webPushService.deviceStatus() === 'home_app_required') {
-      <p class="text-sm text-fb-text-secondary">
-        Öffne Flipbase in Safari, wähle im Teilen-Menü „Zum Home-Bildschirm“ und starte die App über
-        das neue Symbol. Aktiviere Push dort.
-      </p>
-    }
-    @if (webPushService.deviceStatus() === 'denied') {
-      <p class="text-sm text-fb-text-secondary">
-        Erlaube Benachrichtigungen für Flipbase in deinen Browser- oder Geräteeinstellungen. Danach
-        kannst du hier erneut prüfen.
-      </p>
-    }
-    <div class="flex flex-wrap gap-2">
-      @if (!webPushService.isActive()) {
+  <app-card padding="lg">
+    <section class="space-y-6" aria-labelledby="push-heading">
+      <div class="flex items-start justify-between gap-4">
+        <div class="min-w-0 space-y-2">
+          <h2 id="push-heading" class="wrap-anywhere text-lg font-semibold text-fb-text-primary">
+            Push-Benachrichtigungen
+          </h2>
+          <p role="status" class="text-sm text-fb-text-secondary">{{ pushStatusText() }}</p>
+        </div>
         <app-button
-          variant="primary"
-          [wrapLabel]="true"
-          [loading]="webPushService.isBusy()"
-          [disabled]="!webPushService.canActivate()"
-          (clicked)="onRequestPushPermission()"
-          >Benachrichtigungen auf diesem Gerät aktivieren</app-button
+          class="shrink-0"
+          variant="ghost"
+          size="touch"
+          [icon]="infoIcon"
+          [iconOnly]="true"
+          ariaLabel="Infos zu Push-Benachrichtigungen"
+          [ariaExpanded]="showPushHelp()"
+          ariaControls="push-help"
+          (clicked)="showPushHelp.update(toggleHelp)"
         >
-        <app-button [disabled]="webPushService.isBusy()" (clicked)="webPushService.refreshDevice()"
-          >Erneut prüfen</app-button
-        >
-      } @else {
-        <app-button
-          [loading]="isTestingPush()"
-          [disabled]="webPushService.isBusy()"
-          (clicked)="onTestWebPush()"
-          >Testbenachrichtigung senden</app-button
-        >
+        </app-button>
+      </div>
+      @if (showPushHelp()) {
+        <div id="push-help" class="space-y-2 text-sm text-fb-text-secondary">
+          <p>
+            Du erhältst Systemmeldungen auch bei geschlossener App. Aktiviere jedes Gerät einzeln.
+          </p>
+          <p>
+            Auf dem iPad brauchst du die Home-Bildschirm-App. Ton und „Nicht stören“ steuerst du in
+            deinen Geräteeinstellungen.
+          </p>
+          <p>
+            Neue Kategorien bleiben aus, bis du sie auswählst. Meldungen vor der Aktivierung werden
+            nicht nachträglich gesendet.
+          </p>
+        </div>
       }
-      @if (webPushService.canDeactivate()) {
-        <app-button [disabled]="webPushService.isBusy()" (clicked)="onDeactivateDevice()"
-          >Dieses Gerät deaktivieren</app-button
-        >
+      @if (webPushService.deviceMessage() && pushNeedsAttention()) {
+        <p class="text-sm text-fb-text-secondary">{{ webPushService.deviceMessage() }}</p>
       }
-    </div>
-    <fieldset class="space-y-3 border-t border-fb-border pt-4" [disabled]="webPushService.isBusy()">
-      <legend class="text-sm font-semibold text-fb-text-primary">
-        Kategorien für diesen Workspace
-      </legend>
-      <div class="grid gap-3">
-        @for (category of pushCategories; track category.key) {
-          @if (webPushService.allowedCategories().includes(category.key)) {
-            <app-custom-checkbox
-              [checked]="webPushService.categories().includes(category.key)"
-              [label]="category.label"
-              [ariaLabel]="category.label"
-              [disabled]="webPushService.isBusy()"
-              (checkedChange)="onToggleCategory(category.key, $event)"
-            />
-          }
+      @if (webPushService.deviceStatus() === 'home_app_required') {
+        <p class="text-sm text-fb-text-secondary">
+          In Safari: Teilen → Zum Home-Bildschirm. Öffne Flipbase anschließend über das neue Symbol.
+        </p>
+      }
+      @if (webPushService.deviceStatus() === 'denied') {
+        <p class="text-sm text-fb-text-secondary">
+          Erlaube Flipbase-Benachrichtigungen in deinen Browser- oder Geräteeinstellungen.
+        </p>
+      }
+      @if (webPushService.isActive() && webPushService.categories().length === 0) {
+        <p class="text-sm text-fb-text-secondary">Alle Kategorien sind ausgeschaltet.</p>
+      }
+      <div class="grid gap-3 sm:flex sm:flex-wrap">
+        @if (!webPushService.isActive()) {
+          <app-button
+            variant="primary"
+            size="touch"
+            [fullWidth]="true"
+            [wrapLabel]="true"
+            [loading]="webPushService.isBusy()"
+            [disabled]="!webPushService.canActivate()"
+            (clicked)="onRequestPushPermission()"
+            >Push aktivieren</app-button
+          >
+          <app-button
+            [wrapLabel]="true"
+            size="touch"
+            [fullWidth]="true"
+            [disabled]="webPushService.isBusy()"
+            (clicked)="webPushService.refreshDevice()"
+            >Erneut prüfen</app-button
+          >
+        } @else {
+          <app-button
+            [wrapLabel]="true"
+            size="touch"
+            [fullWidth]="true"
+            [icon]="sendIcon"
+            [loading]="isTestingPush()"
+            [disabled]="webPushService.isBusy()"
+            (clicked)="onTestWebPush()"
+            >Test senden</app-button
+          >
+        }
+        @if (webPushService.canDeactivate()) {
+          <app-button
+            [wrapLabel]="true"
+            size="touch"
+            [fullWidth]="true"
+            [disabled]="webPushService.isBusy()"
+            (clicked)="onDeactivateDevice()"
+            >Push deaktivieren</app-button
+          >
         }
       </div>
-      <p class="text-xs text-fb-text-muted">
-        Neue Kategorien bleiben aus, bis du sie auswählst. Ton und „Nicht stören“ steuerst du in
-        deinen Geräteeinstellungen.
-      </p>
-    </fieldset>
-  </section>
-  <form
-    [formGroup]="webhookForm"
-    (ngSubmit)="onSaveWebhookConfig()"
-    class="linear-surface space-y-4 rounded-2xl border border-fb-border p-5 shadow-xl"
-    aria-labelledby="webhook-heading"
-  >
-    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-fb-border pb-2">
-      <div class="flex items-center gap-2">
-        <svg [lucideIcon]="bellIcon" class="h-4 w-4 text-emerald-400" aria-hidden="true"></svg>
-        <h2
-          id="webhook-heading"
-          class="text-xs font-bold uppercase tracking-wider text-fb-text-primary"
+      <fieldset class="space-y-4" [disabled]="webPushService.isBusy()">
+        <legend class="mb-3 text-sm font-semibold text-fb-text-primary">
+          Benachrichtige mich bei
+        </legend>
+        <div class="grid gap-3 sm:grid-cols-2">
+          @for (category of pushCategories; track category.key) {
+            @if (webPushService.allowedCategories().includes(category.key)) {
+              <app-custom-checkbox
+                presentation="row"
+                size="lg"
+                [checked]="webPushService.categories().includes(category.key)"
+                [label]="category.label"
+                [ariaLabel]="category.label"
+                [disabled]="webPushService.isBusy()"
+                (checkedChange)="onToggleCategory(category.key, $event)"
+              />
+            }
+          }
+        </div>
+      </fieldset>
+    </section>
+  </app-card>
+  <app-card padding="lg"
+    ><form
+      [formGroup]="webhookForm"
+      (ngSubmit)="onSaveWebhookConfig()"
+      class="space-y-5"
+      aria-labelledby="webhook-heading"
+    >
+      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-fb-border pb-2">
+        <div class="flex min-w-0 items-center gap-2">
+          <svg
+            [lucideIcon]="bellIcon"
+            class="h-4 w-4 text-fb-text-secondary"
+            aria-hidden="true"
+          ></svg>
+          <h2
+            id="webhook-heading"
+            class="wrap-anywhere text-base font-semibold text-fb-text-primary"
+          >
+            Webhooks & Benachrichtigungen
+          </h2>
+        </div>
+        <span
+          class="rounded border border-emerald-700/30 bg-emerald-500/15 px-2 py-0.5 text-xs font-semibold text-fb-text-secondary"
+          >Discord / Telegram</span
         >
-          Webhooks & Benachrichtigungen
-        </h2>
       </div>
-      <span
-        class="rounded border border-emerald-700/30 bg-emerald-500/15 px-2 py-0.5 text-xs font-semibold text-fb-text-secondary"
-        >Discord / Telegram</span
-      >
-    </div>
-    <p class="text-xs text-fb-text-muted">
-      Erhalte sofortige Push-Nachrichten bei neuen Verkäufen mit Reingewinn, ROI und Plattform.
-    </p>
-    <fieldset class="space-y-3">
-      <legend class="sr-only">Webhook-Kanäle</legend>
-      <div
-        class="flex items-center justify-between rounded-xl border border-fb-border bg-fb-subtle p-3 text-xs font-semibold text-fb-text-primary"
-      >
-        <span>Discord Webhook</span>
+      <p class="text-xs text-fb-text-muted">
+        Sende Meldungen an Discord, Telegram oder deinen eigenen Dienst.
+      </p>
+      <fieldset class="space-y-3">
+        <legend class="sr-only">Webhook-Kanäle</legend>
         <app-custom-checkbox
+          presentation="row"
+          size="lg"
+          label="Discord Webhook"
           formControlName="discordEnabled"
           ariaLabel="Discord Webhook aktivieren"
         />
-      </div>
-      @if (webhookForm.controls.discordEnabled.value) {
-        @if (webhookService.config().hasDiscordCredentials) {
-          <p class="text-xs text-fb-text-muted">
-            Zugangsdaten sind hinterlegt. Lass die Felder leer, um sie beizubehalten.
-          </p>
-          <button
+        @if (webhookForm.controls.discordEnabled.value) {
+          @if (webhookService.config().hasDiscordCredentials) {
+            <p class="text-xs text-fb-text-muted">
+              Zugangsdaten sind hinterlegt. Lass die Felder leer, um sie beizubehalten.
+            </p>
+            <app-button
+              [wrapLabel]="true"
+              size="touch"
+              variant="destructive"
+              type="button"
+              (clicked)="clearWebhookCredentials('discord')"
+              [disabled]="
+                isSavingWebhookConfig() || isTestingWebhook() || isLoadingWorkspaceConfig()
+              "
+              >Zugangsdaten löschen</app-button
+            >
+          }
+          <app-text-field
+            formControlName="discordWebhookUrl"
+            type="password"
+            label="Discord Webhook-URL"
+            placeholder="https://discord.com/api/webhooks/..."
+          /><app-button
+            [wrapLabel]="true"
+            size="touch"
+            variant="secondary"
             type="button"
-            (click)="clearWebhookCredentials('discord')"
-            [disabled]="isSavingWebhookConfig() || isTestingWebhook() || isLoadingWorkspaceConfig()"
-            class="linear-btn-secondary min-h-11 rounded-xl px-3 text-xs"
+            (clicked)="testWebhook('discord')"
+            [disabled]="isTestingWebhook() || isLoadingWorkspaceConfig()"
+            >Discord-Test senden</app-button
           >
-            Zugangsdaten löschen
-          </button>
         }
-        <app-text-field
-          formControlName="discordWebhookUrl"
-          type="password"
-          label="Discord Webhook-URL"
-          placeholder="https://discord.com/api/webhooks/..."
-        /><button
-          type="button"
-          (click)="testWebhook('discord')"
-          [disabled]="isTestingWebhook() || isLoadingWorkspaceConfig()"
-          class="linear-btn-secondary min-h-11 rounded-xl px-3 text-xs"
-        >
-          Discord-Test senden
-        </button>
-      }
-      <div
-        class="flex items-center justify-between rounded-xl border border-fb-border bg-fb-subtle p-3 text-xs font-semibold text-fb-text-primary"
-      >
-        <span>Telegram Bot</span>
         <app-custom-checkbox
+          presentation="row"
+          size="lg"
+          label="Telegram Bot"
           formControlName="telegramEnabled"
           ariaLabel="Telegram Bot aktivieren"
         />
-      </div>
-      @if (webhookForm.controls.telegramEnabled.value) {
-        @if (webhookService.config().hasTelegramCredentials) {
-          <p class="text-xs text-fb-text-muted">
-            Zugangsdaten sind hinterlegt. Lass die Felder leer, um sie beizubehalten.
-          </p>
-          <button
+        @if (webhookForm.controls.telegramEnabled.value) {
+          @if (webhookService.config().hasTelegramCredentials) {
+            <p class="text-xs text-fb-text-muted">
+              Zugangsdaten sind hinterlegt. Lass die Felder leer, um sie beizubehalten.
+            </p>
+            <app-button
+              [wrapLabel]="true"
+              size="touch"
+              variant="destructive"
+              type="button"
+              (clicked)="clearWebhookCredentials('telegram')"
+              [disabled]="
+                isSavingWebhookConfig() || isTestingWebhook() || isLoadingWorkspaceConfig()
+              "
+              >Zugangsdaten löschen</app-button
+            >
+          }
+          <app-text-field
+            formControlName="telegramBotToken"
+            type="password"
+            label="Telegram Bot Token"
+            placeholder="Telegram Bot Token"
+          /><app-text-field
+            formControlName="telegramChatId"
+            label="Chat-ID"
+            placeholder="Chat-ID"
+          /><app-button
+            [wrapLabel]="true"
+            size="touch"
+            variant="secondary"
             type="button"
-            (click)="clearWebhookCredentials('telegram')"
-            [disabled]="isSavingWebhookConfig() || isTestingWebhook() || isLoadingWorkspaceConfig()"
-            class="linear-btn-secondary min-h-11 rounded-xl px-3 text-xs"
+            (clicked)="testWebhook('telegram')"
+            [disabled]="isTestingWebhook() || isLoadingWorkspaceConfig()"
+            >Telegram-Test senden</app-button
           >
-            Zugangsdaten löschen
-          </button>
         }
-        <app-text-field
-          formControlName="telegramBotToken"
-          type="password"
-          label="Telegram Bot Token"
-          placeholder="Telegram Bot Token"
-        /><app-text-field
-          formControlName="telegramChatId"
-          label="Chat-ID"
-          placeholder="Chat-ID"
-        /><button
-          type="button"
-          (click)="testWebhook('telegram')"
-          [disabled]="isTestingWebhook() || isLoadingWorkspaceConfig()"
-          class="linear-btn-secondary min-h-11 rounded-xl px-3 text-xs"
-        >
-          Telegram-Test senden
-        </button>
-      }
-      <div
-        class="flex items-center justify-between rounded-xl border border-fb-border bg-fb-subtle p-3 text-xs font-semibold text-fb-text-primary"
-      >
-        <span>Eigener Webhook</span>
         <app-custom-checkbox
+          presentation="row"
+          size="lg"
+          label="Eigener Webhook"
           formControlName="customWebhookEnabled"
           ariaLabel="Eigenen Webhook aktivieren"
         />
-      </div>
-      @if (webhookForm.controls.customWebhookEnabled.value) {
-        @if (webhookService.config().hasCustomWebhookCredentials) {
-          <p class="text-xs text-fb-text-muted">
-            Zugangsdaten sind hinterlegt. Lass die Felder leer, um sie beizubehalten.
-          </p>
-          <button
+        @if (webhookForm.controls.customWebhookEnabled.value) {
+          @if (webhookService.config().hasCustomWebhookCredentials) {
+            <p class="text-xs text-fb-text-muted">
+              Zugangsdaten sind hinterlegt. Lass die Felder leer, um sie beizubehalten.
+            </p>
+            <app-button
+              [wrapLabel]="true"
+              size="touch"
+              variant="destructive"
+              type="button"
+              (clicked)="clearWebhookCredentials('custom')"
+              [disabled]="
+                isSavingWebhookConfig() || isTestingWebhook() || isLoadingWorkspaceConfig()
+              "
+              >Zugangsdaten löschen</app-button
+            >
+          }
+          <app-text-field
+            formControlName="customWebhookUrl"
+            type="password"
+            label="Webhook-URL"
+            placeholder="Webhook-URL"
+          /><app-button
+            [wrapLabel]="true"
+            size="touch"
+            variant="secondary"
             type="button"
-            (click)="clearWebhookCredentials('custom')"
-            [disabled]="isSavingWebhookConfig() || isTestingWebhook() || isLoadingWorkspaceConfig()"
-            class="linear-btn-secondary min-h-11 rounded-xl px-3 text-xs"
+            (clicked)="testWebhook('custom')"
+            [disabled]="isTestingWebhook() || isLoadingWorkspaceConfig()"
+            >Webhook testen</app-button
           >
-            Zugangsdaten löschen
-          </button>
         }
-        <app-text-field
-          formControlName="customWebhookUrl"
-          type="password"
-          label="Webhook-URL"
-          placeholder="Webhook-URL"
-        /><button
-          type="button"
-          (click)="testWebhook('custom')"
-          [disabled]="isTestingWebhook() || isLoadingWorkspaceConfig()"
-          class="linear-btn-secondary min-h-11 rounded-xl px-3 text-xs"
+      </fieldset>
+      <div class="space-y-3">
+        <app-custom-checkbox
+          presentation="row"
+          size="lg"
+          formControlName="notifyOnSale"
+          label="Neue Verkäufe"
+        /><app-custom-checkbox
+          presentation="row"
+          size="lg"
+          formControlName="notifyOnPurchase"
+          label="Neue Einkäufe"
+        /><app-custom-checkbox
+          presentation="row"
+          size="lg"
+          formControlName="soundEnabled"
+          label="Ton in Flipbase bei Verkäufen"
+        />
+      </div>
+      <div class="flex justify-end">
+        <app-button
+          [wrapLabel]="true"
+          size="touch"
+          variant="primary"
+          type="submit"
+          [disabled]="isSavingWebhookConfig() || isLoadingWorkspaceConfig()"
+          >{{
+            isSavingWebhookConfig() ? 'Speichere...' : 'Webhook-Einstellungen speichern'
+          }}</app-button
         >
-          Webhook testen
-        </button>
-      }
-    </fieldset>
-    <div class="space-y-2 rounded-xl border border-fb-border bg-fb-subtle p-3">
-      <app-custom-checkbox
-        formControlName="notifyOnSale"
-        label="Push bei jedem neuen Verkauf (mit Reingewinn & ROI)"
-        size="sm"
-      /><app-custom-checkbox
-        formControlName="notifyOnPurchase"
-        label="Push bei jedem neuen Einkauf / Palette"
-        size="sm"
-      /><app-custom-checkbox
-        formControlName="soundEnabled"
-        label="Kassen-Chime Sound bei Sales abspielen"
-        size="sm"
-      />
-    </div>
-    <div class="flex justify-end">
-      <button
-        type="submit"
-        [disabled]="isSavingWebhookConfig() || isLoadingWorkspaceConfig()"
-        class="linear-btn-primary min-h-11 rounded-xl px-4 text-xs font-bold disabled:opacity-40"
-      >
-        {{ isSavingWebhookConfig() ? 'Speichere...' : 'Webhook-Einstellungen speichern' }}
-      </button>
-    </div>
-  </form>
+      </div>
+    </form></app-card
+  >
 </div>

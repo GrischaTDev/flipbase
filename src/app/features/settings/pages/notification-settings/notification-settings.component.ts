@@ -7,7 +7,13 @@ import {
   signal,
 } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { LucideBell, LucideDynamicIcon, LucideSend, LucideVolume2 } from '@lucide/angular';
+import {
+  LucideBell,
+  LucideDynamicIcon,
+  LucideInfo,
+  LucideSend,
+  LucideVolume2,
+} from '@lucide/angular';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
 import { WebPushService } from '../../../../core/services/web-push.service';
 import { WebhookService } from '../../../../core/services/webhook.service';
@@ -16,6 +22,7 @@ import { CustomCheckboxComponent } from '../../../../shared/components/custom-ch
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { CardComponent } from '../../../../shared/components/card/card.component';
 import { WebPushCategory, WebPushDeviceStatus } from '../../../../core/models/web-push.models';
 
 @Component({
@@ -26,6 +33,7 @@ import { WebPushCategory, WebPushDeviceStatus } from '../../../../core/models/we
     CustomCheckboxComponent,
     TextFieldComponent,
     ButtonComponent,
+    CardComponent,
   ],
   templateUrl: './notification-settings.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -40,6 +48,12 @@ export class NotificationSettingsComponent {
   readonly bellIcon = LucideBell;
   readonly sendIcon = LucideSend;
   readonly volumeIcon = LucideVolume2;
+  readonly infoIcon = LucideInfo;
+  readonly showPushHelp = signal(false);
+  readonly toggleHelp = (visible: boolean) => !visible;
+  readonly pushNeedsAttention = computed(() =>
+    ['disabled', 'pending', 'revoke_pending', 'error'].includes(this.webPushService.deviceStatus()),
+  );
   readonly pushCategories: { key: WebPushCategory; label: string }[] = [
     { key: 'message', label: 'Neue Marktplatznachrichten' },
     { key: 'order', label: 'Neue Bestellungen' },
@@ -52,14 +66,14 @@ export class NotificationSettingsComponent {
       home_app_required: 'Starte die Home-Bildschirm-App, um Push zu aktivieren.',
       permission_required: 'Dieses Gerät ist noch nicht aktiviert.',
       denied: 'Die Browserfreigabe wurde abgelehnt.',
-      checking: 'Gerätebindung wird geprüft …',
+      checking: 'Push wird geprüft …',
       disabled: 'Push ist derzeit nicht freigegeben.',
       ready: 'Dieses Gerät kann aktiviert werden.',
-      registering: 'Gerät wird registriert …',
-      pending: 'Die Aktivierung oder Kategorienbestätigung ist noch ausstehend.',
+      registering: 'Push wird aktiviert …',
+      pending: 'Bitte bestätige deine Auswahl mit „Push aktivieren“.',
       active: 'Dieses Gerät ist für Push aktiviert.',
-      revoke_pending: 'Der Serverwiderruf ist noch ausstehend.',
-      error: 'Die Gerätebindung konnte nicht geprüft werden.',
+      revoke_pending: 'Die Deaktivierung wird abgeschlossen, sobald du online bist.',
+      error: 'Push konnte nicht geprüft werden. Versuche es erneut.',
     };
     return labels[this.webPushService.deviceStatus()];
   });

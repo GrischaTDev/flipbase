@@ -8,9 +8,7 @@
         [routerLink]="item.path"
         routerLinkActive="font-semibold"
         ariaCurrentWhenActive="page"
-        [class.flex-1]="ebayContext()"
-        [class.w-14]="!ebayContext()"
-        class="flex flex-col items-center justify-center gap-1 text-fb-text-muted text-xs py-1 hover:text-fb-text-primary transition min-w-0 max-w-full overflow-hidden"
+        class="flex min-w-0 flex-1 max-w-full overflow-hidden flex-col items-center justify-center gap-1 text-fb-text-muted text-xs py-1 hover:text-fb-text-primary transition min-w-0 max-w-full overflow-hidden"
       >
         <svg [lucideIcon]="item.icon" class="size-4 shrink-0" aria-hidden="true"></svg>
         <span class="max-w-full truncate text-[11px] leading-tight">{{ item.label }}</span>
@@ -21,40 +19,40 @@
       routerLink="/dashboard"
       routerLinkActive="font-semibold"
       ariaCurrentWhenActive="page"
-      class="flex flex-col items-center justify-center gap-1 text-fb-text-muted text-xs w-14 py-1 hover:text-fb-text-primary transition"
+      class="flex min-w-0 flex-1 max-w-full overflow-hidden flex-col items-center justify-center gap-1 text-fb-text-muted text-xs py-1 hover:text-fb-text-primary transition"
     >
       <svg [lucideIcon]="DashboardIcon" class="w-4 h-4"></svg>
-      <span>Dashboard</span>
+      <span class="max-w-full truncate">Dashboard</span>
     </a>
 
     <a
       routerLink="/purchases"
       routerLinkActive="font-semibold"
       ariaCurrentWhenActive="page"
-      class="flex flex-col items-center justify-center gap-1 text-fb-text-muted text-xs w-14 py-1 hover:text-fb-text-primary transition"
+      class="flex min-w-0 flex-1 max-w-full overflow-hidden flex-col items-center justify-center gap-1 text-fb-text-muted text-xs py-1 hover:text-fb-text-primary transition"
     >
       <svg [lucideIcon]="PurchasesIcon" class="w-4 h-4"></svg>
-      <span>Einkauf</span>
+      <span class="max-w-full truncate">Einkauf</span>
     </a>
 
     <a
       routerLink="/catalog"
       [class.font-semibold]="isArticlesActive()"
       [attr.aria-current]="isArticlesActive() ? 'page' : null"
-      class="flex flex-col items-center justify-center gap-1 text-fb-text-muted text-xs w-14 py-1 hover:text-fb-text-primary transition"
+      class="flex min-w-0 flex-1 max-w-full overflow-hidden flex-col items-center justify-center gap-1 text-fb-text-muted text-xs py-1 hover:text-fb-text-primary transition"
     >
       <svg [lucideIcon]="InventoryIcon" class="w-4 h-4"></svg>
-      <span>Artikel</span>
+      <span class="max-w-full truncate">Artikel</span>
     </a>
 
     <a
       routerLink="/sales"
       routerLinkActive="font-semibold"
       ariaCurrentWhenActive="page"
-      class="flex flex-col items-center justify-center gap-1 text-fb-text-muted text-xs w-14 py-1 hover:text-fb-text-primary transition"
+      class="flex min-w-0 flex-1 max-w-full overflow-hidden flex-col items-center justify-center gap-1 text-fb-text-muted text-xs py-1 hover:text-fb-text-primary transition"
     >
       <svg [lucideIcon]="SalesIcon" class="w-4 h-4"></svg>
-      <span>Verkauf</span>
+      <span class="max-w-full truncate">Verkauf</span>
     </a>
   }
 
@@ -62,12 +60,10 @@
     type="button"
     (click)="toggleMenu.emit()"
     [attr.aria-expanded]="isMenuOpen()"
-    [class.flex-1]="ebayContext()"
-    [class.w-14]="!ebayContext()"
     aria-controls="app-sidebar"
-    class="flex flex-col items-center justify-center gap-1 text-fb-text-muted text-xs py-1 hover:text-fb-text-primary transition cursor-pointer"
+    class="flex min-w-0 flex-1 max-w-full overflow-hidden flex-col items-center justify-center gap-1 text-fb-text-muted text-xs py-1 hover:text-fb-text-primary transition cursor-pointer"
   >
     <svg [lucideIcon]="MenuIcon" class="w-4 h-4"></svg>
-    <span>Menü</span>
+    <span class="max-w-full truncate">Menü</span>
   </button>
 </nav>

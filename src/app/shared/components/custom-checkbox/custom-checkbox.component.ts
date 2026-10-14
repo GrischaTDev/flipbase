@@ -23,7 +23,8 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
     },
   ],
   host: {
-    '[class.inline-flex]': 'true',
+    '[class.inline-flex]': "presentation() === 'default'",
+    '[class.flex]': "presentation() === 'row'",
     '[class.items-center]': 'true',
     '[class.opacity-40]': 'effectiveDisabled()',
   },
@@ -34,6 +35,7 @@ export class CustomCheckboxComponent implements ControlValueAccessor {
   readonly label = input<string>('');
   readonly disabled = input<boolean>(false);
   readonly size = input<'sm' | 'md' | 'lg'>('md');
+  readonly presentation = input<'default' | 'row'>('default');
   readonly color = input<'emerald' | 'indigo' | 'brand'>('brand');
   readonly ariaLabel = input<string>('');
   readonly id = input<string>('');

@@ -22,6 +22,7 @@ import {
   LucideUnlink,
   LucideClipboardCheck,
   LucidePencil,
+  LucideDynamicIcon,
 } from '@lucide/angular';
 import { AuthService } from '../../../../core/services/auth.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
@@ -49,6 +50,7 @@ import { EbayTrafficOverviewComponent } from '../ebay-traffic-overview/ebay-traf
     PageHeaderComponent,
     EbayArticleMappingComponent,
     EbayTrafficOverviewComponent,
+    LucideDynamicIcon,
   ],
   providers: [EbayAccountStore],
   templateUrl: './ebay-account.component.html',

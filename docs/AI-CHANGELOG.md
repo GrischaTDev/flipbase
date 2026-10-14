@@ -1,5 +1,124 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-14 - Juna - Gemeinsamen Einstellungs- und PWA-Zweig abschließen
+
+**Freigabe:** Der Nutzer hat PR-Erstellung, Merge nach erfolgreichen
+Pflichtprüfungen und das anschließende Aufräumen ausdrücklich bestätigt.
+Der eigene Zweig `juna/pwa-update-push-fixes` enthält die beiden zuvor
+dokumentierten Umsetzungen und basiert auf dem aktuellen Hauptzweig `382bf13c`.
+
+**Abschluss:** Die gezielten lokalen Prüfungen und Browserabnahmen sind bestanden.
+Der gemeinsame PR durchläuft nun die verbindlichen vollständigen Prüfungen.
+Nach erfolgreichem Merge wird die reguläre Veröffentlichung einschließlich
+öffentlich ausgelieferter Version und Push-Dienst geprüft. Fremde Zweige und
+bereits vorhandene unversionierte Auditdateien bleiben unberührt.
+Die tatsächliche Systemzustellung bei geschlossener App auf iPad und Android
+bleibt eine anschließende Geräteabnahme; Browserprüfungen ersetzen sie nicht.
+
+**CI-Nachprüfung:** Der erste PR-Lauf besteht Qualität und sämtliche
+Anwendungstestpakete. Der Versand-Browserfall sucht noch die alte Beschriftung
+„Carrier-Einstellungen speichern“ und stoppt deshalb vor dem Speichern.
+Beide Klicks prüfen jetzt exakt „Versandeinstellungen speichern“; die bestehenden
+Prüfungen für Unternehmensanschrift, individuelle Absender, gespeicherte Daten
+und Wiederladen bleiben vollständig erhalten. Die vollständige Browserprüfung
+wird im neuen PR-Lauf erneut ausgeführt. Der lokale echte Datenbank-Browserfall
+steht mangels laufendem Docker-Dienst nicht zur Verfügung.
+
+## 2026-10-14 - Juna - Einstellungen vereinheitlichen und eBay-Verbindung bündeln
+
+**Auftrag:** Die übrigen Einstellungstabs im selben Zweig wie die PWA-/Push-Fixes
+durchgehen, technische und doppelte Bereiche aufräumen und die eBay-Anmeldung
+verständlich gestalten. Daten und Protokolle ausdrücklich ausgenommen.
+
+**Umsetzung:** Der technische Tab „App & Geräte“ samt ungenutzter Komponente
+entfällt. Installation bleibt über das Menü erreichbar; alte `/settings/app`-Links
+führen zu „Marktplätze“. Dort verlinkt eBay direkt auf die vorhandene
+Kontoverbindung unter eBay. Ohne verbundenes Konto erscheint eine zentrierte Karte
+mit Anmeldung und Statusprüfung; bestätigtes Konto, erneute Verbindung und Trennen
+sind übersichtlich gegliedert. Die bestehende persönliche Einzelverbindung und
+der serverseitige Anmeldeablauf bleiben erhalten. eBay erlaubt grundsätzlich mehrere
+Konten; eine Mehrkontenfunktion war ausdrücklich nicht gewünscht.
+
+**Gestaltung:** Konto, Unternehmen, Workspace, Nummernkreise, Team, Marktplätze,
+Benachrichtigungen, Shop-Zahlungen und Versand wurden durchgesehen. Gemeinsame Karten
+und Touchbuttons ersetzen lokale Buttonnachbauten; große Auswahlzeilen ersetzen
+kleine unbeschriftete Schalter. Normale Überschriften, kürzere Beschriftungen und
+ruhige Icons verbessern die Lesbarkeit. Webhooks heißen nicht mehr irreführend
+System-Push; bestehende Konfigurationen und Aktionen bleiben unverändert.
+Die Nummernformatvorschau erhält eine korrekte Überschriftenebene. Lange Texte
+passen auch bei vergrößerter Schrift in die Karten. Sidebar und Schnellnavigation
+bleiben bei 200 Prozent Schriftgröße innerhalb der Bildschirmbreite.
+
+**Installation:** Der echte WebKit-Klick reproduziert fehlenden Rückkehrfokus,
+weil Safari den nativen Menübutton nicht automatisch fokussiert. Der auslösende
+Button erhält nun vor dem Öffnen der Installationshilfe ausdrücklich den Fokus;
+die bestehende Dialoglogik stellt ihn beim Schließen wieder her.
+
+**Prüfung:** 26 gemeinsame Browserabläufe in Chromium und WebKit erfolgreich.
+Neun Einstellungsbereiche in 390/1024/1280 px und beiden Themes geprüft, einschließlich
+AXE mit Kontrast und ungefangener Seitenfehler. Hinzu kommen Installation,
+Safe Areas, 200 Prozent Schriftgröße, echte Worker-Updates und Offline-Dateien.
+Der simulierte eBay-Ablauf prüft Einstellungslink, Anmeldeaufruf und die bestätigte
+Kontokarte; native eBay-Anmeldung wird damit nicht behauptet. 128 gezielte
+Angularfälle, 32 Einstellungs-/Modellprüfungen sowie separat 21 Navigationsprüfungen
+bestanden. Die beiden neuen Browserfälle sind in der verbindlichen PR-Auswahl
+registriert; alle drei Auswahlverträge bestehen. Produktionsbauten mit 261 geprüften
+App-Dateien, Anwendungstypen, Lint, Format, Shared-UI-Prüfung und Suite-Audit erfolgreich.
+Kontrastprüfungen warten auf das Ende der gesamten Einblendanimation; die
+Produktions-CSP bleibt unverändert. Keine Datenbank- oder Daten-/Protokolländerung.
+Aktuellen Hauptzweig abgerufen; Basis weiterhin `382bf13c`. Frühere Push-/Update-Fixes
+bleiben Teil desselben geplanten PR. Echte Systemzustellung auf gesperrten Geräten
+bleibt nach Veröffentlichung zu prüfen.
+
+## 2026-10-14 - Juna - Versionswechsel und System-Push prüfen, Einstellungen vereinfachen
+
+**Auftrag:** Wiederkehrenden Update-Hinweis auf dem iPad untersuchen, ausbleibende
+Systemmeldungen auf Android prüfen und die Push-Einstellungen mit weniger Text
+und größeren Bedienelementen gestalten. Eigener Zweig ab `origin/master`;
+vorhandene fremde Analysedateien unverändert.
+
+**Befund:** PR401 führte PWA/Push ein; PR408 ergänzte Geräteaktivierung und
+Favoriten, PR410 die native Darstellung. Die laufende Produktion entspricht
+Commit `382bf13c`. Ausschließlich lesende Serverprüfung: 21 angenommene Sendungen,
+keine wartenden Aufträge oder Versandfehler. Die letzten echten Nachrichten und
+Favoriten erreichten zwei registrierte Geräte; eine dritte Registrierung entstand
+erst um 17:49 Uhr nach diesen Ereignissen und erhielt anschließend Testmeldungen.
+Die Zuordnung dieser Registrierung zum Handy ist nicht unabhängig bestätigt.
+Die Glocke allein belegt keine Systemzustellung; Anbieterannahme ebenfalls nicht.
+
+**Änderung:** Zwei zuerst fehlgeschlagene Workerprüfungen reproduzieren den
+Rückfall auf alte App-Dateien, wenn beim Neustart eine neue Dokumentkennung fehlt
+oder wiederverwendet wird. Navigation lädt nun den aktivierten Bau und bindet nur
+das neu geladene Dokument daran; andere offene Ansichten behalten ihre alten
+Chunks. Die vorhandene Zustimmung aller Fenster und der Schutz offener Eingaben
+bleiben bestehen. Der reale Mehrfenstertest prüft außerdem den späteren Neustart
+eines zunächst unveränderten zweiten Fensters ohne wiederkehrenden Update-Hinweis.
+
+**System-Push:** Der bestehende Sender verwendet normale Priorität, die auf
+ruhenden Geräten verzögert werden darf. Ein zuerst fehlgeschlagener Test prüft
+den tatsächlich erzeugten Web-Push-Header. Sichtbare Meldungen fordern jetzt
+`Urgency: high` an; Verschlüsselung, Ablauf, Rechte und Kategorien bleiben erhalten.
+Kein neuer Produktionsversand, keine Änderung von Freigaben oder Schlüsseln.
+Die genaue Ursache der gemeldeten fehlenden Android-Banner ist damit noch nicht
+am Gerät bestätigt. Die echte gesperrte Geräteabnahme ist dokumentiert.
+
+**Oberfläche:** Push steht weiterhin vor Webhooks. Kurze Aktionen, gemeinsame
+44-px-Touchbuttons, vollständig bedienbare 64-px-Kategoriezeilen und aufklappbare
+Infohilfe ersetzen die technische Textwand. Ein bewusst leerer Kategorienstand
+bleibt erkennbar. Die gemeinsamen bisherigen Größen bleiben unverändert.
+
+**Prüfung:** 131 gezielte Angularfälle, 30 PWA-Skriptprüfungen und alle 21
+Versanddiensttests bestanden; Diensttypen und Dienstbau ebenfalls erfolgreich.
+Echte Produktionsbauten mit 263 geprüften App-Dateien erfolgreich. Vier
+Chromium-PWA-Abläufe prüfen Offline-Dateien, Beschädigung, Mehrfenster-Update und
+Altworker-Übergang. Oberfläche in Chromium und WebKit geprüft: Aktivierung,
+Kategorienauswahl, Infohilfe, 360/390/1024/1280 px, vergrößerte Schrift und AXE
+einschließlich Kontrast in beiden Themes; keine ungefangenen Seitenfehler.
+Der Kontrasttest wartet auf das Ende der Farbtransition beim Theme-Wechsel.
+Format, gezieltes Lint, Anwendungstypen, Shared-UI-Prüfung und Suite-Audit erfolgreich.
+Bestehende Buildhinweise zu Bundlegröße, RouterLink und pako bleiben vorhanden.
+Keine echte iPad-Worker- oder native Systembanner-Abnahme behauptet.
+
 ## 2026-10-14 - Juna - Freigegebenen Startseitenentwurf über PR abschließen
 
 **Auftrag:** Den geprüften Entwurf pushen, nach erfolgreichen Pflichtprüfungen

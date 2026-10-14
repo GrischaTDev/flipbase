@@ -1,3 +1,5 @@
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { CardComponent } from '../../../../shared/components/card/card.component';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -28,6 +30,8 @@ import { TextFieldComponent } from '../../../../shared/components/text-field/tex
 @Component({
   selector: 'app-numbering-settings',
   imports: [
+    ButtonComponent,
+    CardComponent,
     ReactiveFormsModule,
     CustomSelectComponent,
     CustomCheckboxComponent,

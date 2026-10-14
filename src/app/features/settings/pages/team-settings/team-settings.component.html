@@ -1,86 +1,93 @@
-<section
-  class="linear-surface space-y-4 rounded-2xl border border-fb-border p-5 shadow-xl"
-  aria-labelledby="team-heading"
->
-  <div class="flex flex-wrap items-center justify-between gap-3 border-b border-fb-border pb-2">
-    <div class="flex items-center gap-2">
-      <svg [lucideIcon]="usersIcon" class="h-4 w-4 text-indigo-400" aria-hidden="true"></svg>
-      <h2 id="team-heading" class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
-        Team-Mitglieder & Rollen
-      </h2>
-    </div>
-    <button
-      type="button"
-      (click)="openInviteModal()"
-      class="linear-btn-primary inline-flex min-h-11 items-center gap-1 rounded-xl px-3 text-xs font-bold"
-    >
-      <svg [lucideIcon]="userPlusIcon" class="h-4 w-4" aria-hidden="true"></svg>Mitglied einladen
-    </button>
-  </div>
-  <p class="text-xs leading-relaxed text-fb-text-muted">
-    Verwalte Zugriffsrechte für Einkäufer, Packtisch-Mitarbeiter und Steuerberater.
-  </p>
-  <div class="divide-y divide-fb-border">
-    @for (member of memberService.members(); track member.id) {
-      @let badge = memberService.getRoleBadge(member.role);
-      <div class="flex flex-col gap-3 py-3 text-xs sm:flex-row sm:items-center sm:justify-between">
-        <div class="min-w-0">
-          <strong class="block break-words text-fb-text-primary">{{
-            member.email || 'Workspace-Mitglied'
-          }}</strong
-          ><span class="text-fb-text-secondary">{{ badge.description }}</span>
-        </div>
-        @if (member.role !== 'owner') {
-          <div class="flex flex-wrap items-center gap-2">
-            <app-custom-select
-              [ariaLabel]="'Rolle von ' + (member.email || 'Workspace-Mitglied')"
-              [options]="roleOptions"
-              [value]="member.role"
-              (valueChange)="onUpdateRole(member.id, $event ?? 'readonly')"
-              widthClass="w-full sm:w-48"
-              size="sm"
-              class="min-w-[12rem] flex-1"
-            /><button
-              type="button"
-              (click)="onRemoveMember(member.id)"
-              class="min-h-11 rounded-lg px-2 text-fb-text-secondary hover:text-rose-500"
-              [attr.aria-label]="member.email + ' entfernen'"
-            >
-              <svg [lucideIcon]="trashIcon" class="h-4 w-4" aria-hidden="true"></svg>
-            </button>
-          </div>
-        } @else {
-          <span class="font-semibold text-fb-text-secondary">Inhaber</span>
-        }
+<app-card padding="lg"
+  ><section class="space-y-5" aria-labelledby="team-heading">
+    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-fb-border pb-2">
+      <div class="flex items-center gap-2">
+        <svg
+          [lucideIcon]="usersIcon"
+          class="h-4 w-4 text-fb-text-secondary"
+          aria-hidden="true"
+        ></svg>
+        <h2 id="team-heading" class="text-base font-semibold text-fb-text-primary">
+          Team-Mitglieder & Rollen
+        </h2>
       </div>
-    }
-  </div>
-  @if (memberService.invites().length > 0) {
-    <div class="space-y-2 border-t border-fb-border pt-3">
-      <h3 class="text-xs font-bold uppercase tracking-wider text-fb-text-secondary">
-        Offene Einladungen
-      </h3>
-      @for (invite of memberService.invites(); track invite.id) {
-        @let badge = memberService.getRoleBadge(invite.role);
+      <app-button
+        [wrapLabel]="true"
+        size="touch"
+        variant="primary"
+        [icon]="userPlusIcon"
+        type="button"
+        (clicked)="openInviteModal()"
+        >Mitglied einladen</app-button
+      >
+    </div>
+    <p class="text-xs leading-relaxed text-fb-text-muted">
+      Verwalte Zugriffsrechte für Einkäufer, Packtisch-Mitarbeiter und Steuerberater.
+    </p>
+    <div class="divide-y divide-fb-border">
+      @for (member of memberService.members(); track member.id) {
+        @let badge = memberService.getRoleBadge(member.role);
         <div
-          class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-dashed border-fb-border bg-fb-subtle p-3"
+          class="flex flex-col gap-3 py-3 text-xs sm:flex-row sm:items-center sm:justify-between"
         >
-          <span class="min-w-0 break-all text-xs text-fb-text-secondary">{{ invite.email }}</span>
-          <span class="text-xs text-fb-text-muted"
-            >{{ badge.label }} · {{ badge.description }}</span
-          >
-          <button
-            type="button"
-            (click)="onCancelInvite(invite.id)"
-            class="min-h-11 px-2 text-xs text-fb-text-secondary hover:underline"
-          >
-            Widerrufen
-          </button>
+          <div class="min-w-0">
+            <strong class="block break-words text-fb-text-primary">{{
+              member.email || 'Workspace-Mitglied'
+            }}</strong
+            ><span class="text-fb-text-secondary">{{ badge.description }}</span>
+          </div>
+          @if (member.role !== 'owner') {
+            <div class="flex flex-wrap items-center gap-2">
+              <app-custom-select
+                [ariaLabel]="'Rolle von ' + (member.email || 'Workspace-Mitglied')"
+                [options]="roleOptions"
+                [value]="member.role"
+                (valueChange)="onUpdateRole(member.id, $event ?? 'readonly')"
+                widthClass="w-full sm:w-48"
+                size="sm"
+                class="min-w-[12rem] flex-1"
+              /><app-button
+                size="touch"
+                variant="destructive"
+                [icon]="trashIcon"
+                [iconOnly]="true"
+                type="button"
+                (clicked)="onRemoveMember(member.id)"
+                [ariaLabel]="member.email + ' entfernen'"
+              ></app-button>
+            </div>
+          } @else {
+            <span class="font-semibold text-fb-text-secondary">Inhaber</span>
+          }
         </div>
       }
     </div>
-  }
-</section>
+    @if (memberService.invites().length > 0) {
+      <div class="space-y-2 border-t border-fb-border pt-3">
+        <h3 class="text-base font-semibold text-fb-text-secondary">Offene Einladungen</h3>
+        @for (invite of memberService.invites(); track invite.id) {
+          @let badge = memberService.getRoleBadge(invite.role);
+          <div
+            class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-dashed border-fb-border bg-fb-subtle p-3"
+          >
+            <span class="min-w-0 break-all text-xs text-fb-text-secondary">{{ invite.email }}</span>
+            <span class="text-xs text-fb-text-muted"
+              >{{ badge.label }} · {{ badge.description }}</span
+            >
+            <app-button
+              [wrapLabel]="true"
+              size="touch"
+              variant="secondary"
+              type="button"
+              (clicked)="onCancelInvite(invite.id)"
+              >Widerrufen</app-button
+            >
+          </div>
+        }
+      </div>
+    }
+  </section></app-card
+>
 @if (isInviteModalOpen()) {
   <app-modal-shell
     title="Team-Mitglied einladen"
@@ -114,14 +121,21 @@
       </div>
     </form>
     <div modal-footer class="flex items-center gap-2">
-      <app-button type="button" variant="secondary" size="md" (clicked)="closeInviteModal()">
+      <app-button
+        [wrapLabel]="true"
+        type="button"
+        variant="secondary"
+        size="touch"
+        (clicked)="closeInviteModal()"
+      >
         Abbrechen
       </app-button>
       <app-button
+        [wrapLabel]="true"
         type="submit"
         formId="invite-form"
         variant="primary"
-        size="md"
+        size="touch"
         [disabled]="inviteForm.invalid || isSendingInvite()"
         [loading]="isSendingInvite()"
       >
