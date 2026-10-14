@@ -924,17 +924,143 @@ test('Inbox truncation does not certify details and system events have stable ID
   );
   assert.match(first.entries[1].externalId, /^event:[0-9a-f]{64}$/);
   assert.equal(first.entries[1].externalId, second.entries[1].externalId);
-  const existingSource = JSON.stringify({
-    conversationId: '51',
-    type: event.entity_type,
-    createdAt: event.created_at_ts,
-    entity: event.entity,
-  });
-  const existingDigest = await webcrypto.subtle.digest(
-    'SHA-256',
-    new TextEncoder().encode(existingSource),
+  event.created_at_ts = '2026-10-04T11:00:00+02:00';
+  event.entity = { template: { action: 'changed' }, title: 'Status', event: 'shipping' };
+  const changed = await core.readInbox(
+    eventReader.read,
+    '123',
+    { nextPage: 1, versions: [] },
+    () => observedAt,
   );
-  assert.equal(first.entries[1].externalId, `event:${Buffer.from(existingDigest).toString('hex')}`);
+  assert.equal(first.entries[1].externalId, changed.entries[1].externalId);
+});
+
+test('Local inbox combines simultaneous delivery notices and keeps real duplicate texts', async () => {
+  const reader = inboxReader([inboxConversation], {
+    '/api/v2/conversations/51': {
+      conversation: {
+        id: 51,
+        messages: [
+          {
+            entity_type: 'action_message',
+            created_at_ts: 1791652544,
+            entity: { title: 'Sendung zugestellt' },
+          },
+          {
+            entity_type: 'status_message',
+            created_at_ts: 1791652544,
+            entity: { title: 'Geliefert' },
+          },
+          {
+            ...inboxMessage,
+            id: 61,
+            entity_type: 'message',
+            entity: { id: 61, body: 'Geliefert', user_id: 456 },
+          },
+          {
+            ...inboxMessage,
+            id: 62,
+            entity_type: 'message',
+            entity: { id: 62, body: 'Geliefert', user_id: 456 },
+          },
+        ],
+      },
+    },
+  });
+  const batch = await core.readInbox(
+    reader.read,
+    '123',
+    { nextPage: 1, versions: [] },
+    () => observedAt,
+  );
+  const entries = batch.entries.filter((entry) => entry.kind === 'message');
+  assert.equal(entries.length, 3);
+  const delivery = entries.find((entry) => entry.body.messageType === 'status_message');
+  assert.equal(delivery?.body.text, 'Geliefert');
+  assert.deepEqual(
+    entries
+      .filter((entry) => entry.body.messageType === 'message')
+      .map((entry) => entry.externalId),
+    ['61', '62'],
+  );
+});
+
+test('Local and cloud imports use the same system event identities', async () => {
+  const { parseVintedAccountImport } =
+    await import('../services/marketplace-worker/src/vinted-account-import.ts');
+  const sourceMessages = [
+    ...[
+      {
+        title: 'Zahlung',
+        price_label: '10 €',
+        user_id: 123,
+        photos: [{ url: 'https://images.vinted.net/first.jpg' }],
+      },
+      {
+        title: 'Zahlung',
+        price_label: '20 €',
+        user_id: 123,
+        photos: [{ url: 'https://images.vinted.net/first.jpg' }],
+      },
+      {
+        title: 'Zahlung',
+        price_label: '10 €',
+        user_id: 456,
+        photos: [{ url: 'https://images.vinted.net/first.jpg' }],
+      },
+      {
+        title: 'Zahlung',
+        price_label: '10 €',
+        user_id: 123,
+        photos: [{ url: 'https://images.vinted.net/second.jpg' }],
+      },
+    ].map((entity) => ({ entity_type: 'payment_message', created_at_ts: 1791722924, entity })),
+    {
+      entity_type: 'action_message',
+      created_at_ts: 1791722924,
+      event_type: 'success',
+      entity: { title: 'Abgeschlossen', template: { action: 'feedback' } },
+    },
+    {
+      entity_type: 'status_message',
+      created_at_ts: '2026-10-10T19:15:44+02:00',
+      entity: { title: 'Geliefert' },
+    },
+    {
+      entity_type: 'action_message',
+      created_at_ts: 1791652544,
+      entity: { title: 'Sendung zugestellt' },
+    },
+  ];
+  const reader = inboxReader([inboxConversation], {
+    '/api/v2/conversations/51': { conversation: { id: 51, messages: sourceMessages } },
+  });
+  const localBatch = await core.readInbox(
+    reader.read,
+    '123',
+    { nextPage: 1, versions: [] },
+    () => observedAt,
+  );
+  const cloudBatch = parseVintedAccountImport(
+    { id: '123', username: 'testkonto' },
+    { user: { id: 123 } },
+    [],
+    [{ id: 51, unread: false }],
+    [{ conversation: { id: 51, messages: sourceMessages } }],
+    observedAt,
+  );
+  const identity = (entry) => [entry.externalId, entry.body.messageType, entry.body.text];
+  assert.equal(localBatch.entries.filter((entry) => entry.kind === 'message').length, 6);
+  assert.deepEqual(
+    localBatch.entries
+      .filter((entry) => entry.kind === 'message')
+      .map(identity)
+      .sort(),
+    cloudBatch.entries
+      .filter((entry) => entry.kind === 'message')
+      .map(identity)
+      .sort(),
+  );
 });
 
 test('Inbox runtime requires explicit server permission before any Vinted read', async () => {
@@ -1692,7 +1818,7 @@ test('Manifest narrows application and provider access without changing Kleinanz
     script.matches.includes('https://www.vinted.de/*'),
   );
   assert.equal(vintedContent.js.at(-1), 'vinted-local-account.js');
-  assert.equal(manifest.version, '1.8.0');
+  assert.equal(manifest.version, '1.8.1');
   assert.ok(
     vintedContent.js.indexOf('vinted-local-negotiation.js') <
       vintedContent.js.indexOf('vinted-local-core.js'),

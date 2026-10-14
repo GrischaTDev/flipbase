@@ -264,12 +264,15 @@ export class VintedMessagesComponent {
     }),
   );
   readonly datedTranscript = computed(() =>
-    this.transcript().map((entry, index, entries) => ({
-      entry,
-      startsDay:
-        index === 0 ||
-        this.messageDay(entry.occurredAt) !== this.messageDay(entries[index - 1].occurredAt),
-    })),
+    // Kaufbelege bleiben für die Verhandlungssperre erhalten, sind aber kein Chattext.
+    this.transcript()
+      .filter((entry) => entry.messageType !== 'purchase')
+      .map((entry, index, entries) => ({
+        entry,
+        startsDay:
+          index === 0 ||
+          this.messageDay(entry.occurredAt) !== this.messageDay(entries[index - 1].occurredAt),
+      })),
   );
   readonly hasPendingMessages = computed(() =>
     this.queuedMessages().some((message) =>

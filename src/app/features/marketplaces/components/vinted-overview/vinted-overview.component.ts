@@ -1,6 +1,13 @@
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import {
+  LucideDynamicIcon,
+  LucideMessageCircle,
+  LucideMessageSquare,
+  LucideShoppingBag,
+  LucideUser,
+} from '@lucide/angular';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
@@ -27,6 +34,7 @@ function latestEntries(entries: readonly MarketplaceEntry[]): readonly Marketpla
     CurrencyPipe,
     DatePipe,
     RouterLink,
+    LucideDynamicIcon,
     BadgeComponent,
     ButtonComponent,
     CardComponent,
@@ -39,6 +47,10 @@ function latestEntries(entries: readonly MarketplaceEntry[]): readonly Marketpla
 })
 export class VintedOverviewComponent {
   readonly store = inject(MarketplaceAccountStore);
+  readonly userIcon = LucideUser;
+  readonly reviewsIcon = LucideMessageSquare;
+  readonly messageCircleIcon = LucideMessageCircle;
+  readonly shoppingBagIcon = LucideShoppingBag;
   readonly conversations = computed(() =>
     latestEntries(this.store.snapshot()?.conversations.items ?? []),
   );

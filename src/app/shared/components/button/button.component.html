@@ -18,6 +18,7 @@
   <a
     [routerLink]="effectiveDisabled() ? null : target"
     [queryParams]="queryParams()"
+    [fragment]="fragment() ?? undefined"
     [class]="buttonClasses()"
     [class.opacity-40]="effectiveDisabled()"
     [attr.aria-disabled]="effectiveDisabled() ? 'true' : null"

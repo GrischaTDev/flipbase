@@ -54,6 +54,7 @@ export class ButtonComponent {
   readonly href = input<string | null>(null);
   readonly target = input<'_self' | '_blank'>('_self');
   readonly queryParams = input<Params | null>(null);
+  readonly fragment = input<string | null>(null);
   readonly ariaLabel = input<string>('');
   readonly title = input<string>('');
   readonly ariaExpanded = input<boolean | null>(null);

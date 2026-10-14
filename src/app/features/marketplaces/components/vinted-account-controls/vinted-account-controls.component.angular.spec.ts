@@ -244,4 +244,18 @@ describe('Benachrichtigungseinstellungen bei lokalen Vinted-Konten', () => {
     await settle(fixture);
     expect(fixture.nativeElement.querySelector('[role="dialog"]')).not.toBeNull();
   });
+  it('zeigt den erfolgreichen Synchronisationsstatus mit grünem Punkt und Datum und Uhrzeit an', async () => {
+    const fixture = await render();
+    fixture.componentRef.setInput('account', {
+      ...account,
+      lastSyncedAt: '2026-10-14T08:47:00Z',
+    });
+    await settle(fixture);
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.textContent).toContain('Zuletzt aktualisiert:');
+    expect(element.textContent).toContain('14.10.2026');
+    expect(element.textContent).toContain('Uhr');
+    const greenDot = element.querySelector('.bg-emerald-500');
+    expect(greenDot).not.toBeNull();
+  });
 });

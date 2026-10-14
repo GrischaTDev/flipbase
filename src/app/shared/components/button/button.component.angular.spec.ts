@@ -116,6 +116,7 @@ describe('ButtonComponent', () => {
       href: ['href', 1, null],
       target: ['target', 1, null],
       queryParams: ['queryParams', 1, null],
+      fragment: ['fragment', 1, null],
     };
     metadata.declaredInputs = {
       ...metadata.declaredInputs,
@@ -139,6 +140,7 @@ describe('ButtonComponent', () => {
       href: 'href',
       target: 'target',
       queryParams: 'queryParams',
+      fragment: 'fragment',
     };
 
     TestBed.resetTestingModule();
@@ -281,10 +283,11 @@ describe('ButtonComponent', () => {
   it('renders navigation as a native link with query parameters', () => {
     fixture.componentRef.setInput('link', '/audit');
     fixture.componentRef.setInput('queryParams', { purchaseId: 'purchase-1' });
+    fixture.componentRef.setInput('fragment', 'reviews');
     fixture.detectChanges();
 
     const link = fixture.nativeElement.querySelector('a') as HTMLAnchorElement;
-    expect(link.getAttribute('href')).toBe('/audit?purchaseId=purchase-1');
+    expect(link.getAttribute('href')).toBe('/audit?purchaseId=purchase-1#reviews');
     expect(fixture.nativeElement.querySelector('button')).toBeNull();
   });
 

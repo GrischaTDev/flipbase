@@ -474,28 +474,27 @@ export function parseVintedAccountImport(
     for (const rawMessage of messages) {
       const message = record(rawMessage);
       const entity = record(message?.['entity']);
-      const id =
-        identifier(message?.['id']) ??
-        identifier(entity?.['id']) ??
-        (message
-          ? `event:${createHash('sha256')
-              .update(
-                JSON.stringify({
-                  conversationId,
-                  type: message['entity_type'],
-                  createdAt: message['created_at_ts'],
-                  eventGroup: message['event_group'],
-                  eventType: message['event_type'],
-                  entity,
-                }),
-              )
-              .digest('hex')}`
-          : null);
-      if (!id || messageIds.has(id)) continue;
-      messageIds.add(id);
       const providerTime = negotiationProviderTime(message?.['created_at_ts'], observedAt);
       const sentAt = providerTime ?? date(message?.['created_at_ts'], observedAt);
+      const sourceType = string(message?.['entity_type']);
+      const sourceTitle = string(entity?.['title']) ?? sourceType ?? 'Nachricht';
+      const sourceText =
+        messageText(entity) ?? string(entity?.['title']) ?? string(entity?.['status_title']);
+      const isDeliveryNotice =
+        (sourceType === 'status_message' || sourceType === 'action_message') &&
+        ['Geliefert', 'Sendung zugestellt'].includes(sourceTitle) &&
+        sourceText === sourceTitle;
+      const messageType = isDeliveryNotice ? 'status_message' : sourceType;
+      const title = isDeliveryNotice ? 'Geliefert' : sourceTitle;
+      const text = isDeliveryNotice ? 'Geliefert' : sourceText;
+      const eventGroup = isDeliveryNotice ? null : string(message?.['event_group']);
+      const eventType = isDeliveryNotice ? null : string(message?.['event_type']);
+      const isSystemMessage = ['status_message', 'action_message', 'payment_message'].includes(
+        messageType ?? '',
+      );
       const senderId = identifier(entity?.['user_id']) ?? identifier(entity?.['sender_id']);
+      const direction = senderId ? (senderId === identity.id ? 'outbound' : 'inbound') : 'unknown';
+      const priceLabel = string(entity?.['price_label']);
       const photos = entity?.['photos'];
       const imageUrls = [
         ...new Set(
@@ -509,19 +508,54 @@ export function parseVintedAccountImport(
             : [],
         ),
       ];
+      const id =
+        identifier(message?.['id']) ??
+        identifier(entity?.['id']) ??
+        (message
+          ? `event:${createHash('sha256')
+              .update(
+                JSON.stringify({
+                  conversationId,
+                  // Templates und Schaltflächen ändern sich, ohne ein neues Ereignis zu erzeugen.
+                  ...(isSystemMessage
+                    ? {
+                        type: messageType,
+                        createdAt: sentAt,
+                        eventGroup,
+                        eventType,
+                        title,
+                        text,
+                        priceLabel,
+                        direction,
+                        imageUrls,
+                      }
+                    : {
+                        type: message['entity_type'],
+                        createdAt: message['created_at_ts'],
+                        eventGroup: message['event_group'],
+                        eventType: message['event_type'],
+                        entity,
+                      }),
+                }),
+              )
+              .digest('hex')}`
+          : null);
+      if (!id || messageIds.has(id)) continue;
+      messageIds.add(id);
       const entry: VintedImportEntry = {
         kind: 'message',
         externalId: id,
         parentExternalId: conversationId,
         sortAt: sentAt,
         body: {
-          title: string(entity?.['title']) ?? string(message?.['entity_type']) ?? 'Nachricht',
-          text:
-            messageText(entity) ?? string(entity?.['title']) ?? string(entity?.['status_title']),
+          title,
+          text,
           occurredAt: sentAt,
-          direction: senderId ? (senderId === identity.id ? 'outbound' : 'inbound') : 'unknown',
-          messageType: string(message?.['entity_type']),
-          priceLabel: string(entity?.['price_label']),
+          direction,
+          messageType,
+          eventType,
+          eventGroup,
+          priceLabel,
           ...vintedOfferStatus(string(message?.['entity_type']), entity),
           ...(providerTime !== null
             ? (() => {
