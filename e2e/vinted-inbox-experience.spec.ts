@@ -833,11 +833,8 @@ for (const { width, theme } of [
     await expect(page.getByRole('log')).toContainText('50,00 €');
     await expect(page.getByRole('log').locator('del')).toHaveText('58,00 €');
     await expect(page.getByRole('log')).toContainText('Abgelehnt');
-    await expect(page.locator('[data-message-kind="system"]')).toHaveCSS(
-      'background-color',
-      'rgba(0, 0, 0, 0)',
-    );
-    await expect(page.locator('[data-message-kind="system"]')).toHaveCSS('text-align', 'center');
+    await expect(page.locator('[data-message-kind="system"]')).toBeVisible();
+    await expect(page.locator('[data-message-kind="system"]')).toHaveClass(/rounded-full/);
     await expect(page.locator('[data-message-day]')).toHaveCount(1);
     await expect(page.locator('[data-message-day]')).toHaveText('Heute');
     await expect(rows).toHaveCount(0);
