@@ -240,7 +240,7 @@ it('übernimmt die gewählte Cloudmethode und zeigt bei der Reservierung einen W
   expect(fixture.componentInstance.connectionMethod.value).toBe('cloud');
   const pending = fixture.componentInstance.save();
   fixture.detectChanges();
-  expect(fixture.nativeElement.textContent).toContain('Cloud-Verfügbarkeit wird geprüft');
+  expect(fixture.nativeElement.textContent).toContain('Cloud-Anmeldung wird vorbereitet');
   expect(fixture.nativeElement.querySelector('app-loading-indicator')).not.toBeNull();
   expect(fixture.nativeElement.querySelector('app-marketplace-browser-test')).toBeNull();
   fixture.componentInstance.closeDialog();

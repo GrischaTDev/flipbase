@@ -1405,17 +1405,27 @@ for (const width of [1440, 390]) {
 }
 
 for (const width of [1440, 390]) {
-  test(`Konto hinzufügen reserviert eine IP und aktiviert Cloud ausdrücklich bei ${width}px @marketplace-preview @core-smoke`, async ({
+  test(`Konto hinzufügen reserviert eine IP und aktiviert Cloud automatisch bei ${width}px @marketplace-preview @core-smoke`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 1000 });
     const calls = await mockMarketplace(page, true);
+    const preparations: unknown[] = [];
+    await page.route('**/marketplace-browser/cloud-setups/begin', async (route) => {
+      preparations.push(route.request().postDataJSON());
+      if (preparations.length === 1) return route.fulfill({ json: { status: 'purchase_pending' } });
+      return route.fallback();
+    });
     await page.goto('/marketplaces/vinted/accounts');
     await page.getByRole('button', { name: 'Konto hinzufügen', exact: true }).click();
     await page
       .getByRole('textbox', { name: 'Interner Name in Flipbase', exact: true })
       .fill('Mein Testkonto');
     await chooseCloudConnection(page);
+    await expect(page.getByRole('dialog')).toContainText('Cloud-Anmeldung wird vorbereitet');
+    await expect(page.locator('app-marketplace-browser-test')).toBeVisible();
+    expect(preparations).toHaveLength(2);
+    expect(preparations[1]).toEqual(preparations[0]);
     await expect(page).toHaveURL(/\/marketplaces\/vinted\/accounts$/);
     await expect(page.getByRole('dialog')).toContainText('Anmeldung');
     expect(calls.filter((call) => call.name === 'marketplace_create_connection')).toHaveLength(0);
@@ -1451,12 +1461,12 @@ for (const width of [1440, 390]) {
     await expect(page.getByRole('button', { name: 'Bild aktualisieren' })).toHaveCount(0);
     await evidence(page, `vinted-background-login-${width}`);
     // Die Anmeldung prüft die Bestätigung alle drei Sekunden; die Fixture wartet einmal bewusst.
-    await expect(page.getByRole('button', { name: 'Cloud aktivieren', exact: true })).toBeVisible({
-      timeout: 15_000,
-    });
-    await page.getByRole('button', { name: 'Cloud aktivieren', exact: true }).click();
     const progress = page.getByRole('dialog', { name: 'Kontodaten aktualisieren', exact: true });
-    await expect(progress).toBeVisible();
+    await expect(progress).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('button', { name: 'Cloud aktivieren', exact: true })).toHaveCount(
+      0,
+    );
+    expect(calls.filter((call) => call.name === 'browser_cloud_setup_complete')).toHaveLength(1);
     await expect(progress).toContainText('Die Kontodaten wurden aktualisiert.');
     expect(calls.filter((call) => call.name === 'browser_sync_start')).toEqual([
       {
@@ -1493,6 +1503,56 @@ for (const width of [1440, 390]) {
     await evidence(page, `vinted-connected-${width}`);
   });
 }
+
+test('new Cloud account returns from a human check to SMS and completes automatically @marketplace-preview @core-smoke', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 1000 });
+  const calls = await mockMarketplace(page, true, false, true);
+  const jpeg = Buffer.from(
+    await page.evaluate(() => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 1280;
+      canvas.height = 800;
+      return canvas.toDataURL('image/jpeg').split(',')[1];
+    }),
+    'base64',
+  );
+  let checks = 0;
+  await page.route('**/marketplace-browser/cloud-setups/*/identify', async (route) => {
+    if (++checks === 1)
+      return route.fulfill({ status: 422, json: { code: 'vinted_interaction_required' } });
+    return route.fallback();
+  });
+  await page.route('**/marketplace-browser/cloud-setups/*/frame', (route) =>
+    route.fulfill({ contentType: 'image/jpeg', body: jpeg }),
+  );
+  await page.goto('/marketplaces/vinted/accounts');
+  await page.getByRole('button', { name: 'Konto hinzufügen', exact: true }).click();
+  await page
+    .getByRole('textbox', { name: 'Interner Name in Flipbase', exact: true })
+    .fill('Neues Cloudkonto');
+  await chooseCloudConnection(page);
+  await page
+    .getByRole('textbox', { name: 'Vinted-Mitgliedsname oder E-Mail' })
+    .fill('synthetic-user');
+  await page.getByLabel('Vinted-Passwort').fill('synthetic-password');
+  await page.getByRole('button', { name: 'Anmelden und Konto verbinden', exact: true }).click();
+  await expect(page.locator('app-marketplace-browser-test img')).toHaveCount(1, {
+    timeout: 15_000,
+  });
+  await expect(page.getByLabel('Vinted-Bestätigungscode')).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('app-marketplace-browser-test img')).toHaveCount(0);
+  await page.getByLabel('Vinted-Bestätigungscode').fill('123456');
+  await page.getByRole('button', { name: 'Code bestätigen', exact: true }).click();
+  const progress = page.getByRole('dialog', { name: 'Kontodaten aktualisieren', exact: true });
+  await expect(progress).toBeVisible({ timeout: 15_000 });
+  await expect(progress).toContainText('Die Kontodaten wurden aktualisiert.');
+  expect(calls.filter((call) => call.name === 'browser_login')).toHaveLength(1);
+  expect(calls.filter((call) => call.name === 'browser_verify')).toHaveLength(1);
+  expect(calls.filter((call) => call.name === 'browser_cloud_setup_complete')).toHaveLength(1);
+  await expect(page.getByRole('button', { name: 'Cloud aktivieren', exact: true })).toHaveCount(0);
+});
 
 for (const width of [1440, 390]) {
   test(`Anmeldebuttons zeigen Text und Icon in einer Zeile bei ${width}px @marketplace-preview`, async ({

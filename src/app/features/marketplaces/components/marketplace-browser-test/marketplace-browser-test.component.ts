@@ -66,6 +66,7 @@ export class MarketplaceBrowserTestComponent {
   readonly reconnectOnOpen = input(false);
   readonly pendingAccountName = input<string | null>(null);
   readonly cloudSetupId = input<string | null>(null);
+  readonly newCloudAccount = input(false);
   readonly connectionCreated = output<string>();
   readonly activeTab = signal<'credentials' | 'browser'>('credentials');
   readonly loginIcon = LucideArrowRight;
@@ -116,7 +117,7 @@ export class MarketplaceBrowserTestComponent {
     effect(() => {
       this.previewActive.emit(this.isPreviewActive());
     });
-    effect(() => this.store.configureCloudSetup(this.cloudSetupId()));
+    effect(() => this.store.configureCloudSetup(this.cloudSetupId(), this.newCloudAccount()));
     void this.store.checkAvailability();
     const interval = setInterval(() => {
       // Eine sichtbare Browseransicht bleibt für manuelle Eingaben frei.
@@ -124,7 +125,7 @@ export class MarketplaceBrowserTestComponent {
         document.visibilityState === 'visible' &&
         !this.store.manualLogin() &&
         !this.pointerGesture &&
-        !this.store.session()?.frameUrl
+        (!this.store.session()?.frameUrl || this.store.interactionRequired())
       ) {
         const wasAwaitingLogin = this.store.awaitingLogin();
         void this.store.checkLogin().then(() => {

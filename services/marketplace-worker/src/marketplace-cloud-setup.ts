@@ -53,6 +53,7 @@ function record(candidate: unknown): candidate is Record<string, unknown> {
 export class MarketplaceCloudSetup {
   private readonly options: SetupOptions;
   private readonly pending = new Map<string, Promise<unknown>>();
+  private readonly preparations = new Map<string, Promise<CloudSetupResult>>();
   constructor(options: SetupOptions) {
     this.options = options;
   }
@@ -60,6 +61,46 @@ export class MarketplaceCloudSetup {
     return this.options.store.availability(workspaceId, accessToken);
   }
   async begin(
+    request: CloudSetupRequest,
+    userId: string,
+    accessToken: string,
+  ): Promise<CloudSetupResult> {
+    const key = JSON.stringify([userId, request.workspaceId, request.requestId, request]);
+    let preparation = this.preparations.get(key);
+    if (preparation && !(await this.options.store.availability(request.workspaceId, accessToken)))
+      throw new Error('Cloud-Einrichtung ist nicht freigegeben');
+    if (!preparation) {
+      preparation = this.prepare(request, userId, accessToken);
+      this.preparations.set(key, preparation);
+      const current = preparation;
+      const expire = () => {
+        // Ein geschlossener Dialog darf kein fertiges Ergebnis dauerhaft im Speicher halten.
+        setTimeout(() => {
+          if (this.preparations.get(key) === current) this.preparations.delete(key);
+        }, 60_000).unref();
+      };
+      void preparation.then(expire, expire);
+    }
+    const waiting = Symbol('preparation_pending');
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const result = await Promise.race([
+        preparation,
+        new Promise<typeof waiting>((resolve) => {
+          timeout = setTimeout(() => resolve(waiting), 1000);
+        }),
+      ]);
+      if (result === waiting) return { status: 'purchase_pending' };
+      if (this.preparations.get(key) === preparation) this.preparations.delete(key);
+      return result;
+    } catch (failure) {
+      if (this.preparations.get(key) === preparation) this.preparations.delete(key);
+      throw failure;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+  private async prepare(
     request: CloudSetupRequest,
     userId: string,
     accessToken: string,

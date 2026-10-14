@@ -14,6 +14,20 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.useRealTimers();
 });
+it('continues preparing an IP beyond the old eight-poll limit with the same request', async () => {
+  vi.useFakeTimers();
+  const fetchMock = vi
+    .fn()
+    .mockImplementation(async () => Response.json({ status: 'purchase_pending' }));
+  vi.stubGlobal('fetch', fetchMock);
+  const operation = api.begin(request, 'test-token');
+  await vi.advanceTimersByTimeAsync(18_000);
+  fetchMock.mockImplementation(async () => Response.json({ status: 'no_capacity' }));
+  await vi.runAllTimersAsync();
+  expect(await operation).toEqual({ status: 'no_capacity' });
+  expect(fetchMock.mock.calls.length).toBeGreaterThan(8);
+  for (const call of fetchMock.mock.calls) expect(call[1].body).toBe(JSON.stringify(request));
+});
 it('wartet auf die bestellte IP mit derselben Anfrage statt einen neuen Kauf auszulösen', async () => {
   vi.useFakeTimers();
   const setup = {

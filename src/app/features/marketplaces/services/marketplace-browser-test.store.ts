@@ -32,6 +32,7 @@ export class MarketplaceBrowserTestStore {
   private readonly workspace = inject(WorkspaceService);
   private readonly api = inject(MarketplaceBrowserTestApiService);
   private readonly cloudSetupId = signal<string | null>(null);
+  private isNewCloudAccount = false;
   private readonly cloudVerifiedKey = signal<string | null>(null);
   private readonly cloudCompletedState = signal(false);
   private readonly cloudCancelledState = signal(false);
@@ -175,7 +176,8 @@ export class MarketplaceBrowserTestStore {
     });
   }
 
-  configureCloudSetup(setupId: string | null): void {
+  configureCloudSetup(setupId: string | null, isNewCloudAccount = false): void {
+    this.isNewCloudAccount = isNewCloudAccount;
     if (setupId === this.cloudSetupId()) return;
     this.revision++;
     this.cloudVerifiedKey.set(null);
@@ -191,20 +193,14 @@ export class MarketplaceBrowserTestStore {
     this.busyState.set(active.key);
     this.errorState.set(null);
     try {
-      await this.api.completeCloud(active.scope, this.currentToken());
-      if (!this.isCurrent(active.key, revision)) return;
-      this.cloudCompletedState.set(true);
-      this.cloudVerifiedKey.set(null);
-      this.releaseFrame(active.frameUrl);
-      this.state.set(null);
-      await this.accounts.reloadConnections(active.scope.connectionId);
-      await this.synchronizeConfirmedAccount(active);
+      await this.finishCloudSetup(active, revision, this.currentToken());
     } catch {
       if (this.isCurrent(active.key, revision))
         this.errorState.set({
           key: active.key,
-          message:
-            'Der Cloud-Wechsel ist noch ausstehend. Beende laufende lokale Aktionen und versuche den Abschluss erneut.',
+          message: this.isNewCloudAccount
+            ? 'Die Cloud-Einrichtung ist noch ausstehend. Versuche den Abschluss erneut.'
+            : 'Der Cloud-Wechsel ist noch ausstehend. Beende laufende lokale Aktionen und versuche den Abschluss erneut.',
         });
     } finally {
       if (this.busyState() === active.key) this.busyState.set(null);
@@ -402,6 +398,10 @@ export class MarketplaceBrowserTestStore {
   }
 
   async checkLogin(): Promise<void> {
+    if (!this.manualLogin() && this.interactionRequired() && !this.busy() && !this.error()) {
+      await this.confirmAccount(true);
+      return;
+    }
     if (this.manualLogin() || !this.awaitingLogin() || this.busy() || this.error()) return;
     if (Date.now() >= this.loginDeadline) {
       const key = this.contextKey();
@@ -507,6 +507,7 @@ export class MarketplaceBrowserTestStore {
       await this.completeConfirmedAccount(active, revision, token);
     } catch (error) {
       if (this.isCurrent(active.key, revision) && error instanceof VintedInteractionRequiredError) {
+        if (allowPending && this.interactionRequired()) return;
         await this.pauseForInteraction(active, revision);
         return;
       }
@@ -550,6 +551,8 @@ export class MarketplaceBrowserTestStore {
         this.loginKey.set(active.key);
         this.verificationKey.set(active.key);
         this.progressState.set(null);
+        this.releaseFrame(active.frameUrl);
+        this.state.set({ ...active, frameUrl: null });
         return;
       }
       if (this.isCurrent(active.key, revision)) this.loginKey.set(null);
@@ -634,6 +637,17 @@ export class MarketplaceBrowserTestStore {
       this.verificationKey.set(null);
       this.interactionRequiredKey.set(null);
       this.progressState.set(null);
+      if (this.isNewCloudAccount) {
+        try {
+          await this.finishCloudSetup(active, revision, token);
+        } catch {
+          if (this.isCurrent(active.key, revision))
+            this.errorState.set({
+              key: active.key,
+              message: 'Die Cloud-Einrichtung ist noch ausstehend. Versuche den Abschluss erneut.',
+            });
+        }
+      }
       return;
     }
     await this.api.close(active.scope, active.id, token);
@@ -655,6 +669,21 @@ export class MarketplaceBrowserTestStore {
           'Dein Vinted-Konto wurde bestätigt. Lade die Kontoliste erneut, um den Status zu sehen.',
       });
     }
+  }
+
+  private async finishCloudSetup(
+    active: BrowserTestSession,
+    revision: number,
+    token: string,
+  ): Promise<void> {
+    await this.api.completeCloud(active.scope, token);
+    if (!this.isCurrent(active.key, revision)) return;
+    this.cloudCompletedState.set(true);
+    this.cloudVerifiedKey.set(null);
+    this.releaseFrame(active.frameUrl);
+    this.state.set(null);
+    await this.accounts.reloadConnections(active.scope.connectionId);
+    await this.synchronizeConfirmedAccount(active);
   }
 
   closeSynchronization(): void {
