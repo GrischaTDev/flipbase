@@ -1,5 +1,51 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-15 - Juna - Vinted-Postfachkorrektur über PR veröffentlichen
+
+**Freigabe:** Der Nutzer autorisiert Branch-Push, PR-Erstellung, Merge nach
+erfolgreichen Pflichtprüfungen und anschließend das Aufräumen des eigenen
+Zweigs und Arbeitsverzeichnisses. Die geprüfte Korrektur `40b6324a` basiert
+auf dem aktuellen `origin/master` mit `a48177c1`.
+
+**Abschlussweg:** Der PR enthält die nachgewiesene Korrektur der fortlaufend
+wachsenden Vinted-Seitenangabe und die im folgenden Eintrag dokumentierten
+Prüfungen. Nach grünen Pflichtprüfungen folgen Merge-Commit, reguläre
+Veröffentlichung und lesende Kontrolle des Worker-Stands sowie des nächsten
+Abrufs beim Konto „Flipbase“. Produktive Zeitpläne werden nicht manuell
+zurückgesetzt; ausschließlich der eigene Zweig wird aufgeräumt.
+
+## 2026-10-15 - Juna - Vinted-Abruf bei vollen Gesprächsseiten korrigieren
+
+**Auftrag:** Beim Vinted-Konto „Flipbase“ steht „Abruf wartet“ mit einer
+Anbieterausfallmeldung. Manuelle Abrufe werden grün abgeschlossen, melden aber
+Gespräche, Nachrichten und Verkäufe als unvollständig.
+
+**Nachweis:** Ausschließlich lesende Serverabfragen bestätigen erfolgreiche
+Profil-, Inserat- und Bewertungsabrufe. Der Fehler beginnt beim Übergang von
+79 auf 80 Gespräche. Ein über die bestehende Oberfläche gestarteter normaler
+Kontoabruf wurde passiv beobachtet: Vinted liefert vier volle Gesprächsseiten
+mit je 20 Einträgen und danach leere Seiten, jeweils HTTP 200. `total_pages`
+steigt trotzdem von Seite zu Seite auf die nächste Seitennummer. Der bisherige
+Abruf läuft dadurch bis zur Grenze von 20 Seiten und meldet `invalid_response`.
+Die bestehende Zeitplanlogik ordnet diesen Teilfehler als `server` ein.
+Es wurden nur Seitenzahlen, Antwortstatus und Anzahlen ausgegeben, keine
+Nachrichteninhalte, Cookies oder Zugangsdaten.
+
+**Korrektur:** Nur für Gespräche beendet eine bereits validierte leere
+Anbieterliste die Seitenfolge erfolgreich. Ungültige Antworten bleiben Fehler;
+volle Listen ohne belegtes Ende bleiben an der bestehenden Abrufgrenze ein
+Teilstand. Inserat- und Bewertungsabrufe behalten ihre bisherigen Regeln.
+Keine Schemaänderung, kein Zurücksetzen produktiver Zeitpläne und keine
+Anbieter-Schreibaktion. Arbeit isoliert auf `juna/vinted-inbox-pagination`;
+parallele Änderungen im Hauptverzeichnis bleiben unberührt.
+
+**Prüfung:** Die drei Regressionen für 0, 20 und 80 Gespräche scheitern vor dem
+Fix mit dem nachgewiesenen Teilfehler und bestehen danach. Zusätzlich werden
+ungültige leere Antworten, unabhängige Inseratseiten und die Grenze von 400
+Gesprächen geprüft. Worker-Suite: 649 bestanden, sieben bestehende Fälle
+übersprungen, kein Fehler. Der neue echte Browserfall bestätigt 80 Gespräche
+und genau fünf Postfachanfragen. Formatierung, Lint, Typprüfung und Worker-Bau bestehen. Noch kein Push, PR oder Deployment.
+
 ## 2026-10-14 - Juna - Push-Aktivierungsfix als PR veröffentlichen
 
 **Freigabe:** Der Nutzer autorisiert PR-Erstellung und Merge nach vollständig

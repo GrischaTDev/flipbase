@@ -813,6 +813,10 @@ async function pages(
       // Unbekannte Zeilen bleiben ein Teilstand, selbst wenn die Pagination vollständig ist.
       if (items.some((item) => !identifier(record(item)?.['id'])))
         return { values, result: { status: 'partial', failure: 'invalid_response' } };
+      // Vinteds Postfach kündigt bei vollen Seiten fortlaufend eine weitere Seite an,
+      // auch nach dem Listenende. Eine gültige leere Gesprächsseite beendet den Abruf.
+      if (key === 'conversations' && items.length === 0)
+        return { values, result: { status: 'complete' } };
       if (number >= totalPages) return { values, result: { status: 'complete' } };
     } catch (error) {
       return { values, result: sourceFailure(stage, error, number > 1) };

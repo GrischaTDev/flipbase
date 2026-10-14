@@ -1561,3 +1561,89 @@ test('ordnet Feedbacks mit Kennzeichnung für automatische Bewertungen dem Profi
   assert.equal(second['isAutomatic'], true);
   assert.equal(second['authorName'], 'Vinted System');
 });
+
+for (const conversationCount of [0, 20, 80]) {
+  test(`leere Gesprächsseite beendet Vinteds wachsende Seitenangabe bei ${conversationCount} Gesprächen`, async () => {
+    const inboxPages: number[] = [];
+    const snapshot = await readVintedAccountImport(
+      importPage((path) => {
+        if (!path.startsWith('/api/v2/inbox?')) return undefined;
+        const pageNumber = Number(new URL(path, 'https://www.vinted.de').searchParams.get('page'));
+        inboxPages.push(pageNumber);
+        return {
+          conversations: Array.from(
+            { length: pageNumber <= conversationCount / 20 ? 20 : 0 },
+            (_, index) => ({ id: (pageNumber - 1) * 20 + index + 1, unread: true }),
+          ),
+          pagination: {
+            page: pageNumber,
+            current_page: pageNumber,
+            per_page: 20,
+            total_entries: (pageNumber + 1) * 20,
+            total_pages: pageNumber + 1,
+          },
+        };
+      }),
+      async () => undefined,
+    );
+    assert.deepEqual(snapshot.areas.conversations, { status: 'complete' });
+    assert.equal(
+      snapshot.entries.filter((entry) => entry.kind === 'conversation').length,
+      conversationCount,
+    );
+    assert.deepEqual(
+      inboxPages,
+      Array.from({ length: conversationCount / 20 + 1 }, (_, index) => index + 1),
+    );
+    assert.equal(snapshot.areas.messages.failure, undefined);
+    assert.equal(snapshot.areas.sales.failure, undefined);
+  });
+}
+
+test('leere Gesprächsseite mit ungültiger Seitenangabe bleibt ein Fehler', async () => {
+  const snapshot = await readVintedAccountImport(
+    importPage((path) =>
+      path.startsWith('/api/v2/inbox?')
+        ? { conversations: [], pagination: { total_pages: 'unbekannt' } }
+        : undefined,
+    ),
+    async () => undefined,
+  );
+  assert.deepEqual(snapshot.areas.conversations, { status: 'failed', failure: 'invalid_response' });
+});
+
+test('leere Inseratseite vor dem angegebenen Listenende beendet keinen Abruf', async () => {
+  const snapshot = await readVintedAccountImport(
+    importPage((path) => {
+      if (path.includes('/wardrobe/') && path.includes('page=1&'))
+        return { items: [], pagination: { total_pages: 2 } };
+      if (path.includes('/wardrobe/')) return { flipbaseRequestFailure: 'network' };
+      return undefined;
+    }),
+    async () => undefined,
+  );
+  assert.deepEqual(snapshot.areas.publications, { status: 'partial', failure: 'network' });
+});
+
+test('zwanzig volle Gesprächsseiten bleiben ohne belegtes Listenende ein Teilstand', async () => {
+  const snapshot = await readVintedAccountImport(
+    importPage((path) => {
+      if (!path.startsWith('/api/v2/inbox?')) return undefined;
+      const pageNumber = Number(new URL(path, 'https://www.vinted.de').searchParams.get('page'));
+      return {
+        conversations: Array.from({ length: 20 }, (_, index) => ({
+          id: (pageNumber - 1) * 20 + index + 1,
+          unread: true,
+        })),
+        pagination: { total_pages: pageNumber + 1 },
+      };
+    }),
+    async () => undefined,
+  );
+  assert.deepEqual(snapshot.areas.conversations, {
+    status: 'partial',
+    failure: 'invalid_response',
+  });
+  assert.equal(snapshot.entries.filter((entry) => entry.kind === 'conversation').length, 400);
+  assert.equal(snapshot.sourceRequestCount, 23);
+});
