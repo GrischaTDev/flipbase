@@ -1,5 +1,59 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-14 - Juna - Folge-PR für Updates und Favoriten-Push abschließen
+
+**Freigabe:** Der Nutzer bestätigt PR-Erstellung, Merge nach erfolgreichen
+Pflichtprüfungen und das Aufräumen des eigenen Zweigs
+`juna/pwa-refresh-notification-details`. Der geprüfte Stand `0ab5e7a8` basiert
+auf dem aktuellen Hauptzweig `82e09f67`.
+
+**Abschluss:** Die im folgenden Eintrag belegten lokalen Prüfungen sind bestanden.
+Der Folge-PR durchläuft die vollständigen Pflichtprüfungen. Anschließend werden
+die reguläre Veröffentlichung, der öffentlich ausgelieferte App-/Worker-Stand
+und die Gesundheit des Push-Diensts geprüft. Die endgültige Umsetzung benötigt
+keine Schemaänderung und keine Testinstanz auf dem Produktionsserver.
+Die native Anzeige auf iPad und Android bleibt nach dem Update am Gerät zu prüfen.
+
+## 2026-10-14 - Juna - Update-Anzeige und Favoriten-Push nachbessern
+
+**Auftrag:** Das iPad zeigt weiterhin 0.347.0 ohne Update-Angebot. Der Nutzer
+möchte in Systemmeldungen denselben Kontonamen und Artikeltitel wie unter der
+Glocke statt „Neue Favoriten auf Vinted“.
+
+**Updates:** Sichtbare Online-Tabs prüfen jetzt regelmäßig im Minutenabstand.
+Ältere Dokumente fragen zusätzlich den aktiven Worker nach seiner Baukennung;
+die Update-Meldung bleibt erhalten, wenn ein anderer Tab bereits aktiviert hat.
+Der Klick lädt erst nach der eigenen Eingabeprüfung neu. Die bestehende Prüfung
+aller offenen Ansichten vor Worker-Aktivierung bleibt erhalten. Die periodische
+Prüfung wird beim Zerstören des Diensts abgeräumt; fremde Workerantworten gelten
+nicht als bestätigter aktiver Stand.
+
+**Favoriten:** Der Push-Dienst liest die belegte Glockenmeldung über bestehende
+interne Schnittstellen im autorisierten Workspace und Konto. Einzelmeldungen
+heißen „Artikel wurde favorisiert · Kontoname“, darunter steht der Artikeltitel.
+Bei mehreren Inseraten erscheinen Anzahl und Artikeltitel. Danach prüft der
+Dienst die Versandberechtigung erneut, auch bei fehlenden Details. Ungültige
+Quellen, fremde Konten, gelöschte Meldungen und Abruffehler liefern keine Details.
+Texte sind begrenzt, enthalten keine Steuerzeichen und teilen keine Emoji-Paare.
+Der Worker zeigt nur die erlaubten Favoritenüberschriften mit strukturiertem Ziel;
+Nachrichten und Bestellungen bleiben ohne Kontakt-/Bestelldetails.
+
+**Umgebung:** Die automatische Freigabe lehnte eine isolierte Testinstanz auf
+dem Produktionsserver samt Schema-/Rollenkopie ab; der Befehl wurde nicht
+ausgeführt. Die anfängliche eigene Schemaänderung wurde vollständig verworfen.
+Die endgültige Umsetzung verwendet vorhandene Schnittstellen und benötigt
+keine Migration. Lokale Docker-Startversuche stellten keine Engine bereit;
+Anwendungs-, HTTP-Fixture- und Browserprüfungen laufen unabhängig davon.
+
+**Prüfung:** 46 gezielte Angularfälle, 31 PWA-Skriptprüfungen und 27 Push-Dienstfälle
+bestanden, einschließlich Kontobindung, Rechteentzug nach Abruf und Unicodegrenzen.
+Zwei echte Produktionsbauten mit je 261 geprüften App-Dateien sowie zwei
+Chromium-Updateabläufe bestanden. Die Browserregression klickt in einer alten
+zweiten Ansicht nach Aktivierung jetzt deren Update-Angebot. Typprüfung und
+Push-Dienst-Bau, Formatierung, Lint und abschließender Produktionsbau erfolgreich.
+Echte iPad-Home-App und native Systemanzeige bleiben
+Geräteabnahmen; Chrome-Tab und Home-App haben getrennte Speicherbereiche.
+
 ## 2026-10-14 - Juna - Gemeinsamen Einstellungs- und PWA-Zweig abschließen
 
 **Freigabe:** Der Nutzer hat PR-Erstellung, Merge nach erfolgreichen

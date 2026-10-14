@@ -79,6 +79,57 @@ it('offers an update only after the waiting worker confirms a different build', 
   receive('PWA_WAITING_STATUS');
   expect(service.updateAvailable()).toBe(true);
 });
+it('keeps an update offer for an old document after another tab activated the new worker', async () => {
+  const active = { postMessage: vi.fn() };
+  Object.assign(navigator.serviceWorker, { controller: active });
+  Object.defineProperty(registration, 'waiting', { configurable: true, value: null });
+  navigator.serviceWorker.dispatchEvent(new Event('controllerchange'));
+  expect(active.postMessage).toHaveBeenCalledWith({ type: 'PWA_ACTIVE_QUERY' });
+  navigator.serviceWorker.dispatchEvent(
+    Object.assign(new Event('message'), {
+      source: active,
+      data: { type: 'PWA_ACTIVE_STATUS', buildId: 'a'.repeat(64) },
+    }),
+  );
+  expect(service.updateAvailable()).toBe(true);
+  await service.checkForUpdate();
+  expect(service.updateAvailable()).toBe(true);
+  dirty.mockReturnValue(true);
+  expect(await service.applyUpdate()).toBe('blocked');
+});
+it('checks for a new version periodically while the current tab stays visible', async () => {
+  vi.useFakeTimers();
+  TestBed.resetTestingModule();
+  TestBed.configureTestingModule({
+    providers: [PwaUpdateService, { provide: WorkspaceContextLockService, useValue: { locked } }],
+  });
+  service = TestBed.inject(PwaUpdateService);
+  registration.update.mockClear();
+  service.connect(registration as unknown as ServiceWorkerRegistration);
+  vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+  await vi.advanceTimersByTimeAsync(60_000);
+  expect(registration.update).toHaveBeenCalled();
+  const calls = registration.update.mock.calls.length;
+  TestBed.resetTestingModule();
+  await vi.advanceTimersByTimeAsync(60_000);
+  expect(registration.update).toHaveBeenCalledTimes(calls);
+});
+it('accepts active build reports only from the controller and clears an already current offer', () => {
+  const active = { postMessage: vi.fn() };
+  Object.assign(navigator.serviceWorker, { controller: active });
+  Object.defineProperty(registration, 'waiting', { configurable: true, value: null });
+  navigator.serviceWorker.dispatchEvent(new Event('controllerchange'));
+  const report = (source: unknown, buildId: string) =>
+    navigator.serviceWorker.dispatchEvent(
+      Object.assign(new Event('message'), { source, data: { type: 'PWA_ACTIVE_STATUS', buildId } }),
+    );
+  report(waiting, 'a'.repeat(64));
+  expect(service.updateAvailable()).toBe(false);
+  report(active, 'a'.repeat(64));
+  expect(service.updateAvailable()).toBe(true);
+  report(active, 'b'.repeat(64));
+  expect(service.updateAvailable()).toBe(false);
+});
 it('does not describe the already loaded build as a new version during legacy worker handover', () => {
   receive('PWA_WAITING_STATUS', { buildId: 'b'.repeat(64) });
   expect(service.updateAvailable()).toBe(false);

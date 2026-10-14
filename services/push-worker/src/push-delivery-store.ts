@@ -1,5 +1,6 @@
 import type { PushWorkerConfig } from './config.ts';
 import type { PushProviderResult, PushSubscription } from './push-provider.ts';
+import { readFavoriteNotificationContent } from './favorite-notification-content.ts';
 export interface PushClaim {
   id: string;
   binding_generation: string;
@@ -72,6 +73,21 @@ export function createPushDeliveryStore(config: PushWorkerConfig): PushDeliveryS
         )
       )
         throw new Error('Invalid push binding');
+      const content = await readFavoriteNotificationContent(config, binding['payload']);
+      const payload = binding['payload'];
+      if (
+        payload &&
+        typeof payload === 'object' &&
+        'category' in payload &&
+        payload.category === 'favorite'
+      ) {
+        // Zwischen Detailabruf und Send kann eine Kategorie oder ein Konto widerrufen werden.
+        const confirmed = await rpc('web_push_authorize', identity(claim));
+        if (confirmed === null) return null;
+        if (JSON.stringify(confirmed) !== JSON.stringify(binding))
+          throw new Error('Push binding changed during content lookup');
+        if (content) binding['payload'] = { ...(payload as Record<string, unknown>), ...content };
+      }
       return binding as unknown as AuthorizedDelivery;
     },
     async finish(claim, result) {

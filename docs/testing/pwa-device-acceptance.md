@@ -27,6 +27,19 @@ Normale Priorität darf der Anbieter auf ruhenden Geräten verzögern; die Vorga
 folgt dem [Web-Push-Protokoll](https://web.dev/articles/push-notifications-web-push-protocol).
 Die Annahme durch den Anbieter bestätigt noch keine Anzeige auf dem Gerät.
 
+Nutzerentscheidung vom 14.10.2026: Favoriten-Push nennt wie die Glocke den
+Kontonamen und darunter den Artikeltitel. Bei mehreren Inseraten werden Anzahl
+und begrenzte Artikeltitel angezeigt. Die Details stammen aus der belegten
+Glockenmeldung; direkt vor Versand wird die Kontoberechtigung erneut geprüft.
+Fehlende oder gelöschte Details fallen auf die allgemeine Meldung zurück.
+Nachrichten und Bestellungen bleiben ohne Kontaktdaten.
+
+Online-Tabs prüfen im sichtbaren Zustand regelmäßig im Minutenabstand auf neue
+Versionen. Auch nach Aktivierung in einem anderen Tab bleibt auf älteren Ansichten
+ein Update-Angebot sichtbar. Offene Eingaben müssen zuerst gespeichert oder
+verworfen werden. Für iPad-Push Flipbase vom Home-Bildschirm starten, nicht als
+normalen Chrome-Tab. Browser und Home-App separat auf ihre Version prüfen.
+
 Vor dem Test das Gerät und die gewünschten Kategorien aktivieren, dann Flipbase
 schließen und das Gerät sperren. Erst danach eine neue echte Marktplatznachricht
 beziehungsweise Favoritenmeldung erzeugen. Systemmeldung und Klickziel auf Android
