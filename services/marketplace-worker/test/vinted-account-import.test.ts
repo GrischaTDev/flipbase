@@ -1345,6 +1345,139 @@ test('übernimmt echte Chatnachrichten mit Entity-ID und Systemereignisse ohne I
   assert.equal(conversation.body['occurredAt'], systemMessage.sortAt);
 });
 
+test('system event IDs ignore hidden templates, property order and equivalent time formats', () => {
+  const read = (entity: Record<string, unknown>, createdAt: unknown = 1791722924) =>
+    parseVintedAccountImport(
+      { id: '123', username: 'testkonto' },
+      { user: { id: 123 } },
+      [],
+      [{ id: 51, unread: false }],
+      [
+        {
+          conversation: {
+            id: 51,
+            messages: [{ entity_type: 'action_message', created_at_ts: createdAt, entity }],
+          },
+        },
+      ],
+      '2026-10-14T08:00:00Z',
+    ).entries.find((entry) => entry.kind === 'message');
+  const first = read({
+    title: 'Die Bestellung wurde abgeschlossen!',
+    template: { action: 'leave_feedback' },
+  });
+  assert.equal(
+    first?.externalId,
+    read({ template: { action: 'view_feedback' }, title: 'Die Bestellung wurde abgeschlossen!' })
+      ?.externalId,
+  );
+  assert.equal(
+    first?.externalId,
+    read({ title: 'Die Bestellung wurde abgeschlossen!' }, '2026-10-11T14:48:44+02:00')?.externalId,
+  );
+  assert.notEqual(
+    first?.externalId,
+    read({ title: 'Die Bestellung wurde abgeschlossen!' }, 1791722925)?.externalId,
+  );
+  assert.notEqual(first?.externalId, read({ title: 'Rückerstattung abgeschlossen' })?.externalId);
+});
+
+test('imports simultaneous delivery notices once without merging real messages', () => {
+  const result = parseVintedAccountImport(
+    { id: '123', username: 'testkonto' },
+    { user: { id: 123 } },
+    [],
+    [{ id: 51, unread: false }],
+    [
+      {
+        conversation: {
+          id: 51,
+          messages: [
+            {
+              entity_type: 'action_message',
+              created_at_ts: 1791652544,
+              entity: { title: 'Sendung zugestellt' },
+            },
+            {
+              entity_type: 'status_message',
+              created_at_ts: 1791652544,
+              entity: { title: 'Geliefert' },
+            },
+            {
+              entity_type: 'message',
+              created_at_ts: 1791652544,
+              entity: { id: 61, body: 'Geliefert', user_id: 456 },
+            },
+            {
+              entity_type: 'message',
+              created_at_ts: 1791652544,
+              entity: { id: 62, body: 'Geliefert', user_id: 456 },
+            },
+          ],
+        },
+      },
+    ],
+    '2026-10-14T08:00:00Z',
+  );
+  const entries = result.entries.filter((entry) => entry.kind === 'message');
+  assert.equal(entries.length, 3);
+  assert.equal(entries[0]?.body['messageType'], 'status_message');
+  assert.equal(entries[0]?.body['text'], 'Geliefert');
+  assert.deepEqual(
+    entries.slice(1).map((entry) => entry.externalId),
+    ['61', '62'],
+  );
+});
+
+test('system event identities preserve different prices, sender directions and photos', () => {
+  const entities = [
+    {
+      title: 'Zahlung',
+      price_label: '10 €',
+      user_id: 123,
+      photos: [{ url: 'https://images.vinted.net/first.jpg' }],
+    },
+    {
+      title: 'Zahlung',
+      price_label: '20 €',
+      user_id: 123,
+      photos: [{ url: 'https://images.vinted.net/first.jpg' }],
+    },
+    {
+      title: 'Zahlung',
+      price_label: '10 €',
+      user_id: 456,
+      photos: [{ url: 'https://images.vinted.net/first.jpg' }],
+    },
+    {
+      title: 'Zahlung',
+      price_label: '10 €',
+      user_id: 123,
+      photos: [{ url: 'https://images.vinted.net/second.jpg' }],
+    },
+  ];
+  const result = parseVintedAccountImport(
+    { id: '123', username: 'testkonto' },
+    { user: { id: 123 } },
+    [],
+    [{ id: 51, unread: false }],
+    [
+      {
+        conversation: {
+          id: 51,
+          messages: entities.map((entity) => ({
+            entity_type: 'payment_message',
+            created_at_ts: 1791722924,
+            entity,
+          })),
+        },
+      },
+    ],
+    '2026-10-14T08:00:00Z',
+  );
+  assert.equal(result.entries.filter((entry) => entry.kind === 'message').length, 4);
+});
+
 test('ordnet aktuelle Vinted-Bewertungen nach system_feedback und ISO-Zeitstempel zu', () => {
   const snapshot = parseVintedAccountImport(
     { id: '123', username: 'testkonto' },
