@@ -96,6 +96,26 @@ test('mobile notifications omit the additional logo but keep the status badge', 
   }
 });
 
+test('favorite notifications show the verified account and article titles', async () => {
+  for (const title of [
+    'Artikel wurde favorisiert · Maike Vintage',
+    '2 Artikel wurden favorisiert · Maike Vintage',
+  ]) {
+    const worker = createWorker();
+    const favorite = {
+      ...payload,
+      category: 'favorite',
+      title,
+      body: 'Sommerkleid · Jeansjacke',
+      target: { kind: 'vinted_favorites', connectionId: payload.workspaceId },
+    };
+    await worker.dispatch('push', { data: { text: () => JSON.stringify(favorite) } });
+    assert.equal(worker.messages[0].title, title);
+    assert.equal(worker.messages[0].options.body, favorite.body);
+    assert.equal(worker.messages[0].options.tag, `flipbase-event-${payload.eventId}`);
+  }
+});
+
 test('validated categories have clear generic headings and opening actions', async () => {
   const cases = [
     [

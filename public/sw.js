@@ -343,6 +343,8 @@ async function updateReply(event) {
 }
 
 self.addEventListener('message', (event) => {
+  if (event.data?.type === 'PWA_ACTIVE_QUERY')
+    event.source?.postMessage({ type: 'PWA_ACTIVE_STATUS', buildId: BUILD_ID });
   if (event.data?.type === 'PWA_UPDATE_QUERY')
     event.source?.postMessage({ type: 'PWA_WAITING_STATUS', buildId: BUILD_ID });
   if (event.data?.type === 'ACTIVATE_UPDATE') event.waitUntil(beginUpdate(event));
@@ -415,7 +417,8 @@ self.addEventListener('push', (event) =>
       } catch {
         /* Ein kaputter Payload bekommt nur eine allgemeine sichtbare Meldung. */
       }
-      // Nur feste Texte verwenden: Kontaktdaten bleiben vom Sperrbildschirm fern.
+      // Favoriten zeigen die serverseitig belegten Konto-/Artikeldetails.
+      // Nachrichten und Bestellungen enthalten weiterhin keine Kontaktdaten.
       const notificationContent = {
         message: {
           title: 'Neue Marktplatznachricht',
@@ -444,21 +447,29 @@ self.addEventListener('push', (event) =>
         },
       };
       const content = payload ? notificationContent[payload.category] : null;
+      const favoriteDetails =
+        payload?.category === 'favorite' &&
+        /^(?:Artikel wurde favorisiert|\d+ Artikel wurden favorisiert) · .+/.test(payload.title);
       const isMobile =
         self.navigator?.userAgentData?.mobile ||
         /Android|iPhone|iPad|iPod/i.test(self.navigator?.userAgent ?? '');
-      await self.registration.showNotification(content?.title ?? 'Flipbase', {
-        body: content?.body ?? 'Öffne Flipbase, um deine Benachrichtigungen zu prüfen.',
-        ...(isMobile ? {} : { icon: '/images/logo-mark-192.png' }),
-        badge: '/icons/push-badge-monochrome-96.png',
-        actions:
-          content && self.Notification?.maxActions > 0
-            ? [{ action: 'open', title: content.action }]
-            : [],
-        tag: payload ? `flipbase-event-${payload.eventId}` : 'flipbase-invalid-push',
-        data: payload,
-        renotify: false,
-      });
+      await self.registration.showNotification(
+        favoriteDetails ? payload.title : (content?.title ?? 'Flipbase'),
+        {
+          body: favoriteDetails
+            ? payload.body
+            : (content?.body ?? 'Öffne Flipbase, um deine Benachrichtigungen zu prüfen.'),
+          ...(isMobile ? {} : { icon: '/images/logo-mark-192.png' }),
+          badge: '/icons/push-badge-monochrome-96.png',
+          actions:
+            content && self.Notification?.maxActions > 0
+              ? [{ action: 'open', title: content.action }]
+              : [],
+          tag: payload ? `flipbase-event-${payload.eventId}` : 'flipbase-invalid-push',
+          data: payload,
+          renotify: false,
+        },
+      );
     })(),
   ),
 );

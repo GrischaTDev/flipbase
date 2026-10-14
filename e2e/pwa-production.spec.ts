@@ -126,7 +126,8 @@ test('a real second build waits for an unsaved second window before activation @
     await expect(page.getByRole('region', { name: 'App aktualisieren' })).toHaveCount(0);
     // Andere sichere Ansichten behalten ihre alten Chunks bis zum eigenen Neustart.
     await expect(unchanged.locator('html')).toHaveAttribute('data-flipbase-build', oldBuild ?? '');
-    await unchanged.reload();
+    await expect(unchanged.getByRole('button', { name: 'Jetzt aktualisieren' })).toBeVisible();
+    await unchanged.getByRole('button', { name: 'Jetzt aktualisieren' }).click();
     await expect(unchanged.locator('html')).not.toHaveAttribute(
       'data-flipbase-build',
       oldBuild ?? '',

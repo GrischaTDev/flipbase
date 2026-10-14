@@ -20,6 +20,7 @@ export class PwaUpdateService {
   readonly message = signal('');
   private registration: ServiceWorkerRegistration | null = null;
   private targetBuild = '';
+  private activeBuild = '';
   private targetWorker: ServiceWorker | null = null;
   private readonly synchronizedWorkers = new WeakSet<ServiceWorker>();
   private activationAttemptId = '';
@@ -33,6 +34,7 @@ export class PwaUpdateService {
     if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
       const receive = (event: MessageEvent) => this.receiveMessage(event);
       const changed = () => {
+        this.activeBuild = '';
         if (this.initiator && this.barrier) {
           this.complete('applied');
           this.releaseBarrier();
@@ -47,10 +49,16 @@ export class PwaUpdateService {
       navigator.serviceWorker.addEventListener('controllerchange', changed);
       const focused = () => void this.checkForUpdate();
       window.addEventListener('focus', focused);
+      window.addEventListener('online', focused);
+      const updateTimer = setInterval(() => {
+        if (document.visibilityState === 'visible' && navigator.onLine) void this.checkForUpdate();
+      }, 60_000);
       this.destroyRef.onDestroy(() => {
         navigator.serviceWorker.removeEventListener('message', receive);
         navigator.serviceWorker.removeEventListener('controllerchange', changed);
         window.removeEventListener('focus', focused);
+        window.removeEventListener('online', focused);
+        clearInterval(updateTimer);
       });
     }
     if (typeof document !== 'undefined') {
@@ -102,10 +110,18 @@ export class PwaUpdateService {
     if (waiting !== this.targetWorker) {
       this.targetWorker = waiting;
       this.targetBuild = '';
-      this.updateAvailable.set(false);
+      this.updateAvailable.set(this.isDifferentBuild(this.activeBuild));
       this.message.set('');
     }
     waiting?.postMessage({ type: 'PWA_UPDATE_QUERY' });
+    navigator.serviceWorker.controller?.postMessage({ type: 'PWA_ACTIVE_QUERY' });
+  }
+
+  private isDifferentBuild(buildId: string): boolean {
+    return (
+      /^[a-f0-9]{64}$/.test(buildId) &&
+      buildId !== document.documentElement.dataset['flipbaseBuild']
+    );
   }
 
   private isSafe(): boolean {
@@ -131,6 +147,12 @@ export class PwaUpdateService {
     }
     const waiting = this.registration?.waiting;
     if (this.completion) return 'blocked';
+    // Andere Tabs können den Worker bereits aktiviert haben. Dieses Dokument
+    // darf erst nach seiner eigenen Eingabeprüfung auf den neuen Bau wechseln.
+    if (!waiting && this.isDifferentBuild(this.activeBuild)) {
+      window.location.reload();
+      return 'applied';
+    }
     if (!waiting || waiting !== this.targetWorker || !/^[a-f0-9]{64}$/.test(this.targetBuild)) {
       this.inspectWaitingWorker();
       this.message.set('Die Aktualisierung wird noch vorbereitet. Bitte versuche es erneut.');
@@ -160,13 +182,26 @@ export class PwaUpdateService {
     const payload: unknown = event.data;
     if (!payload || typeof payload !== 'object') return;
     const message = payload as Record<string, unknown>;
+    if (
+      message['type'] === 'PWA_ACTIVE_STATUS' &&
+      navigator.serviceWorker.controller &&
+      event.source === navigator.serviceWorker.controller &&
+      typeof message['buildId'] === 'string' &&
+      /^[a-f0-9]{64}$/.test(message['buildId'])
+    ) {
+      this.activeBuild = message['buildId'];
+      this.updateAvailable.set(
+        this.isDifferentBuild(this.activeBuild) || this.isDifferentBuild(this.targetBuild),
+      );
+      return;
+    }
     const worker = this.barrier?.worker ?? this.registration?.waiting;
     if (!worker || event.source !== worker || typeof message['buildId'] !== 'string') return;
     if (message['type'] === 'PWA_WAITING_STATUS') {
       if (!/^[a-f0-9]{64}$/.test(message['buildId'])) return;
       this.targetBuild = message['buildId'];
       const isCurrentBuild = this.targetBuild === document.documentElement.dataset['flipbaseBuild'];
-      this.updateAvailable.set(!isCurrentBuild);
+      this.updateAvailable.set(!isCurrentBuild || this.isDifferentBuild(this.activeBuild));
       // Der bisherige Netzwerk-Worker kann bereits diese HTML-Version geladen haben.
       // Nur nach derselben Eingabeprüfung übernehmen; andere Fenster dürfen weiterhin blockieren.
       if (isCurrentBuild && !this.synchronizedWorkers.has(worker) && this.isSafe()) {
