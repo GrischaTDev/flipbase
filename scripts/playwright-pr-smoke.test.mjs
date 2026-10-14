@@ -9,6 +9,18 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 
 // Nur die tatsächliche Testauswahl prüfen, nicht Playwrights Parser nachtesten.
 const coreTests = [
+  [
+    'pwa-install-device.spec.ts',
+    'preserves the original mark geometry on white install icons and safe masks @pwa-layout',
+  ],
+  [
+    'pwa-install-device.spec.ts',
+    'Android install dialog > keeps manual help on the current page, handles late native offers and confirmed installation @pwa-layout',
+  ],
+  [
+    'pwa-install-device.spec.ts',
+    'places device settings before webhooks and exposes the bell settings link on Windows @pwa-layout',
+  ],
   ...[
     'stops unavailable access checks without a redirect loop or protected content @pwa-layout',
     'legacy offline links lead to normal purchases without local parameters @pwa-layout',

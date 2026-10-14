@@ -419,8 +419,8 @@ self.addEventListener('push', (event) =>
         body: payload
           ? bodies[payload.category]
           : 'Öffne Flipbase, um deine Benachrichtigungen zu prüfen.',
-        icon: '/icons/icon-192.png',
-        badge: '/icons/icon-192.png',
+        icon: '/icons/install-white-192.png',
+        badge: '/icons/push-badge-monochrome-96.png',
         tag: payload ? `flipbase-event-${payload.eventId}` : 'flipbase-invalid-push',
         data: payload,
         renotify: false,

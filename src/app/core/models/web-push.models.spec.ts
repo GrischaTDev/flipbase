@@ -10,6 +10,18 @@ const payload = {
   target: { kind: 'store_orders' },
 };
 describe('Push payload boundary', () => {
+  it('accepts favorites only with a valid Vinted connection and matching category', () => {
+    const favorite = {
+      ...payload,
+      category: 'favorite',
+      target: { kind: 'vinted_favorites', connectionId: payload.workspaceId },
+    };
+    expect(parsePushPayload(favorite)).toEqual(favorite);
+    expect(parsePushPayload({ ...favorite, category: 'message' })).toBeNull();
+    expect(
+      parsePushPayload({ ...favorite, target: { ...favorite.target, connectionId: 'invalid' } }),
+    ).toBeNull();
+  });
   it('accepts only category-compatible structured targets', () => {
     expect(parsePushPayload(payload)).toEqual(payload);
     expect(

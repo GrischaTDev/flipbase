@@ -31,6 +31,7 @@ export type ButtonSize = 'slim' | 'md' | 'lg' | 'search' | 'comfortable';
     '[class.inline-block]': '!fullWidth()',
     '[class.block]': 'fullWidth()',
     '[class.w-full]': 'fullWidth()',
+    '[class.max-w-full]': 'wrapLabel()',
   },
 })
 export class ButtonComponent {
@@ -45,6 +46,7 @@ export class ButtonComponent {
   readonly iconPosition = input<'start' | 'end'>('start');
   readonly iconOnly = input<boolean>(false);
   readonly fullWidth = input<boolean>(false);
+  readonly wrapLabel = input(false);
   readonly contentAlign = input<'center' | 'start'>('center');
   readonly type = input<'button' | 'submit' | 'reset'>('button');
   readonly formId = input('');
@@ -71,7 +73,9 @@ export class ButtonComponent {
         ? 'focus-visible:outline-fb-text-primary'
         : 'focus-visible:outline-fb-primary';
     const base =
-      'fb-button inline-flex items-center font-[550] leading-4 select-none cursor-pointer ' +
+      'fb-button inline-flex items-center font-[550] ' +
+      (this.wrapLabel() ? 'leading-normal ' : 'leading-4 ') +
+      'select-none cursor-pointer ' +
       (this.variant() === 'thumbnail-remove'
         ? 'pointer-coarse:min-h-7 pointer-coarse:min-w-7 '
         : 'pointer-coarse:min-h-11 pointer-coarse:min-w-11 ') +
@@ -149,12 +153,17 @@ export class ButtonComponent {
         : { slim: 'px-2', md: 'px-3', lg: 'px-4', search: 'px-2', comfortable: 'px-3' }[
             this.size()
           ];
+    const sizeClasses =
+      this.wrapLabel() && !this.iconOnly()
+        ? sizeStyles[this.size()].replace(/\bh-/, 'min-h-')
+        : sizeStyles[this.size()];
 
     return [
       base,
       focusColor,
       alignment,
       width,
+      this.wrapLabel() ? 'max-w-full min-w-0 py-2' : '',
       variantStyles[this.variant()],
       this.variant() === 'table-action' ? tableActionToneStyles[this.tone()] : '',
       this.variant() === 'list-row'
@@ -162,8 +171,8 @@ export class ButtonComponent {
           ? 'min-h-11 rounded-lg py-2 text-[13px]'
           : 'min-h-18 rounded-lg py-3 text-sm'
         : this.shape() === 'circle'
-          ? sizeStyles[this.size()].replace('rounded-lg', 'rounded-full')
-          : sizeStyles[this.size()],
+          ? sizeClasses.replace('rounded-lg', 'rounded-full')
+          : sizeClasses,
       horizontalPadding,
     ]
       .filter(Boolean)

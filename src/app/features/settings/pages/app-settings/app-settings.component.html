@@ -45,14 +45,10 @@
         }}</strong>
       </div>
     </div>
-    @if (pwaService.showInstallationOffer() && pwaService.installState() === 'prompt_available') {
-      <app-button (clicked)="pwaService.promptInstall()">Flipbase installieren</app-button>
-    } @else if (pwaService.showInstallationOffer() && pwaService.installState() === 'manual') {
-      <p class="text-sm text-fb-text-secondary">{{ pwaService.installationHelp() }}</p>
-    } @else if (pwaService.showInstallationOffer() && pwaService.installState() === 'unsupported') {
-      <p class="text-sm text-fb-text-secondary">
-        Dieser Browser bietet hier keine App-Installation an.
-      </p>
+    @if (pwaService.showInstallationOffer()) {
+      <app-button [loading]="pwaService.isInstalling()" (clicked)="pwaService.startInstallation()"
+        >App installieren</app-button
+      >
     } @else if (pwaService.isStandalone()) {
       <p
         class="flex items-center gap-2 rounded-xl border border-emerald-700/30 bg-emerald-500/15 p-3 text-xs font-medium text-fb-text-secondary"

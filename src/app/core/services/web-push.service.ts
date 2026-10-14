@@ -53,15 +53,19 @@ export class WebPushService {
   readonly canActivate = computed(() =>
     Boolean(
       this.serverSettings()?.enabled &&
-      this.registration?.active &&
+      this.registrationActive() &&
       this.isSupported() &&
       !this.isBusy() &&
       ['ready', 'permission_required', 'pending'].includes(this.deviceStatus()),
     ),
   );
   private registration: ServiceWorkerRegistration | null = null;
+  private readonly registrationActive = signal(false);
+  private registrationCleanup: (() => void) | null = null;
   private generation = 0;
   private refreshRequested = false;
+  private preferencesPending = false;
+  private contextIdentity: string | null = null;
 
   readonly permission = signal<'granted' | 'denied' | 'default' | 'unsupported'>('default');
   readonly isSupported = signal<boolean>(false);
@@ -76,16 +80,23 @@ export class WebPushService {
     }
 
     this.checkSupportAndPermission();
+    this.destroyRef.onDestroy(() => this.registrationCleanup?.());
     if (this.auth && this.workspace)
       effect(() => {
         const userId = this.auth?.currentUser()?.id;
         const workspaceId = this.workspace?.currentWorkspace()?.id;
+        const contextIdentity =
+          userId && workspaceId ? `${userId}:${this.sessionId()}:${workspaceId}` : null;
         this.pwa?.swRegistered();
         untracked(() => {
           this.generation++;
-          this.serverSettings.set(null);
-          this.categories.set([]);
-          this.deviceStatus.set(userId && workspaceId ? 'checking' : 'disabled');
+          if (contextIdentity !== this.contextIdentity) {
+            this.contextIdentity = contextIdentity;
+            this.preferencesPending = false;
+            this.serverSettings.set(null);
+            this.categories.set([]);
+            this.deviceStatus.set(userId && workspaceId ? 'checking' : 'disabled');
+          }
           if (userId && workspaceId) void this.refreshDevice();
           else this.deviceStatus.set('disabled');
         });
@@ -150,6 +161,19 @@ export class WebPushService {
       throw new Error('Das Browserabonnement ist unvollständig.');
     return { endpoint: serialized.endpoint, p256dh, auth };
   }
+  private watchRegistration(registration: ServiceWorkerRegistration | null): void {
+    this.registrationCleanup?.();
+    this.registration = registration;
+    const update = () => this.registrationActive.set(Boolean(registration?.active));
+    update();
+    const worker = registration?.installing ?? registration?.waiting;
+    worker?.addEventListener('statechange', update);
+    navigator.serviceWorker?.addEventListener('controllerchange', update);
+    this.registrationCleanup = () => {
+      worker?.removeEventListener('statechange', update);
+      navigator.serviceWorker?.removeEventListener('controllerchange', update);
+    };
+  }
   async refreshDevice(): Promise<void> {
     if (this.isBusy()) {
       this.refreshRequested = true;
@@ -180,17 +204,20 @@ export class WebPushService {
       }
       const settings = await this.api.loadSettings(this.store.getInstallationId(), workspaceId);
       const capability = this.capability();
-      this.registration =
+      const registration =
         'serviceWorker' in navigator
           ? ((await navigator.serviceWorker.getRegistration('/')) ?? null)
           : null;
+      if (sequence !== this.generation) return;
+      this.watchRegistration(registration);
       const subscription = await this.registration?.pushManager?.getSubscription();
       if (sequence !== this.generation) return;
       this.serverSettings.set(settings);
-      this.categories.set(
-        settings.preferences.find((preference) => preference.workspaceId === workspaceId)
-          ?.categories ?? [],
-      );
+      if (!this.preferencesPending)
+        this.categories.set(
+          settings.preferences.find((preference) => preference.workspaceId === workspaceId)
+            ?.categories ?? (settings.binding ? [] : [...settings.allowedCategories]),
+        );
       if (capability !== 'supported') {
         this.deviceStatus.set(capability);
         return;
@@ -223,7 +250,12 @@ export class WebPushService {
         local.keyId === settings.keyId &&
         JSON.stringify(local.subscription) === JSON.stringify(this.subscriptionFields(subscription))
       )
-        this.deviceStatus.set('active');
+        this.deviceStatus.set(
+          this.preferencesPending ||
+            !settings.preferences.some((preference) => preference.workspaceId === workspaceId)
+            ? 'pending'
+            : 'active',
+        );
       else {
         this.deviceStatus.set(
           Notification.permission === 'granted' ? 'ready' : 'permission_required',
@@ -251,12 +283,27 @@ export class WebPushService {
     if (!this.canActivate() || !api || !store || !registration) return false;
     const userId = this.auth?.currentUser()?.id;
     const sessionId = this.sessionId();
-    if (!userId || !sessionId) return false;
+    const workspaceId = this.workspace?.currentWorkspace()?.id;
+    const selectedCategories = [...this.categories()];
+    if (!userId || !sessionId || !workspaceId) return false;
+    const sameContext = () =>
+      this.auth?.currentUser()?.id === userId &&
+      this.sessionId() === sessionId &&
+      this.workspace?.currentWorkspace()?.id === workspaceId;
     // Der Browserdialog muss unmittelbar aus dem Klick entstehen.
-    const permission =
-      Notification.permission === 'granted'
-        ? Promise.resolve('granted' as const)
-        : Notification.requestPermission();
+    let permission: Promise<NotificationPermission>;
+    try {
+      permission =
+        Notification.permission === 'granted'
+          ? Promise.resolve('granted' as const)
+          : Notification.requestPermission();
+    } catch {
+      this.deviceStatus.set('error');
+      this.deviceMessage.set(
+        'Die Browserfreigabe konnte nicht geöffnet werden. Prüfe deinen Browser und versuche es erneut.',
+      );
+      return false;
+    }
     const sequence = ++this.generation;
     this.isBusy.set(true);
     this.deviceStatus.set('registering');
@@ -264,21 +311,39 @@ export class WebPushService {
     let subscription: PushSubscription | null = null;
     try {
       const result = await permission;
+      if (!sameContext() || sequence !== this.generation) return false;
       this.permission.set(result);
       if (result !== 'granted') {
         this.deviceStatus.set(result === 'denied' ? 'denied' : 'permission_required');
         return false;
       }
       return await store.runExclusive(async () => {
-        const settings = await api.loadSettings(
-          store.getInstallationId(),
-          this.workspace?.currentWorkspace()?.id,
-        );
-        if (!settings.enabled || store.corruptedGenerationIds().length) return false;
+        const settings = await api.loadSettings(store.getInstallationId(), workspaceId);
+        if (!sameContext() || sequence !== this.generation) return false;
+        if (!settings.enabled) {
+          this.serverSettings.set(settings);
+          this.deviceStatus.set('disabled');
+          this.deviceMessage.set('Push ist derzeit nicht freigegeben.');
+          return false;
+        }
+        if (store.corruptedGenerationIds().length)
+          throw new Error('Die frühere Gerätebindung muss zuerst deaktiviert werden.');
         const sameUser = () =>
           this.auth?.currentUser()?.id === userId &&
           this.sessionId() === sessionId &&
+          this.workspace?.currentWorkspace()?.id === workspaceId &&
           sequence === this.generation;
+        const confirmPreferences = async (deviceId: string) => {
+          if (!sameUser()) return false;
+          if (selectedCategories.some((category) => !settings.allowedCategories.includes(category)))
+            throw new Error('Die verfügbaren Kategorien haben sich geändert. Prüfe deine Auswahl.');
+          this.preferencesPending = true;
+          await api.savePreferences(deviceId, workspaceId, selectedCategories);
+          if (!sameUser()) return false;
+          this.preferencesPending = false;
+          this.categories.set(selectedCategories);
+          return true;
+        };
         if (!sameUser()) return false;
         if (
           !(await store.flush((generationId, token) =>
@@ -286,7 +351,9 @@ export class WebPushService {
           ))
         )
           throw new Error('Der vorherige Serverwiderruf ist noch ausstehend.');
+        if (!sameUser()) return false;
         subscription = await registration.pushManager.getSubscription();
+        if (!sameUser()) return false;
         const existing = store
           .listBindings()
           .find(
@@ -306,11 +373,8 @@ export class WebPushService {
             JSON.stringify(this.subscriptionFields(subscription))
         ) {
           this.serverSettings.set(settings);
-          this.categories.set(
-            settings.preferences.find(
-              (preference) => preference.workspaceId === this.workspace?.currentWorkspace()?.id,
-            )?.categories ?? [],
-          );
+          binding = existing;
+          if (!(await confirmPreferences(existing.generationId))) return false;
           this.deviceStatus.set('active');
           return true;
         }
@@ -331,6 +395,7 @@ export class WebPushService {
           );
         if (!pending && (settings.binding || subscription)) {
           if (settings.binding) await api.revoke(settings.binding.deviceId);
+          if (!sameUser()) return false;
           store.markForRevoke(userId);
           if (
             !(await store.flush((generationId, token) =>
@@ -340,6 +405,7 @@ export class WebPushService {
             ))
           )
             throw new Error('Die frühere Bindung muss erst deaktiviert werden.');
+          if (!sameUser()) return false;
           if (subscription && !(await subscription.unsubscribe()))
             throw new Error('Das frühere Browserabonnement konnte nicht entfernt werden.');
           subscription = null;
@@ -397,11 +463,9 @@ export class WebPushService {
             ? { ...current, binding: { deviceId: generationId, active: true, keyId } }
             : current,
         );
-        if (!pending) this.categories.set([]);
+        if (!(await confirmPreferences(generationId))) return false;
         this.deviceStatus.set('active');
-        this.deviceMessage.set(
-          'Dieses Gerät ist aktiviert. Wähle die Kategorien für deinen Workspace.',
-        );
+        this.deviceMessage.set('Deine gewählten Kategorien wurden bestätigt.');
         return true;
       });
     } catch (reason) {
@@ -416,13 +480,15 @@ export class WebPushService {
       return false;
     } finally {
       this.isBusy.set(false);
-      if (sequence !== this.generation || this.refreshRequested) void this.refreshDevice();
+      if (!sameContext() || sequence !== this.generation || this.refreshRequested)
+        void this.refreshDevice();
     }
   }
   async saveCategories(categories: WebPushCategory[]): Promise<boolean> {
     if (!this.isActive() || this.isBusy() || !this.api || !this.store) return false;
     const userId = this.auth?.currentUser()?.id;
     const workspaceId = this.workspace?.currentWorkspace()?.id;
+    const sessionId = this.sessionId();
     const binding = this.store
       .listBindings()
       .find(
@@ -439,17 +505,24 @@ export class WebPushService {
     )
       return false;
     this.isBusy.set(true);
+    this.categories.set([...categories]);
     const sequence = this.generation;
     try {
       await this.api.savePreferences(binding.generationId, workspaceId, categories);
       if (
         this.auth?.currentUser()?.id !== userId ||
+        this.sessionId() !== sessionId ||
+        sequence !== this.generation ||
         this.workspace?.currentWorkspace()?.id !== workspaceId
       )
         return false;
       this.categories.set([...categories]);
+      this.preferencesPending = false;
       return true;
     } catch (reason) {
+      if (sequence !== this.generation) return false;
+      this.preferencesPending = true;
+      this.deviceStatus.set('pending');
       this.deviceMessage.set(
         reason instanceof Error
           ? reason.message
@@ -458,7 +531,17 @@ export class WebPushService {
       return false;
     } finally {
       this.isBusy.set(false);
-      if (sequence !== this.generation || this.refreshRequested) void this.refreshDevice();
+      if (this.sessionId() !== sessionId || sequence !== this.generation || this.refreshRequested)
+        void this.refreshDevice();
+    }
+  }
+  selectCategories(categories: WebPushCategory[]): void {
+    if (
+      !this.isBusy() &&
+      categories.every((category) => this.allowedCategories().includes(category))
+    ) {
+      this.preferencesPending = true;
+      this.categories.set([...categories]);
     }
   }
   async deactivateDevice(): Promise<boolean> {

@@ -83,14 +83,18 @@ for (const device of [
       await expect(page.getByRole('heading', { name: 'Progressive Web App (PWA)' })).toBeVisible();
       if (device.viewport.width < 768)
         await page.getByRole('button', { name: 'Menü', exact: true }).click();
-      const setup = page.locator('app-sidebar').getByRole('link', { name: 'App installieren' });
+      const setup = page.locator('app-sidebar').getByRole('button', { name: 'App installieren' });
       if (device.mobile) {
         await expect(setup).toBeVisible();
-        await expect(page.getByText(/Wähle im (Browser-Menü|Teilen-Menü)/)).toBeVisible();
-        if (device.viewport.width < 768) {
-          await setup.click();
-          await expect(page.locator('app-sidebar aside')).not.toBeVisible();
-        }
+        await setup.click();
+        const dialog = page.getByRole('dialog', { name: 'Flipbase installieren' });
+        await expect(dialog).toBeVisible();
+        await expect(dialog.getByText(/Wähle im (Browser-Menü|Teilen-Menü)/)).toBeVisible();
+        await page.screenshot({
+          path: `.superpowers/task2-install-${device.name.replaceAll(' ', '-')}.png`,
+          animations: 'disabled',
+        });
+        await page.keyboard.press('Escape');
       } else {
         await expect(setup).toHaveCount(0);
         await expect(page.getByText(/Wähle im (Browser-Menü|Teilen-Menü)/)).toHaveCount(0);
@@ -104,7 +108,9 @@ for (const device of [
         window.dispatchEvent(event);
       });
       await expect(
-        page.getByRole('button', { name: 'Flipbase installieren', exact: true }),
+        page
+          .locator('app-app-settings')
+          .getByRole('button', { name: 'App installieren', exact: true }),
       ).toHaveCount(device.mobile ? 1 : 0);
     });
     if (device.name === 'iPad desktop mode') {

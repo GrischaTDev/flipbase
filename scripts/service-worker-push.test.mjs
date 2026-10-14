@@ -18,6 +18,8 @@ test('push shows only generic content and a stable event tag', async () => {
   assert.equal(worker.messages[0].options.tag, worker.messages[1].options.tag);
   assert.equal(worker.messages[0].title, 'Flipbase');
   assert.equal(worker.messages[0].options.body, 'Eine neue Bestellung ist eingegangen.');
+  assert.equal(worker.messages[0].options.icon, '/icons/install-white-192.png');
+  assert.equal(worker.messages[0].options.badge, '/icons/push-badge-monochrome-96.png');
 });
 test('invalid payloads remain visible but never carry an untrusted target', async () => {
   const worker = createWorker();
