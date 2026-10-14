@@ -110,7 +110,14 @@ try {
   );
 } catch (error) {
   // Diese isolierten Container haben ausschliesslich Testschluessel.
-  process.stderr.write(docker('logs', functions) + '\n' + docker('logs', gateway) + '\n');
+  for (const container of [functions, gateway]) {
+    try {
+      process.stderr.write(docker('logs', container) + '\n');
+    } catch {
+      /* Ein Startfehler kann vor der Containererstellung auftreten. Diagnose
+         darf den ursprünglichen Fehler nicht durch fehlende Logs ersetzen. */
+    }
+  }
   throw error;
 } finally {
   for (const container of [gateway, functions]) {

@@ -1,5 +1,32 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-14 - Juna - Systembenachrichtigungen übersichtlicher darstellen
+
+**Auftrag:** Die abgestimmte Darstellung mit transparentem PC-Logo, kurzen
+Kategorietiteln und passender Öffnen-Aktion umsetzen. Auf dem Handy soll das
+zusätzliche große Logo entfallen, das Statussymbol bleibt erhalten.
+
+**Umsetzung:** Der Service Worker verwendet das vorhandene transparente Logo nur
+auf Desktopgeräten. Mobile Browser werden über ihre Geräteangabe oder die
+Android-/iOS-Kennung erkannt. Einfarbiges Statussymbol und weiße Installationsicons
+bleiben unverändert. Feste Meldungstexte schützen Kundendaten auf dem Sperrbildschirm;
+verfügbare Aktionsbuttons führen durch den bisherigen geprüften Klickpfad.
+
+**Prüfung:** Alle 28 PWA-Prüfungen bestanden, davon acht Push-Prüfungen für mobile
+Logoauslassung, Desktoplogo, alle fünf Meldungsarten, fehlende Aktionsunterstützung
+und unveränderte sichere Klickziele. Format, gezieltes Lint, JavaScript-Syntax und
+Produktionsbau bestanden. Die unabhängige Codeprüfung fand keine Fehler.
+Die tatsächliche native Darstellung bleibt browser- und betriebssystemabhängig;
+Desktopmodus mit verschleierter mobiler Kennung lässt sich nicht sicher erkennen.
+Die Veröffentlichung über einen grünen PR ist ausdrücklich freigegeben.
+Die weißen Installationsicons bleiben nach Rücksprache bestehen.
+
+**CI-Diagnose:** Der isolierte Push-Smoke verdeckte einen Startfehler durch den
+fehlgeschlagenen Logabruf eines nicht erzeugten Containers. Der ursprüngliche
+Fehler bleibt jetzt erhalten; ein zuerst fehlschlagender Regressionstest sichert
+Diagnose und Bereinigung ab. Der tatsächliche Startfehler wird im nächsten Lauf
+erneut geprüft, Produktionsdienste und Benachrichtigungsrechte bleiben unverändert.
+
 ## 2026-10-14 - Juna - Vinted-Verkäufebezeichnungen, Statusmeldungs-Badges und Profilbutton im Chat ergänzen
 
 **Auftrag:** Die Beschriftung „Letzte gespeicherte Verkäufe“ und „Gespeicherte Verkäufe“ in der Vinted-Übersicht auf „Letzte Verkäufe“ bzw. „Verkäufe“ vereinfachen, den doppelten Button „Bewertungen ansehen“ aus der Profilkarte entfernen, Statusmeldungen in Gesprächen als zentrierte Badge-Pills darstellen und im Gesprächskopf einen direkten „Profil“-Button zum Partner einbinden.
