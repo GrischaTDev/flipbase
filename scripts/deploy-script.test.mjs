@@ -105,9 +105,23 @@ test('Push-Compose erbt Supabasezugang und trennt Router/JWT ohne neue Hostports
 test('Geschuetzte Pushkonfiguration gilt fuer Functions und Worker mit Standard-aus und Kill-Switch', async () => {
   const root = await mkdtemp(join(tmpdir(), 'flipbase-push-runtime-'));
   const environmentFile = join(root, 'push.env');
+  const supabaseEnvironmentFile = join(root, '.env');
+  const defaultsEnvironmentFile = join(root, 'push-defaults.env');
   const base = join(root, 'docker-compose.yml');
   try {
-    await writeFile(base, 'services:\n  functions:\n    image: supabase/edge-runtime:v1.73.5\n');
+    await writeFile(
+      base,
+      'services:\n  functions:\n    image: supabase/edge-runtime:v1.73.5\n    environment:\n      SUPABASE_URL: ${SUPABASE_URL}\n      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}\n',
+    );
+    await writeFile(
+      supabaseEnvironmentFile,
+      'SUPABASE_URL=http://kong:8000\nSUPABASE_SERVICE_ROLE_KEY=fixture-main-server-key\nWEB_PUSH_ENABLED=true\nWEB_PUSH_ALLOW_ALL=true\nWEB_PUSH_PILOT_USER_IDS=stale-main-user\nWEB_PUSH_PILOT_DEVICE_IDS=stale-main-device\nWEB_PUSH_VAPID_PUBLIC_KEY=stale-main-public-key\nWEB_PUSH_VAPID_KEY_ID=stale-main-key-id\nWEB_PUSH_ALLOWED_ORIGINS=https://stale.example.test\n',
+    );
+    const defaults =
+      (await readFile(deployScript, 'utf8')).match(
+        /^  cat > "\$PUSH_DEFAULTS_ENV_FILE" <<'PUSH_DEFAULTS'\n([\s\S]*?)\nPUSH_DEFAULTS$/mu,
+      )?.[1] ?? '';
+    await writeFile(defaultsEnvironmentFile, `${defaults}\n`);
     const environment = {
       ...process.env,
       PUSH_ENV_FILE: environmentFile,
@@ -126,6 +140,9 @@ test('Geschuetzte Pushkonfiguration gilt fuer Functions und Worker mit Standard-
           'docker',
           [
             'compose',
+            ...(worker
+              ? []
+              : ['--env-file', supabaseEnvironmentFile, '--env-file', defaultsEnvironmentFile]),
             '--env-file',
             environmentFile,
             ...(worker ? [] : ['-f', base]),
@@ -194,6 +211,13 @@ test('Geschuetzte Pushkonfiguration gilt fuer Functions und Worker mit Standard-
       assert.equal(disabled.WEB_PUSH_ALLOW_ALL, 'false');
       assert.equal(disabled.WEB_PUSH_PILOT_USER_IDS, '');
       assert.equal(disabled.WEB_PUSH_PILOT_DEVICE_IDS, '');
+      assert.equal(disabled.WEB_PUSH_VAPID_PUBLIC_KEY, '');
+      assert.equal(disabled.WEB_PUSH_VAPID_KEY_ID, '');
+      assert.equal(disabled.WEB_PUSH_ALLOWED_ORIGINS, 'https://app.flipbase.de');
+      if (!worker) {
+        assert.equal(disabled.SUPABASE_URL, 'https://api.example.test');
+        assert.equal(disabled.SUPABASE_SERVICE_ROLE_KEY, 'fixture-main-server-key');
+      }
     }
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -275,6 +299,12 @@ case "$1" in
   if [[ "$*" = *"docker-compose.push"* ]]; then
     [[ "$*" = *"--env-file $FIXTURE_PUSH_ENV_FILE"* ]] || exit 93
     [[ ! -v WEB_PUSH_ENABLED && ! -v WEB_PUSH_ALLOW_ALL ]] || exit 94
+    if [[ "$*" = *"docker-compose.push-functions.yml"* ]]; then
+      [[ "$*" = *"--env-file .env --env-file $PUSH_DEFAULTS_ENV_FILE --env-file $FIXTURE_PUSH_ENV_FILE"* ]] || exit 96
+      [[ -f "$PUSH_DEFAULTS_ENV_FILE" && "$(stat -c '%a' "$PUSH_DEFAULTS_ENV_FILE")" = 600 ]] || exit 97
+      grep -qx 'WEB_PUSH_ENABLED=false' "$PUSH_DEFAULTS_ENV_FILE" || exit 98
+      grep -qx 'WEB_PUSH_ALLOW_ALL=false' "$PUSH_DEFAULTS_ENV_FILE" || exit 98
+    fi
   fi
   case "$*" in
    *"config --images web"*) echo "$EXPECTED_APP_IMAGE" ;;

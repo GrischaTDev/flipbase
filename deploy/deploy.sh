@@ -203,6 +203,17 @@ prepare_push_runtime() {
   [[ -f "$SUPABASE_DIRECTORY/docker-compose.yml" && -f "$SUPABASE_DIRECTORY/.env" ]] || {
     echo 'Supabase-Hauptcompose fehlt; Pushbootstrap erforderlich.' >&2; return 1;
   }
+  # Supabase-Altwerte duerfen fehlende geschuetzte Pushwerte nicht ergaenzen.
+  export PUSH_DEFAULTS_ENV_FILE="$temporary/push-defaults.env"
+  cat > "$PUSH_DEFAULTS_ENV_FILE" <<'PUSH_DEFAULTS'
+WEB_PUSH_ENABLED=false
+WEB_PUSH_ALLOW_ALL=false
+WEB_PUSH_PILOT_USER_IDS=
+WEB_PUSH_PILOT_DEVICE_IDS=
+WEB_PUSH_VAPID_PUBLIC_KEY=
+WEB_PUSH_VAPID_KEY_ID=
+WEB_PUSH_ALLOWED_ORIGINS=https://app.flipbase.de
+PUSH_DEFAULTS
   docker cp "$artifact_container":/opt/flipbase/push-functions "$temporary/push-functions"
   (cd "$temporary/push-functions" && sha256sum --check --strict manifest.sha256 >/dev/null)
   FLIPBASE_PUSH_COMMIT="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["commit"])' "$temporary/push-functions/deployment.json")"
@@ -233,8 +244,8 @@ prepare_push_runtime() {
 activate_push_runtime() {
   prepare_push_runtime "$1"
   # Eigenes Functionpaket: vorhandene main-/hello-Verzeichnisse und JWT-Regeln werden nicht ersetzt.
-  (cd "$SUPABASE_DIRECTORY" && docker compose --env-file .env --env-file "$PUSH_ENV_FILE" -f docker-compose.yml -f "$PUSH_FUNCTIONS_COMPOSE_FILE" config --quiet)
-  (cd "$SUPABASE_DIRECTORY" && docker compose --env-file .env --env-file "$PUSH_ENV_FILE" -f docker-compose.yml -f "$PUSH_FUNCTIONS_COMPOSE_FILE" up -d --no-deps --pull never push-functions push-gateway)
+  (cd "$SUPABASE_DIRECTORY" && docker compose --env-file .env --env-file "$PUSH_DEFAULTS_ENV_FILE" --env-file "$PUSH_ENV_FILE" -f docker-compose.yml -f "$PUSH_FUNCTIONS_COMPOSE_FILE" config --quiet)
+  (cd "$SUPABASE_DIRECTORY" && docker compose --env-file .env --env-file "$PUSH_DEFAULTS_ENV_FILE" --env-file "$PUSH_ENV_FILE" -f docker-compose.yml -f "$PUSH_FUNCTIONS_COMPOSE_FILE" up -d --no-deps --pull never push-functions push-gateway)
   FLIPBASE_PUSH_IMAGE="$push_image" docker compose --env-file "$PUSH_ENV_FILE" -f "$PUSH_COMPOSE_FILE" up -d --pull never push-worker
   # Wartet auf Router und echte Functioninitialisierung; keine Testgeneration erzeugen.
   for _ in $(seq 1 30); do

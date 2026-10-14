@@ -18,7 +18,7 @@ Der Gateway erlaubt maximal 120 Anfragen/Minute insgesamt und 10/Minute je IP, m
 
 ## Pilot, breite Freigabe und Rücknahme
 
-Releases bewahren die ausdrückliche Freigabe in `push.env`. Fehlende Freigabeflags bedeuten `WEB_PUSH_ENABLED=false` und `WEB_PUSH_ALLOW_ALL=false`; eine fehlende Datei, ein Symlink oder andere Eigentümer/Rechte als root:root/0600 stoppen den Rollout. Beide Dienste lesen dieselbe Datei über Compose, ohne sie als Shellcode auszuführen. VAPID-Schlüssel und Schlüsselkennung bleiben über Releases erhalten; bereits vorhandene Schlüssel nicht neu erzeugen.
+Releases bewahren die ausdrückliche Freigabe in `push.env`. Fehlende Freigabeflags bedeuten `WEB_PUSH_ENABLED=false` und `WEB_PUSH_ALLOW_ALL=false`; eine fehlende Datei, ein Symlink oder andere Eigentümer/Rechte als root:root/0600 stoppen den Rollout. Beide Dienste lesen dieselbe Datei über Compose, ohne sie als Shellcode auszuführen. Eine temporäre Push-Defaultdatei verhindert, dass alte Pushwerte aus der Supabase-`.env` fehlende Werte ergänzen. VAPID-Schlüssel und Schlüsselkennung bleiben über Releases erhalten; bereits vorhandene Schlüssel nicht neu erzeugen.
 
 Für den Pilotbetrieb mit `sudoedit /opt/flipbase-push/push.env` ausschließlich die verifizierte Konto-UUID in `WEB_PUSH_PILOT_USER_IDS` eintragen, `WEB_PUSH_PILOT_DEVICE_IDS` leer lassen und `WEB_PUSH_ENABLED=true`, `WEB_PUSH_ALLOW_ALL=false` speichern. Der Workerstart allein aktiviert keinen Pilot. Die Referenzen stehen nach Erfolg in `/opt/flipbase-push/current-release`: Appdigest, Pushdigest, Functioncommit. Referenzen laden und beide Dienste neu erzeugen:
 
@@ -27,8 +27,19 @@ export PUSH_ENV_FILE=/opt/flipbase-push/push.env
 export FLIPBASE_PUSH_IMAGE="$(sed -n '2p' /opt/flipbase-push/current-release)"
 export FLIPBASE_PUSH_COMMIT="$(sed -n '3p' /opt/flipbase-push/current-release)"
 export PUSH_FUNCTIONS_DIRECTORY="/opt/flipbase-push/releases/$FLIPBASE_PUSH_COMMIT"
+export PUSH_DEFAULTS_ENV_FILE="$(mktemp)"
+trap 'rm -f -- "$PUSH_DEFAULTS_ENV_FILE"' EXIT
+cat > "$PUSH_DEFAULTS_ENV_FILE" <<'PUSH_DEFAULTS'
+WEB_PUSH_ENABLED=false
+WEB_PUSH_ALLOW_ALL=false
+WEB_PUSH_PILOT_USER_IDS=
+WEB_PUSH_PILOT_DEVICE_IDS=
+WEB_PUSH_VAPID_PUBLIC_KEY=
+WEB_PUSH_VAPID_KEY_ID=
+WEB_PUSH_ALLOWED_ORIGINS=https://app.flipbase.de
+PUSH_DEFAULTS
 cd /opt/supabase
-docker compose --env-file .env --env-file "$PUSH_ENV_FILE" -f docker-compose.yml -f /opt/flipbase-push/docker-compose.push-functions.yml up -d --no-deps --pull never push-functions push-gateway
+docker compose --env-file .env --env-file "$PUSH_DEFAULTS_ENV_FILE" --env-file "$PUSH_ENV_FILE" -f docker-compose.yml -f /opt/flipbase-push/docker-compose.push-functions.yml up -d --no-deps --pull never push-functions push-gateway
 docker compose --env-file "$PUSH_ENV_FILE" -f /opt/flipbase-push/docker-compose.push.yml up -d --pull never push-worker
 ```
 
@@ -38,7 +49,7 @@ Für den dauerhaften Kill-Switch zuerst `WEB_PUSH_ENABLED=false` und `WEB_PUSH_A
 
 ```sh
 cd /opt/supabase
-WEB_PUSH_ENABLED=false WEB_PUSH_ALLOW_ALL=false docker compose --env-file .env --env-file "$PUSH_ENV_FILE" -f docker-compose.yml -f /opt/flipbase-push/docker-compose.push-functions.yml up -d --no-deps --pull never push-functions push-gateway
+WEB_PUSH_ENABLED=false WEB_PUSH_ALLOW_ALL=false docker compose --env-file .env --env-file "$PUSH_DEFAULTS_ENV_FILE" --env-file "$PUSH_ENV_FILE" -f docker-compose.yml -f /opt/flipbase-push/docker-compose.push-functions.yml up -d --no-deps --pull never push-functions push-gateway
 WEB_PUSH_ENABLED=false WEB_PUSH_ALLOW_ALL=false docker compose --env-file "$PUSH_ENV_FILE" -f /opt/flipbase-push/docker-compose.push.yml up -d --pull never push-worker
 ```
 
