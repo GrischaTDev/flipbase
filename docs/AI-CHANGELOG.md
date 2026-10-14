@@ -1,5 +1,19 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-14 - Juna - Folge-PR für Updates und Favoriten-Push abschließen
+
+**Freigabe:** Der Nutzer bestätigt PR-Erstellung, Merge nach erfolgreichen
+Pflichtprüfungen und das Aufräumen des eigenen Zweigs
+`juna/pwa-refresh-notification-details`. Der geprüfte Stand `0ab5e7a8` basiert
+auf dem aktuellen Hauptzweig `82e09f67`.
+
+**Abschluss:** Die im folgenden Eintrag belegten lokalen Prüfungen sind bestanden.
+Der Folge-PR durchläuft die vollständigen Pflichtprüfungen. Anschließend werden
+die reguläre Veröffentlichung, der öffentlich ausgelieferte App-/Worker-Stand
+und die Gesundheit des Push-Diensts geprüft. Die endgültige Umsetzung benötigt
+keine Schemaänderung und keine Testinstanz auf dem Produktionsserver.
+Die native Anzeige auf iPad und Android bleibt nach dem Update am Gerät zu prüfen.
+
 ## 2026-10-14 - Juna - Update-Anzeige und Favoriten-Push nachbessern
 
 **Auftrag:** Das iPad zeigt weiterhin 0.347.0 ohne Update-Angebot. Der Nutzer
