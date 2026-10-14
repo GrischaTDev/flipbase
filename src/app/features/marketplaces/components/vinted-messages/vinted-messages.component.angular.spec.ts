@@ -352,6 +352,21 @@ describe('Freigabe aktueller Käuferangebote', () => {
     conversation.update((current) => ({ ...current, itemId: '789', transactionStatus: 'sold' }));
     expect(component.canActOnOffer(entry)).toBe(false);
   });
+  it('sperrt Angebote auch mit einem ausgeblendeten bestätigten Kaufbeleg', () => {
+    const { component, entry, transcript } = offerComponent();
+    transcript.set([
+      entry,
+      {
+        ...entry,
+        id: 'purchase',
+        messageType: 'purchase',
+        negotiationOffer: null,
+        negotiationEvent: { id: '71', transactionId: '71', type: 'purchased', confirmed: true },
+      },
+    ]);
+    expect(component.canActOnOffer(entry)).toBe(false);
+    expect(component.datedTranscript().some((row) => row.entry.id === 'purchase')).toBe(false);
+  });
 });
 describe('Vollständiges Laden eines Gesprächs', () => {
   function useLocalAccount() {
@@ -503,6 +518,46 @@ describe('Vollständiges Laden eines Gesprächs', () => {
       'Aktuelle Cloud-Nachricht',
     );
   });
+  it('keeps purchase proof for offer protection without displaying it as a chat message', async () => {
+    api.readPage.mockImplementation(async (scope: AccountScope) =>
+      messages(scope, [
+        {
+          id: 'sold',
+          title: 'Verkauft',
+          text: 'Verkauft',
+          messageType: 'status_message',
+          occurredAt: '2026-10-07T16:47:22Z',
+        },
+        {
+          id: 'purchase',
+          title: 'Kauf',
+          messageType: 'purchase',
+          occurredAt: '2026-10-07T16:47:22Z',
+          negotiationEvent: { id: '71', transactionId: '71', type: 'purchased', confirmed: true },
+        },
+        {
+          id: 'text',
+          text: 'Danke für Deinen Kauf',
+          messageType: 'message',
+          occurredAt: '2026-10-07T16:48:22Z',
+        },
+      ]),
+    );
+    const fixture = await render();
+    button(fixture, 'Anfrage zum Schal').click();
+    await settle(fixture);
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector('[data-message-row="sold"]')?.textContent).toContain('Verkauft');
+    expect(host.querySelector('[data-message-row="purchase"]')).toBeNull();
+    expect(host.querySelector('[data-message-row="text"]')?.textContent).toContain(
+      'Danke für Deinen Kauf',
+    );
+    expect(
+      fixture.componentInstance.transcript().find((entry) => entry.id === 'purchase')
+        ?.negotiationEvent?.confirmed,
+    ).toBe(true);
+  });
+
   it.each(['cloud', 'local'] as const)(
     'markiert ein erfolgreich geöffnetes %s-Gespräch als gelesen',
     async (executionMode) => {

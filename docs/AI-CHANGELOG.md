@@ -16,6 +16,47 @@
 
 **Prüfung:** 7 gezielte Angular-Tests in `vinted-overview.component.angular.spec.ts`, 8 Tests in `vinted-account-controls.component.angular.spec.ts`, 18 Tests in `button.component.angular.spec.ts` und 50 Tests in `vinted-workspace.component.angular.spec.ts` erfolgreich. ESLint, Prettier-Formatierung und TypeScript-Typprüfung (`npm run typecheck`) ohne Fehler bestanden.
 
+## 2026-10-14 - Juna - Doppelte Statusmeldungen in Vinted-Gesprächen korrigieren
+
+**Auftrag:** Auffällige und doppelte Statuseinträge aus dem Gesprächsscreenshot
+prüfen und beheben. Backendänderungen sind für Flipbase ausdrücklich freigegeben.
+Eigener Worktree und Zweig `juna/vinted-system-messages` auf dem aktuellen
+`origin/master`; parallele Arbeit im gemeinsamen Checkout bleibt unberührt.
+
+**Befund:** Ausschließlich lesend in Produktion bestätigt: Die Abschlussmeldung
+liegt mit identischem JSON-Inhalt und Ereigniszeitpunkt unter zwei Hash-Kennungen
+vor. Eine alte Zustellmeldung blieb neben dem aktuellen Lieferstatus gespeichert.
+Das zusätzliche „Kauf“ stammt aus einem technischen Beleg für die Verhandlungslogik.
+Lokal reproduziert: Veränderte versteckte Templates und JSON-Schlüsselreihenfolgen
+erzeugten neue Kennungen für dieselbe sichtbare Meldung.
+
+**Änderung:** Cloud- und Erweiterungsimport bilden Systemkennungen aus normalisierten
+Ereigniszeiten und fachlichen Nachrichtenfeldern. Texte, Beträge, Absenderseite,
+Bilder und bekannte Ereignistypen unterscheiden weiterhin verschiedene Meldungen.
+Einfache gleichzeitige Zustell-/Liefermeldungen erscheinen einmal als „Geliefert“.
+Ein kontogebundener Datenbanktrigger entfernt nur passend erneut belegte alte
+Hash-Kopien desselben Systemereignisses. Andere Zeiten, Gespräche, Konten,
+Marktplätze, echte Nachrichten, Angebote und Kaufbelege bleiben erhalten;
+fehlende Einträge in Teilabrufen werden nicht gelöscht. Der technische Kaufbeleg
+bleibt für die Angebotssperre verfügbar, erscheint aber nicht als Chattext.
+Die lokale Erweiterung trägt Version 1.8.1.
+
+**Prüfung:** 50 Importtests, 127 Erweiterungs-/Verhandlungstests, 56 Gesprächstests
+und 324 Datenbankprüfungen in sechs betroffenen Dateien bestanden. Dazu 30
+Workflowprüfungen bestanden, ein bestehender plattformabhängiger Fall übersprungen;
+Format, ESLint, App-/Worker-Typen, Shared-UI-Prüfung und Angular-Produktionsbau
+erfolgreich. Die bestehende Paketgrößen- und CommonJS-Warnung bleibt bestehen.
+Migration durch Schemaabgleich erzeugt und vollständig auf isoliertem Stand
+neu eingespielt. Der Rechteabgleich erkannte vom Diff ausgelassene geerbte
+Funktionsrechte; der erzeugte ergänzende Rechteblock übernimmt die expliziten
+Revokes/Grants aus dem deklarativen Schema. Kein Browserzugriff auf die
+Bereinigungsfunktion. Neu erzeugte Datenbanktypen inhaltlich unverändert.
+Native Windows-CLI und Standard-Node waren inkompatibel; temporäre Linux-CLI
+und gebündelte Node-Laufzeit verwendet, ohne Projektabhängigkeiten zu ändern.
+
+**Veröffentlichung:** Noch kein Push, Merge oder Deployment. Vorhandene Dubletten
+werden nach Veröffentlichung beim nächsten Import desselben Ereignisses bereinigt.
+
 ## 2026-10-13 - Juna - Mobile PWA-Rückmeldung korrigieren
 
 **Auftrag:** Wiederkehrenden wirkungslosen Updatehinweis auf Android, fehlende mobile Installation, unerwünschtes Desktopangebot und separaten Einkaufsmenüpunkt sowie springendes Tablet-Menü korrigieren. Eigener Zweig juna/pwa-mobile-fixes ab aktuellem origin/master; drei Agents mit getrennten Zuständigkeiten für Installation/Layout, Einkaufsintegration und unabhängige Updateprüfung.

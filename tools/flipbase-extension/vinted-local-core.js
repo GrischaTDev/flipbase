@@ -375,62 +375,92 @@
     if (!record(message) || !record(message.entity))
       throw new Error('Vinted lieferte eine unvollständige Nachricht.');
     const entity = message.entity;
+    const occurredAt = inboxMessageDate(message);
+    const sourceType = text(message.entity_type);
+    const sourceTitle = text(entity.title) ?? sourceType ?? 'Nachricht';
+    const sourceText =
+      text(entity.body) ??
+      text(entity.text) ??
+      text(entity.message) ??
+      text(record(entity.message) ? entity.message.body : null) ??
+      text(entity.title) ??
+      text(entity.status_title);
+    const isDeliveryNotice =
+      ['status_message', 'action_message'].includes(sourceType) &&
+      ['Geliefert', 'Sendung zugestellt'].includes(sourceTitle) &&
+      sourceText === sourceTitle;
+    const messageType = isDeliveryNotice ? 'status_message' : sourceType;
+    const title = isDeliveryNotice ? 'Geliefert' : sourceTitle;
+    const messageText = isDeliveryNotice ? 'Geliefert' : sourceText;
+    const eventGroup = isDeliveryNotice ? null : text(message.event_group);
+    const eventType = isDeliveryNotice ? null : text(message.event_type);
+    const isSystemMessage = ['status_message', 'action_message', 'payment_message'].includes(
+      messageType,
+    );
+    const senderId = identifier(entity.user_id) ?? identifier(entity.sender_id);
+    const direction = senderId ? (senderId === accountId ? 'outbound' : 'inbound') : 'unknown';
+    const priceLabel = ['offer_request_message', 'offer_message'].includes(message.entity_type)
+      ? inboxOfferPrice(entity)
+      : text(entity.price_label);
+    const imageUrls = [
+      ...new Set(
+        [
+          ...(Array.isArray(entity.photos)
+            ? entity.photos.map((photo) =>
+                typeof photo === 'string'
+                  ? photo
+                  : (photo?.url ?? photo?.full_size_url ?? photo?.image_url ?? photo?.thumbnail),
+              )
+            : []),
+          ...(Array.isArray(entity.photo_urls) ? entity.photo_urls : []),
+        ]
+          .map(image)
+          .filter(Boolean),
+      ),
+    ].slice(0, 10);
     let externalId = identifier(message.id) ?? identifier(entity.id);
     if (!externalId) {
       const source = JSON.stringify({
         conversationId,
-        type: message.entity_type,
-        createdAt: message.created_at_ts ?? inboxMessageDate(message),
-        eventGroup: message.event_group,
-        eventType: message.event_type,
-        entity,
+        // Gleiche Ereignisidentität wie im Cloudimport; veränderliche Templates zählen nicht dazu.
+        ...(isSystemMessage
+          ? {
+              type: messageType,
+              createdAt: occurredAt,
+              eventGroup,
+              eventType,
+              title,
+              text: messageText,
+              priceLabel,
+              direction,
+              imageUrls,
+            }
+          : {
+              type: message.entity_type,
+              createdAt: message.created_at_ts ?? occurredAt,
+              eventGroup: message.event_group,
+              eventType: message.event_type,
+              entity,
+            }),
       });
       const digest = await root.crypto.subtle.digest('SHA-256', new TextEncoder().encode(source));
       externalId = `event:${[...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('')}`;
     }
-    const senderId = identifier(entity.user_id) ?? identifier(entity.sender_id);
-    const occurredAt = inboxMessageDate(message);
     return {
       kind: 'message',
       externalId,
       parentExternalId: conversationId,
       sortAt: occurredAt,
       body: {
-        title: text(entity.title) ?? text(message.entity_type) ?? 'Nachricht',
-        text:
-          text(entity.body) ??
-          text(entity.text) ??
-          text(entity.message) ??
-          text(record(entity.message) ? entity.message.body : null) ??
-          text(entity.title) ??
-          text(entity.status_title),
+        title,
+        text: messageText,
         occurredAt,
-        direction: senderId ? (senderId === accountId ? 'outbound' : 'inbound') : 'unknown',
-        messageType: text(message.entity_type),
-        priceLabel: ['offer_request_message', 'offer_message'].includes(message.entity_type)
-          ? inboxOfferPrice(entity)
-          : text(entity.price_label),
-        imageUrls: [
-          ...new Set(
-            [
-              ...(Array.isArray(entity.photos)
-                ? entity.photos.map((photo) =>
-                    typeof photo === 'string'
-                      ? photo
-                      : (photo?.url ??
-                        photo?.full_size_url ??
-                        photo?.image_url ??
-                        photo?.thumbnail),
-                  )
-                : []),
-              ...(Array.isArray(entity.photo_urls) ? entity.photo_urls : []),
-            ]
-              .map(image)
-              .filter(Boolean),
-          ),
-        ].slice(0, 10),
-        eventType: text(message.event_type),
-        eventGroup: text(message.event_group),
+        direction,
+        messageType,
+        priceLabel,
+        imageUrls,
+        eventType,
+        eventGroup,
         ...(root.FlipbaseVintedNegotiation?.providerTime(message.created_at_ts, observedAt)
           ? (() => {
               const offer = root.FlipbaseVintedNegotiation?.readOffer(
@@ -625,8 +655,16 @@
           detail.conversation,
           observedAt,
         );
-        if (messageIds.has(messageEntry.externalId))
+        if (messageIds.has(messageEntry.externalId)) {
+          if (
+            messageEntry.externalId.startsWith('event:') &&
+            ['status_message', 'action_message', 'payment_message'].includes(
+              messageEntry.body.messageType,
+            )
+          )
+            continue;
           throw new Error('Vinted lieferte mehrdeutige Nachrichten.');
+        }
         messageIds.add(messageEntry.externalId);
         entries.push(messageEntry);
         messageCount++;
