@@ -287,7 +287,7 @@
                   <article
                     [attr.data-message-kind]="kind"
                     [attr.data-message-direction]="entry.direction"
-                    class="inline-flex max-w-[90%] flex-wrap items-center justify-center gap-1.5 rounded-full bg-fb-subtle px-3.5 py-1 text-xs font-medium text-fb-text-secondary select-text sm:max-w-[78%]"
+                    class="inline-flex max-w-[90%] flex-wrap items-center justify-center gap-1.5 rounded-full bg-fb-subtle px-3.5 py-1 text-[13px] font-medium text-fb-text-secondary select-text sm:max-w-[78%]"
                   >
                     @if (systemMessageIcon(entry); as icon) {
                       <span aria-hidden="true">{{ icon }}</span>
@@ -298,7 +298,7 @@
                     @if (entry.occurredAt) {
                       <span aria-hidden="true" class="opacity-60">•</span>
                       <time
-                        class="shrink-0 tabular-nums"
+                        class="shrink-0 text-xs tabular-nums"
                         [attr.datetime]="entry.occurredAt"
                         [attr.title]="entry.occurredAt | date: 'dd.MM.yyyy, HH:mm'"
                         >{{ entry.occurredAt | date: 'HH:mm' }} Uhr</time
