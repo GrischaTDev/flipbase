@@ -4,7 +4,6 @@ import { RouterLink } from '@angular/router';
 import {
   LucideDynamicIcon,
   LucideMessageCircle,
-  LucideMessageSquare,
   LucideShoppingBag,
   LucideUser,
 } from '@lucide/angular';
@@ -48,7 +47,6 @@ function latestEntries(entries: readonly MarketplaceEntry[]): readonly Marketpla
 export class VintedOverviewComponent {
   readonly store = inject(MarketplaceAccountStore);
   readonly userIcon = LucideUser;
-  readonly reviewsIcon = LucideMessageSquare;
   readonly messageCircleIcon = LucideMessageCircle;
   readonly shoppingBagIcon = LucideShoppingBag;
   readonly conversations = computed(() =>

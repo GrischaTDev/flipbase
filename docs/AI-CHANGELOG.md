@@ -1,5 +1,20 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-14 - Juna - Vinted-Verkäufebezeichnungen, Statusmeldungs-Badges und Profilbutton im Chat ergänzen
+
+**Auftrag:** Die Beschriftung „Letzte gespeicherte Verkäufe“ und „Gespeicherte Verkäufe“ in der Vinted-Übersicht auf „Letzte Verkäufe“ bzw. „Verkäufe“ vereinfachen, den doppelten Button „Bewertungen ansehen“ aus der Profilkarte entfernen, Statusmeldungen in Gesprächen als zentrierte Badge-Pills darstellen und im Gesprächskopf einen direkten „Profil“-Button zum Partner einbinden.
+
+**Befund:** In der Übersichtskarte wirkten die Bezeichnungen „Gespeicherte Verkäufe“ und „Letzte gespeicherte Verkäufe“ unnatürlich lang und auf der Profilkarte führten beide Aktionen („Profil ansehen“ und „Bewertungen ansehen“) auf dasselbe Ziel. Im Gesprächsverlauf wurden Status- und Systemmeldungen bisher als gewöhnliche Textzeilen mit Info-Icon gerendert. Im Kopfbereich des aktiven Gesprächs fehlte eine direkte Verlinkung zum Profil des Gesprächspartners.
+
+**Änderung:**
+
+- Übersicht: KPI-Karte auf „Verkäufe“ und Detailkarte auf „Letzte Verkäufe“ angepasst; redundanten Button „Bewertungen ansehen“ entfernt und nur „Profil ansehen“ beibehalten.
+- Gesprächsverlauf (`VintedMessagesComponent`): System- und Statusmeldungen werden nun als zentrierte Badge-Pills dargestellt (mit passendem Icon wie 🤝 für Verkäufe/Abschlüsse, 📦 für Sendungen/Versand, 📬 für Zustellung, ❌ für Stornierungen etc. sowie dem Zeitstempel im Format `• HH:mm Uhr`).
+- Gesprächskopf: Bei vorhandener `partnerId` einen Profil-Button mit Benutzer-Icon (`LucideUser`) und Beschriftung „Profil“ ganz rechts eingebunden, der das Vinted-Profil des Partners in einem neuen Tab öffnet (`https://www.vinted.de/member/:id`).
+- Tests: Neue Unit-Tests in `vinted-messages.component.angular.spec.ts` für die Badge-Pill-Darstellung und den Profil-Button hinzugefügt; Test in `vinted-overview.component.angular.spec.ts` für den Profil-Link aktualisiert.
+
+**Prüfung:** 7 Tests in `vinted-overview.component.angular.spec.ts` und 58 Tests in `vinted-messages.component.angular.spec.ts` erfolgreich bestanden. Prettier-Formatierung, ESLint und TypeScript-Typprüfung (`npm run typecheck`) ohne Fehler abgeschlossen.
+
 ## 2026-10-14 - Juna - Vinted-Übersichtsseite modernisieren und Synchronisationsstatus anpassen
 
 **Auftrag:** Das Mockup für die modernisierte Vinted-Übersichtsseite 1:1 übernehmen und die Synchronisationsanzeige mit grünem Statuspunkt und Zeitstempel („Zuletzt aktualisiert: DD.MM.YYYY • HH:mm Uhr“) umsetzen.

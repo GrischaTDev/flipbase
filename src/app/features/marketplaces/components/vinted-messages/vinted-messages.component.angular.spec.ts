@@ -1776,4 +1776,69 @@ describe('Kompakter gespeicherter Vinted-Gesprächsbereich', () => {
     expect(store.selectedConversationId()).toBe('conversation-1');
     expect(fixture.nativeElement.querySelector('[role="alert"]')).toBeNull();
   });
+
+  it('stellt Statusmeldungen als Badge-Pill mit passendem Icon dar', async () => {
+    api.readPage.mockImplementation(async (scope: AccountScope) =>
+      messages(scope, [
+        {
+          id: 'status-1',
+          text: 'Sendung wurde an Käufer verschickt',
+          direction: 'unknown',
+          messageType: 'status_message',
+          occurredAt: '2026-10-01T16:25:00Z',
+        },
+      ]),
+    );
+    const fixture = await render();
+    button(fixture, 'Anfrage zum Schal').click();
+    await settle(fixture);
+    const host = fixture.nativeElement as HTMLElement;
+    const badge = host.querySelector('[data-message-kind="system"]');
+    expect(badge).not.toBeNull();
+    expect(badge?.classList.contains('rounded-full')).toBe(true);
+    expect(badge?.textContent).toContain('📦');
+    expect(badge?.textContent).toContain('Sendung wurde an Käufer verschickt');
+    expect(badge?.textContent).toContain('Uhr');
+  });
+
+  it('zeigt im Kopfbereich einen Profil-Button zum Vinted-Mitglied, wenn partnerId vorhanden ist', async () => {
+    api.readSnapshot.mockResolvedValue(
+      parseMarketplaceSnapshot(
+        {
+          ...accounts[0],
+          profile: null,
+          publications: emptyPage,
+          sales: emptyPage,
+          activity: emptyPage,
+          conversations: {
+            items: [
+              {
+                ...accounts[0],
+                id: 'conversation-1',
+                title: 'laura_m',
+                text: 'Hallo!',
+                unread: false,
+                partnerId: '987654321',
+                occurredAt: '2026-10-01T12:00:00Z',
+              },
+            ],
+            total: 1,
+            nextCursor: null,
+          },
+        },
+        accounts[0],
+      ),
+    );
+    const fixture = await render();
+    button(fixture, 'laura_m').click();
+    await settle(fixture);
+    const host = fixture.nativeElement as HTMLElement;
+    const profileLink = host.querySelector<HTMLAnchorElement>(
+      'a[aria-label*="Profil von laura_m"]',
+    );
+    expect(profileLink).not.toBeNull();
+    expect(profileLink?.getAttribute('href')).toBe('https://www.vinted.de/member/987654321');
+    expect(profileLink?.getAttribute('target')).toBe('_blank');
+    expect(profileLink?.textContent).toContain('Profil');
+  });
 });

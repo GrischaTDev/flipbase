@@ -33,15 +33,6 @@
             >
               Profil ansehen
             </app-button>
-            <app-button
-              variant="secondary"
-              size="md"
-              link="/marketplaces/vinted/profile"
-              fragment="reviews"
-              [icon]="reviewsIcon"
-            >
-              Bewertungen ansehen
-            </app-button>
           </div>
         </div>
       </app-card>
@@ -113,7 +104,7 @@
 
       <app-card padding="md" rounded="xl">
         <div class="flex items-center justify-between">
-          <h2 class="text-sm font-semibold text-fb-text-primary">Gespeicherte Verkäufe</h2>
+          <h2 class="text-sm font-semibold text-fb-text-primary">Verkäufe</h2>
           <svg
             [lucideIcon]="shoppingBagIcon"
             class="size-5 text-fb-text-muted"
@@ -212,11 +203,11 @@
 
       <app-card rounded="xl" padding="none">
         <div class="flex items-center justify-between border-b border-fb-line px-5 py-4">
-          <h2 class="text-sm font-bold text-fb-text-primary">Letzte gespeicherte Verkäufe</h2>
+          <h2 class="text-sm font-bold text-fb-text-primary">Letzte Verkäufe</h2>
           <app-button
             variant="plain"
             link="/marketplaces/vinted/sales"
-            ariaLabel="Alle gespeicherten Verkäufe ansehen"
+            ariaLabel="Alle Verkäufe ansehen"
           >
             Alle ansehen
           </app-button>

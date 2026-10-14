@@ -204,7 +204,7 @@ describe('VintedOverviewComponent', () => {
     expect(element.querySelector('[data-conversation-preview]')).toBeNull();
   });
 
-  it('zeigt einen echten Nullpreis und verlinkt Bewertungen zum Profilanker', () => {
+  it('zeigt einen echten Nullpreis und verlinkt das Profil', () => {
     accountSnapshot.set(
       snapshot({
         profile: {
@@ -224,7 +224,7 @@ describe('VintedOverviewComponent', () => {
     fixture.detectChanges();
     const element = fixture.nativeElement as HTMLElement;
     expect(element.querySelector('[data-price]')?.textContent).toMatch(/0[.,]00/);
-    expect(element.querySelector('a[href="/marketplaces/vinted/profile#reviews"]')).not.toBeNull();
+    expect(element.querySelector('a[href="/marketplaces/vinted/profile"]')).not.toBeNull();
   });
 
   it('hält Vorschauen und Bereichslinks zugänglich', async () => {
