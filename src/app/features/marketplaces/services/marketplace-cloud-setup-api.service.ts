@@ -41,7 +41,7 @@ export class MarketplaceCloudSetupApiService {
   async begin(request: CloudSetupRequest, token: string): Promise<CloudSetupResult> {
     let blocked = false;
     try {
-      for (let attempt = 0; attempt < 8; attempt++) {
+      for (let attempt = 0; attempt < 100; attempt++) {
         const response = await this.post('begin', request, token);
         if (response.status === 409) {
           // Eine laufende Aktion des Kontos ist kein IP-Prüffehler.
@@ -54,7 +54,7 @@ export class MarketplaceCloudSetupApiService {
         }
         if (!response.ok) throw new Error(CLOUD_CHECK_MESSAGE);
         const result = parseCloudSetupResult(await response.json(), request);
-        if (result.status !== 'purchase_pending' || attempt === 7) return result;
+        if (result.status !== 'purchase_pending' || attempt === 99) return result;
         await new Promise<void>((resolve) => setTimeout(resolve, 2000));
       }
       throw new Error(CLOUD_CHECK_MESSAGE);

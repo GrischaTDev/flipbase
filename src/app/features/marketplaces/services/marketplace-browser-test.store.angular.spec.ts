@@ -93,6 +93,44 @@ beforeEach(async () => {
 });
 
 describe('Kontogebundener Browser-Testbereich', () => {
+  it('activates a newly created Cloud account immediately after verified login', async () => {
+    store.configureCloudSetup(id, true);
+    await store.login({ username: 'synthetic', password: 'synthetic' });
+    await store.checkLogin();
+    expect(api.completeCloud).toHaveBeenCalledOnce();
+    expect(store.cloudCompleted()).toBe(true);
+    expect(api.close).not.toHaveBeenCalled();
+    expect(TestBed.inject(MarketplaceAccountStore).syncSelectedConnection).toHaveBeenCalledOnce();
+  });
+
+  it('returns from a solved human check to the SMS input without keeping the browser preview', async () => {
+    api.login.mockResolvedValueOnce('interaction_required');
+    await store.login({ username: 'synthetic', password: 'synthetic' });
+    api.identify.mockRejectedValueOnce(new VintedVerificationRequiredError());
+    await store.checkLogin();
+    expect(store.awaitingVerification()).toBe(true);
+    expect(store.interactionRequired()).toBe(false);
+    expect(store.session()?.frameUrl).toBeNull();
+    expect(api.login).toHaveBeenCalledOnce();
+    await store.verifyCode('123456');
+    expect(api.verify).toHaveBeenCalledOnce();
+  });
+
+  it('keeps a failed automatic Cloud completion retryable without referring to local actions', async () => {
+    store.configureCloudSetup(id, true);
+    api.completeCloud.mockRejectedValueOnce(new Error('internal secret'));
+    await store.startManualLogin();
+    await store.confirmAccount();
+    expect(store.cloudVerified()).toBe(true);
+    expect(store.session()).not.toBeNull();
+    expect(store.error()).toBe(
+      'Die Cloud-Einrichtung ist noch ausstehend. Versuche den Abschluss erneut.',
+    );
+    expect(api.close).not.toHaveBeenCalled();
+    await store.completeCloud();
+    expect(store.cloudCompleted()).toBe(true);
+    expect(api.completeCloud).toHaveBeenCalledTimes(2);
+  });
   it('startet nach bestätigter Anmeldung genau einen Erstabruf nach dem Browserstopp', async () => {
     const accounts = TestBed.inject(MarketplaceAccountStore);
     await store.startManualLogin();
@@ -273,10 +311,11 @@ describe('Kontogebundener Browser-Testbereich', () => {
     expect(store.awaitingLogin()).toBe(false);
     expect(store.error()).toBeNull();
     expect(store.canLogin()).toBe(false);
+    api.identify.mockRejectedValueOnce(new VintedInteractionRequiredError());
     await store.checkLogin();
     await store.login({ username: 'synthetic', password: 'synthetic' });
     expect(api.login).toHaveBeenCalledOnce();
-    expect(api.identify).not.toHaveBeenCalled();
+    expect(api.identify).toHaveBeenCalledOnce();
     expect(api.close).not.toHaveBeenCalled();
     await store.confirmAccount();
     expect(store.interactionRequired()).toBe(false);
@@ -289,8 +328,9 @@ describe('Kontogebundener Browser-Testbereich', () => {
     expect(store.interactionRequired()).toBe(true);
     expect(store.session()?.frameUrl).toBe('blob:test');
     expect(store.error()).toBeNull();
+    api.identify.mockRejectedValueOnce(new VintedInteractionRequiredError());
     await store.checkLogin();
-    expect(api.identify).toHaveBeenCalledOnce();
+    expect(api.identify).toHaveBeenCalledTimes(2);
     expect(api.close).not.toHaveBeenCalled();
   });
   it('ersetzt eine Codeanforderung durch die nach dem Code sichtbare Mensch-Prüfung', async () => {
@@ -692,7 +732,7 @@ it('sendet Zugangsdaten nach einem Kontowechsel während des Starts nicht weiter
   expect(api.login).not.toHaveBeenCalled();
 });
 
-it('hält eine manuelle Prüfung ohne automatische Wiederholung geöffnet', async () => {
+it('keeps a human challenge open without repeating credentials or browser input', async () => {
   api.login = vi.fn().mockResolvedValue('interaction_required');
   api.identify.mockResolvedValue(null);
   await store.login({ username: 'test-user', password: 'synthetic' });
@@ -704,7 +744,9 @@ it('hält eine manuelle Prüfung ohne automatische Wiederholung geöffnet', asyn
   expect(store.awaitingLogin()).toBe(false);
   expect(store.interactionRequired()).toBe(true);
   expect(store.error()).toBeNull();
-  expect(api.identify).not.toHaveBeenCalled();
+  expect(api.identify).toHaveBeenCalledTimes(2);
+  expect(api.frame).toHaveBeenCalledOnce();
+  expect(api.input).not.toHaveBeenCalled();
 });
 
 it('verwirft eine verspätete Anmeldebestätigung nach Workspacewechsel', async () => {

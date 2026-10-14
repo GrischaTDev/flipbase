@@ -12,6 +12,7 @@ const sendInput = vi.fn().mockResolvedValue(undefined);
 const dragSupported = signal(true);
 const awaitingLogin = signal(false);
 const manualLogin = signal(false);
+const interactionRequired = signal(false);
 const startManualLogin = vi.fn().mockResolvedValue(undefined);
 const checkLogin = vi.fn().mockResolvedValue(undefined);
 let browserImage: HTMLButtonElement;
@@ -44,6 +45,7 @@ beforeEach(async () => {
   dragSupported.set(true);
   awaitingLogin.set(false);
   manualLogin.set(false);
+  interactionRequired.set(false);
   startManualLogin.mockClear();
   checkLogin.mockClear();
   TestBed.configureTestingModule({
@@ -73,7 +75,7 @@ beforeEach(async () => {
           manualLogin,
           startManualLogin,
           awaitingVerification: signal(false),
-          interactionRequired: signal(false),
+          interactionRequired,
           progress: signal(null),
           error: signal(null),
           checkAvailability: vi.fn(),
@@ -130,6 +132,13 @@ it('prüft eine Anmeldung im Hintergrund weiterhin automatisch', async () => {
   await vi.advanceTimersByTimeAsync(3000);
   expect(checkLogin).toHaveBeenCalledOnce();
   expect(component.showProgress()).toBe(true);
+});
+
+it('checks whether a human challenge has advanced to SMS while the preview is visible', async () => {
+  vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+  interactionRequired.set(true);
+  await vi.advanceTimersByTimeAsync(3000);
+  expect(checkLogin).toHaveBeenCalledOnce();
 });
 
 it('prüft im manuellen Modus auch ohne Browserbild nicht im Hintergrund', async () => {

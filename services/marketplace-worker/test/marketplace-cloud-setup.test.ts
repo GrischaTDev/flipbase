@@ -4,7 +4,7 @@ import { MarketplaceCloudSetup } from '../src/marketplace-cloud-setup.ts';
 import type { CloudSetupView } from '../src/marketplace-cloud-setup-contracts.d.ts';
 import type { PrivateCloudSetup } from '../src/supabase-marketplace-cloud-setup-store.ts';
 
-test('exhausted inventory purchases one IP and reserves it for the same authorized request', async () => {
+test('a slow post-purchase registration stays pending and reserves one IP for the same authorized request', async () => {
   const events: string[] = [];
   const request = {
     workspaceId: '37100000-0000-4000-8000-000000000011',
@@ -12,10 +12,15 @@ test('exhausted inventory purchases one IP and reserves it for the same authoriz
     requestId: '37100000-0000-4000-8000-000000000031',
   };
   let purchased = false;
+  let finishRegistration: () => void = () => undefined;
+  const registration = new Promise<void>((resolve) => {
+    finishRegistration = resolve;
+  });
   const item = fixture();
   const service = new MarketplaceCloudSetup({
     refreshInventory: async () => {
       events.push('refresh');
+      if (purchased) await registration;
     },
     reconcilePurchases: async (received, userId) => {
       assert.deepEqual(received, request);
@@ -72,7 +77,12 @@ test('exhausted inventory purchases one IP and reserves it for the same authoriz
       },
     },
   });
-  assert.equal((await service.begin(request, scope.userId, scope.userAccessToken)).status, 'ready');
+  assert.deepEqual(await service.begin(request, scope.userId, scope.userAccessToken), {
+    status: 'purchase_pending',
+  });
+  const next = service.begin(request, scope.userId, scope.userAccessToken);
+  finishRegistration();
+  assert.equal((await next).status, 'ready');
   assert.deepEqual(events, [
     'authorize',
     'refresh',
@@ -80,6 +90,7 @@ test('exhausted inventory purchases one IP and reserves it for the same authoriz
     'reserve',
     'purchase',
     'refresh',
+    'authorize',
     'reserve',
     'purchase-complete',
   ]);
@@ -97,7 +108,7 @@ const sessionId = '37100000-0000-4000-8000-000000000032';
 function fixture(
   uncertainStop = false,
   lostCompleteReply = false,
-  inventory?: { authorized?: boolean; fails?: boolean },
+  inventory?: { authorized?: boolean; fails?: boolean; wait?: Promise<void> },
 ) {
   let view: CloudSetupView = {
     workspaceId: scope.workspaceId,
@@ -120,6 +131,7 @@ function fixture(
     refreshInventory: inventory
       ? async () => {
           events.push('sync-inventory');
+          await inventory.wait;
           if (inventory.fails) throw new Error('provider unavailable');
         }
       : undefined,
@@ -207,6 +219,50 @@ test('both new accounts and local upgrades refresh authorized inventory before a
     });
     assert.deepEqual(item.events, ['authorize', 'sync-inventory', 'reserve']);
   }
+});
+
+test('keeps a slow IP preparation running and returns its result on the next poll without restarting it', async () => {
+  let finishInventory: () => void = () => undefined;
+  const wait = new Promise<void>((resolve) => {
+    finishInventory = resolve;
+  });
+  const item = fixture(false, false, { wait });
+  const request = { workspaceId: scope.workspaceId, displayName: 'Cloud', requestId: setupId };
+  const initial = await Promise.race([
+    item.service.begin(request, scope.userId, scope.userAccessToken),
+    new Promise((resolve) => setTimeout(() => resolve('response_timeout'), 1500)),
+  ]);
+  assert.deepEqual(initial, {
+    status: 'purchase_pending',
+  });
+  const next = item.service.begin(request, scope.userId, scope.userAccessToken);
+  finishInventory();
+  assert.deepEqual(await next, { status: 'no_capacity' });
+  assert.equal(item.events.filter((event) => event === 'sync-inventory').length, 1);
+});
+
+test('parallel polls share the same preparation and revoked access cannot retrieve its result', async () => {
+  let finishInventory: () => void = () => undefined;
+  const inventory = {
+    authorized: true,
+    wait: new Promise<void>((resolve) => {
+      finishInventory = resolve;
+    }),
+  };
+  const item = fixture(false, false, inventory);
+  const request = { workspaceId: scope.workspaceId, displayName: 'Cloud', requestId: setupId };
+  const first = item.service.begin(request, scope.userId, scope.userAccessToken);
+  const second = item.service.begin(request, scope.userId, scope.userAccessToken);
+  assert.deepEqual(await first, { status: 'purchase_pending' });
+  assert.deepEqual(await second, { status: 'purchase_pending' });
+  inventory.authorized = false;
+  await assert.rejects(item.service.begin(request, scope.userId, scope.userAccessToken));
+  finishInventory();
+  inventory.authorized = true;
+  assert.deepEqual(await item.service.begin(request, scope.userId, scope.userAccessToken), {
+    status: 'no_capacity',
+  });
+  assert.equal(item.events.filter((event) => event === 'sync-inventory').length, 1);
 });
 
 test('unauthorized requests cannot read provider inventory and provider failures cannot reserve stale IPs', async () => {

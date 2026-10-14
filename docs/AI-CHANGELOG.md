@@ -1,5 +1,59 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-14 - Juna - Neue Vinted-Cloudkonten ohne erneuten Einrichtungsstart abschließen
+
+**Auftrag:** Fehlermeldung nach erfolgreicher IP-Nachbuchung, Browseransicht statt
+SMS-Eingabe und irreführenden lokalen Cloudwechsel bei einem neuen Konto prüfen
+und korrigieren. Backendänderungen für diese Fehler ausdrücklich freigegeben.
+Eigener Worktree und Zweig `juna/vinted-cloud-onboarding`.
+
+**Befund:** Ausschließlich lesend in Produktion bestätigt: Die heutige Buchung und
+die Einrichtung sind abgeschlossen; das Konto trägt `is_new_connection=true`.
+Die ursprüngliche IP-Fehlerstelle ist nicht protokolliert. Im Code hängen
+Bestandsprüfung, Kauf und erneute IP-Prüfung an einer Anfrage mit 90 Sekunden
+Frontendlimit; jede Ablehnung erscheint pauschal als Prüffehler. Reproduziert:
+Eine langsame Vorbereitung liefert keine rechtzeitige Antwort. Eine erkannte
+Mensch-Prüfung öffnet die Vorschau und verhindert weitere automatische Prüfungen;
+eine nachfolgende SMS-Stufe wird erst nach manuellem Prüfen erkannt. Alle
+Einrichtungen verwenden bisher den Text und Abschluss eines lokalen Cloudwechsels.
+
+**Änderung:** Der Worker beantwortet lange Vorbereitungen nach einer Sekunde als
+ausstehend und führt dieselbe Anfrage weiter. Folgeabfragen prüfen die Berechtigung
+erneut und übernehmen das Ergebnis ohne erneute Vorbereitung; fertige, nicht
+abgeholte Ergebnisse verfallen im Speicher. Die App wartet mit derselben
+Buchungskennung bis zu etwa fünf Minuten. Nach einer Mensch-Prüfung wird der
+Anmeldestatus ohne erneute Zugangsdaten oder Browsereingaben geprüft; bei SMS
+wechselt die Oberfläche zurück zum Codefeld. Ausdrücklich manuelle Anmeldungen
+bleiben manuell. Neue Cloudkonten schließen die geprüfte Einrichtung automatisch
+ab; bestehende lokale Konten behalten ihre ausdrückliche Wechselbestätigung.
+Ein fehlgeschlagener Abschluss bleibt reserviert und wiederholbar, mit passendem
+Text für neue Konten. Keine Schemaänderung oder Migration.
+
+**Prüfung:** Die neuen Regressionstests scheitern vor der Korrektur. Anschließend
+129 Angularprüfungen und 27 Workerprüfungen erfolgreich; Formatierung, ESLint,
+App-/Test-/Workertypen und Angular-Produktionsbau mit Node 24 bestanden. Vier
+Chromiumabläufe gegen den gebauten Stand mit simulierten API-Antworten bestanden:
+IP-Wartephase und automatische Aktivierung bei 1440/390 Pixeln, Mensch-Prüfung
+mit anschließender SMS sowie bestehender lokaler Cloudwechsel. Der erste
+Browseraufbau war durch die Produktions-CSP für lokale API-Fixtures blockiert;
+die abschließende lokale Fixture verwendet den gebauten Stand ohne diese
+Produktionsheader. Keine echte Buchung oder Anmeldung ausgelöst, keine
+Produktionsdaten geändert, kein Deployment. Ein echter Vinted-Durchlauf nach
+Veröffentlichung und der historische Auslöser des ersten IP-Fehlers bleiben offen.
+
+**Freigabe und Integration:** PR-Erstellung, Merge nach erfolgreichen Pflichtprüfungen
+und anschließende Bereinigung sind freigegeben. Aktuellen `origin/master`
+eingebunden; der einzige Konflikt im Änderungsprotokoll erhält beide Beiträge.
+
+**CI-Korrektur:** Die feste Liste der Browser-Pflichtfälle enthielt noch die
+vorherigen Titel zur ausdrücklichen Aktivierung neuer Konten und kannte den
+neuen Mensch-Prüfung-/SMS-Ablauf nicht. Die Auswahlverträge werden mit den
+tatsächlich geprüften Fällen abgeglichen; kein Browserfall wird entfernt.
+Die drei bisherigen Mensch-Prüfungsfälle erlauben nun ausschließlich die neue
+Statusabfrage; erneute Anmeldungen, Codeübermittlung, Eingaben und Bildabrufe
+bleiben während der ungelösten Prüfung ausgeschlossen.
+Alle sieben betroffenen Browserfälle und die drei Auswahlverträge bestehen lokal.
+
 ## 2026-10-14 - Juna - Systembenachrichtigungen übersichtlicher darstellen
 
 **Auftrag:** Die abgestimmte Darstellung mit transparentem PC-Logo, kurzen

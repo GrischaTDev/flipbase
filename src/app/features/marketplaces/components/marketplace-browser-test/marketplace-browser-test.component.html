@@ -95,7 +95,9 @@
     } @else if (store.cloudVerified()) {
       <app-notice-banner announcement="status">
         @if (store.busy()) {
-          Der Cloud-Wechsel wird abgeschlossen.
+          Die Cloud-Einrichtung wird abgeschlossen.
+        } @else if (newCloudAccount()) {
+          Deine Anmeldung ist geprüft. Schließe jetzt die Cloud-Einrichtung ab.
         } @else {
           Deine Anmeldung ist geprüft. Aktiviere jetzt Cloud, um die lokale Ausführung für dieses
           Konto zu beenden. Laufende lokale Aktionen müssen zuvor abgeschlossen sein.

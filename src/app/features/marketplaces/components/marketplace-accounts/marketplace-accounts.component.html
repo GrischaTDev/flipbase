@@ -1,6 +1,6 @@
 @if (checkingCloud()) {
   <app-modal-shell
-    title="Cloud-Verfügbarkeit wird geprüft"
+    title="Cloud-Anmeldung wird vorbereitet"
     presentation="center"
     size="sm"
     [hasFooter]="false"
@@ -9,7 +9,7 @@
     <div class="flex items-center gap-3" role="status" aria-live="polite">
       <app-loading-indicator size="md" />
       <p class="text-sm text-fb-text-secondary">
-        Eine freie Cloud-IP für Dein Vinted-Konto wird geprüft und reserviert.
+        Deine Cloud-IP wird geprüft und bei Bedarf bereitgestellt. Danach geht es zur Anmeldung.
       </p>
     </div>
   </app-modal-shell>
@@ -76,6 +76,7 @@
       <app-marketplace-browser-test
         [compact]="true"
         [cloudSetupId]="currentDialog.cloudSetupId ?? null"
+        [newCloudAccount]="currentDialog.newAccount && !!currentDialog.cloudSetupId"
         [pendingAccountName]="
           currentDialog.newAccount && !currentDialog.connectionId ? name.value : null
         "

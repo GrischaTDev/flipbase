@@ -171,6 +171,17 @@ it('keeps Cloud activation errors visible after a confirmed login', () => {
   expect(root.textContent).toContain('Cloud aktivieren');
 });
 
+it('offers retrying a new Cloud setup without claiming it was used locally', () => {
+  cloudVerified.set(true);
+  const fixture = TestBed.createComponent(MarketplaceBrowserTestComponent);
+  vi.spyOn(fixture.componentInstance, 'newCloudAccount').mockReturnValue(true);
+  fixture.detectChanges();
+  const root = fixture.nativeElement as HTMLElement;
+  expect(root.textContent).toContain('Schließe jetzt die Cloud-Einrichtung ab.');
+  expect(root.textContent).not.toContain('lokale Ausführung');
+  expect(root.textContent).toContain('Cloud aktivieren');
+});
+
 it('passes the DOM accessibility checks for the login and browser cards', async () => {
   const fixture = TestBed.createComponent(MarketplaceBrowserTestComponent);
   fixture.detectChanges();
