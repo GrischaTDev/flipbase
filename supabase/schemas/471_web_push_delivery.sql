@@ -3,7 +3,7 @@ create table public.web_push_events (
  id uuid primary key default extensions.gen_random_uuid(),
  source_key text not null unique check (length(source_key) between 1 and 512),
  workspace_id uuid not null references public.workspaces(id) on delete cascade,
- category text not null check (category in ('test','message','order','connection')),
+ category text not null check (category in ('test','message','order','favorite','connection')),
  connection_id uuid,
  payload jsonb not null check (pg_column_size(payload)<=4096 and payload->>'version'='1' and jsonb_typeof(payload->'target')='object'),
  created_at timestamptz not null default clock_timestamp(),
@@ -54,7 +54,7 @@ declare v_id uuid:=extensions.gen_random_uuid(); v_inserted uuid; v_title text; 
 begin
  if p_category='test' and (p_device_id is null or p_target<>'{"kind":"settings"}'::jsonb or p_connection_id is not null) then raise exception 'Push test target denied' using errcode='22023'; end if;
  v_title:='Flipbase';
- v_body:=case p_category when 'test' then 'Deine Testbenachrichtigung ist angekommen.' when 'message' then 'Du hast eine neue Nachricht.' when 'order' then 'Eine neue Bestellung ist eingegangen.' when 'connection' then 'Eine Kontoverbindung braucht deine Anmeldung.' end;
+ v_body:=case p_category when 'test' then 'Deine Testbenachrichtigung ist angekommen.' when 'message' then 'Du hast eine neue Nachricht.' when 'order' then 'Eine neue Bestellung ist eingegangen.' when 'favorite' then 'Deine Inserate haben neue Favoriten.' when 'connection' then 'Eine Kontoverbindung braucht deine Anmeldung.' end;
  insert into public.web_push_events(id,source_key,workspace_id,category,connection_id,payload)
  values(v_id,p_source_key,p_workspace_id,p_category,p_connection_id,jsonb_build_object('version',1,'eventId',v_id,'workspaceId',p_workspace_id,'category',p_category,'title',v_title,'body',v_body,'target',p_target))
  on conflict(source_key) do nothing returning id into v_inserted;

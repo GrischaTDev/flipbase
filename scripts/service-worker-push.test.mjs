@@ -60,3 +60,14 @@ test('closed app receives only same-origin structured entry context', async () =
   assert.equal(opened.pathname, '/push/open');
   assert.deepEqual(JSON.parse(opened.searchParams.get('context')), payload);
 });
+test('favorites show generic text and preserve only the structured authorized target', async () => {
+  const worker = createWorker();
+  const favorite = {
+    ...payload,
+    category: 'favorite',
+    target: { kind: 'vinted_favorites', connectionId: payload.workspaceId },
+  };
+  await worker.dispatch('push', { data: { text: () => JSON.stringify(favorite) } });
+  assert.equal(worker.messages[0].options.body, 'Deine Inserate haben neue Favoriten.');
+  assert.deepEqual(JSON.parse(JSON.stringify(worker.messages[0].options.data)), favorite);
+});

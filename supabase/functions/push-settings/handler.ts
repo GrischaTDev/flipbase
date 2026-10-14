@@ -13,6 +13,10 @@ export interface PushSettingsDependencies {
   publicKey: string;
   keyId: string;
   enabled: boolean;
+  allowAll?: boolean;
+  pilotUsers?: string[];
+  pilotDevices?: string[];
+  ownsDevice?(userId: string, sessionId: string, deviceId: string): Promise<boolean>;
   origins: string[];
 }
 export function createPushSettingsHandler(dependencies: PushSettingsDependencies) {
@@ -44,9 +48,27 @@ export function createPushSettingsHandler(dependencies: PushSettingsDependencies
       } catch {
         return reply({ error: 'validation' }, 400);
       }
+      const userAdmitted =
+        dependencies.allowAll === true || (dependencies.pilotUsers ?? []).includes(identity.userId);
+      const configured =
+        dependencies.enabled &&
+        /^[A-Za-z0-9_-]{87}$/.test(dependencies.publicKey) &&
+        /^[A-Za-z0-9_-]{1,64}$/.test(dependencies.keyId);
+      const deviceAdmitted = async (deviceId: unknown) =>
+        typeof deviceId === 'string' &&
+        (dependencies.pilotDevices ?? []).includes(deviceId) &&
+        (await dependencies.ownsDevice?.(identity.userId, identity.sessionId, deviceId)) === true;
+      const admitted =
+        userAdmitted ||
+        ((input.action === 'register' || input.action === 'test') &&
+          (await deviceAdmitted(
+            input.action === 'register' ? input.generationId : input.deviceId,
+          )));
+      if (input.action === 'test' && (!configured || !admitted))
+        return reply({ error: 'configuration' }, 409);
       if (
         input.action === 'register' &&
-        (!dependencies.enabled || input.keyId !== dependencies.keyId)
+        (!configured || !admitted || input.keyId !== dependencies.keyId)
       )
         return reply({ error: 'configuration' }, 409);
       const result = await dependencies.execute(identity.userId, identity.sessionId, input);
@@ -56,7 +78,12 @@ export function createPushSettingsHandler(dependencies: PushSettingsDependencies
               ...(result as Record<string, unknown>),
               publicKey: dependencies.publicKey,
               keyId: dependencies.keyId,
-              enabled: dependencies.enabled,
+              enabled:
+                configured &&
+                (userAdmitted ||
+                  (await deviceAdmitted(
+                    (result as { binding?: { deviceId?: string } }).binding?.deviceId,
+                  ))),
             }
           : result,
       );

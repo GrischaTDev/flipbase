@@ -17,8 +17,12 @@ export function validatePushInput(input: unknown): PushInput {
   const action = String(payload.action);
   if (
     !fields[action] ||
-    Object.keys(payload).some((field) => field !== 'action' && !fields[action].includes(field))
+    Object.keys(payload).some(
+      (field) => field !== 'action' && field !== 'apiVersion' && !fields[action].includes(field),
+    )
   )
+    throw new Error('validation');
+  if (payload.apiVersion !== undefined && payload.apiVersion !== 1 && payload.apiVersion !== 2)
     throw new Error('validation');
   for (const field of fields[action]) {
     if (action === 'settings' && field === 'workspaceId' && payload[field] === undefined) continue;
@@ -67,9 +71,16 @@ export function validatePushInput(input: unknown): PushInput {
   if (
     action === 'preferences' &&
     (!Array.isArray(payload.categories) ||
-      payload.categories.length > 3 ||
+      payload.categories.length > (payload.apiVersion === 2 ? 4 : 3) ||
       new Set(payload.categories).size !== payload.categories.length ||
-      payload.categories.some((category) => !['message', 'order', 'connection'].includes(category)))
+      payload.categories.some(
+        (category) =>
+          !(
+            payload.apiVersion === 2
+              ? ['message', 'order', 'favorite', 'connection']
+              : ['message', 'order', 'connection']
+          ).includes(category),
+      ))
   )
     throw new Error('validation');
   return payload as PushInput;

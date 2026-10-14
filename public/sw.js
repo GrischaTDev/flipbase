@@ -388,6 +388,10 @@ function validatedPush(candidate) {
       candidate.category === 'order' &&
       uuid(target.connectionId) &&
       count === 2) ||
+    (target.kind === 'vinted_favorites' &&
+      candidate.category === 'favorite' &&
+      uuid(target.connectionId) &&
+      count === 2) ||
     (target.kind === 'connection' &&
       candidate.category === 'connection' &&
       uuid(target.connectionId) &&
@@ -407,6 +411,7 @@ self.addEventListener('push', (event) =>
       const bodies = {
         message: 'Du hast eine neue Nachricht.',
         order: 'Eine neue Bestellung ist eingegangen.',
+        favorite: 'Deine Inserate haben neue Favoriten.',
         connection: 'Eine Kontoverbindung braucht deine Anmeldung.',
         test: 'Deine Testbenachrichtigung ist angekommen.',
       };
