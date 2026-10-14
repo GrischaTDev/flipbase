@@ -21,6 +21,12 @@ Desktopmodus mit verschleierter mobiler Kennung lässt sich nicht sicher erkenne
 Die Veröffentlichung über einen grünen PR ist ausdrücklich freigegeben.
 Die weißen Installationsicons bleiben nach Rücksprache bestehen.
 
+**CI-Diagnose:** Der isolierte Push-Smoke verdeckte einen Startfehler durch den
+fehlgeschlagenen Logabruf eines nicht erzeugten Containers. Der ursprüngliche
+Fehler bleibt jetzt erhalten; ein zuerst fehlschlagender Regressionstest sichert
+Diagnose und Bereinigung ab. Der tatsächliche Startfehler wird im nächsten Lauf
+erneut geprüft, Produktionsdienste und Benachrichtigungsrechte bleiben unverändert.
+
 ## 2026-10-14 - Juna - Vinted-Verkäufebezeichnungen, Statusmeldungs-Badges und Profilbutton im Chat ergänzen
 
 **Auftrag:** Die Beschriftung „Letzte gespeicherte Verkäufe“ und „Gespeicherte Verkäufe“ in der Vinted-Übersicht auf „Letzte Verkäufe“ bzw. „Verkäufe“ vereinfachen, den doppelten Button „Bewertungen ansehen“ aus der Profilkarte entfernen, Statusmeldungen in Gesprächen als zentrierte Badge-Pills darstellen und im Gesprächskopf einen direkten „Profil“-Button zum Partner einbinden.
