@@ -1,5 +1,20 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-14 - Juna - Gemeinsamen Einstellungs- und PWA-Zweig abschließen
+
+**Freigabe:** Der Nutzer hat PR-Erstellung, Merge nach erfolgreichen
+Pflichtprüfungen und das anschließende Aufräumen ausdrücklich bestätigt.
+Der eigene Zweig `juna/pwa-update-push-fixes` enthält die beiden zuvor
+dokumentierten Umsetzungen und basiert auf dem aktuellen Hauptzweig `382bf13c`.
+
+**Abschluss:** Die gezielten lokalen Prüfungen und Browserabnahmen sind bestanden.
+Der gemeinsame PR durchläuft nun die verbindlichen vollständigen Prüfungen.
+Nach erfolgreichem Merge wird die reguläre Veröffentlichung einschließlich
+öffentlich ausgelieferter Version und Push-Dienst geprüft. Fremde Zweige und
+bereits vorhandene unversionierte Auditdateien bleiben unberührt.
+Die tatsächliche Systemzustellung bei geschlossener App auf iPad und Android
+bleibt eine anschließende Geräteabnahme; Browserprüfungen ersetzen sie nicht.
+
 ## 2026-10-14 - Juna - Einstellungen vereinheitlichen und eBay-Verbindung bündeln
 
 **Auftrag:** Die übrigen Einstellungstabs im selben Zweig wie die PWA-/Push-Fixes
