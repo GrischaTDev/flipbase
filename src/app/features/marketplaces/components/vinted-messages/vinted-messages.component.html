@@ -166,6 +166,18 @@
                 @if (conversation.unread) {
                   <app-badge tone="brand">Ungelesen</app-badge>
                 }
+                @if (partnerProfileUrl(); as profileUrl) {
+                  <app-button
+                    variant="secondary"
+                    size="slim"
+                    [href]="profileUrl"
+                    target="_blank"
+                    [icon]="userIcon"
+                    [ariaLabel]="'Profil von ' + conversation.title + ' auf Vinted ansehen'"
+                  >
+                    Profil
+                  </app-button>
+                }
               </div>
             }
           }
@@ -270,138 +282,149 @@
                   }
                 </div>
               }
-              <div
-                [class]="
-                  hasOfferActions
-                    ? 'flex w-full max-w-sm items-end gap-2'
-                    : 'flex w-fit max-w-[90%] items-end gap-2 sm:max-w-[78%]'
-                "
-                [attr.data-message-row]="entry.id"
-                [class.ml-auto]="kind !== 'system' && entry.direction === 'outbound'"
-                [class.mx-auto]="kind === 'system' || entry.direction === 'unknown'"
-              >
-                @if (kind !== 'system' && entry.direction === 'inbound') {
-                  <app-product-thumbnail
-                    data-message-avatar
-                    [src]="conversation.imageUrl"
-                    [alt]="'Profilbild von ' + conversation.title"
-                    size="avatar"
-                  />
-                }
-                <article
-                  class="min-w-0 max-w-full text-[13px]"
-                  [class.flex-1]="hasOfferActions"
-                  [attr.data-message-kind]="kind"
-                  [attr.data-message-direction]="entry.direction"
-                  [class.text-center]="kind === 'system'"
-                  [class.rounded-2xl]="kind !== 'system'"
-                  [class.rounded-br-sm]="kind !== 'system' && entry.direction === 'outbound'"
-                  [class.rounded-bl-sm]="kind !== 'system' && entry.direction === 'inbound'"
-                  [class.px-3]="kind !== 'system'"
-                  [class.py-2]="kind !== 'system'"
-                  [class.bg-fb-brand-strong]="kind !== 'system' && entry.direction === 'outbound'"
-                  [class.text-fb-on-accent]="kind !== 'system' && entry.direction === 'outbound'"
-                  [class.bg-fb-well]="kind !== 'system' && entry.direction !== 'outbound'"
-                  [class.text-fb-text-primary]="kind !== 'system' && entry.direction !== 'outbound'"
-                  [class.text-fb-text-secondary]="kind === 'system'"
-                >
-                  @if (kind === 'offer') {
-                    @let prices = offerPrices(entry);
-                    <div class="flex flex-wrap items-center gap-1 text-[13px] font-semibold">
-                      <svg lucideTag class="size-3.5 shrink-0" aria-hidden="true"></svg>
-                      <span>{{ offerLabel(entry) }}</span>
-                      @if (prices.offered) {
-                        <span>· {{ prices.offered }}</span>
-                      }
-                      @if (prices.original) {
-                        <del class="font-normal opacity-70">{{ prices.original }}</del>
-                      }
-                      @if (offerStatusLabel(entry); as status) {
-                        <app-badge [tone]="offerStatusTone(entry)">{{ status }}</app-badge>
-                      }
-                    </div>
-                    @if (offerTitle(entry); as title) {
-                      <span class="block break-words [overflow-wrap:anywhere]">{{ title }}</span>
-                    }
-                    @if (hasOfferActions) {
-                      <app-vinted-offer-actions
-                        [entry]="entry"
-                        [available]="canActOnOffer(entry)"
-                      />
-                    }
-                  }
-                  @if (kind === 'system') {
-                    <svg
-                      lucideInfo
-                      class="mr-1 inline size-3.5 align-text-bottom"
-                      aria-hidden="true"
-                    ></svg>
-                  }
-                  @if (messageBody(entry); as body) {
-                    <span class="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{{
-                      body
-                    }}</span>
-                  }
-                  @for (imageUrl of entry.imageUrls ?? []; track imageUrl) {
-                    <a
-                      [href]="imageUrl"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="mt-2 block"
-                      aria-label="Nachrichtenbild öffnen"
-                      ><img
-                        [src]="imageUrl"
-                        alt="Bild in dieser Nachricht"
-                        loading="lazy"
-                        class="max-h-60 max-w-full rounded-lg object-contain"
-                    /></a>
-                  }
-                  <div
-                    class="mt-1 text-xs"
-                    [class.text-right]="kind !== 'system'"
-                    [class.text-fb-text-secondary]="
-                      kind === 'system' || entry.direction !== 'outbound'
-                    "
-                    [class.text-fb-on-accent]="kind !== 'system' && entry.direction === 'outbound'"
+              @if (kind === 'system') {
+                <div class="my-1 flex w-full justify-center" [attr.data-message-row]="entry.id">
+                  <article
+                    [attr.data-message-kind]="kind"
+                    [attr.data-message-direction]="entry.direction"
+                    class="inline-flex max-w-[90%] flex-wrap items-center justify-center gap-1.5 rounded-full bg-fb-subtle px-3.5 py-1 text-[13px] font-medium text-fb-text-secondary select-text sm:max-w-[78%]"
                   >
+                    @if (systemMessageIcon(entry); as icon) {
+                      <span aria-hidden="true">{{ icon }}</span>
+                    }
+                    @if (messageBody(entry); as body) {
+                      <span>{{ body }}</span>
+                    }
                     @if (entry.occurredAt) {
+                      <span aria-hidden="true" class="opacity-60">•</span>
                       <time
+                        class="shrink-0 text-xs tabular-nums"
                         [attr.datetime]="entry.occurredAt"
                         [attr.title]="entry.occurredAt | date: 'dd.MM.yyyy, HH:mm'"
                         >{{ entry.occurredAt | date: 'HH:mm' }} Uhr</time
                       >
-                    } @else {
-                      Uhrzeit nicht verfügbar
                     }
-                  </div>
-                </article>
-                @if (kind !== 'system' && entry.direction === 'outbound') {
-                  @if (entry.isAutomated) {
-                    <span
-                      data-message-avatar
-                      data-automated-message-avatar
-                      class="inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-fb-border bg-fb-well text-fb-text-secondary"
-                      role="img"
-                      aria-label="Automatisch von Flipbase gesendet"
-                      title="Automatisch von Flipbase gesendet"
-                    >
-                      <svg lucideBot class="size-5" aria-hidden="true"></svg>
-                    </span>
-                  } @else {
+                  </article>
+                </div>
+              } @else {
+                <div
+                  [class]="
+                    hasOfferActions
+                      ? 'flex w-full max-w-sm items-end gap-2'
+                      : 'flex w-fit max-w-[90%] items-end gap-2 sm:max-w-[78%]'
+                  "
+                  [attr.data-message-row]="entry.id"
+                  [class.ml-auto]="entry.direction === 'outbound'"
+                  [class.mx-auto]="entry.direction === 'unknown'"
+                >
+                  @if (entry.direction === 'inbound') {
                     <app-product-thumbnail
                       data-message-avatar
-                      [src]="store.snapshot()?.profile?.imageUrl ?? null"
-                      [alt]="
-                        'Profilbild von ' +
-                        (store.snapshot()?.profile?.username ??
-                          store.selectedConnection()?.displayName ??
-                          'Deinem Konto')
-                      "
+                      [src]="conversation.imageUrl"
+                      [alt]="'Profilbild von ' + conversation.title"
                       size="avatar"
                     />
                   }
-                }
-              </div>
+                  <article
+                    class="min-w-0 max-w-full rounded-2xl px-3 py-2 text-[13px]"
+                    [class.flex-1]="hasOfferActions"
+                    [attr.data-message-kind]="kind"
+                    [attr.data-message-direction]="entry.direction"
+                    [class.rounded-br-sm]="entry.direction === 'outbound'"
+                    [class.rounded-bl-sm]="entry.direction === 'inbound'"
+                    [class.bg-fb-brand-strong]="entry.direction === 'outbound'"
+                    [class.text-fb-on-accent]="entry.direction === 'outbound'"
+                    [class.bg-fb-well]="entry.direction !== 'outbound'"
+                    [class.text-fb-text-primary]="entry.direction !== 'outbound'"
+                  >
+                    @if (kind === 'offer') {
+                      @let prices = offerPrices(entry);
+                      <div class="flex flex-wrap items-center gap-1 text-[13px] font-semibold">
+                        <svg lucideTag class="size-3.5 shrink-0" aria-hidden="true"></svg>
+                        <span>{{ offerLabel(entry) }}</span>
+                        @if (prices.offered) {
+                          <span>· {{ prices.offered }}</span>
+                        }
+                        @if (prices.original) {
+                          <del class="font-normal opacity-70">{{ prices.original }}</del>
+                        }
+                        @if (offerStatusLabel(entry); as status) {
+                          <app-badge [tone]="offerStatusTone(entry)">{{ status }}</app-badge>
+                        }
+                      </div>
+                      @if (offerTitle(entry); as title) {
+                        <span class="block break-words [overflow-wrap:anywhere]">{{ title }}</span>
+                      }
+                      @if (hasOfferActions) {
+                        <app-vinted-offer-actions
+                          [entry]="entry"
+                          [available]="canActOnOffer(entry)"
+                        />
+                      }
+                    }
+                    @if (messageBody(entry); as body) {
+                      <span class="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{{
+                        body
+                      }}</span>
+                    }
+                    @for (imageUrl of entry.imageUrls ?? []; track imageUrl) {
+                      <a
+                        [href]="imageUrl"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="mt-2 block"
+                        aria-label="Nachrichtenbild öffnen"
+                        ><img
+                          [src]="imageUrl"
+                          alt="Bild in dieser Nachricht"
+                          loading="lazy"
+                          class="max-h-60 max-w-full rounded-lg object-contain"
+                      /></a>
+                    }
+                    <div
+                      class="mt-1 text-right text-xs"
+                      [class.text-fb-text-secondary]="entry.direction !== 'outbound'"
+                      [class.text-fb-on-accent]="entry.direction === 'outbound'"
+                    >
+                      @if (entry.occurredAt) {
+                        <time
+                          [attr.datetime]="entry.occurredAt"
+                          [attr.title]="entry.occurredAt | date: 'dd.MM.yyyy, HH:mm'"
+                          >{{ entry.occurredAt | date: 'HH:mm' }} Uhr</time
+                        >
+                      } @else {
+                        Uhrzeit nicht verfügbar
+                      }
+                    </div>
+                  </article>
+                  @if (entry.direction === 'outbound') {
+                    @if (entry.isAutomated) {
+                      <span
+                        data-message-avatar
+                        data-automated-message-avatar
+                        class="inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-fb-border bg-fb-well text-fb-text-secondary"
+                        role="img"
+                        aria-label="Automatisch von Flipbase gesendet"
+                        title="Automatisch von Flipbase gesendet"
+                      >
+                        <svg lucideBot class="size-5" aria-hidden="true"></svg>
+                      </span>
+                    } @else {
+                      <app-product-thumbnail
+                        data-message-avatar
+                        [src]="store.snapshot()?.profile?.imageUrl ?? null"
+                        [alt]="
+                          'Profilbild von ' +
+                          (store.snapshot()?.profile?.username ??
+                            store.selectedConnection()?.displayName ??
+                            'Deinem Konto')
+                        "
+                        size="avatar"
+                      />
+                    }
+                  }
+                </div>
+              }
             } @empty {
               @if (!store.error() && !store.loadingMessages()) {
                 <p class="text-[13px] text-fb-text-secondary">
