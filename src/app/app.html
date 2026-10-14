@@ -1,5 +1,8 @@
 <router-outlet (activate)="startup.markRouteRendered()"></router-outlet>
 <app-toast-container></app-toast-container>
+@defer (when pwa.installDialogOpen()) {
+  <app-pwa-install-dialog />
+}
 @defer (when pwa.updateAvailable()) {
   <app-pwa-update-notice />
 }

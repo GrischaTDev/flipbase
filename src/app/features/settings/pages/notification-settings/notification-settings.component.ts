@@ -43,6 +43,7 @@ export class NotificationSettingsComponent {
   readonly pushCategories: { key: WebPushCategory; label: string }[] = [
     { key: 'message', label: 'Neue Marktplatznachrichten' },
     { key: 'order', label: 'Neue Bestellungen' },
+    { key: 'favorite', label: 'Neue Favoriten für deine Vinted-Inserate' },
     { key: 'connection', label: 'Kontoverbindung braucht deine Anmeldung' },
   ];
   readonly pushStatusText = computed(() => {
@@ -55,7 +56,7 @@ export class NotificationSettingsComponent {
       disabled: 'Push ist derzeit nicht freigegeben.',
       ready: 'Dieses Gerät kann aktiviert werden.',
       registering: 'Gerät wird registriert …',
-      pending: 'Die Registrierung ist noch ausstehend.',
+      pending: 'Die Aktivierung oder Kategorienbestätigung ist noch ausstehend.',
       active: 'Dieses Gerät ist für Push aktiviert.',
       revoke_pending: 'Der Serverwiderruf ist noch ausstehend.',
       error: 'Die Gerätebindung konnte nicht geprüft werden.',
@@ -155,6 +156,10 @@ export class NotificationSettingsComponent {
       .categories()
       .filter((candidate) => candidate !== category);
     if (enabled) categories.push(category);
+    if (!this.webPushService.isActive()) {
+      this.webPushService.selectCategories(categories);
+      return;
+    }
     if (await this.webPushService.saveCategories(categories))
       this.toast.success('Push-Kategorien wurden gespeichert.');
     else

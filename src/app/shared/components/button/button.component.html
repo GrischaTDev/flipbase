@@ -65,7 +65,8 @@
 
   @if (!iconOnly()) {
     <span
-      [class.truncate]="variant() !== 'list-row'"
+      [class.truncate]="variant() !== 'list-row' && !wrapLabel()"
+      [class.whitespace-normal]="wrapLabel()"
       [class.w-full]="variant() === 'list-row'"
       [class.min-w-0]="variant() === 'list-row'"
       [class.block]="variant() === 'list-row'"

@@ -32,7 +32,7 @@ create table public.web_push_preferences (
  id bigint generated always as identity primary key,
  device_id uuid not null references public.web_push_devices(id) on delete cascade,
  workspace_id uuid not null references public.workspaces(id) on delete cascade,
- categories text[] not null default '{}' check (categories <@ array['message','order','connection']::text[]),
+ categories text[] not null default '{}' check (categories <@ array['message','order','favorite','connection']::text[]),
  unique(device_id,workspace_id)
 );
 comment on table public.web_push_preferences is 'Ausdrueckliche Kategorienfreigabe pro Geraet und Workspace; neue Kategorien sind ausgeschaltet.';
@@ -77,15 +77,17 @@ returns text[] language sql stable security definer set search_path = '' as $$
  and exists(select 1 from public.workspaces where id=p_workspace_id and archived_at is null)
  then case when exists(select 1 from public.platform_operators where user_id=p_user_id)
  and exists(select 1 from public.workspace_members where workspace_id=p_workspace_id and user_id=p_user_id and role in ('owner','admin'))
- then array['message','order','connection']::text[] else array['order','connection']::text[] end else '{}'::text[] end;
+ then array['message','order','favorite','connection']::text[] else array['order','connection']::text[] end else '{}'::text[] end;
 $$;
 create function public.web_push_settings(p_user_id uuid,p_session_id uuid,p_input jsonb)
 returns jsonb language plpgsql security definer set search_path = '' as $$
 declare
+ v_api_version integer := coalesce((p_input->>'apiVersion')::integer,1);
  v_action text := p_input->>'action'; v_id uuid; v_workspace uuid;
  v_generation public.web_push_generations%rowtype; v_device public.web_push_devices%rowtype;
  v_categories text[]; v_allowed text[]; v_result jsonb; v_event uuid;
 begin
+ if v_api_version not in (1,2) then raise exception 'Push API version denied' using errcode='22023'; end if;
  if not exists(select 1 from auth.sessions where id=p_session_id and user_id=p_user_id and (not_after is null or not_after>now())) then raise exception 'Push session denied' using errcode='42501'; end if;
  if v_action in ('register','revoke','preferences','test') then perform pg_catalog.pg_advisory_xact_lock(470,0); end if;
  if v_action='register' then
@@ -111,7 +113,7 @@ begin
  elsif v_action='settings' then
   if p_input ? 'workspaceId' then v_workspace:=(p_input->>'workspaceId')::uuid; end if;
   select * into v_device from public.web_push_devices where user_id=p_user_id and installation_id=(p_input->>'installationId')::uuid order by last_confirmed_at desc,id desc limit 1;
-  return jsonb_build_object('binding',case when v_device.id is null then null else jsonb_build_object('deviceId',v_device.id,'active',v_device.active and v_device.session_id=p_session_id,'keyId',v_device.vapid_key_id) end,'allowedCategories',case when v_workspace is null then '{}'::text[] else public.web_push_allowed_categories(p_user_id,v_workspace) end,'preferences',coalesce((select jsonb_agg(jsonb_build_object('workspaceId',workspace_id,'categories',categories)) from public.web_push_preferences where device_id=v_device.id and public.user_can_access_workspace(workspace_id,p_user_id)),'[]'::jsonb));
+  return jsonb_build_object('binding',case when v_device.id is null then null else jsonb_build_object('deviceId',v_device.id,'active',v_device.active and v_device.session_id=p_session_id,'keyId',v_device.vapid_key_id) end,'allowedCategories',case when v_workspace is null then '{}'::text[] else array(select category from unnest(public.web_push_allowed_categories(p_user_id,v_workspace)) category where v_api_version=2 or category<>'favorite') end,'preferences',coalesce((select jsonb_agg(jsonb_build_object('workspaceId',workspace_id,'categories',array(select category from unnest(categories) category where v_api_version=2 or category<>'favorite'))) from public.web_push_preferences where device_id=v_device.id and public.user_can_access_workspace(workspace_id,p_user_id)),'[]'::jsonb));
  elsif v_action in ('preferences','revoke','test') then
   v_id:=(p_input->>'deviceId')::uuid;
   perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(v_id::text,470));
@@ -128,8 +130,9 @@ begin
   if cardinality(v_allowed)=0 then raise exception 'Push workspace denied' using errcode='42501'; end if;
   if v_action='preferences' then
    select coalesce(array_agg(category),'{}'::text[]) into v_categories from jsonb_array_elements_text(p_input->'categories') as category;
+   if v_api_version=1 and 'favorite'=any(v_categories) then raise exception 'Push category denied' using errcode='42501'; end if;
    if not v_categories <@ v_allowed then raise exception 'Push category denied' using errcode='42501'; end if;
-   insert into public.web_push_preferences(device_id,workspace_id,categories) values(v_id,v_workspace,v_categories) on conflict(device_id,workspace_id) do update set categories=excluded.categories;
+   insert into public.web_push_preferences(device_id,workspace_id,categories) values(v_id,v_workspace,v_categories) on conflict(device_id,workspace_id) do update set categories=case when v_api_version=1 and 'favorite'=any(public.web_push_preferences.categories) then excluded.categories||array['favorite']::text[] else excluded.categories end;
    return jsonb_build_object('deviceId',v_id,'workspaceId',v_workspace,'categories',v_categories);
   end if;
   if v_device.test_window_at is null or v_device.test_window_at<=now()-interval '1 minute' then v_device.test_count:=0; v_device.test_window_at:=now(); end if;

@@ -22,6 +22,12 @@ insert into public.web_push_preferences(device_id,workspace_id,categories) selec
 select ok(public.web_push_can_deliver(pg_temp.ident(1,1),pg_temp.ident(3),'message',pg_temp.ident(4),pg_temp.ident(2,1)),'Vinted Operator und Owner darf empfangen');
 select ok(not public.web_push_can_deliver(pg_temp.ident(1,2),pg_temp.ident(3),'message',pg_temp.ident(4),pg_temp.ident(2,2)),'Operator ohne Administration bleibt ausgeschlossen');
 select ok(not public.web_push_can_deliver(pg_temp.ident(1,3),pg_temp.ident(3),'message',pg_temp.ident(4),pg_temp.ident(2,3)),'Admin ohne Operator bleibt ausgeschlossen');
+select ok(public.web_push_can_deliver(pg_temp.ident(1,1),pg_temp.ident(3),'favorite',pg_temp.ident(4),pg_temp.ident(2,1)),'Favoriten nur fuer Operator mit Administration');
+select ok(not public.web_push_can_deliver(pg_temp.ident(1,2),pg_temp.ident(3),'favorite',pg_temp.ident(4),pg_temp.ident(2,2)),'Favoriten verweigern Operator ohne Administration');
+select ok(not public.web_push_can_deliver(pg_temp.ident(1,3),pg_temp.ident(3),'favorite',pg_temp.ident(4),pg_temp.ident(2,3)),'Favoriten verweigern Admin ohne Operator');
+select ok(not public.web_push_can_deliver(pg_temp.ident(1,1),pg_temp.ident(3),'favorite',pg_temp.ident(5),pg_temp.ident(2,1)),'Favoritenziel darf keine eBay-Verbindung sein');
+select public.web_push_enqueue_event('favorite-disabled',pg_temp.ident(3),'favorite',pg_temp.ident(4),jsonb_build_object('kind','vinted_favorites','connectionId',pg_temp.ident(4)));
+select is((select count(*) from public.web_push_deliveries d join public.web_push_events e on e.id=d.event_id where e.category='favorite'),0::bigint,'Vorhandene Registrierungen aktivieren Favorite nicht automatisch');
 select ok(public.web_push_can_deliver(pg_temp.ident(1,2),pg_temp.ident(3),'order',pg_temp.ident(5),pg_temp.ident(2,2)),'Eigener eBay Account ohne Operatorrechte');
 select ok(not public.web_push_can_deliver(pg_temp.ident(1,1),pg_temp.ident(3),'order',pg_temp.ident(5),pg_temp.ident(2,1)),'Workspaceowner darf anderes eBay Konto nicht empfangen');
 select ok(not public.web_push_can_deliver(pg_temp.ident(1,2),pg_temp.ident(3),'order',pg_temp.ident(5),pg_temp.ident(2,1)),'Fremde Sitzungskennung wird verweigert');

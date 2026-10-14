@@ -152,7 +152,9 @@ begin
   insert into public.marketplace_favorite_notifications(workspace_id,connection_id,observed_at)
     values(new.workspace_id,new.connection_id,new.observed_at)
     on conflict (workspace_id,connection_id,observed_at) do nothing returning id into v_notification_id;
-  if v_notification_id is null then
+  if v_notification_id is not null then
+    perform set_config('flipbase.favorite_notification_import',(v_context||jsonb_build_object('notificationId',v_notification_id))::text,true);
+  else
     select id into v_notification_id from public.marketplace_favorite_notifications
       where workspace_id = new.workspace_id and connection_id = new.connection_id and observed_at = new.observed_at;
   end if;
@@ -166,7 +168,7 @@ create trigger marketplace_record_favorite_notification_event after update on pu
 
 create or replace function public.marketplace_finalize_favorite_import(p_workspace_id uuid, p_connection_id uuid, p_observed_at timestamptz, p_publications_success boolean)
 returns void language plpgsql volatile security invoker set search_path = '' as $$
-declare v_context jsonb;
+declare v_context jsonb; v_notification_id bigint;
 begin
   v_context := nullif(current_setting('flipbase.favorite_notification_import',true),'')::jsonb;
   if p_publications_success then
@@ -176,6 +178,12 @@ begin
   end if;
   if exists(select 1 from public.marketplace_favorite_notifications where workspace_id = p_workspace_id and connection_id = p_connection_id and observed_at = p_observed_at) then
     -- Ausschließlich Invalidierung: keine Inserat-, Konto- oder Kennzahlendetails.
+    if v_context->>'workspaceId'=p_workspace_id::text and v_context->>'connectionId'=p_connection_id::text and (v_context->>'observedAt')::timestamptz=p_observed_at then
+        select id into v_notification_id from public.marketplace_favorite_notifications where workspace_id=p_workspace_id and connection_id=p_connection_id and observed_at=p_observed_at;
+      if v_context->>'notificationId'=v_notification_id::text then
+        perform public.web_push_enqueue_event('vinted-favorites:'||v_notification_id::text,p_workspace_id,'favorite',p_connection_id,jsonb_build_object('kind','vinted_favorites','connectionId',p_connection_id));
+      end if;
+    end if;
     perform realtime.send('{}'::jsonb,'favorite_notifications_changed','workspace:' || p_workspace_id::text || ':marketplace_notifications',true);
   end if;
   perform set_config('flipbase.favorite_notification_import','',true);

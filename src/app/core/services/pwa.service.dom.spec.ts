@@ -1,6 +1,6 @@
 import '@angular/compiler';
 import { Injector, runInInjectionContext } from '@angular/core';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PwaService } from './pwa.service';
 
 const injectors: ReturnType<typeof Injector.create>[] = [];
@@ -20,6 +20,7 @@ function useDevice(userAgent: string, maxTouchPoints = 0) {
     }),
   });
 }
+beforeEach(() => localStorage.clear());
 afterEach(() => {
   for (const injector of injectors.splice(0)) injector.destroy();
   vi.restoreAllMocks();
@@ -38,6 +39,58 @@ function offer(outcome: 'accepted' | 'dismissed', reject = false) {
 }
 
 describe('PWA installation capabilities', () => {
+  it('calls an available native prompt immediately and ignores repeated clicks while it is pending', async () => {
+    useDevice('Android Chrome', 5);
+    const service = createService();
+    const event = new Event('beforeinstallprompt', { cancelable: true });
+    const prompt = vi.fn(async () => undefined);
+    let finish: ((choice: { outcome: string }) => void) | undefined;
+    Object.assign(event, {
+      prompt,
+      userChoice: new Promise((resolve) => {
+        finish = resolve;
+      }),
+    });
+    window.dispatchEvent(event);
+    const installing = service.startInstallation();
+    expect(prompt).toHaveBeenCalledOnce();
+    expect(service.installDialogOpen()).toBe(false);
+    await service.startInstallation();
+    expect(prompt).toHaveBeenCalledOnce();
+    finish?.({ outcome: 'dismissed' });
+    await installing;
+    expect(service.isInstalling()).toBe(false);
+    expect(service.installDialogOpen()).toBe(true);
+  });
+  it('remembers confirmed installation without standalone claims and accepts a fresh reinstall offer', async () => {
+    useDevice('Android Chrome', 5);
+    const first = createService();
+    window.dispatchEvent(new Event('appinstalled'));
+    expect(first.showInstallationOffer()).toBe(false);
+    const next = createService();
+    expect(next.showInstallationOffer()).toBe(false);
+    expect(next.isStandalone()).toBe(false);
+    const prompt = offer('accepted');
+    expect(next.showInstallationOffer()).toBe(true);
+    expect(prompt).not.toHaveBeenCalled();
+    await next.startInstallation();
+    expect(prompt).toHaveBeenCalledOnce();
+  });
+  it('opens same-page help and exposes a late offer without prompting automatically', async () => {
+    useDevice('Android Chrome', 5);
+    const service = createService();
+    await service.startInstallation();
+    expect(service.installDialogOpen()).toBe(true);
+    const prompt = offer('dismissed');
+    expect(prompt).not.toHaveBeenCalled();
+    expect(service.isInstallable()).toBe(true);
+    await service.startInstallation();
+    expect(prompt).toHaveBeenCalledOnce();
+    expect(service.installDialogOpen()).toBe(true);
+    window.dispatchEvent(new Event('appinstalled'));
+    expect(service.installDialogOpen()).toBe(false);
+    expect(service.showInstallationOffer()).toBe(false);
+  });
   it.each([
     ['Android phone', 'Mozilla/5.0 (Linux; Android 15) Chrome/140 Mobile', 5],
     ['Android tablet', 'Mozilla/5.0 (Linux; Android 15) Chrome/140', 5],
@@ -76,7 +129,7 @@ describe('PWA installation capabilities', () => {
     expect(prompt).toHaveBeenCalledTimes(1);
     window.dispatchEvent(new Event('appinstalled'));
     expect(service.isStandalone()).toBe(false);
-    expect(service.isInstalled()).toBe(false);
+    expect(service.isInstalled()).toBe(true);
   });
   it.each([false, true])('clears dismissed or failed prompt (failure=%s)', async (reject) => {
     useDevice('Mozilla/5.0 (Linux; Android 15) Chrome/140 Mobile', 5);

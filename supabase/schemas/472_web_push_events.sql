@@ -7,7 +7,7 @@ returns boolean language sql stable security definer set search_path = '' as $$
  and case
  when p_category='test' then p_connection_id is null
  when p_category='order' and p_connection_id is null then true
- when p_category in ('message','connection') and exists(select 1 from public.marketplace_connections where id=p_connection_id and workspace_id=p_workspace_id and marketplace='vinted') then
+ when p_category in ('message','favorite','connection') and exists(select 1 from public.marketplace_connections where id=p_connection_id and workspace_id=p_workspace_id and marketplace='vinted') then
    exists(select 1 from public.platform_operators where user_id=p_user_id)
    and exists(select 1 from public.workspace_members where workspace_id=p_workspace_id and user_id=p_user_id and role in ('owner','admin'))
  when p_category in ('order','connection') then

@@ -171,6 +171,11 @@ export class PushNavigationService {
       .eq('id', target.connectionId)
       .eq('workspace_id', workspaceId)
       .maybeSingle();
+    if (target.kind === 'vinted_favorites') {
+      if (connectionError || connection?.marketplace !== 'vinted')
+        throw new Error('Dieses Vinted-Konto ist für dich nicht verfügbar.');
+      return `/marketplaces/vinted/listings?connectionId=${target.connectionId}`;
+    }
     if (target.kind === 'vinted_message') {
       if (connectionError || connection?.marketplace !== 'vinted')
         throw new Error('Dieses Vinted-Konto ist für dich nicht verfügbar.');

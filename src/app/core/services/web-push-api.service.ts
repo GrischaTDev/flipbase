@@ -14,7 +14,7 @@ export class WebPushApiService {
 
   private async request(payload: Record<string, unknown>): Promise<unknown> {
     const { data, error } = await this.supabase.client.functions.invoke('push-settings', {
-      body: payload,
+      body: { ...payload, apiVersion: 2 },
     });
     if (error)
       throw new Error(
@@ -32,7 +32,9 @@ export class WebPushApiService {
     const settings = response as WebPushServerSettings;
     const validCategories = (categories: unknown): categories is WebPushCategory[] =>
       Array.isArray(categories) &&
-      categories.every((category) => ['message', 'order', 'connection'].includes(category));
+      categories.every((category) =>
+        ['message', 'order', 'favorite', 'connection'].includes(category),
+      );
     if (
       typeof settings.enabled !== 'boolean' ||
       typeof settings.publicKey !== 'string' ||

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawn, execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { chmod, mkdtemp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdtemp, mkdir, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -102,6 +102,128 @@ test('Push-Compose erbt Supabasezugang und trennt Router/JWT ohne neue Hostports
   }
 });
 
+test('Geschuetzte Pushkonfiguration gilt fuer Functions und Worker mit Standard-aus und Kill-Switch', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'flipbase-push-runtime-'));
+  const environmentFile = join(root, 'push.env');
+  const supabaseEnvironmentFile = join(root, '.env');
+  const defaultsEnvironmentFile = join(root, 'push-defaults.env');
+  const base = join(root, 'docker-compose.yml');
+  try {
+    await writeFile(
+      base,
+      'services:\n  functions:\n    image: supabase/edge-runtime:v1.73.5\n    environment:\n      SUPABASE_URL: ${SUPABASE_URL}\n      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}\n',
+    );
+    await writeFile(
+      supabaseEnvironmentFile,
+      'SUPABASE_URL=http://kong:8000\nSUPABASE_SERVICE_ROLE_KEY=fixture-main-server-key\nWEB_PUSH_ENABLED=true\nWEB_PUSH_ALLOW_ALL=true\nWEB_PUSH_PILOT_USER_IDS=stale-main-user\nWEB_PUSH_PILOT_DEVICE_IDS=stale-main-device\nWEB_PUSH_VAPID_PUBLIC_KEY=stale-main-public-key\nWEB_PUSH_VAPID_KEY_ID=stale-main-key-id\nWEB_PUSH_ALLOWED_ORIGINS=https://stale.example.test\n',
+    );
+    const defaults =
+      (await readFile(deployScript, 'utf8')).match(
+        /^  cat > "\$PUSH_DEFAULTS_ENV_FILE" <<'PUSH_DEFAULTS'\n([\s\S]*?)\nPUSH_DEFAULTS$/mu,
+      )?.[1] ?? '';
+    await writeFile(defaultsEnvironmentFile, `${defaults}\n`);
+    const environment = {
+      ...process.env,
+      PUSH_ENV_FILE: environmentFile,
+      PUSH_FUNCTIONS_DIRECTORY: join(root, 'release-functions'),
+      FLIPBASE_SUPABASE_DIRECTORY: root,
+      FLIPBASE_PUSH_IMAGE: `ghcr.io/grischatdev/flipbase-push@sha256:${'b'.repeat(64)}`,
+      FLIPBASE_PUSH_COMMIT: 'a'.repeat(40),
+    };
+    // Fremde Shellwerte sollen den Konfigurationsfall nicht beeinflussen.
+    for (const variable of Object.keys(environment)) {
+      if (variable.startsWith('WEB_PUSH_')) delete environment[variable];
+    }
+    const render = (worker, overrides = {}) =>
+      JSON.parse(
+        execFileSync(
+          'docker',
+          [
+            'compose',
+            ...(worker
+              ? []
+              : ['--env-file', supabaseEnvironmentFile, '--env-file', defaultsEnvironmentFile]),
+            '--env-file',
+            environmentFile,
+            ...(worker ? [] : ['-f', base]),
+            '-f',
+            fileURLToPath(
+              new URL(
+                worker
+                  ? '../deploy/docker-compose.push.yml'
+                  : '../deploy/docker-compose.push-functions.yml',
+                import.meta.url,
+              ),
+            ),
+            'config',
+            '--format',
+            'json',
+          ],
+          { encoding: 'utf8', env: { ...environment, ...overrides } },
+        ),
+      ).services[worker ? 'push-worker' : 'push-functions'].environment;
+    const protectedConfiguration = {
+      WEB_PUSH_ENABLED: 'true',
+      WEB_PUSH_ALLOW_ALL: 'false',
+      WEB_PUSH_PILOT_USER_IDS: '11111111-1111-4111-8111-111111111111',
+      WEB_PUSH_PILOT_DEVICE_IDS: '22222222-2222-4222-8222-222222222222',
+      WEB_PUSH_VAPID_PUBLIC_KEY: 'fixture-public-key',
+      WEB_PUSH_VAPID_KEY_ID: 'fixture-key-id',
+      WEB_PUSH_ALLOWED_ORIGINS: 'https://app.example.test',
+    };
+    const configurationText = Object.entries(protectedConfiguration)
+      .map(([name, setting]) => `${name}=${setting}\n`)
+      .join('');
+    await writeFile(environmentFile, configurationText, { mode: 0o600 });
+    for (const worker of [false, true]) {
+      const firstRelease = render(worker);
+      const nextRelease = render(worker);
+      for (const [name, setting] of Object.entries(protectedConfiguration)) {
+        assert.equal(firstRelease[name], setting, name);
+        assert.equal(nextRelease[name], setting, name);
+      }
+      const killed = render(worker, { WEB_PUSH_ENABLED: 'false', WEB_PUSH_ALLOW_ALL: 'false' });
+      assert.equal(killed.WEB_PUSH_ENABLED, 'false');
+      assert.equal(killed.WEB_PUSH_ALLOW_ALL, 'false');
+      // Auch erlaubte Betriebsueberschreibungen muessen beide Dienste gleich erreichen.
+      const overridden = render(worker, {
+        WEB_PUSH_PILOT_USER_IDS: '33333333-3333-4333-8333-333333333333',
+        WEB_PUSH_VAPID_KEY_ID: 'fixture-rotated-key-id',
+      });
+      assert.equal(overridden.WEB_PUSH_PILOT_USER_IDS, '33333333-3333-4333-8333-333333333333');
+      assert.equal(overridden.WEB_PUSH_VAPID_KEY_ID, 'fixture-rotated-key-id');
+    }
+    assert.equal(await readFile(environmentFile, 'utf8'), configurationText);
+    await writeFile(
+      environmentFile,
+      configurationText.replace('WEB_PUSH_ENABLED=true', 'WEB_PUSH_ENABLED=false'),
+    );
+    for (const worker of [false, true]) {
+      const killed = render(worker);
+      assert.equal(killed.WEB_PUSH_ENABLED, 'false');
+      assert.equal(killed.WEB_PUSH_ALLOW_ALL, 'false');
+      assert.equal(killed.WEB_PUSH_VAPID_KEY_ID, protectedConfiguration.WEB_PUSH_VAPID_KEY_ID);
+    }
+    await writeFile(environmentFile, 'SUPABASE_URL=https://api.example.test\n');
+    for (const worker of [false, true]) {
+      const disabled = render(worker);
+      assert.equal(disabled.WEB_PUSH_ENABLED, 'false');
+      assert.equal(disabled.WEB_PUSH_ALLOW_ALL, 'false');
+      assert.equal(disabled.WEB_PUSH_PILOT_USER_IDS, '');
+      assert.equal(disabled.WEB_PUSH_PILOT_DEVICE_IDS, '');
+      assert.equal(disabled.WEB_PUSH_VAPID_PUBLIC_KEY, '');
+      assert.equal(disabled.WEB_PUSH_VAPID_KEY_ID, '');
+      assert.equal(disabled.WEB_PUSH_ALLOWED_ORIGINS, 'https://app.flipbase.de');
+      if (!worker) {
+        assert.equal(disabled.SUPABASE_URL, 'https://api.example.test');
+        assert.equal(disabled.SUPABASE_SERVICE_ROLE_KEY, 'fixture-main-server-key');
+      }
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test(
   'Pushparser erzwingt Digest, gleiche Commits und Migration vor Functions/Worker/App',
   { skip: process.platform === 'win32' },
@@ -125,7 +247,9 @@ test(
       await writeFile(join(supabase, 'docker-compose.yml'), 'services: {}\n');
       await writeFile(join(supabase, '.env'), 'TEST=true\n');
       await writeFile(join(root, 'Caddyfile'), 'old proxy configuration\n');
-      await writeFile(join(runtime, 'push.env'), 'SUPABASE_URL=https://api.example.test\n', {
+      const configurationText =
+        'SUPABASE_URL=https://api.example.test\nWEB_PUSH_ENABLED=true\nWEB_PUSH_ALLOW_ALL=false\nWEB_PUSH_PILOT_USER_IDS=11111111-1111-4111-8111-111111111111\n';
+      await writeFile(join(runtime, 'push.env'), configurationText, {
         mode: 0o600,
       });
       // Der CI-Nutzer ist kein root; nur die serverseitige Metadatenabfrage simulieren.
@@ -137,6 +261,15 @@ if [[ "$1" = -c && "$2" = '%u:%g:%a' && "$3" = "$FIXTURE_PUSH_ENV_FILE" ]]; then
 else
   exec /usr/bin/stat "$@"
 fi
+`,
+        { mode: 0o755 },
+      );
+      // Nur die JSON-Commitabfrage des Deployskripts braucht Python; Node kann sie im Fixture ersetzen.
+      await writeFile(
+        join(bin, 'python3'),
+        `#!/bin/bash
+[[ "$1" = -c && "$2" = 'import json,sys; print(json.load(open(sys.argv[1]))["commit"])' ]] || exit 95
+exec node -e 'process.stdout.write(JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8")).commit + "\\n")' "$3"
 `,
         { mode: 0o755 },
       );
@@ -163,6 +296,16 @@ case "$1" in
    *) exit 92 ;;
   esac ;;
  compose)
+  if [[ "$*" = *"docker-compose.push"* ]]; then
+    [[ "$*" = *"--env-file $FIXTURE_PUSH_ENV_FILE"* ]] || exit 93
+    [[ ! -v WEB_PUSH_ENABLED && ! -v WEB_PUSH_ALLOW_ALL ]] || exit 94
+    if [[ "$*" = *"docker-compose.push-functions.yml"* ]]; then
+      [[ "$*" = *"--env-file .env --env-file $PUSH_DEFAULTS_ENV_FILE --env-file $FIXTURE_PUSH_ENV_FILE"* ]] || exit 96
+      [[ -f "$PUSH_DEFAULTS_ENV_FILE" && "$(stat -c '%a' "$PUSH_DEFAULTS_ENV_FILE")" = 600 ]] || exit 97
+      grep -qx 'WEB_PUSH_ENABLED=false' "$PUSH_DEFAULTS_ENV_FILE" || exit 98
+      grep -qx 'WEB_PUSH_ALLOW_ALL=false' "$PUSH_DEFAULTS_ENV_FILE" || exit 98
+    fi
+  fi
   case "$*" in
    *"config --images web"*) echo "$EXPECTED_APP_IMAGE" ;;
    *"config --images push-worker"*) echo "\${CONFIGURED_PUSH_IMAGE:-$EXPECTED_PUSH_IMAGE}" ;;
@@ -198,11 +341,20 @@ esac
       };
       const result = await runDeploy(environment);
       assert.equal(result.code, 0, result.stderr);
+      assert.equal(await readFile(join(runtime, 'push.env'), 'utf8'), configurationText);
+      const nextRelease = await runDeploy(environment);
+      assert.equal(nextRelease.code, 0, nextRelease.stderr);
+      assert.equal(await readFile(join(runtime, 'push.env'), 'utf8'), configurationText);
       for (const metadata of ['1001:1001:600', '0:0:644']) {
         const rejected = await runDeploy({ ...environment, FIXTURE_PUSH_ENV_METADATA: metadata });
         assert.equal(rejected.code, 1, metadata);
         assert.match(rejected.stderr, /root-Konfiguration mit Modus0600/u);
       }
+      const linkedConfiguration = join(root, 'linked-push.env');
+      await symlink(join(runtime, 'push.env'), linkedConfiguration);
+      const linkedResult = await runDeploy({ ...environment, PUSH_ENV_FILE: linkedConfiguration });
+      assert.equal(linkedResult.code, 1);
+      assert.match(linkedResult.stderr, /root-Konfiguration mit Modus0600/u);
       const calls = await readFile(log, 'utf8');
       assert.match(
         calls,

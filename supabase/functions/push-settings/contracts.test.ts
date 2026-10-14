@@ -56,3 +56,17 @@ test('settings supports reload without a known device and strict fields', () => 
     validatePushInput({ action: 'settings', installationId: id, token: 'secret' }),
   );
 });
+test('version two accepts explicit favorites while legacy requests reject them', () => {
+  const preferences = {
+    action: 'preferences',
+    deviceId: id,
+    workspaceId: id,
+    categories: ['favorite'],
+  };
+  assert.throws(() => validatePushInput(preferences));
+  assert.doesNotThrow(() => validatePushInput({ ...preferences, apiVersion: 2 }));
+  assert.throws(() => validatePushInput({ ...preferences, apiVersion: 3 }));
+  assert.doesNotThrow(() =>
+    validatePushInput({ action: 'settings', installationId: id, apiVersion: 2 }),
+  );
+});

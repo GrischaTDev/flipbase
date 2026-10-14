@@ -7,6 +7,7 @@ import { ToastSyncBridgeService } from './shared/components/toast/toast-sync-bri
 import { AppStartupService } from './core/services/app-startup.service';
 import { PwaUpdateNoticeComponent } from './shared/components/pwa-update-notice/pwa-update-notice.component';
 import { PwaService } from './core/services/pwa.service';
+import { PwaInstallDialogComponent } from './shared/components/pwa-install-dialog/pwa-install-dialog.component';
 import { PushNavigationService } from './core/services/push-navigation.service';
 import { PushNavigationNoticeComponent } from './shared/components/push-navigation-notice/push-navigation-notice.component';
 import { OfflinePurchaseContextService } from './features/purchases/services/offline-purchase-context.service';
@@ -19,6 +20,7 @@ import { PurchaseBufferService } from './features/purchases/services/purchase-bu
     ToastContainerComponent,
     PwaUpdateNoticeComponent,
     PushNavigationNoticeComponent,
+    PwaInstallDialogComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.css',

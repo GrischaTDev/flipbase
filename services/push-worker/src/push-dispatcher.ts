@@ -26,6 +26,7 @@ export function validatePayload(input: unknown): boolean {
     settings: [],
     vinted_message: ['connectionId', 'conversationId'],
     ebay_orders: ['connectionId'],
+    vinted_favorites: ['connectionId'],
     store_orders: [],
     connection: ['connectionId'],
   };
@@ -43,6 +44,7 @@ export function validatePayload(input: unknown): boolean {
     (payload.category === 'test' && kind === 'settings') ||
     (payload.category === 'message' && kind === 'vinted_message') ||
     (payload.category === 'order' && ['ebay_orders', 'store_orders'].includes(kind)) ||
+    (payload.category === 'favorite' && kind === 'vinted_favorites') ||
     (payload.category === 'connection' && kind === 'connection')
   );
 }
