@@ -1,5 +1,17 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-14 - Juna - Weiße App-Icons und Gerätebenachrichtigungen umsetzen
+
+**Auftrag:** Den ausdrücklich freigegebenen Plan für weiße App-Icons, direkte mobile
+Installation, Geräteaktivierung auf Android/iPad/Windows und Vinted-Favoriten-Push
+einschließlich kompatiblem Backend, geschütztem Pilotbetrieb und grünem PR umsetzen.
+
+**Arbeitsstand:** Eigener Zweig `juna/pwa-install-push` ab aktuellem `origin/master`.
+Aufgaben und Prüfungen stehen in `docs/implementation/pwa-install-push-plan.md`.
+Implementierung und unabhängige Prüfung erfolgen mit Agents; bestehende Einkäufe
+und der interne Zwischenspeicher bleiben unverändert. Reale Systemzustellung wird
+erst nach Geräteabnahme bestätigt; andere Nutzer bleiben bis dahin ausgeschlossen.
+
 ## 2026-10-13 - Juna - Mobile PWA-Rückmeldung korrigieren
 
 **Auftrag:** Wiederkehrenden wirkungslosen Updatehinweis auf Android, fehlende mobile Installation, unerwünschtes Desktopangebot und separaten Einkaufsmenüpunkt sowie springendes Tablet-Menü korrigieren. Eigener Zweig juna/pwa-mobile-fixes ab aktuellem origin/master; drei Agents mit getrennten Zuständigkeiten für Installation/Layout, Einkaufsintegration und unabhängige Updateprüfung.
