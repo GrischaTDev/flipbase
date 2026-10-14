@@ -33,6 +33,14 @@ Hauptzweig eingebunden; beide Shared-Button-Erweiterungen bestehen 18 Prüfungen
 Browserfähigkeiten sind in diesen Abläufen simuliert; echte Systemzustellung
 bleibt Teil der Geräteabnahme.
 
+**Betrieb:** Release übernimmt die geschützte Push-Konfiguration für Worker und
+Edge Functions, ohne die Freigabe pauschal zurückzusetzen. Fehlende Flags bleiben
+aus; dauerhafte und sofortige Notabschaltung bleiben verfügbar. Zehn Prüfungen
+mit echten Compose-/Nginx-Aufrufen und separat alle vier POSIX-Deploymentfixtures
+bestanden, dazu Format, Lint und Shellsyntax. Versandschlüssel sind einmalig
+geschützt vorbereitet; das verifizierte Pilotkonto wird erst nach grünem Release
+freigeschaltet, andere Konten bleiben bis zur Geräteabnahme ausgeschlossen.
+
 ## 2026-10-14 - Juna - Vinted-Übersichtsseite modernisieren und Synchronisationsstatus anpassen
 
 **Auftrag:** Das Mockup für die modernisierte Vinted-Übersichtsseite 1:1 übernehmen und die Synchronisationsanzeige mit grünem Statuspunkt und Zeitstempel („Zuletzt aktualisiert: DD.MM.YYYY • HH:mm Uhr“) umsetzen.
