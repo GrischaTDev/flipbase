@@ -111,6 +111,68 @@ afterEach(() => {
 });
 
 describe('Server-confirmed push devices', () => {
+  it('offers the initial selection again after registration without any confirmed preferences', async () => {
+    const { service, api } = setup();
+    api.loadSettings.mockResolvedValue({
+      ...settings,
+      binding: { deviceId: '44444444-4444-4444-8444-444444444444', active: true, keyId: 'key1' },
+    } as unknown as typeof settings);
+
+    await service.refreshDevice();
+
+    expect(service.isActive()).toBe(false);
+    expect(service.categories()).toEqual(settings.allowedCategories);
+  });
+
+  it('does not enable categories automatically when a registered device changes workspace', async () => {
+    const { service, api } = setup();
+    api.loadSettings.mockResolvedValue({
+      ...settings,
+      binding: { deviceId: '44444444-4444-4444-8444-444444444444', active: true, keyId: 'key1' },
+      preferences: [{ workspaceId: '55555555-5555-4555-8555-555555555555', categories: ['order'] }],
+    } as unknown as typeof settings);
+
+    await service.refreshDevice();
+
+    expect(service.categories()).toEqual([]);
+  });
+
+  it('does not offer activation for a workspace without permitted categories', async () => {
+    const { service, api, pushManager } = setup();
+    api.loadSettings.mockResolvedValue({ ...settings, allowedCategories: [] });
+    await service.refreshDevice();
+
+    expect(service.canActivate()).toBe(false);
+    expect(service.deviceMessage()).toContain('Arbeitsbereich');
+    expect(await service.activateDevice()).toBe(false);
+    expect(pushManager.subscribe).not.toHaveBeenCalled();
+    expect(api.register).not.toHaveBeenCalled();
+  });
+
+  it('stops activation before registration when workspace permission was withdrawn', async () => {
+    const { service, api, pushManager } = setup();
+    await service.refreshDevice();
+    api.loadSettings.mockResolvedValue({ ...settings, allowedCategories: [] });
+
+    expect(await service.activateDevice()).toBe(false);
+    expect(service.deviceStatus()).toBe('disabled');
+    expect(service.deviceMessage()).toContain('Arbeitsbereich');
+    expect(pushManager.subscribe).not.toHaveBeenCalled();
+    expect(api.register).not.toHaveBeenCalled();
+  });
+
+  it('shows the iPad installation requirement without querying an unsupported browser subscription', async () => {
+    const { service, pushManager } = setup();
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('Mozilla/5.0 (iPad)');
+    TestBed.inject(PwaService).isStandalone.set(false);
+    pushManager.getSubscription.mockRejectedValue(
+      new DOMException('Push needs a home app', 'NotSupportedError'),
+    );
+    await service.refreshDevice();
+    expect(service.deviceStatus()).toBe('home_app_required');
+    expect(pushManager.getSubscription).not.toHaveBeenCalled();
+    expect(service.canActivate()).toBe(false);
+  });
   it('reactivates a visible edited selection after stored categories lose permission', async () => {
     const { service, api } = setup();
     api.loadSettings.mockResolvedValue({

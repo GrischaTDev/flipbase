@@ -53,6 +53,7 @@ export class WebPushService {
   readonly canActivate = computed(() =>
     Boolean(
       this.serverSettings()?.enabled &&
+      this.allowedCategories().length > 0 &&
       this.registrationActive() &&
       this.isSupported() &&
       !this.isBusy() &&
@@ -228,12 +229,11 @@ export class WebPushService {
           : null;
       if (sequence !== this.generation) return;
       this.watchRegistration(registration);
-      const subscription = await this.registration?.pushManager?.getSubscription();
-      if (sequence !== this.generation) return;
       const selection = this.preferencesPending
         ? this.categories()
         : (settings.preferences.find((preference) => preference.workspaceId === workspaceId)
-            ?.categories ?? (settings.binding ? [] : [...settings.allowedCategories]));
+            ?.categories ??
+          (settings.binding && settings.preferences.length ? [] : [...settings.allowedCategories]));
       const selectionAdjusted = this.applyCategorySettings(settings, selection);
       if (capability !== 'supported') {
         this.deviceStatus.set(capability);
@@ -251,6 +251,17 @@ export class WebPushService {
         this.deviceMessage.set('Push wird nach der Geräteabnahme freigegeben.');
         return;
       }
+      if (!settings.allowedCategories.length) {
+        this.deviceStatus.set('disabled');
+        this.deviceMessage.set(
+          'Push ist in diesem Arbeitsbereich nicht verfügbar. Wähle einen aktiven Arbeitsbereich.',
+        );
+        return;
+      }
+      // Im iPad-Browser kann schon dieser Aufruf fehlschlagen. Erst nach der
+      // Fähigkeitsprüfung abfragen, damit der Hinweis zur Home-App erhalten bleibt.
+      const subscription = await this.registration?.pushManager?.getSubscription();
+      if (sequence !== this.generation) return;
       const local = this.store
         .listBindings()
         .find(
@@ -351,6 +362,13 @@ export class WebPushService {
           this.serverSettings.set(settings);
           this.deviceStatus.set('disabled');
           this.deviceMessage.set('Push ist derzeit nicht freigegeben.');
+          return false;
+        }
+        if (!settings.allowedCategories.length) {
+          this.deviceStatus.set('disabled');
+          this.deviceMessage.set(
+            'Push ist in diesem Arbeitsbereich nicht verfügbar. Wähle einen aktiven Arbeitsbereich.',
+          );
           return false;
         }
         if (permissionsChanged || selectionAdjusted) {

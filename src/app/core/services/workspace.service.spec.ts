@@ -50,6 +50,28 @@ describe('Multi-Workspace & Holding Consolidation Service', () => {
       return { workspaceService, order, update, eq, single, syncStatus, currentUser };
     }
 
+    it('wählt auf einem neuen Gerät den ersten nicht archivierten Workspace', async () => {
+      const { workspaceService, order } = setupWorkspaceLifecycle();
+      const archived = { ...incompleteWorkspace, archived_at: '2026-10-01T12:00:00Z' };
+      const active = { ...incompleteWorkspace, id: 'active-workspace' };
+      order.mockResolvedValueOnce({ data: [archived, active], error: null });
+
+      await workspaceService.ensureLoaded();
+
+      expect(workspaceService.currentWorkspace()).toEqual(active);
+      expect(workspaceService.workspaces()).toEqual([archived, active]);
+    });
+
+    it('lässt ausschließlich archivierte Workspaces weiter zum Lesen öffnen', async () => {
+      const { workspaceService, order } = setupWorkspaceLifecycle();
+      const archived = { ...incompleteWorkspace, archived_at: '2026-10-01T12:00:00Z' };
+      order.mockResolvedValueOnce({ data: [archived], error: null });
+
+      await workspaceService.ensureLoaded();
+
+      expect(workspaceService.currentWorkspace()).toEqual(archived);
+    });
+
     it('lädt beim direkten Kontowechsel neue Workspaces statt den bisherigen Cache zu verwenden', async () => {
       const { workspaceService, order, currentUser } = setupWorkspaceLifecycle();
       await workspaceService.ensureLoaded();

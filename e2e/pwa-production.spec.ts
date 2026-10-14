@@ -78,7 +78,7 @@ test('corrupted chunk fails visibly and is not replaced by a mismatched file @wo
 test('a real second build waits for an unsaved second window before activation @worker', async ({
   page,
   context,
-}) => {
+}, testInfo) => {
   const { mockMarketplace } = await import('./support/marketplace-account-fixture');
   const configure = (target: typeof page) =>
     mockMarketplace(
@@ -93,6 +93,12 @@ test('a real second build waits for an unsaved second window before activation @
       undefined,
       { origin: 'https://api.flipbase.de', userId: '25000000-0000-4000-8000-000000000001' },
     );
+  const pressUpdate = async (target: typeof page) => {
+    await target.bringToFront();
+    const button = target.getByRole('button', { name: 'Jetzt aktualisieren' });
+    if (testInfo.project.use.hasTouch) await button.tap();
+    else await button.click();
+  };
   await configure(page);
   await page.goto('/settings/notifications');
   await expect
@@ -108,7 +114,7 @@ test('a real second build waits for an unsaved second window before activation @
   try {
     await page.evaluate(async () => (await navigator.serviceWorker.getRegistration('/'))?.update());
     await expect(page.getByRole('button', { name: 'Jetzt aktualisieren' })).toBeVisible();
-    await page.getByRole('button', { name: 'Jetzt aktualisieren' }).click();
+    await pressUpdate(page);
     await expect(page.getByRole('region', { name: 'App aktualisieren' })).toContainText(
       /offen|gespeichert|blockiert|schließe andere Flipbase/,
     );
@@ -120,14 +126,15 @@ test('a real second build waits for an unsaved second window before activation @
     const unchanged = await context.newPage();
     await configure(unchanged);
     await unchanged.goto('/settings/notifications');
-    await page.getByRole('button', { name: 'Jetzt aktualisieren' }).click();
+    await expect(unchanged.getByRole('heading', { name: 'Push-Benachrichtigungen' })).toBeVisible();
+    await pressUpdate(page);
     await expect(page.locator('html')).not.toHaveAttribute('data-flipbase-build', oldBuild ?? '');
     await expect(page.getByRole('heading', { name: 'Push-Benachrichtigungen' })).toBeVisible();
     await expect(page.getByRole('region', { name: 'App aktualisieren' })).toHaveCount(0);
     // Andere sichere Ansichten behalten ihre alten Chunks bis zum eigenen Neustart.
     await expect(unchanged.locator('html')).toHaveAttribute('data-flipbase-build', oldBuild ?? '');
     await expect(unchanged.getByRole('button', { name: 'Jetzt aktualisieren' })).toBeVisible();
-    await unchanged.getByRole('button', { name: 'Jetzt aktualisieren' }).click();
+    await pressUpdate(unchanged);
     await expect(unchanged.locator('html')).not.toHaveAttribute(
       'data-flipbase-build',
       oldBuild ?? '',

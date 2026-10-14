@@ -187,15 +187,19 @@ export class WorkspaceService {
             storedId = localStorage.getItem(ACTIVE_WORKSPACE_KEY);
           }
         } catch {}
-        const match = loadedWorkspaces.find((w) => w.id === storedId);
+        const match = loadedWorkspaces.find((w) => w.id === storedId && !w.archived_at);
 
         if (match) {
           this.currentWorkspace.set(match);
         } else {
-          this.currentWorkspace.set(loadedWorkspaces[0]);
+          // Neue Geräte und Neustarts sollen im laufenden Arbeitsbereich starten.
+          // Archivierte Workspaces bleiben in der Liste zum Lesen verfügbar.
+          const initialWorkspace =
+            loadedWorkspaces.find((workspace) => !workspace.archived_at) ?? loadedWorkspaces[0];
+          this.currentWorkspace.set(initialWorkspace);
           try {
             if (typeof localStorage !== 'undefined') {
-              localStorage.setItem(ACTIVE_WORKSPACE_KEY, loadedWorkspaces[0].id);
+              localStorage.setItem(ACTIVE_WORKSPACE_KEY, initialWorkspace.id);
             }
           } catch {}
         }
