@@ -1,5 +1,18 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-14 - Juna - Push-Aktivierungsfix als PR veröffentlichen
+
+**Freigabe:** Der Nutzer autorisiert PR-Erstellung und Merge nach vollständig
+grünen Pflichtprüfungen. Der eigene Zweig `juna/mobile-update-push-activation`
+enthält den lokal geprüften Fix `316034ff` auf Basis von `7dc53c55`.
+
+**Abschluss:** Die nachfolgenden Regressionen, 147 gezielte Tests, 31
+Worker-Prüfungen, vier Desktop-/Android-Updatefälle, Produktionsbau, Format,
+Lint, Typprüfung und Suite-Audit sind bestanden. Der PR durchläuft die
+verbindlichen Prüfungen; danach werden Merge, öffentliche Auslieferung und
+Push-Gesundheit geprüft und ausschließlich der eigene Zweig aufgeräumt.
+Die auf dem echten Handy gemeldete Schleife ist weiterhin nicht nachgestellt.
+
 ## 2026-10-14 - Juna - Mobile Update- und Push-Probleme erneut eingrenzen
 
 **Auftrag:** Android bleibt laut Nutzer auf 0.348.0 und bietet nach dem
