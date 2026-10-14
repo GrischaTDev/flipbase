@@ -117,10 +117,22 @@ test('a real second build waits for an unsaved second window before activation @
     );
     await expect(other.getByLabel('Verkäuferangabe, falls bekannt')).toHaveValue('Ungespeichert');
     await other.close();
+    const unchanged = await context.newPage();
+    await configure(unchanged);
+    await unchanged.goto('/settings/app');
     await page.getByRole('button', { name: 'Jetzt aktualisieren' }).click();
     await expect(page.locator('html')).not.toHaveAttribute('data-flipbase-build', oldBuild ?? '');
     await expect(page.getByRole('heading', { name: 'Progressive Web App (PWA)' })).toBeVisible();
     await expect(page.getByRole('region', { name: 'App aktualisieren' })).toHaveCount(0);
+    // Andere sichere Ansichten behalten ihre alten Chunks bis zum eigenen Neustart.
+    await expect(unchanged.locator('html')).toHaveAttribute('data-flipbase-build', oldBuild ?? '');
+    await unchanged.reload();
+    await expect(unchanged.locator('html')).not.toHaveAttribute(
+      'data-flipbase-build',
+      oldBuild ?? '',
+    );
+    await expect(unchanged.getByRole('region', { name: 'App aktualisieren' })).toHaveCount(0);
+    await unchanged.close();
     await page.reload();
     await expect(page.getByRole('region', { name: 'App aktualisieren' })).toHaveCount(0);
   } finally {

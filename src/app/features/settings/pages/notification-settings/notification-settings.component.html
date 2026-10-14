@@ -1,89 +1,118 @@
 <div class="space-y-5">
-  <section
-    class="linear-surface space-y-4 rounded-2xl border border-fb-border p-5"
-    aria-labelledby="push-heading"
-  >
-    <h2 id="push-heading" class="text-base font-semibold text-fb-text-primary">
-      Push auf diesem Gerät
-    </h2>
-    <p class="text-sm text-fb-text-secondary">
-      Neue Nachrichten, Bestellungen, Favoriten und Kontoprobleme können auch bei geschlossener App
-      angezeigt werden. Die Meldungen enthalten keine Kundendaten oder Nachrichtentexte.
-    </p>
-    <p class="text-sm text-fb-text-secondary">
-      Jeder Browser hat seine eigene Registrierung. Windows Chrome und Edge brauchen keine
-      App-Installation. Auf dem iPad aktivierst du Benachrichtigungen in der Home-Bildschirm-App.
-    </p>
-    <p class="text-sm text-fb-text-secondary">
-      Wähle deine Kategorien und aktiviere dieses Gerät. Mit „Dieses Gerät deaktivieren“ schaltest
-      du seine Benachrichtigungen aus.
-    </p>
-    <p role="status" class="text-sm text-fb-text-secondary">{{ pushStatusText() }}</p>
-    @if (webPushService.deviceMessage()) {
-      <p class="text-sm text-fb-text-muted">{{ webPushService.deviceMessage() }}</p>
-    }
-    @if (webPushService.deviceStatus() === 'home_app_required') {
-      <p class="text-sm text-fb-text-secondary">
-        Öffne Flipbase in Safari, wähle im Teilen-Menü „Zum Home-Bildschirm“ und starte die App über
-        das neue Symbol. Aktiviere Push dort.
-      </p>
-    }
-    @if (webPushService.deviceStatus() === 'denied') {
-      <p class="text-sm text-fb-text-secondary">
-        Erlaube Benachrichtigungen für Flipbase in deinen Browser- oder Geräteeinstellungen. Danach
-        kannst du hier erneut prüfen.
-      </p>
-    }
-    <div class="flex flex-wrap gap-2">
-      @if (!webPushService.isActive()) {
+  <app-card padding="lg">
+    <section class="space-y-6" aria-labelledby="push-heading">
+      <div class="flex items-start justify-between gap-4">
+        <div class="space-y-2">
+          <h2 id="push-heading" class="text-lg font-semibold text-fb-text-primary">
+            Push-Benachrichtigungen
+          </h2>
+          <p role="status" class="text-sm text-fb-text-secondary">{{ pushStatusText() }}</p>
+        </div>
         <app-button
-          variant="primary"
-          [wrapLabel]="true"
-          [loading]="webPushService.isBusy()"
-          [disabled]="!webPushService.canActivate()"
-          (clicked)="onRequestPushPermission()"
-          >Benachrichtigungen auf diesem Gerät aktivieren</app-button
+          variant="ghost"
+          size="touch"
+          [icon]="infoIcon"
+          [iconOnly]="true"
+          ariaLabel="Infos zu Push-Benachrichtigungen"
+          [ariaExpanded]="showPushHelp()"
+          ariaControls="push-help"
+          (clicked)="showPushHelp.update(toggleHelp)"
         >
-        <app-button [disabled]="webPushService.isBusy()" (clicked)="webPushService.refreshDevice()"
-          >Erneut prüfen</app-button
-        >
-      } @else {
-        <app-button
-          [loading]="isTestingPush()"
-          [disabled]="webPushService.isBusy()"
-          (clicked)="onTestWebPush()"
-          >Testbenachrichtigung senden</app-button
-        >
+        </app-button>
+      </div>
+      @if (showPushHelp()) {
+        <div id="push-help" class="space-y-2 text-sm text-fb-text-secondary">
+          <p>
+            Du erhältst Systemmeldungen auch bei geschlossener App. Aktiviere jedes Gerät einzeln.
+          </p>
+          <p>
+            Auf dem iPad brauchst du die Home-Bildschirm-App. Ton und „Nicht stören“ steuerst du in
+            deinen Geräteeinstellungen.
+          </p>
+          <p>
+            Neue Kategorien bleiben aus, bis du sie auswählst. Meldungen vor der Aktivierung werden
+            nicht nachträglich gesendet.
+          </p>
+        </div>
       }
-      @if (webPushService.canDeactivate()) {
-        <app-button [disabled]="webPushService.isBusy()" (clicked)="onDeactivateDevice()"
-          >Dieses Gerät deaktivieren</app-button
-        >
+      @if (webPushService.deviceMessage() && pushNeedsAttention()) {
+        <p class="text-sm text-fb-text-secondary">{{ webPushService.deviceMessage() }}</p>
       }
-    </div>
-    <fieldset class="space-y-3 border-t border-fb-border pt-4" [disabled]="webPushService.isBusy()">
-      <legend class="text-sm font-semibold text-fb-text-primary">
-        Kategorien für diesen Workspace
-      </legend>
-      <div class="grid gap-3">
-        @for (category of pushCategories; track category.key) {
-          @if (webPushService.allowedCategories().includes(category.key)) {
-            <app-custom-checkbox
-              [checked]="webPushService.categories().includes(category.key)"
-              [label]="category.label"
-              [ariaLabel]="category.label"
-              [disabled]="webPushService.isBusy()"
-              (checkedChange)="onToggleCategory(category.key, $event)"
-            />
-          }
+      @if (webPushService.deviceStatus() === 'home_app_required') {
+        <p class="text-sm text-fb-text-secondary">
+          In Safari: Teilen → Zum Home-Bildschirm. Öffne Flipbase anschließend über das neue Symbol.
+        </p>
+      }
+      @if (webPushService.deviceStatus() === 'denied') {
+        <p class="text-sm text-fb-text-secondary">
+          Erlaube Flipbase-Benachrichtigungen in deinen Browser- oder Geräteeinstellungen.
+        </p>
+      }
+      @if (webPushService.isActive() && webPushService.categories().length === 0) {
+        <p class="text-sm text-fb-text-secondary">Alle Kategorien sind ausgeschaltet.</p>
+      }
+      <div class="grid gap-3 sm:flex sm:flex-wrap">
+        @if (!webPushService.isActive()) {
+          <app-button
+            variant="primary"
+            size="touch"
+            [fullWidth]="true"
+            [wrapLabel]="true"
+            [loading]="webPushService.isBusy()"
+            [disabled]="!webPushService.canActivate()"
+            (clicked)="onRequestPushPermission()"
+            >Push aktivieren</app-button
+          >
+          <app-button
+            size="touch"
+            [fullWidth]="true"
+            [disabled]="webPushService.isBusy()"
+            (clicked)="webPushService.refreshDevice()"
+            >Erneut prüfen</app-button
+          >
+        } @else {
+          <app-button
+            size="touch"
+            [fullWidth]="true"
+            [icon]="sendIcon"
+            [loading]="isTestingPush()"
+            [disabled]="webPushService.isBusy()"
+            (clicked)="onTestWebPush()"
+            >Test senden</app-button
+          >
+        }
+        @if (webPushService.canDeactivate()) {
+          <app-button
+            size="touch"
+            [fullWidth]="true"
+            [disabled]="webPushService.isBusy()"
+            (clicked)="onDeactivateDevice()"
+            >Push deaktivieren</app-button
+          >
         }
       </div>
-      <p class="text-xs text-fb-text-muted">
-        Neue Kategorien bleiben aus, bis du sie auswählst. Ton und „Nicht stören“ steuerst du in
-        deinen Geräteeinstellungen.
-      </p>
-    </fieldset>
-  </section>
+      <fieldset class="space-y-4" [disabled]="webPushService.isBusy()">
+        <legend class="mb-3 text-sm font-semibold text-fb-text-primary">
+          Benachrichtige mich bei
+        </legend>
+        <div class="grid gap-3 sm:grid-cols-2">
+          @for (category of pushCategories; track category.key) {
+            @if (webPushService.allowedCategories().includes(category.key)) {
+              <app-custom-checkbox
+                presentation="row"
+                size="lg"
+                [checked]="webPushService.categories().includes(category.key)"
+                [label]="category.label"
+                [ariaLabel]="category.label"
+                [disabled]="webPushService.isBusy()"
+                (checkedChange)="onToggleCategory(category.key, $event)"
+              />
+            }
+          }
+        </div>
+      </fieldset>
+    </section>
+  </app-card>
   <form
     [formGroup]="webhookForm"
     (ngSubmit)="onSaveWebhookConfig()"

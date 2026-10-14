@@ -145,3 +145,39 @@ test('a reloaded document receives the active build while the old document keeps
     '<html>build-a</html>',
   );
 });
+
+for (const resultingClientId of ['', 'old-document']) {
+  test(`navigation leaves the previous build even without a fresh document ID (${resultingClientId || 'missing'})`, async () => {
+    const worker = createWorker();
+    await worker.dispatch('install');
+    const previousId = 'b'.repeat(64);
+    const previousHtml = '<html>old-build</html>';
+    const { createHash } = await import('node:crypto');
+    const previous = await worker.caches.open(`flipbase-app-${previousId}`);
+    await previous.put('/index.html', new Response(previousHtml));
+    await previous.put(
+      '/pwa-assets.json',
+      Response.json({
+        version: 1,
+        buildId: previousId,
+        assets: [
+          { url: '/index.html', sha256: createHash('sha256').update(previousHtml).digest('hex') },
+        ],
+      }),
+    );
+    const bindings = await worker.caches.open('flipbase-pwa-clients');
+    await bindings.put('/__pwa_clients/old-document', new Response(previousId));
+    await bindings.put('/__pwa_clients/other-document', new Response(previousId));
+    assert.equal(
+      await (
+        await worker.request('navigate:/settings/notifications', 'old-document', resultingClientId)
+      ).text(),
+      '<html>build-a</html>',
+    );
+    assert.equal(await (await worker.request('/chunk-A1.js', 'old-document')).text(), 'lazy-a');
+    assert.equal(
+      await (await worker.request('/index.html', 'other-document')).text(),
+      previousHtml,
+    );
+  });
+}

@@ -1632,7 +1632,7 @@ describe('Benachrichtigungseinstellungen – echte Angular-Fixture', () => {
     async (permissionResult, type, title, description) => {
       const { fixture, webPushService, toast } = await renderNotifications({ permissionResult });
 
-      renderedButton(fixture, 'Benachrichtigungen auf diesem Gerät aktivieren').click();
+      renderedButton(fixture, 'Push aktivieren').click();
       await flushAsyncAction(fixture);
 
       expect(webPushService.requestPermission).toHaveBeenCalledOnce();
@@ -1656,7 +1656,7 @@ describe('Benachrichtigungseinstellungen – echte Angular-Fixture', () => {
         pushTestResult,
       });
 
-      renderedButton(fixture, 'Testbenachrichtigung senden').click();
+      renderedButton(fixture, 'Test senden').click();
       await flushAsyncAction(fixture);
 
       expect(webPushService.sendTestNotification).toHaveBeenCalledOnce();

@@ -1,5 +1,54 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-14 - Juna - Versionswechsel und System-Push prüfen, Einstellungen vereinfachen
+
+**Auftrag:** Wiederkehrenden Update-Hinweis auf dem iPad untersuchen, ausbleibende
+Systemmeldungen auf Android prüfen und die Push-Einstellungen mit weniger Text
+und größeren Bedienelementen gestalten. Eigener Zweig ab `origin/master`;
+vorhandene fremde Analysedateien unverändert.
+
+**Befund:** PR401 führte PWA/Push ein; PR408 ergänzte Geräteaktivierung und
+Favoriten, PR410 die native Darstellung. Die laufende Produktion entspricht
+Commit `382bf13c`. Ausschließlich lesende Serverprüfung: 21 angenommene Sendungen,
+keine wartenden Aufträge oder Versandfehler. Die letzten echten Nachrichten und
+Favoriten erreichten zwei registrierte Geräte; eine dritte Registrierung entstand
+erst um 17:49 Uhr nach diesen Ereignissen und erhielt anschließend Testmeldungen.
+Die Zuordnung dieser Registrierung zum Handy ist nicht unabhängig bestätigt.
+Die Glocke allein belegt keine Systemzustellung; Anbieterannahme ebenfalls nicht.
+
+**Änderung:** Zwei zuerst fehlgeschlagene Workerprüfungen reproduzieren den
+Rückfall auf alte App-Dateien, wenn beim Neustart eine neue Dokumentkennung fehlt
+oder wiederverwendet wird. Navigation lädt nun den aktivierten Bau und bindet nur
+das neu geladene Dokument daran; andere offene Ansichten behalten ihre alten
+Chunks. Die vorhandene Zustimmung aller Fenster und der Schutz offener Eingaben
+bleiben bestehen. Der reale Mehrfenstertest prüft außerdem den späteren Neustart
+eines zunächst unveränderten zweiten Fensters ohne wiederkehrenden Update-Hinweis.
+
+**System-Push:** Der bestehende Sender verwendet normale Priorität, die auf
+ruhenden Geräten verzögert werden darf. Ein zuerst fehlgeschlagener Test prüft
+den tatsächlich erzeugten Web-Push-Header. Sichtbare Meldungen fordern jetzt
+`Urgency: high` an; Verschlüsselung, Ablauf, Rechte und Kategorien bleiben erhalten.
+Kein neuer Produktionsversand, keine Änderung von Freigaben oder Schlüsseln.
+Die genaue Ursache der gemeldeten fehlenden Android-Banner ist damit noch nicht
+am Gerät bestätigt. Die echte gesperrte Geräteabnahme ist dokumentiert.
+
+**Oberfläche:** Push steht weiterhin vor Webhooks. Kurze Aktionen, gemeinsame
+44-px-Touchbuttons, vollständig bedienbare 64-px-Kategoriezeilen und aufklappbare
+Infohilfe ersetzen die technische Textwand. Ein bewusst leerer Kategorienstand
+bleibt erkennbar. Die gemeinsamen bisherigen Größen bleiben unverändert.
+
+**Prüfung:** 131 gezielte Angularfälle, 30 PWA-Skriptprüfungen und alle 21
+Versanddiensttests bestanden; Diensttypen und Dienstbau ebenfalls erfolgreich.
+Echte Produktionsbauten mit 263 geprüften App-Dateien erfolgreich. Vier
+Chromium-PWA-Abläufe prüfen Offline-Dateien, Beschädigung, Mehrfenster-Update und
+Altworker-Übergang. Oberfläche in Chromium und WebKit geprüft: Aktivierung,
+Kategorienauswahl, Infohilfe, 360/390/1024/1280 px, vergrößerte Schrift und AXE
+einschließlich Kontrast in beiden Themes; keine ungefangenen Seitenfehler.
+Der Kontrasttest wartet auf das Ende der Farbtransition beim Theme-Wechsel.
+Format, gezieltes Lint, Anwendungstypen, Shared-UI-Prüfung und Suite-Audit erfolgreich.
+Bestehende Buildhinweise zu Bundlegröße, RouterLink und pako bleiben vorhanden.
+Keine echte iPad-Worker- oder native Systembanner-Abnahme behauptet.
+
 ## 2026-10-14 - Juna - Freigegebenen Startseitenentwurf über PR abschließen
 
 **Auftrag:** Den geprüften Entwurf pushen, nach erfolgreichen Pflichtprüfungen
