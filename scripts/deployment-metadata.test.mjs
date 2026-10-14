@@ -245,16 +245,17 @@ test('bestätigt Landingpage, lokale Formularlogik und passende CSP', async () =
         response.end(
           '<!doctype html><link rel="canonical" href="https://flipbase.de/" />' +
             '<script src="landing.js" defer></script>' +
+            '<script src="beta-application.js" defer></script>' +
             '<script src="analytics-consent.js" defer></script>',
         );
         return;
       }
-      if (request.url === '/landing.js') {
+      if (request.url === '/beta-application.js') {
         response.writeHead(200, { 'content-type': 'text/javascript' });
         response.end("var ENDPOINT = 'https://api.flipbase.de/functions/v1/beta-application';");
         return;
       }
-      if (request.url === '/analytics-consent.js') {
+      if (request.url === '/landing.js' || request.url === '/analytics-consent.js') {
         response.writeHead(200, { 'content-type': 'text/javascript' });
         response.end('');
         return;
@@ -281,6 +282,41 @@ test('bestätigt Landingpage, lokale Formularlogik und passende CSP', async () =
       ]);
 
       assert.match(stdout, /Landingpage und Formularskript sind öffentlich nutzbar/u);
+    },
+  );
+});
+
+test('stoppt, wenn das ausgelagerte Beta-Formularskript fehlt', async () => {
+  await withServer(
+    (request, response) => {
+      if (request.url === '/') {
+        response.writeHead(200, {
+          'content-type': 'text/html',
+          'content-security-policy': "default-src 'self'; script-src 'self'; object-src 'none'",
+        });
+        response.end(
+          '<!doctype html><link rel="canonical" href="https://flipbase.de/" />' +
+            '<script src="landing.js" defer></script>' +
+            '<script src="beta-application.js" defer></script>' +
+            '<script src="analytics-consent.js" defer></script>',
+        );
+      } else if (request.url === '/landing.js') {
+        response.writeHead(200, { 'content-type': 'text/javascript' }).end('');
+      } else {
+        response.writeHead(404).end();
+      }
+    },
+    async (baseUrl) => {
+      await assert.rejects(
+        execFileAsync(process.execPath, [
+          verifyLandingScript,
+          '--base-url',
+          baseUrl,
+          '--attempts',
+          '1',
+        ]),
+        /Formularskript antwortet mit HTTP 404 statt 200/u,
+      );
     },
   );
 });

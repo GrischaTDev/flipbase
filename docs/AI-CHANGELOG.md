@@ -1,5 +1,94 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-14 - Juna - Freigegebenen Startseitenentwurf über PR abschließen
+
+**Auftrag:** Den geprüften Entwurf pushen, nach erfolgreichen Pflichtprüfungen
+per Merge-Commit integrieren und den zugehörigen Zweig samt Worktree aufräumen.
+
+**Änderung:** Die Auslieferungsprüfung und der vorhandene CSP-Vertrag erwarten
+jetzt das gemeinsam verwendete `beta-application.js`. Eine fehlende Formular-Datei
+wird weiterhin als fehlgeschlagene Veröffentlichung erkannt. Der freigegebene
+Gestaltungsstand liegt unter `/preview/` mit `noindex, nofollow`; die bestehende
+Startseite unter `/` wird gestalterisch nicht ersetzt.
+
+**Lokale Prüfung:** 51 Landingpage-, 10 Auslieferungs- und 9 CSP-/Vorlagenprüfungen
+bestanden. Geänderte Dateien formatiert und gelintet; Git-Differenz ohne Fehler.
+
+## 2026-10-14 - Juna - Startseitenentwurf vervollständigen und Darkmode ergänzen
+
+**Auftrag:** Die restliche Startseite im bestätigten Flipbase-Stil mit eigenen
+Funktionen, passenden Animationen und erneutem Darkmode ausbauen.
+
+**Änderung:** Die Vorschau enthält zusätzlich animierte Vinted-Funde,
+Inseratsvorbereitung und Betriebsausgaben, einen bedienbaren Bildzuschnitt,
+Workspaces, geplante Pakete, acht FAQ-Antworten und die Beta-Bewerbung. Inhalte
+und vorläufige Preise stammen aus der bestehenden Landingpage. Illustrationen
+sind als Beispiele gekennzeichnet; spätere Paketleistungen bleiben als geplant
+markiert. Header über die volle Breite, Inter und Logo-Gelb bleiben erhalten.
+
+**Bedienung:** Darkmode für alle Seiten- und Produktflächen, Systemvorgabe und
+gespeicherte Auswahl über den vorhandenen Präferenzschlüssel. Mobiles Menü mit
+Tastaturbedienung. Neue Animationen laufen nur im sichtbaren Bereich und stoppen
+bei Pause, verborgenem Tab oder reduzierter Systembewegung. Ohne JavaScript
+bleiben Inhalte lesbar. Die Formularlogik wurde unverändert in ein gemeinsames
+Skript verschoben; die Vorschau aktiviert ihren Senden-Button erst damit.
+
+**Prüfung:** 51 Landingpage-Tests bestanden, einschließlich Farbauswahl, Navigation,
+Zuschnitt, Animationssteuerung sowie Formularvalidierung, Doppelversand-Sperre und
+Fehlerfällen. Formatierung, JavaScript-Lint und Git-Differenz geprüft. Im Browser
+1440, 768, 390 und 320 Pixel ohne horizontalen Überlauf; beide Farbmodi, FAQ,
+Bildzuschnitt, Menü und Dialog-Tastaturfokus bedient. Axe meldet keine Verstöße;
+einzelne Kontrastprüfungen im mobilen beziehungsweise modalen Zustand bleiben
+automatisch unbestimmt. Erfolgsdialog ausschließlich mit simulierter Antwort
+geprüft, keine echte Bewerbung versendet. Belege außerhalb des Repos. Die Seite
+bleibt eine lokale Vorschau mit `noindex, nofollow`; keine Veröffentlichung.
+
+## 2026-10-14 - Juna - Landingpage-Entwurf an den eigenen Flipbase-Stil angleichen
+
+**Auftrag:** Die eigene Gestaltung stärker beibehalten, insbesondere den Header
+direkt oben über die gesamte Breite und die vorhandene Flipbase-Typografie.
+
+**Befund:** Anwendung, bestehende Landingpage und Entwurf laden bereits Inter.
+Der Entwurf wich vor allem durch Schriftgewicht 500, engen Zeilenabstand,
+zentrierte Überschriften und den schwebenden Header sichtbar von Flipbase ab.
+
+**Änderung:** Header mit voller Breite bei `top: 0`, ausgerichtetem Innenbereich
+und unterer Trennlinie. Überschriften mit dem bestehenden Schriftgewicht 800,
+Flipbase-Zeilenabständen, linksbündigem Hero und gelber Texthervorhebung.
+Neutrale Flipbase-Flächen und Karten mit 12-px-Radius ersetzen die bisherigen
+pastellfarbenen Flächen und mehrfachen Rahmen. Die vorhandenen Animationen und
+der bedienbare Ablauf bleiben erhalten.
+
+**Prüfung:** 44 Landingpage-Tests bestanden; Formatierung und Git-Differenz
+geprüft. Header und Schrift im Browser vermessen, Desktop sowie 390 und 320 Pixel
+ohne horizontale Überläufe geprüft. Ablauf per Maus und Pfeiltaste bedient;
+keine Browserfehler und keine gemeldeten axe-Verstöße. Keine Veröffentlichung.
+
+## 2026-10-14 - Juna - Ersten Vintz-nahen Landingpage-Entwurf für Flipbase bauen
+
+**Auftrag:** Hero, animierte Funktionskarte und Ablaufbeispiel mit hoher Nähe zur
+untersuchten Vintz-Startseite, Flipbase-Gelb und eigenen Funktionen umsetzen.
+
+**Änderung:** Eigene statische Vorschau unter `landing/preview/` im Zweig
+`juna/vintz-landing-draft`: schwebende Navigation, zentrierter Hero mit illustrativer
+Geschäftsübersicht, animierte Gewinnrechnung und ein bedienbarer Ablauf von Einkauf
+über Bestand bis Verkauf. Eigene SVG-Artikelillustration, lokale Schrift und
+vorhandenes Logo. Alle Zahlen sind als Beispiele gekennzeichnet. Die Beta-Links
+führen zum bestehenden Bewerbungsformular; die Vorschau trägt `noindex, nofollow`.
+
+**Bewegung:** Animationen laufen nur im sichtbaren Bereich und bei sichtbarem Tab.
+Eine gemeinsame Pause und reduzierte Systembewegung zeigen die vollständige
+Rechnung. Manuelle Schrittauswahl sowie Tastaturfokus stoppen den automatischen
+Ablauf bis zum erneuten Start. Ohne JavaScript bleiben die drei Schritte lesbar.
+
+**Prüfung:** 44 Landingpage-Tests einschließlich fünf neuer Vorschauprüfungen.
+Desktop- und Mobilprüfung bei 320, 390, 768 und 1440 Pixeln ohne horizontale
+Überläufe; Schritte per Maus und Pfeiltasten, Animation, Pause und reduzierte
+Bewegung geprüft. Automatische axe-Prüfung ohne gemeldete Verstöße; Kontrastfälle
+auf den illustrierten Flächen ergänzend anhand der verwendeten Farben beurteilt.
+Formatierung, JavaScript-Syntax, ESLint und Git-Differenz geprüft. Keine
+Angular-Änderung, kein Deployment. Browserbelege liegen außerhalb des Repos.
+
 ## 2026-10-14 - Juna - Neue Vinted-Cloudkonten ohne erneuten Einrichtungsstart abschließen
 
 **Auftrag:** Fehlermeldung nach erfolgreicher IP-Nachbuchung, Browseransicht statt

@@ -11,7 +11,10 @@ const landingPath = path.join(landingDirectory, 'index.html');
 const landingScriptPath = path.join(landingDirectory, 'landing.js');
 const analyticsScriptPath = path.join(landingDirectory, 'analytics-consent.js');
 const html = await readFile(landingPath, 'utf8');
-const landingScript = await readFile(landingScriptPath, 'utf8');
+const landingScript =
+  (await readFile(landingScriptPath, 'utf8')) +
+  '\n' +
+  (await readFile(path.join(landingDirectory, 'beta-application.js'), 'utf8'));
 const analyticsScript = await readFile(analyticsScriptPath, 'utf8');
 const normalizedHtml = html.replace(/\s+/gu, ' ');
 const packageJson = JSON.parse(await readFile(path.join(repositoryRoot, 'package.json'), 'utf8'));
@@ -396,7 +399,10 @@ const themeTokenSets = [
 ];
 
 test('runs the landing contract immediately before the production build', () => {
-  assert.equal(packageJson.scripts?.['test:landing'], 'node --test scripts/landing-page.test.mjs');
+  assert.equal(
+    packageJson.scripts?.['test:landing'],
+    'node --test scripts/landing-page.test.mjs scripts/landing-preview.test.mjs',
+  );
   const verifySteps = packageJson.scripts?.verify?.split(' && ') ?? [];
   const landingStep = verifySteps.indexOf('npm run test:landing');
 
@@ -685,7 +691,7 @@ test('loads only local deferred scripts and keeps native toggle controls', () =>
   const scripts = extractStartTags(html, 'script');
   assert.deepEqual(
     scripts.map((script) => attribute(script, 'src')),
-    ['landing.js', 'analytics-consent.js'],
+    ['landing.js', 'beta-application.js', 'analytics-consent.js'],
   );
   for (const script of scripts) assert.match(script, /\bdefer\b/iu);
 
