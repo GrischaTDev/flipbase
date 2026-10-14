@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Flipbase Listing-Assistent",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "description": "Verbindet Dein Vinted-Postfach mit Flipbase und unterstützt Kleinanzeigen-Inserate.",
   "icons": {
     "16": "images/flipbase-mark-16.png",
