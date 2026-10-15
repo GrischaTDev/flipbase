@@ -69,6 +69,22 @@ gezieltes Lint und der Produktionsbau bestehen ebenfalls. Im ersten lokalen
 Nachlauf war ein Desktopfall durch das Neuladen während des parallelen Baus
 unterbrochen worden; bei ruhender Vorschau besteht derselbe unveränderte Test.
 
+**PWA-Teststeuerung:** Die aktuelle CI besteht alle 143 Browserfälle und alle
+weiteren Pflichtprüfungen, hängt aber zweimal im bestehenden Android-PWA-Fall
+beim Aufruf von `registration.update()`, noch vor dem Einfrieren der zweiten
+Ansicht. Unter Windows besteht der unveränderte Fall. Eine isolierte Linux-
+Umgebung mit derselben Playwright-Version und zwei CPU-Kernen stellt den
+gleichen Hänger nach. Der separate Testbrowser wird deshalb direkt gestartet
+und nur einmal über CDP gesteuert; vorher waren gleichzeitig zwei
+Playwright-Verbindungen angehängt. Der Standardkontext behält seine echten
+Sichtbarkeits- und Lebenszykluszustände. Browser und temporäres Profil werden
+anschließend geschlossen und entfernt. Die unveränderte Prüfung besteht mit
+dieser Teststeuerung zehnmal unter Linux und dreimal unter Windows. Mit dem
+Worker vor der früheren Hintergrundansicht-Korrektur scheitert sie weiterhin
+gezielt am ausbleibenden Versionswechsel. Produktiver Worker, Update-Schutz
+und Testbedingungen werden nicht geändert. Formatierung und gezieltes ESLint
+bestehen.
+
 ## 2026-10-15 - Juna - Update der installierten Android-App untersuchen
 
 **Auftrag:** Das iPad ist laut Nutzer erfolgreich aktualisiert und für Push
