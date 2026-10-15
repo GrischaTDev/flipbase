@@ -201,12 +201,14 @@ test('installed app updates while a frozen background view keeps unsaved entries
     await expect.poll(() => background.evaluate(() => document.visibilityState)).toBe('hidden');
     const session = await context.newCDPSession(background);
     backgroundSession = session;
-    await session.send('Page.setWebLifecycleState', { state: 'frozen' });
     await page.request.post(`${origin}/api/__pwa_test__/build`);
     switchedBuild = true;
     await page.evaluate(async () => (await navigator.serviceWorker.getRegistration('/'))?.update());
     const update = page.getByRole('button', { name: 'Jetzt aktualisieren' });
     await expect(update).toBeVisible();
+    // Erst den wartenden Worker installieren: Linux-Chromium kann sonst bereits
+    // dessen update()-Aufruf bei eingefrorenen Dokumenten unbegrenzt zurückhalten.
+    await session.send('Page.setWebLifecycleState', { state: 'frozen' });
     // Der echte Standardkontext hat keine Playwright-Touch-Vorgabe; Chromium erhält Touch direkt.
     const bounds = await update.boundingBox();
     if (!bounds) throw new Error('Aktualisieren-Button fehlt.');

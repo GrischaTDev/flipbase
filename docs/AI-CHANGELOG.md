@@ -40,6 +40,17 @@ grünen Pflichtprüfungen bereits freigegeben. Vor dem Push wird die inzwischen
 veröffentlichte unabhängige Vinted-Korrektur aus `origin/master` integriert.
 Fremde Zweige und unversionierte Auditdateien bleiben erhalten.
 
+**CI-Nachprüfung:** Im ersten PR-Lauf bestehen alle Anwendungstests, die
+Qualitätsprüfung, 116 allgemeine Browserfälle und 40 PWA-Skriptprüfungen.
+Der neue Linux-Browserfall wartet jedoch schon vor dem Updateklick unbegrenzt
+auf `registration.update()`, wenn die andere Seite vorher eingefroren wurde.
+Die Aufzeichnung bestätigt sichtbare Hauptseite und verborgenen Hintergrund.
+Der Test stellt deshalb zuerst den wartenden neuen Worker bereit und friert
+die Hintergrundseite unmittelbar vor dem eigentlichen Updateklick ein.
+Damit bleibt genau die fehlerhafte Aktivierungsbarriere geprüft. Auch dieser
+Ablauf scheitert mit dem bisherigen Worker und besteht mit der Korrektur
+dreimal; der erneute CI-Lauf muss vor dem Merge vollständig erfolgreich sein.
+
 ## 2026-10-15 - Juna - Vinted-Postfachkorrektur über PR veröffentlichen
 
 **Freigabe:** Der Nutzer autorisiert Branch-Push, PR-Erstellung, Merge nach
