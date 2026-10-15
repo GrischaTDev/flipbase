@@ -1,5 +1,78 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-15 - Juna - Privatkontingent für Kleidungsanzeigen recherchieren
+
+**Auftrag:** Prüfen, ob die Privatkonto-Regel für 100 neue Anzeigen in 30 Tagen
+auch Kleidung betrifft und welche Folgen sie für die Marktplatzplanung hat.
+
+**Ergebnis:** Offizielle Privatgebührenseite und Warenzuordnung gelesen;
+Bekleidung als Konsumgut eingeordnet, keine dokumentierte Bekleidungs-Ausnahme
+gefunden. Privatstatus und fehlendes PRO-Abo sind getrennte Merkmale.
+Quellen, Grenzen und Folgen in
+docs/research/2026-10-15-kleinanzeigen-private-listing-quota.md festgehalten.
+Spezifikation und Teilpläne ergänzen Standard-Privataccounts als erste Abnahme,
+ehrliche Kontingentanzeige und zusätzliche Gebühren-/Kontotypfälle.
+
+**Prüfung:** Öffentliche Quellen, Dokumentverweise, Markdown-Formatierung und
+Unterschiedskontrolle. Keine Anmeldung, Produktcodeänderung, Anwendungstests
+oder echten Inserataktionen; eigener Planungszweig juna/marketplace-hub-planning.
+
+## 2026-10-15 - Juna - Marktplatzübersicht und ersten Transfer konkret planen
+
+**Auftrag:** Den im Chat bestätigten Aufbau als konkreten Umsetzungsplan ausarbeiten,
+mit Vinted → Kleinanzeigen als erstem vollständigen Übertragungsweg.
+
+**Ergebnis:** Eine gemeinsame Spezifikation, eine Umsetzungsfolge und drei Teilpläne
+für Übersicht, Kleinanzeigen-Kontobindung/Inseratabgleich und den vollständigen
+Einzeltransfer geschrieben. Dateien, Schnittstellen, Schemaänderungen, betroffene
+bestehende Tests, neue Fälle, CI-Registrierung und Abnahmekriterien sind benannt.
+Die vorhandenen Kleinanzeigen-Entwürfe und Bilder bleiben Grundlage; kein zweites
+Entwurfssystem. Lokale und Cloud-Vinted-Quellen werden berücksichtigt. Relisting,
+Sammelausführung, weitere Richtungen und mehrere eBay-Verbindungen folgen getrennt.
+Sichtbarkeit ist persönlich je Workspace und getrennt von Accountpause/Freigabe.
+
+Der Integrationsstand enthält inzwischen Galerie/Inseratsalter aus PR #423.
+Den älteren Transferentwurf als überholt gekennzeichnet: keine automatische
+Titelkürzung, geratenen Zustandswerte oder festen Versandpreise übernehmen.
+Offizielle Kleinanzeigen-Hilfe und Gebühreninformationen gelesen; automatische
+Ausführung stoppt vor kostenpflichtigen/unklaren Buchungsschritten. Anbieteridentität,
+Formularvertrag und Erfolgsbelege müssen vor der Browserumsetzung lesend nachgewiesen
+werden. Das ist im Plan eine eigene überprüfbare Aufgabe.
+
+**Prüfung und Grenzen:** Eigenreview von Umfang, Typen, Dateipfaden, Fehlerfällen
+und tatsächlicher CI-Auswahl. Markdown-Formatierung, Dokumentverweise und Unterschiedskontrolle bestanden. Keine Produktcodeänderung, Migration, Installation,
+Anwendungstests oder echten Inserataktionen. Planung im eigenen Zweig
+juna/marketplace-hub-planning; keine fremden Zweige verändert.
+Die konkreten Pläne werden jetzt zur Prüfung vorgelegt, noch keine Umsetzung.
+
+## 2026-10-15 - Juna - Zentrale Marktplatzverwaltung vorbereiten
+
+**Auftrag:** Eine gemeinsame Übersicht für aktivierte Marktplätze, Accounts und
+Inserate sowie Übertragung, Bearbeitung, Löschen, Relisting und Mehrfachaktionen
+durchplanen.
+
+**Befund und Vorschlag:** Navigation, Aktivierung, Vinted-/eBay-Verbindungen,
+Inseratdienste, Entwürfe, Auftragsmodelle und Extension gelesen. Kleinanzeigen
+besitzt derzeit vor allem Entwürfe und Formularübergabe; Kategorie und
+Veröffentlichen bleiben manuell. Ein Tab-Erfolg ist keine Veröffentlichung.
+Der eBay-Datenvertrag sieht eine persönliche Verbindung je Workspace und Umgebung
+vor. Lokale Vinted-Veröffentlichungsdateien sind im geprüften Extension-Einstieg
+noch nicht geladen. Vorhandenen Code daher nicht als bestätigten Live-Ablauf gewertet.
+
+Vorschlag: Übersicht mit direkt bedienbaren Plattformabschnitten und Accountfiltern,
+getrennte Zielentwürfe statt erzwungenem Einheitsformular, gemeinsame Aufträge mit
+kontrolliertem Ergebnis und späteren Sammelaktionen. Kleinanzeigen-Abgleich vor
+vollständiger Verwaltung ergänzen; Vinted-Relisting als dieselbe Aktion aus
+Kleiderschrank, Detailseite und Übersicht aufrufbar planen. Grundlagen,
+Alternativen, Umsetzungspakete und spätere Prüfungen stehen in
+`docs/audit/2026-10-15-marketplace-hub-planning.md`.
+
+**Prüfung und Stand:** Reine Analyse und Planungsdokumentation im eigenen Worktree
+und Zweig `juna/marketplace-hub-planning`, ausgehend vom lokal vorhandenen
+`origin/master` bei `36723117`. Die laufende Vinted-Galerie-/Altersarbeit nur
+lesend berücksichtigt. Keine Produktcode-, Schema- oder Live-Kontoänderung,
+keine Anwendungstests. Markdown-Formatierung und Unterschiedskontrolle bestanden. Vorschlag noch nicht als Umsetzung freigegeben.
+
 ## 2026-10-15 - Juna - Startseitenentwurf vom Vintz-Look lösen und echtes Dashboard zeigen
 
 **Auftrag:** Die Vorschau unter `landing/preview/` sah zu sehr nach Vintz aus, und das
