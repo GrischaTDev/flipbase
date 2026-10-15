@@ -44,6 +44,16 @@ Pflichtprüfungen sowie das anschließende Aufräumen freigegeben. Vor dem Push 
 der aktuelle `origin/master` mit der inzwischen veröffentlichten Landingpage
 übernommen; deren fremde Umsetzung bleibt erhalten.
 
+**CI-Korrektur in PR #425:** Der unveränderte Sniper-Containertest verglich den
+zuletzt eingetroffenen HTTP-Zwischenstand der Texteingabe mit dem Endtext. Im
+lokalen Linux-Abbild reproduziert eine verzögerte vorletzte Meldung denselben
+Fehler, obwohl im Browser bereits der vollständige Text steht. Der Test sammelt
+nun beobachtete Eingabeereignisse und prüft zusätzlich den tatsächlichen Feldinhalt
+über die bereits verwendete reine CDP-Inspektion. Regulärer Image-/Browsersmoke
+und gezielt vertauschte Meldungen bestehen; eine Negativkontrolle mit tatsächlich
+fehlendem Zeichen schlägt weiterhin fehl. Keine Änderung an der Tastatureingabe
+oder dem Produktionsverhalten. Der korrigierte Stand erhält neue Pflichtprüfungen.
+
 ## 2026-10-15 - Juna - Lange PR-Prüfzeit untersuchen
 
 **Auftrag:** Die rund 23 Minuten Wartezeit vor dem Merge prüfen, gesunde Zeitziele
