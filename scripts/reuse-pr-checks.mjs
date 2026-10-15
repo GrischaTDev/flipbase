@@ -5,7 +5,7 @@ import { promisify } from 'node:util';
 import { pathToFileURL } from 'node:url';
 
 const exec = promisify(execFile);
-// V2 belegt Prüfungen, nicht den davon unabhängigen Release-Schalter.
+// V3 belegt zusätzlich die konkrete betroffene Testauswahl.
 const scopes = ['application_tests', 'supabase', 'sniper'];
 const shaPattern = /^[a-f0-9]{40}$/u;
 
@@ -28,11 +28,13 @@ export async function findReusableChecks({
   headSha,
   beforeSha,
   changes,
+  selectionHash,
   api = githubApi,
 }) {
   if (eventName !== 'push' || !shaPattern.test(headSha ?? '') || !shaPattern.test(beforeSha ?? ''))
     return null;
   if (scopes.some((scope) => typeof changes?.[scope] !== 'boolean')) return null;
+  if (!/^[a-f0-9]{64}$/u.test(selectionHash ?? '')) return null;
   try {
     const parents = (await git(cwd, 'show', '-s', '--format=%P', headSha)).split(' ');
     if (parents.length !== 2 || parents[0] !== beforeSha) return null;
@@ -55,10 +57,13 @@ export async function findReusableChecks({
         `repos/${repository}/actions/runs/${run.id}/artifacts?per_page=100`,
       );
       const matches = artifacts.some((artifact) => {
-        const match = /^verified-tree-v2-([a-f0-9]{40})-([01]{3})$/u.exec(artifact.name ?? '');
+        const match = /^verified-tree-v3-([a-f0-9]{40})-([01]{3})-([a-f0-9]{64})$/u.exec(
+          artifact.name ?? '',
+        );
         return (
           artifact.expired === false &&
           match?.[1] === tree &&
+          match[3] === selectionHash &&
           scopes.every((scope, index) => !changes[scope] || match[2][index] === '1')
         );
       });
@@ -82,13 +87,16 @@ async function main() {
   const headSha = process.env.GITHUB_SHA;
   if (!shaPattern.test(headSha ?? '')) throw new Error('Ungültiger Commit.');
   const tree = await git(process.cwd(), 'rev-parse', `${headSha}^{tree}`);
-  const receiptName = `verified-tree-v2-${tree}-${scopes.map((scope) => Number(changes[scope])).join('')}`;
+  const selectionHash = process.env.SELECTION_HASH;
+  if (!/^[a-f0-9]{64}$/u.test(selectionHash ?? '')) throw new Error('Konkrete Testauswahl fehlt.');
+  const receiptName = `verified-tree-v3-${tree}-${scopes.map((scope) => Number(changes[scope])).join('')}-${selectionHash}`;
   const runId = await findReusableChecks({
     eventName: process.env.GITHUB_EVENT_NAME,
     repository: process.env.GITHUB_REPOSITORY,
     headSha,
     beforeSha: process.env.PUSH_BEFORE_SHA,
     changes,
+    selectionHash,
   });
   await appendFile(
     process.env.GITHUB_OUTPUT,

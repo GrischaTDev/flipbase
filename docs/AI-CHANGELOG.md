@@ -1,5 +1,16 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-16 - Juna - Marktplatzübersicht zur Integration freigeben
+
+**Auftrag:** PR erstellen und nach erfolgreichen Pflichtprüfungen per Merge-Commit
+integrieren; anschließend eigenen Feature-Zweig und Worktree aufräumen.
+
+**Vorbereitung:** Nutzerfreigabe liegt vor. Aktuellen Hauptzweig einschließlich der
+gezielten Testauswahl integriert; beide Einträge im Änderungsprotokoll erhalten.
+Die neue Übersicht wird in dieser Auswahl ausdrücklich ihren eigenen Browserfällen
+zugeordnet. Bereits dokumentierte lokale Anwendungs-, Datenbank- und Browserprüfungen
+bleiben Grundlage; die erforderlichen CI-Prüfungen müssen vor dem Merge erfolgreich sein.
+
 ## 2026-10-15 - Juna - Zentrale Marktplatzübersicht umsetzen
 
 **Auftrag:** Paket A direkt in dieser Sitzung umsetzen. Kontingent und Gebührenstopp
@@ -107,6 +118,94 @@ und Zweig `juna/marketplace-hub-planning`, ausgehend vom lokal vorhandenen
 `origin/master` bei `36723117`. Die laufende Vinted-Galerie-/Altersarbeit nur
 lesend berücksichtigt. Keine Produktcode-, Schema- oder Live-Kontoänderung,
 keine Anwendungstests. Markdown-Formatierung und Unterschiedskontrolle bestanden. Vorschlag noch nicht als Umsetzung freigegeben.
+
+## 2026-10-15 - Juna - Tests anhand betroffener Funktionen auswählen
+
+**Auftrag:** Die freigegebene Auswahl umsetzen: unabhängige Funktionen nicht bei
+jeder Änderung erneut im Browser prüfen und die Projektregeln entsprechend ändern.
+
+**Umsetzung:** Ein gemeinsamer Testplan verfolgt lokale Imports, Reexports und
+Angular-Ressourcen rückwärts. Er wählt betroffene Modell-, DOM- und Angular-Dateien
+sowie zugehörige Browserdateien aus. Globale App-Provider, Testanmeldung,
+Konfiguration, Schemaänderungen und unbekannte Bereiche behalten einen breiten
+Lauf; Lazy-Routen machen eine einzelne Ansicht dabei nicht wieder global.
+Geänderte Browserdateien laufen vollständig. Leere Auswahlen überspringen den Job,
+statt fehlende Tests als Erfolg zu melden. PWA läuft nur bei Bedarf als eigener
+paralleler Pflichtjob. Eigenständige Worker und Landingpage wählen ihre eigenen
+Prüfungen. Lint, Formatierung, Typprüfung und erforderlicher Bau bleiben bestehen.
+
+Die Freigabe verlangt exakt den ausgewählten Erfolgs-/Skip-Zustand. PR-Nachweise
+binden im neuen V3-Format zusätzlich die konkrete Auswahl einschließlich der
+Dienstprüfungen; ein identischer Dateibaum allein genügt nicht. Die manuelle
+vollständige Regression bleibt verfügbar. Es wurde kein neuer Zeitplan angelegt.
+`AGENTS.md` und `docs/testing/affected-test-selection.md` beschreiben diese Regeln
+und verlangen einen konkreten Nutzen vor dem Ergänzen neuer Browserfälle.
+
+**Prüfung:** 322 Workflowprüfungen erfolgreich, sechs bestehende Umgebungsfälle
+unter Windows übersprungen. 43 relevante Auswahl-, echte Playwright-Auflistungs-,
+Freigabe- und Nachweisprüfungen bestehen auch unter Ubuntu mit Node 22.23.3.
+Für die Galerie wurden 84 tatsächlich ausgewählte Anwendungstests ausgeführt;
+Playwright wählt 21 passende Browserfälle aus, bei der Einkaufsübersicht acht.
+Einkauf/Verkauf und PWA bleiben bei der Galerie aus. Der unabhängige Review fand
+zunächst fehlende globale Start-/Testvorbereitungsabhängigkeiten und zu breite
+Landing-/Push-Worker-Auswahl; diese Fälle sind korrigiert und abgesichert.
+Abschließender Review ohne offene Befunde. Actionlint 1.7.12, gezieltes ESLint,
+App-/Testtypprüfung, Suite-Audit, Shared-UI-Prüfung, Formatierung und Diffprüfung
+bestanden.
+
+**Grenzen und Stand:** Kein Produktcode, Schema oder Service Worker geändert;
+deshalb kein neuer Anwendungsgesamtbau oder kompletter Browserlauf lokal.
+Actionlint lokal ohne Shellcheck/Pyflakes; der reguläre Linux-Workflow bleibt die
+abschließende Prüfung. Eine neue CI-Wartezeit wurde noch nicht gemessen. Der
+CI-Umbau selbst verlangt einmal den breiten Prüfumfang. Eigener Zweig
+`juna/affected-test-selection`. Der Nutzer hat Push, PR und Merge nach erfolgreichen
+Pflichtprüfungen sowie das anschließende Aufräumen freigegeben. Vor dem Push wird
+der aktuelle `origin/master` mit der inzwischen veröffentlichten Landingpage
+übernommen; deren fremde Umsetzung bleibt erhalten.
+
+**CI-Korrektur in PR #425:** Der unveränderte Sniper-Containertest verglich den
+zuletzt eingetroffenen HTTP-Zwischenstand der Texteingabe mit dem Endtext. Im
+lokalen Linux-Abbild reproduziert eine verzögerte vorletzte Meldung denselben
+Fehler, obwohl im Browser bereits der vollständige Text steht. Der Test sammelt
+nun beobachtete Eingabeereignisse und prüft zusätzlich den tatsächlichen Feldinhalt
+über die bereits verwendete reine CDP-Inspektion. Regulärer Image-/Browsersmoke
+und gezielt vertauschte Meldungen bestehen; eine Negativkontrolle mit tatsächlich
+fehlendem Zeichen schlägt weiterhin fehl. Keine Änderung an der Tastatureingabe
+oder dem Produktionsverhalten. Der korrigierte Stand erhält neue Pflichtprüfungen.
+
+## 2026-10-15 - Juna - Lange PR-Prüfzeit untersuchen
+
+**Auftrag:** Die rund 23 Minuten Wartezeit vor dem Merge prüfen, gesunde Zeitziele
+recherchieren und konkrete Verbesserungen für Flipbase ableiten.
+
+**Befund:** Drei erfolgreiche PR-Läufe dauern 23:10 bis 23:43 Minuten. Hauptengpass
+ist ein einzelner Browserjob: zuletzt 160 Fälle in 16:14 Minuten, danach weitere
+PWA-Prüfungen und zwei Testbauten. Angular braucht parallel bis zu 9:19 Minuten.
+DORA nennt wenige Minuten und ungefähr zehn Minuten als Obergrenze für schnelle
+Integrationsprüfungen; Fowler empfiehlt ebenfalls zehn Minuten als Richtlinie.
+Vorgeschlagen sind zuerst höchstens zehn, später fünf bis acht Minuten für normale
+PRs. Zuerst bestehende Browserfälle auf isolierte Rechner verteilen, PWA parallel
+prüfen und Angular-Kosten messen. Keine Prüfungen abgeschaltet oder umgestuft.
+
+**Nachweise und Grenzen:** GitHub-Metadaten und vollständige Browser-/Angularlogs
+gelesen, lokale Workflow- und Testkonfigurationen geprüft, offizielle DORA-, Fowler-
+und Playwright-Quellen recherchiert. Details und Quellen in
+`docs/audit/2026-10-15-ci-feedback-duration.md`. Die Veröffentlichung nach PR #423
+ist inzwischen erfolgreich; sie dauerte zusätzlich 3:08 Minuten und verwendete
+die bestandenen PR-Prüfungen nach Dateistandnachweis wieder. Reine Analyse im eigenen
+Zweig `juna/ci-feedback-analysis`; nur Dokumentation geändert, keine neuen
+Anwendungstests oder CI-Läufe ausgelöst. Die Laufzeit einer künftigen Aufteilung
+muss erst unter Linux gemessen werden.
+
+**Vertiefung auf Nachfrage:** Playwright-Auswahl ohne Ausführung aufgelistet:
+160 Fälle in 32 Dateien, darunter zahlreiche Geräte-/Farbschemavarianten.
+Echte lokale Datenabläufe und Ansichten mit ersetzten Serverantworten anhand des
+Codes unterschieden. Wenige kritische Browserabläufe sind bereits sinnvoll;
+der vollständige Umfang vor jeder Änderung braucht eine eigene Begründung.
+Vor zusätzlicher Parallelisierung zuerst Pflichtfälle nach Risiko und zusätzlichem
+Nutzen einordnen: Kernabläufe, betroffene Funktionen, regelmäßige Gesamtmatrix.
+Testpyramide als offizielle Autorenquelle gelesen. Keine Tests entfernt oder
+Prüfregeln geändert.
 
 ## 2026-10-15 - Juna - Neue Startseite mit Dashboard-Nachbau live schalten
 

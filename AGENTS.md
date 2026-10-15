@@ -125,14 +125,34 @@ An diesem Projekt arbeiten mehrere KI-Assistenten, teils gleichzeitig.
 - **Vor einem Branch-Push gezielt prüfen:** betroffene Tests ausführen und
   geänderte Dateien formatieren/linten. Bei Angular-/Template-Änderungen auch
   den Bau prüfen, bei Datenbankänderungen die passenden Datenbanktests.
-  Die vollständige verbindliche Prüfung im PR bleibt die abschließende
-  Gesamtprüfung; nicht bei jedem Push zusätzlich die gesamte lokale Suite
-  wiederholen.
+  Der PR bestätigt den für diese Änderung ausgewählten Prüfumfang. Nicht bei
+  jedem Push oder jeder kleinen Änderung die gesamte Suite wiederholen.
 - **Den betroffenen Prüfumfang vor dem ersten Push bestimmen:** aus den
   geänderten Bausteinen und der tatsächlichen CI-Testauswahl ableiten, welche
   bestehenden und neuen Fälle lokal laufen müssen. Bei gemeinsamen Komponenten
   auch deren betroffene Einsatzstellen prüfen. Nur neu geschriebene Tests
   auszuführen genügt nicht. Ausgeführte Prüfungen und verbleibende Lücken nennen.
+- **Nur betroffene Funktionen prüfen.** Die Auswahl wird aus geänderten Dateien,
+  ihren lokalen Imports und Angular-Vorlagen abgeleitet. Gemeinsame Bausteine
+  beziehen ihre tatsächlichen Einsatzstellen ein. Fertige fachfremde Funktionen
+  werden bei einer unabhängigen Änderung nicht erneut im Browser durchgespielt.
+  Auswahl und Grenzen stehen in [`docs/testing/affected-test-selection.md`](docs/testing/affected-test-selection.md).
+- **Neue Tests nach ihrem Nutzen auswählen.** Kein neuer Browsertest allein,
+  weil eine Datei oder Ansicht geändert wurde. Bestehende passende Tests nutzen;
+  neue Fälle für konkrete Fehler, wichtige Geschäftsabläufe oder bisher
+  ungesicherte Risiken ergänzen. Berechnungen, Datumsgrenzen und Fehlerkombinationen
+  möglichst mit schnellen Modell-, Service- oder Komponententests prüfen.
+- **Browsermatrix nur bei der betroffenen Oberfläche ausführen.** Eine Änderung
+  an der Galerie darf keinen vollständigen Verkaufs- oder Einkaufslauf auslösen.
+  Produktions-PWA-, Offline- und Updateprüfungen laufen bei Änderungen an diesen
+  Funktionen oder ihren Abhängigkeiten als eigener Pflichtjob. Lint, Formatierung,
+  Typprüfung und der erforderliche Bau bleiben bestehen.
+- **Breite Änderungen ausdrücklich breiter prüfen.** Globale Konfiguration,
+  Anmeldung/Rechtegrenzen, Datenbankschema und nicht sicher zuordenbare Änderungen
+  behalten einen umfassenden Lauf. Die Auswahl selbst ist durch Tests abzusichern;
+  eine leere Auswahl ist kein Nachweis einer bestandenen Browserprüfung.
+  Die vollständige Browserregression bleibt gezielt manuell verfügbar und wird
+  nicht ungefragt täglich oder bei jedem PR gestartet.
 - **Testregistrierung mitprüfen:** Bei neuen oder verschobenen Tests auch die
   zugehörigen Auswahlscripte, verbindlichen Soll-Listen und Suite-Prüfungen lokal
   ausführen. Ein einzeln bestandener Test belegt nicht, dass ihn die CI korrekt
@@ -166,7 +186,7 @@ An diesem Projekt arbeiten mehrere KI-Assistenten, teils gleichzeitig.
   durch Typprüfung und Tests und fällt erst beim Bau auf.
 - **Über einen grünen PR mit Merge-Commit veröffentlichen.** Nach dem Merge
   verwendet CI erfolgreiche PR-Prüfungen nur bei identischem Git-Dateistand
-  und ausreichendem Prüfumfang erneut. Fehlt dieser Nachweis, laufen die
+  und nachgewiesen passender konkreter Testauswahl erneut. Fehlt dieser Nachweis, laufen die
   Prüfungen automatisch. Direkte Pushes auf `master` nicht als Abkürzung nutzen.
 - Für die Integration ist ausschließlich der aktuelle Stand von
   `origin/master` maßgeblich. Bereits abgeschlossene Zweige nicht als

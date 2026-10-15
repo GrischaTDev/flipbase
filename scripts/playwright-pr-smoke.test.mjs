@@ -3,6 +3,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import { readSelectionFiles, selectAffectedTests } from './affected-tests.mjs';
 
 const executeFile = promisify(execFile);
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -419,8 +420,8 @@ function collectSpecs(suites, parentTitles = []) {
   });
 }
 
-async function listTests(config, selectionArguments = []) {
-  const env = { ...process.env, CI: 'true' };
+async function listTests(config, selectionArguments = [], environment = {}) {
+  const env = { ...process.env, CI: 'true', ...environment };
   delete env.PLAYWRIGHT_JSON_OUTPUT_FILE;
   delete env.PLAYWRIGHT_JSON_OUTPUT_NAME;
   delete env.PLAYWRIGHT_JSON_OUTPUT_DIR;
@@ -430,7 +431,7 @@ async function listTests(config, selectionArguments = []) {
       'node_modules/@playwright/test/cli.js',
       'test',
       `--config=${config}`,
-      '--project=chromium',
+      ...(config === 'playwright.affected.config.ts' ? [] : ['--project=chromium']),
       '--list',
       '--reporter=json',
       ...selectionArguments,
@@ -447,6 +448,57 @@ async function listTests(config, selectionArguments = []) {
 }
 
 const keys = (entries) => entries.map((entry) => JSON.stringify(entry)).sort();
+
+test('Galerieänderung wählt echte Artikel-Browserfälle ohne Verkauf, Einkauf und PWA', async () => {
+  const plan = selectAffectedTests(
+    ['src/app/shared/components/product-gallery/product-gallery.component.html'],
+    await readSelectionFiles(root),
+  );
+  const { selected } = await listTests('playwright.affected.config.ts', [], {
+    AFFECTED_TEST_PLAN: JSON.stringify(plan),
+  });
+  assert.equal(plan.full, false);
+  assert.equal(plan.pwa, false);
+  assert.equal(selected.length, 21);
+  assert.deepEqual([...new Set(selected.map(([file]) => file))].sort(), [
+    'vinted-listing-edge-cases.spec.ts',
+    'vinted-workspace-ui.spec.ts',
+  ]);
+});
+
+test('direkt geänderter Browserfall läuft vollständig und ohne fachfremde Fälle', async () => {
+  const plan = selectAffectedTests(
+    ['e2e/vinted-listing-edge-cases.spec.ts'],
+    await readSelectionFiles(root),
+  );
+  const { selected } = await listTests('playwright.affected.config.ts', [], {
+    AFFECTED_TEST_PLAN: JSON.stringify(plan),
+  });
+  assert.equal(selected.length, 15);
+  assert.ok(selected.every(([file]) => file === 'vinted-listing-edge-cases.spec.ts'));
+});
+
+test('Einkaufsübersicht wählt nur die acht zugehörigen Ansichtsvarianten', async () => {
+  const plan = selectAffectedTests(
+    ['src/app/features/purchases/purchases.component.html'],
+    await readSelectionFiles(root),
+  );
+  const { selected } = await listTests('playwright.affected.config.ts', [], {
+    AFFECTED_TEST_PLAN: JSON.stringify(plan),
+  });
+  assert.equal(selected.length, 8);
+  assert.ok(selected.every(([file]) => file === 'purchase-profitability.spec.ts'));
+  assert.equal(plan.pwa, false);
+});
+
+test('breite Änderung erhält die bisherige vollständige PR-Auswahl', async () => {
+  const plan = selectAffectedTests(['package-lock.json'], await readSelectionFiles(root));
+  const { selected } = await listTests('playwright.affected.config.ts', [], {
+    AFFECTED_TEST_PLAN: JSON.stringify(plan),
+  });
+  assert.deepEqual(keys(selected), keys(coreTests));
+  assert.equal(plan.pwa, true);
+});
 
 test('PR-Auswahl: alle Kernfälle, keine Wiederholungen, kein test.only', async () => {
   const { report, selected } = await listTests('playwright.pr.config.ts');
