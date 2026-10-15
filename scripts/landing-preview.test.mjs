@@ -7,6 +7,11 @@ const previewRoot = new URL('../landing/preview/', import.meta.url);
 const html = await readFile(new URL('index.html', previewRoot), 'utf8');
 const script = await readFile(new URL('preview.js', previewRoot), 'utf8');
 const themeScript = await readFile(new URL('theme.js', previewRoot), 'utf8');
+const stylesheets = await Promise.all(
+  ['preview.css', 'dashboard-replica.css', 'app-mockups.css'].map((file) =>
+    readFile(new URL(file, previewRoot), 'utf8'),
+  ),
+);
 const applicationScript = await readFile(new URL('../beta-application.js', previewRoot), 'utf8');
 
 function createPreview({
@@ -100,6 +105,93 @@ test('preview keeps a readable static fallback and resolves its local assets', a
     document.querySelector('button[type="submit"]').disabled,
     true,
     'Without JavaScript, personal details must never submit through a GET request',
+  );
+  dom.window.close();
+});
+
+function readEuro(text) {
+  return Number(text.replace(/[^\d,]/gu, '').replace(',', '.'));
+}
+
+function listText(root, selector) {
+  return [...root.querySelectorAll(selector)].map((element) =>
+    element.textContent.replace(/\s+/gu, ' ').trim(),
+  );
+}
+
+test('hero shows a replica of the real Flipbase dashboard instead of borrowed competitor elements', () => {
+  const dom = new JSDOM(html);
+  const { document } = dom.window;
+  assert.equal(
+    document.querySelector('h1').textContent.replace(/\s+/gu, ' ').trim(),
+    'Die Warenwirtschaft für dein Reselling.',
+  );
+  const replica = document.getElementById('dashboard-replica');
+  assert.equal(replica.getAttribute('role'), 'img');
+  assert.match(replica.getAttribute('aria-label'), /Beispiel/u);
+  assert.deepEqual(listText(replica, '[data-nav-group]'), [
+    'Warenwirtschaft',
+    'Marktplätze',
+    'Finanzen',
+    'Tools',
+  ]);
+  assert.deepEqual(listText(replica, '[data-nav-active]'), ['Dashboard']);
+  assert.deepEqual(listText(replica, '[data-kpi-label]'), [
+    'Umsatz',
+    'Gewinn',
+    'Marge',
+    'Kapital im Bestand',
+    'Verkäufe',
+  ]);
+  assert.deepEqual(listText(replica, '[data-chart-legend]'), [
+    'Umsatz',
+    'Ausgaben gesamt',
+    'Gewinn',
+  ]);
+  assert.match(replica.closest('figure').querySelector('figcaption').textContent, /Beispieldaten/u);
+  for (const borrowed of [
+    '⌘',
+    'Persönlicher Arbeitsbereich',
+    'Dein Geschäft im Überblick',
+    'Verkaufsentwicklung',
+  ]) {
+    assert.ok(!document.body.textContent.includes(borrowed), `Borrowed element: ${borrowed}`);
+  }
+  dom.window.close();
+});
+
+test('dashboard example figures agree with the chart they summarize', () => {
+  const dom = new JSDOM(html);
+  const replica = dom.window.document.getElementById('dashboard-replica');
+  const kpi = (key) => replica.querySelector(`[data-kpi="${key}"] [data-kpi-value]`).textContent;
+  const seriesTotal = (series) =>
+    [...replica.querySelectorAll(`[data-series="${series}"]`)].reduce(
+      (total, bar) => total + Number(bar.style.getPropertyValue('--value')),
+      0,
+    );
+  const revenue = readEuro(kpi('revenue'));
+  const profit = readEuro(kpi('gross-profit'));
+  assert.equal(seriesTotal('revenue'), revenue);
+  assert.equal(seriesTotal('profit'), profit);
+  assert.ok(seriesTotal('expenses') > 0);
+  assert.equal(replica.querySelectorAll('[data-series]').length % 3, 0);
+  assert.equal(
+    kpi('margin'),
+    `${((profit / revenue) * 100).toLocaleString('de-DE', { maximumFractionDigits: 1 })} %`,
+  );
+  dom.window.close();
+});
+
+test('sections use plain headings without decorative capital labels', () => {
+  const dom = new JSDOM(html);
+  assert.equal(dom.window.document.querySelectorAll('.eyebrow').length, 0);
+  for (const stylesheet of stylesheets) {
+    assert.doesNotMatch(stylesheet, /text-transform:\s*uppercase/u);
+  }
+  assert.match(
+    stylesheets.join('\n'),
+    /\[data-motion='on'\][^{]*\.replica-bar/u,
+    'Chart bars may only grow while animations are allowed',
   );
   dom.window.close();
 });
