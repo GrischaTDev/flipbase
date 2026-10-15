@@ -52,6 +52,23 @@ Workflow-Suite (294 bestanden, sechs unter Windows bewusst übersprungen)
 startet der korrigierte Push die vollständige CI einschließlich der Browserfälle
 erneut; der alte, bereits fehlgeschlagene Lauf wird dabei regulär abgelöst.
 
+**Weitere CI-Befunde:** Im zweiten Lauf bestehen sämtliche Anwendungstests.
+Die Qualitätsprüfung scheitert vor den Workflowtests an einer externen
+Container-Abrufbegrenzung (`toomanyrequests`) bei der Supabase-Testlaufzeit.
+Die Browsersuite besteht 139 Fälle und findet anschließend in der mobilen
+Vinted-Kontoansicht eine umgebrochene Einstellungsaktion. Lokal ist derselbe
+38-px-Versatz nachstellbar. Der gemeinsame Seitenkopf gibt seinem mobilen
+Aktionsbereich wieder die volle verfügbare Breite. Die bestehende Prüfung
+bleibt unverändert. Für 143 Browserfälle zuzüglich Produktions-PWA-Prüfung
+wird das CI-Zeitfenster von 20 auf 30 Minuten erhöht; bereits die erste
+Browserphase benötigt im zweiten Lauf 15 Minuten zuzüglich Einrichtung.
+Die erneute lokale Prüfung bei ruhender Vorschau besteht alle 33 responsive
+und Vinted-Ansichtsfälle einschließlich 320/390 px in beiden Themes. Die zwei
+Seitenkopf-Komponententests, zwölf Auswahl-/Freigabeprüfungen, Formatierung,
+gezieltes Lint und der Produktionsbau bestehen ebenfalls. Im ersten lokalen
+Nachlauf war ein Desktopfall durch das Neuladen während des parallelen Baus
+unterbrochen worden; bei ruhender Vorschau besteht derselbe unveränderte Test.
+
 ## 2026-10-15 - Juna - Update der installierten Android-App untersuchen
 
 **Auftrag:** Das iPad ist laut Nutzer erfolgreich aktualisiert und für Push
