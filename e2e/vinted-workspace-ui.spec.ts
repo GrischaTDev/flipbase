@@ -19,7 +19,7 @@ async function openVintedSection(page: Page, label: string, width: number): Prom
 }
 
 async function checkSurface(page: Page, selector: string) {
-  await page.addScriptTag({ content: axe.source });
+  await page.evaluate(axe.source);
   const violations = await page.evaluate(async (selector) => {
     const element = document.querySelector(selector);
     if (!element) throw new Error('Geprüfte Oberfläche fehlt');
@@ -247,6 +247,10 @@ for (const width of [1440, 390, 320]) {
         }),
       );
       await page.addInitScript((theme) => localStorage.setItem('flipbase_theme', theme), theme);
+      // UI-Prüfung ohne Service Worker, damit die abgefangenen Antworten ausschließlich zur Seite gehören.
+      await page.addInitScript(() =>
+        Reflect.deleteProperty(Object.getPrototypeOf(navigator), 'serviceWorker'),
+      );
       await page.clock.install();
       const errors: string[] = [];
       const warnings: string[] = [];
@@ -474,16 +478,15 @@ for (const width of [1440, 390, 320]) {
       await expect(
         nav.getByRole('link', { name: 'Kleiderschrank', exact: true, includeHidden: true }),
       ).toHaveAttribute('aria-current', 'page');
-      const image = detail.locator('app-product-thumbnail').first();
-      const imageBounds = await image.boundingBox();
-      expect(imageBounds!.height).toBeLessThanOrEqual((width < 640 ? 320 : 560) + 2);
-      expect(imageBounds!.width).toBeLessThanOrEqual(360);
-      await expect(detail.getByRole('button', { name: 'Foto 2 anzeigen' })).toBeVisible();
-      await detail.getByRole('button', { name: 'Foto 2 anzeigen' }).click();
-      await expect(detail.getByRole('button', { name: 'Foto 2 anzeigen' })).toHaveAttribute(
-        'aria-pressed',
-        'true',
+      const secondPhoto = detail.getByRole('button', { name: 'Foto 2 von 2 öffnen' });
+      await secondPhoto.click();
+      await expect(page.getByRole('dialog', { name: 'Artikelfotos' })).toBeVisible();
+      await expect(page.getByRole('dialog').getByRole('img')).toHaveAttribute(
+        'src',
+        imported.imageUrls[1],
       );
+      await page.keyboard.press('Escape');
+      await expect(secondPhoto).toBeFocused();
       await checkSurface(page, 'app-vinted-listing-detail');
       await screenshot(page, `vinted-detail-${width}-${theme}`);
       await page.getByRole('link', { name: 'Zurück zu Inseraten' }).click();

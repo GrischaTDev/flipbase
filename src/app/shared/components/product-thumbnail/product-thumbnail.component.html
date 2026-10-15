@@ -13,6 +13,7 @@
   [class.aspect-[3/4]]="size() === 'listing' || detailPlaceholder()"
   [class.w-full]="size() === 'listing' || size() === 'reference' || detailPlaceholder()"
   [class.max-w-[360px]]="size() === 'listing-detail'"
+  [class.size-full]="size() === 'gallery' || size() === 'viewer'"
 >
   @if (imageSource(); as source) {
     <img

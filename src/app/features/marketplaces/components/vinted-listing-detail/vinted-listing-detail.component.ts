@@ -24,7 +24,8 @@ import {
   type SelectOption,
 } from '../../../../shared/components/custom-select/custom-select.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
-import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
+import { ProductGalleryComponent } from '../../../../shared/components/product-gallery/product-gallery.component';
+import { VintedListingAgeComponent } from '../vinted-listing-age/vinted-listing-age.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import type { MarketplaceEntry } from '../../models/marketplace-read.models';
 import type { VintedListingCurrentContent } from '../../models/vinted-listing-category-fields';
@@ -53,7 +54,8 @@ import { createVintedListingMetricDisplay } from '../vinted-listings/vinted-list
     ProductMediaEditorComponent,
     TwoColumnLayoutComponent,
     NoticeBannerComponent,
-    ProductThumbnailComponent,
+    ProductGalleryComponent,
+    VintedListingAgeComponent,
     TextFieldComponent,
     VintedListingMetricsComponent,
   ],

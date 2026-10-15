@@ -9,6 +9,40 @@ import { parseLocalExtensionRequest } from '../supabase/functions/_shared/market
 
 const require = createRequire(import.meta.url);
 const core = require('../tools/flipbase-extension/vinted-local-core.js');
+
+test('publication creation dates agree in local and cloud import without guessing from photo or edit times', async () => {
+  const { parseVintedAccountImport } =
+    await import('../services/marketplace-worker/src/vinted-account-import.ts');
+  const identity = { id: '123', username: 'testkonto' };
+  const profile = { user: { id: 123, login: 'testkonto' } };
+  const observedAt = '2026-10-15T10:00:00Z';
+  const values = [
+    { created_at_ts: 1790850600 },
+    { created_at: '2026-10-01T12:30:00+02:00' },
+    { created_at_ts: '1790850600000' },
+    { updated_at: '2026-10-14T10:00:00Z' },
+    { created_at: '2026-02-30T12:00:00Z' },
+    { created_at_ts: 1e30 },
+    { created_at_ts: '2027-10-01T10:00:00Z' },
+  ].map((value, index) => ({ id: 41 + index, user_id: 123, title: 'Artikel', ...value }));
+  const local = core.parseSnapshot(identity, profile, values, observedAt, true);
+  const cloud = parseVintedAccountImport(identity, profile, values, [], [], observedAt);
+  const dates = (snapshot) =>
+    snapshot.entries
+      .filter((entry) => entry.kind === 'publication')
+      .map((entry) => entry.body.occurredAt);
+  const expected = [
+    '2026-10-01T10:30:00.000Z',
+    '2026-10-01T10:30:00.000Z',
+    '2026-10-01T10:30:00.000Z',
+    null,
+    null,
+    null,
+    null,
+  ];
+  assert.deepEqual(dates(local), expected);
+  assert.deepEqual(dates(cloud), expected);
+});
 const messages = require('../tools/flipbase-extension/vinted-local-messages.js');
 const scheduler = require('../tools/flipbase-extension/vinted-local-scheduler.js');
 

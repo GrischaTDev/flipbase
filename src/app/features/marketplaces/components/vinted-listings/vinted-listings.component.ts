@@ -18,6 +18,7 @@ import { MarketplaceListingStatisticsStore } from '../../services/marketplace-li
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { VintedListingMetricsComponent } from './vinted-listing-metrics.component';
+import { VintedListingAgeComponent } from '../vinted-listing-age/vinted-listing-age.component';
 import { createVintedListingMetricDisplay } from './vinted-listing-metric-display';
 
 @Component({
@@ -31,6 +32,7 @@ import { createVintedListingMetricDisplay } from './vinted-listing-metric-displa
     CustomSelectComponent,
     ProductThumbnailComponent,
     VintedListingMetricsComponent,
+    VintedListingAgeComponent,
   ],
   templateUrl: './vinted-listings.component.html',
   providers: [MarketplaceListingStatisticsStore],
