@@ -1,4 +1,5 @@
-import { expect, test } from '@playwright/test';
+import { devices, expect, test } from '@playwright/test';
+import { launchPwaLifecycleBrowser } from './support/pwa-lifecycle-browser';
 
 test('startup works with production CSP, theme and reduced motion', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -145,6 +146,93 @@ test('a real second build waits for an unsaved second window before activation @
     await expect(page.getByRole('region', { name: 'App aktualisieren' })).toHaveCount(0);
   } finally {
     await page.request.post('/api/__pwa_test__/build');
+  }
+});
+
+test('installed app updates while a frozen background view keeps unsaved entries @worker', async ({
+  browserName,
+}, testInfo) => {
+  test.skip(browserName !== 'chromium' || !testInfo.project.use.hasTouch);
+  const browser = await launchPwaLifecycleBrowser();
+  const { context } = browser;
+  const origin = testInfo.project.use.baseURL!;
+  const page = await context.newPage();
+  let switchedBuild = false;
+  let backgroundSession: Awaited<ReturnType<typeof context.newCDPSession>> | undefined;
+  try {
+    const appInput = await context.newCDPSession(page);
+    await page.setViewportSize(devices['Pixel 7'].viewport);
+    await appInput.send('Emulation.setUserAgentOverride', {
+      userAgent: devices['Pixel 7'].userAgent,
+      platform: 'Android',
+    });
+    await appInput.send('Emulation.setTouchEmulationEnabled', { enabled: true });
+    const { mockMarketplace } = await import('./support/marketplace-account-fixture');
+    const configure = (target: typeof page) =>
+      mockMarketplace(
+        target,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        { origin: 'https://api.flipbase.de', userId: '25000000-0000-4000-8000-000000000001' },
+      );
+    // Derselbe Standalone-Zweig wie beim Start über das installierte App-Symbol.
+    await page.addInitScript(() => Object.defineProperty(navigator, 'standalone', { value: true }));
+    await configure(page);
+    await page.goto(`${origin}/settings/notifications`);
+    await expect(page.getByRole('heading', { name: 'Push-Benachrichtigungen' })).toBeVisible();
+    await expect
+      .poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller)))
+      .toBe(true);
+    const oldBuild = await page.locator('html').getAttribute('data-flipbase-build');
+    expect(oldBuild).toBeTruthy();
+    const background = await context.newPage();
+    await configure(background);
+    await background.goto(`${origin}/purchases/new`);
+    await background.getByRole('button', { name: 'Eigenbeleg', exact: true }).click();
+    await background.getByLabel('Verkäuferangabe, falls bekannt').fill('Nicht verlieren');
+    await page.bringToFront();
+    await expect.poll(() => page.evaluate(() => document.visibilityState)).toBe('visible');
+    await expect.poll(() => background.evaluate(() => document.visibilityState)).toBe('hidden');
+    const session = await context.newCDPSession(background);
+    backgroundSession = session;
+    await page.request.post(`${origin}/api/__pwa_test__/build`);
+    switchedBuild = true;
+    await page.evaluate(async () => (await navigator.serviceWorker.getRegistration('/'))?.update());
+    const update = page.getByRole('button', { name: 'Jetzt aktualisieren' });
+    await expect(update).toBeVisible();
+    // Erst den wartenden Worker installieren: Linux-Chromium kann sonst bereits
+    // dessen update()-Aufruf bei eingefrorenen Dokumenten unbegrenzt zurückhalten.
+    await session.send('Page.setWebLifecycleState', { state: 'frozen' });
+    // Der echte Standardkontext hat keine Playwright-Touch-Vorgabe; Chromium erhält Touch direkt.
+    const bounds = await update.boundingBox();
+    if (!bounds) throw new Error('Aktualisieren-Button fehlt.');
+    await appInput.send('Input.dispatchTouchEvent', {
+      type: 'touchStart',
+      touchPoints: [{ x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 }],
+    });
+    await appInput.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await expect(page.locator('html')).not.toHaveAttribute('data-flipbase-build', oldBuild ?? '');
+    await expect(page.getByRole('heading', { name: 'Push-Benachrichtigungen' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'App aktualisieren' })).toHaveCount(0);
+    await session.send('Page.setWebLifecycleState', { state: 'active' });
+    await background.bringToFront();
+    await expect(background.getByLabel('Verkäuferangabe, falls bekannt')).toHaveValue(
+      'Nicht verlieren',
+    );
+    await expect(background.locator('html')).toHaveAttribute('data-flipbase-build', oldBuild ?? '');
+  } finally {
+    try {
+      await backgroundSession?.send('Page.setWebLifecycleState', { state: 'active' });
+      if (switchedBuild) await page.request.post(`${origin}/api/__pwa_test__/build`);
+    } finally {
+      await browser.close();
+    }
   }
 });
 

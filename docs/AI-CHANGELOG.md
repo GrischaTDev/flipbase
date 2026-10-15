@@ -1,5 +1,56 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-15 - Juna - Update der installierten Android-App untersuchen
+
+**Auftrag:** Das iPad ist laut Nutzer erfolgreich aktualisiert und für Push
+aktiviert. Die installierte Android-App bleibt dagegen trotz Aktualisierung
+auf dem alten Stand. Der Meldungstext wird nicht erneut angefragt.
+
+**Diagnose:** Ein eingefrorener Hintergrundtab bleibt für den Worker eine
+offene Ansicht, beantwortet aber dessen Update-Abfrage nicht. Bisher blockiert
+das dauerhaft die sichtbare App. Der Browserfall mit einer echten gebauten
+Version 0.348.0 scheitert am alten Worker und besteht mit dem korrigierten
+Worker dreimal hintereinander; Versionswechsel, verschwindender Updatehinweis
+und erhaltene ungespeicherte Eingaben der Hintergrundansicht sind geprüft.
+Die Ursache auf dem physischen Handy ist damit noch nicht unmittelbar belegt.
+
+**Korrektur:** Ausschließlich andere, nicht antwortende Ansichten dürfen auf
+ihrem bereits zugeordneten alten Bau bleiben. Vor der Freigabe werden alle
+alten App-Dateien gegen ihre gespeicherten Inhaltsprüfungen geprüft und die
+Zuordnung erneut bestätigt. Die angeklickte Ansicht muss selbst beide
+Update-Schritte bestätigen. Antwortende unsichere Ansichten, ein Widerruf,
+fehlende oder beschädigte alte Dateien und geänderte Fensterlisten blockieren
+weiterhin. Die Änderung liegt im wartenden Worker, damit auch ältere
+App-Versionen unmittelbar davon profitieren.
+
+**Browserprüfung:** Der dauerhafte Androidfall startet einen eigenen isolierten
+Chromium-Prozess ohne erzwungen sichtbare Tabs. Sichtbar/verborgen wird vor dem
+Einfrieren geprüft; der Updateknopf erhält echte Touch-Ereignisse. Ein normaler
+Playwright-Kontext hält Tabs künstlich sichtbar und bildet diesen Fehler daher
+nicht ab. Der neue Test verwendet die vorhandene automatische Trace-Aufzeichnung;
+ein anfangs zusätzlich gestarteter Trace wurde nach dem erkannten Testfehler entfernt.
+
+**Prüfungen:** 40 PWA-Skriptprüfungen einschließlich neun neuer Schutzfälle,
+Format, Lint, Typprüfung und Suite-Audit sind bestanden. Beide
+Produktionsteststände sind gebaut; die vollständige PWA-Browsersuite besteht
+mit 34 erfolgreichen Fällen und einem bewusst auf Desktop übersprungenen
+Androidfall. Die unabhängige Codeprüfung meldet keine Befunde und bestätigt
+die 16 Update-Skriptprüfungen zusätzlich. Der Nutzer hat PR und Merge nach
+grünen Pflichtprüfungen bereits freigegeben. Vor dem Push wird die inzwischen
+veröffentlichte unabhängige Vinted-Korrektur aus `origin/master` integriert.
+Fremde Zweige und unversionierte Auditdateien bleiben erhalten.
+
+**CI-Nachprüfung:** Im ersten PR-Lauf bestehen alle Anwendungstests, die
+Qualitätsprüfung, 116 allgemeine Browserfälle und 40 PWA-Skriptprüfungen.
+Der neue Linux-Browserfall wartet jedoch schon vor dem Updateklick unbegrenzt
+auf `registration.update()`, wenn die andere Seite vorher eingefroren wurde.
+Die Aufzeichnung bestätigt sichtbare Hauptseite und verborgenen Hintergrund.
+Der Test stellt deshalb zuerst den wartenden neuen Worker bereit und friert
+die Hintergrundseite unmittelbar vor dem eigentlichen Updateklick ein.
+Damit bleibt genau die fehlerhafte Aktivierungsbarriere geprüft. Auch dieser
+Ablauf scheitert mit dem bisherigen Worker und besteht mit der Korrektur
+dreimal; der erneute CI-Lauf muss vor dem Merge vollständig erfolgreich sein.
+
 ## 2026-10-15 - Juna - Vinted-Postfachkorrektur über PR veröffentlichen
 
 **Freigabe:** Der Nutzer autorisiert Branch-Push, PR-Erstellung, Merge nach
