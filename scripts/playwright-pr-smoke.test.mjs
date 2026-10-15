@@ -9,6 +9,12 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 
 // Nur die tatsächliche Testauswahl prüfen, nicht Playwrights Parser nachtesten.
 const coreTests = [
+  ...['light', 'dark'].flatMap((theme) =>
+    [320, 390, 834, 1440].map((width) => [
+      'purchase-profitability.spec.ts',
+      `Einkaufsansichten wechseln bei ${width}px im ${theme}-Theme @core-smoke`,
+    ]),
+  ),
   ...[320, 390, 768, 834, 1024, 1194, 1440].map((width) => [
     'responsive-admin-layout.spec.ts',
     `Vinted-Konten nutzen die verfügbare Breite bei ${width}px @core-smoke`,

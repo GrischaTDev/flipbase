@@ -292,6 +292,16 @@ Tabellen können auf schmalen Bildschirmen in priorisierte Listen übergehen. W�
 
 Zusätzlicher Flipbase-Vertrag: Suche und Filter bleiben bei null Treffern sichtbar. „Keine Treffer“, „Noch keine Daten“, „Lädt“ und „Fehler“ sind getrennte Zustände. Ausgeblendete Spalten ändern keinen Export. Datumssortierung heißt Älteste/Neueste, numerische Sortierung Kleinste/Größte, Textsortierung A–Z/Z–A. Unbekannte Beträge werden nicht als null dargestellt. Persönliche Ansichten müssen Konto- und Workspacewechsel berücksichtigen.
 
+Nutzerentscheidung vom 15.10.2026: Einkäufe erhalten rechts neben dem Verkäuferfilter
+einen Umschalter „Übersicht / Rentabilität“. Finanzspalten erweitern nicht die normale
+Übersicht. Die Rentabilitätsansicht zeigt Einkauf, Verkaufsstand, Gesamtkosten,
+Verkaufserlös und Ergebnis; Suche und Filter bleiben beim Wechsel erhalten.
+Spaltenwahl und Sortierung gelten je Ansicht getrennt. „Erhalten“ ist in der
+Standardübersicht ausgeblendet und weiterhin auswählbar. Das Ergebnis zieht direkte
+Verkaufskosten und die gesamten Einkaufskosten vom zugeordneten Verkaufserlös ab.
+Teilverkäufe sind als Zwischenstand erkennbar; fehlende Daten bleiben unbekannt.
+Die Berechnung lässt sich am Betrag mit Tastatur und Berührung aufklappen.
+
 ### Buttons und Eingaben
 
 Primäre, sekundäre und weitere Aktionsvarianten vermitteln unterschiedliche Wichtigkeit. Laden verhindert doppelte Auslösung. Navigationslinks und auslösende Aktionen bleiben semantisch unterscheidbar. [Button](https://shopify.dev/docs/api/app-home/latest/web-components/actions/button)

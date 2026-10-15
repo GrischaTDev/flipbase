@@ -14,6 +14,7 @@ import {
   EXPENSES_TABLE_CONFIG,
   INVENTORY_TABLE_CONFIG,
   PURCHASES_TABLE_CONFIG,
+  PURCHASES_PROFITABILITY_TABLE_CONFIG,
   SALES_TABLE_CONFIG,
 } from '../config/table-defaults.config';
 import {
@@ -59,6 +60,7 @@ export class TablePreferencesService {
     sales: SALES_TABLE_CONFIG,
     inventory: INVENTORY_TABLE_CONFIG,
     purchases: PURCHASES_TABLE_CONFIG,
+    purchases_profitability: PURCHASES_PROFITABILITY_TABLE_CONFIG,
     accounting: ACCOUNTING_TABLE_CONFIG,
     catalog: CATALOG_TABLE_CONFIG,
     expenses: EXPENSES_TABLE_CONFIG,
@@ -311,6 +313,30 @@ export class TablePreferencesService {
         ? parsed.sort
         : { ...config.defaultSort };
 
+      if (tableId === 'purchases' && parsed.defaultsVersion !== 2) {
+        const ids = purchaseColumnsWithoutLegacy.map((column) => column.id);
+        const currentOrder = config.defaultColumns.map((column) => column.id);
+        const unchangedDefault =
+          purchaseColumnsWithoutLegacy.length === currentOrder.length &&
+          purchaseColumnsWithoutLegacy.every((column) => column.visible) &&
+          (this.hasFormerPurchaseDefault(purchaseColumnsWithoutLegacy) ||
+            ids.every((id, index) => id === currentOrder[index]));
+        const columns = this.hasFormerPurchaseDefault(purchaseColumnsWithoutLegacy)
+          ? config.defaultColumns.map((column, order) => ({
+              ...column,
+              order,
+              visible: column.locked
+                ? true
+                : (storedOrder.get(column.id)?.visible ?? column.visible),
+            }))
+          : mergedColumns;
+        const migrated = columns.map((column) =>
+          column.id === 'receipt' && unchangedDefault ? { ...column, visible: false } : column,
+        );
+        this.savePreferences(tableId, workspaceId, migrated, validSort);
+        return { columns: migrated, sort: validSort };
+      }
+
       if (tableId === 'sales') {
         const columns = migrateLegacySalesColumns(parsed.columns, config.defaultColumns);
         if (columns) {
@@ -455,6 +481,7 @@ export class TablePreferencesService {
     try {
       const payload: StoredTablePreferences = {
         version: CURRENT_PREFERENCES_VERSION,
+        defaultsVersion: tableId === 'purchases' ? 2 : 1,
         columns: columns.map((c) => ({ id: c.id, visible: c.visible, order: c.order })),
         sort,
       };

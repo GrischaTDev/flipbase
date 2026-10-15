@@ -187,7 +187,7 @@ describe('TablePreferencesService – Polaris Table Preferences & Reordering', (
       ),
     ).toBe(false);
     expect(state.columns.find((column) => column.id === 'description')?.visible).toBe(true);
-    expect(state.columns.find((column) => column.id === 'receipt')?.visible).toBe(true);
+    expect(state.columns.find((column) => column.id === 'receipt')?.visible).toBe(false);
     expect(state.sort).toEqual({ field: 'title', direction: 'asc' });
     const stored = JSON.parse(
       localStorage.getItem(`flipbase:table_prefs:${testWorkspaceId}:purchases`) ?? '{}',
@@ -215,6 +215,46 @@ describe('TablePreferencesService – Polaris Table Preferences & Reordering', (
     expect(PURCHASES_TABLE_CONFIG.sortOptions.find(({ value }) => value === 'title')?.label).toBe(
       'Beschreibung',
     );
+  });
+
+  it('blendet Erhalten in der unveränderten alten Standardansicht aus und erhält eine persönliche Spaltenwahl', () => {
+    const ids = [
+      'title',
+      'purchase_date',
+      'seller',
+      'status',
+      'receipt',
+      'description',
+      'total_cost',
+    ];
+    storePurchaseColumns(ids);
+    const defaults = service.getTablePreferences('purchases', testWorkspaceId)();
+    expect(defaults.columns.find((column) => column.id === 'receipt')?.visible).toBe(false);
+    service.toggleColumnVisibility('purchases', 'receipt', testWorkspaceId);
+    expect(
+      service
+        .getTablePreferences('purchases', testWorkspaceId)()
+        .columns.find((column) => column.id === 'receipt')?.visible,
+    ).toBe(true);
+    expect(
+      service
+        .getTablePreferences('purchases_profitability', testWorkspaceId)()
+        .columns.map((column) => column.id),
+    ).toEqual(['title', 'sold_units', 'total_cost', 'revenue', 'result']);
+    service.setSort(
+      'purchases_profitability',
+      { field: 'result', direction: 'desc' },
+      testWorkspaceId,
+    );
+    service.toggleColumnVisibility('purchases_profitability', 'revenue', testWorkspaceId);
+    expect(service.getTablePreferences('purchases', testWorkspaceId)().sort).toEqual({
+      field: 'purchase_date',
+      direction: 'desc',
+    });
+    expect(service.getTablePreferences('purchases_profitability', testWorkspaceId)().sort).toEqual({
+      field: 'result',
+      direction: 'desc',
+    });
   });
 
   it('ergänzt die neue Artikeltabelle und entfernt die frühere Webshop-Spalte', () => {

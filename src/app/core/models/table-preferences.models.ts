@@ -2,6 +2,7 @@ export type TableId =
   | 'sales'
   | 'inventory'
   | 'purchases'
+  | 'purchases_profitability'
   | 'accounting'
   | 'catalog'
   | 'expenses'
@@ -39,6 +40,7 @@ export interface StoredTablePreferences<
   TSortField extends string = string,
 > {
   readonly version: number;
+  readonly defaultsVersion?: number;
   readonly columns: readonly {
     readonly id: TColumnId;
     readonly visible: boolean;
