@@ -539,3 +539,21 @@ test('normale Browserkonfigurationen schließen die gesonderten Produktions-PWA-
     );
   }
 });
+
+test('gezielte Marktplatzübersicht wählt ihre registrierten Browserfälle', async () => {
+  const plan = selectAffectedTests(
+    [
+      'src/app/features/marketplaces/components/marketplace-overview/marketplace-overview.component.html',
+    ],
+    await readSelectionFiles(root),
+  );
+  const { selected } = await listTests('playwright.affected.config.ts', [], {
+    AFFECTED_TEST_PLAN: JSON.stringify(plan),
+  });
+  assert.equal(plan.full, false);
+  assert.deepEqual(
+    keys(selected),
+    keys(coreTests.filter(([file]) => file === 'marketplace-overview.spec.ts')),
+  );
+  assert.equal(plan.pwa, false);
+});

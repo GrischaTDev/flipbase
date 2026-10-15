@@ -7,9 +7,12 @@ integrieren; anschließend eigenen Feature-Zweig und Worktree aufräumen.
 
 **Vorbereitung:** Nutzerfreigabe liegt vor. Aktuellen Hauptzweig einschließlich der
 gezielten Testauswahl integriert; beide Einträge im Änderungsprotokoll erhalten.
-Die neue Übersicht wird in dieser Auswahl ausdrücklich ihren eigenen Browserfällen
-zugeordnet. Bereits dokumentierte lokale Anwendungs-, Datenbank- und Browserprüfungen
-bleiben Grundlage; die erforderlichen CI-Prüfungen müssen vor dem Merge erfolgreich sein.
+Die neue Übersicht ist in dieser Auswahl ausdrücklich ihren eigenen Browserfällen
+zugeordnet. Der neue Auswahlfall schlug zunächst fehl; nach der Korrektur bestanden
+46 Auswahl-, Registrierungs- und Freigabevertragstests einschließlich der tatsächlichen
+Playwright-Auflistung. Bereits dokumentierte lokale Anwendungs-, Datenbank- und
+Browserprüfungen bleiben Grundlage; die erforderlichen CI-Prüfungen müssen vor
+dem Merge erfolgreich sein.
 
 ## 2026-10-15 - Juna - Zentrale Marktplatzübersicht umsetzen
 
