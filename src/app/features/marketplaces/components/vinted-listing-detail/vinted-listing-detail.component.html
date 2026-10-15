@@ -1,16 +1,6 @@
 @if (!editing()) {
   <div class="mb-4 flex items-center justify-between gap-3">
     <app-button link="/marketplaces/vinted/listings">Zurück zu Inseraten</app-button>
-    @if (
-      entry() &&
-      !editing() &&
-      store.selectedConnection()?.status === 'connected' &&
-      store.selectedConnection()?.executionMode !== 'local'
-    ) {
-      <app-button variant="primary" [disabled]="loadingDescription()" (clicked)="edit()"
-        >Bearbeiten</app-button
-      >
-    }
   </div>
 }
 <p class="sr-only" role="status" aria-live="polite" aria-atomic="true">
@@ -188,37 +178,16 @@
     </form>
   </app-entry-page-layout>
 } @else if (entry(); as item) {
-  <div class="grid items-start gap-4 md:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
-    <app-card class="min-w-0 overflow-hidden" padding="sm">
-      <app-product-thumbnail
-        class="w-full justify-center"
-        [src]="selectedPhoto() ?? item.imageUrl"
-        [alt]="item.title"
-        size="listing-detail"
-      />
-      @if (photos().length > 1) {
-        <div class="mt-3 flex flex-wrap gap-2" role="group" aria-label="Artikelfotos">
-          @for (photo of photos(); track photo; let index = $index) {
-            <button
-              type="button"
-              class="flex size-14 items-center justify-center overflow-hidden rounded-lg border-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
-              [class.border-fb-primary]="selectedPhoto() === photo"
-              [class.border-transparent]="selectedPhoto() !== photo"
-              [attr.aria-label]="'Foto ' + (index + 1) + ' anzeigen'"
-              [attr.aria-pressed]="selectedPhoto() === photo"
-              (click)="selectedPhoto.set(photo)"
-            >
-              <app-product-thumbnail [src]="photo" [alt]="''" size="md" fit="cover" />
-            </button>
-          }
-        </div>
-      }
-    </app-card>
+  <div
+    class="mx-auto grid max-w-[1320px] items-start gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]"
+  >
+    <app-product-gallery [images]="photos()" [title]="item.title" />
     <app-card class="min-w-0">
       <h2 class="break-words text-xl font-semibold text-fb-text-primary">{{ item.title }}</h2>
       <p class="mt-3 text-2xl font-semibold text-fb-text-primary">
         {{ item.price === null ? 'Preis unbekannt' : (item.price | currency: item.currency) }}
       </p>
+      <app-vinted-listing-age class="mt-3" [publishedAt]="item.publishedAt" />
       <app-vinted-listing-metrics
         class="mt-3"
         [metrics]="item.metrics"
@@ -240,11 +209,17 @@
         </div>
       </dl>
       @if (description(); as loaded) {
-        <h3 class="mt-5 text-sm font-semibold text-fb-text-primary">Beschreibung</h3>
         @if (loaded.description) {
-          <p class="mt-2 whitespace-pre-wrap break-words text-sm text-fb-text-secondary">
-            {{ loaded.description }}
-          </p>
+          <details class="mt-5">
+            <summary
+              class="cursor-pointer rounded text-sm font-semibold text-fb-text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
+            >
+              Beschreibung
+            </summary>
+            <p class="mt-2 whitespace-pre-wrap break-words text-sm text-fb-text-secondary">
+              {{ loaded.description }}
+            </p>
+          </details>
         } @else {
           <p class="mt-2 text-sm text-fb-text-secondary">Keine Beschreibung vorhanden.</p>
         }
@@ -266,6 +241,21 @@
         <p class="mt-5 text-sm text-fb-text-secondary">
           Die Beschreibung wurde noch nicht übernommen.
         </p>
+      }
+      @if (
+        store.selectedConnection()?.status === 'connected' &&
+        store.selectedConnection()?.executionMode !== 'local'
+      ) {
+        <div class="mt-5 border-t border-fb-line pt-4">
+          <app-button
+            variant="primary"
+            [fullWidth]="true"
+            size="touch"
+            [disabled]="loadingDescription()"
+            (clicked)="edit()"
+            >Bearbeiten</app-button
+          >
+        </div>
       }
     </app-card>
   </div>

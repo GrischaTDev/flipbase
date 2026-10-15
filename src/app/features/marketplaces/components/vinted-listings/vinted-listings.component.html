@@ -48,6 +48,11 @@
           </div>
           <div class="p-3">
             <h2 class="truncate text-sm font-semibold text-fb-text-primary">{{ entry.title }}</h2>
+            <app-vinted-listing-age
+              class="mt-2"
+              [publishedAt]="entry.publishedAt"
+              [compact]="true"
+            />
             @if (entry.brand || entry.size) {
               <p class="mt-1 truncate text-xs text-fb-text-secondary">
                 {{ entry.brand ?? '' }} {{ entry.size ?? '' }}

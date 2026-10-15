@@ -19,7 +19,16 @@ export class ProductThumbnailComponent {
   readonly src = input<string | null>(null);
   readonly alt = input('');
   readonly size = input<
-    'sm' | 'md' | 'listing' | 'listing-detail' | 'avatar' | 'profile' | 'badge' | 'reference'
+    | 'sm'
+    | 'md'
+    | 'listing'
+    | 'listing-detail'
+    | 'avatar'
+    | 'profile'
+    | 'badge'
+    | 'reference'
+    | 'gallery'
+    | 'viewer'
   >('sm');
   readonly priority = input(false);
   readonly flush = input(false);
