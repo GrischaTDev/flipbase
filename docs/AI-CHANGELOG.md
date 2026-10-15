@@ -40,7 +40,11 @@ Plugin verfügbar, deshalb reguläres Playwright. Keine Prüfung gegen eine echt
 Datenbank und noch kein Linux-/GitHub-Lauf. Bekannte Bauhinweise zu Paketgröße,
 `pako` und einem ungenutzten Import außerhalb dieser Änderung bleiben bestehen.
 Screenshots und Vorschaukonfiguration bleiben außerhalb der versionierten Dateien.
-Zweig `juna/purchase-profitability-view`; Push und PR warten auf die Freigabe.
+Zweig `juna/purchase-profitability-view`. Die Freigabe für Push, PR und Merge nach
+erfolgreichen Pflichtprüfungen liegt vor. Vor dem Push bestätigt der Abgleich:
+Der Zweig baut direkt auf dem aktuellen `origin/master` auf; keine Integration
+fremder Zweige erforderlich. Der lokale Prüfumfang bleibt unverändert, die
+abschließende Gesamtprüfung läuft im PR.
 
 ## 2026-10-15 - Juna - Ergebnis je Einkauf fachlich vorbereiten
 
