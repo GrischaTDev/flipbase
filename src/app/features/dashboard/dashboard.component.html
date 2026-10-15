@@ -8,8 +8,12 @@
           Dein Überblick über Umsätze, Gewinne und deinen Bestand.
         </p>
       </div>
-      <div class="filters flex flex-wrap items-center justify-between gap-2">
-        <div class="periods" role="group" aria-label="Zeitraum wählen">
+      <div class="filters flex min-w-0 max-w-full flex-wrap items-center gap-2">
+        <div
+          class="periods grid max-w-full grid-cols-2 rounded-[9px] bg-fb-well p-0.5 pointer-coarse:p-0 @min-[20rem]:flex @min-[20rem]:flex-wrap shadow-[inset_0_0_0_1px_var(--fb-line)]"
+          role="group"
+          aria-label="Zeitraum wählen"
+        >
           @for (option of rangeOptions; track option.value) {
             <app-button
               size="slim"
@@ -22,10 +26,11 @@
           }
         </div>
         <app-custom-select
+          class="min-w-0 max-w-full"
           triggerId="dashboard-platform"
           ariaLabel="Plattform filtern"
           variant="filter"
-          widthClass="w-52"
+          widthClass="w-44 max-w-full"
           [options]="platformSelectOptions()"
           [value]="platform()"
           (valueChange)="setPlatform($event)"
@@ -47,10 +52,23 @@
     </div>
   }
 
-  <section class="kpi-grid" aria-label="Kennzahlen" [attr.aria-busy]="!ready() && !loadError()">
+  <section
+    class="kpi-grid flex flex-wrap gap-3"
+    aria-label="Kennzahlen"
+    [attr.aria-busy]="!ready() && !loadError()"
+  >
     @for (metric of metrics(); track metric.key) {
-      <app-card padding="none" rounded="xl" [attr.data-kpi]="metric.key">
-        <div class="metric" [attr.data-tone]="metric.tone" [title]="metric.help">
+      <app-card
+        class="min-w-0 flex-[1_1_10rem]"
+        padding="none"
+        rounded="xl"
+        [attr.data-kpi]="metric.key"
+      >
+        <div
+          class="metric min-h-32 p-3 @min-[70rem]:p-4"
+          [attr.data-tone]="metric.tone"
+          [title]="metric.help"
+        >
           <div
             class="metric-heading [&_h2]:m-0 [&_h2]:text-[13px] [&_h2]:font-[550] [&_h2]:text-fb-text-secondary flex items-center gap-2.5"
           >

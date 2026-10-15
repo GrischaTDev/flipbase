@@ -1,5 +1,47 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-15 - Juna - Mobile und Tablet-Layouts durchgehen
+
+**Auftrag:** Ungenutzte Breite, zu frühe Kachelumbrüche und uneinheitliche
+Bedienelemente auf Handy und Tablet beheben. Ausgangspunkte sind drei
+Vinted-Konten und die Kennzahlen und Filter im Dashboard.
+
+**Umsetzung:** Vinted-Konten erhalten ein fließendes Raster mit lesbarer
+Mindestbreite und voller verfügbarer Kartenbreite; die Hinzufügen-Aktion bleibt
+oben rechts. Kartenaktionen dürfen bei knappem Platz untereinander stehen.
+Die Dashboard-Kennzahlen füllen auch die letzte Zeile und passen bei genügend
+Platz zu fünft nebeneinander. Zeitraumwahl und Plattformfilter verwenden auf
+Touch-Geräten dieselbe Mindesthöhe von 44 px. Gemeinsame Seitenköpfe schützen
+den Platz für Titel und Beschreibung, Tabellenfilter teilen ihre Zeile mit
+dem Spaltenmenü. Zweispaltige Formulare und Einstellungen richten ihren Umbruch
+nach der tatsächlichen Inhaltsbreite aus. Der Vinted-Feed verliert doppelte
+Außenabstände und ordnet kleine Filter paarweise an. Die Auswertungen verwenden
+für Zeiträume und Bereichswechsel die gemeinsamen Buttons statt teilweise
+unlesbarer, gequetschter Eigenbauten. Keine Daten oder Kennzahlen ausgeblendet.
+
+**Prüfung:** Die neuen Browserprüfungen belegen zunächst die gemeldeten
+Darstellungsfehler. Abschließend bestehen 39 Browserfälle: 18 Verwaltungsseiten
+bei sechs Breiten, Konten von 320 bis 1440 px, lokale Kartenaktionen mit Touch,
+Dashboard in beiden Themes, Auswertungsfilter und bestehende Vinted-Abläufe.
+Ein zusätzlicher Datenfall prüft 1.234.567,89 Euro Bestandswert und den
+Diagrammumbruch nach Größenwechseln. Die geprüften Dashboard-, Konto- und
+Auswertungsansichten bestehen AXE; das Touch-Dashboard erzeugt keine
+Konsolen- oder Laufzeitfehler. 118 Tests in neun betroffenen Komponentenbereichen,
+Formatierung, gezieltes ESLint, Typprüfung, Shared-UI-Prüfung, Suite-Audit und
+Produktionsbau sind erfolgreich. Der Bau meldet weiterhin Hinweise auf die
+Paketgröße (938,21 kB bei 900 kB Warnschwelle), `pako` und einen ungenutzten
+Import außerhalb der Änderung. Screenshots und Testausgaben bleiben außerhalb
+des Repositorys. Browsernachweise stammen aus lokalem Chrome mit simulierten
+Breiten, Touch und Testdaten; ein physisches iPad und Safari wurden nicht
+geprüft. Umsetzung auf `juna/responsive-admin-layout`, keine Änderungen an
+produktiven Daten.
+
+**Freigabe:** Der Nutzer hat PR-Erstellung, Branch-Push, Merge-Commit nach
+erfolgreichen Pflichtprüfungen und anschließend das Aufräumen des eigenen
+Zweigs freigegeben. Der Zweig basiert auf dem aktuellen `origin/master`
+(`887d9d8e`). Die Veröffentlichung erfolgt über die reguläre CI; danach wird
+die öffentlich ausgelieferte Version lesend geprüft.
+
 ## 2026-10-15 - Juna - Update der installierten Android-App untersuchen
 
 **Auftrag:** Das iPad ist laut Nutzer erfolgreich aktualisiert und für Push

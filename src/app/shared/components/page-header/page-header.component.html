@@ -12,8 +12,8 @@
     </nav>
   }
 
-  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 min-w-0">
-    <div class="min-w-0 space-y-1">
+  <div class="flex min-w-0 flex-wrap items-center justify-between gap-3">
+    <div class="min-w-[min(100%,14rem)] flex-1 space-y-1">
       <div class="flex items-center gap-2 flex-wrap min-w-0">
         @if (icon(); as pageIcon) {
           <svg
@@ -22,7 +22,9 @@
             aria-hidden="true"
           ></svg>
         }
-        <h1 class="text-xl leading-7 font-[450] tracking-tight text-fb-text-primary truncate">
+        <h1
+          class="min-w-0 break-words text-xl leading-7 font-[450] tracking-tight text-fb-text-primary"
+        >
           {{ title() }}
         </h1>
         <ng-content select="[header-badge]" />
@@ -37,7 +39,7 @@
       </div>
     </div>
 
-    <div class="empty:hidden flex items-center gap-2 shrink-0 flex-wrap">
+    <div class="empty:hidden flex min-w-0 max-w-full flex-wrap items-center gap-2">
       <ng-content select="[header-actions]" />
     </div>
   </div>

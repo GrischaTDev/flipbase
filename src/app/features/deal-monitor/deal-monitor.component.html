@@ -1,4 +1,4 @@
-<section class="mx-auto flex w-full max-w-[1800px] flex-col gap-5 p-4 sm:p-6">
+<section class="@container mx-auto flex w-full min-w-0 max-w-[1800px] flex-col gap-4">
   <app-page-header
     title="Vinted Feed"
     subtitle="Neue Vinted-Artikel entdecken und für später merken."
@@ -14,8 +14,8 @@
   }
 
   <app-card data-feed-filters padding="sm" [overflowVisible]="true" rounded="xl">
-    <div class="flex flex-wrap items-end gap-3">
-      <div class="w-full min-w-0 sm:min-w-52 sm:flex-1">
+    <div class="grid grid-cols-2 items-end gap-3 @min-[36rem]:grid-cols-4 @min-[70rem]:grid-cols-8">
+      <div class="col-span-2 min-w-0">
         <label for="feed-title-search" class="mb-1 block text-sm">Artikel durchsuchen</label>
         <app-custom-search-input
           id="feed-title-search"
@@ -26,7 +26,7 @@
           (searched)="searchChanged($event)"
         />
       </div>
-      <div class="w-full min-w-0 sm:w-56">
+      <div class="col-span-2 min-w-0 @min-[36rem]:col-span-1 @min-[70rem]:col-span-2">
         <label for="feed-watchlist" class="mb-1 block text-sm">Suchfilter</label
         ><app-custom-select
           triggerId="feed-watchlist"
@@ -37,7 +37,7 @@
           [(value)]="selected"
         />
       </div>
-      <div class="w-full min-w-0 sm:w-48">
+      <div class="min-w-0">
         <label for="feed-brand" class="mb-1 block text-sm">Marke</label>
         <app-custom-select
           triggerId="feed-brand"
@@ -49,7 +49,7 @@
           [(value)]="selectedBrand"
         />
       </div>
-      <div class="w-full min-w-0 sm:w-44">
+      <div class="min-w-0">
         <label for="feed-size" class="mb-1 block text-sm">Größe</label
         ><app-custom-select
           triggerId="feed-size"
@@ -60,7 +60,7 @@
           [(value)]="selectedSize"
         />
       </div>
-      <div class="w-full min-w-0 sm:w-32">
+      <div class="min-w-0">
         <label for="feed-min-price" class="mb-1 block text-sm">Min. Preis</label>
         <app-number-input
           id="feed-min-price"
@@ -74,7 +74,7 @@
           [(value)]="minPrice"
         />
       </div>
-      <div class="w-full min-w-0 sm:w-32">
+      <div class="min-w-0">
         <label for="feed-max-price" class="mb-1 block text-sm">Max. Preis</label>
         <app-number-input
           id="feed-max-price"

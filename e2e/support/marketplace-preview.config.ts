@@ -4,6 +4,7 @@ import { defineConfig } from '@playwright/test';
 export default defineConfig({
   testDir: '..',
   testMatch: [
+    'responsive-admin-layout.spec.ts',
     'marketplace-accounts.spec.ts',
     'vinted-workspace-ui.spec.ts',
     'vinted-account-grid.spec.ts',
