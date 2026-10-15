@@ -118,3 +118,14 @@ Einträge wurden erhalten. Die hinzugekommenen Änderungen betreffen die öffent
 Startseite. Dateiinhalt von Anwendung, Supabase und Browserfällen gegenüber dem
 bereits geprüften eigenen Stand unverändert nachgewiesen; zusätzliche 45
 Landing-Tests bestanden. Kein Push, PR, Merge auf master oder Deployment ausgeführt.
+
+## PR-Nachprüfung
+
+PR 426: Der erste CI-Lauf bestand Qualität, Datenbank, Produktions-PWA sowie alle
+Node-, DOM- und Angular-Gruppen. Der Browserlauf hielt bei einer noch unveränderten
+Erwartung zur Vinted-Menüliste an (135 Fälle zuvor bestanden). Der neue Rücklink
+war korrekt sichtbar, fehlte aber in dieser bestehenden Soll-Liste. Genau diesen
+Fehler lokal reproduziert, dann Soll-Liste und Zieladressenprüfung ergänzt.
+Die gesamten sechs Fälle dieser Browserdatei bestanden anschließend bei
+1440/390/320 Pixeln in Hell/Dunkel. Die vollständige erforderliche CI muss den
+korrigierten PR-Stand vor dem Merge erneut bestätigen.

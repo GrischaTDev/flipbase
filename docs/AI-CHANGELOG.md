@@ -14,6 +14,13 @@ Playwright-Auflistung. Bereits dokumentierte lokale Anwendungs-, Datenbank- und
 Browserprüfungen bleiben Grundlage; die erforderlichen CI-Prüfungen müssen vor
 dem Merge erfolgreich sein.
 
+**CI-Nachprüfung:** Im ersten PR-Lauf waren Qualität, Datenbank, PWA und alle
+Anwendungstests erfolgreich. Ein bestehender Vinted-Browserfall erwartete noch
+die Menüliste ohne den neu vorgesehenen Rücklink „Alle Marktplätze“. Fehler lokal
+identisch nachgestellt; erwarteten Link und seine Zieladresse ergänzt, danach alle
+sechs vorhandenen Vinted-Ansichten in 1440/390/320 Pixeln und Hell/Dunkel erfolgreich.
+Keine Produktänderung und keine Prüfgrenze abgeschwächt; neuer CI-Lauf erforderlich.
+
 ## 2026-10-15 - Juna - Zentrale Marktplatzübersicht umsetzen
 
 **Auftrag:** Paket A direkt in dieser Sitzung umsetzen. Kontingent und Gebührenstopp
