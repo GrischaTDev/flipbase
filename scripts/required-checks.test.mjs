@@ -25,6 +25,10 @@ function runChecker(overrides = {}) {
       SNIPER_RESULT: 'success',
       BROWSER_RESULT: 'success',
       IMAGE_RESULT: 'success',
+      UNIT_REQUIRED: overrides.APPLICATION_TESTS_CHANGED === 'false' ? 'false' : 'true',
+      BROWSER_REQUIRED: overrides.APPLICATION_TESTS_CHANGED === 'false' ? 'false' : 'true',
+      PWA_REQUIRED: overrides.APPLICATION_TESTS_CHANGED === 'false' ? 'false' : 'true',
+      PWA_RESULT: overrides.BROWSER_RESULT ?? 'success',
       ...overrides,
     },
   });
@@ -33,6 +37,25 @@ function runChecker(overrides = {}) {
 test('akzeptiert einen vollständigen erfolgreichen Push', () => {
   const result = runChecker();
   assert.equal(result.status, 0, result.stderr);
+});
+
+test('gezielte Anwendungsauswahl verlangt ausschließlich ihre gewählten Prüfungen', () => {
+  const selected = {
+    UNIT_REQUIRED: 'true',
+    BROWSER_REQUIRED: 'false',
+    PWA_REQUIRED: 'false',
+    BROWSER_RESULT: 'skipped',
+    PWA_RESULT: 'skipped',
+  };
+  assert.equal(runChecker(selected).status, 0);
+  assert.notEqual(runChecker({ ...selected, UNIT_RESULT: 'skipped' }).status, 0);
+  assert.notEqual(runChecker({ ...selected, BROWSER_RESULT: 'cancelled' }).status, 0);
+  assert.equal(
+    runChecker({ ...selected, UNIT_REQUIRED: 'false', UNIT_RESULT: 'skipped' }).status,
+    0,
+  );
+  assert.notEqual(runChecker({ ...selected, PWA_REQUIRED: 'true' }).status, 0);
+  assert.notEqual(runChecker({ ...selected, BROWSER_REQUIRED: '' }).status, 0);
 });
 
 test('akzeptiert wiederverwendete PR-Prüfungen nur beim Push mit erfolgreichem Image', () => {

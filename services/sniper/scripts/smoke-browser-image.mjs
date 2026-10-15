@@ -17,14 +17,14 @@ import { ChromeVintedBrowser } from './dist/browser/vinted-browser.js';
 import { chromium } from 'playwright';
 await mkdir(process.env.HOME, { recursive: true });
 let scripts = 0;
-let input = '';
+const inputEvents = new Set();
 let cookie = '';
 let renewalExpires = 0;
 let catalogRequests = 0;
 const server = createServer((request, response) => {
   if (request.url.startsWith('/executed')) { scripts++; renewalExpires = Date.now() + 1800; response.end('ok'); return; }
   if (request.url === '/renew.js') { response.setHeader('Content-Type', 'application/javascript'); response.end('setTimeout(() => fetch("/executed"), 75)'); return; }
-  if (request.url.startsWith('/input')) { input = new URL(request.url, 'http://localhost').searchParams.get('text'); response.end('ok'); return; }
+  if (request.url.startsWith('/input')) { inputEvents.add(new URL(request.url, 'http://localhost').searchParams.get('text')); response.end('ok'); return; }
   if (request.url.includes('challenge')) { response.writeHead(403, { 'cf-mitigated': 'challenge' }); response.end('<title>Just a moment...</title>challenge-running'); return; }
   if (request.url.includes('slow')) { return; }
   if (request.url.startsWith('/catalog')) {
@@ -85,8 +85,16 @@ try {
   assert.ok(frame.length > 100);
   assert.equal(frame[0], 255); assert.equal(frame[1], 216);
   await browser.input({ kind: 'text', text: 'manual-smoke' });
-  for (let attempt = 0; attempt < 50 && input !== 'manual-smoke'; attempt++) await new Promise(resolve => setTimeout(resolve, 100));
-  assert.equal(input, 'manual-smoke', 'Native desktop typing must reach the focused page');
+  // Pro Tastendruck entsteht ein unabhängiger Request; deren Ankunftsreihenfolge
+  // sagt nichts über den aktuellen Feldinhalt aus.
+  for (let attempt = 0; attempt < 50 && !inputEvents.has('manual-smoke'); attempt++) await new Promise(resolve => setTimeout(resolve, 100));
+  assert.ok(inputEvents.has('manual-smoke'), 'Native desktop typing must reach the page input handler');
+  const inputInspection = await chromium.connectOverCDP('http://127.0.0.1:9228', { noDefaults: true });
+  try {
+    const manualPage = inputInspection.contexts()[0].pages().find(page => page.url().startsWith(baseUrl));
+    assert.ok(manualPage, 'Native manual page must remain open');
+    assert.equal(await manualPage.locator('#text').inputValue(), 'manual-smoke', 'Native desktop typing must leave the complete text in the focused page');
+  } finally { await inputInspection.close(); }
   await browser.stopManual();
   await browser.close();
   browser = new ChromeVintedBrowser(baseUrl, options);
