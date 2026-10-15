@@ -38,7 +38,7 @@ MarketplaceOverviewComponent setzt die Seite zusammen,
 MarketplaceListingSectionComponent zeigt genau einen Accountabschnitt.
 Modellfunktionen sind rein. Keine Datenabfragen in Shared-Komponenten.
 
-### A1: Persönliche Sichtbarkeit sicher speichern
+### Task 1: Persönliche Sichtbarkeit sicher speichern
 
 **Files:** Ändern: src/app/core/services/marketplace-settings.service.ts und
 dessen bestehende marketplace-settings.service.dom.spec.ts sowie neue marketplace-settings.service.angular.spec.ts; src/app/features/settings/pages/marketplaces-settings/
@@ -72,7 +72,7 @@ UI wartet bei Speichern; bei Fehler wird der bestätigte Zustand wiederhergestel
 - [ ] Gezielte Dateien committen: feat(core): persist marketplace visibility per workspace.
       Keine Signatur; docs/AI-CHANGELOG.md mit tatsächlichen Prüfungen ergänzen.
 
-### A2: Vorhandene Accounts und Inserate gemeinsam lesen
+### Task 2: Vorhandene Accounts und Inserate gemeinsam lesen
 
 **Files:** Neu im Feature marketplaces:
 models/marketplace-overview.models.ts, marketplace-overview-normalization.ts
@@ -120,7 +120,7 @@ in zwei Accounts, übergroße Seitenanforderung und nicht unterstützte Aktion.
       connection-read.test.ts mit den CI-Deno-Optionen ausführen.
 - [ ] Commit: feat(core): add unified marketplace listing reads.
 
-### A3: Übersicht, Navigation und Auswahl liefern
+### Task 3: Übersicht, Navigation und Auswahl liefern
 
 **Files:** Neu unter features/marketplaces:
 services/marketplace-overview.store.ts und .angular.spec.ts;
@@ -162,7 +162,7 @@ AccountKey = JSON.stringify([platform,workspaceId,connectionId]).
       ausführen. npm run build prüft die tatsächlichen Angular-Templates.
 - [ ] Commit: feat(ui): add central marketplace overview.
 
-### A4: Bestehende Wege und neue Übersicht im Browser absichern
+### Task 4: Bestehende Wege und neue Übersicht im Browser absichern
 
 **Files:** Neu: e2e/marketplace-overview.spec.ts,
 e2e/support/marketplace-overview-fixture.ts.

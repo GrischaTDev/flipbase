@@ -24,8 +24,12 @@ export class MarketplacesSettingsComponent {
   readonly isEbayEnabled = this.marketplaceSettings.isEbayEnabled;
   readonly isKleinanzeigenEnabled = this.marketplaceSettings.isKleinanzeigenEnabled;
   readonly activeCount = this.marketplaceSettings.activeCount;
+  readonly settingsLoading = this.marketplaceSettings.loading;
+  readonly settingsSaving = this.marketplaceSettings.saving;
+  readonly settingsReady = this.marketplaceSettings.ready;
+  readonly settingsError = this.marketplaceSettings.error;
 
-  onToggle(marketplace: MarketplaceId, enabled: boolean): void {
-    this.marketplaceSettings.setMarketplaceEnabled(marketplace, enabled);
+  async onToggle(marketplace: MarketplaceId, enabled: boolean): Promise<void> {
+    await this.marketplaceSettings.setMarketplaceEnabled(marketplace, enabled);
   }
 }

@@ -1,5 +1,22 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-15 - Juna - Zentrale Marktplatzübersicht umsetzen
+
+**Auftrag:** Paket A direkt in dieser Sitzung umsetzen. Kontingent und Gebührenstopp
+bleiben für den späteren Veröffentlichungsweg verbindlich.
+
+**Stand:** Persönliche Sichtbarkeit je Nutzer und Workspace mit sicherer
+Altdatenübernahme und Rücknahme fehlgeschlagener Änderungen implementiert.
+Neue RLS-Fälle bestehen nach vollständigem Neuaufbau aus der erzeugten Migration.
+Die CLI ließ anfangs geerbte Standardrechte bestehen; ein zusätzlich erzeugter
+Rechte-Diff ist Teil der neu generierten Migration. Bestehende Tests wurden
+unverändert auf diese Grenze angewendet.
+
+Gemeinsame Leseansicht, Accountabschnitte, Such-/Statusfilter für die vollständige
+Vinted-Lesekopie, eBay-Seitennavigation und kontextgetrennte Auswahl sind in Arbeit.
+Details und Nachweise im Ausführungsprotokoll des eigenen Worktrees.
+Noch keine Browserabnahme, kein Push und keine echten Inserataktionen.
+
 ## 2026-10-15 - Juna - Privatkontingent für Kleidungsanzeigen recherchieren
 
 **Auftrag:** Prüfen, ob die Privatkonto-Regel für 100 neue Anzeigen in 30 Tagen

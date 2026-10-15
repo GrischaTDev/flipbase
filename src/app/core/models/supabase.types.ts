@@ -7,31 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       activity_logs: {
@@ -4661,6 +4636,41 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "marketplace_connections"
             referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
+      marketplace_user_settings: {
+        Row: {
+          ebay: boolean
+          id: number
+          kleinanzeigen: boolean
+          user_id: string
+          vinted: boolean
+          workspace_id: string
+        }
+        Insert: {
+          ebay?: boolean
+          id?: never
+          kleinanzeigen?: boolean
+          user_id: string
+          vinted?: boolean
+          workspace_id: string
+        }
+        Update: {
+          ebay?: boolean
+          id?: never
+          kleinanzeigen?: boolean
+          user_id?: string
+          vinted?: boolean
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_user_settings_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -10383,6 +10393,16 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_save_settings: {
+        Args: {
+          p_ebay: boolean
+          p_kleinanzeigen: boolean
+          p_only_if_absent?: boolean
+          p_vinted: boolean
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       marketplace_set_favorite_notification_settings: {
         Args: {
           p_connection_id: string
@@ -11702,10 +11722,8 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {},
   },
 } as const
+
