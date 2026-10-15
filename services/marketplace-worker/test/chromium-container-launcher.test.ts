@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { Browser, BrowserContext } from 'playwright';
 import { ChromiumContainerLauncher } from '../src/chromium-container-launcher.ts';
+import { CloudBrowserStoppedUncleanlyError } from '../src/gologin-cloud-browser.ts';
 
 const containerId = 'a'.repeat(64);
 function fixture(
@@ -25,6 +26,7 @@ function fixture(
   let removed = !existing;
   let running = !settings.initiallyExited;
   let failNextInspection = false;
+  let uncleanStop = false;
   const browser = {
     contexts: () => [context],
     newBrowserCDPSession: async () => ({
@@ -38,6 +40,15 @@ function fixture(
     browser: () => browser,
   } as unknown as BrowserContext;
   const launcher = new ChromiumContainerLauncher({
+    stopResults: {
+      read: async () => uncleanStop,
+      write: async () => {
+        uncleanStop = true;
+      },
+      clear: async () => {
+        uncleanStop = false;
+      },
+    },
     image: `ghcr.io/grischatdev/flipbase-chromium-session:sha-${'b'.repeat(40)}`,
     profileRoot: '/controller/profiles',
     hostProfileRoot: '/host/profiles',
@@ -275,13 +286,12 @@ test('rejects a legacy browser image before connecting its runtime', async () =>
   await assert.rejects(launcher.launch('/controller/profiles/account-1'));
 });
 
-test('unconfirmed graceful stop retains its container and profile reservation', async () => {
+test('a proven stopped browser with exit 75 releases capacity and reports its unclean profile', async () => {
   const { launcher, calls } = fixture(75, true, { initiallyExited: true });
-  await assert.rejects(launcher.recover('account-1'));
-  assert.equal(
-    calls.some((call) => call.args[0] === 'rm'),
-    false,
-  );
+  await assert.rejects(launcher.recover('account-1'), CloudBrowserStoppedUncleanlyError);
+  assert.ok(calls.some((call) => call.args[0] === 'rm'));
+  assert.deepEqual(await launcher.inspectProfileProcesses('/controller/profiles/account-1'), []);
+  await assert.rejects(launcher.recover('account-1'), CloudBrowserStoppedUncleanlyError);
 });
 
 test('browser allocation must leave the controller address outside its dynamic pool', async () => {
@@ -293,17 +303,26 @@ test('browser allocation must leave the controller address outside its dynamic p
   );
 });
 
-test('retains containers after forced or unresolved shutdown', async () => {
+test('a forced but proven stopped container releases capacity without claiming a clean profile', async () => {
   const { launcher, calls } = fixture(137);
   await launcher.launch('/controller/profiles/account-1', {
     chromiumSandbox: true,
   });
-  await assert.rejects(() => launcher.recover('account-1'), /Stop|stop|beendet/);
-  assert.equal(
-    calls.some((call) => call.args[0] === 'rm'),
-    false,
-  );
-  assert.deepEqual(await launcher.inspectProfileProcesses('/controller/profiles/account-1'), [1]);
+  await assert.rejects(() => launcher.recover('account-1'), CloudBrowserStoppedUncleanlyError);
+  assert.ok(calls.some((call) => call.args[0] === 'rm'));
+  assert.deepEqual(await launcher.inspectProfileProcesses('/controller/profiles/account-1'), []);
+});
+
+test('out of memory and unexpected exit codes affect only the stopped profile', async () => {
+  for (const [exitCode, state] of [
+    [143, {}],
+    [255, {}],
+    [137, { OOMKilled: true }],
+  ] as const) {
+    const { launcher } = fixture(exitCode, true, { initiallyExited: true, state });
+    await assert.rejects(launcher.recover('account-1'), CloudBrowserStoppedUncleanlyError);
+    assert.deepEqual(await launcher.inspectProfileProcesses('/controller/profiles/account-1'), []);
+  }
 });
 
 test('rejects escaping profile paths and unsupported launch flags before Docker mutation', async () => {
@@ -427,16 +446,18 @@ test('confirms a runtime failure during close before releasing its profile', asy
 
 test('keeps unknown failures and unproven exits quarantined', async () => {
   for (const [exitCode, state] of [
-    [137, {}],
     [1, { Status: 'dead' }],
     [1, { Running: true }],
     [1, { Dead: true }],
     [1, { Restarting: true }],
     [1, { Pid: 100 }],
-    [1, { OOMKilled: true }],
     [1, { Paused: true }],
     [1, { Paused: null }],
     [1, { ExitCode: '1' }],
+    [1, { ExitCode: -1 }],
+    [1, { ExitCode: 256 }],
+    [1, { ExitCode: 1.5 }],
+    [1, { ExitCode: null }],
     [0, { Pid: 100 }],
     [0, { Restarting: true }],
     [78, { Status: 'dead' }],
@@ -451,7 +472,6 @@ test('keeps unknown failures and unproven exits quarantined', async () => {
     [78, { Restarting: null }],
     [78, { Pid: 100 }],
     [78, { Pid: null }],
-    [78, { OOMKilled: true }],
     [78, { OOMKilled: null }],
     [78, { ExitCode: '78' }],
   ] as [number, Record<string, unknown>][]) {

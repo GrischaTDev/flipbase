@@ -7,6 +7,7 @@ import type { BrowserDesktop, BrowserDragPoint } from './gologin-cloud-browser.t
 import { ChromiumContainerLauncher } from './chromium-container-launcher.ts';
 import { GoLoginSessionProxy } from './gologin-session-proxy.ts';
 import { ChromiumProfileStore } from './chromium-profile-store.ts';
+import { CloudBrowserStoppedUncleanlyError } from './gologin-cloud-browser.ts';
 
 type LaunchOptions = Parameters<ChromiumContainerLauncher['launch']>[1];
 export interface ChromiumHostOperations {
@@ -71,9 +72,16 @@ export function chromiumHostOperations(
       }
     },
     recover: async (profileId) => {
-      await launcher.recover(profileId);
+      let warning: CloudBrowserStoppedUncleanlyError | undefined;
+      try {
+        await launcher.recover(profileId);
+      } catch (error) {
+        if (!(error instanceof CloudBrowserStoppedUncleanlyError)) throw error;
+        warning = error;
+      }
       contexts.get(profileId)?.closeProxy?.();
       contexts.delete(profileId);
+      if (warning) throw warning;
     },
     inspect: (profileId) => launcher.inspectProfileProcesses(profiles.directory(profileId)),
     archive: async (profileId) => {
@@ -254,7 +262,13 @@ export async function dispatchChromiumHostCommand(
     return operations.invoke(profileId, request.session, request.command);
   }
   if (action === 'recover') {
-    await operations.recover(profileId);
+    try {
+      await operations.recover(profileId);
+    } catch (error) {
+      if (error instanceof CloudBrowserStoppedUncleanlyError)
+        return { stopped: true, clean: false };
+      throw error;
+    }
     return {};
   }
   if (action === 'inspect') return { processes: await operations.inspect(profileId) };

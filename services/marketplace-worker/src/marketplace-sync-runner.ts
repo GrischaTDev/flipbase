@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { BrowserInfo } from './gologin-cloud-browser.ts';
+import { CloudBrowserStoppedUncleanlyError } from './gologin-cloud-browser.ts';
 import {
   MarketplaceBrowserSessionEndedError,
   type BrowserSessionScope,
@@ -234,6 +235,10 @@ export class MarketplaceSyncRunner {
         browserReadFailures: snapshot.browserReadFailures,
       });
     } catch (error) {
+      if (error instanceof CloudBrowserStoppedUncleanlyError) {
+        failedStage = 'cleanup';
+        sessionClosed = true;
+      }
       if (error instanceof MarketplaceBrowserSessionEndedError)
         failedStage = error.reason === 'expired' ? 'access' : 'interrupted';
       if (sessionId) {

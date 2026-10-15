@@ -4,13 +4,14 @@ import { type Server } from 'node:http';
 import { execFile } from 'node:child_process';
 import { chromium, type Browser } from 'playwright';
 let remoteConnection: Browser | undefined;
+let localConnection: Browser | undefined;
 import { vintedBrowserActions } from '../src/vinted-browser-actions.ts';
 import { ChromiumDesktopControls } from '../src/chromium-desktop-controls.ts';
 import { commandRecord } from '../src/isolated-browser-actions.ts';
 import { startSessionCommands } from './session-command-server.ts';
 import { connect } from 'node:net';
 import { createProxyForwarder } from '../../../tools/cloud-browser-pilot/proxy-forwarder.mjs';
-import { closeChromeWindows } from '../../../tools/cloud-browser-pilot/chrome-window-close.mjs';
+import { closeChromeSession } from './chrome-session-stop.ts';
 import { parseChromeSessionConfiguration } from './chrome-session-config.ts';
 
 let browser: ChildProcess | undefined;
@@ -26,23 +27,16 @@ async function finish(exitCode: 0 | 1 | 78): Promise<void> {
   finishing = true;
   process.exitCode = exitCode;
   if (browser && browser.exitCode === null && browser.signalCode === null) {
-    const exited = new Promise<void>((resolve) => {
-      const deadline = setTimeout(resolve, 8_000);
-      browser?.once('exit', () => {
-        clearTimeout(deadline);
-        resolve();
-      });
-    });
     try {
-      await closeChromeWindows(
-        undefined,
+      await closeChromeSession(
+        localConnection,
         () => browser?.exitCode === null && browser.signalCode === null,
       );
     } catch {
       process.exitCode = 75;
     }
-    await exited;
-    // 75 hält Profil und IP reserviert, wenn ein sauberer Chrome-Stopp unbestätigt bleibt.
+    // 75 meldet den unsauberen Profilabschluss. Der Host muss das physische
+    // Containerende trotzdem unabhängig bestätigen, bevor er andere Konten startet.
     if (browser.exitCode === null && browser.signalCode === null) {
       process.exitCode = 75;
       browser.kill('SIGKILL');
@@ -172,6 +166,7 @@ async function startup(): Promise<void> {
     timeout: 10000,
     noDefaults: true,
   });
+  localConnection = connection;
   const page = connection.contexts()[0]?.pages()[0];
   if (!page) throw new Error('Browserseite fehlt');
   const desktop = new ChromiumDesktopControls({

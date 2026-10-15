@@ -1,5 +1,86 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-16 - Juna - Chrome-Abschluss und getrennte Kontowiederherstellung absichern
+
+**Auftrag:** Die Ursache des unsauberen Chrome-Abschlusses untersuchen und
+verhindern, dass ein betroffenes Konto dauerhaft alle anderen Abrufe blockiert.
+
+**Nachweis:** Das bisherige Schließen aller Fenster beendet Chrome mit aktiven
+Hintergrundaufgaben nicht. Der synthetische Linux-Fall scheitert am alten
+Acht-Sekunden-Stopp und besteht mit ausdrücklichem regulärem Browserabschluss.
+Welcher konkrete Hintergrundzustand beim ursprünglichen Ausfall vorlag, bleibt
+mangels damaliger Aufzeichnung offen. Der globale Stillstand durch einen längst
+beendeten Container ist dagegen eindeutig nachgewiesen.
+
+**Änderung:** Regulären Chrome-Abschluss mit begrenztem Warten auf Prozessende
+verwenden. Der Host unterscheidet ein geprüftes physisches Ende von einer
+unsauberen Profilspeicherung. Containerentfernung erhält das Profil; nur der
+betroffene Abrufplan pausiert, während weitere Konten weiterlaufen. Feste private,
+atomar veröffentlichte Stoppmetadaten überleben Dienstneustarts und
+Datenbankausfälle. Die Wiederherstellung respektiert die gespeicherte
+Auftragsfreigabe und neue Nutzerentscheidungen. Eigene und verwaiste lokale
+Profilreservierungen werden getrennt geprüft. GoLogin benötigt weiterhin einen
+zusätzlich bestätigten entfernten Anbieter-Stopp. Details und Einführung in
+`docs/audit/2026-10-16-vinted-browser-shutdown.md`.
+
+**Prüfumfang:** Bestehende und neue Workerfälle, echte Linux-Chrome-Abschlüsse
+mit Cookiepersistenz, tatsächliches Sitzungsimage mit eingefrorenem Chrome und
+anschließendem Profilneustart, Workflow-/Testauswahl, Formatierung, Lint,
+Typprüfung und Worker-/Broker-/Sitzungsbau. Kein Angular- oder Schemaumbau und
+kein fachfremder Verkaufs-/Einkaufsbrowserlauf. Linux: 674 Workerfälle bestanden,
+ein bestehender Integrationsfall ohne Test-URL ausgelassen; Windows: 667 bestanden,
+acht Plattform-/Integrationsausnahmen. Beide echten Chrome-Regressionen und der
+Runtime-Freeze-Nachweis bestehen; 22 Workflow-/Auswahlprüfungen und Suite-Audit
+ebenfalls. Reviewbefunde zu Startfehlern, Profilbesitzern, Auftragsversionen und
+dauerhafter Stoppwarnung behoben, Abschlussreview ohne offene wichtige Befunde.
+Nachträglich ergänzter Datenbankausfall-/Workerneustartfall ist gezielt bestanden.
+Bisher kein Push, PR, Merge oder produktiver
+Imageaustausch; die zuvor wiederhergestellte Produktion bleibt unverändert.
+
+## 2026-10-16 - Juna - Blockierte Vinted-Synchronisierung wiederherstellen
+
+**Auftrag:** Alle drei Cloudkonten zeigen seit rund vier Stunden unveränderte
+Abrufzeiten; Wiehen Store meldet „Abruf wartet“. Den Ausfall untersuchen und nach
+ausdrücklicher Nutzerfreigabe das betroffene Profil serverintern sichern und den
+bereits beendeten Browsercontainer gezielt entfernen.
+
+**Befund:** Am 15.10. um 19:55 Uhr bleibt die Browsersitzung von Wiehen Store nach
+erfolgreicher Datenübernahme offen. Der zugehörige isolierte Browsercontainer ist
+bereits beendet: Exitcode 75, kein laufender Prozess, kein Speichermangel-Abbruch.
+Die Laufzeit verwendet 75 für einen unbestätigten sauberen Browserstopp; der
+Containerlauncher lehnt seine Entfernung deshalb absichtlich ab. Die normale
+Bereinigung wiederholt diesen unveränderlichen Fehler alle 30 Sekunden. Die
+globale Browsersperre verhindert anschließend auch die wartenden Abrufe von
+Flipbase und Maike Vintage. Wiehen Stores Zeitplan ist zusätzlich mit `cleanup`
+deaktiviert, während der Worker weiterhin als gesund gilt. Der ursprüngliche
+Fenster-/Prozesszustand ist nicht protokolliert; warum Chrome nicht sauber endete,
+ist damit nicht abschließend bewiesen. Kein erneuter 80-Gespräche-Seitenfehler:
+die letzten Gesprächslisten wurden vollständig übernommen.
+
+**Wiederherstellung:** Geschützte vollständige Profilsicherung ausschließlich
+auf dem Server unter
+`/opt/flipbase-marketplace/recovery/20261016-stopped-browser-222714` (Elternverzeichnis
+und Sicherungsordner Modus 0700). SQLite-Integritätsprüfungen von separaten Kopien
+einschließlich Journalen bestehen für Cookies, History, Web Data und Login Data.
+Keine Inhalte oder Zugangsdaten ausgegeben. Nach erneutem Abgleich von Container-ID,
+Kontoprofil, Mount und beendetem Prozesszustand nur diesen Container entfernt;
+das eigentliche Profil einschließlich Anmeldedaten bleibt erhalten. Die vorhandene
+Bereinigung schließt danach selbst die Datenbanksitzung und gibt die Warteschlange
+frei. Keine Datenbankstände von Hand geändert und keine Schutzregel abgeschwächt.
+Wiehen Stores Automatik über die vorhandene angemeldete Oberfläche mit dem
+bisherigen Zehn-Minuten-Abstand fortgesetzt und einen normalen Kontrollabruf
+gestartet. Keine erneute Anmeldung erforderlich.
+
+**Prüfung:** Am 16.10. erfolgreiche Abschlüsse einschließlich Browserbereinigung:
+Flipbase 00:27:54 Uhr, Maike Vintage 00:28:07 Uhr, Wiehen Store 00:29:10 Uhr
+(Europe/Berlin). Kein `error_code`, keine offene Browsersitzung; alle drei
+Zeitpläne wieder aktiviert, bisherige Abstände 5/15/10 Minuten erhalten.
+UI bestätigt Wiehen Stores neuen Datenstand. Dies stellt den Betrieb wieder her,
+belegt aber keine dauerhafte Behebung des ursprünglichen Chrome-Stoppfehlers.
+Kein Produktcode, Schema oder Image geändert; deshalb keine Anwendungstests oder
+neuen Bauten. Eigener Dokumentationszweig `juna/vinted-sync-recovery-2026-10-16`;
+fremde unversionierte Dateien bleiben unverändert.
+
 ## 2026-10-15 - Juna - Tests anhand betroffener Funktionen auswählen
 
 **Auftrag:** Die freigegebene Auswahl umsetzen: unabhängige Funktionen nicht bei
