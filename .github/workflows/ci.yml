@@ -47,6 +47,13 @@ jobs:
       push: ${{ steps.filter.outputs.push }}
       tests_reused: ${{ steps.reuse.outputs.tests_reused }}
       receipt_name: ${{ steps.reuse.outputs.receipt_name }}
+      test_plan: ${{ steps.selection.outputs.test_plan }}
+      unit_required: ${{ steps.selection.outputs.unit_required }}
+      unit_matrix: ${{ steps.selection.outputs.unit_matrix }}
+      browser_required: ${{ steps.selection.outputs.browser_required }}
+      pwa_required: ${{ steps.selection.outputs.pwa_required }}
+      marketplace_required: ${{ steps.selection.outputs.marketplace_required }}
+      landing_required: ${{ steps.selection.outputs.landing_required }}
     steps:
       - name: Check out repository history
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -71,6 +78,25 @@ jobs:
           HEAD_SHA: ${{ github.sha }}
         run: node scripts/detect-supabase-changes.mjs
 
+      - name: Set up Node for test selection
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install locked parser without application hooks
+        run: npm ci --ignore-scripts
+
+      - name: Select affected application and browser tests
+        id: selection
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: node scripts/affected-tests.mjs
+
       - name: Reuse successful checks for the merged tree
         id: reuse
         env:
@@ -79,6 +105,7 @@ jobs:
           APPLICATION_TESTS_CHANGED: ${{ steps.filter.outputs.application_tests }}
           SUPABASE_CHANGED: ${{ steps.filter.outputs.supabase }}
           SNIPER_CHANGED: ${{ steps.filter.outputs.sniper }}
+          SELECTION_HASH: ${{ steps.selection.outputs.selection_hash }}
         run: node scripts/reuse-pr-checks.mjs
 
   documentation:
@@ -142,23 +169,28 @@ jobs:
         run: npm run typecheck
 
       - name: Set up Deno for marketplace functions
+        if: ${{ needs.changes.outputs.marketplace_required == 'true' || needs.changes.outputs.push == 'true' }}
         uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
           deno-version: v2.9.7
 
       - name: Check and test marketplace functions in Deno
+        if: ${{ needs.changes.outputs.marketplace_required == 'true' }}
         run: |
           deno check --no-config --node-modules-dir=none supabase/functions/webhook-dispatch/index.ts supabase/functions/ebay-account/index.ts supabase/functions/ebay-account-deletion/index.ts supabase/functions/marketplace-search/index.ts supabase/functions/marketplace-local-extension/index.ts supabase/functions/brand-label-media/index.ts
           deno test --no-config --node-modules-dir=none --allow-env supabase/functions/webhook-dispatch/handler.test.ts supabase/functions/webhook-dispatch/public-webhook-post.test.ts supabase/functions/webhook-dispatch/sale-notification.test.ts supabase/functions/ebay-account/handler.test.ts supabase/functions/ebay-account-deletion/handler.test.ts supabase/functions/ebay-account-deletion/endpoint.test.ts supabase/functions/_shared/ebay-api.test.ts supabase/functions/_shared/ebay-listing-management.test.ts supabase/functions/_shared/ebay-order-amounts.test.ts supabase/functions/_shared/ebay-order-source.test.ts supabase/functions/ebay-account/connection-read.test.ts supabase/functions/ebay-account/order-import.test.ts supabase/functions/marketplace-local-extension/handler.test.ts
           deno test --no-config --node-modules-dir=none supabase/functions/brand-label-media/png.test.ts supabase/functions/_shared/ebay-traffic-overview.test.ts supabase/functions/_shared/ebay-listing-performance.test.ts supabase/functions/_shared/ebay-advertising-report.test.ts
 
       - name: Install marketplace worker dependencies
+        if: ${{ needs.changes.outputs.marketplace_required == 'true' }}
         run: npm ci --prefix services/marketplace-worker --ignore-scripts
 
       - name: Install push worker dependencies
+        if: ${{ needs.changes.outputs.push == 'true' }}
         run: npm ci --prefix services/push-worker --ignore-scripts
 
       - name: Check push worker and isolated function router
+        if: ${{ needs.changes.outputs.push == 'true' }}
         run: |
           npm --prefix services/push-worker run typecheck
           npm --prefix services/push-worker test
@@ -171,6 +203,7 @@ jobs:
           node services/push-worker/scripts/smoke-functions.mjs flipbase-push:ci "$RUNNER_TEMP/push-functions" "$GITHUB_SHA"
 
       - name: Check marketplace worker
+        if: ${{ needs.changes.outputs.marketplace_required == 'true' }}
         run: |
           npm --prefix services/marketplace-worker run typecheck
           npm --prefix services/marketplace-worker test
@@ -218,7 +251,7 @@ jobs:
         run: npm run test:audit
 
       - name: Test landing page contract
-        if: ${{ needs.changes.outputs.application_tests == 'true' }}
+        if: ${{ needs.changes.outputs.landing_required == 'true' }}
         run: npm run test:landing
 
       - name: Build
@@ -227,22 +260,13 @@ jobs:
 
   unit:
     name: Unit ${{ matrix.suite }} ${{ matrix.shard }}
-    if: ${{ needs.changes.outputs.application_tests == 'true' && needs.changes.outputs.tests_reused != 'true' }}
+    if: ${{ needs.changes.outputs.unit_required == 'true' && needs.changes.outputs.tests_reused != 'true' }}
     needs: changes
     runs-on: ubuntu-latest
     timeout-minutes: 10
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - suite: node
-            shard: 1/1
-          - suite: dom
-            shard: 1/1
-          - suite: angular
-            shard: 1/2
-          - suite: angular
-            shard: 2/2
+      matrix: ${{ fromJSON(needs.changes.outputs.unit_matrix) }}
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -270,14 +294,11 @@ jobs:
         env:
           SUITE: ${{ matrix.suite }}
           SHARD: ${{ matrix.shard }}
+          AFFECTED_TEST_PLAN: ${{ needs.changes.outputs.test_plan }}
         run: |
           start=$SECONDS
           set +e
-          if [ "$SUITE" = "node" ]; then
-            npm run test:node:shard -- --shard="$SHARD"
-          else
-            npm run "test:$SUITE" -- --shard="$SHARD"
-          fi
+          node scripts/run-affected-tests.mjs unit "$SUITE" "$SHARD"
           status=$?
           set -e
           duration=$((SECONDS - start))
@@ -387,10 +408,10 @@ jobs:
 
   browser-smoke:
     name: Browser smoke
-    if: ${{ needs.changes.outputs.application_tests == 'true' && needs.changes.outputs.tests_reused != 'true' }}
+    if: ${{ needs.changes.outputs.browser_required == 'true' && needs.changes.outputs.tests_reused != 'true' }}
     needs: changes
     runs-on: ubuntu-latest
-    # Die erweiterte Layoutmatrix läuft zusammen mit den Produktions-PWA-Fällen.
+    # Nur die betroffenen Browserfälle; Produktions-PWA läuft bei Bedarf parallel.
     timeout-minutes: 30
     steps:
       - name: Check out repository
@@ -409,19 +430,15 @@ jobs:
         run: npm ci
 
       - name: Install Chromium Headless Shell
-        run: npx playwright install --with-deps chromium webkit
+        run: npx playwright install --with-deps --only-shell chromium
 
       - name: Start local Supabase
         run: npx supabase start
 
       - name: Run browser smoke tests
-        run: npm run test:e2e:pr
-
-      - name: Test PWA startup, caching and updates
-        run: npm run test:pwa:scripts
-
-      - name: Test production PWA and offline drafts
-        run: npm run test:e2e:pwa
+        env:
+          AFFECTED_TEST_PLAN: ${{ needs.changes.outputs.test_plan }}
+        run: node scripts/run-affected-tests.mjs browser
 
       - name: Upload browser failure artifacts
         if: ${{ failure() || cancelled() }}
@@ -438,9 +455,41 @@ jobs:
         if: ${{ always() }}
         run: npx supabase stop --no-backup
 
+  pwa:
+    name: Production PWA
+    needs: changes
+    if: ${{ needs.changes.outputs.pwa_required == 'true' && needs.changes.outputs.tests_reused != 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Test PWA startup, caching and updates
+        run: npm run test:pwa:scripts
+      - name: Test production PWA and offline drafts
+        run: npm run test:e2e:pwa
+      - name: Retain PWA failure diagnostics
+        if: ${{ failure() || cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: production-pwa-failure
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
   image:
     name: Publish image
-    needs: [changes, documentation, quality, unit, database, sniper, browser-smoke]
+    needs: [changes, documentation, quality, unit, database, sniper, browser-smoke, pwa]
     if: ${{ always() && github.event_name == 'push' && needs.changes.result == 'success' && (needs.changes.outputs.application == 'true' || needs.changes.outputs.sniper == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -481,6 +530,10 @@ jobs:
           DATABASE_RESULT: ${{ needs.database.result }}
           SNIPER_RESULT: ${{ needs.sniper.result }}
           BROWSER_RESULT: ${{ needs.browser-smoke.result }}
+          UNIT_REQUIRED: ${{ needs.changes.outputs.unit_required }}
+          BROWSER_REQUIRED: ${{ needs.changes.outputs.browser_required }}
+          PWA_REQUIRED: ${{ needs.changes.outputs.pwa_required }}
+          PWA_RESULT: ${{ needs.pwa.result }}
           IMAGE_RESULT: success
         run: node scripts/required-checks.mjs
 
@@ -652,7 +705,7 @@ jobs:
   required-checks:
     name: Required checks
     if: ${{ always() }}
-    needs: [changes, documentation, quality, unit, database, sniper, browser-smoke, image]
+    needs: [changes, documentation, quality, unit, database, sniper, browser-smoke, pwa, image]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -677,6 +730,10 @@ jobs:
           DATABASE_RESULT: ${{ needs.database.result }}
           SNIPER_RESULT: ${{ needs.sniper.result }}
           BROWSER_RESULT: ${{ needs.browser-smoke.result }}
+          UNIT_REQUIRED: ${{ needs.changes.outputs.unit_required }}
+          BROWSER_REQUIRED: ${{ needs.changes.outputs.browser_required }}
+          PWA_REQUIRED: ${{ needs.changes.outputs.pwa_required }}
+          PWA_RESULT: ${{ needs.pwa.result }}
           IMAGE_RESULT: ${{ needs.image.result }}
         run: node scripts/required-checks.mjs
 

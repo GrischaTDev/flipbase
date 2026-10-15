@@ -34,6 +34,11 @@ try {
   );
   const supabaseChanged = requireBoolean('Supabase', process.env.SUPABASE_CHANGED);
   const sniperChanged = requireBoolean('Sniper', process.env.SNIPER_CHANGED);
+  const unitRequired = requireBoolean('Betroffene Anwendungstests', process.env.UNIT_REQUIRED);
+  const browserRequired = requireBoolean('Betroffene Browserfälle', process.env.BROWSER_REQUIRED);
+  const pwaRequired = requireBoolean('Betroffene PWA-Fälle', process.env.PWA_REQUIRED);
+  if (!applicationTestsChanged && (unitRequired || browserRequired || pwaRequired))
+    throw new Error('Gezielte Testauswahl widerspricht dem Anwendungsumfang.');
 
   if (
     documentationOnly &&
@@ -49,16 +54,9 @@ try {
   ) {
     throw new Error('Unzulässige Trennung von Release- und Anwendungstestumfang.');
   }
-  requireConditional(
-    'Anwendungstests',
-    applicationTestsChanged && !reused,
-    process.env.UNIT_RESULT,
-  );
-  requireConditional(
-    'Browser-Smoke-Test',
-    applicationTestsChanged && !reused,
-    process.env.BROWSER_RESULT,
-  );
+  requireConditional('Anwendungstests', unitRequired && !reused, process.env.UNIT_RESULT);
+  requireConditional('Browser-Smoke-Test', browserRequired && !reused, process.env.BROWSER_RESULT);
+  requireConditional('Produktions-PWA', pwaRequired && !reused, process.env.PWA_RESULT);
   requireConditional('Datenbank', supabaseChanged && !reused, process.env.DATABASE_RESULT);
   requireConditional('Sniper-Dienst', sniperChanged && !reused, process.env.SNIPER_RESULT);
 
