@@ -87,7 +87,7 @@ module.exports = tseslint.config(
     files: ['**/*.html'],
     // Die Marketing-Seite und E-Mail-Vorlagen sind keine Angular Templates, sondern
     // Go-Templates mit {{ }} Syntax. Der Angular Parser kann diese nicht lesen.
-    ignores: ['landing/index.html', 'landing/preview/index.html', '**/templates/*.html'],
+    ignores: ['landing/index.html', '**/templates/*.html'],
     extends: [...angular.configs.templateRecommended, ...angular.configs.templateAccessibility],
     rules: {},
   },
