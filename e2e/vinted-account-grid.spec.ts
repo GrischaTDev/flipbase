@@ -26,10 +26,9 @@ for (const width of [1440, 320]) {
       }),
     );
     expect(positions.every((position) => position.left >= 0 && position.right <= width)).toBe(true);
-    expect(positions.every((position) => position.width <= 369)).toBe(true);
-    if (width === 1440) expect(positions.every((position) => position.width >= 352)).toBe(true);
+    if (width === 1440) expect(positions.every((position) => position.width >= 272)).toBe(true);
     const firstRow = positions.filter((position) => Math.abs(position.top - positions[0].top) <= 1);
-    expect(firstRow.length).toBe(width === 320 ? 1 : 3);
+    expect(firstRow.length).toBe(width === 320 ? 1 : 4);
     await grid.getByRole('button', { name: 'Testkonto J einstellen', exact: true }).click();
     await expect(page.getByRole('dialog')).toContainText('Testkonto J');
   });

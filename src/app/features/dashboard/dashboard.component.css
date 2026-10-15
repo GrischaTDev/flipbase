@@ -8,23 +8,6 @@ h1 {
   font-weight: 650;
   letter-spacing: -0.03em;
 }
-.periods {
-  display: flex;
-  flex-wrap: wrap;
-  padding: 2px;
-  border-radius: 9px;
-  box-shadow: inset 0 0 0 1px var(--fb-line);
-  background: var(--fb-bg-well);
-}
-.kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 12px;
-}
-.metric {
-  min-height: 142px;
-  padding: 17px 16px;
-}
 svg[lucideIcon],
 .icon-well svg,
 .task-icon svg,
@@ -41,6 +24,7 @@ svg[lucideIcon],
   letter-spacing: -0.035em;
   font-variant-numeric: tabular-nums;
   margin: 0;
+  overflow-wrap: anywhere;
 }
 .sparkline {
   position: absolute;
@@ -167,9 +151,6 @@ svg[lucideIcon],
   min-height: 275px;
 }
 @container (max-width: 1150px) {
-  .kpi-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
   .middle-grid,
   .bottom-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -180,9 +161,6 @@ svg[lucideIcon],
   .recent {
     grid-column: 1 / -1;
   }
-  .metric-value {
-    font-size: 25px;
-  }
 }
 @container (max-width: 800px) {
   .middle-grid,
@@ -192,12 +170,6 @@ svg[lucideIcon],
   }
 }
 @container (max-width: 560px) {
-  .kpi-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .metric {
-    padding: 14px;
-  }
   .sparkline {
     width: 45px;
   }
@@ -220,11 +192,6 @@ svg[lucideIcon],
   }
   .sales-table .amount-cell {
     width: 74px;
-  }
-}
-@container (max-width: 300px) {
-  .kpi-grid {
-    grid-template-columns: 1fr;
   }
 }
 

@@ -1,8 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import { TableActionButtonComponent } from '../../shared/components/table-action-button/table-action-button.component';
+import { ButtonComponent } from '../../shared/components/button/button.component';
+import { BadgeComponent } from '../../shared/components/badge/badge.component';
+import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import {
   LucideDynamicIcon,
+  LucideIconInput,
   LucideBarChart3 as BarChart3,
   LucideTrendingUp as TrendingUp,
   LucideCoins as Coins,
@@ -64,12 +68,35 @@ type AnalyticsSection =
 
 @Component({
   selector: 'app-analytics',
-  imports: [CurrencyPipe, LucideDynamicIcon, TableActionButtonComponent],
+  imports: [
+    CurrencyPipe,
+    LucideDynamicIcon,
+    TableActionButtonComponent,
+    ButtonComponent,
+    BadgeComponent,
+    PageHeaderComponent,
+  ],
   templateUrl: './analytics.component.html',
   host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AnalyticsComponent {
+  readonly rangeOptions: readonly { value: AnalyticsTimeRange; label: string }[] = [
+    { value: '7d', label: '7 Tage' },
+    { value: '30d', label: '30 Tage' },
+    { value: '1y', label: '1 Jahr' },
+    { value: 'all', label: 'Gesamt' },
+  ];
+  readonly sections: readonly { value: AnalyticsSection; label: string; icon: LucideIconInput }[] =
+    [
+      { value: 'overview', label: 'Gesamtübersicht', icon: TrendingUp },
+      { value: 'holding', label: 'Holding-Modus', icon: Building },
+      { value: 'platforms', label: 'Plattform-Rentabilität & Gebühren', icon: BarChart3 },
+      { value: 'velocity', label: 'Haltedauer & Kapitalumschlag', icon: Zap },
+      { value: 'cohorts', label: 'Einkaufs-Kohorten & Recovery', icon: Boxes },
+      { value: 'heatmap', label: 'Verkäufe nach Wochentag', icon: Clock },
+      { value: 'categories', label: 'Kategorien & Sell-Through', icon: Tag },
+    ];
   readonly analyticsService = inject(AnalyticsService);
   readonly salesService = inject(SalesService);
   readonly purchaseService = inject(PurchaseService);

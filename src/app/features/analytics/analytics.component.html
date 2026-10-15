@@ -1,74 +1,29 @@
 <div class="space-y-6 animate-fade-in">
-  <!-- Page Header & Time Range Filter -->
-  <div
-    class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-fb-border"
+  <app-page-header
+    title="Analytics & Performance Cockpit"
+    subtitle="Plattform-Gebührenvergleich, Kapitalumschlag, Haltedauer-Geschwindigkeit & Kohorten-Refinanzierung."
   >
-    <div>
-      <div class="flex items-center gap-2">
-        <h1 class="text-xl font-bold tracking-tight text-fb-text-primary">
-          Analytics & Performance Cockpit
-        </h1>
-        <span
-          class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 uppercase"
-        >
-          Profit Intelligence
-        </span>
-      </div>
-      <p class="text-xs text-fb-text-muted mt-0.5">
-        Plattform-Gebührenvergleich, Kapitalumschlag, Haltedauer-Geschwindigkeit &
-        Kohorten-Refinanzierung.
-      </p>
-    </div>
-
-    <!-- Time Range Selector -->
+    <app-badge header-badge>Profit Intelligence</app-badge>
     <div
-      class="flex items-center gap-1.5 p-1 rounded-xl bg-fb-surface border border-fb-border text-xs"
+      header-actions
+      class="flex max-w-full flex-wrap gap-1"
+      role="group"
+      aria-label="Auswertungszeitraum wählen"
     >
-      <button
-        type="button"
-        (click)="setTimeRange('7d')"
-        class="px-3 py-1 rounded-lg font-semibold transition cursor-pointer"
-        [class.bg-indigo-600]="timeRange() === '7d'"
-        [class.text-fb-text-primary]="timeRange() === '7d'"
-        [class.text-fb-text-muted]="timeRange() !== '7d'"
-      >
-        7 Tage
-      </button>
-      <button
-        type="button"
-        (click)="setTimeRange('30d')"
-        class="px-3 py-1 rounded-lg font-semibold transition cursor-pointer"
-        [class.bg-indigo-600]="timeRange() === '30d'"
-        [class.text-fb-text-primary]="timeRange() === '30d'"
-        [class.text-fb-text-muted]="timeRange() !== '30d'"
-      >
-        30 Tage
-      </button>
-      <button
-        type="button"
-        (click)="setTimeRange('1y')"
-        class="px-3 py-1 rounded-lg font-semibold transition cursor-pointer"
-        [class.bg-indigo-600]="timeRange() === '1y'"
-        [class.text-fb-text-primary]="timeRange() === '1y'"
-        [class.text-fb-text-muted]="timeRange() !== '1y'"
-      >
-        1 Jahr
-      </button>
-      <button
-        type="button"
-        (click)="setTimeRange('all')"
-        class="px-3 py-1 rounded-lg font-semibold transition cursor-pointer"
-        [class.bg-indigo-600]="timeRange() === 'all'"
-        [class.text-fb-text-primary]="timeRange() === 'all'"
-        [class.text-fb-text-muted]="timeRange() !== 'all'"
-      >
-        Gesamt
-      </button>
+      @for (option of rangeOptions; track option.value) {
+        <app-button
+          size="slim"
+          [variant]="timeRange() === option.value ? 'primary' : 'secondary'"
+          [ariaPressed]="timeRange() === option.value"
+          (clicked)="setTimeRange(option.value)"
+          >{{ option.label }}</app-button
+        >
+      }
     </div>
-  </div>
+  </app-page-header>
 
   <!-- Top Financial KPI Summary Grid -->
-  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 font-mono">
+  <div class="grid grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-4 font-mono">
     <div class="linear-surface p-4 md:p-5 rounded-2xl border border-fb-border shadow-xl space-y-1">
       <div class="flex items-center justify-between text-fb-text-muted text-xs font-sans">
         <span class="font-bold uppercase tracking-wider text-[10px]">Bruttoumsatz</span>
@@ -124,113 +79,27 @@
     </div>
   </div>
 
-  <!-- Section Navigation Tabs -->
-  <div class="flex items-center gap-2 overflow-x-auto pb-1 border-b border-fb-border text-xs">
-    <button
-      type="button"
-      (click)="setSection('overview')"
-      class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border inline-flex items-center gap-1.5"
-      [class.bg-indigo-600]="activeSection() === 'overview'"
-      [class.text-fb-text-primary]="activeSection() === 'overview'"
-      [class.border-indigo-500]="activeSection() === 'overview'"
-      [class.bg-fb-surface]="activeSection() !== 'overview'"
-      [class.text-fb-text-secondary]="activeSection() !== 'overview'"
-      [class.border-fb-border]="activeSection() !== 'overview'"
-    >
-      <svg [lucideIcon]="trendingIcon" class="w-3.5 h-3.5"></svg>
-      <span>Gesamtübersicht</span>
-    </button>
-
-    <!-- Holding-Modus (Multi-Workspace Konsolidierung) -->
-    <button
-      type="button"
-      (click)="setSection('holding')"
-      class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border inline-flex items-center gap-1.5"
-      [class.bg-purple-600]="activeSection() === 'holding'"
-      [class.text-fb-text-primary]="activeSection() === 'holding'"
-      [class.border-purple-500]="activeSection() === 'holding'"
-      [class.bg-fb-surface]="activeSection() !== 'holding'"
-      [class.text-purple-300]="activeSection() !== 'holding'"
-      [class.border-fb-border]="activeSection() !== 'holding'"
-    >
-      <svg [lucideIcon]="buildingIcon" class="w-3.5 h-3.5"></svg>
-      <span>Holding-Modus ({{ holdingSummary().workspacesCount }} Mandanten)</span>
-    </button>
-
-    <button
-      type="button"
-      (click)="setSection('platforms')"
-      class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border inline-flex items-center gap-1.5"
-      [class.bg-indigo-600]="activeSection() === 'platforms'"
-      [class.text-fb-text-primary]="activeSection() === 'platforms'"
-      [class.border-indigo-500]="activeSection() === 'platforms'"
-      [class.bg-fb-surface]="activeSection() !== 'platforms'"
-      [class.text-fb-text-secondary]="activeSection() !== 'platforms'"
-      [class.border-fb-border]="activeSection() !== 'platforms'"
-    >
-      <svg [lucideIcon]="barIcon" class="w-3.5 h-3.5"></svg>
-      <span>Plattform-Rentabilität & Gebühren</span>
-    </button>
-
-    <button
-      type="button"
-      (click)="setSection('velocity')"
-      class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border inline-flex items-center gap-1.5"
-      [class.bg-indigo-600]="activeSection() === 'velocity'"
-      [class.text-fb-text-primary]="activeSection() === 'velocity'"
-      [class.border-indigo-500]="activeSection() === 'velocity'"
-      [class.bg-fb-surface]="activeSection() !== 'velocity'"
-      [class.text-fb-text-secondary]="activeSection() !== 'velocity'"
-      [class.border-fb-border]="activeSection() !== 'velocity'"
-    >
-      <svg [lucideIcon]="zapIcon" class="w-3.5 h-3.5"></svg>
-      <span>Haltedauer & Kapitalumschlag</span>
-    </button>
-
-    <button
-      type="button"
-      (click)="setSection('cohorts')"
-      class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border inline-flex items-center gap-1.5"
-      [class.bg-indigo-600]="activeSection() === 'cohorts'"
-      [class.text-fb-text-primary]="activeSection() === 'cohorts'"
-      [class.border-indigo-500]="activeSection() === 'cohorts'"
-      [class.bg-fb-surface]="activeSection() !== 'cohorts'"
-      [class.text-fb-text-secondary]="activeSection() !== 'cohorts'"
-      [class.border-fb-border]="activeSection() !== 'cohorts'"
-    >
-      <svg [lucideIcon]="boxesIcon" class="w-3.5 h-3.5"></svg>
-      <span>Einkaufs-Kohorten & Recovery</span>
-    </button>
-
-    <button
-      type="button"
-      (click)="setSection('heatmap')"
-      class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border inline-flex items-center gap-1.5"
-      [class.bg-indigo-600]="activeSection() === 'heatmap'"
-      [class.text-fb-text-primary]="activeSection() === 'heatmap'"
-      [class.border-indigo-500]="activeSection() === 'heatmap'"
-      [class.bg-fb-surface]="activeSection() !== 'heatmap'"
-      [class.text-fb-text-secondary]="activeSection() !== 'heatmap'"
-      [class.border-fb-border]="activeSection() !== 'heatmap'"
-    >
-      <svg [lucideIcon]="clockIcon" class="w-3.5 h-3.5"></svg>
-      <span>Verkäufe nach Wochentag</span>
-    </button>
-
-    <button
-      type="button"
-      (click)="setSection('categories')"
-      class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border inline-flex items-center gap-1.5"
-      [class.bg-indigo-600]="activeSection() === 'categories'"
-      [class.text-fb-text-primary]="activeSection() === 'categories'"
-      [class.border-indigo-500]="activeSection() === 'categories'"
-      [class.bg-fb-surface]="activeSection() !== 'categories'"
-      [class.text-fb-text-secondary]="activeSection() !== 'categories'"
-      [class.border-fb-border]="activeSection() !== 'categories'"
-    >
-      <svg [lucideIcon]="tagIcon" class="w-3.5 h-3.5"></svg>
-      <span>Kategorien & Sell-Through</span>
-    </button>
+  <div
+    class="flex min-w-0 items-center gap-2 overflow-x-auto border-b border-fb-border py-2"
+    role="group"
+    aria-label="Auswertungsbereich wählen"
+    tabindex="0"
+  >
+    @for (section of sections; track section.value) {
+      <app-button
+        class="shrink-0"
+        [variant]="activeSection() === section.value ? 'primary' : 'secondary'"
+        [ariaPressed]="activeSection() === section.value"
+        [icon]="section.icon"
+        (clicked)="setSection(section.value)"
+        ><span class="whitespace-nowrap"
+          >{{ section.label }}
+          @if (section.value === 'holding') {
+            ({{ holdingSummary().workspacesCount }} Mandanten)
+          }
+        </span></app-button
+      >
+    }
   </div>
 
   <!-- Tab 1: Overview -->
@@ -665,7 +534,7 @@
     @let holding = holdingSummary();
     <div class="space-y-6 animate-fade-in">
       <!-- Holding Top Aggregation Cards -->
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 font-mono">
+      <div class="grid grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-4 font-mono">
         <div
           class="linear-surface p-5 rounded-2xl border border-purple-500/30 bg-purple-500/5 shadow-xl space-y-1"
         >

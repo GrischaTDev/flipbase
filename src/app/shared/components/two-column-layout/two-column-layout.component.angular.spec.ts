@@ -61,8 +61,8 @@ describe('TwoColumnLayoutComponent', () => {
     const container = fixture.nativeElement.firstElementChild as HTMLElement;
     const mainEl = container.firstElementChild as HTMLElement;
     const asideEl = container.querySelector('aside') as HTMLElement;
-    expect(mainEl.className).toContain('lg:col-span-8');
-    expect(asideEl.className).toContain('lg:col-span-4');
+    expect(mainEl.className).toContain('@min-[48rem]/two-column:col-span-8');
+    expect(asideEl.className).toContain('@min-[48rem]/two-column:col-span-4');
   });
 
   it('should apply 7/12 (col-span-7) and 5/12 (col-span-5) ratio when configured', () => {
@@ -72,7 +72,7 @@ describe('TwoColumnLayoutComponent', () => {
     const container = fixture.nativeElement.firstElementChild as HTMLElement;
     const mainEl = container.firstElementChild as HTMLElement;
     const asideEl = container.querySelector('aside') as HTMLElement;
-    expect(mainEl.className).toContain('lg:col-span-7');
-    expect(asideEl.className).toContain('lg:col-span-5');
+    expect(mainEl.className).toContain('@min-[48rem]/two-column:col-span-7');
+    expect(asideEl.className).toContain('@min-[48rem]/two-column:col-span-5');
   });
 });

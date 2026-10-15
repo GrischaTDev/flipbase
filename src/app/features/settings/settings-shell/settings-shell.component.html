@@ -1,4 +1,6 @@
-<div class="mx-auto flex min-h-[calc(100dvh-7rem)] max-w-6xl flex-col gap-4 animate-fade-in">
+<div
+  class="@container/settings mx-auto flex min-h-[calc(100dvh-7rem)] max-w-6xl flex-col gap-4 animate-fade-in"
+>
   <header class="space-y-1">
     <h1 class="text-xl font-bold tracking-tight text-fb-text-primary" tabindex="-1">
       {{ currentItem().label }}
@@ -6,7 +8,7 @@
     <p class="text-sm text-fb-text-muted">{{ currentItem().description }}</p>
   </header>
 
-  <div class="lg:hidden">
+  <div class="@min-[58rem]/settings:hidden">
     <app-custom-select
       ariaLabel="Einstellungsbereich auswählen"
       [options]="mobileOptions()"
@@ -15,10 +17,10 @@
     />
   </div>
 
-  <div class="grid gap-5 lg:grid-cols-[17rem_minmax(0,1fr)]">
+  <div class="grid gap-5 @min-[58rem]/settings:grid-cols-[17rem_minmax(0,1fr)]">
     <nav
       aria-label="Einstellungsbereiche"
-      class="hidden self-start rounded-2xl border border-fb-border bg-fb-surface p-2 lg:block"
+      class="hidden self-start rounded-2xl border border-fb-border bg-fb-surface p-2 @min-[58rem]/settings:block"
     >
       <ul class="space-y-1">
         @for (item of navigation(); track item.path) {

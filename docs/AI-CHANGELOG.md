@@ -1,5 +1,90 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-15 - Juna - Mobile und Tablet-Layouts durchgehen
+
+**Auftrag:** Ungenutzte Breite, zu frühe Kachelumbrüche und uneinheitliche
+Bedienelemente auf Handy und Tablet beheben. Ausgangspunkte sind drei
+Vinted-Konten und die Kennzahlen und Filter im Dashboard.
+
+**Umsetzung:** Vinted-Konten erhalten ein fließendes Raster mit lesbarer
+Mindestbreite und voller verfügbarer Kartenbreite; die Hinzufügen-Aktion bleibt
+oben rechts. Kartenaktionen dürfen bei knappem Platz untereinander stehen.
+Die Dashboard-Kennzahlen füllen auch die letzte Zeile und passen bei genügend
+Platz zu fünft nebeneinander. Zeitraumwahl und Plattformfilter verwenden auf
+Touch-Geräten dieselbe Mindesthöhe von 44 px. Gemeinsame Seitenköpfe schützen
+den Platz für Titel und Beschreibung, Tabellenfilter teilen ihre Zeile mit
+dem Spaltenmenü. Zweispaltige Formulare und Einstellungen richten ihren Umbruch
+nach der tatsächlichen Inhaltsbreite aus. Der Vinted-Feed verliert doppelte
+Außenabstände und ordnet kleine Filter paarweise an. Die Auswertungen verwenden
+für Zeiträume und Bereichswechsel die gemeinsamen Buttons statt teilweise
+unlesbarer, gequetschter Eigenbauten. Keine Daten oder Kennzahlen ausgeblendet.
+
+**Prüfung:** Die neuen Browserprüfungen belegen zunächst die gemeldeten
+Darstellungsfehler. Abschließend bestehen 39 Browserfälle: 18 Verwaltungsseiten
+bei sechs Breiten, Konten von 320 bis 1440 px, lokale Kartenaktionen mit Touch,
+Dashboard in beiden Themes, Auswertungsfilter und bestehende Vinted-Abläufe.
+Ein zusätzlicher Datenfall prüft 1.234.567,89 Euro Bestandswert und den
+Diagrammumbruch nach Größenwechseln. Die geprüften Dashboard-, Konto- und
+Auswertungsansichten bestehen AXE; das Touch-Dashboard erzeugt keine
+Konsolen- oder Laufzeitfehler. 118 Tests in neun betroffenen Komponentenbereichen,
+Formatierung, gezieltes ESLint, Typprüfung, Shared-UI-Prüfung, Suite-Audit und
+Produktionsbau sind erfolgreich. Der Bau meldet weiterhin Hinweise auf die
+Paketgröße (938,21 kB bei 900 kB Warnschwelle), `pako` und einen ungenutzten
+Import außerhalb der Änderung. Screenshots und Testausgaben bleiben außerhalb
+des Repositorys. Browsernachweise stammen aus lokalem Chrome mit simulierten
+Breiten, Touch und Testdaten; ein physisches iPad und Safari wurden nicht
+geprüft. Umsetzung auf `juna/responsive-admin-layout`, keine Änderungen an
+produktiven Daten.
+
+**Freigabe:** Der Nutzer hat PR-Erstellung, Branch-Push, Merge-Commit nach
+erfolgreichen Pflichtprüfungen und anschließend das Aufräumen des eigenen
+Zweigs freigegeben. Der Zweig basiert auf dem aktuellen `origin/master`
+(`887d9d8e`). Die Veröffentlichung erfolgt über die reguläre CI; danach wird
+die öffentlich ausgelieferte Version lesend geprüft.
+
+**CI-Nachprüfung:** Im ersten PR-Lauf besteht die Format-, Lint-, Typ- und
+Funktionsprüfung. Die Workflow-Suite erkennt jedoch die 27 neuen Browserfälle,
+die noch nicht in ihrer verbindlichen Soll-Liste registriert sind. Die
+Registrierung wird ergänzt; der gezielte Auswahltest prüft weiterhin den
+vollständigen Umfang ohne Wiederholungen und ohne `test.only`. Alle Node-,
+DOM- und Angularprüfungen des ersten Laufs bestehen. Nach erfolgreicher lokaler
+Workflow-Suite (294 bestanden, sechs unter Windows bewusst übersprungen)
+startet der korrigierte Push die vollständige CI einschließlich der Browserfälle
+erneut; der alte, bereits fehlgeschlagene Lauf wird dabei regulär abgelöst.
+
+**Weitere CI-Befunde:** Im zweiten Lauf bestehen sämtliche Anwendungstests.
+Die Qualitätsprüfung scheitert vor den Workflowtests an einer externen
+Container-Abrufbegrenzung (`toomanyrequests`) bei der Supabase-Testlaufzeit.
+Die Browsersuite besteht 139 Fälle und findet anschließend in der mobilen
+Vinted-Kontoansicht eine umgebrochene Einstellungsaktion. Lokal ist derselbe
+38-px-Versatz nachstellbar. Der gemeinsame Seitenkopf gibt seinem mobilen
+Aktionsbereich wieder die volle verfügbare Breite. Die bestehende Prüfung
+bleibt unverändert. Für 143 Browserfälle zuzüglich Produktions-PWA-Prüfung
+wird das CI-Zeitfenster von 20 auf 30 Minuten erhöht; bereits die erste
+Browserphase benötigt im zweiten Lauf 15 Minuten zuzüglich Einrichtung.
+Die erneute lokale Prüfung bei ruhender Vorschau besteht alle 33 responsive
+und Vinted-Ansichtsfälle einschließlich 320/390 px in beiden Themes. Die zwei
+Seitenkopf-Komponententests, zwölf Auswahl-/Freigabeprüfungen, Formatierung,
+gezieltes Lint und der Produktionsbau bestehen ebenfalls. Im ersten lokalen
+Nachlauf war ein Desktopfall durch das Neuladen während des parallelen Baus
+unterbrochen worden; bei ruhender Vorschau besteht derselbe unveränderte Test.
+
+**PWA-Teststeuerung:** Die aktuelle CI besteht alle 143 Browserfälle und alle
+weiteren Pflichtprüfungen, hängt aber zweimal im bestehenden Android-PWA-Fall
+beim Aufruf von `registration.update()`, noch vor dem Einfrieren der zweiten
+Ansicht. Unter Windows besteht der unveränderte Fall. Eine isolierte Linux-
+Umgebung mit derselben Playwright-Version und zwei CPU-Kernen stellt den
+gleichen Hänger nach. Der separate Testbrowser wird deshalb direkt gestartet
+und nur einmal über CDP gesteuert; vorher waren gleichzeitig zwei
+Playwright-Verbindungen angehängt. Der Standardkontext behält seine echten
+Sichtbarkeits- und Lebenszykluszustände. Browser und temporäres Profil werden
+anschließend geschlossen und entfernt. Die unveränderte Prüfung besteht mit
+dieser Teststeuerung zehnmal unter Linux und dreimal unter Windows. Mit dem
+Worker vor der früheren Hintergrundansicht-Korrektur scheitert sie weiterhin
+gezielt am ausbleibenden Versionswechsel. Produktiver Worker, Update-Schutz
+und Testbedingungen werden nicht geändert. Formatierung und gezieltes ESLint
+bestehen.
+
 ## 2026-10-15 - Juna - Update der installierten Android-App untersuchen
 
 **Auftrag:** Das iPad ist laut Nutzer erfolgreich aktualisiert und für Push
