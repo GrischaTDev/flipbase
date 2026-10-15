@@ -125,8 +125,36 @@ An diesem Projekt arbeiten mehrere KI-Assistenten, teils gleichzeitig.
 - **Vor einem Branch-Push gezielt prüfen:** betroffene Tests ausführen und
   geänderte Dateien formatieren/linten. Bei Angular-/Template-Änderungen auch
   den Bau prüfen, bei Datenbankänderungen die passenden Datenbanktests.
-  Die vollständige verbindliche Prüfung läuft einmal im PR; nicht bei jedem
-  Push zusätzlich die gesamte lokale Suite wiederholen.
+  Die vollständige verbindliche Prüfung im PR bleibt die abschließende
+  Gesamtprüfung; nicht bei jedem Push zusätzlich die gesamte lokale Suite
+  wiederholen.
+- **Den betroffenen Prüfumfang vor dem ersten Push bestimmen:** aus den
+  geänderten Bausteinen und der tatsächlichen CI-Testauswahl ableiten, welche
+  bestehenden und neuen Fälle lokal laufen müssen. Bei gemeinsamen Komponenten
+  auch deren betroffene Einsatzstellen prüfen. Nur neu geschriebene Tests
+  auszuführen genügt nicht. Ausgeführte Prüfungen und verbleibende Lücken nennen.
+- **Testregistrierung mitprüfen:** Bei neuen oder verschobenen Tests auch die
+  zugehörigen Auswahlscripte, verbindlichen Soll-Listen und Suite-Prüfungen lokal
+  ausführen. Ein einzeln bestandener Test belegt nicht, dass ihn die CI korrekt
+  auswählt.
+- **UI-Änderungen mit den betroffenen bestehenden Browserfällen prüfen:** die
+  relevanten CI-Breiten, Touch-Bedienung und Farbschemata einbeziehen. Tests gegen
+  eine ruhende Vorschau ausführen; keinen parallelen Bau starten, der die Seite
+  währenddessen neu lädt.
+- **Relevante Unterschiede zur CI vor dem PR nachstellen:** insbesondere bei
+  PWA-, Service-Worker- und Browser-Lebenszyklusänderungen die betroffenen Fälle
+  auch unter Linux mit den CI-Versionen prüfen. Bei Hinweisen auf Last- oder
+  Zeitprobleme die verfügbaren Ressourcen entsprechend begrenzen. Isolierte
+  Projektkopien müssen alle benötigten Dateien einschließlich versteckter
+  Baukonfigurationen enthalten. Ist diese Prüfung lokal nicht möglich, die
+  konkrete Prüflücke offen benennen; ein Windows-Ergebnis ersetzt sie nicht.
+- **CI-Fehler zuerst gezielt untersuchen:** den fehlgeschlagenen Fall anhand von
+  Logs und Aufzeichnungen möglichst klein lokal nachstellen und nach der
+  Korrektur gezielt prüfen, bevor ein neuer vollständiger Lauf startet.
+  Unveränderte Wiederholungen nur bei begründetem Verdacht auf einen
+  vorübergehenden Infrastrukturfehler; dann möglichst nur fehlgeschlagene Jobs
+  wiederholen. Wiederholte gleiche Fehler untersuchen, statt erneut zu starten.
+  Prüfbedingungen nicht abschwächen und erforderliche Prüfungen nicht umgehen.
 - **`npm run verify`** bleibt für umfangreiche Integrationen, Fehlersuche und
   ausdrücklich gewünschte Gesamtprüfungen verfügbar. Es fährt Format, Lint,
   Typen, Workflow-Tests, Suite-Audit, alle Anwendungstests und den Bau.
