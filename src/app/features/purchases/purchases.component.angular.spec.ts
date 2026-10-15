@@ -15,7 +15,11 @@ import { InboundTrackingService } from '../../core/services/inbound-tracking.ser
 import { PurchaseService } from '../../core/services/purchase.service';
 import { CatalogService } from '../../core/services/catalog.service';
 import { StockService } from '../../core/services/stock.service';
+import { PurchaseProfitabilityService } from './services/purchase-profitability.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
+import { AuthService } from '../../core/services/auth.service';
+import { SupabaseService } from '../../core/services/supabase.service';
+import type { User } from '@supabase/supabase-js';
 import { PurchasesComponent } from './purchases.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { TableColumnMenuComponent } from '../../shared/components/table-column-menu/table-column-menu.component';
@@ -63,6 +67,7 @@ function registerSignalInputs(
 }
 
 afterAll(() => {
+  TestBed.resetTestingModule();
   for (const [component, snapshot] of inputMetadataSnapshots) {
     const metadata = (component as { ɵcmp: AngularInputMetadata }).ɵcmp;
     metadata.inputs = snapshot.inputs;
@@ -286,6 +291,16 @@ beforeEach(() => {
         },
       },
       {
+        provide: PurchaseProfitabilityService,
+        useValue: {
+          sales: signal([]),
+          isLoading: signal(false),
+          loadError: signal(null),
+          loadedWorkspaceId: signal(workspaceId),
+          loadSales: vi.fn(async () => undefined),
+        },
+      },
+      {
         provide: WorkspaceService,
         useValue: { currentWorkspace },
       },
@@ -298,6 +313,176 @@ beforeEach(() => {
 });
 
 describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
+  it('sortiert nur angezeigte Ergebnisse numerisch und stellt fehlende Werte ans Ende', () => {
+    purchaseState.set([
+      ...purchases,
+      { ...purchases[0], id: 'no-sale', total_purchase_cost: 1000 },
+    ]);
+    const fixture = TestBed.createComponent(PurchasesComponent);
+    fixture.detectChanges();
+    const service = TestBed.inject(PurchaseProfitabilityService);
+    service.sales.set([
+      {
+        id: 'sale',
+        workspace_id: workspaceId,
+        inventory_item_id: inventoryItem.id,
+        inventory_item: inventoryItem,
+        platform: 'direct',
+        sale_date: '2026-10-10',
+        sale_price: 70,
+        platform_fee: 5,
+        shipping_cost: 0,
+        packaging_cost: 0,
+        other_costs: 0,
+        has_persisted_lines: false,
+      },
+    ]);
+    const component = fixture.componentInstance;
+    component.setView('profitability');
+    component.onSortChanged({ field: 'result', direction: 'asc' });
+    expect(component.purchaseRows().map((row) => row.id)).toEqual([
+      'purchase-normal',
+      'purchase-mystery',
+      'no-sale',
+    ]);
+    component.onSortChanged({ field: 'total_cost', direction: 'asc' });
+    expect(component.purchaseRows().map((row) => row.id)).toEqual([
+      'purchase-normal',
+      'no-sale',
+      'purchase-mystery',
+    ]);
+  });
+  it('berechnet das sichtbare Ergebnis neu und öffnet die Aufschlüsselung ohne Navigation', () => {
+    const fixture = TestBed.createComponent(PurchasesComponent);
+    fixture.detectChanges();
+    const service = TestBed.inject(PurchaseProfitabilityService);
+    service.sales.set([
+      {
+        id: 'sale',
+        workspace_id: workspaceId,
+        inventory_item_id: inventoryItem.id,
+        inventory_item: inventoryItem,
+        platform: 'direct',
+        sale_date: '2026-10-10',
+        sale_price: 70,
+        platform_fee: 5,
+        shipping_cost: 0,
+        packaging_cost: 0,
+        other_costs: 0,
+        has_persisted_lines: false,
+      },
+    ]);
+    fixture.componentInstance.setView('profitability');
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const row = host.querySelector('[data-purchase-row="purchase-normal"]')!.closest('tr')!;
+    expect(row.querySelector('[data-purchase-result]')?.textContent).toContain('+20,00');
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate');
+    row.querySelector('summary')!.click();
+    expect(navigate).not.toHaveBeenCalled();
+    expect(row.querySelector('details')?.open).toBe(true);
+    expect(row.querySelector('dl')?.textContent).toContain('5,00');
+    service.sales.update((sales) => sales.map((sale) => ({ ...sale, refund_amount: 30 })));
+    fixture.detectChanges();
+    expect(row.querySelector('[data-purchase-result]')?.textContent).toContain('-10,00');
+    navigate.mockRestore();
+  });
+
+  it('zeigt bei fehlenden Verkaufsdaten keine Nullwerte und bietet erneutes Laden an', () => {
+    const fixture = TestBed.createComponent(PurchasesComponent);
+    fixture.detectChanges();
+    const service = TestBed.inject(PurchaseProfitabilityService);
+    service.loadError.set(new Error('offline'));
+    fixture.componentInstance.setView('profitability');
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain(
+      'nicht vollständig geladen',
+    );
+    expect(host.querySelector('[data-purchase-revenue]')?.textContent).toContain('Noch prüfen');
+    expect(host.querySelector('[data-purchase-result]')?.textContent).toContain('Noch prüfen');
+    expect(host.querySelector('[data-purchase-result]')?.textContent).not.toContain('0,00');
+  });
+
+  it('trennt die Rentabilitätseinstellungen zweier Nutzer im selben Workspace', () => {
+    const user = (id: string): User => ({
+      id,
+      aud: 'authenticated',
+      created_at: '2026-10-01',
+      app_metadata: {},
+      user_metadata: {},
+    });
+    const currentUser = signal<User | null>(user('user-a'));
+    TestBed.overrideProvider(AuthService, { useValue: { currentUser } });
+    TestBed.overrideProvider(SupabaseService, {
+      useValue: {
+        client: { auth: { getUser: async () => ({ data: { user: null }, error: null }) } },
+      },
+    });
+    const fixture = TestBed.createComponent(PurchasesComponent);
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+    component.setView('profitability');
+    component.toggleColumnVisibility('revenue');
+    currentUser.set({ ...user('user-a'), email: 'updated@example.test' });
+    fixture.detectChanges();
+    expect(component.activeView()).toBe('profitability');
+    currentUser.set(user('user-b'));
+    fixture.detectChanges();
+    expect(component.activeView()).toBe('overview');
+    component.setView('profitability');
+    expect(component.tablePrefs().columns.find((column) => column.id === 'revenue')?.visible).toBe(
+      true,
+    );
+    currentUser.set(user('user-a'));
+    fixture.detectChanges();
+    component.setView('profitability');
+    expect(component.tablePrefs().columns.find((column) => column.id === 'revenue')?.visible).toBe(
+      false,
+    );
+  });
+
+  it('wechselt die Spalten ohne Suche oder Verkäuferfilter zu verlieren und merkt sich jede Ansicht separat', () => {
+    const fixture = TestBed.createComponent(PurchasesComponent);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const component = fixture.componentInstance;
+    component.searchQuery.set('Haushaltswaren');
+    component.sellerId.set('supplier-1');
+    component.toggleColumnVisibility('description');
+    component.onSortChanged({ field: 'total_cost', direction: 'asc' });
+    fixture.detectChanges();
+    const profitability = host.querySelector<HTMLButtonElement>(
+      '[data-purchase-view="profitability"] button',
+    );
+    expect(profitability).not.toBeNull();
+    profitability!.click();
+    fixture.detectChanges();
+    expect(profitability?.getAttribute('aria-pressed')).toBe('true');
+    expect([...host.querySelectorAll('thead th')].map((th) => th.textContent?.trim())).toEqual([
+      'Einkauf',
+      'Verkaufsstand',
+      'Gesamtkosten',
+      'Verkaufserlös',
+      'Ergebnis',
+    ]);
+    expect(host.querySelectorAll('[data-purchase-table-row]')).toHaveLength(1);
+    expect(component.searchQuery()).toBe('Haushaltswaren');
+    expect(component.sellerId()).toBe('supplier-1');
+    component.onSortChanged({ field: 'result', direction: 'desc' });
+    component.toggleColumnVisibility('revenue');
+    host.querySelector<HTMLButtonElement>('[data-purchase-view="overview"] button')!.click();
+    fixture.detectChanges();
+    expect(component.tablePrefs().sort).toEqual({ field: 'total_cost', direction: 'asc' });
+    expect(host.querySelector('thead')?.textContent).not.toContain('Beschreibung');
+    profitability!.click();
+    fixture.detectChanges();
+    expect(component.tablePrefs().sort).toEqual({ field: 'result', direction: 'desc' });
+    expect(
+      [...host.querySelectorAll('thead th')].map((th) => th.textContent?.trim()),
+    ).not.toContain('Verkaufserlös');
+  });
+
   it('zeigt die freigegebene Spaltenfolge mit Beschreibung', () => {
     const fixture = TestBed.createComponent(PurchasesComponent);
     fixture.detectChanges();
@@ -310,7 +495,6 @@ describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
       'Kaufdatum',
       'Verkäufer',
       'Status',
-      'Erhalten',
       'Beschreibung',
       'Gesamt',
     ]);
@@ -318,6 +502,8 @@ describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
 
   it('trennt Einkaufsnummer und Bezeichnung und zeigt den Wareneingang statt Erfassungsbestand', () => {
     const fixture = TestBed.createComponent(PurchasesComponent);
+    fixture.detectChanges();
+    fixture.componentInstance.toggleColumnVisibility('receipt');
     fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
     const headers = Array.from(host.querySelectorAll('thead th')).map((header) =>
@@ -343,6 +529,8 @@ describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
 
   it('öffnet zur erhaltenen Menge eine Positionsvorschau', () => {
     const fixture = TestBed.createComponent(PurchasesComponent);
+    fixture.detectChanges();
+    fixture.componentInstance.toggleColumnVisibility('receipt');
     fixture.detectChanges();
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate');
     const host = fixture.nativeElement as HTMLElement;
@@ -386,6 +574,8 @@ describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
     purchaseState.set([...purchases, secondPurchase]);
     const fixture = TestBed.createComponent(PurchasesComponent);
     fixture.detectChanges();
+    fixture.componentInstance.toggleColumnVisibility('receipt');
+    fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
     const triggers = [
       ...host.querySelectorAll<HTMLButtonElement>('app-purchase-receipt-preview button'),
@@ -415,6 +605,8 @@ describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
 
   it('öffnet die Vorschau nach oben und hält Abstand zum Seitenkopf', () => {
     const fixture = TestBed.createComponent(PurchasesComponent);
+    fixture.detectChanges();
+    fixture.componentInstance.toggleColumnVisibility('receipt');
     fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
     const trigger = host.querySelector<HTMLButtonElement>('app-purchase-receipt-preview button');
@@ -463,6 +655,8 @@ describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
     ]);
     const fixture = TestBed.createComponent(PurchasesComponent);
     fixture.detectChanges();
+    fixture.componentInstance.toggleColumnVisibility('receipt');
+    fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
     host.querySelector<HTMLButtonElement>('app-purchase-receipt-preview button')?.click();
     fixture.detectChanges();
@@ -496,6 +690,8 @@ describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
     loadedCatalogWorkspaceId.set(null);
     const fixture = TestBed.createComponent(PurchasesComponent);
     fixture.detectChanges();
+    fixture.componentInstance.toggleColumnVisibility('receipt');
+    fixture.detectChanges();
     expect(loadCatalogProducts).not.toHaveBeenCalled();
 
     const trigger = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
@@ -516,6 +712,8 @@ describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
 
   it('rendert eine semantische Tabelle mit einem Eintrag pro Einkauf', () => {
     const fixture = TestBed.createComponent(PurchasesComponent);
+    fixture.detectChanges();
+    fixture.componentInstance.toggleColumnVisibility('receipt');
     fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
     const list = host.querySelector('[data-purchase-list]');

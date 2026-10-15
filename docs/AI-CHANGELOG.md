@@ -1,5 +1,74 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-15 - Juna - Einkaufsübersicht und Rentabilität getrennt anzeigen
+
+**Auftrag:** Den freigegebenen Umschalter „Übersicht / Rentabilität“ rechts neben
+dem Verkäuferfilter umsetzen, ohne die normale Tabelle um Finanzspalten zu erweitern.
+
+**Umsetzung:** Die Rentabilitätsansicht zeigt genau Einkauf, Verkaufsstand,
+Gesamtkosten, Verkaufserlös und Ergebnis. Suche und Verkäufer-/Statusfilter bleiben
+beim Wechsel erhalten. Beide Ansichten speichern Spaltenwahl und Sortierung getrennt;
+die neuen Einstellungen sind zusätzlich je Nutzer und Workspace getrennt.
+„Erhalten“ ist im Standard ausgeblendet und weiterhin auswählbar. Die Migration
+erhält persönliche Spaltenansichten und setzt unveränderte alte Standards einmalig um.
+Ein Klick oder Enter auf ein Ergebnis öffnet dessen Berechnung.
+
+Die Berechnung zieht sämtliche Einkaufskosten und die zugeordneten direkten
+Verkaufskosten vom Erlös ab. Sammelverkäufe werden anhand der Positionen, Mengenlose
+anhand tatsächlicher Entnahmen zugeordnet. Gemeinsame Gebühren, Versand und
+Erstattungen werden nach Artikelerlös verteilt, bei Nullerlösen nach Menge;
+Rundungsreste werden centgenau zugeteilt. Teilverkäufe bleiben als Zwischenstand
+erkennbar. Stornos zählen nicht als Erlös; Retouren behalten tatsächlich verbuchte
+Erstattungen und direkte Kosten. Ungeprüfte Altverkäufe und unbekannte Beträge
+werden nicht als null dargestellt. Die Verkaufsdaten werden erst beim Öffnen der
+Ansicht vollständig über gezählte Seiten geladen. Fehler und verspätete Antworten
+nach Workspacewechseln liefern keine unvollständigen Summen. Keine Schemaänderung.
+
+**Prüfumfang und Nachweise:** 131 betroffene Anwendungstests aus Einkaufsdarstellung,
+Berechnung, Verkaufskennzahlen, Datenladung, Einkaufskomponente und gemeinsamem
+Spaltendienst bestehen. 14 Browserfälle bestehen: acht neue Ansichtswechsel bei
+320/390/834/1440 px in beiden Themes mit Touch, Tastatur, AXE und gespeicherten
+Ansichten sowie sechs bestehende Verwaltungsseitenfälle bei den CI-Breiten.
+Die neuen Browserfälle sind als Pflichtfälle registriert; alle drei Prüfungen der
+PR-/Regressionsauswahl bestehen. Suite-Audit, Shared-UI-Prüfung, gezieltes ESLint,
+Typprüfung, Formatierung und Produktionsbau sind erfolgreich. Die Browserprüfung
+deckte und behob Überlauf durch unsichtbare Beschriftungen und eine Überlagerung
+des Umschalters durch die Mindestbreite des Verkäuferfilters.
+
+**Grenzen:** Lokal Windows und Chrome mit abgefangenen Testantworten; kein Browser-
+Plugin verfügbar, deshalb reguläres Playwright. Keine Prüfung gegen eine echte
+Datenbank und noch kein Linux-/GitHub-Lauf. Bekannte Bauhinweise zu Paketgröße,
+`pako` und einem ungenutzten Import außerhalb dieser Änderung bleiben bestehen.
+Screenshots und Vorschaukonfiguration bleiben außerhalb der versionierten Dateien.
+Zweig `juna/purchase-profitability-view`; Push und PR warten auf die Freigabe.
+
+## 2026-10-15 - Juna - Ergebnis je Einkauf fachlich vorbereiten
+
+**Auftrag:** Eine einfache Anzeige vorschlagen, mit der sich der bisherige
+Verkaufserfolg eines Einkaufs beurteilen lässt; die sichtbare Spalte „Erhalten“
+dabei auf ihren Nutzen prüfen.
+
+**Analyse und Vorschlag:** Einzelartikel sind über ihren Einkauf, Mengenverkäufe
+über Loszuordnungen verknüpft. Die Einkaufsübersicht lädt derzeit keine
+Verkaufsbeträge. Der Nutzer verwirft eine Erweiterung der normalen Übersicht um
+zusätzliche Finanzspalten zugunsten einer getrennten Tabellenansicht. Der
+überarbeitete Vorschlag ist ein Umschalter „Übersicht / Rentabilität“ rechts neben
+dem Verkäuferfilter. Die Rentabilitätsansicht zeigt ausschließlich Einkauf,
+Verkaufsstand, Gesamtkosten, Verkaufserlös und Ergebnis; Suche und Filter bleiben
+beim Umschalten erhalten. Spaltenauswahl und Sortierung gelten je Ansicht separat.
+„Erhalten“ bleibt in der normalen Übersicht optional und standardmäßig ausgeblendet.
+Gemeint sind zugeordnete Erlöse abzüglich direkter Verkaufskosten und sämtlicher
+Einkaufskosten. Ein Zwischenstand ist vom abgeschlossenen Ergebnis zu unterscheiden;
+unverkaufte Ware erhält keinen geschätzten Erlös. Sammelverkäufe, Erstattungen,
+Retouren, Stornos und unbekannte Werte müssen bei der Umsetzung ausdrücklich
+berücksichtigt werden. Die Detailansicht soll die Rechnung erklären.
+
+**Prüfung und Stand:** Bestehende Einkaufsübersicht, Spaltenvorgaben,
+Darstellungsmodelle, Verkaufskennzahlen und Artikel-/Losverknüpfungen im Code
+gelesen. Nur Analyse und Vorschlag, keine Änderung am Anwendungsverhalten oder
+Datenbankschema. Entscheidung über den überarbeiteten Vorschlag steht aus. Markdown-Formatierung
+und Unterschiedskontrolle geprüft; keine Anwendungstests erforderlich.
+
 ## 2026-10-15 - Juna - Dokumentationsänderungen ohne Anwendungslauf prüfen
 
 **Auftrag:** Untersuchen und korrigieren, warum reine Änderungen an der

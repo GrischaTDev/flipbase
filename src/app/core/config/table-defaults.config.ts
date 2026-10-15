@@ -91,9 +91,19 @@ export const CATALOG_TABLE_CONFIG: TableConfig<CatalogColumnId, CatalogSortField
 // 4. Einkäufe (Purchases)
 // ==========================================
 export type PurchasesColumnId =
-  'title' | 'description' | 'seller' | 'purchase_date' | 'status' | 'receipt' | 'total_cost';
+  | 'title'
+  | 'description'
+  | 'seller'
+  | 'purchase_date'
+  | 'status'
+  | 'receipt'
+  | 'total_cost'
+  | 'sold_units'
+  | 'revenue'
+  | 'result';
 
-export type PurchasesSortField = 'purchase_date' | 'total_cost' | 'title';
+export type PurchasesSortField =
+  'purchase_date' | 'total_cost' | 'title' | 'sold_units' | 'revenue' | 'result';
 
 export const PURCHASES_TABLE_CONFIG: TableConfig<PurchasesColumnId, PurchasesSortField> = {
   defaultColumns: [
@@ -101,7 +111,7 @@ export const PURCHASES_TABLE_CONFIG: TableConfig<PurchasesColumnId, PurchasesSor
     { id: 'purchase_date', label: 'Kaufdatum', visible: true, order: 1 },
     { id: 'seller', label: 'Verkäufer', visible: true, order: 2 },
     { id: 'status', label: 'Status', visible: true, order: 3 },
-    { id: 'receipt', label: 'Erhalten', visible: true, order: 4 },
+    { id: 'receipt', label: 'Erhalten', visible: false, order: 4 },
     { id: 'description', label: 'Beschreibung', visible: true, order: 5 },
     { id: 'total_cost', label: 'Gesamt', visible: true, order: 6 },
   ],
@@ -110,6 +120,27 @@ export const PURCHASES_TABLE_CONFIG: TableConfig<PurchasesColumnId, PurchasesSor
     { value: 'purchase_date', label: 'Kaufdatum', kind: 'date' },
     { value: 'total_cost', label: 'Gesamt', kind: 'number' },
     { value: 'title', label: 'Beschreibung', kind: 'text' },
+  ],
+};
+
+export const PURCHASES_PROFITABILITY_TABLE_CONFIG: TableConfig<
+  PurchasesColumnId,
+  PurchasesSortField
+> = {
+  defaultColumns: [
+    { id: 'title', label: 'Einkauf', visible: true, order: 0, locked: true },
+    { id: 'sold_units', label: 'Verkaufsstand', visible: true, order: 1 },
+    { id: 'total_cost', label: 'Gesamtkosten', visible: true, order: 2 },
+    { id: 'revenue', label: 'Verkaufserlös', visible: true, order: 3 },
+    { id: 'result', label: 'Ergebnis', visible: true, order: 4 },
+  ],
+  defaultSort: { field: 'purchase_date', direction: 'desc' },
+  sortOptions: [
+    { value: 'purchase_date', label: 'Kaufdatum', kind: 'date' },
+    { value: 'sold_units', label: 'Verkaufsstand', kind: 'number' },
+    { value: 'total_cost', label: 'Gesamtkosten', kind: 'number' },
+    { value: 'revenue', label: 'Verkaufserlös', kind: 'number' },
+    { value: 'result', label: 'Ergebnis', kind: 'number' },
   ],
 };
 

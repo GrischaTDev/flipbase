@@ -76,12 +76,51 @@
     <app-custom-select
       table-filters
       variant="toolbar"
-      widthClass="min-w-60 max-w-80"
+      widthClass="w-full max-w-80"
       ariaLabel="Nach Verkäufer filtern"
       [options]="sellerSelectOptions()"
       [value]="sellerId()"
       (valueChange)="sellerId.set($event ?? '')"
     />
+
+    <div
+      table-filters
+      role="group"
+      aria-label="Einkaufsansicht"
+      class="flex shrink-0 items-center gap-1"
+    >
+      <app-button
+        data-purchase-view="overview"
+        size="slim"
+        [variant]="activeView() === 'overview' ? 'primary' : 'ghost'"
+        [ariaPressed]="activeView() === 'overview'"
+        (clicked)="setView('overview')"
+        >Übersicht</app-button
+      >
+      <app-button
+        data-purchase-view="profitability"
+        size="slim"
+        [variant]="activeView() === 'profitability' ? 'primary' : 'ghost'"
+        [ariaPressed]="activeView() === 'profitability'"
+        (clicked)="setView('profitability')"
+        >Rentabilität</app-button
+      >
+    </div>
+
+    @if (activeView() === 'profitability') {
+      <div table-filter-panel class="border-b border-fb-line px-3 py-2 text-xs text-fb-text-muted">
+        <p>
+          Ergebnis = Verkaufserlös − direkte Verkaufskosten − gesamte Einkaufskosten. Solange noch
+          Artikel übrig sind, ist das ein Zwischenstand.
+        </p>
+        @if (profitabilityLoadError()) {
+          <p role="alert" class="mt-2">Die Rentabilität konnte nicht vollständig geladen werden.</p>
+          <app-button class="mt-2" size="slim" variant="secondary" (clicked)="retryProfitability()"
+            >Erneut versuchen</app-button
+          >
+        }
+      </div>
+    }
 
     @if (filtersActive()) {
       <div
@@ -96,7 +135,9 @@
     <div table-content class="overflow-x-auto">
       <table data-purchase-table class="linear-table min-w-[760px]">
         <caption class="sr-only">
-          Einkaufstabelle
+          {{
+            activeView() === 'profitability' ? 'Rentabilität der Einkäufe' : 'Einkaufstabelle'
+          }}
         </caption>
         <thead>
           <tr>
@@ -138,7 +179,7 @@
                     [attr.aria-sort]="ariaSort('total_cost')"
                   >
                     <app-table-sort-header
-                      label="Gesamt"
+                      [label]="activeView() === 'profitability' ? 'Gesamtkosten' : 'Gesamt'"
                       sortField="total_cost"
                       [currentSort]="tablePrefs().sort"
                       (sortChanged)="onSortChanged($event)"
@@ -148,6 +189,38 @@
                 }
                 @case ('receipt') {
                   <th scope="col">Erhalten</th>
+                }
+                @case ('sold_units') {
+                  <th scope="col" [attr.aria-sort]="ariaSort('sold_units')">
+                    <app-table-sort-header
+                      label="Verkaufsstand"
+                      sortField="sold_units"
+                      [currentSort]="tablePrefs().sort"
+                      (sortChanged)="onSortChanged($event)"
+                    />
+                  </th>
+                }
+                @case ('revenue') {
+                  <th scope="col" class="text-right" [attr.aria-sort]="ariaSort('revenue')">
+                    <app-table-sort-header
+                      label="Verkaufserlös"
+                      sortField="revenue"
+                      align="right"
+                      [currentSort]="tablePrefs().sort"
+                      (sortChanged)="onSortChanged($event)"
+                    />
+                  </th>
+                }
+                @case ('result') {
+                  <th scope="col" class="text-right" [attr.aria-sort]="ariaSort('result')">
+                    <app-table-sort-header
+                      label="Ergebnis"
+                      sortField="result"
+                      align="right"
+                      [currentSort]="tablePrefs().sort"
+                      (sortChanged)="onSortChanged($event)"
+                    />
+                  </th>
                 }
               }
             }
@@ -207,6 +280,91 @@
                   @case ('receipt') {
                     <td>
                       <app-purchase-receipt-preview [purchaseId]="row.id" [receipt]="row.receipt" />
+                    </td>
+                  }
+                  @case ('sold_units') {
+                    <td data-purchase-sales-progress>
+                      @if (row.profitability?.state === 'review') {
+                        <span class="text-fb-text-muted">Noch prüfen</span>
+                      } @else if (row.quantityState === 'loaded' && row.soldUnits !== null) {
+                        <span>{{ row.soldUnits }} von {{ row.totalUnits }} verkauft</span>
+                        @if (row.soldUnits < row.totalUnits) {
+                          <span class="block text-xs text-fb-text-muted">Zwischenstand</span>
+                        }
+                      } @else {
+                        <span class="text-fb-text-muted">{{
+                          row.quantityState === 'loading' ? 'Wird geladen …' : 'Noch prüfen'
+                        }}</span>
+                      }
+                    </td>
+                  }
+                  @case ('revenue') {
+                    <td data-purchase-revenue class="text-right tabular-nums">
+                      @if (
+                        row.profitability?.revenue !== null &&
+                        row.profitability?.revenue !== undefined
+                      ) {
+                        {{
+                          row.profitability?.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+                        }}
+                      } @else {
+                        <span class="text-fb-text-muted">{{
+                          row.profitability?.state === 'loading' ? 'Wird geladen …' : 'Noch prüfen'
+                        }}</span>
+                      }
+                    </td>
+                  }
+                  @case ('result') {
+                    <td data-purchase-result class="text-right tabular-nums">
+                      @if (row.profitability; as profitability) {
+                        @if (profitability.state !== 'loaded') {
+                          <span class="text-fb-text-muted">{{
+                            profitability.state === 'loading' ? 'Wird geladen …' : 'Noch prüfen'
+                          }}</span>
+                        } @else if (!profitability.hasSales) {
+                          <span class="text-fb-text-muted">Noch kein Verkauf</span>
+                        } @else if (profitability.result === null) {
+                          <span class="text-fb-text-muted">Kosten noch offen</span>
+                        } @else {
+                          <details class="min-w-36">
+                            <summary
+                              class="relative cursor-pointer rounded-lg font-semibold underline decoration-dotted underline-offset-4 focus-visible:outline-2 focus-visible:outline-fb-primary"
+                              [class.text-fb-success]="profitability.result > 0"
+                              [class.text-fb-critical]="profitability.result < 0"
+                            >
+                              <span class="sr-only">Berechnung für {{ row.reference }}: </span>
+                              {{ profitability.result > 0 ? '+' : ''
+                              }}{{
+                                profitability.result | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+                              }}
+                            </summary>
+                            <dl class="mt-2 space-y-1 text-xs text-fb-text-muted">
+                              <div>
+                                <dt>Verkaufserlös</dt>
+                                <dd>
+                                  {{
+                                    profitability.revenue
+                                      | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+                                  }}
+                                </dd>
+                              </div>
+                              <div>
+                                <dt>Direkte Verkaufskosten</dt>
+                                <dd>
+                                  {{
+                                    profitability.sellingCosts
+                                      | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+                                  }}
+                                </dd>
+                              </div>
+                              <div>
+                                <dt>Gesamte Einkaufskosten</dt>
+                                <dd><app-cost-state [state]="row.totalCost" /></dd>
+                              </div>
+                            </dl>
+                          </details>
+                        }
+                      }
                     </td>
                   }
                 }
