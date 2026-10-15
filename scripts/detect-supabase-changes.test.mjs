@@ -121,6 +121,74 @@ async function withRepository(callback) {
   }
 }
 
+test('AGENTS und reine Dokumentation wählen ausschließlich Dokumentationsprüfungen', () => {
+  for (const paths of [
+    ['AGENTS.md'],
+    ['AGENTS.md', 'docs/AI-CHANGELOG.md'],
+    ['README.md', 'docs/guide.md'],
+  ]) {
+    assert.deepEqual(classifyChanges(paths), {
+      application: false,
+      application_tests: false,
+      supabase: false,
+      sniper: false,
+      documentation_only: true,
+    });
+    assert.equal(pathsSelectPush(paths), false);
+  }
+  assert.equal(classifyChanges([]).documentation_only, false);
+  assert.equal(classifyChanges(null).documentation_only, false);
+});
+
+test('Regeländerungen verbergen keine gleichzeitig geänderten technischen Dateien', () => {
+  for (const path of [
+    'src/app/app.ts',
+    'public/sw.js',
+    'e2e/pwa-production.spec.ts',
+    'supabase/schemas/10_core.sql',
+    'deploy/deploy.sh',
+    'docker/Dockerfile',
+    'package-lock.json',
+    '.github/workflows/ci.yml',
+    'scripts/detect-supabase-changes.mjs',
+    'unknown/config.json',
+  ]) {
+    const paths = ['AGENTS.md', 'docs/AI-CHANGELOG.md', path];
+    const changes = classifyChanges(paths);
+    assert.equal(changes.documentation_only, false, path);
+    assert.equal(changes.application, true, path);
+    assert.equal(changes.application_tests, true, path);
+    assert.equal(changes.supabase, classifyChanges([path]).supabase, path);
+    assert.equal(changes.sniper, classifyChanges([path]).sniper, path);
+    assert.equal(pathsSelectPush(paths), pathsSelectPush([path]), path);
+  }
+  assert.equal(
+    classifyChanges(['AGENTS.md', 'services/marketplace-worker/src/browser.ts']).documentation_only,
+    false,
+  );
+});
+
+test('AGENTS mit Änderungsprotokoll überspringt bei PR und Push die Veröffentlichung', async () => {
+  for (const EVENT_NAME of ['pull_request', 'push']) {
+    await withRepository(async (repository) => {
+      const base = await commitFile(repository, 'AGENTS.md', '# Regeln\n', 'base');
+      await commitFile(repository, 'docs/AI-CHANGELOG.md', '# Protokoll\n', 'changelog');
+      const head = await commitFile(repository, 'AGENTS.md', '# Lokale Prüfungen\n', 'rules');
+      const result = await runDetector(repository, {
+        EVENT_NAME,
+        PR_BASE_SHA: base,
+        PUSH_BEFORE_SHA: base,
+        HEAD_SHA: head,
+      });
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(
+        result.output,
+        'application=false\nsupabase=false\nsniper=false\napplication_tests=false\npush=false\ndocumentation_only=true\n',
+      );
+    });
+  }
+});
+
 test('Pull Requests vergleichen ausschließlich mit der PR-Basis', async () => {
   await withRepository(async (repository) => {
     const base = await commitFile(repository, 'README.md', 'base\n', 'base');
@@ -141,7 +209,7 @@ test('Pull Requests vergleichen ausschließlich mit der PR-Basis', async () => {
     assert.equal(result.status, 0, result.stderr);
     assert.equal(
       result.output,
-      'application=true\nsupabase=true\nsniper=false\napplication_tests=true\npush=false\n',
+      'application=true\nsupabase=true\nsniper=false\napplication_tests=true\npush=false\ndocumentation_only=false\n',
     );
   });
 });
@@ -166,7 +234,7 @@ test('Pushes vergleichen ausschließlich mit github.event.before', async () => {
     assert.equal(result.status, 0, result.stderr);
     assert.equal(
       result.output,
-      'application=true\nsupabase=true\nsniper=false\napplication_tests=true\npush=false\n',
+      'application=true\nsupabase=true\nsniper=false\napplication_tests=true\npush=false\ndocumentation_only=false\n',
     );
   });
 });
@@ -191,7 +259,7 @@ test('Null-SHA verwendet bei vorhandenem Vorgänger den direkten Parent', async 
     assert.equal(result.status, 0, result.stderr);
     assert.equal(
       result.output,
-      'application=true\nsupabase=true\nsniper=false\napplication_tests=true\npush=false\n',
+      'application=true\nsupabase=true\nsniper=false\napplication_tests=true\npush=false\ndocumentation_only=false\n',
     );
   });
 });
@@ -212,7 +280,7 @@ test('erster Commit entscheidet ohne Vorgänger für beide Bereiche konservativ'
     // laufen lassen als eine Pruefung stillschweigend ueberspringen.
     assert.equal(
       result.output,
-      'application=true\nsupabase=true\nsniper=true\napplication_tests=true\npush=true\n',
+      'application=true\nsupabase=true\nsniper=true\napplication_tests=true\npush=true\ndocumentation_only=false\n',
     );
   });
 });
@@ -248,7 +316,7 @@ test('Supabase-Diff setzt die Ausgabe auf true', async () => {
     assert.equal(result.status, 0, result.stderr);
     assert.equal(
       result.output,
-      'application=true\nsupabase=true\nsniper=false\napplication_tests=true\npush=false\n',
+      'application=true\nsupabase=true\nsniper=false\napplication_tests=true\npush=false\ndocumentation_only=false\n',
     );
   });
 });
@@ -268,7 +336,7 @@ test('Diff außerhalb von Supabase setzt die Ausgabe auf false', async () => {
     assert.equal(result.status, 0, result.stderr);
     assert.equal(
       result.output,
-      'application=false\nsupabase=false\nsniper=false\napplication_tests=false\npush=false\n',
+      'application=false\nsupabase=false\nsniper=false\napplication_tests=false\npush=false\ndocumentation_only=true\n',
     );
   });
 });
@@ -299,7 +367,7 @@ test('Technischer Pfad bleibt bei einem Rename nach docs anwendungsrelevant', as
     assert.equal(result.status, 0, result.stderr);
     assert.equal(
       result.output,
-      'application=true\nsupabase=false\nsniper=false\napplication_tests=true\npush=false\n',
+      'application=true\nsupabase=false\nsniper=false\napplication_tests=true\npush=false\ndocumentation_only=false\n',
     );
   });
 });
@@ -325,7 +393,7 @@ test('reine Sniper-Änderung erhält den Release-Weg, überspringt aber Anwendun
     // Der Release-Schalter bleibt bestehen. Nur die fachfremden Anwendungstests entfallen.
     assert.equal(
       result.output,
-      'application=true\nsupabase=false\nsniper=true\napplication_tests=false\npush=false\n',
+      'application=true\nsupabase=false\nsniper=true\napplication_tests=false\npush=false\ndocumentation_only=false\n',
     );
   });
 });
@@ -346,13 +414,13 @@ test('bekannte Dokumentation unter docs und Root-Markdown überspringt die Anwen
     assert.equal(result.status, 0, result.stderr);
     assert.equal(
       result.output,
-      'application=false\nsupabase=false\nsniper=false\napplication_tests=false\npush=false\n',
+      'application=false\nsupabase=false\nsniper=false\napplication_tests=false\npush=false\ndocumentation_only=true\n',
     );
   });
 });
 
-test('AGENTS und unbekannte Pfade lösen die Anwendungsprüfung konservativ aus', async () => {
-  for (const path of ['AGENTS.md', 'notes/release.txt']) {
+test('unbekannte Pfade lösen die Anwendungsprüfung konservativ aus', async () => {
+  for (const path of ['notes/release.txt', 'public/guide.md', 'src/AGENTS.md']) {
     await withRepository(async (repository) => {
       const base = await commitFile(repository, 'README.md', 'base\n', 'base');
       const head = await commitFile(repository, path, 'changed\n', 'change');
@@ -367,7 +435,7 @@ test('AGENTS und unbekannte Pfade lösen die Anwendungsprüfung konservativ aus'
       assert.equal(result.status, 0, result.stderr);
       assert.equal(
         result.output,
-        'application=true\nsupabase=false\nsniper=false\napplication_tests=true\npush=false\n',
+        'application=true\nsupabase=false\nsniper=false\napplication_tests=true\npush=false\ndocumentation_only=false\n',
       );
     });
   }
@@ -389,7 +457,7 @@ test('gemeinsame Abhängigkeiten und CI-Werkzeuge lösen alle betroffenen Prüfu
       assert.equal(result.status, 0, result.stderr);
       assert.equal(
         result.output,
-        'application=true\nsupabase=true\nsniper=true\napplication_tests=true\npush=true\n',
+        'application=true\nsupabase=true\nsniper=true\napplication_tests=true\npush=true\ndocumentation_only=false\n',
       );
     });
   }
@@ -413,7 +481,7 @@ test('nur das getrennte Sniper-Paket darf Anwendungstests ohne Release-Verlust s
     [[bot, 'docker/Dockerfile'], true],
     [[bot, 'package-lock.json'], true],
     [[bot, '.github/workflows/ci.yml'], true],
-    [[bot, 'AGENTS.md'], true],
+    [[bot, 'AGENTS.md'], false],
     [[bot, 'unknown/config.json'], true],
     [['services/sniper-other/src/config.ts'], true],
   ]) {
@@ -426,6 +494,7 @@ test('nur das getrennte Sniper-Paket darf Anwendungstests ohne Release-Verlust s
     application_tests: true,
     supabase: true,
     sniper: true,
+    documentation_only: false,
   });
   assert.equal(classifyChanges([]).application_tests, false);
   assert.equal(classifyChanges(['docs/guide.md']).application_tests, false);
@@ -455,6 +524,7 @@ test('reine Worker-Änderungen sparen Anwendungstests und Web-Release, geteilte 
   for (const paths of [
     [worker],
     [worker, 'docs/AI-CHANGELOG.md'],
+    [worker, 'AGENTS.md'],
     ['services/marketplace-worker/test/vinted-listing-content-http.test.ts'],
     ['services/marketplace-worker/runtime/chromium-session.ts'],
     ['services/marketplace-worker/package-lock.json'],
@@ -462,7 +532,13 @@ test('reine Worker-Änderungen sparen Anwendungstests und Web-Release, geteilte 
   ]) {
     assert.deepEqual(
       classifyChanges(paths),
-      { application: false, application_tests: false, supabase: false, sniper: false },
+      {
+        application: false,
+        application_tests: false,
+        supabase: false,
+        sniper: false,
+        documentation_only: false,
+      },
       JSON.stringify(paths),
     );
   }

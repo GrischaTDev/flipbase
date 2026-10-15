@@ -10,6 +10,20 @@ alle vorhandenen Node-, DOM- und Angular-Tests erhalten. Datenbank- und Botcheck
 laufen weiterhin bei passenden Änderungen. Reine Bot-Paketänderungen starten
 keine fachfremden Frontend-Testjobs und keinen zusätzlichen Frontend-PR-Build.
 
+**Ergänzung vom 15. Oktober 2026:** Reine Dokumentationsänderungen unter `docs/` und Markdown-Dateien direkt im
+Projektstamm einschließlich `AGENTS.md` wählen ausschließlich den Job
+`Documentation` und die gemeinsame Pflichtprüfung. Der kurze Job installiert
+die gesperrten Abhängigkeiten ohne Anwendungshooks und prüft die versionierten
+Markdown-Dateien mit Prettier. Anwendungstests, der große Qualitätsjob,
+Produktionsabbilder, Deployment und Release werden dabei übersprungen – sowohl
+im PR als auch nach dem Merge. Ein fehlgeschlagener Dokumentationscheck blockiert
+weiterhin die Pflichtprüfung.
+
+Eine gleichzeitig geänderte technische Datei hebt diese Ausnahme auf. Unbekannte
+Pfade und technische Dateien, die nach `docs/` verschoben werden, bleiben im
+bisherigen Prüfumfang. Reine Worker-Änderungen behalten ihren Qualitätsjob. Ein
+Dokumentationslauf stellt keinen V2-Nachweis über technische Prüfungen aus.
+
 Der allgemeine Chromium-Pflichtlauf prüft sechs Arbeitsabläufe:
 
 1. Anmelden und die zentralen Arbeitsbereiche über die Navigation öffnen.

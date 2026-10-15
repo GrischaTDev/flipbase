@@ -12,12 +12,14 @@ function runChecker(overrides = {}) {
       ...process.env,
       EVENT_NAME: 'push',
       TESTS_REUSED: 'false',
+      DOCUMENTATION_ONLY: 'false',
       CHANGES_RESULT: 'success',
       APPLICATION_CHANGED: 'true',
       APPLICATION_TESTS_CHANGED: 'true',
       SUPABASE_CHANGED: 'true',
       SNIPER_CHANGED: 'true',
       QUALITY_RESULT: 'success',
+      DOCUMENTATION_RESULT: 'skipped',
       UNIT_RESULT: 'success',
       DATABASE_RESULT: 'success',
       SNIPER_RESULT: 'success',
@@ -54,19 +56,56 @@ test('akzeptiert wiederverwendete PR-Prüfungen nur beim Push mit erfolgreichem 
   }
 });
 
-test('akzeptiert dokumentationsreine Änderungen nur mit übersprungenen Anwendungsjobs', () => {
-  const result = runChecker({
-    APPLICATION_CHANGED: 'false',
-    APPLICATION_TESTS_CHANGED: 'false',
-    SUPABASE_CHANGED: 'false',
-    SNIPER_CHANGED: 'false',
-    UNIT_RESULT: 'skipped',
-    DATABASE_RESULT: 'skipped',
-    SNIPER_RESULT: 'skipped',
-    BROWSER_RESULT: 'skipped',
-    IMAGE_RESULT: 'skipped',
-  });
-  assert.equal(result.status, 0, result.stderr);
+const documentationOnly = {
+  DOCUMENTATION_ONLY: 'true',
+  DOCUMENTATION_RESULT: 'success',
+  QUALITY_RESULT: 'skipped',
+  APPLICATION_CHANGED: 'false',
+  APPLICATION_TESTS_CHANGED: 'false',
+  SUPABASE_CHANGED: 'false',
+  SNIPER_CHANGED: 'false',
+  UNIT_RESULT: 'skipped',
+  DATABASE_RESULT: 'skipped',
+  SNIPER_RESULT: 'skipped',
+  BROWSER_RESULT: 'skipped',
+  IMAGE_RESULT: 'skipped',
+};
+
+test('Dokumentation verlangt bei PR und Push nur erfolgreiche Dokumentationsprüfungen', () => {
+  for (const EVENT_NAME of ['pull_request', 'push']) {
+    const result = runChecker({ ...documentationOnly, EVENT_NAME });
+    assert.equal(result.status, 0, result.stderr);
+  }
+});
+
+test('fehlende oder fehlgeschlagene Dokumentationsprüfung blockiert die Freigabe', () => {
+  for (const DOCUMENTATION_RESULT of ['', 'failure', 'cancelled', 'skipped']) {
+    assert.notEqual(runChecker({ ...documentationOnly, DOCUMENTATION_RESULT }).status, 0);
+  }
+  for (const DOCUMENTATION_ONLY of ['', 'unknown']) {
+    assert.notEqual(runChecker({ DOCUMENTATION_ONLY }).status, 0);
+  }
+});
+
+test('Dokumentationsauswahl kann technische Prüfungen und Veröffentlichung nicht umgehen', () => {
+  for (const overrides of [
+    { APPLICATION_CHANGED: 'true' },
+    { APPLICATION_TESTS_CHANGED: 'true' },
+    { SUPABASE_CHANGED: 'true' },
+    { SNIPER_CHANGED: 'true' },
+    { QUALITY_RESULT: 'success' },
+    { UNIT_RESULT: 'success' },
+    { BROWSER_RESULT: 'cancelled' },
+    { IMAGE_RESULT: 'success' },
+  ]) {
+    assert.notEqual(
+      runChecker({ ...documentationOnly, ...overrides }).status,
+      0,
+      JSON.stringify(overrides),
+    );
+  }
+  assert.notEqual(runChecker({ QUALITY_RESULT: 'skipped' }).status, 0);
+  assert.notEqual(runChecker({ DOCUMENTATION_RESULT: 'success' }).status, 0);
 });
 
 test('akzeptiert im Pull Request ein übersprungenes Image', () => {
