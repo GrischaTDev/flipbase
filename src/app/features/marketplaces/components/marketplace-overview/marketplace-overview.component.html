@@ -1,0 +1,174 @@
+<div class="mx-auto min-w-0 max-w-7xl space-y-5 p-4 sm:p-6">
+  <app-page-header
+    title="Marktplatzübersicht"
+    subtitle="Deine Accounts und Inserate an einem Ort."
+    [icon]="storeIcon"
+  >
+    <div header-actions class="flex min-w-0 flex-wrap gap-2">
+      <app-button variant="secondary" [icon]="settingsIcon" (clicked)="manageOpen.set(true)"
+        >Marktplätze verwalten</app-button
+      >
+      <app-button [icon]="plusIcon" [disabled]="!settings.ready()" (clicked)="createOpen.set(true)"
+        >Inserat erstellen</app-button
+      >
+    </div>
+  </app-page-header>
+
+  @if (settings.error(); as error) {
+    <app-card padding="md"
+      ><div class="space-y-3">
+        <p role="alert" class="text-sm text-fb-critical">{{ error }}</p>
+        @if (!settings.ready()) {
+          <app-button variant="secondary" [icon]="retryIcon" (clicked)="retry()"
+            >Erneut versuchen</app-button
+          >
+        }
+      </div></app-card
+    >
+  }
+  @if (settings.loading()) {
+    <p class="text-sm text-fb-text-secondary" role="status">Deine Marktplätze werden geladen …</p>
+  } @else if (settings.ready()) {
+    @for (group of store.platforms(); track group.platform) {
+      <section
+        class="min-w-0 space-y-3"
+        [attr.aria-labelledby]="'marketplace-heading-' + group.platform"
+      >
+        <div class="flex min-w-0 flex-wrap items-center justify-between gap-3">
+          <div class="flex min-w-0 items-center gap-3">
+            <img [ngSrc]="platformLogo(group.platform)" width="28" height="28" alt="" />
+            <h2
+              [id]="'marketplace-heading-' + group.platform"
+              class="text-base font-semibold text-fb-text-primary"
+            >
+              {{ platformLabel(group.platform) }}
+            </h2>
+            @if (!group.loading && !group.error && group.platform !== 'kleinanzeigen') {
+              <app-badge tone="neutral"
+                >{{ group.accounts.length }}
+                {{ group.accounts.length === 1 ? 'Account' : 'Accounts' }}</app-badge
+              >
+            }
+          </div>
+          <app-button variant="secondary" [link]="manageLink(group.platform)">
+            {{ group.platform === 'kleinanzeigen' ? 'Kleinanzeigen öffnen' : 'Konten verwalten' }}
+          </app-button>
+        </div>
+        @if (group.loading) {
+          <app-card padding="md"
+            ><p class="text-sm text-fb-text-secondary" role="status">
+              Accounts werden geladen …
+            </p></app-card
+          >
+        } @else if (group.error) {
+          <app-card padding="md"
+            ><div class="space-y-3">
+              <p class="text-sm text-fb-critical" role="alert">{{ group.error }}</p>
+              <app-button variant="secondary" [icon]="retryIcon" (clicked)="retry()"
+                >Erneut versuchen</app-button
+              >
+            </div></app-card
+          >
+        } @else if (group.platform === 'kleinanzeigen') {
+          <app-card padding="lg"
+            ><div class="space-y-3">
+              <h3 class="text-sm font-semibold text-fb-text-primary">
+                Deine Kleinanzeigen-Entwürfe
+              </h3>
+              <p class="text-sm text-fb-text-secondary">
+                Öffne deine gespeicherten Entwürfe zum Bearbeiten und Vorbereiten. Der Abgleich
+                deiner Kleinanzeigen-Accounts und veröffentlichten Inserate folgt als nächster
+                Schritt.
+              </p>
+              <app-button variant="secondary" link="/listings">Entwürfe verwalten</app-button>
+            </div></app-card
+          >
+        } @else if (!group.accounts.length) {
+          <app-card padding="lg"
+            ><div class="space-y-3">
+              <h3 class="text-sm font-semibold text-fb-text-primary">
+                Noch kein Account verbunden
+              </h3>
+              <p class="text-sm text-fb-text-secondary">
+                Verbinde deinen Account, um seine Inserate hier zu sehen.
+              </p>
+              <app-button variant="secondary" [link]="manageLink(group.platform)"
+                >Account verbinden</app-button
+              >
+            </div></app-card
+          >
+        } @else {
+          @if (group.accounts.length > 1) {
+            <app-custom-select
+              variant="filter"
+              widthClass="w-full sm:w-64"
+              [options]="accountOptions(group)"
+              [ariaLabel]="platformLabel(group.platform) + '-Account auswählen'"
+              [value]="store.accountFilter(group.platform)"
+              (valueChange)="store.selectAccount(group.platform, $event ?? '')"
+            />
+          }
+          @for (account of store.visibleAccounts(group); track accountKey(account)) {
+            @if (store.section(account); as section) {
+              <app-marketplace-listing-section
+                [section]="section"
+                (toggled)="store.expand(account)"
+                (retried)="store.retry(account)"
+                (queryChanged)="store.setQuery(accountKey(account), $event)"
+                (selectionChanged)="store.toggleSelection($event.reference, $event.checked)"
+                (allSelected)="store.selectAll(account, $event)"
+                (nextRequested)="store.next(account)"
+                (previousRequested)="store.previous(account)"
+              />
+            }
+          }
+        }
+      </section>
+    } @empty {
+      <app-card padding="lg"
+        ><div class="space-y-3">
+          <h2 class="text-base font-semibold text-fb-text-primary">Wähle deine Marktplätze</h2>
+          <p class="text-sm text-fb-text-secondary">
+            Blende die Verkaufskanäle ein, die du verwenden möchtest.
+          </p>
+          <app-button [icon]="settingsIcon" (clicked)="manageOpen.set(true)"
+            >Marktplätze auswählen</app-button
+          >
+        </div></app-card
+      >
+    }
+  }
+</div>
+@if (manageOpen()) {
+  <app-modal-shell title="Marktplätze verwalten" size="lg" (closed)="manageOpen.set(false)">
+    <app-marketplaces-settings />
+    <app-button modal-footer variant="secondary" (clicked)="manageOpen.set(false)"
+      >Schließen</app-button
+    >
+  </app-modal-shell>
+}
+@if (createOpen()) {
+  <app-modal-shell title="Inserat erstellen" size="md" (closed)="createOpen.set(false)">
+    <p class="text-sm text-fb-text-secondary">Wähle den Marktplatz für dein neues Inserat.</p>
+    <div class="flex flex-col gap-3">
+      @if (canCreateVinted()) {
+        <app-button variant="secondary" [icon]="plusIcon" link="/marketplaces/vinted/listings/new"
+          >Auf Vinted inserieren</app-button
+        >
+      }
+      @if (enabledPlatforms().includes('kleinanzeigen')) {
+        <app-button variant="secondary" [icon]="plusIcon" link="/listings/new"
+          >Kleinanzeigen-Entwurf erstellen</app-button
+        >
+      }
+      @if (!canCreateVinted() && !enabledPlatforms().includes('kleinanzeigen')) {
+        <p class="text-sm text-fb-text-secondary">
+          Für deine sichtbaren Marktplätze steht das Erstellen hier noch nicht zur Verfügung.
+        </p>
+      }
+    </div>
+    <app-button modal-footer variant="secondary" (clicked)="createOpen.set(false)"
+      >Schließen</app-button
+    >
+  </app-modal-shell>
+}
