@@ -1,0 +1,6 @@
+<app-badge [tone]="age().tone" [attr.title]="dateTitle()">
+  <span [attr.aria-label]="label()">{{ compact() ? age().compact : age().text }}</span>
+</app-badge>
+@if (age().overdue) {
+  <p class="mt-1 text-xs text-fb-text-secondary">Wochenziel überschritten</p>
+}

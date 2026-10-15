@@ -302,6 +302,16 @@ const coreTests = [
   ]),
   [
     'vinted-listing-edge-cases.spec.ts',
+    'Großansicht behält den Tastaturfokus an beiden Galeriegrenzen @marketplace-preview @core-smoke',
+  ],
+  ...[320, 390, 834, 1440].flatMap((width) =>
+    ['light', 'dark'].map((theme) => [
+      'vinted-listing-edge-cases.spec.ts',
+      `Vinted-Mosaik und Zeit-Badges bei ${width}px ${theme} @marketplace-preview @core-smoke`,
+    ]),
+  ),
+  [
+    'vinted-listing-edge-cases.spec.ts',
     'Bekannte leere Beschreibung startet auch beim Wiederöffnen keinen Browserabruf @marketplace-preview @core-smoke',
   ],
   [

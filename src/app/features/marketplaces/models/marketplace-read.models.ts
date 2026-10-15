@@ -17,6 +17,8 @@ export interface MarketplaceEntry extends AccountScope {
   readonly text: string | null;
   readonly textState?: 'loaded' | 'not_loaded';
   readonly occurredAt: string | null;
+  /** Bei Inseraten nur die explizite Anbieterzeit, ohne Änderungszeit-Fallback. */
+  readonly publishedAt?: string | null;
   readonly price: number | null;
   readonly currency: string;
   readonly status: string | null;

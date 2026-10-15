@@ -9,6 +9,42 @@ import {
   VintedImportRequestError,
 } from '../src/vinted-account-import.ts';
 
+test('publication age uses only the provider creation time and never the import or edit time', () => {
+  const values = [
+    { created_at_ts: 1790850600 },
+    { created_at: '2026-10-01T12:30:00+02:00' },
+    { created_at_ts: '1790850600000' },
+    { updated_at: '2026-10-14T09:00:00Z' },
+    { created_at_ts: '2026-02-30T12:00:00Z' },
+    { created_at_ts: 1e30 },
+    { created_at_ts: '2027-10-01T10:30:00Z' },
+  ];
+  for (const observedAt of ['2026-10-15T10:00:00Z', '2026-10-16T10:00:00Z']) {
+    const snapshot = parseVintedAccountImport(
+      { id: '123', username: 'testkonto' },
+      { user: { id: 123, login: 'testkonto' } },
+      values.map((value, index) => ({ id: 41 + index, user_id: 123, title: 'Artikel', ...value })),
+      [],
+      [],
+      observedAt,
+    );
+    assert.deepEqual(
+      snapshot.entries
+        .filter((entry) => entry.kind === 'publication')
+        .map((entry) => entry.body['occurredAt']),
+      [
+        '2026-10-01T10:30:00.000Z',
+        '2026-10-01T10:30:00.000Z',
+        '2026-10-01T10:30:00.000Z',
+        null,
+        null,
+        null,
+        null,
+      ],
+    );
+  }
+});
+
 test('unverifiable nonempty inbox never establishes an empty baseline', async () => {
   for (const isEmpty of [false, true]) {
     const paths: string[] = [];

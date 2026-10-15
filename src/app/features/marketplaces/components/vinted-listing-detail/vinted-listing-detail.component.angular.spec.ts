@@ -16,6 +16,9 @@ import { ProductMediaEditorComponent } from '../../../../shared/components/produ
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
+import { ProductGalleryComponent } from '../../../../shared/components/product-gallery/product-gallery.component';
+import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
+import { VintedListingAgeComponent } from '../vinted-listing-age/vinted-listing-age.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { TwoColumnLayoutComponent } from '../../../../shared/components/two-column-layout/two-column-layout.component';
 import { VintedListingMetricsComponent } from '../vinted-listings/vinted-listing-metrics.component';
@@ -104,6 +107,15 @@ let restoreRendering: (() => void) | undefined;
 beforeAll(async () => {
   const shared = 'src/app/shared/components/';
   restoreRendering = await prepareMarketplaceRendering([
+    {
+      type: ProductGalleryComponent,
+      path: shared + 'product-gallery/product-gallery.component.ts',
+    },
+    { type: BadgeComponent, path: shared + 'badge/badge.component.ts' },
+    {
+      type: VintedListingAgeComponent,
+      path: 'src/app/features/marketplaces/components/vinted-listing-age/vinted-listing-age.component.ts',
+    },
     {
       type: VintedListingDetailComponent,
       path: 'src/app/features/marketplaces/components/vinted-listing-detail/vinted-listing-detail.component.ts',

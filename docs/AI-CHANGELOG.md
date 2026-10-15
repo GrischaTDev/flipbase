@@ -73,6 +73,75 @@ und Zweig `juna/marketplace-hub-planning`, ausgehend vom lokal vorhandenen
 lesend berücksichtigt. Keine Produktcode-, Schema- oder Live-Kontoänderung,
 keine Anwendungstests. Markdown-Formatierung und Unterschiedskontrolle bestanden. Vorschlag noch nicht als Umsetzung freigegeben.
 
+## 2026-10-15 - Juna - Große Artikelfotos und Inseratsalter anzeigen
+
+**Auftrag:** Die freigegebene Vinted-artige Artikelansicht und Zeit-Badges in
+Übersicht und Detailseite umsetzen. Relisting bleibt einer späteren Klärung vorbehalten.
+
+**Umsetzung:** Die Galerie erhält ungefähr zwei Drittel der Desktopbreite. Je nach
+Fotoanzahl stehen neben dem großen Hauptfoto bis zu vier weitere Bilder; weitere
+Fotos sind über die Großansicht erreichbar. Diese zeigt das vollständige Bild,
+unterstützt Touch, Pfeiltasten und Escape und gibt den Fokus an den Auslöser zurück.
+Beschreibung und Bearbeiten stehen im schmaleren Informationsbereich. Bestehende
+Bearbeitung und das Nachladen von Beschreibungen bleiben erhalten.
+
+Das Inseratsalter erscheint in Tagen und Stunden: unter 72 Stunden grün, ab 72
+Stunden orange und ab 120 Stunden rot. Ab 168 Stunden ist zusätzlich das
+überschrittene Wochenziel in beiden Ansichten sichtbar. Cloud-Import und lokale
+Erweiterung übernehmen ausschließlich ausdrücklich vorhandene ursprüngliche
+Veröffentlichungsdaten. Abruf- und Änderungszeitpunkte ersetzen diese nicht;
+fehlende, ungültige oder zukünftige Angaben bleiben neutral als unbekannt markiert.
+Die Anzeige aktualisiert sich über eine gemeinsame Uhr. Keine Schemaänderung.
+
+**Prüfumfang und Nachweise:** 122 betroffene Modell- und Angular-Tests sowie 169
+Import-/Erweiterungstests bestehen. 21 Browserfälle bestehen: 15 Galerie-, Alters-,
+Beschreibungs- und Bearbeitungsfälle sowie sechs bestehende Workspace-Fälle.
+Die neuen Fälle prüfen 320/390/834/1440 px in beiden Farbschemata mit Touch,
+Tastatur, AXE, unbekannten Daten und allen Galerieanordnungen. Die abschließenden
+15 Browserfälle liefen nach den Reviewkorrekturen gegen eine ruhende isolierte
+Produktionsvorschau. Der Review deckte einen fehlenden sichtbaren Wochenhinweis
+in der Übersicht und Fokusverlust an deaktivierten Galerienavigationsbuttons auf;
+beides ist korrigiert und durch Browserfälle abgesichert. Pflichtfallregistrierung,
+Suite-Audit, Shared-UI-Prüfung, gezieltes ESLint, Typprüfung, Formatierung und
+Produktionsbau bestehen.
+
+**Grenzen:** Lokal Windows und Chrome mit abgefangenen Testantworten; kein
+Linux-/GitHub-Lauf und kein echter Inseratimport. Die tatsächliche Verfügbarkeit
+ursprünglicher Veröffentlichungsdaten hängt von Vinteds Antwort ab. Bekannte
+Bauhinweise außerhalb dieser Änderung bleiben bestehen. Screenshots und isolierte
+Vorschauen liegen außerhalb der versionierten Dateien. Eigener Zweig
+`juna/vinted-listing-research`. Der Nutzer hat Push, PR und Merge nach erfolgreichen
+Pflichtprüfungen sowie das anschließende Aufräumen des eigenen Zweigs freigegeben.
+Vor dem Push wird der aktuelle `origin/master` übernommen; dessen zusätzliche
+Landingpage-Änderung überschneidet sich nicht mit dem Produktcode dieser Umsetzung.
+
+## 2026-10-15 - Juna - Vinted-Artikelseite, Zeit-Badges und Relisting untersuchen
+
+**Auftrag:** Die offenen Vinted-, Vintz- und Bleam-Seiten mit Flipbase vergleichen
+und einen Vorschlag für große Artikelfotos, Inseratsalter und Relisting vorbereiten.
+
+**Ergebnis:** Vinteds Vier-Foto-Mosaik direkt gemessen und die Großansicht geprüft;
+die aktuelle Flipbase-Ansicht begrenzt Fotos auf 360 px. Vorschlag: größere Galerie,
+schmaler Informationsbereich, aufklappbare Beschreibung und Aktionen darunter.
+Zeit-Badges wechseln nach 72 Stunden auf Orange, nach 120 Stunden auf Rot;
+ab 168 Stunden kommt ein Hinweis auf das überschrittene Wochenziel hinzu.
+Der untersuchte Inseratimport liefert den Abrufzeitpunkt und noch kein eigenes
+Veröffentlichungsdatum. Dieses muss vor einer verlässlichen Altersanzeige in
+allen unterstützten Datenwegen geklärt werden. Unbekanntes Alter bleibt neutral.
+
+Vintz-Relisting-Dialog und Foto-Hilfe, Bleam-Details und Herstelleranleitungen,
+offizielle Vinted-Katalogregeln und widersprüchliche Nutzerberichte gelesen.
+Veränderte Fotos sind keine belegte Freigabe für erneutes Hochladen. Sicherung,
+Vorbereitung, Duplikatvermeidung und Wiederaufnahme bei unklarem Ergebnis müssen
+vor einer Umsetzung zusammen geklärt werden. Die deutsche AGB-Seite lieferte
+keinen lesbaren Vertragstext. Befunde, Quellen und Grenzen stehen in
+`docs/audit/2026-10-15-vinted-listing-layout-relisting.md`.
+
+**Prüfung und Stand:** Ausschließlich Recherche und Dokumentation im eigenen
+Zweig `juna/vinted-listing-research`. Keine Produktcode- oder Schemaänderung,
+keine Anwendungstests und keine Veränderungen an echten Inseraten. Markdown-
+Formatierung und Unterschiedskontrolle bestanden.
+
 ## 2026-10-15 - Juna - Startseitenentwurf vom Vintz-Look lösen und echtes Dashboard zeigen
 
 **Auftrag:** Die Vorschau unter `landing/preview/` sah zu sehr nach Vintz aus, und das
