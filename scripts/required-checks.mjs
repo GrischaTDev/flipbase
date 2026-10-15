@@ -19,7 +19,13 @@ try {
   requireValue('Änderungserkennung', process.env.CHANGES_RESULT, 'success');
   const reused = requireBoolean('PR-Prüfungen wiederverwendet', process.env.TESTS_REUSED);
   if (reused) requireValue('Wiederverwendung nur nach Merge', process.env.EVENT_NAME, 'push');
-  requireValue('Qualität', process.env.QUALITY_RESULT, reused ? 'skipped' : 'success');
+  const documentationOnly = requireBoolean('Nur Dokumentation', process.env.DOCUMENTATION_ONLY);
+  requireValue(
+    'Qualität',
+    process.env.QUALITY_RESULT,
+    reused || documentationOnly ? 'skipped' : 'success',
+  );
+  requireConditional('Dokumentation', documentationOnly, process.env.DOCUMENTATION_RESULT);
 
   const applicationChanged = requireBoolean('Anwendung', process.env.APPLICATION_CHANGED);
   const applicationTestsChanged = requireBoolean(
@@ -28,6 +34,13 @@ try {
   );
   const supabaseChanged = requireBoolean('Supabase', process.env.SUPABASE_CHANGED);
   const sniperChanged = requireBoolean('Sniper', process.env.SNIPER_CHANGED);
+
+  if (
+    documentationOnly &&
+    (applicationChanged || applicationTestsChanged || supabaseChanged || sniperChanged)
+  ) {
+    throw new Error('Dokumentationsauswahl widerspricht dem technischen Prüfumfang.');
+  }
 
   // Ohne Frontendprüfung ist ein Release hier nur für reine Dienständerungen erlaubt.
   if (

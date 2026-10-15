@@ -103,10 +103,7 @@ const migrationDeploymentPaths = new Set([
 ]);
 
 function isDocumentationOnly(path) {
-  return (
-    (path.startsWith('docs/') || (!path.includes('/') && path.endsWith('.md'))) &&
-    path !== 'AGENTS.md'
-  );
+  return path.startsWith('docs/') || (!path.includes('/') && path.endsWith('.md'));
 }
 
 /**
@@ -158,7 +155,13 @@ export function pathsSelectPush(paths) {
 
 export function classifyChanges(paths) {
   if (paths === null) {
-    return { application: true, application_tests: true, supabase: true, sniper: true };
+    return {
+      application: true,
+      application_tests: true,
+      supabase: true,
+      sniper: true,
+      documentation_only: false,
+    };
   }
 
   return {
@@ -179,6 +182,8 @@ export function classifyChanges(paths) {
         path === 'scripts/prepare-db-tests.mjs',
     ),
     sniper: paths.some((path) => selectsPath(path, 'services/sniper/')),
+    // Ein unbekannter Vergleich oder ein leerer Diff darf den Qualitätsjob nicht ersetzen.
+    documentation_only: paths.length > 0 && paths.every(isDocumentationOnly),
   };
 }
 
@@ -197,7 +202,7 @@ async function main() {
   if (!outputPath) throw new Error('GITHUB_OUTPUT fehlt.');
   await appendFile(
     outputPath,
-    `application=${changes.application}\nsupabase=${changes.supabase}\nsniper=${changes.sniper}\napplication_tests=${changes.application_tests}\npush=${pathsSelectPush(paths)}\n`,
+    `application=${changes.application}\nsupabase=${changes.supabase}\nsniper=${changes.sniper}\napplication_tests=${changes.application_tests}\npush=${pathsSelectPush(paths)}\ndocumentation_only=${changes.documentation_only}\n`,
     'utf8',
   );
 }

@@ -1,5 +1,39 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-15 - Juna - Dokumentationsänderungen ohne Anwendungslauf prüfen
+
+**Auftrag:** Untersuchen und korrigieren, warum reine Änderungen an der
+AGENTS.md Anwendungstests und ein Deployment auslösen.
+
+**Ursache:** Die Dateiauswahl nimmt `AGENTS.md` ausdrücklich von der vorhandenen
+Dokumentationsausnahme aus. Deshalb werden Anwendungstests und der Releaseweg
+gewählt. Der große Qualitätsjob lief außerdem bisher auch für andere reine
+Dokumentationsänderungen.
+
+**Umsetzung:** AGENTS.md gehört jetzt zur bekannten Root-Markdown-Dokumentation.
+Eine ausdrücklich als rein dokumentarisch erkannte Änderung erhält einen
+kurzen Markdown-Formatcheck ohne Anwendungshooks und anschließend die gemeinsame
+Pflichtprüfung. Anwendungstests, große Qualitätsprüfung, Image, Deployment und
+Release werden nur für diesen Fall übersprungen. Gemischte Änderungen,
+unbekannte Pfade und reine Worker-Qualitätsprüfungen behalten ihren bisherigen
+Umfang. Fehlende oder fehlgeschlagene Dokumentationschecks blockieren. Reine
+Dokumentationsläufe stellen keine Nachweise über technische Prüfungen aus.
+
+**Prüfung:** Regressionstests prüfen Dateiauswahl bei PR und Push einschließlich
+AGENTS.md mit Änderungsprotokoll, gemischten Änderungen, unbekannten Pfaden und
+Verschiebungen. Die Freigabeprüfung prüft Fehler, Abbrüche und widersprüchliche
+Ausgaben; der bestehende Wiederverwendungsnachweis bleibt abgedeckt.
+Alle 39 gezielten Tests bestehen unter Windows (Node 26.5.0) und Linux
+(Node 22.23.2).
+Die gesamte lokale Workflow-Reihe besteht mit 299 erfolgreichen und sechs
+unter Windows vorgesehenen übersprungenen Fällen. Actionlint in der CI-Version
+1.7.12 prüft alle Workflows erfolgreich. Der neue Markdown-Befehl besteht unter
+Linux auch nach frischer Installation der gesperrten Abhängigkeiten ohne
+Anwendungshooks. Ein absichtlich unformatiertes AGENTS.md wird abgelehnt.
+Der tatsächliche Dateivergleich von PR #419 wählt jetzt ausschließlich
+Dokumentation aus. Formatierung, gezieltes ESLint und Unterschiedskontrolle
+sind erfolgreich. Ein GitHub-Lauf mit der neuen Auswahl steht noch aus.
+
 ## 2026-10-15 - Juna - Betroffene Prüfungen vor dem PR verbindlich festhalten
 
 **Auftrag:** Unnötige PR-Prüfschleifen durch eine bessere lokale Vorbereitung

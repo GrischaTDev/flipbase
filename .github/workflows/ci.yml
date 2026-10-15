@@ -41,6 +41,7 @@ jobs:
       # application bleibt die Release-Auswahl; application_tests steuert nur Prüfungen.
       application: ${{ steps.filter.outputs.application }}
       application_tests: ${{ steps.filter.outputs.application_tests }}
+      documentation_only: ${{ steps.filter.outputs.documentation_only }}
       supabase: ${{ steps.filter.outputs.supabase }}
       sniper: ${{ steps.filter.outputs.sniper }}
       push: ${{ steps.filter.outputs.push }}
@@ -80,10 +81,36 @@ jobs:
           SNIPER_CHANGED: ${{ steps.filter.outputs.sniper }}
         run: node scripts/reuse-pr-checks.mjs
 
+  documentation:
+    name: Documentation
+    needs: changes
+    if: ${{ needs.changes.outputs.documentation_only == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      # Keine Anwendungs-Hooks ausführen; nur den gesperrten Formatierer verwenden.
+      - name: Install dependencies without application hooks
+        run: npm ci --ignore-scripts
+
+      - name: Check Markdown formatting
+        run: git ls-files -z -- '*.md' | xargs -0 -r npm exec -- prettier --check --
+
   quality:
     name: Quality
     needs: changes
-    if: ${{ needs.changes.outputs.tests_reused != 'true' }}
+    if: ${{ needs.changes.outputs.documentation_only != 'true' && needs.changes.outputs.tests_reused != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -413,7 +440,7 @@ jobs:
 
   image:
     name: Publish image
-    needs: [changes, quality, unit, database, sniper, browser-smoke]
+    needs: [changes, documentation, quality, unit, database, sniper, browser-smoke]
     if: ${{ always() && github.event_name == 'push' && needs.changes.result == 'success' && (needs.changes.outputs.application == 'true' || needs.changes.outputs.sniper == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -443,6 +470,8 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           CHANGES_RESULT: ${{ needs.changes.result }}
           TESTS_REUSED: ${{ needs.changes.outputs.tests_reused }}
+          DOCUMENTATION_ONLY: ${{ needs.changes.outputs.documentation_only }}
+          DOCUMENTATION_RESULT: ${{ needs.documentation.result }}
           APPLICATION_CHANGED: ${{ needs.changes.outputs.application }}
           APPLICATION_TESTS_CHANGED: ${{ needs.changes.outputs.application_tests }}
           SUPABASE_CHANGED: ${{ needs.changes.outputs.supabase }}
@@ -623,7 +652,7 @@ jobs:
   required-checks:
     name: Required checks
     if: ${{ always() }}
-    needs: [changes, quality, unit, database, sniper, browser-smoke, image]
+    needs: [changes, documentation, quality, unit, database, sniper, browser-smoke, image]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -637,6 +666,8 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           CHANGES_RESULT: ${{ needs.changes.result }}
           TESTS_REUSED: ${{ needs.changes.outputs.tests_reused }}
+          DOCUMENTATION_ONLY: ${{ needs.changes.outputs.documentation_only }}
+          DOCUMENTATION_RESULT: ${{ needs.documentation.result }}
           APPLICATION_CHANGED: ${{ needs.changes.outputs.application }}
           APPLICATION_TESTS_CHANGED: ${{ needs.changes.outputs.application_tests }}
           SUPABASE_CHANGED: ${{ needs.changes.outputs.supabase }}
@@ -652,7 +683,8 @@ jobs:
       # Erst nach erfolgreicher Sammelprüfung. Der Name bindet den Nachweis an
       # den unveränderten Git-Dateibaum und den tatsächlich geprüften Umfang.
       - name: Record successful PR checks
-        if: ${{ github.event_name == 'pull_request' }}
+        # Ein reiner Formatcheck belegt keine technischen Qualitätsprüfungen.
+        if: ${{ github.event_name == 'pull_request' && needs.changes.outputs.documentation_only != 'true' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ needs.changes.outputs.receipt_name }}
