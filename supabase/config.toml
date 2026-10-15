@@ -456,4 +456,3 @@ verify_jwt = false
 # Dienstauthentifizierung im Handler; der oeffentliche Pushgateway gibt diese Function nicht frei.
 [functions.ebay-order-observer]
 verify_jwt = false
-
