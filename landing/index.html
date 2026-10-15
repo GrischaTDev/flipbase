@@ -51,6 +51,28 @@
         --loss: #f58c8c;
         --loss-bg: rgba(245, 140, 140, 0.14);
         --loss-border: rgba(245, 140, 140, 0.35);
+        /* Produktansichten im Look der App-Verwaltung (dunkel) */
+        --panel: #262b35;
+        --photo: #414650;
+        --accent: #fcc601;
+        --brand-soft: #3c351c;
+        --success: #88d79b;
+        --success-soft: #253b31;
+        --replica-app: #1f1f1f;
+        --replica-sidebar: #1a1a1a;
+        --replica-surface: #2b2b2b;
+        --replica-subtle: #252525;
+        --replica-border: #494949;
+        --replica-line: #373737;
+        --replica-text: #f5f5f5;
+        --replica-muted: #a8a8a8;
+        --replica-positive: #4ade80;
+        --replica-success-text: #a9dda0;
+        --replica-success-surface: rgba(143, 203, 120, 0.13);
+        --replica-critical-text: #f7aaaa;
+        --replica-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.04);
+        --toast-surface: #f5f5f5;
+        --toast-text: #1a1a1a;
 
         --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         --mono: var(--sans);
@@ -86,6 +108,30 @@
           --loss: #be123c;
           --loss-bg: rgba(190, 18, 60, 0.1);
           --loss-border: rgba(190, 18, 60, 0.3);
+          /* Produktansichten im Look der App-Verwaltung (hell) */
+          --panel: #eaedf2;
+          --photo: #e8ebed;
+          --accent: #766000;
+          --brand-soft: #fff4c7;
+          --success: #38623e;
+          --success-soft: #eaf2e9;
+          --replica-app: #f1f1f1;
+          --replica-sidebar: #ebebeb;
+          --replica-surface: #ffffff;
+          --replica-subtle: #f7f7f7;
+          --replica-border: #e3e3e3;
+          --replica-line: #e5e5e5;
+          --replica-text: #303030;
+          --replica-muted: #616161;
+          --replica-positive: #15803d;
+          --replica-success-text: #3f6f49;
+          --replica-success-surface: rgba(134, 201, 140, 0.14);
+          --replica-critical-text: #a84b4b;
+          --replica-shadow:
+            0 5px 5px -2.5px rgba(0, 0, 0, 0.03), 0 2px 2px -1px rgba(0, 0, 0, 0.02),
+            0 1px 1px -0.5px rgba(0, 0, 0, 0.03), 0 0 0 1px rgba(0, 0, 0, 0.06);
+          --toast-surface: #303030;
+          --toast-text: #ffffff;
         }
       }
 
@@ -118,6 +164,30 @@
         --loss: #be123c;
         --loss-bg: rgba(190, 18, 60, 0.1);
         --loss-border: rgba(190, 18, 60, 0.3);
+        /* Produktansichten im Look der App-Verwaltung (hell) */
+        --panel: #eaedf2;
+        --photo: #e8ebed;
+        --accent: #766000;
+        --brand-soft: #fff4c7;
+        --success: #38623e;
+        --success-soft: #eaf2e9;
+        --replica-app: #f1f1f1;
+        --replica-sidebar: #ebebeb;
+        --replica-surface: #ffffff;
+        --replica-subtle: #f7f7f7;
+        --replica-border: #e3e3e3;
+        --replica-line: #e5e5e5;
+        --replica-text: #303030;
+        --replica-muted: #616161;
+        --replica-positive: #15803d;
+        --replica-success-text: #3f6f49;
+        --replica-success-surface: rgba(134, 201, 140, 0.14);
+        --replica-critical-text: #a84b4b;
+        --replica-shadow:
+          0 5px 5px -2.5px rgba(0, 0, 0, 0.03), 0 2px 2px -1px rgba(0, 0, 0, 0.02),
+          0 1px 1px -0.5px rgba(0, 0, 0, 0.03), 0 0 0 1px rgba(0, 0, 0, 0.06);
+        --toast-surface: #303030;
+        --toast-text: #ffffff;
       }
 
       @media (prefers-color-scheme: light) {
@@ -149,6 +219,28 @@
           --loss: #f58c8c;
           --loss-bg: rgba(245, 140, 140, 0.14);
           --loss-border: rgba(245, 140, 140, 0.35);
+          /* Produktansichten im Look der App-Verwaltung (dunkel) */
+          --panel: #262b35;
+          --photo: #414650;
+          --accent: #fcc601;
+          --brand-soft: #3c351c;
+          --success: #88d79b;
+          --success-soft: #253b31;
+          --replica-app: #1f1f1f;
+          --replica-sidebar: #1a1a1a;
+          --replica-surface: #2b2b2b;
+          --replica-subtle: #252525;
+          --replica-border: #494949;
+          --replica-line: #373737;
+          --replica-text: #f5f5f5;
+          --replica-muted: #a8a8a8;
+          --replica-positive: #4ade80;
+          --replica-success-text: #a9dda0;
+          --replica-success-surface: rgba(143, 203, 120, 0.13);
+          --replica-critical-text: #f7aaaa;
+          --replica-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.04);
+          --toast-surface: #f5f5f5;
+          --toast-text: #1a1a1a;
         }
       }
 
@@ -649,20 +741,21 @@
 
       /* ---------- Hero / Aufmacher ---------- */
 
+      /* Text links, Nachbau des Dashboards rechts (Gestaltung in landing-showcase.css). */
       .aufmacher {
         display: grid;
-        grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
-        gap: clamp(2rem, 5vw, 4.5rem);
+        grid-template-columns: minmax(0, 400px) minmax(0, 1fr);
+        gap: 48px;
         align-items: center;
-        padding: clamp(3.5rem, 8vw, 6.5rem) var(--rand) clamp(3rem, 6vw, 5rem);
+        padding: clamp(3rem, 6vw, 4.5rem) var(--rand) clamp(2.5rem, 5vw, 4rem);
         max-width: 1360px;
         margin: 0 auto;
       }
 
-      @media (max-width: 960px) {
+      @media (max-width: 1100px) {
         .aufmacher {
           grid-template-columns: minmax(0, 1fr);
-          gap: 3.5rem;
+          gap: 2.75rem;
         }
       }
 
@@ -671,15 +764,13 @@
         align-items: center;
         gap: 0.6rem;
         font-family: var(--mono);
-        font-size: 0.72rem;
-        font-weight: 600;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
+        font-size: 0.8rem;
+        font-weight: 650;
         color: var(--on-brand);
         background: var(--brand);
-        border: 1px solid var(--brand);
-        padding: 0.35rem 0.85rem;
-        border-radius: 999px;
+        border: 1px solid var(--brand-hover);
+        padding: 0.25rem 0.65rem;
+        border-radius: 8px;
         margin-bottom: 1.75rem;
       }
 
@@ -1100,22 +1191,15 @@
       }
 
       /* ---------- Reselling-Ablauf im Aufmacher ---------- */
+      /* Überblick unter dem Hero: vier Arbeitsbereiche nebeneinander. */
       .workflow-board {
-        width: 100%;
-        max-width: 490px;
-        justify-self: end;
-        padding: clamp(1.25rem, 3vw, 1.75rem);
+        width: calc(100% - 2 * var(--rand));
+        max-width: calc(1360px - 2 * var(--rand));
+        margin: 0 auto;
+        padding: 1.25rem;
         background: var(--surface);
-        border: 1px solid var(--line-strong);
-        border-radius: 14px;
-        box-shadow: 0 20px 45px -24px rgba(0, 0, 0, 0.5);
-      }
-
-      @media (max-width: 960px) {
-        .workflow-board {
-          justify-self: stretch;
-          max-width: 100%;
-        }
+        border: 1px solid var(--line);
+        border-radius: 12px;
       }
 
       .workflow-header {
@@ -1143,6 +1227,7 @@
       .workflow-steps {
         list-style: none;
         display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 0.65rem;
         margin: 1rem 0;
         padding: 0;
@@ -1194,6 +1279,18 @@
         display: block !important;
       }
 
+      @media (max-width: 960px) {
+        .workflow-steps {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 520px) {
+        .workflow-steps {
+          grid-template-columns: minmax(0, 1fr);
+        }
+      }
+
       .workflow-note {
         margin: 0;
         color: var(--ink-muted);
@@ -1212,21 +1309,6 @@
       .sektion-header {
         margin-bottom: 3.5rem;
         max-width: 720px;
-      }
-
-      .sektion-kicker {
-        font-family: var(--mono);
-        font-size: 0.72rem;
-        font-weight: 600;
-        letter-spacing: 0.16em;
-        text-transform: uppercase;
-        color: var(--ink);
-        background: var(--brand-bg);
-        border-left: 3px solid var(--brand);
-        border-radius: 4px;
-        padding: 0.25rem 0.55rem;
-        margin-bottom: 0.75rem;
-        display: inline-block;
       }
 
       .sektion-titel {
@@ -1249,7 +1331,7 @@
 
       .feature-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr));
         gap: 1rem;
       }
 
@@ -1260,16 +1342,8 @@
         padding: 1.5rem;
         position: relative;
         overflow: hidden;
-        transition:
-          border-color 0.2s ease,
-          box-shadow 0.2s ease,
-          transform 0.2s ease;
-      }
-
-      .feature-karte:hover {
-        border-color: var(--brand-border);
-        box-shadow: 0 16px 32px -10px var(--brand-glow);
-        transform: translateY(-2px);
+        display: flex;
+        flex-direction: column;
       }
 
       .feature-karte.hervorgehoben {
@@ -1424,8 +1498,6 @@
         font-family: var(--mono);
         font-size: 0.68rem;
         font-weight: 700;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
         padding: 0.2rem 0.6rem;
         border-radius: 6px;
         border: 1px solid;
@@ -1703,10 +1775,6 @@
         margin-right: auto;
         max-width: 680px;
         margin-bottom: 3rem;
-      }
-
-      .faq-header-center .sektion-kicker {
-        text-align: center;
       }
 
       .faq-accordion {
@@ -2243,9 +2311,89 @@
         border-radius: 4px;
       }
     </style>
+    <link rel="stylesheet" href="landing-showcase.css" />
   </head>
 
   <body id="top">
+    <svg class="icon-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <symbol id="icon-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-5-5 5 5-5 5" /></symbol>
+      <symbol id="icon-box" viewBox="0 0 24 24">
+        <path d="m12 3 9 5v9l-9 5-9-5V8l9-5Zm-9 5 9 5 9-5m-9 5v9M7.5 5.5l9 5V15" />
+      </symbol>
+      <symbol id="icon-bag" viewBox="0 0 24 24">
+        <path d="M5 7h14l1 14H4L5 7Zm3 1V6a4 4 0 0 1 8 0v2" />
+      </symbol>
+      <symbol id="icon-chart" viewBox="0 0 24 24"><path d="M4 3v17h17M8 15l4-5 4 2 5-7" /></symbol>
+      <symbol id="icon-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6" /></symbol>
+      <symbol id="icon-grid" viewBox="0 0 24 24">
+        <rect x="3" y="3" width="7" height="7" rx="1" />
+        <rect x="14" y="3" width="7" height="7" rx="1" />
+        <rect x="3" y="14" width="7" height="7" rx="1" />
+        <rect x="14" y="14" width="7" height="7" rx="1" />
+      </symbol>
+      <symbol id="icon-search" viewBox="0 0 24 24">
+        <circle cx="10.5" cy="10.5" r="6.5" />
+        <path d="m16 16 5 5" />
+      </symbol>
+      <symbol id="icon-image" viewBox="0 0 24 24">
+        <rect x="3" y="3" width="18" height="18" rx="3" />
+        <circle cx="8" cy="8" r="1" />
+        <path d="m3 17 5-5 4 4 4-7 5 8" />
+      </symbol>
+      <symbol id="icon-pause" viewBox="0 0 24 24"><path d="M9 5v14M15 5v14" /></symbol>
+      <symbol id="icon-play" viewBox="0 0 24 24"><path d="m8 5 11 7-11 7V5Z" /></symbol>
+      <symbol id="icon-moon" viewBox="0 0 24 24">
+        <path d="M20.5 14A9 9 0 0 1 10 3.5 9 9 0 1 0 20.5 14Z" />
+      </symbol>
+      <symbol id="icon-sun" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="4" />
+        <path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5" />
+      </symbol>
+      <symbol id="icon-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16" /></symbol>
+      <symbol id="icon-file" viewBox="0 0 24 24">
+        <path d="M14 3H5v18h14V8l-5-5Zm0 0v5h5M8 12h8m-8 4h5" />
+      </symbol>
+      <symbol id="icon-refresh" viewBox="0 0 24 24">
+        <path d="M20 7v5h-5M4 17v-5h5M5 8a8 8 0 0 1 13-3l2 3M4 16l2 3a8 8 0 0 0 13-3" />
+      </symbol>
+      <symbol id="icon-coins" viewBox="0 0 24 24">
+        <circle cx="8" cy="8" r="6" />
+        <path d="M18.1 10.4A6 6 0 1 1 10.3 18M7 6h1v4m8.7 3.9.7.7-2.8 2.8" />
+      </symbol>
+      <symbol id="icon-percent" viewBox="0 0 24 24">
+        <path d="M19 5 5 19" />
+        <circle cx="6.5" cy="6.5" r="2.5" />
+        <circle cx="17.5" cy="17.5" r="2.5" />
+      </symbol>
+      <symbol id="icon-cart" viewBox="0 0 24 24">
+        <circle cx="8" cy="21" r="1" />
+        <circle cx="19" cy="21" r="1" />
+        <path d="M2 2h2l2.7 12.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L22 7H5.1" />
+      </symbol>
+      <symbol id="icon-tag" viewBox="0 0 24 24">
+        <path
+          d="M12.6 2.6A2 2 0 0 0 11.2 2H4a2 2 0 0 0-2 2v7.2a2 2 0 0 0 .6 1.4l8.7 8.7a2.4 2.4 0 0 0 3.4 0l6.6-6.6a2.4 2.4 0 0 0 0-3.4Z"
+        />
+        <circle cx="7.5" cy="7.5" r=".5" />
+      </symbol>
+      <symbol id="icon-alert" viewBox="0 0 24 24">
+        <path
+          d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3M12 9v4m0 4h0"
+        />
+      </symbol>
+      <symbol id="icon-store" viewBox="0 0 24 24">
+        <path d="M3 9 4.5 4h15L21 9M3 9v11h18V9M3 9h18M9 20v-6h6v6" />
+      </symbol>
+      <symbol id="icon-bell" viewBox="0 0 24 24">
+        <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9m4.3 13a1.9 1.9 0 0 0 3.4 0" />
+      </symbol>
+      <symbol id="icon-receipt" viewBox="0 0 24 24">
+        <path
+          d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1ZM8 8h8m-8 4h8m-8 4h5"
+        />
+      </symbol>
+      <symbol id="icon-chevron" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></symbol>
+    </svg>
     <!-- Header -->
     <header class="site-header">
       <!-- Versteckte Kontroll-Checkboxen für Theme & Sprache; das Skript speichert ihre Auswahl. -->
@@ -2385,6 +2533,21 @@
           </div>
 
           <button
+            id="motion-toggle"
+            class="schalter-btn motion-toggle"
+            type="button"
+            aria-pressed="false"
+            aria-labelledby="motion-toggle-label"
+            hidden
+          >
+            <svg class="icon" aria-hidden="true"><use href="#icon-pause" /></svg>
+          </button>
+          <div id="motion-toggle-label" class="sr-only">
+            <span class="lang-de">Animationen pausieren</span>
+            <span class="lang-en" lang="en">Pause animations</span>
+          </div>
+
+          <button
             id="nav-menu-button"
             class="nav-menu-button"
             type="button"
@@ -2431,9 +2594,9 @@
     </header>
 
     <main>
-      <!-- Hero / Aufmacher -->
+      <!-- Hero mit Nachbau des echten Flipbase-Dashboards -->
       <div class="aufmacher">
-        <div>
+        <div class="hero-copy">
           <div class="hero-badge">
             <span class="hero-badge-punkt"></span>
             <span class="lang-de">Beta</span>
@@ -2441,24 +2604,18 @@
           </div>
 
           <h1 tabindex="-1">
-            <span class="lang-de"
-              >Dein Reselling.<br /><em>Von Einkauf bis Steuern organisiert.</em></span
-            >
-            <span class="lang-en" lang="en"
-              >Your reselling business.<br /><em>From sourcing to accounting.</em></span
-            >
+            <span class="lang-de">Die Warenwirtschaft <em>für dein Reselling.</em></span>
+            <span class="lang-en" lang="en">Inventory management <em>for your reselling.</em></span>
           </h1>
 
           <p class="unterzeile">
             <span class="lang-de">
-              Weg von Excel: Flipbase verbindet Einkauf, Bestand, Verkäufe, Ausgaben und Steuerdaten
-              mit Vinted Bot, Bildern und Inseraten. Für Reseller auf Vinted, eBay und
-              Kleinanzeigen.
+              Einkäufe, Bestand, Verkäufe und Kosten an einem Ort – und am Ende siehst du, was
+              wirklich bleibt.
             </span>
             <span class="lang-en" lang="en">
-              Move beyond spreadsheets: Flipbase connects purchases, inventory, sales, expenses, and
-              accounting data with Vinted Bot finds, photos, and listings for resellers on Vinted,
-              eBay, and Kleinanzeigen.
+              Purchases, inventory, sales and costs in one place – so you can see what you actually
+              keep.
             </span>
           </p>
 
@@ -2467,79 +2624,936 @@
               <span class="lang-de">Kostenlos für die Beta anmelden →</span>
               <span class="lang-en" lang="en">Apply for the beta for free →</span>
             </a>
-            <a class="hero-secondary-link" href="#pricing">
-              <span class="lang-de">Pakete ansehen</span>
-              <span class="lang-en" lang="en">View plans</span>
+            <a class="hero-secondary-link" href="#workflow">
+              <span class="lang-de">Ablauf ansehen</span>
+              <span class="lang-en" lang="en">See how it works</span>
             </a>
           </div>
-        </div>
 
-        <!-- Schematischer Arbeitsablauf, keine Produktaufnahme -->
-        <div class="workflow-board" aria-labelledby="workflow-title">
-          <div class="workflow-header">
-            <span id="workflow-title">
-              <span class="lang-de">Deine Werkzeuge im Überblick</span>
-              <span class="lang-en" lang="en">Your tools at a glance</span>
-            </span>
-            <span class="workflow-status">
-              <span class="lang-de">Ein Arbeitsbereich</span>
-              <span class="lang-en" lang="en">One workspace</span>
-            </span>
-          </div>
-          <ol class="workflow-steps">
-            <li>
-              <span class="workflow-number">01</span>
-              <span
-                ><b class="lang-de">Einkauf &amp; Bestand</b
-                ><b class="lang-en" lang="en">Purchases &amp; inventory</b
-                ><small class="lang-de">Artikel und Kosten nachvollziehbar erfassen</small
-                ><small class="lang-en" lang="en">Track items and costs clearly</small></span
-              >
-            </li>
-            <li>
-              <span class="workflow-number">02</span>
-              <span
-                ><b class="lang-de">Verkauf &amp; Finanzen</b
-                ><b class="lang-en" lang="en">Sales &amp; finances</b
-                ><small class="lang-de">Marge, Ausgaben und Steuerdaten im Blick</small
-                ><small class="lang-en" lang="en">Track margins, expenses and tax data</small></span
-              >
-            </li>
-            <li>
-              <span class="workflow-number">03</span>
-              <span
-                ><b>Vinted Bot</b
-                ><small class="lang-de">Passende Funde aus Suchfiltern prüfen</small
-                ><small class="lang-en" lang="en">Review finds from your saved filters</small></span
-              >
-            </li>
-            <li>
-              <span class="workflow-number">04</span>
-              <span
-                ><b class="lang-de">Bilder &amp; Inserate</b
-                ><b class="lang-en" lang="en">Photos &amp; listings</b
-                ><small class="lang-de">Bilder optimieren, Inserate vorbereiten</small
-                ><small class="lang-en" lang="en">Optimize photos, prepare listings</small></span
-              >
-            </li>
-          </ol>
-          <p class="workflow-note">
-            <span class="lang-de">Artikel, Zahlen und Marktplätze – ohne verteilte Tabellen.</span>
-            <span class="lang-en" lang="en">Items, figures, and marketplaces in one place.</span>
+          <p class="hero-note">
+            <span class="lang-de">Kostenlos während der Beta · Zugang nach Freischaltung</span>
+            <span class="lang-en" lang="en">Free during the beta · Access after approval</span>
+          </p>
+          <p class="marketplaces">
+            <span class="lang-de"
+              >Für dein Geschäft auf <strong>Vinted</strong>, <strong>eBay</strong> und
+              <strong>Kleinanzeigen</strong>.</span
+            >
+            <span class="lang-en" lang="en"
+              >For your business on <strong>Vinted</strong>, <strong>eBay</strong> and
+              <strong>Kleinanzeigen</strong>.</span
+            >
           </p>
         </div>
+
+        <figure class="replica-figure">
+          <div id="dashboard-replica-label" class="sr-only">
+            <span class="lang-de"
+              >Beispielansicht des Flipbase-Dashboards für dieses Jahr: 7.824 Euro Umsatz, 2.632
+              Euro Gewinn, 33,6 Prozent Marge, 214 Verkäufe und ein Säulendiagramm mit Umsatz,
+              Ausgaben und Gewinn je Monat.</span
+            >
+            <span class="lang-en" lang="en"
+              >Sample view of the Flipbase dashboard for this year: 7,824 euros revenue, 2,632 euros
+              profit, 33.6 percent margin, 214 sales and a bar chart of revenue, expenses and profit
+              per month.</span
+            >
+          </div>
+          <div
+            class="replica-window"
+            id="dashboard-replica"
+            role="img"
+            aria-labelledby="dashboard-replica-label"
+          >
+            <div class="replica-sidebar">
+              <div class="replica-brand">
+                <img src="images/logo-mark.png" alt="" width="26" height="26" /><span
+                  >Flipbase</span
+                >
+              </div>
+              <div class="replica-nav-item replica-nav-active" data-nav-active>
+                <svg class="icon"><use href="#icon-grid" /></svg> Dashboard
+              </div>
+              <p class="replica-nav-group" data-nav-group>Warenwirtschaft</p>
+              <div class="replica-nav-item">
+                <svg class="icon"><use href="#icon-bag" /></svg> Einkäufe
+              </div>
+              <div class="replica-nav-item">
+                <svg class="icon"><use href="#icon-box" /></svg> Artikel &amp; Bestand
+              </div>
+              <div class="replica-nav-item">
+                <svg class="icon"><use href="#icon-chart" /></svg> Verkäufe
+              </div>
+              <p class="replica-nav-group" data-nav-group>Marktplätze</p>
+              <div class="replica-nav-item">
+                <svg class="icon"><use href="#icon-store" /></svg> Vinted
+              </div>
+              <div class="replica-nav-item">
+                <svg class="icon"><use href="#icon-search" /></svg> Vinted Feed
+              </div>
+              <div class="replica-nav-item">
+                <svg class="icon"><use href="#icon-store" /></svg> eBay
+              </div>
+              <div class="replica-nav-item">
+                <svg class="icon"><use href="#icon-store" /></svg> Kleinanzeigen
+              </div>
+              <p class="replica-nav-group" data-nav-group>Finanzen</p>
+              <div class="replica-nav-item">
+                <svg class="icon"><use href="#icon-receipt" /></svg> Ausgaben
+              </div>
+              <div class="replica-nav-item">
+                <svg class="icon"><use href="#icon-file" /></svg> Steuern &amp; DATEV
+              </div>
+              <div class="replica-nav-item">
+                <svg class="icon"><use href="#icon-chart" /></svg> Auswertungen
+              </div>
+              <p class="replica-nav-group" data-nav-group>Tools</p>
+              <div class="replica-nav-item">
+                <svg class="icon"><use href="#icon-tag" /></svg> Marken &amp; Größen
+              </div>
+              <div class="replica-nav-item">
+                <svg class="icon"><use href="#icon-image" /></svg> Bildoptimierer
+              </div>
+            </div>
+
+            <div class="replica-main">
+              <div class="replica-topbar">
+                <span class="replica-example">Beispieldaten</span>
+                <svg class="icon"><use href="#icon-bell" /></svg>
+                <span class="replica-avatar">A</span>
+              </div>
+              <div class="replica-heading">
+                <div>
+                  <strong>Dashboard</strong>
+                  <span>Dein Überblick über Umsätze, Gewinne und deinen Bestand.</span>
+                </div>
+                <div class="replica-filters">
+                  <span class="replica-periods"
+                    ><span>Heute</span><span>7 Tage</span><span>Dieser Monat</span
+                    ><span class="replica-period-active">Dieses Jahr</span></span
+                  >
+                  <span class="replica-select"
+                    >Alle Plattformen <svg class="icon"><use href="#icon-chevron" /></svg
+                  ></span>
+                </div>
+              </div>
+
+              <div class="replica-kpis">
+                <div class="replica-card replica-kpi" data-kpi="revenue">
+                  <div class="replica-kpi-heading">
+                    <span class="replica-icon-well"
+                      ><svg class="icon"><use href="#icon-coins" /></svg></span
+                    ><span data-kpi-label>Umsatz</span>
+                  </div>
+                  <span class="replica-kpi-value" data-kpi-value>7.824,00 €</span>
+                  <span class="replica-kpi-note"
+                    ><span class="replica-positive">▲ 18,4 %</span> zum Vorjahr</span
+                  >
+                  <svg class="replica-sparkline" viewBox="0 0 100 50">
+                    <path
+                      d="M2.00,46.00 L12.67,41.83 L23.33,35.81 L34.00,38.13 L44.67,29.33 L55.33,25.63 L66.00,32.11 L76.67,21.93 L87.33,15.44 L98.00,6.00"
+                    />
+                  </svg>
+                </div>
+                <div class="replica-card replica-kpi" data-kpi="gross-profit" data-tone="positive">
+                  <div class="replica-kpi-heading">
+                    <span class="replica-icon-well"
+                      ><svg class="icon"><use href="#icon-chart" /></svg></span
+                    ><span data-kpi-label>Gewinn</span>
+                  </div>
+                  <span class="replica-kpi-value" data-kpi-value>2.632,00 €</span>
+                  <span class="replica-kpi-note"
+                    ><span class="replica-positive">▲ 22,1 %</span> zum Vorjahr</span
+                  >
+                  <svg class="replica-sparkline" viewBox="0 0 100 50">
+                    <path
+                      d="M2.00,46.00 L12.67,39.15 L23.33,33.67 L34.00,35.04 L44.67,26.82 L55.33,21.34 L66.00,28.19 L76.67,17.23 L87.33,10.38 L98.00,6.00"
+                    />
+                  </svg>
+                </div>
+                <div class="replica-card replica-kpi" data-kpi="margin">
+                  <div class="replica-kpi-heading">
+                    <span class="replica-icon-well"
+                      ><svg class="icon"><use href="#icon-percent" /></svg></span
+                    ><span data-kpi-label>Marge</span>
+                  </div>
+                  <span class="replica-kpi-value" data-kpi-value>33,6 %</span>
+                  <span class="replica-kpi-note"
+                    ><span class="replica-positive">▲ 1,2 Pp.</span> zum Vorjahr</span
+                  >
+                  <svg class="replica-sparkline" viewBox="0 0 100 50">
+                    <path
+                      d="M2.00,46.00 L12.67,17.20 L23.33,20.35 L34.00,13.78 L44.67,17.20 L55.33,7.82 L66.00,8.80 L76.67,6.48 L87.33,6.00 L98.00,24.74"
+                    />
+                  </svg>
+                </div>
+                <div class="replica-card replica-kpi" data-kpi="inventory-capital">
+                  <div class="replica-kpi-heading">
+                    <span class="replica-icon-well"
+                      ><svg class="icon"><use href="#icon-box" /></svg></span
+                    ><span data-kpi-label>Kapital im Bestand</span>
+                  </div>
+                  <span class="replica-kpi-value" data-kpi-value>1.146,00 €</span>
+                  <span class="replica-kpi-note">38 Stück · aktueller Bestand</span>
+                </div>
+                <div class="replica-card replica-kpi" data-kpi="sales">
+                  <div class="replica-kpi-heading">
+                    <span class="replica-icon-well"
+                      ><svg class="icon"><use href="#icon-cart" /></svg></span
+                    ><span data-kpi-label>Verkäufe</span>
+                  </div>
+                  <span class="replica-kpi-value" data-kpi-value>214</span>
+                  <span class="replica-kpi-note">231 Stück verkauft</span>
+                  <svg class="replica-sparkline" viewBox="0 0 100 50">
+                    <path
+                      d="M2.00,46.00 L12.67,40.00 L23.33,34.00 L34.00,36.00 L44.67,26.00 L55.33,22.00 L66.00,30.00 L76.67,18.00 L87.33,14.00 L98.00,6.00"
+                    />
+                  </svg>
+                </div>
+              </div>
+
+              <div class="replica-middle">
+                <div class="replica-card replica-chart">
+                  <div class="replica-card-heading">
+                    <strong>Umsatz, Ausgaben und Gewinn</strong>
+                    <span class="replica-legend"
+                      ><span class="replica-key-revenue" data-chart-legend>Umsatz</span
+                      ><span class="replica-key-expenses" data-chart-legend>Ausgaben gesamt</span
+                      ><span class="replica-key-profit" data-chart-legend>Gewinn</span></span
+                    >
+                  </div>
+                  <div class="replica-plot">
+                    <div class="replica-axis">
+                      <span>1.200 €</span><span>800 €</span><span>400 €</span><span>0 €</span>
+                    </div>
+                    <div class="replica-bars">
+                      <div class="replica-month">
+                        <span class="replica-bar" data-series="revenue" style="--value: 420"></span
+                        ><span
+                          class="replica-bar"
+                          data-series="expenses"
+                          style="--value: 380"
+                        ></span
+                        ><span class="replica-bar" data-series="profit" style="--value: 120"></span
+                        ><small>Jan.</small>
+                      </div>
+                      <div class="replica-month">
+                        <span class="replica-bar" data-series="revenue" style="--value: 510"></span
+                        ><span
+                          class="replica-bar"
+                          data-series="expenses"
+                          style="--value: 300"
+                        ></span
+                        ><span class="replica-bar" data-series="profit" style="--value: 170"></span
+                        ><small>Feb.</small>
+                      </div>
+                      <div class="replica-month">
+                        <span class="replica-bar" data-series="revenue" style="--value: 640"></span
+                        ><span
+                          class="replica-bar"
+                          data-series="expenses"
+                          style="--value: 520"
+                        ></span
+                        ><span class="replica-bar" data-series="profit" style="--value: 210"></span
+                        ><small>März</small>
+                      </div>
+                      <div class="replica-month">
+                        <span class="replica-bar" data-series="revenue" style="--value: 590"></span
+                        ><span
+                          class="replica-bar"
+                          data-series="expenses"
+                          style="--value: 410"
+                        ></span
+                        ><span class="replica-bar" data-series="profit" style="--value: 200"></span
+                        ><small>Apr.</small>
+                      </div>
+                      <div class="replica-month">
+                        <span class="replica-bar" data-series="revenue" style="--value: 780"></span
+                        ><span
+                          class="replica-bar"
+                          data-series="expenses"
+                          style="--value: 600"
+                        ></span
+                        ><span class="replica-bar" data-series="profit" style="--value: 260"></span
+                        ><small>Mai</small>
+                      </div>
+                      <div class="replica-month">
+                        <span class="replica-bar" data-series="revenue" style="--value: 860"></span
+                        ><span
+                          class="replica-bar"
+                          data-series="expenses"
+                          style="--value: 540"
+                        ></span
+                        ><span class="replica-bar" data-series="profit" style="--value: 300"></span
+                        ><small>Juni</small>
+                      </div>
+                      <div class="replica-month">
+                        <span class="replica-bar" data-series="revenue" style="--value: 720"></span
+                        ><span
+                          class="replica-bar"
+                          data-series="expenses"
+                          style="--value: 480"
+                        ></span
+                        ><span class="replica-bar" data-series="profit" style="--value: 250"></span
+                        ><small>Juli</small>
+                      </div>
+                      <div class="replica-month">
+                        <span class="replica-bar" data-series="revenue" style="--value: 940"></span
+                        ><span
+                          class="replica-bar"
+                          data-series="expenses"
+                          style="--value: 690"
+                        ></span
+                        ><span class="replica-bar" data-series="profit" style="--value: 330"></span
+                        ><small>Aug.</small>
+                      </div>
+                      <div class="replica-month">
+                        <span class="replica-bar" data-series="revenue" style="--value: 1080"></span
+                        ><span
+                          class="replica-bar"
+                          data-series="expenses"
+                          style="--value: 720"
+                        ></span
+                        ><span class="replica-bar" data-series="profit" style="--value: 380"></span
+                        ><small>Sept.</small>
+                      </div>
+                      <div class="replica-month">
+                        <span class="replica-bar" data-series="revenue" style="--value: 1284"></span
+                        ><span
+                          class="replica-bar"
+                          data-series="expenses"
+                          style="--value: 671"
+                        ></span
+                        ><span class="replica-bar" data-series="profit" style="--value: 412"></span
+                        ><small>Okt.</small>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="replica-side">
+                  <div class="replica-card">
+                    <div class="replica-card-heading">
+                      <strong>Zu erledigen</strong><span class="replica-badge">2</span>
+                    </div>
+                    <div class="replica-task">
+                      <svg class="icon"><use href="#icon-alert" /></svg>
+                      <span>2 Einkäufe mit fehlenden Kostenangaben</span>
+                      <svg class="icon"><use href="#icon-arrow" /></svg>
+                    </div>
+                    <div class="replica-task">
+                      <svg class="icon"><use href="#icon-box" /></svg>
+                      <span>3 Artikel ohne Kostenangabe</span>
+                      <svg class="icon"><use href="#icon-arrow" /></svg>
+                    </div>
+                  </div>
+                  <div class="replica-card">
+                    <div class="replica-card-heading"><strong>Schnellaktionen</strong></div>
+                    <div class="replica-quick">
+                      <span
+                        ><span class="replica-quick-icon"
+                          ><svg class="icon"><use href="#icon-bag" /></svg></span
+                        ><span><strong>Einkauf erfassen</strong>Neue Ware einbuchen</span></span
+                      >
+                      <span
+                        ><span class="replica-quick-icon"
+                          ><svg class="icon"><use href="#icon-tag" /></svg></span
+                        ><span
+                          ><strong>Verkauf erfassen</strong>Artikel als verkauft erfassen</span
+                        ></span
+                      >
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <figcaption>
+            <span class="lang-de">Nachbau des Flipbase-Dashboards mit Beispieldaten.</span>
+            <span class="lang-en" lang="en"
+              >Replica of the Flipbase dashboard with sample data.</span
+            >
+          </figcaption>
+        </figure>
       </div>
+
+      <!-- Überblick über die Arbeitsbereiche -->
+      <div class="workflow-board" aria-labelledby="workflow-title">
+        <div class="workflow-header">
+          <span id="workflow-title">
+            <span class="lang-de">Deine Werkzeuge im Überblick</span>
+            <span class="lang-en" lang="en">Your tools at a glance</span>
+          </span>
+          <span class="workflow-status">
+            <span class="lang-de">Ein Arbeitsbereich</span>
+            <span class="lang-en" lang="en">One workspace</span>
+          </span>
+        </div>
+        <ol class="workflow-steps">
+          <li>
+            <span class="workflow-number">01</span>
+            <span
+              ><b class="lang-de">Einkauf &amp; Bestand</b
+              ><b class="lang-en" lang="en">Purchases &amp; inventory</b
+              ><small class="lang-de">Artikel und Kosten nachvollziehbar erfassen</small
+              ><small class="lang-en" lang="en">Track items and costs clearly</small></span
+            >
+          </li>
+          <li>
+            <span class="workflow-number">02</span>
+            <span
+              ><b class="lang-de">Verkauf &amp; Finanzen</b
+              ><b class="lang-en" lang="en">Sales &amp; finances</b
+              ><small class="lang-de">Marge, Ausgaben und Steuerdaten im Blick</small
+              ><small class="lang-en" lang="en">Track margins, expenses and tax data</small></span
+            >
+          </li>
+          <li>
+            <span class="workflow-number">03</span>
+            <span
+              ><b>Vinted Bot</b><small class="lang-de">Passende Funde aus Suchfiltern prüfen</small
+              ><small class="lang-en" lang="en">Review finds from your saved filters</small></span
+            >
+          </li>
+          <li>
+            <span class="workflow-number">04</span>
+            <span
+              ><b class="lang-de">Bilder &amp; Inserate</b
+              ><b class="lang-en" lang="en">Photos &amp; listings</b
+              ><small class="lang-de">Bilder optimieren, Inserate vorbereiten</small
+              ><small class="lang-en" lang="en">Optimize photos, prepare listings</small></span
+            >
+          </li>
+        </ol>
+        <p class="workflow-note">
+          <span class="lang-de">Artikel, Zahlen und Marktplätze – ohne verteilte Tabellen.</span>
+          <span class="lang-en" lang="en">Items, figures, and marketplaces in one place.</span>
+        </p>
+      </div>
+
+      <!-- Gewinnrechnung als animiertes Beispiel -->
+      <section class="profit-section" aria-labelledby="profit-title">
+        <div class="sektion-header">
+          <h2 class="sektion-titel" id="profit-title">
+            <span class="lang-de">Verkauft ist gut.<br />Zu wissen, was bleibt, ist besser.</span>
+            <span class="lang-en" lang="en"
+              >Selling is good.<br />Knowing what you keep is better.</span
+            >
+          </h2>
+          <p class="sektion-text">
+            <span class="lang-de"
+              >Der Verkaufspreis ist nur der Anfang. Flipbase bringt Einkauf, Gebühren und
+              Versandkosten zusammen.</span
+            >
+            <span class="lang-en" lang="en"
+              >The sale price is only the start. Flipbase brings purchase price, fees and shipping
+              costs together.</span
+            >
+          </p>
+        </div>
+        <article class="feature-card" id="profit-scene" data-phase="3">
+          <div class="feature-card-heading">
+            <div>
+              <h3>
+                <svg class="icon" aria-hidden="true"><use href="#icon-chart" /></svg>
+                <span class="lang-de">Gewinn im Blick</span>
+                <span class="lang-en" lang="en">Profit at a glance</span>
+              </h3>
+              <p>
+                <span class="lang-de">Vom erfassten Verkauf zur nachvollziehbaren Rechnung.</span>
+                <span class="lang-en" lang="en"
+                  >From a recorded sale to a traceable calculation.</span
+                >
+              </p>
+            </div>
+            <span class="demo-label"
+              ><span class="status-dot"></span> <span class="lang-de">Animiertes Beispiel</span
+              ><span class="lang-en" lang="en">Animated example</span></span
+            >
+          </div>
+          <div class="feature-stage">
+            <div class="floating-product">
+              <div class="product-photo">
+                <img src="images/sweatshirt.svg" alt="" width="170" height="170" loading="lazy" />
+              </div>
+              <strong>Vintage Sweatshirt</strong
+              ><span
+                ><span class="lang-de">Größe M · Sehr gut</span
+                ><span class="lang-en" lang="en">Size M · Very good</span></span
+              >
+              <div>
+                <span class="inventory-tag"
+                  ><span class="lang-de">Aus deinem Bestand</span
+                  ><span class="lang-en" lang="en">From your inventory</span></span
+                >
+              </div>
+            </div>
+            <div class="connection-line" aria-hidden="true">
+              <span></span><svg class="icon"><use href="#icon-arrow" /></svg>
+            </div>
+            <div class="calculation-card">
+              <div class="calculation-heading">
+                <span class="calculation-icon"
+                  ><svg class="icon" aria-hidden="true"><use href="#icon-chart" /></svg
+                ></span>
+                <div>
+                  <strong
+                    ><span class="lang-de">Dein Verkauf</span
+                    ><span class="lang-en" lang="en">Your sale</span></strong
+                  ><span
+                    ><span class="lang-de">Alle Beträge an einem Ort</span
+                    ><span class="lang-en" lang="en">Every amount in one place</span></span
+                  >
+                </div>
+                <span class="tiny-check"
+                  ><svg class="icon" aria-hidden="true"><use href="#icon-check" /></svg
+                ></span>
+              </div>
+              <dl class="calculation-rows">
+                <div>
+                  <dt>
+                    <span class="lang-de">Verkaufspreis</span
+                    ><span class="lang-en" lang="en">Sale price</span>
+                  </dt>
+                  <dd>39,00 €</dd>
+                </div>
+                <div class="cost-row">
+                  <dt>
+                    <span class="lang-de">Einkauf</span
+                    ><span class="lang-en" lang="en">Purchase price</span>
+                  </dt>
+                  <dd>−12,00 €</dd>
+                </div>
+                <div class="cost-row">
+                  <dt>
+                    <span class="lang-de">Weitere Artikelkosten</span
+                    ><span class="lang-en" lang="en">Other item costs</span>
+                  </dt>
+                  <dd>−2,00 €</dd>
+                </div>
+                <div class="profit-row">
+                  <dt>
+                    <span class="lang-de">Gewinn vor Steuern</span
+                    ><span class="lang-en" lang="en">Profit before tax</span>
+                  </dt>
+                  <dd>25,00 €</dd>
+                </div>
+              </dl>
+              <div class="profit-bar" aria-hidden="true"><span></span></div>
+              <p class="calculation-footnote">
+                <span class="lang-de"
+                  >Beispiel: 2 € erfasste Gebühren; kein eigener Versandaufwand.</span
+                >
+                <span class="lang-en" lang="en"
+                  >Example: €2 recorded fees; no own shipping cost.</span
+                >
+              </p>
+            </div>
+            <div class="sale-notification">
+              <span class="notification-check"
+                ><svg class="icon" aria-hidden="true"><use href="#icon-check" /></svg
+              ></span>
+              <div>
+                <strong
+                  ><span class="lang-de">Verkauf erfasst</span
+                  ><span class="lang-en" lang="en">Sale recorded</span></strong
+                ><span
+                  ><span class="lang-de">Bestand und Zahlen zusammen.</span
+                  ><span class="lang-en" lang="en">Inventory and figures together.</span></span
+                >
+              </div>
+            </div>
+          </div>
+          <div class="scene-caption" aria-hidden="true">
+            <span data-phase-label="0"
+              ><span class="lang-de">Verkauf erfassen</span
+              ><span class="lang-en" lang="en">Record sale</span></span
+            ><span class="caption-line"></span
+            ><span data-phase-label="1"
+              ><span class="lang-de">Kosten zuordnen</span
+              ><span class="lang-en" lang="en">Assign costs</span></span
+            ><span class="caption-line"></span
+            ><span data-phase-label="2"
+              ><span class="lang-de">Gewinn sehen</span
+              ><span class="lang-en" lang="en">See profit</span></span
+            >
+          </div>
+        </article>
+      </section>
+
+      <!-- Bedienbarer Ablauf: Einkauf, Bestand, Verkauf -->
+      <section class="workflow-section" id="workflow" aria-labelledby="workflow-section-title">
+        <div class="sektion-header">
+          <h2 class="sektion-titel" id="workflow-section-title">
+            <span class="lang-de">Ein guter Fund.<br />Ein klarer Ablauf.</span>
+            <span class="lang-en" lang="en">A good find.<br />A clear workflow.</span>
+          </h2>
+          <p class="sektion-text">
+            <span class="lang-de"
+              >Ein Artikel, drei Schritte. Und jede Zahl bleibt nachvollziehbar.</span
+            >
+            <span class="lang-en" lang="en"
+              >One item, three steps. And every figure stays traceable.</span
+            >
+          </p>
+        </div>
+        <div class="workflow-layout" id="workflow-scene">
+          <div class="workflow-controls">
+            <div id="workflow-tabs-label" class="sr-only">
+              <span class="lang-de">Beispielablauf</span>
+              <span class="lang-en" lang="en">Example workflow</span>
+            </div>
+            <div
+              class="workflow-tabs"
+              role="tablist"
+              aria-labelledby="workflow-tabs-label"
+              aria-orientation="vertical"
+              hidden
+            >
+              <button
+                id="step-purchase"
+                class="workflow-step"
+                type="button"
+                role="tab"
+                aria-selected="true"
+                aria-controls="panel-purchase"
+                tabindex="0"
+                data-step="0"
+              >
+                <span class="step-number">01</span
+                ><span
+                  ><strong
+                    ><span class="lang-de">Einkauf festhalten</span
+                    ><span class="lang-en" lang="en">Record the purchase</span></strong
+                  ><span
+                    ><span class="lang-de"
+                      >Artikel und Einkaufspreis erfassen. Der Anfang für deine spätere
+                      Gewinnrechnung.</span
+                    ><span class="lang-en" lang="en"
+                      >Record the item and purchase price. The start of your profit
+                      calculation.</span
+                    ></span
+                  ></span
+                ><svg class="icon" aria-hidden="true"><use href="#icon-arrow" /></svg>
+              </button>
+              <button
+                id="step-inventory"
+                class="workflow-step"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                aria-controls="panel-inventory"
+                tabindex="-1"
+                data-step="1"
+              >
+                <span class="step-number">02</span
+                ><span
+                  ><strong
+                    ><span class="lang-de">Bestand organisieren</span
+                    ><span class="lang-en" lang="en">Organize inventory</span></strong
+                  ><span
+                    ><span class="lang-de"
+                      >Fotos, Zustand und Lagerplatz ergänzen. Damit du deinen Artikel
+                      wiederfindest.</span
+                    ><span class="lang-en" lang="en"
+                      >Add photos, condition and storage location, so you can find the item
+                      again.</span
+                    ></span
+                  ></span
+                ><svg class="icon" aria-hidden="true"><use href="#icon-arrow" /></svg>
+              </button>
+              <button
+                id="step-sale"
+                class="workflow-step"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                aria-controls="panel-sale"
+                tabindex="-1"
+                data-step="2"
+              >
+                <span class="step-number">03</span
+                ><span
+                  ><strong
+                    ><span class="lang-de">Verkauf abschließen</span
+                    ><span class="lang-en" lang="en">Complete the sale</span></strong
+                  ><span
+                    ><span class="lang-de"
+                      >Verkauf und Kosten erfassen. Flipbase zeigt dir Gewinn und Marge.</span
+                    ><span class="lang-en" lang="en"
+                      >Record the sale and costs. Flipbase shows you profit and margin.</span
+                    ></span
+                  ></span
+                ><svg class="icon" aria-hidden="true"><use href="#icon-arrow" /></svg>
+              </button>
+            </div>
+            <button class="replay-button" id="workflow-replay" type="button" hidden>
+              <svg class="icon" aria-hidden="true"><use href="#icon-refresh" /></svg>
+              <span class="lang-de">Ablauf neu starten</span>
+              <span class="lang-en" lang="en">Restart workflow</span>
+            </button>
+            <p class="workflow-hint">
+              <span class="lang-de">Mit Beispieldaten. Du entscheidest, was du erfasst.</span>
+              <span class="lang-en" lang="en">With sample data. You decide what you record.</span>
+            </p>
+          </div>
+          <div class="workflow-stage">
+            <div
+              id="panel-purchase"
+              class="workflow-panel"
+              role="tabpanel"
+              aria-labelledby="step-purchase"
+              tabindex="0"
+            >
+              <div class="workflow-window">
+                <div class="window-topline">
+                  <span
+                    ><svg class="icon" aria-hidden="true"><use href="#icon-bag" /></svg>
+                    <span class="lang-de">Einkauf erfassen</span
+                    ><span class="lang-en" lang="en">Record purchase</span></span
+                  ><span
+                    ><span class="lang-de">Schritt 1 von 3</span
+                    ><span class="lang-en" lang="en">Step 1 of 3</span></span
+                  >
+                </div>
+                <div class="window-product">
+                  <div class="item-picture">
+                    <img src="images/sweatshirt.svg" alt="" width="78" height="78" loading="lazy" />
+                  </div>
+                  <div>
+                    <strong>Vintage Sweatshirt</strong
+                    ><span
+                      ><span class="lang-de">Dein Fund vom Flohmarkt</span
+                      ><span class="lang-en" lang="en">Your flea market find</span></span
+                    >
+                  </div>
+                </div>
+                <div class="mock-field">
+                  <span
+                    ><span class="lang-de">Artikelbezeichnung</span
+                    ><span class="lang-en" lang="en">Item name</span></span
+                  >
+                  <div>Vintage Sweatshirt</div>
+                </div>
+                <div class="field-grid">
+                  <div class="mock-field">
+                    <span
+                      ><span class="lang-de">Einkaufspreis</span
+                      ><span class="lang-en" lang="en">Purchase price</span></span
+                    >
+                    <div>12,00 <span>€</span></div>
+                  </div>
+                  <div class="mock-field">
+                    <span
+                      ><span class="lang-de">Menge</span
+                      ><span class="lang-en" lang="en">Quantity</span></span
+                    >
+                    <div>
+                      1
+                      <span
+                        ><span class="lang-de">Stück</span
+                        ><span class="lang-en" lang="en">pc</span></span
+                      >
+                    </div>
+                  </div>
+                </div>
+                <div class="window-summary">
+                  <span
+                    ><span class="lang-de">Gesamter Einkauf</span
+                    ><span class="lang-en" lang="en">Total purchase</span></span
+                  ><strong>12,00 €</strong>
+                </div>
+                <div class="window-confirmation">
+                  <svg class="icon" aria-hidden="true"><use href="#icon-check" /></svg>
+                  <span class="lang-de">Einkauf gespeichert</span
+                  ><span class="lang-en" lang="en">Purchase saved</span>
+                </div>
+              </div>
+              <div class="workflow-sticker">
+                <svg class="icon" aria-hidden="true"><use href="#icon-box" /></svg
+                ><span
+                  ><span class="lang-de">Ein Fund. Ein neuer Artikel.</span
+                  ><span class="lang-en" lang="en">One find. One new item.</span></span
+                >
+              </div>
+            </div>
+            <div
+              id="panel-inventory"
+              class="workflow-panel"
+              role="tabpanel"
+              aria-labelledby="step-inventory"
+              tabindex="0"
+            >
+              <div class="workflow-window">
+                <div class="window-topline">
+                  <span
+                    ><svg class="icon" aria-hidden="true"><use href="#icon-box" /></svg>
+                    <span class="lang-de">Dein Bestand</span
+                    ><span class="lang-en" lang="en">Your inventory</span></span
+                  ><span
+                    ><span class="lang-de">Schritt 2 von 3</span
+                    ><span class="lang-en" lang="en">Step 2 of 3</span></span
+                  >
+                </div>
+                <div class="inventory-preview">
+                  <div class="inventory-photo">
+                    <img
+                      src="images/sweatshirt.svg"
+                      alt=""
+                      width="172"
+                      height="172"
+                      loading="lazy"
+                    /><span>1 / 1</span>
+                  </div>
+                  <div>
+                    <span class="inventory-tag"
+                      ><span class="lang-de">Auf Lager</span
+                      ><span class="lang-en" lang="en">In stock</span></span
+                    >
+                    <h3>Vintage Sweatshirt</h3>
+                    <p>
+                      <span class="lang-de">Größe M · Sehr gut</span
+                      ><span class="lang-en" lang="en">Size M · Very good</span>
+                    </p>
+                    <span class="item-reference"
+                      ><span class="lang-de">Artikel</span
+                      ><span class="lang-en" lang="en">Item</span> FB-0025</span
+                    >
+                  </div>
+                </div>
+                <dl class="inventory-details">
+                  <div>
+                    <dt>
+                      <span class="lang-de">Einkaufspreis</span
+                      ><span class="lang-en" lang="en">Purchase price</span>
+                    </dt>
+                    <dd>12,00 €</dd>
+                  </div>
+                  <div>
+                    <dt>
+                      <span class="lang-de">Lagerplatz</span
+                      ><span class="lang-en" lang="en">Storage</span>
+                    </dt>
+                    <dd>
+                      <span class="lang-de">Regal A · Fach 3</span
+                      ><span class="lang-en" lang="en">Shelf A · Box 3</span>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>
+                      <span class="lang-de">Zustand</span
+                      ><span class="lang-en" lang="en">Condition</span>
+                    </dt>
+                    <dd>
+                      <span class="lang-de">Sehr gut</span
+                      ><span class="lang-en" lang="en">Very good</span>
+                    </dd>
+                  </div>
+                </dl>
+                <div class="window-confirmation">
+                  <svg class="icon" aria-hidden="true"><use href="#icon-check" /></svg>
+                  <span class="lang-de">Alles am Artikel hinterlegt</span
+                  ><span class="lang-en" lang="en">Everything stored with the item</span>
+                </div>
+              </div>
+              <div class="workflow-sticker">
+                <svg class="icon" aria-hidden="true"><use href="#icon-image" /></svg
+                ><span
+                  ><span class="lang-de">Foto, Kosten und Lagerplatz zusammen.</span
+                  ><span class="lang-en" lang="en">Photo, costs and storage together.</span></span
+                >
+              </div>
+            </div>
+            <div
+              id="panel-sale"
+              class="workflow-panel"
+              role="tabpanel"
+              aria-labelledby="step-sale"
+              tabindex="0"
+            >
+              <div class="workflow-window">
+                <div class="window-topline">
+                  <span
+                    ><svg class="icon" aria-hidden="true"><use href="#icon-chart" /></svg>
+                    <span class="lang-de">Verkauf abgeschlossen</span
+                    ><span class="lang-en" lang="en">Sale completed</span></span
+                  ><span
+                    ><span class="lang-de">Schritt 3 von 3</span
+                    ><span class="lang-en" lang="en">Step 3 of 3</span></span
+                  >
+                </div>
+                <div class="window-product">
+                  <div class="item-picture">
+                    <img src="images/sweatshirt.svg" alt="" width="78" height="78" loading="lazy" />
+                  </div>
+                  <div>
+                    <strong>Vintage Sweatshirt</strong
+                    ><span
+                      ><span class="lang-de">Aus dem Bestand verkauft</span
+                      ><span class="lang-en" lang="en">Sold from inventory</span></span
+                    >
+                  </div>
+                  <span class="inventory-tag"
+                    ><span class="lang-de">Verkauft</span
+                    ><span class="lang-en" lang="en">Sold</span></span
+                  >
+                </div>
+                <dl class="inventory-details">
+                  <div>
+                    <dt>
+                      <span class="lang-de">Verkaufspreis</span
+                      ><span class="lang-en" lang="en">Sale price</span>
+                    </dt>
+                    <dd>39,00 €</dd>
+                  </div>
+                  <div>
+                    <dt>
+                      <span class="lang-de">Einkauf + weitere Kosten</span
+                      ><span class="lang-en" lang="en">Purchase + other costs</span>
+                    </dt>
+                    <dd>14,00 €</dd>
+                  </div>
+                </dl>
+                <div class="workflow-profit">
+                  <div>
+                    <span
+                      ><span class="lang-de">Gewinn vor Steuern</span
+                      ><span class="lang-en" lang="en">Profit before tax</span></span
+                    ><strong>25,00 €</strong>
+                  </div>
+                  <span
+                    >64,1 % <span class="lang-de">Marge</span
+                    ><span class="lang-en" lang="en">margin</span></span
+                  >
+                </div>
+                <div class="window-confirmation">
+                  <svg class="icon" aria-hidden="true"><use href="#icon-check" /></svg>
+                  <span class="lang-de">Verkauf und Kosten nachvollziehbar</span
+                  ><span class="lang-en" lang="en">Sale and costs traceable</span>
+                </div>
+              </div>
+              <div class="workflow-sticker">
+                <svg class="icon" aria-hidden="true"><use href="#icon-check" /></svg
+                ><span
+                  ><span class="lang-de">Du siehst, was von deinem Verkauf bleibt.</span
+                  ><span class="lang-en" lang="en"
+                    >You see what you keep from each sale.</span
+                  ></span
+                >
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
       <!-- Großer Feature-Showcase -->
       <section id="features">
         <div class="sektion-header">
-          <span class="sektion-kicker"
-            ><span class="lang-de">Funktionen</span
-            ><span class="lang-en" lang="en">Features</span></span
-          >
-          <h2 class="sektion-titel">
-            <span class="lang-de">Werkzeuge für deinen Reselling-Alltag.</span>
-            <span class="lang-en" lang="en">Tools for your reselling workflow.</span>
+          <h2 class="sektion-titel" id="features-title">
+            <span class="lang-de">Weniger hin und her.<br />Mehr Zeit für gute Funde.</span>
+            <span class="lang-en" lang="en"
+              >Less back and forth.<br />More time for good finds.</span
+            >
           </h2>
           <p class="sektion-text">
             <span class="lang-de"
@@ -2582,6 +3596,87 @@
                 ><span class="lang-en" lang="en">Track item status and inventory</span>
               </li>
             </ul>
+            <div id="demo-tracking-label" class="sr-only">
+              <span class="lang-de"
+                >Beispiel: Ein Einkauf mit drei Artikeln und ihren Einkaufspreisen im Bestand.</span
+              ><span class="lang-en" lang="en"
+                >Example: one purchase with three items and their purchase prices in
+                inventory.</span
+              >
+            </div>
+            <div class="tool-demo stock-demo" role="img" aria-labelledby="demo-tracking-label">
+              <div class="demo-toolbar">
+                <span
+                  ><span class="lang-de">Einkauf vom 12.10.</span
+                  ><span class="lang-en" lang="en">Purchase from 12 Oct</span></span
+                ><span
+                  ><span class="lang-de">Beispiel</span
+                  ><span class="lang-en" lang="en">Example</span></span
+                >
+              </div>
+              <div class="demo-table">
+                <div class="demo-row">
+                  <img
+                    src="images/sweatshirt.svg"
+                    alt=""
+                    width="34"
+                    height="34"
+                    loading="lazy"
+                  /><span
+                    ><strong>Vintage Sweatshirt</strong
+                    ><small
+                      ><span class="lang-de">Größe M</span
+                      ><span class="lang-en" lang="en">Size M</span></small
+                    ></span
+                  ><span class="inventory-tag"
+                    ><span class="lang-de">Auf Lager</span
+                    ><span class="lang-en" lang="en">In stock</span></span
+                  ><b>12,00 €</b>
+                </div>
+                <div class="demo-row">
+                  <img
+                    src="images/sweatshirt.svg"
+                    alt=""
+                    width="34"
+                    height="34"
+                    loading="lazy"
+                  /><span
+                    ><strong>Crewneck Sweatshirt</strong
+                    ><small
+                      ><span class="lang-de">Größe L</span
+                      ><span class="lang-en" lang="en">Size L</span></small
+                    ></span
+                  ><span class="inventory-tag"
+                    ><span class="lang-de">Auf Lager</span
+                    ><span class="lang-en" lang="en">In stock</span></span
+                  ><b>9,00 €</b>
+                </div>
+                <div class="demo-row">
+                  <img
+                    src="images/sweatshirt.svg"
+                    alt=""
+                    width="34"
+                    height="34"
+                    loading="lazy"
+                  /><span
+                    ><strong>Basic Sweatshirt</strong
+                    ><small
+                      ><span class="lang-de">Größe S</span
+                      ><span class="lang-en" lang="en">Size S</span></small
+                    ></span
+                  ><span class="inventory-tag"
+                    ><span class="lang-de">Auf Lager</span
+                    ><span class="lang-en" lang="en">In stock</span></span
+                  ><b>7,00 €</b>
+                </div>
+              </div>
+              <div class="demo-total">
+                <span
+                  ><span class="lang-de">Einkauf gesamt</span
+                  ><span class="lang-en" lang="en">Purchase total</span></span
+                ><strong>28,00 €</strong>
+              </div>
+            </div>
           </article>
           <article class="feature-karte" id="sales">
             <span class="feature-badge localized-badge"
@@ -2612,6 +3707,64 @@
                 ><span class="lang-en" lang="en">Trace the margin for each item</span>
               </li>
             </ul>
+            <div id="demo-sales-label" class="sr-only">
+              <span class="lang-de"
+                >Beispiel: Drei Verkäufe auf Vinted, eBay und Kleinanzeigen mit Gewinn je
+                Verkauf.</span
+              ><span class="lang-en" lang="en"
+                >Example: three sales on Vinted, eBay and Kleinanzeigen with the profit of each
+                sale.</span
+              >
+            </div>
+            <div class="tool-demo sales-demo" role="img" aria-labelledby="demo-sales-label">
+              <div class="demo-toolbar">
+                <span
+                  ><span class="lang-de">Letzte Verkäufe</span
+                  ><span class="lang-en" lang="en">Recent sales</span></span
+                ><span
+                  ><span class="lang-de">Beispiel</span
+                  ><span class="lang-en" lang="en">Example</span></span
+                >
+              </div>
+              <div class="demo-table">
+                <div class="demo-row">
+                  <span class="platform-chip">Vinted</span
+                  ><span
+                    ><strong>Vintage Sweatshirt</strong
+                    ><small
+                      ><span class="lang-de">Verkauft für</span
+                      ><span class="lang-en" lang="en">Sold for</span> 39,00 €</small
+                    ></span
+                  ><b class="demo-positive">+25,00 €</b>
+                </div>
+                <div class="demo-row">
+                  <span class="platform-chip">eBay</span
+                  ><span
+                    ><strong>Levi’s 501</strong
+                    ><small
+                      ><span class="lang-de">Verkauft für</span
+                      ><span class="lang-en" lang="en">Sold for</span> 45,00 €</small
+                    ></span
+                  ><b class="demo-positive">+21,50 €</b>
+                </div>
+                <div class="demo-row">
+                  <span class="platform-chip">Kleinanzeigen</span
+                  ><span
+                    ><strong>Lederjacke</strong
+                    ><small
+                      ><span class="lang-de">Verkauft für</span
+                      ><span class="lang-en" lang="en">Sold for</span> 60,00 €</small
+                    ></span
+                  ><b class="demo-positive">+32,00 €</b>
+                </div>
+              </div>
+              <div class="demo-total">
+                <span
+                  ><span class="lang-de">Gewinn vor Steuern</span
+                  ><span class="lang-en" lang="en">Profit before tax</span></span
+                ><strong class="demo-positive">78,50 €</strong>
+              </div>
+            </div>
           </article>
           <article class="feature-karte" id="expenses">
             <span class="feature-badge localized-badge"
@@ -2642,6 +3795,66 @@
                 ><span class="lang-en" lang="en">Link receipts to expenses</span>
               </li>
             </ul>
+            <div id="demo-expenses-label" class="sr-only">
+              <span class="lang-de"
+                >Illustratives Kostenbeispiel: 31 Euro Verpackung plus 25 Euro Software ergeben 56
+                Euro Betriebsausgaben.</span
+              ><span class="lang-en" lang="en"
+                >Illustrative cost example: 31 euros packaging plus 25 euros software make 56 euros
+                business expenses.</span
+              >
+            </div>
+            <div
+              class="tool-demo expenses-demo"
+              id="expenses-scene"
+              data-animated-scene
+              data-frame="3"
+              role="img"
+              aria-labelledby="demo-expenses-label"
+            >
+              <div class="demo-toolbar">
+                <span
+                  ><span class="lang-de">Betriebsausgaben</span
+                  ><span class="lang-en" lang="en">Business expenses</span></span
+                ><span
+                  ><span class="lang-de">Beispielmonat</span
+                  ><span class="lang-en" lang="en">Sample month</span></span
+                >
+              </div>
+              <div class="expense-entry">
+                <span class="expense-icon"
+                  ><svg class="icon" aria-hidden="true"><use href="#icon-box" /></svg></span
+                ><span
+                  ><strong
+                    ><span class="lang-de">Versandverpackung</span
+                    ><span class="lang-en" lang="en">Shipping packaging</span></strong
+                  ><small
+                    ><span class="lang-de">Beleg zugeordnet</span
+                    ><span class="lang-en" lang="en">Receipt attached</span></small
+                  ></span
+                ><b>31,00 €</b
+                ><svg class="icon expense-check" aria-hidden="true"><use href="#icon-check" /></svg>
+              </div>
+              <div class="expense-entry">
+                <span class="expense-icon"
+                  ><svg class="icon" aria-hidden="true"><use href="#icon-grid" /></svg></span
+                ><span
+                  ><strong>Software</strong
+                  ><small
+                    ><span class="lang-de">Monatlich wiederkehrend</span
+                    ><span class="lang-en" lang="en">Monthly recurring</span></small
+                  ></span
+                ><b>25,00 €</b
+                ><svg class="icon expense-check" aria-hidden="true"><use href="#icon-check" /></svg>
+              </div>
+              <div class="expense-total">
+                <span
+                  ><span class="lang-de">Erfasste Ausgaben</span
+                  ><span class="lang-en" lang="en">Recorded expenses</span></span
+                ><strong>56,00 €</strong>
+              </div>
+              <div class="expense-progress"><span></span></div>
+            </div>
           </article>
           <article class="feature-karte" id="accounting">
             <span class="feature-badge localized-badge"
@@ -2676,6 +3889,61 @@
                 >
               </li>
             </ul>
+            <div id="demo-accounting-label" class="sr-only">
+              <span class="lang-de"
+                >Beispiel: Vorbereiteter Buchungsdatenexport für das dritte Quartal im
+                DATEV-kompatiblen Format mit Kontenrahmen SKR04.</span
+              ><span class="lang-en" lang="en"
+                >Example: prepared booking data export for the third quarter in a DATEV-compatible
+                format with the SKR04 chart of accounts.</span
+              >
+            </div>
+            <div
+              class="tool-demo accounting-demo"
+              role="img"
+              aria-labelledby="demo-accounting-label"
+            >
+              <div class="demo-toolbar">
+                <span
+                  ><span class="lang-de">Buchungsdaten</span
+                  ><span class="lang-en" lang="en">Booking data</span></span
+                ><span
+                  ><span class="lang-de">Beispiel</span
+                  ><span class="lang-en" lang="en">Example</span></span
+                >
+              </div>
+              <dl class="demo-details">
+                <div>
+                  <dt>
+                    <span class="lang-de">Zeitraum</span
+                    ><span class="lang-en" lang="en">Period</span>
+                  </dt>
+                  <dd>
+                    <span class="lang-de">3. Quartal</span><span class="lang-en" lang="en">Q3</span>
+                  </dd>
+                </div>
+                <div>
+                  <dt>
+                    <span class="lang-de">Format</span><span class="lang-en" lang="en">Format</span>
+                  </dt>
+                  <dd>
+                    <span class="lang-de">DATEV-kompatibel</span
+                    ><span class="lang-en" lang="en">DATEV-compatible</span>
+                  </dd>
+                </div>
+                <div>
+                  <dt>
+                    <span class="lang-de">Kontenrahmen</span
+                    ><span class="lang-en" lang="en">Chart of accounts</span>
+                  </dt>
+                  <dd>SKR04</dd>
+                </div>
+              </dl>
+              <div class="demo-action">
+                <span class="lang-de">Export vorbereiten</span
+                ><span class="lang-en" lang="en">Prepare export</span>
+              </div>
+            </div>
           </article>
           <article class="feature-karte" id="vinted-bot">
             <span class="feature-badge localized-badge"
@@ -2706,6 +3974,102 @@
                 ><span class="lang-en" lang="en">Finds and favorites in one place</span>
               </li>
             </ul>
+            <div id="demo-feed-label" class="sr-only">
+              <span class="lang-de"
+                >Illustratives Beispiel: Ein Filter für Sweatshirts bis 20 Euro liefert passende
+                Funde zum Vergleichen.</span
+              ><span class="lang-en" lang="en"
+                >Illustrative example: a filter for sweatshirts up to 20 euros returns matching
+                finds to compare.</span
+              >
+            </div>
+            <div
+              class="tool-demo feed-demo"
+              id="feed-scene"
+              data-animated-scene
+              data-frame="3"
+              role="img"
+              aria-labelledby="demo-feed-label"
+            >
+              <div class="demo-toolbar">
+                <span
+                  ><span class="status-dot"></span> <span class="lang-de">Gespeicherte Suche</span
+                  ><span class="lang-en" lang="en">Saved search</span></span
+                ><span
+                  ><span class="lang-de">Beispiel</span
+                  ><span class="lang-en" lang="en">Example</span></span
+                >
+              </div>
+              <div class="filter-chips">
+                <span>Sweatshirts</span
+                ><span
+                  ><span class="lang-de">Bis 20 €</span
+                  ><span class="lang-en" lang="en">Up to €20</span></span
+                ><span
+                  ><span class="lang-de">Sehr gut</span
+                  ><span class="lang-en" lang="en">Very good</span></span
+                >
+              </div>
+              <div class="feed-list">
+                <div class="feed-row feed-row-one">
+                  <img
+                    src="images/sweatshirt.svg"
+                    alt=""
+                    width="54"
+                    height="54"
+                    loading="lazy"
+                  /><span
+                    ><strong>Vintage Sweatshirt</strong
+                    ><small
+                      ><span class="lang-de">Größe M · Sehr gut</span
+                      ><span class="lang-en" lang="en">Size M · Very good</span></small
+                    ></span
+                  ><b>12,00 €</b
+                  ><span class="feed-match"
+                    ><span class="lang-de">Passt</span
+                    ><span class="lang-en" lang="en">Match</span></span
+                  >
+                </div>
+                <div class="feed-row feed-row-two">
+                  <img
+                    src="images/sweatshirt.svg"
+                    alt=""
+                    width="54"
+                    height="54"
+                    loading="lazy"
+                  /><span
+                    ><strong>Crewneck Sweatshirt</strong
+                    ><small
+                      ><span class="lang-de">Größe L · Sehr gut</span
+                      ><span class="lang-en" lang="en">Size L · Very good</span></small
+                    ></span
+                  ><b>18,00 €</b
+                  ><span class="feed-match"
+                    ><span class="lang-de">Passt</span
+                    ><span class="lang-en" lang="en">Match</span></span
+                  >
+                </div>
+                <div class="feed-row feed-row-three">
+                  <img
+                    src="images/sweatshirt.svg"
+                    alt=""
+                    width="54"
+                    height="54"
+                    loading="lazy"
+                  /><span
+                    ><strong>Basic Sweatshirt</strong
+                    ><small
+                      ><span class="lang-de">Größe M · Sehr gut</span
+                      ><span class="lang-en" lang="en">Size M · Very good</span></small
+                    ></span
+                  ><b>15,00 €</b
+                  ><span class="feed-match"
+                    ><span class="lang-de">Passt</span
+                    ><span class="lang-en" lang="en">Match</span></span
+                  >
+                </div>
+              </div>
+            </div>
           </article>
           <article class="feature-karte" id="image-optimization">
             <span class="feature-badge localized-badge"
@@ -2736,6 +4100,41 @@
                 ><span class="lang-en" lang="en">Export photos together as a ZIP</span>
               </li>
             </ul>
+            <div class="tool-demo image-demo" id="image-scene">
+              <div class="demo-toolbar">
+                <span
+                  ><span class="lang-de">Zuschnitt ausprobieren</span
+                  ><span class="lang-en" lang="en">Try a crop</span></span
+                ><span
+                  ><span class="lang-de">Illustration</span
+                  ><span class="lang-en" lang="en">Illustration</span></span
+                >
+              </div>
+              <div class="crop-stage">
+                <div class="crop-photo" id="crop-photo" data-ratio="portrait">
+                  <img
+                    src="images/sweatshirt.svg"
+                    width="210"
+                    height="250"
+                    alt=""
+                    loading="lazy"
+                  /><span class="crop-grid" aria-hidden="true"></span>
+                </div>
+                <span class="crop-dimensions" id="crop-dimensions">4 : 5</span>
+              </div>
+              <div id="crop-controls-label" class="sr-only">
+                <span class="lang-de">Bildformat auswählen</span
+                ><span class="lang-en" lang="en">Choose image format</span>
+              </div>
+              <div class="crop-controls" role="group" aria-labelledby="crop-controls-label" hidden>
+                <button type="button" data-crop="portrait" aria-pressed="true">4 : 5</button
+                ><button type="button" data-crop="square" aria-pressed="false">1 : 1</button
+                ><span
+                  ><span class="lang-de">Wähle dein Format</span
+                  ><span class="lang-en" lang="en">Choose your format</span></span
+                >
+              </div>
+            </div>
           </article>
           <article class="feature-karte" id="listings">
             <span class="feature-badge localized-badge"
@@ -2767,6 +4166,66 @@
                 ><span class="lang-en" lang="en">Link prepared listings to inventory</span>
               </li>
             </ul>
+            <div id="demo-listing-label" class="sr-only">
+              <span class="lang-de"
+                >Illustrativer Inseratsentwurf: Vintage Sweatshirt, Größe M, sehr guter Zustand,
+                Preis 39 Euro. Die Veröffentlichung erfolgt auf Kleinanzeigen.</span
+              ><span class="lang-en" lang="en"
+                >Illustrative listing draft: vintage sweatshirt, size M, very good condition, price
+                39 euros. Publishing happens on Kleinanzeigen.</span
+              >
+            </div>
+            <div
+              class="tool-demo listing-demo"
+              id="listing-scene"
+              data-animated-scene
+              data-frame="3"
+              role="img"
+              aria-labelledby="demo-listing-label"
+            >
+              <div class="demo-toolbar">
+                <span
+                  ><span class="lang-de">Inseratsentwurf</span
+                  ><span class="lang-en" lang="en">Listing draft</span></span
+                ><span
+                  ><span class="lang-de">Beispiel</span
+                  ><span class="lang-en" lang="en">Example</span></span
+                >
+              </div>
+              <div class="listing-preview">
+                <img src="images/sweatshirt.svg" alt="" width="112" height="132" loading="lazy" />
+                <div class="draft-fields">
+                  <div class="draft-field">
+                    <small
+                      ><span class="lang-de">Titel</span
+                      ><span class="lang-en" lang="en">Title</span></small
+                    ><strong>Vintage Sweatshirt</strong
+                    ><svg class="icon" aria-hidden="true"><use href="#icon-check" /></svg>
+                  </div>
+                  <div class="draft-field">
+                    <small
+                      ><span class="lang-de">Beschreibung</span
+                      ><span class="lang-en" lang="en">Description</span></small
+                    ><span
+                      ><span class="lang-de">Größe M · Sehr guter Zustand</span
+                      ><span class="lang-en" lang="en">Size M · Very good condition</span></span
+                    ><svg class="icon" aria-hidden="true"><use href="#icon-check" /></svg>
+                  </div>
+                  <div class="draft-field">
+                    <small
+                      ><span class="lang-de">Verkaufspreis</span
+                      ><span class="lang-en" lang="en">Sale price</span></small
+                    ><strong>39,00 €</strong
+                    ><svg class="icon" aria-hidden="true"><use href="#icon-check" /></svg>
+                  </div>
+                </div>
+              </div>
+              <div class="draft-ready">
+                <svg class="icon" aria-hidden="true"><use href="#icon-check" /></svg>
+                <span class="lang-de">Bereit für die Übertragung</span
+                ><span class="lang-en" lang="en">Ready to transfer</span>
+              </div>
+            </div>
           </article>
           <article class="feature-karte" id="multi-account">
             <span class="feature-badge localized-badge"
@@ -2799,6 +4258,45 @@
                 ><span class="lang-en" lang="en">Clear assignment to each account</span>
               </li>
             </ul>
+            <div id="demo-accounts-label" class="sr-only">
+              <span class="lang-de"
+                >Geplantes Beispiel: Zwei Vinted-Konten in einem Workspace, getrennt
+                verwaltet.</span
+              ><span class="lang-en" lang="en"
+                >Planned example: two Vinted accounts in one workspace, managed separately.</span
+              >
+            </div>
+            <div class="tool-demo accounts-demo" role="img" aria-labelledby="demo-accounts-label">
+              <div class="demo-toolbar">
+                <span
+                  ><span class="lang-de">Vinted-Konten</span
+                  ><span class="lang-en" lang="en">Vinted accounts</span></span
+                ><span
+                  ><span class="lang-de">Geplant</span
+                  ><span class="lang-en" lang="en">Planned</span></span
+                >
+              </div>
+              <div class="workspace-tile">
+                <span class="workspace-avatar">V</span>
+                <div>
+                  <strong>vintage.fund</strong
+                  ><span
+                    ><span class="lang-de">Eigene Inserate und Verkäufe</span
+                    ><span class="lang-en" lang="en">Own listings and sales</span></span
+                  >
+                </div>
+              </div>
+              <div class="workspace-tile">
+                <span class="workspace-avatar secondary-avatar">S</span>
+                <div>
+                  <strong>streetwear.drop</strong
+                  ><span
+                    ><span class="lang-de">Getrennt zugeordnet</span
+                    ><span class="lang-en" lang="en">Assigned separately</span></span
+                  >
+                </div>
+              </div>
+            </div>
           </article>
         </div>
       </section>
@@ -2806,10 +4304,6 @@
       <!-- Technologie & Sicherheit -->
       <section>
         <div class="sektion-header">
-          <span class="sektion-kicker">
-            <span class="lang-de">Arbeitsbereiche</span>
-            <span class="lang-en" lang="en">Workspaces</span>
-          </span>
           <h2 class="sektion-titel">
             <span class="lang-de">Mehrere Betriebsbereiche sauber trennen.</span>
             <span class="lang-en" lang="en">Keep business areas separate.</span>
@@ -2893,10 +4387,6 @@
       <!-- Funktionsstand der Beta -->
       <section id="roadmap">
         <div class="sektion-header">
-          <span class="sektion-kicker"
-            ><span class="lang-de">In der Beta</span
-            ><span class="lang-en" lang="en">In beta</span></span
-          >
           <h2 class="sektion-titel">
             <span class="lang-de">Das kannst du in Flipbase nutzen.</span
             ><span class="lang-en" lang="en">What you can use in Flipbase.</span>
@@ -2963,10 +4453,6 @@
       <!-- Pakete: Die gesamte verfügbare Beta bleibt kostenlos. -->
       <section id="pricing" aria-labelledby="pricing-title" aria-describedby="pricing-availability">
         <div class="sektion-header pricing-header">
-          <span class="sektion-kicker">
-            <span class="lang-de">Pakete & Preise</span>
-            <span class="lang-en" lang="en">Plans & pricing</span>
-          </span>
           <h2 class="sektion-titel" id="pricing-title">
             <span class="lang-de">Für jeden Reseller das passende Paket.</span>
             <span class="lang-en" lang="en">The right plan for every reseller.</span>
@@ -3529,7 +5015,6 @@
       <!-- FAQ -->
       <section id="faq">
         <div class="sektion-header faq-header-center">
-          <span class="sektion-kicker">FAQ</span>
           <h2 class="sektion-titel">
             <span class="lang-de">Häufig gestellte Fragen.</span>
             <span class="lang-en" lang="en">Frequently Asked Questions.</span>

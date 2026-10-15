@@ -399,10 +399,7 @@ const themeTokenSets = [
 ];
 
 test('runs the landing contract immediately before the production build', () => {
-  assert.equal(
-    packageJson.scripts?.['test:landing'],
-    'node --test scripts/landing-page.test.mjs scripts/landing-preview.test.mjs',
-  );
+  assert.equal(packageJson.scripts?.['test:landing'], 'node --test scripts/landing-page.test.mjs');
   const verifySteps = packageJson.scripts?.verify?.split(' && ') ?? [];
   const landingStep = verifySteps.indexOf('npm run test:landing');
 
@@ -412,7 +409,15 @@ test('runs the landing contract immediately before the production build', () => 
 
 test('leads from the revised hero to one application form at the end of the page', () => {
   assert.doesNotMatch(html, /Vom Wühltisch zum Profit/u);
-  assert.match(normalizedHtml, /Dein Reselling\./u);
+  const headline = new JSDOM(html).window.document.querySelector('h1');
+  assert.equal(
+    headline.querySelector('.lang-de').textContent.replace(/\s+/gu, ' ').trim(),
+    'Die Warenwirtschaft für dein Reselling.',
+  );
+  assert.equal(
+    headline.querySelector('.lang-en').textContent.replace(/\s+/gu, ' ').trim(),
+    'Inventory management for your reselling.',
+  );
   assert.doesNotMatch(html, /id=["']hero-bewerbung-form["']/u);
 
   const heroCallToAction = extractStartTags(html, 'a').find((link) =>
@@ -726,7 +731,12 @@ test('restores theme and language after reload and keeps an explicit theme acros
         this.onChange?.();
       },
     };
-    dom.window.matchMedia = () => mediaQuery;
+    // Nur die Farbschema-Abfrage wird gesteuert; Bewegungs- und Breitenabfragen der
+    // Beispielbilder bekommen eigene, ruhende Objekte.
+    dom.window.matchMedia = (query) =>
+      query.includes('prefers-color-scheme')
+        ? mediaQuery
+        : { matches: false, addEventListener() {} };
     for (const [key, value] of Object.entries(preferences)) {
       dom.window.localStorage.setItem(key, value);
     }
@@ -1487,7 +1497,7 @@ test('explains the reselling workflow and the real marketplace scope', () => {
   assert.ok(descriptionTag, 'Expected a meta description');
   assert.match(attribute(descriptionTag, 'content'), /Reselling ohne Excel/u);
   assert.match(attribute(descriptionTag, 'content'), /Vinted Bot/u);
-  assert.match(normalizedHtml, /Dein Reselling/u);
+  assert.match(normalizedHtml, /für dein Reselling/u);
   assert.match(normalizedHtml, /Vinted Bot: passende Funde prüfen/u);
   assert.match(normalizedHtml, /Betriebsausgaben und Fixkosten erfassen/u);
   assert.match(normalizedHtml, /Mehrere Betriebsbereiche sauber trennen/u);
@@ -1671,4 +1681,239 @@ test('uses one beta card without a nested form card', () => {
   assertDeclaration(css, '.hero-beta-btn', 'width', '100%');
   assertDeclaration(css, '.banner-cta', 'text-align', 'left');
   assert.doesNotMatch(css, /\.beta-application-form-panel\s*\{/u);
+});
+
+const showcaseCss = await readFile(path.join(landingDirectory, 'landing-showcase.css'), 'utf8');
+
+function listText(root, selector) {
+  return [...root.querySelectorAll(selector)].map((element) =>
+    element.textContent.replace(/\s+/gu, ' ').trim(),
+  );
+}
+
+function readEuro(text) {
+  return Number(text.replace(/[^\d,]/gu, '').replace(',', '.'));
+}
+
+// Seite mit steuerbaren Zeitgebern, Sichtbarkeit und Medienabfragen für die Beispielbilder.
+function createShowcasePage({ reduced = false, mobile = false } = {}) {
+  const dom = new JSDOM(html, { runScripts: 'outside-only', url: 'https://flipbase.de/' });
+  const { window } = dom;
+  const timers = new Map();
+  let nextTimer = 0;
+  let observeEntries;
+  let isHidden = false;
+  Object.defineProperty(window.document, 'hidden', { get: () => isHidden });
+  window.matchMedia = (query) => {
+    const result = new window.EventTarget();
+    result.matches = query.includes('reduced-motion')
+      ? reduced
+      : query.includes('color-scheme')
+        ? false
+        : mobile;
+    return result;
+  };
+  window.setInterval = (callback, delay) => {
+    const timerId = ++nextTimer;
+    timers.set(timerId, { callback, delay });
+    return timerId;
+  };
+  window.clearInterval = (timerId) => timers.delete(timerId);
+  window.IntersectionObserver = class {
+    constructor(callback) {
+      observeEntries = callback;
+    }
+    observe() {}
+  };
+  window.eval(landingScript);
+  return {
+    dom,
+    window,
+    document: window.document,
+    timers,
+    intersect(id, isIntersecting) {
+      observeEntries([{ target: window.document.getElementById(id), isIntersecting }]);
+    },
+    setHidden(hidden) {
+      isHidden = hidden;
+      window.document.dispatchEvent(new window.Event('visibilitychange'));
+    },
+    tick(delay) {
+      [...timers.values()]
+        .filter((timer) => timer.delay === delay)
+        .forEach((timer) => timer.callback());
+    },
+  };
+}
+
+test('hero shows a replica of the real Flipbase dashboard instead of borrowed competitor elements', () => {
+  const dom = new JSDOM(html);
+  const { document } = dom.window;
+  const replica = document.getElementById('dashboard-replica');
+  assert.equal(replica.getAttribute('role'), 'img');
+  const label = document.getElementById(replica.getAttribute('aria-labelledby'));
+  assert.match(label.querySelector('.lang-de').textContent, /Beispielansicht/u);
+  assert.match(label.querySelector('.lang-en[lang="en"]').textContent, /Sample view/u);
+  assert.deepEqual(listText(replica, '[data-nav-group]'), [
+    'Warenwirtschaft',
+    'Marktplätze',
+    'Finanzen',
+    'Tools',
+  ]);
+  assert.deepEqual(listText(replica, '[data-nav-active]'), ['Dashboard']);
+  assert.deepEqual(listText(replica, '[data-kpi-label]'), [
+    'Umsatz',
+    'Gewinn',
+    'Marge',
+    'Kapital im Bestand',
+    'Verkäufe',
+  ]);
+  assert.deepEqual(listText(replica, '[data-chart-legend]'), [
+    'Umsatz',
+    'Ausgaben gesamt',
+    'Gewinn',
+  ]);
+  const caption = replica.closest('figure').querySelector('figcaption');
+  assert.match(caption.querySelector('.lang-de').textContent, /Beispieldaten/u);
+  assert.match(caption.querySelector('.lang-en').textContent, /sample data/u);
+  for (const borrowed of [
+    '⌘',
+    'Persönlicher Arbeitsbereich',
+    'Dein Geschäft im Überblick',
+    'Verkaufsentwicklung',
+  ]) {
+    assert.ok(!document.body.textContent.includes(borrowed), `Borrowed element: ${borrowed}`);
+  }
+  dom.window.close();
+});
+
+test('dashboard example figures agree with the chart they summarize', () => {
+  const dom = new JSDOM(html);
+  const replica = dom.window.document.getElementById('dashboard-replica');
+  const kpi = (key) => replica.querySelector(`[data-kpi="${key}"] [data-kpi-value]`).textContent;
+  const seriesTotal = (series) =>
+    [...replica.querySelectorAll(`[data-series="${series}"]`)].reduce(
+      (total, bar) => total + Number(bar.style.getPropertyValue('--value')),
+      0,
+    );
+  const revenue = readEuro(kpi('revenue'));
+  const profit = readEuro(kpi('gross-profit'));
+  assert.equal(seriesTotal('revenue'), revenue);
+  assert.equal(seriesTotal('profit'), profit);
+  assert.ok(seriesTotal('expenses') > 0);
+  assert.equal(replica.querySelectorAll('[data-series]').length % 3, 0);
+  assert.equal(
+    kpi('margin'),
+    `${((profit / revenue) * 100).toLocaleString('de-DE', { maximumFractionDigits: 1 })} %`,
+  );
+  dom.window.close();
+});
+
+test('uses plain section headings and names every example image in both languages', () => {
+  assert.doesNotMatch(html, /sektion-kicker/u);
+  for (const stylesheet of [css, showcaseCss]) {
+    assert.doesNotMatch(stylesheet, /text-transform:\s*uppercase/u);
+  }
+  assert.match(
+    showcaseCss,
+    /\[data-motion='on'\][^{]*\.replica-bar/u,
+    'Chart bars may only grow while animations are allowed',
+  );
+  const document = new JSDOM(html).window.document;
+  const demos = [...document.querySelectorAll('#features .feature-karte .tool-demo[role="img"]')];
+  assert.equal(demos.length, 7);
+  for (const demo of demos) {
+    const name = document.getElementById(demo.getAttribute('aria-labelledby'));
+    assert.ok(name?.querySelector('.lang-de'), 'Every example image needs a German name');
+    assert.ok(
+      name?.querySelector('.lang-en[lang="en"]'),
+      'Every example image needs an English name',
+    );
+  }
+});
+
+test('example scenes animate only in view and show complete results when paused or reduced', () => {
+  for (const reduced of [false, true]) {
+    const page = createShowcasePage({ reduced });
+    assert.equal(page.timers.size, 0);
+    for (const id of ['feed-scene', 'listing-scene', 'expenses-scene']) {
+      const scene = page.document.getElementById(id);
+      page.intersect(id, true);
+      page.tick(2000);
+      assert.equal(scene.dataset.frame, reduced ? '3' : '0');
+      page.intersect(id, false);
+      assert.equal(page.timers.size, 0);
+    }
+    const button = page.document.getElementById('motion-toggle');
+    assert.equal(button.hidden, false);
+    assert.equal(button.disabled, reduced);
+    if (!reduced) {
+      page.intersect('profit-scene', true);
+      page.tick(1800);
+      assert.equal(page.document.getElementById('profit-scene').dataset.phase, '0');
+      page.setHidden(true);
+      assert.equal(page.timers.size, 0);
+      page.setHidden(false);
+      assert.equal(page.timers.size, 1);
+      button.click();
+      assert.equal(button.getAttribute('aria-pressed'), 'true');
+      assert.equal(page.document.documentElement.dataset.motion, 'off');
+      assert.equal(page.timers.size, 0);
+    }
+    assert.equal(page.document.getElementById('profit-scene').dataset.phase, '3');
+    for (const scene of page.document.querySelectorAll('[data-animated-scene]')) {
+      assert.equal(scene.dataset.frame, '3');
+    }
+    page.dom.window.close();
+  }
+});
+
+test('workflow steps show one panel, stop automatic changes after manual use and follow the keyboard', () => {
+  const page = createShowcasePage();
+  page.intersect('workflow-scene', true);
+  page.tick(6500);
+  assert.equal(page.document.getElementById('panel-inventory').hidden, false);
+  const saleButton = page.document.getElementById('step-sale');
+  saleButton.click();
+  assert.equal(page.document.querySelectorAll('.workflow-panel:not([hidden])').length, 1);
+  assert.equal(page.document.getElementById('panel-sale').hidden, false);
+  assert.equal(saleButton.getAttribute('aria-selected'), 'true');
+  assert.equal(page.timers.size, 0);
+  page.document.getElementById('workflow-replay').click();
+  assert.equal(page.document.getElementById('panel-purchase').hidden, false);
+  assert.equal(page.timers.size, 1);
+  page.dom.window.close();
+
+  for (const mobile of [false, true]) {
+    const keyboardPage = createShowcasePage({ mobile });
+    const firstButton = keyboardPage.document.getElementById('step-purchase');
+    firstButton.focus();
+    firstButton.dispatchEvent(
+      new keyboardPage.window.KeyboardEvent('keydown', {
+        key: mobile ? 'ArrowRight' : 'ArrowDown',
+        bubbles: true,
+      }),
+    );
+    assert.equal(keyboardPage.document.activeElement.id, 'step-inventory');
+    assert.equal(keyboardPage.document.getElementById('panel-inventory').hidden, false);
+    keyboardPage.dom.window.close();
+  }
+});
+
+test('keeps the examples readable without JavaScript and lets visitors pick a crop', () => {
+  const dom = new JSDOM(html);
+  const { document } = dom.window;
+  assert.equal(document.querySelectorAll('.workflow-panel:not([hidden])').length, 3);
+  assert.equal(document.getElementById('profit-scene').dataset.phase, '3');
+  assert.equal(document.querySelector('.crop-controls').hidden, true);
+  assert.equal(document.getElementById('motion-toggle').hidden, true);
+  dom.window.close();
+
+  const page = createShowcasePage();
+  const square = page.document.querySelector('[data-crop="square"]');
+  square.click();
+  assert.equal(square.getAttribute('aria-pressed'), 'true');
+  assert.equal(page.document.getElementById('crop-photo').dataset.ratio, 'square');
+  assert.equal(page.document.getElementById('crop-dimensions').textContent, '1 : 1');
+  page.dom.window.close();
 });
