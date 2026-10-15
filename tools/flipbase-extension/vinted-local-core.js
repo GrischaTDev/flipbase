@@ -208,6 +208,34 @@
     }
   }
 
+  // Ausschließlich das Erstellungsdatum des Angebots übernehmen.
+  function publicationTime(item, observedAt) {
+    for (const value of [item.created_at_ts, item.created_at]) {
+      let milliseconds;
+      if (typeof value === 'number' || (typeof value === 'string' && /^\d{10,13}$/.test(value))) {
+        const numeric = Number(value);
+        milliseconds = numeric < 10_000_000_000 ? numeric * 1000 : numeric;
+      } else if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value)) {
+        const [year = 0, month = 0, day = 0] = value.slice(0, 10).split('-').map(Number);
+        if (
+          day < 1 ||
+          month < 1 ||
+          month > 12 ||
+          day > new Date(Date.UTC(year, month, 0)).getUTCDate()
+        )
+          continue;
+        milliseconds = Date.parse(value);
+      } else continue;
+      if (
+        Number.isFinite(milliseconds) &&
+        milliseconds > 0 &&
+        milliseconds <= Date.parse(observedAt)
+      )
+        return new Date(milliseconds).toISOString();
+    }
+    return null;
+  }
+
   function parseSnapshot(identity, profile, items, observedAt, publicationsComplete) {
     if (parseIdentity(profile).id !== identity.id)
       throw new Error('Das Vinted-Konto wurde gewechselt. Verbinde es erneut.');
@@ -252,6 +280,7 @@
         sortAt: observedAt,
         body: {
           title: text(item.title) ?? 'Inserat',
+          occurredAt: publicationTime(item, observedAt),
           text: typeof item.description === 'string' ? item.description : null,
           textState: typeof item.description === 'string' ? 'loaded' : 'not_loaded',
           price: decimal(item.price?.amount),

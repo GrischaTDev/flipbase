@@ -19,6 +19,20 @@ const snapshot = () => ({
 const entry = (body: object = {}) => ({ ...scope, id: 'entry-a', title: 'Schal', ...body });
 
 describe('Marktplatz-Antworten', () => {
+  it('trennt die explizite Veröffentlichungszeit von Änderungs- und Abrufzeiten', () => {
+    for (const updatedAt of ['2026-10-14T10:00:00Z', '2026-10-15T10:00:00Z']) {
+      const values = [
+        entry({ occurredAt: '2026-10-01T10:00:00Z', updatedAt }),
+        entry({ updatedAt }),
+      ];
+      const result = values.map(
+        (value) =>
+          parseMarketplacePage({ items: [value], total: 1, nextCursor: null }, scope).items[0],
+      );
+      expect(result.map((value) => value.publishedAt)).toEqual(['2026-10-01T10:00:00Z', null]);
+      expect(result[1].occurredAt).toBe(updatedAt);
+    }
+  });
   it.each([
     ['a'.repeat(32), 'a'.repeat(32)],
     ['invalid', null],

@@ -1,0 +1,94 @@
+@if (images().length) {
+  <div
+    class="grid aspect-[5/4] grid-cols-4 grid-rows-2 gap-1 overflow-hidden rounded-xl bg-fb-well"
+    role="group"
+    aria-label="Artikelfotos"
+  >
+    @for (photo of previewImages(); track $index; let index = $index) {
+      <button
+        type="button"
+        class="relative block min-h-0 min-w-0 overflow-hidden cursor-zoom-in focus-visible:z-10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-fb-primary"
+        [class.col-span-4]="images().length === 1"
+        [class.col-span-2]="
+          images().length > 1 &&
+          (index === 0 || images().length <= 3 || (images().length === 4 && index === 1))
+        "
+        [class.row-span-2]="index === 0 || images().length === 2"
+        [attr.aria-label]="'Foto ' + (index + 1) + ' von ' + images().length + ' öffnen'"
+        (click)="open(index)"
+      >
+        <app-product-thumbnail
+          class="block size-full"
+          [src]="photo"
+          [alt]="title() + ' – Foto ' + (index + 1)"
+          size="gallery"
+          [fit]="images().length === 1 ? 'contain' : 'cover'"
+          [flush]="true"
+          [priority]="index === 0"
+        />
+        @if (index === 4 && images().length > 5) {
+          <span
+            class="absolute inset-0 flex items-center justify-center bg-black/60 px-2 text-center text-sm font-semibold text-white"
+            >+{{ images().length - 5 }} Fotos</span
+          >
+        }
+      </button>
+    }
+  </div>
+  <p class="mt-2 text-xs text-fb-text-secondary">
+    {{ images().length }} {{ images().length === 1 ? 'Foto' : 'Fotos' }} · Zum Vergrößern öffnen
+  </p>
+} @else {
+  <div
+    class="flex aspect-[5/4] items-center justify-center rounded-xl bg-fb-well text-sm text-fb-text-secondary"
+  >
+    Keine Fotos vorhanden
+  </div>
+}
+@if (currentImage(); as image) {
+  <app-modal-shell
+    title="Artikelfotos"
+    [subtitle]="title()"
+    size="full"
+    [closeOnBackdrop]="true"
+    (closed)="close()"
+  >
+    <app-product-thumbnail
+      class="block h-[min(60dvh,640px)] w-full"
+      [src]="image"
+      [alt]="title() + ' – Foto ' + (selectedIndex()! + 1)"
+      size="viewer"
+      fit="contain"
+      [flush]="true"
+      [priority]="true"
+    />
+    <div modal-footer class="flex w-full min-w-0 items-center justify-between gap-2">
+      <app-button
+        [icon]="previousIcon"
+        [iconOnly]="true"
+        size="touch"
+        ariaLabel="Vorheriges Foto"
+        [disabled]="selectedIndex() === 0"
+        (clicked)="move(-1)"
+      />
+      <p
+        #position
+        tabindex="-1"
+        class="rounded text-sm text-fb-text-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        Foto {{ selectedIndex()! + 1 }} von {{ images().length }}
+      </p>
+      <app-button
+        [icon]="nextIcon"
+        [iconOnly]="true"
+        size="touch"
+        ariaLabel="Nächstes Foto"
+        [disabled]="selectedIndex() === images().length - 1"
+        (clicked)="move(1)"
+      />
+    </div>
+  </app-modal-shell>
+}

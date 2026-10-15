@@ -10,7 +10,7 @@ import {
 } from './support/marketplace-account-fixture';
 import { listingCurrentContentFixture } from '../services/marketplace-worker/test/fixtures/vinted-listing-current-content';
 
-test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: 'block' });
+test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: 'block', hasTouch: true });
 
 const entryId = 'publication-1';
 const images = [
@@ -24,17 +24,23 @@ interface ListingFixture {
   title: string;
   text: string | null;
   textState: 'loaded' | 'not_loaded';
+  occurredAt?: string | null;
+  imageUrls?: readonly string[];
 }
 
 async function prepareListing(page: Page, listing: ListingFixture) {
+  // Diese Fälle prüfen die Oberfläche ohne Service Worker; PWA-Lebenszyklen haben eigene Tests.
+  await page.addInitScript(() =>
+    Reflect.deleteProperty(Object.getPrototypeOf(navigator), 'serviceWorker'),
+  );
   await mockMarketplace(page, true, false, false, false, []);
   const entry = {
     id: entryId,
     ...listing,
     price: 29.9,
     currency: 'EUR',
-    imageUrl: images[0],
-    imageUrls: images,
+    imageUrl: listing.imageUrls ? (listing.imageUrls[0] ?? null) : images[0],
+    imageUrls: listing.imageUrls ?? images,
   };
   const runtimeErrors: string[] = [];
   page.on('pageerror', (error) => runtimeErrors.push(error.message));
@@ -124,6 +130,153 @@ async function checkPage(page: Page, runtimeErrors: string[]) {
   expect(runtimeErrors).toEqual([]);
 }
 
+test('Großansicht behält den Tastaturfokus an beiden Galeriegrenzen @marketplace-preview @core-smoke', async ({
+  page,
+}) => {
+  await prepareListing(page, { title: 'Galeriegrenzen', text: 'Test', textState: 'loaded' });
+  await page.goto(detailPath);
+  await page.getByRole('button', { name: 'Foto 1 von 3 öffnen' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Artikelfotos' });
+  await dialog.getByRole('button', { name: 'Nächstes Foto' }).click();
+  await dialog.getByRole('button', { name: 'Nächstes Foto' }).click();
+  await expect(dialog.getByRole('button', { name: 'Nächstes Foto' })).toBeDisabled();
+  expect(await dialog.evaluate((element) => element.contains(document.activeElement))).toBe(true);
+  await page.keyboard.press('ArrowLeft');
+  await expect(dialog.getByRole('img')).toHaveAttribute('src', images[1]);
+  await page.keyboard.press('ArrowLeft');
+  await expect(dialog.getByRole('button', { name: 'Vorheriges Foto' })).toBeDisabled();
+  await page.keyboard.press('ArrowRight');
+  await expect(dialog.getByRole('img')).toHaveAttribute('src', images[1]);
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('button', { name: 'Foto 1 von 3 öffnen' })).toBeFocused();
+});
+
+for (const width of [320, 390, 834, 1440]) {
+  for (const theme of ['light', 'dark']) {
+    test(`Vinted-Mosaik und Zeit-Badges bei ${width}px ${theme} @marketplace-preview @core-smoke`, async ({
+      page,
+    }) => {
+      test.setTimeout(90_000);
+      await page.setViewportSize({ width, height: 1000 });
+      if (width < 1024) await page.emulateMedia({ reducedMotion: 'reduce' });
+      await page.clock.install({ time: new Date('2026-10-15T12:00:00Z') });
+      const photos = Array.from(
+        { length: 20 },
+        (_, index) => `https://images.example.test/photo-${index}.svg`,
+      );
+      const title = 'Jacke mit zwanzig Fotos';
+      const listing = {
+        title,
+        text: 'Vollständige Beschreibung der Jacke.',
+        textState: 'loaded' as const,
+        imageUrls: photos,
+        occurredAt: '2026-10-12T00:00:00Z',
+      };
+      const errors = await prepareListing(page, listing);
+      await page.addInitScript((value) => localStorage.setItem('flipbase_theme', value), theme);
+      const entries = [84, 36, 120, 168, null].map((hours, index) => ({
+        workspaceId,
+        connectionId: accountIds[0],
+        id: index === 0 ? entryId : `publication-${index + 1}`,
+        title: index === 0 ? title : `Altersfall ${index}`,
+        text: index === 0 ? listing.text : 'Beschreibung',
+        textState: 'loaded',
+        imageUrl: photos[0],
+        imageUrls: photos,
+        price: 29.9,
+        currency: 'EUR',
+        occurredAt:
+          hours === null
+            ? null
+            : new Date(Date.parse('2026-10-15T12:00:00Z') - hours * 3_600_000).toISOString(),
+      }));
+      await page.route('**/rest/v1/rpc/marketplace_read_snapshot', (route) =>
+        route.fulfill({
+          json: {
+            workspaceId,
+            connectionId: accountIds[0],
+            profile: null,
+            publications: { items: entries, total: entries.length, nextCursor: null },
+            conversations: emptyPage(),
+            sales: emptyPage(),
+            activity: emptyPage(),
+          },
+        }),
+      );
+      await page.goto('/marketplaces/vinted/listings');
+      await expect(page.locator('app-vinted-listing-age')).toHaveCount(5);
+      await expect(
+        page.locator('app-vinted-listings').getByText('Wochenziel überschritten', { exact: true }),
+      ).toBeVisible();
+      for (const text of ['3 T 12 Std.', '1 T 12 Std.', '5 T', '7 T', 'Alter unbekannt'])
+        await expect(page.getByText(text, { exact: true })).toBeVisible();
+      await page.evaluate(axe.source);
+      expect(
+        (
+          await page.evaluate(() =>
+            (window as unknown as { axe: typeof axe }).axe.run('app-vinted-listings'),
+          )
+        ).violations,
+      ).toEqual([]);
+      await page.getByRole('link', { name: `Inserat ${title} öffnen`, exact: true }).click();
+      const gallery = page.locator('app-product-gallery');
+      await expect(gallery.getByRole('button')).toHaveCount(5);
+      await expect(gallery.getByText('+15 Fotos')).toBeVisible();
+      await expect(page.getByText('3 Tage und 12 Stunden online', { exact: true })).toBeVisible();
+      if (width === 1440) {
+        const galleryBounds = await gallery.boundingBox();
+        const information = await page
+          .locator('app-vinted-listing-detail > div')
+          .last()
+          .locator('app-card')
+          .boundingBox();
+        expect(galleryBounds!.width).toBeGreaterThan(information!.width * 1.8);
+      }
+      await page.locator('app-vinted-listing-detail summary').click();
+      await expect(page.getByText(listing.text, { exact: true })).toBeVisible();
+      const opener = gallery.getByRole('button', { name: 'Foto 5 von 20 öffnen' });
+      if (width < 1024) await opener.tap();
+      else await opener.click();
+      const dialog = page.getByRole('dialog', { name: 'Artikelfotos' });
+      await expect(dialog.getByRole('img')).toHaveAttribute('src', photos[4]);
+      if (width < 1024) await dialog.getByRole('button', { name: 'Nächstes Foto' }).tap();
+      else await dialog.getByRole('button', { name: 'Nächstes Foto' }).click();
+      await expect(dialog.getByRole('img')).toHaveAttribute('src', photos[5]);
+      for (let index = 6; index < 20; index++) await page.keyboard.press('ArrowRight');
+      await expect(dialog.getByRole('img')).toHaveAttribute('src', photos[19]);
+      await expect(dialog.getByRole('button', { name: 'Nächstes Foto' })).toBeDisabled();
+      expect(
+        (
+          await page.evaluate(() =>
+            (window as unknown as { axe: typeof axe }).axe.run('[role="dialog"]'),
+          )
+        ).violations,
+      ).toEqual([]);
+      await page.keyboard.press('Escape');
+      await expect(opener).toBeFocused();
+      await checkPage(page, errors);
+      await screenshot(page, `vinted-mosaic-${width}-${theme}`);
+      if (width === 1440 && theme === 'light') {
+        // Keine Fotoanzahl darf leere Rasterzellen oder verlorene Originale erzeugen.
+        for (const count of [0, 1, 2, 3, 4, 5]) {
+          await prepareListing(page, { ...listing, imageUrls: photos.slice(0, count) });
+          await page.reload();
+          await expect(gallery.getByRole('button')).toHaveCount(count);
+          if (count === 0) await expect(gallery).toContainText('Keine Fotos vorhanden');
+          else {
+            await gallery
+              .getByRole('button', { name: `Foto ${count} von ${count} öffnen` })
+              .click();
+            await expect(dialog.getByRole('img')).toHaveAttribute('src', photos[count - 1]);
+            await page.keyboard.press('Escape');
+          }
+          await checkPage(page, errors);
+        }
+      }
+    });
+  }
+}
+
 for (const width of [1440, 390]) {
   test(`Inseratgalerie erhält Hoch-/Querformat, Bildfehlerrahmen und langen Titel bei ${width}px @marketplace-preview @core-smoke`, async ({
     page,
@@ -139,14 +292,17 @@ for (const width of [1440, 390]) {
     await expect(page).toHaveURL(detailPath);
     const detail = page.locator('app-vinted-listing-detail');
     await expect(detail.getByRole('heading', { name: title, exact: true })).toBeVisible();
-    const photo = detail.locator('app-product-thumbnail').first();
-    const frame = photo.locator(':scope > span');
-    const image = photo.locator('img');
     for (const [number, expectedWidth, expectedHeight] of [
       [1, 300, 1200],
       [2, 1200, 300],
     ]) {
-      await detail.getByRole('button', { name: `Foto ${number} anzeigen`, exact: true }).click();
+      const opener = detail.getByRole('button', {
+        name: `Foto ${number} von 3 öffnen`,
+        exact: true,
+      });
+      await opener.click();
+      const dialog = page.getByRole('dialog', { name: 'Artikelfotos' });
+      const image = dialog.getByRole('img');
       await expect(image).toHaveAttribute('src', images[number - 1]);
       await expect
         .poll(() => image.evaluate((node) => (node as HTMLImageElement).naturalWidth))
@@ -154,33 +310,21 @@ for (const width of [1440, 390]) {
       expect(await image.evaluate((node) => (node as HTMLImageElement).naturalHeight)).toBe(
         expectedHeight,
       );
-      const bounds = await frame.boundingBox();
-      const imageBounds = await image.boundingBox();
-      expect(bounds).not.toBeNull();
-      expect(imageBounds).not.toBeNull();
-      expect(bounds!.width).toBeLessThanOrEqual(360);
-      // Zwei Pixel gehören zur Rahmenlinie.
-      expect(bounds!.height).toBeLessThanOrEqual((width < 640 ? 320 : 560) + 2);
-      // Kein Rand: der Rahmen ist bis auf seine Linie genau so groß wie das Foto.
-      expect(Math.abs(bounds!.width - imageBounds!.width)).toBeLessThanOrEqual(2);
-      expect(Math.abs(bounds!.height - imageBounds!.height)).toBeLessThanOrEqual(2);
-      // Kein Beschnitt: das Foto behält sein eigenes Seitenverhältnis.
-      expect(imageBounds!.width / imageBounds!.height).toBeCloseTo(
-        expectedWidth / expectedHeight,
-        1,
-      );
+      // Die Großansicht zeigt das gesamte Original innerhalb der verfügbaren Fläche.
+      expect(await image.evaluate((node) => getComputedStyle(node).objectFit)).toBe('contain');
       await checkPage(page, errors);
       await screenshot(page, `vinted-listing-${width}-${number === 1 ? 'portrait' : 'landscape'}`);
+      await page.keyboard.press('Escape');
+      await expect(opener).toBeFocused();
     }
-    await detail.getByRole('button', { name: 'Foto 3 anzeigen', exact: true }).click();
-    await expect(photo.locator('[data-product-placeholder]')).toHaveAttribute('aria-label', title);
-    await expect(image).toHaveCount(0);
-    // Ohne Foto bleibt ein fester Hochformat-Platzhalter stehen.
-    const failedBounds = await frame.boundingBox();
-    expect(failedBounds!.width).toBeLessThanOrEqual(360);
-    expect(failedBounds!.width / failedBounds!.height).toBeCloseTo(3 / 4, 1);
+    await detail.getByRole('button', { name: 'Foto 3 von 3 öffnen', exact: true }).click();
+    const failedPhoto = page.getByRole('dialog').locator('[data-product-placeholder]');
+    await expect(failedPhoto).toHaveAttribute('aria-label', title + ' – Foto 3');
+    const failedBounds = await failedPhoto.boundingBox();
+    expect(failedBounds!.height).toBeGreaterThan(0);
     await checkPage(page, errors);
     await screenshot(page, `vinted-listing-${width}-image-fallback`);
+    await page.keyboard.press('Escape');
     await detail.getByRole('link', { name: 'Zurück zu Inseraten', exact: true }).click();
     await expect(page).toHaveURL('/marketplaces/vinted/listings');
     await expect(
@@ -305,7 +449,7 @@ for (const width of [1440, 390]) {
     const photoDetails = page.getByRole('dialog');
     await expect(photoDetails.getByRole('button', { name: 'Zuschneiden' })).toHaveCount(0);
     await expect(photoDetails.getByRole('textbox', { name: 'Bildname' })).toHaveCount(0);
-    await page.addScriptTag({ content: axe.source });
+    await page.evaluate(axe.source);
     // Während des Einblendens misst die Prüfung Zwischenfarben; gewertet wird das fertige Fenster.
     await expect
       .poll(() =>
@@ -324,13 +468,22 @@ for (const width of [1440, 390]) {
     await expect(page.getByRole('dialog')).toHaveCount(0);
     await detail.getByRole('textbox', { name: 'Titel' }).fill('Neue Schuhe');
     await detail.getByLabel('Verkaufspreis').fill('18');
-    await page.addScriptTag({ content: axe.source });
+    // Nach dem Schließen des Bilddialogs startet die vorhandene Formular-Einblendung neu.
+    // Kontraste am vollständig eingeblendeten Formular messen, ohne die Animation abzuschalten.
+    await expect(detail.locator('app-entry-page-layout > div')).toHaveCSS('opacity', '1');
+    await page.evaluate(axe.source);
     const violations = await page.evaluate(async () =>
       (
         await (window as Window & { axe: typeof axe }).axe.run(
           document.querySelector('app-vinted-listing-detail')!,
         )
-      ).violations.map((violation) => violation.id),
+      ).violations.map((violation) => ({
+        id: violation.id,
+        nodes: violation.nodes.map((node) => ({
+          target: node.target,
+          summary: node.failureSummary,
+        })),
+      })),
     );
     expect(violations).toEqual([]);
     await screenshot(page, `vinted-listing-edit-${width}`);
