@@ -9,6 +9,32 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 
 // Nur die tatsächliche Testauswahl prüfen, nicht Playwrights Parser nachtesten.
 const coreTests = [
+  ...[320, 390, 768, 834, 1024, 1194, 1440].map((width) => [
+    'responsive-admin-layout.spec.ts',
+    `Vinted-Konten nutzen die verfügbare Breite bei ${width}px @core-smoke`,
+  ]),
+  ...['light', 'dark'].flatMap((theme) =>
+    [320, 390, 834, 1194].map((width) => [
+      'responsive-admin-layout.spec.ts',
+      `Touch-Dashboard > Zeitraum und Plattform bleiben gleich hoch bei ${width}px im ${theme}-Theme @core-smoke`,
+    ]),
+  ),
+  ...[320, 390, 834, 1024, 1194, 1440].map((width) => [
+    'responsive-admin-layout.spec.ts',
+    `Verwaltungsseiten bleiben bei ${width}px innerhalb des Inhalts @core-smoke`,
+  ]),
+  ...[320, 390, 834, 1194].map((width) => [
+    'responsive-admin-layout.spec.ts',
+    `Lokale Konten mit Touch > Kartenaktionen bleiben bei ${width}px innerhalb der Karte @core-smoke`,
+  ]),
+  [
+    'responsive-admin-layout.spec.ts',
+    'Auswertungen behalten lesbare Zeiträume und erreichbare Bereiche bei 320px @core-smoke',
+  ],
+  [
+    'responsive-admin-layout.spec.ts',
+    'große Bestandswerte bleiben im Dashboard vollständig lesbar @core-smoke',
+  ],
   [
     'settings-layout.spec.ts',
     'settings use clear sections and accessible controls across desktop and tablet @pwa-layout',

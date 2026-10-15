@@ -42,6 +42,16 @@ Zweigs freigegeben. Der Zweig basiert auf dem aktuellen `origin/master`
 (`887d9d8e`). Die Veröffentlichung erfolgt über die reguläre CI; danach wird
 die öffentlich ausgelieferte Version lesend geprüft.
 
+**CI-Nachprüfung:** Im ersten PR-Lauf besteht die Format-, Lint-, Typ- und
+Funktionsprüfung. Die Workflow-Suite erkennt jedoch die 27 neuen Browserfälle,
+die noch nicht in ihrer verbindlichen Soll-Liste registriert sind. Die
+Registrierung wird ergänzt; der gezielte Auswahltest prüft weiterhin den
+vollständigen Umfang ohne Wiederholungen und ohne `test.only`. Alle Node-,
+DOM- und Angularprüfungen des ersten Laufs bestehen. Nach erfolgreicher lokaler
+Workflow-Suite (294 bestanden, sechs unter Windows bewusst übersprungen)
+startet der korrigierte Push die vollständige CI einschließlich der Browserfälle
+erneut; der alte, bereits fehlgeschlagene Lauf wird dabei regulär abgelöst.
+
 ## 2026-10-15 - Juna - Update der installierten Android-App untersuchen
 
 **Auftrag:** Das iPad ist laut Nutzer erfolgreich aktualisiert und für Push
