@@ -1,5 +1,22 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-15 - Juna - Betroffene Prüfungen vor dem PR verbindlich festhalten
+
+**Auftrag:** Unnötige PR-Prüfschleifen durch eine bessere lokale Vorbereitung
+vermeiden und das Vorgehen in der AGENTS.md festhalten.
+
+**Umsetzung:** Vor dem ersten Push den Prüfumfang aus Änderungen und tatsächlicher
+CI-Auswahl ableiten, bestehende betroffene Abläufe und Testregistrierungen
+einbeziehen und relevante Linux-Unterschiede gezielt lokal prüfen. Für UI-Tests
+eine ruhende Vorschau verwenden; isolierte Projektkopien einschließlich
+versteckter Baukonfigurationen vollständig vorbereiten. CI-Fehler erst gezielt
+nachstellen und beheben; unveränderte Wiederholungen auf begründete
+Infrastrukturprobleme begrenzen. Die vollständige verbindliche CI bleibt
+erhalten, ohne bei jedem Push die gesamte lokale Suite doppelt auszuführen.
+
+**Prüfung:** Markdown-Formatierung und Unterschiedskontrolle. Ausschließlich
+Projektregeln und Änderungsprotokoll angepasst.
+
 ## 2026-10-15 - Juna - Mobile und Tablet-Layouts durchgehen
 
 **Auftrag:** Ungenutzte Breite, zu frühe Kachelumbrüche und uneinheitliche
