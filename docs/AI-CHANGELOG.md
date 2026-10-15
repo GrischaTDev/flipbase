@@ -12,10 +12,23 @@ Die CLI ließ anfangs geerbte Standardrechte bestehen; ein zusätzlich erzeugter
 Rechte-Diff ist Teil der neu generierten Migration. Bestehende Tests wurden
 unverändert auf diese Grenze angewendet.
 
-Gemeinsame Leseansicht, Accountabschnitte, Such-/Statusfilter für die vollständige
-Vinted-Lesekopie, eBay-Seitennavigation und kontextgetrennte Auswahl sind in Arbeit.
-Details und Nachweise im Ausführungsprotokoll des eigenen Worktrees.
-Noch keine Browserabnahme, kein Push und keine echten Inserataktionen.
+Gemeinsame Übersicht unter /marketplaces/overview mit Accountfiltern, aufklappbaren
+Inseratlisten, vollständiger Vinted-Suche und Statusfilter auf der gespeicherten
+Lesekopie, eBay-Seitennavigation und getrennter Auswahl geliefert. Vorhandene
+Detail-/Bearbeiten-/Entwurfswege wiederverwendet; Kleinanzeigen-Abgleich und Transfer
+bleiben klar als Folgeschritte getrennt. Keine echten Inserate verändert.
+
+**Prüfung:** Anwendungssuiten 5.284/5.284, neue SQL-Zugriffsfälle 14/14 nach
+Migrations-Neuaufbau, neue Browserfälle 13/13 (320/390/834/1440, Hell/Dunkel,
+Touch/Tastatur/AXE, Auswahl, Workspacewechsel, Freigabe und Kontextnavigation).
+Bestehende Browserfälle: Account-/Einstellungsansichten 29 bestanden plus vier
+gezielt reparierte Testfälle bestanden; lokale Backend-Navigation/Listing-Studio
+6/6. Bei den vier Fällen Dialoganimation abgewartet und mehrdeutigen Statusbezug
+auf die betreffende Accountkarte eingegrenzt; keine Prüfgrenzen abgeschwächt.
+Testregistrierung, Schema-Registrierung, Suite-Audit, Shared-UI-Prüfung, gezielte
+Formatierung/ESLint, Typprüfung und Produktionsbau bestanden.
+Abschließendes unabhängiges Codereview folgt. Noch kein Push oder PR; Linux-/CI-
+Gesamtprüfung und echte Anbieterabnahme stehen außerhalb dieser lokalen Abnahme.
 
 ## 2026-10-15 - Juna - Privatkontingent für Kleidungsanzeigen recherchieren
 

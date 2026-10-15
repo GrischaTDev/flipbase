@@ -9,6 +9,24 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 
 // Nur die tatsächliche Testauswahl prüfen, nicht Playwrights Parser nachtesten.
 const coreTests = [
+  ...[
+    'Kontextnavigation führt aus Vinted und eBay zur Übersicht zurück @core-smoke',
+    'Fehlende Vinted-Freigabe bietet keinen Erstellungseinstieg an @core-smoke',
+  ].map((title) => ['marketplace-overview.spec.ts', title]),
+  [
+    'marketplace-overview.spec.ts',
+    'Sichtbarkeit und Auswahl bleiben beim Workspacewechsel getrennt @core-smoke',
+  ],
+  ...['light', 'dark'].flatMap((theme) =>
+    [320, 390, 834, 1440].map((width) => [
+      'marketplace-overview.spec.ts',
+      'Marktplatzübersicht bleibt bei ' + width + 'px im ' + theme + '-Theme bedienbar @core-smoke',
+    ]),
+  ),
+  ...[
+    'Sichtbarkeit bleibt nach Neuladen erhalten und Accountauswahl trennt Listen @core-smoke',
+    'Ein Vinted-Ausfall erhält die eBay-Inserate und bietet keine fremden Filter an @core-smoke',
+  ].map((title) => ['marketplace-overview.spec.ts', title]),
   ...['light', 'dark'].flatMap((theme) =>
     [320, 390, 834, 1440].map((width) => [
       'purchase-profitability.spec.ts',

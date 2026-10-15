@@ -6,6 +6,8 @@ export default defineConfig({
   testMatch: [
     'responsive-admin-layout.spec.ts',
     'marketplace-accounts.spec.ts',
+    'marketplace-overview.spec.ts',
+    'settings-layout.spec.ts',
     'vinted-workspace-ui.spec.ts',
     'vinted-account-grid.spec.ts',
     'vinted-inbox-experience.spec.ts',

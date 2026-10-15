@@ -91,6 +91,10 @@ export async function mockMarketplace(
     lastSyncedAt: null,
   }));
   const calls: { name: string; body: Record<string, unknown> }[] = [];
+  const marketplaceVisibility = new Map<
+    string,
+    { vinted: boolean; ebay: boolean; kleinanzeigen: boolean }
+  >();
   const syncOperationId = '25000000-0000-4000-8000-000000000091';
   await page.route('**/marketplace-browser/connections/sync/start', (route) => {
     const body = route.request().postDataJSON() as Record<string, unknown>;
@@ -380,6 +384,23 @@ export async function mockMarketplace(
         },
       ];
     if (name.startsWith('marketplace_')) calls.push({ name, body });
+    if (name === 'marketplace_user_settings') {
+      const setting = marketplaceVisibility.get(
+        new URL(route.request().url()).searchParams.get('workspace_id')?.replace('eq.', '') ?? '',
+      );
+      json = setting ? setting : null;
+    }
+    if (name === 'marketplace_save_settings') {
+      const key = String(body['p_workspace_id']);
+      const setting = {
+        vinted: body['p_vinted'] === true,
+        ebay: body['p_ebay'] === true,
+        kleinanzeigen: body['p_kleinanzeigen'] === true,
+      };
+      if (!body['p_only_if_absent'] || !marketplaceVisibility.has(key))
+        marketplaceVisibility.set(key, setting);
+      json = marketplaceVisibility.get(key);
+    }
     if (name === 'marketplace_can_manage') json = true;
     if (name === 'marketplace_read_listing_metric_changes')
       json = {
