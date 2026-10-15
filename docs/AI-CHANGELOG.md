@@ -78,6 +78,30 @@ Nutzen einordnen: Kernabläufe, betroffene Funktionen, regelmäßige Gesamtmatri
 Testpyramide als offizielle Autorenquelle gelesen. Keine Tests entfernt oder
 Prüfregeln geändert.
 
+## 2026-10-15 - Juna - Neue Startseite mit Dashboard-Nachbau live schalten
+
+**Auftrag:** Die gestaltete Vorschau soll die echte Startseite unter `/` werden,
+weiterhin mit Umschalter Deutsch/Englisch. Eigener Worktree und Zweig
+`juna/landing-go-live`.
+
+**Vorgehen:** Die bestehende Startseite bleibt das technische Grundgerüst:
+Design- und Sprachumschalter ohne JavaScript, Analytics-Einwilligung, Beta-Formular,
+Ergebnisdialoge, Suchmaschinenangaben und die bereits abgesicherten Formulierungen zu
+Datenschutz, Steuern und Paketen. Darauf sitzt die neue Gestaltung: Hero „Die
+Warenwirtschaft für dein Reselling.“ mit dem Dashboard-Nachbau, Überblicksleiste,
+animierte Gewinnrechnung, klickbarer Ablauf und Beispielbilder an allen acht
+Funktionskarten. Alle neuen Texte sind zweisprachig, Beispielbilder tragen deutsche
+und englische Namen. Großbuchstaben-Etiketten entfallen. `/preview/` und der
+eigene Vorschau-Test sind entfernt; dessen Prüfungen laufen jetzt gegen die Startseite.
+
+**Prüfung:** 45 Landingpage-Tests bestanden, davon sechs neue (Dashboard-Aufbau,
+stimmige Beispielzahlen, zweisprachige Bildnamen, Animationen, Ablauf, Zuschnitt);
+der Farbschema-Test bekommt getrennte Medienabfragen. Landing-Template-Spec,
+Auslieferungstests, Test-Suite-Audit, Prettier, ESLint und Git-Differenz ohne Fehler.
+axe in Chromium bei 1440, 1100, 768, 390 und 320 Pixeln, hell und dunkel, Deutsch und
+Englisch ohne Verstöße, ohne horizontalen Überlauf und ohne Konsolenfehler.
+Sichtprüfung bei 1440 und 375 Pixeln. Auslieferung erst nach Merge.
+
 ## 2026-10-15 - Juna - Große Artikelfotos und Inseratsalter anzeigen
 
 **Auftrag:** Die freigegebene Vinted-artige Artikelansicht und Zeit-Badges in
