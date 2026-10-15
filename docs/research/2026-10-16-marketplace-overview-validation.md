@@ -109,3 +109,12 @@ keine aktive Kontingent- oder Gebührenausführung.
 Nach dem Korrekturdurchgang die vollständige Anwendungssuite (5.287), Bau,
 Typprüfung, Formatierung und Lint erneut erfolgreich ausgeführt. Abschließende
 Browserprüfung: 23 bestanden (21 neue Fälle und zwei bestehende Einstellungsfälle).
+
+## Abgleich mit dem Hauptzweig
+
+Zum Abschluss origin/master bei ba0dcfea (PR 424) in den eigenen Zweig integriert.
+Der Überschneidungskonflikt betraf ausschließlich das Änderungsprotokoll; beide
+Einträge wurden erhalten. Die hinzugekommenen Änderungen betreffen die öffentliche
+Startseite. Dateiinhalt von Anwendung, Supabase und Browserfällen gegenüber dem
+bereits geprüften eigenen Stand unverändert nachgewiesen; zusätzliche 45
+Landing-Tests bestanden. Kein Push, PR, Merge auf master oder Deployment ausgeführt.
