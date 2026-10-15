@@ -31,7 +31,7 @@ export default defineConfig({
     {
       name: 'android-pwa-updates',
       use: { ...devices['Pixel 7'], serviceWorkers: 'allow' },
-      grep: /a real second build|legacy network-worker/,
+      grep: /a real second build|legacy network-worker|frozen background/,
     },
     {
       name: 'webkit-ui',

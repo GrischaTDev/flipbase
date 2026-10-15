@@ -265,6 +265,43 @@ async function finishUpdate(result) {
     });
   attempt.resolve();
 }
+
+async function preserveSleepingViews(attempt) {
+  if (updateAttempt !== attempt) return;
+  // Das angeklickte Fenster muss selbst zustimmen. Nur andere, bereits sicher
+  // zugeordnete Ansichten dürfen ohne Antwort auf ihrem alten Bau bleiben.
+  if (attempt.phase !== 'prepare' || !attempt.acks.has(attempt.requester))
+    return finishUpdate('blocked');
+  try {
+    const bindings = await caches.open(CLIENT_CACHE);
+    const verifiedBuilds = new Set();
+    for (const client of attempt.clients) {
+      if (attempt.acks.has(client.id)) continue;
+      const binding = await bindings.match(`/__pwa_clients/${encodeURIComponent(client.id)}`);
+      const build = binding ? await binding.text() : '';
+      if (!/^[a-f0-9]{64}$/.test(build)) throw new Error('Ansicht ist nicht zugeordnet.');
+      if (!verifiedBuilds.has(build)) {
+        const manifest = await inventoryForBuild(build);
+        const cache = await caches.open(`${CACHE_PREFIX}${build}`);
+        for (const asset of manifest.assets) {
+          const response = await cache.match(asset.url);
+          if (!response || (await digest(response)) !== asset.sha256)
+            throw new Error('Der bisherige Bau ist nicht vollständig gesichert.');
+        }
+        verifiedBuilds.add(build);
+      }
+      if (updateAttempt !== attempt || attempt.phase !== 'prepare') return;
+      if (!attempt.acks.has(client.id)) {
+        attempt.preserved.set(client.id, build);
+        attempt.acks.set(client.id, build);
+      }
+    }
+    await advanceUpdate(attempt);
+  } catch {
+    if (updateAttempt === attempt) await finishUpdate('blocked');
+  }
+}
+
 async function beginUpdate(event) {
   if (
     updateAttempt ||
@@ -281,12 +318,14 @@ async function beginUpdate(event) {
       requester: event.source.id,
       clients,
       acks: new Map(),
+      preserved: new Map(),
+      advancing: false,
       phase: 'prepare',
       resolve,
     };
     updateAttempt = attempt;
     attempt.timer = setTimeout(() => {
-      if (updateAttempt === attempt) void finishUpdate('blocked');
+      if (updateAttempt === attempt) void preserveSleepingViews(attempt);
     }, 2000);
     for (const client of clients)
       client.postMessage({ type: 'PWA_PREPARE_UPDATE', buildId: BUILD_ID, attemptId: attempt.id });
@@ -305,41 +344,77 @@ async function updateReply(event) {
     return finishUpdate('blocked');
   const expectedType = attempt.phase === 'prepare' ? 'PWA_UPDATE_ACK' : 'PWA_UPDATE_COMMIT_ACK';
   if (event.data.type !== expectedType) return;
+  attempt.preserved.delete(event.source.id);
   attempt.acks.set(event.source.id, event.data.clientBuildId);
-  if (attempt.acks.size !== attempt.clients.length) return;
-  const currentClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-  if (updateAttempt !== attempt) return;
+  await advanceUpdate(attempt);
+}
+
+async function advanceUpdate(attempt) {
   if (
-    currentClients.length !== attempt.clients.length ||
-    currentClients.some((client) => !attempt.clients.some((expected) => expected.id === client.id))
+    updateAttempt !== attempt ||
+    attempt.advancing ||
+    attempt.acks.size !== attempt.clients.length
   )
-    return finishUpdate('blocked');
-  if (attempt.phase === 'prepare') {
-    attempt.phase = 'commit';
-    attempt.acks.clear();
-    for (const client of currentClients)
-      client.postMessage({ type: 'PWA_COMMIT_UPDATE', buildId: BUILD_ID, attemptId: attempt.id });
     return;
+  attempt.advancing = true;
+  try {
+    const currentClients = await self.clients.matchAll({
+      type: 'window',
+      includeUncontrolled: true,
+    });
+    if (updateAttempt !== attempt) return;
+    if (
+      currentClients.length !== attempt.clients.length ||
+      currentClients.some(
+        (client) => !attempt.clients.some((expected) => expected.id === client.id),
+      )
+    )
+      return finishUpdate('blocked');
+    if (attempt.phase === 'prepare') {
+      clearTimeout(attempt.timer);
+      attempt.phase = 'commit';
+      attempt.acks = new Map(attempt.preserved);
+      attempt.timer = setTimeout(() => {
+        if (updateAttempt === attempt) void finishUpdate('blocked');
+      }, 2000);
+      for (const client of currentClients)
+        client.postMessage({ type: 'PWA_COMMIT_UPDATE', buildId: BUILD_ID, attemptId: attempt.id });
+      return;
+    }
+    const clientCache = await caches.open(CLIENT_CACHE);
+    for (const client of currentClients) {
+      const clientBuild = attempt.acks.get(client.id);
+      if (!/^[a-f0-9]{64}$/.test(clientBuild)) return finishUpdate('blocked');
+      if (attempt.preserved.has(client.id)) {
+        const binding = await clientCache.match(`/__pwa_clients/${encodeURIComponent(client.id)}`);
+        if (!binding || (await binding.text()) !== clientBuild) return finishUpdate('blocked');
+      }
+      await clientCache.put(
+        `/__pwa_clients/${encodeURIComponent(client.id)}`,
+        new Response(clientBuild),
+      );
+    }
+    if (updateAttempt !== attempt) return;
+    const finalClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    if (updateAttempt !== attempt) return;
+    if (
+      finalClients.length !== attempt.clients.length ||
+      finalClients.some((client) => !attempt.clients.some((expected) => expected.id === client.id))
+    )
+      return finishUpdate('blocked');
+    await self.skipWaiting();
+    await finishUpdate('applied');
+  } catch {
+    if (updateAttempt === attempt) await finishUpdate('blocked');
+  } finally {
+    attempt.advancing = false;
+    if (
+      updateAttempt === attempt &&
+      attempt.phase === 'commit' &&
+      attempt.acks.size === attempt.clients.length
+    )
+      void advanceUpdate(attempt);
   }
-  const clientCache = await caches.open(CLIENT_CACHE);
-  for (const client of currentClients) {
-    const clientBuild = attempt.acks.get(client.id);
-    if (!/^[a-f0-9]{64}$/.test(clientBuild)) return finishUpdate('blocked');
-    await clientCache.put(
-      `/__pwa_clients/${encodeURIComponent(client.id)}`,
-      new Response(clientBuild),
-    );
-  }
-  if (updateAttempt !== attempt) return;
-  const finalClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-  if (updateAttempt !== attempt) return;
-  if (
-    finalClients.length !== attempt.clients.length ||
-    finalClients.some((client) => !attempt.clients.some((expected) => expected.id === client.id))
-  )
-    return finishUpdate('blocked');
-  await self.skipWaiting();
-  await finishUpdate('applied');
 }
 
 self.addEventListener('message', (event) => {
