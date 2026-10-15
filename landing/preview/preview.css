@@ -267,32 +267,19 @@ dd {
   display: inline-flex;
   align-items: center;
   gap: 9px;
-  padding: 6px 14px;
-  border: 1px solid var(--brand);
-  border-radius: 999px;
+  padding: 4px 10px;
+  border: 1px solid #e5b201;
+  border-radius: 8px;
   background: var(--brand);
   color: #1a1a1a;
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  font-size: 0.8rem;
+  font-weight: 650;
 }
 .hero-badge .status-dot {
   background: #1a1a1a;
   box-shadow: 0 0 0 3px #1a1a1a29;
 }
-.eyebrow {
-  display: inline-block;
-  padding: 4px 9px;
-  border-left: 3px solid var(--brand);
-  border-radius: 4px;
-  background: #fcc60138;
-  color: var(--ink);
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-}
+
 h1 {
   text-wrap: balance;
   font-size: clamp(1.85rem, 1.2rem + 2.2vw, 3.1rem);
@@ -353,326 +340,11 @@ h1 > span {
   margin-inline: 4px;
   color: var(--muted);
 }
-.workspace-figure {
-  margin-top: 61px;
-  text-align: left;
-}
-.workspace-shell {
-  position: relative;
-  display: grid;
-  grid-template-columns: 205px minmax(0, 1fr);
-  gap: 8px;
-  padding: 8px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  box-shadow: 0 12px 32px -20px #11182730;
-}
-.workspace-sidebar {
-  display: flex;
-  flex-direction: column;
-  padding: 8px 5px;
-  font-size: 11px;
-  text-align: left;
-}
-.workspace-brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 3px 0 22px;
-  font-size: 11px;
-  font-weight: 550;
-}
-.workspace-brand small,
-.sidebar-account small {
-  display: block;
-  font-size: 9px;
-  font-weight: 400;
-  color: var(--muted);
-  margin-top: 2px;
-}
-.workspace-brand img {
-  border-radius: 7px;
-}
-.mock-search {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 7px 8px;
-  color: var(--muted);
-}
-.mock-search .icon {
-  width: 13px;
-  height: 13px;
-}
-.mock-search > span {
-  margin-left: auto;
-  font-size: 9px;
-}
-.sidebar-label {
-  font-size: 9px;
-  color: var(--muted);
-  margin: 19px 8px 6px;
-}
-.sidebar-item {
-  display: flex;
-  gap: 9px;
-  align-items: center;
-  padding: 7px 8px;
-  color: var(--muted);
-}
-.sidebar-item .icon {
-  width: 14px;
-  height: 14px;
-}
-.sidebar-item > span {
-  margin-left: auto;
-  font-size: 10px;
-}
-.sidebar-item.selected {
-  background: var(--surface);
-  border-radius: 6px;
-  box-shadow: 0 1px 3px #20211f0b;
-  color: var(--ink);
-}
-.sidebar-account {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: auto;
-  padding: 24px 6px 2px;
-}
-.avatar {
-  display: grid;
-  place-items: center;
-  background: var(--panel);
-  border-radius: 7px;
-  height: 28px;
-  width: 28px;
-}
-.workspace-main {
-  padding: 17px 23px 22px;
-  background: var(--surface);
-  border-radius: 14px;
-  min-width: 0;
-}
-.workspace-breadcrumb {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  font-size: 9px;
-  color: var(--muted);
-}
-.example-label {
-  margin-left: auto;
-  background: var(--panel);
-  border-radius: 4px;
-  padding: 3px 6px;
-  font-size: 9px;
-}
-.workspace-title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin: 24px 0 20px;
-}
-.workspace-title h2 {
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: -0.6px;
-}
-.period-label {
-  font-size: 9px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 5px 8px;
-  white-space: nowrap;
-}
-.workspace-stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  margin-bottom: 22px;
-}
-.workspace-stats > div {
-  border-right: 1px solid var(--line);
-}
-.workspace-stats > div:last-child {
-  border: 0;
-}
-.workspace-stats > div > span {
-  font-size: 10px;
-  color: var(--muted);
-}
-.workspace-stats strong {
-  display: block;
-  font-weight: 700;
-  font-size: 27px;
-  line-height: 1.5;
-  letter-spacing: -0.9px;
-}
-.workspace-stats strong > span {
-  font-size: 12px;
-  color: var(--muted);
-  letter-spacing: 0;
-}
-.workspace-stats small {
-  display: block;
-  font-size: 9px;
-  color: var(--muted);
-}
-.workspace-detail {
-  display: grid;
-  grid-template-columns: 1.3fr 1fr;
-  gap: 14px;
-}
-.chart-card,
-.recent-sale {
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  padding: 13px;
-  min-width: 0;
-}
-.mini-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  font-size: 10px;
-  font-weight: 500;
-}
-.chart-key {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-  font-size: 8px;
-  font-weight: 400;
-  color: var(--muted);
-}
-.chart-key::before {
-  content: '';
-  width: 5px;
-  height: 5px;
-  background: var(--accent);
-  border-radius: 50%;
-}
-.sales-chart {
-  width: 100%;
-  height: 117px;
-  margin-top: 18px;
-  overflow: visible;
-}
-.chart-grid {
-  stroke: var(--line);
-  stroke-dasharray: 3 4;
-  fill: none;
-}
-.chart-line {
-  stroke: var(--accent);
-  stroke-width: 2.5;
-  fill: none;
-  stroke-linejoin: round;
-}
-.chart-axis {
-  display: flex;
-  justify-content: space-between;
-  font-size: 8px;
-  color: var(--muted);
-  margin-top: 6px;
-}
-.success-dot {
-  width: 5px;
-  height: 5px;
-  background: var(--success);
-  border-radius: 50%;
-}
-.sale-item {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  margin: 12px 0;
-}
 .item-picture {
   background: var(--photo);
   border: 1px solid var(--line);
   border-radius: 9px;
   flex-shrink: 0;
-}
-.sale-item .item-picture img {
-  width: 47px;
-  height: 47px;
-}
-.sale-item strong {
-  display: block;
-  font-size: 10px;
-  font-weight: 500;
-}
-.sale-item span {
-  display: block;
-  font-size: 8px;
-  color: var(--muted);
-  margin-top: 3px;
-}
-.recent-sale dl > div {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  font-size: 9px;
-  padding: 3px 0;
-}
-.recent-sale dt {
-  color: var(--muted);
-}
-.recent-sale .sale-profit {
-  border-top: 1px solid var(--line);
-  margin-top: 5px;
-  padding-top: 8px;
-}
-.recent-sale .sale-profit dd {
-  font-weight: 600;
-}
-.workspace-figure figcaption {
-  color: var(--muted);
-  font-size: 10px;
-  text-align: center;
-  margin-top: 16px;
-}
-.marketplaces {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 29px;
-  margin: 42px 0 8px;
-  color: var(--muted);
-  font-size: 11px;
-}
-.marketplaces > div {
-  display: flex;
-  align-items: center;
-  gap: 35px;
-}
-.marketplace-name {
-  color: var(--muted);
-  font-size: 21px;
-  font-weight: 600;
-  letter-spacing: -0.7px;
-}
-.marketplace-name:first-child {
-  font-style: italic;
-  font-weight: 650;
-}
-.ebay-name {
-  font-weight: 400;
-  font-size: 26px;
-  letter-spacing: -1.6px;
-}
-.classified-name {
-  font-size: 16px;
-  letter-spacing: -0.4px;
 }
 .feature-section,
 .workflow-section {
@@ -687,7 +359,6 @@ h1 > span {
   line-height: 1.15;
   font-weight: 800;
   letter-spacing: -0.03em;
-  margin-top: 16px;
 }
 .section-heading > p:last-child {
   color: var(--muted);
@@ -1354,24 +1025,6 @@ h1 > span {
   transition: none !important;
 }
 @media (max-width: 1000px) {
-  .workspace-shell {
-    grid-template-columns: 165px minmax(0, 1fr);
-  }
-  .workspace-main {
-    padding: 17px;
-  }
-  .workspace-detail {
-    grid-template-columns: 1fr 1fr;
-  }
-  .workspace-stats {
-    gap: 10px;
-  }
-  .workspace-stats strong {
-    font-size: 24px;
-  }
-  .workspace-stats small {
-    max-width: 130px;
-  }
   .workflow-layout {
     gap: 24px;
     grid-template-columns: 4fr 6fr;
@@ -1439,34 +1092,7 @@ h1 > span {
     font-size: 10px;
     gap: 6px;
   }
-  .workspace-figure {
-    margin-top: 42px;
-  }
-  .workspace-shell {
-    grid-template-columns: 1fr;
-  }
-  .workspace-sidebar {
-    display: none;
-  }
-  .workspace-main {
-    padding: 15px;
-  }
-  .workspace-title h2 {
-    font-size: 17px;
-  }
-  .workspace-stats > div > span {
-    font-size: 9px;
-  }
-  .workspace-stats strong {
-    font-size: 24px;
-  }
-  .marketplaces {
-    margin-top: 28px;
-    gap: 17px;
-  }
-  .marketplaces > div {
-    gap: 23px;
-  }
+
   .feature-section,
   .workflow-section {
     padding-top: 76px;
@@ -1589,80 +1215,7 @@ h1 > span {
   .beta-note .note-divider {
     display: none;
   }
-  .workspace-shell {
-    border-radius: 12px;
-    padding: 5px;
-  }
-  .workspace-main {
-    border-radius: 11px;
-    padding: 12px;
-  }
-  .workspace-breadcrumb {
-    font-size: 8px;
-    gap: 6px;
-  }
-  .example-label {
-    font-size: 8px;
-  }
-  .workspace-title {
-    margin-block: 18px;
-  }
-  .workspace-title h2 {
-    font-size: 15px;
-  }
-  .period-label {
-    display: none;
-  }
-  .workspace-stats {
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    margin-bottom: 16px;
-  }
-  .workspace-stats > div:nth-child(2) {
-    border: 0;
-  }
-  .workspace-stats > div:last-child {
-    display: none;
-  }
-  .workspace-stats strong {
-    font-size: 24px;
-  }
-  .workspace-detail {
-    grid-template-columns: 1fr;
-    gap: 10px;
-  }
-  .sales-chart {
-    height: 80px;
-    margin-top: 8px;
-  }
-  .chart-card {
-    padding: 10px;
-  }
-  .recent-sale {
-    display: none;
-  }
-  .workspace-figure figcaption {
-    font-size: 9px;
-    line-height: 1.6;
-    max-width: 250px;
-    margin-inline: auto;
-  }
-  .marketplaces {
-    flex-direction: column;
-    gap: 13px;
-  }
-  .marketplaces > div {
-    gap: 26px;
-  }
-  .marketplace-name {
-    font-size: 19px;
-  }
-  .ebay-name {
-    font-size: 24px;
-  }
-  .classified-name {
-    font-size: 14px;
-  }
+
   .section-heading {
     margin-bottom: 28px;
   }
@@ -2376,8 +1929,6 @@ h1 > span {
   font-size: 10px;
   font-weight: 600;
   color: var(--muted);
-  letter-spacing: 0.035em;
-  text-transform: uppercase;
 }
 .price-card h3 {
   font-size: 24px;
@@ -2510,9 +2061,7 @@ h1 > span {
 .beta-layout .section-heading > p {
   font-size: 14px;
 }
-.beta-layout .section-heading > .eyebrow {
-  font-size: 11px;
-}
+
 .beta-layout .section-heading > p:not(.eyebrow) {
   color: var(--muted);
   line-height: 1.7;

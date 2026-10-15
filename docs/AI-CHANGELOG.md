@@ -69,6 +69,37 @@ Zweig `juna/vinted-listing-research`. Keine Produktcode- oder Schemaänderung,
 keine Anwendungstests und keine Veränderungen an echten Inseraten. Markdown-
 Formatierung und Unterschiedskontrolle bestanden.
 
+## 2026-10-15 - Juna - Startseitenentwurf vom Vintz-Look lösen und echtes Dashboard zeigen
+
+**Auftrag:** Die Vorschau unter `landing/preview/` sah zu sehr nach Vintz aus, und das
+Bild oben zeigte keine echte Flipbase-Oberfläche. Freigegeben: Dashboard der App mit
+Beispieldaten nachbauen, Vintz-typische Elemente entfernen, Beispielbilder an die
+echten Masken angleichen. Eigener Worktree und Zweig `juna/landing-own-look`.
+
+**Befund:** Der bisherige Hero übernahm Aufbau und Texte der Vintz-Startseite fast
+wörtlich: zweizeilige Überschrift nach demselben Muster, Arbeitsbereich mit
+„Persönlicher Arbeitsbereich“, Suche mit ⌘K, „Dein Geschäft im Überblick“ und
+„Verkaufsentwicklung“. Das echte Dashboard zeigt laut Code fünf Kacheln (Umsatz,
+Gewinn, Marge, Kapital im Bestand, Verkäufe); die Gestaltungsnotiz nennt noch sechs.
+
+**Änderung:** Neue Überschrift „Die Warenwirtschaft für dein Reselling.“ mit Text
+links und Dashboard-Nachbau rechts, der auf breiten Bildschirmen über den Rand läuft.
+Der Nachbau verwendet die echte Seitenleiste, Zeitraumwahl, die fünf Kacheln mit
+Verlaufslinien, das gelb-rot-grüne Diagramm, „Zu erledigen“ und Schnellaktionen mit
+den Farben des Verwaltungsdesigns hell und dunkel. Beispielzahlen sind in sich
+stimmig: Kachelwerte entsprechen den Diagrammsummen, die Marge dem Verhältnis.
+Säulen und Verlaufslinien wachsen einmal beim Laden, nur bei erlaubter Bewegung.
+Großbuchstaben-Etiketten über den Abschnitten entfallen. Beispielmasken nutzen
+App-Fläche, Karten, Felder, Badges und Toast; der Vinted Feed erscheint als Raster.
+
+**Prüfung:** 54 Landingpage-Tests bestanden, davon drei neue für Dashboard-Aufbau,
+stimmige Beispielzahlen und fehlende Großbuchstaben-Etiketten. Prettier, ESLint und
+Test-Suite-Audit ohne Fehler. axe in Chromium bei 1440, 1100, 768, 390 und 320 Pixeln
+hell und dunkel ohne Verstöße, ohne horizontalen Überlauf und ohne Konsolenfehler;
+Kontrast im als Bild ausgezeichneten Nachbau anhand der App-Farben beurteilt.
+Sichtprüfung im Browser bei 1440, 768 und 375 Pixeln. Keine Angular-Änderung, keine
+Veröffentlichung; die Startseite unter `/` bleibt unverändert.
+
 ## 2026-10-15 - Juna - Einkaufsübersicht und Rentabilität getrennt anzeigen
 
 **Auftrag:** Den freigegebenen Umschalter „Übersicht / Rentabilität“ rechts neben
