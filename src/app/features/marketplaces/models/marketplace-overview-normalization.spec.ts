@@ -84,6 +84,11 @@ describe('Gemeinsame Inseratdarstellung', () => {
       normalizeEbayListing(scope, { ...ebay, url: 'https://attacker.test/itm/123' }).externalUrl,
     ).toBeNull();
   });
+  it('bewahrt die vom vorhandenen Anbieter unterstützte Sandbox-Ansehenaktion', () => {
+    const item = normalizeEbayListing(scope, { ...ebay, url: 'https://sandbox.ebay.com/itm/123' });
+    expect(item.externalUrl).toBe('https://sandbox.ebay.com/itm/123');
+    expect(item.actions).toEqual(['view']);
+  });
   it('behandelt ungültige Geldwerte als unbekannt und erhält null Euro', () => {
     expect(normalizeEbayListing(scope, { ...ebay, price: 0 }).priceCents).toBe(0);
     expect(normalizeEbayListing(scope, { ...ebay, price: Infinity }).priceCents).toBeNull();

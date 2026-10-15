@@ -100,6 +100,19 @@ describe('Persönliche Marktplatzauswahl', () => {
   });
   afterEach(() => TestBed.resetTestingModule());
 
+  it('lädt nach einem Abruffehler denselben persönlichen Kontext erneut', async () => {
+    db.reads.push(Promise.resolve({ data: null, error: { message: 'offline' } }));
+    const service = TestBed.inject(MarketplaceSettingsService);
+    await service.load('user-a', 'workspace-a');
+    expect(service.error()).not.toBeNull();
+    expect(service.ready()).toBe(false);
+    db.rows.set('user-a:workspace-a', { ...enabled, ebay: false });
+    await service.retryLoad();
+    expect(service.ready()).toBe(true);
+    expect(service.error()).toBeNull();
+    expect(service.settings().ebay).toBe(false);
+  });
+
   it('übernimmt Serverwerte statt fremder Browserwerte', async () => {
     localStorage.setItem(
       'flipbase_marketplace_settings',

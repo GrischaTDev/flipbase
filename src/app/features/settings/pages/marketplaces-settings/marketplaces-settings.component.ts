@@ -29,6 +29,10 @@ export class MarketplacesSettingsComponent {
   readonly settingsReady = this.marketplaceSettings.ready;
   readonly settingsError = this.marketplaceSettings.error;
 
+  async onRetry(): Promise<void> {
+    await this.marketplaceSettings.retryLoad();
+  }
+
   async onToggle(marketplace: MarketplaceId, enabled: boolean): Promise<void> {
     await this.marketplaceSettings.setMarketplaceEnabled(marketplace, enabled);
   }

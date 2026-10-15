@@ -64,7 +64,10 @@
           <app-card padding="md"
             ><div class="space-y-3">
               <p class="text-sm text-fb-critical" role="alert">{{ group.error }}</p>
-              <app-button variant="secondary" [icon]="retryIcon" (clicked)="retry()"
+              <app-button
+                variant="secondary"
+                [icon]="retryIcon"
+                (clicked)="store.retryPlatform(group.platform)"
                 >Erneut versuchen</app-button
               >
             </div></app-card

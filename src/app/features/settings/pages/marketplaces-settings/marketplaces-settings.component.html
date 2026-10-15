@@ -11,6 +11,14 @@
     </p>
     @if (settingsError(); as error) {
       <p role="alert" class="text-sm text-fb-critical">{{ error }}</p>
+      @if (!settingsReady()) {
+        <app-button variant="secondary" [disabled]="settingsLoading()" (clicked)="onRetry()"
+          >Erneut versuchen</app-button
+        >
+      }
+    }
+    @if (settingsLoading()) {
+      <p role="status" class="text-sm text-fb-text-secondary">Deine Marktplätze werden geladen …</p>
     }
     <div class="space-y-5">
       <div class="space-y-3">

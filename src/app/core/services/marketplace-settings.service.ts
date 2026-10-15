@@ -75,6 +75,11 @@ export class MarketplaceSettingsService {
     return this.pendingLoad;
   }
 
+  retryLoad(): Promise<void> {
+    const context = this.context;
+    return context ? this.load(context.userId, context.workspaceId) : Promise.resolve();
+  }
+
   private async read(userId: string, workspaceId: string, generation: number): Promise<void> {
     try {
       const result = await this.client

@@ -71,46 +71,64 @@ export class MarketplaceOverviewStore {
     );
     if (!userId || !this.current()) return;
     await Promise.all(
-      enabled.map(async (platform) => {
-        try {
-          const accounts = await this.api.loadAccounts(workspaceId, platform);
-          if (!this.isCurrent(generation)) return;
-          this.platformState.update((items) =>
-            items.map((item) =>
-              item.platform === platform ? { ...item, accounts, loading: false } : item,
-            ),
-          );
-          this.sectionState.update((sections) => {
-            const next = { ...sections };
-            for (const account of accounts)
-              next[overviewAccountKey(account)] = {
-                account,
-                query: DEFAULT_LISTING_QUERY,
-                page: null,
-                expanded: false,
-                loading: false,
-                error: null,
-                selection: [],
-                history: [],
-              };
-            return next;
-          });
-        } catch {
-          if (this.isCurrent(generation))
-            this.platformState.update((items) =>
-              items.map((item) =>
-                item.platform === platform
-                  ? {
-                      ...item,
-                      loading: false,
-                      error: 'Die Konten konnten nicht geladen werden. Versuche es erneut.',
-                    }
-                  : item,
-              ),
-            );
-        }
-      }),
+      enabled.map((platform) => this.fetchPlatform(workspaceId, platform, generation)),
     );
+  }
+
+  async retryPlatform(platform: MarketplaceId): Promise<void> {
+    const owner = this.owner();
+    const group = this.platforms().find((item) => item.platform === platform);
+    if (!owner || !this.current() || !group?.error || group.loading) return;
+    this.platformState.update((items) =>
+      items.map((item) =>
+        item.platform === platform ? { ...item, loading: true, error: null } : item,
+      ),
+    );
+    await this.fetchPlatform(owner.workspaceId, platform, this.generation);
+  }
+
+  private async fetchPlatform(
+    workspaceId: string,
+    platform: MarketplaceId,
+    generation: number,
+  ): Promise<void> {
+    try {
+      const accounts = await this.api.loadAccounts(workspaceId, platform);
+      if (!this.isCurrent(generation)) return;
+      this.platformState.update((items) =>
+        items.map((item) =>
+          item.platform === platform ? { ...item, accounts, loading: false } : item,
+        ),
+      );
+      this.sectionState.update((sections) => {
+        const next = { ...sections };
+        for (const account of accounts)
+          next[overviewAccountKey(account)] = {
+            account,
+            query: DEFAULT_LISTING_QUERY,
+            page: null,
+            expanded: false,
+            loading: false,
+            error: null,
+            selection: [],
+            history: [],
+          };
+        return next;
+      });
+    } catch {
+      if (this.isCurrent(generation))
+        this.platformState.update((items) =>
+          items.map((item) =>
+            item.platform === platform
+              ? {
+                  ...item,
+                  loading: false,
+                  error: 'Die Konten konnten nicht geladen werden. Versuche es erneut.',
+                }
+              : item,
+          ),
+        );
+    }
   }
 
   section(account: MarketplaceOverviewAccount): MarketplaceOverviewSection | undefined {

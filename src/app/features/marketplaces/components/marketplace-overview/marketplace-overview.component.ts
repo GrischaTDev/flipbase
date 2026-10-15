@@ -115,10 +115,6 @@ export class MarketplaceOverviewComponent {
         : '/marketplaces/kleinanzeigen';
   }
   async retry(): Promise<void> {
-    const userId = this.auth.currentUser()?.id,
-      workspace = this.workspace.currentWorkspace();
-    if (!userId || !workspace) return;
-    if (!this.settings.ready()) await this.settings.load(userId, workspace.id);
-    else await this.store.load(workspace.id, this.enabledPlatforms());
+    await this.settings.retryLoad();
   }
 }

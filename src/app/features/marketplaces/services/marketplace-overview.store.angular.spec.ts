@@ -102,6 +102,32 @@ describe('Kontextgetrennte Marktplatzübersicht', () => {
     expect(store.platforms().find((item) => item.platform === 'vinted')?.error).toBeTruthy();
     expect(store.platforms().find((item) => item.platform === 'ebay')?.accounts).toHaveLength(1);
   });
+  it('wiederholt nur die fehlgeschlagene Plattform und erhält die andere Auswahl', async () => {
+    const ebayAccount = { ...account, platform: 'ebay' as const, connectionId: 'ebay-a' };
+    const ebayPage = {
+      ...page,
+      items: page.items.map((item) => ({
+        ...item,
+        reference: { ...item.reference, platform: 'ebay' as const, connectionId: 'ebay-a' },
+      })),
+    };
+    api.loadAccounts.mockImplementation(async (_ws: string, platform: string) => {
+      if (platform === 'vinted') throw new Error('offline');
+      return platform === 'ebay' ? [ebayAccount] : [];
+    });
+    api.loadListings.mockResolvedValue(ebayPage);
+    const store = TestBed.inject(MarketplaceOverviewStore);
+    await store.load('ws-a');
+    await store.expand(ebayAccount);
+    store.toggleSelection(ebayPage.items[0].reference, true);
+    expect(store.section(ebayAccount)?.selection).toHaveLength(1);
+    api.loadAccounts.mockClear();
+    await store.retryPlatform('vinted');
+    expect(api.loadAccounts.mock.calls).toEqual([['ws-a', 'vinted']]);
+    expect(store.section(ebayAccount)?.expanded).toBe(true);
+    expect(store.section(ebayAccount)?.selection).toHaveLength(1);
+    expect(store.section(ebayAccount)?.page).toEqual(ebayPage);
+  });
   it('leert die Auswahl bei Filter- und Seitenwechsel', async () => {
     const store = TestBed.inject(MarketplaceOverviewStore);
     await store.load('ws-a');

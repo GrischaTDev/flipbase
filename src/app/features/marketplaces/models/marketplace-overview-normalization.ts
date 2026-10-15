@@ -66,7 +66,9 @@ function ebayUrl(value: string | null): string | null {
     return url.protocol === 'https:' &&
       !url.username &&
       !url.password &&
-      ['ebay.de', 'www.ebay.de', 'ebay.com', 'www.ebay.com'].includes(url.hostname)
+      ['ebay.de', 'www.ebay.de', 'ebay.com', 'www.ebay.com', 'sandbox.ebay.com'].includes(
+        url.hostname,
+      )
       ? url.href
       : null;
   } catch {

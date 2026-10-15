@@ -18,8 +18,8 @@ Lesekopie, eBay-Seitennavigation und getrennter Auswahl geliefert. Vorhandene
 Detail-/Bearbeiten-/Entwurfswege wiederverwendet; Kleinanzeigen-Abgleich und Transfer
 bleiben klar als Folgeschritte getrennt. Keine echten Inserate verändert.
 
-**Prüfung:** Anwendungssuiten 5.284/5.284, neue SQL-Zugriffsfälle 14/14 nach
-Migrations-Neuaufbau, neue Browserfälle 13/13 (320/390/834/1440, Hell/Dunkel,
+**Prüfung:** Anwendungssuiten 5.287/5.287, neue SQL-Zugriffsfälle 14/14 nach
+Migrations-Neuaufbau, neue Browserfälle 21/21 (320/390/834/1440, Hell/Dunkel,
 Touch/Tastatur/AXE, Auswahl, Workspacewechsel, Freigabe und Kontextnavigation).
 Bestehende Browserfälle: Account-/Einstellungsansichten 29 bestanden plus vier
 gezielt reparierte Testfälle bestanden; lokale Backend-Navigation/Listing-Studio
@@ -27,7 +27,12 @@ gezielt reparierte Testfälle bestanden; lokale Backend-Navigation/Listing-Studi
 auf die betreffende Accountkarte eingegrenzt; keine Prüfgrenzen abgeschwächt.
 Testregistrierung, Schema-Registrierung, Suite-Audit, Shared-UI-Prüfung, gezielte
 Formatierung/ESLint, Typprüfung und Produktionsbau bestanden.
-Abschließendes unabhängiges Codereview folgt. Noch kein Push oder PR; Linux-/CI-
+Abschließendes unabhängiges Codereview durchgeführt: plattformbezogene Wiederholung
+erhält fremde Auswahl; bisherige Einstellungsseite kann Erstabrufe wiederholen;
+eBay-Sandbox behält den vorhandenen Ansehen-Link. Neue Fehlerfälle jeweils vor
+Korrektur reproduziert, danach gezielt und mit vollständiger Anwendungssuite grün.
+Nach den Korrekturen 23/23 Browserfälle (21 neue plus zwei Einstellungen) bestanden.
+Noch kein Push oder PR; Linux-/CI-
 Gesamtprüfung und echte Anbieterabnahme stehen außerhalb dieser lokalen Abnahme.
 
 ## 2026-10-15 - Juna - Privatkontingent für Kleidungsanzeigen recherchieren
