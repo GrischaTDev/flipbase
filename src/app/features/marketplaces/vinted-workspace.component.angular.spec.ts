@@ -814,13 +814,16 @@ describe('Vinted-Bereich in Flipbase', () => {
       fixtureConnections[1].connectionId,
     );
     expect(harness.routeNativeElement?.querySelector('app-vinted-overview')).not.toBeNull();
+    expect(
+      harness.routeNativeElement?.querySelector('a[href^="/marketplaces/vinted/accounts"]'),
+    ).toBeNull();
     await harness.navigateByUrl('/marketplaces/vinted/profile');
     expect(parent.store.selectedConnection()?.connectionId).toBe(
       fixtureConnections[1].connectionId,
     );
     expect(
       harness.routeNativeElement?.querySelector('a[href^="/marketplaces/vinted/accounts"]'),
-    ).not.toBeNull();
+    ).toBeNull();
   });
   it('hält andere Kontokacheln erreichbar, wenn eine Vorschau scheitert', async () => {
     api.readAccountPreview.mockRejectedValueOnce(new Error('preview failed'));
