@@ -19,6 +19,15 @@ const snapshot = () => ({
 const entry = (body: object = {}) => ({ ...scope, id: 'entry-a', title: 'Schal', ...body });
 
 describe('Marktplatz-Antworten', () => {
+  it('übernimmt das gerundete Anbieter-Alter getrennt vom Veröffentlichungsdatum', () => {
+    const publicationAge = { value: 2, unit: 'day', observedAt: '2026-10-15T10:00:00Z' };
+    const result = parseMarketplacePage(
+      { items: [entry({ publicationAge })], total: 1, nextCursor: null },
+      scope,
+    ).items[0];
+    expect(result.publishedAt).toBeNull();
+    expect(result.publicationAge).toEqual(publicationAge);
+  });
   it('trennt die explizite Veröffentlichungszeit von Änderungs- und Abrufzeiten', () => {
     for (const updatedAt of ['2026-10-14T10:00:00Z', '2026-10-15T10:00:00Z']) {
       const values = [

@@ -23,6 +23,7 @@ describe('Vollständige Vinted-Listenquelle der Übersicht', () => {
         isClosed: false,
         isReserved: index === 0,
         occurredAt: null,
+        publicationAge: { value: 2, unit: 'day', observedAt: '2026-10-15T10:00:00Z' },
       },
     }));
     const from = () => {
@@ -77,6 +78,11 @@ describe('Vollständige Vinted-Listenquelle der Übersicht', () => {
     expect(page.items[0].reference.externalId).toBe('1');
     expect(page.items[0].state).toBe('reserved');
     expect(page.items[0].publishedAt).toBeNull();
+    expect(page.items[0].publicationAge).toEqual({
+      value: 2,
+      unit: 'day',
+      observedAt: '2026-10-15T10:00:00Z',
+    });
     for (const query of filters)
       expect(query.values).toContainEqual(['workspace_id', scope.workspaceId]);
     expect(

@@ -18,6 +18,7 @@ export async function mockMarketplace(
   importedFeedbacks?: readonly Record<string, unknown>[],
   importedOverview?: {
     publicationsTotal: number;
+    publicationAge?: { value: number; unit: 'day'; observedAt: string };
     views?: number | null;
     favorites?: number | null;
     observedAt?: string;
@@ -491,6 +492,7 @@ export async function mockMarketplace(
               ...scope,
               id: 'publication-1',
               title: 'Vintage-Schal · Testartikel',
+              publicationAge: importedOverview?.publicationAge,
               text: importedOverview?.text,
               textState: importedOverview?.textState,
               imageUrl: importedOverview?.imageUrl,

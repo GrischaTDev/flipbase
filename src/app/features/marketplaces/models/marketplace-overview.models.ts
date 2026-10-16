@@ -1,3 +1,4 @@
+import type { VintedPublicationAge } from './vinted-listing-age';
 import type { MarketplaceId } from '../../../core/services/marketplace-settings.service';
 export interface MarketplaceListingReference {
   readonly platform: MarketplaceId;
@@ -29,6 +30,7 @@ export interface MarketplaceOverviewListing {
   readonly currency: string | null;
   readonly imageUrl: string | null;
   readonly publishedAt: string | null;
+  readonly publicationAge?: VintedPublicationAge | null;
   readonly state: MarketplaceListingState;
   readonly actions: readonly MarketplaceListingAction[];
   readonly detailLink: readonly string[] | null;

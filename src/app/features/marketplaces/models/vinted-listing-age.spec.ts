@@ -51,3 +51,25 @@ describe('Alter eines Vinted-Inserats', () => {
     expect(age.text).toBe('1 Tag online');
   });
 });
+
+describe('Gerundetes Vinted-Alter', () => {
+  const approximate = { value: 2, unit: 'day', observedAt: publishedAt } as const;
+  it('kennzeichnet das Anbieter-Alter und zählt ab der Beobachtung weiter', () => {
+    expect(vintedListingAge(null, start, approximate)).toMatchObject({
+      compact: 'ca. 2 T',
+      text: 'ca. 2 Tage online',
+      tone: 'success',
+    });
+    expect(vintedListingAge(null, start + 24 * hour, approximate)).toMatchObject({
+      text: 'ca. 3 Tage online',
+      tone: 'caution',
+    });
+  });
+  it('bevorzugt ein genaues Veröffentlichungsdatum', () => {
+    expect(vintedListingAge(publishedAt, start + hour, approximate).text).toBe('1 Stunde online');
+  });
+  it('erfindet bei ungültigen oder zukünftigen Beobachtungen kein Alter', () => {
+    expect(vintedListingAge(null, start - hour, approximate).tone).toBe('neutral');
+    expect(vintedListingAge(null, start, { ...approximate, value: -1 }).tone).toBe('neutral');
+  });
+});

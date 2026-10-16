@@ -206,13 +206,20 @@ export function vintedBrowserActions(
     type: (value) => desktop?.type(value) ?? currentPage().keyboard.insertText(value),
     press: (key) => desktop?.press(key) ?? currentPage().keyboard.press(key),
     identify: () => readVintedAccountIdentity(currentPage()),
-    importAccount: (authorize, onStage, previousConversations, requestedConversation) =>
+    importAccount: (
+      authorize,
+      onStage,
+      previousConversations,
+      requestedConversation,
+      previousPublications,
+    ) =>
       readVintedAccountImport(
         currentPage(),
         authorize,
         onStage,
         previousConversations,
         requestedConversation,
+        { previousPublications },
       ),
     login: (credentials, authorize) => submitVintedLogin(currentPage(), credentials, authorize),
     verify: (code, authorize) => submitVintedVerificationCode(currentPage(), code, authorize),

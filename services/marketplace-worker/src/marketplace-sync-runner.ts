@@ -1,3 +1,4 @@
+import type { VintedPublicationVersion } from './vinted-publication-age.ts';
 import { randomUUID } from 'node:crypto';
 import type { BrowserInfo } from './gologin-cloud-browser.ts';
 import { CloudBrowserStoppedUncleanlyError } from './gologin-cloud-browser.ts';
@@ -32,6 +33,10 @@ interface SyncBroker {
 
 interface ImportWriter {
   favoriteSettingsActive?(scope: BrowserSessionScope, sessionId: string): Promise<boolean>;
+  publicationVersions?(
+    scope: BrowserSessionScope,
+    sessionId: string,
+  ): Promise<VintedPublicationVersion[]>;
   conversationVersions?(
     scope: BrowserSessionScope,
     sessionId: string,
@@ -126,6 +131,8 @@ export class MarketplaceSyncRunner {
       failedStage = 'access';
       const previousConversations =
         (await this.imports.conversationVersions?.(scope, currentSessionId)) ?? [];
+      const previousPublications =
+        (await this.imports.publicationVersions?.(scope, currentSessionId)) ?? [];
       const snapshot = await this.broker.run(scope, currentSessionId, async (browser) => {
         if (!browser.importAccount) throw new Error('Vinted-Import fehlt');
         try {
@@ -136,6 +143,8 @@ export class MarketplaceSyncRunner {
               await moveTo(stage);
             },
             previousConversations,
+            undefined,
+            previousPublications,
           );
         } catch (error) {
           if (error instanceof MarketplaceBrowserSessionEndedError) throw error;

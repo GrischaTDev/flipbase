@@ -45,6 +45,7 @@ export function normalizeVintedPublication(
     currency: entry.currency,
     imageUrl: entry.imageUrl,
     publishedAt: entry.publishedAt ?? null,
+    publicationAge: entry.publicationAge ?? null,
     state:
       entry.isClosed === true
         ? 'ended'

@@ -43,6 +43,11 @@ import {
 } from './vinted-browser-reader.ts';
 import { parseVintedListingPhotoArrangement } from './vinted-browser-listing-photo-order.ts';
 
+import {
+  parseVintedPublicationAge,
+  type VintedPublicationVersion,
+} from './vinted-publication-age.ts';
+
 export const browserCommandLimit = 8 * 1024 * 1024;
 export type BrowserActionName = Exclude<keyof BrowserInfo, 'version'>;
 export interface BrowserAction {
@@ -204,7 +209,7 @@ export async function executeBrowserAction(
     type: [1],
     press: [1],
     identify: [0],
-    importAccount: [2],
+    importAccount: [2, 3],
     login: [1],
     verify: [1],
     readListingEdit: [2],
@@ -501,6 +506,33 @@ export async function executeBrowserAction(
       const target = argumentsList[1] === null ? undefined : commandRecord(argumentsList[1]);
       if (target && Object.keys(target).some((key) => !['accountId', 'externalId'].includes(key)))
         throw new Error('Ungültiger Gesprächsauftrag');
+      const publications = argumentsList[2] ?? [];
+      if (!Array.isArray(publications) || publications.length > 1000)
+        throw new Error('Ungültiger Inseratcache');
+      const publicationVersions = publications.map((raw): VintedPublicationVersion => {
+        const version = commandRecord(raw);
+        if (
+          Object.keys(version).some(
+            (key) => !['externalId', 'occurredAt', 'publicationAge', 'checkedAt'].includes(key),
+          )
+        )
+          throw new Error('Ungültiger Inseratcache');
+        const timestamp = (value: unknown) => {
+          if (value === null) return null;
+          const result = text(value, 64);
+          if (!Number.isFinite(Date.parse(result))) throw new Error('Ungültiger Inseratcache');
+          return result;
+        };
+        const publicationAge = parseVintedPublicationAge(version.publicationAge);
+        if (version.publicationAge !== null && !publicationAge)
+          throw new Error('Ungültiger Inseratcache');
+        return {
+          externalId: identifier(version.externalId),
+          occurredAt: timestamp(version.occurredAt),
+          publicationAge,
+          checkedAt: timestamp(version.checkedAt),
+        };
+      });
       return required(browser.importAccount)(
         authorize,
         onStage,
@@ -508,6 +540,7 @@ export async function executeBrowserAction(
         target
           ? { externalId: identifier(target.externalId), accountId: identifier(target.accountId) }
           : undefined,
+        publicationVersions,
       );
     }
   }
@@ -815,10 +848,10 @@ export function isolatedBrowserActions(transport: BrowserCommandTransport): Brow
     },
     identify: async () =>
       (await run('identify', [])) as Awaited<ReturnType<NonNullable<BrowserInfo['identify']>>>,
-    importAccount: async (authorize, onStage, previous = [], requested) =>
+    importAccount: async (authorize, onStage, previous = [], requested, publications = []) =>
       (await run(
         'importAccount',
-        [previous, requested ?? null],
+        [previous, requested ?? null, publications],
         authorize,
         onStage,
       )) as VintedAccountImport,

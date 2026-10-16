@@ -4,6 +4,8 @@ import type {
   MarketplaceNegotiationEvent,
 } from '../../../../../supabase/functions/_shared/marketplace-negotiation-contracts';
 
+import type { VintedPublicationAge } from './vinted-listing-age';
+
 export type MarketplaceEntryKind = 'publication' | 'conversation' | 'message' | 'sale' | 'activity';
 export interface MarketplacePage<T> {
   readonly items: readonly T[];
@@ -19,6 +21,7 @@ export interface MarketplaceEntry extends AccountScope {
   readonly occurredAt: string | null;
   /** Bei Inseraten nur die explizite Anbieterzeit, ohne Änderungszeit-Fallback. */
   readonly publishedAt?: string | null;
+  readonly publicationAge?: VintedPublicationAge | null;
   readonly price: number | null;
   readonly currency: string;
   readonly status: string | null;

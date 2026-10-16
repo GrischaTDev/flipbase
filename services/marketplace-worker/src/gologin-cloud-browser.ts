@@ -1,3 +1,4 @@
+import type { VintedPublicationVersion } from './vinted-publication-age.ts';
 import { chromium, type Browser } from 'playwright';
 import { currentVintedPage, vintedBrowserActions } from './vinted-browser-actions.ts';
 import {
@@ -88,6 +89,7 @@ export interface BrowserInfo extends Pick<Browser, 'version'> {
     onStage?: (stage: 'profile' | 'publications' | 'conversations' | 'sales') => Promise<void>,
     previousConversations?: VintedConversationVersion[],
     requestedConversation?: VintedConversationReadTarget,
+    previousPublications?: VintedPublicationVersion[],
   ): Promise<VintedAccountImport>;
   login?(
     credentials: VintedLoginCredentials,

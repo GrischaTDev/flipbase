@@ -1,5 +1,52 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-16 - Juna - Gerundetes Vinted-Inseratsalter aus der Detailseite übernehmen
+
+**Auftrag:** „Alter unbekannt“ in Marktplatzübersicht, Kleiderschrank und
+Inseratdetail untersuchen. Nutzerentscheidung: Vinteds gerundete Angabe mit
+„ca.“ anzeigen, falls keine genaue Veröffentlichungszeit vorliegt.
+
+**Ursache und Nachweis:** Die produktiven Feldnamenprotokolle der Kleiderschrankliste
+enthalten weder `created_at_ts` noch `created_at`. Alle drei Ansichten verwenden
+denselben bisher leeren Wert. Ein rein lesender echter HTML-Abruf des geprüften
+Inserats liefert HTTP 200 und am zugehörigen `upload_date`-Attribut „2 Tagen“;
+die kanonische Inseratadresse stimmt überein. Die Altersberechnung selbst war
+nicht die Ursache.
+
+**Korrektur:** Der Cloudabruf ergänzt höchstens drei eigene Inserate je Durchlauf
+aus der passenden HTML-Detailseite. Fehlende Angaben werden zuerst gelesen;
+gespeicherte Angaben zählen ab ihrer Beobachtungszeit weiter und werden höchstens
+täglich aufgefrischt. Wert, Einheit und Beobachtungszeit bleiben ausdrücklich
+getrennt von einem genauen Veröffentlichungszeitpunkt. Vorhandene genaue Daten
+haben Vorrang. Fremde kanonische Seiten und unbekannte Altersangaben liefern
+keine Schätzung; 403/429 stoppen weitere Anbieterabrufe. Die bestehenden
+kontogebundenen JSON-Lesekopien speichern die Angaben ohne Schemaänderung.
+Die lokale Browsererweiterung ist von diesem Cloudabruf nicht betroffen.
+
+**Prüfung:** Import- und Anzeigeregressionen scheiterten vor der Korrektur am
+fehlenden Zusatzabruf beziehungsweise an „Alter unbekannt“. Worker-Suite:
+673 bestanden, acht bestehende Plattform-/Integrationsausnahmen. 158 betroffene
+Modelltests und 2.480 Angularprüfungen bestanden; anschließend sechs zuletzt
+angepasste Komponenten-/Übersichtsfälle gezielt erneut bestanden. HTML-Leseweg
+mit echten DOMParser-Selektoren, Cachegrenzen/-rotation, Kontotrennung und
+isolierter Prozessübergabe geprüft. Unabhängiges Abschlussreview ohne wichtige
+Befunde. 27 bestehende Browserfälle der Übersicht sowie des Kleiderschranks und
+Inseratdetails bestehen gegen einen ruhenden Produktionsbau: 320/390/834/1440
+Pixel, Hell/Dunkel, Tastatur/Touch und AXE. Frontend-/Workerbau, Formatierung,
+ESLint und beide Typprüfungen bestanden. 25 Testauswahl-/Registrierungsfälle und
+Suite-Audit bestanden. Die Windows-Laufwerkverknüpfung der Abhängigkeiten wurde
+für den regulären Bau durch eine lokale Offlineinstallation aus unverändertem
+Lockfile ersetzt; keine Paketversion geändert.
+
+**Prüfgrenzen:** Lokal gezielt die drei tatsächlich geänderten Oberflächen geprüft;
+keine unabhängigen Einkaufs-/PWA-Abläufe durchgespielt. Die vollständige konservative
+CI-Auswahl zusätzlicher Verbraucher sowie Linux-/Imageprüfungen bleiben vor dem
+Merge erforderlich. Der echte Vinted-Nachweis prüft nur den lesenden Datenweg;
+der neue Cloudimport wurde nicht produktiv ausgerollt.
+
+Kein Produktionscode veröffentlicht, keine echten Inserate geändert. Eigener
+Zweig `juna/vinted-listing-age`; fremde Arbeitsstände bleiben unberührt.
+
 ## 2026-10-16 - Juna - Chrome-Abschluss und getrennte Kontowiederherstellung absichern
 
 **Auftrag:** Die Ursache des unsauberen Chrome-Abschlusses untersuchen und

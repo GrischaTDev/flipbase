@@ -1,3 +1,4 @@
+import { createRequire } from 'node:module';
 import assert from 'node:assert/strict';
 import { test, mock } from 'node:test';
 import type { Page } from 'playwright';
@@ -1682,4 +1683,154 @@ test('zwanzig volle Gesprächsseiten bleiben ohne belegtes Listenende ein Teilst
   });
   assert.equal(snapshot.entries.filter((entry) => entry.kind === 'conversation').length, 400);
   assert.equal(snapshot.sourceRequestCount, 23);
+});
+
+test('wardrobe import enriches missing creation dates from the matching item page', async () => {
+  const paths: string[] = [];
+  const snapshot = await readVintedAccountImport(
+    importPage((path) => {
+      paths.push(path);
+      if (path.startsWith('/api/v2/wardrobe/'))
+        return {
+          items: [{ id: 41, user_id: 123, title: 'Artikel' }],
+          pagination: { total_pages: 1 },
+        };
+      if (path === '/items/41') return { publicationAgeLabel: '2 Tagen' };
+      return undefined;
+    }),
+    async () => undefined,
+  );
+  assert.ok(paths.includes('/items/41'));
+  const entry = snapshot.entries.find((entry) => entry.kind === 'publication')!;
+  assert.equal(entry.body['occurredAt'], null);
+  assert.deepEqual(entry.body['publicationAge'], {
+    value: 2,
+    unit: 'day',
+    observedAt: snapshot.observedAt,
+  });
+});
+
+test('publication enrichment keeps cached ages, rotates missing items and limits extra reads', async () => {
+  const paths: string[] = [];
+  const observedAt = new Date(Date.now() - 60_000).toISOString();
+  const publications = Array.from({ length: 8 }, (_, index) => ({ id: 41 + index, user_id: 123 }));
+  const snapshot = await readVintedAccountImport(
+    importPage((path) => {
+      paths.push(path);
+      if (path.startsWith('/api/v2/wardrobe/'))
+        return { items: publications, pagination: { total_pages: 1 } };
+      if (path.startsWith('/items/')) return { publicationAgeLabel: 'vor 3 Stunden' };
+      return undefined;
+    }),
+    async () => undefined,
+    undefined,
+    [],
+    undefined,
+    {
+      previousPublications: [
+        {
+          externalId: '41',
+          occurredAt: null,
+          publicationAge: { value: 2, unit: 'day', observedAt },
+          checkedAt: observedAt,
+        },
+      ],
+    },
+  );
+  assert.deepEqual(
+    paths.filter((path) => path.startsWith('/items/')),
+    ['/items/42', '/items/43', '/items/44'],
+  );
+  assert.deepEqual(
+    snapshot.entries.find((entry) => entry.externalId === '41')?.body['publicationAge'],
+    { value: 2, unit: 'day', observedAt },
+  );
+});
+
+test('cloud publication enrichment reads the measured HTML attribute and rejects foreign canonical pages', async () => {
+  const { readVintedAccountImport } = await import('../src/vinted-account-import.ts');
+  const { vintedPublicationAgeLabel, parseVintedPublicationAge } =
+    await import('../src/vinted-publication-age.ts');
+  const observation = '2026-10-15T10:00:00Z';
+  for (const [label, unit, value] of [
+    ['2 Tagen', 'day', 2],
+    ['vor einer Stunde', 'hour', 1],
+    ['3 weeks ago', 'week', 3],
+    ['1 Monat', 'month', 1],
+  ]) {
+    assert.deepEqual(vintedPublicationAgeLabel(label, observation), {
+      value,
+      unit,
+      observedAt: observation,
+    });
+  }
+  for (const label of ['unbekannt', '-2 Tage', '10001 Tage', '2 Tage<script>', '2026-10-01'])
+    assert.equal(vintedPublicationAgeLabel(label, observation), null);
+  const { JSDOM } = createRequire(import.meta.url)('jsdom') as {
+    JSDOM: new () => { window: { DOMParser: typeof DOMParser; close(): void } };
+  };
+  const dom = new JSDOM();
+  const originalParser = globalThis.DOMParser;
+  const originalFetch = globalThis.fetch;
+  try {
+    globalThis.DOMParser = dom.window.DOMParser;
+    for (const scenario of ['valid', 'foreign', 'rate_limited']) {
+      const paths: string[] = [];
+      globalThis.fetch = async (input, init = {}) => {
+        const path = String(input);
+        paths.push(path);
+        assert.equal(init.method, 'GET');
+        let response;
+        if (path === '/items/41') {
+          response =
+            scenario === 'rate_limited'
+              ? new Response('', { status: 429, headers: { 'Retry-After': '60' } })
+              : new Response(
+                  `<link rel="canonical" href="https://www.vinted.de/items/${scenario === 'foreign' ? '42' : '41'}-artikel"><div data-testid="item-attributes-upload_date"><div>Hochgeladen</div><div itemprop="upload_date"><span>2 Tagen</span></div></div>`,
+                  { headers: { 'Content-Type': 'text/html' } },
+                );
+        } else {
+          const body =
+            path === '/api/v2/users/current'
+              ? { user: { id: 123, login: 'testkonto' } }
+              : path.startsWith('/api/v2/wardrobe/')
+                ? {
+                    items: [{ id: 41, user_id: 123, title: 'Artikel' }],
+                    pagination: { total_pages: 1 },
+                  }
+                : {
+                    items: [],
+                    conversations: [],
+                    user_feedbacks: [],
+                    pagination: { total_pages: 1 },
+                  };
+          response = Response.json(body);
+        }
+        Object.defineProperty(response, 'url', { value: 'https://www.vinted.de' + path });
+        return response;
+      };
+      const snapshot = await readVintedAccountImport(
+        {
+          url: () => 'https://www.vinted.de/',
+          evaluate: async (callback: (path: string) => unknown, path: string) => callback(path),
+        } as unknown as Page,
+        async () => undefined,
+      );
+      const publication = snapshot.entries.find((entry) => entry.kind === 'publication')!;
+      assert.equal(publication.body.occurredAt, null);
+      assert.equal(
+        parseVintedPublicationAge(publication.body.publicationAge)?.unit ?? null,
+        scenario === 'valid' ? 'day' : null,
+      );
+      assert.equal(
+        parseVintedPublicationAge(publication.body.publicationAge)?.value ?? null,
+        scenario === 'valid' ? 2 : null,
+      );
+      if (scenario === 'rate_limited') assert.equal(paths.at(-1), '/items/41');
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+    globalThis.DOMParser = originalParser;
+    dom.window.close();
+  }
 });

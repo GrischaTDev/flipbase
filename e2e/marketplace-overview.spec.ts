@@ -27,6 +27,9 @@ for (const theme of ['light', 'dark'] as const)
         await expect(
           vinted.getByRole('checkbox', { name: 'A Jacke 01 auswählen', exact: true }),
         ).toBeVisible();
+        await expect(vinted.locator('app-vinted-listing-age:visible').first()).toContainText(
+          'ca. 2 T',
+        );
         const checkbox = vinted.getByRole('checkbox', {
           name: 'A Jacke 01 auswählen',
           exact: true,

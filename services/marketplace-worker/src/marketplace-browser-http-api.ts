@@ -1,3 +1,4 @@
+import type { VintedPublicationVersion } from './vinted-publication-age.ts';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { BrowserDragPoint, BrowserInfo } from './gologin-cloud-browser.ts';
 import {
@@ -79,6 +80,10 @@ interface BrowserApiOptions {
     ): Promise<void>;
   };
   imports?: {
+    publicationVersions?(
+      scope: BrowserSessionScope,
+      sessionId: string,
+    ): Promise<VintedPublicationVersion[]>;
     conversationVersions?(
       scope: BrowserSessionScope,
       sessionId: string,
@@ -976,6 +981,9 @@ export class MarketplaceBrowserHttpApi {
           const previousConversations = requestedConversation
             ? ((await this.imports.conversationVersions?.(scope, currentSessionId)) ?? [])
             : [];
+          const previousPublications = requestedConversation
+            ? []
+            : ((await this.imports.publicationVersions?.(scope, currentSessionId)) ?? []);
           let failedStage: VintedImportStage | 'unknown' = 'unknown';
           const result = await this.broker.run(scope, currentSessionId, async (browser) => {
             if (!browser.importAccount) return null;
@@ -985,6 +993,7 @@ export class MarketplaceBrowserHttpApi {
                 undefined,
                 previousConversations,
                 requestedConversation,
+                previousPublications,
               );
             } catch (error) {
               if (error instanceof VintedImportReadError) failedStage = error.stage;
