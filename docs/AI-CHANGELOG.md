@@ -1,5 +1,27 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-16 - Juna - Inseratsalter einheitlich in Tagen anzeigen
+
+**Auftrag und Entscheidung:** Inseratslaufzeiten grundsätzlich in Tagen statt
+Stunden anzeigen und das sichtbare „ca.“ entfernen. Die Regel soll später auch
+für die anderen Marktplätze gelten.
+
+**Änderung:** Exakte Zeitpunkte und gerundete Vinted-Angaben verwenden dieselbe
+Tagesdarstellung: unter 24 Stunden „Unter 1 Tag online“, danach „1 Tag online“,
+„2 Tage online“ usw.; kompakt „< 1 Tag“, „1 T“, „2 T“. Die gerundete Datenherkunft
+bleibt getrennt gespeichert und im Hinweis benannt. Die Vorgabe steht dauerhaft
+in `docs/design/admin-ui-guidelines.md`; andere Marktplatzabrufe werden hier
+nicht erweitert. Dies ersetzt die frühere Entscheidung für ein sichtbares „ca.“.
+
+**Prüfung:** Neue Grenzfälle für 0/24/48 Stunden und gröbere Anbieterangaben
+scheiterten zunächst am alten Verhalten. Danach 164 betroffene Modelltests und
+732 betroffene Angularprüfungen bestanden; Typprüfung, ESLint, Formatierung und
+regulärer Produktionsbau ebenfalls. Drei bestehende Browserdateien vollständig
+geprüft: 41 Fälle bestanden direkt; ein Fall meldete nach bestandenen fachlichen
+Prüfungen lokal `ERR_NO_BUFFER_SPACE` und bestand danach einzeln mit einem
+Browserprozess. Kein Test abgeschwächt. Unabhängiges Anschlussreview ohne wichtige
+Befunde. Weiterhin eigener unveröffentlichter Zweig `juna/vinted-listing-age`.
+
 ## 2026-10-16 - Juna - Gerundetes Vinted-Inseratsalter aus der Detailseite übernehmen
 
 **Auftrag:** „Alter unbekannt“ in Marktplatzübersicht, Kleiderschrank und

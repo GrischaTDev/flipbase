@@ -208,7 +208,7 @@ for (const width of [320, 390, 834, 1440]) {
       await expect(
         page.locator('app-vinted-listings').getByText('Wochenziel überschritten', { exact: true }),
       ).toBeVisible();
-      for (const text of ['3 T 12 Std.', '1 T 12 Std.', '5 T', '7 T', 'Alter unbekannt'])
+      for (const text of ['3 T', '1 T', '5 T', '7 T', 'Alter unbekannt'])
         await expect(page.getByText(text, { exact: true })).toBeVisible();
       await page.evaluate(axe.source);
       expect(
@@ -222,7 +222,7 @@ for (const width of [320, 390, 834, 1440]) {
       const gallery = page.locator('app-product-gallery');
       await expect(gallery.getByRole('button')).toHaveCount(5);
       await expect(gallery.getByText('+15 Fotos')).toBeVisible();
-      await expect(page.getByText('3 Tage und 12 Stunden online', { exact: true })).toBeVisible();
+      await expect(page.getByText('3 Tage online', { exact: true })).toBeVisible();
       if (width === 1440) {
         const galleryBounds = await gallery.boundingBox();
         const information = await page

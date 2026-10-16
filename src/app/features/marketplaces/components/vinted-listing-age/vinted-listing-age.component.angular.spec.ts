@@ -57,11 +57,11 @@ it('zeigt die gerundete Anbieterangabe ohne erfundene genaue Veröffentlichungsz
     observedAt: '2026-10-15T10:00:00Z',
   });
   fixture.detectChanges();
-  expect(fixture.nativeElement.textContent).toContain('ca. 2 Tage online');
+  expect(fixture.nativeElement.textContent).toContain('2 Tage online');
   const title = fixture.nativeElement.querySelector('[title]').getAttribute('title');
   expect(title).toContain('Gerundete Angabe von Vinted');
   expect(title).not.toContain('Veröffentlicht:');
   clock.now.update((value) => value + 24 * 3600000);
   fixture.detectChanges();
-  expect(fixture.nativeElement.textContent).toContain('ca. 3 Tage online');
+  expect(fixture.nativeElement.textContent).toContain('3 Tage online');
 });
