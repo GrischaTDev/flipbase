@@ -34,8 +34,9 @@ Runtime-Freeze-Nachweis bestehen; 22 Workflow-/Auswahlprüfungen und Suite-Audit
 ebenfalls. Reviewbefunde zu Startfehlern, Profilbesitzern, Auftragsversionen und
 dauerhafter Stoppwarnung behoben, Abschlussreview ohne offene wichtige Befunde.
 Nachträglich ergänzter Datenbankausfall-/Workerneustartfall ist gezielt bestanden.
-Bisher kein Push, PR, Merge oder produktiver
-Imageaustausch; die zuvor wiederhergestellte Produktion bleibt unverändert.
+Der Nutzer hat PR-Erstellung, erfolgreiche Pflichtprüfungen und anschließenden
+Merge ausdrücklich freigegeben. Danach werden Worker, Broker und Sitzungsimage
+gemeinsam veröffentlicht und die drei produktiven Abrufe überprüft.
 
 ## 2026-10-16 - Juna - Blockierte Vinted-Synchronisierung wiederherstellen
 
