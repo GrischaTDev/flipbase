@@ -7,6 +7,7 @@ import axe from 'axe-core';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { SupabaseService } from '../../core/services/supabase.service';
 import { MarketplaceSettingsService } from '../../core/services/marketplace-settings.service';
 import { PlatformOperatorService } from '../../core/services/platform-operator.service';
 import { prepareMarketplaceRendering } from '../../../../e2e/support/marketplace-rendering';
@@ -74,6 +75,31 @@ describe('SidebarComponent', () => {
       imports: [SidebarComponent],
       providers: [
         provideRouter(routes),
+        {
+          provide: SupabaseService,
+          useValue: {
+            client: {
+              from: () => {
+                const query = {
+                  select: () => query,
+                  eq: () => query,
+                  maybeSingle: async () => ({
+                    data: { vinted: true, ebay: true, kleinanzeigen: true },
+                    error: null,
+                  }),
+                };
+                return query;
+              },
+              rpc: async (
+                _name: string,
+                p: { p_vinted: boolean; p_ebay: boolean; p_kleinanzeigen: boolean },
+              ) => ({
+                data: { vinted: p.p_vinted, ebay: p.p_ebay, kleinanzeigen: p.p_kleinanzeigen },
+                error: null,
+              }),
+            },
+          },
+        },
         provideTranslateService({ lang: 'de' }),
         {
           provide: PlatformOperatorService,
@@ -239,8 +265,9 @@ describe('SidebarComponent', () => {
   it('blendet deaktivierte Marktplätze dynamisch aus der Navigation aus', async () => {
     const { element, fixture } = await renderAt('/dashboard');
     const settings = TestBed.inject(MarketplaceSettingsService);
-    settings.setMarketplaceEnabled('ebay', false);
-    settings.setMarketplaceEnabled('kleinanzeigen', false);
+    await settings.load('user', 'workspace');
+    await settings.setMarketplaceEnabled('ebay', false);
+    await settings.setMarketplaceEnabled('kleinanzeigen', false);
     fixture.detectChanges();
 
     expect(element.querySelector('a[href="/marketplaces/ebay"]')).toBeNull();
@@ -248,7 +275,7 @@ describe('SidebarComponent', () => {
     expect(element.querySelector('a[href="/marketplaces/vinted"]')).not.toBeNull();
     expect(element.querySelector('a[href="/vinted-bot"]')).not.toBeNull();
 
-    settings.setMarketplaceEnabled('vinted', false);
+    await settings.setMarketplaceEnabled('vinted', false);
     fixture.detectChanges();
     expect(element.querySelector('a[href="/marketplaces/vinted"]')).toBeNull();
     expect(element.querySelector('a[href="/vinted-bot"]')).toBeNull();
@@ -387,10 +414,12 @@ describe('SidebarComponent', () => {
       expect(label?.getAttribute('tabindex')).toBeNull();
     }
     const links = [...element.querySelectorAll<HTMLAnchorElement>('nav a')];
-    expect(links[0].textContent?.trim()).toBe('Konten');
+    expect(links[0].textContent?.trim()).toBe('Alle Marktplätze');
+    expect(links[0].getAttribute('href')).toBe('/marketplaces/overview');
+    expect(links[1].textContent?.trim()).toBe('Konten');
     expect(links.at(-1)?.textContent?.trim()).toBe('Favoritennachrichten');
     expect(links.filter((link) => link.getAttribute('aria-current') === 'page')).toHaveLength(1);
-    links[1].click();
+    links[2].click();
     expect(closed).toHaveBeenCalledOnce();
     await fixture.whenStable();
     expect(TestBed.inject(Router).url).toBe('/marketplaces/vinted/overview');

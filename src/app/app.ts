@@ -1,3 +1,4 @@
+import { MarketplaceSettingsContextService } from './core/services/marketplace-settings-context.service';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
@@ -37,6 +38,7 @@ export class App {
   protected readonly title = signal('flipbase');
 
   constructor() {
+    inject(MarketplaceSettingsContextService);
     this.translate.setTranslation('de', TRANSLATIONS_DE, true);
     this.translate.setTranslation('en', TRANSLATIONS_EN, true);
     this.translate.use('de');

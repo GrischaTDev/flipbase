@@ -40,6 +40,7 @@ export const TRANSLATIONS_DE = {
     TAGLINE: 'Das All-in-One Betriebssystem für Reseller',
   },
   NAV: {
+    MARKETPLACE_OVERVIEW: 'Übersicht',
     GROUP_MERCHANDISE: 'Warenwirtschaft',
     GROUP_PURCHASING: 'Einkauf',
     GROUP_ARTICLES: 'Artikel',
@@ -472,6 +473,7 @@ export const TRANSLATIONS_EN = {
     TAGLINE: 'The All-in-One Operating System for Resellers',
   },
   NAV: {
+    MARKETPLACE_OVERVIEW: 'Overview',
     GROUP_MERCHANDISE: 'Merchandise Management',
     GROUP_PURCHASING: 'Purchasing',
     GROUP_ARTICLES: 'Products',

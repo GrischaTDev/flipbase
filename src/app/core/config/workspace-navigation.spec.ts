@@ -25,6 +25,7 @@ describe('Arbeitsnavigation', () => {
       [
         ['/purchases', '/catalog', '/sales'],
         [
+          '/marketplaces/overview',
           '/marketplaces/vinted',
           '/vinted-bot',
           '/marketplaces/ebay',
@@ -55,6 +56,7 @@ describe('Arbeitsnavigation', () => {
     assert.deepEqual(
       marketplaceGroup?.items.map((item) => [item.path, item.platform]),
       [
+        ['/marketplaces/overview', undefined],
         ['/marketplaces/vinted', 'vinted'],
         ['/vinted-bot', undefined],
         ['/marketplaces/ebay', 'ebay'],
@@ -100,6 +102,7 @@ describe('Arbeitsnavigation', () => {
       '/image-optimizer',
       '/marketplaces/ebay',
       '/marketplaces/kleinanzeigen',
+      '/marketplaces/overview',
       '/marketplaces/vinted',
       '/master-data',
       '/purchases',

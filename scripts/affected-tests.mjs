@@ -84,6 +84,8 @@ function browserSpecs(file, files) {
   if (feature === 'purchases' && /purchases\.component\.|purchase-profitability/u.test(file))
     return ['purchase-profitability'];
   if (feature === 'marketplaces') {
+    if (/marketplace-(?:overview|listing-section|listing-selection)/u.test(file))
+      return ['marketplace-overview'];
     if (/vinted-listing-(?:detail|age)|vinted-listings|vinted-listing-clock/u.test(file))
       return ['vinted-listing-edge-cases', 'vinted-workspace-ui'];
     if (/listing/u.test(file))

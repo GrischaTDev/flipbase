@@ -69,6 +69,12 @@ export const WORKSPACE_NAVIGATION_GROUPS: readonly WorkspaceNavigationGroup[] = 
     label: 'Marktplätze',
     items: [
       {
+        path: '/marketplaces/overview',
+        labelKey: 'NAV.MARKETPLACE_OVERVIEW',
+        label: 'Übersicht',
+        icon: 'store',
+      },
+      {
         path: '/marketplaces/vinted',
         labelKey: 'PLATFORMS.VINTED',
         label: 'Vinted',
