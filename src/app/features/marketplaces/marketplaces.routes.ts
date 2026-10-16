@@ -4,7 +4,14 @@ import { vintedListingEditorGuard } from './guards/vinted-listing-editor.guard';
 import { ebayListingEditorGuard } from './guards/ebay-listing-editor.guard';
 
 export const MARKETPLACES_ROUTES: Routes = [
-  { path: '', redirectTo: 'vinted', pathMatch: 'full' },
+  { path: '', redirectTo: 'overview', pathMatch: 'full' },
+  {
+    path: 'overview',
+    loadComponent: () =>
+      import('./components/marketplace-overview/marketplace-overview.component').then(
+        (module) => module.MarketplaceOverviewComponent,
+      ),
+  },
   {
     path: 'ebay',
     loadComponent: () =>

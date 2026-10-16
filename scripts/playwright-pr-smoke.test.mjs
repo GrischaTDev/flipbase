@@ -10,6 +10,34 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 
 // Nur die tatsächliche Testauswahl prüfen, nicht Playwrights Parser nachtesten.
 const coreTests = [
+  [
+    'marketplace-overview.spec.ts',
+    'Marktplatzeinstellungen können einen fehlgeschlagenen Abruf erneut laden @core-smoke',
+  ],
+  ...[
+    'Kontextnavigation führt aus Vinted und eBay zur Übersicht zurück @core-smoke',
+    'Fehlende Vinted-Freigabe bietet keinen Erstellungseinstieg an @core-smoke',
+  ].map((title) => ['marketplace-overview.spec.ts', title]),
+  ...['light', 'dark'].flatMap((theme) =>
+    [320, 390, 834, 1440].map((width) => [
+      'marketplace-overview.spec.ts',
+      'Workspacewechsel trennt Sichtbarkeit und Auswahl bei ' +
+        width +
+        'px im ' +
+        theme +
+        '-Theme @core-smoke',
+    ]),
+  ),
+  ...['light', 'dark'].flatMap((theme) =>
+    [320, 390, 834, 1440].map((width) => [
+      'marketplace-overview.spec.ts',
+      'Marktplatzübersicht bleibt bei ' + width + 'px im ' + theme + '-Theme bedienbar @core-smoke',
+    ]),
+  ),
+  ...[
+    'Sichtbarkeit bleibt nach Neuladen erhalten und Accountauswahl trennt Listen @core-smoke',
+    'Ein Vinted-Ausfall erhält die eBay-Inserate und bietet keine fremden Filter an @core-smoke',
+  ].map((title) => ['marketplace-overview.spec.ts', title]),
   ...['light', 'dark'].flatMap((theme) =>
     [320, 390, 834, 1440].map((width) => [
       'purchase-profitability.spec.ts',
@@ -510,4 +538,22 @@ test('normale Browserkonfigurationen schließen die gesonderten Produktions-PWA-
       `${config} darf keine separat ausgeführten Produktions-PWA-Fälle auswählen`,
     );
   }
+});
+
+test('gezielte Marktplatzübersicht wählt ihre registrierten Browserfälle', async () => {
+  const plan = selectAffectedTests(
+    [
+      'src/app/features/marketplaces/components/marketplace-overview/marketplace-overview.component.html',
+    ],
+    await readSelectionFiles(root),
+  );
+  const { selected } = await listTests('playwright.affected.config.ts', [], {
+    AFFECTED_TEST_PLAN: JSON.stringify(plan),
+  });
+  assert.equal(plan.full, false);
+  assert.deepEqual(
+    keys(selected),
+    keys(coreTests.filter(([file]) => file === 'marketplace-overview.spec.ts')),
+  );
+  assert.equal(plan.pwa, false);
 });

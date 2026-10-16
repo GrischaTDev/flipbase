@@ -204,3 +204,22 @@ test('fehlender Plan, leere Auswahl und fehlende Testdatei werden nie als Erfolg
     assert.notEqual(result.status, 0, result.stdout);
   }
 });
+
+test('Marktplatzübersicht und ihre Auswahl wählen die eigenen Browserfälle', () => {
+  const paths = [
+    'src/app/features/marketplaces/components/marketplace-overview/marketplace-overview.component.html',
+    'src/app/features/marketplaces/components/marketplace-listing-section/marketplace-listing-section.component.html',
+    'src/app/features/marketplaces/services/marketplace-overview.store.ts',
+    'src/app/features/marketplaces/models/marketplace-listing-selection.ts',
+  ];
+  for (const path of paths) {
+    const plan = selectAffectedTests([path], {
+      ...files,
+      [path]: '',
+      'e2e/marketplace-overview.spec.ts': '',
+    });
+    assert.equal(plan.full, false, path);
+    assert.deepEqual(plan.browserFiles, ['e2e/marketplace-overview.spec.ts'], path);
+    assert.equal(plan.pwa, false, path);
+  }
+});

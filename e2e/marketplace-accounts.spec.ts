@@ -148,6 +148,15 @@ for (const width of [1440, 390]) {
     await expect(dialog).toContainText('Aktuell sind keine freien Cloud-IPs vorhanden.');
     await expect(page.locator('app-marketplace-browser-test')).toHaveCount(0);
     expect(calls.filter((call) => call.name === 'marketplace_create_connection')).toHaveLength(0);
+    // Den fertigen Dialog prüfen, nachdem seine Einblendung abgeschlossen ist.
+    await dialog.evaluate(async (element) =>
+      Promise.allSettled(
+        element
+          .getAnimations({ subtree: true })
+          .filter((animation) => animation.effect?.getTiming().iterations !== Infinity)
+          .map((animation) => animation.finished),
+      ),
+    );
     await page.addScriptTag({ content: axe.source });
     expect(
       await page.evaluate(
@@ -1372,7 +1381,9 @@ for (const width of [1440, 390]) {
       .getByRole('button', { name: 'Umbenanntes Testkonto einstellen', exact: true })
       .click();
     await page.getByRole('button', { name: 'Pausieren', exact: true }).click();
-    await expect(accounts.getByText('Pausiert', { exact: true })).toBeVisible();
+    await expect(
+      accounts.locator('[cdkDrag]').getByText('Pausiert', { exact: true }),
+    ).toBeVisible();
     await page.getByRole('button', { name: 'Fortsetzen', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Pausieren', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Konto entfernen', exact: true }).click();

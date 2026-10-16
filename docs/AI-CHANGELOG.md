@@ -1,5 +1,134 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-16 - Juna - Marktplatzübersicht zur Integration freigeben
+
+**Auftrag:** PR erstellen und nach erfolgreichen Pflichtprüfungen per Merge-Commit
+integrieren; anschließend eigenen Feature-Zweig und Worktree aufräumen.
+
+**Vorbereitung:** Nutzerfreigabe liegt vor. Aktuellen Hauptzweig einschließlich der
+gezielten Testauswahl integriert; beide Einträge im Änderungsprotokoll erhalten.
+Die neue Übersicht ist in dieser Auswahl ausdrücklich ihren eigenen Browserfällen
+zugeordnet. Der neue Auswahlfall schlug zunächst fehl; nach der Korrektur bestanden
+46 Auswahl-, Registrierungs- und Freigabevertragstests einschließlich der tatsächlichen
+Playwright-Auflistung. Bereits dokumentierte lokale Anwendungs-, Datenbank- und
+Browserprüfungen bleiben Grundlage; die erforderlichen CI-Prüfungen müssen vor
+dem Merge erfolgreich sein.
+
+**CI-Nachprüfung:** Im ersten PR-Lauf waren Qualität, Datenbank, PWA und alle
+Anwendungstests erfolgreich. Ein bestehender Vinted-Browserfall erwartete noch
+die Menüliste ohne den neu vorgesehenen Rücklink „Alle Marktplätze“. Fehler lokal
+identisch nachgestellt; erwarteten Link und seine Zieladresse ergänzt, danach alle
+sechs vorhandenen Vinted-Ansichten in 1440/390/320 Pixeln und Hell/Dunkel erfolgreich.
+Keine Produktänderung und keine Prüfgrenze abgeschwächt; neuer CI-Lauf erforderlich.
+
+## 2026-10-15 - Juna - Zentrale Marktplatzübersicht umsetzen
+
+**Auftrag:** Paket A direkt in dieser Sitzung umsetzen. Kontingent und Gebührenstopp
+bleiben für den späteren Veröffentlichungsweg verbindlich.
+
+**Stand:** Persönliche Sichtbarkeit je Nutzer und Workspace mit sicherer
+Altdatenübernahme und Rücknahme fehlgeschlagener Änderungen implementiert.
+Neue RLS-Fälle bestehen nach vollständigem Neuaufbau aus der erzeugten Migration.
+Die CLI ließ anfangs geerbte Standardrechte bestehen; ein zusätzlich erzeugter
+Rechte-Diff ist Teil der neu generierten Migration. Bestehende Tests wurden
+unverändert auf diese Grenze angewendet.
+
+Gemeinsame Übersicht unter /marketplaces/overview mit Accountfiltern, aufklappbaren
+Inseratlisten, vollständiger Vinted-Suche und Statusfilter auf der gespeicherten
+Lesekopie, eBay-Seitennavigation und getrennter Auswahl geliefert. Vorhandene
+Detail-/Bearbeiten-/Entwurfswege wiederverwendet; Kleinanzeigen-Abgleich und Transfer
+bleiben klar als Folgeschritte getrennt. Keine echten Inserate verändert.
+
+**Prüfung:** Anwendungssuiten 5.287/5.287, neue SQL-Zugriffsfälle 14/14 nach
+Migrations-Neuaufbau, neue Browserfälle 21/21 (320/390/834/1440, Hell/Dunkel,
+Touch/Tastatur/AXE, Auswahl, Workspacewechsel, Freigabe und Kontextnavigation).
+Bestehende Browserfälle: Account-/Einstellungsansichten 29 bestanden plus vier
+gezielt reparierte Testfälle bestanden; lokale Backend-Navigation/Listing-Studio
+6/6. Bei den vier Fällen Dialoganimation abgewartet und mehrdeutigen Statusbezug
+auf die betreffende Accountkarte eingegrenzt; keine Prüfgrenzen abgeschwächt.
+Testregistrierung, Schema-Registrierung, Suite-Audit, Shared-UI-Prüfung, gezielte
+Formatierung/ESLint, Typprüfung und Produktionsbau bestanden.
+Abschließendes unabhängiges Codereview durchgeführt: plattformbezogene Wiederholung
+erhält fremde Auswahl; bisherige Einstellungsseite kann Erstabrufe wiederholen;
+eBay-Sandbox behält den vorhandenen Ansehen-Link. Neue Fehlerfälle jeweils vor
+Korrektur reproduziert, danach gezielt und mit vollständiger Anwendungssuite grün.
+Nach den Korrekturen 23/23 Browserfälle (21 neue plus zwei Einstellungen) bestanden.
+Noch kein Push oder PR; Linux-/CI-
+Gesamtprüfung und echte Anbieterabnahme stehen außerhalb dieser lokalen Abnahme.
+
+## 2026-10-15 - Juna - Privatkontingent für Kleidungsanzeigen recherchieren
+
+**Auftrag:** Prüfen, ob die Privatkonto-Regel für 100 neue Anzeigen in 30 Tagen
+auch Kleidung betrifft und welche Folgen sie für die Marktplatzplanung hat.
+
+**Ergebnis:** Offizielle Privatgebührenseite und Warenzuordnung gelesen;
+Bekleidung als Konsumgut eingeordnet, keine dokumentierte Bekleidungs-Ausnahme
+gefunden. Privatstatus und fehlendes PRO-Abo sind getrennte Merkmale.
+Quellen, Grenzen und Folgen in
+docs/research/2026-10-15-kleinanzeigen-private-listing-quota.md festgehalten.
+Spezifikation und Teilpläne ergänzen Standard-Privataccounts als erste Abnahme,
+ehrliche Kontingentanzeige und zusätzliche Gebühren-/Kontotypfälle.
+
+**Prüfung:** Öffentliche Quellen, Dokumentverweise, Markdown-Formatierung und
+Unterschiedskontrolle. Keine Anmeldung, Produktcodeänderung, Anwendungstests
+oder echten Inserataktionen; eigener Planungszweig juna/marketplace-hub-planning.
+
+## 2026-10-15 - Juna - Marktplatzübersicht und ersten Transfer konkret planen
+
+**Auftrag:** Den im Chat bestätigten Aufbau als konkreten Umsetzungsplan ausarbeiten,
+mit Vinted → Kleinanzeigen als erstem vollständigen Übertragungsweg.
+
+**Ergebnis:** Eine gemeinsame Spezifikation, eine Umsetzungsfolge und drei Teilpläne
+für Übersicht, Kleinanzeigen-Kontobindung/Inseratabgleich und den vollständigen
+Einzeltransfer geschrieben. Dateien, Schnittstellen, Schemaänderungen, betroffene
+bestehende Tests, neue Fälle, CI-Registrierung und Abnahmekriterien sind benannt.
+Die vorhandenen Kleinanzeigen-Entwürfe und Bilder bleiben Grundlage; kein zweites
+Entwurfssystem. Lokale und Cloud-Vinted-Quellen werden berücksichtigt. Relisting,
+Sammelausführung, weitere Richtungen und mehrere eBay-Verbindungen folgen getrennt.
+Sichtbarkeit ist persönlich je Workspace und getrennt von Accountpause/Freigabe.
+
+Der Integrationsstand enthält inzwischen Galerie/Inseratsalter aus PR #423.
+Den älteren Transferentwurf als überholt gekennzeichnet: keine automatische
+Titelkürzung, geratenen Zustandswerte oder festen Versandpreise übernehmen.
+Offizielle Kleinanzeigen-Hilfe und Gebühreninformationen gelesen; automatische
+Ausführung stoppt vor kostenpflichtigen/unklaren Buchungsschritten. Anbieteridentität,
+Formularvertrag und Erfolgsbelege müssen vor der Browserumsetzung lesend nachgewiesen
+werden. Das ist im Plan eine eigene überprüfbare Aufgabe.
+
+**Prüfung und Grenzen:** Eigenreview von Umfang, Typen, Dateipfaden, Fehlerfällen
+und tatsächlicher CI-Auswahl. Markdown-Formatierung, Dokumentverweise und Unterschiedskontrolle bestanden. Keine Produktcodeänderung, Migration, Installation,
+Anwendungstests oder echten Inserataktionen. Planung im eigenen Zweig
+juna/marketplace-hub-planning; keine fremden Zweige verändert.
+Die konkreten Pläne werden jetzt zur Prüfung vorgelegt, noch keine Umsetzung.
+
+## 2026-10-15 - Juna - Zentrale Marktplatzverwaltung vorbereiten
+
+**Auftrag:** Eine gemeinsame Übersicht für aktivierte Marktplätze, Accounts und
+Inserate sowie Übertragung, Bearbeitung, Löschen, Relisting und Mehrfachaktionen
+durchplanen.
+
+**Befund und Vorschlag:** Navigation, Aktivierung, Vinted-/eBay-Verbindungen,
+Inseratdienste, Entwürfe, Auftragsmodelle und Extension gelesen. Kleinanzeigen
+besitzt derzeit vor allem Entwürfe und Formularübergabe; Kategorie und
+Veröffentlichen bleiben manuell. Ein Tab-Erfolg ist keine Veröffentlichung.
+Der eBay-Datenvertrag sieht eine persönliche Verbindung je Workspace und Umgebung
+vor. Lokale Vinted-Veröffentlichungsdateien sind im geprüften Extension-Einstieg
+noch nicht geladen. Vorhandenen Code daher nicht als bestätigten Live-Ablauf gewertet.
+
+Vorschlag: Übersicht mit direkt bedienbaren Plattformabschnitten und Accountfiltern,
+getrennte Zielentwürfe statt erzwungenem Einheitsformular, gemeinsame Aufträge mit
+kontrolliertem Ergebnis und späteren Sammelaktionen. Kleinanzeigen-Abgleich vor
+vollständiger Verwaltung ergänzen; Vinted-Relisting als dieselbe Aktion aus
+Kleiderschrank, Detailseite und Übersicht aufrufbar planen. Grundlagen,
+Alternativen, Umsetzungspakete und spätere Prüfungen stehen in
+`docs/audit/2026-10-15-marketplace-hub-planning.md`.
+
+**Prüfung und Stand:** Reine Analyse und Planungsdokumentation im eigenen Worktree
+und Zweig `juna/marketplace-hub-planning`, ausgehend vom lokal vorhandenen
+`origin/master` bei `36723117`. Die laufende Vinted-Galerie-/Altersarbeit nur
+lesend berücksichtigt. Keine Produktcode-, Schema- oder Live-Kontoänderung,
+keine Anwendungstests. Markdown-Formatierung und Unterschiedskontrolle bestanden. Vorschlag noch nicht als Umsetzung freigegeben.
+
 ## 2026-10-15 - Juna - Tests anhand betroffener Funktionen auswählen
 
 **Auftrag:** Die freigegebene Auswahl umsetzen: unabhängige Funktionen nicht bei

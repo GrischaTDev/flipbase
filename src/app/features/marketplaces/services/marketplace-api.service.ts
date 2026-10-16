@@ -1,3 +1,9 @@
+import type {
+  MarketplaceListingQuery,
+  MarketplaceOverviewPage,
+} from '../models/marketplace-overview.models';
+import { normalizeVintedPublication } from '../models/marketplace-overview-normalization';
+import { createOverviewCursor, readOverviewCursor } from '../models/marketplace-overview-cursor';
 import { Injectable, inject } from '@angular/core';
 import { SupabaseService } from '../../../core/services/supabase.service';
 import type { AccountScope, MarketplaceConnection } from '../models/marketplace.models';
@@ -311,5 +317,94 @@ export class MarketplaceApiService {
       scope,
       kind === 'message' ? (conversationId ?? undefined) : undefined,
     );
+  }
+
+  /** Eigene Inserate mit vollständiger Kennung und Filtern über die ganze Lesekopie. */
+  async readOverviewPublications(
+    scope: AccountScope,
+    query: MarketplaceListingQuery,
+  ): Promise<MarketplaceOverviewPage> {
+    const account = { platform: 'vinted' as const, ...scope };
+    const cursor = readOverviewCursor(query.cursor, account, query);
+    const at = cursor?.['at'];
+    const id = cursor?.['id'];
+    if (
+      cursor &&
+      (typeof at !== 'string' ||
+        !/^[0-9T:Z.+-]+$/.test(at) ||
+        !Number.isFinite(Date.parse(at)) ||
+        typeof id !== 'string' ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))
+    )
+      throw new Error('Ungültige Inseratseite.');
+    const filtered = (head: boolean) => {
+      let request = this.client
+        .from('marketplace_account_entries')
+        .select('id,external_id,body,sort_at', { count: 'exact', head })
+        .eq('workspace_id', scope.workspaceId)
+        .eq('connection_id', scope.connectionId)
+        .eq('kind', 'publication');
+      if (query.search.trim())
+        request = request.ilike(
+          'body->>title',
+          '%' + query.search.trim().replace(/[%_\\]/g, '\\$&') + '%',
+        );
+      if (query.state === 'ended') request = request.eq('body->>isClosed', 'true');
+      if (query.state === 'reserved')
+        request = request.eq('body->>isReserved', 'true').eq('body->>isClosed', 'false');
+      if (query.state === 'active')
+        request = request.eq('body->>isReserved', 'false').eq('body->>isClosed', 'false');
+      return request;
+    };
+    let pageRequest = filtered(false)
+      .order('sort_at', { ascending: false })
+      .order('id', { ascending: false })
+      .limit(query.limit + 1);
+    if (cursor)
+      pageRequest = pageRequest.or(
+        'sort_at.lt.' + at + ',and(sort_at.eq.' + at + ',id.lt.' + id + ')',
+      );
+    const [page, count] = await Promise.all([pageRequest, filtered(true)]);
+    if (page.error || count.error || count.count === null || !Array.isArray(page.data))
+      throw new MarketplaceApiError('request_failed');
+    const rows = page.data.slice(0, query.limit).map((row) => {
+      if (!row.body || typeof row.body !== 'object' || Array.isArray(row.body))
+        throw new MarketplaceResponseError();
+      return { ...row, body: row.body as Record<string, unknown> };
+    });
+    const parsed = rows.map(
+      (row) =>
+        parseMarketplacePage(
+          {
+            items: [{ ...row.body, id: row.id, externalId: row.external_id, ...scope }],
+            total: 1,
+            nextCursor: null,
+          },
+          scope,
+        ).items[0],
+    );
+    const items = parsed.map((entry, index) =>
+      normalizeVintedPublication({
+        ...entry,
+        isClosed:
+          typeof rows[index].body['isClosed'] === 'boolean'
+            ? (rows[index].body['isClosed'] as boolean)
+            : null,
+        isReserved:
+          typeof rows[index].body['isReserved'] === 'boolean'
+            ? (rows[index].body['isReserved'] as boolean)
+            : null,
+      }),
+    );
+    const last = rows.at(-1);
+    return {
+      items,
+      total: count.count,
+      completeness: 'partial',
+      nextCursor:
+        last && page.data.length > query.limit
+          ? createOverviewCursor(account, query, { at: last.sort_at, id: last.id })
+          : null,
+    };
   }
 }

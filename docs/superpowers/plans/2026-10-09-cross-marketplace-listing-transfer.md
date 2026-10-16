@@ -1,5 +1,7 @@
 # Cross-Marketplace Listing Transfer: Vinted ➔ Kleinanzeigen
 
+> **Überholt für neue Arbeiten:** Der bestätigte Aufbau und Vinted → Kleinanzeigen werden durch [Spezifikation vom 15.10.2026](../specs/2026-10-15-marketplace-overview-transfer-design.md) und [die neue Umsetzungsfolge](2026-10-15-marketplace-overview-transfer-roadmap.md) konkretisiert. Historische Annahmen unten nicht als aktuelle Anbieterwerte verwenden.
+
 > **Status:** Konzept & Architekturplan  
 > **Datum:** 2026-10-09  
 > **Autor:** Juna  

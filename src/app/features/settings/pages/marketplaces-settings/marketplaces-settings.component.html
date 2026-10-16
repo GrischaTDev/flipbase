@@ -7,12 +7,24 @@
       <app-badge tone="neutral">{{ activeCount() }} von 3 aktiv</app-badge>
     </div>
     <p class="text-sm text-fb-text-secondary">
-      Wähle deine Verkaufskanäle und verwalte die zugehörigen Konten.
+      Wähle, welche Verkaufskanäle du unter Marktplätze sehen möchtest, und verwalte ihre Konten.
     </p>
+    @if (settingsError(); as error) {
+      <p role="alert" class="text-sm text-fb-critical">{{ error }}</p>
+      @if (!settingsReady()) {
+        <app-button variant="secondary" [disabled]="settingsLoading()" (clicked)="onRetry()"
+          >Erneut versuchen</app-button
+        >
+      }
+    }
+    @if (settingsLoading()) {
+      <p role="status" class="text-sm text-fb-text-secondary">Deine Marktplätze werden geladen …</p>
+    }
     <div class="space-y-5">
       <div class="space-y-3">
         <app-custom-checkbox
           presentation="row"
+          [disabled]="!settingsReady() || settingsSaving()"
           size="lg"
           label="Vinted Hub"
           ariaLabel="Vinted Marktplatz aktivieren"
@@ -32,6 +44,7 @@
       <div class="space-y-3">
         <app-custom-checkbox
           presentation="row"
+          [disabled]="!settingsReady() || settingsSaving()"
           size="lg"
           label="eBay"
           ariaLabel="eBay Marktplatz aktivieren"
@@ -51,6 +64,7 @@
       <div class="space-y-3">
         <app-custom-checkbox
           presentation="row"
+          [disabled]="!settingsReady() || settingsSaving()"
           size="lg"
           label="Kleinanzeigen"
           ariaLabel="Kleinanzeigen Marktplatz aktivieren"
@@ -69,7 +83,8 @@
       </div>
     </div>
     <p class="text-sm text-fb-text-secondary">
-      Beim Deaktivieren bleiben deine gespeicherten Daten erhalten.
+      Die Auswahl steuert die Anzeige im Menü. Konten, Freigaben und laufende Aufträge bleiben
+      erhalten.
     </p>
   </section>
 </app-card>

@@ -1,0 +1,138 @@
+import '@angular/compiler';
+import { TestBed } from '@angular/core/testing';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { MarketplaceOverviewService } from './marketplace-overview.service';
+import { MarketplaceApiService } from './marketplace-api.service';
+import { EbayAccountApiService } from './ebay-account-api.service';
+import type { MarketplaceOverviewAccount } from '../models/marketplace-overview.models';
+
+describe('Zentrale Marktplatzdaten', () => {
+  const scope = { workspaceId: 'ws-a', connectionId: 'account-a' };
+  const account: MarketplaceOverviewAccount = {
+    platform: 'ebay',
+    ...scope,
+    displayName: 'eBay A',
+    status: 'connected',
+    activeCount: null,
+    listingCount: null,
+    observedAt: null,
+    completeness: 'unknown',
+    supportsSearch: false,
+    supportsStatus: false,
+    canEdit: true,
+    error: null,
+  };
+  const api = {
+    canManage: vi.fn(),
+    listConnections: vi.fn(),
+    readAccountPreview: vi.fn(),
+    readOverviewPublications: vi.fn(),
+  };
+  const ebay = { loadStatus: vi.fn(), loadListings: vi.fn() };
+  beforeEach(() => {
+    for (const fn of Object.values(api)) fn.mockReset();
+    for (const fn of Object.values(ebay)) fn.mockReset();
+    api.canManage.mockResolvedValue(false);
+    ebay.loadStatus.mockResolvedValue({
+      configured: true,
+      listingManagementAvailable: true,
+      connection: {
+        ...scope,
+        status: 'connected',
+        username: 'eBay A',
+        environment: 'production',
+        lastReadAt: null,
+      },
+    });
+    ebay.loadListings.mockResolvedValue({
+      ...scope,
+      items: Array.from({ length: 60 }, (_, i) => ({
+        id: String(i + 1),
+        title: 'Jacke ' + i,
+        price: 12.34,
+        currency: 'EUR',
+        quantity: 1,
+        listingType: 'FixedPriceItem',
+        url: 'https://www.ebay.de/itm/' + (i + 1),
+      })),
+      total: 123,
+      nextPage: 2,
+    });
+    TestBed.configureTestingModule({
+      providers: [
+        MarketplaceOverviewService,
+        { provide: MarketplaceApiService, useValue: api },
+        { provide: EbayAccountApiService, useValue: ebay },
+      ],
+    });
+  });
+  afterEach(() => TestBed.resetTestingModule());
+  it('liest ohne Vinted-Berechtigung keine geschützten Konten und erhält eBay', async () => {
+    const service = TestBed.inject(MarketplaceOverviewService);
+    expect(await service.loadAccounts('ws-a', 'vinted')).toEqual([]);
+    expect(api.listConnections).not.toHaveBeenCalled();
+    const accounts = await service.loadAccounts('ws-a', 'ebay');
+    expect(accounts).toHaveLength(1);
+    expect(accounts[0].displayName).toBe('eBay A');
+    expect(ebay.loadListings).not.toHaveBeenCalled();
+  });
+  it('zeigt eine vollständige Gesamtzahl trotz nur 25 sichtbaren eBay-Inseraten', async () => {
+    const service = TestBed.inject(MarketplaceOverviewService);
+    const first = await service.loadListings(account, { state: 'all', search: '', limit: 25 });
+    expect(first.items).toHaveLength(25);
+    expect(first.total).toBe(123);
+    const second = await service.loadListings(account, {
+      state: 'all',
+      search: '',
+      limit: 25,
+      cursor: first.nextCursor!,
+    });
+    expect(second.items[0].reference.externalId).toBe('26');
+    expect(second.items).toHaveLength(25);
+  });
+  it('verweigert fremde Cursor und ungültige Seitenlängen vor dem Anbieterabruf', async () => {
+    const service = TestBed.inject(MarketplaceOverviewService);
+    const first = await service.loadListings(account, { state: 'all', search: '', limit: 25 });
+    ebay.loadListings.mockClear();
+    await expect(
+      service.loadListings(
+        { ...account, connectionId: 'other' },
+        { state: 'all', search: '', limit: 25, cursor: first.nextCursor! },
+      ),
+    ).rejects.toThrow();
+    await expect(
+      service.loadListings(account, { state: 'all', search: '', limit: 101 }),
+    ).rejects.toThrow();
+    expect(ebay.loadListings).not.toHaveBeenCalled();
+  });
+  it('filtert eBay nicht unbemerkt nur innerhalb der geladenen Seite', async () => {
+    const service = TestBed.inject(MarketplaceOverviewService);
+    await expect(
+      service.loadListings(account, { state: 'all', search: 'Schuhe', limit: 25 }),
+    ).rejects.toThrow();
+    expect(ebay.loadListings).not.toHaveBeenCalled();
+  });
+  it('behält Vinted-Konten auch bei einem fehlgeschlagenen Vorschaulesen', async () => {
+    api.canManage.mockResolvedValue(true);
+    api.listConnections.mockResolvedValue({
+      canManage: true,
+      connections: [
+        {
+          ...scope,
+          marketplace: 'vinted',
+          displayName: 'Vinted A',
+          status: 'needs_login',
+          lastSyncedAt: '2026-10-15T10:00:00Z',
+        },
+      ],
+    });
+    api.readAccountPreview.mockRejectedValue(new Error('offline'));
+    const accounts = await TestBed.inject(MarketplaceOverviewService).loadAccounts(
+      'ws-a',
+      'vinted',
+    );
+    expect(accounts).toHaveLength(1);
+    expect(accounts[0].listingCount).toBeNull();
+    expect(accounts[0].error).toBeTruthy();
+  });
+});

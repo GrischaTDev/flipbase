@@ -1,3 +1,4 @@
+import { SupabaseService } from '../../../../core/services/supabase.service';
 import '@angular/compiler';
 import { Component, ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
@@ -46,6 +47,7 @@ describe('MarketplacesSettingsComponent', () => {
     registerSignalInputs(BadgeComponent, ['tone']);
     registerSignalInputs(CustomCheckboxComponent, [
       'checked',
+      'disabled',
       'ariaLabel',
       'label',
       'presentation',
@@ -68,8 +70,38 @@ describe('MarketplacesSettingsComponent', () => {
           { path: 'marketplaces/kleinanzeigen', component: MockPageComponent },
         ]),
         MarketplaceSettingsService,
+        {
+          provide: SupabaseService,
+          useValue: {
+            client: {
+              from: () => {
+                const query = {
+                  select: () => query,
+                  eq: () => query,
+                  maybeSingle: async () => ({
+                    data: { vinted: true, ebay: true, kleinanzeigen: true },
+                    error: null,
+                  }),
+                };
+                return query;
+              },
+              rpc: async (
+                _name: string,
+                value: { p_vinted: boolean; p_ebay: boolean; p_kleinanzeigen: boolean },
+              ) => ({
+                data: {
+                  vinted: value.p_vinted,
+                  ebay: value.p_ebay,
+                  kleinanzeigen: value.p_kleinanzeigen,
+                },
+                error: null,
+              }),
+            },
+          },
+        },
       ],
     }).compileComponents();
+    await TestBed.inject(MarketplaceSettingsService).load('test-user', 'test-workspace');
   });
 
   afterEach(() => TestBed.resetTestingModule());
@@ -85,12 +117,12 @@ describe('MarketplacesSettingsComponent', () => {
     expect(element.textContent).toContain('3 von 3 aktiv');
   });
 
-  it('schaltet Marktplätze um, wenn Checkbox geändert wird', () => {
+  it('schaltet Marktplätze um, wenn Checkbox geändert wird', async () => {
     const fixture = TestBed.createComponent(MarketplacesSettingsComponent);
     const service = TestBed.inject(MarketplaceSettingsService);
     fixture.detectChanges();
 
-    fixture.componentInstance.onToggle('vinted', false);
+    await fixture.componentInstance.onToggle('vinted', false);
     fixture.detectChanges();
 
     expect(service.isVintedEnabled()).toBe(false);
