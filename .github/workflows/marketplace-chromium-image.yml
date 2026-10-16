@@ -52,6 +52,16 @@ jobs:
             assert.equal(typeof vinted.vintedBrowserActions, "function");
             assert.equal(typeof isolated.executeBrowserAction, "function");
           '
+      - name: Check explicit Chrome shutdown with background work and persisted cookies
+        env:
+          SESSION_IMAGE: ghcr.io/grischatdev/flipbase-chromium-session:sha-${{ github.sha }}
+        run: |
+          set -euo pipefail
+          docker run --rm --network none --init --user=1000:1000 --read-only --cap-drop=ALL --security-opt=no-new-privileges:true --security-opt="seccomp=$PWD/deploy/chromium-seccomp.json" --memory=2g --memory-swap=2g --pids-limit=512 --shm-size=256m --tmpfs=/tmp:rw,nosuid,nodev,size=512m,uid=1000,gid=1000,mode=700 --tmpfs=/home/node:rw,nosuid,nodev,size=64m,uid=1000,gid=1000,mode=700 --mount="type=bind,src=$PWD/services/marketplace-worker/test,dst=/app/test,readonly" --env REQUIRE_CHROME_STOP_TESTS=1 --entrypoint node "$SESSION_IMAGE" --experimental-strip-types --test /app/test/browser/chrome-session-stop.browser.test.ts
+      - name: Check bounded runtime shutdown and profile recovery after frozen Chrome
+        env:
+          SESSION_IMAGE: ghcr.io/grischatdev/flipbase-chromium-session:sha-${{ github.sha }}
+        run: node services/marketplace-worker/test-support/chromium-stop-proof.mjs
       - name: Check sandbox, profile persistence, isolation and graceful stop without Vinted
         env:
           SESSION_IMAGE: ghcr.io/grischatdev/flipbase-chromium-session:sha-${{ github.sha }}

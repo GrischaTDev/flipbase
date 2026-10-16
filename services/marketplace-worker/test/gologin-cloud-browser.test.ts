@@ -2,10 +2,40 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   CloudBrowserStopUncertainError,
+  CloudBrowserStoppedUncleanlyError,
   GoLoginCloudBrowser,
 } from '../src/gologin-cloud-browser.ts';
 
 const profileId = 'profile-123';
+
+for (const providerStopped of [true, false]) {
+  test(`unclean isolated GoLogin stop releases only after remote provider confirmation=${providerStopped}`, async () => {
+    let remoteCalls = 0;
+    const provider = new GoLoginCloudBrowser({
+      token: 'fixture-token',
+      isolated: {
+        open: async () => ({
+          run: async (operation) => operation({ version: () => 'fixture' }),
+          close: async () => {
+            throw new CloudBrowserStoppedUncleanlyError();
+          },
+        }),
+        stop: async () => undefined,
+      },
+      fetch: async () => {
+        remoteCalls++;
+        return new Response('{}', { status: providerStopped ? 200 : 503 });
+      },
+    });
+    const handle = await provider.open(profileId);
+    await assert.rejects(handle.close(), (error) =>
+      providerStopped
+        ? error instanceof CloudBrowserStoppedUncleanlyError
+        : !(error instanceof CloudBrowserStoppedUncleanlyError),
+    );
+    assert.equal(remoteCalls, 1);
+  });
+}
 
 test('connects to a cloud profile without requesting a live-view URL', async () => {
   const requests: { url: string; method: string; authorization: string | null }[] = [];

@@ -6,10 +6,17 @@ import {
   type MarketplaceSyncTimers,
   type MarketplaceRuntimeLossReason,
 } from '../src/marketplace-sync-dispatcher.ts';
-import type { BrowserSessionScope } from '../src/marketplace-browser-session-broker.ts';
+import {
+  MarketplaceBrowserSessionBroker,
+  type BrowserSessionScope,
+  type BrowserLease,
+} from '../src/marketplace-browser-session-broker.ts';
 import { MarketplaceSyncRunner } from '../src/marketplace-sync-runner.ts';
-import type { BrowserInfo } from '../src/gologin-cloud-browser.ts';
-import type { SupabaseMarketplaceOperationStore } from '../src/supabase-marketplace-operation-store.ts';
+import {
+  CloudBrowserStoppedUncleanlyError,
+  type BrowserInfo,
+} from '../src/gologin-cloud-browser.ts';
+import { SupabaseMarketplaceOperationStore } from '../src/supabase-marketplace-operation-store.ts';
 import { VintedImportReadError, VintedImportRequestError } from '../src/vinted-account-import.ts';
 import type {
   CloudMessageClaim,
@@ -18,6 +25,109 @@ import type {
 
 const workerId = '20000000-0000-4000-8000-000000000001';
 const runnerIds = ['20000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000003'];
+
+for (const uncleanOnStart of [false, true]) {
+  test(`one unclean account pauses only its own schedule while both other queued accounts finish, during startup=${uncleanOnStart}`, async () => {
+    const accounts = [
+      scope('20000000-0000-4000-8000-000000000021'),
+      scope('20000000-0000-4000-8000-000000000022'),
+      scope('20000000-0000-4000-8000-000000000023'),
+    ];
+    let active: BrowserLease | undefined;
+    const outcomes: Record<string, unknown>[] = [];
+    const broker = new MarketplaceBrowserSessionBroker({
+      recovery: { recover: async () => undefined },
+      leases: {
+        acquire: async (account) => {
+          assert.equal(active, undefined);
+          active = {
+            id: account.syncRead!.sessionId,
+            scope: account,
+            expiresAt: Date.now() + 60000,
+            active: true,
+          };
+          return active;
+        },
+        assertActive: async () => true,
+        release: async () => {
+          active = undefined;
+        },
+      },
+      profiles: { resolve: async (lease) => lease.scope.connectionId },
+      browsers: {
+        open: async (profile) => {
+          if (uncleanOnStart && profile === accounts[0]!.connectionId)
+            throw new CloudBrowserStoppedUncleanlyError();
+          return {
+            run: async (operation) =>
+              operation({
+                version: () => 'fixture',
+                importAccount: async () => ({
+                  identity: { id: '123', username: 'fixture' },
+                  observedAt: new Date().toISOString(),
+                  entries: [],
+                  areas: {
+                    profile: { status: 'complete' },
+                    publications: { status: 'complete' },
+                    conversations: { status: 'complete' },
+                    messages: { status: 'complete' },
+                    sales: { status: 'complete' },
+                    feedback: { status: 'complete' },
+                  },
+                }),
+              }),
+            close: async () => {
+              if (profile === accounts[0]!.connectionId)
+                throw new CloudBrowserStoppedUncleanlyError();
+            },
+          };
+        },
+        stop: async () => undefined,
+      },
+    });
+    const operationStore = new SupabaseMarketplaceOperationStore({
+      url: 'https://fixture.invalid',
+      publishableKey: 'fixture',
+      serviceRoleKey: 'fixture',
+      fetch: async (input, init) => {
+        const path = new URL(String(input)).pathname;
+        if (path.endsWith('marketplace_sync_check'))
+          return Response.json({ active: true, sessionId: accounts[0]!.syncRead!.sessionId });
+        if (path.endsWith('marketplace_sync_finish'))
+          outcomes.push(
+            (JSON.parse(String(init?.body)) as { p_outcome: Record<string, unknown> }).p_outcome,
+          );
+        return Response.json(true);
+      },
+    });
+    const runner = new MarketplaceSyncRunner(
+      broker,
+      { write: async () => ({ profile: 1, publication: 0, conversation: 0, message: 0, sale: 0 }) },
+      operationStore,
+      { record: () => undefined },
+    );
+    const queue = [...accounts];
+    const { dispatcher, lost } = fixture(
+      { claim: async () => (active ? null : (queue.shift() ?? null)) },
+      (account) => runner.runDispatched(account),
+      true,
+      3,
+    );
+    await dispatcher.initialize();
+    await dispatcher.poll();
+    assert.equal(lost(), 0);
+    assert.equal(active, undefined);
+    assert.equal(outcomes.length, 3);
+    assert.deepEqual(
+      outcomes.map((outcome) => outcome.pausedReason),
+      ['cleanup', null, null],
+    );
+    assert.deepEqual(
+      outcomes.map((outcome) => outcome.state),
+      [uncleanOnStart ? 'failed' : 'succeeded', 'succeeded', 'succeeded'],
+    );
+  });
+}
 function pending<T>() {
   let resolve!: (value: T) => void;
   let reject!: (error: unknown) => void;

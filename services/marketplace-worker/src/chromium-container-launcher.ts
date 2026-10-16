@@ -4,9 +4,13 @@ import { readFile } from 'node:fs/promises';
 import { posix } from 'node:path';
 import type { chromium } from 'playwright';
 import { browserCommandLimit, commandRecord } from './isolated-browser-actions.ts';
-import { CloudBrowserStopUncertainError } from './gologin-cloud-browser.ts';
+import {
+  CloudBrowserStopUncertainError,
+  CloudBrowserStoppedUncleanlyError,
+} from './gologin-cloud-browser.ts';
 import { DockerSessionChannel } from './docker-session-channel.ts';
 import { ChromiumDesktopControls } from './chromium-desktop-controls.ts';
+import { ChromiumStopResults, type ChromiumStopResultStore } from './chromium-stop-results.ts';
 
 type LaunchOptions = NonNullable<Parameters<typeof chromium.launchPersistentContext>[1]>;
 type DockerExecute = (argumentsList: string[], input?: string) => Promise<string>;
@@ -32,6 +36,8 @@ export interface ChromiumContainerLauncherOptions {
   verifyFirewall?: () => Promise<void>;
   executeDesktop?: (argumentsList: string[], input?: string) => Promise<Buffer>;
   onStartFailure?: (stage: ChromiumStartStage) => void;
+  onUncleanStop?: (exitCode: number, oomKilled: boolean) => void;
+  stopResults?: ChromiumStopResultStore;
 }
 
 async function executeDocker(argumentsList: string[], input?: string): Promise<string> {
@@ -90,17 +96,18 @@ function isConfirmedStopped(state: Record<string, unknown>): boolean {
     state.Dead === false &&
     state.Restarting === false &&
     state.Pid === 0 &&
-    state.OOMKilled === false
+    typeof state.OOMKilled === 'boolean'
   );
 }
 
 function isCleanStartupFailure(state: Record<string, unknown>): boolean {
-  return state.ExitCode === 78 && isConfirmedStopped(state);
+  return state.ExitCode === 78 && state.OOMKilled === false && isConfirmedStopped(state);
 }
 
 export class ChromiumContainerLauncher {
   private readonly options: ChromiumContainerLauncherOptions;
   private readonly execute: DockerExecute;
+  private readonly stopResults: ChromiumStopResultStore;
   private readonly channels = new Map<string, DockerSessionChannel>();
   private readonly desktops = new Map<
     string,
@@ -132,6 +139,9 @@ export class ChromiumContainerLauncher {
     }
     this.options = options;
     this.execute = options.execute ?? executeDocker;
+    this.stopResults =
+      options.stopResults ??
+      new ChromiumStopResults(posix.join(posix.dirname(options.profileRoot), 'stop-results'));
   }
 
   private profileId(directory: string): string {
@@ -281,7 +291,7 @@ export class ChromiumContainerLauncher {
     return containers.map((_, index) => index + 1);
   }
 
-  private async stopAndRemove(containerId: string, profileId: string): Promise<void> {
+  private async stopAndRemove(containerId: string, profileId: string): Promise<boolean> {
     this.channels.get(containerId)?.close();
     this.channels.delete(containerId);
     let container = await this.inspect(containerId, profileId);
@@ -290,24 +300,41 @@ export class ChromiumContainerLauncher {
       container = await this.inspect(containerId, profileId);
     }
     const state = record(container.State);
-    // Auch ein Laufzeitfehler (1) kann bereits beendet sein. Der Exitcode allein
-    // bestätigt den Stopp nicht; Prozess- und Containerzustand müssen ihn belegen.
+    // Ein beschädigter Profilabschluss ist keine laufende Sitzung. Erst nach
+    // geprüftem Prozessende darf der Container weg; das eingebundene Profil bleibt erhalten.
     if (
       !isConfirmedStopped(state) ||
-      (state.ExitCode !== 0 && state.ExitCode !== 1 && state.ExitCode !== 78)
+      typeof state.ExitCode !== 'number' ||
+      !Number.isInteger(state.ExitCode) ||
+      state.ExitCode < 0 ||
+      state.ExitCode > 255
     )
       throw new CloudBrowserStopUncertainError();
+    const clean = state.OOMKilled === false && [0, 1, 78].includes(state.ExitCode);
+    // Vor der Entfernung sichern: Ein Controllerneustart oder Datenbankausfall
+    // darf die noch ausstehende Kontoprüfung nicht vergessen.
+    if (!clean) await this.stopResults.write(profileId);
     await this.execute(['rm', containerId]);
     if ((await this.containers(profileId)).includes(containerId))
       throw new CloudBrowserStopUncertainError();
     if (this.desktops.get(profileId)?.containerId === containerId) this.desktops.delete(profileId);
+    if (!clean) {
+      try {
+        this.options.onUncleanStop?.(state.ExitCode, state.OOMKilled === true);
+      } catch {
+        /* Diagnosefehler dürfen einen bestätigten Stopp nicht zurücknehmen. */
+      }
+    }
+    return clean;
   }
 
   async recover(profileId: string): Promise<void> {
     this.profileId(posix.join(this.options.profileRoot, profileId));
+    let clean = !(await this.stopResults.read(profileId));
     for (const containerId of await this.containers(profileId))
-      await this.stopAndRemove(containerId, profileId);
+      clean = (await this.stopAndRemove(containerId, profileId)) && clean;
     if ((await this.containers(profileId)).length) throw new CloudBrowserStopUncertainError();
+    if (!clean) throw new CloudBrowserStoppedUncleanlyError();
   }
 
   async launch(
@@ -411,7 +438,12 @@ export class ChromiumContainerLauncher {
         while (Date.now() < deadline) {
           try {
             const ready = commandRecord(await this.command(profileId, { action: 'ready' }));
-            if (ready.ready === true) return;
+            if (ready.ready === true) {
+              // Erst eine neue, serverseitig freigegebene und erfolgreiche Sitzung
+              // bestätigt, dass das betroffene Profil wieder verwendet werden darf.
+              await this.stopResults.clear(profileId);
+              return;
+            }
           } catch {
             // Fehlermeldungen aus dem Container bleiben privat.
           }
@@ -421,11 +453,13 @@ export class ChromiumContainerLauncher {
         }
         throw new Error('Chromium-Sitzung nicht bereit');
       } catch {
+        let clean: boolean;
         try {
-          await this.stopAndRemove(containerId, profileId);
+          clean = await this.stopAndRemove(containerId, profileId);
         } catch {
           throw new CloudBrowserStopUncertainError();
         }
+        if (!clean) throw new CloudBrowserStoppedUncleanlyError();
         throw new Error('Chromium-Containerstart fehlgeschlagen');
       }
     } catch (error) {

@@ -182,6 +182,13 @@ export class CloudBrowserStopUncertainError extends Error {
   }
 }
 
+/** Der Container ist nachweislich beendet und entfernt; nur der saubere Profilabschluss fehlt. */
+export class CloudBrowserStoppedUncleanlyError extends Error {
+  constructor() {
+    super('Browser beendet, Profilabschluss muss geprüft werden');
+  }
+}
+
 export class GoLoginCloudBrowser {
   private readonly token: string;
   private readonly request: typeof fetch;
@@ -205,12 +212,18 @@ export class GoLoginCloudBrowser {
       try {
         handle = await this.isolated.open(profileId, this.token);
         await handle.run(async (browser) => browser.initialize?.());
-      } catch {
+      } catch (error) {
+        let unclean = error instanceof CloudBrowserStoppedUncleanlyError;
         try {
           await this.stop(profileId);
-        } catch {
-          throw new CloudBrowserStopUncertainError();
+        } catch (stopError) {
+          if (!(stopError instanceof CloudBrowserStoppedUncleanlyError))
+            throw new CloudBrowserStopUncertainError();
+          unclean = true;
         }
+        if (unclean) throw new CloudBrowserStoppedUncleanlyError();
+        // Anbieterfehler können Zugangsdaten enthalten; nur die feste Kategorie weitergeben.
+        // eslint-disable-next-line preserve-caught-error
         throw new Error('Browser-Verbindung fehlgeschlagen');
       }
       let stopped = false;
@@ -223,9 +236,16 @@ export class GoLoginCloudBrowser {
         close: () => {
           if (stopped) return Promise.resolve();
           closing ??= (async () => {
-            await handle.close();
+            let unclean = false;
+            try {
+              await handle.close();
+            } catch (error) {
+              if (!(error instanceof CloudBrowserStoppedUncleanlyError)) throw error;
+              unclean = true;
+            }
             await this.stop(profileId);
             stopped = true;
+            if (unclean) throw new CloudBrowserStoppedUncleanlyError();
           })().catch((error: unknown) => {
             closing = undefined;
             throw error;
@@ -297,7 +317,13 @@ export class GoLoginCloudBrowser {
 
   async stop(profileId: string): Promise<void> {
     if (!profileIdPattern.test(profileId)) throw new Error('Ungültige Browserprofil-ID');
-    await this.isolated?.stop(profileId);
+    let unclean = false;
+    try {
+      await this.isolated?.stop(profileId);
+    } catch (error) {
+      if (!(error instanceof CloudBrowserStoppedUncleanlyError)) throw error;
+      unclean = true;
+    }
     let response: Response;
     try {
       response = await this.request(`${apiBaseUrl}/browser/${profileId}/web`, {
@@ -309,5 +335,6 @@ export class GoLoginCloudBrowser {
       throw new Error('Browseranbieter nicht erreichbar');
     }
     if (!response.ok) throw new Error(`Browseranbieter antwortete mit HTTP ${response.status}`);
+    if (unclean) throw new CloudBrowserStoppedUncleanlyError();
   }
 }

@@ -7,6 +7,11 @@ import { chromiumHostHandler, chromiumHostOperations } from './chromium-host-bro
 async function main(): Promise<void> {
   const profileRoot = '/var/lib/flipbase-chromium/profiles';
   const launcher = new ChromiumContainerLauncher({
+    onUncleanStop: (exitCode, oomKilled) => {
+      process.stderr.write(
+        `${JSON.stringify({ event: 'chromium_browser_stopped_uncleanly', exitCode, oomKilled })}\n`,
+      );
+    },
     onStartFailure: (stage) => {
       process.stderr.write(
         `${JSON.stringify({ event: 'chromium_container_start_failed', stage })}\n`,

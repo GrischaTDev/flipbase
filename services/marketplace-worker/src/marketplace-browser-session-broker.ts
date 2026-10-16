@@ -1,6 +1,7 @@
 import {
   ChromiumStartError,
   CloudBrowserStopUncertainError,
+  CloudBrowserStoppedUncleanlyError,
   type CloudBrowserHandle,
   type BrowserInfo,
 } from './gologin-cloud-browser.ts';
@@ -132,6 +133,7 @@ interface ActiveBrowserSession {
   browser?: CloudBrowserHandle;
   stopPending: boolean;
   stopPromise?: Promise<void>;
+  stopWarning?: CloudBrowserStoppedUncleanlyError;
   reusable?: {
     held: boolean;
     idleSince: number;
@@ -322,6 +324,10 @@ export class MarketplaceBrowserSessionBroker {
           // eslint-disable-next-line preserve-caught-error
           throw new Error('Browserstart fehlgeschlagen');
         }
+        if (error instanceof CloudBrowserStoppedUncleanlyError) {
+          await this.options.leases.release(lease);
+          throw error;
+        }
         if (error instanceof CloudBrowserStopUncertainError) {
           if (profileId) this.sessions.set(lease.id, { lease, profileId, stopPending: true });
           // Anbieterfehler können Token enthalten; die öffentliche Fehlermeldung bleibt neutral.
@@ -463,8 +469,15 @@ export class MarketplaceBrowserSessionBroker {
       try {
         // Ein alter Prozess darf ein inzwischen vom Nachfolger gestartetes Profil nicht stoppen.
         if (!(await this.runtimeAuthorized())) throw new Error('Worker-Zugriff unterbrochen');
-        if (session.browser) await session.browser.close();
-        else await this.options.browsers.stop(session.profileId);
+        try {
+          if (session.browser) await session.browser.close();
+          else await this.options.browsers.stop(session.profileId);
+        } catch (error) {
+          // Dieser Fehler bestätigt bereits das physische Ende. Nur die betroffene
+          // Kontoprüfung bleibt offen; der gemeinsame Browserplatz darf wieder frei werden.
+          if (!(error instanceof CloudBrowserStoppedUncleanlyError)) throw error;
+          session.stopWarning = error;
+        }
         await this.options.leases.release(session.lease);
         this.sessions.delete(sessionId);
       } catch {
@@ -472,6 +485,7 @@ export class MarketplaceBrowserSessionBroker {
       } finally {
         session.stopPromise = undefined;
       }
+      if (session.stopWarning) throw session.stopWarning;
     })();
     return session.stopPromise;
   }

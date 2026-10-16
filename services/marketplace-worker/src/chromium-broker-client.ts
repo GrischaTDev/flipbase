@@ -4,6 +4,7 @@ import type { chromium } from 'playwright';
 import { browserCommandLimit, isolatedBrowserActions } from './isolated-browser-actions.ts';
 import {
   CloudBrowserStopUncertainError,
+  CloudBrowserStoppedUncleanlyError,
   type BrowserDesktop,
   type CloudBrowserHandle,
 } from './gologin-cloud-browser.ts';
@@ -80,7 +81,11 @@ export class ChromiumBrokerClient {
     return processes as number[];
   }
   async recover(profileId: string): Promise<void> {
-    await this.command(profileId, 'recover');
+    const result = await this.command(profileId, 'recover');
+    if (Object.keys(result).length === 0) return;
+    if (Object.keys(result).length === 2 && result.stopped === true && result.clean === false)
+      throw new CloudBrowserStoppedUncleanlyError();
+    throw new CloudBrowserStopUncertainError();
   }
   async archive(profileId: string): Promise<void> {
     await this.command(profileId, 'archive');

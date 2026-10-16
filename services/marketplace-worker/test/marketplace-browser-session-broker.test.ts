@@ -9,6 +9,7 @@ import {
 import {
   ChromiumStartError,
   CloudBrowserStopUncertainError,
+  CloudBrowserStoppedUncleanlyError,
 } from '../src/gologin-cloud-browser.ts';
 
 type BrokerOptions = ConstructorParameters<typeof MarketplaceBrowserSessionBroker>[0];
@@ -502,6 +503,44 @@ test('keeps the lease and retries cleanup when provider stop fails', async () =>
   await broker.reconcile();
   assert.equal(stops, 2);
   assert.equal(active, false);
+});
+
+test('an unclean but physically confirmed stop releases the first account and lets both other accounts run', async () => {
+  let active: BrowserLease | undefined;
+  const stopped: string[] = [];
+  const broker = createTestBroker({
+    leases: {
+      acquire: async (scope) => {
+        assert.equal(active, undefined, 'Globaler Browserplatz muss freigegeben sein');
+        active = { id: scope.connectionId, scope, expiresAt: Date.now() + 60_000, active: true };
+        return active;
+      },
+      assertActive: async () => true,
+      release: async () => {
+        active = undefined;
+      },
+    },
+    profiles: { resolve: async (lease) => lease.scope.connectionId },
+    browsers: {
+      open: async (profileId) => ({
+        run: async (operation) => operation({ version: () => 'fixture' }),
+        close: async () => {
+          stopped.push(profileId);
+          if (profileId === 'account-a') throw new CloudBrowserStoppedUncleanlyError();
+        },
+      }),
+      stop: async () => undefined,
+    },
+  });
+  const first = await broker.open(scopeA);
+  await assert.rejects(broker.close(scopeA, first), CloudBrowserStoppedUncleanlyError);
+  await broker.reconcile();
+  for (const scope of [scopeB, { ...scopeA, connectionId: 'account-c' }]) {
+    const id = await broker.open(scope);
+    await broker.close(scope, id);
+  }
+  assert.deepEqual(stopped, ['account-a', 'account-b', 'account-c']);
+  assert.equal(active, undefined);
 });
 
 test('keeps the lease when provider startup cleanup is uncertain', async () => {

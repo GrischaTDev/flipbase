@@ -7,6 +7,7 @@ import {
   type ChromiumHostOperations,
 } from '../src/chromium-host-broker.ts';
 import { ChromiumDesktopControls } from '../src/chromium-desktop-controls.ts';
+import { CloudBrowserStoppedUncleanlyError } from '../src/gologin-cloud-browser.ts';
 
 const profileId = 'chromium_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 function fixture() {
@@ -84,6 +85,21 @@ test('Broker erhält normale Starts, Recovery, Archivierung und native Bedienung
   await dispatchChromiumHostCommand({ profileId, action: 'archive' }, operations);
   assert.ok(JSON.stringify(calls).includes('mousemove'));
   assert.deepEqual(calls.at(-1), ['archive', profileId]);
+});
+
+test('Broker bestätigt ein physisches Ende mit Profilwarnung, aber niemals einen unklaren Stopp', async () => {
+  const { operations } = fixture();
+  operations.recover = async () => {
+    throw new CloudBrowserStoppedUncleanlyError();
+  };
+  assert.deepEqual(
+    await dispatchChromiumHostCommand({ profileId, action: 'recover' }, operations),
+    { stopped: true, clean: false },
+  );
+  operations.recover = async () => {
+    throw new Error('private unconfirmed stop');
+  };
+  await assert.rejects(dispatchChromiumHostCommand({ profileId, action: 'recover' }, operations));
 });
 test('Broker kann über die private API keine beliebigen Desktopbefehle ausführen', async () => {
   const { operations, calls } = fixture();
