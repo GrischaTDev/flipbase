@@ -177,8 +177,8 @@ jobs:
       - name: Check and test marketplace functions in Deno
         if: ${{ needs.changes.outputs.marketplace_required == 'true' }}
         run: |
-          deno check --no-config --node-modules-dir=none supabase/functions/webhook-dispatch/index.ts supabase/functions/ebay-account/index.ts supabase/functions/ebay-account-deletion/index.ts supabase/functions/marketplace-search/index.ts supabase/functions/marketplace-local-extension/index.ts supabase/functions/brand-label-media/index.ts
-          deno test --no-config --node-modules-dir=none --allow-env supabase/functions/webhook-dispatch/handler.test.ts supabase/functions/webhook-dispatch/public-webhook-post.test.ts supabase/functions/webhook-dispatch/sale-notification.test.ts supabase/functions/ebay-account/handler.test.ts supabase/functions/ebay-account-deletion/handler.test.ts supabase/functions/ebay-account-deletion/endpoint.test.ts supabase/functions/_shared/ebay-api.test.ts supabase/functions/_shared/ebay-listing-management.test.ts supabase/functions/_shared/ebay-order-amounts.test.ts supabase/functions/_shared/ebay-order-source.test.ts supabase/functions/ebay-account/connection-read.test.ts supabase/functions/ebay-account/order-import.test.ts supabase/functions/marketplace-local-extension/handler.test.ts
+          deno check --no-config --node-modules-dir=none supabase/functions/webhook-dispatch/index.ts supabase/functions/ebay-account/index.ts supabase/functions/ebay-account-deletion/index.ts supabase/functions/marketplace-search/index.ts supabase/functions/marketplace-local-extension/index.ts supabase/functions/brand-label-media/index.ts supabase/functions/kleinanzeigen-account/index.ts supabase/functions/kleinanzeigen-local-extension/index.ts
+          deno test --no-config --node-modules-dir=none --allow-env supabase/functions/webhook-dispatch/handler.test.ts supabase/functions/webhook-dispatch/public-webhook-post.test.ts supabase/functions/webhook-dispatch/sale-notification.test.ts supabase/functions/ebay-account/handler.test.ts supabase/functions/ebay-account-deletion/handler.test.ts supabase/functions/ebay-account-deletion/endpoint.test.ts supabase/functions/_shared/ebay-api.test.ts supabase/functions/_shared/ebay-listing-management.test.ts supabase/functions/_shared/ebay-order-amounts.test.ts supabase/functions/_shared/ebay-order-source.test.ts supabase/functions/ebay-account/connection-read.test.ts supabase/functions/ebay-account/order-import.test.ts supabase/functions/marketplace-local-extension/handler.test.ts supabase/functions/_shared/kleinanzeigen-contracts.test.ts supabase/functions/kleinanzeigen-account/handler.test.ts supabase/functions/kleinanzeigen-local-extension/handler.test.ts supabase/functions/kleinanzeigen-local-extension/sync-handler.test.ts supabase/functions/_shared/kleinanzeigen-listing-contracts.test.ts supabase/functions/kleinanzeigen-account/transfer-source.test.ts supabase/functions/kleinanzeigen-account/transfer-draft.test.ts supabase/functions/marketplace-local-extension/source-details.test.ts supabase/functions/kleinanzeigen-local-extension/form-handler.test.ts supabase/functions/_shared/kleinanzeigen-form-contracts.test.ts supabase/functions/kleinanzeigen-local-extension/listing-handler.test.ts supabase/functions/kleinanzeigen-local-extension/listing-photo.test.ts supabase/functions/kleinanzeigen-account/listing-handler.test.ts supabase/functions/kleinanzeigen-account/listing-jobs.test.ts supabase/functions/_shared/kleinanzeigen-job-replies.test.ts supabase/functions/_shared/kleinanzeigen-job-contracts.test.ts
           deno test --no-config --node-modules-dir=none supabase/functions/brand-label-media/png.test.ts supabase/functions/_shared/ebay-traffic-overview.test.ts supabase/functions/_shared/ebay-listing-performance.test.ts supabase/functions/_shared/ebay-advertising-report.test.ts
 
       - name: Install marketplace worker dependencies
@@ -353,6 +353,21 @@ jobs:
           node --test supabase/test-support/ebay-order-import-concurrency.test.mjs
           node supabase/test-support/ebay-order-import-concurrency.mjs
 
+      - name: Test parallel Kleinanzeigen listing sync
+        env:
+          KLEINANZEIGEN_TEST_DB_CONTAINER: supabase_db_flipbase-supabase
+        run: node supabase/test-support/kleinanzeigen-sync-concurrency.mjs
+
+      - name: Test parallel Kleinanzeigen publication jobs
+        env:
+          KLEINANZEIGEN_TEST_DB_CONTAINER: supabase_db_flipbase-supabase
+        run: node supabase/test-support/kleinanzeigen-publication-concurrency.mjs
+
+      - name: Test Kleinanzeigen REST identifier precision
+        env:
+          KLEINANZEIGEN_TEST_DB_CONTAINER: supabase_db_flipbase-supabase
+        run: node supabase/test-support/kleinanzeigen-rest-precision.mjs
+
       - name: Test parallel push claims
         run: node supabase/test-support/web-push-concurrency.mjs
 
@@ -429,8 +444,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Chromium Headless Shell
-        run: npx playwright install --with-deps --only-shell chromium
+      - name: Install Chromium for browser and extension tests
+        run: npx playwright install --with-deps chromium
+
+      - name: Run isolated Kleinanzeigen MV3 restart test
+        if: ${{ needs.changes.outputs.marketplace_required == 'true' }}
+        run: |
+          node scripts/kleinanzeigen-extension-browser.mjs
+          node scripts/kleinanzeigen-publication-browser.mjs
 
       - name: Start local Supabase
         run: npx supabase start

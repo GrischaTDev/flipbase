@@ -273,6 +273,11 @@ Statische Dateien: `public/images/` (bevorzugt `.svg`/`.webp`), `public/i18n/`,
 
 # Supabase
 
+## Lokales Docker unter Windows
+
+- Vor Docker-Startversuchen [den lokalen Startablauf](docs/testing/local-docker-start.md) beachten: erst Erreichbarkeit im richtigen Benutzerkontext prüfen, Zugriffsfehler nicht mit einer beendeten Engine verwechseln.
+- Eine beendete Docker-Desktop-App über den normalen Windows-Weg per Computer Use starten. Den hier fehlgeschlagenen direkten versteckten Start nicht wiederholen. Laufende andere Projekte nicht für Starttests anhalten.
+
 ## Architektur
 
 - Backend in `supabase/`: `schemas/`, `migrations/`, `seed.sql`, `config.toml`.

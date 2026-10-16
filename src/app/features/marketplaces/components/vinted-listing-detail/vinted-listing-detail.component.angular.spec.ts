@@ -1,3 +1,4 @@
+import { listingTransferRendering } from '../../../../../../e2e/support/listing-transfer-rendering';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
@@ -107,6 +108,7 @@ let restoreRendering: (() => void) | undefined;
 beforeAll(async () => {
   const shared = 'src/app/shared/components/';
   restoreRendering = await prepareMarketplaceRendering([
+    ...listingTransferRendering,
     {
       type: ProductGalleryComponent,
       path: shared + 'product-gallery/product-gallery.component.ts',

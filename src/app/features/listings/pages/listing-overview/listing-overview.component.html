@@ -53,13 +53,16 @@
           <tr>
             <td class="px-4 py-3">
               <div class="flex items-center gap-3">
-                <app-product-thumbnail [src]="row.primaryImagePath" [alt]="row.item.title" />
+                <app-product-thumbnail
+                  [src]="row.primaryImagePath"
+                  [alt]="row.listing.content.title"
+                />
                 <div>
                   <p class="font-medium text-fb-text-primary">{{ row.listing.content.title }}</p>
                   <a
-                    [routerLink]="itemRoute(row.item)"
+                    [routerLink]="row.item ? itemRoute(row.item) : ['/listings', row.listing.id]"
                     class="text-fb-text-muted hover:text-fb-text-primary"
-                    >{{ row.item.title }}</a
+                    >{{ row.item?.title ?? 'Aus Vinted übernommen' }}</a
                   >
                 </div>
               </div>
@@ -81,7 +84,7 @@
             </td>
             <td class="px-4 py-3">
               <div class="flex justify-end gap-1">
-                @if (row.listing.status === 'prepared') {
+                @if (row.listing.status === 'prepared' && !row.listing.sourceReference) {
                   <app-table-action-button
                     label="Inserat online setzen"
                     tone="positive"
@@ -90,7 +93,7 @@
                     [loading]="actionListingId() === row.listing.id"
                   />
                 }
-                @if (row.listing.status === 'prepared') {
+                @if (row.listing.status === 'prepared' && !row.listing.sourceReference) {
                   <app-table-action-button
                     label="Inserat bei Kleinanzeigen öffnen"
                     [icon]="openIcon"
@@ -114,7 +117,7 @@
                   [icon]="editIcon"
                   (clicked)="edit(row)"
                 />
-                @if (row.listing.status !== 'ended') {
+                @if (row.listing.status !== 'ended' && !row.listing.sourceReference) {
                   <app-table-action-button
                     label="Inserat beenden"
                     tone="critical"
@@ -134,7 +137,7 @@
     @for (row of filteredRows(); track row.listing.id) {
       <article class="rounded-lg border border-fb-line p-3">
         <div class="flex gap-3">
-          <app-product-thumbnail [src]="row.primaryImagePath" [alt]="row.item.title" />
+          <app-product-thumbnail [src]="row.primaryImagePath" [alt]="row.listing.content.title" />
           <div class="min-w-0 flex-1">
             <p class="truncate font-medium text-fb-text-primary">{{ row.listing.content.title }}</p>
             <p class="text-sm text-fb-text-secondary">
@@ -148,9 +151,9 @@
             <dt class="text-fb-text-muted">Artikel</dt>
             <dd>
               <a
-                [routerLink]="itemRoute(row.item)"
+                [routerLink]="row.item ? itemRoute(row.item) : ['/listings', row.listing.id]"
                 class="font-medium text-fb-text-secondary hover:text-fb-text-primary"
-                >{{ row.item.title }}</a
+                >{{ row.item?.title ?? 'Aus Vinted übernommen' }}</a
               >
             </dd>
           </div>
@@ -165,7 +168,7 @@
           </div>
         </dl>
         <div class="mt-3 flex flex-wrap justify-end gap-1 border-t border-fb-line pt-3">
-          @if (row.listing.status === 'prepared') {
+          @if (row.listing.status === 'prepared' && !row.listing.sourceReference) {
             <app-button
               ariaLabel="Inserat online setzen"
               size="slim"
@@ -175,7 +178,7 @@
               >Online setzen</app-button
             >
           }
-          @if (row.listing.status === 'prepared') {
+          @if (row.listing.status === 'prepared' && !row.listing.sourceReference) {
             <app-button
               ariaLabel="Inserat bei Kleinanzeigen öffnen"
               size="slim"
@@ -203,7 +206,7 @@
             [icon]="editIcon"
             (clicked)="edit(row)"
           ></app-button>
-          @if (row.listing.status !== 'ended') {
+          @if (row.listing.status !== 'ended' && !row.listing.sourceReference) {
             <app-button
               ariaLabel="Inserat beenden"
               variant="destructive"

@@ -64,7 +64,7 @@
             <app-custom-select
               variant="filter"
               widthClass="w-48"
-              [options]="stateOptions"
+              [options]="stateOptions()"
               [value]="section().query.state"
               [ariaLabel]="'Inseratstatus für ' + section().account.displayName"
               (valueChange)="changeState($event)"
@@ -205,7 +205,7 @@
         <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
           <p class="text-xs text-fb-text-secondary">
             {{ section().page!.items.length }} von {{ section().page!.total ?? 'unbekannt vielen' }}
-            @if (section().account.platform === 'vinted') {
+            @if (section().account.platform !== 'ebay') {
               gespeicherten Inseraten
             } @else {
               aktiven Inseraten
@@ -241,7 +241,15 @@
   }
 </ng-template>
 <ng-template #actions let-item>
-  <div class="flex items-center justify-end gap-2">
+  <div class="flex flex-wrap items-center justify-end gap-2">
+    @if (item.reference.platform === 'vinted') {
+      <app-listing-transfer-action
+        (published)="transferPublished.emit($event)"
+        [source]="item.reference"
+        [title]="item.title"
+        [compact]="true"
+      />
+    }
     @if (item.detailLink) {
       <app-button
         variant="table-action"
@@ -260,8 +268,8 @@
         [icon]="viewIcon"
         [href]="item.externalUrl"
         target="_blank"
-        [ariaLabel]="item.title + ' auf eBay ansehen'"
-        [title]="item.title + ' auf eBay ansehen'"
+        [ariaLabel]="item.title + ' auf ' + platformLabel(item.reference.platform) + ' ansehen'"
+        [title]="item.title + ' auf ' + platformLabel(item.reference.platform) + ' ansehen'"
       />
     }
     @if (item.editLink) {

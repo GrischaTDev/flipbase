@@ -1,6 +1,28 @@
 # 🤖 KI-Änderungsprotokoll
 
-<<<<<<< HEAD
+## 2026-10-16 - Juna - Transfer-PR zur Integration freigegeben
+
+**Auftrag:** Nach ausdrücklicher Freigabe den geprüften Vinted-zu-Kleinanzeigen-Zweig pushen, den PR erstellen, alle erforderlichen CI-Prüfungen abwarten und ausschließlich bei Erfolg mit Merge-Commit integrieren. Danach den eigenen Feature-Zweig und Worktree aufräumen. Der aktuelle Hauptzweig ist bereits enthalten; funktionaler Stand und lokale Prüfbelege bleiben unverändert. Live-Anbieterabnahme und separate Bereitstellung der Server-Endpunkte bleiben offen.
+
+**CI-Korrektur vor Merge:** PR #431 deckte im separaten Worker-Image fehlende gemeinsame Validierungsdateien und den dafür zu engen TypeScript-Ausgabebereich auf. Der Fehler ist lokal mit dem tatsächlichen Workerbau nachgestellt. Explizite Docker-Kontextfreigabe, passende kompilierte Ausgabepfade und ein zusätzlicher Laufzeitimport im Image-Smoke sichern die Korrektur. Worker-Bau, Typprüfung, Quelltests und 22 bestehende Docker-/Runtime-/Workflowverträge bestehen lokal. Eine unabhängige Qualitätsprüfung scheiterte am Download-Limit der Supabase-Registry; keine Testbedingung wurde dafür geändert. Der Datenbankjob erreichte sämtliche SQL- und Konkurrenzprüfungen erfolgreich, lehnte aber das offizielle Ersatzimage ghcr.io/supabase/postgrest ab. Dieser genaue Anbieterpfad ist jetzt erlaubt; Baseline rot, echter PostgREST v16.1 danach grün mit Konto-ID 9007199254740993. Beide Worker-/Broker-Abbilder bauen lokal, ihre Trennung und tatsächlichen Modulimporte bestehen ohne Netzwerk. 502 Workflowfälle bestehen erneut.
+
+**Registry-Abbruch behoben:** Der separate Push-Function-Smoke scheiterte zweimal am ECR-Downloadlimit, bevor Prüfungen anliefen. Nur dessen Bezugsquelle wurde auf das offizielle ghcr.io/supabase/edge-runtime:v1.73.5 derselben Version umgestellt. Der bestehende Startfehler-/Cleanupfall belegt die Änderung zuerst rot und danach grün; alle 15 betroffenen Deploymentfälle (vier bestehende Windows-Ausnahmen) sowie der tatsächliche lokale Function-/Gateway-Smoke mit Auth-, Widerrufs-, Größen-/Anfragelimit- und Commitprüfung bestehen. Kein Produktionszugang, kein Versand, keine Prüfbedingung abgeschwächt. Der zweite CI-Datenbanklauf besteht vollständig mit 4.432 Prüfungen und allen Konkurrenznachweisen.
+
+## 2026-10-16 - Juna - Vinted nach Kleinanzeigen übertragen
+
+**Auftrag:** Vollständigen Übertragungsweg einschließlich Kontingentprüfung und automatischem Gebührenstopp umsetzen. Bestehende Übersicht und Entwürfe weiterverwenden; notwendige Kleinanzeigen-Kontobindung mit umsetzen.
+
+**Stand:** Vollständiger Übertragungsweg im eigenen Feature-Zweig: private Kleinanzeigen-Kontobindung mit getrennter Lesefreigabe und Veröffentlichungsfreigabe, atomarer Inseratabgleich, vollständige Vinted-Quelle und geprüfte Originalbilder, Zielformular aus dem gebundenen Browserprofil sowie dauerhafte Veröffentlichungsaufträge. Entwürfe bleiben im bisherigen Listing Studio. Die Erweiterung prüft Kontingent und Formular unmittelbar vor dem verbindlichen Klick. Gebühren und unbekannte Kosten stoppen den Auftrag; unbekannte Ergebnisse erlauben nur einen lesenden Abgleich. Bestätigte Ziele erscheinen mit ihrer tatsächlichen Ziel-ID in der zentralen Übersicht. Erweiterungsversion 1.10.0.
+
+**Geprüfter Stand:** Auf aktuellen Hauptzweig einschließlich Veröffentlichungszeiten und Navigation integriert. Alle zehn neuen Migrationen zusammen mit dem Hauptzweig vollständig in einer eigenen isolierten Datenbank neu eingespielt; 361 SQL-Prüfungen bestanden. Echte konkurrierende Sitzungen prüfen den letzten freien Platz, Claim und begin. Ein echter PostgREST-Aufruf erhält große Kontokennungen verlustfrei als Zeichenfolge. Der vollständige MV3-Ablauf mit tatsächlicher Erweiterung, privaten Binärbildern und genau einem Submit sowie Stopps bei 100/101 Anzeigen, Gebühren, unbekannten Kosten, extern verbrauchtem Kontingent und beschädigten Bildern besteht unter Windows und Linux mit Chromium 151. Ein echter Worker- und Browserneustart setzt einen gespeicherten writing-Versuch ausschließlich lesend fort. Anbieterantworten bleiben in diesen Tests synthetisch und vollständig lokal.
+
+Die vollständige Projektprüfung besteht: Format, ESLint, Typen, 502 erfolgreiche Workflowtests (sechs bestehende Windows-Ausnahmen), 402 Deno-, 2.528 Modell-, 347 DOM-, 2.555 Angular- und 45 Landingpagefälle sowie Produktionsbau. 88 betroffene Workerfälle und Typprüfung ebenfalls grün. Beide bestehenden Listing-Studio-Browserfälle sind gegen eigene vollständige API-Dienste geprüft. Die Transfermatrix umfasst 320/390/834/1440 Pixel, Hell/Dunkel, Touch, Tastatur, Fokus und AXE; alle 95 betroffenen Browserfälle des integrierten Produktionsstands bestehen. Der unabhängige Abschlussreview fand vier belegte Verhaltensfehler; alle vier wurden mit roten Regressionen korrigiert. Der tatsächliche Erweiterungscontroller ist zusätzlich mit PostgreSQL geprüft. Die abschließende Gesamtprüfung des Fixdurchgangs ist erfolgreich. Ein zusätzlicher durchgehender Editor-Browsertest zur Bildreihenfolge bleibt als kleiner Testbefund zurückgestellt.
+
+**Zusätzliche Abschlusskorrekturen:** Reine Kleinanzeigen-Verträge ausdrücklich für den Docker-Bau freigegeben; echten MV3-CI-Test nach der Chromium-Installation eingeordnet. Bestehende Browserfixtures verwenden die passende Backendadresse und CSP-verträgliche AXE-Ausführung. Drei vorbestehende offene Dienst-Client-Timer im Beta-Bewerbungsendpoint mit der gleichen unveränderten Testgruppe nachgewiesen und durch deaktivierte automatische Sitzungserneuerung behoben. Kein Prüflimit und keine Rechteprüfung abgeschwächt.
+
+**Grenze der Abnahme:** Kein echter Anbieter-Upload, kein echter Entwurf und keine echte Anzeige mit diesem neuen Weg erstellt. Bildvorschau und Erfolgsseite sind noch nicht live abgenommen. Ein Test mit einem echten Artikel benötigt dessen konkrete Auswahl und ausdrückliche Freigabe. Die Ableitung kostenloser Veröffentlichung aus offiziellem Privatkontingent und ungewählten Zusatzoptionen ist dokumentiert; ein sichtbarer Null-Gesamtpreis wird nicht behauptet. Kein Push und kein neuer PR.
+
+**Docker-Korrektur:** Der Nutzer hat Docker vor dem fehlgeschlagenen Start nicht bereits gestartet. Frühere Vermutung einer zweiten Instanz zurückgenommen. Zugriffsunterschied zwischen geschützter und normaler Befehlsumgebung lesend bestätigt; Ursache des Socketfehlers offen. Verbindlichen Ablauf für künftige Starts über Computer Use dokumentiert und hier verlinkt. Kein Neustart laufender Projekte und keine Socketdateien gelöscht.
 
 ## 2026-10-16 - Juna - Eigene Veröffentlichungszeit vor Vinted-Altersfallback verwenden
 
@@ -64,7 +86,6 @@ bleiben die ausgewählten Linux-/Image-/Browser-/PWA-CI-Prüfungen erforderlich.
 Kein Push oder produktiver Wechsel in dieser Umsetzung. Veröffentlichung:
 zuerst regulärer Web-Release mit Migration, danach Worker, Broker und Sitzung
 zusammen aus demselben geprüften Merge-Stand aktualisieren.
-=======
 
 ## 2026-10-16 - Juna - Überflüssigen Zurück-Link „Alle Konten“ auf Vinted-Unterseiten entfernen
 

@@ -9,12 +9,15 @@ import type {
   LocalListingRequest,
 } from '../_shared/marketplace-local-listing-contracts.d.ts';
 
+import { parseVintedTransferSource } from '../_shared/kleinanzeigen-listing-validation.mts';
+import type { LocalSourceDetailsRequest } from '../_shared/marketplace-local-extension-contracts.ts';
 export class LocalExtensionStoreError extends Error {
   constructor(readonly code: 'access' | 'invalid' | 'conflict') {
     super(code);
   }
 }
 export interface LocalExtensionStore {
+  sourceDetails?(tokenHash: string, input: LocalSourceDetailsRequest): Promise<unknown>;
   listingPhoto?(tokenHash: string, input: LocalListingPhotoRequest): Promise<LocalListingPhoto>;
   listings?(tokenHash: string, input: LocalListingRequest): Promise<unknown>;
   negotiation?(tokenHash: string, input: LocalExtensionRequest): Promise<unknown>;
@@ -83,6 +86,60 @@ export function createLocalExtensionHandler(store: LocalExtensionStore) {
     if (!input) return respond({ error: 'invalid_request' }, 400);
     try {
       const tokenHash = await hashLocalExtensionSecret(bearer.slice(7));
+      if (input.action === 'source_details_state' || input.action === 'source_details_import') {
+        if (input.action === 'source_details_import') {
+          const raw = input.source as Record<string, unknown>;
+          const source =
+            typeof raw['externalAccountId'] === 'string'
+              ? parseVintedTransferSource(raw, raw['externalAccountId'], input.externalId)
+              : null;
+          if (!source) return respond({ error: 'invalid_request' }, 400);
+          input = { ...input, source };
+        }
+        if (!store.sourceDetails) return respond({ error: 'unavailable' }, 503);
+        const result = await store.sourceDetails(tokenHash, input);
+        const value =
+          result && typeof result === 'object' && !Array.isArray(result)
+            ? (result as Record<string, unknown>)
+            : null;
+        const fields = [
+          'ok',
+          'workspaceId',
+          'connectionId',
+          'entryId',
+          'externalId',
+          'externalAccountId',
+          'generation',
+          'expiresAt',
+          ...(input.action === 'source_details_import' ? ['fingerprint'] : []),
+        ];
+        if (
+          !value ||
+          Object.keys(value).length !== fields.length ||
+          fields.some((key) => !Object.hasOwn(value, key)) ||
+          value['ok'] !== true ||
+          value['workspaceId'] !== input.workspaceId ||
+          value['connectionId'] !== input.connectionId ||
+          value['entryId'] !== input.entryId ||
+          value['externalId'] !== input.externalId ||
+          typeof value['externalAccountId'] !== 'string' ||
+          !/^[1-9][0-9]{0,31}$/u.test(value['externalAccountId']) ||
+          typeof value['generation'] !== 'number' ||
+          !Number.isSafeInteger(value['generation']) ||
+          value['generation'] < 1 ||
+          typeof value['expiresAt'] !== 'string' ||
+          !Number.isFinite(Date.parse(value['expiresAt'])) ||
+          Date.parse(value['expiresAt']) <= Date.now() ||
+          (input.action === 'source_details_import' &&
+            (value['generation'] !== input.generation ||
+              typeof value['fingerprint'] !== 'string' ||
+              !/^[a-f0-9]{64}$/u.test(value['fingerprint']) ||
+              value['externalAccountId'] !==
+                (input.source as Record<string, unknown>)['externalAccountId']))
+        )
+          return respond({ error: 'invalid_response' }, 502);
+        return respond(value);
+      }
       if (input.action === 'listing_photo') {
         if (!store.listingPhoto) return respond({ error: 'unavailable' }, 503);
         const photo = await store.listingPhoto(tokenHash, input);

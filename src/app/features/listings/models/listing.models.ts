@@ -48,6 +48,9 @@ export interface ListingContent {
   readonly shippingPrice: number | null;
   readonly postalCode: string | null;
   readonly itemDetails?: ListingItemDetails | null;
+  readonly categoryId?: string | null;
+  readonly categoryFields?: Readonly<Record<string, string>>;
+  readonly schemaRevision?: string | null;
 }
 
 export interface ListingItemDetails {
@@ -78,7 +81,14 @@ export interface Listing {
   readonly endedAt: string | null;
   readonly createdAt: string;
   readonly updatedAt: string;
+  readonly targetConnectionId?: string | null;
+  readonly sourceReference?: Readonly<Record<string, string>> | null;
+  readonly revision?: number;
+  readonly categoryId?: string | null;
+  readonly categoryFields?: Readonly<Record<string, string>>;
+  readonly schemaRevision?: string | null;
   readonly imageSelectionSaved?: boolean;
+  readonly transferImagesComplete?: boolean;
 }
 
 export interface ListingEditorItem {
@@ -106,7 +116,7 @@ export interface ListingEditorItem {
 
 export interface ListingRow {
   readonly listing: Listing;
-  readonly item: ListingEditorItem;
+  readonly item: ListingEditorItem | null;
   readonly primaryImagePath: string | null;
 }
 

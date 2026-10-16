@@ -1,0 +1,58 @@
+\set ON_ERROR_STOP on
+begin;
+set local search_path=public,extensions;
+select no_plan();
+select has_table('public','kleinanzeigen_connections','Kleinanzeigen-Konten existieren getrennt von Vinted');
+select has_table('public','kleinanzeigen_local_grants','Installationsfreigaben sind getrennt gespeichert');
+insert into auth.users(id,aud,role,email,raw_app_meta_data,raw_user_meta_data) values
+('49000000-0000-4000-8000-000000000001','authenticated','authenticated','ka-a@example.test','{}','{}'),
+('49000000-0000-4000-8000-000000000002','authenticated','authenticated','ka-b@example.test','{}','{}');
+insert into public.platform_operators(user_id) values('49000000-0000-4000-8000-000000000001'),('49000000-0000-4000-8000-000000000002');
+insert into public.workspaces(id,name) values('49000000-0000-4000-8000-000000000011','Kleinanzeigen A'),('49000000-0000-4000-8000-000000000012','Kleinanzeigen B');
+insert into public.workspace_members(workspace_id,user_id,role) values('49000000-0000-4000-8000-000000000011','49000000-0000-4000-8000-000000000001','owner');
+create function pg_temp.connect_ka(p_hash text default repeat('a',64),p_install uuid default '49000000-0000-4000-8000-000000000031') returns jsonb language sql as $$
+ select public.kleinanzeigen_connect_account('49000000-0000-4000-8000-000000000011','123','Testkonto','private',p_install,p_hash,false);
+$$;
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"49000000-0000-4000-8000-000000000001","role":"authenticated"}',true);
+select lives_ok($$select pg_temp.connect_ka()$$,'Eigenes Konto mit Lesefreigabe verbindbar');
+select is(pg_temp.connect_ka()->>'status','needs_login','Bindung allein behauptet keinen bestätigten Anbieterstatus');
+select is(pg_temp.connect_ka()->>'canPublish','false','Lesefreigabe erlaubt kein Veröffentlichen');
+select is((select count(*)::int from public.kleinanzeigen_connections),1,'Wiederholung legt kein zweites Konto an');
+select throws_ok($$select pg_temp.connect_ka(repeat('b',64),'49000000-0000-4000-8000-000000000032')$$,'55P03',null,'Zweite Installation kann aktive Bindung nicht ersetzen');
+select throws_ok($$select pg_temp.connect_ka('bad')$$,'22023',null,'Ungültiger Hash abgelehnt');
+select throws_ok($$select public.kleinanzeigen_connect_account('49000000-0000-4000-8000-000000000012','123','Testkonto','private','49000000-0000-4000-8000-000000000031',repeat('c',64),false)$$,'42501',null,'Fremder Workspace nicht verbindbar');
+select throws_ok($$select * from public.kleinanzeigen_local_grants$$,'42501',null,'Nutzer erhält keinen Zugriff auf Secret-Hashes');
+select throws_ok($$update public.kleinanzeigen_connections set external_account_id='124'$$,'42501',null,'Identität nicht direkt veränderbar');
+select set_config('request.jwt.claims','{"sub":"49000000-0000-4000-8000-000000000002","role":"authenticated"}',true);
+select is((select count(*)::int from public.kleinanzeigen_connections),0,'Fremder Nutzer sieht keine Konten');
+reset role;
+select ok(not has_table_privilege('anon','public.kleinanzeigen_connections','select'),'Anonyme haben keinen Kontozugriff');
+select ok(not has_function_privilege('authenticated','public.kleinanzeigen_extension_session(uuid,bigint,text,bigint)','execute'),'Installationsprüfung nicht direkt für Nutzer aufrufbar');
+select ok(not has_function_privilege('anon','public.kleinanzeigen_connect_account(uuid,text,text,text,uuid,text,boolean)','execute'),'Anonyme können kein Konto binden');
+set local role service_role;
+select is(public.kleinanzeigen_extension_session('49000000-0000-4000-8000-000000000011',(select id from public.kleinanzeigen_connections limit 1),repeat('a',64),1)->>'externalAccountId','123','Gültige Installation wird auf exaktes Konto eingeschränkt');
+select throws_ok($$select public.kleinanzeigen_extension_session('49000000-0000-4000-8000-000000000011',(select id from public.kleinanzeigen_connections limit 1),repeat('b',64),1)$$,'42501',null,'Falsches Secret abgelehnt');
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"49000000-0000-4000-8000-000000000001","role":"authenticated"}',true);
+select lives_ok($$select public.kleinanzeigen_disconnect_account('49000000-0000-4000-8000-000000000011',(select id from public.kleinanzeigen_connections limit 1))$$,'Eigene Bindung widerrufbar');
+reset role;
+set local role service_role;
+select throws_ok($$select public.kleinanzeigen_extension_session('49000000-0000-4000-8000-000000000011',(select id from public.kleinanzeigen_connections limit 1),repeat('a',64),1)$$,'42501',null,'Widerrufene Generation gesperrt');
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"49000000-0000-4000-8000-000000000001","role":"authenticated"}',true);
+select is(public.kleinanzeigen_connect_account('49000000-0000-4000-8000-000000000011','123','Neuer Kontaktname','unknown','49000000-0000-4000-8000-000000000031',repeat('a',64),false)->>'displayName','Neuer Kontaktname','Erneute Bindung übernimmt den aktuell bestätigten Kontaktnamen');
+select is((select account_type from public.kleinanzeigen_connections),'unknown','Erneute Bindung aktualisiert den bestätigten Kontotyp');
+select is((select count(*)::integer from public.kleinanzeigen_connections),1,'Namensänderung erzeugt keine zweite Kontoidentität');
+select throws_ok($$select public.kleinanzeigen_connect_account('49000000-0000-4000-8000-000000000011','123','Fremder Name','private','49000000-0000-4000-8000-000000000032',repeat('b',64),false)$$,'55P03',null,'Namenswechsel erlaubt keine Übernahme einer fremden aktiven Installation');
+select is((select display_name from public.kleinanzeigen_connections),'Neuer Kontaktname','Abgewiesene fremde Bindung überschreibt keine Metadaten');
+reset role;
+update public.workspaces set archived_at=now() where id='49000000-0000-4000-8000-000000000011';
+set local role authenticated;
+select lives_ok($$select set_config('request.jwt.claims','{"sub":"49000000-0000-4000-8000-000000000001","role":"authenticated"}',true)$$,'Nutzerkontext');
+select throws_ok($$select pg_temp.connect_ka()$$,'42501',null,'Archivierter Workspace nicht verbindbar');
+reset role;
+select * from finish();
+rollback;

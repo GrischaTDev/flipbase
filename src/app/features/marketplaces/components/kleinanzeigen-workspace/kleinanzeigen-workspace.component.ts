@@ -1,24 +1,63 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
-import { RouterLink } from '@angular/router';
-import {
-  LucideDynamicIcon,
-  LucideExternalLink as ExternalLink,
-  LucideFileText as FileText,
-  LucideSparkles as Sparkles,
-  LucideStore as Store,
-} from '@lucide/angular';
+import { ChangeDetectionStrategy, Component, effect, inject, untracked } from '@angular/core';
+import { LucideStore } from '@lucide/angular';
+import { AuthService } from '../../../../core/services/auth.service';
+import { WorkspaceService } from '../../../../core/services/workspace.service';
+import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
-import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
-
+import { KleinanzeigenAccountsComponent } from '../kleinanzeigen-accounts/kleinanzeigen-accounts.component';
+import { MarketplaceListingSectionComponent } from '../marketplace-listing-section/marketplace-listing-section.component';
+import { MarketplaceOverviewStore } from '../../services/marketplace-overview.store';
+import { overviewAccountKey } from '../../models/marketplace-overview-normalization';
 @Component({
   selector: 'app-kleinanzeigen-workspace',
-  imports: [RouterLink, LucideDynamicIcon, CardComponent, BadgeComponent],
+  imports: [
+    PageHeaderComponent,
+    ButtonComponent,
+    CardComponent,
+    KleinanzeigenAccountsComponent,
+    MarketplaceListingSectionComponent,
+  ],
+  providers: [MarketplaceOverviewStore],
   templateUrl: './kleinanzeigen-workspace.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'block min-w-0' },
 })
 export class KleinanzeigenWorkspaceComponent {
-  readonly storeIcon = Store;
-  readonly fileTextIcon = FileText;
-  readonly sparklesIcon = Sparkles;
-  readonly externalLinkIcon = ExternalLink;
+  readonly workspace = inject(WorkspaceService);
+  private readonly auth = inject(AuthService);
+  readonly store = inject(MarketplaceOverviewStore);
+  readonly storeIcon = LucideStore;
+  readonly accountKey = overviewAccountKey;
+  constructor() {
+    effect(() => {
+      const userId = this.auth.currentUser()?.id;
+      const workspace = this.workspace.currentWorkspace();
+      if (userId && workspace && !workspace.archived_at)
+        untracked(() => void this.reloadListings());
+    });
+  }
+  async reloadListings(): Promise<void> {
+    const workspace = this.workspace.currentWorkspace();
+    const userId = this.auth.currentUser()?.id;
+    if (!workspace || workspace.archived_at || !userId) return;
+    const expanded = new Set(
+      Object.values(this.store.sections())
+        .filter((section) => section.expanded)
+        .map((section) => this.accountKey(section.account)),
+    );
+    await this.store.load(workspace.id, ['kleinanzeigen']);
+    if (
+      this.workspace.currentWorkspace()?.id !== workspace.id ||
+      this.auth.currentUser()?.id !== userId
+    )
+      return;
+    await Promise.all(
+      this.store
+        .platforms()
+        .flatMap((group) => group.accounts)
+        .filter((account) => expanded.has(this.accountKey(account)))
+        .map((account) => this.store.expand(account)),
+    );
+  }
 }

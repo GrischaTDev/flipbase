@@ -232,3 +232,24 @@ describe('Lokale Vinted-Erweiterungsbrücke', () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 });
+
+it('leitet vollständige Quelldetails nicht aus Versionsnummer oder allgemeiner Vinted-Erkennung ab', () => {
+  TestBed.configureTestingModule({ providers: [VintedLocalExtensionBridge] });
+  const bridge = TestBed.inject(VintedLocalExtensionBridge);
+  for (const data of [
+    { type: 'FLIPBASE_EXTENSION_STATUS', installed: true, vintedLocal: true, version: '9.0.0' },
+    {
+      type: 'FLIPBASE_EXTENSION_STATUS',
+      installed: true,
+      vintedLocal: true,
+      vintedSourceDetails: true,
+    },
+    { type: 'FLIPBASE_EXTENSION_STATUS', installed: false, vintedLocal: false },
+  ]) {
+    window.dispatchEvent(
+      new MessageEvent('message', { source: window, origin: location.origin, data }),
+    );
+    expect(bridge.sourceDetailsAvailable()).toBe(data['vintedSourceDetails'] === true);
+  }
+  TestBed.resetTestingModule();
+});

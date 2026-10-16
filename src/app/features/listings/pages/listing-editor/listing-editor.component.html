@@ -19,30 +19,49 @@
     >{{ isEdit() ? 'Änderungen speichern' : 'Inserat vorbereiten' }}</app-button
   >
   <form id="listing-editor-form" [formGroup]="form" class="space-y-5" (ngSubmit)="save()">
+    @if (transferListing(); as listing) {
+      <app-kleinanzeigen-transfer-target
+        [listing]="listing"
+        [content]="transferContent()"
+        [photoCount]="imageDrafts().length"
+        [unsaved]="
+          hasUnsavedChanges() || imagesLoading() || imagesLoadError() !== null || isSaving()
+        "
+        (fieldsChanged)="targetFields.set($event)"
+        (confirmed)="refreshTransfer()"
+      />
+    }
     <app-two-column-layout>
       <section main class="linear-surface space-y-4 rounded-xl p-5">
-        <div class="block text-sm font-medium text-fb-text-primary">
-          <span>Bestandsartikel oder Produkt</span>
-          <app-custom-select
-            formControlName="inventoryItemId"
-            class="mt-1"
-            ariaLabel="Bestandsartikel oder Produkt"
-            [options]="itemOptions()"
-            [searchable]="true"
-            [required]="true"
-            placeholder="Artikel oder Produkt suchen und wählen"
-          />
-          @if (isLoading()) {
-            <p class="mt-2 text-xs text-fb-text-muted">Lade Bestände…</p>
-          } @else if (itemOptions().length === 0) {
-            <p class="mt-2 text-xs text-fb-text-muted">
-              Keine verfügbaren Bestandsartikel oder Produkte im aktuellen Workspace vorhanden.
-            </p>
-          }
-          @if (loadError(); as errorMsg) {
-            <p class="mt-2 text-xs text-fb-critical" role="alert">{{ errorMsg }}</p>
-          }
-        </div>
+        @if (transferDraft()) {
+          <p class="text-sm text-fb-text-secondary">
+            Aus Deinem Vinted-Inserat übernommen. Die Fassung und ihre Bilder werden unabhängig vom
+            Lagerbestand gespeichert.
+          </p>
+        } @else {
+          <div class="block text-sm font-medium text-fb-text-primary">
+            <span>Bestandsartikel oder Produkt</span>
+            <app-custom-select
+              formControlName="inventoryItemId"
+              class="mt-1"
+              ariaLabel="Bestandsartikel oder Produkt"
+              [options]="itemOptions()"
+              [searchable]="true"
+              [required]="true"
+              placeholder="Artikel oder Produkt suchen und wählen"
+            />
+            @if (isLoading()) {
+              <p class="mt-2 text-xs text-fb-text-muted">Lade Bestände…</p>
+            } @else if (itemOptions().length === 0) {
+              <p class="mt-2 text-xs text-fb-text-muted">
+                Keine verfügbaren Bestandsartikel oder Produkte im aktuellen Workspace vorhanden.
+              </p>
+            }
+            @if (loadError(); as errorMsg) {
+              <p class="mt-2 text-xs text-fb-critical" role="alert">{{ errorMsg }}</p>
+            }
+          </div>
+        }
         @if (selectedItem(); as item) {
           @if (selectedItemIssue(); as issue) {
             <p class="text-sm text-fb-critical" role="alert">{{ issue }}</p>

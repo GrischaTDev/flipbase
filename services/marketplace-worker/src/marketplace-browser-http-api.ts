@@ -95,10 +95,12 @@ interface BrowserApiOptions {
     ): Promise<Record<'profile' | 'publication' | 'conversation' | 'message' | 'sale', number>>;
   };
   edits?: VintedEditAccess;
+  listingReadAccess?: Pick<VintedEditAccess, 'entry'>;
   listingCategories?: Pick<VintedListingCategoryAccess, 'read' | 'authorize'>;
   conversationAccess?: VintedEditAccess;
   operations?: Pick<MarketplaceSyncRunner, 'start' | 'read'>;
-  listingCache?: Pick<SupabaseVintedListingCache, 'save'>;
+  listingCache?: Pick<SupabaseVintedListingCache, 'save'> &
+    Partial<Pick<SupabaseVintedListingCache, 'saveTransferSource'>>;
   profileCache?: Pick<SupabaseVintedProfileCache, 'save'>;
   readOnly?: boolean;
   listingPublishingEnabled?: boolean;
@@ -289,6 +291,7 @@ export class MarketplaceBrowserHttpApi {
   private readonly accounts?: BrowserApiOptions['accounts'];
   private readonly imports?: BrowserApiOptions['imports'];
   private readonly edits?: VintedEditAccess;
+  private readonly listingReadAccess?: Pick<VintedEditAccess, 'entry'>;
   private readonly listingCategories?: BrowserApiOptions['listingCategories'];
   private readonly conversationAccess?: VintedEditAccess;
   private readonly operations?: BrowserApiOptions['operations'];
@@ -309,6 +312,7 @@ export class MarketplaceBrowserHttpApi {
     this.accounts = options.accounts;
     this.imports = options.imports;
     this.edits = options.edits;
+    this.listingReadAccess = options.listingReadAccess;
     this.listingCategories = options.listingCategories;
     this.conversationAccess = options.conversationAccess;
     this.operations = options.operations;
@@ -638,7 +642,7 @@ export class MarketplaceBrowserHttpApi {
       }
       if (path === '/marketplace-browser/listings/content/read') {
         if (this.readOnly) throw new RequestError(403);
-        const edits = this.edits;
+        const edits = this.listingReadAccess ?? this.edits;
         if (!edits) throw new RequestError(503);
         const entryId = body['entryId'];
         // Konto und Inserat bestimmt ausschließlich der eigene Kontoeintrag, nie die Anfrage.
@@ -695,6 +699,8 @@ export class MarketplaceBrowserHttpApi {
               throw readFailure ?? error;
             });
           phase = 'confirm';
+          await authorize();
+          await this.listingCache?.saveTransferSource?.(scope, entryId, listing);
           await authorize();
           phase = 'close';
           await this.broker.close(scope, currentSessionId);

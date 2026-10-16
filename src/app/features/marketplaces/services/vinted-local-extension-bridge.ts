@@ -8,6 +8,7 @@ type RequestType =
   | 'FLIPBASE_VINTED_LOCAL_SYNC'
   | 'FLIPBASE_VINTED_LOCAL_INBOX_SYNC'
   | 'FLIPBASE_VINTED_LOCAL_INBOX_DETAIL'
+  | 'FLIPBASE_VINTED_LOCAL_SOURCE_DETAILS'
   | 'FLIPBASE_VINTED_LOCAL_MESSAGES_SEND'
   | 'FLIPBASE_VINTED_LOCAL_DISCONNECT';
 interface PendingRequest {
@@ -63,6 +64,7 @@ export class VintedLocalExtensionBridge {
   private destroyed = false;
   private installationTimer: ReturnType<typeof setTimeout> | undefined;
   readonly installed = signal(false);
+  readonly sourceDetailsAvailable = signal(false);
   readonly checkingInstallation = signal(false);
   readonly installationCheckFailed = signal(false);
   readonly localAccount = signal<VintedLocalAccountStatus | null | undefined>(undefined);
@@ -71,6 +73,7 @@ export class VintedLocalExtensionBridge {
     inject(DestroyRef).onDestroy(() => {
       this.destroyed = true;
       this.localAccount.set(undefined);
+      this.sourceDetailsAvailable.set(false);
       clearTimeout(this.installationTimer);
       window.removeEventListener('message', this.receive);
       this.cancel();
@@ -90,6 +93,7 @@ export class VintedLocalExtensionBridge {
     this.installationCheckFailed.set(false);
     this.installationTimer = setTimeout(() => {
       this.installed.set(false);
+      this.sourceDetailsAvailable.set(false);
       this.localAccount.set(undefined);
       this.checkingInstallation.set(false);
       this.installationCheckFailed.set(true);
@@ -128,6 +132,7 @@ export class VintedLocalExtensionBridge {
     if (response['type'] === 'FLIPBASE_EXTENSION_STATUS') {
       if (response['installed'] === false && response['vintedLocal'] === false) {
         this.installed.set(false);
+        this.sourceDetailsAvailable.set(false);
         this.localAccount.set(undefined);
         return;
       }
@@ -141,6 +146,7 @@ export class VintedLocalExtensionBridge {
         clearTimeout(this.installationTimer);
         this.localAccount.set(localAccount);
         this.installed.set(true);
+        this.sourceDetailsAvailable.set(response['vintedSourceDetails'] === true);
         this.checkingInstallation.set(false);
         this.installationCheckFailed.set(false);
       }

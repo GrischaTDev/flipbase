@@ -1,3 +1,4 @@
+import { ListingTransferActionComponent } from '../listing-transfer-action/listing-transfer-action.component';
 import { CurrencyPipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
@@ -24,6 +25,7 @@ import { createVintedListingMetricDisplay } from './vinted-listing-metric-displa
 @Component({
   selector: 'app-vinted-listings',
   imports: [
+    ListingTransferActionComponent,
     CurrencyPipe,
     RouterLink,
     ButtonComponent,

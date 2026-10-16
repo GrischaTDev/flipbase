@@ -30,3 +30,19 @@ test('registers every declarative schema exactly once', async () => {
     'Betreiberfunktionen müssen vor den Bot-Policies geladen werden',
   );
 });
+
+test('runs real parallel publication checks in the isolated CI database', async () => {
+  const ci = await readFile('.github/workflows/ci.yml', 'utf8');
+  assert.match(
+    ci,
+    /name: Test parallel Kleinanzeigen publication jobs\s+env:\s+KLEINANZEIGEN_TEST_DB_CONTAINER: supabase_db_flipbase-supabase\s+run: node supabase\/test-support\/kleinanzeigen-publication-concurrency.mjs/u,
+  );
+});
+
+test('prüft große Kleinanzeigen-Konto-IDs über den echten REST-Parser', async () => {
+  const ci = await readFile('.github/workflows/ci.yml', 'utf8');
+  assert.match(
+    ci,
+    /name: Test Kleinanzeigen REST identifier precision\s+env:\s+KLEINANZEIGEN_TEST_DB_CONTAINER: supabase_db_flipbase-supabase\s+run: node supabase\/test-support\/kleinanzeigen-rest-precision.mjs/u,
+  );
+});

@@ -29,6 +29,8 @@ const workspaceId = '46700000-0000-4000-8000-000000000001',
 async function fixture(
   options: {
     missing?: boolean;
+    readAccessOnly?: boolean;
+    cacheFailure?: boolean;
     readOnly?: boolean;
     foreignItem?: boolean;
     reassign?: boolean;
@@ -77,17 +79,43 @@ async function fixture(
   const api = new MarketplaceBrowserHttpApi({
     users: { userId: () => Promise.resolve('46700000-0000-4000-8000-000000000003') },
     readOnly: options.readOnly,
-    edits: options.missing
-      ? undefined
-      : ({
-          entry: (scope: BrowserSessionScope, kind: string, id?: string) => {
-            targets.push([scope.workspaceId, scope.connectionId, scope.userAccessToken, kind, id]);
-            // Der vierte Kontoabgleich ist die Bestätigung nach dem Lesen.
-            if (options.failConfirm && reads === 1 && targets.length >= 4)
-              return Promise.reject(new Error('Kontozugriff nicht bestätigt'));
-            return Promise.resolve({ externalId: '98765', accountId: reassigned ? '124' : '123' });
-          },
-        } as unknown as import('../src/vinted-edit-access.ts').VintedEditAccess),
+    listingReadAccess: options.readAccessOnly
+      ? { entry: async () => ({ externalId: '98765', accountId: '123' }) }
+      : undefined,
+    listingCache: {
+      save: async () => true,
+      saveTransferSource: async (scope, id, listing) => {
+        targets.push([
+          'cached-source',
+          scope.userId,
+          id,
+          listing.externalAccountId,
+          listing.externalId,
+        ]);
+        if (options.cacheFailure) throw new Error('private cache detail');
+      },
+    },
+    edits:
+      options.missing || options.readAccessOnly
+        ? undefined
+        : ({
+            entry: (scope: BrowserSessionScope, kind: string, id?: string) => {
+              targets.push([
+                scope.workspaceId,
+                scope.connectionId,
+                scope.userAccessToken,
+                kind,
+                id,
+              ]);
+              // Der vierte Kontoabgleich ist die Bestätigung nach dem Lesen.
+              if (options.failConfirm && reads === 1 && targets.length >= 4)
+                return Promise.reject(new Error('Kontozugriff nicht bestätigt'));
+              return Promise.resolve({
+                externalId: '98765',
+                accountId: reassigned ? '124' : '123',
+              });
+            },
+          } as unknown as import('../src/vinted-edit-access.ts').VintedEditAccess),
     broker: {
       open: (scope) => {
         if (scope.workspaceId !== workspaceId || scope.connectionId !== connectionId)
@@ -438,6 +466,42 @@ test('content HTTP save passes a photo arrangement on and rejects anything but k
         JSON.stringify(photos),
       );
     assert.equal(f.reads(), 1);
+  } finally {
+    await f.close();
+  }
+});
+
+test('vollständige Quellübernahme speichert nach Kontoprüfung und benötigt keine Vinted-Schreibfreigabe', async () => {
+  const f = await fixture({ readAccessOnly: true });
+  try {
+    const response = await f.request({ workspaceId, connectionId, entryId });
+    assert.equal(response.status, 200);
+    assert.ok(
+      f.targets.some(
+        (target) =>
+          JSON.stringify(target) ===
+          JSON.stringify([
+            'cached-source',
+            '46700000-0000-4000-8000-000000000003',
+            entryId,
+            '123',
+            '98765',
+          ]),
+      ),
+    );
+    const saved = await f.save({ workspaceId, connectionId, entryId });
+    assert.equal(saved.status, 503);
+  } finally {
+    await f.close();
+  }
+});
+test('fehlgeschlagene Quellablage meldet keine erfolgreiche gesicherte Übernahme', async () => {
+  const f = await fixture({ cacheFailure: true });
+  try {
+    const response = await f.request({ workspaceId, connectionId, entryId });
+    assert.notEqual(response.status, 200);
+    assert.doesNotMatch(await response.text(), /private cache detail|user-token/);
+    assert.equal(f.closed(), 1);
   } finally {
     await f.close();
   }

@@ -184,6 +184,15 @@
     <app-product-gallery [images]="photos()" [title]="item.title" />
     <app-card class="min-w-0">
       <h2 class="break-words text-xl font-semibold text-fb-text-primary">{{ item.title }}</h2>
+      <app-listing-transfer-action
+        [source]="{
+          platform: 'vinted',
+          workspaceId: item.workspaceId,
+          connectionId: item.connectionId,
+          externalId: item.externalId || '',
+        }"
+        [title]="item.title"
+      />
       <p class="mt-3 text-2xl font-semibold text-fb-text-primary">
         {{ item.price === null ? 'Preis unbekannt' : (item.price | currency: item.currency) }}
       </p>

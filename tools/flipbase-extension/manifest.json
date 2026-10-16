@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Flipbase Listing-Assistent",
-  "version": "1.8.1",
+  "version": "1.10.0",
   "description": "Verbindet Dein Vinted-Postfach mit Flipbase und unterstützt Kleinanzeigen-Inserate.",
   "icons": {
     "16": "images/flipbase-mark-16.png",
@@ -24,7 +24,9 @@
     "https://kleinanzeigen.de/*",
     "https://api.flipbase.de/*",
     "http://127.0.0.1:54351/*",
-    "http://localhost:54351/*"
+    "http://localhost:54351/*",
+    "http://127.0.0.1:28351/*",
+    "http://localhost:28351/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -37,7 +39,7 @@
         "http://localhost/*",
         "http://127.0.0.1/*"
       ],
-      "js": ["vinted-local-core.js", "flipbase-bridge.js"],
+      "js": ["vinted-local-core.js", "kleinanzeigen-local-core.js", "flipbase-bridge.js"],
       "run_at": "document_start"
     },
     {
@@ -49,6 +51,7 @@
         "vinted-local-core.js",
         "vinted-local-messages.js",
         "vinted-local-favorites.js",
+        "vinted-transfer-source.js",
         "vinted-local-content.js",
         "vinted-local-account.js"
       ],
@@ -62,6 +65,34 @@
       ],
       "js": ["autofill-core.js", "kleinanzeigen-autofill.js"],
       "css": ["autofill.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.kleinanzeigen.de/m-einstellungen.html*",
+        "https://www.kleinanzeigen.de/m-meine-anzeigen.html*"
+      ],
+      "js": ["kleinanzeigen-provider-reader.js", "kleinanzeigen-local-content.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.kleinanzeigen.de/p-anzeige-aufgeben-schritt2.html*",
+        "https://www.kleinanzeigen.de/p-kategorie-aendern.html*"
+      ],
+      "js": [
+        "kleinanzeigen-provider-reader.js",
+        "kleinanzeigen-form-reader.js",
+        "kleinanzeigen-form-content.js",
+        "autofill-core.js",
+        "kleinanzeigen-publication-reader.js",
+        "kleinanzeigen-publication-content.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.kleinanzeigen.de/*"],
+      "js": ["kleinanzeigen-publication-results.js"],
       "run_at": "document_idle"
     }
   ],

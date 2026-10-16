@@ -1644,7 +1644,7 @@ test('Website bridge checks source and origin, preserves request correlation and
   assert.equal(replies.at(-1).origin, appOrigin);
   assert.ok(!JSON.stringify(replies).includes(secret));
   const announcement = replies.findLast(({ reply }) => reply.type === 'FLIPBASE_EXTENSION_STATUS');
-  assert.equal(announcement.reply.version, '1.7.0');
+  assert.equal(announcement.reply.version, '1.10.0');
   assert.equal(announcement.reply.localAccount.boundUsername, 'maike');
   assert.equal(announcement.reply.localAccount.boundConnectionId, connectionId);
 });
@@ -1852,7 +1852,15 @@ test('Manifest narrows application and provider access without changing Kleinanz
     script.matches.includes('https://www.vinted.de/*'),
   );
   assert.equal(vintedContent.js.at(-1), 'vinted-local-account.js');
-  assert.equal(manifest.version, '1.8.1');
+  assert.equal(manifest.version, '1.10.0');
+  assert.ok(
+    manifest.content_scripts.some(
+      (script) =>
+        script.matches.includes('https://www.kleinanzeigen.de/m-einstellungen.html*') &&
+        script.js.includes('kleinanzeigen-provider-reader.js') &&
+        script.js.includes('kleinanzeigen-local-content.js'),
+    ),
+  );
   assert.ok(
     vintedContent.js.indexOf('vinted-local-negotiation.js') <
       vintedContent.js.indexOf('vinted-local-core.js'),
@@ -4073,4 +4081,83 @@ test('Scheduler reports persisted results despite expired grant and provider pau
   await runner.tick();
   assert.deepEqual(calls, ['MESSAGES_SEND']);
   assert.equal(stored.schedule.pauseReason, 'session_blocked');
+});
+
+test('Vinted-Quelldetails verwenden nur die aktuelle Lesefreigabe und importieren für genau das eigene Inserat', async () => {
+  const setup = harness();
+  await setup.runtime.run(request('PREPARE'), appOrigin);
+  await setup.runtime.run(request('BIND', payload), appOrigin);
+  const previous = setup.adapter.edge;
+  const entryId = '50100000-0000-4000-8000-000000000031';
+  const state = {
+    ok: true,
+    ...scope,
+    entryId,
+    externalId: '41',
+    externalAccountId: '123',
+    generation: 3,
+    expiresAt,
+  };
+  setup.adapter.edge = async (...args) => {
+    const input = args[2];
+    if (input.action === 'source_details_state') return state;
+    if (input.action === 'source_details_import') {
+      assert.equal(input.generation, 3);
+      assert.equal(input.source.description, 'Vollständig');
+      return { ...state, fingerprint: 'c'.repeat(64) };
+    }
+    return previous(...args);
+  };
+  setup.adapter.readTransferSource = async () => ({
+    tabId: 12,
+    source: {
+      externalAccountId: '123',
+      externalId: '41',
+      title: 'Jacke',
+      description: 'Vollständig',
+      priceCents: 1200,
+      currency: 'EUR',
+      photoReferences: ['https://images1.vinted.net/a.jpg'],
+      attributeHints: {},
+    },
+  });
+  const result = await core
+    .createRuntime(setup.adapter)
+    .run(request('SOURCE_DETAILS', { ...scope, entryId, externalId: '41' }), appOrigin);
+  assert.equal(result.fingerprint, 'c'.repeat(64));
+  assert.equal('source' in result, false);
+  assert.equal(JSON.stringify(result).includes(secret), false);
+});
+test('Lokale Quelldetails mit falscher Bindung werden vor dem Anbieterabruf abgebrochen', async () => {
+  const setup = harness();
+  await setup.runtime.run(request('PREPARE'), appOrigin);
+  await setup.runtime.run(request('BIND', payload), appOrigin);
+  const previous = setup.adapter.edge;
+  let reads = 0;
+  setup.adapter.edge = async (...args) =>
+    args[2].action === 'source_details_state'
+      ? {
+          ok: true,
+          ...scope,
+          entryId: '50100000-0000-4000-8000-000000000031',
+          externalId: '41',
+          externalAccountId: '999',
+          generation: 3,
+          expiresAt,
+        }
+      : previous(...args);
+  setup.adapter.readTransferSource = async () => {
+    reads++;
+  };
+  await assert.rejects(() =>
+    core.createRuntime(setup.adapter).run(
+      request('SOURCE_DETAILS', {
+        ...scope,
+        entryId: '50100000-0000-4000-8000-000000000031',
+        externalId: '41',
+      }),
+      appOrigin,
+    ),
+  );
+  assert.equal(reads, 0);
 });

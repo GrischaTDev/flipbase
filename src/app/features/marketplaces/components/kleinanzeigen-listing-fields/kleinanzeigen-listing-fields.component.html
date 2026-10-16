@@ -1,0 +1,62 @@
+<section class="space-y-4" aria-label="Kleinanzeigen-Eigenschaften">
+  @for (field of schema().fields; track field.key) {
+    @if (attributes().controls[field.key]; as control) {
+      @if (field.kind === 'search') {
+        <app-text-field
+          [formControl]="control"
+          [label]="field.label"
+          [maxLength]="200"
+          helpText="Die Erweiterung prüft diese Angabe vor dem Inserieren gegen die angebotenen Werte."
+        />
+      } @else {
+        <div>
+          <label
+            [for]="'transfer-' + field.key"
+            class="mb-1 block text-sm font-medium text-fb-text-primary"
+            >{{ field.label }}</label
+          ><app-custom-select
+            [triggerId]="'transfer-' + field.key"
+            [ariaLabel]="field.label"
+            [formControl]="control"
+            [options]="options(field)"
+            [searchable]="field.choices.length > 10"
+            [required]="field.required || field.key.endsWith('.condition')"
+          />
+        </div>
+      }
+    }
+  }
+  @if (shippingEnabled()) {
+    <div>
+      <label
+        for="transfer-shipping-group"
+        class="mb-1 block text-sm font-medium text-fb-text-primary"
+        >Paketgröße</label
+      ><app-custom-select
+        triggerId="transfer-shipping-group"
+        ariaLabel="Paketgröße"
+        [formControl]="shippingGroup()"
+        [options]="groupOptions()"
+      />
+    </div>
+    @if (methods().length) {
+      <fieldset class="space-y-3">
+        <legend class="mb-2 text-sm font-medium text-fb-text-primary">Versandmethoden</legend>
+        @for (method of methods(); track method.value) {
+          <div>
+            <app-custom-checkbox
+              presentation="row"
+              [label]="method.label"
+              [checked]="selectedMethods().includes(method.value)"
+              (checkedChange)="chooseMethod(method.value, $event)"
+            />
+            <p class="mt-1 text-xs text-fb-text-secondary">{{ method.description }}</p>
+          </div>
+        }
+      </fieldset>
+    }
+    <p class="text-xs text-fb-text-secondary">
+      Der Käufer wählt und bezahlt den Versand. Abholung bleibt bei Kleinanzeigen möglich.
+    </p>
+  }
+</section>

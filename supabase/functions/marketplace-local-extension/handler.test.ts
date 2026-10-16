@@ -926,7 +926,7 @@ test(
     }) as typeof Deno.serve;
     Deno.env.set('SUPABASE_URL', 'https://database.example.test');
     Deno.env.set('SUPABASE_SERVICE_ROLE_KEY', 'local-test-key');
-    globalThis.fetch = async (input, init) => {
+    globalThis.fetch = async (input, init: RequestInit | undefined) => {
       const address = input instanceof Request ? input.url : String(input);
       assert.equal(new URL(address).hostname, 'database.example.test');
       assert.equal(typeof init?.body, 'string');
@@ -1325,7 +1325,7 @@ test(
         let checks = 0,
           metadataReads = 0,
           downloads = 0;
-        globalThis.fetch = (input, init) => {
+        globalThis.fetch = (input, init: RequestInit | undefined) => {
           const url = new URL(input instanceof Request ? input.url : String(input));
           assert.equal(url.origin, 'https://database.example.test');
           if (url.pathname === '/rest/v1/rpc/marketplace_local_listing_check') {

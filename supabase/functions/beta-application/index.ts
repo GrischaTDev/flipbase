@@ -170,7 +170,7 @@ export function createBetaApplicationHandler(
     }
 
     const serviceClient = createServiceClient(supabaseUrl, serviceRoleKey, {
-      auth: { persistSession: false },
+      auth: { persistSession: false, autoRefreshToken: false },
     });
 
     // Der letzte Eintrag der Kette stammt vom naechstgelegenen Proxy und laesst

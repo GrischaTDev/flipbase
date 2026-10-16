@@ -1,3 +1,5 @@
+import type { KleinanzeigenListingJob } from '../../models/kleinanzeigen-listing-job';
+import { ListingTransferActionComponent } from '../listing-transfer-action/listing-transfer-action.component';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -29,11 +31,13 @@ import type {
   MarketplaceListingReference,
   MarketplaceListingState,
 } from '../../models/marketplace-overview.models';
+import { marketplacePlatformLabel } from '../../../../shared/models/marketplace-platform';
 import { overviewListingKey } from '../../models/marketplace-overview-normalization';
 
 @Component({
   selector: 'app-marketplace-listing-section',
   imports: [
+    ListingTransferActionComponent,
     CurrencyPipe,
     DatePipe,
     DecimalPipe,
@@ -54,6 +58,7 @@ import { overviewListingKey } from '../../models/marketplace-overview-normalizat
 export class MarketplaceListingSectionComponent {
   readonly section = input.required<MarketplaceOverviewSection>();
   readonly toggled = output<void>();
+  readonly transferPublished = output<KleinanzeigenListingJob>();
   readonly retried = output<void>();
   readonly nextRequested = output<void>();
   readonly previousRequested = output<void>();
@@ -87,12 +92,15 @@ export class MarketplaceListingSectionComponent {
       ),
   );
   readonly partiallyChecked = computed(() => this.selected().size > 0 && !this.allChecked());
-  readonly stateOptions = [
+  readonly platformLabel = marketplacePlatformLabel;
+  readonly stateOptions = computed(() => [
     { value: 'all', label: 'Alle gespeicherten Inserate' },
     { value: 'active', label: 'Online' },
-    { value: 'reserved', label: 'Reserviert' },
+    ...(this.section().account.platform === 'kleinanzeigen'
+      ? []
+      : [{ value: 'reserved', label: 'Reserviert' }]),
     { value: 'ended', label: 'Beendet' },
-  ];
+  ]);
   readonly accountStatus = computed(() => {
     const status = this.section().account.status;
     return (

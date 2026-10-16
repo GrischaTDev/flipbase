@@ -10,6 +10,52 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 
 // Nur die tatsächliche Testauswahl prüfen, nicht Playwrights Parser nachtesten.
 const coreTests = [
+  ...[
+    'Eine verlorene Annahmeantwort wird ohne zweiten Auftrag fortgesetzt @core-smoke',
+    'Ein gewechseltes Browserkonto stoppt vor der Auftragsannahme @core-smoke',
+    'Ohne passende Erweiterung bleibt die automatische Veröffentlichung gesperrt @core-smoke',
+  ].map((title) => ['vinted-kleinanzeigen-transfer.spec.ts', title]),
+
+  [
+    'vinted-kleinanzeigen-transfer.spec.ts',
+    'Zentrale Übersicht zeigt echte Kleinanzeigen-Konten und den bestätigten Zielbestand @core-smoke',
+  ],
+  ...['light', 'dark'].flatMap((theme) =>
+    [320, 390, 834, 1440].map((width) => [
+      'vinted-kleinanzeigen-transfer.spec.ts',
+      'Vinted-Übertragung bleibt bei ' +
+        width +
+        'px im ' +
+        theme +
+        '-Theme sicher bedienbar @core-smoke',
+    ]),
+  ),
+  ...[
+    ...['100', '101'].map(
+      (value) => 'Offizielles Kontingent ' + value + ' stoppt vor Auftragsannahme @core-smoke',
+    ),
+    'Gebühren stoppen den Auftrag ohne Erfolgsmeldung @core-smoke',
+    'Unklarer Ausgang wird nur abgeglichen und nicht erneut inseriert @core-smoke',
+    'Verarbeitung bleibt von einer bestätigten Veröffentlichung unterscheidbar @core-smoke',
+    'Lange Quelltexte bleiben ungekürzt zur Korrektur erhalten @core-smoke',
+    'Unvollständige Bilder blockieren die Veröffentlichung @core-smoke',
+  ].map((title) => ['vinted-kleinanzeigen-transfer.spec.ts', title]),
+
+  ...['light', 'dark'].flatMap((theme) =>
+    [320, 390, 834, 1440].map((width) => [
+      'kleinanzeigen-accounts.spec.ts',
+      'Kleinanzeigen-Konten bleiben bei ' +
+        width +
+        'px im ' +
+        theme +
+        '-Theme bedienbar @core-smoke',
+    ]),
+  ),
+  ...[
+    'Ein unterbrochener Kleinanzeigen-Abgleich erhält den bestätigten Bestand @core-smoke',
+    'Kleinanzeigen-Verbindung wird gezielt widerrufen und behält gespeicherte Inserate @core-smoke',
+    'Kleinanzeigen ohne passende Erweiterung bietet keinen Abgleich an @core-smoke',
+  ].map((title) => ['kleinanzeigen-accounts.spec.ts', title]),
   [
     'marketplace-overview.spec.ts',
     'Marktplatzeinstellungen können einen fehlgeschlagenen Abruf erneut laden @core-smoke',
@@ -553,7 +599,31 @@ test('gezielte Marktplatzübersicht wählt ihre registrierten Browserfälle', as
   assert.equal(plan.full, false);
   assert.deepEqual(
     keys(selected),
-    keys(coreTests.filter(([file]) => file === 'marketplace-overview.spec.ts')),
+    keys(
+      coreTests.filter(([file]) =>
+        ['marketplace-overview.spec.ts', 'kleinanzeigen-accounts.spec.ts'].includes(file),
+      ),
+    ),
   );
   assert.equal(plan.pwa, false);
+});
+
+test('CI installiert den vollständigen Chromium und prüft die echte MV3-Wiederaufnahme', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const ci = await readFile('.github/workflows/ci.yml', 'utf8');
+  const browserJob = ci.split('  browser-smoke:')[1]?.split('  pwa:')[0] ?? '';
+  const install = browserJob.indexOf('name: Install Chromium for browser and extension tests');
+  const extension = browserJob.indexOf('name: Run isolated Kleinanzeigen MV3 restart test');
+  assert.ok(
+    install >= 0 && extension > install,
+    'MV3 muss im Browser-Job nach der Chromium-Installation laufen.',
+  );
+  assert.match(
+    ci,
+    /name: Run isolated Kleinanzeigen MV3 restart test[\s\S]*?run:\s+\|\s+node scripts\/kleinanzeigen-extension-browser.mjs\s+node scripts\/kleinanzeigen-publication-browser.mjs/u,
+  );
+  assert.match(
+    ci,
+    /name: Install Chromium for browser and extension tests\s+run: npx playwright install --with-deps chromium/u,
+  );
 });

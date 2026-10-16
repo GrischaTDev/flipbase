@@ -1,0 +1,60 @@
+<section
+  class="space-y-3 rounded-lg border border-fb-border p-4"
+  aria-label="Veröffentlichung auf Kleinanzeigen"
+>
+  <h3 class="text-sm font-semibold text-fb-text-primary">Auf Kleinanzeigen inserieren</h3>
+  <p role="status" aria-live="polite" class="text-sm text-fb-text-primary">{{ status() }}</p>
+  <p class="text-sm text-fb-text-secondary">
+    Vor dem Inserieren prüfen wir das kostenlose Kontingent Deines Privatkontos und die Gebühren im
+    Kleinanzeigen-Formular. Bei Gebühren oder unklaren Kosten wird angehalten.
+  </p>
+  @if (unsaved()) {
+    <p class="text-sm text-fb-text-secondary">Speichere zuerst Deine Änderungen.</p>
+  }
+  @if (issues().length) {
+    <ul class="list-disc space-y-1 pl-5 text-sm text-fb-text-secondary">
+      @for (message of issues(); track $index) {
+        <li>{{ message }}</li>
+      }
+    </ul>
+  }
+  @if (issue(); as message) {
+    <app-notice-banner>{{ message }}</app-notice-banner>
+  }
+  @if (localError() || jobs.error(); as message) {
+    <app-notice-banner announcement="alert">{{ message }}</app-notice-banner>
+  }
+  @if (!scope()) {
+    <p class="text-sm text-fb-text-secondary">
+      Prüfe das Zielkonto und seine aktive Veröffentlichungsfreigabe.
+    </p>
+  }
+  @if (scope() && (!extension.capabilities().publish || !extension.quotaAvailable())) {
+    <p class="text-sm text-fb-text-secondary">
+      Aktualisiere und prüfe die Flipbase-Erweiterung in Deinem gebundenen Browserprofil.
+    </p>
+  }
+  <div class="flex flex-wrap gap-2">
+    @if (jobs.job()?.state === 'queued' || jobs.job()?.state === 'claimed') {
+      <app-button [loading]="jobs.busy()" [disabled]="jobs.busy()" (clicked)="resume()"
+        >Auftrag fortsetzen</app-button
+      >
+    } @else if (jobs.job()?.state !== 'confirmed' && !published() && !hasUnresolvedJob()) {
+      <app-button
+        variant="primary"
+        [loading]="jobs.busy()"
+        [disabled]="!canPublish()"
+        (clicked)="publish()"
+        >Kostenlos inserieren</app-button
+      >
+    }
+    @if (jobs.job()) {
+      <app-button [loading]="jobs.busy()" [disabled]="jobs.busy()" (clicked)="check()"
+        >Status prüfen</app-button
+      >
+    }
+  </div>
+  @if (jobs.job()?.externalId; as id) {
+    <p class="text-xs text-fb-text-secondary">Kleinanzeigen-Anzeigennummer: {{ id }}</p>
+  }
+</section>

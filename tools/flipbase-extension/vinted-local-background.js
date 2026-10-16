@@ -208,6 +208,8 @@
         .map((byte) => byte.toString(16).padStart(2, '0'))
         .join(''),
     readIdentity: (tabId) => readFromTab(tabId, { type: 'VINTED_LOCAL_IDENTITY' }),
+    readTransferSource: (tabId, externalAccountId, externalId) =>
+      readFromTab(tabId, { type: 'VINTED_LOCAL_SOURCE_DETAILS', externalAccountId, externalId }),
     readSnapshot: (tabId, externalAccountId) =>
       readFromTab(tabId, { type: 'VINTED_LOCAL_SNAPSHOT', externalAccountId }),
     readInbox: (tabId, externalAccountId, state) =>
@@ -465,6 +467,7 @@
           : null;
         sendResponse({
           success: true,
+          capabilities: { sourceDetails: true },
           result:
             origin === 'https://www.vinted.de'
               ? {

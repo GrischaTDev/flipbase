@@ -37,7 +37,14 @@ interface ListingDatabaseRow {
   readonly ended_at: string | null;
   readonly created_at: string;
   readonly updated_at: string;
+  readonly target_connection_id?: string | number | null;
+  readonly source_reference?: Readonly<Record<string, string>> | null;
+  readonly revision?: number;
+  readonly category_id?: string | null;
+  readonly category_fields?: Readonly<Record<string, string>>;
+  readonly schema_revision?: string | null;
   readonly image_selection_saved?: boolean;
+  readonly transfer_images_complete?: boolean;
   readonly item_details?: ListingItemDetails | null;
 }
 type InventoryDatabaseRow = Tables<'inventory_items'> & {
@@ -109,6 +116,14 @@ interface ListingDatabaseClient {
     select(columns: string): CollectionQuery<readonly ListingImageDatabaseRow[]>;
   };
   rpc(
+    name: 'kleinanzeigen_update_draft',
+    parameters: {
+      readonly p_id: string;
+      readonly p_expected_revision: number;
+      readonly p_content: unknown;
+    },
+  ): Promise<QueryResult<ListingDatabaseRow>>;
+  rpc(
     name: 'prepare_listing',
     parameters: {
       readonly p_workspace_id: string;
@@ -169,7 +184,7 @@ export class ListingService {
         await Promise.all([
           this.client
             .from('listings')
-            .select('*')
+            .select('*, target_connection_id::text')
             .eq('workspace_id', workspaceId)
             .order('updated_at', { ascending: false }),
           this.client
@@ -257,7 +272,9 @@ export class ListingService {
           .map((listing) => {
             const targetId = listing.inventory_item_id ?? listing.catalog_product_id;
             const item = targetId ? itemsById.get(targetId) : null;
-            return item ? this.mapRow(listing, item, firstImageByListingId.get(listing.id)) : null;
+            return item || listing.source_reference
+              ? this.mapRow(listing, item ?? null, firstImageByListingId.get(listing.id))
+              : null;
           })
           .filter((row): row is ListingRow => row !== null),
       );
@@ -300,6 +317,29 @@ export class ListingService {
     if (!workspaceId) return this.noWorkspaceResult();
 
     try {
+      const row = this.getById(listingId);
+      if (row?.listing.sourceReference) {
+        const current = row.listing;
+        const { data, error } = await this.client.rpc('kleinanzeigen_update_draft', {
+          p_id: listingId,
+          p_expected_revision: current.revision ?? 1,
+          p_content: {
+            ...this.toRpcContent(content),
+            priceCents: Math.round(content.price * 100),
+            shippingPriceCents:
+              content.shippingPrice === null ? null : Math.round(content.shippingPrice * 100),
+            currency: 'EUR',
+            categoryId:
+              content.categoryId === undefined ? (current.categoryId ?? null) : content.categoryId,
+            categoryFields: content.categoryFields ?? current.categoryFields ?? {},
+            schemaRevision:
+              content.schemaRevision === undefined
+                ? (current.schemaRevision ?? null)
+                : content.schemaRevision,
+          },
+        });
+        return await this.finishMutation(workspaceId, data, error);
+      }
       const { data, error } = await this.client
         .from('listings')
         .update(this.toContentUpdate(content))
@@ -326,6 +366,10 @@ export class ListingService {
   }
 
   async buildExtensionPayload(row: ListingRow): Promise<ListingPayloadResult> {
+    if (row.listing.sourceReference)
+      throw new Error(
+        'Nutze für diese Fassung die kontogebundene Veröffentlichung mit Gebührenprüfung.',
+      );
     const orderedMedia = await this.listingImages.pathsForListing(
       row.listing.id,
       row.item,
@@ -338,14 +382,14 @@ export class ListingService {
       .filter((medium) => !urls[medium.path])
       .map((medium) => medium.name ?? this.fileNameFromPath(medium.path));
     const payload: KleinanzeigenListingPayload = {
-      itemId: row.item.id,
+      itemId: row.item?.id ?? row.listing.id,
       title: row.listing.content.title,
       description: row.listing.content.description,
       price: row.listing.content.price,
       priceType: row.listing.content.priceType,
       postalCode: row.listing.content.postalCode ?? undefined,
       categoryHint:
-        (row.listing.content.itemDetails?.category ?? row.item.category)
+        (row.listing.content.itemDetails?.category ?? row.item?.category)
           ?.split(' > ')
           .at(-1)
           ?.trim() || undefined,
@@ -441,17 +485,18 @@ export class ListingService {
 
   private mapRow(
     listing: ListingDatabaseRow,
-    item: ListingEditorItem,
+    item: ListingEditorItem | null,
     firstListingImagePath?: string,
   ): ListingRow {
     return {
       listing: this.mapListing(listing),
       item,
-      primaryImagePath: listing.image_selection_saved
-        ? (firstListingImagePath ?? null)
-        : (item.media.find((medium) => medium.is_primary)?.storage_path ??
-          item.media[0]?.storage_path ??
-          null),
+      primaryImagePath:
+        listing.image_selection_saved || !item
+          ? (firstListingImagePath ?? null)
+          : (item.media.find((medium) => medium.is_primary)?.storage_path ??
+            item.media[0]?.storage_path ??
+            null),
     };
   }
 
@@ -480,7 +525,15 @@ export class ListingService {
       endedAt: row.ended_at,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
+      targetConnectionId:
+        row.target_connection_id == null ? null : String(row.target_connection_id),
+      sourceReference: row.source_reference ?? null,
+      revision: row.revision ?? 1,
+      categoryId: row.category_id ?? null,
+      categoryFields: row.category_fields ?? {},
+      schemaRevision: row.schema_revision ?? null,
       imageSelectionSaved: row.image_selection_saved ?? false,
+      transferImagesComplete: row.transfer_images_complete ?? false,
     };
   }
 

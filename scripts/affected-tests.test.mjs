@@ -217,9 +217,44 @@ test('Marktplatzübersicht und ihre Auswahl wählen die eigenen Browserfälle', 
       ...files,
       [path]: '',
       'e2e/marketplace-overview.spec.ts': '',
+      'e2e/kleinanzeigen-accounts.spec.ts': '',
     });
     assert.equal(plan.full, false, path);
-    assert.deepEqual(plan.browserFiles, ['e2e/marketplace-overview.spec.ts'], path);
+    assert.deepEqual(
+      plan.browserFiles,
+      ['e2e/kleinanzeigen-accounts.spec.ts', 'e2e/marketplace-overview.spec.ts'],
+      path,
+    );
     assert.equal(plan.pwa, false, path);
   }
+});
+
+test('Kleinanzeigen-Konten wählen eigene Konten- und Übersichtsabläufe', () => {
+  const path = 'src/app/features/marketplaces/services/kleinanzeigen-account.service.ts';
+  const plan = selectAffectedTests([path], {
+    ...files,
+    [path]: '',
+    'e2e/kleinanzeigen-accounts.spec.ts': '',
+    'e2e/marketplace-overview.spec.ts': '',
+  });
+  assert.equal(plan.full, false);
+  assert.deepEqual(plan.browserFiles, [
+    'e2e/kleinanzeigen-accounts.spec.ts',
+    'e2e/marketplace-overview.spec.ts',
+  ]);
+});
+
+test('Kleinanzeigen-Erweiterungsänderungen wählen den Transferablauf und seine Kontenprüfung', () => {
+  const path = 'tools/flipbase-extension/kleinanzeigen-publication-jobs.js';
+  const plan = selectAffectedTests([path], {
+    ...files,
+    [path]: '',
+    'e2e/kleinanzeigen-accounts.spec.ts': '',
+    'e2e/vinted-kleinanzeigen-transfer.spec.ts': '',
+  });
+  assert.deepEqual(plan.browserFiles, [
+    'e2e/kleinanzeigen-accounts.spec.ts',
+    'e2e/vinted-kleinanzeigen-transfer.spec.ts',
+  ]);
+  assert.equal(plan.checks.marketplace, true);
 });

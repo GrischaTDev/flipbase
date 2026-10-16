@@ -4,6 +4,7 @@
 // steht in autofill-core.js und ist dort getestet.
 
 (async function initKleinanzeigenAutofill() {
+  if (location.hash.startsWith('#flipbase-form-read')) return;
   const autofill = globalThis.FlipbaseAutofill;
   if (!autofill) return;
 
