@@ -1,5 +1,9 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-16 - Juna - Transfer-PR zur Integration freigegeben
+
+**Auftrag:** Nach ausdrücklicher Freigabe den geprüften Vinted-zu-Kleinanzeigen-Zweig pushen, den PR erstellen, alle erforderlichen CI-Prüfungen abwarten und ausschließlich bei Erfolg mit Merge-Commit integrieren. Danach den eigenen Feature-Zweig und Worktree aufräumen. Der aktuelle Hauptzweig ist bereits enthalten; funktionaler Stand und lokale Prüfbelege bleiben unverändert. Live-Anbieterabnahme und separate Bereitstellung der Server-Endpunkte bleiben offen.
+
 ## 2026-10-16 - Juna - Vinted nach Kleinanzeigen übertragen
 
 **Auftrag:** Vollständigen Übertragungsweg einschließlich Kontingentprüfung und automatischem Gebührenstopp umsetzen. Bestehende Übersicht und Entwürfe weiterverwenden; notwendige Kleinanzeigen-Kontobindung mit umsetzen.
