@@ -219,7 +219,13 @@ for (const width of [1440, 1024, 768, 390, 320]) {
     await expect(page.locator('app-vinted-profile')).toContainText('Profil Testkonto A');
     await page.reload();
     await expect(select).toContainText('Testkonto A');
-    await page.getByRole('link', { name: 'Alle Konten', exact: true }).click();
+    await expect(page.getByRole('link', { name: 'Alle Konten', exact: true })).toHaveCount(0);
+    if (width < 768)
+      await page
+        .locator('app-bottom-nav')
+        .getByRole('button', { name: 'Menü', exact: true })
+        .click();
+    await page.locator('app-sidebar').getByRole('link', { name: 'Konten', exact: true }).click();
     await expect(grid).toBeVisible();
     await page.reload();
     await expect(grid).toBeVisible();

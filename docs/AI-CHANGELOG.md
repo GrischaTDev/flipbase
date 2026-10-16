@@ -1,5 +1,7 @@
 # 🤖 KI-Änderungsprotokoll
 
+<<<<<<< HEAD
+
 ## 2026-10-16 - Juna - Eigene Veröffentlichungszeit vor Vinted-Altersfallback verwenden
 
 **Auftrag:** Beim ersten Kontoabruf alle fehlenden Altersangaben ergänzen, danach
@@ -62,6 +64,29 @@ bleiben die ausgewählten Linux-/Image-/Browser-/PWA-CI-Prüfungen erforderlich.
 Kein Push oder produktiver Wechsel in dieser Umsetzung. Veröffentlichung:
 zuerst regulärer Web-Release mit Migration, danach Worker, Broker und Sitzung
 zusammen aus demselben geprüften Merge-Stand aktualisieren.
+=======
+
+## 2026-10-16 - Juna - Überflüssigen Zurück-Link „Alle Konten“ auf Vinted-Unterseiten entfernen
+
+**Auftrag:** Auf den Vinted-Unterseiten (Übersicht, Kleiderschrank, Statistik, Verkäufe,
+Verlauf, Profil) den oberen Zurück-Link mit Pfeil („Alle Konten“) entfernen, da der Wechsel
+zur Kontenübersicht direkt über den Reiter „Konten“ in der Seitenleiste möglich ist und
+die zusätzliche Zeile unnötig Platz einnimmt.
+
+**Änderung:** Den einfachen Zurück-Link `<app-button variant="plain" link="/marketplaces/vinted/accounts" [icon]="backIcon">Alle Konten</app-button>`
+unterhalb des Seitenkopfs in `src/app/features/marketplaces/vinted-workspace.component.html`
+sowie die nicht mehr benötigte Eigenschaft `backIcon` (`LucideArrowLeft`) in
+`src/app/features/marketplaces/vinted-workspace.component.ts` entfernt. Bestehende
+Komponententests und den Browserfall in `e2e/vinted-account-grid.spec.ts` auf die
+Rücknavigation über den Seitenleisten-Eintrag „Konten“ umgestellt.
+
+**Prüfung:** Gezielte Angular- und Node-Tests (`vinted-workspace.component.angular.spec.ts`,
+`app.routes.angular.spec.ts`, `ebay-account.component.angular.spec.ts`,
+`settings.routes.spec.ts`), Workflow-/Testauswahl (`affected-tests.test.mjs`,
+`playwright-pr-smoke.test.mjs`), ESLint, Prettier, Typprüfung, Anwendungsbau sowie
+Playwright-Prüfung von `e2e/vinted-account-grid.spec.ts` bestanden.
+
+> > > > > > > origin/master
 
 ## 2026-10-16 - Juna - Zeitbudget der Einstellungsprüfung pro Breite trennen
 

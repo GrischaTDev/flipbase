@@ -74,11 +74,6 @@
         >
       </app-notice-banner>
     }
-    @if (!showingMessages()) {
-      <app-button variant="plain" link="/marketplaces/vinted/accounts" [icon]="backIcon"
-        >Alle Konten</app-button
-      >
-    }
     @if (store.busy()) {
       <div
         role="status"
