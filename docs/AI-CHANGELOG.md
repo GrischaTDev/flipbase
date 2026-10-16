@@ -4,6 +4,8 @@
 
 **Auftrag:** Nach ausdrücklicher Freigabe den geprüften Vinted-zu-Kleinanzeigen-Zweig pushen, den PR erstellen, alle erforderlichen CI-Prüfungen abwarten und ausschließlich bei Erfolg mit Merge-Commit integrieren. Danach den eigenen Feature-Zweig und Worktree aufräumen. Der aktuelle Hauptzweig ist bereits enthalten; funktionaler Stand und lokale Prüfbelege bleiben unverändert. Live-Anbieterabnahme und separate Bereitstellung der Server-Endpunkte bleiben offen.
 
+**CI-Korrektur vor Merge:** PR #431 deckte im separaten Worker-Image fehlende gemeinsame Validierungsdateien und den dafür zu engen TypeScript-Ausgabebereich auf. Der Fehler ist lokal mit dem tatsächlichen Workerbau nachgestellt. Explizite Docker-Kontextfreigabe, passende kompilierte Ausgabepfade und ein zusätzlicher Laufzeitimport im Image-Smoke sichern die Korrektur. Worker-Bau, Typprüfung, Quelltests und 22 bestehende Docker-/Runtime-/Workflowverträge bestehen lokal. Eine unabhängige Qualitätsprüfung scheiterte am Download-Limit der Supabase-Registry; keine Testbedingung wurde dafür geändert. Der Datenbankjob erreichte sämtliche SQL- und Konkurrenzprüfungen erfolgreich, lehnte aber das offizielle Ersatzimage ghcr.io/supabase/postgrest ab. Dieser genaue Anbieterpfad ist jetzt erlaubt; Baseline rot, echter PostgREST v16.1 danach grün mit Konto-ID 9007199254740993. Beide Worker-/Broker-Abbilder bauen lokal, ihre Trennung und tatsächlichen Modulimporte bestehen ohne Netzwerk. 502 Workflowfälle bestehen erneut.
+
 ## 2026-10-16 - Juna - Vinted nach Kleinanzeigen übertragen
 
 **Auftrag:** Vollständigen Übertragungsweg einschließlich Kontingentprüfung und automatischem Gebührenstopp umsetzen. Bestehende Übersicht und Entwürfe weiterverwenden; notwendige Kleinanzeigen-Kontobindung mit umsetzen.

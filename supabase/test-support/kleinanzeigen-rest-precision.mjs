@@ -31,7 +31,10 @@ if (!image) {
   });
   if (existing.status === 0) image = JSON.parse(existing.stdout)[0].Config.Image;
 }
-if (!image || !/^(?:public.ecr.aws\/supabase|postgrest)\/postgrest:v[0-9.]+$/u.test(image))
+if (
+  !image ||
+  !/^(?:public.ecr.aws\/supabase|ghcr.io\/supabase|postgrest)\/postgrest:v[0-9.]+$/u.test(image)
+)
   throw Error('Vorhandenes PostgREST-Testimage ausdrücklich angeben.');
 const suffix = randomUUID().replaceAll('-', '');
 const view = 'kleinanzeigen_precision_fixture_' + suffix.slice(0, 24);

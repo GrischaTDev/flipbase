@@ -8,6 +8,8 @@ on:
       - 'services/marketplace-worker/**'
       - 'tools/flipbase-extension/vinted-negotiation-runtime.js'
       - 'supabase/functions/_shared/marketplace-message-contracts.d.ts'
+      - 'supabase/functions/_shared/kleinanzeigen-listing-validation.mts'
+      - 'supabase/functions/_shared/kleinanzeigen-listing-contracts.ts'
       - 'supabase/functions/_shared/marketplace-inbox-event-contracts.d.ts'
       - 'deploy/*chromium*'
       - 'deploy/docker-compose.marketplace*'
@@ -67,7 +69,7 @@ jobs:
         run: |
           docker run --rm --entrypoint sh "$WORKER_IMAGE" -c '! command -v docker && test ! -e /var/run/docker.sock'
           docker run --rm --entrypoint docker "$BROKER_IMAGE" --version
-          docker run --rm --entrypoint node "$WORKER_IMAGE" --input-type=module -e "await import('./dist/chromium-broker-client.js'); await import('./dist/chromium-profile-provisioner.js'); await import('./dist/migrate-chromium-profiles.js')"
+          docker run --rm --entrypoint node "$WORKER_IMAGE" --input-type=module -e "await import('./dist/chromium-broker-client.js'); await import('./dist/chromium-profile-provisioner.js'); await import('./dist/migrate-chromium-profiles.js'); await import('./dist/vinted-transfer-source.js')"
 
       - name: Check GoLogin queue flags and existing memory budgets
         env:
