@@ -1,5 +1,107 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-16 - Juna - Zeitbudget der Einstellungsprüfung pro Breite trennen
+
+**CI-Befund:** Im PR 428 bestanden alle Fach-, Qualitäts-, Image- und PWA-Prüfungen.
+Der bestehende Einstellungstest verbrauchte sein gemeinsames 60-Sekunden-Budget
+mit 27 Seitenaufrufen und 54 erfolgreichen AXE-Prüfungen. Die letzte Navigation
+endete erst am Budgetende; der Weiterleitungsprüfung blieben etwa 100 Millisekunden.
+Der Fehler wurde gezielt mit Node 22 und Playwright 1.62.1 unter Linux nachgestellt.
+
+**Korrektur:** Derselbe Inhalt läuft je Bildschirmbreite als eigener Fall.
+Alle neun Seiten, beide Farbschemata, Überlauf-, Seitenfehler- und Screenshotprüfungen
+bleiben erhalten. Die Weiterleitung wird nun bei jeder Breite geprüft.
+Keine Zeitgrenze oder Fehlerbedingung geändert. Die verbindliche Soll-Liste der
+PR-Tests enthält alle drei Fälle; dadurch wählt CI vorsichtshalber den breiten
+Prüfumfang. Keine zusätzliche fachliche Anwendung geändert.
+
+**Prüfung:** Vier bestehende beziehungsweise aufgeteilte Einstellungs-/eBay-Fälle
+unter Linux mit zwei CPUs, 7 GB Speicher und eingeschaltetem Trace bestanden
+(43,7 / 40,4 / 40,6 / 8,0 Sekunden). Vollständige Projektkopie einschließlich
+versteckter Baukonfigurationen aus dem Git-Stand; nur die Anmeldevorbereitung
+für diese vollständig simulierten Testkonten ausgelassen. 25 Auswahl- und
+Registrierungsprüfungen, Suite-Audit, ESLint und Formatprüfung bestanden.
+Unabhängiges Review ohne wichtige Befunde. Der neue CI-Lauf bleibt vor Merge
+verpflichtend; keine unveränderte Wiederholung des fehlgeschlagenen Laufs.
+
+## 2026-10-16 - Juna - Inseratsalter zur Integration freigeben
+
+**Freigabe:** Der Nutzer hat PR-Erstellung, Merge nach erfolgreichen Pflichtprüfungen
+sowie das anschließende Aufräumen des eigenen Zweigs und Worktrees bestätigt.
+Der Fehlerzweig enthält den aktuellen Stand von `origin/master`; der Abgleich
+vor dem ersten Push erfordert keine weitere Integration. Die zuvor dokumentierten
+lokalen Prüfungen bleiben gültig. Linux-, Image- und alle weiteren ausgewählten
+CI-Pflichtprüfungen müssen vor dem Merge erfolgreich sein.
+
+## 2026-10-16 - Juna - Inseratsalter einheitlich in Tagen anzeigen
+
+**Auftrag und Entscheidung:** Inseratslaufzeiten grundsätzlich in Tagen statt
+Stunden anzeigen und das sichtbare „ca.“ entfernen. Die Regel soll später auch
+für die anderen Marktplätze gelten.
+
+**Änderung:** Exakte Zeitpunkte und gerundete Vinted-Angaben verwenden dieselbe
+Tagesdarstellung: unter 24 Stunden „Unter 1 Tag online“, danach „1 Tag online“,
+„2 Tage online“ usw.; kompakt „< 1 Tag“, „1 T“, „2 T“. Die gerundete Datenherkunft
+bleibt getrennt gespeichert und im Hinweis benannt. Die Vorgabe steht dauerhaft
+in `docs/design/admin-ui-guidelines.md`; andere Marktplatzabrufe werden hier
+nicht erweitert. Dies ersetzt die frühere Entscheidung für ein sichtbares „ca.“.
+
+**Prüfung:** Neue Grenzfälle für 0/24/48 Stunden und gröbere Anbieterangaben
+scheiterten zunächst am alten Verhalten. Danach 164 betroffene Modelltests und
+732 betroffene Angularprüfungen bestanden; Typprüfung, ESLint, Formatierung und
+regulärer Produktionsbau ebenfalls. Drei bestehende Browserdateien vollständig
+geprüft: 41 Fälle bestanden direkt; ein Fall meldete nach bestandenen fachlichen
+Prüfungen lokal `ERR_NO_BUFFER_SPACE` und bestand danach einzeln mit einem
+Browserprozess. Kein Test abgeschwächt. Unabhängiges Anschlussreview ohne wichtige
+Befunde. Weiterhin eigener unveröffentlichter Zweig `juna/vinted-listing-age`.
+
+## 2026-10-16 - Juna - Gerundetes Vinted-Inseratsalter aus der Detailseite übernehmen
+
+**Auftrag:** „Alter unbekannt“ in Marktplatzübersicht, Kleiderschrank und
+Inseratdetail untersuchen. Nutzerentscheidung: Vinteds gerundete Angabe mit
+„ca.“ anzeigen, falls keine genaue Veröffentlichungszeit vorliegt.
+
+**Ursache und Nachweis:** Die produktiven Feldnamenprotokolle der Kleiderschrankliste
+enthalten weder `created_at_ts` noch `created_at`. Alle drei Ansichten verwenden
+denselben bisher leeren Wert. Ein rein lesender echter HTML-Abruf des geprüften
+Inserats liefert HTTP 200 und am zugehörigen `upload_date`-Attribut „2 Tagen“;
+die kanonische Inseratadresse stimmt überein. Die Altersberechnung selbst war
+nicht die Ursache.
+
+**Korrektur:** Der Cloudabruf ergänzt höchstens drei eigene Inserate je Durchlauf
+aus der passenden HTML-Detailseite. Fehlende Angaben werden zuerst gelesen;
+gespeicherte Angaben zählen ab ihrer Beobachtungszeit weiter und werden höchstens
+täglich aufgefrischt. Wert, Einheit und Beobachtungszeit bleiben ausdrücklich
+getrennt von einem genauen Veröffentlichungszeitpunkt. Vorhandene genaue Daten
+haben Vorrang. Fremde kanonische Seiten und unbekannte Altersangaben liefern
+keine Schätzung; 403/429 stoppen weitere Anbieterabrufe. Die bestehenden
+kontogebundenen JSON-Lesekopien speichern die Angaben ohne Schemaänderung.
+Die lokale Browsererweiterung ist von diesem Cloudabruf nicht betroffen.
+
+**Prüfung:** Import- und Anzeigeregressionen scheiterten vor der Korrektur am
+fehlenden Zusatzabruf beziehungsweise an „Alter unbekannt“. Worker-Suite:
+673 bestanden, acht bestehende Plattform-/Integrationsausnahmen. 158 betroffene
+Modelltests und 2.480 Angularprüfungen bestanden; anschließend sechs zuletzt
+angepasste Komponenten-/Übersichtsfälle gezielt erneut bestanden. HTML-Leseweg
+mit echten DOMParser-Selektoren, Cachegrenzen/-rotation, Kontotrennung und
+isolierter Prozessübergabe geprüft. Unabhängiges Abschlussreview ohne wichtige
+Befunde. 27 bestehende Browserfälle der Übersicht sowie des Kleiderschranks und
+Inseratdetails bestehen gegen einen ruhenden Produktionsbau: 320/390/834/1440
+Pixel, Hell/Dunkel, Tastatur/Touch und AXE. Frontend-/Workerbau, Formatierung,
+ESLint und beide Typprüfungen bestanden. 25 Testauswahl-/Registrierungsfälle und
+Suite-Audit bestanden. Die Windows-Laufwerkverknüpfung der Abhängigkeiten wurde
+für den regulären Bau durch eine lokale Offlineinstallation aus unverändertem
+Lockfile ersetzt; keine Paketversion geändert.
+
+**Prüfgrenzen:** Lokal gezielt die drei tatsächlich geänderten Oberflächen geprüft;
+keine unabhängigen Einkaufs-/PWA-Abläufe durchgespielt. Die vollständige konservative
+CI-Auswahl zusätzlicher Verbraucher sowie Linux-/Imageprüfungen bleiben vor dem
+Merge erforderlich. Der echte Vinted-Nachweis prüft nur den lesenden Datenweg;
+der neue Cloudimport wurde nicht produktiv ausgerollt.
+
+Kein Produktionscode veröffentlicht, keine echten Inserate geändert. Eigener
+Zweig `juna/vinted-listing-age`; fremde Arbeitsstände bleiben unberührt.
+
 ## 2026-10-16 - Juna - Chrome-Abschluss und getrennte Kontowiederherstellung absichern
 
 **Auftrag:** Die Ursache des unsauberen Chrome-Abschlusses untersuchen und

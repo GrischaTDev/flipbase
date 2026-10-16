@@ -105,6 +105,7 @@ for (const width of [1440, 390, 320]) {
       const imported = {
         conversationId,
         publicationsTotal: 1,
+        publicationAge: { value: 2, unit: 'day' as const, observedAt: new Date().toISOString() },
         views: 5,
         favorites: 2,
         observedAt: '2026-10-01T12:00:00Z',
@@ -475,7 +476,11 @@ for (const width of [1440, 390, 320]) {
       ).toBeLessThanOrEqual(0.001);
       await checkSurface(page, 'app-vinted-listings');
       await screenshot(page, `vinted-listings-${width}-${theme}`);
+      await expect(page.locator('app-vinted-listing-age:visible').first()).toContainText('2 T');
       await page.getByRole('link', { name: 'Inserat Vintage-Schal · Testartikel öffnen' }).click();
+      await expect(page.locator('app-vinted-listing-age:visible').first()).toContainText(
+        '2 Tage online',
+      );
       const detail = page.locator('app-vinted-listing-detail');
       await expect(detail).toContainText('Gespeicherte Beschreibung des Testschals.');
       await expect(detail).not.toContainText('Beschreibung wird');

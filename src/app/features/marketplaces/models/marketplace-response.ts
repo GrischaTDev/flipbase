@@ -1,3 +1,4 @@
+import { parseVintedPublicationAge } from './vinted-listing-age';
 import type {
   AccountScope,
   Capability,
@@ -184,6 +185,7 @@ export function parseMarketplacePage(
       occurredAt:
         timestamp(item['occurredAt']) ?? timestamp(item['sentAt']) ?? timestamp(item['updatedAt']),
       publishedAt: timestamp(item['occurredAt']),
+      publicationAge: parseVintedPublicationAge(item['publicationAge']),
       price: nonnegative(item['price']),
       currency:
         typeof item['currency'] === 'string' && /^[A-Z]{3}$/.test(item['currency'])

@@ -4,6 +4,11 @@ import {
   negotiationProviderTime,
 } from './vinted-negotiation-contracts.ts';
 import type { Page } from 'playwright';
+import {
+  parseVintedPublicationAge,
+  vintedPublicationAgeLabel,
+  type VintedPublicationVersion,
+} from './vinted-publication-age.ts';
 import { createHash } from 'node:crypto';
 import { setTimeout as wait } from 'node:timers/promises';
 import {
@@ -712,7 +717,7 @@ async function vintedJson(
         response = await fetch(requestPath, {
           method: 'GET',
           credentials: 'include',
-          headers: { Accept: 'application/json' },
+          headers: { Accept: requestPath.startsWith('/items/') ? 'text/html' : 'application/json' },
           cache: 'no-store',
           signal: AbortSignal.timeout(12_000),
         });
@@ -750,10 +755,34 @@ async function vintedJson(
       if (
         !response.ok ||
         origin !== 'https://www.vinted.de' ||
-        !response.headers.get('content-type')?.includes('json')
+        !response.headers
+          .get('content-type')
+          ?.includes(requestPath.startsWith('/items/') ? 'text/html' : 'json')
       )
         return failure('invalid_response');
       try {
+        if (requestPath.startsWith('/items/')) {
+          const html = await response.text();
+          if (html.length > 4 * 1024 * 1024) return failure('invalid_response');
+          const document = new DOMParser().parseFromString(html, 'text/html');
+          const canonical = document.querySelector('link[rel="canonical"]')?.getAttribute('href');
+          const expectedId = requestPath.slice('/items/'.length);
+          const matchesItem = (url: string) => {
+            const address = new URL(url, 'https://www.vinted.de');
+            return (
+              address.origin === 'https://www.vinted.de' &&
+              new RegExp('^/items/' + expectedId + '(?:-|$)').test(address.pathname)
+            );
+          };
+          if (!matchesItem(response.url) || !canonical || !matchesItem(canonical))
+            return failure('invalid_response');
+          const labels = document.querySelectorAll(
+            '[data-testid="item-attributes-upload_date"] [itemprop="upload_date"]',
+          );
+          return {
+            publicationAgeLabel: labels.length === 1 ? labels[0]?.textContent?.trim() : null,
+          };
+        }
         return await response.json();
       } catch {
         return failure('invalid_response');
@@ -870,7 +899,10 @@ export async function readVintedAccountImport(
   onStage?: (stage: 'profile' | 'publications' | 'conversations' | 'sales') => Promise<void>,
   previousConversations: VintedConversationVersion[] = [],
   requestedConversation?: VintedConversationReadTarget,
-  options: { sessionRenewalWaitMs?: number } = {},
+  options: {
+    sessionRenewalWaitMs?: number;
+    previousPublications?: VintedPublicationVersion[];
+  } = {},
 ): Promise<VintedAccountImport> {
   const sessionRenewalWaitMs = options.sessionRenewalWaitMs ?? vintedSessionRenewalWaitMs;
   const reads: SourceReadContext = { count: 0, authorize, browserFailures: [] };
@@ -983,6 +1015,51 @@ export async function readVintedAccountImport(
       );
   if (items.values.some((item) => identifier(record(item)?.['user_id']) !== identity.id))
     items.result = { status: 'partial', failure: 'invalid_response' };
+  const previousPublications = new Map(
+    (options.previousPublications ?? []).map((entry) => [entry.externalId, entry]),
+  );
+  const publicationAges = new Map<
+    string,
+    { publicationAge: unknown; publicationAgeCheckedAt: string | null; occurredAt: string | null }
+  >();
+  const candidatesForAge = items.values
+    .flatMap((raw) => {
+      const item = record(raw);
+      const id = identifier(item?.['id']);
+      if (!item || !id || identifier(item['user_id']) !== identity.id || item['is_closed'] === true)
+        return [];
+      const previous = previousPublications.get(id);
+      const publicationAge = parseVintedPublicationAge(previous?.publicationAge);
+      const occurredAt =
+        publicationTime(item, observedAt) ??
+        publicationTime({ created_at: previous?.occurredAt }, observedAt);
+      publicationAges.set(id, {
+        publicationAge,
+        publicationAgeCheckedAt: previous?.checkedAt ?? null,
+        occurredAt,
+      });
+      return occurredAt ? [] : [{ id, checkedAt: Date.parse(previous?.checkedAt ?? '') || 0 }];
+    })
+    .sort((left, right) => left.checkedAt - right.checkedAt);
+  // Fehlende Angaben zuerst; bekannte Angaben höchstens täglich auffrischen. Drei zusätzliche GETs pro Abruf.
+  for (const candidate of candidatesForAge
+    .filter((entry) => Date.parse(observedAt) - entry.checkedAt >= 24 * 60 * 60 * 1000)
+    .slice(0, 3)) {
+    await atImportStage('publications', authorize);
+    const cached = publicationAges.get(candidate.id)!;
+    cached.publicationAgeCheckedAt = observedAt;
+    try {
+      const detail = record(await vintedJson(page, `/items/${candidate.id}`, reads));
+      cached.publicationAge =
+        vintedPublicationAgeLabel(detail?.['publicationAgeLabel'], observedAt) ??
+        cached.publicationAge;
+    } catch (error) {
+      if (!(error instanceof VintedImportRequestError) || error.reason === 'unauthorized')
+        throw new VintedImportReadError('publications', error);
+      // Ein fehlendes Zusatzfeld macht die vollständige Kleiderschrankliste nicht unvollständig.
+      if (reads.blocked) break;
+    }
+  }
   await onStage?.('conversations');
   const conversations = await pages(
     page,
@@ -1139,6 +1216,10 @@ export async function readVintedAccountImport(
       feedbacks.values,
       areas,
     );
+    for (const entry of snapshot.entries) {
+      const age = entry.kind === 'publication' ? publicationAges.get(entry.externalId) : undefined;
+      if (age) Object.assign(entry.body, age);
+    }
     return {
       ...snapshot,
       inboxEvents: {

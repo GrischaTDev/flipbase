@@ -144,7 +144,11 @@
                     />
                   </td>
                   <td class="p-3">
-                    <app-vinted-listing-age [publishedAt]="item.publishedAt" [compact]="true" />
+                    <app-vinted-listing-age
+                      [publishedAt]="item.publishedAt"
+                      [publicationAge]="item.publicationAge"
+                      [compact]="true"
+                    />
                   </td>
                   <td class="p-3">
                     <ng-container
@@ -183,7 +187,11 @@
                 </div>
               </div>
               <div class="flex flex-wrap items-center justify-between gap-3">
-                <app-vinted-listing-age [publishedAt]="item.publishedAt" [compact]="true" />
+                <app-vinted-listing-age
+                  [publishedAt]="item.publishedAt"
+                  [publicationAge]="item.publicationAge"
+                  [compact]="true"
+                />
                 <ng-container
                   [ngTemplateOutlet]="actions"
                   [ngTemplateOutletContext]="{ $implicit: item }"

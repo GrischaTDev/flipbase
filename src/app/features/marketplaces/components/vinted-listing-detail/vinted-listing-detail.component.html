@@ -187,7 +187,11 @@
       <p class="mt-3 text-2xl font-semibold text-fb-text-primary">
         {{ item.price === null ? 'Preis unbekannt' : (item.price | currency: item.currency) }}
       </p>
-      <app-vinted-listing-age class="mt-3" [publishedAt]="item.publishedAt" />
+      <app-vinted-listing-age
+        class="mt-3"
+        [publishedAt]="item.publishedAt"
+        [publicationAge]="item.publicationAge"
+      />
       <app-vinted-listing-metrics
         class="mt-3"
         [metrics]="item.metrics"

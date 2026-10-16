@@ -70,10 +70,10 @@ const coreTests = [
     'responsive-admin-layout.spec.ts',
     'große Bestandswerte bleiben im Dashboard vollständig lesbar @core-smoke',
   ],
-  [
+  ...[1280, 390, 1024].map((width) => [
     'settings-layout.spec.ts',
-    'settings use clear sections and accessible controls across desktop and tablet @pwa-layout',
-  ],
+    `settings use clear sections and accessible controls at ${width}px @pwa-layout`,
+  ]),
   [
     'settings-layout.spec.ts',
     'eBay has a centered connection entry and keeps the connected account in its marketplace @pwa-layout',

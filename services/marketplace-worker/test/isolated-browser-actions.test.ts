@@ -482,7 +482,8 @@ test('isolated import preserves central authorizations, article cache and inbox 
   };
   const runtime = new BrowserSessionCommands({
     version: () => '',
-    importAccount: async (authorize, onStage, previous) => {
+    importAccount: async (authorize, onStage, previous, _target, publications) => {
+      assert.equal(publications?.length, 0);
       if (previous?.length) assert.equal(previous[0]?.itemTitle, 'Vintage Jacke');
       await authorize();
       await onStage?.('profile');
@@ -634,4 +635,58 @@ test('stolen or stale task IDs and out-of-order acknowledgments are rejected', a
   await assert.rejects(runtime.request({ action: 'poll', id: 'other-task', sequence: 0 }));
   await assert.rejects(runtime.request({ action: 'poll', id: started.id, sequence: 99 }));
   await runtime.request({ action: 'cancel', id: started.id });
+});
+
+test('isolated import passes validated publication ages through the real command channel', async () => {
+  const publications = [
+    {
+      externalId: '41',
+      occurredAt: null,
+      publicationAge: { value: 2, unit: 'day' as const, observedAt: '2026-10-15T10:00:00Z' },
+      checkedAt: '2026-10-15T10:00:00Z',
+    },
+  ];
+  let received: unknown;
+  const snapshot = {
+    identity: { id: '123', username: 'test' },
+    observedAt: '2026-10-16T10:00:00Z',
+    entries: [],
+    areas: Object.fromEntries(
+      ['profile', 'publications', 'conversations', 'messages', 'sales', 'feedback'].map((area) => [
+        area,
+        { status: 'complete' },
+      ]),
+    ),
+  } as unknown as VintedAccountImport;
+  const runtime = new BrowserSessionCommands({
+    version: () => '',
+    importAccount: async (_authorize, _stage, _previous, _requested, cached) => {
+      received = cached;
+      return snapshot;
+    },
+  });
+  const browser = isolatedBrowserActions({ request: (input) => runtime.request(input) });
+  await browser.importAccount?.(async () => undefined, undefined, [], undefined, publications);
+  assert.deepEqual(received, publications);
+  await assert.rejects(
+    executeBrowserAction(
+      { version: () => '' },
+      {
+        name: 'importAccount',
+        arguments: [
+          [],
+          null,
+          [
+            {
+              ...publications[0],
+              publicationAge: { ...publications[0]!.publicationAge, value: -1 },
+            },
+          ],
+        ],
+      },
+      async () => undefined,
+      async () => undefined,
+    ),
+    /Inseratcache/,
+  );
 });

@@ -195,3 +195,36 @@ test('abgelaufener Zugriff verhindert den Transaktionsaufruf', async () => {
   await assert.rejects(writer.write(scope, sessionId, snapshot), /Kontozugriff abgelaufen/);
   assert.equal(requests, 1);
 });
+
+test('publication cache remains bound to the active account and keeps exact and approximate dates separate', async () => {
+  const calls: URL[] = [];
+  const age = { value: 2, unit: 'day', observedAt: '2026-10-15T10:00:00Z' };
+  const writer = new SupabaseVintedImportWriter({
+    url: 'https://db.example.test',
+    publishableKey: 'public',
+    serviceRoleKey: 'server',
+    fetch: async (input) => {
+      const url = new URL(String(input));
+      calls.push(url);
+      if (url.pathname.endsWith('marketplace_browser_session_check'))
+        return Response.json({
+          active: true,
+          id: sessionId,
+          workspaceId: scope.workspaceId,
+          connectionId: scope.connectionId,
+        });
+      return Response.json([
+        {
+          external_id: '41',
+          body: { occurredAt: null, publicationAge: age, publicationAgeCheckedAt: age.observedAt },
+        },
+      ]);
+    },
+  });
+  assert.deepEqual(await writer.publicationVersions(scope, sessionId), [
+    { externalId: '41', occurredAt: null, publicationAge: age, checkedAt: age.observedAt },
+  ]);
+  assert.equal(calls[1]?.searchParams.get('kind'), 'eq.publication');
+  assert.equal(calls[1]?.searchParams.get('workspace_id'), `eq.${scope.workspaceId}`);
+  assert.equal(calls[1]?.searchParams.get('connection_id'), `eq.${scope.connectionId}`);
+});

@@ -46,3 +46,22 @@ it('aktualisiert Stufe und Wochenziel über die gemeinsame Uhr und bleibt beim Z
   fixture.detectChanges();
   expect(fixture.nativeElement.textContent).toContain('Alter unbekannt');
 });
+
+it('zeigt die gerundete Anbieterangabe ohne erfundene genaue Veröffentlichungszeit', () => {
+  const fixture = TestBed.createComponent(VintedListingAgeComponent);
+  const clock = TestBed.inject(VintedListingClockService);
+  clock.now.set(Date.parse('2026-10-15T10:00:00Z'));
+  fixture.componentRef.setInput('publicationAge', {
+    value: 2,
+    unit: 'day',
+    observedAt: '2026-10-15T10:00:00Z',
+  });
+  fixture.detectChanges();
+  expect(fixture.nativeElement.textContent).toContain('2 Tage online');
+  const title = fixture.nativeElement.querySelector('[title]').getAttribute('title');
+  expect(title).toContain('Gerundete Angabe von Vinted');
+  expect(title).not.toContain('Veröffentlicht:');
+  clock.now.update((value) => value + 24 * 3600000);
+  fixture.detectChanges();
+  expect(fixture.nativeElement.textContent).toContain('3 Tage online');
+});

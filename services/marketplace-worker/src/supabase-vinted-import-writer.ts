@@ -1,6 +1,11 @@
 import type { BrowserSessionScope } from './marketplace-browser-session-broker.ts';
 import type { VintedAccountImport, VintedConversationVersion } from './vinted-account-import.ts';
 
+import {
+  parseVintedPublicationAge,
+  type VintedPublicationVersion,
+} from './vinted-publication-age.ts';
+
 interface ImportWriterOptions {
   url: string;
   publishableKey: string;
@@ -48,6 +53,46 @@ export class SupabaseVintedImportWriter {
       throw new Error('Favoritenfreigabe konnte nicht geprüft werden');
     return result;
   }
+  async publicationVersions(
+    scope: BrowserSessionScope,
+    sessionId: string,
+  ): Promise<VintedPublicationVersion[]> {
+    await this.assertActive(scope, sessionId);
+    const url = new URL('/rest/v1/marketplace_account_entries', this.baseUrl);
+    url.searchParams.set('select', 'external_id,body');
+    url.searchParams.set('workspace_id', `eq.${scope.workspaceId}`);
+    url.searchParams.set('connection_id', `eq.${scope.connectionId}`);
+    url.searchParams.set('kind', 'eq.publication');
+    url.searchParams.set('limit', '1000');
+    const value: unknown = await this.json(
+      await this.request(url, {
+        headers: this.serverHeaders(),
+        signal: AbortSignal.timeout(10000),
+      }),
+    );
+    if (!Array.isArray(value)) throw new Error('Inseratcache nicht verfügbar');
+    return value.flatMap((raw): VintedPublicationVersion[] => {
+      const row = record(raw);
+      const body = record(row?.['body']);
+      if (
+        typeof row?.['external_id'] !== 'string' ||
+        !/^[1-9][0-9]{0,31}$/.test(row['external_id']) ||
+        !body
+      )
+        return [];
+      const timestamp = (input: unknown) =>
+        typeof input === 'string' && Number.isFinite(Date.parse(input)) ? input : null;
+      return [
+        {
+          externalId: row['external_id'],
+          occurredAt: timestamp(body['occurredAt']),
+          publicationAge: parseVintedPublicationAge(body['publicationAge']),
+          checkedAt: timestamp(body['publicationAgeCheckedAt']),
+        },
+      ];
+    });
+  }
+
   async conversationVersions(
     scope: BrowserSessionScope,
     sessionId: string,

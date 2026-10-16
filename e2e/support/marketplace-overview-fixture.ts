@@ -78,6 +78,7 @@ export async function mockMarketplaceOverview(
         isClosed: false,
         isReserved: index === 1,
         publishedAt: null,
+        publicationAge: { value: 2, unit: 'day', observedAt: new Date().toISOString() },
       },
     })).filter((row) => {
       const search = params.get('body->>title')?.replace(/^ilike\.%|%$/g, '');

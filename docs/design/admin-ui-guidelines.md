@@ -17,6 +17,17 @@ Rangfolge bei Gestaltungsentscheidungen:
 
 Barrierefreiheit und korrekte Fachabläufe bleiben verbindlich. Ein Konflikt wird dokumentiert und gelöst, nicht durch unbemerkte Designänderung übergangen. Ohne gemessene Referenz darf niemand behaupten, eine Oberfläche sei pixelgenau abgeglichen.
 
+## Online-Alter von Inseraten
+
+Nutzerentscheidung vom 16.10.2026: Die Laufzeit eines Inserats wird einheitlich in
+vollen 24-Stunden-Tagen angezeigt: „Unter 1 Tag online“, „1 Tag online“,
+„2 Tage online“ usw. Kompakte Anzeigen verwenden „< 1 Tag“, „1 T“, „2 T“.
+Stunden, Minuten und ein sichtbares „ca.“ entfallen. Genaues Veröffentlichungsdatum
+und gerundete Anbieterangabe bleiben technisch getrennt; eine gerundete Quelle
+wird im Hinweistext benannt. Ohne belegte Anbieterangabe bleibt das Alter unbekannt.
+Die Regel ist für die spätere Altersanzeige weiterer Marktplätze verbindlich;
+diese Erweiterung führt keine neuen Abrufwege für andere Marktplätze ein.
+
 ## Vinted-Feed: Karten und Kompakt-Modus
 
 Nutzerentscheidung vom 06.10.2026: Der Seitentitel heißt „Vinted Feed“. Die zusätzliche
