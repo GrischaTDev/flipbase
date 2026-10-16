@@ -9526,6 +9526,14 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_confirmed_publication_time: {
+        Args: {
+          p_connection_id: string
+          p_external_id: string
+          p_workspace_id: string
+        }
+        Returns: string
+      }
       marketplace_conversation_read_version: {
         Args: {
           p_connection_id: string
@@ -10144,6 +10152,22 @@ export type Database = {
           p_workspace_id: string
         }
         Returns: undefined
+      }
+      marketplace_publication_time_valid: {
+        Args: { p_observed_at: string; p_time: string }
+        Returns: boolean
+      }
+      marketplace_publication_versions: {
+        Args: {
+          p_connection_id: string
+          p_session_id: string
+          p_workspace_id: string
+        }
+        Returns: {
+          body: Json
+          external_id: string
+          flipbase_published_at: string
+        }[]
       }
       marketplace_read_favorite_messages: {
         Args: { p_connection_id: string; p_workspace_id: string }

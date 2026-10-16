@@ -1710,9 +1710,9 @@ test('wardrobe import enriches missing creation dates from the matching item pag
   });
 });
 
-test('publication enrichment keeps cached ages, rotates missing items and limits extra reads', async () => {
+test('publication enrichment keeps old cached ages and enriches every missing item', async () => {
   const paths: string[] = [];
-  const observedAt = new Date(Date.now() - 60_000).toISOString();
+  const observedAt = '2026-01-01T10:00:00Z';
   const publications = Array.from({ length: 8 }, (_, index) => ({ id: 41 + index, user_id: 123 }));
   const snapshot = await readVintedAccountImport(
     importPage((path) => {
@@ -1739,11 +1739,171 @@ test('publication enrichment keeps cached ages, rotates missing items and limits
   );
   assert.deepEqual(
     paths.filter((path) => path.startsWith('/items/')),
-    ['/items/42', '/items/43', '/items/44'],
+    publications.slice(1).map((item) => `/items/${item.id}`),
   );
   assert.deepEqual(
     snapshot.entries.find((entry) => entry.externalId === '41')?.body['publicationAge'],
     { value: 2, unit: 'day', observedAt },
+  );
+});
+
+test('first wardrobe import reads every missing publication age across all pages', async () => {
+  const paths: string[] = [];
+  const snapshot = await readVintedAccountImport(
+    importPage((path) => {
+      paths.push(path);
+      if (path.startsWith('/api/v2/wardrobe/')) {
+        const pageNumber = Number(new URL(path, 'https://www.vinted.de').searchParams.get('page'));
+        return {
+          items: Array.from({ length: pageNumber === 1 ? 20 : 5 }, (_, index) => ({
+            id: 41 + (pageNumber - 1) * 20 + index,
+            user_id: 123,
+          })),
+          pagination: { total_pages: 2 },
+        };
+      }
+      if (path.startsWith('/items/')) return { publicationAgeLabel: '2 Tagen' };
+      return undefined;
+    }),
+    async () => undefined,
+  );
+  assert.equal(snapshot.entries.filter((entry) => entry.kind === 'publication').length, 25);
+  assert.deepEqual(
+    paths.filter((path) => path.startsWith('/items/')),
+    Array.from({ length: 25 }, (_, index) => `/items/${41 + index}`),
+  );
+  assert.ok(
+    snapshot.entries
+      .filter((entry) => entry.kind === 'publication')
+      .every((entry) => (entry.body['publicationAge'] as { value: number }).value === 2),
+  );
+});
+
+test('later wardrobe imports fetch ages only for newly added items and preserve cached observation times', async () => {
+  const paths: string[] = [];
+  let itemCount = 8;
+  const page = importPage((path) => {
+    paths.push(path);
+    if (path.startsWith('/api/v2/wardrobe/'))
+      return {
+        items: Array.from({ length: itemCount }, (_, index) => ({ id: 41 + index, user_id: 123 })),
+        pagination: { total_pages: 1 },
+      };
+    if (path.startsWith('/items/')) return { publicationAgeLabel: '2 Tagen' };
+    return undefined;
+  });
+  const first = await readVintedAccountImport(page, async () => undefined);
+  assert.equal(paths.filter((path) => path.startsWith('/items/')).length, 8);
+  paths.length = 0;
+  itemCount = 9;
+  const next = await readVintedAccountImport(
+    page,
+    async () => undefined,
+    undefined,
+    [],
+    undefined,
+    {
+      previousPublications: first.entries
+        .filter((entry) => entry.kind === 'publication')
+        .map((entry) => ({
+          externalId: entry.externalId,
+          occurredAt: null,
+          publicationAge: { value: 2, unit: 'day', observedAt: first.observedAt },
+          checkedAt: first.observedAt,
+        })),
+    },
+  );
+  assert.deepEqual(
+    paths.filter((path) => path.startsWith('/items/')),
+    ['/items/49'],
+  );
+  assert.deepEqual(
+    next.entries.find((entry) => entry.externalId === '41')?.body['publicationAge'],
+    first.entries.find((entry) => entry.externalId === '41')?.body['publicationAge'],
+  );
+});
+
+test('full age enrichment stops immediately on provider blocking or rate limiting', async () => {
+  for (const reason of ['forbidden', 'rate_limited']) {
+    const paths: string[] = [];
+    await readVintedAccountImport(
+      importPage((path) => {
+        paths.push(path);
+        if (path.startsWith('/api/v2/wardrobe/'))
+          return {
+            items: Array.from({ length: 8 }, (_, index) => ({ id: 41 + index, user_id: 123 })),
+            pagination: { total_pages: 1 },
+          };
+        if (path.startsWith('/items/')) return { flipbaseRequestFailure: reason };
+        return undefined;
+      }),
+      async () => undefined,
+    );
+    assert.deepEqual(
+      paths.filter((path) => path.startsWith('/items/')),
+      ['/items/41'],
+    );
+    assert.equal(paths.at(-1), '/items/41');
+  }
+});
+
+test('full age enrichment respects revoked access before reading the next item', async () => {
+  const paths: string[] = [];
+  await assert.rejects(
+    readVintedAccountImport(
+      importPage((path) => {
+        paths.push(path);
+        if (path.startsWith('/api/v2/wardrobe/'))
+          return {
+            items: Array.from({ length: 8 }, (_, index) => ({ id: 41 + index, user_id: 123 })),
+            pagination: { total_pages: 1 },
+          };
+        if (path.startsWith('/items/')) return { publicationAgeLabel: '2 Tagen' };
+        return undefined;
+      }),
+      async () => {
+        if (paths.filter((path) => path.startsWith('/items/')).length >= 2)
+          throw new Error('access revoked');
+      },
+    ),
+    VintedImportReadError,
+  );
+  assert.deepEqual(
+    paths.filter((path) => path.startsWith('/items/')),
+    ['/items/41', '/items/42'],
+  );
+});
+
+test('confirmed Flipbase publication time takes priority over provider dates without an age request', async () => {
+  const paths: string[] = [];
+  const publishedAt = '2026-10-01T10:00:00.000Z';
+  const snapshot = await readVintedAccountImport(
+    importPage((path) => {
+      paths.push(path);
+      if (path.startsWith('/api/v2/wardrobe/'))
+        return {
+          items: [{ id: 41, user_id: 123, created_at: '2026-10-02T10:00:00Z' }],
+          pagination: { total_pages: 1 },
+        };
+      return undefined;
+    }),
+    async () => undefined,
+    undefined,
+    [],
+    undefined,
+    {
+      previousPublications: [
+        { externalId: '41', occurredAt: publishedAt, publicationAge: null, checkedAt: null },
+      ],
+    },
+  );
+  assert.equal(
+    snapshot.entries.find((entry) => entry.externalId === '41')?.body['occurredAt'],
+    publishedAt,
+  );
+  assert.deepEqual(
+    paths.filter((path) => path.startsWith('/items/')),
+    [],
   );
 });
 

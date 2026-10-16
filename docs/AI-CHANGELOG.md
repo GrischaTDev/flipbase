@@ -1,5 +1,71 @@
 # 🤖 KI-Änderungsprotokoll
 
+<<<<<<< HEAD
+
+## 2026-10-16 - Juna - Eigene Veröffentlichungszeit vor Vinted-Altersfallback verwenden
+
+**Auftrag:** Beim ersten Kontoabruf alle fehlenden Altersangaben ergänzen, danach
+gespeicherte Werte weiterverwenden und neue Inserate ergänzen. Für über Flipbase
+veröffentlichte Inserate soll die bestätigte eigene Veröffentlichungszeit Vorrang
+haben; Vinteds Altersangabe ist Fallback. Dies ersetzt die bisherige Begrenzung
+auf drei Zusatzseiten und das tägliche Auffrischen bekannter Alterswerte.
+
+**Entscheidung:** Nur bestätigte aktive Veröffentlichungen sind Zeitbeleg;
+Entwurf, wartender Auftrag, Verarbeitung und fehlgeschlagene/ungeklärte Versuche
+sind keine Online-Zeit. Gleiche Kontoidentität und Workspacebindung bleiben
+verbindlich. Erstimport fragt alle fehlenden Werte ab; erfolgreich gespeicherte
+Angaben werden nicht neu gelesen. Für fehlgeschlagene Zusatzabrufe bleibt die
+bisherige tägliche Wiederholpause erhalten. Unbekannte Werte werden nicht aus
+Abruf- oder Änderungszeit erfunden.
+
+**Umsetzung und Prüfung:** Eigener Zweig `juna/vinted-publication-time` aus
+aktuellem `origin/master`; fremde Zweige und Produktionsdaten unverändert.
+Importregressionen zuerst rot (Dreiergrenze, erneutes Lesen bekannter Angaben,
+falsche Zeitpriorität). Nach der Workeränderung 680 Tests bestanden, acht bestehende
+Windows-/Integrationsausnahmen. Mehrseitiger Erstimport mit 25 Inseraten,
+Folgeimport mit genau einem neuen Inserat, Monatsgrenze gespeicherter Angaben,
+Rechtewiderruf sowie 403/429 geprüft. Worker-Typprüfung, Bau und gezieltes ESLint
+bestanden.
+
+**Datenbank und Integration:** Bestätigte aktive Veröffentlichungen aus demselben
+Workspace, derselben Verbindung und aktueller Kontoidentität liefern den
+vorrangigen Zeitpunkt. Der sitzungsgebundene Server-RPC liefert ihn auch vor dem
+ersten Inseratimport. Datenbanktrigger ergänzen vorhandene Einträge bei neuer
+Veröffentlichungsbestätigung und bewahren die Zeit bei Cloud-/Extensionimports.
+Alte Einträge werden beim nächsten Import nachgezogen. Entwürfe und noch
+verarbeitete oder ungeklärte Aufträge bleiben ausgeschlossen. Ein Reviewbefund
+zu ungültigen/future Altwerten wurde mit fünf weiteren Regressionen behoben;
+gültige Fallbackwerte bleiben erhalten.
+
+**Migration:** Deklaratives Schema und neue additive Migration. Vollständiger
+Schemaabgleich enthielt fremden bestehenden Drift; deshalb automatisch auf
+Migrationsbasis gegen nur die neue Schemadatei eingegrenzt. Der CLI-Generator ließ
+Client-REVOKEs trotz bestehender DEFAULT PRIVILEGES aus. Die zehn fehlenden
+Anweisungen wurden automatisch aus den getesteten PostgreSQL-Katalogrechten der
+fünf neuen Funktionen erzeugt, keine Rechte von Hand geraten. Finale Datei
+bytegenau transaktional auf dem alten Stand eingespielt; danach Schema-/Rechte-
+Abgleich leer und 301 SQL-Fälle aus sieben betroffenen Dateien bestanden,
+darunter 50 neue. Alle fünf Funktionen für anon/authenticated gesperrt und nur
+für service_role freigegeben. Generierte Typen aus dem finalen Replay aktualisiert.
+Sicherheitsprüfung ohne Fehler, keine neuen SQL-Lintbefunde. Nur die eigene
+isolierte Datenbank samt Schattenressourcen anschließend gesichert gestoppt.
+
+**Abschlussprüfung:** 2.818 Node-/DOM- und 2.480 Angularfälle bestanden.
+Die anfänglich fehlende lokal generierte Versionsdatei wurde erzeugt; nur die
+drei betroffenen Suites wurden danach gezielt erneut erfolgreich ausgeführt.
+53 bestehende Alters-/Antwortmodelle ebenfalls geprüft. Anwendungs- und
+Worker-Typprüfung/Bau, geänderte Dateien formatiert/gelintet, 26 Auswahl-/Schema-
+Registrierungsfälle und Suite-Audit bestanden. Unabhängiges Abschlussreview
+bestätigt Migration, Trigger, Quellenpriorität und Rechte ohne wichtige offene
+Befunde. Lokale Anwendungssuiten unter Windows, SQL-Replay auf isoliertem Linux-
+Postgres; kein neuer Browserlauf für unveränderte Vorlagen. Vor Veröffentlichung
+bleiben die ausgewählten Linux-/Image-/Browser-/PWA-CI-Prüfungen erforderlich.
+
+Kein Push oder produktiver Wechsel in dieser Umsetzung. Veröffentlichung:
+zuerst regulärer Web-Release mit Migration, danach Worker, Broker und Sitzung
+zusammen aus demselben geprüften Merge-Stand aktualisieren.
+=======
+
 ## 2026-10-16 - Juna - Überflüssigen Zurück-Link „Alle Konten“ auf Vinted-Unterseiten entfernen
 
 **Auftrag:** Auf den Vinted-Unterseiten (Übersicht, Kleiderschrank, Statistik, Verkäufe,
@@ -19,6 +85,8 @@ Rücknavigation über den Seitenleisten-Eintrag „Konten“ umgestellt.
 `settings.routes.spec.ts`), Workflow-/Testauswahl (`affected-tests.test.mjs`,
 `playwright-pr-smoke.test.mjs`), ESLint, Prettier, Typprüfung, Anwendungsbau sowie
 Playwright-Prüfung von `e2e/vinted-account-grid.spec.ts` bestanden.
+
+> > > > > > > origin/master
 
 ## 2026-10-16 - Juna - Zeitbudget der Einstellungsprüfung pro Breite trennen
 

@@ -58,15 +58,15 @@ export class SupabaseVintedImportWriter {
     sessionId: string,
   ): Promise<VintedPublicationVersion[]> {
     await this.assertActive(scope, sessionId);
-    const url = new URL('/rest/v1/marketplace_account_entries', this.baseUrl);
-    url.searchParams.set('select', 'external_id,body');
-    url.searchParams.set('workspace_id', `eq.${scope.workspaceId}`);
-    url.searchParams.set('connection_id', `eq.${scope.connectionId}`);
-    url.searchParams.set('kind', 'eq.publication');
-    url.searchParams.set('limit', '1000');
     const value: unknown = await this.json(
-      await this.request(url, {
-        headers: this.serverHeaders(),
+      await this.request(new URL('/rest/v1/rpc/marketplace_publication_versions', this.baseUrl), {
+        method: 'POST',
+        headers: { ...this.serverHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          p_workspace_id: scope.workspaceId,
+          p_connection_id: scope.connectionId,
+          p_session_id: sessionId,
+        }),
         signal: AbortSignal.timeout(10000),
       }),
     );
@@ -85,7 +85,7 @@ export class SupabaseVintedImportWriter {
       return [
         {
           externalId: row['external_id'],
-          occurredAt: timestamp(body['occurredAt']),
+          occurredAt: timestamp(row['flipbase_published_at']) ?? timestamp(body['occurredAt']),
           publicationAge: parseVintedPublicationAge(body['publicationAge']),
           checkedAt: timestamp(body['publicationAgeCheckedAt']),
         },

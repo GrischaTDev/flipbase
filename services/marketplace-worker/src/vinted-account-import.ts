@@ -1031,20 +1031,23 @@ export async function readVintedAccountImport(
       const previous = previousPublications.get(id);
       const publicationAge = parseVintedPublicationAge(previous?.publicationAge);
       const occurredAt =
-        publicationTime(item, observedAt) ??
-        publicationTime({ created_at: previous?.occurredAt }, observedAt);
+        publicationTime({ created_at: previous?.occurredAt }, observedAt) ??
+        publicationTime(item, observedAt);
       publicationAges.set(id, {
         publicationAge,
         publicationAgeCheckedAt: previous?.checkedAt ?? null,
         occurredAt,
       });
-      return occurredAt ? [] : [{ id, checkedAt: Date.parse(previous?.checkedAt ?? '') || 0 }];
+      return occurredAt || publicationAge
+        ? []
+        : [{ id, checkedAt: Date.parse(previous?.checkedAt ?? '') || 0 }];
     })
     .sort((left, right) => left.checkedAt - right.checkedAt);
-  // Fehlende Angaben zuerst; bekannte Angaben höchstens täglich auffrischen. Drei zusätzliche GETs pro Abruf.
-  for (const candidate of candidatesForAge
-    .filter((entry) => Date.parse(observedAt) - entry.checkedAt >= 24 * 60 * 60 * 1000)
-    .slice(0, 3)) {
+  // Alle fehlenden Angaben ergänzen; gespeicherte Alterswerte nicht erneut lesen.
+  // Nur erfolglose Versuche erhalten ihre bisherige tägliche Wiederholgrenze.
+  for (const candidate of candidatesForAge.filter(
+    (entry) => Date.parse(observedAt) - entry.checkedAt >= 24 * 60 * 60 * 1000,
+  )) {
     await atImportStage('publications', authorize);
     const cached = publicationAges.get(candidate.id)!;
     cached.publicationAgeCheckedAt = observedAt;
