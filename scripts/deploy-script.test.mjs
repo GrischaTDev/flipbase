@@ -37,6 +37,10 @@ test('Push-Smoke meldet den ursprünglichen Startfehler auch ohne erzeugte Conta
     },
   );
   await assert.rejects(execution, (error) => error === startupError);
+  assert.ok(
+    commands.find((args) => args[0] === 'run')?.includes('ghcr.io/supabase/edge-runtime:v1.73.5'),
+    'Unveränderte Runtime-Version aus der offiziellen GHCR-Registry',
+  );
   assert.deepEqual(
     commands.filter((args) => args[0] === 'logs').map((args) => args[1]),
     ['push-functions-smoke-123', 'push-gateway-smoke-123'],

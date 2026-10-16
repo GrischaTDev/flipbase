@@ -31,7 +31,7 @@ try {
     'SUPABASE_ANON_KEY=smoke-test-anon-key',
     '-e',
     `FLIPBASE_COMMIT=${commit}`,
-    'public.ecr.aws/supabase/edge-runtime:v1.73.5',
+    'ghcr.io/supabase/edge-runtime:v1.73.5',
     'start',
     '--main-service',
     '/home/deno/functions/push-main',
