@@ -24,7 +24,16 @@ vollen 24-Stunden-Tagen angezeigt: „Unter 1 Tag online“, „1 Tag online“,
 „2 Tage online“ usw. Kompakte Anzeigen verwenden „< 1 Tag“, „1 T“, „2 T“.
 Stunden, Minuten und ein sichtbares „ca.“ entfallen. Genaues Veröffentlichungsdatum
 und gerundete Anbieterangabe bleiben technisch getrennt; eine gerundete Quelle
-wird im Hinweistext benannt. Ohne belegte Anbieterangabe bleibt das Alter unbekannt.
+wird im Hinweistext benannt. Vorrang hat der bestätigte Veröffentlichungszeitpunkt
+von über Flipbase aktiv veröffentlichten Inseraten. Entwurfs-, Auftrags-, Änderungs-
+und Importzeitpunkte sind kein Ersatz dafür. Ohne eigene Veröffentlichungsbestätigung
+wird ein verlässlicher Anbieterzeitpunkt verwendet; fehlt auch dieser, dient die
+Vinted-Altersangabe als Fallback. Alle fehlenden Angaben werden beim ersten
+Kontoabruf ergänzt, danach nur bei neuen oder noch erfolglos gelesenen Inseraten.
+Erfolgreich gespeicherte Altersangaben werden weitergezählt und nicht täglich neu
+abgefragt. Fehlgeschlagene Zusatzabrufe behalten eine Wiederholpause; Anbieter-
+und Zugriffssperren bleiben wirksam. Ohne belegte Zeit-/Altersangabe bleibt das
+Alter unbekannt.
 Die Regel ist für die spätere Altersanzeige weiterer Marktplätze verbindlich;
 diese Erweiterung führt keine neuen Abrufwege für andere Marktplätze ein.
 

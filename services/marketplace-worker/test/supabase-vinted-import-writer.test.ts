@@ -197,15 +197,15 @@ test('abgelaufener Zugriff verhindert den Transaktionsaufruf', async () => {
 });
 
 test('publication cache remains bound to the active account and keeps exact and approximate dates separate', async () => {
-  const calls: URL[] = [];
+  const calls: { url: URL; init: RequestInit | undefined }[] = [];
   const age = { value: 2, unit: 'day', observedAt: '2026-10-15T10:00:00Z' };
   const writer = new SupabaseVintedImportWriter({
     url: 'https://db.example.test',
     publishableKey: 'public',
     serviceRoleKey: 'server',
-    fetch: async (input) => {
+    fetch: async (input, init) => {
       const url = new URL(String(input));
-      calls.push(url);
+      calls.push({ url, init });
       if (url.pathname.endsWith('marketplace_browser_session_check'))
         return Response.json({
           active: true,
@@ -224,7 +224,62 @@ test('publication cache remains bound to the active account and keeps exact and 
   assert.deepEqual(await writer.publicationVersions(scope, sessionId), [
     { externalId: '41', occurredAt: null, publicationAge: age, checkedAt: age.observedAt },
   ]);
-  assert.equal(calls[1]?.searchParams.get('kind'), 'eq.publication');
-  assert.equal(calls[1]?.searchParams.get('workspace_id'), `eq.${scope.workspaceId}`);
-  assert.equal(calls[1]?.searchParams.get('connection_id'), `eq.${scope.connectionId}`);
+  assert.equal(calls[1]?.url.pathname, '/rest/v1/rpc/marketplace_publication_versions');
+  assert.equal(calls[1]?.init?.method, 'POST');
+  assert.deepEqual(JSON.parse(String(calls[1]?.init?.body)), {
+    p_workspace_id: scope.workspaceId,
+    p_connection_id: scope.connectionId,
+    p_session_id: sessionId,
+  });
+  assert.equal(new Headers(calls[1]?.init?.headers).get('Authorization'), 'Bearer server');
+});
+
+test('publication versions prefer confirmed Flipbase times and include publications without an existing cache', async () => {
+  const publishedAt = '2026-10-01T10:00:00.000Z';
+  const writer = new SupabaseVintedImportWriter({
+    url: 'https://db.example.test',
+    publishableKey: 'public',
+    serviceRoleKey: 'server',
+    fetch: async (input) => {
+      if (String(input).endsWith('marketplace_browser_session_check'))
+        return Response.json({
+          active: true,
+          id: sessionId,
+          workspaceId: scope.workspaceId,
+          connectionId: scope.connectionId,
+        });
+      return Response.json([
+        {
+          external_id: '41',
+          body: { occurredAt: '2026-10-02T10:00:00Z' },
+          flipbase_published_at: publishedAt,
+        },
+        { external_id: '42', body: {}, flipbase_published_at: publishedAt },
+      ]);
+    },
+  });
+  assert.deepEqual(
+    await writer.publicationVersions(scope, sessionId),
+    ['41', '42'].map((externalId) => ({
+      externalId,
+      occurredAt: publishedAt,
+      publicationAge: null,
+      checkedAt: null,
+    })),
+  );
+});
+
+test('publication versions reject an inactive session before accessing publication history', async () => {
+  const calls: string[] = [];
+  const writer = new SupabaseVintedImportWriter({
+    url: 'https://db.example.test',
+    publishableKey: 'public',
+    serviceRoleKey: 'server',
+    fetch: async (input) => {
+      calls.push(String(input));
+      return Response.json({ active: false });
+    },
+  });
+  await assert.rejects(writer.publicationVersions(scope, sessionId), /Kontozugriff abgelaufen/);
+  assert.equal(calls.length, 1);
 });
