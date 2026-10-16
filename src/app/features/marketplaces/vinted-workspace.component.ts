@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, NavigationEnd, Router, RouterOutlet } from '@angular/router';
-import { LucideArrowLeft, LucideLogIn, LucideStore, LucideMessagesSquare } from '@lucide/angular';
+import { LucideLogIn, LucideStore, LucideMessagesSquare } from '@lucide/angular';
 import { ButtonComponent } from '../../shared/components/button/button.component';
 import { presentVintedLocalReadiness } from './models/vinted-local-readiness';
 import { NoticeBannerComponent } from '../../shared/components/notice-banner/notice-banner.component';
@@ -64,7 +64,6 @@ export class VintedWorkspaceComponent {
       this.currentUrl().split(/[?#]/)[0],
     ),
   );
-  readonly backIcon = LucideArrowLeft;
   readonly showingSetup = computed(
     () => this.currentUrl().split(/[?#]/)[0] === '/marketplaces/vinted/setup',
   );
