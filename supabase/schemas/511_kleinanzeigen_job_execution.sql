@@ -116,6 +116,11 @@ returns jsonb language plpgsql volatile security definer set search_path='' as $
 declare v_job public.kleinanzeigen_publication_jobs;v_snapshot jsonb;v_session jsonb;
 begin
  v_job:=public.kleinanzeigen_locked_listing(p_workspace_id,p_connection_id,p_token_hash,p_generation,p_job_id,p_claim_token);
+ -- Nach begin prüft derselbe ursprüngliche Versuch nur seine unveränderte Freigabe.
+ -- Keine Verlängerung, neue Reservierung oder erneute Schreibberechtigung.
+ if v_job.state='writing' and v_job.started_at is not null then
+  return jsonb_build_object('active',v_job.lease_until is not null and v_job.absolute_expires_at is not null and v_job.started_at<=clock_timestamp() and v_job.lease_until>clock_timestamp() and v_job.absolute_expires_at>clock_timestamp(),'generation',v_job.grant_generation,'version',v_job.version,'leaseUntil',v_job.lease_until);
+ end if;
  if v_job.state<>'claimed' or v_job.lease_until<=clock_timestamp() or v_job.absolute_expires_at<=clock_timestamp() then return jsonb_build_object('active',false,'generation',v_job.grant_generation,'version',v_job.version,'leaseUntil',v_job.lease_until);end if;
  v_snapshot:=public.kleinanzeigen_prepare_listing_job(p_workspace_id,p_connection_id,v_job.draft_id,v_job.draft_revision,v_job.requested_by);
  if (v_snapshot-'images') is distinct from (v_job.immutable_snapshot-'images') then raise exception 'Zielfassung inzwischen geändert.' using errcode='40001';end if;

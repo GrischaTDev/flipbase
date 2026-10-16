@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import { readFileSync } from 'node:fs';
 import { randomUUID, randomBytes } from 'node:crypto';
 import { execFileSync, spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -25,6 +27,7 @@ const query = (sql) =>
     input: "set statement_timeout='12s'; " + sql,
     encoding: 'utf8',
     timeout: 15000,
+    stdio: ['pipe', 'pipe', 'pipe'],
   }).trim();
 const quote = (value) => "'" + String(value).replaceAll("'", "''") + "'";
 const workspace = randomUUID();
@@ -416,6 +419,169 @@ try {
   assert.equal(resumed.state, 'outcome_unknown');
   const readonly = document(query(claim(job, claimOne)), 'claimToken');
   assert.equal(readonly.state, 'outcome_unknown', 'Ursprüngliche Wiederaufnahme bleibt lesend.');
+  // Der tatsächliche Browsercontroller wird mit echten PostgreSQL-RPCs verbunden.
+  const runtime = vm.createContext({ URL, setInterval, clearInterval });
+  for (const file of [
+    'kleinanzeigen-publication-policy',
+    'kleinanzeigen-listing-runtime',
+    'kleinanzeigen-publication-jobs',
+  ])
+    vm.runInContext(readFileSync('tools/flipbase-extension/' + file + '.js', 'utf8'), runtime);
+  for (const scenario of ['success', 'revoked_after_begin', 'account_after_begin']) {
+    query(
+      'delete from public.kleinanzeigen_publication_jobs where workspace_id=' +
+        quote(workspace) +
+        ';update public.kleinanzeigen_local_grants set revoked_at=null where workspace_id=' +
+        quote(workspace) +
+        ';',
+    );
+    freshQuota();
+    const target = createDraft(
+      String(800 + ['success', 'revoked_after_begin', 'account_after_begin'].indexOf(scenario)),
+    );
+    const accepted = document(query(enqueue(target)), 'immutableSnapshot');
+    const scope = { workspaceId: workspace, connectionId: connection, generation: 2 };
+    const request = { ...scope, jobId: accepted.id, mode: 'publish' };
+    const installation = {
+      phase: 'connected',
+      secret: 'e'.repeat(64),
+      appOrigin: 'https://app.flipbase.de',
+      binding: {
+        ...scope,
+        externalAccountId: '88',
+        accountType: 'private',
+        canPublish: true,
+        expiresAt: new Date(Date.now() + 3600000).toISOString(),
+      },
+    };
+    let progress = null,
+      submits = 0,
+      begun = false;
+    const base =
+      quote(workspace) + ',' + connection + ',' + quote(tokenHash) + ',2,' + accepted.id + ',';
+    const adapter = {
+      now: () => Date.now(),
+      secret: () => randomBytes(32).toString('hex'),
+      uuid: () => randomUUID(),
+      loadInstallation: async () => installation,
+      loadProgress: async () => progress,
+      saveProgress: async (value) => {
+        progress = structuredClone(value);
+      },
+      quota: async () => {
+        freshQuota();
+        return {
+          externalAccountId: '88',
+          generation: 2,
+          canPublish: true,
+          quota: {
+            used: 99,
+            reserved: 0,
+            allowed: true,
+            reason: null,
+            observedAt: new Date().toISOString(),
+          },
+        };
+      },
+      rpc: async (_installation, body) => {
+        let sql;
+        if (body.action === 'job_claim') sql = claim(accepted.id, body.claimToken);
+        else if (body.action === 'job_check')
+          sql = 'select public.kleinanzeigen_check_listing(' + base + quote(body.claimToken) + ');';
+        else if (body.action === 'job_begin')
+          sql =
+            'select public.kleinanzeigen_begin_listing(' +
+            base +
+            quote(body.claimToken) +
+            ',' +
+            body.expectedVersion +
+            ',' +
+            quote(JSON.stringify(body.fee)) +
+            '::jsonb);';
+        else if (body.action === 'job_finish')
+          sql =
+            'select public.kleinanzeigen_finish_listing(' +
+            base +
+            quote(body.claimToken) +
+            ',' +
+            quote(JSON.stringify(body.result)) +
+            '::jsonb);';
+        else throw Error('Unexpected actual RPC ' + body.action);
+        const result = JSON.parse(
+          query(sql)
+            .split('\n')
+            .find((line) => line.startsWith('{')),
+        );
+        if (body.action === 'job_begin' && result.authorized) {
+          begun = true;
+          if (scenario === 'revoked_after_begin')
+            query(
+              'update public.kleinanzeigen_local_grants set revoked_at=clock_timestamp() where workspace_id=' +
+                quote(workspace) +
+                ';',
+            );
+        }
+        return result;
+      },
+      readIdentity: async () => ({
+        externalAccountId: begun && scenario === 'account_after_begin' ? '89' : '88',
+        accountType: 'private',
+      }),
+      readBaseline: async () => [],
+      openForm: async () => ({
+        tabId: 17,
+        minimumDocumentTime: Date.now(),
+        schemaRevision,
+        schema,
+      }),
+      step: async (_progress, action) => {
+        if (action === 'submit') submits++;
+        return action === 'prepare'
+          ? { valid: true }
+          : action === 'verify' || action === 'upload'
+            ? { complete: true }
+            : action === 'fee'
+              ? { state: 'free', observedAt: new Date().toISOString() }
+              : { clicked: true };
+      },
+      photo: async () => '',
+      readResult: async () => ({
+        outcome: 'confirmed',
+        externalAccountId: '88',
+        externalId: '999',
+        providerState: 'active',
+        verifiedAt: new Date().toISOString(),
+        url: 'https://www.kleinanzeigen.de/s-anzeige/jacke/999-160-1',
+      }),
+    };
+    await runtime.FlipbaseKleinanzeigenPublicationJobs.create(adapter).run(
+      request,
+      installation.appOrigin,
+    );
+    const stored = JSON.parse(
+      query(
+        "select json_build_object('state',state,'started',started_at is not null) from public.kleinanzeigen_publication_jobs where id=" +
+          accepted.id +
+          ';',
+      ),
+    );
+    assert.equal(
+      submits,
+      scenario === 'success' ? 1 : 0,
+      scenario + ': tatsächlicher SQL- und Controllervertrag',
+    );
+    assert.equal(stored.started, true, scenario + ': dauerhafter Beginn erreicht');
+    assert.equal(stored.state, scenario === 'success' ? 'confirmed' : 'outcome_unknown');
+    console.log(
+      'Tatsächlicher Controller mit PostgreSQL: ' +
+        scenario +
+        ', ' +
+        submits +
+        ' Submit, ' +
+        stored.state +
+        '.',
+    );
+  }
   console.log(
     'Echte parallele Sitzungen bestätigen eine gemeinsame Request-ID, genau eine letzte kostenlose Reservierung, einen exklusiven Claim und genau eine begin-Freigabe; Timeout danach erlaubt nur Abgleich.',
   );

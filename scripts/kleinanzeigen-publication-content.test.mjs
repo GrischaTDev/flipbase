@@ -16,7 +16,15 @@ function fixture() {
   win.FlipbaseKleinanzeigenReader = {
     pageIdentity: () => ({ externalAccountId: '88', accountType: 'private' }),
   };
-  win.FlipbaseKleinanzeigenFormReader = { readBase: () => ({ externalAccountId: '88' }) };
+  win.eval(readFileSync('tools/flipbase-extension/kleinanzeigen-form-reader.js', 'utf8'));
+  win.FlipbaseKleinanzeigenFormReader = {
+    readBase: () => ({ externalAccountId: '88' }),
+    readCategory: win.FlipbaseKleinanzeigenFormReader.readCategory,
+  };
+  win.document.body.insertAdjacentHTML(
+    'beforeend',
+    '<div id="ad-category-path">Mode &amp; Beauty &gt; Herrenbekleidung</div><button role="combobox" id="kleidung_herren.art" aria-required="false">Shirts</button><input type="hidden" name="attributeMap[kleidung_herren.art]" value="shirts">',
+  );
   let fee = 'free';
   let photos = ['https://images.test/1.jpg'];
   win.FlipbaseKleinanzeigenPublicationReader = {
@@ -37,11 +45,16 @@ function fixture() {
       priceType: 'FIXED',
       postalCode: '10115',
       shippingType: 'pickup',
+      categoryId: '153/160/shirts',
       categoryFields: {},
     },
     images: [{ imageId: 'one' }],
   };
-  const schema = { fields: [] };
+  const schema = {
+    fields: [],
+    categoryPath: '153/160/shirts',
+    categoryLabel: 'Mode & Beauty > Herrenbekleidung > Shirts',
+  };
   return {
     win,
     adapter,
@@ -89,5 +102,29 @@ for (const invalid of ['paid', 'unknown', 'photos', 'changed', 'required'])
       );
     else f.win.document.getElementById('ad-title').value = 'Geändert';
     await assert.rejects(() => f.adapter.submitOnce(f.job));
+    assert.equal(f.clicks, 0);
+  });
+
+for (const change of ['initial', 'visible', 'hidden', 'parent'])
+  test('blocks publication when native category changes: ' + change, async () => {
+    const f = fixture();
+    f.job.content.categoryId = '153/160/shirts';
+    f.schema.categoryPath = '153/160/shirts';
+    f.schema.categoryLabel = 'Mode & Beauty > Herrenbekleidung > Shirts';
+    if (change === 'initial') {
+      f.win.document.getElementById('kleidung_herren.art').textContent = 'Pullover';
+      await assert.rejects(() => f.adapter.fill(f.job, f.schema));
+    } else {
+      await f.adapter.fill(f.job, f.schema);
+      if (change === 'visible')
+        f.win.document.getElementById('kleidung_herren.art').textContent = 'Pullover';
+      if (change === 'hidden')
+        f.win.document.querySelector('input[name="attributeMap[kleidung_herren.art]"]').value =
+          'pullover';
+      if (change === 'parent')
+        f.win.document.getElementById('ad-category-path').textContent =
+          'Mode & Beauty > Damenbekleidung';
+      await assert.rejects(() => f.adapter.submitOnce(f.job));
+    }
     assert.equal(f.clicks, 0);
   });

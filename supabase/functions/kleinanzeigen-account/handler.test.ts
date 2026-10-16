@@ -300,3 +300,15 @@ test('Transferquelle bleibt hinter echter Nutzerprüfung und geschlossenem Antwo
   });
   assert.equal((await leaking(request(input))).status, 502);
 });
+
+test('a renewed binding returns the currently confirmed contact name and rejects the stale one', async () => {
+  const renamed = { ...input, displayName: 'Neuer Kontaktname' };
+  const updated = { ...binding, displayName: renamed.displayName, generation: 3 };
+  const good = await createKleinanzeigenAccountHandler(store(updated))(request(renamed));
+  assert.equal(good.status, 200);
+  assert.equal((await good.json()).displayName, renamed.displayName);
+  assert.equal(
+    (await createKleinanzeigenAccountHandler(store(binding))(request(renamed))).status,
+    502,
+  );
+});

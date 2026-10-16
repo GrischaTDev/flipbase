@@ -57,9 +57,22 @@ select is(pg_temp.claim()->>'state','claimed','Abgelaufener Versuch vor begin da
 select is(pg_temp.begin_job()->>'authorized','true','Kostenloser geprüfter Auftrag beginnt genau einmal');
 select is(pg_temp.begin_job()->>'authorized','false','Nach begin wird kein zweiter verbindlicher Klick freigegeben');
 reset role;
+create temporary table writing_guard_before as select version,lease_until from public.kleinanzeigen_publication_jobs;
+set local role service_role;
+select is(public.kleinanzeigen_check_listing('51000000-0000-4000-8000-000000000011',(select id from public.kleinanzeigen_connections),repeat('a',64),2,(select id from public.kleinanzeigen_publication_jobs),repeat('c',64))->>'active','true','Nach begin bleibt derselbe gültige Versuch vor dem einen Klick prüfbar');
+reset role;
+select is((select version from public.kleinanzeigen_publication_jobs),(select version from writing_guard_before),'Die Prüfung eines begonnenen Versuchs verändert seine Version nicht');
+select is((select lease_until from public.kleinanzeigen_publication_jobs),(select lease_until from writing_guard_before),'Die Prüfung eines begonnenen Versuchs verlängert seine Lease nicht');
+update public.kleinanzeigen_local_grants set revoked_at=clock_timestamp();
+set local role service_role;
+select throws_ok($$select public.kleinanzeigen_check_listing('51000000-0000-4000-8000-000000000011',(select id from public.kleinanzeigen_connections),repeat('a',64),2,(select id from public.kleinanzeigen_publication_jobs),repeat('c',64))$$,'42501',null,'Widerruf unmittelbar nach begin sperrt den letzten Klick');
+reset role;update public.kleinanzeigen_local_grants set revoked_at=null;set local role service_role;
+
+reset role;
 select throws_ok($$update public.listings set title='Späte Änderung'$$,'55000',null,'Inhalt ist während writing gesperrt');
 select throws_ok($$update public.listing_images set sort_order=2$$,'55000',null,'Auch Bilder und Reihenfolge sind während writing gesperrt');
 update public.kleinanzeigen_publication_jobs set lease_until=clock_timestamp()-interval '1 second';set local role service_role;
+select is(public.kleinanzeigen_check_listing('51000000-0000-4000-8000-000000000011',(select id from public.kleinanzeigen_connections),repeat('a',64),2,(select id from public.kleinanzeigen_publication_jobs),repeat('c',64))->>'active','false','Abgelaufener begonnener Versuch erhält keine erneute Klickfreigabe');
 select is(public.kleinanzeigen_read_listing_job('51000000-0000-4000-8000-000000000011',(select id from public.kleinanzeigen_connections),(select id from public.kleinanzeigen_publication_jobs),'51000000-0000-4000-8000-000000000001')->>'state','outcome_unknown','Neustart nach begin führt nur zum unbekannten Ergebnis');
 select throws_ok($$select pg_temp.claim(repeat('d',64))$$,'40001',null,'Unbekannter Ausgang darf keinen neuen Schreibversuch bekommen');
 select is(pg_temp.claim()->>'state','outcome_unknown','Ursprünglicher Versuch kann ausschließlich zum Abgleichen wiederaufgenommen werden');

@@ -46,6 +46,7 @@ export function appendMarketplacePermissions(migration, schema) {
 }
 
 async function finalizeGeneratedMigration() {
+  const reviewFixes = process.argv.includes('--kleinanzeigen-review-fixes');
   const lifecycle = process.argv.includes('--kleinanzeigen-job-lifecycle');
   const jobs = process.argv.includes('--kleinanzeigen-jobs');
   const forms = process.argv.includes('--kleinanzeigen-forms');
@@ -55,6 +56,7 @@ async function finalizeGeneratedMigration() {
   const read = process.argv.includes('--kleinanzeigen-read');
   const sync = process.argv.includes('--kleinanzeigen-sync');
   const kleinanzeigen =
+    reviewFixes ||
     lifecycle ||
     jobs ||
     forms ||
@@ -64,25 +66,27 @@ async function finalizeGeneratedMigration() {
     read ||
     sync ||
     process.argv.includes('--kleinanzeigen');
-  const suffix = lifecycle
-    ? 'kleinanzeigen_job_lifecycle'
-    : jobs
-      ? 'kleinanzeigen_publication_jobs'
-      : forms
-        ? 'kleinanzeigen_form_schemas'
-        : images
-          ? 'kleinanzeigen_transfer_images'
-          : sources
-            ? 'kleinanzeigen_transfer_sources'
-            : drafts
-              ? 'kleinanzeigen_drafts'
-              : read
-                ? 'kleinanzeigen_read'
-                : sync
-                  ? 'kleinanzeigen_sync'
-                  : kleinanzeigen
-                    ? 'kleinanzeigen_accounts'
-                    : 'marketplace_accounts';
+  const suffix = reviewFixes
+    ? 'kleinanzeigen_review_fixes'
+    : lifecycle
+      ? 'kleinanzeigen_job_lifecycle'
+      : jobs
+        ? 'kleinanzeigen_publication_jobs'
+        : forms
+          ? 'kleinanzeigen_form_schemas'
+          : images
+            ? 'kleinanzeigen_transfer_images'
+            : sources
+              ? 'kleinanzeigen_transfer_sources'
+              : drafts
+                ? 'kleinanzeigen_drafts'
+                : read
+                  ? 'kleinanzeigen_read'
+                  : sync
+                    ? 'kleinanzeigen_sync'
+                    : kleinanzeigen
+                      ? 'kleinanzeigen_accounts'
+                      : 'marketplace_accounts';
   const directory = 'supabase/migrations';
   const migrations = (await readdir(directory)).filter((file) =>
     new RegExp('^\\d{14}_' + suffix + '\\.sql$', 'u').test(file),
@@ -118,28 +122,30 @@ async function finalizeGeneratedMigration() {
     readFile(path, 'utf8'),
     readFile(schemaPath, 'utf8'),
   ]);
-  if (jobs)
+  if (jobs || reviewFixes)
     schema +=
       '\n' + (await readFile('supabase/schemas/511_kleinanzeigen_job_execution.sql', 'utf8'));
-  const finish = lifecycle
-    ? appendKleinanzeigenJobLifecyclePermissions
-    : jobs
-      ? appendKleinanzeigenJobPermissions
-      : forms
-        ? appendKleinanzeigenFormPermissions
-        : images
-          ? appendKleinanzeigenImagePermissions
-          : sources
-            ? appendKleinanzeigenSourcePermissions
-            : drafts
-              ? appendKleinanzeigenDraftPermissions
-              : read
-                ? appendKleinanzeigenReadPermissions
-                : sync
-                  ? appendKleinanzeigenSyncPermissions
-                  : kleinanzeigen
-                    ? appendKleinanzeigenPermissions
-                    : appendMarketplacePermissions;
+  const finish = reviewFixes
+    ? appendKleinanzeigenReviewFixPermissions
+    : lifecycle
+      ? appendKleinanzeigenJobLifecyclePermissions
+      : jobs
+        ? appendKleinanzeigenJobPermissions
+        : forms
+          ? appendKleinanzeigenFormPermissions
+          : images
+            ? appendKleinanzeigenImagePermissions
+            : sources
+              ? appendKleinanzeigenSourcePermissions
+              : drafts
+                ? appendKleinanzeigenDraftPermissions
+                : read
+                  ? appendKleinanzeigenReadPermissions
+                  : sync
+                    ? appendKleinanzeigenSyncPermissions
+                    : kleinanzeigen
+                      ? appendKleinanzeigenPermissions
+                      : appendMarketplacePermissions;
   await writeFile(
     path,
     finish(kleinanzeigen ? normalizeGeneratedSqlKeywords(migration) : migration, schema),
@@ -197,23 +203,25 @@ function appendKleinanzeigenPermissionBlock(migration, schema, kind, tables, req
   if (required.some((statement) => !normalized.includes(statement)))
     throw new Error('Unvollständige Kleinanzeigen-Rechte.');
   const blockMarker =
-    kind === 'lifecycle'
-      ? '-- Explicit Kleinanzeigen lifecycle permissions from declarative schema'
-      : kind === 'jobs'
-        ? '-- Explicit Kleinanzeigen job permissions from declarative schema'
-        : kind === 'forms'
-          ? '-- Explicit Kleinanzeigen form permissions from declarative schema'
-          : kind === 'images'
-            ? '-- Explicit Kleinanzeigen image permissions from declarative schema'
-            : kind === 'sources'
-              ? '-- Explicit Kleinanzeigen source permissions from declarative schema'
-              : kind === 'drafts'
-                ? '-- Explicit Kleinanzeigen draft permissions from declarative schema'
-                : kind === 'read'
-                  ? '-- Explicit Kleinanzeigen read permissions from declarative schema'
-                  : kind === 'accounts'
-                    ? '-- Explicit Kleinanzeigen permissions from declarative schema'
-                    : '-- Explicit Kleinanzeigen sync permissions from declarative schema';
+    kind === 'review'
+      ? '-- Explicit Kleinanzeigen review fix permissions from declarative schema'
+      : kind === 'lifecycle'
+        ? '-- Explicit Kleinanzeigen lifecycle permissions from declarative schema'
+        : kind === 'jobs'
+          ? '-- Explicit Kleinanzeigen job permissions from declarative schema'
+          : kind === 'forms'
+            ? '-- Explicit Kleinanzeigen form permissions from declarative schema'
+            : kind === 'images'
+              ? '-- Explicit Kleinanzeigen image permissions from declarative schema'
+              : kind === 'sources'
+                ? '-- Explicit Kleinanzeigen source permissions from declarative schema'
+                : kind === 'drafts'
+                  ? '-- Explicit Kleinanzeigen draft permissions from declarative schema'
+                  : kind === 'read'
+                    ? '-- Explicit Kleinanzeigen read permissions from declarative schema'
+                    : kind === 'accounts'
+                      ? '-- Explicit Kleinanzeigen permissions from declarative schema'
+                      : '-- Explicit Kleinanzeigen sync permissions from declarative schema';
   const comments =
     kind === 'jobs'
       ? schema
@@ -225,23 +233,25 @@ function appendKleinanzeigenPermissionBlock(migration, schema, kind, tables, req
       : [];
   const suffix = blockMarker + '\n' + [...permissions, ...comments].join('\n') + '\n';
   const header =
-    kind === 'lifecycle'
-      ? '-- Zweck: Unbegonnene Kleinanzeigen-Aufträge bei Widerruf, geänderter Fassung oder abgelaufener Vorbereitung beenden; begonnene Versuche bleiben gesperrt.\n'
-      : kind === 'jobs'
-        ? '-- Zweck: Dauerhafte Kleinanzeigen-Aufträge, private Fotoaufnahme, Kontingentreservierung, exklusiver Schreibbeginn und atomarer Ergebnisabschluss.\n'
-        : kind === 'forms'
-          ? '-- Zweck: Kontogebundene aktuelle Anbieterfelder in kleinanzeigen_form_schemas mit Inhaltsrevision und Beobachtungszeit.\n'
-          : kind === 'images'
-            ? '-- Zweck: Vollständige Transferbilder in listings/listing_images und Revision bei jeder Bildänderung.\n'
-            : kind === 'sources'
-              ? '-- Zweck: Vollständige Vinted-Quellen über geprüfte Cloud-/lokale RPCs im vorhandenen marketplace_account_entries-Cache.\n'
-              : kind === 'drafts'
-                ? '-- Zweck: Vinted-Quellbezug, Zielkonto und Revision in listings sowie geprüfte Entwurfs-RPCs.\n'
-                : kind === 'read'
-                  ? '-- Zweck: Geschützte Konten- und Inseratsübersicht über kleinanzeigen_read_accounts und kleinanzeigen_read_publications.\n'
-                  : kind === 'accounts'
-                    ? '-- Zweck: Kleinanzeigen-Konten und getrennte lokale Freigaben in kleinanzeigen_connections und kleinanzeigen_local_grants.\n'
-                    : '-- Zweck: Atomarer Kleinanzeigen-Abgleich mit kleinanzeigen_sync_runs, kleinanzeigen_sync_entries und kleinanzeigen_publications.\n';
+    kind === 'review'
+      ? '-- Zweck: Bestätigte Kontometadaten in kleinanzeigen_connections aktualisieren und begonnene kleinanzeigen_publication_jobs ohne neue Schreibfreigabe prüfen.\n'
+      : kind === 'lifecycle'
+        ? '-- Zweck: Unbegonnene Kleinanzeigen-Aufträge bei Widerruf, geänderter Fassung oder abgelaufener Vorbereitung beenden; begonnene Versuche bleiben gesperrt.\n'
+        : kind === 'jobs'
+          ? '-- Zweck: Dauerhafte Kleinanzeigen-Aufträge, private Fotoaufnahme, Kontingentreservierung, exklusiver Schreibbeginn und atomarer Ergebnisabschluss.\n'
+          : kind === 'forms'
+            ? '-- Zweck: Kontogebundene aktuelle Anbieterfelder in kleinanzeigen_form_schemas mit Inhaltsrevision und Beobachtungszeit.\n'
+            : kind === 'images'
+              ? '-- Zweck: Vollständige Transferbilder in listings/listing_images und Revision bei jeder Bildänderung.\n'
+              : kind === 'sources'
+                ? '-- Zweck: Vollständige Vinted-Quellen über geprüfte Cloud-/lokale RPCs im vorhandenen marketplace_account_entries-Cache.\n'
+                : kind === 'drafts'
+                  ? '-- Zweck: Vinted-Quellbezug, Zielkonto und Revision in listings sowie geprüfte Entwurfs-RPCs.\n'
+                  : kind === 'read'
+                    ? '-- Zweck: Geschützte Konten- und Inseratsübersicht über kleinanzeigen_read_accounts und kleinanzeigen_read_publications.\n'
+                    : kind === 'accounts'
+                      ? '-- Zweck: Kleinanzeigen-Konten und getrennte lokale Freigaben in kleinanzeigen_connections und kleinanzeigen_local_grants.\n'
+                      : '-- Zweck: Atomarer Kleinanzeigen-Abgleich mit kleinanzeigen_sync_runs, kleinanzeigen_sync_entries und kleinanzeigen_publications.\n';
   let output;
   if (migration.includes(blockMarker)) {
     if (!migration.endsWith(suffix)) throw new Error('Abweichender Rechteblock bereits vorhanden.');
@@ -438,4 +448,36 @@ export function normalizeGeneratedSqlKeywords(sql) {
     position++;
   }
   return result;
+}
+
+export function appendKleinanzeigenReviewFixPermissions(migration, schema) {
+  const functions = Array.from(
+    migration.matchAll(/create(?: or replace)? function public\.([a-z_]+)\(/gu),
+    (match) => match[1],
+  ).sort();
+  if (
+    functions.join(',') !== 'kleinanzeigen_check_listing,kleinanzeigen_connect_account' ||
+    /\b(?:create|alter|drop)\s+(?:table|schema|policy|trigger)\b/iu.test(migration)
+  )
+    throw new Error('Nur die beiden erzeugten Kleinanzeigen-Korrekturen erlaubt.');
+  const required = [
+    {
+      signature: 'kleinanzeigen_connect_account(uuid,text,text,text,uuid,text,boolean)',
+      role: 'authenticated',
+    },
+    {
+      signature: 'kleinanzeigen_check_listing(uuid,bigint,text,bigint,bigint,text)',
+      role: 'service_role',
+    },
+  ];
+  const selected = schema
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(
+      (line) =>
+        /^(?:revoke|grant) /u.test(line) &&
+        required.some((value) => line.includes('function public.' + value.signature + ' ')),
+    )
+    .join('\n');
+  return appendKleinanzeigenPermissionBlock(migration, selected, 'review', [], required);
 }

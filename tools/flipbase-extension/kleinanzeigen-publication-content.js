@@ -25,6 +25,7 @@
     const reader = root.FlipbaseKleinanzeigenPublicationReader;
     let fingerprint = null;
     let expectedJob = null;
+    let expectedCategoryLabel = null;
     const uploaded = [];
     const identity = (job) => {
       const value = root.FlipbaseKleinanzeigenReader.pageIdentity(
@@ -56,6 +57,13 @@
         'ad-name',
       ];
       const values = fields.map((id) => doc.getElementById(id)?.value ?? null);
+      values.push(
+        root.FlipbaseKleinanzeigenFormReader.readCategory(
+          doc,
+          job.content.categoryId,
+          expectedCategoryLabel,
+        ),
+      );
       values.push(
         text(doc.getElementById('ad-price-type')),
         Boolean(doc.getElementById('ad-buy-now-false')?.checked),
@@ -187,6 +195,12 @@
     async function fill(job, schema) {
       identity(job);
       const c = job.content;
+      if (
+        schema.categoryPath !== c.categoryId ||
+        !root.FlipbaseKleinanzeigenFormReader.readCategory(doc, c.categoryId, schema.categoryLabel)
+      )
+        fail('category_changed');
+      expectedCategoryLabel = schema.categoryLabel;
       if (
         !Number.isSafeInteger(c.priceCents) ||
         c.priceCents < 0 ||

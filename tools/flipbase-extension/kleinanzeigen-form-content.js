@@ -27,7 +27,8 @@
     );
   async function collect(expectedAccountId, categoryPath, categoryLabel) {
     const base = reader.readBase(document, expectedAccountId);
-    if (!base) throw new Error('schema_changed');
+    const category = reader.readCategory(document, categoryPath, categoryLabel);
+    if (!base || !category) throw new Error('schema_changed');
     const fields = [];
     try {
       for (const field of base.fields) {
@@ -93,9 +94,14 @@
       button(shippingDialog(), 'Schließen').click();
       await wait(() => !shippingDialog());
       if (!reader.readBase(document, expectedAccountId)) throw new Error('account_changed');
+      if (
+        JSON.stringify(reader.readCategory(document, categoryPath, categoryLabel)) !==
+        JSON.stringify(category)
+      )
+        throw new Error('schema_changed');
       return {
-        categoryPath,
-        categoryLabel,
+        categoryPath: category.categoryPath,
+        categoryLabel: category.categoryLabel,
         titleMax: base.titleMax,
         descriptionMax: base.descriptionMax,
         photoCountMax: base.photoCountMax,

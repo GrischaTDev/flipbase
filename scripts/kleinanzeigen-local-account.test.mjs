@@ -169,3 +169,17 @@ test('quota and publication requests carry only exact scope and an explicit resu
   ])
     assert.equal(core.parseRequest(invalid, origin), null);
 });
+
+test('renewal accepts the current contact name without accepting a stale binding reply', async () => {
+  const f = fixture();
+  f.adapter.readIdentity = async () => ({ ...identity, displayName: 'Neuer Kontaktname' });
+  const runtime = core.createAccountRuntime(f.adapter);
+  const proposed = await runtime.prepare(prepare, origin);
+  assert.equal(proposed.displayName, 'Neuer Kontaktname');
+  await assert.rejects(() => runtime.connect({ nonce: proposed.nonce, binding }, origin));
+  await runtime.connect(
+    { nonce: proposed.nonce, binding: { ...binding, displayName: proposed.displayName } },
+    origin,
+  );
+  assert.equal(f.value.binding.displayName, 'Neuer Kontaktname');
+});

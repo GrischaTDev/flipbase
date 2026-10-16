@@ -1,3 +1,4 @@
+import { appendKleinanzeigenReviewFixPermissions } from './marketplace-migration-permissions.mjs';
 import { normalizeGeneratedSqlKeywords } from './marketplace-migration-permissions.mjs';
 import { appendKleinanzeigenJobLifecyclePermissions } from './marketplace-migration-permissions.mjs';
 import { appendKleinanzeigenJobPermissions } from './marketplace-migration-permissions.mjs';
@@ -363,4 +364,39 @@ CREATE TRIGGER example AFTER UPDATE ON public.example FOR EACH ROW EXECUTE FUNCT
     ),
   );
   assert.equal(normalizeGeneratedSqlKeywords(result), result);
+});
+
+test('finalizes only the two generated review corrections with their separate original roles', async () => {
+  const source =
+    (await readFile('supabase/schemas/490_kleinanzeigen_accounts.sql', 'utf8')) +
+    '\n' +
+    (await readFile('supabase/schemas/511_kleinanzeigen_job_execution.sql', 'utf8'));
+  const migration =
+    'create or replace function public.kleinanzeigen_connect_account() returns void language sql as $$$$;\ncreate or replace function public.kleinanzeigen_check_listing() returns void language sql as $$$$;';
+  const result = appendKleinanzeigenReviewFixPermissions(migration, source);
+  assert.ok(result.startsWith('-- Zweck:'));
+  assert.ok(
+    result.includes(
+      'kleinanzeigen_connect_account(uuid,text,text,text,uuid,text,boolean) to authenticated;',
+    ),
+  );
+  assert.ok(
+    result.includes(
+      'kleinanzeigen_check_listing(uuid,bigint,text,bigint,bigint,text) to service_role;',
+    ),
+  );
+  assert.ok(!result.includes('grant select on'));
+  assert.equal(appendKleinanzeigenReviewFixPermissions(result, source), result);
+  assert.throws(() =>
+    appendKleinanzeigenReviewFixPermissions(
+      migration.replace('kleinanzeigen_check_listing', 'unexpected_function'),
+      source,
+    ),
+  );
+  assert.throws(() =>
+    appendKleinanzeigenReviewFixPermissions(
+      migration + '\ncreate table public.unrelated(id int);',
+      source,
+    ),
+  );
 });

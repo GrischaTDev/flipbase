@@ -8,6 +8,7 @@
   let listingTabId;
   let listingDocumentTime;
   let listingCursor;
+  let listingReadRunId;
   const syncProgressKey = 'kleinanzeigen_sync_progress';
   const workTabsKey = 'kleinanzeigen_work_tabs';
   const load = async () => {
@@ -150,7 +151,12 @@
       throw stopped('access_revoked');
     return await sendSession(installation, body);
   }
-  async function readListingPage(installation, cursor) {
+  async function readListingPage(installation, cursor, runId) {
+    if (runId !== undefined && listingReadRunId !== runId) {
+      listingReadRunId = runId;
+      listingDocumentTime = undefined;
+      listingCursor = undefined;
+    }
     const address = 'https://www.kleinanzeigen.de/m-meine-anzeigen.html';
     let tab;
     if (listingDocumentTime) {
@@ -259,7 +265,7 @@
     return await globalThis.FlipbaseKleinanzeigenSync.run(installation, request.runId, {
       now: () => Date.now(),
       readAccount,
-      readPage: (cursor) => readListingPage(installation, cursor),
+      readPage: (cursor) => readListingPage(installation, cursor, request.runId),
       rpc: (body) => syncRpc(installation, body),
       loadProgress: async () => {
         await ready;

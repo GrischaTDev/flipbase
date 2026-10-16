@@ -40,6 +40,9 @@ function fixture(options = {}) {
   let pageNumber = 1;
   let listener;
   let pageReads = 0;
+  let listingReloads = 0;
+  let providerVersion = 1;
+  let visibleVersion = 1;
   let failFinish = !!options.failFinish;
   const chrome = {
     storage: {
@@ -70,7 +73,11 @@ function fixture(options = {}) {
         return tabs.get(id);
       },
       reload: async (id) => {
-        if (tabs.get(id).url.includes('m-meine-anzeigen')) pageNumber = 1;
+        if (tabs.get(id).url.includes('m-meine-anzeigen')) {
+          pageNumber = 1;
+          listingReloads++;
+          visibleVersion = providerVersion;
+        }
       },
       sendMessage: async (_id, message) => {
         if (message.type === 'KLEINANZEIGEN_READ_ACCOUNT')
@@ -101,7 +108,7 @@ function fixture(options = {}) {
               items: [
                 {
                   externalId: options.duplicate ? '101' : String(100 + pageNumber),
-                  title: 'Anzeige ' + pageNumber,
+                  title: 'Anzeige ' + pageNumber + ' Version ' + visibleVersion,
                   url:
                     'https://www.kleinanzeigen.de/s-anzeige/test/' +
                     (options.duplicate ? '101' : String(100 + pageNumber)) +
@@ -144,6 +151,7 @@ function fixture(options = {}) {
       else if (body.action === 'sync_claim')
         reply = {
           ...scope,
+          runId: body.runId,
           claimToken: 'c'.repeat(64),
           externalAccountId: '123',
           nextCursor: 'page:1',
@@ -151,6 +159,7 @@ function fixture(options = {}) {
       else if (body.action === 'sync_page')
         reply = {
           ...scope,
+          runId: body.runId,
           acceptedCursor: body.pageCursor,
           nextCursor: body.nextCursor,
           complete: body.nextCursor === null,
@@ -162,12 +171,13 @@ function fixture(options = {}) {
         }
         reply = {
           ...scope,
+          runId: body.runId,
           state: 'confirmed',
           observedAt: new Date().toISOString(),
           itemCount: options.multi ? 2 : 1,
         };
       } else if (body.action === 'sync_fail')
-        reply = { ...scope, state: 'failed', errorCode: body.errorCode };
+        reply = { ...scope, runId: body.runId, state: 'failed', errorCode: body.errorCode };
       else throw Error('unexpected rpc');
       return new Response(JSON.stringify(reply), {
         headers: { 'content-type': 'application/json' },
@@ -181,6 +191,12 @@ function fixture(options = {}) {
   ])
     vm.runInContext(readFileSync('tools/flipbase-extension/' + file, 'utf8'), context);
   return {
+    changeProvider: () => {
+      providerVersion++;
+    },
+    get listingReloads() {
+      return listingReloads;
+    },
     stored,
     calls,
     tabs,
@@ -246,5 +262,17 @@ test('a fresh background worker resumes a lost finish using its persistent check
   assert.equal(
     next.calls.some((body) => body.action === 'sync_claim' || body.action === 'sync_page'),
     false,
+  );
+});
+
+test('a distinct new single-page sync reloads the provider tab and sees changed listings', async () => {
+  const f = fixture();
+  assert.equal((await f.send(sync)).success, true);
+  f.changeProvider();
+  assert.equal((await f.send({ ...sync, runId: '43', requestId: 'sync-next' })).success, true);
+  assert.equal(f.listingReloads, 1);
+  assert.equal(
+    f.calls.filter((body) => body.action === 'sync_page').at(-1).items[0].title,
+    'Anzeige 1 Version 2',
   );
 });

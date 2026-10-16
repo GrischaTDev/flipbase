@@ -139,6 +139,35 @@
       ? choices
       : null;
   }
+  function readCategory(doc, expectedPath, expectedLabel) {
+    if (!path(expectedPath) || typeof expectedLabel !== 'string') return null;
+    const expected = expectedLabel.split('>').map((value) => value.trim());
+    const parent = label(doc.getElementById('ad-category-path') ?? { textContent: '' });
+    const controls = Array.from(doc.querySelectorAll('[role="combobox"]')).filter((node) =>
+      /^[a-z][a-z0-9_]*\.art$/u.test(node.id),
+    );
+    if (
+      controls.length !== 1 ||
+      expected.length !== expectedPath.split('/').length ||
+      expected.some((value) => !value)
+    )
+      return null;
+    const control = controls[0];
+    const selected = control.tagName === 'INPUT' ? control.value.trim() : label(control);
+    const hidden = Array.from(doc.querySelectorAll('input[type="hidden"]')).filter(
+      (node) => node.name === 'attributeMap[' + control.id + ']',
+    );
+    const observed = parent + ' > ' + selected;
+    if (hidden.length !== 1 || !selected || observed !== expected.join(' > ')) return null;
+    return {
+      categoryPath: expectedPath,
+      categoryLabel: observed,
+      parentLabel: parent,
+      fieldKey: control.id,
+      fieldLabel: selected,
+      fieldValue: hidden[0].value,
+    };
+  }
   function readBase(doc, expectedAccountId) {
     const identity = root.FlipbaseKleinanzeigenReader?.pageIdentity(
       doc,
@@ -291,6 +320,7 @@
     readSelectOptions,
     readConditionOptions,
     readBase,
+    readCategory,
     readShippingGroups,
     readShippingMethods,
   });

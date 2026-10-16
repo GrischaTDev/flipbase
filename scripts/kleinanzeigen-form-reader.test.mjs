@@ -115,3 +115,18 @@ test('Die Versandbeschreibung erhält den tatsächlich sichtbaren Preis außerha
   ).window.document;
   assert.match(reader.readShippingMethods(doc).choices[0].description, /6,19 €/u);
 });
+
+test('native category must match the observed parent and chosen leaf before accepting a schema', () => {
+  const doc = form();
+  doc.body.insertAdjacentHTML(
+    'beforeend',
+    '<input type="hidden" name="attributeMap[kleidung_herren.art]" value="shirts">',
+  );
+  const expected = 'Mode & Beauty > Herrenbekleidung > Shirts';
+  assert.equal(reader.readCategory(doc, '153/160/shirts', expected).categoryLabel, expected);
+  doc.getElementById('kleidung_herren.art').textContent = 'Pullover';
+  assert.equal(reader.readCategory(doc, '153/160/shirts', expected), null);
+  doc.getElementById('kleidung_herren.art').textContent = 'Shirts';
+  doc.getElementById('ad-category-path').textContent = 'Mode & Beauty > Damenbekleidung';
+  assert.equal(reader.readCategory(doc, '153/160/shirts', expected), null);
+});

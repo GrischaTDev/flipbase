@@ -96,6 +96,10 @@ begin
     grant_generation=public.kleinanzeigen_local_grants.grant_generation+1 returning * into v_grant;
    update public.kleinanzeigen_connections set status='needs_login',quota_used=null,quota_observed_at=null where id=v_connection.id returning * into v_connection;
  end if;
+ -- Erst nach Prüfung einer bestehenden aktiven Installation bestätigte Metadaten übernehmen.
+ if v_connection.display_name is distinct from btrim(p_display_name) or v_connection.account_type is distinct from p_account_type then
+  update public.kleinanzeigen_connections set display_name=btrim(p_display_name),account_type=p_account_type where workspace_id=p_workspace_id and id=v_connection.id returning * into v_connection;
+ end if;
  return jsonb_build_object('workspaceId',p_workspace_id,'connectionId',v_connection.id::text,'externalAccountId',v_connection.external_account_id,
   'displayName',v_connection.display_name,'accountType',v_connection.account_type,'status',v_connection.status,
   'generation',v_grant.grant_generation,'expiresAt',v_grant.expires_at,'canPublish',v_grant.can_publish);

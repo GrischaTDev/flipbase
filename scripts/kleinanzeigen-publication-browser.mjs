@@ -30,6 +30,24 @@ try {
   if (!worker) worker = await context.waitForEvent('serviceworker', { timeout: 15000 });
   for (const sample of [
     {
+      name: 'Abweichende native Art beim Formularöffnen',
+      used: 99,
+      initialWrongCategory: true,
+      state: 'needs_user_action',
+      submits: 0,
+      begins: 0,
+      uploads: 0,
+    },
+    {
+      name: 'Geänderte native Art nach der Bildübertragung',
+      used: 99,
+      categoryAfterUpload: true,
+      state: 'needs_user_action',
+      submits: 0,
+      begins: 0,
+      uploads: 1,
+    },
+    {
       name: 'Unbekannter Gebührenzustand',
       used: 99,
       unknownFee: true,

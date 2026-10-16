@@ -45,7 +45,7 @@ function form(paid) {
 <main><a href="/p-kategorie-aendern.html">Kategorie ändern</a><div id="ad-category-path">Mode &amp; Beauty &gt; Herrenbekleidung</div>
 <div>Bilder (empfohlen)<div><div><div><div><input type="file" multiple accept="image/png,image/jpeg"></div></div></div></div><div id="photos"></div></div>
 <input id="ad-title" maxlength="65"><textarea id="ad-description" maxlength="4000"></textarea><input id="ad-price-amount" maxlength="8"><input id="ad-zip-code" maxlength="5"><input id="ad-city" value="Berlin"><input id="ad-name" value="Privat">
-<label for="kleidung_herren.art">Art</label><button type="button" role="combobox" id="kleidung_herren.art" aria-required="false">Shirts</button>
+<label for="kleidung_herren.art">Art</label><button type="button" role="combobox" id="kleidung_herren.art" aria-required="false">Shirts</button><input type="hidden" name="attributeMap[kleidung_herren.art]" value="shirts">
 <input type="hidden" name="attributeMap[kleidung_herren.condition]" id="condition-value"><button type="button" id="condition-trigger" aria-haspopup="dialog">Zustand auswählenBitte wählen</button>
 <dialog id="conditions" aria-labelledby="modal-conditions-title"><h2 id="modal-conditions-title">Zustand</h2><input type="radio" id="condition-ok" name="condition" value="ok"><label for="condition-ok">Gut</label><button type="button" id="condition-cancel">Abbrechen</button><button type="button" id="condition-confirm">Bestätigen</button></dialog>
 <input type="radio" name="adType" id="ad-type-OFFER" checked><input type="radio" name="shipping" id="ad-shipping-enabled-yes"><input type="radio" name="shipping" id="ad-shipping-enabled-no" checked><button type="button" id="ad-shipping-options">Versandmethoden auswählenHermes Päckchen</button>
@@ -56,7 +56,7 @@ function form(paid) {
 <script>
 const byId=id=>document.getElementById(id);byId('condition-trigger').onclick=()=>byId('conditions').showModal();byId('condition-cancel').onclick=()=>byId('conditions').close();byId('condition-confirm').onclick=()=>{byId('condition-value').value=document.querySelector('input[name="condition"]:checked')?.value??'';byId('condition-trigger').textContent='Zustand auswählenGut';byId('conditions').close();};
 let group='SMALL';const shipping=byId('shipping-dialog');function methods(){byId('shipping-content').innerHTML='<div><span><input id="method-one" type="checkbox" value="HERMES_001" checked aria-describedby="method-description"></span><label for="method-one">Hermes Päckchen</label><p id="method-description">3,99 €</p></div><button type="button" id="shipping-other">Andere Versandmethoden</button><button type="button" id="shipping-back">Zurück</button><button type="button" id="shipping-close">Schließen</button>';byId('shipping-other').onclick=sizes;byId('shipping-back').onclick=sizes;byId('shipping-close').onclick=()=>shipping.close();}function sizes(){byId('shipping-content').innerHTML=['SMALL','MEDIUM','LARGE'].map(value=>'<div><input type="radio" name="package" id="size-'+value+'" value="'+value+'" '+(value===group?'checked':'')+'><label for="size-'+value+'">'+value+'</label></div>').join('')+'<button type="button" id="shipping-next">Weiter</button>';byId('shipping-next').onclick=()=>{group=document.querySelector('input[name="package"]:checked').value;methods();};}byId('ad-shipping-options').onclick=()=>{methods();shipping.showModal();};
-document.querySelector('input[type="file"]').onchange=async event=>{for(const file of event.target.files){const response=await fetch('/fixture-upload',{method:'POST',body:await file.arrayBuffer()});const result=await response.json();const image=document.createElement('img');image.src=result.url;image.alt=file.name;byId('photos').append(image);}};
+document.querySelector('input[type="file"]').onchange=async event=>{for(const file of event.target.files){const response=await fetch('/fixture-upload',{method:'POST',body:await file.arrayBuffer()});const result=await response.json();if(result.changedCategory){byId('kleidung_herren.art').textContent='Pullover';document.querySelector('input[name="attributeMap[kleidung_herren.art]"]').value='pullover';}const image=document.createElement('img');image.src=result.url;image.alt=file.name;byId('photos').append(image);}};
 byId('publish').onclick=async()=>{const response=await fetch('/fixture-submit',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({title:byId('ad-title').value,description:byId('ad-description').value,price:byId('ad-price-amount').value,postalCode:byId('ad-zip-code').value,condition:byId('condition-value').value,images:byId('photos').querySelectorAll('img').length,buyNow:byId('ad-buy-now-true').checked,paid:[...document.querySelectorAll('input[name="articles"]')].some(node=>node.checked)})});if(response.ok)location.href='/p-anzeige-aufgeben-schritt3.html';};
 </script>`);
 }
@@ -202,10 +202,10 @@ export function createKleinanzeigenPublicationFixture() {
         });
       }
       if (body.action === 'job_check') {
-        version++;
+        if (state === 'claimed') version++;
         return route.fulfill({
           json: {
-            active: true,
+            active: state === 'claimed' || state === 'writing',
             generation,
             version,
             leaseUntil: new Date(Date.now() + 120000).toISOString(),
@@ -286,12 +286,17 @@ export function createKleinanzeigenPublicationFixture() {
     if (url.pathname === '/p-anzeige-aufgeben-schritt2.html')
       return route.fulfill({
         contentType: 'text/html',
-        body: form(options.paid === true).replace(
-          '<h3>Kostenpflichtige Optionen</h3>',
-          options.unknownFee
-            ? '<p>Unbekannter Zahlungsschritt</p><h3>Kostenpflichtige Optionen</h3>'
-            : '<h3>Kostenpflichtige Optionen</h3>',
-        ),
+        body: form(options.paid === true)
+          .replace(
+            '>Shirts</button>',
+            options.initialWrongCategory ? '>Pullover</button>' : '>Shirts</button>',
+          )
+          .replace(
+            '<h3>Kostenpflichtige Optionen</h3>',
+            options.unknownFee
+              ? '<p>Unbekannter Zahlungsschritt</p><h3>Kostenpflichtige Optionen</h3>'
+              : '<h3>Kostenpflichtige Optionen</h3>',
+          ),
       });
     if (url.pathname === '/fixture-upload') {
       assert.equal(request.method(), 'POST');
@@ -301,7 +306,12 @@ export function createKleinanzeigenPublicationFixture() {
       );
       uploads++;
       if (options.externalAfterUpload) used = 100;
-      return route.fulfill({ json: { url: 'https://www.kleinanzeigen.de/fixture-image/one.png' } });
+      return route.fulfill({
+        json: {
+          url: 'https://www.kleinanzeigen.de/fixture-image/one.png',
+          changedCategory: options.categoryAfterUpload === true,
+        },
+      });
     }
     if (url.pathname === '/fixture-image/one.png')
       return route.fulfill({ contentType: 'image/png', body: bytes });
