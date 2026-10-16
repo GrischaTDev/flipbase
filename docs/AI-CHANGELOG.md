@@ -1,5 +1,14 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-16 - Juna - Inseratsalter zur Integration freigeben
+
+**Freigabe:** Der Nutzer hat PR-Erstellung, Merge nach erfolgreichen Pflichtprüfungen
+sowie das anschließende Aufräumen des eigenen Zweigs und Worktrees bestätigt.
+Der Fehlerzweig enthält den aktuellen Stand von `origin/master`; der Abgleich
+vor dem ersten Push erfordert keine weitere Integration. Die zuvor dokumentierten
+lokalen Prüfungen bleiben gültig. Linux-, Image- und alle weiteren ausgewählten
+CI-Pflichtprüfungen müssen vor dem Merge erfolgreich sein.
+
 ## 2026-10-16 - Juna - Inseratsalter einheitlich in Tagen anzeigen
 
 **Auftrag und Entscheidung:** Inseratslaufzeiten grundsätzlich in Tagen statt
