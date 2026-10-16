@@ -1,0 +1,209 @@
+<div class="space-y-5">
+  @if (error(); as message) {
+    <app-notice-banner announcement="alert">{{ message }}</app-notice-banner>
+  }
+  @if (notice(); as message) {
+    <app-notice-banner>{{ message }}</app-notice-banner>
+  }
+  <div class="flex min-w-0 flex-wrap items-center justify-between gap-3">
+    <h2 class="text-base font-semibold text-fb-text-primary">Deine Kleinanzeigen-Konten</h2>
+    <div class="flex flex-wrap gap-2">
+      <app-button [icon]="refreshIcon" [disabled]="busy() || loading()" (clicked)="reload()"
+        >Ansicht aktualisieren</app-button
+      ><app-button [disabled]="busy()" (clicked)="extension.checkInstallation()"
+        >Erweiterung prüfen</app-button
+      >
+    </div>
+  </div>
+  @if (loading()) {
+    <p class="flex items-center gap-2 text-sm text-fb-text-secondary" role="status">
+      <app-loading-indicator />Konten werden geladen …
+    </p>
+  }
+  @if (!loading() && !canManage() && !error()) {
+    <app-notice-banner
+      >Du brauchst Verwaltungszugriff auf die Marktplätze dieses Arbeitsbereichs.</app-notice-banner
+    >
+  }
+  @if (canManage()) {
+    <app-card
+      title="Browserprofil verbinden"
+      subtitle="Jedes Browserprofil verbindet genau ein angemeldetes Kleinanzeigen-Konto."
+    >
+      @if (extension.checking()) {
+        <p class="text-sm text-fb-text-secondary" role="status">Erweiterung wird geprüft …</p>
+      }
+      @if (!extension.capabilities().accounts) {
+        <app-notice-banner class="mb-4"
+          >Die Kleinanzeigen-Funktion der Flipbase-Erweiterung ist in diesem Browserprofil noch
+          nicht erreichbar. Aktualisiere die Erweiterung und lade Flipbase neu.</app-notice-banner
+        >
+      }
+      @if (localBinding(); as binding) {
+        <p class="text-sm text-fb-text-primary" data-testid="kleinanzeigen-local-binding">
+          Dieses Browserprofil: <strong>{{ binding.displayName }}</strong>
+        </p>
+        <p class="mt-1 text-xs text-fb-text-secondary">
+          Freigabe bis {{ binding.expiresAt | date: 'dd.MM.yyyy, HH:mm' }}. Zum Ändern der Freigabe
+          trennst Du die Verbindung und verbindest sie erneut.
+        </p>
+      } @else {
+        <p class="mb-3 text-sm text-fb-text-secondary">
+          Melde Dich bei Kleinanzeigen im gewünschten Konto an. Prüfe den erkannten Kontonamen im
+          Bestätigungsfenster der Erweiterung.
+        </p>
+        <app-custom-checkbox
+          presentation="row"
+          [formControl]="publishPermission"
+          [disabled]="busy()"
+          label="Inserate über dieses Browserprofil veröffentlichen"
+        />
+        <p class="mt-2 text-xs text-fb-text-secondary">
+          Optional: Veröffentlichen nach Deiner Bestätigung in Flipbase. Bei Gebühren oder
+          unbekanntem Kontingent wird gestoppt.
+        </p>
+      }
+      @if (profileIssue(); as issue) {
+        <p class="mt-3 text-sm text-fb-text-secondary" role="status">{{ issue }}</p>
+      }
+      <app-button
+        class="mt-4"
+        variant="primary"
+        size="touch"
+        [icon]="linkIcon"
+        [loading]="busy()"
+        [disabled]="!extension.capabilities().accounts || localBinding() !== null"
+        (clicked)="connect()"
+        >Angemeldetes Konto verbinden</app-button
+      >
+    </app-card>
+    @if (!accounts().length && !loading()) {
+      <app-card
+        ><p class="text-sm text-fb-text-secondary">
+          Noch kein Kleinanzeigen-Konto verbunden. Verbinde zuerst das gewünschte Konto in diesem
+          Browserprofil.
+        </p></app-card
+      >
+    }
+    <div class="grid min-w-0 gap-4 lg:grid-cols-2">
+      @for (account of accounts(); track account.connectionId) {
+        <app-card>
+          <article
+            class="min-w-0 space-y-4"
+            [attr.aria-label]="'Kleinanzeigen-Konto ' + account.displayName"
+          >
+            <div class="flex flex-wrap items-start justify-between gap-3">
+              <div class="min-w-0">
+                <h3 class="break-words text-sm font-semibold text-fb-text-primary">
+                  {{ account.displayName }}
+                </h3>
+                <p class="mt-1 text-xs text-fb-text-secondary">{{ accountTypeLabel(account) }}</p>
+              </div>
+              <app-badge [tone]="account.localGrant?.active ? 'success' : 'neutral'">{{
+                accountStatusLabel(account)
+              }}</app-badge>
+            </div>
+            <div class="space-y-1 text-sm text-fb-text-secondary">
+              <p>
+                @if (account.listingCount !== null) {
+                  <strong class="text-fb-text-primary"
+                    >{{ account.listingCount }} gespeicherte Inserate</strong
+                  >
+                } @else {
+                  Inseratzahl unbekannt
+                }
+              </p>
+              <p>
+                @if (account.lastSyncedAt) {
+                  Letzter vollständiger Abgleich:
+                  {{ account.lastSyncedAt | date: 'dd.MM.yyyy, HH:mm' }}
+                } @else {
+                  Noch kein vollständiger Abgleich bestätigt
+                }
+              </p>
+            </div>
+            @if (account.accountType === 'private') {
+              @if (account.quota; as quota) {
+                <div class="space-y-1">
+                  <p class="text-sm text-fb-text-primary">
+                    {{ quota.used }} von 100 Anzeigen in 30 Tagen beobachtet
+                  </p>
+                  <p class="text-xs text-fb-text-secondary">
+                    Kontoeinstellungen, geprüft am
+                    {{ quota.observedAt | date: 'dd.MM.yyyy, HH:mm' }}. Vor dem Inserieren wird
+                    erneut geprüft.
+                  </p>
+                  @if (quota.used >= 100) {
+                    <app-badge tone="critical">Kostenloses Kontingent ausgeschöpft</app-badge>
+                  }
+                </div>
+              } @else {
+                <p class="text-sm text-fb-text-secondary">
+                  Kontingent noch unbekannt. Zum Prüfen die Inserate abgleichen.
+                </p>
+              }
+            } @else {
+              <p class="text-sm text-fb-text-secondary">
+                Für diesen Kontotyp ist das kostenlose Privatkontingent nicht bestätigt.
+              </p>
+            }
+            @if (account.sync?.state === 'failed') {
+              <app-notice-banner
+                >Der letzte Abruf wurde unterbrochen. Der zuletzt bestätigte Bestand bleibt
+                erhalten.</app-notice-banner
+              >
+            }
+            @if (account.sync?.state === 'reading' || account.sync?.state === 'queued') {
+              <p class="text-sm text-fb-text-secondary" role="status">
+                Abgleich angefordert. Bereits geprüfte Seiten: {{ account.sync.pageCount }}.
+              </p>
+            }
+            @if (!isBound(account)) {
+              <p class="text-xs text-fb-text-secondary">
+                Öffne zum Abgleichen das zugehörige Browserprofil und prüfe die Erweiterung.
+              </p>
+            }
+            <div class="flex flex-wrap gap-2">
+              <app-button
+                size="touch"
+                [icon]="refreshIcon"
+                [disabled]="!canSync(account)"
+                [loading]="busy() && isBound(account)"
+                (clicked)="synchronize(account)"
+                >Inserate abgleichen</app-button
+              ><app-button
+                variant="destructive"
+                size="touch"
+                [icon]="unplugIcon"
+                [disabled]="busy()"
+                (clicked)="disconnecting.set(account)"
+                >Verbindung trennen</app-button
+              >
+            </div>
+          </article>
+        </app-card>
+      }
+    </div>
+  }
+</div>
+@if (disconnecting(); as account) {
+  <app-modal-shell
+    title="Kontoverbindung trennen"
+    size="sm"
+    (closed)="!busy() && disconnecting.set(null)"
+    ><p class="text-sm text-fb-text-primary">
+      Möchtest Du die lokale Freigabe für <strong>{{ account.displayName }}</strong> widerrufen?
+      Deine gespeicherten Inserate bleiben erhalten.
+    </p>
+    <div modal-footer class="flex flex-wrap justify-end gap-2">
+      <app-button [disabled]="busy()" (clicked)="disconnecting.set(null)">Abbrechen</app-button
+      ><app-button
+        variant="destructive"
+        [icon]="unplugIcon"
+        [loading]="busy()"
+        (clicked)="confirmDisconnect()"
+        >Verbindung trennen</app-button
+      >
+    </div></app-modal-shell
+  >
+}

@@ -415,6 +415,52 @@ describe('ListingEditorComponent', () => {
     expect(load).toHaveBeenCalledWith('workspace-a');
   });
 
+  it('öffnet einen Vinted-Entwurf ohne Lagerartikel mit gespeicherten Bildern', async () => {
+    const { editor, getById } = createEditor();
+    const row: ListingRow = {
+      listing: {
+        id: 'transfer-draft',
+        workspaceId: 'workspace-a',
+        platform: 'kleinanzeigen',
+        status: 'prepared',
+        endReason: null,
+        content: {
+          title: 'Vinted-Jacke',
+          description: 'Vollständig übernommen',
+          price: 12,
+          priceType: 'FIXED',
+          shippingType: 'pickup',
+          shippingPrice: null,
+          postalCode: null,
+        },
+        listedCount: 0,
+        lastListedAt: null,
+        onlineSince: null,
+        endedAt: null,
+        createdAt: '2026-10-16T00:00:00Z',
+        updatedAt: '2026-10-16T00:00:00Z',
+        sourceReference: { platform: 'vinted' },
+        targetConnectionId: '12',
+        revision: 1,
+        imageSelectionSaved: true,
+      },
+      item: null,
+      primaryImagePath: 'listings/workspace-a/transfer-draft/photo.jpg',
+    };
+    getById.mockReturnValue(row);
+    editor.listingId.set('transfer-draft');
+    TestBed.flushEffects();
+    await Promise.resolve();
+    expect(editor.form.controls.title.value).toBe('Vinted-Jacke');
+    expect(editor.form.controls.inventoryItemId.disabled).toBe(true);
+    expect(editor.selectedItem()).toBeNull();
+    expect(editor.transferDraft()).toBe(true);
+    expect(TestBed.inject(ListingImagesService).load).toHaveBeenCalledWith(
+      'transfer-draft',
+      null,
+      true,
+    );
+  });
   it('does not report an untouched create form as unsaved', () => {
     const { editor } = createEditor();
 

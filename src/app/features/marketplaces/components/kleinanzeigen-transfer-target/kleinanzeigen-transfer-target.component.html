@@ -1,0 +1,49 @@
+<section
+  class="space-y-4 rounded-lg border border-fb-border p-4"
+  aria-label="Kleinanzeigen-Zielangaben"
+>
+  <h2 class="text-sm font-semibold text-fb-text-primary">
+    Kleinanzeigen · {{ targetName() || 'Zielkonto prüfen' }}
+  </h2>
+  @if (error(); as message) {
+    <app-notice-banner announcement="alert">{{ message }}</app-notice-banner>
+  }
+  <p class="text-sm text-fb-text-secondary">
+    {{ label() || 'Wähle die passende Kleinanzeigen-Kategorie.' }}
+  </p>
+  <app-button
+    [loading]="busy()"
+    [disabled]="busy() || !scope() || !extension.formSchemaAvailable()"
+    (clicked)="browse('')"
+    >Kategorie auswählen und prüfen</app-button
+  >
+  @if (choices().length) {
+    <app-custom-select
+      ariaLabel="Kleinanzeigen-Unterkategorie"
+      [options]="categoryOptions()"
+      [disabled]="busy()"
+      (valueChange)="browse($event || '')"
+    />
+  }
+  @if (schema(); as currentSchema) {
+    <app-kleinanzeigen-listing-fields
+      [schema]="currentSchema"
+      [attributes]="attributes"
+      [shippingEnabled]="content().shippingType === 'both'"
+      [shippingGroup]="shippingGroup"
+      [selectedGroup]="selectedGroup()"
+      [selectedMethods]="methods()"
+      (methodsChanged)="chooseMethods($event)"
+    />
+  }
+  <app-kleinanzeigen-publication-panel
+    [scope]="publicationScope()"
+    [publicationAllowed]="publicationAllowed()"
+    [draftId]="listing().id"
+    [revision]="listing().revision ?? 1"
+    [published]="listing().status === 'online'"
+    [unsaved]="unsaved()"
+    [issues]="publicationIssues()"
+    (confirmed)="confirmed.emit()"
+  />
+</section>

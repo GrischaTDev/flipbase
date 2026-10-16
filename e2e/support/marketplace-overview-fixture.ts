@@ -6,6 +6,16 @@ export async function mockMarketplaceOverview(
   options: { vintedFailure?: boolean; multipleWorkspaces?: boolean; deniedVinted?: boolean } = {},
 ) {
   const calls = await mockMarketplace(page);
+  await page.route('**/functions/v1/kleinanzeigen-account', (route) => {
+    const body = route.request().postDataJSON();
+    return route.fulfill({
+      json:
+        body.action === 'read_accounts'
+          ? { workspaceId: body.workspaceId, canManage: true, accounts: [] }
+          : { error: 'unexpected_action' },
+      status: body.action === 'read_accounts' ? 200 : 400,
+    });
+  });
   if (options.deniedVinted)
     await page.route('**/rest/v1/rpc/marketplace_can_manage', (route) =>
       route.fulfill({ json: false }),

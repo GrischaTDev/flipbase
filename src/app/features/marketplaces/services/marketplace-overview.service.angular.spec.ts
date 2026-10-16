@@ -1,3 +1,4 @@
+import { KleinanzeigenAccountService } from './kleinanzeigen-account.service';
 import '@angular/compiler';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -29,7 +30,10 @@ describe('Zentrale Marktplatzdaten', () => {
     readOverviewPublications: vi.fn(),
   };
   const ebay = { loadStatus: vi.fn(), loadListings: vi.fn() };
+  const kleinanzeigen = { readAccounts: vi.fn(), readPage: vi.fn() };
   beforeEach(() => {
+    kleinanzeigen.readAccounts.mockReset().mockResolvedValue({ canManage: false, accounts: [] });
+    kleinanzeigen.readPage.mockReset();
     for (const fn of Object.values(api)) fn.mockReset();
     for (const fn of Object.values(ebay)) fn.mockReset();
     api.canManage.mockResolvedValue(false);
@@ -61,6 +65,7 @@ describe('Zentrale Marktplatzdaten', () => {
     TestBed.configureTestingModule({
       providers: [
         MarketplaceOverviewService,
+        { provide: KleinanzeigenAccountService, useValue: kleinanzeigen },
         { provide: MarketplaceApiService, useValue: api },
         { provide: EbayAccountApiService, useValue: ebay },
       ],
@@ -134,5 +139,40 @@ describe('Zentrale Marktplatzdaten', () => {
     expect(accounts).toHaveLength(1);
     expect(accounts[0].listingCount).toBeNull();
     expect(accounts[0].error).toBeTruthy();
+  });
+  it('delegiert Kleinanzeigen-Konten und Inserate getrennt an deren eigenen Dienst', async () => {
+    const row = {
+      workspaceId: 'ws-a',
+      connectionId: '9007199254740993',
+      displayName: 'KA Testkonto',
+      status: 'connected',
+      listingCount: 17,
+      activeCount: null,
+      lastSyncedAt: '2026-10-16T06:00:00Z',
+      sync: null,
+    };
+    kleinanzeigen.readAccounts.mockResolvedValue({ canManage: true, accounts: [row] });
+    const service = TestBed.inject(MarketplaceOverviewService);
+    const accounts = await service.loadAccounts('ws-a', 'kleinanzeigen');
+    expect(accounts[0]).toMatchObject({
+      platform: 'kleinanzeigen',
+      connectionId: row.connectionId,
+      listingCount: 17,
+      activeCount: null,
+      completeness: 'complete',
+    });
+    kleinanzeigen.readPage.mockResolvedValue({
+      items: [],
+      total: 17,
+      nextCursor: null,
+      completeness: 'complete',
+    });
+    await service.loadListings(accounts[0], { state: 'all', search: '', limit: 25 });
+    expect(kleinanzeigen.readPage).toHaveBeenCalledWith(accounts[0], {
+      state: 'all',
+      search: '',
+      limit: 25,
+    });
+    expect(api.listConnections).not.toHaveBeenCalled();
   });
 });

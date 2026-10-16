@@ -198,7 +198,7 @@ describe('ListingOverviewComponent', () => {
     const warning = vi.fn();
     const buildExtensionPayload = vi.fn(async () => ({
       payload: {
-        itemId: rowsValue[0]!.item.id,
+        itemId: rowsValue[0]!.item?.id ?? rowsValue[0]!.listing.id,
         title: rowsValue[0]!.listing.content.title,
         description: '',
         price: 79,

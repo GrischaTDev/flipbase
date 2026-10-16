@@ -159,6 +159,86 @@ describe('ListingService', () => {
     };
   }
 
+  it('speichert bewusst geänderte Zielfelder mit der aktuellen Entwurfsrevision', async () => {
+    const row = {
+      ...listing,
+      inventory_item_id: null,
+      target_connection_id: '9',
+      source_reference: { platform: 'vinted' },
+      revision: 4,
+      category_id: 'old',
+      category_fields: { old: 'value' },
+      schema_revision: 'a'.repeat(64),
+    };
+    const from = vi.fn((table: string) =>
+      resolvedQuery(Promise.resolve({ data: table === 'listings' ? [row] : [], error: null })),
+    );
+    const rpc = vi.fn().mockResolvedValue({ data: { ...row, revision: 5 }, error: null });
+    const { service } = setup({ from, rpc });
+    await service.load('workspace-a');
+    await service.updateContent(row.id, {
+      ...content,
+      categoryId: '153/160/shirts',
+      categoryFields: { condition: 'ok' },
+      schemaRevision: 'b'.repeat(64),
+    });
+    expect(rpc).toHaveBeenCalledWith(
+      'kleinanzeigen_update_draft',
+      expect.objectContaining({
+        p_expected_revision: 4,
+        p_content: expect.objectContaining({
+          categoryId: '153/160/shirts',
+          categoryFields: { condition: 'ok' },
+          schemaRevision: 'b'.repeat(64),
+        }),
+      }),
+    );
+  });
+  it('behält einen verifizierten Vinted-Entwurf ohne Lagerartikel einschließlich eigener Bilder', async () => {
+    const sourceListing = {
+      ...listing,
+      inventory_item_id: null,
+      catalog_product_id: null,
+      target_connection_id: '9007199254740993',
+      source_reference: {
+        platform: 'vinted',
+        workspaceId: 'workspace-a',
+        connectionId: 'source-account',
+        externalId: '123',
+        entryId: 'source-entry',
+        fingerprint: 'a'.repeat(64),
+      },
+      revision: 3,
+      image_selection_saved: true,
+    };
+    const { service } = setup({
+      from: vi.fn((table: string) =>
+        resolvedQuery(
+          Promise.resolve({
+            data:
+              table === 'listings'
+                ? [sourceListing]
+                : table === 'listing_images'
+                  ? [
+                      {
+                        listing_id: listing.id,
+                        storage_path: 'listings/workspace-a/listing-1/own.jpg',
+                        sort_order: 0,
+                      },
+                    ]
+                  : [],
+            error: null,
+          }),
+        ),
+      ),
+    });
+    await service.load('workspace-a');
+    expect(service.rows()).toHaveLength(1);
+    expect(service.rows()[0]?.item).toBeNull();
+    expect(service.rows()[0]?.primaryImagePath).toBe('listings/workspace-a/listing-1/own.jpg');
+    expect(service.rows()[0]?.listing.targetConnectionId).toBe('9007199254740993');
+    expect(service.rows()[0]?.listing.revision).toBe(3);
+  });
   it('maps listings and inventory media into rows ordered newest first', async () => {
     const listingQuery = resolvedQuery(Promise.resolve({ data: [listing], error: null }));
     const itemQuery = resolvedQuery(Promise.resolve({ data: [item], error: null }));

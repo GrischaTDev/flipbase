@@ -8,6 +8,7 @@
     'SYNC',
     'INBOX_SYNC',
     'INBOX_DETAIL',
+    'SOURCE_DETAILS',
     'MESSAGES_SEND',
     'FAVORITES_SYNC',
     'FAVORITES_SEND',
@@ -141,10 +142,14 @@
     const payloadKeys =
       action === 'BIND'
         ? ['workspaceId', 'connectionId', 'externalAccountId', 'apiUrl', 'expiresAt', 'tokenHash']
-        : action === 'INBOX_DETAIL'
-          ? ['workspaceId', 'connectionId', 'conversationId']
-          : ['workspaceId', 'connectionId'];
+        : action === 'SOURCE_DETAILS'
+          ? ['workspaceId', 'connectionId', 'entryId', 'externalId']
+          : action === 'INBOX_DETAIL'
+            ? ['workspaceId', 'connectionId', 'conversationId']
+            : ['workspaceId', 'connectionId'];
     if (Object.keys(payload).some((key) => !payloadKeys.includes(key))) return null;
+    if (action === 'SOURCE_DETAILS' && (!uuid(payload.entryId) || !identifier(payload.externalId)))
+      return null;
     if (action === 'INBOX_DETAIL' && !uuid(payload.conversationId)) return null;
     if (
       action === 'BIND' &&
@@ -1108,6 +1113,62 @@
         if (Date.parse(binding.expiresAt) <= adapter.now())
           throw new Error('Die lokale Verbindung ist abgelaufen. Verbinde das Konto erneut.');
         const currentGrant = await heartbeat(binding, installation.secret);
+        if (action === 'SOURCE_DETAILS') {
+          const scope = { workspaceId: binding.workspaceId, connectionId: binding.connectionId };
+          const state = await adapter.edge(binding, installation.secret, {
+            action: 'source_details_state',
+            ...scope,
+            entryId: payload.entryId,
+            externalId: payload.externalId,
+          });
+          const matches = (value) =>
+            record(value) &&
+            value.ok === true &&
+            value.workspaceId === scope.workspaceId &&
+            value.connectionId === scope.connectionId &&
+            value.entryId === payload.entryId &&
+            value.externalId === payload.externalId &&
+            value.externalAccountId === binding.externalAccountId &&
+            Number.isSafeInteger(value.generation) &&
+            value.generation > 0 &&
+            Date.parse(value.expiresAt) === Date.parse(binding.expiresAt);
+          if (!matches(state)) throw new Error('Die lokale Quellfreigabe wurde nicht bestätigt.');
+          const read = await adapter.readTransferSource(
+            installation.tabId,
+            binding.externalAccountId,
+            payload.externalId,
+          );
+          if (
+            !record(read?.source) ||
+            read.source.externalAccountId !== binding.externalAccountId ||
+            read.source.externalId !== payload.externalId
+          )
+            throw identityChangedError();
+          await heartbeat(binding, installation.secret);
+          const imported = await adapter.edge(binding, installation.secret, {
+            action: 'source_details_import',
+            ...scope,
+            entryId: payload.entryId,
+            externalId: payload.externalId,
+            generation: state.generation,
+            source: read.source,
+          });
+          if (
+            !matches(imported) ||
+            imported.generation !== state.generation ||
+            typeof imported.fingerprint !== 'string' ||
+            !/^[a-f0-9]{64}$/u.test(imported.fingerprint)
+          )
+            throw new Error('Die vollständige Quelle konnte nicht bestätigt werden.');
+          installation.tabId = read.tabId;
+          await adapter.save(installation);
+          return {
+            ...scope,
+            entryId: payload.entryId,
+            externalId: payload.externalId,
+            fingerprint: imported.fingerprint,
+          };
+        }
         if (action === 'NEGOTIATIONS_SEND') {
           if (currentGrant.messagesSend !== true || currentGrant.messagesRead !== true)
             return { skipped: true };

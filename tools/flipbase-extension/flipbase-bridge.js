@@ -8,37 +8,85 @@
     return;
   }
 
+  const kleinanzeigen = globalThis.FlipbaseKleinanzeigenLocal;
+  let kleinanzeigenAvailable = false;
+  let kleinanzeigenSyncAvailable = false;
+  let kleinanzeigenPublishAvailable = false;
+  let kleinanzeigenQuotaAvailable = false;
+  let kleinanzeigenFormSchemaAvailable = false;
+  let kleinanzeigenAccount;
   let localAccount;
   let readiness;
   let backgroundReachable = false;
+  let vintedSourceDetailsAvailable = false;
   function announceExtension() {
     if (document.documentElement) {
-      document.documentElement.dataset.flipbaseExtensionInstalled = String(backgroundReachable);
+      document.documentElement.dataset.flipbaseExtensionInstalled = String(
+        backgroundReachable || kleinanzeigenAvailable,
+      );
     }
     window.postMessage(
       {
         type: 'FLIPBASE_EXTENSION_STATUS',
-        installed: backgroundReachable,
+        installed: backgroundReachable || kleinanzeigenAvailable,
         backgroundReachable,
-        version: '1.7.0',
+        version: '1.10.0',
         vintedLocal: backgroundReachable,
+        vintedSourceDetails: vintedSourceDetailsAvailable,
+        kleinanzeigenQuota: kleinanzeigenQuotaAvailable,
+        kleinanzeigenFormSchema: kleinanzeigenFormSchemaAvailable,
+        kleinanzeigenCapabilities: {
+          accounts: kleinanzeigenAvailable,
+          sync: kleinanzeigenSyncAvailable,
+          publish: kleinanzeigenPublishAvailable,
+        },
+        ...(kleinanzeigenAccount !== undefined ? { kleinanzeigenAccount } : {}),
         ...(localAccount !== undefined ? { localAccount } : {}),
         ...(readiness !== undefined ? { readiness } : {}),
       },
       window.location.origin,
     );
-    if (backgroundReachable)
+    if (backgroundReachable || kleinanzeigenAvailable)
       window.dispatchEvent(
         new CustomEvent('flipbase:extension-ready', {
-          detail: { version: '1.7.0', ready: true },
+          detail: { version: '1.10.0', ready: true },
         }),
       );
   }
 
   function refreshLocalAccount() {
+    if (kleinanzeigen) {
+      try {
+        chrome.runtime.sendMessage(
+          { type: 'FLIPBASE_KLEINANZEIGEN_STATUS', requestId: 'ka-readiness' },
+          (response) => {
+            kleinanzeigenAvailable = !chrome.runtime.lastError && response?.success === true;
+            kleinanzeigenSyncAvailable =
+              kleinanzeigenAvailable && response?.capabilities?.sync === true;
+            kleinanzeigenPublishAvailable =
+              kleinanzeigenAvailable && response?.capabilities?.publish === true;
+            kleinanzeigenQuotaAvailable = kleinanzeigenAvailable && response?.quota === true;
+            kleinanzeigenFormSchemaAvailable =
+              kleinanzeigenAvailable && response?.formSchema === true;
+            kleinanzeigenAccount = kleinanzeigenAvailable ? (response.result ?? null) : undefined;
+            announceExtension();
+          },
+        );
+      } catch {
+        kleinanzeigenAvailable = false;
+        kleinanzeigenSyncAvailable = false;
+        kleinanzeigenPublishAvailable = false;
+        kleinanzeigenFormSchemaAvailable = false;
+        kleinanzeigenQuotaAvailable = false;
+        kleinanzeigenAccount = undefined;
+        announceExtension();
+      }
+    }
     try {
       chrome.runtime.sendMessage({ type: 'VINTED_LOCAL_ACCOUNT_STATUS' }, (response) => {
         backgroundReachable = !chrome.runtime.lastError && response?.success === true;
+        vintedSourceDetailsAvailable =
+          backgroundReachable && response?.capabilities?.sourceDetails === true;
         localAccount = backgroundReachable ? (response.result?.localAccount ?? null) : undefined;
         readiness = backgroundReachable ? response.result?.readiness : undefined;
         announceExtension();
@@ -46,6 +94,7 @@
     } catch {
       // Ein nach dem Erweiterungsreload ungültiger Kontext bestätigt keine Erreichbarkeit.
       backgroundReachable = false;
+      vintedSourceDetailsAvailable = false;
       localAccount = undefined;
       readiness = undefined;
       announceExtension();
@@ -89,6 +138,33 @@
                   error:
                     response?.error ??
                     'Die Flipbase-Erweiterung ist nicht erreichbar. Lade die Seite neu.',
+                }),
+          },
+          window.location.origin,
+        );
+      });
+      return;
+    }
+
+    const kleinanzeigenRequest = kleinanzeigen?.parseRequest(data, event.origin);
+    if (kleinanzeigenRequest) {
+      const requestKey = 'kleinanzeigen:' + kleinanzeigenRequest.requestId;
+      if (seenRequests.has(requestKey)) return;
+      seenRequests.add(requestKey);
+      if (seenRequests.size > 128) seenRequests.delete(seenRequests.values().next().value);
+      chrome.runtime.sendMessage(data, (response) => {
+        const runtimeError = chrome.runtime.lastError;
+        window.postMessage(
+          {
+            type: 'FLIPBASE_KLEINANZEIGEN_RESULT',
+            requestId: kleinanzeigenRequest.requestId,
+            success: !runtimeError && response?.success === true,
+            ...(!runtimeError && response?.success === true
+              ? { result: response.result }
+              : {
+                  error:
+                    response?.error ??
+                    'Die Kleinanzeigen-Erweiterung ist nicht erreichbar. Lade die Seite neu.',
                 }),
           },
           window.location.origin,

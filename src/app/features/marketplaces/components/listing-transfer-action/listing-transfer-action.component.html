@@ -1,0 +1,17 @@
+@if (available()) {
+  <app-button
+    [variant]="compact() ? 'table-action' : 'secondary'"
+    size="slim"
+    [ariaLabel]="title() + ' auf Kleinanzeigen inserieren'"
+    [ariaHaspopup]="'dialog'"
+    (clicked)="open.set(true)"
+    >Inserieren auf …</app-button
+  >
+  @if (open()) {
+    <app-listing-transfer-dialog
+      [source]="reference()"
+      (published)="published.emit($event)"
+      (closed)="open.set(false)"
+    />
+  }
+}

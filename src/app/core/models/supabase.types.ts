@@ -7,6 +7,31 @@ export type Json =
   | Json[]
 
 export type Database = {
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       activity_logs: {
@@ -1963,6 +1988,416 @@ export type Database = {
           },
         ]
       }
+      kleinanzeigen_connections: {
+        Row: {
+          account_type: string
+          created_at: string
+          created_by: string
+          display_name: string
+          external_account_id: string
+          id: number
+          last_synced_at: string | null
+          quota_observed_at: string | null
+          quota_used: number | null
+          status: string
+          workspace_id: string
+        }
+        Insert: {
+          account_type: string
+          created_at?: string
+          created_by: string
+          display_name: string
+          external_account_id: string
+          id?: never
+          last_synced_at?: string | null
+          quota_observed_at?: string | null
+          quota_used?: number | null
+          status?: string
+          workspace_id: string
+        }
+        Update: {
+          account_type?: string
+          created_at?: string
+          created_by?: string
+          display_name?: string
+          external_account_id?: string
+          id?: never
+          last_synced_at?: string | null
+          quota_observed_at?: string | null
+          quota_used?: number | null
+          status?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kleinanzeigen_connections_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kleinanzeigen_form_schemas: {
+        Row: {
+          category_path: string
+          connection_id: number
+          grant_generation: number
+          id: number
+          observed_at: string
+          provider_schema: Json
+          schema_revision: string
+          workspace_id: string
+        }
+        Insert: {
+          category_path: string
+          connection_id: number
+          grant_generation: number
+          id?: never
+          observed_at: string
+          provider_schema: Json
+          schema_revision: string
+          workspace_id: string
+        }
+        Update: {
+          category_path?: string
+          connection_id?: number
+          grant_generation?: number
+          id?: never
+          observed_at?: string
+          provider_schema?: Json
+          schema_revision?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kleinanzeigen_form_schemas_workspace_id_connection_id_fkey"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: false
+            referencedRelation: "kleinanzeigen_connections"
+            referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
+      kleinanzeigen_local_grants: {
+        Row: {
+          approved_by: string
+          can_publish: boolean
+          connection_id: number
+          expires_at: string
+          grant_generation: number
+          id: number
+          installation_id: string
+          last_seen_at: string | null
+          revoked_at: string | null
+          token_hash: string
+          workspace_id: string
+        }
+        Insert: {
+          approved_by: string
+          can_publish?: boolean
+          connection_id: number
+          expires_at: string
+          grant_generation?: number
+          id?: never
+          installation_id: string
+          last_seen_at?: string | null
+          revoked_at?: string | null
+          token_hash: string
+          workspace_id: string
+        }
+        Update: {
+          approved_by?: string
+          can_publish?: boolean
+          connection_id?: number
+          expires_at?: string
+          grant_generation?: number
+          id?: never
+          installation_id?: string
+          last_seen_at?: string | null
+          revoked_at?: string | null
+          token_hash?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kleinanzeigen_local_grants_workspace_id_connection_id_fkey"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: true
+            referencedRelation: "kleinanzeigen_connections"
+            referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
+      kleinanzeigen_publication_jobs: {
+        Row: {
+          absolute_expires_at: string | null
+          claim_installation_hash: string | null
+          claim_token_hash: string | null
+          completed_at: string | null
+          connection_id: number
+          created_at: string
+          draft_id: string
+          draft_revision: number
+          error_code: string | null
+          external_account_id: string
+          external_id: string | null
+          grant_generation: number
+          id: number
+          immutable_snapshot: Json
+          lease_until: string | null
+          provider_result: Json | null
+          provider_state: string | null
+          quota_position: number
+          request_hash: string
+          request_id: string
+          requested_by: string
+          started_at: string | null
+          state: string
+          updated_at: string
+          verified_at: string | null
+          version: number
+          workspace_id: string
+        }
+        Insert: {
+          absolute_expires_at?: string | null
+          claim_installation_hash?: string | null
+          claim_token_hash?: string | null
+          completed_at?: string | null
+          connection_id: number
+          created_at?: string
+          draft_id: string
+          draft_revision: number
+          error_code?: string | null
+          external_account_id: string
+          external_id?: string | null
+          grant_generation: number
+          id?: never
+          immutable_snapshot: Json
+          lease_until?: string | null
+          provider_result?: Json | null
+          provider_state?: string | null
+          quota_position: number
+          request_hash: string
+          request_id: string
+          requested_by: string
+          started_at?: string | null
+          state?: string
+          updated_at?: string
+          verified_at?: string | null
+          version?: number
+          workspace_id: string
+        }
+        Update: {
+          absolute_expires_at?: string | null
+          claim_installation_hash?: string | null
+          claim_token_hash?: string | null
+          completed_at?: string | null
+          connection_id?: number
+          created_at?: string
+          draft_id?: string
+          draft_revision?: number
+          error_code?: string | null
+          external_account_id?: string
+          external_id?: string | null
+          grant_generation?: number
+          id?: never
+          immutable_snapshot?: Json
+          lease_until?: string | null
+          provider_result?: Json | null
+          provider_state?: string | null
+          quota_position?: number
+          request_hash?: string
+          request_id?: string
+          requested_by?: string
+          started_at?: string | null
+          state?: string
+          updated_at?: string
+          verified_at?: string | null
+          version?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kleinanzeigen_publication_jobs_workspace_id_connection_id_fkey"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: false
+            referencedRelation: "kleinanzeigen_connections"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "kleinanzeigen_publication_jobs_workspace_id_draft_id_fkey"
+            columns: ["workspace_id", "draft_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "kleinanzeigen_publication_jobs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kleinanzeigen_publications: {
+        Row: {
+          available: boolean
+          connection_id: number
+          external_id: string
+          id: number
+          observed_at: string
+          published_at: string | null
+          state: string
+          sync_run_id: number | null
+          title: string
+          url: string
+          workspace_id: string
+        }
+        Insert: {
+          available?: boolean
+          connection_id: number
+          external_id: string
+          id?: never
+          observed_at: string
+          published_at?: string | null
+          state: string
+          sync_run_id?: number | null
+          title: string
+          url: string
+          workspace_id: string
+        }
+        Update: {
+          available?: boolean
+          connection_id?: number
+          external_id?: string
+          id?: never
+          observed_at?: string
+          published_at?: string | null
+          state?: string
+          sync_run_id?: number | null
+          title?: string
+          url?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kleinanzeigen_publications_workspace_id_connection_id_fkey"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: false
+            referencedRelation: "kleinanzeigen_connections"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "kleinanzeigen_publications_workspace_id_connection_id_sync_fkey"
+            columns: ["workspace_id", "connection_id", "sync_run_id"]
+            isOneToOne: false
+            referencedRelation: "kleinanzeigen_sync_runs"
+            referencedColumns: ["workspace_id", "connection_id", "id"]
+          },
+        ]
+      }
+      kleinanzeigen_sync_entries: {
+        Row: {
+          connection_id: number
+          external_id: string
+          id: number
+          published_at: string | null
+          run_id: number
+          state: string
+          title: string
+          url: string
+          workspace_id: string
+        }
+        Insert: {
+          connection_id: number
+          external_id: string
+          id?: never
+          published_at?: string | null
+          run_id: number
+          state: string
+          title: string
+          url: string
+          workspace_id: string
+        }
+        Update: {
+          connection_id?: number
+          external_id?: string
+          id?: never
+          published_at?: string | null
+          run_id?: number
+          state?: string
+          title?: string
+          url?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kleinanzeigen_sync_entries_workspace_id_connection_id_run__fkey"
+            columns: ["workspace_id", "connection_id", "run_id"]
+            isOneToOne: false
+            referencedRelation: "kleinanzeigen_sync_runs"
+            referencedColumns: ["workspace_id", "connection_id", "id"]
+          },
+        ]
+      }
+      kleinanzeigen_sync_runs: {
+        Row: {
+          accepted_pages: Json
+          claim_token_hash: string | null
+          completed_at: string | null
+          connection_id: number
+          error_code: string | null
+          grant_generation: number
+          id: number
+          lease_until: string
+          next_cursor: string | null
+          requested_at: string
+          requested_by: string
+          state: string
+          workspace_id: string
+        }
+        Insert: {
+          accepted_pages?: Json
+          claim_token_hash?: string | null
+          completed_at?: string | null
+          connection_id: number
+          error_code?: string | null
+          grant_generation: number
+          id?: never
+          lease_until: string
+          next_cursor?: string | null
+          requested_at?: string
+          requested_by: string
+          state?: string
+          workspace_id: string
+        }
+        Update: {
+          accepted_pages?: Json
+          claim_token_hash?: string | null
+          completed_at?: string | null
+          connection_id?: number
+          error_code?: string | null
+          grant_generation?: number
+          id?: never
+          lease_until?: string
+          next_cursor?: string | null
+          requested_at?: string
+          requested_by?: string
+          state?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kleinanzeigen_sync_runs_workspace_id_connection_id_fkey"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: false
+            referencedRelation: "kleinanzeigen_connections"
+            referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
       label_brand_lines: {
         Row: {
           archived: boolean
@@ -2401,6 +2836,8 @@ export type Database = {
       listings: {
         Row: {
           catalog_product_id: string | null
+          category_fields: Json
+          category_id: string | null
           created_at: string
           description: string
           end_reason: string | null
@@ -2416,15 +2853,23 @@ export type Database = {
           postal_code: string | null
           price: number
           price_type: string
+          revision: number
+          schema_revision: string | null
           shipping_price: number | null
           shipping_type: string
+          source_reference: Json | null
           status: string
+          target_connection_id: number | null
           title: string
+          transfer_images_complete: boolean
+          transfer_request_id: string | null
           updated_at: string
           workspace_id: string
         }
         Insert: {
           catalog_product_id?: string | null
+          category_fields?: Json
+          category_id?: string | null
           created_at?: string
           description: string
           end_reason?: string | null
@@ -2440,15 +2885,23 @@ export type Database = {
           postal_code?: string | null
           price: number
           price_type: string
+          revision?: number
+          schema_revision?: string | null
           shipping_price?: number | null
           shipping_type: string
+          source_reference?: Json | null
           status?: string
+          target_connection_id?: number | null
           title: string
+          transfer_images_complete?: boolean
+          transfer_request_id?: string | null
           updated_at?: string
           workspace_id: string
         }
         Update: {
           catalog_product_id?: string | null
+          category_fields?: Json
+          category_id?: string | null
           created_at?: string
           description?: string
           end_reason?: string | null
@@ -2464,10 +2917,16 @@ export type Database = {
           postal_code?: string | null
           price?: number
           price_type?: string
+          revision?: number
+          schema_revision?: string | null
           shipping_price?: number | null
           shipping_type?: string
+          source_reference?: Json | null
           status?: string
+          target_connection_id?: number | null
           title?: string
+          transfer_images_complete?: boolean
+          transfer_request_id?: string | null
           updated_at?: string
           workspace_id?: string
         }
@@ -2491,6 +2950,13 @@ export type Database = {
             columns: ["workspace_id", "inventory_item_id"]
             isOneToOne: false
             referencedRelation: "inventory_items"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "listings_target_connection_fkey"
+            columns: ["workspace_id", "target_connection_id"]
+            isOneToOne: false
+            referencedRelation: "kleinanzeigen_connections"
             referencedColumns: ["workspace_id", "id"]
           },
           {
@@ -8759,6 +9225,8 @@ export type Database = {
         Args: { p_listing_id: string; p_workspace_id: string }
         Returns: {
           catalog_product_id: string | null
+          category_fields: Json
+          category_id: string | null
           created_at: string
           description: string
           end_reason: string | null
@@ -8774,10 +9242,16 @@ export type Database = {
           postal_code: string | null
           price: number
           price_type: string
+          revision: number
+          schema_revision: string | null
           shipping_price: number | null
           shipping_type: string
+          source_reference: Json | null
           status: string
+          target_connection_id: number | null
           title: string
+          transfer_images_complete: boolean
+          transfer_request_id: string | null
           updated_at: string
           workspace_id: string
         }
@@ -8878,6 +9352,404 @@ export type Database = {
       is_valid_gtin: { Args: { p_value: string }; Returns: boolean }
       is_workspace_admin: { Args: { ws_id: string }; Returns: boolean }
       is_workspace_member: { Args: { ws_id: string }; Returns: boolean }
+      kleinanzeigen_begin_listing: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: number
+          p_expected_version: number
+          p_fee: Json
+          p_generation: number
+          p_job_id: number
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      kleinanzeigen_cache_transfer_source: {
+        Args: {
+          p_connection_id: string
+          p_entry_id: string
+          p_source: Json
+          p_user_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      kleinanzeigen_check_listing: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: number
+          p_generation: number
+          p_job_id: number
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      kleinanzeigen_claim_listing: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: number
+          p_generation: number
+          p_job_id: number
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      kleinanzeigen_claim_sync: {
+        Args: {
+          p_connection_id: number
+          p_generation: number
+          p_run_id: number
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      kleinanzeigen_complete_transfer_images: {
+        Args: {
+          p_expected_revision: number
+          p_listing_id: string
+          p_photos: Json
+          p_user_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      kleinanzeigen_connect_account: {
+        Args: {
+          p_account_type: string
+          p_can_publish?: boolean
+          p_display_name: string
+          p_external_account_id: string
+          p_installation_id: string
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      kleinanzeigen_create_transfer_draft: {
+        Args: {
+          p_content: Json
+          p_request_id: string
+          p_source_reference: Json
+          p_target_connection_id: number
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      kleinanzeigen_disconnect_account: {
+        Args: { p_connection_id: number; p_workspace_id: string }
+        Returns: Json
+      }
+      kleinanzeigen_enqueue_listing: {
+        Args: {
+          p_connection_id: number
+          p_draft_id: string
+          p_expected_revision: number
+          p_photos: Json
+          p_request_id: string
+          p_user_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      kleinanzeigen_expire_listing_jobs: {
+        Args: { p_connection_id: number; p_workspace_id: string }
+        Returns: undefined
+      }
+      kleinanzeigen_extension_session: {
+        Args: {
+          p_connection_id: number
+          p_generation?: number
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      kleinanzeigen_fail_sync: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: number
+          p_error_code: string
+          p_external_account_id: string
+          p_generation: number
+          p_run_id: number
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      kleinanzeigen_find_listing_job: {
+        Args: {
+          p_connection_id: number
+          p_draft_id: string
+          p_expected_revision: number
+          p_request_id: string
+          p_user_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      kleinanzeigen_finish_listing: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: number
+          p_generation: number
+          p_job_id: number
+          p_result: Json
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      kleinanzeigen_finish_sync: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: number
+          p_external_account_id: string
+          p_generation: number
+          p_quota: Json
+          p_run_id: number
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      kleinanzeigen_job_document: {
+        Args: {
+          p_job: Database["public"]["Tables"]["kleinanzeigen_publication_jobs"]["Row"]
+        }
+        Returns: Json
+      }
+      kleinanzeigen_listing_job_photo: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: number
+          p_generation: number
+          p_image_id: string
+          p_job_id: number
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      kleinanzeigen_local_transfer_source: {
+        Args: {
+          p_connection_id: string
+          p_entry_id: string
+          p_external_id: string
+          p_generation?: number
+          p_source?: Json
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      kleinanzeigen_locked_listing: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: number
+          p_generation: number
+          p_job_id: number
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: {
+          absolute_expires_at: string | null
+          claim_installation_hash: string | null
+          claim_token_hash: string | null
+          completed_at: string | null
+          connection_id: number
+          created_at: string
+          draft_id: string
+          draft_revision: number
+          error_code: string | null
+          external_account_id: string
+          external_id: string | null
+          grant_generation: number
+          id: number
+          immutable_snapshot: Json
+          lease_until: string | null
+          provider_result: Json | null
+          provider_state: string | null
+          quota_position: number
+          request_hash: string
+          request_id: string
+          requested_by: string
+          started_at: string | null
+          state: string
+          updated_at: string
+          verified_at: string | null
+          version: number
+          workspace_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "kleinanzeigen_publication_jobs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      kleinanzeigen_locked_sync: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: number
+          p_external_account_id: string
+          p_generation: number
+          p_run_id: number
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: {
+          accepted_pages: Json
+          claim_token_hash: string | null
+          completed_at: string | null
+          connection_id: number
+          error_code: string | null
+          grant_generation: number
+          id: number
+          lease_until: string
+          next_cursor: string | null
+          requested_at: string
+          requested_by: string
+          state: string
+          workspace_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "kleinanzeigen_sync_runs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      kleinanzeigen_prepare_listing_job: {
+        Args: {
+          p_connection_id: number
+          p_draft_id: string
+          p_expected_revision: number
+          p_user_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      kleinanzeigen_quota_capacity: {
+        Args: {
+          p_connection_id: number
+          p_excluded_job_id?: number
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      kleinanzeigen_read_accounts: {
+        Args: { p_workspace_id: string }
+        Returns: Json
+      }
+      kleinanzeigen_read_draft_job: {
+        Args: {
+          p_connection_id: number
+          p_draft_id: string
+          p_user_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      kleinanzeigen_read_listing_job: {
+        Args: {
+          p_connection_id: number
+          p_job_id: number
+          p_user_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      kleinanzeigen_read_publications: {
+        Args: {
+          p_after_id?: number
+          p_connection_id: number
+          p_limit?: number
+          p_search?: string
+          p_snapshot_at?: string
+          p_state?: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      kleinanzeigen_read_transfer_source: {
+        Args: {
+          p_external_id: string
+          p_source_connection_id: string
+          p_target_connection_id: number
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      kleinanzeigen_request_sync: {
+        Args: { p_connection_id: number; p_workspace_id: string }
+        Returns: Json
+      }
+      kleinanzeigen_store_form_schema: {
+        Args: {
+          p_connection_id: number
+          p_external_account_id: string
+          p_generation: number
+          p_observed_at: string
+          p_schema: Json
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      kleinanzeigen_store_quota_observation: {
+        Args: {
+          p_connection_id: number
+          p_excluded_job_id?: number
+          p_generation: number
+          p_quota: Json
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      kleinanzeigen_store_sync_page: {
+        Args: {
+          p_claim_token: string
+          p_connection_id: number
+          p_cursor: string
+          p_external_account_id: string
+          p_generation: number
+          p_items: Json
+          p_next_cursor: string
+          p_run_id: number
+          p_token_hash: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      kleinanzeigen_store_transfer_source: {
+        Args: {
+          p_connection_id: string
+          p_entry_id: string
+          p_mode: string
+          p_source: Json
+          p_user_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      kleinanzeigen_update_draft: {
+        Args: { p_content: Json; p_expected_revision: number; p_id: string }
+        Returns: Json
+      }
+      kleinanzeigen_validate_draft_content: {
+        Args: { p_content: Json }
+        Returns: Json
+      }
+      kleinanzeigen_validate_transfer_source: {
+        Args: { p_source: Json }
+        Returns: Json
+      }
       label_assert: {
         Args: { p_code: string; p_ok: boolean; p_path: string }
         Returns: undefined
@@ -10638,6 +11510,8 @@ export type Database = {
         }
         Returns: {
           catalog_product_id: string | null
+          category_fields: Json
+          category_id: string | null
           created_at: string
           description: string
           end_reason: string | null
@@ -10653,10 +11527,16 @@ export type Database = {
           postal_code: string | null
           price: number
           price_type: string
+          revision: number
+          schema_revision: string | null
           shipping_price: number | null
           shipping_type: string
+          source_reference: Json | null
           status: string
+          target_connection_id: number | null
           title: string
+          transfer_images_complete: boolean
+          transfer_request_id: string | null
           updated_at: string
           workspace_id: string
         }
@@ -11195,6 +12075,8 @@ export type Database = {
         Args: { p_listing_id: string; p_workspace_id: string }
         Returns: {
           catalog_product_id: string | null
+          category_fields: Json
+          category_id: string | null
           created_at: string
           description: string
           end_reason: string | null
@@ -11210,10 +12092,16 @@ export type Database = {
           postal_code: string | null
           price: number
           price_type: string
+          revision: number
+          schema_revision: string | null
           shipping_price: number | null
           shipping_type: string
+          source_reference: Json | null
           status: string
+          target_connection_id: number | null
           title: string
+          transfer_images_complete: boolean
+          transfer_request_id: string | null
           updated_at: string
           workspace_id: string
         }
@@ -11746,6 +12634,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },

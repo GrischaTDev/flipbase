@@ -98,7 +98,7 @@ export class ListingOverviewComponent {
         row.listing.status === this.filter();
       const matchesSearch =
         !term ||
-        [row.listing.content.title, row.item.title, row.item.brand ?? '']
+        [row.listing.content.title, row.item?.title ?? '', row.item?.brand ?? '']
           .join(' ')
           .toLocaleLowerCase('de')
           .includes(term);
@@ -130,10 +130,12 @@ export class ListingOverviewComponent {
     return listingStatusTone(row.listing.status);
   }
   itemRoute(item: ListingRow['item']): readonly string[] {
+    if (!item) return ['/listings'];
     return item.targetKind === 'catalog_product' ? ['/catalog', item.id] : ['/inventory', item.id];
   }
   canRelist(row: ListingRow): boolean {
     return (
+      !!row.item &&
       (row.listing.status === 'online' ||
         (row.listing.status === 'ended' && row.listing.endReason === 'manual')) &&
       canPrepareListing({
@@ -195,7 +197,7 @@ export class ListingOverviewComponent {
   }
 
   async relist(row: ListingRow): Promise<void> {
-    if (!this.canRelist(row) || !this.isCurrentRow(row)) return;
+    if (!row.item || !this.canRelist(row) || !this.isCurrentRow(row)) return;
     this.confirmAction.set({ kind: 'relist', row });
     const confirmed = await this.confirmDialog.frage({
       titel: 'Inserat erneut einstellen?',

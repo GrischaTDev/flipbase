@@ -394,7 +394,7 @@ for (const width of [1440, 390])
       await scheduleOpener.click();
       const planner = page.getByRole('dialog', { name: 'Veröffentlichung planen', exact: true });
       await planner.getByRole('button', { name: 'In einer Stunde', exact: true }).click();
-      await page.addScriptTag({ content: axe.source });
+      await page.evaluate(axe.source);
       expect(
         await page.evaluate(
           async () => (await (window as unknown as { axe: typeof axe }).axe.run()).violations,
@@ -514,32 +514,35 @@ test('Inseratauftrag aktualisiert sich über einen privaten Kanal @marketplace-p
   const state = await mockDrafts(page, true);
   let hint: ((payload: unknown) => void) | undefined;
   let privateChannel = false;
-  await page.routeWebSocket(/127\.0\.0\.1:54351/, (socket) => {
-    socket.onMessage((message) => {
-      if (typeof message !== 'string') return;
-      const [joinRef, ref, topic, event, payload] = JSON.parse(message) as unknown[];
-      if (['phx_join', 'phx_leave', 'heartbeat'].includes(String(event)))
-        socket.send(
-          JSON.stringify([joinRef, ref, topic, 'phx_reply', { status: 'ok', response: {} }]),
-        );
-      if (
-        event === 'phx_join' &&
-        topic === `realtime:workspace:${workspaceId}:marketplace_listing:9007199254740999`
-      ) {
-        privateChannel = (payload as { config: { private: boolean } }).config.private;
-        hint = (value) =>
+  await page.routeWebSocket(
+    `**://${new URL(process.env['PWA_TEST_BACKEND_ORIGIN'] ?? 'http://127.0.0.1:54351').host}/**`,
+    (socket) => {
+      socket.onMessage((message) => {
+        if (typeof message !== 'string') return;
+        const [joinRef, ref, topic, event, payload] = JSON.parse(message) as unknown[];
+        if (['phx_join', 'phx_leave', 'heartbeat'].includes(String(event)))
           socket.send(
-            JSON.stringify([
-              joinRef,
-              null,
-              topic,
-              'broadcast',
-              { type: 'broadcast', event: 'listing_jobs_changed', payload: value },
-            ]),
+            JSON.stringify([joinRef, ref, topic, 'phx_reply', { status: 'ok', response: {} }]),
           );
-      }
-    });
-  });
+        if (
+          event === 'phx_join' &&
+          topic === `realtime:workspace:${workspaceId}:marketplace_listing:9007199254740999`
+        ) {
+          privateChannel = (payload as { config: { private: boolean } }).config.private;
+          hint = (value) =>
+            socket.send(
+              JSON.stringify([
+                joinRef,
+                null,
+                topic,
+                'broadcast',
+                { type: 'broadcast', event: 'listing_jobs_changed', payload: value },
+              ]),
+            );
+        }
+      });
+    },
+  );
   await page.goto('/marketplaces/vinted/listing-drafts/9007199254740999');
   const history = page.locator('app-vinted-listing-job-panel');
   await expect(history.getByText('Veröffentlichung beauftragt', { exact: true })).toBeVisible();
@@ -562,7 +565,7 @@ test('Inseratauftrag aktualisiert sich über einen privaten Kanal @marketplace-p
     'href',
     'https://www.vinted.de/items/46609',
   );
-  await page.addScriptTag({ content: axe.source });
+  await page.evaluate(axe.source);
   expect(
     await page.evaluate(
       async () =>
@@ -632,7 +635,7 @@ for (const width of [1440, 390])
         dialog.getByRole('checkbox', { name: 'Farben: Weiß', exact: true }),
       ).toBeDisabled();
       await dialog.getByRole('checkbox', { name: 'Materialien: Baumwolle', exact: true }).click();
-      await page.addScriptTag({ content: axe.source });
+      await page.evaluate(axe.source);
       expect(
         await page.evaluate(
           async () =>
@@ -733,7 +736,7 @@ for (const width of [1440, 390])
         .press('Enter');
       await expect(dialog.getByRole('button', { name: 'Jako', exact: true })).toBeVisible();
       expect(searches).toEqual([{ keyword: 'Jako', workspaceId }]);
-      await page.addScriptTag({ content: axe.source });
+      await page.evaluate(axe.source);
       expect(
         await page.evaluate(
           async () =>
@@ -811,7 +814,7 @@ for (const width of [1440, 390])
           exact: true,
         })
         .click();
-      await page.addScriptTag({ content: axe.source });
+      await page.evaluate(axe.source);
       expect(
         await page.evaluate(
           async () =>
@@ -963,7 +966,7 @@ for (const width of [1440, 390])
       await expect(
         history.getByRole('button', { name: 'Auftrag abbrechen', exact: true }),
       ).toHaveCount(0);
-      await page.addScriptTag({ content: axe.source });
+      await page.evaluate(axe.source);
       expect(
         await page.evaluate(
           async () =>

@@ -7,6 +7,8 @@ export default defineConfig({
     'responsive-admin-layout.spec.ts',
     'marketplace-accounts.spec.ts',
     'marketplace-overview.spec.ts',
+    'kleinanzeigen-accounts.spec.ts',
+    'vinted-kleinanzeigen-transfer.spec.ts',
     'settings-layout.spec.ts',
     'vinted-workspace-ui.spec.ts',
     'vinted-account-grid.spec.ts',

@@ -1,6 +1,20 @@
 # 🤖 KI-Änderungsprotokoll
 
-<<<<<<< HEAD
+## 2026-10-16 - Juna - Vinted nach Kleinanzeigen übertragen
+
+**Auftrag:** Vollständigen Übertragungsweg einschließlich Kontingentprüfung und automatischem Gebührenstopp umsetzen. Bestehende Übersicht und Entwürfe weiterverwenden; notwendige Kleinanzeigen-Kontobindung mit umsetzen.
+
+**Stand:** Vollständiger Übertragungsweg im eigenen Feature-Zweig: private Kleinanzeigen-Kontobindung mit getrennter Lesefreigabe und Veröffentlichungsfreigabe, atomarer Inseratabgleich, vollständige Vinted-Quelle und geprüfte Originalbilder, Zielformular aus dem gebundenen Browserprofil sowie dauerhafte Veröffentlichungsaufträge. Entwürfe bleiben im bisherigen Listing Studio. Die Erweiterung prüft Kontingent und Formular unmittelbar vor dem verbindlichen Klick. Gebühren und unbekannte Kosten stoppen den Auftrag; unbekannte Ergebnisse erlauben nur einen lesenden Abgleich. Bestätigte Ziele erscheinen mit ihrer tatsächlichen Ziel-ID in der zentralen Übersicht. Erweiterungsversion 1.10.0.
+
+**Geprüfter Stand:** Auf aktuellen Hauptzweig einschließlich Veröffentlichungszeiten und Navigation integriert. Alle neun neuen Migrationen zusammen mit dem Hauptzweig vollständig in einer eigenen isolierten Datenbank neu eingespielt; 351 SQL-Prüfungen bestanden. Echte konkurrierende Sitzungen prüfen den letzten freien Platz, Claim und begin. Ein echter PostgREST-Aufruf erhält große Kontokennungen verlustfrei als Zeichenfolge. Der vollständige MV3-Ablauf mit tatsächlicher Erweiterung, privaten Binärbildern und genau einem Submit sowie Stopps bei 100/101 Anzeigen, Gebühren, unbekannten Kosten, extern verbrauchtem Kontingent und beschädigten Bildern besteht unter Windows und Linux mit Chromium 151. Ein echter Worker- und Browserneustart setzt einen gespeicherten writing-Versuch ausschließlich lesend fort. Anbieterantworten bleiben in diesen Tests synthetisch und vollständig lokal.
+
+Die vollständige Projektprüfung besteht: Format, ESLint, Typen, 494 erfolgreiche Workflowtests (sechs bestehende Windows-Ausnahmen), 401 Deno-, 2.528 Modell-, 347 DOM-, 2.555 Angular- und 45 Landingpagefälle sowie Produktionsbau. 88 betroffene Workerfälle und Typprüfung ebenfalls grün. Beide bestehenden Listing-Studio-Browserfälle sind gegen eigene vollständige API-Dienste geprüft. Die Transfermatrix umfasst 320/390/834/1440 Pixel, Hell/Dunkel, Touch, Tastatur, Fokus und AXE; alle 95 betroffenen Browserfälle des integrierten Produktionsstands bestehen. Der unabhängige Abschlussreview folgt.
+
+**Zusätzliche Abschlusskorrekturen:** Reine Kleinanzeigen-Verträge ausdrücklich für den Docker-Bau freigegeben; echten MV3-CI-Test nach der Chromium-Installation eingeordnet. Bestehende Browserfixtures verwenden die passende Backendadresse und CSP-verträgliche AXE-Ausführung. Drei vorbestehende offene Dienst-Client-Timer im Beta-Bewerbungsendpoint mit der gleichen unveränderten Testgruppe nachgewiesen und durch deaktivierte automatische Sitzungserneuerung behoben. Kein Prüflimit und keine Rechteprüfung abgeschwächt.
+
+**Grenze der Abnahme:** Kein echter Anbieter-Upload, kein echter Entwurf und keine echte Anzeige mit diesem neuen Weg erstellt. Bildvorschau und Erfolgsseite sind noch nicht live abgenommen. Ein Test mit einem echten Artikel benötigt dessen konkrete Auswahl und ausdrückliche Freigabe. Die Ableitung kostenloser Veröffentlichung aus offiziellem Privatkontingent und ungewählten Zusatzoptionen ist dokumentiert; ein sichtbarer Null-Gesamtpreis wird nicht behauptet. Kein Push und kein neuer PR.
+
+**Docker-Korrektur:** Der Nutzer hat Docker vor dem fehlgeschlagenen Start nicht bereits gestartet. Frühere Vermutung einer zweiten Instanz zurückgenommen. Zugriffsunterschied zwischen geschützter und normaler Befehlsumgebung lesend bestätigt; Ursache des Socketfehlers offen. Verbindlichen Ablauf für künftige Starts über Computer Use dokumentiert und hier verlinkt. Kein Neustart laufender Projekte und keine Socketdateien gelöscht.
 
 ## 2026-10-16 - Juna - Eigene Veröffentlichungszeit vor Vinted-Altersfallback verwenden
 
@@ -64,7 +78,6 @@ bleiben die ausgewählten Linux-/Image-/Browser-/PWA-CI-Prüfungen erforderlich.
 Kein Push oder produktiver Wechsel in dieser Umsetzung. Veröffentlichung:
 zuerst regulärer Web-Release mit Migration, danach Worker, Broker und Sitzung
 zusammen aus demselben geprüften Merge-Stand aktualisieren.
-=======
 
 ## 2026-10-16 - Juna - Überflüssigen Zurück-Link „Alle Konten“ auf Vinted-Unterseiten entfernen
 

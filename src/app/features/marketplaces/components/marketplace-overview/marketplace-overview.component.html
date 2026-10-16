@@ -43,7 +43,7 @@
             >
               {{ platformLabel(group.platform) }}
             </h2>
-            @if (!group.loading && !group.error && group.platform !== 'kleinanzeigen') {
+            @if (!group.loading && !group.error) {
               <app-badge tone="neutral"
                 >{{ group.accounts.length }}
                 {{ group.accounts.length === 1 ? 'Account' : 'Accounts' }}</app-badge
@@ -51,8 +51,11 @@
             }
           </div>
           <app-button variant="secondary" [link]="manageLink(group.platform)">
-            {{ group.platform === 'kleinanzeigen' ? 'Kleinanzeigen öffnen' : 'Konten verwalten' }}
+            Konten verwalten
           </app-button>
+          @if (group.platform === 'kleinanzeigen') {
+            <app-button variant="secondary" link="/listings">Entwürfe verwalten</app-button>
+          }
         </div>
         @if (group.loading) {
           <app-card padding="md"
@@ -70,20 +73,6 @@
                 (clicked)="store.retryPlatform(group.platform)"
                 >Erneut versuchen</app-button
               >
-            </div></app-card
-          >
-        } @else if (group.platform === 'kleinanzeigen') {
-          <app-card padding="lg"
-            ><div class="space-y-3">
-              <h3 class="text-sm font-semibold text-fb-text-primary">
-                Deine Kleinanzeigen-Entwürfe
-              </h3>
-              <p class="text-sm text-fb-text-secondary">
-                Öffne deine gespeicherten Entwürfe zum Bearbeiten und Vorbereiten. Der Abgleich
-                deiner Kleinanzeigen-Accounts und veröffentlichten Inserate folgt als nächster
-                Schritt.
-              </p>
-              <app-button variant="secondary" link="/listings">Entwürfe verwalten</app-button>
             </div></app-card
           >
         } @else if (!group.accounts.length) {
@@ -114,6 +103,7 @@
           @for (account of store.visibleAccounts(group); track accountKey(account)) {
             @if (store.section(account); as section) {
               <app-marketplace-listing-section
+                (transferPublished)="store.retryPlatform('kleinanzeigen')"
                 [section]="section"
                 (toggled)="store.expand(account)"
                 (retried)="store.retry(account)"

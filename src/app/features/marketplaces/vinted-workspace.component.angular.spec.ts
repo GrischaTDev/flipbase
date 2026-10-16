@@ -1,3 +1,4 @@
+import { listingTransferRendering } from '../../../../e2e/support/listing-transfer-rendering';
 import { VintedFavoriteSettingsComponent } from './components/vinted-favorite-settings/vinted-favorite-settings.component';
 import { VintedLocalConnectComponent } from './components/vinted-local-connect/vinted-local-connect.component';
 import { VintedSetupComponent } from './components/vinted-setup/vinted-setup.component';
@@ -160,6 +161,7 @@ beforeAll(async () => {
     [CustomCheckboxComponent, 'custom-checkbox/custom-checkbox.component'],
   ];
   resetBindings = await prepareMarketplaceRendering([
+    ...listingTransferRendering,
     {
       type: ProductGalleryComponent,
       path: 'src/app/shared/components/product-gallery/product-gallery.component.ts',

@@ -14,6 +14,20 @@ const service = createClient(
 );
 Deno.serve(
   createLocalExtensionHandler({
+    async sourceDetails(tokenHash, input) {
+      const { data, error } = await service.rpc('kleinanzeigen_local_transfer_source', {
+        p_workspace_id: input.workspaceId,
+        p_connection_id: input.connectionId,
+        p_token_hash: tokenHash,
+        p_entry_id: input.entryId,
+        p_external_id: input.externalId,
+        ...(input.action === 'source_details_import'
+          ? { p_generation: input.generation, p_source: input.source }
+          : {}),
+      });
+      if (error) throw mapStoreError(error.code);
+      return data;
+    },
     async listingPhoto(tokenHash, input) {
       const scope = {
         p_workspace_id: input.workspaceId,

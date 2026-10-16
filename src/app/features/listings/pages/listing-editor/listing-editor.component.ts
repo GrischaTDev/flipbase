@@ -1,4 +1,9 @@
 import {
+  KleinanzeigenTransferTargetComponent,
+  type KleinanzeigenCategorySelection,
+} from '../../../marketplaces/components/kleinanzeigen-transfer-target/kleinanzeigen-transfer-target.component';
+import type { KleinanzeigenDraftInput } from '../../../marketplaces/models/kleinanzeigen-transfer-mapping';
+import {
   ChangeDetectionStrategy,
   Component,
   computed,
@@ -54,6 +59,7 @@ import type { InventoryItem } from '../../../../core/models/flipbase.models';
     ReactiveFormsModule,
     TextFieldComponent,
     TwoColumnLayoutComponent,
+    KleinanzeigenTransferTargetComponent,
   ],
   templateUrl: './listing-editor.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -72,6 +78,12 @@ export class ListingEditorComponent {
   private readonly toast = inject(ToastService);
   private baseline = '';
   private imageBaseline = '[]';
+  private targetBaseline = 'null';
+  readonly targetFields = signal<KleinanzeigenCategorySelection | null>(null);
+  readonly transferListing = computed(() => {
+    const listing = this.listingService.getById(this.listingId() ?? '')?.listing;
+    return listing?.sourceReference ? listing : null;
+  });
   private imageLoadRequest = 0;
   private loadedImageKey = '';
   readonly imageDrafts = signal<readonly ListingImageDraft[]>([]);
@@ -179,6 +191,10 @@ export class ListingEditorComponent {
   readonly selectedItem = computed(
     () => this.listingService.items().find((item) => item.id === this.selectedItemId()) ?? null,
   );
+  readonly transferDraft = computed(() => {
+    const id = this.listingId();
+    return id ? this.listingService.getById(id)?.listing.sourceReference != null : false;
+  });
   readonly selectedOpenListing = computed(() => {
     if (this.isEdit()) return null;
     const item = this.selectedItem();
@@ -213,19 +229,28 @@ export class ListingEditorComponent {
       const row = this.listingService.getById(id);
       if (!row) return;
       this.form.patchValue({
-        inventoryItemId: row.item.id,
+        inventoryItemId: row.item?.id ?? '',
         ...row.listing.content,
         ...this.itemDetailsFormValue(row.listing.content.itemDetails, row.item),
       });
-      this.selectedItemId.set(row.item.id);
+      this.targetFields.set(
+        row.listing.sourceReference
+          ? {
+              categoryId: row.listing.categoryId ?? null,
+              categoryFields: row.listing.categoryFields ?? {},
+              schemaRevision: row.listing.schemaRevision ?? null,
+            }
+          : null,
+      );
+      this.selectedItemId.set(row.item?.id ?? '');
       this.form.controls.inventoryItemId.disable({ emitEvent: false });
       this.storeBaseline();
     });
     effect(() => {
       const item = this.selectedItem();
-      if (!item) return;
       const id = this.listingId();
-      const key = `${id ?? 'new'}:${item.id}`;
+      if (!item && !id) return;
+      const key = `${id ?? 'new'}:${item?.id ?? 'source'}`;
       if (key === this.loadedImageKey) return;
       this.loadedImageKey = key;
       const request = ++this.imageLoadRequest;
@@ -238,7 +263,7 @@ export class ListingEditorComponent {
               item,
               this.listingService.getById(id)?.listing.imageSelectionSaved === true,
             )
-          : this.listingImages.defaults(item)
+          : this.listingImages.defaults(item!)
       )
         .then((images) => {
           if (request !== this.imageLoadRequest) return;
@@ -294,7 +319,8 @@ export class ListingEditorComponent {
     return (
       this.imageEditing() ||
       this.baseline !== JSON.stringify(this.form.getRawValue()) ||
-      this.imageBaseline !== this.imageSnapshot()
+      this.imageBaseline !== this.imageSnapshot() ||
+      this.targetBaseline !== JSON.stringify(this.targetFields())
     );
   }
   beforeUnload(event: BeforeUnloadEvent): void {
@@ -406,6 +432,14 @@ export class ListingEditorComponent {
         return;
       }
       this.storeBaseline();
+      if (this.transferDraft()) {
+        await this.listingService.load(result.data.workspaceId);
+        this.storeBaseline();
+        this.toast.success(
+          'Zielfassung gespeichert. Prüfe die Kategorie und den Veröffentlichungsstatus.',
+        );
+        return;
+      }
       if (this.route.snapshot.paramMap.get('id')) {
         this.toast.success('Inserat gespeichert.');
         void this.router.navigate(['/listings']);
@@ -475,8 +509,31 @@ export class ListingEditorComponent {
     );
     void this.router.navigate(['/listings']);
   }
+  transferContent(): KleinanzeigenDraftInput {
+    const content = this.content();
+    const fields = this.targetFields();
+    return {
+      title: content.title,
+      description: content.description,
+      priceCents: content.price === null ? null : Math.round(content.price * 100),
+      currency: 'EUR',
+      priceType: content.priceType,
+      shippingType: content.shippingType,
+      shippingPriceCents:
+        content.shippingPrice === null ? null : Math.round(content.shippingPrice * 100),
+      postalCode: content.postalCode,
+      categoryId: fields?.categoryId ?? null,
+      categoryFields: fields?.categoryFields ?? {},
+      schemaRevision: fields?.schemaRevision ?? null,
+    };
+  }
+  async refreshTransfer(): Promise<void> {
+    const workspaceId = this.workspaceService.currentWorkspace()?.id;
+    if (workspaceId) await this.listingService.load(workspaceId);
+  }
   private content(): ListingContent {
     return {
+      ...(this.transferDraft() ? (this.targetFields() ?? {}) : {}),
       title: this.form.controls.title.value,
       description: this.form.controls.description.value,
       price: this.form.controls.price.value ?? 0,
@@ -502,28 +559,29 @@ export class ListingEditorComponent {
   }
   private itemDetailsFormValue(
     details: Partial<ListingItemDetails> | null | undefined,
-    item: ListingEditorItem,
+    item: ListingEditorItem | null,
   ) {
     return {
-      brand: details?.brand === undefined ? (item.brand ?? '') : (details.brand ?? ''),
+      brand: details?.brand === undefined ? (item?.brand ?? '') : (details.brand ?? ''),
       category:
         details?.category === undefined
-          ? item.category
-            ? this.categoryLabel(item.category)
+          ? item?.category
+            ? this.categoryLabel(item?.category)
             : ''
           : (details.category ?? ''),
-      model: details?.model === undefined ? (item.model ?? '') : (details.model ?? ''),
-      size: details?.size === undefined ? (item.size ?? '') : (details.size ?? ''),
-      color: details?.color === undefined ? (item.color ?? '') : (details.color ?? ''),
-      material: details?.material === undefined ? (item.material ?? '') : (details.material ?? ''),
-      condition: details?.condition === undefined ? item.condition : details.condition,
+      model: details?.model === undefined ? (item?.model ?? '') : (details.model ?? ''),
+      size: details?.size === undefined ? (item?.size ?? '') : (details.size ?? ''),
+      color: details?.color === undefined ? (item?.color ?? '') : (details.color ?? ''),
+      material: details?.material === undefined ? (item?.material ?? '') : (details.material ?? ''),
+      condition: details?.condition === undefined ? (item?.condition ?? null) : details.condition,
       conditionNotes:
         details?.conditionNotes === undefined
-          ? (item.conditionNotes ?? '')
+          ? (item?.conditionNotes ?? '')
           : (details.conditionNotes ?? ''),
     };
   }
   private storeBaseline(): void {
+    this.targetBaseline = JSON.stringify(this.targetFields());
     this.baseline = JSON.stringify(this.form.getRawValue());
     this.imageBaseline = this.imageSnapshot();
   }
@@ -551,7 +609,7 @@ export class ListingEditorComponent {
         .rows()
         .find(
           (row) =>
-            row.item.id === itemId &&
+            row.item?.id === itemId &&
             row.listing.status !== 'ended' &&
             row.listing.id !== this.listingId(),
         ) ?? null

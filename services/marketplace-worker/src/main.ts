@@ -402,6 +402,9 @@ async function main(): Promise<void> {
           serviceRoleKey: config.serviceRoleKey,
         })
       : undefined,
+    listingReadAccess: isCloud
+      ? new VintedEditAccess({ url: config.supabaseUrl, publishableKey: config.publishableKey })
+      : undefined,
     edits:
       config.provider === 'gologin' || config.chromiumWritesEnabled
         ? new VintedEditAccess({

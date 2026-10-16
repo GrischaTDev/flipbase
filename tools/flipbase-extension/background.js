@@ -2,6 +2,16 @@
 
 importScripts('autofill-core.js');
 importScripts(
+  'kleinanzeigen-local-core.js',
+  'kleinanzeigen-local-sync.js',
+  'kleinanzeigen-form-runtime.js',
+  'kleinanzeigen-publication-policy.js',
+  'kleinanzeigen-listing-runtime.js',
+  'kleinanzeigen-publication-jobs.js',
+  'kleinanzeigen-publication-results.js',
+  'kleinanzeigen-local-background.js',
+);
+importScripts(
   'vinted-local-inbox-events.js',
   'vinted-negotiation-runtime.js',
   'vinted-local-negotiation.js',
@@ -69,10 +79,25 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === 'GET_PENDING_KLEINANZEIGEN_LISTING') {
+    if (sender.url?.includes('#flipbase-form-read')) {
+      sendResponse({ hasPending: false });
+      return false;
+    }
     if (!isKleinanzeigenSender(sender)) return false;
     chrome.storage.local.get(
-      ['pending_kleinanzeigen_listing', 'pending_kleinanzeigen_timestamp'],
+      [
+        'pending_kleinanzeigen_listing',
+        'pending_kleinanzeigen_timestamp',
+        'kleinanzeigen_work_tabs',
+      ],
       (data) => {
+        if (
+          sender.tab?.id === data.kleinanzeigen_work_tabs?.formTabId ||
+          data.kleinanzeigen_work_tabs?.publicationTabIds?.includes(sender.tab?.id)
+        ) {
+          sendResponse({ hasPending: false });
+          return;
+        }
         const payload = data.pending_kleinanzeigen_listing;
         const timestamp = data.pending_kleinanzeigen_timestamp;
         if (payload && timestamp && Date.now() - timestamp < PENDING_MAX_AGE_MS) {

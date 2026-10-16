@@ -1,3 +1,4 @@
+import { KleinanzeigenAccountService } from './kleinanzeigen-account.service';
 import { Injectable, inject } from '@angular/core';
 import type { MarketplaceId } from '../../../core/services/marketplace-settings.service';
 import type {
@@ -14,12 +15,28 @@ import { EbayAccountApiService } from './ebay-account-api.service';
 export class MarketplaceOverviewService {
   private readonly vinted = inject(MarketplaceApiService);
   private readonly ebay = inject(EbayAccountApiService);
+  private readonly kleinanzeigen = inject(KleinanzeigenAccountService);
 
   async loadAccounts(
     workspaceId: string,
     platform: MarketplaceId,
   ): Promise<readonly MarketplaceOverviewAccount[]> {
-    if (platform === 'kleinanzeigen') return [];
+    if (platform === 'kleinanzeigen') {
+      const result = await this.kleinanzeigen.readAccounts(workspaceId);
+      return result.accounts.map((account) => ({
+        platform,
+        ...account,
+        observedAt: account.lastSyncedAt,
+        completeness: account.lastSyncedAt ? 'complete' : 'unknown',
+        supportsSearch: true,
+        supportsStatus: true,
+        canEdit: false,
+        error:
+          account.sync?.state === 'failed'
+            ? 'Der letzte Abruf wurde abgebrochen. Du siehst den zuletzt vollständig bestätigten Bestand.'
+            : null,
+      }));
+    }
     if (platform === 'ebay') {
       const status = await this.ebay.loadStatus(workspaceId);
       const connection = status.connection;
@@ -87,8 +104,7 @@ export class MarketplaceOverviewService {
     if (query.search.length > 200)
       throw new Error('Die Suche darf höchstens 200 Zeichen enthalten.');
     if (account.platform === 'vinted') return this.vinted.readOverviewPublications(account, query);
-    if (account.platform !== 'ebay')
-      throw new Error('Der Kleinanzeigen-Kontoabgleich ist noch nicht verfügbar.');
+    if (account.platform === 'kleinanzeigen') return this.kleinanzeigen.readPage(account, query);
     if (query.search.trim() || query.state !== 'all')
       throw new Error('Diese Filter stehen für eBay noch nicht zur Verfügung.');
     const cursor = readOverviewCursor(query.cursor, account, query);

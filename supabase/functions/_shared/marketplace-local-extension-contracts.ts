@@ -22,8 +22,22 @@ export interface LocalExtensionSnapshot {
   readonly entries: readonly LocalExtensionEntry[];
   readonly publicationsComplete: boolean;
 }
+export type LocalSourceDetailsRequest = {
+  readonly workspaceId: string;
+  readonly connectionId: string;
+  readonly entryId: string;
+  readonly externalId: string;
+} & (
+  | { readonly action: 'source_details_state' }
+  | {
+      readonly action: 'source_details_import';
+      readonly generation: number;
+      readonly source: unknown;
+    }
+);
 export type LocalExtensionRequest = AccountScope &
   (
+    | LocalSourceDetailsRequest
     | LocalListingRequest
     | LocalListingPhotoRequest
     | { readonly action: 'favorites_state' }
@@ -428,6 +442,34 @@ export function parseLocalExtensionRequest(input: unknown): LocalExtensionReques
     !uuid.test(input['connectionId'])
   )
     return null;
+  if (input['action'] === 'source_details_state' || input['action'] === 'source_details_import') {
+    const allowed = [
+      'action',
+      'workspaceId',
+      'connectionId',
+      'entryId',
+      'externalId',
+      ...(input['action'] === 'source_details_import' ? ['generation', 'source'] : []),
+    ];
+    if (
+      !keys(input, allowed) ||
+      Object.keys(input).length !== allowed.length ||
+      typeof input['entryId'] !== 'string' ||
+      !uuid.test(input['entryId']) ||
+      typeof input['externalId'] !== 'string' ||
+      !accountId.test(input['externalId'])
+    )
+      return null;
+    if (
+      input['action'] === 'source_details_import' &&
+      (!record(input['source']) ||
+        typeof input['generation'] !== 'number' ||
+        !Number.isSafeInteger(input['generation']) ||
+        input['generation'] < 1)
+    )
+      return null;
+    return input as unknown as LocalSourceDetailsRequest;
+  }
   if (typeof input['action'] === 'string' && input['action'].startsWith('listing_'))
     return parseLocalListingRequest(input);
   if (input['action'] === 'heartbeat' && keys(input, ['action', 'workspaceId', 'connectionId']))

@@ -80,12 +80,29 @@ const isLanding = (file) => /^(?:landing\/|scripts\/landing-)/u.test(file);
 const sorted = (values) => [...new Set(values)].sort();
 
 function browserSpecs(file, files) {
+  if (/^tools\/flipbase-extension\/kleinanzeigen-/u.test(file))
+    return ['kleinanzeigen-accounts', 'vinted-kleinanzeigen-transfer'];
+  if (
+    /^tools\/flipbase-extension\/(?:background\.js|flipbase-bridge\.js|manifest\.json|autofill-core\.js)$/u.test(
+      file,
+    )
+  )
+    return [
+      'kleinanzeigen-accounts',
+      'vinted-kleinanzeigen-transfer',
+      'vinted-listing-edge-cases',
+      'vinted-workspace-ui',
+    ];
+
   const feature = /^src\/app\/features\/([^/]+)\//u.exec(file)?.[1];
   if (feature === 'purchases' && /purchases\.component\.|purchase-profitability/u.test(file))
     return ['purchase-profitability'];
   if (feature === 'marketplaces') {
+    if (/kleinanzeigen-(?:listing|publication|form|transfer)|listing-transfer/u.test(file))
+      return ['kleinanzeigen-accounts', 'vinted-kleinanzeigen-transfer'];
+    if (/kleinanzeigen/u.test(file)) return ['kleinanzeigen-accounts', 'marketplace-overview'];
     if (/marketplace-(?:overview|listing-section|listing-selection)/u.test(file))
-      return ['marketplace-overview'];
+      return ['kleinanzeigen-accounts', 'marketplace-overview'];
     if (/vinted-listing-(?:detail|age)|vinted-listings|vinted-listing-clock/u.test(file))
       return ['vinted-listing-edge-cases', 'vinted-workspace-ui'];
     if (/listing/u.test(file))

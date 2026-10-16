@@ -233,7 +233,9 @@ test('Fehlende Vinted-Freigabe bietet keinen Erstellungseinstieg an @core-smoke'
   await mockMarketplaceOverview(page, { deniedVinted: true });
   await page.goto('/marketplaces/overview');
   await expect(
-    page.getByRole('heading', { name: 'Noch kein Account verbunden', exact: true }),
+    page
+      .getByRole('region', { name: 'Vinted', exact: true })
+      .getByRole('heading', { name: 'Noch kein Account verbunden', exact: true }),
   ).toBeVisible();
   await page.getByRole('button', { name: 'Inserat erstellen', exact: true }).click();
   await expect(page.getByRole('link', { name: 'Auf Vinted inserieren' })).toHaveCount(0);

@@ -577,7 +577,7 @@ test('Docker-Kontext enthält alle von Angular verwendeten gemeinsamen Verträge
   const sharedPrefix = 'supabase/functions/_shared/';
   const resolveContractFile = (directory, modulePath) => {
     const contractPath = posix.join(directory, modulePath);
-    if (contractPath.endsWith('.ts')) return contractPath;
+    if (/\.[cm]?ts$/u.test(contractPath)) return contractPath;
     return existsSync(join(root, `${contractPath}.ts`))
       ? `${contractPath}.ts`
       : `${contractPath}.d.ts`;

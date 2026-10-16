@@ -15,7 +15,7 @@ export class ListingImagesService {
 
   async load(
     listingId: string,
-    item: ListingEditorItem,
+    item: ListingEditorItem | null,
     saved: boolean,
   ): Promise<readonly ListingImageDraft[]> {
     const { data, error } = await this.table
@@ -100,7 +100,7 @@ export class ListingImagesService {
 
   async pathsForListing(
     listingId: string,
-    item: ListingEditorItem,
+    item: ListingEditorItem | null,
     saved: boolean,
   ): Promise<readonly { path: string; name: string | null }[]> {
     const { data, error } = await this.table
@@ -113,8 +113,10 @@ export class ListingImagesService {
       : this.defaultImages(item);
   }
 
-  private defaultImages(item: ListingEditorItem): readonly { path: string; name: string | null }[] {
-    return [...item.media]
+  private defaultImages(
+    item: ListingEditorItem | null,
+  ): readonly { path: string; name: string | null }[] {
+    return [...(item?.media ?? [])]
       .sort((left, right) => (left.sort_order ?? 0) - (right.sort_order ?? 0))
       .map((image) => ({ path: image.storage_path, name: image.file_name ?? null }));
   }
