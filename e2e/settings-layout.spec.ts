@@ -64,13 +64,13 @@ async function settingsBackend(page: Page) {
   );
 }
 
-test('settings use clear sections and accessible controls across desktop and tablet @pwa-layout', async ({
-  page,
-}, testInfo) => {
-  await settingsBackend(page);
-  const pageErrors: string[] = [];
-  page.on('pageerror', (error) => pageErrors.push(error.message));
-  for (const width of [1280, 390, 1024]) {
+for (const width of [1280, 390, 1024]) {
+  test(`settings use clear sections and accessible controls at ${width}px @pwa-layout`, async ({
+    page,
+  }, testInfo) => {
+    await settingsBackend(page);
+    const pageErrors: string[] = [];
+    page.on('pageerror', (error) => pageErrors.push(error.message));
     await page.setViewportSize({ width, height: 900 });
     for (const [path, heading, selector] of [
       ['account', 'Konto', 'app-account-settings'],
@@ -114,12 +114,12 @@ test('settings use clear sections and accessible controls across desktop and tab
       if (width === 1280 && ['marketplaces', 'numbering', 'team'].includes(path))
         await page.screenshot({ path: testInfo.outputPath(`${path}.png`), animations: 'disabled' });
     }
-  }
-  await page.goto('/settings/app');
-  await expect(page).toHaveURL(/\/settings\/marketplaces$/);
-  await expect(page.getByRole('link', { name: 'App & Geräte' })).toHaveCount(0);
-  expect(pageErrors).toEqual([]);
-});
+    await page.goto('/settings/app');
+    await expect(page).toHaveURL(/\/settings\/marketplaces$/);
+    await expect(page.getByRole('link', { name: 'App & Geräte' })).toHaveCount(0);
+    expect(pageErrors).toEqual([]);
+  });
+}
 
 test('eBay has a centered connection entry and keeps the connected account in its marketplace @pwa-layout', async ({
   page,

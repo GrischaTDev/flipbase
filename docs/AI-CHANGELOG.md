@@ -1,5 +1,29 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-16 - Juna - Zeitbudget der Einstellungsprüfung pro Breite trennen
+
+**CI-Befund:** Im PR 428 bestanden alle Fach-, Qualitäts-, Image- und PWA-Prüfungen.
+Der bestehende Einstellungstest verbrauchte sein gemeinsames 60-Sekunden-Budget
+mit 27 Seitenaufrufen und 54 erfolgreichen AXE-Prüfungen. Die letzte Navigation
+endete erst am Budgetende; der Weiterleitungsprüfung blieben etwa 100 Millisekunden.
+Der Fehler wurde gezielt mit Node 22 und Playwright 1.62.1 unter Linux nachgestellt.
+
+**Korrektur:** Derselbe Inhalt läuft je Bildschirmbreite als eigener Fall.
+Alle neun Seiten, beide Farbschemata, Überlauf-, Seitenfehler- und Screenshotprüfungen
+bleiben erhalten. Die Weiterleitung wird nun bei jeder Breite geprüft.
+Keine Zeitgrenze oder Fehlerbedingung geändert. Die verbindliche Soll-Liste der
+PR-Tests enthält alle drei Fälle; dadurch wählt CI vorsichtshalber den breiten
+Prüfumfang. Keine zusätzliche fachliche Anwendung geändert.
+
+**Prüfung:** Vier bestehende beziehungsweise aufgeteilte Einstellungs-/eBay-Fälle
+unter Linux mit zwei CPUs, 7 GB Speicher und eingeschaltetem Trace bestanden
+(43,7 / 40,4 / 40,6 / 8,0 Sekunden). Vollständige Projektkopie einschließlich
+versteckter Baukonfigurationen aus dem Git-Stand; nur die Anmeldevorbereitung
+für diese vollständig simulierten Testkonten ausgelassen. 25 Auswahl- und
+Registrierungsprüfungen, Suite-Audit, ESLint und Formatprüfung bestanden.
+Unabhängiges Review ohne wichtige Befunde. Der neue CI-Lauf bleibt vor Merge
+verpflichtend; keine unveränderte Wiederholung des fehlgeschlagenen Laufs.
+
 ## 2026-10-16 - Juna - Inseratsalter zur Integration freigeben
 
 **Freigabe:** Der Nutzer hat PR-Erstellung, Merge nach erfolgreichen Pflichtprüfungen
