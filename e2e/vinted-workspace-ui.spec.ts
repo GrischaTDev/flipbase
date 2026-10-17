@@ -380,7 +380,6 @@ for (const width of [1440, 390, 320]) {
           .click();
       const nav = page.locator('app-sidebar nav');
       await expect(nav.getByRole('link')).toHaveText([
-        'Alle Marktplätze',
         'Konten',
         'Übersicht',
         'Postfach',
@@ -394,9 +393,7 @@ for (const width of [1440, 390, 320]) {
         'Automatische Verhandlung',
         'Favoritennachrichten',
       ]);
-      await expect(
-        nav.getByRole('link', { name: 'Alle Marktplätze', exact: true }),
-      ).toHaveAttribute('href', '/marketplaces/overview');
+      await expect(nav.getByRole('link', { name: 'Alle Marktplätze', exact: true })).toHaveCount(0);
       await expect(nav.getByText('Konto', { exact: true })).toBeVisible();
       await expect(nav.getByText('Automatisierungen', { exact: true })).toBeVisible();
       await nav.getByRole('link', { name: 'Übersicht', exact: true }).click();

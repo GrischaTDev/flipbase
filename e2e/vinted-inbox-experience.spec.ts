@@ -441,9 +441,8 @@ for (const cloud of [true, false]) {
         `/marketplaces/vinted/messages?connectionId=${connectionId}&conversationId=${conversationId}`,
       );
       if (width === 390) {
-        await page.getByRole('button', { name: 'Benutzermenü öffnen', exact: true }).click();
-        await page.getByRole('button', { name: 'Dunkel', exact: true }).click();
-        await page.getByRole('button', { name: 'Benutzermenü öffnen', exact: true }).click();
+        await page.getByRole('button', { name: 'Dunkles Design aktivieren', exact: true }).click();
+        await expect(page.locator('html')).toHaveClass(/dark/u);
       }
       const conversation = page.getByRole('region', { name: 'Gespräch', exact: true });
       const bot = conversation.locator('[data-automated-message-avatar]');
@@ -741,9 +740,8 @@ for (const { width, theme } of [
       timeout: 15000,
     });
     if (theme === 'dark') {
-      await page.getByRole('button', { name: 'Benutzermenü öffnen', exact: true }).click();
-      await page.getByRole('button', { name: 'Dunkel', exact: true }).click();
-      await page.getByRole('button', { name: 'Benutzermenü öffnen', exact: true }).click();
+      await page.getByRole('button', { name: 'Dunkles Design aktivieren', exact: true }).click();
+      await expect(page.locator('html')).toHaveClass(/dark/u);
     }
     const rows = page.locator('[data-conversation-row]');
     await expect(rows).toHaveCount(2);
