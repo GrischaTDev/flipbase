@@ -1,3 +1,8 @@
+import {
+  categorySelectionAllowed,
+  categoryNavigationIds,
+} from '../../../core/models/category-selection-scope';
+import { KLEINANZEIGEN_CATEGORY_RULES } from './kleinanzeigen-category-selection';
 import type { CategoryPickerSource } from '../../../core/models/category-picker-source';
 import type { ProductCategory } from '../../../core/models/product-category.models';
 export interface KleinanzeigenCategoryNode {
@@ -24,6 +29,13 @@ export function createKleinanzeigenCategorySource(
       throw new Error('Ungültiger oder doppelter Kleinanzeigen-Kategoriepfad.');
     originals.set(row.path, row);
   }
+  const path = (id: string) =>
+    id.split('/').map((_, index, parts) => parts.slice(0, index + 1).join('/'));
+  const allowed = (id: string) => categorySelectionAllowed(path(id), KLEINANZEIGEN_CATEGORY_RULES);
+  const visible = categoryNavigationIds(
+    rows.map((row) => path(row.path)),
+    KLEINANZEIGEN_CATEGORY_RULES,
+  );
   const categories = new Map<string, ProductCategory>();
   const children = new Map<string | null, ProductCategory[]>();
   for (const row of rows) {
@@ -41,6 +53,7 @@ export function createKleinanzeigenCategorySource(
       level: parts.length,
       isLeaf: !row.isParent,
       isDeprecated: false,
+      ...(!allowed(row.path) ? { isSelectable: false } : {}),
     };
     categories.set(row.path, category);
     children.set(parentId, [...(children.get(parentId) ?? []), category]);
@@ -49,7 +62,7 @@ export function createKleinanzeigenCategorySource(
     if (category.isLeaf === (children.get(category.id)?.length ?? 0) > 0)
       throw new Error('Kleinanzeigen-Endkategorie und Unterkategorien widersprechen sich.');
   const searchable = [...categories.values()]
-    .filter((category) => category.isLeaf)
+    .filter((category) => category.isLeaf && allowed(category.id))
     .map((category) => ({ category, text: normalize(category.fullName) }));
   return {
     getCategory: (path) => categories.get(path) ?? null,
@@ -57,7 +70,7 @@ export function createKleinanzeigenCategorySource(
       return categories.get(path) ?? null;
     },
     async loadChildren(parent) {
-      return children.get(parent) ?? [];
+      return (children.get(parent) ?? []).filter((category) => visible.has(category.id));
     },
     async search(term) {
       const words = normalize(term).trim().split(/\s+/u).filter(Boolean);

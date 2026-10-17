@@ -162,7 +162,7 @@ describe('Kleinanzeigen-Zielfassung im vollständigen Editor', () => {
     const f = await create();
     f.detectChanges();
     expect(f.nativeElement.querySelector('app-category-picker')).toBeTruthy();
-    expect(await f.componentInstance.categorySource.loadChildren(null)).toHaveLength(15);
+    expect(await f.componentInstance.categorySource.loadChildren(null)).toHaveLength(9);
     expect(schemas.browse).not.toHaveBeenCalled();
     f.componentInstance.categorySelection.setValue('153');
     await f.whenStable();

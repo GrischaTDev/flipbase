@@ -90,6 +90,7 @@
             <button
               type="button"
               (click)="select(parent)"
+              [disabled]="parent.isSelectable === false"
               [attr.aria-label]="parentPath() + ' auswählen'"
               class="flex min-h-10 w-full items-center gap-2 bg-fb-surface-alt px-4 text-left text-[13px] font-medium text-fb-text-primary transition-colors hover:bg-fb-surface-hover focus-visible:outline-2 focus-visible:outline-fb-primary"
             >

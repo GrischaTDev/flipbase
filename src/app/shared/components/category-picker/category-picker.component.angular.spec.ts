@@ -387,7 +387,7 @@ describe('CategoryPickerComponent', () => {
 });
 
 describe('Auswechselbare Kategoriequelle', () => {
-  it('verwendet bei Vinted niemals den Shopify-Dienst', async () => {
+  it('verwendet bei Vinted niemals den Dienst für interne Kategorien', async () => {
     const source = {
       getById: vi.fn(async () => laptops),
       loadChildren: vi.fn(async () => [laptops]),
@@ -402,5 +402,28 @@ describe('Auswechselbare Kategoriequelle', () => {
     expect(service.loadChildren).not.toHaveBeenCalled();
     fixture.componentInstance.select(laptops);
     expect(fixture.componentInstance.value()).toBe(laptops.id);
+  });
+});
+
+describe('Ausgeblendete Kategorien', () => {
+  it('übernimmt reine Navigationsknoten nicht als neue Kategorie', async () => {
+    const { fixture, changes } = create();
+    const navigationOnly = { ...electronics, isSelectable: false };
+    fixture.componentInstance.select(navigationOnly);
+    expect(fixture.componentInstance.value()).toBeNull();
+    expect(changes).toEqual([]);
+  });
+});
+
+describe('Gespeicherte ausgeblendete Zuordnung', () => {
+  it('zeigt den Originalpfad weiter an und löst keine automatische Wertänderung aus', async () => {
+    service.getById.mockResolvedValueOnce({ ...laptops, isSelectable: false });
+    const { fixture, changes } = create({ value: 'el-6-6' });
+    await settle(fixture);
+    expect(trigger(fixture).textContent?.replace(/\s+/gu, ' ')).toContain(
+      'Elektronik › Computer › Laptops',
+    );
+    expect(fixture.componentInstance.value()).toBe('el-6-6');
+    expect(changes).toEqual([]);
   });
 });

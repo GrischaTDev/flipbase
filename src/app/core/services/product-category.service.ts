@@ -1,3 +1,9 @@
+import {
+  FLIPBASE_CATEGORY_SELECTION_FILTER,
+  FLIPBASE_CATEGORY_NAVIGATION_FILTER,
+  flipbaseCategoryAllowed,
+  flipbaseCategoryVisible,
+} from '../models/flipbase-category-scope';
 import { Injectable, inject } from '@angular/core';
 import { ProductCategory } from '../models/product-category.models';
 import { SupabaseService } from './supabase.service';
@@ -36,6 +42,7 @@ function mapRow(row: ProductCategoryRow): ProductCategory {
     level: row.level,
     isLeaf: row.is_leaf,
     isDeprecated: row.is_deprecated,
+    ...(!flipbaseCategoryAllowed(row.id) ? { isSelectable: false } : {}),
   };
 }
 
@@ -45,7 +52,7 @@ export function escapeLikePattern(value: string): string {
 }
 
 /**
- * Liest den Shopify-Kategoriebaum. Kategorien ändern sich nur mit Migrationen,
+ * Liest die kuratierte interne Liste der Flipbase-Kategorien. Kategorien ändern sich nur mit Migrationen,
  * deshalb bleiben geladene Ebenen für die Sitzung im Speicher.
  */
 @Injectable({ providedIn: 'root' })
@@ -87,18 +94,21 @@ export class ProductCategoryService {
     let query = this.supabase.client
       .from('product_categories')
       .select(CATEGORY_COLUMNS)
-      .eq('is_deprecated', false);
+      .eq('is_deprecated', false)
+      .or(FLIPBASE_CATEGORY_SELECTION_FILTER);
     for (const word of words) query = query.ilike('full_name', `%${escapeLikePattern(word)}%`);
     const { data, error } = await query
       .order('level')
       .order('full_name')
       .limit(CATEGORY_SEARCH_LIMIT + 1);
     if (error) throw new Error(error.message);
-    const categories: ProductCategory[] = (data ?? []).map(mapRow);
+    const categories: ProductCategory[] = (data ?? [])
+      .filter((row) => flipbaseCategoryAllowed(row.id))
+      .map(mapRow);
 
     const aliases = await Promise.all(aliasIds.map((id) => this.getById(id)));
     const matchingAliases = aliases.filter((category): category is ProductCategory =>
-      Boolean(category && !category.isDeprecated),
+      Boolean(category && !category.isDeprecated && category.isSelectable !== false),
     );
     const ordered = [
       ...matchingAliases,
@@ -134,11 +144,12 @@ export class ProductCategoryService {
     const base = this.supabase.client
       .from('product_categories')
       .select(CATEGORY_COLUMNS)
-      .eq('is_deprecated', false);
+      .eq('is_deprecated', false)
+      .or(FLIPBASE_CATEGORY_NAVIGATION_FILTER);
     const filtered =
       parentId === null ? base.is('parent_id', null) : base.eq('parent_id', parentId);
     const { data, error } = await filtered.order('name');
     if (error) throw new Error(error.message);
-    return (data ?? []).map(mapRow);
+    return (data ?? []).filter((row) => flipbaseCategoryVisible(row.id)).map(mapRow);
   }
 }

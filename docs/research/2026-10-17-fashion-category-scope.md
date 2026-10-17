@@ -1,20 +1,20 @@
 # Kategorieauswahl für den Wiederverkauf eingrenzen
 
-Stand: 17.10.2026. Assistent: Juna. **Überarbeiteter Vorschlag mit Nutzernotizen; noch keine Filter oder Kategorien geändert.**
+Stand: 17.10.2026. Assistent: Juna. **Am 17.10.2026 zur Umsetzung freigegeben. Filter im eigenen Kategorie-Zweig umgesetzt; Originaldaten und bestehende Zuordnungen bleiben erhalten. Noch kein Deployment.**
 
 ## Auftrag und untersuchte Quellen
 
-Die Kategorieauswahl bleibt für den breiteren Wiederverkauf offen. Der Nutzer hat am 17.10.2026 die zunächst vorgeschlagene Beschränkung auf Mode korrigiert: Technik, Haushalt, Beauty, allgemeine Babyausstattung, Sport und Medien/Hobby sollen ebenfalls erhalten bleiben. Damen-, Herren-, Kinder- und Babykleidung bleibt vollständig enthalten. Die folgenden Entscheidungen werden als Notizen für den überarbeiteten Vorschlag festgehalten; noch keine Filter umsetzen.
+Die Kategorieauswahl bleibt für den breiteren Wiederverkauf offen. Der Nutzer hat am 17.10.2026 die zunächst vorgeschlagene Beschränkung auf Mode korrigiert: Technik, Haushalt, Beauty, allgemeine Babyausstattung, Sport und Medien/Hobby sollen ebenfalls erhalten bleiben. Damen-, Herren-, Kinder- und Babykleidung bleibt vollständig enthalten. Die folgenden Entscheidungen bilden nach der anschließenden ausdrücklichen Nutzerfreigabe die Grundlage der Auswahlfilter.
 
-| Quelle        |                       Untersucht | Stand und Nachweis                                                                                                                                                                                                          |
-| ------------- | -------------------------------: | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Shopify       |  14.539 Knoten, 21 Hauptbereiche | Version 2026-08 aus der vorhandenen Importmigration; Anzahl, aktive Zeilen, Hauptbereiche und Version lesend mit der Produktionsdatenbank abgeglichen                                                                       |
-| Vinted        | 2.920 Knoten, neun Hauptbereiche | Vollständiger gespeicherter Produktionsbaum, ausschließlich lesend exportiert; letzte erfolgreiche Auffrischung 09.10.2026. Der letzte Versuch meldet HTTP 307. Dieser Bericht behauptet keinen neuen Live-Scan von Vinted. |
-| Kleinanzeigen |   3.239 Knoten, 15 Hauptbereiche | Vollständiger Browser-Scan vom 17.10.2026 aus dem eigenen Kategorie-Zweig                                                                                                                                                   |
+| Quelle                                       |                       Untersucht | Stand und Nachweis                                                                                                                                                                                                          |
+| -------------------------------------------- | -------------------------------: | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Flipbase (ursprüngliche Datenquelle Shopify) |  14.539 Knoten, 21 Hauptbereiche | Version 2026-08 aus der vorhandenen Importmigration; Anzahl, aktive Zeilen, Hauptbereiche und Version lesend mit der Produktionsdatenbank abgeglichen                                                                       |
+| Vinted                                       | 2.920 Knoten, neun Hauptbereiche | Vollständiger gespeicherter Produktionsbaum, ausschließlich lesend exportiert; letzte erfolgreiche Auffrischung 09.10.2026. Der letzte Versuch meldet HTTP 307. Dieser Bericht behauptet keinen neuen Live-Scan von Vinted. |
+| Kleinanzeigen                                |   3.239 Knoten, 15 Hauptbereiche | Vollständiger Browser-Scan vom 17.10.2026 aus dem eigenen Kategorie-Zweig                                                                                                                                                   |
 
 Alle drei Bestände auf eindeutige Kennungen, vorhandene Eltern, Erreichbarkeit aller Knoten und konsistente Namen/Pfade geprüft. Keine fehlenden Eltern oder widersprüchlichen Pfade festgestellt. Bei Shopify sind Dienstleistungen, Gutscheine, Bundles, Produkt-Add-Ons und „Nicht kategorisiert“ bereits beim Import ausgeschlossen; die hier dokumentierten zusätzlichen Ausschlüsse sind noch nicht umgesetzt.
 
-## Nach den Nutzernotizen behalten
+## Freigegebene Bereiche behalten
 
 | Bereich                                | Enthaltene Beispiele                                                                                                           |
 | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
@@ -26,11 +26,11 @@ Alle drei Bestände auf eindeutige Kennungen, vorhandene Eltern, Erreichbarkeit 
 | Sportgeräte und Camping                | Sportgeräte, Fitnessausrüstung, Zelte, Campingbedarf und Sportausstattung                                                      |
 | Medien, Spielzeug und Hobby            | Bücher, Musik, Filme, Spielzeug, Sammelkarten, Instrumente, Bastel- und Hobbybedarf                                            |
 
-Die Nutzerformulierung „wahrscheinlich“ bei Haushalt und „erst mal“ bei mehreren Sortimenten wird als vorläufiges Behalten im Vorschlag berücksichtigt, nicht als Auftrag zur sofortigen technischen Umsetzung.
+Die anschließende Nutzerfreigabe „setze die Filter jetzt ... entsprechend um“ bestätigt das Behalten der genannten Bereiche.
 
 Die früher vorgeschlagenen Ausschlüsse von Elektronik, Möbeln, Beauty, Babyausstattung, Sportgeräten und Medien sind aufgehoben. Das gilt auch für daraus abgeleitete Einschränkungen: Smartwatches/Fitness-Tracker werden nicht mehr als Elektronik ausgeschlossen; Sporthelme und Protektoren nicht pauschal als Sportausrüstung. Nähmaschinen, Stoffe und Schnittmuster werden nicht allein wegen des fehlenden Modebezugs ausgeschlossen, da Hobby erhalten bleiben soll. Konkrete Überschneidungen mit ausgeschlossenem Gewerbe-/Baubedarf anhand des tatsächlichen Unterbereichs prüfen.
 
-## Nach den Nutzernotizen ausschließen
+## Freigegebene Bereiche ausschließen
 
 | Bereich                         | Gemeinte Inhalte                                                                                  | Bekleidung und andere Abgrenzungen                                                                                                                                                                                          |
 | ------------------------------- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -43,7 +43,7 @@ Die vier genannten Ausschlussbereiche haben bei fachlichen Überschneidungen Vor
 
 ## Noch nicht ausdrücklich entschiedene Bereiche
 
-Der Nutzer geht die Liste gerade durch und macht Notizen. Daraus folgt noch keine gesonderte Entscheidung zu Eintrittskarten, Tabak, Waffen, Erotikartikeln, religiösen Artikeln oder allgemeinen Verschenken-/Tauschen-/Verleihen-Kategorien. Auch die frühere Sonderempfehlung zu Reisegepäck und einzelnen Hilfsmitteln wurde nicht ausdrücklich bestätigt. Diese vorherigen Empfehlungen nicht stillschweigend als Nutzerentscheidung übernehmen; bis zur abschließenden Prüfung keine zusätzlichen Ausschlüsse anwenden.
+Es gibt keine gesonderte Ausschlussentscheidung zu Eintrittskarten, Tabak, Waffen, Erotikartikeln, religiösen Artikeln oder allgemeinen Verschenken-/Tauschen-/Verleihen-Kategorien. Auch die frühere Sonderempfehlung zu Reisegepäck und einzelnen Hilfsmitteln wurde nicht bestätigt. Diese Bereiche werden deshalb durch diese Änderung nicht zusätzlich ausgeblendet.
 
 ## Konkrete Auswirkungen je Baum
 
@@ -64,7 +64,7 @@ Der Nutzer geht die Liste gerade durch und macht Notizen. Daraus folgt noch kein
 - `4332` Sport behalten; Fahrzeuge darin ausschließen, insbesondere tatsächliche Fahrräder unter Fahrradfahren. Fahrrad-/Campingbekleidung oder Autositze nicht als Fahrräder behandeln.
 - `4824` Hobby- & Sammlerartikel behalten. Lebensmittel und andere ausdrücklich ausgeschlossene Inhalte werden anhand ihrer Kennungen unabhängig vom Hauptbereich behandelt.
 
-### Shopify
+### Interne Flipbase-Kategorien
 
 - `aa` Bekleidung & Accessoires und `lb` Taschen & Gepäck nicht mehr ausschließlich nach Modebezug ausdünnen. Die Sonderempfehlung zu Reisegepäck bleibt offen.
 - `co` Kameras & Optik, `el` Elektronik, `so` Software, `fr` Möbel, `hb` Gesundheit & Schönheit, `bt` Baby & Kleinkind, `sg` Sportartikel, `me` Medien, `tg` Spielzeuge & Spiele und `ae` Kunst & Unterhaltung bleiben grundsätzlich erhalten.
@@ -73,12 +73,14 @@ Der Nutzer geht die Liste gerade durch und macht Notizen. Daraus folgt noch kein
 - `vp` Fahrzeuge & Teile grundsätzlich ausschließen, passende Motorrad-/Rennbekleidung erhalten. Sportartikel dürfen tatsächliche Fahrräder, Fahrzeuge und deren Teile nicht versehentlich wieder zur Auswahl hinzufügen.
 - Weitere Hauptbereiche und frühere Sonderausschlüsse nicht allein aufgrund des alten Vorschlags entfernen, sondern erst nach der abschließenden inhaltlichen Prüfung zuordnen.
 
-## Umsetzung erst nach abschließender inhaltlicher Freigabe
+## Bestandsschutz bei der Umsetzung
 
 Die Originalbäume und Anbieterkennungen intern erhalten und die Auswahl auf den abgestimmten Umfang begrenzen. Vorhandene Artikel und Inserate mit später ausgeblendeten Kategorien müssen weiter lesbar und bearbeitbar bleiben. Keine Kategorien löschen, die bestehende Datensätze referenzieren. Suchergebnisse und aufklappbare Ebenen müssen dieselbe Auswahl zeigen.
 
 Die Eingrenzung erweitert keine Veröffentlichungsfreigaben. Das Behalten von Technik-, Baby- oder anderen Kategorien bedeutet nicht automatisch, dass jeder Veröffentlichungsweg diese Bereiche bereits unterstützt.
 
-## Tatsächlich ausgeführt
+## Umsetzung und Prüfung
 
-Die vollständige Bestandsanalyse aus dem ersten Bericht bleibt die Grundlage. In diesem Schritt ausschließlich den Vorschlag nach den Nutzernotizen überarbeitet und widersprechende alte Ausschlüsse entfernt. Keine erneute Produktionsabfrage, Anbieteraktion, Migration, Kategorieänderung oder Veröffentlichung. Nur Dokumentation und Sitzungsprotokoll ergänzt; kein neuer Anwendungsbau für diese reine Notizübernahme erforderlich.
+Die Auswahlfilter verwenden ausschließlich geprüfte Anbieterkennungen und echte Elternpfade. Sie ändern keine Tabellen, Originaldatensätze oder gespeicherten Zuordnungen. Ausgeblendete Werte bleiben über getById lesbar; notwendige Eltern bleiben ausschließlich als nicht auswählbare Navigationspfade sichtbar. Die internen Datenbankabfragen filtern vor der Ergebnisbegrenzung. Es gibt keine Laufzeitverbindung zu Shopify und keinen automatischen Shopify-Abgleich. Die allgemeine Liste heißt Flipbase-Kategorien; historische Importe, Kennungen und Herkunfts-/Lizenznachweise bleiben erhalten.
+
+Der konkrete Umfang, die tatsächlich ausgeführten Prüfungen und der nächste eBay-Schritt stehen in [der Umsetzungsdokumentation](../implementation/resale-category-selection.md). Der breite PR-Prüflauf und eine Veröffentlichung sind gesonderte nächste Schritte.

@@ -40,7 +40,7 @@ async function ready(page: Page) {
   await page.getByRole('option', { name: 'Gut', exact: true }).click();
   return result;
 }
-test('Der vollständige Kategoriebaum bleibt ohne Erweiterung lokal durchsuchbar @core-smoke', async ({
+test('Die freigegebene Kategorieauswahl bleibt ohne Erweiterung lokal durchsuchbar @core-smoke', async ({
   page,
 }, testInfo) => {
   const f = await mockKleinanzeigenTransfer(page, { extensionAvailable: false });
@@ -49,7 +49,23 @@ test('Der vollständige Kategoriebaum bleibt ohne Erweiterung lokal durchsuchbar
     .getByRole('button', { name: /Kleinanzeigen-Kategorie Kategorie suchen oder auswählen/u })
     .tap();
   const picker = page.getByRole('dialog', { name: 'Kleinanzeigen-Kategorie', exact: true });
-  await expect(picker.getByRole('option')).toHaveCount(15);
+  await expect(picker.getByRole('option')).toHaveCount(9);
+  for (const name of ['Jobs', 'Immobilien', 'Haustiere', 'Dienstleistungen'])
+    await expect(picker.getByRole('option', { name, exact: true })).toHaveCount(0);
+  await picker.getByRole('option').filter({ hasText: 'Auto, Rad & Boot' }).tap();
+  await expect(
+    picker.getByRole('button', { name: 'Auto, Rad & Boot auswählen', exact: true }),
+  ).toBeDisabled();
+  await expect(picker.getByRole('option')).toHaveCount(1);
+  await picker.getByRole('option').filter({ hasText: 'Motorradteile & Zubehör' }).tap();
+  await expect(picker.getByRole('option').filter({ hasText: 'Motorradbekleidung' })).toBeVisible();
+  await picker.getByRole('combobox', { name: 'Kategorie suchen', exact: true }).fill('Häuser');
+  await expect(
+    picker.getByText('Keine passende Kategorie gefunden.', { exact: true }),
+  ).toBeVisible();
+  await picker.getByRole('combobox', { name: 'Kategorie suchen', exact: true }).fill('');
+  await picker.getByRole('button', { name: 'Zurück zu Auto, Rad & Boot', exact: true }).tap();
+  await picker.getByRole('button', { name: 'Zurück zu allen', exact: true }).tap();
   await picker.getByRole('option').filter({ hasText: 'Mode & Beauty' }).tap();
   await picker.getByRole('option').filter({ hasText: 'Herrenbekleidung' }).tap();
   await expect(picker.getByRole('option').filter({ hasText: 'Hemden' })).toBeVisible();
