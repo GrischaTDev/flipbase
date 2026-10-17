@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-17 - Juna - Kategoriebäume auf Modebezug prüfen
+
+**Auftrag:** Shopify-, Vinted- und Kleinanzeigen-Kategorien vollständig auf Relevanz für Secondhand-Kleidung untersuchen und eine verständliche Ausschlussliste zur Nutzerprüfung erstellen. Noch keine Auswahl beschränken oder Kategorien löschen.
+
+**Analyse:** 14.539 Shopify-Knoten (Version 2026-08), den vollständigen gespeicherten Vinted-Baum mit 2.920 Knoten und den eigenen Kleinanzeigen-Browserstand mit 3.239 Knoten ausgewertet. Shopify-Version/-Umfang und Vinted-Baum ausschließlich lesend aus Produktion geprüft. Vinted-Stand vom 09.10.2026 und fehlgeschlagene letzte Auffrischung (HTTP 307) im Bericht ausdrücklich benannt. Originalpfade und Elternbeziehungen aller drei Bäume konsistent. Nicht nur Hauptbereiche prüfen: Motorradbekleidung, Sport-Fantextilien, Arbeits-/Sportkleidung sowie Schul-/Wickeltaschen liegen teils außerhalb offensichtlicher Modebereiche.
+
+**Ergebnis:** Prüfvorschlag unter `docs/research/2026-10-17-fashion-category-scope.md` mit zu erhaltendem Sortiment, allgemeinen Ausschlüssen, konkreten Anbieterästen und getrennten Empfehlungen zu textilen Babysachen, Reisegepäck, Wearables und Schutzausrüstung. Eine klar bezeichnete Kleinanzeigen-Prüfvariante enthält 95 Knoten einschließlich benötigter Eltern und 83 Endkategorien; gemischte Sportbereiche bleiben gesondert offen. Vollständige Quellen und alte Zuordnungen sollen intern erhalten bleiben. Keine Filter, Schema-, Anbieter- oder Bestandsdatenänderungen; kein Push oder Deployment. Dokumentation geprüft und formatiert, kein Anwendungsbau für diese reine Analyse erforderlich. Inhaltliche Freigabe durch den Nutzer steht aus.
+
 ## 2026-10-17 - Juna - Vollständigen Kleinanzeigen-Kategoriebaum übernehmen
 
 **Auftrag:** Bestehenden gemeinsamen Kategorie-Wähler mit Suche und Unterkategorien auch für Kleinanzeigen verwenden. Den vollständigen Originalbaum über Browsersteuerung erfassen und lokal einpflegen; native Kategorieauswahl nur als Ersatzweg, falls der Scan scheitert.
