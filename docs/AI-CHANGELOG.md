@@ -1,5 +1,9 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-17 - Juna - Kategorieauswahl zur Integration freigegeben
+
+**Auftrag:** Nach ausdrücklichem Ja den lokal geprüften Zweig `juna/kleinanzeigen-category-tree` veröffentlichen, PR gegen den aktuellen Hauptzweig erstellen und sämtliche erforderlichen Prüfungen abwarten. Nur bei Erfolg mit Merge-Commit integrieren, anschließend den eigenen Remote-/lokalen Zweig und Worktree aufräumen sowie den automatischen Veröffentlichungslauf kontrollieren. Der aktuelle Hauptzweig ist bereits enthalten. Vollständiger Kleinanzeigen-Baum, gemeinsamer Wähler und freigegebene Wiederverkaufsfilter gehören zusammen in diesen PR; die dokumentierten lokalen Prüfungen gelten für denselben Anwendungscode. Vor dem Merge erfolgt eine unabhängige Codeprüfung. Keine erneute Produktionsprüfung mit Server-Zugangsdaten; die sichere lokale REST-Prüfung bleibt der Nachweis.
+
 ## 2026-10-17 - Juna - Freigegebene Kategorienfilter umsetzen
 
 **Auftrag:** Die abgestimmten Ausschlüsse für die internen Flipbase-Kategorien sowie Vinted und Kleinanzeigen anwenden. Originaldaten und bestehende Zuordnungen erhalten; die allgemeine Liste künftig als Flipbase-Kategorien bezeichnen. Vorhandenen eBay-Stand prüfen und nächsten Kategorienweg anhand offizieller Dokumentation erläutern. Ausdrückliche Umsetzungsfreigabe, noch keine neue PR-/Mergefreigabe.
