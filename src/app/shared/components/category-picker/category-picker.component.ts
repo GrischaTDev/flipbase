@@ -37,7 +37,7 @@ const VIEWPORT_MARGIN = 8;
 let nextCategoryPickerId = 0;
 
 /**
- * Auswahl einer Shopify-Kategorie. Ebenen mit Unterkategorien werden per Klick
+ * Auswahl einer Flipbase- oder Marktplatzkategorie. Ebenen mit Unterkategorien werden per Klick
  * geöffnet; die Oberkategorie selbst wählt man über die Kopfzeile. So gibt es keine
  * verschachtelten Schaltflächen in der Liste.
  */
@@ -225,6 +225,7 @@ export class CategoryPickerComponent implements ControlValueAccessor {
   }
 
   select(category: ProductCategory): void {
+    if (this.isDisabled() || category.isSelectable === false) return;
     this.valueToken++;
     this.value.set(category.id);
     this.selected.set(category);

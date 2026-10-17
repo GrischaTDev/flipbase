@@ -11,6 +11,7 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 // Nur die tatsächliche Testauswahl prüfen, nicht Playwrights Parser nachtesten.
 const coreTests = [
   ...[
+    'Die freigegebene Kategorieauswahl bleibt ohne Erweiterung lokal durchsuchbar @core-smoke',
     'Eine verlorene Annahmeantwort wird ohne zweiten Auftrag fortgesetzt @core-smoke',
     'Ein gewechseltes Browserkonto stoppt vor der Auftragsannahme @core-smoke',
     'Ohne passende Erweiterung bleibt die automatische Veröffentlichung gesperrt @core-smoke',

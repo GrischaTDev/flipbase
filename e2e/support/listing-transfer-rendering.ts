@@ -1,3 +1,4 @@
+import { CategoryPickerComponent } from '../../src/app/shared/components/category-picker/category-picker.component';
 import { KleinanzeigenPublicationPanelComponent } from '../../src/app/features/marketplaces/components/kleinanzeigen-publication-panel/kleinanzeigen-publication-panel.component';
 import { ListingTransferActionComponent } from '../../src/app/features/marketplaces/components/listing-transfer-action/listing-transfer-action.component';
 import { ListingTransferDialogComponent } from '../../src/app/features/marketplaces/components/listing-transfer-dialog/listing-transfer-dialog.component';
@@ -12,6 +13,10 @@ import { ProductThumbnailComponent } from '../../src/app/shared/components/produ
 import { CustomCheckboxComponent } from '../../src/app/shared/components/custom-checkbox/custom-checkbox.component';
 import { ModalDialogDirective } from '../../src/app/shared/directives/modal-dialog.directive';
 export const listingTransferRendering = [
+  {
+    type: CategoryPickerComponent,
+    path: 'src/app/shared/components/category-picker/category-picker.component.ts',
+  },
   {
     type: KleinanzeigenPublicationPanelComponent,
     path: 'src/app/features/marketplaces/components/kleinanzeigen-publication-panel/kleinanzeigen-publication-panel.component.ts',

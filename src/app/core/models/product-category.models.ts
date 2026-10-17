@@ -1,4 +1,4 @@
-/** Trennzeichen im vollen Kategoriepfad, wie es Shopify und die Datenbank verwenden. */
+/** Trennzeichen im vollen Pfad der internen Flipbase-Kategorien. */
 export const CATEGORY_PATH_SEPARATOR = ' > ';
 
 export interface ProductCategory {
@@ -9,6 +9,8 @@ export interface ProductCategory {
   readonly level: number;
   readonly isLeaf: boolean;
   readonly isDeprecated: boolean;
+  /** false: bestehender Wert bleibt lesbar, ist aber keine neue Auswahl. */
+  readonly isSelectable?: boolean;
 }
 
 export interface Brand {

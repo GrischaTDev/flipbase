@@ -158,6 +158,18 @@ describe('Kleinanzeigen-Zielfassung im vollständigen Editor', () => {
     expect(f.componentInstance.publicationScope()).toBeNull();
     expect(f.componentInstance.targetName()).toBe('');
   });
+  it('verwendet im Editor denselben vollständigen lokalen Kategorie-Wähler', async () => {
+    const f = await create();
+    f.detectChanges();
+    expect(f.nativeElement.querySelector('app-category-picker')).toBeTruthy();
+    expect(await f.componentInstance.categorySource.loadChildren(null)).toHaveLength(9);
+    expect(schemas.browse).not.toHaveBeenCalled();
+    f.componentInstance.categorySelection.setValue('153');
+    await f.whenStable();
+    expect(schemas.browse).not.toHaveBeenCalled();
+    expect(f.componentInstance.schema()).toBeNull();
+    expect(f.componentInstance.error()).toContain('Unterkategorie');
+  });
   it('rendert Kategorieangaben und sperrt den Submit bei ungespeicherten Änderungen', async () => {
     const schema = {
       categoryPath: '153/160/shirts',

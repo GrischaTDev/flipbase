@@ -8,22 +8,24 @@
   @if (error(); as message) {
     <app-notice-banner announcement="alert">{{ message }}</app-notice-banner>
   }
-  <p class="text-sm text-fb-text-secondary">
-    {{ label() || 'Wähle die passende Kleinanzeigen-Kategorie.' }}
-  </p>
-  <app-button
-    [loading]="busy()"
-    [disabled]="busy() || !scope() || !extension.formSchemaAvailable()"
-    (clicked)="browse('')"
-    >Kategorie auswählen und prüfen</app-button
-  >
-  @if (choices().length) {
-    <app-custom-select
-      ariaLabel="Kleinanzeigen-Unterkategorie"
-      [options]="categoryOptions()"
-      [disabled]="busy()"
-      (valueChange)="browse($event || '')"
-    />
+  <app-category-picker
+    [source]="categorySource"
+    [formControl]="categorySelection"
+    label="Kleinanzeigen-Kategorie"
+    placeholder="Kategorie suchen oder auswählen"
+    helpText="Die verfügbaren Kategorien sind in Flipbase gespeichert."
+  />
+  @if (busy()) {
+    <p class="text-sm text-fb-text-secondary" role="status">
+      Kleinanzeigen-Eigenschaften werden geladen …
+    </p>
+  }
+  @if (categorySelection.value && !schema() && !busy()) {
+    <app-button
+      [disabled]="!scope() || !extension.formSchemaAvailable()"
+      (clicked)="selectCategory(categorySelection.value)"
+      >Eigenschaften laden</app-button
+    >
   }
   @if (schema(); as currentSchema) {
     <app-kleinanzeigen-listing-fields

@@ -34,6 +34,10 @@ function createQuery(result: QueryResult) {
       calls.push(['ilike', ...args]);
       return query;
     },
+    or(...args: unknown[]) {
+      calls.push(['or', ...args]);
+      return query;
+    },
     order(...args: unknown[]) {
       calls.push(['order', ...args]);
       return query;
@@ -146,7 +150,7 @@ describe('ProductCategoryService', () => {
     expect(escapeLikePattern('a%b_c\\d')).toBe('a\\%b\\_c\\\\d');
   });
 
-  it('findet High Heels über den vorhandenen Shopify-Knoten Fersen', async () => {
+  it('findet High Heels über den vorhandenen internen Knoten Fersen', async () => {
     const heelsRow = {
       id: 'aa-8-10',
       parent_id: 'aa-8',
@@ -179,5 +183,61 @@ describe('ProductCategoryService', () => {
     await expect(service.getById('el-6-6')).resolves.toMatchObject({ name: 'Laptops' });
     await expect(service.getById('el-6')).resolves.toMatchObject({ isLeaf: false });
     expect(from).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('Flipbase-Kategorien für den Wiederverkauf', () => {
+  const dog = {
+    ...laptopRow,
+    id: 'ap-2-1',
+    parent_id: 'ap-2',
+    name: 'Hundebedarf',
+    full_name: 'Tiere & Tierbedarf > Haustierbedarf > Hundebedarf',
+  };
+  it('filtert Ebenen und Suche, erhält aber gespeicherte ausgeschlossene Zuordnungen', async () => {
+    const { service } = createService([
+      { data: [dog, laptopRow], error: null },
+      { data: [dog, laptopRow], error: null },
+      { data: dog, error: null },
+    ]);
+    expect((await service.loadChildren(null)).map((row) => row.id)).toEqual(['el-6-6']);
+    expect((await service.search('bedarf')).categories.map((row) => row.id)).toEqual(['el-6-6']);
+    expect(await service.getById('ap-2-1')).toMatchObject({
+      id: 'ap-2-1',
+      name: 'Hundebedarf',
+      isDeprecated: false,
+    });
+  });
+  it.each(['hg-17-3-3-1', 'sg-4-5-1-3-1', 'sg-4-5-2', 'hg-3-8-1', 'sg-4-9-3-7-4-2'])(
+    'verbirgt den ausgeschlossenen Seitenast %s in Auswahl und Suche, erhält seine Zuordnung',
+    async (id) => {
+      const original = { ...laptopRow, id, name: 'Gespeicherte Originalkategorie' };
+      const { service } = createService([
+        { data: [original, laptopRow], error: null },
+        { data: [original, laptopRow], error: null },
+        { data: original, error: null },
+      ]);
+      expect((await service.loadChildren(null)).map((row) => row.id)).toEqual(['el-6-6']);
+      expect((await service.search('Originalkategorie')).categories.map((row) => row.id)).toEqual([
+        'el-6-6',
+      ]);
+      expect(await service.getById(id)).toMatchObject({
+        id,
+        name: original.name,
+        isDeprecated: false,
+      });
+    },
+  );
+  it('wendet die Ausschlüsse vor dem Ergebnislimit auf die Datenbankabfrage an', async () => {
+    const query = createQuery({ data: [], error: null });
+    const injector = Injector.create({
+      providers: [{ provide: SupabaseService, useValue: { client: { from: () => query } } }],
+    });
+    const service = runInInjectionContext(injector, () => new ProductCategoryService());
+    await service.search('tiere');
+    const filter = query.calls.findIndex(([name]) => name === 'or');
+    const limit = query.calls.findIndex(([name]) => name === 'limit');
+    expect(filter).toBeGreaterThan(-1);
+    expect(filter).toBeLessThan(limit);
   });
 });

@@ -1,3 +1,6 @@
+import { CategoryPickerComponent } from '../../../../shared/components/category-picker/category-picker.component';
+import { kleinanzeigenCategories } from '../../models/kleinanzeigen-categories';
+import { kleinanzeigenCategoryPath } from '../../../../../../supabase/functions/_shared/kleinanzeigen-form-contracts';
 import {
   kleinanzeigenJobStatus,
   kleinanzeigenJobIssue,
@@ -61,6 +64,7 @@ import {
   selector: 'app-listing-transfer-dialog',
   imports: [
     ReactiveFormsModule,
+    CategoryPickerComponent,
     ModalShellComponent,
     ButtonComponent,
     NoticeBannerComponent,
@@ -123,6 +127,8 @@ export class ListingTransferDialogComponent {
   readonly notice = signal<string | null>(null);
   readonly schema = signal<KleinanzeigenProviderSchema | null>(null);
   readonly schemaRevision = signal<string | null>(null);
+  readonly categorySource = kleinanzeigenCategories;
+  readonly categorySelection = new FormControl<string | null>(null);
   readonly categoryPath = signal('');
   readonly categoryLabel = signal('');
   readonly categoryChoices = signal<readonly KleinanzeigenCategoryChoice[]>([]);
@@ -231,6 +237,17 @@ export class ListingTransferDialogComponent {
   );
   constructor() {
     effect(() => {
+      const disabled =
+        this.busy() ||
+        this.publishing() ||
+        this.publicationPending() ||
+        this.publicationConfirmed();
+      untracked(() => {
+        if (disabled) this.categorySelection.disable({ emitEvent: false });
+        else this.categorySelection.enable({ emitEvent: false });
+      });
+    });
+    effect(() => {
       const disabled = this.publishing();
       for (const control of [this.platform, this.target]) {
         if (disabled) control.disable({ emitEvent: false });
@@ -239,6 +256,7 @@ export class ListingTransferDialogComponent {
     });
     const destroy = inject(DestroyRef);
     const subscriptions = [
+      this.categorySelection.valueChanges.subscribe((path) => void this.selectCategory(path)),
       this.form.valueChanges.subscribe(() => this.formTick.update((value) => value + 1)),
       this.attributes.valueChanges.subscribe(() => this.formTick.update((value) => value + 1)),
       this.shippingGroup.valueChanges.subscribe((value) => {
@@ -310,6 +328,7 @@ export class ListingTransferDialogComponent {
     this.schema.set(null);
     this.schemaRevision.set(null);
     this.categoryPath.set('');
+    this.categorySelection.setValue(null, { emitEvent: false });
     this.categoryLabel.set('');
     this.categoryChoices.set([]);
     this.shippingGroup.setValue('', { emitEvent: false });
@@ -393,7 +412,36 @@ export class ListingTransferDialogComponent {
       if (this.current(generation)) this.busy.set(false);
     }
   }
-  async browse(path: string): Promise<void> {
+  async selectCategory(path: string | null): Promise<void> {
+    if (this.busy() || this.publishing()) return;
+    const previousFields = this.content().categoryFields;
+    this.categoryPath.set(path ?? '');
+    this.categoryLabel.set(path ? (this.categorySource.getCategory(path)?.fullName ?? '') : '');
+    this.schema.set(null);
+    this.schemaRevision.set(null);
+    this.notice.set(null);
+    this.error.set(null);
+    for (const key of Object.keys(this.attributes.controls))
+      this.attributes.removeControl(key, { emitEvent: false });
+    this.shippingGroup.setValue('', { emitEvent: false });
+    this.selectedShippingGroup.set('');
+    this.selectedShippingMethods.set([]);
+    this.formTick.update((value) => value + 1);
+    if (!path) return;
+    if (!this.categorySource.getCategory(path)?.isLeaf) {
+      this.notice.set('Wähle eine vollständige Unterkategorie.');
+      return;
+    }
+    if (!kleinanzeigenCategoryPath(path)) {
+      this.notice.set(
+        'Diese Kategorie ist im Baum vorhanden. Ihre automatische Übergabe wird noch nicht unterstützt.',
+      );
+      return;
+    }
+    this.publicationPreparation.set(true);
+    await this.browse(path, previousFields);
+  }
+  async browse(path: string, previousFields?: Readonly<Record<string, string>>): Promise<void> {
     const account = this.accounts().find(
       (candidate) => candidate.connectionId === this.target.value,
     );
@@ -414,11 +462,12 @@ export class ListingTransferDialogComponent {
       );
       if (!this.current(generation)) return;
       this.categoryPath.set(result.categoryPath);
+      this.categorySelection.setValue(result.categoryPath || null, { emitEvent: false });
       this.categoryLabel.set(result.categoryLabel);
       this.categoryChoices.set(result.choices);
       if (result.schema) {
         const values = retainKleinanzeigenCategoryFields(
-          this.content().categoryFields,
+          previousFields ?? this.content().categoryFields,
           result.schema,
           this.preview()?.attributeHints ?? {},
         );
@@ -478,7 +527,7 @@ export class ListingTransferDialogComponent {
       shippingType: value.shippingType,
       shippingPriceCents: null,
       postalCode: value.postalCode.trim() || null,
-      categoryId: this.schema()?.categoryPath ?? null,
+      categoryId: this.schema()?.categoryPath ?? (this.categoryPath() || null),
       categoryFields: fields,
       schemaRevision: this.schemaRevision(),
     };
@@ -552,13 +601,16 @@ export class ListingTransferDialogComponent {
       return;
     }
     const generation = this.generation;
+    if (!this.extension.formSchemaAvailable()) {
+      this.error.set(
+        'Für Eigenschaften und Veröffentlichung ist die Flipbase-Erweiterung erforderlich. Prüfe die Erweiterung in diesem Browserprofil.',
+      );
+      return;
+    }
     if (!this.schema()) {
-      this.publicationPreparation.set(true);
-      await this.browse('');
-      if (this.current(generation) && !this.error())
-        this.notice.set(
-          'Wähle die Kategorie und prüfe die ergänzten Felder. Veröffentlicht wird erst nach Deinem erneuten Klick auf Inserieren.',
-        );
+      this.error.set(
+        'Wähle eine vollständige Kleinanzeigen-Kategorie und lade ihre Eigenschaften.',
+      );
       return;
     }
     this.form.markAllAsTouched();
