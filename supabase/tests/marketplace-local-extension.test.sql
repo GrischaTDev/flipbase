@@ -132,6 +132,25 @@ select is((select count(*)::integer from public.marketplace_account_entries wher
 select lives_ok($$select public.marketplace_import_local_inbox('35100000-0000-4000-8000-000000000011','35100000-0000-4000-8000-000000000021',repeat('a',64),
   jsonb_set(jsonb_set(jsonb_set(pg_temp.inbox_batch(clock_timestamp(),1,2),'{entries,0,body,sourceUpdatedAt}',to_jsonb((select body->>'sourceUpdatedAt' from public.marketplace_account_entries where connection_id='35100000-0000-4000-8000-000000000021' and kind='conversation' and external_id='777'))),'{entries,0,body,detailCheckedAt}','null'::jsonb),'{entries,0,body,text}','"Short preview"'::jsonb))$$,'Skipped detail imports without overwriting full preview');
 select is((select body->>'text' from public.marketplace_account_entries where connection_id='35100000-0000-4000-8000-000000000021' and kind='conversation' and external_id='777'),'Hello','Skipped detail preserves prior full text');
+-- Ein gekürzter Detailabruf belegt die Vorschau durch eine mitgelieferte Nachricht,
+-- ohne damit den vollständigen Verlauf oder die Detailrevision zu bestätigen.
+update public.marketplace_account_entries set body=body||jsonb_build_object('text','Dieser Artikel ist nicht mehr verfügbar.','occurredAt','2026-10-04T09:45:00.000Z'),sort_at='2026-10-04T09:45:00.000Z'
+where connection_id='35100000-0000-4000-8000-000000000021' and kind='conversation' and external_id='777';
+create function pg_temp.partial_activity_batch() returns jsonb language sql as $$
+  select jsonb_set(pg_temp.inbox_batch(),'{entries}',jsonb_build_array(
+    jsonb_build_object('kind','conversation','externalId','777','sortAt','2026-10-03T08:00:00.000Z','body',jsonb_build_object(
+      'title','Buyer','text','Passt, danke!','occurredAt','2026-10-03T08:00:00.000Z',
+      'sourceUpdatedAt',(select body->>'sourceUpdatedAt' from public.marketplace_account_entries where connection_id='35100000-0000-4000-8000-000000000021' and kind='conversation' and external_id='777'),
+      'detailCheckedAt',null,'unread',false,'imageUrl',null)),
+    jsonb_build_object('kind','message','externalId','889','parentExternalId','777','sortAt','2026-10-03T08:00:00.000Z','body',jsonb_build_object(
+      'title','Message','text','Passt, danke!','occurredAt','2026-10-03T08:00:00.000Z','direction','inbound','messageType','message','priceLabel',null))
+  ))||jsonb_build_object('mode','latest');
+$$;
+select lives_ok($$select public.marketplace_import_local_inbox('35100000-0000-4000-8000-000000000011','35100000-0000-4000-8000-000000000021',repeat('a',64),pg_temp.partial_activity_batch())$$,'Partial dated history repairs an old unavailable preview');
+select is((select body->>'text' from public.marketplace_account_entries where connection_id='35100000-0000-4000-8000-000000000021' and kind='conversation' and external_id='777'),'Passt, danke!','Persisted preview comes from the included chat message');
+select is((select body->>'occurredAt' from public.marketplace_account_entries where connection_id='35100000-0000-4000-8000-000000000021' and kind='conversation' and external_id='777'),'2026-10-03T08:00:00.000Z','Persisted activity ignores the unavailable status');
+select is((select sort_at from public.marketplace_account_entries where connection_id='35100000-0000-4000-8000-000000000021' and kind='conversation' and external_id='777'),'2026-10-03T08:00:00.000Z'::timestamptz,'Persisted order agrees with the actual activity');
+select ok((select body->>'detailCheckedAt' is null from public.marketplace_account_entries where connection_id='35100000-0000-4000-8000-000000000021' and kind='conversation' and external_id='777'),'Partial history never confirms the full detail revision');
 select throws_ok($$select public.marketplace_import_local_inbox('35100000-0000-4000-8000-000000000011','35100000-0000-4000-8000-000000000021',repeat('a',64),
   jsonb_set(pg_temp.inbox_batch(clock_timestamp(),2,1),'{entries}',
     jsonb_build_array(pg_temp.inbox_batch()->'entries'->0,jsonb_set(pg_temp.inbox_batch()->'entries'->0,'{externalId}','"999"'::jsonb),jsonb_set(pg_temp.inbox_batch()->'entries'->1,'{parentExternalId}','"999"'::jsonb))))$$,'22023',null,'Message cannot move to another scoped parent');

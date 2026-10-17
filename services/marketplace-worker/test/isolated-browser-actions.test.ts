@@ -7,7 +7,10 @@ import {
   isolatedBrowserActions,
   validateBrowserResult,
 } from '../src/isolated-browser-actions.ts';
-import type { VintedAccountImport } from '../src/vinted-account-import.ts';
+import {
+  parseVintedAccountImport,
+  type VintedAccountImport,
+} from '../src/vinted-account-import.ts';
 import { VintedInteractionRequiredError } from '../src/vinted-browser-reader.ts';
 import { listingCurrentContentFixture } from './fixtures/vinted-listing-current-content.ts';
 import {
@@ -689,4 +692,42 @@ test('isolated import passes validated publication ages through the real command
     ),
     /Inseratcache/,
   );
+});
+
+test('isolated import keeps pending chat activity with a null detail check through the browser action boundary', async () => {
+  const previous = {
+    externalId: '51',
+    sourceUpdatedAt: '2026-10-04T09:45:00.000Z',
+    detailCheckedAt: null,
+    text: 'Passt, danke!',
+    occurredAt: '2026-10-03T08:00:00.000Z',
+  };
+  const snapshot = (await executeBrowserAction(
+    {
+      version: () => '',
+      importAccount: async (_authorize, _onStage, versions) =>
+        parseVintedAccountImport(
+          { id: '123', username: 'testkonto' },
+          { user: { id: 123 } },
+          [],
+          [
+            {
+              id: 51,
+              updated_at: '2026-10-04T09:45:00.000Z',
+              description: 'Dieser Artikel ist nicht mehr verfügbar.',
+            },
+          ],
+          [],
+          '2026-10-04T10:00:00.000Z',
+          versions,
+        ),
+    },
+    { name: 'importAccount', arguments: [[previous], null, []] },
+    async () => undefined,
+    async () => undefined,
+  )) as VintedAccountImport;
+  const conversation = snapshot.entries.find((entry) => entry.kind === 'conversation');
+  assert.equal(conversation?.body['text'], 'Passt, danke!');
+  assert.equal(conversation?.body['occurredAt'], '2026-10-03T08:00:00.000Z');
+  assert.equal(conversation?.body['detailCheckedAt'], null);
 });

@@ -476,7 +476,8 @@ export async function executeBrowserAction(
         return {
           externalId: identifier(version.externalId),
           sourceUpdatedAt: text(version.sourceUpdatedAt, 64),
-          detailCheckedAt: text(version.detailCheckedAt, 64),
+          detailCheckedAt:
+            version.detailCheckedAt === null ? null : text(version.detailCheckedAt, 64),
           text: version.text === null ? null : text(version.text),
           occurredAt: version.occurredAt === null ? null : text(version.occurredAt, 64),
           ...Object.fromEntries(

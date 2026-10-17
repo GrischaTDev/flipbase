@@ -118,7 +118,7 @@ export class SupabaseVintedImportWriter {
         typeof row?.['external_id'] !== 'string' ||
         !/^[1-9][0-9]{0,31}$/.test(row['external_id']) ||
         typeof body?.['sourceUpdatedAt'] !== 'string' ||
-        typeof body['detailCheckedAt'] !== 'string'
+        (body['detailCheckedAt'] !== null && typeof body['detailCheckedAt'] !== 'string')
       )
         return [];
       return [

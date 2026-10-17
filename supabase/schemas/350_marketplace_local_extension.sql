@@ -299,6 +299,12 @@ begin
               where field.key=any(array['itemId','itemTitle','itemImageUrl','itemPrice','itemCurrency','partnerId','lastActiveAt','transactionStatus'])
                 and (v_entry->'body'->field.key is null or v_entry->'body'->field.key='null'::jsonb)
             ),'{}'::jsonb) || case when v_existing.id is not null and v_existing.body->>'sourceUpdatedAt'=v_entry->'body'->>'sourceUpdatedAt' and v_entry->'body'->>'detailCheckedAt' is null
+            -- Ein mitgelieferter Nachrichtenausschnitt belegt Vorschau und Zeit auch
+            -- bei gekürztem Verlauf. Reine Listenbeschreibungen bleiben geschützt.
+            and not exists (select 1 from jsonb_array_elements(p_batch->'entries') evidence
+              where evidence->>'kind'='message' and evidence->>'parentExternalId'=v_entry->>'externalId'
+                and evidence->'body'->>'text'=v_entry->'body'->>'text'
+                and evidence->'body'->>'occurredAt'=v_entry->'body'->>'occurredAt')
             then jsonb_build_object('text',v_existing.body->'text','occurredAt',v_existing.body->'occurredAt','detailCheckedAt',v_existing.body->'detailCheckedAt') else '{}'::jsonb end,
           (v_entry->>'sortAt')::timestamptz,v_observed)
         on conflict(workspace_id,connection_id,kind,external_id) do update set body=excluded.body,sort_at=excluded.sort_at,observed_at=excluded.observed_at;
