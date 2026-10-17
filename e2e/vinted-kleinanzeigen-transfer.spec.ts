@@ -28,15 +28,52 @@ async function ready(page: Page) {
   const result = await open(page);
   const { dialog } = result;
   await dialog.getByLabel('Postleitzahl', { exact: true }).fill('10115');
-  await dialog.getByRole('button', { name: 'Kategorie auswählen', exact: true }).tap();
-  await dialog.getByRole('combobox', { name: 'Unterkategorie auswählen', exact: true }).click();
-  await page
-    .getByRole('option', { name: 'Mode & Beauty > Herrenbekleidung > Shirts', exact: true })
-    .click();
+  await dialog
+    .getByRole('button', { name: /Kleinanzeigen-Kategorie Kategorie suchen oder auswählen/u })
+    .tap();
+  const category = page.getByRole('dialog', { name: 'Kleinanzeigen-Kategorie', exact: true });
+  await category
+    .getByRole('combobox', { name: 'Kategorie suchen', exact: true })
+    .fill('herren shirts');
+  await category.getByRole('option').filter({ hasText: 'Shirts' }).tap();
   await dialog.getByRole('combobox', { name: 'Zustand', exact: true }).click();
   await page.getByRole('option', { name: 'Gut', exact: true }).click();
   return result;
 }
+test('Der vollständige Kategoriebaum bleibt ohne Erweiterung lokal durchsuchbar @core-smoke', async ({
+  page,
+}, testInfo) => {
+  const f = await mockKleinanzeigenTransfer(page, { extensionAvailable: false });
+  const { dialog } = await open(page);
+  await dialog
+    .getByRole('button', { name: /Kleinanzeigen-Kategorie Kategorie suchen oder auswählen/u })
+    .tap();
+  const picker = page.getByRole('dialog', { name: 'Kleinanzeigen-Kategorie', exact: true });
+  await expect(picker.getByRole('option')).toHaveCount(15);
+  await picker.getByRole('option').filter({ hasText: 'Mode & Beauty' }).tap();
+  await picker.getByRole('option').filter({ hasText: 'Herrenbekleidung' }).tap();
+  await expect(picker.getByRole('option').filter({ hasText: 'Hemden' })).toBeVisible();
+  expect(f.savedSchemaRequests).toHaveLength(0);
+  expect(
+    f.bridgeRequests.filter((value) => value['type'] === 'FLIPBASE_KLEINANZEIGEN_FORM_SCHEMA'),
+  ).toHaveLength(0);
+  expect(f.sourceCalls).toEqual([]);
+  await picker
+    .getByRole('combobox', { name: 'Kategorie suchen', exact: true })
+    .fill('damen jacken');
+  await expect(picker.getByRole('option').filter({ hasText: 'Jacken & Mäntel' })).toBeVisible();
+  await page.evaluate(axe.source);
+  expect(
+    await picker.evaluate(
+      async (element) =>
+        (await (window as unknown as { axe: typeof axe }).axe.run(element)).violations,
+    ),
+  ).toEqual([]);
+  await page.screenshot({
+    path: testInfo.outputPath('kleinanzeigen-category-picker.png'),
+    animations: 'disabled',
+  });
+});
 for (const theme of ['light', 'dark'] as const)
   for (const width of [320, 390, 834, 1440])
     test(
@@ -66,10 +103,10 @@ for (const theme of ['light', 'dark'] as const)
         ).toHaveCount(1);
         expect(f.calls.filter((value) => value['action'] === 'prepare_transfer')).toHaveLength(1);
         expect(f.calls.some((value) => value['action'] === 'save_transfer')).toBe(false);
-        expect(f.savedSchemaRequests).toHaveLength(2);
+        expect(f.savedSchemaRequests).toHaveLength(0);
         expect(
           f.bridgeRequests.filter((value) =>
-            /FLIPBASE_VINTED_|KLEINANZEIGEN_FORM_SCHEMA|KLEINANZEIGEN_QUOTA|KLEINANZEIGEN_PUBLISH_JOB/u.test(
+            /FLIPBASE_VINTED_|KLEINANZEIGEN_QUOTA|KLEINANZEIGEN_PUBLISH_JOB/u.test(
               String(value['type']),
             ),
           ),
@@ -95,7 +132,7 @@ for (const theme of ['light', 'dark'] as const)
           f.bridgeRequests.filter(
             (value) => value['type'] === 'FLIPBASE_KLEINANZEIGEN_FORM_SCHEMA',
           ),
-        ).toHaveLength(1);
+        ).toHaveLength(2);
         expect(
           f.bridgeRequests.filter(
             (value) =>

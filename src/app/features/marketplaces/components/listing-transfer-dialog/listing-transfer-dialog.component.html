@@ -107,22 +107,22 @@
         <div class="min-w-0 space-y-4">
           <section class="space-y-3" aria-label="Kleinanzeigen-Kategorie">
             <h3 class="text-sm font-semibold text-fb-text-primary">Kategorie und Eigenschaften</h3>
-            <p class="text-sm text-fb-text-secondary">
-              {{ categoryLabel() || 'Wähle die passende Kleinanzeigen-Kategorie.' }}
-            </p>
-            <app-button
-              [loading]="busy()"
-              [disabled]="busy() || publishing()"
-              (clicked)="browse('')"
-              >Kategorie auswählen</app-button
-            >
-            @if (categoryChoices().length) {
-              <app-custom-select
-                ariaLabel="Unterkategorie auswählen"
-                [options]="categoryOptions()"
-                [disabled]="busy()"
-                (valueChange)="browse($event || '')"
-              />
+            <app-category-picker
+              [source]="categorySource"
+              [formControl]="categorySelection"
+              label="Kleinanzeigen-Kategorie"
+              placeholder="Kategorie suchen oder auswählen"
+              helpText="Suche im vollständigen Kleinanzeigen-Kategoriebaum oder öffne die Unterkategorien."
+            />
+            @if (busy()) {
+              <p class="text-sm text-fb-text-secondary" role="status">
+                Kleinanzeigen-Eigenschaften werden geladen …
+              </p>
+            }
+            @if (categoryPath() && !schema() && !busy()) {
+              <app-button [disabled]="publishing()" (clicked)="selectCategory(categoryPath())"
+                >Eigenschaften laden</app-button
+              >
             }
             @if (schema(); as currentSchema) {
               <app-kleinanzeigen-listing-fields

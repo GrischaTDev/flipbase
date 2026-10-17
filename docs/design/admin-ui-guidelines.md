@@ -421,3 +421,17 @@ Je Element festhalten: Datum, Route, Viewport, Browserzoom, Theme, Komponentenro
   eine erneute Prüfung. Gebühren oder unbekannte Kosten stoppen den Vorgang.
 - Erster vollständiger Weg: Vinted nach Kleinanzeigen. Noch nicht unterstützte
   Zielplattformen dürfen keine funktionierende Veröffentlichung vortäuschen.
+
+## Gemeinsame Kategorieauswahl für Marktplätze
+
+Nutzerentscheidung vom 17.10.2026: Kategorieauswahlen verwenden den bestehenden
+gemeinsamen `CategoryPickerComponent` mit aufklappbaren Unterkategorien und
+Texteingabe zur Suche. Die Datenquellen bleiben getrennt: Produktanlage verwendet
+Shopify-Kategorien, Vinted seinen eigenen gespeicherten Baum und Kleinanzeigen
+den vollständig per Browser erfassten Originalbaum. Bezeichnungen und
+Anbieterkennungen dürfen dabei nicht umbenannt oder miteinander vermischt werden.
+Kategorien werden lokal bereitgestellt und bei Bedarf gezielt neu erfasst; sie
+werden nicht erst durch einen Klick auf die Veröffentlichungsaktion geladen.
+Zusätzliche Anbieterfelder und Veröffentlichungsprüfungen bleiben getrennt von
+der Kategorieauswahl. Die native Auswahl auf Kleinanzeigen ist nur der Ersatzweg,
+falls der vollständige Baum nicht zuverlässig übernommen werden kann.

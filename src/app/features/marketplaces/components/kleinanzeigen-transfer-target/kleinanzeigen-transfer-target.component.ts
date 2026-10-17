@@ -1,3 +1,6 @@
+import { CategoryPickerComponent } from '../../../../shared/components/category-picker/category-picker.component';
+import { kleinanzeigenCategories } from '../../models/kleinanzeigen-categories';
+import { kleinanzeigenCategoryPath } from '../../../../../../supabase/functions/_shared/kleinanzeigen-form-contracts';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -10,10 +13,9 @@ import {
   signal,
   untracked,
 } from '@angular/core';
-import { FormControl, FormRecord } from '@angular/forms';
+import { FormControl, FormRecord, ReactiveFormsModule } from '@angular/forms';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
-import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import type { Listing } from '../../../listings/models/listing.models';
 import type { KleinanzeigenDraftInput } from '../../models/kleinanzeigen-transfer-mapping';
@@ -38,7 +40,8 @@ export interface KleinanzeigenCategorySelection {
   selector: 'app-kleinanzeigen-transfer-target',
   imports: [
     ButtonComponent,
-    CustomSelectComponent,
+    CategoryPickerComponent,
+    ReactiveFormsModule,
     NoticeBannerComponent,
     KleinanzeigenListingFieldsComponent,
     KleinanzeigenPublicationPanelComponent,
@@ -68,6 +71,8 @@ export class KleinanzeigenTransferTargetComponent {
   readonly schemaRevision = signal<string | null>(null);
   readonly choices = signal<readonly KleinanzeigenCategoryChoice[]>([]);
   readonly label = signal('');
+  readonly categorySource = kleinanzeigenCategories;
+  readonly categorySelection = new FormControl<string | null>(null);
   readonly selectedGroup = signal('');
   readonly methods = signal<readonly string[]>([]);
   readonly attributes = new FormRecord<FormControl<string>>({});
@@ -90,8 +95,16 @@ export class KleinanzeigenTransferTargetComponent {
       : ['Prüfe die aktuellen Kleinanzeigen-Kategorieangaben.'],
   );
   constructor() {
+    effect(() => {
+      const disabled = this.busy();
+      untracked(() => {
+        if (disabled) this.categorySelection.disable({ emitEvent: false });
+        else this.categorySelection.enable({ emitEvent: false });
+      });
+    });
     const destroy = inject(DestroyRef);
     const subscriptions = [
+      this.categorySelection.valueChanges.subscribe((path) => void this.selectCategory(path)),
       this.attributes.valueChanges.subscribe(() => this.emitFields()),
       this.shippingGroup.valueChanges.subscribe((value) => {
         this.selectedGroup.set(value);
@@ -115,6 +128,8 @@ export class KleinanzeigenTransferTargetComponent {
         this.schemaRevision.set(listing.schemaRevision ?? null);
         this.choices.set([]);
         this.label.set(listing.categoryId ?? '');
+        this.categorySelection.setValue(listing.categoryId ?? null, { emitEvent: false });
+        this.busy.set(false);
         this.scope.set(null);
         this.publicationScope.set(null);
         this.publicationAllowed.set(false);
@@ -164,7 +179,32 @@ export class KleinanzeigenTransferTargetComponent {
         this.error.set('Das Zielkonto konnte nicht geprüft werden.');
     }
   }
-  async browse(path: string): Promise<void> {
+  async selectCategory(path: string | null): Promise<void> {
+    if (this.busy()) return;
+    const previousFields = this.content().categoryFields;
+    this.schema.set(null);
+    this.schemaRevision.set(null);
+    this.error.set(null);
+    for (const key of Object.keys(this.attributes.controls))
+      this.attributes.removeControl(key, { emitEvent: false });
+    this.selectedGroup.set('');
+    this.methods.set([]);
+    this.shippingGroup.setValue('', { emitEvent: false });
+    this.emitFields();
+    if (!path) return;
+    if (!this.categorySource.getCategory(path)?.isLeaf) {
+      this.error.set('Wähle eine vollständige Unterkategorie.');
+      return;
+    }
+    if (!kleinanzeigenCategoryPath(path)) {
+      this.error.set(
+        'Diese Kategorie ist im Baum vorhanden. Ihre automatische Übergabe wird noch nicht unterstützt.',
+      );
+      return;
+    }
+    await this.browse(path, previousFields);
+  }
+  async browse(path: string, previousFields?: Readonly<Record<string, string>>): Promise<void> {
     const scope = this.scope();
     if (!scope || this.busy()) return;
     const generation = this.generation;
@@ -174,6 +214,7 @@ export class KleinanzeigenTransferTargetComponent {
       const result = await this.schemas.browse(scope, path);
       if (generation !== this.generation) return;
       this.choices.set(result.choices);
+      this.categorySelection.setValue(path, { emitEvent: false });
       this.label.set(result.categoryLabel);
       this.schema.set(result.schema);
       this.schemaRevision.set(result.schemaRevision);
@@ -181,7 +222,10 @@ export class KleinanzeigenTransferTargetComponent {
       for (const key of Object.keys(this.attributes.controls))
         this.attributes.removeControl(key, { emitEvent: false });
       const values = result.schema
-        ? retainKleinanzeigenCategoryFields(this.content().categoryFields, result.schema)
+        ? retainKleinanzeigenCategoryFields(
+            previousFields ?? this.content().categoryFields,
+            result.schema,
+          )
         : {};
       for (const field of result.schema?.fields ?? [])
         this.attributes.addControl(
@@ -216,7 +260,7 @@ export class KleinanzeigenTransferTargetComponent {
       categoryFields['ad-shipping-options'] = JSON.stringify(this.methods());
     }
     this.fieldsChanged.emit({
-      categoryId: this.schema()?.categoryPath ?? null,
+      categoryId: this.schema()?.categoryPath ?? this.categorySelection.value,
       categoryFields,
       schemaRevision: this.schemaRevision(),
     });

@@ -1,3 +1,4 @@
+import { CategoryPickerComponent } from '../../../../shared/components/category-picker/category-picker.component';
 import { KleinanzeigenPublicationPanelComponent } from '../kleinanzeigen-publication-panel/kleinanzeigen-publication-panel.component';
 import { KleinanzeigenListingJobService } from '../../services/kleinanzeigen-listing-job.service';
 import { provideRouter } from '@angular/router';
@@ -239,7 +240,7 @@ describe('Gemeinsamer Übertragungsdialog', () => {
     expect(published).toHaveBeenCalledTimes(1);
     expect(c.notice()).toContain('jetzt bei Kleinanzeigen online');
   });
-  it('lädt neue Zielfelder erst beim Inserieren und wartet danach auf die Prüfung', async () => {
+  it('fordert vor dem Inserieren eine ausgewählte Kategorie statt erst den Baum zu laden', async () => {
     const f = await create();
     const c = f.componentInstance;
     c.platform.setValue('kleinanzeigen');
@@ -248,23 +249,11 @@ describe('Gemeinsamer Übertragungsdialog', () => {
     schemas.browse.mockClear();
     transfers.save.mockClear();
     jobs.enqueue.mockClear();
-    schemas.browse.mockResolvedValue({
-      categoryPath: '',
-      categoryLabel: '',
-      choices: [{ path: 'mode', label: 'Mode', isParent: true }],
-      schema: null,
-      schemaRevision: null,
-    });
-    expect(schemas.browse).not.toHaveBeenCalled();
     await c.publish();
-    expect(schemas.browse).toHaveBeenCalledWith(
-      expect.objectContaining({ connectionId: '9' }),
-      '',
-      'provider',
-    );
+    expect(schemas.browse).not.toHaveBeenCalled();
     expect(transfers.save).not.toHaveBeenCalled();
     expect(jobs.enqueue).not.toHaveBeenCalled();
-    expect(c.notice()).toContain('erneuten Klick auf Inserieren');
+    expect(c.error()).toContain('vollständige Kleinanzeigen-Kategorie');
   });
   it('zeigt Auftragsfehler im festen Dialogbereich genau einmal', async () => {
     const f = await create();
@@ -326,6 +315,99 @@ describe('Gemeinsamer Übertragungsdialog', () => {
       );
     },
   );
+  it('zeigt den gemeinsamen Kategoriebaum schon vor jedem Anbieterabruf', async () => {
+    const f = await create();
+    f.componentInstance.platform.setValue('kleinanzeigen');
+    f.componentInstance.target.setValue('9');
+    await f.whenStable();
+    f.detectChanges();
+    expect(f.nativeElement.querySelector('app-category-picker')).toBeTruthy();
+    expect(f.nativeElement.querySelector('[aria-label="Unterkategorie auswählen"]')).toBeNull();
+    expect(schemas.browse).not.toHaveBeenCalled();
+  });
+  it('liest Eigenschaften erst nach ausdrücklicher Endkategoriewahl und verwirft Elternkategorien', async () => {
+    const f = await create();
+    const c = f.componentInstance;
+    c.platform.setValue('kleinanzeigen');
+    c.target.setValue('9');
+    await f.whenStable();
+    schemas.browse.mockClear();
+    c.categorySelection.setValue('153');
+    await f.whenStable();
+    expect(schemas.browse).not.toHaveBeenCalled();
+    expect(c.schema()).toBeNull();
+    expect(c.notice()).toContain('Unterkategorie');
+    schemas.browse.mockResolvedValue({
+      categoryPath: '153/160/hemden',
+      categoryLabel: 'Hemden',
+      choices: [],
+      schemaRevision: 'a'.repeat(64),
+      schema: {
+        categoryPath: '153/160/hemden',
+        categoryLabel: 'Hemden',
+        titleMax: 65,
+        descriptionMax: 4000,
+        photoCountMax: 20,
+        photoBytesMax: 12582912,
+        priceStepCents: 100,
+        fields: [],
+        shipping: { defaultGroup: null, defaultMethods: [], groups: [] },
+      },
+    });
+    c.categorySelection.setValue('153/160/hemden');
+    await f.whenStable();
+    expect(schemas.browse).toHaveBeenCalledWith(
+      expect.objectContaining({ connectionId: '9' }),
+      '153/160/hemden',
+      'provider',
+    );
+    expect(c.content().categoryId).toBe('153/160/hemden');
+    expect(c.schema()?.categoryPath).toBe('153/160/hemden');
+  });
+  it('erhält beim bewussten Kategorienwechsel weiterhin gültige eigene Eigenschaften', async () => {
+    const f = await create();
+    const c = f.componentInstance;
+    c.platform.setValue('kleinanzeigen');
+    c.target.setValue('9');
+    await f.whenStable();
+    const { FormControl } = await import('@angular/forms');
+    c.attributes.addControl(
+      'kleidung_herren.condition',
+      new FormControl('like_new', { nonNullable: true }),
+    );
+    c.attributes.addControl('obsolete', new FormControl('alt', { nonNullable: true }));
+    schemas.browse.mockResolvedValue({
+      categoryPath: '153/160/hemden',
+      categoryLabel: 'Hemden',
+      choices: [],
+      schemaRevision: 'a'.repeat(64),
+      schema: {
+        categoryPath: '153/160/hemden',
+        categoryLabel: 'Hemden',
+        titleMax: 65,
+        descriptionMax: 4000,
+        photoCountMax: 20,
+        photoBytesMax: 12582912,
+        priceStepCents: 100,
+        fields: [
+          {
+            key: 'kleidung_herren.condition',
+            label: 'Zustand',
+            kind: 'select',
+            selection: 'value',
+            required: false,
+            choices: [
+              { value: 'ok', label: 'Gut', description: '' },
+              { value: 'like_new', label: 'Sehr Gut', description: '' },
+            ],
+          },
+        ],
+        shipping: { defaultGroup: null, defaultMethods: [], groups: [] },
+      },
+    });
+    await c.selectCategory('153/160/hemden');
+    expect(c.attributes.getRawValue()).toEqual({ 'kleidung_herren.condition': 'like_new' });
+  });
   it('erhält lange Quelltexte und Centbeträge zur sichtbaren Korrektur', async () => {
     const f = await create();
     f.componentInstance.platform.setValue('kleinanzeigen');
@@ -443,6 +525,10 @@ describe('Gemeinsamer Übertragungsdialog', () => {
 let restore: () => void;
 beforeAll(async () => {
   restore = await prepareMarketplaceRendering([
+    {
+      type: CategoryPickerComponent,
+      path: 'src/app/shared/components/category-picker/category-picker.component.ts',
+    },
     {
       type: KleinanzeigenPublicationPanelComponent,
       path: 'src/app/features/marketplaces/components/kleinanzeigen-publication-panel/kleinanzeigen-publication-panel.component.ts',
