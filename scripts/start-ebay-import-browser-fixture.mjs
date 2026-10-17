@@ -37,6 +37,7 @@ await writeFile(
 BETA_APPLICATION_ALLOWED_ORIGINS=http://127.0.0.1:4200,http://localhost:4200
 BETA_INVITE_ALLOWED_ORIGINS=http://127.0.0.1:4200,http://localhost:4200
 BETA_APP_URL=http://127.0.0.1:4200
+BETA_DISCORD_ALLOWED_ORIGINS=http://127.0.0.1:4200,http://localhost:4200
 BETA_SMTP_HOST=${process.platform === 'linux' ? '172.17.0.1' : 'host.docker.internal'}
 BETA_SMTP_PORT=54361
 BETA_SMTP_USER=local

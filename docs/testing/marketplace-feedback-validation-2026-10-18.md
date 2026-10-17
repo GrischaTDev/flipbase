@@ -46,6 +46,12 @@ Ein erster mobiler 390px-Einstieg führte einmal unerwartet zum Dashboard. Gezie
 
 Ein erster PR-Lauf wurde vor dem Nachschieben der restlichen Header-/Rücklink-Testanpassungen gezielt beendet; die neue vollständige CI prüft ausschließlich den korrigierten Stand. Der unabhängige Review bestätigt auch diese Testanpassungen ohne Abschwächung. Die tatsächliche CI-Auswahl ist wegen Datenbank und globalem Update-/Baupfad umfassend. Der PR muss daher sämtliche von CI verlangten Prüfungen bestehen; die lokale Marktplatzmatrix ersetzt nicht die übrigen datenbankgestützten Anwendungs-Browserfälle der CI.
 
+## Konkreter CI-Fehler und gezielte Korrektur
+
+Der umfassende PR-Lauf auf `63c4ac51` bestand alle Anwendungs-, Datenbank-, Qualitäts- und PWA-Jobs sowie 134 Browserfälle. Der erste zusätzliche Dashboard-Designfall scheiterte anschließend an einem Konsolenfehler403. Isolierte Reproduktion mit eigener Datenbank/API und unveränderten Edge Functions belegte die genaue URL `/functions/v1/beta-discord` und `origin_not_allowed`. Die lokale Browserdienst-Konfiguration hatte für den optionalen Dashboardstatus keine erlaubten Discord-Testadressen gesetzt.
+
+Ausschließlich die Browserfixture ergänzt die beiden lokalen Origins127.0.0.1:4200 undlocalhost:4200; Produktionsfunktion, CORS-Schutz und Rechte bleiben unverändert. Der Dashboardtest enthält künftig auch die URL eines Konsolenfehlers; die unveränderte Forderung nach fehlerfreier Konsole bleibt bestehen. Analoge isolierte Reproduktion auf eigenen freien Ports58451/4279: zuerst exakt roter Dashboardfall, nach Konfigurationskorrektur alle drei bestehenden Dashboardfälle grün. 30 bestehende Vertrags-/Auswahlfälle grün; unabhängiger Review ohne Befund. Damit74 abschließende lokale Browserfälle belegt. Erst danach neuer vollständiger CI-Lauf; kein unveränderter Wiederholungsversuch und keine abgeschwächte Prüfung.
+
 ## Bewusste Grenzen
 
 - Noch nie gespeicherte Beschreibungen lassen sich nicht aus einer lokalen Listen-Zusammenfassung rekonstruieren. Der Kopierklick liest nicht still erneut bei Vinted. Solche Angaben bleiben zur Ergänzung leer; kein sofortiger roter Fehler und kein erfundener Inhalt.

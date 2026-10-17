@@ -10,6 +10,8 @@
 
 **Zusätzliche Header-Einsatzstellen:** Nach PR-Erstellung drei alte Browsererwartungen im Dashboard, Postfach und Vinted-Bereich auf den direkt erreichbaren Theme-Schalter und entfernten Rücklink angepasst. Tatsächlicher Farbwechsel zusätzlich geprüft, übrige Assertions erhalten; unabhängiger Review bestätigt. 20 bestehende Postfach-/Arbeitsflächenfälle vollständig grün, damit 71 abschließende lokale Browserfälle. Dashboard-Designfälle mit echter Datenbank-Testanmeldung bleiben Teil der umfassenden CI. Eigenen überholten ersten CI-Lauf vor dem Korrektur-Push gezielt beendet.
 
+**CI-Fehler gezielt behoben:** Umfassender PR-Lauf bestand alle übrigen Pflichtjobs und134Browserfälle, scheiterte im zusätzlich erfassten Dashboardfall an403. Eigene isolierte echte API-/Browserreproduktion belegte `/functions/v1/beta-discord` mit `origin_not_allowed`: Browserfixture erlaubte die lokalen Discord-Origins noch nicht. Nur diese Testkonfiguration ergänzt, Produktionsfunktion/Rechte unverändert. Fehlerausgabe des bestehenden Dashboardtests umURL ergänzt; keine Ausnahme aus der fehlerfreien Konsolenprüfung. Zuerst rot, danach alle drei Dashboardfälle und30bestehende Vertrags-/Auswahlfälle grün; unabhängiger Review bestätigt. Neuer vollständiger CI-Lauf erst nach dieser Korrektur; insgesamt74abschließende lokale Browserfälle.
+
 **Abschluss:** Bestehende ausdrückliche PR-/Mergefreigabe auf den bislang fehlenden Gesamtkorrekturumfang angewendet. CI wählt wegen Schema und globalem Update-/Baupfad den umfassenden Pflichtumfang. Kein Merge vor dessen Erfolg; keine öffentlichen Beta-Mitteilungen und keine fremden Änderungen oder Testdienste angefasst.
 
 ## 2026-10-17 - Juna - Kategorieauswahl zur Integration freigegeben
