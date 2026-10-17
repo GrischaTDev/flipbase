@@ -138,6 +138,15 @@ describe('MarketplacesSettingsComponent', () => {
     expect(element.textContent).not.toContain('verwalte ihre Konten');
     expect(element.textContent).toContain('3 von 3 aktiv');
   });
+  it('behält die Kontolinks bei, wenn die Route keinen Sichtbarkeitswert liefert', () => {
+    const fixture = TestBed.createComponent(MarketplacesSettingsComponent);
+    fixture.componentRef.setInput('showAccountManagement', undefined);
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelector('a[href="/marketplaces/ebay/connection"]')).not.toBeNull();
+    expect(element.querySelector('a[href="/marketplaces/vinted/accounts"]')).not.toBeNull();
+    expect(element.querySelector('a[href="/marketplaces/kleinanzeigen"]')).not.toBeNull();
+  });
   it('öffnet die eBay-Kontoverbindung und verbirgt sie nach Abschalten des Kanals', () => {
     const fixture = TestBed.createComponent(MarketplacesSettingsComponent);
     fixture.detectChanges();

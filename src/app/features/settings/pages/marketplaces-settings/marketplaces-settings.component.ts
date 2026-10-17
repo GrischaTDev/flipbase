@@ -16,7 +16,10 @@ import { ButtonComponent } from '../../../../shared/components/button/button.com
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MarketplacesSettingsComponent {
-  readonly showAccountManagement = input(true);
+  // Die Routenbindung setzt fehlende Eingänge auf undefined; nur ausdrücklich false blendet aus.
+  readonly showAccountManagement = input(true, {
+    transform: (value: unknown) => (typeof value === 'boolean' ? value : true),
+  });
   private readonly marketplaceSettings = inject(MarketplaceSettingsService);
 
   readonly externalLinkIcon = ExternalLink;
