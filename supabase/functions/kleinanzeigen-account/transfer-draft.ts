@@ -50,7 +50,7 @@ export async function saveVintedTransferDraft(
   )
     throw new Error('Die gespeicherte Fassung passt nicht zu diesem Transfer.');
   if (draft.transfer_images_complete) return draft;
-  if (confirmed.photoReferences.length < 1 || confirmed.photoReferences.length > 20)
+  if (confirmed.photoReferences.length > 20)
     throw new Error('Bitte prüfe Deine Fotos: Für Kleinanzeigen sind höchstens 20 Bilder möglich.');
   const photos: TransferPhoto[] = [];
   let finalizing = false;

@@ -34,6 +34,25 @@
       value.generation === scope.generation
     );
   }
+  function validDisplayFields(item) {
+    const price = item.priceCents ?? null;
+    const currency = item.currency ?? null;
+    const day = item.publishedOn ?? null;
+    const image = item.imageUrl ?? null;
+    return (
+      (price === null || (Number.isSafeInteger(price) && price >= 0 && price <= 2147483647)) &&
+      currency === (price === null ? null : 'EUR') &&
+      (image === null ||
+        (typeof image === 'string' &&
+          image.length <= 2048 &&
+          /^https:\/\/img\.kleinanzeigen\.de\/api\/v1\/prod-ads\/images\/[^\s#]+$/u.test(image))) &&
+      (day === null ||
+        (typeof day === 'string' &&
+          /^\d{4}-\d{2}-\d{2}$/u.test(day) &&
+          Number.isFinite(Date.parse(day)) &&
+          new Date(day).toISOString().slice(0, 10) === day))
+    );
+  }
   function validPage(page, expected, externalAccountId, seen) {
     if (!record(page) || page.identity?.externalAccountId !== externalAccountId)
       throw failure(page?.identity ? 'account_changed' : 'schema_changed');
@@ -57,6 +76,7 @@
         !item.title.trim() ||
         typeof item.url !== 'string' ||
         item.publishedAt !== null ||
+        !validDisplayFields(item) ||
         !['active', 'unknown'].includes(item.state)
       )
         throw failure('schema_changed');
@@ -70,6 +90,10 @@
         title: item.title,
         url: item.url,
         publishedAt: null,
+        publishedOn: item.publishedOn ?? null,
+        priceCents: item.priceCents ?? null,
+        currency: item.currency ?? null,
+        imageUrl: item.imageUrl ?? null,
         state: item.state,
       })),
     };

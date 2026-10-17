@@ -158,3 +158,50 @@ test('a missing or contradictory current page cannot confirm an empty list', () 
     );
   assert.equal(reader.readPublicationPage(page), null);
 });
+
+test('reads only the own-card price and image without paid option prices or expiry', () => {
+  const page = doc(
+    '<main><h1>Mein Profil und meine Anzeigen</h1><ul id="my-manageitems-adlist"><li data-testid="ad-card" data-adid="999"><a href="/s-anzeige/test/999-160-1"><img data-testid="ad-image" src="https://img.kleinanzeigen.de/api/v1/prod-ads/images/aa/test?rule=$_2.JPG"></a><div><h3><a href="/s-anzeige/test/999-160-1">Anzeige Test</a></h3><ul class="list"><li class="text-title3">1.234,56 € VB</li><li>Endet am 20.10.2026</li></ul></div><section><span>2,99 €</span></section><button>Reservieren</button></li></ul><nav aria-label="Seiten-Navigation"><button aria-current="page">Seite 1</button><button disabled>Nächste</button></nav></main>',
+    '/m-meine-anzeigen.html',
+  );
+  const item = reader.readPublicationPage(page).items[0];
+  assert.equal(item.priceCents, 123456);
+  assert.equal(item.currency, 'EUR');
+  assert.equal(
+    item.imageUrl,
+    'https://img.kleinanzeigen.de/api/v1/prod-ads/images/aa/test?rule=$_2.JPG',
+  );
+  assert.equal(item.publishedAt, null);
+  assert.equal(item.publishedOn, null);
+});
+
+test('reads a detail calendar day without inventing a publication time', () => {
+  const detail = doc(
+    '<div id="viewad-main-info"><h1 id="viewad-title">Test</h1><div><svg data-title="calendarOutline"></svg><span>21.08.2026</span></div></div>',
+    '/s-anzeige/test/999-160-1',
+  );
+  assert.equal(
+    reader.readPublicationDetails(detail, { externalId: '999', title: 'Test' }).publishedOn,
+    '2026-08-21',
+  );
+  detail.querySelector('span').textContent = '31.02.2026';
+  assert.equal(
+    reader.readPublicationDetails(detail, { externalId: '999', title: 'Test' }).publishedOn,
+    null,
+  );
+  assert.equal(reader.readPublicationDetails(detail, { externalId: '998', title: 'Test' }), null);
+  assert.equal(reader.readPublicationDetails(detail, { externalId: '999', title: 'Other' }), null);
+});
+
+test('an absent price, pure VB and untrusted images stay unknown', () => {
+  const page = doc(
+    '<main><h1>Mein Profil und meine Anzeigen</h1><ul id="my-manageitems-adlist"><li data-testid="ad-card" data-adid="999"><img data-testid="ad-image" src="https://foreign.example/a.jpg"><div><h3><a href="/s-anzeige/test/999-160-1">Anzeige Test</a></h3><ul class="list"><li class="text-title3">VB</li></ul></div><button>Reservieren</button></li></ul><nav aria-label="Seiten-Navigation"><button aria-current="page">Seite 1</button><button disabled>N&auml;chste</button></nav></main>',
+    '/m-meine-anzeigen.html',
+  );
+  const item = reader.readPublicationPage(page).items[0];
+  assert.equal(item.priceCents, null);
+  assert.equal(item.currency, null);
+  assert.equal(item.imageUrl, null);
+  page.querySelector('.text-title3').textContent = '0 \u20ac';
+  assert.equal(reader.readPublicationPage(page).items[0].priceCents, 0);
+});

@@ -18,9 +18,17 @@ export async function mockKleinanzeigenTransfer(
     extensionAvailable?: boolean;
     lostEnqueueReply?: boolean;
     wrongBindingOnPublish?: boolean;
+    quotaUnknown?: boolean;
+    secondTarget?: boolean;
+    missingSourceValues?: boolean;
   } = {},
 ) {
   await mockMarketplaceOverview(page);
+  const sourceCalls: string[] = [];
+  await page.route('**/marketplace-browser/**', (route) => {
+    sourceCalls.push(route.request().url());
+    return route.fulfill({ status: 503, json: { error: 'source_provider_must_not_be_started' } });
+  });
   const connectionId = '9007199254740993';
   const externalAccountId = '88';
   const generation = 2;
@@ -28,6 +36,8 @@ export async function mockKleinanzeigenTransfer(
   const draftId = '25000000-0000-4000-8000-000000000041';
   const imageId = '25000000-0000-4000-8000-000000000071';
   const calls: Record<string, unknown>[] = [];
+  const bridgeRequests: Record<string, unknown>[] = [];
+  const savedSchemaRequests: URL[] = [];
   let draft: KleinanzeigenTransferDraft | null = null;
   let job: KleinanzeigenListingJob | null = null;
   let providerCalls = 0;
@@ -66,6 +76,32 @@ export async function mockKleinanzeigenTransfer(
     ],
     shipping: { defaultGroup: null, defaultMethods: [], groups: [] },
   };
+  await page.route('**/rest/v1/kleinanzeigen_form_schemas?**', (route) => {
+    const url = new URL(route.request().url());
+    savedSchemaRequests.push(url);
+    if (
+      url.searchParams.get('workspace_id') !== 'eq.' + workspaceId ||
+      ![connectionId, '9007199254740994'].includes(
+        url.searchParams.get('connection_id')?.replace('eq.', '') ?? '',
+      ) ||
+      url.searchParams.get('grant_generation') !== 'eq.' + generation
+    )
+      return route.fulfill({ status: 403, json: { message: 'Falscher Formularkontext' } });
+    return route.fulfill({
+      json: [
+        {
+          category_path: schema.categoryPath,
+          schema_revision: 'c'.repeat(64),
+          provider_schema: schema,
+          grant_generation: generation,
+          observed_at: new Date().toISOString(),
+        },
+      ],
+    });
+  });
+  await page.exposeFunction('__flipbaseTransferRequest', (request: Record<string, unknown>) => {
+    bridgeRequests.push(request);
+  });
   await page.route('https://images1.vinted.net/**', (route) =>
     route.fulfill({
       contentType: 'image/png',
@@ -101,7 +137,7 @@ export async function mockKleinanzeigenTransfer(
     return { workspaceId, connectionId, generation, jobId: job.id, handled: true };
   });
   await page.addInitScript(
-    ({ binding, schema, quotaUsed, available, wrongBindingOnPublish }) => {
+    ({ binding, schema, quotaUsed, available, wrongBindingOnPublish, quotaUnknown }) => {
       let categoryReviewed = false;
       window.addEventListener('message', async (event) => {
         if (
@@ -112,6 +148,21 @@ export async function mockKleinanzeigenTransfer(
         )
           return;
         const data = event.data as Record<string, unknown>;
+        if (
+          typeof data['type'] === 'string' &&
+          data['type'].startsWith('FLIPBASE_') &&
+          ![
+            'FLIPBASE_EXTENSION_STATUS',
+            'FLIPBASE_KLEINANZEIGEN_RESULT',
+            'FLIPBASE_VINTED_LOCAL_RESULT',
+          ].includes(data['type'])
+        ) {
+          await (
+            window as unknown as {
+              __flipbaseTransferRequest: (request: Record<string, unknown>) => Promise<void>;
+            }
+          ).__flipbaseTransferRequest(data);
+        }
         const send = (value: unknown) => window.postMessage(value, location.origin);
         if (data['type'] === 'FLIPBASE_CHECK_EXTENSION') {
           send({
@@ -145,11 +196,11 @@ export async function mockKleinanzeigenTransfer(
             expiresAt: binding.expiresAt,
             canPublish: true,
             quota: {
-              used: quotaUsed,
-              observedAt: new Date().toISOString(),
+              used: quotaUnknown ? null : quotaUsed,
+              observedAt: quotaUnknown ? null : new Date().toISOString(),
               reserved: 0,
-              allowed: quotaUsed < 100,
-              reason: quotaUsed < 100 ? null : 'quota_exhausted',
+              allowed: !quotaUnknown && quotaUsed < 100,
+              reason: quotaUnknown ? 'quota_unknown' : quotaUsed < 100 ? null : 'quota_exhausted',
             },
           };
         else if (data['type'] === 'FLIPBASE_KLEINANZEIGEN_FORM_SCHEMA') {
@@ -201,6 +252,7 @@ export async function mockKleinanzeigenTransfer(
       quotaUsed: options.quotaUsed ?? 99,
       available: options.extensionAvailable ?? true,
       wrongBindingOnPublish: options.wrongBindingOnPublish ?? false,
+      quotaUnknown: options.quotaUnknown ?? false,
     },
   );
   await page.route('**/functions/v1/kleinanzeigen-account', async (route) => {
@@ -226,6 +278,22 @@ export async function mockKleinanzeigenTransfer(
               localGrant: { active: true, canPublish: true, generation, expiresAt },
               sync: null,
             },
+            ...(options.secondTarget
+              ? [
+                  {
+                    ...binding,
+                    connectionId: '9007199254740994',
+                    externalAccountId: '89',
+                    displayName: 'Zweites Kleinanzeigen-Konto',
+                    listingCount: null,
+                    activeCount: null,
+                    lastSyncedAt: null,
+                    quota: null,
+                    localGrant: { active: true, canPublish: true, generation, expiresAt },
+                    sync: null,
+                  },
+                ]
+              : []),
           ].map(
             ({ generation: ignored, expiresAt: ignored2, canPublish: ignored3, ...account }) =>
               account,
@@ -265,7 +333,7 @@ export async function mockKleinanzeigenTransfer(
         json: {
           state: 'ready',
           workspaceId,
-          targetConnectionId: connectionId,
+          targetConnectionId: body['targetConnectionId'],
           connectionId: accountIds[0],
           entryId: '25000000-0000-4000-8000-000000001000',
           externalId: '100',
@@ -274,13 +342,21 @@ export async function mockKleinanzeigenTransfer(
           source: {
             externalAccountId: '100',
             externalId: '100',
-            title: options.longSource ? 'L'.repeat(100) : 'Vinted-Jacke vollständig',
-            description: options.longSource
-              ? 'Langtext '.repeat(600)
-              : 'Vollständige Beschreibung aus Vinted.',
-            priceCents: 0,
+            title: options.longSource
+              ? 'L'.repeat(100)
+              : body['targetConnectionId'] === '9007199254740994'
+                ? 'Jacke für zweites Konto'
+                : 'Vinted-Jacke vollständig',
+            description: options.missingSourceValues
+              ? ''
+              : options.longSource
+                ? 'Langtext '.repeat(600)
+                : 'Vollständige Beschreibung aus Vinted.',
+            priceCents: options.missingSourceValues ? null : 0,
             currency: 'EUR',
-            photoReferences: ['https://images1.vinted.net/fixture.png'],
+            photoReferences: options.missingSourceValues
+              ? []
+              : ['https://images1.vinted.net/fixture.png'],
             attributeHints: { Zustand: 'Gut' },
           },
           observedAt: new Date().toISOString(),
@@ -291,7 +367,7 @@ export async function mockKleinanzeigenTransfer(
       draft = {
         id: draftId,
         workspaceId,
-        targetConnectionId: connectionId,
+        targetConnectionId: String(body['targetConnectionId']),
         sourceReference: body['source'] as KleinanzeigenTransferDraft['sourceReference'],
         revision: (draft?.revision ?? 3) + 1,
         status: 'prepared',
@@ -362,6 +438,9 @@ export async function mockKleinanzeigenTransfer(
   });
   return {
     calls,
+    bridgeRequests,
+    savedSchemaRequests,
+    sourceCalls,
     get job() {
       return job;
     },

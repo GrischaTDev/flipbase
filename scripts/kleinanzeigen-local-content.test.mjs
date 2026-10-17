@@ -4,7 +4,7 @@ import vm from 'node:vm';
 import test from 'node:test';
 import { JSDOM } from 'jsdom';
 const extensionId = 'a'.repeat(32);
-function fixture({ stale = false, login = false, publications = false } = {}) {
+function fixture({ stale = false, login = false, publications = false, detailFetch } = {}) {
   const now = Date.now();
   const dom = new JSDOM(
     (login
@@ -35,6 +35,9 @@ function fixture({ stale = false, login = false, publications = false } = {}) {
   win.top = win;
   const context = vm.createContext({
     URL,
+    DOMParser: dom.window.DOMParser,
+    AbortSignal,
+    fetch: detailFetch,
     document: dom.window.document,
     window: win,
     performance: { timeOrigin: now - (stale ? 10000 : 0) },
@@ -153,4 +156,65 @@ test('advances exactly one observed page and never clicks a mismatching or disab
   });
   assert.equal(clicks, 1);
   assert.equal(reply.success, false);
+});
+
+test('only an explicit sync read enriches calendar days from the exact own listing URL', async () => {
+  let requests = 0;
+  const f = fixture({
+    publications: true,
+    detailFetch: async (url, options) => {
+      requests++;
+      assert.equal(url, 'https://www.kleinanzeigen.de/s-anzeige/test/101-160-1');
+      assert.equal(options.method, 'GET');
+      assert.equal(options.redirect, 'error');
+      return {
+        ok: true,
+        url,
+        headers: new Headers({ 'content-type': 'text/html' }),
+        text: async () =>
+          '<div id="viewad-main-info"><h1 id="viewad-title">Test</h1><div><svg data-title="calendarOutline"></svg><span>21.08.2026</span></div></div>',
+      };
+    },
+  });
+  const message = {
+    type: 'KLEINANZEIGEN_READ_PAGE',
+    minimumDocumentTime: f.now - 100,
+    expectedExternalAccountId: '123',
+    expectedCursor: 'page:1',
+  };
+  let response;
+  f.listener(message, { id: extensionId }, (value) => {
+    response = value;
+  });
+  assert.equal(requests, 0);
+  const enriched = await new Promise((resolve) => {
+    f.listener({ ...message, includeDetails: true }, { id: extensionId }, resolve);
+  });
+  assert.equal(requests, 1);
+  assert.equal(enriched.result.items[0].publishedOn, '2026-08-21');
+  assert.equal(enriched.result.items[0].publishedAt, null);
+});
+
+test('unavailable details keep a valid own-listing snapshot and unknown date', async () => {
+  const f = fixture({
+    publications: true,
+    detailFetch: async () => {
+      throw Error('unavailable');
+    },
+  });
+  const reply = await new Promise((resolve) => {
+    f.listener(
+      {
+        type: 'KLEINANZEIGEN_READ_PAGE',
+        minimumDocumentTime: f.now - 100,
+        expectedExternalAccountId: '123',
+        expectedCursor: 'page:1',
+        includeDetails: true,
+      },
+      { id: extensionId },
+      resolve,
+    );
+  });
+  assert.equal(reply.success, true);
+  assert.equal(reply.result.items[0].publishedOn, null);
 });

@@ -2245,10 +2245,14 @@ export type Database = {
         Row: {
           available: boolean
           connection_id: number
+          currency: string | null
           external_id: string
           id: number
+          image_url: string | null
           observed_at: string
+          price_cents: number | null
           published_at: string | null
+          published_on: string | null
           state: string
           sync_run_id: number | null
           title: string
@@ -2258,10 +2262,14 @@ export type Database = {
         Insert: {
           available?: boolean
           connection_id: number
+          currency?: string | null
           external_id: string
           id?: never
+          image_url?: string | null
           observed_at: string
+          price_cents?: number | null
           published_at?: string | null
+          published_on?: string | null
           state: string
           sync_run_id?: number | null
           title: string
@@ -2271,10 +2279,14 @@ export type Database = {
         Update: {
           available?: boolean
           connection_id?: number
+          currency?: string | null
           external_id?: string
           id?: never
+          image_url?: string | null
           observed_at?: string
+          price_cents?: number | null
           published_at?: string | null
+          published_on?: string | null
           state?: string
           sync_run_id?: number | null
           title?: string
@@ -2301,9 +2313,13 @@ export type Database = {
       kleinanzeigen_sync_entries: {
         Row: {
           connection_id: number
+          currency: string | null
           external_id: string
           id: number
+          image_url: string | null
+          price_cents: number | null
           published_at: string | null
+          published_on: string | null
           run_id: number
           state: string
           title: string
@@ -2312,9 +2328,13 @@ export type Database = {
         }
         Insert: {
           connection_id: number
+          currency?: string | null
           external_id: string
           id?: never
+          image_url?: string | null
+          price_cents?: number | null
           published_at?: string | null
+          published_on?: string | null
           run_id: number
           state: string
           title: string
@@ -2323,9 +2343,13 @@ export type Database = {
         }
         Update: {
           connection_id?: number
+          currency?: string | null
           external_id?: string
           id?: never
+          image_url?: string | null
+          price_cents?: number | null
           published_at?: string | null
+          published_on?: string | null
           run_id?: number
           state?: string
           title?: string
@@ -9687,6 +9711,14 @@ export type Database = {
       }
       kleinanzeigen_request_sync: {
         Args: { p_connection_id: number; p_workspace_id: string }
+        Returns: Json
+      }
+      kleinanzeigen_saved_listing_source: {
+        Args: {
+          p_body: Json
+          p_external_account_id: string
+          p_external_id: string
+        }
         Returns: Json
       }
       kleinanzeigen_store_form_schema: {

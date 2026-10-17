@@ -1,40 +1,59 @@
 <app-modal-shell
-  title="Auf Kleinanzeigen inserieren"
-  subtitle="Prüfe Deine Zielfassung und das gewünschte Konto."
+  title="Inserieren"
+  subtitle="Plattform und Konto wählen"
   size="xl"
   (closed)="close()"
 >
-  @if (error(); as message) {
-    <app-notice-banner announcement="alert">{{ message }}</app-notice-banner>
-  }
-  @if (notice(); as message) {
-    <app-notice-banner>{{ message }}</app-notice-banner>
-  }
-  <div class="space-y-3">
-    <label for="transfer-target" class="block text-sm font-medium text-fb-text-primary"
-      >Kleinanzeigen-Zielkonto</label
-    ><app-custom-select
-      triggerId="transfer-target"
-      ariaLabel="Kleinanzeigen-Zielkonto"
-      [formControl]="target"
-      [options]="targetOptions()"
-      [disabled]="busy()"
-      placeholder="Zielkonto ausdrücklich auswählen"
-    />
-    @if (!accounts().length && !busy()) {
-      <p class="text-sm text-fb-text-secondary">
-        Verbinde zuerst ein privates Kleinanzeigen-Konto in der Marktplatzübersicht.
-      </p>
+  <div class="grid min-w-0 gap-4 sm:grid-cols-2">
+    <div class="space-y-2">
+      <label for="transfer-platform" class="block text-sm font-medium text-fb-text-primary"
+        >Plattform</label
+      >
+      <app-custom-select
+        triggerId="transfer-platform"
+        ariaLabel="Plattform"
+        [formControl]="platform"
+        [options]="platformOptions"
+        placeholder="Plattform auswählen"
+      />
+    </div>
+    @if (selectedPlatform() === 'kleinanzeigen') {
+      <div class="space-y-2">
+        <label for="transfer-target" class="block text-sm font-medium text-fb-text-primary"
+          >Konto</label
+        >
+        <app-custom-select
+          triggerId="transfer-target"
+          ariaLabel="Konto"
+          [formControl]="target"
+          [options]="targetOptions()"
+          placeholder="Konto auswählen"
+        />
+      </div>
     }
-    <app-button
-      [disabled]="busy() || !target.value || preview() !== null"
-      [loading]="busy() && !preview()"
-      (clicked)="prepare()"
-      >Vinted-Daten übernehmen</app-button
-    >
   </div>
+  @if (selectedPlatform() && selectedPlatform() !== 'kleinanzeigen') {
+    <p class="text-sm text-fb-text-secondary" role="status">
+      Die Übernahme auf diese Plattform steht noch nicht zur Verfügung. Der erste vollständige
+      Kopierweg führt von Vinted zu Kleinanzeigen.
+    </p>
+  }
+  @if (selectedPlatform() === 'kleinanzeigen' && !accounts().length && !busy()) {
+    <p class="text-sm text-fb-text-secondary">
+      Verbinde zuerst das gewünschte Kleinanzeigen-Konto über das Zahnrad am Konto.
+    </p>
+  }
+  @if (busy() && !preview()) {
+    <p class="text-sm text-fb-text-secondary" role="status">
+      Gespeicherte Inseratsangaben werden übernommen …
+    </p>
+  }
   @if (preview(); as transfer) {
-    <form [formGroup]="form" class="space-y-5" (ngSubmit)="save()">
+    <p class="text-sm text-fb-text-secondary">
+      Die vorhandenen Angaben wurden aus Deinem gespeicherten Inserat übernommen. Fehlende oder
+      unpassende Angaben kannst Du hier ergänzen.
+    </p>
+    <form [formGroup]="form" class="space-y-5" (ngSubmit)="publish()">
       <div class="grid min-w-0 gap-5 md:grid-cols-2">
         <div class="min-w-0 space-y-4">
           <app-text-field
@@ -93,7 +112,7 @@
             </p>
             <app-button
               [loading]="busy()"
-              [disabled]="busy() || !extension.formSchemaAvailable()"
+              [disabled]="busy() || publishing()"
               (clicked)="browse('')"
               >Kategorie auswählen</app-button
             >
@@ -121,7 +140,8 @@
             <section class="rounded-lg border border-fb-border p-3" aria-label="Angaben aus Vinted">
               <h3 class="text-sm font-semibold text-fb-text-primary">Angaben aus Vinted</h3>
               <p class="mt-1 text-xs text-fb-text-secondary">
-                Prüfe diese Hinweise und wähle die passenden Kleinanzeigen-Werte selbst.
+                Passende gespeicherte Werte werden in die Kategorie übernommen. Prüfe die Angaben
+                und ergänze fehlende Werte.
               </p>
               <dl class="mt-3 space-y-2 text-sm">
                 @for (hint of attributeHints(); track hint.label) {
@@ -156,6 +176,8 @@
       @if (savedDraft(); as draft) {
         <app-kleinanzeigen-publication-panel
           [scope]="publicationScope()"
+          [managedExternally]="true"
+          [showPublishAction]="false"
           [draftId]="draft.id"
           [revision]="draft.revision"
           [unsaved]="unsavedChanges()"
@@ -170,19 +192,47 @@
     </form>
   }
   <div modal-footer class="flex min-w-0 flex-wrap justify-end gap-2">
-    <app-button [disabled]="busy()" (clicked)="close()">Schließen</app-button>
+    @if (error() || publicationJobs.error(); as message) {
+      <app-notice-banner class="w-full" announcement="alert">{{ message }}</app-notice-banner>
+    }
+    @if (publicationStatus(); as status) {
+      <p class="w-full text-sm font-medium text-fb-text-primary" role="status" aria-live="polite">
+        {{ status }}
+      </p>
+      @if (publicationIssue(); as message) {
+        <app-notice-banner class="w-full">{{ message }}</app-notice-banner>
+      }
+    } @else if (notice(); as message) {
+      <app-notice-banner class="w-full">{{ message }}</app-notice-banner>
+    }
+    <app-button [disabled]="busy() || publishing()" (clicked)="close()">Schließen</app-button>
     @if (preview()) {
       <app-button
-        variant="primary"
+        variant="secondary"
         [loading]="busy()"
         [disabled]="
           busy() ||
+          publishing() ||
+          publicationPending() ||
           publicationConfirmed() ||
           savedDraft()?.status === 'online' ||
           savedDraft()?.status === 'ended'
         "
         (clicked)="save()"
-        >Entwurf speichern</app-button
+        >Für später speichern</app-button
+      >
+      <app-button
+        variant="primary"
+        [loading]="publishing()"
+        [disabled]="
+          busy() ||
+          publishing() ||
+          publicationPending() ||
+          publicationConfirmed() ||
+          savedDraft()?.status === 'online'
+        "
+        (clicked)="publish()"
+        >Inserieren</app-button
       >
     }
   </div>

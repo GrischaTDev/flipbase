@@ -31,6 +31,27 @@ describe('Eigenschaften bei Kategorieänderung', () => {
       {},
     );
   });
+  it('ordnet gespeicherte Größe nur einem eindeutigen angebotenen Zielwert zu und erhält manuelle Angaben', () => {
+    expect(retainKleinanzeigenCategoryFields({}, schema, { size: 'M' })).toEqual({
+      'kleidung_herren.groesse': 'M',
+    });
+    expect(retainKleinanzeigenCategoryFields({}, schema, { size: 'XXL' })).toEqual({});
+    const choices = {
+      ...schema,
+      fields: [
+        {
+          ...schema.fields[0],
+          choices: [
+            { value: 'M', label: 'M', description: '' },
+            { value: 'L', label: 'L', description: '' },
+          ],
+        },
+      ],
+    };
+    expect(
+      retainKleinanzeigenCategoryFields({ 'kleidung_herren.groesse': 'L' }, choices, { size: 'M' }),
+    ).toEqual({ 'kleidung_herren.groesse': 'L' });
+  });
   it('übernimmt Versandwerte nur vollständig aus einer aktuellen angebotenen Gruppe', () => {
     const shipping = {
       ...schema,

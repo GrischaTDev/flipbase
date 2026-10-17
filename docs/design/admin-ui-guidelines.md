@@ -401,3 +401,23 @@ Je Element festhalten: Datum, Route, Viewport, Browserzoom, Theme, Komponentenro
 - Für jede relevante Komponente Desktop/Mobil, hell/dunkel, Tastatur und Reduced-motion vergleichen. Screenshots prüfen und nicht automatisch als neue Wahrheit übernehmen.
 - Steuer & DATEV: aktuell ausschließlich Tabelle, zugehörige Spaltenbedienung und Tabellenfehler. Gesamte Seite, Kennzahlen, Exportablauf und Steuerberaterdialog bleiben zurückgestellt.
 - Diese Datei und der Messstand werden bei Referenzänderungen aktualisiert. Ein alter npm-Tokenwert ist kein Beweis für das aktuelle Shopify-Admin-Design.
+
+## Nutzerentscheidung vom 17.10.2026: Inserate übernehmen
+
+- Kontoverwaltung direkt am jeweiligen Konto als Zahnrad anbieten. Keine
+  zusätzlichen allgemeinen „Konten verwalten“- oder „Entwürfe verwalten“-Links
+  in den Marktplatzkarten der Übersicht.
+- Inseratsaktionen kurz und zusammenhängend als „Inserieren“ und „Ansehen“
+  anzeigen. Die Onlinezeit verwendet ihre Farbe; zusätzliche Wochenzieltexte
+  und entsprechende Tooltips entfallen.
+- „Inserieren“ öffnet zuerst Plattform und Konto. Danach erscheinen automatisch
+  die passenden Zielfelder mit den bereits gespeicherten Quellangaben.
+- Beim internen Übernehmen keine Quelle erneut über Cloud oder Erweiterung
+  lesen. Fehlende Angaben bleiben sichtbar und bearbeitbar. Zielabhängige
+  Eigenschaften nur übernehmen, wenn sie eindeutig zu angebotenen Werten passen.
+- Ein separater Entwurfsschritt ist optional. Erst „Inserieren“ beginnt den
+  Anbieterzugriff, die aktuelle Formularprüfung und anschließend die gebührenfreie
+  Veröffentlichung. Geänderte Pflichtfelder erfordern vor Veröffentlichung
+  eine erneute Prüfung. Gebühren oder unbekannte Kosten stoppen den Vorgang.
+- Erster vollständiger Weg: Vinted nach Kleinanzeigen. Noch nicht unterstützte
+  Zielplattformen dürfen keine funktionierende Veröffentlichung vortäuschen.

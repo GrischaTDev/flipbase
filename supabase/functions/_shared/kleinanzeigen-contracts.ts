@@ -369,6 +369,10 @@ export interface KleinanzeigenAccounts {
   readonly accounts: readonly KleinanzeigenAccount[];
 }
 export interface KleinanzeigenPublication {
+  readonly priceCents: number | null;
+  readonly currency: 'EUR' | null;
+  readonly imageUrl: string | null;
+  readonly publishedOn: string | null;
   readonly publicationId: string;
   readonly externalId: string;
   readonly title: string;
@@ -384,6 +388,46 @@ export interface KleinanzeigenPublicationPage extends KleinanzeigenAccountScope 
   readonly total: number | null;
   readonly nextId: string | null;
   readonly completeness: 'complete' | 'partial' | 'unknown';
+}
+export function kleinanzeigenPublicationDay(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    /^\d{4}-\d{2}-\d{2}$/u.test(value) &&
+    Number.isFinite(Date.parse(value)) &&
+    new Date(value).toISOString().slice(0, 10) === value
+  );
+}
+export function kleinanzeigenPublicationImage(value: unknown): value is string {
+  if (typeof value !== 'string' || value.length > 2048) return false;
+  try {
+    const url = new URL(value);
+    return (
+      url.href === value &&
+      url.protocol === 'https:' &&
+      url.hostname === 'img.kleinanzeigen.de' &&
+      !url.port &&
+      !url.username &&
+      !url.password &&
+      !url.hash &&
+      url.pathname.startsWith('/api/v1/prod-ads/images/')
+    );
+  } catch {
+    return false;
+  }
+}
+export function kleinanzeigenPublicationFields(value: Record<string, unknown>): boolean {
+  const price = value['priceCents'] ?? null;
+  const currency = value['currency'] ?? null;
+  return (
+    (price === null ||
+      (typeof price === 'number' &&
+        Number.isSafeInteger(price) &&
+        price >= 0 &&
+        price <= 2147483647)) &&
+    currency === (price === null ? null : 'EUR') &&
+    (value['imageUrl'] == null || kleinanzeigenPublicationImage(value['imageUrl'])) &&
+    (value['publishedOn'] == null || kleinanzeigenPublicationDay(value['publishedOn']))
+  );
 }
 const kleinanzeigenKeys = (value: Record<string, unknown>, keys: readonly string[]) =>
   Object.keys(value).sort().join(',') === [...keys].sort().join(',');
@@ -596,16 +640,23 @@ export function parseKleinanzeigenPublicationPage(
   for (const item of value['items']) {
     if (
       !kleinanzeigenRecord(item) ||
-      !kleinanzeigenKeys(item, [
-        'publicationId',
-        'externalId',
-        'title',
-        'url',
-        'state',
-        'available',
-        'publishedAt',
-        'observedAt',
-      ]) ||
+      !kleinanzeigenKeys(
+        { priceCents: null, currency: null, imageUrl: null, publishedOn: null, ...item },
+        [
+          'priceCents',
+          'currency',
+          'imageUrl',
+          'publishedOn',
+          'publicationId',
+          'externalId',
+          'title',
+          'url',
+          'state',
+          'available',
+          'publishedAt',
+          'observedAt',
+        ],
+      ) ||
       !kleinanzeigenConnectionId(item['publicationId']) ||
       ids.has(item['publicationId']) ||
       !externalId(item['externalId']) ||
@@ -619,6 +670,7 @@ export function parseKleinanzeigenPublicationPage(
         item['state'] !== 'unknown' &&
         item['state'] !== 'processing') ||
       typeof item['available'] !== 'boolean' ||
+      !kleinanzeigenPublicationFields(item) ||
       !kleinanzeigenNullableDate(item['publishedAt']) ||
       !kleinanzeigenDate(item['observedAt'])
     )
@@ -645,6 +697,10 @@ export function parseKleinanzeigenPublicationPage(
     externalIds.add(item['externalId']);
     items.push(
       Object.freeze({
+        priceCents: (item['priceCents'] ?? null) as number | null,
+        currency: (item['currency'] ?? null) as 'EUR' | null,
+        imageUrl: (item['imageUrl'] ?? null) as string | null,
+        publishedOn: (item['publishedOn'] ?? null) as string | null,
         publicationId: item['publicationId'],
         externalId: item['externalId'],
         title: item['title'],

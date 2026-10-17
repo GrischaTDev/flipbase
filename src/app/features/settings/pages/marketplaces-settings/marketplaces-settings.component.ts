@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { LucideExternalLink as ExternalLink } from '@lucide/angular';
 import {
   MarketplaceId,
@@ -16,6 +16,7 @@ import { ButtonComponent } from '../../../../shared/components/button/button.com
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MarketplacesSettingsComponent {
+  readonly showAccountManagement = input(true);
   private readonly marketplaceSettings = inject(MarketplaceSettingsService);
 
   readonly externalLinkIcon = ExternalLink;

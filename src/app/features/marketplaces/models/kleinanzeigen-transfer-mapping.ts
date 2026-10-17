@@ -68,6 +68,19 @@ export function mapVintedToKleinanzeigen(
       code: 'price_required',
       message: 'Bitte trage einen Verkaufspreis in Euro ein.',
     });
+  if (!source.description.trim())
+    warnings.push({
+      field: 'description',
+      code: 'description_required',
+      message: 'Ergänze die Beschreibung. Sie ist noch nicht in Flipbase gespeichert.',
+    });
+  if (!source.photoReferences.length)
+    warnings.push({
+      field: 'photos',
+      code: 'photos_required',
+      message:
+        'Für dieses Inserat sind noch keine Bilder in Flipbase gespeichert. Ergänze Bilder vor dem Veröffentlichen.',
+    });
   warnings.push({
     field: 'categoryId',
     code: 'category_required',

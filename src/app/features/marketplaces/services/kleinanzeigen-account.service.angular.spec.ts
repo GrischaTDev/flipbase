@@ -154,6 +154,10 @@ describe('Kleinanzeigen-Kontodienst', () => {
           publicationId: '9007199254740995',
           externalId: '101',
           title: 'Testanzeige',
+          priceCents: 1500,
+          currency: 'EUR',
+          imageUrl: 'https://img.kleinanzeigen.de/api/v1/prod-ads/images/aa/test?rule=$_2.JPG',
+          publishedOn: '2026-08-21',
           url: 'https://www.kleinanzeigen.de/s-anzeige/test/101-160-1',
           state: 'active',
           available: true,
@@ -175,7 +179,9 @@ describe('Kleinanzeigen-Kontodienst', () => {
       externalId: '101',
     });
     expect(page.items[0].publishedAt).toBeNull();
-    expect(page.items[0].priceCents).toBeNull();
+    expect(page.items[0].priceCents).toBe(1500);
+    expect(page.items[0].currency).toBe('EUR');
+    expect(page.items[0].imageUrl).toBe(reply.items[0].imageUrl);
     expect(page.items[0].externalUrl).toBe(reply.items[0].url);
     invoke.mockClear();
     await service.readPage(scope, { ...query, cursor: page.nextCursor! });

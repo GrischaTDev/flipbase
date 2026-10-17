@@ -35,7 +35,10 @@ Deno.test(
       ),
       null,
     );
-    assertEquals(parseVintedTransferSource({ ...source, photoReferences: [] }, '99', '123'), null);
+    assertEquals(
+      parseVintedTransferSource({ ...source, photoReferences: [] }, '99', '123')?.photoReferences,
+      [],
+    );
   },
 );
 Deno.test('Speicherinhalt hat strikte Basisgrenzen und keine erfundenen Europreise', () => {

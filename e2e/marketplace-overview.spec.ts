@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import axe from 'axe-core';
 import { mockMarketplaceOverview } from './support/marketplace-overview-fixture';
+import { mockKleinanzeigen } from './support/kleinanzeigen-fixture';
 
 test.use({ hasTouch: true, storageState: { cookies: [], origins: [] }, serviceWorkers: 'block' });
 
@@ -23,11 +24,39 @@ for (const theme of ['light', 'dark'] as const)
         const vinted = page
           .locator('app-marketplace-listing-section')
           .filter({ has: page.getByRole('heading', { name: 'Testkonto A', exact: true }) });
+        await expect
+          .soft(vinted.getByRole('button', { name: 'Konto Testkonto A verwalten', exact: true }))
+          .toBeVisible();
+        await expect
+          .soft(page.getByRole('link', { name: 'Konten verwalten', exact: true }))
+          .toHaveCount(0);
+        await expect
+          .soft(page.getByRole('link', { name: 'Entwürfe verwalten', exact: true }))
+          .toHaveCount(0);
         await vinted.getByRole('button', { name: 'Inserate von Testkonto A anzeigen' }).tap();
         await expect(
           vinted.getByRole('checkbox', { name: 'A Jacke 01 auswählen', exact: true }),
         ).toBeVisible();
         await expect(vinted.locator('app-vinted-listing-age:visible').first()).toContainText('2 T');
+        if (width >= 834) {
+          const actionBounds = await vinted
+            .locator('tbody tr')
+            .first()
+            .locator('td')
+            .last()
+            .locator('button, a')
+            .evaluateAll((elements) =>
+              elements.map((element) => {
+                const bounds = element.getBoundingClientRect();
+                return { top: bounds.top, height: bounds.height };
+              }),
+            );
+          expect(actionBounds.length).toBeGreaterThanOrEqual(2);
+          expect(
+            Math.max(...actionBounds.map((bounds) => bounds.top)) -
+              Math.min(...actionBounds.map((bounds) => bounds.top)),
+          ).toBeLessThanOrEqual(2);
+        }
         const checkbox = vinted.getByRole('checkbox', {
           name: 'A Jacke 01 auswählen',
           exact: true,
@@ -95,6 +124,7 @@ test('Sichtbarkeit bleibt nach Neuladen erhalten und Accountauswahl trennt Liste
   expect(requests.length).toBe(2);
   await page.getByRole('button', { name: 'Marktplätze verwalten', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Marktplätze verwalten' });
+  await expect(dialog.getByRole('link')).toHaveCount(0);
   await dialog.getByRole('checkbox', { name: /Kleinanzeigen/ }).click();
   await dialog.getByRole('button', { name: 'Schließen', exact: true }).last().click();
   await expect(page.getByRole('heading', { name: 'Kleinanzeigen', exact: true })).toHaveCount(0);
@@ -106,7 +136,7 @@ test('Sichtbarkeit bleibt nach Neuladen erhalten und Accountauswahl trennt Liste
     'href',
     '/marketplaces/vinted/listings/new',
   );
-  await expect(page.getByRole('link', { name: 'Kleinanzeigen-Entwurf erstellen' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Auf Kleinanzeigen inserieren' })).toHaveCount(0);
 });
 
 test('Ein Vinted-Ausfall erhält die eBay-Inserate und bietet keine fremden Filter an @core-smoke', async ({
@@ -210,7 +240,7 @@ for (const theme of ['light', 'dark'] as const)
 test('Kontextnavigation führt aus Vinted und eBay zur Übersicht zurück @core-smoke', async ({
   page,
 }) => {
-  await mockMarketplaceOverview(page);
+  await mockKleinanzeigen(page);
   for (const path of ['/marketplaces/vinted/accounts', '/marketplaces/ebay/connection']) {
     await page.goto(path);
     await page
@@ -225,6 +255,34 @@ test('Kontextnavigation führt aus Vinted und eBay zur Übersicht zurück @core-
       page.getByRole('button', { name: 'Inserate von Testkonto A anzeigen' }),
     ).toBeVisible();
   }
+  await page.getByRole('button', { name: 'Konto Testkonto B verwalten', exact: true }).click();
+  await expect(
+    page.getByRole('dialog', { name: 'Testkonto B – Einstellungen', exact: true }),
+  ).toBeVisible();
+  await page.goto('/marketplaces/overview');
+  await page
+    .getByRole('button', { name: 'Konto Kleinanzeigen Testkonto B verwalten', exact: true })
+    .click();
+  const accountDialog = page.getByRole('dialog', {
+    name: 'Konto Kleinanzeigen Testkonto B verwalten',
+    exact: true,
+  });
+  await expect(accountDialog).toBeVisible();
+  await expect(
+    accountDialog.getByRole('article', {
+      name: 'Kleinanzeigen-Konto Kleinanzeigen Testkonto B',
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    accountDialog.getByRole('article', {
+      name: 'Kleinanzeigen-Konto Kleinanzeigen Testkonto A',
+      exact: true,
+    }),
+  ).toHaveCount(0);
+  await expect(
+    accountDialog.getByRole('button', { name: 'Angemeldetes Konto verbinden', exact: true }),
+  ).toHaveCount(0);
 });
 
 test('Fehlende Vinted-Freigabe bietet keinen Erstellungseinstieg an @core-smoke', async ({
@@ -239,7 +297,7 @@ test('Fehlende Vinted-Freigabe bietet keinen Erstellungseinstieg an @core-smoke'
   ).toBeVisible();
   await page.getByRole('button', { name: 'Inserat erstellen', exact: true }).click();
   await expect(page.getByRole('link', { name: 'Auf Vinted inserieren' })).toHaveCount(0);
-  await expect(page.getByRole('link', { name: 'Kleinanzeigen-Entwurf erstellen' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Auf Kleinanzeigen inserieren' })).toBeVisible();
 });
 
 test('Marktplatzeinstellungen können einen fehlgeschlagenen Abruf erneut laden @core-smoke', async ({

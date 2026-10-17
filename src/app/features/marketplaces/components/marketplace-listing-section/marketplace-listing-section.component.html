@@ -38,6 +38,17 @@
     >
       {{ section().expanded ? 'Ausblenden' : 'Inserate anzeigen' }}
     </app-button>
+    @if (showAccountManagement()) {
+      <app-button
+        variant="ghost"
+        size="slim"
+        [iconOnly]="true"
+        [icon]="settingsIcon"
+        [ariaLabel]="'Konto ' + section().account.displayName + ' verwalten'"
+        [title]="'Konto ' + section().account.displayName + ' verwalten'"
+        (clicked)="accountManagementRequested.emit()"
+      />
+    }
   </div>
   @if (section().account.error) {
     <p class="px-4 pb-3 text-xs text-fb-text-secondary" role="status">
@@ -98,7 +109,7 @@
           >Erneut versuchen</app-button
         >
         <div table-content class="hidden min-w-0 overflow-x-auto md:block">
-          <table class="w-full table-fixed text-left text-sm">
+          <table class="w-full min-w-[52rem] table-fixed text-left text-sm">
             <caption class="sr-only">
               Inserate von
               {{
@@ -111,7 +122,14 @@
                 <th scope="col" class="p-3">Inserat</th>
                 <th scope="col" class="w-28 p-3">Preis</th>
                 <th scope="col" class="w-40 p-3">Online seit</th>
-                <th scope="col" class="w-28 p-3 text-right">Aktionen</th>
+                <th
+                  scope="col"
+                  class="p-3 text-right"
+                  [class.w-72]="section().account.platform === 'vinted'"
+                  [class.w-32]="section().account.platform !== 'vinted'"
+                >
+                  Aktionen
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -146,6 +164,7 @@
                   <td class="p-3">
                     <app-vinted-listing-age
                       [publishedAt]="item.publishedAt"
+                      [publishedOn]="item.publishedOn ?? null"
                       [publicationAge]="item.publicationAge"
                       [compact]="true"
                     />
@@ -189,6 +208,7 @@
               <div class="flex flex-wrap items-center justify-between gap-3">
                 <app-vinted-listing-age
                   [publishedAt]="item.publishedAt"
+                  [publishedOn]="item.publishedOn ?? null"
                   [publicationAge]="item.publicationAge"
                   [compact]="true"
                 />
@@ -241,7 +261,7 @@
   }
 </ng-template>
 <ng-template #actions let-item>
-  <div class="flex flex-wrap items-center justify-end gap-2">
+  <div class="flex items-center justify-end gap-2">
     @if (item.reference.platform === 'vinted') {
       <app-listing-transfer-action
         (published)="transferPublished.emit($event)"
@@ -252,37 +272,37 @@
     }
     @if (item.detailLink) {
       <app-button
-        variant="table-action"
+        variant="secondary"
         size="slim"
-        [iconOnly]="true"
         [icon]="viewIcon"
         [link]="item.detailLink.join('/')"
         [ariaLabel]="item.title + ' ansehen'"
         [title]="item.title + ' ansehen'"
-      />
+        >Ansehen</app-button
+      >
     } @else if (item.externalUrl) {
       <app-button
-        variant="table-action"
+        variant="secondary"
         size="slim"
-        [iconOnly]="true"
         [icon]="viewIcon"
         [href]="item.externalUrl"
         target="_blank"
         [ariaLabel]="item.title + ' auf ' + platformLabel(item.reference.platform) + ' ansehen'"
         [title]="item.title + ' auf ' + platformLabel(item.reference.platform) + ' ansehen'"
-      />
+        >Ansehen</app-button
+      >
     }
     @if (item.editLink) {
       <app-button
-        variant="table-action"
+        variant="secondary"
         size="slim"
-        [iconOnly]="true"
         [icon]="editIcon"
         [link]="item.editLink.join('/')"
         [queryParams]="{ connection: item.reference.connectionId }"
         [ariaLabel]="item.title + ' bearbeiten'"
         [title]="item.title + ' bearbeiten'"
-      />
+        >Bearbeiten</app-button
+      >
     }
   </div>
 </ng-template>

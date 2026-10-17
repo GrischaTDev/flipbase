@@ -43,6 +43,7 @@ describe('MarketplacesSettingsComponent', () => {
       return readFile(matches[0], 'utf8');
     });
 
+    registerSignalInputs(MarketplacesSettingsComponent, ['showAccountManagement']);
     registerSignalInputs(CardComponent, ['padding']);
     registerSignalInputs(BadgeComponent, ['tone']);
     registerSignalInputs(CustomCheckboxComponent, [
@@ -53,7 +54,7 @@ describe('MarketplacesSettingsComponent', () => {
       'presentation',
       'size',
     ]);
-    registerSignalInputs(ButtonComponent, ['size', 'icon', 'link']);
+    registerSignalInputs(ButtonComponent, ['size', 'icon', 'link', 'wrapLabel']);
     const checkboxMetadata = (CustomCheckboxComponent as unknown as { ɵcmp: AngularInputMetadata })
       .ɵcmp;
     checkboxMetadata.outputs = { ...checkboxMetadata.outputs, checkedChange: 'checked' };
@@ -127,6 +128,15 @@ describe('MarketplacesSettingsComponent', () => {
 
     expect(service.isVintedEnabled()).toBe(false);
     expect(fixture.nativeElement.textContent).toContain('2 von 3 aktiv');
+  });
+  it('bietet im Sichtbarkeitsdialog nur Marktplatzschalter ohne Kontoverwaltung', () => {
+    const fixture = TestBed.createComponent(MarketplacesSettingsComponent);
+    fixture.componentRef.setInput('showAccountManagement', false);
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelectorAll('a')).toHaveLength(0);
+    expect(element.textContent).not.toContain('verwalte ihre Konten');
+    expect(element.textContent).toContain('3 von 3 aktiv');
   });
   it('öffnet die eBay-Kontoverbindung und verbirgt sie nach Abschalten des Kanals', () => {
     const fixture = TestBed.createComponent(MarketplacesSettingsComponent);

@@ -1,20 +1,27 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import axe from 'axe-core';
 import { mockKleinanzeigenTransfer } from './support/kleinanzeigen-transfer-fixture';
 test.use({ hasTouch: true, storageState: { cookies: [], origins: [] }, serviceWorkers: 'block' });
-async function open(page: Page) {
+async function expectSingleVisibleError(dialog: Locator, message: RegExp) {
+  const error = dialog.getByRole('alert').filter({ hasText: message });
+  await expect(error).toHaveCount(1);
+  await expect(error).toBeInViewport();
+}
+async function open(page: Page, waitForPreview = true) {
   await page.goto('/marketplaces/overview');
   await page.getByRole('button', { name: 'Inserate von Testkonto A anzeigen', exact: true }).tap();
   const action = page.getByRole('button', {
-    name: 'A Jacke 01 auf Kleinanzeigen inserieren',
+    name: 'A Jacke 01 inserieren',
     exact: true,
   });
   await action.tap();
-  const dialog = page.getByRole('dialog', { name: 'Auf Kleinanzeigen inserieren' });
-  await dialog.getByRole('combobox', { name: 'Kleinanzeigen-Zielkonto', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Inserieren' });
+  await dialog.getByRole('combobox', { name: 'Plattform', exact: true }).click();
+  await page.getByRole('option', { name: 'Kleinanzeigen', exact: true }).click();
+  await dialog.getByRole('combobox', { name: 'Konto', exact: true }).click();
   await page.getByRole('option', { name: 'Kleinanzeigen Privatkonto', exact: true }).click();
-  await dialog.getByRole('button', { name: 'Vinted-Daten übernehmen', exact: true }).tap();
-  await expect(dialog.getByLabel('Titel auf Kleinanzeigen', { exact: true })).toBeVisible();
+  if (waitForPreview)
+    await expect(dialog.getByLabel('Titel auf Kleinanzeigen', { exact: true })).toBeVisible();
   return { dialog, action };
 }
 async function ready(page: Page) {
@@ -22,16 +29,12 @@ async function ready(page: Page) {
   const { dialog } = result;
   await dialog.getByLabel('Postleitzahl', { exact: true }).fill('10115');
   await dialog.getByRole('button', { name: 'Kategorie auswählen', exact: true }).tap();
-  for (const name of ['Mode & Beauty …', 'Herrenbekleidung …', 'Shirts']) {
-    await dialog.getByRole('combobox', { name: 'Unterkategorie auswählen', exact: true }).click();
-    await page.getByRole('option', { name, exact: true }).click();
-  }
+  await dialog.getByRole('combobox', { name: 'Unterkategorie auswählen', exact: true }).click();
+  await page
+    .getByRole('option', { name: 'Mode & Beauty > Herrenbekleidung > Shirts', exact: true })
+    .click();
   await dialog.getByRole('combobox', { name: 'Zustand', exact: true }).click();
   await page.getByRole('option', { name: 'Gut', exact: true }).click();
-  await dialog.getByRole('button', { name: 'Entwurf speichern', exact: true }).tap();
-  await expect(
-    dialog.getByText('Entwurf und alle Bilder sind gesichert.', { exact: true }),
-  ).toBeVisible();
   return result;
 }
 for (const theme of ['light', 'dark'] as const)
@@ -52,19 +55,54 @@ for (const theme of ['light', 'dark'] as const)
           theme,
         );
         await expect(dialog.getByLabel('Preis in Euro', { exact: true })).toHaveValue(/0/);
-        const publish = dialog.getByRole('button', { name: 'Kostenlos inserieren', exact: true });
+        await expect(dialog.getByLabel('Titel auf Kleinanzeigen', { exact: true })).toHaveValue(
+          'Vinted-Jacke vollständig',
+        );
+        await expect(
+          dialog.getByLabel('Beschreibung auf Kleinanzeigen', { exact: true }),
+        ).toHaveValue('Vollständige Beschreibung aus Vinted.');
+        await expect(
+          dialog.getByRole('img', { name: 'Bild 1 aus Vinted', exact: true }),
+        ).toHaveCount(1);
+        expect(f.calls.filter((value) => value['action'] === 'prepare_transfer')).toHaveLength(1);
+        expect(f.calls.some((value) => value['action'] === 'save_transfer')).toBe(false);
+        expect(f.savedSchemaRequests).toHaveLength(2);
+        expect(
+          f.bridgeRequests.filter((value) =>
+            /FLIPBASE_VINTED_|KLEINANZEIGEN_FORM_SCHEMA|KLEINANZEIGEN_QUOTA|KLEINANZEIGEN_PUBLISH_JOB/u.test(
+              String(value['type']),
+            ),
+          ),
+        ).toEqual([]);
+        expect(f.sourceCalls).toEqual([]);
+        const publish = dialog.getByRole('button', { name: 'Inserieren', exact: true });
         await expect(publish).toBeEnabled();
         await publish.focus();
         await page.keyboard.press('Enter');
         await expect(
           dialog.getByText('Bei Kleinanzeigen veröffentlicht', { exact: true }),
-        ).toBeVisible();
+        ).toBeInViewport();
         expect(f.calls.filter((value) => value['action'] === 'listing_enqueue')).toHaveLength(1);
         expect(f.providerCalls).toBe(1);
         expect(f.job?.externalId).toBe('999');
         await expect(
+          dialog.getByRole('button', { name: 'Inserieren', exact: true }),
+        ).toBeDisabled();
+        await expect(
           dialog.getByRole('button', { name: 'Kostenlos inserieren', exact: true }),
         ).toHaveCount(0);
+        expect(
+          f.bridgeRequests.filter(
+            (value) => value['type'] === 'FLIPBASE_KLEINANZEIGEN_FORM_SCHEMA',
+          ),
+        ).toHaveLength(1);
+        expect(
+          f.bridgeRequests.filter(
+            (value) =>
+              value['type'] === 'FLIPBASE_KLEINANZEIGEN_PUBLISH_JOB' && value['mode'] === 'publish',
+          ),
+        ).toHaveLength(1);
+        expect(f.sourceCalls).toEqual([]);
         await page.evaluate(axe.source);
         expect(
           await dialog.evaluate(
@@ -75,7 +113,20 @@ for (const theme of ['light', 'dark'] as const)
         expect(
           await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth + 1),
         ).toBe(true);
-        if (width === 1440 && theme === 'light')
+        expect(
+          await dialog.locator('p').evaluateAll((paragraphs) =>
+            paragraphs
+              .filter((paragraph) => paragraph.getClientRects().length > 0)
+              .filter((paragraph) => paragraph.scrollWidth > paragraph.clientWidth + 1)
+              .map((paragraph) => ({
+                text: paragraph.textContent,
+                width: paragraph.clientWidth,
+                contentWidth: paragraph.scrollWidth,
+                whiteSpace: getComputedStyle(paragraph).whiteSpace,
+              })),
+          ),
+        ).toEqual([]);
+        if ((width === 320 || width === 1440) && theme === 'light')
           await page.screenshot({
             path: testInfo.outputPath('transfer-confirmed.png'),
             animations: 'disabled',
@@ -91,21 +142,118 @@ for (const quotaUsed of [100, 101])
     async ({ page }) => {
       const f = await mockKleinanzeigenTransfer(page, { quotaUsed });
       const { dialog } = await ready(page);
-      await dialog.getByRole('button', { name: 'Kostenlos inserieren', exact: true }).click();
-      await expect(dialog.getByText(/Das kostenlose Kontingent ist ausgeschöpft/)).toBeVisible();
+      await dialog.getByRole('button', { name: 'Inserieren', exact: true }).click();
+      await expectSingleVisibleError(dialog, /Das kostenlose Kontingent ist ausgeschöpft/);
       expect(f.calls.some((value) => value['action'] === 'listing_enqueue')).toBe(false);
       expect(f.providerCalls).toBe(0);
     },
   );
+
+test('Unbekanntes Kontingent stoppt vor Auftragsannahme @core-smoke', async ({ page }) => {
+  const f = await mockKleinanzeigenTransfer(page, { quotaUnknown: true });
+  const { dialog } = await ready(page);
+  await dialog.getByRole('button', { name: 'Inserieren', exact: true }).click();
+  await expectSingleVisibleError(dialog, /Kontingent konnte nicht aktuell bestätigt/);
+  expect(f.calls.some((value) => value['action'] === 'listing_enqueue')).toBe(false);
+  expect(f.providerCalls).toBe(0);
+});
+
+test('Ein Zielwechsel verwirft die verspätete Quellantwort @core-smoke', async ({ page }) => {
+  const f = await mockKleinanzeigenTransfer(page, { secondTarget: true });
+  let release!: () => void;
+  const delayed = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let firstRequested = false;
+  await page.route('**/functions/v1/kleinanzeigen-account', async (route) => {
+    const body = route.request().postDataJSON() as Record<string, unknown>;
+    if (
+      body['action'] === 'prepare_transfer' &&
+      body['targetConnectionId'] === '9007199254740993'
+    ) {
+      firstRequested = true;
+      await delayed;
+    }
+    await route.fallback();
+  });
+  const { dialog } = await open(page, false);
+  await expect.poll(() => firstRequested).toBe(true);
+  await dialog.getByRole('combobox', { name: 'Konto', exact: true }).click();
+  await page.getByRole('option', { name: 'Zweites Kleinanzeigen-Konto', exact: true }).click();
+  await expect(dialog.getByLabel('Titel auf Kleinanzeigen', { exact: true })).toHaveValue(
+    'Jacke für zweites Konto',
+  );
+  const firstResponse = page.waitForResponse((response) => {
+    if (!response.url().endsWith('/functions/v1/kleinanzeigen-account')) return false;
+    const body = response.request().postDataJSON() as Record<string, unknown>;
+    return (
+      body['action'] === 'prepare_transfer' && body['targetConnectionId'] === '9007199254740993'
+    );
+  });
+  release();
+  await firstResponse;
+  await dialog.getByRole('button', { name: 'Für später speichern', exact: true }).click();
+  await expect(
+    dialog.getByText('Deine Inseratsangaben und Bilder sind gesichert.', { exact: true }),
+  ).toBeVisible();
+  await expect(dialog.getByLabel('Titel auf Kleinanzeigen', { exact: true })).toHaveValue(
+    'Jacke für zweites Konto',
+  );
+  expect(f.calls.filter((value) => value['action'] === 'save_transfer')).toEqual([
+    expect.objectContaining({
+      targetConnectionId: '9007199254740994',
+      content: expect.objectContaining({ title: 'Jacke für zweites Konto' }),
+    }),
+  ]);
+  expect(f.calls.some((value) => value['action'] === 'listing_enqueue')).toBe(false);
+  expect(f.providerCalls).toBe(0);
+});
+
+test('Fehlende gespeicherte Angaben bleiben zur Korrektur sichtbar @core-smoke', async ({
+  page,
+}) => {
+  const f = await mockKleinanzeigenTransfer(page, { missingSourceValues: true });
+  const { dialog } = await ready(page);
+  await expect(dialog.getByLabel('Beschreibung auf Kleinanzeigen', { exact: true })).toHaveValue(
+    '',
+  );
+  await expect(dialog.getByLabel('Preis in Euro', { exact: true })).toHaveValue('');
+  await expect(
+    dialog.getByRole('heading', { name: '0 Bilder aus Vinted', exact: true }),
+  ).toBeVisible();
+  await dialog.getByRole('button', { name: 'Inserieren', exact: true }).click();
+  await expectSingleVisibleError(dialog, /fehlenden Angaben/);
+  expect(f.calls.some((value) => value['action'] === 'listing_enqueue')).toBe(false);
+  expect(f.providerCalls).toBe(0);
+  expect(f.sourceCalls).toEqual([]);
+});
+
+test('Noch nicht unterstützte Plattformen bieten keine Veröffentlichung an @core-smoke', async ({
+  page,
+}) => {
+  const f = await mockKleinanzeigenTransfer(page);
+  const { dialog } = await open(page);
+  for (const platform of ['Vinted', 'eBay']) {
+    await dialog.getByRole('combobox', { name: 'Plattform', exact: true }).click();
+    await page.getByRole('option', { name: platform, exact: true }).click();
+    await expect(
+      dialog.getByRole('status').filter({ hasText: /steht noch nicht zur Verfügung/ }),
+    ).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Inserieren', exact: true })).toHaveCount(0);
+    await expect(dialog.getByRole('combobox', { name: 'Konto', exact: true })).toHaveCount(0);
+  }
+  expect(f.calls.some((value) => value['action'] === 'listing_enqueue')).toBe(false);
+  expect(f.providerCalls).toBe(0);
+});
 test('Gebühren stoppen den Auftrag ohne Erfolgsmeldung @core-smoke', async ({ page }) => {
   const f = await mockKleinanzeigenTransfer(page, { result: 'fees' });
   const { dialog } = await ready(page);
-  await dialog.getByRole('button', { name: 'Kostenlos inserieren', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Inserieren', exact: true }).click();
   await expect(
     dialog.getByText('Kleinanzeigen zeigt Gebühren. Die Veröffentlichung wurde gestoppt.', {
       exact: true,
     }),
-  ).toBeVisible();
+  ).toBeInViewport();
   await expect(dialog.getByText('Bei Kleinanzeigen veröffentlicht', { exact: true })).toHaveCount(
     0,
   );
@@ -116,8 +264,8 @@ test('Unklarer Ausgang wird nur abgeglichen und nicht erneut inseriert @core-smo
 }) => {
   const f = await mockKleinanzeigenTransfer(page, { result: 'unknown' });
   const { dialog } = await ready(page);
-  await dialog.getByRole('button', { name: 'Kostenlos inserieren', exact: true }).click();
-  await expect(dialog.getByText('Ergebnis noch unklar', { exact: true })).toBeVisible();
+  await dialog.getByRole('button', { name: 'Inserieren', exact: true }).click();
+  await expect(dialog.getByText('Ergebnis noch unklar', { exact: true })).toBeInViewport();
   await expect(
     dialog.getByRole('button', { name: 'Kostenlos inserieren', exact: true }),
   ).toHaveCount(0);
@@ -131,8 +279,10 @@ test('Verarbeitung bleibt von einer bestätigten Veröffentlichung unterscheidba
 }) => {
   await mockKleinanzeigenTransfer(page, { result: 'processing' });
   const { dialog } = await ready(page);
-  await dialog.getByRole('button', { name: 'Kostenlos inserieren', exact: true }).click();
-  await expect(dialog.getByText('Wird von Kleinanzeigen geprüft', { exact: true })).toBeVisible();
+  await dialog.getByRole('button', { name: 'Inserieren', exact: true }).click();
+  await expect(
+    dialog.getByText('Wird von Kleinanzeigen geprüft', { exact: true }),
+  ).toBeInViewport();
   await expect(dialog.getByText('Bei Kleinanzeigen veröffentlicht', { exact: true })).toHaveCount(
     0,
   );
@@ -146,21 +296,23 @@ test('Lange Quelltexte bleiben ungekürzt zur Korrektur erhalten @core-smoke', a
   await expect(dialog.getByLabel('Beschreibung auf Kleinanzeigen', { exact: true })).toHaveValue(
     'Langtext '.repeat(600),
   );
-  await dialog.getByRole('button', { name: 'Entwurf speichern', exact: true }).click();
-  await expect(dialog.getByText(/Prüfe Titel, Beschreibung und Preis/)).toBeVisible();
+  await dialog.getByRole('button', { name: 'Für später speichern', exact: true }).click();
+  await expectSingleVisibleError(dialog, /Prüfe Titel, Beschreibung und Preis/);
 });
 test('Unvollständige Bilder blockieren die Veröffentlichung @core-smoke', async ({ page }) => {
-  await mockKleinanzeigenTransfer(page, { imagesComplete: false });
-  const { dialog } = await open(page);
-  await dialog.getByRole('button', { name: 'Entwurf speichern', exact: true }).click();
+  const f = await mockKleinanzeigenTransfer(page, { imagesComplete: false });
+  const { dialog } = await ready(page);
+  await dialog.getByRole('button', { name: 'Inserieren', exact: true }).click();
   await expect(
-    dialog.getByText('Der Entwurf ist gespeichert; die Bildübernahme ist noch unvollständig.', {
-      exact: true,
-    }),
+    dialog.getByText(
+      'Deine Inseratsangaben sind gespeichert; die Bildübernahme ist noch unvollständig.',
+      {
+        exact: true,
+      },
+    ),
   ).toBeVisible();
-  await expect(
-    dialog.getByRole('button', { name: 'Kostenlos inserieren', exact: true }),
-  ).toBeDisabled();
+  expect(f.calls.some((value) => value['action'] === 'listing_enqueue')).toBe(false);
+  expect(f.providerCalls).toBe(0);
 });
 
 test('Zentrale Übersicht zeigt echte Kleinanzeigen-Konten und den bestätigten Zielbestand @core-smoke', async ({
@@ -173,7 +325,7 @@ test('Zentrale Übersicht zeigt echte Kleinanzeigen-Konten und den bestätigten 
     target.getByRole('heading', { name: 'Kleinanzeigen Privatkonto', exact: true }),
   ).toBeVisible();
   const { dialog } = await ready(page);
-  await dialog.getByRole('button', { name: 'Kostenlos inserieren', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Inserieren', exact: true }).click();
   await expect(dialog.getByText('Bei Kleinanzeigen veröffentlicht', { exact: true })).toBeVisible();
   await dialog.getByRole('button', { name: 'Schließen', exact: true }).last().click();
   await target
@@ -193,11 +345,9 @@ test('Eine verlorene Annahmeantwort wird ohne zweiten Auftrag fortgesetzt @core-
 }) => {
   const f = await mockKleinanzeigenTransfer(page, { lostEnqueueReply: true });
   const { dialog } = await ready(page);
-  await dialog.getByRole('button', { name: 'Kostenlos inserieren', exact: true }).click();
-  await expect(
-    dialog.getByRole('alert').filter({ hasText: /Auftrag konnte noch nicht bestätigt/ }),
-  ).toBeVisible();
-  await dialog.getByRole('button', { name: 'Kostenlos inserieren', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Inserieren', exact: true }).click();
+  await expectSingleVisibleError(dialog, /Auftrag konnte noch nicht bestätigt/);
+  await dialog.getByRole('button', { name: 'Inserieren', exact: true }).click();
   await expect(dialog.getByText('Bei Kleinanzeigen veröffentlicht', { exact: true })).toBeVisible();
   expect(f.calls.filter((value) => value['action'] === 'listing_enqueue')).toHaveLength(1);
   expect(f.providerCalls).toBe(1);
@@ -207,8 +357,8 @@ test('Ein gewechseltes Browserkonto stoppt vor der Auftragsannahme @core-smoke',
 }) => {
   const f = await mockKleinanzeigenTransfer(page, { wrongBindingOnPublish: true });
   const { dialog } = await ready(page);
-  await dialog.getByRole('button', { name: 'Kostenlos inserieren', exact: true }).click();
-  await expect(dialog.getByRole('alert').filter({ hasText: /Browserprofil/ })).toBeVisible();
+  await dialog.getByRole('button', { name: 'Inserieren', exact: true }).click();
+  await expectSingleVisibleError(dialog, /Browserprofil/);
   expect(f.calls.some((value) => value['action'] === 'listing_enqueue')).toBe(false);
   expect(f.providerCalls).toBe(0);
 });
@@ -217,12 +367,15 @@ test('Ohne passende Erweiterung bleibt die automatische Veröffentlichung gesper
 }) => {
   const f = await mockKleinanzeigenTransfer(page, { extensionAvailable: false });
   const { dialog } = await open(page);
-  await dialog.getByRole('button', { name: 'Entwurf speichern', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Für später speichern', exact: true }).click();
   await expect(
-    dialog.getByText('Entwurf und alle Bilder sind gesichert.', { exact: true }),
+    dialog.getByText('Deine Inseratsangaben und Bilder sind gesichert.', { exact: true }),
   ).toBeVisible();
   await expect(
     dialog.getByRole('button', { name: 'Kostenlos inserieren', exact: true }),
-  ).toBeDisabled();
+  ).toHaveCount(0);
+  await dialog.getByRole('button', { name: 'Inserieren', exact: true }).click();
+  await expectSingleVisibleError(dialog, /Erweiterung/);
+  expect(f.calls.some((value) => value['action'] === 'listing_enqueue')).toBe(false);
   expect(f.providerCalls).toBe(0);
 });

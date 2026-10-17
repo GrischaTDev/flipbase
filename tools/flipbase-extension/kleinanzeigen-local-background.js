@@ -200,6 +200,7 @@
               minimumDocumentTime: listingDocumentTime,
               expectedExternalAccountId: installation.binding.externalAccountId,
               expectedCursor: listingCursor,
+              includeDetails: runId !== undefined && listingCursor === cursor,
             });
           }
         } catch (error) {

@@ -140,6 +140,76 @@ describe('Kontextgetrennte Marktplatzübersicht', () => {
     await store.next(account);
     expect(store.section(account)?.selection).toEqual([]);
   });
+  it('aktualisiert eine erfolgreiche Plattform nach Änderungen und erhält offene Bereiche und Auswahl', async () => {
+    const store = TestBed.inject(MarketplaceOverviewStore);
+    await store.load('ws-a');
+    await store.expand(account);
+    await store.setQuery(overviewAccountKey(account), {
+      state: 'active',
+      search: 'Jacke',
+      limit: 25,
+    });
+    store.toggleSelection(page.items[0].reference, true);
+    const ebayAccount = store.platforms().find((group) => group.platform === 'ebay')!.accounts[0];
+    await store.expand(ebayAccount);
+    const ebaySection = store.section(ebayAccount);
+    api.loadAccounts.mockResolvedValue([{ ...account, listingCount: 3 }]);
+    api.loadListings.mockResolvedValue({ ...page, total: 3 });
+    await store.refreshPlatform('vinted');
+    expect(store.section(account)?.account.listingCount).toBe(3);
+    expect(store.section(account)?.page?.total).toBe(3);
+    expect(store.section(account)?.query.search).toBe('Jacke');
+    expect(store.section(account)?.expanded).toBe(true);
+    expect(store.section(account)?.selection).toEqual([page.items[0].reference]);
+    expect(store.section(ebayAccount)).toBe(ebaySection);
+    api.loadListings.mockResolvedValue({ ...page, items: [], total: 0 });
+    await store.refreshPlatform('vinted');
+    expect(store.section(account)?.selection).toEqual([]);
+  });
+  it('entfernt beim Aktualisieren verschwundene Konten und deren Filter', async () => {
+    const store = TestBed.inject(MarketplaceOverviewStore);
+    await store.load('ws-a');
+    store.selectAccount('vinted', account.connectionId);
+    api.loadAccounts.mockResolvedValue([]);
+    await store.refreshPlatform('vinted');
+    expect(store.section(account)).toBeUndefined();
+    expect(store.accountFilter('vinted')).toBe('');
+    expect(store.platforms().find((group) => group.platform === 'vinted')?.accounts).toEqual([]);
+  });
+  it('übernimmt nach einem Workspacewechsel keine verspätete Plattformaktualisierung', async () => {
+    const store = TestBed.inject(MarketplaceOverviewStore);
+    await store.load('ws-a');
+    let finish!: (accounts: readonly MarketplaceOverviewAccount[]) => void;
+    api.loadAccounts.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const pending = store.refreshPlatform('vinted');
+    currentWorkspace.set({ id: 'ws-b' });
+    finish([{ ...account, listingCount: 99 }]);
+    await pending;
+    expect(store.platforms()).toEqual([]);
+    expect(store.sections()).toEqual({});
+  });
+  it('behält die neueste Plattformantwort bei überlappenden Aktualisierungen', async () => {
+    const store = TestBed.inject(MarketplaceOverviewStore);
+    await store.load('ws-a');
+    let finish!: (accounts: readonly MarketplaceOverviewAccount[]) => void;
+    api.loadAccounts.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const older = store.refreshPlatform('vinted');
+    api.loadAccounts.mockResolvedValueOnce([{ ...account, listingCount: 5 }]);
+    await store.refreshPlatform('vinted');
+    finish([{ ...account, listingCount: 3 }]);
+    await older;
+    expect(store.section(account)?.account.listingCount).toBe(5);
+  });
   it('blendet Daten beim Nutzerwechsel sofort aus und verwirft alte Antworten', async () => {
     let resolve!: (value: readonly MarketplaceOverviewAccount[]) => void;
     api.loadAccounts.mockReturnValue(

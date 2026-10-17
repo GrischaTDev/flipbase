@@ -71,7 +71,6 @@ function source(value: unknown, account: string, external: string): VintedTransf
     !text(value['currency'], 12) ||
     !value['currency'] ||
     !Array.isArray(value['photoReferences']) ||
-    value['photoReferences'].length < 1 ||
     value['photoReferences'].length > 40 ||
     !value['photoReferences'].every(photo) ||
     new Set(value['photoReferences']).size !== value['photoReferences'].length ||
