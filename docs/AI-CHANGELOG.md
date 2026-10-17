@@ -1,5 +1,9 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-17 - Juna - Korrektur-PR zur Integration freigegeben
+
+**Auftrag:** Nach ausdrücklichem Ja den geprüften Korrekturzweig zur Inseratübernahme und Marktplatzbedienung veröffentlichen, den PR erstellen und sämtliche erforderlichen CI-Prüfungen abwarten. Nur bei Erfolg mit Merge-Commit integrieren, danach den eigenen Remote-/lokalen Zweig und den zugehörigen Worktree aufräumen. Der aktuelle Hauptzweig ist unverändert enthalten. Die vorhandenen lokalen Prüfbelege gelten für denselben Code; neu ist nur diese Freigabedokumentation. Anbieter-Liveabnahme und Bereitstellung der korrigierten Server-Endpunkte und Erweiterung bleiben gesondert zu prüfen.
+
 ## 2026-10-17 - Juna - Inseratübernahme und Marktplatzbedienung korrigieren
 
 **Auftrag:** Nutzer meldet fehlende Bilder, Preise und Altersangaben bei Kleinanzeigen, verstreute Kontoverwaltung, missverständliche Entwurf-/Transferaktionen und einen unerwarteten Vinted-Leseprozess beim internen Kopieren. Bestehende Verwaltung und Gebührenabsicherung bleiben erhalten. Gespeicherte Quelldaten zuerst verwenden; Zielplattform und Konto auswählen, danach automatisch das passende vorbefüllte Inseratformular öffnen. Anbieterzugriff beim internen Vorbereiten nicht stillschweigend auslösen. Diagnose und Korrektur im eigenen Zweig aus aktuellem origin/master; keine Veröffentlichung oder Produktionsdatenänderung ohne gesonderten Auftrag.
