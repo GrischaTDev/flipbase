@@ -1,10 +1,10 @@
-# Kategorien auf Secondhand-Mode begrenzen
+# Kategorieauswahl für den Wiederverkauf eingrenzen
 
-Stand: 17.10.2026. Assistent: Juna. **Vorschlag zur Prüfung; noch keine Filter oder Kategorien geändert.**
+Stand: 17.10.2026. Assistent: Juna. **Überarbeiteter Vorschlag mit Nutzernotizen; noch keine Filter oder Kategorien geändert.**
 
 ## Auftrag und untersuchte Quellen
 
-Die Kategorieauswahl soll zu Wiederverkäufern gebrauchter Kleidung passen. Damen-, Herren-, Kinder- und Babykleidung bleibt vollständig erhalten. Angrenzende Sortimente werden ausdrücklich abgegrenzt, bevor die Auswahl geändert wird.
+Die Kategorieauswahl bleibt für den breiteren Wiederverkauf offen. Der Nutzer hat am 17.10.2026 die zunächst vorgeschlagene Beschränkung auf Mode korrigiert: Technik, Haushalt, Beauty, allgemeine Babyausstattung, Sport und Medien/Hobby sollen ebenfalls erhalten bleiben. Damen-, Herren-, Kinder- und Babykleidung bleibt vollständig enthalten. Die folgenden Entscheidungen werden als Notizen für den überarbeiteten Vorschlag festgehalten; noch keine Filter umsetzen.
 
 | Quelle        |                       Untersucht | Stand und Nachweis                                                                                                                                                                                                          |
 | ------------- | -------------------------------: | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -12,88 +12,73 @@ Die Kategorieauswahl soll zu Wiederverkäufern gebrauchter Kleidung passen. Dame
 | Vinted        | 2.920 Knoten, neun Hauptbereiche | Vollständiger gespeicherter Produktionsbaum, ausschließlich lesend exportiert; letzte erfolgreiche Auffrischung 09.10.2026. Der letzte Versuch meldet HTTP 307. Dieser Bericht behauptet keinen neuen Live-Scan von Vinted. |
 | Kleinanzeigen |   3.239 Knoten, 15 Hauptbereiche | Vollständiger Browser-Scan vom 17.10.2026 aus dem eigenen Kategorie-Zweig                                                                                                                                                   |
 
-Alle drei Bestände auf eindeutige Kennungen, vorhandene Eltern, Erreichbarkeit aller Knoten und konsistente Namen/Pfade geprüft. Keine fehlenden Eltern oder widersprüchlichen Pfade festgestellt. Bei Shopify sind Dienstleistungen, Gutscheine, Bundles, Produkt-Add-Ons und „Nicht kategorisiert“ bereits beim Import ausgeschlossen; zusätzliche bestehende Bereiche werden jetzt erst zur Prüfung vorgeschlagen.
+Alle drei Bestände auf eindeutige Kennungen, vorhandene Eltern, Erreichbarkeit aller Knoten und konsistente Namen/Pfade geprüft. Keine fehlenden Eltern oder widersprüchlichen Pfade festgestellt. Bei Shopify sind Dienstleistungen, Gutscheine, Bundles, Produkt-Add-Ons und „Nicht kategorisiert“ bereits beim Import ausgeschlossen; die hier dokumentierten zusätzlichen Ausschlüsse sind noch nicht umgesetzt.
 
-## Behalten
+## Nach den Nutzernotizen behalten
 
-- Kleidung für Damen, Herren, Kinder und Babys; auch Unisex-Angebote, sofern der Anbieter entsprechende Kategorien hat.
-- Schuhe aller Altersgruppen, einschließlich Sneaker, Baby-/Lauflernschuhe und Sportschuhe.
-- Unterwäsche, Dessous, Nachtwäsche, Bademode und Umstandsmode.
-- Sport-, Outdoor-, Ski-, Arbeits- und Motorradbekleidung; Trikots und tragbare Fanartikel.
-- Fest-, Braut- und Trachtenmode, Kostüme und Verkleidungen.
-- Taschen, Rucksäcke, Geldbörsen und übliche Modeaccessoires: Gürtel, Mützen, Schals, Handschuhe, Sonnenbrillen und Haarschmuck.
-- Schmuck und klassische Uhren; Designerartikel bleiben unabhängig vom Preis erhalten.
-- Kleidungssets und Kleidungspakete sowie „Sonstige“-Kategorien innerhalb der passenden Bekleidungsbereiche.
+| Bereich                                | Enthaltene Beispiele                                                                                                           |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Kleidung, Schuhe und Modeaccessoires   | Damen, Herren, Kinder, Babys, Sport-/Arbeits-/Motorradbekleidung, Taschen, Schmuck, Uhren, Designerartikel und Kleidungspakete |
+| Elektronik und Software                | Technik, Computer, Kameras, Konsolen, Software, Smartwatches und Fitness-Tracker                                               |
+| Haushalt und Einrichtung               | Möbel, Dekoration, Bettwäsche, Heimtextilien, Küchen- und Haushaltsgeräte                                                      |
+| Beauty und Gesundheit                  | Pflegeprodukte, Kosmetik, Parfüm, Hygiene- und Gesundheitsartikel                                                              |
+| Allgemeine Baby- und Kinderausstattung | Kinderwagen, Autositze, Babyphone, Flaschen, weitere Ausstattung und textile Babysachen                                        |
+| Sportgeräte und Camping                | Sportgeräte, Fitnessausrüstung, Zelte, Campingbedarf und Sportausstattung                                                      |
+| Medien, Spielzeug und Hobby            | Bücher, Musik, Filme, Spielzeug, Sammelkarten, Instrumente, Bastel- und Hobbybedarf                                            |
 
-„Gebraucht“ ist kein Kategorie-Kriterium: Dieselbe Bekleidungskategorie kann neue und gebrauchte Ware enthalten. Der Zustand bleibt ein eigenes Merkmal. Auch Geschlecht, Marke, Saison, Größe oder Preis führen nicht zu einem pauschalen Ausschluss.
+Die Nutzerformulierung „wahrscheinlich“ bei Haushalt und „erst mal“ bei mehreren Sortimenten wird als vorläufiges Behalten im Vorschlag berücksichtigt, nicht als Auftrag zur sofortigen technischen Umsetzung.
 
-## Generell ausschließen – mit den genannten Bekleidungsausnahmen
+Die früher vorgeschlagenen Ausschlüsse von Elektronik, Möbeln, Beauty, Babyausstattung, Sportgeräten und Medien sind aufgehoben. Das gilt auch für daraus abgeleitete Einschränkungen: Smartwatches/Fitness-Tracker werden nicht mehr als Elektronik ausgeschlossen; Sporthelme und Protektoren nicht pauschal als Sportausrüstung. Nähmaschinen, Stoffe und Schnittmuster werden nicht allein wegen des fehlenden Modebezugs ausgeschlossen, da Hobby erhalten bleiben soll. Konkrete Überschneidungen mit ausgeschlossenem Gewerbe-/Baubedarf anhand des tatsächlichen Unterbereichs prüfen.
 
-| Bereich                         | Vorgeschlagener Ausschluss                                                                                                                            | Erhaltene Ausnahme                                                                                |
-| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| Fahrzeuge und Immobilien        | Autos, Fahrräder, Boote, Wohnmobile, Fahrzeugteile, Wohnungen, Häuser, Grundstücke                                                                    | Motorrad-/Rennbekleidung und passende Schuhe/Handschuhe                                           |
-| Arbeit und Dienstleistungen     | Jobs, Pflege-/Betreuungsdienste, Reparaturen, Transport, Kurse, Nachhilfe, Veranstaltungen und Tickets                                                | Arbeitskleidung selbst                                                                            |
-| Elektronik und Software         | Geräte, Computer, Kameras, Konsolen, Spiele, Ersatzteile, Software                                                                                    | Tragbare Taschen nach der Taschen-Abgrenzung unten                                                |
-| Haushalt und Einrichtung        | Möbel, Dekoration, Lampen, Heimtextilien, Bettwäsche, Küchen-/Haushaltsgeräte                                                                         | Tragbare Schürzen und passende Arbeitskleidung                                                    |
-| Garten, Werkzeuge und Industrie | Pflanzen, Gartengeräte, Baumaterial, Maschinen, Werkzeuge, Gewerbe- und Bürobedarf                                                                    | Echte Bekleidung und Sicherheitsschuhe, keine pauschale Freigabe sämtlicher Schutzausrüstung      |
-| Beauty und Gesundheit           | Kosmetik, Parfüm, Haar-/Körperpflege, Pflegegeräte, Medizin- und Hygieneprodukte                                                                      | Normale Unterwäsche und Kleidung bleibt erhalten; medizinische Spezialartikel getrennt beurteilen |
-| Kinder-/Babyausstattung         | Kinderwagen, Autositze, Möbel, Spielzeug, Babyphone, Flaschen, Geschirr, Schnuller, Pflege- und Sicherheitsbedarf                                     | Baby-/Kinderkleidung und Schuhe; textile Grenzfälle siehe unten                                   |
-| Sportgeräte und Camping         | Fahrräder, Bälle, Schläger, Fitnessgeräte, Zelte, Campingmöbel, Skier, Boards, Sättel und Ersatzteile                                                 | Sportkleidung, Neoprenanzüge, Schuhe und passende tragbare Accessoires                            |
-| Medien, Hobby und Sammlerware   | Bücher, Filme, Musik, Instrumente, Sammelkarten, Figuren, Bastelbedarf, Stoffe und Nähmaterial                                                        | Fertige Kostüme, Fanbekleidung und andere tatsächlich tragbare Kleidung                           |
-| Tierbedarf und Lebensmittel     | Tiere, Tierkleidung, Tierzubehör und -futter; Lebensmittel, Getränke, Tabak                                                                           | Keine                                                                                             |
-| Sonstige fachfremde Sortimente  | Waffen, Erotikartikel ohne Bekleidungsbezug, religiöse Gegenstände ohne Bekleidungsbezug sowie allgemeine Verschenken-/Tauschen-/Verleihen-Kategorien | Menschliche Bekleidung bleibt unabhängig vom Ablageort erhalten                                   |
+## Nach den Nutzernotizen ausschließen
 
-## Abgrenzungen zur ausdrücklichen Prüfung
+| Bereich                         | Gemeinte Inhalte                                                                                  | Bekleidung und andere Abgrenzungen                                                                                                                                                                                          |
+| ------------------------------- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Jobs und Dienstleistungen       | Stellenangebote, angebotene Dienstleistungen, Betreuung, Reparatur- und Transportleistungen       | Arbeitskleidung ist ein Produkt und bleibt erhalten.                                                                                                                                                                        |
+| Fahrzeuge und Immobilien        | Autos, Motorräder, Fahrräder, Boote, Wohnmobile, Fahrzeugteile, Häuser, Wohnungen und Grundstücke | Motorrad-/Rennbekleidung und passende Schuhe/Handschuhe bleiben Bekleidung. Fahrräder nicht wegen der Einordnung unter Sport wieder freigeben. Kinderwagen und Autositze bleiben nach ausdrücklicher Entscheidung erhalten. |
+| Garten-, Bau- und Gewerbebedarf | Pflanzen, Gartenbedarf, Bau-/Heimwerkerbedarf, Werkzeuge, Maschinen und gewerblicher Bedarf       | Haushaltsgeräte und Einrichtung bleiben erhalten. Arbeitskleidung und Sicherheitsschuhe nicht allein aufgrund ihres übergeordneten Bereichs entfernen.                                                                      |
+| Tiere und Lebensmittel          | Tiere, Tierbedarf einschließlich Tierkleidung/-futter sowie Lebensmittel und Getränke             | Menschliche Bekleidung bleibt erhalten. Beauty-/Gesundheitsartikel nicht mit Lebensmitteln gleichsetzen; tatsächliche Lebensmittel auch unter Hobby oder Haushalt ausschließen.                                             |
 
-| Grenzfall                                                                                      | Empfehlung                                                                                                                                                                                        |
-| ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Schuhe, Taschen, Schmuck und klassische Uhren                                                  | Behalten; sie gehören zum Mode-Wiederverkauf.                                                                                                                                                     |
-| Babyschlafsäcke, Pucktücher, Lätzchen und Mull-/Spucktücher                                    | Behalten als angrenzendes textiles Babysortiment; Kinderwagen, Bettwäsche, Windeln und übrige Babyausstattung ausschließen.                                                                       |
-| Schulrucksäcke und Wickeltaschen                                                               | Behalten, auch wenn sie unter Schule oder Wickelbedarf einsortiert sind.                                                                                                                          |
-| Koffer, Gepäckablagen, Reisebehälter und technische Geräte-/Instrumentenkoffer                 | Ausschließen. Alltags-, Sport-, Laptop- und Kulturtaschen behalten; Inhalte wie Kosmetik oder Elektronik bleiben ausgeschlossen.                                                                  |
-| Smartwatches, Fitness-Tracker und sonstige Wearables                                           | Ausschließen als Elektronik; klassische Uhren und normale Uhrenarmbänder behalten. Keine pauschale Freigabe von Uhrmacherwerkzeugen oder Uhrenteilen.                                             |
-| Helme, Protektoren, Rettungswesten, Sicherungsgurte und medizinische Einweg-/Spezialausrüstung | Ausschließen. Gewöhnliche Arbeits-/Sportkleidung und Schuhe bleiben erhalten.                                                                                                                     |
-| Kleiderbügel, Schuhpflege, Schuhspanner, Nähmaschinen, Stoffe und Schnittmuster                | Ausschließen; sie sind Hilfsmittel oder Material und kein fertiges Modesortiment. Schnürsenkel und tragbare Modeaccessoires behalten.                                                             |
-| Gemischte Kleinanzeigen-Kategorien „Sport & Camping“ und „Weiteres Mode & Beauty“              | Nicht stillschweigend verwerfen. „Weiteres Mode & Beauty“ zunächst behalten; die acht allgemeinen Sport-/Camping-Endkategorien gesondert entscheiden, weil sie Kleidung und Geräte nicht trennen. |
+Die vier genannten Ausschlussbereiche haben bei fachlichen Überschneidungen Vorrang: Ein Fahrrad bleibt ein Fahrzeug, auch wenn es unter „Sport“ steht; ein Tierprodukt bleibt Tierbedarf, auch wenn es unter „Home“ steht. Die ausdrücklich genannten Ausnahmen haben wiederum Vorrang vor dem bloßen Namen eines Oberbereichs. Einfache Wortfilter reichen dafür nicht: „Damen“ gibt es auch bei Fahrrädern, „Kabelschuhe“ sind keine Schuhe, Kinderwagen sollen ausdrücklich erhalten bleiben.
+
+## Noch nicht ausdrücklich entschiedene Bereiche
+
+Der Nutzer geht die Liste gerade durch und macht Notizen. Daraus folgt noch keine gesonderte Entscheidung zu Eintrittskarten, Tabak, Waffen, Erotikartikeln, religiösen Artikeln oder allgemeinen Verschenken-/Tauschen-/Verleihen-Kategorien. Auch die frühere Sonderempfehlung zu Reisegepäck und einzelnen Hilfsmitteln wurde nicht ausdrücklich bestätigt. Diese vorherigen Empfehlungen nicht stillschweigend als Nutzerentscheidung übernehmen; bis zur abschließenden Prüfung keine zusätzlichen Ausschlüsse anwenden.
 
 ## Konkrete Auswirkungen je Baum
 
 ### Kleinanzeigen
 
-Behalten: `153` (Mode & Beauty) mit Ausnahme von `153/224` (Beauty & Gesundheit), außerdem `17/22` (Baby- & Kinderkleidung), `17/19` (Baby- & Kinderschuhe) und `210/306/kleidung` (Motorradbekleidung). Alle jeweiligen Unterkategorien bleiben enthalten. Benötigte ursprüngliche Eltern bleiben als Pfad erhalten.
-
-Diese Variante umfasst **95 Knoten, davon 83 Endkategorien**; **3.144 Knoten** liegen außerhalb dieser Variante. Das ist eine berechnete Prüfvariante, keine bereits freigegebene Ausschlussliste. Insbesondere die gemischten Sport-/Camping-Kategorien bleiben gesondert zur Entscheidung offen. Schon `210` (Auto, Rad & Boot) enthält 2.688 Knoten, größtenteils ohne Bezug zum Modesortiment.
-
-Vollständig fachfremde Hauptbereiche: Dienstleistungen, Eintrittskarten & Tickets, Elektronik, Haus & Garten, Haustiere, Immobilien, Jobs, Musik/Filme/Bücher, Nachbarschaftshilfe, Unterricht & Kurse sowie Verschenken & Tauschen. Familie/Kind/Baby, Freizeit/Hobby und Auto/Rad/Boot dürfen wegen der genannten Ausnahmen nicht ausschließlich nach dem Hauptnamen gefiltert werden.
+- `153` Mode & Beauty einschließlich `153/224` Beauty & Gesundheit behalten.
+- `161` Elektronik und `17` Familie, Kind & Baby einschließlich allgemeiner Ausstattung behalten. Die zuvor vorgeschlagene Beschränkung auf Baby-/Kinderkleidung und Schuhe entfällt.
+- `80` Haus & Garten aufteilen: Einrichtung, Heimtextilien und Haushaltsartikel behalten; `80/89` Gartenzubehör & Pflanzen, `80/84` Heimwerken und `80/239` Dienstleistungen Haus & Garten ausschließen.
+- `185` Freizeit, Hobby & Nachbarschaft und `73` Musik, Filme & Bücher grundsätzlich für Waren erhalten. `185/230` Sport & Camping bleibt erhalten; die Dienste `185/191` Künstler/-in & Musiker/-in und `185/233` Reise & Eventservices fallen unter Dienstleistungen, `185/248` Essen & Trinken unter Lebensmittel.
+- `210` Auto, Rad & Boot ausschließen, Bekleidungsausnahme `210/306/kleidung` erhalten. `195` Immobilien, `102` Jobs, `297` Dienstleistungen und `130` Haustiere ausschließen. Weitere Dienstleistungsunterbereiche ebenfalls nach Inhalt ausschließen.
+- Die frühere enge Prüfvariante mit 95 Knoten ist mit diesem breiteren Umfang nicht mehr maßgeblich. Neue Zielzahlen erst aus der abschließend abgestimmten Abgrenzung ableiten.
 
 ### Vinted
 
-- `1904` Damen und `5` Herren mit Kleidung, Schuhen, Taschen und Accessoires behalten; `146` Beauty und `139` Körper- & Gesichtspflege ausschließen.
-- `1193` Kinder gezielt aufteilen: `1194` Jungs und `1195` Mädchen mit allen Bekleidungs-/Schuh-/Accessoireunterkategorien behalten. Möbel, Spielzeug, Pflege, Betreuung und allgemeine Ausstattung ausschließen.
-- `2993` Designerartikel einschließlich Damen-/Herren-Unterbereichen behalten.
-- `2309` Bücher & andere Medien ausschließen. `2994` Elektronik ausschließen, mit gezielter Ausnahme geeigneter Laptop-Taschen (`3624`) nach obiger Empfehlung.
-- `1918` Home, `4332` Sport und `4824` Hobby- & Sammlerartikel überwiegend ausschließen, passende Bekleidungs-/Taschenunterkategorien vorher herauslösen. Beispiele: Neoprenbereich `4768`, Gamaschen `4719`, Reithandschuhe `4811`, Wanderrucksäcke `4665`, Arbeits-/Gartenschürzen `4026`/`4286`, Töpferschürzen `5367`.
-- Außerhalb der Kinderkleidung beachten: Schultaschen `1508`, Wickeltaschen `3394`, Schlafsäcke/Textilien `3307`–`3309`, Lätzchen `3434` und Mull-/Spucktücher `3443`. Die Entscheidungstabelle legt fest, was davon zur Auswahl gehören soll.
+- `1904` Damen und `5` Herren einschließlich Beauty/Körperpflege behalten; `146` und `139` nicht mehr ausschließen.
+- `1193` Kinder einschließlich Ausstattung behalten; `2993` Designerartikel, `2309` Bücher & andere Medien und `2994` Elektronik bleiben erhalten.
+- `1918` Home behalten, ausgeschlossene Unterbereiche gezielt entfernen: `3811` Werkzeuge & Heimwerken, `3812` Außenbereich & Garten und `5106` Haustierbedarf. Vorhandene passende Bekleidungsunterkategorien bleiben Ausnahmen.
+- `4332` Sport behalten; Fahrzeuge darin ausschließen, insbesondere tatsächliche Fahrräder unter Fahrradfahren. Fahrrad-/Campingbekleidung oder Autositze nicht als Fahrräder behandeln.
+- `4824` Hobby- & Sammlerartikel behalten. Lebensmittel und andere ausdrücklich ausgeschlossene Inhalte werden anhand ihrer Kennungen unabhängig vom Hauptbereich behandelt.
 
 ### Shopify
 
-- `aa` Bekleidung & Accessoires bleibt der Kern, einschließlich Baby-/Kinderbekleidung `aa-1-25`. Einzelne fachfremde Unterkategorien wie Smartwatches `aa-6-12`, Uhrmacherwerkzeuge `aa-6-10-6`, Uhrenbeweger `aa-6-10-3` oder Sporen `aa-7-7` separat ausschließen.
-- `lb` Taschen & Gepäck auf die genannten Taschenarten begrenzen; Koffer, Trockenboxen und allgemeines Gepäckzubehör ausschließen.
-- `sg` Sportartikel gezielt durchgehen: Kleidung und Schuhe behalten, Geräte und Schutzausrüstung ausschließen. Fahrradkleidung liegt z. B. unter `sg-4-4-4`; dieser Ast enthält gleichzeitig Helme und andere Ausrüstung. Auch hier ist ein pauschales Behalten oder Löschen des ganzen Asts falsch.
-- `ae` Kunst & Unterhaltung überwiegend ausschließen; tragbare Sport-Fanartikel unter `ae-2-2-10-1` behalten, darunter Kappen, Hoodies, Trikots, Schals, Socken und T-Shirts. Banner, Figuren, Poster und Wandaufkleber bleiben ausgeschlossen.
-- `bi` Wirtschaft & Industrie, `hg` Heim & Garten und `vp` Fahrzeuge & Teile überwiegend ausschließen; passende Arbeitskleidung, Schürzen, Sicherheits-/Sportschuhe sowie Motorrad-/Rennbekleidung erhalten. Beispiele: Warnschutzkleidung `bi-25-14`, Sicherheitsschuhe `bi-25-13`, Küchenschürzen `hg-11-8-1`, Motorradhandschuhe `vp-1-6-1-3` und Rennanzüge `vp-1-6-7-7`.
-- `bt` Baby & Kleinkind überwiegend Ausstattung: Ausnahmen nur für freigegebene textile Babysachen. Die eigentliche Baby-/Kinderbekleidung liegt bereits unter `aa`.
-- `hb` Gesundheit & Schönheit und `ma` Reif auf die beschriebenen fachfremden Produkte begrenzen; Bekleidungsunterkategorien nicht allein wegen des Hauptnamens verwerfen. Dessous und Unterwäsche unter `aa` bleiben in jedem Fall erhalten.
-- Vollständig ausschließbare Hauptbereiche: Tiere & Tierbedarf (`ap`), Kameras & Optik (`co`), Elektronik (`el`), Nahrungsmittel/Getränke/Tabak (`fb`), Möbel (`fr`), Heimwerkerbedarf (`ha`), Medien (`me`), Bürobedarf (`os`), Religion & Feierlichkeiten (`rc`), Software (`so`), Spielzeuge & Spiele (`tg`). Vor der Umsetzung alle ausdrücklich freigegebenen Bekleidungsausnahmen anhand ihrer Kennung berücksichtigen.
+- `aa` Bekleidung & Accessoires und `lb` Taschen & Gepäck nicht mehr ausschließlich nach Modebezug ausdünnen. Die Sonderempfehlung zu Reisegepäck bleibt offen.
+- `co` Kameras & Optik, `el` Elektronik, `so` Software, `fr` Möbel, `hb` Gesundheit & Schönheit, `bt` Baby & Kleinkind, `sg` Sportartikel, `me` Medien, `tg` Spielzeuge & Spiele und `ae` Kunst & Unterhaltung bleiben grundsätzlich erhalten.
+- `hg` Heim & Garten aufteilen: Haushalt, Einrichtung, Heimtextilien und Geräte bleiben; Garten und entsprechende Dienstleistungen werden entfernt. `hg-12` Rasen & Garten ist der betroffene Gartenast. Passende Kleidung wie Schürzen bleibt erhalten.
+- `ha` Heimwerkerbedarf und `bi` Wirtschaft & Industrie fallen unter Bau-/Gewerbebedarf, mit bestehenden Bekleidungsausnahmen; `ap` Tiere & Tierbedarf und `fb` Nahrungsmittel, Getränke & Tabak nicht pauschal ohne Beachtung der offenen Tabakentscheidung gleichsetzen. Lebensmittel-/Getränkeäste konkret bestimmen.
+- `vp` Fahrzeuge & Teile grundsätzlich ausschließen, passende Motorrad-/Rennbekleidung erhalten. Sportartikel dürfen tatsächliche Fahrräder, Fahrzeuge und deren Teile nicht versehentlich wieder zur Auswahl hinzufügen.
+- Weitere Hauptbereiche und frühere Sonderausschlüsse nicht allein aufgrund des alten Vorschlags entfernen, sondern erst nach der abschließenden inhaltlichen Prüfung zuordnen.
 
-## Umsetzung erst nach inhaltlicher Freigabe
+## Umsetzung erst nach abschließender inhaltlicher Freigabe
 
-Die Originalbäume und Anbieterkennungen intern erhalten und die neue Auswahl auf freigegebene Bereiche begrenzen. Vorhandene Artikel und Inserate mit später ausgeblendeten Kategorien müssen weiter lesbar und bearbeitbar bleiben. Keine Kategorien löschen, die bestehende Datensätze referenzieren. Neue Anbieter-Unterkategorien werden vor Aufnahme geprüft.
+Die Originalbäume und Anbieterkennungen intern erhalten und die Auswahl auf den abgestimmten Umfang begrenzen. Vorhandene Artikel und Inserate mit später ausgeblendeten Kategorien müssen weiter lesbar und bearbeitbar bleiben. Keine Kategorien löschen, die bestehende Datensätze referenzieren. Suchergebnisse und aufklappbare Ebenen müssen dieselbe Auswahl zeigen.
 
-Die Auswahl über ausdrücklich geprüfte Kennungen und Unterbäume steuern, nicht über einfache Wortfilter: „Damen“ gibt es auch bei Fahrrädern; „Kabelschuhe“ oder „Hausverkleidung“ sind keine Kleidung. Geschlossene Hauptbereiche dürfen passende Ausnahmen nicht verdrängen. Suchergebnisse und aufklappbare Ebenen müssen dieselbe erlaubte Auswahl zeigen.
-
-Diese Eingrenzung erweitert keine Veröffentlichungsfreigaben. Insbesondere Baby-/Kinder- und Motorradkategorien bei Kleinanzeigen benötigen unabhängig von ihrer Sichtbarkeit weiterhin den jeweiligen geprüften Veröffentlichungsweg.
+Die Eingrenzung erweitert keine Veröffentlichungsfreigaben. Das Behalten von Technik-, Baby- oder anderen Kategorien bedeutet nicht automatisch, dass jeder Veröffentlichungsweg diese Bereiche bereits unterstützt.
 
 ## Tatsächlich ausgeführt
 
-Vollständige Bestände lokal ausgewertet, Baumbeziehungen und Pfade geprüft, konkrete gemischte Äste und Gegenbeispiele untersucht; Shopify-Version/-Umfang und Vinted-Baum in schreibgeschützten Produktionsabfragen gelesen. Berechnete Kleinanzeigen-Prüfvariante anhand tatsächlicher Kennungen und aller benötigten Eltern nachgezählt. Keine Anbieteraktion, Migration, Kategorieänderung, Veröffentlichung oder Produktprüfung ausgelöst. Nur diese Dokumentation und das Sitzungsprotokoll ergänzt; reine Analyse, daher kein neuer Anwendungsbau oder Browserregressionslauf.
+Die vollständige Bestandsanalyse aus dem ersten Bericht bleibt die Grundlage. In diesem Schritt ausschließlich den Vorschlag nach den Nutzernotizen überarbeitet und widersprechende alte Ausschlüsse entfernt. Keine erneute Produktionsabfrage, Anbieteraktion, Migration, Kategorieänderung oder Veröffentlichung. Nur Dokumentation und Sitzungsprotokoll ergänzt; kein neuer Anwendungsbau für diese reine Notizübernahme erforderlich.

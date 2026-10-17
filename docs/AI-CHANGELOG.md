@@ -1,5 +1,11 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-17 - Juna - Nutzernotizen zum breiteren Wiederverkauf übernehmen
+
+**Auftrag:** Die Ausschlussliste während der Nutzerprüfung korrigieren: Elektronik/Software, Haushalt/Einrichtung, Beauty/Gesundheit, allgemeine Babyausstattung, Sport/Camping sowie Medien/Spielzeug/Hobby bleiben erhalten. Jobs/Dienstleistungen, Fahrzeuge/Immobilien, Garten-/Bau-/Gewerbebedarf sowie Tiere/Lebensmittel sollen herausfallen. Noch kein Auftrag zur technischen Umsetzung.
+
+**Ergebnis:** Bestehenden Kategoriebericht widerspruchsfrei auf den breiteren Umfang umgestellt. Frühere Modebeschränkung einschließlich Elektronik-/Wearableausschluss und der engen Kleinanzeigen-95-Knoten-Variante ist überholt. Bekleidungsausnahmen und Überschneidungen zwischen erhaltenen und ausgeschlossenen Sortimenten ausdrücklich festgehalten; zusätzliche nicht angesprochene Ausschlüsse nicht als Nutzerfreigabe gewertet. Ausschließlich Dokumentation verändert, keine Daten-/Filter-/Anbieteränderung, kein Push oder Deployment. Formatierung, Unterschiedskontrolle und genannte Kategoriekennungen geprüft. Abschließende inhaltliche Freigabe steht weiter aus.
+
 ## 2026-10-17 - Juna - Kategoriebäume auf Modebezug prüfen
 
 **Auftrag:** Shopify-, Vinted- und Kleinanzeigen-Kategorien vollständig auf Relevanz für Secondhand-Kleidung untersuchen und eine verständliche Ausschlussliste zur Nutzerprüfung erstellen. Noch keine Auswahl beschränken oder Kategorien löschen.
