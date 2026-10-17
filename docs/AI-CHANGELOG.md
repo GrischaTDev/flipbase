@@ -1,5 +1,9 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-10-17 - Juna - Chatkorrektur zur Integration freigegeben
+
+**Auftrag:** Nach ausdrücklichem Ja den lokal geprüften Zweig `juna/vinted-chat-activity` veröffentlichen, PR erstellen, alle erforderlichen CI-Prüfungen abwarten und ausschließlich bei Erfolg mit Merge-Commit integrieren. Anschließend den eigenen Remote-/lokalen Zweig und Worktree aufräumen sowie den automatischen Produktionslauf kontrollieren. Die Codebasis entspricht den dokumentierten lokalen Prüfergebnissen; neu ist nur diese Freigabedokumentation.
+
 ## 2026-10-17 - Juna - Verfügbarkeitsmeldungen ohne neue Chataktivität
 
 **Auftrag:** Vinteds Systemmeldung „Artikel nicht mehr verfügbar“ soll im Verlauf sichtbar bleiben, aber vorhandene Chats weder zeitlich aktualisieren noch nach oben schieben. Ursache in Cloud- und Erweiterungsimport sowie dem Listenfallback untersuchen; gezielte Regressionen vor der Korrektur und betroffene bestehende Prüfungen ausführen. Eigener Zweig aus aktuellem origin/master; keine echten Nachrichten, Anbieteränderungen oder Veröffentlichung.
