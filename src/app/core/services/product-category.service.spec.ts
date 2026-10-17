@@ -208,6 +208,26 @@ describe('Flipbase-Kategorien für den Wiederverkauf', () => {
       isDeprecated: false,
     });
   });
+  it.each(['hg-17-3-3-1', 'sg-4-5-1-3-1', 'sg-4-5-2', 'hg-3-8-1', 'sg-4-9-3-7-4-2'])(
+    'verbirgt den ausgeschlossenen Seitenast %s in Auswahl und Suche, erhält seine Zuordnung',
+    async (id) => {
+      const original = { ...laptopRow, id, name: 'Gespeicherte Originalkategorie' };
+      const { service } = createService([
+        { data: [original, laptopRow], error: null },
+        { data: [original, laptopRow], error: null },
+        { data: original, error: null },
+      ]);
+      expect((await service.loadChildren(null)).map((row) => row.id)).toEqual(['el-6-6']);
+      expect((await service.search('Originalkategorie')).categories.map((row) => row.id)).toEqual([
+        'el-6-6',
+      ]);
+      expect(await service.getById(id)).toMatchObject({
+        id,
+        name: original.name,
+        isDeprecated: false,
+      });
+    },
+  );
   it('wendet die Ausschlüsse vor dem Ergebnislimit auf die Datenbankabfrage an', async () => {
     const query = createQuery({ data: [], error: null });
     const injector = Injector.create({

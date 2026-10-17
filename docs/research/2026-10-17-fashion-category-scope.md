@@ -12,7 +12,7 @@ Die Kategorieauswahl bleibt für den breiteren Wiederverkauf offen. Der Nutzer h
 | Vinted                                       | 2.920 Knoten, neun Hauptbereiche | Vollständiger gespeicherter Produktionsbaum, ausschließlich lesend exportiert; letzte erfolgreiche Auffrischung 09.10.2026. Der letzte Versuch meldet HTTP 307. Dieser Bericht behauptet keinen neuen Live-Scan von Vinted. |
 | Kleinanzeigen                                |   3.239 Knoten, 15 Hauptbereiche | Vollständiger Browser-Scan vom 17.10.2026 aus dem eigenen Kategorie-Zweig                                                                                                                                                   |
 
-Alle drei Bestände auf eindeutige Kennungen, vorhandene Eltern, Erreichbarkeit aller Knoten und konsistente Namen/Pfade geprüft. Keine fehlenden Eltern oder widersprüchlichen Pfade festgestellt. Bei Shopify sind Dienstleistungen, Gutscheine, Bundles, Produkt-Add-Ons und „Nicht kategorisiert“ bereits beim Import ausgeschlossen; die hier dokumentierten zusätzlichen Ausschlüsse sind noch nicht umgesetzt.
+Alle drei Bestände auf eindeutige Kennungen, vorhandene Eltern, Erreichbarkeit aller Knoten und konsistente Namen/Pfade geprüft. Keine fehlenden Eltern oder widersprüchlichen Pfade festgestellt. Bei Shopify sind Dienstleistungen, Gutscheine, Bundles, Produkt-Add-Ons und „Nicht kategorisiert“ bereits beim Import ausgeschlossen; die anschließend freigegebenen zusätzlichen Ausschlüsse sind im eigenen Kategorie-Zweig umgesetzt.
 
 ## Freigegebene Bereiche behalten
 
@@ -68,9 +68,9 @@ Es gibt keine gesonderte Ausschlussentscheidung zu Eintrittskarten, Tabak, Waffe
 
 - `aa` Bekleidung & Accessoires und `lb` Taschen & Gepäck nicht mehr ausschließlich nach Modebezug ausdünnen. Die Sonderempfehlung zu Reisegepäck bleibt offen.
 - `co` Kameras & Optik, `el` Elektronik, `so` Software, `fr` Möbel, `hb` Gesundheit & Schönheit, `bt` Baby & Kleinkind, `sg` Sportartikel, `me` Medien, `tg` Spielzeuge & Spiele und `ae` Kunst & Unterhaltung bleiben grundsätzlich erhalten.
-- `hg` Heim & Garten aufteilen: Haushalt, Einrichtung, Heimtextilien und Geräte bleiben; Garten und entsprechende Dienstleistungen werden entfernt. `hg-12` Rasen & Garten ist der betroffene Gartenast. Passende Kleidung wie Schürzen bleibt erhalten.
+- `hg` Heim & Garten aufteilen: Haushalt, Einrichtung, Heimtextilien und Geräte bleiben; Garten und entsprechende Dienstleistungen werden entfernt. `hg-12` Rasen & Garten sowie `hg-17` Pflanzen werden ausgeschlossen. Tierbezogene Dekoration und Vogel-/Futterspender unter `hg-3-7` bis `hg-3-11` fallen unter Tierbedarf. Passende Kleidung wie Schürzen bleibt erhalten.
 - `ha` Heimwerkerbedarf und `bi` Wirtschaft & Industrie fallen unter Bau-/Gewerbebedarf, mit bestehenden Bekleidungsausnahmen; `ap` Tiere & Tierbedarf und `fb` Nahrungsmittel, Getränke & Tabak nicht pauschal ohne Beachtung der offenen Tabakentscheidung gleichsetzen. Lebensmittel-/Getränkeäste konkret bestimmen.
-- `vp` Fahrzeuge & Teile grundsätzlich ausschließen, passende Motorrad-/Rennbekleidung erhalten. Sportartikel dürfen tatsächliche Fahrräder, Fahrzeuge und deren Teile nicht versehentlich wieder zur Auswahl hinzufügen.
+- `vp` Fahrzeuge & Teile grundsätzlich ausschließen, passende Motorrad-/Rennbekleidung erhalten. Sportartikel dürfen tatsächliche Fahrräder, Fahrzeuge und deren Teile nicht versehentlich wieder zur Auswahl hinzufügen. Pferdebedarf einschließlich Sattel-/Zaumzeug, Voltigier- und Stallbedarf sowie Jagdhund-Ausrüstung und Wildtierfutter werden als Tierbedarf ebenfalls ausgeschlossen; menschliche Reitausrüstung bleibt erhalten.
 - Weitere Hauptbereiche und frühere Sonderausschlüsse nicht allein aufgrund des alten Vorschlags entfernen, sondern erst nach der abschließenden inhaltlichen Prüfung zuordnen.
 
 ## Bestandsschutz bei der Umsetzung
