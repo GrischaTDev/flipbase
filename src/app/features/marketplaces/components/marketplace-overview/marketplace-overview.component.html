@@ -5,11 +5,22 @@
     [icon]="storeIcon"
   >
     <div header-actions class="flex min-w-0 flex-wrap gap-2">
+      <app-button
+        variant="primary"
+        [icon]="plusIcon"
+        [disabled]="!settings.ready()"
+        (clicked)="openCreate()"
+        >Inserat erstellen</app-button
+      >
+      <app-button
+        variant="secondary"
+        [icon]="plusIcon"
+        [disabled]="!settings.ready()"
+        (clicked)="openAdd()"
+        >Konto hinzufügen</app-button
+      >
       <app-button variant="secondary" [icon]="settingsIcon" (clicked)="manageOpen.set(true)"
         >Marktplätze verwalten</app-button
-      >
-      <app-button [icon]="plusIcon" [disabled]="!settings.ready()" (clicked)="createOpen.set(true)"
-        >Inserat erstellen</app-button
       >
     </div>
   </app-page-header>
@@ -46,7 +57,7 @@
             @if (!group.loading && !group.error) {
               <app-badge tone="neutral"
                 >{{ group.accounts.length }}
-                {{ group.accounts.length === 1 ? 'Account' : 'Accounts' }}</app-badge
+                {{ group.accounts.length === 1 ? 'Konto' : 'Konten' }}</app-badge
               >
             }
           </div>
@@ -54,7 +65,7 @@
         @if (group.loading) {
           <app-card padding="md"
             ><p class="text-sm text-fb-text-secondary" role="status">
-              Accounts werden geladen …
+              Konten werden geladen …
             </p></app-card
           >
         } @else if (group.error) {
@@ -71,15 +82,13 @@
           >
         } @else if (!group.accounts.length) {
           <app-card padding="lg"
-            ><div class="space-y-3">
-              <h3 class="text-sm font-semibold text-fb-text-primary">
-                Noch kein Account verbunden
-              </h3>
+            ><div class="flex flex-col items-center space-y-3 text-center">
+              <h3 class="text-sm font-semibold text-fb-text-primary">Noch kein Konto verbunden</h3>
               <p class="text-sm text-fb-text-secondary">
-                Verbinde deinen Account, um seine Inserate hier zu sehen.
+                Verbinde Dein Konto, um seine Inserate hier zu sehen.
               </p>
-              <app-button variant="secondary" [link]="manageLink(group.platform)"
-                >Account verbinden</app-button
+              <app-button variant="secondary" [icon]="plusIcon" (clicked)="openAdd(group.platform)"
+                >Konto hinzufügen</app-button
               >
             </div></app-card
           >
@@ -138,27 +147,96 @@
 }
 @if (createOpen()) {
   <app-modal-shell title="Inserat erstellen" size="md" (closed)="createOpen.set(false)">
-    <p class="text-sm text-fb-text-secondary">Wähle den Marktplatz für dein neues Inserat.</p>
-    <div class="flex flex-col gap-3">
-      @if (canCreateVinted()) {
-        <app-button variant="secondary" [icon]="plusIcon" link="/marketplaces/vinted/listings/new"
-          >Auf Vinted inserieren</app-button
-        >
-      }
-      @if (enabledPlatforms().includes('kleinanzeigen')) {
-        <app-button variant="secondary" [icon]="plusIcon" link="/listings/new"
-          >Auf Kleinanzeigen inserieren</app-button
-        >
-      }
-      @if (!canCreateVinted() && !enabledPlatforms().includes('kleinanzeigen')) {
-        <p class="text-sm text-fb-text-secondary">
-          Für deine sichtbaren Marktplätze steht das Erstellen hier noch nicht zur Verfügung.
+    @if (!createPlatform()) {
+      <p class="mb-4 text-sm text-fb-text-secondary">Wähle die Plattform.</p>
+      <app-marketplace-platform-picker
+        [platforms]="enabledPlatforms()"
+        [selectedPlatforms]="selectedCreatePlatforms()"
+        (platformSelected)="createPlatform.set($event)"
+      />
+      @if (!enabledPlatforms().length) {
+        <p class="text-center text-sm text-fb-text-secondary">
+          Aktiviere zuerst einen Marktplatz in der Übersicht.
         </p>
       }
+    } @else if (createAccounts(); as group) {
+      <div class="space-y-4">
+        <h3 class="text-base font-semibold text-fb-text-primary">
+          {{ platformLabel(group.platform) }} – Konto wählen
+        </h3>
+        @if (group.platform === 'ebay') {
+          <p class="text-sm text-fb-text-secondary">
+            Neue eBay-Inserate kannst Du hier noch nicht erstellen.
+          </p>
+        } @else if (group.loading) {
+          <p role="status" class="text-sm text-fb-text-secondary">Konten werden geladen …</p>
+        } @else if (group.error) {
+          <p role="alert" class="text-sm text-fb-critical">{{ group.error }}</p>
+          <app-button (clicked)="store.retryPlatform(group.platform)">Erneut versuchen</app-button>
+        } @else {
+          <div class="flex flex-col gap-3">
+            @for (account of group.accounts; track accountKey(account)) {
+              <app-button size="touch" [fullWidth]="true" (clicked)="createForAccount(account)">{{
+                account.displayName
+              }}</app-button>
+            } @empty {
+              <div class="space-y-3 text-center">
+                <p class="text-sm text-fb-text-secondary">Noch kein Konto verbunden.</p>
+                <app-button (clicked)="createOpen.set(false); openAdd(group.platform)"
+                  >Konto hinzufügen</app-button
+                >
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
+    <div modal-footer class="flex flex-wrap justify-end gap-2">
+      @if (createPlatform()) {
+        <app-button (clicked)="createPlatform.set(null)">Zurück</app-button>
+      }
+      <app-button (clicked)="createOpen.set(false)">Schließen</app-button>
     </div>
-    <app-button modal-footer variant="secondary" (clicked)="createOpen.set(false)"
-      >Schließen</app-button
-    >
+  </app-modal-shell>
+}
+@if (addOpen()) {
+  <app-modal-shell title="Konto hinzufügen" size="lg" (closed)="closeAdd()">
+    @if (!addPlatform()) {
+      <p class="mb-4 text-sm text-fb-text-secondary">Wähle die Plattform.</p>
+      <app-marketplace-platform-picker
+        [platforms]="enabledPlatforms()"
+        [selectedPlatforms]="selectedAddPlatforms()"
+        (platformSelected)="addPlatform.set($event)"
+      />
+      @if (!enabledPlatforms().length) {
+        <p class="text-center text-sm text-fb-text-secondary">
+          Aktiviere zuerst einen Marktplatz in der Übersicht.
+        </p>
+      }
+    } @else {
+      @switch (addPlatform()) {
+        @case ('vinted') {
+          <app-vinted-account-management [addAccount]="true" />
+        }
+        @case ('ebay') {
+          <app-ebay-account page="connection" [returnToOverview]="true" />
+        }
+        @case ('kleinanzeigen') {
+          @if (workspaceId(); as id) {
+            <app-kleinanzeigen-accounts
+              [workspaceId]="id"
+              (changed)="store.refreshPlatform('kleinanzeigen')"
+            />
+          }
+        }
+      }
+    }
+    <div modal-footer class="flex flex-wrap justify-end gap-2">
+      @if (addPlatform()) {
+        <app-button (clicked)="addPlatform.set(null)">Zurück</app-button>
+      }
+      <app-button (clicked)="closeAdd()">Schließen</app-button>
+    </div>
   </app-modal-shell>
 }
 @if (managedAccount(); as account) {
@@ -167,11 +245,21 @@
     size="lg"
     (closed)="closeAccount()"
   >
-    <app-kleinanzeigen-accounts
-      [workspaceId]="account.workspaceId"
-      [connectionId]="account.connectionId"
-      (changed)="store.refreshPlatform('kleinanzeigen')"
-    />
+    @switch (account.platform) {
+      @case ('vinted') {
+        <app-vinted-account-management [connectionId]="account.connectionId" />
+      }
+      @case ('ebay') {
+        <app-ebay-account page="connection" [returnToOverview]="true" />
+      }
+      @case ('kleinanzeigen') {
+        <app-kleinanzeigen-accounts
+          [workspaceId]="account.workspaceId"
+          [connectionId]="account.connectionId"
+          (changed)="store.refreshPlatform('kleinanzeigen')"
+        />
+      }
+    }
     <app-button modal-footer variant="secondary" (clicked)="closeAccount()">Schließen</app-button>
   </app-modal-shell>
 }

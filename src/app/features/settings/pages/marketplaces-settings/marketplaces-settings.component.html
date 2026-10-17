@@ -23,68 +23,27 @@
     @if (settingsLoading()) {
       <p role="status" class="text-sm text-fb-text-secondary">Deine Marktplätze werden geladen …</p>
     }
-    <div class="space-y-5">
-      <div class="space-y-3">
-        <app-custom-checkbox
-          presentation="row"
-          [disabled]="!settingsReady() || settingsSaving()"
-          size="lg"
-          label="Vinted Hub"
-          ariaLabel="Vinted Marktplatz aktivieren"
-          [checked]="isVintedEnabled()"
-          (checkedChange)="onToggle('vinted', $event)"
-        />
-        @if (showAccountManagement() && isVintedEnabled()) {
-          <app-button
-            [wrapLabel]="true"
-            size="touch"
-            [icon]="externalLinkIcon"
-            link="/marketplaces/vinted/accounts"
-            >Vinted-Konten verwalten</app-button
-          >
+    <app-marketplace-platform-picker
+      [platforms]="platforms"
+      [selectedPlatforms]="selectedPlatforms()"
+      [disabled]="!settingsReady() || settingsSaving()"
+      (platformSelected)="togglePlatform($event)"
+    />
+    @if (showAccountManagement()) {
+      <div class="flex flex-wrap justify-center gap-3">
+        @if (isVintedEnabled()) {
+          <app-button link="/marketplaces/vinted/accounts">Vinted-Konten verwalten</app-button>
         }
-      </div>
-      <div class="space-y-3">
-        <app-custom-checkbox
-          presentation="row"
-          [disabled]="!settingsReady() || settingsSaving()"
-          size="lg"
-          label="eBay"
-          ariaLabel="eBay Marktplatz aktivieren"
-          [checked]="isEbayEnabled()"
-          (checkedChange)="onToggle('ebay', $event)"
-        />
-        @if (showAccountManagement() && isEbayEnabled()) {
-          <app-button
-            [wrapLabel]="true"
-            size="touch"
-            [icon]="externalLinkIcon"
-            link="/marketplaces/ebay/connection"
+        @if (isEbayEnabled()) {
+          <app-button link="/marketplaces/ebay/connection"
             >eBay-Konto verbinden und verwalten</app-button
           >
         }
-      </div>
-      <div class="space-y-3">
-        <app-custom-checkbox
-          presentation="row"
-          [disabled]="!settingsReady() || settingsSaving()"
-          size="lg"
-          label="Kleinanzeigen"
-          ariaLabel="Kleinanzeigen Marktplatz aktivieren"
-          [checked]="isKleinanzeigenEnabled()"
-          (checkedChange)="onToggle('kleinanzeigen', $event)"
-        />
-        @if (showAccountManagement() && isKleinanzeigenEnabled()) {
-          <app-button
-            [wrapLabel]="true"
-            size="touch"
-            [icon]="externalLinkIcon"
-            link="/marketplaces/kleinanzeigen"
-            >Kleinanzeigen öffnen</app-button
-          >
+        @if (isKleinanzeigenEnabled()) {
+          <app-button link="/marketplaces/kleinanzeigen">Kleinanzeigen öffnen</app-button>
         }
       </div>
-    </div>
+    }
     <p class="text-sm text-fb-text-secondary">
       Die Auswahl steuert die Anzeige im Menü. Konten, Freigaben und laufende Aufträge bleiben
       erhalten.

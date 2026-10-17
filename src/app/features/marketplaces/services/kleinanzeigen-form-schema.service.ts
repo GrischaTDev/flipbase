@@ -1,4 +1,4 @@
-import { DestroyRef, Injectable, inject } from '@angular/core';
+import { DestroyRef, Injectable, inject, signal } from '@angular/core';
 import { AuthService } from '../../../core/services/auth.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import { SupabaseService } from '../../../core/services/supabase.service';
@@ -21,11 +21,13 @@ export class KleinanzeigenFormSchemaService {
   private readonly bridge = inject(KleinanzeigenExtensionBridge);
   private readonly client = inject(SupabaseService).client;
   private generation = 0;
+  readonly bindingIssue = signal<'missing' | 'different_account' | 'stale_grant' | null>(null);
   constructor() {
     inject(DestroyRef).onDestroy(() => this.cancel());
   }
   cancel(): void {
     this.generation++;
+    this.bindingIssue.set(null);
     this.bridge.cancel();
   }
   async browse(
@@ -90,19 +92,33 @@ export class KleinanzeigenFormSchemaService {
         observedAt: selected?.observedAt ?? available[0].observedAt,
       };
     }
+    this.bindingIssue.set(null);
     if (!this.bridge.formSchemaAvailable())
       throw new Error(
         'Aktualisiere und prüfe die Flipbase-Erweiterung für das Kleinanzeigen-Formular.',
       );
     const binding = await this.bridge.status(scope.workspaceId);
     current();
+    if (!binding) {
+      this.bindingIssue.set('missing');
+      throw new Error(
+        'Die lokale Freigabe fehlt oder ist abgelaufen. Verbinde dieses Konto erneut.',
+      );
+    }
     if (
-      !binding ||
-      (['workspaceId', 'connectionId', 'externalAccountId', 'generation'] as const).some(
+      (['workspaceId', 'connectionId', 'externalAccountId'] as const).some(
         (key) => binding[key] !== scope[key],
       )
-    )
-      throw new Error('Dieses Kleinanzeigen-Konto ist in einem anderen Browserprofil verbunden.');
+    ) {
+      this.bindingIssue.set('different_account');
+      throw new Error(
+        'In diesem Browserprofil ist ein anderes Kleinanzeigen-Konto verbunden. Wähle das passende Konto.',
+      );
+    }
+    if (binding.generation !== scope.generation) {
+      this.bindingIssue.set('stale_grant');
+      throw new Error('Die Freigabe für dieses Konto hat sich geändert. Erneuere die Verbindung.');
+    }
     const result = await this.bridge.loadFormSchema(scope, categoryPath);
     current();
     return result;

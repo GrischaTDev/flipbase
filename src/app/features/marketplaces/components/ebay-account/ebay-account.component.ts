@@ -14,7 +14,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import {
   LucideExternalLink,
   LucideLink2,
@@ -59,6 +59,7 @@ import { EbayTrafficOverviewComponent } from '../ebay-traffic-overview/ebay-traf
 })
 export class EbayAccountComponent {
   readonly showData = input(false);
+  readonly returnToOverview = input(false);
   readonly page = input<'listings' | 'orders' | 'statistics' | 'connection'>('listings');
   readonly showingStatistics = computed(() => this.page() === 'statistics');
   readonly pageTitle = computed(() => {
@@ -79,6 +80,7 @@ export class EbayAccountComponent {
   readonly workspace = inject(WorkspaceService);
   private readonly auth = inject(AuthService);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly injector = inject(Injector);
   private readonly mappingPanel = viewChild<ElementRef<HTMLElement>>('mappingPanel');
   private mappingTrigger: HTMLElement | null = null;
@@ -111,6 +113,37 @@ export class EbayAccountComponent {
   }
 
   constructor() {
+    effect(() => {
+      const userId = this.auth.currentUser()?.id;
+      const workspaceId = this.workspace.currentWorkspace()?.id;
+      const result = this.route.snapshot.queryParamMap.get('ebay_result');
+      if (!userId || !workspaceId || !result) return;
+      try {
+        const stored: unknown = JSON.parse(
+          sessionStorage.getItem('flipbase:ebay:overview-return') ?? 'null',
+        );
+        if (
+          !stored ||
+          typeof stored !== 'object' ||
+          !('userId' in stored) ||
+          !('workspaceId' in stored)
+        )
+          return;
+        sessionStorage.removeItem('flipbase:ebay:overview-return');
+        if (
+          stored.userId !== userId ||
+          stored.workspaceId !== workspaceId ||
+          this.route.snapshot.queryParamMap.get('workspace') !== workspaceId
+        )
+          return;
+        void this.router.navigate(['/marketplaces/overview'], {
+          queryParams: { ebay_result: result, workspace: workspaceId },
+          replaceUrl: true,
+        });
+      } catch {
+        /* Ohne verfügbaren Sitzungsspeicher bleibt die bestätigte eBay-Rückkehrseite erreichbar. */
+      }
+    });
     effect(() => {
       const user = this.auth.currentUser();
       const workspace = this.workspace.currentWorkspace();
@@ -150,7 +183,22 @@ export class EbayAccountComponent {
   }
   async connect(): Promise<void> {
     const url = await this.store.connect();
-    if (url) window.location.assign(url);
+    if (url) {
+      if (this.returnToOverview()) {
+        try {
+          sessionStorage.setItem(
+            'flipbase:ebay:overview-return',
+            JSON.stringify({
+              userId: this.auth.currentUser()?.id,
+              workspaceId: this.workspace.currentWorkspace()?.id,
+            }),
+          );
+        } catch {
+          /* Die offizielle Freigabe bleibt auch ohne Sitzungsspeicher nutzbar. */
+        }
+      }
+      window.location.assign(url);
+    }
   }
   refresh(): void {
     const workspaceId = this.workspace.currentWorkspace()?.id;

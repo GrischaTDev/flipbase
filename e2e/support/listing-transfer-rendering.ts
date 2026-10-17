@@ -1,3 +1,8 @@
+import { KleinanzeigenAccountsComponent } from '../../src/app/features/marketplaces/components/kleinanzeigen-accounts/kleinanzeigen-accounts.component';
+import { CardComponent } from '../../src/app/shared/components/card/card.component';
+import { BadgeComponent } from '../../src/app/shared/components/badge/badge.component';
+import { LoadingIndicatorComponent } from '../../src/app/shared/components/loading-indicator/loading-indicator.component';
+import { MarketplacePlatformPickerComponent } from '../../src/app/shared/components/marketplace-platform-picker/marketplace-platform-picker.component';
 import { CategoryPickerComponent } from '../../src/app/shared/components/category-picker/category-picker.component';
 import { KleinanzeigenPublicationPanelComponent } from '../../src/app/features/marketplaces/components/kleinanzeigen-publication-panel/kleinanzeigen-publication-panel.component';
 import { ListingTransferActionComponent } from '../../src/app/features/marketplaces/components/listing-transfer-action/listing-transfer-action.component';
@@ -13,6 +18,20 @@ import { ProductThumbnailComponent } from '../../src/app/shared/components/produ
 import { CustomCheckboxComponent } from '../../src/app/shared/components/custom-checkbox/custom-checkbox.component';
 import { ModalDialogDirective } from '../../src/app/shared/directives/modal-dialog.directive';
 export const listingTransferRendering = [
+  {
+    type: KleinanzeigenAccountsComponent,
+    path: 'src/app/features/marketplaces/components/kleinanzeigen-accounts/kleinanzeigen-accounts.component.ts',
+  },
+  { type: CardComponent, path: 'src/app/shared/components/card/card.component.ts' },
+  { type: BadgeComponent, path: 'src/app/shared/components/badge/badge.component.ts' },
+  {
+    type: LoadingIndicatorComponent,
+    path: 'src/app/shared/components/loading-indicator/loading-indicator.component.ts',
+  },
+  {
+    type: MarketplacePlatformPickerComponent,
+    path: 'src/app/shared/components/marketplace-platform-picker/marketplace-platform-picker.component.ts',
+  },
   {
     type: CategoryPickerComponent,
     path: 'src/app/shared/components/category-picker/category-picker.component.ts',

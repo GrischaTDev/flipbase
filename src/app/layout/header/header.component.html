@@ -86,7 +86,7 @@
     </div>
   </div>
 
-  <!-- Right: Notification Bell, Language Switcher & Profile -->
+  <!-- Rechts: Benachrichtigungen, Design und Profil -->
   <div class="flex min-w-0 max-w-full flex-wrap items-center justify-end gap-1 sm:gap-2">
     <!-- Offline Indicator -->
     @if (!pwaService.isOnline()) {
@@ -330,6 +330,23 @@
       }
     </div>
 
+    <button
+      type="button"
+      data-header-action="theme"
+      (click)="themeService.toggleTheme()"
+      [attr.aria-label]="
+        themeService.isDark() ? 'Helles Design aktivieren' : 'Dunkles Design aktivieren'
+      "
+      [title]="themeService.isDark() ? 'Helles Design aktivieren' : 'Dunkles Design aktivieren'"
+      class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-fb-border bg-fb-surface text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/60 transition cursor-pointer"
+    >
+      <svg
+        [lucideIcon]="themeService.isDark() ? SunIcon : MoonIcon"
+        class="w-4 h-4"
+        aria-hidden="true"
+      ></svg>
+    </button>
+
     <!-- User Profile Dropdown -->
     <div class="relative" #userContainer>
       <button
@@ -366,48 +383,8 @@
             <p class="text-[11px] text-fb-text-muted truncate">{{ auth.userEmail() }}</p>
           </div>
 
-          <!-- Sektion Design & Sprache mit echten Segment-Schaltern -->
+          <!-- Sprache -->
           <div class="px-3 py-2 border-b border-fb-border space-y-2.5">
-            <!-- Design -->
-            <div>
-              <span class="text-[11px] font-semibold text-fb-text-muted block mb-1">
-                {{ 'COMMON.THEME' | translate }}
-              </span>
-              <div
-                data-header-action="theme"
-                class="flex h-8 items-center rounded-lg border border-fb-border bg-fb-subtle p-0.5 text-xs"
-                role="group"
-                [attr.aria-label]="'COMMON.THEME' | translate"
-              >
-                <button
-                  type="button"
-                  (click)="setTheme(false)"
-                  class="flex-1 h-7 flex items-center justify-center gap-1.5 rounded-md text-xs font-medium transition cursor-pointer"
-                  [class.bg-fb-surface]="!themeService.isDark()"
-                  [class.text-fb-text-primary]="!themeService.isDark()"
-                  [class.shadow-xs]="!themeService.isDark()"
-                  [class.text-fb-text-muted]="themeService.isDark()"
-                  [attr.aria-pressed]="!themeService.isDark()"
-                >
-                  <svg [lucideIcon]="SunIcon" class="w-3.5 h-3.5"></svg>
-                  <span>{{ 'COMMON.LIGHT' | translate }}</span>
-                </button>
-                <button
-                  type="button"
-                  (click)="setTheme(true)"
-                  class="flex-1 h-7 flex items-center justify-center gap-1.5 rounded-md text-xs font-medium transition cursor-pointer"
-                  [class.bg-fb-surface]="themeService.isDark()"
-                  [class.text-fb-text-primary]="themeService.isDark()"
-                  [class.shadow-xs]="themeService.isDark()"
-                  [class.text-fb-text-muted]="!themeService.isDark()"
-                  [attr.aria-pressed]="themeService.isDark()"
-                >
-                  <svg [lucideIcon]="MoonIcon" class="w-3.5 h-3.5"></svg>
-                  <span>{{ 'COMMON.DARK' | translate }}</span>
-                </button>
-              </div>
-            </div>
-
             <!-- Sprache -->
             <div>
               <span class="text-[11px] font-semibold text-fb-text-muted block mb-1">

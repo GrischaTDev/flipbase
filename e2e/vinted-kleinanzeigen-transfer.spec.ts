@@ -7,6 +7,35 @@ async function expectSingleVisibleError(dialog: Locator, message: RegExp) {
   await expect(error).toHaveCount(1);
   await expect(error).toBeInViewport();
 }
+async function expectTransferForm(dialog: Locator) {
+  await expect(dialog.getByLabel('Titel', { exact: true })).toBeVisible();
+  await expect(dialog.getByRole('heading', { name: 'Bilder', exact: true })).toBeVisible();
+  await expect(dialog.locator('app-marketplace-platform-picker')).toHaveCount(0);
+  await expect(dialog.getByRole('combobox', { name: 'Plattform', exact: true })).toHaveCount(0);
+  await expect(dialog.getByRole('combobox', { name: 'Konto', exact: true })).toHaveCount(0);
+  await expect(dialog.getByText('Angaben aus Vinted', { exact: true })).toHaveCount(0);
+  await expect(
+    dialog.getByText(/Die vorhandenen Angaben wurden aus Deinem gespeicherten Inserat übernommen/u),
+  ).toHaveCount(0);
+  await expect(
+    dialog.getByRole('button', { name: 'Eigenschaften laden', exact: true }),
+  ).toHaveCount(0);
+  await expect(dialog.getByLabel('Beschreibung', { exact: true })).not.toHaveAttribute(
+    'aria-invalid',
+    'true',
+  );
+  expect(
+    await dialog.getByRole('heading', { name: 'Bilder', exact: true }).evaluate((heading) => {
+      const title = heading
+        .closest('form')
+        ?.querySelector('app-text-field[formcontrolname="title"]');
+      return (
+        !!title &&
+        Boolean(heading.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING)
+      );
+    }),
+  ).toBe(true);
+}
 async function open(page: Page, waitForPreview = true) {
   await page.goto('/marketplaces/overview');
   await page.getByRole('button', { name: 'Inserate von Testkonto A anzeigen', exact: true }).tap();
@@ -16,22 +45,22 @@ async function open(page: Page, waitForPreview = true) {
   });
   await action.tap();
   const dialog = page.getByRole('dialog', { name: 'Inserieren' });
-  await dialog.getByRole('combobox', { name: 'Plattform', exact: true }).click();
-  await page.getByRole('option', { name: 'Kleinanzeigen', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Kleinanzeigen', exact: true }).tap();
+  await expect(dialog.getByRole('combobox', { name: 'Konto', exact: true })).toContainText(
+    'Konto auswählen',
+  );
+  await expect(dialog.getByLabel('Titel', { exact: true })).toHaveCount(0);
   await dialog.getByRole('combobox', { name: 'Konto', exact: true }).click();
   await page.getByRole('option', { name: 'Kleinanzeigen Privatkonto', exact: true }).click();
-  if (waitForPreview)
-    await expect(dialog.getByLabel('Titel auf Kleinanzeigen', { exact: true })).toBeVisible();
+  if (waitForPreview) await expectTransferForm(dialog);
   return { dialog, action };
 }
 async function ready(page: Page) {
   const result = await open(page);
   const { dialog } = result;
   await dialog.getByLabel('Postleitzahl', { exact: true }).fill('10115');
-  await dialog
-    .getByRole('button', { name: /Kleinanzeigen-Kategorie Kategorie suchen oder auswählen/u })
-    .tap();
-  const category = page.getByRole('dialog', { name: 'Kleinanzeigen-Kategorie', exact: true });
+  await dialog.getByRole('button', { name: /Kategorie Kategorie suchen oder auswählen/u }).tap();
+  const category = page.getByRole('dialog', { name: 'Kategorie', exact: true });
   await category
     .getByRole('combobox', { name: 'Kategorie suchen', exact: true })
     .fill('herren shirts');
@@ -45,10 +74,8 @@ test('Die freigegebene Kategorieauswahl bleibt ohne Erweiterung lokal durchsuchb
 }, testInfo) => {
   const f = await mockKleinanzeigenTransfer(page, { extensionAvailable: false });
   const { dialog } = await open(page);
-  await dialog
-    .getByRole('button', { name: /Kleinanzeigen-Kategorie Kategorie suchen oder auswählen/u })
-    .tap();
-  const picker = page.getByRole('dialog', { name: 'Kleinanzeigen-Kategorie', exact: true });
+  await dialog.getByRole('button', { name: /Kategorie Kategorie suchen oder auswählen/u }).tap();
+  const picker = page.getByRole('dialog', { name: 'Kategorie', exact: true });
   await expect(picker.getByRole('option')).toHaveCount(9);
   for (const name of ['Jobs', 'Immobilien', 'Haustiere', 'Dienstleistungen'])
     await expect(picker.getByRole('option', { name, exact: true })).toHaveCount(0);
@@ -108,15 +135,13 @@ for (const theme of ['light', 'dark'] as const)
           theme,
         );
         await expect(dialog.getByLabel('Preis in Euro', { exact: true })).toHaveValue(/0/);
-        await expect(dialog.getByLabel('Titel auf Kleinanzeigen', { exact: true })).toHaveValue(
+        await expect(dialog.getByLabel('Titel', { exact: true })).toHaveValue(
           'Vinted-Jacke vollständig',
         );
-        await expect(
-          dialog.getByLabel('Beschreibung auf Kleinanzeigen', { exact: true }),
-        ).toHaveValue('Vollständige Beschreibung aus Vinted.');
-        await expect(
-          dialog.getByRole('img', { name: 'Bild 1 aus Vinted', exact: true }),
-        ).toHaveCount(1);
+        await expect(dialog.getByLabel('Beschreibung', { exact: true })).toHaveValue(
+          'Vollständige Beschreibung aus Vinted.',
+        );
+        await expect(dialog.getByRole('img', { name: 'Bild 1', exact: true })).toHaveCount(1);
         expect(f.calls.filter((value) => value['action'] === 'prepare_transfer')).toHaveLength(1);
         expect(f.calls.some((value) => value['action'] === 'save_transfer')).toBe(false);
         expect(f.savedSchemaRequests).toHaveLength(0);
@@ -128,6 +153,11 @@ for (const theme of ['light', 'dark'] as const)
           ),
         ).toEqual([]);
         expect(f.sourceCalls).toEqual([]);
+        if ((width === 1440 && theme === 'light') || (width === 390 && theme === 'dark'))
+          await page.screenshot({
+            path: testInfo.outputPath('transfer-form.png'),
+            animations: 'disabled',
+          });
         const publish = dialog.getByRole('button', { name: 'Inserieren', exact: true });
         await expect(publish).toBeEnabled();
         await publish.focus();
@@ -233,9 +263,7 @@ test('Ein Zielwechsel verwirft die verspätete Quellantwort @core-smoke', async 
   await expect.poll(() => firstRequested).toBe(true);
   await dialog.getByRole('combobox', { name: 'Konto', exact: true }).click();
   await page.getByRole('option', { name: 'Zweites Kleinanzeigen-Konto', exact: true }).click();
-  await expect(dialog.getByLabel('Titel auf Kleinanzeigen', { exact: true })).toHaveValue(
-    'Jacke für zweites Konto',
-  );
+  await expect(dialog.getByLabel('Titel', { exact: true })).toHaveValue('Jacke für zweites Konto');
   const firstResponse = page.waitForResponse((response) => {
     if (!response.url().endsWith('/functions/v1/kleinanzeigen-account')) return false;
     const body = response.request().postDataJSON() as Record<string, unknown>;
@@ -249,9 +277,7 @@ test('Ein Zielwechsel verwirft die verspätete Quellantwort @core-smoke', async 
   await expect(
     dialog.getByText('Deine Inseratsangaben und Bilder sind gesichert.', { exact: true }),
   ).toBeVisible();
-  await expect(dialog.getByLabel('Titel auf Kleinanzeigen', { exact: true })).toHaveValue(
-    'Jacke für zweites Konto',
-  );
+  await expect(dialog.getByLabel('Titel', { exact: true })).toHaveValue('Jacke für zweites Konto');
   expect(f.calls.filter((value) => value['action'] === 'save_transfer')).toEqual([
     expect.objectContaining({
       targetConnectionId: '9007199254740994',
@@ -260,6 +286,15 @@ test('Ein Zielwechsel verwirft die verspätete Quellantwort @core-smoke', async 
   ]);
   expect(f.calls.some((value) => value['action'] === 'listing_enqueue')).toBe(false);
   expect(f.providerCalls).toBe(0);
+  await dialog.getByRole('button', { name: 'Zurück zur Kontoauswahl', exact: true }).tap();
+  await expect(dialog.getByRole('combobox', { name: 'Konto', exact: true })).toContainText(
+    'Konto auswählen',
+  );
+  await expect(dialog.getByLabel('Titel', { exact: true })).toHaveCount(0);
+  await dialog.getByRole('combobox', { name: 'Konto', exact: true }).click();
+  await page.getByRole('option', { name: 'Kleinanzeigen Privatkonto', exact: true }).click();
+  await expect(dialog.getByLabel('Titel', { exact: true })).toHaveValue('Vinted-Jacke vollständig');
+  await expectTransferForm(dialog);
 });
 
 test('Fehlende gespeicherte Angaben bleiben zur Korrektur sichtbar @core-smoke', async ({
@@ -267,15 +302,20 @@ test('Fehlende gespeicherte Angaben bleiben zur Korrektur sichtbar @core-smoke',
 }) => {
   const f = await mockKleinanzeigenTransfer(page, { missingSourceValues: true });
   const { dialog } = await ready(page);
-  await expect(dialog.getByLabel('Beschreibung auf Kleinanzeigen', { exact: true })).toHaveValue(
-    '',
-  );
+  await expect(dialog.getByLabel('Beschreibung', { exact: true })).toHaveValue('');
   await expect(dialog.getByLabel('Preis in Euro', { exact: true })).toHaveValue('');
-  await expect(
-    dialog.getByRole('heading', { name: '0 Bilder aus Vinted', exact: true }),
-  ).toBeVisible();
+  await expect(dialog.getByRole('heading', { name: 'Bilder', exact: true })).toBeVisible();
+  await expect(dialog.getByText('Keine Bilder gespeichert.', { exact: true })).toBeVisible();
+  await expect(dialog.getByLabel('Beschreibung', { exact: true })).not.toHaveAttribute(
+    'aria-invalid',
+    'true',
+  );
   await dialog.getByRole('button', { name: 'Inserieren', exact: true }).click();
   await expectSingleVisibleError(dialog, /fehlenden Angaben/);
+  await expect(dialog.getByLabel('Beschreibung', { exact: true })).toHaveAttribute(
+    'aria-invalid',
+    'true',
+  );
   expect(f.calls.some((value) => value['action'] === 'listing_enqueue')).toBe(false);
   expect(f.providerCalls).toBe(0);
   expect(f.sourceCalls).toEqual([]);
@@ -286,15 +326,17 @@ test('Noch nicht unterstützte Plattformen bieten keine Veröffentlichung an @co
 }) => {
   const f = await mockKleinanzeigenTransfer(page);
   const { dialog } = await open(page);
+  await dialog.getByRole('button', { name: 'Zurück zur Kontoauswahl', exact: true }).tap();
+  await expect(dialog.getByRole('combobox', { name: 'Konto', exact: true })).toContainText(
+    'Konto auswählen',
+  );
+  await dialog.getByRole('button', { name: 'Zurück zur Plattformauswahl', exact: true }).tap();
   for (const platform of ['Vinted', 'eBay']) {
-    await dialog.getByRole('combobox', { name: 'Plattform', exact: true }).click();
-    await page.getByRole('option', { name: platform, exact: true }).click();
-    await expect(
-      dialog.getByRole('status').filter({ hasText: /steht noch nicht zur Verfügung/ }),
-    ).toBeVisible();
-    await expect(dialog.getByRole('button', { name: 'Inserieren', exact: true })).toHaveCount(0);
-    await expect(dialog.getByRole('combobox', { name: 'Konto', exact: true })).toHaveCount(0);
+    await expect(dialog.getByRole('button', { name: platform, exact: true })).toBeDisabled();
   }
+  await expect(dialog.getByRole('button', { name: 'Kleinanzeigen', exact: true })).toBeEnabled();
+  await expect(dialog.getByRole('button', { name: 'Inserieren', exact: true })).toHaveCount(0);
+  await expect(dialog.getByRole('combobox', { name: 'Konto', exact: true })).toHaveCount(0);
   expect(f.calls.some((value) => value['action'] === 'listing_enqueue')).toBe(false);
   expect(f.providerCalls).toBe(0);
 });
@@ -343,10 +385,8 @@ test('Verarbeitung bleibt von einer bestätigten Veröffentlichung unterscheidba
 test('Lange Quelltexte bleiben ungekürzt zur Korrektur erhalten @core-smoke', async ({ page }) => {
   await mockKleinanzeigenTransfer(page, { longSource: true });
   const { dialog } = await open(page);
-  await expect(dialog.getByLabel('Titel auf Kleinanzeigen', { exact: true })).toHaveValue(
-    'L'.repeat(100),
-  );
-  await expect(dialog.getByLabel('Beschreibung auf Kleinanzeigen', { exact: true })).toHaveValue(
+  await expect(dialog.getByLabel('Titel', { exact: true })).toHaveValue('L'.repeat(100));
+  await expect(dialog.getByLabel('Beschreibung', { exact: true })).toHaveValue(
     'Langtext '.repeat(600),
   );
   await dialog.getByRole('button', { name: 'Für später speichern', exact: true }).click();

@@ -124,4 +124,78 @@ describe('Kleinanzeigen-Kontoaktionen', () => {
     await expect(pending).rejects.toThrow('gewechselt');
     expect(api.connect).not.toHaveBeenCalled();
   });
+  it('erneuert eine abgelaufene Freigabe erst nach neuer Zustimmung für dasselbe Konto', async () => {
+    bridge.status.mockResolvedValue(null);
+    const actions = TestBed.inject(KleinanzeigenAccountActionsService);
+    expect(await actions.reconnect({ ...scope, externalAccountId: '123' }, true)).toEqual(binding);
+    expect(bridge.prepare).toHaveBeenCalledWith(
+      workspace,
+      true,
+      expect.stringContaining('/kleinanzeigen-local-extension'),
+    );
+    expect(api.connect).toHaveBeenCalledWith(workspace, proposal, true);
+    expect(bridge.disconnect).not.toHaveBeenCalled();
+    expect(api.disconnect).not.toHaveBeenCalled();
+  });
+  it('löst beim Erneuern nur die passende lokale alte Freigabe', async () => {
+    await TestBed.inject(KleinanzeigenAccountActionsService).reconnect(
+      { ...scope, externalAccountId: '123' },
+      false,
+    );
+    expect(bridge.disconnect).toHaveBeenCalledWith(scope);
+    expect(api.disconnect).not.toHaveBeenCalled();
+  });
+  it('trennt beim Erneuern kein anderes angemeldetes Browserkonto', async () => {
+    bridge.status.mockResolvedValue({ ...binding, externalAccountId: '999', connectionId: '99' });
+    await expect(
+      TestBed.inject(KleinanzeigenAccountActionsService).reconnect(
+        { ...scope, externalAccountId: '123' },
+        false,
+      ),
+    ).rejects.toThrow('anderes');
+    expect(bridge.disconnect).not.toHaveBeenCalled();
+    expect(bridge.prepare).not.toHaveBeenCalled();
+    expect(api.connect).not.toHaveBeenCalled();
+  });
+  it('legt für einen abweichenden erkannten Kontonamen keine neue Serverbindung an', async () => {
+    bridge.status.mockResolvedValue(null);
+    bridge.prepare.mockResolvedValue({ ...proposal, externalAccountId: '999' });
+    await expect(
+      TestBed.inject(KleinanzeigenAccountActionsService).reconnect(
+        { ...scope, externalAccountId: '123' },
+        false,
+      ),
+    ).rejects.toThrow('Kleinanzeigen');
+    expect(api.connect).not.toHaveBeenCalled();
+    expect(bridge.connect).not.toHaveBeenCalled();
+  });
+  it('bindet eine unerwartete Serverantwort nicht an dieses Browserprofil', async () => {
+    bridge.status.mockResolvedValue(null);
+    api.connect.mockResolvedValue({ ...binding, connectionId: '99' });
+    await expect(
+      TestBed.inject(KleinanzeigenAccountActionsService).reconnect(
+        { ...scope, externalAccountId: '123' },
+        false,
+      ),
+    ).rejects.toThrow('bestätigt');
+    expect(bridge.connect).not.toHaveBeenCalled();
+  });
+  it('erstellt nach einem Kontextwechsel während der Erneuerungszustimmung keine Serverfreigabe', async () => {
+    bridge.status.mockResolvedValue(null);
+    let resolve!: (value: unknown) => void;
+    bridge.prepare.mockImplementation(
+      () =>
+        new Promise((done) => {
+          resolve = done;
+        }),
+    );
+    const actions = TestBed.inject(KleinanzeigenAccountActionsService);
+    const pending = actions.reconnect({ ...scope, externalAccountId: '123' }, false);
+    await Promise.resolve();
+    await Promise.resolve();
+    actions.cancel();
+    resolve(proposal);
+    await expect(pending).rejects.toThrow('gewechselt');
+    expect(api.connect).not.toHaveBeenCalled();
+  });
 });

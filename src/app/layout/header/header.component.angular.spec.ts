@@ -391,7 +391,7 @@ describe('HeaderComponent', () => {
     expect(avatar).not.toBeNull();
   });
 
-  it('bietet im Benutzer-Dropdown segmentierte Umschalter für Design und Sprache', async () => {
+  it('bietet Design direkt zwischen Glocke und Profil und Sprache im Benutzermenü', async () => {
     const fixture = await renderHeader();
     fixture.componentInstance.toggleUserDropdown();
     fixture.detectChanges();
@@ -400,18 +400,24 @@ describe('HeaderComponent', () => {
     const userMenu = element.querySelector('#header-user-menu');
     expect(userMenu).not.toBeNull();
     expect(userMenu?.textContent).toContain('Sprache');
-    expect(userMenu?.textContent).toContain('Design');
+    expect(userMenu?.textContent).not.toContain('Design');
     expect(userMenu?.textContent).not.toContain('Erscheinungsbild');
 
-    const themeGroup = userMenu?.querySelector('[data-header-action="theme"]');
+    const themeButton = element.querySelector<HTMLButtonElement>('[data-header-action="theme"]');
+    const bellContainer = element.querySelector(
+      '[aria-controls="header-notification-menu"]',
+    )?.parentElement;
+    const profileContainer = element.querySelector(
+      '[aria-controls="header-user-menu"]',
+    )?.parentElement;
+    expect(themeButton?.getAttribute('aria-label')).toBe('Dunkles Design aktivieren');
+    expect(bellContainer?.nextElementSibling).toBe(themeButton);
+    expect(themeButton?.nextElementSibling).toBe(profileContainer);
+    expect(userMenu?.querySelector('[data-header-action="theme"]')).toBeNull();
+    themeButton?.click();
+    expect(TestBed.inject(ThemeService).toggleTheme).toHaveBeenCalledOnce();
     const languageGroup = userMenu?.querySelector('[data-header-action="language"]');
-    expect(themeGroup).not.toBeNull();
     expect(languageGroup).not.toBeNull();
-
-    const themeButtons = themeGroup?.querySelectorAll('button');
-    expect(themeButtons).toHaveLength(2);
-    expect(themeButtons?.[0]?.textContent).toContain('Hell');
-    expect(themeButtons?.[1]?.textContent).toContain('Dunkel');
 
     const languageButtons = languageGroup?.querySelectorAll('button');
     expect(languageButtons).toHaveLength(2);

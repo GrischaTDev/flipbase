@@ -1,18 +1,8 @@
-import { CategoryPickerComponent } from '../../../../shared/components/category-picker/category-picker.component';
-import { KleinanzeigenPublicationPanelComponent } from '../kleinanzeigen-publication-panel/kleinanzeigen-publication-panel.component';
+import { listingTransferRendering } from '../../../../../../e2e/support/listing-transfer-rendering';
+import { SupabaseService } from '../../../../core/services/supabase.service';
 import { KleinanzeigenListingJobService } from '../../services/kleinanzeigen-listing-job.service';
 import { provideRouter } from '@angular/router';
 import { prepareMarketplaceRendering } from '../../../../../../e2e/support/marketplace-rendering';
-import { KleinanzeigenListingFieldsComponent } from '../kleinanzeigen-listing-fields/kleinanzeigen-listing-fields.component';
-import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
-import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
-import { ButtonComponent } from '../../../../shared/components/button/button.component';
-import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
-import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
-import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
-import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
-import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
-import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { describe, it, expect, vi, afterEach, beforeEach, beforeAll, afterAll } from 'vitest';
@@ -66,10 +56,15 @@ const prepared = {
 describe('Gemeinsamer Übertragungsdialog', () => {
   const auth = { currentUser: signal<{ id: string } | null>({ id: 'owner' }) };
   const workspace = { currentWorkspace: signal({ id: source.workspaceId, archived_at: null }) };
-  const settings = { ready: signal(true), isKleinanzeigenEnabled: signal(true) };
+  const settings = {
+    ready: signal(true),
+    isKleinanzeigenEnabled: signal(true),
+    isMarketplaceEnabled: (id: string) =>
+      id !== 'kleinanzeigen' || settings.isKleinanzeigenEnabled(),
+  };
   const transfers = { prepare: vi.fn(), save: vi.fn(), cancel: vi.fn() };
   const accounts = { readAccounts: vi.fn() };
-  const schemas = { browse: vi.fn(), cancel: vi.fn() };
+  const schemas = { browse: vi.fn(), cancel: vi.fn(), bindingIssue: signal<string | null>(null) };
   const bridge = {
     checkInstallation: vi.fn(),
     formSchemaAvailable: signal(true),
@@ -87,6 +82,7 @@ describe('Gemeinsamer Übertragungsdialog', () => {
   };
   beforeEach(() => {
     auth.currentUser.set({ id: 'owner' });
+    schemas.bindingIssue.set(null);
     jobs.error.set(null);
     jobs.job.set(null);
     settings.isKleinanzeigenEnabled.set(true);
@@ -130,16 +126,272 @@ describe('Gemeinsamer Übertragungsdialog', () => {
     await f.componentInstance.prepare();
     expect(transfers.prepare).not.toHaveBeenCalled();
   });
+  it('bietet ohne Zielkonto den direkten Einstieg zum Hinzufügen im Dialog', async () => {
+    accounts.readAccounts.mockResolvedValue({ canManage: true, accounts: [] });
+    const f = await create();
+    f.componentInstance.platform.setValue('kleinanzeigen');
+    f.detectChanges();
+    const add = Array.from(
+      f.nativeElement.querySelectorAll('button') as NodeListOf<HTMLButtonElement>,
+    ).find((button) => button.textContent?.trim() === 'Konto hinzufügen');
+    expect(add).toBeDefined();
+    add!.click();
+    expect(f.componentInstance.accountManagementOpen()).toBe(true);
+    expect(f.componentInstance.target.value).toBe('');
+    expect(transfers.prepare).not.toHaveBeenCalled();
+    accounts.readAccounts.mockResolvedValue({ canManage: true, accounts: [account] });
+    await f.componentInstance.accountChanged();
+    expect(f.componentInstance.accountManagementOpen()).toBe(false);
+    expect(f.componentInstance.targetOptions().map((option) => option.value)).toEqual(['9']);
+    expect(f.componentInstance.target.value).toBe('');
+    expect(f.componentInstance.error()).toBeNull();
+    expect(transfers.prepare).not.toHaveBeenCalled();
+  });
   it('öffnet nach Plattform und Konto automatisch die vorbefüllten Felder ohne Übernahmebutton', async () => {
     const f = await create();
     expect(f.nativeElement.textContent).not.toContain('Vinted-Daten übernehmen');
-    expect(f.nativeElement.querySelector('[aria-label="Plattform"]')).toBeTruthy();
+    expect(f.nativeElement.querySelector('app-marketplace-platform-picker')).toBeTruthy();
     f.componentInstance.platform.setValue('kleinanzeigen');
     f.componentInstance.target.setValue('9');
     await f.whenStable();
     f.detectChanges();
     expect(f.componentInstance.form.controls.description.value).toBe(content.description);
     expect(transfers.prepare).toHaveBeenCalledTimes(1);
+  });
+  it('bewahrt gespeicherten Beschreibungstext über API, Mapping und FormControl bis ins DOM und Speichern', async () => {
+    const description = 'Erste Zeile mit Größe M\nZweite Zeile: vollständige Beschreibung.';
+    const invoke = vi.fn().mockResolvedValue({
+      error: null,
+      data: {
+        state: 'ready',
+        workspaceId: source.workspaceId,
+        targetConnectionId: '9',
+        connectionId: source.connectionId,
+        entryId: source.connectionId,
+        externalId: source.externalId,
+        externalAccountId: '99',
+        executionMode: 'cloud',
+        source: {
+          externalAccountId: '99',
+          externalId: source.externalId,
+          title: 'Jacke',
+          description,
+          priceCents: 1200,
+          currency: 'EUR',
+          photoReferences: prepared.originalPhotoReferences,
+          attributeHints: {},
+        },
+        observedAt: '2026-10-18T00:00:00Z',
+        fingerprint: 'a'.repeat(64),
+      },
+    });
+    TestBed.overrideProvider(SupabaseService, { useValue: { client: { functions: { invoke } } } });
+    TestBed.overrideProvider(ListingTransferService, {
+      useFactory: () => new ListingTransferService(),
+    });
+    const f = await create();
+    f.componentInstance.platform.setValue('kleinanzeigen');
+    f.componentInstance.target.setValue('9');
+    await expect.poll(() => f.componentInstance.preview()?.content.description).toBe(description);
+    f.detectChanges();
+    expect(f.componentInstance.form.controls.description.value).toBe(description);
+    expect(f.nativeElement.querySelector('textarea').value).toBe(description);
+    expect(invoke).toHaveBeenCalledTimes(1);
+    expect(invoke.mock.calls[0][1].body.action).toBe('prepare_transfer');
+    invoke.mockResolvedValue({ error: null, data: null });
+    await f.componentInstance.save();
+    expect(invoke.mock.calls.at(-1)?.[1].body.content.description).toBe(description);
+    expect(invoke.mock.calls.at(-1)?.[1].body.action).toBe('save_transfer');
+  });
+  it('bietet bei fehlender lokaler Kontobindung eine konkrete Verbindung im Dialog an', async () => {
+    const f = await create();
+    f.componentInstance.platform.setValue('kleinanzeigen');
+    f.componentInstance.target.setValue('9');
+    await f.whenStable();
+    schemas.bindingIssue.set('missing');
+    f.detectChanges();
+    expect(f.nativeElement.textContent).toContain('Konto verbinden');
+  });
+  it('kehrt nach Bestätigung mit bearbeiteten Angaben zur bewussten Kontoauswahl zurück', async () => {
+    const f = await create();
+    const c = f.componentInstance;
+    c.platform.setValue('kleinanzeigen');
+    c.target.setValue('9');
+    await expect.poll(() => c.preview()).toEqual(prepared);
+    c.form.controls.description.setValue('Meine Änderung');
+    c.form.markAsDirty();
+    confirm.frage.mockResolvedValue(false);
+    await c.back();
+    expect(c.preview()).toEqual(prepared);
+    confirm.frage.mockResolvedValue(true);
+    await c.back();
+    f.detectChanges();
+    expect(c.preview()).toBeNull();
+    expect(c.target.value).toBe('');
+    expect(c.step()).toBe('account');
+    await c.back();
+    expect(c.step()).toBe('platform');
+  });
+  it('geht ohne Rückfrage zur Kontoauswahl zurück, wenn nur unveränderte Quelldaten geöffnet sind', async () => {
+    const f = await create();
+    const c = f.componentInstance;
+    c.platform.setValue('kleinanzeigen');
+    c.target.setValue('9');
+    await expect.poll(() => c.preview()).toEqual(prepared);
+    await c.back();
+    expect(confirm.frage).not.toHaveBeenCalled();
+    expect(c.preview()).toBeNull();
+    expect(c.step()).toBe('account');
+  });
+  it.each(['category', 'shippingGroup', 'shippingMethods'] as const)(
+    'schützt ungespeicherte Änderung an %s beim Zurückgehen auch nach Speicherung',
+    async (field) => {
+      const f = await create();
+      const c = f.componentInstance;
+      c.platform.setValue('kleinanzeigen');
+      c.target.setValue('9');
+      await expect.poll(() => c.preview()).toEqual(prepared);
+      c.form.controls.title.setValue('Jacke');
+      c.form.controls.shippingType.setValue('both');
+      c.shippingGroup.setValue('small');
+      c.chooseMethods(['dhl']);
+      transfers.save.mockResolvedValue({
+        id: 'draft',
+        revision: 1,
+        content: c.content(),
+        imagesComplete: true,
+      });
+      await c.save();
+      expect(c.form.pristine && c.attributes.pristine).toBe(true);
+      if (field === 'category') c.categoryPath.set('153/160/hemden');
+      if (field === 'shippingGroup') c.shippingGroup.setValue('medium');
+      if (field === 'shippingMethods') c.chooseMethods(['hermes']);
+      confirm.frage.mockResolvedValue(false);
+      await c.back();
+      expect(confirm.frage).toHaveBeenCalledOnce();
+      expect(c.preview()).toEqual(prepared);
+      expect(c.target.value).toBe('9');
+      confirm.frage.mockResolvedValue(true);
+      await c.back();
+      expect(c.preview()).toBeNull();
+      expect(c.target.value).toBe('');
+    },
+  );
+  it('lädt nach erneuter Freigabe dieselbe Kategorie mit neuer Generation und erhält den Beschreibungstext', async () => {
+    const f = await create();
+    const c = f.componentInstance;
+    c.platform.setValue('kleinanzeigen');
+    c.target.setValue('9');
+    await expect.poll(() => c.preview()).toEqual(prepared);
+    c.form.controls.description.setValue('Mein bearbeiteter Text');
+    c.categoryPath.set('153/160/hemden');
+    accounts.readAccounts.mockResolvedValue({
+      canManage: true,
+      accounts: [{ ...account, localGrant: { ...account.localGrant, generation: 3 } }],
+    });
+    schemas.browse.mockResolvedValue({
+      categoryPath: '153/160/hemden',
+      categoryLabel: 'Hemden',
+      choices: [],
+      schema: null,
+      schemaRevision: null,
+    });
+    await c.accountChanged();
+    expect(schemas.browse).toHaveBeenCalledWith(
+      expect.objectContaining({ generation: 3, connectionId: '9' }),
+      '153/160/hemden',
+      'provider',
+    );
+    expect(c.form.controls.description.value).toBe('Mein bearbeiteter Text');
+    expect(transfers.prepare).toHaveBeenCalledTimes(1);
+  });
+  it('verwirft eine verspätete Kategorieantwort nach Wechsel zurück zur Plattformauswahl', async () => {
+    const f = await create();
+    const c = f.componentInstance;
+    c.platform.setValue('kleinanzeigen');
+    c.target.setValue('9');
+    await expect.poll(() => c.preview()).toEqual(prepared);
+    let complete!: (value: unknown) => void;
+    schemas.browse.mockReturnValue(
+      new Promise((resolve) => {
+        complete = resolve;
+      }),
+    );
+    const pending = c.browse('153/160/hemden');
+    c.platform.setValue('');
+    complete({
+      categoryPath: '153/160/hemden',
+      categoryLabel: 'Hemden',
+      choices: [],
+      schema: null,
+      schemaRevision: null,
+    });
+    await pending;
+    expect(c.step()).toBe('platform');
+    expect(c.preview()).toBeNull();
+    expect(c.categoryPath()).toBe('');
+  });
+  it('zeigt fehlende Veröffentlichungspflichtfelder nach Inserieren direkt am Feld', async () => {
+    const f = await create();
+    const c = f.componentInstance;
+    c.platform.setValue('kleinanzeigen');
+    c.target.setValue('9');
+    await expect.poll(() => c.preview()).toEqual(prepared);
+    c.schema.set({
+      categoryPath: '153/160/hemden',
+      categoryLabel: 'Hemden',
+      titleMax: 65,
+      descriptionMax: 4000,
+      photoCountMax: 20,
+      photoBytesMax: 12582912,
+      priceStepCents: 100,
+      fields: [],
+      shipping: { defaultGroup: null, defaultMethods: [], groups: [] },
+    });
+    c.schemaRevision.set('a'.repeat(64));
+    f.detectChanges();
+    expect(f.nativeElement.textContent).not.toContain('fünfstellige Postleitzahl');
+    await c.publish();
+    f.detectChanges();
+    expect(
+      f.nativeElement.querySelector('app-text-field[formcontrolname="postalCode"]').textContent,
+    ).toContain('fünfstellige Postleitzahl');
+  });
+  it('zeigt Bilder zuerst und nur das Zielformular nach bewusster Kontoauswahl', async () => {
+    const f = await create();
+    f.componentInstance.platform.setValue('kleinanzeigen');
+    f.detectChanges();
+    expect(transfers.prepare).not.toHaveBeenCalled();
+    expect(f.nativeElement.querySelector('[aria-label="Konto"]')).toBeTruthy();
+    f.componentInstance.target.setValue('9');
+    await f.whenStable();
+    f.detectChanges();
+    const form = f.nativeElement.querySelector('form');
+    expect(form.firstElementChild.getAttribute('aria-label')).toBe('Bilder');
+    expect(f.nativeElement.querySelector('[aria-label="Konto"]')).toBeNull();
+    expect(f.nativeElement.querySelector('[aria-label="Plattform"]')).toBeNull();
+    expect(f.nativeElement.querySelector('textarea').value).toBe(content.description);
+    expect(f.nativeElement.textContent).not.toContain('Angaben aus Vinted');
+    expect(f.nativeElement.textContent).not.toContain('Eigenschaften laden');
+  });
+  it('markiert eine wirklich fehlende Beschreibung erst nach Berührung und erhält sie bearbeitbar', async () => {
+    transfers.prepare.mockResolvedValue({ ...prepared, content: { ...content, description: '' } });
+    const f = await create();
+    f.componentInstance.platform.setValue('kleinanzeigen');
+    f.componentInstance.target.setValue('9');
+    await f.whenStable();
+    f.detectChanges();
+    const textarea = f.nativeElement.querySelector('textarea') as HTMLTextAreaElement;
+    expect(textarea.value).toBe('');
+    expect(textarea.getAttribute('aria-invalid')).toBeNull();
+    expect(f.nativeElement.textContent).not.toContain('Prüfe die Beschreibung');
+    textarea.dispatchEvent(new Event('blur'));
+    f.detectChanges();
+    expect(textarea.getAttribute('aria-invalid')).toBe('true');
+    textarea.value = 'Von mir ergänzt';
+    textarea.dispatchEvent(new Event('input'));
+    f.detectChanges();
+    expect(f.componentInstance.content().description).toBe('Von mir ergänzt');
   });
   it('bietet Inserieren direkt im Formular statt eines verpflichtenden Entwurfsschritts an', async () => {
     const f = await create();
@@ -210,13 +462,16 @@ describe('Gemeinsamer Übertragungsdialog', () => {
         );
     },
   );
-  it('bereitet ein ausdrücklich vorgegebenes Zielkonto nach dem Laden automatisch vor', async () => {
+  it('fordert auch bei einem vorgegebenen Zielkonto eine bewusste Kontoauswahl', async () => {
     const fixture = TestBed.createComponent(ListingTransferDialogComponent);
     fixture.componentRef.setInput('source', source);
     fixture.componentRef.setInput('targetConnectionId', '9');
     fixture.detectChanges();
     await fixture.whenStable();
-    expect(transfers.prepare).toHaveBeenCalledTimes(1);
+    expect(transfers.prepare).not.toHaveBeenCalled();
+    expect(fixture.componentInstance.selectedPlatform()).toBe('kleinanzeigen');
+    expect(fixture.componentInstance.target.value).toBe('');
+    fixture.componentInstance.target.setValue('9');
     await expect.poll(() => fixture.componentInstance.preview()).toEqual(prepared);
   });
   it('meldet dieselbe bestätigte Veröffentlichung nur einmal', async () => {
@@ -524,53 +779,6 @@ describe('Gemeinsamer Übertragungsdialog', () => {
 
 let restore: () => void;
 beforeAll(async () => {
-  restore = await prepareMarketplaceRendering([
-    {
-      type: CategoryPickerComponent,
-      path: 'src/app/shared/components/category-picker/category-picker.component.ts',
-    },
-    {
-      type: KleinanzeigenPublicationPanelComponent,
-      path: 'src/app/features/marketplaces/components/kleinanzeigen-publication-panel/kleinanzeigen-publication-panel.component.ts',
-    },
-    {
-      type: ListingTransferDialogComponent,
-      path: 'src/app/features/marketplaces/components/listing-transfer-dialog/listing-transfer-dialog.component.ts',
-    },
-    {
-      type: KleinanzeigenListingFieldsComponent,
-      path: 'src/app/features/marketplaces/components/kleinanzeigen-listing-fields/kleinanzeigen-listing-fields.component.ts',
-    },
-    { type: ModalDialogDirective, path: 'src/app/shared/directives/modal-dialog.directive.ts' },
-    {
-      type: ModalShellComponent,
-      path: 'src/app/shared/components/modal-shell/modal-shell.component.ts',
-    },
-    { type: ButtonComponent, path: 'src/app/shared/components/button/button.component.ts' },
-    {
-      type: NoticeBannerComponent,
-      path: 'src/app/shared/components/notice-banner/notice-banner.component.ts',
-    },
-    {
-      type: TextFieldComponent,
-      path: 'src/app/shared/components/text-field/text-field.component.ts',
-    },
-    {
-      type: NumberInputComponent,
-      path: 'src/app/shared/components/number-input/number-input.component.ts',
-    },
-    {
-      type: CustomSelectComponent,
-      path: 'src/app/shared/components/custom-select/custom-select.component.ts',
-    },
-    {
-      type: ProductThumbnailComponent,
-      path: 'src/app/shared/components/product-thumbnail/product-thumbnail.component.ts',
-    },
-    {
-      type: CustomCheckboxComponent,
-      path: 'src/app/shared/components/custom-checkbox/custom-checkbox.component.ts',
-    },
-  ]);
+  restore = await prepareMarketplaceRendering(listingTransferRendering);
 });
 afterAll(() => restore?.());

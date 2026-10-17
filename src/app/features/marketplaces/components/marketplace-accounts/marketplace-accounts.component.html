@@ -20,7 +20,8 @@
         ? 'Kontoverbindung umbenennen'
         : currentDialog.mode === 'delete'
           ? 'Vinted-Verknüpfung entfernen'
-          : currentDialog.mode === 'login' && !currentDialog.newAccount
+          : (currentDialog.mode === 'login' || currentDialog.mode === 'local_login') &&
+              !currentDialog.newAccount
             ? 'Vinted-Anmeldung'
             : 'Vinted-Konto hinzufügen'
     "
@@ -39,7 +40,7 @@
           ? 'sm'
           : 'md'
     "
-    [hasFooter]="currentDialog.mode !== 'login'"
+    [hasFooter]="currentDialog.mode !== 'login' && currentDialog.mode !== 'local_login'"
     (closed)="closeDialog()"
   >
     @if (currentDialog.newAccount) {
@@ -53,7 +54,7 @@
               class="flex h-8 w-8 items-center justify-center rounded-full border border-fb-primary bg-fb-primary font-semibold text-fb-on-accent"
               >1</span
             >
-            <span>Plattform und Name</span>
+            <span>Konto</span>
           </li>
           <li
             class="flex flex-col items-center gap-2"
@@ -72,7 +73,9 @@
         </ol>
       </nav>
     }
-    @if (currentDialog.mode === 'login') {
+    @if (currentDialog.mode === 'local_login') {
+      <app-vinted-local-connect [connectionId]="currentDialog.connectionId" />
+    } @else if (currentDialog.mode === 'login') {
       <app-marketplace-browser-test
         [compact]="true"
         [cloudSetupId]="currentDialog.cloudSetupId ?? null"
@@ -110,10 +113,12 @@
               Entferne zuerst eine nicht mehr benötigte Flipbase-Verknüpfung.
             </app-notice-banner>
           }
-          <div class="mb-4">
-            <p class="mb-2 text-sm font-medium">Plattform</p>
-            <app-custom-select ariaLabel="Plattform" [options]="platforms" value="vinted" />
-          </div>
+          @if (!embedded()) {
+            <div class="mb-4">
+              <p class="mb-2 text-sm font-medium">Plattform</p>
+              <app-custom-select ariaLabel="Plattform" [options]="platforms" value="vinted" />
+            </div>
+          }
         }
         <app-text-field
           label="Interner Name in Flipbase"

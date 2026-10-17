@@ -2,6 +2,7 @@
 begin;
 set local search_path=public,extensions;
 select no_plan();
+insert into storage.buckets(id,name,public) values('item-media','item-media',false) on conflict(id) do nothing;
 insert into auth.users(id,aud,role,email,raw_app_meta_data,raw_user_meta_data) values ('50000000-0000-4000-8000-000000000001','authenticated','authenticated','transfer@example.test','{}','{}'),('50000000-0000-4000-8000-000000000002','authenticated','authenticated','outsider@example.test','{}','{}');
 insert into public.platform_operators(user_id) values('50000000-0000-4000-8000-000000000001');
 insert into public.workspaces(id,name) values('50000000-0000-4000-8000-000000000011','Transfer');

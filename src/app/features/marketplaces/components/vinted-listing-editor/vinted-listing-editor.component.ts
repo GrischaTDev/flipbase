@@ -618,11 +618,29 @@ export class VintedListingEditorComponent {
         this.referenceContent.set(draft.content);
         this.patch(draft.content, draft.connectionId);
         this.images.set(images);
-      } else
+      } else {
+        const requestedId = this.route.snapshot.queryParamMap?.get('connectionId');
+        const requestedWorkspace = this.route.snapshot.queryParamMap?.get('workspaceId');
+        const requestedAccount =
+          requestedId && requestedWorkspace === workspaceId
+            ? this.store
+                .connections()
+                .find(
+                  (account) =>
+                    account.connectionId === requestedId && account.workspaceId === workspaceId,
+                )
+            : null;
         this.form.controls.connectionId.setValue(
-          this.store.selectedConnection()?.connectionId ?? null,
+          requestedId
+            ? (requestedAccount?.connectionId ?? null)
+            : (this.store.selectedConnection()?.connectionId ?? null),
           { emitEvent: false },
         );
+        if (requestedId && !requestedAccount)
+          this.error.set(
+            'Das ausgewählte Vinted-Konto ist nicht mehr verfügbar. Wähle ein Konto für diesen Arbeitsbereich.',
+          );
+      }
     } catch (error) {
       if (this.current(generation, context))
         this.loadError.set(

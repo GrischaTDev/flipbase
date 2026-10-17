@@ -308,3 +308,13 @@ test('a new view arriving during durable bindings blocks activation', async () =
   });
   assert.equal(worker.skipCount, 0);
 });
+
+test('reports the baked release version with waiting and active build identity', async () => {
+  const view = client('one');
+  const worker = createWorker({ clients: [view] });
+  await worker.dispatch('message', { source: view, data: { type: 'PWA_UPDATE_QUERY' } });
+  await worker.dispatch('message', { source: view, data: { type: 'PWA_ACTIVE_QUERY' } });
+  assert.equal(view.messages[0].version, '0.42.7');
+  assert.equal(view.messages[1].version, '0.42.7');
+  assert.equal(view.messages[0].buildId, worker.inventory.buildId);
+});

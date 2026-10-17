@@ -67,3 +67,8 @@ const ziel = join(wurzel, 'src', 'app', 'core', 'version.ts');
 mkdirSync(dirname(ziel), { recursive: true });
 writeFileSync(ziel, inhalt, 'utf8');
 console.log(`Version geschrieben: v${nummer} (${commit}, ${stand})`);
+
+// Derselbe erzeugte Versionsstand wird nach dem Angular-Bau in den Worker übernommen.
+const metadataPath = join(wurzel, '.angular', 'cache', 'flipbase-build-version.json');
+mkdirSync(dirname(metadataPath), { recursive: true });
+writeFileSync(metadataPath, JSON.stringify({ nummer, commit, stand }), 'utf8');

@@ -1,16 +1,22 @@
 <section class="space-y-4" aria-label="Kleinanzeigen-Eigenschaften">
-  @for (field of schema().fields; track field.key) {
+  @for (field of showAttributes() ? schema().fields : []; track field.key) {
     @if (attributes().controls[field.key]; as control) {
       @if (field.kind === 'search') {
         <app-text-field
           [formControl]="control"
           [label]="field.label"
           [maxLength]="200"
-          helpText="Die Erweiterung prüft diese Angabe vor dem Inserieren gegen die angebotenen Werte."
+          [error]="errors()[field.key] || null"
         />
       } @else {
-        <div>
+        <div
+          role="group"
+          [attr.aria-labelledby]="'transfer-label-' + field.key"
+          [attr.aria-describedby]="errors()[field.key] ? 'transfer-error-' + field.key : null"
+          [attr.aria-invalid]="errors()[field.key] ? 'true' : null"
+        >
           <label
+            [id]="'transfer-label-' + field.key"
             [for]="'transfer-' + field.key"
             class="mb-1 block text-sm font-medium text-fb-text-primary"
             >{{ field.label }}</label
@@ -22,6 +28,15 @@
             [searchable]="field.choices.length > 10"
             [required]="field.required || field.key.endsWith('.condition')"
           />
+          @if (errors()[field.key]; as message) {
+            <p
+              [id]="'transfer-error-' + field.key"
+              class="mt-1 text-sm text-[var(--fb-color-critical-text)]"
+              role="alert"
+            >
+              {{ message }}
+            </p>
+          }
         </div>
       }
     }
@@ -55,8 +70,5 @@
         }
       </fieldset>
     }
-    <p class="text-xs text-fb-text-secondary">
-      Der Käufer wählt und bezahlt den Versand. Abholung bleibt bei Kleinanzeigen möglich.
-    </p>
   }
 </section>

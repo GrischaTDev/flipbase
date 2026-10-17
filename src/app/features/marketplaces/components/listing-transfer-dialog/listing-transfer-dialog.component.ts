@@ -1,3 +1,4 @@
+import { KleinanzeigenAccountsComponent } from '../kleinanzeigen-accounts/kleinanzeigen-accounts.component';
 import { CategoryPickerComponent } from '../../../../shared/components/category-picker/category-picker.component';
 import { kleinanzeigenCategories } from '../../models/kleinanzeigen-categories';
 import { kleinanzeigenCategoryPath } from '../../../../../../supabase/functions/_shared/kleinanzeigen-form-contracts';
@@ -31,6 +32,8 @@ import {
 } from '@angular/forms';
 import { AuthService } from '../../../../core/services/auth.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
+import { MarketplacePlatformPickerComponent } from '../../../../shared/components/marketplace-platform-picker/marketplace-platform-picker.component';
+import type { MarketplaceId } from '../../../../core/services/marketplace-settings.service';
 import { MarketplaceSettingsService } from '../../../../core/services/marketplace-settings.service';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
@@ -64,6 +67,8 @@ import {
   selector: 'app-listing-transfer-dialog',
   imports: [
     ReactiveFormsModule,
+    MarketplacePlatformPickerComponent,
+    KleinanzeigenAccountsComponent,
     CategoryPickerComponent,
     ModalShellComponent,
     ButtonComponent,
@@ -114,11 +119,14 @@ export class ListingTransferDialogComponent {
   private publicationRequestId = crypto.randomUUID();
   private readonly accountsApi = inject(KleinanzeigenAccountService);
   private readonly schemas = inject(KleinanzeigenFormSchemaService);
+  readonly bindingIssue = this.schemas.bindingIssue;
+  readonly accountManagementOpen = signal(false);
   readonly extension = inject(KleinanzeigenExtensionBridge);
   private readonly confirmation = inject(ConfirmDialogService);
   private generation = 0;
   private owner: string | null = null;
   private lastSavedContent: string | null = null;
+  private openedContent: string | null = null;
   readonly accounts = signal<readonly KleinanzeigenAccount[]>([]);
   readonly preview = signal<PreparedKleinanzeigenTransfer | null>(null);
   readonly savedDraft = signal<KleinanzeigenTransferDraft | null>(null);
@@ -135,14 +143,27 @@ export class ListingTransferDialogComponent {
   readonly selectedShippingGroup = signal('');
   readonly selectedShippingMethods = signal<readonly string[]>([]);
   readonly formTick = signal(0);
+  readonly submitted = signal(false);
   private readonly selectedTarget = signal('');
   readonly platform = new FormControl('', { nonNullable: true });
   readonly selectedPlatform = signal('');
-  readonly platformOptions = [
-    { value: 'kleinanzeigen', label: 'Kleinanzeigen' },
-    { value: 'vinted', label: 'Vinted', description: 'Übernahme noch nicht verfügbar' },
-    { value: 'ebay', label: 'eBay', description: 'Übernahme noch nicht verfügbar' },
-  ];
+  readonly availablePlatforms = computed<readonly MarketplaceId[]>(() =>
+    (['vinted', 'ebay', 'kleinanzeigen'] as const).filter((id) =>
+      this.settings.isMarketplaceEnabled(id),
+    ),
+  );
+  readonly unavailablePlatforms: readonly MarketplaceId[] = ['vinted', 'ebay'];
+  readonly step = computed(() =>
+    this.preview() ? 'form' : this.selectedPlatform() ? 'account' : 'platform',
+  );
+  readonly stepTitle = computed(() =>
+    this.step() === 'platform'
+      ? 'Plattform wählen'
+      : this.step() === 'account'
+        ? 'Konto wählen'
+        : 'Kleinanzeigen',
+  );
+  readonly schemaLoadFailed = signal(false);
   readonly target = new FormControl('', { nonNullable: true });
   readonly shippingGroup = new FormControl('', { nonNullable: true });
   readonly attributes = new FormRecord<FormControl<string>>({});
@@ -215,6 +236,22 @@ export class ListingTransferDialogComponent {
         )
       : [{ field: 'categoryId', message: 'Wähle und prüfe die Kleinanzeigen-Kategorie.' }];
   });
+  readonly fieldErrors = computed<Readonly<Record<string, string>>>(() => {
+    this.formTick();
+    return Object.fromEntries(
+      this.publicationIssues()
+        .filter((issue) => {
+          const field = issue.field === 'priceCents' ? 'price' : issue.field;
+          return (
+            this.submitted() ||
+            this.form.get(field)?.touched ||
+            this.attributes.controls[field]?.touched ||
+            (field === 'categoryId' && this.categorySelection.touched)
+          );
+        })
+        .map((issue) => [issue.field, issue.message]),
+    );
+  });
   readonly publicationScope = computed<KleinanzeigenListingJobScope | null>(() => {
     const account = this.accounts().find((value) => value.connectionId === this.selectedTarget());
     return account?.localGrant?.active && account.localGrant.canPublish
@@ -257,8 +294,8 @@ export class ListingTransferDialogComponent {
     const destroy = inject(DestroyRef);
     const subscriptions = [
       this.categorySelection.valueChanges.subscribe((path) => void this.selectCategory(path)),
-      this.form.valueChanges.subscribe(() => this.formTick.update((value) => value + 1)),
-      this.attributes.valueChanges.subscribe(() => this.formTick.update((value) => value + 1)),
+      this.form.events.subscribe(() => this.formTick.update((value) => value + 1)),
+      this.attributes.events.subscribe(() => this.formTick.update((value) => value + 1)),
       this.shippingGroup.valueChanges.subscribe((value) => {
         this.selectedShippingGroup.set(value);
         this.selectedShippingMethods.set([]);
@@ -309,6 +346,51 @@ export class ListingTransferDialogComponent {
       });
     });
   }
+  selectPlatform(platform: MarketplaceId): void {
+    if (
+      this.busy() ||
+      this.publishing() ||
+      !this.availablePlatforms().includes(platform) ||
+      this.unavailablePlatforms.includes(platform)
+    )
+      return;
+    this.platform.setValue(platform);
+  }
+  async back(): Promise<void> {
+    if (this.busy() || this.publishing() || this.publicationPending()) return;
+    if (
+      this.preview() &&
+      (this.form.dirty ||
+        this.attributes.dirty ||
+        (this.lastSavedContent ?? this.openedContent) !==
+          kleinanzeigenContentKey(this.content())) &&
+      !(await this.confirmation.frage({
+        titel: 'Konto wechseln?',
+        text: 'Deine ungespeicherten Änderungen werden verworfen. Gespeicherte Entwürfe bleiben erhalten.',
+        bestaetigenText: 'Änderungen verwerfen',
+        abbrechenText: 'Weiter bearbeiten',
+      }))
+    )
+      return;
+    if (this.step() === 'form') {
+      this.target.setValue('');
+    } else {
+      this.platform.setValue('');
+    }
+  }
+  async accountChanged(): Promise<void> {
+    const generation = this.generation;
+    const path = this.categoryPath();
+    await this.loadAccounts(this.source().workspaceId, null);
+    if (!this.current(generation)) return;
+    this.accountManagementOpen.set(false);
+    if (!this.target.value) return;
+    if (!this.accounts().some((account) => account.connectionId === this.target.value)) {
+      this.error.set('Das ausgewählte Konto ist nicht mehr verfügbar. Wähle es erneut.');
+      return;
+    }
+    if (path) await this.selectCategory(path);
+  }
   private cancel(): void {
     this.generation++;
     this.transfers.cancel();
@@ -320,12 +402,15 @@ export class ListingTransferDialogComponent {
     this.transfers.cancel();
     this.schemas.cancel();
     this.publicationJobs.cancel();
+    this.accountManagementOpen.set(false);
+    this.submitted.set(false);
     this.preview.set(null);
     this.savedDraft.set(null);
     this.publicationConfirmed.set(false);
     this.publicationPreparation.set(false);
     this.publicationRequestId = crypto.randomUUID();
     this.schema.set(null);
+    this.schemaLoadFailed.set(false);
     this.schemaRevision.set(null);
     this.categoryPath.set('');
     this.categorySelection.setValue(null, { emitEvent: false });
@@ -336,6 +421,7 @@ export class ListingTransferDialogComponent {
     this.selectedShippingMethods.set([]);
     this.form.reset();
     this.lastSavedContent = null;
+    this.openedContent = null;
     this.notice.set(null);
     this.error.set(null);
     this.busy.set(false);
@@ -366,8 +452,6 @@ export class ListingTransferDialogComponent {
       if (preferred && this.accounts().some((account) => account.connectionId === preferred)) {
         this.platform.setValue('kleinanzeigen', { emitEvent: false });
         this.selectedPlatform.set('kleinanzeigen');
-        this.target.setValue(preferred, { emitEvent: false });
-        this.selectedTarget.set(preferred);
       }
     } catch {
       if (this.current(generation))
@@ -375,8 +459,6 @@ export class ListingTransferDialogComponent {
     } finally {
       if (this.current(generation)) this.busy.set(false);
     }
-    if (this.current(generation) && preferred && this.target.value === preferred)
-      await this.prepare();
   }
   async prepare(): Promise<void> {
     if (
@@ -405,7 +487,9 @@ export class ListingTransferDialogComponent {
         shippingType: preview.content.shippingType === 'pickup' ? 'pickup' : 'both',
         postalCode: preview.content.postalCode ?? '',
       });
+      this.openedContent = kleinanzeigenContentKey(this.content());
       this.form.markAsPristine();
+      this.form.markAsUntouched();
     } catch (error) {
       if (this.current(generation)) this.error.set(this.message(error));
     } finally {
@@ -449,6 +533,7 @@ export class ListingTransferDialogComponent {
     const generation = this.generation;
     this.busy.set(true);
     this.error.set(null);
+    this.schemaLoadFailed.set(false);
     try {
       const result = await this.schemas.browse(
         {
@@ -492,6 +577,7 @@ export class ListingTransferDialogComponent {
       this.formTick.update((value) => value + 1);
     } catch (error) {
       if (this.current(generation)) {
+        this.schemaLoadFailed.set(true);
         this.schema.set(null);
         this.schemaRevision.set(null);
         if (this.publicationPreparation()) this.error.set(this.message(error));
@@ -593,6 +679,10 @@ export class ListingTransferDialogComponent {
       this.publicationConfirmed()
     )
       return;
+    this.submitted.set(true);
+    this.form.markAllAsTouched();
+    this.attributes.markAllAsTouched();
+    this.categorySelection.markAsTouched();
     const scope = this.publicationScope();
     if (!scope) {
       this.error.set(
@@ -609,7 +699,7 @@ export class ListingTransferDialogComponent {
     }
     if (!this.schema()) {
       this.error.set(
-        'Wähle eine vollständige Kleinanzeigen-Kategorie und lade ihre Eigenschaften.',
+        'Wähle eine vollständige Kleinanzeigen-Kategorie und prüfe die Eigenschaften.',
       );
       return;
     }

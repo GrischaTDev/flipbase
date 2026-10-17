@@ -11,20 +11,19 @@
   <app-category-picker
     [source]="categorySource"
     [formControl]="categorySelection"
-    label="Kleinanzeigen-Kategorie"
+    label="Kategorie"
     placeholder="Kategorie suchen oder auswählen"
-    helpText="Die verfügbaren Kategorien sind in Flipbase gespeichert."
   />
   @if (busy()) {
     <p class="text-sm text-fb-text-secondary" role="status">
       Kleinanzeigen-Eigenschaften werden geladen …
     </p>
   }
-  @if (categorySelection.value && !schema() && !busy()) {
+  @if (schemaLoadFailed() && categorySelection.value && !busy()) {
     <app-button
       [disabled]="!scope() || !extension.formSchemaAvailable()"
       (clicked)="selectCategory(categorySelection.value)"
-      >Eigenschaften laden</app-button
+      >Eigenschaften erneut laden</app-button
     >
   }
   @if (schema(); as currentSchema) {

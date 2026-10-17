@@ -185,10 +185,6 @@ export class HeaderComponent {
     this.translate.use(lang);
   }
 
-  setTheme(dark: boolean): void {
-    this.themeService.setTheme(dark ? 'dark' : 'light');
-  }
-
   async onSignOut(): Promise<void> {
     await this.auth.signOut();
   }

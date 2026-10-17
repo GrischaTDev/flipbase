@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, effect, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
@@ -17,6 +17,7 @@ import { VintedLocalExtensionStore } from '../../services/vinted-local-extension
   host: { class: 'block min-w-0' },
 })
 export class VintedLocalConnectComponent {
+  readonly connectionId = input<string | null>(null);
   readonly accounts = inject(MarketplaceAccountStore);
   readonly local = inject(VintedLocalExtensionStore);
   readonly extension = inject(VintedLocalExtensionBridge);
@@ -28,7 +29,10 @@ export class VintedLocalConnectComponent {
     () =>
       this.accounts
         .connections()
-        .find((account) => account.connectionId === this.parameters().get('connectionId')) ?? null,
+        .find(
+          (account) =>
+            account.connectionId === (this.connectionId() ?? this.parameters().get('connectionId')),
+        ) ?? null,
   );
   readonly otherProfileAccount = computed(() => {
     const binding = this.extension.localAccount();

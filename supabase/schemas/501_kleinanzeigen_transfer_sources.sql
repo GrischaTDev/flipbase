@@ -66,7 +66,13 @@ begin
     'externalAccountId', p_external_account_id,
     'externalId', p_external_id,
     'title', coalesce(p_body->>'title', v_previous->>'title'),
-    'description', coalesce(p_body->>'text', v_previous->>'description', ''),
+    -- Ein bestaetigt geladener Leertext ist eine bewusste leere Beschreibung.
+    -- Nicht geladene Platzhalter duerfen einen gespeicherten Volltext nicht verdecken.
+    'description', case
+      when p_body->>'textState' = 'loaded' and jsonb_typeof(p_body->'text') = 'string'
+        then p_body->>'text'
+      else coalesce(nullif(p_body->>'text', ''), v_previous->>'description', '')
+    end,
     'priceCents', v_price,
     'currency', coalesce(nullif(p_body->>'currency', ''), v_previous->>'currency', 'unknown'),
     'photoReferences', v_photos,
@@ -102,6 +108,52 @@ $$;
 revoke all on function public.kleinanzeigen_cache_transfer_source(uuid,uuid,uuid,uuid,jsonb) from public,anon,authenticated,service_role;
 grant execute on function public.kleinanzeigen_cache_transfer_source(uuid,uuid,uuid,uuid,jsonb) to service_role;
 
+-- Derselbe lokale Quellstand für Vorschau, Entwurfsprüfung und Bildübernahme.
+-- Ausschließlich bestätigte eigene Veröffentlichungen ergänzen fehlenden Text;
+-- neuere geladene Werte und echte Leertexte behalten ihren Vorrang.
+create or replace function public.kleinanzeigen_saved_publication_source(
+  p_workspace_id uuid, p_connection_id uuid, p_external_id text
+)
+returns jsonb language plpgsql stable security invoker set search_path = '' as $$
+declare
+  v_body jsonb;
+  v_account_id text;
+  v_source jsonb;
+  v_description text;
+begin
+  select e.body, c.external_account_id into v_body, v_account_id
+  from public.marketplace_account_entries e
+  join public.marketplace_connections c on c.workspace_id = e.workspace_id and c.id = e.connection_id
+  where e.workspace_id = p_workspace_id and e.connection_id = p_connection_id
+    and e.external_id = p_external_id and e.kind = 'publication'
+    and c.marketplace = 'vinted' and c.external_account_id is not null;
+  if not found then return null; end if;
+  v_source := public.kleinanzeigen_saved_listing_source(v_body, v_account_id, p_external_id);
+  if v_source->>'description' <> ''
+    or (v_body->>'textState' = 'loaded' and jsonb_typeof(v_body->'text') = 'string')
+    or jsonb_typeof(v_body->'transferSource'->'description') = 'string' then
+    return v_source;
+  end if;
+  select j.snapshot->'content'->>'description' into v_description
+  from public.marketplace_listing_jobs j
+  where j.workspace_id = p_workspace_id and j.connection_id = p_connection_id
+    and j.external_account_id = v_account_id and j.external_id = p_external_id
+    and j.state = 'confirmed' and j.action = 'publish' and j.provider_state = 'active'
+    and j.started_at is not null and isfinite(j.verified_at)
+    and j.snapshot->>'connectionId' = p_connection_id::text
+    and public.marketplace_listing_content_valid(j.snapshot->'content')
+    and jsonb_typeof(j.snapshot->'content'->'description') = 'string'
+    and length(btrim(j.snapshot->'content'->>'description')) between 1 and 20000
+  order by j.verified_at desc, j.id desc limit 1;
+  if v_description is not null then
+    v_source := jsonb_set(v_source, '{description}', to_jsonb(v_description), true);
+  end if;
+  return v_source;
+end;
+$$;
+revoke all on function public.kleinanzeigen_saved_publication_source(uuid,uuid,text) from public, anon, authenticated, service_role;
+grant execute on function public.kleinanzeigen_saved_publication_source(uuid,uuid,text) to service_role;
+
 -- Definer ermöglicht ausschließlich die gesperrte Nutzer-/Mitgliedschaftsprüfung; Quell- und Zielkonto werden ausdrücklich eingeschränkt.
 create or replace function public.kleinanzeigen_read_transfer_source(p_workspace_id uuid,p_target_connection_id bigint,p_source_connection_id uuid,p_external_id text)
 returns jsonb language plpgsql volatile security definer set search_path='' as $$
@@ -113,7 +165,7 @@ begin
  if not found then raise exception 'Quellkonto nicht verfügbar.' using errcode='42501';end if;
  select * into v_entry from public.marketplace_account_entries where workspace_id=p_workspace_id and connection_id=p_source_connection_id and external_id=p_external_id and kind='publication';
  if not found then raise exception 'Quellinserat nicht verfügbar.' using errcode='42501';end if;
- v_source := public.kleinanzeigen_saved_listing_source(v_entry.body, v_account.external_account_id, p_external_id);
+ v_source := public.kleinanzeigen_saved_publication_source(p_workspace_id, p_source_connection_id, p_external_id);
  return jsonb_build_object('state','ready','workspaceId',p_workspace_id,'connectionId',p_source_connection_id,'entryId',v_entry.id,'externalId',p_external_id,'externalAccountId',v_account.external_account_id,'executionMode',v_account.execution_mode,'source',v_source,'observedAt',v_entry.observed_at,'fingerprint',encode(extensions.digest(v_source::text,'sha256'),'hex'));
 end;
 $$;

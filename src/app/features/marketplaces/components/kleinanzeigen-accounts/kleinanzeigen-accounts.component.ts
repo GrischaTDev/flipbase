@@ -79,6 +79,10 @@ export class KleinanzeigenAccountsComponent {
   constructor() {
     this.extension.checkInstallation();
     effect(() => {
+      if (this.busy()) this.publishPermission.disable({ emitEvent: false });
+      else this.publishPermission.enable({ emitEvent: false });
+    });
+    effect(() => {
       const workspaceId = this.workspaceId();
       const userId = this.auth.currentUser()?.id;
       untracked(() => {
@@ -208,6 +212,55 @@ export class KleinanzeigenAccountsComponent {
       if (this.current(context)) this.busy.set(false);
     }
   }
+  async reconnect(account: KleinanzeigenAccount): Promise<void> {
+    if (
+      !this.known(account) ||
+      this.busy() ||
+      !this.canManage() ||
+      !this.extension.capabilities().accounts
+    )
+      return;
+    const context = this.contextVersion;
+    this.busy.set(true);
+    this.error.set(null);
+    this.notice.set(null);
+    try {
+      const binding = await this.actions.reconnect(account, this.publishPermission.value);
+      if (!this.current(context)) return;
+      if (
+        binding.workspaceId !== account.workspaceId ||
+        binding.connectionId !== account.connectionId ||
+        binding.externalAccountId !== account.externalAccountId
+      )
+        throw new Error(
+          'Die erneuerte Freigabe gehört nicht zu diesem Konto. Prüfe das angemeldete Kleinanzeigen-Konto.',
+        );
+      this.localBinding.set(binding);
+      this.notice.set('Deine Freigabe wurde erneuert. Du kannst die Inserate jetzt abgleichen.');
+      await this.reload();
+      if (this.current(context)) this.changed.emit();
+    } catch (error) {
+      if (this.current(context))
+        this.error.set(
+          error instanceof Error ? error.message : 'Die Freigabe konnte nicht erneuert werden.',
+        );
+    } finally {
+      if (this.current(context)) this.busy.set(false);
+    }
+  }
+  bindingNotice(account: KleinanzeigenAccount): string {
+    const binding = this.localBinding();
+    if (binding === undefined)
+      return 'Die lokale Freigabe konnte noch nicht geprüft werden. Prüfe die Erweiterung in diesem Browserprofil.';
+    if (!binding)
+      return 'In diesem Browser ist keine gültige Freigabe vorhanden. Melde Dich im passenden Kleinanzeigen-Konto an und erneuere die Freigabe.';
+    if (
+      binding.connectionId !== account.connectionId ||
+      binding.externalAccountId !== account.externalAccountId
+    )
+      return 'Dieses Browserprofil ist mit einem anderen Kleinanzeigen-Konto verbunden. Öffne das Browserprofil dieses Kontos.';
+    return 'Deine lokale Freigabe ist nicht mehr aktuell. Erneuere sie in diesem Browserprofil.';
+  }
   async synchronize(account: KleinanzeigenAccount): Promise<void> {
     if (!this.known(account) || !this.canSync(account)) return;
     const context = this.contextVersion;
@@ -267,7 +320,7 @@ export class KleinanzeigenAccountsComponent {
   accountStatusLabel(account: KleinanzeigenAccount): string {
     return account.status === 'disconnected'
       ? 'Nicht verbunden'
-      : !account.localGrant?.active
+      : !account.localGrant?.active || (this.localBinding() === null && !this.isBound(account))
         ? 'Freigabe erneuern'
         : !account.lastSyncedAt
           ? 'Noch kein Abgleich'

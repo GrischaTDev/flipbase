@@ -10,6 +10,24 @@ begin
     new.body := jsonb_set(new.body, '{text}', old.body->'text', true);
     new.body := jsonb_set(new.body, '{textState}', to_jsonb('loaded'::text), true);
   end if;
+  -- Listenimporte liefern keine vollständige Quelle. Nur bei unveränderter
+  -- Konto-/Inseratbindung übernehmen; ein bewusst gesetztes neues Feld gilt weiter.
+  if new.kind = 'publication' and old.kind = 'publication'
+    and row(new.workspace_id, new.connection_id, new.external_id)
+      is not distinct from row(old.workspace_id, old.connection_id, old.external_id)
+    and not (new.body ? 'transferSource')
+    and jsonb_typeof(old.body->'transferSource') = 'object'
+    and (old.body->'transferSource') ?& array['externalAccountId', 'externalId', 'title', 'description', 'priceCents', 'currency', 'photoReferences', 'attributeHints']
+    and old.body->'transferSource'->>'externalId' = new.external_id
+    and jsonb_typeof(old.body->'transferSource'->'description') = 'string'
+    and jsonb_typeof(old.body->'transferSource'->'photoReferences') = 'array'
+    and jsonb_typeof(old.body->'transferSource'->'attributeHints') = 'object'
+    and exists(select 1 from public.marketplace_connections c
+      where c.workspace_id = new.workspace_id and c.id = new.connection_id
+        and c.marketplace = 'vinted'
+        and c.external_account_id = old.body->'transferSource'->>'externalAccountId') then
+    new.body := jsonb_set(new.body, '{transferSource}', old.body->'transferSource', true);
+  end if;
   return new;
 end;
 $$;

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { LucideExternalLink as ExternalLink } from '@lucide/angular';
 import {
   MarketplaceId,
@@ -6,12 +6,12 @@ import {
 } from '../../../../core/services/marketplace-settings.service';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
-import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
+import { MarketplacePlatformPickerComponent } from '../../../../shared/components/marketplace-platform-picker/marketplace-platform-picker.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 
 @Component({
   selector: 'app-marketplaces-settings',
-  imports: [ButtonComponent, CardComponent, BadgeComponent, CustomCheckboxComponent],
+  imports: [ButtonComponent, CardComponent, BadgeComponent, MarketplacePlatformPickerComponent],
   templateUrl: './marketplaces-settings.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -21,6 +21,14 @@ export class MarketplacesSettingsComponent {
     transform: (value: unknown) => (typeof value === 'boolean' ? value : true),
   });
   private readonly marketplaceSettings = inject(MarketplaceSettingsService);
+
+  readonly platforms: readonly MarketplaceId[] = ['vinted', 'ebay', 'kleinanzeigen'];
+  readonly selectedPlatforms = computed(() =>
+    this.platforms.filter((platform) => this.marketplaceSettings.settings()[platform]),
+  );
+  togglePlatform(platform: MarketplaceId): void {
+    void this.onToggle(platform, !this.marketplaceSettings.settings()[platform]);
+  }
 
   readonly externalLinkIcon = ExternalLink;
 

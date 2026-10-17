@@ -58,7 +58,6 @@
           <app-custom-checkbox
             presentation="row"
             [formControl]="publishPermission"
-            [disabled]="busy()"
             label="Inserate über dieses Browserprofil veröffentlichen"
           />
           <p class="mt-2 text-xs text-fb-text-secondary">
@@ -108,7 +107,7 @@
                 </h3>
                 <p class="mt-1 text-xs text-fb-text-secondary">{{ accountTypeLabel(account) }}</p>
               </div>
-              <app-badge [tone]="account.localGrant?.active ? 'success' : 'neutral'">{{
+              <app-badge [tone]="account.localGrant?.active ? 'neutral' : 'caution'">{{
                 accountStatusLabel(account)
               }}</app-badge>
             </div>
@@ -169,8 +168,22 @@
             }
             @if (!isBound(account)) {
               <p class="text-xs text-fb-text-secondary">
-                Öffne zum Abgleichen das zugehörige Browserprofil und prüfe die Erweiterung.
+                {{ bindingNotice(account) }}
               </p>
+            }
+            @if (!isBound(account) || !account.localGrant?.active) {
+              <app-custom-checkbox
+                presentation="row"
+                [formControl]="publishPermission"
+                label="Inserate über dieses Browserprofil veröffentlichen"
+              />
+              <app-button
+                size="touch"
+                variant="primary"
+                [disabled]="busy() || !extension.capabilities().accounts"
+                (clicked)="reconnect(account)"
+                >Freigabe erneuern</app-button
+              >
             }
             <div class="flex flex-wrap gap-2">
               <app-button

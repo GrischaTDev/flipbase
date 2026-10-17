@@ -2,12 +2,19 @@
   <div class="flex min-w-0 flex-wrap items-center justify-between gap-3 p-4">
     <div class="min-w-0 flex-1 space-y-1">
       <h3 class="break-words text-sm font-semibold text-fb-text-primary">
-        {{ section().account.displayName }}
+        @if (showAccountManagement()) {
+          <a
+            [routerLink]="accountLink()"
+            [queryParams]="accountQuery()"
+            class="rounded-sm underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-text-primary"
+            >{{ section().account.displayName }}</a
+          >
+        } @else {
+          {{ section().account.displayName }}
+        }
       </h3>
       <div class="flex flex-wrap items-center gap-2 text-xs text-fb-text-secondary">
-        <app-badge [tone]="section().account.status === 'connected' ? 'success' : 'neutral'">{{
-          accountStatus()
-        }}</app-badge>
+        <app-badge [tone]="accountStatusTone()">{{ accountStatus() }}</app-badge>
         @if (section().account.platform === 'ebay' && section().page) {
           <span>{{ section().page!.total }} aktive Inserate</span>
         } @else if (section().account.listingCount !== null) {

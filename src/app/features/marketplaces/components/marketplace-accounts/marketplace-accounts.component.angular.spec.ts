@@ -27,6 +27,7 @@ import {
   MarketplaceCloudSetupApiService,
 } from '../../services/marketplace-cloud-setup-api.service';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
+import { VintedLocalConnectComponent } from '../vinted-local-connect/vinted-local-connect.component';
 import { MarketplaceAccountsComponent } from './marketplace-accounts.component';
 import {
   VintedLocalExtensionBridge,
@@ -554,6 +555,10 @@ it('meldet einen gescheiterten Wechsel ohne offenen Dialog als Toast statt als b
 let restore: (() => void) | undefined;
 beforeAll(async () => {
   restore = await prepareMarketplaceRendering([
+    {
+      type: VintedLocalConnectComponent,
+      path: 'src/app/features/marketplaces/components/vinted-local-connect/vinted-local-connect.component.ts',
+    },
     {
       type: MarketplaceAccountsComponent,
       path: 'src/app/features/marketplaces/components/marketplace-accounts/marketplace-accounts.component.ts',

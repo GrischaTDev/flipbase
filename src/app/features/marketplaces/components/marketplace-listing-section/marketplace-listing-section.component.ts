@@ -9,6 +9,7 @@ import {
   input,
   output,
 } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { CurrencyPipe, DatePipe, DecimalPipe, NgTemplateOutlet } from '@angular/common';
 import {
   LucideChevronDown,
@@ -38,6 +39,7 @@ import { overviewListingKey } from '../../models/marketplace-overview-normalizat
 @Component({
   selector: 'app-marketplace-listing-section',
   imports: [
+    RouterLink,
     ListingTransferActionComponent,
     CurrencyPipe,
     DatePipe,
@@ -105,6 +107,26 @@ export class MarketplaceListingSectionComponent {
       : [{ value: 'reserved', label: 'Reserviert' }]),
     { value: 'ended', label: 'Beendet' },
   ]);
+  readonly accountLink = computed(() => {
+    switch (this.section().account.platform) {
+      case 'vinted':
+        return '/marketplaces/vinted/overview';
+      case 'ebay':
+        return '/marketplaces/ebay/listings';
+      case 'kleinanzeigen':
+        return '/marketplaces/kleinanzeigen';
+    }
+  });
+  readonly accountQuery = computed(() =>
+    this.section().account.platform === 'vinted'
+      ? { connectionId: this.section().account.connectionId }
+      : null,
+  );
+  readonly accountStatusTone = computed(() =>
+    ['needs_login', 'blocked', 'disconnected'].includes(this.section().account.status)
+      ? 'caution'
+      : 'neutral',
+  );
   readonly accountStatus = computed(() => {
     const status = this.section().account.status;
     return (

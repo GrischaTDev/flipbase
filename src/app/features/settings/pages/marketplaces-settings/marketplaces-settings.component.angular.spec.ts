@@ -8,7 +8,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { MarketplaceSettingsService } from '../../../../core/services/marketplace-settings.service';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
-import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
+import { MarketplacePlatformPickerComponent } from '../../../../shared/components/marketplace-platform-picker/marketplace-platform-picker.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { MarketplacesSettingsComponent } from './marketplaces-settings.component';
 
@@ -46,18 +46,17 @@ describe('MarketplacesSettingsComponent', () => {
     registerSignalInputs(MarketplacesSettingsComponent, ['showAccountManagement']);
     registerSignalInputs(CardComponent, ['padding']);
     registerSignalInputs(BadgeComponent, ['tone']);
-    registerSignalInputs(CustomCheckboxComponent, [
-      'checked',
+    registerSignalInputs(MarketplacePlatformPickerComponent, [
+      'platforms',
+      'selectedPlatforms',
+      'disabledPlatforms',
       'disabled',
-      'ariaLabel',
-      'label',
-      'presentation',
-      'size',
     ]);
+    const pickerMetadata = (
+      MarketplacePlatformPickerComponent as unknown as { ɵcmp: AngularInputMetadata }
+    ).ɵcmp;
+    pickerMetadata.outputs = { ...pickerMetadata.outputs, platformSelected: 'platformSelected' };
     registerSignalInputs(ButtonComponent, ['size', 'icon', 'link', 'wrapLabel']);
-    const checkboxMetadata = (CustomCheckboxComponent as unknown as { ɵcmp: AngularInputMetadata })
-      .ɵcmp;
-    checkboxMetadata.outputs = { ...checkboxMetadata.outputs, checkedChange: 'checked' };
   });
 
   beforeEach(async () => {
@@ -112,7 +111,7 @@ describe('MarketplacesSettingsComponent', () => {
     fixture.detectChanges();
 
     const element = fixture.nativeElement as HTMLElement;
-    expect(element.textContent).toContain('Vinted Hub');
+    expect(element.textContent).toContain('Vinted');
     expect(element.textContent).toContain('eBay');
     expect(element.textContent).toContain('Kleinanzeigen');
     expect(element.textContent).toContain('3 von 3 aktiv');
@@ -152,7 +151,9 @@ describe('MarketplacesSettingsComponent', () => {
     fixture.detectChanges();
     const element = fixture.nativeElement as HTMLElement;
     expect(element.querySelector('a[href="/marketplaces/ebay/connection"]')).not.toBeNull();
-    element.querySelector<HTMLButtonElement>('[aria-label="eBay Marktplatz aktivieren"]')?.click();
+    element
+      .querySelector<HTMLButtonElement>('app-marketplace-platform-picker button:nth-child(2)')
+      ?.click();
     fixture.detectChanges();
     expect(element.querySelector('a[href="/marketplaces/ebay/connection"]')).toBeNull();
     expect(element.textContent).toContain('2 von 3 aktiv');
