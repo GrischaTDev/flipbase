@@ -24,7 +24,6 @@ import {
 @Component({
   selector: 'app-kleinanzeigen-publication-panel',
   imports: [ButtonComponent, NoticeBannerComponent],
-  providers: [KleinanzeigenListingJobService],
   templateUrl: './kleinanzeigen-publication-panel.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -37,7 +36,11 @@ export class KleinanzeigenPublicationPanelComponent {
   readonly published = input(false);
   readonly publicationAllowed = input(true);
   readonly confirmed = output<KleinanzeigenListingJob>();
-  readonly jobs = inject(KleinanzeigenListingJobService);
+  readonly managedExternally = input(false);
+  readonly showPublishAction = input(true);
+  readonly jobs =
+    inject(KleinanzeigenListingJobService, { optional: true }) ??
+    new KleinanzeigenListingJobService();
   readonly extension = inject(KleinanzeigenExtensionBridge);
   readonly localError = signal<string | null>(null);
   private requestId = crypto.randomUUID();
@@ -48,7 +51,7 @@ export class KleinanzeigenPublicationPanelComponent {
       ? kleinanzeigenJobStatus(job)
       : this.published()
         ? 'Bereits bei Kleinanzeigen veröffentlicht'
-        : 'Entwurf gespeichert';
+        : 'Bereit zum Inserieren';
   });
   readonly issue = computed(() => kleinanzeigenJobIssue(this.jobs.job()?.errorCode ?? null));
   readonly hasUnresolvedJob = computed(() => {
@@ -82,6 +85,7 @@ export class KleinanzeigenPublicationPanelComponent {
     });
 
     effect(() => {
+      if (this.managedExternally()) return;
       const scope = this.scope();
       const id = this.draftId();
       untracked(() => {

@@ -52,10 +52,12 @@ begin
  perform 1 from public.workspaces where id=p_workspace_id and archived_at is null for share;
  if not found then raise exception 'Arbeitsbereich nicht verfügbar.' using errcode='42501';end if;
  if p_request_id is null or jsonb_typeof(p_source_reference) is distinct from 'object' or (select count(*) from jsonb_object_keys(p_source_reference))<>6 or p_source_reference->>'platform' is distinct from 'vinted' or p_source_reference->>'workspaceId' is distinct from p_workspace_id::text then raise exception 'Ungültiger Quellbezug.' using errcode='22023';end if;
- select * into v_account from public.marketplace_connections where workspace_id=p_workspace_id and id::text=p_source_reference->>'connectionId' and marketplace='vinted' and status='connected' and external_account_id is not null for share;
+ select * into v_account from public.marketplace_connections where workspace_id=p_workspace_id and id::text=p_source_reference->>'connectionId' and marketplace='vinted' and external_account_id is not null for share;
+ if not found then raise exception 'Quellkonto nicht verfuegbar.' using errcode='42501';end if;
  select * into v_source from public.marketplace_account_entries where workspace_id=p_workspace_id and connection_id=v_account.id and id::text=p_source_reference->>'entryId' and external_id=p_source_reference->>'externalId' and kind='publication' for share;
- v_fingerprint:=encode(extensions.digest(((v_source.body->'transferSource')-'observedAt')::text,'sha256'),'hex');
- if v_source.id is null or jsonb_typeof(v_source.body->'transferSource') is distinct from 'object' or v_source.body->'transferSource'->>'externalAccountId' is distinct from v_account.external_account_id or v_fingerprint is distinct from p_source_reference->>'fingerprint' then raise exception 'Vollständige Quelle nicht bestätigt.' using errcode='42501';end if;
+ if not found then raise exception 'Quellinserat nicht verfuegbar.' using errcode='42501';end if;
+ v_fingerprint:=encode(extensions.digest(public.kleinanzeigen_saved_listing_source(v_source.body,v_account.external_account_id,v_source.external_id)::text,'sha256'),'hex');
+ if v_source.id is null or v_fingerprint is distinct from p_source_reference->>'fingerprint' then raise exception 'Vollständige Quelle nicht bestätigt.' using errcode='42501';end if;
  perform 1 from public.kleinanzeigen_connections where workspace_id=p_workspace_id and id=p_target_connection_id and status<>'disconnected' for share;
  if not found then raise exception 'Zielkonto nicht verfügbar.' using errcode='42501';end if;
  v_content:=public.kleinanzeigen_validate_draft_content(p_content);

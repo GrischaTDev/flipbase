@@ -38,7 +38,7 @@ select set_config('test.ka.second_run',pg_temp.ka_request()::text,true);
 reset role;
 set local role service_role;
 select set_config('test.ka.second_claim',pg_temp.ka_claim(current_setting('test.ka.second_run'))::text,true);
-select set_config('test.ka.page','[{"externalId":"101","title":"Neu 101","url":"https://www.kleinanzeigen.de/s-anzeige/test/101-160-1","publishedAt":null,"state":"active"},{"externalId":"102","title":"Neu 102","url":"https://www.kleinanzeigen.de/s-anzeige/test/102-160-1","publishedAt":null,"state":"unknown"}]',true);
+select set_config('test.ka.page','[{"externalId":"101","title":"Neu 101","url":"https://www.kleinanzeigen.de/s-anzeige/test/101-160-1","publishedAt":null,"state":"active","priceCents":1500,"currency":"EUR","imageUrl":"https://img.kleinanzeigen.de/api/v1/prod-ads/images/aa/test?rule=$_2.JPG","publishedOn":"2026-08-21"},{"externalId":"102","title":"Neu 102","url":"https://www.kleinanzeigen.de/s-anzeige/test/102-160-1","publishedAt":null,"state":"unknown"}]',true);
 select lives_ok($$select pg_temp.ka_page(current_setting('test.ka.second_claim'),'page:1',null,current_setting('test.ka.page')::jsonb)$$,'Vollständige Seite vormerkbar');
 select lives_ok($$select pg_temp.ka_page(current_setting('test.ka.second_claim'),'page:1',null,current_setting('test.ka.page')::jsonb)$$,'Identische Seitenwiederholung ist idempotent');
 select is((select count(*)::int from public.kleinanzeigen_sync_entries where run_id=(current_setting('test.ka.second_run')::jsonb->>'runId')::bigint),2,'Wiederholung zählt nicht doppelt');
@@ -48,6 +48,11 @@ select set_config('test.ka.second_finish',pg_temp.ka_finish(current_setting('tes
 select is(current_setting('test.ka.second_finish')::jsonb->>'state','confirmed','Vollständiger Abgleich atomar abschließbar');
 select is(pg_temp.ka_finish(current_setting('test.ka.second_claim')),current_setting('test.ka.second_finish')::jsonb,'Wiederholter Abschluss liefert denselben bestätigten Stand');
 reset role;
+select is((select price_cents from public.kleinanzeigen_publications where external_id='101'),1500,'Import bewahrt den belegten Preis in Cent');
+select is((select currency from public.kleinanzeigen_publications where external_id='101'),'EUR','Import bewahrt die Preiswaehrung');
+select is((select image_url from public.kleinanzeigen_publications where external_id='101'),'https://img.kleinanzeigen.de/api/v1/prod-ads/images/aa/test?rule=$_2.JPG','Import bewahrt das Vorschaubild');
+select is((select published_on from public.kleinanzeigen_publications where external_id='101'),'2026-08-21'::date,'Erstelldatum bleibt taggenau ohne erfundene Uhrzeit');
+select is((select price_cents from public.kleinanzeigen_publications where external_id='102'),null::integer,'Alte Erweiterungsangaben bleiben ehrlich unbekannt');
 select is((select count(*)::int from public.kleinanzeigen_publications where available),2,'Vollständiger neuer Bestand umfasst A/B');
 select is((select available from public.kleinanzeigen_publications where external_id='103'),false,'Fehlendes C wird nicht verfügbar, nicht verkauft');
 select is((select state from public.kleinanzeigen_publications where external_id='103'),'active','Fehlen erfindet keinen Verkaufsstatus');
@@ -70,7 +75,7 @@ select throws_ok($$select pg_temp.ka_page(current_setting('test.ka.third_claim')
 select throws_ok($$select pg_temp.ka_page(current_setting('test.ka.third_claim'),'page:1',null,jsonb_build_array(current_setting('test.ka.page')::jsonb->0,current_setting('test.ka.page')::jsonb->0))$$,'40001',null,'Doppelte Anzeigenkennung in einer Seite abgelehnt');
 select is((select count(*)::integer from public.kleinanzeigen_sync_entries where run_id=(current_setting('test.ka.third_run')::jsonb->>'runId')::bigint),0,'Fehlerhafte Seite hinterlässt keine teilweise Vormerkung');
 select throws_ok(format('select pg_temp.ka_page(current_setting(''test.ka.third_claim''),''page:1'',null,%L::jsonb)',jsonb_build_array((current_setting('test.ka.page')::jsonb->0)||change)::text),'22023',null,'Unbelegtes Anzeigenfeld abgelehnt')
-from (values ('{"url":"https://foreign.example/101"}'::jsonb),('{"publishedAt":"2026-10-01T00:00:00Z"}'::jsonb),('{"state":"sold"}'::jsonb),('{"externalId":101}'::jsonb),('{"secret":"private"}'::jsonb)) invalid(change);
+from (values ('{"url":"https://foreign.example/101"}'::jsonb),('{"publishedAt":"2026-10-01T00:00:00Z"}'::jsonb),('{"priceCents":-1,"currency":"EUR"}'::jsonb),('{"priceCents":1.5,"currency":"EUR"}'::jsonb),('{"priceCents":100,"currency":"USD"}'::jsonb),('{"imageUrl":"https://foreign.example/a.jpg"}'::jsonb),('{"publishedOn":"2026-02-31"}'::jsonb),('{"state":"sold"}'::jsonb),('{"externalId":101}'::jsonb),('{"secret":"private"}'::jsonb)) invalid(change);
 select lives_ok($$select pg_temp.ka_page(current_setting('test.ka.third_claim'),'page:1',null,'[]')$$,'Identitätsgeprüfter leerer Bestand kann vorgemerkt werden');
 reset role;
 set local role authenticated;

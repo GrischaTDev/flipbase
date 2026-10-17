@@ -16,6 +16,7 @@ import {
   LucideEye,
   LucidePencil,
   LucideRefreshCw,
+  LucideSettings,
 } from '@lucide/angular';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
@@ -57,6 +58,8 @@ import { overviewListingKey } from '../../models/marketplace-overview-normalizat
 })
 export class MarketplaceListingSectionComponent {
   readonly section = input.required<MarketplaceOverviewSection>();
+  readonly showAccountManagement = input(false);
+  readonly accountManagementRequested = output<void>();
   readonly toggled = output<void>();
   readonly transferPublished = output<KleinanzeigenListingJob>();
   readonly retried = output<void>();
@@ -75,6 +78,7 @@ export class MarketplaceListingSectionComponent {
   readonly viewIcon = LucideEye;
   readonly editIcon = LucidePencil;
   readonly retryIcon = LucideRefreshCw;
+  readonly settingsIcon = LucideSettings;
   readonly listingKey = overviewListingKey;
   readonly panelId = computed(
     () =>

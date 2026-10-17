@@ -86,7 +86,7 @@ describe('Gemeinsamer Vinted-Transferdienst', () => {
     expect(browser.readListingContent).not.toHaveBeenCalled();
   });
   it.each(['cloud', 'local'])(
-    'lädt fehlende Details im vorhandenen %s-Leseweg und prüft den Serverbestand erneut',
+    'startet bei fehlenden gespeicherten Angaben keinen stillen %s-Anbieterabruf',
     async (mode) => {
       const {
         source: ignored,
@@ -94,47 +94,18 @@ describe('Gemeinsamer Vinted-Transferdienst', () => {
         fingerprint: ignoredFingerprint,
         ...missing
       } = full;
-      invoke
-        .mockResolvedValueOnce({
-          data: { ...missing, state: 'needs_source', executionMode: mode },
-          error: null,
-        })
-        .mockResolvedValueOnce({ data: { ...full, executionMode: mode }, error: null });
-      await TestBed.inject(ListingTransferService).prepare(source, target, requestId);
-      expect(invoke).toHaveBeenCalledTimes(2);
-      if (mode === 'cloud')
-        expect(browser.readListingContent).toHaveBeenCalledWith(
-          { workspaceId: source.workspaceId, connectionId: source.connectionId },
-          full.entryId,
-          '99',
-          'user-jwt',
-        );
-      else
-        expect(extension.request).toHaveBeenCalledWith('FLIPBASE_VINTED_LOCAL_SOURCE_DETAILS', {
-          workspaceId: source.workspaceId,
-          connectionId: source.connectionId,
-          entryId: full.entryId,
-          externalId: '123',
-        });
+      invoke.mockResolvedValue({
+        data: { ...missing, state: 'needs_source', executionMode: mode },
+        error: null,
+      });
+      await expect(
+        TestBed.inject(ListingTransferService).prepare(source, target, requestId),
+      ).rejects.toThrow('gespeicherten');
+      expect(browser.readListingContent).not.toHaveBeenCalled();
+      expect(extension.request).not.toHaveBeenCalled();
+      expect(invoke).toHaveBeenCalledTimes(1);
     },
   );
-  it('meldet fehlende lokale Quellfähigkeit ohne einen unbeantworteten Auftrag zu starten', async () => {
-    const {
-      source: ignored,
-      observedAt: ignoredDate,
-      fingerprint: ignoredFingerprint,
-      ...missing
-    } = full;
-    invoke.mockResolvedValue({
-      data: { ...missing, state: 'needs_source', executionMode: 'local' },
-      error: null,
-    });
-    extension.sourceDetailsAvailable.set(false);
-    await expect(
-      TestBed.inject(ListingTransferService).prepare(source, target, requestId),
-    ).rejects.toThrow('Erweiterung');
-    expect(extension.request).not.toHaveBeenCalled();
-  });
   it('verwirft verspätete Vorbereitung nach Abmeldung', async () => {
     let resolve!: (value: unknown) => void;
     invoke.mockImplementationOnce(

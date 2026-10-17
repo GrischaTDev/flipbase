@@ -1,3 +1,4 @@
+import { SupabaseService } from '../../../core/services/supabase.service';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { describe, it, expect, vi, afterEach } from 'vitest';
@@ -22,18 +23,62 @@ function fixture() {
     status: vi.fn().mockResolvedValue(scope),
     cancel: vi.fn(),
   };
+  const schema = {
+    categoryPath: '153/160/shirts',
+    categoryLabel: 'Shirts',
+    titleMax: 65,
+    descriptionMax: 4000,
+    photoCountMax: 20,
+    photoBytesMax: 12582912,
+    priceStepCents: 100,
+    fields: [],
+    shipping: { defaultGroup: null, defaultMethods: [], groups: [] },
+  };
+  const query = { select: vi.fn(), eq: vi.fn(), filter: vi.fn(), limit: vi.fn() };
+  query.select.mockReturnValue(query);
+  query.eq.mockReturnValue(query);
+  query.filter.mockReturnValue(query);
+  query.limit.mockResolvedValue({
+    data: [
+      {
+        category_path: schema.categoryPath,
+        schema_revision: 'a'.repeat(64),
+        provider_schema: schema,
+        grant_generation: 2,
+        observed_at: '2026-10-01T10:00:00Z',
+      },
+    ],
+    error: null,
+  });
   TestBed.configureTestingModule({
     providers: [
       KleinanzeigenFormSchemaService,
+      { provide: SupabaseService, useValue: { client: { from: vi.fn().mockReturnValue(query) } } },
       { provide: AuthService, useValue: auth },
       { provide: WorkspaceService, useValue: workspace },
       { provide: KleinanzeigenExtensionBridge, useValue: bridge },
     ],
   });
-  return { service: TestBed.inject(KleinanzeigenFormSchemaService), auth, workspace, bridge };
+  return {
+    service: TestBed.inject(KleinanzeigenFormSchemaService),
+    auth,
+    workspace,
+    bridge,
+    schema,
+    query,
+  };
 }
 afterEach(() => TestBed.resetTestingModule());
 describe('Kontogebundene Kleinanzeigen-Formularfelder', () => {
+  it('liest gespeicherte Kategorien ohne Erweiterung und ohne Anbieterbindung beim Vorbereiten', async () => {
+    const f = fixture();
+    f.bridge.formSchemaAvailable.set(false);
+    const result = await f.service.browse(scope, f.schema.categoryPath, 'saved');
+    expect(result.schema).toEqual(f.schema);
+    expect(result.schemaRevision).toBe('a'.repeat(64));
+    expect(f.bridge.status).not.toHaveBeenCalled();
+    expect(f.bridge.loadFormSchema).not.toHaveBeenCalled();
+  });
   it('liest nur für die aktuelle lokale Bindung', async () => {
     const f = fixture();
     f.bridge.loadFormSchema.mockResolvedValue({ categoryPath: '153' });

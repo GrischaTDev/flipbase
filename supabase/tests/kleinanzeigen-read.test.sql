@@ -15,6 +15,7 @@ insert into public.kleinanzeigen_publications(workspace_id,connection_id,externa
 ('49200000-0000-4000-8000-000000000011',9007199254740993,'102','Blaue Hose','https://www.kleinanzeigen.de/s-anzeige/hose/102-160-1','unknown',true,'2026-10-16T06:00:00Z'),
 ('49200000-0000-4000-8000-000000000011',9007199254740993,'103','Nicht mehr sichtbar','https://www.kleinanzeigen.de/s-anzeige/alt/103-160-1','active',false,'2026-10-16T06:00:00Z'),
 ('49200000-0000-4000-8000-000000000011',9007199254740994,'201','Anderes Konto','https://www.kleinanzeigen.de/s-anzeige/anderes/201-160-1','active',true,'2026-10-16T06:00:00Z');
+update public.kleinanzeigen_publications set price_cents=1500,currency='EUR',image_url='https://img.kleinanzeigen.de/api/v1/prod-ads/images/aa/test?rule=$_2.JPG',published_on='2026-08-21' where external_id='101';
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"49200000-0000-4000-8000-000000000001","role":"authenticated"}',true);
 select set_config('test.ka.accounts',public.kleinanzeigen_read_accounts('49200000-0000-4000-8000-000000000011')::text,true);
@@ -34,6 +35,10 @@ select is(jsonb_array_length(current_setting('test.ka.page')::jsonb->'items'),1,
 select is(current_setting('test.ka.page')::jsonb->>'total','2','Gesamtzahl gilt über die ganze gefilterte bestätigte Lesekopie');
 select ok(current_setting('test.ka.page')::jsonb->>'nextId' is not null,'Weitere Seite wird ausdrücklich angeboten');
 select is(jsonb_array_length(public.kleinanzeigen_read_publications('49200000-0000-4000-8000-000000000011',9007199254740993,1,'all','',(current_setting('test.ka.page')::jsonb->>'nextId')::bigint,(current_setting('test.ka.page')::jsonb->>'snapshotAt')::timestamptz)->'items'),1,'Zweite Seite bleibt am selben Account und Snapshot');
+select is(public.kleinanzeigen_read_publications('49200000-0000-4000-8000-000000000011',9007199254740993,25,'all','Jacke',null,null)#>>'{items,0,priceCents}','1500','Lesekopie reicht den Preis weiter');
+select is(public.kleinanzeigen_read_publications('49200000-0000-4000-8000-000000000011',9007199254740993,25,'all','Jacke',null,null)#>>'{items,0,currency}','EUR','Lesekopie reicht die Waehrung weiter');
+select is(public.kleinanzeigen_read_publications('49200000-0000-4000-8000-000000000011',9007199254740993,25,'all','Jacke',null,null)#>>'{items,0,imageUrl}','https://img.kleinanzeigen.de/api/v1/prod-ads/images/aa/test?rule=$_2.JPG','Lesekopie reicht das Vorschaubild weiter');
+select is(public.kleinanzeigen_read_publications('49200000-0000-4000-8000-000000000011',9007199254740993,25,'all','Jacke',null,null)#>>'{items,0,publishedOn}','2026-08-21','Lesekopie reicht den Kalendertag weiter');
 select is(public.kleinanzeigen_read_publications('49200000-0000-4000-8000-000000000011',9007199254740993,25,'all','jAcKe',null,null)->>'total','1','Titelsuche gilt unabhängig von Großschreibung über alle Anzeigen');
 select is(public.kleinanzeigen_read_publications('49200000-0000-4000-8000-000000000011',9007199254740993,25,'ended','',null,null)->>'total','1','Nicht verfügbare Anzeigen bleiben getrennt abrufbar');
 select throws_ok($$select public.kleinanzeigen_read_publications('49200000-0000-4000-8000-000000000012',9007199254740993,25,'all','',null,null)$$,'42501',null,'Fremder Workspace erhält keine Inserate');

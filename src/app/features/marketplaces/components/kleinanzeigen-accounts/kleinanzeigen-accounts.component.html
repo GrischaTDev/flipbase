@@ -6,7 +6,9 @@
     <app-notice-banner>{{ message }}</app-notice-banner>
   }
   <div class="flex min-w-0 flex-wrap items-center justify-between gap-3">
-    <h2 class="text-base font-semibold text-fb-text-primary">Deine Kleinanzeigen-Konten</h2>
+    <h2 class="text-base font-semibold text-fb-text-primary">
+      {{ connectionId() ? 'Kleinanzeigen-Konto' : 'Deine Kleinanzeigen-Konten' }}
+    </h2>
     <div class="flex flex-wrap gap-2">
       <app-button [icon]="refreshIcon" [disabled]="busy() || loading()" (clicked)="reload()"
         >Ansicht aktualisieren</app-button
@@ -26,67 +28,74 @@
     >
   }
   @if (canManage()) {
-    <app-card
-      title="Browserprofil verbinden"
-      subtitle="Jedes Browserprofil verbindet genau ein angemeldetes Kleinanzeigen-Konto."
-    >
-      @if (extension.checking()) {
-        <p class="text-sm text-fb-text-secondary" role="status">Erweiterung wird geprüft …</p>
-      }
-      @if (!extension.capabilities().accounts) {
-        <app-notice-banner class="mb-4"
-          >Die Kleinanzeigen-Funktion der Flipbase-Erweiterung ist in diesem Browserprofil noch
-          nicht erreichbar. Aktualisiere die Erweiterung und lade Flipbase neu.</app-notice-banner
-        >
-      }
-      @if (localBinding(); as binding) {
-        <p class="text-sm text-fb-text-primary" data-testid="kleinanzeigen-local-binding">
-          Dieses Browserprofil: <strong>{{ binding.displayName }}</strong>
-        </p>
-        <p class="mt-1 text-xs text-fb-text-secondary">
-          Freigabe bis {{ binding.expiresAt | date: 'dd.MM.yyyy, HH:mm' }}. Zum Ändern der Freigabe
-          trennst Du die Verbindung und verbindest sie erneut.
-        </p>
-      } @else {
-        <p class="mb-3 text-sm text-fb-text-secondary">
-          Melde Dich bei Kleinanzeigen im gewünschten Konto an. Prüfe den erkannten Kontonamen im
-          Bestätigungsfenster der Erweiterung.
-        </p>
-        <app-custom-checkbox
-          presentation="row"
-          [formControl]="publishPermission"
-          [disabled]="busy()"
-          label="Inserate über dieses Browserprofil veröffentlichen"
-        />
-        <p class="mt-2 text-xs text-fb-text-secondary">
-          Optional: Veröffentlichen nach Deiner Bestätigung in Flipbase. Bei Gebühren oder
-          unbekanntem Kontingent wird gestoppt.
-        </p>
-      }
-      @if (profileIssue(); as issue) {
-        <p class="mt-3 text-sm text-fb-text-secondary" role="status">{{ issue }}</p>
-      }
-      <app-button
-        class="mt-4"
-        variant="primary"
-        size="touch"
-        [icon]="linkIcon"
-        [loading]="busy()"
-        [disabled]="!extension.capabilities().accounts || localBinding() !== null"
-        (clicked)="connect()"
-        >Angemeldetes Konto verbinden</app-button
+    @if (!connectionId()) {
+      <app-card
+        title="Browserprofil verbinden"
+        subtitle="Jedes Browserprofil verbindet genau ein angemeldetes Kleinanzeigen-Konto."
       >
-    </app-card>
-    @if (!accounts().length && !loading()) {
+        @if (extension.checking()) {
+          <p class="text-sm text-fb-text-secondary" role="status">Erweiterung wird geprüft …</p>
+        }
+        @if (!extension.capabilities().accounts) {
+          <app-notice-banner class="mb-4"
+            >Die Kleinanzeigen-Funktion der Flipbase-Erweiterung ist in diesem Browserprofil noch
+            nicht erreichbar. Aktualisiere die Erweiterung und lade Flipbase neu.</app-notice-banner
+          >
+        }
+        @if (localBinding(); as binding) {
+          <p class="text-sm text-fb-text-primary" data-testid="kleinanzeigen-local-binding">
+            Dieses Browserprofil: <strong>{{ binding.displayName }}</strong>
+          </p>
+          <p class="mt-1 text-xs text-fb-text-secondary">
+            Freigabe bis {{ binding.expiresAt | date: 'dd.MM.yyyy, HH:mm' }}. Zum Ändern der
+            Freigabe trennst Du die Verbindung und verbindest sie erneut.
+          </p>
+        } @else {
+          <p class="mb-3 text-sm text-fb-text-secondary">
+            Melde Dich bei Kleinanzeigen im gewünschten Konto an. Prüfe den erkannten Kontonamen im
+            Bestätigungsfenster der Erweiterung.
+          </p>
+          <app-custom-checkbox
+            presentation="row"
+            [formControl]="publishPermission"
+            [disabled]="busy()"
+            label="Inserate über dieses Browserprofil veröffentlichen"
+          />
+          <p class="mt-2 text-xs text-fb-text-secondary">
+            Optional: Veröffentlichen nach Deiner Bestätigung in Flipbase. Bei Gebühren oder
+            unbekanntem Kontingent wird gestoppt.
+          </p>
+        }
+        @if (profileIssue(); as issue) {
+          <p class="mt-3 text-sm text-fb-text-secondary" role="status">{{ issue }}</p>
+        }
+        <app-button
+          class="mt-4"
+          variant="primary"
+          size="touch"
+          [icon]="linkIcon"
+          [loading]="busy()"
+          [disabled]="!extension.capabilities().accounts || localBinding() !== null"
+          (clicked)="connect()"
+          >Angemeldetes Konto verbinden</app-button
+        >
+      </app-card>
+    }
+    @if (!visibleAccounts().length && !loading()) {
       <app-card
         ><p class="text-sm text-fb-text-secondary">
-          Noch kein Kleinanzeigen-Konto verbunden. Verbinde zuerst das gewünschte Konto in diesem
-          Browserprofil.
+          @if (connectionId()) {
+            Dieses Konto ist nicht mehr verfügbar. Schließe die Verwaltung und aktualisiere die
+            Übersicht.
+          } @else {
+            Noch kein Kleinanzeigen-Konto verbunden. Verbinde zuerst das gewünschte Konto in diesem
+            Browserprofil.
+          }
         </p></app-card
       >
     }
-    <div class="grid min-w-0 gap-4 lg:grid-cols-2">
-      @for (account of accounts(); track account.connectionId) {
+    <div class="grid min-w-0 gap-4" [class.lg:grid-cols-2]="!connectionId()">
+      @for (account of visibleAccounts(); track account.connectionId) {
         <app-card>
           <article
             class="min-w-0 space-y-4"

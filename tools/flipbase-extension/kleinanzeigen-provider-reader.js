@@ -94,6 +94,62 @@
       source: 'account_settings',
     };
   }
+  function imageUrl(value) {
+    try {
+      const url = new URL(value);
+      return url.protocol === 'https:' &&
+        url.hostname === 'img.kleinanzeigen.de' &&
+        !url.port &&
+        !url.username &&
+        !url.password &&
+        !url.hash &&
+        url.pathname.startsWith('/api/v1/prod-ads/images/') &&
+        url.href.length <= 2048
+        ? url.href
+        : null;
+    } catch {
+      return null;
+    }
+  }
+  function cardPrice(card) {
+    const heading = card.querySelector('h3');
+    const prices = heading?.parentElement.querySelectorAll(':scope > ul.list > li.text-title3');
+    if (prices?.length !== 1) return null;
+    const match = prices[0].textContent
+      .trim()
+      .match(/^(\d{1,3}(?:\.\d{3})*|\d+)(?:,(\d{2}))?\s*\u20ac(?:\s+VB)?$/u);
+    if (!match) return null;
+    const cents = Number(match[1].replaceAll('.', '')) * 100 + Number(match[2] ?? 0);
+    return Number.isSafeInteger(cents) && cents >= 0 && cents <= 2147483647 ? cents : null;
+  }
+  function readPublicationDetails(doc, expected, address = doc.URL) {
+    try {
+      const url = new URL(address);
+      if (
+        url.protocol !== 'https:' ||
+        !HOSTS.has(url.hostname) ||
+        url.port ||
+        url.search ||
+        url.hash ||
+        !new RegExp('^/s-anzeige/[^/]+/' + expected.externalId + '-[0-9]+-[0-9]+$', 'u').test(
+          url.pathname,
+        ) ||
+        doc.querySelector('#viewad-title')?.textContent.trim() !== expected.title
+      )
+        return null;
+      const dates = Array.from(
+        doc.querySelectorAll('#viewad-main-info svg[data-title="calendarOutline"]'),
+      );
+      const match =
+        dates.length === 1
+          ? dates[0].parentElement.textContent.trim().match(/^(\d{2})\.(\d{2})\.(\d{4})$/u)
+          : null;
+      const day = match ? `${match[3]}-${match[2]}-${match[1]}` : null;
+      return { publishedOn: day && new Date(day).toISOString().slice(0, 10) === day ? day : null };
+    } catch {
+      return { publishedOn: null };
+    }
+  }
   function readPublicationPage(doc) {
     const identity = pageIdentity(doc, '/m-meine-anzeigen.html');
     const list = doc.querySelector('#my-manageitems-adlist');
@@ -154,11 +210,17 @@
       const title = link.textContent.trim().replace(/^Anzeige\s+/u, '');
       if (!title) return null;
       // Ein Ablaufdatum ist keine Veröffentlichungszeit. Reservierte/inaktive Zustände nicht erraten.
+      const priceCents = cardPrice(card);
+      const images = card.querySelectorAll('img[data-testid="ad-image"]');
       items.push({
         externalId,
         title,
         url: url.href,
         publishedAt: null,
+        publishedOn: null,
+        priceCents,
+        currency: priceCents === null ? null : 'EUR',
+        imageUrl: images.length === 1 ? imageUrl(images[0].getAttribute('src')) : null,
         state: actions.includes('Reservieren') ? 'active' : 'unknown',
       });
     }
@@ -177,5 +239,6 @@
     pageIdentity,
     readQuota,
     readPublicationPage,
+    readPublicationDetails,
   });
 })(globalThis);

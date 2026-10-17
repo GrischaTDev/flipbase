@@ -1,6 +1,7 @@
 import {
   kleinanzeigenConnectionId,
   kleinanzeigenRecord,
+  kleinanzeigenPublicationFields,
   type KleinanzeigenAccountScope,
 } from './kleinanzeigen-contracts.ts';
 interface SyncScope extends KleinanzeigenAccountScope {
@@ -12,6 +13,10 @@ export interface KleinanzeigenSyncPublication {
   readonly title: string;
   readonly url: string;
   readonly publishedAt: null;
+  readonly publishedOn?: string | null;
+  readonly priceCents?: number | null;
+  readonly currency?: 'EUR' | null;
+  readonly imageUrl?: string | null;
   readonly state: 'active' | 'unknown';
 }
 export interface KleinanzeigenQuotaObservation {
@@ -152,7 +157,18 @@ export function parseKleinanzeigenSyncRequest(value: unknown): KleinanzeigenSync
   for (const candidate of value.items) {
     if (
       !kleinanzeigenRecord(candidate) ||
-      !keys(candidate, ['externalId', 'title', 'url', 'publishedAt', 'state']) ||
+      !keys({ priceCents: null, currency: null, imageUrl: null, publishedOn: null, ...candidate }, [
+        'externalId',
+        'title',
+        'url',
+        'publishedAt',
+        'state',
+        'priceCents',
+        'currency',
+        'imageUrl',
+        'publishedOn',
+      ]) ||
+      !kleinanzeigenPublicationFields(candidate) ||
       !id(candidate.externalId) ||
       seen.has(candidate.externalId) ||
       typeof candidate.title !== 'string' ||
@@ -188,6 +204,18 @@ export function parseKleinanzeigenSyncRequest(value: unknown): KleinanzeigenSync
       title: candidate.title,
       url: candidate.url,
       publishedAt: null,
+      ...(candidate['priceCents'] !== undefined
+        ? { priceCents: candidate['priceCents'] as number | null }
+        : {}),
+      ...(candidate['currency'] !== undefined
+        ? { currency: candidate['currency'] as 'EUR' | null }
+        : {}),
+      ...(candidate['imageUrl'] !== undefined
+        ? { imageUrl: candidate['imageUrl'] as string | null }
+        : {}),
+      ...(candidate['publishedOn'] !== undefined
+        ? { publishedOn: candidate['publishedOn'] as string | null }
+        : {}),
       state: candidate.state,
     });
   }

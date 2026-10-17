@@ -34,12 +34,14 @@ export interface VintedListingAge {
   readonly text: string;
   readonly overdue: boolean;
   readonly approximate?: boolean;
+  readonly dateOnly?: boolean;
 }
 
 export function vintedListingAge(
   publishedAt: string | null | undefined,
   now: number,
   approximate?: VintedPublicationAge | null,
+  publishedOn?: string | null,
 ): VintedListingAge {
   const timestamp = publishedAt ? Date.parse(publishedAt) : NaN;
   const calendar = publishedAt?.match(/^(\d{4})-(\d{2})-(\d{2})T/);
@@ -48,6 +50,25 @@ export function vintedListingAge(
     Number(calendar[3]) <=
       new Date(Date.UTC(Number(calendar[1]), Number(calendar[2]), 0)).getUTCDate();
   if (!validDay || !Number.isFinite(timestamp) || !Number.isFinite(now) || timestamp > now) {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(publishedOn ?? '') && Number.isFinite(now)) {
+      const date = Date.parse(publishedOn! + 'T00:00:00Z');
+      const parts = new Intl.DateTimeFormat('en', {
+        timeZone: 'Europe/Berlin',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).formatToParts(now);
+      const part = (type: Intl.DateTimeFormatPartTypes) =>
+        parts.find((value) => value.type === type)?.value;
+      const today = Date.parse(`${part('year')}-${part('month')}-${part('day')}T00:00:00Z`);
+      if (
+        Number.isFinite(date) &&
+        new Date(date).toISOString().slice(0, 10) === publishedOn &&
+        date <= today
+      ) {
+        return { ...listingAgeInDays(today - date), dateOnly: true };
+      }
+    }
     const age = parseVintedPublicationAge(approximate);
     if (age && Number.isFinite(now) && Date.parse(age.observedAt) <= now) {
       const unitDuration = {

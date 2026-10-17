@@ -2,6 +2,7 @@ import { AuthService } from '../../../../core/services/auth.service';
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   DestroyRef,
   effect,
   inject,
@@ -47,12 +48,19 @@ import type {
 })
 export class KleinanzeigenAccountsComponent {
   readonly workspaceId = input.required<string>();
+  readonly connectionId = input<string | null>(null);
   readonly changed = output<void>();
   private readonly auth = inject(AuthService);
   private readonly api = inject(KleinanzeigenAccountService);
   private readonly actions = inject(KleinanzeigenAccountActionsService);
   readonly extension = inject(KleinanzeigenExtensionBridge);
   readonly accounts = signal<readonly KleinanzeigenAccount[]>([]);
+  readonly visibleAccounts = computed(() => {
+    const connectionId = this.connectionId();
+    return connectionId
+      ? this.accounts().filter((account) => account.connectionId === connectionId)
+      : this.accounts();
+  });
   readonly canManage = signal(false);
   readonly loading = signal(false);
   readonly busy = signal(false);

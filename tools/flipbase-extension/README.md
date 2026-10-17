@@ -30,19 +30,21 @@ laufen.
 1. Verbinde unter Marktplätze → Kleinanzeigen Deinen privaten Kleinanzeigen-Account
    im selben Chrome-Profil. Erteile die Lesefreigabe und die gesonderte Freigabe
    zum Veröffentlichen. Synchronisiere Deine Anzeigen.
-2. Wähle bei einem eigenen Vinted-Inserat „Inserieren auf Kleinanzeigen“.
-   Wähle das Zielkonto und prüfe die vollständigen Texte, Originalbilder und den Preis.
-3. Lade die Kategorie aus dem gebundenen Browserprofil. Ergänze die tatsächlich
-   angebotenen Kleinanzeigen-Felder und Versandoptionen. Vinted-Merkmale dienen
-   als Hinweise; unpassende Kennungen werden nicht ungeprüft übernommen.
-4. Speichere die Zielfassung. Zu lange Texte werden zur Korrektur angezeigt;
-   sie werden nicht still gekürzt. Der automatische Weg verlangt volle Euro,
-   eine fünfstellige PLZ und vollständig übernommene Bilder.
-5. Starte die Veröffentlichung. Die Erweiterung prüft den offiziellen
-   30-Tage-Zähler, die Kontofreigabe und das aktuelle Formular erneut.
-   Beim letzten kostenlosen Platz darf nur ein Auftrag fortfahren. Bei
-   Gebühren, ausgeschöpftem Kontingent oder unklaren Kosten stoppt sie vor
-   „Anzeige aufgeben“. Kostenpflichtige Extras werden nicht gebucht.
+2. Klicke bei einem eigenen Vinted-Inserat auf „Inserieren“. Wähle die Plattform
+   und anschließend das Konto. Gespeicherte Texte, Bilder, Preis und passende
+   Eigenschaften werden automatisch übernommen. Dafür wird Vinted nicht erneut geöffnet.
+3. Prüfe die Angaben im Kleinanzeigen-Formular und ergänze fehlende Werte.
+   Bereits gespeicherte Kategorien und Felder können ohne Anbieterzugriff angezeigt
+   werden. Zu lange Texte und Centbeträge bleiben zur Korrektur sichtbar.
+4. Klicke auf „Inserieren“. Erst jetzt werden die aktuellen Kleinanzeigen-Felder
+   über das gebundene Browserprofil geprüft. Bei neuen oder geänderten Feldern hält
+   der Ablauf zur Prüfung an. Anschließend erneut „Inserieren“ wählen.
+   Die Zielfassung und Bilder werden intern gespeichert; „Für später speichern“ ist optional.
+5. Vor dem verbindlichen Klick prüft die Erweiterung den offiziellen 30-Tage-Zähler,
+   die Kontofreigabe und das aktuelle Formular erneut. Beim letzten kostenlosen Platz
+   darf nur ein Auftrag fortfahren. Bei Gebühren, ausgeschöpftem Kontingent oder
+   unklaren Kosten stoppt sie vor „Anzeige aufgeben“. Kostenpflichtige Extras werden
+   nicht gebucht.
 6. „Veröffentlicht“ erscheint erst mit geprüfter Ziel-ID und aktivem Zielinserat.
    „In Verarbeitung“ bleibt ein offener Auftrag. Bei unbekanntem Ergebnis kannst
    Du nur den Status prüfen; es erfolgt kein zweiter Veröffentlichungsversuch.
@@ -232,6 +234,6 @@ Die App-Pipeline spielt Migrationen und die Anwendung aus. Wie beim bestehenden 
 
 - supabase/functions/kleinanzeigen-account/ und supabase/functions/kleinanzeigen-local-extension/ jeweils ohne Testdateien;
 - der geänderte Endpoint supabase/functions/marketplace-local-extension/ sowie seine benötigten reinen Verträge unter _shared/;
-- die zu diesem Release gehörende Erweiterung 1.10.0 im tatsächlich geladenen Installationsordner.
+- die zu diesem Release gehörende Erweiterung 1.10.1 im tatsächlich geladenen Installationsordner.
 
 Alle drei Routen prüfen ihre Anmeldung im Handler selbst. Die Nutzerroute validiert ein echtes Nutzer-JWT; die Installationsroute akzeptiert nur das begrenzte, gehashte Installationsgeheimnis. Die vorgelagerte JWT-Prüfung folgt den Einträgen in supabase/config.toml. Ein fehlendes oder falsches Token muss beim echten Routencheck vor dem Pilotversuch abgewiesen werden. Ohne diese Auslieferung ist die neue Oberfläche kein funktionsfähiger Produktionsnachweis.

@@ -50,12 +50,6 @@
               >
             }
           </div>
-          <app-button variant="secondary" [link]="manageLink(group.platform)">
-            Konten verwalten
-          </app-button>
-          @if (group.platform === 'kleinanzeigen') {
-            <app-button variant="secondary" link="/listings">Entwürfe verwalten</app-button>
-          }
         </div>
         @if (group.loading) {
           <app-card padding="md"
@@ -103,7 +97,9 @@
           @for (account of store.visibleAccounts(group); track accountKey(account)) {
             @if (store.section(account); as section) {
               <app-marketplace-listing-section
-                (transferPublished)="store.retryPlatform('kleinanzeigen')"
+                [showAccountManagement]="true"
+                (accountManagementRequested)="manageAccount(account)"
+                (transferPublished)="store.refreshPlatform('kleinanzeigen')"
                 [section]="section"
                 (toggled)="store.expand(account)"
                 (retried)="store.retry(account)"
@@ -134,7 +130,7 @@
 </div>
 @if (manageOpen()) {
   <app-modal-shell title="Marktplätze verwalten" size="lg" (closed)="manageOpen.set(false)">
-    <app-marketplaces-settings />
+    <app-marketplaces-settings [showAccountManagement]="false" />
     <app-button modal-footer variant="secondary" (clicked)="manageOpen.set(false)"
       >Schließen</app-button
     >
@@ -151,7 +147,7 @@
       }
       @if (enabledPlatforms().includes('kleinanzeigen')) {
         <app-button variant="secondary" [icon]="plusIcon" link="/listings/new"
-          >Kleinanzeigen-Entwurf erstellen</app-button
+          >Auf Kleinanzeigen inserieren</app-button
         >
       }
       @if (!canCreateVinted() && !enabledPlatforms().includes('kleinanzeigen')) {
@@ -163,5 +159,19 @@
     <app-button modal-footer variant="secondary" (clicked)="createOpen.set(false)"
       >Schließen</app-button
     >
+  </app-modal-shell>
+}
+@if (managedAccount(); as account) {
+  <app-modal-shell
+    [title]="'Konto ' + account.displayName + ' verwalten'"
+    size="lg"
+    (closed)="closeAccount()"
+  >
+    <app-kleinanzeigen-accounts
+      [workspaceId]="account.workspaceId"
+      [connectionId]="account.connectionId"
+      (changed)="store.refreshPlatform('kleinanzeigen')"
+    />
+    <app-button modal-footer variant="secondary" (clicked)="closeAccount()">Schließen</app-button>
   </app-modal-shell>
 }

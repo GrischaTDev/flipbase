@@ -54,8 +54,7 @@ export function parseTransferSourceRead(
       !/^[a-f0-9]{64}$/u.test(value.fingerprint) ||
       typeof value.observedAt !== 'string' ||
       !Number.isFinite(Date.parse(value.observedAt)) ||
-      Date.parse(value.observedAt) > Date.now() + 1000 ||
-      Date.now() - Date.parse(value.observedAt) > 86400000)
+      Date.parse(value.observedAt) > Date.now() + 1000)
   )
     return null;
   return {

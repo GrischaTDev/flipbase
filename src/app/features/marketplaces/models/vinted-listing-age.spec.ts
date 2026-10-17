@@ -104,3 +104,30 @@ describe('Einheitliche Tagesgrenzen', () => {
     ).toMatchObject({ text: '30 Tage online', approximate: true });
   });
 });
+
+describe('Taggenaues Veröffentlichungsdatum', () => {
+  it.each([
+    ['2026-10-16T21:59:00Z', '2026-10-15', '1 Tag online', 'success'],
+    ['2026-10-16T22:00:00Z', '2026-10-15', '2 Tage online', 'success'],
+    ['2026-10-17T22:00:00Z', '2026-10-15', '3 Tage online', 'caution'],
+    ['2026-10-19T22:00:00Z', '2026-10-15', '5 Tage online', 'critical'],
+    ['2026-10-25T23:00:00Z', '2026-10-24', '2 Tage online', 'success'],
+  ] as const)(
+    'zählt in Berlin am %s seit %s volle Kalendertage',
+    (now, publishedOn, text, tone) => {
+      expect(vintedListingAge(null, Date.parse(now), null, publishedOn)).toMatchObject({
+        text,
+        tone,
+        dateOnly: true,
+      });
+    },
+  );
+  it.each(['2026-02-30', '2026-10-18', '15.10.2026', '', null])(
+    'erfindet kein Alter bei ungültigem oder zukünftigem Datum %s',
+    (publishedOn) => {
+      expect(
+        vintedListingAge(null, Date.parse('2026-10-17T12:00:00Z'), null, publishedOn).tone,
+      ).toBe('neutral');
+    },
+  );
+});

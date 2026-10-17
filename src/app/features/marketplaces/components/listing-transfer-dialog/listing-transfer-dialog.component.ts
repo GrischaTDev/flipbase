@@ -1,5 +1,10 @@
-import type { KleinanzeigenListingJob } from '../../models/kleinanzeigen-listing-job';
+import {
+  kleinanzeigenJobStatus,
+  kleinanzeigenJobIssue,
+  type KleinanzeigenListingJob,
+} from '../../models/kleinanzeigen-listing-job';
 import { KleinanzeigenPublicationPanelComponent } from '../kleinanzeigen-publication-panel/kleinanzeigen-publication-panel.component';
+import { KleinanzeigenListingJobService } from '../../services/kleinanzeigen-listing-job.service';
 import type { KleinanzeigenListingJobScope } from '../../services/kleinanzeigen-listing-job.service';
 import type { KleinanzeigenDraftInput } from '../../models/kleinanzeigen-transfer-mapping';
 import {
@@ -37,7 +42,6 @@ import {
   ListingTransferService,
   type PreparedKleinanzeigenTransfer,
 } from '../../services/listing-transfer.service';
-import { VintedLocalExtensionBridge } from '../../services/vinted-local-extension-bridge';
 import { KleinanzeigenExtensionBridge } from '../../services/kleinanzeigen-extension-bridge';
 import { KleinanzeigenAccountService } from '../../services/kleinanzeigen-account.service';
 import { KleinanzeigenFormSchemaService } from '../../services/kleinanzeigen-form-schema.service';
@@ -69,7 +73,7 @@ import {
   ],
   providers: [
     ListingTransferService,
-    VintedLocalExtensionBridge,
+    KleinanzeigenListingJobService,
     KleinanzeigenExtensionBridge,
     KleinanzeigenFormSchemaService,
   ],
@@ -87,6 +91,23 @@ export class ListingTransferDialogComponent {
   private readonly workspace = inject(WorkspaceService);
   private readonly settings = inject(MarketplaceSettingsService);
   private readonly transfers = inject(ListingTransferService);
+  readonly publicationJobs = inject(KleinanzeigenListingJobService);
+  readonly publishing = signal(false);
+  readonly publicationStatus = computed(() => {
+    const job = this.publicationJobs.job();
+    return job ? kleinanzeigenJobStatus(job) : null;
+  });
+  readonly publicationIssue = computed(() =>
+    kleinanzeigenJobIssue(this.publicationJobs.job()?.errorCode ?? null),
+  );
+
+  readonly publicationPreparation = signal(false);
+  readonly publicationPending = computed(() =>
+    ['queued', 'claimed', 'writing', 'outcome_unknown'].includes(
+      this.publicationJobs.job()?.state ?? '',
+    ),
+  );
+  private publicationRequestId = crypto.randomUUID();
   private readonly accountsApi = inject(KleinanzeigenAccountService);
   private readonly schemas = inject(KleinanzeigenFormSchemaService);
   readonly extension = inject(KleinanzeigenExtensionBridge);
@@ -109,6 +130,13 @@ export class ListingTransferDialogComponent {
   readonly selectedShippingMethods = signal<readonly string[]>([]);
   readonly formTick = signal(0);
   private readonly selectedTarget = signal('');
+  readonly platform = new FormControl('', { nonNullable: true });
+  readonly selectedPlatform = signal('');
+  readonly platformOptions = [
+    { value: 'kleinanzeigen', label: 'Kleinanzeigen' },
+    { value: 'vinted', label: 'Vinted', description: 'Übernahme noch nicht verfügbar' },
+    { value: 'ebay', label: 'eBay', description: 'Übernahme noch nicht verfügbar' },
+  ];
   readonly target = new FormControl('', { nonNullable: true });
   readonly shippingGroup = new FormControl('', { nonNullable: true });
   readonly attributes = new FormRecord<FormControl<string>>({});
@@ -143,7 +171,16 @@ export class ListingTransferDialogComponent {
   );
   readonly attributeHints = computed(() =>
     Object.entries(this.preview()?.attributeHints ?? {}).map(([label, value]) => ({
-      label,
+      label:
+        (
+          {
+            brand: 'Marke',
+            size: 'Größe',
+            condition: 'Zustand',
+            color: 'Farbe',
+            material: 'Material',
+          } as Record<string, string>
+        )[label] ?? label,
       value,
     })),
   );
@@ -168,9 +205,7 @@ export class ListingTransferDialogComponent {
       ? validateKleinanzeigenPublication(
           this.content(),
           schema,
-          this.savedDraft()?.imagesComplete
-            ? (this.preview()?.originalPhotoReferences.length ?? 0)
-            : 0,
+          this.preview()?.originalPhotoReferences.length ?? 0,
         )
       : [{ field: 'categoryId', message: 'Wähle und prüfe die Kleinanzeigen-Kategorie.' }];
   });
@@ -195,6 +230,13 @@ export class ListingTransferDialogComponent {
     this.publicationIssues().map((issue) => issue.message),
   );
   constructor() {
+    effect(() => {
+      const disabled = this.publishing();
+      for (const control of [this.platform, this.target]) {
+        if (disabled) control.disable({ emitEvent: false });
+        else control.enable({ emitEvent: false });
+      }
+    });
     const destroy = inject(DestroyRef);
     const subscriptions = [
       this.form.valueChanges.subscribe(() => this.formTick.update((value) => value + 1)),
@@ -204,9 +246,16 @@ export class ListingTransferDialogComponent {
         this.selectedShippingMethods.set([]);
         this.formTick.update((tick) => tick + 1);
       }),
+      this.platform.valueChanges.subscribe((value) => {
+        this.selectedPlatform.set(value);
+        this.target.setValue('', { emitEvent: false });
+        this.selectedTarget.set('');
+        this.clearPreparation();
+      }),
       this.target.valueChanges.subscribe((value) => {
         this.selectedTarget.set(value);
         this.clearPreparation();
+        if (this.selectedPlatform() === 'kleinanzeigen' && value) void this.prepare();
       }),
     ];
     destroy.onDestroy(() => {
@@ -225,6 +274,8 @@ export class ListingTransferDialogComponent {
         this.cancel();
         this.clearPreparation();
         this.accounts.set([]);
+        this.platform.setValue('', { emitEvent: false });
+        this.selectedPlatform.set('');
         this.target.setValue('', { emitEvent: false });
         this.selectedTarget.set('');
         this.owner = userId ?? null;
@@ -244,14 +295,18 @@ export class ListingTransferDialogComponent {
     this.generation++;
     this.transfers.cancel();
     this.schemas.cancel();
+    this.publicationJobs.cancel();
   }
   private clearPreparation(): void {
     this.generation++;
     this.transfers.cancel();
     this.schemas.cancel();
+    this.publicationJobs.cancel();
     this.preview.set(null);
     this.savedDraft.set(null);
     this.publicationConfirmed.set(false);
+    this.publicationPreparation.set(false);
+    this.publicationRequestId = crypto.randomUUID();
     this.schema.set(null);
     this.schemaRevision.set(null);
     this.categoryPath.set('');
@@ -285,11 +340,13 @@ export class ListingTransferDialogComponent {
       this.accounts.set(
         result.canManage
           ? result.accounts.filter(
-              (account) => account.status === 'connected' && account.accountType === 'private',
+              (account) => account.status !== 'disconnected' && account.accountType === 'private',
             )
           : [],
       );
       if (preferred && this.accounts().some((account) => account.connectionId === preferred)) {
+        this.platform.setValue('kleinanzeigen', { emitEvent: false });
+        this.selectedPlatform.set('kleinanzeigen');
         this.target.setValue(preferred, { emitEvent: false });
         this.selectedTarget.set(preferred);
       }
@@ -299,6 +356,8 @@ export class ListingTransferDialogComponent {
     } finally {
       if (this.current(generation)) this.busy.set(false);
     }
+    if (this.current(generation) && preferred && this.target.value === preferred)
+      await this.prepare();
   }
   async prepare(): Promise<void> {
     if (
@@ -338,7 +397,7 @@ export class ListingTransferDialogComponent {
     const account = this.accounts().find(
       (candidate) => candidate.connectionId === this.target.value,
     );
-    if (this.busy() || !this.preview() || !account?.localGrant?.active) return;
+    if (this.busy() || !this.preview() || !account) return;
     const generation = this.generation;
     this.busy.set(true);
     this.error.set(null);
@@ -348,9 +407,10 @@ export class ListingTransferDialogComponent {
           workspaceId: account.workspaceId,
           connectionId: account.connectionId,
           externalAccountId: account.externalAccountId,
-          generation: account.localGrant.generation,
+          generation: account.localGrant?.generation ?? 0,
         },
         path,
+        this.publicationPreparation() ? 'provider' : 'saved',
       );
       if (!this.current(generation)) return;
       this.categoryPath.set(result.categoryPath);
@@ -360,6 +420,7 @@ export class ListingTransferDialogComponent {
         const values = retainKleinanzeigenCategoryFields(
           this.content().categoryFields,
           result.schema,
+          this.preview()?.attributeHints ?? {},
         );
         for (const key of Object.keys(this.attributes.controls))
           this.attributes.removeControl(key, { emitEvent: false });
@@ -384,7 +445,8 @@ export class ListingTransferDialogComponent {
       if (this.current(generation)) {
         this.schema.set(null);
         this.schemaRevision.set(null);
-        this.error.set(this.message(error));
+        if (this.publicationPreparation()) this.error.set(this.message(error));
+        else this.notice.set(this.message(error));
       }
     } finally {
       if (this.current(generation)) this.busy.set(false);
@@ -452,7 +514,7 @@ export class ListingTransferDialogComponent {
       if (!this.current(generation)) return;
       this.savedDraft.set(draft);
       this.lastSavedContent = kleinanzeigenContentKey(draft.content);
-      if (this.lastSavedContent !== kleinanzeigenContentKey(content)) {
+      if (this.lastSavedContent !== kleinanzeigenContentKey(this.content())) {
         this.form.markAsDirty();
         this.notice.set(
           'Eine vorhandene Zielfassung wurde geladen. Deine Änderungen sind noch nicht gespeichert. Prüfe sie und speichere erneut.',
@@ -463,8 +525,8 @@ export class ListingTransferDialogComponent {
       this.attributes.markAsPristine();
       this.notice.set(
         draft.imagesComplete
-          ? 'Entwurf und alle Bilder sind gesichert.'
-          : 'Der Entwurf ist gespeichert; die Bildübernahme ist noch unvollständig.',
+          ? 'Deine Inseratsangaben und Bilder sind gesichert.'
+          : 'Deine Inseratsangaben sind gespeichert; die Bildübernahme ist noch unvollständig.',
       );
       this.saved.emit(draft);
     } catch (error) {
@@ -473,9 +535,87 @@ export class ListingTransferDialogComponent {
       if (this.current(generation)) this.busy.set(false);
     }
   }
+  async publish(): Promise<void> {
+    if (
+      this.busy() ||
+      this.publishing() ||
+      this.publicationPending() ||
+      !this.preview() ||
+      this.publicationConfirmed()
+    )
+      return;
+    const scope = this.publicationScope();
+    if (!scope) {
+      this.error.set(
+        'Für dieses Konto fehlt die aktuelle Veröffentlichungsfreigabe. Öffne das Zahnrad am Konto.',
+      );
+      return;
+    }
+    const generation = this.generation;
+    if (!this.schema()) {
+      this.publicationPreparation.set(true);
+      await this.browse('');
+      if (this.current(generation) && !this.error())
+        this.notice.set(
+          'Wähle die Kategorie und prüfe die ergänzten Felder. Veröffentlicht wird erst nach Deinem erneuten Klick auf Inserieren.',
+        );
+      return;
+    }
+    this.form.markAllAsTouched();
+    if (this.form.invalid || this.publicationIssues().length) {
+      this.error.set('Ergänze die fehlenden Angaben und prüfe die markierten Felder.');
+      return;
+    }
+    this.publishing.set(true);
+    this.error.set(null);
+    try {
+      const selectedPath = this.schema()!.categoryPath;
+      const oldRevision = this.schemaRevision();
+      this.publicationPreparation.set(true);
+      await this.browse(selectedPath);
+      if (!this.current(generation) || this.error()) return;
+      if (this.schemaRevision() !== oldRevision || this.publicationIssues().length) {
+        this.notice.set(
+          'Die aktuellen Kleinanzeigen-Felder wurden ergänzt. Prüfe sie und klicke anschließend erneut auf Inserieren.',
+        );
+        return;
+      }
+      await this.save();
+      const draft = this.savedDraft();
+      if (
+        !this.current(generation) ||
+        this.error() ||
+        !draft ||
+        !draft.imagesComplete ||
+        this.unsavedChanges()
+      )
+        return;
+      if (
+        this.publicationScope()?.connectionId !== scope.connectionId ||
+        this.publicationScope()?.generation !== scope.generation
+      )
+        return;
+      const job = await this.publicationJobs.enqueue(
+        scope,
+        draft.id,
+        draft.revision,
+        this.publicationRequestId,
+      );
+      if (!this.current(generation)) return;
+      if (job && !['queued', 'claimed', 'writing', 'outcome_unknown'].includes(job.state))
+        this.publicationRequestId = crypto.randomUUID();
+      if (job?.state === 'confirmed') this.onPublished(job);
+    } catch (error) {
+      if (this.current(generation) && !this.publicationJobs.error())
+        this.error.set(this.message(error));
+    } finally {
+      this.publishing.set(false);
+    }
+  }
   onPublished(job: KleinanzeigenListingJob): void {
     const draft = this.savedDraft();
     if (
+      this.publicationConfirmed() ||
       !draft ||
       job.state !== 'confirmed' ||
       job.draftId !== draft.id ||
@@ -484,10 +624,11 @@ export class ListingTransferDialogComponent {
     )
       return;
     this.publicationConfirmed.set(true);
+    this.notice.set('Dein Inserat ist jetzt bei Kleinanzeigen online.');
     this.published.emit(job);
   }
   async close(): Promise<void> {
-    if (this.busy()) return;
+    if (this.busy() || this.publishing()) return;
     if (
       this.preview() &&
       (this.form.dirty ||

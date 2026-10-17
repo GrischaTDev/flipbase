@@ -18,8 +18,6 @@ import {
   parseTransferDraftResponse,
   validTransferDraftContent,
 } from '../models/kleinanzeigen-transfer-response';
-import { MarketplaceBrowserTestApiService } from './marketplace-browser-test-api.service';
-import { VintedLocalExtensionBridge } from './vinted-local-extension-bridge';
 export interface PreparedKleinanzeigenTransfer extends KleinanzeigenTransferPreview {
   readonly target: { readonly workspaceId: string; readonly connectionId: string };
   readonly sourceReference: KleinanzeigenSourceReference;
@@ -36,18 +34,14 @@ export class ListingTransferService {
   private readonly auth = inject(AuthService);
   private readonly workspace = inject(WorkspaceService);
   private readonly client = inject(SupabaseService).client;
-  private readonly browser = inject(MarketplaceBrowserTestApiService);
-  private readonly extension = inject(VintedLocalExtensionBridge);
   private generation = 0;
   private readonly prepared = new Map<string, PreparedOwner>();
   constructor() {
-    this.extension.checkInstallation();
     inject(DestroyRef).onDestroy(() => this.cancel());
   }
   cancel(): void {
     this.generation++;
     this.prepared.clear();
-    this.extension.cancel();
   }
   private assertCurrent(userId: string, workspaceId: string, generation: number): void {
     const workspace = this.workspace.currentWorkspace();
@@ -106,54 +100,10 @@ export class ListingTransferService {
       if (!result) throw new Error('Die Vinted-Quelle konnte nicht eindeutig geprüft werden.');
       return result;
     };
-    let result = await read();
-    if (result.state === 'needs_source') {
-      if (result.executionMode === 'cloud') {
-        const token = this.auth.session()?.access_token;
-        if (!token) throw new Error('Melde Dich erneut an, um die vollständige Quelle zu lesen.');
-        await this.browser.readListingContent(
-          { workspaceId: source.workspaceId, connectionId: source.connectionId },
-          result.entryId,
-          result.externalAccountId,
-          token,
-        );
-      } else {
-        if (!this.extension.sourceDetailsAvailable())
-          throw new Error(
-            'Aktualisiere die Flipbase-Erweiterung für den vollständigen lokalen Quellenabruf.',
-          );
-        const receipt = await this.extension.request('FLIPBASE_VINTED_LOCAL_SOURCE_DETAILS', {
-          workspaceId: source.workspaceId,
-          connectionId: source.connectionId,
-          entryId: result.entryId,
-          externalId: source.externalId,
-        });
-        if (
-          !receipt ||
-          typeof receipt !== 'object' ||
-          Array.isArray(receipt) ||
-          Object.keys(receipt).sort().join(',') !==
-            'connectionId,entryId,externalId,fingerprint,workspaceId' ||
-          !('workspaceId' in receipt) ||
-          receipt.workspaceId !== source.workspaceId ||
-          !('connectionId' in receipt) ||
-          receipt.connectionId !== source.connectionId ||
-          !('entryId' in receipt) ||
-          receipt.entryId !== result.entryId ||
-          !('externalId' in receipt) ||
-          receipt.externalId !== source.externalId ||
-          !('fingerprint' in receipt) ||
-          typeof receipt.fingerprint !== 'string' ||
-          !/^[a-f0-9]{64}$/u.test(receipt.fingerprint)
-        )
-          throw new Error('Der lokale Quellenabruf wurde nicht eindeutig bestätigt.');
-      }
-      this.assertCurrent(userId, source.workspaceId, generation);
-      result = await read();
-    }
+    const result = await read();
     if (result.state !== 'ready' || !result.source || !result.fingerprint)
       throw new Error(
-        'Die vollständige Vinted-Quelle fehlt noch. Prüfe das zugehörige Konto und versuche es erneut.',
+        'Die gespeicherten Inseratsangaben sind unvollständig. Ergänze sie in Flipbase oder aktualisiere das Quellkonto ausdrücklich. Es wurde kein Anbieterabruf gestartet.',
       );
     const preview: PreparedKleinanzeigenTransfer = {
       ...mapVintedToKleinanzeigen(

@@ -7,7 +7,10 @@
       <app-badge tone="neutral">{{ activeCount() }} von 3 aktiv</app-badge>
     </div>
     <p class="text-sm text-fb-text-secondary">
-      Wähle, welche Verkaufskanäle du unter Marktplätze sehen möchtest, und verwalte ihre Konten.
+      Wähle, welche Verkaufskanäle du unter Marktplätze sehen möchtest.
+      @if (showAccountManagement()) {
+        Hier kannst du auch ihre Konten verwalten.
+      }
     </p>
     @if (settingsError(); as error) {
       <p role="alert" class="text-sm text-fb-critical">{{ error }}</p>
@@ -31,7 +34,7 @@
           [checked]="isVintedEnabled()"
           (checkedChange)="onToggle('vinted', $event)"
         />
-        @if (isVintedEnabled()) {
+        @if (showAccountManagement() && isVintedEnabled()) {
           <app-button
             [wrapLabel]="true"
             size="touch"
@@ -51,7 +54,7 @@
           [checked]="isEbayEnabled()"
           (checkedChange)="onToggle('ebay', $event)"
         />
-        @if (isEbayEnabled()) {
+        @if (showAccountManagement() && isEbayEnabled()) {
           <app-button
             [wrapLabel]="true"
             size="touch"
@@ -71,7 +74,7 @@
           [checked]="isKleinanzeigenEnabled()"
           (checkedChange)="onToggle('kleinanzeigen', $event)"
         />
-        @if (isKleinanzeigenEnabled()) {
+        @if (showAccountManagement() && isKleinanzeigenEnabled()) {
           <app-button
             [wrapLabel]="true"
             size="touch"

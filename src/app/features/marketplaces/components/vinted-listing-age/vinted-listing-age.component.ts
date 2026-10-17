@@ -12,18 +12,24 @@ import { VintedListingClockService } from '../../services/vinted-listing-clock.s
 })
 export class VintedListingAgeComponent {
   readonly publishedAt = input<string | null | undefined>(null);
+  readonly publishedOn = input<string | null | undefined>(null);
   readonly publicationAge = input<VintedPublicationAge | null | undefined>(null);
   readonly compact = input(false);
   private readonly clock = inject(VintedListingClockService);
   readonly age = computed(() =>
-    vintedListingAge(this.publishedAt(), this.clock.now(), this.publicationAge()),
+    vintedListingAge(
+      this.publishedAt(),
+      this.clock.now(),
+      this.publicationAge(),
+      this.publishedOn(),
+    ),
   );
-  readonly label = computed(
-    () => this.age().text + (this.age().overdue ? ' · Wochenziel überschritten' : ''),
-  );
+  readonly label = computed(() => this.age().text);
   readonly dateTitle = computed(() =>
-    this.age().tone === 'neutral' || this.age().approximate
-      ? this.label() + (this.age().approximate ? ' · Gerundete Angabe von Vinted' : '')
-      : `${this.label()} · Veröffentlicht: ${new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(this.publishedAt()!))}`,
+    this.age().dateOnly
+      ? `${this.label()} · Veröffentlicht am: ${new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(this.publishedOn()! + 'T00:00:00Z'))}`
+      : this.age().tone === 'neutral' || this.age().approximate
+        ? this.label() + (this.age().approximate ? ' · Gerundete Angabe von Vinted' : '')
+        : `${this.label()} · Veröffentlicht: ${new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(this.publishedAt()!))}`,
   );
 }

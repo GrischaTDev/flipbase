@@ -127,6 +127,20 @@ describe('Kleinanzeigen-Kontenoberfläche', () => {
     expect(text).toContain('Gewerblich');
     expect(text).toContain('Inseratzahl unbekannt');
   });
+  it('verwaltet im Kontokontext nur das gewählte Konto ohne neue Kontoverbindung', async () => {
+    const fixture = await create();
+    fixture.componentRef.setInput('connectionId', '13');
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.textContent).toContain('Zweites Testkonto');
+    expect(element.textContent).not.toContain('Privates Testkonto');
+    expect(element.textContent).not.toContain('Browserprofil verbinden');
+    expect(element.querySelectorAll('article')).toHaveLength(1);
+    fixture.componentRef.setInput('connectionId', 'nicht-vorhanden');
+    fixture.detectChanges();
+    expect(element.querySelectorAll('article')).toHaveLength(0);
+    expect(element.textContent).toContain('Dieses Konto ist nicht mehr verfügbar');
+  });
   it('erhält den letzten bestätigten Bestand bei einem gescheiterten neuen Abruf', async () => {
     const fixture = await create();
     actions.synchronize.mockRejectedValue(new Error('Abruf unterbrochen'));

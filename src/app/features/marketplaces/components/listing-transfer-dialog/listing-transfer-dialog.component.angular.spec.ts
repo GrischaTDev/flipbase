@@ -76,8 +76,18 @@ describe('Gemeinsamer Übertragungsdialog', () => {
     capabilities: signal({ accounts: true, sync: true, publish: false }),
   };
   const confirm = { frage: vi.fn() };
+  const jobs = {
+    job: signal(null),
+    busy: signal(false),
+    error: signal<string | null>(null),
+    latest: vi.fn().mockResolvedValue(null),
+    cancel: vi.fn(),
+    enqueue: vi.fn().mockResolvedValue(null),
+  };
   beforeEach(() => {
     auth.currentUser.set({ id: 'owner' });
+    jobs.error.set(null);
+    jobs.job.set(null);
     settings.isKleinanzeigenEnabled.set(true);
     vi.clearAllMocks();
     accounts.readAccounts.mockResolvedValue({
@@ -99,15 +109,7 @@ describe('Gemeinsamer Übertragungsdialog', () => {
         { provide: ConfirmDialogService, useValue: confirm },
       ],
     });
-    TestBed.overrideProvider(KleinanzeigenListingJobService, {
-      useValue: {
-        job: signal(null),
-        busy: signal(false),
-        error: signal(null),
-        latest: vi.fn().mockResolvedValue(null),
-        cancel: vi.fn(),
-      },
-    });
+    TestBed.overrideProvider(KleinanzeigenListingJobService, { useValue: jobs });
     TestBed.overrideProvider(ListingTransferService, { useValue: transfers });
     TestBed.overrideProvider(KleinanzeigenFormSchemaService, { useValue: schemas });
     TestBed.overrideProvider(KleinanzeigenExtensionBridge, { useValue: bridge });
@@ -127,8 +129,206 @@ describe('Gemeinsamer Übertragungsdialog', () => {
     await f.componentInstance.prepare();
     expect(transfers.prepare).not.toHaveBeenCalled();
   });
+  it('öffnet nach Plattform und Konto automatisch die vorbefüllten Felder ohne Übernahmebutton', async () => {
+    const f = await create();
+    expect(f.nativeElement.textContent).not.toContain('Vinted-Daten übernehmen');
+    expect(f.nativeElement.querySelector('[aria-label="Plattform"]')).toBeTruthy();
+    f.componentInstance.platform.setValue('kleinanzeigen');
+    f.componentInstance.target.setValue('9');
+    await f.whenStable();
+    f.detectChanges();
+    expect(f.componentInstance.form.controls.description.value).toBe(content.description);
+    expect(transfers.prepare).toHaveBeenCalledTimes(1);
+  });
+  it('bietet Inserieren direkt im Formular statt eines verpflichtenden Entwurfsschritts an', async () => {
+    const f = await create();
+    f.componentInstance.platform.setValue('kleinanzeigen');
+    f.componentInstance.target.setValue('9');
+    await f.whenStable();
+    f.detectChanges();
+    const buttons = [...f.nativeElement.querySelectorAll('button')].map((b) =>
+      b.textContent.trim(),
+    );
+    expect(buttons).toContain('Inserieren');
+    expect(buttons).not.toContain('Entwurf speichern');
+  });
+  it.each([false, true])(
+    'speichert vor dem Inserieren intern; spätere Formularänderung stoppt den Auftrag (%s)',
+    async (editDuringSave) => {
+      const f = await create();
+      const c = f.componentInstance;
+      c.platform.setValue('kleinanzeigen');
+      c.target.setValue('9');
+      await f.whenStable();
+      c.form.patchValue({ title: 'Jacke', price: 12, postalCode: '12345' });
+      const schema = {
+        categoryPath: '153/160/shirts',
+        categoryLabel: 'Shirts',
+        titleMax: 65,
+        descriptionMax: 4000,
+        photoCountMax: 20,
+        photoBytesMax: 12582912,
+        priceStepCents: 100,
+        fields: [],
+        shipping: { defaultGroup: null, defaultMethods: [], groups: [] },
+      };
+      c.schema.set(schema);
+      c.schemaRevision.set('a'.repeat(64));
+      schemas.browse.mockResolvedValue({
+        categoryPath: schema.categoryPath,
+        categoryLabel: schema.categoryLabel,
+        choices: [],
+        schema,
+        schemaRevision: 'a'.repeat(64),
+      });
+      transfers.save.mockImplementation(async () => {
+        const content = c.content();
+        if (editDuringSave) c.form.controls.description.setValue('Spätere Änderung');
+        return {
+          id: 'prepared-copy',
+          workspaceId: source.workspaceId,
+          targetConnectionId: '9',
+          revision: 2,
+          status: 'prepared',
+          imagesComplete: true,
+          content,
+        };
+      });
+      await c.publish();
+      expect(transfers.save).toHaveBeenCalledTimes(1);
+      if (editDuringSave) {
+        expect(jobs.enqueue).not.toHaveBeenCalled();
+        expect(c.form.controls.description.value).toBe('Spätere Änderung');
+        expect(c.notice()).toContain('noch nicht gespeichert');
+      } else
+        expect(jobs.enqueue).toHaveBeenCalledWith(
+          expect.objectContaining({ connectionId: '9' }),
+          'prepared-copy',
+          2,
+          expect.any(String),
+        );
+    },
+  );
+  it('bereitet ein ausdrücklich vorgegebenes Zielkonto nach dem Laden automatisch vor', async () => {
+    const fixture = TestBed.createComponent(ListingTransferDialogComponent);
+    fixture.componentRef.setInput('source', source);
+    fixture.componentRef.setInput('targetConnectionId', '9');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(transfers.prepare).toHaveBeenCalledTimes(1);
+    await expect.poll(() => fixture.componentInstance.preview()).toEqual(prepared);
+  });
+  it('meldet dieselbe bestätigte Veröffentlichung nur einmal', async () => {
+    const f = await create();
+    const c = f.componentInstance;
+    c.savedDraft.set({
+      id: 'copy',
+      workspaceId: source.workspaceId,
+      targetConnectionId: '9',
+    } as never);
+    const published = vi.fn();
+    c.published.subscribe(published);
+    const job = {
+      state: 'confirmed',
+      draftId: 'copy',
+      workspaceId: source.workspaceId,
+      connectionId: '9',
+    } as never;
+    c.onPublished(job);
+    c.onPublished(job);
+    expect(published).toHaveBeenCalledTimes(1);
+    expect(c.notice()).toContain('jetzt bei Kleinanzeigen online');
+  });
+  it('lädt neue Zielfelder erst beim Inserieren und wartet danach auf die Prüfung', async () => {
+    const f = await create();
+    const c = f.componentInstance;
+    c.platform.setValue('kleinanzeigen');
+    c.target.setValue('9');
+    await expect.poll(() => c.preview()).toEqual(prepared);
+    schemas.browse.mockClear();
+    transfers.save.mockClear();
+    jobs.enqueue.mockClear();
+    schemas.browse.mockResolvedValue({
+      categoryPath: '',
+      categoryLabel: '',
+      choices: [{ path: 'mode', label: 'Mode', isParent: true }],
+      schema: null,
+      schemaRevision: null,
+    });
+    expect(schemas.browse).not.toHaveBeenCalled();
+    await c.publish();
+    expect(schemas.browse).toHaveBeenCalledWith(
+      expect.objectContaining({ connectionId: '9' }),
+      '',
+      'provider',
+    );
+    expect(transfers.save).not.toHaveBeenCalled();
+    expect(jobs.enqueue).not.toHaveBeenCalled();
+    expect(c.notice()).toContain('erneuten Klick auf Inserieren');
+  });
+  it('zeigt Auftragsfehler im festen Dialogbereich genau einmal', async () => {
+    const f = await create();
+    const c = f.componentInstance;
+    c.platform.setValue('kleinanzeigen');
+    c.target.setValue('9');
+    await expect.poll(() => c.preview()).toEqual(prepared);
+    c.savedDraft.set({
+      id: 'copy',
+      revision: 1,
+      status: 'prepared',
+      content,
+      imagesComplete: true,
+    } as never);
+    jobs.error.set('Die Kosten konnten nicht bestätigt werden.');
+    f.detectChanges();
+    await f.whenStable();
+    const alerts = f.nativeElement.querySelectorAll('[role="alert"]');
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0].textContent).toContain('Kosten konnten nicht bestätigt');
+    expect(alerts[0].closest('app-kleinanzeigen-publication-panel')).toBeNull();
+    expect(alerts[0].closest('[modal-footer]')).not.toBeNull();
+  });
+  it.each([
+    [
+      'needs_user_action',
+      null,
+      'fees_due',
+      'Kleinanzeigen zeigt Gebühren. Die Veröffentlichung wurde gestoppt.',
+    ],
+    [
+      'outcome_unknown',
+      null,
+      'publication_unconfirmed',
+      'Der Ausgang ist noch unklar. Prüfe den Status, bevor Du erneut inserierst.',
+    ],
+    ['writing', 'processing', null, 'Wird von Kleinanzeigen geprüft'],
+  ])(
+    'zeigt den Auftragszustand %s im festen Dialogbereich',
+    async (state, providerState, errorCode, expected) => {
+      const f = await create();
+      const c = f.componentInstance;
+      c.platform.setValue('kleinanzeigen');
+      c.target.setValue('9');
+      await expect.poll(() => c.preview()).toEqual(prepared);
+      c.savedDraft.set({
+        id: 'copy',
+        revision: 1,
+        status: 'prepared',
+        content,
+        imagesComplete: true,
+      } as never);
+      jobs.job.set({ id: 'job', draftId: 'copy', state, providerState, errorCode } as never);
+      f.detectChanges();
+      await f.whenStable();
+      expect(f.nativeElement.querySelector('[modal-footer]').textContent).toContain(expected);
+      expect(f.nativeElement.querySelector('[modal-footer]').textContent).not.toContain(
+        'Angaben und Bilder sind gesichert',
+      );
+    },
+  );
   it('erhält lange Quelltexte und Centbeträge zur sichtbaren Korrektur', async () => {
     const f = await create();
+    f.componentInstance.platform.setValue('kleinanzeigen');
     f.componentInstance.target.setValue('9');
     await f.componentInstance.prepare();
     expect(f.componentInstance.form.controls.title.value).toHaveLength(66);
@@ -138,6 +338,7 @@ describe('Gemeinsamer Übertragungsdialog', () => {
   });
   it('speichert einen gültigen Entwurf ohne Kategorie, veröffentlicht dabei nichts', async () => {
     const f = await create();
+    f.componentInstance.platform.setValue('kleinanzeigen');
     f.componentInstance.target.setValue('9');
     await f.componentInstance.prepare();
     f.componentInstance.form.controls.title.setValue('Jacke');
@@ -158,6 +359,7 @@ describe('Gemeinsamer Übertragungsdialog', () => {
   it('meldet eine vorhandene andere Zielfassung nicht als gespeicherte Änderung', async () => {
     const f = await create();
     const c = f.componentInstance;
+    c.platform.setValue('kleinanzeigen');
     c.target.setValue('9');
     await c.prepare();
     c.form.controls.title.setValue('Meine Änderung');
@@ -188,6 +390,7 @@ describe('Gemeinsamer Übertragungsdialog', () => {
   });
   it('entfernt bei Kategorieänderung nur unpassende Eigenschaften', async () => {
     const f = await create();
+    f.componentInstance.platform.setValue('kleinanzeigen');
     f.componentInstance.target.setValue('9');
     await f.componentInstance.prepare();
     f.componentInstance.attributes.addControl(
@@ -219,6 +422,7 @@ describe('Gemeinsamer Übertragungsdialog', () => {
   });
   it('fragt vor dem Verwerfen ungespeicherter Änderungen und leert Daten nach Abmeldung', async () => {
     const f = await create();
+    f.componentInstance.platform.setValue('kleinanzeigen');
     f.componentInstance.target.setValue('9');
     await f.componentInstance.prepare();
     f.componentInstance.form.markAsDirty();

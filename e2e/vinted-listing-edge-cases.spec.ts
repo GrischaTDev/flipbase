@@ -207,7 +207,7 @@ for (const width of [320, 390, 834, 1440]) {
       await expect(page.locator('app-vinted-listing-age')).toHaveCount(5);
       await expect(
         page.locator('app-vinted-listings').getByText('Wochenziel überschritten', { exact: true }),
-      ).toBeVisible();
+      ).toHaveCount(0);
       for (const text of ['3 T', '1 T', '5 T', '7 T', 'Alter unbekannt'])
         await expect(page.getByText(text, { exact: true })).toBeVisible();
       await page.evaluate(axe.source);

@@ -30,6 +30,7 @@ export interface MarketplaceOverviewListing {
   readonly currency: string | null;
   readonly imageUrl: string | null;
   readonly publishedAt: string | null;
+  readonly publishedOn?: string | null;
   readonly publicationAge?: VintedPublicationAge | null;
   readonly state: MarketplaceListingState;
   readonly actions: readonly MarketplaceListingAction[];

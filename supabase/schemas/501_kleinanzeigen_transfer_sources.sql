@@ -4,7 +4,7 @@ returns jsonb language plpgsql immutable security invoker set search_path='' as 
 declare v_photo jsonb;v_key text;v_value jsonb;
 begin
  if jsonb_typeof(p_source) is distinct from 'object' or (select count(*) from jsonb_object_keys(p_source))<>8 or not(p_source ?& array['externalAccountId','externalId','title','description','priceCents','currency','photoReferences','attributeHints']) or jsonb_typeof(p_source->'externalAccountId') is distinct from 'string' or jsonb_typeof(p_source->'externalId') is distinct from 'string' or p_source->>'externalAccountId' !~ '^[1-9][0-9]{0,31}$' or p_source->>'externalId' !~ '^[1-9][0-9]{0,31}$' or jsonb_typeof(p_source->'title') is distinct from 'string' or char_length(btrim(p_source->>'title')) not between 1 and 1000 or jsonb_typeof(p_source->'description') is distinct from 'string' or char_length(p_source->>'description')>100000 or jsonb_typeof(p_source->'currency') is distinct from 'string' or char_length(p_source->>'currency') not between 1 and 12 or not (p_source ? 'priceCents') or (p_source->>'priceCents' is not null and (jsonb_typeof(p_source->'priceCents')<>'number' or p_source->>'priceCents' !~ '^[0-9]+$' or (p_source->>'priceCents')::numeric>9999999900)) or jsonb_typeof(p_source->'photoReferences') is distinct from 'array' or jsonb_typeof(p_source->'attributeHints') is distinct from 'object' then raise exception 'Ungültige vollständige Quelle.' using errcode='22023';end if;
- if jsonb_array_length(p_source->'photoReferences') not between 1 and 40 or (select count(*) from jsonb_object_keys(p_source->'attributeHints'))>50 then raise exception 'Unvollständige Quelle.' using errcode='22023';end if;
+ if jsonb_array_length(p_source->'photoReferences') not between 0 and 40 or (select count(*) from jsonb_object_keys(p_source->'attributeHints'))>50 then raise exception 'Unvollständige Quelle.' using errcode='22023';end if;
  for v_photo in select * from jsonb_array_elements(p_source->'photoReferences') loop
   if jsonb_typeof(v_photo)<>'string' or char_length(v_photo#>>'{}')>2000 or (v_photo#>>'{}') !~ '^https://images[12]\.vinted\.net/[^#[:space:]]+$' then raise exception 'Ungültige Bildquelle.' using errcode='22023';end if;
  end loop;
@@ -17,6 +17,66 @@ end;
 $$;
 revoke all on function public.kleinanzeigen_validate_transfer_source(jsonb) from public,anon,authenticated,service_role;
 grant execute on function public.kleinanzeigen_validate_transfer_source(jsonb) to service_role;
+
+-- Gemeinsame Kopiervorlage aus dem vorhandenen Inseratbestand. Keine Anbieteranfrage,
+-- kein Ablaufdatum und keine zweite Quellenablage. Fehlende Angaben bleiben ergänzbar.
+create or replace function public.kleinanzeigen_saved_listing_source(
+  p_body jsonb, p_external_account_id text, p_external_id text
+)
+returns jsonb language plpgsql immutable security invoker set search_path = '' as $$
+declare
+  v_previous jsonb := p_body->'transferSource';
+  v_photos jsonb;
+  v_hints jsonb;
+  v_price jsonb := 'null'::jsonb;
+  v_source jsonb;
+  v_key text;
+begin
+  if jsonb_typeof(v_previous) = 'object' and (
+    v_previous->>'externalAccountId' is distinct from p_external_account_id or
+    v_previous->>'externalId' is distinct from p_external_id
+  ) then
+    raise exception 'Gespeicherte Quelle gehört zu anderem Konto oder Inserat.' using errcode = '42501';
+  end if;
+  -- Gespeicherte Originalfotos sind vollstaendig; der normale Cache kann nur ein Cover enthalten.
+  if jsonb_typeof(v_previous->'photoReferences') = 'array' and jsonb_array_length(v_previous->'photoReferences') > 0 then
+    v_photos := v_previous->'photoReferences';
+  elsif jsonb_typeof(p_body->'imageUrls') = 'array' then
+    v_photos := p_body->'imageUrls';
+  elsif jsonb_typeof(p_body->'imageUrl') = 'string' then
+    v_photos := jsonb_build_array(p_body->>'imageUrl');
+  else
+    v_photos := coalesce(v_previous->'photoReferences', '[]'::jsonb);
+  end if;
+  v_hints := case when jsonb_typeof(v_previous->'attributeHints') = 'object'
+    then v_previous->'attributeHints' else '{}'::jsonb end;
+  foreach v_key in array array['brand', 'size', 'condition', 'material', 'color'] loop
+    if jsonb_typeof(p_body->v_key) = 'string' and char_length(p_body->>v_key) between 1 and 500 then
+      v_hints := v_hints || jsonb_build_object(v_key, p_body->v_key);
+    end if;
+  end loop;
+  if jsonb_typeof(p_body->'price') = 'number' then
+    if (p_body->>'price')::numeric between 0 and 99999999 then
+      v_price := to_jsonb(round((p_body->>'price')::numeric * 100));
+    end if;
+  else
+    v_price := coalesce(v_previous->'priceCents', 'null'::jsonb);
+  end if;
+  v_source := jsonb_build_object(
+    'externalAccountId', p_external_account_id,
+    'externalId', p_external_id,
+    'title', coalesce(p_body->>'title', v_previous->>'title'),
+    'description', coalesce(p_body->>'text', v_previous->>'description', ''),
+    'priceCents', v_price,
+    'currency', coalesce(nullif(p_body->>'currency', ''), v_previous->>'currency', 'unknown'),
+    'photoReferences', v_photos,
+    'attributeHints', v_hints
+  );
+  return public.kleinanzeigen_validate_transfer_source(v_source);
+end;
+$$;
+revoke all on function public.kleinanzeigen_saved_listing_source(jsonb,text,text) from public, anon, authenticated, service_role;
+grant execute on function public.kleinanzeigen_saved_listing_source(jsonb,text,text) to service_role;
 
 create or replace function public.kleinanzeigen_store_transfer_source(p_workspace_id uuid,p_connection_id uuid,p_entry_id uuid,p_user_id uuid,p_source jsonb,p_mode text)
 returns jsonb language plpgsql volatile security invoker set search_path='' as $$
@@ -49,13 +109,12 @@ declare v_account public.marketplace_connections;v_entry public.marketplace_acco
 begin
  if not public.marketplace_can_manage(p_workspace_id) or not public.marketplace_sync_authorization_valid(p_workspace_id,(select auth.uid())) or not public.marketplace_local_extension_user_valid((select auth.uid())) then raise exception 'Kein Zugriff auf diesen Transfer.' using errcode='42501';end if;
  perform 1 from public.kleinanzeigen_connections where workspace_id=p_workspace_id and id=p_target_connection_id and status<>'disconnected';if not found then raise exception 'Zielkonto nicht verfügbar.' using errcode='42501';end if;
- select * into v_account from public.marketplace_connections where workspace_id=p_workspace_id and id=p_source_connection_id and marketplace='vinted' and status='connected' and external_account_id is not null;
+ select * into v_account from public.marketplace_connections where workspace_id=p_workspace_id and id=p_source_connection_id and marketplace='vinted' and external_account_id is not null;
  if not found then raise exception 'Quellkonto nicht verfügbar.' using errcode='42501';end if;
  select * into v_entry from public.marketplace_account_entries where workspace_id=p_workspace_id and connection_id=p_source_connection_id and external_id=p_external_id and kind='publication';
  if not found then raise exception 'Quellinserat nicht verfügbar.' using errcode='42501';end if;
- v_source:=v_entry.body->'transferSource';
- if v_source is null or v_source->>'externalAccountId' is distinct from v_account.external_account_id or v_source->>'externalId' is distinct from p_external_id or (v_source->>'observedAt')::timestamptz<clock_timestamp()-interval '24 hours' then return jsonb_build_object('state','needs_source','workspaceId',p_workspace_id,'connectionId',p_source_connection_id,'entryId',v_entry.id,'externalId',p_external_id,'externalAccountId',v_account.external_account_id,'executionMode',v_account.execution_mode);end if;
- return jsonb_build_object('state','ready','workspaceId',p_workspace_id,'connectionId',p_source_connection_id,'entryId',v_entry.id,'externalId',p_external_id,'externalAccountId',v_account.external_account_id,'executionMode',v_account.execution_mode,'source',v_source-'observedAt','observedAt',v_source->'observedAt','fingerprint',encode(extensions.digest((v_source-'observedAt')::text,'sha256'),'hex'));
+ v_source := public.kleinanzeigen_saved_listing_source(v_entry.body, v_account.external_account_id, p_external_id);
+ return jsonb_build_object('state','ready','workspaceId',p_workspace_id,'connectionId',p_source_connection_id,'entryId',v_entry.id,'externalId',p_external_id,'externalAccountId',v_account.external_account_id,'executionMode',v_account.execution_mode,'source',v_source,'observedAt',v_entry.observed_at,'fingerprint',encode(extensions.digest(v_source::text,'sha256'),'hex'));
 end;
 $$;
 revoke all on function public.kleinanzeigen_read_transfer_source(uuid,bigint,uuid,text) from public,anon,authenticated,service_role;

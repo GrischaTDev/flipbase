@@ -15,3 +15,15 @@ Der automatische direkte Start scheiterte beim Entfernen der lokalen sailor-inge
 ## Zusätzlich geprüfter Unterschied
 
 Die geschützte Befehlsumgebung liefert für `LOCALAPPDATA` einen Paket-Sandboxordner und verweigert den Zugriff auf `dockerDesktopLinuxEngine`. Die normale Benutzerumgebung liefert `C:\Users\Grisc\AppData\Local`; dort antwortet die bereits laufende Engine mit Version 29.7.2. Das belegt den unterschiedlichen Zugriffskontext, aber noch nicht die Ursache des ursprünglichen Socketfehlers. Ein verweigerter Statuszugriff darf keinen neuen Startversuch auslösen.
+
+## Erfolgreicher Kaltstart am 17.10.2026
+
+Docker Desktop war beendet. Nach der reinen Erreichbarkeitsprüfung wurde die
+vorhandene Docker Desktop.exe im Datei-Explorer per Computer Use geöffnet.
+Das aktuelle Explorer-Fenster wurde dabei neu ermittelt und aktiviert.
+Anschließend bestätigten sowohl die sichtbare Meldung „Engine running“ als auch
+`docker version` im normalen Benutzerkontext den erfolgreichen Start
+(Docker Desktop 4.88.0, Engine 29.7.2). Es wurden keine anderen Projekte gestoppt,
+keine Socketdateien gelöscht und keine Einstellungen zurückgesetzt. Dieser
+Kaltstart bestätigt den Explorer-Ablauf. Die Ursache des früheren Fehlers beim
+direkten versteckten Start bleibt weiterhin ungeklärt.

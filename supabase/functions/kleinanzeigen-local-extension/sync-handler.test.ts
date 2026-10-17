@@ -143,3 +143,36 @@ test('failed reads may stop only their claimed run with an allowed failure code'
   assert.equal((await handler(request(input))).status, 200);
   assert.equal((await handler(request({ ...input, errorCode: 'private details' }))).status, 400);
 });
+
+test('accepts verified listing metadata but rejects malformed prices, image origins and calendar dates', async () => {
+  const item = {
+    ...page.items[0],
+    priceCents: 1500,
+    currency: 'EUR',
+    imageUrl: 'https://img.kleinanzeigen.de/api/v1/prod-ads/images/aa/test?rule=$_2.JPG',
+    publishedOn: '2026-08-21',
+  };
+  const handler = createKleinanzeigenExtensionHandler({
+    session: async () => assert.fail(),
+    sync: async (_hash, input) => {
+      assert.equal(input.action, 'sync_page');
+      if (input.action === 'sync_page') assert.deepEqual(input.items[0], item);
+      return pageReply;
+    },
+  });
+  assert.equal((await handler(request({ ...page, items: [item] }))).status, 200);
+  for (const change of [
+    { priceCents: -1 },
+    { priceCents: 1.5 },
+    { currency: 'USD' },
+    { imageUrl: 'https://foreign.example/a.jpg' },
+    { imageUrl: 'https://img.kleinanzeigen.de@foreign.example/a.jpg' },
+    { publishedOn: '2026-02-31' },
+    { publishedOn: '2026-08-21T00:00:00Z' },
+  ]) {
+    assert.equal(
+      (await handler(request({ ...page, items: [{ ...item, ...change }] }))).status,
+      400,
+    );
+  }
+});

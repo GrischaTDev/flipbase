@@ -8,6 +8,7 @@ import {
   untracked,
 } from '@angular/core';
 import { NgOptimizedImage } from '@angular/common';
+import { Router } from '@angular/router';
 import { LucidePlus, LucideRefreshCw, LucideSettings, LucideStore } from '@lucide/angular';
 import { AuthService } from '../../../../core/services/auth.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
@@ -33,6 +34,8 @@ import {
 } from '../../services/marketplace-overview.store';
 import { MarketplaceListingSectionComponent } from '../marketplace-listing-section/marketplace-listing-section.component';
 import { overviewAccountKey } from '../../models/marketplace-overview-normalization';
+import type { MarketplaceOverviewAccount } from '../../models/marketplace-overview.models';
+import { KleinanzeigenAccountsComponent } from '../kleinanzeigen-accounts/kleinanzeigen-accounts.component';
 
 @Component({
   selector: 'app-marketplace-overview',
@@ -46,6 +49,7 @@ import { overviewAccountKey } from '../../models/marketplace-overview-normalizat
     ModalShellComponent,
     MarketplacesSettingsComponent,
     MarketplaceListingSectionComponent,
+    KleinanzeigenAccountsComponent,
   ],
   providers: [MarketplaceOverviewStore],
   templateUrl: './marketplace-overview.component.html',
@@ -58,6 +62,30 @@ export class MarketplaceOverviewComponent {
   private readonly auth = inject(AuthService);
   private readonly workspace = inject(WorkspaceService);
   private readonly operator = inject(PlatformOperatorService);
+  private readonly router = inject(Router);
+  private readonly accountSelection = signal<{
+    userId: string;
+    account: MarketplaceOverviewAccount;
+  } | null>(null);
+  readonly managedAccount = computed(() => {
+    const selection = this.accountSelection();
+    if (
+      !selection ||
+      selection.userId !== this.auth.currentUser()?.id ||
+      selection.account.workspaceId !== this.workspace.currentWorkspace()?.id ||
+      this.workspace.currentWorkspace()?.archived_at
+    )
+      return null;
+    return this.store
+      .platforms()
+      .some((group) =>
+        group.accounts.some(
+          (account) => overviewAccountKey(account) === overviewAccountKey(selection.account),
+        ),
+      )
+      ? selection.account
+      : null;
+  });
   readonly manageOpen = signal(false);
   readonly createOpen = signal(false);
   readonly plusIcon = LucidePlus;
@@ -113,6 +141,23 @@ export class MarketplaceOverviewComponent {
       : platform === 'ebay'
         ? '/marketplaces/ebay/connection'
         : '/marketplaces/kleinanzeigen';
+  }
+  async manageAccount(account: MarketplaceOverviewAccount): Promise<void> {
+    const userId = this.auth.currentUser()?.id;
+    if (!userId || account.workspaceId !== this.workspace.currentWorkspace()?.id) return;
+    if (account.platform === 'kleinanzeigen') {
+      this.accountSelection.set({ userId, account });
+      return;
+    }
+    await this.router.navigate([this.manageLink(account.platform)], {
+      queryParams:
+        account.platform === 'vinted'
+          ? { settings: account.connectionId, workspaceId: account.workspaceId }
+          : undefined,
+    });
+  }
+  closeAccount(): void {
+    this.accountSelection.set(null);
   }
   async retry(): Promise<void> {
     await this.settings.retryLoad();

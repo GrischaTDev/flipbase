@@ -137,3 +137,15 @@ Deno.test(
     assertEquals(f.removed, []);
   },
 );
+
+Deno.test(
+  'Eine gespeicherte Quelle ohne Bilder bleibt ergänzbar und erfindet keine Bilddatei',
+  async () => {
+    const f = fixture();
+    f.store.authorize = async () => ({ sourceReference: source, photoReferences: [] });
+    const result = await saveVintedTransferDraft(input, f.store);
+    assertEquals(result.transfer_images_complete, true);
+    assertEquals(f.copies(), 0);
+    assertEquals(f.finalized(), 1);
+  },
+);

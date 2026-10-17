@@ -29,6 +29,11 @@ create table public.kleinanzeigen_sync_entries (
  url text not null,
  state text not null check (state in ('active','unknown')),
  published_at timestamptz,
+ price_cents integer check (price_cents>=0),
+ currency text check (currency='EUR'),
+ image_url text check (char_length(image_url)<=2048 and image_url ~ '^https://img\.kleinanzeigen\.de/api/v1/prod-ads/images/[^[:space:]#]+$'),
+ published_on date,
+ check ((price_cents is null and currency is null) or (price_cents is not null and currency is not null)),
  unique(run_id,external_id),
  foreign key(workspace_id,connection_id,run_id) references public.kleinanzeigen_sync_runs(workspace_id,connection_id,id) on delete cascade
 );
@@ -46,6 +51,11 @@ create table public.kleinanzeigen_publications (
  published_at timestamptz,
  observed_at timestamptz not null,
  sync_run_id bigint,
+ price_cents integer check (price_cents>=0),
+ currency text check (currency='EUR'),
+ image_url text check (char_length(image_url)<=2048 and image_url ~ '^https://img\.kleinanzeigen\.de/api/v1/prod-ads/images/[^[:space:]#]+$'),
+ published_on date,
+ check ((price_cents is null and currency is null) or (price_cents is not null and currency is not null)),
  unique(workspace_id,connection_id,external_id),
  foreign key(workspace_id,connection_id) references public.kleinanzeigen_connections(workspace_id,id) on delete cascade,
  foreign key(workspace_id,connection_id,sync_run_id) references public.kleinanzeigen_sync_runs(workspace_id,connection_id,id)
@@ -162,14 +172,20 @@ begin
  if p_cursor is distinct from v_run.next_cursor or (select count(*) from jsonb_object_keys(v_run.accepted_pages))>=500
   or (select count(*) from public.kleinanzeigen_sync_entries where run_id=v_run.id)+jsonb_array_length(p_items)>20000 then raise exception 'Anzeigenfolge unvollständig.' using errcode='55000'; end if;
  for v_item in select value from jsonb_array_elements(p_items) loop
-  if jsonb_typeof(v_item)<>'object' or (select array_agg(key order by key) from jsonb_object_keys(v_item) key) is distinct from array['externalId','publishedAt','state','title','url']::text[]
+  v_item:=jsonb_build_object('priceCents',null,'currency',null,'imageUrl',null,'publishedOn',null)||v_item;
+  if jsonb_typeof(v_item)<>'object' or (select array_agg(key order by key) from jsonb_object_keys(v_item) key) is distinct from array['currency','externalId','imageUrl','priceCents','publishedAt','publishedOn','state','title','url']::text[]
    or jsonb_typeof(v_item->'externalId') is distinct from 'string' or (v_item->>'externalId') !~ '^[1-9][0-9]{0,31}$'
    or jsonb_typeof(v_item->'title') is distinct from 'string' or char_length(btrim(v_item->>'title')) not between 1 and 512
    or jsonb_typeof(v_item->'url') is distinct from 'string' or (v_item->>'url') !~ ('^https://(www\.)?kleinanzeigen\.de/s-anzeige/[^/?#]+/'||(v_item->>'externalId')||'-[0-9]+-[0-9]+$')
    or v_item->'publishedAt' is distinct from 'null'::jsonb or v_item->>'state' not in ('active','unknown') or jsonb_typeof(v_item->'state') is distinct from 'string' then raise exception 'Anzeigenformat unbekannt.' using errcode='22023'; end if;
+  if not ((v_item->'priceCents'='null'::jsonb and v_item->'currency'='null'::jsonb) or
+   (jsonb_typeof(v_item->'priceCents')='number' and v_item->>'priceCents' ~ '^[0-9]{1,10}$' and (v_item->>'priceCents')::numeric<=2147483647 and v_item->>'currency'='EUR'))
+   or not (v_item->'imageUrl'='null'::jsonb or (jsonb_typeof(v_item->'imageUrl')='string' and char_length(v_item->>'imageUrl')<=2048 and v_item->>'imageUrl' ~ '^https://img\.kleinanzeigen\.de/api/v1/prod-ads/images/[^[:space:]#]+$'))
+   or not (v_item->'publishedOn'='null'::jsonb or (jsonb_typeof(v_item->'publishedOn')='string' and v_item->>'publishedOn' ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' and pg_input_is_valid(v_item->>'publishedOn','date')))
+   then raise exception 'Anzeigendetails ungueltig.' using errcode='22023'; end if;
   if exists(select 1 from public.kleinanzeigen_sync_entries where run_id=v_run.id and external_id=v_item->>'externalId') then raise exception 'Doppelte Anzeige im Abgleich.' using errcode='40001'; end if;
-  insert into public.kleinanzeigen_sync_entries(workspace_id,connection_id,run_id,external_id,title,url,state)
-   values(p_workspace_id,p_connection_id,v_run.id,v_item->>'externalId',v_item->>'title',v_item->>'url',v_item->>'state');
+  insert into public.kleinanzeigen_sync_entries(workspace_id,connection_id,run_id,external_id,title,url,state,price_cents,currency,image_url,published_on)
+   values(p_workspace_id,p_connection_id,v_run.id,v_item->>'externalId',v_item->>'title',v_item->>'url',v_item->>'state',(v_item->>'priceCents')::integer,v_item->>'currency',v_item->>'imageUrl',(v_item->>'publishedOn')::date);
  end loop;
  update public.kleinanzeigen_sync_runs set next_cursor=p_next_cursor,accepted_pages=accepted_pages||jsonb_build_object(p_cursor,jsonb_build_object('hash',v_digest)),lease_until=least((select expires_at from public.kleinanzeigen_local_grants where workspace_id=p_workspace_id and connection_id=p_connection_id),clock_timestamp()+interval '2 minutes') where id=v_run.id;
  return jsonb_build_object('workspaceId',p_workspace_id,'connectionId',p_connection_id::text,'runId',v_run.id::text,'generation',p_generation,'acceptedCursor',p_cursor,'nextCursor',p_next_cursor,'complete',p_next_cursor is null);
@@ -196,9 +212,9 @@ begin
   v_used:=(p_quota->>'used')::integer;v_observed:=(p_quota->>'observedAt')::timestamptz;
   if v_observed>v_now+interval '1 second' or v_observed<v_now-interval '60 seconds' then raise exception 'Kontingent nicht aktuell.' using errcode='22023'; end if;
  end if;
- insert into public.kleinanzeigen_publications(workspace_id,connection_id,external_id,title,url,state,published_at,observed_at,sync_run_id)
-  select workspace_id,connection_id,external_id,title,url,state,published_at,v_now,v_run.id from public.kleinanzeigen_sync_entries where run_id=v_run.id
-  on conflict(workspace_id,connection_id,external_id) do update set title=excluded.title,url=excluded.url,state=excluded.state,available=true,published_at=coalesce(excluded.published_at,public.kleinanzeigen_publications.published_at),observed_at=excluded.observed_at,sync_run_id=excluded.sync_run_id where public.kleinanzeigen_publications.observed_at<=v_run.requested_at;
+ insert into public.kleinanzeigen_publications(workspace_id,connection_id,external_id,title,url,state,published_at,observed_at,sync_run_id,price_cents,currency,image_url,published_on)
+  select workspace_id,connection_id,external_id,title,url,state,published_at,v_now,v_run.id,price_cents,currency,image_url,published_on from public.kleinanzeigen_sync_entries where run_id=v_run.id
+  on conflict(workspace_id,connection_id,external_id) do update set title=excluded.title,url=excluded.url,state=excluded.state,available=true,price_cents=excluded.price_cents,currency=excluded.currency,image_url=excluded.image_url,published_on=coalesce(excluded.published_on,public.kleinanzeigen_publications.published_on),published_at=coalesce(excluded.published_at,public.kleinanzeigen_publications.published_at),observed_at=excluded.observed_at,sync_run_id=excluded.sync_run_id where public.kleinanzeigen_publications.observed_at<=v_run.requested_at;
  update public.kleinanzeigen_publications p set available=false,observed_at=v_now,sync_run_id=v_run.id
   where p.workspace_id=p_workspace_id and p.connection_id=p_connection_id and p.observed_at<=v_run.requested_at and not exists(select 1 from public.kleinanzeigen_sync_entries e where e.run_id=v_run.id and e.external_id=p.external_id);
  update public.kleinanzeigen_connections set status='connected',last_synced_at=v_now,quota_used=case when v_observed is not null and (quota_observed_at is null or quota_observed_at<=v_observed) then v_used else quota_used end,quota_observed_at=case when v_observed is not null and (quota_observed_at is null or quota_observed_at<=v_observed) then v_observed else quota_observed_at end where workspace_id=p_workspace_id and id=p_connection_id;

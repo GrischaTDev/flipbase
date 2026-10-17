@@ -41,7 +41,7 @@ begin
  select count(*)::integer into v_count from public.kleinanzeigen_publications p where p.workspace_id=p_workspace_id and p.connection_id=p_connection_id
   and ((p_state='ended' and not p.available) or (p_state<>'ended' and p.available and (p_state='all' or p.state='active')))
   and position(lower(btrim(p_search)) in lower(p.title))>0;
- select coalesce(jsonb_agg(jsonb_build_object('publicationId',p.id::text,'externalId',p.external_id,'title',p.title,'url',p.url,'state',p.state,'available',p.available,'publishedAt',p.published_at,'observedAt',p.observed_at) order by p.id desc),'[]'::jsonb) into v_rows
+ select coalesce(jsonb_agg(jsonb_build_object('publicationId',p.id::text,'externalId',p.external_id,'title',p.title,'url',p.url,'state',p.state,'available',p.available,'publishedAt',p.published_at,'publishedOn',p.published_on,'priceCents',p.price_cents,'currency',p.currency,'imageUrl',p.image_url,'observedAt',p.observed_at) order by p.id desc),'[]'::jsonb) into v_rows
  from (select * from public.kleinanzeigen_publications p where p.workspace_id=p_workspace_id and p.connection_id=p_connection_id
   and ((p_state='ended' and not p.available) or (p_state<>'ended' and p.available and (p_state='all' or p.state='active')))
   and position(lower(btrim(p_search)) in lower(p.title))>0 and (p_after_id is null or p.id<p_after_id) order by p.id desc limit p_limit+1) p;

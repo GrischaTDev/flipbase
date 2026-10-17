@@ -9,7 +9,10 @@ import {
   type MarketplaceOverviewPage,
   type MarketplaceListingQuery,
 } from '../models/marketplace-overview.models';
-import { overviewAccountKey } from '../models/marketplace-overview-normalization';
+import {
+  overviewAccountKey,
+  overviewListingKey,
+} from '../models/marketplace-overview-normalization';
 import {
   selectVisibleListings,
   toggleListingSelection,
@@ -40,6 +43,7 @@ export class MarketplaceOverviewStore {
   private generation = 0;
   private readonly owner = signal<{ userId: string; workspaceId: string } | null>(null);
   private readonly requests = new Map<string, number>();
+  private readonly platformRequests = new Map<MarketplaceId, number>();
   private readonly platformState = signal<readonly MarketplaceOverviewPlatformState[]>([]);
   private readonly sectionState = signal<Readonly<Record<string, MarketplaceOverviewSection>>>({});
   private readonly filters = signal<Readonly<Partial<Record<MarketplaceId, string>>>>({});
@@ -87,36 +91,73 @@ export class MarketplaceOverviewStore {
     await this.fetchPlatform(owner.workspaceId, platform, this.generation);
   }
 
+  async refreshPlatform(platform: MarketplaceId): Promise<void> {
+    const owner = this.owner();
+    const group = this.platforms().find((item) => item.platform === platform);
+    if (!owner || !this.current() || !group || group.loading) return;
+    await this.fetchPlatform(owner.workspaceId, platform, this.generation, true);
+  }
+
   private async fetchPlatform(
     workspaceId: string,
     platform: MarketplaceId,
     generation: number,
+    preserveSections = false,
   ): Promise<void> {
+    const version = (this.platformRequests.get(platform) ?? 0) + 1;
+    this.platformRequests.set(platform, version);
     try {
       const accounts = await this.api.loadAccounts(workspaceId, platform);
-      if (!this.isCurrent(generation)) return;
+      if (!this.isCurrent(generation) || this.platformRequests.get(platform) !== version) return;
       this.platformState.update((items) =>
         items.map((item) =>
-          item.platform === platform ? { ...item, accounts, loading: false } : item,
+          item.platform === platform ? { ...item, accounts, loading: false, error: null } : item,
         ),
       );
       this.sectionState.update((sections) => {
         const next = { ...sections };
-        for (const account of accounts)
-          next[overviewAccountKey(account)] = {
-            account,
-            query: DEFAULT_LISTING_QUERY,
-            page: null,
-            expanded: false,
-            loading: false,
-            error: null,
-            selection: [],
-            history: [],
-          };
+        const accountKeys = new Set(accounts.map(overviewAccountKey));
+        for (const [key, section] of Object.entries(sections)) {
+          if (section.account.platform === platform && !accountKeys.has(key)) {
+            delete next[key];
+            this.requests.set(key, (this.requests.get(key) ?? 0) + 1);
+          }
+        }
+        for (const account of accounts) {
+          const key = overviewAccountKey(account);
+          const previous = preserveSections ? sections[key] : undefined;
+          next[key] = previous
+            ? {
+                ...previous,
+                account,
+                page: previous.expanded ? previous.page : null,
+              }
+            : {
+                account,
+                query: DEFAULT_LISTING_QUERY,
+                page: null,
+                expanded: false,
+                loading: false,
+                error: null,
+                selection: [],
+                history: [],
+              };
+        }
         return next;
       });
+      const filter = this.accountFilter(platform);
+      if (filter && !accounts.some((account) => account.connectionId === filter))
+        this.filters.update((filters) => ({ ...filters, [platform]: '' }));
+      if (preserveSections)
+        await Promise.all(
+          accounts.map(async (account) => {
+            const section = this.section(account);
+            if (section?.expanded)
+              await this.fetch(overviewAccountKey(account), section.query, section.history, true);
+          }),
+        );
     } catch {
-      if (this.isCurrent(generation))
+      if (this.isCurrent(generation) && this.platformRequests.get(platform) === version)
         this.platformState.update((items) =>
           items.map((item) =>
             item.platform === platform
@@ -227,17 +268,24 @@ export class MarketplaceOverviewStore {
     key: string,
     query: MarketplaceListingQuery,
     history: readonly (string | undefined)[],
+    preserveSelection = false,
   ): Promise<void> {
     const section = this.sections()[key];
     if (!section) return;
     const generation = this.generation,
       version = (this.requests.get(key) ?? 0) + 1;
     this.requests.set(key, version);
-    this.update(key, { query, history, loading: true, error: null, selection: [] });
+    const selection = preserveSelection ? section.selection : [];
+    this.update(key, { query, history, loading: true, error: null, selection });
     try {
       const page = await this.api.loadListings(section.account, query);
       if (this.isCurrent(generation) && this.requests.get(key) === version) {
-        this.update(key, { page, loading: false });
+        const visible = new Set(page.items.map((item) => overviewListingKey(item.reference)));
+        this.update(key, {
+          page,
+          loading: false,
+          selection: selection.filter((reference) => visible.has(overviewListingKey(reference))),
+        });
         if (section.account.platform === 'ebay')
           this.platformState.update((groups) =>
             groups.map((group) => ({

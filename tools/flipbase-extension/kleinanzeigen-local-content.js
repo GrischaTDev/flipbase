@@ -2,6 +2,45 @@
 (function initKleinanzeigenLocalContent() {
   const reader = globalThis.FlipbaseKleinanzeigenReader;
   if (!reader || window.top !== window) return;
+  async function enrichPublicationDays(page) {
+    // Nur beim ausdruecklichen Abgleich: begrenzte parallele GETs, kein Formular und kein Upload.
+    const signal = AbortSignal.timeout(8000);
+    let nextIndex = 0;
+    await Promise.all(
+      Array.from({ length: Math.min(4, page.items.length) }, async () => {
+        while (nextIndex < page.items.length && !signal.aborted) {
+          const item = page.items[nextIndex++];
+          try {
+            const url = new URL(item.url);
+            if (url.origin !== new URL(document.URL).origin) continue;
+            const response = await fetch(url.href, {
+              method: 'GET',
+              credentials: 'same-origin',
+              redirect: 'error',
+              signal,
+            });
+            if (
+              !response.ok ||
+              response.url !== url.href ||
+              !response.headers.get('content-type')?.includes('text/html')
+            )
+              continue;
+            const html = await response.text();
+            if (html.length > 2000000) continue;
+            const detail = reader.readPublicationDetails(
+              new DOMParser().parseFromString(html, 'text/html'),
+              item,
+              response.url,
+            );
+            if (detail) item.publishedOn = detail.publishedOn;
+          } catch {
+            /* Fehlende Detailangaben entwerten keine vollstaendige eigene Anzeigenliste. */
+          }
+        }
+      }),
+    );
+    return page;
+  }
   chrome.runtime.onMessage.addListener((message, sender, respond) => {
     if (
       sender.id !== chrome.runtime.id ||
@@ -51,6 +90,19 @@
     const page = reader.readPublicationPage(document);
     if (!page || page.pageCursor !== message.expectedCursor) return stop('not_ready');
     if (message.type === 'KLEINANZEIGEN_READ_PAGE') {
+      if (message.includeDetails === true) {
+        enrichPublicationDays(page)
+          .then((result) => {
+            if (
+              reader.pageIdentity(document, '/m-meine-anzeigen.html')?.externalAccountId !==
+              message.expectedExternalAccountId
+            )
+              respond({ success: false, errorCode: 'account_changed' });
+            else respond({ success: true, result });
+          })
+          .catch(() => respond({ success: false, errorCode: 'schema_changed' }));
+        return true;
+      }
       respond({ success: true, result: page });
       return false;
     }

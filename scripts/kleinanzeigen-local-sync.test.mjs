@@ -278,3 +278,42 @@ test('cached success replies never expose extra persisted fields', async () => {
   const result = await runtime.run(f.installation, '42', f.adapter);
   assert.equal(JSON.stringify(result).includes('never-return'), false);
 });
+
+test('preserves verified listing display fields in the stored sync page', async () => {
+  const f = fixture();
+  f.pages.get('page:1').items = [
+    {
+      ...publication,
+      priceCents: 1500,
+      currency: 'EUR',
+      imageUrl: 'https://img.kleinanzeigen.de/api/v1/prod-ads/images/aa/test?rule=$_2.JPG',
+      publishedOn: '2026-08-21',
+    },
+  ];
+  await runtime.run(f.installation, '42', f.adapter);
+  const item = f.calls.find((call) => call.action === 'sync_page').items[0];
+  assert.equal(item.priceCents, 1500);
+  assert.equal(item.currency, 'EUR');
+  assert.equal(item.publishedOn, '2026-08-21');
+  assert.equal(
+    item.imageUrl,
+    'https://img.kleinanzeigen.de/api/v1/prod-ads/images/aa/test?rule=$_2.JPG',
+  );
+});
+
+test('invalid display fields stop before any page import', async () => {
+  for (const change of [
+    { priceCents: -1, currency: 'EUR' },
+    { priceCents: 1.5, currency: 'EUR' },
+    { imageUrl: 'https://foreign.example/a.jpg' },
+    { publishedOn: '2026-02-31' },
+  ]) {
+    const f = fixture();
+    f.pages.get('page:1').items = [{ ...publication, ...change }];
+    await assert.rejects(runtime.run(f.installation, '42', f.adapter));
+    assert.equal(
+      f.calls.some((call) => call.action === 'sync_page'),
+      false,
+    );
+  }
+});
