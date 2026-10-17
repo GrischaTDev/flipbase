@@ -1,5 +1,22 @@
 # Flipbase Listing-Assistent
 
+## Version 1.10.2: Chataktivität bei nicht mehr verfügbaren Artikeln
+
+Vinteds reine Systemmeldung „Artikel nicht mehr verfügbar“ bleibt im Gespräch sichtbar,
+ändert aber weder die Chatvorschau noch deren Aktivitätszeit und Sortierung. Cloud-
+und Erweiterungsimport behandeln den Fall gleich. Bereits betroffene Vorschauen
+werden beim nächsten begrenzten Detailabgleich aus dem vorhandenen Verlauf korrigiert;
+pro Abruf bleiben maximal drei Hintergrund-Detailabrufe erlaubt. Echte Nachrichten,
+Angebote und andere Statusmeldungen werden weiterhin berücksichtigt.
+
+Eine frühere Chatposition ist nur rekonstruierbar, wenn eine bekannte Aktivitätszeit
+oder andere datierte Nachrichten vorhanden sind. Ein Erstimport ohne solche Belege
+und ausschließlich mit Verfügbarkeitsstatus kann keine historische Position liefern;
+es wird dafür kein früherer Zeitpunkt erfunden.
+
+Nach der Bereitstellung die Erweiterung und den Flipbase-Tab neu laden. Die
+Erweiterung benötigt Version 1.10.2; der Cloudweg benötigt den passenden Workerstand.
+
 Die Erweiterung unterstützt Kleinanzeigen-Inserate und einen lokalen Vinted-Postfachpiloten.
 Der Vinted-Pilot überträgt Profil und eigene Anzeigen sowie nach separater Freigabe
 Gespräche an Flipbase. Eine zusätzliche Versandfreigabe erlaubt selbst verfasste

@@ -80,7 +80,7 @@ export function vintedOfferStatus(
 export interface VintedConversationVersion {
   externalId: string;
   sourceUpdatedAt: string;
-  detailCheckedAt: string;
+  detailCheckedAt: string | null;
   text: string | null;
   occurredAt: string | null;
   itemId?: string | null;
@@ -349,6 +349,22 @@ function parseFeedbacks(rawFeedbacks: unknown[], fallbackDate: string): Record<s
   return list;
 }
 
+// Vinteds Verfügbarkeitsstatus gehört in den Verlauf, ist aber keine neue Chataktivität.
+function isUnavailableItemText(value: unknown): boolean {
+  return (
+    typeof value === 'string' &&
+    /^(?:(?:(?:dieser|der) )?artikel(?: ist)? nicht(?: mehr)? verfügbar|(?:this )?item (?:is )?(?:no longer available|not available|unavailable))[.!…]*$/u.test(
+      value.trim().replace(/\s+/gu, ' ').toLocaleLowerCase('de'),
+    )
+  );
+}
+function isUnavailableItemNotice(body: Record<string, unknown>): boolean {
+  return (
+    ['status_message', 'action_message', 'payment_message'].includes(String(body['messageType'])) &&
+    (isUnavailableItemText(body['title']) || isUnavailableItemText(body['text']))
+  );
+}
+
 /** Nur Felder aus den beobachteten Vinted-Antworten verlassen den Browser. */
 export function parseVintedAccountImport(
   identity: VintedAccountIdentity,
@@ -450,16 +466,22 @@ export function parseVintedAccountImport(
     const previous = previousById.get(id);
     const reusable =
       previous?.sourceUpdatedAt === sourceUpdatedAt &&
-      Number.isFinite(Date.parse(previous.detailCheckedAt));
+      Number.isFinite(Date.parse(previous.detailCheckedAt ?? ''));
+    const keepActivity =
+      reusable ||
+      (isUnavailableItemText(conversation?.['description']) &&
+        previous !== undefined &&
+        Number.isFinite(Date.parse(previous.occurredAt ?? '')));
+    const activityAt = keepActivity ? (previous?.occurredAt ?? sourceUpdatedAt) : sourceUpdatedAt;
     const item = parseConversationItem(conversation);
     entries.push({
       kind: 'conversation',
       externalId: id,
-      sortAt: sourceUpdatedAt,
+      sortAt: activityAt,
       body: {
         title: string(other?.['login']) ?? 'Gespräch',
-        text: reusable ? previous.text : string(conversation?.['description']),
-        occurredAt: reusable ? previous.occurredAt : sourceUpdatedAt,
+        text: keepActivity ? (previous?.text ?? null) : string(conversation?.['description']),
+        occurredAt: keepActivity ? (previous?.occurredAt ?? null) : sourceUpdatedAt,
         sourceUpdatedAt,
         detailCheckedAt: reusable ? previous.detailCheckedAt : null,
         unread: typeof conversation?.['unread'] === 'boolean' ? conversation['unread'] : null,
@@ -501,6 +523,7 @@ export function parseVintedAccountImport(
     }
     let latestMessageAt: string | null = null;
     const messages = Array.isArray(conversation?.['messages']) ? conversation['messages'] : [];
+    const previous = previousById.get(conversationId);
     for (const rawMessage of messages) {
       const message = record(rawMessage);
       const entity = record(message?.['entity']);
@@ -597,6 +620,20 @@ export function parseVintedAccountImport(
         },
       };
       entries.push(entry);
+      if (isUnavailableItemNotice(entry.body)) {
+        if (
+          conversationEntry &&
+          latestMessageAt === null &&
+          previous &&
+          typeof previous.occurredAt === 'string' &&
+          Number.isFinite(Date.parse(previous.occurredAt))
+        ) {
+          conversationEntry.body['text'] = previous.text;
+          conversationEntry.body['occurredAt'] = previous.occurredAt;
+          conversationEntry.sortAt = previous.occurredAt;
+        }
+        continue;
+      }
       if (
         conversationEntry &&
         typeof entry.body['text'] === 'string' &&
@@ -1102,7 +1139,9 @@ export async function readVintedAccountImport(
   const candidates = conversations.values
     .map((raw, index) => {
       const previous = previousById.get(identifier(record(raw)?.['id']) ?? '');
-      const unchanged = previous?.sourceUpdatedAt === date(record(raw)?.['updated_at'], '');
+      const unchanged =
+        previous?.sourceUpdatedAt === date(record(raw)?.['updated_at'], '') &&
+        !isUnavailableItemText(previous?.text);
       return {
         raw,
         index,
@@ -1124,13 +1163,14 @@ export async function readVintedAccountImport(
     if (!id) continue;
     const previous = previousById.get(id);
     const sourceUpdatedAt = date(record(raw)?.['updated_at'], '');
-    const checkedAt = previous ? Date.parse(previous.detailCheckedAt) : NaN;
+    const checkedAt = previous ? Date.parse(previous.detailCheckedAt ?? '') : NaN;
     if (
       !requestedConversation &&
       !wasUnread &&
       previous &&
       sourceUpdatedAt &&
       previous.sourceUpdatedAt === sourceUpdatedAt &&
+      !isUnavailableItemText(previous.text) &&
       Number.isFinite(checkedAt) &&
       checkedAt <= Date.now() &&
       Date.now() - checkedAt < 24 * 60 * 60 * 1000

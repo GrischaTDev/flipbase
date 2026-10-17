@@ -1994,3 +1994,84 @@ test('cloud publication enrichment reads the measured HTML attribute and rejects
     dom.window.close();
   }
 });
+
+test('repairs a recent cached unavailable preview from dated chat history without waiting a day', async () => {
+  const updatedAt = '2026-10-04T09:45:00.000Z';
+  const snapshot = await readVintedAccountImport(
+    importPage((path) => {
+      if (path.startsWith('/api/v2/inbox'))
+        return {
+          conversations: [
+            {
+              id: 51,
+              unread: false,
+              updated_at: updatedAt,
+              description: 'Dieser Artikel ist nicht mehr verfügbar.',
+            },
+          ],
+          pagination: { total_pages: 1 },
+        };
+      if (path === '/api/v2/conversations/51')
+        return {
+          conversation: {
+            id: 51,
+            messages: [
+              {
+                id: 61,
+                entity_type: 'message',
+                created_at_ts: '2026-10-03T08:00:00.000Z',
+                entity: { body: 'Passt, danke!', user_id: 456 },
+              },
+              {
+                id: 62,
+                entity_type: 'status_message',
+                created_at_ts: updatedAt,
+                entity: { title: 'Dieser Artikel ist nicht mehr verfügbar.' },
+              },
+            ],
+          },
+        };
+      return undefined;
+    }),
+    async () => undefined,
+    undefined,
+    [
+      {
+        externalId: '51',
+        sourceUpdatedAt: updatedAt,
+        detailCheckedAt: new Date().toISOString(),
+        text: 'Dieser Artikel ist nicht mehr verfügbar.',
+        occurredAt: updatedAt,
+      },
+    ],
+  );
+  const conversation = snapshot.entries.find((entry) => entry.kind === 'conversation');
+  assert.equal(conversation?.body['text'], 'Passt, danke!');
+  assert.equal(conversation?.body['occurredAt'], '2026-10-03T08:00:00.000Z');
+  assert.equal(conversation?.sortAt, '2026-10-03T08:00:00.000Z');
+});
+
+test('reused conversation previews with unknown activity keep a valid provider pagination time', () => {
+  const sourceUpdatedAt = '2026-10-04T09:45:00.000Z';
+  const snapshot = parseVintedAccountImport(
+    { id: '123', username: 'testkonto' },
+    { user: { id: 123 } },
+    [],
+    [{ id: 51, updated_at: sourceUpdatedAt }],
+    [],
+    '2026-10-04T10:00:00.000Z',
+    [
+      {
+        externalId: '51',
+        sourceUpdatedAt,
+        detailCheckedAt: '2026-10-04T09:50:00.000Z',
+        text: 'Bekannte Vorschau',
+        occurredAt: null,
+      },
+    ],
+  );
+  const conversation = snapshot.entries.find((entry) => entry.kind === 'conversation');
+  assert.equal(conversation?.sortAt, sourceUpdatedAt);
+  assert.equal(conversation?.body['occurredAt'], null);
+  assert.equal(conversation?.body['text'], 'Bekannte Vorschau');
+});

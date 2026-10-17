@@ -1,3 +1,4 @@
+import { parseVintedAccountImport } from '../src/vinted-account-import.ts';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { SupabaseVintedImportWriter } from '../src/supabase-vinted-import-writer.ts';
@@ -282,4 +283,56 @@ test('publication versions reject an inactive session before accessing publicati
   });
   await assert.rejects(writer.publicationVersions(scope, sessionId), /Kontozugriff abgelaufen/);
   assert.equal(calls.length, 1);
+});
+
+test('pending unavailable revisions retain prior chat activity across the persisted cloud cache', async () => {
+  const activityAt = '2026-10-03T08:00:00.000Z';
+  const sourceUpdatedAt = '2026-10-04T09:45:00.000Z';
+  const conversation = {
+    id: 51,
+    updated_at: sourceUpdatedAt,
+    description: 'Dieser Artikel ist nicht mehr verfügbar.',
+  };
+  const parse = (versions: import('../src/vinted-account-import.ts').VintedConversationVersion[]) =>
+    parseVintedAccountImport(
+      { id: '123', username: 'testkonto' },
+      { user: { id: 123 } },
+      [],
+      [conversation],
+      [],
+      '2026-10-04T10:00:00.000Z',
+      versions,
+    ).entries.find((entry) => entry.kind === 'conversation');
+  const first = parse([
+    {
+      externalId: '51',
+      sourceUpdatedAt: activityAt,
+      detailCheckedAt: '2026-10-03T08:30:00.000Z',
+      occurredAt: activityAt,
+      text: 'Passt, danke!',
+    },
+  ]);
+  assert.equal(first?.body['detailCheckedAt'], null);
+  const writer = new SupabaseVintedImportWriter({
+    url: 'https://db.example.test',
+    publishableKey: 'public-token',
+    serviceRoleKey: 'server-token',
+    fetch: async (input) =>
+      new URL(String(input)).pathname.endsWith('marketplace_browser_session_check')
+        ? Response.json({
+            active: true,
+            id: sessionId,
+            workspaceId: scope.workspaceId,
+            connectionId: scope.connectionId,
+          })
+        : Response.json([{ external_id: '51', body: first?.body }]),
+  });
+  const versions = await writer.conversationVersions(scope, sessionId);
+  assert.equal(versions.length, 1);
+  assert.equal(versions[0]?.detailCheckedAt, null);
+  const second = parse(versions);
+  assert.equal(second?.body['text'], 'Passt, danke!');
+  assert.equal(second?.body['occurredAt'], activityAt);
+  assert.equal(second?.sortAt, activityAt);
+  assert.equal(second?.body['detailCheckedAt'], null);
 });

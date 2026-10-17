@@ -1644,7 +1644,7 @@ test('Website bridge checks source and origin, preserves request correlation and
   assert.equal(replies.at(-1).origin, appOrigin);
   assert.ok(!JSON.stringify(replies).includes(secret));
   const announcement = replies.findLast(({ reply }) => reply.type === 'FLIPBASE_EXTENSION_STATUS');
-  assert.equal(announcement.reply.version, '1.10.1');
+  assert.equal(announcement.reply.version, '1.10.2');
   assert.equal(announcement.reply.localAccount.boundUsername, 'maike');
   assert.equal(announcement.reply.localAccount.boundConnectionId, connectionId);
 });
@@ -1852,7 +1852,7 @@ test('Manifest narrows application and provider access without changing Kleinanz
     script.matches.includes('https://www.vinted.de/*'),
   );
   assert.equal(vintedContent.js.at(-1), 'vinted-local-account.js');
-  assert.equal(manifest.version, '1.10.1');
+  assert.equal(manifest.version, '1.10.2');
   assert.ok(
     manifest.content_scripts.some(
       (script) =>
@@ -4160,4 +4160,261 @@ test('Lokale Quelldetails mit falscher Bindung werden vor dem Anbieterabruf abge
     ),
   );
   assert.equal(reads, 0);
+});
+
+const unavailableActivityTime = '2026-10-04T09:45:00.000Z';
+const previousActivityTime = '2026-10-03T08:00:00.000Z';
+const previousActivity = {
+  externalId: '51',
+  sourceUpdatedAt: previousActivityTime,
+  detailCheckedAt: '2026-10-03T08:30:00.000Z',
+  text: 'Passt, danke!',
+  occurredAt: previousActivityTime,
+};
+function unavailableNotice(
+  title = 'Dieser Artikel ist nicht mehr verfügbar.',
+  type = 'status_message',
+) {
+  return { id: 62, entity_type: type, created_at_ts: unavailableActivityTime, entity: { title } };
+}
+async function activityImports(
+  messages,
+  { previous = [], description = 'Dieser Artikel ist nicht mehr verfügbar.', details = true } = {},
+) {
+  const { parseVintedAccountImport } =
+    await import('../services/marketplace-worker/src/vinted-account-import.ts');
+  const conversation = { ...inboxConversation, updated_at: unavailableActivityTime, description };
+  const detail = { conversation: { id: 51, messages } };
+  const reader = inboxReader([conversation], { '/api/v2/conversations/51': detail });
+  const cloud = parseVintedAccountImport(
+    { id: '123', username: 'testkonto' },
+    profile,
+    [],
+    [conversation],
+    details ? [detail] : [],
+    observedAt,
+    previous,
+  );
+  // Ohne bestätigten Partner bleiben ungelesene Listenzeilen absichtlich ohne Detailabruf.
+  if (!details) conversation.unread = true;
+  const local = await core.readInbox(
+    reader.read,
+    '123',
+    { nextPage: 1, versions: previous },
+    () => observedAt,
+  );
+  return [cloud, local];
+}
+
+test('Unavailable Vinted status stays in the transcript but does not replace chat activity in either importer', async () => {
+  for (const [title, type] of [
+    ['Dieser Artikel ist nicht mehr verfügbar.', 'status_message'],
+    ['Artikel ist nicht verfügbar', 'action_message'],
+    ['Der Artikel ist nicht mehr verfügbar', 'status_message'],
+    ['Artikel nicht mehr verfügbar', 'status_message'],
+    ['This item is no longer available.', 'status_message'],
+    ['Item is no longer available', 'action_message'],
+  ]) {
+    for (const reverse of [false, true]) {
+      const human = {
+        ...inboxMessage,
+        created_at_ts: previousActivityTime,
+        entity: { body: 'Passt, danke!', user_id: 456 },
+      };
+      const notice = unavailableNotice(title, type);
+      const snapshots = await activityImports(reverse ? [notice, human] : [human, notice]);
+      for (const snapshot of snapshots) {
+        const conversation = snapshot.entries.find((entry) => entry.kind === 'conversation');
+        assert.equal(conversation.body.text, 'Passt, danke!');
+        assert.equal(conversation.body.occurredAt, previousActivityTime);
+        assert.equal(conversation.sortAt, previousActivityTime);
+        assert.equal(conversation.body.sourceUpdatedAt, unavailableActivityTime);
+        assert.ok(
+          snapshot.entries.some((entry) => entry.kind === 'message' && entry.body.text === title),
+        );
+      }
+    }
+  }
+});
+
+test('Unavailable list revisions preserve known activity until bounded details are read and across repeated syncs', async () => {
+  for (const sourceUpdatedAt of [previousActivityTime, unavailableActivityTime]) {
+    const snapshots = await activityImports([], {
+      previous: [{ ...previousActivity, sourceUpdatedAt }],
+      details: false,
+    });
+    for (const snapshot of snapshots) {
+      const conversation = snapshot.entries.find((entry) => entry.kind === 'conversation');
+      assert.equal(conversation.sortAt, previousActivityTime);
+      assert.equal(conversation.body.occurredAt, previousActivityTime);
+      assert.equal(conversation.body.text, 'Passt, danke!');
+      assert.equal(conversation.body.sourceUpdatedAt, unavailableActivityTime);
+      assert.equal(
+        conversation.body.detailCheckedAt,
+        sourceUpdatedAt === previousActivityTime ? null : '2026-10-03T08:30:00.000Z',
+      );
+    }
+  }
+});
+
+test('A detail containing only unavailable status preserves earlier activity, including explicitly opened details', async () => {
+  const snapshots = await activityImports([unavailableNotice()], { previous: [previousActivity] });
+  const reader = inboxReader([], {
+    '/api/v2/conversations/51': { conversation: { id: 51, messages: [unavailableNotice()] } },
+  });
+  snapshots.push(
+    await core.readInboxDetail(
+      reader.read,
+      '123',
+      { externalConversationId: '51', nextPage: 1, versions: [previousActivity] },
+      () => observedAt,
+    ),
+  );
+  for (const snapshot of snapshots) {
+    const conversation = snapshot.entries.find((entry) => entry.kind === 'conversation');
+    assert.equal(conversation.body.text, 'Passt, danke!');
+    assert.equal(conversation.body.occurredAt, previousActivityTime);
+    assert.equal(conversation.sortAt, previousActivityTime);
+    assert.equal(snapshot.entries.filter((entry) => entry.kind === 'message').length, 1);
+  }
+});
+
+test('Real messages with identical unavailable wording and actionable statuses still update chat activity', async () => {
+  for (const [type, text] of [
+    ['message', 'Dieser Artikel ist nicht mehr verfügbar.'],
+    ['text_message', 'Dieser Artikel ist nicht mehr verfügbar.'],
+    ['offer_request_message', 'Angebot'],
+    ['status_message', 'Angebot angenommen'],
+    ['action_message', 'Bitte versende den Artikel'],
+    ['status_message', 'Geliefert'],
+  ]) {
+    const latest = {
+      ...unavailableNotice(text, type),
+      entity: {
+        title: text,
+        body: text,
+        ...(type === 'message' || type === 'text_message' ? { user_id: 456 } : {}),
+      },
+    };
+    for (const snapshot of await activityImports(
+      [{ ...inboxMessage, created_at_ts: previousActivityTime }, latest],
+      { previous: [previousActivity] },
+    )) {
+      const conversation = snapshot.entries.find((entry) => entry.kind === 'conversation');
+      assert.equal(conversation.body.text, text);
+      assert.equal(conversation.body.occurredAt, unavailableActivityTime);
+      assert.equal(conversation.sortAt, unavailableActivityTime);
+    }
+  }
+});
+
+test('Previously polluted local chat previews are repaired even while their detail cache is recent', async () => {
+  const reader = inboxReader(
+    [
+      {
+        ...inboxConversation,
+        updated_at: unavailableActivityTime,
+        description: 'Dieser Artikel ist nicht mehr verfügbar.',
+      },
+    ],
+    {
+      '/api/v2/conversations/51': {
+        conversation: {
+          id: 51,
+          messages: [
+            {
+              ...inboxMessage,
+              created_at_ts: previousActivityTime,
+              entity: { body: 'Passt, danke!', user_id: 456 },
+            },
+            unavailableNotice(),
+          ],
+        },
+      },
+    },
+  );
+  const snapshot = await core.readInbox(
+    reader.read,
+    '123',
+    {
+      nextPage: 1,
+      versions: [
+        {
+          ...previousActivity,
+          sourceUpdatedAt: unavailableActivityTime,
+          occurredAt: unavailableActivityTime,
+          text: 'Dieser Artikel ist nicht mehr verfügbar.',
+          detailCheckedAt: '2026-10-04T09:50:00.000Z',
+        },
+      ],
+    },
+    () => observedAt,
+  );
+  const conversation = snapshot.entries.find((entry) => entry.kind === 'conversation');
+  assert.equal(conversation.body.text, 'Passt, danke!');
+  assert.equal(conversation.body.occurredAt, previousActivityTime);
+  assert.equal(conversation.sortAt, previousActivityTime);
+});
+
+test('Unavailable notices with nested body text preserve existing activity when the detail has no list description', async () => {
+  const message = {
+    ...unavailableNotice(),
+    entity: { title: 'Status', message: { body: 'Dieser Artikel ist nicht mehr verfügbar.' } },
+  };
+  for (const snapshot of await activityImports([message], {
+    previous: [previousActivity],
+    description: 'Status',
+  })) {
+    const conversation = snapshot.entries.find((entry) => entry.kind === 'conversation');
+    assert.equal(conversation.body.text, 'Passt, danke!');
+    assert.equal(conversation.body.occurredAt, previousActivityTime);
+    assert.equal(conversation.sortAt, previousActivityTime);
+  }
+});
+
+test('Opening a truncated history provides dated preview evidence without confirming the full detail revision', async () => {
+  const messages = [
+    unavailableNotice(),
+    ...Array.from({ length: 200 }, (_, index) => ({
+      id: 1000 + index,
+      entity_type: 'message',
+      created_at_ts: new Date(Date.parse(previousActivityTime) - index * 1000).toISOString(),
+      entity: { body: index === 0 ? 'Passt, danke!' : 'Ältere Nachricht', user_id: 456 },
+    })),
+  ];
+  const reader = inboxReader([], {
+    '/api/v2/conversations/51': { conversation: { id: 51, messages } },
+  });
+  const snapshot = await core.readInboxDetail(
+    reader.read,
+    '123',
+    {
+      externalConversationId: '51',
+      nextPage: 1,
+      versions: [
+        {
+          ...previousActivity,
+          sourceUpdatedAt: unavailableActivityTime,
+          occurredAt: unavailableActivityTime,
+          text: 'Dieser Artikel ist nicht mehr verfügbar.',
+          detailCheckedAt: '2026-10-04T09:50:00.000Z',
+        },
+      ],
+    },
+    () => observedAt,
+  );
+  const conversation = snapshot.entries.find((entry) => entry.kind === 'conversation');
+  assert.equal(conversation.body.text, 'Passt, danke!');
+  assert.equal(conversation.body.occurredAt, previousActivityTime);
+  assert.equal(conversation.sortAt, previousActivityTime);
+  assert.equal(conversation.body.detailCheckedAt, null);
+  assert.equal(snapshot.entries.filter((entry) => entry.kind === 'message').length, 200);
+  assert.ok(
+    snapshot.entries.some(
+      (entry) =>
+        entry.kind === 'message' &&
+        entry.body.text === 'Passt, danke!' &&
+        entry.body.occurredAt === previousActivityTime,
+    ),
+  );
 });

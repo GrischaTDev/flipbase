@@ -372,6 +372,24 @@
     return parsed.toISOString();
   }
 
+  // Vinteds Verfügbarkeitsstatus gehört in den Verlauf, ist aber keine neue Chataktivität.
+  function isUnavailableItemText(value) {
+    return (
+      typeof value === 'string' &&
+      /^(?:(?:(?:dieser|der) )?artikel(?: ist)? nicht(?: mehr)? verfügbar|(?:this )?item (?:is )?(?:no longer available|not available|unavailable))[.!…]*$/u.test(
+        value.trim().replace(/\s+/gu, ' ').toLocaleLowerCase('de'),
+      )
+    );
+  }
+  function isUnavailableItemNotice(body) {
+    return (
+      ['status_message', 'action_message', 'payment_message'].includes(
+        String(body['messageType']),
+      ) &&
+      (isUnavailableItemText(body['title']) || isUnavailableItemText(body['text']))
+    );
+  }
+
   function inboxMessageDate(message) {
     for (const input of [
       message.created_at_ts,
@@ -553,8 +571,12 @@
     const candidates = [...response.conversations].sort((left, right) => {
       const previousLeft = versions.get(identifier(left.id));
       const previousRight = versions.get(identifier(right.id));
-      const leftUnchanged = previousLeft?.sourceUpdatedAt === inboxDate(left.updated_at);
-      const rightUnchanged = previousRight?.sourceUpdatedAt === inboxDate(right.updated_at);
+      const leftUnchanged =
+        previousLeft?.sourceUpdatedAt === inboxDate(left.updated_at) &&
+        !isUnavailableItemText(previousLeft?.text);
+      const rightUnchanged =
+        previousRight?.sourceUpdatedAt === inboxDate(right.updated_at) &&
+        !isUnavailableItemText(previousRight?.text);
       return (
         Number(leftUnchanged) - Number(rightUnchanged) ||
         (Date.parse(previousLeft?.detailCheckedAt ?? '') || 0) -
@@ -571,15 +593,21 @@
       const reusable =
         previous?.sourceUpdatedAt === sourceUpdatedAt &&
         Number.isFinite(Date.parse(previous.detailCheckedAt));
+      const keepActivity =
+        reusable ||
+        (isUnavailableItemText(conversation.description) &&
+          previous &&
+          Number.isFinite(Date.parse(previous.occurredAt ?? '')));
+      const activityAt = keepActivity ? previous.occurredAt : sourceUpdatedAt;
       const other = record(conversation.opposite_user) ? conversation.opposite_user : {};
       const entry = {
         kind: 'conversation',
         externalId,
-        sortAt: sourceUpdatedAt,
+        sortAt: activityAt,
         body: {
           title: text(other.login) ?? 'Gespräch',
-          text: reusable ? previous.text : text(conversation.description),
-          occurredAt: reusable ? previous.occurredAt : sourceUpdatedAt,
+          text: keepActivity ? previous.text : text(conversation.description),
+          occurredAt: activityAt,
           sourceUpdatedAt,
           detailCheckedAt: reusable ? previous.detailCheckedAt : null,
           unread: typeof conversation.unread === 'boolean' ? conversation.unread : null,
@@ -598,6 +626,7 @@
         messageCount >= 200 ||
         (Number.isFinite(checkedAt) &&
           !canReadUnread &&
+          !isUnavailableItemText(previous?.text) &&
           checkedAt <= Date.parse(observedAt) &&
           Date.parse(observedAt) - checkedAt < 86_400_000)
       )
@@ -702,6 +731,18 @@
         messageIds.add(messageEntry.externalId);
         entries.push(messageEntry);
         messageCount++;
+        if (isUnavailableItemNotice(messageEntry.body)) {
+          if (
+            latestMessageAt === null &&
+            previous &&
+            Number.isFinite(Date.parse(previous.occurredAt ?? ''))
+          ) {
+            entry.body.text = previous.text;
+            entry.body.occurredAt = previous.occurredAt;
+            entry.sortAt = previous.occurredAt;
+          }
+          continue;
+        }
         if (
           messageEntry.body.text &&
           (latestMessageAt === null || messageEntry.sortAt > latestMessageAt)
@@ -831,7 +872,12 @@
         return readJson(path);
       },
       expectedId,
-      { ...state, nextPage: 1, mode: 'latest', versions: [] },
+      {
+        ...state,
+        nextPage: 1,
+        mode: 'latest',
+        versions: state.versions.map((version) => ({ ...version, detailCheckedAt: null })),
+      },
       now,
     );
     batch.nextPage = state.nextPage;
